@@ -1515,14 +1515,19 @@ ata_promise_mio_command(struct ata_device *atadev, u_int8_t command,
 
     ATA_OUTL(ctlr->r_res2, (atadev->channel->unit + 1) << 2, 0x00000001);
 
-    if (command != ATA_READ_DMA && command != ATA_WRITE_DMA)
+    switch (command) {
+    default:
 	return ata_generic_command(atadev, command, lba, count, feature);
 
-    if (command == ATA_READ_DMA)
+    case ATA_READ_DMA:
 	wordp[0] = htole32(0x04 | ((atadev->channel->unit+1)<<16) | (0x00<<24));
-    if (command == ATA_WRITE_DMA)
+	break;
+
+    case ATA_WRITE_DMA:
 	wordp[0] = htole32(0x00 | ((atadev->channel->unit+1)<<16) | (0x00<<24));
-    wordp[1] = atadev->channel->dma->mdmatab;
+	break;
+    }
+    wordp[1] = htole32(atadev->channel->dma->mdmatab);
     wordp[2] = 0;
     ata_promise_apkt((u_int8_t*)wordp, atadev, command, lba, count, feature);
 
