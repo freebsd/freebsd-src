@@ -34,14 +34,152 @@
  */
 
 #include <machine/asmacros.h>
-#include <machine/cputypes.h>
 #include <machine/pmap.h>
-#include <machine/specialreg.h>
 
 #include "assym.s"
 
 
 	.text
+
+/*
+ * bcopy family
+ * void bzero(void *buf, u_int len)
+ */
+
+/* done */
+ENTRY(bzero)
+	movq	%rsi,%rcx
+	xorq	%rax,%rax
+	shrq	$3,%rcx
+	cld
+	rep
+	stosq
+	movq	%rsi,%rcx
+	andq	$7,%rcx
+	rep
+	stosb
+	ret
+
+/* Address: %rdi */
+ENTRY(pagezero)
+	movq	$512, %rcx
+	cld
+
+	ALIGN_TEXT
+1:
+	xorq	%rax, %rax
+	repe
+	scasq
+	jnz	2f
+
+	ret
+
+	ALIGN_TEXT
+
+2:
+	incq	%rcx
+	subq	$8, %rdi
+
+	movq	%rcx, %rdx
+	cmpq	$16, %rcx
+
+	jge	3f
+
+	movq	%rdi, %r8
+	andq	$0x7f, %r8
+	shrq	$3, %r8
+	movq	$16, %rcx
+	subq	%r8, %rcx
+
+3:
+	subq	%rcx, %rdx
+	rep
+	stosq
+
+	movq	%rdx, %rcx
+	testq	%rdx, %rdx
+	jnz	1b
+
+	ret
+
+
+ENTRY(bcmp)
+	xorq	%rax,%rax
+
+	movq	%rdx,%rcx
+	shrq	$3,%rcx
+	cld					/* compare forwards */
+	repe
+	cmpsq
+	jne	1f
+
+	movq	%rdx,%rcx
+	andq	$7,%rcx
+	repe
+	cmpsb
+	je	2f
+1:
+	incq	%rax
+2:
+	ret
+
+/*
+ * bcopy(src, dst, cnt)
+ *       rdi, rsi, rdx
+ *  ws@tools.de     (Wolfgang Solfrank, TooLs GmbH) +49-228-985800
+ */
+ENTRY(bcopy)
+	xchgq	%rsi,%rdi
+	movq	%rdx,%rcx
+
+	movq	%rdi,%rax
+	subq	%rsi,%rax
+	cmpq	%rcx,%rax			/* overlapping && src < dst? */
+	jb	1f
+
+	shrq	$3,%rcx				/* copy by 64-bit words */
+	cld					/* nope, copy forwards */
+	rep
+	movsq
+	movq	%rdx,%rcx
+	andq	$7,%rcx				/* any bytes left? */
+	rep
+	movsb
+	ret
+
+	/* ALIGN_TEXT */
+1:
+	addq	%rcx,%rdi			/* copy backwards */
+	addq	%rcx,%rsi
+	decq	%rdi
+	decq	%rsi
+	andq	$7,%rcx				/* any fractional bytes? */
+	std
+	rep
+	movsb
+	movq	%rdx,%rcx			/* copy remainder by 32-bit words */
+	shrq	$3,%rcx
+	subq	$7,%rsi
+	subq	$7,%rdi
+	rep
+	movsq
+	cld
+	ret
+
+/*
+ * Note: memcpy does not support overlapping copies
+ */
+ENTRY(memcpy)
+	movq	%rdx,%rcx
+	shrq	$3,%rcx				/* copy by 64-bit words */
+	cld					/* copy forwards */
+	rep
+	movsq
+	movq	%rdx,%rcx
+	andq	$7,%rcx				/* any bytes left? */
+	rep
+	movsb
+	ret
 
 /* fillw(pat, base, cnt) */  
 /*       %rdi,%rsi, %rdx */
