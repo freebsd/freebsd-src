@@ -1113,16 +1113,12 @@ pmap_remove_entry(pmap_t pmap, vm_page_t m, vm_offset_t va, pv_entry_t pv)
 {
 	if (!pv) {
 		if (m->md.pv_list_count < pmap->pm_stats.resident_count) {
-			for (pv = TAILQ_FIRST(&m->md.pv_list);
-			     pv;
-			     pv = TAILQ_NEXT(pv, pv_list)) {
+			TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 				if (pmap == pv->pv_pmap && va == pv->pv_va) 
 					break;
 			}
 		} else {
-			for (pv = TAILQ_FIRST(&pmap->pm_pvlist);
-			     pv;
-			     pv = TAILQ_NEXT(pv, pv_plist)) {
+			TAILQ_FOREACH(pv, &pmap->pm_pvlist, pv_plist) {
 				if (va == pv->pv_va) 
 					break;
 			}
@@ -1505,9 +1501,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	}
 
 	if (pmap->pm_stats.resident_count < ((eva - sva) >> PAGE_SHIFT)) {
-		for (pv = TAILQ_FIRST(&pmap->pm_pvlist);
-		     pv;
-		     pv = TAILQ_NEXT(pv, pv_plist)) {
+		TAILQ_FOREACH(pv, &pmap->pm_pvlist, pv_plist) {
 			va = pv->pv_va;
 			if (va >= sva && va < eva) {
 				pte = pmap_find_vhpt(va);
@@ -2174,9 +2168,7 @@ pmap_page_exists(pmap_t pmap, vm_page_t m)
 	/*
 	 * Not found, check current mappings returning immediately if found.
 	 */
-	for (pv = TAILQ_FIRST(&m->md.pv_list);
-		pv;
-		pv = TAILQ_NEXT(pv, pv_list)) {
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		if (pv->pv_pmap == pmap) {
 			splx(s);
 			return TRUE;
@@ -2252,9 +2244,7 @@ pmap_page_protect(vm_page_t m, vm_prot_t prot)
 	if ((prot & VM_PROT_WRITE) != 0)
 		return;
 	if (prot & (VM_PROT_READ | VM_PROT_EXECUTE)) {
-		for (pv = TAILQ_FIRST(&m->md.pv_list);
-		     pv;
-		     pv = TAILQ_NEXT(pv, pv_list)) {
+		TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 			int newprot = pte_prot(pv->pv_pmap, prot);
 			pmap_t oldpmap = pmap_install(pv->pv_pmap);
 			struct ia64_lpte *pte;
@@ -2290,9 +2280,7 @@ pmap_ts_referenced(vm_page_t m)
 	if (!pmap_initialized || (m->flags & PG_FICTITIOUS))
 		return 0;
 
-	for (pv = TAILQ_FIRST(&m->md.pv_list);
-		pv;
-		pv = TAILQ_NEXT(pv, pv_list)) {
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		pmap_t oldpmap = pmap_install(pv->pv_pmap);
 		struct ia64_lpte *pte;
 		pte = pmap_find_vhpt(pv->pv_va);
@@ -2323,9 +2311,7 @@ pmap_is_referenced(vm_page_t m)
 	if (!pmap_initialized || (m->flags & PG_FICTITIOUS))
 		return FALSE;
 
-	for (pv = TAILQ_FIRST(&m->md.pv_list);
-		pv;
-		pv = TAILQ_NEXT(pv, pv_list)) {
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		pmap_t oldpmap = pmap_install(pv->pv_pmap);
 		struct ia64_lpte *pte = pmap_find_vhpt(pv->pv_va);
 		pmap_install(oldpmap);
@@ -2351,9 +2337,7 @@ pmap_is_modified(vm_page_t m)
 	if (!pmap_initialized || (m->flags & PG_FICTITIOUS))
 		return FALSE;
 
-	for (pv = TAILQ_FIRST(&m->md.pv_list);
-		pv;
-		pv = TAILQ_NEXT(pv, pv_list)) {
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		pmap_t oldpmap = pmap_install(pv->pv_pmap);
 		struct ia64_lpte *pte = pmap_find_vhpt(pv->pv_va);
 		pmap_install(oldpmap);
@@ -2375,9 +2359,7 @@ pmap_clear_modify(vm_page_t m)
 	if (!pmap_initialized || (m->flags & PG_FICTITIOUS))
 		return;
 
-	for (pv = TAILQ_FIRST(&m->md.pv_list);
-		pv;
-		pv = TAILQ_NEXT(pv, pv_list)) {
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		pmap_t oldpmap = pmap_install(pv->pv_pmap);
 		struct ia64_lpte *pte = pmap_find_vhpt(pv->pv_va);
 		if (pte->pte_d) {
@@ -2402,9 +2384,7 @@ pmap_clear_reference(vm_page_t m)
 	if (!pmap_initialized || (m->flags & PG_FICTITIOUS))
 		return;
 
-	for (pv = TAILQ_FIRST(&m->md.pv_list);
-		pv;
-		pv = TAILQ_NEXT(pv, pv_list)) {
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		pmap_t oldpmap = pmap_install(pv->pv_pmap);
 		struct ia64_lpte *pte = pmap_find_vhpt(pv->pv_va);
 		if (pte->pte_a) {
