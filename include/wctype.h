@@ -34,7 +34,7 @@
 #include <sys/cdefs.h>
 #include <sys/_types.h>
 
-#include <ctype.h>
+#include <_ctype.h>
 
 #ifndef _WCTRANS_T
 typedef	int	wctrans_t;
