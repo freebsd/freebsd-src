@@ -48,13 +48,11 @@
  * UM_ZERO(addr, len)	Zeros len bytes of data from addr.
  *
  */
-#if (defined(BSD) && (BSD >= 199103))
 #define	UM_ALLOC(size)		malloc((size_t)(size))
 #define	UM_FREE(addr)		free((void *)(addr))
 #define	UM_COPY(from, to, len)	bcopy((void *)(from), (void *)(to),\
 						(size_t)(len))
 #define	UM_ZERO(addr, len)	bzero((void *)(addr), (size_t)(len))
-#endif
 
 
 #ifdef _KERNEL
@@ -141,7 +139,6 @@
  * KB_PLENADJ(bfr, n)	Adjust total packet length by n bytes.
  *
  */
-#if defined(BSD)
 #include <sys/mbuf.h>
 typedef struct mbuf	KBuffer;
 
@@ -152,8 +149,6 @@ typedef struct mbuf	KBuffer;
 #define	KB_T_DATA	MT_DATA
 
 #define	KB_COPYALL	M_COPYALL
-
-#if BSD >= 199103
 
 #define	KB_NEXT(bfr)		(bfr)->m_next
 #define	KB_LEN(bfr)		(bfr)->m_len
@@ -291,159 +286,6 @@ typedef struct mbuf	KBuffer;
 }
 
 
-#else	/* ! BSD >= 199103 */
-
-
-#define	KB_NEXT(bfr)		(bfr)->m_next
-#define	KB_LEN(bfr)		(bfr)->m_len
-#define	KB_QNEXT(bfr)		(bfr)->m_act
-#define KB_ALLOC(bfr, size, flags, type) {		\
-	if ((size) <= MLEN) {				\
-		MGET((bfr), (flags), (type));		\
-	} else						\
-		(bfr) = NULL;				\
-}
-#define KB_ALLOCPKT(bfr, size, flags, type) {		\
-	if ((size) <= MLEN) {				\
-		MGET((bfr), (flags), (type));		\
-	} else						\
-		(bfr) = NULL;				\
-}
-#define KB_ALLOCEXT(bfr, size, flags, type) {		\
-	if ((size) <= MCLBYTES)	{			\
-		MGET((bfr), (flags), (type));		\
-		if ((bfr) != NULL) {			\
-			MCLGET(bfr);			\
-			if ((bfr)->m_len != MCLBYTES) {	\
-				m_freem((bfr));		\
-				(bfr) = NULL;		\
-			}				\
-		}					\
-	} else						\
-		(bfr) = NULL;				\
-}
-#define KB_FREEONE(bfr, nxt) {				\
-	(nxt) = m_free(bfr);				\
-}
-#define KB_FREEALL(bfr) {				\
-	m_freem(bfr);					\
-}
-#define	KB_COPY(bfr, off, len, new, flags) {		\
-	(new) = m_copy((bfr), (off), (len));		\
-}
-#define	KB_COPYDATA(bfr, off, len, datap) 		\
-	m_cpytoc((bfr), (off), (len), (datap))
-#define	KB_PULLUP(bfr, n, new) {			\
-	(new) = m_pullup((bfr), (n));			\
-}
-#define	KB_LINKHEAD(new, head) {			\
-	(new)->m_next = (head);				\
-}
-#define	KB_LINK(new, prev) {				\
-	(new)->m_next = (prev)->m_next;			\
-	(prev)->m_next = (new);				\
-}
-#define	KB_UNLINKHEAD(head, next) {			\
-	(next) = m_free((head));			\
-	(head) = NULL;					\
-}
-#define	KB_UNLINK(old, prev, next) {			\
-	(next) = m_free((old));				\
-	(old) = NULL;					\
-	(prev)->m_next = (next);			\
-}
-#define	KB_ISPKT(bfr)		(0)
-#define	KB_ISEXT(bfr)		M_HASCL(bfr)
-#define	KB_BFRSTART(bfr, x, t) {			\
-	if (M_HASCL(bfr)) {				\
-		if ((bfr)->m_cltype == MCL_STATIC)	\
-			(x) = (t)(mtod((bfr), int) & ~(MCLBYTES - 1));	\
-		else					\
-			(x) = (t)NULL;			\
-	} else						\
-		(x) = (t)((bfr)->m_dat);		\
-}
-#define	KB_BFREND(bfr, x, t) {				\
-	if (M_HASCL(bfr)) {				\
-		if ((bfr)->m_cltype == MCL_STATIC)	\
-			(x) = (t)((mtod((bfr), int) & ~(MCLBYTES - 1))	\
-				+ MCLBYTES);		\
-		else					\
-			(x) = (t)NULL;			\
-	} else						\
-		(x) = (t)((bfr)->m_dat + MLEN);		\
-}
-#define	KB_BFRLEN(bfr)					\
-	(M_HASCL(bfr) ? (((bfr)->m_cltype == MCL_STATIC) ? MCLBYTES : 0) : MLEN)
-#define	KB_DATASTART(bfr, x, t) {			\
-	(x) = mtod((bfr), t);				\
-}
-#define	KB_DATAEND(bfr, x, t) {				\
-	(x) = (t)(mtod((bfr), caddr_t) + (bfr)->m_len);	\
-}
-#define	KB_HEADSET(bfr, n) {				\
-	if (M_HASCL(bfr)) {				\
-		/* Assume cluster buffer is empty XXX */\
-		(bfr)->m_off += (n);			\
-	} else						\
-		(bfr)->m_off = MMINOFF + (n);		\
-}
-#define	KB_HEADMOVE(bfr, n) {				\
-	(bfr)->m_off += (n);				\
-}
-#define	KB_HEADADJ(bfr, n) {				\
-	(bfr)->m_len += (n);				\
-	(bfr)->m_off -= (n);				\
-}
-#define	KB_TAILADJ(bfr, n) {				\
-	(bfr)->m_len += (n);				\
-}
-#define	KB_TAILALIGN(bfr, n) {				\
-	(bfr)->m_len = (n);				\
-	if (M_HASCL(bfr)) {				\
-		if ((bfr)->m_cltype == MCL_STATIC)	\
-			(bfr)->m_off = (int)(((mtod((bfr), int)		\
-				& ~(MCLBYTES - 1)) + MCLBYTES - (n))	\
-				& ~(sizeof(long) - 1)) - (int)(bfr);	\
-		/* Out of luck for loaned buffers */	\
-	} else						\
-		(bfr)->m_off = (MMAXOFF - (n))	& ~(sizeof(long) - 1);	\
-}
-#define	KB_HEADROOM(bfr, n) {				\
-	if (M_HASCL(bfr)) {				\
-		if ((bfr)->m_cltype == MCL_STATIC)	\
-			(n) = mtod((bfr), int) & (MCLBYTES - 1);	\
-		else					\
-			(n) = 0;			\
-	} else						\
-		(n) = (bfr)->m_off - MMINOFF;		\
-}
-#define	KB_TAILROOM(bfr, n) {				\
-	if (M_HASCL(bfr)) {				\
-		if ((bfr)->m_cltype == MCL_STATIC)	\
-			(n) = MCLBYTES - ((mtod((bfr), int) + (bfr)->m_len) \
-				& (MCLBYTES - 1));	\
-		else					\
-			(n) = 0;			\
-	} else						\
-		(n) = MMAXOFF - ((bfr)->m_off + (bfr)->m_len);	\
-}
-#define	KB_PLENGET(bfr, n) {				\
-	struct mbuf	*zz;				\
-	for ((n) = 0, zz = (bfr); zz; zz = zz->m_next)	\
-		(n) += zz->m_len;			\
-}
-#define	KB_PLENSET(bfr, n) {				\
-}
-#define	KB_PLENADJ(bfr, n) {				\
-}
-
-
-#endif	/* ! BSD >= 199103 */
-
-#endif	/* defined(BSD) */
-
-
 /*
  * Kernel time
  *
@@ -452,16 +294,8 @@ typedef struct mbuf	KBuffer;
  * KT_TIME(t)		Sets t to the current time.
  *
  */
-#if (defined(BSD) && (BSD >= 199306))
 typedef void	KTimeout_ret;
-#else
-typedef int	KTimeout_ret;
-#endif
-#if (defined(BSD) && (BSD >= 199103))
 #define	KT_TIME(t)	microtime(&t)
-#else
-#define	KT_TIME(t)	((t) = time)
-#endif
 
 #endif	/* _KERNEL */
 
@@ -484,18 +318,6 @@ typedef int	KTimeout_ret;
 #endif
 #ifndef MIN
 #define	MIN(a,b)	min((a),(b))
-#endif
-
-#if (!(defined(BSD) && (BSD >= 199306)))
-#ifndef __BIT_TYPES_DEFINED__
-#define	__BIT_TYPES_DEFINED__
-typedef	char		int8_t;
-typedef	unsigned char	u_int8_t;
-typedef	short		int16_t;
-typedef	unsigned short	u_int16_t;
-typedef	int		int32_t;
-typedef	unsigned int	u_int32_t;
-#endif
 #endif
 
 #endif	/* _NETATM_PORT_H */

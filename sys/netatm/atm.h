@@ -235,12 +235,8 @@ struct t_atm_sap {
  * ATM socket address
  */
 struct sockaddr_atm {			/* XNS_EXT */
-#if (defined(BSD) && (BSD >= 199103))
 	u_char		satm_len;	/* Length of socket structure */
 	u_char		satm_family;	/* Address family */
-#else
-	u_short		satm_family;	/* Address family */
-#endif
 	struct t_atm_sap	satm_addr;	/* Protocol address */
 };
 

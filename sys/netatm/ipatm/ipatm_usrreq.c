@@ -230,11 +230,7 @@ ipatm_ioctl(code, data, arg1)
 		}
 
 		if ((ip.s_addr == INADDR_ANY) ||
-#if (defined(BSD) && (BSD >= 199306))   
 		    in_broadcast(ip, &inp->inf_nif->nif_if) ||
-#else
-		    in_broadcast(ip) ||
-#endif
 		    IN_MULTICAST(ntohl(ip.s_addr))) {
 			err = EADDRNOTAVAIL;
 			break;
@@ -293,11 +289,7 @@ ipatm_ioctl(code, data, arg1)
 		}
 
 		if ((ip.s_addr == INADDR_ANY) ||
-#if (defined(BSD) && (BSD >= 199306))   
 		    in_broadcast(ip, &inp->inf_nif->nif_if) ||
-#else
-		    in_broadcast(ip) ||
-#endif
 		    IN_MULTICAST(ntohl(ip.s_addr))) {
 			err = EADDRNOTAVAIL;
 			break;

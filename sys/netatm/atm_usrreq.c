@@ -71,7 +71,6 @@ static int	atm_dgram_info(caddr_t);
 /*
  * New-style socket request routines
  */
-#if (defined(__FreeBSD__) && (BSD >= 199506))
 struct pr_usrreqs	atm_dgram_usrreqs = {
 	atm_proto_notsupp1,		/* pru_abort */
 	pru_accept_notsupp,		/* pru_accept */
@@ -91,7 +90,6 @@ struct pr_usrreqs	atm_dgram_usrreqs = {
 	atm_proto_notsupp1,		/* pru_shutdown */
 	atm_proto_notsupp3,		/* pru_sockaddr */
 };
-#endif
 
 
 /*

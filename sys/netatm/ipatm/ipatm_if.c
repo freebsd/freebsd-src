@@ -175,11 +175,7 @@ ipatm_nifstat(cmd, nip, arg)
 		/*
 		 * We only care about IP addresses
 		 */
-#if (defined(BSD) && (BSD >= 199103))
 		if (((struct ifaddr *)arg)->ifa_addr->sa_family != AF_INET)
-#else
-		if (((struct ifaddr *)arg)->ifa_addr.sa_family != AF_INET)
-#endif
 			break;
 
 		/*
