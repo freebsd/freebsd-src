@@ -66,6 +66,7 @@ static const char rcsid[] =
 
 #include "truss.h"
 #include "syscall.h"
+#include "extern.h"
 
 static int fd = -1;
 static int cpid = -1;
@@ -86,7 +87,7 @@ static int nsyscalls = sizeof(syscallnames) / sizeof(syscallnames[0]);
  */
 static struct freebsd_syscall {
 	struct syscall *sc;
-	char *name;
+	const char *name;
 	int number;
 	unsigned long *args;
 	int nargs;	/* number of arguments -- *not* number of words! */
@@ -95,7 +96,7 @@ static struct freebsd_syscall {
 
 /* Clear up and free parts of the fsc structure. */
 static __inline void
-clear_fsc() {
+clear_fsc(void) {
   if (fsc.args) {
     free(fsc.args);
   }
@@ -120,7 +121,7 @@ void
 sparc64_syscall_entry(struct trussinfo *trussinfo, int nargs) {
   char buf[32];
   struct reg regs;
-  int syscall;
+  int syscall_num;
   int i;
   struct syscall *sc;
   int indir = 0;	/* indirect system call */
@@ -129,7 +130,7 @@ sparc64_syscall_entry(struct trussinfo *trussinfo, int nargs) {
     sprintf(buf, "/proc/%d/regs", trussinfo->pid);
     fd = open(buf, O_RDWR);
     if (fd == -1) {
-      fprintf(trussinfo->outfile, "-- CANNOT READ REGISTERS --\n");
+      fprintf(trussinfo->outfile, "-- CANNOT OPEN REGISTERS --\n");
       return;
     }
     cpid = trussinfo->pid;
@@ -137,24 +138,27 @@ sparc64_syscall_entry(struct trussinfo *trussinfo, int nargs) {
 
   clear_fsc();
   lseek(fd, 0L, 0);
-  i = read(fd, &regs, sizeof(regs));
+  if (read(fd, &regs, sizeof(regs)) != sizeof(regs)) {
+    fprintf(trussinfo->outfile, "-- CANNOT READ REGISTERS --\n");
+    return;
+  }
 
   /*
    * FreeBSD has two special kinds of system call redirctions --
    * SYS_syscall, and SYS___syscall.  The former is the old syscall()
    * routine, basicly; the latter is for quad-aligned arguments.
    */
-  syscall = regs.r_global[1];
-  if (syscall == SYS_syscall || syscall == SYS___syscall) {
+  syscall_num = regs.r_global[1];
+  if (syscall_num == SYS_syscall || syscall_num == SYS___syscall) {
     indir = 1;
-    syscall = regs.r_out[0];
+    syscall_num = regs.r_out[0];
   }
 
-  fsc.number = syscall;
+  fsc.number = syscall_num;
   fsc.name =
-    (syscall < 0 || syscall > nsyscalls) ? NULL : syscallnames[syscall];
+    (syscall_num < 0 || syscall_num > nsyscalls) ? NULL : syscallnames[syscall_num];
   if (!fsc.name) {
-    fprintf(trussinfo->outfile, "-- UNKNOWN SYSCALL %d --\n", syscall);
+    fprintf(trussinfo->outfile, "-- UNKNOWN SYSCALL %d --\n", syscall_num);
   }
 
   if (fsc.name && (trussinfo->flags & FOLLOWFORKS)
@@ -290,7 +294,7 @@ sparc64_syscall_entry(struct trussinfo *trussinfo, int nargs) {
  */
 
 int
-sparc64_syscall_exit(struct trussinfo *trussinfo, int syscall) {
+sparc64_syscall_exit(struct trussinfo *trussinfo, int syscall_num __unused) {
   char buf[32];
   struct reg regs;
   int retval;
@@ -302,8 +306,8 @@ sparc64_syscall_exit(struct trussinfo *trussinfo, int syscall) {
     sprintf(buf, "/proc/%d/regs", trussinfo->pid);
     fd = open(buf, O_RDONLY);
     if (fd == -1) {
-      fprintf(trussinfo->outfile, "-- CANNOT READ REGISTERS --\n");
-      return;
+      fprintf(trussinfo->outfile, "-- CANNOT OPEN REGISTERS --\n");
+      return (-1);
     }
     cpid = trussinfo->pid;
   }
@@ -311,7 +315,7 @@ sparc64_syscall_exit(struct trussinfo *trussinfo, int syscall) {
   lseek(fd, 0L, 0);
   if (read(fd, &regs, sizeof(regs)) != sizeof(regs)) {
     fprintf(trussinfo->outfile, "\n");
-    return;
+    return (-1);
   }
   retval = regs.r_out[0];
   errorp = !!(regs.r_tstate & TSTATE_XCC_C);
