@@ -1177,7 +1177,7 @@ devfs_fixup(struct thread *td)
 	vput(dvp);
 
 	/* Unlink the no longer needed /dev/dev -> / symlink */
-	 kern_unlink(td, "/dev/dev", UIO_SYSSPACE);
+	kern_unlink(td, "/dev/dev", UIO_SYSSPACE);
 }
 
 /*
