@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)comreg.h	7.2 (Berkeley) 5/9/91
- *	$Id: sioreg.h,v 1.8 1997/04/05 13:15:50 bde Exp $
+ *	$Id: sioreg.h,v 1.9 1997/06/04 04:52:40 pst Exp $
  */
 
 
@@ -107,4 +107,9 @@
 #define	MSR_DCTS	0x01
 
 /* speed to initialize to during chip tests */
-#define	SIO_TEST_SPEED	9600
+#define SIO_TEST_SPEED	9600
+
+/* default serial console speed if not set with sysctl or probed from boot */
+#ifndef CONSPEED
+#define CONSPEED 9600
+#endif
