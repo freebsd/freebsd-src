@@ -298,7 +298,6 @@ int	 vasprintf __P((char **, const char *, _BSD_VA_LIST_));
 int	 vsnprintf __P((char *, size_t, const char *, _BSD_VA_LIST_));
 int	 vscanf __P((const char *, _BSD_VA_LIST_));
 int	 vsscanf __P((const char *, const char *, _BSD_VA_LIST_));
-FILE	*zopen __P((const char *, const char *, int));
 __END_DECLS
 
 /*
