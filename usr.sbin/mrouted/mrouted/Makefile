@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.3 1995/07/08 22:36:06 ats Exp $
 
 PROG=	mrouted
 
@@ -14,7 +14,8 @@ LDDESTDIR+=	-L$S/common
 DPADD+=		$S/common/libmrouted.a
 .endif
 
-SRCS=	config.c main.c route.c vif.c prune.c callout.c
+SRCS=	config.c cfparse.y main.c route.c vif.c prune.c callout.c rsrr.c
+CLEANFILES+= y.tab.h
 MAN8=	${.CURDIR}/../mrouted.8
 
 .include <bsd.prog.mk>
