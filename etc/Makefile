@@ -72,8 +72,31 @@ INST2_CPIO+=	usr/bin/elvis usr/bin/ex usr/bin/vi usr/bin/view
 INST2_CPIO+=	usr/sbin/update usr/sbin/chown
 INST2_CPIO+=	var
 
+CRYPT_LIB=	lib/libcrypt
+CRYPT_FILES=	bin/ed bin/rcp
+CRYPT_FILES+=	libexec/ftpd libexec/makekey libexec/rexecd libexec/rlogind
+CRYPT_FILES+=	libexec/rshd libexec/telnetd libexec/uucpd
+CRYPT_FILES+=	usr.bin/bdes usr.bin/lock usr.bin/login usr.bin/passwd
+CRYPT_FILES+=	usr.bin/rlogin usr.bin/rsh usr.bin/su usr.bin/telnet
+
 all clean cleandir depend etc install lint:
 
+crypt:
+	rm -f ${LIBCRYPT};
+	(cd ${.CURDIR}/../${CRYPT_LIB}; \
+		make cleandir obj depend all install)
+	for i in ${CRYPT_FILES}; do \
+		cd ${.CURDIR}/../$$i; \
+		make cleandir obj depend all; \
+	done
+	
+non-crypt:
+	rm -f ${LIBCRYPT}
+	for i in ${CRYPT_FILES}; do \
+		cd ${.CURDIR}/../$$i; \
+		make cleandir obj depend all; \
+	done
+	
 distribution: distrib-dirs
 	install -c -o ${BINOWN} -g ${BINGRP} -m 644 ${BIN1} ${DESTDIR}/etc
 	install -c -o ${BINOWN} -g ${BINGRP} -m 666 ${BIN2} ${DESTDIR}/etc
@@ -92,7 +115,9 @@ distribution: distrib-dirs
 	install -c -o root -g wheel -m 644 passwd ${DESTDIR}/etc
 	install -c -o ${BINOWN} -g ${BINGRP} -m 555 \
 	     MAKEDEV.local etc.${MACHINE}/MAKEDEV ${DESTDIR}/dev
+.if defined(CDROMDIST)
 	(cd ${DESTDIR}/dev; sh MAKEDEV all)
+.endif
 	(cd root; \
 		install -c -o root -g wheel -m 644 dot.cshrc \
 		    ${DESTDIR}/root/.cshrc; \
@@ -127,7 +152,13 @@ distribution: distrib-dirs
 	    ${DESTDIR}/var/run/utmp
 	(cd etc.${MACHINE}; install -c -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    fstab.* ${DESTDIR}/etc)
+.if defined(NOCRYPT)
+	make non-crypt
+	(cd ..; NOCRYPT=nocrypt; export NOCRYPT; make install)
+.else
+	make crypt
 	(cd ..; make install)
+.endif
 	(cd ../usr.sbin/sendmail/src; \
 	    make install; \
 	 cd ../cf/cf; \
