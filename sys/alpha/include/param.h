@@ -133,13 +133,6 @@
 #define	MCLBYTES	(1 << MCLSHIFT)	/* size of a m_buf cluster */
 #define	MCLOFSET	(MCLBYTES - 1)
 
-/*
- * Size of kernel malloc arena in CLBYTES-sized logical pages
- */ 
-#ifndef NKMEMCLUSTERS
-#define	NKMEMCLUSTERS	(4096*1024/CLBYTES)	/* XXX? */
-#endif
-
 /* pages ("clicks") to disk blocks */
 #define	ctod(x)		((x) << (PAGE_SHIFT - DEV_BSHIFT))
 #define	dtoc(x)		((x) >> (PAGE_SHIFT - DEV_BSHIFT))
