@@ -171,7 +171,6 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	new_thread->uniqueid = next_uniqueid++;
 
 	THREAD_LIST_LOCK;
-	_thread_critical_enter(new_thread);
 
 	/*
 	 * Check if the garbage collector thread
@@ -181,8 +180,6 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 
 	/* Add the thread to the linked list of all threads: */
 	TAILQ_INSERT_HEAD(&_thread_list, new_thread, tle);
-
-	THREAD_LIST_UNLOCK;
 
 	/*
 	 * Create the thread.
@@ -200,10 +197,10 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 		PANIC("thr_create");
 	}
 
+	THREAD_LIST_UNLOCK;
+
 	/* Return a pointer to the thread structure: */
 	(*thread) = new_thread;
-
-	_thread_critical_exit(new_thread);
 
 	/*
 	 * Start a garbage collector thread
