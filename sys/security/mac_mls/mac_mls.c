@@ -84,6 +84,7 @@ SYSCTL_NODE(_security_mac, OID_AUTO, mls, CTLFLAG_RW, 0,
 static int	mac_mls_enabled = 0;
 SYSCTL_INT(_security_mac_mls, OID_AUTO, enabled, CTLFLAG_RW,
     &mac_mls_enabled, 0, "Enforce MAC/MLS policy");
+TUNABLE_INT("security.mac.mls.enabled", &mac_mls_enabled);
 
 static int	destroyed_not_inited;
 SYSCTL_INT(_security_mac_mls, OID_AUTO, destroyed_not_inited, CTLFLAG_RD,
