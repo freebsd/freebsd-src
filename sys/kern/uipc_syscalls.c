@@ -309,15 +309,15 @@ accept1(td, uap, compat)
 	KASSERT(!(so->so_qstate & SQ_INCOMP), ("accept1: so SQ_INCOMP"));
 	KASSERT(so->so_qstate & SQ_COMP, ("accept1: so not SQ_COMP"));
 
-        /*
-         * Before changing the flags on the socket, we have to bump the
+	/*
+	 * Before changing the flags on the socket, we have to bump the
 	 * reference count.  Otherwise, if the protocol calls sofree(),
-         * the socket will be released due to a zero refcount.
-         */
+	 * the socket will be released due to a zero refcount.
+	 */
 	SOCK_LOCK(so);
 	soref(so);			/* file descriptor reference */
 	SOCK_UNLOCK(so);
-	
+
 	TAILQ_REMOVE(&head->so_comp, so, so_list);
 	head->so_qlen--;
 	so->so_qstate &= ~SQ_COMP;
