@@ -1,4 +1,4 @@
-/*	$NetBSD: usbhid.h,v 1.4 1999/04/22 01:57:01 augustss Exp $	*/
+/*	$NetBSD: usbhid.h,v 1.9 2000/09/03 19:09:14 augustss Exp $	*/
 /*	$FreeBSD$ */
 
 /*
@@ -54,6 +54,10 @@
 #define UR_GET_PROTOCOL		0x03
 #define UR_SET_PROTOCOL		0x0b
 
+#if defined(__FreeBSD__)
+#define UPACKED __attribute__ ((packed))
+#endif
+
 typedef struct usb_hid_descriptor {
 	uByte		bLength;
 	uByte		bDescriptorType;
@@ -64,15 +68,37 @@ typedef struct usb_hid_descriptor {
 		uByte		bDescriptorType;
 		uWord		wDescriptorLength;
 	} descrs[1];
-} usb_hid_descriptor_t;
+} UPACKED usb_hid_descriptor_t;
 #define USB_HID_DESCRIPTOR_SIZE(n) (9+(n)*3)
 
 /* Usage pages */
+#define HUP_UNDEFINED		0x0000
 #define HUP_GENERIC_DESKTOP	0x0001
 #define HUP_SIMULATION		0x0002
+#define HUP_VR_CONTROLS		0x0003
+#define HUP_SPORTS_CONTROLS	0x0004
+#define HUP_GAMING_CONTROLS	0x0005
+#define HUP_KEYBOARD		0x0007
 #define HUP_LEDS		0x0008
 #define HUP_BUTTON		0x0009
+#define HUP_ORDINALS		0x000a
+#define HUP_TELEPHONY		0x000b
+#define HUP_CONSUMER		0x000c
 #define HUP_DIGITIZERS		0x000d
+#define HUP_PHYSICAL_IFACE	0x000e
+#define HUP_UNICODE		0x0010
+#define HUP_ALPHANUM_DISPLAY	0x0014
+#define HUP_MONITOR		0x0080
+#define HUP_MONITOR_ENUM_VAL	0x0081
+#define HUP_VESA_VC		0x0082
+#define HUP_VESA_CMD		0x0083
+#define HUP_POWER		0x0084
+#define HUP_BATTERY_SYSTEM	0x0085
+#define HUP_BARCODE_SCANNER	0x008b
+#define HUP_SCALE		0x008c
+#define HUP_CAMERA_CONTROL	0x0090
+#define HUP_ARCADE		0x0091
+#define HUP_MICROSOFT		0xff00
 
 /* Usages, generic desktop */
 #define HUG_POINTER		0x0001
@@ -117,6 +143,7 @@ typedef struct usb_hid_descriptor {
 #define HUG_SYSTEM_MENU_DOWN	0x008d
 
 /* Usages Digitizers */
+#define HUD_UNDEFINED		0x0000
 #define HUD_TIP_PRESSURE	0x0030
 #define HUD_BARREL_PRESSURE	0x0031
 #define HUD_IN_RANGE		0x0032
@@ -124,6 +151,11 @@ typedef struct usb_hid_descriptor {
 #define HUD_UNTOUCH		0x0034
 #define HUD_TAP			0x0035
 #define HUD_QUALITY		0x0036
+#define HUD_DATA_VALID		0x0037
+#define HUD_TRANSDUCER_INDEX	0x0038
+#define HUD_TABLET_FKEYS	0x0039
+#define HUD_PROGRAM_CHANGE_KEYS	0x003a
+#define HUD_BATTERY_STRENGTH	0x003b
 #define HUD_INVERT		0x003c
 #define HUD_X_TILT		0x003d
 #define HUD_Y_TILT		0x003e
