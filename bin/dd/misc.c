@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: misc.c,v 1.9 1997/10/09 10:50:54 eivind Exp $
+ *	$Id: misc.c,v 1.10 1997/12/15 20:37:43 eivind Exp $
  */
 
 #ifndef lint
@@ -82,7 +82,7 @@ summary()
 		(void)write(STDERR_FILENO, buf, strlen(buf));
 	}
 	(void)snprintf(buf, sizeof(buf),
-	    "%u bytes transferred in %.6f secs (%.0f bytes/sec)\n",
+	    "%qu bytes transferred in %.6f secs (%.0f bytes/sec)\n",
 	    st.bytes, secs, st.bytes / secs);
 	(void)write(STDERR_FILENO, buf, strlen(buf));
 }
