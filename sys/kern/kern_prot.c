@@ -409,7 +409,7 @@ setpgid(struct thread *td, register struct setpgid_args *uap)
 			error = ESRCH;
 			goto done;
 		}
-		if ((error = p_cansee(curthread, targp))) {
+		if ((error = p_cansee(td, targp))) {
 			PROC_UNLOCK(targp);
 			goto done;
 		}
