@@ -14,6 +14,9 @@ setup: phantglobs.o setup.o monsters.asc ${LIBM}
 	${CC} phantglobs.o setup.o -o ${.TARGET} -lm
 
 beforeinstall: 
+	@if [ ! -d /var/games/phantasia ]; then \
+		mkdir -p /var/games/phantasia; \
+	fi
 	./setup -m ${.CURDIR}/monsters.asc
 	chown games.bin /var/games/phantasia/*
 
