@@ -39,7 +39,7 @@
 #include <sys/types.h>
 #include <crypto/blowfish/blowfish.h>
 
-#include "yarrow.h"
+#include "dev/randomdev/yarrow.h"
 
 void generator_gate(void);
 void reseed(void);
