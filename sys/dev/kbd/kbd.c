@@ -136,6 +136,8 @@ kbd_init_struct(keyboard_t *kbd, char *name, int type, int unit, int config,
 	kbd->kb_fkeytab_size = 0;
 	kbd->kb_delay1 = KB_DELAY1;	/* these values are advisory only */
 	kbd->kb_delay2 = KB_DELAY2;
+	kbd->kb_prev_key = 0;
+	kbd->kb_count = 0L;
 }
 
 void
@@ -673,14 +675,7 @@ genkbd_event(keyboard_t *kbd, int event, void *arg)
 		/* process special keys; most of them are just ignored... */
 		if (c & SPCLKEY) {
 			switch (KEYCHAR(c)) {
-			/* locking keys */
-			case NLK:  case CLK:  case SLK:  case ALK:
-			/* shift keys */
-			case LSH:  case RSH:  case LCTR: case RCTR:
-			case LALT: case RALT: case ASH:  case META:
-			/* other special keys */
-			case NOP:  case SPSC: case RBT:  case SUSP:
-			case STBY: case DBG:  case NEXT:
+			default:
 				/* ignore them... */
 				continue;
 			case BTAB:	/* a backtab: ESC [ Z */
@@ -967,10 +962,11 @@ genkbd_keyaction(keyboard_t *kbd, int keycode, int up, int *shiftstate,
 	int f;
 	int i;
 
+	i = keycode;
 	f = state & (AGRS | ALKED);
 	if ((f == AGRS1) || (f == AGRS2) || (f == ALKED))
-		keycode += ALTGR_OFFSET;
-	key = &kbd->kb_keymap->key[keycode];
+		i += ALTGR_OFFSET;
+	key = &kbd->kb_keymap->key[i];
 	i = ((state & SHIFTS) ? 1 : 0)
 	    | ((state & CTLS) ? 2 : 0)
 	    | ((state & ALTS) ? 4 : 0);
@@ -983,21 +979,63 @@ genkbd_keyaction(keyboard_t *kbd, int keycode, int up, int *shiftstate,
 		if (key->spcl & (0x80 >> i)) {
 			/* special keys */
 			switch (action) {
+			case LSHA:
+				if (kbd->kb_prev_key == keycode) {
+					set_lockkey_state(kbd, state, ALK);
+					state &= ~ALKDOWN;
+				}
+				action = LSH;
+				/* FALL THROUGH */
 			case LSH:
 				state &= ~SHIFTS1;
 				break;
+			case RSHA:
+				if (kbd->kb_prev_key == keycode) {
+					set_lockkey_state(kbd, state, ALK);
+					state &= ~ALKDOWN;
+				}
+				action = RSH;
+				/* FALL THROUGH */
 			case RSH:
 				state &= ~SHIFTS2;
 				break;
+			case LCTRA:
+				if (kbd->kb_prev_key == keycode) {
+					set_lockkey_state(kbd, state, ALK);
+					state &= ~ALKDOWN;
+				}
+				action = LCTR;
+				/* FALL THROUGH */
 			case LCTR:
 				state &= ~CTLS1;
 				break;
+			case RCTRA:
+				if (kbd->kb_prev_key == keycode) {
+					set_lockkey_state(kbd, state, ALK);
+					state &= ~ALKDOWN;
+				}
+				action = RCTR;
+				/* FALL THROUGH */
 			case RCTR:
 				state &= ~CTLS2;
 				break;
+			case LALTA:
+				if (kbd->kb_prev_key == keycode) {
+					set_lockkey_state(kbd, state, ALK);
+					state &= ~ALKDOWN;
+				}
+				action = LALT;
+				/* FALL THROUGH */
 			case LALT:
 				state &= ~ALTS1;
 				break;
+			case RALTA:
+				if (kbd->kb_prev_key == keycode) {
+					set_lockkey_state(kbd, state, ALK);
+					state &= ~ALKDOWN;
+				}
+				action = RALT;
+				/* FALL THROUGH */
 			case RALT:
 				state &= ~ALTS2;
 				break;
@@ -1058,28 +1096,46 @@ genkbd_keyaction(keyboard_t *kbd, int keycode, int up, int *shiftstate,
 				break;
 			/* NON-LOCKING KEYS */
 			case SPSC: case RBT:  case SUSP: case STBY:
-			case DBG:  case NEXT:
+			case DBG:  case NEXT: case PREV: case PNC:
 				*accents = 0;
 				break;
 			case BTAB:
 				*accents = 0;
 				action |= BKEY;
 				break;
+			case LSHA:
+				action = LSH;
+				/* FALL THROUGH */
 			case LSH:
 				state |= SHIFTS1;
 				break;
+			case RSHA:
+				action = RSH;
+				/* FALL THROUGH */
 			case RSH:
 				state |= SHIFTS2;
 				break;
+			case LCTRA:
+				action = LCTR;
+				/* FALL THROUGH */
 			case LCTR:
 				state |= CTLS1;
 				break;
+			case RCTRA:
+				action = RCTR;
+				/* FALL THROUGH */
 			case RCTR:
 				state |= CTLS2;
 				break;
+			case LALTA:
+				action = LALT;
+				/* FALL THROUGH */
 			case LALT:
 				state |= ALTS1;
 				break;
+			case RALTA:
+				action = RALT;
+				/* FALL THROUGH */
 			case RALT:
 				state |= ALTS2;
 				break;
@@ -1114,6 +1170,7 @@ genkbd_keyaction(keyboard_t *kbd, int keycode, int up, int *shiftstate,
 				if (action >= F_FN && action <= L_FN)
 					action |= FKEY;
 				/* XXX: return fkey string for the FKEY? */
+				break;
 			}
 			*shiftstate = state;
 			return (SPCLKEY | action);
