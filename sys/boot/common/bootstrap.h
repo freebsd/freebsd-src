@@ -243,6 +243,8 @@ struct elf_file;
 typedef Elf_Addr (symaddr_fn)(struct elf_file *ef, Elf_Word symidx);
 
 int	__elfN(loadfile)(char *filename, u_int64_t dest, struct preloaded_file **result);
+int	__elfN(obj_loadfile)(char *filename, u_int64_t dest,
+	    struct preloaded_file **result);
 int	__elfN(reloc)(struct elf_file *ef, symaddr_fn *symaddr,
 	    const void *reldata, int reltype, Elf_Addr relbase,
 	    Elf_Addr dataaddr, void *data, size_t len);
