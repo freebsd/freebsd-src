@@ -229,7 +229,7 @@ void Job_Init(int, int);
 Boolean Job_Full(void);
 Boolean Job_Empty(void);
 ReturnStatus Job_ParseShell(char *);
-int Job_End(void);
+int Job_Finish(void);
 void Job_Wait(void);
 void Job_AbortAll(void);
 void JobFlagForMigration(int);
