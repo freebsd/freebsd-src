@@ -7,8 +7,6 @@ INFO = history
 INFOSECTION= "Programming & development tools."
 INFOENTRY_history= "* History: (history).		The GNU History library."
 
-SRCS=	hist.texinfo
-
-history.info: hist.texinfo hstech.texinfo hsuser.texinfo manvers.texinfo
+history.info: history.texi hstech.texi hsuser.texi version.texi fdl.texi
 
 .include <bsd.info.mk>
