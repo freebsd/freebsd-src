@@ -1,5 +1,5 @@
 /*
- * $Id: md5.c,v 1.3 1995/02/26 01:55:31 phk Exp $
+ * $Id: md5.c,v 1.4 1995/02/26 02:00:35 phk Exp $
  *
  * Derived from:
  */
@@ -67,7 +67,7 @@ main(argc, argv)
 				MDTestSuite();
 			else {
 				p = MD5File(argv[i]);
-				if (!p) 
+				if (!p)
 					perror(argv[i]);
 				else
 					printf("MD5 (%s) = %s\n", argv[i], p);

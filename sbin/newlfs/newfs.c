@@ -323,7 +323,7 @@ main(argc, argv)
 			if (bsize <= 0)
 				bsize = MIN(DFL_LFSBLOCK, 8 * fsize);
 	}
-	
+
 	if (segsize == 0) {
 			segsize = pp->p_cpg * bsize;
 			if (segsize <= 0)

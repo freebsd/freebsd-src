@@ -36,8 +36,8 @@ static char sccsid[] = "@(#)read_password.c	8.2 (Berkeley) 12/15/93";
 #endif /* not lint */
 
 /*
- * $Source: /home/ncvs/src/lib/libtelnet/read_password.c,v $
- * $Author: rgrimes $
+ * $Source: /home/ncvs/src/secure/lib/libtelnet/read_password.c,v $
+ * $Author: csgr $
  *
  * Copyright 1985, 1986, 1987, 1988 by the Massachusetts Institute
  * of Technology.
@@ -76,7 +76,7 @@ local_des_read_pw_string(s,max,prompt,verify)
 {
     int ok = 0;
     char *ptr;
-    
+
     jmp_buf old_env;
     struct sgttyb tty_state;
     char key_string[BUFSIZ];
@@ -91,7 +91,7 @@ local_des_read_pw_string(s,max,prompt,verify)
 	goto lose;
 
     /* save terminal state*/
-    if (ioctl(0,TIOCGETP,(char *)&tty_state) == -1) 
+    if (ioctl(0,TIOCGETP,(char *)&tty_state) == -1)
 	return -1;
 /*
     push_signals();

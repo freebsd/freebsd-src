@@ -706,8 +706,8 @@ status()
 	double temp_min = nreceived ? tmin : 0;
 	(void)fprintf(stderr, "%ld/%ld packets received (%ld%%) "
 		      "%.3f min / %.3f avg / %.3f max\n",
-		      nreceived, ntransmitted, 
-		      (ntransmitted ? 
+		      nreceived, ntransmitted,
+		      (ntransmitted ?
 		       100 - (int) (((ntransmitted - nreceived) * 100)
 				    / ntransmitted)
 		       : 0),
@@ -755,7 +755,7 @@ finish()
 		tcsetattr (0, TCSANOW, &ts);
 	}
 
-	if (nreceived) 
+	if (nreceived)
 		exit(0);
 	else
 		exit(2);

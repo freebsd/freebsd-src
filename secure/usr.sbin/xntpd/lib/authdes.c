@@ -261,7 +261,7 @@ DESauth_subkeys(key, encryptkeys, decryptkeys)
 	  | (PC1_DL[(tmp >> 17) & 0xf] << 1)
 	  | (PC1_DL[(tmp >>  9) & 0xf] << 2)
 	  | (PC1_DL[(tmp >>  1) & 0xf] << 3);
-	
+
 	tmp = *(key+1);	/* right part of key */
 	c |= PC1_CR[(tmp >> 28) & 0xf]
 	  | (PC1_CR[(tmp >> 20) & 0xf] << 1)
@@ -775,7 +775,7 @@ DESauth_des(data, subkeys)
 	     | (IP[(temp >>  8) & 0xff] << 2)
 	     | (IP[temp & 0xff] << 3);
 #endif
-	
+
 	/*
 	 * Same thing again except for the right half.
 	 */
@@ -791,7 +791,7 @@ DESauth_des(data, subkeys)
 	      | (IP[(temp >>  8) & 0xff] << 2)
 	      | (IP[temp & 0xff] << 3);
 #endif
-	
+
 	/*
 	 * Do the 16 rounds through the cipher function.  We actually
 	 * do two at a time, one on the left half and one on the right
@@ -816,7 +816,7 @@ DESauth_des(data, subkeys)
 		left ^= SP[6][((temp >>  2) & 0x3f) ^ *kp++];
 		left ^= SP[7][(((right << 1) | ((right & 0x80000000)?1:0))
 				& 0x3f) ^ *kp++];
-		
+
 		/*
 		 * Careful here.  Right now `right' is actually the
 		 * left side and `left' is the right side.  Do the

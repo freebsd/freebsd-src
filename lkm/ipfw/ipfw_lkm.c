@@ -22,7 +22,7 @@
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/errno.h>
-#include <sys/time.h> 
+#include <sys/time.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
 #include <sys/exec.h>
@@ -73,7 +73,7 @@ ipfw_unload(struct lkm_table *lkmtp, int cmd)
 int s=splnet();
 #ifdef IPFIREWALL
 	ip_fw_ctl_ptr=NULL;
- 	ip_fw_chk_ptr=NULL;	
+ 	ip_fw_chk_ptr=NULL;
 #endif
 #ifdef IPACCT
 	ip_acct_ctl_ptr=NULL;

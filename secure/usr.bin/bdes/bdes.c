@@ -1040,7 +1040,7 @@ compress(from, to)
  */
 usage()
 {
-	(void)fprintf(stderr, "%s\n", 
+	(void)fprintf(stderr, "%s\n",
 "usage: bdes [-abdp] [-F bit] [-f bit] [-k key] [-m bit] [-o bit] [-v vector]");
 	exit(1);
 }

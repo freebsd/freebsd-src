@@ -84,7 +84,7 @@ main(argc, argv)
 		case 'c':
 			cvtlevel = argtoi('c', "conversion level", optarg, 10);
 			break;
-		
+
 		case 'd':
 			debug++;
 			break;
@@ -296,7 +296,7 @@ checkfilesys(filesys, mntpt, auxdata, child)
 		sbdirty();
 	}
 	if (cvtlevel && sblk.b_dirty) {
-		/* 
+		/*
 		 * Write out the duplicate super blocks
 		 */
 		for (cylno = 0; cylno < sblock.fs_ncg; cylno++)

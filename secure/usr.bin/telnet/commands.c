@@ -234,7 +234,7 @@ control(c)
  *	the "send" command.
  *
  */
- 
+
 struct sendlist {
     char	*name;		/* How user refers to it (case independent) */
     char	*help;		/* Help information (0 ==> no help) */
@@ -2417,7 +2417,7 @@ tn(argc, argv)
 		errno = oerrno;
 		perror((char *)0);
 		host->h_addr_list++;
-		memcpy((caddr_t)&sin.sin_addr, 
+		memcpy((caddr_t)&sin.sin_addr,
 			host->h_addr_list[0], host->h_length);
 		(void) NetClose(net);
 		continue;
@@ -2804,10 +2804,10 @@ cmdrc(m1, m2)
  *	*cpp:	If *cpp was equal to NULL, it will be filled
  *		in with a pointer to our static area that has
  *		the option filled in.  This will be 32bit aligned.
- * 
+ *
  *	*lenp:	This will be filled in with how long the option
  *		pointed to by *cpp is.
- *	
+ *
  */
 	unsigned long
 sourceroute(arg, cpp, lenp)

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: modload.c,v 1.6 1995/01/23 04:07:57 wollman Exp $
+ *	$Id: modload.c,v 1.7 1995/03/16 17:11:21 wollman Exp $
  */
 
 #include <stdio.h>
@@ -106,7 +106,7 @@ linkcmd(kernel, entry, outfile, address, object)
 	waitpid(pid, &status, 0);
 
 	if(WIFSIGNALED(status)) {
-		errx(1, "%s got signal: %s", _PATH_LD, 
+		errx(1, "%s got signal: %s", _PATH_LD,
 		     sys_siglist[WTERMSIG(status)]);
 	}
 

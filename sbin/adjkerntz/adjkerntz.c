@@ -97,7 +97,7 @@ int main(argc, argv)
 		}
 	if (init == -1)
 		goto usage;
-  
+
 	if (access(_PATH_CLOCK, F_OK))
 		return 0;
 

@@ -93,7 +93,7 @@ main(argc, argv)
 	char **argv;
 {
 	register ino_t ino;
-	register int dirty; 
+	register int dirty;
 	register struct dinode *dp;
 	register struct	fstab *dt;
 	register char *map;
@@ -359,7 +359,7 @@ main(argc, argv)
 			   the end of each block written, and not in mid-block.
 			   Assume no erroneous blocks; this can be compensated
 			   for with an artificially low tape size. */
-			fetapes = 
+			fetapes =
 			(	  tapesize	/* blocks */
 				* TP_BSIZE	/* bytes/block */
 				* (1.0/density)	/* 0.1" / byte */

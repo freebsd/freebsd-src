@@ -121,7 +121,7 @@ checkfstab(preen, maxrun, docheck, chkit)
 			maxrun = ndisks;
 		nextdisk = disks;
 		for (passno = 0; passno < maxrun; ++passno) {
-			while ((ret = startdisk(nextdisk, chkit)) != 0 && 
+			while ((ret = startdisk(nextdisk, chkit)) != 0 &&
 			    nrun > 0)
 				sleep(10);
 			if (ret)

@@ -329,7 +329,7 @@ dirlookup(name)
 {
 	struct direct *dp;
 	ino_t ino;
- 
+
 	ino = ((dp = pathsearch(name)) == NULL) ? 0 : dp->d_ino;
 
 	if (ino == 0 || TSTINO(ino, dumpmap) == 0)

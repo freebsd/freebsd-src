@@ -199,7 +199,7 @@ main(argc, argv)
 
 	if (debug)
 		setbuf(stdout, NULL);
-	
+
 	if (pfd = fopen(PIDFILE, "r")) {
 		pid = 0;
 		fscanf(pfd, "%d", &pid);
@@ -309,7 +309,7 @@ restart:
 	if (tcsetattr(fd, TCSAFLUSH, &t) < 0) {
 		perror("tcsetattr");
 		syslog(LOG_ERR, "%s: tcsetattr: %m\n", devicename);
-	        if (first) 
+	        if (first)
 			exit(2);
 		else {
 			syslog(LOG_INFO, "sleeping %d seconds (%d tries).\n", wait_time * tries, tries);
@@ -331,7 +331,7 @@ restart:
 	        perror("ioctl (TIOCSETP)");
 		syslog(LOG_ERR, "%s: ioctl (TIOCSETP): %m\n",
 		    devicename);
-	        if (first) 
+	        if (first)
 			exit(2);
 		else {
 			syslog(LOG_INFO, "sleeping %d seconds (%d tries).\n", wait_time * tries, tries);
@@ -396,7 +396,7 @@ restart:
 			}
 		}
 	}
-	
+
 	/*
 	 * Attach
 	 */
@@ -467,7 +467,7 @@ getline(buf, size, fd, timeout)
 		tv.tv_sec = timeout;
 		tv.tv_usec = 0;
 		if ((ret = select(fd + 1, &readfds, NULL, NULL, &tv)) < 0) {
-			if (errno != EINTR) 
+			if (errno != EINTR)
 				perror("getline: select");
 		} else {
 			if (! ret) {

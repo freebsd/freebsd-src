@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: crypt.c,v 1.4 1994/09/07 07:47:08 pst Exp $
+ *	$Id: crypt.c,v 1.5 1994/09/19 19:26:39 csgr Exp $
  *
  * This is an original implementation of the DES and the crypt(3) interfaces
  * by David Burren <davidb@werj.com.au>.
@@ -324,7 +324,7 @@ des_init()
 
 	/*
 	 * Invert the P-box permutation, and convert into OR-masks for
-	 * handling the output of the S-box arrays setup above. 
+	 * handling the output of the S-box arrays setup above.
 	 */
 	for (i = 0; i < 32; i++)
 		un_pbox[pbox[i] - 1] = i;
@@ -420,7 +420,7 @@ des_setkey(const char *key)
 		t0 = (k0 << shifts) | (k0 >> (28 - shifts));
 		t1 = (k1 << shifts) | (k1 >> (28 - shifts));
 
-		de_keysl[15 - round] = 
+		de_keysl[15 - round] =
 		en_keysl[round] = comp_maskl[0][(t0 >> 21) & 0x7f]
 				| comp_maskl[1][(t0 >> 14) & 0x7f]
 				| comp_maskl[2][(t0 >> 7) & 0x7f]

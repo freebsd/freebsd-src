@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)swapon.c	8.1 (Berkeley) 6/5/93";*/
 static const char rcsid[] =
-	"$Id$";
+	"$Id: dumpon.c,v 1.1 1995/05/12 19:10:09 wollman Exp $";
 #endif /* not lint */
 
 #include <errno.h>
@@ -99,7 +99,7 @@ main(int argc, char **argv)
 	mib[0] = CTL_KERN;
 	mib[1] = KERN_DUMPDEV;
 
-	rv = sysctl(mib, 2, (void *)0, (size_t *)0, &stab.st_rdev, 
+	rv = sysctl(mib, 2, (void *)0, (size_t *)0, &stab.st_rdev,
 		    sizeof stab.st_rdev);
 	if (rv) {
 		err(EX_OSERR, "sysctl: kern.dumpdev");
@@ -110,7 +110,7 @@ main(int argc, char **argv)
 			printf("%s: crash dumps disabled\n", whoami);
 		} else {
 			printf("%s: crash dumps to %s (%lu, %lu)\n",
-			       whoami, argv[0], 
+			       whoami, argv[0],
 			       (unsigned long)major(stab.st_rdev),
 			       (unsigned long)minor(stab.st_rdev));
 		}
