@@ -1240,13 +1240,13 @@ umass_bbb_transfer(struct umass_softc *sc, int lun, void *cmd, int cmdlen,
 		("%s: direction is NONE while datalen is not zero\n",
 			USBDEVNAME(sc->sc_dev)));
 	KASSERT(sizeof(umass_bbb_cbw_t) == UMASS_BBB_CBW_SIZE,
-		("%s: CBW struct does not have the right size (%d vs. %d)\n",
+		("%s: CBW struct does not have the right size (%ld vs. %d)\n",
 			USBDEVNAME(sc->sc_dev),
-			sizeof(umass_bbb_cbw_t), UMASS_BBB_CBW_SIZE));
+			(long)sizeof(umass_bbb_cbw_t), UMASS_BBB_CBW_SIZE));
 	KASSERT(sizeof(umass_bbb_csw_t) == UMASS_BBB_CSW_SIZE,
-		("%s: CSW struct does not have the right size (%d vs. %d)\n",
+		("%s: CSW struct does not have the right size (%ld vs. %d)\n",
 			USBDEVNAME(sc->sc_dev),
-			sizeof(umass_bbb_csw_t), UMASS_BBB_CSW_SIZE));
+			(long)sizeof(umass_bbb_csw_t), UMASS_BBB_CSW_SIZE));
 
 	/*
 	 * Determine the direction of the data transfer and the length.
@@ -1694,9 +1694,9 @@ umass_cbi_reset(struct umass_softc *sc, int status)
 		USBDEVNAME(sc->sc_dev)));
 	
 	KASSERT(sizeof(sc->cbl) >= SEND_DIAGNOSTIC_CMDLEN,
-		("%s: CBL struct is too small (%d < %d)\n",
+		("%s: CBL struct is too small (%ld < %d)\n",
 			USBDEVNAME(sc->sc_dev),
-			sizeof(sc->cbl), SEND_DIAGNOSTIC_CMDLEN));
+			(long)sizeof(sc->cbl), SEND_DIAGNOSTIC_CMDLEN));
 
 	sc->transfer_state = TSTATE_CBI_RESET1;
 	sc->transfer_status = status;
@@ -2707,8 +2707,9 @@ umass_scsi_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 	case TEST_UNIT_READY:
 		if (sc->quirks & NO_TEST_UNIT_READY) {
 			KASSERT(*rcmdlen >= sizeof(struct scsi_start_stop_unit),
-				("rcmdlen = %d < %d, buffer too small",
-				 *rcmdlen, sizeof(struct scsi_start_stop_unit)));
+				("rcmdlen = %d < %ld, buffer too small",
+				 *rcmdlen,
+				 (long)sizeof(struct scsi_start_stop_unit)));
 			DPRINTF(UDMASS_SCSI, ("%s: Converted TEST_UNIT_READY "
 				"to START_UNIT\n", USBDEVNAME(sc->sc_dev)));
 			memset(*rcmd, 0, *rcmdlen);
@@ -2929,8 +2930,9 @@ umass_atapi_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 	case TEST_UNIT_READY:
 		if (sc->quirks & NO_TEST_UNIT_READY) {
 			KASSERT(*rcmdlen >= sizeof(struct scsi_start_stop_unit),
-				("rcmdlen = %d < %d, buffer too small",
-				 *rcmdlen, sizeof(struct scsi_start_stop_unit)));
+				("rcmdlen = %d < %ld, buffer too small",
+				 *rcmdlen,
+				 (long)sizeof(struct scsi_start_stop_unit)));
 			DPRINTF(UDMASS_SCSI, ("%s: Converted TEST_UNIT_READY "
 				"to START_UNIT\n", USBDEVNAME(sc->sc_dev)));
 			memset(*rcmd, 0, *rcmdlen);
