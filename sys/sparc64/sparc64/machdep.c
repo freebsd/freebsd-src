@@ -92,6 +92,7 @@
 #include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/fp.h>
+#include <machine/fsr.h>
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
 #include <machine/metadata.h>
@@ -653,10 +654,13 @@ fill_regs(struct thread *td, struct reg *regs)
 int
 set_regs(struct thread *td, struct reg *regs)
 {
+	struct trapframe *tf;
 
 	if (!TSTATE_SECURE(regs->r_tstate))
 		return (EINVAL);
-	bcopy(regs, td->td_frame, sizeof(*regs));
+	tf = td->td_frame;
+	regs->r_wstate = tf->tf_wstate;
+	bcopy(regs, tf, sizeof(*regs));
 	return (0);
 }
 
@@ -696,6 +700,7 @@ set_fpregs(struct thread *td, struct fpreg *fpregs)
 
 	pcb = td->td_pcb;
 	tf = td->td_frame;
+	tf->tf_fprs &= ~FPRS_FEF;
 	bcopy(fpregs->fr_regs, pcb->pcb_ufp, sizeof(pcb->pcb_ufp));
 	tf->tf_fsr = fpregs->fr_fsr;
 	tf->tf_gsr = fpregs->fr_gsr;
