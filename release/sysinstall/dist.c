@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.36 1995/06/11 19:29:50 rgrimes Exp $
+ * $Id: dist.c,v 1.36.2.1 1995/07/21 10:53:48 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -416,14 +416,17 @@ distExtract(char *parent, Distribution *me)
 }
 
 int
-distExtractAll(char *unused)
+distExtractAll(char *ptr)
 {
     int retries = 0;
 
     /* First try to initialize the state of things */
     if (!(*mediaDevice->init)(mediaDevice))
 	return 0;
-
+    if (!Dists && ptr) {
+	msgConfirm("You haven't selected any distributions to extract.");
+	return 0;
+    }
     /* Try for 3 times around the loop, then give up. */
     while (Dists && ++retries < 3)
 	distExtract(NULL, DistTable);
@@ -431,8 +434,5 @@ distExtractAll(char *unused)
     /* Anything left? */
     if (Dists)
 	msgConfirm("Couldn't extract all of the distributions.  This may\nbe because the specified distributions are not available from the\ninstallation media you've chosen (residue: %0x)", Dists);
-
-    /* Close up shop and go home */
-    (*mediaDevice->shutdown)(mediaDevice);
     return 0;
 }

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.9 1995/09/25 05:40:30 jkh Exp $
+ * $Id: install.c,v 1.71.2.10 1995/09/25 13:46:37 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -152,8 +152,6 @@ installInitial(void)
 	msgConfirm("You need to assign disk labels before you can proceed with\nthe installation.");
 	return FALSE;
     }
-    if (!checkLabels())
-	return FALSE;
 
     /* If we refuse to proceed, bail. */
     if (msgYesNo("Last Chance!  Are you SURE you want continue the installation?\n\nIf you're running this on an existing system, we STRONGLY\nencourage you to make proper backups before proceeding.\nWe take no responsibility for lost disk contents!"))
@@ -221,7 +219,7 @@ installFixit(char *str)
     dialog_update();
     end_dialog();
     DialogActive = FALSE;
-    if (child = fork())
+    if ((child = fork()) != 0)
 	(void)waitpid(child, &waitstatus, 0);
     else {
 	setenv("PATH", "/bin:/sbin:/usr/bin:/usr/sbin:/stand:/mnt2/stand", 1);
@@ -286,11 +284,6 @@ installCommit(char *str)
 {
     Device **devs;
     int i;
-
-    if (!Dists) {
-	msgConfirm("You haven't told me what distributions to load yet!\nPlease select a distribution from the Distributions menu.");
-	return 0;
-    }
 
     if (!mediaVerify())
 	return 0;
@@ -374,9 +367,13 @@ installFilesystems(void)
     Chunk *c1, *c2;
     Device **devs;
     char dname[40];
-    PartInfo *p = (PartInfo *)rootdev->private;
+    PartInfo *p;
     Boolean RootReadOnly;
 
+    if (!checkLabels())
+	return FALSE;
+    /* checkLabels sets global rootdev so as to avoid a wasted extra search */
+    p = (PartInfo *)rootdev->private;
     command_clear();
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
 

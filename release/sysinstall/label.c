@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.32.2.4 1995/09/22 23:35:18 jkh Exp $
+ * $Id: label.c,v 1.32.2.5 1995/09/25 15:18:41 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -68,6 +68,15 @@
 
 /* The smallest root filesystem we're willing to create */
 #define ROOT_MIN_SIZE			(20 * ONE_MEG)
+
+/* The smallest swap partition we want to create by default */
+#define SWAP_MIN_SIZE			(16 * ONE_MEG)
+
+/* The smallest /usr partition we're willing to create by default */
+#define USR_MIN_SIZE			(80 * ONE_MEG)
+
+/* The smallest /var partition we're willing to create by default */
+#define VAR_MIN_SIZE			(30 * ONE_MEG)
 
 /* All the chunks currently displayed on the screen */
 static struct {
@@ -516,7 +525,8 @@ diskLabelEditor(char *str)
 	    
 	    tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
 				    label_chunk_info[here].c,
-				    physmem * 2 / 512, part, FS_SWAP, 0);
+				    16 * ONE_MEG + (physmem * 2 / 512),
+				    part, FS_SWAP, 0);
 	    if (!tmp) {
 		msgConfirm("Unable to create the swap partition. Too big?");
 		break;
@@ -528,9 +538,9 @@ diskLabelEditor(char *str)
 	    
 	    tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
 				    label_chunk_info[here].c,
-				    16 * ONE_MEG, part, FS_BSDFFS, 0);
+				    VAR_MIN_SIZE, part, FS_BSDFFS, 0);
 	    if (!tmp) {
-		msgConfirm("Unable to create the /var partition.  Too big?");
+		msgConfirm("Less than %dMB free for /var - you will need to\npartition your disk manually with a custom install!", VAR_MIN_SIZE / ONE_MEG);
 		break;
 	    }
 	    tmp->private = new_part("/var", TRUE, tmp->size);
@@ -538,11 +548,15 @@ diskLabelEditor(char *str)
 	    record_label_chunks();
 	    
 	    sz = space_free(label_chunk_info[here].c);
+	    if (!sz || sz < USR_MIN_SIZE) {
+		msgConfirm("Less than %dMB free for /usr - you will need to\npartition your disk manually with a custom install!", USR_MIN_SIZE / ONE_MEG);
+		break;
+	    }
 	    tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
 				    label_chunk_info[here].c,
 				    sz, part, FS_BSDFFS, 0);
 	    if (!tmp) {
-		msgConfirm("Unable to create the /usr partition. Too big?");
+		msgConfirm("Unable to create the /usr partition.  Not enough space?\nYou will need to partition your disk manually with a custom install!");
 		break;
 	    }
 	    tmp->private = new_part("/usr", TRUE, tmp->size);
@@ -570,7 +584,7 @@ diskLabelEditor(char *str)
 	    }
 	    sz = space_free(label_chunk_info[here].c);
 	    if (sz <= FS_MIN_SIZE) {
-		msg = "Not enough space to create additional FreeBSD partition";
+		msg = "Not enough space to create an additional FreeBSD partition";
 		break;
 	    }
 	    {
@@ -611,7 +625,7 @@ diskLabelEditor(char *str)
 
 		if ((flags & CHUNK_IS_ROOT)) {
 		    if (!(label_chunk_info[here].c->flags & CHUNK_BSD_COMPAT)) {
-			msgConfirm("This region cannot be used for your root partition as\nthe FreeBSD boot code cannot deal with a root partition created in\nsuch a location.  Please choose another location for your root\npartition and try again!");
+msgConfirm("This region cannot be used for your root partition as the\nFreeBSD boot code cannot deal with a root partition created\nin that location.  Please choose another location or smaller\nsize for your root partition and try again!");
 			break;
 		    }
 		    if (size < ROOT_MIN_SIZE)
@@ -627,7 +641,7 @@ diskLabelEditor(char *str)
 		    break;
 		}
 		if ((flags & CHUNK_IS_ROOT) && (tmp->flags & CHUNK_PAST_1024)) {
-		    msgConfirm("This region cannot be used for your root partition as it starts\nor extends past the 1024'th cylinder mark and is thus a\npoor location to boot from.  Please choose another\nlocation for your root partition and try again!");
+		    msgConfirm("This region cannot be used for your root partition as it starts\nor extends past the 1024'th cylinder mark and is thus a\npoor location to boot from.  Please choose another\nlocation (or smaller size) for your root partition and try again!");
 		    Delete_Chunk(label_chunk_info[here].c->disk, tmp);
 		    break;
 		}
@@ -725,7 +739,7 @@ diskLabelEditor(char *str)
 	    break;
 
 	case 'W':
-	    if (!msgYesNo("Are you sure that you wish to make and mount all filesystems\nat this time?  You also have the option of doing it later in\none final 'commit' operation, and if you're at all unsure as\nto which option to chose, then chose No.")) {
+	    if (!msgYesNo("Are you sure that you wish to make and mount all filesystems\nat this time?  You also have the option of doing it later in\none final 'commit' operation, and if you're at all unsure as\nto which option to chose, then please chose No!")) {
 		variable_set2(DISK_LABELLED, "yes");
 		diskLabelCommit(NULL);
 	    }
@@ -774,7 +788,9 @@ diskLabelEditor(char *str)
 int
 diskLabelCommit(char *str)
 {
-    if (!getenv(DISK_LABELLED))
+    if (!getenv(DISK_PARTITIONED))
+	msgConfirm("You must first partition the disk before this option can be used.");
+    else if (!getenv(DISK_LABELLED))
 	msgConfirm("You must assign disk labels before this option can be used.");
     else if (!installFilesystems())
 	msgConfirm("Failed to make/mount all filesystems.  Please correct\nwhatever went wrong and try again.");
