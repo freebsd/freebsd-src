@@ -29,6 +29,7 @@
  */
 
 #include <sys/types.h>
+#include <ctype.h>
 #include <errno.h>
 #include <err.h>
 #include <fcntl.h>
@@ -61,8 +62,8 @@
 
 /* Global variables */
 int		debug;
-u_int32_t	volume_size;
-size_t		sector_size;
+off_t		volume_size;
+u_int		sector_size;
 size_t		buf_size;
 
 /* Local variables */
@@ -141,10 +142,39 @@ main(int argc, char *argv[])
 				errx(1, "Unreasonable sector size: %s", optarg);
 			break;
 		case 's':
+		{
+			int last, shift = 0;
+
+			last = strlen(optarg) - 1;
+			if (last > 0) {
+				switch (tolower(optarg[last])) {
+				case 'e':
+					shift += 10;
+					/* FALLTHROUGH */
+				case 'p':
+					shift += 10;
+					/* FALLTHROUGH */
+				case 't':
+					shift += 10;
+					/* FALLTHROUGH */
+				case 'g':
+					shift += 10;
+					/* FALLTHROUGH */
+				case 'm':
+					shift += 10;
+					/* FALLTHROUGH */
+				case 'k':
+					shift += 10;
+					optarg[last] = 0;
+					break;
+				}
+			}
 			user_size = strtoll(optarg, (char **)NULL, /*base*/10);
+			user_size <<= shift;
 			if (user_size < 0)
 				errx(1, "Unreasonable volume size: %s", optarg);
 			break;
+		}
 		case 'W':
 			req_flags &= ~(SID_WBus16 | SID_WBus32);
 			switch (atoi(optarg)) {
@@ -215,6 +245,14 @@ main(int argc, char *argv[])
 	} else {
 		volume_size = user_size / sector_size;
 	}
+	if (debug)
+#if __FreeBSD_version >= 500000
+		warnx("volume_size: %d bytes x %jd sectors",
+#else
+		warnx("volume_size: %d bytes x %lld sectors",
+#endif
+		    sector_size, volume_size);
+
 	if (volume_size <= 0)
 		errx(1, "volume must be larger than %d", sector_size);
 

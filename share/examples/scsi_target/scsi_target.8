@@ -94,6 +94,17 @@ and its associated control device.
 Use a different size for the emulated volume.
 Must be less than or equal to the size of
 .Ar filename .
+If the number ends with a
+.Dq Li k ,
+.Dq Li m ,
+.Dq Li g ,
+.Dq Li t ,
+.Dq Li p ,
+or
+.Dq Li e ,
+the number is multiplied by 2^10 (1K), 2^20 (1M), 2^30 (1G), 2^40 (1T),
+2^50 (1P) and 2^60 (1E)
+respectively.
 .El
 .Pp
 Required arguments:
