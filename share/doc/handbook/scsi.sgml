@@ -1,21 +1,21 @@
-<!-- $Id: scsi.sgml,v 1.1.1.1.4.4 1996/01/31 14:32:29 mpp Exp $ -->
+<!-- $Id: scsi.sgml,v 1.1.1.1.4.5 1996/06/19 20:28:17 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
       <title>An introduction to SCSI and its use with FreeBSD</title>
-      <author>(c) 1995, Wilko Bulte, <tt/wilko@yedi.iaf.nl/
-      <date>Sun Sep  3 17:14:48 MET DST 1995</date>
-     Copyright 1995, Wilko C. Bulte, Arnhem, The Netherlands 
+      <author>(c) 1995-1996, Wilko Bulte, <tt/wilko@yedi.iaf.nl/
+      <date>Sat Jul  6 20:57:39 MET DST 1996</date>
+     Copyright 1995-1996, Wilko C. Bulte, Arnhem, The Netherlands 
 
       <abstract>
         This document attempts to describe the background of SCSI, its
-        (mis)use with FreeBSD and some common pitfalls.
+        (mis)use with FreeBSD and some common pitfalls. 
       </abstract>
       
 -->
     <sect1><heading>What is SCSI?<label id="scsi"></heading>
 
-      <p><em>Copyright &copy; 1995, &a.wilko;.<newline>3 September 1995.</em>
+      <p><em>Copyright &copy; 1995, &a.wilko;.<newline>July 6, 1996.</em>
 
         SCSI is an acronym for Small Computer Systems Interface.  It is an
         ANSI standard that has become one of the leading I/O buses in the
@@ -27,7 +27,7 @@
         After some time an industry effort was started to come to a more strict
         standard allowing devices from different vendors to work together.
         This effort was recognized in the ANSI SCSI-1 standard.  The SCSI-1
-        standard (approx 1985) is now more or less obsolete.  The current
+        standard (approx 1985) is rapidly becoming obsolete.  The current
         standard is SCSI-2 (see <ref id="scsi:further-reading" name="Further
         reading">), with SCSI-3 on the drawing boards.
 
@@ -48,6 +48,10 @@
         differential signals.  This allows transfer speeds of
         20Mbytes/second, on cables lengths of up to 25 meters. SCSI-2
         allows a maximum bus width of 32 bits, using an additional cable.
+	Quickly emerging are Ultra SCSI (also called Fast-20) and Ultra2
+	(also called Fast-40). Fast-20 is 20 mega-transfers per second
+	(20 Mbytes/sec on a 8 bit bus), Fast-40 is 40 mega-transfers per
+	second (40 Mbytes/sec on a 8 bit bus).
 
         Of course the SCSI bus not only has data lines, but also a number
         of control signals. A very elaborate protocol is part of the
@@ -56,8 +60,11 @@
         parity line. In pre-SCSI-2 designs parity was optional.
 
 	In SCSI-3 even faster bus types are introduced, along with a serial
-	SCSI bus that reduces the cabling overhead and allows a higher
-	maximum bus length. 
+	SCSI busses that reduces the cabling overhead and allows a higher
+	maximum bus length. You might see names like SSA and Fiberchannel
+	in this context. None of the serial buses are currently in widespread
+	use (especially not in the typical FreeBSD environment). For
+	this reason the serial bus types are not discussed any further.
 	
         As you could have guessed from the description above, SCSI devices
         are intelligent.  They have to be to adhere to the SCSI standard
@@ -80,12 +87,15 @@
 	acceptable on a new bus.  Modern devices are usually more
 	well-behaved, because the standardization has become more strict
 	and is better adhered to by the device manufacturers. 
+
 	Generally speaking, the chances of getting a working set of
 	devices on a single bus is better when all the devices are SCSI-2
-	or newer.  This does not imply that you have to dump all your old
+	or newer.  This implies that you do not have to dump all your old
 	stuff when you get that shiny 2Gb disk: I own a system on which a
 	pre-SCSI-1 disk, a SCSI-2 QIC tape unit, a SCSI-1 helical scan
-	tape unit and 2 SCSI-1 disks work together quite happily.
+	tape unit and 2 SCSI-1 disks work together quite happily. From
+	a performance standpoint you might want to seperate your older
+	and newer (=faster) devices however.
 
     <sect2><heading>Components of SCSI</heading>
       <p>
@@ -97,7 +107,9 @@
           about things like how many heads are hard disks has, or how many
           tracks there are on a specific tape device.  If you are curious,
           the standard specifies commands with which you can query your
-          devices on their hardware particulars.
+          devices on their hardware particulars. FreeBSD uses this
+	  capability during boot to check out what devices are connected
+	  and whether they need any special treatment.
 
           The advantage of intelligent devices is obvious: the device
           drivers on the host can be made in a much more generic fashion,
@@ -147,7 +159,9 @@
 
           Fast means that the timing on the bus is somewhat different, so
           that on a narrow (8 bit) bus 10 Mbytes/sec are possible instead
-          of 5 Mbytes/sec for 'slow' SCSI. More on this later.
+          of 5 Mbytes/sec for 'slow' SCSI. As discussed before, bus
+	  speeds of 20 and 40 megatransfers/second are also emerging 
+	  (Fast-20 == Ultra SCSI and Fast-40 == Ultra2 SCSI). 
 
 	  It should be noted that the data lines &gt; 8 are only used for
 	  data transfers and device addressing. The transfers of commands
@@ -169,6 +183,14 @@
             meters. Fast-SCSI means that instead of 5Mbytes/sec the bus
             allows 10Mbytes/sec transfers. 
 
+	    Fast-20 (Ultra SCSI) and Fast-40 allow for 20 and 40 
+	    megatransfers/second respectively. So, F20 is 20 Mbytes/second
+	    on a 8 bit bus, 40 Mbytes/second on a 16 bit bus etc.
+	    For F20 the max bus length is 1.5 meters, for F40 it
+	    becomes 0.75 meters. Be aware that F20 is pushing 
+	    the limits quite a bit, so you'll quickly find out if your
+	    SCSI bus is electrically sound.
+
 	    Please note that this means that
             if some devices on your bus use 'fast' to communicate your
             bus must adhere to the length restrictions for fast buses!
@@ -189,7 +211,8 @@
 	    the use of this connector needs some 'creative cabling'.
 	    The reduction of the number of ground wires they used
 	    is a bad idea, you better stick to 50 pins cabling 
-	    in accordance with the SCSI standard.
+	    in accordance with the SCSI standard. For Fast-20 and 40
+	    don't even think about buses like this..
 
         <sect3><heading>Differential buses</heading>
           <p>
@@ -278,6 +301,14 @@
             for the internal flat cable connectors. This makes
             reconfiguration much easier.
         
+            On modern devices, sometimes integrated terminators are
+            used. These things are special purpose integrated circuits that
+            can be dis/en-abled with a control pin. It is not necessary to
+            physically remove them from a device.  You may find them on
+            newer host adapters, sometimes they even are software
+            configurable, using some sort of setup tool. Consult you
+	    documentation!
+
         <sect3><heading>Terminator power</heading>
           <p>
             The terminators discussed in the previous chapter need power to
@@ -295,9 +326,9 @@
             terminator power. All SCSI devices are allowed (but not
             required) to supply terminator power.
 
-            To allow for switched-off devices on a bus, the terminator
+            To allow for un-powered devices on a bus, the terminator
             power must be supplied to the bus via a diode. This prevents
-            the backflow of current to switched-off devices.
+            the backflow of current to un-powered devices.
 
             To prevent all kinds of nastiness, the terminator power is
             usually fused.  As you can imagine, fuses might blow. This can,
@@ -309,14 +340,6 @@
 
             In newer designs auto-restoring fuses that 'reset'
             themselves after some time are sometimes used.
-
-            On modern devices, sometimes integrated terminators are
-            used. These things are special purpose integrated circuits that
-            can be dis/en-abled with a control pin. It is not necessary to
-            physically remove them from a device.  You may find them on
-            newer host adapters, sometimes they even are software
-            configurable, using some sort of setup tool. Consult you
-	    documentation!
 
         <sect3><heading>Device addressing</heading>
           <p>
@@ -330,12 +353,14 @@
             more information.
 
             Beware of multiple devices configured to use the same ID. Chaos
-            normally reigns in this case.
+            normally reigns in this case. A pitfall is that one of the
+	    devices sharing the same ID sometimes even manages to answer
+	    to I/O requests! 
 
             For an 8 bit bus, a maximum of 8 targets is possible. The
             maximum is 8 because the selection is done bitwise using the 8
-            data lines on the bus.  For wide this increases to the number of
-            data lines.
+            data lines on the bus.  For wide buses this increases to the 
+            number of data lines.
 
             The higher the SCSI target ID, the higher the priority the
             devices has.  When it comes to arbitration between devices that
@@ -348,7 +373,7 @@
             LUNs. For example, a tape device including a tape changer may
             have LUN 0 for the tape device itself, and LUN 1 for the
             tape changer. In this way, the host system can address each of
-            the parts of the tape unit as desired.
+            the functional units of the tape changer as desired.
 
         <sect3><heading>Bus layout</heading>
           <p>
@@ -610,12 +635,13 @@ device          cd0     #Only need one of these, the code dynamically grows
       <sect3><heading>Tuning your SCSI kernel setup</heading>
         <p>
           Experience has shown that some devices are slow to respond to INQUIRY 
-	  commands after a SCSI bus reset (which happens at Boot time).
+	  commands after a SCSI bus reset (which happens at boot time).
 	  An INQUIRY command is sent by the kernel on boot to see what
 	  kind of device (disk, tape, cdrom etc) is connected to a
 	  specific target ID. This process is called device probing by the way.
 
-	  To work around this problem, FreeBSD allows a tunable delay time
+	  To work around the 'slow response' problem, FreeBSD allows a 
+	  tunable delay time
 	  before the SCSI devices are probed following a SCSI bus reset.
 	  You can set this delay time in your kernel configuration file
 	  using a line like:
@@ -658,12 +684,77 @@ Mar 29 21:16:37 yedi /386bsd: st1: Archive  Viper 150 is a known rogue
 	  looking at the INQUIRY response they send when probed. Because the
 	  INQUIRY response also includes the version number of the device 
 	  firmware, it is even possible that for different firmware versions
-	  different workarounds are used.
+	  different workarounds are used. See e.g. /sys/scsi/st.c and
+	  /sys/scsi/scsiconf.c for more info on how this is done.
 
 	  This scheme works fine, but keep in mind that it of course only
 	  works for devices that are KNOWN to be weird. If you are the first
           to connect your bogus Mumbletech SCSI cdrom you might be the one
 	  that has to define which workaround is needed.
+
+	  After you got your Mumbletech working, please send the required
+	  workaround to the FreeBSD development team for inclusion in the
+          next release of FreeBSD. Other Mumbletech owners will be grateful 
+	  to you.
+
+      <sect3><heading>Multiple LUN devices</heading>
+        <p>  
+	  In some cases you come across devices that use multiple
+	  logical units (LUNs) on a single SCSI ID. In most cases
+	  FreeBSD only probes devices for LUN 0. An example are
+	  so called bridge boards that connect 2 non-SCSI harddisks
+	  to a SCSI bus (e.g. an Emulex MD21 found in old Sun systems).
+
+	  This means that any devices with LUNs != 0 are not normally
+	  found during device probe on system boot. To work around this
+	  problem you must add an apropriate entry in /sys/scsi/scsiconf.c
+	  and rebuild your kernel.
+
+	  Look for a struct that is initialised like below:
+	  <verb>
+	  {
+                T_DIRECT, T_FIXED, "MAXTOR", "XT-4170S", "B5A",
+                "mx1", SC_ONE_LU
+          }
+	  </verb>
+
+	  For you Mumbletech BRIDGE2000 that has more than one LUN,
+	  acts as a SCSI disk
+	  and has firmware revision 123 you would add something like:
+
+	  <verb>
+	  {
+                T_DIRECT, T_FIXED, "MUMBLETECH", "BRIDGE2000", "123",
+                "sd", SC_MORE_LUS
+          }
+	  </verb>
+
+	  The kernel on boot scans the inquiry data it receives against
+	  the table and acts accordingly. See the source for more info.
+
+      <sect3><heading>Tagged command queueing</heading>
+        <p>  
+	  Modern SCSI devices, particularly magnetic disks, support
+	  what is called tagged command queuing (TCQ). 
+
+	  In a nutshell, TCQ allows the device to have multiple I/O
+	  requests outstanding at the same time. Because the device
+	  is intelligent, it can optimise it's operations (like
+  	  head positioning) based on it's own request queue. On 
+	  SCSI devices like RAID (Redundant Array of Independent
+	  Disks) arrays the TCQ function is indispensable to take
+	  advantage of the device's inherent parallelism.
+
+	  Each I/O request is uniquely identified by a 'tag' (hence
+	  the name tagged command queuing) and this tag is used by 
+          FreeBSD to see which I/O in the device drivers queue is
+	  reported as complete by the device.
+
+	  It should be noted however that TCQ requires device driver
+	  support and that some devices implemented it 'not quite
+	  right' in their firmware. This problem bit me once, and
+ 	  it leads to highly mysterious problems. In such cases,
+	  try to disable TCQ.
 
       <sect3><heading>Busmaster host adapters</heading>
         <p>
@@ -718,6 +809,10 @@ options        "TUNE_1542"             #dynamic tune of bus DMA speed
             Make a minimal bus config with as little devices as possible.
           <item>
             If possible, configure your host adapter to use slow bus speeds.
+	  <item>
+ 	    Disable tagged command queuing to make things as simple as
+	    possible (for a NCR hostadapter based system see man
+ncrcontrol)
           <item>
             If you can compile a kernel, make one with the SCSIDEBUG option,
 	    and try accessing the device with debugging turned on for

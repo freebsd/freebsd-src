@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.4.4.4 1996/01/31 14:32:03 mpp Exp $
+<date> $Id: freebsd-faq.sgml,v 1.4.4.5 1996/06/19 20:27:01 jkh Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -1449,7 +1449,10 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
 	<heading>When I try to mount a CDROM, I get a ``Device not configured'' error.  What's going on?</heading>
         <p>
           This generally means that there is no CDROM in the CDROM drive.
-          Feed the drive something.
+          or the drive is not visible on the bus. Feed the drive
+          something, and/or check it's master/slave status if it is
+          IDE (ATAPI).
+
   
       <sect1>
 	<heading>My programs occasionally die with ``Signal 11'' errors. What's going on?</heading>
@@ -2462,7 +2465,7 @@ Zynx            ZX342
         <heading>I'm in <tt>foo.bar.edu</tt>, and I can no longer reach hosts in <tt>bar.edu</tt> by their short names</heading>
         <p>
 	  The current version of <em>BIND</em> that ships with FreeBSD
-	  does no longer provide default abbreviations for non-fully
+	  no longer provides default abbreviations for non-fully
 	  qualified domain names other than the domain you are in.
 	  So an unqualified host <tt>mumble</tt> must either be found
 	  as <tt>mumble.foo.bar.edu</tt>, or it will be searched for
@@ -2635,6 +2638,28 @@ domain foo.bar.edu
      j@uriah 192% 
 </verb>
 
+
+      </sect1>
+
+      <sect1>
+	<heading>I just booted a new kernel and now I'm getting ``Permission denied'' for all networking operations.</heading>
+        <p>
+          If you have compiled your kernel with the <tt/IPFIREWALL/ 
+          option, you need to be aware that the default policy as of
+          2.1.5R (this actually changed during 2.1-STABLE development) 
+          is to deny all packets that are not explicitly allowed.
+
+        <p>
+          If you had unintentionally misconfigured your system for
+          firewalling, you can restore network operability by typing
+          the following while logged in as root:
+
+        <verb>
+     ipfw add 65534 allow all from any to any
+        </verb>
+
+          For further information on configuring a FreeBSD firewall,
+          see the <url url="http://www.freebsd.org/handbook/handbook.html" name="FreeBSD Handbook.">
 
       </sect1>
 
