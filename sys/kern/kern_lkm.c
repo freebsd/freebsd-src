@@ -893,6 +893,8 @@ lkmdispatch(lkmtp, cmd)
 		break;
 
 	case LM_MISC:	/* ignore content -- no "misc-specific" procedure */
+		if (lkmexists(lkmtp))
+			err = EEXIST;
 		break;
 
 	default:
