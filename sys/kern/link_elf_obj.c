@@ -607,6 +607,11 @@ link_elf_load_file(linker_class_t cls, const char* filename, linker_file_t* resu
 	case PT_DYNAMIC:
 	    phdyn = phdr;
 	    break;
+
+	case PT_INTERP:
+	    link_elf_error("Unsupported file type");
+	    error = ENOEXEC;
+	    goto out;
 	}
 
 	++phdr;
