@@ -170,6 +170,8 @@ struct g_provider {
 	u_int			index;
 	off_t			mediasize;
 	u_int			sectorsize;
+	u_int			stripesize;
+	u_int			stripeoffset;
 	struct g_stat		*stat;
 	u_int			flags;
 #define G_PF_CANDELETE		0x1

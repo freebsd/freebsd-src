@@ -290,6 +290,8 @@ g_disk_create(void *arg)
 	pp->sectorsize = dp->d_sectorsize;
 	if (dp->d_flags & DISKFLAG_CANDELETE)
 		pp->flags |= G_PF_CANDELETE;
+	pp->stripeoffset = dp->d_stripeoffset;
+	pp->stripesize = dp->d_stripesize;
 	g_error_provider(pp, 0);
 	if (bootverbose)
 		printf("GEOM: new disk %s\n", gp->name);
