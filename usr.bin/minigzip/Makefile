@@ -1,6 +1,4 @@
-...using script...
-CVS: update -A -p Makefile
-# $Id: Makefile,v 1.2 1997/12/13 15:57:55 bde Exp $
+# $Id: Makefile,v 1.2.2.1 1998/01/12 09:58:46 obrien Exp $
 
 PROG=	minigzip
 LDADD+=	-lz
