@@ -224,7 +224,7 @@ hints.o:	hints.c
 	${NORMAL_C}
 
 vers.c: $S/conf/newvers.sh $S/sys/param.h ${SYSTEM_DEP}
-	sh $S/conf/newvers.sh ${KERN_IDENT} ${IDENT}
+	sh $S/conf/newvers.sh ${KERN_IDENT}
 
 # XXX strictly, everything depends on Makefile because changes to ${PROF}
 # only appear there, but we don't handle that.
