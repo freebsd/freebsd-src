@@ -15,19 +15,20 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.76 1998/12/04 21:28:39 archie Exp $
+ *	$Id: apm.c,v 1.77 1998/12/10 23:36:14 msmith Exp $
  */
 
 #include "opt_devfs.h"
 #include "opt_vm86.h"
+#include "opt_smp.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
-#include <sys/systm.h>
 #include <sys/time.h>
 #include <sys/reboot.h>
 #include <i386/isa/isa_device.h>
@@ -43,6 +44,10 @@
 #ifdef VM86
 #include <machine/psl.h>
 #include <machine/vm86.h>
+#endif
+
+#ifdef SMP
+#include <machine/smp.h>
 #endif
 
 static int apm_display __P((int newstate));
@@ -92,6 +97,10 @@ static struct cdevsw apm_cdevsw =
 static void
 setup_apm_gdt(u_int code32_base, u_int code16_base, u_int data_base, u_int code32_limit, u_int code16_limit, u_int data_limit)
 {
+#ifdef SMP
+	int x;
+#endif
+
 	/* setup 32bit code segment */
 	gdt_segs[GAPMCODE32_SEL].ssd_base  = code32_base;
 	gdt_segs[GAPMCODE32_SEL].ssd_limit = code32_limit;
@@ -108,6 +117,14 @@ setup_apm_gdt(u_int code32_base, u_int code16_base, u_int data_base, u_int code3
 	ssdtosd(gdt_segs + GAPMCODE32_SEL, &gdt[GAPMCODE32_SEL].sd);
 	ssdtosd(gdt_segs + GAPMCODE16_SEL, &gdt[GAPMCODE16_SEL].sd);
 	ssdtosd(gdt_segs + GAPMDATA_SEL  , &gdt[GAPMDATA_SEL  ].sd);
+
+#ifdef SMP
+	for (x = 1; x < NCPU; x++) {
+		gdt[x * NGDT + GAPMCODE32_SEL].sd = gdt[GAPMCODE32_SEL].sd;
+		gdt[x * NGDT + GAPMCODE16_SEL].sd = gdt[GAPMCODE16_SEL].sd;
+		gdt[x * NGDT + GAPMDATA_SEL  ].sd = gdt[GAPMDATA_SEL  ].sd;
+	}
+#endif
 }
 
 /* 48bit far pointer. Do not staticize - used from apm_setup.s */
@@ -704,13 +721,13 @@ apmprobe(struct isa_device *dvp)
 	switch (apm_version) {
 	case APMINI_CANTFIND:
 		/* silent */
-		return 0;
+		return ENXIO;
 	case APMINI_NOT32BIT:
 		printf("apm: 32bit connection is not supported.\n");
-		return 0;
+		return ENXIO;
 	case APMINI_CONNECTERR:
 		printf("apm: 32-bit connection error.\n");
-		return 0;
+		return ENXIO;
 	}
 	if (dvp->id_flags & 0x20)
 		statclock_disable = 1;
