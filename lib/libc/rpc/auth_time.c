@@ -49,6 +49,8 @@ __FBSDID("$FreeBSD$");
 #include <rpcsvc/nis.h>
 #include "un-namespace.h"
 
+extern int _rpc_dtablesize( void );
+
 #ifdef TESTING
 #define	msg(x)	printf("ERROR: %s\n", x)
 /* #define msg(x) syslog(LOG_ERR, "%s", x) */
