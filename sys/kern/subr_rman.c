@@ -680,6 +680,18 @@ rman_set_rid(struct resource *r, int rid)
 	r->r_rid = rid;
 }
 
+void
+rman_set_start(struct resource *r, u_long start)
+{
+	r->r_start = start;
+}
+
+void
+rman_set_end(struct resource *r, u_long end)
+{
+	r->r_end = end;
+}
+
 int
 rman_get_rid(struct resource *r)
 {
