@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.90 1999/07/10 18:08:48 iwasaki Exp $
+ *	$Id: apm.c,v 1.91 1999/07/22 14:45:22 iwasaki Exp $
  */
 
 #include "opt_devfs.h"
@@ -741,14 +741,7 @@ apm_not_halt_cpu(void)
 /* device driver definitions */
 
 /*
- * probe APM (dummy):
- *
- * APM probing routine is placed on locore.s and apm_init.S because
- * this process forces the CPU to turn to real mode or V86 mode.
- * Current version uses real mode, but in a future version, we want
- * to use V86 mode in APM initialization.
- * 
- * XXX If VM86 is defined, we do.
+ * probe APM
  */
 
 static int
@@ -943,7 +936,7 @@ apm_processevent(void)
 /*
  * Attach APM:
  *
- * Initialize APM driver (APM BIOS itself has been initialized in locore.s)
+ * Initialize APM driver
  */
 
 static int
