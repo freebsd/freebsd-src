@@ -651,7 +651,7 @@ thread_exit(void)
 			upcall_remove(td);
 
 		sched_exit_thread(FIRST_THREAD_IN_PROC(p), td);
-		sched_exit_kse(FIRST_KSE_IN_PROC(p), ke);
+		sched_exit_kse(FIRST_KSE_IN_PROC(p), td);
 		ke->ke_state = KES_UNQUEUED;
 		ke->ke_thread = NULL;
 		/*
@@ -660,7 +660,7 @@ thread_exit(void)
 		if (ke->ke_flags & KEF_EXIT) {
 			kse_unlink(ke);
 			if (kg->kg_kses == 0) {
-				sched_exit_ksegrp(FIRST_KSEGRP_IN_PROC(p), kg);
+				sched_exit_ksegrp(FIRST_KSEGRP_IN_PROC(p), td);
 				ksegrp_unlink(kg);
 			}
 		}

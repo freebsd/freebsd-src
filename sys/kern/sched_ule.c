@@ -1256,20 +1256,22 @@ sched_wakeup(struct thread *td)
  * priority.
  */
 void
-sched_fork(struct proc *p, struct proc *p1)
+sched_fork(struct thread *td, struct proc *p1)
 {
 
 	mtx_assert(&sched_lock, MA_OWNED);
 
-	p1->p_nice = p->p_nice;
-	sched_fork_ksegrp(FIRST_KSEGRP_IN_PROC(p), FIRST_KSEGRP_IN_PROC(p1));
-	sched_fork_kse(FIRST_KSE_IN_PROC(p), FIRST_KSE_IN_PROC(p1));
-	sched_fork_thread(FIRST_THREAD_IN_PROC(p), FIRST_THREAD_IN_PROC(p1));
+	p1->p_nice = td->td_proc->p_nice;
+	sched_fork_ksegrp(td, FIRST_KSEGRP_IN_PROC(p1));
+	sched_fork_kse(td, FIRST_KSE_IN_PROC(p1));
+	sched_fork_thread(td, FIRST_THREAD_IN_PROC(p1));
 }
 
 void
-sched_fork_kse(struct kse *ke, struct kse *child)
+sched_fork_kse(struct thread *td, struct kse *child)
 {
+
+	struct kse *ke = td->td_kse;
 
 	child->ke_slice = 1;	/* Attempt to quickly learn interactivity. */
 	child->ke_cpu = ke->ke_cpu;
@@ -1282,8 +1284,9 @@ sched_fork_kse(struct kse *ke, struct kse *child)
 }
 
 void
-sched_fork_ksegrp(struct ksegrp *kg, struct ksegrp *child)
+sched_fork_ksegrp(struct thread *td, struct ksegrp *child)
 {
+	struct ksegrp *kg = td->td_ksegrp;
 	PROC_LOCK_ASSERT(child->kg_proc, MA_OWNED);
 
 	child->kg_slptime = kg->kg_slptime;
@@ -1357,24 +1360,24 @@ sched_class(struct ksegrp *kg, int class)
  * Return some of the child's priority and interactivity to the parent.
  */
 void
-sched_exit(struct proc *p, struct proc *child)
+sched_exit(struct proc *p, struct thread *td)
 {
 	mtx_assert(&sched_lock, MA_OWNED);
-	sched_exit_kse(FIRST_KSE_IN_PROC(p), FIRST_KSE_IN_PROC(child));
-	sched_exit_ksegrp(FIRST_KSEGRP_IN_PROC(p), FIRST_KSEGRP_IN_PROC(child));
+	sched_exit_kse(FIRST_KSE_IN_PROC(p), td);
+	sched_exit_ksegrp(FIRST_KSEGRP_IN_PROC(p), td);
 }
 
 void
-sched_exit_kse(struct kse *ke, struct kse *child)
+sched_exit_kse(struct kse *ke, struct thread *td)
 {
-	kseq_load_rem(KSEQ_CPU(child->ke_cpu), child);
+	kseq_load_rem(KSEQ_CPU(td->td_kse->ke_cpu), td->td_kse);
 }
 
 void
-sched_exit_ksegrp(struct ksegrp *kg, struct ksegrp *child)
+sched_exit_ksegrp(struct ksegrp *kg, struct thread *td)
 {
-	/* kg->kg_slptime += child->kg_slptime; */
-	kg->kg_runtime += child->kg_runtime;
+	/* kg->kg_slptime += td->td_ksegrp->kg_slptime; */
+	kg->kg_runtime += td->td_ksegrp->kg_runtime;
 	sched_interact_update(kg);
 }
 

@@ -526,7 +526,7 @@ retry:
 	PCPU_SET(switchticks, ticks);
 
 	cnt.v_swtch++;
-	sched_exit(p->p_pptr, p);
+	sched_exit(p->p_pptr, td);
 
 	/*
 	 * Make sure the scheduler takes this thread out of its tables etc.

@@ -522,7 +522,7 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 			return (EPROCLIM);
 		}
 		ksegrp_link(newkg, p);
-		sched_fork_ksegrp(kg, newkg);
+		sched_fork_ksegrp(td, newkg);
 		mtx_unlock_spin(&sched_lock);
 		PROC_UNLOCK(p);
 	} else {
@@ -569,7 +569,7 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 #endif
 			mtx_lock_spin(&sched_lock);
 			kse_link(newke, newkg);
-			sched_fork_kse(td->td_kse, newke);
+			sched_fork_kse(td, newke);
 			/* Add engine */
 			kse_reassign(newke);
 			mtx_unlock_spin(&sched_lock);
