@@ -93,7 +93,9 @@ SYSCTL_INT(_hw_usb_uvscom, OID_AUTO, debug, CTLFLAG_RW,
 #define	UVSCOM_CONFIG_INDEX	0
 #define	UVSCOM_IFACE_INDEX	0
 
+#ifndef UVSCOM_INTR_INTERVAL
 #define UVSCOM_INTR_INTERVAL	100	/* mS */
+#endif
 
 #define UVSCOM_UNIT_WAIT	5
 
@@ -251,6 +253,7 @@ MODULE_DEPEND(uvscom, ucom, UCOM_MINVER, UCOM_PREFVER, UCOM_MAXVER);
 MODULE_VERSION(uvscom, UVSCOM_MODVER);
 
 static int	uvscomobufsiz = UVSCOM_DEFAULT_OPKTSIZE;
+static int	uvscominterval = UVSCOM_INTR_INTERVAL;
 
 static int
 sysctl_hw_usb_uvscom_opktsize(SYSCTL_HANDLER_ARGS)
@@ -269,9 +272,29 @@ sysctl_hw_usb_uvscom_opktsize(SYSCTL_HANDLER_ARGS)
 	return (err);
 }
 
+static int
+sysctl_hw_usb_uvscom_interval(SYSCTL_HANDLER_ARGS)
+{
+	int err, val;
+
+	val = uvscominterval;
+	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+	if (0 < val && val <= 1000)
+		uvscominterval = val;
+	else
+		err = EINVAL;
+
+	return (err);
+}
+
 SYSCTL_PROC(_hw_usb_uvscom, OID_AUTO, opktsize, CTLTYPE_INT | CTLFLAG_RW,
 	    0, sizeof(int), sysctl_hw_usb_uvscom_opktsize,
 	    "I", "uvscom output packet size");
+SYSCTL_PROC(_hw_usb_uvscom, OID_AUTO, interval, CTLTYPE_INT | CTLFLAG_RW,
+	    0, sizeof(int), sysctl_hw_usb_uvscom_interval,
+	    "I", "uvscom interrpt pipe interval");
 
 USB_MATCH(uvscom)
 {
@@ -748,6 +771,9 @@ uvscom_open(void *addr, int portno)
 
 	DPRINTF(("uvscom_open: sc = %p\n", sc));
 
+	/* change output packet size */
+	sc->sc_ucom.sc_obufsize = uvscomobufsiz;
+
 	if (sc->sc_intr_number != -1 && sc->sc_intr_pipe == NULL) {
 		DPRINTF(("uvscom_open: open interrupt pipe.\n"));
 
@@ -769,7 +795,7 @@ uvscom_open(void *addr, int portno)
 					  sc->sc_intr_buf,
 					  sc->sc_isize,
 					  uvscom_intr,
-					  UVSCOM_INTR_INTERVAL);
+					  uvscominterval);
 		if (err) {
 			printf("%s: cannot open interrupt pipe (addr %d)\n",
 				 USBDEVNAME(sc->sc_ucom.sc_dev),
