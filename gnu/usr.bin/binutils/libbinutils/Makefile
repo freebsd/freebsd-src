@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.1.1.1 1998/03/01 23:41:05 jdp Exp $
+# $Id: Makefile,v 1.2 1998/03/12 02:55:30 jdp Exp $
 #
 
 .include "../Makefile.inc0"
@@ -15,6 +15,8 @@ CFLAGS+=	-I${SRCDIR}/binutils
 CFLAGS+=	-I${SRCDIR}/bfd
 NOPROFILE=	true
 NOPIC=		true
+INTERNALLIB=	true
+INTERNALSTATICLIB=true
 CLEANFILES+=	arlex.c arparse.c arparse.h
 
 beforedepend: arlex.c arparse.c arparse.h
@@ -26,7 +28,5 @@ arparse.c arparse.h: arparse.y
 
 # This rule is an attempt to cause "make -j" to work.
 arparse.h: arparse.c
-
-install:
 
 .include <bsd.lib.mk>

@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: Makefile,v 1.1.1.1 1998/03/01 23:41:09 jdp Exp $
 #
 
 .include "../Makefile.inc0"
@@ -14,7 +14,7 @@ SRCS=		argv.c basename.c choose-temp.c concat.c cplus-dem.c \
 		xstrdup.c xstrerror.c insque.c
 NOPROFILE=	true
 NOPIC=		true
-
-install:
+INTERNALLIB=	true
+INTERNALSTATICLIB=true
 
 .include <bsd.lib.mk>
