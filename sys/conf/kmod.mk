@@ -19,13 +19,6 @@
 #
 # KMODMODE	KLD mode. [${BINMODE}]
 #
-# LINKS		The list of KLD links; should be full pathnames, the
-#               linked-to file coming first, followed by the linked
-#               file.  The files are hard-linked.  For example, to link
-#               /modules/master and /modules/meister, use:
-#
-#			LINKS=  /modules/master /modules/meister
-#
 # KMODLOAD	Command to load a kernel module [/sbin/kldload]
 #
 # KMODUNLOAD	Command to unload a kernel module [/sbin/kldunload]
@@ -35,14 +28,7 @@
 #
 # SRCS          List of source files
 #
-# SUBDIR        A list of subdirectories that should be built as well.
-#               Each of the targets will execute the same target in the
-#               subdirectories.
-#
-# SYMLINKS	Same as LINKS, except it creates symlinks and the
-#		linked-to pathname may be relative.
-#
-# DESTDIR, DISTDIR are set by other Makefiles (e.g. bsd.own.mk)
+# DESTDIR	Change the tree where the module gets installed. [not set]
 #
 # MFILES	Optionally a list of interfaces used by the module.
 #		This file contains a default list of interfaces.
@@ -53,10 +39,6 @@
 #		exported.
 #
 # +++ targets +++
-#
-#       distribute:
-#               This is a variant of install, which will
-#               put the stuff into the right "distribution".
 #
 # 	install:
 #               install the kernel module; if the Makefile
@@ -207,12 +189,6 @@ ${_ILINKS}:
 CLEANFILES+= ${PROG} ${FULLPROG} ${KMOD}.kld ${OBJS} ${_ILINKS} symb.tmp tmp.o
 
 .if !target(install)
-.if !target(beforeinstall)
-beforeinstall:
-.endif
-.if !target(afterinstall)
-afterinstall:
-.endif
 
 _INSTALLFLAGS:=	${INSTALLFLAGS}
 .for ie in ${INSTALLFLAGS_EDIT}
@@ -224,47 +200,34 @@ install.debug:
 	cd ${.CURDIR}; ${MAKE} -DINSTALL_DEBUG install
 .endif
 
-realinstall:
+.if !target(realinstall)
+realinstall: _kmodinstall
+.ORDER: beforeinstall _kmodinstall
 .if defined(DEBUG) && defined(INSTALL_DEBUG)
+_kmodinstall:
 	${INSTALL} ${COPY} -o ${KMODOWN} -g ${KMODGRP} -m ${KMODMODE} \
-	    ${_INSTALLFLAGS} ${FULLPROG} ${DESTDIR}${KMODDIR}/
+	    ${_INSTALLFLAGS} ${FULLPROG} ${DESTDIR}${KMODDIR}
 .else
+_kmodinstall:
 	${INSTALL} ${COPY} -o ${KMODOWN} -g ${KMODGRP} -m ${KMODMODE} \
-	    ${_INSTALLFLAGS} ${PROG} ${DESTDIR}${KMODDIR}/
-.if defined(LINKS) && !empty(LINKS)
-	@set ${LINKS}; \
-	while test $$# -ge 2; do \
-		l=${DESTDIR}$$1; \
-		shift; \
-		t=${DESTDIR}$$1; \
-		shift; \
-		${ECHO} $$t -\> $$l; \
-		ln -f $$l $$t; \
-	done; true
-.endif
-.if defined(SYMLINKS) && !empty(SYMLINKS)
-	@set ${SYMLINKS}; \
-	while test $$# -ge 2; do \
-		l=$$1; \
-		shift; \
-		t=${DESTDIR}$$1; \
-		shift; \
-		${ECHO} $$t -\> $$l; \
-		ln -fs $$l $$t; \
-	done; true
-.endif
+	    ${_INSTALLFLAGS} ${PROG} ${DESTDIR}${KMODDIR}
+
+.include <bsd.links.mk>
+
 .if !defined(NO_XREF)
+afterinstall: _kldxref
+.ORDER: realinstall _kldxref
+.ORDER: _installlinks _kldxref
+_kldxref:
 	@if type kldxref >/dev/null 2>&1; then \
 		${ECHO} kldxref ${DESTDIR}${KMODDIR}; \
 		kldxref ${DESTDIR}${KMODDIR}; \
 	fi
 .endif
 .endif
+.endif !target(realinstall)
 
-install: afterinstall
-afterinstall: realinstall
-realinstall: beforeinstall
-.endif
+.endif !target(install)
 
 .if !target(load)
 load:	${PROG}
