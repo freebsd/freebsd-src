@@ -8,7 +8,7 @@
  * i.e., users or services.
  *
  *	from: kdb_edit.c,v 4.2 90/01/09 16:05:09 raeburn Exp $
- *	$Id: kdb_edit.c,v 1.5 1995/08/03 17:15:54 mark Exp $
+ *	$Id$
  */
 
 /*
@@ -18,7 +18,7 @@
 #if 0
 #ifndef	lint
 static char rcsid[] =
-"$Id: kdb_edit.c,v 1.5 1995/08/03 17:15:54 mark Exp $";
+"$Id$";
 #endif	lint
 #endif
 
@@ -173,6 +173,8 @@ main(argc, argv)
 						    stdout)) < 0)
       exit (-1);
 
+    des_init_random_number_generator(master_key);
+
     /* lookup the default values */
     n = kerb_get_principal(KERB_DEFAULT_NAME, KERB_DEFAULT_INST,
 			   &default_princ, 1, &more);
@@ -282,7 +284,7 @@ change_principal()
 			bzero(new_key, sizeof(C_Block));
 			new_key[0] = 127;
 #else
-			random_key(new_key);
+			des_new_random_key(new_key);    /* yes, random */
 #endif
 			bzero(pw_str, sizeof pw_str);
 		    }
