@@ -697,6 +697,7 @@ struct rl_softc {
 #define	RT_DEVICEID_8138			0x8138
 #define	RT_DEVICEID_8139			0x8139
 #define RT_DEVICEID_8169			0x8169
+#define RT_DEVICEID_8100			0x8100
 
 #define RT_REVID_8139CPLUS			0x20
 
