@@ -169,7 +169,7 @@ tcp_timer_delack(xtp)
 	int s;
 
 	s = splnet();
-	if (callout_pending(tp->tt_delack)) {
+	if (callout_pending(tp->tt_delack) || !callout_active(tp->tt_delack)) {
 		splx(s);
 		return;
 	}
@@ -193,7 +193,7 @@ tcp_timer_2msl(xtp)
 	ostate = tp->t_state;
 #endif
 	s = splnet();
-	if (callout_pending(tp->tt_2msl)) {
+	if (callout_pending(tp->tt_2msl) || !callout_active(tp->tt_2msl)) {
 		splx(s);
 		return;
 	}
@@ -231,7 +231,7 @@ tcp_timer_keep(xtp)
 	ostate = tp->t_state;
 #endif
 	s = splnet();
-	if (callout_pending(tp->tt_keep)) {
+	if (callout_pending(tp->tt_keep) || !callout_active(tp->tt_keep)) {
 		splx(s);
 		return;
 	}
@@ -310,7 +310,7 @@ tcp_timer_persist(xtp)
 	ostate = tp->t_state;
 #endif
 	s = splnet();
-	if (callout_pending(tp->tt_persist)) {
+	if (callout_pending(tp->tt_persist) || !callout_active(tp->tt_persist)){
 		splx(s);
 		return;
 	}
@@ -361,7 +361,7 @@ tcp_timer_rexmt(xtp)
 	ostate = tp->t_state;
 #endif
 	s = splnet();
-	if (callout_pending(tp->tt_rexmt)) {
+	if (callout_pending(tp->tt_rexmt) || !callout_active(tp->tt_rexmt)) {
 		splx(s);
 		return;
 	}
