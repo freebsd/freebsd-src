@@ -284,8 +284,10 @@ Add these as applicable to the PDEFS line in the Makefile.
 
 *	-DSOCKS: NcFTP is now compatible with the Socks library by David Koblas,
 	at koblas@sgi.com.  This lets you use NcFTP with a "firewall" gateway
-	for enhanced site security.  You can get the latest version from
-	netcom.com:/pub/koblas.  After you have compiled it, compile NcFTP
+	for enhanced site security.  You can get the latest version from...
+		ftp://ftp.netcom.com/pub/ko/koblas/
+
+	After you have compiled it, compile NcFTP
 	with -DSOCKS added to PDEFS, and the pathname of the Rconnect.o file
 	added to LIBS.
 	
