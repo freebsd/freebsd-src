@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_linker.c,v 1.2 1997/08/02 14:31:28 bde Exp $
+ *	$Id: kern_linker.c,v 1.3 1997/11/06 19:29:10 phk Exp $
  */
 
 #include <sys/param.h>
@@ -37,6 +37,8 @@
 #include <machine/cpu.h>
 #include <sys/module.h>
 #include <sys/linker.h>
+
+linker_file_t linker_current_file;
 
 static struct lock lock;	/* lock for the file list */
 static linker_class_list_t classes;
