@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.96 1999/07/30 08:24:19 msmith Exp $
+ *	$Id: apm.c,v 1.97 1999/07/30 19:34:58 msmith Exp $
  */
 
 #include "opt_devfs.h"
@@ -747,9 +747,9 @@ apm_probe(device_t dev)
 		sc->bios.seg.code32.base = (vmf.vmf_ax << 4) + APM_KERNBASE;
 		sc->bios.seg.code32.limit = 0xffff;
 		sc->bios.seg.code16.base = (vmf.vmf_cx << 4) + APM_KERNBASE;
-		sc->bios.seg.code16.limit = vmf.vmf_si;
+		sc->bios.seg.code16.limit = 0xffff;
 		sc->bios.seg.data.base = (vmf.vmf_dx << 4) + APM_KERNBASE;
-		sc->bios.seg.data.limit = vmf.vmf_di;
+		sc->bios.seg.data.limit = 0xffff;
 		sc->bios.entry = vmf.vmf_ebx;
 		sc->connectmode = APM_PROT32CONNECT;
  	} else {
@@ -762,16 +762,11 @@ apm_probe(device_t dev)
 			return (ENXIO);
 		}
 		sc->bios.seg.code16.base = (vmf.vmf_ax << 4) + APM_KERNBASE;
-		sc->bios.seg.code16.limit = vmf.vmf_si;
+		sc->bios.seg.code16.limit = 0xffff;
 		sc->bios.seg.data.base = (vmf.vmf_cx << 4) + APM_KERNBASE;
-		sc->bios.seg.data.limit = vmf.vmf_di;
+		sc->bios.seg.data.limit = 0xffff;
 		sc->bios.entry = vmf.vmf_bx;
 		sc->connectmode = APM_PROT16CONNECT;
-	}
-	if (apm_version == 0x100) {
-		/* APM v1.0 does not set SI/DI */
-		sc->bios.seg.code16.limit = 0xffff;
-		sc->bios.seg.data.limit = 0xffff;
 	}
 	return(0);
 }
