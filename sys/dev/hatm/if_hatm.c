@@ -1334,61 +1334,61 @@ static int
 hatm_configure(struct hatm_softc *sc)
 {
 	/* Receive buffer pool 0 small */
-	kenv_getuint(sc, "rbps0.size", &sc->rbp_s0.size,
+	kenv_getuint(sc, "rbps0_size", &sc->rbp_s0.size,
 	    HE_CONFIG_RBPS0_SIZE, 0);
-	kenv_getuint(sc, "rbps0.thresh", &sc->rbp_s0.thresh,
+	kenv_getuint(sc, "rbps0_thresh", &sc->rbp_s0.thresh,
 	    HE_CONFIG_RBPS0_THRESH, 0);
 	sc->rbp_s0.bsize = MBUF0_SIZE;
 
 	/* Receive buffer pool 0 large */
-	kenv_getuint(sc, "rbpl0.size", &sc->rbp_l0.size,
+	kenv_getuint(sc, "rbpl0_size", &sc->rbp_l0.size,
 	    HE_CONFIG_RBPL0_SIZE, 0);
-	kenv_getuint(sc, "rbpl0.thresh", &sc->rbp_l0.thresh,
+	kenv_getuint(sc, "rbpl0_thresh", &sc->rbp_l0.thresh,
 	    HE_CONFIG_RBPL0_THRESH, 0);
 	sc->rbp_l0.bsize = MCLBYTES - MBUFL_OFFSET;
 
 	/* Receive buffer return queue 0 */
-	kenv_getuint(sc, "rbrq0.size", &sc->rbrq_0.size,
+	kenv_getuint(sc, "rbrq0_size", &sc->rbrq_0.size,
 	    HE_CONFIG_RBRQ0_SIZE, 0);
-	kenv_getuint(sc, "rbrq0.thresh", &sc->rbrq_0.thresh,
+	kenv_getuint(sc, "rbrq0_thresh", &sc->rbrq_0.thresh,
 	    HE_CONFIG_RBRQ0_THRESH, 0);
-	kenv_getuint(sc, "rbrq0.tout", &sc->rbrq_0.tout,
+	kenv_getuint(sc, "rbrq0_tout", &sc->rbrq_0.tout,
 	    HE_CONFIG_RBRQ0_TOUT, 0);
-	kenv_getuint(sc, "rbrq0.pcnt", &sc->rbrq_0.pcnt,
+	kenv_getuint(sc, "rbrq0_pcnt", &sc->rbrq_0.pcnt,
 	    HE_CONFIG_RBRQ0_PCNT, 0);
 
 	/* Receive buffer pool 1 small */
-	kenv_getuint(sc, "rbps1.size", &sc->rbp_s1.size,
+	kenv_getuint(sc, "rbps1_size", &sc->rbp_s1.size,
 	    HE_CONFIG_RBPS1_SIZE, 0);
-	kenv_getuint(sc, "rbps1.thresh", &sc->rbp_s1.thresh,
+	kenv_getuint(sc, "rbps1_thresh", &sc->rbp_s1.thresh,
 	    HE_CONFIG_RBPS1_THRESH, 0);
 	sc->rbp_s1.bsize = MBUF1_SIZE;
 
 	/* Receive buffer return queue 1 */
-	kenv_getuint(sc, "rbrq1.size", &sc->rbrq_1.size,
+	kenv_getuint(sc, "rbrq1_size", &sc->rbrq_1.size,
 	    HE_CONFIG_RBRQ1_SIZE, 0);
-	kenv_getuint(sc, "rbrq1.thresh", &sc->rbrq_1.thresh,
+	kenv_getuint(sc, "rbrq1_thresh", &sc->rbrq_1.thresh,
 	    HE_CONFIG_RBRQ1_THRESH, 0);
-	kenv_getuint(sc, "rbrq1.tout", &sc->rbrq_1.tout,
+	kenv_getuint(sc, "rbrq1_tout", &sc->rbrq_1.tout,
 	    HE_CONFIG_RBRQ1_TOUT, 0);
-	kenv_getuint(sc, "rbrq1.pcnt", &sc->rbrq_1.pcnt,
+	kenv_getuint(sc, "rbrq1_pcnt", &sc->rbrq_1.pcnt,
 	    HE_CONFIG_RBRQ1_PCNT, 0);
 
 	/* Interrupt queue 0 */
-	kenv_getuint(sc, "irq0.size", &sc->irq_0.size,
+	kenv_getuint(sc, "irq0_size", &sc->irq_0.size,
 	    HE_CONFIG_IRQ0_SIZE, 0);
-	kenv_getuint(sc, "irq0.thresh", &sc->irq_0.thresh,
+	kenv_getuint(sc, "irq0_thresh", &sc->irq_0.thresh,
 	    HE_CONFIG_IRQ0_THRESH, 0);
 	sc->irq_0.line = HE_CONFIG_IRQ0_LINE;
 
 	/* Transmit buffer return queue 0 */
-	kenv_getuint(sc, "tbrq0.size", &sc->tbrq.size,
+	kenv_getuint(sc, "tbrq0_size", &sc->tbrq.size,
 	    HE_CONFIG_TBRQ_SIZE, 0);
-	kenv_getuint(sc, "tbrq0.thresh", &sc->tbrq.thresh,
+	kenv_getuint(sc, "tbrq0_thresh", &sc->tbrq.thresh,
 	    HE_CONFIG_TBRQ_THRESH, 0);
 
 	/* Transmit buffer ready queue */
-	kenv_getuint(sc, "tpdrq.size", &sc->tpdrq.size,
+	kenv_getuint(sc, "tpdrq_size", &sc->tpdrq.size,
 	    HE_CONFIG_TPDRQ_SIZE, 0);
 	/* Max TPDs per VCC */
 	kenv_getuint(sc, "tpdmax", &sc->max_tpd,
