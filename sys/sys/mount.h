@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.13 (Berkeley) 3/27/94
- *	$Id: mount.h,v 1.27 1995/09/09 18:10:30 davidg Exp $
+ *	$Id: mount.h,v 1.28 1995/11/05 23:36:07 dyson Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -290,7 +290,7 @@ struct vfsops {
 	MOD_VFS(#fsname,index,&MODVNOPS,&_fs_vfsconf); \
 	int \
 	fsname ## _mod(struct lkm_table *lkmtp, int cmd, int ver) { \
-		DISPATCH(lkmtp, cmd, ver, nosys, nosys, nosys); }
+		DISPATCH(lkmtp, cmd, ver, lkm_nullcmd, lkm_nullcmd, lkm_nullcmd); }
 #else
 
 #define VFS_SET(vfsops, fsname, index, flags) \
