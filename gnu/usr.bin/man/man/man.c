@@ -1087,7 +1087,12 @@ make_cat_file (path, man_file, cat_file)
       }
       else {
         if (rename(temp, cat_file) == -1) {
-		perror("rename");
+		/* FS might be sticky */
+		sprintf(command, "cp %s %s", temp, cat_file);
+		if (system(command))
+			fprintf(stderr,
+				"\nHmm!  Can't seem to rename %s to %s, check permissions on man dir!\n",
+				temp, cat_file);
 		unlink(temp);
 		return 0;
 	}
