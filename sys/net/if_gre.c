@@ -49,6 +49,7 @@
 #include <sys/cdefs.h>
 __RCSID("@(#) $FreeBSD$");
 
+#include "opt_atalk.h"
 #include "opt_inet.h"
 #include "opt_ns.h"
 #include "bpf.h"
@@ -57,20 +58,15 @@ __RCSID("@(#) $FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
-#include <sys/queue.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
-
-#include <machine/cpu.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_types.h>
-#include <net/netisr.h>
 #include <net/route.h>
 
 #ifdef INET
@@ -85,19 +81,7 @@ __RCSID("@(#) $FreeBSD$");
 #error "Huh? if_gre without inet?"
 #endif
 
-#ifdef NS
-#include <netns/ns.h>
-#include <netns/ns_if.h>
-#endif
-
-#ifdef NETATALK
-#include <netatalk/at.h>
-#include <netatalk/at_var.h>
-#include <netatalk/at_extern.h>
-#endif
-
 #if NBPF > 0
-#include <sys/time.h>
 #include <net/bpf.h>
 #endif
 
