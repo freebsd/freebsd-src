@@ -202,6 +202,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc,
 
 		case TAC_AUTHEN_STATUS_FAIL:
 			tac_close(tach);
+			PAM_VERBOSE_ERROR("TACACS+ authentication failed");
 			PAM_RETURN(PAM_AUTH_ERR);
 
 		case TAC_AUTHEN_STATUS_GETUSER:
