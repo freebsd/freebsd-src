@@ -258,7 +258,7 @@ setpeer(argc, argv)
 		argv = margv;
 	}
 	if ((argc < 2) || (argc > 3)) {
-		printf("usage: %s host-name [port]\n", argv[0]);
+		printf("usage: %s [host [port]]\n", argv[0]);
 		return;
 	}
 	if (argc == 3)
@@ -424,8 +424,8 @@ static void
 putusage(s)
 	char *s;
 {
-	printf("usage: %s file ... host:target, or\n", s);
-	printf("       %s file ... target (when already connected)\n", s);
+	printf("usage: %s file [[host:]remotename]\n", s);
+	printf("       %s file1 file2 ... fileN [[host:]remote-directory]\n", s);
 }
 
 /*
@@ -507,8 +507,8 @@ static void
 getusage(s)
 	char *s;
 {
-	printf("usage: %s host:file host:file ... file, or\n", s);
-	printf("       %s file file ... file if connected\n", s);
+	printf("usage: %s [host:]file [localname]\n", s);
+	printf("       %s [host1:]file1 [host2:]file2 ... [hostN:]fileN\n", s);
 }
 
 int	rexmtval = TIMEOUT;
