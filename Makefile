@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.109.2.9 1997/08/05 03:46:23 asami Exp $
+#	$Id: Makefile,v 1.109.2.10 1997/08/11 18:36:35 asami Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -331,7 +331,7 @@ update:
 	@echo "--------------------------------------------------------------"
 	@echo "Updating /usr/src from cvs repository" ${CVSROOT}
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && cvs -q update -P -d
+	cd ${.CURDIR} && cvs -q update -P -d -r RELENG_2_2
 .endif
 
 #
