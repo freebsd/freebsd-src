@@ -601,6 +601,11 @@ struct pthread_state_data {
 	/* XXX - What about thread->timeout and/or thread->error? */
 };
 
+struct join_status {
+	struct pthread	*thread;
+	int		ret;
+	int		error;
+};
 
 /*
  * Normally thread contexts are stored as jmp_bufs via _setjmp()/_longjmp(),
@@ -757,8 +762,12 @@ struct pthread {
 	 */
 	int	error;
 
-	/* Pointer to a thread that is waiting to join (NULL if no joiner). */
-	struct pthread *joiner;
+	/*
+	 * The joiner is the thread that is joining to this thread.  The
+	 * join status keeps track of a join operation to another thread.
+	 */
+	struct pthread		*joiner;
+	struct join_status	join_status;
 
 	/*
 	 * The current thread can belong to only one scheduling queue at

@@ -122,18 +122,20 @@ _pthread_join(pthread_t pthread, void **thread_return)
 		pthread->joiner = curthread;
 
 		/* Keep track of which thread we're joining to: */
-		curthread->data.thread = pthread;
+		curthread->join_status.thread = pthread;
 
-		/* Schedule the next thread: */
-		_thread_kern_sched_state(PS_JOIN, __FILE__, __LINE__);
+		while (curthread->join_status.thread == pthread) {
+			/* Schedule the next thread: */
+			_thread_kern_sched_state(PS_JOIN, __FILE__, __LINE__);
+		}
 
 		/*
 		 * The thread return value and error are set by the thread we're
 		 * joining to when it exits or detaches:
 		 */
-		ret = curthread->error;
+		ret = curthread->join_status.error;
 		if ((ret == 0) && (thread_return != NULL))
-			*thread_return = curthread->ret;
+			*thread_return = curthread->join_status.ret;
 	} else {
 		/*
 		 * The thread exited (is dead) without being detached, and no
