@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.28 1996/01/25 00:17:22 bde Exp $
+ * $Id: subr_prf.c,v 1.29 1996/01/29 03:18:05 gibbs Exp $
  */
 
 #include "opt_ddb.h"
@@ -120,7 +120,9 @@ panic(const char *fmt, ...)
 		kdbpanic();
 #endif
 #ifdef DDB
+#ifndef DDB_UNATTENDED
 	Debugger ("panic");
+#endif
 #endif
 	boot(bootopt);
 }
