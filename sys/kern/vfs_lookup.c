@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_ktrace.h"
 #include "opt_mac.h"
+#include "opt_vfs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -52,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/filedesc.h>
 #include <sys/proc.h>
 #include <sys/syscallsubr.h>
+#include <sys/sysctl.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
@@ -74,6 +76,14 @@ nameiinit(void *dummy __unused)
 
 }
 SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_SECOND, nameiinit, NULL)
+
+#ifdef LOOKUP_SHARED
+static int lookup_shared = 1;
+#else
+static int lookup_shared = 0;
+#endif
+SYSCTL_INT(_vfs, OID_AUTO, lookup_shared, CTLFLAG_RW, &lookup_shared, 0,
+    "Enables/Disables shared locks for path name translation");
 
 /*
  * Convert a pathname into a pointer to a locked inode.
@@ -117,9 +127,8 @@ namei(ndp)
 	    ("namei: nameiop contaminated with flags"));
 	KASSERT((cnp->cn_flags & OPMASK) == 0,
 	    ("namei: flags contaminated with nameiops"));
-#ifndef LOOKUP_SHARED
-	cnp->cn_flags &= ~LOCKSHARED;
-#endif
+	if (!lookup_shared)
+		cnp->cn_flags &= ~LOCKSHARED;
 	fdp = p->p_fd;
 
 	/*
@@ -362,15 +371,14 @@ lookup(ndp)
 	rdonly = cnp->cn_flags & RDONLY;
 	cnp->cn_flags &= ~ISSYMLINK;
 	ndp->ni_dvp = NULL;
-#ifdef LOOKUP_SHARED
 	/*
 	 * We use shared locks until we hit the parent of the last cn then
 	 * we adjust based on the requesting flags.
 	 */
-	cnp->cn_lkflags = LK_SHARED;
-#else
-	cnp->cn_lkflags = LK_EXCLUSIVE;
-#endif
+	if (lookup_shared)
+		cnp->cn_lkflags = LK_SHARED;
+	else
+		cnp->cn_lkflags = LK_EXCLUSIVE;
 	dp = ndp->ni_startdir;
 	ndp->ni_startdir = NULLVP;
 	vn_lock(dp, cnp->cn_lkflags | LK_RETRY, td);
