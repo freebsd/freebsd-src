@@ -208,7 +208,6 @@ ptrace(curp, uap)
 	struct uio uio;
 	int error = 0;
 	int write;
-	int s;
 
 	write = 0;
 	if (uap->req == PT_TRACE_ME)
@@ -234,8 +233,12 @@ ptrace(curp, uap)
 			return EINVAL;
 
 		/* Already traced */
-		if (p->p_flag & P_TRACED)
+		PROC_LOCK(p);
+		if (p->p_flag & P_TRACED) {
+			PROC_UNLOCK(p);
 			return EBUSY;
+		}
+		PROC_UNLOCK(p);
 
 		if ((error = p_can(curp, p, P_CAN_DEBUG, NULL)))
 			return error;
@@ -272,24 +275,27 @@ ptrace(curp, uap)
 	case PT_SETDBREGS:
 #endif
 		/* not being traced... */
-		if ((p->p_flag & P_TRACED) == 0)
+		PROC_LOCK(p);
+		if ((p->p_flag & P_TRACED) == 0) {
+			PROC_UNLOCK(p);
 			return EPERM;
+		}
 
 		/* not being traced by YOU */
-		PROCTREE_LOCK(PT_SHARED);
 		if (p->p_pptr != curp) {
-			PROCTREE_LOCK(PT_RELEASE);
+			PROC_UNLOCK(p);
 			return EBUSY;
 		}
-		PROCTREE_LOCK(PT_RELEASE);
 
 		/* not currently stopped */
 		mtx_lock_spin(&sched_lock);
 		if (p->p_stat != SSTOP || (p->p_flag & P_WAITED) == 0) {
 			mtx_unlock_spin(&sched_lock);
+			PROC_UNLOCK(p);
 			return EBUSY;
 		}
 		mtx_unlock_spin(&sched_lock);
+		PROC_UNLOCK(p);
 
 		/* OK */
 		break;
@@ -314,19 +320,23 @@ ptrace(curp, uap)
 	switch (uap->req) {
 	case PT_TRACE_ME:
 		/* set my trace flag and "owner" so it can read/write me */
+		PROCTREE_LOCK(PT_EXCLUSIVE);
+		PROC_LOCK(p);
 		p->p_flag |= P_TRACED;
-		PROCTREE_LOCK(PT_SHARED);
 		p->p_oppid = p->p_pptr->p_pid;
+		PROC_UNLOCK(p);
 		PROCTREE_LOCK(PT_RELEASE);
 		return 0;
 
 	case PT_ATTACH:
 		/* security check done above */
-		p->p_flag |= P_TRACED;
 		PROCTREE_LOCK(PT_EXCLUSIVE);
+		PROC_LOCK(p);
+		p->p_flag |= P_TRACED;
 		p->p_oppid = p->p_pptr->p_pid;
 		if (p->p_pptr != curp)
 			proc_reparent(p, curp);
+		PROC_UNLOCK(p);
 		PROCTREE_LOCK(PT_RELEASE);
 		uap->data = SIGSTOP;
 		goto sendsig;	/* in PT_CONTINUE below */
@@ -363,12 +373,15 @@ ptrace(curp, uap)
 				struct proc *pp;
 
 				pp = pfind(p->p_oppid);
+				PROC_LOCK(p);
 				proc_reparent(p, pp ? pp : initproc);
-			}
-			PROCTREE_LOCK(PT_RELEASE);
-
+			} else
+				PROC_LOCK(p);
 			p->p_flag &= ~(P_TRACED | P_WAITED);
 			p->p_oppid = 0;
+
+			PROC_UNLOCK(p);
+			PROCTREE_LOCK(PT_RELEASE);
 
 			/* should we send SIGCHLD? */
 
@@ -376,7 +389,7 @@ ptrace(curp, uap)
 
 	sendsig:
 		/* deliver or queue signal */
-		s = splhigh();
+		PROC_LOCK(p);
 		mtx_lock_spin(&sched_lock);
 		if (p->p_stat == SSTOP) {
 			p->p_xstat = uap->data;
@@ -384,12 +397,11 @@ ptrace(curp, uap)
 			mtx_unlock_spin(&sched_lock);
 		} else {
 			mtx_unlock_spin(&sched_lock);
-			if (uap->data) {
-				mtx_assert(&Giant, MA_OWNED);
+			if (uap->data)		      
 				psignal(p, uap->data);
-			}
+
 		}
-		splx(s);
+		PROC_UNLOCK(p);
 		return 0;
 
 	case PT_WRITE_I:
@@ -577,7 +589,7 @@ stopevent(p, event, val)
 	unsigned int val;
 {
 
-	mtx_assert(&p->p_mtx, MA_OWNED | MA_NOTRECURSED);
+	PROC_LOCK_ASSERT(p, MA_OWNED | MA_NOTRECURSED);
 	p->p_step = 1;
 
 	do {
