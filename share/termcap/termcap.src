@@ -2712,7 +2712,8 @@ vt340-co|vt340 color:\
 vt340-color|vt340 co:\
 	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m\E[m:tc=vt340:
 #
-# SC,SW names needed for screen(1)
+# SC,SB,SH,SW names needed for screen(1)
+#
 SC|screen|VT 100/ANSI X3.64 virtual terminal:\
 	:am:xn:ms:mi:G0:km:\
 	:DO=\E[%dB:LE=\E[%dD:RI=\E[%dC:UP=\E[%dA:bs:bt=\E[Z:\
@@ -2722,16 +2723,20 @@ SC|screen|VT 100/ANSI X3.64 virtual terminal:\
 	:li#24:co#80:us=\E[4m:ue=\E[24m:so=\E[3m:se=\E[23m:\
 	:mb=\E[5m:md=\E[1m:mr=\E[7m:me=\E[m:sr=\EM:al=\E[L:\
 	:AL=\E[%dL:dl=\E[M:DL=\E[%dM:cs=\E[%i%d;%dr:dc=\E[P:\
-	:DC=\E[%dP:ic=\E[@:IC=\E[%d@:\
+	:DC=\E[%dP:im=\E[4h:ei=\E[4l:IC=\E[%d@:\
 	:ks=\E[?1h\E=:ke=\E[?1l\E>:vb=\Eg:\
 	:ku=\EOA:kd=\EOB:kr=\EOC:kl=\EOD:kb=^H:\
 	:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:k5=\E[15~:k6=\E[17~:\
 	:k7=\E[18~:k8=\E[19~:k9=\E[20~:k;=\E[21~:F1=\E[23~:F2=\E[24~:\
-	:kh=\E[1~:kI=\E[2~:kD=\E[3~:kH=\E[4~:kP=\E[5~:kN=\E[6~:\
-	:eA=\E(B\E)0:as=^N:ae=^O:\
+	:kh=\E[1~:kI=\E[2~:kD=\E[3~:kH=\E[4~:@7=\E[4~:kP=\E[5~:\
+	:kN=\E[6~:eA=\E(B\E)0:as=^N:ae=^O:ti=\E[?1049h:te=\E[?1049l:\
 	:vi=\E[?25l:ve=\E[34h\E[?25h:vs=\E[34l:\
 	:Co#8:pa#64:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m:AX:\
-	:ac=``aaffggjjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||}}~~..--++,,hhii00:
+	:ac=``aaffggjjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||}}~~..--++,,hhII00:
+SB|screen-bce|VT 100/ANSI X3.64 virtual terminal with bce:\
+	:ut:tc=screen:
+SH|screen-s|VT 100/ANSI X3.64 virtual terminal with hardstatus line:\
+	:ts=\E_:fs=\E\\:ds=\E_\E\\:tc=screen:
 SW|screen-w|VT 100/ANSI X3.64 virtual terminal with 132 cols:\
 	:co#132:tc=screen:
 # $Xorg: termcap,v 1.3 2000/08/17 19:55:10 cpqbld Exp $
