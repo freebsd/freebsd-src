@@ -1,4 +1,4 @@
-/*	$Id$ */
+/*	$Id: complete.c,v 1.1 1997/06/25 08:56:36 msmith Exp $ */
 /*	$NetBSD: complete.c,v 1.8 1997/05/24 16:34:30 lukem Exp $	*/
 
 /*-
@@ -39,7 +39,7 @@
 
 #ifndef SMALL
 #ifndef lint
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: complete.c,v 1.1 1997/06/25 08:56:36 msmith Exp $";
 #endif /* not lint */
 
 /*
@@ -337,7 +337,7 @@ complete(el, ch)
 
 		/* check for 'continuation' completes (which are uppercase) */
 	if ((cursor_argc > celems) && (celems > 0)
-	    && isupper(c->c_complete[celems-1]))
+	    && isupper((unsigned char)c->c_complete[celems-1]))
 		cursor_argc = celems;
 
 	if (cursor_argc > celems)

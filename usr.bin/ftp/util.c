@@ -1,4 +1,4 @@
-/*	$Id$ */
+/*	$Id: util.c,v 1.1 1997/06/25 08:56:46 msmith Exp $ */
 /*	$NetBSD: util.c,v 1.9 1997/06/10 22:00:01 lukem Exp $	*/
 
 /*
@@ -35,7 +35,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: util.c,v 1.1 1997/06/25 08:56:46 msmith Exp $";
 #endif /* not lint */
 
 /*
@@ -389,7 +389,7 @@ confirm(cmd, file)
 	(void)fflush(stdout);
 	if (fgets(line, sizeof(line), stdin) == NULL)
 		return (0);
-	switch (tolower(*line)) {
+	switch (tolower((unsigned char)*line)) {
 		case 'n':
 			return (0);
 		case 'p':
