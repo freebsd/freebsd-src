@@ -1833,8 +1833,8 @@ static int dc_attach(dev)
 	case DC_DEVICEID_DM9100:
 	case DC_DEVICEID_DM9102:
 		sc->dc_type = DC_TYPE_DM9102;
-		sc->dc_flags |= DC_TX_COALESCE|DC_TX_USE_TX_INTR;
-		sc->dc_flags |= DC_REDUCED_MII_POLL|DC_TX_ONE;
+		sc->dc_flags |= DC_TX_COALESCE|DC_TX_INTR_ALWAYS;
+		sc->dc_flags |= DC_REDUCED_MII_POLL|DC_TX_STORENFWD;
 		sc->dc_pmode = DC_PMODE_MII;
 		break;
 	case DC_DEVICEID_AL981:
