@@ -1,4 +1,4 @@
--- $Id$ --
+-- $Id: CATALOG,v 1.1 1996/09/08 02:58:27 jfieber Exp $ --
 
 -- ISO general entities --
 
@@ -58,6 +58,14 @@ PUBLIC "ISO 8879:1986//ENTITIES Publishing//EN"
 
 PUBLIC "ISO 8879:1986//ENTITIES General Technical//EN" 
 "ISO/ISOtech"
+
+-- Linuxdoc, as customized for FreeBSD --
+
+DTDDECL "-//FreeBSD//DTD linuxdoc//EN"
+"FreeBSD/linuxdoc.dcl"
+
+PUBLIC "-//FreeBSD//DTD linuxdoc//EN"
+"FreeBSD/linuxdoc.dtd"
 
 -- Transpec for instant(1) --
 

@@ -1,7 +1,8 @@
-#	$Id: Makefile,v 1.2 1996/09/08 02:43:26 jfieber Exp $
+#	$Id: Makefile,v 1.3 1996/09/08 02:58:28 jfieber Exp $
 
 SUBDIR= FreeBSD ISO transpec
 FILES=	CATALOG
+MAINTAINER=jfieber@freebsd.org
 
 BINDIR?=/usr/share
 
