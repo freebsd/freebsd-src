@@ -1,0 +1,778 @@
+<!--
+     The FreeBSD Documentation Project
+     The FreeBSD French Documentation Project
+
+     $Id$
+     $FreeBSD$
+     Original revision: 1.1.2.2
+-->
+<sect1>
+
+  <title>Boot-time Kernel Configuration</title>
+
+  <para>This section describes the boot-time configuration of the
+  &os; kernel.</para>
+
+  <sect2>
+
+    <title>Default Configuration</title>
+
+    <para>The following table contains a list of all of the devices
+    that are present in the <filename>GENERIC</filename> kernel.  This
+    is the essential part of the operating system that is placed in
+    your root partition during the installation process.  A compressed
+    version of the <filename>GENERIC</filename> kernel is also used on
+    the installation floppy diskette and DOS boot image.</para>
+
+    <para>The table describes the various parameters used by the
+    driver to communicate with the hardware in your system.  There are
+    four parameters in the table, though not all are used by each and
+    every device:
+
+      <informaltable frame=none>
+	<tgroup cols=2 align=left>
+          <colspec colwidth="*">
+          <colspec colwidth="5*">
+	  <tbody>
+	    <row>
+	      <entry>Port</entry>
+	      <entry>The starting I/O port used by the device, shown in hexadecimal.</entry>
+	    </row>
+	    <row>
+	      <entry>IRQ</entry>
+	      <entry>The interrupt the device uses to alert the driver to an event,
+	    given in decimal.</entry>
+	    </row>
+	    <row>
+	      <entry>DRQ</entry>
+	      <entry>The DMA (direct memory access) channel the device uses to move
+	    data to and from main memory, also given in decimal.</entry>
+	    </row>
+	    <row>
+	      <entry>IOMem</entry>
+	      <entry>The lowest (or starting) memory address used by the device,
+	    also shown in hexadecimal.</entry>
+	    </row>
+	  </tbody>
+	</tgroup>
+      </informaltable>
+
+    If an entry in the table has `n/a' for a value then it means that
+    the parameter in question does not apply to that device.  A value
+    of `dyn' means that the correct value should be determined
+    automatically by the kernel when the system boots and that you
+    don't need to worry about it.</para>
+
+    <para>If an entry is marked with an *, it means that support is
+    currently not available for it but should be back as soon as
+    someone converts the driver to work within the new (post-4.0)
+    framework.</para>
+
+    <para>
+      <informaltable frame=none>
+	<tgroup cols=6 align=left>
+          <colspec colwidth="*">
+          <colspec colwidth="*">
+          <colspec colwidth="*">
+          <colspec colwidth="*">
+          <colspec colwidth="*">
+          <colspec colwidth="5*">
+	  <thead>
+	    <row>
+	      <entry>Device</entry>
+	      <entry>Port</entry>
+	      <entry>IRQ</entry>
+	      <entry>DRQ</entry>
+	      <entry>IOMem</entry>
+	      <entry>Description</entry>
+	    </row>
+	  </thead>
+	  <tbody>
+            <row>
+              <entry>fdc0</entry>
+              <entry>3f0</entry>
+              <entry>6</entry>
+              <entry>2</entry>
+              <entry>n/a</entry>
+              <entry>Floppy disk controller</entry>
+            </row>
+
+            <row>
+              <entry>ata0</entry>
+              <entry>170</entry>
+              <entry>14</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>ATA/ATAPI controller</entry>
+            </row>
+
+            <row>
+              <entry>ata1</entry>
+              <entry>170</entry>
+              <entry>15</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>ATA/ATAPI controller</entry>
+            </row>
+
+            <row>
+              <entry>atadisk0</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>ATA disk drives</entry>
+            </row>
+
+            <row>
+              <entry>atapicd0</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>ATAPI CDROM drives</entry>
+            </row>
+
+            <row>
+              <entry>atapifd0</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>ATAPI floppy drives</entry>
+            </row>
+
+            <row>
+              <entry>atapist0</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>ATAPI tape drives</entry>
+            </row>
+
+            <row>
+              <entry>adv0</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>AdvanSys Narrow SCSI controllers</entry>
+            </row>
+
+            <row>
+              <entry>adw0</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>AdvanSys Wide SCSI controllers</entry>
+            </row>
+
+            <row>
+              <entry>amd0</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>AMD 53C974 (Tekram DC390(T))</entry>
+            </row>
+
+            <row>
+              <entry>ncr0</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>NCR PCI SCSI controller</entry>
+            </row>
+
+            <row>
+              <entry>bt0</entry>
+              <entry>330</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>Buslogic SCSI controller</entry>
+            </row>
+
+            <row>
+              <entry>aha0</entry>
+              <entry>330</entry>
+              <entry>dyn</entry>
+              <entry>5</entry>
+              <entry>dyn</entry>
+              <entry>Adaptec 154x/1535 SCSI controller</entry>
+            </row>
+
+            <row>
+              <entry>ahb0</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>Adaptec 174x SCSI controller</entry>
+            </row>
+
+            <row>
+              <entry>ahc0</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>Adaptec 274x/284x/294x SCSI controller</entry>
+            </row>
+
+            <row>
+              <entry>aic0</entry>
+              <entry>340</entry>
+              <entry>11</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>Adaptec 152x/AIC-6360/AIC-6260 SCSI controller</entry>
+            </row>
+
+            <row>
+              <entry>isp0</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>QLogic 10X0, 1240 Ultra SCSI, 1080/1280 Ultra2 SCSI, 12160 Ultra3 SCSI, 2X00 Fibre Channel SCSI controller</entry>
+            </row>
+
+            <row>
+              <entry>dpt0</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>DPT RAID SCSI controllers</entry>
+            </row>
+
+            <row>
+              <entry>amr0</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>AMI MegaRAID controllers</entry>
+            </row>
+
+            <row>
+              <entry>mlx0</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>n/a</entry>
+              <entry>dyn</entry>
+              <entry>Mylex DAC960 RAID controllers</entry>
+            </row>
+
+            <row>
+              <entry>twe0</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>3ware Escalade RAID controllers</entry>
+            </row>
+
+            <row>
+              <entry>asr0</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>DPT SmartRaid V, VI, and Adaptec SCSI RAID</entry>
+            </row>
+
+            <row>
+              <entry>mly0</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>Mylex AcceleRAID/eXtremeRAID</entry>
+            </row>
+
+            <row>
+              <entry>aac</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>Adaptec FSA family PCI SCSI RAID</entry>
+            </row>
+
+            <row>
+              <entry>ncv</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>NCR 53C500 based PC-Card SCSI</entry>
+            </row>
+
+            <row>
+              <entry>nsp</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>n/a</entry>
+              <entry>dyn</entry>
+              <entry>Workbit Ninja SCSI-3 based PC-Card SCSI</entry>
+            </row>
+
+            <row>
+              <entry>stg</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>TMC 18C30/50 based ISA/PC-Card SCSI</entry>
+            </row>
+
+            <row>
+              <entry>wt0</entry>
+              <entry>300</entry>
+              <entry>5</entry>
+              <entry>1</entry>
+              <entry>dyn</entry>
+              <entry>Wangtek and Archive QIC-02/QIC-36</entry>
+            </row>
+
+            <row>
+              <entry>psm0</entry>
+              <entry>60</entry>
+              <entry>12</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>PS/2 Mouse</entry>
+            </row>
+
+            <row>
+              <entry>mcd0</entry>
+              <entry>300</entry>
+              <entry>10</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>Mitsumi CD-ROM</entry>
+            </row>
+
+            <row>
+              <entry>matcd0</entry>
+              <entry>230</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>Matsushita/Panasonic CD-ROM</entry>
+            </row>
+
+            <row>
+              <entry>scd0</entry>
+              <entry>230</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>Sony CD-ROM</entry>
+            </row>
+
+            <row>
+              <entry>sio0</entry>
+              <entry>3f8</entry>
+              <entry>4</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>Serial Port 0 (COM1)</entry>
+            </row>
+
+            <row>
+              <entry>sio1</entry>
+              <entry>2f8</entry>
+              <entry>3</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>Serial Port 1 (COM2)</entry>
+            </row>
+
+            <row>
+              <entry>ppc0</entry>
+              <entry>dyn</entry>
+              <entry>7</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>Printer ports</entry>
+            </row>
+
+            <row>
+              <entry>dc0</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>DEC/Intel 21143 cards and workalikes</entry>
+            </row>
+
+            <row>
+              <entry>de0</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>DEC DC21x40 PCI based cards (including 21140 100bT cards)</entry>
+            </row>
+
+            <row>
+              <entry>ed0</entry>
+              <entry>280</entry>
+              <entry>10</entry>
+              <entry>dyn</entry>
+              <entry>d8000</entry>
+              <entry>WD & SMC 80xx; Novell NE1000 & NE2000; 3Com 3C503; HP PC Lan+</entry>
+            </row>
+
+            <row>
+              <entry>ep0</entry>
+              <entry>300</entry>
+              <entry>10</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>3Com 3C509, 3C529, 3C556, 3C562D, 3C563D, 3C572, 3C574X, 3C579, 3C589</entry>
+            </row>
+
+            <row>
+              <entry>ex0</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>n/a</entry>
+              <entry>Intel EtherExpress Pro/10 cards</entry>
+            </row>
+
+            <row>
+              <entry>fe0</entry>
+              <entry>300</entry>
+              <entry>dyn</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>Allied-Telesyn AT1700, RE2000 and Fujitsu FMV-180 series cards.</entry>
+            </row>
+
+            <row>
+              <entry>fxp0</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>n/a</entry>
+              <entry>dyn</entry>
+              <entry>Intel EtherExpress Pro/100B and Intel PRO/100+ Management Adapter</entry>
+            </row>
+
+            <row>
+              <entry>ie0</entry>
+              <entry>300</entry>
+              <entry>10</entry>
+              <entry>dyn</entry>
+              <entry>d0000</entry>
+              <entry>AT&amp;T StarLAN 10 and EN100; 3Com 3C507; NI5210; Intel EtherExpress (8/16,16[TP]) cards</entry>
+            </row>
+
+            <row>
+              <entry>le0</entry>
+              <entry>300</entry>
+              <entry>5</entry>
+              <entry>dyn</entry>
+              <entry>d0000</entry>
+              <entry>Digital Equipment EtherWorks 2 and EtherWorks 3</entry>
+            </row>
+
+            <row>
+              <entry>lnc0</entry>
+              <entry>280</entry>
+              <entry>10</entry>
+              <entry>n/a</entry>
+              <entry>dyn</entry>
+              <entry>Lance/PCnet cards (Isolan, Novell NE2100, NE32-VL, some PCnet-PCI cards)</entry>
+            </row>
+
+            <row>
+              <entry>pcn0</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>n/a</entry>
+              <entry>dyn</entry>
+              <entry>AMD PCnet/FAST, PCnet/FAST+, PCnet/FAST III, PCnet/PRO, PCnet/Home, and HomePNA cards</entry>
+            </row>
+
+            <row>
+              <entry>rl0</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>n/a</entry>
+              <entry>dyn</entry>
+              <entry>RealTek 8129/8139 fast ethernet</entry>
+            </row>
+
+            <row>
+              <entry>sf0</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>n/a</entry>
+              <entry>dyn</entry>
+              <entry>Adaptec AIC-6915 fast ethernet</entry>
+            </row>
+
+            <row>
+              <entry>sis0</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>n/a</entry>
+              <entry>dyn</entry>
+              <entry>SiS 900/SiS 7016 fast ethernet</entry>
+            </row>
+
+            <row>
+              <entry>sn0</entry>
+              <entry>0x300</entry>
+              <entry>10</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>SMC 91xx ethernet</entry>
+            </row>
+
+            <row>
+              <entry>ste0</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>n/a</entry>
+              <entry>dyn</entry>
+              <entry>Sundance ST201 fast ethernet</entry>
+            </row>
+
+            <row>
+              <entry>tl0</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>n/a</entry>
+              <entry>dyn</entry>
+              <entry>TI TNET100 'ThunderLAN' cards.</entry>
+            </row>
+
+            <row>
+              <entry>tx0</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>n/a</entry>
+              <entry>dyn</entry>
+              <entry>SMC 9432 'Epic' fast ethernet</entry>
+            </row>
+
+            <row>
+              <entry>wb0</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>n/a</entry>
+              <entry>dyn</entry>
+              <entry>Winbond W89C840F PCI based cards.</entry>
+            </row>
+
+            <row>
+              <entry>vr0</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>n/a</entry>
+              <entry>dyn</entry>
+              <entry>VIA VT3043/VT86C100A PCI based cards.</entry>
+            </row>
+
+            <row>
+              <entry>vx0</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>n/a</entry>
+              <entry>dyn</entry>
+              <entry>3Com 3c59x ((Fast) Etherlink III)</entry>
+            </row>
+
+            <row>
+              <entry>xe0</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>n/a</entry>
+              <entry>dyn</entry>
+              <entry>Xircom CreditCard adapters (16 bit)</entry>
+            </row>
+
+            <row>
+              <entry>xl0</entry>
+              <entry>dyn</entry>
+              <entry>dyn</entry>
+              <entry>n/a</entry>
+              <entry>dyn</entry>
+              <entry>3Com 3c900, 3c905, 3c905B, 3c905C, 3c980, 3cSOHO100 ((Fast) Etherlink XL)</entry>
+            </row>
+
+            <row>
+              <entry>cs0</entry>
+              <entry>0x300</entry>
+              <entry>dyn</entry>
+              <entry>n/a</entry>
+              <entry>n/a</entry>
+              <entry>Crystal Semiconductor CS89x0-based cards.</entry>
+            </row>
+
+	  </tbody>
+	</tgroup>
+      </informaltable>
+    </para>
+
+    <para>If the hardware in your computer is not set to the same
+    settings as those shown in the table and the item in conflict is
+    not marked 'dyn', you will have to either reconfigure your
+    hardware or use UserConfig to reconfigure the kernel to match the
+    way your hardware is currently set (see the next section).</para>
+  
+    <para>If the settings do not match, the kernel may be unable to
+    locate or reliably access the devices in your system.</para>
+
+  </sect2>
+
+  <sect2>
+    <title>Using UserConfig to change FreeBSD kernel settings</title>
+
+    <note>
+      <para>The markup for this section leaves a lot to be desired.</para>    
+    </note>
+
+    <para>The FreeBSD kernel on the install floppy contains drivers
+    for every piece of hardware that could conceivably be used to
+    install the rest of the system with.  Unfortunately, PC hardware
+    being what it is, some of these devices can be difficult to detect
+    accurately, and for some, the process of detecting another can
+    cause irreversible confusion.</para>
+
+    <para>To make this process easier, FreeBSD provides UserConfig.
+    With this tool the user can configure and disable device drivers
+    before the kernel is loaded, avoiding potential conflicts, and
+    eliminating the need to reconfigure hardware to suit the default
+    driver settings.</para>
+
+    <para>Once FreeBSD is installed, it will remember the changes made using
+    UserConfig, so that they only need be made once.</para>
+
+    <para>It is important to disable drivers that are not relevant to
+    a system in order to minimize the possibility of interference,
+    which can cause problems that are difficult to track down.</para>
+
+    <para>UserConfig features a command line interface for users with
+    serial consoles or a need to type commands, and a full screen
+    <quote>visual</quote> interface, which provides point-and-shoot
+    configuration functionality.</para>
+
+    <para>Here is a sample UserConfig screen shot in
+    <quote>visual</quote> mode:</para>
+
+<screen>---Active Drivers---------------------------10 Conflicts------Dev---IRQ--Port--
+ Storage :  (Collapsed)
+ Network :
+  NE1000,NE2000,3C503,WD/SMC80xx Ethernet adapters    CONF  ed0       5  0x280
+  NE1000,NE2000,3C503,WD/SMC80xx Ethernet adapters    CONF  ed1       5  0x300 
+ Communications : (Collapsed)
+ Input : (Collapsed)
+ Multimedia :
+---Inactive Drivers-------------------------------------------Dev--------------
+ Storage :
+ Network : (Collapsed)
+ Communications :
+ Input :
+ Multimedia :
+
+
+---Parameters-for-device-ed0---------------------------------------------------
+ Port address : 0x280      Memory address : 0xd8000
+ IRQ number   : 5          Memory size    : 0x2000
+ Flags        : 0x0000
+-------------------------------------------------------------------------------
+  IO Port address (Hexadecimal, 0x1-0x2000)
+  [TAB]   Change fields           [Q]   Save device parameters</screen>
+
+    <para>The screen is divided into four sections:
+      <itemizedlist>
+        <listitem>
+	  <para>Active Drivers.  Listed here are the device drivers
+          that are currently enabled, and their basic
+          parameters.</para>
+	</listitem>
+	<listitem>
+	  <para>Inactive Drivers.  These drivers are present, but are
+	  disabled.</para>
+	</listitem>
+	<listitem>
+	  <para>Parameter edit field.  This area is used for editing
+	  driver parameters.</para>
+	</listitem>
+	<listitem>
+	  <para>Help area.  Keystroke help is displayed here.</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+    
+    <para>One of the Active and Inactive lists is always in use, and
+    the current entry in the list will be shown with a highlight bar.
+    If there are more entries in a list than can be shown, it will
+    scroll.  The bar can be moved up and down using the cursor keys,
+    and moved between lists with the TAB key.</para>
+
+    <para>Drivers in the Active list may be marked
+    <literal>CONF</literal>.  This indicates that one or more of their
+    parameters conflicts with another device, and indicates a
+    potential for problems.  The total number of conflicts is
+    displayed at the top of the screen.</para>
+
+    <para>As a general rule, conflicts should be avoided, either by
+    disabling conflicting devices that are not present in the system,
+    or by altering their configuration so that they match the
+    installed hardware.</para>
+
+    <para>In the list areas, drivers are grouped by their basic
+    function.  Groups can be <literal>Collapsed</literal> to simplify
+    the display (this is the default state for all groups).  If a
+    group is collapsed, it will be shown with
+    <literal>Collapsed</literal> in the list, as above.  To Expand a
+    Collapsed group, position the highlight bar over the group heading
+    and press Enter.  To Collapse it again, repeat the process.</para>
+
+    <para>When a device driver in the Active list is highlighted, its
+    full parameters are displayed in the Parameter edit area.  Note
+    that not all drivers use all possible parameters, and some
+    hardware supported by drivers may not use all the parameters the
+    driver supports.</para>
+
+    <para>To disable a driver, go to the Active list, Expand the group
+    it is in, highlight the driver and press Del.  The driver will
+    move to its group in the Inactive list.  (If the group is
+    collapsed or off the screen, you may not see the driver in its new
+    location.)</para>
+
+    <para>To enable a driver, go to the Inactive list, Expand the
+    group it is in, highlight the driver and press Enter.  The
+    highlight will move to the Active list, and the driver you have
+    just enabled will be highlighted, ready to be configured.</para>
+
+    <para>To configure a driver, go to the Active list, Expand the
+    group it is in, highlight the driver and press Enter.  The cursor
+    will move to the Parameter edit area, and the device's parameters
+    may be edited.</para>
+
+    <para>While editing parameters, the TAB and cursor keys can be
+    used to move between fields.  Most numeric values (except IRQ) are
+    entered in hexadecimal, as indicated by the '0x' at the beginning
+    of the field.  The allowable values for a given field are show in
+    the Key Help area when the field is active.</para>
+
+    <para>To finish configuring a driver, press 'Q'.</para>
+
+    <para>Note that PCI, Microchannel and EISA devices can be probed
+    reliably, therefore they are not shown in the table above nor can
+    their settings be changed using UserConfig.</para>
+  </sect2>
+
+</sect1>

@@ -2,9 +2,9 @@
      The FreeBSD Documentation Project
      The FreeBSD French Documentation Project
 
-     $Id: proc-alpha.sgml,v 1.5 2002/09/29 17:03:01 eagle Exp $
+     $Id$
      $FreeBSD$
-     Original revision: 1.43
+     Original revision: 1.13.2.24
 -->
 
 <sect1>
