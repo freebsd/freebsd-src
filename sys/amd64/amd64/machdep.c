@@ -2147,6 +2147,10 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 static void
 get_fpcontext(struct thread *td, mcontext_t *mcp)
 {
+#if 1	/* XXX: tmp hack to restore ability to run releng4 binaries */
+	/* For now, always store the FP state in the PCB. */
+	(void)npxgetregs(td, (union savefpu *)&td->td_pcb->pcb_save);
+#else
 #ifndef DEV_NPX
 	mcp->mc_fpformat = _MC_FPFMT_NODEV;
 	mcp->mc_ownedfp = _MC_FPOWNED_NONE;
@@ -2182,11 +2186,16 @@ get_fpcontext(struct thread *td, mcontext_t *mcp)
 	}
 	mcp->mc_fpformat = npxformat();
 #endif
+#endif	/* tmp hack to restore ability to run releng4 binaries */
 }
 
 static int
 set_fpcontext(struct thread *td, const mcontext_t *mcp)
 {
+#if 1	/* XXX: tmp hack to restore ability to run releng4 binaries */
+	/* For now, the FP state is always stored in the PCB. */
+    	npxsetregs(td, (union savefpu *)&td->td_pcb->pcb_save);
+#else
 	union savefpu *addr;
 
 	if (mcp->mc_fpformat == _MC_FPFMT_NODEV)
@@ -2225,6 +2234,7 @@ set_fpcontext(struct thread *td, const mcontext_t *mcp)
 		 */
 	} else
 		return (EINVAL);
+#endif	/* tmp hack to restore ability to run releng4 binaries */
 	return (0);
 }
 
