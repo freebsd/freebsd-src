@@ -116,7 +116,6 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/types.h>
-#include <osreldate.h>
 
 /* BSD network include files */
 #include <netinet/in_systm.h>
@@ -2155,12 +2154,7 @@ PunchFWHole(struct alias_link *link) {
 
     /* Build generic part of the two rules */
     rule.fw_number = fwhole;
-#if __FreeBSD_version < 300000
-    rule.fw_nsp = 1;            /* 1 source port */
-    rule.fw_ndp = 1;            /* 1 destination port */
-#else
     rule.fw_nports = 1;         /* Number of source ports; dest ports follow */
-#endif
     rule.fw_flg = IP_FW_F_ACCEPT;
     rule.fw_prot = IPPROTO_TCP;
     rule.fw_smsk.s_addr = INADDR_BROADCAST;
