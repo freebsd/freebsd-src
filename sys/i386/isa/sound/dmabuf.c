@@ -832,6 +832,10 @@ DMAbuf_outputintr (int dev, int event_type)
       dmap->qhead = (dmap->qhead + 1) % dmap->nbufs;
       dmap->flags &= ~DMA_ACTIVE;
 
+#ifdef __FreeBSD__
+      isa_dmadone(0, 0, 0, audio_devs[dev]->dmachan);
+#endif
+
       if (dmap->qlen)
 	{
 	  audio_devs[dev]->output_block (dev, dmap->buf_phys[dmap->qhead],
@@ -872,6 +876,10 @@ DMAbuf_inputintr (int dev)
 #if defined(SVR42)
   snd_dma_intr (audio_devs[dev]->dmachan);
 #endif /* SVR42 */
+ 
+#ifdef __FreeBSD__
+      isa_dmadone(0, 0, 0, audio_devs[dev]->dmachan);
+#endif
 
   if (dmap->qlen == (dmap->nbufs - 1))
     {
@@ -920,7 +928,10 @@ DMAbuf_open_dma (int dev)
 
   if (ALLOC_DMA_CHN (chan, audio_devs[dev]->name))
     {
+#if 0
+      /* Enough already!  This error is reported twice elsewhere */
       printk ("Unable to grab DMA%d for the audio driver\n", chan);
+#endif
       return RET_ERROR (EBUSY);
     }
 
@@ -946,14 +957,6 @@ DMAbuf_close_dma (int dev)
 void
 DMAbuf_reset_dma (int dev)
 {
-  int             chan = audio_devs[dev]->dmachan;
-
-#if 0
-  disable_dma (chan);
-#endif
-#ifdef __FreeBSD__
-  isa_dmadone_nobounce(chan);
-#endif
 }
 
 #ifdef ALLOW_SELECT
