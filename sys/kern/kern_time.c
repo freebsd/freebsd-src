@@ -34,6 +34,8 @@
  * $FreeBSD$
  */
 
+#include "opt_mac.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/lock.h>
@@ -42,6 +44,7 @@
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/kernel.h>
+#include <sys/mac.h>
 #include <sys/systm.h>
 #include <sys/sysent.h>
 #include <sys/proc.h>
@@ -182,6 +185,11 @@ clock_settime(struct thread *td, struct clock_settime_args *uap)
 	struct timespec ats;
 	int error;
 
+#ifdef MAC
+	error = mac_check_system_settime(td->td_ucred);
+	if (error)
+		return (error);
+#endif
 	if ((error = suser(td)) != 0)
 		return (error);
 	if (SCARG(uap, clock_id) != CLOCK_REALTIME)
@@ -351,6 +359,11 @@ settimeofday(struct thread *td, struct settimeofday_args *uap)
 	struct timezone atz;
 	int error = 0;
 
+#ifdef MAC
+	error = mac_check_system_settime(td->td_ucred);
+	if (error)
+		return (error);
+#endif
 	if ((error = suser(td)))
 		return (error);
 	/* Verify all parameters before changing time. */
