@@ -197,14 +197,15 @@ ithread_create(struct ithd **ithread, int vector, int flags,
 		return (error);
 	}
 	td = FIRST_THREAD_IN_PROC(p);	/* XXXKSE */
+	mtx_lock_spin(&sched_lock);
 	td->td_ksegrp->kg_pri_class = PRI_ITHD;
 	td->td_priority = PRI_MAX_ITHD;
 	TD_SET_IWAIT(td);
+	mtx_unlock_spin(&sched_lock);
 	ithd->it_td = td;
 	td->td_ithd = ithd;
 	if (ithread != NULL)
 		*ithread = ithd;
-
 	CTR2(KTR_INTR, "%s: created %s", __func__, ithd->it_name);
 	return (0);
 }
