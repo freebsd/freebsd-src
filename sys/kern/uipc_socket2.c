@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket2.c	8.1 (Berkeley) 6/10/93
- * $Id: uipc_socket2.c,v 1.4 1994/10/02 17:35:33 phk Exp $
+ * $Id: uipc_socket2.c,v 1.5 1995/05/30 08:06:22 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -57,6 +57,8 @@ char	netcon[] = "netcon";
 char	netcls[] = "netcls";
 
 u_long	sb_max = SB_MAX;		/* patchable */
+
+static	u_long sb_efficiency = 8;	/* parameter for sbreserve() */
 
 /*
  * Procedures to manipulate state flags of socket
@@ -398,7 +400,7 @@ sbreserve(sb, cc)
 	if (cc > sb_max * MCLBYTES / (MSIZE + MCLBYTES))
 		return (0);
 	sb->sb_hiwat = cc;
-	sb->sb_mbmax = min(cc * 2, sb_max);
+	sb->sb_mbmax = min(cc * sb_efficiency, sb_max);
 	if (sb->sb_lowat > sb->sb_hiwat)
 		sb->sb_lowat = sb->sb_hiwat;
 	return (1);
