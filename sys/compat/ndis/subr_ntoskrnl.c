@@ -1617,7 +1617,6 @@ ntoskrnl_thread_exit(status)
 
 	ntoskrnl_kth--;
 
-        mtx_lock(&Giant);
         kthread_exit(0);
 	return(0);	/* notreached */
 }
