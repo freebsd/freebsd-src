@@ -38,11 +38,14 @@ static const char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static const char sccsid[] = "@(#)compress.c	8.2 (Berkeley) 1/7/94";
+#if 0
+static char sccsid[] = "@(#)compress.c	8.2 (Berkeley) 1/7/94";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <sys/param.h>
-#include <sys/time.h>
 #include <sys/stat.h>
 
 #include <err.h>
@@ -373,7 +376,7 @@ setfile(name, fs)
 		fs->st_mode &= ~(S_ISUID|S_ISGID);
 	}
 	if (chmod(name, fs->st_mode))
-		cwarn("chown: %s", name);
+		cwarn("chmod: %s", name);
 
 	if (chflags(name, fs->st_flags))
 		cwarn("chflags: %s", name);

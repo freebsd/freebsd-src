@@ -91,7 +91,7 @@ reduction in size and file overwriting are not performed, the input file is
 not removed, and the attributes of the input file are not retained.
 .Pp
 The options are as follows:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl b
 Specify the
 .Ar bits
@@ -122,13 +122,13 @@ must be between 9 and 16.
 After the
 .Ar bits
 limit is reached,
-.Nm compress
+.Nm
 periodically checks the compression ratio.
 If it is increasing,
-.Nm compress
+.Nm
 continues to use the existing code dictionary.
 However, if the compression ratio decreases,
-.Nm compress
+.Nm
 discards the table of substrings and rebuilds it from scratch.  This allows
 the algorithm to adapt to the next "block" of the file.
 .Pp
@@ -153,9 +153,9 @@ Compression is generally much better than that achieved by Huffman
 coding (as used in the historical command pack), or adaptive Huffman
 coding (as used in the historical command compact), and takes less
 time to compute.
-.Pp
+.Sh DIAGNOSTICS
 The
-.Nm compress
+.Nm
 utility exits 0 on success, and >0 if an error occurs.
 .Sh SEE ALSO
 .Rs
