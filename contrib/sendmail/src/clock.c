@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+ * Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+ *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -11,14 +12,17 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)clock.c	8.35 (Berkeley) 2/2/1999";
-#endif /* not lint */
+static char id[] = "@(#)$Id: clock.c,v 8.52.18.2 2000/05/25 23:33:30 gshapiro Exp $";
+#endif /* ! lint */
 
-# include "sendmail.h"
+#include <sendmail.h>
 
-# ifndef sigmask
-#  define sigmask(s)	(1 << ((s) - 1))
-# endif
+#ifndef sigmask
+# define sigmask(s)	(1 << ((s) - 1))
+#endif /* ! sigmask */
+
+static void	endsleep __P((void));
+
 
 /*
 **  SETEVENT -- set an event to happen at a specific time.
@@ -40,8 +44,6 @@ static char sccsid[] = "@(#)clock.c	8.35 (Berkeley) 2/2/1999";
 
 EVENT	*FreeEventList;		/* list of free events */
 
-static SIGFUNC_DECL	tick __P((int));
-
 EVENT *
 setevent(intvl, func, arg)
 	time_t intvl;
@@ -55,8 +57,8 @@ setevent(intvl, func, arg)
 
 	if (intvl <= 0)
 	{
-		syserr("554 setevent: intvl=%ld\n", intvl);
-		return (NULL);
+		syserr("554 5.3.0 setevent: intvl=%ld\n", intvl);
+		return NULL;
 	}
 
 	wasblocked = blocksignal(SIGALRM);
@@ -83,16 +85,16 @@ setevent(intvl, func, arg)
 	*evp = ev;
 
 	if (tTd(5, 5))
-		printf("setevent: intvl=%ld, for=%ld, func=%lx, arg=%d, ev=%lx\n",
+		dprintf("setevent: intvl=%ld, for=%ld, func=%lx, arg=%d, ev=%lx\n",
 			(long) intvl, (long)(now + intvl), (u_long) func,
 			arg, (u_long) ev);
 
-	setsignal(SIGALRM, tick);
+	(void) setsignal(SIGALRM, tick);
 	intvl = EventQueue->ev_time - now;
 	(void) alarm((unsigned) intvl < 1 ? 1 : intvl);
 	if (wasblocked == 0)
 		(void) releasesignal(SIGALRM);
-	return (ev);
+	return ev;
 }
 /*
 **  CLREVENT -- remove an event from the event queue.
@@ -115,7 +117,7 @@ clrevent(ev)
 	int wasblocked;
 
 	if (tTd(5, 5))
-		printf("clrevent: ev=%lx\n", (u_long) ev);
+		dprintf("clrevent: ev=%lx\n", (u_long) ev);
 	if (ev == NULL)
 		return;
 
@@ -137,9 +139,52 @@ clrevent(ev)
 
 	/* restore clocks and pick up anything spare */
 	if (wasblocked == 0)
-		releasesignal(SIGALRM);
+		(void) releasesignal(SIGALRM);
 	if (EventQueue != NULL)
-		kill(getpid(), SIGALRM);
+		(void) kill(getpid(), SIGALRM);
+	else
+	{
+		/* nothing left in event queue, no need for an alarm */
+		(void) alarm(0);
+	}
+}
+/*
+**  CLEAR_EVENTS -- remove all events from the event queue.
+**
+**	Parameters:
+**		none.
+**
+**	Returns:
+**		none.
+*/
+
+void
+clear_events()
+{
+	register EVENT *ev;
+	int wasblocked;
+
+	if (tTd(5, 5))
+		dprintf("clear_events: EventQueue=%lx\n", (u_long) EventQueue);
+
+	if (EventQueue == NULL)
+		return;
+
+	/* nothing will be left in event queue, no need for an alarm */
+	(void) alarm(0);
+	wasblocked = blocksignal(SIGALRM);
+
+	/* find the end of the EventQueue */
+	for (ev = EventQueue; ev->ev_link != NULL; ev = ev->ev_link)
+		continue;
+
+	ev->ev_link = FreeEventList;
+	FreeEventList = EventQueue;
+	EventQueue = NULL;
+
+	/* restore clocks and pick up anything spare */
+	if (wasblocked == 0)
+		(void) releasesignal(SIGALRM);
 }
 /*
 **  TICK -- take a clock tick
@@ -159,20 +204,20 @@ clrevent(ev)
 */
 
 /* ARGSUSED */
-static SIGFUNC_DECL
+SIGFUNC_DECL
 tick(sig)
 	int sig;
 {
 	register time_t now;
 	register EVENT *ev;
 	int mypid = getpid();
-	int olderrno = errno;
+	int save_errno = errno;
 
 	(void) alarm(0);
 	now = curtime();
 
 	if (tTd(5, 4))
-		printf("tick: now=%ld\n", (long) now);
+		dprintf("tick: now=%ld\n", (long) now);
 
 	/* reset signal in case System V semantics */
 	(void) setsignal(SIGALRM, tick);
@@ -187,7 +232,7 @@ tick(sig)
 		ev = EventQueue;
 		EventQueue = EventQueue->ev_link;
 		if (tTd(5, 6))
-			printf("tick: ev=%lx, func=%lx, arg=%d, pid=%d\n",
+			dprintf("tick: ev=%lx, func=%lx, arg=%d, pid=%d\n",
 				(u_long) ev, (u_long) ev->ev_func,
 				ev->ev_arg, ev->ev_pid);
 
@@ -208,14 +253,14 @@ tick(sig)
 		}
 
 		/* call ev_func */
-		errno = olderrno;
+		errno = save_errno;
 		(*f)(arg);
 		(void) alarm(0);
 		now = curtime();
 	}
 	if (EventQueue != NULL)
 		(void) alarm((unsigned) (EventQueue->ev_time - now));
-	errno = olderrno;
+	errno = save_errno;
 	return SIGFUNC_RETURN;
 }
 /*
@@ -235,12 +280,12 @@ tick(sig)
 **		be run during that interval.
 */
 
+
 static bool	SleepDone;
-static void	endsleep __P((void));
 
 #ifndef SLEEP_T
 # define SLEEP_T	unsigned int
-#endif
+#endif /* ! SLEEP_T */
 
 SLEEP_T
 sleep(intvl)
@@ -254,9 +299,9 @@ sleep(intvl)
 	(void) setevent((time_t) intvl, endsleep, 0);
 	was_held = releasesignal(SIGALRM);
 	while (!SleepDone)
-		pause();
+		(void) pause();
 	if (was_held > 0)
-		blocksignal(SIGALRM);
+		(void) blocksignal(SIGALRM);
 	return (SLEEP_T) 0;
 }
 

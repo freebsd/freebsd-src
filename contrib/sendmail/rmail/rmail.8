@@ -1,4 +1,5 @@
-.\" Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+.\" Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+.\"	 All rights reserved.
 .\" Copyright (c) 1983, 1990
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
@@ -7,43 +8,42 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"	@(#)rmail.8	6.14 (Berkeley) 5/19/1998
+.\"	$Id: rmail.8,v 8.1 1999/06/22 20:41:33 tony Exp $
 .\"
-.Dd May 19, 1998
-.Dt RMAIL 8
-.Os BSD 4.2
-.Sh NAME
-.Nm rmail
-.Nd handle remote mail received via uucp
-.Sh SYNOPSIS
-.Nm rmail
-.Ar user ...
-.Sh DESCRIPTION
-.Nm Rmail
-interprets incoming mail received via
-.Xr uucp 1 ,
-collapsing ``From'' lines in the form generated
-by
-.Xr mail.local 8
-into a single line of the form ``return-path!sender'',
-and passing the processed mail on to
-.Xr sendmail  8  .
-.Pp
-.Nm Rmail
-is explicitly designed for use with
-.Xr uucp
-and
-.Xr sendmail  .
-.Sh SEE ALSO
-.Xr uucp 1 ,
-.Xr mail.local 8 ,
-.Xr sendmail 8
-.Sh HISTORY
+.TH RMAIL 8 "$Date: 1999/06/22 20:41:33 $"
+.SH NAME
+.B rmail
+\- handle remote mail received via uucp
+.SH SYNOPSIS
+.B rmail
+.I 
+user ...
+.SH DESCRIPTION
+.B Rmail
+interprets incoming mail received via 
+uucp(1), 
+collapsing ``From'' lines in the form generated 
+by 
+mail.local(8) 
+into a single line of the form ``return-path!sender'', 
+and passing the processed mail on to 
+sendmail(8).
+.PP
+.B Rmail
+is explicitly designed for use with 
+uucp 
+and 
+sendmail.
+.SH SEE ALSO
+uucp(1), 
+mail.local(8), 
+sendmail(8)
+.SH HISTORY
 The
-.Nm rmail
-program appeared in
-.Bx 4.2 .
-.Sh BUGS
-.Nm Rmail
-should not reside in
-.Pa /bin .
+.B rmail
+program appeared in 
+4.2BSD.
+.SH BUGS
+.B Rmail
+should not reside in 
+/bin.

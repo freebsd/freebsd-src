@@ -1,6 +1,7 @@
 divert(-1)
 #
-# Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+# Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+#	All rights reserved.
 # Copyright (c) 1983 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
 #	The Regents of the University of California.  All rights reserved.
@@ -22,7 +23,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`@(#)cs-hpux9.mc	8.11 (Berkeley) 5/19/1998')
+VERSIONID(`$Id: cs-hpux9.mc,v 8.14 1999/02/07 07:26:00 gshapiro Exp $')
 OSTYPE(hpux9)dnl
 DOMAIN(CS.Berkeley.EDU)dnl
 define(`MAIL_HUB', mailspool.CS.Berkeley.EDU)dnl

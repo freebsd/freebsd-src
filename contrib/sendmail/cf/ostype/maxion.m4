@@ -1,6 +1,7 @@
 divert(-1)
 #
-# Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+# Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+#	All rights reserved.
 # Copyright (c) 1996 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
 #	The Regents of the University of California.  All rights reserved.
@@ -15,14 +16,11 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)maxion.m4	8.11 (Berkeley) 10/6/1998')
+VERSIONID(`$Id: maxion.m4,v 8.17 1999/10/21 00:31:39 gshapiro Exp $')
 
-define(`ALIAS_FILE',        ifdef(`_USE_ETC_MAIL_', `/etc/mail/aliases', `/etc/ucbmail/aliases'))dnl
-define(`HELP_FILE',         ifdef(`_USE_ETC_MAIL_', `/etc/mail/helpfile', `/etc/ucbmail/sendmail.hf'))dnl
 define(`QUEUE_DIR',         `/var/spool/mqueue')dnl
-define(`STATUS_FILE',       ifdef(`_USE_ETC_MAIL_', `/etc/mail/statistics', `/var/adm/log/sendmail.st'))dnl
+define(`STATUS_FILE',       `/var/adm/log/sendmail.st')dnl
 define(`LOCAL_MAILER_PATH', `/usr/bin/mail')dnl
-define(`LOCAL_MAILER_FLAGS',`rmn9')dnl
 define(`LOCAL_SHELL_FLAGS', `ehuP')dnl
 define(`LOCAL_MAILER_ARGS', `mail $u')dnl
 define(`UUCP_MAILER_ARGS',  `uux - -r -a$g -gmedium $h!rmail ($u)')dnl

@@ -1,6 +1,7 @@
 PUSHDIVERT(-1)
 #
-# Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+# Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+#	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
 # forth in the LICENSE file which can be found at the top level of
@@ -13,13 +14,13 @@ PUSHDIVERT(-1)
 #
 # This mailer is only useful if you have DECNET and the
 # mail11 program - gatekeeper.dec.com:/pub/DEC/gwtools.
-# 
+#
 # For local delivery of DECNET style addresses to the local
 # DECNET node, you will need feature(use_cw_file) and put
 # your DECNET nodename in in the cw file.
 #
 ifdef(`MAIL11_MAILER_PATH',, `define(`MAIL11_MAILER_PATH', /usr/etc/mail11)')
-ifdef(`MAIL11_MAILER_FLAGS',, `define(`MAIL11_MAILER_FLAGS', nsFx)')
+_DEFIFNOT(`MAIL11_MAILER_FLAGS', `nsFx')
 ifdef(`MAIL11_MAILER_ARGS',, `define(`MAIL11_MAILER_ARGS', mail11 $g $x $h $u)')
 define(`_USE_DECNET_SYNTAX_')
 define(`_LOCAL_', ifdef(`confLOCAL_MAILER', confLOCAL_MAILER, `local'))
@@ -40,19 +41,20 @@ POPDIVERT
 ###   UTK-MAIL11 Mailer specification   ###
 ###########################################
 
-VERSIONID(`@(#)mail11.m4	8.8 (Berkeley) 5/19/1998')
+VERSIONID(`$Id: mail11.m4,v 8.19 1999/10/18 04:57:54 gshapiro Exp $')
 
-Mmail11, P=MAIL11_MAILER_PATH, F=MAIL11_MAILER_FLAGS, S=15, R=25,
-	A=MAIL11_MAILER_ARGS
-
-S15
+SMail11From=15
 R$+			$: $>25 $1		preprocess
 R$w :: $+		$@ $w :: $1		ready to go
 
-S25
+SMail11To=25
 R$+ < @ $- .UUCP >	$: $2 ! $1		back to old style
 R$+ < @ $- .DECNET >	$: $2 :: $1		convert to DECnet style
 R$+ < @ $- .LOCAL >	$: $2 :: $1		convert to DECnet style
 R$+ < @ $=w. >		$: $2 :: $1		convert to DECnet style
 R$=w :: $+		$2			strip local names
 R$+ :: $+		$@ $1 :: $2		already qualified
+
+Mmail11, P=MAIL11_MAILER_PATH, F=_MODMF_(MAIL11_MAILER_FLAGS, `MAIL11'), S=Mail11From, R=Mail11To,
+	T=DNS/X-DECnet/X-Unix,
+	A=MAIL11_MAILER_ARGS

@@ -9,7 +9,10 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)rbl.m4	8.8 (Berkeley) 5/19/1998')
+VERSIONID(`$Id: rbl.m4,v 8.17 1999/04/04 00:51:12 ca Exp $')
 divert(-1)
 
-define(`_RBL_', ifelse(_ARG_, `', `rbl.maps.vix.com', `_ARG_'))dnl
+define(`_RBL_', ifelse(defn(`_ARG_'), `', `rbl.maps.vix.com', `_ARG_'))dnl
+ifelse(defn(`_ARG_'), `', `', `
+errprint(`Warning: FEATURE(`rbl') is deprecated, use FEATURE(`dnsbl') instead
+')')dnl

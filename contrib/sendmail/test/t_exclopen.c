@@ -28,15 +28,30 @@
 **	Ultrix 4.3	OK
 */
 
-#include <stdio.h>
-#include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <errno.h>
 #include <fcntl.h>
+#include <stdio.h>
+#include <unistd.h>
 
-char Attacker[128];
-char Attackee[128];
+#ifndef lint
+static char id[] = "@(#)$Id: t_exclopen.c,v 8.5 1999/08/28 00:25:28 gshapiro Exp $";
+#endif /* ! lint */
 
+static char Attacker[128];
+static char Attackee[128];
+
+static void
+bail(status)
+	int status;
+{
+	(void) unlink(Attacker);
+	(void) unlink(Attackee);
+	exit(status);
+}
+
+int
 main(argc, argv)
 	int argc;
 	char **argv;
@@ -61,16 +76,16 @@ main(argc, argv)
 	}
 	if (open(Attacker, O_WRONLY|O_CREAT|O_EXCL, 0644) < 0)
 	{
-		int saveerr = errno;
+		int save_errno = errno;
 
 		if (stat(Attackee, &st) >= 0)
 		{
 			printf("Weird.  Open failed but %s was created anyhow (errno = %d)\n",
-				Attackee, saveerr);
+				Attackee, save_errno);
 			bail(1);
 		}
 		printf("Good show!  Exclusive open works properly with symbolic links (errno = %d).\n",
-			saveerr);
+			save_errno);
 		bail(0);
 	}
 	if (stat(Attackee, &st) < 0)
@@ -82,12 +97,7 @@ main(argc, argv)
 	printf("Bad news: you can do an exclusive open through a symbolic link\n");
 	printf("\tBe sure you #define BOGUS_O_EXCL in conf.h\n");
 	bail(1);
-}
 
-bail(stat)
-	int stat;
-{
-	(void) unlink(Attacker);
-	(void) unlink(Attackee);
-	exit(stat);
+	/* NOTREACHED */
+	exit(0);
 }

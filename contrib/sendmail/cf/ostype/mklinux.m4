@@ -1,6 +1,7 @@
 divert(-1)
 #
-# Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+# Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+#	All rights reserved.
 # Copyright (c) 1983 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
 #	The Regents of the University of California.  All rights reserved.
@@ -14,9 +15,10 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)mklinux.m4	8.8 (Berkeley) 10/6/1998')
+VERSIONID(`$Id: mklinux.m4,v 8.14.4.1 2000/05/09 18:48:58 gshapiro Exp $')
+define(`confEBINDIR', `/usr/sbin')
 ifdef(`STATUS_FILE',,
-	`define(`STATUS_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/statistics', `/var/log/sendmail.st'))')
+	`define(`STATUS_FILE', `/var/log/sendmail.st')')
 ifdef(`PROCMAIL_MAILER_PATH',,
-	define(`PROCMAIL_MAILER_PATH', `/usr/bin/procmail'))
+	`define(`PROCMAIL_MAILER_PATH', `/usr/bin/procmail')')
 FEATURE(local_procmail)

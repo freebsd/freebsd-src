@@ -1,100 +1,107 @@
-.\" Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+.\" Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+.\"	 All rights reserved.
 .\"
 .\" By using this file, you agree to the terms and conditions set
 .\" forth in the LICENSE file which can be found at the top level of
 .\" the sendmail distribution.
 .\"
 .\"
-.\"	@(#)mailstats.8	8.8 (Berkeley) 11/13/1998
+.\"	$Id: mailstats.8,v 8.17 2000/03/11 20:18:21 gshapiro Exp $
 .\"
-.Dd April 25, 1996
-.Dt MAILSTATS 1
-.Os BSD 3
-.Sh NAME
-.Nm mailstats
-.Nd display mail statistics
-.Sh SYNOPSIS
-.Nm mailstats
-.Op Fl o
-.if \nP .Op Fl p
-.Op Fl C Ar cffile
-.Op Fl f Ar stfile
-.Sh DESCRIPTION
+.TH MAILSTATS 1 "April 25, 1996"
+.SH NAME
+.B mailstats
+\- display mail statistics
+.SH SYNOPSIS
+.B mailstats
+.RB [ \-o "] [" \-p ]
+.RB [ \-C 
+.IR cffile ]
+.RB [ \-f
+.IR stfile ]
+.SH DESCRIPTION
 The
-.Nm mailstats
+.B mailstats
 utility displays the current mail statistics.
-.Pp
+.PP
 First, the time at which statistics started being kept is displayed,
-in the format specified by
-.Xr ctime 3 .
-Then,
-the statistics for each mailer are displayed on a single line,
-each with the following whitespace separated fields:
-.Pp
-.Bl -tag -width 10n -offset indent -compact
-.It Sy M
+in the format specified by 
+ctime(3).  
+Then, 
+the statistics for each mailer are displayed on a single line, 
+each with the following white space separated fields:
+.sp
+.RS
+.PD 0.2v
+.TP 1.2i
+.B M
 The mailer number.
-.It Sy msgsfr
+.TP 
+.B msgsfr
 Number of messages from the mailer.
-.It Sy bytes_from
+.TP
+.B bytes_from
 Kbytes from the mailer.
-.It Sy msgsto
+.TP
+.B msgsto
 Number of messages to the mailer.
-.It Sy bytes_to
+.TP
+.B bytes_to
 Kbytes to the mailer.
-.It Sy msgsrej
+.TP
+.B msgsrej
 Number of messages rejected.
-.It Sy msgsdis
+.TP
+.B msgsdis
 Number of messages discarded.
-.It Sy Mailer
+.TP
+.B Mailer
 The name of the mailer.
-.El
-.Pp
-After this display, a line totaling the values for all of the mailers
-is displayed,
-separated from the previous information by a line containing only equals
-.Pq Dq \&=
+.PD
+.RE
+.PP
+After this display, a line totaling the values for all of the mailers 
+is displayed (preceeded with a ``T''),
+separated from the previous information by a line containing only equals 
+(``='') 
 characters.
-.Pp
+Another line preceeded with a ``C'' lists the number of connections.
+.PP
 The options are as follows:
-.Bl -tag -width Ds
-.It Fl C
+.TP 
+.B \-C
 Read the specified file instead of the default
-.Nm sendmail
-.Dq cf
-file.
-.It Fl f
+.B sendmail
+``cf'' file.
+.TP
+.B \-f
 Read the specified statistics file instead of the statistics file
 specified in the
-.Nm sendmail
-.Dq cf
-file.
-.if \nP \
-\{
-.It Fl p
+.B sendmail 
+``cf'' file.
+.TP 
+.B \-p
 Output information in program-readable mode and clear statistics.
-.\}
-.It Fl o
+.TP
+.B \-o
 Don't display the name of the mailer in the output.
-.El
-.Pp
+.PP
 The
-.Nm mailstats
+.B mailstats
 utility exits 0 on success, and >0 if an error occurs.
-.Sh FILES
-.Bl -tag -width /var/log/sendmail.stXX -compact
-.ie \nP .It Pa /etc/mail/sendmail.cf
-.el .It Pa /etc/sendmail.cf
+.SH FILES
+.PD 0.2v
+.TP 2.5i
+/etc/mail/sendmail.cf
 The default
-.Nm sendmail
-.Dq cf
-file.
-.ie \nP .It Pa /etc/mail/statistics
-.el .It Pa /var/log/sendmail.st
+.B sendmail
+``cf'' file.
+.TP
+/etc/mail/statistics
 The default
-.Nm sendmail
+.B sendmail
 statistics file.
-.El
-.Sh SEE ALSO
-.Xr mailq 1 ,
-.Xr sendmail 8
+.PD
+.SH SEE ALSO
+mailq(1), 
+sendmail(8)
