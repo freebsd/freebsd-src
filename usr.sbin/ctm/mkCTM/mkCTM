@@ -336,6 +336,9 @@ while 1 {
 	    puts "Queueing delta"
 	    flush stdout
 	    exec $CTMSW/ctm_smail -m $CTMmaxmsg -c $CTMmaxctm -q $CTMqueue $CTMdest/${nm}.gz $CTMqueuemail >&@ stdout
+	    puts "Sending initial two deltas"
+	    flush stdout
+	    exec $CTMSW/ctm_dequeue -n 2 $CTMqueue >&@ stdout
 	}
     }
     exec echo mailed > $CTMlock
