@@ -39,6 +39,7 @@ SUBDIR=	IPXrouted \
 	kernbb \
 	keyserv \
 	lpr \
+	mailwrapper \
 	manctl \
 	memcontrol \
 	mergemaster \
