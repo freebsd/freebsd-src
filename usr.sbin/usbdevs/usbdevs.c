@@ -81,35 +81,35 @@ usbdev(f, a, rec)
 	struct usb_device_info di;
 	int e, p;
 
-	di.addr = a;
+	di.udi_addr = a;
 	e = ioctl(f, USB_DEVICEINFO, &di);
 	if (e)
 		return;
 	done[a] = 1;
-	printf("addr %d: ", di.addr);
+	printf("addr %d: ", di.udi_addr);
 	if (verbose) {
-		if (di.lowspeed)
+		if (di.udi_lowspeed)
 			printf("low speed, ");
-		if (di.power)
-			printf("power %d mA, ", di.power);
+		if (di.udi_power)
+			printf("power %d mA, ", di.udi_power);
 		else
 			printf("self powered, ");
-		if (di.config)
-			printf("config %d, ", di.config);
+		if (di.udi_config)
+			printf("config %d, ", di.udi_config);
 		else
 			printf("unconfigured, ");
 	}
 	if (verbose) {
 		printf("%s(0x%04x), %s(0x%04x), rev 0x%04x",
-			di.product, di.productNo,
-			di.vendor, di.vendorNo, di.releaseNo);
+			di.udi_product, di.udi_productNo,
+			di.udi_vendor, di.udi_vendorNo, di.udi_releaseNo);
 	} else
-		printf("%s, %s", di.product, di.vendor);
+		printf("%s, %s", di.udi_product, di.udi_vendor);
 	printf("\n");
 	if (!rec)
 		return;
-	for (p = 0; p < di.nports; p++) {
-		int s = di.ports[p];
+	for (p = 0; p < di.udi_nports; p++) {
+		int s = di.udi_ports[p];
 		if (s >= USB_MAX_DEVICES) {
 			if (verbose) {
 				printf("%*sport %d %s\n", indent+1, "", p+1,
@@ -126,7 +126,7 @@ usbdev(f, a, rec)
 		printf("%*s", indent, "");
 		if (verbose)
 			printf("port %d ", p+1);
-		usbdev(f, di.ports[p], 1);
+		usbdev(f, di.udi_ports[p], 1);
 		indent--;
 	}
 }

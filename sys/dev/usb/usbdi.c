@@ -824,7 +824,7 @@ usb_transfer_complete(xfer)
 	}
 
 	/* Count completed transfers. */
-	++pipe->device->bus->stats.requests
+	++pipe->device->bus->stats.uds_requests
 		[pipe->endpoint->edesc->bmAttributes & UE_XFERTYPE];
 
 	xfer->done = 1;

@@ -432,81 +432,81 @@ typedef struct {
 /*** ioctl() related stuff ***/
 
 struct usb_ctl_request {
-	int	addr;
-	usb_device_request_t request;
-	void	*data;
-	int	flags;
+	int	ucr_addr;
+	usb_device_request_t ucr_request;
+	void	*ucr_data;
+	int	ucr_flags;
 #define USBD_SHORT_XFER_OK	0x04	/* allow short reads */
-	int	actlen;		/* actual length transferred */
+	int	ucr_actlen;		/* actual length transferred */
 };
 
 struct usb_alt_interface {
-	int	config_index;
-	int	interface_index;
-	int	alt_no;
+	int	uai_config_index;
+	int	uai_interface_index;
+	int	uai_alt_no;
 };
 
 #define USB_CURRENT_CONFIG_INDEX (-1)
 #define USB_CURRENT_ALT_INDEX (-1)
 
 struct usb_config_desc {
-	int	config_index;
-	usb_config_descriptor_t desc;
+	int	ucd_config_index;
+	usb_config_descriptor_t ucd_desc;
 };
 
 struct usb_interface_desc {
-	int	config_index;
-	int	interface_index;
-	int	alt_index;
-	usb_interface_descriptor_t desc;
+	int	uid_config_index;
+	int	uid_interface_index;
+	int	uid_alt_index;
+	usb_interface_descriptor_t uid_desc;
 };
 
 struct usb_endpoint_desc {
-	int	config_index;
-	int	interface_index;
-	int	alt_index;
-	int	endpoint_index;
-	usb_endpoint_descriptor_t desc;
+	int	ued_config_index;
+	int	ued_interface_index;
+	int	ued_alt_index;
+	int	ued_endpoint_index;
+	usb_endpoint_descriptor_t ued_desc;
 };
 
 struct usb_full_desc {
-	int	config_index;
-	u_int	size;
-	u_char	*data;
+	int	ufd_config_index;
+	u_int	ufd_size;
+	u_char	*ufd_data;
 };
 
 struct usb_string_desc {
-	int	string_index;
-	int	language_id;
-	usb_string_descriptor_t desc;
+	int	usd_string_index;
+	int	usd_language_id;
+	usb_string_descriptor_t usd_desc;
 };
 
 struct usb_ctl_report_desc {
-	int	size;
-	u_char	data[1024];	/* filled data size will vary */
+	int	ucrd_size;
+	u_char	ucrd_data[1024];	/* filled data size will vary */
 };
 
 struct usb_device_info {
-	u_int8_t	bus;				/* bus number */
-	u_int8_t	addr;				/* device address */
+	u_int8_t	udi_bus;				/* bus number */
+	u_int8_t	udi_addr;				/* device address */
 #	define		MAXDEVNAMELEN	10		/* number of drivers */
 #	define		MAXDEVNAMES	4		/* attached drivers */
-	char		devnames[MAXDEVNAMES][MAXDEVNAMELEN];
+	char		udi_devnames[MAXDEVNAMES][MAXDEVNAMELEN];
 							/* device names */
-	char		product[USB_MAX_STRING_LEN];	/* iProduct */
-	char		vendor[USB_MAX_STRING_LEN];	/* iManufacturer */
-	char		release[8];			/* string of releaseNo*/
-	u_int16_t	productNo;			/* idProduct */
-	u_int16_t	vendorNo;			/* idVendor */
-	u_int16_t	releaseNo;			/* bcdDevice */
-	u_int8_t	class;				/* bDeviceClass */
-	u_int8_t	subclass;			/* bDeviceSubclass */
-	u_int8_t	protocol;			/* bDeviceProtocol */
-	u_int8_t	config;				/* config index */
-	u_int8_t	lowspeed;			/* lowsped yes/no */
-	int		power;	/* power consumption in mA, 0 if selfpowered */
-	int		nports;				/* 0 if not hub */
-	u_int8_t	ports[16];/* hub only: addresses of devices on ports */
+	char		udi_product[USB_MAX_STRING_LEN];	/* iProduct */
+	char		udi_vendor[USB_MAX_STRING_LEN];	/* iManufacturer */
+	char		udi_release[8];			/* string of releaseNo*/
+	u_int16_t	udi_productNo;			/* idProduct */
+	u_int16_t	udi_vendorNo;			/* idVendor */
+	u_int16_t	udi_releaseNo;			/* bcdDevice */
+	u_int8_t	udi_class;				/* bDeviceClass */
+	u_int8_t	udi_subclass;			/* bDeviceSubclass */
+	u_int8_t	udi_protocol;			/* bDeviceProtocol */
+	u_int8_t	udi_config;				/* config index */
+	u_int8_t	udi_lowspeed;			/* lowsped yes/no */
+	int		udi_power;	/* power consumption in mA, 0 if selfpowered */
+	int		udi_nports;				/* 0 if not hub */
+	u_int8_t	udi_ports[16];/* hub only: addresses of devices on ports */
 #define USB_PORT_ENABLED 0xff
 #define USB_PORT_SUSPENDED 0xfe
 #define USB_PORT_POWERED 0xfd
@@ -514,12 +514,12 @@ struct usb_device_info {
 };
 
 struct usb_ctl_report {
-	int	report;
-	u_char	data[1024];	/* filled data size will vary */
+	int	ucr_report;
+	u_char	ucr_data[1024];	/* filled data size will vary */
 };
 
 struct usb_device_stats {
-	u_long	requests[4];	/* indexed by transfer type UE_* */
+	u_long	uds_requests[4];	/* indexed by transfer type UE_* */
 };
 
 typedef struct { u_int32_t cookie; } usb_event_cookie_t;
