@@ -17,7 +17,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: if_ed_p.c,v 1.13 1998/03/17 10:54:23 danny Exp $
+ *	$Id: if_ed_p.c,v 1.14 1998/12/14 05:47:27 dillon Exp $
  */
 
 #include "pci.h"
@@ -64,7 +64,11 @@ static struct pci_device ed_pci_driver = {
 	NULL
 };
 
+#ifdef COMPAT_PCI_DRIVER
+COMPAT_PCI_DRIVER (ed_pci, ed_pci_driver);
+#else
 DATA_SET (pcidevice_set, ed_pci_driver);
+#endif /* COMPAT_PCI_DRIVER */
 
 static const char*
 ed_pci_probe (pcici_t tag, pcidi_t type)

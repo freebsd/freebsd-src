@@ -1,5 +1,5 @@
 /*	$NetBSD: if_de.c,v 1.82 1999/02/28 17:08:51 explorer Exp $	*/
-/*	$Id: if_de.c,v 1.101 1999/03/14 08:32:52 peter Exp $ */
+/*	$Id: if_de.c,v 1.102 1999/03/17 16:44:52 luigi Exp $ */
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
@@ -5378,7 +5378,11 @@ static struct pci_device dedevice = {
 #endif
 };
 
+#ifdef COMPAT_PCI_DRIVER
+COMPAT_PCI_DRIVER(de, dedevice);
+#else
 DATA_SET (pcidevice_set, dedevice);
+#endif /* COMPAT_PCI_DRIVER */
 #endif /* __FreeBSD__ */
 
 #if defined(__bsdi__)

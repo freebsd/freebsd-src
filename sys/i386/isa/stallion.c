@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: stallion.c,v 1.24 1999/01/12 00:36:36 eivind Exp $
+ * $Id: stallion.c,v 1.25 1999/01/30 12:17:34 phk Exp $
  */
 
 /*****************************************************************************/
@@ -522,7 +522,11 @@ static struct pci_device	stlpcidriver = {
 	NULL,
 };
 
+#ifdef COMPAT_PCI_DRIVER
+COMPAT_PCI_DRIVER (stlpci, stlpcidriver);
+#else
 DATA_SET (pcidevice_set, stlpcidriver);
+#endif /* COMPAT_PCI_DRIVER */
 
 #endif
 

@@ -36,7 +36,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: es1370.c,v 1.1 1998/12/31 08:14:27 luigi Exp $
  */
 
 #include "pci.h"
@@ -153,7 +153,11 @@ static struct pci_device es_pci_driver = {
 	NULL
 };
 
+#ifdef COMPAT_PCI_DRIVER
+COMPAT_PCI_DRIVER(es_pci, es_pci_driver);
+#else
 DATA_SET(pcidevice_set, es_pci_driver);
+#endif /* COMPAT_PCI_DRIVER */
 
 static snddev_info es_op_desc = {
 	"ENSONIQ AudioPCI",
