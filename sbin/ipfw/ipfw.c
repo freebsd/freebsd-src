@@ -860,6 +860,7 @@ show_usage(void)
 "    ipoptions [!]{ssrr|lsrr|rr|ts}, ...\n"
 "    tcpoptions [!]{mss|window|sack|ts|cc}, ...\n"
 "    icmptypes {type[, type]}...\n"
+"    keep-state [method]\n"
 "  pipeconfig:\n"
 "    {bw|bandwidth} <number>{bit/s|Kbit/s|Mbit/s|Bytes/s|KBytes/s|MBytes/s}\n"
 "    {bw|bandwidth} interface_name\n"
