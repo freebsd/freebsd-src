@@ -82,7 +82,7 @@ complete_ambiguous(word, list, words)
 	int list;
 	StringList *words;
 {
-	char insertstr[MAXPATHLEN];
+	char insertstr[2 * MAXPATHLEN];
 	char *lastmatch;
 	int i, j;
 	size_t matchlen, wordlen;
@@ -92,7 +92,12 @@ complete_ambiguous(word, list, words)
 		return (CC_ERROR);	/* no choices available */
 
 	if (words->sl_cur == 1) {	/* only once choice available */
-		(void)strcpy(insertstr, words->sl_str[0]);
+		for (i = 0, j = 0; words->sl_str[0][i] != '\0'; i++) {
+			if (isspace((u_char)words->sl_str[0][i]))
+				insertstr[j++] = '\\';
+			insertstr[j++] = words->sl_str[0][i];
+		}
+		insertstr[j] = '\0';
 		if (el_insertstr(el, insertstr + wordlen) == -1)
 			return (CC_ERROR);
 		else
