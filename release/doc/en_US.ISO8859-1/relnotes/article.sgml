@@ -683,7 +683,8 @@
 
     <para>&man.kdump.1; now supports a <option>-p</option> option to
       display only the trace events corresponding to a specific
-      process.</para>
+      process, as well as a new <option>-E</option> flag to display
+      timestamps relative to the start of the dump.</para>
 
     <para>&man.last.1; now supports a <option>-n</option> flag to
       limit the number of lines in its output report.</para>
