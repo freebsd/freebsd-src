@@ -1,5 +1,5 @@
 #
-# Copyright (c) 1992-1998 Nick Hibma <hibma@skylink.it>
+# Copyright (c) 1992-1998 Nick Hibma <n_hibma@freebsd.org>
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
