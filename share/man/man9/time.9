@@ -65,7 +65,8 @@ system call and by periodic clock interrupts.
 .Pp
 The
 .Va boottime
-variable holds the system boot time.  It is set from
+variable holds the system boot time.
+It is set from
 .Va time
 at system boot, and is updated when the system time is adjusted
 with
@@ -87,7 +88,8 @@ function, rather than being copied from
 .Pp
 The
 .Va mono_time
-variable is a monotonically increasing system clock.  It is set
+variable is a monotonically increasing system clock.
+It is set
 from
 .Va time
 at boot, and is updated by the periodic timer interrupt.  (It is
@@ -109,8 +111,8 @@ The
 .Xr gettime 9
 function can be used to read the
 .Va time
-variable in an atomic manner.  There is no equivalent
-function for accessing
+variable in an atomic manner.
+There is no equivalent function for accessing
 .Va mono_time .
 The
 .Va boottime
