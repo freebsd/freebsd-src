@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.28 1995/09/04 04:44:26 dyson Exp $
+ * $Id: vm_fault.c,v 1.29 1995/09/06 05:37:39 dyson Exp $
  */
 
 /*
@@ -847,6 +847,7 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 		 */
 
 		dst_m->flags |= PG_WRITEABLE|PG_MAPPED;
+		dst_m->flags &= ~PG_ZERO;
 		pmap_enter(dst_map->pmap, vaddr, VM_PAGE_TO_PHYS(dst_m),
 		    prot, FALSE);
 
@@ -874,7 +875,6 @@ vm_fault_page_lookup(object, offset, rtobject, rtoffset, rtm)
 	vm_page_t m;
 
 	*rtm = 0;
-	*rtobject = 0;
 	*rtoffset = 0;
 
 	while (!(m = vm_page_lookup(object, offset))) {
@@ -957,8 +957,10 @@ vm_fault_additional_pages(first_object, first_offset, m, rbehind, raheada, marra
 	 * try to do any readahead that we might have free pages for.
 	 */
 	rahead = raheada;
-	if ((rahead + rbehind) > ((cnt.v_free_count + cnt.v_cache_count) - 2*cnt.v_free_reserved)) {
-		rahead = ((cnt.v_free_count + cnt.v_cache_count) - 2*cnt.v_free_reserved) / 2;
+	if ((rahead + rbehind) >
+		((cnt.v_free_count + cnt.v_cache_count) - 2*cnt.v_free_reserved)) {
+		rahead = ((cnt.v_free_count + cnt.v_cache_count) -
+			2*cnt.v_free_reserved) / 2;
 		rbehind = rahead;
 		if (!rahead)
 			pagedaemon_wakeup();
@@ -982,7 +984,8 @@ vm_fault_additional_pages(first_object, first_offset, m, rbehind, raheada, marra
 		startoffset = offset - rbehind * NBPG;
 		while (toffset >= startoffset) {
 			rtobject = object;
-			if (!vm_fault_page_lookup(first_object, toffset - offsetdiff, &rtobject, &rtoffset, &rtm) ||
+			if (!vm_fault_page_lookup(first_object,
+				toffset - offsetdiff, &rtobject, &rtoffset, &rtm) ||
 			    rtm != 0 || rtobject != object) {
 				startoffset = toffset + NBPG;
 				break;
@@ -1003,7 +1006,8 @@ vm_fault_additional_pages(first_object, first_offset, m, rbehind, raheada, marra
 	endoffset = offset + (rahead + 1) * NBPG;
 	while (toffset < object->size && toffset < endoffset) {
 		rtobject = object;
-		if (!vm_fault_page_lookup(first_object, toffset - offsetdiff, &rtobject, &rtoffset, &rtm) ||
+		if (!vm_fault_page_lookup(first_object,
+			toffset - offsetdiff, &rtobject, &rtoffset, &rtm) ||
 		    rtm != 0 || rtobject != object) {
 			break;
 		}
@@ -1019,42 +1023,34 @@ vm_fault_additional_pages(first_object, first_offset, m, rbehind, raheada, marra
 
 	/* see if we have space (again) */
 	if ((cnt.v_free_count + cnt.v_cache_count) > (cnt.v_free_reserved + size)) {
-		bzero(marray, (rahead + rbehind + 1) * sizeof(vm_page_t));
 		/*
 		 * get our pages and don't block for them
 		 */
 		for (i = 0; i < size; i++) {
 			if (i != treqpage) {
-				rtm = vm_page_alloc(object, startoffset + i * NBPG, VM_ALLOC_NORMAL);
-				if (rtm == NULL)
-					break;
+				rtm = vm_page_alloc(object,
+					startoffset + i * NBPG, VM_ALLOC_NORMAL);
+				if (rtm == NULL) {
+					if (i < treqpage) {
+						int j;
+						for (j = 0; j < i; j++) {
+								FREE_PAGE(marray[i]);
+						}
+						*reqpage = 0;
+						marray[0] = m;
+						return 1;
+					} else {
+						size = i;
+						*reqpage = treqpage;
+						return size;
+					}
+				}
+				marray[i] = rtm;
 			} else {
-				rtm = m;
+				marray[i] = m;
 			}
-
-			marray[i] = rtm;
 		}
 
-		for (i = 0; i < size; i++) {
-			if (marray[i] == 0)
-				break;
-		}
-
-		/*
-		 * if we could not get our block of pages, then free the
-		 * readahead/readbehind pages.
-		 */
-		if (i < treqpage) {
-			for (i = 0; i < size; i++) {
-				if (i != treqpage && marray[i])
-					FREE_PAGE(marray[i]);
-			}
-			*reqpage = 0;
-			marray[0] = m;
-			return 1;
-		}
-
-		size = i;
 		*reqpage = treqpage;
 		return size;
 	}
