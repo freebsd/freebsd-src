@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_socket.c,v 1.32 1998/05/19 07:11:23 peter Exp $
+ * $Id: nfs_socket.c,v 1.33 1998/05/31 17:27:49 peter Exp $
  */
 
 /*
@@ -272,10 +272,12 @@ nfs_connect(nmp, rep)
 	}
 	if (nmp->nm_sotype == SOCK_DGRAM) {
 		sndreserve = (nmp->nm_wsize + NFS_MAXPKTHDR) * 2;
-		rcvreserve = (nmp->nm_rsize + NFS_MAXPKTHDR) * 2;
+		rcvreserve = (max(nmp->nm_rsize, nmp->nm_readdirsize) +
+		    NFS_MAXPKTHDR) * 2;
 	} else if (nmp->nm_sotype == SOCK_SEQPACKET) {
 		sndreserve = (nmp->nm_wsize + NFS_MAXPKTHDR) * 2;
-		rcvreserve = (nmp->nm_rsize + NFS_MAXPKTHDR) * 2;
+		rcvreserve = (max(nmp->nm_rsize, nmp->nm_readdirsize) +
+		    NFS_MAXPKTHDR) * 2;
 	} else {
 		if (nmp->nm_sotype != SOCK_STREAM)
 			panic("nfscon sotype");
