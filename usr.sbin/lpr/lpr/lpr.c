@@ -48,7 +48,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: lpr.c	8.4 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: lpr.c,v 1.24 1998/04/17 17:25:49 obrien Exp $";
+	"$Id: lpr.c,v 1.25 1998/09/11 18:49:33 wollman Exp $";
 #endif /* not lint */
 
 /*
@@ -126,7 +126,7 @@ main(argc, argv)
 {
 	struct passwd *pw;
 	struct group *gptr;
-	char *arg, *cp, *printer;
+	char *arg, *cp, *printer, *p;
 	char buf[BUFSIZ];
 	int c, i, f, errs;
 	struct stat stb;
@@ -154,7 +154,9 @@ main(argc, argv)
 			   ":#:1:2:3:4:C:J:P:T:U:cdfghi:lnmprstvw:")) != -1)
 		switch (c) {
 		case '#':		/* n copies */
-			i = atoi(optarg);
+			i = strtol(optarg, &p, 0);
+			if (*p)
+				errx(1, "Bad argument to -#, number expected");
 			if (i > 0)
 				ncopies = i;
 			break;
@@ -210,7 +212,9 @@ main(argc, argv)
 
 		case 'i':		/* indent output */
 			iflag++;
-			indent = atoi(optarg);
+			indent = strtol(optarg, &p, 0);
+			if (*p)
+				errx(1, "Bad argument to -i, number expected");
 			break;
 
 		case 'm':		/* send mail when done */
