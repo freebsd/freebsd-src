@@ -43,6 +43,7 @@ dev/ppbus/ppb_base.c	optional ppbus
 dev/ppbus/ppb_1284.c	optional ppbus
 dev/ppbus/ppbconf.c	optional ppbus
 dev/ppbus/ppi.c		optional ppi
+dev/ppbus/pps.c		optional pps
 dev/ppbus/vpo.c		optional vpo
 dev/vn/vn.c		optional vn
 dev/vx/if_vx.c		optional vx  device-driver
