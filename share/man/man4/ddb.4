@@ -69,7 +69,7 @@
 .Pp
 To prevent activation of the debugger on kernel
 .Xr panic 9 :
-.Cd options DDB_UNATTENDED
+.Cd options KDB_UNATTENDED
 .Sh DESCRIPTION
 The
 .Nm
@@ -90,7 +90,7 @@ if the
 MIB variable is set non-zero,
 which is the default
 unless the
-.Dv DDB_UNATTENDED
+.Dv KDB_UNATTENDED
 option is specified.
 .Pp
 The current location is called `dot'.
