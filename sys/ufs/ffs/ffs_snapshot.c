@@ -352,9 +352,9 @@ restart:
 	bcopy(fs, copy_fs, fs->fs_sbsize);
 	if ((fs->fs_flags & (FS_UNCLEAN | FS_NEEDSFSCK)) == 0)
 		copy_fs->fs_clean = 1;
-	if (fs->fs_sbsize < SBLOCKSIZE)
-		bzero(&sbp->b_data[loc + fs->fs_sbsize],
-		    SBLOCKSIZE - fs->fs_sbsize);
+	size = fs->fs_bsize < SBLOCKSIZE ? fs->fs_bsize : SBLOCKSIZE;
+	if (fs->fs_sbsize < size)
+		bzero(&sbp->b_data[loc + fs->fs_sbsize], size - fs->fs_sbsize);
 	size = blkroundup(fs, fs->fs_cssize);
 	if (fs->fs_contigsumsize > 0)
 		size += fs->fs_ncg * sizeof(int32_t);
