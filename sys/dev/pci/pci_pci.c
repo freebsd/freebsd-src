@@ -495,7 +495,7 @@ pcib_route_interrupt(device_t pcib, device_t dev, int pin)
      *
      * parent_intpin = (device + child_intpin) % 4
      */
-    parent_intpin = (pci_get_slot(pcib) + (pin - 1)) % 4;
+    parent_intpin = (pci_get_slot(dev) + (pin - 1)) % 4;
 
     /*
      * Our parent is a PCI bus.  Its parent must export the pcib interface
