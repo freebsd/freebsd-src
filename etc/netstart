@@ -1,0 +1,29 @@
+#!/bin/sh -
+#
+#	@(#)netstart	5.9 (Berkeley) 3/30/91
+
+routedflags=-q
+timedflags=YES
+rwhod=NO
+
+# myname is my symbolic name
+# my-netmask is specified in /etc/networks
+#
+hostname=myname.my.domain
+hostname $hostname
+
+ifconfig imp0 inet $hostname
+ifconfig ace0 inet $hostname netmask my-netmask
+ifconfig ex0 inet $hostname netmask my-netmask
+ifconfig we0 inet $hostname netmask my-netmask
+ifconfig ne0 inet $hostname netmask my-netmask
+
+# for en ethernet interface, load microcode before ifconfig
+# /etc/enpload /dev/enp0ram /etc/enpcode	> /dev/console 2>&1
+ifconfig en0 inet $hostname netmask my-netmask
+
+# set the address for the loopback interface
+ifconfig lo0 inet localhost
+
+# use loopback, not the wire
+route add $hostname localhost

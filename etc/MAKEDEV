@@ -1,0 +1,160 @@
+#!/bin/sh -
+#
+# Copyright (c) 1990 The Regents of the University of California.
+# All rights reserved.
+#
+# Written and contributed by W. Jolitz 12/90
+#
+# Redistribution and use in source and binary forms are permitted provided
+# that: (1) source distributions retain this entire copyright notice and
+# comment, and (2) distributions including binaries display the following
+# acknowledgement:  ``This product includes software developed by the
+# University of California, Berkeley and its contributors'' in the
+# documentation or other materials provided with the distribution and in
+# all advertising materials mentioning features or use of this software.
+# Neither the name of the University nor the names of its contributors may
+# be used to endorse or promote products derived from this software without
+# specific prior written permission.
+# THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
+# WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+#
+#	@(#)MAKEDEV	5.2 (Berkeley) 6/22/90
+#
+# Device "make" file.  Valid arguments:
+#	std	standard devices
+#	local	configuration specific devices
+#
+# Tapes:
+#	wt*	QIC-interfaced (e.g. not SCSI) 3M cartridge tape
+#
+# Disks:
+#	wd*	"winchester" disk drives (ST506,IDE,ESDI,RLL,...)
+#	fd*	"floppy" disk drives (3 1/2", 5 1/4")
+#	as*	"SCSI" disk/tape/CDROM drives
+#
+# Terminal ports:
+#	com*	standard PC COM ports
+#
+# Pseudo terminals:
+#	pty*	set of 16 master and slave pseudo terminals
+#
+# Printers:
+#
+# Call units:
+#
+# Special purpose devices:
+#	flog*	kernel logging device
+#
+
+PATH=/sbin:/bin/:/usr/bin
+umask 77
+for i
+do
+case $i in
+
+std)
+	rm -f console drum mem kmdem null tty klog stdin stdout stderr
+	mknod console		c 0 0
+	mknod drum		c 4 0	; chmod 640 drum ; chgrp kmem drum
+	mknod kmem		c 2 1	; chmod 640 kmem ; chgrp kmem kmem
+	mknod mem		c 2 0	; chmod 640 mem ; chgrp kmem mem
+	mknod null		c 2 2	; chmod 666 null
+	mknod tty		c 1 0	; chmod 666 tty
+	mknod klog		c 7 0	; chmod 600 klog
+	mknod stdin		c 53 0	; chmod 666 stdin
+	mknod stdout		c 53 1	; chmod 666 stdout
+	mknod stderr		c 53 2	; chmod 666 stderr
+	rm -f fd/*
+	mkdir fd > /dev/null 2>&1
+	(cd fd && eval `echo "" | awk ' BEGIN { \
+		for (i = 0; i < 64; i++) \
+	 		printf("mknod %d c 53 %d;", i, i)}'`)
+	chown -R bin.bin fd
+	chmod 555 fd
+	chmod 666 fd/*
+	;;
+
+wt*)
+	umask 2
+	mknod wt0 b 3 0
+	mknod rwt0 c 10 0
+	umask 77
+	;;
+
+fd*|wd*|as*)
+	umask 2 ; unit=`expr $i : '..\(.*\)'`
+	case $i in
+	fd*) name=fd; blk=2; chr=9;;
+	wd*) name=wd; blk=0; chr=3;;
+	as*) name=as; blk=4; chr=13;;
+	esac
+	rm -f $name$unit? r$name$unit?
+	case $unit in
+	0|1)
+		mknod ${name}${unit}a	b $blk `expr $unit '*' 8 + 0`
+		mknod ${name}${unit}b	b $blk `expr $unit '*' 8 + 1`
+		mknod ${name}${unit}c	b $blk `expr $unit '*' 8 + 2`
+		mknod ${name}${unit}d	b $blk `expr $unit '*' 8 + 3`
+		mknod ${name}${unit}e	b $blk `expr $unit '*' 8 + 4`
+		mknod ${name}${unit}f	b $blk `expr $unit '*' 8 + 5`
+		mknod ${name}${unit}g	b $blk `expr $unit '*' 8 + 6`
+		mknod ${name}${unit}h	b $blk `expr $unit '*' 8 + 7`
+		mknod r${name}${unit}a	c $chr `expr $unit '*' 8 + 0`
+		mknod r${name}${unit}b	c $chr `expr $unit '*' 8 + 1`
+		mknod r${name}${unit}c	c $chr `expr $unit '*' 8 + 2`
+		mknod r${name}${unit}d	c $chr `expr $unit '*' 8 + 3`
+		mknod r${name}${unit}e	c $chr `expr $unit '*' 8 + 4`
+		mknod r${name}${unit}f	c $chr `expr $unit '*' 8 + 5`
+		mknod r${name}${unit}g	c $chr `expr $unit '*' 8 + 6`
+		mknod r${name}${unit}h	c $chr `expr $unit '*' 8 + 7`
+		chgrp operator ${name}${unit}[a-h] r${name}${unit}[a-h]
+		chmod 640 ${name}${unit}[a-h] r${name}${unit}[a-h]
+		;;
+	*)
+		echo bad unit for disk in: $i
+		;;
+	esac
+	umask 77
+	;;
+
+com*)
+	unit=`expr $i : 'com\(.*\)'`
+	rm -f com$unit
+	mknod com$unit c 8 $unit
+	;;
+
+pty*)
+	class=`expr $i : 'pty\(.*\)'`
+	case $class in
+	0) offset=0 name=p;;
+	1) offset=16 name=q;;
+	2) offset=32 name=r;;
+	3) offset=48 name=s;;
+# Note that telnetd, rlogind, and xterm (at least) only look at p-s.
+	4) offset=64 name=t;;
+	*) echo bad unit for pty in: $i;;
+	esac
+	case $class in
+	0|1|2|3|4)
+		umask 0
+		eval `echo $offset $name | awk ' { b=$1; n=$2 } END {
+			for (i = 0; i < 16; i++)
+				printf("mknod tty%s%x c 5 %d; \
+					mknod pty%s%x c 6 %d; ", \
+					n, i, b+i, n, i, b+i); }'`
+		umask 77
+		if [ $class = 1 ]; then
+			mv ttyqf ttyv0; mv ptyqf ptyv0
+		fi
+		;;
+	esac
+	;;
+
+local)
+	umask 0
+	sh MAKEDEV.local
+	;;
+
+esac
+done

@@ -1,0 +1,15 @@
+wheel:*:0:root,bill,lynne
+daemon:*:1:daemon
+kmem:*:2:root
+sys:*:3:root
+tty:*:4:root
+operator:*:5:root
+bin:*:7:
+news:*:8:
+games:*:13:
+staff:*:20:root
+guest:*:31:root
+nobody:*:39:
+ingres:*:74:ingres
+dialer:*:117
+nogroup:*:32766:
