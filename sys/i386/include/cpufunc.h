@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.32 1995/02/14 06:51:31 phk Exp $
+ *	$Id: cpufunc.h,v 1.33 1995/02/16 13:21:47 bde Exp $
  */
 
 /*
@@ -293,8 +293,8 @@ insque(void *a, void *b)
 	struct quehead *element = a, *head = b;
 
 	element->qh_link = head->qh_link;
-	head->qh_link = element;
 	element->qh_rlink = head;
+	head->qh_link = element;
 	element->qh_link->qh_rlink = element;
 }
 
