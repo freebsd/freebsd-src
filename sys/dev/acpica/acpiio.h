@@ -50,10 +50,10 @@ struct acpi_battinfo {
 
 #define ACPI_CMBAT_MAXSTRLEN 32
 struct acpi_bif {
-    u_int32_t unit;			/* 0 for mWh, 1 for mAh */
+    u_int32_t units;			/* 0 for mWh, 1 for mAh */
     u_int32_t dcap;			/* Design Capacity */
     u_int32_t lfcap;			/* Last Full capacity */
-    u_int32_t btech;			/* Battery Technorogy */
+    u_int32_t btech;			/* Battery Technology */
     u_int32_t dvol;			/* Design voltage (mV) */
     u_int32_t wcap;			/* WARN capacity */
     u_int32_t lcap;			/* Low capacity */

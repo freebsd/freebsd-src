@@ -264,7 +264,7 @@ acpi_cmbat_get_bif(void *context)
 	goto end;
     }
 
-    PKG_GETINT(res, tmp,  0, sc->bif.unit, end);
+    PKG_GETINT(res, tmp,  0, sc->bif.units, end);
     PKG_GETINT(res, tmp,  1, sc->bif.dcap, end);
     PKG_GETINT(res, tmp,  2, sc->bif.lfcap, end);
     PKG_GETINT(res, tmp,  3, sc->bif.btech, end);
@@ -404,7 +404,7 @@ acpi_cmbat_ioctl(u_long cmd, caddr_t addr, void *arg)
     case ACPIIO_CMBAT_GET_BIF:
 	acpi_cmbat_get_bif(dev);
 	bifp = &ioctl_arg->bif;
-	bifp->unit = sc->bif.unit;
+	bifp->units = sc->bif.units;
 	bifp->dcap = sc->bif.dcap;
 	bifp->lfcap = sc->bif.lfcap;
 	bifp->btech = sc->bif.btech;
