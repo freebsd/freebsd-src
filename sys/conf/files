@@ -527,6 +527,7 @@ kern/subr_diskslice.c	standard
 kern/subr_eventhandler.c	standard
 kern/subr_kobj.c	standard
 kern/subr_log.c		standard
+kern/subr_mchain.c	optional libmchain
 kern/subr_module.c	standard
 kern/subr_prf.c		standard
 kern/subr_prof.c	standard
