@@ -59,10 +59,9 @@ int match(char *, char *);
 static void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
+	FILE *mbox;
 	struct passwd *pwd;
 	int ch, count, newline;
 	char *file, *sender, *p;
@@ -92,10 +91,11 @@ main(argc, argv)
 		default:
 			usage();
 		}
+	argc -= optind;
 	argv += optind;
 
-	if (!file) {
-		if (*argv) {
+	if (file == NULL) {
+		if (argc) {
 			(void)snprintf(buf, sizeof(buf), "%s/%s", _PATH_MAILDIR, *argv);
 			file  = buf;
 		} else {
@@ -112,11 +112,12 @@ main(argc, argv)
 
 	/* read from stdin */
 	if (strcmp(file, "-") == 0) {
+		mbox = stdin;
 	} 
-	else if (!freopen(file, "r", stdin)) {
+	else if ((mbox = fopen(file, "r")) == NULL) {
 		errx(1, "can't read %s", file);
 	}
-	for (newline = 1; fgets(buf, sizeof(buf), stdin);) {
+	for (newline = 1; fgets(buf, sizeof(buf), mbox);) {
 		if (*buf == '\n') {
 			newline = 1;
 			continue;
@@ -133,21 +134,21 @@ main(argc, argv)
 	if (count != -1)
 		printf("There %s %d message%s in your incoming mailbox.\n",
 		    count == 1 ? "is" : "are", count, count == 1 ? "" : "s"); 
+	fclose(mbox);
 	exit(0);
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "usage: from [-c] [-f file] [-s sender] [user]\n");
 	exit(1);
 }
 
 int
-match(line, sender)
-	register char *line, *sender;
+match(char *line, char *sender)
 {
-	register char ch, pch, first, *p, *t;
+	char ch, pch, first, *p, *t;
 
 	for (first = *sender++;;) {
 		if (isspace(ch = *line))
