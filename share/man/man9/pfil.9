@@ -1,3 +1,5 @@
+.\"	$NetBSD: pfil.9,v 1.22 2003/07/01 13:04:06 wiz Exp $
+.\"
 .\" Copyright (c) 1996 Matthew R. Green
 .\" All rights reserved.
 .\"
@@ -25,105 +27,109 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd August 4, 1996
+.Dd September 8, 2003
 .Dt PFIL 9
 .Os
 .Sh NAME
 .Nm pfil ,
+.Nm pfil_head_register ,
+.Nm pfil_head_unregister ,
+.Nm pfil_head_get ,
 .Nm pfil_hook_get ,
 .Nm pfil_add_hook ,
-.Nm pfil_remove_hook
+.Nm pfil_remove_hook ,
+.Nm pfil_run_hooks
 .Nd packet filter interface
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/mbuf.h
-.In sys/socket.h
 .In net/if.h
 .In net/pfil.h
-.Ft "struct packet_filter_hook *"
-.Fn pfil_hook_get "int flag" "struct pfil_head *ph"
 .Ft int
-.Fo pfil_add_hook
-.Fa "int \*[lp]*func\*[rp]\*[lp]void *, int, struct ifnet *, int, struct mbuf **\*[rp]"
-.Fa "int flags"
-.Fa "struct pfil_head *ph"
-.Fc
+.Fn pfil_head_register "struct pfil_head *head"
 .Ft int
-.Fo pfil_remove_hook
-.Fa "int \*[lp]*func\*[rp]\*[lp]void *, int, struct ifnet *, int, struct mbuf **\*[rp]"
-.Fa "int flags"
-.Fa "struct pfil_head *ph"
-.Fc
+.Fn pfil_head_unregister "struct pfil_head *head"
+.Ft struct pfil_head *
+.Fn pfil_head_get "int af" "u_long dlt"
+.Ft struct packet_filter_hook *
+.Fn pfil_hook_get "int dir" "struct pfil_head *head"
+.Ft void
+.Fn pfil_add_hook "int (*func)()" "void *arg" "int flags" "struct pfil_head *"
+.Ft void
+.Fn pfil_remove_hook "int (*func)()" "void *arg" "int flags" "struct pfil_head *"
+.Ft int
+.Fn (*func) "void *arg" "struct mbuf **mp" "struct ifnet *" "int dir"
+.Ft int
+.Fn pfil_run_hooks "struct pfil_head *head" "struct mbuf **mp" "struct ifnet *" "int dir"
 .Sh DESCRIPTION
 The
 .Nm
-interface allows a function to be called on every incoming or outgoing
-packets.
-The hooks for these are embedded in the
-.Fn ip_input
-and
-.Fn ip_output
-routines.
-The
-.Fn pfil_hook_get
-function returns the first member of a particular hook, either the in or out
-list.
-The
-.Fn pfil_add_hook
-function takes a function of the form below as its first argument, and the
-flags for which lists to add the function to.
-The possible values for these
-flags are some combination of
-.Dv PFIL_IN
-and
-.Dv PFIL_OUT .
-The
-.Fn pfil_remove_hook
-removes a hook from the specified lists.
+framework allows for a specified function to be invoked for every
+incoming or outgoing packet for a particular network I/O stream.
+These hooks may be used to implement a firewall or perform packet
+transformations.
 .Pp
-The
-.Fa func
-argument is a function with the following prototype.
-.Pp
-.Ft int
-.Fn func "void *data" "int hlen" "struct ifnet *net" "int dir" "struct mbuf **m"
-.Pp
-The
-.Fa data
-describes the packet.
-Currently, this may only be a pointer to an
-.Vt ip
+Packet filtering points are registered with
+.Fn pfil_head_register .
+Filtering points are identified by a key (void *) and a data link type
+(int) in the
+.Em pfil_head
 structure.
-The
-.Fa net
+Packet filters use the key and data link type to look up the filtering
+point with which they register themselves.
+The key is unique to the filtering point.
+The data link type is a
+.Xr bpf 4
+DLT constant indicating what kind of header is present on the packet
+at the filtering point.
+Filtering points may be unregistered with the
+.Fn pfil_head_unregister
+function.
+.Pp
+Packet filters register/unregister themselves with a filtering point
+with the
+.Fn pfil_add_hook
 and
-.Fa m
-arguments describe the network interface and the mbuf holding data for this
-packet.
-The
-.Fa dir
-is the direction; 0 for incoming packets and 1 for outgoing packets.
-If the function
-returns non-zero, this signals an error and no further processing of this packet is
-performed.
-The function should set
-.Va errno
-to indicate the nature of the error.
-It is the hook's responsibility to free the chain if the packet is being dropped.
+.Fn pfil_remove_hook
+functions, respectively.
+The head is looked up using the
+.Fn pfil_head_get
+function, which takes the key and data link type that the packet filter
+expects.
+Filters may provide an argument to be passed to the filter when
+invoked on a packet.
+.Pp
+When a filter is invoked, the packet appears just as if it
+.Dq came off the wire .
+That is, all protocol fields are in network byte order.
+The filter is called with its specified argument, the pointer to the
+pointer to the mbuf containing the packet, the pointer to the network
+interface that the packet is traversing, and the direction (PFIL_IN
+or PFIL_OUT) that the packet is traveling.
+The filter may change which mbuf the mbuf ** argument references.
+The filter returns an errno if the packet processing is to stop, or 0
+if the processing is to continue.
+If the packet processing is to stop, it is the responsibility of the
+filter to free the packet.
 .Pp
 The
 .Nm
 interface is enabled in the kernel via the
-.Cd PFIL_HOOKS
+.Sy PFIL_HOOKS
 option.
 .Sh RETURN VALUES
 If successful,
-.Fn pfil_hook_get
-returns the first member of the packet filter list,
-.Fn pfil_add_hook
+.Fn pfil_head_get 
+returns the pfil_head structure for the given key/dlt. 
+.Fn pfil_add_hook 
 and
 .Fn pfil_remove_hook
-are expected to always succeed.
+return 0 if successful. If called with flag PFIL_WAITOK, 
+.Fn pfil_remove_hook
+is expected to always succeed.
+.Pp
+.Fn pfil_head_unregister
+might sleep!
 .Sh HISTORY
 The
 .Nm
@@ -132,7 +138,7 @@ interface first appeared in
 The
 .Nm
 input and output lists were originally implemented as
-.In sys/queue.h
+.Fd \*[Lt]sys/queue.h\*[Gt]
 .Dv LIST
 structures;
 however this was changed in
@@ -140,9 +146,8 @@ however this was changed in
 to
 .Dv TAILQ
 structures.
-This change was to allow the input and output filters to be
-processed in reverse order, to allow the same path to be taken, in or out
-of the kernel.
+This change was to allow the input and output filters to be processed in
+reverse order, to allow the same path to be taken, in or out of the kernel.
 .Pp
 The
 .Nm
@@ -151,11 +156,31 @@ interface was changed in 1.4T to accept a 3rd parameter to both
 and
 .Fn pfil_remove_hook ,
 introducing the capability of per-protocol filtering.
-This was done
-primarily in order to support filtering of IPv6.
-.Sh BUGS
-The current
+This was done primarily in order to support filtering of IPv6.
+.Pp
+In 1.5K, the
 .Nm
-implementation will need changes to suit a threaded kernel model.
+framework was changed to work with an arbitrary number of filtering points,
+as well as be less IP-centric.
+.Pp
+Fine-grained locking was adding in FreeBSD 5.2.
+.Sh BUGS
+.Fn pfil_hook_get
+is only safe for internal use.
+.Pp
+FreeBSD implements only hooks for AF_INET and AF_INET6.
+Packets diverted through these hooks have data in
+host byte order contrary to the above statements.
+.Pp
+The
+.Xr bridge 4
+diverts inbound AF_INET traffic, but contrary to the above
+statements, the data is provided in host byte order.
+.Pp
+When a pfil_head is being modified no traffic is diverted
+(to avoid deadlock).
+This means that unwanted traffic may flow for a short period
+of time.
 .Sh SEE ALSO
-.Xr bpf 4
+.Xr bpf 4 ,
+.Xr bridge 4
