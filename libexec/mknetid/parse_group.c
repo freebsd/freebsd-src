@@ -53,7 +53,8 @@ static const char rcsid[] =
 FILE *_gr_fp;
 static struct group _gr_group;
 static int _gr_stayopen;
-static int grscan(), start_gr();
+static int grscan(int, int);
+static int start_gr(void);
 
 #define	MAXGRP		200
 static char *members[MAXGRP];
@@ -61,27 +62,26 @@ static char *members[MAXGRP];
 static char line[MAXLINELENGTH];
 
 struct group *
-_getgrent()
+_getgrent(void)
 {
 	if (!_gr_fp && !start_gr()) {
 		return NULL;
 	}
 
 
-	if (!grscan(0, 0, NULL))
+	if (!grscan(0, 0))
 		return(NULL);
 	return(&_gr_group);
 }
 
 static int
-start_gr()
+start_gr(void)
 {
 	return 1;
 }
 
 int
-_setgroupent(stayopen)
-	int stayopen;
+_setgroupent(int stayopen)
 {
 	if (!start_gr())
 		return(0);
@@ -90,13 +90,13 @@ _setgroupent(stayopen)
 }
 
 int
-_setgrent()
+_setgrent(void)
 {
 	return(_setgroupent(0));
 }
 
 void
-_endgrent()
+_endgrent(void)
 {
 	if (_gr_fp) {
 		(void)fclose(_gr_fp);
@@ -105,11 +105,9 @@ _endgrent()
 }
 
 static int
-grscan(search, gid, name)
-	register int search, gid;
-	register char *name;
+grscan(int search, int gid)
 {
-	register char *cp, **m;
+	char *cp, **m;
 	char *bp;
 	for (;;) {
 		if (!fgets(line, sizeof(line), _gr_fp))
@@ -127,18 +125,12 @@ grscan(search, gid, name)
 			break;
 		if (_gr_group.gr_name[0] == '+')
 			continue;
-
-		if (search && name) {
-			if(strcmp(_gr_group.gr_name, name)) {
-				continue;
-			}
-		}
 		if ((_gr_group.gr_passwd = strsep(&bp, ":\n")) == NULL)
 			break;;
 		if (!(cp = strsep(&bp, ":\n")))
 			continue;
 		_gr_group.gr_gid = atoi(cp);
-		if (search && name == NULL && _gr_group.gr_gid != gid)
+		if (search && _gr_group.gr_gid != gid)
 			continue;
 		cp = NULL;
 		if (bp == NULL) /* !! Must check for this! */
