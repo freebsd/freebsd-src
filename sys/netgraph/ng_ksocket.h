@@ -81,4 +81,7 @@ enum {
 	NGM_KSOCKET_GETOPT,
 };
 
+/* Meta information ID's */
+#define NG_KSOCKET_META_SOCKADDR	1	/* data is struct sockaddr */
+
 #endif /* _NETGRAPH_KSOCKET_H_ */
