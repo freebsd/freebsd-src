@@ -387,7 +387,7 @@ This can be overridden by setting
 explicitly.
 .El
 .Pp
-Other variables are used to override kernel tunnable parameters.
+Other variables are used to override kernel tunable parameters.
 The following tunables are available:
 .Bl -tag -width Va -offset indent
 .It Va kern.ipc.nmbclusters
@@ -427,8 +427,7 @@ This special parser applies the following rules to the parsed text:
 All backslash characters are preprocessed.
 .Bl -bullet
 .It
-\eb , \ef , \er , \en and \et are processed as by C's
-.Fn printf .
+\eb , \ef , \er , \en and \et are processed as in C.
 .It
 \es is converted to a space.
 .It
