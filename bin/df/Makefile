@@ -9,7 +9,7 @@ SRCS=	df.c vfslist.c
 
 CFLAGS+= -I${MOUNT}
 
-DPADD=	${LIBM}
-LDADD=	-lm
+DPADD=	${LIBUTIL}
+LDADD=	-lutil
 
 .include <bsd.prog.mk>
