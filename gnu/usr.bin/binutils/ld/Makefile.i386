@@ -12,7 +12,7 @@ _i386_path=	\"/usr/cross/i386-freebsd/usr/lib\"
 .endif
 EMS+=		ld_elf_i386_emulation
 LDSCRIPTS+=	elf_i386.x elf_i386.xbn elf_i386.xn elf_i386.xr \
-		elf_i386.xs elf_i386.xu
+		elf_i386.xs elf_i386.xu elf_i386.xc elf_i386.xsc
 SRCS+=	 eelf_i386.c
 CLEANFILES+=	eelf_i386.c
 
