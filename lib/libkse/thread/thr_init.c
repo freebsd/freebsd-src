@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_init.c,v 1.14 1999/07/06 00:25:38 jasone Exp $
+ * $Id: uthread_init.c,v 1.15 1999/07/11 05:56:37 jasone Exp $
  */
 
 /* Allocate space for global thread variables here: */
@@ -45,7 +45,8 @@
 #include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/ttycom.h>
-#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/user.h>
 #include <sys/mman.h>
 #ifdef _THREAD_SAFE
 #include <machine/reg.h>
@@ -184,7 +185,7 @@ _thread_init(void)
 		SLIST_INIT(&_stackq);
 
 		/* Create the red zone for the main stack. */
-		if (mmap((void *) PTHREAD_STACK_TOP
+		if (mmap((void *) USRSTACK
 			 - PTHREAD_STACK_INITIAL,
 			 PTHREAD_STACK_GUARD, 0, MAP_ANON,
 			 -1, 0) == MAP_FAILED) {
