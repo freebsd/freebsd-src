@@ -171,6 +171,7 @@ struct option long_options[] =
   {"compress", 0, 0, 'Z'},
   {"uncompress", 0, 0, 'Z'},
   {"block-compress", 0, &f_compress_block, 1},
+  {"bzip", 0, 0, 'y'},
   {"bzip2", 0, 0, 'y'},
   {"bunzip2", 0, 0, 'y'},
   {"gzip", 0, 0, 'z'},
@@ -319,7 +320,7 @@ options (argc, argv)
 
   /* Parse options */
   while ((c = getoldopt (argc, argv,
-	       "-01234567Ab:BcC:df:F:g:GhikK:lL:mMnN:oOpPrRsStT:uvV:wWxX:yzZ",
+	       "-01234567Ab:BcC:df:F:g:GhiIkK:lL:mMnN:oOpPrRsStT:uvV:wWxX:yzZ",
 			 long_options, &ind)) != EOF)
     {
       switch (c)
@@ -640,6 +641,7 @@ options (argc, argv)
 	  add_exclude_file (optarg);
 	  break;
 
+	case 'I':
 	case 'y':
 	  if (f_compressprog)
 	    {
