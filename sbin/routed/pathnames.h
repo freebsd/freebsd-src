@@ -47,4 +47,6 @@
  * Leave this undefined, and only the trace file originally specified
  * when routed was started, if any, will be appended to.
  */
-#define _PATH_TRACE	"/etc/routed.trace"
+#if 0
+#define _PATH_TRACE	"/var/log/routed.trace"
+#endif
