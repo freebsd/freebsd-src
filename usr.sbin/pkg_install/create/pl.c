@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: pl.c,v 1.5 1993/09/04 05:06:34 jkh Exp $";
+static const char *rcsid = "$Id: pl.c,v 1.2 1993/09/03 23:00:57 jkh Exp $";
 #endif
 
 /*
@@ -47,6 +47,8 @@ check_list(char *home, Package *pkg)
 	    where = p->name;
 	else if (p->type == PLIST_IGNORE)
 	    p = p->next;
+	else if (p->type == PLIST_SRC)
+	    where = p->name;
 	else if (p->type == PLIST_FILE) {
 	    cmd[0] = '\0';
 	    sprintf(name, "%s/%s", where, p->name);
@@ -83,6 +85,8 @@ copy_plist(char *home, Package *plist)
 
     while (p) {
 	if (p->type == PLIST_CWD)
+	    where = p->name;
+	else if (p->type == PLIST_SRC)
 	    where = p->name;
 	else if (p->type == PLIST_IGNORE)
 	    p = p->next;

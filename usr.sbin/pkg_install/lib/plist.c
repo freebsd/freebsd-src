@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: plist.c,v 1.6 1994/05/25 06:27:24 jkh Exp $";
+static const char *rcsid = "$Id: plist.c,v 1.7 1994/07/11 01:11:14 jkh Exp $";
 #endif
 
 /*
@@ -180,6 +180,8 @@ plist_cmd(char *s, char **arg)
 	*arg = sp;
     if (!strcmp(cmd, "cwd"))
 	return PLIST_CWD;
+    else if (!strcmp(cmd, "srcdir"))
+	return PLIST_SRC;
     else if (!strcmp(cmd, "cd"))
 	return PLIST_CWD;
     else if (!strcmp(cmd, "exec"))
@@ -244,6 +246,10 @@ write_plist(Package *pkg, FILE *fp)
 
 	case PLIST_CWD:
 	    fprintf(fp, "%ccwd %s\n", CMD_CHAR, plist->name);
+	    break;
+
+	case PLIST_SRC:
+	    fprintf(fp, "%csrcdir %s\n", CMD_CHAR, plist->name);
 	    break;
 
 	case PLIST_CMD:
