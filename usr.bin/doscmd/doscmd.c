@@ -404,8 +404,8 @@ setup_command(int argc, char *argv[], regcontext_t *REGS)
     }
     /* No PATH, default to c:\ */
     if (i >= ecnt) {
-	dos_path = envs[ecnt-1] + 5;
 	put_dosenv("PATH=C:\\");
+	dos_path = envs[ecnt-1] + 5;
     }
 
     /* if no PROMPT, default to 'DOS>' */
