@@ -1,6 +1,6 @@
-<!-- $Id: contrib.sgml,v 1.37 1997/03/04 04:50:07 hanai Exp $ -->
+<!-- $Id: contrib.sgml,v 1.38 1997/03/06 03:25:53 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.224 -->
+<!-- Original revision: 1.225 -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
      in sync with the list of FreeBSD Developers -->
@@ -307,6 +307,7 @@
 	  <item>Julian Assange &lt;proff@suburbia.net&gt;
 	  <item>Julian Jenkins &lt;kaveman@magna.com.au&gt;
 	  <item>Julian Stacey &lt;jhs@freebsd.org&gt;
+          <item>Jun-ichiro Itoh &lt;itojun@csl.sony.co.jp&gt;
           <item>Justin M. Seger &lt;jseger@scds.ziplink.net&gt;
 	  <item>Kazuhiko Kiriyama &lt;kiri@kiri.toba-cmt.ac.jp&gt;
 	  <item>Kazutaka YOKOTA &lt;yokota@zodiac.mech.utsunomiya-u.ac.jp&gt;

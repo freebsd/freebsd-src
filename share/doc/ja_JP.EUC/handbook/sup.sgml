@@ -1,6 +1,6 @@
-<!-- $Id: sup.sgml,v 1.8 1997/02/22 13:02:07 peter Exp $ -->
+<!-- $Id: sup.sgml,v 1.9 1997/02/25 04:59:00 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.25 -->
+<!-- Original revision: 1.26 -->
 
 <sect><heading>SUP<label id="sup"></heading>
 
@@ -122,6 +122,7 @@ ports-emulators:  /usr/ports/emulators  他の OS のエミュレータ
 ports-games:      /usr/ports/games      ゲーム
 ports-graphics:   /usr/ports/graphics   色々なグラフィックユーティリティ
 ports-japanese:   /usr/ports/japanese   日本語サポート
+ports-korean:     /usr/ports/korean     韓国語サポート
 ports-lang:       /usr/ports/lang       プログラミング言語
 ports-mail:       /usr/ports/mail       メールソフトウェア
 ports-math:       /usr/ports/math       数値計算ソフトウェア
