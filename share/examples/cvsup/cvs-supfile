@@ -1,4 +1,4 @@
-# $Id: cvs-supfile,v 1.1 1996/08/21 00:23:51 jkh Exp $
+# $Id: cvs-supfile,v 1.2 1996/08/21 00:26:24 jkh Exp $
 #
 # This file contains all of the "CVSUP collections" that comprise the FreeBSD
 # cvs development tree.  CVSup (CVS Update Protocol) allows you to download
@@ -73,6 +73,7 @@ ports-all release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/
 #ports-benchmarks release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
 #ports-audio release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
 #ports-cad release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
+#ports-chinese release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
 #ports-comms release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
 #ports-databases release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
 #ports-devel release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
@@ -84,6 +85,7 @@ ports-all release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/
 #ports-lang release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix 
 #ports-mail release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix 
 #ports-math release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
+#ports-mbone release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
 #ports-misc release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix 
 #ports-net release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix 
 #ports-news release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
