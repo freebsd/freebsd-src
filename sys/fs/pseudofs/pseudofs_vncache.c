@@ -92,6 +92,9 @@ void
 pfs_vncache_unload(void)
 {
 	rm_at_exit(pfs_exit);
+	if (pfs_vncache_entries != 0)
+		printf("pfs_vncache_unload(): %d entries remaining\n",
+		    pfs_vncache_entries);
 	mtx_destroy(&pfs_vncache_mutex);
 }
 
@@ -216,4 +219,39 @@ pfs_exit(struct proc *p)
 		}
 	}
 	mtx_unlock(&pfs_vncache_mutex);
+}
+
+/*
+ * Disable a pseudofs node, and free all vnodes associated with it
+ */
+int
+pfs_disable(struct pfs_node *pn)
+{
+	struct pfs_vdata *pvd, *prev;
+	
+	if (pn->pn_flags & PFS_DISABLED)
+		return (0);
+	mtx_lock(&pfs_vncache_mutex);
+	pn->pn_flags |= PFS_DISABLED;
+	/* see the comment about the double loop in pfs_exit() */
+	/* XXX linear search... not very efficient */
+	for (pvd = pfs_vncache; pvd != NULL; pvd = pvd->pvd_next) {
+		while (pvd != NULL && pvd->pvd_pn == pn) {
+			prev = pvd->pvd_prev;
+			vgone(pvd->pvd_vnode);
+			pvd = prev ? prev->pvd_next : pfs_vncache;
+		}
+	}
+	mtx_unlock(&pfs_vncache_mutex);
+	return (0);
+}
+
+/*
+ * Re-enable a disabled pseudofs node
+ */
+int
+pfs_enable(struct pfs_node *pn)
+{
+	pn->pn_flags &= ~PFS_DISABLED;
+	return (0);
 }
