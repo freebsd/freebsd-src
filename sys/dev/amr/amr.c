@@ -977,6 +977,7 @@ amr_quartz_poll_command(struct amr_command *ac)
 {
     struct amr_softc	*sc = ac->ac_sc;
     int			s;
+    int			error;
 
     debug_called(2);
 
@@ -1006,6 +1007,8 @@ amr_quartz_poll_command(struct amr_command *ac)
 
     while(sc->amr_mailbox->mb_nstatus == 0xFF);
     while(sc->amr_mailbox->mb_status == 0xFF);
+    ac->ac_status=sc->amr_mailbox->mb_status;
+    error = (ac->ac_status !=AMR_STATUS_SUCCESS) ? 1:0;
     while(sc->amr_mailbox->mb_poll != 0x77);
     sc->amr_mailbox->mb_poll = 0;
     sc->amr_mailbox->mb_ack = 0x77;
@@ -1018,8 +1021,7 @@ amr_quartz_poll_command(struct amr_command *ac)
     /* unmap the command's data buffer */
     amr_unmapcmd(ac);
 
-    ac->ac_status=0;
-    return(0);
+    return(error);
 }
 
 /********************************************************************************
