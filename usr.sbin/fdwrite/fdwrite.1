@@ -82,7 +82,7 @@ one such use could be to write a tar-archive:
 .Dl "tar cf - . | gzip -9 | fdwrite -d /dev/fd0.1720 -v
 .Pp
 The main difference from using
-.Xr tar 1 's
+.Xr tar 1 Ns 's
 multivolume facility is of course the formatting of the floppies, which
 here is done on the fly,
 thus reducing the amount of work for the floppy-jockey.
