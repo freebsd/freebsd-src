@@ -202,14 +202,14 @@ pw_edit(notsetuid)
 void
 pw_prompt()
 {
-	int c;
+	int c, first;
 
 	(void)printf("re-edit the password file? [y]: ");
 	(void)fflush(stdout);
-	c = getchar();
-	if (c != EOF && c != '\n')
-		while (getchar() != '\n');
-	if (c == 'n')
+	first = c = getchar();
+	while (c != '\n' && c != EOF)
+		c = getchar();
+	if (first == 'n')
 		pw_error(NULL, 0, 0);
 }
 
