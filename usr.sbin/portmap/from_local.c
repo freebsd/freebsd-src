@@ -54,13 +54,18 @@ static const char rcsid[] =
 #include <sys/time.h>
 
 #include <netdb.h>
+#include <errno.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <syslog.h>
 #include <unistd.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <netinet/in.h>
+
+#include "pmap_check.h"
 
 #ifndef TRUE
 #define	TRUE	1
@@ -75,8 +80,8 @@ static struct in_addr *addrs;
 
 /* find_local - find all IP addresses for this host */
 
-int
-find_local()
+static int
+find_local(void)
 {
   int mib[6], n, s, alloced;
   size_t needed;
@@ -122,19 +127,25 @@ find_local()
   for (ptr = buf; ptr < end; ptr += ifm->ifm_msglen) {
     ifm = (struct if_msghdr *)ptr;
     dl = (struct sockaddr_dl *)(ifm + 1);
+
+    if (ifm->ifm_index != dl->sdl_index || dl->sdl_nlen == 0)
+      /* We only want to see each interface once */
+      continue;
+
     n = dl->sdl_nlen > sizeof ifr.ifr_name ?
         sizeof ifr.ifr_name : dl->sdl_nlen;
-    if (n == 0)
-      continue;
     strncpy(ifr.ifr_name, dl->sdl_data, n);
     if (n < sizeof ifr.ifr_name)
       ifr.ifr_name[n] = '\0';
+
     /* we only want the first address from each interface */
     if (ioctl(s, SIOCGIFFLAGS, &ifr) < 0)
-      perror("SIOCGIFFLAGS");
-    else if (ifr.ifr_flags & IFF_UP)    /* active interface */
+      fprintf(stderr, "%.*s: SIOCGIFFLAGS: %s\n", n, ifr.ifr_name,
+              strerror(errno));
+    else if (ifr.ifr_flags & IFF_UP) {    /* active interface */
       if (ioctl(s, SIOCGIFADDR, &ifr) < 0)
-        perror("SIOCGIFADDR");
+        fprintf(stderr, "%.*s: SIOCGIFADDR: %s\n", n, ifr.ifr_name,
+                strerror(errno));
       else {
         if (alloced < num_local + 1) {
           alloced += ESTIMATED_LOCAL;
@@ -150,6 +161,7 @@ find_local()
         }
         addrs[num_local++] = ((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr;
       }
+    }
   }
   free(buf);
   close(s);
@@ -160,8 +172,7 @@ find_local()
 /* from_local - determine whether request comes from the local system */
 
 int
-from_local(addr)
-struct sockaddr_in *addr;
+from_local(struct sockaddr_in *addr)
 {
     int     i;
 
@@ -178,7 +189,8 @@ struct sockaddr_in *addr;
 
 #ifdef TEST
 
-main()
+int
+main(int argc, char **argv)
 {
     char   *inet_ntoa();
     int     i;
@@ -186,6 +198,8 @@ main()
     find_local();
     for (i = 0; i < num_local; i++)
 	printf("%s\n", inet_ntoa(addrs[i]));
+
+    return 0;
 }
 
 #endif
