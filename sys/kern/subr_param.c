@@ -77,6 +77,9 @@ int	nbuf;
 int	nswbuf;
 int	maxswzone;			/* max swmeta KVA storage */
 int	maxbcache;			/* max buffer cache KVA storage */
+int	maxpipes;			/* Limit on # of pipes */
+int	maxpipekva;			/* Limit on pipe KVA */
+int	maxpipekvawired;		/* Limit on wired pipe KVA */
 u_quad_t	maxtsiz;			/* max text size */
 u_quad_t	dfldsiz;			/* initial data size limit */
 u_quad_t	maxdsiz;			/* max data size */
@@ -132,6 +135,15 @@ void
 init_param2(long physpages)
 {
 
+	/* Kernel map size */
+	int kmempages, kmemtunable;
+	kmemtunable = 0;
+	TUNABLE_INT_FETCH("kern.vm.kmem.size", &kmemtunable);
+	if (kmemtunable != 0)
+		kmempages = kmemtunable / PAGE_SIZE;
+	else
+		kmempages = VM_KMEM_SIZE_MAX / PAGE_SIZE;
+	kmempages = min(physpages, kmempages);
 	/* Base parameters */
 	maxusers = MAXUSERS;
 	TUNABLE_INT_FETCH("kern.maxusers", &maxusers);
@@ -160,6 +172,23 @@ init_param2(long physpages)
 	maxprocperuid = (maxproc * 9) / 10;
 	maxfilesperproc = (maxfiles * 9) / 10;
 
+	/*
+	 * Limit number of pipes to a reasonable fraction of kmap entries,
+	 * pageable pipe memory usage to 2.5% of the kernel map, and wired
+	 * pipe memory usage to 1% of the same.  Ensure that all have
+	 * reasonable floors.  (See sys_pipe.c for more info.)
+	 */
+	maxpipes = kmempages / 20;
+	maxpipekva = (kmempages / 40) * PAGE_SIZE;
+	maxpipekvawired = (kmempages / 100) * PAGE_SIZE;
+
+	if (maxpipes < 128)
+		maxpipes = 128;
+	if (maxpipekva < 512 * 1024)
+		maxpipekva = 512 * 1024;
+	if (maxpipekvawired < 512 * 1024)
+		maxpipekvawired = 512 * 1024;
+	
 	/*
 	 * Cannot be changed after boot.
 	 */
