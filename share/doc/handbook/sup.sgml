@@ -1,4 +1,4 @@
-<!-- $Id: sup.sgml,v 1.25 1997/02/22 12:59:30 peter Exp $ -->
+<!-- $Id: sup.sgml,v 1.26 1997/03/06 05:55:09 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
@@ -76,6 +76,7 @@ join the &a.stable and read
 <verb>
 src-base:	/usr/src/...		misc files at the top of /usr/src
 src-bin:	/usr/src/bin		user and system binaries
+src-contrib:	/usr/src/contrib	contributed software
 src-secure:	/usr/src/secure		DES Sources (US/Canada ONLY) 
 src-eBones:	/usr/src/eBones		Kerberos and DES (US/Canada ONLY)
 src-etc:	/usr/src/etc		system files
