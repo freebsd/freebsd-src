@@ -42,11 +42,15 @@ AT&T C compiler.  From the example below I would conclude the following:
 */
 
 #include "config.h"
+#include "system.h"
+#include "debug.h"
+#include "tree.h"
+#include "ggc.h"
+
+static GTY(()) tree anonymous_types;
 
 #ifdef SDB_DEBUGGING_INFO
 
-#include "system.h"
-#include "tree.h"
 #include "rtl.h"
 #include "regs.h"
 #include "flags.h"
@@ -54,10 +58,9 @@ AT&T C compiler.  From the example below I would conclude the following:
 #include "reload.h"
 #include "output.h"
 #include "toplev.h"
-#include "ggc.h"
 #include "tm_p.h"
 #include "gsyms.h"
-#include "debug.h"
+#include "langhooks.h"
 
 /* 1 if PARM is passed to this function in memory.  */
 
@@ -99,12 +102,12 @@ static void sdbout_end_source_file	PARAMS ((unsigned int));
 static void sdbout_begin_block		PARAMS ((unsigned int, unsigned int));
 static void sdbout_end_block		PARAMS ((unsigned int, unsigned int));
 static void sdbout_source_line		PARAMS ((unsigned int, const char *));
-static void sdbout_end_epilogue		PARAMS ((void));
+static void sdbout_end_epilogue		PARAMS ((unsigned int, const char *));
 static void sdbout_global_decl		PARAMS ((tree));
 #ifndef MIPS_DEBUGGING_INFO
 static void sdbout_begin_prologue	PARAMS ((unsigned int, const char *));
 #endif
-static void sdbout_end_prologue		PARAMS ((unsigned int));
+static void sdbout_end_prologue		PARAMS ((unsigned int, const char *));
 static void sdbout_begin_function	PARAMS ((tree));
 static void sdbout_end_function		PARAMS ((unsigned int));
 static void sdbout_toplevel_data	PARAMS ((tree));
@@ -299,7 +302,7 @@ static struct sdb_file *current_file;
 #endif /* MIPS_DEBUGGING_INFO */
 
 /* The debug hooks structure.  */
-struct gcc_debug_hooks sdb_debug_hooks =
+const struct gcc_debug_hooks sdb_debug_hooks =
 {
   sdbout_init,			/* init */
   sdbout_finish,		/* finish */
@@ -318,7 +321,7 @@ struct gcc_debug_hooks sdb_debug_hooks =
   sdbout_end_prologue,		/* end_prologue */
 #else
   sdbout_begin_prologue,	/* begin_prologue */
-  debug_nothing_int,		/* end_prologue */
+  debug_nothing_int_charstar,	/* end_prologue */
 #endif
   sdbout_end_epilogue,		/* end_epilogue */
   sdbout_begin_function,	/* begin_function */
@@ -358,8 +361,7 @@ gen_fake_label ()
   char *labelstr;
   SDB_GENERATE_FAKE (label, unnamed_struct_number);
   unnamed_struct_number++;
-  labelstr = (char *) permalloc (strlen (label) + 1);
-  strcpy (labelstr, label);
+  labelstr = xstrdup (label);
   return labelstr;
 }
 
@@ -781,7 +783,7 @@ sdbout_symbol (decl, local)
       if (!DECL_RTL_SET_P (decl))
 	return;
 
-      SET_DECL_RTL (decl, 
+      SET_DECL_RTL (decl,
 		    eliminate_regs (DECL_RTL (decl), 0, NULL_RTX));
 #ifdef LEAF_REG_REMAP
       if (current_function_uses_only_leaf_regs)
@@ -857,12 +859,12 @@ sdbout_symbol (decl, local)
 	  if (TREE_PUBLIC (decl))
 	    {
 	      PUT_SDB_VAL (XEXP (value, 0));
-              PUT_SDB_SCL (C_EXT);
+	      PUT_SDB_SCL (C_EXT);
 	    }
 	  else
 	    {
 	      PUT_SDB_VAL (XEXP (value, 0));
-              PUT_SDB_SCL (C_STAT);
+	      PUT_SDB_SCL (C_STAT);
 	    }
 	}
       else if (regno >= 0)
@@ -922,23 +924,6 @@ sdbout_symbol (decl, local)
 	  PUT_SDB_INT_VAL (DEBUGGER_AUTO_OFFSET (XEXP (value, 0)));
 	  PUT_SDB_SCL (C_AUTO);
 	}
-      else if (GET_CODE (value) == MEM && GET_CODE (XEXP (value, 0)) == CONST)
-	{
-	  /* Handle an obscure case which can arise when optimizing and
-	     when there are few available registers.  (This is *always*
-	     the case for i386/i486 targets).  The DECL_RTL looks like
-	     (MEM (CONST ...)) even though this variable is a local `auto'
-	     or a local `register' variable.  In effect, what has happened
-	     is that the reload pass has seen that all assignments and
-	     references for one such a local variable can be replaced by
-	     equivalent assignments and references to some static storage
-	     variable, thereby avoiding the need for a register.  In such
-	     cases we're forced to lie to debuggers and tell them that
-	     this variable was itself `static'.  */
-	  PUT_SDB_DEF (name);
-	  PUT_SDB_VAL (XEXP (XEXP (value, 0), 0));
-	  PUT_SDB_SCL (C_STAT);
-	}
       else
 	{
 	  /* It is something we don't know how to represent for SDB.  */
@@ -987,8 +972,6 @@ sdbout_toplevel_data (decl)
 #ifdef SDB_ALLOW_FORWARD_REFERENCES
 
 /* Machinery to record and output anonymous types.  */
-
-static tree anonymous_types;
 
 static void
 sdbout_queue_anonymous_type (type)
@@ -1516,7 +1499,7 @@ static void
 sdbout_finish (main_filename)
      const char *main_filename ATTRIBUTE_UNUSED;
 {
-  tree decl = getdecls ();
+  tree decl = (*lang_hooks.decls.getdecls) ();
   unsigned int len = list_length (decl);
   tree *vec = (tree *) xmalloc (sizeof (tree) * len);
   unsigned int i;
@@ -1642,13 +1625,14 @@ sdbout_begin_prologue (line, file)
      unsigned int line;
      const char *file ATTRIBUTE_UNUSED;
 {
-  sdbout_end_prologue (line);
+  sdbout_end_prologue (line, file);
 }
 #endif
 
 static void
-sdbout_end_prologue (line)
+sdbout_end_prologue (line, file)
      unsigned int line;
+     const char *file ATTRIBUTE_UNUSED;
 {
   sdb_begin_function_line = line - 1;
   PUT_SDB_FUNCTION_START (line);
@@ -1678,7 +1662,9 @@ sdbout_end_function (line)
    Called after the epilogue is output.  */
 
 static void
-sdbout_end_epilogue ()
+sdbout_end_epilogue (line, file)
+     unsigned int line ATTRIBUTE_UNUSED;
+     const char *file ATTRIBUTE_UNUSED;
 {
   const char *const name ATTRIBUTE_UNUSED
     = IDENTIFIER_POINTER (DECL_ASSEMBLER_NAME (current_function_decl));
@@ -1754,15 +1740,18 @@ sdbout_init (input_file_name)
 
 #ifdef RMS_QUICK_HACK_1
   tree t;
-  for (t = getdecls (); t; t = TREE_CHAIN (t))
+  for (t = (*lang_hooks.decls.getdecls) (); t; t = TREE_CHAIN (t))
     if (DECL_NAME (t) && IDENTIFIER_POINTER (DECL_NAME (t)) != 0
 	&& !strcmp (IDENTIFIER_POINTER (DECL_NAME (t)), "__vtbl_ptr_type"))
       sdbout_symbol (t, 0);
 #endif  
-
-#ifdef SDB_ALLOW_FORWARD_REFERENCES
-  ggc_add_tree_root (&anonymous_types, 1);
-#endif
 }
 
+#else  /* SDB_DEBUGGING_INFO */
+
+/* This should never be used, but its address is needed for comparisons.  */
+const struct gcc_debug_hooks sdb_debug_hooks;
+
 #endif /* SDB_DEBUGGING_INFO */
+
+#include "gt-sdbout.h"

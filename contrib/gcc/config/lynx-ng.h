@@ -19,7 +19,7 @@ the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
 /* This is for backwards compatibility with older Lynx tools, which use
-   a version of a.out format. */
+   a version of a.out format.  */
 
 #undef ASM_SPEC
 #define ASM_SPEC "%{mcoff:-C}"
@@ -54,7 +54,7 @@ Boston, MA 02111-1307, USA.  */
 
 /* We want to output DBX debugging information.  */
 
-#define DBX_DEBUGGING_INFO
+#define DBX_DEBUGGING_INFO 1
 #undef PREFERRED_DEBUGGING_TYPE
 #define PREFERRED_DEBUGGING_TYPE DBX_DEBUG
 
@@ -62,7 +62,7 @@ Boston, MA 02111-1307, USA.  */
    we can create debuggable SDB/coff files.  This won't be needed when
    stabs-in-coff works.  */
 
-#define SDB_DEBUGGING_INFO
+#define SDB_DEBUGGING_INFO 1
 
 /* Generate calls to memcpy, memcmp and memset.  */
 
@@ -70,7 +70,7 @@ Boston, MA 02111-1307, USA.  */
 
 /* Handle #pragma pack and sometimes #pragma weak.  */
 
-#define HANDLE_SYSV_PRAGMA
+#define HANDLE_SYSV_PRAGMA 1
 
 #define TARGET_THREADS	(target_flags & MASK_THREADS)
 #define MASK_THREADS	0x40000000
@@ -103,7 +103,7 @@ Boston, MA 02111-1307, USA.  */
 
 #define MD_EXEC_PREFIX "/usr/local/lib/gcc-"
 
-/* This is needed because /bin/ld does not handle -L options correctly. */
+/* This is needed because /bin/ld does not handle -L options correctly.  */
 
 #define LINK_LIBGCC_SPECIAL_1
 

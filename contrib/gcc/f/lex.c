@@ -93,7 +93,7 @@ static ffelexType ffelex_first_char_[256];
 
 /* The wf argument of the most recent active ffelex_file_(fixed,free)
    function.  */
-static ffewhereFile ffelex_current_wf_;
+static GTY (()) ffewhereFile ffelex_current_wf_;
 
 /* TRUE if an INCLUDE statement can be processed (ffelex_set_include
    can be called).  */
@@ -106,7 +106,7 @@ static bool ffelex_set_include_;
 /* Information on the pending INCLUDE file.  */
 static FILE *ffelex_include_file_;
 static bool ffelex_include_free_form_;
-static ffewhereFile ffelex_include_wherefile_;
+static GTY(()) ffewhereFile ffelex_include_wherefile_;
 
 /* Current master line count.  */
 static ffewhereLineNumber ffelex_linecount_current_;
@@ -246,8 +246,6 @@ ffelex_backslash_ (int c, ffewhereColumnNumber col)
      hollerith constants.  */
 
 #define wide_flag 0
-#define warn_traditional 0
-#define flag_traditional 0
 
   switch (state)
     {
@@ -268,18 +266,6 @@ ffelex_backslash_ (int c, ffewhereColumnNumber col)
       switch (c)
 	{
 	case 'x':
-	  if (warn_traditional)
-	    {
-	      /* xgettext:no-c-format */
-	      ffebad_start_msg_lex ("The meaning of `\\x' (at %0) varies with -traditional",
-				    FFEBAD_severityWARNING);
-	      ffelex_bad_here_ (0, line, column);
-	      ffebad_finish ();
-	    }
-
-	  if (flag_traditional)
-	    return c;
-
 	  code = 0;
 	  count = 0;
 	  nonnull = 0;
@@ -319,24 +305,9 @@ ffelex_backslash_ (int c, ffewhereColumnNumber col)
 	  return TARGET_BS;
 
 	case 'a':
-	  if (warn_traditional)
-	    {
-	      /* xgettext:no-c-format */
-	      ffebad_start_msg_lex ("The meaning of `\\a' (at %0) varies with -traditional",
-				    FFEBAD_severityWARNING);
-	      ffelex_bad_here_ (0, line, column);
-	      ffebad_finish ();
-	    }
-
-	  if (flag_traditional)
-	    return c;
 	  return TARGET_BELL;
 
 	case 'v':
-#if 0 /* Vertical tab is present in common usage compilers.  */
-	  if (flag_traditional)
-	    return c;
-#endif
 	  return TARGET_VT;
 
 	case 'e':
@@ -589,12 +560,6 @@ ffelex_cfebackslash_ (int *use_d, int *d, FILE *finput)
   switch (c)
     {
     case 'x':
-      if (warn_traditional)
-	warning ("the meaning of `\\x' varies with -traditional");
-
-      if (flag_traditional)
-	return c;
-
       code = 0;
       count = 0;
       nonnull = 0;
@@ -672,18 +637,9 @@ ffelex_cfebackslash_ (int *use_d, int *d, FILE *finput)
       return TARGET_BS;
 
     case 'a':
-      if (warn_traditional)
-	warning ("the meaning of `\\a' varies with -traditional");
-
-      if (flag_traditional)
-	return c;
       return TARGET_BELL;
 
     case 'v':
-#if 0 /* Vertical tab is present in common usage compilers.  */
-      if (flag_traditional)
-	return c;
-#endif
       return TARGET_VT;
 
     case 'e':
@@ -4678,3 +4634,5 @@ ffelex_token_use (ffelexToken t)
   t->uses++;
   return t;
 }
+
+#include "gt-f-lex.h"

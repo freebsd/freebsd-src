@@ -33,10 +33,6 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "hard-reg-set.h"
 #include "basic-block.h"
 
-/* Use malloc to allocate obstack chunks.  */
-#define obstack_chunk_alloc xmalloc
-#define obstack_chunk_free free
-
 /* A register conflict graph is an undirected graph containing nodes
    for some or all of the regs used in a function.  Arcs represent
    conflicts, i.e. two nodes are connected by an arc if there is a
@@ -116,7 +112,7 @@ struct conflict_graph_def
    R1 and R2.  R1 is assumed to be smaller or equal to R2.  */
 #define CONFLICT_HASH_FN(R1, R2) ((R2) * ((R2) - 1) / 2 + (R1))
 
-static unsigned arc_hash	PARAMS ((const void *));
+static hashval_t arc_hash	PARAMS ((const void *));
 static int arc_eq		PARAMS ((const void *, const void *));
 static int print_conflict	PARAMS ((int, int, void *));
 static void mark_reg		PARAMS ((rtx, rtx, void *));
@@ -124,7 +120,7 @@ static void mark_reg		PARAMS ((rtx, rtx, void *));
 /* Callback function to compute the hash value of an arc.  Uses
    current_graph to locate the graph to which the arc belongs.  */
 
-static unsigned
+static hashval_t
 arc_hash (arcp)
      const void *arcp;
 {
@@ -187,7 +183,7 @@ conflict_graph_delete (graph)
 }
 
 /* Adds a conflict to GRAPH between regs REG1 and REG2, which must be
-   distinct.  Returns non-zero, unless the conflict is already present
+   distinct.  Returns nonzero, unless the conflict is already present
    in GRAPH, in which case it does nothing and returns zero.  */
 
 int
@@ -236,7 +232,7 @@ conflict_graph_add (graph, reg1, reg2)
   return 1;
 }
 
-/* Returns non-zero if a conflict exists in GRAPH between regs REG1
+/* Returns nonzero if a conflict exists in GRAPH between regs REG1
    and REG2.  */
 
 int
@@ -447,19 +443,18 @@ conflict_graph_compute (regs, p)
      regset regs;
      partition p;
 {
-  int b;
   conflict_graph graph = conflict_graph_new (max_reg_num ());
   regset_head live_head;
   regset live = &live_head;
   regset_head born_head;
   regset born = &born_head;
+  basic_block bb;
 
   INIT_REG_SET (live);
   INIT_REG_SET (born);
 
-  for (b = n_basic_blocks; --b >= 0; )
+  FOR_EACH_BB_REVERSE (bb)
     {
-      basic_block bb = BASIC_BLOCK (b);
       rtx insn;
       rtx head;
 

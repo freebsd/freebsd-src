@@ -1,5 +1,5 @@
 /* Definitions of target machine for GNU compiler.
-   64-bit VxWorks Sparc version.
+   64-bit VxWorks SPARC version.
    Copyright (C) 2001 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
@@ -44,7 +44,7 @@ Boston, MA 02111-1307, USA.  */
 #define NO_DOT_IN_LABEL
 
 /* Enable #pragma pack(n) */
-#define HANDLE_SYSV_PRAGMA
+#define HANDLE_SYSV_PRAGMA 1
 
 /* We use stabs for debugging */
 #undef PREFERRED_DEBUGGING_TYPE

@@ -26,6 +26,13 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "hashtable.h"
 
 struct directive;		/* Deliberately incomplete.  */
+struct pending_option;
+struct op;
+
+typedef unsigned char uchar;
+#define U (const uchar *)  /* Intended use: U"string" */
+
+#define BITS_PER_CPPCHAR_T (CHAR_BIT * sizeof (cppchar_t))
 
 /* Test if a sign is valid within a preprocessing number.  */
 #define VALID_SIGN(c, prevc) \
@@ -42,6 +49,63 @@ struct directive;		/* Deliberately incomplete.  */
 /* Maximum nesting of cpp_buffers.  We use a static limit, partly for
    efficiency, and partly to limit runaway recursion.  */
 #define CPP_STACK_MAX 200
+
+/* Host alignment handling.  */
+struct dummy
+{
+  char c;
+  union
+  {
+    double d;
+    int *p;
+  } u;
+};
+
+#define DEFAULT_ALIGNMENT offsetof (struct dummy, u)
+#define CPP_ALIGN2(size, align) (((size) + ((align) - 1)) & ~((align) - 1))
+#define CPP_ALIGN(size) CPP_ALIGN2 (size, DEFAULT_ALIGNMENT)
+
+/* Each macro definition is recorded in a cpp_macro structure.
+   Variadic macros cannot occur with traditional cpp.  */
+struct cpp_macro
+{
+  /* Parameters, if any.  */
+  cpp_hashnode **params;
+
+  /* Replacement tokens (ISO) or replacement text (traditional).  See
+     comment at top of cpptrad.c for how traditional function-like
+     macros are encoded.  */
+  union
+  {
+    cpp_token *tokens;
+    const uchar *text;
+  } exp;
+
+  /* Definition line number.  */
+  unsigned int line;
+
+  /* Number of tokens in expansion, or bytes for traditional macros.  */
+  unsigned int count;
+
+  /* Number of parameters.  */
+  unsigned short paramc;
+
+  /* If a function-like macro.  */
+  unsigned int fun_like : 1;
+
+  /* If a variadic macro.  */
+  unsigned int variadic : 1;
+
+  /* If macro defined in system header.  */
+  unsigned int syshdr   : 1;
+
+  /* Nonzero if it has been expanded or had its existence tested.  */
+  unsigned int used     : 1;
+};
+
+#define _cpp_mark_macro_used(NODE) do {					\
+  if ((NODE)->type == NT_MACRO && !((NODE)->flags & NODE_BUILTIN))	\
+    (NODE)->value.macro->used = 1; } while (0)
 
 /* A generic memory buffer, and operations on it.  */
 typedef struct _cpp_buff _cpp_buff;
@@ -77,7 +141,7 @@ struct search_path
      of an earlier directory on the search path.  */
   ino_t ino;
   dev_t dev;
-  /* Non-zero if it is a system include directory.  */
+  /* Nonzero if it is a system include directory.  */
   int sysp;
   /* Mapping of file names for this directory.  Only used on MS-DOS
      and related platforms.  */
@@ -101,16 +165,36 @@ struct tokenrun
   cpp_token *base, *limit;
 };
 
+/* Accessor macros for struct cpp_context.  */
+#define FIRST(c) ((c)->u.iso.first)
+#define LAST(c) ((c)->u.iso.last)
+#define CUR(c) ((c)->u.trad.cur)
+#define RLIMIT(c) ((c)->u.trad.rlimit)
+
 typedef struct cpp_context cpp_context;
 struct cpp_context
 {
   /* Doubly-linked list.  */
   cpp_context *next, *prev;
 
-  /* Contexts other than the base context are contiguous tokens.
-     e.g. macro expansions, expanded argument tokens.  */
-  union utoken first;
-  union utoken last;
+  union
+  {
+    /* For ISO macro expansion.  Contexts other than the base context
+       are contiguous tokens.  e.g. macro expansions, expanded
+       argument tokens.  */
+    struct
+    {
+      union utoken first;
+      union utoken last;
+    } iso;
+
+    /* For traditional macro expansion.  */
+    struct
+    {
+      const uchar *cur;
+      const uchar *rlimit;
+    } trad;
+  } u;
 
   /* If non-NULL, a buffer used for storage related to this context.
      When the context is popped, the buffer is released.  */
@@ -128,11 +212,19 @@ struct lexer_state
   /* Nonzero if first token on line is CPP_HASH.  */
   unsigned char in_directive;
 
+  /* Nonzero if in a directive that will handle padding tokens itself.
+     #include needs this to avoid problems with computed include and
+     spacing between tokens.  */
+  unsigned char directive_wants_padding;
+
   /* True if we are skipping a failed conditional group.  */
   unsigned char skipping;
 
   /* Nonzero if in a directive that takes angle-bracketed headers.  */
   unsigned char angled_headers;
+
+  /* Nonzero if in a #if or #elif directive.  */
+  unsigned char in_expression;
 
   /* Nonzero to save comments.  Turned off if discard_comments, and in
      all directives apart from #define.  */
@@ -148,10 +240,13 @@ struct lexer_state
   unsigned char poisoned_ok;
 
   /* Nonzero to prevent macro expansion.  */
-  unsigned char prevent_expansion;  
+  unsigned char prevent_expansion;
 
   /* Nonzero when parsing arguments to a function-like macro.  */
   unsigned char parsing_args;
+
+  /* Nonzero to skip evaluating part of an expression.  */
+  unsigned int skip_eval;
 };
 
 /* Special nodes - identifiers with predefined significance.  */
@@ -160,8 +255,19 @@ struct spec_nodes
   cpp_hashnode *n_defined;		/* defined operator */
   cpp_hashnode *n_true;			/* C++ keyword true */
   cpp_hashnode *n_false;		/* C++ keyword false */
-  cpp_hashnode *n__STRICT_ANSI__;	/* STDC_0_IN_SYSTEM_HEADERS */
   cpp_hashnode *n__VA_ARGS__;		/* C99 vararg macros */
+};
+
+/* Encapsulates state used to convert a stream of tokens into a text
+   file.  */
+struct printer
+{
+  FILE *outf;			/* Stream to write to.  */
+  const struct line_map *map;	/* Logical to physical line mappings.  */
+  const cpp_token *prev;	/* Previous token.  */
+  const cpp_token *source;	/* Source token for spacing.  */
+  unsigned int line;		/* Line currently being written.  */
+  unsigned char printed;	/* Nonzero if something output at line.  */
 };
 
 /* Represents the contents of a file cpplib has read in.  */
@@ -217,6 +323,9 @@ struct cpp_buffer
   /* The directory of the this buffer's file.  Its NAME member is not
      allocated, so we don't need to worry about freeing it.  */
   struct search_path dir;
+
+  /* Used for buffer overlays by cpptrad.c.  */
+  const uchar *saved_cur, *saved_rlimit;
 };
 
 /* A cpp_reader encapsulates the "state" of a pre-processor run.
@@ -226,6 +335,9 @@ struct cpp_reader
 {
   /* Top of buffer stack.  */
   cpp_buffer *buffer;
+
+  /* Overlaid buffer (can be different after processing #include).  */
+  cpp_buffer *overlaid_buffer;
 
   /* Lexer state.  */
   struct lexer_state state;
@@ -250,6 +362,11 @@ struct cpp_reader
   /* If in_directive, the directive if known.  */
   const struct directive *directive;
 
+  /* The next -include-d file; NULL if they all are done.  If it
+     points to NULL, the last one is in progress, and
+     _cpp_maybe_push_include_file has yet to restore the line map.  */
+  struct pending_option **next_include_file;
+
   /* Multiple inlcude optimisation.  */
   const cpp_hashnode *mi_cmacro;
   const cpp_hashnode *mi_ind_cmacro;
@@ -260,16 +377,11 @@ struct cpp_reader
   tokenrun base_run, *cur_run;
   unsigned int lookaheads;
 
-  /* Non-zero prevents the lexer from re-using the token runs.  */
+  /* Nonzero prevents the lexer from re-using the token runs.  */
   unsigned int keep_tokens;
 
   /* Error counter for exit code.  */
   unsigned int errors;
-
-  /* Line and column where a newline was first seen in a string
-     constant (multi-line strings).  */
-  unsigned int mls_line;
-  unsigned int mls_col;
 
   /* Buffer to hold macro definition string.  */
   unsigned char *macro_buffer;
@@ -282,15 +394,18 @@ struct cpp_reader
      for include files.  (Altered as we get more of them.)  */
   unsigned int max_include_len;
 
-  /* Date and time tokens.  Calculated together if either is requested.  */
-  cpp_token date;
-  cpp_token time;
+  /* Macros on or after this line are warned about if unused.  */
+  unsigned int first_unused_line;
+
+  /* Date and time text.  Calculated together if either is requested.  */
+  const uchar *date;
+  const uchar *time;
 
   /* EOF token, and a token forcing paste avoidance.  */
   cpp_token avoid_paste;
   cpp_token eof;
 
-  /* Opaque handle to the dependencies of mkdeps.c.  Used by -M etc.  */
+  /* Opaque handle to the dependencies of mkdeps.c.  */
   struct deps *deps;
 
   /* Obstack holding all macro hash nodes.  This never shrinks.
@@ -308,8 +423,11 @@ struct cpp_reader
   /* Call backs.  */
   struct cpp_callbacks cb;
 
-  /* Identifier hash table.  */ 
+  /* Identifier hash table.  */
   struct ht *hash_table;
+
+  /* Expression parser stack.  */
+  struct op *op_stack, *op_limit;
 
   /* User visible options.  */
   struct cpp_options opts;
@@ -318,12 +436,24 @@ struct cpp_reader
      preprocessor.  */
   struct spec_nodes spec_nodes;
 
-  /* Whether to print our version number.  Done this way so
-     we don't get it twice for -v -version.  */
-  unsigned char print_version;
+  /* Used when doing preprocessed output.  */
+  struct printer print;
 
   /* Whether cpplib owns the hashtable.  */
   unsigned char our_hashtable;
+
+  /* Traditional preprocessing output buffer (a logical line).  */
+  struct
+  {
+    uchar *base;
+    uchar *limit;
+    uchar *cur;
+    unsigned int first_line;
+  } out;
+
+  /* Used to save the original line number during traditional
+     preprocessing.  */
+  unsigned int saved_line;
 };
 
 /* Character classes.  Based on the more primitive macros in safe-ctype.h.
@@ -355,21 +485,29 @@ extern unsigned char _cpp_trigraph_map[UCHAR_MAX + 1];
 
 /* Macros.  */
 
-#define CPP_PRINT_DEPS(PFILE) CPP_OPTION (PFILE, print_deps)
 #define CPP_IN_SYSTEM_HEADER(PFILE) ((PFILE)->map && (PFILE)->map->sysp)
 #define CPP_PEDANTIC(PF) CPP_OPTION (PF, pedantic)
 #define CPP_WTRADITIONAL(PF) CPP_OPTION (PF, warn_traditional)
 
 /* In cpperror.c  */
-enum error_type { WARNING = 0, WARNING_SYSHDR, PEDWARN, ERROR, FATAL, ICE };
-extern int _cpp_begin_message PARAMS ((cpp_reader *, enum error_type,
+extern int _cpp_begin_message PARAMS ((cpp_reader *, int,
 				       unsigned int, unsigned int));
 
 /* In cppmacro.c */
 extern void _cpp_free_definition	PARAMS ((cpp_hashnode *));
-extern int _cpp_create_definition	PARAMS ((cpp_reader *, cpp_hashnode *));
+extern bool _cpp_create_definition	PARAMS ((cpp_reader *, cpp_hashnode *));
 extern void _cpp_pop_context		PARAMS ((cpp_reader *));
-
+extern void _cpp_push_text_context	PARAMS ((cpp_reader *, cpp_hashnode *,
+						 const uchar *, size_t));
+extern bool _cpp_save_parameter		PARAMS ((cpp_reader *, cpp_macro *,
+						 cpp_hashnode *));
+extern bool _cpp_arguments_ok		PARAMS ((cpp_reader *, cpp_macro *,
+						 const cpp_hashnode *,
+						 unsigned int));
+extern const uchar *_cpp_builtin_macro_text PARAMS ((cpp_reader *,
+						     cpp_hashnode *));
+int _cpp_warn_if_unused_macro		PARAMS ((cpp_reader *, cpp_hashnode *,
+						 void *));
 /* In cpphash.c */
 extern void _cpp_init_hashtable		PARAMS ((cpp_reader *, hash_table *));
 extern void _cpp_destroy_hashtable	PARAMS ((cpp_reader *));
@@ -387,11 +525,12 @@ extern int _cpp_compare_file_date       PARAMS ((cpp_reader *,
 extern void _cpp_report_missing_guards	PARAMS ((cpp_reader *));
 extern void _cpp_init_includes		PARAMS ((cpp_reader *));
 extern void _cpp_cleanup_includes	PARAMS ((cpp_reader *));
-extern bool _cpp_pop_file_buffer	PARAMS ((cpp_reader *,
+extern void _cpp_pop_file_buffer	PARAMS ((cpp_reader *,
 						 struct include_file *));
 
 /* In cppexp.c */
-extern int _cpp_parse_expr		PARAMS ((cpp_reader *));
+extern bool _cpp_parse_expr		PARAMS ((cpp_reader *));
+extern struct op *_cpp_expand_op_stack	PARAMS ((cpp_reader *));
 
 /* In cpplex.c */
 extern cpp_token *_cpp_temp_token	PARAMS ((cpp_reader *));
@@ -402,10 +541,10 @@ extern int _cpp_equiv_tokens		PARAMS ((const cpp_token *,
 extern void _cpp_init_tokenrun		PARAMS ((tokenrun *, unsigned int));
 
 /* In cppinit.c.  */
-extern bool _cpp_push_next_buffer	PARAMS ((cpp_reader *));
+extern void _cpp_maybe_push_include_file PARAMS ((cpp_reader *));
 
 /* In cpplib.c */
-extern int _cpp_test_assertion PARAMS ((cpp_reader *, int *));
+extern int _cpp_test_assertion PARAMS ((cpp_reader *, unsigned int *));
 extern int _cpp_handle_directive PARAMS ((cpp_reader *, int));
 extern void _cpp_define_builtin	PARAMS ((cpp_reader *, const char *));
 extern void _cpp_do__Pragma	PARAMS ((cpp_reader *));
@@ -416,8 +555,19 @@ extern void _cpp_do_file_change PARAMS ((cpp_reader *, enum lc_reason,
 					 unsigned int, unsigned int));
 extern void _cpp_pop_buffer PARAMS ((cpp_reader *));
 
+/* In cpptrad.c.  */
+extern bool _cpp_read_logical_line_trad PARAMS ((cpp_reader *));
+extern void _cpp_overlay_buffer PARAMS ((cpp_reader *pfile, const uchar *,
+					 size_t));
+extern void _cpp_remove_overlay PARAMS ((cpp_reader *));
+extern bool _cpp_create_trad_definition PARAMS ((cpp_reader *, cpp_macro *));
+extern bool _cpp_expansions_different_trad PARAMS ((const cpp_macro *,
+						    const cpp_macro *));
+extern uchar *_cpp_copy_replacement_text PARAMS ((const cpp_macro *, uchar *));
+extern size_t _cpp_replacement_text_len PARAMS ((const cpp_macro *));
+
 /* Utility routines and macros.  */
-#define DSC(str) (const U_CHAR *)str, sizeof str - 1
+#define DSC(str) (const uchar *)str, sizeof str - 1
 #define xnew(T)		(T *) xmalloc (sizeof(T))
 #define xcnew(T)	(T *) xcalloc (1, sizeof(T))
 #define xnewvec(T, N)	(T *) xmalloc (sizeof(T) * (N))
@@ -426,27 +576,24 @@ extern void _cpp_pop_buffer PARAMS ((cpp_reader *));
 
 /* These are inline functions instead of macros so we can get type
    checking.  */
-typedef unsigned char U_CHAR;
-#define U (const U_CHAR *)  /* Intended use: U"string" */
-
-static inline int ustrcmp	PARAMS ((const U_CHAR *, const U_CHAR *));
-static inline int ustrncmp	PARAMS ((const U_CHAR *, const U_CHAR *,
+static inline int ustrcmp	PARAMS ((const uchar *, const uchar *));
+static inline int ustrncmp	PARAMS ((const uchar *, const uchar *,
 					 size_t));
-static inline size_t ustrlen	PARAMS ((const U_CHAR *));
-static inline U_CHAR *uxstrdup	PARAMS ((const U_CHAR *));
-static inline U_CHAR *ustrchr	PARAMS ((const U_CHAR *, int));
-static inline int ufputs	PARAMS ((const U_CHAR *, FILE *));
+static inline size_t ustrlen	PARAMS ((const uchar *));
+static inline uchar *uxstrdup	PARAMS ((const uchar *));
+static inline uchar *ustrchr	PARAMS ((const uchar *, int));
+static inline int ufputs	PARAMS ((const uchar *, FILE *));
 
 static inline int
 ustrcmp (s1, s2)
-     const U_CHAR *s1, *s2;
+     const uchar *s1, *s2;
 {
   return strcmp ((const char *)s1, (const char *)s2);
 }
 
 static inline int
 ustrncmp (s1, s2, n)
-     const U_CHAR *s1, *s2;
+     const uchar *s1, *s2;
      size_t n;
 {
   return strncmp ((const char *)s1, (const char *)s2, n);
@@ -454,29 +601,29 @@ ustrncmp (s1, s2, n)
 
 static inline size_t
 ustrlen (s1)
-     const U_CHAR *s1;
+     const uchar *s1;
 {
   return strlen ((const char *)s1);
 }
 
-static inline U_CHAR *
+static inline uchar *
 uxstrdup (s1)
-     const U_CHAR *s1;
+     const uchar *s1;
 {
-  return (U_CHAR *) xstrdup ((const char *)s1);
+  return (uchar *) xstrdup ((const char *)s1);
 }
 
-static inline U_CHAR *
+static inline uchar *
 ustrchr (s1, c)
-     const U_CHAR *s1;
+     const uchar *s1;
      int c;
 {
-  return (U_CHAR *) strchr ((const char *)s1, c);
+  return (uchar *) strchr ((const char *)s1, c);
 }
 
 static inline int
 ufputs (s, f)
-     const U_CHAR *s;
+     const uchar *s;
      FILE *f;
 {
   return fputs ((const char *)s, f);

@@ -38,16 +38,6 @@ the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #endif
 #endif
 
-/* For now, g77 requires the ability to determine the exact bit pattern
-   of a float on the target machine.  (Hopefully this will be changed
-   soon).  Make sure we can do this.  */
-
-#if !defined (REAL_ARITHMETIC) \
-  && ((TARGET_FLOAT_FORMAT != HOST_FLOAT_FORMAT) \
-      || (FLOAT_WORDS_BIG_ENDIAN != HOST_FLOAT_WORDS_BIG_ENDIAN))
-#error "g77 requires ability to access exact FP representation of target machine"
-#endif
-
 /* Simple definitions and enumerations. */
 
 #define FFETARGET_charactersizeNONE (-1)
@@ -341,117 +331,53 @@ typedef ? ffetargetLogical8;
 ?
 #endif
 #if FFETARGET_okREAL1
-#ifdef REAL_ARITHMETIC
-#ifdef FFETARGET_32bit_longs
-typedef long int ffetargetReal1;
-#define ffetargetReal1_f "l"
-#define ffetarget_cvt_r1_to_rv_ REAL_VALUE_UNTO_TARGET_SINGLE
-#define ffetarget_cvt_rv_to_r1_ REAL_VALUE_TO_TARGET_SINGLE
-#else
 typedef int ffetargetReal1;
 #define ffetargetReal1_f ""
-#define ffetarget_cvt_r1_to_rv_(in) \
-  ({ REAL_VALUE_TYPE _rv; \
-     _rv = REAL_VALUE_UNTO_TARGET_SINGLE ((long) (in)); \
+#define ffetarget_cvt_r1_to_rv_(in)					\
+  ({ REAL_VALUE_TYPE _rv;						\
+     long _in = (in);							\
+     real_from_target (&_rv, &_in, mode_for_size (32, MODE_FLOAT, 0));	\
      _rv; })
 #define ffetarget_cvt_rv_to_r1_(in, out) \
   ({ long _tmp; \
      REAL_VALUE_TO_TARGET_SINGLE ((in), _tmp); \
      (out) = (ffetargetReal1) _tmp; })
 #endif
-#else	/* REAL_ARITHMETIC */
-typedef float ffetargetReal1;
-#define ffetargetReal1_f ""
-#endif	/* REAL_ARITHMETIC */
-#endif
 #if FFETARGET_okREAL2
-#ifdef REAL_ARITHMETIC
-#ifdef FFETARGET_32bit_longs
-typedef struct
-  {
-    long int v[2];
-  }
-ffetargetReal2;
-#define ffetargetReal2_f "l"
-#define ffetarget_cvt_r2_to_rv_ REAL_VALUE_UNTO_TARGET_DOUBLE
-#define ffetarget_cvt_rv_to_r2_ REAL_VALUE_TO_TARGET_DOUBLE
-#else
-typedef struct
-  {
-    int v[2];
-  }
-ffetargetReal2;
+typedef struct { int v[2]; } ffetargetReal2;
 #define ffetargetReal2_f ""
-#define ffetarget_cvt_r2_to_rv_(in) \
-  ({ REAL_VALUE_TYPE _rv; \
-     long _tmp[2]; \
-     _tmp[0] = (in)[0]; \
-     _tmp[1] = (in)[1]; \
-     _rv = REAL_VALUE_UNTO_TARGET_DOUBLE (_tmp); \
+#define ffetarget_cvt_r2_to_rv_(in)					\
+  ({ REAL_VALUE_TYPE _rv; long _tmp[2];					\
+     _tmp[0] = (in)[0]; _tmp[1] = (in)[1];				\
+     real_from_target (&_rv, _tmp, mode_for_size (64, MODE_FLOAT, 0));	\
      _rv; })
-#define ffetarget_cvt_rv_to_r2_(in, out) \
-  ({ long _tmp[2]; \
-     REAL_VALUE_TO_TARGET_DOUBLE ((in), _tmp); \
-     (out)[0] = (int) (_tmp[0]); \
-     (out)[1] = (int) (_tmp[1]); })
-#endif
-#else
-typedef double ffetargetReal2;
-#define ffetargetReal2_f ""
-#endif
+#define ffetarget_cvt_rv_to_r2_(in, out)				\
+  ({ long _tmp[2];							\
+     REAL_VALUE_TO_TARGET_DOUBLE ((in), _tmp);				\
+     (out)[0] = (int)_tmp[0]; (out)[1] = (int)_tmp[1]; })
 #endif
 #if FFETARGET_okREAL3
-#ifdef REAL_ARITHMETIC
 typedef long ffetargetReal3[?];
-#else
-typedef ? ffetargetReal3;
-#define ffetargetReal3_f
-#endif
 ?
 #endif
 #if FFETARGET_okREAL4
-#ifdef REAL_ARITHMETIC
 typedef long ffetargetReal4[?];
-#else
-typedef ? ffetargetReal4;
-#define ffetargetReal4_f
-#endif
 ?
 #endif
 #if FFETARGET_okREAL5
-#ifdef REAL_ARITHMETIC
 typedef long ffetargetReal5[?];
-#else
-typedef ? ffetargetReal5;
-#define ffetargetReal5_f
-#endif
 ?
 #endif
 #if FFETARGET_okREAL6
-#ifdef REAL_ARITHMETIC
 typedef long ffetargetReal6[?];
-#else
-typedef ? ffetargetReal6;
-#define ffetargetReal6_f
-#endif
 ?
 #endif
 #if FFETARGET_okREAL7
-#ifdef REAL_ARITHMETIC
 typedef long ffetargetReal7[?];
-#else
-typedef ? ffetargetReal7;
-#define ffetargetReal7_f
-#endif
 ?
 #endif
 #if FFETARGET_okREAL8
-#ifdef REAL_ARITHMETIC
 typedef long ffetargetReal8[?];
-#else
-typedef ? ffetargetReal8;
-#define ffetargetReal8_f
-#endif
 ?
 #endif
 #if FFETARGET_okCOMPLEX1
@@ -872,7 +798,6 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
   REAL_VALUE_FROM_INT (resr, (long) lf, (long) ((lf < 0) ? -1 : 0),	\
 		       ((kt == 1) ? SFmode : DFmode))
 
-#ifdef REAL_ARITHMETIC
 #define ffetarget_add_complex1(res,l,r) \
   ({ REAL_VALUE_TYPE lr, li, rr, ri, resr, resi; \
      lr = ffetarget_cvt_r1_to_rv_ ((l).real); \
@@ -895,19 +820,10 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
      ffetarget_cvt_rv_to_r2_ (resr, &((res)->real.v[0])); \
      ffetarget_cvt_rv_to_r2_ (resi, &((res)->imaginary.v[0])); \
      FFEBAD; })
-#else
-#define ffetarget_add_complex1(res,l,r) \
-  ((res)->real = (l).real + (r).real, \
-   (res)->imaginary = (l).imaginary + (r).imaginary, FFEBAD)
-#define ffetarget_add_complex2(res,l,r) \
-  ((res)->real = (l).real + (r).real, \
-   (res)->imaginary = (l).imaginary + (r).imaginary, FFEBAD)
-#endif
 #define ffetarget_add_integer1(res,l,r) (*(res) = (l) + (r), FFEBAD)
 #define ffetarget_add_integer2(res,l,r) (*(res) = (l) + (r), FFEBAD)
 #define ffetarget_add_integer3(res,l,r) (*(res) = (l) + (r), FFEBAD)
 #define ffetarget_add_integer4(res,l,r) (*(res) = (l) + (r), FFEBAD)
-#ifdef REAL_ARITHMETIC
 #define ffetarget_add_real1(res,l,r) \
   ({ REAL_VALUE_TYPE lr, rr, resr; \
      lr = ffetarget_cvt_r1_to_rv_ ((l)); \
@@ -922,10 +838,6 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
      REAL_ARITHMETIC (resr, PLUS_EXPR, lr, rr); \
      ffetarget_cvt_rv_to_r2_ (resr, &((res)->v[0])); \
      FFEBAD; })
-#else
-#define ffetarget_add_real1(res,l,r) (*(res) = (l) + (r), FFEBAD)
-#define ffetarget_add_real2(res,l,r) (*(res) = (l) + (r), FFEBAD)
-#endif
 #define ffetarget_aggregate_ptr_memcpy(dbt,dkt,sbt,skt) \
   ((ffetargetCopyfunc) ffetarget_memcpy_)
 #define ffetarget_and_integer1(res,l,r) (*(res) = (l) & (r), FFEBAD)
@@ -969,7 +881,6 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
   ffetarget_convert_any_hollerith_ ((char *) (res), sizeof(*(res)), l)
 #define ffetarget_convert_complex1_typeless(res,l) \
   ffetarget_convert_any_typeless_ ((char *) (res), sizeof(*(res)), l)
-#ifdef REAL_ARITHMETIC
 #define ffetarget_convert_complex1_complex2(res,l) \
   ({ REAL_VALUE_TYPE lr, li; \
      lr = ffetarget_cvt_r2_to_rv_ (&((l).real.v[0])); \
@@ -977,11 +888,6 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
      ffetarget_cvt_rv_to_r1_ (lr, (res)->real); \
      ffetarget_cvt_rv_to_r1_ (li, (res)->imaginary), \
      FFEBAD; })
-#else
-#define ffetarget_convert_complex1_complex2(res,l) \
-  ((res)->real = (l).real, (res)->imaginary = (l).imaginary, FFEBAD)
-#endif
-#ifdef REAL_ARITHMETIC
 #define ffetarget_convert_complex1_integer(res,l) \
   ({ REAL_VALUE_TYPE resi, resr; \
      ffetargetInteger1 lf = (l); \
@@ -990,19 +896,10 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
      ffetarget_cvt_rv_to_r1_ (resr, (res)->real); \
      ffetarget_cvt_rv_to_r1_ (resi, (res)->imaginary); \
      FFEBAD; })
-#else
-#define ffetarget_convert_complex1_integer(res,l) \
-  ((res)->real = (l), (res)->imaginary = 0, FFEBAD)
-#endif
 #define ffetarget_convert_complex1_integer1 ffetarget_convert_complex1_integer
 #define ffetarget_convert_complex1_integer2 ffetarget_convert_complex1_integer
 #define ffetarget_convert_complex1_integer3 ffetarget_convert_complex1_integer
-#ifdef REAL_ARITHMETIC
 #define ffetarget_convert_complex1_integer4(res,l) FFEBAD_NOCANDO
-#else
-#define ffetarget_convert_complex1_integer4 ffetarget_convert_complex1_integer
-#endif
-#ifdef REAL_ARITHMETIC
 #define ffetarget_convert_complex1_real1(res,l) \
   ((res)->real = (l), \
    ffetarget_cvt_rv_to_r1_ (dconst0, (res)->imaginary), \
@@ -1013,19 +910,12 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
      ffetarget_cvt_rv_to_r1_ (lr, (res)->real); \
      ffetarget_cvt_rv_to_r1_ (dconst0, (res)->imaginary), \
      FFEBAD; })
-#else
-#define ffetarget_convert_complex1_real1(res,l) \
-  ((res)->real = (l), (res)->imaginary = 0, FFEBAD)
-#define ffetarget_convert_complex1_real2(res,l) \
-  ((res)->real = (l), (res)->imaginary = 0, FFEBAD)
-#endif
 #define ffetarget_convert_complex2_character1(res,l) \
   ffetarget_convert_any_character1_ ((char *) (res), sizeof(*(res)), l)
 #define ffetarget_convert_complex2_hollerith(res,l) \
   ffetarget_convert_any_hollerith_ ((char *) (res), sizeof(*(res)), l)
 #define ffetarget_convert_complex2_typeless(res,l) \
   ffetarget_convert_any_typeless_ ((char *) (res), sizeof(*(res)), l)
-#ifdef REAL_ARITHMETIC
 #define ffetarget_convert_complex2_complex1(res,l) \
   ({ REAL_VALUE_TYPE lr, li; \
      lr = ffetarget_cvt_r1_to_rv_ ((l).real); \
@@ -1033,11 +923,6 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
      ffetarget_cvt_rv_to_r2_ (lr, &((res)->real.v[0])); \
      ffetarget_cvt_rv_to_r2_ (li, &((res)->imaginary.v[0])), \
      FFEBAD; })
-#else
-#define ffetarget_convert_complex2_complex1(res,l) \
-  ((res)->real = (l).real, (res)->imaginary = (l).imaginary, FFEBAD)
-#endif
-#ifdef REAL_ARITHMETIC
 #define ffetarget_convert_complex2_integer(res,l) \
   ({ REAL_VALUE_TYPE resi, resr; \
      ffetargetInteger1 lf = (l); \
@@ -1046,19 +931,10 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
      ffetarget_cvt_rv_to_r2_ (resr, &((res)->real.v[0])); \
      ffetarget_cvt_rv_to_r2_ (resi, &((res)->imaginary.v[0])); \
      FFEBAD; })
-#else
-#define ffetarget_convert_complex2_integer(res,l) \
-  ((res)->real = (l), (res)->imaginary = 0, FFEBAD)
-#endif
 #define ffetarget_convert_complex2_integer1 ffetarget_convert_complex2_integer
 #define ffetarget_convert_complex2_integer2 ffetarget_convert_complex2_integer
 #define ffetarget_convert_complex2_integer3 ffetarget_convert_complex2_integer
-#ifdef REAL_ARITHMETIC
 #define ffetarget_convert_complex2_integer4(res,l) FFEBAD_NOCANDO
-#else
-#define ffetarget_convert_complex2_integer4 ffetarget_convert_complex2_integer
-#endif
-#ifdef REAL_ARITHMETIC
 #define ffetarget_convert_complex2_real1(res,l) \
   ({ REAL_VALUE_TYPE lr; \
      lr = ffetarget_cvt_r1_to_rv_ (l); \
@@ -1069,12 +945,6 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
   ((res)->real = (l), \
    ffetarget_cvt_rv_to_r2_ (dconst0, &((res)->imaginary.v[0])), \
    FFEBAD)
-#else
-#define ffetarget_convert_complex2_real1(res,l) \
-  ((res)->real = (l), (res)->imaginary = 0, FFEBAD)
-#define ffetarget_convert_complex2_real2(res,l) \
-  ((res)->real = (l), (res)->imaginary = 0, FFEBAD)
-#endif
 #define ffetarget_convert_integer2_character1(res,l) \
         ffetarget_convert_integer1_character1(res,l)
 #define ffetarget_convert_integer2_complex1(res,l) \
@@ -1127,15 +997,8 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
         ffetarget_convert_integer1_typeless(res,l)
 #define ffetarget_convert_integer4_character1(res,l) \
         ffetarget_convert_integer1_character1(res,l)
-#ifdef REAL_ARITHMETIC
 #define ffetarget_convert_integer4_complex1(res,l) FFEBAD_NOCANDO
 #define ffetarget_convert_integer4_complex2(res,l) FFEBAD_NOCANDO
-#else
-#define ffetarget_convert_integer4_complex1(res,l) \
-        ffetarget_convert_integer1_complex1(res,l)
-#define ffetarget_convert_integer4_complex2(res,l) \
-        ffetarget_convert_integer1_complex2(res,l)
-#endif
 #define ffetarget_convert_integer4_hollerith(res,l) \
         ffetarget_convert_integer1_hollerith(res,l)
 #define ffetarget_convert_integer4_integer1(res,l) (*(res) = (l), FFEBAD)
@@ -1149,15 +1012,8 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
         ffetarget_convert_integer1_logical1(res,l)
 #define ffetarget_convert_integer4_logical4(res,l) \
         ffetarget_convert_integer1_logical1(res,l)
-#ifdef REAL_ARITHMETIC
 #define ffetarget_convert_integer4_real1(res,l) FFEBAD_NOCANDO
 #define ffetarget_convert_integer4_real2(res,l) FFEBAD_NOCANDO
-#else
-#define ffetarget_convert_integer4_real1(res,l) \
-        ffetarget_convert_integer1_real1(res,l)
-#define ffetarget_convert_integer4_real2(res,l) \
-        ffetarget_convert_integer1_real2(res,l)
-#endif
 #define ffetarget_convert_integer4_typeless(res,l) \
         ffetarget_convert_integer1_typeless(res,l)
 #define ffetarget_convert_logical1_character1(res,l) \
@@ -1225,7 +1081,6 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
 #define ffetarget_convert_integer1_logical2(res,l) (*(res) = (l), FFEBAD)
 #define ffetarget_convert_integer1_logical3(res,l) (*(res) = (l), FFEBAD)
 #define ffetarget_convert_integer1_logical4(res,l) (*(res) = (l), FFEBAD)
-#ifdef REAL_ARITHMETIC
 #define ffetarget_convert_integer1_real1(res,l) \
   ({ REAL_VALUE_TYPE lr; \
      lr = ffetarget_cvt_r1_to_rv_ (l); \
@@ -1250,12 +1105,6 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
      REAL_VALUE_TO_INT (&ffetarget_long_val_, &ffetarget_long_junk_, lr); \
      *(res) = ffetarget_long_val_; \
      FFEBAD; })
-#else
-#define ffetarget_convert_integer1_real1(res,l) (*(res) = (l), FFEBAD)
-#define ffetarget_convert_integer1_real2(res,l) (*(res) = (l), FFEBAD)
-#define ffetarget_convert_integer1_complex1(res,l) (*(res) = (l).real, FFEBAD)
-#define ffetarget_convert_integer1_complex2(res,l) (*(res) = (l).real, FFEBAD)
-#endif
 #define ffetarget_convert_real1_character1(res,l) \
   ffetarget_convert_any_character1_ ((char *) (res), sizeof(*(res)), l)
 #define ffetarget_convert_real1_hollerith(res,l) \
@@ -1264,36 +1113,23 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
         ffetarget_convert_real1_integer1(res,l)
 #define ffetarget_convert_real1_integer3(res,l) \
         ffetarget_convert_real1_integer1(res,l)
-#ifdef REAL_ARITHMETIC
 #define ffetarget_convert_real1_integer4(res,l) FFEBAD_NOCANDO
-#else
-#define ffetarget_convert_real1_integer4(res,l) \
-        ffetarget_convert_real1_integer1(res,l)
-#endif
 #define ffetarget_convert_real1_typeless(res,l) \
   ffetarget_convert_any_typeless_ ((char *) (res), sizeof(*(res)), l)
 #define ffetarget_convert_real1_complex1(res,l) (*(res) = (l).real, FFEBAD)
 #define ffetarget_convert_real1_complex2(res,l) \
   ffetarget_convert_real1_real2 ((res), (l).real)
-#ifdef REAL_ARITHMETIC
 #define ffetarget_convert_real1_integer1(res,l) \
   ({ REAL_VALUE_TYPE resr; \
      ffetargetInteger1 lf = (l); \
      FFETARGET_REAL_VALUE_FROM_INT_ (resr, lf, 1); \
      ffetarget_cvt_rv_to_r1_ (resr, *(res)); \
      FFEBAD; })
-#else
-#define ffetarget_convert_real1_integer1(res,l) (*(res) = (l), FFEBAD)
-#endif
-#ifdef REAL_ARITHMETIC
 #define ffetarget_convert_real1_real2(res,l) \
   ({ REAL_VALUE_TYPE lr; \
      lr = ffetarget_cvt_r2_to_rv_ (&((l).v[0])); \
      ffetarget_cvt_rv_to_r1_ (lr, *(res)); \
      FFEBAD; })
-#else
-#define ffetarget_convert_real1_real2(res,l) (*(res) = (l), FFEBAD)
-#endif
 #define ffetarget_convert_real2_character1(res,l) \
   ffetarget_convert_any_character1_ ((char *) (res), sizeof(*(res)), l)
 #define ffetarget_convert_real2_hollerith(res,l) \
@@ -1302,18 +1138,12 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
         ffetarget_convert_real2_integer1(res,l)
 #define ffetarget_convert_real2_integer3(res,l) \
         ffetarget_convert_real2_integer1(res,l)
-#ifdef REAL_ARITHMETIC
 #define ffetarget_convert_real2_integer4(res,l) FFEBAD_NOCANDO
-#else
-#define ffetarget_convert_real2_integer4(res,l) \
-        ffetarget_convert_real2_integer1(res,l)
-#endif
 #define ffetarget_convert_real2_typeless(res,l) \
   ffetarget_convert_any_typeless_ ((char *) (res), sizeof(*(res)), l)
 #define ffetarget_convert_real2_complex1(res,l) \
   ffetarget_convert_real2_real1 ((res), (l).real)
 #define ffetarget_convert_real2_complex2(res,l) (*(res) = (l).real, FFEBAD)
-#ifdef REAL_ARITHMETIC
 #define ffetarget_convert_real2_integer(res,l) \
   ({ REAL_VALUE_TYPE resr; \
      ffetargetInteger1 lf = (l); \
@@ -1321,28 +1151,21 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
      ffetarget_cvt_rv_to_r2_ (resr, &((res)->v[0])); \
      FFEBAD; })
 #define ffetarget_convert_real2_integer1 ffetarget_convert_real2_integer
-#else
-#define ffetarget_convert_real2_integer1(res,l) (*(res) = (l), FFEBAD)
-#endif
-#ifdef REAL_ARITHMETIC
 #define ffetarget_convert_real2_real1(res,l) \
   ({ REAL_VALUE_TYPE lr; \
      lr = ffetarget_cvt_r1_to_rv_ ((l)); \
      ffetarget_cvt_rv_to_r2_ (lr, &((res)->v[0])); \
      FFEBAD; })
-#else
-#define ffetarget_convert_real2_real1(res,l) (*(res) = (l), FFEBAD)
-#endif
 #define ffetarget_divide_integer1(res,l,r) \
   (((r) == 0) ? (*(res) = 0, FFEBAD_DIV_BY_ZERO)  \
-   : (*(res) = (l) / (r), FFEBAD))
+   : (((r) == -1) ? (*(res) = -(l), FFEBAD)       \
+      : (*(res) = (l) / (r), FFEBAD)))
 #define ffetarget_divide_integer2(res,l,r) \
         ffetarget_divide_integer1(res,l,r)
 #define ffetarget_divide_integer3(res,l,r) \
         ffetarget_divide_integer1(res,l,r)
 #define ffetarget_divide_integer4(res,l,r) \
         ffetarget_divide_integer1(res,l,r)
-#ifdef REAL_ARITHMETIC
 #define ffetarget_divide_real1(res,l,r) \
   ({ REAL_VALUE_TYPE lr, rr, resr; \
      lr = ffetarget_cvt_r1_to_rv_ ((l)); \
@@ -1369,15 +1192,6 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
 	      FFEBAD; \
 	    }); \
 	 })
-#else
-#define ffetarget_divide_real1(res,l,r) \
-  (((r) == 0) ? (*(res) = 0, FFEBAD_DIV_BY_ZERO)  \
-   : (*(res) = (l) / (r), FFEBAD))
-#define ffetarget_divide_real2(res,l,r) \
-  (((r) == 0) ? (*(res) = 0, FFEBAD_DIV_BY_ZERO)  \
-   : (*(res) = (l) / (r), FFEBAD))
-#endif
-#ifdef REAL_ARITHMETIC
 #define ffetarget_eq_complex1(res,l,r) \
   ({ REAL_VALUE_TYPE lr, li, rr, ri; \
      lr = ffetarget_cvt_r1_to_rv_ ((l).real); \
@@ -1396,14 +1210,6 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
      *(res) = (REAL_VALUES_EQUAL (lr, rr) && REAL_VALUES_EQUAL (li, ri)) \
        ? TRUE : FALSE; \
      FFEBAD; })
-#else
-#define ffetarget_eq_complex1(res,l,r) \
-  (*(res) = (((l).real == (r).real) && ((l).imaginary == (r).imaginary))  \
-   ? TRUE : FALSE, FFEBAD)
-#define ffetarget_eq_complex2(res,l,r) \
-  (*(res) = (((l).real == (r).real) && ((l).imaginary == (r).imaginary))  \
-   ? TRUE : FALSE, FFEBAD)
-#endif
 #define ffetarget_eq_integer1(res,l,r) \
   (*(res) = ((l) == (r)) ? TRUE : FALSE, FFEBAD)
 #define ffetarget_eq_integer2(res,l,r) \
@@ -1412,7 +1218,6 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
   (*(res) = ((l) == (r)) ? TRUE : FALSE, FFEBAD)
 #define ffetarget_eq_integer4(res,l,r) \
   (*(res) = ((l) == (r)) ? TRUE : FALSE, FFEBAD)
-#ifdef REAL_ARITHMETIC
 #define ffetarget_eq_real1(res,l,r) \
   ({ REAL_VALUE_TYPE lr, rr; \
      lr = ffetarget_cvt_r1_to_rv_ ((l)); \
@@ -1425,12 +1230,6 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
      rr = ffetarget_cvt_r2_to_rv_ (&((r).v[0])); \
      *(res) = REAL_VALUES_EQUAL (lr, rr) ? TRUE : FALSE; \
      FFEBAD; })
-#else
-#define ffetarget_eq_real1(res,l,r) \
-  (*(res) = ((l) == (r)) ? TRUE : FALSE, FFEBAD)
-#define ffetarget_eq_real2(res,l,r) \
-  (*(res) = ((l) == (r)) ? TRUE : FALSE, FFEBAD)
-#endif
 #define ffetarget_eqv_integer1(res,l,r) (*(res) = (l) ^ ~(r), FFEBAD)
 #define ffetarget_eqv_integer2(res,l,r) (*(res) = (l) ^ ~(r), FFEBAD)
 #define ffetarget_eqv_integer3(res,l,r) (*(res) = (l) ^ ~(r), FFEBAD)
@@ -1447,7 +1246,6 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
   (*(res) = ((l) >= (r)) ? TRUE : FALSE, FFEBAD)
 #define ffetarget_ge_integer4(res,l,r) \
   (*(res) = ((l) >= (r)) ? TRUE : FALSE, FFEBAD)
-#ifdef REAL_ARITHMETIC
 #define ffetarget_ge_real1(res,l,r) \
   ({ REAL_VALUE_TYPE lr, rr; \
      lr = ffetarget_cvt_r1_to_rv_ ((l)); \
@@ -1460,12 +1258,6 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
      rr = ffetarget_cvt_r2_to_rv_ (&((r).v[0])); \
      *(res) = REAL_VALUES_LESS (lr, rr) ? FALSE : TRUE; \
      FFEBAD; })
-#else
-#define ffetarget_ge_real1(res,l,r) \
-  (*(res) = ((l) >= (r)) ? TRUE : FALSE, FFEBAD)
-#define ffetarget_ge_real2(res,l,r) \
-  (*(res) = ((l) >= (r)) ? TRUE : FALSE, FFEBAD)
-#endif
 #define ffetarget_gt_integer1(res,l,r) \
   (*(res) = ((l) > (r)) ? TRUE : FALSE, FFEBAD)
 #define ffetarget_gt_integer2(res,l,r) \
@@ -1474,7 +1266,6 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
   (*(res) = ((l) > (r)) ? TRUE : FALSE, FFEBAD)
 #define ffetarget_gt_integer4(res,l,r) \
   (*(res) = ((l) > (r)) ? TRUE : FALSE, FFEBAD)
-#ifdef REAL_ARITHMETIC
 #define ffetarget_gt_real1(res,l,r) \
   ({ REAL_VALUE_TYPE lr, rr; \
      lr = ffetarget_cvt_r1_to_rv_ ((l)); \
@@ -1489,12 +1280,6 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
      *(res) = (REAL_VALUES_LESS (lr, rr) || REAL_VALUES_EQUAL (lr, rr)) \
        ? FALSE : TRUE; \
      FFEBAD; })
-#else
-#define ffetarget_gt_real1(res,l,r) \
-  (*(res) = ((l) > (r)) ? TRUE : FALSE, FFEBAD)
-#define ffetarget_gt_real2(res,l,r) \
-  (*(res) = ((l) > (r)) ? TRUE : FALSE, FFEBAD)
-#endif
 #define ffetarget_hexxmil(v,t) ffetarget_typeless_hex (v, t)
 #define ffetarget_hexxvxt(v,t) ffetarget_typeless_hex (v, t)
 #define ffetarget_hexzmil(v,t) ffetarget_typeless_hex (v, t)
@@ -1511,7 +1296,6 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
 #define ffetarget_integerdefault_is_magical(i) \
   (((unsigned int) i) == FFETARGET_integerBIG_MAGICAL)
 #endif
-#ifdef REAL_ARITHMETIC
 #define ffetarget_iszero_real1(l) \
   ({ REAL_VALUE_TYPE lr; \
      lr = ffetarget_cvt_r1_to_rv_ ((l)); \
@@ -1522,10 +1306,6 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
      lr = ffetarget_cvt_r2_to_rv_ (&((l).v[0])); \
      REAL_VALUES_EQUAL (lr, dconst0); \
    })
-#else
-#define ffetarget_iszero_real1(l) ((l) == 0.)
-#define ffetarget_iszero_real2(l) ((l) == 0.)
-#endif
 #define ffetarget_iszero_typeless(l) ((l) == 0)
 #define ffetarget_logical1(v,truth) (*(v) = truth ? 1 : 0)
 #define ffetarget_le_integer1(res,l,r) \
@@ -1536,7 +1316,6 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
   (*(res) = ((l) <= (r)) ? TRUE : FALSE, FFEBAD)
 #define ffetarget_le_integer4(res,l,r) \
   (*(res) = ((l) <= (r)) ? TRUE : FALSE, FFEBAD)
-#ifdef REAL_ARITHMETIC
 #define ffetarget_le_real1(res,l,r) \
   ({ REAL_VALUE_TYPE lr, rr; \
      lr = ffetarget_cvt_r1_to_rv_ ((l)); \
@@ -1551,12 +1330,6 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
      *(res) = (REAL_VALUES_LESS (lr, rr) || REAL_VALUES_EQUAL (lr, rr)) \
        ? TRUE : FALSE; \
      FFEBAD; })
-#else
-#define ffetarget_le_real1(res,l,r) \
-  (*(res) = ((l) <= (r)) ? TRUE : FALSE, FFEBAD)
-#define ffetarget_le_real2(res,l,r) \
-  (*(res) = ((l) <= (r)) ? TRUE : FALSE, FFEBAD)
-#endif
 #define ffetarget_lt_integer1(res,l,r) \
   (*(res) = ((l) < (r)) ? TRUE : FALSE, FFEBAD)
 #define ffetarget_lt_integer2(res,l,r) \
@@ -1565,7 +1338,6 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
   (*(res) = ((l) < (r)) ? TRUE : FALSE, FFEBAD)
 #define ffetarget_lt_integer4(res,l,r) \
   (*(res) = ((l) < (r)) ? TRUE : FALSE, FFEBAD)
-#ifdef REAL_ARITHMETIC
 #define ffetarget_lt_real1(res,l,r) \
   ({ REAL_VALUE_TYPE lr, rr; \
      lr = ffetarget_cvt_r1_to_rv_ ((l)); \
@@ -1578,28 +1350,16 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
      rr = ffetarget_cvt_r2_to_rv_ (&((r).v[0])); \
      *(res) = REAL_VALUES_LESS (lr, rr) ? TRUE : FALSE; \
      FFEBAD; })
-#else
-#define ffetarget_lt_real1(res,l,r) \
-  (*(res) = ((l) < (r)) ? TRUE : FALSE, FFEBAD)
-#define ffetarget_lt_real2(res,l,r) \
-  (*(res) = ((l) < (r)) ? TRUE : FALSE, FFEBAD)
-#endif
 #define ffetarget_length_character1(c) ((c).length)
 #define ffetarget_length_characterdefault ffetarget_length_character1
-#ifdef REAL_ARITHMETIC
 #define ffetarget_make_real1(res,lr) \
   ffetarget_cvt_rv_to_r1_ ((lr), *(res))
 #define ffetarget_make_real2(res,lr) \
   ffetarget_cvt_rv_to_r2_ ((lr), &((res)->v[0]))
-#else
-#define ffetarget_make_real1(res,lr) (*(res) = (lr))
-#define ffetarget_make_real2(res,lr) (*(res) = (lr))
-#endif
 #define ffetarget_multiply_integer1(res,l,r) (*(res) = (l) * (r), FFEBAD)
 #define ffetarget_multiply_integer2(res,l,r) (*(res) = (l) * (r), FFEBAD)
 #define ffetarget_multiply_integer3(res,l,r) (*(res) = (l) * (r), FFEBAD)
 #define ffetarget_multiply_integer4(res,l,r) (*(res) = (l) * (r), FFEBAD)
-#ifdef REAL_ARITHMETIC
 #define ffetarget_multiply_real1(res,l,r) \
   ({ REAL_VALUE_TYPE lr, rr, resr; \
      lr = ffetarget_cvt_r1_to_rv_ ((l)); \
@@ -1614,11 +1374,6 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
      REAL_ARITHMETIC (resr, MULT_EXPR, lr, rr); \
      ffetarget_cvt_rv_to_r2_ (resr, &((res)->v[0])); \
      FFEBAD; })
-#else
-#define ffetarget_multiply_real1(res,l,r) (*(res) = (l) * (r), FFEBAD)
-#define ffetarget_multiply_real2(res,l,r) (*(res) = (l) * (r), FFEBAD)
-#endif
-#ifdef REAL_ARITHMETIC
 #define ffetarget_ne_complex1(res,l,r) \
   ({ REAL_VALUE_TYPE lr, li, rr, ri; \
      lr = ffetarget_cvt_r1_to_rv_ ((l).real); \
@@ -1637,14 +1392,6 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
      *(res) = (REAL_VALUES_EQUAL (lr, rr) && REAL_VALUES_EQUAL (li, ri)) \
        ? FALSE : TRUE; \
      FFEBAD; })
-#else
-#define ffetarget_ne_complex1(res,l,r) \
-  (*(res) = (((l).real != (r).real) || ((l).imaginary != (r).imaginary))  \
-   ? TRUE : FALSE, FFEBAD)
-#define ffetarget_ne_complex2(res,l,r) \
-  (*(res) = (((l).real != (r).real) || ((l).imaginary != (r).imaginary))  \
-   ? TRUE : FALSE, FFEBAD)
-#endif
 #define ffetarget_ne_integer1(res,l,r) \
   (*(res) = ((l) != (r)) ? TRUE : FALSE, FFEBAD)
 #define ffetarget_ne_integer2(res,l,r) \
@@ -1653,7 +1400,6 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
   (*(res) = ((l) != (r)) ? TRUE : FALSE, FFEBAD)
 #define ffetarget_ne_integer4(res,l,r) \
   (*(res) = ((l) != (r)) ? TRUE : FALSE, FFEBAD)
-#ifdef REAL_ARITHMETIC
 #define ffetarget_ne_real1(res,l,r) \
   ({ REAL_VALUE_TYPE lr, rr; \
      lr = ffetarget_cvt_r1_to_rv_ ((l)); \
@@ -1666,12 +1412,6 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
      rr = ffetarget_cvt_r2_to_rv_ (&((r).v[0])); \
      *(res) = REAL_VALUES_EQUAL (lr, rr) ? FALSE : TRUE; \
      FFEBAD; })
-#else
-#define ffetarget_ne_real1(res,l,r) \
-  (*(res) = ((l) != (r)) ? TRUE : FALSE, FFEBAD)
-#define ffetarget_ne_real2(res,l,r) \
-  (*(res) = ((l) != (r)) ? TRUE : FALSE, FFEBAD)
-#endif
 #define ffetarget_neqv_integer1(res,l,r) (*(res) = (l) ^ (r), FFEBAD)
 #define ffetarget_neqv_integer2(res,l,r) (*(res) = (l) ^ (r), FFEBAD)
 #define ffetarget_neqv_integer3(res,l,r) (*(res) = (l) ^ (r), FFEBAD)
@@ -1727,51 +1467,30 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
   fprintf ((f), "%" ffetargetLogical4_f "d", (v))
 #define ffetarget_print_octalmil(f,v) ffetarget_print_octal(f,v)
 #define ffetarget_print_octalvxt(f,v) ffetarget_print_octal(f,v)
-#ifdef REAL_ARITHMETIC
 #define ffetarget_print_real1(f,l) \
   ({ REAL_VALUE_TYPE lr; \
      lr = ffetarget_cvt_r1_to_rv_ ((l)); \
-     REAL_VALUE_TO_DECIMAL (lr, bad_fmt_val??, ffetarget_string_); \
+     real_to_decimal (ffetarget_string_, &lr \
+			 sizeof(ffetarget_string_), 0, 1); \
      fputs (ffetarget_string_, (f)); \
    })
 #define ffetarget_print_real2(f,l) \
   ({ REAL_VALUE_TYPE lr; \
      lr = ffetarget_cvt_r2_to_rv_ (&((l).v[0])); \
-     REAL_VALUE_TO_DECIMAL (lr, bad_fmt_val??, ffetarget_string_); \
+     real_to_decimal (ffetarget_string_, &lr, \
+			 sizeof(ffetarget_string_), 0, 1); \
      fputs (ffetarget_string_, (f)); \
    })
-#else
-#define ffetarget_print_real1(f,v) \
-  fprintf ((f), "%" ffetargetReal1_f "g", (v))
-#define ffetarget_print_real2(f,v) \
-  fprintf ((f), "%" ffetargetReal2_f "g", (v))
-#endif
-#ifdef REAL_ARITHMETIC
 #define ffetarget_real1_one(res) ffetarget_cvt_rv_to_r1_ (dconst1, *(res))
 #define ffetarget_real2_one(res) ffetarget_cvt_rv_to_r2_ (dconst1, &((res)->v[0]))
-#else
-#define ffetarget_real1_one(res) (*(res) = (float) 1.)
-#define ffetarget_real2_one(res) (*(res) = 1.)
-#endif
-#ifdef REAL_ARITHMETIC
 #define ffetarget_real1_two(res) ffetarget_cvt_rv_to_r1_ (dconst2, *(res))
 #define ffetarget_real2_two(res) ffetarget_cvt_rv_to_r2_ (dconst2, &((res)->v[0]))
-#else
-#define ffetarget_real1_two(res) (*(res) = (float) 2.)
-#define ffetarget_real2_two(res) (*(res) = 2.)
-#endif
-#ifdef REAL_ARITHMETIC
 #define ffetarget_real1_zero(res) ffetarget_cvt_rv_to_r1_ (dconst0, *(res))
 #define ffetarget_real2_zero(res) ffetarget_cvt_rv_to_r2_ (dconst0, &((res)->v[0]))
-#else
-#define ffetarget_real1_zero(res) (*(res) = (float) 0.)
-#define ffetarget_real2_zero(res) (*(res) = 0.)
-#endif
 #define ffetarget_size_typeless_binary(t) ((ffetarget_num_digits_(t) + 7) / 8)
 #define ffetarget_size_typeless_octal(t) \
   ((ffetarget_num_digits_(t) * 3 + 7) / 8)
 #define ffetarget_size_typeless_hex(t) ((ffetarget_num_digits_(t) + 1) / 2)
-#ifdef REAL_ARITHMETIC
 #define ffetarget_subtract_complex1(res,l,r) \
   ({ REAL_VALUE_TYPE lr, li, rr, ri, resr, resi; \
      lr = ffetarget_cvt_r1_to_rv_ ((l).real); \
@@ -1794,19 +1513,10 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
      ffetarget_cvt_rv_to_r2_ (resr, &((res)->real.v[0])); \
      ffetarget_cvt_rv_to_r2_ (resi, &((res)->imaginary.v[0])); \
      FFEBAD; })
-#else
-#define ffetarget_subtract_complex1(res,l,r) \
-  ((res)->real = (l).real - (r).real, \
-   (res)->imaginary = (l).imaginary - (r).imaginary, FFEBAD)
-#define ffetarget_subtract_complex2(res,l,r) \
-  ((res)->real = (l).real - (r).real, \
-   (res)->imaginary = (l).imaginary - (r).imaginary, FFEBAD)
-#endif
 #define ffetarget_subtract_integer1(res,l,r) (*(res) = (l) - (r), FFEBAD)
 #define ffetarget_subtract_integer2(res,l,r) (*(res) = (l) - (r), FFEBAD)
 #define ffetarget_subtract_integer3(res,l,r) (*(res) = (l) - (r), FFEBAD)
 #define ffetarget_subtract_integer4(res,l,r) (*(res) = (l) - (r), FFEBAD)
-#ifdef REAL_ARITHMETIC
 #define ffetarget_subtract_real1(res,l,r) \
   ({ REAL_VALUE_TYPE lr, rr, resr; \
      lr = ffetarget_cvt_r1_to_rv_ ((l)); \
@@ -1821,10 +1531,6 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
      REAL_ARITHMETIC (resr, MINUS_EXPR, lr, rr); \
      ffetarget_cvt_rv_to_r2_ (resr, &((res)->v[0])); \
      FFEBAD; })
-#else
-#define ffetarget_subtract_real1(res,l,r) (*(res) = (l) - (r), FFEBAD)
-#define ffetarget_subtract_real2(res,l,r) (*(res) = (l) - (r), FFEBAD)
-#endif
 #define ffetarget_terminate_0()
 #define ffetarget_terminate_1()
 #define ffetarget_terminate_2()
@@ -1832,7 +1538,6 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
 #define ffetarget_terminate_4()
 #define ffetarget_text_character1(c) ((c).text)
 #define ffetarget_text_characterdefault ffetarget_text_character1
-#ifdef REAL_ARITHMETIC
 #define ffetarget_uminus_complex1(res,l) \
   ({ REAL_VALUE_TYPE lr, li, resr, resi; \
      lr = ffetarget_cvt_r1_to_rv_ ((l).real); \
@@ -1851,17 +1556,10 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
      ffetarget_cvt_rv_to_r2_ (resr, &((res)->real.v[0])); \
      ffetarget_cvt_rv_to_r2_ (resi, &((res)->imaginary.v[0])); \
      FFEBAD; })
-#else
-#define ffetarget_uminus_complex1(res,l) \
-  ((res)->real = -(l).real, (res)->imaginary = -(l).imaginary, FFEBAD)
-#define ffetarget_uminus_complex2(res,l) \
-  ((res)->real = -(l).real, (res)->imaginary = -(l).imaginary, FFEBAD)
-#endif
 #define ffetarget_uminus_integer1(res,l) (*(res) = -(l), FFEBAD)
 #define ffetarget_uminus_integer2(res,l) (*(res) = -(l), FFEBAD)
 #define ffetarget_uminus_integer3(res,l) (*(res) = -(l), FFEBAD)
 #define ffetarget_uminus_integer4(res,l) (*(res) = -(l), FFEBAD)
-#ifdef REAL_ARITHMETIC
 #define ffetarget_uminus_real1(res,l) \
   ({ REAL_VALUE_TYPE lr, resr; \
      lr = ffetarget_cvt_r1_to_rv_ ((l)); \
@@ -1874,17 +1572,8 @@ void *ffetarget_memcpy_ (void *dst, void *src, size_t len);
      resr = REAL_VALUE_NEGATE (lr); \
      ffetarget_cvt_rv_to_r2_ (resr, &((res)->v[0])); \
      FFEBAD; })
-#else
-#define ffetarget_uminus_real1(res,l) (*(res) = -(l), FFEBAD)
-#define ffetarget_uminus_real2(res,l) (*(res) = -(l), FFEBAD)
-#endif
-#ifdef REAL_ARITHMETIC
 #define ffetarget_value_real1(lr) ffetarget_cvt_r1_to_rv_ ((lr))
 #define ffetarget_value_real2(lr) ffetarget_cvt_r2_to_rv_ (&((lr).v[0]))
-#else
-#define ffetarget_value_real1
-#define ffetarget_value_real2
-#endif
 #define ffetarget_xor_integer1(res,l,r) (*(res) = (l) ^ (r), FFEBAD)
 #define ffetarget_xor_integer2(res,l,r) (*(res) = (l) ^ (r), FFEBAD)
 #define ffetarget_xor_integer3(res,l,r) (*(res) = (l) ^ (r), FFEBAD)

@@ -1,5 +1,5 @@
 /* Definitions for Intel 386 running SCO Unix System V 3.2 Version 5.
-   Copyright (C) 1992, 1995, 1996, 1997, 1998, 1999, 2000
+   Copyright (C) 1992, 1995, 1996, 1997, 1998, 1999, 2000, 2002
    Free Software Foundation, Inc.
    Contributed by Kean Johnston (hug@netcom.com)
 
@@ -20,7 +20,6 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-#undef TARGET_VERSION
 #define TARGET_VERSION fprintf (stderr, " (i386, SCO OpenServer 5 Syntax)");
 
 #undef LPREFIX
@@ -78,17 +77,13 @@ Boston, MA 02111-1307, USA.  */
 #define DWARF2_UNWIND_INFO	\
   ((TARGET_ELF) ? 1 : 0 )  
 
-#undef CONST_SECTION_ASM_OP
-#define CONST_SECTION_ASM_OP_COFF	"\t.section\t.rodata, \"x\""
-#define CONST_SECTION_ASM_OP_ELF	"\t.section\t.rodata"
-#define CONST_SECTION_ASM_OP	\
-  ((TARGET_ELF) ? CONST_SECTION_ASM_OP_ELF : CONST_SECTION_ASM_OP_COFF)
-
-#undef USE_CONST_SECTION
-#define USE_CONST_SECTION_ELF		1
-#define USE_CONST_SECTION_COFF		0
-#define USE_CONST_SECTION	\
- ((TARGET_ELF) ? USE_CONST_SECTION_ELF : USE_CONST_SECTION_COFF)
+#undef READONLY_DATA_SECTION_ASM_OP
+#define READONLY_DATA_SECTION_ASM_OP_COFF	"\t.section\t.rodata, \"x\""
+#define READONLY_DATA_SECTION_ASM_OP_ELF	"\t.section\t.rodata"
+#define READONLY_DATA_SECTION_ASM_OP		\
+  ((TARGET_ELF)					\
+   ? READONLY_DATA_SECTION_ASM_OP_ELF		\
+   : READONLY_DATA_SECTION_ASM_OP_COFF)
 
 #undef INIT_SECTION_ASM_OP
 #define INIT_SECTION_ASM_OP_ELF		"\t.section\t.init"
@@ -144,13 +139,9 @@ do {									\
 #define ASM_DECLARE_FUNCTION_NAME(FILE, NAME, DECL)			\
   do {									\
     if (TARGET_ELF) {							\
-      fprintf (FILE, "%s", TYPE_ASM_OP);				\
-      assemble_name (FILE, NAME);					\
-      putc (',', FILE);							\
-      fprintf (FILE, TYPE_OPERAND_FMT, "function");			\
-      putc ('\n', FILE);						\
+      ASM_OUTPUT_TYPE_DIRECTIVE (FILE, NAME, "function");		\
       ASM_DECLARE_RESULT (FILE, DECL_RESULT (DECL));			\
-      ASM_OUTPUT_LABEL(FILE, NAME);					\
+      ASM_OUTPUT_LABEL (FILE, NAME);					\
     } else								\
       SCO_DEFAULT_ASM_COFF(FILE, NAME);					\
 } while (0)
@@ -158,34 +149,28 @@ do {									\
 #undef ASM_DECLARE_FUNCTION_SIZE
 #define ASM_DECLARE_FUNCTION_SIZE(FILE, FNAME, DECL)			\
   do {									\
-    if (TARGET_ELF) { if (!flag_inhibit_size_directive)			\
-      {									\
-	fprintf (FILE, "%s", SIZE_ASM_OP);				\
-	assemble_name (FILE, (FNAME));					\
-        fprintf (FILE, ",.-");						\
-	assemble_name (FILE, (FNAME));					\
-	putc ('\n', FILE);						\
-      }	}								\
+    if (TARGET_ELF && !flag_inhibit_size_directive)			\
+      ASM_OUTPUT_MEASURED_SIZE (FILE, FNAME);				\
   } while (0)
 
 #undef ASM_DECLARE_OBJECT_NAME
 #define ASM_DECLARE_OBJECT_NAME(FILE, NAME, DECL)			\
   do {									\
     if (TARGET_ELF) {							\
-      fprintf (FILE, "%s", TYPE_ASM_OP);				\
-      assemble_name (FILE, NAME);					\
-      putc (',', FILE);							\
-      fprintf (FILE, TYPE_OPERAND_FMT, "object");			\
-      putc ('\n', FILE);						\
+      HOST_WIDE_INT size;						\
+									\
+      ASM_OUTPUT_TYPE_DIRECTIVE (FILE, NAME, "object");			\
+									\
       size_directive_output = 0;					\
-      if (!flag_inhibit_size_directive && DECL_SIZE (DECL))		\
-        {								\
-  	size_directive_output = 1;					\
-	fprintf (FILE, "%s", SIZE_ASM_OP);				\
-	assemble_name (FILE, NAME);					\
-	fprintf (FILE, ",%d\n",  int_size_in_bytes (TREE_TYPE (DECL)));	\
-        }								\
-      ASM_OUTPUT_LABEL(FILE, NAME);					\
+      if (!flag_inhibit_size_directive					\
+	  && (DECL) && DECL_SIZE (DECL))				\
+	{								\
+	  size_directive_output = 1;					\
+	  size = int_size_in_bytes (TREE_TYPE (DECL));			\
+	  ASM_OUTPUT_SIZE_DIRECTIVE (FILE, NAME, size);			\
+	}								\
+									\
+      ASM_OUTPUT_LABEL (FILE, NAME);					\
     } else								\
       SCO_DEFAULT_ASM_COFF(FILE, NAME);					\
   } while (0)
@@ -203,17 +188,17 @@ do {									\
 #undef ASM_FINISH_DECLARE_OBJECT
 #define ASM_FINISH_DECLARE_OBJECT(FILE, DECL, TOP_LEVEL, AT_END)	 \
 do {									 \
-  if (TARGET_ELF) {							\
+  if (TARGET_ELF) {							 \
      const char *name = XSTR (XEXP (DECL_RTL (DECL), 0), 0);		 \
+     HOST_WIDE_INT size;						 \
      if (!flag_inhibit_size_directive && DECL_SIZE (DECL)		 \
          && ! AT_END && TOP_LEVEL					 \
 	 && DECL_INITIAL (DECL) == error_mark_node			 \
 	 && !size_directive_output)					 \
        {								 \
 	 size_directive_output = 1;					 \
-	 fprintf (FILE, "%s", SIZE_ASM_OP);			 	 \
-	 assemble_name (FILE, name);					 \
-	 fprintf (FILE, ",%d\n",  int_size_in_bytes (TREE_TYPE (DECL))); \
+	 size = int_size_in_bytes (TREE_TYPE (DECL));			 \
+	 ASM_OUTPUT_SIZE_DIRECTIVE (FILE, name, size);			 \
        }								 \
     }									 \
 } while (0)
@@ -353,19 +338,6 @@ do {									\
         fprintf ((FILE), "\n");						\
 } while (0) 
 
-/* Must use data section for relocatable constants when pic.  */
-#undef SELECT_RTX_SECTION
-#define SELECT_RTX_SECTION(MODE,RTX,ALIGN)				\
-{									\
-  if (TARGET_ELF) {							\
-    if (flag_pic && symbolic_operand (RTX, VOIDmode))			\
-      data_section ();							\
-    else								\
-      const_section ();							\
-  } else								\
-    readonly_data_section();						\
-}
-
 #undef ASM_OUTPUT_CASE_LABEL
 #define ASM_OUTPUT_CASE_LABEL(FILE,PREFIX,NUM,JUMPTABLE)		\
 do {									\
@@ -378,13 +350,9 @@ do {									\
 #define ASM_OUTPUT_IDENT(FILE, NAME) \
   fprintf (FILE, "%s\"%s\"\n", IDENT_ASM_OP, NAME);
 
-#undef ASM_GLOBALIZE_LABEL
-#define ASM_GLOBALIZE_LABEL(FILE,NAME)	\
-  (fprintf ((FILE), "%s", GLOBAL_ASM_OP), assemble_name (FILE, NAME), fputs ("\n", FILE))
-
 #undef ASM_OUTPUT_EXTERNAL_LIBCALL
 #define ASM_OUTPUT_EXTERNAL_LIBCALL(FILE, FUN)				\
-  if (TARGET_ELF) ASM_GLOBALIZE_LABEL (FILE, XSTR (FUN, 0))
+  if (TARGET_ELF) (*targetm.asm_out.globalize_label) (FILE, XSTR (FUN, 0))
 
 #undef ASM_OUTPUT_INTERNAL_LABEL
 #define ASM_OUTPUT_INTERNAL_LABEL(FILE,PREFIX,NUM)			\
@@ -445,41 +413,22 @@ do {									\
 #define DBX_REGISTER_NUMBER(n) \
   ((TARGET_ELF) ? svr4_dbx_register_map[n] : dbx_register_map[n])
 
-#undef DWARF2_DEBUGGING_INFO
-#undef DWARF_DEBUGGING_INFO
-#undef SDB_DEBUGGING_INFO
-#undef DBX_DEBUGGING_INFO
-#undef PREFERRED_DEBUGGING_TYPE
-
 #define DWARF2_DEBUGGING_INFO 1
 #define DWARF_DEBUGGING_INFO 1
-#define SDB_DEBUGGING_INFO   1
-#define DBX_DEBUGGING_INFO   1
+#define SDB_DEBUGGING_INFO 1
+#define DBX_DEBUGGING_INFO 1
+
+#undef PREFERRED_DEBUGGING_TYPE
 #define PREFERRED_DEBUGGING_TYPE					\
   ((TARGET_ELF) ? DWARF2_DEBUG: SDB_DEBUG)
 
 #undef EXTRA_SECTIONS
-#define EXTRA_SECTIONS in_const, in_init, in_fini
+#define EXTRA_SECTIONS in_init, in_fini
 
 #undef EXTRA_SECTION_FUNCTIONS
 #define EXTRA_SECTION_FUNCTIONS						\
-  CONST_SECTION_FUNCTION						\
   INIT_SECTION_FUNCTION							\
   FINI_SECTION_FUNCTION
-
-#undef CONST_SECTION_FUNCTION
-#define CONST_SECTION_FUNCTION						\
-void									\
-const_section ()							\
-{									\
-  if (!USE_CONST_SECTION)						\
-    text_section();							\
-  else if (in_section != in_const)					\
-    {									\
-      fprintf (asm_out_file, "%s\n", CONST_SECTION_ASM_OP);		\
-      in_section = in_const;						\
-    }									\
-}
 
 #undef FINI_SECTION_FUNCTION
 #define FINI_SECTION_FUNCTION						\
@@ -541,28 +490,9 @@ init_section ()								\
 	      == void_type_node))) ? (SIZE)				\
    : 0))
 
-#undef SELECT_SECTION
-#define SELECT_SECTION(DECL,RELOC,ALIGN)				\
-{									\
-  if (TARGET_ELF && flag_pic && RELOC)					\
-     data_section ();							\
-  else if (TREE_CODE (DECL) == STRING_CST)				\
-    {									\
-      if (! flag_writable_strings)					\
-	const_section ();						\
-      else								\
-	data_section ();						\
-    }									\
-  else if (TREE_CODE (DECL) == VAR_DECL)				\
-    {									\
-      if (! DECL_READONLY_SECTION (DECL, RELOC)) 			\
-	data_section ();						\
-      else								\
-	const_section ();						\
-    }									\
-  else									\
-    const_section ();							\
-}
+/* ??? Ignore coff.  */
+#undef	TARGET_ASM_SELECT_SECTION
+#define TARGET_ASM_SELECT_SECTION  default_elf_select_section
 
 #undef SWITCH_TAKES_ARG
 #define SWITCH_TAKES_ARG(CHAR) 						\
@@ -581,7 +511,6 @@ init_section ()								\
 #undef TARGET_SUBTARGET_DEFAULT
 #define TARGET_SUBTARGET_DEFAULT (MASK_80387 | MASK_IEEE_FP | MASK_FLOAT_RETURNS)
 
-#undef HANDLE_SYSV_PRAGMA
 #define HANDLE_SYSV_PRAGMA 1
 
 /* Though OpenServer supports .weak in COFF, we don't use it.
@@ -592,9 +521,6 @@ init_section ()								\
 #define ASM_WEAKEN_LABEL(FILE,NAME) \
   do { fputs ("\t.weak\t", FILE); assemble_name (FILE, NAME);		\
 	fputc ('\n', FILE); } while (0)
-
-#undef SCCS_DIRECTIVE
-#define SCCS_DIRECTIVE 1
 
 /*
  * Define sizes and types
@@ -673,13 +599,11 @@ init_section ()								\
     %{pg:gcrt.o%s}%{!pg:%{p:mcrt1.o%s}%{!p:crt1.o%s}}}} \
   %{ansi:values-Xc.o%s} \
   %{!ansi: \
-   %{traditional:values-Xt.o%s} \
-    %{!traditional: \
-     %{Xa:values-Xa.o%s} \
-      %{!Xa:%{Xc:values-Xc.o%s} \
-       %{!Xc:%{Xk:values-Xk.o%s} \
-        %{!Xk:%{Xt:values-Xt.o%s} \
-         %{!Xt:values-Xa.o%s}}}}}} \
+   %{Xa:values-Xa.o%s} \
+    %{!Xa:%{Xc:values-Xc.o%s} \
+     %{!Xc:%{Xk:values-Xk.o%s} \
+      %{!Xk:%{Xt:values-Xt.o%s} \
+       %{!Xt:values-Xa.o%s}}}}} \
   %{mcoff:crtbeginS.o%s} %{!mcoff:crtbegin.o%s}"
 
 #undef ENDFILE_SPEC
@@ -688,20 +612,32 @@ init_section ()								\
   %{mcoff:crtendS.o%s} \
   %{pg:gcrtn.o%s}%{!pg:crtn.o%s}"
 
-#undef CPP_PREDEFINES
-#define CPP_PREDEFINES \
- "-Asystem=svr3"
-
-/* You are in a maze of GCC specs ... all alike */
+#define TARGET_OS_CPP_BUILTINS()		\
+  do						\
+    {						\
+	builtin_define ("__unix");		\
+	builtin_define ("_SCO_DS");		\
+	builtin_define ("_M_I386");		\
+	builtin_define ("_M_XENIX");		\
+	builtin_define ("_M_UNIX");		\
+	builtin_assert ("system=svr3");		\
+	if (flag_iso)				\
+	  cpp_define (pfile, "_STRICT_ANSI");	\
+	if (flag_pic)							\
+	  {								\
+	    builtin_define ("__PIC__");					\
+	    builtin_define ("__pic__");					\
+	  }								\
+    }						\
+  while (0)
 
 #undef CPP_SPEC
-#define CPP_SPEC "%(cpp_cpu) \
+#define CPP_SPEC "\
   %{fpic:%{mcoff:%e-fpic is not valid with -mcoff}} \
   %{fPIC:%{mcoff:%e-fPIC is not valid with -mcoff}} \
-  -D__i386 -D__unix -D_SCO_DS=1 -D_M_I386 -D_M_XENIX -D_M_UNIX \
   %{!Xods30:-D_STRICT_NAMES} \
   %{!ansi:%{!posix:%{!Xods30:-D_SCO_XPG_VERS=4}}} \
-  %{ansi:-isystem include/ansi%s -isystem /usr/include/ansi -D_STRICT_ANSI} \
+  %{ansi:-isystem include/ansi%s -isystem /usr/include/ansi} \
   %{!ansi: \
    %{posix:-isystem include/posix%s -isystem /usr/include/posix \
            -D_POSIX_C_SOURCE=2 -D_POSIX_SOURCE=1} \
@@ -716,17 +652,13 @@ init_section ()								\
                       -DM_BITFIELDS -DM_SYS5 -DM_SYSV -DM_INTERNAT -DM_SYSIII \
                       -DM_WORDSWAP}}}} \
   %{scointl:-DM_INTERNAT -D_M_INTERNAT} \
-  %{traditional:-D_KR -D_SVID -D_NO_PROTOTYPE} \
   %{!mcoff:-D_SCO_ELF} \
   %{mcoff:-D_M_COFF -D_SCO_COFF} \
-  %{!mcoff:%{fpic:-D__PIC__ -D__pic__} \
-         %{fPIC:%{!fpic:-D__PIC__ -D__pic__}}} \
   %{Xa:-D_SCO_C_DIALECT=1} \
   %{!Xa:%{Xc:-D_SCO_C_DIALECT=3} \
    %{!Xc:%{Xk:-D_SCO_C_DIALECT=4} \
     %{!Xk:%{Xt:-D_SCO_C_DIALECT=2} \
-     %{!Xt:-D_SCO_C_DIALECT=1}}}} \
-  %{traditional:-traditional -D_KR -D_NO_PROTOTYPE}"
+     %{!Xt:-D_SCO_C_DIALECT=1}}}}"
 
 #undef LINK_SPEC
 #define LINK_SPEC \

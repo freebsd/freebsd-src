@@ -36,21 +36,27 @@ Boston, MA 02111-1307, USA.  */
 
 #ifndef SUBTARGET_EXTRA_SPECS
 #define SUBTARGET_EXTRA_SPECS \
-  { "subtarget_extra_asm_spec",	SUBTARGET_EXTRA_ASM_SPEC },
+  { "subtarget_extra_asm_spec",	SUBTARGET_EXTRA_ASM_SPEC }, \
+  { "subtarget_asm_float_spec", SUBTARGET_ASM_FLOAT_SPEC },
 #endif
 
 #ifndef SUBTARGET_EXTRA_ASM_SPEC
 #define SUBTARGET_EXTRA_ASM_SPEC ""
 #endif
 
+#ifndef SUBTARGET_ASM_FLOAT_SPEC
+#define SUBTARGET_ASM_FLOAT_SPEC "\
+%{mapcs-float:-mfloat} %{msoft-float:-mno-fpu}"
+#endif
+
 #ifndef ASM_SPEC
 #define ASM_SPEC "\
 %{mbig-endian:-EB} \
-%{mcpu=*:-m%*} \
-%{march=*:-m%*} \
+%{mlittle-endian:-EL} \
+%{mcpu=*:-mcpu=%*} \
+%{march=*:-march=%*} \
 %{mapcs-*:-mapcs-%*} \
-%{mapcs-float:-mfloat} \
-%{msoft-float:-mno-fpu} \
+%(subtarget_asm_float_spec) \
 %{mthumb-interwork:-mthumb-interwork} \
 %(subtarget_extra_asm_spec)"
 #endif
@@ -58,22 +64,18 @@ Boston, MA 02111-1307, USA.  */
 /* The ARM uses @ are a comment character so we need to redefine
    TYPE_OPERAND_FMT.  */
 #undef  TYPE_OPERAND_FMT
-#define TYPE_OPERAND_FMT	"%s"
+#define TYPE_OPERAND_FMT	"%%%s"
 
 /* We might need a ARM specific header to function declarations.  */
 #undef  ASM_DECLARE_FUNCTION_NAME
-#define ASM_DECLARE_FUNCTION_NAME(FILE, NAME, DECL)	\
-  do							\
-    {							\
-      ARM_DECLARE_FUNCTION_NAME (FILE, NAME, DECL);     \
-      fprintf (FILE, "%s", TYPE_ASM_OP);		\
-      assemble_name (FILE, NAME);			\
-      putc (',', FILE);					\
-      fprintf (FILE, TYPE_OPERAND_FMT, "function");	\
-      putc ('\n', FILE);				\
-      ASM_DECLARE_RESULT (FILE, DECL_RESULT (DECL));	\
-      ASM_OUTPUT_LABEL(FILE, NAME);			\
-    }							\
+#define ASM_DECLARE_FUNCTION_NAME(FILE, NAME, DECL)		\
+  do								\
+    {								\
+      ARM_DECLARE_FUNCTION_NAME (FILE, NAME, DECL);		\
+      ASM_OUTPUT_TYPE_DIRECTIVE (FILE, NAME, "function");	\
+      ASM_DECLARE_RESULT (FILE, DECL_RESULT (DECL));		\
+      ASM_OUTPUT_LABEL(FILE, NAME);				\
+    }								\
   while (0)
 
 /* We might need an ARM specific trailer for function declarations.  */
@@ -83,20 +85,7 @@ Boston, MA 02111-1307, USA.  */
     {								\
       ARM_DECLARE_FUNCTION_SIZE (FILE, FNAME, DECL);		\
       if (!flag_inhibit_size_directive)				\
-        {							\
-          char label[256];					\
-	  static int labelno;					\
-	  labelno ++;						\
-	  ASM_GENERATE_INTERNAL_LABEL (label, "Lfe", labelno);	\
-	  ASM_OUTPUT_INTERNAL_LABEL (FILE, "Lfe", labelno);	\
-	  fprintf (FILE, "%s", SIZE_ASM_OP);			\
-	  assemble_name (FILE, (FNAME));			\
-          fprintf (FILE, ",");					\
-	  assemble_name (FILE, label);				\
-          fprintf (FILE, "-");					\
-	  assemble_name (FILE, (FNAME));			\
-	  putc ('\n', FILE);					\
-        }							\
+	ASM_OUTPUT_MEASURED_SIZE (FILE, FNAME);			\
     }								\
   while (0)
 
@@ -108,7 +97,7 @@ Boston, MA 02111-1307, USA.  */
 #define JUMP_TABLES_IN_TEXT_SECTION (TARGET_ARM)
 
 #ifndef LINK_SPEC
-#define LINK_SPEC "%{mbig-endian:-EB} -X"
+#define LINK_SPEC "%{mbig-endian:-EB} %{mlittle-endian:-EL} -X"
 #endif
   
 /* Run-time Target Specification.  */

@@ -27,7 +27,7 @@ Boston, MA 02111-1307, USA.  */
 
 /* We want DBX format for use with gdb under COFF.  */
 
-#define DBX_DEBUGGING_INFO
+#define DBX_DEBUGGING_INFO 1
 
 /* Generate calls to memcpy, memcmp and memset.  */
 
@@ -58,10 +58,6 @@ Boston, MA 02111-1307, USA.  */
 %{!r:_exit.o%s}"
 
 #define ENDFILE_SPEC "crtn.o%s"
-
-/* cpp has to support a #sccs directive for the /usr/include files */
-
-#define SCCS_DIRECTIVE
 
 /* LINK_SPEC is needed only for SunOS 4.  */
 

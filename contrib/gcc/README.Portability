@@ -123,8 +123,19 @@ int myfunc PARAMS ((double, int *));
 
 int
 myfunc (var1, var2)
-	double var1;
-	int *var2;
+     double var1;
+     int *var2;
+{
+  ...
+}
+
+This implies that if the function takes no arguments, it should be
+declared and defined as follows:
+
+int myfunc PARAMS ((void));
+
+int
+myfunc ()
 {
   ...
 }
@@ -139,32 +150,16 @@ void cpp_ice PARAMS ((cpp_reader *, const char *msgid, ...));
 
 void
 cpp_ice VPARAMS ((cpp_reader *pfile, const char *msgid, ...))
-{  
-#ifndef ANSI_PROTOTYPES
-  cpp_reader *pfile;
-  const char *msgid;
-#endif
-  va_list ap;
-  
-  VA_START (ap, msgid);
-  
-#ifndef ANSI_PROTOTYPES
-  pfile = va_arg (ap, cpp_reader *);
-  msgid = va_arg (ap, const char *);
-#endif
+{
+  VA_OPEN (ap, msgid);
+  VA_FIXEDARG (ap, cpp_reader *, pfile);
+  VA_FIXEDARG (ap, const char *, msgid);
 
   ...
-  va_end (ap);
+  VA_CLOSE (ap);
 }
 
-For the curious, here are the definitions of the above macros.  See
-ansidecl.h for the definitions of the above macros and more.
-
-#define PARAMS(paramlist)  paramlist  /* ISO C.  */
-#define VPARAMS(args)   args
-
-#define PARAMS(paramlist)  ()         /* K+R C.  */
-#define VPARAMS(args)   (va_alist) va_dcl
+See ansidecl.h for the definitions of the above macros and more.
 
 One aspect of using K+R style function declarations, is you cannot
 have arguments whose types are char, short, or float, since without
@@ -305,8 +300,8 @@ long and int are not the same size.
 Second, if you write a function definition with no return type at
 all:
 
-  operate(a, b)
-      int a, b;
+  operate (a, b)
+       int a, b;
   {
     ...
   }
@@ -319,8 +314,8 @@ Implicit function declarations always have return type int.  So if you
 correct the above definition to
 
   void
-  operate(a, b)
-      int a, b;
+  operate (a, b)
+       int a, b;
   ...
 
 but operate() is called above its definition, you will get an error

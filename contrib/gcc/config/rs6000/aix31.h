@@ -29,25 +29,25 @@ Boston, MA 02111-1307, USA.  */
    where we can't, it gets stripped off.  */
 
 #undef ASM_OUTPUT_EXTERNAL
-#define ASM_OUTPUT_EXTERNAL(FILE, DECL, NAME)	\
-{ rtx _symref = XEXP (DECL_RTL (DECL), 0);	\
-  if ((TREE_CODE (DECL) == VAR_DECL		\
-       || TREE_CODE (DECL) == FUNCTION_DECL)	\
-      && (NAME)[strlen (NAME) - 1] != ']')	\
-    {						\
-      char *_name = (char *) permalloc (strlen (XSTR (_symref, 0)) + 5); \
-      strcpy (_name, XSTR (_symref, 0));	\
-      strcat (_name, TREE_CODE (DECL) == FUNCTION_DECL ? "[DS]" : "[RW]"); \
-      XSTR (_symref, 0) = _name;		\
-    }						\
-  fputs ("\t.extern ", FILE);			\
-  assemble_name (FILE, XSTR (_symref, 0));	\
-  if (TREE_CODE (DECL) == FUNCTION_DECL)	\
-    {						\
-      fputs ("\n\t.extern .", FILE);		\
-      RS6000_OUTPUT_BASENAME (FILE, XSTR (_symref, 0));	\
-    }						\
-  putc ('\n', FILE);				\
+#define ASM_OUTPUT_EXTERNAL(FILE, DECL, NAME)				\
+{ rtx _symref = XEXP (DECL_RTL (DECL), 0);				\
+  if ((TREE_CODE (DECL) == VAR_DECL					\
+       || TREE_CODE (DECL) == FUNCTION_DECL)				\
+      && (NAME)[strlen (NAME) - 1] != ']')				\
+    {									\
+      XSTR (_symref, 0) = concat (XSTR (_symref, 0),			\
+				  (TREE_CODE (DECL) == FUNCTION_DECL	\
+				   ? "[DS]" : "[RW]"), 			\
+				  NULL);				\
+    }									\
+  fputs ("\t.extern ", FILE);						\
+  assemble_name (FILE, XSTR (_symref, 0));				\
+  if (TREE_CODE (DECL) == FUNCTION_DECL)				\
+    {									\
+      fputs ("\n\t.extern .", FILE);					\
+      RS6000_OUTPUT_BASENAME (FILE, XSTR (_symref, 0));			\
+    }									\
+  putc ('\n', FILE);							\
 }
 
 /* Similar, but for libcall.  We only have to worry about the function name,
@@ -60,8 +60,18 @@ Boston, MA 02111-1307, USA.  */
 }
 
 /* AIX 3.2 defined _AIX32, but older versions do not.  */
-#undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-D_IBMR2 -D_AIX -Asystem=unix -Asystem=aix -Acpu=rs6000 -Amachine=rs6000"
+#undef TARGET_OS_CPP_BUILTINS
+#define TARGET_OS_CPP_BUILTINS()         \
+  do                                     \
+    {                                    \
+      builtin_define ("_IBMR2");         \
+      builtin_define ("_AIX");           \
+      builtin_assert ("system=unix");    \
+      builtin_assert ("system=aix");     \
+      builtin_assert ("cpu=rs6000");     \
+      builtin_assert ("machine=rs6000"); \
+    }                                    \
+  while (0)
 
 /* AIX 3.1 uses bit 15 in CROR as the magic nop.  */
 #undef RS6000_CALL_GLUE

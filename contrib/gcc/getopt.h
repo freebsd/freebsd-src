@@ -1,6 +1,6 @@
 /* Declarations for getopt.
-   Copyright 1989, 1990, 1991, 1992, 1993, 1994, 1996, 1997, 1998, 2000
-   Free Software Foundation, Inc.
+   Copyright 1989, 1990, 1991, 1992, 1993, 1994, 1996, 1997, 1998, 2000,
+   2002 Free Software Foundation, Inc.
 
    NOTE: The canonical source of this file is maintained with the GNU C Library.
    Bugs can be reported to bug-glibc@gnu.org.
@@ -105,16 +105,19 @@ struct option
    declaration without arguments.  If it is 0, we checked and failed
    to find the declaration so provide a fully prototyped one.  If it
    is 1, we found it so don't provide any declaration at all.  */
-#if defined (__GNU_LIBRARY__) || (defined (HAVE_DECL_GETOPT) && !HAVE_DECL_GETOPT)
+#if !HAVE_DECL_GETOPT
+#if defined (__GNU_LIBRARY__) || defined (HAVE_DECL_GETOPT)
 /* Many other libraries have conflicting prototypes for getopt, with
-   differences in the consts, in stdlib.h.  To avoid compilation
+   differences in the consts, in unistd.h.  To avoid compilation
    errors, only prototype getopt for the GNU C library.  */
 extern int getopt (int argc, char *const *argv, const char *shortopts);
-#else /* not __GNU_LIBRARY__ */
-# if !defined (HAVE_DECL_GETOPT) && !defined (__cplusplus)
+#else
+#ifndef __cplusplus
 extern int getopt ();
-# endif
-#endif /* __GNU_LIBRARY__ */
+#endif /* __cplusplus */
+#endif
+#endif /* !HAVE_DECL_GETOPT */
+
 extern int getopt_long (int argc, char *const *argv, const char *shortopts,
 		        const struct option *longopts, int *longind);
 extern int getopt_long_only (int argc, char *const *argv,

@@ -80,7 +80,7 @@ static int regclass_compatible_p PARAMS ((int, int));
 static int replacement_quality PARAMS ((rtx));
 static int fixup_match_2 PARAMS ((rtx, rtx, rtx, rtx, FILE *));
 
-/* Return non-zero if registers with CLASS1 and CLASS2 can be merged without
+/* Return nonzero if registers with CLASS1 and CLASS2 can be merged without
    causing too much register allocation problems.  */
 static int
 regclass_compatible_p (class0, class1)
@@ -223,7 +223,7 @@ mark_flags_life_zones (flags)
 {
   int flags_regno;
   int flags_nregs;
-  int block;
+  basic_block block;
 
 #ifdef HAVE_cc0
   /* If we found a flags register on a cc0 host, bail.  */
@@ -254,13 +254,13 @@ mark_flags_life_zones (flags)
   flags_set_1_rtx = flags;
 
   /* Process each basic block.  */
-  for (block = n_basic_blocks - 1; block >= 0; block--)
+  FOR_EACH_BB_REVERSE (block)
     {
       rtx insn, end;
       int live;
 
-      insn = BLOCK_HEAD (block);
-      end = BLOCK_END (block);
+      insn = block->head;
+      end = block->end;
 
       /* Look out for the (unlikely) case of flags being live across
 	 basic block boundaries.  */
@@ -269,7 +269,7 @@ mark_flags_life_zones (flags)
       {
 	int i;
 	for (i = 0; i < flags_nregs; ++i)
-          live |= REGNO_REG_SET_P (BASIC_BLOCK (block)->global_live_at_start,
+	  live |= REGNO_REG_SET_P (block->global_live_at_start,
 				   flags_regno + i);
       }
 #endif
@@ -431,6 +431,16 @@ optimize_reg_copy_1 (insn, dest, src)
 	continue;
 
       if (reg_set_p (src, p) || reg_set_p (dest, p)
+	  /* If SRC is an asm-declared register, it must not be replaced
+	     in any asm.  Unfortunately, the REG_EXPR tree for the asm
+	     variable may be absent in the SRC rtx, so we can't check the
+	     actual register declaration easily (the asm operand will have
+	     it, though).  To avoid complicating the test for a rare case,
+	     we just don't perform register replacement for a hard reg
+	     mentioned in an asm.  */
+	  || (sregno < FIRST_PSEUDO_REGISTER
+	      && asm_noperands (PATTERN (p)) >= 0
+	      && reg_overlap_mentioned_p (src, PATTERN (p)))
 	  /* Don't change a USE of a register.  */
 	  || (GET_CODE (PATTERN (p)) == USE
 	      && reg_overlap_mentioned_p (src, XEXP (PATTERN (p), 0))))
@@ -776,7 +786,7 @@ copy_src_to_dest (insn, src, dest, old_max_uid)
       /* Generate the src->dest move.  */
       start_sequence ();
       emit_move_insn (dest, src);
-      seq = gen_sequence ();
+      seq = get_insns ();
       end_sequence ();
       /* If this sequence uses new registers, we may not use it.  */
       if (old_num_regs != reg_rtx_no
@@ -793,7 +803,7 @@ copy_src_to_dest (insn, src, dest, old_max_uid)
       p_move_notes = &REG_NOTES (move_insn);
       p_insn_notes = &REG_NOTES (insn);
 
-      /* Move any notes mentioning src to the move instruction */
+      /* Move any notes mentioning src to the move instruction.  */
       for (link = REG_NOTES (insn); link != NULL_RTX; link = next)
 	{
 	  next = XEXP (link, 1);
@@ -812,7 +822,7 @@ copy_src_to_dest (insn, src, dest, old_max_uid)
       *p_move_notes = NULL_RTX;
       *p_insn_notes = NULL_RTX;
 
-      /* Is the insn the head of a basic block?  If so extend it */
+      /* Is the insn the head of a basic block?  If so extend it.  */
       insn_uid = INSN_UID (insn);
       move_uid = INSN_UID (move_insn);
       if (insn_uid < old_max_uid)
@@ -951,7 +961,7 @@ fixup_match_2 (insn, dst, src, offset, regmove_dump_file)
       if (perhaps_ends_bb_p (p))
 	break;
       else if (! INSN_P (p))
-        continue;
+	continue;
 
       if (find_regno_note (p, REG_DEAD, REGNO (dst)))
 	dst_death = p;
@@ -963,7 +973,7 @@ fixup_match_2 (insn, dst, src, offset, regmove_dump_file)
 	  && GET_CODE (SET_SRC (pset)) == PLUS
 	  && XEXP (SET_SRC (pset), 0) == src
 	  && GET_CODE (XEXP (SET_SRC (pset), 1)) == CONST_INT)
-        {
+	{
 	  HOST_WIDE_INT newconst
 	    = INTVAL (offset) - INTVAL (XEXP (SET_SRC (pset), 1));
 	  rtx add = gen_add3_insn (dst, dst, GEN_INT (newconst));
@@ -1014,10 +1024,10 @@ fixup_match_2 (insn, dst, src, offset, regmove_dump_file)
 #endif
 	      return 1;
 	    }
-        }
+	}
 
       if (reg_set_p (dst, PATTERN (p)))
-        break;
+	break;
 
       /* If we have passed a call instruction, and the
          pseudo-reg SRC is not already live across a call,
@@ -1026,19 +1036,19 @@ fixup_match_2 (insn, dst, src, offset, regmove_dump_file)
 	 hard regs are clobbered.  Thus, we only use it for src for
 	 non-call insns.  */
       if (GET_CODE (p) == CALL_INSN)
-        {
+	{
 	  if (! dst_death)
 	    num_calls++;
 
-          if (REG_N_CALLS_CROSSED (REGNO (src)) == 0)
-            break;
+	  if (REG_N_CALLS_CROSSED (REGNO (src)) == 0)
+	    break;
 
 	  if (call_used_regs [REGNO (dst)]
 	      || find_reg_fusage (p, CLOBBER, dst))
 	    break;
-        }
+	}
       else if (reg_set_p (src, PATTERN (p)))
-        break;
+	break;
     }
 
   return 0;
@@ -1062,6 +1072,7 @@ regmove_optimize (f, nregs, regmove_dump_file)
   int pass;
   int i;
   rtx copy_src, copy_dst;
+  basic_block bb;
 
   /* ??? Hack.  Regmove doesn't examine the CFG, and gets mightily
      confused by non-call exceptions ending blocks.  */
@@ -1077,8 +1088,8 @@ regmove_optimize (f, nregs, regmove_dump_file)
 
   regmove_bb_head = (int *) xmalloc (sizeof (int) * (old_max_uid + 1));
   for (i = old_max_uid; i >= 0; i--) regmove_bb_head[i] = -1;
-  for (i = 0; i < n_basic_blocks; i++)
-    regmove_bb_head[INSN_UID (BLOCK_HEAD (i))] = i;
+  FOR_EACH_BB (bb)
+    regmove_bb_head[INSN_UID (bb->head)] = bb->index;
 
   /* A forward/backward pass.  Replace output operands with input operands.  */
 
@@ -1132,8 +1143,8 @@ regmove_optimize (f, nregs, regmove_dump_file)
 		    }
 		}
 	    }
-          if (! flag_regmove)
-            continue;
+	  if (! flag_regmove)
+	    continue;
 
 	  if (! find_matches (insn, &match))
 	    continue;
@@ -1371,7 +1382,7 @@ regmove_optimize (f, nregs, regmove_dump_file)
 		 it for this optimization, as this would make it
 		 no longer equivalent to a constant.  */
 
-              if (reg_is_remote_constant_p (src, insn, f))
+	      if (reg_is_remote_constant_p (src, insn, f))
 		{
 		  if (!copy_src)
 		    {
@@ -1505,15 +1516,15 @@ regmove_optimize (f, nregs, regmove_dump_file)
 
   /* In fixup_match_1, some insns may have been inserted after basic block
      ends.  Fix that here.  */
-  for (i = 0; i < n_basic_blocks; i++)
+  FOR_EACH_BB (bb)
     {
-      rtx end = BLOCK_END (i);
+      rtx end = bb->end;
       rtx new = end;
       rtx next = NEXT_INSN (new);
       while (next != 0 && INSN_UID (next) >= old_max_uid
-	     && (i == n_basic_blocks - 1 || BLOCK_HEAD (i + 1) != next))
+	     && (bb->next_bb == EXIT_BLOCK_PTR || bb->next_bb->head != next))
 	new = next, next = NEXT_INSN (new);
-      BLOCK_END (i) = new;
+      bb->end = new;
     }
 
  done:
@@ -2139,10 +2150,10 @@ static int record_stack_memrefs	PARAMS ((rtx *, void *));
 void
 combine_stack_adjustments ()
 {
-  int i;
+  basic_block bb;
 
-  for (i = 0; i < n_basic_blocks; ++i)
-    combine_stack_adjustments_for_block (BASIC_BLOCK (i));
+  FOR_EACH_BB (bb)
+    combine_stack_adjustments_for_block (bb);
 }
 
 /* Recognize a MEM of the form (sp) or (plus sp const).  */

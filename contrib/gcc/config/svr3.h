@@ -1,6 +1,6 @@
 /* Operating system specific defines to be used when targeting GCC for
    generic System V Release 3 system.
-   Copyright (C) 1991, 1996, 2000 Free Software Foundation, Inc.
+   Copyright (C) 1991, 1996, 2000, 2002 Free Software Foundation, Inc.
    Contributed by Ron Guilmette (rfg@monkeys.com).
 
 This file is part of GNU CC.
@@ -113,10 +113,6 @@ Boston, MA 02111-1307, USA.
 #define LINK_SPEC "%{T*} %{z:-lm}"
 #endif
 
-/* Allow #sccs in preprocessor.  */
-
-#define SCCS_DIRECTIVE
-
 /* Output #ident as a .ident.  */
 
 #undef  ASM_OUTPUT_IDENT
@@ -133,7 +129,7 @@ Boston, MA 02111-1307, USA.
 
 /* System V Release 3 uses COFF debugging info.  */
 
-#define SDB_DEBUGGING_INFO
+#define SDB_DEBUGGING_INFO 1
 
 /* We don't want to output DBX debugging information.  */
 
@@ -188,16 +184,7 @@ Boston, MA 02111-1307, USA.
 #undef LOCAL_LABEL_PREFIX
 #define LOCAL_LABEL_PREFIX "."
 
-/* Support const sections and the ctors and dtors sections for g++.
-   Note that there appears to be two different ways to support const
-   sections at the moment.  You can either #define the symbol
-   READONLY_DATA_SECTION (giving it some code which switches to the
-   readonly data section) or else you can #define the symbols
-   EXTRA_SECTIONS, EXTRA_SECTION_FUNCTIONS, SELECT_SECTION, and
-   SELECT_RTX_SECTION.  We do both here just to be on the safe side.
-   However, use of the const section is turned off by default
-   unless the specific tm.h file turns it on by defining
-   USE_CONST_SECTION as 1.  */
+/* Support const sections and the ctors and dtors sections for g++.  */
 
 /* Define a few machine-specific details of the implementation of
    constructors.
@@ -208,11 +195,8 @@ Boston, MA 02111-1307, USA.
 
    Define TARGET_ASM_CONSTRUCTOR to push the address of the constructor.  */
 
-#define USE_CONST_SECTION	0
-
 #define INIT_SECTION_ASM_OP     "\t.section\t.init"
 #define FINI_SECTION_ASM_OP     "\t.section .fini,\"x\""
-#define CONST_SECTION_ASM_OP	"\t.section\t.rodata, \"x\""
 #define DTORS_SECTION_ASM_OP    FINI_SECTION_ASM_OP
 
 /* CTOR_LIST_BEGIN and CTOR_LIST_END are machine-dependent
@@ -243,14 +227,11 @@ do {								\
 
 #endif /* STACK_GROWS_DOWNWARD */
 
-/* Add extra sections .rodata, .init and .fini.  */
-
 #undef EXTRA_SECTIONS
-#define EXTRA_SECTIONS in_const, in_init, in_fini
+#define EXTRA_SECTIONS in_init, in_fini
 
 #undef EXTRA_SECTION_FUNCTIONS
 #define EXTRA_SECTION_FUNCTIONS					\
-  CONST_SECTION_FUNCTION					\
   INIT_SECTION_FUNCTION						\
   FINI_SECTION_FUNCTION
 
@@ -275,57 +256,3 @@ fini_section ()							\
       in_section = in_fini;					\
     }								\
 }
-
-#define READONLY_DATA_SECTION() const_section ()
-
-#define CONST_SECTION_FUNCTION						\
-void									\
-const_section ()							\
-{									\
-  if (!USE_CONST_SECTION)						\
-    text_section();							\
-  else if (in_section != in_const)					\
-    {									\
-      fprintf (asm_out_file, "%s\n", CONST_SECTION_ASM_OP);		\
-      in_section = in_const;						\
-    }									\
-}
-
-/* A C statement or statements to switch to the appropriate
-   section for output of DECL.  DECL is either a `VAR_DECL' node
-   or a constant of some sort.  RELOC indicates whether forming
-   the initial value of DECL requires link-time relocations.  */
-
-#undef  SELECT_SECTION
-#define SELECT_SECTION(DECL,RELOC,ALIGN)				\
-{									\
-  if (TREE_CODE (DECL) == STRING_CST)					\
-    {									\
-      if (! flag_writable_strings)					\
-	const_section ();						\
-      else								\
-	data_section ();						\
-    }									\
-  else if (TREE_CODE (DECL) == VAR_DECL)				\
-    {									\
-      if ((0 && RELOC)	/* should be (flag_pic && RELOC) */		\
-	  || !TREE_READONLY (DECL) || TREE_SIDE_EFFECTS (DECL)		\
-	  || !DECL_INITIAL (DECL)					\
-	  || (DECL_INITIAL (DECL) != error_mark_node			\
-	      && !TREE_CONSTANT (DECL_INITIAL (DECL))))			\
-	data_section ();						\
-      else								\
-	const_section ();						\
-    }									\
-  else									\
-    const_section ();							\
-}
-
-/* A C statement or statements to switch to the appropriate
-   section for output of RTX in mode MODE.  RTX is some kind
-   of constant in RTL.  The argument MODE is redundant except
-   in the case of a `const_int' rtx.  Currently, these always
-   go into the const section.  */
-
-#undef  SELECT_RTX_SECTION
-#define SELECT_RTX_SECTION(MODE,RTX,ALIGN) const_section()

@@ -46,25 +46,12 @@
 \global\setfont\defbf\ttbshape{10}{\magstep1}
 @end tex
 
-@macro copyrightnotice
+@copying
 Copyright @copyright{} 1988, 1989, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-1999, 2000, 2001, 2002 Free Software Foundation, Inc.
-@end macro
-@ifnottex
-@dircategory Programming
-@direntry
-* gccint: (gccint).            Internals of the GNU Compiler Collection.
-@end direntry
-This file documents the internals of the GNU compilers.
-@sp 1
-Published by the Free Software Foundation@*
-59 Temple Place - Suite 330@*
-Boston, MA 02111-1307 USA
-@sp 1
-@copyrightnotice{}
-@sp 1
+1999, 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
+
 Permission is granted to copy, distribute and/or modify this document
-under the terms of the GNU Free Documentation License, Version 1.1 or
+under the terms of the GNU Free Documentation License, Version 1.2 or
 any later version published by the Free Software Foundation; with the
 Invariant Sections being ``GNU General Public License'' and ``Funding
 Free Software'', the Front-Cover texts being (a) (see below), and with
@@ -80,6 +67,19 @@ included in the section entitled ``GNU Free Documentation License''.
      You have freedom to copy and modify this GNU Manual, like GNU
      software.  Copies published by the Free Software Foundation raise
      funds for GNU development.
+@end copying
+@ifnottex
+@dircategory Programming
+@direntry
+* gccint: (gccint).            Internals of the GNU Compiler Collection.
+@end direntry
+This file documents the internals of the GNU compilers.
+@sp 1
+Published by the Free Software Foundation@*
+59 Temple Place - Suite 330@*
+Boston, MA 02111-1307 USA
+@sp 1
+@insertcopying
 @end ifnottex
 
 @setchapternewpage odd
@@ -88,14 +88,12 @@ included in the section entitled ``GNU Free Documentation License''.
 @sp 2
 @center Richard M. Stallman
 @sp 3
-@center Last updated 10 January 2002
+@center Last updated 28 December 2002
 @sp 1
 
 @center for GCC @value{version-GCC}
 @page
 @vskip 0pt plus 1filll
-@copyrightnotice{}
-@sp 2
 For GCC Version @value{version-GCC}@*
 @sp 1
 Published by the Free Software Foundation @*
@@ -108,23 +106,7 @@ Printed copies are available for $50 each.@*
 ISBN 1-882114-37-X
 @end ifset
 @sp 1
-Permission is granted to copy, distribute and/or modify this document
-under the terms of the GNU Free Documentation License, Version 1.1 or
-any later version published by the Free Software Foundation; with the
-Invariant Sections being ``GNU General Public License'', the Front-Cover
-texts being (a) (see below), and with the Back-Cover Texts being (b)
-(see below).  A copy of the license is included in the section entitled
-``GNU Free Documentation License''.
-
-(a) The FSF's Front-Cover Text is:
-
-     A GNU Manual
-
-(b) The FSF's Back-Cover Text is:
-
-     You have freedom to copy and modify this GNU Manual, like GNU
-     software.  Copies published by the Free Software Foundation raise
-     funds for GNU development.
+@insertcopying
 @end titlepage
 @summarycontents
 @contents
@@ -169,6 +151,7 @@ Additional tutorial information is linked to from
 * Fragments::       Writing the @file{t-@var{target}} and @file{x-@var{host}} files.
 * Collect2::        How @code{collect2} works; how it finds @code{ld}.
 * Header Dirs::     Understanding the standard header file directories.
+* Type Information:: GCC's memory management; generating type information.
 
 * Funding::         How to help assure funding for free software.
 * GNU Project::     The GNU Project and GNU/Linux.
@@ -196,6 +179,7 @@ Additional tutorial information is linked to from
 @include fragments.texi
 @include collect2.texi
 @include headerdirs.texi
+@include gty.texi
 
 @include funding.texi
 @include gnu.texi

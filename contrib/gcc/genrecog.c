@@ -43,11 +43,11 @@
 
    This program also generates the function `split_insns', which
    returns 0 if the rtl could not be split, or it returns the split
-   rtl in a SEQUENCE.
+   rtl as an INSN list.
 
    This program also generates the function `peephole2_insns', which
    returns 0 if the rtl could not be matched.  If there was a match,
-   the new rtl is returned in a SEQUENCE, and LAST_INSN will point
+   the new rtl is returned in an INSN list, and LAST_INSN will point
    to the last recognized insn in the old sequence.  */
 
 #include "hconfig.h"
@@ -187,22 +187,23 @@ static const struct pred_table
   const RTX_CODE codes[NUM_RTX_CODE];
 } preds[] = {
   {"general_operand", {CONST_INT, CONST_DOUBLE, CONST, SYMBOL_REF,
-		       LABEL_REF, SUBREG, REG, MEM}},
+		       LABEL_REF, SUBREG, REG, MEM, ADDRESSOF}},
 #ifdef PREDICATE_CODES
   PREDICATE_CODES
 #endif
   {"address_operand", {CONST_INT, CONST_DOUBLE, CONST, SYMBOL_REF,
-		       LABEL_REF, SUBREG, REG, MEM, PLUS, MINUS, MULT}},
-  {"register_operand", {SUBREG, REG}},
-  {"pmode_register_operand", {SUBREG, REG}},
+		       LABEL_REF, SUBREG, REG, MEM, ADDRESSOF,
+		       PLUS, MINUS, MULT}},
+  {"register_operand", {SUBREG, REG, ADDRESSOF}},
+  {"pmode_register_operand", {SUBREG, REG, ADDRESSOF}},
   {"scratch_operand", {SCRATCH, REG}},
   {"immediate_operand", {CONST_INT, CONST_DOUBLE, CONST, SYMBOL_REF,
 			 LABEL_REF}},
   {"const_int_operand", {CONST_INT}},
   {"const_double_operand", {CONST_INT, CONST_DOUBLE}},
-  {"nonimmediate_operand", {SUBREG, REG, MEM}},
+  {"nonimmediate_operand", {SUBREG, REG, MEM, ADDRESSOF}},
   {"nonmemory_operand", {CONST_INT, CONST_DOUBLE, CONST, SYMBOL_REF,
-			 LABEL_REF, SUBREG, REG}},
+			 LABEL_REF, SUBREG, REG, ADDRESSOF}},
   {"push_operand", {MEM}},
   {"pop_operand", {MEM}},
   {"memory_operand", {SUBREG, MEM}},
@@ -211,7 +212,7 @@ static const struct pred_table
 			   UNORDERED, ORDERED, UNEQ, UNGE, UNGT, UNLE,
 			   UNLT, LTGT}},
   {"mode_independent_operand", {CONST_INT, CONST_DOUBLE, CONST, SYMBOL_REF,
-				LABEL_REF, SUBREG, REG, MEM}}
+				LABEL_REF, SUBREG, REG, MEM, ADDRESSOF}}
 };
 
 #define NUM_KNOWN_PREDS ARRAY_SIZE (preds)
@@ -520,6 +521,7 @@ validate_pattern (pattern, insn, set, set_code)
 		    if (c != REG
 			&& c != SUBREG
 			&& c != MEM
+			&& c != ADDRESSOF
 			&& c != CONCAT
 			&& c != PARALLEL
 			&& c != STRICT_LOW_PART)
@@ -1200,7 +1202,7 @@ maybe_both_true_1 (d1, d2)
    D1 and D2.  Otherwise, return 1 (it may be that there is an RTL that
    can match both or just that we couldn't prove there wasn't such an RTL).
 
-   TOPLEVEL is non-zero if we are to only look at the top level and not
+   TOPLEVEL is nonzero if we are to only look at the top level and not
    recursively descend.  */
 
 static int
@@ -1677,7 +1679,7 @@ find_afterward (head, real_afterward)
 
 /* Assuming that the state of argument is denoted by OLDPOS, take whatever
    actions are necessary to move to NEWPOS.  If we fail to move to the
-   new state, branch to node AFTERWARD if non-zero, otherwise return.
+   new state, branch to node AFTERWARD if nonzero, otherwise return.
 
    Failure to move to the new state can only occur if we are trying to
    match multiple insns and we try to step past the end of the stream.  */
@@ -1944,7 +1946,7 @@ write_switch (start, depth)
 	    case DT_elt_one_int:
 	    case DT_elt_zero_wide:
 	    case DT_elt_zero_wide_safe:
-	      printf (HOST_WIDE_INT_PRINT_DEC, p->tests->u.intval);
+	      printf (HOST_WIDE_INT_PRINT_DEC_C, p->tests->u.intval);
 	      break;
 	    default:
 	      abort ();
@@ -2003,7 +2005,7 @@ write_cond (p, depth, subroutine_type)
     case DT_elt_zero_wide:
     case DT_elt_zero_wide_safe:
       printf ("XWINT (x%d, 0) == ", depth);
-      printf (HOST_WIDE_INT_PRINT_DEC, p->u.intval);
+      printf (HOST_WIDE_INT_PRINT_DEC_C, p->u.intval);
       break;
 
     case DT_veclen_ge:
@@ -2431,10 +2433,10 @@ write_header ()
 
   puts ("\n\
    The function split_insns returns 0 if the rtl could not\n\
-   be split or the split rtl in a SEQUENCE if it can be.\n\
+   be split or the split rtl as an INSN list if it can be.\n\
 \n\
    The function peephole2_insns returns 0 if the rtl could not\n\
-   be matched. If there was a match, the new rtl is returned in a SEQUENCE,\n\
+   be matched. If there was a match, the new rtl is returned in an INSN list,\n\
    and LAST_INSN will point to the last recognized insn in the old sequence.\n\
 */\n\n");
 }
@@ -2452,10 +2454,15 @@ make_insn_sequence (insn, type)
 {
   rtx x;
   const char *c_test = XSTR (insn, type == RECOG ? 2 : 1);
+  int truth = maybe_eval_c_test (c_test);
   struct decision *last;
   struct decision_test *test, **place;
   struct decision_head head;
   char c_test_pos[2];
+
+  /* We should never see an insn whose C test is false at compile time.  */
+  if (truth == 0)
+    abort ();
 
   record_insn_name (next_insn_code, (type == RECOG ? XSTR (insn, 0) : NULL));
 
@@ -2504,7 +2511,8 @@ make_insn_sequence (insn, type)
     continue;
   place = &test->next;
 
-  if (c_test[0])
+  /* Skip the C test if it's known to be true at compile time.  */
+  if (truth == -1)
     {
       /* Need a new node if we have another test to add.  */
       if (test->type == DT_accept_op)
@@ -2577,7 +2585,9 @@ make_insn_sequence (insn, type)
 		  place = &last->tests;
 		}
 
-	      if (c_test[0])
+	      /* Skip the C test if it's known to be true at compile
+                 time.  */
+	      if (truth == -1)
 		{
 		  test = new_decision_test (DT_c_test, &place);
 		  test->u.c_test = c_test;

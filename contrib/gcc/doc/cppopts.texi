@@ -51,16 +51,14 @@ for header files.
 @xref{Search Path}.
 @end ifset
 Directories named by @option{-I} are searched before the standard
-system include directories.
-
-It is dangerous to specify a standard system include directory in an
-@option{-I} option.  This defeats the special treatment of system
-headers
+system include directories.  If the directory @var{dir} is a standard
+system include directory, the option is ignored to ensure that the
+default search order for system directories and the special treatment
+of system headers are not defeated
 @ifset cppmanual
 (@pxref{System Headers})
 @end ifset
-.  It can also defeat the repairs to buggy system headers which GCC
-makes when it is installed.
+.
 
 @item -o @var{file}
 @opindex o
@@ -110,6 +108,44 @@ Warn whenever an identifier which is not a macro is encountered in an
 @samp{#if} directive, outside of @samp{defined}.  Such identifiers are
 replaced with zero.
 
+@item -Wunused-macros
+@opindex Wunused-macros
+Warn about macros defined in the main file that are unused.  A macro
+is @dfn{used} if it is expanded or tested for existence at least once.
+The preprocessor will also warn if the macro has not been used at the
+time it is redefined or undefined.
+
+Built-in macros, macros defined on the command line, and macros
+defined in include files are not warned about.
+
+@strong{Note:} If a macro is actually used, but only used in skipped
+conditional blocks, then CPP will report it as unused.  To avoid the
+warning in such a case, you might improve the scope of the macro's
+definition by, for example, moving it into the first skipped block.
+Alternatively, you could provide a dummy use with something like:
+
+@smallexample
+#if defined the_macro_causing_the_warning
+#endif
+@end smallexample
+
+@item -Wendif-labels
+@opindex Wendif-labels
+Warn whenever an @samp{#else} or an @samp{#endif} are followed by text.
+This usually happens in code of the form
+
+@smallexample
+#if FOO
+@dots{}
+#else FOO
+@dots{}
+#endif FOO
+@end smallexample
+
+@noindent
+The second and third @code{FOO} should be in comments, but often are not
+in older programs.  This warning is on by default.
+
 @item -Werror
 @opindex Werror
 Make all warnings into hard errors.  Source code which triggers warnings
@@ -158,10 +194,11 @@ This option does not suppress the preprocessor's debug output, such as
 @option{-dM}.  To avoid mixing such debug output with the dependency
 rules you should explicitly specify the dependency output file with
 @option{-MF}, or use an environment variable like
-@env{DEPENDENCIES_OUTPUT} (@pxref{DEPENDENCIES_OUTPUT}).  Debug output
+@env{DEPENDENCIES_OUTPUT} (@pxref{Environment Variables}).  Debug output
 will still be sent to the regular output stream as normal.
 
-Passing @option{-M} to the driver implies @option{-E}.
+Passing @option{-M} to the driver implies @option{-E}, and suppresses
+warnings with an implicit @option{-w}.
 
 @item -MM
 @opindex MM
@@ -187,10 +224,13 @@ When used with the driver options @option{-MD} or @option{-MMD},
 
 @item -MG
 @opindex MG
-When used with @option{-M} or @option{-MM}, @option{-MG} says to treat missing
-header files as generated files and assume they live in the same
-directory as the source file.  It suppresses preprocessed output, as a
-missing header file is ordinarily an error.
+In conjunction with an option such as @option{-M} requesting
+dependency generation, @option{-MG} assumes missing header files are
+generated files and adds them to the dependency list without raising
+an error.  The dependency filename is taken directly from the
+@code{#include} directive without prepending any path.  @option{-MG}
+also suppresses preprocessed output, as a missing header file renders
+this useless.
 
 This feature is used in automatic updating of makefiles.
 
@@ -284,9 +324,8 @@ option.
 @itemx -ansi
 @opindex ansi
 @opindex std=
-Specify the standard to which the code should conform.  Currently cpp
-only knows about the standards for C; other language standards will be
-added in the future.
+Specify the standard to which the code should conform.  Currently CPP
+knows about C and C++ standards; others may be added in the future.
 
 @var{standard}
 may be one of:
@@ -314,6 +353,13 @@ The 1990 C standard plus GNU extensions.  This is the default.
 @item gnu99
 @itemx gnu9x
 The 1999 C standard plus GNU extensions.
+
+@item c++98
+The 1998 ISO C++ standard plus amendments.
+
+@item gnu++98
+The same as @option{-std=c++98} plus GNU extensions.  This is the
+default for C++ code.
 @end table
 
 @item -I-
@@ -441,13 +487,6 @@ it does not use shell special characters.
 Cancel an assertion with the predicate @var{predicate} and answer
 @var{answer}.
 
-@item -A-
-@opindex A-
-Cancel all predefined assertions and all assertions preceding it on
-the command line.  Also, undefine all predefined macros and all
-macros preceding it on the command line.  (This is a historical wart and
-may change in the future.)
-
 @item -dCHARS
 @var{CHARS} is a sequence of one or more of the following characters,
 and must not be preceded by a space.  Other characters are interpreted
@@ -510,6 +549,19 @@ For example, comments appearing at the start of what would be a
 directive line have the effect of turning that line into an ordinary
 source line, since the first token on the line is no longer a @samp{#}.
 
+@item -CC
+Do not discard comments, including during macro expansion.  This is
+like @option{-C}, except that comments contained within macros are
+also passed through to the output file where the macro is expanded.
+
+In addition to the side-effects of the @option{-C} option, the
+@option{-CC} option causes all C++-style comments inside a macro
+to be converted to C-style comments.  This is to prevent later use
+of that macro from inadvertently commenting out the remainder of
+the source line.
+
+The @option{-CC} option is generally used to support lint comments.
+
 @item -gcc
 @opindex gcc
 Define the macros @sc{__gnuc__}, @sc{__gnuc_minor__} and
@@ -517,10 +569,10 @@ Define the macros @sc{__gnuc__}, @sc{__gnuc_minor__} and
 @command{gcc -E}; you can turn them off in that case with
 @option{-no-gcc}.
 
-@item -traditional
-@opindex traditional
-Try to imitate the behavior of old-fashioned C, as opposed to ISO
-C@.
+@item -traditional-cpp
+@opindex traditional-cpp
+Try to imitate the behavior of old-fashioned C preprocessors, as
+opposed to ISO C preprocessors.
 @ifset cppmanual
 @xref{Traditional Mode}.
 @end ifset
@@ -552,16 +604,8 @@ Replacement:      [    ]    @{    @}    #    \    ^    |    ~
 Enable special code to work around file systems which only permit very
 short file names, such as MS-DOS@.
 
-@item -$
-@opindex $
-Forbid the use of @samp{$} in identifiers.  The C standard allows
-implementations to define extra characters that can appear in
-identifiers.  By default GNU CPP permits @samp{$}, a common extension.
-
-@item -h
 @itemx --help
 @itemx --target-help
-@opindex h
 @opindex help
 @opindex target-help
 Print text describing all the command line options instead of

@@ -1,6 +1,6 @@
 /* Definitions of target machine for GNU compiler, for DEC Alpha
    running Windows/NT.
-   Copyright (C) 1995, 1996, 1999, 2000 Free Software Foundation, Inc.
+   Copyright (C) 1995, 1996, 1999, 2000, 2002 Free Software Foundation, Inc.
 
    Donn Terry, Softway Systems, Inc.
    From code
@@ -25,15 +25,18 @@ Boston, MA 02111-1307, USA.  */
 
 /* cpp handles __STDC__ */
 /* The three "Alpha" defines on the first such line are from the CLAXP spec */
-#undef CPP_PREDEFINES
-#define CPP_PREDEFINES " \
-  -D__INTERIX \
-  -D__OPENNT \
-  -D__Alpha_AXP -D_M_ALPHA -D_ALPHA_  \
-  -D__alpha -D__alpha__\
-  -D__stdcall= \
-  -D__cdecl= \
-  -Asystem=unix -Asystem=interix -Acpu=alpha -Amachine=alpha"
+#define TARGET_OS_CPP_BUILTINS()				\
+    do {							\
+	builtin_define ("__INTERIX");				\
+	builtin_define ("__OPENNT");				\
+	builtin_define ("__Alpha_AXP");				\
+	builtin_define ("_M_ALPHA");				\
+	builtin_define ("_ALPHA_");				\
+	builtin_define ("__stdcall=");				\
+	builtin_define ("__cdecl=");				\
+	builtin_assert ("system=unix");				\
+	builtin_assert ("system=interix");			\
+    } while (0)
 
 #undef CPP_SUBTARGET_SPEC
 #define CPP_SUBTARGET_SPEC "\
@@ -64,17 +67,9 @@ Boston, MA 02111-1307, USA.  */
 
 /* The following are needed for C++, but also needed for profiling */
 
-/* Support const sections and the ctors and dtors sections for g++.
-   Note that there appears to be two different ways to support const
-   sections at the moment.  You can either #define the symbol
-   READONLY_DATA_SECTION (giving it some code which switches to the
-   readonly data section) or else you can #define the symbols
-   EXTRA_SECTIONS, EXTRA_SECTION_FUNCTIONS, SELECT_SECTION, and
-   SELECT_RTX_SECTION.  We do both here just to be on the safe side.  */
+/* Support const sections and the ctors and dtors sections for g++.  */
 
-#define USE_CONST_SECTION	1
-
-#define CONST_SECTION_ASM_OP	"\t.rdata"
+#define READONLY_DATA_SECTION_ASM_OP	"\t.rdata"
 
 /* Define the pseudo-ops used to switch to the .ctors and .dtors sections.
 
@@ -93,38 +88,6 @@ Boston, MA 02111-1307, USA.  */
 
 #define CTORS_SECTION_ASM_OP	"\t.ctors"
 #define DTORS_SECTION_ASM_OP	"\t.dtors"
-
-/* A default list of other sections which we might be "in" at any given
-   time.  For targets that use additional sections (e.g. .tdesc) you
-   should override this definition in the target-specific file which
-   includes this file.  */
-
-#undef EXTRA_SECTIONS
-#define EXTRA_SECTIONS in_const
-
-/* A default list of extra section function definitions.  For targets
-   that use additional sections (e.g. .tdesc) you should override this
-   definition in the target-specific file which includes this file.  */
-
-#undef EXTRA_SECTION_FUNCTIONS
-#define EXTRA_SECTION_FUNCTIONS						\
-  CONST_SECTION_FUNCTION
-
-#undef READONLY_DATA_SECTION
-#define READONLY_DATA_SECTION() const_section ()
-
-#define CONST_SECTION_FUNCTION						\
-void									\
-const_section ()							\
-{									\
-  if (!USE_CONST_SECTION)						\
-    text_section();							\
-  else if (in_section != in_const)					\
-    {									\
-      fprintf (asm_out_file, "%s\n", CONST_SECTION_ASM_OP);		\
-      in_section = in_const;						\
-    }									\
-}
 
 /* The linker will take care of this, and having them causes problems with
    ld -r (specifically -rU).  */
@@ -185,15 +148,3 @@ while (0)
   fprintf (FILE, "\t.globl\t__fltused\n");			\
   ASM_OUTPUT_SOURCE_FILENAME (FILE, main_input_filename);	\
 }
-
-/* The current Interix assembler (consistent with the DEC documentation)
-   uses a=b NOT .set a,b; .set is for assembler options.  */
-#undef ASM_OUTPUT_DEFINE_LABEL_DIFFERENCE_SYMBOL
-#define ASM_OUTPUT_DEFINE_LABEL_DIFFERENCE_SYMBOL(FILE, SY, HI, LO)    	\
- do {									\
-  assemble_name (FILE, SY);						\
-  fputc ('=', FILE);							\
-  assemble_name (FILE, HI);						\
-  fputc ('-', FILE);							\
-  assemble_name (FILE, LO);						\
- } while (0)

@@ -39,17 +39,18 @@ Boston, MA 02111-1307, USA.  */
 #undef	LINK_OS_DEFAULT_SPEC
 #define LINK_OS_DEFAULT_SPEC "%(link_os_vxworks)"
 
-#undef CPP_PREDEFINES
-#define CPP_PREDEFINES "\
--D__vxworks -D__vxworks__ -Asystem=vxworks -Asystem=embedded \
--Acpu=powerpc -Amachine=powerpc"
-
-/* Don't define _LITTLE_ENDIAN or _BIG_ENDIAN */
-#undef	CPP_ENDIAN_BIG_SPEC
-#define CPP_ENDIAN_BIG_SPEC "-D__BIG_ENDIAN__ -Amachine=bigendian"
-
-#undef	CPP_ENDIAN_LITTLE_SPEC
-#define CPP_ENDIAN_LITTLE_SPEC "-D__LITTLE_ENDIAN__ -Amachine=littleendian"
+#undef TARGET_OS_CPP_BUILTINS
+#define TARGET_OS_CPP_BUILTINS()          \
+  do                                      \
+    {                                     \
+      builtin_define ("__vxworks");       \
+      builtin_define ("__vxworks__");     \
+      builtin_assert ("system=vxworks");  \
+      builtin_assert ("system=embedded"); \
+      builtin_assert ("cpu=powerpc");     \
+      builtin_assert ("machine=powerpc"); \
+    }                                     \
+  while (0)
 
 /* We use stabs-in-elf for debugging */
 #undef PREFERRED_DEBUGGING_TYPE
