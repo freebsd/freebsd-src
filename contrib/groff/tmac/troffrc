@@ -19,7 +19,7 @@
 .do rm troffrc!ps troffrc!Xps troffrc!dvi troffrc!X75 troffrc!X75-12 \
 troffrc!X100 troffrc!X100-12 troffrc!lj4
 .ie "\*[.T]"koi8-r" .do tr \[char154]
-.el .if "\*[.T]"latin1" .do tr \[char160]
+.el .do tr \[char160]
 .\" Set the hyphenation language to `us' unless we're using koi8-r (russian)
 .\" Load hyphenation patterns from `hyphen.us' (in the tmac directory).
 .ie "\*[.T]"koi8-r" \{\
