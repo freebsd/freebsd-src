@@ -73,8 +73,10 @@ free_entry(e)
 	if (e->class != NULL)
 		free(e->class);
 #endif
-	free(e->cmd);
-	env_free(e->envp);
+	if (e->cmd != NULL)
+		free(e->cmd);
+	if (e->envp != NULL)
+		env_free(e->envp);
 	free(e);
 }
 
@@ -399,7 +401,6 @@ load_entry(file, error_func, pw, envp)
 	/* a file without a \n before the EOF is rude, so we'll complain...
 	 */
 	if (ch == EOF) {
-		env_free(e->envp);
 		ecode = e_cmd;
 		goto eof;
 	}
@@ -409,7 +410,6 @@ load_entry(file, error_func, pw, envp)
 	e->cmd = strdup(cmd);
 	if (e->cmd == NULL) {
 		warn("strdup(\"%d\")", cmd);
-		env_free(e->envp);
 		ecode = e_mem;
 		goto eof;
 	}
