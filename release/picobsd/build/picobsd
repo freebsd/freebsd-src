@@ -182,7 +182,7 @@ create_includes_and_libraries() {
 	    BINOWN=`id -un` BINGRP=`id -gn` \
 	    DESTDIR=${l_usrtree}/.. \
 	    make -m ${SRC}/share/mk \
-		-DNO_HTML -DNO_INFO -DNO_MAN -DNOSHARE -DNO_FSCHG "
+		-DNO_HTML -DNO_INFO -DNO_MAN -DNO_SHARE -DNO_FSCHG "
 	log "do a 'make obj' in a few places."
 	# This is very version-specific... The following works for 5.0
 	for i in lib secure/lib gnu/lib usr.sbin/pcvt/keycap \
