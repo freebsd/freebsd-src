@@ -273,6 +273,7 @@ endnetgrent(void)
 		free((char *)ogp);
 	}
 	grouphead.gr = (struct netgrp *)0;
+	nextgrp = (struct netgrp *)0;
 #ifdef YP
 	_netgr_yp_enabled = 0;
 #endif
