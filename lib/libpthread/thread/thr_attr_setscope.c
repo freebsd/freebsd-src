@@ -48,8 +48,10 @@ _pthread_attr_setscope(pthread_attr_t *attr, int contentionscope)
 	} else if ((contentionscope != PTHREAD_SCOPE_PROCESS) &&
 	    (contentionscope != PTHREAD_SCOPE_SYSTEM)) {
 		ret = EINVAL;
-	} else
+	} else if (contentionscope == PTHREAD_SCOPE_SYSTEM) {
 		(*attr)->flags |= contentionscope;
-
+	} else {
+		(*attr)->flags &= ~PTHREAD_SCOPE_SYSTEM;
+	}
 	return (ret);
 }
