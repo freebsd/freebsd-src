@@ -59,6 +59,9 @@ static char sccsid[] = "@(#)mount.c	8.19 (Berkeley) 4/19/94";
 #include "pathnames.h"
 
 int debug, verbose, skipvfs;
+int fstab_style = 0;
+
+static char	*mnttype[] = INITMOUNTNAMES;
 
 int	badvfsname __P((const char *, const char **));
 int	badvfstype __P((int, const char **));
@@ -72,6 +75,7 @@ int	mountfs __P((const char *, const char *, const char *,
 			int, const char *, const char *));
 void	prmount __P((const char *, const char *, int));
 void	usage __P((void));
+void	putfsent __P((const struct statfs *));
 
 /* From mount_ufs.c. */
 int	mount_ufs __P((int, char * const *));
@@ -112,8 +116,12 @@ main(argc, argv)
 	options = NULL;
 	vfslist = NULL;
 	vfstype = "ufs";
-	while ((ch = getopt(argc, argv, "adfo:rwt:uv")) != EOF)
+	while ((ch = getopt(argc, argv, "padfo:rwt:uv")) != EOF)
 		switch (ch) {
+		case 'p':
+			fstab_style = 1;
+			verbose = 1;
+			break;
 		case 'a':
 			all = 1;
 			break;
@@ -173,6 +181,15 @@ main(argc, argv)
 			    		fs->fs_mntops))
 						rval = 1;
 			}
+		else if (fstab_style) {
+			if ((mntsize = getmntinfo(&mntbuf, MNT_NOWAIT)) == 0)
+				err(1, "getmntinfo");
+			for (i = 0; i < mntsize; i++) {
+				if (badvfstype(mntbuf[i].f_type, vfslist))
+					continue;
+				putfsent (&mntbuf[i]);
+			}
+		}
 		else {
 			if ((mntsize = getmntinfo(&mntbuf, MNT_NOWAIT)) == 0)
 				err(1, "getmntinfo");
@@ -372,7 +389,12 @@ mountfs(vfstype, spec, name, flags, options, mntopts)
 				warn("%s", name);
 				return (1);
 			}
-			prmount(sf.f_mntfromname, sf.f_mntonname, sf.f_flags);
+
+			if (fstab_style)
+			    putfsent (&sf);
+			else
+			    prmount (sf.f_mntfromname,
+				     sf.f_mntonname, sf.f_flags);
 		}
 		break;
 	}
@@ -530,9 +552,48 @@ usage()
 
 	(void)fprintf(stderr,
 		"usage: mount %s %s\n       mount %s\n       mount %s\n",
-		"[-dfruvw] [-o options] [-t ufs | external_type]",
+		"[-dfpruvw] [-o options] [-t ufs | external_type]",
 			"special node",
-		"[-adfruvw] [-t ufs | external_type]",
-		"[-dfruvw] special | node");
+		"[-adfpruvw] [-t ufs | external_type]",
+		"[-dfpruvw] special | node");
 	exit(1);
+}
+
+void
+putfsent (ent)
+    const struct statfs	    *ent;
+{
+    struct fstab    *fst;
+
+    printf ("%s\t%s\t%s %s",
+	    ent->f_mntfromname, ent->f_mntonname,
+	    mnttype[ent->f_type],
+	    (ent->f_flags & MNT_RDONLY) ? "ro" : "rw");
+
+    if (ent->f_flags & MNT_SYNCHRONOUS)
+	printf (",sync");
+
+    if (ent->f_flags & MNT_NOEXEC)
+	printf (",noexec");
+
+    if (ent->f_flags & MNT_NOSUID)
+	printf (",nosuid");
+
+    if (ent->f_flags & MNT_NODEV)
+	printf (",nodev");
+
+    if (ent->f_flags & MNT_UNION)
+	printf (",union");
+
+    if (ent->f_flags & MNT_ASYNC)
+	printf (",async");
+
+    if (fst = getfsspec (ent->f_mntfromname))
+	printf ("\t%u %u\n", fst->fs_freq, fst->fs_passno);
+    else if (fst = getfsfile (ent->f_mntonname))
+	printf ("\t%u %u\n", fst->fs_freq, fst->fs_passno);
+    else if (ent->f_type == MOUNT_UFS)
+	printf ("\t1 1\n");
+    else
+	printf ("\t0 0\n");
 }
