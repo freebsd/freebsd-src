@@ -2473,11 +2473,8 @@ ufs_kqfilter(ap)
 
 	kn->kn_hook = (caddr_t)vp;
 
-	if (vp->v_pollinfo == NULL) {
-		/* XXX: call v_addpollinfo(vp) ? */
-		printf("ufs_kqfilter: vnode with no v_pollinfo\n");
-		return (1);
-	}
+	if (vp->v_pollinfo == NULL)
+		v_addpollinfo(vp);
 	mtx_lock(&vp->v_pollinfo->vpi_lock);
 	SLIST_INSERT_HEAD(&vp->v_pollinfo->vpi_selinfo.si_note, kn, kn_selnext);
 	mtx_unlock(&vp->v_pollinfo->vpi_lock);

@@ -254,11 +254,9 @@ static int vnlru_nowhere;
 SYSCTL_INT(_debug, OID_AUTO, vnlru_nowhere, CTLFLAG_RW, &vnlru_nowhere, 0,
     "Number of times the vnlru process ran without success");
 
-static __inline void
+void
 v_addpollinfo(struct vnode *vp)
 {
-	if (vp->v_pollinfo != NULL)
-		return;
 	vp->v_pollinfo = zalloc(vnodepoll_zone);
 	mtx_init(&vp->v_pollinfo->vpi_lock, "vnode pollinfo", MTX_DEF);
 }
@@ -2725,7 +2723,8 @@ vn_pollrecord(vp, td, events)
 	short events;
 {
 
-	v_addpollinfo(vp);	
+	if (vp->v_pollinfo == NULL)
+		v_addpollinfo(vp);	
 	mtx_lock(&vp->v_pollinfo->vpi_lock);
 	if (vp->v_pollinfo->vpi_revents & events) {
 		/*
@@ -2759,7 +2758,8 @@ vn_pollevent(vp, events)
 	short events;
 {
 
-	v_addpollinfo(vp);	
+	if (vp->v_pollinfo == NULL)
+		v_addpollinfo(vp);	
 	mtx_lock(&vp->v_pollinfo->vpi_lock);
 	if (vp->v_pollinfo->vpi_events & events) {
 		/*
