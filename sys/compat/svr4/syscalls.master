@@ -36,7 +36,7 @@
 
 0	UNIMPL	SVR4	unused
 1	NOPROTO	POSIX	{ void sys_exit(int rval); } exit sys_exit_args void
-2	NOPROTO	POSIX	{ int fork(void); }
+2	MNOPROTO POSIX	{ int fork(void); }
 3	NOPROTO	POSIX	{ int read(int fd, char *buf, u_int nbyte); }
 4	NOPROTO	SVR4	{ int write(int fd, char *buf, u_int nbyte); }
 5	STD	SVR4	{ int svr4_sys_open(char *path, int flags, int mode); }
@@ -181,7 +181,7 @@
 116	NOPROTO	SVR4	{ int mprotect(void *addr, int len, int prot); }
 117	NOPROTO	SVR4	{ int munmap(void *addr, int len); }
 118	STD	SVR4	{ int svr4_sys_fpathconf(int fd, int name); }
-119	NOPROTO	SVR4	{ int vfork(void); }
+119	MNOPROTO SVR4	{ int vfork(void); }
 120	NOPROTO	SVR4	{ int fchdir(int fd); }
 121	NOPROTO	SVR4	{ int readv(int fd, struct iovec *iovp, \
 				u_int iovcnt); }
@@ -211,7 +211,7 @@
 				int dummy); }
 136	NOPROTO	SVR4	{ int setegid(gid_t egid); }
 137	STD	SVR4	{ int svr4_sys_sysconfig(int name); }
-138	NOPROTO	SVR4	{ int adjtime(struct timeval *delta, \
+138	MNOPROTO SVR4	{ int adjtime(struct timeval *delta, \
 				struct timeval *olddelta); }
 139	STD	SVR4	{ long svr4_sys_systeminfo(int what, char *buf, \
 				long len); }
@@ -219,7 +219,7 @@
 141	NOPROTO	SVR4	{ int seteuid(uid_t euid); }
 142	UNIMPL	SVR4	vtrace
 ; fork1
-143	UNIMPL SVR4	{ int fork(void); } 
+143	MUNIMPL SVR4	{ int fork(void); } 
 144	UNIMPL	SVR4	sigtimedwait
 145	UNIMPL	SVR4	lwp_info
 146	UNIMPL	SVR4	yield
@@ -234,8 +234,8 @@
 				struct timeval *tptr); }
 155	STD	SVR4	{ int svr4_sys_vhangup(void); }
 156	STD	SVR4	{ int svr4_sys_gettimeofday(struct timeval *tp); }
-157	NOPROTO	SVR4	{ int getitimer(u_int which, struct itimerval *itv); }
-158	NOPROTO	SVR4	{ int setitimer(u_int which, struct itimerval *itv, \
+157	MNOPROTO SVR4	{ int getitimer(u_int which, struct itimerval *itv); }
+158	MNOPROTO SVR4	{ int setitimer(u_int which, struct itimerval *itv, \
 					struct itimerval *oitv); }
 159	UNIMPL	SVR4	lwp_create
 160	UNIMPL	SVR4	lwp_exit
@@ -282,7 +282,7 @@
 196	UNIMPL	SVR4	timer_settime
 197	UNIMPL	SVR4	timer_gettime
 198	UNIMPL	SVR4	timer_overrun
-199	NOPROTO	SVR4	{ int nanosleep(const struct timespec *rqtp, \
+199	MNOPROTO SVR4	{ int nanosleep(const struct timespec *rqtp, \
 				struct timespec *rmtp); }
 200	STD	SVR4	{ int svr4_sys_facl(int fd, int cmd, int num, \
 			    struct svr4_aclent *buf); }
@@ -363,4 +363,4 @@
 				const void *val, int valsize); }
 247	UNIMPL	SVR4	sockconfig
 248	UNIMPL	SVR4	{ int ntp_gettime(struct ntptimeval *ntvp); }
-249	UNIMPL	SVR4	{ int ntp_adjtime(struct timex *tp); }
+249	MUNIMPL	SVR4	{ int ntp_adjtime(struct timex *tp); }
