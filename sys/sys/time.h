@@ -79,6 +79,112 @@ struct timezone {
 #define	DST_EET		5	/* Eastern European dst */
 #define	DST_CAN		6	/* Canada */
 
+/* start of struct bintime stuff */
+
+struct bintime {
+	time_t		sec;
+	u_int64_t	frac;
+};
+
+static __inline void
+bintime_addx(struct bintime *bt, u_int64_t x)
+{
+#ifdef __i386
+	__asm(	"
+		addl %%eax,4(%%ecx)
+		adcl %%edx,8(%%ecx)
+		adcl $0,0(%%ecx)
+		" : : "A" (x), "c" (bt));
+#else
+	u_int64_t u;
+
+	u = bt->frac;
+	bt->frac += x;
+	if (u > bt->frac)
+		bt->sec++;
+#endif
+}
+
+static __inline void
+bintime_add(struct bintime *bt, struct bintime *bt2)
+{
+#ifdef __i386
+	__asm(	"
+		movl 4(%%edx),%%eax
+		addl %%eax,4(%%ecx)
+		movl 8(%%edx),%%eax
+		adcl %%eax,8(%%ecx)
+		movl 0(%%edx),%%eax
+		adcl %%eax,0(%%ecx)
+		" : : "c" (bt), "d" (bt2));
+#else
+	u_int64_t u;
+
+	u = bt->frac;
+	bt->frac += bt2->frac;
+	if (u > bt->frac)
+		bt->sec++;
+	bt->sec += bt2->sec;
+#endif
+}
+
+static __inline void
+bintime_sub(struct bintime *bt, struct bintime *bt2)
+{
+#ifdef __i386
+	__asm(	"
+		movl 4(%%edx),%%eax
+		subl %%eax,4(%%ecx)
+		movl 8(%%edx),%%eax
+		sbbl %%eax,8(%%ecx)
+		movl 0(%%edx),%%eax
+		sbbl %%eax,0(%%ecx)
+		" : : "c" (bt), "d" (bt2));
+#else
+	u_int64_t u;
+
+	u = bt->frac;
+	bt->frac -= bt2->frac;
+	if (u < bt->frac)
+		bt->sec--;
+	bt->sec -= bt2->sec;
+#endif
+}
+
+static __inline void
+bintime2timespec(struct bintime *bt, struct timespec *ts)
+{
+
+	ts->tv_sec = bt->sec;
+	ts->tv_nsec =  (1000000000ULL * (u_int32_t)(bt->frac >> 32)) >> 32;
+}
+
+static __inline void
+timespec2bintime(struct timespec *ts, struct bintime *bt)
+{
+
+	bt->sec = ts->tv_sec;
+	bt->frac = ts->tv_nsec * 18446744073;  /* int(2^64 / 1000000000) */
+}
+
+static __inline void
+bintime2timeval(struct bintime *bt, struct timeval *tv)
+{
+
+	tv->tv_sec = bt->sec;
+	tv->tv_usec =  (1000000ULL * (u_int32_t)(bt->frac >> 32)) >> 32;
+}
+
+static __inline void
+timeval2bintime(struct timeval *tv, struct bintime *bt)
+{
+
+	bt->sec = tv->tv_sec;
+	bt->frac = tv->tv_usec * 18446744073709;  /* int(2^64 / 1000000) */
+}
+
+/* end of struct bintime stuff */
+
 #ifdef _KERNEL
 
 /* Operations on timespecs */
@@ -188,6 +294,8 @@ struct clockinfo {
 #ifdef _KERNEL
 extern time_t	time_second;
 
+void	binuptime(struct bintime *bt);
+void	bintime(struct bintime *bt);
 void	getmicrouptime __P((struct timeval *tv));
 void	getmicrotime __P((struct timeval *tv));
 void	getnanouptime __P((struct timespec *tsp));
