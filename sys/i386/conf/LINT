@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.173 1995/04/24 04:30:19 dyson Exp $
+#	$Id: LINT,v 1.174 1995/04/24 05:33:59 phk Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -242,6 +242,10 @@ options		PORTAL			#Portal filesystem
 options		PROCFS			#Process filesystem
 options		UMAPFS			#UID map filesystem
 options		UNION			#Union filesystem
+
+# Make space in the kernel for a MFS rootfilesystem.  Define to the number
+# of kilobytes to reserve for the filesystem.
+options		"MFS_ROOT=10"
 
 #
 # Disk quotas are supported when this option is enabled.  If you
