@@ -4,9 +4,9 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	NetBSD: pcmciadevs,v 1.33 1999/02/19 21:49:43 abs Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.2 1999/11/28 05:49:27 imp Exp 
  */
-/* $FreeBSD$ */
+/* $NetBSD: pcmciadevs,v 1.59 1999/11/27 01:03:18 soren Exp $ */
 
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -81,6 +81,13 @@ struct pccard_knowndev pccard_knowndevs[] = {
 	    "3Com 3c574-TX 10/100Mbps Ethernet"	},
 	},
 	{
+	    PCCARD_VENDOR_3COM, PCCARD_PRODUCT_3COM_3CXM056BNW,
+	    PCCARD_CIS_3COM_3CXM056BNW,
+	    0,
+	    "3Com Corporation",
+	    "3Com/NoteWorthy 3CXM056-BNW 56K Modem"	},
+	},
+	{
 	    PCCARD_VENDOR_3COM, PCCARD_PRODUCT_3COM_3CXEM556,
 	    PCCARD_CIS_3COM_3CXEM556,
 	    0,
@@ -88,11 +95,32 @@ struct pccard_knowndev pccard_knowndevs[] = {
 	    "3Com/Megahertz 3CXEM556 Ethernet/Modem"	},
 	},
 	{
+	    PCCARD_VENDOR_3COM, PCCARD_PRODUCT_3COM_3CXEM556INT,
+	    PCCARD_CIS_3COM_3CXEM556INT,
+	    0,
+	    "3Com Corporation",
+	    "3Com/Megahertz 3CXEM556-INT Ethernet/Modem"	},
+	},
+	{
+	    PCCARD_VENDOR_3COM, PCCARD_PRODUCT_3COM_3CCFEM556BI,
+	    PCCARD_CIS_3COM_3CCFEM556BI,
+	    0,
+	    "3Com Corporation",
+	    "3Com/Megahertz 3CCFEM556BI Ethernet/Modem"	},
+	},
+	{
 	    PCCARD_VENDOR_COMPEX, PCCARD_PRODUCT_COMPEX_LINKPORT_ENET_B,
 	    PCCARD_CIS_COMPEX_LINKPORT_ENET_B,
 	    0,
 	    "Compex Corporation",
 	    "Compex Linkport ENET-B Ethernet"	},
+	},
+	{
+	    PCCARD_VENDOR_LASAT, PCCARD_PRODUCT_LASAT_CREDIT_288,
+	    PCCARD_CIS_LASAT_CREDIT_288,
+	    0,
+	    "",
+	    "Lasat Credit 288 Modem"	},
 	},
 	{
 	    PCCARD_VENDOR_DAYNA, PCCARD_PRODUCT_DAYNA_COMMUNICARD_E_1,
@@ -137,11 +165,46 @@ struct pccard_knowndev pccard_knowndevs[] = {
 	    "Motorola Personal Messenger 100C CDPD Modem"	},
 	},
 	{
+	    PCCARD_VENDOR_FUJITSU, PCCARD_PRODUCT_FUJITSU_LA501,
+	    PCCARD_CIS_FUJITSU_LA501,
+	    0,
+	    "Fujitsu Corporation",
+	    "Fujitsu Towa LA501 Ethernet"	},
+	},
+	{
+	    PCCARD_VENDOR_FUJITSU, PCCARD_PRODUCT_FUJITSU_LA10S,
+	    PCCARD_CIS_FUJITSU_LA10S,
+	    0,
+	    "Fujitsu Corporation",
+	    "Fujitsu Compact Flash Ethernet"	},
+	},
+	{
+	    PCCARD_VENDOR_IBM, PCCARD_PRODUCT_IBM_3270,
+	    PCCARD_CIS_IBM_3270,
+	    0,
+	    "IBM Corporation",
+	    "3270 Emulation"	},
+	},
+	{
 	    PCCARD_VENDOR_IBM, PCCARD_PRODUCT_IBM_INFOMOVER,
 	    PCCARD_CIS_IBM_INFOMOVER,
 	    0,
 	    "IBM Corporation",
 	    "National Semiconductor InfoMover"	},
+	},
+	{
+	    PCCARD_VENDOR_IBM, PCCARD_PRODUCT_IBM_5250,
+	    PCCARD_CIS_IBM_5250,
+	    0,
+	    "IBM Corporation",
+	    "5250 Emulation"	},
+	},
+	{
+	    PCCARD_VENDOR_IBM, PCCARD_PRODUCT_IBM_TROPIC,
+	    PCCARD_CIS_IBM_TROPIC,
+	    0,
+	    "IBM Corporation",
+	    "Token Ring 4/16"	},
 	},
 	{
 	    PCCARD_VENDOR_IBM, PCCARD_PRODUCT_IBM_HOME_AND_AWAY,
@@ -158,18 +221,25 @@ struct pccard_knowndev pccard_knowndevs[] = {
 	    "Wireless LAN Entry"	},
 	},
 	{
-	    PCCARD_VENDOR_IBM, PCCARD_PRODUCT_IBM_PORTABLE_CDROM_DRIVE,
-	    PCCARD_CIS_IBM_PORTABLE_CDROM_DRIVE,
+	    PCCARD_VENDOR_IBM, PCCARD_PRODUCT_IBM_PORTABLE_CDROM,
+	    PCCARD_CIS_IBM_PORTABLE_CDROM,
 	    0,
 	    "IBM Corporation",
 	    "PCMCIA Portable CD-ROM Drive"	},
 	},
 	{
-	    PCCARD_VENDOR_IODATA, PCCARD_PRODUCT_IODATA_PCLAT,
-	    PCCARD_CIS_IODATA_PCLAT,
+	    PCCARD_VENDOR_IBM, PCCARD_PRODUCT_IBM_ETHERJET,
+	    PCCARD_CIS_IBM_ETHERJET,
+	    0,
+	    "IBM Corporation",
+	    "IBM EtherJet Ethernet"	},
+	},
+	{
+	    PCCARD_VENDOR_IODATA, PCCARD_PRODUCT_IODATA_PCLATE,
+	    PCCARD_CIS_IODATA_PCLATE,
 	    0,
 	    "I-O DATA",
-	    "I-O DATA PCLA/T"	},
+	    "I-O DATA PCLA/TE"	},
 	},
 	{
 	    PCCARD_VENDOR_LINKSYS, PCCARD_PRODUCT_LINKSYS_ECARD_1,
@@ -198,6 +268,13 @@ struct pccard_knowndev pccard_knowndevs[] = {
 	    0,
 	    "Megahertz Corporation",
 	    "Megahertz XJ4288 Modem"	},
+	},
+	{
+	    PCCARD_VENDOR_MEGAHERTZ, PCCARD_PRODUCT_MEGAHERTZ_XJ4336,
+	    PCCARD_CIS_MEGAHERTZ_XJ4336,
+	    0,
+	    "Megahertz Corporation",
+	    "Megahertz XJ4336 Modem"	},
 	},
 	{
 	    PCCARD_VENDOR_MEGAHERTZ, PCCARD_PRODUCT_MEGAHERTZ_XJ5560,
@@ -242,6 +319,13 @@ struct pccard_knowndev pccard_knowndevs[] = {
 	    "Simple Technology 28.8 Communicator"	},
 	},
 	{
+	    PCCARD_VENDOR_SIMPLETECH, PCCARD_PRODUCT_SIMPLETECH_SPECTRUM24,
+	    PCCARD_CIS_SIMPLETECH_SPECTRUM24,
+	    0,
+	    "Simple Technology",
+	    "Symbol Spectrum24 WLAN Adapter"	},
+	},
+	{
 	    PCCARD_VENDOR_SOCKET, PCCARD_PRODUCT_SOCKET_PAGECARD,
 	    PCCARD_CIS_SOCKET_PAGECARD,
 	    0,
@@ -254,6 +338,13 @@ struct pccard_knowndev pccard_knowndevs[] = {
 	    0,
 	    "Socket Communications",
 	    "Socket Communications Dual RS232"	},
+	},
+	{
+	    PCCARD_VENDOR_SOCEKT, PCCARD_PRODUCT_SOCEKT_LP_ETHER_CF,
+	    PCCARD_CIS_SOCEKT_LP_ETHER_CF,
+	    0,
+	    "",
+	    "Socket Communications Low Power Ethernet CF"	},
 	},
 	{
 	    PCCARD_VENDOR_TDK, PCCARD_PRODUCT_TDK_LAK_CD021BX,
@@ -298,11 +389,11 @@ struct pccard_knowndev pccard_knowndevs[] = {
 	    "Xircom CreditCard CE2 Ethernet"	},
 	},
 	{
-	    PCCARD_VENDOR_TDK, PCCARD_PRODUCT_TDK_XIR_CE3_100,
-	    PCCARD_CIS_TDK_XIR_CE3_100,
+	    PCCARD_VENDOR_TDK, PCCARD_PRODUCT_TDK_XIR_CE3_10_100,
+	    PCCARD_CIS_TDK_XIR_CE3_10_100,
 	    0,
 	    "TDK Corporation",
-	    "Xircom CreditCard Ethernet 10/100"	},
+	    "Xircom CreditCard CE3 10/100 Ethernet"	},
 	},
 	{
 	    PCCARD_VENDOR_TDK, PCCARD_PRODUCT_TDK_XIR_CNW,
@@ -316,7 +407,14 @@ struct pccard_knowndev pccard_knowndevs[] = {
 	    PCCARD_CIS_NEWMEDIA_BASICS,
 	    0,
 	    "NewMedia Corporation",
-	    "NewMedia BASICS Ethernet"	},
+	    "New Media BASICS Ethernet"	},
+	},
+	{
+	    PCCARD_VENDOR_NEWMEDIA, PCCARD_PRODUCT_NEWMEDIA_BUSTOASTER,
+	    PCCARD_CIS_NEWMEDIA_BUSTOASTER,
+	    0,
+	    "NewMedia Corporation",
+	    "New Media BusToaster SCSI Host Adapter"	},
 	},
 	{
 	    PCCARD_VENDOR_SMC, PCCARD_PRODUCT_SMC_8016,
@@ -326,11 +424,46 @@ struct pccard_knowndev pccard_knowndevs[] = {
 	    "SMC 8016 EtherCard"	},
 	},
 	{
+	    PCCARD_VENDOR_SMC, PCCARD_PRODUCT_SMC_EZCARD,
+	    PCCARD_CIS_SMC_EZCARD,
+	    0,
+	    "Standard Microsystems Corporation",
+	    "SMC EXCard 10 PCMCIA"	},
+	},
+	{
+	    PCCARD_VENDOR_CONTEC, PCCARD_PRODUCT_CONTEC_CNETPC,
+	    PCCARD_CIS_CONTEC_CNETPC,
+	    0,
+	    "Contec",
+	    "Contec C-NET(PC)C"	},
+	},
+	{
+	    PCCARD_VENDOR_ALLIEDTELESIS, PCCARD_PRODUCT_ALLIEDTELESIS_LA_PCM,
+	    PCCARD_CIS_ALLIEDTELESIS_LA_PCM,
+	    0,
+	    "Allied Telesis K.K.",
+	    "Allied Telesis LA-PCM"	},
+	},
+	{
 	    PCCARD_VENDOR_RATOC, PCCARD_PRODUCT_RATOC_REX_R280,
 	    PCCARD_CIS_RATOC_REX_R280,
 	    0,
 	    "RATOC System Inc.",
 	    "RATOC REX-R280"	},
+	},
+	{
+	    PCCARD_VENDOR_LUCENT, PCCARD_PRODUCT_LUCENT_WAVELAN_IEEE,
+	    PCCARD_CIS_LUCENT_WAVELAN_IEEE,
+	    0,
+	    "Lucent Technologies",
+	    "WaveLAN/IEEE"	},
+	},
+	{
+	    PCCARD_VENDOR_BAY, PCCARD_PRODUCT_BAY_STACK_650,
+	    PCCARD_CIS_BAY_STACK_650,
+	    0,
+	    "Bay Networks",
+	    "BayStack 650 Wireless LAN"	},
 	},
 	{
 	    PCCARD_VENDOR_UNKNOWN, PCCARD_PRODUCT_MEGAHERTZ_XJ2288,
@@ -352,6 +485,13 @@ struct pccard_knowndev pccard_knowndevs[] = {
 	    0,
 	    "Planet",
 	    "Planet SmartCOM 2000"	},
+	},
+	{
+	    PCCARD_VENDOR_UNKNOWN, PCCARD_PRODUCT_PLANEX_FNW3600T,
+	    PCCARD_CIS_PLANEX_FNW3600T,
+	    0,
+	    "Planex Communications Inc",
+	    "Planex FNW-3600-T"	},
 	},
 	{
 	    PCCARD_VENDOR_UNKNOWN, PCCARD_PRODUCT_DLINK_DE650,
@@ -410,8 +550,22 @@ struct pccard_knowndev pccard_knowndevs[] = {
 	    "Linksys E-Card"	},
 	},
 	{
-	    PCCARD_VENDOR_UNKNOWN, PCCARD_PRODUCT_COREGA_PCC_2,
-	    PCCARD_CIS_COREGA_PCC_2,
+	    PCCARD_VENDOR_UNKNOWN, PCCARD_PRODUCT_COREGA_ETHER_PCC_T,
+	    PCCARD_CIS_COREGA_ETHER_PCC_T,
+	    0,
+	    "Corega K.K.",
+	    "Corega"	},
+	},
+	{
+	    PCCARD_VENDOR_UNKNOWN, PCCARD_PRODUCT_COREGA_ETHER_II_PCC_T,
+	    PCCARD_CIS_COREGA_ETHER_II_PCC_T,
+	    0,
+	    "Corega K.K.",
+	    "Corega"	},
+	},
+	{
+	    PCCARD_VENDOR_UNKNOWN, PCCARD_PRODUCT_COREGA_FAST_ETHER_PCC_TX,
+	    PCCARD_CIS_COREGA_FAST_ETHER_PCC_TX,
 	    0,
 	    "Corega K.K.",
 	    "Corega"	},
@@ -436,6 +590,20 @@ struct pccard_knowndev pccard_knowndevs[] = {
 	    0,
 	    "NAKAGAWA METAL",
 	    "NAKAGAWA METAL LNT-10TN NE2000 Compatible Card"	},
+	},
+	{
+	    PCCARD_VENDOR_UNKNOWN, PCCARD_PRODUCT_AMBICOM_AMB8002T,
+	    PCCARD_CIS_AMBICOM_AMB8002T,
+	    0,
+	    "AmbiCom Inc",
+	    "AmbiCom AMB8002T"	},
+	},
+	{
+	    PCCARD_VENDOR_UNKNOWN, PCCARD_PRODUCT_IODATA_PCLAT,
+	    PCCARD_CIS_IODATA_PCLAT,
+	    0,
+	    "I-O DATA",
+	    "IO-DATA PCLA/T"	},
 	},
 	{
 	    PCCARD_VENDOR_FUJITSU, 0,
@@ -557,6 +725,13 @@ struct pccard_knowndev pccard_knowndevs[] = {
 	    NULL,
 	},
 	{
+	    PCCARD_VENDOR_LUCENT, 0,
+	    PCCARD_KNOWNDEV_NOPROD,
+	    PCCARD_CIS_INVALID,
+	    "Lucent Technologies",
+	    NULL,
+	},
+	{
 	    PCCARD_VENDOR_COMPAQ2, 0,
 	    PCCARD_KNOWNDEV_NOPROD,
 	    PCCARD_CIS_INVALID,
@@ -578,6 +753,13 @@ struct pccard_knowndev pccard_knowndevs[] = {
 	    NULL,
 	},
 	{
+	    PCCARD_VENDOR_BAY, 0,
+	    PCCARD_KNOWNDEV_NOPROD,
+	    PCCARD_CIS_INVALID,
+	    "Bay Networks",
+	    NULL,
+	},
+	{
 	    PCCARD_VENDOR_COMPEX, 0,
 	    PCCARD_KNOWNDEV_NOPROD,
 	    PCCARD_CIS_INVALID,
@@ -585,10 +767,24 @@ struct pccard_knowndev pccard_knowndevs[] = {
 	    NULL,
 	},
 	{
+	    PCCARD_VENDOR_CONTEC, 0,
+	    PCCARD_KNOWNDEV_NOPROD,
+	    PCCARD_CIS_INVALID,
+	    "Contec",
+	    NULL,
+	},
+	{
 	    PCCARD_VENDOR_COREGA, 0,
 	    PCCARD_KNOWNDEV_NOPROD,
 	    PCCARD_CIS_INVALID,
 	    "Corega K.K.",
+	    NULL,
+	},
+	{
+	    PCCARD_VENDOR_ALLIEDTELESIS, 0,
+	    PCCARD_KNOWNDEV_NOPROD,
+	    PCCARD_CIS_INVALID,
+	    "Allied Telesis K.K.",
 	    NULL,
 	},
 	{
@@ -617,6 +813,13 @@ struct pccard_knowndev pccard_knowndevs[] = {
 	    PCCARD_KNOWNDEV_NOPROD,
 	    PCCARD_CIS_INVALID,
 	    "Planet",
+	    NULL,
+	},
+	{
+	    PCCARD_VENDOR_PLANEX, 0,
+	    PCCARD_KNOWNDEV_NOPROD,
+	    PCCARD_CIS_INVALID,
+	    "Planex Communications Inc",
 	    NULL,
 	},
 	{
@@ -673,6 +876,13 @@ struct pccard_knowndev pccard_knowndevs[] = {
 	    PCCARD_KNOWNDEV_NOPROD,
 	    PCCARD_CIS_INVALID,
 	    "NAKAGAWA METAL",
+	    NULL,
+	},
+	{
+	    PCCARD_VENDOR_AMBICOM, 0,
+	    PCCARD_KNOWNDEV_NOPROD,
+	    PCCARD_CIS_INVALID,
+	    "AmbiCom Inc",
 	    NULL,
 	},
 	{ 0, 0, { NULL, NULL, NULL, NULL }, 0, NULL, NULL, }
