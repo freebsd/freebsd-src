@@ -12,33 +12,33 @@ To add and delete rules to the filter list, three 'basic' ioctls are provided
 for use.  The ioctl's are called as:
 .LP
 .nf
-	ioctl(fd, SIOCADDFR, struct frentry *)
-	ioctl(fd, SIOCDELFR, struct frentry *)
+	ioctl(fd, SIOCADDFR, struct frentry **)
+	ioctl(fd, SIOCDELFR, struct frentry **)
 	ioctl(fd, SIOCIPFFL, int *)
 .fi
 .PP
 However, the full complement is as follows:
 .LP
 .nf
-	ioctl(fd, SIOCADAFR, struct frentry *) (same as SUICADDFR)
-	ioctl(fd, SIOCRMAFR, struct frentry *) (same as SUICDELFR)
-	ioctl(fd, SIOCADIFR, struct frentry *)
-	ioctl(fd, SIOCRMIFR, struct frentry *)
-	ioctl(fd, SIOCINAFR, struct frentry *)
-	ioctl(fd, SIOCINIFR, struct frentry *)
+	ioctl(fd, SIOCADAFR, struct frentry **) (same as SIOCADDFR)
+	ioctl(fd, SIOCRMAFR, struct frentry **) (same as SIOCDELFR)
+	ioctl(fd, SIOCADIFR, struct frentry **)
+	ioctl(fd, SIOCRMIFR, struct frentry **)
+	ioctl(fd, SIOCINAFR, struct frentry **)
+	ioctl(fd, SIOCINIFR, struct frentry **)
 	ioctl(fd, SIOCSETFF, u_int *)
 	ioctl(fd, SIOGGETFF, u_int *)
-	ioctl(fd, SIOCGETFS, struct friostat *)
+	ioctl(fd, SIOCGETFS, struct friostat **)
 	ioctl(fd, SIOCIPFFL, int *)
 	ioctl(fd, SIOCIPFFB, int *)
 	ioctl(fd, SIOCSWAPA, u_int *)
 	ioctl(fd, SIOCFRENB, u_int *)
 	ioctl(fd, SIOCFRSYN, u_int *)
-	ioctl(fd, SIOCFRZST, struct friostat *)
-	ioctl(fd, SIOCZRLST, struct frentry *)
-	ioctl(fd, SIOCAUTHW, struct fr_info *)
-	ioctl(fd, SIOCAUTHR, struct fr_info *)
-	ioctl(fd, SIOCATHST, struct fr_authstat *)
+	ioctl(fd, SIOCFRZST, struct friostat **)
+	ioctl(fd, SIOCZRLST, struct frentry **)
+	ioctl(fd, SIOCAUTHW, struct fr_info **)
+	ioctl(fd, SIOCAUTHR, struct fr_info **)
+	ioctl(fd, SIOCATHST, struct fr_authstat **)
 .fi
 .PP
 The variations, SIOCADAFR vs. SIOCADIFR, allow operation on the two lists,
@@ -108,7 +108,7 @@ filter list, the number of the rule which it is to be inserted before must
 be put in the "fr_hits" field (the first rule is number 0).
 .LP
 .PP
-Flags which are recognised in fr_pass:
+Flags which are recognised in fr_flags:
 .nf
 
      FR_BLOCK        0x000001   /* do not allow packet to pass */

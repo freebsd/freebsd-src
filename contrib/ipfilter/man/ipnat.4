@@ -16,8 +16,10 @@ To add and delete rules to the NAT list, two 'basic' ioctls are provided
 for use.  The ioctl's are called as:
 .LP
 .nf
-	ioctl(fd, SIOCADNAT, struct ipnat *)
-	ioctl(fd, SIOCRMNAT, struct ipnat *)
+	ioctl(fd, SIOCADNAT, struct ipnat **)
+	ioctl(fd, SIOCRMNAT, struct ipnat **)
+	ioctl(fd, SIOCGNATS, struct natstat **)
+	ioctl(fd, SIOCGNATL, struct natlookup **)
 .fi
 .PP
 Unlike \fBipf(4)\fP, there is only a single list supported by the kernel NAT
