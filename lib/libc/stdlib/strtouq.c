@@ -43,9 +43,6 @@ static char sccsid[] = "@(#)strtouq.c	8.1 (Berkeley) 6/4/93";
 
 /*
  * Convert a string to an unsigned quad integer.
- *
- * Assumes that the upper and lower case
- * alphabets and digits are each contiguous.
  */
 u_quad_t
 strtouq(nptr, endptr, base)
