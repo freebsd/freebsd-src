@@ -256,18 +256,27 @@ Get point to point address for protocol family and interface.
 .It Dv SIOCGIFBRDADDR
 Get broadcast address for protocol family and interface.
 .It Dv SIOCSIFCAP
-Set interface capabilities field to the value of the
+Attempt to set the enabled capabilities field for the interface
+to the value of the
 .Va ifr_reqcap
 field of the
 .Vt ifreq
 structure.
-.It Dv SIOCGIFCAP
-Get interface capabilities field.
-Its value will be returned in the
+Note that, depending on the particular interface features,
+some capabilities may appear hard-coded to enabled, or toggling
+a capability may affect the status of other ones.
+The supported capabilities field is read-only, and the
 .Va ifr_curcap
-field of the
+field is unused by this call.
+.It Dv SIOCGIFCAP
+Get the interface capabilities fields.
+The values for supported and enabled capabilities will be returned in the
+.Va ifr_reqcap
+and
+.Va ifr_curcap
+fields of the
 .Vt ifreq
-structure.
+structure, respectively.
 .It Dv SIOCSIFFLAGS
 Set interface flags field.
 If the interface is marked down,
