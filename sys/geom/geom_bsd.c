@@ -36,7 +36,7 @@
  *
  * This is the method for dealing with BSD disklabels.  It has been
  * extensively (by my standards at least) commented, in the vain hope that
- * it will server as the source in future copy&paste operations.
+ * it will serve as the source in future copy&paste operations.
  */
 
 #include <sys/param.h>
@@ -56,6 +56,7 @@
 #include <sys/mutex.h>
 #endif
 #include <sys/stdint.h>
+#include <sys/md5.h>
 #include <sys/errno.h>
 #include <sys/disklabel.h>
 #include <geom/geom.h>
@@ -76,6 +77,7 @@ struct g_bsd_softc {
 	off_t	rawoffset;
 	struct disklabel ondisk;
 	struct disklabel inram;
+	u_char	labelsum[16];
 };
 
 /*
@@ -627,6 +629,10 @@ g_bsd_start(struct bio *bp)
 		g_call_me(g_bsd_hotwrite, bp);
 		return (EJUSTRETURN);
 	case BIO_GETATTR:
+		if (g_handleattr(bp, "BSD::labelsum", ms->labelsum,
+		    sizeof(ms->labelsum)))
+			return (1);
+		break;
 	case BIO_SETATTR:
 		break;
 	default:
@@ -723,21 +729,14 @@ g_bsd_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	struct disklabel *dl;
 	u_int secsize;
 	struct g_slicer *gsp;
+	MD5_CTX md5sum;
+	u_char hash[16];
 
 	g_trace(G_T_TOPOLOGY, "bsd_taste(%s,%s)", mp->name, pp->name);
 	g_topology_assert();
 
 	/* We don't implement transparent inserts. */
 	if (flags == G_TF_TRANSPARENT)
-		return (NULL);
-
-	/*
-	 * The BSD-method will not automatically configure itself recursively
-	 * Note that it is legal to examine the class-name of our provider,
-	 * nothing else should ever be examined inside the provider.
-	 */
-	if (flags == G_TF_NORMAL &&
-	    !strcmp(pp->geom->class->name, BSD_CLASS_NAME))
 		return (NULL);
 
 	/*
@@ -779,7 +778,7 @@ g_bsd_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		/*
 		 * If the provider is an MBR we will only auto attach
 		 * to type 165 slices in the G_TF_NORMAL case.  We will
-		 * attach to any other type (BSD was handles above)
+		 * attach to any other type.
 		 */
 		error = g_getattr("MBR::type", cp, &i);
 		if (!error) {
@@ -818,10 +817,25 @@ g_bsd_taste(struct g_class *mp, struct g_provider *pp, int flags)
 			break;
 
 		/*
+		 * In order to avoid recursively attaching to the same
+		 * on-disk label (it's usually visible through the 'c'
+		 * partition) we calculate an MD5 and ask if other BSD's
+		 * below us love that label.  If they do, we don't.
+		 */
+
+		dl = &ms->inram;
+		MD5Init(&md5sum);
+		MD5Update(&md5sum, (u_char *)dl, sizeof(dl));
+		MD5Final(ms->labelsum, &md5sum);
+
+		error = g_getattr("BSD::labelsum", cp, &hash);
+		if (!error && !strncmp(ms->labelsum, hash, sizeof(hash)))
+			break;
+
+		/*
 		 * Process the found disklabel, and modify our "slice"
 		 * instance to match it, if possible.
 		 */
-		dl = &ms->inram;
 		error = g_bsd_modify(gp, dl);	/* Picks up topology lock. */
 		if (!error)
 			g_topology_unlock();
