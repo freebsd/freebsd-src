@@ -487,6 +487,18 @@ extern int errno;
 /* conflicts with <statfsbuf.h> */
 #  define _SYS_STATFS_H
 # endif /* HAVE_SOCKETBITS_H */
+# ifdef HAVE_LINUX_POSIX_TYPES_H
+#  include <linux/posix_types.h>
+# endif /* HAVE_LINUX_POSIX_TYPES_H */
+# ifndef _LINUX_BYTEORDER_GENERIC_H
+#  define _LINUX_BYTEORDER_GENERIC_H
+# endif /* _LINUX_BYTEORDER_GENERIC_H */
+/* conflicts with <sys/mount.h> in 2.1 kernels */
+# ifdef _SYS_MOUNT_H
+#  ifdef BLOCK_SIZE
+#   undef BLOCK_SIZE
+#  endif /* BLOCK_SIZE */
+# endif /* _SYS_MOUNT_H */
 # include <linux/fs.h>
 #endif /* HAVE_LINUX_FS_H */
 

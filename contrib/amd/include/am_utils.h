@@ -565,6 +565,7 @@ extern int make_nfs_auth(void);
 extern int make_rpc_packet(char *, int, u_long, struct rpc_msg *, voidp, XDRPROC_T_TYPE, AUTH *);
 extern int mapc_keyiter(mnt_map *, void(*)(char *, voidp), voidp);
 extern int mapc_search(mnt_map *, char *, char **);
+extern int mapc_type_exists(const char *type);
 extern int mkdirs(char *, int);
 extern int mount_auto_node(char *, voidp);
 extern int mount_automounter(int);

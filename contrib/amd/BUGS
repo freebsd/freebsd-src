@@ -71,3 +71,19 @@ that nfsd is running.  Normally these are not required.
 [4B] "Stefan Vogel" <vogel@physik.unizh.ch> reports that if your amq
 executable dump core unexpectedly, then it may be a bug in gcc 2.7.x.
 Upgrade to gcc 2.8.x or use IBM's xlC compiler.
+
+
+(5) *-linux-gnu (RedHat Linux 5.1)
+
+There's a UDP file descriptor leak in libnsl in RedHat Linux 5.1.  This
+library part of glibc2.  Am-utils currently declares redhat 5.1 systems as
+having a "broken yp_all" and using an internal, slower, leak-free version.
+The leak is known to the glibc maintainers and a fix from them is due soon,
+but it is not yet in the glibc-2.0.7-19 RPM.
+
+
+(6) rs6000-ibm-aix4.1.x
+
+A bug in libc results in an amq binary that doesn't work; amq -v dumps core
+in xdr_string.  There is no known fix (source code or vendor patch) at this
+time.  (Please let amd-dev know if you know of a fix.)

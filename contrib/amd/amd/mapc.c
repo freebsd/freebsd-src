@@ -350,10 +350,32 @@ mapc_showtypes(char *buf)
 
 
 /*
+ * Check if a map of a certain type exists.
+ * Return 1 (true) if exists, 0 (false) if not.
+ */
+int
+mapc_type_exists(const char *type)
+{
+  map_type *mt;
+
+  if (!type)
+    return 0;
+  for (mt = maptypes;
+       mt < maptypes + sizeof(maptypes) / sizeof(maptypes[0]);
+       mt++) {
+    if (STREQ(type, mt->name))
+      return 1;
+  }
+  return 0;			/* not found anywhere */
+}
+
+
+/*
  * Add key and val to the map m.
  * key and val are assumed to be safe copies
  */
-void mapc_add_kv(mnt_map *m, char *key, char *val)
+void
+mapc_add_kv(mnt_map *m, char *key, char *val)
 {
   kv **h;
   kv *n;

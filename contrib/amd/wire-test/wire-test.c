@@ -50,7 +50,7 @@
 #define STRMAX	100
 
 /* dummy variables */
-char *progname, hostname[MAXHOSTNAMELEN];
+char *progname, hostname[MAXHOSTNAMELEN + 1];
 int orig_umask, foreground, debug_flags;
 pid_t mypid;
 serv_state amd_state;
@@ -69,10 +69,11 @@ main(int argc, char **argv)
   mypid = getpid();
   orig_umask = umask(0);
 
-  if (gethostname(hostname, MAXHOSTNAMELEN) < 0) {
+  if (gethostname(hostname, sizeof(hostname)) < 0) {
     perror(argv[0]);
     exit(1);
   }
+  hostname[sizeof(hostname) - 1] = '\0';
 
   /* get list of networks */
   getwire(&networkName1, &networkNumber1);

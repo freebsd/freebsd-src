@@ -68,7 +68,7 @@ extern int fixmount_check_mount(char *host, struct in_addr hostaddr, char *path)
 
 static char dir_path[NFS_MAXPATHLEN];
 static char localhost[] = "localhost";
-static char thishost[MAXHOSTNAMELEN] = "";
+static char thishost[MAXHOSTNAMELEN + 1] = "";
 static exports mntexports;
 static int quiet = 0;
 static int type = 0;
@@ -354,6 +354,7 @@ main(int argc, char *argv[])
       perror("gethostname");
       exit(1);
     }
+    thishost[sizeof(thishost) - 1] = '\0';
 
     /*
      * We need the hostname as it appears to the other side's

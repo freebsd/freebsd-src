@@ -57,6 +57,11 @@ int orig_umask, foreground, debug_flags;
 pid_t mypid;
 serv_state amd_state;
 
+/* (libdb version 2) uses .db extensions but an old dbm API */
+/* check for libgdbm to distinguish it from linux systems */
+#if defined(DBM_SUFFIX) && !defined(HAVE_LIBGDBM)
+# define HAVE_DB_SUFFIX
+#endif /* not defined(DBM_SUFFIX) && !defined(HAVE_LIBGDBM) */
 
 #ifdef HAVE_MAP_NDBM
 
@@ -119,7 +124,7 @@ read_file(FILE *fp, char *map, voidp db)
   int line_no = 0;
   int errs = 0;
 
-  while (read_line(key_val, sizeof(key_val), fp)) {
+  while (read_line(key_val, 2048, fp)) {
     char *kp;
     char *cp;
     char *hash;
@@ -213,14 +218,18 @@ remove_file(char *f)
 int
 main(int argc, char *argv[])
 {
-  FILE *mapf;
-  int mapfd = -1;
-  char *map;
-  int rc = 0;
-  DBM *mapd = NULL;
+  FILE *mapf;			/* the input file to read from */
+  int error;
+  char *mapsrc;
+  DBM *db = NULL;
   static char maptmp[] = "dbmXXXXXX";
+#ifdef HAVE_DB_SUFFIX
+  char maptdb[16];
+  char *map_name_db = (char *) NULL;
+#else /* not HAVE_DB_SUFFIX */
   char maptpag[16], maptdir[16];
-  char *mappag = (char *) NULL, *mapdir = (char *) NULL;
+  char *map_name_pag = (char *) NULL, *map_name_dir = (char *) NULL;
+#endif /* not HAVE_DB_SUFFIX */
   int len;
   char *sl;
   int printit = 0;
@@ -229,7 +238,7 @@ main(int argc, char *argv[])
   extern int optind;
 
   /* test options */
-  while ((ch = getopt(argc, argv, "p")) != EOF)
+  while ((ch = getopt(argc, argv, "p")) != -1)
     switch (ch) {
     case 'p':
       printit = 1;
@@ -243,110 +252,134 @@ main(int argc, char *argv[])
     fputs("Usage: mk-amd-map [-p] file-map\n", stderr);
     exit(1);
   }
-  map = argv[optind];
+  mapsrc = argv[optind];
 
   /* test if can get to the map directory */
-  sl = strrchr(map, '/');
+  sl = strrchr(mapsrc, '/');
   if (sl) {
     *sl = '\0';
-    if (chdir(map) < 0) {
+    if (chdir(mapsrc) < 0) {
       fputs("Can't chdir to ", stderr);
-      perror(map);
+      perror(mapsrc);
       exit(1);
     }
-    map = sl + 1;
+    mapsrc = sl + 1;
   }
 
+  /* open source file */
+  mapf = fopen(mapsrc, "r");
+  if (!mapf) {
+    fprintf(stderr, "cannot open source file ");
+    perror(mapsrc);
+    exit(1);
+  }
+
+#ifndef DEBUG
+  signal(SIGINT, SIG_IGN);
+#endif /* DEBUG */
+
   if (!printit) {
-    len = strlen(map);
-    mappag = (char *) malloc(len + 5);
-    mapdir = (char *) malloc(len + 5);
-    if (!mappag || !mapdir) {
+    len = strlen(mapsrc);
+#ifdef HAVE_DB_SUFFIX
+    map_name_db = (char *) malloc(len + 4);
+    error = (map_name_db == NULL);
+#else /* not HAVE_DB_SUFFIX */
+    map_name_pag = (char *) malloc(len + 5);
+    map_name_dir = (char *) malloc(len + 5);
+    error = (map_name_pag == NULL || map_name_dir == NULL);
+#endif /* not HAVE_DB_SUFFIX */
+    if (error) {
       perror("mk-amd-map: malloc");
       exit(1);
     }
-#ifdef HAVE_MKSTEMP
-    mapfd = mkstemp(maptmp);
-#else /* not HAVE_MKSTEMP */
-    map = mktemp(maptmp);
-    if (!maptmp) {
-      fprintf(stderr, "cannot create temporary file\n");
+
+    mktemp(maptmp);
+
+    /* remove existing temps (if any) */
+#ifdef HAVE_DB_SUFFIX
+    sprintf(maptdb, "%s.db", maptmp);
+    if (remove_file(maptdb) < 0) {
+      fprintf(stderr, "Can't remove existing temporary file; ");
+      perror(maptdb);
       exit(1);
     }
-    mapfd = open(map, O_RDONLY);
-#endif /* not HAVE_MKSTEMP */
-
-    /* open DBM files */
+#else /* not HAVE_DB_SUFFIX */
     sprintf(maptpag, "%s.pag", maptmp);
     sprintf(maptdir, "%s.dir", maptmp);
     if (remove_file(maptpag) < 0 || remove_file(maptdir) < 0) {
-      fprintf(stderr, "Can't remove existing temporary files; %s and", maptpag);
+      fprintf(stderr, "Can't remove existing temporary files; %s and ", maptpag);
       perror(maptdir);
       exit(1);
     }
-  }
-  /* open and check if map file was opened OK */
-  mapf = fdopen(mapfd, "r");
-  if (mapf && !printit)
-    mapd = dbm_open(maptmp, O_RDWR|O_CREAT, 0444);
-  else
-    mapd = 0;
+#endif /* not HAVE_DB_SUFFIX */
 
-#ifndef DEBUG
-  /* ignore ^C if debuggung is on (but why?) */
-  signal(SIGINT, SIG_IGN);
-#endif /* not DEBUG */
-
-  if (mapd || printit) {
-    int error = read_file(mapf, map, mapd);
-    (void) close(mapfd);
-    (void) fclose(mapf);
-    if (printit) {
-      if (error) {
-	fprintf(stderr, "Error creating ndbm map for %s\n", map);
-	rc = 1;
-      }
-    } else {
-
-      if (error) {
-	fprintf(stderr, "Error reading source file  %s\n", map);
-	rc = 1;
-      } else {
-	sprintf(mappag, "%s.pag", map);
-	sprintf(mapdir, "%s.dir", map);
-	if (rename(maptpag, mappag) < 0) {
-	  fprintf(stderr, "Couldn't rename %s to ", maptpag);
-	  perror(mappag);
-	  /* Throw away the temporary map */
-	  unlink(maptpag);
-	  unlink(maptdir);
-	  rc = 1;
-
-	} else if (rename(maptdir, mapdir) < 0) {
-	  fprintf(stderr, "Couldn't rename %s to ", maptdir);
-	  perror(mapdir);
-	  /* Put the .pag file back */
-	  rename(mappag, maptpag);
-	  /* Throw away remaining part of original map */
-	  unlink(mapdir);
-	  fprintf(stderr,
-		  "WARNING: existing map \"%s.{dir,pag}\" destroyed\n",
-		  map);
-	  rc = 1;
-	}
-      }
+    db = dbm_open(maptmp, O_RDWR|O_CREAT, 0444);
+    if (!db) {
+      fprintf(stderr, "cannot initialize temporary database: %s", maptmp);
+      exit(1);
     }
-
-  } else {
-    fprintf(stderr, "Can't open \"%s.{dir,pag}\" for ", map);
-    perror("writing");
-    rc = 1;
   }
-  exit(rc);
+
+  /* print db to stdout or to temp database */
+  error = read_file(mapf, mapsrc, db);
+  fclose(mapf);
+  if (error) {
+    if (printit)
+      fprintf(stderr, "Error reading source file  %s\n", mapsrc);
+    else
+      fprintf(stderr, "Error creating database map for %s\n", mapsrc);
+    exit(1);
+  }
+
+  if (printit)
+    exit(0);			/* nothing more to do */
+
+  /* if gets here, we wrote to a database */
+
+  dbm_close(db);
+  /* all went well */
+
+#ifdef HAVE_DB_SUFFIX
+  sprintf(map_name_db, "%s.db", mapsrc);
+  if (rename(maptdb, map_name_db) < 0) {
+    fprintf(stderr, "Couldn't rename %s to ", maptdb);
+    perror(map_name_db);
+    /* Throw away the temporary map */
+    unlink(maptdb);
+    exit(1);
+  }
+#else /* not HAVE_DB_SUFFIX */
+  sprintf(map_name_pag, "%s.pag", mapsrc);
+  sprintf(map_name_dir, "%s.dir", mapsrc);
+  if (rename(maptpag, map_name_pag) < 0) {
+    fprintf(stderr, "Couldn't rename %s to ", maptpag);
+    perror(map_name_pag);
+    /* Throw away the temporary map */
+    unlink(maptpag);
+    unlink(maptdir);
+    exit(1);
+  }
+  if (rename(maptdir, map_name_dir) < 0) {
+    fprintf(stderr, "Couldn't rename %s to ", maptdir);
+    perror(map_name_dir);
+    /* remove the (presumably bad) .pag file */
+    unlink(map_name_pag);
+    /* throw away remaining part of original map */
+    unlink(map_name_dir);
+    /* throw away the temporary map */
+    unlink(maptdir);
+    fprintf(stderr, "WARNING: existing map \"%s.{dir,pag}\" destroyed\n",
+	    mapsrc);
+    exit(1);
+  }
+#endif /* not HAVE_DB_SUFFIX */
+
+  exit(0);
 }
 
 #else /* not HAVE_MAP_NDBM */
 
+int
 main()
 {
   fputs("mk-amd-map: This system does not support hashed database files\n", stderr);

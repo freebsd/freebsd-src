@@ -62,3 +62,9 @@ through.
 amd.conf file (right now amd.conf overrides cmd-line options).
 
 - y2k compliance.
+
+- an un/install script for binaries
+
+- update README
+add am-utils URL and COPYRIGHT to all distributed scripts and 
+sources and programs etc.

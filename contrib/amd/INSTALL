@@ -21,6 +21,7 @@ i386-pc-bsdi3.0			ezk       ezk        ezk
 i386-pc-bsdi3.1			ezk       ezk        ezk
 i386-pc-solaris2.5.1		ezk       ezk        ezk      ezk
 i386-pc-solaris2.6		ezk       ezk        ezk      ezk
+i386-pc-solaris2.7		ezk       ezk        ezk      ezk
 i386-unknown-freebsd2.1.0	ezk       ezk        ezk
 i386-unknown-freebsd2.2.1	ezk       ezk        ezk      ezk
 i386-unknown-freebsd3.0		ezk       ezk        ezk      ezk
@@ -30,8 +31,10 @@ i386-unknown-netbsd1.3.1	ezk       ezk        ezk      ezk
 i386-unknown-openbsd2.1		ezk       ezk        ezk      ezk
 i486-ncr-sysv4.3.03		ezk       ezk       
 i486-pc-linux-gnulibc1		ezk       ezk        ezk      ezk
+i586-pc-linux-gnu		ezk       ezk        ezk      ezk
 i586-pc-linux-gnulibc1		ezk       ezk        ezk      ezk
 i686-pc-linux-gnu		ezk       ezk        ezk      ezk
+i686-pc-linux-gnulibc		ezk       ezk        ezk      ezk
 m68k-hp-hpux9.00		ezk[4]    ezk[4]     nrh/ezk
 m68k-next-nextstep3		ezk       ezk        ezk
 m68k-sun-sunos4.1.1		ezk       ezk
@@ -50,6 +53,7 @@ sparc-sun-solaris2.4		ezk       ezk        ezk     ezk
 sparc-sun-solaris2.5		ezk       ezk        ezk     ezk
 sparc-sun-solaris2.5.1		ezk       ezk        ezk     ezk
 sparc-sun-solaris2.6		ezk       ezk[2]     ezk     ezk
+sparc-sun-solaris2.7		ezk       ezk[2]     ezk     ezk
 sparc-sun-sunos4.1.1		ezk       ezk        ezk     ezk
 sparc-sun-sunos4.1.3		ezk       ezk        ezk     ezk
 sparc-sun-sunos4.1.3C		ezk       ezk        ezk     ezk
@@ -57,6 +61,7 @@ sparc-sun-sunos4.1.3_U1		ezk       ezk        ezk     ezk
 sparc-sun-sunos4.1.4		ezk       ezk        ezk     ezk
 sparc-unknown-linux-gnulibc1	ezk       ezk        ezk     ezk
 sparc-unknown-netbsd1.2E	ezk       ezk        ezk
+sparc64-unknown-linux-gnu	ezk	  ezk	     ezk     ezk
 
 EMAIL ID LEGEND:
 
