@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.h	8.2 (Berkeley) 1/21/94
- * $Id: param.h,v 1.3 1994/08/02 07:53:19 davidg Exp $
+ * $Id: param.h,v 1.4 1994/08/21 04:41:55 paul Exp $
  */
 
 #ifndef _SYS_PARAM_H_
@@ -81,6 +81,7 @@
 #include <sys/resource.h>
 #include <sys/ucred.h>
 #include <sys/uio.h>
+#include <sys/rtprio.h>
 #endif
 
 /* Signals. */
