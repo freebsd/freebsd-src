@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.212 1998/08/20 05:12:48 bde Exp $
+ *	$Id: sio.c,v 1.213 1998/08/23 08:26:40 bde Exp $
  */
 
 #include "opt_comconsole.h"
@@ -2993,7 +2993,7 @@ siopnp_probe(u_long csn, u_long vend_id)
 		struct pnp_cinfo d;
 		read_pnp_parms(&d, 0);
 		if (d.enable == 0 || d.flags & 1) {
-			printf("CSN %d is disabled.\n", csn);
+			printf("CSN %lu is disabled.\n", csn);
 			return (NULL);
 		}
 
