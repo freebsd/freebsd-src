@@ -1,5 +1,5 @@
 /*
- * softmagic - interpret variable magic from /etc/magic
+ * softmagic - interpret variable magic from MAGIC
  *
  * Copyright (c) Ian F. Darwin, 1987.
  * Written by Ian F. Darwin.
@@ -35,7 +35,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$Id: softmagic.c,v 1.43 2001/03/11 20:29:16 christos Exp $")
+FILE_RCSID("@(#)$Id: softmagic.c,v 1.44 2001/03/17 19:32:50 christos Exp $")
 #endif	/* lint */
 
 static int match	__P((struct magic *, uint32, unsigned char *, int));
@@ -45,6 +45,8 @@ static int mcheck	__P((union VALUETYPE *, struct magic *));
 static int32 mprint	__P((union VALUETYPE *, struct magic *));
 static void mdebug	__P((int32, char *, int));
 static int mconvert	__P((union VALUETYPE *, struct magic *));
+
+extern int kflag;
 
 /*
  * softmagic - lookup one file in database 
@@ -108,9 +110,7 @@ match(magic, nmagic, s, nbytes)
 	static size_t tmplen = 0;
 	int32 oldoff = 0;
 	int returnval = 0; /* if a match is found it is set to 1*/
-	extern int kflag;
 	int firstline = 1; /* a flag to print X\n  X\n- X */
-	struct mlist *ml;
 
 	if (tmpoff == NULL)
 		if ((tmpoff = (int32 *) malloc(tmplen = 20)) == NULL)

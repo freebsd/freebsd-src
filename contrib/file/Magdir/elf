@@ -71,7 +71,7 @@
 >>18	leshort		37		Fujitsu FR20,
 >>18	leshort		38		TRW RH-32,
 >>18	leshort		39		Motorola RCE,
->>18	leshort		40		Advanced RISC Machines ARM,
+>>18	leshort		40		ARM,
 >>18	leshort		41		Alpha,
 >>18	leshort		42		Hitachi SH,
 >>18	leshort		43		SPARC V9 - invalid byte order,
@@ -103,6 +103,8 @@
 >>7	byte		8		(IRIX)
 >>7	byte		9		(FreeBSD)
 >>7	byte		10		(Tru64)
+>>7	byte		11		(Novell Modesto)
+>>7	byte		12		(OpenBSD)
 >>7	byte		97		(ARM)
 >>7	byte		255		(embedded)
 >5	byte		2		MSB
@@ -162,7 +164,7 @@
 >>18	beshort		37		Fujitsu FR20,
 >>18	beshort		38		TRW RH-32,
 >>18	beshort		39		Motorola RCE,
->>18	beshort		40		Advanced RISC Machines ARM,
+>>18	beshort		40		ARM,
 >>18	beshort		41		Alpha,
 >>18	beshort		42		Hitachi SH,
 >>18	beshort		43		SPARC V9,

@@ -38,14 +38,30 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$Id: apprentice.c,v 1.34 2001/03/11 20:29:16 christos Exp $")
+FILE_RCSID("@(#)$Id: apprentice.c,v 1.39 2001/04/24 14:40:24 christos Exp $")
 #endif	/* lint */
 
 #define	EATAB {while (isascii((unsigned char) *l) && \
 		      isspace((unsigned char) *l))  ++l;}
 #define LOWCASE(l) (isupper((unsigned char) (l)) ? \
 			tolower((unsigned char) (l)) : (l))
+/*
+ * Work around a bug in headers on Digital Unix.
+ * At least confirmed for: OSF1 V4.0 878
+ */
+#if defined(__osf__) && defined(__DECC)
+#ifdef MAP_FAILED
+#undef MAP_FAILED
+#endif
+#endif
 
+#ifndef MAP_FAILED
+#define MAP_FAILED (void *) -1
+#endif
+
+#ifndef MAP_FILE
+#define MAP_FILE 0
+#endif
 
 #ifdef __EMX__
   char PATHSEP=';';
@@ -798,6 +814,7 @@ apprentice_map(magicp, nmagicp, fn, action)
 		goto error;
 	}
 	(void)close(fd);
+	fd = -1;
 	ptr = (uint32 *) *magicp;
 	if (*ptr != MAGICNO) {
 		if (swap4(*ptr) != MAGICNO) {
@@ -815,7 +832,7 @@ apprentice_map(magicp, nmagicp, fn, action)
 	if (version != VERSIONNO) {
 		(void)fprintf(stderr, 
 		    "%s: version mismatch (%d != %d) in `%s'\n",
-		    progname, version, VERSION, dbname);
+		    progname, version, VERSIONNO, dbname);
 		goto error;
 	}
 	*nmagicp = (st.st_size / sizeof(struct magic)) - 1;

@@ -10,6 +10,7 @@
 #
 0	beshort		0xffd8		JPEG image data
 >6	string		JFIF		\b, JFIF standard
+>6	string		Exif		\b, EXIF standard
 # The following added by Erik Rossen <rossen@freesurf.ch> 1999-09-06
 # in a vain attempt to add image size reporting for JFIF.  Note that these
 # tests are not fool-proof since some perfectly valid JPEGs are currently
@@ -21,8 +22,6 @@
 >13	byte		0		\b, aspect ratio
 >13	byte		1		\b, resolution (DPI)
 >13	byte		2		\b, resolution (DPCM)
->14	beshort		x		\b, %d x
->16	beshort		x		\b %d
 #>4	beshort		x		\b, segment length %d
 # Next, show thumbnail info, if it exists:
 >18	byte		!0		\b, thumbnail %dx
@@ -55,6 +54,8 @@
 # I've commented-out quantisation table reporting.  I doubt anyone cares yet.
 #>(4.S+5)	byte		0xDB		\b, quantisation table
 #>>(4.S+6)	beshort		x		\b length=%d
+>14	beshort		x		\b, %d x
+>16	beshort		x		\b %d
 
 # HSI is Handmade Software's proprietary JPEG encoding scheme
 0	string		hsi1		JPEG image data, HSI proprietary
