@@ -46,7 +46,7 @@
 /* Node type name and magic cookie */
 #define NG_HOLE_NODE_TYPE	"hole"
 #define NGM_HOLE_COOKIE		915433206
- 
+
 /* Statistics structure for one hook. */
 struct ng_hole_hookstat {
 	uint64_t	frames;
