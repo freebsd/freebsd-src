@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: actypes.h - Common data types for the entire ACPI subsystem
- *       $Revision: 163 $
+ *       $Revision: 165 $
  *
  *****************************************************************************/
 
@@ -328,8 +328,7 @@ typedef UINT64                          ACPI_INTEGER;
 #define ACPI_NO_EVENT_INIT              0x04
 #define ACPI_NO_ACPI_ENABLE             0x08
 #define ACPI_NO_DEVICE_INIT             0x10
-#define ACPI_NO_PCI_INIT                0x20
-#define ACPI_NO_OBJECT_INIT             0x40
+#define ACPI_NO_OBJECT_INIT             0x20
 
 
 /*
@@ -759,6 +758,8 @@ ACPI_STATUS (*WALK_CALLBACK) (
     void                        **ReturnValue);
 
 
+
+
 /* Interrupt handler return values */
 
 #define INTERRUPT_NOT_HANDLED           0x00
@@ -1120,22 +1121,14 @@ typedef struct _resource_tag
  * END: Definitions for Resource Attributes
  */
 
-/*
- * Definitions for PCI Routing tables
- */
-typedef struct
-{
-    ACPI_INTEGER                Address;
-    UINT32                      Pin;
-    UINT32                      SourceIndex;
-    NATIVE_CHAR                 Source[1];
 
-} PRT_ENTRY;
-
-typedef struct _prt_tag
+typedef struct pci_routing_table
 {
     UINT32                      Length;
-    PRT_ENTRY                   Data;
+    UINT32                      Pin;
+    ACPI_INTEGER                Address;        /* here for 64-bit alignment */
+    UINT32                      SourceIndex;
+    NATIVE_CHAR                 Source[4];      /* pad to 64 bits so sizeof() works in all cases */
 
 } PCI_ROUTING_TABLE;
 

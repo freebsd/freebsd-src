@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: cmcopy - Internal to external object translation utilities
- *              $Revision: 62 $
+ *              $Revision: 66 $
  *
  *****************************************************************************/
 
@@ -119,54 +119,43 @@
 #include "acpi.h"
 #include "acinterp.h"
 #include "acnamesp.h"
+#include "amlcode.h"
 
 
 #define _COMPONENT          MISCELLANEOUS
         MODULE_NAME         ("cmcopy")
 
 
-typedef struct Search_st
-{
-    ACPI_OPERAND_OBJECT         *InternalObj;
-    UINT32                      Index;
-    ACPI_OBJECT                 *ExternalObj;
 
-} PKG_SEARCH_INFO;
-
-
-/* Used to traverse nested packages */
-
-PKG_SEARCH_INFO                 Level[MAX_PACKAGE_DEPTH];
-
-/******************************************************************************
+/*******************************************************************************
  *
- * FUNCTION:    AcpiCmBuildExternalSimpleObject
+ * FUNCTION:    AcpiCmCopyIsimpleToEsimple
  *
- * PARAMETERS:  *InternalObj    - Pointer to the object we are examining
- *              *Buffer         - Where the object is returned
- *              *SpaceUsed      - Where the data length is returned
+ * PARAMETERS:  *InternalObject     - Pointer to the object we are examining
+ *              *Buffer             - Where the object is returned
+ *              *SpaceUsed          - Where the data length is returned
  *
- * RETURN:      Status          - the status of the call
+ * RETURN:      Status
  *
  * DESCRIPTION: This function is called to place a simple object in a user
- *                  buffer.
+ *              buffer.
  *
  *              The buffer is assumed to have sufficient space for the object.
  *
  ******************************************************************************/
 
 static ACPI_STATUS
-AcpiCmBuildExternalSimpleObject (
-    ACPI_OPERAND_OBJECT     *InternalObj,
-    ACPI_OBJECT             *ExternalObj,
+AcpiCmCopyIsimpleToEsimple (
+    ACPI_OPERAND_OBJECT     *InternalObject,
+    ACPI_OBJECT             *ExternalObject,
     UINT8                   *DataSpace,
     UINT32                  *BufferSpaceUsed)
 {
     UINT32                  Length = 0;
-    UINT8                   *SourcePtr = NULL;
+    ACPI_STATUS             Status = AE_OK;
 
 
-    FUNCTION_TRACE ("CmBuildExternalSimpleObject");
+    FUNCTION_TRACE ("CmCopyIsimpleToEsimple");
 
 
     /*
@@ -174,7 +163,7 @@ AcpiCmBuildExternalSimpleObject (
      * package element
      */
 
-    if (!InternalObj)
+    if (!InternalObject)
     {
         *BufferSpaceUsed = 0;
         return_ACPI_STATUS (AE_OK);
@@ -182,110 +171,217 @@ AcpiCmBuildExternalSimpleObject (
 
     /* Always clear the external object */
 
-    MEMSET (ExternalObj, 0, sizeof (ACPI_OBJECT));
+    MEMSET (ExternalObject, 0, sizeof (ACPI_OBJECT));
 
     /*
      * In general, the external object will be the same type as
      * the internal object
      */
 
-    ExternalObj->Type = InternalObj->Common.Type;
+    ExternalObject->Type = InternalObject->Common.Type;
 
     /* However, only a limited number of external types are supported */
 
-    switch (ExternalObj->Type)
+    switch (InternalObject->Common.Type)
     {
 
     case ACPI_TYPE_STRING:
 
-        Length = InternalObj->String.Length + 1;
-        ExternalObj->String.Length = InternalObj->String.Length;
-        ExternalObj->String.Pointer = (NATIVE_CHAR *) DataSpace;
-        SourcePtr = (UINT8 *) InternalObj->String.Pointer;
+        Length = InternalObject->String.Length + 1;
+        ExternalObject->String.Length = InternalObject->String.Length;
+        ExternalObject->String.Pointer = (NATIVE_CHAR *) DataSpace;
+        MEMCPY ((void *) DataSpace, (void *) InternalObject->String.Pointer, Length);
         break;
 
 
     case ACPI_TYPE_BUFFER:
 
-        Length = InternalObj->Buffer.Length;
-        ExternalObj->Buffer.Length = InternalObj->Buffer.Length;
-        ExternalObj->Buffer.Pointer = DataSpace;
-        SourcePtr = (UINT8 *) InternalObj->Buffer.Pointer;
+        Length = InternalObject->Buffer.Length;
+        ExternalObject->Buffer.Length = InternalObject->Buffer.Length;
+        ExternalObject->Buffer.Pointer = DataSpace;
+        MEMCPY ((void *) DataSpace, (void *) InternalObject->Buffer.Pointer, Length);
         break;
 
 
     case ACPI_TYPE_INTEGER:
 
-        ExternalObj->Integer.Value= InternalObj->Integer.Value;
+        ExternalObject->Integer.Value= InternalObject->Integer.Value;
         break;
 
 
     case INTERNAL_TYPE_REFERENCE:
 
         /*
-         * This is an object reference.  We use the object type of "Any"
-         * to indicate a reference object containing a handle to an ACPI
-         * named object.
+         * This is an object reference.  Attempt to dereference it.
          */
 
-        ExternalObj->Type = ACPI_TYPE_ANY;
-        ExternalObj->Reference.Handle = InternalObj->Reference.Node;
+        switch (InternalObject->Reference.OpCode)
+        {
+        case AML_ZERO_OP:
+            ExternalObject->Type = ACPI_TYPE_INTEGER;
+            ExternalObject->Integer.Value = 0;
+            break;
+
+        case AML_ONE_OP:
+            ExternalObject->Type = ACPI_TYPE_INTEGER;
+            ExternalObject->Integer.Value = 1;
+            break;
+
+        case AML_ONES_OP:
+            ExternalObject->Type = ACPI_TYPE_INTEGER;
+            ExternalObject->Integer.Value = ACPI_INTEGER_MAX;
+            break;
+
+        case AML_NAMEPATH_OP:
+            /*
+             * This is a named reference, get the string.  We already know that
+             * we have room for it, use max length
+             */
+            Length = MAX_STRING_LENGTH;
+            ExternalObject->Type = ACPI_TYPE_STRING;
+            ExternalObject->String.Pointer = (NATIVE_CHAR *) DataSpace;
+            Status = AcpiNsHandleToPathname ((ACPI_HANDLE *) InternalObject->Reference.Node,
+                        &Length, (char *) DataSpace);
+            break;
+
+        default:
+            /* 
+             * Use the object type of "Any" to indicate a reference
+             * to object containing a handle to an ACPI named object.
+             */            
+            ExternalObject->Type = ACPI_TYPE_ANY;
+            ExternalObject->Reference.Handle = InternalObject->Reference.Node;
+            break;
+        }
         break;
 
 
     case ACPI_TYPE_PROCESSOR:
 
-        ExternalObj->Processor.ProcId =
-                                InternalObj->Processor.ProcId;
-
-        ExternalObj->Processor.PblkAddress =
-                                InternalObj->Processor.Address;
-
-        ExternalObj->Processor.PblkLength =
-                                InternalObj->Processor.Length;
+        ExternalObject->Processor.ProcId = InternalObject->Processor.ProcId;
+        ExternalObject->Processor.PblkAddress = InternalObject->Processor.Address;
+        ExternalObject->Processor.PblkLength = InternalObject->Processor.Length;
         break;
+
 
     case ACPI_TYPE_POWER:
 
-        ExternalObj->PowerResource.SystemLevel =
-                            InternalObj->PowerResource.SystemLevel;
+        ExternalObject->PowerResource.SystemLevel = 
+                            InternalObject->PowerResource.SystemLevel;
 
-        ExternalObj->PowerResource.ResourceOrder =
-                            InternalObj->PowerResource.ResourceOrder;
+        ExternalObject->PowerResource.ResourceOrder =
+                            InternalObject->PowerResource.ResourceOrder;
         break;
+
 
     default:
-        return_ACPI_STATUS (AE_CTRL_RETURN_VALUE);
+        /*
+         * There is no corresponding external object type
+         */
+        return_ACPI_STATUS (AE_SUPPORT);
         break;
     }
 
-
-    /* Copy data if necessary (strings or buffers) */
-
-    if (Length)
-    {
-        /*
-         * Copy the return data to the caller's buffer
-         */
-        MEMCPY ((void *) DataSpace, (void *) SourcePtr, Length);
-    }
 
 
     *BufferSpaceUsed = (UINT32) ROUND_UP_TO_NATIVE_WORD (Length);
 
-    return_ACPI_STATUS (AE_OK);
+    return_ACPI_STATUS (Status);
 }
 
 
-/******************************************************************************
+/*******************************************************************************
  *
- * FUNCTION:    AcpiCmBuildExternalPackageObject
+ * FUNCTION:    AcpiCmCopyIelementToEelement
  *
- * PARAMETERS:  *InternalObj    - Pointer to the object we are returning
- *              *Buffer         - Where the object is returned
- *              *SpaceUsed      - Where the object length is returned
+ * PARAMETERS:  ACPI_PKG_CALLBACK
  *
- * RETURN:      Status          - the status of the call
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Copy one package element to another package element
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiCmCopyIelementToEelement (
+    UINT8                   ObjectType,
+    ACPI_OPERAND_OBJECT     *SourceObject,
+    ACPI_GENERIC_STATE      *State,
+    void                    *Context)
+{
+    ACPI_STATUS             Status = AE_OK;
+    ACPI_PKG_INFO           *Info = (ACPI_PKG_INFO *) Context;
+    UINT32                  ObjectSpace;
+    UINT32                  ThisIndex;
+    ACPI_OBJECT             *TargetObject;
+
+
+
+    ThisIndex       = State->Pkg.Index;
+    TargetObject    = (ACPI_OBJECT *)
+                        &((ACPI_OBJECT *)(State->Pkg.DestObject))->Package.Elements[ThisIndex];
+
+
+    switch (ObjectType)
+    {
+    case 0:
+
+        /*
+         * This is a simple or null object -- get the size
+         */
+
+        Status = AcpiCmCopyIsimpleToEsimple (SourceObject,
+                        TargetObject, Info->FreeSpace, &ObjectSpace);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+
+        break;
+
+    case 1:
+
+        /*
+         * Build the package object
+         */
+        TargetObject->Type              = ACPI_TYPE_PACKAGE;
+        TargetObject->Package.Count     = SourceObject->Package.Count;
+        TargetObject->Package.Elements  = (ACPI_OBJECT *) Info->FreeSpace;
+
+        /*
+         * Pass the new package object back to the package walk routine
+         */
+        State->Pkg.ThisTargetObj = TargetObject;
+
+        /*
+         * Save space for the array of objects (Package elements)
+         * update the buffer length counter
+         */
+        ObjectSpace = (UINT32) ROUND_UP_TO_NATIVE_WORD (
+                            TargetObject->Package.Count * sizeof (ACPI_OBJECT));
+        break;
+
+    default:
+        return (AE_BAD_PARAMETER);
+    }
+
+
+    Info->FreeSpace   += ObjectSpace;
+    Info->Length      += ObjectSpace;
+
+    return (Status);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiCmCopyIpackageToEpackage
+ *
+ * PARAMETERS:  *InternalObject     - Pointer to the object we are returning
+ *              *Buffer             - Where the object is returned
+ *              *SpaceUsed          - Where the object length is returned
+ *
+ * RETURN:      Status
  *
  * DESCRIPTION: This function is called to place a package object in a user
  *              buffer.  A package object by definition contains other objects.
@@ -297,52 +393,37 @@ AcpiCmBuildExternalSimpleObject (
  ******************************************************************************/
 
 static ACPI_STATUS
-AcpiCmBuildExternalPackageObject (
-    ACPI_OPERAND_OBJECT     *InternalObj,
+AcpiCmCopyIpackageToEpackage (
+    ACPI_OPERAND_OBJECT     *InternalObject,
     UINT8                   *Buffer,
     UINT32                  *SpaceUsed)
 {
-    UINT8                   *FreeSpace;
-    ACPI_OBJECT             *ExternalObj;
-    UINT32                  CurrentDepth = 0;
+    ACPI_OBJECT             *ExternalObject;
     ACPI_STATUS             Status;
-    UINT32                  Length = 0;
-    UINT32                  ThisIndex;
-    UINT32                  ObjectSpace;
-    ACPI_OPERAND_OBJECT     *ThisInternalObj;
-    ACPI_OBJECT             *ThisExternalObj;
-    PKG_SEARCH_INFO         *LevelPtr;
+    ACPI_PKG_INFO           Info;
 
 
-    FUNCTION_TRACE ("CmBuildExternalPackageObject");
+    FUNCTION_TRACE ("CmCopyIpackageToEpackage");
 
 
     /*
      * First package at head of the buffer
      */
-    ExternalObj = (ACPI_OBJECT *) Buffer;
+    ExternalObject = (ACPI_OBJECT *) Buffer;
 
     /*
      * Free space begins right after the first package
      */
-    FreeSpace = Buffer + ROUND_UP_TO_NATIVE_WORD (sizeof (ACPI_OBJECT));
+    Info.Length      = 0;
+    Info.ObjectSpace = 0;
+    Info.NumPackages = 1;
+    Info.FreeSpace   = Buffer + ROUND_UP_TO_NATIVE_WORD (sizeof (ACPI_OBJECT));
 
 
-    /*
-     * Initialize the working variables
-     */
 
-    MEMSET ((void *) Level, 0, sizeof (Level));
-
-    Level[0].InternalObj    = InternalObj;
-    Level[0].ExternalObj    = ExternalObj;
-    Level[0].Index          = 0;
-    LevelPtr                = &Level[0];
-    CurrentDepth            = 0;
-
-    ExternalObj->Type               = InternalObj->Common.Type;
-    ExternalObj->Package.Count      = InternalObj->Package.Count;
-    ExternalObj->Package.Elements   = (ACPI_OBJECT *) FreeSpace;
+    ExternalObject->Type               = InternalObject->Common.Type;
+    ExternalObject->Package.Count      = InternalObject->Package.Count;
+    ExternalObject->Package.Elements   = (ACPI_OBJECT *) Info.FreeSpace;
 
 
     /*
@@ -350,144 +431,27 @@ AcpiCmBuildExternalPackageObject (
      * and move the free space past it
      */
 
-    FreeSpace += ExternalObj->Package.Count *
-                 ROUND_UP_TO_NATIVE_WORD (sizeof (ACPI_OBJECT));
+    Info.FreeSpace += ExternalObject->Package.Count *
+                    ROUND_UP_TO_NATIVE_WORD (sizeof (ACPI_OBJECT));
 
 
-    while (1)
-    {
-        ThisIndex       = LevelPtr->Index;
-        ThisInternalObj =
-                (ACPI_OPERAND_OBJECT  *)
-                LevelPtr->InternalObj->Package.Elements[ThisIndex];
-        ThisExternalObj =
-                (ACPI_OBJECT *)
-                &LevelPtr->ExternalObj->Package.Elements[ThisIndex];
+    Status = AcpiCmWalkPackageTree (InternalObject, ExternalObject, 
+                            AcpiCmCopyIelementToEelement, &Info);
 
+    *SpaceUsed = Info.Length;
 
-        /*
-         * Check for
-         * 1) Null object -- OK, this can happen if package
-         *              element is never initialized
-         * 2) Not an internal object - can be Node instead
-         * 3) Any internal object other than a package.
-         *
-         * The more complex package case is handled later
-         */
+    return_ACPI_STATUS (Status);
 
-        if ((!ThisInternalObj) ||
-            (!VALID_DESCRIPTOR_TYPE (
-                ThisInternalObj, ACPI_DESC_TYPE_INTERNAL)) ||
-            (!IS_THIS_OBJECT_TYPE (
-                ThisInternalObj, ACPI_TYPE_PACKAGE)))
-        {
-            /*
-             * This is a simple or null object -- get the size
-             */
-
-            Status =
-                AcpiCmBuildExternalSimpleObject (ThisInternalObj,
-                                                ThisExternalObj,
-                                                FreeSpace,
-                                                &ObjectSpace);
-            if (ACPI_FAILURE (Status))
-            {
-                return_ACPI_STATUS (Status);
-            }
-
-            FreeSpace   += ObjectSpace;
-            Length      += ObjectSpace;
-
-            LevelPtr->Index++;
-            while (LevelPtr->Index >=
-                    LevelPtr->InternalObj->Package.Count)
-            {
-                /*
-                 * We've handled all of the objects at this
-                 * level.  This means that we have just
-                 * completed a package.  That package may
-                 * have contained one or more packages
-                 * itself
-                 */
-                if (CurrentDepth == 0)
-                {
-                    /*
-                     * We have handled all of the objects
-                     * in the top level package just add
-                     * the length of the package objects
-                     * and get out
-                     */
-                    *SpaceUsed = Length;
-                    return_ACPI_STATUS (AE_OK);
-                }
-
-                /*
-                 * go back up a level and move the index
-                 * past the just completed package object.
-                 */
-                CurrentDepth--;
-                LevelPtr = &Level[CurrentDepth];
-                LevelPtr->Index++;
-            }
-        }
-
-
-        else
-        {
-            /*
-             * This object is a package
-             * -- we must go one level deeper
-             */
-            if (CurrentDepth >= MAX_PACKAGE_DEPTH-1)
-            {
-                /*
-                 * Too many nested levels of packages
-                 * for us to handle
-                 */
-                DEBUG_PRINT (ACPI_ERROR,
-                    ("CmBuildPackageObject: Pkg nested too deep (max %X)\n",
-                    MAX_PACKAGE_DEPTH));
-                return_ACPI_STATUS (AE_LIMIT);
-            }
-
-            /*
-             * Build the package object
-             */
-            ThisExternalObj->Type = ACPI_TYPE_PACKAGE;
-            ThisExternalObj->Package.Count =
-                                    ThisInternalObj->Package.Count;
-            ThisExternalObj->Package.Elements =
-                                        (ACPI_OBJECT *) FreeSpace;
-
-            /*
-             * Save space for the array of objects (Package elements)
-             * update the buffer length counter
-             */
-            ObjectSpace = (UINT32) ROUND_UP_TO_NATIVE_WORD (
-                                ThisExternalObj->Package.Count *
-                                sizeof (ACPI_OBJECT));
-
-            FreeSpace               += ObjectSpace;
-            Length                  += ObjectSpace;
-
-            CurrentDepth++;
-            LevelPtr                = &Level[CurrentDepth];
-            LevelPtr->InternalObj   = ThisInternalObj;
-            LevelPtr->ExternalObj   = ThisExternalObj;
-            LevelPtr->Index         = 0;
-        }
-    }
 }
 
-
-/******************************************************************************
+/*******************************************************************************
  *
- * FUNCTION:    AcpiCmBuildExternalObject
+ * FUNCTION:    AcpiCmCopyIobjectToEobject
  *
- * PARAMETERS:  *InternalObj    - The internal object to be converted
- *              *BufferPtr      - Where the object is returned
+ * PARAMETERS:  *InternalObject     - The internal object to be converted
+ *              *BufferPtr          - Where the object is returned
  *
- * RETURN:      Status          - the status of the call
+ * RETURN:      Status 
  *
  * DESCRIPTION: This function is called to build an API object to be returned to
  *              the caller.
@@ -495,26 +459,24 @@ AcpiCmBuildExternalPackageObject (
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiCmBuildExternalObject (
-    ACPI_OPERAND_OBJECT     *InternalObj,
+AcpiCmCopyIobjectToEobject (
+    ACPI_OPERAND_OBJECT     *InternalObject,
     ACPI_BUFFER             *RetBuffer)
 {
     ACPI_STATUS             Status;
 
 
-    FUNCTION_TRACE ("CmBuildExternalObject");
+    FUNCTION_TRACE ("CmCopyIobjectToEobject");
 
 
-    if (IS_THIS_OBJECT_TYPE (InternalObj, ACPI_TYPE_PACKAGE))
+    if (IS_THIS_OBJECT_TYPE (InternalObject, ACPI_TYPE_PACKAGE))
     {
         /*
-         * Package objects contain other objects (which can be objects)
-         * buildpackage does it all
+         * Package object:  Copy all subobjects (including 
+         * nested packages)
          */
-        Status =
-            AcpiCmBuildExternalPackageObject (InternalObj,
-                                                RetBuffer->Pointer,
-                                                &RetBuffer->Length);
+        Status = AcpiCmCopyIpackageToEpackage (InternalObject,
+                        RetBuffer->Pointer, &RetBuffer->Length);
     }
 
     else
@@ -522,13 +484,11 @@ AcpiCmBuildExternalObject (
         /*
          * Build a simple object (no nested objects)
          */
-        Status =
-            AcpiCmBuildExternalSimpleObject (InternalObj,
-                            (ACPI_OBJECT *) RetBuffer->Pointer,
-                            ((UINT8 *) RetBuffer->Pointer +
-                            ROUND_UP_TO_NATIVE_WORD (
-                                        sizeof (ACPI_OBJECT))),
-                            &RetBuffer->Length);
+        Status = AcpiCmCopyIsimpleToEsimple (InternalObject,
+                        (ACPI_OBJECT *) RetBuffer->Pointer,
+                        ((UINT8 *) RetBuffer->Pointer +
+                        ROUND_UP_TO_NATIVE_WORD (sizeof (ACPI_OBJECT))),
+                        &RetBuffer->Length);
         /*
          * build simple does not include the object size in the length
          * so we add it in here
@@ -540,14 +500,15 @@ AcpiCmBuildExternalObject (
 }
 
 
-/******************************************************************************
+
+/*******************************************************************************
  *
- * FUNCTION:    AcpiCmBuildInternalSimpleObject
+ * FUNCTION:    AcpiCmCopyEsimpleToIsimple
  *
- * PARAMETERS:  *ExternalObj    - The external object to be converted
- *              *InternalObj    - Where the internal object is returned
+ * PARAMETERS:  *ExternalObject    - The external object to be converted
+ *              *InternalObject    - Where the internal object is returned
  *
- * RETURN:      Status          - the status of the call
+ * RETURN:      Status
  *
  * DESCRIPTION: This function copies an external object to an internal one.
  *              NOTE: Pointers can be copied, we don't need to copy data.
@@ -557,30 +518,30 @@ AcpiCmBuildExternalObject (
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiCmBuildInternalSimpleObject (
-    ACPI_OBJECT             *ExternalObj,
-    ACPI_OPERAND_OBJECT     *InternalObj)
+AcpiCmCopyEsimpleToIsimple (
+    ACPI_OBJECT             *ExternalObject,
+    ACPI_OPERAND_OBJECT     *InternalObject)
 {
 
-    FUNCTION_TRACE ("CmBuildInternalSimpleObject");
+    FUNCTION_TRACE ("CmCopyEsimpleToIsimple");
 
 
-    InternalObj->Common.Type = (UINT8) ExternalObj->Type;
+    InternalObject->Common.Type = (UINT8) ExternalObject->Type;
 
-    switch (ExternalObj->Type)
+    switch (ExternalObject->Type)
     {
 
     case ACPI_TYPE_STRING:
 
-        InternalObj->String.Length  = ExternalObj->String.Length;
-        InternalObj->String.Pointer = ExternalObj->String.Pointer;
+        InternalObject->String.Length  = ExternalObject->String.Length;
+        InternalObject->String.Pointer = ExternalObject->String.Pointer;
         break;
 
 
     case ACPI_TYPE_BUFFER:
 
-        InternalObj->Buffer.Length  = ExternalObj->Buffer.Length;
-        InternalObj->Buffer.Pointer = ExternalObj->Buffer.Pointer;
+        InternalObject->Buffer.Length  = ExternalObject->Buffer.Length;
+        InternalObject->Buffer.Pointer = ExternalObject->Buffer.Pointer;
         break;
 
 
@@ -588,7 +549,7 @@ AcpiCmBuildInternalSimpleObject (
         /*
          * Number is included in the object itself
          */
-        InternalObj->Integer.Value   = ExternalObj->Integer.Value;
+        InternalObject->Integer.Value   = ExternalObject->Integer.Value;
         break;
 
 
@@ -606,11 +567,11 @@ AcpiCmBuildInternalSimpleObject (
 
 /* Code to convert packages that are parameters to control methods */
 
-/******************************************************************************
+/*******************************************************************************
  *
- * FUNCTION:    AcpiCmBuildInternalPackageObject
+ * FUNCTION:    AcpiCmCopyEpackageToIpackage
  *
- * PARAMETERS:  *InternalObj    - Pointer to the object we are returning
+ * PARAMETERS:  *InternalObject    - Pointer to the object we are returning
  *              *Buffer         - Where the object is returned
  *              *SpaceUsed      - Where the length of the object is returned
  *
@@ -626,29 +587,27 @@ AcpiCmBuildInternalSimpleObject (
  ******************************************************************************/
 
 static ACPI_STATUS
-AcpiCmBuildInternalPackageObject (
-    ACPI_OPERAND_OBJECT     *InternalObj,
+AcpiCmCopyEpackageToIpackage (
+    ACPI_OPERAND_OBJECT     *InternalObject,
     UINT8                   *Buffer,
     UINT32                  *SpaceUsed)
 {
     UINT8                   *FreeSpace;
-    ACPI_OBJECT             *ExternalObj;
-    UINT32                  CurrentDepth = 0;
+    ACPI_OBJECT             *ExternalObject;
     UINT32                  Length = 0;
     UINT32                  ThisIndex;
     UINT32                  ObjectSpace = 0;
     ACPI_OPERAND_OBJECT     *ThisInternalObj;
     ACPI_OBJECT             *ThisExternalObj;
-    PKG_SEARCH_INFO         *LevelPtr;
 
 
-    FUNCTION_TRACE ("CmBuildInternalPackageObject");
+    FUNCTION_TRACE ("CmCopyEpackageToIpackage");
 
 
     /*
      * First package at head of the buffer
      */
-    ExternalObj = (ACPI_OBJECT *)Buffer;
+    ExternalObject = (ACPI_OBJECT *)Buffer;
 
     /*
      * Free space begins right after the first package
@@ -656,20 +615,9 @@ AcpiCmBuildInternalPackageObject (
     FreeSpace = Buffer + sizeof(ACPI_OBJECT);
 
 
-    /*
-     * Initialize the working variables
-     */
-
-    MEMSET ((void *) Level, 0, sizeof(Level));
-
-    Level[0].InternalObj    = InternalObj;
-    Level[0].ExternalObj    = ExternalObj;
-    LevelPtr                = &Level[0];
-    CurrentDepth            = 0;
-
-    ExternalObj->Type               = InternalObj->Common.Type;
-    ExternalObj->Package.Count      = InternalObj->Package.Count;
-    ExternalObj->Package.Elements   = (ACPI_OBJECT *)FreeSpace;
+    ExternalObject->Type               = InternalObject->Common.Type;
+    ExternalObject->Package.Count      = InternalObject->Package.Count;
+    ExternalObject->Package.Elements   = (ACPI_OBJECT *)FreeSpace;
 
 
     /*
@@ -677,108 +625,21 @@ AcpiCmBuildInternalPackageObject (
      * and move the free space past it
      */
 
-    FreeSpace += ExternalObj->Package.Count * sizeof(ACPI_OBJECT);
+    FreeSpace += ExternalObject->Package.Count * sizeof(ACPI_OBJECT);
 
 
-    while (1)
-    {
-        ThisIndex       = LevelPtr->Index;
+    /* Call WalkPackage */
 
-        ThisInternalObj = (ACPI_OPERAND_OBJECT  *)
-                    &LevelPtr->InternalObj->Package.Elements[ThisIndex];
-
-        ThisExternalObj = (ACPI_OBJECT *)
-                    &LevelPtr->ExternalObj->Package.Elements[ThisIndex];
-
-        if (IS_THIS_OBJECT_TYPE (ThisInternalObj, ACPI_TYPE_PACKAGE))
-        {
-            /*
-             * If this object is a package then we go one deeper
-             */
-            if (CurrentDepth >= MAX_PACKAGE_DEPTH-1)
-            {
-                /*
-                 * Too many nested levels of packages for us to handle
-                 */
-                DEBUG_PRINT (ACPI_ERROR,
-                    ("CmBuildPackageObject: Pkg nested too deep (max %X)\n",
-                    MAX_PACKAGE_DEPTH));
-                return_ACPI_STATUS (AE_LIMIT);
-            }
-
-            /*
-             * Build the package object
-             */
-            ThisExternalObj->Type               = ACPI_TYPE_PACKAGE;
-            ThisExternalObj->Package.Count      = ThisInternalObj->Package.Count;
-            ThisExternalObj->Package.Elements   = (ACPI_OBJECT *) FreeSpace;
-
-            /*
-             * Save space for the array of objects (Package elements)
-             * update the buffer length counter
-             */
-            ObjectSpace             = ThisExternalObj->Package.Count *
-                                            sizeof (ACPI_OBJECT);
-
-            FreeSpace               += ObjectSpace;
-            Length                  += ObjectSpace;
-
-            CurrentDepth++;
-            LevelPtr                = &Level[CurrentDepth];
-            LevelPtr->InternalObj   = ThisInternalObj;
-            LevelPtr->ExternalObj   = ThisExternalObj;
-            LevelPtr->Index         = 0;
-
-        }   /* if object is a package */
-
-        else
-        {
-            FreeSpace   += ObjectSpace;
-            Length      += ObjectSpace;
-
-            LevelPtr->Index++;
-            while (LevelPtr->Index >=
-                    LevelPtr->InternalObj->Package.Count)
-            {
-                /*
-                 * We've handled all of the objects at
-                 * this level,  This means that we have
-                 * just completed a package.  That package
-                 * may have contained one or more packages
-                 * itself
-                 */
-                if (CurrentDepth == 0)
-                {
-                    /*
-                     * We have handled all of the objects
-                     * in the top level package just add
-                     * the length of the package objects
-                     * and get out
-                     */
-                    *SpaceUsed = Length;
-                    return_ACPI_STATUS (AE_OK);
-                }
-
-                /*
-                 * go back up a level and move the index
-                 * past the just completed package object.
-                 */
-                CurrentDepth--;
-                LevelPtr = &Level[CurrentDepth];
-                LevelPtr->Index++;
-            }
-        }   /* else object is NOT a package */
-    }   /* while (1)  */
 }
 
 #endif /* Future implementation */
 
 
-/******************************************************************************
+/*******************************************************************************
  *
- * FUNCTION:    AcpiCmBuildInternalObject
+ * FUNCTION:    AcpiCmCopyEobjectToIobject
  *
- * PARAMETERS:  *InternalObj    - The external object to be converted
+ * PARAMETERS:  *InternalObject    - The external object to be converted
  *              *BufferPtr      - Where the internal object is returned
  *
  * RETURN:      Status          - the status of the call
@@ -788,17 +649,17 @@ AcpiCmBuildInternalPackageObject (
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiCmBuildInternalObject (
-    ACPI_OBJECT             *ExternalObj,
-    ACPI_OPERAND_OBJECT     *InternalObj)
+AcpiCmCopyEobjectToIobject (
+    ACPI_OBJECT             *ExternalObject,
+    ACPI_OPERAND_OBJECT     *InternalObject)
 {
     ACPI_STATUS             Status;
 
 
-    FUNCTION_TRACE ("CmBuildInternalObject");
+    FUNCTION_TRACE ("AcpiCmCopyEobjectToIobject");
 
 
-    if (ExternalObj->Type == ACPI_TYPE_PACKAGE)
+    if (ExternalObject->Type == ACPI_TYPE_PACKAGE)
     {
         /*
          * Package objects contain other objects (which can be objects)
@@ -809,12 +670,12 @@ AcpiCmBuildInternalObject (
          * control methods only.  This is a very, very rare case.
          */
 /*
-        Status = AcpiCmBuildInternalPackageObject(InternalObj,
+        Status = AcpiCmCopyEpackageToIpackage(InternalObject,
                                                   RetBuffer->Pointer,
                                                   &RetBuffer->Length);
 */
         DEBUG_PRINT (ACPI_ERROR,
-            ("CmBuildInternalObject: Packages as parameters not implemented!\n"));
+            ("AcpiCmCopyEobjectToIobject: Packages as parameters not implemented!\n"));
 
         return_ACPI_STATUS (AE_NOT_IMPLEMENTED);
     }
@@ -824,12 +685,155 @@ AcpiCmBuildInternalObject (
         /*
          * Build a simple object (no nested objects)
          */
-        Status = AcpiCmBuildInternalSimpleObject (ExternalObj, InternalObj);
+        Status = AcpiCmCopyEsimpleToIsimple (ExternalObject, InternalObject);
         /*
          * build simple does not include the object size in the length
          * so we add it in here
          */
     }
+
+    return_ACPI_STATUS (Status);
+}
+
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiCmCopyIelementToIelement
+ *
+ * PARAMETERS:  ACPI_PKG_CALLBACK
+ *
+ * RETURN:      Status          - the status of the call
+ *
+ * DESCRIPTION: Copy one package element to another package element
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiCmCopyIelementToIelement (
+    UINT8                   ObjectType,
+    ACPI_OPERAND_OBJECT     *SourceObject,
+    ACPI_GENERIC_STATE      *State,
+    void                    *Context)
+{
+    ACPI_STATUS             Status = AE_OK;
+    UINT32                  ThisIndex;
+    ACPI_OPERAND_OBJECT     **ThisTargetPtr;
+    ACPI_OPERAND_OBJECT     *TargetObject;
+
+
+
+    ThisIndex     = State->Pkg.Index;
+    ThisTargetPtr = (ACPI_OPERAND_OBJECT **) 
+                        &State->Pkg.DestObject->Package.Elements[ThisIndex];
+
+    switch (ObjectType)
+    {
+    case 0:
+
+        /*
+         * This is a simple object, just copy it
+         */
+        TargetObject = AcpiCmCreateInternalObject (SourceObject->Common.Type);
+        if (!TargetObject)
+        {
+            return (AE_NO_MEMORY);
+        }
+
+        Status = AcpiAmlStoreObjectToObject (SourceObject, TargetObject, 
+                        (ACPI_WALK_STATE *) Context);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+
+        *ThisTargetPtr = TargetObject;
+        break;
+
+
+    case 1:
+        /*
+         * This object is a package - go down another nesting level 
+         * Create and build the package object
+         */
+        TargetObject = AcpiCmCreateInternalObject (ACPI_TYPE_PACKAGE);
+        if (!TargetObject)
+        {
+            /* TBD: must delete package created up to this point */
+
+            return (AE_NO_MEMORY);
+        }
+
+        TargetObject->Package.Count = SourceObject->Package.Count;
+
+        /*
+         * Pass the new package object back to the package walk routine
+         */
+        State->Pkg.ThisTargetObj = TargetObject;
+
+        /*
+         * Store the object pointer in the parent package object
+         */
+        *ThisTargetPtr = TargetObject;
+        break;
+
+    default:
+        return (AE_BAD_PARAMETER);
+    }
+
+
+    return (Status);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiCmCopyIpackageToIpackage
+ *
+ * PARAMETERS:  *SourceObj      - Pointer to the source package object
+ *              *DestObj        - Where the internal object is returned
+ *
+ * RETURN:      Status          - the status of the call
+ *
+ * DESCRIPTION: This function is called to copy an internal package object
+ *              into another internal package object.
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiCmCopyIpackageToIpackage (
+    ACPI_OPERAND_OBJECT     *SourceObj,
+    ACPI_OPERAND_OBJECT     *DestObj,
+    ACPI_WALK_STATE         *WalkState)
+{
+    ACPI_STATUS             Status = AE_OK;
+
+    FUNCTION_TRACE ("CmCopyIpackageToIpackage");
+
+
+
+    DestObj->Common.Type    = SourceObj->Common.Type;
+    DestObj->Package.Count  = SourceObj->Package.Count;
+
+
+    /*
+     * Create the object array and walk the source package tree
+     */
+
+    DestObj->Package.Elements = AcpiCmCallocate ((SourceObj->Package.Count + 1) *
+                                                    sizeof (void *));
+    DestObj->Package.NextElement = DestObj->Package.Elements;
+
+    if (!DestObj->Package.Elements)
+    {
+        REPORT_ERROR (
+            ("AmlBuildCopyInternalPackageObject: Package allocation failure\n"));
+        return_ACPI_STATUS (AE_NO_MEMORY);
+    }
+
+
+    Status = AcpiCmWalkPackageTree (SourceObj, DestObj, 
+                            AcpiCmCopyIelementToIelement, WalkState);
 
     return_ACPI_STATUS (Status);
 }
