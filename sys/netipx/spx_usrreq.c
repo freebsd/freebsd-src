@@ -1507,12 +1507,15 @@ spx_rcvoob(so, m, flags)
 	ipxp = sotoipxpcb(so);
 	cb = ipxtospxpcb(ipxp);
 
+	SOCKBUF_LOCK(&so->so_rcv);
 	if ((cb->s_oobflags & SF_IOOB) || so->so_oobmark ||
 	    (so->so_rcv.sb_state & SBS_RCVATMARK)) {
+		SOCKBUF_UNLOCK(&so->so_rcv);
 		m->m_len = 1;
 		*mtod(m, caddr_t) = cb->s_iobc;
 		return (0);
 	}
+	SOCKBUF_UNLOCK(&so->so_rcv);
 	return (EINVAL);
 }
 
