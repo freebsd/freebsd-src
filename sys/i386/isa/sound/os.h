@@ -1,6 +1,7 @@
 /*
  * os.h -- only included by sound_config.h right after local.h
  *
+ * $FreeBSD$
  */
 
 #ifndef _OS_H_
@@ -16,6 +17,7 @@
 #include <sys/kernel.h>
 #include <sys/poll.h>
 #include <sys/malloc.h>
+#include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/signalvar.h>
 

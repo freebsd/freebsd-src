@@ -45,6 +45,7 @@
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/uio.h>
 #include <sys/conf.h>

@@ -32,7 +32,7 @@
 #include <sys/kernel.h>
 #include <sys/bus.h>
 
-#include <sys/buf.h>
+#include <sys/bio.h>
 #include <sys/devicestat.h>
 #include <sys/disk.h>
 

@@ -38,6 +38,7 @@
 
 #include <sys/errno.h>
 #include <sys/malloc.h>
+#include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
 #include <machine/clock.h>
