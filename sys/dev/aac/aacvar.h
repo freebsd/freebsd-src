@@ -110,6 +110,19 @@ struct aac_container
 };
 
 /*
+ * Per-SIM data structure
+ */
+struct aac_sim
+{
+	device_t		sim_dev;
+	int			TargetsPerBus;
+	int			BusNumber;
+	int			InitiatorBusId;
+	struct aac_softc	*aac_sc;
+	TAILQ_ENTRY(aac_sim)	sim_link;
+};
+
+/*
  * Per-disk structure
  */
 struct aac_disk 
@@ -246,8 +259,6 @@ extern struct aac_interface	aac_fa_interface;
 #define AAC_GETREG1(sc, reg)		bus_space_read_1 (sc->aac_btag, \
 					sc->aac_bhandle, reg)
 
-TAILQ_HEAD(aac_container_tq, aac_container);
-
 /* Define the OS version specific locks */
 #if __FreeBSD_version >= 500005
 #include <sys/lock.h>
@@ -332,7 +343,7 @@ struct aac_softc
 	struct aac_qstat	aac_qstat[AACQ_COUNT];	/* queue statistics */
 
 	/* connected containters */
-	struct aac_container_tq	aac_container_tqh;
+	TAILQ_HEAD(,aac_container)	aac_container_tqh;
 	aac_lock_t		aac_container_lock;
 
 	/* Protect the sync fib */
@@ -356,9 +367,11 @@ struct aac_softc
 	struct proc		*aifthread;
 	int			aifflags;
 #define AAC_AIFFLAGS_RUNNING	(1 << 0)
-#define AAC_AIFFLAGS_PENDING	(1 << 1)
+#define AAC_AIFFLAGS_AIF	(1 << 1)
 #define	AAC_AIFFLAGS_EXIT	(1 << 2)
 #define AAC_AIFFLAGS_EXITED	(1 << 3)
+#define AAC_AIFFLAGS_PRINTF	(1 << 4)
+#define AAC_AIFFLAGS_PENDING	(AAC_AIFFLAGS_AIF | AAC_AIFFLAGS_PRINTF)
 	u_int32_t		quirks;
 #define AAC_QUIRK_PERC2QC	(1 << 0)
 #define	AAC_QUIRK_NOCAM		(1 << 1)	/* No SCSI passthrough */
@@ -366,6 +379,7 @@ struct aac_softc
 #define	AAC_QUIRK_CAM_PASSONLY	(1 << 3)	/* Only create pass devices */
 
 	u_int32_t		scsi_method_id;
+	TAILQ_HEAD(,aac_sim)	aac_sim_tqh;
 };
 
 

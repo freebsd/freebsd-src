@@ -62,11 +62,10 @@
 #include <dev/aac/aacreg.h>
 #include <dev/aac/aac_ioctl.h>
 #include <dev/aac/aacvar.h>
-#include <dev/aac/aac_cam.h>
 
 struct aac_cam {
 	device_t		dev;
-	struct aac_cam_inf	*inf;
+	struct aac_sim		*inf;
 	struct cam_sim		*sim;
 	struct cam_path		*path;
 };
@@ -114,8 +113,9 @@ aac_cam_probe(device_t dev)
 static int
 aac_cam_detach(device_t dev)
 {
+	debug_called(2);
 
-	return (0);
+	return (EBUSY);
 }
 
 /*
@@ -128,12 +128,12 @@ aac_cam_attach(device_t dev)
 	struct cam_sim *sim;
 	struct cam_path *path;
 	struct aac_cam *camsc;
-	struct aac_cam_inf *inf;
+	struct aac_sim *inf;
 
 	debug_called(1);
 
 	camsc = (struct aac_cam *)device_get_softc(dev);
-	inf = (struct aac_cam_inf *)device_get_ivars(dev);
+	inf = (struct aac_sim *)device_get_ivars(dev);
 	camsc->inf = inf;
 
 	devq = cam_simq_alloc(inf->TargetsPerBus);
