@@ -2038,13 +2038,7 @@ uma_large_malloc(int size, int wait)
 	if (slab == NULL)
 		return (NULL);
 
-	/* XXX: kmem_malloc panics if Giant isn't held and sleep allowed */
-	if ((wait & M_NOWAIT) == 0 && !mtx_owned(&Giant)) {
-		mtx_lock(&Giant);
-		mem = page_alloc(NULL, size, &flags, wait);
-		mtx_unlock(&Giant);
-	} else
-		mem = page_alloc(NULL, size, &flags, wait);
+	mem = page_alloc(NULL, size, &flags, wait);
 	if (mem) {
 		vsetslab((vm_offset_t)mem, slab);
 		slab->us_data = mem;
