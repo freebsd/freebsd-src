@@ -83,7 +83,7 @@ static char _rcsid[] = "$KAME: route6d.c,v 1.64 2001/05/08 04:36:37 itojun Exp $
 #ifdef	DEBUG
 #define	INIT_INTERVAL6	6
 #else
-#define	INIT_INTERVAL6	10	/* Wait to submit an initial riprequest. */
+#define	INIT_INTERVAL6	10	/* Wait to submit an initial riprequest */
 #endif
 
 /* alignment constraint for routing socket */
@@ -138,7 +138,6 @@ int	nifc;		/* number of valid ifc's */
 struct	ifc **index2ifc;
 int	nindex2ifc;
 struct	ifc *loopifcp = NULL;	/* pointing to loopback */
-int	loopifindex = 0;	/* ditto */
 fd_set	sockvec;	/* vector to select() for receiving */
 int	rtsock;		/* the routing socket */
 int	ripsock;	/* socket to send/receive RIP datagram */
@@ -389,7 +388,6 @@ main(argc, argv)
 #else
 	srand((unsigned)(time(NULL)^(pid<<16)));
 #endif
-	loopifindex = loopifcp->ifc_index;
 	for (ifcp = ifc; ifcp; ifcp = ifcp->ifc_next)
 		ifrt(ifcp, 0);
 	filterconfig();
@@ -3073,7 +3071,7 @@ ifonly:
 		rrt->rrt_flags = RTF_UP | RTF_REJECT;
 		rrt->rrt_rflags = RRTF_AGGREGATE;
 		rrt->rrt_t = 0;
-		rrt->rrt_index = loopifindex;
+		rrt->rrt_index = loopifcp->ifc_index;
 #if 0
 		if (getroute(&rrt->rrt_info, &gw)) {
 #if 0
