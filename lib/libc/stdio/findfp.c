@@ -69,10 +69,7 @@ static struct glue uglue = { NULL, FOPEN_MAX - 3, usual };
 
 static struct __sFILEX __sFX[3];
 
-#if LIBC_MAJOR >= 6
-static
-#endif
-FILE __sF[3] = {
+static FILE __sF[3] = {
 	std(__SRD, STDIN_FILENO),
 	std(__SWR, STDOUT_FILENO),
 	std(__SWR|__SNBF, STDERR_FILENO)
