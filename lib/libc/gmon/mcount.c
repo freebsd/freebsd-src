@@ -65,8 +65,8 @@ void	user(void);
  * both frompcindex and frompc.  Any reasonable, modern compiler will
  * perform this optimization.
  */
-_MCOUNT_DECL(frompc, selfpc)	/* _mcount; may be static, inline, etc */
-	uintfptr_t frompc, selfpc;
+/* _mcount; may be static, inline, etc */
+_MCOUNT_DECL(uintfptr_t frompc, uintfptr_t selfpc)
 {
 #ifdef GUPROF
 	u_int delta;
