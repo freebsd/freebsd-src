@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fifo.h	8.2 (Berkeley) 2/2/94
- * $Id: fifo.h,v 1.2 1994/08/02 07:44:54 davidg Exp $
+ * $Id: fifo.h,v 1.3 1994/09/22 19:38:05 wollman Exp $
  */
 
 /*
@@ -40,6 +40,7 @@
 int	fifo_badop(),
 	fifo_ebadf();
 
+int	fifo_printinfo __P((struct vnode *));
 int	fifo_lookup __P((struct vop_lookup_args *));
 #define fifo_create ((int (*) __P((struct  vop_create_args *)))fifo_badop)
 #define fifo_mknod ((int (*) __P((struct  vop_mknod_args *)))fifo_badop)
