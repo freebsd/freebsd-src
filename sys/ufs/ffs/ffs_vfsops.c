@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.82 1998/05/18 06:38:18 julian Exp $
+ * $Id: ffs_vfsops.c,v 1.83 1998/06/04 17:21:39 dfr Exp $
  */
 
 #include "opt_devfs.h" /* for SLICE */
@@ -148,6 +148,7 @@ ffs_mount( mp, path, data, ndp, p)
 	register struct fs *fs;
 	int error, flags;
 	mode_t accessmode;
+	int ronly = 0;
 
 	/*
 	 * Use NULL path to flag a root mount
@@ -207,6 +208,7 @@ ffs_mount( mp, path, data, ndp, p)
 		fs = ump->um_fs;
 		devvp = ump->um_devvp;
 		err = 0;
+		ronly = fs->fs_ronly;	/* MNT_RELOAD might change this */
 		if (bdevsw[major(ump->um_dev)]->d_flags & D_NOCLUSTERR)
 			mp->mnt_flag |= MNT_NOCLUSTERR;
 		if (bdevsw[major(ump->um_dev)]->d_flags & D_NOCLUSTERW)
@@ -226,7 +228,7 @@ ffs_mount( mp, path, data, ndp, p)
 		if (err) {
 			goto error_1;
 		}
-		if (fs->fs_ronly && (mp->mnt_kern_flag & MNTK_WANTRDWR)) {
+		if (ronly && (mp->mnt_kern_flag & MNTK_WANTRDWR)) {
 			if (!fs->fs_clean) {
 				if (mp->mnt_flag & MNT_FORCE) {
 					printf("WARNING: %s was not properly dismounted.\n",fs->fs_fsmnt);
@@ -259,7 +261,7 @@ ffs_mount( mp, path, data, ndp, p)
 					goto error_1;
 			}
 
-			fs->fs_ronly = 0;
+			ronly = 0;
 		}
 		/*
 		 * Soft updates is incompatible with "async",
@@ -270,10 +272,6 @@ ffs_mount( mp, path, data, ndp, p)
 		 */
 		if (mp->mnt_flag & MNT_SOFTDEP) {
 			mp->mnt_flag &= ~MNT_ASYNC;
-		}
-		if (fs->fs_ronly == 0) {
-			fs->fs_clean = 0;
-			ffs_sbupdate(ump, MNT_WAIT);
 		}
 		/* if not updating name...*/
 		if (args.fspec == 0) {
@@ -410,7 +408,16 @@ error_2:	/* error with devvp held*/
 error_1:	/* no state to back out*/
 
 success:
-	return( err);
+	if (!err && path && (mp->mnt_flag & MNT_UPDATE)) {
+		/* update superblock after ro -> rw update */
+		fs = ump->um_fs;
+		if (!ronly && fs->fs_ronly) {
+			fs->fs_ronly = 0;
+			fs->fs_clean = 0;
+			ffs_sbupdate(ump, MNT_WAIT);
+		}
+	}
+	return (err);
 }
 
 /*
