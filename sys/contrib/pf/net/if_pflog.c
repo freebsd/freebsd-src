@@ -363,7 +363,6 @@ pflog_modevent(module_t mod, int type, void *data)
 	case MOD_LOAD:
 		LIST_INIT(&pflog_list);
 		if_clone_attach(&pflog_cloner);
-		printf("pflog: $Name:  $\n");
 		break;
 
 	case MOD_UNLOAD:
