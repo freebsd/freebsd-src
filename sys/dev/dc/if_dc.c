@@ -197,6 +197,7 @@ static struct dc_type *dc_devtype	__P((device_t));
 static int dc_newbuf		__P((struct dc_softc *, int, struct mbuf *));
 static int dc_encap		__P((struct dc_softc *, struct mbuf *,
 					u_int32_t *));
+static int dc_coal		__P((struct dc_softc *, struct mbuf **));
 static void dc_pnic_rx_bug_war	__P((struct dc_softc *, int));
 static int dc_rx_resync		__P((struct dc_softc *));
 static void dc_rxeof		__P((struct dc_softc *));
@@ -1454,7 +1455,7 @@ static int dc_attach(dev)
 	case DC_DEVICEID_DM9100:
 	case DC_DEVICEID_DM9102:
 		sc->dc_type = DC_TYPE_DM9102;
-		sc->dc_flags |= DC_TX_USE_TX_INTR;
+		sc->dc_flags |= DC_TX_COALESCE|DC_TX_USE_TX_INTR;
 		sc->dc_flags |= DC_REDUCED_MII_POLL;
 		sc->dc_pmode = DC_PMODE_MII;
 		break;
@@ -2375,6 +2376,39 @@ static int dc_encap(sc, m_head, txidx)
 }
 
 /*
+ * Coalesce an mbuf chain into a single mbuf cluster buffer.
+ * Needed for some really badly behaved chips that just can't
+ * do scatter/gather correctly.
+ */
+static int dc_coal(sc, m_head)
+	struct dc_softc		*sc;
+	struct mbuf		**m_head;
+{
+        struct mbuf		*m_new, *m;
+
+	m = *m_head;
+	MGETHDR(m_new, M_DONTWAIT, MT_DATA);
+	if (m_new == NULL) {
+		printf("dc%d: no memory for tx list", sc->dc_unit);
+		return(ENOBUFS);
+	}
+	if (m->m_pkthdr.len > MHLEN) {
+		MCLGET(m_new, M_DONTWAIT);
+		if (!(m_new->m_flags & M_EXT)) {
+			m_freem(m_new);
+			printf("dc%d: no memory for tx list", sc->dc_unit);
+			return(ENOBUFS);
+		}
+	}
+	m_copydata(m, 0, m->m_pkthdr.len, mtod(m_new, caddr_t));
+	m_new->m_pkthdr.len = m_new->m_len = m->m_pkthdr.len;
+	m_freem(m);
+	*m_head = m_new;
+
+	return(0);
+}
+
+/*
  * Main transmit routine. To avoid having to do mbuf copies, we put pointers
  * to the mbuf data regions directly in the transmit lists. We also save a
  * copy of the pointers since the transmit list fragment pointers are
@@ -2402,6 +2436,14 @@ static void dc_start(ifp)
 		IF_DEQUEUE(&ifp->if_snd, m_head);
 		if (m_head == NULL)
 			break;
+
+		if (sc->dc_flags & DC_TX_COALESCE) {
+			if (dc_coal(sc, &m_head)) {
+				IF_PREPEND(&ifp->if_snd, m_head);
+				ifp->if_flags |= IFF_OACTIVE;
+				break;
+			}
+		}
 
 		if (dc_encap(sc, m_head, &idx)) {
 			IF_PREPEND(&ifp->if_snd, m_head);
