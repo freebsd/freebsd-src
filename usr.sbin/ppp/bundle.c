@@ -1697,6 +1697,16 @@ bundle_setsid(struct bundle *bundle, int holdsession)
   char done;
   struct datalink *dl;
 
+  if (!holdsession && bundle_IsDead(bundle)) {
+    /*
+     * No need to lose our session after all... we're going away anyway
+     *
+     * We should really stop the timer and pause if holdsession is set and
+     * the bundle's dead, but that leaves other resources lying about :-(
+     */
+    return;
+  }
+
   orig = getpid();
   if (pipe(fds) == -1) {
     log_Printf(LogERROR, "pipe: %s\n", strerror(errno));
