@@ -127,6 +127,11 @@ SYSCTL_INT(_net_inet_ip, OID_AUTO, maxfragpackets, CTLFLAG_RW,
 	&maxnipq, 0,
 	"Maximum number of IPv4 fragment reassembly queue entries");
 
+static int    maxfragsperpacket;
+SYSCTL_INT(_net_inet_ip, OID_AUTO, maxfragsperpacket, CTLFLAG_RW,
+	&maxfragsperpacket, 0,
+	"Maximum number of IPv4 fragments allowed per packet");
+
 static int	ip_sendsourcequench = 0;
 SYSCTL_INT(_net_inet_ip, OID_AUTO, sendsourcequench, CTLFLAG_RW,
 	&ip_sendsourcequench, 0,
@@ -259,7 +264,8 @@ ip_init()
 	for (i = 0; i < IPREASS_NHASH; i++)
 	    ipq[i].next = ipq[i].prev = &ipq[i];
 
-	maxnipq = nmbclusters / 4;
+	maxnipq = nmbclusters / 32;
+	maxfragsperpacket = 16;
 
 #ifndef RANDOM_IP_ID
 	ip_id = time_second & 0xffff;
@@ -979,6 +985,7 @@ ip_reass(struct mbuf *m, struct ipq *fp, struct ipq *where,
 		fp = mtod(t, struct ipq *);
 		insque(fp, where);
 		nipq++;
+		fp->ipq_nfrags = 1;
 		fp->ipq_ttl = IPFRAGTTL;
 		fp->ipq_p = ip->ip_p;
 		fp->ipq_id = ip->ip_id;
@@ -991,6 +998,8 @@ ip_reass(struct mbuf *m, struct ipq *fp, struct ipq *where,
 		fp->ipq_div_cookie = 0;
 #endif
 		goto inserted;
+	} else {
+		fp->ipq_nfrags++;
 	}
 
 #define GETIP(m)	((struct ip*)((m)->m_pkthdr.header))
@@ -1045,6 +1054,7 @@ ip_reass(struct mbuf *m, struct ipq *fp, struct ipq *where,
 		}
 		nq = q->m_nextpkt;
 		m->m_nextpkt = nq;
+		fp->ipq_nfrags--;
 		m_freem(q);
 	}
 
@@ -1064,17 +1074,30 @@ inserted:
 #endif
 
 	/*
-	 * Check for complete reassembly.
+	 * Check for complete reassembly and perform frag per packet
+	 * limiting.
+	 *
+	 * Frag limiting is performed here so that the nth frag has
+	 * a chance to complete the packet before we drop the packet.
+	 * As a result, n+1 frags are actually allowed per packet, but
+	 * only n will ever be stored. (n = maxfragsperpacket.)
+	 *
 	 */
 	next = 0;
 	for (p = NULL, q = fp->ipq_frags; q; p = q, q = q->m_nextpkt) {
-		if (GETIP(q)->ip_off != next)
+		if (GETIP(q)->ip_off != next) {
+			if (fp->ipq_nfrags > maxfragsperpacket)
+				ip_freef(fp);
 			return (0);
+		}
 		next += GETIP(q)->ip_len;
 	}
 	/* Make sure the last packet didn't have the IP_MF flag */
-	if (p->m_flags & M_FRAG)
+	if (p->m_flags & M_FRAG) {
+		if (fp->ipq_nfrags > maxfragsperpacket)
+			ip_freef(fp);
 		return (0);
+	}
 
 	/*
 	 * Reassembly is complete.  Make sure the packet is a sane size.
@@ -1141,6 +1164,8 @@ dropfrag:
 	*divert_rule = 0;
 #endif
 	ipstat.ips_fragdropped++;
+	if (fp != 0)
+		fp->ipq_nfrags--;
 	m_freem(m);
 	return (0);
 
@@ -1197,7 +1222,7 @@ ip_slowtimo()
 	 * (due to the limit being lowered), drain off
 	 * enough to get down to the new limit.
 	 */
-	if (maxnipq > 0 && nipq > maxnipq) {
+	if (maxnipq >= 0 && nipq > maxnipq) {
 		for (i = 0; i < IPREASS_NHASH; i++) {
 			while (nipq > maxnipq &&
 				(ipq[i].next != &ipq[i])) {
