@@ -137,7 +137,7 @@ smbus_request_bus(device_t bus, device_t dev, int how)
 						SMB_REQUEST_BUS, (caddr_t)&how);
 		if (error)
 			error = smbus_poll(sc, how);
-	} while (error != EWOULDBLOCK);
+	} while (error == EWOULDBLOCK);
 
 	while (!error) {
 		s = splhigh();	
