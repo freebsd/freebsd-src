@@ -15,11 +15,11 @@
 #endif
 
 #if defined(SYS_SVR4)
-#include <sys/termios.h>
+#include <termios.h>
 #endif
 
 #if (defined(SYS_SOLARIS)&&!defined(bsd)) || defined(__svr4__)
-#include <sys/termios.h>
+#include <termios.h>
 #endif
 
 #include "ntpd.h"
@@ -139,7 +139,7 @@ main(argc, argv)
 			(void) dup2(0, 1);
 			(void) dup2(0, 2);
 #ifdef NTP_POSIX_SOURCE
-#if	defined(SOLARIS) || defined(SYS_PTX)
+#if	defined(SOLARIS) || defined(SYS_PTX) || defined(SYS_AUX3) || defined(SYS_AIX)
 			(void) setsid();
 #else
 			(void) setpgid(0, 0);
@@ -154,12 +154,12 @@ main(argc, argv)
 			if (fork())
 				exit(0);
 #else /* SYS_HPUX */
-#if	defined(apollo)
+#ifdef SYS_DOMAINOS
 /*
  * This breaks... the program fails to listen to any packets coming
  * in on the UDP socket.  So how do you break terminal affiliation?
  */
-#else /* apollo */
+#else /* SYS_DOMAINOS */
 			{
 				int fid;
 
@@ -169,8 +169,9 @@ main(argc, argv)
 						(char *) 0);
 					(void) close(fid);
 				}
+				(void) setpgrp(0, getpid());
 			}
-#endif /* apollo */
+#endif /* SYS_DOMAINOS */
 #endif /* SYS_HPUX */
 #endif /* NTP_POSIX_SOURCE */
 		}

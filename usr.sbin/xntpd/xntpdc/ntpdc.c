@@ -53,7 +53,7 @@ static	int	findcmd		P((char *, struct xcmd *, struct xcmd *, struct xcmd **));
 static	int	getarg		P((char *, int, arg_v *));
 static	int	getnetnum	P((char *, U_LONG *, char *));
 static	void	help		P((struct parse *, FILE *));
-#if defined(sgi)
+#if defined(sgi) || defined(SYS_BSDI)
 static	int	helpsort	P((const void *, const void *));
 #else
 static	int	helpsort	P((char **, char **));
@@ -221,17 +221,17 @@ char *argv[];
 {
 	int c;
 	int errflg = 0;
-	extern int optind;
-	extern char *optarg;
+	extern int ntp_optind;
+	extern char *ntp_optarg;
 
 	delay_time.l_ui = 0;
 	delay_time.l_uf = DEFDELAY;
 
 	progname = argv[0];
-	while ((c = getopt_l(argc, argv, "c:dilnps")) != EOF)
+	while ((c = ntp_getopt(argc, argv, "c:dilnps")) != EOF)
 		switch (c) {
 		case 'c':
-			ADDCMD(optarg);
+			ADDCMD(ntp_optarg);
 			break;
 		case 'd':
 			++debug;
@@ -261,11 +261,11 @@ char *argv[];
 		    progname);
 		exit(2);
 	}
-	if (optind == argc) {
+	if (ntp_optind == argc) {
 		ADDHOST(DEFHOST);
 	} else {
-		for (; optind < argc; optind++)
-			ADDHOST(argv[optind]);
+		for (; ntp_optind < argc; ntp_optind++)
+			ADDHOST(argv[ntp_optind]);
 	}
 
 	if (numcmds == 0 && interactive == 0
@@ -439,7 +439,7 @@ getresponse(implcode, reqcode, ritems, rsize, rdata)
 	numrecv = 0;
 	*rdata = datap = pktdata;
 	lastseq = 999;	/* too big to be a sequence number */
-	bzero(haveseq, sizeof(haveseq));
+	memset(haveseq, 0, sizeof(haveseq));
 	FD_ZERO(&fds);
 
 again:
@@ -600,7 +600,7 @@ again:
 	 */
 	if ((datap + datasize) > (pktdata + pktdatasize))
 		growpktdata();
-	bcopy((char *)rpkt.data, datap, datasize);
+	memmove(datap, (char *)rpkt.data, datasize);
 	datap += datasize;
 	if (firstpkt) {
 		firstpkt = 0;
@@ -634,7 +634,7 @@ sendrequest(implcode, reqcode, auth, qitems, qsize, qdata)
 	struct req_pkt qpkt;
 	int datasize;
 
-	bzero((char *)&qpkt, sizeof qpkt);
+	memset((char *)&qpkt, 0, sizeof qpkt);
 
 	qpkt.rm_vn_mode = RM_VN_MODE(0, 0);
 	qpkt.implementation = (u_char)implcode;
@@ -642,7 +642,7 @@ sendrequest(implcode, reqcode, auth, qitems, qsize, qdata)
 
 	datasize = qitems * qsize;
 	if (datasize != 0 && qdata != NULL) {
-		bcopy(qdata, (char *)qpkt.data, datasize);
+		memmove((char *)qpkt.data, qdata, datasize);
 		qpkt.err_nitems = ERR_NITEMS(0, qitems);
 		qpkt.mbz_itemsize = MBZ_ITEMSIZE(qsize);
 	} else {
@@ -1091,7 +1091,7 @@ getnetnum(host, num, fullhost)
 		}
 		return 1;
 	} else if ((hp = gethostbyname(host)) != 0) {
-		bcopy(hp->h_addr, (char *)num, sizeof(U_LONG));
+		memmove((char *)num, hp->h_addr, sizeof(U_LONG));
 		if (fullhost != 0)
 			(void) strcpy(fullhost, hp->h_name);
 		return 1;
@@ -1149,7 +1149,7 @@ help(pcmd, fp)
 		for (xcp = opcmds; xcp->keyword != 0; xcp++)
 			cmdsort[n++] = xcp->keyword;
 
-#if defined(sgi)
+#if defined(sgi) || defined(SYS_BSDI)
 		qsort((void *)cmdsort, n, sizeof(char *), helpsort);
 #else
 		qsort((char *)cmdsort, n, sizeof(char *), helpsort);
@@ -1195,7 +1195,7 @@ help(pcmd, fp)
  * helpsort - do hostname qsort comparisons
  */
 static int
-#if defined(sgi)
+#if defined(sgi) || defined(SYS_BSDI)
 helpsort(t1, t2)
 	const void *t1;
 	const void *t2;
@@ -1207,7 +1207,7 @@ helpsort(name1, name2)
         char **name1;
         char **name2;
 {
-#endif /* sgi */
+#endif /* sgi || bsdi */
         return strcmp(*name1, *name2);
 }
 

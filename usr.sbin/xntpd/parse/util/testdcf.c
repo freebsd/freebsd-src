@@ -1,11 +1,11 @@
 /*
- * /src/NTP/REPOSITORY/v3/parse/util/testdcf.c,v 3.7 1993/10/10 22:44:48 kardel Exp
+ * /src/NTP/REPOSITORY/v3/parse/util/testdcf.c,v 3.9 1994/01/25 19:05:45 kardel Exp
  *  
- * testdcf.c,v 3.7 1993/10/10 22:44:48 kardel Exp
+ * testdcf.c,v 3.9 1994/01/25 19:05:45 kardel Exp
  *
  * simple DCF77 100/200ms pulse test program (via 50Baud serial line)
  *
- * Copyright (c) 1993
+ * Copyright (c) 1993,1994
  * Frank Kardel, Friedrich-Alexander Universitaet Erlangen-Nuernberg
  *                                    
  * This program is distributed in the hope that it will be useful,
@@ -352,7 +352,7 @@ main(argc, argv)
 	      exit(1);
 	    }
 
-	  bzero(term.c_cc, sizeof(term.c_cc));
+	  memset(term.c_cc, 0, sizeof(term.c_cc));
 	  term.c_cc[VMIN] = 1;
 	  term.c_cflag = B50|CS8|CREAD|CLOCAL;
 	  term.c_iflag = 0;

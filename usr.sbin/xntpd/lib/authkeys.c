@@ -109,7 +109,7 @@ init_auth()
 	/*
 	 * Initialize hash table and free list
 	 */
-	bzero((char *)key_hash, sizeof key_hash);
+	memset((char *)key_hash, 0, sizeof key_hash);
 	cache_flags = cache_keyid = 0;
 
 	authnumfreekeys =  authkeynotfound = authkeylookups = 0;

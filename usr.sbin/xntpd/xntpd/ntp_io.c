@@ -51,13 +51,6 @@
  */
 
 /*
- * select network interfacing
- */
-#if defined(SYS_SVR4) || defined(SYS_PTX) || defined(SYS_SINIXM)
-#define STREAMS_TLI
-#endif
-
-/*
  * Block the interrupt, for critical sections.
  */
 
@@ -457,8 +450,10 @@ io_setbclient()
 #ifdef	SOLARIS
 		inter_list[i].bcast.sin_addr.s_addr = INADDR_ANY;
 #endif
+#ifndef SYS_DOMAINOS
 		inter_list[i].bfd = open_socket(&inter_list[i].bcast, 0);
 		inter_list[i].flags |= INT_BCASTOPEN;
+#endif
 	}
 }
 

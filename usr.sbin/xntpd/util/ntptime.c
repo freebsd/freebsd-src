@@ -37,7 +37,6 @@
 
 extern int sigvec	P((int, struct sigvec *, struct sigvec *));
 void pll_trap		P((void));
-extern int getopt_l	P((int, char **, char *));
 
 static struct sigvec newsigsys;	/* new sigvec status */
 static struct sigvec sigsys;	/* current sigvec status */
@@ -51,8 +50,8 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	extern int optind;
-	extern char *optarg;
+	extern int ntp_optind;
+	extern char *ntp_optarg;
 	int status;
 	struct ntptimeval ntv;
 	struct timex ntx, _ntx;
@@ -66,46 +65,47 @@ main(argc, argv)
 
 	ntx.mode = 0;
         progname = argv[0];
-	while ((c = getopt_l(argc, argv, optargs)) != EOF) switch (c) {
+	while ((c = ntp_getopt(argc, argv, optargs)) != EOF) switch (c) {
 		case 'c':
 			cost++;
 			break;
 		case 'e':
 			ntx.mode |= ADJ_ESTERROR;
-			ntx.esterror = atoi(optarg);
+			ntx.esterror = atoi(ntp_optarg);
 			break;
 		case 'f':
 			ntx.mode |= ADJ_FREQUENCY;
-			ntx.frequency = (int) (atof(optarg) * (1 << SHIFT_USEC));
+			ntx.frequency = (int) (atof(ntp_optarg)
+					       * (1 << SHIFT_USEC));
 			if (ntx.frequency < (-100 << SHIFT_USEC)
 			||  ntx.frequency > ( 100 << SHIFT_USEC)) errflg++;
 			break;
 		case 'm':
 			ntx.mode |= ADJ_MAXERROR;
-			ntx.maxerror = atoi(optarg);
+			ntx.maxerror = atoi(ntp_optarg);
 			break;
 		case 'o':
 			ntx.mode |= ADJ_OFFSET;
-			ntx.offset = atoi(optarg);
+			ntx.offset = atoi(ntp_optarg);
 			break;
 		case 'r':
 			rawtime++;
 			break;
 		case 's':
 			ntx.mode |= ADJ_STATUS;
-			ntx.status = atoi(optarg);
+			ntx.status = atoi(ntp_optarg);
 			if (ntx.status < 0 || ntx.status > 4) errflg++;
 			break;
 		case 't':
 			ntx.mode |= ADJ_TIMECONST;
-			ntx.time_constant = atoi(optarg);
+			ntx.time_constant = atoi(ntp_optarg);
 			if (ntx.time_constant < 0 || ntx.time_constant > MAXTC)
 				errflg++;
 			break;
 		default:
 			errflg++;
 	}
-	if (errflg || (optind != argc)) {
+	if (errflg || (ntp_optind != argc)) {
 		(void) fprintf(stderr,
 			"usage: %s [-%s]\n\n\
 	-c		display the time taken to call ntp_gettime (us)\n\

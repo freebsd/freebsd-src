@@ -1,12 +1,12 @@
 /*
- * /src/NTP/REPOSITORY/v3/parse/parsestreams.c,v 3.9 1993/11/05 15:34:55 kardel Exp
+ * /src/NTP/REPOSITORY/v3/parse/parsestreams.c,v 3.12 1994/01/25 19:05:30 kardel Exp
  *  
- * parsestreams.c,v 3.9 1993/11/05 15:34:55 kardel Exp
+ * parsestreams.c,v 3.12 1994/01/25 19:05:30 kardel Exp
  *
  * STREAMS module for reference clocks
  * (SunOS4.x)
  *
- * Copyright (c) 1989,1990,1991,1992,1993
+ * Copyright (c) 1989,1990,1991,1992,1993,1994
  * Frank Kardel Friedrich-Alexander Universitaet Erlangen-Nuernberg
  *                                    
  * This program is distributed in the hope that it will be useful,
@@ -16,7 +16,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "parsestreams.c,v 3.9 1993/11/05 15:34:55 kardel Exp";
+static char rcsid[] = "parsestreams.c,v 3.12 1994/01/25 19:05:30 kardel Exp";
 #endif
 
 #include "sys/types.h"
@@ -195,7 +195,7 @@ int xxxinit(fc, vdp, vdi, vds)
 	}
       else
         {
-	  static char revision[] = "3.9";
+	  static char revision[] = "3.12";
 	  char *s, *S, *t;
 	  
 	  strncpy(ifm->f_name, mname, FMNAMESZ);
@@ -884,7 +884,15 @@ static int parserput(q, mp)
 	    else
 	      if (nmp) freemsg(nmp);
 	    parse_iodone(&parse->parse_io);
+	    freemsg(mp);
 	  }
+	else
+	  if (canput(q->q_next) || (mp->b_datap->db_type > QPCTL))
+	    {
+	      putnext(q, mp);
+	    }
+	  else
+	    putq(q, mp);
 	
 	if (status)
 	  {
@@ -1250,6 +1258,15 @@ static void zs_xsisr(zs)
  * History:
  *
  * parsestreams.c,v
+ * Revision 3.12  1994/01/25  19:05:30  kardel
+ * 94/01/23 reconcilation
+ *
+ * Revision 3.11  1994/01/23  17:22:07  kardel
+ * 1994 reconcilation
+ *
+ * Revision 3.10  1993/12/15  12:48:58  kardel
+ * fixed message loss on M_*HANHUP messages
+ *
  * Revision 3.9  1993/11/05  15:34:55  kardel
  * shut up nice feature detection
  *

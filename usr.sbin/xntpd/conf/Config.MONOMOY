@@ -84,9 +84,6 @@ RANLIB=		ranlib
 #	to configure the particular clock drivers you want in the
 #	CLOCKDEFS= line below.  This flag affects xntpd only.
 #
-# There is an occurance of a call to rindex() in the daemon.  You may
-#	have to include a -Drindex=strrchr to get this to load right.
-#
 # To change the location of the configuration file, use a
 #	-DCONFIG_FILE=\\"/local/etc/ntp.conf\\" or something similar.
 #
@@ -104,7 +101,7 @@ RANLIB=		ranlib
 #	the reference clock module (only one source of PPS signal should
 #	be used)
 #
-DEFS= -DBSDI -DUSELIBKVM -DDEBUG -DREFCLOCK -DPPS -DCONFIG_FILE=\\"/usr/local/etc/xntp.conf\\" -DHAVE_UNISTD_H
+DEFS= -DBSDI -DUSELIBKVM -DDEBUG -DREFCLOCK -DPPS -DCONFIG_FILE=\\"/usr/local/etc/xntp.conf\\" -DNTP_POSIX_SOURCE
 
 #
 #  Authentication types supported.  Choose from DES and MD5.  If you

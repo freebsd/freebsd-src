@@ -1,8 +1,8 @@
 #if defined(REFCLOCK) && (defined(PARSE) || defined(PARSEPPS))
 /*
- * /src/NTP/REPOSITORY/v3/parse/parse.c,v 3.17 1993/11/11 11:20:29 kardel Exp
+ * /src/NTP/REPOSITORY/v3/parse/parse.c,v 3.19 1994/01/25 19:05:20 kardel Exp
  *  
- * parse.c,v 3.17 1993/11/11 11:20:29 kardel Exp
+ * parse.c,v 3.19 1994/01/25 19:05:20 kardel Exp
  *
  * Parser module for reference clock
  *
@@ -12,7 +12,7 @@
  * a struct timeval.
  * when PARSEKERNEL is not defined NTP time stamps will be used.
  *
- * Copyright (c) 1992,1993
+ * Copyright (c) 1992,1993,1994
  * Frank Kardel Friedrich-Alexander Universitaet Erlangen-Nuernberg
  *                                    
  * This program is distributed in the hope that it will be useful,
@@ -22,29 +22,38 @@
  */
 
 #if	!(defined(lint) || defined(__GNUC__))
-static char rcsid[] = "parse.c,v 3.17 1993/11/11 11:20:29 kardel Exp";
+static char rcsid[] = "parse.c,v 3.19 1994/01/25 19:05:20 kardel Exp";
 #endif
 
 #include "sys/types.h"
 #include "sys/time.h"
 #include "sys/errno.h"
 
+#include "ntp_machine.h"
+
+#if defined(PARSESTREAM) && (defined(SYS_SUNOS4) || defined(SYS_SOLARIS)) && defined(STREAM)
+/*
+ * Sorry, but in SunOS 4.x AND Solaris 2.x kernels there are no
+ * mem* operations. I don't want them - bcopy, bzero
+ * are fine in the kernel
+ */
+#ifndef NTP_NEED_BOPS
+#define NTP_NEED_BOPS
+#endif
+#else
+#ifndef NTP_NEED_BOPS
+#ifndef bzero
+#define bzero(_X_, _Y_) memset(_X_, 0, _Y_)
+#define bcopy(_X_, _Y_, _Z_) memmove(_Y_, _X_, _Z_)
+#endif
+#endif
+#endif
+
 #include "ntp_fp.h"
 #include "ntp_unixtime.h"
 #include "ntp_calendar.h"
 
 #include "parse.h"
-
-#if defined(PARSESTREAM) && (defined(SYS_SUNOS4) || defined(SYS_SOLARIS)) && defined(STREAM)
-/*
- * Sorry, but in SunOS 4.x kernels there are no
- * mem* operations. I don't want them - bcopy, bzero
- * are fine in the kernel
- */
-#define _ntp_string_h
-extern void bcopy();
-extern void bzero();
-#endif
 
 #include "ntp_stdlib.h"
 
@@ -1139,6 +1148,12 @@ parse_setcs(dct, parse)
  * History:
  *
  * parse.c,v
+ * Revision 3.19  1994/01/25  19:05:20  kardel
+ * 94/01/23 reconcilation
+ *
+ * Revision 3.18  1994/01/23  17:21:59  kardel
+ * 1994 reconcilation
+ *
  * Revision 3.17  1993/11/11  11:20:29  kardel
  * declaration fixes
  *

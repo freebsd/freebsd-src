@@ -26,11 +26,11 @@ char *argv[];
 {
 	int c;
 	int errflg = 0;
-	extern int optind;
-	extern char *optarg;
+	extern int ntp_optind;
+	extern char *ntp_optarg;
 
 	progname = argv[0];
-	while ((c = getopt_l(argc, argv, "d")) != EOF)
+	while ((c = ntp_getopt(argc, argv, "d")) != EOF)
 		switch (c) {
 		case 'd':
 			++debug;
@@ -87,7 +87,7 @@ permc(bits, resp)
 	register U_LONG mask;
 	u_char res[24];
 
-	bzero((char *)res, sizeof res);
+	memset((char *)res, 0, sizeof res);
 
 	for (i = 0; i < 24; i++) {
 		res[i] = bits[PC2_C[i]];
@@ -117,7 +117,7 @@ permd(bits, resp)
 	register U_LONG mask;
 	u_char res[24];
 
-	bzero((char *)res, sizeof res);
+	memset((char *)res, 0, sizeof res);
 
 	for (i = 0; i < 24; i++) {
 		res[i] = bits[PC2_D[i]];
@@ -168,7 +168,7 @@ doit()
 	U_LONG res;
 	u_char bits[28];
 
-	bzero((char *)bits, sizeof bits);
+	memset((char *)bits, 0, sizeof bits);
 
 	printf("static U_LONG PC2_C[4][64] = {");
 	for (i = 0; i < 4; i++) {

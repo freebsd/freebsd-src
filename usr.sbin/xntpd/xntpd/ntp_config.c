@@ -1,4 +1,4 @@
-/* ntp_config.c,v 3.1 1993/07/06 01:11:12 jbj Exp
+/*
  * ntp_config.c - read and apply configuration information
  */
 #define RESOLVE_INTERNAL	/* gdt */
@@ -93,6 +93,7 @@
 #define CONFIG_PPS		24
 #define	CONFIG_PIDFILE		25
 #define	CONFIG_LOGFILE		26
+#define CONFIG_SETVAR		27
 
 #define	CONF_MOD_VERSION	1
 #define	CONF_MOD_KEY		2
@@ -177,6 +178,7 @@ static	struct keyword keywords[] = {
 	{ "statistics",		CONFIG_STATISTICS },
 	{ "pidfile",		CONFIG_PIDFILE },
 	{ "logfile",		CONFIG_LOGFILE },
+	{ "setvar",		CONFIG_SETVAR },
 	{ "",			CONFIG_UNKNOWN }
 };
 
@@ -316,7 +318,7 @@ extern int debug;
 #endif
 extern char *FindConfig();
        char *progname;
-static char *xntp_options = "abc:de:f:k:l:p:r:s:t:";
+static char *xntp_options = "abc:de:f:k:l:p:r:s:t:v:V:";
 
 static int	gettokens	P((FILE *, char *, char **, int *));
 static int	matchkey	P((char *, struct keyword *));
@@ -340,7 +342,7 @@ getstartup(argc, argv)
 #ifdef DEBUG
 	int errflg;
 	int c;
-	extern int optind;
+	extern int ntp_optind;
 
 	debug = 0;		/* no debugging by default */
 
@@ -352,7 +354,7 @@ getstartup(argc, argv)
 	 * don't want to initialize anything until after detaching from
 	 * the terminal, but we won't know to do that until we've
 	 * parsed the command line.  Do that now, crudely, and do it
-	 * again later.  Our getopt_l() is explicitly reusable, by the
+	 * again later.  Our ntp_getopt() is explicitly reusable, by the
 	 * way.  Your own mileage may vary.
 	 */
 	errflg = 0;
@@ -361,7 +363,7 @@ getstartup(argc, argv)
 	/*
 	 * Decode argument list
 	 */
-	while ((c = getopt_l(argc, argv, xntp_options)) != EOF)
+	while ((c = ntp_getopt(argc, argv, xntp_options)) != EOF)
 		switch (c) {
 		case 'd':
 			++debug;
@@ -373,12 +375,14 @@ getstartup(argc, argv)
 			break;
 		}
 	
-	if (errflg || optind != argc) {
-		(void) fprintf(stderr,
-		    "usage: %s [ -bd ] [ -c config_file ]\n", progname);
+	if (errflg || ntp_optind != argc) {
+		(void) fprintf(stderr, "usage: %s [ -abd ] [ -c config_file ] [ -e encryption delay ]\n", progname);
+		(void) fprintf(stderr, "\t\t[ -f frequency file ] [ -k key file ] [ -l log file ]\n");
+		(void) fprintf(stderr, "\t\t[ -p pid file ] [ -r broadcast delay ] [ -s status directory ]\n");
+		(void) fprintf(stderr, "\t\t[ -t trusted key ] [ -v sys variable ] [ -V default sys variable ]\n");
 		exit(2);
 	}
-	optind = 0;		/* reset optind to restart getopt_l */
+	ntp_optind = 0;		/* reset ntp_optind to restart ntp_getopt */
 
 	if (debug) {
 #ifdef NTP_POSIX_SOURCE
@@ -426,8 +430,9 @@ getconfig(argc, argv)
 	char resolver_name[MAXFILENAME];
 	int have_keyfile;
 	char keyfile[MAXFILENAME];
-	extern int optind;
-	extern char *optarg;
+	extern int ntp_optind;
+	extern char *ntp_optarg;
+	extern char *Version;
 	extern U_LONG info_auth_keyid;
 	FILEGEN *filegen;
 
@@ -443,6 +448,12 @@ getconfig(argc, argv)
 	res_fp = NULL;
 	have_resolver = have_keyfile = 0;
 
+	/*
+	 * install a non default variable with this daemon version
+	 */
+	(void) sprintf(line, "daemon_version=\"%s\"", Version);
+	set_sys_var(line, strlen(line)+1, RO);
+
 #ifdef RESOLVE_INTERNAL
 	resolve_internal = 1;
 #endif
@@ -450,7 +461,7 @@ getconfig(argc, argv)
 	/*
 	 * Decode argument list
 	 */
-	while ((c = getopt_l(argc, argv, xntp_options)) != EOF) {
+	while ((c = ntp_getopt(argc, argv, xntp_options)) != EOF) {
 		switch (c) {
 		case 'a':
 			proto_config(PROTO_AUTHENTICATE, (LONG)1);
@@ -459,7 +470,7 @@ getconfig(argc, argv)
 			proto_config(PROTO_BROADCLIENT, (LONG)1);
 			break;
 		case 'c':
-			config_file = optarg;
+			config_file = ntp_optarg;
 			break;
 		case 'd':
 #ifdef DEBUG
@@ -473,15 +484,15 @@ getconfig(argc, argv)
 			do {
 				l_fp tmp;
 				
-				if (!atolfp(optarg, &tmp)) {
+				if (!atolfp(ntp_optarg, &tmp)) {
 					syslog(LOG_ERR,
 			"command line encryption delay value %s undecodable",
-					    optarg);
+					    ntp_optarg);
 					errflg++;
 				} else if (tmp.l_ui != 0) {
 					syslog(LOG_ERR,
 			"command line encryption delay value %s is unlikely",
-					    optarg);
+					    ntp_optarg);
 					errflg++;
 				} else {
 					proto_config(PROTO_AUTHDELAY, tmp.l_f);
@@ -490,37 +501,37 @@ getconfig(argc, argv)
 			break;
 			
 		case 'f':
-			stats_config(STATS_FREQ_FILE, optarg);
+			stats_config(STATS_FREQ_FILE, ntp_optarg);
 			break;
 
 		case 'k':
-			getauthkeys(optarg);
-			if ((int)strlen(optarg) >= MAXFILENAME) {
+			getauthkeys(ntp_optarg);
+			if ((int)strlen(ntp_optarg) >= MAXFILENAME) {
 				syslog(LOG_ERR,
 				    "key file name too LONG (>%d, sigh), no name resolution possible",
 				    MAXFILENAME);
 			} else {
 				have_keyfile = 1;
-				(void)strcpy(keyfile, optarg);
+				(void)strcpy(keyfile, ntp_optarg);
 			}
 			break;
 
 		case 'p':
-			stats_config(STATS_PID_FILE, optarg);
+			stats_config(STATS_PID_FILE, ntp_optarg);
 			break;
 
 		case 'r':
 			do {
 				l_fp tmp;
 				
-				if (!atolfp(optarg, &tmp)) {
+				if (!atolfp(ntp_optarg, &tmp)) {
 					syslog(LOG_ERR,
 			"command line broadcast delay value %s undecodable",
-					    optarg);
+					    ntp_optarg);
 				} else if (tmp.l_ui != 0) {
 					syslog(LOG_ERR,
 			 "command line broadcast delay value %s is unlikely",
-					    optarg);
+					    ntp_optarg);
 				} else {
 					proto_config(PROTO_BROADDELAY, tmp.l_f);
 				}
@@ -528,24 +539,28 @@ getconfig(argc, argv)
 			break;
 			
 		case 's':
-			stats_config(STATS_STATSDIR, optarg);
+			stats_config(STATS_STATSDIR, ntp_optarg);
 			break;
 			
 		case 't':
 			do {
 				int tkey;
 				
-				tkey = atoi(optarg);
+				tkey = atoi(ntp_optarg);
 				if (tkey <= 0 || tkey > NTP_MAXKEY) {
 					syslog(LOG_ERR,
 				"command line trusted key %s is unlikely",
-					    optarg);
+					    ntp_optarg);
 				} else {
 					authtrust(tkey, (LONG)1);
 				}
 			} while (0);
 			break;
 			
+		case 'v':
+		case 'V':
+			set_sys_var(ntp_optarg, strlen(ntp_optarg)+1, RW | ((c == 'V') ? DEF : 0));
+			break;
 			
 		default:
 			errflg++;
@@ -553,7 +568,7 @@ getconfig(argc, argv)
 		}
 	}
 	
-	if (errflg || optind != argc) {
+	if (errflg || ntp_optind != argc) {
 		(void) fprintf(stderr,
 		    "usage: %s [ -bd ] [ -c config_file ]\n", progname);
 		exit(2);
@@ -1129,7 +1144,7 @@ getconfig(argc, argv)
 				break;
 			}
 			
-			bzero((char *)&clock, sizeof clock);
+			memset((char *)&clock, 0, sizeof clock);
 			errflg = 0;
 			for (i = 2; i < ntokens-1; i++) {
 				switch (c = matchkey(tokens[i],
@@ -1386,7 +1401,19 @@ getconfig(argc, argv)
 				    (u_char)peerkey, (u_char)peerflags);
 			}
 			break;
-			
+
+		case CONFIG_SETVAR:
+			if (ntokens < 2)
+			  {
+			    syslog(LOG_ERR,
+				       "no value for setvar command - line ignored");
+			  }
+			else
+			  {
+			    set_sys_var(tokens[1], strlen(tokens[1])+1, RW |
+					((((ntokens > 2) && !strcmp(tokens[2], "default"))) ? DEF : 0));
+			  }
+			break;
 		}
 	}
 	(void) fclose(fp);
@@ -1445,6 +1472,7 @@ gettokens(fp, line, tokenlist, ntokens)
 	register char *cp;
 	register int eol;
 	register int ntok;
+	register int quoted = 0;
 
 	/*
 	 * Find start of first token
@@ -1469,8 +1497,9 @@ again:
 	ntok = 0;
 	while (!eol) {
 		tokenlist[ntok++] = cp;
-		while (!ISEOL(*cp) && !ISSPACE(*cp))
-			cp++;
+		while (!ISEOL(*cp) && (!ISSPACE(*cp) || quoted))
+			quoted ^= (*cp++ == '"');
+
 		if (ISEOL(*cp)) {
 			*cp = '\0';
 			eol = 1;
@@ -1581,7 +1610,7 @@ getnetnum(num, addr, complain)
 	/*
 	 * make up socket address.  Clear it out for neatness.
 	 */
-	bzero((char *)addr, sizeof(struct sockaddr_in));
+	memset((char *)addr, 0, sizeof(struct sockaddr_in));
 	addr->sin_family = AF_INET;
 	addr->sin_port = htons(NTP_PORT);
 	addr->sin_addr.s_addr = htonl(netnum);

@@ -27,15 +27,17 @@
 # -DCONFIG_FILE=\\"/local/etc/ntp.conf\\" or something similar.
 #
 # The -DSYSLOG_FILE defines allows logging messages that are normally
-# reported via syslof() in a file. The file name can be configured using
+# reported via syslog() in a file. The file name can be configured using
 # the configuration line "logfile <filename>" in CONFIG_FILE.
 #
 # There are three serial port system software interfaces, each of
 # which is peculiar to one or more Unix versions. Define
 # -DHAVE_SYSV_TTYS for basic System V compatibility; define -DSTREAM
 # for POSIX compatibility including System V Streams, and
-# HAVE_BSD_TTYS for 4.3bsd compatibility. Only one of these three
-# should be defined. If none are defined, HAVE_BSD_TTYS is assumed.
+# HAVE_BSD_TTYS for 4.3bsd compatibility.
+# Use HAVE_TERMIOS for POSIX (termios.h) without System V Streams.
+# Only one of these three should be defined. If none are defined,
+# HAVE_BSD_TTYS is assumed.
 # Usually these defines are already set correctly.
 #
 DEFS_OPT=-DDEBUG
@@ -151,6 +153,9 @@ DEFS_LOCAL= $(DEFS_OPT) #GREEN -DREFCLOCK #TEST -DPPSPPS -DKERNEL_PLL
 # including the GPS-DC GPS receiver. It should work in all systems with
 # a serial port. The driver does not support the CLK mode, but does
 # support the PPS mode.
+#
+# Define -DGPSTM for a Kinemetrics/TrueTime GPS-TM/TMD receiver. It
+# should work in all systems with a serial port.
 #
 # Define -DOMEGA for a Kinemetrics/TrueTime OM-DC OMEGA receiver. It
 # should work in all systems with a serial port. The driver does not

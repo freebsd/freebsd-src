@@ -63,6 +63,8 @@ MD5authencrypt(keyno, pkt, length)
     MD5Update(&ctx, (char *)pkt, length);
     MD5Final(&ctx);
 
-    bcopy((char *)ctx.digest, (char *) &pkt[NOCRYPT_LONGS + len], BLOCK_OCTETS);
-    return 4 + BLOCK_OCTETS;	/* return size of key and MAC  */
+    memmove((char *)&pkt[NOCRYPT_LONGS + len],
+	    (char *)ctx.digest,
+	    BLOCK_OCTETS);
+    return (4 + BLOCK_OCTETS);	/* return size of key and MAC  */
 }

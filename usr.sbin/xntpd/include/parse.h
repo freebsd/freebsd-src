@@ -1,9 +1,9 @@
 /*
- * /src/NTP/REPOSITORY/v3/include/parse.h,v 3.11 1993/11/11 11:20:18 kardel Exp
+ * /src/NTP/REPOSITORY/v3/include/parse.h,v 3.13 1994/01/25 19:04:21 kardel Exp
  *
- * parse.h,v 3.11 1993/11/11 11:20:18 kardel Exp
+ * parse.h,v 3.13 1994/01/25 19:04:21 kardel Exp
  *
- * Copyright (c) 1989,1990,1991,1992,1993
+ * Copyright (c) 1989,1990,1991,1992,1993,1994
  * Frank Kardel Friedrich-Alexander Universitaet Erlangen-Nuernberg
  *                                    
  * This program is distributed in the hope that it will be useful,
@@ -15,7 +15,7 @@
 #ifndef __PARSE_H__
 #define __PARSE_H__
 #if	!(defined(lint) || defined(__GNUC__))
-  static char parsehrcsid[]="parse.h,v 3.11 1993/11/11 11:20:18 kardel Exp FAU";
+  static char parsehrcsid[]="parse.h,v 3.13 1994/01/25 19:04:21 kardel Exp FAU";
 #endif
 
 #include "ntp_types.h"
@@ -365,6 +365,12 @@ extern unsigned LONG pps_simple P((parse_t *, int status, timestamp_t *));
  * History:
  *
  * parse.h,v
+ * Revision 3.13  1994/01/25  19:04:21  kardel
+ * 94/01/23 reconcilation
+ *
+ * Revision 3.12  1994/01/23  17:23:05  kardel
+ * 1994 reconcilation
+ *
  * Revision 3.11  1993/11/11  11:20:18  kardel
  * declaration fixes
  *
