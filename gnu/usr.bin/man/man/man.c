@@ -1591,15 +1591,15 @@ man (name)
 	  if (locale != NULL) {
 	    locale_opts = locale_nroff;
 	    snprintf(buf, sizeof(buf), "%s/%s", *mp, locale);
-	    if (is_directory (buf))
+	    if (is_directory (buf) == 1)
 	      l_found = try_section (buf, section, name, glob);
 	    if (!l_found) {
 	      snprintf(buf, sizeof(buf), "%s/%s", *mp, short_locale);
-	      if (is_directory (buf))
+	      if (is_directory (buf) == 1)
 		l_found = try_section (buf, section, name, glob);
 	      if (!l_found && (*short_locale != 'e' || *(short_locale + 1) != 'n')) {
 		snprintf(buf, sizeof(buf), "%s/en.%s", *mp, short_locale + 3);
-		if (is_directory (buf))
+		if (is_directory (buf) == 1)
 		  l_found = try_section (buf, section, name, glob);
 	      }
 	    }
@@ -1633,15 +1633,15 @@ man (name)
 	      if (locale != NULL) {
 		locale_opts = locale_nroff;
 		snprintf(buf, sizeof(buf), "%s/%s", *mp, locale);
-		if (is_directory (buf))
+		if (is_directory (buf) == 1)
 		  l_found = try_section (buf, *sp, name, glob);
 		if (!l_found) {
 		  snprintf(buf, sizeof(buf), "%s/%s", *mp, short_locale);
-		  if (is_directory (buf))
+		  if (is_directory (buf) == 1)
 		    l_found = try_section (buf, *sp, name, glob);
 		  if (!l_found && (*short_locale != 'e' || *(short_locale + 1) != 'n')) {
 		    snprintf(buf, sizeof(buf), "%s/en.%s", *mp, short_locale + 3);
-		    if (is_directory (buf))
+		    if (is_directory (buf) == 1)
 		      l_found = try_section (buf, *sp, name, glob);
 		  }
 		}
