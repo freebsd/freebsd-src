@@ -93,6 +93,11 @@ typedef struct pcicfg {
 
     u_int8_t	secondarybus;	/* bus on secondary side of bridge, if any */
     u_int8_t	subordinatebus;	/* topmost bus number behind bridge, if any */
+
+    u_int16_t	pp_cap;		/* PCI power management capabilities */
+    u_int8_t	pp_status;	/* config space address of PCI power status reg */
+    u_int8_t	pp_pmcsr;	/* config space address of PMCSR reg */
+    u_int8_t	pp_data;	/* config space address of PCI power data reg */
 } pcicfgregs;
 
 /* additional type 1 device config header information (PCI to PCI bridge) */
@@ -243,6 +248,69 @@ static __inline void
 pci_write_config(device_t dev, int reg, u_int32_t val, int width)
 {
     PCI_WRITE_CONFIG(device_get_parent(dev), dev, reg, val, width);
+}
+
+/*
+ * Convenience functions.
+ *
+ * These should be used in preference to manually manipulating
+ * configuration space.
+ */
+static __inline void
+pci_enable_busmaster(device_t dev)
+{
+    PCI_ENABLE_BUSMASTER(device_get_parent(dev), dev);
+}
+
+static __inline void
+pci_disable_busmaster(device_t dev)
+{
+    PCI_DISABLE_BUSMASTER(device_get_parent(dev), dev);
+}
+
+static __inline void
+pci_enable_io(device_t dev, int space)
+{
+    PCI_ENABLE_IO(device_get_parent(dev), dev, space);
+}
+
+static __inline void
+pci_disable_io(device_t dev, int space)
+{
+    PCI_DISABLE_IO(device_get_parent(dev), dev, space);
+}
+
+/*
+ * PCI power states are as defined by ACPI:
+ *
+ * D0	State in which device is on and running.  It is receiving full
+ *	power from the system and delivering full functionality to the user.
+ * D1	Class-specific low-power state in which device context may or may not
+ *	be lost.  Buses in D1 cannot do anything to the bus that would force
+ *	devices on that bus to loose context.
+ * D2	Class-specific low-power state in which device context may or may
+ *	not be lost.  Attains greater power savings than D1.  Buses in D2
+ *	can cause devices on that bus to loose some context.  Devices in D2
+ *	must be prepared for the bus to be in D2 or higher.
+ * D3	State in which the device is off and not running.  Device context is
+ *	lost.  Power can be removed from the device.
+ */
+#define PCI_POWERSTATE_D0	0
+#define PCI_POWERSTATE_D1	1
+#define PCI_POWERSTATE_D2	2
+#define PCI_POWERSTATE_D3	3
+#define PCI_POWERSTATE_UNKNOWN	-1
+
+static __inline int
+pci_set_powerstate(device_t dev, int state)
+{
+    return PCI_SET_POWERSTATE(device_get_parent(dev), dev, state);
+}
+
+static __inline int
+pci_get_powerstate(device_t dev)
+{
+    return PCI_GET_POWERSTATE(device_get_parent(dev), dev);
 }
 
 /*

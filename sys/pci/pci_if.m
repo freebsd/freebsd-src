@@ -42,3 +42,46 @@ METHOD void write_config {
 	u_int32_t	val;
 	int		width;
 };
+
+METHOD int get_powerstate {
+	device_t	dev;
+	device_t	child;
+};
+
+METHOD int set_powerstate {
+	device_t	dev;
+	device_t	child;
+	int		state;
+};
+
+METHOD void enable_busmaster {
+	device_t	dev;
+	device_t	child;
+};
+
+METHOD void disable_busmaster {
+	device_t	dev;
+	device_t	child;
+};
+
+METHOD void enable_io {
+	device_t	dev;
+	device_t	child;
+	int		space;
+};
+
+METHOD void disable_io {
+	device_t	dev;
+	device_t	child;
+	int		space;
+};
+
+#
+# Route an interrupt.  Returns a value suitable for stuffing into 
+# a device's interrupt register.
+#
+METHOD int route_interrupt {
+	device_t pcib;
+	device_t dev;
+	int pin;
+};

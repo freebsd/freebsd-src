@@ -64,6 +64,8 @@
 #include <machine/smp.h>
 #endif /* APIC_IO */
 
+static void		pci_read_extcap(pcicfgregs *cfg);
+
 struct pci_quirk {
 	u_int32_t devid;	/* Vendor/device of the card */
 	int	type;
@@ -286,6 +288,8 @@ pci_hdrtypedata(pcicfgregs *cfg)
 static struct pci_devinfo *
 pci_readcfg(pcicfgregs *probe)
 {
+#define REG(n, w)	pci_cfgread(probe, n, w)
+
 	pcicfgregs *cfg = NULL;
 	struct pci_devinfo *devlist_entry;
 	struct devlist *devlist_head;
@@ -362,6 +366,9 @@ pci_readcfg(pcicfgregs *probe)
 		pci_fixancient(cfg);
 		pci_hdrtypedata(cfg);
 
+		if (REG(PCIR_STATUS, 2) & PCIM_STATUS_CAPPRESENT)
+			pci_read_extcap(cfg);
+
 		STAILQ_INSERT_TAIL(devlist_head, devlist_entry, pci_links);
 
 		devlist_entry->conf.pc_sel.pc_bus = cfg->bus;
@@ -383,6 +390,57 @@ pci_readcfg(pcicfgregs *probe)
 		pci_generation++;
 	}
 	return (devlist_entry);
+#undef REG
+}
+
+static void
+pci_read_extcap(pcicfgregs *cfg)
+{
+#define REG(n, w)	pci_cfgread(cfg, n, w)
+	int	ptr, nextptr, ptrptr;
+
+	switch (cfg->hdrtype) {
+	case 0:
+		ptrptr = 0x34;
+		break;
+	case 2:
+		ptrptr = 0x14;
+		break;
+	default:
+		return;		/* no extended capabilities support */
+	}
+	nextptr = REG(ptrptr, 1);	/* sanity check? */
+
+	/*
+	 * Read capability entries.
+	 */
+	while (nextptr != 0) {
+		/* Sanity check */
+		if (nextptr > 255) {
+			printf("illegal PCI extended capability offset %d\n",
+			    nextptr);
+			return;
+		}
+		/* Find the next entry */
+		ptr = nextptr;
+		nextptr = REG(ptr + 1, 1);
+
+		/* Process this entry */
+		switch (REG(ptr, 1)) {
+		case 0x01:		/* PCI power management */
+			if (cfg->pp_cap == 0) {
+				cfg->pp_cap = REG(ptr + PCIR_POWER_CAP, 2);
+				cfg->pp_status = ptr + PCIR_POWER_STATUS;
+				cfg->pp_pmcsr = ptr + PCIR_POWER_PMCSR;
+				if ((nextptr - ptr) > PCIR_POWER_DATA)
+					cfg->pp_data = ptr + PCIR_POWER_DATA;
+			}
+			break;
+		default:
+			break;
+		}
+	}
+#undef REG
 }
 
 #if 0
@@ -412,6 +470,148 @@ pci_freecfg(struct pci_devinfo *dinfo)
 }
 #endif
 
+
+/*
+ * PCI power manangement
+ */
+static int
+pci_set_powerstate_method(device_t dev, device_t child, int state)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(child);
+	pcicfgregs *cfg = &dinfo->cfg;
+	u_int16_t status;
+	int result;
+
+	if (cfg->pp_cap != 0) {
+		status = PCI_READ_CONFIG(dev, child, cfg->pp_status, 2) & ~PCIM_PSTAT_DMASK;
+		result = 0;
+		switch (state) {
+		case PCI_POWERSTATE_D0:
+			status |= PCIM_PSTAT_D0;
+			break;
+		case PCI_POWERSTATE_D1:
+			if (cfg->pp_cap & PCIM_PCAP_D1SUPP) {
+				status |= PCIM_PSTAT_D1;
+			} else {
+				result = EOPNOTSUPP;
+			}
+			break;
+		case PCI_POWERSTATE_D2:
+			if (cfg->pp_cap & PCIM_PCAP_D2SUPP) {
+				status |= PCIM_PSTAT_D2;
+			} else {
+				result = EOPNOTSUPP;
+			}
+			break;
+		case PCI_POWERSTATE_D3:
+			status |= PCIM_PSTAT_D3;
+			break;
+		default:
+			result = EINVAL;
+		}
+		if (result == 0)
+			PCI_WRITE_CONFIG(dev, child, cfg->pp_status, status, 2);
+	} else {
+		result = ENXIO;
+	}
+	return(result);
+}
+
+static int
+pci_get_powerstate_method(device_t dev, device_t child)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(child);
+	pcicfgregs *cfg = &dinfo->cfg;
+	u_int16_t status;
+	int result;
+
+	if (cfg->pp_cap != 0) {
+		status = PCI_READ_CONFIG(dev, child, cfg->pp_status, 2);
+		switch (status & PCIM_PSTAT_DMASK) {
+		case PCIM_PSTAT_D0:
+			result = PCI_POWERSTATE_D0;
+			break;
+		case PCIM_PSTAT_D1:
+			result = PCI_POWERSTATE_D1;
+			break;
+		case PCIM_PSTAT_D2:
+			result = PCI_POWERSTATE_D2;
+			break;
+		case PCIM_PSTAT_D3:
+			result = PCI_POWERSTATE_D3;
+			break;
+		default:
+			result = PCI_POWERSTATE_UNKNOWN;
+			break;
+		}
+	} else {
+		/* No support, device is always at D0 */
+		result = PCI_POWERSTATE_D0;
+	}
+	return(result);
+}
+
+/*
+ * Some convenience functions for PCI device drivers.
+ */
+
+static __inline void
+pci_set_command_bit(device_t dev, device_t child, u_int16_t bit)
+{
+    u_int16_t	command;
+
+    command = PCI_READ_CONFIG(dev, child, PCIR_COMMAND, 2);
+    command |= bit;
+    PCI_WRITE_CONFIG(dev, child, PCIR_COMMAND, command, 2);
+}
+
+static __inline void
+pci_clear_command_bit(device_t dev, device_t child, u_int16_t bit)
+{
+    u_int16_t	command;
+
+    command = PCI_READ_CONFIG(dev, child, PCIR_COMMAND, 2);
+    command &= ~bit;
+    PCI_WRITE_CONFIG(dev, child, PCIR_COMMAND, command, 2);
+}
+
+static void
+pci_enable_busmaster_method(device_t dev, device_t child)
+{
+    pci_set_command_bit(dev, child, PCIM_CMD_BUSMASTEREN);
+}
+
+static void
+pci_disable_busmaster_method(device_t dev, device_t child)
+{
+    pci_clear_command_bit(dev, child, PCIM_CMD_BUSMASTEREN);
+}
+
+static void
+pci_enable_io_method(device_t dev, device_t child, int space)
+{
+    switch(space) {
+    case SYS_RES_IOPORT:
+	pci_set_command_bit(dev, child, PCIM_CMD_PORTEN);
+	break;
+    case SYS_RES_MEMORY:
+	pci_set_command_bit(dev, child, PCIM_CMD_MEMEN);
+	break;
+    }
+}
+
+static void
+pci_disable_io_method(device_t dev, device_t child, int space)
+{
+    switch(space) {
+    case SYS_RES_IOPORT:
+	pci_clear_command_bit(dev, child, PCIM_CMD_PORTEN);
+	break;
+    case SYS_RES_MEMORY:
+	pci_clear_command_bit(dev, child, PCIM_CMD_MEMEN);
+	break;
+    }
+}
 
 /*
  * This is the user interface to PCI configuration space.
@@ -1394,6 +1594,33 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 {
 	struct pci_devinfo *dinfo = device_get_ivars(child);
 	struct resource_list *rl = &dinfo->resources;
+#ifdef	PCI_ENABLE_IRQ_ROUTING
+	pcicfgregs *cfg = &dinfo->cfg;
+
+	/*
+	 * Perform lazy resource allocation
+	 *
+	 * XXX add support here for SYS_RES_IOPORT and SYS_RES_MEMORY
+	 */
+	if (device_get_parent(child) == dev) {
+		/*
+		 * If device doesn't have an interrupt routed, and is
+		 * deserving of an interrupt, try to assign it one.
+		 */
+		if ((type == SYS_RES_IRQ) && (cfg->intline == 255) &&
+		    (cfg->intpin != 0)) {
+			device_printf(device_get_parent(dev), "intreq\n");
+			cfg->intline = pci_cfgintr(pci_get_bus(child),
+			    pci_get_slot(child), cfg->intpin);
+			if (cfg->intline != 255) {
+				pci_write_config(child, PCIR_INTLINE,
+				    cfg->intline, 1);
+				resource_list_add(rl, SYS_RES_IRQ, 0,
+				    cfg->intline, cfg->intline, 1);
+			}
+		}
+	}
+#endif
 
 	return resource_list_alloc(rl, dev, child, type, rid,
 				   start, end, count, flags);
@@ -1505,6 +1732,12 @@ static device_method_t pci_methods[] = {
 	/* PCI interface */
 	DEVMETHOD(pci_read_config,	pci_read_config_method),
 	DEVMETHOD(pci_write_config,	pci_write_config_method),
+	DEVMETHOD(pci_enable_busmaster,	pci_enable_busmaster_method),
+	DEVMETHOD(pci_disable_busmaster, pci_disable_busmaster_method),
+	DEVMETHOD(pci_enable_io,	pci_enable_io_method),
+	DEVMETHOD(pci_disable_io,	pci_disable_io_method),
+	DEVMETHOD(pci_get_powerstate,	pci_get_powerstate_method),
+	DEVMETHOD(pci_set_powerstate,	pci_set_powerstate_method),
 
 	{ 0, 0 }
 };
