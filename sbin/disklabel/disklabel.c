@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *		$Id$
+ *		$Id: disklabel.c,v 1.9.2.2 1997/06/11 07:02:16 charnier Exp $
  */
 
 #ifndef lint
@@ -162,7 +162,7 @@ main(argc, argv)
 	int ch, f, flag, error = 0;
 	char *name = 0;
 
-	while ((ch = getopt(argc, argv, OPTIONS)) != EOF)
+	while ((ch = getopt(argc, argv, OPTIONS)) != -1)
 		switch (ch) {
 #if NUMBOOT > 0
 			case 'B':
