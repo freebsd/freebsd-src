@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.11 1993/10/14 18:15:35 rgrimes Exp $
+ *	$Id: machdep.c,v 1.12 1993/10/15 10:34:22 rgrimes Exp $
  */
 
 #include "npx.h"
@@ -203,7 +203,7 @@ again:
 	 * We allocate 1/2 as many swap buffer headers as file i/o buffers.
 	 */
 	if (bufpages == 0)
-		bufpages = (ctob(physmem) - 2048*1024) / NBPG / 5;
+		bufpages = (physmem << PAGE_SHIFT - 3072*1024) / NBPG / 5;
 	if (bufpages < 32)
 		bufpages = 32;
 
