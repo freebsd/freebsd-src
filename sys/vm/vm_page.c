@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.65 1996/09/28 03:33:35 dyson Exp $
+ *	$Id: vm_page.c,v 1.66 1996/09/28 17:53:18 bde Exp $
  */
 
 /*
@@ -601,7 +601,7 @@ vm_page_list_find(basequeue, index)
 
 	for(j = 0; j < PQ_L1_SIZE; j++) {
 		for(i = (PQ_L2_SIZE/2) - (PQ_L1_SIZE - 1);
-			i > 0;
+			i >= 0;
 			i -= PQ_L1_SIZE) {
 			hindex = (index + (i+j)) & PQ_L2_MASK;
 			m = TAILQ_FIRST(vm_page_queues[basequeue + hindex].pl);
@@ -690,7 +690,7 @@ vm_page_select_free(object, pindex, prefqueue)
 	 */
 	for(j = 0; j < PQ_L1_SIZE; j++) {
 		for(i = (PQ_L2_SIZE/2) - (PQ_L1_SIZE - 1);
-			(i + j) > 0;
+			(i + j) >= 0;
 			i -= PQ_L1_SIZE) {
 
 			hindex = prefqueue + ((index + (i+j)) & PQ_L2_MASK);
@@ -823,6 +823,10 @@ vm_page_alloc(object, pindex, page_req)
 	case VM_ALLOC_INTERRUPT:
 		if (cnt.v_free_count > 0) {
 			m = vm_page_select_free(object, pindex, PQ_FREE);
+#if defined(DIAGNOSTIC)
+			if (m == NULL)
+				panic("vm_page_alloc(INTERRUPT): missing page on free queue\n");
+#endif
 		} else {
 			splx(s);
 			pagedaemon_wakeup();
