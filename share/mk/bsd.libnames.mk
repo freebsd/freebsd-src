@@ -89,6 +89,7 @@ LIBRESOLV?=	${DESTDIR}${LIBDIR}/libresolv.a	# XXX doesn't exist
 LIBROKEN?=	${DESTDIR}${LIBDIR}/libroken.a	# XXX in secure dist, not base
 LIBRPCSVC?=	${DESTDIR}${LIBDIR}/librpcsvc.a
 LIBSBUF?=	${DESTDIR}${LIBDIR}/libsbuf.a
+LIBSMB?=	${DESTDIR}${LIBDIR}/libsmb.a
 LIBSSL?=	${DESTDIR}${LIBDIR}/libssl.a	# XXX in secure dist, not base
 LIBSTDCPLUSPLUS?= ${DESTDIR}${LIBDIR}/libstdc++.a
 LIBTACPLUS?=	${DESTDIR}${LIBDIR}/libtacplus.a
