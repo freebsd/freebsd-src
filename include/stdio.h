@@ -34,19 +34,15 @@
  * SUCH DAMAGE.
  *
  *	@(#)stdio.h	8.5 (Berkeley) 4/29/95
- *	$Id: stdio.h,v 1.11 1997/03/02 13:41:23 ache Exp $
+ *	$Id: stdio.h,v 1.12 1997/03/11 11:16:27 peter Exp $
  */
 
 #ifndef	_STDIO_H_
 #define	_STDIO_H_
 
-#if !defined(_ANSI_SOURCE) && !defined(__STRICT_ANSI__)
-#include <sys/types.h>
-#endif
-
 #include <sys/cdefs.h>
-
 #include <machine/ansi.h>
+
 #ifdef	_BSD_SIZE_T_
 typedef	_BSD_SIZE_T_	size_t;
 #undef	_BSD_SIZE_T_
@@ -68,7 +64,7 @@ typedef	_BSD_SIZE_T_	size_t;
  * boundaries.  THIS IS A CROCK, but for now there is no way around it.
  */
 #if !defined(_ANSI_SOURCE) && !defined(__STRICT_ANSI__)
-typedef off_t fpos_t;
+typedef	_BSD_OFF_T_	fpos_t;
 #else
 typedef struct __sfpos {
 	char	_pos[8];
@@ -282,6 +278,30 @@ __END_DECLS
 #endif /* not ANSI */
 
 /*
+ * Portability hacks.  See <sys/types.h>.
+ */
+#if !defined (_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
+__BEGIN_DECLS
+#ifndef _FTRUNCATE_DECLARED
+#define	_FTRUNCATE_DECLARED
+int	 ftruncate __P((int, _BSD_OFF_T_));
+#endif
+#ifndef _LSEEK_DECLARED
+#define	_LSEEK_DECLARED
+_BSD_OFF_T_ lseek __P((int, _BSD_OFF_T_, int));
+#endif
+#ifndef _MMAP_DECLARED
+#define	_MMAP_DECLARED
+char	*mmap __P((char *, size_t, int, int, int, _BSD_OFF_T_));
+#endif
+#ifndef _TRUNCATE_DECLARED
+#define	_TRUNCATE_DECLARED
+int	 truncate __P((const char *, _BSD_OFF_T_));
+#endif
+__END_DECLS
+#endif /* !_ANSI_SOURCE && !_POSIX_SOURCE */
+
+/*
  * Routines that are purely local.
  */
 #if !defined (_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
@@ -379,4 +399,5 @@ static __inline int __sputc(int _c, FILE *_p) {
 
 #define	getchar()	getc(stdin)
 #define	putchar(x)	putc(x, stdout)
-#endif /* _STDIO_H_ */
+
+#endif /* !_STDIO_H_ */
