@@ -14,9 +14,6 @@ CLEANFILES= sm_inter_svc.c sm_inter.h
 RPCSRC= ${DESTDIR}/usr/include/rpcsvc/sm_inter.x
 RPCGEN= rpcgen -L -C
 
-WARNS?=	4
-NO_WERROR=	1
-
 sm_inter_svc.c: ${RPCSRC}
 	${RPCGEN} -m -o ${.TARGET} ${RPCSRC}
 

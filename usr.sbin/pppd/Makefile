@@ -13,8 +13,8 @@ BINGRP=	dialer
 
 CFLAGS+= -DHAVE_PATHS_H
 
-LDADD=	-lcrypt -lutil -lmd
 DPADD=	${LIBCRYPT} ${LIBUTIL} ${LIBMD}
+LDADD=	-lcrypt -lutil -lmd
 
 # Support SPX/IPX - not quite ready
 #CFLAGS+= -DIPX_CHANGE
@@ -26,8 +26,8 @@ SRCS+=	cbcp.c
 
 # Filter support
 CFLAGS+= -DPPP_FILTER
-LDADD+=	-lpcap
 DPADD+=	${LIBPCAP}
+LDADD+=	-lpcap
 
 # MS-CHAP support.  Requires the DES library.
 .if exists(${.CURDIR}/../../secure) && !defined(NOCRYPT) && !defined(NOSECURE) && !defined(NO_OPENSSL) && !defined(RELEASE_CRUNCH)

@@ -1,12 +1,12 @@
 # $FreeBSD$
 
-PROG=		ancontrol
-MAN=		ancontrol.8
+PROG=	ancontrol
+MAN=	ancontrol.8
 
-CFLAGS+=	-I${.CURDIR}/../../sys -DANCACHE
-DPADD=		${LIBMD}
-LDADD=		-lmd
+WARNS?=	2
+CFLAGS+= -DANCACHE -I${.CURDIR}/../../sys
 
-WARNS?=		2
+DPADD=	${LIBMD}
+LDADD=	-lmd
 
 .include <bsd.prog.mk>

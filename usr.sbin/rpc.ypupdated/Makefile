@@ -8,8 +8,8 @@ SRCS=	ypupdate_prot_svc.c ypupdate_prot.h ypupdated_main.c \
 	yp_error.c update.c ypupdated_server.c \
 	yp_dblookup.c yp_dbwrite.c yp_dbdelete.c yp_dbupdate.c
 
-CFLAGS+= -I${.CURDIR}/../ypserv -I. -I${.CURDIR}/../../libexec/ypxfr
 #CFLAGS+= -DYP
+CFLAGS+= -I${.CURDIR}/../ypserv -I. -I${.CURDIR}/../../libexec/ypxfr
 
 DPADD=	${LIBRPCSVC}
 LDADD=	-lrpcsvc

@@ -7,13 +7,13 @@ SRCS=	rc_parse.y rc_scan.l main.c rc_config.c log.c curses.c	\
 	exec.c dial.c monitor.c pcause.c controller.c alias.c	\
 	y.tab.h holiday.c
 
-COPTS+= -I. -I${.CURDIR}/../isdnmonitor -I${.CURDIR}/../isdntel -I${.CURDIR}
-
 # compile debug support
 COPTS+=	-DDEBUG
 
 # enable rtprio usage
 COPTS+=	-DUSE_RTPRIO
+
+COPTS+= -I. -I${.CURDIR}/../isdnmonitor -I${.CURDIR}/../isdntel -I${.CURDIR}
 
 .include "${.CURDIR}/../Makefile.inc"
 

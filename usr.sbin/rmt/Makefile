@@ -2,8 +2,9 @@
 # $FreeBSD$
 
 PROG=	rmt
-WARNS?=	4
 MAN=	rmt.8
+
+WARNS?=	4
 
 # called from /usr/src/etc/Makefile
 etc-rmt:
