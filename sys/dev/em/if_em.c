@@ -1777,7 +1777,8 @@ em_dma_malloc(struct adapter *adapter, bus_size_t size,
                              BUS_DMA_NOWAIT, &dma->dma_map);
         if (r != 0) {
                 printf("em%d: em_dma_malloc: bus_dmammem_alloc failed; "
-                        "size %u, error %u\n", adapter->unit, size, r);
+                        "size %ju, error %d\n", adapter->unit,
+			(uintmax_t)size, r);
                 goto fail_2;
         }
 
