@@ -6,8 +6,7 @@
 .Os KTH-KRB
 .Sh NAME
 .Nm kprop
-.Nd
-the kerberos slave server update client
+.Nd "the kerberos slave server update client"
 .Sh SYNOPSIS
 .Nm
 .Op Fl force
@@ -21,9 +20,8 @@ the master server through the
 service. To propagate these changes to the slave servers, 
 .Nm 
 should be run regularly on the master server.
-
+.Pp
 The following options are recognised.
-
 .Bl -tag -width -force
 .It Fl force
 Propagate even if there hasn't been an update to the dump file since
@@ -39,14 +37,13 @@ default is
 Contains the names of the slave servers. Default is
 .Pa /var/kerberos/slaves .
 .El
-
+.Pp
 .Nm
 will use the principal 
 .Nm rcmd.kerberos
 to authenticate to the master servers. This principal has to be added
 to the database, and it should also be put into the service key file
 on the master server.
-
 .Sh FILES
 .Bl -tag -width indent -compact
 .It Pa /var/kerberos/slave_dump
