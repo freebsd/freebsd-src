@@ -83,8 +83,11 @@ typedef struct ohci_soft_itd {
 
 #define OHCI_HASH_SIZE 128
 
+#define OHCI_SCFLG_DONEINIT	0x0001	/* ohci_init() done. */
+
 typedef struct ohci_softc {
 	struct usbd_bus sc_bus;		/* base device */
+	int sc_flags;
 	bus_space_tag_t iot;
 	bus_space_handle_t ioh;
 	bus_size_t sc_size;
@@ -159,8 +162,8 @@ struct ohci_xfer {
 
 usbd_status	ohci_init(ohci_softc_t *);
 int		ohci_intr(void *);
+int	 	ohci_detach(ohci_softc_t *, int);
 #if defined(__NetBSD__) || defined(__OpenBSD__)
-int		ohci_detach(ohci_softc_t *, int);
 int		ohci_activate(device_ptr_t, enum devact);
 #endif
 

@@ -572,6 +572,7 @@ uhci_activate(device_ptr_t self, enum devact act)
 	}
 	return (rv);
 }
+#endif
 
 int
 uhci_detach(struct uhci_softc *sc, int flags)
@@ -579,11 +580,16 @@ uhci_detach(struct uhci_softc *sc, int flags)
 	usbd_xfer_handle xfer;
 	int rv = 0;
 
+#if defined(__NetBSD__) || defined(__OpenBSD__)
 	if (sc->sc_child != NULL)
 		rv = config_detach(sc->sc_child, flags);
 
 	if (rv != 0)
 		return (rv);
+#endif
+
+	UWRITE2(sc, UHCI_INTR, 0);		/* disable interrupts */
+	uhci_run(sc, 0);
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 	powerhook_disestablish(sc->sc_powerhook);
@@ -600,10 +606,10 @@ uhci_detach(struct uhci_softc *sc, int flags)
 	}
 
 	/* XXX free other data structures XXX */
+	usb_freemem(&sc->sc_bus, &sc->sc_dma);
 
 	return (rv);
 }
-#endif
 
 usbd_status
 uhci_allocm(struct usbd_bus *bus, usb_dma_t *dma, u_int32_t size)
@@ -638,6 +644,8 @@ uhci_allocx(struct usbd_bus *bus)
 	if (xfer != NULL) {
 		memset(xfer, 0, sizeof (struct uhci_xfer));
 		UXFER(xfer)->iinfo.sc = sc;
+		usb_init_task(&UXFER(xfer)->abort_task, uhci_timeout_task,
+		    xfer);
 #ifdef DIAGNOSTIC
 		UXFER(xfer)->iinfo.isdone = 1;
 		xfer->busy_free = XFER_BUSY;
@@ -732,6 +740,9 @@ uhci_power(int why, void *v)
 		uhci_reset(sc);
 		if (cmd & UHCI_CMD_RS)
 			uhci_run(sc, 0); /* in case BIOS has started it */
+
+		uhci_globalreset(sc);
+		uhci_reset(sc);
 
 		/* restore saved state */
 		UWRITE4(sc, UHCI_FLBASEADDR, DMAADDR(&sc->sc_dma, 0));
@@ -1507,7 +1518,6 @@ uhci_timeout(void *addr)
 	}
 
 	/* Execute the abort in a process context. */
-	usb_init_task(&uxfer->abort_task, uhci_timeout_task, ii->xfer);
 	usb_add_task(uxfer->xfer.pipe->device, &uxfer->abort_task);
 }
 
@@ -1935,7 +1945,7 @@ uhci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 		s = splusb();
 		xfer->status = status;	/* make software ignore it */
 		usb_uncallout(xfer->timeout_handle, uhci_timeout, xfer);
-		usb_transfer_complete(xfer);
+		usb_rem_task(xfer->pipe->device, &UXFER(xfer)->abort_task);
 		splx(s);
 		return;
 	}
@@ -1949,6 +1959,7 @@ uhci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 	s = splusb();
 	xfer->status = status;	/* make software ignore it */
 	usb_uncallout(xfer->timeout_handle, uhci_timeout, ii);
+	usb_rem_task(xfer->pipe->device, &UXFER(xfer)->abort_task);
 	DPRINTFN(1,("uhci_abort_xfer: stop ii=%p\n", ii));
 	for (std = ii->stdstart; std != NULL; std = std->link.std)
 		std->td.td_status &= htole32(~(UHCI_TD_ACTIVE | UHCI_TD_IOC));
