@@ -120,8 +120,8 @@
 #define CUE_BUFSZ		1536
 #define CUE_CUTOFF		1088
 #define CUE_MIN_FRAMELEN	60
-#define CUE_RX_FRAMES		10
-#define CUE_TX_FRAMES		10
+#define CUE_RX_FRAMES		1
+#define CUE_TX_FRAMES		1
 
 #define CUE_RX_LIST_CNT		1
 #define CUE_TX_LIST_CNT		1
