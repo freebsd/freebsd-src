@@ -1,4 +1,4 @@
-# $Id: cvs-supfile,v 1.2 1995/12/10 08:04:21 asami Exp $
+# $Id: cvs-supfile,v 1.3 1995/12/10 19:27:28 gibbs Exp $
 #
 # This file contains all of the "SUP collections" that comprise the FreeBSD
 # cvs development tree.  SUP (Software Update Protocol) allows you to
@@ -50,30 +50,39 @@ src-usrbin release=cvs host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr
 src-usrsbin release=cvs host=sup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
 
 ## Ports Collection
-ports-base release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
-ports-archivers release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
-ports-benchmarks release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
-ports-audio release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
-ports-cad release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
-ports-comms release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
-ports-databases release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
-ports-devel release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
-ports-editors release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix 
-ports-emulators release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix 
-ports-games release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
-ports-graphics release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
-ports-japanese release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
-ports-lang release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix 
-ports-mail release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix 
-ports-math release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
-ports-misc release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix 
-ports-net release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix 
-ports-news release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
-ports-plan9 release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
-ports-print release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
-ports-russian release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
-ports-security release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix 
-ports-shells release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix 
-ports-sysutils release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix 
-ports-www release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix 
-ports-x11 release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix 
+#
+# There are two ways to sup the latest ports.  One is to use the individual
+# collections, and the other is to use the "ports-all" mega-collection,
+# which includes all the ports-* collections.
+
+ports-all release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
+
+# If you want to specify individual collections, don't forget to comment
+# out ports-all above.
+#ports-base release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
+#ports-archivers release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
+#ports-benchmarks release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
+#ports-audio release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
+#ports-cad release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
+#ports-comms release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
+#ports-databases release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
+#ports-devel release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
+#ports-editors release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix 
+#ports-emulators release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix 
+#ports-games release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
+#ports-graphics release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
+#ports-japanese release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
+#ports-lang release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix 
+#ports-mail release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix 
+#ports-math release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
+#ports-misc release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix 
+#ports-net release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix 
+#ports-news release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
+#ports-plan9 release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
+#ports-print release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
+#ports-russian release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix
+#ports-security release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix 
+#ports-shells release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix 
+#ports-sysutils release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix 
+#ports-www release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix 
+#ports-x11 release=cvs host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/cvs delete old use-rel-suffix 
