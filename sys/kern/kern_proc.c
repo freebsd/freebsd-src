@@ -330,6 +330,9 @@ kse_release(struct thread *td, struct kse_release_args *uap)
 	return (0);
 }
 
+/* struct kse_wakeup_args {
+	struct kse_mailbox *mbx;
+}; */
 int
 kse_wakeup(struct thread *td, struct kse_wakeup_args *uap)
 {

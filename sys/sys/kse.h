@@ -81,7 +81,7 @@ int	kse_create(struct kse_mailbox *, int);
 int	kse_exit(void);
 int	kse_release(void);
 int	kse_thr_interrupt(struct kse_thr_mailbox *);
-int	kse_wakeup(void);
+int	kse_wakeup(struct kse_mailbox *);
 #endif	/* !_KERNEL */
 
 #endif	/* !_SYS_KSE_H_ */
