@@ -1,4 +1,4 @@
-/* $Id: elf_freebsd.c,v 1.1.1.1 1998/08/21 03:17:42 msmith Exp $ */
+/* $Id: elf_freebsd.c,v 1.2 1998/08/31 21:10:40 msmith Exp $ */
 /* $NetBSD: loadfile.c,v 1.10 1998/06/25 06:45:46 ross Exp $ */
 
 /*-
@@ -130,11 +130,10 @@ elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result)
     /* 
      * Ok, we think this is for us.
      */
-    mp = malloc(sizeof(struct loaded_module));
+    mp = mod_allocmodule();
     mp->m_name = strdup(filename);	/* XXX should we prune the name? */
     mp->m_type = strdup("elf kernel");	/* XXX only if that's what we really are */
-    mp->m_args = NULL;			/* XXX should we put the bootstrap args here and parse later? */
-    mp->m_metadata = NULL;
+
     dest = (vm_offset_t) hdr.e_entry;
     mp->m_addr = dest;
     if (mod_findmodule(NULL, NULL) != NULL) {

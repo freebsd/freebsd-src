@@ -23,13 +23,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aout_freebsd.c,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
+ *	$Id: aout_freebsd.c,v 1.2 1998/08/31 21:10:43 msmith Exp $
  */
 
 #include <sys/param.h>
 #include <sys/exec.h>
 #include <sys/imgact_aout.h>
 #include <sys/reboot.h>
+#include <sys/linker.h>
 #include <string.h>
 #include <machine/bootinfo.h>
 #include <stand.h>
@@ -80,14 +81,6 @@ aout_exec(struct loaded_module *mp)
     }
     free(currdev);
 
-    /* Device data is kept in the kernel argv array */
-    argv[0] = bi_getboothowto(mp->m_args);
-    argv[1] = bootdevnr;
-    argv[2] = 0;
-    argv[3] = 0;
-    argv[4] = 0;
-    argv[5] = (u_int32_t)vtophys(&bi);
-
     /* legacy bootinfo structure */
     bi.bi_version = BOOTINFO_VERSION;
     bi.bi_kernelname = 0;		/* XXX char * -> kernel name */
@@ -102,6 +95,14 @@ aout_exec(struct loaded_module *mp)
     bi.bi_symtab = mp->m_addr + ehdr->a_text + ehdr->a_data + ehdr->a_bss;
     bi.bi_esymtab = bi.bi_symtab + sizeof(ehdr->a_syms) + ehdr->a_syms;
 
+    /* Device data is kept in the kernel argv array */
+    argv[0] = bi_getboothowto(mp->m_args);	/* boothowto */
+    argv[1] = bootdevnr;			/* bootdev */
+    argv[2] = 0;				/* old cyloffset */
+    argv[3] = 0;				/* old esym */
+    argv[4] = 0;				/* "new" bootinfo magic */
+    argv[5] = (u_int32_t)vtophys(&bi);
+
     /* find the last module in the chain */
     for (xp = mp; xp->m_next != NULL; xp = xp->m_next)
 	;
@@ -112,7 +113,8 @@ aout_exec(struct loaded_module *mp)
 	pad = PAGE_SIZE - pad;
 	addr += pad;
     }
-    /* copy our environment  XXX save addr here as env pointer, store in bootinfo? */
+    /* copy our environment */
+    bi.bi_envp = addr;
     addr = bi_copyenv(addr);
 
     /* pad to a page boundary */
@@ -121,9 +123,12 @@ aout_exec(struct loaded_module *mp)
 	pad = PAGE_SIZE - pad;
 	addr += pad;
     }
-    /* copy module list and metadata  XXX save addr here as env pointer, store in bootinfo? */
-    bi_copymodules(addr);
-    
+    /* copy module list and metadata */
+    bi.bi_modulep = addr;
+    addr = bi_copymodules(addr);
+
+    /* all done copying stuff in, save end of loaded object space */
+    bi.bi_kernend = addr;
     entry = ehdr->a_entry & 0xffffff;
 
 #ifdef DEBUG

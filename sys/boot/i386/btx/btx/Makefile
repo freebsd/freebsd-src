@@ -1,4 +1,4 @@
-#	$Id:$
+#	$Id: Makefile,v 1.1.1.1 1998/09/12 04:29:23 rnordier Exp $
 
 M4?=	m4
 
@@ -20,3 +20,7 @@ btx.o: btx.m4 btx.s
 
 clean:
 	rm -f btx btx.out btx.o
+
+depend:
+
+install:

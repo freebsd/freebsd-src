@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.2 1998/08/31 21:10:43 msmith Exp $
+ *	$Id: main.c,v 1.3 1998/09/03 02:10:09 msmith Exp $
  */
 
 /*
@@ -54,7 +54,7 @@ main(void)
 {
     struct i386_devdesc	currdev;
     int			i;
-    
+
     /* 
      * Initialise the heap as early as possible.  Once this is done, alloc() is usable.
      * The stack is buried inside us, so this is safe 

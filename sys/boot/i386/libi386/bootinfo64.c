@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootinfo.c,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
+ *	$Id: bootinfo.c,v 1.2 1998/09/03 02:10:09 msmith Exp $
  */
 
 #include <sys/reboot.h>
@@ -57,6 +57,7 @@ bi_getboothowto(char *kargs)
     int		active;
     int		i;
     
+    /* Parse kargs */
     howto = 0;
     if (kargs  != NULL) {
 	cp = kargs;
@@ -94,9 +95,11 @@ bi_getboothowto(char *kargs)
 		    active = 0;
 		    break;
 		}
+	    active = 0;
+	    cp++;
 	}
-	cp++;
     }
+    /* get equivalents from the environment */
     for (i = 0; howto_names[i].ev != NULL; i++)
 	if (getenv(howto_names[i].ev) != NULL)
 	    howto |= howto_names[i].mask;
@@ -137,7 +140,7 @@ bi_copyenv(vm_offset_t addr)
  * used as a directory for loaded modules.
  *
  * Module data is presented in a self-describing format.  Each datum
- * is preceeded by a 16-bit identifier and a 16-bit size field.
+ * is preceeded by a 32-bit identifier and a 32-bit size field.
  *
  * Currently, the following data are saved:
  *
@@ -177,6 +180,14 @@ bi_copyenv(vm_offset_t addr)
     a += mm->md_size;								\
 }
 
+#define MOD_END(a) {			\
+    u_int32_t ident = 0;		\
+    vpbcopy(&ident, a, sizeof(ident));	\
+    a += sizeof(ident);			\
+    vpbcopy(&ident, a, sizeof(ident));	\
+    a += sizeof(ident);			\
+}
+
 vm_offset_t
 bi_copymodules(vm_offset_t addr)
 {
@@ -186,7 +197,7 @@ bi_copymodules(vm_offset_t addr)
     /* start with the first module on the list, should be the kernel */
     for (mp = mod_findmodule(NULL, NULL); mp != NULL; mp = mp->m_next) {
 	
-	MOD_NAME(addr, mp->m_name);
+	MOD_NAME(addr, mp->m_name);	/* this field must come first */
 	MOD_TYPE(addr, mp->m_type);
 	MOD_ADDR(addr, mp->m_addr);
 	MOD_SIZE(addr, mp->m_size);
@@ -194,5 +205,6 @@ bi_copymodules(vm_offset_t addr)
 	    if (!(md->md_type & MODINFOMD_NOCOPY))
 		MOD_METADATA(addr, md);
     }
+    MOD_END(addr);
     return(addr);
 }
