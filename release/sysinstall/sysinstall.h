@@ -186,6 +186,10 @@ typedef struct _variable {
     char *value;
 } Variable;
 
+#define NO_ECHO_OBJ(type)	((type) | (DITEM_NO_ECHO << 16))
+#define TYPE_OF_OBJ(type)	((type) & 0xff)
+#define ATTR_OF_OBJ(type)	((type) >> 16)
+
 /* A screen layout structure */
 typedef struct _layout {
     int         y;              /* x & Y co-ordinates */
