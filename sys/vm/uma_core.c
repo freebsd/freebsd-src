@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/smp.h>
 #include <sys/vmmeter.h>
+#include <sys/mbuf.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
@@ -1318,6 +1319,25 @@ uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 	/* This is the fast path allocation */
 #ifdef UMA_DEBUG_ALLOC_1
 	printf("Allocating one item from %s(%p)\n", zone->uz_name, zone);
+#endif
+
+#ifdef INVARIANTS
+	/*
+	 * To make sure that WAITOK or NOWAIT is set, but not more than
+	 * one, and check against the API botches that are common.
+	 * The uma code implies M_WAITOK if M_NOWAIT is not set, so
+	 * we default to waiting if none of the flags is set.
+	 */
+	cpu = flags & (M_WAITOK | M_NOWAIT | M_DONTWAIT | M_TRYWAIT);
+	if (cpu != M_NOWAIT && cpu != M_WAITOK) {
+		static	struct timeval lasterr;
+		static	int curerr, once;
+		if (once == 0 && ppsratecheck(&lasterr, &curerr, 1)) {
+			printf("Bad uma_zalloc flags: %x\n", cpu);
+			backtrace();
+			once++;
+		}
+	}
 #endif
 
 	if (!(flags & M_NOWAIT)) {
