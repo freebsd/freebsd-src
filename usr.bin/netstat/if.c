@@ -87,7 +87,7 @@ static int bdg_done;
 
 /* print bridge statistics */
 void
-bdg_stats(u_long dummy __unused, char *name, int af __unused)
+bdg_stats(u_long dummy __unused, char *name, int _af __unused)
 {
     int i;
     size_t slen ;
@@ -153,7 +153,7 @@ show_stat(const char *fmt, int width, u_long value, short showvalue)
  * Print a description of the network interfaces.
  */
 void
-intpr(int interval, u_long ifnetaddr, void (*pfunc)(char *))
+intpr(int _interval, u_long ifnetaddr, void (*pfunc)(char *))
 {
 	struct ifnet ifnet;
 	struct ifnethead ifnethead;
@@ -192,8 +192,8 @@ intpr(int interval, u_long ifnetaddr, void (*pfunc)(char *))
 		printf("ifnet: symbol not defined\n");
 		return;
 	}
-	if (interval) {
-		sidewaysintpr((unsigned)interval, ifnetaddr);
+	if (_interval) {
+		sidewaysintpr((unsigned)_interval, ifnetaddr);
 		return;
 	}
 	if (kread(ifnetaddr, (char *)&ifnethead, sizeof ifnethead))
