@@ -151,7 +151,8 @@ pccard_ccr_write(struct pccard_function *pf, int ccr, int val)
 static int
 pccard_set_default_descr(device_t dev)
 {
-	char *vendorstr, *prodstr, *str;
+	const char *vendorstr, *prodstr;
+	char *str;
 
 	if (pccard_get_vendor_str(dev, &vendorstr))
 		return (0);
@@ -324,8 +325,8 @@ pccard_do_product_lookup(device_t bus, device_t dev,
 	u_int32_t fcn;
 	u_int32_t vendor;
 	u_int32_t prod;
-	char *vendorstr;
-	char *prodstr;
+	const char *vendorstr;
+	const char *prodstr;
 
 #ifdef DIAGNOSTIC
 	if (sizeof *ent > ent_size)

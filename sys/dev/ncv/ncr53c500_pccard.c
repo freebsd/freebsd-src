@@ -206,8 +206,8 @@ ncv_alloc_resource(DEVPORT_PDEVICE dev)
 static int ncv_pccard_match(device_t dev)
 {
 	const struct ncv_product *pp;
-	char *vendorstr;
-	char *prodstr;
+	const char *vendorstr;
+	const char *prodstr;
 
 	if ((pp = (const struct ncv_product *) pccard_product_lookup(dev, 
 	    (const struct pccard_product *) ncv_products,
