@@ -1522,8 +1522,9 @@ more:
 	} else
 		sep->se_proto = newstr(arg);
         if (strncmp(sep->se_proto, "rpc/", 4) == 0) {
-		if (sep->se_family != AF_INET) {
-			syslog(LOG_ERR, "IPv6 for RPC is not supported yet");
+		if (no_v4bind != 0) {
+			syslog(LOG_INFO, "IPv4 bind is ignored for %s",
+			       sep->se_service);
 			freeconfig(sep);
 			goto more;
 		}
