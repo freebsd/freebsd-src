@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)csh.1	8.2 (Berkeley) 1/21/94
-.\"	$Id: csh.1,v 1.8 1997/02/22 14:01:40 peter Exp $
+.\"	$Id: csh.1,v 1.5.2.1 1997/02/28 07:54:29 mpp Exp $
 .\"
 .Dd January 21, 1994
 .Dt CSH 1
@@ -49,9 +49,9 @@ The
 .Nm csh
 is a command language interpreter
 incorporating a history mechanism (see
-.Nm History Substitutions ) ,
+.Sx History Substitutions ) ,
 job control facilities (see
-.Nm Jobs ) ,
+.Sx Jobs ) ,
 interactive file name
 and user name completion (see
 .Nm File Name Completion ) ,
@@ -100,7 +100,7 @@ is the only flag specified).
 The shell loads
 .Pa .cshrc
 even if it does not belong to the effective user.
-.Xr su 1
+.Xr Su 1
 can pass
 .Fl m
 to the shell.
@@ -256,7 +256,7 @@ showing that the job which was started asynchronously was job number
 1 and had one (top-level) process, whose process id was 1234.
 .Pp
 If you are running a job and wish to do something else you may hit the key
-.Nm ^Z
+.Em ^Z
 (control-Z) which sends a STOP signal to the current job.
 The shell will then normally show that the job has been `Stopped',
 and print another prompt.  You can then manipulate the state of this job,
@@ -271,11 +271,11 @@ the
 command
 .Ar fg  .
 A
-.Nm ^Z
+.Em ^Z
 takes effect immediately and
 is like an interrupt in that pending output and unread input are discarded
 when it is typed.  There is another special key
-.Nm ^Y
+.Em ^Y
 that does not generate a STOP signal until a program attempts to
 .Xr read  2
 it.
@@ -455,7 +455,7 @@ in the previous command with little typing and a high degree of confidence.
 History substitutions begin with the character `!' and may begin
 .Ar anywhere
 in the input stream (with the proviso that they
-.Nm "do not"
+.Em "do not"
 nest.)
 This `!' may be preceded by a `\e' to prevent its special meaning; for
 convenience, an `!' is passed unchanged when it is followed by a blank,
@@ -631,7 +631,7 @@ Strings enclosed in `"' may be expanded as described below.
 .Pp
 In both cases the resulting text becomes (all or part of) a single word;
 only in one special case (see
-.Em Command Substitution
+.Sx Command Substitution
 below) does a `"' quoted string yield parts of more than one word;
 `\'' quoted strings never do.
 .Ss Alias substitution
@@ -708,7 +708,7 @@ occurs, and within `\''s where it
 .Em never
 occurs.
 Strings quoted by `\*(ga' are interpreted later (see
-.Nm "Command substitution"
+.Sx "Command substitution"
 below) so `$' substitution does not occur there until later, if at all.
 A `$' is passed unchanged if followed by a blank, tab, or end-of-line.
 .Pp
@@ -961,11 +961,11 @@ Several of the builtin commands (to be described later)
 take expressions, in which the operators are similar to those of C, with
 the same precedence.
 These expressions appear in the
-.Nm @,
-.Ar exit ,
-.Ar if ,
+.Em @,
+.Em exit ,
+.Em if ,
 and
-.Ar while
+.Em while
 commands.
 The following operators are available:
 .Bd -ragged -offset indent
@@ -1335,7 +1335,7 @@ option lists process id's in addition to the normal information.
 Sends either the TERM (terminate) signal or the
 specified signal to the specified jobs or processes.
 Signals are either given by number or by names (as given in
-.Pa /usr/include/signal.h,
+.Pa /usr/include/signal.h ,
 stripped of the prefix ``SIG'').
 The signal names are listed by ``kill \-l''.
 There is no default, just saying `kill' does not
@@ -1405,7 +1405,7 @@ of the names suffice.
 .Pp
 .It Ic login
 Terminate a login shell, replacing it with an instance of
-.Pa /usr/bin/login.
+.Pa /usr/bin/login .
 This is one way to log off, included for compatibility with
 .Xr sh  1  .
 .Pp
@@ -1625,7 +1625,9 @@ commands.
 Normally input during
 .Ic source
 commands is not placed on the history list;
-the \-h option causes the commands to be placed on the
+the
+.Fl h
+option causes the commands to be placed on the
 history list without being executed.
 .Pp
 .It Ic stop
@@ -1635,9 +1637,9 @@ Stops the current or specified jobs that are executing in the background.
 .It Ic suspend
 Causes the shell to stop in its tracks, much as if it had been sent a stop
 signal with
-.Ic ^Z .
+.Em ^Z .
 This is most often used to stop shells started by
-.Xr su  1 .
+.Xr su 1 .
 .Pp
 .It Ic switch Ar (string)
 .It Ic case Ar str1 :
@@ -2080,13 +2082,21 @@ signal; otherwise this signal is passed on to children from the state in the
 shell's parent.
 Interrupts are not allowed when a login shell is reading the file
 .Pa \&.logout .
-.Sh AUTHOR
-William Joy.
-Job control and directory stack features first implemented by J.E. Kulp of
-IIASA, Laxenburg, Austria,
+.Sh AUTHORS
+.An William Joy .
+.Pp
+Job control and directory stack features first implemented by
+.An J.E. Kulp
+of IIASA, Laxenburg, Austria,
 with different syntax than that used now.
-File name completion code written by Ken Greer, HP Labs.
-Eight-bit implementation Christos S. Zoulas, Cornell University.
+.Pp
+File name completion code written by
+.An Ken Greer ,
+HP Labs.
+.Pp
+Eight-bit implementation
+.An Christos S. Zoulas ,
+Cornell University.
 .Sh FILES
 .Bl -tag -width /etc/passwd -compact
 .It Pa ~/.cshrc
