@@ -103,6 +103,8 @@ void		 pmap_copy(pmap_t, pmap_t, vm_offset_t, vm_size_t, vm_offset_t);
 void		 pmap_copy_page(vm_page_t, vm_page_t);
 void		 pmap_enter(pmap_t, vm_offset_t, vm_page_t, vm_prot_t,
 		    boolean_t);
+vm_page_t	 pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m,
+		    vm_page_t mpte);
 vm_paddr_t	 pmap_extract(pmap_t pmap, vm_offset_t va);
 void		 pmap_growkernel(vm_offset_t);
 void		 pmap_init(vm_paddr_t, vm_paddr_t);
@@ -110,7 +112,7 @@ boolean_t	 pmap_is_modified(vm_page_t m);
 boolean_t	 pmap_ts_referenced(vm_page_t m);
 vm_offset_t	 pmap_map(vm_offset_t *, vm_paddr_t, vm_paddr_t, int);
 void		 pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
-		    vm_object_t object, vm_pindex_t pindex, vm_offset_t size,
+		    vm_object_t object, vm_pindex_t pindex, vm_size_t size,
 		    int pagelimit);
 boolean_t	 pmap_page_exists_quick(pmap_t pmap, vm_page_t m);
 void		 pmap_page_protect(vm_page_t m, vm_prot_t prot);
