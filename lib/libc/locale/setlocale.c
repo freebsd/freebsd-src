@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996 - 2001 FreeBSD Project
+ * Copyright (c) 1996 - 2002 FreeBSD Project
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -57,6 +57,7 @@ static char sccsid[] = "@(#)setlocale.c	8.1 (Berkeley) 7/4/93";
 #include "lnumeric.h"	/* for __numeric_load_locale() */
 #include "lmessages.h"	/* for __messages_load_locale() */
 #include "setlocale.h"
+#include "../stdtime/timelocal.h" /* for __time_load_locale() */
 
 /*
  * Category names for getenv()
@@ -94,8 +95,6 @@ static char current_locale_string[_LC_LAST * (ENCODING_LEN + 1/*"/"*/ + 1)];
 
 static char	*currentlocale __P((void));
 static char	*loadlocale __P((int));
-
-extern int __time_load_locale __P((const char *)); /* strftime.c */
 
 char *
 setlocale(category, locale)
