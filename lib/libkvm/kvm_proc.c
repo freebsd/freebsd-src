@@ -328,7 +328,8 @@ nopgrp:
 		kp->ki_runtime = (u_int64_t)tv.tv_sec * 1000000 + tv.tv_usec;
 		kp->ki_pid = proc.p_pid;
 		kp->ki_siglist = proc.p_siglist;
-		kp->ki_sigmask = proc.p_sigmask;
+		SIGANDSET(kp->ki_siglist, mtd.td_siglist);
+		kp->ki_sigmask = mtd.td_sigmask;
 		kp->ki_xstat = proc.p_xstat;
 		kp->ki_acflag = proc.p_acflag;
 		kp->ki_lock = proc.p_lock;
