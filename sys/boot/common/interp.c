@@ -219,7 +219,7 @@ include(const char *filename)
 #else
 	flags = 0;
 	/* Discard comments */
-	if (input[0] == '#')
+	if (strncmp(input+strspn(input, " "), "\\ ", 2) == 0)
 	    continue;
 	cp = input;
 	/* Echo? */
