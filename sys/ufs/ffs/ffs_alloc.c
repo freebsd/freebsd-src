@@ -126,7 +126,7 @@ ffs_alloc(ip, lbn, bpref, size, cred, bnp)
 #endif /* DIAGNOSTIC */
 	if (size == fs->fs_bsize && fs->fs_cstotal.cs_nbfree == 0)
 		goto nospace;
-	if (cred->cr_uid != 0 &&
+	if (suser_xxx(cred, NULL, PRISON_ROOT) &&
 	    freespace(fs, fs->fs_minfree) - numfrags(fs, size) < 0)
 		goto nospace;
 #ifdef QUOTA
@@ -198,7 +198,7 @@ ffs_realloccg(ip, lbprev, bpref, osize, nsize, cred, bpp)
 	if (cred == NOCRED)
 		panic("ffs_realloccg: missing credential");
 #endif /* DIAGNOSTIC */
-	if (cred->cr_uid != 0 &&
+	if (suser_xxx(cred, NULL, PRISON_ROOT) &&
 	    freespace(fs, fs->fs_minfree) -  numfrags(fs, nsize - osize) < 0)
 		goto nospace;
 	if ((bprev = ip->i_db[lbprev]) == 0) {
