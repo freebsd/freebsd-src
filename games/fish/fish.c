@@ -133,7 +133,7 @@ usermove()
 	for (;;) {
 		(void)printf("You ask me for: ");
 		(void)fflush(stdout);
-		if (fgets(buf, BUFSIZ, stdin) == NULL)
+		if (fgets(buf, sizeof(buf), stdin) == NULL)
 			exit(0);
 		if (buf[0] == '\0')
 			continue;
