@@ -1,5 +1,5 @@
 /* Shared between kernel & process */
-/* $FreeBSD$
+/* $FreeBSD$ */
 
 #ifndef	_SYS_WORMIO_H_
 #define	_SYS_WORMIO_H_
