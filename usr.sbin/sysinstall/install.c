@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.59 1995/05/26 10:32:28 jkh Exp $
+ * $Id: install.c,v 1.60 1995/05/26 20:45:19 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -386,11 +386,11 @@ static void loop_on_root_floppy();
 static void
 root_extract(void)
 {
-    int fd, status;
+    int fd;
 
     if (OnCDROM) {
 	fd = open("/floppies/root.flp", O_RDONLY);
-	mediaExtractDist("root.flp", "/", fd);
+	(void)mediaExtractDist("root.flp", "/", fd);
 	return;
     }
     if (mediaDevice) {
@@ -407,12 +407,14 @@ root_extract(void)
 	    fd = (*mediaDevice->get)("root.flp", "floppies/");
 	    if (fd != -1) {
 		msgNotify("Loading root floppy from %s", mediaDevice->name);
-		status = mediaExtractDist("root.flp", "/", fd);
+		(void)mediaExtractDist("root.flp", "/", fd);
 		if (mediaDevice->close)
 		    (*mediaDevice->close)(mediaDevice, fd);
 		else
 		    close(fd);
 	    }
+	    if (mediaDevice->shutdown)
+		(*mediaDevice->shutdown)(mediaDevice);
 	    break;
 
 	case DEVICE_TYPE_FLOPPY:
@@ -430,9 +432,7 @@ loop_on_root_floppy(void)
 {
     int fd;
 
-    mediaDevice = NULL;
-    fd = genericGetDist("root.flp", NULL, TRUE);
-    if (fd == -1)
-	return;
-    mediaExtractDist("root.flp", "/", fd);
+    fd = getRootFloppy();
+    if (fd != -1)
+	mediaExtractDist("root.flp", "/", fd);
 }

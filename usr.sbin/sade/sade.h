@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.34 1995/05/26 08:41:48 jkh Exp $
+ * $Id: sysinstall.h,v 1.35 1995/05/26 19:28:04 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -85,7 +85,7 @@
 #define DISK_LABELLED		"_diskLabelled"
 #define RUNNING_ON_ROOT		"_runningOnRoot"
 #define TCP_CONFIGURED		"_tcpConfigured"
-#define NO_CONFIRMATION		"_noConfirmation"
+#define NO_CONFIRMATION		"noConfirmation"
 
 #define VAR_HOSTNAME		"hostname"
 #define VAR_DOMAINNAME		"domainname"
@@ -141,6 +141,15 @@ typedef struct _variable {
     char name[VAR_NAME_MAX];
     char value[VAR_VALUE_MAX];
 } Variable;
+
+#define MAX_ATTRIBS	200
+#define MAX_NAME	511
+#define MAX_VALUE	4095
+
+typedef struct _attribs {
+    char *name;
+    char *value;
+} Attribs;
 
 typedef enum {
     DEVICE_TYPE_NONE,
@@ -235,6 +244,15 @@ extern DMenu		MenuDiskDevices;	/* Disk devices menu				*/
 
 /*** Prototypes ***/
 
+/* attrs.c */
+extern const char	*attr_match(Attribs *attr, char *name);
+extern int		attr_parse(Attribs **attr, char *file);
+
+/* cdrom.c */
+extern Boolean	mediaInitCDROM(Device *dev);
+extern int	mediaGetCDROM(char *dist, char *path);
+extern void	mediaShutdownCDROM(Device *dev);
+
 /* command.c */
 extern void	command_clear(void);
 extern void	command_sort(void);
@@ -285,6 +303,23 @@ extern void	dmenuOpen(DMenu *menu, int *choice, int *scroll,
 			  int *curr, int *max);
 extern void	dmenuOpenSimple(DMenu *menu);
 
+/* dos.c */
+extern Boolean	mediaInitDOS(Device *dev);
+extern int	mediaGetDOS(char *dist, char *path);
+extern void	mediaShutdownDOS(Device *dev);
+
+/* floppy.c */
+extern int	getRootFloppy(void);
+extern Boolean	mediaInitFloppy(Device *dev);
+extern int	mediaGetFloppy(char *dist, char *path);
+extern void	mediaShutdownFloppy(Device *dev);
+
+/* ftp_strat.c */
+extern Boolean	mediaCloseFTP(Device *dev, int fd);
+extern Boolean	mediaInitFTP(Device *dev);
+extern int	mediaGetFTP(char *dist, char *path);
+extern void	mediaShutdownFTP(Device *dev);
+
 /* globals.c */
 extern void	globalsInit(void);
 
@@ -322,6 +357,7 @@ extern const u_char	koi8_r2cp866[];
 extern u_char		default_scrnmap[];
 
 /* media.c */
+extern int	genericGetDist(char *path, Attribs *dist_attrib, Boolean prompt);
 extern int	mediaSetCDROM(char *str);
 extern int	mediaSetFloppy(char *str);
 extern int	mediaSetDOS(char *str);
@@ -331,28 +367,6 @@ extern int	mediaSetFS(char *str);
 extern Boolean	mediaGetType(void);
 extern Boolean	mediaExtractDist(char *distname, char *dir, int fd);
 extern Boolean	mediaVerify(void);
-
-/* media_strategy.c */
-extern int	genericGetDist(char *path, void *dist_attrib, Boolean prompt);
-extern Boolean	mediaInitCDROM(Device *dev);
-extern Boolean	mediaInitDOS(Device *dev);
-extern Boolean	mediaInitFloppy(Device *dev);
-extern Boolean	mediaInitFTP(Device *dev);
-extern Boolean	mediaInitNetwork(Device *dev);
-extern Boolean	mediaInitTape(Device *dev);
-extern Boolean	mediaInitUFS(Device *dev);
-extern int	mediaGetCDROM(char *dist, char *path);
-extern int	mediaGetDOS(char *dist, char *path);
-extern int	mediaGetFloppy(char *dist, char *path);
-extern int	mediaGetFTP(char *dist, char *path);
-extern int	mediaGetTape(char *dist, char *path);
-extern int	mediaGetUFS(char *dist, char *path);
-extern void	mediaShutdownCDROM(Device *dev);
-extern void	mediaShutdownDOS(Device *dev);
-extern void	mediaShutdownFTP(Device *dev);
-extern void	mediaShutdownFloppy(Device *dev);
-extern void	mediaShutdownNetwork(Device *dev);
-extern void	mediaShutdownTape(Device *dev);
 
 /* misc.c */
 extern Boolean	file_readable(char *fname);
@@ -384,6 +398,10 @@ extern void	msgWeHaveOutput(char *fmt, ...);
 extern int	msgYesNo(char *fmt, ...);
 extern char	*msgGetInput(char *buf, char *fmt, ...);
 
+/* network.c */
+extern Boolean	mediaInitNetwork(Device *dev);
+extern void	mediaShutdownNetwork(Device *dev);
+
 /* system.c */
 extern void	systemInitialize(int argc, char **argv);
 extern void	systemShutdown(void);
@@ -399,6 +417,11 @@ extern void	systemChangeTerminal(char *color, const u_char c_termcap[],
 extern void	systemChangeScreenmap(const u_char newmap[]);
 extern int	vsystem(char *fmt, ...);
 
+/* tape.c */
+extern Boolean	mediaInitTape(Device *dev);
+extern int	mediaGetTape(char *dist, char *path);
+extern void	mediaShutdownTape(Device *dev);
+
 /* tcpip.c */
 extern int	tcpOpenDialog(Device *dev);
 extern int	tcpDeviceSelect(char *str);
@@ -406,6 +429,10 @@ extern Boolean	tcpStartPPP(Device *dev);
 
 /* termcap.c */
 extern int	set_termcap(void);
+
+/* ufs.c */
+extern Boolean	mediaInitUFS(Device *dev);
+extern int	mediaGetUFS(char *dist, char *path);
 
 /* variables.c */
 extern void	variable_set(char *var);

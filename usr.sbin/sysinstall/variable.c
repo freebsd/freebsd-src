@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: variable.c,v 1.2 1995/05/20 10:33:13 jkh Exp $
+ * $Id: variable.c,v 1.3 1995/05/26 20:45:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -75,8 +75,6 @@ variable_set(char *var)
 void
 variable_set2(char *var, char *value)
 {
-    Variable *newvar;
-
     if (!var || !value)
 	msgFatal("Null name or value passed to set_variable2!");
     make_variable(var, value);

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.17 1995/05/26 08:41:41 jkh Exp $
+ * $Id: media.c,v 1.18 1995/05/26 20:30:58 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -44,9 +44,152 @@
 #include <stdio.h>
 #include <sys/errno.h>
 #include <sys/fcntl.h>
+#include <sys/stat.h>
+#include <sys/mman.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #include "sysinstall.h"
+
+pid_t getDistpid = 0;
+
+/*
+ * This is the generic distribution opening routine.  It returns
+ * a file descriptor that refers to a stream of bytes coming from
+ * _somewhere_ that can be extracted as a gzip'd tar file.
+ */
+int
+genericGetDist(char *path, Attribs *dist_attrib, Boolean prompt)
+{
+    int 	fd;
+    char 	buf[512];
+    struct stat	sb;
+    int		pfd[2], numchunks;
+    const char *tmp;
+
+    /* reap any previous child corpse - yuck! */
+    if (getDistpid) {
+	int i, j;
+
+	i = waitpid(getDistpid, &j, 0);
+	if (i < 0 || WEXITSTATUS(j))
+	    msgNotify("Warning: Previous extraction returned status code %d.", WEXITSTATUS(j));
+	getDistpid = 0;
+    }
+
+    /* How try to figure out how many pieces to expect */
+    if (dist_attrib) {
+	tmp = attr_match(dist_attrib, "pieces");
+	numchunks = atoi(tmp);
+    }
+    else
+	numchunks = 1;
+
+    if (!path)
+	return -1;
+    if (stat(path, &sb) == 0) {
+	fd = open(path, O_RDONLY, 0);
+	return(fd);
+    }
+
+    snprintf(buf, 512, "%s.tgz", path);
+    if (stat(buf, &sb) == 0) {
+	fd = open(buf, O_RDONLY, 0);
+	return(fd);
+    }
+
+    snprintf(buf, 512, "%s.aa", path);
+    if (stat(buf, &sb) == 0 && numchunks == 1) {
+	fd = open(buf, O_RDONLY, 0);
+	if (fd != -1)
+	    return fd;
+	else if (!prompt) {
+	}
+    }
+
+    if (numchunks < 2 && !prompt) {
+	if (!getenv(NO_CONFIRMATION))
+	    msgConfirm("Cannot find file(s) for distribution in ``%s''!", path);
+	else
+	    msgDebug("Cannot find file(s) for distribution in ``%s''!\n", path);
+	return -1;
+    }
+
+    msgDebug("Attempting to concatenate %u chunks\n", numchunks);
+    pipe(pfd);
+    getDistpid = fork();
+    if (!getDistpid) {
+	caddr_t		memory;
+	int		chunk;
+	int		retval;
+
+	dup2(pfd[1], 1); close(pfd[1]);
+	close(pfd[0]);
+	
+	for (chunk = 0; chunk < numchunks; chunk++) {
+	    int			fd;
+	    unsigned long	len, val;
+	    
+	    retval = stat(buf, &sb);
+	    if ((retval != 0) && (prompt != TRUE))
+	    {
+		msgConfirm("Cannot find file(s) for distribution in ``%s''!\n", path);
+		return -1;
+	    } else {
+		char *tmp = index(buf, '/');
+		tmp++;
+		    
+		while (retval != 0)
+		{
+		    if (mediaDevice->shutdown)
+			(*mediaDevice->shutdown)(mediaDevice);
+		    msgConfirm("Please insert the media with the `%s' file on it\n", tmp);
+		    if (mediaDevice->init)
+			if (!mediaDevice->init(mediaDevice))
+			    return -1;
+		    retval = stat(buf, &sb);
+		}
+	    }
+	    
+	    snprintf(buf, 512, "%s.%c%c", path, (chunk / 26) + 'a', (chunk % 26) + 'a');
+	    if ((fd = open(buf, O_RDONLY)) == -1)
+		msgFatal("Cannot find file `%s'!", buf);
+	    
+	    if (prompt == TRUE) {
+		extern int crc(int, unsigned long *, unsigned long *);
+
+		crc(fd, &val, &len);
+		msgDebug("crc for %s is %lu %lu\n", buf, val, len);
+	    }
+	    
+	    fstat(fd, &sb);
+	    msgDebug("mmap()ing %s (%d)\n", buf, fd);
+	    memory = mmap(0, sb.st_size, PROT_READ, MAP_SHARED, fd, (off_t) 0);
+	    if (memory == (caddr_t) -1)
+		msgFatal("mmap error: %s\n", strerror(errno));
+	
+	    retval = write(1, memory, sb.st_size);
+	    if (retval != sb.st_size)
+	    {
+		msgConfirm("write didn't write out the complete file!\n(wrote %d bytes of %d bytes)", retval,
+			   sb.st_size);
+		exit(1);
+	    }
+	    
+	    retval = munmap(memory, sb.st_size);
+	    if (retval != 0)
+	    {
+		msgConfirm("munmap() returned %d", retval);
+		exit(1);
+	    }
+	    close(fd);
+	}
+	close(1);
+	msgDebug("Extract of %s finished!!!\n", path);
+	exit(0);
+    }
+    close(pfd[1]);
+    return(pfd[0]);
+}
 
 static int
 genericHook(char *str, DeviceType type)
@@ -196,6 +339,7 @@ mediaSetDOS(char *str)
 		    /* Got one! */
 		    mediaDevice = deviceRegister(c1->name, c1->name, c1->name, DEVICE_TYPE_DOS, TRUE,
 						 mediaInitDOS, mediaGetDOS, NULL, mediaShutdownDOS, NULL);
+		    mediaDevice->private = c1;
 		    msgDebug("Found a DOS partition %s on drive %s\n", c1->name, d->name);
 		    break;
 		}
@@ -270,6 +414,7 @@ mediaSetFTP(char *str)
     ftpDevice.type = DEVICE_TYPE_NETWORK;
     ftpDevice.init = mediaInitFTP;
     ftpDevice.get = mediaGetFTP;
+    ftpDevice.close = mediaCloseFTP;
     ftpDevice.shutdown = mediaShutdownFTP;
     ftpDevice.private = mediaDevice;
     mediaDevice = &ftpDevice;
@@ -336,13 +481,13 @@ mediaExtractDist(char *distname, char *dir, int fd)
     i = waitpid(zpid, &j, 0);
     if (i < 0) { /* Don't check status - gunzip seems to return a bogus one! */
 	dialog_clear();
-	msgConfirm("wait for gunzip returned status of %d!", i);
+	msgDebug("wait for gunzip returned status of %d!\n", i);
 	return FALSE;
     }
     i = waitpid(cpid, &j, 0);
     if (i < 0 || WEXITSTATUS(j)) {
 	dialog_clear();
-	msgConfirm("cpio returned error status of %d!", WEXITSTATUS(j));
+	msgDebug("cpio returned error status of %d!\n", WEXITSTATUS(j));
 	return FALSE;
     }
     return TRUE;
