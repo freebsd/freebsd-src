@@ -143,6 +143,9 @@ SECURITY CHANGES:
 8/29	inetd sleeps less when children exit, making DoS attacks much
 	harder.
 8/29	fts now race-proof and find -execdir added (-current only)
+8/31	games setuid -> setgid.  Makes any games exploits benign (only
+	score files vulnerable).  Please report any problems to
+	eivind@FreeBSD.org (score-file ownership problems are known)
 
 The suidperl vulnerability mentioned in the CERT advisory CA-97.17 is
 also believed to be fixed.
