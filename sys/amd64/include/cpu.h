@@ -82,10 +82,13 @@
 /*
  * Preempt the current process if in interrupt from user mode,
  * or after the current trap/syscall if in system mode.
+ *
+ * XXX: if astpending is later changed to an |= here due to more flags being
+ * added, we will have an atomicy problem.  The type of atomicy we need is
+ * a non-locked orl.
  */
-#define	need_resched()		do { want_resched = 1; aston(); } while (0)
-
-#define	resched_wanted()	want_resched
+#define	need_resched()		do { astpending = AST_RESCHED|AST_PENDING; } while (0)
+#define	resched_wanted()	(astpending & AST_RESCHED)
 
 /*
  * Arrange to handle pending profiling ticks before returning to user mode.
@@ -100,10 +103,15 @@
 /*
  * Notify the current process (p) that it has a signal pending,
  * process as soon as possible.
+ *
+ * XXX: aston() really needs to be an atomic (not locked, but an orl),
+ * in case need_resched() is set by an interrupt.  But with astpending a
+ * per-cpu variable this is not trivial to do efficiently.  For now we blow
+ * it off (asynchronous need_resched() conflicts are not critical).
  */
 #define	signotify(p)	aston()
 
-#define	aston()			do { astpending = 1; } while (0)
+#define	aston()			do { astpending |= AST_PENDING; } while (0)
 #define astoff()
 
 /*
@@ -126,11 +134,9 @@
 }
 
 #ifdef _KERNEL
-extern int	astpending;
 extern char	btext[];
 extern char	etext[];
 extern u_char	intr_nesting_level;
-extern int	want_resched;	/* resched was called */
 
 void	fork_trampoline __P((void));
 void	fork_return __P((struct proc *, struct trapframe));

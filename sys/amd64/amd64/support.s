@@ -848,7 +848,11 @@ ENTRY(i586_copyout)
 	jmp	done_copyout
 #endif /* I586_CPU && NNPX > 0 */
 
-/* copyin(from_user, to_kernel, len) */
+/*
+ * copyin(from_user, to_kernel, len)
+ *
+ * MPSAFE
+ */
 ENTRY(copyin)
 	MEXITCOUNT
 	jmp	*_copyin_vector
@@ -1130,6 +1134,8 @@ fastmove_tail_fault:
 
 /*
  * fu{byte,sword,word} : fetch a byte (sword, word) from user memory
+ *
+ * MP SAFE
  */
 ENTRY(fuword)
 	movl	_curpcb,%ecx
@@ -1154,6 +1160,9 @@ ENTRY(fuswintr)
 	movl	$-1,%eax
 	ret
 
+/*
+ * MP SAFE
+ */
 ENTRY(fusword)
 	movl	_curpcb,%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)
@@ -1166,6 +1175,9 @@ ENTRY(fusword)
 	movl	$0,PCB_ONFAULT(%ecx)
 	ret
 
+/*
+ * MP SAFE
+ */
 ENTRY(fubyte)
 	movl	_curpcb,%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)

@@ -62,6 +62,9 @@ struct getpid_args {
 };
 #endif
 
+/*
+ * NOT MP SAFE due to p_pptr access
+ */
 /* ARGSUSED */
 int
 getpid(p, uap)
@@ -92,7 +95,11 @@ getppid(p, uap)
 	return (0);
 }
 
-/* Get process group ID; note that POSIX getpgrp takes no parameter */
+/* 
+ * Get process group ID; note that POSIX getpgrp takes no parameter 
+ *
+ * MP SAFE
+ */
 #ifndef _SYS_SYSPROTO_H_
 struct getpgrp_args {
         int     dummy;
@@ -168,6 +175,9 @@ struct getuid_args {
 };
 #endif
 
+/*
+ * MP SAFE
+ */
 /* ARGSUSED */
 int
 getuid(p, uap)
@@ -205,6 +215,9 @@ struct getgid_args {
 };
 #endif
 
+/*
+ * MP SAFE
+ */
 /* ARGSUSED */
 int
 getgid(p, uap)

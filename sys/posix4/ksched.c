@@ -41,6 +41,7 @@
 #include <sys/kernel.h>
 #include <sys/resource.h>
 #include <machine/cpu.h>	/* For need_resched */
+#include <machine/ipl.h>	/* For need_resched */
 
 #include <posix4/posix4.h>
 
