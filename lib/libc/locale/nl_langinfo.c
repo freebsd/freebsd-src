@@ -44,7 +44,6 @@ nl_langinfo(nl_item item) {
 		ret = "";		/* XXX: need to be implemented */
 		break;
 	case D_T_FMT:
-		/* XXX: ???, this is compatibility field for FreeBSD */
 		ret = (char *) __get_current_time_locale()->c_fmt;
 		break;
 	case D_FMT:
@@ -54,8 +53,7 @@ nl_langinfo(nl_item item) {
 		ret = (char *) __get_current_time_locale()->X_fmt;
 		break;
 	case T_FMT_AMPM:
-		/* XXX: ??? */
-		ret = "";
+		ret = "%r";
 		break;
 	case AM_STR:
 		ret = (char *) __get_current_time_locale()->am;
@@ -101,10 +99,10 @@ nl_langinfo(nl_item item) {
 		/* XXX: ??? */
 		ret = "";
 		break;
-	case RADIXCHAR:
+	case RADIXCHAR:         /* deprecated */
 		ret = (char*) __get_current_numeric_locale()->decimal_point;
 		break;
-	case THOUSEP:
+	case THOUSEP:           /* deprecated */
 		ret = (char*) __get_current_numeric_locale()->thousands_sep;
 		break;
 	case YESEXPR:
@@ -113,15 +111,14 @@ nl_langinfo(nl_item item) {
 	case NOEXPR:
 		ret = (char*) __get_current_messages_locale()->noexpr;
 		break;
-	case YESSTR:
-		ret = (char*) __get_current_messages_locale()->yesstr;
-		break;
-	case NOSTR:
-		ret = (char*) __get_current_messages_locale()->nostr;
-		break;
-	case CRNCYSTR:
-		/* XXX: ??? */
+	case YESSTR:            /* deprecated */
 		ret = "";
+		break;
+	case NOSTR:             /* deprecated */
+		ret = "";
+		break;
+	case CRNCYSTR:          /* deprecated */
+		ret = (char*) __get_current_monetary_locale()->currency_symbol;
 		break;
 	default:
 		ret = "";
