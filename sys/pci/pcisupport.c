@@ -706,6 +706,11 @@ pcib_match(device_t dev)
 		return ("VIA 8363 (Apollo KT133) PCI-PCI (AGP) bridge");
 	case 0x85981106:
 		return ("VIA 82C598MVP (Apollo MVP3) PCI-PCI (AGP) bridge");
+	/* Exclude the ACPI function of VT82Cxxx series */
+	case 0x30401106:
+	case 0x30501106:
+	case 0x30571106:
+		return NULL;
 
 	/* AcerLabs -- vendor 0x10b9 */
 	/* Funny : The datasheet told me vendor id is "10b8",sub-vendor */
@@ -1268,9 +1273,9 @@ chip_match(device_t dev)
 	case 0x05981106:
 		return ("VIA 82C598MVP (Apollo MVP3) host bridge");
 	case 0x30401106:
-		return ("VIA 82C586B ACPI interface");
+	case 0x30501106:
 	case 0x30571106:
-		return ("VIA 82C686 ACPI interface");
+		return NULL;
 	case 0x30581106:
 		return ("VIA 82C686 AC97 Audio");
 	case 0x30681106:

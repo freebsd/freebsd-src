@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 23, 2002
+.Dd April 17, 2002
 .Dt VIAPM 4 i386
 .Os
 .Sh NAME
@@ -40,12 +40,12 @@
 .Sh DESCRIPTION
 This driver provides access to the
 .Tn VIA chipset Power Management Unit family.They are
-VT82C596A, VT82C596B, VT82C686A and VT8233.
+VT82C586B, VT82C596A, VT82C596B, VT82C686A and VT8233.
 .Pp
 The embedded controller of the VIA chipset may give you access
 to the monitoring facilities of your mainboard.
 .Pp
-The 596B support is made by software whereas other controllers support
+The 586B support is made by software whereas other controllers support
 the SMBus protocole by hardware.
 See
 .Xr smb 4
@@ -60,8 +60,8 @@ monitoring chip of your mainboard.
 .Sh HISTORY
 The
 .Nm
-manual page example first appeared in
-.Fx 5.0 .
+manual page first appeared in
+.Fx 4.6 .
 .Sh AUTHORS
 This
 manual page was written by
