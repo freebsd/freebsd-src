@@ -33,26 +33,40 @@
 
 #include <machine/frame.h>
 #include <machine/pcb.h>
+#include <machine/tstate.h>
 
 void
-fp_init_pcb(struct pcb *pcb)
+fp_init_proc(struct pcb *pcb)
 {
 
 	bzero(&pcb->pcb_fpstate.fp_fb, sizeof(pcb->pcb_fpstate.fp_fb));
-	pcb->pcb_fpstate.fp_fsr = FSR_TEM_DZ;
-	pcb->pcb_fpstate.fp_fprs = FPRS_FEF;
+	pcb->pcb_fpstate.fp_fsr = 0;
+	wr(fprs, 0, 0);
 }
 
 int
 fp_enable_proc(struct proc *p)
 {
+	struct pcb *pcb;
+
+	pcb = &p->p_addr->u_pcb;
+	if ((p->p_frame->tf_tstate & TSTATE_PEF) != 0 &&
+	    (pcb->pcb_fpstate.fp_fprs & FPRS_FEF) == 0) {
+		/*
+		 * Enable FEF for now. The SCD mandates that this should be
+		 * done when no user trap is set. User traps are not currently
+		 * supported...
+		 */
+		wr(fprs, rd(fprs), FPRS_FEF);
+		return (1);
+	}
 	
 	if ((p->p_frame->tf_tstate & TSTATE_PEF) != 0)
 		return (0);
 	mtx_lock_spin(&sched_lock);
 	p->p_frame->tf_tstate |= TSTATE_PEF;
 	/* Actually load the FP state into the registers. */
-	restorefpctx(&p->p_addr->u_pcb.pcb_fpstate);
+	restorefpctx(&pcb->pcb_fpstate);
 	mtx_unlock_spin(&sched_lock);
 	return (1);
 }
