@@ -83,11 +83,9 @@ These defaults may be overridden in
 By default both user and group quotas are enabled.
 .Pp
 Available options:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl a
-If the
-.Fl a
-flag is supplied in place of any filesystem names,
+If supplied in place of any filesystem names,
 .Nm quotaon Ns / Ns Nm quotaoff
 will enable/disable all the filesystems indicated in
 .Pa /etc/fstab
@@ -104,7 +102,7 @@ Only user quotas listed in
 .Pa /etc/fstab
 should be enabled/disabled.
 .It Fl v
-Causes
+Cause
 .Nm quotaon
 and
 .Nm quotaoff
