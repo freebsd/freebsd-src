@@ -27,7 +27,7 @@
  */
 
 /*
- * $Id: if_cs.c,v 1.7 1998/12/07 21:58:21 archie Exp $
+ * $Id: if_cs.c,v 1.8 1999/01/12 00:27:43 eivind Exp $
  *
  * Device driver for Crystal Semiconductor CS8920 based ethernet
  *   adapters. By Maxim Bolotin and Oleg Sharoiko, 27-April-1997
@@ -1215,11 +1215,11 @@ cs_mediaset(struct cs_softc *sc, int media)
 	case IFM_AUTO:
 		if ((error=enable_tp(sc))==0)
 			error = cs_duplex_auto(sc);
-		else if (error=enable_bnc(sc))
+		else if ((error=enable_bnc(sc)) != 0)
 			error = enable_aui(sc);
 		break;
 	case IFM_10_T:
-		if (error=enable_tp(sc))
+		if ((error=enable_tp(sc)) != 0)
 			break;
 		if (media & IFM_FDX)
 			cs_duplex_full(sc);

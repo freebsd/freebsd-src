@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ex.c,v 1.12 1998/06/07 17:10:30 dfr Exp $
+ *	$Id: if_ex.c,v 1.13 1998/10/22 05:58:39 bde Exp $
  */
 
 /*
@@ -476,7 +476,7 @@ void ex_start(struct ifnet *ifp)
 			outsw(iobase + IO_PORT_REG, tmp16, 1);
 		}
 		outsw(iobase + IO_PORT_REG, mtod(m, caddr_t) + i, (m->m_len - i) / 2);
-		if (i = (m->m_len - i) & 1)
+		if ((i = (m->m_len - i) & 1) != 0)
 			tmp16[0] = *(mtod(m, caddr_t) + m->m_len - 1);
 	}
 	if (i)

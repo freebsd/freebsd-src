@@ -68,7 +68,7 @@ ibcs2_socksys(p, uap)
 	 * The others are (and should be) only legal on sockets.
 	 */
 
-	if (error = copyin(uap->argsp, (caddr_t)realargs, sizeof(realargs)))
+	if ((error = copyin(uap->argsp, (caddr_t)realargs, sizeof(realargs))) != 0)
 		return error;
 	DPRINTF(("ibcs2_socksys: %08x %08x %08x %08x %08x %08x %08x\n",
 	       realargs[0], realargs[1], realargs[2], realargs[3], 

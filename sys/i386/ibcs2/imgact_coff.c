@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_coff.c,v 1.33 1998/10/16 03:55:00 peter Exp $
+ *	$Id: imgact_coff.c,v 1.34 1999/01/17 20:39:08 peter Exp $
  */
 
 #include <sys/param.h>
@@ -92,14 +92,14 @@ load_coff_section(struct vmspace *vmspace, struct vnode *vp, vm_offset_t offset,
 		"VM_PROT_ALL, MAP_PRIVATE | MAP_FIXED, vp, 0x%x)\n",
 		__FILE__, __LINE__, map_addr, map_len, prot, map_offset));
 
-	if (error = vm_mmap(&vmspace->vm_map,
+	if ((error = vm_mmap(&vmspace->vm_map,
 			     &map_addr,
 			     map_len,
 			     prot,
 			     VM_PROT_ALL,
 			     MAP_PRIVATE | MAP_FIXED,
 			     (caddr_t) vp,
-			     map_offset))
+			     map_offset)) != 0)
 		return error;
 
 	if (memsz == filsz) {
@@ -128,14 +128,14 @@ load_coff_section(struct vmspace *vmspace, struct vnode *vp, vm_offset_t offset,
 			return error;
 	}
 
-	if (error = vm_mmap(kernel_map,
+	if ((error = vm_mmap(kernel_map,
 			    (vm_offset_t *) &data_buf,
 			    PAGE_SIZE,
 			    VM_PROT_READ,
 			    VM_PROT_READ,
 			    0,
 			    (caddr_t) vp,
-			    trunc_page(offset + filsz)))
+			    trunc_page(offset + filsz))) != 0)
 		return error;
 
 	error = copyout(data_buf, (caddr_t) map_addr, copy_len);
@@ -182,7 +182,7 @@ coff_load_file(struct proc *p, char *name)
     		goto fail;
   	}
 
-  	if (error = VOP_GETATTR(vp, &attr, p->p_ucred, p))
+  	if ((error = VOP_GETATTR(vp, &attr, p->p_ucred, p)) != 0)
     		goto fail;
 
   	if ((vp->v_mount->mnt_flag & MNT_NOEXEC)
@@ -195,10 +195,10 @@ coff_load_file(struct proc *p, char *name)
     		goto fail;
   	}
 
-  	if (error = VOP_ACCESS(vp, VEXEC, p->p_ucred, p))
+  	if ((error = VOP_ACCESS(vp, VEXEC, p->p_ucred, p)) != 0)
     		goto fail;
 
-  	if (error = VOP_OPEN(vp, FREAD, p->p_ucred, p))
+  	if ((error = VOP_OPEN(vp, FREAD, p->p_ucred, p)) != 0)
     		goto fail;
 
 	/*
@@ -207,14 +207,14 @@ coff_load_file(struct proc *p, char *name)
 	 */
 	VOP_UNLOCK(vp, 0, p);
 
-  	if (error = vm_mmap(kernel_map,
+  	if ((error = vm_mmap(kernel_map,
 			    (vm_offset_t *) &ptr,
 			    PAGE_SIZE,
 			    VM_PROT_READ,
 		       	    VM_PROT_READ,
 			    0,
 			    (caddr_t) vp,
-			    0))
+			    0)) != 0)
     	goto fail;
 
   	fhdr = (struct filehdr *)ptr;
@@ -256,16 +256,16 @@ coff_load_file(struct proc *p, char *name)
     		}
   	}
 
-  	if (error = load_coff_section(vmspace, vp, text_offset,
+  	if ((error = load_coff_section(vmspace, vp, text_offset,
 				      (caddr_t)(void *)(uintptr_t)text_address,
 				      text_size, text_size,
-				      VM_PROT_READ | VM_PROT_EXECUTE)) {
+				      VM_PROT_READ | VM_PROT_EXECUTE)) != 0) {
     		goto dealloc_and_fail;
   	}
-  	if (error = load_coff_section(vmspace, vp, data_offset,
+  	if ((error = load_coff_section(vmspace, vp, data_offset,
 				      (caddr_t)(void *)(uintptr_t)data_address,
 				      data_size + bss_size, data_size,
-				      VM_PROT_ALL)) {
+				      VM_PROT_ALL)) != 0) {
     		goto dealloc_and_fail;
   	}
 
@@ -325,7 +325,7 @@ exec_coff_imgact(imgp)
 	       ((const char*)(imgp->image_header) + sizeof(struct filehdr) +
 		sizeof(struct aouthdr));
 
-	if (error = exec_extract_strings(imgp)) {
+	if ((error = exec_extract_strings(imgp)) != 0) {
 		DPRINTF(("%s(%d):  return %d\n", __FILE__, __LINE__, error));
 		return error;
 	}
@@ -364,14 +364,14 @@ exec_coff_imgact(imgp)
 	    	int len = round_page(scns[i].s_size + PAGE_SIZE);
 	    	int j;
 
-	    	if (error = vm_mmap(kernel_map,
+	    	if ((error = vm_mmap(kernel_map,
 				    (vm_offset_t *) &buf,
 				    len,
 				    VM_PROT_READ,
 				    VM_PROT_READ,
 				    0,
 				    (caddr_t) imgp->vp,
-				    foff)) {
+				    foff)) != 0) {
 	      		return ENOEXEC;
 	    	}
 		if(scns[i].s_size) {
@@ -416,11 +416,11 @@ exec_coff_imgact(imgp)
 		"imgp->vp, %08lx, %08lx, 0x%x, 0x%x, 0x%x)\n",
 		__FILE__, __LINE__, text_offset, text_address,
 		text_size, text_size, VM_PROT_READ | VM_PROT_EXECUTE));
-	if (error = load_coff_section(vmspace, imgp->vp,
+	if ((error = load_coff_section(vmspace, imgp->vp,
 				      text_offset,
 				      (caddr_t)(void *)(uintptr_t)text_address,
 				      text_size, text_size,
-				      VM_PROT_READ | VM_PROT_EXECUTE)) {
+				      VM_PROT_READ | VM_PROT_EXECUTE)) != 0) {
 		DPRINTF(("%s(%d): error = %d\n", __FILE__, __LINE__, error));
 		return error;
        	}
@@ -433,11 +433,11 @@ exec_coff_imgact(imgp)
 		"imgp->vp, 0x%08lx, 0x%08lx, 0x%x, 0x%x, 0x%x)\n",
 		__FILE__, __LINE__, data_offset, data_address,
 		data_size + bss_size, data_size, VM_PROT_ALL));
-	if (error = load_coff_section(vmspace, imgp->vp,
+	if ((error = load_coff_section(vmspace, imgp->vp,
 				      data_offset,
 				      (caddr_t)(void *)(uintptr_t)data_address,
 				      data_size + bss_size, data_size,
-				      VM_PROT_ALL)) {
+				      VM_PROT_ALL)) != 0) {
 
 		DPRINTF(("%s(%d): error = %d\n", __FILE__, __LINE__, error));
 		return error;

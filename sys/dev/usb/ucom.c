@@ -96,8 +96,8 @@ USB_MATCH(ucom)
 	if (!uaa->iface)
 		return (UMATCH_NONE);
 	id = usbd_get_interface_descriptor(uaa->iface);
-	if (id &&
-	    id->bInterfaceClass != UCLASS_CDC ||
+	if ((id &&
+	    id->bInterfaceClass != UCLASS_CDC) ||
 	    id->bInterfaceSubClass != USUBCLASS_ABSTRACT_CONTROL_MODEL)
 		return (UMATCH_NONE);
 	return (UMATCH_IFACECLASS_IFACESUBCLASS);
@@ -124,12 +124,12 @@ USB_ATTACH(ucom)
 static int
 ucom_detach(device_t self)
 {       
-	char *devinfo = (char *) device_get_desc(self);
+	const char *devinfo = device_get_desc(self);
 
 	DPRINTF(("%s: disconnected\n", USBDEVNAME(self)));
 	if (devinfo) {
 		device_set_desc(self, NULL);
-		free(devinfo, M_USB);
+		free((void *)devinfo, M_USB);
 	}
 	return 0;
 }

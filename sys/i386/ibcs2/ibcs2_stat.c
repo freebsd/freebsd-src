@@ -104,12 +104,12 @@ ibcs2_statfs(p, uap)
 
 	CHECKALTEXIST(p, &sg, SCARG(uap, path));
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), p);
-	if (error = namei(&nd))
+	if ((error = namei(&nd)) != 0)
 		return (error);
 	mp = nd.ni_vp->v_mount;
 	sp = &mp->mnt_stat;
 	vrele(nd.ni_vp);
-	if (error = VFS_STATFS(mp, sp, p))
+	if ((error = VFS_STATFS(mp, sp, p)) != 0)
 		return (error);
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	return cvt_statfs(sp, (caddr_t)SCARG(uap, buf), SCARG(uap, len));
@@ -125,11 +125,11 @@ ibcs2_fstatfs(p, uap)
 	register struct statfs *sp;
 	int error;
 
-	if (error = getvnode(p->p_fd, SCARG(uap, fd), &fp))
+	if ((error = getvnode(p->p_fd, SCARG(uap, fd), &fp)) != 0)
 		return (error);
 	mp = ((struct vnode *)fp->f_data)->v_mount;
 	sp = &mp->mnt_stat;
-	if (error = VFS_STATFS(mp, sp, p))
+	if ((error = VFS_STATFS(mp, sp, p)) != 0)
 		return (error);
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	return cvt_statfs(sp, (caddr_t)SCARG(uap, buf), SCARG(uap, len));
@@ -150,10 +150,10 @@ ibcs2_stat(p, uap)
 	SCARG(&cup, path) = SCARG(uap, path);
 	SCARG(&cup, ub) = stackgap_alloc(&sg, sizeof(st));
 
-	if (error = stat(p, &cup))
+	if ((error = stat(p, &cup)) != 0)
 		return error;
 
-	if (error = copyin(SCARG(&cup, ub), &st, sizeof(st)))
+	if ((error = copyin(SCARG(&cup, ub), &st, sizeof(st))) != 0)
 		return error;
 	bsd_stat2ibcs_stat(&st, &ibcs2_st);
 	return copyout((caddr_t)&ibcs2_st, (caddr_t)SCARG(uap, st),
@@ -175,10 +175,10 @@ ibcs2_lstat(p, uap)
 	SCARG(&cup, path) = SCARG(uap, path);
 	SCARG(&cup, ub) = stackgap_alloc(&sg, sizeof(st));
 
-	if (error = lstat(p, &cup))
+	if ((error = lstat(p, &cup)) != 0)
 		return error;
 
-	if (error = copyin(SCARG(&cup, ub), &st, sizeof(st)))
+	if ((error = copyin(SCARG(&cup, ub), &st, sizeof(st))) != 0)
 		return error;
 	bsd_stat2ibcs_stat(&st, &ibcs2_st);
 	return copyout((caddr_t)&ibcs2_st, (caddr_t)SCARG(uap, st),
@@ -199,10 +199,10 @@ ibcs2_fstat(p, uap)
 	SCARG(&cup, fd) = SCARG(uap, fd);
 	SCARG(&cup, sb) = stackgap_alloc(&sg, sizeof(st));
 
-	if (error = fstat(p, &cup))
+	if ((error = fstat(p, &cup)) != 0)
 		return error;
 
-	if (error = copyin(SCARG(&cup, sb), &st, sizeof(st)))
+	if ((error = copyin(SCARG(&cup, sb), &st, sizeof(st))) != 0)
 		return error;
 	bsd_stat2ibcs_stat(&st, &ibcs2_st);
 	return copyout((caddr_t)&ibcs2_st, (caddr_t)SCARG(uap, st),
