@@ -1173,18 +1173,14 @@ __setugid(struct thread *td, struct __setugid_args *uap)
 	p = td->td_proc;
 	switch (uap->flag) {
 	case 0:
-		mtx_lock(&Giant);
 		PROC_LOCK(p);
 		p->p_flag &= ~P_SUGID;
 		PROC_UNLOCK(p);
-		mtx_unlock(&Giant);
 		return (0);
 	case 1:
-		mtx_lock(&Giant);
 		PROC_LOCK(p);
 		p->p_flag |= P_SUGID;
 		PROC_UNLOCK(p);
-		mtx_unlock(&Giant);
 		return (0);
 	default:
 		return (EINVAL);
