@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)deliver.c	8.84.1.3 (Berkeley) 3/5/95";
+static char sccsid[] = "@(#)deliver.c	8.84.1.4 (Berkeley) 3/28/95";
 #endif /* not lint */
 
 #include "sendmail.h"
@@ -1182,10 +1182,7 @@ tryhost:
 			extern int DtableSize;
 
 			if (e->e_lockfp != NULL)
-			{
-				fclose(e->e_lockfp);
-				e->e_lockfp = NULL;
-			}
+				(void) close(fileno(e->e_lockfp));
 
 			/* child -- set up input & exec mailer */
 			(void) setsignal(SIGINT, SIG_IGN);
