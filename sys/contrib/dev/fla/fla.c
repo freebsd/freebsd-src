@@ -10,7 +10,6 @@
  *
  */
 
-#include "fla.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
