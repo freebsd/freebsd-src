@@ -560,7 +560,7 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		}
 
 		if (dirs[i] & CAM_DIR_OUT) {
-			flags[i] = B_READ;
+			flags[i] = B_WRITE;
 			if (useracc(*data_ptrs[i], lengths[i], B_READ) == 0){
 				printf("cam_periph_mapmem: error, "
 					"address %p, length %lu isn't "
@@ -576,7 +576,7 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		 * is all 0's, and so it is "set" all the time.
 		 */
 		if (dirs[i] & CAM_DIR_IN) {
-			flags[i] |= B_WRITE;
+			flags[i] |= B_READ;
 			if (useracc(*data_ptrs[i], lengths[i], B_WRITE) == 0){
 				printf("cam_periph_mapmem: error, "
 					"address %p, length %lu isn't "
