@@ -126,7 +126,7 @@
 
     <para>An <quote>off-by-one</quote> bug has been fixed in
       <application>OpenSSH</application>'s multiplexing code.  This bug
-      could have allowed a an authenticated remote user to cause
+      could have allowed an authenticated remote user to cause
       &man.sshd.8; to execute arbitrary code with superuser
       privileges, or allowed a malicious SSH server to execute arbitrary
       code on the client system with the privileges of the client user.  Various workarounds
