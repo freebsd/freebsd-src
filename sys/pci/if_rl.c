@@ -1321,16 +1321,12 @@ static int rl_encap(sc, m_head)
 	 */
 
 	MGETHDR(m_new, M_DONTWAIT, MT_DATA);
-	if (m_new == NULL) {
-		printf("rl%d: no memory for tx list", sc->rl_unit);
+	if (m_new == NULL)
 		return(1);
-	}
 	if (m_head->m_pkthdr.len > MHLEN) {
 		MCLGET(m_new, M_DONTWAIT);
 		if (!(m_new->m_flags & M_EXT)) {
 			m_freem(m_new);
-			printf("rl%d: no memory for tx list",
-					sc->rl_unit);
 			return(1);
 		}
 	}

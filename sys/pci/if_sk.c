@@ -672,11 +672,8 @@ static int sk_newbuf(sc_if, c, m)
 		caddr_t			*buf = NULL;
 
 		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
-		if (m_new == NULL) {
-			printf("sk%d: no memory for rx list -- "
-			    "packet dropped!\n", sc_if->sk_unit);
+		if (m_new == NULL)
 			return(ENOBUFS);
-		}
 
 		/* Allocate the jumbo buffer */
 		buf = sk_jalloc(sc_if);
