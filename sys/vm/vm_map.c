@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.12 1995/01/24 10:13:02 davidg Exp $
+ * $Id: vm_map.c,v 1.13 1995/02/02 09:08:40 davidg Exp $
  */
 
 /*
@@ -1315,7 +1315,7 @@ vm_map_pageable(map, start, end, new_pageable)
 				 * point to sharing maps, because we won't
 				 * hold the lock on the sharing map.
 				 */
-				if (!entry->is_a_map) {
+				if (!entry->is_a_map && !entry->is_sub_map) {
 					if (entry->needs_copy &&
 					    ((entry->protection & VM_PROT_WRITE) != 0)) {
 
@@ -1473,7 +1473,7 @@ vm_map_clean(map, start, end, syncio, invalidate)
 	for (current = entry; current->start < end; current = current->next) {
 		offset = current->offset + (start - current->start);
 		size = (end <= current->end ? end : current->end) - start;
-		if (current->is_a_map) {
+		if (current->is_a_map || current->is_sub_map) {
 			register vm_map_t smap;
 			vm_map_entry_t tentry;
 			vm_size_t tsize;
@@ -1486,26 +1486,28 @@ vm_map_clean(map, start, end, syncio, invalidate)
 				size = tsize;
 			object = tentry->object.vm_object;
 			offset = tentry->offset + (offset - tentry->start);
-			vm_object_lock(object);
 			vm_map_unlock_read(smap);
 		} else {
 			object = current->object.vm_object;
+		}
+		if (object && (object->pager != NULL) &&
+		    (object->pager->pg_type == PG_VNODE)) {
 			vm_object_lock(object);
-		}
-		/*
-		 * Flush pages if writing is allowed. XXX should we continue
-		 * on an error?
-		 */
-		if ((current->protection & VM_PROT_WRITE) &&
-		    !vm_object_page_clean(object, offset, offset + size,
-			syncio, FALSE)) {
+			/*
+			 * Flush pages if writing is allowed. XXX should we continue
+			 * on an error?
+			 */
+			if ((current->protection & VM_PROT_WRITE) &&
+		   	    !vm_object_page_clean(object, offset, offset + size,
+			    syncio, FALSE)) {
+				vm_object_unlock(object);
+				vm_map_unlock_read(map);
+				return (KERN_FAILURE);
+			}
+			if (invalidate)
+				vm_object_page_remove(object, offset, offset + size);
 			vm_object_unlock(object);
-			vm_map_unlock_read(map);
-			return (KERN_FAILURE);
 		}
-		if (invalidate)
-			vm_object_page_remove(object, offset, offset + size);
-		vm_object_unlock(object);
 		start += size;
 	}
 
