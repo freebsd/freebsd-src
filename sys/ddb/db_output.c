@@ -34,6 +34,9 @@
 /*
  * HISTORY
  * $Log: db_output.c,v $
+ * Revision 1.1.1.1  1993/06/12  14:57:37  rgrimes
+ * Initial import, 0.1 + pk 0.2.4-B1
+ *
  * Revision 1.1  1992/03/25  21:45:18  pace
  * Initial revision
  *
@@ -60,6 +63,7 @@
  */
 
 #include "param.h"
+#include "systm.h"
 #include <machine/stdarg.h>
 
 /*

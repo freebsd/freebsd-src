@@ -58,6 +58,116 @@ outb(u_int port, u_char data)
 	__asm __volatile("outb %0,%%dx" : : "a" (al), "d" (port));
 }
 
+static __inline__
+imin(a, b)
+	int a, b;
+{
+
+	return (a < b ? a : b);
+}
+
+static __inline__
+imax(a, b)
+	int a, b;
+{
+
+	return (a > b ? a : b);
+}
+
+static __inline__
+unsigned int
+min(a, b)
+	unsigned int a, b;
+{
+
+	return (a < b ? a : b);
+}
+
+static __inline__
+unsigned int
+max(a, b)
+	unsigned int a, b;
+{
+
+	return (a > b ? a : b);
+}
+
+static __inline__
+long
+lmin(a, b)
+	long a, b;
+{
+
+	return (a < b ? a : b);
+}
+
+static __inline__
+long
+lmax(a, b)
+	long a, b;
+{
+
+	return (a > b ? a : b);
+}
+
+static __inline__
+unsigned long
+ulmin(a, b)
+	unsigned long a, b;
+{
+
+	return (a < b ? a : b);
+}
+
+static __inline__
+unsigned long
+ulmax(a, b)
+	unsigned long a, b;
+{
+
+	return (a > b ? a : b);
+}
+
+static __inline__
+ffs(mask)
+	register long mask;
+{
+	register int bit;
+
+	if (!mask)
+		return(0);
+	for (bit = 1;; ++bit) {
+		if (mask&0x01)
+			return(bit);
+		mask >>= 1;
+	}
+}
+
+static __inline__
+bcmp(v1, v2, len)
+	void *v1, *v2;
+	register unsigned len;
+{
+	register u_char *s1 = v1, *s2 = v2;
+
+	while (len--)
+		if (*s1++ != *s2++)
+			return (1);
+	return (0);
+}
+
+static __inline__
+size_t
+strlen(s1)
+	register __const__ char *s1;
+{
+	register size_t len;
+
+	for (len = 0; *s1++ != '\0'; len++)
+		;
+	return (len);
+}
+
 #else /* not __GNUC__ */
 
 int	bdb		__P((void));
@@ -80,3 +190,4 @@ really_void	setidt	__P((int idx, /*XXX*/caddr_t func, int typ, int dpl));
 
 #undef	really_u_int
 #undef	really_void
+

@@ -49,7 +49,7 @@
 /*
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
  */
-static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys.386bsd/i386/i386/vm_machdep.c,v 1.1.1.1 1993/06/12 14:58:05 rgrimes Exp $";
+static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys/i386/i386/vm_machdep.c,v 1.2 1993/07/18 20:56:17 paul Exp $";
 
 #include "param.h"
 #include "systm.h"
@@ -105,8 +105,15 @@ cpu_fork(p1, p2)
 	vm_map_pageable(&p2->p_vmspace->vm_map, addr, addr+NBPG, FALSE);
 	for (i=0; i < UPAGES; i++)
 		pmap_enter(&p2->p_vmspace->vm_pmap, kstack+i*NBPG,
-			pmap_extract(kernel_pmap, ((int)p2->p_addr)+i*NBPG), VM_PROT_READ, 1);
-
+			   pmap_extract(kernel_pmap, ((int)p2->p_addr)+i*NBPG),
+			   /*
+			    * The user area has to be mapped writable because
+			    * it contains the kernel stack (when CR0_WP is on
+			    * on a 486 there is no user-read/kernel-write
+			    * mode).  It is protected from user mode access
+			    * by the segment limits.
+			    */
+			   VM_PROT_READ|VM_PROT_WRITE, TRUE);
 	pmap_activate(&p2->p_vmspace->vm_pmap, &up->u_pcb);
 
 	/*

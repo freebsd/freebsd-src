@@ -27,6 +27,7 @@
 #include "bpfilter.h"
 
 #include "param.h"
+#include "systm.h"
 #include "errno.h"
 #include "ioctl.h"
 #include "mbuf.h"
@@ -171,7 +172,7 @@ int is_reset(int unit)
 	s = splnet();
 	printf("is%d: reset\n", unit);
 	is_init(unit);
-	s = splx();
+	(void) splx(s);
 }
  
 /*
