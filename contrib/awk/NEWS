@@ -1,3 +1,79 @@
+Changes from 3.0.3 to 3.0.4
+---------------------------
+
+This is a bug fix release only, pending further development on 3.1.0.
+
+Bugs Fixed:
+
+ 1. A memory leak when turning a function parameter into an array was
+    fixed.
+
+ 2. The non-decimal data option now works correctly.
+
+ 3. Using an empty pair of brackets as an array subscript no longer causes
+    a core dump during parsing.  In general, syntax errors should not
+    cause core dumps any more.
+ 
+ 4. Standard input is no longer closed if it provides program source,
+    avoiding strange I/O problems.
+
+ 5. Memory corruption during printing with `print' has been fixed.
+
+ 6. The gsub function now correctly counts the number of matches.
+
+ 7. A typo in doc/Makefile.in has been fixed, making installation work.
+
+ 8. Calling `next' or `nextfile' from a BEGIN or END rule is now fatal.
+
+ 9. Subtle problems in rebuilding $0 when fields were changed have been
+    fixed.
+
+10. `FS = FS' now correctly turns off the use of FIELDWIDTHS.
+
+11. Gawk now parses fields correctly when FS is a single character.
+
+12. It is now possible for RS to be the NUL character ("\0").
+
+13. Weird problems with number conversions on MIPS and other systems
+    have been fixed.
+
+14. When parsing using FIELDWIDTHS is in effect, split() with no third
+    argument will still use the value of FS.
+
+15. Large File Support for Solaris, HP-UX, AIX, and IRIX is now enabled at
+    compile time, thanks to Paul Eggert.
+
+16. Attempting to use the name of a function as a variable or array
+    from within the function is now caught as a fatal error, instead
+    of as a core dump.
+
+17. A bug in parsing hex escapes was fixed.
+
+18. A weird bug with concatenation where one expression has side effects
+    that changes another was fixed.
+
+19. printf/sprintf now behave much better for uses of the '0' and '#' flags
+    and with precisions and field widths.
+
+20. Further strangenesses with concatenation and multiple accesses of some
+    of the special variables was fixed.
+
+21. The Atari port is marked as no longer supported.
+
+22. Build problems on HP-UX have been fixed.
+
+23. Minor fixes and additional explanations added to the documentation.
+
+24. For RS = "", even a single leading newline is now correctly stripped.
+
+25. Obscure parsing problems for regex constants like /=.../ fixed, so
+    that a regex constant is recognized, and not the /= operator.
+
+26. Fixed a bug when closing a redirection that matched the current
+    or last FILENAME.
+
+27. Build problems on AIX fixed.
+
 Changes from 3.0.2 to 3.0.3
 ---------------------------
 
