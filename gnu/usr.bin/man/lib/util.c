@@ -139,7 +139,7 @@ do_system_command (command)
     status = system (command);
 
   if (WIFSIGNALED(status))
-    return 0;
+    return -1;
   else if (WEXITSTATUS(status)) {
     gripe_system_command (status);
     return 0;
