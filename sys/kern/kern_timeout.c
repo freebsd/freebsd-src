@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/callout.h>
 #include <sys/condvar.h>
 #include <sys/kernel.h>
+#include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
@@ -245,8 +246,11 @@ softclock(void *dummy)
 				if (!(c_flags & CALLOUT_MPSAFE)) {
 					mtx_lock(&Giant);
 					gcalls++;
+					CTR1(KTR_CALLOUT, "callout %p", c_func);
 				} else {
 					mpcalls++;
+					CTR1(KTR_CALLOUT, "callout mpsafe %p",
+					    c_func);
 				}
 #ifdef DIAGNOSTIC
 				binuptime(&bt1);
