@@ -142,7 +142,7 @@ nmount(td, uap)
 	auio.uio_iov = iov;
 	auio.uio_iovcnt = iovcnt;
 	auio.uio_segflg = UIO_USERSPACE;
-	if ((error = copyin((caddr_t)uap->iovp, (caddr_t)iov, iovlen)))
+	if ((error = copyin(uap->iovp, iov, iovlen)))
 		goto finish;
 
 	for (i = 0; i < iovcnt; i++) {
@@ -483,7 +483,7 @@ update:
 		else {
 			mp->mnt_vfc->vfc_refcount--;
 			vfs_unbusy(mp, td);
-			free((caddr_t)mp, M_MOUNT);
+			free(mp, M_MOUNT);
 		}
 		vrele(vp);
 		error = EOPNOTSUPP;
@@ -573,7 +573,7 @@ update:
 		mtx_unlock(&vp->v_interlock);
 		mp->mnt_vfc->vfc_refcount--;
 		vfs_unbusy(mp, td);
-		free((caddr_t)mp, M_MOUNT);
+		free(mp, M_MOUNT);
 		vput(vp);
 		goto bad;
 	}
@@ -837,7 +837,7 @@ update:
 		else {
 			mp->mnt_vfc->vfc_refcount--;
 			vfs_unbusy(mp, td);
-			free((caddr_t)mp, M_MOUNT);
+			free(mp, M_MOUNT);
 		}
 		vrele(vp);
 		return (EOPNOTSUPP);
@@ -914,7 +914,7 @@ update:
 		mtx_unlock(&vp->v_interlock);
 		mp->mnt_vfc->vfc_refcount--;
 		vfs_unbusy(mp, td);
-		free((caddr_t)mp, M_MOUNT);
+		free(mp, M_MOUNT);
 		vput(vp);
 	}
 	return (error);
@@ -1060,7 +1060,7 @@ dounmount(mp, flags, td)
 	if (error) {
 		mp->mnt_kern_flag &= ~(MNTK_UNMOUNT | MNTK_UNMOUNTF);
 		if (mp->mnt_kern_flag & MNTK_MWAIT)
-			wakeup((caddr_t)mp);
+			wakeup(mp);
 		return (error);
 	}
 	vn_start_write(NULL, &mp, V_WAIT);
@@ -1109,7 +1109,7 @@ dounmount(mp, flags, td)
 		lockmgr(&mp->mnt_lock, LK_RELEASE | LK_INTERLOCK,
 		    &mountlist_mtx, td);
 		if (mp->mnt_kern_flag & MNTK_MWAIT)
-			wakeup((caddr_t)mp);
+			wakeup(mp);
 		return (error);
 	}
 	mtx_lock(&mountlist_mtx);
@@ -1124,10 +1124,10 @@ dounmount(mp, flags, td)
 	if (coveredvp != NULL)
 		vrele(coveredvp);
 	if (mp->mnt_kern_flag & MNTK_MWAIT)
-		wakeup((caddr_t)mp);
+		wakeup(mp);
 	if (mp->mnt_op->vfs_mount == NULL)
 		vfs_freeopts(mp->mnt_opt);
-	free((caddr_t)mp, M_MOUNT);
+	free(mp, M_MOUNT);
 	return (0);
 }
 
@@ -1272,11 +1272,11 @@ statfs(td, uap)
 		return (error);
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	if (suser(td)) {
-		bcopy((caddr_t)sp, (caddr_t)&sb, sizeof(sb));
+		bcopy(sp, &sb, sizeof(sb));
 		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
 		sp = &sb;
 	}
-	return (copyout((caddr_t)sp, (caddr_t)SCARG(uap, buf), sizeof(*sp)));
+	return (copyout(sp, SCARG(uap, buf), sizeof(*sp)));
 }
 
 /*
@@ -1315,11 +1315,11 @@ fstatfs(td, uap)
 		return (error);
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	if (suser(td)) {
-		bcopy((caddr_t)sp, (caddr_t)&sb, sizeof(sb));
+		bcopy(sp, &sb, sizeof(sb));
 		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
 		sp = &sb;
 	}
-	return (copyout((caddr_t)sp, (caddr_t)SCARG(uap, buf), sizeof(*sp)));
+	return (copyout(sp, SCARG(uap, buf), sizeof(*sp)));
 }
 
 /*
@@ -1371,7 +1371,7 @@ getfsstat(td, uap)
 				continue;
 			}
 			sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-			error = copyout((caddr_t)sp, sfsp, sizeof(*sp));
+			error = copyout(sp, sfsp, sizeof(*sp));
 			if (error) {
 				vfs_unbusy(mp, td);
 				return (error);
@@ -1713,7 +1713,7 @@ open(td, uap)
 	KASSERT(!vn_canvmio(vp) || VOP_GETVOBJECT(vp, NULL) == 0,
 		("open: vmio vnode has no backing object after vn_open"));
 
-	fp->f_data = (caddr_t)vp;
+	fp->f_data = vp;
 	fp->f_flag = flags & FMASK;
 	fp->f_ops = &vnops;
 	fp->f_type = (vp->v_type == VFIFO ? DTYPE_FIFO : DTYPE_VNODE);
@@ -1731,7 +1731,8 @@ open(td, uap)
 		type = F_FLOCK;
 		if ((flags & FNONBLOCK) == 0)
 			type |= F_WAIT;
-		if ((error = VOP_ADVLOCK(vp, (caddr_t)fp, F_SETLK, &lf, type)) != 0)
+		if ((error = VOP_ADVLOCK(vp, (caddr_t)fp, F_SETLK, &lf,
+			    type)) != 0)
 			goto bad;
 		fp->f_flag |= FHASLOCK;
 	}
@@ -2434,7 +2435,7 @@ ostat(td, uap)
 	if (error)
 		return (error);
 	cvtstat(&sb, &osb);
-	error = copyout((caddr_t)&osb, (caddr_t)SCARG(uap, ub), sizeof (osb));
+	error = copyout(&osb, SCARG(uap, ub), sizeof (osb));
 	return (error);
 }
 
@@ -2473,7 +2474,7 @@ olstat(td, uap)
 	if (error)
 		return (error);
 	cvtstat(&sb, &osb);
-	error = copyout((caddr_t)&osb, (caddr_t)SCARG(uap, ub), sizeof (osb));
+	error = copyout(&osb, SCARG(uap, ub), sizeof (osb));
 	return (error);
 }
 
@@ -2543,7 +2544,7 @@ stat(td, uap)
 	vput(nd.ni_vp);
 	if (error)
 		return (error);
-	error = copyout((caddr_t)&sb, (caddr_t)SCARG(uap, ub), sizeof (sb));
+	error = copyout(&sb, SCARG(uap, ub), sizeof (sb));
 	return (error);
 }
 
@@ -2580,7 +2581,7 @@ lstat(td, uap)
 	vput(vp);
 	if (error)
 		return (error);
-	error = copyout((caddr_t)&sb, (caddr_t)SCARG(uap, ub), sizeof (sb));
+	error = copyout(&sb, SCARG(uap, ub), sizeof (sb));
 	return (error);
 }
 
@@ -2645,7 +2646,7 @@ nstat(td, uap)
 	if (error)
 		return (error);
 	cvtnstat(&sb, &nsb);
-	error = copyout((caddr_t)&nsb, (caddr_t)SCARG(uap, ub), sizeof (nsb));
+	error = copyout(&nsb, SCARG(uap, ub), sizeof (nsb));
 	return (error);
 }
 
@@ -2684,7 +2685,7 @@ nlstat(td, uap)
 	if (error)
 		return (error);
 	cvtnstat(&sb, &nsb);
-	error = copyout((caddr_t)&nsb, (caddr_t)SCARG(uap, ub), sizeof (nsb));
+	error = copyout(&nsb, SCARG(uap, ub), sizeof (nsb));
 	return (error);
 }
 
@@ -3887,14 +3888,13 @@ unionread:
 			struct vnode *tvp = vp;
 			vp = vp->v_mount->mnt_vnodecovered;
 			VREF(vp);
-			fp->f_data = (caddr_t) vp;
+			fp->f_data = vp;
 			fp->f_offset = 0;
 			vrele(tvp);
 			goto unionread;
 		}
 	}
-	error = copyout((caddr_t)&loff, (caddr_t)SCARG(uap, basep),
-	    sizeof(long));
+	error = copyout(&loff, SCARG(uap, basep), sizeof(long));
 	fdrop(fp, td);
 	td->td_retval[0] = SCARG(uap, count) - auio.uio_resid;
 	return (error);
@@ -3974,15 +3974,14 @@ unionread:
 			struct vnode *tvp = vp;
 			vp = vp->v_mount->mnt_vnodecovered;
 			VREF(vp);
-			fp->f_data = (caddr_t) vp;
+			fp->f_data = vp;
 			fp->f_offset = 0;
 			vrele(tvp);
 			goto unionread;
 		}
 	}
 	if (SCARG(uap, basep) != NULL) {
-		error = copyout((caddr_t)&loff, (caddr_t)SCARG(uap, basep),
-		    sizeof(long));
+		error = copyout(&loff, SCARG(uap, basep), sizeof(long));
 	}
 	td->td_retval[0] = SCARG(uap, count) - auio.uio_resid;
 	fdrop(fp, td);
@@ -4303,7 +4302,7 @@ fhopen(td, uap)
 	 * from under us while we block in the lock op
 	 */
 	fhold(fp);
-	nfp->f_data = (caddr_t)vp;
+	nfp->f_data = vp;
 	nfp->f_flag = fmode & FMASK;
 	nfp->f_ops = &vnops;
 	nfp->f_type = DTYPE_VNODE;
@@ -4319,7 +4318,8 @@ fhopen(td, uap)
 		if ((fmode & FNONBLOCK) == 0)
 			type |= F_WAIT;
 		VOP_UNLOCK(vp, 0, td);
-		if ((error = VOP_ADVLOCK(vp, (caddr_t)fp, F_SETLK, &lf, type)) != 0) {
+		if ((error = VOP_ADVLOCK(vp, (caddr_t)fp, F_SETLK, &lf,
+			    type)) != 0) {
 			/*
 			 * The lock request failed.  Normally close the
 			 * descriptor but handle the case where someone might
@@ -4445,7 +4445,7 @@ fhstatfs(td, uap)
 		return (error);
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 	if (suser(td)) {
-		bcopy((caddr_t)sp, (caddr_t)&sb, sizeof(sb));
+		bcopy(sp, &sb, sizeof(sb));
 		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
 		sp = &sb;
 	}
