@@ -17,7 +17,7 @@
  *
  * From: Version 2.4, Thu Apr 30 17:17:21 MSD 1997
  *
- * $Id: if_spppsubr.c,v 1.46 1998/12/04 22:54:52 archie Exp $
+ * $Id: if_spppsubr.c,v 1.47 1998/12/11 21:40:13 phk Exp $
  */
 
 #include <sys/param.h>
@@ -1405,12 +1405,12 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 		case STATE_ACK_SENT:
 			break;
 		case STATE_CLOSING:
-			(cp->tlf)(sp);
 			sppp_cp_change_state(cp, sp, STATE_CLOSED);
+			(cp->tlf)(sp);
 			break;
 		case STATE_STOPPING:
-			(cp->tlf)(sp);
 			sppp_cp_change_state(cp, sp, STATE_STOPPED);
+			(cp->tlf)(sp);
 			break;
 		case STATE_ACK_RCVD:
 			sppp_cp_change_state(cp, sp, STATE_REQ_SENT);
@@ -1575,8 +1575,9 @@ sppp_down_event(const struct cp *cp, struct sppp *sp)
 		sppp_cp_change_state(cp, sp, STATE_INITIAL);
 		break;
 	case STATE_STOPPED:
+		sppp_cp_change_state(cp, sp, STATE_STARTING);
 		(cp->tls)(sp);
-		/* fall through */
+		break;
 	case STATE_STOPPING:
 	case STATE_REQ_SENT:
 	case STATE_ACK_RCVD:
@@ -1607,8 +1608,8 @@ sppp_open_event(const struct cp *cp, struct sppp *sp)
 
 	switch (sp->state[cp->protoidx]) {
 	case STATE_INITIAL:
-		(cp->tls)(sp);
 		sppp_cp_change_state(cp, sp, STATE_STARTING);
+		(cp->tls)(sp);
 		break;
 	case STATE_STARTING:
 		break;
@@ -1647,8 +1648,8 @@ sppp_close_event(const struct cp *cp, struct sppp *sp)
 	case STATE_CLOSING:
 		break;
 	case STATE_STARTING:
-		(cp->tlf)(sp);
 		sppp_cp_change_state(cp, sp, STATE_INITIAL);
+		(cp->tlf)(sp);
 		break;
 	case STATE_STOPPED:
 		sppp_cp_change_state(cp, sp, STATE_CLOSED);
@@ -1686,18 +1687,18 @@ sppp_to_event(const struct cp *cp, struct sppp *sp)
 		/* TO- event */
 		switch (sp->state[cp->protoidx]) {
 		case STATE_CLOSING:
-			(cp->tlf)(sp);
 			sppp_cp_change_state(cp, sp, STATE_CLOSED);
+			(cp->tlf)(sp);
 			break;
 		case STATE_STOPPING:
-			(cp->tlf)(sp);
 			sppp_cp_change_state(cp, sp, STATE_STOPPED);
+			(cp->tlf)(sp);
 			break;
 		case STATE_REQ_SENT:
 		case STATE_ACK_RCVD:
 		case STATE_ACK_SENT:
-			(cp->tlf)(sp);
 			sppp_cp_change_state(cp, sp, STATE_STOPPED);
+			(cp->tlf)(sp);
 			break;
 		}
 	else
@@ -2336,6 +2337,8 @@ sppp_lcp_tls(struct sppp *sp)
 	/* Notify lower layer if desired. */
 	if (sp->pp_tls)
 		(sp->pp_tls)(sp);
+	else
+		(sp->pp_up)(sp);
 }
 
 static void
@@ -2350,6 +2353,8 @@ sppp_lcp_tlf(struct sppp *sp)
 	/* Notify lower layer if desired. */
 	if (sp->pp_tlf)
 		(sp->pp_tlf)(sp);
+	else
+		(sp->pp_down)(sp);
 }
 
 static void
