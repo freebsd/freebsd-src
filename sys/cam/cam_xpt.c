@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.24 1998/10/15 19:08:52 ken Exp $
+ *      $Id: cam_xpt.c,v 1.25 1998/10/22 22:16:48 ken Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -339,12 +339,11 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 	},
 	{
 		/*
-		 * This drive doesn't like multiple LUN probing.
-		 * Verified by: Jean-Marc Zucconi <jmz@FreeBSD.ORG>
+		 * Many Sony CDROM drives don't like multi-LUN probing.
 		 */
 		{
 			T_CDROM, SIP_MEDIA_REMOVABLE, sony,
-			"CD-ROM CDU-80*", "*"
+			"CD-ROM CDU*", "*"
 		},
 		CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
 	},
