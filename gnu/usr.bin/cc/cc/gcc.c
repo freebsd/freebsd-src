@@ -31,6 +31,7 @@ Once it knows which kind of compilation to perform, the procedure for
 compilation is specified by a string called a "spec".  */
 
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <ctype.h>
 #include <signal.h>
 #include <sys/stat.h>
@@ -50,6 +51,9 @@ compilation is specified by a string called a "spec".  */
 #include <varargs.h>
 #endif
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
 
 /* Include multi-lib information.  */
 #include "multilib.h"
@@ -1638,7 +1642,6 @@ putenv (str)
   char **envp;
   int num_envs = 0;
   int name_len = 1;
-  int str_len = strlen (str);
   char *p = str;
   int ch;
 
@@ -2731,13 +2734,8 @@ process_command (argc, argv)
      (such as cpp) rather than those of the host system.  */
   /* Use 2 as fourth arg meaning try just the machine as a suffix,
      as well as trying the machine and the version.  */
-#ifndef OS2
-  add_prefix (&exec_prefixes, standard_exec_prefix, 0, 2, NULL_PTR);
-  add_prefix (&exec_prefixes, standard_exec_prefix_1, 0, 2, NULL_PTR);
-#endif
-
-  add_prefix (&startfile_prefixes, standard_exec_prefix, 0, 1, NULL_PTR);
-  add_prefix (&startfile_prefixes, standard_exec_prefix_1, 0, 1, NULL_PTR);
+  add_prefix (&exec_prefixes, "/usr/libexec/", 0, 0, NULL_PTR);
+  add_prefix (&exec_prefixes, "/usr/bin/", 0, 0, NULL_PTR);
 
   tooldir_prefix = concat3 (tooldir_base_prefix, spec_machine, 
                             dir_separator_str);
@@ -2771,13 +2769,6 @@ process_command (argc, argv)
 			        dir_separator_str, spec_version, 
                                 dir_separator_str, tooldir_prefix);
     }
-
-  add_prefix (&exec_prefixes, 
-              concat3 (tooldir_prefix, "bin", dir_separator_str),
-	      0, 0, NULL_PTR);
-  add_prefix (&startfile_prefixes,
-	      concat3 (tooldir_prefix, "lib", dir_separator_str),
-	      0, 0, NULL_PTR);
 
   /* More prefixes are enabled in main, after we read the specs file
      and determine whether this is cross-compilation or not.  */
@@ -3784,7 +3775,7 @@ do_spec_1 (spec, inswitch, soft_matched_part)
 	    {
 	      int c1 = *p++;  /* Select first or second version number.  */
 	      char *v = compiler_version;
-	      char *q, *copy;
+	      char *q;
 	      /* If desired, advance to second version number.  */
 	      if (c1 == '2')
 		{
@@ -4275,10 +4266,6 @@ main (argc, argv)
 
   /* Read specs from a file if there is one.  */
 
-  machine_suffix = concat4 (spec_machine, dir_separator_str,
-                            spec_version, dir_separator_str);
-  just_machine_suffix = concat (spec_machine, dir_separator_str);
-
   specs_file = find_a_file (&startfile_prefixes, "specs", R_OK);
   /* Read the specs file unless it is a default one.  */
   if (specs_file != 0 && strcmp (specs_file, "specs"))
@@ -4324,13 +4311,6 @@ main (argc, argv)
 		      0, 0, NULL_PTR);
 	}		       
 
-      add_prefix (&startfile_prefixes, standard_startfile_prefix_1, 0, 0,
-		  NULL_PTR);
-      add_prefix (&startfile_prefixes, standard_startfile_prefix_2, 0, 0,
-		  NULL_PTR);
-#if 0 /* Can cause surprises, and one can use -B./ instead.  */
-      add_prefix (&startfile_prefixes, "./", 0, 1, NULL_PTR);
-#endif
     }
 
   /* Now we have the specs.
