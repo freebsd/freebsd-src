@@ -33,7 +33,7 @@
 .\"
 .\" $Id$
 .\"
-.Dd February 9, 2002
+.Dd February 22, 2002
 .Dt PAM_VERROR 3
 .Os
 .Sh NAME
@@ -48,21 +48,37 @@
 .Sh DESCRIPTION
 The
 .Nm
-function is not yet documented.
+function passes its arguments to
+.Xr pam_vprompt 3
+with a
+.Xr style 3
+argument of
+.Dv PAM_ERROR_MSG ,
+and discards the response.
+.Pp
 .Sh RETURN VALUES
 The
-.Fn
+.Nm
 function returns one of the following values:
-.Bl -tag -width PAM_AUTHTOK_DISABLE_AGING
+.Bl -tag -width 18n
+.It Bq Er PAM_BUF_ERR
+Memory buffer error.
+.It Bq Er PAM_CONV_ERR
+Conversation failure.
+.It Bq Er PAM_SYSTEM_ERR
+System error.
 .El
 .Sh SEE ALSO
+.Xr  3 ,
+.Xr pam 3 ,
+.Xr pam_error 3 ,
 .Xr pam_strerror 3 ,
-.Xr pam 3
+.Xr pam_vinfo 3 ,
+.Xr pam_vprompt 3
 .Sh STANDARDS
-.Rs
-.%T "X/Open Single Sign-On Service (XSSO) - Pluggable Authentication Modules"
-.%D "June 1997"
-.Re
+The
+.Nm
+function is an OpenPAM extension.
 .Sh AUTHORS
 The
 .Nm

@@ -36,6 +36,13 @@
 
 #include <security/pam_appl.h>
 
+/*
+ * XSSO 4.2.1
+ * XSSO 6 page 36
+ *
+ * Perform authentication to a secondary domain within the PAM framework
+ */
+
 int
 pam_authenticate_secondary(pam_handle_t *pamh,
 	char *target_username,
@@ -48,3 +55,7 @@ pam_authenticate_secondary(pam_handle_t *pamh,
 
 	return (PAM_SYSTEM_ERR);
 }
+
+/*
+ * NODOC
+ */

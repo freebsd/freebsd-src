@@ -69,6 +69,51 @@ pam_get_item(pam_handle_t *pamh,
 		*item = pamh->item[item_type];
 		return (PAM_SUCCESS);
 	default:
-		return (PAM_SYSTEM_ERR);
+		return (PAM_SYMBOL_ERR);
 	}
 }
+
+/*
+ * Error codes:
+ *
+ *	PAM_SYMBOL_ERR
+ *	PAM_SYSTEM_ERR
+ */
+
+/**
+ * The =pam_get_item function stores a pointer to the item specified by
+ * the =item_type argument in the location specified by the =item
+ * argument.
+ * The item is retrieved from the PAM context specified by the =pamh
+ * argument.
+ * The following item types are recognized:
+ *
+ *	=PAM_SERVICE:
+ *		The name of the requesting service.
+ *	=PAM_USER:
+ *		The name of the user the application is trying to
+ *		authenticate.
+ *	=PAM_TTY:
+ *		The name of the current terminal.
+ *	=PAM_RHOST:
+ *		The name of the applicant's host.
+ *	=PAM_CONV:
+ *		A =struct pam_conv describing the current conversation
+ *		function.
+ *	=PAM_AUTHTOK:
+ *		The current authentication token.
+ *	=PAM_OLDAUTHTOK:
+ *		The expired authentication token.
+ *	=PAM_RUSER:
+ *		The name of the applicant.
+ *	=PAM_USER_PROMPT:
+ *		The prompt to use when asking the applicant for a user
+ *		name to authenticate as.
+ *	=PAM_AUTHTOK_PROMPT:
+ *		The prompt to use when asking the applicant for an
+ *		authentication token.
+ *
+ * See =pam_start for a description of =struct pam_conv.
+ *
+ * >pam_set_item
+ */

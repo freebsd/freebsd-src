@@ -62,3 +62,21 @@ pam_info(pam_handle_t *pamh,
 	free(rsp); /* ignore response */
 	return (r);
 }
+
+/*
+ * Error codes:
+ *
+ *     !PAM_SYMBOL_ERR
+ *	PAM_SYSTEM_ERR
+ *	PAM_BUF_ERR
+ *	PAM_CONV_ERR
+ */
+
+/**
+ * The =pam_info function displays an informational message through the
+ * intermediary of the given PAM context's conversation function.
+ *
+ * >pam_error
+ * >pam_prompt
+ * >pam_vinfo
+ */

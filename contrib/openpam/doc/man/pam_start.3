@@ -33,7 +33,7 @@
 .\"
 .\" $Id$
 .\"
-.Dd February 9, 2002
+.Dd February 22, 2002
 .Dt PAM_START 3
 .Os
 .Sh NAME
@@ -48,16 +48,54 @@
 .Sh DESCRIPTION
 The
 .Nm
-function is not yet documented.
+function creates and initializes a PAM context.
+.Pp
+The
+.Va service
+argument specifies the name of the policy to apply, and is
+stored in the
+.Dv PAM_SERVICE
+item in the created context.
+.Pp
+The
+.Va user
+argument specifies the name of the target user - the user the
+created context will serve to authenticate.
+It is stored in the
+.Dv PAM_USER
+item in the created context.
+.Pp
+The
+.Va pam_conv
+argument points to a
+.Vt struct pam_conv
+describing the
+conversation function to use.
+This structure is defined as follows:
+.Pp
+.Bd -literal
+    struct pam_conv {
+         int   (*conv)(int, const struct pam_message **,
+             struct pam_response **, void *);
+         void   *appdata_ptr;
+    };
+
 .Sh RETURN VALUES
 The
-.Fn
+.Nm
 function returns one of the following values:
-.Bl -tag -width PAM_AUTHTOK_DISABLE_AGING
+.Bl -tag -width 18n
+.It Bq Er PAM_BUF_ERR
+Memory buffer error.
+.It Bq Er PAM_SYSTEM_ERR
+System error.
 .El
 .Sh SEE ALSO
-.Xr pam_strerror 3 ,
-.Xr pam 3
+.Xr pam 3 ,
+.Xr pam_end 3 ,
+.Xr pam_get_item 3 ,
+.Xr pam_set_item 3 ,
+.Xr pam_strerror 3
 .Sh STANDARDS
 .Rs
 .%T "X/Open Single Sign-On Service (XSSO) - Pluggable Authentication Modules"

@@ -33,7 +33,7 @@
 .\"
 .\" $Id$
 .\"
-.Dd February 9, 2002
+.Dd February 22, 2002
 .Dt PAM 3
 .Os
 .Sh NAME
@@ -82,7 +82,7 @@
 .Ft int
 .Fn pam_get_authtok "pam_handle_t *pamh" "const char **authtok" "const char *prompt"
 .Ft int
-.Fn pam_get_data "pam_handle_t *pamh" "const char *module_data_name" "void **data"
+.Fn pam_get_data "pam_handle_t *pamh" "const char *module_data_name" "const void **data"
 .Ft int
 .Fn pam_get_item "pam_handle_t *pamh" "int item_type" "const void **item"
 .Ft int
@@ -119,6 +119,71 @@
 .Fn pam_vprompt "pam_handle_t *pamh" "int style" "char **resp" "const char *fmt" "va_list ap"
 .Sh DESCRIPTION
 .Sh RETURN VALUES
+The following return codes are defined in the
+.In security/pam_constants.h
+header:
+.Bl -tag -width 18n
+.It Bq Er PAM_ABORT
+General failure.
+.It Bq Er PAM_ACCT_EXPIRED
+User accound has expired.
+.It Bq Er PAM_AUTHINFO_UNAVAIL
+Authentication information is unavailable.
+.It Bq Er PAM_AUTHTOK_DISABLE_AGING
+Authentication token aging disabled.
+.It Bq Er PAM_AUTHTOK_ERR
+Authentication token failure.
+.It Bq Er PAM_AUTHTOK_EXPIRED
+Password has expired.
+.It Bq Er PAM_AUTHTOK_LOCK_BUSY
+Authentication token lock busy.
+.It Bq Er PAM_AUTHTOK_RECOVERY_ERR
+Failed to recover old authentication token.
+.It Bq Er PAM_AUTH_ERR
+Authentication error.
+.It Bq Er PAM_BUF_ERR
+Memory buffer error.
+.It Bq Er PAM_CONV_ERR
+Conversation failure.
+.It Bq Er PAM_CRED_ERR
+Failed to set user credentials.
+.It Bq Er PAM_CRED_EXPIRED
+User credentials have expired.
+.It Bq Er PAM_CRED_INSUFFICIENT
+Insufficient credentials.
+.It Bq Er PAM_CRED_UNAVAIL
+Failed to retrieve user credentials.
+.It Bq Er PAM_DOMAIN_UNKNOWN
+Unknown authentication domain.
+.It Bq Er PAM_IGNORE
+Ignore this module.
+.It Bq Er PAM_MAXTRIES
+Maximum number of tries exceeded.
+.It Bq Er PAM_MODULE_UNKNOWN
+Unknown module type.
+.It Bq Er PAM_NEW_AUTHTOK_REQD
+New authentication token required.
+.It Bq Er PAM_NO_MODULE_DATA
+Module data not found.
+.It Bq Er PAM_OPEN_ERR
+Failed to load module.
+.It Bq Er PAM_PERM_DENIED
+Permission denied.
+.It Bq Er PAM_SERVICE_ERR
+Error in service module.
+.It Bq Er PAM_SESSION_ERR
+Session failure.
+.It Bq Er PAM_SUCCESS
+Success.
+.It Bq Er PAM_SYMBOL_ERR
+Invalid symbol.
+.It Bq Er PAM_SYSTEM_ERR
+System error.
+.It Bq Er PAM_TRY_AGAIN
+Try again.
+.It Bq Er PAM_USER_UNKNOWN
+Unknown user.
+.El
 .Sh SEE ALSO
 .Xr pam_acct_mgmt 3 ,
 .Xr pam_authenticate 3 ,

@@ -33,7 +33,7 @@
 .\"
 .\" $Id$
 .\"
-.Dd February 9, 2002
+.Dd February 22, 2002
 .Dt PAM_GET_ITEM 3
 .Os
 .Sh NAME
@@ -48,16 +48,64 @@
 .Sh DESCRIPTION
 The
 .Nm
-function is not yet documented.
+function stores a pointer to the item specified by
+the
+.Va item_type
+argument in the location specified by the
+.Va item
+argument.
+The item is retrieved from the PAM context specified by the
+.Va pamh
+argument.
+The following item types are recognized:
+.Bl -tag -width 18n
+.It Dv PAM_SERVICE
+The name of the requesting service.
+.It Dv PAM_USER
+The name of the user the application is trying to
+authenticate.
+.It Dv PAM_TTY
+The name of the current terminal.
+.It Dv PAM_RHOST
+The name of the applicant's host.
+.It Dv PAM_CONV
+A
+.Vt struct pam_conv
+describing the current conversation
+function.
+.It Dv PAM_AUTHTOK
+The current authentication token.
+.It Dv PAM_OLDAUTHTOK
+The expired authentication token.
+.It Dv PAM_RUSER
+The name of the applicant.
+.It Dv PAM_USER_PROMPT
+The prompt to use when asking the applicant for a user
+name to authenticate as.
+.It Dv PAM_AUTHTOK_PROMPT
+The prompt to use when asking the applicant for an
+authentication token.
+.El
+See
+.Xr pam_start 3
+for a description of
+.Vt struct pam_conv .
+.Pp
 .Sh RETURN VALUES
 The
-.Fn
+.Nm
 function returns one of the following values:
-.Bl -tag -width PAM_AUTHTOK_DISABLE_AGING
+.Bl -tag -width 18n
+.It Bq Er PAM_SYMBOL_ERR
+Invalid symbol.
+.It Bq Er PAM_SYSTEM_ERR
+System error.
 .El
 .Sh SEE ALSO
-.Xr pam_strerror 3 ,
-.Xr pam 3
+.Xr pam 3 ,
+.Xr pam_set_item 3 ,
+.Xr pam_start 3 ,
+.Xr pam_strerror 3
 .Sh STANDARDS
 .Rs
 .%T "X/Open Single Sign-On Service (XSSO) - Pluggable Authentication Modules"

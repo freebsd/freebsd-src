@@ -42,10 +42,6 @@
 
 #include "openpam_impl.h"
 
-#ifdef OPENPAM_STATIC_MODULES
-SET_DECLARE(_openpam_modules, pam_module_t);
-#endif
-
 const char *_pam_sm_func_name[PAM_NUM_PRIMITIVES] = {
 	"pam_sm_authenticate",
 	"pam_sm_setcred",
@@ -92,14 +88,7 @@ openpam_load_module(const char *path)
 #ifdef OPENPAM_STATIC_MODULES
 	/* look for a static module */
 	if (module == NULL && strchr(path, '/') == NULL) {
-		pam_module_t **modp;
-		
-		SET_FOREACH(modp, _openpam_modules) {
-			if (strcmp((*modp)->path, path) == 0) {
-				module = *modp;
-				break;
-			}
-		}
+		module = openpam_static(path);
 		openpam_log(PAM_LOG_DEBUG, "%s static %s",
 		    (module == NULL) ? "no" : "using", path);
 	}
@@ -225,3 +214,7 @@ openpam_clear_chains(pam_handle_t *pamh)
 	for (i = 0; i < PAM_NUM_CHAINS; ++i)
 		openpam_destroy_chain(pamh->chains[i]);
 }
+
+/*
+ * NOPARSE
+ */

@@ -33,7 +33,7 @@
 .\"
 .\" $Id$
 .\"
-.Dd February 9, 2002
+.Dd February 22, 2002
 .Dt PAM_SET_DATA 3
 .Os
 .Sh NAME
@@ -48,16 +48,40 @@
 .Sh DESCRIPTION
 The
 .Nm
-function is not yet documented.
+function associates a pointer to an opaque object
+with an arbitrary string specified by the
+.Va module_data_name
+argument,
+in the PAM context specified by the
+.Va pamh
+argument.
+.Pp
+If not
+.Dv NULL ,
+the
+.Xr cleanup 3
+argument should point to a function
+responsible for releasing the resources associated with the object.
+.Pp
+This function and its counterpart
+.Xr pam_get_data 3
+are useful for managing
+data that are meaningful only to a particular service module.
 .Sh RETURN VALUES
 The
-.Fn
+.Nm
 function returns one of the following values:
-.Bl -tag -width PAM_AUTHTOK_DISABLE_AGING
+.Bl -tag -width 18n
+.It Bq Er PAM_BUF_ERR
+Memory buffer error.
+.It Bq Er PAM_SYSTEM_ERR
+System error.
 .El
 .Sh SEE ALSO
-.Xr pam_strerror 3 ,
-.Xr pam 3
+.Xr cleanup 3 ,
+.Xr pam 3 ,
+.Xr pam_get_data 3 ,
+.Xr pam_strerror 3
 .Sh STANDARDS
 .Rs
 .%T "X/Open Single Sign-On Service (XSSO) - Pluggable Authentication Modules"

@@ -54,3 +54,11 @@ pam_close_session(pam_handle_t *pamh,
 
 	return (openpam_dispatch(pamh, PAM_SM_CLOSE_SESSION, flags));
 }
+
+/*
+ * Error codes:
+ *
+ *	=openpam_dispatch
+ *	=pam_sm_close_session
+ *	!PAM_IGNORE
+ */

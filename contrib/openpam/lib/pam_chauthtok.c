@@ -54,3 +54,11 @@ pam_chauthtok(pam_handle_t *pamh,
 
 	return (openpam_dispatch(pamh, PAM_SM_CHAUTHTOK, flags));
 }
+
+/*
+ * Error codes:
+ *
+ *	=openpam_dispatch
+ *	=pam_sm_chauthtok
+ *	!PAM_IGNORE
+ */

@@ -74,3 +74,12 @@ pam_get_user(pam_handle_t *pamh,
 	*user = resp;
 	return (pam_set_item(pamh, PAM_USER, *user));
 }
+
+/*
+ * Error codes:
+ *
+ *	=pam_get_item
+ *	=pam_prompt
+ *	=pam_set_item
+ *	!PAM_SYMBOL_ERR
+ */

@@ -33,7 +33,7 @@
 .\"
 .\" $Id$
 .\"
-.Dd February 9, 2002
+.Dd February 22, 2002
 .Dt PAM_STRERROR 3
 .Os
 .Sh NAME
@@ -48,15 +48,19 @@
 .Sh DESCRIPTION
 The
 .Nm
-function is not yet documented.
+function returns a pointer to a string containing a
+textual description of the error indicated by the
+.Va error_number
+argument, in the context of the PAM transaction described by the
+.Va pamh
+argument.
 .Sh RETURN VALUES
 The
-.Fn
-function returns one of the following values:
-.Bl -tag -width PAM_AUTHTOK_DISABLE_AGING
-.El
+.Nm
+function returns
+.Dv NULL
+on failure.
 .Sh SEE ALSO
-.Xr pam_strerror 3 ,
 .Xr pam 3
 .Sh STANDARDS
 .Rs
