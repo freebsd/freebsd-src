@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.12 1993/11/25 01:31:25 wollman Exp $
+ *      $Id: aha1742.c,v 1.13 1993/12/19 00:50:27 wollman Exp $
  */
 
 #include <sys/types.h>
@@ -282,7 +282,7 @@ void    ahbminphys();
 struct	ecb *ahb_ecb_phys_kv();
 u_int32 ahb_adapter_info();
 
-#define	MAX_SLOTS	8
+#define	MAX_SLOTS	8	/* XXX should this be 16?? Need EISA spec */
 static  ahb_slot = 0;		/* slot last board was found in */
 static  ahb_unit = 0;
 int     ahb_debug = 0;
@@ -432,7 +432,7 @@ ahbprobe(dev)
 	u_char  byte1, byte2, byte3;
 
 	ahb_slot++;
-	while (ahb_slot < 8) {
+	while (ahb_slot <= MAX_SLOTS) {
 		port = 0x1000 * ahb_slot;
 		byte1 = inb(port + HID0);
 		byte2 = inb(port + HID1);
