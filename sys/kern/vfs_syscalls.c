@@ -97,6 +97,27 @@ SYSCTL_INT(_vfs, OID_AUTO, usermount, CTLFLAG_RW, &usermount, 0, "");
  * Virtual File System System Calls
  */
 
+#ifndef _SYS_SYSPROTO_H_
+struct nmount_args {
+	struct iovec    *iovp;
+	unsigned int    iovcnt;
+	int             flags;
+	};
+#endif
+/* ARGSUSED */
+int
+nmount(td, uap)
+	struct thread *td;
+	struct nmount_args /* {
+		syscallarg(struct iovec *) iovp;
+		syscallarg(unsigned int) iovcnt;
+		syscallarg(int) flags;
+	} */ *uap;
+{
+
+	return(EOPNOTSUPP);
+}
+
 /*
  * Mount a file system.
  */
