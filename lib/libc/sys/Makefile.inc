@@ -115,7 +115,6 @@ MLINKS+=gettimeofday.2 settimeofday.2
 MLINKS+=getuid.2 geteuid.2
 MLINKS+=intro.2 errno.2
 MLINKS+=kqueue.2 kevent.2
-MLINKS+=lseek.2 seek.2
 MLINKS+=mlock.2 munlock.2
 MLINKS+=modnext.2 modfnext.2
 MLINKS+=mount.2 unmount.2
