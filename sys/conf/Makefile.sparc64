@@ -312,11 +312,11 @@ modules-cleandir:
 modules-tags:
 	cd $S/modules ; env ${MKMODULESENV} ${MAKE} tags
 
-modules-install modules-install.debug:
+modules-install modules-reinstall:
 	cd $S/modules ; env ${MKMODULESENV} ${MAKE} install
 
-modules-reinstall modules-reinstall.debug:
-	cd $S/modules ; env ${MKMODULESENV} ${MAKE} install
+modules-install.debug modules-reinstall.debug:
+	cd $S/modules ; env ${MKMODULESENV} ${MAKE} install.debug
 
 config.o:
 	${NORMAL_C}
