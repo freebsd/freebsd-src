@@ -87,8 +87,11 @@ procfs_doprocdbregs(PFS_FILL_ARGS)
 	else
 		/* XXXKSE: */
 		error = proc_read_dbregs(FIRST_THREAD_IN_PROC(p), &r);
-	if (error == 0)
+	if (error == 0) {
+		PROC_UNLOCK(p);
 		error = uiomove(kv, kl, uio);
+		PROC_LOCK(p);
+	}
 	if (error == 0 && uio->uio_rw == UIO_WRITE) {
 		if (!P_SHOULDSTOP(p)) /* XXXKSE should be P_TRACED? */
 			error = EBUSY;
