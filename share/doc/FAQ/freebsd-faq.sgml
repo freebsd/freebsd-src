@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.50 1996/07/09 02:23:54 jraynard Exp $
+<date> $Id: freebsd-faq.sgml,v 1.51 1996/07/09 22:37:38 jraynard Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -2505,6 +2505,29 @@ domain foo.bar.edu
 	  calls it.
 
       </sect1>
+
+      <sect1><heading>Sendmail says ``mail loops back to myself''</heading>
+	<p>
+	  This is answered in the sendmail FAQ as follows:-
+	  <verb>
+          * I'm getting "Local configuration error" messages, such as:
+
+          553 relay.domain.net config error: mail loops back to myself
+          554 <user@domain.net>... Local configuration error
+
+          How can I solve this problem?
+
+          You have asked mail to the domain (e.g., domain.net) to be
+          forwarded to a specific host (in this case, relay.domain.net)
+          by using an MX record, but the relay machine doesn't recognize
+          itself as domain.net.  Add domain.net to /etc/sendmail.cw
+          (if you are using FEATURE(use_cw_file)) or add "Cw domain.net"
+          to /etc/sendmail.cf.
+	  </verb>
+	<p>
+	  The sendmail FAQ is in <tt>/usr/src/usr.sbin/sendmail</tt>
+	  and is recommended reading if you want to do any
+	  ``tweaking'' of your mail setup.
 
       <sect1>
         <heading>How do I use sendmail for mail delivery with UUCP?</heading>
