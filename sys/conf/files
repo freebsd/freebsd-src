@@ -282,14 +282,15 @@ pccard/pcic.c		optional pcic device-driver
 pci/aic7870.c		optional ahc device-driver
 pci/bt9xx.c		optional bt device-driver
 pci/if_de.c		optional de device-driver
+pci/if_fxp.c		optional fxp device-driver
+pci/if_pdq.c		optional fea device-driver
+pci/if_pdq.c		optional fpa device-driver
+pci/meteor.c		optional meteor device-driver
 pci/ncr.c		optional ncr device-driver
 pci/pci.c		optional pci device-driver
 pci/pcisupport.c	optional pci
-pci/if_pdq.c		optional fea device-driver
 pci/pdq.c		optional fea device-driver
-pci/if_pdq.c		optional fpa device-driver
 pci/pdq.c		optional fpa device-driver
-pci/meteor.c		optional meteor device-driver
 scsi/cd.c		optional cd
 scsi/ch.c		optional ch
 scsi/od.c		optional od
