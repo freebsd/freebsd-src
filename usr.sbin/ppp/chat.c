@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chat.c,v 1.44.2.10 1998/02/18 00:28:06 brian Exp $
+ *	$Id: chat.c,v 1.44.2.11 1998/02/23 00:38:20 brian Exp $
  */
 
 #include <sys/param.h>
@@ -201,10 +201,26 @@ chat_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
       chat_ExpandString(c, c->argptr, c->exp + 2, sizeof c->exp - 2, needcr);
 
       if (gotabort) {
-        if (c->numaborts < sizeof c->AbortStrings / sizeof c->AbortStrings[0])
-          c->AbortStrings[c->numaborts++] = strdup(c->exp+2);
-        else
-          LogPrintf(LogERROR, "chat_UpdateSet: AbortStrings overflow\n");
+        if (c->abort.num < MAXABORTS) {
+          int len, n;
+
+          len = strlen(c->exp+2);
+          for (n = 0; n < c->abort.num; n++)
+            if (len > c->abort.string[n].len) {
+              int last;
+
+              for (last = c->abort.num; last > n; last--) {
+                c->abort.string[last].data = c->abort.string[last-1].data;
+                c->abort.string[last].len = c->abort.string[last-1].len;
+              }
+              break;
+            }
+          c->abort.string[n].len = len;
+          c->abort.string[n].data = (char *)malloc(len+1);
+          memcpy(c->abort.string[n].data, c->exp+2, len+1);
+          c->abort.num++;
+        } else
+          LogPrintf(LogERROR, "chat_UpdateSet: too many abort strings\n");
         gotabort = 0;
       } else if (gottimeout) {
         c->TimeoutSec = atoi(c->exp + 2);
@@ -294,27 +310,33 @@ chat_UpdateLog(struct chat *c, int in)
      * buffer, output from there, all the way back to the last linefeed.
      * This is called for every read of `in' bytes.
      */
-    char *ptr, *end, *stop;
+    char *ptr, *end, *stop, ch;
     int level;
 
     level = LogIsKept(LogCHAT) ? LogCHAT : LogCONNECT;
-    ptr = c->bufend - in;
-
-    for (end = c->bufend - 1; end >= ptr; end--)
-      if (*end == '\n')
-        break;
+    if (in == -1)
+      end = ptr = c->bufend;
+    else {
+      ptr = c->bufend - in;
+      for (end = c->bufend - 1; end >= ptr; end--)
+        if (*end == '\n')
+          break;
+    }
 
     if (end >= ptr) {
-      for (ptr = c->bufend - in - 1; ptr >= c->bufstart; ptr--)
+      for (ptr = c->bufend - (in == -1 ? 1 : in + 1); ptr >= c->bufstart; ptr--)
         if (*ptr == '\n')
           break;
       ptr++;
       stop = NULL;
-      while (stop != end && (stop = strchr(ptr, '\n'))) {
+      while (stop < end) {
+        if ((stop = memchr(ptr, '\n', end - ptr)) == NULL)
+          stop = end;
+        ch = *stop;
         *stop = '\0';
         if (level == LogCHAT || strstr(ptr, "CONNECT"))
           LogPrintf(level, "Received: %s\n", ptr);
-        *stop = '\n';
+        *stop = ch;
         ptr = stop + 1;
       }
     }
@@ -328,7 +350,8 @@ chat_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 
   if (c->state == CHAT_EXPECT) {
     ssize_t in;
-    char *begin, *end;
+    char *abegin, *ebegin, *begin, *aend, *eend, *end;
+    int n;
 
     /*
      * XXX - should this read only 1 byte to guarantee that we don't
@@ -343,10 +366,23 @@ chat_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
       return;
 
     /* `begin' and `end' delimit where we're going to strncmp() from */
-    begin = c->bufend - c->arglen + 1;
-    end = begin + in;
-    if (begin < c->bufstart)
-      begin = c->bufstart;
+    ebegin = c->bufend - c->arglen + 1;
+    eend = ebegin + in;
+    if (ebegin < c->bufstart)
+      ebegin = c->bufstart;
+
+    if (c->abort.num) {
+      abegin = c->bufend - c->abort.string[0].len + 1;
+      aend = c->bufend - c->abort.string[c->abort.num-1].len + in + 1;
+      if (abegin < c->bufstart)
+        abegin = c->bufstart;
+    } else {
+      abegin = ebegin;
+      aend = eend;
+    }
+    begin = abegin < ebegin ? abegin : ebegin;
+    end = aend < eend ? eend : aend;
+
     c->bufend += in;
 
     chat_UpdateLog(c, in);
@@ -359,9 +395,10 @@ chat_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
         if (c->buf[chop] == '\n')
           /* found some already-logged garbage to remove :-) */
           break;
-      if (!chop) {
+
+      if (!chop)
         chop = begin - c->buf;
-      }
+
       if (chop) {
         char *from, *to;
 
@@ -373,28 +410,48 @@ chat_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
         c->bufend -= chop;
         begin -= chop;
         end -= chop;
+        abegin -= chop;
+        aend -= chop;
+        ebegin -= chop;
+        eend -= chop;
       }
     }
 
     for (; begin < end; begin++)
-      if (!strncmp(begin, c->argptr, c->arglen)) {
+      if (begin >= ebegin && begin < eend &&
+          !strncmp(begin, c->argptr, c->arglen)) {
         /* Got it ! */
-        if (begin[c->arglen - 1] != '\n') {
-          /* Now coerce chat_UpdateLog() into logging it.... */
-          char ch;
-
+        if (memchr(begin + c->arglen - 1, '\n',
+            c->bufend - begin - c->arglen + 1) == NULL) { 
+          /* force it into the log */
           end = c->bufend;
           c->bufend = begin + c->arglen;
-          ch = *c->bufend;
-          *c->bufend++ = '\n';
-          chat_UpdateLog(c, 1);
-          *--c->bufend = ch;
+          chat_UpdateLog(c, -1);
           c->bufend = end;
         }
         c->bufstart = begin + c->arglen;
         c->argptr += c->arglen;
         c->arglen = 0;
         break;
+      } else if (begin >= abegin && begin < aend) {
+        for (n = c->abort.num - 1; n >= 0; n--) {
+          if (begin + c->abort.string[n].len > c->bufend)
+            break;
+          if (!strncmp(begin, c->abort.string[n].data,
+                       c->abort.string[n].len)) {
+            if (memchr(begin + c->abort.string[n].len - 1, '\n',
+                c->bufend - begin - c->abort.string[n].len + 1) == NULL) { 
+              /* force it into the log */
+              end = c->bufend;
+              c->bufend = begin + c->abort.string[n].len;
+              chat_UpdateLog(c, -1);
+              c->bufend = end;
+            }
+            c->bufstart = begin + c->abort.string[n].len;
+            c->state = CHAT_FAILED;
+            return;
+          }
+        }
       }
   }
 }
@@ -475,7 +532,7 @@ chat_Init(struct chat *c, struct physical *p, const char *data, int emptybuf)
 
   c->TimeoutSec = 30;
   c->TimedOut = 0;
-  c->numaborts = 0;
+  c->abort.num = 0;
 
   StopTimer(&c->pause);
   c->pause.state = TIMER_STOPPED;
@@ -487,8 +544,8 @@ chat_Init(struct chat *c, struct physical *p, const char *data, int emptybuf)
 void
 chat_Destroy(struct chat *c)
 {
-  while (c->numaborts)
-    free(c->AbortStrings[--c->numaborts]);
+  while (c->abort.num)
+    free(c->abort.string[--c->abort.num].data);
 }
 
 static char *
@@ -619,7 +676,6 @@ chat_ExpandString(struct chat *c, const char *str, char *result, int reslen,
 	strncpy(result, phone, reslen);
 	reslen -= strlen(result);
 	result += strlen(result);
-	prompt_Printf(&prompt, "Phone: %s\n", phone);
 	LogPrintf(LogPHASE, "Phone: %s\n", phone);
 	break;
       case 'U':

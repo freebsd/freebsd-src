@@ -23,13 +23,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: chat.h,v 1.9.2.2 1998/02/13 05:10:08 brian Exp $
  */
 
-#define CHAT_EXPECT       0
-#define CHAT_SEND         1
-#define CHAT_DONE         2
-#define CHAT_FAILED       3
+#define CHAT_EXPECT 0
+#define CHAT_SEND   1
+#define CHAT_DONE   2
+#define CHAT_FAILED 3
+
+#define MAXABORTS   50
 
 struct chat {
   struct descriptor desc;
@@ -53,8 +55,14 @@ struct chat {
 
   int TimeoutSec;			/* Expect timeout value */
   int TimedOut;				/* We timed out */
-  char *AbortStrings[50];		/* Abort the dial if we get one */
-  int numaborts;			/* How many AbortStrings */
+
+  struct {
+    struct {
+      char *data;			/* Abort the dial if we get one */
+      int len;
+    } string[MAXABORTS];
+    int num;				/* How many AbortStrings */
+  } abort;
 
   struct pppTimer pause;		/* Inactivity timer */
   struct pppTimer timeout;		/* TimeoutSec timer */
