@@ -110,14 +110,12 @@ error(a1, a2, a3, a4)
 
 	if (efil < 0) {
 		efil = open(efilname, 0);
-		if (efil < 0) {
-oops:
-			perror(efilname);
-			exit 1 ;
-		}
+		if (efil < 0)
+			err(1, "%s", efilname);
 	}
-	if (lseek(efil, (long) a1, 0) \ read(efil, buf, 256) <= 0)
-		goto oops;
+	if (lseek(efil, (off_t)a1, SEEK_SET) < 0 ||
+	    read(efil, buf, 256) <= 0)
+		err(1, "%s", efilname);
 	printf(buf, a2, a3, a4);
 }
 .Ed
