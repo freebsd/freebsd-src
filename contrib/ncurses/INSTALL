@@ -1,4 +1,4 @@
--- $Id: INSTALL,v 1.32 1999/07/24 21:06:24 tom Exp $
+-- $Id: INSTALL,v 1.33 1999/09/18 23:04:36 tom Exp $
 ---------------------------------------------------------------------
              How to install Ncurses/Terminfo on your system
 ---------------------------------------------------------------------
@@ -195,12 +195,17 @@ INSTALLATION PROCEDURE:
     See the BSD CONVERSION NOTES section below for a few more details.
 
 6.  The c++ directory has C++ classes that are built on top of ncurses and
-    panels.  You need to have c++ (and its libraries) installed before you can
+    panels.  You must have c++ (and its libraries) installed before you can
     compile and run the demo.
 
-    If you do not have C++, you must use the --without-cxx option to tell
-    the configure script to not attempt to build the C++ bindings.
+    Use --without-cxx-binding to tell configure to not build the C++ bindings
+    and demo.
 
+    If you do not have C++, you must use the --without-cxx option to tell
+    the configure script to not attempt to determine the type of 'bool'
+    which may be supported by C++.  IF YOU USE THIS OPTION, BE ADVISED THAT
+    YOU MAY NOT BE ABLE TO COMPILE (OR RUN) NCURSES APPLICATIONS WITH C++.
+    
 7.  If you're running an older Linux, you must either (a) tell Linux that the
     console terminal type is `linux' or (b) make a link to or copy of the
     linux entry in the appropriate place under your terminfo directory, named

@@ -1,4 +1,4 @@
-# $Id: modules,v 1.69 1999/07/18 02:38:37 tom Exp $
+# $Id: modules,v 1.70 1999/10/23 12:39:12 tom Exp $
 ##############################################################################
 # Copyright (c) 1998,1999 Free Software Foundation, Inc.                     #
 #                                                                            #
@@ -130,6 +130,7 @@ lib_print	lib		$(tinfo)	../include/term.h
 resizeterm	lib		$(base)		../include/term.h
 trace_xnames	lib		$(trace)	../include/term.h $(INCDIR)/term_entry.h
 tries		lib		$(base)
+version		lib		$(base)
 wresize		lib		$(base)		../include/term.h
 
 # Support for termcap (and tic, etc.), which can be a separate library

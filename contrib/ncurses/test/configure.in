@@ -1,5 +1,5 @@
 dnl***************************************************************************
-dnl Copyright (c) 1998 Free Software Foundation, Inc.                        *
+dnl Copyright (c) 1998,1999 Free Software Foundation, Inc.                   *
 dnl                                                                          *
 dnl Permission is hereby granted, free of charge, to any person obtaining a  *
 dnl copy of this software and associated documentation files (the            *
@@ -28,7 +28,7 @@ dnl***************************************************************************
 dnl
 dnl Author: Thomas E. Dickey <dickey@clark.net> 1996,1997,1998
 dnl
-dnl $Id: configure.in,v 1.24 1998/05/16 20:48:14 tom Exp $
+dnl $Id: configure.in,v 1.27 1999/10/23 20:01:42 tom Exp $
 dnl This is a simple configuration-script for the ncurses test programs that
 dnl allows the test-directory to be separately configured against a reference
 dnl system (i.e., sysvr4 curses)
@@ -53,8 +53,9 @@ DFT_UPR_MODEL="NORMAL"			AC_SUBST(DFT_UPR_MODEL)
 ECHO_LINK='@ echo linking $@ ... ;'	AC_SUBST(ECHO_LINK)
 EXTRA_LIBS=""				AC_SUBST(EXTRA_LIBS)
 LD="ld"					AC_SUBST(LD)
-LD_MODEL=""				AC_SUBST(LD_MODEL)
 LDFLAGS_SHARED=""			AC_SUBST(LDFLAGS_SHARED)
+LD_MODEL=""				AC_SUBST(LD_MODEL)
+LD_SHARED_OPTS=""			AC_SUBST(LD_SHARED_OPTS)
 LIB_NAME=curses				AC_SUBST(LIB_NAME)
 LIB_PREFIX="-l"				AC_SUBST(LIB_PREFIX)
 LINK_TESTS=""				AC_SUBST(LINK_TESTS)
@@ -128,6 +129,7 @@ unistd.h \
 )
 
 AC_CHECK_FUNCS( \
+curses_version \
 gettimeofday \
 napms \
 resizeterm \

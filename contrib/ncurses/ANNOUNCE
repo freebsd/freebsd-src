@@ -22,8 +22,8 @@
    manual pages are provided for the library and tools.
    
    The ncurses distribution is available via anonymous FTP at the GNU
-   distribution site [1]ftp://ftp.gnu.org/pub/gnu. It is also available
-   at [2]ftp://ftp.clark.net/pub/dickey/ncurses.
+   distribution site [1]ftp://ftp.gnu.org/pub/gnu/ncurses. It is also
+   available at [2]ftp://ftp.clark.net/pub/dickey/ncurses.
    
                                  Release Notes
                                        
@@ -63,8 +63,8 @@
             %x, %o as per XSI.
      * We made additional changes to reduce impact by future interface
        changes:
-          + change key_names[] array to static since it is not part of
-            the curses interface.
+          + rename key_names[] array to _nc_key_names since it is not
+            part of the curses interface.
           + move macro winch to a function, to hide details of struct
             ldat
      * modify configure script to embed ABI in shared libraries for HP-UX
@@ -140,7 +140,6 @@
                                        
    The ncurses package is fully compatible with SVr4 (System V Release 4)
    curses:
-   
      * All 257 of the SVr4 calls have been implemented (and are
        documented).
      * Full support for SVr4 curses features including keyboard mapping,
@@ -160,7 +159,6 @@
        HP/UX and AIX ports.
        
    The ncurses package also has many useful extensions over SVr4:
-   
      * The API is 8-bit clean and base-level conformant with the X/OPEN
        curses specification, XSI curses (that is, it implements all BASE
        level features, but not all EXTENDED features). Most
@@ -168,7 +166,7 @@
        support are implemented, including many function calls not
        supported under SVr4 curses (but portability of all calls is
        documented so you can use the SVr4 subset only).
-     * Unlike SVr4 curses, ncurses can write to the rightmost-bottommost
+     * Unlike SVr3 curses, ncurses can write to the rightmost-bottommost
        corner of the screen if your terminal has an insert-character
        capability.
      * Ada95 and C++ bindings.
@@ -253,28 +251,36 @@
    The ncurses code has been tested with a wide variety of applications
    including (versions starting with those noted):
    
+   cdk
+          Curses Development Kit [3]Curses Development Kit
+          [4]ftp://ftp.clark.net/pub/dickey/cdk.
+          
    ded
-          directory-editor [3]ftp://ftp.clark.net/pub/dickey/ded.
+          directory-editor [5]ftp://ftp.clark.net/pub/dickey/ded.
           
    dialog
           the underlying application used in Slackware's setup, and the
           basis for similar applications on GNU/Linux.
           
-   lynx-2.7
+   lynx
           the character-screen WWW browser
           
    Midnight Commander 4.1
           file manager
           
-   mutt 0.88
+   mutt
           mail utility
           
-   ncftp 2.0
+   ncftp
           file-transfer utility
           
    nvi
           New vi versions 1.50 are able to use ncurses versions 1.9.7 and
           later.
+          
+   tin
+          newsreader, supporting color, MIME
+          [6]ftp://ftp.akk.uni-karlsruhe.de/pub/news/clients/tin-unoff.
           
    taper
           tape archive utility
@@ -284,26 +290,22 @@
           
    as well as some that use ncurses for the terminfo support alone:
    
-   minicom-1.75
+   minicom
           terminal emulator
           
-   tin-unoff
-          tin 1.4 newsreader, supporting color, MIME
-          [4]ftp://ftp.akk.uni-karlsruhe.de/pub/news/clients/tin-unoff.
-          
    vile
-          vi-like-emacs [5]ftp://ftp.clark.net/pub/dickey/vile.
+          vi-like-emacs [7]ftp://ftp.clark.net/pub/dickey/vile.
           
    The ncurses distribution includes a selection of test programs
    (including a few games).
    
 Who's Who and What's What
 
-   The original developers of ncurses are [6]Zeyd Ben-Halim and [7]Eric
-   S. Raymond. Ongoing work is being done by [8]Thomas Dickey and
-   [9]Jürgen Pfeifer. [10]Florian La Roche acts as the maintainer for the
+   The original developers of ncurses are [8]Zeyd Ben-Halim and [9]Eric
+   S. Raymond. Ongoing work is being done by [10]Thomas Dickey and
+   [11]Jürgen Pfeifer. [12]Thomas Dickey acts as the maintainer for the
    Free Software Foundation, which holds the copyright on ncurses.
-   Contact the current maintainers at [11]bug-ncurses@gnu.org.
+   Contact the current maintainers at [13]bug-ncurses@gnu.org.
    
    To join the ncurses mailing list, please write email to
    bug-ncurses-request@gnu.org containing the line:
@@ -313,7 +315,7 @@ Who's Who and What's What
    and testing of this package.
    
    Beta versions of ncurses and patches to the current release are made
-   available at [12]ftp://ftp.clark.net/pub/dickey/ncurses.
+   available at [14]ftp://ftp.clark.net/pub/dickey/ncurses.
    
 Future Plans
 
@@ -328,24 +330,26 @@ Other Related Resources
 
    The distribution includes and uses a version of the terminfo-format
    terminal description file maintained by Eric Raymond.
-   [13]http://earthspace.net/~esr/terminfo.
+   [15]http://earthspace.net/~esr/terminfo.
    
    You can find lots of information on terminal-related topics not
-   covered in the terminfo file at [14]Richard Shuford's archive.
+   covered in the terminfo file at [16]Richard Shuford's archive.
 
 References
 
-   1. ftp://ftp.gnu.org/pub/gnu
+   1. ftp://ftp.gnu.org/pub/gnu/ncurses
    2. ftp://ftp.clark.net/pub/dickey/ncurses
-   3. ftp://ftp.clark.net/pub/dickey/ded
-   4. ftp://ftp.akk.uni-karlsruhe.de/pub/news/clients/tin-unoff
-   5. ftp://ftp.clark.net/pub/dickey/vile
-   6. mailto:zmbenhal@netcom.com
-   7. http://www.ccil.org/~esr/home.html
-   8. mailto:dickey@clark.net
-   9. mailto:juergen.pfeifer@gmx.net
-  10. mailto:florian@gnu.org
-  11. mailto:bug-ncurses@gnu.org
-  12. ftp://ftp.clark.net/pub/dickey/ncurses
-  13. http://earthspace.net/~esr/terminfo
-  14. http://www.cs.utk.edu/~shuford/terminal_index.html
+   3. http://www.vexus.ca/CDK.html
+   4. ftp://ftp.clark.net/pub/dickey/cdk
+   5. ftp://ftp.clark.net/pub/dickey/ded
+   6. ftp://ftp.akk.uni-karlsruhe.de/pub/news/clients/tin-unoff
+   7. ftp://ftp.clark.net/pub/dickey/vile
+   8. mailto:zmbenhal@netcom.com
+   9. http://www.ccil.org/~esr/home.html
+  10. mailto:dickey@clark.net
+  11. mailto:juergen.pfeifer@gmx.net
+  12. mailto:dickey@clark.net
+  13. mailto:bug-ncurses@gnu.org
+  14. ftp://ftp.clark.net/pub/dickey/ncurses
+  15. http://earthspace.net/~esr/terminfo
+  16. http://www.cs.utk.edu/~shuford/terminal_index.html

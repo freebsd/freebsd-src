@@ -35,7 +35,7 @@
 #include "cursesw.h"
 #include "internal.h"
 
-MODULE_ID("$Id: cursespad.cc,v 1.1 1999/07/31 09:47:21 juergen Exp $")
+MODULE_ID("$Id: cursespad.cc,v 1.2 1999/09/11 23:25:54 tom Exp $")
 
 NCursesPad::NCursesPad(int lines, int cols)
   : NCursesWindow(),
@@ -188,8 +188,8 @@ int NCursesPad::noutrefresh() {
 }
 
 void NCursesPad::setWindow(NCursesWindow& view,
-			   int v_grid = 1,
-			   int h_grid = 1)
+			   int v_grid NCURSES_PARAM_INIT(1),
+			   int h_grid NCURSES_PARAM_INIT(1))
 {
   viewWin = &view;
   min_row = min_col = 0;

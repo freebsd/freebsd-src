@@ -33,7 +33,7 @@
 
 
 /*
- * $Id: curses.priv.h,v 1.142 1999/07/04 01:21:35 tom Exp $
+ * $Id: curses.priv.h,v 1.144 1999/10/22 23:15:37 tom Exp $
  *
  *	curses.priv.h
  *
@@ -388,6 +388,8 @@ struct screen {
 
 	/* hashes for old and new lines */
 	unsigned long	*oldhash, *newhash;
+
+	bool            _cleanup;	/* cleanup after int/quit signal */
 };
 
 extern SCREEN *_nc_screen_chain;
@@ -733,6 +735,9 @@ extern int *_nc_oldnums;
 #define NC_BUFFERED(flag) \
 	if ((SP->_buffered != 0) != flag) \
 		_nc_set_buffer(SP->_ofp, flag)
+
+#define NC_OUTPUT ((SP != 0) ? SP->_ofp : stdout)
+#define _nc_flush() (void)fflush(NC_OUTPUT)
 
 /*
  * On systems with a broken linker, define 'SP' as a function to force the

@@ -48,7 +48,7 @@
 #define _POSIX_SOURCE
 #endif
 
-MODULE_ID("$Id: lib_tstp.c,v 1.19 1999/07/24 22:47:20 tom Exp $")
+MODULE_ID("$Id: lib_tstp.c,v 1.20 1999/10/22 23:11:09 tom Exp $")
 
 #if defined(SIGTSTP) && (HAVE_SIGACTION || HAVE_SIGVEC)
 #define USE_SIGTSTP 1
@@ -199,13 +199,16 @@ static void tstp(int dummy GCC_UNUSED)
 
 static void cleanup(int sig)
 {
+	static int nested;
+
 	/*
 	 * Actually, doing any sort of I/O from within an signal handler is
 	 * "unsafe".  But we'll _try_ to clean up the screen and terminal
 	 * settings on the way out.
 	 */
-	if (sig == SIGINT
-	 || sig == SIGQUIT) {
+	if (!nested++
+	 && (sig == SIGINT
+	  || sig == SIGQUIT)) {
 #if HAVE_SIGACTION || HAVE_SIGVEC
 		sigaction_t act;
 		sigemptyset(&act.sa_mask);
@@ -219,6 +222,11 @@ static void cleanup(int sig)
 		    SCREEN *scan = _nc_screen_chain;
 		    while(scan)
 		    {
+			if (SP != 0
+			&& SP->_ofp != 0
+			&& isatty(fileno(SP->_ofp))) {
+			    SP->_cleanup = TRUE;
+			}
 			set_term(scan);
 			endwin();
 			if (SP)

@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 1998,1999 Free Software Foundation, Inc.                   *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.'" $Id: curs_mouse.3x,v 1.12 1999/01/09 22:53:22 tom Exp $
+.'" $Id: curs_mouse.3x,v 1.13 1999/09/11 17:28:28 tom Exp $
 .TH curs_mouse 3X ""
 .SH NAME
 \fBgetmouse\fR, \fBungetmouse\fR,
@@ -171,9 +171,8 @@ These calls were designed for \fBncurses\fR(3X), and are not found in SVr4
 curses, 4.4BSD curses, or any other previous version of curses.
 
 The feature macro \fBNCURSES_MOUSE_VERSION\fR is provided so the preprocessor
-can be used to test whether these features are present (its value is 1).  NOTE:
-THIS INTERFACE IS EXPERIMENTAL AND IS SUBJECT TO CHANGE WITHOUT NOTICE!  If the
-interface is changed, the value of \fBNCURSES_MOUSE_VERSION\fR will be
+can be used to test whether these features are present (its value is 1).
+If the interface is changed, the value of \fBNCURSES_MOUSE_VERSION\fR will be
 incremented.
 
 The order of the \fBMEVENT\fR structure members is not guaranteed.
@@ -181,7 +180,7 @@ Additional fields may be added to the structure in the future.
 
 Under \fBncurses\fR(3X), these calls are implemented using either
 xterm's built-in mouse-tracking API or Alessandro Rubini's gpm server.
-If you are using something other than xterm there is no gpm daemon
+If you are using something other than xterm and there is no gpm daemon
 running on your machine, mouse events will not be visible to
 \fBncurses\fR(3X) (and the \fBwmousemask\fR function will always
 return \fB0\fR).
@@ -195,7 +194,14 @@ if they have been enabled by \fBwmousemask\fR.  Instead, the xterm mouse
 report sequence will appear in the string read.
 
 Mouse events under xterm will not be detected correctly in a window with
-its keypad bit off.
+its keypad bit off, since they are interpreted as a variety of function key.
+Your terminfo description must have \fBkmous\fR set to "\\E[M" (the beginning
+of the response from xterm for mouse clicks).
+
+Because there are no standard terminal responses that would serve to identify
+terminals which support the xterm mouse protocol, \fBncurses\fR assumes that
+if your $DISPLAY environment variable is set, and \fBkmous\fR is defined in
+the terminal description, then the terminal may send mouse events.
 .SH SEE ALSO
 \fBcurses\fR(3X).
 .\"#

@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_termcap.3x,v 1.11 1998/07/18 02:45:56 tom Exp $
+.\" $Id: curs_termcap.3x,v 1.12 1999/09/05 01:02:07 tom Exp $
 .TH curs_termcap 3X ""
 .ds n 5
 .SH NAME
@@ -71,6 +71,9 @@ or -1 if it is not available.
 The \fBtgetstr\fR routine returns the string entry for \fIid\fR,
 or zero if it is not available.
 Use \fBtputs\fR to output the returned string.
+The return value will also be copied to the buffer pointed to by \fIarea\fR,
+and the \fIarea\fR value will be updated to point past the null ending
+this value.
 
 The \fBtgoto\fR routine instantiates the parameters into the given capability.
 The output from this routine is to be passed to \fBtputs\fR.

@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 1.62 1999/02/18 11:58:20 tom Exp $
+# $Id: Makefile.in,v 1.63 1999/09/01 22:35:53 tom Exp $
 ##############################################################################
 # Copyright (c) 1998 Free Software Foundation, Inc.                          #
 #                                                                            #
@@ -210,8 +210,8 @@ mostlyclean ::
 
 clean :: mostlyclean
 	-rm -f $(AUTO_SRC)
-	-rm -f make_keys
-	-rm -f make_hash
+	-rm -f make_keys$x
+	-rm -f make_hash$x
 
 distclean :: clean
 	-rm -f Makefile
