@@ -1,5 +1,5 @@
 .\"
-.\"     $Id: ipfirewall.4,v 1.6.2.2 1997/03/07 03:07:41 mpp Exp $
+.\"     $Id: ipfirewall.4,v 1.6.2.4 1997/06/23 02:19:54 julian Exp $
 .\"
 .Dd June 22, 1997
 .Dt IPFIREWALL 4
@@ -23,8 +23,11 @@ which point the corresponding action is taken. Rules are numbered
 from 1 to 65534; multiple rules may share the same number.
 .Pp
 There is one rule that always exists, rule number 65535. This rule
-causes all packets to be dropped. Hence, any packet which does not
-match a lower numbered rule will be dropped.
+normally causes all packets to be dropped. Hence, any packet which does not
+match a lower numbered rule will be dropped.  However, a kernel compile
+time option
+.Dq IPFIREWALL_DEFAULT_TO_ACCEPT
+allows the administrator to change this fixed rule to permit everything.
 .Pp
 The value passed to 
 .Fn setsockopt
@@ -182,8 +185,8 @@ interface.
           rule number was used.
 .Sh SEE ALSO
 .Xr setsockopt 2 ,
-.Xr ip 4 ,
 .Xr divert 4 ,
+.Xr ip 4 ,
 .Xr ipfw 8 ,
 .Xr sysctl 8 .
 .Sh BUGS
