@@ -746,16 +746,20 @@ load_keymap(char *opt, int dumponly)
 	keymap_t keymap;
 	accentmap_t accentmap;
 	FILE	*fd;
-	int	i;
+	int	i, j;
 	char	*name, *cp;
-	char	*prefix[]  = {"", "", KEYMAP_PATH, KEYMAP_PATH, NULL};
-	char	*postfix[] = {"", ".kbd", "", ".kbd"};
+	char	*prefix[]  = {"", "", KEYMAP_PATH, NULL};
+	char	*postfix[] = {"", ".kbd", NULL};
 
-	for (i=0; prefix[i]; i++) {
-		name = mkfullname(prefix[i], opt, postfix[i]);
-		if ((fd = fopen(name, "r")))
-			break;
-	}
+	if (cp = getenv("KEYMAP_PATH"))
+		prefix[0] = mkfullname(cp, "/", "");
+
+	for (i=0; prefix[i]; i++)
+		for (j=0; postfix[j]; j++) {
+			name = mkfullname(prefix[i], opt, postfix[j]);
+			if ((fd = fopen(name, "r")))
+				prefix[i + 1] = postfix[j + 1] = NULL;
+		}
 	if (fd == NULL) {
 		warn("keymap file not found");
 		return;
