@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_tree.c,v 1.60 1999/08/24 20:30:15 julian Exp $
+ *	$Id: devfs_tree.c,v 1.61 1999/08/25 04:55:18 julian Exp $
  */
 
 
@@ -1058,11 +1058,10 @@ devfs_add_to_tree(dev_t dev, uid_t uid, gid_t gid, int perms)
 				uid, gid, perms, "%s", dev->si_name );
 	
 	/* XXX HACK .. name may not start in 'r' */
-	/* Also Hack.. no place to store Block cookie */
 	if ((devsw->d_bmaj != -1)
 	&& (dev->si_name[0] == 'r')
 	&& ((devsw->d_flags & D_TYPEMASK) == D_DISK))  {
-        	/* dev->si_devfs =*/ devfs_add_devswf(devsw, minor(dev), DV_BLK,
+        	dev->si_bdevfs = devfs_add_devswf(devsw, minor(dev), DV_BLK,
 	    				uid, gid, perms, dev->si_name + 1);
 	}
 }
