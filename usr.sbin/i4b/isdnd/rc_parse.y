@@ -32,7 +32,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon May 21 11:22:21 2001]
+ *      last edit-date: [Fri Jul 20 19:14:23 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -121,6 +121,7 @@ int		controllercount = -1;
 %token		LOGEVENTS
 %token		MAILER
 %token		MAILTO
+%token		MAXCONNECTTIME
 %token		MONITOR
 %token		MONITORACCESS
 %token		MONITORPORT
@@ -465,6 +466,7 @@ numkeyword:	  ALERT			{ $$ = ALERT; }
 		| USRDEVICEUNIT		{ $$ = USRDEVICEUNIT; }
 		| DOWNTIME		{ $$ = DOWNTIME; }
 		| DOWNTRIES		{ $$ = DOWNTRIES; }
+		| MAXCONNECTTIME	{ $$ = MAXCONNECTTIME; }
 		;
 
 boolkeyword:	  BUDGETCALLBACKSFILEROTATE { $$ = BUDGETCALLBACKSFILEROTATE; }

@@ -24,9 +24,9 @@
 .\"
 .\" $FreeBSD$
 .\"
-.\"     last edit-date: [Mon May 21 11:20:26 2001]
+.\"     last edit-date: [Sat Jul 21 13:27:41 2001]
 .\"
-.Dd May 21, 2001
+.Dd July 21, 2001
 .Dt ISDND.RC 5
 .Os
 .Sh NAME
@@ -597,6 +597,15 @@ Its purpose is to
 use this name in the full-screen display for easy identification of a link
 to a remote site and for accounting purposes.
 (mandatory)
+.It Li maxconnecttime
+Specify a maximum connection time in seconds. Use this to define an absolute 
+upper limit for a connection on the B-channel to last.
+.Em CAUTION:
+This feature is used to limit the connection time, _not_ number of attempts
+to establish a connection: when using this please take care to also enable
+the use of budgets to limit the connection establish attempts (otherwise
+the line will cycle thru an endless loop of connections and reconnections
+which will have an undesired effect on your telco bill) !
 .It Li ppp-auth-paranoid
 If set to
 .Em no ,
