@@ -173,4 +173,4 @@ struct gettyflags {
 #define	MB	gettyflags[22].value
 #define	HW	gettyflags[23].value
 #define	NC	gettyflags[24].value
-
+#define	PL	gettyflags[25].value
