@@ -209,6 +209,7 @@ this change. Also note that conversion of float/double to integer
 where the float variable is too big now doesn't trap as well (it can't
 be seperated from other operations we want masked).
 
+Support for Y-E Data USB floppy drives has been added.
 
 1.2. SECURITY FIXES
 -------------------
