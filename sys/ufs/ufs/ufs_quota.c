@@ -254,6 +254,7 @@ chkiq(ip, change, cred, flags)
 #endif
 	if (change == 0)
 		return (0);
+	/* XXX: change is unsigned */
 	if (change < 0) {
 		for (i = 0; i < MAXQUOTAS; i++) {
 			if ((dq = ip->i_dquot[i]) == NODQUOT)
@@ -263,6 +264,7 @@ chkiq(ip, change, cred, flags)
 				(void) tsleep((caddr_t)dq, PINOD+1, "chkiq1", 0);
 			}
 			ncurinodes = dq->dq_curinodes + change;
+			/* XXX: ncurinodes is unsigned */
 			if (ncurinodes >= 0)
 				dq->dq_curinodes = ncurinodes;
 			else
