@@ -1779,6 +1779,26 @@ ed_attach(dev)
 }
 
 /*
+ * Detach the driver from the hardware and other systems in the kernel.
+ */
+int
+ed_detach(device_t dev)
+{
+	struct ed_softc *sc = device_get_softc(dev);
+	struct ifnet *ifp = &sc->arpcom.ac_if;
+
+	if (sc->gone)
+		return (0);
+	ed_stop(sc);
+	ifp->if_flags &= ~IFF_RUNNING;
+	ether_ifdetach(ifp);
+	sc->gone = 1;
+	bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
+	ed_release_resources(dev);
+	return (0);
+}
+
+/*
  * Reset interface.
  */
 static void

@@ -75,7 +75,6 @@ MODULE_DEPEND(ed, ether, 1, 1, 1);
 static int	ed_pccard_match(device_t);
 static int	ed_pccard_probe(device_t);
 static int	ed_pccard_attach(device_t);
-static int	ed_pccard_detach(device_t);
 
 static int	ed_pccard_ax88190(device_t dev);
 
@@ -88,26 +87,6 @@ static void	ed_pccard_dlink_mii_writebits(struct ed_softc *sc, u_int val,
     int nbits);
 #endif
 static int	ed_pccard_Linksys(device_t dev);
-
-/*
- *      ed_pccard_detach - unload the driver and clear the table.
- */
-static int
-ed_pccard_detach(device_t dev)
-{
-	struct ed_softc *sc = device_get_softc(dev);
-	struct ifnet *ifp = &sc->arpcom.ac_if;
-
-	if (sc->gone)
-		return (0);
-	ed_stop(sc);
-	ifp->if_flags &= ~IFF_RUNNING;
-	ether_ifdetach(ifp);
-	sc->gone = 1;
-	bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
-	ed_release_resources(dev);
-	return (0);
-}
 
 static const struct ed_product {
 	struct pccard_product	prod;
@@ -508,7 +487,7 @@ static device_method_t ed_pccard_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pccard_compat_probe),
 	DEVMETHOD(device_attach,	pccard_compat_attach),
-	DEVMETHOD(device_detach,	ed_pccard_detach),
+	DEVMETHOD(device_detach,	ed_detach),
 
 #ifndef ED_NO_MIIBUS
 	/* Bus interface */

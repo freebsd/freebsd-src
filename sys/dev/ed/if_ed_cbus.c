@@ -1743,6 +1743,7 @@ static device_method_t ed_isa_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		ed_isa_probe),
 	DEVMETHOD(device_attach,	ed_isa_attach),
+	DEVMETHOD(device_attach,	ed_detach),
 
 	{ 0, 0 }
 };
