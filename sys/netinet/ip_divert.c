@@ -415,12 +415,7 @@ div_attach(struct socket *so, int proto, struct thread *td)
 	inp->inp_ip_p = proto;
 	inp->inp_vflag |= INP_IPV4;
 	inp->inp_flags |= INP_HDRINCL;
-	/* The socket is always "connected" because
-	   we always know "where" to send the packet */
 	INP_UNLOCK(inp);
-	SOCK_LOCK(so);
-	so->so_state |= SS_ISCONNECTED;
-	SOCK_UNLOCK(so);
 	return 0;
 }
 
@@ -439,32 +434,6 @@ div_detach(struct socket *so)
 	in_pcbdetach(inp);
 	INP_INFO_WUNLOCK(&divcbinfo);
 	return 0;
-}
-
-static int
-div_abort(struct socket *so)
-{
-	struct inpcb *inp;
-
-	INP_INFO_WLOCK(&divcbinfo);
-	inp = sotoinpcb(so);
-	if (inp == 0) {
-		INP_INFO_WUNLOCK(&divcbinfo);
-		return EINVAL;	/* ??? possible? panic instead? */
-	}
-	INP_LOCK(inp);
-	soisdisconnected(so);
-	in_pcbdetach(inp);
-	INP_INFO_WUNLOCK(&divcbinfo);
-	return 0;
-}
-
-static int
-div_disconnect(struct socket *so)
-{
-	if ((so->so_state & SS_ISCONNECTED) == 0)
-		return ENOTCONN;
-	return div_abort(so);
 }
 
 static int
@@ -662,12 +631,10 @@ SYSCTL_PROC(_net_inet_divert, OID_AUTO, pcblist, CTLFLAG_RD, 0, 0,
 #endif
 
 struct pr_usrreqs div_usrreqs = {
-	.pru_abort =		div_abort,
 	.pru_attach =		div_attach,
 	.pru_bind =		div_bind,
 	.pru_control =		in_control,
 	.pru_detach =		div_detach,
-	.pru_disconnect =	div_disconnect,
 	.pru_peeraddr =		div_peeraddr,
 	.pru_send =		div_send,
 	.pru_shutdown =		div_shutdown,
