@@ -175,7 +175,7 @@ static int ieioctl(struct ifnet *ifp, int command, caddr_t data);
 static void iestart(struct ifnet *ifp);
 static void sl_reset_586(int unit);
 static void sl_chan_attn(int unit);
-static void iereset(int unit, int dummy);
+static void iereset(int unit);
 static void ie_readframe(int unit, struct ie_softc *ie, int bufno);
 static void ie_drop_packet_buffer(int unit, struct ie_softc *ie);
 static void sl_read_ether(int unit, unsigned char addr[6]);
@@ -745,7 +745,7 @@ static inline int ie_packet_len(int unit, struct ie_softc *ie) {
 #endif
       log(LOG_ERR, "ie%d: receive descriptors out of sync at %d\n",
 	  unit, ie->rbhead);
-      iereset(unit, 0);
+      iereset(unit);
       return -1;
     }
 
@@ -1055,7 +1055,7 @@ static void ie_drop_packet_buffer(int unit, struct ie_softc *ie) {
 #endif
       log(LOG_ERR, "ie%d: receive descriptors out of sync at %d\n",
 	  unit, ie->rbhead);
-      iereset(unit, 0);
+      iereset(unit);
       return;
     }
 
@@ -1281,8 +1281,8 @@ void sl_read_ether(unit, addr)
 
 
 static void
-iereset(unit, dummy)
-	int unit, dummy;
+iereset(unit)
+	int unit;
 {
   int s = splimp();
 

@@ -773,7 +773,7 @@ static void wtclock (wtinfo_t *t)
 		t->flags |= TPTIMER;
 		/* Some controllers seem to lose dma interrupts too often.
 		 * To make the tape stream we need 1 tick timeout. */
-		timeout (wtimer, (caddr_t)t, (t->flags & TPACTIVE) ? 1 : hz);
+		timeout ((timeout_func_t)wtimer, (caddr_t)t, (t->flags & TPACTIVE) ? 1 : hz);
 	}
 }
 
