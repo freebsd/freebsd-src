@@ -95,6 +95,7 @@ pccard_attach_card(device_t dev)
 {
 	struct pccard_softc *sc = PCCARD_SOFTC(dev);
 	struct pccard_function *pf;
+	struct pccard_ivar *ivar;
 	device_t child;
 	int attached;
 
@@ -147,7 +148,6 @@ pccard_attach_card(device_t dev)
 	STAILQ_FOREACH(pf, &sc->card.pf_head, pf_list) {
 		if (STAILQ_EMPTY(&pf->cfe_head))
 			continue;
-		/* XXX */
 		/*
 		 * In NetBSD, the drivers are responsible for activating
 		 * each function of a card.  I think that in FreeBSD we
@@ -160,8 +160,11 @@ pccard_attach_card(device_t dev)
 		 *
 		 */
 		device_printf(dev, "Starting to attach....\n");
+		/* XXX Need ivars XXXimpXXX */
+		ivar = malloc(sizeof(struct pccard_ivar), M_DEVBUF, M_WAITOK);
 		child = device_add_child(dev, NULL, -1);
-		pccard_function_init(pf, STAILQ_FIRST(&pf->cfe_head));
+		device_set_ivars(child, ivar);
+		pccard_function_init(pf);
 		pccard_function_enable(pf);
 		device_printf(dev, "pf %p pf->sc %p\n", pf, pf->sc);
 		if (device_probe_and_attach(child) == 0) {
@@ -228,14 +231,21 @@ pccard_card_gettype(device_t dev, int *type)
  * disabled.
  */
 void
-pccard_function_init(struct pccard_function *pf, 
-    struct pccard_config_entry *cfe)
+pccard_function_init(struct pccard_function *pf) 
 {
+	struct pccard_config_entry *cfe;
+
 	if (pf->pf_flags & PFF_ENABLED)
 		panic("pccard_function_init: function is enabled");
 
 	/* Remember which configuration entry we are using. */
+	/* XXX
+	 * need to look for one we can allocate the resources
+	 * and then set them so the alloc_resources work later.
+	 */
+	cfe = STAILQ_FIRST(&pf->cfe_head);
 	pf->cfe = cfe;
+
 }
 
 /* Enable a PCCARD function */
@@ -573,7 +583,7 @@ pccard_print_child(device_t dev, device_t child)
 		    "%ld");
 		pccard_print_resources(rl, "drq", SYS_RES_DRQ, PCCARD_NDRQ, 
 		    "%ld");
-		retval += printf(" slot %d", devi->slotnum);
+		retval += printf(" slot ?"); /* XXX imp */
 	}
 
 	retval += bus_print_child_footer(dev, child);
