@@ -6,7 +6,7 @@
 #include <osreldate.h>		/* and this works */
 #endif
 
-int main(void) { 
+int main(void) {
   extern int getosreldate(void);
   printf("Compilation release date: %d\n", __FreeBSD_version);
 #if __FreeBSD_version >= 199408

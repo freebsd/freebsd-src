@@ -43,7 +43,7 @@
  * This program creates a socket and initiates a connection with the socket
  * given in the command line.  One message is sent over the connection and
  * then the socket is closed, ending the connection. The form of the command
- * line is streamwrite hostname portnumber 
+ * line is streamwrite hostname portnumber
  */
 
 main(argc, argv)

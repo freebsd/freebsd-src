@@ -19,7 +19,7 @@ readdir_1(dirname)
 	namelist nl;
 	namelist *nlp;
 	static readdir_res res; /* must be static! */
-	
+
 	/*
 	 * Open directory
 	 */

@@ -42,7 +42,7 @@
  * This program creates a pair of connected sockets then forks and
  * communicates over them.  This is very similar to communication with pipes,
  * however, socketpairs are two-way communications objects. Therefore I can
- * send messages in both directions. 
+ * send messages in both directions.
  */
 
 main()

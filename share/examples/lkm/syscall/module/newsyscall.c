@@ -102,7 +102,7 @@ int			cmd;
  * case it should return an errno from errno.h).
  */
 newsyscall( lkmtp, cmd, ver)
-struct lkm_table	*lkmtp;	
+struct lkm_table	*lkmtp;
 int			cmd;
 int			ver;
 {
