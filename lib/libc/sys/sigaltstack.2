@@ -42,7 +42,7 @@
 .Fd #include <signal.h>
 .Bd -literal
 struct sigaltstack {
-	caddr_t ss_sp;
+	void	*ss_base;
 	long	ss_size;
 	int     ss_flags;
 };
@@ -74,7 +74,7 @@ If
 .Dv SS_DISABLE
 is set in
 .Fa ss_flags ,
-.Fa ss_sp
+.Fa ss_base
 and
 .Fa ss_size
 are ignored and the signal stack will be disabled.
@@ -106,7 +106,7 @@ is defined to be the number of bytes/chars that would be used to cover
 the usual case when allocating an alternate stack area.
 The following code fragment is typically used to allocate an alternate stack.
 .Bd -literal -offset indent
-if ((sigstk.ss_sp = malloc(SIGSTKSZ)) == NULL)
+if ((sigstk.ss_base = malloc(SIGSTKSZ)) == NULL)
 	/* error return */
 sigstk.ss_size = SIGSTKSZ;
 sigstk.ss_flags = 0;
