@@ -91,11 +91,16 @@
 
 /*
  * Values for the ppc bus space tag, not to be used directly by MI code.
+ * Low byte contains the shift value
  */
-#define PPC_BUS_SPACE_MEM      1       /* space is mem space */
+#define PPC_BUS_SPACE_MEM      0x100       /* space is mem space */
+#define PPC_BUS_MEM_MASK       0x0ff
 
-
-#define	__BA(t, h, o) ((void *)((h) + (o)))
+/*
+ * Flags for bus_resource_alloc(MEM|IOPORT). XXX this is very bad: it's
+ * assumed that this won't conflict with resource flags :-(
+ */
+#define PPC_BUS_SPARSE4  0x800000  /* shift offset left 4 bits */
 
 /*
  * Bus address and size types
@@ -112,7 +117,7 @@ typedef u_int32_t bus_space_handle_t;
 static __inline void *
 __ppc_ba(bus_space_tag_t tag, bus_space_handle_t handle, bus_size_t offset)
 {
-	return ((void *)(handle + offset));
+	return ((void *)(handle + (offset << (tag & PPC_BUS_MEM_MASK))));
 }
 
 
