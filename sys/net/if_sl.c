@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.32 1995/09/17 23:38:29 ache Exp $
+ * $Id: if_sl.c,v 1.33 1995/10/31 19:22:30 peter Exp $
  */
 
 /*
@@ -189,11 +189,10 @@ static struct mbuf *sl_btom __P((struct sl_softc *, int));
 static timeout_t sl_keepalive;
 static timeout_t sl_outfill;
 
-#define ttyerrio ((int (*) __P((struct tty *, struct uio *, int)))enodev)
-
-static struct linesw slipdisc =
-	{ slopen, slclose, ttyerrio, ttyerrio, sltioctl,
-	  slinput, slstart, ttymodem };
+static struct linesw slipdisc = {
+	slopen,		slclose,	l_noread,	l_nowrite,
+	sltioctl,	slinput,	slstart,	ttymodem
+};
 
 /*
  * Called from boot code to establish sl interfaces.

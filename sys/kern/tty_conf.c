@@ -36,70 +36,57 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_conf.c	8.4 (Berkeley) 1/21/94
- * $Id: tty_conf.c,v 1.6 1995/05/30 08:06:10 rgrimes Exp $
+ * $Id: tty_conf.c,v 1.7 1995/07/29 13:35:34 bde Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/buf.h>
-#include <sys/ioctl.h>
-#include <sys/proc.h>
 #include <sys/tty.h>
 #include <sys/conf.h>
-
-#define	ttynodisc ((int (*) __P((dev_t, struct tty *)))enodev)
-#define	ttyerrclose ((int (*) __P((struct tty *, int flags)))enodev)
-#define	ttyerrio ((int (*) __P((struct tty *, struct uio *, int)))enodev)
-#define	ttyerrinput ((int (*) __P((int c, struct tty *)))enodev)
-#define	ttyerrstart ((int (*) __P((struct tty *)))enodev)
-
-int	nullioctl __P((struct tty *tp, int cmd, caddr_t data,
-			int flag, struct proc *p));
 
 #ifndef MAXLDISC
 #define MAXLDISC 8
 #endif
 
+static l_open_t		l_noopen;
+static l_close_t	l_noclose;
+static l_ioctl_t	l_nullioctl;
+static l_rint_t		l_norint;
+static l_start_t	l_nostart;
+
+/*
+ * XXX it probably doesn't matter what the entries other than the l_open
+ * entry are here.  The l_nullioctl and ttymodem entries still look fishy.
+ * Reconsider the removal of nullmodem anyway.  It was too much like
+ * ttymodem, but a completely null version might be useful.
+ */
 #define NODISC(n) \
-	{ ttynodisc, ttyerrclose, ttyerrio, ttyerrio, nullioctl, \
-	  ttyerrinput, ttyerrstart, ttymodem },
+	{ l_noopen,	l_noclose,	l_noread,	l_nowrite, \
+	  l_nullioctl,	l_norint,	l_nostart,	ttymodem }
 
 struct	linesw linesw[MAXLDISC] =
 {
-	{ ttyopen, ttylclose, ttread, ttwrite, nullioctl,
-	  ttyinput, ttstart, ttymodem },		/* 0- termios */
-
-	{ ttynodisc, ttyerrclose, ttyerrio, ttyerrio, nullioctl,
-	  ttyerrinput, ttyerrstart, ttymodem },		/* 1- defunct */
-
+				/* 0- termios */
+	{ ttyopen,	ttylclose,	ttread,		ttwrite,
+	  l_nullioctl,	ttyinput,	ttstart,	ttymodem },
+	NODISC(1),		/* 1- defunct */
+	  			/* 2- NTTYDISC */
 #ifdef COMPAT_43
-	{ ttyopen, ttylclose, ttread, ttwrite, nullioctl,
-	  ttyinput, ttstart, ttymodem },		/* 2- NTTYDISC */
+	{ ttyopen,	ttylclose,	ttread,		ttwrite,
+	  l_nullioctl,	ttyinput,	ttstart,	ttymodem },
 #else
-	{ ttynodisc, ttyerrclose, ttyerrio, ttyerrio, nullioctl,
-	  ttyerrinput, ttyerrstart, ttymodem },
+	NODISC(2),
 #endif
-
-	NODISC(3)		/* TABLDISC */
-	NODISC(4)		/* SLIPDISC */
-	NODISC(5)		/* PPPDISC */
-	NODISC(6)		/* loadable */
-	NODISC(7)		/* loadable */
+	NODISC(3),		/* TABLDISC */
+	NODISC(4),		/* SLIPDISC */
+	NODISC(5),		/* PPPDISC */
+	NODISC(6),		/* loadable */
+	NODISC(7),		/* loadable */
 };
 
 int	nlinesw = sizeof (linesw) / sizeof (linesw[0]);
 
-static struct linesw nodisc =
-{
-	ttynodisc,
-	ttyerrclose,
-	ttyerrio,
-	ttyerrio,
-	nullioctl,
-	ttyerrinput,
-	ttyerrstart,
-	ttymodem
-};
+static struct linesw nodisc = NODISC(0);
 
 #define LOADABLE_LDISC 6
 /*
@@ -149,14 +136,67 @@ ldisc_deregister(discipline)
 	}
 }
 
+static int
+l_noopen(dev, tp)
+	dev_t dev;
+	struct tty *tp;
+{
+
+	return (ENODEV);
+}
+
+static int
+l_noclose(tp, flag)
+	struct tty *tp;
+	int flag;
+{
+
+	return (ENODEV);
+}
+
+int
+l_noread(tp, uio, flag)
+	struct tty *tp;
+	struct uio *uio;
+	int flag;
+{
+
+	return (ENODEV);
+}
+
+int
+l_nowrite(tp, uio, flag)
+	struct tty *tp;
+	struct uio *uio;
+	int flag;
+{
+
+	return (ENODEV);
+}
+
+static int
+l_norint(c, tp)
+	int c;
+	struct tty *tp;
+{
+
+	return (ENODEV);
+}
+
+static int
+l_nostart(tp)
+	struct tty *tp;
+{
+
+	return (ENODEV);
+}
 
 /*
  * Do nothing specific version of line
  * discipline specific ioctl command.
  */
-/*ARGSUSED*/
-int
-nullioctl(tp, cmd, data, flags, p)
+static int
+l_nullioctl(tp, cmd, data, flags, p)
 	struct tty *tp;
 	int cmd;
 	char *data;
@@ -164,8 +204,5 @@ nullioctl(tp, cmd, data, flags, p)
 	struct proc *p;
 {
 
-#ifdef lint
-	tp = tp; data = data; flags = flags; p = p;
-#endif
 	return (-1);
 }
