@@ -34,7 +34,8 @@
 .Sh NAME
 .Nm isic
 .Nd isdn4bsd Siemens ISDN Chipset device driver
-.Sh FreeBSD SYNOPSIS
+.Sh SYNOPSIS
+.Ss FreeBSD
 .Pp
 .Em Note:
 the keywords
@@ -127,7 +128,7 @@ See also:
 and
 .Xr boot 8
 .Pp
-.Sh NetBSD SYNOPSIS
+.Ss NetBSD
 On the ISA bus:
 .Pp
 For a Teles S0/8 or Niccy 1008 card:
@@ -348,10 +349,11 @@ This card is PnP only, and so it can be configured using USERCONFIG
 .Em /kernel.config
 \&. For example:
 .Pp
+.Bd -unfilled
 .Cd USERCONFIG
-.Cd pnp 1 0 os enable port0 0x270 irq0 10
+.Cd "pnp 1 0 os enable port0 0x270 irq0 10"
 .Cd quit
-.Pp
+.Ed
 .Pp
 .It Ar "ELSA QuickStep 1000pro (ISA)"
 .Pp
