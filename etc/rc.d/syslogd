@@ -13,14 +13,13 @@
 
 name="syslogd"
 rcvar=`set_rcvar`
+pidfile="/var/run/syslog.pid"
 command="/usr/sbin/${name}"
 required_files="/etc/syslog.conf"
 start_precmd="syslogd_precmd"
 extra_commands="reload"
 
 _sockfile="/var/run/syslogd.sockets"
-
-pidfile="/var/run/syslog.pid"
 evalargs="rc_flags=\"\`set_socketlist\` \$rc_flags\""
 altlog_proglist="named"
 
