@@ -84,16 +84,16 @@ struct agp_nvidia_softc {
 	off_t			pg_offset;
 };
 
-static const char *	agp_nvidia_match	(device_t dev);
-static int		agp_nvidia_probe	(device_t);
-static int		agp_nvidia_attach	(device_t);
-static int		agp_nvidia_detach	(device_t);
-static u_int32_t	agp_nvidia_get_aperture	(device_t);
-static int		agp_nvidia_set_aperture	(device_t, u_int32_t);
-static int		agp_nvidia_bind_page	(device_t, int, vm_offset_t);
-static int		agp_nvidia_unbind_page	(device_t, int);
+static const char *agp_nvidia_match(device_t dev);
+static int agp_nvidia_probe(device_t);
+static int agp_nvidia_attach(device_t);
+static int agp_nvidia_detach(device_t);
+static u_int32_t agp_nvidia_get_aperture(device_t);
+static int agp_nvidia_set_aperture(device_t, u_int32_t);
+static int agp_nvidia_bind_page(device_t, int, vm_offset_t);
+static int agp_nvidia_unbind_page(device_t, int);
 
-static int		nvidia_init_iorr	(u_int32_t, u_int32_t);
+static int nvidia_init_iorr(u_int32_t, u_int32_t);
 
 static const char *
 agp_nvidia_match (device_t dev)

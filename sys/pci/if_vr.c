@@ -126,47 +126,45 @@ static struct vr_type vr_devs[] = {
 	{ 0, 0, NULL }
 };
 
-static int vr_probe		(device_t);
-static int vr_attach		(device_t);
-static int vr_detach		(device_t);
+static int vr_probe(device_t);
+static int vr_attach(device_t);
+static int vr_detach(device_t);
 
-static int vr_newbuf		(struct vr_softc *,
-					struct vr_chain_onefrag *,
-					struct mbuf *);
-static int vr_encap		(struct vr_softc *, struct vr_chain *,
-						struct mbuf * );
+static int vr_newbuf(struct vr_softc *, struct vr_chain_onefrag *,
+		struct mbuf *);
+static int vr_encap(struct vr_softc *, struct vr_chain *, struct mbuf * );
 
-static void vr_rxeof		(struct vr_softc *);
-static void vr_rxeoc		(struct vr_softc *);
-static void vr_txeof		(struct vr_softc *);
-static void vr_tick		(void *);
-static void vr_intr		(void *);
-static void vr_start		(struct ifnet *);
-static void vr_start_locked	(struct ifnet *);
-static int vr_ioctl		(struct ifnet *, u_long, caddr_t);
-static void vr_init		(void *);
-static void vr_init_locked	(struct vr_softc *);
-static void vr_stop		(struct vr_softc *);
-static void vr_watchdog		(struct ifnet *);
-static void vr_shutdown		(device_t);
-static int vr_ifmedia_upd	(struct ifnet *);
-static void vr_ifmedia_sts	(struct ifnet *, struct ifmediareq *);
+static void vr_rxeof(struct vr_softc *);
+static void vr_rxeoc(struct vr_softc *);
+static void vr_txeof(struct vr_softc *);
+static void vr_tick(void *);
+static void vr_intr(void *);
+static void vr_start(struct ifnet *);
+static void vr_start_locked(struct ifnet *);
+static int vr_ioctl(struct ifnet *, u_long, caddr_t);
+static void vr_init(void *);
+static void vr_init_locked(struct vr_softc *);
+static void vr_stop(struct vr_softc *);
+static void vr_watchdog(struct ifnet *);
+static void vr_shutdown(device_t);
+static int vr_ifmedia_upd(struct ifnet *);
+static void vr_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
 #ifdef VR_USESWSHIFT
-static void vr_mii_sync		(struct vr_softc *);
-static void vr_mii_send		(struct vr_softc *, uint32_t, int);
+static void vr_mii_sync(struct vr_softc *);
+static void vr_mii_send(struct vr_softc *, uint32_t, int);
 #endif
-static int vr_mii_readreg	(struct vr_softc *, struct vr_mii_frame *);
-static int vr_mii_writereg	(struct vr_softc *, struct vr_mii_frame *);
-static int vr_miibus_readreg	(device_t, uint16_t, uint16_t);
-static int vr_miibus_writereg	(device_t, uint16_t, uint16_t, uint16_t);
-static void vr_miibus_statchg	(device_t);
+static int vr_mii_readreg(struct vr_softc *, struct vr_mii_frame *);
+static int vr_mii_writereg(struct vr_softc *, struct vr_mii_frame *);
+static int vr_miibus_readreg(device_t, uint16_t, uint16_t);
+static int vr_miibus_writereg(device_t, uint16_t, uint16_t, uint16_t);
+static void vr_miibus_statchg(device_t);
 
-static void vr_setcfg		(struct vr_softc *, int);
-static void vr_setmulti		(struct vr_softc *);
-static void vr_reset		(struct vr_softc *);
-static int vr_list_rx_init	(struct vr_softc *);
-static int vr_list_tx_init	(struct vr_softc *);
+static void vr_setcfg(struct vr_softc *, int);
+static void vr_setmulti(struct vr_softc *);
+static void vr_reset(struct vr_softc *);
+static int vr_list_rx_init(struct vr_softc *);
+static int vr_list_tx_init(struct vr_softc *);
 
 #ifdef VR_USEIOSPACE
 #define VR_RES			SYS_RES_IOPORT
