@@ -68,6 +68,9 @@ static MALLOC_DEFINE(M_CRED, "cred", "credentials");
 SYSCTL_NODE(_kern, OID_AUTO, security, CTLFLAG_RW, 0,
     "Kernel security policy");
 
+SYSCTL_NODE(_kern_security, OID_AUTO, bsd, CTLFLAG_RW, 0,
+    "BSD security policy");
+
 #ifndef _SYS_SYSPROTO_H_
 struct getpid_args {
 	int	dummy;
@@ -1237,7 +1240,7 @@ groupmember(gid, cred)
  * consideration of the consequences.
  */
 int	suser_enabled = 1;
-SYSCTL_INT(_kern_security, OID_AUTO, suser_enabled, CTLFLAG_RW,
+SYSCTL_INT(_kern_security_bsd, OID_AUTO, suser_enabled, CTLFLAG_RW,
     &suser_enabled, 0, "processes with uid 0 have privilege");
 
 /*
@@ -1354,13 +1357,13 @@ securelevel_ge(struct ucred *cr, int level)
 }
 
 /*
- * kern_security_seeotheruids_permitted determines whether or not visibility
- * of processes and sockets with credentials holding different real uid's
- * is possible using a variety of system MIBs.
+ * 'seeotheruids_permitted' determines whether or not visibility of processes
+ * and sockets with credentials holding different real uid's is possible
+ * using a variety of system MIBs.
  */
-static int	kern_security_seeotheruids_permitted = 1;
-SYSCTL_INT(_kern_security, OID_AUTO, seeotheruids_permitted,
-    CTLFLAG_RW, &kern_security_seeotheruids_permitted, 0,
+static int	seeotheruids_permitted = 1;
+SYSCTL_INT(_kern_security_bsd, OID_AUTO, seeotheruids_permitted,
+    CTLFLAG_RW, &seeotheruids_permitted, 0,
     "Unprivileged processes may see subjects/objects with different real uid");
 
 /*-
@@ -1378,8 +1381,7 @@ cr_cansee(struct ucred *u1, struct ucred *u2)
 
 	if ((error = prison_check(u1, u2)))
 		return (error);
-	if (!kern_security_seeotheruids_permitted &&
-	    u1->cr_ruid != u2->cr_ruid) {
+	if (!seeotheruids_permitted && u1->cr_ruid != u2->cr_ruid) {
 		if (suser_xxx(u1, NULL, PRISON_ROOT) != 0)
 			return (ESRCH);
 	}
@@ -1514,7 +1516,7 @@ p_cansched(struct proc *p1, struct proc *p2)
 }
 
 /*
- * The kern_unprivileged_procdebug_permitted flag may be used to disable
+ * The 'unprivileged_procdebug_permitted' flag may be used to disable
  * a variety of unprivileged inter-process debugging services, including
  * some procfs functionality, ptrace(), and ktrace().  In the past,
  * inter-process debugging has been involved in a variety of security
@@ -1523,9 +1525,9 @@ p_cansched(struct proc *p1, struct proc *p2)
  *
  * XXX: Should modifying and reading this variable require locking?
  */
-static int	kern_unprivileged_procdebug_permitted = 1;
-SYSCTL_INT(_kern_security, OID_AUTO, unprivileged_procdebug_permitted,
-    CTLFLAG_RW, &kern_unprivileged_procdebug_permitted, 0,
+static int	unprivileged_procdebug_permitted = 1;
+SYSCTL_INT(_kern_security_bsd, OID_AUTO, unprivileged_procdebug_permitted,
+    CTLFLAG_RW, &unprivileged_procdebug_permitted, 0,
     "Unprivileged processes may use process debugging facilities");
 
 /*-
@@ -1541,7 +1543,7 @@ p_candebug(struct proc *p1, struct proc *p2)
 {
 	int error, i, grpsubset, uidsubset, credentialchanged;
 
-	if (!kern_unprivileged_procdebug_permitted) {
+	if (!unprivileged_procdebug_permitted) {
 		error = suser_xxx(NULL, p1, PRISON_ROOT);
 		if (error)
 			return (error);
