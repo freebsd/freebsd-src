@@ -21,7 +21,7 @@
  */
 
 /*
- * $Id: if_fe.c,v 1.1.1.1 1996/06/14 10:04:44 asami Exp $
+ * $Id: if_fe.c,v 1.2 1996/07/23 07:46:19 asami Exp $
  *
  * Device driver for Fujitsu MB86960A/MB86965A based Ethernet cards.
  * To be used with FreeBSD 2.x
@@ -295,14 +295,6 @@ static void	fe_loadmar	( struct fe_softc * );
 #if FE_DEBUG >= 1
 static void	fe_dump		( int, struct fe_softc *, char * );
 #endif
-
-/* Ethernet constants.  To be defined in if_ehter.h?  FIXME.  */
-#define ETHER_MIN_LEN	60	/* with header, without CRC. */
-#define ETHER_MAX_LEN	1514	/* with header, without CRC. */
-#define ETHER_ADDR_LEN	6	/* number of bytes in an address.  */
-#define ETHER_TYPE_LEN	2	/* number of bytes in a data type field.  */
-#define ETHER_HDR_SIZE	14	/* src addr, dst addr, and data type.  */
-#define ETHER_CRC_LEN	4	/* number of bytes in CRC field.  */
 
 /* Driver struct used in the config code.  This must be public (external.)  */
 #ifdef PC98
@@ -2118,7 +2110,7 @@ fe_start ( struct ifnet *ifp )
 		 * (i.e., minimum packet sized) packets rapidly.  An 8KB
 		 * buffer can hold 130 blocks of 62 bytes long...
 		 */
-		if ( sc->txb_free < ETHER_MAX_LEN + FE_DATA_LEN_LEN ) {
+		if ( sc->txb_free < ETHER_MAX_LEN - ETHER_CRC_LEN + FE_DATA_LEN_LEN ) {
 			/* No room.  */
 			goto indicate_active;
 		}
@@ -2417,12 +2409,12 @@ fe_rint ( struct fe_softc * sc, u_char rstat )
 		 *
 		 * Is this statement true?  FIXME.
 		 */
-		if ( len > ETHER_MAX_LEN || len < ETHER_HDR_SIZE ) {
+		if ( len > ETHER_MAX_LEN - ETHER_CRC_LEN  || len < ETHER_MIN_LEN- ETHER_CRC_LEN ) {
 #if FE_DEBUG >= 2
 			log( LOG_WARNING,
 				"fe%d: received a %s packet? (%u bytes)\n",
 				sc->sc_unit,
-				len < ETHER_HDR_SIZE ? "partial" : "big",
+				len < ETHER_MIN_SIZE- ETHER_CRC_SIZE ? "partial" : "big",
 				len );
 #endif
 			sc->sc_if.if_ierrors++;
@@ -2437,7 +2429,7 @@ fe_rint ( struct fe_softc * sc, u_char rstat )
 		 * if it carries data for upper layer.
 		 */
 #if FE_DEBUG >= 2
-		if ( len < ETHER_MIN_LEN ) {
+		if ( len < ETHER_MIN_LEN - ETHER_CRC_LEN) {
 			log( LOG_WARNING,
 			     "fe%d: received a short packet? (%u bytes)\n",
 			     sc->sc_unit, len );
@@ -2797,7 +2789,7 @@ fe_get_packet ( struct fe_softc * sc, u_short len )
 	 * however.  If the following #error message were printed upon
 	 * compile, you need to rewrite this function.
 	 */
-#if ( MCLBYTES < ETHER_MAX_LEN + NFS_MAGIC_OFFSET )
+#if ( MCLBYTES < ETHER_MAX_LEN - ETHER_CRC_LEN + NFS_MAGIC_OFFSET )
 #error "Too small MCLBYTES to use fe driver."
 #endif
 
@@ -2950,11 +2942,10 @@ fe_write_mbufs ( struct fe_softc *sc, struct mbuf *m )
 	 * it should be a bug of upper layer.  We just ignore it.
 	 * ... Partial (too short) packets, neither.
 	 */
-	if ( length > ETHER_MAX_LEN || length < ETHER_HDR_SIZE ) {
+	if ( ETHER_IS_VALID_LEN(length + ETHER_CRC_LEN)) {
 		log( LOG_ERR,
-			"fe%d: got a %s packet (%u bytes) to send\n",
-			sc->sc_unit,
-			length < ETHER_HDR_SIZE ? "partial" : "big", length );
+			"fe%d: got a out-of-spes packet (%u bytes) to send\n",
+			sc->sc_unit, length );
 		sc->sc_if.if_oerrors++;
 		return;
 	}
@@ -2968,14 +2959,14 @@ fe_write_mbufs ( struct fe_softc *sc, struct mbuf *m )
 	 * packet in the transmission buffer, we can skip the
 	 * padding process.  It may gain performance slightly.  FIXME.
 	 */
-	outw( addr_bmpr8, max( length, ETHER_MIN_LEN ) );
+	outw( addr_bmpr8, max( length, ETHER_MIN_LEN - ETHER_CRC_LEN ) );
 
 	/*
 	 * Update buffer status now.
 	 * Truncate the length up to an even number, since we use outw().
 	 */
 	length = ( length + 1 ) & ~1;
-	sc->txb_free -= FE_DATA_LEN_LEN + max( length, ETHER_MIN_LEN );
+	sc->txb_free -= FE_DATA_LEN_LEN + max( length, ETHER_MIN_LEN - ETHER_CRC_LEN);
 	sc->txb_count++;
 
 	/*
