@@ -3,10 +3,24 @@ Updating Information for FreeBSD current users
 This file is maintained by imp@village.org.  Please send new entries
 to him.  See end of file for further details.
 
+19990414:
+	cc -aout sometimes has problems compiling with -g, remove -g
+	from those compilation units affected until this is corrected.
+
+	cc -aout has problems with producing some threaded libraries,
+	so make world -DWANT_AOUT is not functional at this time.
+
 19990413:
-	Note cc -aout has been broken since the conversion to egcs.  If
-	you have rebuilt things like XFree86 a.out libraries, you should
-	rebuild them again or things (including netscape) will not work.
+	Make -j works again for make world.  As always, use it with
+	care, and be sure to try a make world w/o -j before reporting
+	problems (that is, know if the problem exists w/o -j before
+	reporting the problem with -j).
+
+19990413:
+	Note cc -aout, which had been broken since the conversion to
+	egcs, not supposedly works.  If you have rebuilt things like
+	XFree86 a.out libraries, you should rebuild them again or
+	things (including netscape) will not work.
 
 19990409:
 	NOTE: New c++ compiler cannot be used with c++ binaries from
@@ -194,4 +208,4 @@ version of FreeBSD, you are on your own to get to November 18, 1998.
 Please filter your entries through Warner (imp@village.org) so that
 the style, formatting, etc of this file can be maintained.
 
-$Id: UPDATING,v 1.27 1999/04/12 16:22:15 max Exp $
+$Id: UPDATING,v 1.28 1999/04/13 06:10:53 imp Exp $
