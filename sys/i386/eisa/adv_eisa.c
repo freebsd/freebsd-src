@@ -180,7 +180,7 @@ adveisaattach(struct eisa_device *e_dev)
 		 * by the MI portions of the advansys driver
 		 */
 		/* XXX Should be a child of the PCI bus dma tag */
-		error = bus_dma_tag_create(/*parent*/NULL, /*alignment*/0,
+		error = bus_dma_tag_create(/*parent*/NULL, /*alignment*/1,
 					   /*boundary*/0,
 					   /*lowaddr*/ADV_EISA_MAX_DMA_ADDR,
 					   /*highaddr*/BUS_SPACE_MAXADDR,
@@ -215,7 +215,7 @@ adveisaattach(struct eisa_device *e_dev)
 		 * by the MI portions of the advansys driver
 		 */
 		/* XXX Should be a child of the PCI bus dma tag */
-		error = bus_dma_tag_create(/*parent*/NULL, /*alignment*/0,
+		error = bus_dma_tag_create(/*parent*/NULL, /*alignment*/1,
 					   /*boundary*/0,
 					   /*lowaddr*/ADV_EISA_MAX_DMA_ADDR,
 					   /*highaddr*/BUS_SPACE_MAXADDR,

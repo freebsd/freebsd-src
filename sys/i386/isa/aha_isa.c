@@ -182,7 +182,7 @@ aha_isa_attach(dev)
 	filter_arg = NULL;
 	lowaddr = BUS_SPACE_MAXADDR_24BIT;
 
-	if (bus_dma_tag_create(/*parent*/NULL, /*alignemnt*/0, /*boundary*/0,
+	if (bus_dma_tag_create(/*parent*/NULL, /*alignemnt*/1, /*boundary*/0,
                                lowaddr, /*highaddr*/BUS_SPACE_MAXADDR,
                                filter, filter_arg,
                                /*maxsize*/BUS_SPACE_MAXSIZE_24BIT,

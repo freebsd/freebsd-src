@@ -352,7 +352,7 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 	 * dmamem does not need to be bounced, so the map should be
 	 * NULL
 	 */
-	if (map != &nobounce_dmamap)
+	if (map != NULL)
 		panic("bus_dmamem_free: Invalid map freed\n");
 	/* XXX There is no "contigfree" and "free" doesn't work */
 	if ((dmat->maxsize <= PAGE_SIZE) && dmat->lowaddr >= ptoa(Maxmem))

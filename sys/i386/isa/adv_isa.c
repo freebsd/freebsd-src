@@ -212,7 +212,7 @@ advisaprobe(struct isa_device *id)
 			/* XXX Should be a child of the ISA bus dma tag */ 
 			error =
 			    bus_dma_tag_create(/*parent*/NULL,
-					       /*alignemnt*/0,
+					       /*alignemnt*/1,
 					       /*boundary*/0,
 					       lowaddr,
 					       /*highaddr*/BUS_SPACE_MAXADDR,

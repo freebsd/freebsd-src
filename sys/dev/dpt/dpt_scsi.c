@@ -1159,7 +1159,7 @@ dpt_init(struct dpt_softc *dpt)
 	/* XXX Shouldn't we poll a status register or something??? */
 #endif
 	/* DMA tag for our S/G structures.  We allocate in page sized chunks */
-	if (bus_dma_tag_create(dpt->parent_dmat, /*alignment*/0, /*boundary*/0,
+	if (bus_dma_tag_create(dpt->parent_dmat, /*alignment*/1, /*boundary*/0,
 			       /*lowaddr*/BUS_SPACE_MAXADDR,
 			       /*highaddr*/BUS_SPACE_MAXADDR,
 			       /*filter*/NULL, /*filterarg*/NULL,
@@ -1281,7 +1281,7 @@ dpt_init(struct dpt_softc *dpt)
 		dpt->sgsize = dpt_max_segs;
 	
 	/* DMA tag for mapping buffers into device visible space. */
-	if (bus_dma_tag_create(dpt->parent_dmat, /*alignment*/0, /*boundary*/0,
+	if (bus_dma_tag_create(dpt->parent_dmat, /*alignment*/1, /*boundary*/0,
 			       /*lowaddr*/BUS_SPACE_MAXADDR,
 			       /*highaddr*/BUS_SPACE_MAXADDR,
 			       /*filter*/NULL, /*filterarg*/NULL,
@@ -1295,7 +1295,7 @@ dpt_init(struct dpt_softc *dpt)
 	dpt->init_level++;
 
 	/* DMA tag for our ccb structures and interrupt status packet */
-	if (bus_dma_tag_create(dpt->parent_dmat, /*alignment*/0, /*boundary*/0,
+	if (bus_dma_tag_create(dpt->parent_dmat, /*alignment*/1, /*boundary*/0,
 			       /*lowaddr*/BUS_SPACE_MAXADDR,
 			       /*highaddr*/BUS_SPACE_MAXADDR,
 			       /*filter*/NULL, /*filterarg*/NULL,

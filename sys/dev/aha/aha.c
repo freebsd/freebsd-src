@@ -522,7 +522,7 @@ aha_init(struct aha_softc* aha)
 	 */
 
 	/* DMA tag for mapping buffers into device visible space. */
-	if (bus_dma_tag_create(aha->parent_dmat, /*alignment*/0, /*boundary*/0,
+	if (bus_dma_tag_create(aha->parent_dmat, /*alignment*/1, /*boundary*/0,
 			       /*lowaddr*/BUS_SPACE_MAXADDR,
 			       /*highaddr*/BUS_SPACE_MAXADDR,
 			       /*filter*/NULL, /*filterarg*/NULL,
@@ -535,7 +535,7 @@ aha_init(struct aha_softc* aha)
 
 	aha->init_level++;
 	/* DMA tag for our mailboxes */
-	if (bus_dma_tag_create(aha->parent_dmat, /*alignment*/0, /*boundary*/0,
+	if (bus_dma_tag_create(aha->parent_dmat, /*alignment*/1, /*boundary*/0,
 			       /*lowaddr*/BUS_SPACE_MAXADDR,
 			       /*highaddr*/BUS_SPACE_MAXADDR,
 			       /*filter*/NULL, /*filterarg*/NULL,
@@ -571,7 +571,7 @@ aha_init(struct aha_softc* aha)
 	ahainitmboxes(aha);
 
 	/* DMA tag for our ccb structures */
-	if (bus_dma_tag_create(aha->parent_dmat, /*alignment*/0, /*boundary*/0,
+	if (bus_dma_tag_create(aha->parent_dmat, /*alignment*/1, /*boundary*/0,
 			       /*lowaddr*/BUS_SPACE_MAXADDR,
 			       /*highaddr*/BUS_SPACE_MAXADDR,
 			       /*filter*/NULL, /*filterarg*/NULL,
@@ -601,7 +601,7 @@ aha_init(struct aha_softc* aha)
 	aha->init_level++;
 
 	/* DMA tag for our S/G structures.  We allocate in page sized chunks */
-	if (bus_dma_tag_create(aha->parent_dmat, /*alignment*/0, /*boundary*/0,
+	if (bus_dma_tag_create(aha->parent_dmat, /*alignment*/1, /*boundary*/0,
 			       /*lowaddr*/BUS_SPACE_MAXADDR,
 			       /*highaddr*/BUS_SPACE_MAXADDR,
 			       /*filter*/NULL, /*filterarg*/NULL,

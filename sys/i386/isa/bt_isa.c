@@ -179,7 +179,7 @@ bt_isa_attach(dev)
 	}
 			
 	/* XXX Should be a child of the ISA or VL bus dma tag */
-	if (bus_dma_tag_create(/*parent*/NULL, /*alignemnt*/0, /*boundary*/0,
+	if (bus_dma_tag_create(/*parent*/NULL, /*alignemnt*/1, /*boundary*/0,
                                lowaddr, /*highaddr*/BUS_SPACE_MAXADDR,
                                filter, filter_arg,
                                /*maxsize*/BUS_SPACE_MAXSIZE_32BIT,
@@ -197,7 +197,7 @@ bt_isa_attach(dev)
 
 	if (lowaddr != BUS_SPACE_MAXADDR_32BIT) {
 		/* DMA tag for our sense buffers */
-		if (bus_dma_tag_create(bt->parent_dmat, /*alignment*/0,
+		if (bus_dma_tag_create(bt->parent_dmat, /*alignment*/1,
 				       /*boundary*/0,
 				       /*lowaddr*/BUS_SPACE_MAXADDR,
 				       /*highaddr*/BUS_SPACE_MAXADDR,

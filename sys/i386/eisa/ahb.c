@@ -312,7 +312,7 @@ ahbattach(struct eisa_device *e_dev)
 	 */
 	/* DMA tag for mapping buffers into device visible space. */
 	/* XXX Should be a child of the EISA bus dma tag */
-	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/0, /*boundary*/0,
+	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/1, /*boundary*/0,
 			       /*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
 			       /*highaddr*/BUS_SPACE_MAXADDR,
 			       /*filter*/NULL, /*filterarg*/NULL,
@@ -325,7 +325,7 @@ ahbattach(struct eisa_device *e_dev)
 	ahb->init_level++;
 
 	/* DMA tag for our ccb structures and ha inquiry data */
-	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/0, /*boundary*/0,
+	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/1, /*boundary*/0,
 			       /*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
 			       /*highaddr*/BUS_SPACE_MAXADDR,
 			       /*filter*/NULL, /*filterarg*/NULL,
