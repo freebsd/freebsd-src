@@ -101,6 +101,9 @@
     <para arch="i386,pc98">Initial support has been added for
       FireWire devices (see &man.firewire.4;).</para>
 
+    <para arch="i386,pc98">Support for the CanBe power management
+      controller has been added.</para>
+
     <para arch="i386,pc98">The ubsa driver has been added to support
       the Belkin F5U103 (and compatible) USB-to-serial adaptors.</para>
 
@@ -162,6 +165,10 @@
       <para>A &man.gre.4; driver, which can encapsulate IP packets
         using GRE (RFC 1701) or minimal IP encapsulation for Mobile IP
         (RFC 2004), has been added.</para>
+
+      <para>A bug in TCP NewReno, which caused premature exit from
+	fast recovery with NewReno enabled, has been
+	fixed.</para>
 
     </sect3>
 
@@ -337,6 +344,9 @@
       <para><application>CVS</application> has been updated to
 	1.11.5.</para>
 
+      <para><application>groff</application> and its related utilities
+	have been updated to FSF version 1.18.1.</para>
+
       <para><application>Heimdal Kerberos</application> has been updated to
 	0.5.1.</para>
 
@@ -345,6 +355,9 @@
 
       <para><application>OpenSSH</application> has been updated to
         3.5p1.</para>
+
+      <para><application>sendmail</application> has been updated to
+        version 8.12.7.</para>
 
       <para>The timezone database has been updated to the
 	<filename>tzdata2002d</filename> release.</para>
