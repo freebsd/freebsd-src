@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_extern.h	8.2 (Berkeley) 1/12/94
- * $Id: vm_extern.h,v 1.21 1995/12/11 04:58:04 dyson Exp $
+ * $Id: vm_extern.h,v 1.22 1995/12/14 09:54:55 phk Exp $
  */
 
 #ifndef _VM_EXTERN_H_
@@ -104,6 +104,7 @@ void vslock __P((caddr_t, u_int));
 void vsunlock __P((caddr_t, u_int, int));
 void vm_object_print __P((/* db_expr_t */ int, boolean_t, /* db_expr_t */ int,
 			  char *));
+void vm_fault_quick __P((caddr_t v, int prot));
 
 #endif				/* KERNEL */
 
