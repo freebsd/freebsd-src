@@ -323,7 +323,8 @@ complete_raid5_write(struct rqelement *rqe)
 		&&((rqe->flags & XFR_BAD_SUBDISK) == 0)) {  /* and we can write this block */
 		    rqe->b.b_flags &= ~(B_READ | B_DONE);   /* we're writing now */
 		    rqe->b.b_flags |= B_CALL;		    /* call us when you're done */
-		    rqe->flags &= ~XFR_PARITYOP;	    /* reset flags that brought use here */
+		    rqe->b.b_iodone = complete_rqe;	    /* by calling us here */
+		    rqe->flags &= ~XFR_PARITYOP;	    /* reset flags that brought us here */
 		    rqe->b.b_data = &bp->b_data[rqe->useroffset << DEV_BSHIFT];	/* point to the user data */
 		    rqe->b.b_bcount = rqe->datalen << DEV_BSHIFT; /* length to write */
 		    rqe->b.b_bufsize = rqe->b.b_bcount;	    /* don't claim more */
@@ -360,8 +361,8 @@ complete_raid5_write(struct rqelement *rqe)
     rqe = &rqg->rqe[0];
     rqe->b.b_flags &= ~(B_READ | B_DONE);		    /* we're writing now */
     rqe->b.b_flags |= B_CALL;				    /* call us when you're done */
-    rqe->flags &= ~XFR_PARITYOP;			    /* reset flags that brought use here */
-    rqg->flags &= ~XFR_PARITYOP;			    /* reset flags that brought use here */
+    rqe->b.b_iodone = complete_rqe;			    /* by calling us here */
+    rqg->flags &= ~XFR_PARITYOP;			    /* reset flags that brought us here */
     rqe->b.b_bcount = rqe->buflen << DEV_BSHIFT;	    /* length to write */
     rqe->b.b_bufsize = rqe->b.b_bcount;			    /* don't claim we have more */
     rqe->b.b_resid = rqe->b.b_bcount;			    /* nothing transferred */
