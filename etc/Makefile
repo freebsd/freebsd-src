@@ -189,15 +189,13 @@ distrib-dirs:
 		shift; shift; \
 	done
 	cd ${DESTDIR}/usr/share/nls; \
-	set - `grep "^[a-zA-Z]" ${.CURDIR}/locale.alias`; \
+	set - `grep "^[a-zA-Z]" ${.CURDIR}/nls.alias`; \
 	while [ $$# -gt 0 ] ; \
 	do \
 		rm -rf "$$1"; \
 		ln -s "$$2" "$$1"; \
 		shift; shift; \
-	done; \
-	rm -rf POSIX; \
-	ln -s C POSIX
+	done
 
 etc-examples:
 	(cd ${.CURDIR}; \
