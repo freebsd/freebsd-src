@@ -45,6 +45,7 @@ usage(void) {
 
 	errx(1, "usage: %s node", progname);
 }
+int	mymount(const char *type, const char *dir, int flags, void *data);
 
 #if __FreeBSD_version < 600000
 int
@@ -54,16 +55,23 @@ mymount(const char *type, const char *dir, int flags, void *data)
 	return (mount(type, dir, flags, data));
 }
 #else
+void	ioset(struct iovec *iovp, const char *str);
+
 void
-ioset(struct iovec *iovp, char *str)
+ioset(struct iovec *iovp, const char *str)
 {
 
-	iovp->iov_base = str;
+	iovp->iov_base = __DECONST(char *, str);
 	iovp->iov_len = strlen(str) + 1;
 }
 
 int
-mymount(char *type, char *dir, int flags, void *data)
+mymount(
+	const char *type,
+	const char *dir,
+	int flags __unused,
+	void *data __unused
+)
 {
 	struct iovec iov[4], *iovp;
 
