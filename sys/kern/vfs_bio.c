@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.217 1999/06/26 14:46:35 peter Exp $
+ * $Id: vfs_bio.c,v 1.218 1999/06/28 15:32:10 peter Exp $
  */
 
 /*
@@ -517,7 +517,8 @@ bwrite(struct buf * bp)
 	if (curproc != NULL)
 		curproc->p_stats->p_ru.ru_oublock++;
 	splx(s);
-	BUF_KERNPROC(bp);
+	if (oldflags & B_ASYNC)
+		BUF_KERNPROC(bp);
 	VOP_STRATEGY(bp->b_vp, bp);
 
 	/*
