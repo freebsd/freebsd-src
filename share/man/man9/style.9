@@ -58,36 +58,33 @@ After any copyright header, there is a blank line, and the
 for source files.
 Version control system ID tags should only exist once in a file
 (unlike this one).
-Non-C/C++ source files follow the above example, while C/C++ source files
-follow the below one.
+Non-C/C++ source files follow the example above, while C/C++ source files
+follow the one below.
 All VCS (version control system) revision identification from files obtained
-from elsewhere should be maintained, including if there are multiple IDs
+from elsewhere should be maintained, including, where applicable, multiple IDs
 showing a file's history.
-In general, keep the IDs in tact, including any `$'s.
+In general, keep the IDs intact, including any `$'s.
+There is no reason to add "From" in front of foreign VCS IDs.
 Most
 .No non- Ns Fx
 VCS IDs should be indented by a tab if in a comment.
 .Bd -literal
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)style	1.14 (Berkeley) 4/28/95";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__RCSID("@(#)style	1.14 (Berkeley) 4/28/95");
+__FBSDID("$FreeBSD$");
 .Ed
 .Pp
-Followed by another blank line.
+Leave another blank line before the header files.
 .Pp
-Kernel include files (i.e. sys/*.h) come first; normally, you'll need
+Kernel include files (i.e. sys/*.h) come first; normally, include
 <sys/types.h>
-OR <sys/param.h>, but not both!  <sys/types.h> includes <sys/cdefs.h>,
+OR <sys/param.h>, but not both.  <sys/types.h> includes <sys/cdefs.h>,
 and it's okay to depend on that.
 .Bd -literal
 #include <sys/types.h>	/* Non-local includes in angle brackets. */
 .Ed
 .Pp
-If it's a network program, put the network include files next.
+For a network program, put the network include files next.
 .Bd -literal
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -96,8 +93,8 @@ If it's a network program, put the network include files next.
 #include <protocols/rwhod.h>
 .Ed
 .Pp
-Then there's a blank line, followed by the /usr include files.
-The /usr include files should be sorted!
+Leave a blank line before the next group, the /usr include files,
+which should be sorted alphabetically by name.
 .Bd -literal
 #include <stdio.h>
 .Ed
@@ -108,7 +105,7 @@ to the program go in pathnames.h in the local directory.
 #include <paths.h>
 .Ed
 .Pp
-Then, there's a blank line, and the user include files.
+Leave another blank line before the user include files.
 .Bd -literal
 #include "pathnames.h"		/* Local includes in double quotes. */
 .Ed
@@ -117,7 +114,7 @@ Do not #define or declare names in the implementation namespace except
 for implementing application interfaces.
 .Pp
 The names of
-.Dq Li unsafe
+.Dq unsafe
 macros (ones that have side effects), and the names of macros for
 manifest constants, are all in uppercase.
 The expansions of expression-like macros are either a single token
@@ -162,10 +159,12 @@ enum enumtype { ONE, TWO } et;
 When declaring variables in structures, declare them sorted by use, then
 by size, and then by alphabetical order.  The first category normally
 doesn't apply, but there are exceptions.  Each one gets its own line.
-Put a tab after the first word, i.e. use
-.Ql int^Ix;
-and
-.Ql struct^Ifoo *x; .
+Try to make the structure
+readable by aligning the member names using either one or two tabs
+depending upon your judgment.
+You should use one tab if it suffices to align most of the member names.
+Names following extremely long types
+should be separated by a single space.
 .Pp
 Major structures should be declared at the top of the file in which they
 are used, or in separate header files if they are used in multiple
@@ -173,11 +172,12 @@ source files.  Use of the structures should be by separate declarations
 and should be "extern" if they are declared in a header file.
 .Bd -literal
 struct foo {
-	struct	foo *next;	/* List of active foo */
-	struct	mumble amumble;	/* Comment for mumble */
-	int	bar;
+	struct foo	*next;		/* List of active foo. */
+	struct mumble	amumble;	/* Comment for mumble. */
+	int		bar;		/* Try to align the comments. */
+	struct verylongtypename *baz;	/* Won't fit in 2 tabs. */
 };
-struct foo *foohead;		/* Head of global foo list */
+struct foo *foohead;			/* Head of global foo list. */
 .Ed
 .Pp
 Use
@@ -186,12 +186,13 @@ macros rather than rolling your own lists, whenever possible.  Thus,
 the previous example would be better written:
 .Bd -literal
 #include <sys/queue.h>
-struct	foo {
-	LIST_ENTRY(foo)	link;	/* Queue macro glue for foo lists */
-	struct	mumble amumble;	/* Comment for mumble */
-	int	bar;
+struct foo {
+	LIST_ENTRY(foo)	link;		/* Use queue macros for foo lists. */
+	struct mumble	amumble;	/* Comment for mumble. */
+	int		bar;		/* Try to align the comments. */
+	struct verylongtypename *baz;	/* Won't fit in 2 tabs. */
 };
-LIST_HEAD(, foo) foohead;	/* Head of global foo list */
+LIST_HEAD(, foo) foohead;		/* Head of global foo list. */
 .Ed
 .Pp
 Avoid using typedefs for structure types.  This makes it impossible
@@ -240,8 +241,10 @@ void	function(int fd);
 .Ed
 .Pp
 In header files visible to userland applications, prototypes that are
-visible must use either protected names or no names with the types.  It
-is preferable to use protected names.
+visible must use either
+.Dq protected
+names (ones beginning with an underscore) or no names with the types.
+It is preferable to use protected names.
 E.g., use:
 .Bd -literal
 void	function(int);
@@ -416,7 +419,7 @@ If a line overflows reuse the type keyword.
 .Pp
 Be careful to not obfuscate the code by initializing variables in
 the declarations.  Use this feature only thoughtfully.
-DO NOT use function calls in initializers!
+DO NOT use function calls in initializers.
 .Bd -literal
 	struct foo one, *two;
 	double three;
@@ -469,7 +472,7 @@ Use
 .Xr err 3
 or
 .Xr warn 3 ,
-don't roll your own!
+don't roll your own.
 .Bd -literal
 	if ((four = malloc(sizeof(struct foo))) == NULL)
 		err(1, (char *)NULL);
@@ -561,6 +564,12 @@ placed in a single set of brackets.
 }
 .Ed
 .Pp
+Note that the manual page options description should list the options in
+pure alphabetical order.
+That is, without regard to whether an option takes arguments or not.
+The alphabetical ordering should take into account the case ordering
+shown above.
+.Pp
 New core kernel code should be reasonably compliant with the style guides.
 The guidelines for third-party maintained modules and device drivers are more
 relaxed but at a minimum should be internally consistent with their style.
@@ -588,7 +597,7 @@ or
 This man page is largely based on the src/admin/style/style file from
 the
 .Bx 4.4 Lite2
-release, with updates to reflect the current practice and
+release, with occasional updates to reflect the current practice and
 desire of the
 .Fx
 project.
