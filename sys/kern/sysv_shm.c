@@ -127,6 +127,7 @@ struct	shminfo shminfo = {
 };
 
 static int shm_use_phys;
+static int shm_allow_removed;
 
 TUNABLE_INT("kern.ipc.shmmin", &shminfo.shmmin);
 TUNABLE_INT("kern.ipc.shmmni", &shminfo.shmmni);
@@ -141,6 +142,7 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, shmmni, CTLFLAG_RD, &shminfo.shmmni, 0, "");
 SYSCTL_INT(_kern_ipc, OID_AUTO, shmseg, CTLFLAG_RW, &shminfo.shmseg, 0, "");
 SYSCTL_INT(_kern_ipc, OID_AUTO, shmall, CTLFLAG_RW, &shminfo.shmall, 0, "");
 SYSCTL_INT(_kern_ipc, OID_AUTO, shm_use_phys, CTLFLAG_RW, &shm_use_phys, 0, "");
+SYSCTL_INT(_kern_ipc, OID_AUTO, shm_allow_removed, CTLFLAG_RW, &shm_allow_removed, 0, "");
 
 static int
 shm_find_segment_by_key(key)
@@ -166,8 +168,9 @@ shm_find_segment_by_shmid(shmid)
 	if (segnum < 0 || segnum >= shmalloced)
 		return NULL;
 	shmseg = &shmsegs[segnum];
-	if ((shmseg->shm_perm.mode & (SHMSEG_ALLOCATED | SHMSEG_REMOVED))
-	    != SHMSEG_ALLOCATED ||
+	if ((shmseg->shm_perm.mode & SHMSEG_ALLOCATED) == 0 ||
+	    (!shm_allow_removed &&
+	     (shmseg->shm_perm.mode & SHMSEG_REMOVED) != 0) ||
 	    shmseg->shm_perm.seq != IPCID_TO_SEQ(shmid))
 		return NULL;
 	return shmseg;
