@@ -143,6 +143,13 @@ typedef struct ohci_softc {
 	char sc_dying;
 } ohci_softc_t;
 
+struct ohci_xfer {
+	struct usbd_xfer xfer;
+	struct usb_task	abort_task;
+};
+
+#define OXFER(xfer) ((struct ehci_xfer *)(xfer))
+
 usbd_status	ohci_init(ohci_softc_t *);
 int		ohci_intr(void *);
 #if defined(__NetBSD__) || defined(__OpenBSD__)
