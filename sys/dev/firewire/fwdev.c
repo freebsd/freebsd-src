@@ -349,6 +349,7 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 	struct fw_xfer *xfer;
 	struct fw_pkt *fp;
 	struct fw_devinfo *devinfo;
+	void *ptr;
 
 	struct fw_devlstreq *fwdevlst = (struct fw_devlstreq *)data;
 	struct fw_asyreq *asyreq = (struct fw_asyreq *)data;
@@ -631,18 +632,32 @@ error:
 			if (FW_EUI64_EQUAL(fwdev->eui, crom_buf->eui))
 				break;
 		if (fwdev == NULL) {
-			err = FWNODE_INVAL;
-			break;
+			if (!FW_EUI64_EQUAL(sc->fc->eui, crom_buf->eui)) {
+				err = FWNODE_INVAL;
+				break;
+			}
+			/* myself */
+			ptr = malloc(CROMSIZE, M_FW, M_WAITOK);
+			len = CROMSIZE;
+			for (i = 0; i < CROMSIZE/4; i++)
+				((u_int32_t *)ptr)[i]
+					= ntohl(sc->fc->config_rom[i]);
+		} else {
+			/* found */
+			ptr = (void *)&fwdev->csrrom[0];
+			if (fwdev->rommax < CSRROMOFF)
+				len = 0;
+			else
+				len = fwdev->rommax - CSRROMOFF + 4;
 		}
-		if (fwdev->rommax < CSRROMOFF)
-			len = 0;
-		else
-			len = fwdev->rommax - CSRROMOFF + 4;
 		if (crom_buf->len < len)
 			len = crom_buf->len;
 		else
 			crom_buf->len = len;
-		err = copyout(&fwdev->csrrom[0], crom_buf->ptr, len);
+		err = copyout(ptr, crom_buf->ptr, len);
+		if (fwdev == NULL)
+			/* myself */
+			free(ptr, M_FW);
 		break;
 	default:
 		sc->fc->ioctl (dev, cmd, data, flag, td);

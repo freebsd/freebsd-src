@@ -38,9 +38,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/types.h>
-#include <sys/mbuf.h>
-#include <sys/socket.h>
-#include <sys/socketvar.h>
 
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -333,8 +330,8 @@ firewire_xfer_timeout(struct firewire_comm *fc)
 				/* the rests are newer than this */
 				break;
 			device_printf(fc->bdev,
-				"split transaction timeout dst=0x%x tl=0x%x\n",
-				xfer->dst, i);
+				"split transaction timeout dst=0x%x tl=0x%x state=%d\n",
+				xfer->dst, i, xfer->state);
 			xfer->resp = ETIMEDOUT;
 			STAILQ_REMOVE_HEAD(&fc->tlabels[i], link);
 			fw_xfer_done(xfer);
@@ -596,7 +593,7 @@ fw_init_crom(struct firewire_comm *fc)
 	src->businfo.cyc_clk_acc = 100;
 	src->businfo.max_rec = fc->maxrec;
 	src->businfo.max_rom = MAXROM_4;
-	src->businfo.generation = 0;
+	src->businfo.generation = 1;
 	src->businfo.link_spd = fc->speed;
 
 	src->businfo.eui64.hi = fc->eui.hi;
@@ -622,7 +619,6 @@ fw_reset_crom(struct firewire_comm *fc)
 	src = fc->crom_src;
 	root = fc->crom_root;
 
-	src->businfo.generation ++;
 	STAILQ_INIT(&src->chunk_list);
 
 	bzero(root, sizeof(struct crom_chunk));
@@ -642,7 +638,9 @@ void
 fw_busreset(struct firewire_comm *fc)
 {
 	struct firewire_dev_comm *fdc;
+	struct crom_src *src;
 	device_t *devlistp;
+	void *newrom;
 	int i, devcnt;
 
 	switch(fc->status){
@@ -666,7 +664,19 @@ fw_busreset(struct firewire_comm *fc)
 		free(devlistp, M_TEMP);
 	}
 
-	crom_load(&fc->crom_src_buf->src, fc->config_rom, CROMSIZE);
+	newrom = malloc(CROMSIZE, M_FW, M_NOWAIT | M_ZERO);
+	src = &fc->crom_src_buf->src;
+	crom_load(src, (u_int32_t *)newrom, CROMSIZE);
+	if (bcmp(newrom, fc->config_rom, CROMSIZE) != 0) {
+		/* bump generation and reload */
+		src->businfo.generation ++;
+		/* generation must be between 0x2 and 0xF */
+		if (src->businfo.generation < 2)
+			src->businfo.generation ++;
+		crom_load(src, (u_int32_t *)newrom, CROMSIZE);
+		bcopy(newrom, (void *)fc->config_rom, CROMSIZE);
+	}
+	free(newrom, M_FW);
 }
 
 /* Call once after reboot */
@@ -985,8 +995,10 @@ fw_xfer_alloc_buf(struct malloc_type *type, int send_len, int recv_len)
 void
 fw_xfer_done(struct fw_xfer *xfer)
 {
-	if (xfer->act.hand == NULL)
+	if (xfer->act.hand == NULL) {
+		printf("act.hand == NULL\n");
 		return;
+	}
 
 	if (xfer->fc->status != FWBUSRESET)
 		xfer->act.hand(xfer);
@@ -1307,12 +1319,11 @@ loop:
 				break;
 		if(fwdev != NULL){
 			fwdev->dst = fc->ongonode;
-			fwdev->status = FWDEVATTACHED;
-			fc->ongonode++;
+			fwdev->status = FWDEVINIT;
+			fc->ongodev = fwdev;
 			fc->ongoaddr = CSRROMOFF;
-			fc->ongodev = NULL;
-			fc->ongoeui.hi = 0xffffffff; fc->ongoeui.lo = 0xffffffff;
-			goto loop;
+			addr = 0xf0000000 | fc->ongoaddr;
+			goto dorequest;
 		}
 		fwdev = malloc(sizeof(struct fw_device), M_FW,
 							M_NOWAIT | M_ZERO);
@@ -1348,6 +1359,7 @@ loop:
 	}else{
 		addr = 0xf0000000 | fc->ongoaddr;
 	}
+dorequest:
 #if 0
 	xfer = asyreqq(fc, FWSPD_S100, 0, 0,
 		((FWLOCALBUS | fc->ongonode) << 16) | 0xffff , addr,
@@ -1512,6 +1524,11 @@ fw_bus_explore_callback(struct fw_xfer *xfer)
 			fc->ongoaddr = CSRROMOFF;
 		}
 	}else{
+		if (fc->ongoaddr == CSRROMOFF &&
+		    fc->ongodev->csrrom[0] == ntohl(rfp->mode.rresq.data)) {
+			fc->ongodev->status = FWDEVATTACHED;
+			goto nextnode;
+		}
 		fc->ongodev->csrrom[(fc->ongoaddr - CSRROMOFF)/4] = ntohl(rfp->mode.rresq.data);
 		if(fc->ongoaddr > fc->ongodev->rommax){
 			fc->ongodev->rommax = fc->ongoaddr;
@@ -1785,7 +1802,7 @@ fw_rcv(struct firewire_comm *fc, struct iovec *vec, int nvec, u_int sub, u_int s
 			break;
 		case FWXF_START:
 			if (firewire_debug)
-				printf("not sent yet\n");
+				printf("not sent yet tl=%x\n", xfer->tl);
 			break;
 		default:
 			printf("unexpected state %d\n", xfer->state);

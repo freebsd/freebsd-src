@@ -43,14 +43,8 @@
 #define IRX_CH 0x24
 
 #include <sys/param.h>
-#include <sys/proc.h>
 #include <sys/systm.h>
-#include <sys/types.h>
 #include <sys/mbuf.h>
-#include <sys/mman.h> 
-#include <sys/socket.h>
-#include <sys/socketvar.h>
-#include <sys/signalvar.h> 
 #include <sys/malloc.h>
 #include <sys/sockio.h>
 #include <sys/bus.h>
@@ -59,15 +53,10 @@
 #include <sys/endian.h>
 
 #include <machine/bus.h>
-#include <machine/resource.h>
-#include <sys/rman.h>
 
 #if __FreeBSD_version < 500000
 #include <machine/clock.h>		/* for DELAY() */
 #endif
-
-#include <pci/pcivar.h>
-#include <pci/pcireg.h>
 
 #include <dev/firewire/firewire.h>
 #include <dev/firewire/firewirereg.h>
@@ -75,8 +64,6 @@
 #include <dev/firewire/fwohcireg.h>
 #include <dev/firewire/fwohcivar.h>
 #include <dev/firewire/firewire_phy.h>
-
-#include <dev/firewire/iec68113.h>
 
 #undef OHCI_DEBUG
 
@@ -1187,7 +1174,12 @@ fwohci_db_init(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 			/*maxsize*/ dbch->xferq.psize,
 			/*nsegments*/ dbch->ndesc > 3 ? dbch->ndesc - 2 : 1,
 			/*maxsegsz*/ MAX_REQCOUNT,
-			/*flags*/ 0, &dbch->dmat))
+			/*flags*/ 0,
+#if __FreeBSD_version >= 501102
+			/*lockfunc*/busdma_lock_mutex,
+			/*lockarg*/&Giant,
+#endif
+			&dbch->dmat))
 		return;
 
 	/* allocate DB entries and attach one to each DMA channels */

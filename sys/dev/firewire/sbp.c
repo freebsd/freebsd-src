@@ -39,10 +39,13 @@
 #include <sys/systm.h>
 #include <sys/module.h>
 #include <sys/bus.h>
-#include <sys/mbuf.h>
 #include <sys/sysctl.h>
 #include <machine/bus.h>
 #include <sys/malloc.h>
+#if __FreeBSD_version >= 501102
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#endif
 
 #if __FreeBSD_version < 500106
 #include <sys/devicestat.h>	/* for struct devstat */
@@ -56,8 +59,6 @@
 #include <cam/cam_periph.h>
 
 #include <cam/scsi/scsi_all.h>
-#include <cam/scsi/scsi_message.h>
-#include <cam/scsi/scsi_da.h>
 
 #include <sys/kernel.h>
 
@@ -1828,6 +1829,10 @@ END_DEBUG
 				/*maxsize*/0x100000, /*nsegments*/SBP_IND_MAX,
 				/*maxsegsz*/SBP_SEG_MAX,
 				/*flags*/BUS_DMA_ALLOCNOW,
+#if __FreeBSD_version >= 501102
+				/*lockfunc*/busdma_lock_mutex,
+				/*lockarg*/&Giant,
+#endif
 				&sbp->dmat);
 	if (error != 0) {
 		printf("sbp_attach: Could not allocate DMA tag "
