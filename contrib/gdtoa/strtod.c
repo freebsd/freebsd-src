@@ -85,9 +85,6 @@ strtod
 #ifdef Honor_FLT_ROUNDS
 	int rounding;
 #endif
-#ifdef USE_LOCALE
-	CONST char *s2;
-#endif
 
 	sign = nz0 = nz = 0;
 	dval(rv) = 0.;
@@ -150,25 +147,11 @@ strtod
 			z = 10*z + c - '0';
 	nd0 = nd;
 #ifdef USE_LOCALE
-	s1 = localeconv()->decimal_point;
-	if (c == *s1) {
-		c = '.';
-		if (*++s1) {
-			s2 = s;
-			for(;;) {
-				if (*++s2 != *s1) {
-					c = 0;
-					break;
-					}
-				if (!*++s1) {
-					s = s2;
-					break;
-					}
-				}
-			}
-		}
+	if (c == *localeconv()->decimal_point)
+#else
+	if (c == '.')
 #endif
-	if (c == '.') {
+		{
 		c = *++s;
 		if (!nd) {
 			for(; c == '0'; c = *++s)
