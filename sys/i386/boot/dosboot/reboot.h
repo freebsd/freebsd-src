@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)reboot.h	8.1 (Berkeley) 6/2/93
- * $Id: reboot.h,v 1.7 1994/11/26 09:08:40 phk Exp $
+ * $Id: reboot.h,v 1.2 1995/04/27 18:22:32 phk Exp $
  */
 
 #ifndef _SYS_REBOOT_H_
@@ -56,8 +56,10 @@
 #define	RB_MINIROOT	0x200	/* mini-root present in memory at boot time */
 #define RB_CONFIG	0x400	/* invoke user configuration routing */
 #define RB_VERBOSE	0x800	/* print all potentially useful info */
-#define	RB_SERIAL	0x1000	/* user serial port as console */
-#define	RB_CDROM	0x2000	/* use cdrom as root */
+#define RB_SERIAL	0x1000	/* user serial port as console */
+#define RB_CDROM	0x2000	/* use cdrom as root */
+#define RB_POWEROFF     0x4000  /* if you can, turn the power off */
+#define RB_GDB          0x8000  /* use GDB remote debugger instead of DDB */
 
 #define	RB_BOOTINFO	0x80000000	/* have `struct bootinfo *' arg */
 
