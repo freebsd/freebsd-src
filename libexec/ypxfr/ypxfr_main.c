@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ypxfr_main.c,v 1.19 1996/10/25 15:58:15 wpaul Exp $
+ *	$Id: ypxfr_main.c,v 1.6 1996/10/25 16:13:05 wpaul Exp $
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -51,7 +51,7 @@ struct dom_binding {};
 #include "ypxfr_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: ypxfr_main.c,v 1.19 1996/10/25 15:58:15 wpaul Exp $";
+static const char rcsid[] = "$Id: ypxfr_main.c,v 1.6 1996/10/25 16:13:05 wpaul Exp $";
 #endif
 
 char *progname = "ypxfr";
@@ -133,10 +133,26 @@ int ypxfr_foreach(status, key, keylen, val, vallen, data)
 	if (status != YP_TRUE)
 		return (status);
 
-	dbkey.data = key;
-	dbkey.size = keylen;
-	dbval.data = val;
-	dbval.size = vallen;
+	/*
+	 * XXX Do not attempt to write zero-length keys or
+	 * data into a Berkeley DB hash database. It causes a
+	 * strange failure mode where sequential searches get
+	 * caught in an infinite loop.
+	 */
+	if (keylen) {
+		dbkey.data = key;
+		dbkey.size = keylen;
+	} else {
+		dbkey.data = "";
+		dbkey.size = 1;
+	}
+	if (vallen) {
+		dbval.data = val;
+		dbval.size = vallen;
+	} else {
+		dbval.data = "";
+		dbval.size = 1;
+	}
 
 	if (yp_put_record(dbp, &dbkey, &dbval, 0) != YP_TRUE)
 		return(yp_errno);
@@ -176,7 +192,7 @@ main(argc,argv)
 	if (argc < 2)
 		usage();
 
-	while ((ch = getopt(argc, argv, "fcd:h:s:p:C:")) != EOF) {
+	while ((ch = getopt(argc, argv, "fcd:h:s:p:C:")) != -1) {
 		int my_optind;
 		switch(ch) {
 		case 'f':
