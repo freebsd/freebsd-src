@@ -1001,12 +1001,7 @@ mutex_unlock_common(pthread_mutex_t *m, int add_reference)
 			 * mutex:
 			 */
 			if ((*m)->m_owner != curthread)
-				/*
-				 * Return an invalid argument error for no
-				 * owner and a permission error otherwise:
-				 */
-				ret = (*m)->m_owner == NULL ? EINVAL : EPERM;
-
+				ret = EPERM;
 			else if (((*m)->m_type == PTHREAD_MUTEX_RECURSIVE) &&
 			    ((*m)->m_count > 0))
 				/* Decrement the count: */
@@ -1039,12 +1034,7 @@ mutex_unlock_common(pthread_mutex_t *m, int add_reference)
 			 * mutex:
 			 */
 			if ((*m)->m_owner != curthread)
-				/*
-				 * Return an invalid argument error for no
-				 * owner and a permission error otherwise:
-				 */
-				ret = (*m)->m_owner == NULL ? EINVAL : EPERM;
-
+				ret = EPERM;
 			else if (((*m)->m_type == PTHREAD_MUTEX_RECURSIVE) &&
 			    ((*m)->m_count > 0))
 				/* Decrement the count: */
@@ -1096,12 +1086,7 @@ mutex_unlock_common(pthread_mutex_t *m, int add_reference)
 			 * mutex:
 			 */
 			if ((*m)->m_owner != curthread)
-				/*
-				 * Return an invalid argument error for no
-				 * owner and a permission error otherwise:
-				 */
-				ret = (*m)->m_owner == NULL ? EINVAL : EPERM;
-
+				ret = EPERM;
 			else if (((*m)->m_type == PTHREAD_MUTEX_RECURSIVE) &&
 			    ((*m)->m_count > 0))
 				/* Decrement the count: */
