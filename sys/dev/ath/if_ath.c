@@ -1232,7 +1232,7 @@ ath_beacon_proc(void *arg, int pending)
 	if (!ath_hal_stoptxdma(ah, sc->sc_bhalq)) {
 		DPRINTF(ATH_DEBUG_ANY, ("%s: beacon queue %u did not stop?\n",
 			__func__, sc->sc_bhalq));
-		return;			/* busy, XXX is this right? */
+		/* NB: the HAL still stops DMA, so proceed */
 	}
 	bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap, BUS_DMASYNC_PREWRITE);
 
