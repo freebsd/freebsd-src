@@ -284,11 +284,11 @@ struct inpcbinfo {		/* XXX documentation, prefixes */
 #define	IN6P_HOPOPTS		0x040000 /* receive hop-by-hop options */
 #define	IN6P_DSTOPTS		0x080000 /* receive dst options after rthdr */
 #define	IN6P_RTHDR		0x100000 /* receive routing header */
-#define IN6P_TCLASS		0x400000 /* receive traffic class value */
 #define	IN6P_RTHDRDSTOPTS	0x200000 /* receive dstoptions before rthdr */
-#define IN6P_AUTOFLOWLABEL	0x800000 /* attach flowlabel automatically */
-#define IN6P_RFC2292		0x40000000 /* used RFC2292 API on the socket */
-#define IN6P_MTU		0x80000000 /* receive path MTU */
+#define	IN6P_TCLASS		0x400000 /* receive traffic class value */
+#define	IN6P_AUTOFLOWLABEL	0x800000 /* attach flowlabel automatically */
+#define	IN6P_RFC2292		0x40000000 /* used RFC2292 API on the socket */
+#define	IN6P_MTU		0x80000000 /* receive path MTU */
 
 #define	INP_CONTROLOPTS		(INP_RECVOPTS|INP_RECVRETOPTS|INP_RECVDSTADDR|\
 				 INP_RECVIF|INP_RECVTTL|\
