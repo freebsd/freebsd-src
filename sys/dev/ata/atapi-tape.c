@@ -243,15 +243,17 @@ astopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
     if (stp->flags == F_OPEN)
 	return EBUSY;
 
+    atapi_test_ready(stp->atp);
+
     if (stp->cap.lock)
 	ast_prevent_allow(stp, 1);
 
     if (ast_sense(stp))
 	printf("ast%d: sense media type failed\n", stp->lun);
-    
+
+    stp->atp->flags &= ~ATAPI_F_MEDIA_CHANGED;
     stp->flags &= ~(F_DATA_WRITTEN | F_FM_WRITTEN);
     stp->flags |= F_OPEN;
-    stp->atp->flags &= ~ATAPI_F_MEDIA_CHANGED;
     ast_total = 0;
     return 0;
 }
