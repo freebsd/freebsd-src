@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.347 1997/06/27 13:46:09 kato Exp $
+#	$Id: LINT,v 1.348 1997/06/30 14:37:38 yokota Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -88,11 +88,11 @@ config		kernel	root on wd0 dumps on wd0
 options		SMP			# Symmetric MultiProcessor Kernel
 options		APIC_IO			# Symmetric (APIC) I/O
 
-# Optional, these are the defaults:
-#options		NCPU=2			# number of CPUs
-#options		NBUS=4			# number of busses
-#options		NAPIC=1			# number of IO APICs
-#options		NINTR=24		# number of INTs
+# Optional, these are the defaults plus 1:
+options		NCPU=3			# number of CPUs
+options		NBUS=5			# number of busses
+options		NAPIC=2			# number of IO APICs
+options		NINTR=25		# number of INTs
 
 #
 # Rogue SMP hardware:
@@ -103,6 +103,8 @@ options		APIC_IO			# Symmetric (APIC) I/O
 
 # SuperMicro P6DNE:
 #options                SMP_TIMER_NC            # 8254 NOT connected to APIC
+
+options		SMP_TIMER_NC
 
 # Bridged PCI cards:
 #
