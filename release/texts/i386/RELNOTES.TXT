@@ -90,6 +90,9 @@ fast-queue configuration, provides a functional ``set autoload'' command
 (for on-demand multi-link ppp), allows GRE packet filtering and has had
 many bugs fixed.
 
+There's a new pppoed daemon for servicing PPP over Ethernet requests.
+Refer to rc.conf(5) and pppoed(8) for details.
+
 2. Supported Configurations
 ---------------------------
 FreeBSD currently runs on a wide variety of ISA, VLB, EISA and PCI bus
