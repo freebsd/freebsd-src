@@ -39,12 +39,13 @@ static char const copyright[] =
 
 #ifndef lint
 #if 0
-static char const sccsid[] = "@(#)chmod.c	8.8 (Berkeley) 4/1/94";
+static char sccsid[] = "@(#)chmod.c	8.8 (Berkeley) 4/1/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: chmod.c,v 1.10 1998/05/06 06:50:08 charnier Exp $";
 #endif /* not lint */
 
+#include <sys/types.h>
 #include <sys/stat.h>
 
 #include <err.h>
