@@ -1,5 +1,7 @@
 CFLAGS+=	-I${.CURDIR}/..
 
+CFLAGS+=	-Wall
+
 .include <bsd.obj.mk>
 
 .if exists(${.CURDIR}/../lib/${__objdir})

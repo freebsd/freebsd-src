@@ -33,14 +33,13 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: session.c,v 1.37 2000/09/07 20:27:53 deraadt Exp $");
+RCSID("$OpenBSD: session.c,v 1.42 2000/10/27 07:32:18 markus Exp $");
 
 #include "xmalloc.h"
 #include "ssh.h"
 #include "pty.h"
 #include "packet.h"
 #include "buffer.h"
-#include "cipher.h"
 #include "mpaux.h"
 #include "servconf.h"
 #include "uidswap.h"
@@ -90,7 +89,7 @@ void	session_pty_cleanup(Session *s);
 void	session_proctitle(Session *s);
 void	do_exec_pty(Session *s, const char *command, struct passwd * pw);
 void	do_exec_no_pty(Session *s, const char *command, struct passwd * pw);
-void	do_login(Session *s);
+void	do_login(Session *s, const char *command);
 
 void
 do_child(const char *command, struct passwd * pw, const char *term,
@@ -197,7 +196,7 @@ do_authenticated(struct passwd * pw)
 	 * by the client telling us, so we can equally well trust the client
 	 * not to request anything bogus.)
 	 */
-	if (!no_port_forwarding_flag)
+	if (!no_port_forwarding_flag && options.allow_tcp_forwarding)
 		channel_permit_all_opens();
 
 	s = session_new();
@@ -347,6 +346,10 @@ do_authenticated(struct passwd * pw)
 		case SSH_CMSG_PORT_FORWARD_REQUEST:
 			if (no_port_forwarding_flag) {
 				debug("Port forwarding not permitted for this authentication.");
+				break;
+			}
+			if (!options.allow_tcp_forwarding) {
+				debug("Port forwarding not permitted.");
 				break;
 			}
 			debug("Received TCP/IP port forwarding request.");
@@ -569,8 +572,8 @@ do_exec_pty(Session *s, const char *command, struct passwd * pw)
 		close(ttyfd);
 
 		/* record login, etc. similar to login(1) */
-		if (command == NULL && !options.use_login)
-			do_login(s);
+		if (!(options.use_login && command == NULL))
+			do_login(s, command);
 
 		/* Do common processing for the child, such as execing the command. */
 		do_child(command, pw, s->term, s->display, s->auth_proto,
@@ -622,7 +625,7 @@ get_remote_name_or_ip(void)
 
 /* administrative, login(1)-like work */
 void
-do_login(Session *s)
+do_login(Session *s, const char *command)
 {
 	FILE *f;
 	char *time_string;
@@ -658,7 +661,9 @@ do_login(Session *s)
 	record_login(pid, s->tty, pw->pw_name, pw->pw_uid,
 	    get_remote_name_or_ip(), (struct sockaddr *)&from);
 
-	/* Done if .hushlogin exists. */
+	/* Done if .hushlogin exists or a command given. */
+	if (command != NULL)
+		return;
 	snprintf(buf, sizeof(buf), "%.200s/.hushlogin", pw->pw_dir);
 #ifdef HAVE_LOGIN_CAP
 	if (login_getcapbool(lc, "hushlogin", 0) || stat(buf, &st) >= 0)
@@ -670,7 +675,7 @@ do_login(Session *s)
 		time_string = ctime(&last_login_time);
 		if (strchr(time_string, '\n'))
 			*strchr(time_string, '\n') = 0;
-		if (strcmp(buf, "") == 0)
+		if (strcmp(hostname, "") == 0)
 			printf("Last login: %s\r\n", time_string);
 		else
 			printf("Last login: %s from %s\r\n", time_string, hostname);
@@ -1477,7 +1482,8 @@ session_set_fds(Session *s, int fdin, int fdout, int fderr)
 		fatal("no channel for session %d", s->self);
 	channel_set_fds(s->chanid,
 	    fdout, fdin, fderr,
-	    fderr == -1 ? CHAN_EXTENDED_IGNORE : CHAN_EXTENDED_READ);
+	    fderr == -1 ? CHAN_EXTENDED_IGNORE : CHAN_EXTENDED_READ,
+	    1);
 }
 
 void

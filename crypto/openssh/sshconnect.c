@@ -13,7 +13,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: sshconnect.c,v 1.78 2000/09/07 20:27:54 deraadt Exp $");
+RCSID("$OpenBSD: sshconnect.c,v 1.79 2000/09/17 15:52:51 markus Exp $");
 
 #include <openssl/bn.h>
 #include <openssl/dsa.h>
@@ -436,8 +436,10 @@ read_yes_or_no(const char *prompt, int defval)
 			retval = defval;
 		if (strcmp(buf, "yes") == 0)
 			retval = 1;
-		if (strcmp(buf, "no") == 0)
+		else if (strcmp(buf, "no") == 0)
 			retval = 0;
+		else
+			fprintf(stderr, "Please type 'yes' or 'no'.\n");
 
 		if (retval != -1) {
 			if (f != stdin)
