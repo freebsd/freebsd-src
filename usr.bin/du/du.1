@@ -67,6 +67,11 @@ All symbolic links are followed.
 No symbolic links are followed.
 .It Fl a
 Display an entry for each file in the file hierarchy.
+.It Fl k
+Report in 1024-byte (1-Kbyte) blocks rather than the default.  Note that
+this overrides the
+.Ev BLOCKSIZE
+setting from the environment.
 .It Fl s
 Display only the grand total for the specified files.
 .It Fl x
