@@ -2,7 +2,7 @@
 
 # Makefile for kernel tags files, init_sysent, etc.
 
-ARCH=	hp300 i386 luna68k news3400 pmax sparc tahoe vax
+ARCH=	i386 # luna68k news3400 pmax sparc tahoe vax
 
 all:
 	@echo "make tags, make links or init_sysent.c only"
