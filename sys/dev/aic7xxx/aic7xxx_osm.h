@@ -371,6 +371,19 @@ ahc_platform_abort_scbs(struct ahc_softc *ahc, int target,
 	return (0);
 }
 
+static __inline void
+ahc_platform_scb_free(struct ahc_softc *ahc, struct scb *scb)
+{
+	/* What do we do to generically handle driver resource shortages??? */
+	if ((ahc->flags & AHC_RESOURCE_SHORTAGE) != 0
+	 && scb->io_ctx != NULL
+	 && (scb->io_ctx->ccb_h.status & CAM_RELEASE_SIMQ) == 0) {
+		scb->io_ctx->ccb_h.status |= CAM_RELEASE_SIMQ;
+		ahc->flags &= ~AHC_RESOURCE_SHORTAGE;
+	}
+	scb->io_ctx = NULL;
+}
+
 /********************************** PCI ***************************************/
 #ifdef AHC_SUPPORT_PCI
 static __inline uint32_t ahc_pci_read_config(ahc_dev_softc_t pci,

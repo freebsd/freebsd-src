@@ -138,7 +138,7 @@ ahc_attach(struct ahc_softc *ahc)
 	/*
 	 * Create the device queue for our SIM(s).
 	 */
-	devq = cam_simq_alloc(AHC_SCB_MAX);
+	devq = cam_simq_alloc(AHC_SCB_MAX - 1);
 	if (devq == NULL)
 		goto fail;
 
@@ -147,7 +147,7 @@ ahc_attach(struct ahc_softc *ahc)
 	 */
 	sim = cam_sim_alloc(ahc_action, ahc_poll, "ahc", ahc,
 			    device_get_unit(ahc->dev_softc),
-			    1, AHC_SCB_MAX, devq);
+			    1, AHC_SCB_MAX - 1, devq);
 	if (sim == NULL) {
 		cam_simq_free(devq);
 		goto fail;
@@ -179,7 +179,7 @@ ahc_attach(struct ahc_softc *ahc)
 	if (ahc->features & AHC_TWIN) {
 		sim2 = cam_sim_alloc(ahc_action, ahc_poll, "ahc",
 				    ahc, device_get_unit(ahc->dev_softc), 1,
-				    AHC_SCB_MAX, devq);
+				    AHC_SCB_MAX - 1, devq);
 
 		if (sim2 == NULL) {
 			printf("ahc_attach: Unable to attach second "
@@ -1073,7 +1073,9 @@ ahc_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 			ahc_set_transaction_status(scb, CAM_REQ_CMP_ERR);
 		if (nsegments != 0)
 			bus_dmamap_unload(ahc->buffer_dmat, scb->dmamap);
+		ahc_lock(ahc, &s);
 		ahc_free_scb(ahc, scb);
+		ahc_unlock(ahc, &s);
 		xpt_done(ccb);
 		return;
 	}
@@ -1140,7 +1142,9 @@ ahc_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 					    CAM_REQ_TOO_BIG);
 					bus_dmamap_unload(ahc->buffer_dmat,
 							  scb->dmamap);
+					ahc_lock(ahc, &s);
 					ahc_free_scb(ahc, scb);
+					ahc_unlock(ahc, &s);
 					xpt_done(ccb);
 					return;
 				}
@@ -1174,8 +1178,8 @@ ahc_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 			bus_dmamap_unload(ahc->buffer_dmat,
 					  scb->dmamap);
 		ahc_free_scb(ahc, scb);
-		xpt_done(ccb);
 		ahc_unlock(ahc, &s);
+		xpt_done(ccb);
 		return;
 	}
 
@@ -1246,10 +1250,14 @@ ahc_setup_data(struct ahc_softc *ahc, struct cam_sim *sim,
 
 			if (hscb->cdb_len > sizeof(hscb->cdb32)
 			 || (ccb_h->flags & CAM_CDB_PHYS) != 0) {
+				u_long s;
+
 				ahc_set_transaction_status(scb,
 							   CAM_REQ_INVALID);
-				xpt_done(scb->io_ctx);
+				ahc_lock(ahc, &s);
 				ahc_free_scb(ahc, scb);
+				ahc_unlock(ahc, &s);
+				xpt_done((union ccb *)csio);
 				return;
 			}
 			if (hscb->cdb_len > 12) {

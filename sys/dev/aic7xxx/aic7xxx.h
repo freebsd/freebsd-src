@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx.h#4 $
+ * $Id: //depot/src/aic7xxx/aic7xxx.h#6 $
  *
  * $FreeBSD$
  */
@@ -507,12 +507,13 @@ struct sg_map_node {
 };
 
 struct scb_data {
-	struct	hardware_scb	*hscbs;	/* Array of hardware SCBs */
-	struct	scb *scbarray;		/* Array of kernel SCBs */
 	SLIST_HEAD(, scb) free_scbs;	/*
 					 * Pool of SCBs ready to be assigned
 					 * commands to execute.
 					 */
+	struct	scb *scbindex[AHC_SCB_MAX + 1];/* Mapping from tag to SCB */
+	struct	hardware_scb	*hscbs;	/* Array of hardware SCBs */
+	struct	scb *scbarray;		/* Array of kernel SCBs */
 	struct	scsi_sense_data *sense; /* Per SCB sense data */
 
 	/*
@@ -797,6 +798,8 @@ struct ahc_softc {
 #endif
 	struct scb_data		 *scb_data;
 
+	struct scb		 *next_queued_scb;
+
 	/*
 	 * SCBs that have been sent to the controller
 	 */
@@ -866,6 +869,10 @@ struct ahc_softc {
 	uint8_t			  qinfifonext;
 	uint8_t			 *qoutfifo;
 	uint8_t			 *qinfifo;
+
+	/* Critical Section Data */
+	struct cs		 *critical_sections;
+	u_int			  num_critical_sections;
 
 	/* Links for chaining softcs */
 	TAILQ_ENTRY(ahc_softc)	  links;
@@ -1031,6 +1038,7 @@ void			ahc_handle_brkadrint(struct ahc_softc *ahc);
 void			ahc_handle_seqint(struct ahc_softc *ahc, u_int intstat);
 void			ahc_handle_scsiint(struct ahc_softc *ahc,
 					   u_int intstat);
+void			ahc_clear_critical_section(struct ahc_softc *ahc);
 
 /***************************** Error Recovery *********************************/
 typedef enum {

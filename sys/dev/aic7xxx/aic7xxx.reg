@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx.reg#3 $
+ * $Id: //depot/src/aic7xxx/aic7xxx.reg#5 $
  *
  * $FreeBSD$
  */
@@ -1217,17 +1217,22 @@ scratch_ram {
 		size		16
 	}
 	/*
-	 * Bit vector of targets that have ULTRA enabled as set by the BIOS.
-	 * The Sequencer relies in a per-SCB field to control the disconnect
-	 * priveldge.
+	 * Partial transfer past cacheline end to be
+	 * transferred using an extra S/G.
 	 */
-	ULTRA_ENB {
-		size		2
+	MWI_RESIDUAL {
+		size		1
 		/*
-		 * Partial transfer past cacheline end to be
-		 * transferred using an extra S/G.
+		 * Bit vector of targets that have ULTRA enabled as set by			 * the BIOS.  The Sequencer relies on a per-SCB field to
+		 * control whether to enable Ultra transfers or not.
 		 */
-		alias		MWI_RESIDUAL
+		alias		ULTRA_ENB
+	}
+	/*
+	 * SCBID of the next SCB to be started by the controller.
+	 */
+	NEXT_QUEUED_SCB {
+		size		1
 	}
 	/*
 	 * Bit vector of targets that have disconnection disabled as set by
@@ -1329,7 +1334,7 @@ scratch_ram {
 	}
 	/*
 	 * Base address of our shared data with the kernel driver in host
-	 * memory.  This includes the qinfifo, qoutfifo, and target mode
+	 * memory.  This includes the qoutfifo and target mode
 	 * incoming command queue.
 	 */
 	SHARED_DATA_ADDR {
@@ -1494,3 +1499,6 @@ const QOUTFIFO_OFFSET download
 const QINFIFO_OFFSET download
 const CACHESIZE_MASK download
 const INVERTED_CACHESIZE_MASK download
+const SG_PREFETCH_CNT download
+const SG_PREFETCH_ALIGN_MASK download
+const SG_PREFETCH_ADDR_MASK download
