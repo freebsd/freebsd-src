@@ -1596,19 +1596,27 @@ mac_lomac_check_cred_relabel(struct ucred *cred, struct label *newlabel)
 	 */
 	if (new->ml_flags & MAC_LOMAC_FLAGS_BOTH) {
 		/*
-		 * To change the LOMAC single label on a credential, the
-		 * new single label must be in the current range.
+		 * Fill in the missing parts from the previous label.
 		 */
-		if (new->ml_flags & MAC_LOMAC_FLAG_SINGLE &&
-		    !mac_lomac_single_in_range(new, subj))
-			return (EPERM);
+		if ((new->ml_flags & MAC_LOMAC_FLAG_SINGLE) == 0)
+			mac_lomac_copy_single(subj, new);
+		if ((new->ml_flags & MAC_LOMAC_FLAG_RANGE) == 0)
+			mac_lomac_copy_range(subj, new);
 
 		/*
 		 * To change the LOMAC range on a credential, the new
 		 * range label must be in the current range.
 		 */
-		if (new->ml_flags & MAC_LOMAC_FLAG_RANGE &&
-		    !mac_lomac_range_in_range(new, subj))
+		if (!mac_lomac_range_in_range(new, subj))
+			return (EPERM);
+
+		/*
+		 * To change the LOMAC single label on a credential, the
+		 * new single label must be in the new range.  Implicitly
+		 * from the previous check, the new single is in the old
+		 * range.
+		 */
+		if (!mac_lomac_single_in_range(new, new))
 			return (EPERM);
 
 		/*
@@ -1679,6 +1687,14 @@ mac_lomac_check_ifnet_relabel(struct ucred *cred, struct ifnet *ifnet,
 	 * If the LOMAC label is to be changed, authorize as appropriate.
 	 */
 	if (new->ml_flags & MAC_LOMAC_FLAGS_BOTH) {
+		/*
+		 * Fill in the missing parts from the previous label.
+		 */
+		if ((new->ml_flags & MAC_LOMAC_FLAG_SINGLE) == 0)
+			mac_lomac_copy_single(subj, new);
+		if ((new->ml_flags & MAC_LOMAC_FLAG_RANGE) == 0)
+			mac_lomac_copy_range(subj, new);
+
 		/*
 		 * Rely on the traditional superuser status for the LOMAC
 		 * interface relabel requirements.  XXXMAC: This will go
@@ -2299,6 +2315,12 @@ mac_lomac_check_vnode_relabel(struct ucred *cred, struct vnode *vp,
 		}
 	}
 	if (new->ml_flags & MAC_LOMAC_FLAG_AUX) {
+		/*
+		 * Fill in the missing parts from the previous label.
+		 */
+		if ((new->ml_flags & MAC_LOMAC_FLAG_SINGLE) == 0)
+			mac_lomac_copy_single(subj, new);
+
 		/*
 		 * To change the auxiliary LOMAC label on a vnode, the new
 		 * vnode label must be in the subject range.
