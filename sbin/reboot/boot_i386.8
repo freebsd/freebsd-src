@@ -71,7 +71,9 @@ However, it is possible to dispense with the third stage altogether,
 either by specifying a kernel name in the boot block parameter
 file,
 .Pa /boot.config ,
-or by hitting a key during a brief pause (while one of the characters
+or, unless option
+.Fl n
+is set, by hitting a key during a brief pause (while one of the characters
 .Sy - ,
 .Sy \e ,
 .Sy \&| ,
@@ -230,6 +232,8 @@ option described here.  See the man page for
 for more details.
 .It Fl m
 mute the console.
+.It Fl n
+ignore key press to interrupt boot before loader(8) is invoked.
 .It Fl P
 probe the keyboard.  If no keyboard is found, the
 .Fl D
