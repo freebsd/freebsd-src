@@ -283,7 +283,7 @@ struct ship *ship, *to;
 int isdefense, count;
 {
 	struct BP *bp;
-	obp = 0;
+	int obp = 0;
 	int n, OBP = 0, DBP = 0, dbp = 0;
 	int qual;
 
