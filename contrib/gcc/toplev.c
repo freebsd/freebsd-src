@@ -4855,7 +4855,7 @@ main (argc, argv)
 			      optimize_val);
 		      #endif
 		    }
-#endif
+#endif /*__alpha__*/
 		  optimize_size = 0;
 		}
 	    }
