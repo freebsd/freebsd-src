@@ -73,6 +73,38 @@ can be either segment_descriptor or gate_descriptor and are defined in
 .Aq Pa i386/segments.h .
 These structures are defined by the architecture
 as disjoint bit-fields, so care must be taken in constructing them.
+.Pp
+If 
+.Fa start_sel
+is 0,
+.Fa num_sels
+is 1 and the descriptor pointed to by 
+.Fa descs
+is legal, then
+.Fn i386_set_ldt
+will allocate a descriptor and return its 
+selector number.
+.Pp
+If 
+.Fa num_descs
+is 1,
+.Fa start_sels
+is valid, and 
+.Fa descs
+is NULL, then 
+.Fn i386_set_ldt
+will free that descriptor
+(making it available to be reallocated again later).
+.Pp
+If 
+.Fa num_descs    
+is 0, 
+.Fa start_sels
+is 0 and
+.Fa descs
+is NULL then, as a special case,
+.Fn i386_set_ldt
+will free all descriptors.
 .Sh RETURN VALUES
 Upon successful completion,
 .Fn i386_get_ldt
@@ -81,6 +113,8 @@ The
 .Fn i386_set_ldt
 system call
 returns the first selector set.
+In the case when a descriptor is allocated by the kernel, its number will
+be returned.
 Otherwise, a value of -1 is returned and the global
 variable
 .Va errno
