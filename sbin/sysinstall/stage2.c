@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: stage2.c,v 1.11 1994/11/02 11:00:35 jkh Exp $
+ * $Id: stage2.c,v 1.12 1994/11/04 21:38:36 phk Exp $
  *
  */
 
@@ -113,7 +113,7 @@ stage2()
     fclose(f1);
 
     sync();
-    TellEm("Make marker-file");
+    TellEm("Make marker file");
     i = open("/mnt/stand/need_cpio_floppy",O_CREAT|O_WRONLY|O_TRUNC);
     close(i);
     
