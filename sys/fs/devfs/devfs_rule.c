@@ -604,6 +604,8 @@ devfs_rule_match(struct devfs_krule *dk, struct devfs_dirent *de)
 	 * They're actually testing to see whether the condition does
 	 * *not* match, since the default is to assume the rule should
 	 * be run (such as if there are no conditions).
+	 *
+	 * XXX: lacks threadref on dev
 	 */
 	if (dr->dr_icond & DRC_DSWFLAGS)
 		if (dev == NULL ||
