@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.539.2.21 1999/05/21 09:07:57 des Exp $
+#	$Id: LINT,v 1.539.2.22 1999/05/22 21:08:18 wpaul Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -2049,4 +2049,10 @@ options DPT_RESET_HBA
 # Don't EVER set this without having talked to Simon Shapiro on the phone
 # first.
 options DPT_SHUTDOWN_SLEEP=500
+
+#
+# Embedded system options:
+#
+# An embedded system might want to run something other than init.
+options         INIT_PATH="/sbin/init:/stand/sysinstall"
 
