@@ -37,7 +37,7 @@
 .Os
 .Sh NAME
 .Nm telnet
-.Nd user interface to the 
+.Nd user interface to the
 .Tn TELNET
 protocol
 .Sh SYNOPSIS
@@ -58,7 +58,7 @@ protocol
 The
 .Nm
 command
-is used to communicate with another host using the 
+is used to communicate with another host using the
 .Tn TELNET
 protocol.
 If
@@ -114,7 +114,7 @@ or, on systems that support it, a symbolic
 TOS name found in the
 .Pa /etc/iptos
 file.
-.It Fl X Ar atype 
+.It Fl X Ar atype
 Disables the
 .Ar atype
 type of authentication.
@@ -142,7 +142,7 @@ Sets the initial value of the
 .Ic debug
 toggle to
 .Dv TRUE .
-.It Fl e Ar escapechar 
+.It Fl e Ar escapechar
 Sets the initial
 .Nm
 escape character to
@@ -165,7 +165,7 @@ realm
 .Ar realm
 instead of the remote host's realm, as determined by
 .Xr krb_realmofhost 3 .
-.It Fl l Ar user 
+.It Fl l Ar user
 When connecting to the remote system, if the remote system
 understands the
 .Ev ENVIRON
@@ -179,7 +179,7 @@ option.
 This option may also be used with the
 .Ic open
 command.
-.It Fl n Ar tracefile 
+.It Fl n Ar tracefile
 Opens
 .Ar tracefile
 for recording trace information.
@@ -252,7 +252,7 @@ either \*(Lqcharacter at a time\*(Rq
 or \*(Lqold line by line\*(Rq
 depending on what the remote system supports.
 .Pp
-When 
+When
 .Dv LINEMODE
 is enabled, character processing is done on the
 local system, under the control of the remote system.  When input
@@ -271,7 +271,7 @@ to turn off and on the local echo
 (this would mostly be used to enter passwords
 without the password being echoed).
 .Pp
-If the 
+If the
 .Dv LINEMODE
 option is enabled, or if the
 .Ic localchars
@@ -286,7 +286,7 @@ and
 characters are trapped locally, and sent as
 .Tn TELNET
 protocol sequences to the remote side.
-If 
+If
 .Dv LINEMODE
 has ever been enabled, then the user's
 .Ic susp
@@ -297,9 +297,9 @@ are also sent as
 protocol sequences,
 and
 .Ic quit
-is sent as a 
+is sent as a
 .Dv TELNET ABORT
-instead of 
+instead of
 .Dv BREAK .
 There are options (see
 .Ic toggle
@@ -340,7 +340,7 @@ and
 commands).
 .Pp
 .Bl -tag -width "mode type"
-.It Ic auth Ar argument ... 
+.It Ic auth Ar argument ...
 The auth command manipulates the information sent through the
 .Dv TELNET AUTHENTICATE
 option.  Valid arguments for the
@@ -365,7 +365,7 @@ authentication.
 Close a
 .Tn TELNET
 session and return to command mode.
-.It Ic display Ar argument ... 
+.It Ic display Ar argument ...
 Displays all, or some, of the
 .Ic set
 and
@@ -460,7 +460,7 @@ Valid arguments for the
 .Ic environ
 command are:
 .Bl -tag -width Fl
-.It Ic define Ar variable value 
+.It Ic define Ar variable value
 Define the variable
 .Ar variable
 to have a value of
@@ -470,15 +470,15 @@ The
 .Ar value
 may be enclosed in single or double quotes so
 that tabs and spaces may be included.
-.It Ic undefine Ar variable 
+.It Ic undefine Ar variable
 Remove
 .Ar variable
 from the list of environment variables.
-.It Ic export Ar variable 
+.It Ic export Ar variable
 Mark the variable
 .Ar variable
 to be exported to the remote side.
-.It Ic unexport Ar variable 
+.It Ic unexport Ar variable
 Mark the variable
 .Ar variable
 to not be exported unless
@@ -512,7 +512,7 @@ If the remote side also supports the concept of
 suspending a user's session for later reattachment,
 the logout argument indicates that you
 should terminate the session immediately.
-.It Ic mode Ar type 
+.It Ic mode Ar type
 .Ar Type
 is one of several options, depending on the state of the
 .Tn TELNET
@@ -533,40 +533,40 @@ Enable the
 option, or, if the remote side does not understand the
 .Dv LINEMODE
 option, then attempt to enter \*(Lqold-line-by-line\*(Rq mode.
-.It Ic isig Pq Ic \-isig 
-Attempt to enable (disable) the 
+.It Ic isig Pq Ic \-isig
+Attempt to enable (disable) the
 .Dv TRAPSIG
-mode of the 
+mode of the
 .Dv LINEMODE
 option.
-This requires that the 
+This requires that the
 .Dv LINEMODE
 option be enabled.
-.It Ic edit Pq Ic \-edit 
-Attempt to enable (disable) the 
+.It Ic edit Pq Ic \-edit
+Attempt to enable (disable) the
 .Dv EDIT
-mode of the 
+mode of the
 .Dv LINEMODE
 option.
-This requires that the 
+This requires that the
 .Dv LINEMODE
 option be enabled.
-.It Ic softtabs Pq Ic \-softtabs 
-Attempt to enable (disable) the 
+.It Ic softtabs Pq Ic \-softtabs
+Attempt to enable (disable) the
 .Dv SOFT_TAB
-mode of the 
+mode of the
 .Dv LINEMODE
 option.
-This requires that the 
+This requires that the
 .Dv LINEMODE
 option be enabled.
-.It Ic litecho Pq Ic \-litecho 
-Attempt to enable (disable) the 
+.It Ic litecho Pq Ic \-litecho
+Attempt to enable (disable) the
 .Dv LIT_ECHO
-mode of the 
+mode of the
 .Dv LINEMODE
 option.
-This requires that the 
+This requires that the
 .Dv LINEMODE
 option be enabled.
 .It Ic ?\&
@@ -623,7 +623,7 @@ Close any open
 session and exit
 .Nm .
 An end of file (in command mode) will also close a session and exit.
-.It Ic send Ar arguments 
+.It Ic send Ar arguments
 Sends one or more special character sequences to the remote host.
 The following are the arguments which may be specified
 (more than one argument may be specified at a time):
@@ -745,8 +745,8 @@ Prints out help information for the
 .Ic send
 command.
 .El
-.It Ic set Ar argument value 
-.It Ic unset Ar argument value 
+.It Ic set Ar argument value
+.It Ic unset Ar argument value
 The
 .Ic set
 command will set any one of a number of
@@ -1050,20 +1050,20 @@ Displays the legal
 .Pq Ic unset
 commands.
 .El
-.It Ic skey Ar sequence challenge 
+.It Ic skey Ar sequence challenge
 The
 .Ic skey
 command computes a response to the S/Key challenge.
-.It Ic slc Ar state 
+.It Ic slc Ar state
 The
 .Ic slc
 command (Set Local Characters) is used to set
 or change the state of the special
-characters when the 
+characters when the
 .Dv TELNET LINEMODE
 option has
 been enabled.  Special characters are characters that get
-mapped to 
+mapped to
 .Tn TELNET
 commands sequences (like
 .Ic ip
@@ -1089,7 +1089,7 @@ was started.
 .It Ic import
 Switch to the remote defaults for the special characters.
 The remote default characters are those of the remote system
-at the time when the 
+at the time when the
 .Tn TELNET
 connection was established.
 .It Ic ?\&
@@ -1102,7 +1102,7 @@ Show the current status of
 .Nm .
 This includes the peer one is connected to, as well
 as the current mode.
-.It Ic toggle Ar arguments ... 
+.It Ic toggle Ar arguments ...
 Toggle (between
 .Dv TRUE
 and
@@ -1365,17 +1365,17 @@ Suspend
 .Nm .
 This command only works when the user is using the
 .Xr csh  1  .
-.It Ic \&! Op Ar command 
+.It Ic \&! Op Ar command
 Execute a single command in a subshell on the local
 system.  If
 .Ar command
 is omitted, then an interactive
 subshell is invoked.
-.It Ic ?\& Op Ar command 
+.It Ic ?\& Op Ar command
 Get help.  With no arguments,
 .Nm
 prints a help summary.
-If 
+If
 .Ar command
 is specified,
 .Nm
@@ -1413,11 +1413,10 @@ command appeared in
 .Pp
 IPv6 support was added by WIDE/KAME project.
 .Sh NOTES
-.Pp
 On some remote systems, echo has to be turned off manually when in
 \*(Lqold line by line\*(Rq mode.
 .Pp
-In \*(Lqold line by line\*(Rq mode or 
+In \*(Lqold line by line\*(Rq mode or
 .Dv LINEMODE
 the terminal's
 .Ic eof
