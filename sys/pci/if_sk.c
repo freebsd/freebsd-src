@@ -1991,7 +1991,7 @@ sk_txeof(sc_if)
 	struct sk_if_softc	*sc_if;
 {
 	struct sk_softc		*sc;
-	struct sk_tx_desc	*cur_tx = NULL;
+	struct sk_tx_desc	*cur_tx;
 	struct ifnet		*ifp;
 	u_int32_t		idx;
 
@@ -2019,13 +2019,13 @@ sk_txeof(sc_if)
 
 	if (sc_if->sk_cdata.sk_tx_cnt == 0) {
 		ifp->if_timer = 0;
-		ifp->if_flags &= ~IFF_OACTIVE;
 	} else /* nudge chip to keep tx ring moving */
 		CSR_WRITE_4(sc, sc_if->sk_tx_bmu, SK_TXBMU_TX_START);
 
-	sc_if->sk_cdata.sk_tx_cons = idx;
+	if (sc_if->sk_cdata.sk_tx_cnt < SK_TX_RING_CNT - 2)
+		ifp->if_flags &= ~IFF_OACTIVE;
 
-	return;
+	sc_if->sk_cdata.sk_tx_cons = idx;
 }
 
 static void
