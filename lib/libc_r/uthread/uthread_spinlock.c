@@ -33,14 +33,16 @@
  *
  */
 
+#include <stdlib.h>
 #include <stdio.h>
-#include <sched.h>
-#include <unistd.h>
-#include <pthread.h>
 #include <string.h>
-#include "pthread_private.h"
+#include <sched.h>
+#include <pthread.h>
+#include <unistd.h>
 
-extern char *__progname;
+#include <libc_private.h>
+
+#include "pthread_private.h"
 
 /*
  * Lock a location for the running thread. Yield to allow other
@@ -91,7 +93,7 @@ _spinlock_debug(spinlock_t *lck, char *fname, int lineno)
 		cnt++;
 		if (cnt > 100) {
 			char str[256];
-			snprintf(str, sizeof(str), "%s - Warning: Thread %p attempted to lock %p from %s (%d) was left locked from %s (%d)\n", __progname, curthread, lck, fname, lineno, lck->fname, lck->lineno);
+			snprintf(str, sizeof(str), "%s - Warning: Thread %p attempted to lock %p from %s (%d) was left locked from %s (%d)\n", _getprogname(), curthread, lck, fname, lineno, lck->fname, lck->lineno);
 			__sys_write(2,str,strlen(str));
 			__sleep(1);
 			cnt = 0;

@@ -67,6 +67,7 @@
 #define		getdirentries			_getdirentries
 #define		getlogin			_getlogin
 #define		getpeername			_getpeername
+#define		getprogname			_getprogname
 #define		getsockname			_getsockname
 #define		getsockopt			_getsockopt
 #define		ioctl				_ioctl

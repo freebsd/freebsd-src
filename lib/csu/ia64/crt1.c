@@ -36,6 +36,7 @@
 #endif
 
 #include <stdlib.h>
+#include "libc_private.h"
 #include "crtbrand.c"
 
 struct Struct_Obj_Entry;
@@ -56,7 +57,7 @@ extern int etext;
 #endif
 
 char **environ;
-char *__progname = "";
+const char *__progname = "";
 
 /* The entry function. */
 void
@@ -67,6 +68,7 @@ _start(char **ap,
 	int argc;
 	char **argv;
 	char **env;
+	const char *s;
 
 	/* Calculate gp */
 	__asm __volatile(" \
@@ -82,7 +84,6 @@ _start(char **ap,
 	env  = ap + 2 + argc;
 	environ = env;
 	if (argc > 0 && argv[0] != NULL) {
-		char *s;
 		__progname = argv[0];
 		for (s = __progname; *s != '\0'; s++)
 			if (*s == '/')

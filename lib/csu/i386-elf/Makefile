@@ -6,7 +6,8 @@ SRCS=		crt1.c crti.S crtn.S
 OBJS=		${SRCS:N*.h:R:S/$/.o/g}
 OBJS+=		gcrt1.o
 CFLAGS+=	-elf -Wall -fkeep-inline-functions \
-		-I${.CURDIR}/../common
+		-I${.CURDIR}/../common \
+		-I${.CURDIR}/../../libc/include
 LDFLAGS+=	-elf
 NOMAN=		true
 NOPIC=		true

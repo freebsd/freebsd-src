@@ -51,8 +51,6 @@ __FBSDID("$FreeBSD$");
 /*#include <netncp/ncp_cfg.h>*/
 #include "ncp_mod.h"
 
-extern char *__progname;
-
 int sysentoffset;
 
 void
@@ -309,7 +307,7 @@ ncp_getopt(nargc, nargv, ostr)
 			++ncp_optind;
 		if (ncp_opterr && *ostr != ':')
 			(void)fprintf(stderr,
-			    "%s: illegal option -- %c\n", __progname, ncp_optopt);
+			    "%s: illegal option -- %c\n", _getprogname(), ncp_optopt);
 		return (BADCH);
 	}
 	if (*++oli != ':') {			/* don't need argument */
@@ -327,7 +325,7 @@ ncp_getopt(nargc, nargv, ostr)
 			if (ncp_opterr)
 				(void)fprintf(stderr,
 				    "%s: option requires an argument -- %c\n",
-				    __progname, ncp_optopt);
+				    _getprogname(), ncp_optopt);
 			return (BADCH);
 		}
 	 	else				/* white space */
@@ -439,7 +437,7 @@ void
 ncp_error(const char *fmt, int error, ...) {
 	va_list ap;
 
-	fprintf(stderr, "%s: ", __progname);
+	fprintf(stderr, "%s: ", _getprogname());
 	va_start(ap, error);
 	vfprintf(stderr, fmt, ap);
 	va_end(ap);

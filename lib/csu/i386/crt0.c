@@ -37,10 +37,13 @@
 #ifdef DYNAMIC
 #include <sys/types.h>
 #include <sys/syscall.h>
-#include <a.out.h>
-#include <string.h>
 #include <sys/mman.h>
+
+#include <a.out.h>
 #include <link.h>
+#include <string.h>
+
+#include "libc_private.h"
 
 /* !!!
  * This is gross, ld.so is a ZMAGIC a.out, but has `sizeof(hdr)' for
@@ -88,8 +91,7 @@ static void		__do_dynamic_link(char **argv);
 
 int			_callmain();
 int			errno;
-static char		empty[1];
-char			*__progname = empty;
+const char		*__progname = "";
 char			**environ;
 
 /* Globals used by dlopen() and related functions in libc */
@@ -144,6 +146,7 @@ start()
 	register struct kframe *kfp;
 	register char **targv;
 	register char **argv;
+	register const char *s;
 	extern void _mcleanup();
 #ifdef DYNAMIC
 	volatile caddr_t x;
@@ -162,7 +165,6 @@ start()
 	environ = targv;
 
 	if (argv[0]) {
-		register char *s;
 		__progname = argv[0];
 		for (s=__progname; *s != '\0'; s++)
 			if (*s == '/')

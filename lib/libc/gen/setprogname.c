@@ -4,7 +4,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 
-extern const char *__progname;
+#include "libc_private.h"
 
 void
 setprogname(const char *progname)
