@@ -8,13 +8,17 @@ SUBDIR=csu/vax.pcc
 SUBDIR=csu/${MACHINE}
 .endif
 
+.if	${MACHINE} != "alpha"
+SUBDIR+=libc
+.endif
+
 # XXX MISSING:		libplot
-SUBDIR+=libalias libc libcalendar libcompat libcom_err libcurses libdisk \
+SUBDIR+=libalias libcalendar libcompat libcom_err libcurses libdisk \
 	libedit libf2c libftpio libgnumalloc libipx libkvm libmd libmytinfo \
 	libncurses libopie libpcap libresolv librpcsvc \
 	libscsi libskey libss libtermcap libutil libvgl libxpg4 liby libz
 	
-.if !defined(NOLIBC_R)
+.if !defined(NOLIBC_R) && ${MACHINE} != "alpha"
 SUBDIR+= libc_r
 .endif
 
@@ -38,7 +42,7 @@ SUBDIR+= libcrypt
 SUBDIR+= libtelnet
 .endif
 
-.if defined(WANT_CSRG_LIBM)
+.if defined(WANT_CSRG_LIBM) && ${MACHINE} != "alpha"
 SUBDIR+= libm
 .else
 SUBDIR+= msun
