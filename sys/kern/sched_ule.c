@@ -210,6 +210,7 @@ struct kseq {
 	short		ksq_nice[PRIO_TOTAL + 1]; /* KSEs in each nice bin. */
 	short		ksq_nicemin;		/* Least nice. */
 #ifdef SMP
+	int		ksq_cpus;	/* Count of CPUs in this kseq. */
 	unsigned int	ksq_rslices;	/* Slices on run queue */
 #endif
 };
@@ -219,8 +220,9 @@ struct kseq {
  */
 #ifdef SMP
 struct kseq	kseq_cpu[MAXCPU];
-#define	KSEQ_SELF()	(&kseq_cpu[PCPU_GET(cpuid)])
-#define	KSEQ_CPU(x)	(&kseq_cpu[(x)])
+struct kseq	*kseq_idmap[MAXCPU];
+#define	KSEQ_SELF()	(kseq_idmap[PCPU_GET(cpuid)])
+#define	KSEQ_CPU(x)	(kseq_idmap[(x)])
 #else
 struct kseq	kseq_cpu;
 #define	KSEQ_SELF()	(&kseq_cpu)
@@ -391,10 +393,17 @@ kseq_balance(void *arg)
 		}
 	}
 
+	kseq = KSEQ_CPU(high_cpu);
+
 	/*
 	 * Nothing to do.
 	 */
-	if (high_load < 2 || low_load == high_load)
+	if (high_load < kseq->ksq_cpus + 1)
+		goto out;
+
+	high_load -= kseq->ksq_cpus;
+
+	if (low_load >= high_load)
 		goto out;
 
 	diff = high_load - low_load;
@@ -403,7 +412,7 @@ kseq_balance(void *arg)
 		move++;
 
 	for (i = 0; i < move; i++)
-		kseq_move(KSEQ_CPU(high_cpu), low_cpu);
+		kseq_move(kseq, low_cpu);
 
 out:
 	mtx_unlock_spin(&sched_lock);
@@ -433,8 +442,10 @@ kseq_load_highest(void)
 			cpu = i;
 		}
 	}
-	if (load > 1)
-		return (KSEQ_CPU(cpu));
+	kseq = KSEQ_CPU(cpu);
+
+	if (load > kseq->ksq_cpus)
+		return (kseq);
 
 	return (NULL);
 }
@@ -522,17 +533,42 @@ sched_setup(void *dummy)
 	slice_min = (hz/100);	/* 10ms */
 	slice_max = (hz/7);	/* ~140ms */
 
-	mtx_lock_spin(&sched_lock);
-	/* init kseqs */
-	for (i = 0; i < MAXCPU; i++)
-		kseq_setup(KSEQ_CPU(i));
-
-	kseq_add(KSEQ_SELF(), &kse0);
-	mtx_unlock_spin(&sched_lock);
 #ifdef SMP
+	/* init kseqs */
+	/* Create the idmap. */
+#ifdef ULE_HTT_EXPERIMENTAL
+	if (smp_topology == NULL) {
+#else
+	if (1) {
+#endif
+		for (i = 0; i < MAXCPU; i++) {
+			kseq_setup(&kseq_cpu[i]);
+			kseq_idmap[i] = &kseq_cpu[i];
+			kseq_cpu[i].ksq_cpus = 1;
+		}
+	} else {
+		int j;
+
+		for (i = 0; i < smp_topology->ct_count; i++) {
+			struct cpu_group *cg;
+
+			cg = &smp_topology->ct_group[i];
+			kseq_setup(&kseq_cpu[i]);
+
+			for (j = 0; j < MAXCPU; j++)
+				if ((cg->cg_mask & (1 << j)) != 0)
+					kseq_idmap[j] = &kseq_cpu[i];
+			kseq_cpu[i].ksq_cpus = cg->cg_count;
+		}
+	}
 	callout_init(&kseq_lb_callout, 1);
 	kseq_balance(NULL);
+#else
+	kseq_setup(KSEQ_SELF());
 #endif
+	mtx_lock_spin(&sched_lock);
+	kseq_add(KSEQ_SELF(), &kse0);
+	mtx_unlock_spin(&sched_lock);
 }
 
 /*
@@ -1091,7 +1127,7 @@ sched_runnable(void)
 			if (CPU_ABSENT(i) || (i & stopped_cpus) != 0)
 				continue;
 			kseq = KSEQ_CPU(i);
-			if (kseq->ksq_load > 1)
+			if (kseq->ksq_load > kseq->ksq_cpus)
 				goto out;
 		}
 	}
@@ -1116,7 +1152,11 @@ sched_userret(struct thread *td)
 		td->td_priority = kg->kg_user_pri;
 		kseq = KSEQ_SELF();
 		if (td->td_ksegrp->kg_pri_class == PRI_TIMESHARE &&
+#ifdef SMP
+		    kseq->ksq_load > kseq->ksq_cpus &&
+#else
 		    kseq->ksq_load > 1 &&
+#endif
 		    (ke = kseq_choose(kseq)) != NULL &&
 		    ke->ke_thread->td_priority < td->td_priority)
 			curthread->td_flags |= TDF_NEEDRESCHED;
