@@ -1,8 +1,9 @@
-#	$Id: Makefile,v 1.23 1997/03/22 19:46:40 mpp Exp $
+#	$Id: Makefile,v 1.24 1997/03/22 20:06:58 mpp Exp $
 
 MAN9=	MD5.9 at_shutdown.9 at_fork.9 at_exit.9 boot.9 cd.9 copy.9 \
 	devfs_add_devswf.9 \
-	devfs_link.9 fetch.9 ifnet.9 intro.9 inittodr.9 panic.9 psignal.9 \
+	devfs_link.9 fetch.9 ifnet.9 intro.9 inittodr.9 mi_switch.9 \
+	panic.9 psignal.9 \
 	resettodr.9 rtalloc.9 rtentry.9 scsiconf.9 sd.9 sleep.9 spl.9 st.9 \
 	store.9 style.9 time.9 timeout.9 uio.9 \
 	vnode.9 vget.9 vput.9 vref.9 vrele.9 VOP_ABORTOP.9 VOP_ACCESS.9 \
@@ -24,6 +25,7 @@ MLINKS+= at_shutdown.9 rm_at_shutdown.9
 MLINKS+= at_exit.9 rm_at_exit.9
 MLINKS+= at_fork.9 rm_at_fork.9
 MLINKS+= ifnet.9 ifaddr.9 ifnet.9 ifqueue.9 ifnet.9 if_data.9
+MLINKS+= mi_switch.9 cpu_switch.9
 MLINKS+= psignal.9 pgsignal.9 psignal.9 gsignal.9
 MLINKS+= rtalloc.9 rtalloc_ign.9 rtalloc.9 rtalloc1.9
 MLINKS+= sleep.9 tsleep.9 sleep.9 wakeup.9
