@@ -20,7 +20,7 @@ CFLAGS+= -DNO_IDEA
 .endif
 
 .if !defined(NO_OPENSSH)
-SSHDIR=                ${.CURDIR}/../../../crypto/openssh
+SSHDIR=		${.CURDIR}/../../../crypto/openssh
 .if exists(${.OBJDIR}/../../lib/libssh)
 LIBSSH=                ${.OBJDIR}/../../lib/libssh/libssh.a
 .else
