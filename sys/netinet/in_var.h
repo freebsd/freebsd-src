@@ -94,18 +94,11 @@ extern	u_char	inetctlerrmap[];
 	/* struct in_addr addr; */ \
 	/* struct ifnet *ifp; */ \
 { \
-	register struct in_ifaddr *ia; \
+	struct in_ifaddr *ia; \
 \
-	for (ia = TAILQ_FIRST(&in_ifaddrhead); \
-	    ia != NULL && ((ia->ia_ifp->if_flags & IFF_POINTOPOINT)? \
-		IA_DSTSIN(ia):IA_SIN(ia))->sin_addr.s_addr != (addr).s_addr; \
-	    ia = TAILQ_NEXT(ia, ia_link)) \
-		 continue; \
-	if (ia == NULL) \
-	    TAILQ_FOREACH(ia, &in_ifaddrhead, ia_link) \
-		    if (ia->ia_ifp->if_flags & IFF_POINTOPOINT && \
-			IA_SIN(ia)->sin_addr.s_addr == (addr).s_addr) \
-			    break; \
+	TAILQ_FOREACH(ia, &in_ifaddrhead, ia_link) \
+		if (IA_SIN(ia)->sin_addr.s_addr == (addr).s_addr) \
+			break; \
 	(ifp) = (ia == NULL) ? NULL : ia->ia_ifp; \
 }
 
@@ -180,7 +173,7 @@ struct in_multistep {
 	/* struct ifnet *ifp; */ \
 	/* struct in_multi *inm; */ \
 do { \
-	register struct ifmultiaddr *ifma; \
+	struct ifmultiaddr *ifma; \
 \
 	TAILQ_FOREACH(ifma, &((ifp)->if_multiaddrs), ifma_link) { \
 		if (ifma->ifma_addr->sa_family == AF_INET \
