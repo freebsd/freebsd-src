@@ -47,32 +47,6 @@ handle_intr(int sig)
 	restorescr(save);
 }
 
-/* Simple alarm interface */
-void
-alarm_set(int delay, void (*handler)(int sig))
-{
-    struct sigaction act;
-
-    act.sa_handler = handler;
-    act.sa_flags = 0;
-    act.sa_mask = 0;
-    sigaction(SIGALRM, &act, NULL);
-    alarm(delay);
-}
-
-int
-alarm_clear(void)
-{
-    struct sigaction act;
-    int i = alarm(0);
-
-    act.sa_handler = SIG_DFL;
-    act.sa_flags = 0;
-    act.sa_mask = 0;
-    sigaction(SIGALRM, &act, NULL);
-    return i;
-}   
-
 /* Expand a file into a convenient location, nuking it each time */
 static char *
 expand(char *fname)

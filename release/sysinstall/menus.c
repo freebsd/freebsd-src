@@ -330,10 +330,14 @@ whichMouse(dialogMenuItem *self)
 {
     char buf[BUFSIZ];
     
-    if (!file_readable("/dev/mouse"))
+    if (!file_readable("/dev/mouse")) {
+	msgDebug("No /dev/mouse device!\n");
 	return FALSE;
-    if (readlink("/dev/mouse", buf, sizeof buf) == -1)
+    }
+    if (readlink("/dev/mouse", buf, sizeof buf) == -1) {
+	msgDebug("Can't read /dev/mouse symlink!\n");
 	return FALSE;
+    }
     if (isDebug)
 	msgDebug("The evil link value is `%s'\n", buf);
     if (!strcmp(self->prompt, "COM1"))
