@@ -4758,7 +4758,7 @@ tulip_attach(
     /* XXX: driver name/unit should be set some other way */
     ifp->if_dname = "de";
     ifp->if_dunit = sc->tulip_unit;
-    ifp->if_flags = IFF_BROADCAST|IFF_SIMPLEX|IFF_MULTICAST;
+    ifp->if_flags = IFF_BROADCAST|IFF_SIMPLEX|IFF_MULTICAST|IFF_NEEDSGIANT;
     ifp->if_ioctl = tulip_ifioctl;
     ifp->if_start = tulip_ifstart;
     ifp->if_watchdog = tulip_ifwatchdog;
