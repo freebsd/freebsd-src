@@ -257,23 +257,19 @@ print_arg(int fd, struct syscall_args *sc, unsigned long *args) {
   char *tmp = NULL;
   switch (sc->type & ARG_MASK) {
   case Hex:
-    tmp = malloc(12);
-    sprintf(tmp, "0x%lx", args[sc->offset]);
+    asprintf(&tmp, "0x%lx", args[sc->offset]);
     break;
   case Octal:
-    tmp = malloc(13);
-    sprintf(tmp, "0%lo", args[sc->offset]);
+    asprintf(&tmp, "0%lo", args[sc->offset]);
     break;
   case Int:
-    tmp = malloc(12);
-    sprintf(tmp, "%ld", args[sc->offset]);
+    asprintf(&tmp, "%ld", args[sc->offset]);
     break;
   case String:
     {
       char *tmp2;
       tmp2 = get_string(fd, (void*)args[sc->offset], 0);
-      tmp = malloc(strlen(tmp2) + 3);
-      sprintf(tmp, "\"%s\"", tmp2);
+      asprintf(&tmp, "\"%s\"", tmp2);
       free(tmp2);
     }
   break;
@@ -318,23 +314,19 @@ print_arg(int fd, struct syscall_args *sc, unsigned long *args) {
       l1 = args[sc->offset];
       l2 = args[sc->offset+1];
       t = make_quad(l1, l2);
-      tmp = malloc(24);
-      sprintf(tmp, "0x%qx", t);
+      asprintf(&tmp, "0x%qx", t);
       break;
     }
   case Ptr:
-    tmp = malloc(12);
-    sprintf(tmp, "0x%lx", args[sc->offset]);
+    asprintf(&tmp, "0x%lx", args[sc->offset]);
     break;
   case Ioctl:
     {
       const char *temp = ioctlname(args[sc->offset]);
       if (temp)
 	tmp = strdup(temp);
-      else {
-	tmp = malloc(12);
-	sprintf(tmp, "0x%lx", args[sc->offset]);
-      }
+      else
+	asprintf(&tmp, "0x%lx", args[sc->offset]);
     }
     break;
   case Signal:
@@ -342,15 +334,13 @@ print_arg(int fd, struct syscall_args *sc, unsigned long *args) {
       long sig;
 
       sig = args[sc->offset];
-      tmp = malloc(12);
       if (sig > 0 && sig < NSIG) {
 	int i;
-	sprintf(tmp, "sig%s", sys_signame[sig]);
+	asprintf(&tmp, "sig%s", sys_signame[sig]);
 	for (i = 0; tmp[i] != '\0'; ++i)
 	  tmp[i] = toupper(tmp[i]);
-      } else {
-        sprintf(tmp, "%ld", sig);
-      }
+      } else
+        asprintf(&tmp, "%ld", sig);
     }
     break;
   case Sockaddr:
@@ -475,11 +465,13 @@ print_syscall(struct trussinfo *trussinfo, const char *name, int nargs, char **s
 }
 
 void
-print_syscall_ret(struct trussinfo *trussinfo, const char *name, int nargs, char **s_args, int errorp, int retval) {
+print_syscall_ret(struct trussinfo *trussinfo, const char *name, int nargs,
+    char **s_args, int errorp, long retval)
+{
   print_syscall(trussinfo, name, nargs, s_args);
   if (errorp) {
     fprintf(trussinfo->outfile, " ERR#%d '%s'\n", retval, strerror(retval));
   } else {
-    fprintf(trussinfo->outfile, " = %d (0x%x)\n", retval, retval);
+    fprintf(trussinfo->outfile, " = %ld (0x%lx)\n", retval, retval);
   }
 }
