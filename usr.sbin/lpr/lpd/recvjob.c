@@ -72,6 +72,11 @@ __FBSDID("$FreeBSD$");
 
 #define ack()	(void) write(STDOUT_FILENO, sp, (size_t)1);
 
+/*
+ * The buffer size to use when reading/writing spool files.
+ */
+#define	SPL_BUFSIZ	BUFSIZ
+
 static char	 dfname[NAME_MAX];	/* data files */
 static int	 minfree;       /* keep at least minfree blocks available */
 static const char	*sp = "";
@@ -255,7 +260,7 @@ static int
 readfile(struct printer *pp, char *file, size_t size)
 {
 	register char *cp;
-	char buf[BUFSIZ];
+	char buf[SPL_BUFSIZ];
 	size_t amt, i;
 	int err, fd, j;
 
@@ -267,8 +272,8 @@ readfile(struct printer *pp, char *file, size_t size)
 	}
 	ack();
 	err = 0;
-	for (i = 0; i < size; i += BUFSIZ) {
-		amt = BUFSIZ;
+	for (i = 0; i < size; i += SPL_BUFSIZ) {
+		amt = SPL_BUFSIZ;
 		cp = buf;
 		if (i + amt > size)
 			amt = size - i;
@@ -281,7 +286,7 @@ readfile(struct printer *pp, char *file, size_t size)
 			amt -= j;
 			cp += j;
 		} while (amt > 0);
-		amt = BUFSIZ;
+		amt = SPL_BUFSIZ;
 		if (i + amt > size)
 			amt = size - i;
 		if (write(fd, buf, amt) != (ssize_t)amt) {
