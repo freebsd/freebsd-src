@@ -282,12 +282,12 @@ struct wait_args {
 	int	*status;
 	int	options;
 	struct	rusage *rusage;
-#if defined(COMPAT_43) || defined(IBCS2)
+#if defined(COMPAT_43) || defined(COMPAT_IBCS2)
 	int	compat;		/* pseudo */
 #endif
 };
 
-#if defined(COMPAT_43) || defined(IBCS2)
+#if defined(COMPAT_43) || defined(COMPAT_IBCS2)
 #if defined(hp300) || defined(luna68k)
 #include <machine/frame.h>
 #define GETPS(rp)	((struct frame *)(rp))->f_sr
@@ -357,7 +357,7 @@ loop:
 		    p->p_pid != uap->pid && p->p_pgid != -uap->pid)
 			continue;
 		nfound++;
-#if defined(COMPAT_43) || defined(IBCS2)
+#if defined(COMPAT_43) || defined(COMPAT_IBCS2)
 		if (q->p_sysent->sv_sigtbl) {
 			if (p->p_xstat > q->p_sysent->sv_sigsize)
 				sig = q->p_sysent->sv_sigsize + 1;
@@ -374,7 +374,7 @@ loop:
 			}
 
 			retval[0] = p->p_pid;
-#if defined(COMPAT_43) || defined(IBCS2)
+#if defined(COMPAT_43) || defined(COMPAT_IBCS2)
 			if (uap->compat)
 				retval[1] = sig;
 			else
@@ -450,7 +450,7 @@ loop:
 		    (p->p_flag & P_TRACED || uap->options & WUNTRACED)) {
 			p->p_flag |= P_WAITED;
 			retval[0] = p->p_pid;
-#if defined(COMPAT_43) || defined(IBCS2)
+#if defined(COMPAT_43) || defined(COMPAT_IBCS2)
 			if (uap->compat) {
 				retval[1] = W_STOPCODE(sig);
 				error = 0;
