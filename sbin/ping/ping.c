@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ping.c	8.1 (Berkeley) 6/5/93";
 */
 static const char rcsid[] =
-	"$Id: ping.c,v 1.21 1997/03/04 22:05:49 imp Exp $";
+	"$Id: ping.c,v 1.22 1997/07/09 19:40:43 julian Exp $";
 #endif /* not lint */
 
 /*
@@ -544,7 +544,7 @@ pinger(void)
 	icp->icmp_type = ICMP_ECHO;
 	icp->icmp_code = 0;
 	icp->icmp_cksum = 0;
-	icp->icmp_seq = ntransmitted++;
+	icp->icmp_seq = ntransmitted;
 	icp->icmp_id = ident;			/* ID */
 
 	CLR(icp->icmp_seq % mx_dup_ck);
@@ -572,6 +572,8 @@ pinger(void)
 			warn("%s: partial write: %d of %d bytes",
 			     hostname, cc, i);
 		}
+	} else {
+		ntransmitted++; /* only count those that made it out */
 	}
 	if (!(options & F_QUIET) && options & F_FLOOD)
 		(void)write(STDOUT_FILENO, &DOT, 1);
