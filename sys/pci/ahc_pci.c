@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ahc_pci.c,v 1.5.2.1 1999/02/11 07:16:04 gibbs Exp $
+ *	$Id: ahc_pci.c,v 1.5.2.2 1999/03/07 00:42:43 gibbs Exp $
  */
 
 #include <pci.h>
@@ -69,6 +69,7 @@
 
 #define PCI_DEVICE_ID_ADAPTEC_398XU	0x83789004ul
 #define PCI_DEVICE_ID_ADAPTEC_3940U	0x82789004ul
+#define PCI_DEVICE_ID_ADAPTEC_3950U2	0x00509005ul
 #define PCI_DEVICE_ID_ADAPTEC_2944U	0x84789004ul
 #define PCI_DEVICE_ID_ADAPTEC_2940U	0x81789004ul
 #define PCI_DEVICE_ID_ADAPTEC_2940AU	0x61789004ul
@@ -79,6 +80,7 @@
 #define PCI_DEVICE_ID_ADAPTEC_2944	0x74789004ul
 #define PCI_DEVICE_ID_ADAPTEC_2940	0x71789004ul
 #define PCI_DEVICE_ID_ADAPTEC_AIC7890	0x001F9005ul
+#define PCI_DEVICE_ID_ADAPTEC_AIC7895C	0x78939004ul /* RAID Port */
 #define PCI_DEVICE_ID_ADAPTEC_AIC7895	0x78959004ul
 #define PCI_DEVICE_ID_ADAPTEC_AIC7896	0x005F9005ul
 #define PCI_DEVICE_ID_ADAPTEC_AIC7880	0x80789004ul
@@ -87,6 +89,7 @@
 #define PCI_DEVICE_ID_ADAPTEC_AIC7855	0x55789004ul
 #define PCI_DEVICE_ID_ADAPTEC_AIC7850	0x50789004ul
 #define PCI_DEVICE_ID_ADAPTEC_AIC7810	0x10789004ul
+#define PCI_DEVICE_ID_ADAPTEC_AIC7815	0x15789004ul
 
 #define AHC_394X_SLOT_CHANNEL_A	4
 #define AHC_394X_SLOT_CHANNEL_B	5
@@ -172,6 +175,9 @@ ahc_pci_probe (pcici_t tag, pcidi_t type)
 	case PCI_DEVICE_ID_ADAPTEC_3940:
 		return ("Adaptec 3940 SCSI adapter");
 		break;
+	case PCI_DEVICE_ID_ADAPTEC_3950U2:
+		return ("Adaptec 3950 Ultra2 SCSI adapter");
+		break;
 	case PCI_DEVICE_ID_ADAPTEC_2930U2:
 		return ("Adaptec 2930 Ultra2 SCSI adapter");
 		break;
@@ -196,6 +202,9 @@ ahc_pci_probe (pcici_t tag, pcidi_t type)
 	case PCI_DEVICE_ID_ADAPTEC_AIC7895:
 		return ("Adaptec aic7895 Ultra SCSI adapter");
 		break;
+	case PCI_DEVICE_ID_ADAPTEC_AIC7895C:
+		return ("Adaptec aic7895 `Raid Port' Ultra SCSI adapter");
+		break;
 	case PCI_DEVICE_ID_ADAPTEC_AIC7890:
 		return ("Adaptec aic7890/91 Ultra2 SCSI adapter");
 		break;
@@ -219,6 +228,9 @@ ahc_pci_probe (pcici_t tag, pcidi_t type)
 		break;
 	case PCI_DEVICE_ID_ADAPTEC_AIC7810:
 		return ("Adaptec aic7810 RAID memory controller");
+		break;
+	case PCI_DEVICE_ID_ADAPTEC_AIC7815:
+		return ("Adaptec aic7815 RAID memory controller");
 		break;
 	default:
 		break;
@@ -322,6 +334,7 @@ ahc_pci_attach(pcici_t config_id, int unit)
 		break;
 	}
 	case PCI_DEVICE_ID_ADAPTEC_AIC7896:
+	case PCI_DEVICE_ID_ADAPTEC_3950U2:
 	{
 		ahc_t = AHC_AIC7896;
 		ahc_fe = AHC_AIC7896_FE;
@@ -345,6 +358,7 @@ ahc_pci_attach(pcici_t config_id, int unit)
 		ahc_t = AHC_AIC7860;
 		break;
 	case PCI_DEVICE_ID_ADAPTEC_AIC7895:
+	case PCI_DEVICE_ID_ADAPTEC_AIC7895C:
 	{
 		u_int32_t devconfig;
 
@@ -361,6 +375,7 @@ ahc_pci_attach(pcici_t config_id, int unit)
 		ahc_fe = AHC_AIC7850_FE;
 		break;
 	case PCI_DEVICE_ID_ADAPTEC_AIC7810:
+	case PCI_DEVICE_ID_ADAPTEC_AIC7815:
 		printf("RAID functionality unsupported\n");
 		return;
 	default:
