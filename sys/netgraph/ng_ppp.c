@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
  * OF SUCH DAMAGE.
  *
- * Author: Archie Cobbs <archie@whistle.com>
+ * Author: Archie Cobbs <archie@freebsd.org>
  *
  * $FreeBSD$
  * $Whistle: ng_ppp.c,v 1.24 1999/11/01 09:24:52 julian Exp $
@@ -51,7 +51,6 @@
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/errno.h>
-#include <sys/syslog.h>
 #include <sys/ctype.h>
 
 #include <machine/limits.h>
@@ -92,27 +91,30 @@
 #define MP_LONG_FIRST_FLAG	0x80000000	/* first fragment in frame */
 #define MP_LONG_LAST_FLAG	0x40000000	/* last fragment in frame */
 
-#define MP_NOSEQ		INT_MAX		/* impossible sequence number */
-
-#define MP_SEQ_MASK(priv)	((priv)->conf.recvShortSeq ? \
-				    MP_SHORT_SEQ_MASK : MP_LONG_SEQ_MASK)
+#define MP_NOSEQ		0x7fffffff	/* impossible sequence number */
 
 /* Sign extension of MP sequence numbers */
-#define MP_SHORT_EXTEND(s)	(((s) & MP_SHORT_SEQ_HIBIT) ? \
-				    ((s) | ~MP_SHORT_SEQ_MASK) : (s))
-#define MP_LONG_EXTEND(s)	(((s) & MP_LONG_SEQ_HIBIT) ? \
-				    ((s) | ~MP_LONG_SEQ_MASK) : (s))
+#define MP_SHORT_EXTEND(s)	(((s) & MP_SHORT_SEQ_HIBIT) ?		\
+				    ((s) | ~MP_SHORT_SEQ_MASK)		\
+				    : ((s) & MP_SHORT_SEQ_MASK))
+#define MP_LONG_EXTEND(s)	(((s) & MP_LONG_SEQ_HIBIT) ?		\
+				    ((s) | ~MP_LONG_SEQ_MASK)		\
+				    : ((s) & MP_LONG_SEQ_MASK))
 
-/* Comparision of MP sequence numbers */
-#define MP_SHORT_SEQ_DIFF(x,y)	(MP_SHORT_EXTEND(x) - MP_SHORT_EXTEND(y))
-#define MP_LONG_SEQ_DIFF(x,y)	(MP_LONG_EXTEND(x) - MP_LONG_EXTEND(y))
+/* Comparision of MP sequence numbers. Note: all sequence numbers
+   except priv->xseq are stored with the sign bit extended. */
+#define MP_SHORT_SEQ_DIFF(x,y)	MP_SHORT_EXTEND((x) - (y))
+#define MP_LONG_SEQ_DIFF(x,y)	MP_LONG_EXTEND((x) - (y))
 
-#define MP_SEQ_DIFF(priv,x,y)	((priv)->conf.recvShortSeq ? \
-				    MP_SHORT_SEQ_DIFF((x), (y)) : \
+#define MP_RECV_SEQ_DIFF(priv,x,y)					\
+				((priv)->conf.recvShortSeq ?		\
+				    MP_SHORT_SEQ_DIFF((x), (y)) :	\
 				    MP_LONG_SEQ_DIFF((x), (y)))
 
-#define MP_NEXT_SEQ(priv,seq)	(((seq) + 1) & MP_SEQ_MASK(priv))
-#define MP_PREV_SEQ(priv,seq)	(((seq) - 1) & MP_SEQ_MASK(priv))
+/* Increment receive sequence number */
+#define MP_NEXT_RECV_SEQ(priv,seq)					    \
+				(((seq) + 1) & ((priv)->conf.recvShortSeq ? \
+				    MP_SHORT_SEQ_MASK : MP_LONG_SEQ_MASK))
 
 /* Don't fragment transmitted packets smaller than this */
 #define MP_MIN_FRAG_LEN		6
@@ -175,7 +177,7 @@ static const char *const ng_ppp_hook_names[] = {
 struct ng_ppp_link {
 	struct ng_ppp_link_conf	conf;		/* link configuration */
 	hook_p			hook;		/* connection to link data */
-	int			seq;		/* highest rec'd seq# - MSEQ */
+	int32_t			seq;		/* highest rec'd seq# - MSEQ */
 	struct timeval		lastWrite;	/* time of last write */
 	int			bytesInQueue;	/* bytes in the output queue */
 	struct ng_ppp_link_stat	stats;		/* Link stats */
@@ -186,8 +188,8 @@ struct ng_ppp_private {
 	struct ng_ppp_bund_conf	conf;			/* bundle config */
 	struct ng_ppp_link_stat	bundleStats;		/* bundle stats */
 	struct ng_ppp_link	links[NG_PPP_MAX_LINKS];/* per-link info */
-	int			xseq;			/* next out MP seq # */
-	int			mseq;			/* min links[i].seq */
+	int32_t			xseq;			/* next out MP seq # */
+	int32_t			mseq;			/* min links[i].seq */
 	u_char			vjCompHooked;		/* VJ comp hooked up? */
 	u_char			allLinksEqual;		/* all xmit the same? */
 	u_char			timerActive;		/* frag timer active? */
@@ -235,6 +237,22 @@ static void	ng_ppp_update(node_p node, int newConf);
 static void	ng_ppp_start_frag_timer(node_p node);
 static void	ng_ppp_stop_frag_timer(node_p node);
 
+/* Parse type for struct ng_ppp_mp_state_type */
+static const struct ng_parse_fixedarray_info ng_ppp_rseq_array_info = {
+	&ng_parse_hint32_type,
+	NG_PPP_MAX_LINKS
+};
+static const struct ng_parse_type ng_ppp_rseq_array_type = {
+	&ng_parse_fixedarray_type,
+	&ng_ppp_rseq_array_info,
+};
+static const struct ng_parse_struct_info ng_ppp_mp_state_type_info
+	= NG_PPP_MP_STATE_TYPE_INFO(&ng_ppp_rseq_array_type);
+static const struct ng_parse_type ng_ppp_mp_state_type = {
+	&ng_parse_struct_type,
+	&ng_ppp_mp_state_type_info,
+};
+
 /* Parse type for struct ng_ppp_link_conf */
 static const struct ng_parse_struct_info
 	ng_ppp_link_type_info = NG_PPP_LINK_TYPE_INFO;
@@ -252,7 +270,7 @@ static const struct ng_parse_type ng_ppp_bund_type = {
 };
 
 /* Parse type for struct ng_ppp_node_conf */
-struct ng_parse_fixedarray_info ng_ppp_array_info = {
+static const struct ng_parse_fixedarray_info ng_ppp_array_info = {
 	&ng_ppp_link_type,
 	NG_PPP_MAX_LINKS
 };
@@ -290,6 +308,13 @@ static const struct ng_cmdlist ng_ppp_cmds[] = {
 	  "getconfig",
 	  NULL,
 	  &ng_ppp_conf_type
+	},
+	{
+	  NGM_PPP_COOKIE,
+	  NGM_PPP_GET_MP_STATE,
+	  "getmpstate",
+	  NULL,
+	  &ng_ppp_mp_state_type
 	},
 	{
 	  NGM_PPP_COOKIE,
@@ -479,6 +504,24 @@ ng_ppp_rcvmsg(node_p node, struct ng_mesg *msg,
 			conf->bund = priv->conf;
 			for (i = 0; i < NG_PPP_MAX_LINKS; i++)
 				conf->links[i] = priv->links[i].conf;
+			break;
+		    }
+		case NGM_PPP_GET_MP_STATE:
+		    {
+			struct ng_ppp_mp_state *info;
+			int i;
+
+			NG_MKRESPONSE(resp, msg, sizeof(*info), M_NOWAIT);
+			if (resp == NULL)
+				ERROUT(ENOMEM);
+			info = (struct ng_ppp_mp_state *)resp->data;
+			bzero(info, sizeof(*info));
+			for (i = 0; i < NG_PPP_MAX_LINKS; i++) {
+				if (priv->links[i].seq != MP_NOSEQ)
+					info->rseq[i] = priv->links[i].seq;
+			}
+			info->mseq = priv->mseq;
+			info->xseq = priv->xseq;
 			break;
 		    }
 		case NGM_PPP_GET_LINK_STATS:
@@ -1030,7 +1073,7 @@ ng_ppp_mp_input(node_p node, int linkNum, struct mbuf *m, meta_p meta)
 			return (ENOBUFS);
 		}
 		shdr = ntohs(*mtod(m, u_int16_t *));
-		frag->seq = shdr & MP_SHORT_SEQ_MASK;
+		frag->seq = MP_SHORT_EXTEND(shdr);
 		frag->first = (shdr & MP_SHORT_FIRST_FLAG) != 0;
 		frag->last = (shdr & MP_SHORT_LAST_FLAG) != 0;
 		diff = MP_SHORT_SEQ_DIFF(frag->seq, priv->mseq);
@@ -1048,7 +1091,7 @@ ng_ppp_mp_input(node_p node, int linkNum, struct mbuf *m, meta_p meta)
 			return (ENOBUFS);
 		}
 		lhdr = ntohl(*mtod(m, u_int32_t *));
-		frag->seq = lhdr & MP_LONG_SEQ_MASK;
+		frag->seq = MP_LONG_EXTEND(lhdr);
 		frag->first = (lhdr & MP_LONG_FIRST_FLAG) != 0;
 		frag->last = (lhdr & MP_LONG_LAST_FLAG) != 0;
 		diff = MP_LONG_SEQ_DIFF(frag->seq, priv->mseq);
@@ -1072,7 +1115,7 @@ ng_ppp_mp_input(node_p node, int linkNum, struct mbuf *m, meta_p meta)
 		struct ng_ppp_link *const alink =
 		    &priv->links[priv->activeLinks[i]];
 
-		if (MP_SEQ_DIFF(priv, alink->seq, priv->mseq) < 0)
+		if (MP_RECV_SEQ_DIFF(priv, alink->seq, priv->mseq) < 0)
 			priv->mseq = alink->seq;
 	}
 
@@ -1088,7 +1131,7 @@ ng_ppp_mp_input(node_p node, int linkNum, struct mbuf *m, meta_p meta)
 	/* Add fragment to queue, which is sorted by sequence number */
 	inserted = 0;
 	CIRCLEQ_FOREACH_REVERSE(qent, &priv->frags, f_qent) {
-		diff = MP_SEQ_DIFF(priv, frag->seq, qent->seq);
+		diff = MP_RECV_SEQ_DIFF(priv, frag->seq, qent->seq);
 		if (diff > 0) {
 			CIRCLEQ_INSERT_AFTER(&priv->frags, qent, frag, f_qent);
 			inserted = 1;
@@ -1125,7 +1168,7 @@ ng_ppp_check_packet(node_p node)
 
 	/* Check first fragment is the start of a deliverable packet */
 	qent = CIRCLEQ_FIRST(&priv->frags);
-	if (!qent->first || MP_SEQ_DIFF(priv, qent->seq, priv->mseq) > 1)
+	if (!qent->first || MP_RECV_SEQ_DIFF(priv, qent->seq, priv->mseq) > 1)
 		return (0);
 
 	/* Check that all the fragments are there */
@@ -1133,7 +1176,7 @@ ng_ppp_check_packet(node_p node)
 		qnext = CIRCLEQ_NEXT(qent, f_qent);
 		if (qnext == (void *)&priv->frags)	/* end of queue */
 			return (0);
-		if (qnext->seq != MP_NEXT_SEQ(priv, qent->seq))
+		if (qnext->seq != MP_NEXT_RECV_SEQ(priv, qent->seq))
 			return (0);
 		qent = qnext;
 	}
@@ -1201,12 +1244,12 @@ ng_ppp_frag_trim(node_p node)
 
 		/* Determine whether first fragment can ever be completed */
 		CIRCLEQ_FOREACH(qent, &priv->frags, f_qent) {
-			if (MP_SEQ_DIFF(priv, qent->seq, priv->mseq) >= 0)
+			if (MP_RECV_SEQ_DIFF(priv, qent->seq, priv->mseq) >= 0)
 				break;
 			qnext = CIRCLEQ_NEXT(qent, f_qent);
 			KASSERT(qnext != (void*)&priv->frags,
 			    ("%s: last frag < MSEQ?", __FUNCTION__));
-			if (qnext->seq != MP_NEXT_SEQ(priv, qent->seq)
+			if (qnext->seq != MP_NEXT_RECV_SEQ(priv, qent->seq)
 			    || qent->last || qnext->first) {
 				dead = 1;
 				break;
@@ -1268,13 +1311,13 @@ ng_ppp_frag_process(node_p node)
 		qent = CIRCLEQ_FIRST(&priv->frags);
 
 		/* Bump MSEQ if necessary */
-		if (MP_SEQ_DIFF(priv, priv->mseq, qent->seq) < 0) {
+		if (MP_RECV_SEQ_DIFF(priv, priv->mseq, qent->seq) < 0) {
 			priv->mseq = qent->seq;
 			for (i = 0; i < priv->numActiveLinks; i++) {
 				struct ng_ppp_link *const alink =
 				    &priv->links[priv->activeLinks[i]];
 
-				if (MP_SEQ_DIFF(priv,
+				if (MP_RECV_SEQ_DIFF(priv,
 				    alink->seq, priv->mseq) < 0)
 					alink->seq = priv->mseq;
 			}
@@ -1336,7 +1379,7 @@ ng_ppp_frag_checkstale(node_p node)
 				end = qent;
 				break;
 			}
-			seq = MP_NEXT_SEQ(priv, seq);
+			seq = MP_NEXT_RECV_SEQ(priv, seq);
 		}
 
 		/* If none found, exit */
@@ -1368,13 +1411,13 @@ ng_ppp_frag_checkstale(node_p node)
 		ng_ppp_get_packet(node, &m, &meta);
 
 		/* Bump MSEQ if necessary */
-		if (MP_SEQ_DIFF(priv, priv->mseq, end->seq) < 0) {
+		if (MP_RECV_SEQ_DIFF(priv, priv->mseq, end->seq) < 0) {
 			priv->mseq = end->seq;
 			for (i = 0; i < priv->numActiveLinks; i++) {
 				struct ng_ppp_link *const alink =
 				    &priv->links[priv->activeLinks[i]];
 
-				if (MP_SEQ_DIFF(priv,
+				if (MP_RECV_SEQ_DIFF(priv,
 				    alink->seq, priv->mseq) < 0)
 					alink->seq = priv->mseq;
 			}
@@ -1503,7 +1546,7 @@ deliver:
 
 				shdr = priv->xseq;
 				priv->xseq =
-				    (priv->xseq + 1) % MP_SHORT_SEQ_MASK;
+				    (priv->xseq + 1) & MP_SHORT_SEQ_MASK;
 				if (firstFragment)
 					shdr |= MP_SHORT_FIRST_FLAG;
 				if (lastFragment)
@@ -1515,7 +1558,7 @@ deliver:
 
 				lhdr = priv->xseq;
 				priv->xseq =
-				    (priv->xseq + 1) % MP_LONG_SEQ_MASK;
+				    (priv->xseq + 1) & MP_LONG_SEQ_MASK;
 				if (firstFragment)
 					lhdr |= MP_LONG_FIRST_FLAG;
 				if (lastFragment)
