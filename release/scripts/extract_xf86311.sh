@@ -9,7 +9,7 @@
 # under the terms and conditions stated by the XFree86 Project, Inc.
 # copyright, which should also be in the file COPYRIGHT in this distribution.
 #
-# $Id: extract_xf86311.sh,v 1.7 1995/02/10 06:52:16 jkh Exp $
+# $Id: extract_xf86311.sh,v 1.8 1995/02/16 12:30:31 jkh Exp $
 
 PATH=/usr/X11R6/bin:/usr/X386/bin:.:$PATH
 
@@ -123,7 +123,10 @@ recommended that choices be followed in order on this menu," \
    Configure) do_configure ;;
    startx)
 	if [ -x ${X11PREFIX}/bin/startx ]; then
+		dialog --clear
 		${X11PREFIX}/bin/startx
+		echo -n "[press return to continue] "
+		read junk
 	else
 		dialog --title "Error" --msgbox "You must first install ${XRELEASE}." -1 -1
 	fi
