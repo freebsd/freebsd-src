@@ -1116,9 +1116,9 @@ vm_object_shadow(
 	vm_object_t source;
 	vm_object_t result;
 
-	GIANT_REQUIRED;
 	source = *object;
 
+	mtx_lock(&Giant);
 	/*
 	 * Don't create the new object if the old object isn't shared.
 	 */
@@ -1126,8 +1126,10 @@ vm_object_shadow(
 	    source->ref_count == 1 &&
 	    source->handle == NULL &&
 	    (source->type == OBJT_DEFAULT ||
-	     source->type == OBJT_SWAP))
+	     source->type == OBJT_SWAP)) {
+		mtx_unlock(&Giant);
 		return;
+	}
 
 	/*
 	 * Allocate a new object with the given length
@@ -1172,6 +1174,8 @@ vm_object_shadow(
 	 */
 	*offset = 0;
 	*object = result;
+
+	mtx_unlock(&Giant);
 }
 
 #define	OBSC_TEST_ALL_SHADOWED	0x0001
@@ -1603,12 +1607,14 @@ vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end, bo
 	unsigned int size;
 	int all;
 
-	GIANT_REQUIRED;
-	
-	if (object == NULL ||
-	    object->resident_page_count == 0)
+	if (object == NULL)
 		return;
 
+	mtx_lock(&Giant);
+	if (object->resident_page_count == 0) {
+		mtx_unlock(&Giant);
+		return;
+	}
 	all = ((end == 0) && (start == 0));
 
 	/*
@@ -1688,6 +1694,7 @@ again:
 		}
 	}
 	vm_object_pip_wakeup(object);
+	mtx_unlock(&Giant);
 }
 
 /*
