@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.59 1998/10/03 16:19:27 bde Exp $
+ * $Id: buf.h,v 1.60 1998/10/31 14:05:11 peter Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -182,6 +182,20 @@ struct buf_queue_head {
 	daddr_t	last_pblkno;
 	struct	buf *insert_point;
 	struct	buf *switch_point;
+};
+
+/*
+ * This structure describes a clustered I/O.  It is stored in the b_saveaddr
+ * field of the buffer on which I/O is done.  At I/O completion, cluster
+ * callback uses the structure to parcel I/O's to individual buffers, and
+ * then free's this structure.
+ */
+struct cluster_save {
+	long	bs_bcount;		/* Saved b_bcount. */
+	long	bs_bufsize;		/* Saved b_bufsize. */
+	void	*bs_saveaddr;		/* Saved b_addr. */
+	int	bs_nchildren;		/* Number of associated buffers. */
+	struct buf **bs_children;	/* List of associated buffers. */
 };
 
 static __inline void bufq_init __P((struct buf_queue_head *head));

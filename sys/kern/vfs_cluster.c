@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.70 1998/09/04 08:06:55 dfr Exp $
+ * $Id: vfs_cluster.c,v 1.71 1998/10/25 17:44:52 phk Exp $
  */
 
 #include "opt_debug_cluster.h"
@@ -43,6 +43,7 @@
 #include <sys/proc.h>
 #include <sys/buf.h>
 #include <sys/vnode.h>
+#include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/resourcevar.h>
 #include <vm/vm.h>
@@ -57,10 +58,10 @@ static int	rcluster= 0;
 SYSCTL_INT(_debug, OID_AUTO, rcluster, CTLFLAG_RW, &rcluster, 0, "");
 #endif
 
-#ifdef notyet_block_reallocation_enabled
+static MALLOC_DEFINE(M_SEGMENT, "cluster_save buffer", "cluster_save buffer");
+
 static struct cluster_save *
 	cluster_collectbufs __P((struct vnode *vp, struct buf *last_bp));
-#endif
 static struct buf *
 	cluster_rbuild __P((struct vnode *vp, u_quad_t filesize, daddr_t lbn,
 			    daddr_t blkno, long size, int run, struct buf *fbp));
@@ -539,16 +540,7 @@ cluster_write(bp, filesize)
 			 * reallocating to make it sequential.
 			 */
 			cursize = vp->v_lastw - vp->v_cstart + 1;
-#ifndef notyet_block_reallocation_enabled
 			if (((u_quad_t) bp->b_offset + lblocksize) != filesize ||
-				lbn != vp->v_lastw + 1 ||
-				vp->v_clen <= cursize) {
-				if (!async)
-					cluster_wbuild(vp, lblocksize,
-						vp->v_cstart, cursize);
-			}
-#else
-			if ((lbn + 1) * lblocksize != filesize ||
 			    lbn != vp->v_lastw + 1 || vp->v_clen <= cursize) {
 				if (!async)
 					cluster_wbuild(vp, lblocksize,
@@ -583,7 +575,6 @@ cluster_write(bp, filesize)
 					return;
 				}
 			}
-#endif /* notyet_block_reallocation_enabled */
 		}
 		/*
 		 * Consider beginning a cluster. If at end of file, make
@@ -822,7 +813,6 @@ cluster_wbuild(vp, size, start_lbn, len)
 	return totalwritten;
 }
 
-#ifdef notyet_block_reallocation_enabled
 /*
  * Collect together all the buffers in a cluster.
  * Plus add one additional buffer.
@@ -848,4 +838,3 @@ cluster_collectbufs(vp, last_bp)
 	buflist->bs_nchildren = i + 1;
 	return (buflist);
 }
-#endif /* notyet_block_reallocation_enabled */
