@@ -127,6 +127,15 @@ sub CompareNumbers {
 	}
 	else {
 	    # Neither component begins with a leading letter.
+	    # See if either component has no characters left.  If so,
+	    # let the other component win.
+	    if ($c1 eq "") {
+		return -1;
+	    }
+	    if ($c2 eq "") {
+		return 1;
+	    }
+
 	    # Check for numeric inequality.  We assume here that (for example)
 	    # "3.09" < "3.10", and that we aren't going to be asked to
 	    # decide between "3.010" and "3.10".
@@ -192,6 +201,21 @@ sub CompareVersions {
     else {
 	($v1, $r1, $e1) = &GetVersionComponents($fv1);
 	($v2, $r2, $e2) = &GetVersionComponents($fv2);
+
+	# Port revision and port epoch numbers default to zero if not
+	# specified.
+	if ($r1 eq "") {
+	    $r1 = "0";
+	}
+	if ($r2 eq "") {
+	    $r2 = "0";
+	}
+	if ($e1 eq "") {
+	    $e1 = "0";
+	}
+	if ($e2 eq "") {
+	    $e2 = "0";
+	}
 
 	# Check epoch, port version, and port revision, in that
 	# order.
