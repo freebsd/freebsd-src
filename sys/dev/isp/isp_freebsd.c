@@ -1,5 +1,4 @@
-/* $Id: isp_freebsd.c,v 1.10.2.4 1999/07/03 01:47:14 mjacob Exp $ */
-/* release_6_5_99 */
+/* $Id: isp_freebsd.c,v 1.10.2.5 1999/07/05 20:43:12 mjacob Exp $ */
 /*
  * Platform (FreeBSD) dependent common attachment code for Qlogic adapters.
  *
@@ -35,9 +34,18 @@
  */
 #include <dev/isp/isp_freebsd.h>
 
-static void isp_cam_async __P((void *, u_int32_t, struct cam_path *, void *));
-static void isp_poll __P((struct cam_sim *));
-static void isp_action __P((struct cam_sim *, union ccb *));
+static void isp_cam_async(void *, u_int32_t, struct cam_path *, void *);
+static void isp_poll(struct cam_sim *);
+static void isp_action(struct cam_sim *, union ccb *);
+static void isp_relsim(void *);
+
+/* #define	ISP_LUN0_ONLY	1 */
+#ifdef	ISP_LUN0_ONLY
+#undef	_ISP_FC_LUN
+#undef	_ISP_SCSI_LUN
+#define	_ISP_FC_LUN(isp)	1
+#define	_ISP_SCSI_LUN(isp)	1
+#endif
 
 void
 isp_attach(struct ispsoftc *isp)
@@ -130,8 +138,9 @@ isp_attach(struct ispsoftc *isp)
 		isp->isp_sim2 = sim;
 		isp->isp_path2 = path;
 	}
-	if (isp->isp_state == ISP_INITSTATE)
+	if (isp->isp_state == ISP_INITSTATE) {
 		isp->isp_state = ISP_RUNSTATE;
+	}
 }
 
 static void
@@ -167,6 +176,7 @@ isp_cam_async(void *cbarg, u_int32_t code, struct cam_path *path, void *arg)
 		}
 		break;
 	default:
+		printf("%s: isp_attach Async Code 0x%x\n", isp->isp_name, code);
 		break;
 	}
 }
@@ -177,7 +187,21 @@ isp_poll(struct cam_sim *sim)
 	isp_intr((struct ispsoftc *) cam_sim_softc(sim));
 }
 
-
+static void
+isp_relsim(void *arg)
+{
+	struct ispsoftc *isp = arg;
+	int s = splcam();
+	if (isp->isp_osinfo.simqfrozen & SIMQFRZ_TIMED) {
+		int wasfrozen = isp->isp_osinfo.simqfrozen & SIMQFRZ_TIMED;
+		isp->isp_osinfo.simqfrozen &= ~SIMQFRZ_TIMED;
+		if (wasfrozen && isp->isp_osinfo.simqfrozen == 0) {
+			xpt_release_simq(isp->isp_sim, 1);
+			IDPRINTF(3, ("%s: timed relsimq\n", isp->isp_name));
+		}
+	}
+	splx(s);
+}
 static void
 isp_action(struct cam_sim *sim, union ccb *ccb)
 {
@@ -190,14 +214,8 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 	isp = (struct ispsoftc *)cam_sim_softc(sim);
 	ccb->ccb_h.sim_priv.entries[0].field = 0;
 	ccb->ccb_h.sim_priv.entries[1].ptr = isp;
-	/*
-	 * This should only happen for Fibre Channel adapters.
-	 * We want to pass through all but XPT_SCSI_IO (e.g.,
-	 * path inquiry) but fail if we can't get good Fibre
-	 * Channel link status.
-	 */
-	if (ccb->ccb_h.func_code == XPT_SCSI_IO &&
-	    isp->isp_state != ISP_RUNSTATE) {
+	if (isp->isp_state != ISP_RUNSTATE &&
+	    ccb->ccb_h.func_code == XPT_SCSI_IO) {
 		s = splcam();
 		DISABLE_INTS(isp);
 		isp_init(isp);
@@ -207,6 +225,8 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			 * Lie. Say it was a selection timeout.
 			 */
 			ccb->ccb_h.status = CAM_SEL_TIMEOUT;
+			ccb->ccb_h.status |= CAM_DEV_QFRZN;
+			xpt_freeze_devq(ccb->ccb_h.path, 1);
 			xpt_done(ccb);
 			return;
 		}
@@ -214,7 +234,6 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		ENABLE_INTS(isp);
 		(void) splx(s);
 	}
-	
 	IDPRINTF(4, ("%s: isp_action code %x\n", isp->isp_name,
 	    ccb->ccb_h.func_code));
 
@@ -230,39 +249,11 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 				break;
 			}
 		}
-
-		
-		if (isp->isp_type & ISP_HA_SCSI) {
-			if (ccb->ccb_h.target_id > (MAX_TARGETS-1)) {
-				ccb->ccb_h.status = CAM_PATH_INVALID;
-			} else if (ISP_FW_REVX(isp->isp_fwrev) >=
-			    ISP_FW_REV(7, 55, 0)) {
-				/*
-				 * Too much breakage.
-				 */
-#if	0
-				if (ccb->ccb_h.target_lun > 31) {
-					ccb->ccb_h.status = CAM_PATH_INVALID;
-				}
-#else
-				if (ccb->ccb_h.target_lun > 7) {
-					ccb->ccb_h.status = CAM_PATH_INVALID;
-				}
-#endif
-			} else if (ccb->ccb_h.target_lun > 7) {
-				ccb->ccb_h.status = CAM_PATH_INVALID;
-			}
-		} else {
-			if (ccb->ccb_h.target_id > (MAX_FC_TARG-1)) {
-				ccb->ccb_h.status = CAM_PATH_INVALID;
-#ifdef	ISP2100_SCCLUN
-			} else if (ccb->ccb_h.target_lun > 65535) {
-				ccb->ccb_h.status = CAM_PATH_INVALID;
-#else
-			} else if (ccb->ccb_h.target_lun > 15) {
-				ccb->ccb_h.status = CAM_PATH_INVALID;
-#endif
-			}
+#ifdef	DIAGNOSTIC
+		if (ccb->ccb_h.target_id > (ISP_MAX_TARGETS(isp) - 1)) {
+			ccb->ccb_h.status = CAM_PATH_INVALID;
+		} else if (ccb->ccb_h.target_lun > (ISP_MAX_LUNS(isp) - 1)) {
+			ccb->ccb_h.status = CAM_PATH_INVALID;
 		}
 		if (ccb->ccb_h.status == CAM_PATH_INVALID) {
 			printf("%s: invalid tgt/lun (%d.%d) in XPT_SCSI_IO\n",
@@ -271,37 +262,50 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			xpt_done(ccb);
 			break;
 		}
+#endif
+		((struct ccb_scsiio *) ccb)->scsi_status = SCSI_STATUS_OK;
 		s = splcam();
 		DISABLE_INTS(isp);
-		switch (ispscsicmd((ISP_SCSI_XFER_T *) ccb)) {
+		error = ispscsicmd((ISP_SCSI_XFER_T *) ccb);
+		ENABLE_INTS(isp);
+		splx(s);
+		switch (error) {
 		case CMD_QUEUED:
 			ccb->ccb_h.status |= CAM_SIM_QUEUED;
 			break;
-		case CMD_EAGAIN:
-			if (!(isp->isp_osinfo.simqfrozen & SIMQFRZ_RESOURCE)) {
+		case CMD_RQLATER:
+			if (isp->isp_osinfo.simqfrozen == 0) {
+				IDPRINTF(3, ("%s: RQLATER freeze simq\n",
+				    isp->isp_name));
+				isp->isp_osinfo.simqfrozen |= SIMQFRZ_TIMED;
+				timeout(isp_relsim, isp, 500);
 				xpt_freeze_simq(sim, 1);
-				isp->isp_osinfo.simqfrozen |= SIMQFRZ_RESOURCE;
 			}
 			ccb->ccb_h.status &= ~CAM_STATUS_MASK;
                         ccb->ccb_h.status |= CAM_REQUEUE_REQ;
 			xpt_done(ccb);
 			break;
-		case CMD_COMPLETE:
-			/*
-			 * Just make sure that we didn't get it returned
-			 * as completed, but with the request still in
-			 * progress. In theory, 'cannot happen'.
-			 */
-			if ((ccb->ccb_h.status & CAM_STATUS_MASK) ==
-			    CAM_REQ_INPROG) {
-				ccb->ccb_h.status &= ~CAM_STATUS_MASK;
-				ccb->ccb_h.status |= CAM_REQ_CMP_ERR;
+		case CMD_EAGAIN:
+			if (isp->isp_osinfo.simqfrozen == 0) {
+				xpt_freeze_simq(sim, 1);
+				IDPRINTF(3, ("%s: EAGAIN freeze simq\n",
+				    isp->isp_name));
 			}
+			isp->isp_osinfo.simqfrozen |= SIMQFRZ_RESOURCE;
+			ccb->ccb_h.status &= ~CAM_STATUS_MASK;
+                        ccb->ccb_h.status |= CAM_REQUEUE_REQ;
 			xpt_done(ccb);
 			break;
+		case CMD_COMPLETE:
+			isp_done((struct ccb_scsiio *) ccb);
+			break;
+		default:
+			printf("%s: What's this? 0x%x at %d in file %s\n",
+			    isp->isp_name, error, __LINE__, __FILE__);
+			ccb->ccb_h.status &= ~CAM_STATUS_MASK;
+			ccb->ccb_h.status |= CAM_REQ_CMP_ERR;
+			xpt_done(ccb);
 		}
-		ENABLE_INTS(isp);
-		splx(s);
 		break;
 
 	case XPT_EN_LUN:		/* Enable LUN as a target */
@@ -564,24 +568,20 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		struct ccb_pathinq *cpi = &ccb->cpi;
 
 		cpi->version_num = 1;
-		cpi->hba_inquiry = PI_SDTR_ABLE|PI_TAG_ABLE|PI_WIDE_16;
 		cpi->target_sprt = 0;
 		cpi->hba_eng_cnt = 0;
+		cpi->max_target = ISP_MAX_TARGETS(isp) - 1;
+		cpi->max_lun = ISP_MAX_LUNS(isp) - 1;
+		cpi->bus_id = cam_sim_bus(sim);
 		if (IS_FC(isp)) {
 			cpi->hba_misc = PIM_NOBUSRESET;
-			cpi->max_target = MAX_FC_TARG-1;
-			cpi->initiator_id =
-			    ((fcparam *)isp->isp_param)->isp_loopid;
-#ifdef	ISP2100_SCCLUN
-#if	0
-			/* Too much breakage as yet... */
-			cpi->max_lun = (1 << 16) - 1;
-#else
-			cpi->max_lun = (1 << 4) - 1;
-#endif
-#else
-			cpi->max_lun = (1 << 4) - 1;
-#endif
+
+			/*
+			 * Because our loop ID can shift from time to time,
+			 * make our initiator ID out of range of our bus.
+			 */
+			cpi->initiator_id = cpi->max_target + 1;
+
 			/*
 			 * Set base transfer capabilities for Fibre Channel.
 			 * Technically not correct because we don't know
@@ -589,29 +589,16 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			 * look good if we always say 100MB/s.
 			 */
 			cpi->base_transfer_speed = 100000;
+			cpi->hba_inquiry = PI_TAG_ABLE;
 		} else {
 			sdparam *sdp = isp->isp_param;
 			sdp += cam_sim_bus(xpt_path_sim(cpi->ccb_h.path));
+
+			cpi->hba_inquiry = PI_SDTR_ABLE|PI_TAG_ABLE|PI_WIDE_16;
 			cpi->hba_misc = 0;
 			cpi->initiator_id = sdp->isp_initiator_id;
-			cpi->max_target =  MAX_TARGETS-1;
-			if (ISP_FW_REVX(isp->isp_fwrev) >=
-			    ISP_FW_REV(7, 55, 0)) {
-#if	0
-				/*
-				 * Too much breakage.
-				 */
-				cpi->max_lun = (1 << 5) - 1;
-#else
-				cpi->max_lun = (1 << 3) - 1;
-#endif
-			} else {
-				cpi->max_lun = (1 << 3) - 1;
-			}
 			cpi->base_transfer_speed = 3300;
 		}
-
-		cpi->bus_id = cam_sim_bus(sim);
 		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 		strncpy(cpi->hba_vid, "Qlogic", HBA_IDLEN);
 		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
@@ -642,21 +629,40 @@ isp_done(struct ccb_scsiio *sccb)
 		sccb->ccb_h.status &= ~CAM_STATUS_MASK;
 		sccb->ccb_h.status |= CAM_SCSI_STATUS_ERROR;
 	}
+	sccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 	if ((sccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 		if ((sccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
-			IDPRINTF(3, ("%s: freeze devq %d.%d ccbstat 0x%x\n",
-			    isp->isp_name, sccb->ccb_h.target_id,
-			    sccb->ccb_h.target_lun, sccb->ccb_h.status));
-			xpt_freeze_devq(sccb->ccb_h.path, 1);
 			sccb->ccb_h.status |= CAM_DEV_QFRZN;
+			xpt_freeze_devq(sccb->ccb_h.path, 1);
+			if (sccb->scsi_status != SCSI_STATUS_OK)
+				IDPRINTF(3, ("%s: fdevq %d.%d %x %x\n",
+				    isp->isp_name, sccb->ccb_h.target_id,
+				    sccb->ccb_h.target_lun, sccb->ccb_h.status,
+				    sccb->scsi_status));
 		}
 	}
+	/*
+	 * If we were frozen waiting resources, clear that we were frozen
+	 * waiting for resources. If we are no longer frozen, and the devq
+	 * isn't frozen, mark the completing CCB to have the XPT layer
+	 * release the simq.
+	 */
 	if (isp->isp_osinfo.simqfrozen & SIMQFRZ_RESOURCE) {
 		isp->isp_osinfo.simqfrozen &= ~SIMQFRZ_RESOURCE;
-		sccb->ccb_h.status |= CAM_RELEASE_SIMQ;
-		xpt_release_simq(isp->isp_sim, 1);
+		if (isp->isp_osinfo.simqfrozen == 0) {
+			if ((sccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
+				IDPRINTF(3, ("%s: isp_done -> relsimq\n",
+				    isp->isp_name));
+				sccb->ccb_h.status |= CAM_RELEASE_SIMQ;
+			} else {
+				IDPRINTF(3, ("%s: isp_done -> devq frozen\n",
+				    isp->isp_name));
+			}
+		} else {
+			IDPRINTF(3, ("%s: isp_done -> simqfrozen = %x\n",
+			    isp->isp_name, isp->isp_osinfo.simqfrozen));
+		}
 	}
-	sccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 	if (CAM_DEBUGGED(sccb->ccb_h.path, ISPDDB) &&
 	    (sccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 		xpt_print_path(sccb->ccb_h.path);
@@ -666,59 +672,56 @@ isp_done(struct ccb_scsiio *sccb)
 }
 
 int
-isp_async(isp, cmd, arg)
-	struct ispsoftc *isp;
-	ispasync_t cmd;
-	void *arg;
+isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 {
 	int bus, rv = 0;
 	switch (cmd) {
 	case ISPASYNC_NEW_TGT_PARAMS:
-		if (isp->isp_type & ISP_HA_SCSI) {
-			int flags, tgt;
-			sdparam *sdp = isp->isp_param;
-			struct ccb_trans_settings neg;
-			struct cam_path *tmppath;
+	{
+		int flags, tgt;
+		sdparam *sdp = isp->isp_param;
+		struct ccb_trans_settings neg;
+		struct cam_path *tmppath;
 
-			tgt = *((int *)arg);
-			bus = (tgt >> 16) & 0xffff;
-			tgt &= 0xffff;
-			sdp += bus;
-			if (xpt_create_path(&tmppath, NULL,
-			    cam_sim_path(bus? isp->isp_sim2 : isp->isp_sim),
-			    tgt, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
-				xpt_print_path(isp->isp_path);
-				printf("isp_async cannot make temp path for "
-				    "target %d bus %d\n", tgt, bus);
-				rv = -1;
-				break;
-			}
-			flags = sdp->isp_devparam[tgt].cur_dflags;
-			neg.valid = CCB_TRANS_DISC_VALID | CCB_TRANS_TQ_VALID;
-			if (flags & DPARM_DISC) {
-				neg.flags |= CCB_TRANS_DISC_ENB;
-			}
-			if (flags & DPARM_TQING) {
-				neg.flags |= CCB_TRANS_TAG_ENB;
-			}
-			neg.valid |= CCB_TRANS_BUS_WIDTH_VALID;
-			neg.bus_width = (flags & DPARM_WIDE)?
-			    MSG_EXT_WDTR_BUS_8_BIT : MSG_EXT_WDTR_BUS_16_BIT;
-			neg.sync_period = sdp->isp_devparam[tgt].cur_period;
-			neg.sync_offset = sdp->isp_devparam[tgt].cur_offset;
-			if (flags & DPARM_SYNC) {
-				neg.valid |=
-				    CCB_TRANS_SYNC_RATE_VALID |
-				    CCB_TRANS_SYNC_OFFSET_VALID;
-			}
-			IDPRINTF(3, ("%s: NEW_TGT_PARAMS bus %d tgt %d period "
-			    "0x%x offset 0x%x flags 0x%x\n", isp->isp_name,
-			    bus, tgt, neg.sync_period, neg.sync_offset, flags));
-			xpt_setup_ccb(&neg.ccb_h, tmppath, 1);
-			xpt_async(AC_TRANSFER_NEG, tmppath, &neg);
-			xpt_free_path(tmppath);
+		tgt = *((int *)arg);
+		bus = (tgt >> 16) & 0xffff;
+		tgt &= 0xffff;
+		sdp += bus;
+		if (xpt_create_path(&tmppath, NULL,
+		    cam_sim_path(bus? isp->isp_sim2 : isp->isp_sim),
+		    tgt, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+			xpt_print_path(isp->isp_path);
+			printf("isp_async cannot make temp path for "
+			    "target %d bus %d\n", tgt, bus);
+			rv = -1;
+			break;
 		}
+		flags = sdp->isp_devparam[tgt].cur_dflags;
+		neg.valid = CCB_TRANS_DISC_VALID | CCB_TRANS_TQ_VALID;
+		if (flags & DPARM_DISC) {
+			neg.flags |= CCB_TRANS_DISC_ENB;
+		}
+		if (flags & DPARM_TQING) {
+			neg.flags |= CCB_TRANS_TAG_ENB;
+		}
+		neg.valid |= CCB_TRANS_BUS_WIDTH_VALID;
+		neg.bus_width = (flags & DPARM_WIDE)?
+		    MSG_EXT_WDTR_BUS_8_BIT : MSG_EXT_WDTR_BUS_16_BIT;
+		neg.sync_period = sdp->isp_devparam[tgt].cur_period;
+		neg.sync_offset = sdp->isp_devparam[tgt].cur_offset;
+		if (flags & DPARM_SYNC) {
+			neg.valid |=
+			    CCB_TRANS_SYNC_RATE_VALID |
+			    CCB_TRANS_SYNC_OFFSET_VALID;
+		}
+		IDPRINTF(3, ("%s: NEW_TGT_PARAMS bus %d tgt %d period "
+		    "0x%x offset 0x%x flags 0x%x\n", isp->isp_name,
+		    bus, tgt, neg.sync_period, neg.sync_offset, flags));
+		xpt_setup_ccb(&neg.ccb_h, tmppath, 1);
+		xpt_async(AC_TRANSFER_NEG, tmppath, &neg);
+		xpt_free_path(tmppath);
 		break;
+	}
 	case ISPASYNC_BUS_RESET:
 		bus = *((int *)arg);
 		printf("%s: SCSI bus reset on bus %d detected\n",
@@ -731,42 +734,39 @@ isp_async(isp, cmd, arg)
 		break;
 	case ISPASYNC_LOOP_DOWN:
 		if (isp->isp_path) {
-			/*
-			 * We can get multiple LOOP downs, so only count one.
-			 */
-			if (!(isp->isp_osinfo.simqfrozen & SIMQFRZ_LOOPDOWN)) {
+			if (isp->isp_osinfo.simqfrozen == 0) {
+				IDPRINTF(3, ("%s: loop down freeze simq\n",
+				    isp->isp_name));
 				xpt_freeze_simq(isp->isp_sim, 1);
-				isp->isp_osinfo.simqfrozen |= SIMQFRZ_LOOPDOWN;
-				printf("%s: Loop DOWN- freezing SIMQ until Loop"
-				    " comes up\n", isp->isp_name);
 			}
-		} else {
-			printf("%s: Loop DOWN\n", isp->isp_name);
+			isp->isp_osinfo.simqfrozen |= SIMQFRZ_LOOPDOWN;
 		}
+		printf("%s: Loop DOWN\n", isp->isp_name);
+#if	defined(DDB)
+		if (isp->isp_dblev > DFLT_DBLEVEL) {
+			Debugger("Loop Down");
+		}
+#endif
 		break;
 	case ISPASYNC_LOOP_UP:
 		if (isp->isp_path) {
-			if (isp->isp_osinfo.simqfrozen & SIMQFRZ_LOOPDOWN) {
+			int wasfrozen =
+			    isp->isp_osinfo.simqfrozen & SIMQFRZ_LOOPDOWN;
+			isp->isp_osinfo.simqfrozen &= ~SIMQFRZ_LOOPDOWN;
+			if (wasfrozen && isp->isp_osinfo.simqfrozen == 0) {
 				xpt_release_simq(isp->isp_sim, 1);
-				isp->isp_osinfo.simqfrozen &= ~SIMQFRZ_LOOPDOWN;
-				if (isp->isp_osinfo.simqfrozen) {
-					printf("%s: Loop UP- SIMQ still "
-					    "frozen\n", isp->isp_name);
-				} else {
-					printf("%s: Loop UP-releasing frozen "
-					    "SIMQ\n", isp->isp_name);
-				}
+				IDPRINTF(3, ("%s: loop up release simq\n",
+					isp->isp_name));
 			}
-		} else {
-			printf("%s: Loop UP\n", isp->isp_name);
 		}
+		printf("%s: Loop UP\n", isp->isp_name);
 		break;
 	case ISPASYNC_PDB_CHANGED:
-	if (IS_FC(isp)) {
+	{
 		const char *fmt = "%s: Target %d (Loop 0x%x) Port ID 0x%x "
 		    "role %s %s\n Port WWN 0x%08x%08x\n Node WWN 0x%08x%08x\n";
 		const static char *roles[4] = {
-		    "No", "Target", "Initiator", "Target/Initiator"
+		    "(none)", "Target", "Initiator", "Target/Initiator"
 		};
 		char *ptr;
 		fcparam *fcp = isp->isp_param;
@@ -786,10 +786,10 @@ isp_async(isp, cmd, arg)
 		    (u_int32_t) (lp->node_wwn & 0xffffffffLL));
 		break;
 	}
-#ifdef	ISP2100_FABRIC
 	case ISPASYNC_CHANGE_NOTIFY:
 		printf("%s: Name Server Database Changed\n", isp->isp_name);
 		break;
+#ifdef	ISP2100_FABRIC
 	case ISPASYNC_FABRIC_DEV:
 	{
 		int target;
@@ -814,10 +814,9 @@ isp_async(isp, cmd, arg)
 		    (((u_int64_t)resp->snscb_portname[5]) << 16) |
 		    (((u_int64_t)resp->snscb_portname[6]) <<  8) |
 		    (((u_int64_t)resp->snscb_portname[7]));
-		printf("%s: type 0x%x@portid 0x%x 0x%08x%08x\n",
-		    isp->isp_name, resp->snscb_port_type, portid,
-		    ((u_int32_t)(wwn >> 32)), ((u_int32_t)(wwn & 0xffffffff)));
-
+		printf("%s: type 0x%x@portid 0x%x 0x%08x%08x\n", isp->isp_name,
+		    resp->snscb_port_type, portid,
+		    ((u_int32_t) (wwn >> 32)), ((u_int32_t) wwn));
 		if (resp->snscb_port_type != 2) {
 			rv = 0;
 			break;
