@@ -371,6 +371,8 @@
       <para>The &man.an.4; driver now supports the Cisco Aironet 350
       series of adaptors.</para>
 
+      <para>The &man.txp.4; driver has been added to support NICs
+      based on the 3Com 3XP Typhoon/Sidewinder (3CR990) chipset.</para>
     </sect3>
 
     <sect3>
@@ -949,6 +951,9 @@
 
     <para>A remote buffer overflow in &man.tcpdump.1; has been fixed
     (see security advisory FreeBSD-SA-01:48). &merged;</para>
+
+    <para>A remote buffer overflow in &man.telnetd.8; has been
+    fixed (see security advisory FreeBSD-SA-01:49). &merged;</para>
   </sect2>
   <sect2>
     <title>Userland Changes</title>
@@ -1652,8 +1657,8 @@
       distribution is now built as
       <filename>libisc</filename>. &merged;</para>
 
-      <para><application>Binutils</application> have been upgraded to
-      2.11.2.</para>
+      <para><application>Binutils</application> have been upgraded a
+      snapshot from 19 July 2001 on the 2.11 development branch.</para>
 
       <para><application>bzip2</application> 1.0.1 has been imported; this
       brings the &man.bzip2.1; program and the <filename>libbz2</filename>
@@ -1752,7 +1757,7 @@
       <para>&man.routed.8; has been updated to version 2.22. &merged;</para>
 
       <para><application>tcpdump</application> has been updated to
-      3.6.2.</para>
+      3.6.3.</para>
 
       <para>The &man.csh.1; shell has been replaced by &man.tcsh.1;,
       although it can still be run as <command>csh</command>.
@@ -1874,7 +1879,7 @@
         <title>OpenSSL</title>
 
 	<para><application>OpenSSL</application> has been upgraded to
-	0.9.6a. &merged;</para>
+	0.9.6b.</para>
 
 	<para><application>OpenSSL</application> now has support for
 	machine-dependent ASM optimizations, activated by the new
