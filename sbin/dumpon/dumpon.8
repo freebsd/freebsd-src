@@ -50,21 +50,21 @@
 is used to specify a device where the kernel can save a crash dump in
 the case of a panic.
 .Pp
-Calls to 
+Calls to
 .Nm
 normally occur from the system multi-user initialization file
 .Pa /etc/rc ,
 controlled by the
 .Dq dumpdev
-variable in the boot time configuration file 
+variable in the boot time configuration file
 .Pa /etc/rc.conf .
 .Pp
-The size of the specified dump device must be at least 64 KB greater the 
+The size of the specified dump device must be at least 64 KB greater the
 size of physical memory.
 .Pp
 The
 .Fl v
-flag causes 
+flag causes
 .Nm
 to be verbose about its activity.
 .Sh NOTES
@@ -79,13 +79,13 @@ and
 a device containing a filesystem,
 should be used as the dump device.
 .Pp
-The 
+The
 .Nm
 program operates by setting the
 .Xr sysctl 3
 MIB variable
 .Dq kern.dumpdev
-to the device number of the designated 
+to the device number of the designated
 .Ar special_file
 or to
 .Dv NODEV

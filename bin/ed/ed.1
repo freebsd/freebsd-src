@@ -223,7 +223,7 @@ The next line.
 This is equivalent to
 .Em +1
 and may be repeated with cumulative effect.
-.It +n 
+.It +n
 The
 .Em n Ns th
 next line, where
@@ -525,7 +525,7 @@ and
 .Em V .
 A newline alone in
 .Ar command-list
-is equivalent to a 
+is equivalent to a
 .Em p
 command.
 .It (1,$)G/re/
@@ -534,7 +534,7 @@ Interactively edit the addressed lines matching a regular expression
 For each matching line,
 the line is printed,
 the current address is set,
-and the user is prompted to enter a 
+and the user is prompted to enter a
 .Ar command-list .
 At the end of the
 .Em G
@@ -576,11 +576,11 @@ deleted or otherwise modified.
 .It (.,.)l
 Print the addressed lines unambiguously.
 If a single line fills for than one screen (as might be the case
-when viewing a binary file, for instance), a `--More--' 
-prompt is printed on the last line. 
+when viewing a binary file, for instance), a `--More--'
+prompt is printed on the last line.
 .Nm Ed
 waits until the RETURN key is pressed
-before displaying the next screen. 
+before displaying the next screen.
 The current address is set to the last line
 printed.
 .It (.,.)m(.)
@@ -870,7 +870,7 @@ printed with the
 .Em h
 (help) command.
 .Pp
-Since the 
+Since the
 .Em g
 (global) command  masks any errors from failed searches and substitutions,
 it can be used to perform conditional operations in scripts; e.g.,

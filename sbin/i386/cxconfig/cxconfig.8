@@ -10,17 +10,17 @@
 .Op Fl a
 .Op Ar <channel> Op Ar <option>...
 .Sh DESCRIPTION
-The 
+The
 .Nm
 utility is used for configuring the channel options of
 the Cronyx-Sigma adapter.
 .Pp
 To change channel options the channel should be free: the corresponding
-network interface in ``down'' state, the asynchronous terminal device 
+network interface in ``down'' state, the asynchronous terminal device
 .Pa /dev/tty*
 closed.
 Generally, the channel options are set up during the operating
-system startup, for example from the 
+system startup, for example from the
 .Pa /etc/rc
 file.
 .Pp
@@ -76,15 +76,15 @@ Set the zero channel hardware interface type.
 .Bl -tag -width 10n
 .It "nrz, nrzi, manchester"
 Set the data line signal encoding.
-In the case of 
+In the case of
 .Em NRZ
 encoding the zero bit is transmitted by the zero signal
 level, the one bit - by the positive signal level.
-In the case of 
+In the case of
 .Em NRZI
 encoding the zero bit is transmitted by the change of
 the signal level, the one bit - by the constant signal level.
-In the case of 
+In the case of
 .Em Manchester
 encoding the zero bit is encoded as 01 value,
 the one bit - as 10 value.
@@ -96,9 +96,9 @@ is derived from the received data.
 Set the local loopback mode.
 .It "+extclock, -extclock"
 Set the timing clock source of synchronous channels.  There are
-two possible variants: 
+two possible variants:
 .Em "external clock"
-source or 
+source or
 .Em "internal clock"
 generation.
 .Pp
@@ -108,7 +108,7 @@ external modem hardware.  In this mode the external timing
 signal is received on TXCIN pin of the connector, and it is
 used as a synchronization clock for transmitting data (TXD).
 .Pp
-In the case of 
+In the case of
 .Em "internal clock"
 mode the transmitted data (TXD)
 are synchronized using the internal on-board timing generator,
