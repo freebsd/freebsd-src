@@ -243,6 +243,7 @@ device		ulpt		# Printer
 device		umass		# Disks/Mass storage - Requires scbus and da
 device		ums		# Mouse
 device		uscanner	# Scanners
+device		urio		# Diamond Rio MP3 Player
 # USB Ethernet, requires mii
 device		aue		# ADMtek USB ethernet
 device		cue		# CATC USB ethernet

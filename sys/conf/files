@@ -1105,6 +1105,7 @@ dev/usb/hid.c		optional usb
 dev/usb/ugen.c		optional ugen
 dev/usb/uhid.c		optional uhid
 dev/usb/ums.c		optional ums
+dev/usb/urio.c		optional urio
 dev/usb/ulpt.c		optional ulpt
 dev/usb/ukbd.c		optional ukbd
 dev/usb/umass.c		optional umass
