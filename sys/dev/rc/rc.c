@@ -818,11 +818,10 @@ done1: ;
 				critical_exit();
 				(*linesw[tp->t_line].l_start)(tp);
 			}
+			if (sc->sc_scheduled_event == 0)
+				break;
 		}
-		if (sc->sc_scheduled_event == 0)
-			break;
-	}
-	while (sc->sc_scheduled_event >= LOTS_OF_EVENTS);
+	} while (sc->sc_scheduled_event >= LOTS_OF_EVENTS);
 }
 
 static void
