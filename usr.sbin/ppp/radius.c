@@ -765,8 +765,8 @@ radius_Account(struct radius *r, struct radacct *ac, struct datalink *dl,
     ac->authentic = 2;		/* Assume RADIUS verified auth data */
  
     /* Generate a session ID */
-    snprintf(ac->session_id, sizeof ac->session_id, "%s%d-%s%lu",
-             dl->bundle->cfg.auth.name, (int)getpid(),
+    snprintf(ac->session_id, sizeof ac->session_id, "%s%ld-%s%lu",
+             dl->bundle->cfg.auth.name, (long)getpid(),
              dl->peer.authname, (unsigned long)stats->uptime);
 
     /* And grab our MP socket name */
