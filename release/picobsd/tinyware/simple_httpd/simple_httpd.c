@@ -194,7 +194,7 @@ log_line(char *req)
  * and do what needs to be done
  */
 void
-http_request()
+http_request(void)
 {
 	int             fd, lg, i; 
 	int             cmd = 0;
