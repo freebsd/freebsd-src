@@ -1,4 +1,4 @@
-#     $Id: BSD.local.dist,v 1.18 1996/11/23 04:06:08 ache Exp $
+#     $Id: BSD.local.dist,v 1.19 1996/11/26 10:01:28 asami Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -37,6 +37,48 @@
         cat9            uname=man
         ..
         catl            uname=man
+        ..
+        ja_JP.EUC
+            cat1            uname=man
+            ..
+            cat2            uname=man
+            ..
+            cat3            uname=man
+            ..
+            cat4            uname=man
+            ..
+            cat5            uname=man
+            ..
+            cat6            uname=man
+            ..
+            cat7            uname=man
+            ..
+            cat8            uname=man
+            ..
+            cat9            uname=man
+            ..
+            catl            uname=man
+            ..
+            man1
+            ..
+            man2
+            ..
+            man3
+            ..
+            man4
+            ..
+            man5
+            ..
+            man6
+            ..
+            man7
+            ..
+            man8
+            ..
+            man9
+            ..
+            manl
+            ..
         ..
         man1
         ..
