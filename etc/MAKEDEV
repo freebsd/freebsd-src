@@ -796,10 +796,10 @@ acd*t*)
 	tracks=`expr $i : '.*t\(.*\)'`;
 	name=acd;
 	chr=117;
-	if [ -z "${units}" -o "${units}" -le 0 ]; then
-		units=1
+	if [ -z "${units}" ]; then
+		units=0
 	fi
-	if [ -z "${tracks}" -o "${tracks}" -le 0 ]; then
+	if [ -z "${tracks}" ]; then
 		tracks=100
 	fi
 	if [ "${units}" -le 31 -a "${tracks}" -le 169 ]; then
@@ -830,7 +830,7 @@ acd*|cd*|mcd*|scd*)
 	mcd*) units=`expr $i : '...\(.*\)'`; name=mcd; chr=29;;
 	scd*) units=`expr $i : '...\(.*\)'`; name=scd; chr=45;;
 	esac
-	if [ -z "${units}" -o "${units}" -le 0 ]; then
+	if [ -z "${units}" ]; then
 		units=0
 	fi
 	if [ "${units}" -le 31 ]; then
