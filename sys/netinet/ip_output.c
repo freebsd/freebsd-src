@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.44.2.3 1997/02/03 23:15:51 joerg Exp $
+ *	$Id: ip_output.c,v 1.44.2.4 1997/03/02 19:03:01 fenner Exp $
  */
 
 #define _IP_VHL
@@ -72,7 +72,7 @@ u_short ip_id;
 
 static struct mbuf *ip_insertoptions __P((struct mbuf *, struct mbuf *, int *));
 static void	ip_mloopback
-	__P((struct ifnet *, struct mbuf *, struct sockaddr_in *));
+	__P((struct ifnet *, struct mbuf *, struct sockaddr_in *, int));
 static int	ip_getmoptions
 	__P((int, struct ip_moptions *, struct mbuf **));
 static int	ip_optcopy __P((struct ip *, struct ip *));
@@ -242,7 +242,7 @@ ip_output(m0, opt, ro, flags, imo)
 			 * on the outgoing interface, and the caller did not
 			 * forbid loopback, loop back a copy.
 			 */
-			ip_mloopback(ifp, m, dst);
+			ip_mloopback(ifp, m, dst, hlen);
 		}
 		else {
 			/*
@@ -1263,15 +1263,18 @@ ip_freemoptions(imo)
  * replicating that code here.
  */
 static void
-ip_mloopback(ifp, m, dst)
+ip_mloopback(ifp, m, dst, hlen)
 	struct ifnet *ifp;
 	register struct mbuf *m;
 	register struct sockaddr_in *dst;
+	int hlen;
 {
 	register struct ip *ip;
 	struct mbuf *copym;
 
 	copym = m_copy(m, 0, M_COPYALL);
+	if (copym != NULL && (copym->m_flags & M_EXT || copym->m_len < hlen))
+		copym = m_pullup(copym, hlen);
 	if (copym != NULL) {
 		/*
 		 * We don't bother to fragment if the IP length is greater
@@ -1284,8 +1287,7 @@ ip_mloopback(ifp, m, dst)
 		if (ip->ip_vhl == IP_VHL_BORING) {
 			ip->ip_sum = in_cksum_hdr(ip);
 		} else {
-			ip->ip_sum = in_cksum(copym, 
-					      IP_VHL_HL(ip->ip_vhl) << 2);
+			ip->ip_sum = in_cksum(copym, hlen);
 		}
 		/*
 		 * NB:
