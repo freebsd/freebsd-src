@@ -331,7 +331,7 @@ struct	xtcpcb {
 #define	TCPCTL_KEEPINTVL	7	/* interval to send keepalives */
 #define	TCPCTL_SENDSPACE	8	/* send buffer space */
 #define	TCPCTL_RECVSPACE	9	/* receive buffer space */
-#define	TCPCTL_KEEPINIT		10	/* receive buffer space */
+#define	TCPCTL_KEEPINIT		10	/* timeout for establishing syn */
 #define	TCPCTL_PCBLIST		11	/* list of all outstanding PCBs */
 #define	TCPCTL_DELACKTIME	12	/* time before sending delayed ACK */
 #define	TCPCTL_V6MSSDFLT	13	/* MSS default for IPv6 */
