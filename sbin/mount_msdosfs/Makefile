@@ -13,7 +13,7 @@ CFLAGS+= -I${MOUNT}
 .PATH:	${MOUNT}
 
 TABDIR= ${DESTDIR}${LIBDATADIR}/msdosfs
-TABLES= iso22dos koi2dos koi8u2dos
+TABLES= iso22dos iso72dos koi2dos koi8u2dos
 
 afterinstall:
 	cd ${.CURDIR} && \
