@@ -440,6 +440,7 @@ ULPT_DEBUG		opt_usb.h
 UMASS_DEBUG		opt_usb.h
 UMS_DEBUG		opt_usb.h
 URIO_DEBUG		opt_usb.h
+UKBD_DFLT_KEYMAP	opt_ukbd.h
 
 # Vinum options
 VINUMDEBUG		opt_vinum.h
