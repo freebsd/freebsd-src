@@ -138,7 +138,7 @@ static u_long numnegzaps; STATNODE(CTLFLAG_RD, numnegzaps, &numnegzaps);
 static u_long numneghits; STATNODE(CTLFLAG_RD, numneghits, &numneghits);
 
 SYSCTL_OPAQUE(_vfs_cache, OID_AUTO, nchstats, CTLFLAG_RD, &nchstats,
-        sizeof(nchstats), "LU", "VFS cache effectiveness statistics");
+	sizeof(nchstats), "LU", "VFS cache effectiveness statistics");
 
 
 
@@ -258,10 +258,10 @@ cache_zap(ncp)
 
 /*
  * cache_leaf_test()
- * 
+ *
  *      Test whether this (directory) vnode's namei cache entry contains
  *      subdirectories or not.  Used to determine whether the directory is
- *      a leaf in the namei cache or not.  Note: the directory may still   
+ *      a leaf in the namei cache or not.  Note: the directory may still
  *      contain files in the namei cache.
  *
  *      Returns 0 if the directory is a leaf, -1 if it isn't.
@@ -355,7 +355,7 @@ cache_lookup(dvp, vpp, cnp)
 	}
 
 	/* We found a "positive" match, return the vnode */
-        if (ncp->nc_vp) {
+	if (ncp->nc_vp) {
 		numposhits++;
 		nchstats.ncs_goodhits++;
 		*vpp = ncp->nc_vp;
@@ -417,7 +417,7 @@ cache_enter(dvp, vp, cnp)
 			return;
 		}
 	}
-	 
+
 	ncp = (struct namecache *)
 		malloc(sizeof *ncp + cnp->cn_namelen, M_VFSCACHE, M_WAITOK);
 	bzero((char *)ncp, sizeof *ncp);
@@ -499,9 +499,9 @@ cache_purge(vp)
 {
 	static u_long nextid;
 
-	while (!LIST_EMPTY(&vp->v_cache_src)) 
+	while (!LIST_EMPTY(&vp->v_cache_src))
 		cache_zap(LIST_FIRST(&vp->v_cache_src));
-	while (!TAILQ_EMPTY(&vp->v_cache_dst)) 
+	while (!TAILQ_EMPTY(&vp->v_cache_dst))
 		cache_zap(TAILQ_FIRST(&vp->v_cache_dst));
 
 	do
@@ -564,7 +564,7 @@ vfs_cache_lookup(ap)
 	lockparent = flags & LOCKPARENT;
 
 	if (dvp->v_type != VDIR)
-                return (ENOTDIR);
+		return (ENOTDIR);
 
 	if ((flags & ISLASTCN) && (dvp->v_mount->mnt_flag & MNT_RDONLY) &&
 	    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME))
@@ -603,7 +603,7 @@ vfs_cache_lookup(ap)
 		return (error);
 	}
 #else
-	if (!error) 
+	if (!error)
 		return (VOP_CACHEDLOOKUP(dvp, vpp, cnp));
 #endif
 
@@ -916,7 +916,7 @@ vn_fullpath(struct thread *td, struct vnode *vn, char **retbuf, char **freebuf)
 	}
 	FILEDESC_UNLOCK(fdp);
 	numfullpathfound++;
-	*retbuf = bp; 
+	*retbuf = bp;
 	*freebuf = buf;
 	return (0);
 }
