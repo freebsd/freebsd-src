@@ -145,8 +145,8 @@ gpattach(isdp)
         sc->sc_flags |=ATTACHED;
 
 #ifdef DEVFS
-	sc->devfs_token = devfs_add_devsw( "/", "gp", &gp_cdevsw, 0,
-					DV_CHR, 0, 0, 0600);
+	sc->devfs_token = 
+		devfs_add_devswf(&gp_cdevsw, 0, DV_CHR, 0, 0, 0600, "gp");
 #endif
         return (1);
 }

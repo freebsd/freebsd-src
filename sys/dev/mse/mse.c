@@ -11,7 +11,7 @@
  * this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
  *
- * $Id: mse.c,v 1.23 1995/12/15 00:29:30 bde Exp $
+ * $Id: mse.c,v 1.24 1995/12/15 00:54:25 bde Exp $
  */
 /*
  * Driver for the Logitech and ATI Inport Bus mice for use with 386bsd and
@@ -257,23 +257,18 @@ int
 mseattach(idp)
 	struct isa_device *idp;
 {
-	char name[32];
 	int unit = idp->id_unit;
 	struct mse_softc *sc = &mse_sc[unit];
 
 	sc->sc_port = idp->id_iobase;
 	kdc_mse[unit].kdc_state = DC_IDLE;
 #ifdef	DEVFS
-	sprintf(name,"mse%d", unit);
-                                /*        path  name   devsw    minor */
-	sc->devfs_token = devfs_add_devsw( "/",	name, &mse_cdevsw, unit << 1,
-                                              /*type   uid gid perm*/
-						DV_CHR,	0, 0, 0600);
-	sprintf(name,"nmse%d", unit);
-                                /*        path  name   devsw    minor */
-	sc->n_devfs_token = devfs_add_devsw("/", name, &mse_cdevsw, (unit<<1)+1,
-                                              /*type   uid gid perm*/
-						DV_CHR,	0, 0, 0600);
+	sc->devfs_token = 
+		devfs_add_devswf(&mse_cdevsw, unit << 1, DV_CHR, 0, 0, 
+				 0600, "mse%d", unit);
+	sc->n_devfs_token = 
+		devfs_add_devswf(&mse_cdevsw, (unit<<1)+1, DV_CHR,0, 0, 
+				 0600, "nmse%d", unit);
 #endif
 	return (1);
 }

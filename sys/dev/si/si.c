@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.35 1996/01/16 18:13:18 phk Exp $
+ *	$Id: si.c,v 1.36 1996/01/25 07:21:33 phk Exp $
  */
 
 #ifndef lint
@@ -710,9 +710,9 @@ mem_fail:
 			&si_cdevsw, x + 0x20000,
 			DV_CHR, 0, 0, 0600, "ttylA%02d", y);
 	}
-	sc->control_token = devfs_add_devsw("/", "si_control",
-						&si_cdevsw, 0x40000,
-						DV_CHR, 0, 0, 0600);
+	sc->control_token = 
+		devfs_add_devswf(&si_cdevsw, 0x40000, DV_CHR, 0, 0, 0600, 
+				 "si_control");
 #endif
 	return (1);
 }

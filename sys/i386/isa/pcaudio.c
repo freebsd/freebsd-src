@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcaudio.c,v 1.25 1995/12/15 00:54:29 bde Exp $
+ *	$Id: pcaudio.c,v 1.26 1995/12/22 15:27:48 bde Exp $
  */
 
 #include "pca.h"
@@ -81,8 +81,11 @@ static char buffer1[BUF_SIZE];
 static char buffer2[BUF_SIZE];
 static char volume_table[256];
 
+#ifdef DEVFS
 static	void	*pca_devfs_token;
 static	void	*pcac_devfs_token;
+#endif
+
 static int pca_sleep = 0;
 static int pca_initialized = 0;
 
@@ -271,11 +274,11 @@ pcaattach(struct isa_device *dvp)
 	pca_init();
 	pca_registerdev(dvp);
 #ifdef DEVFS
-		/* path, name, devsw, minor, type, uid, gid, perm */
-	pca_devfs_token = devfs_add_devsw("/", "pcaudio", &pca_cdevsw, 0,
-		DV_CHR, 0,  0, 0600);
-	pcac_devfs_token = devfs_add_devsw("/", "pcaudioctl", &pca_cdevsw, 128,
-		DV_CHR, 0,  0, 0600);
+	pca_devfs_token = 
+		devfs_add_devswf(&pca_cdevsw, 0, DV_CHR, 0, 0, 0600, "pcaudio");
+	pcac_devfs_token = 
+		devfs_add_devswf(&pca_cdevsw, 128, DV_CHR, 0, 0, 0600, 
+				 "pcaudioctl");
 #endif /*DEVFS*/
 
 	return 1;

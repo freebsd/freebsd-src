@@ -290,7 +290,6 @@ wcdattach (struct atapi *ata, int unit, struct atapi_params *ap, int debug,
 	struct wcd *t;
 	struct atapires result;
 	int lun;
-	char	name[32];
 
 	if (wcdnlun >= NUNIT) {
 		printf ("wcd: too many units\n");
@@ -357,25 +356,18 @@ wcdattach (struct atapi *ata, int unit, struct atapi_params *ap, int debug,
 #ifdef DEVFS
 #define WDC_UID 0
 #define WDC_GID 13
-	sprintf(name, "rwcd%da",lun);
-	t->ra_devfs_token = devfs_add_devsw(
-		"/", name, &wcd_cdevsw, (lun * 8),
-		DV_CHR,	WDC_UID,  WDC_GID, 0600);
-
-	sprintf(name, "rwcd%dc",lun);
-	t->rc_devfs_token = devfs_add_devsw(
-		"/", name, &wcd_cdevsw, (lun * 8) + RAW_PART,
-		DV_CHR,	WDC_UID,  WDC_GID, 0600);
-
-	sprintf(name, "wcd%da",lun);
-	t->a_devfs_token = devfs_add_devsw(
-		"/", name, &wcd_bdevsw, (lun * 8),
-		DV_BLK,	WDC_UID,  WDC_GID, 0600);
-
-	sprintf(name, "wcd%dc",lun);
-	t->c_devfs_token = devfs_add_devsw(
-		"/", name, &wcd_bdevsw, (lun * 8) + RAW_PART,
-		DV_BLK,	WDC_UID,  WDC_GID, 0600);
+	t->ra_devfs_token = 
+		devfs_add_devswf(&wcd_cdevsw, (lun * 8), DV_CHR, WDC_UID, 
+				 WDC_GID, 0600, "rwcd%da", lun);
+	t->rc_devfs_token = 
+		devfs_add_devswf(&wcd_cdevsw, (lun * 8) + RAW_PART, DV_CHR,
+				 WDC_UID,  WDC_GID, 0600, "rwcd%dc", lun);
+	t->a_devfs_token = 
+		devfs_add_devswf(&wcd_bdevsw, (lun * 8), DV_BLK, WDC_UID,
+				 WDC_GID, 0600, "wcd%da", lun);
+	t->c_devfs_token = 
+		devfs_add_devswf(&wcd_bdevsw, (lun * 8) + RAW_PART, DV_BLK,
+				 WDC_UID,  WDC_GID, 0600, "wcd%dc", lun);
 #endif
 	return (1);
 }

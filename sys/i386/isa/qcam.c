@@ -176,12 +176,9 @@ qcam_attach (struct isa_device *devp)
 	       qs->unit, qs->flags & QC_BIDIR_HW ? "bi" : "uni");
 
 #ifdef DEVFS
-{
-	char name[32];
-	sprintf(name,"qcam%d", qs->unit);
-	qs->devfs_token = devfs_add_devsw("/", name, &qcam_cdevsw, qs->unit,
-					  DV_CHR, 0, 0, 0600);
-}
+	qs->devfs_token = 
+		devfs_add_devswf(&qcam_cdevsw, qs->unit, DV_CHR, 0, 0, 0600, 
+				 "qcam%d", qs->unit);
 #endif
 	return 1;
 }

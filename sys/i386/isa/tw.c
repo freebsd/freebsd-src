@@ -360,7 +360,6 @@ twattach(idp)
 	struct isa_device *idp;
 {
   struct tw_sc *sc;
-  char	name[32];
   int	unit;
 
   sc = &tw_sc[unit = idp->id_unit];
@@ -368,10 +367,9 @@ twattach(idp)
   sc->sc_state = 0;
 
 #ifdef DEVFS
-/*	path	name	devsw		minor	type   uid gid perm*/
-	sprintf(name,"tw%d", unit);
-	sc->devfs_token = devfs_add_devsw( "/", name, &tw_cdevsw, unit,
-						DV_CHR, 0, 0, 0600);
+	sc->devfs_token = 
+		devfs_add_devswf(&tw_cdevsw, unit, DV_CHR, 0, 0, 
+				 0600, "tw%d", unit);
 #endif
 
   return (1);

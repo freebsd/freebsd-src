@@ -263,7 +263,6 @@ rcattach(dvp)
 	struct rc_chans         *rc  = &rc_chans[dvp->id_unit * CD180_NCHAN];
 	static int              rc_wakeup_started = 0;
 	struct tty              *tp;
-	char	name[32];
 
 	/* Thorooughly test the device */
 	if (rcb->rcb_probed != RC_PROBED)
@@ -296,10 +295,11 @@ rcattach(dvp)
 		tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
 #ifdef DEVFS
 /* FIX THIS to reflect real devices */
-		sprintf(name,"rc%d.%d",dvp->id_unit,chan);
-		rc->devfs_token = devfs_add_devsw( "/", name,
-				&rc_cdevsw,(dvp->id_unit * CD180_NCHAN) + chan ,
-				DV_CHR, 0, 0, 0600);
+		rc->devfs_token = 
+			devfs_add_devswf(&rc_cdevsw,
+					 (dvp->id_unit * CD180_NCHAN) + chan,
+					 DV_CHR, 0, 0, 0600, "rc%d.%d", 
+					 dvp->id_unit, chan);
 #endif
 	}
 	rcb->rcb_probed = RC_ATTACHED;
