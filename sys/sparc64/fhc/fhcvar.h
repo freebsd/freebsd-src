@@ -41,6 +41,7 @@ struct fhc_softc {
 	int			sc_board;
 	int			sc_ign;
 	int			sc_flags;
+	struct cdev		*sc_led_dev;
 };
 
 device_probe_t fhc_probe;
@@ -51,7 +52,7 @@ bus_probe_nomatch_t fhc_probe_nomatch;
 bus_setup_intr_t fhc_setup_intr;
 bus_teardown_intr_t fhc_teardown_intr;
 bus_alloc_resource_t fhc_alloc_resource;
-bus_release_resource_t fhc_release_resource;
+bus_get_resource_list_t fhc_get_resource_list;
 
 ofw_bus_get_compat_t fhc_get_compat;
 ofw_bus_get_model_t fhc_get_model;
@@ -59,4 +60,4 @@ ofw_bus_get_name_t fhc_get_name;
 ofw_bus_get_node_t fhc_get_node;
 ofw_bus_get_type_t fhc_get_type;
 
-#endif
+#endif /* !_SPARC64_FHC_FHCVAR_H_ */

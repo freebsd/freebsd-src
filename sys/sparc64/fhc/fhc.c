@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/pcpu.h>
 
+#include <dev/led/led.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/openfirm.h>
 
@@ -65,6 +66,7 @@ struct fhc_devinfo {
 };
 
 static void fhc_intr_stub(void *);
+static void fhc_led_func(void *, int);
 
 int
 fhc_probe(device_t dev)
@@ -76,6 +78,7 @@ fhc_probe(device_t dev)
 int
 fhc_attach(device_t dev)
 {
+	char ledname[sizeof("boardXX")];
 	struct fhc_devinfo *fdi;
 	struct sbus_regs *reg;
 	struct fhc_softc *sc;
@@ -95,10 +98,12 @@ fhc_attach(device_t dev)
 	sc = device_get_softc(dev);
 	node = sc->sc_node;
 
+	device_printf(dev, "board %d, ", sc->sc_board);
 	if (OF_getprop_alloc(node, "board-model", 1, (void **)&name) != -1) {
-		device_printf(dev, "board %d, %s\n", sc->sc_board, name);
+		printf("model %s\n", name);
 		free(name, M_OFWPROP);
-	}
+	} else
+		printf("model unknown\n");
 
 	for (i = FHC_FANFAIL; i <= FHC_TOD; i++) {
 		bus_space_write_4(sc->sc_bt[i], sc->sc_bh[i], FHC_ICLR, 0x0);
@@ -118,14 +123,19 @@ fhc_attach(device_t dev)
 	ctrl &= ~(FHC_CTRL_AOFF | FHC_CTRL_BOFF | FHC_CTRL_SLINE);
 	bus_space_write_4(sc->sc_bt[FHC_INTERNAL], sc->sc_bh[FHC_INTERNAL],
 	    FHC_CTRL, ctrl);
-	ctrl = bus_space_read_4(sc->sc_bt[FHC_INTERNAL],
-	    sc->sc_bh[FHC_INTERNAL], FHC_CTRL);
+	bus_space_read_4(sc->sc_bt[FHC_INTERNAL], sc->sc_bh[FHC_INTERNAL],
+	    FHC_CTRL);
 
 	sc->sc_nrange = OF_getprop_alloc(node, "ranges",
 	    sizeof(*sc->sc_ranges), (void **)&sc->sc_ranges);
 	if (sc->sc_nrange == -1) {
 		device_printf(dev, "can't get ranges\n");
 		return (ENXIO);
+	}
+
+	if ((sc->sc_flags & FHC_CENTRAL) == 0) {
+		snprintf(ledname, sizeof(ledname), "board%d", sc->sc_board);
+		sc->sc_led_dev = led_create(fhc_led_func, sc, ledname);
 	}
 
 	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
@@ -291,36 +301,41 @@ struct resource *
 fhc_alloc_resource(device_t bus, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
+	struct resource_list *rl;
 	struct resource_list_entry *rle;
-	struct fhc_devinfo *fdi;
 	struct fhc_softc *sc;
 	struct resource *res;
 	bus_addr_t coffset;
 	bus_addr_t cend;
 	bus_addr_t phys;
 	int isdefault;
+	int passthrough;
 	int i;
 
 	isdefault = (start == 0UL && end == ~0UL);
+	passthrough = (device_get_parent(child) != bus);
 	res = NULL;
+	rle = NULL;
+	rl = BUS_GET_RESOURCE_LIST(bus, child);
 	sc = device_get_softc(bus);
-	fdi = device_get_ivars(child);
-	rle = resource_list_find(&fdi->fdi_rl, type, *rid);
-	if (rle == NULL)
-		return (NULL);
-	if (rle->res != NULL)
-		panic("%s: resource entry is busy", __func__);
-	if (isdefault) {
-		start = rle->start;
-		count = ulmax(count, rle->count);
-		end = ulmax(rle->end, start + count - 1);
-	}
+	rle = resource_list_find(rl, type, *rid);
 	switch (type) {
 	case SYS_RES_IRQ:
-		res = bus_generic_alloc_resource(bus, child, type, rid,
-		    start, end, count, flags);
+		return (resource_list_alloc(rl, bus, child, type, rid, start,
+		    end, count, flags));
 		break;
 	case SYS_RES_MEMORY:
+		if (!passthrough) {
+			if (rle == NULL)
+				return (NULL);
+			if (rle->res != NULL)
+				panic("%s: resource entry is busy", __func__);
+			if (isdefault) {
+				start = rle->start;
+				count = ulmax(count, rle->count);
+				end = ulmax(rle->end, start + count - 1);
+			}
+		}
 		for (i = 0; i < sc->sc_nrange; i++) {
 			coffset = sc->sc_ranges[i].coffset;
 			cend = coffset + sc->sc_ranges[i].size - 1;
@@ -332,7 +347,8 @@ fhc_alloc_resource(device_t bus, device_t child, int type, int *rid,
 				res = bus_generic_alloc_resource(bus, child,
 				    type, rid, phys + start, phys + end,
 				    count, flags);
-				rle->res = res;
+				if (!passthrough)
+					rle->res = res;
 				break;
 			}
 		}
@@ -343,25 +359,34 @@ fhc_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	return (res);
 }
 
-int
-fhc_release_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *r)
+struct resource_list *
+fhc_get_resource_list(device_t bus, device_t child)
 {
-	struct resource_list_entry *rle;
 	struct fhc_devinfo *fdi;
-	int error;
 
-	error = bus_generic_release_resource(bus, child, type, rid, r);
-	if (error != 0)
-		return (error);
 	fdi = device_get_ivars(child);
-	rle = resource_list_find(&fdi->fdi_rl, type, rid);
-	if (rle == NULL)
-		panic("%s: can't find resource", __func__);
-	if (rle->res == NULL)
-		panic("%s: resource entry is not busy", __func__);
-	rle->res = NULL;
-	return (error);
+	return (&fdi->fdi_rl);
+}
+
+static void
+fhc_led_func(void *arg, int onoff)
+{
+	struct fhc_softc *sc;
+	uint32_t ctrl;
+
+	sc = (struct fhc_softc *)arg;
+
+	ctrl = bus_space_read_4(sc->sc_bt[FHC_INTERNAL],
+	    sc->sc_bh[FHC_INTERNAL], FHC_CTRL);
+	if (onoff)
+		ctrl |= FHC_CTRL_RLED;
+	else
+		ctrl &= ~FHC_CTRL_RLED;
+	ctrl &= ~(FHC_CTRL_AOFF | FHC_CTRL_BOFF | FHC_CTRL_SLINE);
+	bus_space_write_4(sc->sc_bt[FHC_INTERNAL], sc->sc_bh[FHC_INTERNAL],
+	    FHC_CTRL, ctrl);
+	bus_space_read_4(sc->sc_bt[FHC_INTERNAL], sc->sc_bh[FHC_INTERNAL],
+	    FHC_CTRL);
 }
 
 const char *
