@@ -74,7 +74,8 @@ To change an environment variable in /bin/sh use:
 	$ export VARIABLE
 %
 You can use /etc/make.conf to control the options used to compile software
-on this system.  Example entries are in /usr/share/examples/etc/make.conf.
+on this system.  Example entries are in
+/usr/share/examples/etc/defaults/make.conf.
 %
 To do a fast search for a file, try
 
