@@ -481,7 +481,10 @@ worm*)
 		unit=0
 	fi
 	chr=62
+	blk=23
 	name=worm
+	rm -f ${name}${unit}
+	mknod ${name}${unit} b $blk ${unit}
 	rm -f r${name}${unit}
 	mknod r${name}${unit} c $chr ${unit}
 	rm -f r${name}${unit}.ctl
