@@ -207,6 +207,7 @@ struct colors	{
 struct vid_info {
 	short		size;
 	short		m_num;
+	u_short		font_size;
 	u_short		mv_row, mv_col;
 	u_short		mv_rsz, mv_csz;
 	struct colors	mv_norm,
