@@ -102,8 +102,6 @@ struct  file_list *ftab;
 char	errbuf[80];
 int	maxusers;
 
-int	seen_scbus;
-
 #define ns(s)	strdup(s)
 
 static int connect __P((char *, int));
@@ -340,15 +338,11 @@ Dev_spec:
 	      = {
 		cur.d_name = $2;
 		cur.d_unit = UNKNOWN;
-		if (eq($2, "scbus"))
-			seen_scbus = 1;
 		} |
 	Init_dev Dev NUMBER Dev_info
 	      = {
 		cur.d_name = $2;
 		cur.d_unit = $3;
-		if (eq($2, "scbus"))
-			seen_scbus = 1;
 		};
 
 Init_dev:
