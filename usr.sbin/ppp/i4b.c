@@ -122,17 +122,17 @@ i4b_Timeout(void *data)
     /* First time looking for carrier */
     if (Online(dev))
       log_Printf(LogPHASE, "%s: %s: CD detected\n", p->link.name, p->name.full);
-    else if (++dev->carrier_seconds >= p->cfg.cd.delay) {
+    else if (++dev->carrier_seconds >= dev->dev.cd.delay) {
       log_Printf(LogPHASE, "%s: %s: No carrier"
                  " (increase ``set cd'' from %d ?)\n",
-                 p->link.name, p->name.full, p->cfg.cd.delay);
+                 p->link.name, p->name.full, dev->dev.cd.delay);
       timer_Stop(&dev->Timer);
       /* i4b_AwaitCarrier() will notice */
     } else {
       /* Keep waiting */
       log_Printf(LogDEBUG, "%s: %s: Still no carrier (%d/%d)\n",
                  p->link.name, p->name.full, dev->carrier_seconds,
-                 p->cfg.cd.delay);
+                 dev->dev.cd.delay);
       dev->mbits = -1;
     }
   } else {
@@ -291,6 +291,7 @@ i4b_device2iov(struct device *d, struct iovec *iov, int *niov,
 static struct device basei4bdevice = {
   I4B_DEVICE,
   "i4b",
+  { CD_REQUIRED, DEF_I4BCDDELAY },
   i4b_AwaitCarrier,
   NULL,
   i4b_Raw,
@@ -372,6 +373,20 @@ i4b_Create(struct physical *p)
   memcpy(&dev->dev, &basei4bdevice, sizeof dev->dev);
   memset(&dev->Timer, '\0', sizeof dev->Timer);
   dev->mbits = -1;
+
+  switch (p->cfg.cd.necessity) {
+    case CD_VARIABLE:
+      dev->dev.cd.delay = p->cfg.cd.delay;
+      break;
+    case CD_REQUIRED:
+      dev->dev.cd = p->cfg.cd;
+      break;
+    case CD_NOTREQUIRED:
+      log_Printf(LogWARN, "%s: Carrier must be set, using ``set cd %d!''\n",
+                 p->link.name, dev->dev.cd.delay);
+    case CD_DEFAULT:
+      break;
+  }
 
   oldflag = fcntl(p->fd, F_GETFL, 0);
   if (oldflag < 0) {

@@ -3598,22 +3598,51 @@ be agreeable with the peer), or if
 is specified,
 .Nm
 will expect the peer to specify the number.
-.It "set cd off|" Ns Ar seconds Ns Op \&!
+.It set cd Oo
+.No off| Ns Ar seconds Ns Op \&!
+.Oc
 Normally,
 .Nm
-checks for the existence of carrier one second after the login script is
-complete.  If it's not set,
+checks for the existence of carrier depending on the type of device
+that has been opened:
+.Bl -tag -width XXX -offset XXX
+.It Terminal Devices
+Carrier is checked one second after the login script is complete.  If it's
+not set,
 .Nm
 assumes that this is because the device doesn't support carrier (which
 is true for most
 .Dq laplink
 NULL-modem cables), logs the fact and stops checking
-for carrier.  However, some modems take some time to assert the carrier
-signal, resulting in
+for carrier.
+.Pp
+As ptys don't support the TIOCMGET ioctl, the tty device will switch all
+carrier detection off when it detects that the device is a pty.
+.It ISDN (i4b) Devices
+Carrier is checked once per second for 6 seconds.  If it's not set after
+the sixth second, the connection attempt is considered to have failed and
+the device is closed.  Carrier is always required for i4b devices.
+.It PPPoE (netgraph) Devices
+Carrier is checked once per second for 5 seconds.  If it's not set after
+the fifth second, the connection attempt is considered to have failed and
+the device is closed.  Carrier is always required for PPPoE devices.
+.El
+.Pp
+All other device types don't support carrier.  Setting a carrier value will
+result in a warning when the device is opened.
+.Pp
+Some modems take more than one second after connecting to assert the carrier
+signal.  If this delay isn't increased, this will result in
 .Nm ppp Ns No s
-inability to detect when the link is dropped.
+inability to detect when the link is dropped, as
+.Nm
+assumes that the device isn't asserting carrier.
+.Pp
+The
+.Dq set cd
+command overrides the default carrier behaviour.
 .Ar seconds
-specifies the number of seconds that
+specifies the maximum number of seconds that
 .Nm
 should wait after the dial script has finished before deciding if
 carrier is available or not.
@@ -3627,7 +3656,12 @@ will not check for carrier on the device, otherwise
 will not proceed to the login script until either carrier is detected
 or until
 .Ar seconds
-has elapsed.
+has elapsed, at which point
+.Nm
+assumes that the device will not set carrier.
+.Pp
+If no arguments are given, carrier settings will go back to their default
+values.
 .Pp
 If
 .Ar seconds
@@ -3639,21 +3673,6 @@ will
 carrier.  If carrier is not detected after
 .Ar seconds
 seconds, the link will be disconnected.
-.Pp
-For ISDN devices,
-.Nm
-will always insist on carrier (the value
-.Dq off
-is invalid).  Carrier is raised by the i4brbchX device driver only after
-the call has connected.  It is therefore wise to set a reasonable value
-such as
-.Ar 6
-seconds.
-.Pp
-Carrier
-.Em require Ns No ment
-is ignored for all other device types - as if set to
-.Dq off .
 .It set choked Op Ar timeout
 This sets the number of seconds that
 .Nm

@@ -42,13 +42,20 @@ struct cmdargs;
 #define CARRIER_LOST	3
 
 /* A cd ``necessity'' value */
-#define CD_VARIABLE	1
-#define CD_REQUIRED	2
-#define CD_NOTREQUIRED	3
+#define CD_VARIABLE	0
+#define CD_REQUIRED	1
+#define CD_NOTREQUIRED	2
+#define CD_DEFAULT	3
+
+struct cd {
+  unsigned necessity : 2;  /* A CD_ value */
+  int delay;               /* Wait this many seconds after login script */
+};
 
 struct device {
   int type;
   const char *name;
+  struct cd cd;
 
   int (*awaitcarrier)(struct physical *);
   int (*removefromset)(struct physical *, fd_set *, fd_set *, fd_set *);
@@ -97,10 +104,7 @@ struct physical {
 
     char devlist[LINE_LEN];    /* NUL separated list of devices */
     int ndev;                  /* number of devices in list */
-    struct {
-      unsigned necessity : 2;  /* A CD_ value */
-      int delay;               /* Wait this many seconds after login script */
-    } cd;
+    struct cd cd;
   } cfg;
 };
 
