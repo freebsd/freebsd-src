@@ -50,7 +50,6 @@ The following command line options are supported:
 .Bl -tag -width indent
 .It Ar mode
 Select a new video mode. The modes currently recognized are:
-.Ar 40x25 ,
 .Ar 80x25 ,
 .Ar 80x30 ,
 .Ar 80x43 ,
@@ -207,6 +206,14 @@ or
 so that desired font files will be automatically loaded
 when the system starts up.
 See below.
+.Pp
+If you want to use the raster text mode
+.Ar VESA_800x600 ,
+you need to recomile your kernel with the
+.Em SC_PIXLE_MODE
+option.  See
+.Xr syscons 4
+for more details on this kernel option.
 .Sh VIDEO OUTPUT CONFIGURATION
 .Ss Boot Time Configuration
 You may set the following variables in
