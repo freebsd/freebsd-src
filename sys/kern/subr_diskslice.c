@@ -43,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.22 1996/04/02 04:52:03 scrappy Exp $
+ *	$Id: subr_diskslice.c,v 1.23 1996/04/05 19:12:01 scrappy Exp $
  */
 
 #include <sys/param.h>
@@ -658,14 +658,12 @@ dsopen(dname, dev, mode, sspp, lp, strat, setgeom, bdevsw, cdevsw)
 	if (slice >= BASE_SLICE && sp->ds_bdev == NULL && sp->ds_size != 0) {
 		mynor = minor(dkmodpart(dev, RAW_PART));
 		sname = dsname(dname, unit, slice, RAW_PART, partname);
-		sp->ds_bdev = 
-			devfs_add_devswf(bdevsw, mynor, DV_BLK, UID_ROOT, 
-					 GID_OPERATOR, 0640, "%s%s", sname,
-					 partname);
-		sp->ds_cdev = 
-			devfs_add_devswf(cdevsw, mynor, DV_CHR, UID_ROOT, 
-					 GID_OPERATOR, 0640, "r%s%s", sname,
-					 partname);
+		sp->ds_bdev = devfs_add_devswf(bdevsw, mynor, DV_BLK,
+					       UID_ROOT, GID_OPERATOR, 0640,
+					       "%s", sname);
+		sp->ds_cdev = devfs_add_devswf(cdevsw, mynor, DV_CHR,
+					       UID_ROOT, GID_OPERATOR, 0640,
+					       "r%s", sname);
 	}
 #endif
 	if (sp->ds_label == NULL) {
@@ -944,10 +942,10 @@ set_ds_labeldevs(dname, dev, ssp)
 	struct disklabel *lp;
 	int	mynor;
 	int	part;
-	char	*devname;
 	char	partname[2];
 	struct partition *pp;
 	int	slice;
+	char	*sname;
 	struct diskslice *sp;
  
 	slice = dkslice(dev);
@@ -959,25 +957,24 @@ set_ds_labeldevs(dname, dev, ssp)
 		pp = &lp->d_partitions[part];
 		if (pp->p_size == 0)
 			continue;
-		devname = dsname(dname, dkunit(dev), slice, 
-				 part, partname);
+		sname = dsname(dname, dkunit(dev), slice, part, partname);
 		if (part == RAW_PART && sp->ds_bdev != NULL) {
 			sp->ds_bdevs[part] =
-				devfs_link(sp->ds_bdev, "%s%s",
-					   devname, partname);
+				devfs_link(sp->ds_bdev,
+					   "%s%s", sname, partname);
 			sp->ds_cdevs[part] =
-				devfs_link(sp->ds_cdev, "r%s%s",
-					   devname, partname);
+				devfs_link(sp->ds_cdev,
+					   "r%s%s", sname, partname);
 		} else {
 			mynor = minor(dkmodpart(dev, part));
 			sp->ds_bdevs[part] =
 				devfs_add_devswf(ssp->dss_bdevsw, mynor, DV_BLK,
 						 UID_ROOT, GID_OPERATOR, 0640,
-						 "%s%s", devname, partname);
+						 "%s%s", sname, partname);
 			sp->ds_cdevs[part] =
 				devfs_add_devswf(ssp->dss_cdevsw, mynor, DV_CHR,
 						 UID_ROOT, GID_OPERATOR, 0640,
-						 "r%s%s", devname, partname);
+						 "r%s%s", sname, partname);
 		}
 	}
 }
