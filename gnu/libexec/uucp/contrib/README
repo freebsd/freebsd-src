@@ -3,6 +3,11 @@ This is the README file for the Taylor UUCP contrib directory.
 This directory contains contributed shell scripts and programs that
 you may find useful.
 
+Not actually included here, but nonetheless useful, is the TUA program
+distributed by Lele Gaifax <lele@nautilus.sublink.org>.  It can do
+various sorts of analysis of any type of UUCP log file.  It should be
+available from most FTP sites.
+
 xchat.c, xchat.man, README-XCHAT, xc-conf.h-dist, Makefile.xchat:
     A program by Bob Denny that may be invoked by the ``chat-program''
     command for any of the various types of chat scripts.  It is
@@ -13,9 +18,16 @@ xchat.c, xchat.man, README-XCHAT, xc-conf.h-dist, Makefile.xchat:
 Dial.Hayes, Hangup.Hayes, Login.LAT, Login.PortSel, Login.VMS:
     Sample scripts for xchat.
 
+uucomp.shar
+    A set of programs which automatically compresses outgoing data in
+    the spool directory.  The remote system must cooperate when using
+    this.  It can cut down on phone usage when applicable.
+    Contributed by Ed Carp.
+
 uurate.c, uurate.man, README-UURATE, Makefile.uurt:
     A nifty little program by Bob Denny which analyzes the Log and
-    Stats file and prints various sorts of reports.
+    Stats file and prints various sorts of reports.  This version was
+    tweaked by Stephan Niemz and Klaus Dahlenburg.
 
 uutraf:
     Another program to produce neat reports from your log files, this
@@ -28,9 +40,10 @@ savelog.sh, savelog.man:
     is originally from smail.  It was written by Ronald S. Karr and
     Landon Curt Noll, and was given to me by Bob Denny.
 
-uureroute:
-    A perl script reroute all mail queued up for one host to another.
-    Written by Bill Campbell and contributed by Francois Pinard.
+uureroute.perl:
+    A perl script to reroute all mail queued up for one host to
+    another.  Written by Bill Campbell and contributed by Francois
+    Pinard.
 
 stats.sh:
     A gawk script by Zacharias Beckman which reads the Stats file and
@@ -38,6 +51,29 @@ stats.sh:
 
 uuq.sh:
     A uuq workalike shell script by Zacharias Beckman.
+
+uupoll.shar:
+    uupoll and autopoll programs contributed by Klaus Dahlenburg.
+    uupoll can be used to automatically poll all systems, or a list of
+    systems; autopoll will poll and then retry failed calls.
+
+uudemon.shar:
+    An implementation of the HDB uudemon.poll script by Donald Burr.
+
+uuxconv:
+    A program by Richard E. Nickle to help convert SPOOLDIR_HDB spool
+    directories to SPOOLDIR_TAYLOR spool directories (note that it is
+    not necessary to convert your spool directories at all; the
+    SPOOLDIR_TAYLOR approach may be slightly more efficient).
+
+dialHDB.c:
+    A program by Daniel Hagerty which permits using HDB dialer
+    programs as chat programs.
+
+amiga.c:
+    A wrapper program to run uucico from a cron table under Amiga
+    SVR4 (apparently a wrapper is required).  This was contributed by
+    Lawrence E. Rosenman.
 
 tstout.c:
     A program to remove a user from utmp and wtmp, essentially logging

@@ -1,7 +1,7 @@
 /* uucnfi.h
    Internal header file for the uuconf package.
 
-   Copyright (C) 1992 Ian Lance Taylor
+   Copyright (C) 1992, 1993, 1994 Ian Lance Taylor
 
    This file is part of the Taylor UUCP uuconf library.
 
@@ -20,7 +20,7 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 /* This is the internal header file for the uuconf package.  It should
@@ -80,6 +80,8 @@ struct sprocess
   const char *zdebug;
   /* The maximum number of simultaneously executing uuxqts.  */
   int cmaxuuxqts;
+  /* How often to spawn a uuxqt process.  */
+  const char *zrunuuxqt;
   /* Whether we are reading the V2 configuration files.  */
   boolean fv2;
   /* Whether we are reading the HDB configuration files.  */
@@ -333,6 +335,12 @@ extern int _uuconf_itime_parse P((struct sglobal *qglobal, char *ztime,
 
 /* A grade comparison function to pass to _uuconf_itime_parse.  */
 extern int _uuconf_itime_grade_cmp P((long, long));
+
+/* Parse a debugging string.  */
+
+extern int _uuconf_idebug_cmd P((struct sglobal *qglobal,
+				 char **pzdebug, int argc,
+				 char **argv, pointer pblock));
 
 /* Add a string to a NULL terminated list of strings.  */
 extern int _uuconf_iadd_string P((struct sglobal *qglobal,

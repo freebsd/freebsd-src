@@ -1,5 +1,5 @@
 /* fsusage.c -- return space usage of mounted filesystems
-   Copyright (C) 1991, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1991, 1992, 1993 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,10 +19,9 @@
    for use with Taylor UUCP.  */
 
 #include "uucp.h"
+#include "uudefs.h"
 #include "sysdep.h"
 #include "fsusg.h"
-
-int statfs ();
 
 #if STAT_STATFS2_BSIZE
 #ifndef _IBMR2			/* 4.3BSD, SunOS 4, HP-UX, AIX PS/2.  */
@@ -52,16 +51,19 @@ int statfs ();
 #endif
 #endif
 
-#ifdef _AIX
-#ifdef _I386			/* AIX PS/2.  */
+#if STAT_DUSTAT			/* AIX PS/2.  */
 #include <sys/stat.h>
 #include <sys/dustat.h>
-#endif
 #endif
 
 #if STAT_STATVFS		/* SVR4.  */
 #include <sys/statvfs.h>
-int statvfs ();
+#endif
+
+#if STAT_DISK_SPACE		/* QNX.  */
+#include <sys/disk.h>
+#include <fcntl.h>
+#include <errno.h>
 #endif
 
 #define STAT_NONE 0
@@ -71,7 +73,9 @@ int statvfs ();
 #if ! STAT_STATFS2_FSIZE
 #if ! STAT_STATFS2_FS_DATA
 #if ! STAT_STATFS4
+#if ! STAT_DUSTAT
 #if ! STAT_USTAT
+#if ! STAT_DISK_SPACE
 #undef STAT_NONE
 #define STAT_NONE 1
 #endif
@@ -80,8 +84,12 @@ int statvfs ();
 #endif
 #endif
 #endif
+#endif
+#endif
 
 #if ! STAT_NONE
+
+static long adjust_blocks P((long blocks, int fromsize, int tosize));
 
 /* Return the number of TOSIZE-byte blocks used by
    BLOCKS FROMSIZE-byte blocks, rounding up.  */
@@ -121,7 +129,7 @@ get_fs_usage (path, disk, fsp)
 
   if (statfs (path, &fsd) != 1)
     return -1;
-#define convert_blocks(b) adjust_blocks ((b), 1024, 512)
+#define convert_blocks(b) adjust_blocks ((long) (b), 1024, 512)
   fsp->fsu_blocks = convert_blocks (fsd.fd_req.btot);
   fsp->fsu_bfree = convert_blocks (fsd.fd_req.bfree);
   fsp->fsu_bavail = convert_blocks (fsd.fd_req.bfreen);
@@ -129,7 +137,7 @@ get_fs_usage (path, disk, fsp)
   fsp->fsu_ffree = fsd.fd_req.gfree;
 #endif
 
-#if STAT_STATFS2_BSIZE		/* 4.3BSD, SunOS 4, HP-UX, AIX.  */
+#if STAT_STATFS2_BSIZE || STAT_DUSTAT	/* 4.3BSD, SunOS 4, HP-UX, AIX.  */
   struct statfs fsd;
 
   if (statfs (path, &fsd) < 0)
@@ -169,23 +177,94 @@ get_fs_usage (path, disk, fsp)
   adjust_blocks ((b), fsd.f_frsize ? fsd.f_frsize : fsd.f_bsize, 512)
 #endif
 
-#if STAT_USTAT
-  {
-    struct stat sstat;
-    struct ustat s;
+#if STAT_DISK_SPACE		/* QNX.  */
+  int o;
+  int iret;
+  long cfree_blocks, ctotal_blocks;
+  char *zpath;
+  char *zslash;
+    
+  zpath = zbufcpy (path);
+  while ((o = open (zpath, O_RDONLY, 0)) == -1
+	 && errno == ENOENT)
+    {
+      /* The named file doesn't exist, so we can't open it.  Try the
+	 directory containing it. */
+      if ((strcmp ("/", zpath) == 0)
+	  || (strcmp (zpath, ".") == 0)
+	  || (strcmp (zpath, "") == 0)
+	  /* QNX peculiarity: "//2" means root on node 2 */
+	  || ((strncmp (zpath, "//", 2) == 0)
+	      && (strchr (zpath + 2, '/') == NULL)))
+	{
+	  /* We can't shorten this! */
+	  break;
+	}
 
-    if (stat (path, &sstat) < 0
-	|| ustat (sstat.st_dev, &s) < 0)
+      /* Shorten the pathname by one component and try again. */
+      zslash = strrchr (zpath, '/');
+      if (zslash == NULL)
+	{
+	  /* Try the current directory.  We can open directories. */
+	  zpath[0] = '.';
+	  zpath[1] = '\0';
+	}
+      else if (zslash == zpath)
+	{
+	  /* Try the root directory. */
+	  zpath[0] = '/';
+	  zpath[1] = '\0';
+	}
+      else
+	{
+	  /* Chop off last path component. */
+	  zslash[0] = '\0';
+	}
+    }
+  if (o == -1)
+    {
+      ulog (LOG_ERROR, "get_fs_usage: open (%s) failed: %s", zpath,
+	    strerror (errno));
+      ubuffree (zpath);
       return -1;
-    fsp->fsu_blocks = -1;
-    fsp->fsu_bfree = f_tfree;
-    fsp->fsu_bavail = f_tfree;
-    fsp->fsu_files = -1;
-    fsp->fsu_ffree = -1;
-  }
+    }
+  ubuffree (zpath);
+
+  iret = disk_space (o, &cfree_blocks, &ctotal_blocks);
+  (void) close (o);
+  if (iret == -1)
+    {
+      ulog (LOG_ERROR, "get_fs_usage: disk_space failed: %s",
+	    strerror (errno));
+      return -1;
+    }
+
+  fsp->fsu_blocks = ctotal_blocks;
+  fsp->fsu_bfree = cfree_blocks;
+  fsp->fsu_bavail = cfree_blocks;
+    
+  /* QNX has no limit on the number of inodes.  Most inodes are stored
+     directly in the directory entry. */
+  fsp->fsu_files = -1;
+  fsp->fsu_ffree = -1;
+#endif /* STAT_DISK_SPACE */
+
+#if STAT_USTAT
+  struct stat sstat;
+  struct ustat s;
+
+  if (stat (path, &sstat) < 0
+      || ustat (sstat.st_dev, &s) < 0)
+    return -1;
+  fsp->fsu_blocks = -1;
+  fsp->fsu_bfree = s.f_tfree;
+  fsp->fsu_bavail = s.f_tfree;
+  fsp->fsu_files = -1;
+  fsp->fsu_ffree = -1;
 #endif
 
 #if ! STAT_STATFS2_FS_DATA /* ! Ultrix */
+#if ! STAT_DISK_SPACE
 #if ! STAT_USTAT
 #if ! STAT_NONE
   fsp->fsu_blocks = convert_blocks (fsd.f_blocks);
@@ -196,12 +275,12 @@ get_fs_usage (path, disk, fsp)
 #endif
 #endif
 #endif
+#endif
 
   return 0;
 }
 
-#ifdef _AIX
-#ifdef _I386
+#if STAT_DUSTAT
 /* AIX PS/2 does not supply statfs.  */
 
 int
@@ -227,5 +306,4 @@ statfs (path, fsb)
   fsb->f_fsid.val[1] = fsd.du_pckno;
   return 0;
 }
-#endif
-#endif /* _AIX && _I386 */
+#endif /* STAT_DUSTAT */

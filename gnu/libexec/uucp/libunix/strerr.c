@@ -12,6 +12,8 @@ extern int sys_nerr;
 extern char *sys_errlist[];
 #endif
 
+#undef strerror
+
 char *
 strerror (ierr)
      int ierr;

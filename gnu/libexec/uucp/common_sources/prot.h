@@ -1,7 +1,7 @@
 /* prot.h
    Protocol header file.
 
-   Copyright (C) 1991, 1992 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,7 +20,7 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 /* We need the definition of uuconf_cmdtab to declare the protocol
@@ -49,6 +49,8 @@ struct sprotocol
   int ireliable;
   /* The maximum number of channels this protocol can support.  */
   int cchans;
+  /* Whether files may be reliably restarted using this protocol.  */
+  boolean frestart;
   /* Protocol parameter commands.  */
   struct uuconf_cmdtab *qcmds;
   /* A routine to start the protocol.  If *pzlog is set to be
@@ -163,6 +165,7 @@ extern boolean fijstart P((struct sdaemon *qdaemon, char **pzlog,
 extern struct uuconf_cmdtab asGproto_params[];
 extern boolean fgstart P((struct sdaemon *qdaemon, char **pzlog));
 extern boolean fbiggstart P((struct sdaemon *qdaemon, char **pzlog));
+extern boolean fvstart P((struct sdaemon *qdaemon, char **pzlog));
 extern boolean fgshutdown P((struct sdaemon *qdaemon));
 extern boolean fgsendcmd P((struct sdaemon *qdaemon, const char *z,
 			    int ilocal, int iremote));

@@ -1,7 +1,7 @@
 /* uucico.c
    This is the main UUCP communication program.
 
-   Copyright (C) 1991, 1992 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char uucico_rcsid[] = "$Id: uucico.c,v 1.1 1993/08/04 19:36:34 jtc Exp $";
+const char uucico_rcsid[] = "$Id: uucico.c,v 1.182 1994/04/17 02:35:08 ian Rel $";
 #endif
 
 #include <ctype.h>
@@ -45,10 +45,21 @@ const char uucico_rcsid[] = "$Id: uucico.c,v 1.1 1993/08/04 19:36:34 jtc Exp $";
 #include "prot.h"
 #include "trans.h"
 #include "system.h"
-
-/* The program name.  */
-char abProgram[] = "uucico";
 
+#if HAVE_ENCRYPTED_PASSWORDS
+#ifndef crypt
+extern char *crypt ();
+#endif
+#endif
+
+/* Coherent already had a different meaning for the -c option.  What a
+   pain.  */
+#ifdef __COHERENT__
+#define COHERENT_C_OPTION 1
+#else
+#define COHERENT_C_OPTION 0
+#endif
+
 /* Define the known protocols.  */
 
 #define TCP_PROTO \
@@ -58,30 +69,33 @@ char abProgram[] = "uucico";
 
 static const struct sprotocol asProtocols[] =
 {
-  { 't', TCP_PROTO, 1,
+  { 't', TCP_PROTO, 1, TRUE,
       asTproto_params, ftstart, ftshutdown, ftsendcmd, ztgetspace,
       ftsenddata, ftwait, ftfile },
-  { 'e', TCP_PROTO, 1,
+  { 'e', TCP_PROTO, 1, TRUE,
       asEproto_params, festart, feshutdown, fesendcmd, zegetspace,
       fesenddata, fewait, fefile },
-  { 'i', UUCONF_RELIABLE_EIGHT, 7,
+  { 'i', UUCONF_RELIABLE_EIGHT, 7, TRUE,
       asIproto_params, fistart, fishutdown, fisendcmd, zigetspace,
       fisenddata, fiwait, NULL },
-  { 'a', UUCONF_RELIABLE_EIGHT, 1,
+  { 'a', UUCONF_RELIABLE_EIGHT, 1, TRUE,
       asZproto_params, fzstart, fzshutdown, fzsendcmd, zzgetspace,
       fzsenddata, fzwait, fzfile },
-  { 'g', UUCONF_RELIABLE_EIGHT, 1,
+  { 'g', UUCONF_RELIABLE_EIGHT, 1, TRUE,
       asGproto_params, fgstart, fgshutdown, fgsendcmd, zggetspace,
       fgsenddata, fgwait, NULL },
-  { 'G', UUCONF_RELIABLE_EIGHT, 1,
+  { 'G', UUCONF_RELIABLE_EIGHT, 1, TRUE,
       asGproto_params, fbiggstart, fgshutdown, fgsendcmd, zggetspace,
       fgsenddata, fgwait, NULL },
-  { 'j', UUCONF_RELIABLE_EIGHT, 7,
+  { 'j', UUCONF_RELIABLE_EIGHT, 7, TRUE,
       asIproto_params, fjstart, fjshutdown, fisendcmd, zigetspace,
       fisenddata, fiwait, NULL },
-  { 'f', UUCONF_RELIABLE_RELIABLE, 1,
+  { 'f', UUCONF_RELIABLE_RELIABLE, 1, FALSE,
       asFproto_params, ffstart, ffshutdown, ffsendcmd, zfgetspace,
       ffsenddata, ffwait, fffile },
+  { 'v', UUCONF_RELIABLE_EIGHT, 1, TRUE,
+      asGproto_params, fvstart, fgshutdown, fgsendcmd, zggetspace,
+      fgsenddata, fgwait, NULL }
 };
 
 #define CPROTOCOLS (sizeof asProtocols / sizeof asProtocols[0])
@@ -112,12 +126,13 @@ struct spass
 /* Local functions.  */
 
 static void uusage P((void));
+static void uhelp P((void));
 static void uabort P((void));
-static boolean fcall P((pointer puuconf,
+static boolean fcall P((pointer puuconf, const char *zconfig, boolean fuuxqt,
 			const struct uuconf_system *qsys,
 			struct uuconf_port *qport, boolean fifwork,
 			boolean fforce, boolean fdetach,
-			boolean ftimewarn));
+			boolean fquiet, boolean ftrynext));
 static boolean fconn_call P((struct sdaemon *qdaemon,
 			     struct uuconf_port *qport,
 			     struct sstatus *qstat, int cretry,
@@ -127,11 +142,19 @@ static boolean fdo_call P((struct sdaemon *qdaemon,
 			   const struct uuconf_dialer *qdialer,
 			   boolean *pfcalled, enum tstatus_type *pterr));
 static int iuport_lock P((struct uuconf_port *qport, pointer pinfo));
-static boolean flogin_prompt P((pointer puuconf,
-				struct sconnection *qconn));
-static boolean faccept_call P((pointer puuconf, const char *zlogin,
+static boolean flogin_prompt P((pointer puuconf, const char *zconfig,
+				boolean fuuxqt, struct sconnection *qconn,
+				const char *zlogin));
+static int icallin_cmp P((int iwhich, pointer pinfo, const char *zfile));
+static boolean faccept_call P((pointer puuconf, const char *zconfig,
+			       boolean fuuxqt, const char *zlogin,
 			       struct sconnection *qconn,
 			       const char **pzsystem));
+static void uaccept_call_cleanup P((pointer puuconf,
+				    struct uuconf_system *qfreesys,
+				    struct uuconf_port *qport,
+				    struct uuconf_port *qfreeport,
+				    char *zloc));
 static void uapply_proto_params P((pointer puuconf, int bproto,
 				   struct uuconf_cmdtab *qcmds,
 				   struct uuconf_proto_param *pas));
@@ -142,21 +165,47 @@ static char *zget_uucp_cmd P((struct sconnection *qconn,
 static char *zget_typed_line P((struct sconnection *qconn));
 
 /* Long getopt options.  */
-static const struct option asLongopts[] = { { NULL, 0, NULL, 0 } };
+static const struct option asLongopts[] =
+{
+  { "quiet", no_argument, NULL, 2 },
+  { "ifwork", no_argument, NULL, 'C' },
+  { "nodetach", no_argument, NULL, 'D' },
+  { "loop", no_argument, NULL, 'e' },
+  { "force", no_argument, NULL, 'f'},
+  { "stdin", required_argument, NULL, 'i' },
+  { "prompt", no_argument, NULL, 'l' },
+  { "port", required_argument, NULL, 'p' },
+  { "nouuxqt", no_argument, NULL, 'q' },
+  { "master", no_argument, NULL, 3 },
+  { "slave", no_argument, NULL, 4 },
+  { "system", required_argument, NULL, 's' },
+  { "login", required_argument, NULL, 'u' },
+  { "wait", no_argument, NULL, 'w' },
+  { "try-next", no_argument, NULL, 'z' },
+  { "config", required_argument, NULL, 'I' },
+  { "debug", required_argument, NULL, 'x' },
+  { "version", no_argument, NULL, 'v' },
+  { "help", no_argument, NULL, 1 },
+  { NULL, 0, NULL, 0 }
+};
 
 int
 main (argc, argv)
      int argc;
      char **argv;
 {
-  /* -c: Whether to warn if a call is attempted at a bad time.  */
-  boolean ftimewarn = TRUE;
+  /* -c: Whether to be quiet.  */
+  boolean fquiet = FALSE;
+  /* -C: Only call the system if there is work.  */
+  boolean fifwork = FALSE;
   /* -D: don't detach from controlling terminal.  */
   boolean fdetach = TRUE;
   /* -e: Whether to do an endless loop of accepting calls.  */
   boolean fendless = FALSE;
   /* -f: Whether to force a call despite status of previous call.  */
   boolean fforce = FALSE;
+  /* -i type: type of port to use for stdin.  */
+  enum uuconf_porttype tstdintype = UUCONF_PORTTYPE_STDIN;
   /* -I file: configuration file name.  */
   const char *zconfig = NULL;
   /* -l: Whether to give a single login prompt.  */
@@ -172,8 +221,13 @@ main (argc, argv)
   boolean fmaster = FALSE;
   /* -s,-S system: system to call.  */
   const char *zsystem = NULL;
+  /* -u: Login name to use.  */
+  const char *zlogin = NULL;
   /* -w: Whether to wait for a call after doing one.  */
   boolean fwait = FALSE;
+  /* -z: Try next alternate if call fails.  */
+  boolean ftrynext = FALSE;
+  const char *zopts;
   int iopt;
   struct uuconf_port *qport;
   struct uuconf_port sport;
@@ -184,15 +238,40 @@ main (argc, argv)
   int iholddebug;
 #endif
 
-  while ((iopt = getopt_long (argc, argv,
-			      "cDefI:lp:qr:s:S:u:x:X:w",
+  zProgram = argv[0];
+
+  /* When uucico is invoked by login, the first character of the
+     program will be a dash.  We don't want that.  */
+  if (*zProgram == '-')
+    ++zProgram;
+
+#if COHERENT_C_OPTION
+  zopts = "c:CDefi:I:lp:qr:s:S:u:x:X:vwz";
+#else
+  zopts = "cCDefi:I:lp:qr:s:S:u:x:X:vwz";
+#endif
+
+  while ((iopt = getopt_long (argc, argv, zopts,
 			      asLongopts, (int *) NULL)) != EOF)
     {
+#if COHERENT_C_OPTION
+      if (iopt == 'c')
+	{
+	  iopt = 's';
+	  fifwork = TRUE;
+	}
+#endif
       switch (iopt)
 	{
+	case 2:
 	case 'c':
-	  /* Don't warn if a call is attempted at a bad time.  */
-	  ftimewarn = FALSE;
+	  /* Don't warn if a call is attempted at a bad time, and
+	     don't print the "No work" message.  */
+	  fquiet = TRUE;
+	  break;
+
+	case 'C':
+	  fifwork = TRUE;
 	  break;
 
 	case 'D':
@@ -211,10 +290,23 @@ main (argc, argv)
 	  fforce = TRUE;
 	  break;
 
-	case 'I':
-	  /* Set configuration file name (default is in sysdep.h).  */
-	  if (fsysdep_other_config (optarg))
-	    zconfig = optarg;
+	case 'i':
+	  /* Type of port to use for standard input.  Only TLI is
+	     supported here, and only if HAVE_TLI is true.  This
+	     permits the Network Listener to tell uucico to use TLI
+	     I/O calls.  */
+	  if (strcasecmp (optarg, "tli") != 0)
+	    fprintf (stderr, "%s: unsupported port type \"%s\"\n",
+		     zProgram, optarg);
+	  else
+	    {
+#if HAVE_TLI
+	      tstdintype = UUCONF_PORTTYPE_TLI;
+#else
+	      fprintf (stderr, "%s: not compiled with TLI support\n",
+		       zProgram);
+#endif
+	    }
 	  break;
 
 	case 'l':
@@ -257,17 +349,15 @@ main (argc, argv)
 
 	case 'u':
 	  /* Some versions of uucpd invoke uucico with a -u argument
-	     specifying the login name.  I'm told it is safe to ignore
-	     this value, although perhaps we should use it rather than
-	     zsysdep_login_name ().  */
-	  break;
-
-	case 'x':
-	case 'X':
-#if DEBUG > 1
-	  /* Set debugging level  */
-	  iDebug |= idebug_parse (optarg);
-#endif
+	     specifying the login name.  If invoked by a privileged
+	     user, we use it instead of the result of
+	     zsysdep_login_name.  */
+	  if (fsysdep_privileged ())
+	    zlogin = optarg;
+	  else
+	    fprintf (stderr,
+		     "%s: ignoring command line login name: not a privileged user\n",
+		     zProgram);
 	  break;
 
 	case 'w':
@@ -275,13 +365,55 @@ main (argc, argv)
 	  fwait = TRUE;
 	  break;
 
+	case 'z':
+	  /* Try next alternate if call fails.  */
+	  ftrynext = TRUE;
+	  break;
+
+	case 'I':
+	  /* Set configuration file name (default is in sysdep.h).  */
+	  if (fsysdep_other_config (optarg))
+	    zconfig = optarg;
+	  break;
+
+	case 'x':
+	case 'X':
+#if DEBUG > 1
+	  /* Set debugging level.  */
+	  iDebug |= idebug_parse (optarg);
+#endif
+	  break;
+
+	case 'v':
+	  /* Print version and exit.  */
+	  printf ("%s: Taylor UUCP %s, copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor\n",
+		  zProgram, VERSION);
+	  exit (EXIT_SUCCESS);
+	  /*NOTREACHED*/
+
+	case 4:
+	  /* --slave.  */
+	  fmaster = FALSE;
+	  break;
+
+	case 3:
+	  /* --master.  */
+	  fmaster = TRUE;
+	  break;
+
+	case 1:
+	  /* --help.  */
+	  uhelp ();
+	  exit (EXIT_SUCCESS);
+	  /*NOTREACHED*/
+
 	case 0:
 	  /* Long option found, and flag value set.  */
 	  break;
 
 	default:
 	  uusage ();
-	  break;
+	  /*NOTREACHED*/
 	}
     }
 
@@ -290,7 +422,7 @@ main (argc, argv)
 
   if (fwait && zport == NULL)
     {
-      ulog (LOG_ERROR, "-w requires -e");
+      fprintf (stderr, "%s: -w requires -p", zProgram);
       uusage ();
     }
 
@@ -321,7 +453,7 @@ main (argc, argv)
 					      pointer))) NULL,
 				  (pointer) NULL, &sport);
       if (iuuconf == UUCONF_NOT_FOUND)
-	ulog (LOG_FATAL, "%s: Port not found", zport);
+	ulog (LOG_FATAL, "%s: port not found", zport);
       else if (iuuconf != UUCONF_SUCCESS)
 	ulog_uuconf (LOG_FATAL, puuconf, iuuconf);
       qport = &sport;
@@ -384,8 +516,8 @@ main (argc, argv)
 	  else
 	    {
 	      fLocked_system = TRUE;
-	      fret = fcall (puuconf, &sLocked_system, qport, FALSE,
-			    fforce, fdetach, ftimewarn);
+	      fret = fcall (puuconf, zconfig, fuuxqt, &sLocked_system, qport,
+			    fifwork, fforce, fdetach, fquiet, ftrynext);
 	      if (fLocked_system)
 		{
 		  (void) fsysdep_unlock_system (&sLocked_system);
@@ -468,8 +600,9 @@ main (argc, argv)
 		  else
 		    {
 		      fLocked_system = TRUE;
-		      if (! fcall (puuconf, &sLocked_system, qport, TRUE,
-				   fforce, fdetach, ftimewarn))
+		      if (! fcall (puuconf, zconfig, fuuxqt, &sLocked_system,
+				   qport, TRUE, fforce, fdetach, fquiet,
+				   ftrynext))
 			fret = FALSE;
 
 		      /* Now ignore any SIGHUP that we got.  */
@@ -493,7 +626,7 @@ main (argc, argv)
 
 	  xfree ((pointer) pznames);
 
-	  if (! fdidone)
+	  if (! fdidone && ! fquiet)
 	    ulog (LOG_NORMAL, "No work");
 	}
 
@@ -520,7 +653,7 @@ main (argc, argv)
       fret = TRUE;
       zsystem = NULL;
 
-      if (! fconn_init (qport, &sconn))
+      if (! fconn_init (qport, &sconn, tstdintype))
 	fret = FALSE;
 
       if (qport != NULL)
@@ -531,9 +664,6 @@ main (argc, argv)
 	  if (fdetach
 	      && qport->uuconf_ttype != UUCONF_PORTTYPE_STDIN)
 	    usysdep_detach ();
-
-	  /* If a port was given, we loop forever.  */
-	  fendless = TRUE;
 	}
 
       if (fconn_lock (&sconn, TRUE))
@@ -558,17 +688,14 @@ main (argc, argv)
 	  if (fendless)
 	    {
 	      while (! FGOT_SIGNAL ()
-		     && flogin_prompt (puuconf, &sconn))
+		     && flogin_prompt (puuconf, zconfig, fuuxqt, &sconn,
+				       (const char *) NULL))
 		{
-		  /* Now ignore any SIGHUP that we got.  */
-		  afSignal[INDEXSIG_SIGHUP] = FALSE;
-
-		  if (fLocked_system)
-		    {
-		      (void) fsysdep_unlock_system (&sLocked_system);
-		      fLocked_system = FALSE;
-		    }
-		  if (! fconn_reset (&sconn))
+		  /* Close and reopen the port in between calls.  */
+		  if (! fconn_close (&sconn, puuconf,
+				     (struct uuconf_dialer *) NULL,
+				     TRUE)
+		      || ! fconn_open (&sconn, (long) 0, (long) 0, TRUE))
 		    break;
 		}
 	      fret = FALSE;
@@ -576,13 +703,16 @@ main (argc, argv)
 	  else
 	    {
 	      if (flogin)
-		fret = flogin_prompt (puuconf, &sconn);
+		fret = flogin_prompt (puuconf, zconfig, fuuxqt, &sconn,
+				      zlogin);
 	      else
 		{
 #if DEBUG > 1
 		  iholddebug = iDebug;
 #endif
-		  fret = faccept_call (puuconf, zsysdep_login_name (),
+		  if (zlogin == NULL)
+		    zlogin = zsysdep_login_name ();
+		  fret = faccept_call (puuconf, zconfig, fuuxqt, zlogin,
 				       &sconn, &zsystem);
 #if DEBUG > 1
 		  iDebug = iholddebug;
@@ -602,12 +732,6 @@ main (argc, argv)
       if (flocked)
 	(void) fconn_unlock (&sconn);
 
-      if (fLocked_system)
-	{
-	  (void) fsysdep_unlock_system (&sLocked_system);
-	  fLocked_system = FALSE;
-	}
-
       uconn_free (&sconn);
     }
 
@@ -622,19 +746,19 @@ main (argc, argv)
 
   if (fuuxqt)
     {
-      /* Detach from the controlling terminal before starting up uuxqt,
-	 so that it runs as a true daemon.  */
-      if (fdetach)
-	usysdep_detach ();
-      if (zsystem == NULL)
+      int irunuuxqt;
+
+      iuuconf = uuconf_runuuxqt (puuconf, &irunuuxqt);
+      if (iuuconf != UUCONF_SUCCESS)
+	ulog_uuconf (LOG_ERROR, puuconf, iuuconf);
+      else if (irunuuxqt == UUCONF_RUNUUXQT_ONCE)
 	{
-	  if (! fsysdep_run ("uuxqt", (const char *) NULL,
-			     (const char *) NULL))
-	    fret = FALSE;
-	}
-      else
-	{
-	  if (! fsysdep_run ("uuxqt", "-s", zsystem))
+	  /* Detach from the controlling terminal before starting up uuxqt,
+	     so that it runs as a true daemon.  */
+	  if (fdetach)
+	    usysdep_detach ();
+
+	  if (! fspawn_uuxqt (FALSE, zsystem, zconfig))
 	    fret = FALSE;
 	}
     }
@@ -645,40 +769,46 @@ main (argc, argv)
   return 0;
 }
 
-/* Print out a usage message.  */
+/* Print out a usage message and die.  */
 
 static void
 uusage ()
 {
-  fprintf (stderr,
-	   "Taylor UUCP version %s, copyright (C) 1991, 1992 Ian Lance Taylor\n",
-	   VERSION);
-  fprintf (stderr,
-	   "Usage: uucico [options]\n");
-  fprintf (stderr,
-	   " -s,-S system: Call system (-S implies -f)\n");
-  fprintf (stderr,
-	   " -f: Force call despite system status\n");
-  fprintf (stderr,
-	   " -r state: 1 for master, 0 for slave (default)\n");
-  fprintf (stderr,
-	   " -p port: Specify port (implies -e)\n");
-  fprintf (stderr,
-	   " -l: prompt for login name and password\n");
-  fprintf (stderr,
-	   " -e: Endless loop of login prompts and daemon execution\n");
-  fprintf (stderr,
-	   " -w: After calling out, wait for incoming calls\n");
-  fprintf (stderr,
-	   " -q: Don't start uuxqt when done\n");
-  fprintf (stderr,
-	   " -x,-X debug: Set debugging level\n");
-#if HAVE_TAYLOR_CONFIG
-  fprintf (stderr,
-	   " -I file: Set configuration file to use\n");
-#endif /* HAVE_TAYLOR_CONFIG */
-
+  fprintf (stderr, "Usage: %s [options]\n", zProgram);
+  fprintf (stderr, "Use %s --help for help\n", zProgram);
   exit (EXIT_FAILURE);
+}
+
+/* Print a help message.  */
+
+static void
+uhelp ()
+{
+  printf ("Taylor UUCP %s, copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor\n",
+	   VERSION);
+  printf ("Usage: %s [options]\n", zProgram);
+  printf (" -s,-S,--system system: Call system (-S implies -f)\n");
+  printf (" -f,--force: Force call despite system status\n");
+  printf (" -r state: 1 for master, 0 for slave (default)\n");
+  printf (" --master: Act as master\n");
+  printf (" --slave: Act as slave (default)\n");
+  printf (" -p,--port port: Specify port\n");
+  printf (" -l,--prompt: prompt for login name and password\n");
+  printf (" -e,--loop: Endless loop of login prompts and daemon execution\n");
+  printf (" -w,--wait: After calling out, wait for incoming calls\n");
+  printf (" -q,--nouuxqt: Don't start uuxqt when done\n");
+  printf (" -c,--quiet: Don't log bad time or no work warnings\n");
+  printf (" -C,--ifwork: Only call named system if there is work\n");
+  printf (" -D,--nodetach: Don't detach from controlling terminal\n");
+  printf (" -u,--login: Set login name (privileged users only)\n");
+  printf (" -i,--stdin type: Type of standard input (only TLI supported)\n");
+  printf (" -z,--try-next: If a call fails, try the next alternate\n");
+  printf (" -x,-X,--debug debug: Set debugging level\n");
+#if HAVE_TAYLOR_CONFIG
+  printf (" -I,--config file: Set configuration file to use\n");
+#endif /* HAVE_TAYLOR_CONFIG */
+  printf (" -v,--version: Print version and exit\n");
+  printf (" --help: Print help and exit\n");
 }
 
 /* This function is called when a LOG_FATAL error occurs.  */
@@ -713,28 +843,36 @@ uabort ()
   usysdep_exit (FALSE);
 }
 
+/* The number of seconds in one day.  We must cast to long for this
+   to be calculated correctly on a machine with 16 bit ints.  */
+#define SECS_PER_DAY ((long) 24 * (long) 60 * (long) 60)
+
 /* Call another system, trying all the possible sets of calling
    instructions.  The qsys argument is the system to call.  The qport
    argument is the port to use, and may be NULL.  If the fifwork
    argument is TRUE, the call is only placed if there is work to be
    done.  If the fforce argument is TRUE, a call is forced even if not
-   enough time has passed since the last failed call.  If the
-   ftimewarn argument is TRUE (the normal case), then a warning is
-   given if calls are not permitted at this time.  */
+   enough time has passed since the last failed call.  If the fquiet
+   argument is FALSE (the normal case), then a warning is given if
+   calls are not permitted at this time.  */
 
 static boolean
-fcall (puuconf, qorigsys, qport, fifwork, fforce, fdetach, ftimewarn)
+fcall (puuconf, zconfig, fuuxqt, qorigsys, qport, fifwork, fforce, fdetach,
+       fquiet, ftrynext)
      pointer puuconf;
+     const char *zconfig;
+     boolean fuuxqt;
      const struct uuconf_system *qorigsys;
      struct uuconf_port *qport;
      boolean fifwork;
      boolean fforce;
      boolean fdetach;
-     boolean ftimewarn;
+     boolean fquiet;
+     boolean ftrynext;
 {
   struct sstatus sstat;
   long inow;
-  boolean fbadtime, fnevertime;
+  boolean fbadtime, fnevertime, ffoundwork;
   const struct uuconf_system *qsys;
 
   if (! fsysdep_get_status (qorigsys, &sstat, (boolean *) NULL))
@@ -744,21 +882,24 @@ fcall (puuconf, qorigsys, qport, fifwork, fforce, fdetach, ftimewarn)
      that we haven't exceeded the maximum number of retries.  Even if
      we are over the limit on retries, we permit a call to be made if
      24 hours have passed.  This 24 hour limit is still controlled by
-     the retry time.  */
+     the retry time.  We ignore times in the future, presumably the
+     result of some sort of error.  */
   inow = ixsysdep_time ((long *) NULL);
   if (! fforce)
     {
       if (qorigsys->uuconf_cmax_retries > 0
 	  && sstat.cretries >= qorigsys->uuconf_cmax_retries
-	  && sstat.ilast + 24 * 60 * 60 < inow)
+	  && sstat.ilast <= inow
+	  && sstat.ilast + SECS_PER_DAY > inow)
 	{
 	  ulog (LOG_ERROR, "Too many retries");
 	  return FALSE;
 	}
 
-      if (sstat.ttype == STATUS_COMPLETE
-	  ? sstat.ilast + qorigsys->uuconf_csuccess_wait > inow
-	  : sstat.ilast + sstat.cwait > inow)
+      if ((sstat.ttype == STATUS_COMPLETE
+	   ? sstat.ilast + qorigsys->uuconf_csuccess_wait > inow
+	   : sstat.ilast + sstat.cwait > inow)
+	  && sstat.ilast <= inow)
 	{
 	  ulog (LOG_NORMAL, "Retry time not reached");
 	  return FALSE;
@@ -766,14 +907,29 @@ fcall (puuconf, qorigsys, qport, fifwork, fforce, fdetach, ftimewarn)
     }
 
   sDaemon.puuconf = puuconf;
+  sDaemon.zconfig = zconfig;
+  if (! fuuxqt)
+    sDaemon.irunuuxqt = UUCONF_RUNUUXQT_NEVER;
+  else
+    {
+      int iuuconf;
+
+      iuuconf = uuconf_runuuxqt (puuconf, &sDaemon.irunuuxqt);
+      if (iuuconf != UUCONF_SUCCESS)
+	ulog_uuconf (LOG_ERROR, puuconf, iuuconf);
+    }
   sDaemon.qsys = NULL;
   sDaemon.zlocalname = NULL;
   sDaemon.qconn = NULL;
   sDaemon.qproto = NULL;
+  sDaemon.cchans = 1;
   sDaemon.clocal_size = -1;
   sDaemon.cremote_size = -1;
   sDaemon.cmax_ever = -2;
   sDaemon.cmax_receive = -1;
+  sDaemon.csent = 0;
+  sDaemon.creceived = 0;
+  sDaemon.cxfiles_received = 0;
   sDaemon.ifeatures = 0;
   sDaemon.frequest_hangup = FALSE;
   sDaemon.fhangup_requested = FALSE;
@@ -785,6 +941,7 @@ fcall (puuconf, qorigsys, qport, fifwork, fforce, fdetach, ftimewarn)
 
   fbadtime = TRUE;
   fnevertime = TRUE;
+  ffoundwork = FALSE;
 
   for (qsys = qorigsys; qsys != NULL; qsys = qsys->uuconf_qalternate)
     {
@@ -804,6 +961,8 @@ fcall (puuconf, qorigsys, qport, fifwork, fforce, fdetach, ftimewarn)
 			     &cretry))
 	continue;
 
+      fbadtime = FALSE;
+
       sDaemon.qsys = qsys;
 
       /* Queue up any work there is to do.  */
@@ -820,7 +979,7 @@ fcall (puuconf, qorigsys, qport, fifwork, fforce, fdetach, ftimewarn)
 	  continue;
 	}
 
-      fbadtime = FALSE;
+      ffoundwork = TRUE;
 
       fret = fconn_call (&sDaemon, qport, &sstat, cretry, &fcalled);
 
@@ -828,7 +987,7 @@ fcall (puuconf, qorigsys, qport, fifwork, fforce, fdetach, ftimewarn)
 
       if (fret)
 	return TRUE;
-      if (fcalled)
+      if (fcalled && ! ftrynext)
 	return FALSE;
 
       /* Now we have to dump that port so that we can aquire a new
@@ -845,9 +1004,16 @@ fcall (puuconf, qorigsys, qport, fifwork, fforce, fdetach, ftimewarn)
 	}
     }
 
-  if (fbadtime && ftimewarn)
+  /* We only get here if no call succeeded.  If fbadtime is TRUE it
+     was the wrong time for all the alternates.  Otherwise, if
+     ffoundwork is FALSE there was no work for any of the alternates.
+     Otherwise, we attempted a call and fconn_call logged an error
+     message.  */
+
+  if (fbadtime)
     {
-      ulog (LOG_NORMAL, "Wrong time to call");
+      if (! fquiet)
+	ulog (LOG_NORMAL, "Wrong time to call");
 
       /* Update the status, unless the system can never be called.  If
 	 the system can never be called, there is little point to
@@ -861,6 +1027,12 @@ fcall (puuconf, qorigsys, qport, fifwork, fforce, fdetach, ftimewarn)
 	  sstat.cwait = 0;
 	  (void) fsysdep_set_status (qorigsys, &sstat);
 	}
+    }
+  else if (! ffoundwork)
+    {
+      if (! fquiet)
+	ulog (LOG_NORMAL, "No work");
+      return TRUE;
     }
 
   return FALSE;
@@ -905,7 +1077,7 @@ fconn_call (qdaemon, qport, qstat, cretry, pfcalled)
     qport = qsys->uuconf_qport;
   if (qport != NULL)
     {
-      if (! fconn_init (qport, &sconn))
+      if (! fconn_init (qport, &sconn, UUCONF_PORTTYPE_UNKNOWN))
 	return FALSE;
       if (! fconn_lock (&sconn, FALSE))
 	{
@@ -972,6 +1144,7 @@ fconn_call (qdaemon, qport, qstat, cretry, pfcalled)
       if (! fconn_dial (&sconn, puuconf, qsys, qsys->uuconf_zphone,
 			&sdialer, &tdialer))
 	{
+	  tdialer = DIALERFOUND_FALSE;
 	  terr = STATUS_DIAL_FAILED;
 	  fret = FALSE;
 	}
@@ -1068,7 +1241,8 @@ fdo_call (qdaemon, qstat, qdialer, pfcalled, pterr)
 
   if (strncmp (zstr, "Shere", 5) != 0)
     {
-      ulog (LOG_ERROR, "Bad initialization string");
+      ulog (LOG_ERROR, "Bad startup string (expected \"Shere\" got \"%s\")",
+	    zstr);
       ubuffree (zstr);
       return FALSE;
     }
@@ -1218,7 +1392,7 @@ fdo_call (qdaemon, qstat, qdialer, pfcalled, pterr)
 
   if (zstr[0] != 'R')
     {
-      ulog (LOG_ERROR, "Bad reponse to handshake string (%s)",
+      ulog (LOG_ERROR, "Bad response to handshake string (%s)",
 	    zstr);
       ubuffree (zstr);
       return FALSE;
@@ -1376,6 +1550,14 @@ fdo_call (qdaemon, qstat, qdialer, pfcalled, pterr)
 
     qdaemon->qproto = &asProtocols[i];
 
+    /* If we are using a half-duplex line, act as though we have only
+       a single channel; otherwise we might start a send and a receive
+       at the same time.  */
+    if ((qdaemon->ireliable & UUCONF_RELIABLE_FULLDUPLEX) == 0)
+      qdaemon->cchans = 1;
+    else
+      qdaemon->cchans = asProtocols[i].cchans;
+
     sprintf (ab, "U%c", qdaemon->qproto->bname);
     if (! fsend_uucp_cmd (qconn, ab))
       return FALSE;
@@ -1449,8 +1631,12 @@ fdo_call (qdaemon, qstat, qdialer, pfcalled, pterr)
 
     iend_time = ixsysdep_time ((long *) NULL);
 
-    ulog (LOG_NORMAL, "Call complete (%ld seconds)",
-	  iend_time - istart_time);
+    ulog (LOG_NORMAL, "Call complete (%ld seconds %ld bytes %ld bps)",
+	  iend_time - istart_time,
+	  qdaemon->csent + qdaemon->creceived,
+	  (iend_time != istart_time
+	   ? (qdaemon->csent + qdaemon->creceived) / (iend_time - istart_time)
+	   : 0));
 
     if (fret)
       {
@@ -1458,6 +1644,11 @@ fdo_call (qdaemon, qstat, qdialer, pfcalled, pterr)
 	qstat->ilast = iend_time;
 	(void) fsysdep_set_status (qsys, qstat);
       }
+
+    if (qdaemon->irunuuxqt == UUCONF_RUNUUXQT_PERCALL
+	|| (qdaemon->irunuuxqt > 0 && qdaemon->cxfiles_received > 0))
+      (void) fspawn_uuxqt (TRUE, qdaemon->qsys->uuconf_zname,
+			   qdaemon->zconfig);
 
     return fret;
   }
@@ -1477,7 +1668,7 @@ iuport_lock (qport, pinfo)
 
   q->fmatched = TRUE;
 
-  if (! fconn_init (qport, q->qconn))
+  if (! fconn_init (qport, q->qconn, UUCONF_PORTTYPE_UNKNOWN))
     return UUCONF_NOT_FOUND;
   else if (! fconn_lock (q->qconn, FALSE))
     {
@@ -1491,31 +1682,49 @@ iuport_lock (qport, pinfo)
     }
 }
 
+/* The information structure used for the uuconf_callin comparison
+   function.  */
+
+struct scallin_info
+{
+  const char *zuser;
+  const char *zpass;
+};
+
 /* Prompt for a login name and a password, and run as the slave.  */
 
 static boolean
-flogin_prompt (puuconf, qconn)
+flogin_prompt (puuconf, zconfig, fuuxqt, qconn, zlogin)
      pointer puuconf;
+     const char *zconfig;
+     boolean fuuxqt;
      struct sconnection *qconn;
+     const char *zlogin;
 {
   char *zuser, *zpass;
   boolean fret;
   int iuuconf;
+  struct scallin_info s;
 
   DEBUG_MESSAGE0 (DEBUG_HANDSHAKE, "flogin_prompt: Waiting for login");
 
   zuser = NULL;
-  do
+  if (zlogin == NULL)
     {
-      ubuffree (zuser);
-      if (! fconn_write (qconn, "login: ", sizeof "login: " - 1))
-	return FALSE;
-      zuser = zget_typed_line (qconn);
-    }
-  while (zuser != NULL && *zuser == '\0');
+      do
+	{
+	  ubuffree (zuser);
+	  if (! fconn_write (qconn, "login: ", sizeof "login: " - 1))
+	    return FALSE;
+	  zuser = zget_typed_line (qconn);
+	}
+      while (zuser != NULL && *zuser == '\0');
 
-  if (zuser == NULL)
-    return TRUE;
+      if (zuser == NULL)
+	return TRUE;
+
+      zlogin = zuser;
+    }
 
   if (! fconn_write (qconn, "Password:", sizeof "Password:" - 1))
     {
@@ -1532,8 +1741,12 @@ flogin_prompt (puuconf, qconn)
 
   fret = TRUE;
 
-  iuuconf = uuconf_callin (puuconf, zuser, zpass);
+  s.zuser = zlogin;
+  s.zpass = zpass;
+  iuuconf = uuconf_callin (puuconf, icallin_cmp, &s);
+
   ubuffree (zpass);
+
   if (iuuconf == UUCONF_NOT_FOUND)
     ulog (LOG_ERROR, "Bad login");
   else if (iuuconf != UUCONF_SUCCESS)
@@ -1553,7 +1766,8 @@ flogin_prompt (puuconf, qconn)
 #if DEBUG > 1
       iholddebug = iDebug;
 #endif
-      (void) faccept_call (puuconf, zuser, qconn, (const char **) NULL);
+      (void) faccept_call (puuconf, zconfig, fuuxqt, zlogin, qconn,
+			   (const char **) NULL);
 #if DEBUG > 1
       iDebug = iholddebug;
 #endif
@@ -1564,12 +1778,43 @@ flogin_prompt (puuconf, qconn)
   return fret;
 }
 
+/* The comparison function which we pass to uuconf_callin.  This
+   expands escape sequences in the login name, and either encrypts or
+   expands escape sequences in the password.  */
+
+static int
+icallin_cmp (iwhich, pinfo, zfile)
+     int iwhich;
+     pointer pinfo;
+     const char *zfile;
+{
+  struct scallin_info *qinfo = (struct scallin_info *) pinfo;
+  char *zcopy;
+  int icmp;
+
+#if HAVE_ENCRYPTED_PASSWORDS
+  if (iwhich != 0)
+    return strcmp (crypt (qinfo->zpass, zfile), zfile) == 0;
+#endif
+
+  zcopy = zbufcpy (zfile);
+  (void) cescape (zcopy);
+  if (iwhich == 0)
+    icmp = strcmp (qinfo->zuser, zcopy);
+  else
+    icmp = strcmp (qinfo->zpass, zcopy);
+  ubuffree (zcopy);
+  return icmp == 0;
+}
+
 /* Accept a call from a remote system.  If pqsys is not NULL, *pqsys
    will be set to the system that called in if known.  */
 
 static boolean
-faccept_call (puuconf, zlogin, qconn, pzsystem)
+faccept_call (puuconf, zconfig, fuuxqt, zlogin, qconn, pzsystem)
      pointer puuconf;
+     const char *zconfig;
+     boolean fuuxqt;
      const char *zlogin;
      struct sconnection *qconn;
      const char **pzsystem;
@@ -1635,6 +1880,9 @@ faccept_call (puuconf, zlogin, qconn, pzsystem)
 	  else if (iuuconf != UUCONF_SUCCESS)
 	    {
 	      ulog_uuconf (LOG_ERROR, puuconf, iuuconf);
+	      uaccept_call_cleanup (puuconf, (struct uuconf_system *) NULL,
+				    (struct uuconf_port *) NULL,
+				    &sport, (char *) NULL);
 	      return FALSE;
 	    }
 	  else
@@ -1669,14 +1917,27 @@ faccept_call (puuconf, zlogin, qconn, pzsystem)
     }
 
   sDaemon.puuconf = puuconf;
+  sDaemon.zconfig = zconfig;
+  if (! fuuxqt)
+    sDaemon.irunuuxqt = UUCONF_RUNUUXQT_NEVER;
+  else
+    {
+      iuuconf = uuconf_runuuxqt (puuconf, &sDaemon.irunuuxqt);
+      if (iuuconf != UUCONF_SUCCESS)
+	ulog_uuconf (LOG_ERROR, puuconf, iuuconf);
+    }
   sDaemon.qsys = NULL;
   sDaemon.zlocalname = NULL;
   sDaemon.qconn = qconn;
   sDaemon.qproto = NULL;
+  sDaemon.cchans = 1;
   sDaemon.clocal_size = -1;
   sDaemon.cremote_size = -1;
   sDaemon.cmax_ever = -2;
   sDaemon.cmax_receive = -1;
+  sDaemon.csent = 0;
+  sDaemon.creceived = 0;
+  sDaemon.cxfiles_received = 0;
   sDaemon.ifeatures = 0;
   sDaemon.frequest_hangup = FALSE;
   sDaemon.fhangup_requested = FALSE;
@@ -1695,11 +1956,17 @@ faccept_call (puuconf, zlogin, qconn, pzsystem)
     {
       sDaemon.zlocalname = zsysdep_localname ();
       if (sDaemon.zlocalname == NULL)
-	return FALSE;
+	{
+	  uaccept_call_cleanup (puuconf, (struct uuconf_system *) NULL,
+				qport, &sport, (char *) NULL);
+	  return FALSE;
+	}
     }
   else
     {
       ulog_uuconf (LOG_ERROR, puuconf, iuuconf);
+      uaccept_call_cleanup (puuconf, (struct uuconf_system *) NULL,
+			    qport, &sport, (char *) NULL);
       return FALSE;
     }
 
@@ -1709,16 +1976,26 @@ faccept_call (puuconf, zlogin, qconn, pzsystem)
   fret = fsend_uucp_cmd (qconn, zsend);
   ubuffree (zsend);
   if (! fret)
-    return FALSE;
+    {
+      uaccept_call_cleanup (puuconf, (struct uuconf_system *) NULL,
+			    qport, &sport, zloc);
+      return FALSE;
+    }
 
   zstr = zget_uucp_cmd (qconn, TRUE);
   if (zstr == NULL)
-    return FALSE;
+    {
+      uaccept_call_cleanup (puuconf, (struct uuconf_system *) NULL,
+			    qport, &sport, zloc);
+      return FALSE;
+    }
 
   if (zstr[0] != 'S')
     {
       ulog (LOG_ERROR, "Bad introduction string");
       ubuffree (zstr);
+      uaccept_call_cleanup (puuconf, (struct uuconf_system *) NULL,
+			    qport, &sport, zloc);
       return FALSE;
     }
 
@@ -1740,6 +2017,8 @@ faccept_call (puuconf, zlogin, qconn, pzsystem)
 	      xfree ((pointer) zscript);
 	      (void) fsend_uucp_cmd (qconn, "RYou are unknown to me");
 	      ubuffree (zstr);
+	      uaccept_call_cleanup (puuconf, (struct uuconf_system *) NULL,
+				    qport, &sport, zloc);
 	      return FALSE;
 	    }
 	  xfree ((pointer) zscript);
@@ -1748,6 +2027,8 @@ faccept_call (puuconf, zlogin, qconn, pzsystem)
 	{
 	  ulog_uuconf (LOG_ERROR, puuconf, iuuconf);
 	  ubuffree (zstr);
+	  uaccept_call_cleanup (puuconf, (struct uuconf_system *) NULL,
+				qport, &sport, zloc);
 	  return FALSE;
 	}
 
@@ -1756,6 +2037,8 @@ faccept_call (puuconf, zlogin, qconn, pzsystem)
 	  (void) fsend_uucp_cmd (qconn, "RYou are unknown to me");
 	  ulog (LOG_ERROR, "Call from unknown system %s", zstr + 1);
 	  ubuffree (zstr);
+	  uaccept_call_cleanup (puuconf, (struct uuconf_system *) NULL,
+				qport, &sport, zloc);
 	  return FALSE;
 	}
     }
@@ -1763,6 +2046,8 @@ faccept_call (puuconf, zlogin, qconn, pzsystem)
     {
       ulog_uuconf (LOG_ERROR, puuconf, iuuconf);
       ubuffree (zstr);
+      uaccept_call_cleanup (puuconf, (struct uuconf_system *) NULL,
+			    qport, &sport, zloc);
       return FALSE;
     }
 
@@ -1791,6 +2076,7 @@ faccept_call (puuconf, zlogin, qconn, pzsystem)
 	{
 	  ulog_uuconf (LOG_ERROR, puuconf, iuuconf);
 	  ubuffree (zstr);
+	  uaccept_call_cleanup (puuconf, &ssys, qport, &sport, zloc);
 	  return FALSE;
 	}
     }
@@ -1801,6 +2087,7 @@ faccept_call (puuconf, zlogin, qconn, pzsystem)
       ulog (LOG_ERROR, "System %s used wrong login name %s",
 	    zstr + 1, zlogin);
       ubuffree (zstr);
+      uaccept_call_cleanup (puuconf, &ssys, qport, &sport, zloc);
       return FALSE;
     }
 
@@ -1834,15 +2121,25 @@ faccept_call (puuconf, zlogin, qconn, pzsystem)
       ubuffree (zsysdep_spool_commands (qsys, UUCONF_GRADE_HIGH, 0,
 					(const struct scmd *) NULL));
       ubuffree (zstr);
+      uaccept_call_cleanup (puuconf, &ssys, qport, &sport, zloc);
       return TRUE;
     }
 
   /* We only permit one call at a time from a remote system.  Lock it.  */
   if (! fsysdep_lock_system (qsys))
     {
+      if (qsys->uuconf_fsequence)
+	{
+	  /* At this point the calling system has already incremented
+	     its sequence number, so we increment ours.  This will
+	     only cause a mismatch if the other system is not what it
+	     says it is.  */
+	  (void) ixsysdep_get_sequence (qsys);
+	}
       (void) fsend_uucp_cmd (qconn, "RLCK");
       ulog (LOG_ERROR, "System already locked");
       ubuffree (zstr);
+      uaccept_call_cleanup (puuconf, &ssys, qport, &sport, zloc);
       return FALSE;
     }
   sLocked_system = *qsys;
@@ -1946,6 +2243,8 @@ faccept_call (puuconf, zlogin, qconn, pzsystem)
 		      (void) fsysdep_set_status (qsys, &sstat);
 		      xfree ((pointer) paz);
 		      ubuffree (zstr);
+		      uaccept_call_cleanup (puuconf, &ssys, qport, &sport,
+					    zloc);
 		      return FALSE;
 		    }
 		  fgotseq = TRUE;
@@ -1983,6 +2282,8 @@ faccept_call (puuconf, zlogin, qconn, pzsystem)
 		    iwant = (1 << iwant) - 1;
 		  if (qsys->uuconf_zmax_remote_debug != NULL)
 		    iwant &= idebug_parse (qsys->uuconf_zmax_remote_debug);
+		  else
+		    iwant &= DEBUG_ABNORMAL | DEBUG_CHAT | DEBUG_HANDSHAKE;
 		  if ((iDebug | iwant) != iDebug)
 		    {
 		      iDebug |= iwant;
@@ -2009,6 +2310,7 @@ faccept_call (puuconf, zlogin, qconn, pzsystem)
       ulog (LOG_ERROR, "No sequence number (call rejected)");
       sstat.ttype = STATUS_FAILED;
       (void) fsysdep_set_status (qsys, &sstat);
+      uaccept_call_cleanup (puuconf, &ssys, qport, &sport, zloc);
       return FALSE;
     }
 
@@ -2047,6 +2349,7 @@ faccept_call (puuconf, zlogin, qconn, pzsystem)
       {
 	sstat.ttype = STATUS_FAILED;
 	(void) fsysdep_set_status (qsys, &sstat);
+	uaccept_call_cleanup (puuconf, &ssys, qport, &sport, zloc);
 	return FALSE;
       }
   }
@@ -2122,6 +2425,7 @@ faccept_call (puuconf, zlogin, qconn, pzsystem)
     {
       sstat.ttype = STATUS_FAILED;
       (void) fsysdep_set_status (qsys, &sstat);
+      uaccept_call_cleanup (puuconf, &ssys, qport, &sport, zloc);
       return FALSE;
     }
     
@@ -2131,15 +2435,17 @@ faccept_call (puuconf, zlogin, qconn, pzsystem)
     {
       sstat.ttype = STATUS_FAILED;
       (void) fsysdep_set_status (qsys, &sstat);
+      uaccept_call_cleanup (puuconf, &ssys, qport, &sport, zloc);
       return FALSE;
     }
 
-  if (zstr[0] != 'U' || zstr[2] != '\0')
+  if (zstr[0] != 'U')
     {
       ulog (LOG_ERROR, "Bad protocol response string");
       sstat.ttype = STATUS_FAILED;
       (void) fsysdep_set_status (qsys, &sstat);
       ubuffree (zstr);
+      uaccept_call_cleanup (puuconf, &ssys, qport, &sport, zloc);
       return FALSE;
     }
 
@@ -2149,6 +2455,7 @@ faccept_call (puuconf, zlogin, qconn, pzsystem)
       sstat.ttype = STATUS_FAILED;
       (void) fsysdep_set_status (qsys, &sstat);
       ubuffree (zstr);
+      uaccept_call_cleanup (puuconf, &ssys, qport, &sport, zloc);
       return FALSE;
     }
 
@@ -2163,10 +2470,19 @@ faccept_call (puuconf, zlogin, qconn, pzsystem)
       ulog (LOG_ERROR, "No supported protocol");
       sstat.ttype = STATUS_FAILED;
       (void) fsysdep_set_status (qsys, &sstat);
+      uaccept_call_cleanup (puuconf, &ssys, qport, &sport, zloc);
       return FALSE;
     }
 
   sDaemon.qproto = &asProtocols[i];
+
+  /* If we are using a half-duplex line, act as though we have only a
+     single channel; otherwise we might start a send and a receive at
+     the same time.  */
+  if ((sDaemon.ireliable & UUCONF_RELIABLE_FULLDUPLEX) == 0)
+    sDaemon.cchans = 1;
+  else
+    sDaemon.cchans = asProtocols[i].cchans;
 
   /* Run the chat script for when a call is received.  */
   if (! fchat (qconn, puuconf, &qsys->uuconf_scalled_chat, qsys,
@@ -2176,6 +2492,7 @@ faccept_call (puuconf, zlogin, qconn, pzsystem)
       sstat.ttype = STATUS_FAILED;
       sstat.ilast = ixsysdep_time ((long *) NULL);
       (void) fsysdep_set_status (qsys, &sstat);
+      uaccept_call_cleanup (puuconf, &ssys, qport, &sport, zloc);
       return FALSE;
     }
 
@@ -2202,15 +2519,16 @@ faccept_call (puuconf, zlogin, qconn, pzsystem)
   if (qdialer == &sdialer)
     (void) uuconf_dialer_free (puuconf, &sdialer);
 
-  /* Get any jobs queued for the system, and turn on the selected
-     protocol.  */
-  if (! fqueue (&sDaemon, (boolean *) NULL)
-      || ! (*sDaemon.qproto->pfstart) (&sDaemon, &zlog))
+  /* Turn on the selected protocol and get any jobs queued for the
+     system.  */
+  if (! (*sDaemon.qproto->pfstart) (&sDaemon, &zlog)
+      || ! fqueue (&sDaemon, (boolean *) NULL))
     {
       uclear_queue (&sDaemon);
       sstat.ttype = STATUS_FAILED;
       sstat.ilast = ixsysdep_time ((long *) NULL);
       (void) fsysdep_set_status (qsys, &sstat);
+      uaccept_call_cleanup (puuconf, &ssys, qport, &sport, zloc);
       return FALSE;
     }
 
@@ -2276,8 +2594,12 @@ faccept_call (puuconf, zlogin, qconn, pzsystem)
 
     iend_time = ixsysdep_time ((long *) NULL);
 
-    ulog (LOG_NORMAL, "Call complete (%ld seconds)",
-	  iend_time - istart_time);
+    ulog (LOG_NORMAL, "Call complete (%ld seconds %ld bytes %ld bps)",
+	  iend_time - istart_time,
+	  sDaemon.csent + sDaemon.creceived,
+	  (iend_time != istart_time
+	   ? (sDaemon.csent + sDaemon.creceived) / (iend_time - istart_time)
+	   : 0));
 
     uclear_queue (&sDaemon);
 
@@ -2288,13 +2610,37 @@ faccept_call (puuconf, zlogin, qconn, pzsystem)
     sstat.ilast = iend_time;
     (void) fsysdep_set_status (qsys, &sstat);
 
-    (void) uuconf_system_free (puuconf, &ssys);
-    if (qport == &sport)
-      (void) uuconf_port_free (puuconf, &sport);
-    xfree ((pointer) zloc);
+    if (sDaemon.irunuuxqt == UUCONF_RUNUUXQT_PERCALL
+	|| (sDaemon.irunuuxqt > 0 && sDaemon.cxfiles_received > 0))
+      (void) fspawn_uuxqt (TRUE, qsys->uuconf_zname, zconfig);
+
+    uaccept_call_cleanup (puuconf, &ssys, qport, &sport, zloc);
 
     return fret;
   }
+}
+
+/* Clean up after faccept_call.  */
+
+static void
+uaccept_call_cleanup (puuconf, qfreesys, qport, qfreeport, zloc)
+     pointer puuconf;
+     struct uuconf_system *qfreesys;
+     struct uuconf_port *qport;
+     struct uuconf_port *qfreeport;
+     char *zloc;
+{
+  if (fLocked_system)
+    {
+      (void) fsysdep_unlock_system (&sLocked_system);
+      fLocked_system = FALSE;
+    }
+  if (qfreesys != NULL)
+    (void) uuconf_system_free (puuconf, qfreesys);
+  if (qport == qfreeport)
+    (void) uuconf_port_free (puuconf, qfreeport);
+  xfree ((pointer) zloc);
+  ulog_system ((const char *) NULL);
 }
 
 /* Apply protocol parameters, once we know the protocol.  */
@@ -2482,7 +2828,8 @@ zget_uucp_cmd (qconn, frequired)
 
 	  calc += CINCREMENT;
 	  znew = zbufalc (calc);
-	  memcpy (znew, zalc, cgot);
+	  if (cgot > 0)
+	    memcpy (znew, zalc, cgot);
 	  ubuffree (zalc);
 	  zalc = znew;
 	}
@@ -2518,13 +2865,16 @@ zget_uucp_cmd (qconn, frequired)
   return NULL;
 }
 
-/* Read a sequence of characters up to a newline or carriage return, and
-   return the line without the line terminating character.  */
+/* Read a sequence of characters up to a newline or carriage return,
+   and return the line without the line terminating character.
+   Remember whether the last string we returned ended in \r; if it
+   did, ignore a leading \n to account for \r\n pairs.  */
 
 static char *
 zget_typed_line (qconn)
      struct sconnection *qconn;
 {
+  static boolean flastcr; 
   char *zalc;
   size_t calc;
   size_t cgot;
@@ -2563,11 +2913,15 @@ zget_typed_line (qconn)
 	    }
 #endif
 	  ubuffree (zalc);
+	  flastcr = FALSE;
 	  return NULL;
 	}
 
       if (b == -1)
-	continue;
+	{
+	  flastcr = FALSE;
+	  continue;
+	}
 
 #if DEBUG > 1
       if (FDEBUGGING (DEBUG_CHAT))
@@ -2586,19 +2940,34 @@ zget_typed_line (qconn)
 	}
 #endif
 
+      if (b == '\n' && cgot == 0 && flastcr)
+	{
+	  /* Ignore \n in \r\n pair.  */
+	  flastcr = FALSE;
+	  continue;
+	}
+
+      flastcr = FALSE;
+
       if (cgot >= calc)
 	{
 	  char *znew;
 
 	  calc += CINCREMENT;
 	  znew = zbufalc (calc);
-	  memcpy (znew, zalc, cgot);
+	  if (cgot > 0)
+	    memcpy (znew, zalc, cgot);
 	  ubuffree (zalc);
 	  zalc = znew;
 	}
 
-      if (b == '\r' || b == '\n')
+      if (b == '\n')
 	b = '\0';
+      else if (b == '\r')
+	{
+	  flastcr = TRUE;
+	  b = '\0';
+	}
 
       zalc[cgot] = (char) b;
       ++cgot;
@@ -2615,4 +2984,46 @@ zget_typed_line (qconn)
 	  return zalc;
 	}
     }
+}
+
+/* Spawn a uuxqt job.  This probably belongs in some other file, but I
+   don't have a good place for it.  */
+
+boolean
+fspawn_uuxqt (ffork, zsys, zconfig)
+     boolean ffork;
+     const char *zsys;
+     const char *zconfig;
+{
+  char *zsysarg;
+  char *zconfigarg;
+  boolean fret;
+
+  if (zsys == NULL)
+    zsysarg = NULL;
+  else
+    {
+      zsysarg = zbufalc (sizeof "-s" + strlen (zsys));
+      sprintf (zsysarg, "-s%s", zsys);
+    }
+
+  if (zconfig == NULL)
+    zconfigarg = NULL;
+  else
+    {
+      zconfigarg = zbufalc (sizeof "-I" + strlen (zconfig));
+      sprintf (zconfigarg, "-I%s", zconfig);
+      if (zsysarg == NULL)
+	{
+	  zsysarg = zconfigarg;
+	  zconfigarg = NULL;
+	}
+    }
+
+  fret = fsysdep_run (ffork, "uuxqt", zsysarg, zconfigarg);
+
+  ubuffree (zsysarg);
+  ubuffree (zconfigarg);
+
+  return fret;
 }

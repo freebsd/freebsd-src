@@ -181,7 +181,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char protz_rcsid[] = "$Id: protz.c,v 1.1 1993/08/04 19:36:25 jtc Exp $";
+const char protz_rcsid[] = "$Id: protz.c,v 1.8 1993/12/20 00:44:49 ian Rel $";
 #endif
 
 #include <errno.h>
@@ -2084,7 +2084,7 @@ fifi:
 		cZheaders_received++;
 		break;
 	}
-	DEBUG_MESSAGE2 (DEBUG_PROTO, "izrecv_hdr: %s, data = 0x%x",
+	DEBUG_MESSAGE2 (DEBUG_PROTO, "izrecv_hdr: %s, data = 0x%lx",
 			ZZHEADER_NAME(c), rclhdr (hdr));
 
 	return c;

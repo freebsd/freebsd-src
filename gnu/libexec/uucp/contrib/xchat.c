@@ -9,6 +9,9 @@
  *   Bob Denny (denny@alisa.com)
  *   Based on code in DECUS UUCP (for VAX/VMS)
  *
+ * Small modification by:
+ *   Daniel Hagerty (hag@eddie.mit.edu)
+ *
  * History:
  *   Version 1.0 shipped with Taylor 1.03. No configuration info inside.
  *
@@ -18,21 +21,25 @@
  *            for timed reads. Use Taylor UUCP "conf.h" file to set
  *            configuration for this program. Add defaulting of script
  *            and log file paths.
+ *   
+ *   Daniel Hagerty - Mon Nov 22 18:17:38 1993
+ *     V1.2 - Added a new opcode to xchat. "expectstr" is a cross between
+ *            sendstr and expect, looking for a parameter supplied string.
+ *            Useful where a prompt could change for different dial in
+ *            lines and such.
  *
  * Bugs:
  *   Does not support BSD terminal I/O. Anyone care to add it?
  */
 
-#include <unistd.h>
 #include <sys/types.h>
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
 #include <signal.h>
 #include <time.h>
-#include <sys/time.h>
 #include <sys/ioctl.h>
-#include <sys/termios.h>
+#include <sys/termio.h>
 
 #include "xc-conf.h"
 
@@ -132,7 +139,8 @@ struct script_opdef {
 #define SC_PEVN 39	/* Set port for 7-bit, even parity */
 #define SC_PODD 40	/* Set port for 7-bit, odd parity */
 #define SC_HUPS 41	/* Change state on HUP signal */
-#define	SC_END	42	/* end of array */
+#define SC_XPST	42	/* Expect a param string */
+#define	SC_END	43	/* end of array */
 
 	/* values for prmtype, prm2type */
 
@@ -188,6 +196,7 @@ static struct	script_opdef	sc_opdef[] =
 	{"sendstr",	SC_SNDP,	SC_INT,		SC_NONE},
 	{"ifstr",	SC_IF1P,	SC_INT,		SC_NWST},
 	{"ifnstr",	SC_IF0P,	SC_INT,		SC_NWST},
+	{"expectstr",	SC_XPST,	SC_INT,		SC_NWST},
 	{"table end",	SC_END,		SC_NONE,	SC_NONE}
       };
 
@@ -224,16 +233,16 @@ static char telno[64];		/* Telephone number w/meta-chars */
 static int Debug;
 static int fShangup = FALSE;	/* TRUE if HUP signal received */
 static FILE  *dbf = NULL;
-static struct termios old, new;
+static struct termio old, new;
 
-static void usignal();
-static void uhup();
+extern int usignal();
+extern int uhup();
 
 static struct siglist
 {
   int signal;
-  void (*o_catcher) ();
-  void (*n_catcher) ();
+  int (*o_catcher) ();
+  int (*n_catcher) ();
 } sigtbl[] = {
              { SIGHUP,   NULL, uhup },
              { SIGINT,   NULL, usignal },
@@ -246,17 +255,17 @@ static struct siglist
 
 extern struct script *read_script();
 extern void msleep();
-static char xgetc();
-static void charlog();
-static void setup_tty();
-static void restore_tty();
-static void ttoslow();
-static void ttflui();
-static void tthang();
-static void ttbreak();
-static void tt7bit();
-static void ttpar();
-static void DEBUG();
+extern char xgetc();
+extern void charlog();
+extern void setup_tty();
+extern void restore_tty();
+extern void ttoslow();
+extern void ttflui();
+extern void tthang();
+extern void ttbreak();
+extern void tt7bit();
+extern void ttpar();
+extern void DEBUG();
 
 extern void *malloc();
 
@@ -337,7 +346,7 @@ char *argv[];
   sigs = &sigtbl[0];
   while(sigs->signal)
     {
-      sigs->o_catcher = signal(sigs->signal, sigs->n_catcher);
+      sigs->o_catcher = (int (*) ())signal(sigs->signal, sigs->n_catcher);
       sigs += 1;
     }
 
@@ -1031,6 +1040,7 @@ int do_script(begin)
 	case SC_TIMO:	/* these are "expects", don't bother */
 	case SC_XPCT:	/* with them yet, other than noting that */
 	case SC_CARR:	/* they exist */
+	case SC_XPST:
 	  expcnt++;
 	  break;
 	}
@@ -1134,7 +1144,24 @@ int do_script(begin)
 	}
     }
 }
-
+	      /* New opcode added by hag@eddie.mit.edu for expecting a 
+		 parameter supplied string */
+	     case SC_XPST:
+	      if(curscr->intprm >paramc-1)
+	      {
+		sprintf(tempstr,"expectstr - param#%d",curscr->intprm);
+		logit(tempstr, " not present");
+		return(FAIL);
+	      }
+	      prmlen=xlat_str(tempstr,paramv[curscr->intprm]);
+	      if((expin >= prmlen) &&
+		 (strncmp(tempstr,&expbuf[expin-prmlen],
+			  prmlen) == SAME))
+	      {
+		charlog(tempstr,prmlen,DB_LGI, "Matched");
+		goto _chgstate;
+	      }
+	      break;
 /*
  * SIGNAL HANDLERS
  */
@@ -1142,7 +1169,7 @@ int do_script(begin)
 /*
  * usignal - generic signal catcher
  */
-static void usignal(isig)
+static int usignal(isig)
      int isig;
 {
   DEBUG(DB_LOG, "Caught signal %d. Exiting...\n", isig);
@@ -1153,7 +1180,7 @@ static void usignal(isig)
 /*
  * uhup - HUP catcher
  */
-static void uhup(isig)
+static int uhup(isig)
      int isig;
 {
   DEBUG(DB_LOG, "Data set hangup.\n");
@@ -1175,15 +1202,14 @@ int tmo;			/* Timeout, seconds */
 {
   char c;
   struct timeval s;
-  fd_set f;
+  int f = 1;			/* Select on stdin */
   int result;
 
-  FD_SET(0,&f);                 /* Select on stdin */
   if(read(0, &c, 1)  <= 0)	/* If no data available */
     {
       s.tv_sec = (long)tmo;
       s.tv_usec = 0L;
-      if(select (1, &f, (fd_set *) NULL, &f, &s) == 1)
+      if(select (1, &f, (int *) NULL, &f, &s) == 1)
 	read(0, &c, 1);
       else
 	c = '\377';
@@ -1294,7 +1320,7 @@ static void setup_tty()
 {
   register int i;
 
-  tcgetattr(0,&old);
+  ioctl(0, TCGETA, &old);
 
   new = old;
 
@@ -1305,7 +1331,7 @@ static void setup_tty()
   new.c_iflag = ISTRIP;		/* Raw mode, 7-bit stripping */
   new.c_lflag = 0;		/* No special line discipline */
 
-  tcsetattr(0,TCSANOW,&new);
+  ioctl(0, TCSETA, &new);
 }
 
 /*
@@ -1314,7 +1340,7 @@ static void setup_tty()
 static void restore_tty(sig)
 int sig;
 {
-  tcsetattr(0,TCSANOW,&old);
+  ioctl(0, TCSETA, &old);
   return;
 }
 
@@ -1346,7 +1372,7 @@ static void ttoslow(s, len, delay)
 static void ttflui()
 {
   if(isatty(0))
-    tcflush(0,TCIFLUSH);
+    (void) ioctl ( 0, TCFLSH, 0);
 }
 
 /*
@@ -1364,13 +1390,13 @@ static int ttcd()
  */
 static void tthang()
 {
-  if(!isatty(1))
+  if(!isatty())
     return;
 
-#ifdef TIOCCDTR
-  (void) ioctl (1, TIOCCDTR, 0);
+#ifdef TCCLRDTR
+  (void) ioctl (1, TCCLRDTR, 0);
   sleep (2);
-  (void) ioctl (1, TIOCSDTR, 0);
+  (void) ioctl (1, TCSETDTR, 0);
 #endif
 
   return;
@@ -1381,7 +1407,7 @@ static void tthang()
  */
 static void ttbreak()
 {
-  tcsendbreak(1,5);
+  (void) ioctl (1, TCSBRK, 0);
 }
 
 /*
@@ -1405,7 +1431,7 @@ static void tt7bit(enable)
   else
     new.c_iflag &= ~ISTRIP;
 
-  tcsetattr(0,TCSANOW,&new);
+  ioctl(0, TCSETA, &new);
 }
 
 /*
@@ -1436,5 +1462,12 @@ static void ttpar(mode)
       break;
     }
 
-  tcsetattr(0,TCSANOW,&new);
+  ioctl(0, TCSETA, &new);
 }
+
+
+
+
+
+
+

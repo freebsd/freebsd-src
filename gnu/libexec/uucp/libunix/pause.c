@@ -29,7 +29,9 @@
 #endif
 
 #if HAVE_SELECT
+#if HAVE_SYS_TIME_H
 #include <sys/time.h>
+#endif
 #if HAVE_SYS_SELECT_H
 #include <sys/select.h>
 #endif
@@ -53,7 +55,7 @@ struct pollfd
 #endif /* HAVE_POLL */
 
 #if HAVE_TIME_H
-#if HAVE_SYS_TIME_AND_TIME_H || ! USE_SELECT_TIMER
+#if ! HAVE_SYS_TIME_H || ! HAVE_SELECT || TIME_WITH_SYS_TIME
 #include <time.h>
 #endif
 #endif
@@ -87,10 +89,10 @@ usysdep_pause ()
   s.tv_sec = 0;
   s.tv_usec = 500 * (long) 1000;
   select (0, (pointer) NULL, (pointer) NULL, (pointer) NULL, &s);
-#endif /* USE_SELECT_TIMER */
+#endif /* HAVE_SELECT */
 #if ! HAVE_NAPMS && ! HAVE_NAP && ! HAVE_USLEEP
-#if ! USE_SELECT_TIMER && ! HAVE_POLL
+#if ! HAVE_SELECT && ! HAVE_POLL
   sleep (1);
-#endif /* ! USE_SELECT_TIMER && ! HAVE_POLL */
+#endif /* ! HAVE_SELECT && ! HAVE_POLL */
 #endif /* ! HAVE_NAPMS && ! HAVE_NAP && ! HAVE_USLEEP */
 }

@@ -1,7 +1,7 @@
 /* uudefs.h
    Miscellaneous definitions for the UUCP package.
 
-   Copyright (C) 1991, 1992 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,7 +20,7 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #if ANSI_C
@@ -106,8 +106,8 @@ struct scmd
      simple execution, 'H' for hangup, 'Y' for hangup confirm, 'N' for
      hangup deny).  */
   char bcmd;
-  /* At least one compiler needs an explicit padding byte here.  */
-  char bdummy;
+  /* Grade of the command ('\0' if from remote system).  */
+  char bgrade;
   /* Sequence handle for fsysdep_did_work.  */
   pointer pseq;
   /* File name to transfer from.  */
@@ -236,6 +236,12 @@ extern boolean fspool_file P((const char *zfile));
    from the matching element of the span.  */
 extern boolean ftimespan_match P((const struct uuconf_timespan *qspan,
 				  long *pival, int *pcretry));
+
+/* Remove all occurrences of the local system name followed by an
+   exclamation point from the start of the argument.  Return the
+   possibly shortened argument.  */
+extern char *zremove_local_sys P((struct uuconf_system *qlocalsys,
+				  char *z));
 
 /* Determine the maximum size that may ever be transferred, given a
    timesize span.  If there are any time gaps larger than 1 hour not
@@ -375,9 +381,8 @@ extern void xfree P((pointer));
 
 /* Global variables.  */
 
-/* The name of the program being run.  This is statically initialized,
-   although it should perhaps be set from argv[0].  */
-extern char abProgram[];
+/* The name of the program being run.  Set from argv[0].  */
+extern const char *zProgram;
 
 /* When a signal occurs, the signal handlers sets the appropriate
    element of the arrays afSignal and afLog_signal to TRUE.  The
@@ -426,12 +431,6 @@ extern boolean fLog_sighup;
 #define FGOT_QUIT_SIGNAL() \
   (afSignal[INDEXSIG_SIGHUP] || afSignal[INDEXSIG_SIGQUIT] \
    || afSignal[INDEXSIG_SIGTERM] || afSignal[INDEXSIG_SIGPIPE])
-
-/* File being sent.  */
-extern openfile_t eSendfile;
-
-/* File being received.  */
-extern openfile_t eRecfile;
 
 /* Device name to log.  This is set by fconn_open.  It may be NULL.  */
 extern char *zLdevice;
