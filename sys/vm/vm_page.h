@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.56 1999/02/15 06:52:14 dillon Exp $
+ * $Id: vm_page.h,v 1.57 1999/03/14 20:40:15 julian Exp $
  */
 
 /*
@@ -554,6 +554,8 @@ vm_page_sleep_busy(vm_page_t m, int also_m_busy, const char *msg)
 	return(FALSE);
 }
 
+#if !defined(KLD_MODULE)
+
 /*
  *	vm_page_dirty:
  *
@@ -566,8 +568,6 @@ vm_page_dirty(vm_page_t m)
 	KASSERT(m->queue - m->pc != PQ_CACHE, ("vm_page_dirty: page in cache!"));
 	m->dirty = VM_PAGE_BITS_ALL;
 }
-
-#if !defined(KLD_MODULE)
 
 static __inline vm_page_t
 vm_page_list_find(int basequeue, int index, boolean_t prefer_zero)
