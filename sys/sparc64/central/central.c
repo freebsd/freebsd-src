@@ -22,9 +22,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -44,7 +45,6 @@
 #include <sys/rman.h>
 
 #include <sparc64/sbus/ofw_sbus.h>
-#include <sparc64/sbus/sbusreg.h>
 
 struct central_devinfo {
 	char			*cdi_compat;
@@ -60,12 +60,10 @@ struct central_softc {
 	struct sbus_ranges	*sc_ranges;
 };
 
-static int central_probe(device_t dev);
-static int central_attach(device_t dev);
-
-static void central_probe_nomatch(device_t dev, device_t child);
-static struct resource *central_alloc_resource(device_t, device_t, int, int *,
-    u_long, u_long, u_long, u_int);
+static device_probe_t central_probe;
+static device_attach_t central_attach;
+static bus_probe_nomatch_t central_probe_nomatch;
+static bus_alloc_resource_t central_alloc_resource;
 static ofw_bus_get_compat_t central_get_compat;
 static ofw_bus_get_model_t central_get_model;
 static ofw_bus_get_name_t central_get_name;
@@ -135,7 +133,7 @@ central_attach(device_t dev)
 	sc->sc_nrange = OF_getprop_alloc(node, "ranges",
 	    sizeof(*sc->sc_ranges), (void **)&sc->sc_ranges);
 	if (sc->sc_nrange == -1) {
-		device_printf(dev, "can't get ranges");
+		device_printf(dev, "can't get ranges\n");
 		return (ENXIO);
 	}
 
@@ -144,8 +142,9 @@ central_attach(device_t dev)
 			continue;
 		cdev = device_add_child(dev, NULL, -1);
 		if (cdev != NULL) {
-			cdi = malloc(sizeof(*cdi), M_DEVBUF,
-			    M_WAITOK | M_ZERO);
+			cdi = malloc(sizeof(*cdi), M_DEVBUF, M_WAITOK | M_ZERO);
+			if (cdi == NULL)
+				continue;
 			cdi->cdi_name = name;
 			cdi->cdi_node = child;
 			OF_getprop_alloc(child, "compatible", 1,
