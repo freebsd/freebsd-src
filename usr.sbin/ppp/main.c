@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.16 1996/03/09 08:18:38 ache Exp $
+ * $Id: main.c,v 1.17 1996/03/30 18:27:45 ache Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -382,7 +382,7 @@ char **argv;
       snprintf(pid_filename, sizeof (pid_filename), "%s/PPP.%s",
 		  _PATH_VARRUN, dstsystem);
       unlink(pid_filename);
-      sprintf(pid, "%lu\n", getpid());
+      sprintf(pid, "%d\n", getpid());
 
       if ((fd = open(pid_filename, O_RDWR|O_CREAT, 0666)) != -1)
       {
