@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)signal.h	8.2 (Berkeley) 1/21/94
- * $Id: signal.h,v 1.3 1995/01/29 01:19:25 ats Exp $
+ * $Id: signal.h,v 1.4 1995/06/28 02:14:04 bde Exp $
  */
 
 #ifndef	_SYS_SIGNAL_H_
@@ -136,6 +136,7 @@ struct	sigaction {
 #endif
 #endif
 #define SA_NOCLDSTOP	0x0008	/* do not generate SIGCHLD on child stop */
+#define	SA_NODEFER	0x0010	/* don't mask the signal we're delivering */
 
 /*
  * Flags for sigprocmask:
