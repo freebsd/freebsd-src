@@ -27,12 +27,8 @@
  */
 
 #ifndef lint
-#if 0
-static char * const rcsid = "@(#)sub.c,v 1.1 1994/02/01 00:34:44 alm Exp";
-#else
-static char * const rcsid =
+static const char rcsid[] =
   "$FreeBSD$";
-#endif
 #endif /* not lint */
 
 #include "ed.h"
@@ -86,7 +82,8 @@ extract_subst_template()
 
 	if (*ibufp == '%' && *(ibufp + 1) == delimiter) {
 		ibufp++;
-		if (!rhbuf) sprintf(errmsg, "no previous substitution");
+		if (!rhbuf)
+			errmsg = "no previous substitution";
 		return rhbuf;
 	}
 	while (*ibufp != delimiter) {
@@ -124,8 +121,8 @@ search_and_replace(pat, gflag, kth)
 	int kth;
 {
 	undo_t *up;
-	char *txt;
-	char *eot;
+	const char *txt;
+	const char *eot;
 	long lc;
 	long xa = current_addr;
 	int nsubs = 0;
@@ -163,7 +160,7 @@ search_and_replace(pat, gflag, kth)
 	}
 	current_addr = xa;
 	if  (nsubs == 0 && !(gflag & GLB)) {
-		sprintf(errmsg, "no match");
+		errmsg = "no match";
 		return ERR;
 	} else if ((gflag & (GPR | GLS | GNP)) &&
 	    display_lines(current_addr, current_addr, gflag) < 0)
@@ -222,7 +219,7 @@ substitute_matching_text(pat, lp, gflag, kth)
 		i = eot - txt;
 		REALLOC(rbuf, rbufsz, off + i + 2, ERR);
 		if (i > 0 && !rm[0].rm_eo && (gflag & GSG)) {
-			sprintf(errmsg, "infinite substitution loop");
+			errmsg = "infinite substitution loop";
 			return  ERR;
 		}
 		if (isbinary)
@@ -238,7 +235,7 @@ substitute_matching_text(pat, lp, gflag, kth)
    return offset to end of modified text */
 int
 apply_subst_template(boln, rm, off, re_nsub)
-	char *boln;
+	const char *boln;
 	regmatch_t *rm;
 	int off;
 	int re_nsub;
