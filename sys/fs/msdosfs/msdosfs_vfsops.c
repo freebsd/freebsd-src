@@ -845,17 +845,16 @@ msdosfs_sync(mp, waitfor, cred, td)
 loop:
 	MNT_VNODE_FOREACH(vp, mp, nvp) {
 		VI_LOCK(vp);
-		if (vp->v_iflag & VI_XLOCK) {
+		if (vp->v_type == VNON || (vp->v_iflag & VI_XLOCK)) {
 			VI_UNLOCK(vp);
 			continue;
 		}
 		MNT_IUNLOCK(mp);
 		dep = VTODE(vp);
-		if (vp->v_type == VNON ||
-		    ((dep->de_flag &
+		if ((dep->de_flag &
 		    (DE_ACCESS | DE_CREATE | DE_UPDATE | DE_MODIFIED)) == 0 &&
 		    (vp->v_bufobj.bo_dirty.bv_cnt == 0 ||
-		    waitfor == MNT_LAZY))) {
+		    waitfor == MNT_LAZY)) {
 			VI_UNLOCK(vp);
 			MNT_ILOCK(mp);
 			continue;
