@@ -35,7 +35,7 @@
  * We are working with the vendor so I can release the code, please don't
  * ask me for it.  When/if I can release it, I will.
  *
- * Version 1.3, June 23, 1995.
+ * Version 1.4, August 29, 1995.
  *
  */
 
@@ -255,11 +255,11 @@ struct	spigot_softc	*ss = (struct spigot_softc *)&spigot_softc[0];
 
 	if(offset != 0) {
 		printf("spigot mmap offset = 0x%x\n", offset);
-		return 0;
+		return -1;
 	}
 
 	if(nprot & PROT_EXEC)
-		return 0;
+		return -1;
 
 	return i386_btop(ss->maddr);
 }
