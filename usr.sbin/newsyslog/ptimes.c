@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <limits.h>
 #include <stdio.h>
-/* not in freebsd-4.x: #include <stdint.h> */
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
