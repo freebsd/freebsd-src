@@ -195,8 +195,8 @@ ep_pccard_init(devi)
 
     epb->cmd_off = 0;
     epb->prod_id = get_e(sc, EEPROM_PROD_ID);
-    if (bootverbose) printf("ep%d: Pass 1 of 2 detection failed (nonfatal)\n", is->id_unit);
     if (!ep_pccard_identify(epb, is->id_unit)) {
+	if (bootverbose) printf("ep%d: Pass 1 of 2 detection failed (nonfatal)\n", is->id_unit);
 	epb->cmd_off = 2;
 	epb->prod_id = get_e(sc, EEPROM_PROD_ID);
 	if (!ep_pccard_identify(epb, is->id_unit)) {
