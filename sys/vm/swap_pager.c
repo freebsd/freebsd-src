@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.42 1995/07/13 08:48:15 davidg Exp $
+ * $Id: swap_pager.c,v 1.43 1995/07/16 13:28:34 davidg Exp $
  */
 
 /*
@@ -708,6 +708,7 @@ swap_pager_haspage(object, offset, before, after)
 {
 	register sw_blk_t swb;
 	int ix;
+	int gix;
 
 	if (before != NULL)
 		*before = 0;
@@ -718,10 +719,35 @@ swap_pager_haspage(object, offset, before, after)
 		return (FALSE);
 	}
 	swb = &object->un_pager.swp.swp_blocks[ix];
-	ix = (offset % (SWB_NPAGES * PAGE_SIZE)) / PAGE_SIZE;
+	gix = offset / PAGE_SIZE;
+	ix = gix % SWB_NPAGES;
+
 	if (swb->swb_block[ix] != SWB_EMPTY) {
-		if (swb->swb_valid & (1 << ix))
+
+		if (swb->swb_valid & (1 << ix)) {
+			int tix;
+			if (before) {
+				for(tix = ix - 1; tix >= 0; --tix) {
+					if ((swb->swb_block[tix] -
+						(ix - tix) * (PAGE_SIZE/DEV_BSIZE)) !=
+						swb->swb_block[ix])
+						break;
+					(*before)++;
+				}
+			}
+
+			if (after) {
+				for(tix = ix + 1; tix < SWB_NPAGES; tix++) {
+					if ((swb->swb_block[tix] +
+						(tix - ix) * (PAGE_SIZE/DEV_BSIZE)) !=
+						swb->swb_block[ix])
+						break;
+					(*after)++;
+				}
+			}
+
 			return TRUE;
+		}
 	}
 	return (FALSE);
 }
