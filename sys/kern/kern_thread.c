@@ -1637,8 +1637,6 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		PROC_LOCK(p);
 		mtx_lock_spin(&sched_lock);
 		while (p->p_numthreads > max_threads_per_proc) {
-			if (P_SHOULDSTOP(p))
-				break;
 			upcalls = 0;
 			FOREACH_KSEGRP_IN_PROC(p, kg2) {
 				if (kg2->kg_numupcalls == 0)
@@ -1650,8 +1648,9 @@ thread_userret(struct thread *td, struct trapframe *frame)
 				break;
 			mtx_unlock_spin(&sched_lock);
 			p->p_maxthrwaits++;
-			msleep(&p->p_numthreads, &p->p_mtx, PPAUSE|PCATCH,
-			    "maxthreads", NULL);
+			if (msleep(&p->p_numthreads, &p->p_mtx, PPAUSE|PCATCH,
+			    "maxthreads", NULL))
+			    break;
 			p->p_maxthrwaits--;
 			mtx_lock_spin(&sched_lock);
 		}
