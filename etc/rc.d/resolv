@@ -154,7 +154,7 @@ fi
 # if the info is available via dhcp/kenv
 # build the resolv.conf
 #
-if [ ! -e /etc/resolv.conf ]; then
+if [ ! -e /etc/resolv.conf -a `/bin/kenv dhcp.domain-name-servers` != "" ]; then
         echo domain `/bin/kenv dhcp.domain-name` > /etc/resolv.conf
 
         set `/bin/kenv dhcp.domain-name-servers`
