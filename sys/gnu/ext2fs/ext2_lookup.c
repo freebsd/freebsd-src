@@ -362,8 +362,8 @@ searchloop:
 		if ((dp->i_offset & bmask) == 0) {
 			if (bp != NULL)
 				brelse(bp);
-			if (error =
-			    UFS_BLKATOFF(vdp, (off_t)dp->i_offset, NULL, &bp))
+			if ((error =
+			    UFS_BLKATOFF(vdp, (off_t)dp->i_offset, NULL, &bp)) != 0)
 				return (error);
 			entryoffsetinblock = 0;
 		}
@@ -473,7 +473,7 @@ searchloop:
 		 * Access for write is interpreted as allowing
 		 * creation of files in the directory.
 		 */
-		if (error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_proc))
+		if ((error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_proc)) != 0)
 			return (error);
 		/*
 		 * Return an indication of where the new directory
@@ -554,7 +554,7 @@ found:
 		/*
 		 * Write access to directory required to delete files.
 		 */
-		if (error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_proc))
+		if ((error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_proc)) != 0)
 			return (error);
 		/*
 		 * Return pointer to current entry in dp->i_offset,
@@ -571,7 +571,7 @@ found:
 			*vpp = vdp;
 			return (0);
 		}
-		if (error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp))
+		if ((error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp)) != 0)
 			return (error);
 		/*
 		 * If directory is "sticky", then user must own
@@ -600,7 +600,7 @@ found:
 	 */
 	if (nameiop == RENAME && wantparent &&
 	    (flags & ISLASTCN)) {
-		if (error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_proc))
+		if ((error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_proc)) != 0)
 			return (error);
 		/*
 		 * Careful about locking second inode.
@@ -608,7 +608,7 @@ found:
 		 */
 		if (dp->i_number == dp->i_ino)
 			return (EISDIR);
-		if (error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp))
+		if ((error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp)) != 0)
 			return (error);
 		*vpp = tdp;
 		cnp->cn_flags |= SAVENAME;
@@ -639,7 +639,7 @@ found:
 	pdp = vdp;
 	if (flags & ISDOTDOT) {
 		VOP_UNLOCK(pdp, 0, p);	/* race to get the inode */
-		if (error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp)) {
+		if ((error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp)) != 0) {
 			vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, p);
 			return (error);
 		}
@@ -653,7 +653,7 @@ found:
 		VREF(vdp);	/* we want ourself, ie "." */
 		*vpp = vdp;
 	} else {
-		if (error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp))
+		if ((error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp)) != 0)
 			return (error);
 		if (!lockparent || !(flags & ISLASTCN))
 			VOP_UNLOCK(pdp, 0, p);
@@ -798,7 +798,7 @@ ext2_direnter(ip, dvp, cnp)
 	/*
 	 * Get the block containing the space for the new directory entry.
 	 */
-	if (error = UFS_BLKATOFF(dvp, (off_t)dp->i_offset, &dirbuf, &bp))
+	if ((error = UFS_BLKATOFF(dvp, (off_t)dp->i_offset, &dirbuf, &bp)) != 0)
 		return (error);
 	/*
 	 * Find space for the new entry. In the simple case, the entry at
@@ -876,8 +876,8 @@ ext2_dirremove(dvp, cnp)
 		/*
 		 * First entry in block: set d_ino to zero.
 		 */
-		if (error =
-		    UFS_BLKATOFF(dvp, (off_t)dp->i_offset, (char **)&ep, &bp))
+		if ((error =
+		    UFS_BLKATOFF(dvp, (off_t)dp->i_offset, (char **)&ep, &bp)) != 0)
 			return (error);
 		ep->inode = 0;
 		error = VOP_BWRITE(bp);
@@ -887,8 +887,8 @@ ext2_dirremove(dvp, cnp)
 	/*
 	 * Collapse new free space into previous entry.
 	 */
-	if (error = UFS_BLKATOFF(dvp, (off_t)(dp->i_offset - dp->i_count),
-	    (char **)&ep, &bp))
+	if ((error = UFS_BLKATOFF(dvp, (off_t)(dp->i_offset - dp->i_count),
+	    (char **)&ep, &bp)) != 0)
 		return (error);
 	ep->rec_len += dp->i_reclen;
 	error = VOP_BWRITE(bp);
@@ -911,7 +911,7 @@ ext2_dirrewrite(dp, ip, cnp)
 	struct vnode *vdp = ITOV(dp);
 	int error;
 
-	if (error = UFS_BLKATOFF(vdp, (off_t)dp->i_offset, (char **)&ep, &bp))
+	if ((error = UFS_BLKATOFF(vdp, (off_t)dp->i_offset, (char **)&ep, &bp)) != 0)
 		return (error);
 	ep->inode = ip->i_number;
 	error = VOP_BWRITE(bp);
@@ -1024,7 +1024,7 @@ ext2_checkpath(source, target, cred)
 		if (dirbuf.dotdot_ino == rootino)
 			break;
 		vput(vp);
-		if (error = VFS_VGET(vp->v_mount, dirbuf.dotdot_ino, &vp)) {
+		if ((error = VFS_VGET(vp->v_mount, dirbuf.dotdot_ino, &vp)) != 0) {
 			vp = NULL;
 			break;
 		}

@@ -38,7 +38,7 @@
  *	from: @(#)ufs_lookup.c	7.33 (Berkeley) 5/19/91
  *
  *	@(#)cd9660_lookup.c	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_lookup.c,v 1.19 1997/10/16 10:47:33 phk Exp $
+ * $Id: cd9660_lookup.c,v 1.20 1997/11/07 08:52:50 phk Exp $
  */
 
 #include <sys/param.h>
@@ -181,8 +181,8 @@ searchloop:
 		if ((dp->i_offset & bmask) == 0) {
 			if (bp != NULL)
 				brelse(bp);
-			if (error =
-			    cd9660_blkatoff(vdp, (off_t)dp->i_offset, NULL, &bp))
+			if ((error =
+			    cd9660_blkatoff(vdp, (off_t)dp->i_offset, NULL, &bp)) != 0)
 				return (error);
 			entryoffsetinblock = 0;
 		}
@@ -279,8 +279,8 @@ foundino:
 			    lblkno(imp, saveoffset)) {
 				if (bp != NULL)
 					brelse(bp);
-				if (error = cd9660_blkatoff(vdp,
-				    (off_t)saveoffset, NULL, &bp))
+				if ((error = cd9660_blkatoff(vdp,
+				    (off_t)saveoffset, NULL, &bp)) != 0)
 					return (error);
 			}
 			entryoffsetinblock = saveoffset & bmask;
@@ -410,7 +410,7 @@ cd9660_blkatoff(vp, offset, res, bpp)
 	lbn = lblkno(imp, offset);
 	bsize = blksize(imp, ip, lbn);
 	
-	if (error = bread(vp, lbn, bsize, NOCRED, &bp)) {
+	if ((error = bread(vp, lbn, bsize, NOCRED, &bp)) != 0) {
 		brelse(bp);
 		*bpp = NULL;
 		return (error);

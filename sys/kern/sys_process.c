@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sys_process.c,v 1.40 1998/07/29 18:41:30 dfr Exp $
+ *	$Id: sys_process.c,v 1.41 1998/12/26 17:14:37 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -239,7 +239,7 @@ ptrace(curp, uap)
 		/* not owned by you, has done setuid (unless you're root) */
 		if ((p->p_cred->p_ruid != curp->p_cred->p_ruid) ||
 		     (p->p_flag & P_SUGID)) {
-			if (error = suser(curp->p_ucred, &curp->p_acflag))
+			if ((error = suser(curp->p_ucred, &curp->p_acflag)) != 0)
 				return error;
 		}
 

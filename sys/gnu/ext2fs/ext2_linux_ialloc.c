@@ -99,10 +99,10 @@ static void read_inode_bitmap (struct mount * mp,
 	int	error;
 
 	gdp = get_group_desc (mp, block_group, NULL);
-	if (error = bread (VFSTOUFS(mp)->um_devvp, 
+	if ((error = bread (VFSTOUFS(mp)->um_devvp, 
 			    fsbtodb(sb, gdp->bg_inode_bitmap), 
 			    sb->s_blocksize,
-			    NOCRED, &bh))
+			    NOCRED, &bh)) != 0)
 		panic ( "read_inode_bitmap:"
 			    "Cannot read inode bitmap - "
 			    "block_group = %lu, inode_bitmap = %lu",

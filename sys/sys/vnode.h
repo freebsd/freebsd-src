@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.79 1999/01/05 18:50:01 eivind Exp $
+ * $Id: vnode.h,v 1.80 1999/01/20 14:49:12 eivind Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -422,12 +422,12 @@ struct vop_generic_args {
 
 #define ASSERT_VOP_LOCKED(vp, str)				\
     if ((vp) && IS_LOCKING_VFS(vp) && !VOP_ISLOCKED(vp)) {	\
-	panic("%s: %x is not locked but should be", str, vp);	\
+	panic("%s: %p is not locked but should be", str, vp);	\
     }
 
 #define ASSERT_VOP_UNLOCKED(vp, str)				\
     if ((vp) && IS_LOCKING_VFS(vp) && VOP_ISLOCKED(vp)) {	\
-	panic("%s: %x is locked but shouldn't be", str, vp);	\
+	panic("%s: %p is locked but shouldn't be", str, vp);	\
     }
 
 #else

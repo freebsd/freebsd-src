@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: linker.h,v 1.11 1998/11/11 13:04:40 peter Exp $
+ *	$Id: linker.h,v 1.12 1999/01/25 08:42:24 dfr Exp $
  */
 
 #ifndef _SYS_LINKER_H_
@@ -43,7 +43,8 @@ MALLOC_DECLARE(M_LINKER);
 typedef struct linker_file* linker_file_t;
 typedef TAILQ_HEAD(, linker_file) linker_file_list_t;
 
-typedef caddr_t linker_sym_t;	/* opaque symbol */
+typedef caddr_t linker_sym_t;		/* opaque symbol */
+typedef c_caddr_t c_linker_sym_t;	/* const opaque symbol */
 
 /*
  * expanded out linker_sym_t
