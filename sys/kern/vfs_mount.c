@@ -140,9 +140,8 @@ struct vnode	*rootvnode;
  * The root specifiers we will try if RB_CDROM is specified.
  */
 static char *cdrom_rootdevnames[] = {
-	"cd9660:cd0a",
-	"cd9660:acd0a",
-	"cd9660:wcd0a",
+	"cd9660:cd0",
+	"cd9660:acd0",
 	NULL
 };
 
