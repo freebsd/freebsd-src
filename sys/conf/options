@@ -120,7 +120,12 @@ P1003_1B			opt_posix.h
 _KPOSIX_PRIORITY_SCHEDULING	opt_posix.h
 _KPOSIX_VERSION			opt_posix.h
 
-# TrustedBSD and POSIX.1e Kernel Options
+#####################################################################
+# SECURITY POLICY PARAMETERS
+
+# Support for Mandatory Access Control (MAC)
+MAC		opt_mac.h
+MAC_NONE	opt_dontuse.h
 
 # Do we want the config file compiled into the kernel?
 INCLUDE_CONFIG_FILE	opt_config.h
