@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eisaconf.c,v 1.28 1997/07/20 06:31:09 bde Exp $
+ *	$Id: eisaconf.c,v 1.29 1997/08/21 07:36:43 fsmp Exp $
  */
 
 #include "opt_eisa.h"
@@ -37,6 +37,8 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+
+#include <machine/limits.h>
 
 #include <i386/eisa/eisaconf.h>
 

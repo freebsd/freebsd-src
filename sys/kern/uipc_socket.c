@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- *	$Id: uipc_socket.c,v 1.27 1997/06/27 15:28:54 peter Exp $
+ *	$Id: uipc_socket.c,v 1.28 1997/08/16 19:15:04 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -49,6 +49,8 @@
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/sysctl.h>
+
+#include <machine/limits.h>
 
 static int somaxconn = SOMAXCONN;
 SYSCTL_INT(_kern_ipc, KIPC_SOMAXCONN, somaxconn, CTLFLAG_RW, &somaxconn,
