@@ -259,7 +259,7 @@ main(int argc, char *argv[])
 							blocksize));
 						(void) printf("\t%s\n", p->fts_path);
 					} else {
-						(void) printf("%qd\t%s\n",
+						(void) printf("%lld\t%s\n",
 							(long long)howmany(p->fts_statp->st_blocks, blocksize),
 							p->fts_path);
 					}

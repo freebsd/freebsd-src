@@ -196,7 +196,7 @@ fileGetContents(const char *fname)
     }
     if (read(fd, contents, sb.st_size) != sb.st_size) {
 	cleanup(0);
-	errx(2, "%s: short read on '%s' - did not get %qd bytes", __func__,
+	errx(2, "%s: short read on '%s' - did not get %lld bytes", __func__,
 	     fname, (long long)sb.st_size);
     }
     close(fd);
