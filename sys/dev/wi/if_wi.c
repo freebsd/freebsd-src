@@ -174,9 +174,9 @@ SYSCTL_NODE(_hw, OID_AUTO, wi, CTLFLAG_RD, 0, "Wireless driver parameters");
 
 static	struct timeval lasttxerror;	/* time of last tx error msg */
 static	int curtxeps;			/* current tx error msgs/sec */
-static	int wi_txerate = 0;		/* tx error rate: max msgs/sec */
+static	int wi_txerate = -1;		/* tx error rate: max msgs/sec */
 SYSCTL_INT(_hw_wi, OID_AUTO, txerate, CTLFLAG_RW, &wi_txerate,
-	    0, "max tx error msgs/sec; 0 disables msgs");
+	    0, "max tx error msgs/sec; -1 disables msgs");
 
 #define	WI_DEBUG
 #ifdef WI_DEBUG
