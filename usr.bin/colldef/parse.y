@@ -151,7 +151,7 @@ order : ORDER order_list {
 		    out_file);
 	if (fwrite(__collate_chain_pri_table,
 		   sizeof(*__collate_chain_pri_table), chain_index, fp) !=
-		   chain_index)
+		   (size_t)chain_index)
 		err(EX_IOERR,
 		"IO error writting chain table to destination file %s",
 		    out_file);
