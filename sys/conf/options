@@ -137,6 +137,7 @@ SOFTUPDATES	opt_ffs.h
 # in FFS, which can be used to support high security configurations
 # as well as new file system features.
 FFS_EXTATTR	opt_ffs.h
+FFS_EXTATTR_AUTOSTART	opt_ffs.h
 
 # The above static dependencies are planned removed, with a
 # <filesystem>_ROOT option to control if it usable as root.  This list
