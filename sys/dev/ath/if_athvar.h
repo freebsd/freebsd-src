@@ -45,6 +45,7 @@
 #include <sys/taskqueue.h>
 
 #include <contrib/dev/ath/ah.h>
+#include <net80211/ieee80211_radiotap.h>
 #include <dev/ath/if_athioctl.h>
 
 #define	ATH_TIMEOUT		1000
@@ -100,6 +101,16 @@ struct ath_softc {
 	u_int8_t		sc_hwmap[32];	/* h/w rate ix to IEEE table */
 	HAL_INT			sc_imask;	/* interrupt mask copy */
 
+	struct bpf_if		*sc_drvbpf;
+	union {
+		struct ath_tx_radiotap_header th;
+		u_int8_t	pad[64];
+	} u_tx_rt;
+	union {
+		struct ath_rx_radiotap_header th;
+		u_int8_t	pad[64];
+	} u_rx_rt;
+
 	struct ath_desc		*sc_desc;	/* TX/RX descriptors */
 	bus_dma_segment_t	sc_dseg;
 	bus_dmamap_t		sc_ddmamap;	/* DMA map for descriptors */
@@ -132,6 +143,8 @@ struct ath_softc {
 	struct callout		sc_scan_ch;	/* callout handle for scan */
 	struct ath_stats	sc_stats;	/* interface statistics */
 };
+#define	sc_tx_th		u_tx_rt.th
+#define	sc_rx_th		u_rx_rt.th
 
 int	ath_attach(u_int16_t, struct ath_softc *);
 int	ath_detach(struct ath_softc *);
