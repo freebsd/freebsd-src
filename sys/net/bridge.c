@@ -87,7 +87,6 @@
  *  - be very careful when bridging VLANs
  *  - loop detection is still not very robust.
  */
-#include "opt_pfil_hooks.h"
 
 #include <sys/param.h>
 #include <sys/mbuf.h>
@@ -105,16 +104,13 @@
 #include <net/if_arp.h>		/* for struct arpcom */
 #include <net/if_types.h>
 #include <net/if_var.h>
+#include <net/pfil.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
-
-#ifdef PFIL_HOOKS
-#include <net/pfil.h>
 #include <netinet/ip_var.h>
-#endif
 
 #include <net/route.h>
 #include <netinet/ip_fw.h>
@@ -965,9 +961,7 @@ bdg_forward(struct mbuf *m0, struct ifnet *dst)
      * and pkts already gone through a pipe.
      */
     if (src != NULL && (
-#ifdef PFIL_HOOKS
 	(inet_pfil_hook.ph_busy_count >= 0 && bdg_ipf != 0) ||
-#endif
 	(IPFW_LOADED && bdg_ipfw != 0))) {
 
 	int i;
@@ -998,7 +992,6 @@ bdg_forward(struct mbuf *m0, struct ifnet *dst)
 	bcopy(eh, &save_eh, ETHER_HDR_LEN);	/* local copy for restore */
 	m_adj(m0, ETHER_HDR_LEN);		/* temporarily strip header */
 
-#ifdef PFIL_HOOKS
 	/*
 	 * NetBSD-style generic packet filter, pfil(9), hooks.
 	 * Enables ipf(8) in bridging.
@@ -1031,7 +1024,6 @@ bdg_forward(struct mbuf *m0, struct ifnet *dst)
 	    ip->ip_off = htons(ip->ip_off);
 	}
 	} /* XXX: Prevent ipfw from being run twice. */
-#endif /* PFIL_HOOKS */
 
 	/*
 	 * Prepare arguments and call the firewall.

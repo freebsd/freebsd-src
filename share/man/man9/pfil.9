@@ -122,12 +122,6 @@ The filter returns an error (errno) if the packet processing is to stop, or 0
 if the processing is to continue.
 If the packet processing is to stop, it is the responsibility of the
 filter to free the packet.
-.Pp
-The
-.Nm
-interface is enabled in the kernel via the
-.Dv PFIL_HOOKS
-option.
 .Sh RETURN VALUES
 If successful,
 .Fn pfil_head_get
