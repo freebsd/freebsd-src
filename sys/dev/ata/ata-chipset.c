@@ -2138,7 +2138,8 @@ ata_via_ident(device_t dev)
      { ATA_VIA8237,   0x00, VIA133, 0x00,   ATA_UDMA6, "VIA 8237" },
      { 0, 0, 0, 0, 0, 0 }};
     static struct ata_chip_id new_ids[] =
-    {{ ATA_VIA8237_1, 0x00, 0x00,   0x00,   ATA_SA150, "VIA 8237" },
+    {{ ATA_VIA6410, 0x00, 0x00,   0x00,   ATA_UDMA6, "VIA 6410" },
+     { ATA_VIA6420, 0x00, 0x00,   0x00,   ATA_SA150, "VIA 6420" },
      { 0, 0, 0, 0, 0, 0 }};
     char buffer[64];
 
