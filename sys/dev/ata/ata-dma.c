@@ -502,6 +502,7 @@ ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
 	break;
 
     case 0x01bc10de:	/* nVIDIA nForce */
+    case 0x006510de:	/* nVIDIA nForce2 */
     case 0x74411022:	/* AMD 768 */
     case 0x74111022:	/* AMD 766 */
     case 0x74091022:	/* AMD 756 */
@@ -512,7 +513,8 @@ ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
 		{ 0x00, 0x00, 0xea, 0x00, 0xe8, 0x00, 0x00 },	/* VIA ATA66 */
 		{ 0x00, 0x00, 0xf4, 0x00, 0xf1, 0xf0, 0x00 },	/* VIA ATA100 */
 		{ 0x00, 0x00, 0xf6, 0x00, 0xf2, 0xf1, 0xf0 },	/* VIA ATA133 */
-		{ 0x00, 0x00, 0xc0, 0x00, 0xc5, 0xc6, 0x00 }};	/* AMD/nVIDIA */
+		{ 0x00, 0x00, 0xc0, 0x00, 0xc5, 0xc6, 0xc7 }};	/* AMD/nVIDIA */
+	    int reg = 0x53 - devno;
 	    int *reg_val = NULL;
 	    char *chip = "VIA";
 
@@ -553,13 +555,23 @@ ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
 		reg_val = via_modes[4];
 		chip = "AMD";
 	    }
-	    else if (chiptype == 0x01bc10de) {			/* nVIDIA */
-		udmamode = imin(udmamode, 5);
+	    else if (chiptype == 0x006510de) {			/* nForce2 */
+		udmamode = imin(udmamode, 6);
+		reg += 0x10;
 		reg_val = via_modes[4];
-		chip = "nVIDIA";
+		chip = "nVidia";
+	    }
+	    else if (chiptype == 0x01bc10de) {			/* nForce */
+		udmamode = imin(udmamode, 5);
+		reg += 0x10;
+		reg_val = via_modes[4];
+		chip = "nVidia";
 	    }
 	    else 
 		udmamode = 0;
+
+	    if (udmamode || wdmamode)
+		    pci_write_config(parent, reg - 0x08, 0x20, 1);
 
 	    if (udmamode >= 6) {
 		error = ata_command(atadev, ATA_C_SETFEATURES, 0,
@@ -568,7 +580,7 @@ ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
 		    ata_prtdev(atadev, "%s setting UDMA6 on %s chip\n",
 			       (error) ? "failed" : "success", chip);
 		if (!error) {
-		    pci_write_config(parent, 0x53 - devno, reg_val[6], 1);
+		    pci_write_config(parent, reg, reg_val[6], 1);
 		    ata_dmacreate(atadev, apiomode, ATA_UDMA6);
 		    return;
 		}
@@ -580,7 +592,7 @@ ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
 		    ata_prtdev(atadev, "%s setting UDMA5 on %s chip\n",
 			       (error) ? "failed" : "success", chip);
 		if (!error) {
-		    pci_write_config(parent, 0x53 - devno, reg_val[5], 1);
+		    pci_write_config(parent, reg, reg_val[5], 1);
 		    ata_dmacreate(atadev, apiomode, ATA_UDMA5);
 		    return;
 		}
@@ -592,7 +604,7 @@ ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
 		    ata_prtdev(atadev, "%s setting UDMA4 on %s chip\n",
 			       (error) ? "failed" : "success", chip);
 		if (!error) {
-		    pci_write_config(parent, 0x53 - devno, reg_val[4], 1);
+		    pci_write_config(parent, reg, reg_val[4], 1);
 		    ata_dmacreate(atadev, apiomode, ATA_UDMA4);
 		    return;
 		}
@@ -604,7 +616,7 @@ ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
 		    ata_prtdev(atadev, "%s setting UDMA2 on %s chip\n",
 			       (error) ? "failed" : "success", chip);
 		if (!error) {
-		    pci_write_config(parent, 0x53 - devno, reg_val[2], 1);
+		    pci_write_config(parent, reg, reg_val[2], 1);
 		    ata_dmacreate(atadev, apiomode, ATA_UDMA2);
 		    return;
 		}
@@ -616,8 +628,8 @@ ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
 		    ata_prtdev(atadev, "%s setting WDMA2 on %s chip\n",
 			       (error) ? "failed" : "success", chip);
 		if (!error) {
-		    pci_write_config(parent, 0x53 - devno, 0x0b, 1);
-		    pci_write_config(parent, 0x4b - devno, 0x31, 1);
+		    pci_write_config(parent, reg, 0x0b, 1);
+		    pci_write_config(parent, reg - 0x08, 0x31, 1);
 		    ata_dmacreate(atadev, apiomode, ATA_WDMA2);
 		    return;
 		}
