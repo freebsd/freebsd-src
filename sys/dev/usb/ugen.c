@@ -353,8 +353,8 @@ ugen_set_config(struct ugen_softc *sc, int configno)
 	usbd_device_handle dev = sc->sc_udev;
 	usbd_interface_handle iface;
 	usb_endpoint_descriptor_t *ed;
-	struct ugen_endpoint *sce;
-	u_int8_t niface, nendpt;
+	struct ugen_endpoint *sce, **sce_cache, ***sce_cache_arr;
+	u_int8_t niface, niface_cache, nendpt, *nendpt_cache;
 	int ifaceno, endptno, endpt;
 	usbd_status err;
 	int dir;
@@ -373,37 +373,103 @@ ugen_set_config(struct ugen_softc *sc, int configno)
 			return (USBD_IN_USE);
 		}
 
-	/* Avoid setting the current value. */
-	if (usbd_get_config_descriptor(dev)->bConfigurationValue != configno) {
-		err = usbd_set_config_no(dev, configno, 1);
-		if (err)
-			return (err);
-	}
-
 	err = usbd_interface_count(dev, &niface);
 	if (err)
 		return (err);
-	memset(sc->sc_endpoints, 0, sizeof sc->sc_endpoints);
+	/* store an array of endpoint descriptors to clear if the configuration
+	 * change succeeds - these aren't available afterwards */
+	nendpt_cache = malloc(sizeof(u_int8_t) * niface, M_TEMP, M_WAITOK);
+	sce_cache_arr = malloc(sizeof(struct ugen_endpoint **) * niface, M_TEMP,
+		 M_WAITOK);
+	niface_cache = niface;
+
 	for (ifaceno = 0; ifaceno < niface; ifaceno++) {
 		DPRINTFN(1,("ugen_set_config: ifaceno %d\n", ifaceno));
 		err = usbd_device2interface_handle(dev, ifaceno, &iface);
 		if (err)
-			return (err);
+			panic("ugen_set_config: can't obtain interface handle");
 		err = usbd_endpoint_count(iface, &nendpt);
 		if (err)
-			return (err);
+			panic("ugen_set_config: endpoint count failed");
+
+		/* store endpoint descriptors for each interface */
+		nendpt_cache[ifaceno] = nendpt;
+		sce_cache = malloc(sizeof(struct ugen_endpoint *) * nendpt, M_TEMP,
+			M_WAITOK);
+		sce_cache_arr[ifaceno] = sce_cache;
+
 		for (endptno = 0; endptno < nendpt; endptno++) {
 			ed = usbd_interface2endpoint_descriptor(iface,endptno);
 			endpt = ed->bEndpointAddress;
 			dir = UE_GET_DIR(endpt) == UE_DIR_IN ? IN : OUT;
-			sce = &sc->sc_endpoints[UE_GET_ADDR(endpt)][dir];
-			DPRINTFN(1,("ugen_set_config: endptno %d, endpt=0x%02x"
-				    "(%d,%d), sce=%p\n",
-				    endptno, endpt, UE_GET_ADDR(endpt),
-				    UE_GET_DIR(endpt), sce));
-			sce->sc = sc;
-			sce->edesc = ed;
-			sce->iface = iface;
+			sce_cache[endptno] = &sc->sc_endpoints[UE_GET_ADDR(endpt)][dir];
+		}
+	}
+
+	/* Avoid setting the current value. */
+	if (usbd_get_config_descriptor(dev)->bConfigurationValue != configno) {
+		/* attempt to perform the configuration change */
+		err = usbd_set_config_no(dev, configno, 1);
+		if (err) {
+			for(ifaceno = 0; ifaceno < niface_cache; ifaceno++)
+				free(sce_cache_arr[ifaceno], M_TEMP);
+			free(sce_cache_arr, M_TEMP);
+			free(nendpt_cache, M_TEMP);
+			return (err);
+		}
+	}
+
+#if defined(__FreeBSD__)
+	ugen_destroy_devnodes(sc);
+#endif
+
+	/* now we can clear the old interface's ugen_endpoints */
+	for(ifaceno = 0; ifaceno < niface_cache; ifaceno++) {
+		sce_cache = sce_cache_arr[ifaceno];
+		for(endptno = 0; endptno < nendpt_cache[ifaceno]; endptno++) {
+			sce = sce_cache[endptno];
+			sce->sc = 0;
+			sce->edesc = 0;
+			sce->iface = 0;
+		}
+	}
+
+	/* and free the cache storing them */
+	for(ifaceno = 0; ifaceno < niface_cache; ifaceno++)
+		free(sce_cache_arr[ifaceno], M_TEMP);
+	free(sce_cache_arr, M_TEMP);
+	free(nendpt_cache, M_TEMP);
+
+	/* no endpoints if the device is in the unconfigured state */
+	if (configno != USB_UNCONFIG_NO)
+	{
+		/* set the new configuration's ugen_endpoints */
+		err = usbd_interface_count(dev, &niface);
+		if (err)
+			panic("ugen_set_config: interface count failed");
+
+		memset(sc->sc_endpoints, 0, sizeof sc->sc_endpoints);
+		for (ifaceno = 0; ifaceno < niface; ifaceno++) {
+			DPRINTFN(1,("ugen_set_config: ifaceno %d\n", ifaceno));
+			err = usbd_device2interface_handle(dev, ifaceno, &iface);
+			if (err)
+				panic("ugen_set_config: can't obtain interface handle");
+			err = usbd_endpoint_count(iface, &nendpt);
+			if (err)
+				panic("ugen_set_config: endpoint count failed");
+			for (endptno = 0; endptno < nendpt; endptno++) {
+				ed = usbd_interface2endpoint_descriptor(iface,endptno);
+				endpt = ed->bEndpointAddress;
+				dir = UE_GET_DIR(endpt) == UE_DIR_IN ? IN : OUT;
+				sce = &sc->sc_endpoints[UE_GET_ADDR(endpt)][dir];
+				DPRINTFN(1,("ugen_set_config: endptno %d, endpt=0x%02x"
+					    "(%d,%d), sce=%p\n",
+					    endptno, endpt, UE_GET_ADDR(endpt),
+					    UE_GET_DIR(endpt), sce));
+				sce->sc = sc;
+				sce->edesc = ed;
+				sce->iface = iface;
+			}
 		}
 	}
 
@@ -1075,8 +1141,8 @@ ugen_set_interface(struct ugen_softc *sc, int ifaceidx, int altno)
 	usbd_interface_handle iface;
 	usb_endpoint_descriptor_t *ed;
 	usbd_status err;
-	struct ugen_endpoint *sce;
-	u_int8_t niface, nendpt, endptno, endpt;
+	struct ugen_endpoint *sce, **sce_cache;
+	u_int8_t niface, nendpt, nendpt_cache, endptno, endpt;
 	int dir;
 
 	DPRINTFN(15, ("ugen_set_interface %d %d\n", ifaceidx, altno));
@@ -1094,30 +1160,44 @@ ugen_set_interface(struct ugen_softc *sc, int ifaceidx, int altno)
 	if (err)
 		return (err);
 
+	/* store an array of endpoint descriptors to clear if the interface
+	 * change succeeds - these aren't available afterwards */
+	sce_cache = malloc(sizeof(struct ugen_endpoint *) * nendpt, M_TEMP,
+		M_WAITOK);
+	nendpt_cache = nendpt;
+
+	for (endptno = 0; endptno < nendpt; endptno++) {
+		ed = usbd_interface2endpoint_descriptor(iface,endptno);
+		endpt = ed->bEndpointAddress;
+		dir = UE_GET_DIR(endpt) == UE_DIR_IN ? IN : OUT;
+		sce_cache[endptno] = &sc->sc_endpoints[UE_GET_ADDR(endpt)][dir];
+	}
+
+	/* change setting */
+	err = usbd_set_interface(iface, altno);
+	if (err) {
+		free(sce_cache, M_TEMP);
+		return (err);
+	}
+	err = usbd_endpoint_count(iface, &nendpt);
+	if (err)
+		panic("ugen_set_interface: endpoint count failed");
+
 #if defined(__FreeBSD__)
 	/* destroy the existing devices, we remake the new ones in a moment */
 	ugen_destroy_devnodes(sc);
 #endif
 
-	/* XXX should only do this after setting new altno has succeeded */
-	for (endptno = 0; endptno < nendpt; endptno++) {
-		ed = usbd_interface2endpoint_descriptor(iface,endptno);
-		endpt = ed->bEndpointAddress;
-		dir = UE_GET_DIR(endpt) == UE_DIR_IN ? IN : OUT;
-		sce = &sc->sc_endpoints[UE_GET_ADDR(endpt)][dir];
+	/* now we can clear the old interface's ugen_endpoints */
+	for (endptno = 0; endptno < nendpt_cache; endptno++) {
+		sce = sce_cache[endptno];
 		sce->sc = 0;
 		sce->edesc = 0;
 		sce->iface = 0;
 	}
+	free(sce_cache, M_TEMP);
 
-	/* change setting */
-	err = usbd_set_interface(iface, altno);
-	if (err)
-		return (err);
-
-	err = usbd_endpoint_count(iface, &nendpt);
-	if (err)
-		return (err);
+	/* set the new interface's ugen_endpoints */
 	for (endptno = 0; endptno < nendpt; endptno++) {
 		ed = usbd_interface2endpoint_descriptor(iface,endptno);
 		endpt = ed->bEndpointAddress;
