@@ -32,6 +32,7 @@
  */
 
 #include "defs.h"
+#include <search.h>
 #include <string.h>
 #include <stdlib.h>
 
@@ -123,7 +124,6 @@ struct sap_entry *
 sap_nearestserver(ushort ServType, struct interface *ifp)
 {
 	register struct sap_entry *sap;
-	register struct sap_entry *csap;
 	struct sap_hash  *sh;
 	register struct sap_entry *best = NULL;
 	register int besthops = HOPCNT_INFINITY;
@@ -139,7 +139,6 @@ sap_nearestserver(ushort ServType, struct interface *ifp)
 				best = sap;
 				besthops = ntohs(best->sap.hops);
 			}
-next:;
 		}
 	return best;
 }
@@ -283,7 +282,7 @@ sap_add_clone(struct sap_entry *sap,
 		return;
 
 	if (ftrace)
-		fprintf(ftrace, "CLONE ADD %04.4X %s.\n", 
+		fprintf(ftrace, "CLONE ADD %4.4X %s.\n", 
 			ntohs(clone->ServType),
 			clone->ServName);
 
