@@ -443,7 +443,7 @@ amr_cam_command(struct amr_softc *sc, struct amr_command **acp)
 	goto out;
     }
 
-    ac->ac_flags |= AMR_CMD_DATAOUT;
+    ac->ac_flags |= AMR_CMD_DATAOUT | AMR_CMD_DATAIN;
 
     ac->ac_ccb_data = csio->data_ptr;
     ac->ac_ccb_length = csio->dxfer_len;
@@ -501,7 +501,7 @@ amr_cam_complete(struct amr_command *ac)
 
     /* XXX note that we're ignoring ac->ac_status - good idea? */
 
-    debug(1, "status 0x%x  scsi_status 0x%x", ac->ac_status, ap->ap_scsi_status);
+    debug(1, "status 0x%x  AP scsi_status 0x%x", ac->ac_status, ap->ap_scsi_status);
 
     /*
      * Hide disks from CAM so that they're not picked up and treated as 'normal' disks.
@@ -564,7 +564,7 @@ amr_cam_complete_extcdb(struct amr_command *ac)
 
     /* XXX note that we're ignoring ac->ac_status - good idea? */
 
-    debug(1, "status 0x%x  scsi_status 0x%x", ac->ac_status, aep->ap_scsi_status);
+    debug(1, "status 0x%x  AEP scsi_status 0x%x", ac->ac_status, aep->ap_scsi_status);
 
     /*
      * Hide disks from CAM so that they're not picked up and treated as 'normal' disks.
