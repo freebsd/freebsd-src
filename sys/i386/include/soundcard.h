@@ -1,3 +1,9 @@
+#ifndef SOUNDCARD_H
+#define SOUNDCARD_H
+
+#ifndef _I386_MACHINE_SOUNDCARD_H_
+#define _I386_MACHINE_SOUNDCARD_H_
+
 /*
  * Copyright by Hannu Savolainen 1993
  *
@@ -22,12 +28,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * 
- * $Id: soundcard.h,v 1.7 1994/08/21 04:55:31 paul Exp $
+ * $Id: soundcard.h,v 1.8 1994/09/27 17:58:00 davidg Exp $
  */
-
-#ifndef _I386_MACHINE_SOUNDCARD_H_
-#define _I386_MACHINE_SOUNDCARD_H_
 
  /* 
   * If you make modifications to this file, please contact me before
@@ -36,10 +38,10 @@
   *
   * Regards,
   * Hannu Savolainen
-  * hannu@voxware.pp.fi, Hannu.Savolainen@helsinki.fi
+  * hannu@voxware.pp.fi
   */
 
-#define SOUND_VERSION   205
+#define SOUND_VERSION	203
 #define VOXWARE
 
 #include <sys/ioctl.h>
@@ -48,13 +50,17 @@
  *	Supported card ID numbers (Should be somewhere else?)
  */
 
-#define SNDCARD_ADLIB	1
-#define SNDCARD_SB	2
-#define SNDCARD_PAS	3
-#define SNDCARD_GUS	4
-#define SNDCARD_MPU401	5
-#define SNDCARD_SB16	6
-#define SNDCARD_SB16MIDI 7
+#define SNDCARD_ADLIB		1
+#define SNDCARD_SB		2
+#define SNDCARD_PAS		3
+#define SNDCARD_GUS		4
+#define SNDCARD_MPU401		5
+#define SNDCARD_SB16		6
+#define SNDCARD_SB16MIDI	7
+#define SNDCARD_UART6850	8
+#define SNDCARD_GUS16		9
+#define SNDCARD_MSS		10
+#define SNDCARD_PSS     	11
 
 /***********************************
  * IOCTL Commands for /dev/sequencer
@@ -100,6 +106,22 @@
 #define SNDCTL_SYNTH_MEMAVL		_IOWR('Q',14, int)	/* in=dev#, out=memsize */
 #define SNDCTL_FM_4OP_ENABLE		_IOW ('Q',15, int)	/* in=dev# */
 #define SNDCTL_PMGR_ACCESS		_IOWR('Q',16, struct patmgr_info)
+#define SNDCTL_SEQ_PANIC		_IO  ('Q',17)
+
+#define SNDCTL_TMR_TIMEBASE		_IOWR('T', 1, int)
+#define SNDCTL_TMR_START		_IO  ('T', 2)
+#define SNDCTL_TMR_STOP			_IO  ('T', 3)
+#define SNDCTL_TMR_CONTINUE		_IO  ('T', 4)
+#define SNDCTL_TMR_TEMPO		_IOWR('T', 5, int)
+#define SNDCTL_TMR_SOURCE		_IOWR('T', 6, int)
+#	define TMR_INTERNAL		0x00000001
+#	define TMR_EXTERNAL		0x00000002
+#		define TMR_MODE_MIDI	0x00000010
+#		define TMR_MODE_FSK	0x00000020
+#		define TMR_MODE_CLS	0x00000040
+#		define TMR_MODE_SMPTE	0x00000080
+#define SNDCTL_TMR_METRONOME		_IOW ('T', 7, int)
+#define SNDCTL_TMR_SELECT		_IOW ('T', 8, int)
 
 /*
  *	Sample loading mechanism for internal synthesizers (/dev/sequencer)
@@ -188,6 +210,14 @@ struct patch_info {
 		char data[1];	/* The waveform data starts here */
 	};
 
+
+struct sysex_info {
+		short key;		/* Use GUS_PATCH here */
+#define SYSEX_PATCH	0x05fd
+		short device_no;	/* Synthesizer number */
+		long len;	/* Size of the sysex data in bytes */
+		unsigned char data[1];	/* Sysex data starts here */
+	};
 
 /*
  * Patch management interface (/dev/sequencer, /dev/patmgr#)
@@ -284,7 +314,7 @@ struct patmgr_info {	/* Note! size must be < 4k since kmalloc() is used */
  *
  * Events SEQ_WAIT, SEQ_MIDIPUTC and SEQ_ECHO. Are also input events.
  * (All input events are currently 4 bytes long. Be prepared to support
- * 8 byte events also. If you receive any event having first byte >= 0xf0,
+ * 8 byte events also. If you receive any event having first byte >= 128,
  * it's a 8 byte event.
  *
  * The events are documented at the end of this file.
@@ -297,20 +327,99 @@ struct patmgr_info {	/* Note! size must be < 4k since kmalloc() is used */
 #define SEQ_FMNOTEOFF		SEQ_NOTEOFF	/* Just old name */
 #define SEQ_NOTEON		1
 #define	SEQ_FMNOTEON		SEQ_NOTEON
-#define SEQ_WAIT		2
+#define SEQ_WAIT		TMR_WAIT_ABS
 #define SEQ_PGMCHANGE		3
 #define SEQ_FMPGMCHANGE		SEQ_PGMCHANGE
-#define SEQ_SYNCTIMER		4
+#define SEQ_SYNCTIMER		TMR_START
 #define SEQ_MIDIPUTC		5
 #define SEQ_DRUMON		6	/*** OBSOLETE ***/
 #define SEQ_DRUMOFF		7	/*** OBSOLETE ***/
-#define SEQ_ECHO		8	/* For synching programs with output */
+#define SEQ_ECHO		TMR_ECHO	/* For synching programs with output */
 #define SEQ_AFTERTOUCH		9
 #define SEQ_CONTROLLER		10
+
+/*******************************************
+ *	Midi controller numbers
+ *******************************************
+ * Controllers 0 to 31 (0x00 to 0x1f) and
+ * 32 to 63 (0x20 to 0x3f) are continuous
+ * controllers.
+ * In the MIDI 1.0 these controllers are sent using
+ * two messages. Controller numbers 0 to 31 are used
+ * to send the LSB and the controller numbers 32 to 63
+ * are for the LSB.
+ *
+ * This driver uses just the numbers 0 to 31 to store both
+ * the LSB and MSB. The controller value is a unsigned short
+ * and it's valid range is between 0 and 16383 (0x0000 to 0x3fff).
+ * The driver sends the controller value using two messages when
+ * necessary.
+ */
+
+#define	   CTL_BANK_SELECT		0x00
+#define	   CTL_MODWHEEL			0x01
+#define    CTL_BREATH			0x02
+/*		undefined		0x03 */
+#define    CTL_FOOT			0x04
+#define    CTL_PORTAMENTO_TIME		0x05
+#define    CTL_DATA_ENTRY		0x06
+#define    CTL_MAIN_VOLUME		0x07
+#define    CTL_BALANCE			0x08
+/*		undefined		0x09 */
+#define    CTL_PAN			0x0a
+#define    CTL_EXPRESSION		0x0b
+/*		undefined		0x0c */
+/*		undefined		0x0d */
+/*		undefined		0x0e */
+/*		undefined		0x0f */
+#define    CTL_GENERAL_PURPOSE1	0x10
+#define    CTL_GENERAL_PURPOSE2	0x11
+#define    CTL_GENERAL_PURPOSE3	0x12
+#define    CTL_GENERAL_PURPOSE4	0x13
+/*		undefined		0x14 - 0x1f */
+
+/*		undefined		0x20 */
+/* The controller numbers 0x21 to 0x3f are reserved for the */
+/* least significant bytes of the controllers 0x00 to 0x1f. */
+/* These controllers are not recognised by the driver. */
+
+/* Controllers 64 to 69 (0x40 to 0x45) are on/off switches. */
+/* 0=OFF and 127=ON (intermediate values are possible) */
+#define    CTL_DAMPER_PEDAL		0x40
+#define    CTL_SUSTAIN			0x40	/* Alias */
+#define    CTL_HOLD			0x40	/* Alias */
+#define    CTL_PORTAMENTO		0x41
+#define    CTL_SOSTENUTO		0x42
+#define    CTL_SOFT_PEDAL		0x43
+/*		undefined		0x44 */
+#define    CTL_HOLD2			0x45
+/*		undefined		0x46 - 0x4f */
+
+#define    CTL_GENERAL_PURPOSE5	0x50
+#define    CTL_GENERAL_PURPOSE6	0x51
+#define    CTL_GENERAL_PURPOSE7	0x52
+#define    CTL_GENERAL_PURPOSE8	0x53
+/*		undefined		0x54 - 0x5a */
+#define    CTL_EXT_EFF_DEPTH		0x5b
+#define    CTL_TREMOLO_DEPTH		0x5c
+#define    CTL_CHORUS_DEPTH		0x5d
+#define    CTL_DETUNE_DEPTH		0x5e
+#define    CTL_CELESTE_DEPTH		0x5e	/* Alias for the above one */
+#define    CTL_PHASER_DEPTH		0x5f
+#define    CTL_DATA_INCREMENT		0x60
+#define    CTL_DATA_DECREMENT		0x61
+#define    CTL_NONREG_PARM_NUM_LSB	0x62
+#define    CTL_NONREG_PARM_NUM_MSB	0x63
+#define    CTL_REGIST_PARM_NUM_LSB	0x64
+#define    CTL_REGIST_PARM_NUM_MSB	0x65
+/*		undefined		0x66 - 0x78 */
+/*		reserved		0x79 - 0x7f */
+
+/* Pseudo controllers (not midi compatible) */
 #define    CTRL_PITCH_BENDER		255
 #define    CTRL_PITCH_BENDER_RANGE	254
-#define    CTRL_EXPRESSION		253
-#define    CTRL_MAIN_VOLUME		252
+#define    CTRL_EXPRESSION		253	/* Obsolete */
+#define    CTRL_MAIN_VOLUME		252	/* Obsolete */
 #define SEQ_BALANCE		11
 #define SEQ_VOLMODE             12
 
@@ -352,26 +461,7 @@ struct patmgr_info {	/* Note! size must be < 4k since kmalloc() is used */
  *      to GUS_PATCH.
  */
 #define SEQ_PRIVATE		0xfe	/* Low level HW dependent events (8 bytes) */
-#define SEQ_EXTENDED		0xff	/* Extended events (8 bytes) */
-
-/*
- *	Extended events for synthesizers (8 bytes)
- *
- *	Format:
- *
- *		b0	= SEQ_EXTENDED
- *		b1	= command
- *		b2	= device
- *		b3-b7	= parameters
- *
- *	Command				b3	b4	b5	b6	b7
- *	----------------------------------------------------------------------------
- *	SEQ_NOTEON			voice	note	volume	0	0
- *	SEQ_NOTEOFF			voice	note	volume	0	0
- *	SEQ_PGMCHANGE			voice	pgm	0	0	0
- *	SEQ_DRUMON			(voice)	drum#	volume	0	0
- *	SEQ_DRUMOFF			(voice)	drum#	volume	0	0
- */
+#define SEQ_EXTENDED		0xff	/* Extended events (8 bytes) OBSOLETE */
 
 /*
  * Record for FM patches
@@ -394,6 +484,7 @@ struct synth_info {	/* Read only */
 		int	synth_type;
 #define SYNTH_TYPE_FM			0
 #define SYNTH_TYPE_SAMPLE		1
+#define SYNTH_TYPE_MIDI			2	/* Midi interface */
 
 		int	synth_subtype;
 #define FM_TYPE_ADLIB			0x00
@@ -408,8 +499,16 @@ struct synth_info {	/* Read only */
 		unsigned long	capabilities;	
 #define SYNTH_CAP_PERCMODE		0x00000001 /* No longer used */
 #define SYNTH_CAP_OPL3			0x00000002 /* Set if OPL3 supported */
+#define SYNTH_CAP_INPUT			0x00000004 /* Input (MIDI) device */
 		int	dummies[19];	/* Reserve space */
 	};
+
+struct sound_timer_info {
+		char name[30];
+		int caps;
+	};
+
+#define MIDI_CAP_MPU401		1		/* MPU-401 intelligent mode */
 
 struct midi_info {
 		char		name[30];
@@ -420,6 +519,19 @@ struct midi_info {
 	};
 
 /********************************************
+ * ioctl commands for the /dev/midi##
+ */
+typedef struct {
+		unsigned char cmd;
+		char nr_args, nr_returns;
+		unsigned char data[30];
+	} mpu_command_rec;
+
+#define SNDCTL_MIDI_PRETIME		_IOWR('m', 0, int)
+#define SNDCTL_MIDI_MPUMODE		_IOWR('m', 1, int)
+#define SNDCTL_MIDI_MPUCMD		_IOWR('m', 2, mpu_command_rec)
+
+/********************************************
  * IOCTL commands for /dev/dsp and /dev/audio
  */
 
@@ -428,11 +540,26 @@ struct midi_info {
 #define SNDCTL_DSP_SPEED		_IOWR('P', 2, int)
 #define SNDCTL_DSP_STEREO		_IOWR('P', 3, int)
 #define SNDCTL_DSP_GETBLKSIZE		_IOWR('P', 4, int)
-#define SNDCTL_DSP_SAMPLESIZE		_IOWR('P', 5, int)	/* 8, 12 or 16 */
+#define SNDCTL_DSP_SAMPLESIZE		SNDCTL_DSP_SETFMT
 #define SOUND_PCM_WRITE_CHANNELS	_IOWR('P', 6, int)
 #define SOUND_PCM_WRITE_FILTER		_IOWR('P', 7, int)
 #define SNDCTL_DSP_POST			_IO  ('P', 8)
 #define SNDCTL_DSP_SUBDIVIDE		_IOWR('P', 9, int)
+#define SNDCTL_DSP_SETFRAGMENT		_IOWR('P',10, int)
+
+/*	Audio data formats (Note! U8=8 and S16_LE=16 for compatibility) */
+#define SNDCTL_DSP_GETFMTS		_IOR ('P',11, int) /* Returns a mask */
+#define SNDCTL_DSP_SETFMT		_IOWR('P',5, int) /* Selects ONE fmt*/
+#	define AFMT_QUERY		0x00000000	/* Return current fmt */
+#	define AFMT_MU_LAW		0x00000001
+#	define AFMT_A_LAW		0x00000002
+#	define AFMT_IMA_ADPCM		0x00000004
+#	define AFMT_U8			0x00000008
+#	define AFMT_S16_LE		0x00000010	/* Little endian signed 16*/
+#	define AFMT_S16_BE		0x00000020	/* Big endian signed 16 */
+#	define AFMT_S8			0x00000040
+#	define AFMT_U16_LE		0x00000080	/* Little endian U16 */
+#	define AFMT_U16_BE		0x00000100	/* Big endian U16 */
 
 #define SOUND_PCM_READ_RATE		_IOR ('P', 2, int)
 #define SOUND_PCM_READ_CHANNELS		_IOR ('P', 6, int)
@@ -440,12 +567,30 @@ struct midi_info {
 #define SOUND_PCM_READ_FILTER		_IOR ('P', 7, int)
 
 /* Some alias names */
-#define SOUND_PCM_WRITE_BITS		SNDCTL_DSP_SAMPLESIZE
+#define SOUND_PCM_WRITE_BITS		SNDCTL_DSP_SETFMT
 #define SOUND_PCM_WRITE_RATE		SNDCTL_DSP_SPEED
 #define SOUND_PCM_POST			SNDCTL_DSP_POST
 #define SOUND_PCM_RESET			SNDCTL_DSP_RESET
 #define SOUND_PCM_SYNC			SNDCTL_DSP_SYNC
 #define SOUND_PCM_SUBDIVIDE		SNDCTL_DSP_SUBDIVIDE
+#define SOUND_PCM_SETFRAGMENT		SNDCTL_DSP_SETFRAGMENT
+#define SOUND_PCM_GETFMTS		SNDCTL_DSP_GETFMTS
+#define SOUND_PCM_SETFMT		SNDCTL_DSP_SETFMT
+
+/*********************************************
+ * IOCTL /dev/pss (experimental PSS API by marc.hoffman@analog.com.
+ *		likely to change in near future.
+ */
+#define SNDCTL_PSS_RESET             _IO  ('C',  0)
+#define SNDCTL_PSS_SETUP_REGISTERS   _IO  ('C',  1)
+#define SNDCTL_PSS_SPEAKER           _IOW ('C',  2, struct pss_speaker)
+
+struct pss_speaker {
+  int volume;
+  int bass;
+  int treb;
+  int mode;
+};
 
 /*********************************************
  * IOCTL commands for /dev/mixer
@@ -561,57 +706,66 @@ struct midi_info {
 #define SOUND_MIXER_WRITE_RECSRC	MIXER_WRITE(SOUND_MIXER_RECSRC)
 
 /*
- *	The following mixer ioctl calls are compatible with the BSD driver by
- *	  Steve Haehnichen <shaehnic@ucsd.edu>
+ * Level 2 event types for /dev/sequencer
+ */
+
+/*
+ * The 4 most significant bits of byte 0 specify the class of
+ * the event: 
  *
- * Since this interface is entirely SB specific, it will be dropped in the
- * near future.
+ *	0x8X = system level events,
+ *	0x9X = device/port specific events, event[1] = device/port,
+ *		The last 4 bits give the subtype:
+ *			0x02	= Channel event (event[3] = chn).
+ *			0x01	= note event (event[4] = note).
+ *			(0x01 is not used alone but always with bit 0x02).
+ *	       event[2] = MIDI message code (0x80=note off etc.)
+ *
  */
 
-typedef unsigned char S_BYTE;
-typedef unsigned char S_FLAG;
-struct stereo_vol
-{
-  S_BYTE l;			/* Left volume */
-  S_BYTE r;			/* Right volume */
-};
-
-#define MIXER_IOCTL_SET_LEVELS 		_IOW ('s', 20, struct sb_mixer_levels)
-#define MIXER_IOCTL_SET_PARAMS 		_IOW ('s', 21, struct sb_mixer_params)
-#define MIXER_IOCTL_READ_LEVELS 	_IOR ('s', 22, struct sb_mixer_levels)
-#define MIXER_IOCTL_READ_PARAMS 	_IOR ('s', 23, struct sb_mixer_params)
-#define MIXER_IOCTL_RESET		_IO  ('s', 24)
+#define EV_SEQ_LOCAL		0x80
+#define EV_TIMING		0x81
+#define EV_CHN_COMMON		0x92
+#define EV_CHN_VOICE		0x93
+/*
+ * Event types 200 to 220 are reserved for application use.
+ * These numbers will not be used by the driver.
+ */
 
 /*
- * Mixer volume levels for MIXER_IOCTL_SET_VOL & MIXER_IOCTL_READ_VOL
+ * Events for event type EV_CHN_VOICE
  */
-struct sb_mixer_levels
-{
-  struct stereo_vol master;	/* Master volume */
-  struct stereo_vol voc;	/* DSP Voice volume */
-  struct stereo_vol fm;		/* FM volume */
-  struct stereo_vol line;	/* Line-in volume */
-  struct stereo_vol cd;		/* CD audio */
-  S_BYTE mic;			/* Microphone level */
-};
+
+#define MIDI_NOTEOFF		0x80
+#define MIDI_NOTEON		0x90
+#define MIDI_KEY_PRESSURE	0xA0
 
 /*
- * Mixer parameters for MIXER_IOCTL_SET_PARAMS & MIXER_IOCTL_READ_PARAMS
+ * Events for event type EV_CHN_COMMON
  */
-struct sb_mixer_params
-{
-  S_BYTE record_source;		/* Recording source (See SRC_xxx below) */
-  S_FLAG hifreq_filter;		/* Filter frequency (hi/low) */
-  S_FLAG filter_input;		/* ANFI input filter */
-  S_FLAG filter_output;		/* DNFI output filter */
-  S_FLAG dsp_stereo;		/* 1 if DSP is in Stereo mode */
-};
 
-#define SRC_MIC         1	/* Select Microphone recording source */
-#define SRC_CD          3	/* Select CD recording source */
-#define SRC_LINE        7	/* Use Line-in for recording source */
+#define MIDI_CTL_CHANGE		0xB0
+#define MIDI_PGM_CHANGE		0xC0
+#define MIDI_CHN_PRESSURE	0xD0
+#define MIDI_PITCH_BEND		0xE0
 
-#if !defined(KERNEL) && !defined(INKERNEL)
+#define MIDI_SYSTEM_PREFIX	0xF0
+
+/*
+ * Timer event types
+ */
+#define TMR_WAIT_REL		1	/* Time relative to the prev time */
+#define TMR_WAIT_ABS		2	/* Absolute time since TMR_START */
+#define TMR_STOP		3
+#define TMR_START		4
+#define TMR_CONTINUE		5
+#define TMR_TEMPO		6
+#define TMR_ECHO		8
+#define TMR_CLOCK		9	/* MIDI clock */
+#define TMR_SPP			10	/* Song position pointer */
+#define TMR_TIMESIG		11	/* Time signature */
+
+#if (!defined(__KERNEL__) && !defined(KERNEL) && !defined(INKERNEL) && !defined(_KERNEL)) || defined(USE_SEQ_MACROS) 
 /*
  *	Some convenience macros to simplify programming of the
  *	/dev/sequencer interface
@@ -619,6 +773,7 @@ struct sb_mixer_params
  *	These macros define the API which should be used when possible.
  */
 
+#ifndef USE_SIMPLE_MACROS
 void seqbuf_dump(void);	/* This function must be provided by programs */
 
 /* Sample seqbuf_dump() implementation:
@@ -640,12 +795,31 @@ void seqbuf_dump(void);	/* This function must be provided by programs */
  *	}
  */
 
-#define SEQ_DEFINEBUF(len)		unsigned char _seqbuf[len]; int _seqbuflen = len; int _seqbufptr = 0
-#define SEQ_DECLAREBUF()		extern unsigned char _seqbuf[]; extern int _seqbuflen;extern int _seqbufptr
+#define SEQ_DEFINEBUF(len)		unsigned char _seqbuf[len]; int _seqbuflen = len;int _seqbufptr = 0
+#define SEQ_USE_EXTBUF()		extern unsigned char _seqbuf[]; extern int _seqbuflen;extern int _seqbufptr
+#define SEQ_DECLAREBUF()		SEQ_USE_EXTBUF()
 #define SEQ_PM_DEFINES			struct patmgr_info _pm_info
 #define _SEQ_NEEDBUF(len)		if ((_seqbufptr+(len)) > _seqbuflen) seqbuf_dump()
 #define _SEQ_ADVBUF(len)		_seqbufptr += len
 #define SEQ_DUMPBUF			seqbuf_dump
+#else
+/*
+ * This variation of the sequencer macros is used just to format one event
+ * using fixed buffer.
+ * 
+ * The program using the macro library must define the following macros before
+ * using this library.
+ *
+ * #define _seqbuf 		 name of the buffer (unsigned char[]) 
+ * #define _SEQ_ADVBUF(len)	 If the applic needs to know the exact
+ *				 size of the event, this macro can be used.
+ *				 Otherwise this must be defined as empty.
+ * #define _seqbufptr		 Define the name of index variable or 0 if
+ *				 not required. 
+ */
+#define _SEQ_NEEDBUF(len)	/* empty */
+#endif
+
 #define PM_LOAD_PATCH(dev, bank, pgm)	(SEQ_DUMPBUF(), _pm_info.command = _PM_LOAD_PATCH, \
 					_pm_info.device=dev, _pm_info.data.data8[0]=pgm, \
 					_pm_info.parm1 = bank, _pm_info.parm2 = 1, \
@@ -666,39 +840,68 @@ void seqbuf_dump(void);	/* This function must be provided by programs */
 					_seqbuf[_seqbufptr+7] = 0;\
 					_SEQ_ADVBUF(8);}
 
-#define SEQ_START_NOTE(dev, voice, note, vol)	{_SEQ_NEEDBUF(8);\
-					_seqbuf[_seqbufptr] = SEQ_EXTENDED;\
-					_seqbuf[_seqbufptr+1] = SEQ_NOTEON;\
-					_seqbuf[_seqbufptr+2] = (dev);\
-					_seqbuf[_seqbufptr+3] = (voice);\
+/*
+ * Midi voice messages
+ */
+
+#define _CHN_VOICE(dev, event, chn, note, parm) \
+					{_SEQ_NEEDBUF(8);\
+					_seqbuf[_seqbufptr] = EV_CHN_VOICE;\
+					_seqbuf[_seqbufptr+1] = (dev);\
+					_seqbuf[_seqbufptr+2] = (event);\
+					_seqbuf[_seqbufptr+3] = (chn);\
 					_seqbuf[_seqbufptr+4] = (note);\
-					_seqbuf[_seqbufptr+5] = (vol);\
-					_seqbuf[_seqbufptr+6] = 0;\
+					_seqbuf[_seqbufptr+5] = (parm);\
+					_seqbuf[_seqbufptr+6] = (0);\
 					_seqbuf[_seqbufptr+7] = 0;\
 					_SEQ_ADVBUF(8);}
 
-#define SEQ_STOP_NOTE(dev, voice, note, vol)	{_SEQ_NEEDBUF(8);\
-					_seqbuf[_seqbufptr] = SEQ_EXTENDED;\
-					_seqbuf[_seqbufptr+1] = SEQ_NOTEOFF;\
-					_seqbuf[_seqbufptr+2] = (dev);\
-					_seqbuf[_seqbufptr+3] = (voice);\
-					_seqbuf[_seqbufptr+4] = (note);\
-					_seqbuf[_seqbufptr+5] = (vol);\
-					_seqbuf[_seqbufptr+6] = 0;\
-					_seqbuf[_seqbufptr+7] = 0;\
+#define SEQ_START_NOTE(dev, chn, note, vol) \
+		_CHN_VOICE(dev, MIDI_NOTEON, chn, note, vol)
+
+#define SEQ_STOP_NOTE(dev, chn, note, vol) \
+		_CHN_VOICE(dev, MIDI_NOTEOFF, chn, note, vol)
+
+#define SEQ_KEY_PRESSURE(dev, chn, note, pressure) \
+		_CHN_VOICE(dev, MIDI_KEY_PRESSURE, chn, note, pressure)
+
+/*
+ * Midi channel messages
+ */
+
+#define _CHN_COMMON(dev, event, chn, p1, p2, w14) \
+					{_SEQ_NEEDBUF(8);\
+					_seqbuf[_seqbufptr] = EV_CHN_COMMON;\
+					_seqbuf[_seqbufptr+1] = (dev);\
+					_seqbuf[_seqbufptr+2] = (event);\
+					_seqbuf[_seqbufptr+3] = (chn);\
+					_seqbuf[_seqbufptr+4] = (p1);\
+					_seqbuf[_seqbufptr+5] = (p2);\
+					*(short *)&_seqbuf[_seqbufptr+6] = (w14);\
 					_SEQ_ADVBUF(8);}
 
-#define SEQ_CHN_PRESSURE(dev, voice, pressure)	{_SEQ_NEEDBUF(8);\
-					_seqbuf[_seqbufptr] = SEQ_EXTENDED;\
-					_seqbuf[_seqbufptr+1] = SEQ_AFTERTOUCH;\
-					_seqbuf[_seqbufptr+2] = (dev);\
-					_seqbuf[_seqbufptr+3] = (voice);\
-					_seqbuf[_seqbufptr+4] = (pressure);\
-					_seqbuf[_seqbufptr+5] = 0;\
-					_seqbuf[_seqbufptr+6] = 0;\
-					_seqbuf[_seqbufptr+7] = 0;\
-					_SEQ_ADVBUF(8);}
+#define SEQ_CHN_PRESSURE(dev, chn, pressure) \
+		_CHN_COMMON(dev, MIDI_CHN_PRESSURE, chn, pressure, 0, 0)
 
+#define SEQ_SET_PATCH(dev, chn, patch) \
+		_CHN_COMMON(dev, MIDI_PGM_CHANGE, chn, patch, 0, 0)
+
+#define SEQ_CONTROL(dev, chn, controller, value) \
+		_CHN_COMMON(dev, MIDI_CTL_CHANGE, chn, controller, 0, value)
+
+#define SEQ_BENDER(dev, chn, value) \
+		_CHN_COMMON(dev, MIDI_PITCH_BEND, chn, 0, 0, value)
+
+/*
+ * The following 5 macros are incorrectly implemented and obsolete.
+ * Use SEQ_BENDER and SEQ_CONTROL (with proper controller) instead.
+ */
+#define SEQ_PITCHBEND(dev, voice, value) SEQ_CONTROL(dev, voice, CTRL_PITCH_BENDER, value)
+#define SEQ_BENDER_RANGE(dev, voice, value) SEQ_CONTROL(dev, voice, CTRL_PITCH_BENDER_RANGE, value)
+#define SEQ_EXPRESSION(dev, voice, value) SEQ_CONTROL(dev, voice, CTL_EXPRESSION, value*128)
+#define SEQ_MAIN_VOLUME(dev, voice, value) SEQ_CONTROL(dev, voice, CTL_MAIN_VOLUME, (value*16383)/100)
+#define SEQ_PANNING(dev, voice, pos) SEQ_CONTROL(dev, voice, CTL_PAN, (pos+128) / 2)
+#if 0
 #define SEQ_PANNING(dev, voice, pos)	{_SEQ_NEEDBUF(8);\
 					_seqbuf[_seqbufptr] = SEQ_EXTENDED;\
 					_seqbuf[_seqbufptr+1] = SEQ_BALANCE;\
@@ -707,48 +910,35 @@ void seqbuf_dump(void);	/* This function must be provided by programs */
 					(char)_seqbuf[_seqbufptr+4] = (pos);\
 					_seqbuf[_seqbufptr+5] = 0;\
 					_seqbuf[_seqbufptr+6] = 0;\
-					_seqbuf[_seqbufptr+7] = 0;\
+					_seqbuf[_seqbufptr+7] = 1;\
 					_SEQ_ADVBUF(8);}
+#endif
 
-#define SEQ_CONTROL(dev, voice, controller, value)	{_SEQ_NEEDBUF(8);\
-					_seqbuf[_seqbufptr] = SEQ_EXTENDED;\
-					_seqbuf[_seqbufptr+1] = SEQ_CONTROLLER;\
-					_seqbuf[_seqbufptr+2] = (dev);\
-					_seqbuf[_seqbufptr+3] = (voice);\
-					_seqbuf[_seqbufptr+4] = (controller);\
-					*(short *)&_seqbuf[_seqbufptr+5] = (value);\
-					_seqbuf[_seqbufptr+7] = 0;\
-					_SEQ_ADVBUF(8);}
+/*
+ * Timing and syncronization macros
+ */
 
-#define SEQ_PITCHBEND(dev, voice, value) SEQ_CONTROL(dev, voice, CTRL_PITCH_BENDER, value)
-#define SEQ_BENDER_RANGE(dev, voice, value) SEQ_CONTROL(dev, voice, CTRL_PITCH_BENDER_RANGE, value)
-#define SEQ_EXPRESSION(dev, voice, value) SEQ_CONTROL(dev, voice, CTRL_EXPRESSION, value)
-#define SEQ_MAIN_VOLUME(dev, voice, value) SEQ_CONTROL(dev, voice, CTRL_MAIN_VOLUME, value)
-
-#define SEQ_START_TIMER()		{_SEQ_NEEDBUF(4);\
-					_seqbuf[_seqbufptr] = SEQ_SYNCTIMER;\
-					_seqbuf[_seqbufptr+1] = 0;\
+#define _TIMER_EVENT(ev, parm)		{_SEQ_NEEDBUF(8);\
+				 	_seqbuf[_seqbufptr+0] = EV_TIMING; \
+				 	_seqbuf[_seqbufptr+1] = (ev); \
 					_seqbuf[_seqbufptr+2] = 0;\
 					_seqbuf[_seqbufptr+3] = 0;\
-					_SEQ_ADVBUF(4);}
-#define SEQ_SET_PATCH(dev, voice, patch)	{_SEQ_NEEDBUF(8);\
-					_seqbuf[_seqbufptr] = SEQ_EXTENDED;\
-					_seqbuf[_seqbufptr+1] = SEQ_PGMCHANGE;\
-					_seqbuf[_seqbufptr+2] = (dev);\
-					_seqbuf[_seqbufptr+3] = (voice);\
-					_seqbuf[_seqbufptr+4] = (patch);\
-					_seqbuf[_seqbufptr+5] = 0;\
-					_seqbuf[_seqbufptr+6] = 0;\
-					_seqbuf[_seqbufptr+7] = 0;\
+				 	*(unsigned int *)&_seqbuf[_seqbufptr+4] = (parm); \
 					_SEQ_ADVBUF(8);}
 
-#define SEQ_WAIT_TIME(ticks)		{_SEQ_NEEDBUF(4);\
-				 	*(unsigned long *)&_seqbuf[_seqbufptr] = SEQ_WAIT | ((ticks) << 8);\
-				 	_SEQ_ADVBUF(4);}
+#define SEQ_START_TIMER()		_TIMER_EVENT(TMR_START, 0)
+#define SEQ_STOP_TIMER()		_TIMER_EVENT(TMR_STOP, 0)
+#define SEQ_CONTINUE_TIMER()		_TIMER_EVENT(TMR_CONTINUE, 0)
+#define SEQ_WAIT_TIME(ticks)		_TIMER_EVENT(TMR_WAIT_ABS, ticks)
+#define SEQ_DELTA_TIME(ticks)		_TIMER_EVENT(TMR_WAIT_REL, ticks)
+#define SEQ_ECHO_BACK(key)		_TIMER_EVENT(TMR_ECHO, key)
+#define SEQ_SET_TEMPO(value)		_TIMER_EVENT(TMR_TEMPO, value)
+#define SEQ_SONGPOS(pos)		_TIMER_EVENT(TMR_SPP, pos)
+#define SEQ_TIME_SIGNATURE(sig)		_TIMER_EVENT(TMR_TIMESIG, sig)
 
-#define SEQ_ECHO_BACK(key)		{_SEQ_NEEDBUF(4);\
-				 	*(unsigned long *)&_seqbuf[_seqbufptr] = SEQ_ECHO | ((key) << 8);\
-				 	_SEQ_ADVBUF(4);}
+/*
+ * Events for the level 1 interface only 
+ */
 
 #define SEQ_MIDIOUT(device, byte)	{_SEQ_NEEDBUF(4);\
 					_seqbuf[_seqbufptr] = SEQ_MIDIPUTC;\
@@ -756,9 +946,15 @@ void seqbuf_dump(void);	/* This function must be provided by programs */
 					_seqbuf[_seqbufptr+2] = (device);\
 					_seqbuf[_seqbufptr+3] = 0;\
 					_SEQ_ADVBUF(4);}
-#define SEQ_WRPATCH(patchx, len)	{if (_seqbufptr) seqbuf_dump();\
+
+/*
+ * Patch loading.
+ */
+#define SEQ_WRPATCH(patchx, len)		{if (_seqbufptr) seqbuf_dump();\
 					if (write(seqfd, (char*)(patchx), len)==-1) \
 					   perror("Write patch: /dev/sequencer");}
+#define SEQ_WRPATCH2(patchx, len)	(seqbuf_dump(), write(seqfd, (char*)(patchx), len))
 
 #endif
-#endif 
+#endif
+#endif
