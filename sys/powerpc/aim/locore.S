@@ -93,6 +93,18 @@ GLOBAL(powersave)
 #define	SPILLSTK	4096		/* 4K spill stack */
 
 /*
+ * Dummy interrupt table to keep sysctl happy until
+ * it's worked out what to do with naming
+ */
+GLOBAL(intrnames)
+	.asciz "dummy"
+GLOBAL(eintrnames)
+	.align 4
+GLOBAL(intrcnt)
+	.long 0
+GLOBAL(eintrcnt)
+	
+/*
  * File-scope for locore.S
  */
 idle_u:
