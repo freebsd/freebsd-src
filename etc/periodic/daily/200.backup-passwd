@@ -1,0 +1,35 @@
+#!/bin/sh
+#
+# $Id: 200.backup-passwd,v 1.1.1.1 1997/08/12 17:51:15 pst Exp $
+#
+bak=/var/backups
+
+if [ -f /etc/master.passwd -o -f /etc/group ] ; then
+    echo ""
+    echo "Backup passwd and group files:"
+
+    if [ ! -f $bak/master.passwd.bak ] ; then
+	echo "no $bak/master.passwd.bak"
+	cp -p /etc/master.passwd $bak/master.passwd.bak
+    fi
+
+    if cmp -s $bak/master.passwd.bak /etc/master.passwd; then :; else
+	echo "$host passwd diffs:"
+	diff $bak/master.passwd.bak /etc/master.passwd |\
+		sed 's/^\([<>] [^:]*\):[^:]*:/\1:(password):/'
+	mv $bak/master.passwd.bak $bak/master.passwd.bak2
+	cp -p /etc/master.passwd $bak/master.passwd.bak
+    fi
+
+    if [ ! -f $bak/group.bak ] ; then
+	echo "no $bak/group.bak"
+	cp -p /etc/group $bak/group.bak
+    fi
+
+    if cmp -s $bak/group.bak /etc/group; then :; else
+	echo "$host group diffs:"
+	diff $bak/group.bak /etc/group
+	mv $bak/group.bak $bak/group.bak2
+	cp -p /etc/group $bak/group.bak
+    fi
+fi
