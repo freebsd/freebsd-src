@@ -126,11 +126,14 @@ pkg_perform(char **pkgs)
 		errx(2, "%s: alloca() failed", __FUNCTION__);
 		/* Not reached */
 	    }
-	    for (i = 0; Pkgdeps; i++) {
+	    for (i = 0; Pkgdeps;) {
 		cp = strsep(&Pkgdeps, " \t\n");
-		if (*cp)
+		if (*cp) {
 		    deps[i] = cp;
+		    i++;
+		}
 	    }
+	    ndeps = i;
 	    deps[ndeps] = NULL;
 
 	    sortdeps(deps);
