@@ -28,7 +28,7 @@
  *
  *	from: @(#)auth_unix.h 1.8 88/02/08 SMI
  *	from: @(#)auth_unix.h	2.2 88/07/29 4.0 RPCSRC
- *	$Id: auth_unix.h,v 1.6 1997/02/23 09:17:21 peter Exp $
+ *	$Id: auth_unix.h,v 1.7 1997/05/07 02:27:02 eivind Exp $
  */
 
 /*
@@ -47,9 +47,6 @@
 #ifndef _RPC_AUTH_UNIX_H
 #define _RPC_AUTH_UNIX_H
 #include <sys/cdefs.h>
-#include <rpc/types.h>
-#include <rpc/xdr.h>
-#include <rpc/auth.h>
 
 /* The machine name is part of a credential; it may not exceed 255 bytes */
 #define MAX_MACHINE_NAME 255
