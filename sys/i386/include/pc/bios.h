@@ -220,6 +220,51 @@ extern int bios32(struct bios_regs *, u_int, u_short);
 extern void set_bios_selectors(struct bios_segments *, int);
 
 /*
+ * PCI interrupt routing table.
+ *
+ * $PIR in the BIOS segment contains a PIR_table
+ * int 1a:b106 returns PIR_table in buffer at es:(e)di 
+ * int 1a:b18e returns PIR_table in buffer at es:(e)di 
+ * int 1a:b406 returns es:di pointing to the BIOS PIR_table
+ */
+struct PIR_header 
+{
+    int8_t	ph_signature[4];
+    u_int16_t	ph_version;
+    u_int16_t	ph_length;
+    u_int8_t	ph_router_bus;
+    u_int8_t	ph_router_dev_fn;
+    u_int16_t	ph_pci_irqs;
+    u_int16_t	ph_router_vendor;
+    u_int16_t	ph_router_device;
+    u_int32_t	ph_miniport;
+    u_int8_t	ph_res[11];
+    u_int8_t	ph_checksum;
+} __attribute__ ((packed));
+
+struct PIR_intpin 
+{
+    u_int8_t	link;
+    u_int16_t	irqs;
+} __attribute__ ((packed));
+
+struct PIR_entry
+{
+    u_int8_t		pe_bus;
+    u_int8_t		pe_res1:3;
+    u_int8_t		pe_device:5;
+    struct PIR_intpin	pe_intpin[4];
+    u_int8_t	pe_slot;
+    u_int8_t	pe_res3;
+} __attribute__ ((packed));
+
+struct PIR_table 
+{
+    struct PIR_header	pt_header;
+    struct PIR_entry	pt_entry[0];
+} __attribute__ ((packed));
+
+/*
  * Int 15:E820 'SMAP' structure
  *
  * XXX add constants for type
@@ -230,4 +275,3 @@ struct bios_smap {
     u_int64_t	length;
     u_int32_t	type;
 } __attribute__ ((packed));
-
