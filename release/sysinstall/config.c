@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.42 1995/11/12 10:35:58 jkh Exp $
+ * $Id: config.c,v 1.27 1996/04/28 03:26:46 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -19,13 +19,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Jordan Hubbard
- *	for the FreeBSD Project.
- * 4. The name of Jordan Hubbard or the FreeBSD project may not be used to
- *    endorse or promote products derived from this software without specific
- *    prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY JORDAN HUBBARD ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -44,6 +37,13 @@
 #include "sysinstall.h"
 #include <sys/disklabel.h>
 #include <sys/wait.h>
+#include <sys/errno.h>
+#include <sys/ioctl.h>
+#include <sys/fcntl.h>
+#include <sys/param.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <sys/mount.h>
 
 static Chunk *chunk_list[MAX_CHUNKS];
 static int nchunks;
@@ -156,9 +156,8 @@ configFstab(void)
 
     if (!RunningAsInit) {
 	if (file_readable("/etc/fstab"))
-	    return RET_SUCCESS;
+	    return DITEM_SUCCESS;
 	else {
-	    dialog_clear();
 	    msgConfirm("Attempting to rebuild your /etc/fstab file.  Warning: If you had\n"
 		       "any CD devices in use before running sysinstall then they may NOT\n"
 		       "be found by this run!");
@@ -167,9 +166,8 @@ configFstab(void)
 
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     if (!devs) {
-	dialog_clear();
 	msgConfirm("No disks found!");
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
 
     /* Record all the chunks */
@@ -196,10 +194,9 @@ configFstab(void)
 
     fstab = fopen("/etc/fstab", "w");
     if (!fstab) {
-	dialog_clear();
 	msgConfirm("Unable to create a new /etc/fstab file!  Manual intervention\n"
 		   "will be required.");
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
 
     /* Go for the burn */
@@ -217,7 +214,6 @@ configFstab(void)
     /* Write the first one out as /cdrom */
     if (cnt) {
 	if (Mkdir("/cdrom", NULL)) {
-	    dialog_clear();
 	    msgConfirm("Unable to make mount point for: /cdrom");
 	}
 	else
@@ -230,7 +226,6 @@ configFstab(void)
 
 	sprintf(cdname, "/cdrom%d", i);
 	if (Mkdir(cdname, NULL)) {
-	    dialog_clear();
 	    msgConfirm("Unable to make mount point for: %s", cdname);
 	}
 	else
@@ -239,7 +234,7 @@ configFstab(void)
     fclose(fstab);
     if (isDebug())
 	msgDebug("Wrote out /etc/fstab file\n");
-    return RET_SUCCESS;
+    return DITEM_SUCCESS;
 }
 
 /*
@@ -259,7 +254,6 @@ configSysconfig(void)
 
     fp = fopen("/etc/sysconfig", "r");
     if (!fp) {
-	dialog_clear();
 	msgConfirm("Unable to open /etc/sysconfig file!  Things may work\n"
 		   "rather strangely as a result of this.");
 	return;
@@ -326,16 +320,31 @@ configSysconfig(void)
 }
 
 int
-configSaverTimeout(char *str)
+configSaverTimeout(dialogMenuItem *self)
 {
-    return variable_get_value(VAR_BLANKTIME, "Enter time-out period in seconds for screen saver")
-	? RET_SUCCESS : RET_FAIL;
+    return variable_get_value(VAR_BLANKTIME, "Enter time-out period in seconds for screen saver") ?
+	DITEM_SUCCESS : DITEM_FAILURE;
 }
 
 int
-configNTP(char *str)
+configNTP(dialogMenuItem *self)
 {
-    return variable_get_value(VAR_NTPDATE, "Enter the name of an NTP server") ? RET_SUCCESS : RET_FAIL;
+    return variable_get_value(VAR_NTPDATE, "Enter the name of an NTP server") ? DITEM_SUCCESS : DITEM_FAILURE;
+}
+
+int
+configXFree86(dialogMenuItem *self)
+{
+    if (file_executable("/usr/X11R6/bin/xf86config")) {
+	dialog_clear();
+	systemExecute("/usr/X11R6/bin/xf86config");
+	return DITEM_SUCCESS | DITEM_RESTORE;
+    }
+    else {
+	msgConfirm("XFree86 does not appear to be installed!  Please install\n"
+		   "The XFree86 distribution before attempting to configure it.");
+	return DITEM_FAILURE;
+    }
 }
 
 void
@@ -348,22 +357,18 @@ configResolv(void)
 	return;
 
     if (!variable_get(VAR_NAMESERVER)) {
-	if (mediaDevice && (mediaDevice->type == DEVICE_TYPE_NFS || mediaDevice->type == DEVICE_TYPE_FTP)) {
-	    dialog_clear();
+	if (mediaDevice && (mediaDevice->type == DEVICE_TYPE_NFS || mediaDevice->type == DEVICE_TYPE_FTP))
 	    msgConfirm("Warning:  Missing name server value - network operations\n"
 		       "may fail as a result!");
-	}
 	goto skip;
     }
     if (Mkdir("/etc", NULL)) {
-	dialog_clear();
 	msgConfirm("Unable to create /etc directory.  Network configuration\n"
 		   "files will therefore not be written!");
 	return;
     }
     fp = fopen("/etc/resolv.conf", "w");
     if (!fp) {
-	dialog_clear();
 	msgConfirm("Unable to open /etc/resolv.conf!  You will need to do this manually.");
 	return;
     }
@@ -381,7 +386,6 @@ skip:
     if (cp && *cp != '0' && (hp = variable_get(VAR_HOSTNAME))) {
 	char cp2[255];
 
-	(void)vsystem("hostname %s", hp);
 	fp = fopen("/etc/hosts", "w");
 	if (!index(hp, '.'))
 	    cp2[0] = '\0';
@@ -398,49 +402,52 @@ skip:
 }
 
 int
-configRoutedFlags(char *str)
+configRoutedFlags(dialogMenuItem *self)
 {
     return variable_get_value(VAR_ROUTEDFLAGS, 
 			      "Specify the flags for routed; -q is the default, -s is\n"
-			      "a good choice for gateway machines.") ? RET_SUCCESS : RET_FAIL;
+			      "a good choice for gateway machines.") ? DITEM_SUCCESS : DITEM_FAILURE;
 }
 
 int
-configPackages(char *str)
+configPackages(dialogMenuItem *self)
 {
-    PkgNode top, plist;
+    static PkgNode top, plist;
+    static Boolean index_initted = FALSE;
+    PkgNodePtr tmp;
     int fd;
 
     if (!mediaVerify())
-	return RET_FAIL;
+	return DITEM_FAILURE;
 
     if (!mediaDevice->init(mediaDevice))
-	return RET_FAIL;
-    
-    msgNotify("Attempting to fetch packages/INDEX file from selected media.");
-    fd = mediaDevice->get(mediaDevice, "packages/INDEX", TRUE);
-    if (fd < 0) {
-	dialog_clear();
-	msgConfirm("Unable to get packages/INDEX file from selected media.\n"
-		   "This may be because the packages collection is not available at\n"
-		   "on the distribution media you've chosen (most likely an FTP site\n"
-		   "without the packages collection mirrored).  Please verify media\n"
-		   "(or path to media) and try again.  If your local site does not\n"
-		   "carry the packages collection, then we recommend either a CD\n"
-		   "distribution or the master distribution on ftp.freebsd.org.");
-	return RET_FAIL;
-    }
-    msgNotify("Got INDEX successfully, now building packages menu..");
-    index_init(&top, &plist);
-    if (index_read(fd, &top)) {
-	dialog_clear();
-	msgConfirm("I/O or format error on packages/INDEX file.\n"
-		   "Please verify media (or path to media) and try again.");
+	return DITEM_FAILURE;
+
+    if (!index_initted) {
+	msgNotify("Attempting to fetch packages/INDEX file from selected media.");
+	fd = mediaDevice->get(mediaDevice, "packages/INDEX", TRUE);
+	if (fd < 0) {
+	    msgConfirm("Unable to get packages/INDEX file from selected media.\n"
+		       "This may be because the packages collection is not available at\n"
+		       "on the distribution media you've chosen (most likely an FTP site\n"
+		       "without the packages collection mirrored).  Please verify media\n"
+		       "(or path to media) and try again.  If your local site does not\n"
+		       "carry the packages collection, then we recommend either a CD\n"
+		       "distribution or the master distribution on ftp.freebsd.org.");
+	    return DITEM_FAILURE;
+	}
+	msgNotify("Got INDEX successfully, now building packages menu..");
+	index_init(&top, &plist);
+	if (index_read(fd, &top)) {
+	    msgConfirm("I/O or format error on packages/INDEX file.\n"
+		       "Please verify media (or path to media) and try again.");
+	    mediaDevice->close(mediaDevice, fd);
+	    return DITEM_FAILURE;
+	}
 	mediaDevice->close(mediaDevice, fd);
-	return RET_FAIL;
+	index_sort(&top);
+	index_initted = TRUE;
     }
-    mediaDevice->close(mediaDevice, fd);
-    index_sort(&top);
     while (1) {
 	int ret, pos, scroll;
 
@@ -452,32 +459,38 @@ configPackages(char *str)
 	    /* Now show the packing list menu */
 	    pos = scroll = 0;
 	    ret = index_menu(&plist, NULL, &pos, &scroll);
-	    if (ret == RET_DONE)
+	    if (ret & DITEM_LEAVE_MENU)
 		break;
-	    else if (ret != RET_FAIL) {
-		index_extract(mediaDevice, &plist);
+	    else if (DITEM_STATUS(ret) != DITEM_FAILURE) {
+		index_extract(mediaDevice, &top, &plist);
 		break;
 	    }
 	}
 	else {
-	    dialog_clear();
 	    msgConfirm("No packages were selected for extraction.");
 	    break;
 	}
     }
-    index_node_free(&top, &plist);
+    tmp = &plist;
+    while (tmp) {
+        PkgNodePtr tmp2 = tmp->next;
+           
+        safe_free(tmp);
+        tmp = tmp2;
+    }
+    index_init(NULL, &plist);
     mediaDevice->shutdown(mediaDevice);
-    return RET_SUCCESS;
+    return DITEM_SUCCESS;
 }
 
 int
-configPorts(char *str)
+configPorts(dialogMenuItem *self)
 {
     char *cp, *dist = NULL; /* Shut up compiler */
 
     if (!variable_get(VAR_PORTS_PATH))
 	variable_set2(VAR_PORTS_PATH, dist = "/cdrom/ports");
-    while (!directoryExists(dist)) {
+    while (!directory_exists(dist)) {
 	dist = variable_get_value(VAR_PORTS_PATH,
 				  "Unable to locate a ports tree on CDROM.  Please specify the\n"
 				  "location of the master ports directory you wish to create the\n"
@@ -492,19 +505,16 @@ configPorts(char *str)
 			 "reside in a directory with as much free space as possible,\n"
 			 "as you'll need space to compile any ports.");
 	if (!cp || !*cp)
-	    return RET_FAIL;
-	if (Mkdir(cp, NULL)) {
-	    dialog_clear();
-	    msgConfirm("Unable to make the %s directory!", cp);
-	    return RET_FAIL;
-	}
+	    return DITEM_FAILURE;
+	if (Mkdir(cp, NULL))
+	    return DITEM_FAILURE;
 	else {
 	    if (strcmp(cp, "/usr/ports")) {
 		unlink("/usr/ports");
 		if (symlink(cp, "/usr/ports") == -1) {
 		    msgConfirm("Unable to create a symlink from /usr/ports to %s!\n"
 			       "I can't continue, sorry!", cp);
-		    return RET_FAIL;
+		    return DITEM_FAILURE;
 		}
 		else {
 		    msgConfirm("NOTE: This directory is also now symlinked to /usr/ports\n"
@@ -515,8 +525,7 @@ configPorts(char *str)
 		}
 	    }
 	    msgNotify("Making a link tree from %s to %s.", dist, cp);
-	    if (lndir(dist, cp) != RET_SUCCESS) {
-		dialog_clear();
+	    if (DITEM_STATUS(lndir(dist, cp)) != DITEM_SUCCESS) {
 		msgConfirm("The lndir function returned an error status and may not have.\n"
 			   "successfully generated the link tree.  You may wish to inspect\n"
 			   "the /usr/ports directory carefully for any missing link files.");
@@ -531,6 +540,61 @@ configPorts(char *str)
 	}
     }
     else
-	return RET_FAIL;
-    return RET_SUCCESS;
+	return DITEM_FAILURE;
+    return DITEM_SUCCESS;
+}
+
+/* Load gated package */
+int
+configGated(dialogMenuItem *self)
+{
+    int ret;
+
+    ret = package_add("gated-3.5a11");
+    if (DITEM_STATUS(ret) == DITEM_SUCCESS)
+	variable_set2("gated", "YES");
+    return ret;
+}
+
+/* Load pcnfsd package */
+int
+configPCNFSD(dialogMenuItem *self)
+{
+    int ret;
+
+    ret = package_add("pcnfsd-93.02.16");
+    if (DITEM_STATUS(ret) == DITEM_SUCCESS)
+	variable_set2("pcnfsd", "YES");
+    return ret;
+}
+
+int
+configNFSServer(dialogMenuItem *self)
+{
+    char cmd[256];
+
+    /* If we're an NFS server, we need an exports file */
+    if (!file_readable("/etc/exports")) {
+	WINDOW *w = savescr();
+
+	msgConfirm("Operating as an NFS server means that you must first configure\n"
+		   "an /etc/exports file to indicate which hosts are allowed certain\n"
+		   "kinds of access to your local file systems.\n"
+		   "Press [ENTER] now to invoke an editor on /etc/exports\n");
+	system("echo '#The following examples export /usr to 3 machines named after ducks,' > /etc/exports");
+	system("echo '#/home and all directories under it to machines named after dead rock stars' >> /etc/exports");
+	system("echo '#and, finally, /a to 2 privileged machines allowed to write on it as root.' >> /etc/exports");
+	system("echo '#/usr                huey louie dewie' >> /etc/exports");
+	system("echo '#/home   -alldirs    janice jimmy frank' >> /etc/exports");
+	system("echo '#/a      -maproot=0  bill albert' >> /etc/exports");
+	system("echo '#' >> /etc/exports");
+	system("echo '# You should replace these lines with your actual exported filesystems.' >> /etc/exports");
+	system("echo >> /etc/exports");
+	sprintf(cmd, "%s /etc/exports", variable_get(VAR_EDITOR));
+	dialog_clear();
+	systemExecute(cmd);
+	restorescr(w);
+    }
+    variable_set2("nfs_server", "YES");
+    return DITEM_SUCCESS;
 }

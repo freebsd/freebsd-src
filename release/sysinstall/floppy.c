@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.7.2.6 1995/10/20 21:57:04 jkh Exp $
+ * $Id: floppy.c,v 1.11 1996/04/23 01:29:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -21,13 +21,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Jordan Hubbard
- *	for the FreeBSD Project.
- * 4. The name of Jordan Hubbard or the FreeBSD project may not be used to
- *    endorse or promote products derived from this software without specific
- *    prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY JORDAN HUBBARD ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -65,19 +58,14 @@ static char *distWanted;
 
 /* For finding floppies */
 static int
-floppyChoiceHook(char *str)
+floppyChoiceHook(dialogMenuItem *self)
 {
     Device **devs;
 
-    /* Clip garbage off the ends */
-    string_prune(str);
-    str = string_skipwhite(str);
-    if (!*str)
-	return RET_FAIL;
-    devs = deviceFind(str, DEVICE_TYPE_FLOPPY);
+    devs = deviceFind(self->prompt, DEVICE_TYPE_FLOPPY);
     if (devs)
 	floppyDev = devs[0];
-    return devs ? RET_DONE : RET_FAIL;
+    return devs ? DITEM_LEAVE_MENU : DITEM_FAILURE;
 }
 
 /* Our last-ditch routine for getting ROOT from a floppy */
@@ -93,19 +81,17 @@ getRootFloppy(void)
 	devs = deviceFind(NULL, DEVICE_TYPE_FLOPPY);
 	cnt = deviceCount(devs);
 	if (!cnt) {
-	    dialog_clear();
 	    msgConfirm("No floppy devices found!  Something is seriously wrong!");
 	    return -1;
 	}
 	else if (cnt == 1) {
 	    floppyDev = devs[0];
-	    dialog_clear();
 	    msgConfirm("Please insert the ROOT floppy in %s and press [ENTER]", floppyDev->description);
 	}
 	else  {
 	    DMenu *menu;
 
-	    menu = deviceCreateMenu(&MenuMediaFloppy, DEVICE_TYPE_FLOPPY, floppyChoiceHook);
+	    menu = deviceCreateMenu(&MenuMediaFloppy, DEVICE_TYPE_FLOPPY, floppyChoiceHook, NULL);
 	    menu->title = "Please insert the ROOT floppy";
 	    if (!dmenuOpenSimple(menu))
 		return -1;
@@ -129,19 +115,14 @@ mediaInitFloppy(Device *dev)
 	return TRUE;
 
     if (Mkdir("/dist", NULL)) {
-	dialog_clear();
 	msgConfirm("Unable to make directory mountpoint for %s!", dev->devname);
 	return FALSE;
     }
     msgDebug("Init floppy called for %s distribution.\n", distWanted ? distWanted : "some");
-    if (!distWanted) {
-	dialog_clear();
+    if (!distWanted)
     	msgConfirm("Please insert next floppy into %s", dev->description);
-    }
-    else {
-	dialog_clear();
+    else
 	msgConfirm("Please insert floppy containing %s into %s", distWanted, dev->description);
-    }
 
     memset(&dosargs, 0, sizeof dosargs);
     dosargs.fspec = dev->devname;
@@ -153,7 +134,6 @@ mediaInitFloppy(Device *dev)
 
     if (mount(MOUNT_MSDOS, "/dist", MNT_RDONLY, (caddr_t)&dosargs) == -1) {
 	if (mount(MOUNT_UFS, "/dist", MNT_RDONLY, (caddr_t)&u_args) == -1) {
-	    dialog_clear();
 	    msgConfirm("Error mounting floppy %s (%s) on /dist : %s", dev->name, dev->devname, strerror(errno));
 	    return FALSE;
 	}
@@ -165,7 +145,7 @@ mediaInitFloppy(Device *dev)
 }
 
 int
-mediaGetFloppy(Device *dev, char *file, Boolean tentative)
+mediaGetFloppy(Device *dev, char *file, Boolean probe)
 {
     char		buf[PATH_MAX];
     int			fd;
@@ -173,14 +153,13 @@ mediaGetFloppy(Device *dev, char *file, Boolean tentative)
 
     snprintf(buf, PATH_MAX, "/dist/%s", file);
 
-    msgDebug("Request for %s from floppy on /dist, tentative is %d.\n", buf, tentative);
+    msgDebug("Request for %s from floppy on /dist, probe is %d.\n", buf, probe);
     if (!file_readable(buf)) {
-	if (tentative)
+	if (probe)
 	    return -1;
 	else {
 	    while (!file_readable(buf)) {
 		if (!--nretries) {
-		    dialog_clear();
 		    msgConfirm("GetFloppy: Failed to get %s after retries;\ngiving up.", buf);
 		    return -1;
 		}
@@ -204,7 +183,6 @@ mediaShutdownFloppy(Device *dev)
 	else {
 	    floppyMounted = FALSE;
 	    msgDebug("Floppy unmounted successfully.\n");
-	    dialog_clear();
 	    msgConfirm("You may remove the floppy from %s", dev->description);
 	}
     }

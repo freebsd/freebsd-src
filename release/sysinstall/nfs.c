@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: nfs.c,v 1.5.2.14 1995/10/26 08:56:04 jkh Exp $
+ * $Id: nfs.c,v 1.9 1996/04/23 01:29:30 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -19,13 +19,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Jordan Hubbard
- *	for the FreeBSD Project.
- * 4. The name of Jordan Hubbard or the FreeBSD project may not be used to
- *    endorse or promote products derived from this software without specific
- *    prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY JORDAN HUBBARD ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -68,7 +61,6 @@ mediaInitNFS(Device *dev)
     if (vsystem("mount_nfs %s %s %s /dist",
 		variable_get(VAR_SLOW_ETHER) ? "-r 1024 -w 1024" : "",
 		variable_get(VAR_NFS_SECURE) ? "-P" : "", dev->name)) {
-	dialog_clear();
 	msgConfirm("Error mounting %s on /dist: %s (%u)", dev->name, strerror(errno), errno);
 	netDevice->shutdown(netDevice);
 	return FALSE;
@@ -79,7 +71,7 @@ mediaInitNFS(Device *dev)
 }
 
 int
-mediaGetNFS(Device *dev, char *file, Boolean tentative)
+mediaGetNFS(Device *dev, char *file, Boolean probe)
 {
     char	buf[PATH_MAX];
 
@@ -105,10 +97,8 @@ mediaShutdownNFS(Device *dev)
     if (!NFSMounted)
 	return;
     msgNotify("Unmounting NFS partition on /dist");
-    if (unmount("/dist", MNT_FORCE) != 0) {
-	dialog_clear();
+    if (unmount("/dist", MNT_FORCE) != 0)
 	msgConfirm("Could not unmount the NFS partition: %s", strerror(errno));
-    }
     msgDebug("Unmount of NFS partition successful\n");
     /* (*netdev->shutdown)(netdev); */
     NFSMounted = FALSE;

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.44.2.16 1995/11/08 07:09:36 jkh Exp $
+ * $Id: system.c,v 1.55 1996/04/28 03:27:26 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -52,7 +52,7 @@ systemInitialize(int argc, char **argv)
 	close(1); dup(0);
 	close(2); dup(0);
 	printf("%s running as init\n", argv[0]);
-
+	RunningAsInit = 1;
 	i = ioctl(0, TIOCSCTTY, (char *)NULL);
 	setlogin("root");
 	setenv("PATH", "/stand:/bin:/sbin:/usr/sbin:/usr/bin:/mnt/bin:/mnt/sbin:/mnt/usr/sbin:/mnt/usr/bin:/usr/X11R6/bin", 1);
@@ -67,6 +67,7 @@ systemInitialize(int argc, char **argv)
 
     /* XXX - libdialog has particularly bad return value checking */
     init_dialog();
+
     /* If we haven't crashed I guess dialog is running ! */
     DialogActive = TRUE;
 
@@ -101,7 +102,6 @@ systemExecute(char *command)
     int status;
     struct termios foo;
 
-    dialog_clear();
     dialog_update();
     end_dialog();
     DialogActive = FALSE;
@@ -111,8 +111,6 @@ systemExecute(char *command)
     }
     status = system(command);
     DialogActive = TRUE;
-    dialog_clear();
-    dialog_update();
     return status;
 }
 
@@ -122,30 +120,24 @@ systemDisplayHelp(char *file)
 {
     char *fname = NULL;
     char buf[FILENAME_MAX];
-    WINDOW *w;
+    WINDOW *old = savescr();
+    int ret = 0;
 
     fname = systemHelpFile(file, buf);
     if (!fname) {
 	snprintf(buf, FILENAME_MAX, "The %s file is not provided on this particular floppy image.", file);
 	use_helpfile(NULL);
 	use_helpline(NULL);
-	w = dupwin(newscr);
 	dialog_mesgbox("Sorry!", buf, -1, -1);
-	touchwin(w);
-	wrefresh(w);
-	delwin(w);
-	return 1;
+	ret = 1;
     }
     else {
 	use_helpfile(NULL);
 	use_helpline(NULL);
-	w = dupwin(newscr);
 	dialog_textbox(file, fname, LINES, COLS);
-	touchwin(w);
-	wrefresh(w);
-	delwin(w);
     }
-    return 0;
+    restorescr(old);
+    return ret;
 }
 
 char *
@@ -200,7 +192,7 @@ vsystem(char *fmt, ...)
     char *cmd;
     int i;
 
-    cmd = (char *)malloc(FILENAME_MAX);
+    cmd = (char *)alloca(FILENAME_MAX);
     cmd[0] = '\0';
     va_start(args, fmt);
     vsnprintf(cmd, FILENAME_MAX, fmt, args);
@@ -217,13 +209,20 @@ vsystem(char *fmt, ...)
     else if (!pid) {	/* Junior */
 	(void)sigsetmask(omask);
 	if (DebugFD != -1) {
-	    if (OnVTY && isDebug())
+	    if (OnVTY && isDebug() && RunningAsInit)
 		msgInfo("Command output is on VTY2 - type ALT-F2 to see it");
 	    dup2(DebugFD, 0);
 	    dup2(DebugFD, 1);
 	    dup2(DebugFD, 2);
 	}
-	execl("/stand/sh", "sh", "-c", cmd, (char *)NULL);
+	else {
+	    close(1); open("/dev/null", O_WRONLY);
+	    dup2(1, 2);
+	}
+	if (!RunningAsInit)
+	    execl("/bin/sh", "/bin/sh", "-c", cmd, (char *)NULL);
+	else
+	    execl("/stand/sh", "/stand/sh", "-c", cmd, (char *)NULL);
 	exit(1);
     }
     else {
@@ -236,7 +235,6 @@ vsystem(char *fmt, ...)
 	i = (pid == -1) ? -1 : WEXITSTATUS(pstat);
 	if (isDebug())
 	    msgDebug("Command `%s' returns status of %d\n", cmd, i);
-        free(cmd);
     }
     return i;
 }
@@ -244,7 +242,7 @@ vsystem(char *fmt, ...)
 void
 systemCreateHoloshell(void)
 {
-    if (OnVTY) {
+    if (OnVTY && RunningAsInit) {
 	if (!fork()) {
 	    int i, fd;
 	    struct termios foo;
@@ -266,7 +264,6 @@ systemCreateHoloshell(void)
 	    }
 	    else
 		msgDebug("Doctor: I'm unable to get the terminal attributes!\n");
-	    printf("Warning: This shell is chroot()'d to /mnt\n");
 	    execlp("sh", "-sh", 0);
 	    msgDebug("Was unable to execute sh for Holographic shell!\n");
 	    exit(1);

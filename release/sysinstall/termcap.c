@@ -29,15 +29,13 @@ set_termcap(void)
     char           *term;
     int		   stat;
 
-    OnVTY = RunningAsInit = FALSE;
+    OnVTY = FALSE;
 
     term = getenv("TERM");
     stat = ioctl(STDERR_FILENO, GIO_COLOR, &ColorDisplay);
 
     if (getpid() != 1)
 	DebugFD = open("sysinstall.debug", O_WRONLY|O_CREAT|O_TRUNC, 0644);
-    else
-	RunningAsInit = TRUE;
 
     if (stat < 0) {
 	if (!term) {
@@ -52,11 +50,13 @@ set_termcap(void)
     else {
 	int i, on;
 
-	DebugFD = open("/dev/ttyv1", O_WRONLY);
-	on = 1;
-	i = ioctl(DebugFD, TIOCCONS, (char *)&on);
-	msgDebug("ioctl(%d, TIOCCONS, NULL) = %d (%s)\n", DebugFD, i, !i ? "success" : strerror(errno));
-	OnVTY = TRUE;
+	if (getpid() == 1) {
+	    DebugFD = open("/dev/ttyv1", O_WRONLY);
+	    on = 1;
+	    i = ioctl(DebugFD, TIOCCONS, (char *)&on);
+	    msgDebug("ioctl(%d, TIOCCONS, NULL) = %d (%s)\n", DebugFD, i, !i ? "success" : strerror(errno));
+	    OnVTY = TRUE;
+	}
 	if (ColorDisplay) {
 	    if (!term) {
 		if (setenv("TERM", "cons25", 1) < 0)

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: msg.c,v 1.29.2.6 1995/10/22 01:32:54 jkh Exp $
+ * $Id: msg.c,v 1.32 1996/04/28 00:37:36 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -19,13 +19,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Jordan Hubbard
- *	for the FreeBSD Project.
- * 4. The name of Jordan Hubbard or the FreeBSD project may not be used to
- *    endorse or promote products derived from this software without specific
- *    prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY JORDAN HUBBARD ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -65,7 +58,7 @@ msgYap(char *fmt, ...)
     char *errstr;
     int attrs;
 
-    errstr = (char *)safe_malloc(FILENAME_MAX);
+    errstr = (char *)alloca(FILENAME_MAX);
     va_start(args, fmt);
     vsnprintf(errstr, FILENAME_MAX, fmt, args);
     va_end(args);
@@ -74,7 +67,6 @@ msgYap(char *fmt, ...)
     mvaddstr(OnVTY ? VTY_STATLINE : TTY_STATLINE, 0, errstr);
     attrset(attrs);
     refresh();
-    free(errstr);
 }
 
 /* Whack up an informational message on the status line */
@@ -95,7 +87,7 @@ msgInfo(char *fmt, ...)
 	attrset(attrs);
 	return;
     }
-    errstr = (char *)safe_malloc(FILENAME_MAX);
+    errstr = (char *)alloca(FILENAME_MAX);
     va_start(args, fmt);
     vsnprintf(errstr, FILENAME_MAX, fmt, args);
     va_end(args);
@@ -117,7 +109,6 @@ msgInfo(char *fmt, ...)
 	    msgDebug("Information: `%s'\n", errstr);
 	msgInfo(NULL);
     }
-    free(errstr);
 }
 
 /* Whack up a warning on the status line */
@@ -128,7 +119,7 @@ msgWarn(char *fmt, ...)
     char *errstr;
     int attrs;
 
-    errstr = (char *)safe_malloc(FILENAME_MAX);
+    errstr = (char *)alloca(FILENAME_MAX);
     strcpy(errstr, "Warning: ");
     va_start(args, fmt);
     vsnprintf((char *)(errstr + strlen(errstr)), FILENAME_MAX, fmt, args);
@@ -141,7 +132,6 @@ msgWarn(char *fmt, ...)
     refresh();
     if (OnVTY && isDebug())
 	msgDebug("Warning message `%s'\n", errstr);
-    free(errstr);
 }
 
 /* Whack up an error on the status line */
@@ -152,7 +142,7 @@ msgError(char *fmt, ...)
     char *errstr;
     int attrs;
 
-    errstr = (char *)safe_malloc(FILENAME_MAX);
+    errstr = (char *)alloca(FILENAME_MAX);
     strcpy(errstr, "Error: ");
     va_start(args, fmt);
     vsnprintf((char *)(errstr + strlen(errstr)), FILENAME_MAX, fmt, args);
@@ -165,7 +155,6 @@ msgError(char *fmt, ...)
     refresh();
     if (OnVTY && isDebug())
 	msgDebug("Error message `%s'\n", errstr);
-    free(errstr);
 }
 
 /* Whack up a fatal error on the status line */
@@ -176,7 +165,7 @@ msgFatal(char *fmt, ...)
     char *errstr;
     int attrs;
 
-    errstr = (char *)safe_malloc(FILENAME_MAX);
+    errstr = (char *)alloca(FILENAME_MAX);
     strcpy(errstr, "Fatal Error: ");
     va_start(args, fmt);
     vsnprintf((char *)(errstr + strlen(errstr)), FILENAME_MAX, fmt, args);
@@ -195,7 +184,6 @@ msgFatal(char *fmt, ...)
     refresh();
     if (OnVTY)
 	msgDebug("Fatal error `%s'!\n", errstr);
-    free(errstr);
     getch();
     systemShutdown();
 }
@@ -208,23 +196,20 @@ msgConfirm(char *fmt, ...)
     char *errstr;
     WINDOW *w;
 
-    errstr = (char *)safe_malloc(FILENAME_MAX);
+    errstr = (char *)alloca(FILENAME_MAX);
     va_start(args, fmt);
     vsnprintf(errstr, FILENAME_MAX, fmt, args);
     va_end(args);
     use_helpline(NULL);
     use_helpfile(NULL);
-    w = dupwin(newscr);
+    w = savescr();
     if (OnVTY) {
 	msgDebug("Switching back to VTY1\n");
 	ioctl(0, VT_ACTIVATE, 1);
 	msgInfo(NULL);
     }
     dialog_notify(errstr);
-    touchwin(w);
-    wrefresh(w);
-    delwin(w);
-    free(errstr);
+    restorescr(w);
 }
 
 /* Put up a message in a popup information box */
@@ -234,7 +219,7 @@ msgNotify(char *fmt, ...)
     va_list args;
     char *errstr;
 
-    errstr = (char *)safe_malloc(FILENAME_MAX);
+    errstr = (char *)alloca(FILENAME_MAX);
     va_start(args, fmt);
     vsnprintf(errstr, FILENAME_MAX, fmt, args);
     va_end(args);
@@ -244,7 +229,6 @@ msgNotify(char *fmt, ...)
 	msgDebug("Notify: %s\n", errstr);
     dialog_clear();
     dialog_msgbox("Information Dialog", errstr, -1, -1, 0);
-    free(errstr);
 }
 
 /* Put up a message in a popup yes/no box and return 1 for YES, 0 for NO */
@@ -256,23 +240,20 @@ msgYesNo(char *fmt, ...)
     int ret;
     WINDOW *w;
 
-    errstr = (char *)safe_malloc(FILENAME_MAX);
+    errstr = (char *)alloca(FILENAME_MAX);
     va_start(args, fmt);
     vsnprintf(errstr, FILENAME_MAX, fmt, args);
     va_end(args);
     use_helpline(NULL);
     use_helpfile(NULL);
-    w = dupwin(newscr);
+    w = savescr();
     if (OnVTY) {
 	msgDebug("Switching back to VTY1\n");
 	ioctl(0, VT_ACTIVATE, 1);	/* Switch back */
 	msgInfo(NULL);
     }
     ret = dialog_yesno("User Confirmation Requested", errstr, -1, -1);
-    touchwin(w);
-    wrefresh(w);
-    delwin(w);
-    free(errstr);
+    restorescr(w);
     return ret;
 }
 
@@ -286,7 +267,7 @@ msgGetInput(char *buf, char *fmt, ...)
     int rval;
     WINDOW *w;
 
-    errstr = (char *)safe_malloc(FILENAME_MAX);
+    errstr = (char *)alloca(FILENAME_MAX);
     va_start(args, fmt);
     vsnprintf(errstr, FILENAME_MAX, fmt, args);
     va_end(args);
@@ -296,17 +277,14 @@ msgGetInput(char *buf, char *fmt, ...)
 	strcpy(input_buffer, buf);
     else
 	input_buffer[0] = '\0';
-    w = dupwin(newscr);
+    w = savescr();
     if (OnVTY) {
 	msgDebug("Switching back to VTY1\n");
 	ioctl(0, VT_ACTIVATE, 1);	/* Switch back */
 	msgInfo(NULL);
     }
     rval = dialog_inputbox("Value Required", errstr, -1, -1, input_buffer);
-    touchwin(w);
-    wrefresh(w);
-    delwin(w);
-    free(errstr);
+    restorescr(w);
     if (!rval)
 	return input_buffer;
     else
@@ -322,13 +300,12 @@ msgDebug(char *fmt, ...)
 
     if (DebugFD == -1)
 	return;
-    dbg = (char *)safe_malloc(FILENAME_MAX);
+    dbg = (char *)alloca(FILENAME_MAX);
     strcpy(dbg, "DEBUG: ");
     va_start(args, fmt);
     vsnprintf((char *)(dbg + strlen(dbg)), FILENAME_MAX, fmt, args);
     va_end(args);
     write(DebugFD, dbg, strlen(dbg));
-    free(dbg);
 }
 
 /* Tell the user there's some output to go look at */
@@ -338,7 +315,7 @@ msgWeHaveOutput(char *fmt, ...)
     va_list args;
     char *errstr;
 
-    errstr = (char *)safe_malloc(FILENAME_MAX);
+    errstr = (char *)alloca(FILENAME_MAX);
     va_start(args, fmt);
     vsnprintf(errstr, FILENAME_MAX, fmt, args);
     va_end(args);
@@ -347,7 +324,6 @@ msgWeHaveOutput(char *fmt, ...)
     msgDebug("Notify: %s\n", errstr);
     dialog_clear();
     dialog_msgbox("Information Dialog", errstr, -1, -1, 0);
-    free(errstr);
     if (OnVTY)
 	msgInfo("Command output is on VTY2 - type ALT-F2 to see it");
 }
@@ -357,12 +333,12 @@ int
 msgSimpleConfirm(char *str)
 {
     msgConfirm(str);
-    return RET_SUCCESS;
+    return DITEM_SUCCESS;
 }
 
 int
 msgSimpleNotify(char *str)
 {
     msgNotify(str);
-    return RET_SUCCESS;
+    return DITEM_SUCCESS;
 }

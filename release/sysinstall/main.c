@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.13.2.10 1995/10/26 08:55:54 jkh Exp $
+ * $Id: main.c,v 1.17 1996/04/13 13:31:51 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -19,13 +19,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Jordan Hubbard
- *	for the FreeBSD Project.
- * 4. The name of Jordan Hubbard or the FreeBSD project may not be used to
- *    endorse or promote products derived from this software without specific
- *    prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY JORDAN HUBBARD ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -57,14 +50,18 @@ main(int argc, char **argv)
 {
     int choice, scroll, curr, max;
 
+    /* Catch fatal signals and complain about them if running as init */
     if (getpid() == 1) {
 	signal(SIGBUS, screech);
 	signal(SIGSEGV, screech);
     }
+
+    /* We don't work too well when running as non-root anymore */
     if (geteuid() != 0) {
-	fprintf(stderr, "Warning:  This utility should be run as root.\n");
-	sleep(1);
+	fprintf(stderr, "Error: This utility should only be run as root.\n");
+	return 1;
     }
+
     /* Set up whatever things need setting up */
     systemInitialize(argc, argv);
 

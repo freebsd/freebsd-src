@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.12.2.4 1995/10/18 00:12:02 jkh Exp $
+ * $Id: dmenu.c,v 1.19 1996/04/28 00:37:31 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -19,13 +19,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Jordan Hubbard
- *	for the FreeBSD Project.
- * 4. The name of Jordan Hubbard or the FreeBSD project may not be used to
- *    endorse or promote products derived from this software without specific
- *    prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY JORDAN HUBBARD ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -46,6 +39,76 @@
 
 #define MAX_MENU		15
 
+static Boolean exited;
+
+int
+dmenuDisplayFile(dialogMenuItem *tmp)
+{
+    systemDisplayHelp((char *)tmp->data);
+    return DITEM_SUCCESS | DITEM_RESTORE;
+}
+
+int
+dmenuSubmenu(dialogMenuItem *tmp)
+{
+    return (dmenuOpenSimple((DMenu *)(tmp->data)) ? DITEM_SUCCESS : DITEM_FAILURE) |
+	DITEM_RESTORE | DITEM_RECREATE;
+}
+
+int
+dmenuSystemCommand(dialogMenuItem *self)
+{
+    WINDOW *w = NULL;	/* Keep lint happy */
+
+    /* If aux is set, the command is known not to produce any screen-spoiling output */
+    if (!self->aux)
+	w = savescr();
+    systemExecute((char *)self->data);
+    if (!self->aux)
+	restorescr(w);
+    return DITEM_SUCCESS;
+}
+
+int
+dmenuSystemCommandBox(dialogMenuItem *tmp)
+{
+    use_helpfile(NULL);
+    use_helpline("Select OK to dismiss this dialog");
+    dialog_prgbox(tmp->title, (char *)tmp->data, 22, 76, 1, 1);
+    return DITEM_SUCCESS | DITEM_RESTORE;
+}
+
+int
+dmenuExit(dialogMenuItem *tmp)
+{
+    exited = TRUE;
+    return DITEM_LEAVE_MENU;
+}
+
+int
+dmenuSetVariable(dialogMenuItem *tmp)
+{
+    variable_set((char *)tmp->data);
+    return DITEM_SUCCESS;
+}
+
+int
+dmenuSetFlag(dialogMenuItem *tmp)
+{
+    if (*((unsigned int *)tmp->data) & tmp->aux)
+	*((unsigned int *)tmp->data) &= ~tmp->aux;
+    else
+	*((unsigned int *)tmp->data) |= tmp->aux;
+    return DITEM_SUCCESS;
+}
+
+int
+dmenuSetValue(dialogMenuItem *tmp)
+{
+    *((unsigned int *)tmp->data) = tmp->aux;
+    return DITEM_SUCCESS;
+}
+
 /* Traverse menu but give user no control over positioning */
 Boolean
 dmenuOpenSimple(DMenu *menu)
@@ -57,52 +120,39 @@ dmenuOpenSimple(DMenu *menu)
 }
 
 /* Work functions for the state hook */
-char *
-dmenuFlagCheck(DMenuItem *item)
+int
+dmenuFlagCheck(dialogMenuItem *item)
 {
-    if (*((unsigned int *)item->ptr) & item->parm)
-	return "ON";
-    return "OFF";
+    return (*((unsigned int *)item->data) & item->aux);
 }
 
-char *
-dmenuVarCheck(DMenuItem *item)
+int
+dmenuVarCheck(dialogMenuItem *item)
 {
     char *w, *cp, *cp2, tmp[256];
 
-    w = (char *)item->parm;
+    w = (char *)item->aux;
     if (!w)
-	w = (char *)item->ptr;
+	w = (char *)item->data;
     if (!w)
-	return "OFF";
+	return FALSE;
     strncpy(tmp, w, 256);
     if ((cp = index(tmp, '=')) != NULL) {
         *(cp++) = '\0';
         cp2 = getenv(tmp);
         if (cp2)
-            return !strcmp(cp, cp2) ? "ON" : "OFF";
+            return !strcmp(cp, cp2);
         else
-            return "OFF";
+            return FALSE;
     }
     else
-        return getenv(tmp) ? "ON" : "OFF";
+        return (int)getenv(tmp);
 }
 
-char *
-dmenuRadioCheck(DMenuItem *item)
+int
+dmenuRadioCheck(dialogMenuItem *item)
 {
-    if (*((unsigned int *)item->ptr) == item->parm)
-	return "ON";
-    return "OFF";
-}
-
-static char *
-checkHookVal(DMenuItem *item)
-{
-
-    if (!item->check)
-	return "OFF";
-    return (*item->check)(item);
+    return (*((unsigned int *)item->data) == item->aux);
 }
 
 static int
@@ -122,21 +172,10 @@ menu_height(DMenu *menu, int n)
 Boolean
 dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
 {
-    char result[FILENAME_MAX];
-    char **nitems = NULL;
-    DMenuItem *tmp;
-    int rval = 0, n = 0;
+    int n, rval = 0;
 
-    /* First, construct the menu */
-    for (tmp = menu->items; tmp->title; tmp++) {
-	if (!tmp->disabled) {
-	    nitems = item_add_pair(nitems, tmp->title, tmp->prompt, curr, max);
-	    if (menu->options & (DMENU_RADIO_TYPE | DMENU_MULTIPLE_TYPE))
-		nitems = item_add(nitems, checkHookVal(tmp), curr, max);
-	    ++n;
-	}
-    }
-    nitems = item_add(nitems, NULL, curr, max); /* Terminate it */
+    /* Count up all the items */
+    for (n = 0; menu->items[n].title; n++);
 
     while (1) {
 	char buf[FILENAME_MAX];
@@ -146,44 +185,28 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
 	use_helpfile(systemHelpFile(menu->helpfile, buf));
 
 	/* Pop up that dialog! */
-	if (menu->options & DMENU_NORMAL_TYPE)
-	    rval = dialog_menu((u_char *)menu->title, (u_char *)menu->prompt, -1, -1,
-			       menu_height(menu, n), n, (u_char **)nitems, (u_char *)result, choice, scroll);
-
-	else if (menu->options & DMENU_RADIO_TYPE)
-	    rval = dialog_radiolist((u_char *)menu->title, (u_char *)menu->prompt, -1, -1,
-				    menu_height(menu, n), n, (u_char **)nitems, (u_char *)result);
-
-	else if (menu->options & DMENU_MULTIPLE_TYPE)
-	    rval = dialog_checklist((u_char *)menu->title, (u_char *)menu->prompt, -1, -1,
-				    menu_height(menu, n), n, (u_char **)nitems, (u_char *)result);
-
-	/* This seems to be the only technique that works for getting the display to look right */
 	dialog_clear();
+	if (menu->type & DMENU_NORMAL_TYPE)
+	    rval = dialog_menu((u_char *)menu->title, (u_char *)menu->prompt, -1, -1,
+			       menu_height(menu, n), -n, menu->items, NULL, choice, scroll);
 
-	if (!rval) {
-	    if (menu->options & DMENU_MULTIPLE_TYPE) {
-		if (menu->options & DMENU_CALL_FIRST)
-		    tmp = &(menu->items[0]);
-		else {
-		    if (decode_and_dispatch_multiple(menu, result) || menu->options & DMENU_SELECTION_RETURNS) {
-			items_free(nitems, curr, max);
-			return TRUE;
-		    }
-		}
-	    }
-	    else {
-		if ((tmp = decode(menu, result)) == NULL)
-		    return FALSE;
-	    }
-	    if (dispatch(tmp, result) == RET_DONE || (menu->options & DMENU_SELECTION_RETURNS)) {
-		items_free(nitems, curr, max);
-		return TRUE;
-	    }
+	else if (menu->type & DMENU_RADIO_TYPE)
+	    rval = dialog_radiolist((u_char *)menu->title, (u_char *)menu->prompt, -1, -1,
+				    menu_height(menu, n), -n, menu->items, NULL);
+
+	else if (menu->type & DMENU_CHECKLIST_TYPE)
+	    rval = dialog_checklist((u_char *)menu->title, (u_char *)menu->prompt, -1, -1,
+				    menu_height(menu, n), -n, menu->items, NULL);
+	else
+	    msgFatal("Menu: `%s' is of an unknown type\n", menu->title);
+	clearok(stdscr, TRUE);
+	if (exited) {
+	    exited = FALSE;
+	    return TRUE;
 	}
-	else {
-	    items_free(nitems, curr, max);
+	else if (rval)
 	    return FALSE;
-	}
+	else if (menu->type & DMENU_SELECTION_RETURNS)
+	    return TRUE;
     }
 }

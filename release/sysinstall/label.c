@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.32.2.30 1995/12/11 16:30:25 jkh Exp $
+ * $Id: label.c,v 1.45 1996/04/28 03:27:08 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -19,13 +19,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Jordan Hubbard
- *	for the FreeBSD Project.
- * 4. The name of Jordan Hubbard or the FreeBSD project may not be used to
- *    endorse or promote products derived from this software without specific
- *    prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY JORDAN HUBBARD ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -45,8 +38,6 @@
 #include <ctype.h>
 #include <sys/disklabel.h>
 #include <sys/param.h>
-#undef TRUE
-#undef FALSE
 #include <sys/sysctl.h>
 
 /*
@@ -83,110 +74,62 @@ static struct {
 static int here;
 
 static int diskLabel(char *str);
-static int scriptLabel(char *str);
-
-static int
-labelHook(char *str)
-{
-    Device **devs = NULL;
-
-    /* Clip garbage off the ends */
-    string_prune(str);
-    str = string_skipwhite(str);
-    /* Try and open all the disks */
-    while (str) {
-	char *cp;
-
-	cp = index(str, '\n');
-	if (cp)
-	   *cp++ = 0;
-	if (!*str) {
-	    beep();
-	    return 0;
-	}
-	devs = deviceFind(str, DEVICE_TYPE_DISK);
-	if (!devs) {
-	    dialog_clear();
-	    msgConfirm("Unable to find disk %s!", str);
-	    return 0;
-	}
-	devs[0]->enabled = TRUE;
-	str = cp;
-    }
-    return devs ? 1 : 0;
-}
 
 int
-diskLabelEditor(char *str)
+diskLabelEditor(dialogMenuItem *self)
 {
     Device **devs;
-    DMenu *menu;
-    int i, cnt;
+    int i, cnt, enabled;
     char *cp;
 
     cp = variable_get(VAR_DISK);
     devs = deviceFind(cp, DEVICE_TYPE_DISK);
     cnt = deviceCount(devs);
     if (!cnt) {
-	dialog_clear();
 	msgConfirm("No disks found!  Please verify that your disk controller is being\n"
 		   "properly probed at boot time.  See the Hardware Guide on the\n"
 		   "Documentation menu for clues on diagnosing this type of problem.");
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
-    else if (cnt == 1 || variable_get(DISK_SELECTED)) {
-	if (cnt == 1)
-	    devs[0]->enabled = TRUE;
-	if (str && !strcmp(str, "script"))
-	    i = scriptLabel(str);
-	else
-	    i = diskLabel(str);
+    for (i = 0, enabled = 0; i < cnt; i++) {
+	if (devs[i]->enabled)
+	    ++enabled;
     }
-    else {
-	menu = deviceCreateMenu(&MenuDiskDevices, DEVICE_TYPE_DISK, labelHook);
-	if (!menu) {
-	    dialog_clear();
-	    msgConfirm("No devices suitable for installation found!\n\n"
-		       "Please verify that your disk controller (and attached drives)\n"
-		       "were detected properly.  This can be done by pressing the\n"
-		       "[Scroll Lock] key and using the Arrow keys to move back to\n"
-		       "the boot messages.  Press [Scroll Lock] again to return.");
-	    i = RET_FAIL;
-	}
-	else {
-	    if (!dmenuOpenSimple(menu))
-		i = RET_FAIL;
-	    else
-		i = diskLabel(str);
-	    free(menu);
-	}
+    if (!enabled) {
+	devs[0]->enabled = TRUE;
+	if (DITEM_STATUS(diskPartitionEditor(self)) == DITEM_FAILURE)
+	    return DITEM_FAILURE;
     }
+    i = diskLabel(devs[0]->name);
+    if (DITEM_STATUS(i) != DITEM_FAILURE)
+	variable_set2(DISK_LABELLED, "yes");
     return i;
 }
 
 int
-diskLabelCommit(char *str)
+diskLabelCommit(dialogMenuItem *self)
 {
     char *cp;
     int i;
 
     /* Already done? */
-    if ((cp = variable_get(DISK_LABELLED)) && strcmp(cp, "yes"))
-	i = RET_SUCCESS;
+    if ((cp = variable_get(DISK_LABELLED)) && strcmp(cp, "yes")) {
+        variable_set2(DISK_PARTITIONED, "yes");
+	i = DITEM_SUCCESS;
+    }
     else if (!cp) {
-	dialog_clear();
 	msgConfirm("You must assign disk labels before this option can be used.");
-	i = RET_FAIL;
+	i = DITEM_FAILURE;
     }
     /* The routine will guard against redundant writes, just as this one does */
-    else if (diskPartitionWrite(str) != RET_SUCCESS)
-	i = RET_FAIL;
-    else if (installFilesystems(str) != RET_SUCCESS)
-	i = RET_FAIL;
+    else if (DITEM_STATUS(diskPartitionWrite(self)) != DITEM_SUCCESS)
+	i = DITEM_FAILURE;
+    else if (DITEM_STATUS(installFilesystems(self)) != DITEM_SUCCESS)
+	i = DITEM_FAILURE;
     else {
 	msgInfo("All filesystem information written successfully.");
 	variable_set2(DISK_LABELLED, "written");
-	i = RET_SUCCESS;
+	i = DITEM_SUCCESS;
     }
     return i;
 }
@@ -290,7 +233,7 @@ new_part(char *mpoint, Boolean newfs, u_long size)
 
     ret = (PartInfo *)safe_malloc(sizeof(PartInfo));
     strncpy(ret->mountpoint, mpoint, FILENAME_MAX);
-    strcpy(ret->newfs_cmd, "newfs -b 8192 -f 2048");
+    strcpy(ret->newfs_cmd, "newfs -b 8192 -f 1024");
     ret->newfs = newfs;
     if (!size)
 	    return ret;
@@ -397,119 +340,6 @@ getNewfsCmd(PartInfo *p)
 		      "creating this file system.");
     if (val)
 	strncpy(p->newfs_cmd, val, NEWFS_CMD_MAX);
-}
-
-static int
-scriptLabel(char *str)
-{
-    char *cp;
-    PartType type;
-    PartInfo *p;
-    u_long flags = 0;
-    int i, status;
-    Device **devs;
-    Disk *d;
-
-    status = RET_SUCCESS;
-    cp = variable_get(VAR_DISK);
-    if (!cp) {
-	dialog_clear();
-	msgConfirm("scriptLabel:  No disk selected - can't label automatically.");
-	return RET_FAIL;
-    }
-
-    devs = deviceFind(cp, DEVICE_TYPE_DISK);
-    if (!devs) {
-	dialog_clear();
-	msgConfirm("scriptLabel: No disk device %s found!", cp);
-	return RET_FAIL;
-    }
-    d = devs[0]->private;
-
-    record_label_chunks(devs);
-    for (i = 0; label_chunk_info[i].c; i++) {
-	Chunk *c1 = label_chunk_info[i].c;
-
-	if (label_chunk_info[i].type == PART_SLICE) {
-	    if ((cp = variable_get(c1->name)) != NULL) {
-		int sz;
-		char typ[10], mpoint[50];
-
-		if (sscanf(cp, "%s %d %s", typ, &sz, mpoint) != 3) {
-		    dialog_clear();
-		    msgConfirm("For slice entry %s, got an invalid detail entry of: %s",  c1->name, cp);
-		    status = RET_FAIL;
-		    continue;
-		}
-		else {
-		    Chunk *tmp;
-
-		    if (!strcmp(typ, "swap")) {
-			type = PART_SWAP;
-			strcpy(mpoint, "<swap>");
-		    }
-		    else {
-			type = PART_FILESYSTEM;
-			if (!strcmp(mpoint, "/"))
-			    flags |= CHUNK_IS_ROOT;
-		    }
-		    if (!sz)
-			sz = space_free(c1);
-		    if (sz > space_free(c1)) {
-			dialog_clear();
-			msgConfirm("Not enough free space to create partition: %s", mpoint);
-			status = RET_FAIL;
-			continue;
-		    }
-		    if (!(tmp = Create_Chunk_DWIM(d, c1, sz, part,
-						  (type == PART_SWAP) ? FS_SWAP : FS_BSDFFS, flags))) {
-			dialog_clear();
-			msgConfirm("Unable to create from partition spec: %s. Too big?", cp);
-			status = RET_FAIL;
-			break;
-		    }
-		    else {
-			tmp->private_data = new_part(mpoint, TRUE, sz);
-			tmp->private_free = safe_free;
-			status = RET_SUCCESS;
-		    }
-		}
-	    }
-	}
-	else {
-	    /* Must be something we can set a mountpoint */
-	    cp = variable_get(c1->name);
-	    if (cp) {
-		char mpoint[50], nwfs[8];
-		Boolean newfs = FALSE;
-
-		nwfs[0] = '\0';
-		if (sscanf(cp, "%s %s", mpoint, nwfs) != 2) {
-		    dialog_clear();
-		    msgConfirm("For slice entry %s, got an invalid detail entry of: %s", c1->name, cp);
-		    status = RET_FAIL;
-		    continue;
-		}
-		newfs = toupper(nwfs[0]) == 'Y' ? TRUE : FALSE;
-		if (c1->private_data) {
-		    p = c1->private_data;
-		    p->newfs = newfs;
-		    strcpy(p->mountpoint, mpoint);
-		}
-		else {
-		    c1->private_data = new_part(mpoint, newfs, 0);
-		    c1->private_free = safe_free;
-		}
-		if (!strcmp(mpoint, "/"))
-		    c1->flags |= CHUNK_IS_ROOT;
-		else
-		    c1->flags &= ~CHUNK_IS_ROOT;
-	    }
-	}
-    }
-    if (status == RET_SUCCESS)
-	variable_set2(DISK_LABELLED, "yes");
-    return status;
 }
 
 #define MAX_MOUNT_NAME	12
@@ -633,18 +463,19 @@ diskLabel(char *str)
     PartInfo *p, *oldp;
     PartType type;
     Device **devs;
+    WINDOW *w;
 
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     if (!devs) {
-	dialog_clear();
 	msgConfirm("No disks found!");
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
 
     labeling = TRUE;
     keypad(stdscr, TRUE);
     record_label_chunks(devs);
 
+    w = savescr();
     dialog_clear(); clear();
     while (labeling) {
 	clear();
@@ -708,7 +539,6 @@ diskLabel(char *str)
 		if (label_chunk_info[i++].type != PART_SLICE)
 		    cnt++;
 	    if (cnt == (CHUNK_COLUMN_MAX * 2) + 4) {
-		dialog_clear();
 		msgConfirm("Sorry, I can't fit any more partitions on the screen!  You can get around\n"
 			   "this limitation by partitioning your disks individually rather than all\n"
 			   "at once.  This will be fixed just as soon as we get a scrolling partition\n"
@@ -735,7 +565,6 @@ diskLabel(char *str)
 				    CHUNK_IS_ROOT);
 	    
 	    if (!tmp) {
-		dialog_clear();
 		msgConfirm("Unable to create the root partition. Too big?");
 		break;
 	    }
@@ -758,7 +587,6 @@ diskLabel(char *str)
 				    swsize,
 				    part, FS_SWAP, 0);
 	    if (!tmp) {
-		dialog_clear();
 		msgConfirm("Unable to create the swap partition. Too big?");
 		break;
 	    }
@@ -772,7 +600,6 @@ diskLabel(char *str)
 				    label_chunk_info[here].c,
 				    (cp ? atoi(cp) : VAR_MIN_SIZE) * ONE_MEG, part, FS_BSDFFS, 0);
 	    if (!tmp) {
-		dialog_clear();
 		msgConfirm("Less than %dMB free for /var - you will need to\n"
 			   "partition your disk manually with a custom install!", (cp ? atoi(cp) : VAR_MIN_SIZE));
 		break;
@@ -787,7 +614,6 @@ diskLabel(char *str)
 	    else
 		sz = space_free(label_chunk_info[here].c);
 	    if (!sz || sz < (USR_MIN_SIZE * ONE_MEG)) {
-		dialog_clear();
 		msgConfirm("Less than %dMB free for /usr - you will need to\n"
 			   "partition your disk manually with a custom install!", USR_MIN_SIZE);
 		break;
@@ -797,7 +623,6 @@ diskLabel(char *str)
 				    label_chunk_info[here].c,
 				    sz, part, FS_BSDFFS, 0);
 	    if (!tmp) {
-		dialog_clear();
 		msgConfirm("Unable to create the /usr partition.  Not enough space?\n"
 			   "You will need to partition your disk manually with a custom install!");
 		break;
@@ -808,7 +633,7 @@ diskLabel(char *str)
 	    tmp->private_free = safe_free;
 	    record_label_chunks(devs);
 	}
-	    break;
+	break;
 	    
 	case 'C':
 	    if (label_chunk_info[here].type != PART_SLICE) {
@@ -823,7 +648,6 @@ diskLabel(char *str)
 		    if (label_chunk_info[i++].type != PART_SLICE)
 			cnt++;
 		if (cnt == (CHUNK_COLUMN_MAX * 2)) {
-		    dialog_clear();
 		    msgConfirm("Sorry, I can't fit any more partitions on the screen!  You can get around\n"
 			       "this limitation by partitioning your disks individually rather than all\n"
 			       "at once.  This will be fixed just as soon as we get a scrolling partition\n"
@@ -910,15 +734,16 @@ diskLabel(char *str)
 		    tmp->private_data = new_part(p->mountpoint, p->newfs, tmp->size);
 		    tmp->private_free = safe_free;
 		    safe_free(p);
-		} else {
-		    tmp->private_data = p;
 		}
+		else
+		    tmp->private_data = p;
 		tmp->private_free = safe_free;
 		variable_set2(DISK_LABELLED, "yes");
 		record_label_chunks(devs);
 	    }
 	    break;
 
+	case '\177':
 	case 'D':	/* delete */
 	    if (label_chunk_info[here].type == PART_SLICE) {
 		msg = MSG_NOT_APPLICABLE;
@@ -978,7 +803,8 @@ diskLabel(char *str)
 	case 'T':	/* Toggle newfs state */
 	    if (label_chunk_info[here].type == PART_FILESYSTEM) {
 		    PartInfo *pi = ((PartInfo *)label_chunk_info[here].c->private_data);
-		    label_chunk_info[here].c->private_data = new_part(pi ? pi->mountpoint : NULL, pi ? !pi->newfs : TRUE, label_chunk_info[here].c->size);
+		    label_chunk_info[here].c->private_data =
+			new_part(pi ? pi->mountpoint : NULL, pi ? !pi->newfs : TRUE, label_chunk_info[here].c->size);
 		    safe_free(pi);
 		    label_chunk_info[here].c->private_free = safe_free;
 		    variable_set2(DISK_LABELLED, "yes");
@@ -993,7 +819,6 @@ diskLabel(char *str)
 		break;
 	    variable_unset(DISK_PARTITIONED);
 	    for (i = 0; devs[i]; i++) {
-		extern void diskPartition(Device *dev, Disk *d);
 		Disk *d;
 
 		if (!devs[i]->enabled)
@@ -1009,11 +834,10 @@ diskLabel(char *str)
 	    break;
 
 	case 'W':
-	    if (!msgYesNo("Are you SURE that you wish to make and mount all filesystems\n"
-			  "at this time?  You also have the option of doing it later in\n"
-			  "one final 'commit' operation, and if you're at all unsure as\n"
-			  "to which option to chose, then PLEASE CHOSE NO!  This option\n"
-			  "is DANGEROUS if you're not EXACTLY sure what you are doing!")) {
+	    if (!msgYesNo("You also have the option of doing this later in one final 'commit'\n"
+			  "operation, and it should also be noted that this option is NOT for\n"
+			  "use during new installations but rather for modifying existing ones.\n\n"
+			  "Are you absolutely SURE you want to do this now?")) {
 		variable_set2(DISK_LABELLED, "yes");
 		clear();
 		diskLabelCommit(NULL);
@@ -1032,7 +856,6 @@ diskLabel(char *str)
 		DialogActive = FALSE;
 		devs = deviceFind(NULL, DEVICE_TYPE_DISK);
 		if (!devs) {
-		    dialog_clear();
 		    msgConfirm("Can't find any disk devices!");
 		    break;
 		}
@@ -1059,6 +882,6 @@ diskLabel(char *str)
 	    break;
 	}
     }
-    dialog_clear();
-    return RET_SUCCESS;
+    restorescr(w);
+    return DITEM_SUCCESS;
 }
