@@ -96,7 +96,7 @@ SYSCTL_INT(_kern_ipc, KIPC_NMBCLUSTERS, nmbclusters, CTLFLAG_RD,
 	   &nmbclusters, 0, "Maximum number of mbuf clusters available");
 SYSCTL_INT(_kern_ipc, OID_AUTO, nmbufs, CTLFLAG_RD, &nmbufs, 0,
 	   "Maximum number of mbufs available"); 
-#if MBUF_STRESS_TEST
+#ifdef MBUF_STRESS_TEST
 SYSCTL_INT(_kern_ipc, OID_AUTO, m_defragpackets, CTLFLAG_RD,
 	   &m_defragpackets, 0, "");
 SYSCTL_INT(_kern_ipc, OID_AUTO, m_defragbytes, CTLFLAG_RD,
