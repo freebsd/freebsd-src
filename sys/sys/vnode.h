@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.25 1995/12/11 04:57:23 dyson Exp $
+ * $Id: vnode.h,v 1.26 1995/12/15 22:49:36 bde Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -415,14 +415,10 @@ int	vinvalbuf __P((struct vnode *vp, int save, struct ucred *cred,
 int	vn_bwrite __P((struct vop_bwrite_args *ap));
 int 	vn_close __P((struct vnode *vp,
 	    int flags, struct ucred *cred, struct proc *p));
-int 	vn_closefile __P((struct file *fp, struct proc *p));
-int	vn_ioctl __P((struct file *fp, int com, caddr_t data, struct proc *p));
 int 	vn_open __P((struct nameidata *ndp, int fmode, int cmode));
 int 	vn_rdwr __P((enum uio_rw rw, struct vnode *vp, caddr_t base,
 	    int len, off_t offset, enum uio_seg segflg, int ioflg,
 	    struct ucred *cred, int *aresid, struct proc *p));
-int	vn_read __P((struct file *fp, struct uio *uio, struct ucred *cred));
-int	vn_select __P((struct file *fp, int which, struct proc *p));
 int	vn_stat __P((struct vnode *vp, struct stat *sb, struct proc *p));
 void	vn_vmio_close __P((struct vnode *vp));
 int	vn_vmio_open __P((struct vnode *vp, struct proc *p,

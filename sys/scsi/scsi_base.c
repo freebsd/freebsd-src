@@ -8,7 +8,7 @@
  * file.
  *
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.32 1995/12/07 12:47:46 davidg Exp $
+ *      $Id: scsi_base.c,v 1.33 1995/12/14 09:54:26 phk Exp $
  */
 
 #define SPLSD splbio
@@ -39,7 +39,6 @@ static void show_scsi_xs (struct scsi_xfer *);
 
 #ifdef notyet
 static int scsi_sense_qualifiers (struct scsi_xfer *, int *, int *);
-static errval scsi_change_def( struct scsi_link *sc_link, u_int32 flags);
 #endif
 
 static struct scsi_xfer *next_free_xs;
@@ -231,11 +230,11 @@ scsi_test_unit_ready(sc_link, flags)
 		flags));
 }
 
-#ifdef notyet
+#ifdef SCSI_2_DEF
 /*
  * Do a scsi operation, asking a device to run as SCSI-II if it can.
  */
-static errval
+errval
 scsi_change_def(sc_link, flags)
 	struct scsi_link *sc_link;
 	u_int32 flags;
@@ -256,7 +255,7 @@ scsi_change_def(sc_link, flags)
 		NULL,
 		flags));
 }
-#endif
+#endif /* SCSI_2_DEF */
 
 /*
  * Do a scsi operation asking a device what it is

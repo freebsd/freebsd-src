@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.25 1995/12/05 02:01:16 davidg Exp $
+ * $Id: if_ze.c,v 1.26 1995/12/13 10:36:03 phk Exp $
  */
 
 #include "ze.h"
@@ -111,7 +111,7 @@
 /*
  * ze_softc: per line info and status
  */
-struct	ze_softc {
+static struct	ze_softc {
 
 	struct	arpcom arpcom;	/* ethernet common */
 
