@@ -34,135 +34,65 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)swapgeneric.c	5.5 (Berkeley) 5/9/91
- *	$Id: swapgeneric.c,v 1.26 1999/04/14 15:20:03 bde Exp $
+ *	$Id: swapgeneric.c,v 1.27 1999/04/15 14:52:24 bde Exp $
  */
 
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/buf.h>
-#include <sys/mount.h>
 #include <sys/systm.h>
-#include <sys/reboot.h>
 #include <sys/disklabel.h>
-#include <sys/kernel.h>
 
 #include <i386/i386/cons.h>
+
 #include <machine/md_var.h>
 
-#include "wd.h"
-#include "fd.h"
-#include "cd.h"
-#include "da.h"
-#include "mcd.h"
-#include "scd.h"
-#include "matcd.h"
+static void	gets __P((char *));
 
-/*
- * Generic configuration;  all in one
- */
-
-void gets __P((char *));
-
-struct	genericconf {
-	char	*gc_name;
-	dev_t	gc_root;
-} genericconf[] = {
-#if NWD > 0
-	{ "wd",		makedev(0, 0x00000000),	},
-#endif
-#if NFD > 0
-	{ "fd",		makedev(2, 0x00000000),	},
-#endif
-#if NCD > 0
-	{ "cd",		makedev(6, 0x00000000),	},
-#endif
-#if NDA > 0
-	{ "da",		makedev(4, 0x00000000),	},
-#endif
-#if NMCD > 0
-	{ "mcd",	makedev(7, 0x00000000),	},
-#endif
-#if NSCD > 0
-	{ "scd",	makedev(16,0x00000000),	},
-#endif
-#if NMATCD > 0
-	{ "matcd",	makedev(17,0x00000000),	},
-#endif
-	{ 0 },
-};
-
-void setconf(void)
+void
+setconf()
 {
-	register struct genericconf *gc;
+	char name[128];
 	char *cp;
 	int bd, unit;
 
-	if (boothowto & RB_ASKNAME) {
-		char name[128];
 retry:
-		printf("root device? ");
-		gets(name);
-		cp = name;
-		while (cp != '\0' && (*cp < '0' || *cp > '9'))
-			cp++;
-		if (cp == name) {
-			printf("missing device name\n");
-			goto bad;
-		}
-		if (*cp == '\0') {
-			printf("missing unit number\n");
-			goto bad;
-		}
-		unit = *cp - '0';
-		*cp++ = '\0';
-		for (bd = 0; bd < nblkdev; bd++)
-			if (bdevsw[bd] != NULL &&
-			    strcmp(bdevsw[bd]->d_name, name) == 0)
-				goto gotit;
+	printf("root device? ");
+	gets(name);
+	cp = name;
+	while (cp != '\0' && (*cp < '0' || *cp > '9'))
+		cp++;
+	if (cp == name) {
+		printf("missing device name\n");
 		goto bad;
+	}
+	if (*cp == '\0') {
+		printf("missing unit number\n");
+		goto bad;
+	}
+	unit = *cp - '0';
+	*cp++ = '\0';
+	for (bd = 0; bd < nblkdev; bd++)
+		if (bdevsw[bd] != NULL &&
+		    strcmp(bdevsw[bd]->d_name, name) == 0)
+			goto gotit;
+	goto bad;
 gotit:
-		while (*cp >= '0' && *cp <= '9')
-			unit += 10 * unit + *cp++ - '0';
-		if (*cp != '\0') {
-			printf("junk after unit number\n");
-			goto bad;
-		}
-		rootdev = makedev(bd, dkmakeminor(unit, 0, 0));
-		return;
+	while (*cp >= '0' && *cp <= '9')
+		unit += 10 * unit + *cp++ - '0';
+	if (*cp != '\0') {
+		printf("junk after unit number\n");
+		goto bad;
+	}
+	rootdev = makedev(bd, dkmakeminor(unit, 0, 0));
+	return;
 bad:
-		printf("use dk%%d\n");
-		goto retry;
-	}
-	/* XXX */
-	if (strcmp(mountrootfsname, "nfs") == 0) {
-		/*
-		 * The NFS code in nfs_vfsops.c handles root and swap
-		 * for us if we're booting diskless. This is just to
-		 * make swapconf() happy.
-		 */
-		dumplo = -1;
-		return;
-	}
-	unit = 0;
-	for (gc = genericconf; gc->gc_name; gc++) {
-		for (bd = 0; bd < nblkdev; bd++) {
-			if (bdevsw[bd] != NULL &&
-			    strcmp(bdevsw[bd]->d_name, gc->gc_name) == 0) {
-				printf("root on %s0\n", bdevsw[bd]->d_name);
-				goto found;
-			}
-		}
-	}
-	printf("no suitable root -- press any key to reboot\n\n");
-	cngetc();
-	cpu_reset();
-	for(;;) ;
-found:
-	gc->gc_root = makedev(major(gc->gc_root), unit * MAXPARTITIONS);
-	rootdev = gc->gc_root;
+	printf("use dk%%d\n");
+	goto retry;
 }
 
-void gets(cp)
+static void
+gets(cp)
 	char *cp;
 {
 	register char *lp;
@@ -170,7 +100,7 @@ void gets(cp)
 
 	lp = cp;
 	for (;;) {
-		printf("%c", c = cngetc()&0177);
+		printf("%c", c = cngetc() & 0177);
 		switch (c) {
 		case -1:
 		case '\n':
@@ -190,7 +120,7 @@ void gets(cp)
 				lp = cp;
 			continue;
 		case '@':
-		case 'u'&037:
+		case 'u' & 037:
 			lp = cp;
 			printf("%c", '\n');
 			continue;
