@@ -446,7 +446,7 @@ _conv(n, format, pt, ptlim)
 {
 	char	buf[INT_STRLEN_MAXIMUM(int) + 1];
 
-	(void) snprintf(buf, sizeof(buf), format, n);
+	(void) sprintf(buf, format, n);
 	return _add(buf, pt, ptlim);
 }
 
