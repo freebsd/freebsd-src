@@ -5,6 +5,12 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20010604:
+	pccard support for pci cards has been committed.  You must change
+	your /etc/pccard.conf irq lines.  It must match the irq used by
+	pcic device.  Interrupt storms may result if you fail to do this.
+	Interrupt storms look a lot like a hang.
+
 20010530:
 	INSTALL=install -C is being deprecated.  If you want to do this,
 	use COPY=-C instead.  The former method will be supported for only
