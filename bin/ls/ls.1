@@ -461,22 +461,38 @@ is the background color.
 The color designators are as follows:
 .Pp
 .Bl -tag -width 4n -offset indent -compact
-.It Sy 0
+.It Sy a
 black
-.It Sy 1
+.It Sy b
 red
-.It Sy 2
+.It Sy c
 green
-.It Sy 3
+.It Sy d
 brown
-.It Sy 4
+.It Sy e
 blue
-.It Sy 5
+.It Sy f
 magenta
-.It Sy 6
+.It Sy g
 cyan
-.It Sy 7
+.It Sy h
 light grey
+.It Sy A
+bold black, usually shows up as dark grey
+.It Sy B
+bold red
+.It Sy C
+bold green
+.It Sy D
+bold brown, usually shows up as yellow
+.It Sy E
+bold blue
+.It Sy F
+bold magenta
+.It Sy G
+bold cyan
+.It Sy H
+bold light grey; looks like bright white
 .It Sy x
 default foreground or background
 .El
@@ -514,7 +530,7 @@ directory writable to others, with sticky bit
 directory writable to others, without sticky bit
 .El
 .Pp
-The default is "4x5x2x3x1x464301060203", i.e. blue foreground and
+The default is "exfxcxdxbxegedabagacad", i.e. blue foreground and
 default background for regular directories, black foreground and red
 background for setuid executables, etc.
 .It Ev LS_COLWIDTHS

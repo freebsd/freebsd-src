@@ -121,6 +121,8 @@ int f_color;			/* add type in color for non-regular files */
 char *ansi_bgcol;		/* ANSI sequence to set background colour */
 char *ansi_fgcol;		/* ANSI sequence to set foreground colour */
 char *ansi_coloff;		/* ANSI sequence to reset colours */
+char *attrs_off;		/* ANSI sequence to turn off attributes */
+char *enter_bold;		/* ANSI sequence to set color to bold mode */
 #endif
 
 int rval;
@@ -289,6 +291,8 @@ main(argc, argv)
 		if (tgetent(termcapbuf, getenv("TERM")) == 1) {
 			ansi_fgcol = tgetstr("AF", &bp);
 			ansi_bgcol = tgetstr("AB", &bp);
+			attrs_off = tgetstr("me", &bp);
+			enter_bold = tgetstr("md", &bp);
 
 			/* To switch colours off use 'op' if
 			 * available, otherwise use 'oc', or
