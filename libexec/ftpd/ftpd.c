@@ -2764,12 +2764,14 @@ static void
 flagxfer(int flag)
 {
 
-	maskurg(!flag);
 	if (flag) {
-		recvurg = 0;
 		transflag = 1;
-	} else
+		maskurg(0);
+		recvurg = 0;
+	} else {
+		maskurg(1);
 		transflag = 0;
+	}
 }
 
 /*
