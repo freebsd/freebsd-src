@@ -165,7 +165,7 @@ list_devs(int verbose)
 	if (verbose)
 		load_vendors();
 
-	fd = open(_PATH_DEVPCI, O_RDWR, 0);
+	fd = open(_PATH_DEVPCI, O_RDONLY, 0);
 	if (fd < 0)
 		err(1, "%s", _PATH_DEVPCI);
 
