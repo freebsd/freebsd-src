@@ -879,13 +879,8 @@ diskLabel(Device *dev)
 
 		if ((pi != NULL) &&
 		    (pi->newfs_type == NEWFS_UFS)) {
-#ifdef __i386__
-			if (label_chunk_info[here].c->flags & CHUNK_IS_ROOT)
-				msg = MSG_NOT_APPLICABLE;
-			else
-#endif
-				pi->newfs_data.newfs_ufs.ufs2 =
-				    !pi->newfs_data.newfs_ufs.ufs2;
+			pi->newfs_data.newfs_ufs.ufs2 =
+			    !pi->newfs_data.newfs_ufs.ufs2;
 		} else
 		    msg = MSG_NOT_APPLICABLE;
 	    } else
