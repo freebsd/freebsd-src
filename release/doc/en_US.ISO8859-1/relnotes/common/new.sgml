@@ -151,7 +151,13 @@
     <sect3 id="fs">
       <title>Filesystems</title>
 
-      <para></para>
+      <para>A new <literal>DIRECTIO</literal> kernel option enables
+	support for read operations that bypass the buffer cache and
+	put data directly into a userland buffer.  This feature
+	requires that the <literal>O_DIRECT</literal> flag is set on
+	the file descriptor and that both the offset and length for
+	the read operation are multiples of the physical media sector
+	size.</para>
 
     </sect3>
 
