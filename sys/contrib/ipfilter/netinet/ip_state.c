@@ -3,7 +3,8 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
-#ifdef __sgi
+
+#if defined(__sgi) && (IRIX > 602)
 # include <sys/ptimers.h>
 #endif
 #include <sys/errno.h>
@@ -118,8 +119,8 @@ static frentry_t *fr_checkicmp6matchingstate __P((ip6_t *, fr_info_t *));
 static int fr_matchsrcdst __P((ipstate_t *, union i6addr, union i6addr,
 			       fr_info_t *, tcphdr_t *));
 static frentry_t *fr_checkicmpmatchingstate __P((ip_t *, fr_info_t *));
-static int fr_matchicmpqueryreply __P((int, ipstate_t *, icmphdr_t *));
-static int fr_state_flush __P((int));
+static int fr_matchicmpqueryreply __P((int, ipstate_t *, icmphdr_t *, int));
+static int fr_state_flush __P((int, int));
 static ips_stat_t *fr_statetstats __P((void));
 static void fr_delstate __P((ipstate_t *));
 static int fr_state_remove __P((caddr_t));
@@ -204,8 +205,8 @@ static ips_stat_t *fr_statetstats()
  *              starting at > 4 days idle and working back in successive half-
  *              days to at most 12 hours old.
  */
-static int fr_state_flush(which)
-int which;
+static int fr_state_flush(which, proto)
+int which, proto;
 {
 	ipstate_t *is, **isp;
 #if defined(_KERNEL) && !SOLARIS
@@ -216,6 +217,9 @@ int which;
 	SPL_NET(s);
 	for (isp = &ips_list; (is = *isp); ) {
 		delete = 0;
+
+		if ((proto != 0) && (is->is_v != proto))
+			continue;
 
 		switch (which)
 		{
@@ -338,12 +342,26 @@ int mode;
 			break;
 		if (arg == 0 || arg == 1) {
 			WRITE_ENTER(&ipf_state);
-			ret = fr_state_flush(arg);
+			ret = fr_state_flush(arg, 4);
 			RWLOCK_EXIT(&ipf_state);
 			error = IWCOPY((caddr_t)&ret, data, sizeof(ret));
 		} else
 			error = EINVAL;
 		break;
+#ifdef USE_INET6
+	case SIOCIPFL6 :
+		error = IRCOPY(data, (caddr_t)&arg, sizeof(arg));
+		if (error)
+			break;
+		if (arg == 0 || arg == 1) {
+			WRITE_ENTER(&ipf_state);
+			ret = fr_state_flush(arg, 6);
+			RWLOCK_EXIT(&ipf_state);
+			error = IWCOPY((caddr_t)&ret, data, sizeof(ret));
+		} else
+			error = EINVAL;
+		break;
+#endif
 #ifdef	IPFILTER_LOG
 	case SIOCIPFFB :
 		if (!(mode & FWRITE))
@@ -1119,7 +1137,7 @@ tcphdr_t *tcp;
 	return 1;
 }
 
-static int fr_matchicmpqueryreply(v, is, icmp)
+static int fr_matchicmpqueryreply(v, is, icmp, rev)
 int v;
 ipstate_t *is;
 icmphdr_t *icmp;
@@ -1129,8 +1147,8 @@ icmphdr_t *icmp;
 		 * If we matched its type on the way in, then when going out
 		 * it will still be the same type.
 		 */
-		if (((icmp->icmp_type == is->is_type) ||
-		     (icmpreplytype4[is->is_type] == icmp->icmp_type))) {
+		if ((!rev && (icmp->icmp_type == is->is_type)) ||
+		    (rev && (icmpreplytype4[is->is_type] == icmp->icmp_type))) {
 			if (icmp->icmp_type != ICMP_ECHOREPLY)
 				return 1;
 			if ((icmp->icmp_id == is->is_icmp.ics_id) &&
@@ -1140,8 +1158,8 @@ icmphdr_t *icmp;
 	}
 #ifdef	USE_INET6
 	else if (is->is_v == 6) {
-		if (((icmp->icmp_type == is->is_type) ||
-		     (icmpreplytype6[is->is_type] == icmp->icmp_type))) {
+		if ((!rev && (icmp->icmp_type == is->is_type)) ||
+		    (rev && (icmpreplytype6[is->is_type] == icmp->icmp_type))) {
 			if (icmp->icmp_type != ICMP6_ECHO_REPLY)
 				return 1;
 			if ((icmp->icmp_id == is->is_icmp.ics_id) &&
@@ -1279,7 +1297,7 @@ fr_info_t *fin;
 		for (isp = &ips_table[hv]; (is = *isp); isp = &is->is_hnext)
 			if ((is->is_p == pr) && (is->is_v == 4) &&
 			    fr_matchsrcdst(is, src, dst, &ofin, NULL) &&
-			    fr_matchicmpqueryreply(is->is_v, is, icmp)) {
+			    fr_matchicmpqueryreply(is->is_v, is, icmp, fin->fin_rev)) {
 				ips_stats.iss_hits++;
 				is->is_pkts++;
 				is->is_bytes += ip->ip_len;
@@ -1461,7 +1479,7 @@ icmp6again:
 		for (isp = &ips_table[hvm]; (is = *isp); isp = &is->is_hnext)
 			if ((is->is_p == pr) && (is->is_v == v) &&
 			    fr_matchsrcdst(is, src, dst, fin, NULL) &&
-			    fr_matchicmpqueryreply(v, is, ic)) {
+			    fr_matchicmpqueryreply(v, is, ic, fin->fin_rev)) {
 				rev = fin->fin_rev;
 				if (is->is_frage[rev] != 0)
 					is->is_age = is->is_frage[rev];
@@ -1516,7 +1534,7 @@ icmp6again:
 		for (isp = &ips_table[hvm]; (is = *isp); isp = &is->is_hnext)
 			if ((is->is_p == pr) && (is->is_v == v) &&
 			    fr_matchsrcdst(is, src, dst, fin, NULL) &&
-			    fr_matchicmpqueryreply(v, is, ic)) {
+			    fr_matchicmpqueryreply(v, is, ic, fin->fin_rev)) {
 				rev = fin->fin_rev;
 				if (is->is_frage[rev] != 0)
 					is->is_age = is->is_frage[rev];
@@ -1659,8 +1677,8 @@ void *ifp;
 	for (is = ips_list; is; is = is->is_next) {
 		for (i = 0; i < 4; i++) {
 			if (is->is_ifp[i] == ifp) {
-				is->is_ifpin = GETUNIT(is->is_ifname[i],
-						       is->is_v);
+				is->is_ifp[i] = GETUNIT(is->is_ifname[i],
+							is->is_v);
 				if (!is->is_ifp[i])
 					is->is_ifp[i] = (void *)-1;
 			}
@@ -1751,7 +1769,7 @@ void fr_timeoutstate()
 		} else
 			isp = &is->is_next;
 	if (fr_state_doflush) {
-		(void) fr_state_flush(2);
+		(void) fr_state_flush(2, 0);
 		fr_state_doflush = 0;
 	}
 	RWLOCK_EXIT(&ipf_state);
@@ -1827,17 +1845,41 @@ int dir, fsm;
 			state[dir] = TCPS_SYN_SENT;
 			newage = fr_tcptimeout;
 		}
+		
+		/* 
+		 * It is apparently possible that a hosts sends two syncs
+		 * before the remote party is able to respond with a SA. In
+		 * such a case the remote server sometimes ACK's the second
+		 * sync, and then responds with a SA. The following code
+		 * is used to prevent this ack from being blocked.
+		 *
+		 * We do not reset the timeout here to fr_tcptimeout because
+		 * a connection connect timeout does not renew after every
+		 * packet that is sent.  We need to set newage to something
+		 * to indicate the packet has passed the check for its flags
+		 * being valid in the TCP FSM.
+		 */
+		else if ((ostate == TCPS_SYN_SENT) &&
+		         ((flags & (TH_FIN|TH_SYN|TH_RST|TH_ACK)) == TH_ACK)) {
+			newage = *age;
+		}
+
 		/*
 		 * The next piece of code makes it possible to get
 		 * already established connections into the state table
 		 * after a restart or reload of the filter rules; this
 		 * does not work when a strict 'flags S keep state' is
-		 * used for tcp connections of course
+		 * used for tcp connections of course, however, use a
+		 * lower time-out so the state disappears quickly if
+		 * the other side does not pick it up.
 		 */
-		if (!fsm && (flags & (TH_FIN|TH_SYN|TH_RST|TH_ACK)) == TH_ACK) {
+		else if (!fsm &&
+			 (flags & (TH_FIN|TH_SYN|TH_RST|TH_ACK)) == TH_ACK) {
 			/* we saw an A, guess 'dir' is in ESTABLISHED mode */
-			if (state[1 - dir] == TCPS_CLOSED ||
-			    state[1 - dir] == TCPS_ESTABLISHED) {
+			if (ostate == TCPS_CLOSED) {
+				state[dir] = TCPS_ESTABLISHED;
+				newage = fr_tcptimeout;
+			} else if (ostate == TCPS_ESTABLISHED) {
 				state[dir] = TCPS_ESTABLISHED;
 				newage = fr_tcpidletimeout;
 			}

@@ -246,7 +246,7 @@ install:
 	for i in ip_compat.h ip_fil.h ip_nat.h ip_state.h ip_proxy.h \
 		ip_frag.h ip_auth.h; do \
 		/bin/cp $(TOP)/$$i /usr/include/netinet/; \
-		-$(CHMOD) 444 /usr/include/netinet/$$i; \
+		$(CHMOD) 444 /usr/include/netinet/$$i; \
 	done
 	-if [ -d /lkm -a -f if_ipl.o ] ; then \
 		cp if_ipl.o /lkm; \

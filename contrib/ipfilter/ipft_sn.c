@@ -7,7 +7,7 @@
 /*
  * Written to comply with the recent RFC 1761 from Sun.
  */
-#ifdef __sgi
+#if defined(__sgi) && (IRIX > 602)
 # include <sys/ptimers.h>
 #endif
 #include <stdio.h>
@@ -38,7 +38,7 @@
 #include "ipt.h"
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ipft_sn.c,v 2.2.2.3 2002/02/22 15:32:54 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipft_sn.c,v 2.2.2.4 2002/12/06 11:40:26 darrenr Exp $";
 #endif
 
 struct	llc	{

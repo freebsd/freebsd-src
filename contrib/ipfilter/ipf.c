@@ -12,7 +12,7 @@
 #  endif
 # endif
 #endif
-#ifdef __sgi
+#if defined(__sgi) && (IRIX > 602)
 # include <sys/ptimers.h>
 #endif
 #include <stdio.h>
@@ -50,7 +50,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipf.c	1.23 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipf.c,v 2.10.2.17 2002/06/27 14:29:17 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipf.c,v 2.10.2.19 2002/12/06 11:41:13 darrenr Exp $";
 #endif
 
 #if	SOLARIS
@@ -440,9 +440,15 @@ char	*arg;
 		rem = fl;
 
 		closedevice();
-		if (opendevice(IPL_STATE) != -2 &&
-		    ioctl(fd, SIOCIPFFL, &fl) == -1)
-			perror("ioctl(SIOCIPFFL)");
+		if (opendevice(IPL_STATE) != -2) {
+			if (use_inet6) {
+				if (ioctl(fd, SIOCIPFL6, &fl) == -1)
+					perror("ioctl(SIOCIPFL6)");
+			} else {
+				if (ioctl(fd, SIOCIPFFL, &fl) == -1)
+					perror("ioctl(SIOCIPFFL)");
+			}
+		}
 		if ((opts & (OPT_DONOTHING|OPT_VERBOSE)) == OPT_VERBOSE) {
 			printf("remove flags %s (%d)\n", arg, rem);
 			printf("removed %d filter rules\n", fl);
@@ -459,8 +465,15 @@ char	*arg;
 	fl |= (opts & FR_INACTIVE);
 	rem = fl;
 
-	if (opendevice(ipfname) != -2 && ioctl(fd, SIOCIPFFL, &fl) == -1)
-		perror("ioctl(SIOCIPFFL)");
+	if (opendevice(ipfname) != -2) {
+		if (use_inet6) {
+			if (ioctl(fd, SIOCIPFL6, &fl) == -1)
+				perror("ioctl(SIOCIPFL6)");
+		} else {
+			if (ioctl(fd, SIOCIPFFL, &fl) == -1)
+				perror("ioctl(SIOCIPFFL)");
+		}
+	}
 	if ((opts & (OPT_DONOTHING|OPT_VERBOSE)) == OPT_VERBOSE) {
 		printf("remove flags %s%s (%d)\n", (rem & FR_INQUE) ? "I" : "",
 			(rem & FR_OUTQUE) ? "O" : "", rem);

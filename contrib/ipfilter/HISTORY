@@ -22,6 +22,52 @@
 # and especially those who have found the time to port IP Filter to new
 # platforms.
 #
+3.4.31	7/12/2002 - Released
+
+Solaris 10 compatibility
+
+fix linking into pfil in NetBSD 
+
+fix IRIX 6.2 compatibility
+
+add code to check consistency of fr_checkp/fr_check on non-Solaris
+
+OpenBSD: missing patches for ip6_output.c on OpenBSD 3.2,
+         make LKM work for 3.2 (OpenBSD LKMs now match NetBSD)
+
+3.4.30	26/11/2002 - Released
+
+attempt to detect using GNU make and abort if so
+
+OpenBSD 3.2 patches from Stefan Hermes von GMX
+
+add MSS clamping code from NetBSD
+
+correctly display ipv6 output with ipfstat for (accounting) rules
+
+fix problems with ioctl handling for /dev/ipauth
+
+set SYN bit in rcmd fake packet to create back channel
+
+make libpcap reader capable of determining in/out (not in libpcap file)
+and add more DLT types
+
+do not allow redirects to localhost for Solaris in NAT parser
+
+allow return-rst with auth rules
+
+man page corrections
+
+fix for handling ipv6 icmp errors
+
+fix up ipfs command line option processing
+
+only allow processing a ftp 227 response following a PASV command
+
+NetBSD: use poll() and adapt to new cdevsw mechanism
+
+make flushing for just ipv6 things work
+
 3.4.29	28/8/2002 - Released
 
 Make substantial changes to the FTP proxy to improve reliability, security

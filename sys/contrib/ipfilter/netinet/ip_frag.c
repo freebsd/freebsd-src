@@ -7,7 +7,7 @@
 # define      _KERNEL
 #endif
 
-#ifdef __sgi
+#if defined(__sgi) && (IRIX > 602)
 # include <sys/ptimers.h>
 #endif
 #include <sys/errno.h>

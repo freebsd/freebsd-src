@@ -6,10 +6,10 @@
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
  *
- * $Id: iplang_y.y,v 2.2.2.2 2002/02/22 15:32:57 darrenr Exp $
+ * $Id: iplang_y.y,v 2.2.2.3 2002/12/06 11:41:14 darrenr Exp $
  */
 
-#ifdef __sgi
+#if defined(__sgi) && (IRIX > 602)
 # include <sys/ptimers.h>
 #endif
 #include <stdio.h>
@@ -51,7 +51,8 @@
 #include "ipf.h"
 #include "iplang.h"
 
-#if !defined(__NetBSD__) && !defined(__FreeBSD__)
+#if !defined(__NetBSD__) && (!defined(__FreeBSD_version) && \
+    __FreeBSD_version < 400020 ) && SOLARIS2 < 10 
 extern	struct ether_addr *ether_aton __P((char *));
 #endif
 
