@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.65 1998/03/06 07:28:01 bde Exp $
+#	$Id: bsd.prog.mk,v 1.66 1998/03/12 20:02:15 eivind Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -131,9 +131,9 @@ tags:
 .if !target(tags)
 tags: ${SRCS} _SUBDIR
 .if defined(PROG)
-	@cd ${.CURDIR} && gtags ${GTAGSFLAGS}
+	@cd ${.CURDIR} && gtags ${GTAGSFLAGS} ${.OBJDIR}
 .if defined(HTML)
-	@cd ${.CURDIR} && htags ${HTAGSFLAGS}
+	@cd ${.CURDIR} && htags ${HTAGSFLAGS} -d ${.OBJDIR} ${.OBJDIR}
 .endif
 .endif
 .endif

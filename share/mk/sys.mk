@@ -1,5 +1,5 @@
 #	from: @(#)sys.mk	8.2 (Berkeley) 3/21/94
-#	$Id: sys.mk,v 1.28 1998/01/21 01:03:51 jb Exp $
+#	$Id: sys.mk,v 1.29 1998/02/20 15:27:03 bde Exp $
 
 unix		?=	We run FreeBSD, not UNIX.
 
@@ -109,7 +109,7 @@ BINFORMAT	?=	aout
 .endif
 
 # For tags rule.
-GTAGSFLAGS=
+GTAGSFLAGS=	-o
 HTAGSFLAGS=
 
 .if defined(%POSIX)
