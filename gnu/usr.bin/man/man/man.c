@@ -479,18 +479,22 @@ man_getopt (argc, argv)
 	    || tmp != short_locale + 2
 	    || strlen(tmp + 1) < 4
 	    || tmp[3] != '.') {
-		errno = EINVAL;
-		perror ("bad ctype locale env");
-		exit (1);
-	}
-	tmp[1] = short_locale[0];
-	tmp[2] = short_locale[1];
-	short_locale = tmp + 1;
-	tmp = short_locale + 3;
-	for (pltable = ltable; pltable->lcode != NULL; pltable++) {
-		if (strcmp(pltable->lcode, tmp) == 0) {
-			locale_nroff = pltable->nroff;
-			break;
+		if (debug) {
+			errno = EINVAL;
+			perror ("ctype locale env");
+		}
+		free(short_locale);
+		locale = NULL;
+	} else {
+		tmp[1] = short_locale[0];
+		tmp[2] = short_locale[1];
+		short_locale = tmp + 1;
+		tmp = short_locale + 3;
+		for (pltable = ltable; pltable->lcode != NULL; pltable++) {
+			if (strcmp(pltable->lcode, tmp) == 0) {
+				locale_nroff = pltable->nroff;
+				break;
+			}
 		}
 	}
   }
