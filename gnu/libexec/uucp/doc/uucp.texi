@@ -1,4 +1,7 @@
 \input texinfo   @c -*-texinfo-*-
+
+@c $FreeBSD$
+
 @c %**start of header
 @setfilename uucp.info
 @settitle Taylor UUCP
@@ -5204,6 +5207,13 @@ string @samp{uucp} is looked up in @file{/etc/services}.  If it is not
 found, port number 540 (the standard UUCP-over-TCP port number) will be
 used.
 
+@item family @var{string} [ tcp only ]
+@findex family
+
+Name the protocol family to use.  Available value is @samp{inet} for
+IPv4 only, @samp{inet6} for IPv6 only, or @samp{inet46} for both IPv4
+and IPv6.  The default is @samp{inet46}.
+
 @item push @var{strings} [ tli only ]
 @findex push
 
@@ -5474,7 +5484,12 @@ Files}), add the line @samp{port type tcp} to the entry in the
 @samp{uucp} in @file{/etc/services}; if the @samp{uucp} service is not
 defined, port 540 will be used.  You can set the port number to use with
 the command @samp{port service @var{xxx}}, where @var{xxx} can be either
-a number or a name to look up in @file{/etc/services}.  You can specify
+a number or a name to look up in @file{/etc/services}.  By default UUCP
+will determine the protocol family by querying DNS; if the AAAA record
+is found, IPv6 will be used, and if not found, IPv4 will be used.  You
+can set the protocol family to use with the command @samp{port family
+@var{xxx}}, where @var{xxx} can be @samp{inet} for IPv4 only,
+@samp{inet6} for IPv6 only or @samp{inet46} for both.  You can specify
 the address of the remote host with @samp{address @var{a.b.c}}; if you
 don't give an address, the remote system name will be used.  You should
 give an explicit chat script for the system when you use TCP; the
@@ -5506,6 +5521,10 @@ be called at any time, over TCP, using port number @samp{uucp} (as found
 in @file{/etc/services}; this may be specified as a number), using
 remote host @file{@var{host}.@var{domain}}, with some chat script.
 
+@samp{port family @var{xxx}} command is not supported by V2
+configuration files or HDB configuration files.  So, with these
+configuration files, IPv6 is disabled for compatibility reason.
+
 @node TCP Server,  , TCP Client, UUCP Over TCP
 @subsection Running a TCP Server
 
@@ -5524,6 +5543,15 @@ be @samp{TCP}).  This will wait for incoming connections, and fork off a
 child for each one.  Each connection will be prompted with @samp{login:}
 and @samp{Password:}; the results will be checked against the UUCP (not
 the system) password file (@pxref{Configuration File Names}).
+
+By default UUCP will listen on both IPv4 and IPv6.  You can set the
+protocol family to listen with the command @samp{port family @var{xxx}},
+where @var{xxx} can be @samp{inet} for IPv4 only, @samp{inet6} for IPv6
+only or @samp{inet46} for both IPv4 and IPv6.
+
+@samp{port family @var{xxx}} command is not supported by V2
+configuration files or HDB configuration files.  So, with these
+configuration files, IPv6 is disabled for compatibility reason.
 
 Another way to run a UUCP TCP server is to use the BSD @code{uucpd}
 program.
