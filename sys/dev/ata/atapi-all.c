@@ -473,7 +473,7 @@ void
 atapi_reinit(struct ata_device *atadev)
 {
     /* reinit device parameters */
-     if (atadev->mode >= ATA_DMA)
+    if (atadev->mode >= ATA_DMA)
 	ata_dmainit(atadev,
 		    (ata_pmode(atadev->param) < 0) ?
 		    (atadev->param->support_dma ? 4:0):ata_pmode(atadev->param),
