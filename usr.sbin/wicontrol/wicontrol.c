@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: wicontrol.c,v 1.18 1999/05/14 15:40:19 wpaul Exp $
+ *	$Id: wicontrol.c,v 1.19 1999/05/22 15:43:02 wpaul Exp $
  */
 
 #include <sys/types.h>
@@ -56,7 +56,7 @@
 static const char copyright[] = "@(#) Copyright (c) 1997, 1998, 1999\
 	Bill Paul. All rights reserved.";
 static const char rcsid[] =
-	"@(#) $Id: wicontrol.c,v 1.18 1999/05/14 15:40:19 wpaul Exp $";
+	"@(#) $Id: wicontrol.c,v 1.19 1999/05/22 15:43:02 wpaul Exp $";
 #endif
 
 static void wi_getval		__P((char *, struct wi_req *));
@@ -304,7 +304,7 @@ static struct wi_table wi_table[] = {
 	{ WI_RID_PROMISC, WI_BOOL, "Promiscuous mode:\t\t\t" },
 	{ WI_RID_PORTTYPE, WI_WORDS, "Port type (1=BSS, 3=ad-hoc):\t\t"},
 	{ WI_RID_MAC_NODE, WI_HEXBYTES, "MAC address:\t\t\t\t"},
-	{ WI_RID_TX_RATE, WI_WORDS, "TX rate (1=1Mbps, 2=2Mbps, 3=auto):\t"},
+	{ WI_RID_TX_RATE, WI_WORDS, "TX rate:\t\t\t\t"},
 	{ WI_RID_RTS_THRESH, WI_WORDS, "RTS/CTS handshake threshold:\t\t"},
 	{ WI_RID_CREATE_IBSS, WI_BOOL, "Create IBSS:\t\t\t\t" },
 	{ WI_RID_SYSTEM_SCALE, WI_WORDS, "Access point density:\t\t\t" },
