@@ -69,12 +69,14 @@ struct ke_sched {
 	int		ske_ltick;	/* Last tick that we were running on */
 	int		ske_ftick;	/* First tick that we were running on */
 	int		ske_ticks;	/* Tick count */
+	u_char		ske_cpu;
 };
 #define	ke_slice	ke_sched->ske_slice
 #define	ke_runq		ke_sched->ske_runq
 #define	ke_ltick	ke_sched->ske_ltick
 #define	ke_ftick	ke_sched->ske_ftick
 #define	ke_ticks	ke_sched->ske_ticks
+#define	ke_cpu		ke_sched->ske_cpu
 
 struct kg_sched {
 	int	skg_slptime;
@@ -135,7 +137,7 @@ struct td_sched *thread0_sched = &td_sched;
  *		the slize size computed from the sleep time.
  */
 #define	SCHED_SLICE_MIN		(hz / 100)
-#define	SCHED_SLICE_MAX		(hz / 10)
+#define	SCHED_SLICE_MAX		(hz / 4)
 #define	SCHED_SLICE_RANGE	(SCHED_SLICE_MAX - SCHED_SLICE_MIN + 1)
 #define	SCHED_SLICE_SCALE(val, max)	(((val) * SCHED_SLICE_RANGE) / (max))
 #define	SCHED_PRI_TOSLICE(pri)						\
@@ -358,6 +360,7 @@ sched_switchout(struct thread *td)
 
 	td->td_last_kse = ke;
         td->td_lastcpu = ke->ke_oncpu;
+	ke->ke_oncpu = NOCPU;
         ke->ke_flags &= ~KEF_NEEDRESCHED;
 
 	if (TD_IS_RUNNING(td)) {
@@ -380,7 +383,7 @@ sched_switchin(struct thread *td)
 	/* struct kse *ke = td->td_kse; */
 	mtx_assert(&sched_lock, MA_OWNED);
 
-	td->td_kse->ke_oncpu = PCPU_GET(cpuid); /* XXX */
+	td->td_kse->ke_oncpu = PCPU_GET(cpuid);
 	if (td->td_ksegrp->kg_pri_class == PRI_TIMESHARE &&
 	    td->td_priority != td->td_ksegrp->kg_user_pri)
 		curthread->td_kse->ke_flags |= KEF_NEEDRESCHED;
@@ -415,7 +418,7 @@ sched_sleep(struct thread *td, u_char prio)
 		td->td_kse->ke_runq = NULL;
 #if 0
 	if (td->td_priority < PZERO)
-		kseq_cpu[td->td_kse->ke_oncpu].ksq_load++;
+		kseq_cpu[td->td_kse->ke_cpu].ksq_load++;
 #endif
 }
 
@@ -441,7 +444,7 @@ sched_wakeup(struct thread *td)
 	td->td_slptime = 0;
 #if 0
 	if (td->td_priority < PZERO)
-		kseq_cpu[td->td_kse->ke_oncpu].ksq_load--;
+		kseq_cpu[td->td_kse->ke_cpu].ksq_load--;
 #endif
 	setrunqueue(td);
         if (td->td_priority < curthread->td_priority)
@@ -466,14 +469,14 @@ sched_fork(struct ksegrp *kg, struct ksegrp *child)
 	child->kg_slptime = kg->kg_slptime;
 	child->kg_user_pri = kg->kg_user_pri;
 
-	if (pkse->ke_oncpu != PCPU_GET(cpuid)) {
-		printf("pkse->ke_oncpu = %d\n", pkse->ke_oncpu);
+	if (pkse->ke_cpu != PCPU_GET(cpuid)) {
+		printf("pkse->ke_cpu = %d\n", pkse->ke_cpu);
 		printf("cpuid = %d", PCPU_GET(cpuid));
 		Debugger("stop");
 	}
 
 	ckse->ke_slice = pkse->ke_slice;
-	ckse->ke_oncpu = pkse->ke_oncpu; /* sched_pickcpu(); */
+	ckse->ke_cpu = pkse->ke_cpu; /* sched_pickcpu(); */
 	ckse->ke_runq = NULL;
 	/*
 	 * Claim that we've been running for one second for statistical
@@ -654,7 +657,7 @@ sched_choose(void)
 			ke->ke_state = KES_THREAD;
 			runq_remove(ke->ke_runq, ke);
 			ke->ke_runq = NULL;
-			ke->ke_oncpu = PCPU_GET(cpuid);
+			ke->ke_cpu = PCPU_GET(cpuid);
 		}
 
 	}
@@ -680,7 +683,7 @@ sched_add(struct kse *ke)
 	if (ke->ke_runq == NULL) {
 		struct kseq *kseq;
 
-		kseq = KSEQ_CPU(ke->ke_oncpu);
+		kseq = KSEQ_CPU(ke->ke_cpu);
 		if (SCHED_CURR(ke->ke_ksegrp))
 			ke->ke_runq = kseq->ksq_curr;
 		else
@@ -690,7 +693,7 @@ sched_add(struct kse *ke)
 	ke->ke_state = KES_ONRUNQ;
 
 	runq_add(ke->ke_runq, ke);
-	KSEQ_CPU(ke->ke_oncpu)->ksq_load++;
+	KSEQ_CPU(ke->ke_cpu)->ksq_load++;
 }
 
 void
@@ -703,7 +706,7 @@ sched_rem(struct kse *ke)
 	ke->ke_runq = NULL;
 	ke->ke_state = KES_THREAD;
 	ke->ke_ksegrp->kg_runq_kses--;
-	KSEQ_CPU(ke->ke_oncpu)->ksq_load--;
+	KSEQ_CPU(ke->ke_cpu)->ksq_load--;
 }
 
 fixpt_t
