@@ -202,8 +202,8 @@ pcic_write(h, idx, data)
  */
 int pcic_activate_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r);
-int pcic_alloc_resource(device_t dev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, u_int flags);
+struct resource *pcic_alloc_resource(device_t dev, device_t child, int type,
+    int *rid, u_long start, u_long end, u_long count, u_int flags);
 int pcic_deactivate_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r);
 int pcic_release_resource(device_t dev, device_t child, int type, int rid,
