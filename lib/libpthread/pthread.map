@@ -27,6 +27,7 @@ global:
 	_nanosleep;
 	_pause;
 	_pselect;
+	_pthread_atfork;
 	_pthread_barrier_destroy;
 	_pthread_barrier_init;
 	_pthread_barrier_wait;
@@ -178,6 +179,7 @@ global:
 	pause;
 	poll;
 	pselect;
+	pthread_atfork;
 	pthread_barrier_destroy;
 	pthread_barrier_init;
 	pthread_barrier_wait;
