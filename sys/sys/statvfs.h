@@ -43,8 +43,8 @@
  * a quality implementation should.)
  */
 #ifndef _FSBLKCNT_T_DECLARED		/* always declared together */
-typedef _BSD_FSBLKCNT_T_ fsblkcnt_t
-typedef _BSD_FSFILCNT_T_ fsfilcnt_t
+typedef _BSD_FSBLKCNT_T_ fsblkcnt_t;
+typedef _BSD_FSFILCNT_T_ fsfilcnt_t;
 #define _FSBLKCNT_T_DECLARED
 #endif
 
@@ -74,4 +74,8 @@ struct statvfs {
 #define	ST_RDONLY	0x1
 #define	ST_NOSUID	0x2
 
+__BEGIN_DECLS
+int	fstatvfs(int, struct statvfs *);
+int	statvfs(const char *__restrict, struct statvfs *__restrict);
+__END_DECLS
 #endif /* _SYS_STATVFS_H_ */
