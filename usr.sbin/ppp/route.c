@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.38 1997/12/30 02:45:47 brian Exp $
+ * $Id: route.c,v 1.39 1998/01/11 02:59:22 brian Exp $
  *
  */
 
@@ -311,11 +311,11 @@ p_flags(u_long f, int max)
 static const char *
 Index2Nam(int idx)
 {
-  static char ifs[200][7];	/* We could have 256 tun devices ! */
+  static char **ifs;
   static int nifs, debug_done;
 
   if (!nifs) {
-    int mib[6], len;
+    int mib[6], have, had;
     size_t needed;
     char *buf, *ptr, *end;
     struct sockaddr_dl *dl;
@@ -340,17 +340,32 @@ Index2Nam(int idx)
     }
     end = buf + needed;
 
+    have = 0;
     for (ptr = buf; ptr < end; ptr += ifm->ifm_msglen) {
       ifm = (struct if_msghdr *)ptr;
       dl = (struct sockaddr_dl *)(ifm + 1);
-      if (ifm->ifm_index > 0 && ifm->ifm_index <= sizeof ifs/sizeof ifs[0]
-          && ifs[ifm->ifm_index-1][0] == '\0') {
-        if ((len = dl->sdl_nlen) > sizeof ifs[0] - 1)
-          len = sizeof ifs[0] - 1;
-        strncpy(ifs[ifm->ifm_index-1], dl->sdl_data, len);
-        ifs[ifm->ifm_index-1][len] = '\0';
-        if (len && nifs < ifm->ifm_index)
-          nifs = ifm->ifm_index;
+      if (ifm->ifm_index > 0) {
+        if (ifm->ifm_index > have) {
+          had = have;
+          have = ifm->ifm_index + 5;
+          if (had)
+            ifs = (char **)realloc(ifs, sizeof(char *) * have);
+          else
+            ifs = (char **)malloc(sizeof(char *) * have);
+          if (!ifs) {
+            LogPrintf(LogDEBUG, "Index2Nam: %s\n", strerror(errno));
+            nifs = 0;
+            return "???";
+          }
+          memset(ifs + had, '\0', sizeof(char *) * (have - had));
+        }
+        if (ifs[ifm->ifm_index-1] == NULL) {
+          ifs[ifm->ifm_index-1] = (char *)malloc(dl->sdl_nlen+1);
+          memcpy(ifs[ifm->ifm_index-1], dl->sdl_data, dl->sdl_nlen);
+          ifs[ifm->ifm_index-1][dl->sdl_nlen] = '\0';
+          if (nifs < ifm->ifm_index)
+            nifs = ifm->ifm_index;
+        }
       } else if (LogIsKept(LogDEBUG))
         LogPrintf(LogDEBUG, "Skipping out-of-range interface %d!\n",
                   ifm->ifm_index);
@@ -363,12 +378,12 @@ Index2Nam(int idx)
 
     LogPrintf(LogDEBUG, "Found the following interfaces:\n");
     for (f = 0; f < nifs; f++)
-      if (*ifs[f] != '\0')
+      if (ifs[f] != NULL)
         LogPrintf(LogDEBUG, " Index %d, name \"%s\"\n", f+1, ifs[f]);
     debug_done = 1;
   }
 
-  if (idx < 1 || idx > nifs || ifs[idx-1][0] == '\0')
+  if (idx < 1 || idx > nifs || ifs[idx-1] == NULL)
     return "???";
 
   return ifs[idx-1];
