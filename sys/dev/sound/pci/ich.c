@@ -611,6 +611,10 @@ ich_pci_probe(device_t dev)
 		device_set_desc(dev, "Intel 82801CA (ICH3)");
 		return 0;
 
+	case 0x24c58086:
+		device_set_desc(dev, "Intel 82801DC (ICH4)");
+		return 0;
+
 	case SIS7012ID:
 		device_set_desc(dev, "SiS 7012");
 		return 0;
