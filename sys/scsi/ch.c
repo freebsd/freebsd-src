@@ -2,7 +2,7 @@
  * Written by grefen@?????
  * Based on scsi drivers by Julian Elischer (julian@tfs.com)
  *
- *      $Id: ch.c,v 1.20 1995/05/11 19:26:46 rgrimes Exp $
+ *      $Id: ch.c,v 1.21 1995/05/30 08:13:22 rgrimes Exp $
  */
 
 #include	<sys/types.h>
@@ -95,11 +95,9 @@ struct scsi_device ch_switch =
 #define CH_OPEN		0x01
 
 static int
-ch_externalize(struct proc *p, struct kern_devconf *kdc, void *userp,
-	       size_t len)
+ch_externalize(struct kern_devconf *kdc, struct sysctl_req *req)
 {
-	return scsi_externalize(SCSI_LINK(&ch_switch, kdc->kdc_unit),
-	userp, &len);
+	return scsi_externalize(SCSI_LINK(&ch_switch, kdc->kdc_unit), req);
 }
 
 static struct kern_devconf kdc_ch_template = {

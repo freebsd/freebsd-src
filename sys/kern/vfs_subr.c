@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.41 1995/11/14 09:19:12 phk Exp $
+ * $Id: vfs_subr.c,v 1.42 1995/11/16 09:45:23 bde Exp $
  */
 
 /*
@@ -175,8 +175,7 @@ vfs_unbusy(mp)
 }
 
 void
-vfs_unmountroot(rootfs)
-	struct mount *rootfs;
+vfs_unmountroot(struct mount *rootfs)
 {
 	struct mount *mp = rootfs;
 	int error;
@@ -953,9 +952,7 @@ loop:
  * Disassociate the underlying file system from a vnode.
  */
 void
-vclean(vp, flags)
-	register struct vnode *vp;
-	int flags;
+vclean(struct vnode *vp, int flags)
 {
 	int active;
 
@@ -1247,7 +1244,7 @@ vprint(label, vp)
  * Called when debugging the kernel.
  */
 void
-printlockedvnodes()
+printlockedvnodes(void)
 {
 	register struct mount *mp;
 	register struct vnode *vp;
@@ -1273,30 +1270,25 @@ int kinfo_vgetfailed;
  * Copyout address of vnode followed by vnode.
  */
 /* ARGSUSED */
-int
-sysctl_vnode(where, sizep)
-	char *where;
-	size_t *sizep;
+static int
+sysctl_vnode SYSCTL_HANDLER_ARGS
 {
 	register struct mount *mp, *nmp;
 	struct vnode *vp;
-	register char *bp = where, *savebp;
-	char *ewhere;
 	int error;
 
 #define VPTRSZ	sizeof (struct vnode *)
 #define VNODESZ	sizeof (struct vnode)
-	if (where == NULL) {
-		*sizep = (numvnodes + KINFO_VNODESLOP) * (VPTRSZ + VNODESZ);
-		return (0);
-	}
-	ewhere = where + *sizep;
+
+	req->lock = 0;
+	if (req->oldptr) /* Make an estimate */
+		return (SYSCTL_OUT(req, 0,
+			(numvnodes + KINFO_VNODESLOP) * (VPTRSZ + VNODESZ)));
 
 	for (mp = mountlist.cqh_first; mp != (void *)&mountlist; mp = nmp) {
 		nmp = mp->mnt_list.cqe_next;
 		if (vfs_busy(mp))
 			continue;
-		savebp = bp;
 again:
 		for (vp = mp->mnt_vnodelist.lh_first;
 		    vp != NULL;
@@ -1309,28 +1301,23 @@ again:
 			if (vp->v_mount != mp) {
 				if (kinfo_vdebug)
 					printf("kinfo: vp changed\n");
-				bp = savebp;
 				goto again;
 			}
-			if (bp + VPTRSZ + VNODESZ > ewhere) {
+			if ((error = SYSCTL_OUT(req, &vp, VPTRSZ)) ||
+			    (error = SYSCTL_OUT(req, vp, VNODESZ))) {
 				vfs_unbusy(mp);
-				*sizep = bp - where;
-				return (ENOMEM);
-			}
-			if ((error = copyout(&vp, bp, VPTRSZ)) ||
-			    (error = copyout(vp, bp + VPTRSZ, VNODESZ))) {
-				vfs_unbusy(mp);
-				*sizep = bp - where;
 				return (error);
 			}
-			bp += VPTRSZ + VNODESZ;
 		}
 		vfs_unbusy(mp);
 	}
 
-	*sizep = bp - where;
 	return (0);
 }
+
+SYSCTL_NODE(_kern, KERN_VNODE, vnode, CTLTYPE_OPAQUE|CTLFLAG_RD,
+	sysctl_vnode, "");
+
 
 /*
  * Check to see if a filesystem is mounted on a block device.
@@ -1360,10 +1347,8 @@ vfs_mountedon(vp)
  * Called by ufs_mount() to set up the lists of export addresses.
  */
 static int
-vfs_hang_addrlist(mp, nep, argp)
-	struct mount *mp;
-	struct netexport *nep;
-	struct export_args *argp;
+vfs_hang_addrlist(struct mount *mp, struct netexport *nep, 
+	struct export_args *argp)
 {
 	register struct netcred *np;
 	register struct radix_node_head *rnh;
@@ -1433,9 +1418,7 @@ out:
 
 /* ARGSUSED */
 static int
-vfs_free_netcred(rn, w)
-	struct radix_node *rn;
-	void *w;
+vfs_free_netcred(struct radix_node *rn, void *w)
 {
 	register struct radix_node_head *rnh = (struct radix_node_head *) w;
 
@@ -1448,8 +1431,7 @@ vfs_free_netcred(rn, w)
  * Free the net address hash lists that are hanging off the mount points.
  */
 static void
-vfs_free_addrlist(nep)
-	struct netexport *nep;
+vfs_free_addrlist(struct netexport *nep)
 {
 	register int i;
 	register struct radix_node_head *rnh;

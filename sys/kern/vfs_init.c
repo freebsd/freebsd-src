@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
- * $Id: vfs_init.c,v 1.12 1995/09/09 18:10:16 davidg Exp $
+ * $Id: vfs_init.c,v 1.13 1995/11/09 08:13:51 bde Exp $
  */
 
 
@@ -287,65 +287,25 @@ vfsinit(udata)
 /*
  * kernel related system variables.
  */
-int
-fs_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
-	int *name;
-	u_int namelen;
-	void *oldp;
-	size_t *oldlenp;
-	void *newp;
-	size_t newlen;
-	struct proc *p;
+
+static int
+sysctl_fs_vfsconf SYSCTL_HANDLER_ARGS
 {
-	int i;
-	int error;
-	int buflen = *oldlenp;
-	caddr_t where = oldp, start = oldp;
+	int i, error;
 
-	switch (name[0]) {
-	case FS_VFSCONF:
-		if (namelen != 1) return ENOTDIR;
-
-		if (oldp == NULL) {
-			*oldlenp = (MOUNT_MAXTYPE+1) * sizeof(struct vfsconf);
-			return 0;
-		}
-		if (newp) {
-			return EINVAL;
-		}
-
-		for(i = 0; i < MOUNT_MAXTYPE + 1; i++) {
-			if(buflen < sizeof *vfsconf[i]) {
-				*oldlenp = where - start;
-				return ENOMEM;
-			}
-
-			error = copyout(vfsconf[i], where, sizeof *vfsconf[i]);
-			if(error)
-				return error;
-			where += sizeof *vfsconf[i];
-			buflen -= sizeof *vfsconf[i];
-		}
-		*oldlenp = where - start;
-		return 0;
-
-	default:
-		if(namelen < 1) return EINVAL;
-
-		i = name[0];
-
-		if(i <= MOUNT_MAXTYPE
-		   && vfssw[i]
-		   && vfssw[i]->vfs_sysctl) {
-			return vfssw[i]->vfs_sysctl(name + 1, namelen - 1,
-						    oldp, oldlenp,
-						    newp, newlen, p);
-		}
-
-		return (EOPNOTSUPP);
+	if (req->newptr)
+		return EINVAL;
+	for(i = 0; i < MOUNT_MAXTYPE + 1; i++) {
+		error = SYSCTL_OUT(req, vfsconf[i], sizeof *vfsconf[i]);
+		if(error)
+			return error;
 	}
-	/* NOTREACHED */
+	return (error);
+
 }
+
+SYSCTL_PROC(_fs, FS_VFSCONF, vfsconf, CTLTYPE_OPAQUE|CTLFLAG_RD,
+	0, 0, sysctl_fs_vfsconf, "");
 
 /*
  * This goop is here to support a loadable NFS module... grumble...

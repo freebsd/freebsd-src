@@ -17,7 +17,7 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *
  *  ft.c - QIC-40/80 floppy tape driver
- *  $Id: ft.c,v 1.21 1995/05/06 19:34:28 joerg Exp $
+ *  $Id: ft.c,v 1.22 1995/05/30 08:01:41 rgrimes Exp $
  *
  *  01/19/95 ++sg
  *  Cleaned up recalibrate/seek code at attach time for FreeBSD 2.x.
@@ -401,8 +401,7 @@ segio_free(ft_p ft, SegReq *sp)
   DPRT(("segio_free: nfree=%d ndone=%d nreq=%d\n", ft->nfreelist, ft->ndoneq, ft->nsegq));
 }
 
-static int ft_externalize(struct proc *, struct kern_devconf *, void *,
-			  size_t);
+static int ft_externalize(struct kern_devconf *, struct sysctl_req *);
 
 extern struct kern_devconf kdc_fdc[];
 static struct kern_devconf kdc_ft[NFT] = { {
@@ -430,10 +429,9 @@ ft_registerdev(int ctlr, int unit)
 
 
 static int
-ft_externalize(struct proc *p, struct kern_devconf *kdc, void *userp,
-	       size_t len)
+ft_externalize(struct kern_devconf *kdc, struct sysctl_req *req)
 {
-	return disk_externalize(ft_data[kdc->kdc_unit].ftsu, userp, &len);
+	return disk_externalize(ft_data[kdc->kdc_unit].ftsu, req);
 }
 
 /*
