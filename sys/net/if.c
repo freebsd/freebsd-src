@@ -410,13 +410,13 @@ if_attach(struct ifnet *ifp)
 	 * create a Link Level name for this device
 	 */
 	namelen = strlen(ifp->if_xname);
-#define _offsetof(t, m) ((int)((caddr_t)&((t *)0)->m))
-	masklen = _offsetof(struct sockaddr_dl, sdl_data[0]) + namelen;
+	masklen = offsetof(struct sockaddr_dl, sdl_data[0]) + namelen;
 	socksize = masklen + ifp->if_addrlen;
 #define ROUNDUP(a) (1 + (((a) - 1) | (sizeof(long) - 1)))
 	if (socksize < sizeof(*sdl))
 		socksize = sizeof(*sdl);
 	socksize = ROUNDUP(socksize);
+#undef ROUNDUP
 	ifasize = sizeof(*ifa) + 2 * socksize;
 	ifa = (struct ifaddr *)malloc(ifasize, M_IFADDR, M_WAITOK | M_ZERO);
 	if (ifa) {
