@@ -343,6 +343,17 @@ ${_i}devs.h: @/tools/${_i}devs2h.awk @/dev/${_i}/${_i}devs
 .endif
 .endfor # _i
 
+.if ${SRCS:Macpi_quirks.h} != ""
+CLEANFILES+=	acpi_quirks.h
+.if !exists(@)
+acpi_quirks.h: @
+.endif
+.if exists(@)
+acpi_quirks.h: @/tools/acpi_quirks2h.awk @/dev/acpica/acpi_quirks
+.endif
+	${AWK} -f @/tools/acpi_quirks2h.awk @/dev/acpica/acpi_quirks
+.endif
+
 regress:
 
 lint: ${SRCS}
