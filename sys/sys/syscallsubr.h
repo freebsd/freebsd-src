@@ -32,9 +32,9 @@
 #include <sys/uio.h>
 #include <sys/socket.h>
 
-struct sockaddr;
-struct msghdr;
 struct mbuf;
+struct msghdr;
+struct sockaddr;
 
 int	kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg,
 	    u_int buflen);
