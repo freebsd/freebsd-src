@@ -248,7 +248,6 @@ printcpuinfo(void)
 				"\040<b31>"
 				);
 			}
-			0x0183f3ff
 			if (amd_feature != 0) {
 				printf("\n  AMD Features=0x%b", amd_feature,
 				"\020"		/* in hex */
