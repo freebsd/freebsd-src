@@ -340,6 +340,10 @@ ufs_extattrctl(struct mount *mp, int cmd, const char *attrname,
 	int	error, flags;
 	size_t	len;
 
+	/*
+	 * Processes with privilege, but in jail, are not allowed to
+	 * configure extended attributes.
+	 */
 	if ((error = suser_xxx(p->p_cred->pc_ucred, p, 0)))
 		return (error);
 
@@ -409,10 +413,14 @@ ufs_extattr_credcheck(struct vnode *vp, struct ufs_extattr_list_entry *uele,
 		return (0);
 
 	/*
+	 * Do not allow privileged processes in jail to directly
+	 * manipulate system attributes.
+	 *
 	 * XXX What capability should apply here?
+	 * Probably CAP_SYS_SETFFLAG.
 	 */
 	if (system_namespace)
-		return (suser_xxx(cred, p, PRISON_ROOT));
+		return (suser_xxx(cred, p, 0));
 	else
 		return (VOP_ACCESS(vp, access, cred, p));
 }
