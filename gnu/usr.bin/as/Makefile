@@ -17,7 +17,7 @@ ADDINCLUDE=-I${.OBJDIR}
 
 PROG=		as
 BINDIR= /usr/libexec/aout
-MAN1aout=as.1aout
+MAN=		as.1aout
 SRCS+=		app.c as.c atof-generic.c bignum-copy.c \
 		cond.c expr.c flo-const.c flo-copy.c flonum-mult.c \
 		frags.c hash.c hex-value.c input-file.c input-scrub.c \

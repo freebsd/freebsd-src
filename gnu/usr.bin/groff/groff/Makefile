@@ -6,7 +6,7 @@ CFLAGS+=	-I${.CURDIR}/../include
 LDADD+=		${LIBGROFF} -lm
 DPADD+=		${LIBGROFF} ${LIBM}
 
-CLEANFILES+=	${MAN1}
+CLEANFILES+=	groff.1
 
 .include "../Makefile.cfg"
 .include <bsd.prog.mk>

@@ -1,8 +1,9 @@
+# $FreeBSD$
 #
 # Makefile for building a standalone send-pr.
 #
 
-MAN1=		send-pr.1
+MAN=		send-pr.1
 SUBMITTERS=	current-users
 RELEASE=	`uname -rsm`
 RELEASE_EV!=	uname -rsm

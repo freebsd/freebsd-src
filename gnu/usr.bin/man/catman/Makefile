@@ -3,7 +3,7 @@
 MAINTAINER= wosch
 
 
-MAN1=	catman.1
+MAN=	catman.1
 
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
