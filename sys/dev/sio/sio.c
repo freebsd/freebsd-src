@@ -87,15 +87,13 @@
 #endif
 #include <isa/ic/ns16550.h>
 
-#if 0
 #include "card.h"
 #if NCARD > 0
+/* XXX should die XXX */
+#include <sys/select.h>
 #include <sys/module.h>
 #include <pccard/cardinfo.h>
 #include <pccard/slot.h>
-#endif
-#else
-#define NCARD 0
 #endif
 
 #ifndef __i386__
@@ -293,6 +291,7 @@ struct com_s {
 static	int	espattach	__P((struct com_s *com, Port_t esp_port));
 #endif
 static	int	sioattach	__P((device_t dev));
+static	int	sio_isa_attach	__P((device_t dev));
 
 static	timeout_t siobusycheck;
 static	timeout_t siodtrwakeup;
@@ -304,6 +303,7 @@ static	int	commctl		__P((struct com_s *com, int bits, int how));
 static	int	comparam	__P((struct tty *tp, struct termios *t));
 static	swihand_t siopoll;
 static	int	sioprobe	__P((device_t dev));
+static	int	sio_isa_probe	__P((device_t dev));
 static	void	siosettimeout	__P((void));
 static	int	siosetwater	__P((struct com_s *com, speed_t speed));
 static	void	comstart	__P((struct tty *tp));
@@ -312,6 +312,11 @@ static	timeout_t comwakeup;
 static	void	disc_optim	__P((struct tty	*tp, struct termios *t,
 				     struct com_s *com));
 
+#if NCARD > 0
+static	int	sio_pccard_attach __P((device_t dev));
+static	void	sio_pccard_detach __P((device_t dev));
+static	int	sio_pccard_probe __P((device_t dev));
+#endif /* NCARD > 0 */
 
 static char driver_name[] = "sio";
 
@@ -320,19 +325,36 @@ static	devclass_t	sio_devclass;
 #define	com_addr(unit)	((struct com_s *) \
 			 devclass_get_softc(sio_devclass, unit))
 
-static device_method_t sio_methods[] = {
+static device_method_t sio_isa_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		sioprobe),
-	DEVMETHOD(device_attach,	sioattach),
+	DEVMETHOD(device_probe,		sio_isa_probe),
+	DEVMETHOD(device_attach,	sio_isa_attach),
 
 	{ 0, 0 }
 };
 
-static driver_t sio_driver = {
+static driver_t sio_isa_driver = {
 	driver_name,
-	sio_methods,
+	sio_isa_methods,
 	sizeof(struct com_s),
 };
+
+#if NCARD > 0
+static device_method_t sio_pccard_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		sio_pccard_probe),
+	DEVMETHOD(device_attach,	sio_pccard_attach),
+	DEVMETHOD(device_detach,	sio_pccard_detach),
+
+	{ 0, 0 }
+};
+
+static driver_t sio_pccard_driver = {
+	driver_name,
+	sio_pccard_methods,
+	sizeof(struct com_s),
+};
+#endif (NCARD > 0)
 
 static	d_open_t	sioopen;
 static	d_close_t	sioclose;
@@ -463,43 +485,29 @@ SYSCTL_PROC(_machdep, OID_AUTO, conspeed, CTLTYPE_INT | CTLFLAG_RW,
 	    0, 0, sysctl_machdep_comdefaultrate, "I", "");
 
 #if NCARD > 0
-/*
- *	PC-Card (PCMCIA) specific code.
- */
-static int	sioinit		__P((struct pccard_devinfo *));
-static void	siounload	__P((struct pccard_devinfo *));
-static int	card_intr	__P((struct pccard_devinfo *));
-
-PCCARD_MODULE(sio, sioinit, siounload, card_intr, 0, tty_imask);
-
-/*
- *	Initialize the device - called from Slot manager.
- */
-int
-sioinit(struct pccard_devinfo *devi)
+static int
+sio_pccard_probe(dev)
+	device_t	dev;
 {
+	const char *name;
 
-	/* validate unit number. */
-	if (devi->isahd.id_unit >= (NSIOTOT))
-		return(ENODEV);
-	/* Make sure it isn't already probed. */
-	if (com_addr(devi->isahd.id_unit))
-		return(EBUSY);
+	name = pccard_get_name(dev);
+	printf("sio_pccard_probe: Does %s match?\n", name);
+	if (strcmp(name, "sio"))
+		return ENXIO;
 
-	/* It's already probed as serial by Upper */
-	devi->isahd.id_flags |= COM_C_NOPROBE; 
+	return (sioprobe(dev));
+}
 
-	/*
-	 * attach the device.
-	 */
-	if (sioattach(devi->isahd.id_device) == 0)
-		return(ENXIO);
-
-	return(0);
+static int
+sio_pccard_attach(dev)
+	device_t	dev;
+{
+	return (sioattach(dev));
 }
 
 /*
- *	siounload - unload the driver and clear the table.
+ *	sio_detach - unload the driver and clear the table.
  *	XXX TODO:
  *	This is usually called when the card is ejected, but
  *	can be caused by a modunload of a controller driver.
@@ -508,26 +516,23 @@ sioinit(struct pccard_devinfo *devi)
  *	read and write do not hang.
  */
 static void
-siounload(struct pccard_devinfo *devi)
+sio_pccard_detach(dev)
+	device_t	dev;
 {
 	struct com_s	*com;
 
-	if (!devi) {
-		printf("NULL devi in siounload\n");
-		return;
-	}
-	com = com_addr(devi->isahd.id_unit);
+	com = (struct com_s *) device_get_softc(dev);
 	if (!com) {
-		printf("NULL com in siounload\n");
+		device_printf(dev, "NULL com in siounload\n");
 		return;
 	}
 	if (!com->iobase) {
-		printf("sio%d already unloaded!\n",devi->isahd.id_unit);
+		device_printf(dev, "already unloaded!\n");
 		return;
 	}
 	if (com->tp && (com->tp->t_state & TS_ISOPEN)) {
 		com->gone = 1;
-		printf("sio%d: unload\n", devi->isahd.id_unit);
+		device_printf(dev, "unload\n");
 		com->tp->t_gen++;
 		ttyclose(com->tp);
 		ttwakeup(com->tp);
@@ -536,25 +541,8 @@ siounload(struct pccard_devinfo *devi)
 		if (com->ibuf != NULL)
 			free(com->ibuf, M_DEVBUF);
 		free(com, M_DEVBUF);
-		printf("sio%d: unload,gone\n", devi->isahd.id_unit);
+		device_printf(dev, "unload,gone\n");
 	}
-}
-
-/*
- *	card_intr - Shared interrupt called from
- *	front end of PC-Card handler.
- */
-static int
-card_intr(struct pccard_devinfo *devi)
-{
-	struct com_s	*com;
-
-	COM_LOCK();
-	com = com_addr(devi->isahd.id_unit);
-	if (com && !com->gone)
-		siointr1(com_addr(devi->isahd.id_unit));
-	COM_UNLOCK();
-	return(1);
 }
 #endif /* NCARD > 0 */
 
@@ -576,6 +564,16 @@ static struct isa_pnp_id sio_ids[] = {
 };
 
 static int
+sio_isa_probe(dev)
+	device_t	dev;
+{
+	/* Check isapnp ids */
+	if (ISA_PNP_PROBE(device_get_parent(dev), dev, sio_ids) == ENXIO)
+		return (ENXIO);
+	return (sioprobe(dev));
+}
+
+static int
 sioprobe(dev)
 	device_t	dev;
 {
@@ -592,10 +590,6 @@ sioprobe(dev)
 	u_int		flags = device_get_flags(dev);
 	int		rid;
 	struct resource *port;
-
-	/* Check isapnp ids */
-	if (ISA_PNP_PROBE(device_get_parent(dev), dev, sio_ids) == ENXIO)
-		return (ENXIO);
 
 	rid = 0;
 	port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
@@ -737,37 +731,33 @@ sioprobe(dev)
 	outb(iobase + com_mcr, mcr_image);
 
 	/*
-	 * It's a definitly Serial PCMCIA(16550A), but still be required
+	 * Some pcmcia cards have the "TXRDY bug", so we check everyone
 	 * for IIR_TXRDY implementation ( Palido 321s, DC-1S... )
+	 * XXX Bruce, is this OK? XXX
 	 */
-	if ( COM_NOPROBE(flags) ) {
-		/* Reading IIR register twice */
-		for ( fn = 0; fn < 2; fn ++ ) {
-			DELAY(10000);
-			failures[6] = inb(iobase + com_iir);
-		}
-		/* Check IIR_TXRDY clear ? */
-		result = 0;
-		if ( failures[6] & IIR_TXRDY ) {
-			/* Nop, Double check with clearing IER */
-			outb(iobase + com_ier, 0);
-			if ( inb(iobase + com_iir) & IIR_NOPEND ) {
-				/* Ok. we're familia this gang */
-				SET_FLAG(dev, COM_C_IIR_TXRDYBUG); /* Set IIR_TXRDYBUG */
-			} else {
-				/* Unknown, Just omit this chip.. XXX */
-				result = ENXIO;
-			}
-		} else {
-			/* OK. this is well-known guys */
-			CLR_FLAG(dev, COM_C_IIR_TXRDYBUG); /*Clear IIR_TXRDYBUG*/
-		}
-		outb(iobase + com_cfcr, CFCR_8BITS);
-		enable_intr();
-		bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
-		return (iobase == siocniobase ? 0 : result);
+#if 0
+	/* Reading IIR register twice */
+	for ( fn = 0; fn < 2; fn ++ ) {
+		DELAY(10000);
+		failures[6] = inb(iobase + com_iir);
 	}
-
+	/* Check IIR_TXRDY clear ? */
+	result = 0;
+	if ( failures[6] & IIR_TXRDY ) {
+		/* Nop, Double check with clearing IER */
+		outb(iobase + com_ier, 0);
+		if ( inb(iobase + com_iir) & IIR_NOPEND ) {
+			/* Ok. we're familia this gang */
+			SET_FLAG(dev, COM_C_IIR_TXRDYBUG); /* Set IIR_TXRDYBUG */
+		} else {
+			/* Unknown, Just omit this chip.. XXX */
+			result = ENXIO;
+		}
+	} else {
+		/* OK. this is well-known guys */
+		CLR_FLAG(dev, COM_C_IIR_TXRDYBUG); /*Clear IIR_TXRDYBUG*/
+	}
+#endif
 	/*
 	 * Check that
 	 *	o the CFCR, IER and MCR in UART hold the values written to them
@@ -898,6 +888,13 @@ espattach(com, esp_port)
 	return (1);
 }
 #endif /* COM_ESP */
+
+static int
+sio_isa_attach(dev)
+	device_t	dev;
+{
+	return (sioattach(dev));
+}
 
 static int
 sioattach(dev)
@@ -3040,4 +3037,7 @@ siogdbputc(c)
 }
 #endif
 
-DEV_DRIVER_MODULE(sio, isa, sio_driver, sio_devclass, sio_cdevsw, 0, 0);
+DRIVER_MODULE(sio, isa, sio_isa_driver, sio_devclass, 0, 0);
+#if NCARD > 0
+DRIVER_MODULE(sio, pccard, sio_pccard_driver, sio_devclass, 0, 0);
+#endif
