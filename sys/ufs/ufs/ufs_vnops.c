@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.10 (Berkeley) 4/1/94
- * $Id: ufs_vnops.c,v 1.28 1995/09/04 00:21:11 dyson Exp $
+ * $Id: ufs_vnops.c,v 1.29 1995/09/09 01:43:49 julian Exp $
  */
 
 #include <sys/param.h>
@@ -840,7 +840,7 @@ abortit:
 		 * Avoid ".", "..", and aliases of "." for obvious reasons.
 		 */
 		if ((fcnp->cn_namelen == 1 && fcnp->cn_nameptr[0] == '.') ||
-		    dp == ip || (fcnp->cn_flags&ISDOTDOT) ||
+		    dp == ip || (fcnp->cn_flags | tcnp->cn_flags) & ISDOTDOT ||
 		    (ip->i_flag & IN_RENAME)) {
 			VOP_UNLOCK(fvp);
 			error = EINVAL;
