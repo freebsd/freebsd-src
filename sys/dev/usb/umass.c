@@ -2470,8 +2470,7 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 			ccg->secs_per_track = 32;
 		}
 		secs_per_cylinder = ccg->heads * ccg->secs_per_track;
-		ccg->cylinders = (ccg->volume_size + secs_per_cylinder - 1) /
-				secs_per_cylinder;
+		ccg->cylinders = ccg->volume_size / secs_per_cylinder;
 		ccb->ccb_h.status = CAM_REQ_CMP;
 
 		xpt_done(ccb);
