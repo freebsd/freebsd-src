@@ -80,7 +80,9 @@ CFLAGS+=	-DKLD_MODULE
 _ICFLAGS:=	${CFLAGS:M-I*}
 CFLAGS+=	-nostdinc -I- ${INCLMAGIC} ${_ICFLAGS}
 .if defined(KERNBUILDDIR)
-CFLAGS+=       -include ${KERNBUILDDIR}/opt_global.h
+.for _optfile in global ddb
+CFLAGS+=       -include ${KERNBUILDDIR}/opt_${_optfile}.h
+.endfor
 .endif
 
 # Add -I paths for system headers.  Individual KLD makefiles don't
