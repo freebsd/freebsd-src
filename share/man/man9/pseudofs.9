@@ -32,7 +32,7 @@
 .Nm pseudofs
 .Nd pseudo-filesystem construction kit
 .Sh SYNOPSIS
-.Fd #include <fs/pseudofs/pseudofs.h>
+.In fs/pseudofs/pseudofs.h
 .\" Insert usage example here
 .Sh DESCRIPTION
 The
@@ -45,7 +45,7 @@ It takes care of all the hairy bits like interfacing with the VFS
 system, keeping track of file numbers, and cloning files and
 directories that are process-specific.
 The consumer module, i.e. the module that implements the actual guts
-of the filesystem, need only provide the directory structure
+of the filesystem, needs only provide the directory structure
 (represented by a collection of structures declared and initialized by
 macros provided by
 .Nm )
@@ -56,7 +56,7 @@ contents into sbufs.
 .Xr linprocfs 5 ,
 .Xr procfs 5 ,
 .Xr sbuf 9 ,
-.Xr vnode 9 ,
+.Xr vnode 9
 .Sh HISTORY
 The
 .Nm
