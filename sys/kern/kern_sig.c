@@ -904,8 +904,8 @@ osigpending(td, uap)
 	PROC_LOCK(p);
 	siglist = p->p_siglist;
 	SIGSETOR(siglist, td->td_siglist);
-	SIG2OSIG(siglist, td->td_retval[0]);
 	PROC_UNLOCK(p);
+	SIG2OSIG(siglist, td->td_retval[0]);
 	return (0);
 }
 #endif /* COMPAT_43 */
