@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.127 1997/06/04 19:20:04 ache Exp $
+#	$Id: rc,v 1.128 1997/06/04 20:02:57 ache Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -218,8 +218,13 @@ ldconfig ${_LDC}
 # Now start up miscellaneous daemons that don't belong anywhere else
 #
 echo -n starting standard daemons:
-echo -n ' inetd';		inetd ${inetd_flags}
-echo -n ' cron';		cron
+if [ "X${inetd_enable}" = X"YES" ]; then
+	echo -n ' inetd';	inetd ${inetd_flags}
+fi
+
+if [ "X${cron_enable}" = X"YES" ]; then
+	echo -n ' cron';	cron
+fi
 
 if [ "X${lpd_enable}" = X"YES" ]; then
 	echo -n ' printer';		lpd ${lpd_flags}
