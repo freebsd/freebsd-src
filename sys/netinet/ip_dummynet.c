@@ -10,7 +10,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_dummynet.c,v 1.3 1998/12/31 07:35:49 luigi Exp $
+ *	$Id: ip_dummynet.c,v 1.4 1999/01/11 11:08:07 luigi Exp $
  */
 
 /*
@@ -51,6 +51,7 @@
 #include <netinet/ip.h>
 #include <netinet/ip_fw.h>
 #include <netinet/ip_dummynet.h>
+#include <netinet/ip_var.h>
 
 #ifdef BRIDGE
 #include <netinet/if_ether.h> /* for struct arpcom */
@@ -72,9 +73,10 @@ SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, idle, CTLFLAG_RD, &dn_idle, 0, "");
 static int ip_dn_ctl(struct sockopt *sopt);
 
 static void rt_unref(struct rtentry *);
-static void dummynet(void);
+static void dummynet(void *);
 static void dn_restart(void);
 static void dn_move(struct dn_pipe *pipe, int immediate);
+static void dummynet_flush(void);
 
 /*
  * the following is needed when deleting a pipe, because rules can
@@ -98,7 +100,7 @@ dn_restart()
 	/* if there any pipe that needs work, restart */
 	if (pipe->r.head || pipe->p.head || pipe->numbytes < 0 ) {
 	    dn_idle = 0;
-	    timeout(dummynet, (caddr_t)NULL, 1);
+	    timeout(dummynet, NULL, 1);
 	    return ;
 	}
     }
@@ -178,7 +180,7 @@ dn_move(struct dn_pipe *pipe, int immediate)
 	/*** XXX just a sanity check */
 	if ( ( pkt == NULL && pipe->r_len != 0) ||
 	     ( pkt != NULL && pipe->r_len == 0) )
-	    printf("-- Warning, pipe head %x len %d\n",
+	    printf("-- Warning, pipe head %p len %d\n",
 		    pkt, pipe->r_len);
     }
  
@@ -238,7 +240,7 @@ dn_move(struct dn_pipe *pipe, int immediate)
  * and the P- queue
  */
 void
-dummynet()
+dummynet(void * __attribute__((unused)) unused )
 {
     struct dn_pipe *p ;
     int s ;
@@ -426,7 +428,7 @@ dn_rule_delete(void *r)
 		x->hdr.mh_data = (void *)ip_fw_default_rule ;
 	    }
     }
-    printf("dn_rule_delete, r 0x%x, default 0x%x%s, %d matches\n",
+    printf("dn_rule_delete, r %p, default %p%s, %d matches\n",
 	    r, ip_fw_default_rule,
 	    r == ip_fw_default_rule ? "  AARGH!":"",  matches);
 }
