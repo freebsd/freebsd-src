@@ -72,7 +72,7 @@ is
 the standard input is used.
 .It Fl f Ar distfile
 Use the specified
-.Ar distfile.
+.Ar distfile .
 .El
 .Pp
 If either the
@@ -85,7 +85,7 @@ then
 .Dq Pa Distfile
 to use as the input.
 If no names are specified on the command line,
-.Nm rdist
+.Nm
 will update all of the files and directories listed in
 .Ar distfile  .
 Otherwise, the argument is taken to be the name of a file to be updated
@@ -99,7 +99,7 @@ Options specific to the second SYNOPSIS form:
 .Bl -tag -width Fl c
 .It Fl c
 Forces
-.Nm rdist
+.Nm
 to interpret the remaining arguments as a small
 .Ar distfile  .
 .Pp
@@ -186,7 +186,7 @@ and
 disagree. The
 .Fl y
 option causes
-.Nm rdist
+.Nm
 not to update files that are younger than the master copy.
 This can be used
 to prevent newer copies on other hosts from being replaced.
@@ -394,15 +394,17 @@ temporary file for update lists
 .Xr re_format 7
 .Sh HISTORY
 The
-.Nm rdist
+.Nm
 command appeared in
 .Bx 4.3 .
 .Sh DIAGNOSTICS
-A complaint about mismatch of rdist version numbers may really stem
+A complaint about mismatch of
+.Nm
+version numbers may really stem
 from some problem with starting your shell, e.g., you are in too many groups.
 .Sh BUGS
 Source files must reside on the local host where
-.Nm rdist
+.Nm
 is executed.
 .Pp
 There is no easy way to have a special command executed after all files
