@@ -21,25 +21,25 @@
  * $FreeBSD$
  */
 
-#ifndef         __SYS_INFO_H
-#define	        __SYS_INFO_H
+#ifndef		__SYS_INFO_H
+#define		__SYS_INFO_H
 
 /*File - SYS_INFO.H
  ****************************************************************************
  *
  *Description:
  *
- *      This file contains structure definitions for the OS dependent
+ *	This file contains structure definitions for the OS dependent
  *layer system information buffers.
  *
  *Copyright Distributed Processing Technology, Corp.
- *        140 Candace Dr.
- *        Maitland, Fl. 32751   USA
- *        Phone: (407) 830-5522  Fax: (407) 260-5366
- *        All Rights Reserved
+ *	  140 Candace Dr.
+ *	  Maitland, Fl. 32751	USA
+ *	  Phone: (407) 830-5522	 Fax: (407) 260-5366
+ *	  All Rights Reserved
  *
- *Author:       Don Kemper
- *Date:         5/10/94
+ *Author:	Don Kemper
+ *Date:		5/10/94
  *
  *Editors:
  *
@@ -52,15 +52,15 @@
 /*Include Files ------------------------------------------------------------- */
 
 #if (defined(KERNEL) && defined(__bsdi__))
-# include        "i386/isa/dpt_osd_util.h"
+# include	 "i386/isa/dpt_osd_util.h"
 #elif ((defined(KERNEL) || defined(_KERNEL)) && defined(__FreeBSD__))
 # if (KERN_VERSION < 3)
-#  include        "i386/isa/dpt_osd_util.h"
+#  include	  "i386/isa/dpt_osd_util.h"
 # else
-#  include        "dev/asr/osd_util.h"
+#  include	  "dev/asr/osd_util.h"
 # endif
 #else
-# include        "osd_util.h"
+# include	 "osd_util.h"
 #endif
 
 #ifndef NO_PACK
@@ -68,8 +68,8 @@
 #pragma options align=packed
 #else
 #pragma pack(1)
-#endif  /* aix */
-#endif  /* no unpack */
+#endif	/* aix */
+#endif	/* no unpack */
 
 
 /*struct - driveParam_S - start
@@ -77,22 +77,22 @@
  *
  *Description:
  *
- *      This structure defines the drive parameters seen during
+ *	This structure defines the drive parameters seen during
  *booting.
  *
  *---------------------------------------------------------------------------*/
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
    struct driveParam_S {
 #else
    typedef struct  {
 #endif
 
-   uSHORT       cylinders;      /* Upto 1024 */
-   uCHAR        heads;          /* Upto 255 */
-   uCHAR        sectors;        /* Upto 63 */
+   uSHORT	cylinders;	/* Upto 1024 */
+   uCHAR	heads;		/* Upto 255 */
+   uCHAR	sectors;	/* Upto 63 */
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 
 /*---------- Portability Additions ----------- in sp_sinfo.cpp */
 #ifdef DPT_PORTABLE
@@ -113,64 +113,64 @@
  *
  *Description:
  *
- *      This structure defines the command system information that
+ *	This structure defines the command system information that
  *should be returned by every OS dependent layer.
  *
  *---------------------------------------------------------------------------*/
 
 /*flags - bit definitions */
-#define	SI_CMOS_Valid           0x0001
-#define	SI_NumDrivesValid       0x0002
-#define	SI_ProcessorValid       0x0004
-#define	SI_MemorySizeValid      0x0008
-#define	SI_DriveParamsValid     0x0010
-#define	SI_SmartROMverValid     0x0020
-#define	SI_OSversionValid       0x0040
-#define	SI_OSspecificValid      0x0080  /* 1 if OS structure returned */
-#define	SI_BusTypeValid         0x0100
+#define SI_CMOS_Valid		0x0001
+#define SI_NumDrivesValid	0x0002
+#define SI_ProcessorValid	0x0004
+#define SI_MemorySizeValid	0x0008
+#define SI_DriveParamsValid	0x0010
+#define SI_SmartROMverValid	0x0020
+#define SI_OSversionValid	0x0040
+#define SI_OSspecificValid	0x0080	/* 1 if OS structure returned */
+#define SI_BusTypeValid		0x0100
 
-#define	SI_ALL_VALID            0x0FFF  /* All Std SysInfo is valid */
-#define	SI_NO_SmartROM          0x8000
+#define SI_ALL_VALID		0x0FFF	/* All Std SysInfo is valid */
+#define SI_NO_SmartROM		0x8000
 
 /*busType - definitions */
-#define	SI_ISA_BUS      0x00
-#define	SI_MCA_BUS      0x01
-#define	SI_EISA_BUS     0x02
-#define	SI_PCI_BUS      0x04
+#define SI_ISA_BUS	0x00
+#define SI_MCA_BUS	0x01
+#define SI_EISA_BUS	0x02
+#define SI_PCI_BUS	0x04
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
    struct sysInfo_S {
 #else
    typedef struct  {
 #endif
 
-   uCHAR        drive0CMOS;             /* CMOS Drive 0 Type */
-   uCHAR        drive1CMOS;             /* CMOS Drive 1 Type */
-   uCHAR        numDrives;              /* 0040:0075 contents */
-   uCHAR        processorFamily;        /* Same as DPTSIG's definition */
-   uCHAR        processorType;          /* Same as DPTSIG's definition */
-   uCHAR        smartROMMajorVersion;
-   uCHAR        smartROMMinorVersion;   /* SmartROM version */
-   uCHAR        smartROMRevision;
-   uSHORT       flags;                  /* See bit definitions above */
-   uSHORT       conventionalMemSize;    /* in KB */
-   uLONG        extendedMemSize;        /* in KB */
-   uLONG        osType;                 /* Same as DPTSIG's definition */
-   uCHAR        osMajorVersion;
-   uCHAR        osMinorVersion;         /* The OS version */
-   uCHAR        osRevision;
+   uCHAR	drive0CMOS;		/* CMOS Drive 0 Type */
+   uCHAR	drive1CMOS;		/* CMOS Drive 1 Type */
+   uCHAR	numDrives;		/* 0040:0075 contents */
+   uCHAR	processorFamily;	/* Same as DPTSIG's definition */
+   uCHAR	processorType;		/* Same as DPTSIG's definition */
+   uCHAR	smartROMMajorVersion;
+   uCHAR	smartROMMinorVersion;	/* SmartROM version */
+   uCHAR	smartROMRevision;
+   uSHORT	flags;			/* See bit definitions above */
+   uSHORT	conventionalMemSize;	/* in KB */
+   uLONG	extendedMemSize;	/* in KB */
+   uLONG	osType;			/* Same as DPTSIG's definition */
+   uCHAR	osMajorVersion;
+   uCHAR	osMinorVersion;		/* The OS version */
+   uCHAR	osRevision;
 #ifdef _SINIX_ADDON
-   uCHAR        busType;                /* See defininitions above */
-   uSHORT       osSubRevision;
-   uCHAR        pad[2];                 /* For alignment */
+   uCHAR	busType;		/* See defininitions above */
+   uSHORT	osSubRevision;
+   uCHAR	pad[2];			/* For alignment */
 #else
-   uCHAR        osSubRevision;
-   uCHAR        busType;                /* See defininitions above */
-   uCHAR        pad[3];                 /* For alignment */
+   uCHAR	osSubRevision;
+   uCHAR	busType;		/* See defininitions above */
+   uCHAR	pad[3];			/* For alignment */
 #endif
-   driveParam_S drives[16];             /* SmartROM Logical Drives */
+   driveParam_S drives[16];		/* SmartROM Logical Drives */
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 
 /*---------- Portability Additions ----------- in sp_sinfo.cpp */
 #ifdef DPT_PORTABLE
@@ -191,27 +191,27 @@
  *
  *Description:
  *
- *      This structure defines the system information specific to a
+ *	This structure defines the system information specific to a
  *DOS workstation.
  *
  *---------------------------------------------------------------------------*/
 
 /*flags - bit definitions */
-#define	DI_DOS_HIGH             0x01    /* DOS is loaded high */
-#define	DI_DPMI_VALID           0x02    /* DPMI version is valid */
+#define DI_DOS_HIGH		0x01	/* DOS is loaded high */
+#define DI_DPMI_VALID		0x02	/* DPMI version is valid */
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
    struct DOS_Info_S {
 #else
    typedef struct {
 #endif
 
-   uCHAR        flags;          /* See bit definitions above */
-   uSHORT       driverLocation; /* SmartROM BIOS address */
-   uSHORT       DOS_version;
-   uSHORT       DPMI_version;
+   uCHAR	flags;		/* See bit definitions above */
+   uSHORT	driverLocation; /* SmartROM BIOS address */
+   uSHORT	DOS_version;
+   uSHORT	DPMI_version;
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 
 /*---------- Portability Additions ----------- in sp_sinfo.cpp */
 #ifdef DPT_PORTABLE
@@ -232,34 +232,34 @@
  *
  *Description:
  *
- *      This structure defines the system information specific to a
+ *	This structure defines the system information specific to a
  *Netware machine.
  *
  *---------------------------------------------------------------------------*/
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
    struct Netware_Info_S {
 #else
    typedef struct {
 #endif
 
-   uCHAR        driverName[13];         /* ie PM12NW31.DSK */
-   uCHAR        serverName[48];
-   uCHAR        netwareVersion;         /* The Netware OS version */
-   uCHAR        netwareSubVersion;
-   uCHAR        netwareRevision;
-   uSHORT       maxConnections;         /* Probably  250 or 1000 */
-   uSHORT       connectionsInUse;
-   uSHORT       maxVolumes;
-   uCHAR        unused;
-   uCHAR        SFTlevel;
-   uCHAR        TTSlevel;
+   uCHAR	driverName[13];		/* ie PM12NW31.DSK */
+   uCHAR	serverName[48];
+   uCHAR	netwareVersion;		/* The Netware OS version */
+   uCHAR	netwareSubVersion;
+   uCHAR	netwareRevision;
+   uSHORT	maxConnections;		/* Probably  250 or 1000 */
+   uSHORT	connectionsInUse;
+   uSHORT	maxVolumes;
+   uCHAR	unused;
+   uCHAR	SFTlevel;
+   uCHAR	TTSlevel;
 
-   uCHAR        clibMajorVersion;       /* The CLIB.NLM version */
-   uCHAR        clibMinorVersion;
-   uCHAR        clibRevision;
+   uCHAR	clibMajorVersion;	/* The CLIB.NLM version */
+   uCHAR	clibMinorVersion;
+   uCHAR	clibRevision;
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 
 /*---------- Portability Additions ----------- in sp_sinfo.cpp */
 #ifdef DPT_PORTABLE
@@ -280,20 +280,20 @@
  *
  *Description:
  *
- *      This structure defines the system information specific to an
+ *	This structure defines the system information specific to an
  *OS/2 machine.
  *
  *---------------------------------------------------------------------------*/
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
    struct OS2_Info_S {
 #else
    typedef struct {
 #endif
 
-   uCHAR        something;
+   uCHAR	something;
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 
 /*---------- Portability Additions ----------- in sp_sinfo.cpp */
 #ifdef DPT_PORTABLE
@@ -314,20 +314,20 @@
  *
  *Description:
  *
- *      This structure defines the system information specific to a
+ *	This structure defines the system information specific to a
  *Windows NT machine.
  *
  *---------------------------------------------------------------------------*/
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
    struct WinNT_Info_S {
 #else
    typedef struct {
 #endif
 
-   uCHAR        something;
+   uCHAR	something;
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 
 /*---------- Portability Additions ----------- in sp_sinfo.cpp */
 #ifdef DPT_PORTABLE
@@ -348,20 +348,20 @@
  *
  *Description:
  *
- *      This structure defines the system information specific to an
+ *	This structure defines the system information specific to an
  *SCO UNIX machine.
  *
  *---------------------------------------------------------------------------*/
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
    struct SCO_Info_S {
 #else
    typedef struct {
 #endif
 
-   uCHAR        something;
+   uCHAR	something;
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 
 /*---------- Portability Additions ----------- in sp_sinfo.cpp */
 #ifdef DPT_PORTABLE
@@ -382,20 +382,20 @@
  *
  *Description:
  *
- *      This structure defines the system information specific to a
+ *	This structure defines the system information specific to a
  *USL UNIX machine.
  *
  *---------------------------------------------------------------------------*/
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
    struct USL_Info_S {
 #else
    typedef struct {
 #endif
 
-   uCHAR        something;
+   uCHAR	something;
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 
 /*---------- Portability Additions ----------- in sp_sinfo.cpp */
 #ifdef DPT_PORTABLE
@@ -419,8 +419,8 @@
 #pragma pack(4)
 #else
 #pragma pack()
-#endif  /* aix */
-#endif  /* no unpack */
+#endif	/* aix */
+#endif	/* no unpack */
 
 #ifdef DPT_MEASURE_PERFORMANCE
 typedef struct dpt_metrics {
@@ -463,20 +463,20 @@ typedef struct dpt_metrics {
 	u_int32_t	write_by_size_max_time[10];
 	struct timeval	write_by_size_total_time[10];
 
-#define	SIZE_512        0
-#define	SIZE_1K         1
-#define	SIZE_2K         2
-#define	SIZE_4K         3
-#define	SIZE_8K         4
-#define	SIZE_16K        5
-#define	SIZE_32K        6
-#define	SIZE_64K        7
-#define	SIZE_BIGGER     8
-#define	SIZE_OTHER      9
+#define SIZE_512	0
+#define SIZE_1K		1
+#define SIZE_2K		2
+#define SIZE_4K		3
+#define SIZE_8K		4
+#define SIZE_16K	5
+#define SIZE_32K	6
+#define SIZE_64K	7
+#define SIZE_BIGGER	8
+#define SIZE_OTHER	9
 
 	struct timeval	intr_started;
 } dpt_perf_t;
 #endif
 
-#endif  /* __SYS_INFO_H */
+#endif	/* __SYS_INFO_H */
 
