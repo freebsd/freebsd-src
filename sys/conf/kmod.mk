@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.17 1995/12/16 01:57:25 bde Exp $
+#	$Id: bsd.kmod.mk,v 1.18 1996/03/09 23:48:54 wosch Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -12,10 +12,12 @@
 # ${.CURDIR}/../../sys.  We don't bother adding a .PATH since nothing
 # actually lives in /sys directly.
 #
-CFLAGS+=${COPTS} -DKERNEL -DACTUALLY_LKM_NOT_KERNEL -I${.CURDIR}/../../sys \
-	-W -Wreturn-type -Wcomment -Wredundant-decls -Wimplicit \
+CWARNFLAGS?= -W -Wreturn-type -Wcomment -Wredundant-decls -Wimplicit \
 	-Wnested-externs -Wstrict-prototypes -Wmissing-prototypes \
 	-Winline
+
+CFLAGS+=${COPTS} -DKERNEL -DACTUALLY_LKM_NOT_KERNEL -I${.CURDIR}/../../sys \
+	${CWARNFLAGS}
 
 KMODGRP?=	bin
 KMODOWN?=	bin
