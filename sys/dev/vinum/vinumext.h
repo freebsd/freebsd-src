@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumext.h,v 1.15 1999/05/07 08:07:09 grog Exp $
+ * $Id: vinumext.h,v 1.19 1999/03/23 02:57:04 grog Exp grog $
  */
 
 /* vinumext.h: external definitions */
@@ -108,6 +108,7 @@ void remove_volume_entry(int volno, int force, int recurse);
 void checkdiskconfig(char *);
 int open_drive(struct drive *, struct proc *, int);
 void close_drive(struct drive *drive);
+void close_locked_drive(struct drive *drive);
 int driveio(struct drive *, char *, size_t, off_t, int);
 int set_drive_parms(struct drive *drive);
 int init_drive(struct drive *, int);
