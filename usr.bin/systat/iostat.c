@@ -255,7 +255,7 @@ barlabels(row)
 	char tmpstr[10];
 
 	mvwaddstr(wnd, row++, INSET,
-	    "/0   /5   /10  /15  /20  /25  /30  /35  /40  /45  /50");
+	    "/0   /10  /20  /30  /40  /50  /60  /70  /80  /90  /100");
 	linesperregion = 2 + kbpt;
 	for (i = 0; i < num_devices; i++)
 		if (dev_select[i].selected) {
@@ -348,7 +348,7 @@ devstats(row, col, dn)
 		return(row);
 	}
 	wmove(wnd, row++, col);
-	histogram(mb_per_second, 50, 1.0);
+	histogram(mb_per_second, 100, 1.0);
 	wmove(wnd, row++, col);
 	histogram(transfers_per_second, 50, 1.0);
 	if (kbpt) {
