@@ -1272,7 +1272,8 @@ vm_object_backing_scan(vm_object_t object, int op)
 	vm_pindex_t backing_offset_index;
 
 	s = splvm();
-	GIANT_REQUIRED;
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(object->backing_object, MA_OWNED);
 
 	backing_object = object->backing_object;
 	backing_offset_index = OFF_TO_IDX(object->backing_object_offset);
@@ -1364,7 +1365,15 @@ vm_object_backing_scan(vm_object_t object, int op)
 					continue;
 				}
 			} else if (op & OBSC_COLLAPSE_WAIT) {
-				if (vm_page_sleep_if_busy(p, TRUE, "vmocol")) {
+				if ((p->flags & PG_BUSY) || p->busy) {
+					vm_page_flag_set(p,
+					    PG_WANTED | PG_REFERENCED);
+					VM_OBJECT_UNLOCK(backing_object);
+					VM_OBJECT_UNLOCK(object);
+					msleep(p, &vm_page_queue_mtx,
+					    PDROP | PVM, "vmocol", 0);
+					VM_OBJECT_LOCK(object);
+					VM_OBJECT_LOCK(backing_object);
 					/*
 					 * If we slept, anything could have
 					 * happened.  Since the object is
@@ -1536,7 +1545,6 @@ vm_object_collapse(vm_object_t object)
 		 * case.
 		 */
 		if (backing_object->ref_count == 1) {
-/* XXX */		VM_OBJECT_UNLOCK(object);
 			/*
 			 * If there is exactly one reference to the backing
 			 * object, we can collapse it into the parent.  
@@ -1557,7 +1565,6 @@ vm_object_collapse(vm_object_t object)
 				 * new swapper is able to optimize the
 				 * destroy-source case.
 				 */
-				VM_OBJECT_LOCK(object);
 				vm_object_pip_add(object, 1);
 				VM_OBJECT_UNLOCK(object);
 				swap_pager_copy(
@@ -1566,7 +1573,6 @@ vm_object_collapse(vm_object_t object)
 				    OFF_TO_IDX(object->backing_object_offset), TRUE);
 				VM_OBJECT_LOCK(object);
 				vm_object_pip_wakeup(object);
-				VM_OBJECT_UNLOCK(object);
 
 				VM_OBJECT_LOCK(backing_object);
 				vm_object_pip_wakeup(backing_object);
@@ -1602,6 +1608,7 @@ vm_object_collapse(vm_object_t object)
 
 			object->backing_object_offset +=
 			    backing_object->backing_object_offset;
+/* XXX */		VM_OBJECT_UNLOCK(object);
 
 			/*
 			 * Discard backing_object.
