@@ -17,7 +17,7 @@
 
 /* cron.h - header for vixie's cron
  *
- * $Id: cron.h,v 1.1.1.1 1994/08/27 13:43:04 jkh Exp $
+ * $Id: cron.h,v 1.2 1995/05/30 03:46:59 rgrimes Exp $
  *
  * vix 14nov88 [rest of log is in RCS]
  * vix 14jan87 [0 or 7 can be sunday; thanks, mwm@berkeley]
@@ -35,6 +35,8 @@
 #include <bitstring.h>
 #include <pwd.h>
 #include <sys/wait.h>
+#include <time.h>
+#include <signal.h>
 
 #include "pathnames.h"
 #include "config.h"
