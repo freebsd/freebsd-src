@@ -147,6 +147,17 @@ static void bus_space_barrier(bus_space_tag_t, bus_space_handle_t, bus_size_t,
     bus_size_t, int);
 static int bus_space_subregion(bus_space_tag_t, bus_space_handle_t,
     bus_size_t, bus_size_t, bus_space_handle_t *);
+/*
+ * Unmap a region of device bus space.
+ */
+static __inline void bus_space_unmap(bus_space_tag_t t, bus_space_handle_t bsh,
+				     bus_size_t size);
+
+static __inline void
+bus_space_unmap(bus_space_tag_t t __unused, bus_space_handle_t bsh __unused,
+		bus_size_t size __unused)
+{
+}
 
 /* This macro finds the first "upstream" implementation of method `f' */
 #define _BS_CALL(t,f)							\
