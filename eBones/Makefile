@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile,v 1.11.2.1 1995/06/07 05:49:26 jkh Exp $
+#	$Id: Makefile,v 1.12 1995/06/11 19:28:20 rgrimes Exp $
 
 SUBDIR=	include des acl kdb krb libkadm
 
@@ -34,7 +34,8 @@ kprog:
 	cd ${SDIR}/usr.bin/su; ${CODAI}
 
 bootstrap:
-	cd include; ${MAKE} ${MFLAGS} install
+	( cd include; ${MAKE} ${MFLAGS} install )
+	( cd des; ${MAKE} ${MFLAGS} depend all install )
 	${MAKE} ${MFLAGS} cleandir
 	${MAKE} ${MFLAGS} obj
 	@echo removing old 1.1.5 Kerberos libraries
