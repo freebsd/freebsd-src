@@ -385,13 +385,14 @@ getdrivedata(argv)
 long
 getuptime()
 {
-	static time_t now, boottime;
+	static struct timeval boottime;
+	static time_t now;
 	time_t uptime;
 
-	if (boottime == 0)
+	if (boottime.tv_sec == 0)
 		kread(X_BOOTTIME, &boottime, sizeof(boottime));
 	(void)time(&now);
-	uptime = now - boottime;
+	uptime = now - boottime.tv_sec;
 	if (uptime <= 0 || uptime > 60*60*24*365*10)
 		errx(1, "time makes no sense; namelist must be wrong");
 	return(uptime);
