@@ -94,7 +94,9 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
-    <para></para>
+    <para arch="i386">The &man.puc.4; (PCI <quote>Universal</quote>
+      Communications) driver has been added, to help connect PCI-based
+      serial ports to the &man.sio.4; driver.</para>
 
     <para>The kernel dump device can now be set via the
       <varname>dumpdev</varname> loader tunable.  As a result, it is now
@@ -134,6 +136,10 @@
 
       <para>The &man.dc.4; driver now has support for VLANs.</para>
 
+      <para>The &man.wi.4; driver now has support for Prism II and
+	Prism 2.5-based NICs.  104/128-bit WEP now works on Prism
+	cards.</para>
+
 <!-- Above this line, order network driver changes by manpage/variable name-->
 
       <para>Selected network drivers now implement a
@@ -160,6 +166,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	fully-independent bridging clusters, and is much more stable in
 	the presence of dynamic attachments and detatchments.  Full
 	support for VLANs is also supported.</para>
+
+      <para>A bug in the IPSec processing for IPv4, which caused the
+	inbound SPD checks to be ignored, has been fixed.</para>
 
       <para>The &man.tcp.4; syncache implementation had a bug that
 	could cause kernel panics; this has been fixed.</para>
@@ -203,7 +212,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     </sect3>
   </sect2>
   <sect2 id="security">
-    <title>Security-Related Changes</title>
+    <title>Security Advisories</title>
 
     <para>An <quote>off-by-one</quote> bug has been fixed in
       <application>OpenSSH</application>'s multiplexing code.  This bug
@@ -222,6 +231,15 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>&man.dump.8; now supplies progress information in its
       process title, useful for monitoring automated backups.</para>
+
+    <para><filename>/etc/rc.firewall</filename> and
+      <filename>/etc/rc.firewall6</filename> will no longer add their own
+      hardcoded rules in the cases of a rules file in the
+      <varname>firewall_type</varname> variable or a non-existent
+      firewall type.  (The motivation for this change is to avoid
+      acting on assumptions about a site's firewall policies.)  In
+      addition, the <literal>closed</literal> firewall type now works
+      as documented in the &man.rc.firewall.8; manual page.</para>
 
     <para>The functionality of <filename>/etc/security</filename> has
       been been moved into a set of scripts under the &man.periodic.8;
