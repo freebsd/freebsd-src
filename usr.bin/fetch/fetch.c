@@ -388,7 +388,7 @@ fetch(char *URL, char *path)
 
     stat_end(&xs);
 
-    /* Set mtime of local file */
+    /* set mtime of local file */
     if (!n_flag && us.mtime && !o_stdout
 	&& (stat(path, &sb) != -1) && sb.st_mode & S_IFREG) {
 	struct timeval tv[2];
@@ -424,6 +424,15 @@ fetch(char *URL, char *path)
     if (us.size != -1 && count < us.size) {
 	warnx("%s appears to be truncated: %lld/%lld bytes",
 	      path, count, us.size);
+	goto failure_keep;
+    }
+    
+    /*
+     * If the transfer timed out and we didn't know how much to
+     * expect, assume the worst (i.e. we didn't get all of it)
+     */
+    if (sigalrm && us.size == -1) {
+	warnx("%s may be truncated", path);
 	goto failure_keep;
     }
     
