@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.9 1996/10/30 22:39:31 asami Exp $
+#	$Id: files.pc98,v 1.10 1996/11/02 10:38:45 asami Exp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/aic7xxx_asm.c"			   \
@@ -19,12 +19,12 @@ aic7xxx_seq.h			optional	ahc	device-driver	   \
 #
 linux_genassym			optional	compat_linux		   \
 	dependency 	"$S/i386/linux/linux_genassym.c $S/i386/linux/linux.h" \
-	compile-with	"${CC} ${CFLAGS} -o $@ $<"			   \
+	compile-with	"${CC} ${CFLAGS} ${PARAM} -UKERNEL -o $@ $<"	   \
 	no-obj no-implicit-rule						   \
 	clean		"linux_genassym"
 #
 linux_assym.h			optional	compat_linux		   \
-	dependency 	"linux_genassym"		   \
+	dependency 	"linux_genassym"				   \
 	compile-with	"./linux_genassym > $@"				   \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"linux_assym.h"
@@ -37,6 +37,7 @@ i386/apm/apm_setup.s		optional	apm
 #i386/eisa/aha1742.c		optional	ahb	device-driver
 #i386/eisa/bt74x.c		optional	bt	device-driver
 i386/eisa/eisaconf.c		optional	eisa
+i386/eisa/if_vx_eisa.c		optional	vx	device-driver
 i386/i386/autoconf.c		standard	device-driver
 i386/i386/cons.c		standard
 i386/i386/db_disasm.c		optional	ddb
