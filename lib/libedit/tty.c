@@ -47,7 +47,7 @@ static char sccsid[] = "@(#)tty.c	8.1 (Berkeley) 6/4/93";
 
 typedef struct ttymodes_t {
     char *m_name;
-    int   m_value;
+    u_int m_value;
     int   m_type;
 } ttymodes_t;
 
