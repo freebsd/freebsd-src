@@ -20,7 +20,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7xxx.h,v 1.11 1995/07/04 21:14:45 gibbs Exp $
+ *	$Id: aic7xxx.h,v 1.12 1995/08/05 17:32:55 gibbs Exp $
  */
 
 #ifndef _AIC7XXX_H_
@@ -30,13 +30,17 @@
 
 #define	AHC_NSEG	256	/* number of dma segments supported */
 
-#define AHC_SCB_MAX	16	/*
-				 * Up to 16 SCBs on some types of aic7xxx based
-				 * boards.  The aic7770 family only have 4
+#define AHC_SCB_MAX	255	/*
+				 * Up to 255 SCBs on some types of aic7xxx
+				 * based boards.  The aic7870 have 16 internal
+				 * SCBs, but external SRAM bumps this to 255.
+				 * The aic7770 family have only 4, and the 
+				 * aic7850 have only 3.
 				 */
 
 /* #define AHCDEBUG */
 
+extern int bootverbose;
 typedef unsigned long int physaddr;
 extern int  ahc_unit;
 
@@ -58,6 +62,18 @@ typedef enum {
 	AHC_294		= 0x440,	/* PCI Based Controller */
 	AHC_394		= 0x840		/* Twin Channel PCI Controller */
 }ahc_type;
+
+typedef enum {
+	AHC_FNONE	= 0x00,
+	AHC_INIT	= 0x01,
+	AHC_RUNNING	= 0x02,
+	AHC_EXTSCB	= 0x10,		/* External SCBs present */
+	AHC_CHNLB	= 0x20,		/* 
+					 * Second controller on 3940 
+					 * Also encodes the offset in the
+					 * SEEPROM for CHNLB info (32)
+					 */
+}ahc_flag;
 
 /*
  * The driver keeps up to MAX_SCB scb structures per card in memory.  Only the
@@ -127,12 +143,12 @@ struct scb {
 
 struct ahc_data {
 	ahc_type type;
-	int      flags;
-#define AHC_INIT	0x01
-#define AHC_RUNNING	0x02
+	ahc_flag flags;
 	u_long	baseport;
 	struct	scb *scbarray[AHC_SCB_MAX]; /* Mirror boards scbarray */
 	struct	scb *free_scb;
+	struct	scb *timedout_scb;
+	int	in_timeout;
 	int	our_id;			/* our scsi id */
 	int	our_id_b;		/* B channel scsi id */
 	int	vect;
@@ -156,7 +172,7 @@ struct ahc_data {
 
 extern struct ahc_data *ahcdata[NAHC];
 
-int ahcprobe __P((int unit, u_long io_base, ahc_type type));
+int ahcprobe __P((int unit, u_long io_base, ahc_type type, ahc_flag flags));
 int ahc_attach __P((int unit));
 int ahcintr();
 
