@@ -44,7 +44,7 @@ static const char rcsid[] =
 #include <rpc/rpc.h>
 #include <syslog.h>
 #include <vis.h>
-#include <netdb.h>	/* for gethostbyname()		*/
+#include <netdb.h>	/* for getaddrinfo()		*/
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -101,6 +101,7 @@ int sm_check_hostname(struct svc_req *req, char *arg)
 struct sm_stat_res *sm_stat_1_svc(sm_name *arg, struct svc_req *req)
 {
   static sm_stat_res res;
+  struct addrinfo *ai;
   struct sockaddr_in *claddr;
   static int err;
 
@@ -113,8 +114,10 @@ struct sm_stat_res *sm_stat_1_svc(sm_name *arg, struct svc_req *req)
   {
     if (debug)
 	    syslog(LOG_DEBUG, "stat called for host %s", arg->mon_name);
-    if (gethostbyname(arg->mon_name))
+    if (getaddrinfo(arg->mon_name, NULL, NULL, &ai) == 0) {
 	    res.res_stat = stat_succ;
+	    freeaddrinfo(ai);
+    }
     else
     {
       claddr = svc_getcaller(req->rq_xprt);
@@ -133,7 +136,7 @@ struct sm_stat_res *sm_stat_1_svc(sm_name *arg, struct svc_req *req)
    Returns:	Success, unless lack of resources prevents
 		the necessary structures from being set up
 		to record the request, or if the hostname is not
-		valid (as judged by gethostbyname())
+		valid (as judged by getaddrinfo())
 */
 
 struct sm_stat_res *sm_mon_1_svc(mon *arg, struct svc_req *req)
@@ -142,6 +145,7 @@ struct sm_stat_res *sm_mon_1_svc(mon *arg, struct svc_req *req)
   HostInfo *hp;
   static int err;
   MonList *lp;
+  struct addrinfo *ai;
 
   if ((err = sm_check_hostname(req, arg->mon_id.mon_name)) == 0)
   {
@@ -163,11 +167,13 @@ struct sm_stat_res *sm_mon_1_svc(mon *arg, struct svc_req *req)
   
     /* Find existing host entry, or create one if not found            */
     /* If find_host() fails, it will have logged the error already.    */
-    if (!gethostbyname(arg->mon_id.mon_name))
+    if (getaddrinfo(arg->mon_id.mon_name, NULL, NULL, &ai) != 0)
     {
       syslog(LOG_ERR, "Invalid hostname to sm_mon: %s", arg->mon_id.mon_name);
+      return (&res);
     }
-    else if ((hp = find_host(arg->mon_id.mon_name, TRUE)))
+    freeaddrinfo(ai);
+    if ((hp = find_host(arg->mon_id.mon_name, TRUE)))
     {
       lp = (MonList *)malloc(sizeof(MonList));
       if (!lp)
