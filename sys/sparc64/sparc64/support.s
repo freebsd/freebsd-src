@@ -266,15 +266,6 @@ END(bcmp)
  */
 ENTRY(bcopy)
 ENTRY(ovbcopy)
-#if KTR_COMPILE & KTR_CT3
-	CATR(KTR_CT3, "bcopy: src=%#lx dst=%#lx len=%ld pc=%#lx"
-	    , %o3, %o4, %o5, 7, 8, 9)
-	stx	%o0, [%o3 + KTR_PARM1]
-	stx	%o1, [%o3 + KTR_PARM2]
-	stx	%o2, [%o3 + KTR_PARM3]
-	stx	%o7, [%o3 + KTR_PARM4]
-9:
-#endif
 	/*
 	 * Check for overlap, and copy backwards if so.
 	 */
@@ -311,13 +302,6 @@ END(bcopy)
  * void bzero(void *b, size_t len)
  */
 ENTRY(bzero)
-#if KTR_COMPILE & KTR_CT3
-	CATR(KTR_CT3, "bzero: b=%#lx len=%ld pc=%#lx", %o2, %o3, %o4, 7, 8, 9)
-	stx	%o0, [%o2 + KTR_PARM1]
-	stx	%o1, [%o2 + KTR_PARM2]
-	stx	%o7, [%o2 + KTR_PARM3]
-9:
-#endif
 	_MEMSET(%o0, %g0, %o1, E, E)
 	retl
 	 nop
@@ -388,14 +372,6 @@ END(memset)
  */
 ENTRY(copyin)
 	CATCH_SETUP(.Lefault)
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "copyin: ua=%#lx ka=%#lx len=%ld"
-	    , %o3, %o4, %o5, 7, 8, 9)
-	stx	%o0, [%o3 + KTR_PARM1]
-	stx	%o1, [%o3 + KTR_PARM2]
-	stx	%o2, [%o3 + KTR_PARM3]
-9:
-#endif
 	wr	%g0, ASI_AIUP, %asi
 	_MEMCPY(%o1, %o0, %o2, E, E, a, %asi)
 	CATCH_END()
@@ -408,15 +384,6 @@ END(copyin)
  */
 ENTRY(copyinstr)
 	CATCH_SETUP(.Lefault)
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "copyinstr: ua=%#lx ka=%#lx len=%ld done=%p"
-	    , %g1, %g2, %g3, 7, 8, 9)
-	stx	%o0, [%g1 + KTR_PARM1]
-	stx	%o1, [%g1 + KTR_PARM2]
-	stx	%o2, [%g1 + KTR_PARM3]
-	stx	%o3, [%g1 + KTR_PARM4]
-9:
-#endif
 	wr	%g0, ASI_AIUP, %asi
 	_COPYSTR(%o0, %o1, %o2, %o3, a, %asi, E, E)
 	CATCH_END()
@@ -429,14 +396,6 @@ END(copyinstr)
  */
 ENTRY(copyout)
 	CATCH_SETUP(.Lefault)
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "copyout: ka=%#lx ua=%#lx len=%ld"
-	    , %o3, %o4, %o5, 7, 8, 9)
-	stx	%o0, [%o3 + KTR_PARM1]
-	stx	%o1, [%o3 + KTR_PARM2]
-	stx	%o2, [%o3 + KTR_PARM3]
-9:
-#endif
 	wr	%g0, ASI_AIUP, %asi
 	_MEMCPY(%o1, %o0, %o2, a, %asi, E, E)
 	CATCH_END()
@@ -446,11 +405,6 @@ END(copyout)
 
 .Lefault:
 	CATCH_END()
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "copy{in,out}: return efault"
-	    , %o0, %o1, %o2, 7, 8, 9)
-9:
-#endif
 	retl
 	 mov	EFAULT, %o0
 
@@ -467,11 +421,6 @@ END(copystr)
  * int fubyte(const void *base)
  */
 ENTRY(fubyte)
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "fubyte: base=%#lx", %g1, %g2, %g3, 7, 8, 9)
-	stx	%o0, [%g1 + KTR_PARM1]
-9:
-#endif
 	FU_ALIGNED(lduba, .Lfsfault)
 END(fubyte)
 
@@ -479,11 +428,6 @@ END(fubyte)
  * long fuword(const void *base)
  */
 ENTRY(fuword)
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "fuword: base=%#lx", %g1, %g2, %g3, 7, 8, 9)
-	stx	%o0, [%g1 + KTR_PARM1]
-9:
-#endif
 	FU_BYTES(ldxa, 8, .Lfsfault)
 END(fuword)
 
@@ -491,11 +435,6 @@ END(fuword)
  * int fuswintr(const void *base)
  */
 ENTRY(fuswintr)
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "fuswintr: base=%#lx", %g1, %g2, %g3, 7, 8, 9)
-	stx	%o0, [%g1 + KTR_PARM1]
-9:
-#endif
 	FU_BYTES(lduha, 2, fsbail)
 END(fuswintr)
 
@@ -503,11 +442,6 @@ END(fuswintr)
  * int16_t fuword16(const void *base)
  */
 ENTRY(fuword16)
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "fuword16: base=%#lx", %g1, %g2, %g3, 7, 8, 9)
-	stx	%o0, [%g1 + KTR_PARM1]
-9:
-#endif
 	FU_BYTES(lduha, 2, .Lfsfault)
 END(fuword16)
 
@@ -515,11 +449,6 @@ END(fuword16)
  * int32_t fuword32(const void *base)
  */
 ENTRY(fuword32)
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "fuword32: base=%#lx", %g1, %g2, %g3, 7, 8, 9)
-	stx	%o0, [%g1 + KTR_PARM1]
-9:
-#endif
 	FU_BYTES(lduwa, 4, .Lfsfault)
 END(fuword32)
 
@@ -527,11 +456,6 @@ END(fuword32)
  * int64_t fuword64(const void *base)
  */
 ENTRY(fuword64)
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "fuword64: base=%#lx", %g1, %g2, %g3, 7, 8, 9)
-	stx	%o0, [%g1 + KTR_PARM1]
-9:
-#endif
 	FU_BYTES(ldxa, 8, .Lfsfault)
 END(fuword64)
 
@@ -539,11 +463,6 @@ END(fuword64)
  * int subyte(const void *base, int byte)
  */
 ENTRY(subyte)
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "subyte: base=%#lx", %g1, %g2, %g3, 7, 8, 9)
-	stx	%o0, [%g1 + KTR_PARM1]
-9:
-#endif
 	SU_ALIGNED(stba, .Lfsfault)
 END(subyte)
 
@@ -551,11 +470,6 @@ END(subyte)
  * int suword(const void *base, long word)
  */
 ENTRY(suword)
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "suword: base=%#lx", %g1, %g2, %g3, 7, 8, 9)
-	stx	%o0, [%g1 + KTR_PARM1]
-9:
-#endif
 	SU_BYTES(stxa, 8, .Lfsfault)
 END(suword)
 
@@ -563,11 +477,6 @@ END(suword)
  * int suswintr(const void *base, int word)
  */
 ENTRY(suswintr)
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "suswintr: base=%#lx", %g1, %g2, %g3, 7, 8, 9)
-	stx	%o0, [%g1 + KTR_PARM1]
-9:
-#endif
 	SU_BYTES(stwa, 2, fsbail)
 END(suswintr)
 
@@ -575,11 +484,6 @@ END(suswintr)
  * int suword16(const void *base, int16_t word)
  */
 ENTRY(suword16)
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "suword16: base=%#lx", %g1, %g2, %g3, 7, 8, 9)
-	stx	%o0, [%g1 + KTR_PARM1]
-9:
-#endif
 	SU_BYTES(stha, 2, .Lfsfault)
 END(suword16)
 
@@ -587,11 +491,6 @@ END(suword16)
  * int suword32(const void *base, int32_t word)
  */
 ENTRY(suword32)
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "suword32: base=%#lx", %g1, %g2, %g3, 7, 8, 9)
-	stx	%o0, [%g1 + KTR_PARM1]
-9:
-#endif
 	SU_BYTES(stwa, 4, .Lfsfault)
 END(suword32)
 
@@ -599,38 +498,21 @@ END(suword32)
  * int suword64(const void *base, int64_t word)
  */
 ENTRY(suword64)
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "suword64: base=%#lx", %g1, %g2, %g3, 7, 8, 9)
-	stx	%o0, [%g1 + KTR_PARM1]
-9:
-#endif
 	SU_BYTES(stxa, 8, .Lfsfault)
 END(suword64)
 
 	.align 16
 .Lfsalign:
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "{f,s}u*: alignment", %g1, %g2, %g3, 7, 8, 9)
-9:
-#endif
 	retl
 	 mov	-1, %o0
 
 	.align 16
 .Lfsfault:
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "{f,s}u*: fault", %g1, %g2, %g3, 7, 8, 9)
-9:
-#endif
 	CATCH_END()
 	retl
 	 mov	-1, %o0
 
 ENTRY(fsbail)
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "{f,s}uswintr: bail", %g1, %g2, %g3, 7, 8, 9)
-9:
-#endif
 	CATCH_END()
 	retl
 	 mov	-1, %o0
