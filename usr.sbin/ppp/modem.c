@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.29 1997/02/22 16:10:36 peter Exp $
+ * $Id: modem.c,v 1.30 1997/03/10 06:21:02 ache Exp $
  *
  *  TODO:
  */
@@ -380,8 +380,14 @@ int mode;
 
   mbits = 0;
   if (mode & MODE_DIRECT) {
-    if (isatty(0))
+    if (isatty(0)) {
       modem = open(ctermid(NULL), O_RDWR|O_NONBLOCK);
+      if (modem < 0) {
+	LogPrintf(LOG_PHASE_BIT, "Open Failed %s\n", ctermid(NULL));
+        return(modem);
+      }
+    } else if (modem < 0)
+	return(modem);
   } else if (modem < 0) {
     if (strncmp(VarDevice, "/dev", 4) == 0) {
       strncpy(uucplock, rindex(VarDevice, '/')+1,sizeof(uucplock)-1);
@@ -609,7 +615,7 @@ int flag;
 void
 CloseModem()
 {
-  if (modem >= 3)
+  if (modem >= 0)
   {
       close(modem);
       modem = -1;
