@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.53 1997/08/16 07:18:51 dyson Exp $
+**  $Id: pcisupport.c,v 1.54 1997/09/24 07:37:56 phk Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -188,6 +188,10 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return ("Intel 82437FX PCI cache memory controller");
 	case 0x122e8086:
 		return ("Intel 82371FB PCI to ISA bridge");
+	case 0x12348086:
+		return ("Intel 82371MX mobile PCI I/O IDE accelerator (MPIIX)");
+	case 0x12358086:
+		return ("Intel 82437MX mobile PCI cache memory controller");
 	case 0x12508086:
 		return ("Intel 82439");
 	case 0x04061039:
