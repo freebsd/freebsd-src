@@ -20,7 +20,7 @@
  * Turned inside out. Now returns xfers as new file ids, not as a special
  * `state' of FTP_t
  *
- * $Id: ftpio.h,v 1.2.2.1 1996/06/24 02:30:37 jkh Exp $
+ * $Id: ftpio.h,v 1.2.2.2 1996/06/26 20:33:57 gpalmer Exp $
  */
 
 /* Internal housekeeping data structure for FTP sessions */
@@ -33,6 +33,7 @@ typedef struct {
     int		errno;
     int		is_binary;
     int		is_passive;
+    int		is_verbose;
 } *FTP_t;
 
 /* Exported routines - deal only with FILE* type */
@@ -45,6 +46,7 @@ extern FILE	*ftpPut(FILE *fp, char *file);
 extern int	ftpAscii(FILE *fp);
 extern int	ftpBinary(FILE *fp);
 extern int	ftpPassive(FILE *fp, int status);
+extern void	ftpVerbose(FILE *fp, int status);
 extern FILE	*ftpGetURL(char *url, char *user, char *passwd);
 extern FILE	*ftpPutURL(char *url, char *user, char *passwd);
 extern time_t	ftpGetModtime(FILE *fp, char *s);
