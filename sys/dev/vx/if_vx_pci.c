@@ -129,7 +129,7 @@ vx_pci_attach(
 
     sc = device_get_softc(dev);
 
-    rid = PCIR_MAPS;
+    rid = PCIR_BAR(0);
     sc->vx_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
 	0, ~0, 1, RF_ACTIVE);
 

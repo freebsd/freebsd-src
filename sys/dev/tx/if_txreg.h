@@ -29,8 +29,8 @@
 #define	EPIC_MAX_MTU		1600	/* This is experiment-derived value */
 
 /* PCI aux configuration registers */
-#define	PCIR_BASEIO	(PCIR_MAPS + 0x0)	/* Base IO Address */
-#define	PCIR_BASEMEM	(PCIR_MAPS + 0x4)	/* Base Memory Address */
+#define	PCIR_BASEIO	PCIR_BAR(0)	/* Base IO Address */
+#define	PCIR_BASEMEM	PCIR_BAR(1)	/* Base Memory Address */
 
 /* PCI identification */
 #define SMC_VENDORID		0x10B8

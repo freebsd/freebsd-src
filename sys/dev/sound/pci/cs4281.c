@@ -785,7 +785,7 @@ cs4281_pci_attach(device_t dev)
     }
 #endif
 
-    sc->regid   = PCIR_MAPS;
+    sc->regid   = PCIR_BAR(0);
     sc->regtype = SYS_RES_MEMORY;
     sc->reg = bus_alloc_resource(dev, sc->regtype, &sc->regid,
 				 0, ~0, CS4281PCI_BA0_SIZE, RF_ACTIVE);
@@ -801,7 +801,7 @@ cs4281_pci_attach(device_t dev)
     sc->st = rman_get_bustag(sc->reg);
     sc->sh = rman_get_bushandle(sc->reg);
 
-    sc->memid = PCIR_MAPS + 4;
+    sc->memid = PCIR_BAR(1);
     sc->mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->memid, 0,
 				 ~0, CS4281PCI_BA1_SIZE, RF_ACTIVE);
     if (sc->mem == NULL) {

@@ -343,7 +343,7 @@ bktr_attach( device_t dev )
 	/*
 	 * Map control/status registers.
 	 */
-	bktr->mem_rid = PCIR_MAPS;
+	bktr->mem_rid = PCIR_BAR(0);
 	bktr->res_mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &bktr->mem_rid,
 					0, ~0, 1, RF_ACTIVE);
 

@@ -84,7 +84,7 @@ ed_pci_attach(device_t dev)
         int	flags = 0;
         int	error;
 
-        error = ed_probe_Novell(dev, PCIR_MAPS, flags);
+        error = ed_probe_Novell(dev, PCIR_BAR(0), flags);
         if (error)
                 return (error);
 

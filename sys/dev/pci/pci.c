@@ -790,7 +790,7 @@ pci_add_resources(device_t pcib, device_t bus, device_t dev)
 	s = cfg->slot;
 	f = cfg->func;
 	for (i = 0; i < cfg->nummaps;) {
-		i += pci_add_map(pcib, b, s, f, PCIR_MAPS + i*4, rl);
+		i += pci_add_map(pcib, b, s, f, PCIR_BAR(i), rl);
 	}
 
 	for (q = &pci_quirks[0]; q->devid; q++) {

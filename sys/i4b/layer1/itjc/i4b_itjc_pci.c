@@ -1538,7 +1538,7 @@ itjc_attach(device_t dev)
 
 	itjc_scp[unit] = sc;
 
-	sc->sc_resources.io_rid[0] = PCIR_MAPS+0;
+	sc->sc_resources.io_rid[0] = PCIR_BAR(0);
 	sc->sc_resources.io_base[0] = bus_alloc_resource(dev, SYS_RES_IOPORT,
 		&sc->sc_resources.io_rid[0], 0, ~0, 1, RF_ACTIVE);
 
@@ -1763,7 +1763,7 @@ itjc_attach(device_t dev)
 		/* FALL TRHU */
 
 	case 1:
-		bus_release_resource(dev, SYS_RES_IOPORT, PCIR_MAPS+0,
+		bus_release_resource(dev, SYS_RES_IOPORT, PCIR_BAR(0),
 			sc->sc_resources.io_base[0]);
 		/* FALL TRHU */
 

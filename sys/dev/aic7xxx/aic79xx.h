@@ -1298,9 +1298,9 @@ struct ahd_devinfo {
 };
 
 /****************************** PCI Structures ********************************/
-#define AHD_PCI_IOADDR0	PCIR_MAPS	/* I/O BAR*/
-#define AHD_PCI_MEMADDR	(PCIR_MAPS + 4)	/* Memory BAR */
-#define AHD_PCI_IOADDR1	(PCIR_MAPS + 12)/* Second I/O BAR */
+#define AHD_PCI_IOADDR0	PCIR_BAR(0)	/* I/O BAR*/
+#define AHD_PCI_MEMADDR	PCIR_BAR(1)	/* Memory BAR */
+#define AHD_PCI_IOADDR1	PCIR_BAR(3)	/* Second I/O BAR */
 
 typedef int (ahd_device_setup_t)(struct ahd_softc *);
 

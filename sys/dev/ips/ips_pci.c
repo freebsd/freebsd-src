@@ -87,15 +87,15 @@ static int ips_pci_attach(device_t dev)
         if(command & PCIM_CMD_MEMEN){
                 PRINTF(10, "trying MEMIO\n");
 		if(pci_get_device(dev) == IPS_MORPHEUS_DEVICE_ID)
-                	sc->rid = PCIR_MAPS;
+                	sc->rid = PCIR_BAR(0);
 		else
-			sc->rid = PCIR_MAPS + 4;
+			sc->rid = PCIR_BAR(1);
                 sc->iotype = SYS_RES_MEMORY;
                 sc->iores = bus_alloc_resource(dev, sc->iotype, &sc->rid, 0, ~0, 1, RF_ACTIVE);
         }
         if(!sc->iores && command & PCIM_CMD_PORTEN){
                 PRINTF(10, "trying PORTIO\n");
-                sc->rid = PCIR_MAPS;
+                sc->rid = PCIR_BAR(0);
                 sc->iotype = SYS_RES_IOPORT;
                 sc->iores = bus_alloc_resource(dev, sc->iotype, &sc->rid, 0, ~0, 1, RF_ACTIVE);
         }

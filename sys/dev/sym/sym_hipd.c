@@ -1222,10 +1222,10 @@ struct sym_nvram {
  *  Misc.
  */
 #define SYM_SNOOP_TIMEOUT (10000000)
-#define SYM_PCI_IO	PCIR_MAPS
-#define SYM_PCI_MMIO	(PCIR_MAPS + 4)
-#define SYM_PCI_RAM	(PCIR_MAPS + 8)
-#define SYM_PCI_RAM64	(PCIR_MAPS + 12)
+#define SYM_PCI_IO	PCIR_BAR(0)
+#define SYM_PCI_MMIO	PCIR_BAR(1)
+#define SYM_PCI_RAM	PCIR_BAR(2)
+#define SYM_PCI_RAM64	PCIR_BAR(3)
 
 /*
  *  Back-pointer from the CAM CCB to our data structures.

@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 #define IDA_PCI_MAX_DMA_ADDR	0xFFFFFFFF
 #define IDA_PCI_MAX_DMA_COUNT	0xFFFFFFFF
 
-#define IDA_PCI_MEMADDR		(PCIR_MAPS + 4)		/* Mem I/O Address */
+#define IDA_PCI_MEMADDR		PCIR_BAR(1)		/* Mem I/O Address */
 
 #define IDA_DEVICEID_SMART		0xAE100E11
 #define IDA_DEVICEID_DEC_SMART		0x00461011
@@ -254,7 +254,7 @@ ida_pci_attach(device_t dev)
 	ida->regs_res_type = SYS_RES_MEMORY;
 	ida->regs_res_id = IDA_PCI_MEMADDR;
 	if (id == IDA_DEVICEID_DEC_SMART)
-		ida->regs_res_id = PCIR_MAPS;
+		ida->regs_res_id = PCIR_BAR(0);
 
 	ida->regs = bus_alloc_resource(dev, ida->regs_res_type,
 	    &ida->regs_res_id, 0, ~0, 1, RF_ACTIVE);

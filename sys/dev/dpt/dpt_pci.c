@@ -54,8 +54,8 @@ __FBSDID("$FreeBSD$");
 #define	DPT_VENDOR_ID		0x1044
 #define	DPT_DEVICE_ID		0xa400
 
-#define	DPT_PCI_IOADDR		PCIR_MAPS		/* I/O Address */
-#define	DPT_PCI_MEMADDR		(PCIR_MAPS + 4)		/* Mem I/O Address */
+#define	DPT_PCI_IOADDR		PCIR_BAR(0)		/* I/O Address */
+#define	DPT_PCI_MEMADDR		PCIR_BAR(1)		/* Mem I/O Address */
 
 #define	ISA_PRIMARY_WD_ADDRESS	0x1f8
 

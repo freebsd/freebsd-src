@@ -812,27 +812,27 @@ ess_release_resources(struct ess_info *sc, device_t dev)
 		sc->irq = 0;
     	}
     	if (sc->io) {
-		bus_release_resource(dev, SYS_RES_IOPORT, 0 * 4 + PCIR_MAPS, sc->io);
+		bus_release_resource(dev, SYS_RES_IOPORT, PCIR_BAR(0), sc->io);
 		sc->io = 0;
     	}
 
     	if (sc->sb) {
-		bus_release_resource(dev, SYS_RES_IOPORT, 1 * 4 + PCIR_MAPS, sc->sb);
+		bus_release_resource(dev, SYS_RES_IOPORT, PCIR_BAR(1), sc->sb);
 		sc->sb = 0;
     	}
 
     	if (sc->vc) {
-		bus_release_resource(dev, SYS_RES_IOPORT, 2 * 4 + PCIR_MAPS, sc->vc);
+		bus_release_resource(dev, SYS_RES_IOPORT, PCIR_BAR(2), sc->vc);
 		sc->vc = 0;
     	}
 
     	if (sc->mpu) {
-		bus_release_resource(dev, SYS_RES_IOPORT, 3 * 4 + PCIR_MAPS, sc->mpu);
+		bus_release_resource(dev, SYS_RES_IOPORT, PCIR_BAR(3), sc->mpu);
 		sc->mpu = 0;
     	}
 
     	if (sc->gp) {
-		bus_release_resource(dev, SYS_RES_IOPORT, 4 * 4 + PCIR_MAPS, sc->gp);
+		bus_release_resource(dev, SYS_RES_IOPORT, PCIR_BAR(4), sc->gp);
 		sc->gp = 0;
     	}
 
@@ -849,19 +849,19 @@ ess_alloc_resources(struct ess_info *sc, device_t dev)
 {
 	int rid;
 
-	rid = 0 * 4 + PCIR_MAPS;
+	rid = PCIR_BAR(0);
     	sc->io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1, RF_ACTIVE);
 
-	rid = 1 * 4 + PCIR_MAPS;
+	rid = PCIR_BAR(1);
     	sc->sb = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1, RF_ACTIVE);
 
-	rid = 2 * 4 + PCIR_MAPS;
+	rid = PCIR_BAR(2);
     	sc->vc = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1, RF_ACTIVE);
 
-	rid = 3 * 4 + PCIR_MAPS;
+	rid = PCIR_BAR(3);
     	sc->mpu = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1, RF_ACTIVE);
 
-	rid = 4 * 4 + PCIR_MAPS;
+	rid = PCIR_BAR(4);
     	sc->gp = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1, RF_ACTIVE);
 
 	rid = 0;
