@@ -83,9 +83,7 @@ static int smbfs_strategy(struct vop_strategy_args *);
 static int smbfs_print(struct vop_print_args *);
 static int smbfs_pathconf(struct vop_pathconf_args *ap);
 static int smbfs_advlock(struct vop_advlock_args *);
-#ifndef FB_RELENG3
 static int smbfs_getextattr(struct vop_getextattr_args *ap);
-#endif
 
 vop_t **smbfs_vnodeop_p;
 static struct vnodeopv_entry_desc smbfs_vnodeop_entries[] = {
@@ -117,10 +115,8 @@ static struct vnodeopv_entry_desc smbfs_vnodeop_entries[] = {
 	{ &vop_strategy_desc,		(vop_t *) smbfs_strategy },
 	{ &vop_symlink_desc,		(vop_t *) smbfs_symlink },
 	{ &vop_write_desc,		(vop_t *) smbfs_write },
-#ifndef FB_RELENG3
 	{ &vop_getextattr_desc, 	(vop_t *) smbfs_getextattr },
 /*	{ &vop_setextattr_desc,		(vop_t *) smbfs_setextattr },*/
-#endif
 	{ NULL, NULL }
 };
 
