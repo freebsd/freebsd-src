@@ -349,6 +349,7 @@ pcic_attach(device_t dev)
 
 		/* Check for changes */
 		pcic_setb(sp, PCIC_POWER, PCIC_PCPWRE | PCIC_DISRST);
+		sp->slt->laststate = sp->slt->state = empty;
 		pcic_do_stat_delta(sp);
 	}
 
