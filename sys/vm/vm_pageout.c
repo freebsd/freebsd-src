@@ -1241,6 +1241,7 @@ unlock_and_continue:
 static void
 vm_pageout_page_stats()
 {
+	vm_object_t object;
 	vm_page_t m,next;
 	int pcount,tpcount;		/* Number of pages to check */
 	static int fullintervalcount = 0;
@@ -1272,12 +1273,20 @@ vm_pageout_page_stats()
 		    ("vm_pageout_page_stats: page %p isn't active", m));
 
 		next = TAILQ_NEXT(m, pageq);
+		object = m->object;
+		if (!VM_OBJECT_TRYLOCK(object)) {
+			vm_pageq_requeue(m);
+			m = next;
+			continue;
+		}
+
 		/*
 		 * Don't deactivate pages that are busy.
 		 */
 		if ((m->busy != 0) ||
 		    (m->flags & PG_BUSY) ||
 		    (m->hold_count != 0)) {
+			VM_OBJECT_UNLOCK(object);
 			vm_pageq_requeue(m);
 			m = next;
 			continue;
@@ -1313,7 +1322,7 @@ vm_pageout_page_stats()
 				vm_pageq_requeue(m);
 			}
 		}
-
+		VM_OBJECT_UNLOCK(object);
 		m = next;
 	}
 }
