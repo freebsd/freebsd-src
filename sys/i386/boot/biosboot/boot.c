@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.53 1996/07/12 05:25:45 bde Exp $
+ *	$Id: boot.c,v 1.54 1996/08/27 19:45:37 pst Exp $
  */
 
 
@@ -145,7 +145,7 @@ loadstart:
 	/* print this all each time.. (saves space to do so) */
 	/* If we have looped, use the previous entries as defaults */
 	printf("\n>> FreeBSD BOOT @ 0x%x: %d/%d k of memory\n"
-	       "Usage: [[[%d:][%s](%d,a)]%s][-abcCdhrsv]\n"
+	       "Usage: [[[%d:][%s](%d,a)]%s][-abcCdghrsv]\n"
 	       "Use 1:sd(0,a)kernel to boot sd0 if it is BIOS drive 1\n"
 	       "Use ? for file list or press Enter for defaults\n\nBoot: ",
 	       ouraddr, bootinfo.bi_basemem, bootinfo.bi_extmem,

@@ -40,6 +40,7 @@ static void usage(char *name)
 	fprintf(stderr, "\t-s ... reboot to single user only\n");
 	fprintf(stderr, "\t-a ... ask for file name to reboot from\n");
 	fprintf(stderr, "\t-d ... give control to kernel debugger\n");
+	fprintf(stderr, "\t-g ... give control to GDB debugger\n");
 	fprintf(stderr, "\t-c ... invoke user configuration routing\n");
 	fprintf(stderr, "\t-v ... print all potentially useful info\n");
 	fprintf(stderr, "\t-C ... use cdrom as root\n");
