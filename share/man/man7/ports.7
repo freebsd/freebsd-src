@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 16, 2004
+.Dd November 18, 2004
 .Dt PORTS 7
 .Os
 .Sh NAME
@@ -409,6 +409,10 @@ actually work, it is necessary to include
 before starting to test the
 .Va WITH_*
 variables.
+.It Va DISABLE_VULNERABILITIES
+If defined, disable check for security vulnerabilities using
+.Xr portaudit 1
+when installing new ports.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /usr/ports/Mk/bsd.port.mk" -compact
@@ -444,7 +448,7 @@ The following are part of the ports collection:
 (searchable index of all ports)
 .Sh AUTHORS
 .An -nosplit
-This man page was originated by
+This manual page was originated by
 .An David O'Brien .
 .Sh HISTORY
 The Ports Collection
@@ -463,6 +467,4 @@ the
 chapter of
 .%B "The FreeBSD Handbook" ,
 and
-this man page.
-.Pp
-This man page is too long.
+this manual page.
