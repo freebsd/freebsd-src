@@ -57,6 +57,7 @@ void	 logname __P((KINFO *, VARENT *));
 void	 longtname __P((KINFO *, VARENT *));
 void	 lstarted __P((KINFO *, VARENT *));
 void	 maxrss __P((KINFO *, VARENT *));
+void	 mtxname __P((KINFO *, VARENT *));
 void	 nlisterr __P((struct nlist *));
 void	 p_rssize __P((KINFO *, VARENT *));
 void	 pagein __P((KINFO *, VARENT *));

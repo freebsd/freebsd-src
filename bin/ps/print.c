@@ -394,6 +394,24 @@ lstarted(k, ve)
 }
 
 void
+mtxname(k, ve)
+	KINFO *k;
+	VARENT *ve;
+{
+	VAR *v;
+
+	v = ve->var;
+	if (KI_PROC(k)->p_blocked) {
+		if (KI_PROC(k)->p_mtxname)
+			(void)printf("%-*.*s", v->width, v->width,
+				      KI_EPROC(k)->e_mtxname);
+		else
+			(void)printf("%-*s", v->width, "???");
+	} else
+		(void)printf("%-*s", v->width, "-");
+}
+
+void
 wchan(k, ve)
 	KINFO *k;
 	VARENT *ve;
