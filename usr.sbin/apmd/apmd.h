@@ -31,6 +31,7 @@
 
 #define APMD_CONFIGFILE		"/etc/apmd.conf"
 #define APM_CTL_DEVICEFILE	"/dev/apmctl"
+#define APM_NORM_DEVICEFILE	"/dev/apm"
 #define APMD_PIDFILE		"/var/run/apmd.pid"
 #define NICE_INCR		-20
 
@@ -77,10 +78,30 @@ struct event_config {
 	int rejectable;
 };
 
+struct battery_watch_event {
+	struct battery_watch_event *next;
+	int level;
+	enum {
+		BATTERY_CHARGING,
+		BATTERY_DISCHARGING
+	} direction;
+	enum {
+		BATTERY_MINUTES,
+		BATTERY_PERCENT
+	} type;
+	int done;
+	struct event_cmd *cmdlist;
+};
+
+	
 extern struct event_cmd_op event_cmd_exec_ops;
 extern struct event_cmd_op event_cmd_reject_ops;
 extern struct event_config events[EVENT_MAX];
+extern struct battery_watch_event *battery_watch_list;
 
+extern int register_battery_handlers(
+	int level, int direction,
+	struct event_cmd *cmdlist);
 extern int register_apm_event_handlers(
 	bitstr_t bit_decl(evlist, EVENT_MAX),
 	struct event_cmd *cmdlist);

@@ -74,6 +74,19 @@ int first_time;
 <TOP>STANDBYRESUME	{ yylval.ev = EVENT_STANDBYRESUME; return EVENT; }
 <TOP>CAPABILITIESCHANGE	{ yylval.ev = EVENT_CAPABILITIESCHANGE; return EVENT; }
 
+<TOP>apm_battery	{ return APMBATT; }
+
+<TOP>charging		{ return BATTCHARGE; }
+<TOP>discharging	{ return BATTDISCHARGE; }
+<TOP>[0-9]+%		{
+				yylval.i = atoi(yytext);
+				return BATTPERCENT;
+			}
+<TOP>[0-9]+[Mm]		{
+				yylval.i = -atoi(yytext);
+				return BATTTIME;
+			}
+
 <TOP>exec		{ return EXECCMD; }
 <TOP>reject		{ return REJECTCMD; }
 
