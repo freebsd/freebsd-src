@@ -41,7 +41,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ipc.h	8.4 (Berkeley) 2/19/95
- * $Id: ipc.h,v 1.10 1997/02/22 09:45:24 peter Exp $
+ * $Id: ipc.h,v 1.11 1998/02/01 20:08:37 bde Exp $
  */
 
 /*
@@ -89,13 +89,11 @@ int	ipcperm __P((struct ucred *, struct ipc_perm *, int));
 
 /* XXX doesn't really belong here, but has been historical practice in SysV. */
 
-#ifndef _POSIX_SOURCE
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
 key_t	ftok __P((const char *, int));
 __END_DECLS
-#endif /* ! POSIX */
 
 #endif /* KERNEL */
 
