@@ -11,12 +11,15 @@ Adam Klein                          aklein@debian.org
 Akim Demaille                       demaille@inf.enst.fr
 Alain Magloire                      alain@qnx.com
 Alan Iwi                            iwi@atm.ox.ac.uk
+Albert Chin-A-Young                 china@thewrittenword.com
 Albert Hopkins                      ahopkins@dynacare.com
 Alberto Accomazzi                   alberto@cfa0.harvard.edu
 aldomel                             aldomel@ix.netcom.com
 Alen Muzinic                        zveki@fly.cc.fer.hr
 Alexandre Duret-Lutz                duret_g@epita.fr
 Alexey Solovyov                     alekso@math.uu.se
+Alfred M. Szmidt                    ams@kemisten.nu
+Andi Kleen                          freitag@alancoxonachip.com
 Andre Novaes Cunha                  Andre.Cunha@br.global-one.net
 Andreas Gruenbacher                 ag@bestbits.at
 Andreas Jaeger                      jaeger@gnu.org
@@ -76,6 +79,7 @@ Dan Hagerty                         hag@gnu.ai.it.edu
 Dan Pascu                           dan@services.iiruc.ro
 Daniel Bergstrom                    noa@melody.se
 Darren Salt                         ds@youmustbejoking.demon.co.uk
+Dave Beckett                        dajobe@dajobe.org
 David Dyck                          dcd@tc.fluke.COM
 David Godfrey                       dave@delta.demon.co.uk
 David Luyer                         david_luyer@pacific.net.au
@@ -113,6 +117,7 @@ Frédéric L. W. Meunier              0@pervalidus.net
 Gabor Z. Papp                       gzp@gzp.org.hu
 Galen Hazelwood                     galenh@micron.net
 Gary Anderson                       ganderson@clark.net
+Gaute Hvoslef Kvalnes               gaute@verdsveven.com
 Gaël Quéri                          gqueri@mail.dotcom.fr
 Geoff Kuenning                      geoff@cs.hmc.edu
 Geoff Odhner                        geoff@franklin.com
@@ -137,6 +142,7 @@ Ian Bruce                           ian.bruce@myrealbox.com
 Ian Jackson                         ijackson@chiark.greenend.org.uk
 Ian Lance Taylor                    ian@cygnus.com
 Ian Turner                          vectro@pipeline.com
+Iida Yosiaki                        iida@gnu.org
 James                               james@albion.glarp.com
 James Antill                        jmanti%essex.ac.uk@seralph21.essex.ac.uk
 James Sneeringer                    jvs@ocslink.com
@@ -203,6 +209,7 @@ Manfred Hollstein                   manfred@s-direktnet.de
 Marc Boucher                        marc@mbsi.ca
 Marc Olzheim                        marcolz@stack.nl
 Marco Franzen                       Marco.Franzen@Thyron.com
+Marcus Brinkmann                    http://www.marcus-brinkmann.de
 Marcus Daniels                      marcus@ee.pdx.edu
 Mark A. Thomas                      thommark@access.digex.net
 Mark D. Roth                        roth@uiuc.edu
@@ -216,6 +223,7 @@ Markus Demleitner                   msdemlei@auriga.ari.uni-heidelberg.de
 Martin                              martin@dresden.nacamar.de
 Martin Gallant                      martyg@goodbit.net
 Martin Hippe                        martin.hippe@schlund.de
+Martin Michlmayr                    tbm@cyrius.com
 Martin Mitchell                     martin@debian.org
 Martin P.J. Zinser                  zinser@decus.de
 Marty Leisner                       leisner@sdsp.mc.xerox.com
@@ -224,6 +232,7 @@ Mate Wierdl                         mw@moni.msci.memphis.edu
 Matej Vela                          mvela@public.srce.hr
 Matt Perry                          matt@primefactor.com
 Matt Schalit                        mschalit@pacbell.net
+Matthew Arnison                     maffew@cat.org.au
 Matthew Braun                       matthew@ans.net
 Matthew Clarke                      Matthew_Clarke@mindlink.bc.ca
 Matthew S. Levine                   mslevine@theory.lcs.mit.edu
@@ -238,12 +247,14 @@ Michael Gaughen                     mgaughen@polyserve.com
 Michael Hasselberg                  mikelh@zonta.ping.de
 Michael Hohn                        hohn@math.utah.edu
 Michael J. Croghan                  mcroghan@usatoday.com
+Michael Piefel                      piefel@informatik.hu-berlin.de
 Michael Steffens                    michael.steffens@s.netic.de
 Michael Stone                       mstone@debian.org
 Michael Stutz                       stutz@dsl.org
 Michael Veksler                     mveksler@techunix.technion.ac.il
 Michel Robitaille                   robitail@IRO.UMontreal.CA
 Michiel Bacchiani                   bacchian@raven.bu.edu
+Mike Castle                         dalgoda@ix.netcom.com
 Miles Bader                         miles@gnu.ai.mit.edu
 Minh Tran-Le                        tranle@intellicorp.com
 Morten Welinder                     terra@diku.dk
@@ -308,14 +319,17 @@ Stephen Smoogen                     ??????????
 Steve McConnel                      steve@acadcomp.sil.org
 Stuart Kemp                         skemp@peter.bmc.com
 Tadayoshi Funaba                    tadf@kt.rim.or.jp
+TAKAI Kousuke                       takai@vlsi.kuee.kyoto-u.ac.jp
 Theodore Ts'o                       tytso@rsts-11.mit.edu
 Thomas Bushnell                     thomas@gnu.ai.mit.edu
 Thomas Quinot                       thomas@Cuivre.FR.EU.ORG
+Tim J. Robbins                      tjr@FreeBSD.org
 Tim Smithers                        mouse@dmouse.com.au
 Tim Waugh                           twaugh@redhat
 Todd A. Jacobs                      tjacobs@codegnome.org
 Tom Quinn                           trq@dionysos.thphys.ox.ac.uk
 Ton Hospel                          thospel@mail.dma.be
+Tony Kocurko                        akocurko@mun.ca
 Tony Leneis                         tony@plaza.ds.adp.com
 Tony Robinson                       ajr@eng.cam.ac.uk
 Torbjorn Granlund                   tege@nada.kth.se
@@ -335,6 +349,7 @@ Will Edgington                      wedgingt@acm.org
 William Bader                       william@nscs.fast.net
 William Dowling                     will@franklin.com
 William Lewis                       wiml@omnigroup.com
+Wojciech Purczynski                 cliph@isec.pl
 Wolfram Kleff                       kleff@cs.uni-bonn.de
 Won-kyu Park                        wkpark@chem.skku.ac.kr
 Zvi Har'El                          rl@math.technion.ac.il
