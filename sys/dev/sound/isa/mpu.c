@@ -42,7 +42,7 @@
 #include <machine/cpufunc.h>
 
 #include <isa/isavar.h>
-#include <isa/sioreg.h>
+#include <dev/sio/sioreg.h>
 #include <dev/ic/ns16550.h>
 
 static devclass_t midi_devclass;
