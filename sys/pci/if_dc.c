@@ -2004,6 +2004,13 @@ static int dc_attach(dev)
 	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 	callout_handle_init(&sc->dc_stat_ch);
 
+	if (DC_IS_ADMTEK(sc)) {
+		/*
+		 * Set automatic TX underrun recovery for the ADMtek chips
+		 */
+		DC_SETBIT(sc, DC_AL_CR, DC_AL_CR_ATUR);
+	}
+
 	/*
 	 * Tell the upper layer(s) we support long frames.
 	 */
