@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #endif
 #include <sys/signalvar.h>
+#include <sys/fcntl.h>
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 #include <sys/device.h>
 #include <sys/ioctl.h>
@@ -79,7 +80,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/poll.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
-#include <sys/vnode.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbhid.h>
@@ -491,7 +491,7 @@ uhid_do_read(struct uhid_softc *sc, struct uio *uio, int flag)
 
 	s = splusb();
 	while (sc->sc_q.c_cc == 0) {
-		if (flag & IO_NDELAY) {
+		if (flag & O_NONBLOCK) {
 			splx(s);
 			return (EWOULDBLOCK);
 		}
