@@ -2744,6 +2744,44 @@ process_command (argc, argv)
   }
 #endif
 
+  /* Options specified as if they appeared on the command line.  */
+  temp = getenv ("GCC_OPTIONS");
+  if ((temp) && (strlen (temp) > 0))
+    {
+      int len;
+      int optc = 1;
+      int new_argc;
+      char **new_argv;
+      char *envopts;
+
+      while (isspace (*temp))
+	temp++;
+      len = strlen (temp);
+      envopts = (char *) xmalloc (len + 1);
+      strcpy (envopts, temp);
+
+      for (i = 0; i < (len - 1); i++)
+	if ((isspace (envopts[i])) && ! (isspace (envopts[i+1])))
+	  optc++;
+
+      new_argv = (char **) alloca ((optc + argc) * sizeof(char *));
+
+      for (i = 0, new_argc = 1; new_argc <= optc; new_argc++)
+	{
+	  while (isspace (envopts[i]))
+	    i++;
+	  new_argv[new_argc] = envopts + i;
+	  while (!isspace (envopts[i]) && (envopts[i] != '\0'))
+	    i++;
+	  envopts[i++] = '\0';
+	}
+      for (i = 1; i < argc; i++)
+	new_argv[new_argc++] = argv[i];
+
+      argv = new_argv;
+      argc = new_argc;
+    }
+
   /* Convert new-style -- options to old-style.  */
   translate_options (&argc, &argv);
 
