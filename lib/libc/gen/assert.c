@@ -46,8 +46,9 @@ __FBSDID("$FreeBSD$");
 
 void
 __assert(function, file, line, failedexpr)
-	const char	*failedexpr, *file, *function;
-	int		 line;
+	const char *function, *file;
+	int line;
+	const char *failedexpr;
 {
 	(void)fprintf(stderr,
 		      "assertion (%s) failed: function %s(), file %s:%d\n",
