@@ -165,13 +165,13 @@ UFS_DIRHASH	opt_ufs.h
 # they won't make any difference yet).
 NFS_ROOT	opt_nfsroot.h
 
-# Options used only in param.c.
+# Options used only in subr_param.c.
 HZ		opt_param.h
 MAXFILES	opt_param.h
-MAXUSERS	opt_param.h
 NBUF		opt_param.h
 NMBCLUSTERS	opt_param.h
 NSFBUFS		opt_param.h
+MAXUSERS
 
 # Generic SCSI options.
 CAM_MAX_HIGHPOWER	opt_cam.h
