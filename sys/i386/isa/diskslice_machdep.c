@@ -35,7 +35,7 @@
  *
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: diskslice_machdep.c,v 1.20 1996/04/07 17:32:09 bde Exp $
+ *	$Id: diskslice_machdep.c,v 1.21 1996/09/20 17:39:11 bde Exp $
  */
 
 #include <stddef.h>
@@ -246,12 +246,13 @@ reread_mbr:
 	max_nsectors = 0;
 	max_ntracks = 0;
 	for (dospart = 0, dp = dp0; dospart < NDOSPART; dospart++, dp++) {
+		int	ncyls;
 		int	nsectors;
 		int	ntracks;
 
-		max_ncyls = DPCYL(dp->dp_ecyl, dp->dp_esect);
-		if (max_ncyls < max_ncyls)
-			max_ncyls = max_ncyls;
+		ncyls = DPCYL(dp->dp_ecyl, dp->dp_esect) + 1;
+		if (max_ncyls < ncyls)
+			max_ncyls = ncyls;
 		nsectors = DPSECT(dp->dp_esect);
 		if (max_nsectors < nsectors)
 			max_nsectors = nsectors;
@@ -260,7 +261,10 @@ reread_mbr:
 			max_ntracks = ntracks;
 	}
 
-	/* Check the geometry. */
+	/*
+	 * Check that we have guessed the geometry right by checking the
+	 * partition entries.
+	 */
 	/*
 	 * TODO:
 	 * As above.
@@ -268,7 +272,6 @@ reread_mbr:
 	 * Check against d_secperunit if the latter is reliable.
 	 */
 	error = 0;
-	secpercyl = (u_long)max_nsectors * max_ntracks;
 	for (dospart = 0, dp = dp0; dospart < NDOSPART; dospart++, dp++) {
 		if (dp->dp_scyl == 0 && dp->dp_shd == 0 && dp->dp_ssect == 0
 		    && dp->dp_start == 0 && dp->dp_size == 0)
@@ -294,6 +297,7 @@ reread_mbr:
 	 * First adjust the label (we have been careful not to change it
 	 * before we can guarantee success).
 	 */
+	secpercyl = (u_long)max_nsectors * max_ntracks;
 	if (secpercyl != 0) {
 		u_long	secperunit;
 
