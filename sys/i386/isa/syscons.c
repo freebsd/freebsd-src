@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.77 1994/11/17 22:03:16 sos Exp $
+ *	$Id: syscons.c,v 1.79 1994/11/21 14:36:02 ache Exp $
  */
 
 #include "sc.h"
@@ -1782,28 +1782,28 @@ scan_esc(scr_stat *scp, u_char c)
 
 		case 'S':	/* scroll up n lines */
 			n = scp->term.param[0]; if (n < 1)  n = 1;
-			if (n > scp->ypos)
-				n = scp->ypos;
+			if (n > scp->ysize)
+				n = scp->ysize;
 			bcopy(scp->crt_base + (scp->xsize * n),
 			      scp->crt_base, 
 			      scp->xsize * (scp->ysize - n) * 
 			      sizeof(u_short));
 			fillw(scp->term.cur_attr | scr_map[0x20],
 			      scp->crt_base + scp->xsize * 
-			      (scp->ysize - 1), 
-			      scp->xsize);
+			      (scp->ysize - n),
+			      scp->xsize * n);
 			break;
 
 		case 'T':	/* scroll down n lines */
 			n = scp->term.param[0]; if (n < 1)  n = 1;
-			if (n > scp->ysize - scp->ypos)
-				n = scp->ysize - scp->ypos;
+			if (n > scp->ysize)
+				n = scp->ysize;
 			bcopy(scp->crt_base, 
 			      scp->crt_base + (scp->xsize * n),
 			      scp->xsize * (scp->ysize - n) * 
 			      sizeof(u_short));
 			fillw(scp->term.cur_attr | scr_map[0x20], 
-			      scp->crt_base, scp->xsize);
+			      scp->crt_base, scp->xsize * n);
 			break;
 
 		case 'X':	/* delete n characters in line */
