@@ -54,16 +54,11 @@
 .\"
 .\" end figure
 .de Fe
-.sp .5
-.\" cheat: original indent is stored in \n(OI by .DS B; restore it
-.\" then center legend after .DE rereads and centers the block.
-\\\\.in \\n(OI
-\\\\.ce
-\\\\*(Lb.  \\\\*(Lt
-.sp .5
 .DE
+.ce
+\\*(Lb.  \\*(Lt
+.sp
 .KE
-.if \nd 'ls 2
 ..
 .EQ
 delim $$
@@ -201,9 +196,17 @@ of the physical memory.
 Good use of memory is measured by the amount of memory needed to hold
 a set of allocations at any point in time.
 Percentage utilization is expressed as:
+.ie t \{\
 .EQ
 utilization~=~requested over required
 .EN
+.\}
+.el \{\
+.sp
+.ce
+\fIutilization\fP=\fIrequested\fP/\fIrequired\fP
+.sp
+.\}
 Here, ``requested'' is the sum of the memory that has been requested
 and not yet freed.
 ``Required'' is the amount of memory that has been
