@@ -1,0 +1,128 @@
+.\" Copyright (C) 1993 by Joerg Wunsch, Dresden
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd September 16, 1993
+.Os FreeBSD
+.Dt FDFORMAT 1
+.Sh NAME
+.Nm fdformat
+.Nd format floppy disks
+.Sh SYNOPSIS
+.Nm fdformat
+.Bq Fl q
+.Bq Fl v
+.Bq Fl n
+.Bq Fl f Ar capacity
+.Bq Fl c Ar cyls
+.Bq Fl s Ar secs
+.Bq Fl h Ar heads
+.br
+.Bq Fl r Ar rate
+.Bq Fl g Ar gap3len
+.Bq Fl i Ar intleave
+.Bq Fl S Ar secshft
+.Bq Fl F Ar fillbyte
+.Bq Fl t Ar steps_per_track
+.Ar device_name
+.Sh DESCRIPTION
+.Nm Fdformat
+formats a floppy disk at device
+.Ar device_name .
+.Ar Device_name
+should be a character device; it may be given either with a full path
+name of a raw device node for a floppy disk drive
+.Pq e.\ g. Pa /dev/rfd0 ,
+or default name in an abbreviated form
+.Pq e.\ g. Em fd0 .
+In the latter case, the name is constructed by prepending
+.Pa /dev/r
+and appending an
+.Em .capacity
+to the
+.Ar device_name .
+Note that any geometry constraints of the device node
+.Pq minor device number
+are meaningless, since they're overridden by
+.Nm fdformat .
+.Pp
+The options are as follows:
+.Bl -tag -width 10n -offset indent
+.It Fl q
+supress any normal output from the command, and don't ask the
+user for a confirmation whether to format the floppy disk at
+.Ar device_name .
+.It Fl f Ar capacity
+The normal way to specify the desired formatting parameters.
+.Ar Capacity
+is the number of kilobytes to format.
+.It Fl n
+Don't verify floppy after formatting.
+.It Fl v
+Don't format, verify only.
+.It Fl c Ar cyls
+.It Fl s Ar secs
+.It Fl h Ar heads
+.It Fl r Ar rate
+.It Fl g Ar gap3len
+.It Fl i Ar intleave
+.It Fl S Ar secshft
+.It Fl F Ar fillbyte
+.It Fl t Ar steps_per_track
+An alternate method to specify the geometry data to write to the floppy disk.
+.El
+
+If the
+.Fl q
+flag has not been specified, the user is asked for a confirmation
+of the intended formatting process. In order to continue, an answer
+of
+.Dq y
+must be given.
+.Sh DIAGNOSTICS
+If no
+.Fl q
+has been specified, the current track
+.Pq note: not cylinder
+number is printed to standard output to inform the user about
+the progress of work.
+.Pp
+An exit status of 0 is returned upon successful operation. Exit status
+1 is returned on any errors during floppy formatting, and an exit status
+of 2 reflects invalid arguments given to the program (along with an
+appropriate information written to diagnostic output).
+.Sh BUGS
+The only valid interleave factor value is 1.
+.Sh SEE ALSO
+.Xr fd 4 .
+.Sh HISTORY
+.Nm Fdformat
+has been developed for 386BSD
+and upgraded to the new
+.Xr fd 4
+floppy disk driver.
+.Sh AUTHOR
+The program has been contributed by
+.if n Joerg Wunsch,
+.if t J\(:org Wunsch,
+Dresden with changes by Serge Vakulenko and Andrew A. Chernov, Moscow.
