@@ -34,8 +34,9 @@
 #define ATAPI_P_READ			(ATA_S_DRQ | ATA_I_IN)
 #define ATAPI_P_WRITE			(ATA_S_DRQ)
 #define ATAPI_P_CMDOUT			(ATA_S_DRQ | ATA_I_CMD)
+#define ATAPI_P_DONEDRQ			(ATA_S_DRQ | ATA_I_CMD | ATA_I_IN)
+#define ATAPI_P_DONE			(ATA_I_CMD | ATA_I_IN)
 #define ATAPI_P_ABORT			0
-#define ATAPI_P_DONE			(ATA_I_IN | ATA_I_CMD)
 
 /* error register bits */
 #define ATAPI_E_MASK			0x0f	/* error mask */
