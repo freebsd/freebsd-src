@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.42.2.15 1995/10/15 12:41:06 jkh Exp $
+ * $Id: sysinstall.h,v 1.42.2.16 1995/10/15 15:45:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -576,7 +576,7 @@ extern void	mediaShutdownUFS(Device *dev);
 extern Boolean	mediaInitUFS(Device *dev);
 extern int	mediaGetUFS(Device *dev, char *file, Attribs *dist_attrs);
 
-/* variables.c */
+/* variable.c */
 extern void	variable_set(char *var);
 extern void	variable_set2(char *name, char *value);
 extern char 	*variable_get(char *var);

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.31 1995/10/15 04:37:05 jkh Exp $
+ * $Id: install.c,v 1.71.2.32 1995/10/15 12:41:01 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -327,19 +327,23 @@ installUpgrade(char *str)
 int
 installExpress(char *str)
 {
-    msgConfirm("In the next menu, you will need to set up a DOS-style\n"
-	       "(\"fdisk\") partitioning scheme for your hard disk.  If you\n"
-	       "don't want to do anything special, just type `A' to use the\n"
-	       "whole disk and then `Q' to quit.  If you wish to share\n"
-	       "a disk with multiple operating systems, do NOT use the\n"
-	       "`A' command.");
+    msgConfirm("In the next menu, you will need to set up a DOS-style (\"fdisk\")\n"
+	       "partitioning scheme for your hard disk.    If you simply wish to\n"
+	       "devote all disk space to FreeBSD (overwritting anything else that might\n"
+	       "be on the disk(s) selected, use the (A)ll command to select the default\n"
+	       "partitioning scheme and then (Q)uit.  If you wish to allocate only free\n"
+	       "space to FreeBSD, move to a partition marked \"unused\" and use the\n"
+	       "(C)reate command.");
+
     if (diskPartitionEditor("express") == RET_FAIL)
 	return RET_FAIL;
     
-    msgConfirm("Next, you need to lay out BSD partitions inside of the\n"
-	       "fdisk partition just created.  If you don't want to\n"
-	       "do anything special, just type `A' to use the default\n"
-	       "partitioning scheme and then `Q' to quit.");
+    msgConfirm("Next, you need to create BSD partitions inside of the fdisk\n"
+	       "partition(s) just created.  If you have a reasonable amount of disk\n"
+	       "space (200MB or more) and don't have any special requirements,\n"
+	       "simply use the (A)uto command to allocate space automatically."
+	       "If you have more specific needs, or don't care for the layout\n"
+	       "chosen by (A)uto, press F1 for more information on manual layout.");
     if (diskLabelEditor("express") == RET_FAIL)
 	return RET_FAIL;
     
@@ -347,7 +351,7 @@ installExpress(char *str)
 	       "are many different configurations, ranging from minimal\n"
 	       "installation sets to full X developer oriented configs.\n"
 	       "You can also select a custom software set if none of the\n"
-	       "default configurations are suitable.");
+	       "provided configurations are suitable.");
     
     while (1) {
 	if (!dmenuOpenSimple(&MenuInstallType))
@@ -366,15 +370,17 @@ installExpress(char *str)
 
     if (!msgYesNo("Since you're running the express installation, a few\n"
 		  "post-configuration questions will be asked at this point.\n\n"
-		  "Our packages collection contains many useful utilities, from\n"
-		  "text editors to WEB servers, and is definitely worth browsing\n"
-		  "through even if you don't install any of it at this time.\n\n"
-		  "Would you like to browse the selection of packaged\n"
-		  "software now?"))
+		  "The FreeBSD package collection is a collection of over 300\n"
+		  "ready-to-run applications, from text editors to WEB servers,\n"
+		  "and is definitely worth at least looking at.\n\n"
+		  "Would you like to browse the selection of packaged software"
+		  "now?\n\n"
+		  "You can also reach this utility from the Configure menu later\n"
+		  "if you wish."))
 	configPackages(NULL);
 
-    if (!msgYesNo("Would you like to configure any additional network\n"
-		  "devices or services?"))
+    if (!msgYesNo("Would you like to configure any additional network devices or\n"
+		  "services?"))
 	dmenuOpenSimple(&MenuNetworking);
 
     /* XXX Put whatever other nice configuration questions you'd like to ask the user here XXX */
