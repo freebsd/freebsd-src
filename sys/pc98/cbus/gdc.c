@@ -524,7 +524,7 @@ static video_info_t bios_vmode[] = {
     { M_PC98_EGC640x400, V_INFO_COLOR | V_INFO_GRAPHICS,
       640, 400, 8, 16, 4, 4,
       GRAPHICS_BUF_BASE, GRAPHICS_BUF_SIZE, GRAPHICS_BUF_SIZE, 0, 0,
-      V_INFO_MM_OTHER },
+      V_INFO_MM_PLANAR },
     { M_PC98_PEGC640x400, V_INFO_COLOR | V_INFO_GRAPHICS | V_INFO_VESA,
       640, 400, 8, 16, 8, 1,
       GRAPHICS_BUF_BASE, 0x00008000, 0x00008000, 0, 0,
@@ -1358,12 +1358,66 @@ gdc_mmap_buf(video_adapter_t *adp, vm_offset_t offset, vm_offset_t *paddr,
     return 0;
 }
 
+#ifndef GDC_NOGRAPHICS
+static void
+planar_fill(video_adapter_t *adp, int val)
+{
+
+    outb(0x7c, 0x80);				/* GRCG on & TDW mode */
+    outb(0x7e, 0);				/* tile B */
+    outb(0x7e, 0);				/* tile R */
+    outb(0x7e, 0);				/* tile G */
+    outb(0x7e, 0);				/* tile I */
+
+    fillw_io(0, adp->va_window, 0x8000 / 2);	/* XXX */
+
+    outb(0x7c, 0);				/* GRCG off */
+}
+
+static void
+packed_fill(video_adapter_t *adp, int val)
+{
+    int length;
+    int at;			/* position in the frame buffer */
+    int l;
+
+    at = 0;
+    length = adp->va_line_width*adp->va_info.vi_height;
+    while (length > 0) {
+	l = imin(length, adp->va_window_size);
+	(*vidsw[adp->va_index]->set_win_org)(adp, at);
+	bzero_io(adp->va_window, l);
+	length -= l;
+	at += l;
+    }
+}
+
 static int
 gdc_clear(video_adapter_t *adp)
 {
-    /* FIXME */
-    return ENODEV;
+
+    switch (adp->va_info.vi_mem_model) {
+    case V_INFO_MM_TEXT:
+	/* do nothing? XXX */
+	break;
+    case V_INFO_MM_PLANAR:
+	planar_fill(adp, 0);
+	break;
+    case V_INFO_MM_PACKED:
+	packed_fill(adp, 0);
+	break;
+    }
+
+    return 0;
 }
+#else /* GDC_NOGRAPHICS */
+static int
+gdc_clear(video_adapter_t *adp)
+{
+
+    return 0;
+}
+#endif /* GDC_NOGRAPHICS */
 
 static int
 gdc_fill_rect(video_adapter_t *adp, int val, int x, int y, int cx, int cy)
