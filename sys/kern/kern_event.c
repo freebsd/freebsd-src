@@ -165,12 +165,13 @@ static int
 filt_procattach(struct knote *kn)
 {
 	struct proc *p;
+	int error;
 
 	p = pfind(kn->kn_id);
 	if (p == NULL)
 		return (ESRCH);
-	if (p_can(curproc, p, P_CAN_SEE, NULL))
-		return (EACCES);
+	if ((error = p_can(curproc, p, P_CAN_SEE, NULL)))
+		return (error);
 
 	kn->kn_ptr.p_proc = p;
 	kn->kn_flags |= EV_CLEAR;		/* automatically set */
