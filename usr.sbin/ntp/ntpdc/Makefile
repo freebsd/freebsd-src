@@ -8,8 +8,8 @@ SRCS= 	ntpdc.c ntpdc_ops.c version.c
 
 CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../
 
-DPADD=	${LIBNTP}
-LDADD=	${LIBNTP}
+DPADD=	${LIBNTP} -lreadline
+LDADD=	${LIBNTP} -lreadline
 
 CLEANFILES+= .version version.c
 
