@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.71 1997/11/04 01:17:04 brian Exp $
+.\" $Id: ppp.8,v 1.72 1997/11/06 00:25:33 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1838,7 +1838,7 @@ interface.  If set to
 will send the packet, probably resulting in an ICMP redirect from
 the other end.
 
-.It set log Op local [+|-]value...
+.It set log [local] [+|-]value...
 This command allows the adjustment of the current log level.  Refer
 to the Logging Facility section for further details.
 
