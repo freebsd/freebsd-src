@@ -27,8 +27,6 @@ alias	pd	pushd
 alias	pd2	pushd +2
 alias	pd3	pushd +3
 alias	pd4	pushd +4
-alias	df	df -k
-alias	du 	du -k
 alias	tset	'set noglob histchars=""; eval `\tset -s \!*`; unset noglob histchars'
 
 if ($?prompt) then
