@@ -835,21 +835,16 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 			ic->ic_stats.is_rx_auth_unsupported++;
 			return;
 		}
-		if (ic->ic_state != IEEE80211_S_RUN) {
-			IEEE80211_DPRINTF(("%s: discard auth from %s; "
-				"state %u\n", __func__,
-				ether_sprintf(wh->i_addr2), ic->ic_state));
-			ic->ic_stats.is_rx_bad_auth++;
-			break;
-		}
-		if (seq != (ic->ic_opmode == IEEE80211_M_STA ? 2 : 1)) {
-			IEEE80211_DPRINTF(("%s: discard auth from %s; seq %u\n",
-				__func__, ether_sprintf(wh->i_addr2), seq));
-			ic->ic_stats.is_rx_bad_auth++;
-			break;
-		}
 		switch (ic->ic_opmode) {
 		case IEEE80211_M_IBSS:
+			if (ic->ic_state != IEEE80211_S_RUN || seq != 1) {
+				IEEE80211_DPRINTF(("%s: discard auth from %s; "
+					"state %u, seq %u\n", __func__,
+					ether_sprintf(wh->i_addr2),
+					ic->ic_state, seq));
+				ic->ic_stats.is_rx_bad_auth++;
+				break;
+			}
 			ieee80211_new_state(ic, IEEE80211_S_AUTH,
 			    wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK);
 			break;
@@ -859,6 +854,14 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 			break;
 
 		case IEEE80211_M_HOSTAP:
+			if (ic->ic_state != IEEE80211_S_RUN || seq != 1) {
+				IEEE80211_DPRINTF(("%s: discard auth from %s; "
+					"state %u, seq %u\n", __func__,
+					ether_sprintf(wh->i_addr2),
+					ic->ic_state, seq));
+				ic->ic_stats.is_rx_bad_auth++;
+				break;
+			}
 			if (ni == ic->ic_bss) {
 				ni = ieee80211_alloc_node(ic, wh->i_addr2);
 				if (ni == NULL) {
@@ -881,6 +884,14 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 			break;
 
 		case IEEE80211_M_STA:
+			if (ic->ic_state != IEEE80211_S_AUTH || seq != 2) {
+				IEEE80211_DPRINTF(("%s: discard auth from %s; "
+					"state %u, seq %u\n", __func__,
+					ether_sprintf(wh->i_addr2),
+					ic->ic_state, seq));
+				ic->ic_stats.is_rx_bad_auth++;
+				break;
+			}
 			if (status != 0) {
 				if_printf(&ic->ic_if,
 				    "authentication failed (reason %d) for %s\n",
