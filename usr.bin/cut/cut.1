@@ -61,22 +61,15 @@ utility selects portions of each line (as specified by
 .Ar list  )
 from each
 .Ar file
-and writes them to the standard output.
-If no
-.Ar file
-arguments are specified, or a file argument is a single dash
-.Pq Sq Fl ,
-.Nm
-reads from from the standard input.
+(or the standard input by default), and writes them to the
+standard output.
 The items specified by
 .Ar list
 can be in terms of column position or in terms of fields delimited
 by a special character.
 Column numbering starts from 1.
 .Pp
-The
 .Ar list
-option argument
 is a comma or whitespace separated set of increasing numbers and/or
 number ranges.
 Number ranges consist of a number, a dash
