@@ -29,7 +29,7 @@
 .Dt MODSTAT 2
 .Os FreeBSD
 .Sh NAME
-.Nm kldstat
+.Nm modstat
 .Nd get status of kernel module
 .Sh LIBRARY
 .Lb libc
@@ -82,8 +82,7 @@ The id of the module specified in
 Module specific data.
 .El
 .Sh RETURN VALUES
-.Fn modstat
-seems to always return 0.
+.Rv -std modstat
 .Sh ERRORS
 The information for the module referred to by
 .Fa modid
