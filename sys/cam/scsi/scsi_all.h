@@ -436,8 +436,8 @@ struct scsi_rw_12
 #define	SRW12_DPO	0x10
 	u_int8_t byte2;
 	u_int8_t addr[4];
-	u_int8_t reserved;
 	u_int8_t length[4];
+	u_int8_t reserved;
 	u_int8_t control;
 };
 
