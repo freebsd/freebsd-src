@@ -242,7 +242,7 @@ In direct mode,
 acts as server which accepts incoming
 .Em PPP
 connections on stdin/stdout.
-.It Supports PAP and CHAP (rfc 1994) authentication.
+.It Supports PAP and CHAP (rfc 1994, 2433 and 2759) authentication.
 With PAP or CHAP, it is possible to skip the Unix style
 .Xr login 1
 procedure, and use the
@@ -352,6 +352,14 @@ It is possible to configure
 .Nm
 to open more than one physical connection to the peer, combining the
 bandwidth of all links for better throughput.
+.It Supports MPPE (draft-ietf-pppext-mppe)
+MPPE is Microsoft Point to Point Encryption scheme. It is possible to configure
+.Nm
+to participate in Microsoft's Windows VPN. For now, 
+.Nm
+can only get encryption keys from CHAP 81 authentication.
+.Nm
+must be compiled with DES for MPPE to operate.
 .El
 .Sh PERMISSIONS
 .Nm
@@ -1388,8 +1396,23 @@ on ui-gate (the receiver) should contain the following:
 ppp-in:
  set timeout 0
  set ifaddr 10.0.4.1 10.0.4.2
- add 10.0.1.0/24 10.0.4.2
 .Ed
+.Pp
+and the entry in
+.Pa /etc/ppp/ppp.linkup
+should contain:
+.Bd -literal -offset indent
+ppp-in:
+ add 10.0.1.0/24 HISADDR
+.Ed
+.Pp
+It is necessary to put the 
+.Dq add
+command in
+.Pa ppp.linkup
+to ensure that the route is only added after
+.Nm
+has negotiated and assigned addresses to its interface.
 .Pp
 You may also want to enable PAP or CHAP for security.
 To enable PAP, add the following line:
@@ -1406,7 +1429,7 @@ MyAuthName MyAuthPasswd
 If
 .Ar MyAuthPasswd
 is a
-.Pq Dq * ,
+.Dq * ,
 the password is looked up in the
 .Xr passwd 5
 database.
@@ -1422,10 +1445,18 @@ ui-gate:
  set timeout 30
  set log Phase Chat Connect hdlc LCP IPCP CCP tun
  set ifaddr 10.0.4.2 10.0.4.1
- add 10.0.2.0/24 10.0.4.1
 .Ed
 .Pp
-Again, if you're enabling PAP, you'll also need:
+with the route setup in
+.Pa /etc/ppp/ppp.linkup :
+.Bd -literal -offset indent
+ui-gate:
+ add 10.0.2.0/24 HISADDR
+.Ed
+.Pp
+Again, if you're enabling PAP, you'll also need this in the
+.Pa /etc/ppp/ppp.conf
+profile:
 .Bd -literal -offset indent
  set authname MyAuthName
  set authkey MyAuthKey
@@ -1465,6 +1496,55 @@ When using UDP as a transport,
 will operate in synchronous mode.
 This is another gain as the incoming
 data does not have to be rearranged into packets.
+.Pp
+Care should be taken when adding a default route through a tunneled
+setup like this.
+It is quite common for the default route
+.Pq added in Pa /etc/ppp/ppp.linkup
+to end up routing the link's TCP connection through the tunnel,
+effectively garrotting the connection.
+To avoid this, make sure you add a static route for the benefit of
+the link:
+.Bd -literal -offset indent
+ui-gate:
+ set escape 0xff
+ set device ui-gate:ppp-in/tcp
+ add ui-gate x.x.x.x
+ .....
+.Ed
+.Pp
+where
+.Dq x.x.x.x
+is the IP number that your route to
+.Dq ui-gate
+would normally use.
+.Pp
+When routing your connection accross a public network such as the Internet,
+it is preferable to encrypt the data.
+This can be done with the help of the MPPE protocol, although currently this
+means that you will not be able to also compress the traffic as MPPE is
+implemented as a compression layer (thank Microsoft for this).
+To enable MPPE encryption, add the following lines to
+.Pa /etc/ppp/ppp.conf
+on the server:
+.Bd -literal -offset indent
+  enable MSCHAPv2
+  disable deflate pred1
+  deny deflate pred1
+.Ed
+.Pp
+ensuring that you've put the requisite entry in
+.Pa /etc/ppp/ppp.secret
+(MSCHAPv2 is challenge based, so
+.Xr passwd 5
+cannot be used)
+.Pp
+MSCHAPv2 and MPPE are accepted by default, so the client end should work
+without any additional changes (although ensure you have
+.Dq set authname
+and
+.Dq set authkey
+in your profile).
 .Pp
 .Sh NETWORK ADDRESS TRANSLATION (PACKET ALIASING)
 The
@@ -1649,8 +1729,8 @@ The timeout value adjusts the current idle timeout to at least
 .Ar secs
 seconds.
 If a timeout is given in the alive filter as well as in the in/out
-filter, the in/out value is used.  If no timeout is given, the default
-timeout (set using
+filter, the in/out value is used.
+If no timeout is given, the default timeout (set using
 .Ic set timeout
 and defaulting to 180 seconds) is used.
 .El
@@ -1668,7 +1748,8 @@ It's possible to filter based on the payload of UDP frames where those
 frames contain a
 .Em PROTO_IP
 .Em PPP
-frame header.  See the
+frame header.
+See the
 .Ar filter-decapsulation
 option below for further details.
 .It
@@ -2142,6 +2223,11 @@ is able to generate the following log info either via
 or directly to the screen:
 .Pp
 .Bl -tag -width XXXXXXXXX -offset XXX -compact
+.It Li All
+Enable all logging facilities.
+This generates a lot of log.
+The most common use of 'all' is as a basis, where you remove some facilities
+after enabling 'all' ('debug' and 'timer' are usually best disabled.)
 .It Li Async
 Dump async level packet in hex.
 .It Li CBCP
@@ -2653,6 +2739,18 @@ level, and any appropriate
 .Dq reconnect
 values are honoured as if the peer were responsible for dropping the
 connection.
+.It mppe
+Default: Enabled and Accepted.
+This is Microsoft Point to Point Encryption scheme. MPPE key size can be 
+40-, 56- and 128-bits. Refer to
+.Dq set mppe
+command.
+.It MSChapV2|chap81
+Default: Disabled and Accepted.
+It is very similar to standard CHAP (type 0x05)
+except that it issues challenges of a fixed 16 bytes in length and uses a
+combination of MD4, SHA-1 and DES to encrypt the challenge rather than using the
+standard MD5 mechanism.
 .It MSChap|chap80nt
 Default: Disabled and Accepted.
 The use of this authentication protocol
@@ -2748,8 +2846,9 @@ When this option is enabled,
 .Nm
 will examine UDP frames to see if they actually contain a
 .Em PPP
-frame as their payload.  If this is the case, all filters will operate
-on the payload rather than the actual packet.
+frame as their payload.
+If this is the case, all filters will operate on the payload rather
+than the actual packet.
 .Pp
 This is useful if you want to send PPPoUDP traffic over a
 .Em PPP
@@ -2758,8 +2857,8 @@ the UDP wrapper.
 .Pp
 The UDP frame payload must not be compressed in any way, otherwise
 .Nm
-will not be able to interpret it.  It's therefore recommended that
-you
+will not be able to interpret it.
+It's therefore recommended that you
 .Ic disable vj pred1 deflate
 and
 .Ic deny vj pred1 deflate
@@ -2908,6 +3007,14 @@ Disabling this option will prevent the re-application of sticky routes,
 although the
 .Sq stick route
 list will still be maintained.
+.It Op tcp Ns Xo
+.No mssfixup
+.Xc
+Default: Enabled.
+This option tells
+.Nm
+to adjust outgoing TCP SYN packets so that the maximum receive segment
+size is not greater than the amount allowed by the interface MTU.
 .It throughput
 Default: Enabled.
 This option tells
@@ -3738,7 +3845,8 @@ This option is not (yet) implemented.
 .It sendident
 This command tells
 .Nm
-to identify itself to the peer.  The link must be in LCP state or higher.
+to identify itself to the peer.
+The link must be in LCP state or higher.
 If no identity has been set (via the
 .Ic ident
 command),
@@ -4753,6 +4861,8 @@ This will allow
 to do the necessary address translations to enable the process that
 triggers the connection to connect once the link is up despite the
 peer assigning us a new (dynamic) IP address.
+.It set mppe {40|56|128}
+This option selects particular key length. Default is 128.
 .It set mrru Op Ar value
 Setting this option enables Multi-link PPP negotiations, also known as
 Multi-link Protocol or MP.

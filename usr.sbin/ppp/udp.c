@@ -59,10 +59,15 @@
 #include "main.h"
 #include "udp.h"
 
+
+#define UDP_CONNECTED		1
+#define UDP_UNCONNECTED		2
+#define UDP_MAYBEUNCONNECTED	3
+
 struct udpdevice {
   struct device dev;		/* What struct physical knows about */
   struct sockaddr_in sock;	/* peer address */
-  unsigned connected : 1;	/* Have we connect()d ? */
+  unsigned connected : 2;	/* Have we connect()d ? */
 };
 
 #define device2udp(d) ((d)->type == UDP_DEVICE ? (struct udpdevice *)d : NULL)
@@ -77,12 +82,28 @@ static ssize_t
 udp_Sendto(struct physical *p, const void *v, size_t n)
 {
   struct udpdevice *dev = device2udp(p->handler);
+  int ret;
 
-  if (dev->connected)
-    return write(p->fd, v, n);
+  switch (dev->connected) {
+    case UDP_CONNECTED:
+      ret = write(p->fd, v, n);
+      break;
 
-  return sendto(p->fd, v, n, 0, (struct sockaddr *)&dev->sock,
-                sizeof dev->sock);
+    case UDP_UNCONNECTED:
+    default:
+      ret = sendto(p->fd, v, n, 0, (struct sockaddr *)&dev->sock,
+                   sizeof dev->sock);
+      break;
+  }
+  if (dev->connected == UDP_MAYBEUNCONNECTED) {
+    if (ret == -1 && errno == EISCONN) {
+      dev->connected = UDP_CONNECTED;
+      ret = write(p->fd, v, n);
+    } else
+      dev->connected = UDP_UNCONNECTED;
+  }
+
+  return ret;
 }
 
 static ssize_t
@@ -91,7 +112,7 @@ udp_Recvfrom(struct physical *p, void *v, size_t n)
   struct udpdevice *dev = device2udp(p->handler);
   int sz, ret;
 
-  if (dev->connected)
+  if (dev->connected == UDP_CONNECTED)
     return read(p->fd, v, n);
 
   sz = sizeof dev->sock;
@@ -211,7 +232,7 @@ udp_CreateDevice(struct physical *p, char *host, char *port)
     log_Printf(LogDEBUG, "%s: Opened udp socket %s\n", p->link.name,
                p->name.full);
     if (connect(p->fd, (struct sockaddr *)&dev->sock, sizeof dev->sock) == 0) {
-      dev->connected = 1;
+      dev->connected = UDP_CONNECTED;
       return dev;
     } else
       log_Printf(LogWARN, "%s: connect: %s\n", p->name.full, strerror(errno));
@@ -267,8 +288,8 @@ udp_Create(struct physical *p)
         return NULL;
       }
 
-      /* We can't getpeername().... hence we stay un-connect()ed */
-      dev->connected = 0;
+      /* We can't getpeername().... */
+      dev->connected = UDP_MAYBEUNCONNECTED;
 
       log_Printf(LogPHASE, "%s: Link is a udp socket\n", p->link.name);
 

@@ -83,7 +83,7 @@ struct mqueue {
 #define MB_UNKNOWN	38
 #define MB_MAX		MB_UNKNOWN
 
-#define M_MAXLEN	(4096 - sizeof(struct mbuf))
+#define M_MAXLEN	(4352 - sizeof(struct mbuf))	/* > HDLCSIZE */
 
 struct cmdargs;
 

@@ -46,12 +46,14 @@ struct chap {
 #ifdef HAVE_DES
   unsigned NTRespSent : 1;		/* Our last response */
   int peertries;
+  u_char authresponse[CHAPAUTHRESPONSELEN];	/* CHAP 81 response */
 #endif
 };
 
 #define descriptor2chap(d) \
   ((d)->type == CHAP_DESCRIPTOR ? (struct chap *)(d) : NULL)
-#define auth2chap(a) (struct chap *)((char *)a - (int)&((struct chap *)0)->auth)
+#define auth2chap(a) \
+  ((struct chap *)((char *)a - (int)&((struct chap *)0)->auth))
 
 extern void chap_Init(struct chap *, struct physical *);
 extern void chap_ReInit(struct chap *);

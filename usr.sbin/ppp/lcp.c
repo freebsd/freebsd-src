@@ -189,10 +189,12 @@ lcp_ReportStatus(struct cmdargs const *arg)
   prompt_Printf(arg->prompt, "           CHAP =      %s\n",
                 command_ShowNegval(lcp->cfg.chap05));
 #ifdef HAVE_DES
-  prompt_Printf(arg->prompt, "           MSCHAP =    %s\n",
+  prompt_Printf(arg->prompt, "           CHAP80 =    %s\n",
                 command_ShowNegval(lcp->cfg.chap80nt));
   prompt_Printf(arg->prompt, "           LANMan =    %s\n",
                 command_ShowNegval(lcp->cfg.chap80lm));
+  prompt_Printf(arg->prompt, "           CHAP81 =    %s\n",
+                command_ShowNegval(lcp->cfg.chap81));
 #endif
   prompt_Printf(arg->prompt, "           LQR =       %s\n",
                 command_ShowNegval(lcp->cfg.lqr));
@@ -244,6 +246,7 @@ lcp_Init(struct lcp *lcp, struct bundle *bundle, struct link *l,
 #ifdef HAVE_DES
   lcp->cfg.chap80nt = NEG_ACCEPTED;
   lcp->cfg.chap80lm = NEG_ACCEPTED;
+  lcp->cfg.chap81 = NEG_ACCEPTED;
 #endif
   lcp->cfg.lqr = NEG_ACCEPTED;
   lcp->cfg.pap = NEG_ACCEPTED;
@@ -292,6 +295,9 @@ lcp_Setup(struct lcp *lcp, int openmode)
                IsEnabled(lcp->cfg.chap80lm)) {
       lcp->want_auth = PROTO_CHAP;
       lcp->want_authtype = 0x80;
+    } else if (IsEnabled(lcp->cfg.chap81)) {
+      lcp->want_auth = PROTO_CHAP;
+      lcp->want_authtype = 0x81;
 #endif
     } else if (IsEnabled(lcp->cfg.pap)) {
       lcp->want_auth = PROTO_PAP;
@@ -302,7 +308,8 @@ lcp_Setup(struct lcp *lcp, int openmode)
     }
 
     if (p->type != PHYS_DIRECT)
-      memcpy(&lcp->want_callback, &p->dl->cfg.callback, sizeof(struct callback));
+      memcpy(&lcp->want_callback, &p->dl->cfg.callback,
+             sizeof(struct callback));
     else
       lcp->want_callback.opmask = 0;
     lcp->want_lqrperiod = IsEnabled(lcp->cfg.lqr) ?
@@ -733,6 +740,12 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 	    *dec->nakend++ = (unsigned char) (PROTO_CHAP >> 8);
 	    *dec->nakend++ = (unsigned char) PROTO_CHAP;
 	    *dec->nakend++ = 0x80;
+	  } else if (IsAccepted(lcp->cfg.chap81)) {
+	    *dec->nakend++ = *cp;
+	    *dec->nakend++ = 5;
+	    *dec->nakend++ = (unsigned char) (PROTO_CHAP >> 8);
+	    *dec->nakend++ = (unsigned char) PROTO_CHAP;
+	    *dec->nakend++ = 0x81;
 #endif
 	  } else
 	    goto reqreject;
@@ -747,6 +760,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 #ifdef HAVE_DES
               || (cp[4] == 0x80 && (IsAccepted(lcp->cfg.chap80nt) ||
                                    (IsAccepted(lcp->cfg.chap80lm))))
+              || (cp[4] == 0x81 && IsAccepted(lcp->cfg.chap81))
 #endif
              ) {
 	    lcp->his_auth = proto;
@@ -755,9 +769,11 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 	    dec->ackend += length;
 	  } else {
 #ifndef HAVE_DES
-            if (cp[4] == 0x80)
+            if (cp[4] == 0x80) {
               log_Printf(LogWARN, "CHAP 0x80 not available without DES\n");
-            else
+            } else if (cp[4] == 0x81) {
+              log_Printf(LogWARN, "CHAP 0x81 not available without DES\n");
+            } else
 #endif
             if (cp[4] != 0x05)
               log_Printf(LogWARN, "%s not supported\n",
@@ -777,6 +793,12 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 	      *dec->nakend++ = (unsigned char) (PROTO_CHAP >> 8);
 	      *dec->nakend++ = (unsigned char) PROTO_CHAP;
 	      *dec->nakend++ = 0x80;
+            } else if (IsAccepted(lcp->cfg.chap81)) {
+	      *dec->nakend++ = *cp;
+	      *dec->nakend++ = 5;
+	      *dec->nakend++ = (unsigned char) (PROTO_CHAP >> 8);
+	      *dec->nakend++ = (unsigned char) PROTO_CHAP;
+	      *dec->nakend++ = 0x81;
 #endif
             } else if (IsAccepted(lcp->cfg.pap)) {
 	      *dec->nakend++ = *cp;
@@ -816,18 +838,24 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
                                        IsEnabled(lcp->cfg.chap80lm))) {
             lcp->want_auth = PROTO_CHAP;
             lcp->want_authtype = 0x80;
+          } else if (cp[4] == 0x81 && IsEnabled(lcp->cfg.chap81)) {
+            lcp->want_auth = PROTO_CHAP;
+            lcp->want_authtype = 0x81;
 #endif
           } else {
 #ifndef HAVE_DES
-            if (cp[4] == 0x80)
+            if (cp[4] == 0x80) {
               log_Printf(LogLCP, "Peer will only send MSCHAP (not available"
                          " without DES)\n");
-            else
+            } else if (cp[4] == 0x81) {
+              log_Printf(LogLCP, "Peer will only send MSCHAPV2 (not available"
+                         " without DES)\n");
+            } else
 #endif
             log_Printf(LogLCP, "Peer will only send %s (not %s)\n",
                        Auth2Nam(PROTO_CHAP, cp[4]),
 #ifdef HAVE_DES
-                       cp[4] == 0x80 ? "configured" :
+                       (cp[4] == 0x80 || cp[4] == 0x81) ? "configured" :
 #endif
                        "supported");
 	    lcp->his_reject |= (1 << type);

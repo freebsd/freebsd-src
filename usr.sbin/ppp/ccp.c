@@ -61,6 +61,9 @@
 #ifndef NORADIUS
 #include "radius.h"
 #endif
+#ifdef HAVE_DES
+#include "mppe.h"
+#endif
 #include "bundle.h"
 
 static void CcpSendConfigReq(struct fsm *);
@@ -106,7 +109,8 @@ protoname(int proto)
     NULL, NULL, NULL, NULL, NULL, NULL,
     "HWPPC",		/* 16: Hewlett-Packard PPC */
     "STAC",		/* 17: Stac Electronics LZS (rfc1974) */
-    "MPPC",		/* 18: Microsoft PPC (rfc2118) */
+    "MPPE",		/* 18: Microsoft PPC (rfc2118) and */
+			/*     Microsoft PPE (draft-ietf-pppext-mppe) */
     "GAND",		/* 19: Gandalf FZA (rfc1993) */
     "V42BIS",		/* 20: ARG->DATA.42bis compression */
     "BSD",		/* 21: BSD LZW Compress */
@@ -130,6 +134,9 @@ static const struct ccp_algorithm * const algorithm[] = {
   &DeflateAlgorithm,
   &Pred1Algorithm,
   &PppdDeflateAlgorithm
+#ifdef HAVE_DES
+  , &MPPEAlgorithm
+#endif
 };
 
 #define NALGORITHMS (sizeof algorithm/sizeof algorithm[0])
@@ -167,6 +174,11 @@ ccp_ReportStatus(struct cmdargs const *arg)
                 command_ShowNegval(ccp->cfg.neg[CCP_NEG_PRED1]));
   prompt_Printf(arg->prompt, "           DEFLATE24:  %s\n",
                 command_ShowNegval(ccp->cfg.neg[CCP_NEG_DEFLATE24]));
+#ifdef HAVE_DES
+  prompt_Printf(arg->prompt, "           MPPE:       %s",
+                command_ShowNegval(ccp->cfg.neg[CCP_NEG_MPPE]));
+  prompt_Printf(arg->prompt, " (Key Size = %d-bits)\n", ccp->cfg.mppe.keybits);
+#endif
   return 0;
 }
 
@@ -196,6 +208,10 @@ ccp_Init(struct ccp *ccp, struct bundle *bundle, struct link *l,
   ccp->cfg.neg[CCP_NEG_DEFLATE] = NEG_ENABLED|NEG_ACCEPTED;
   ccp->cfg.neg[CCP_NEG_PRED1] = NEG_ENABLED|NEG_ACCEPTED;
   ccp->cfg.neg[CCP_NEG_DEFLATE24] = 0;
+#ifdef HAVE_DES
+  ccp->cfg.mppe.keybits = 128;
+  ccp->cfg.neg[CCP_NEG_MPPE] = NEG_ENABLED|NEG_ACCEPTED;
+#endif
 
   ccp_Setup(ccp);
 }
@@ -360,7 +376,20 @@ static void
 CcpLayerFinish(struct fsm *fp)
 {
   /* We're now down */
+  struct ccp *ccp = fsm2ccp(fp);
+  struct ccp_opt *next;
+
   log_Printf(LogCCP, "%s: LayerFinish.\n", fp->link->name);
+
+  /*
+   * Nuke options that may be left over from sending a REQ but never
+   * coming up.
+   */
+  while (ccp->out.opt) {
+    next = ccp->out.opt->next;
+    free(ccp->out.opt);
+    ccp->out.opt = next;
+  }
 }
 
 /*  Called when CCP has reached the OPEN state */
@@ -369,6 +398,8 @@ CcpLayerUp(struct fsm *fp)
 {
   /* We're now up */
   struct ccp *ccp = fsm2ccp(fp);
+  struct ccp_opt **o;
+  int f;
 
   log_Printf(LogCCP, "%s: LayerUp.\n", fp->link->name);
 
@@ -384,10 +415,14 @@ CcpLayerUp(struct fsm *fp)
     }
   }
 
+  o = &ccp->out.opt;
+  for (f = 0; f < ccp->out.algorithm; f++)
+    if (IsEnabled(ccp->cfg.neg[algorithm[f]->Neg]))
+      o = &(*o)->next;
+
   if (ccp->out.state == NULL && ccp->out.algorithm >= 0 &&
       ccp->out.algorithm < NALGORITHMS) {
-    ccp->out.state = (*algorithm[ccp->out.algorithm]->o.Init)
-                       (&ccp->out.opt->val);
+    ccp->out.state = (*algorithm[ccp->out.algorithm]->o.Init)(&(*o)->val);
     if (ccp->out.state == NULL) {
       log_Printf(LogERROR, "%s: %s (out) initialisation failure\n",
                 fp->link->name, protoname(ccp->my_proto));
@@ -484,8 +519,8 @@ CcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
           if (o->val.id == cp[0])
             break;
         if (o == NULL)
-          log_Printf(LogCCP, "%s: Warning: Ignoring peer NAK of unsent option\n",
-                    fp->link->name);
+          log_Printf(LogCCP, "%s: Warning: Ignoring peer NAK of unsent"
+                     " option\n", fp->link->name);
         else {
 	  memcpy(&o->val, cp, length);
           if ((*algorithm[f]->o.Set)(&o->val) == MODE_ACK)
