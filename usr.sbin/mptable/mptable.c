@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mptable.c,v 1.5 1997/06/23 20:23:44 fsmp Exp $
+ *	$Id: mptable.c,v 1.6 1997/07/22 18:52:20 fsmp Exp $
  */
 
 /*
@@ -31,7 +31,7 @@
 
 #define VMAJOR			2
 #define VMINOR			0
-#define VDELTA			13
+#define VDELTA			14
 
 /*
  * this will cause the raw mp table to be dumped to /tmp/mpdump
@@ -1124,22 +1124,12 @@ doOptionList( void )
     printf( "options		SMP\t\t\t# Symmetric MultiProcessor Kernel\n" );
     printf( "options		APIC_IO\t\t\t# Symmetric (APIC) I/O\n" );
 
-    printf( "\n# Useful:\n" );
-    printf( "#options		SMP_AUTOSTART\t\t# start the additional CPUs during boot\n" );
-
     printf( "\n# Optional (built-in defaults will work in most cases):\n" );
     printf( "#options		NCPU=%d\t\t\t# number of CPUs\n", ncpu );
     printf( "#options		NBUS=%d\t\t\t# number of busses\n", nbus );
     printf( "#options		NAPIC=%d\t\t\t# number of IO APICs\n", napic );
     printf( "#options		NINTR=%d\t\t# number of INTs\n",
 		(nintr < 24) ? 24 : nintr );
-#if 0
-    printf( "\n# Rogue hardware:\n" );
-    printf( "#\n#  Tyan Tomcat II:\n" );
-    printf( "#options		SMP_TIMER_NC\t\t# \n" );
-    printf( "#\n#  SuperMicro P6DNE:\n" );
-    printf( "#options		SMP_TIMER_NC\t\t# \n" );
-#endif /** 0 */
 }
 
 
