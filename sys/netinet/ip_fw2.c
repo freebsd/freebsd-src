@@ -136,7 +136,10 @@ struct ip_fw_chain {
 #define	IPFW_LOCK_DESTROY(_chain)	mtx_destroy(&(_chain)->mtx)
 #define	IPFW_LOCK(_chain)	mtx_lock(&(_chain)->mtx)
 #define	IPFW_UNLOCK(_chain)	mtx_unlock(&(_chain)->mtx)
-#define	IPFW_LOCK_ASSERT(_chain)	mtx_assert(&(_chain)->mtx, MA_OWNED)
+#define	IPFW_LOCK_ASSERT(_chain)	do {				\
+	mtx_assert(&(_chain)->mtx, MA_OWNED);				\
+	NET_ASSERT_GIANT();						\
+} while (0)
 
 /*
  * list of rules for layer 3

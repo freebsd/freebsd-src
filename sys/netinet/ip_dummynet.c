@@ -171,7 +171,10 @@ static struct mtx dummynet_mtx;
 #define	DUMMYNET_LOCK_DESTROY()	mtx_destroy(&dummynet_mtx)
 #define	DUMMYNET_LOCK()		mtx_lock(&dummynet_mtx)
 #define	DUMMYNET_UNLOCK()	mtx_unlock(&dummynet_mtx)
-#define	DUMMYNET_LOCK_ASSERT()	mtx_assert(&dummynet_mtx, MA_OWNED)
+#define	DUMMYNET_LOCK_ASSERT()	do {				\
+	mtx_assert(&dummynet_mtx, MA_OWNED);			\
+	NET_ASSERT_GIANT();					\
+} while (0)
 
 static int config_pipe(struct dn_pipe *p);
 static int ip_dn_ctl(struct sockopt *sopt);
