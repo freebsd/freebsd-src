@@ -231,19 +231,13 @@ vop_stdlock(ap)
 		struct proc *a_p;
 	} */ *ap;
 {               
-	struct lock *l;
-
-	if ((l = (struct lock *)ap->a_vp->v_data) == NULL) {
-		if (ap->a_flags & LK_INTERLOCK)
-			simple_unlock(&ap->a_vp->v_interlock);
-		return 0;
-	}
+	struct vnode *vp = ap->a_vp;
 
 #ifndef	DEBUG_LOCKS
-	return (lockmgr(l, ap->a_flags, &ap->a_vp->v_interlock, ap->a_p));
+	return (lockmgr(&vp->v_lock, ap->a_flags, &vp->v_interlock, ap->a_p));
 #else
-	return (debuglockmgr(l, ap->a_flags, &ap->a_vp->v_interlock, ap->a_p,
-	    "vop_stdlock", ap->a_vp->filename, ap->a_vp->line));
+	return (debuglockmgr(&vp->v_lock, ap->a_flags, &vp->v_interlock,
+	    ap->a_p, "vop_stdlock", vp->filename, vp->line));
 #endif
 }
 
@@ -255,15 +249,9 @@ vop_stdunlock(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
-	struct lock *l;
+	struct vnode *vp = ap->a_vp;
 
-	if ((l = (struct lock *)ap->a_vp->v_data) == NULL) {
-		if (ap->a_flags & LK_INTERLOCK)
-			simple_unlock(&ap->a_vp->v_interlock);
-		return 0;
-	}
-
-	return (lockmgr(l, ap->a_flags | LK_RELEASE, &ap->a_vp->v_interlock, 
+	return (lockmgr(&vp->v_lock, ap->a_flags | LK_RELEASE, &vp->v_interlock, 
 	    ap->a_p));
 }
 
@@ -274,12 +262,8 @@ vop_stdislocked(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
-	struct lock *l;
 
-	if ((l = (struct lock *)ap->a_vp->v_data) == NULL)
-		return 0;
-
-	return (lockstatus(l, ap->a_p));
+	return (lockstatus(&ap->a_vp->v_lock, ap->a_p));
 }
 
 int
@@ -374,13 +358,6 @@ vop_sharedlock(ap)
 	struct vnode *vp = ap->a_vp;
 	int vnflags, flags = ap->a_flags;
 
-	if (vp->v_vnlock == NULL) {
-		if ((flags & LK_TYPE_MASK) == LK_DRAIN)
-			return (0);
-		MALLOC(vp->v_vnlock, struct lock *, sizeof(struct lock),
-		    M_VNODE, M_WAITOK);
-		lockinit(vp->v_vnlock, PVFS, "vnlock", 0, LK_NOPAUSE);
-	}
 	switch (flags & LK_TYPE_MASK) {
 	case LK_DRAIN:
 		vnflags = LK_DRAIN;
@@ -408,9 +385,9 @@ vop_sharedlock(ap)
 	if (flags & LK_INTERLOCK)
 		vnflags |= LK_INTERLOCK;
 #ifndef	DEBUG_LOCKS
-	return (lockmgr(vp->v_vnlock, vnflags, &vp->v_interlock, ap->a_p));
+	return (lockmgr(&vp->v_lock, vnflags, &vp->v_interlock, ap->a_p));
 #else
-	return (debuglockmgr(vp->v_vnlock, vnflags, &vp->v_interlock, ap->a_p,
+	return (debuglockmgr(&vp->v_lock, vnflags, &vp->v_interlock, ap->a_p,
 	    "vop_sharedlock", vp->filename, vp->line));
 #endif
 }
@@ -447,13 +424,6 @@ vop_nolock(ap)
 	struct vnode *vp = ap->a_vp;
 	int vnflags, flags = ap->a_flags;
 
-	if (vp->v_vnlock == NULL) {
-		if ((flags & LK_TYPE_MASK) == LK_DRAIN)
-			return (0);
-		MALLOC(vp->v_vnlock, struct lock *, sizeof(struct lock),
-		    M_VNODE, M_WAITOK);
-		lockinit(vp->v_vnlock, PVFS, "vnlock", 0, LK_NOPAUSE);
-	}
 	switch (flags & LK_TYPE_MASK) {
 	case LK_DRAIN:
 		vnflags = LK_DRAIN;
@@ -472,7 +442,7 @@ vop_nolock(ap)
 	}
 	if (flags & LK_INTERLOCK)
 		vnflags |= LK_INTERLOCK;
-	return(lockmgr(vp->v_vnlock, vnflags, &vp->v_interlock, ap->a_p));
+	return(lockmgr(&vp->v_lock, vnflags, &vp->v_interlock, ap->a_p));
 #else /* for now */
 	/*
 	 * Since we are not using the lock manager, we must clear
@@ -495,15 +465,14 @@ vop_nounlock(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
-	struct vnode *vp = ap->a_vp;
 
-	if (vp->v_vnlock == NULL) {
-		if (ap->a_flags & LK_INTERLOCK)
-			simple_unlock(&ap->a_vp->v_interlock);
-		return (0);
-	}
-	return (lockmgr(vp->v_vnlock, LK_RELEASE | ap->a_flags,
-		&ap->a_vp->v_interlock, ap->a_p));
+	/*
+	 * Since we are not using the lock manager, we must clear
+	 * the interlock here.
+	 */
+	if (ap->a_flags & LK_INTERLOCK)
+		simple_unlock(&ap->a_vp->v_interlock);
+	return (0);
 }
 
 /*
@@ -516,11 +485,8 @@ vop_noislocked(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
-	struct vnode *vp = ap->a_vp;
 
-	if (vp->v_vnlock == NULL)
-		return (0);
-	return (lockstatus(vp->v_vnlock, ap->a_p));
+	return (0);
 }
 
 /*

@@ -1056,7 +1056,11 @@ restart:
 		return (error);
 	}
 	bzero((caddr_t)ip, sizeof(struct inode));
-	lockinit(&ip->i_lock, PINOD, "inode", 0, LK_CANRECURSE);
+	/*
+	 * FFS supports lock sharing in the stack of vnodes
+	 */
+	vp->v_vnlock = &vp->v_lock;
+	lockinit(vp->v_vnlock, PINOD, "inode", 0, LK_CANRECURSE);
 	vp->v_data = ip;
 	ip->i_vnode = vp;
 	ip->i_fs = fs = ump->um_fs;

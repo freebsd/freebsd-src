@@ -37,6 +37,7 @@
 #ifndef _SYS_VNODE_H_
 #define	_SYS_VNODE_H_
 
+#include <sys/lock.h>
 #include <sys/queue.h>
 #include <sys/select.h>
 #include <sys/uio.h>
@@ -115,7 +116,8 @@ struct vnode {
 	int	v_clen;				/* length of current cluster */
 	struct vm_object *v_object;		/* Place to store VM object */
 	struct	simplelock v_interlock;		/* lock on usecount and flag */
-	struct	lock *v_vnlock;			/* used for non-locking fs's */
+	struct	lock v_lock;			/* used if fs don't have one */
+	struct	lock *v_vnlock;			/* pointer to vnode lock */
 	enum	vtagtype v_tag;			/* type of underlying data */
 	void 	*v_data;			/* private data for fs */
 	LIST_HEAD(, namecache) v_cache_src;	/* Cache entries from us */
