@@ -474,6 +474,11 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 	td = curthread;
 
 	if (class->lc_flags & LC_SLEEPLOCK) {
+		/*
+		 * Since spin locks include a critical section, this check
+		 * impliclty enforces a lock order of all sleep locks before
+		 * all spin locks.
+		 */
 		if (td->td_critnest != 0 && (flags & LOP_TRYLOCK) == 0)
 			panic("blockable sleep lock (%s) %s @ %s:%d",
 			    class->lc_name, lock->lo_name, file, line);
