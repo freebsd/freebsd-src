@@ -1,4 +1,4 @@
-#	$Id: bsd.obj.mk,v 1.6 1996/07/12 06:01:55 pst Exp $
+#	$Id: bsd.obj.mk,v 1.7 1996/07/14 11:09:12 peter Exp $
 #
 # The include file <bsd.obj.mk> handles creating 'obj' directory
 # and cleaning up object files, log files etc.
@@ -55,7 +55,8 @@ obj:	_SUBDIR
 			${ECHO} "Unable to create ${.TARGETOBJDIR}."; \
 			exit 1; \
 		fi; \
-		ln -fs ${.TARGETOBJDIR} ${.CURDIR}/obj; \
+		rm -f ${.CURDIR}/obj; \
+		ln -s ${.TARGETOBJDIR} ${.CURDIR}/obj; \
 		${ECHO} "${.CURDIR} -> ${.TARGETOBJDIR}"; \
 	fi
 .endif
@@ -65,7 +66,8 @@ obj:	_SUBDIR
 .if !target(objlink)
 objlink: _SUBDIR
 	@if test -d ${.TARGETOBJDIR}; then \
-		ln -fs ${.TARGETOBJDIR} ${.CURDIR}/obj; \
+		rm -f ${.CURDIR}/obj; \
+		ln -s ${.TARGETOBJDIR} ${.CURDIR}/obj; \
 	else \
 		echo "No ${.TARGETOBJDIR} to link to - do a make obj."; \
 	fi
