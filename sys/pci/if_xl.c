@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.22.2.15 1999/07/07 21:50:56 wpaul Exp $
+ *	$Id: if_xl.c,v 1.22.2.16 1999/07/08 00:43:29 wpaul Exp $
  */
 
 /*
@@ -160,7 +160,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_xl.c,v 1.22.2.15 1999/07/07 21:50:56 wpaul Exp $";
+	"$Id: if_xl.c,v 1.22.2.16 1999/07/08 00:43:29 wpaul Exp $";
 #endif
 
 /*
@@ -1232,7 +1232,7 @@ static void xl_reset(sc)
 		printf("xl%d: reset didn't complete\n", sc->xl_unit);
 
 	/* Wait a little while for the chip to get its brains in order. */
-	DELAY(1000);
+	DELAY(100000);
         return;
 }
 
