@@ -57,12 +57,11 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Some software assumes that IDs are short.  We should emit warnings
- * for id's which can not be stored in a short, but we are more liberal
+ * for id's which cannot be stored in a short, but we are more liberal
  * by default, warning for IDs greater than USHRT_MAX.
  *
- * If pw_big_ids_warning is anything other than -1 on entry to pw_scan()
- * it will be set based on the existance of PW_SCAN_BIG_IDS in the
- * environment.
+ * If pw_big_ids_warning is -1 on entry to pw_scan(), it will be set based
+ * on the existence of PW_SCAN_BIG_IDS in the environment.
  */
 static int	pw_big_ids_warning = -1;
 
