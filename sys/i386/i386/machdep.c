@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.171 1996/01/21 20:57:03 joerg Exp $
+ *	$Id: machdep.c,v 1.172 1996/01/23 02:39:12 davidg Exp $
  */
 
 #include "npx.h"
@@ -400,14 +400,6 @@ again:
 	 */
 	vm_bounce_init();
 #endif
-	/*
-	 * XXX allocate a contiguous area for ISA (non busmaster) DMA
-	 * operations. This _should_ only be done if the DMA channels
-	 * will actually be used, but for now we do it always.
-	 */
-#define DMAPAGES 8
-	isaphysmem =
-	    vm_page_alloc_contig(DMAPAGES * PAGE_SIZE, 0, 0xfffffful, 64*1024);
 
 	printf("avail memory = %d (%dK bytes)\n", ptoa(cnt.v_free_count),
 	    ptoa(cnt.v_free_count) / 1024);

@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.76 1995/12/10 13:38:29 phk Exp $
+ *	$Id: fd.c,v 1.77 1995/12/10 19:44:45 bde Exp $
  *
  */
 
@@ -574,6 +574,7 @@ fdattach(struct isa_device *dev)
 	fdc->fdcu = fdcu;
 	fdc->flags |= FDC_ATTACHED;
 	fdc->dmachan = dev->id_drq;
+	isa_dmainit(fdc->dmachan, 128 << 3 /* XXX max secsize */);
 	fdc->state = DEVIDLE;
 	/* reset controller, turn motor off, clear fdout mirror reg */
 	outb(fdc->baseport + FDOUT, ((fdc->fdout = 0)));
