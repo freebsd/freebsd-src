@@ -232,9 +232,12 @@
 60:5:Ipoh:Malaysia
 61:2:Sydney:Australia
 61:3:Melbourne:Australia
-61:62:Canberra:Australia
+61:3:Victoria (all areas):Australia
+61:3:Tasmania:Australia
+61:6:Canberra:Australia
 61:7:Brisbane:Australia
 61:8:Adelaide:Australia
+61:89:Northern Territory (all areas):Australia
 61:9:Perth:Australia
 62:21:Jakarta:Indonesia
 63:2:Manila:Philippines
@@ -363,9 +366,9 @@
 355:::Albania
 356:::Malta
 357:21:Nicosia:Cyprus
-358:0:Helsinki:Finland
+358:9:Helsinki:Finland
 358:28::Aaland Islands
-358:31:Tampere:Finland
+358:3:Tampere:Finland
 359:2:Sofia:Bulgaria
 370:2:Vilnius:Lithuania
 371:2:Riga:Latvia
