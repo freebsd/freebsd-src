@@ -92,15 +92,23 @@ install:
 		boot1 boot2 ${DESTDIR}${BINDIR}
 
 # If it's not there, don't consider it a target
-.if exists(${.CURDIR}/../../../i386/include)
+.if exists(${.CURDIR}/../../../pc98/include)
 beforedepend ${OBJS}: machine
 
 machine:
-	ln -sf ${.CURDIR}/../../../i386/include machine
+	ln -sf ${.CURDIR}/../../../pc98/include machine
 
 .endif
 
-CLEANFILES+=	machine
+.if exists(${.CURDIR}/../../../i386/include) 
+beforedepend ${OBJS}: i386
+
+i386:
+	ln -sf ${.CURDIR}/../../../i386/include i386
+
+.endif
+
+CLEANFILES+=	machine i386
 
 .include "${.CURDIR}/../../../conf/kern.mk"
 .include <bsd.prog.mk>
