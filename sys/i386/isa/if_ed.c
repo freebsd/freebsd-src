@@ -20,7 +20,7 @@
  */
 
 /*
- * $Id: if_ed.c,v 1.27 1994/01/03 17:17:19 davidg Exp $
+ * $Id: if_ed.c,v 1.28 1994/01/11 23:28:21 ats Exp $
  */
 
 #include "ed.h"
@@ -258,7 +258,7 @@ ed_probe_WD80x3(isa_dev)
 	sc->is790 = 0;
 
 #ifdef TOSH_ETHER
-	outb(sc->asic_addr + ED_WD_MSR, 0x2); /* set the power enable bit */
+	outb(sc->asic_addr + ED_WD_MSR, ED_WD_MSR_POW);
 	DELAY(10000);
 #endif
 	/*
@@ -283,7 +283,7 @@ ed_probe_WD80x3(isa_dev)
 
 	/* reset card to force it into a known state. */
 #ifdef TOSH_ETHER
-	outb(sc->asic_addr + ED_WD_MSR, ED_WD_MSR_RST | 0x2);
+	outb(sc->asic_addr + ED_WD_MSR, ED_WD_MSR_RST | ED_WD_MSR_POW);
 #else
 	outb(sc->asic_addr + ED_WD_MSR, ED_WD_MSR_RST);
 #endif
@@ -364,8 +364,8 @@ ed_probe_WD80x3(isa_dev)
 		memsize = 32768;
 		isa16bit = 1;
 		break;
-	case ED_TYPE_TOSHIBA2:
-		sc->type_str = "Toshiba2";
+	case ED_TYPE_TOSHIBA4:
+		sc->type_str = "Toshiba4";
 		memsize = 32768;
 		isa16bit = 1;
 		break;
@@ -382,7 +382,7 @@ ed_probe_WD80x3(isa_dev)
 	 */
 	if (isa16bit && (sc->type != ED_TYPE_WD8013EBT)
 #ifdef TOSH_ETHER
-	    && (sc->type != ED_TYPE_TOSHIBA1) && (sc->type != ED_TYPE_TOSHIBA2)
+	    && (sc->type != ED_TYPE_TOSHIBA1) && (sc->type != ED_TYPE_TOSHIBA4)
 #endif
 	    && ((inb(sc->asic_addr + ED_WD_ICR) & ED_WD_ICR_16BIT) == 0)) {
 		isa16bit = 0;
@@ -501,7 +501,7 @@ ed_probe_WD80x3(isa_dev)
 #ifdef TOSH_ETHER
 			outb(sc->asic_addr + ED_WD_MSR + 1, ((kvtop(sc->mem_start) >> 8) & 0xe0) | 4);
 			outb(sc->asic_addr + ED_WD_MSR + 2, ((kvtop(sc->mem_start) >> 16) & 0x0f));
-			outb(sc->asic_addr + ED_WD_MSR, ED_WD_MSR_MENB | 0x2);
+			outb(sc->asic_addr + ED_WD_MSR, ED_WD_MSR_MENB | ED_WD_MSR_POW);
 
 #else
 			outb(sc->asic_addr + ED_WD_MSR, ((kvtop(sc->mem_start) >> 13) &
@@ -531,7 +531,7 @@ ed_probe_WD80x3(isa_dev)
 		} else  {
 			if ((sc->type & ED_WD_SOFTCONFIG) ||
 #ifdef TOSH_ETHER
-			    (sc->type == ED_TYPE_TOSHIBA1) || (sc->type == ED_TYPE_TOSHIBA2) ||
+			    (sc->type == ED_TYPE_TOSHIBA1) || (sc->type == ED_TYPE_TOSHIBA4) ||
 #endif
 			    (sc->type == ED_TYPE_WD8013EBT) && (!sc->is790)) {
 				outb(sc->asic_addr + ED_WD_LAAR, (sc->wd_laar_proto =
@@ -1067,7 +1067,7 @@ ed_attach(isa_dev)
 	printf("%s ",sc->isa16bit ? "(16 bit)" : "(8 bit)");
 
 	printf("%s\n", ((sc->vendor == ED_VENDOR_3COM) &&
-		(ifp->if_flags & IFF_ALTPHYS)) ? "tranceiver disabled" : "");
+		(ifp->if_flags & IFF_ALTPHYS)) ? " tranceiver disabled" : "");
 
 	/*
 	 * If BPF is in the kernel, call the attach for it
