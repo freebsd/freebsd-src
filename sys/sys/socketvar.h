@@ -178,7 +178,7 @@ extern struct mtx accept_mtx;
 #define	SOCK_UNLOCK(_so)		SOCKBUF_UNLOCK(&(_so)->so_rcv)
 #define	SOCK_LOCK_ASSERT(_so)		SOCKBUF_LOCK_ASSERT(&(_so)->so_rcv)
 
-/*-
+/*
  * Socket state bits.
  *
  * Historically, this bits were all kept in the so_state field.  For
