@@ -1,6 +1,6 @@
 /***********************************************************************
  *								       *
- * Copyright (c) David L. Mills 1993-1998			       *
+ * Copyright (c) David L. Mills 1993-2001			       *
  *								       *
  * Permission to use, copy, modify, and distribute this software and   *
  * its documentation for any purpose and without fee is hereby	       *
@@ -18,6 +18,10 @@
 
 /*
  * Modification history timex.h
+ *
+ * 16 Aug 00	David L. Mills
+ *	API Version 4. Added MOD_TAI and tai member of ntptimeval
+ *	structure.
  *
  * 17 Nov 98	David L. Mills
  *	Revised for nanosecond kernel and user interface.
@@ -90,7 +94,7 @@
  */
 #ifndef _SYS_TIMEX_H_
 #define _SYS_TIMEX_H_ 1
-#define NTP_API		3	/* NTP API version */
+#define NTP_API		4	/* NTP API version */
 
 #ifndef MSDOS			/* Microsoft specific */
 #include <sys/syscall.h>
@@ -126,6 +130,7 @@
 #define MOD_STATUS	0x0010	/* set clock status bits */
 #define MOD_TIMECONST	0x0020	/* set PLL time constant */
 #define MOD_PPSMAX	0x0040	/* set PPS maximum averaging time */
+#define MOD_TAI		0x0080	/* set TAI offset */
 #define	MOD_MICRO	0x1000	/* select microsecond resolution */
 #define	MOD_NANO	0x2000	/* select nanosecond resolution */
 #define MOD_CLKB	0x4000	/* select clock B */
@@ -174,6 +179,7 @@ struct ntptimeval {
 	struct timespec time;	/* current time (ns) (ro) */
 	long maxerror;		/* maximum error (us) (ro) */
 	long esterror;		/* estimated error (us) (ro) */
+	long tai;		/* TAI offset */
 	int time_state;		/* time status */
 };
 
