@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.51 1996/12/09 08:22:18 jkh Exp $
+ * $Id: tcpip.c,v 1.52 1996/12/12 22:44:22 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -79,47 +79,47 @@ typedef struct _layout {
 } Layout;
 
 static Layout layout[] = {
+#define LAYOUT_HOSTNAME		0
 { 1, 2, 25, HOSTNAME_FIELD_LEN - 1,
       "Host:", "Your fully-qualified hostname, e.g. foo.bar.com",
       hostname, STRINGOBJ, NULL },
-#define LAYOUT_HOSTNAME		0
+#define LAYOUT_DOMAINNAME	1
 { 1, 35, 20, HOSTNAME_FIELD_LEN - 1,
       "Domain:",
       "The name of the domain that your machine is in, e.g. bar.com",
       domainname, STRINGOBJ, NULL },
-#define LAYOUT_DOMAINNAME	1
+#define LAYOUT_GATEWAY		2
 { 5, 2, 18, IPADDR_FIELD_LEN - 1,
       "Gateway:",
       "IP address of host forwarding packets to non-local destinations",
       gateway, STRINGOBJ, NULL },
-#define LAYOUT_GATEWAY		2
+#define LAYOUT_NAMESERVER	3
 { 5, 35, 18, IPADDR_FIELD_LEN - 1,
       "Name server:", "IP address of your local DNS server",
       nameserver, STRINGOBJ, NULL },
-#define LAYOUT_NAMESERVER	3
+#define LAYOUT_IPADDR		4
 { 10, 10, 18, IPADDR_FIELD_LEN - 1,
       "IP Address:",
       "The IP address to be used for this interface",
       ipaddr, STRINGOBJ, NULL },
-#define LAYOUT_IPADDR		4
+#define LAYOUT_NETMASK		5
 { 10, 35, 18, IPADDR_FIELD_LEN - 1,
       "Netmask:",
       "The netmask for this interface, e.g. 0xffffff00 for a class C network",
       netmask, STRINGOBJ, NULL },
-#define LAYOUT_NETMASK		5
+#define LAYOUT_EXTRAS		6
 { 14, 10, 37, HOSTNAME_FIELD_LEN - 1,
       "Extra options to ifconfig:",
       "Any interface-specific options to ifconfig you would like to add",
       extras, STRINGOBJ, NULL },
-#define LAYOUT_EXTRAS		6
+#define LAYOUT_OKBUTTON		7
 { 19, 15, 0, 0,
       "OK", "Select this if you are happy with these settings",
       &okbutton, BUTTONOBJ, NULL },
-#define LAYOUT_OKBUTTON		7
+#define LAYOUT_CANCELBUTTON	8
 { 19, 35, 0, 0,
       "CANCEL", "Select this if you wish to cancel this screen",
       &cancelbutton, BUTTONOBJ, NULL },
-#define LAYOUT_CANCELBUTTON	8
 { NULL },
 };
 
@@ -314,7 +314,7 @@ tcpOpenDialog(Device *devp)
 	if (n == LAYOUT_HOSTNAME) {
 	    /* We are in the Hostname field - calculate the domainname */
 	    if ((tmp = index(hostname, '.')) != NULL) {
-		sstrncpy(domainname, tmp + 1, strlen(tmp + 1));
+		sstrncpy(domainname, tmp + 1, strlen(tmp));
 		RefreshStringObj(layout[LAYOUT_DOMAINNAME].obj);
 	    }
 	}
