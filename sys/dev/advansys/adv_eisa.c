@@ -78,10 +78,8 @@ static	bus_dma_tag_t	overrun_dmat;
 static	bus_dmamap_t	overrun_dmamap;
 static	bus_addr_t	overrun_physbase;
 
-static const char *adveisamatch(eisa_id_t type);
-
 static const char*
-adveisamatch(eisa_id_t type)
+adv_eisa_match(eisa_id_t type)
 {
 	switch (type & ~0xF) {
 	case EISA_DEVICE_ID_ADVANSYS_740:
@@ -97,19 +95,18 @@ adveisamatch(eisa_id_t type)
 }
 
 static int
-adveisaprobe(device_t dev)
+adv_eisa_probe(device_t dev)
 {
 	const char *desc;
 	u_int32_t iobase;
 	u_int8_t irq;
 
-	desc = adveisamatch(eisa_get_id(dev));
+	desc = adv_eisa_match(eisa_get_id(dev));
 	if (!desc)
 		return (ENXIO);
 	device_set_desc(dev, desc);
 
-	iobase = (eisa_get_slot(dev) * EISA_SLOT_SIZE)
-	    + ADV_EISA_SLOT_OFFSET;
+	iobase = (eisa_get_slot(dev) * EISA_SLOT_SIZE) + ADV_EISA_SLOT_OFFSET;
 
 	eisa_add_iospace(dev, iobase, ADV_EISA_IOSIZE, RESVADDR_NONE);
 	irq = inb(iobase + ADV_EISA_IRQ_BURST_LEN_REG);
@@ -133,13 +130,12 @@ adveisaprobe(device_t dev)
 }
 
 static int
-adveisaattach(device_t dev)
+adv_eisa_attach(device_t dev)
 {
 	struct adv_softc *adv;
 	struct adv_softc *adv_b;
 	struct resource *io;
 	struct resource *irq;
-	int unit = device_get_unit(dev);
 	int rid, error;
 	void *ih;
 
@@ -165,7 +161,7 @@ adveisaattach(device_t dev)
 
 	switch (eisa_get_id(dev) & ~0xF) {
 	case EISA_DEVICE_ID_ADVANSYS_750:
-		adv_b = adv_alloc(unit, rman_get_bustag(io),
+		adv_b = adv_alloc(dev, rman_get_bustag(io),
 				  rman_get_bushandle(io) + ADV_EISA_OFFSET_CHAN2);
 		if (adv_b == NULL)
 			goto bad;
@@ -197,7 +193,7 @@ adveisaattach(device_t dev)
 
 		/* FALLTHROUGH */
 	case EISA_DEVICE_ID_ADVANSYS_740:
-		adv = adv_alloc(unit, rman_get_bustag(io),
+		adv = adv_alloc(dev, rman_get_bustag(io),
 				rman_get_bushandle(io) + ADV_EISA_OFFSET_CHAN1);
 		if (adv == NULL) {
 			if (adv_b != NULL)
@@ -330,18 +326,14 @@ adveisaattach(device_t dev)
 
 static device_method_t adv_eisa_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		adveisaprobe),
-	DEVMETHOD(device_attach,	adveisaattach),
-
+	DEVMETHOD(device_probe,		adv_eisa_probe),
+	DEVMETHOD(device_attach,	adv_eisa_attach),
 	{ 0, 0 }
 };
 
 static driver_t adv_eisa_driver = {
-	"adv",
-	adv_eisa_methods,
-	1,			/* unused */
+	"adv", adv_eisa_methods, sizeof(struct adv_softc)
 };
 
-static devclass_t adv_devclass;
-
-DRIVER_MODULE(adv, eisa, adv_eisa_driver, adv_devclass, 0, 0);
+static devclass_t adv_eisa_devclass;
+DRIVER_MODULE(adv, eisa, adv_eisa_driver, adv_eisa_devclass, 0, 0);
