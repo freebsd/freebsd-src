@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.41 1995/11/05 04:43:11 gibbs Exp $
+ *	$Id: autoconf.c,v 1.42 1995/11/20 12:09:54 phk Exp $
  */
 
 /*
@@ -75,6 +75,9 @@ static void setroot(void);
  */
 int	dkn;		/* number of iostat dk numbers assigned so far */
 
+#ifdef MFS_ROOT
+extern struct vfsops	mfs_vfsops;
+#endif
 #ifdef FFS
 extern struct vfsops	ufs_vfsops;
 #endif
@@ -89,11 +92,6 @@ int cd9660_mountroot __P((void *));
 #endif
 #ifdef MSDOSFS
 int msdosfs_mountroot __P((void *));
-#endif
-#ifdef MFS_ROOT
-int mfs_initminiroot __P((u_char *));
-u_char mfs_root[MFS_ROOT*1024] = "MFS Filesystem goes here";
-u_char end_mfs_root[] = "MFS Filesystem had better STOP here";
 #endif
 
 #include "eisa.h"
@@ -199,10 +197,6 @@ configure(dummy)
 
 	cninit_finish();
 
-#ifdef MFS_ROOT
-	mfs_initminiroot(mfs_root);		/* XXX UGLY*/
-#endif /* MFS_ROOT */
-
 #ifdef CD9660
 	if ((boothowto & RB_CDROM) && !mountroot)
 		mountroot = find_cdrom_root;
@@ -213,6 +207,22 @@ configure(dummy)
 		mountroot = nfs_mountroot;
 #endif /* NFS */
 
+#ifdef MFS_ROOT
+	if (!mountroot) {
+		mountroot = vfs_mountroot;	/* XXX goes away*/
+		mountrootvfsops = &mfs_vfsops;
+		/*
+		 * Ignore the -a flag if this kernel isn't compiled
+		 * with a generic root/swap configuration: if we skip
+		 * setroot() and we aren't a generic kernel, chaos
+		 * will ensue because setconf() will be a no-op.
+		 * (rootdev is always initialized to NODEV in a
+		 * generic configuration, so we test for that.)
+		 */
+		if ((boothowto & RB_ASKNAME) == 0 || rootdev != NODEV)
+			setroot();
+	}
+#endif
 #ifdef FFS
 	if (!mountroot) {
 		mountroot = vfs_mountroot;	/* XXX goes away*/
