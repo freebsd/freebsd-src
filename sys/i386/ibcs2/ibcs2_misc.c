@@ -314,7 +314,7 @@ ibcs2_getdents(p, uap, retval)
 	struct iovec aiov;
 	struct ibcs2_dirent idb;
 	off_t off;			/* true file offset */
-	int buflen, error, eofflag;
+	int buflen, error, eofflag, blockoff;
 #define	BSD_DIRENT(cp)		((struct direct *)(cp))
 #define	IBCS2_RECLEN(reclen)	(reclen + sizeof(u_short))
 
@@ -325,10 +325,13 @@ ibcs2_getdents(p, uap, retval)
 	vp = (struct vnode *)fp->f_data;
 	if (vp->v_type != VDIR)	/* XXX  vnode readdir op should do this */
 		return (EINVAL);
-	buflen = min(MAXBSIZE, SCARG(uap, nbytes));
+
+	off = fp->f_offset;
+	blockoff = off % DIRBLKSIZ;
+	buflen = max(DIRBLKSIZ, SCARG(uap, nbytes) + blockoff);
+	buflen = min(buflen, MAXBSIZE);
 	buf = malloc(buflen, M_TEMP, M_WAITOK);
 	VOP_LOCK(vp);
-	off = fp->f_offset;
 again:
 	aiov.iov_base = buf;
 	aiov.iov_len = buflen;
@@ -338,7 +341,7 @@ again:
 	auio.uio_segflg = UIO_SYSSPACE;
 	auio.uio_procp = p;
 	auio.uio_resid = buflen;
-	auio.uio_offset = off;
+	auio.uio_offset = off - (off_t)blockoff;
 	/*
 	 * First we read into the malloc'ed buffer, then
 	 * we massage it into user space, one record at a time.
@@ -346,17 +349,21 @@ again:
 	if (error = VOP_READDIR(vp, &auio, fp->f_cred, &eofflag, NULL, NULL))
 		goto out;
 	inp = buf;
+	inp += blockoff;
 	outp = SCARG(uap, buf);
 	resid = SCARG(uap, nbytes);
-	if ((len = buflen - auio.uio_resid) == 0)
+	if ((len = buflen - auio.uio_resid - blockoff) == 0)
 		goto eof;
 	for (; len > 0; len -= reclen) {
 		reclen = BSD_DIRENT(inp)->d_reclen;
-		if (reclen & 3)
-			panic("ibcs2_getdents");
-		off += reclen;		/* each entry points to next */
+		if (reclen & 3) {
+		        printf("ibcs2_getdents: reclen=%d\n", reclen);
+		        error = EFAULT;
+			goto out;
+		}
 		if (BSD_DIRENT(inp)->d_ino == 0) {
 			inp += reclen;	/* it is a hole; squish it out */
+			off += reclen;
 			continue;
 		}
 		if (reclen > len || resid < IBCS2_RECLEN(reclen)) {
@@ -377,6 +384,7 @@ again:
 				     BSD_DIRENT(inp)->d_namlen + 1)) != 0)
 			goto out;
 		/* advance past this real entry */
+		off += reclen;
 		inp += reclen;
 		/* advance output past iBCS2-shaped entry */
 		outp += IBCS2_RECLEN(reclen);
@@ -413,7 +421,7 @@ ibcs2_read(p, uap, retval)
 		char name[14];
 	} idb;
 	off_t off;			/* true file offset */
-	int buflen, error, eofflag, size;
+	int buflen, error, eofflag, size, blockoff;
 
 	if (error = getvnode(p->p_fd, SCARG(uap, fd), &fp)) {
 		if (error == EINVAL)
@@ -426,11 +434,15 @@ ibcs2_read(p, uap, retval)
 	vp = (struct vnode *)fp->f_data;
 	if (vp->v_type != VDIR)
 		return read(p, (struct read_args *)uap, retval);
+
 	DPRINTF(("ibcs2_read: read directory\n"));
-	buflen = max(MAXBSIZE, SCARG(uap, nbytes));
+
+	off = fp->f_offset;
+	blockoff = off % DIRBLKSIZ;
+	buflen = max(DIRBLKSIZ, SCARG(uap, nbytes) + blockoff);
+	buflen = min(buflen, MAXBSIZE);
 	buf = malloc(buflen, M_TEMP, M_WAITOK);
 	VOP_LOCK(vp);
-	off = fp->f_offset;
 again:
 	aiov.iov_base = buf;
 	aiov.iov_len = buflen;
@@ -440,7 +452,7 @@ again:
 	auio.uio_segflg = UIO_SYSSPACE;
 	auio.uio_procp = p;
 	auio.uio_resid = buflen;
-	auio.uio_offset = off & ~(DIRBLKSIZ - 1);
+	auio.uio_offset = off - (off_t)blockoff;
 	/*
 	 * First we read into the malloc'ed buffer, then
 	 * we massage it into user space, one record at a time.
@@ -449,16 +461,19 @@ again:
 		DPRINTF(("VOP_READDIR failed: %d\n", error));
 		goto out;
 	}
-	inp = buf + (off & (DIRBLKSIZ - 1));
-	buflen -= off & (DIRBLKSIZ - 1);
+	inp = buf;
+	inp += blockoff;
 	outp = SCARG(uap, buf);
 	resid = SCARG(uap, nbytes);
-	if ((len = buflen - auio.uio_resid) == 0)
+	if ((len = buflen - auio.uio_resid - blockoff) == 0)
 		goto eof;
 	for (; len > 0 && resid > 0; len -= reclen) {
 		reclen = BSD_DIRENT(inp)->d_reclen;
-		if (reclen & 3)
-			panic("ibcs2_read");
+		if (reclen & 3) {
+		        printf("ibcs2_read: reclen=%d\n", reclen);
+		        error = EFAULT;
+			goto out;
+		}
 		if (BSD_DIRENT(inp)->d_ino == 0) {
 			inp += reclen;	/* it is a hole; squish it out */
 			off += reclen;
