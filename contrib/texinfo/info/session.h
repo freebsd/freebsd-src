@@ -1,7 +1,7 @@
 /* session.h -- Functions found in session.c.
-   $Id: session.h,v 1.9 1999/06/25 21:57:40 karl Exp $
+   $Id: session.h,v 1.10 2001/11/16 23:17:15 karl Exp $
 
-   Copyright (C) 1993, 98, 99 Free Software Foundation, Inc.
+   Copyright (C) 1993, 98, 99, 2001 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -65,7 +65,6 @@ extern unsigned char info_get_input_char (), info_get_another_input_char ();
 extern unsigned char info_input_pending_p ();
 extern void remember_window_and_node (), set_remembered_pagetop_and_point ();
 extern void set_window_pagetop (), info_set_node_of_window ();
-extern char *pretty_keyseq ();
 extern void initialize_keyseq (), add_char_to_keyseq ();
 extern void info_gather_typeahead ();
 extern FILE_BUFFER *file_buffer_of_window ();
