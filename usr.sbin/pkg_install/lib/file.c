@@ -328,9 +328,9 @@ copy_hierarchy(const char *dir, const char *fname, Boolean to)
 int
 unpack(const char *pkg, const char *flist)
 {
-    char args[10], suff[80], *cp;
+    char *comp, suff[80], *cp;
 
-    args[0] = '\0';
+    comp = "";
     /*
      * Figure out by a crude heuristic whether this or not this is probably
      * compressed and whichever compression utility was used (gzip or bzip2).
@@ -341,17 +341,16 @@ unpack(const char *pkg, const char *flist)
 	    strcpy(suff, cp + 1);
 	    if (strchr(suff, 'z') || strchr(suff, 'Z')) {
 		if (strchr(suff, 'b'))
-		    strcpy(args, "-j");
+		    comp = "-j";
 		else
-		    strcpy(args, "-z");
+		    comp = "-z";
 	    }
 	}
     }
     else
 	/* XXX: need to handle .tgz also */
-	strcpy(args, "-j");
-    strcat(args, " -xpf");
-    if (vsystem("tar %s '%s' %s", args, pkg, flist ? flist : "")) {
+	comp = "-j";
+    if (vsystem("tar -xp %s -f '%s' %s", comp, pkg, flist ? flist : "")) {
 	warnx("tar extract of %s failed!", pkg);
 	return 1;
     }
