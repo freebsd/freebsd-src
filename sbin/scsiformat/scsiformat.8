@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)scsiformat.8	5.1 (Berkeley) 6/5/93
-.\"	$Id: scsiformat.8,v 1.7 1997/02/22 14:33:17 peter Exp $
+.\"	$Id: scsiformat.8,v 1.8 1997/03/02 11:21:05 joerg Exp $
 .\"
 .Dd June 5, 1993
 .Dt SCSIFORMAT 8
@@ -45,7 +45,7 @@
 .Ar device-name
 .Sh DESCRIPTION
 The
-.Nm scsiformat
+.Nm
 utility can be used to format SCSI disks
 on systems that support on-line SCSI formatting.
 It will also show the various parameters set in the SCSI controller.
@@ -63,7 +63,7 @@ The options are as follows:
 .It Fl p
 Modify how the SCSI mode sense page query is constructed.
 By default,
-.Nm scsiformat
+.Nm
 asks for the current settings.
 The page-control flag is one of:
 .sp
@@ -84,7 +84,7 @@ drive.
 .It Fl y
 Yes; do format without asking any question.  If this option is not
 provided,
-.Nm scsiformat
+.Nm
 will ask back before actually starting to format the device.  At this
 point, hitting the interrupt key (normally Control-C) will abort the
 program.
@@ -97,13 +97,15 @@ These should mostly be self-explanatory.
 A copy of the SCSI standard (or a more readable derivative)
 may be useful, however.
 .Sh SEE ALSO
-.Xr scsi 8 .
+.Xr scsi 8
 .Sh HISTORY
 The
-.Nm scsiformat
+.Nm
 utility first appeared in
 .Bx 4.4 .
 This version has been reworked as a wrapper around
 .Xr scsi 8
-by Peter Dufault for
+by
+.An Peter Dufault
+for
 .Fx 2.1 .
