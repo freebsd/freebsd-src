@@ -82,6 +82,8 @@ _fetch_stat_file(char *fn, struct url_stat *us)
 {
     struct stat sb;
 
+    us->size = -1;
+    us->atime = us->mtime = 0;
     if (stat(fn, &sb) == -1) {
 	_fetch_syserr();
 	return -1;
