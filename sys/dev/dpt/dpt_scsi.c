@@ -43,7 +43,7 @@
  *	       arrays that span controllers (Wow!).
  */
 
-#ident "$Id: dpt_scsi.c,v 1.21 1998/12/22 00:52:27 eivind Exp $"
+#ident "$Id: dpt_scsi.c,v 1.22 1998/12/22 20:21:12 eivind Exp $"
 
 #define _DPT_C_
 
@@ -974,6 +974,7 @@ dpt_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->max_lun = dpt->max_lun;
 		cpi->initiator_id = dpt->hostid[cam_sim_bus(sim)];
 		cpi->bus_id = cam_sim_bus(sim);
+		cpi->base_transfer_speed = 3300;
 		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 		strncpy(cpi->hba_vid, "DPT", HBA_IDLEN);
 		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);

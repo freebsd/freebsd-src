@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: adwcam.c,v 1.1 1998/10/07 03:20:46 gibbs Exp $
+ *      $Id: adwcam.c,v 1.2 1998/10/15 23:47:14 gibbs Exp $
  */
 /*
  * Ported from:
@@ -595,7 +595,8 @@ adw_action(struct cam_sim *sim, union ccb *ccb)
 				}
 			}
 
-			if ((cts->valid &  CCB_TRANS_SYNC_RATE_VALID) != 0) {
+			if (((cts->valid & CCB_TRANS_SYNC_RATE_VALID) != 0)
+			 || ((cts->valid & CCB_TRANS_SYNC_OFFSET_VALID) != 0)) {
 				u_int sdtrenb_orig;
 				u_int sdtrenb;
 				u_int ultraenb_orig;
@@ -613,14 +614,18 @@ adw_action(struct cam_sim *sim, union ccb *ccb)
 				sdtrdone = adw_lram_read_16(adw,
 							    ADW_MC_SDTR_DONE);
 
-				if (cts->sync_period == 0) {
-					sdtrenb &= ~target_mask;
-				} else if (cts->sync_period > 12) {
-					ultraenb &= ~target_mask;
-					sdtrenb |= target_mask;
-				} else {
-					ultraenb |= target_mask;
-					sdtrenb |= target_mask;
+				if ((cts->valid
+				   & CCB_TRANS_SYNC_RATE_VALID) != 0) {
+
+					if (cts->sync_period == 0) {
+						sdtrenb &= ~target_mask;
+					} else if (cts->sync_period > 12) {
+						ultraenb &= ~target_mask;
+						sdtrenb |= target_mask;
+					} else {
+						ultraenb |= target_mask;
+						sdtrenb |= target_mask;
+					}
 				}
 					
 				if ((cts->valid
@@ -786,6 +791,7 @@ adw_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->max_lun = ADW_MAX_LUN;
 		cpi->initiator_id = adw->initiator_id;
 		cpi->bus_id = cam_sim_bus(sim);
+		cpi->base_transfer_speed = 3300;
 		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 		strncpy(cpi->hba_vid, "AdvanSys", HBA_IDLEN);
 		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);

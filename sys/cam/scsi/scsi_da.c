@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_da.c,v 1.19.2.1 1999/02/18 22:05:55 ken Exp $
+ *      $Id: scsi_da.c,v 1.19.2.2 1999/03/07 00:40:31 gibbs Exp $
  */
 
 #include "opt_hw_wdog.h"
@@ -1381,13 +1381,12 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 							   &asc, &ascq);
 				}
 				/*
-				 * With removable media devices, we expect
-				 * 0x3a (Medium not present) errors, since not
-				 * everyone leaves a disk in the drive.  If
-				 * the error is anything else, though, we
-				 * shouldn't attach.
+				 * Attach to anything that claims to be a
+				 * direct access or optical disk device,
+				 * as long as it doesn't return a "Logical
+				 * unit not supported" (0x25) error.
 				 */
-				if ((have_sense) && (asc == 0x3a)
+				if ((have_sense) && (asc != 0x25)
 				 && (error_code == SSD_CURRENT_ERROR))
 					snprintf(announce_buf,
 					    sizeof(announce_buf),

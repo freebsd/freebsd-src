@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: cam_sim.h,v 1.1 1998/09/15 06:33:23 gibbs Exp $
  */
 
 #ifndef _CAM_CAM_SIM_H
@@ -56,14 +56,12 @@ struct cam_sim *  cam_sim_alloc(sim_action_func sim_action,
 				char *sim_name,
 				void *softc,
 				u_int32_t unit,
-				u_int32_t max_dev_transactions,
-				u_int32_t max_tagged_dev_transactions,
+				int max_dev_transactions,
+				int max_tagged_dev_transactions,
 				struct cam_devq *queue);
 void		  cam_sim_free(struct cam_sim *sim, int free_devq);
 
 /* Optional sim attributes may be set with these. */
-void	cam_sim_set_basexfer_speed(struct cam_sim *sim,
-				   u_int32_t base_xfer_speed);
 void	cam_sim_set_path(struct cam_sim *sim, u_int32_t path_id);
 
 
@@ -95,9 +93,8 @@ struct cam_sim {
 	u_int32_t		path_id;/* The Boot device may set this to 0? */
 	u_int32_t		unit_number;
 	u_int32_t		bus_id;
-	u_int32_t		base_transfer_speed; /* in kB/s */
-	u_int32_t		max_tagged_dev_openings;
-	u_int32_t		max_dev_openings;
+	int			max_tagged_dev_openings;
+	int			max_dev_openings;
 	u_int32_t		flags;
 #define		CAM_SIM_REL_TIMEOUT_PENDING	0x01
 	struct callout_handle	c_handle;

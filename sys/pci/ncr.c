@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.140 1998/12/14 05:47:27 dillon Exp $
+**  $Id: ncr.c,v 1.141 1998/12/30 00:37:44 hoek Exp $
 **
 **  Device driver for the   NCR 53C8XX   PCI-SCSI-Controller Family.
 **
@@ -1357,7 +1357,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 #if !defined(lint)
 static const char ident[] =
-	"\n$Id: ncr.c,v 1.140 1998/12/14 05:47:27 dillon Exp $\n";
+	"\n$Id: ncr.c,v 1.141 1998/12/30 00:37:44 hoek Exp $\n";
 #endif
 
 static const u_long	ncr_version = NCR_VERSION	* 11
@@ -4008,8 +4008,10 @@ ncr_action (struct cam_sim *sim, union ccb *ccb)
 			 != tp->tinfo.goal.width) {
 				tp->nego_cp = cp;
 				nego = NS_WIDE;
-			} else if (tp->tinfo.current.period
-				!= tp->tinfo.goal.period) {
+			} else if ((tp->tinfo.current.period
+				    != tp->tinfo.goal.period)
+				|| (tp->tinfo.current.offset
+				    != tp->tinfo.goal.offset)) {
 				tp->nego_cp = cp;
 				nego = NS_SYNC;
 			};
@@ -4313,10 +4315,13 @@ ncr_action (struct cam_sim *sim, union ccb *ccb)
 				cts->bus_width = np->maxwide;
 		}
 
-		if ((cts->valid & CCB_TRANS_SYNC_RATE_VALID) != 0) {
-			if (cts->sync_period != 0
-			 && (cts->sync_period < np->minsync))
-				cts->sync_period = np->minsync;
+		if (((cts->valid & CCB_TRANS_SYNC_RATE_VALID) != 0)
+		 || ((cts->valid & CCB_TRANS_SYNC_OFFSET_VALID) != 0)) {
+			if ((cts->valid & CCB_TRANS_SYNC_RATE_VALID) != 0) {
+				if (cts->sync_period != 0
+				 && (cts->sync_period < np->minsync))
+					cts->sync_period = np->minsync;
+			}
 			if ((cts->valid & CCB_TRANS_SYNC_OFFSET_VALID) != 0) {
 				if (cts->sync_offset == 0)
 					cts->sync_period = 0;
@@ -4325,14 +4330,22 @@ ncr_action (struct cam_sim *sim, union ccb *ccb)
 			}
 		}
 		if ((update_type & NCR_TRANS_USER) != 0) {
-			tp->tinfo.user.period = cts->sync_period;
-			tp->tinfo.user.offset = cts->sync_offset;
-			tp->tinfo.user.width = cts->bus_width;
+			if ((cts->valid & CCB_TRANS_SYNC_RATE_VALID) != 0)
+				tp->tinfo.user.period = cts->sync_period;
+			if ((cts->valid & CCB_TRANS_SYNC_OFFSET_VALID) != 0)
+				tp->tinfo.user.offset = cts->sync_offset;
+			if ((cts->valid & CCB_TRANS_BUS_WIDTH_VALID) != 0)
+				tp->tinfo.user.width = cts->bus_width;
 		}
 		if ((update_type & NCR_TRANS_GOAL) != 0) {
-			tp->tinfo.goal.period = cts->sync_period;
-			tp->tinfo.goal.offset = cts->sync_offset;
-			tp->tinfo.goal.width = cts->bus_width;
+			if ((cts->valid & CCB_TRANS_SYNC_RATE_VALID) != 0)
+				tp->tinfo.goal.period = cts->sync_period;
+
+			if ((cts->valid & CCB_TRANS_SYNC_OFFSET_VALID) != 0)
+				tp->tinfo.goal.offset = cts->sync_offset;
+
+			if ((cts->valid & CCB_TRANS_BUS_WIDTH_VALID) != 0)
+				tp->tinfo.goal.width = cts->bus_width;
 		}
 		splx(s);
 		ccb->ccb_h.status = CAM_REQ_CMP;
@@ -4354,21 +4367,25 @@ ncr_action (struct cam_sim *sim, union ccb *ccb)
 		if ((cts->flags & CCB_TRANS_CURRENT_SETTINGS) != 0) {
 			tinfo = &tp->tinfo.current;
 			if (tp->tinfo.disc_tag & NCR_CUR_DISCENB)
-				cts->flags = CCB_TRANS_DISC_ENB;
+				cts->flags |= CCB_TRANS_DISC_ENB;
 			else
-				cts->flags = 0;
+				cts->flags &= ~CCB_TRANS_DISC_ENB;
 
 			if (tp->tinfo.disc_tag & NCR_CUR_TAGENB)
 				cts->flags |= CCB_TRANS_TAG_ENB;
+			else
+				cts->flags &= ~CCB_TRANS_TAG_ENB;
 		} else {
 			tinfo = &tp->tinfo.user;
 			if (tp->tinfo.disc_tag & NCR_USR_DISCENB)
-				cts->flags = CCB_TRANS_DISC_ENB;
+				cts->flags |= CCB_TRANS_DISC_ENB;
 			else
-				cts->flags = 0;
+				cts->flags &= ~CCB_TRANS_DISC_ENB;
 
 			if (tp->tinfo.disc_tag & NCR_USR_TAGENB)
 				cts->flags |= CCB_TRANS_TAG_ENB;
+			else
+				cts->flags &= ~CCB_TRANS_TAG_ENB;
 		}
 
 		cts->sync_period = tinfo->period;
@@ -4444,6 +4461,7 @@ ncr_action (struct cam_sim *sim, union ccb *ccb)
 		cpi->max_lun = MAX_LUN - 1;
 		cpi->initiator_id = np->myaddr;
 		cpi->bus_id = cam_sim_bus(sim);
+		cpi->base_transfer_speed = 3300;
 		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 		strncpy(cpi->hba_vid, "Symbios", HBA_IDLEN);
 		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
@@ -4771,8 +4789,8 @@ ncr_freeze_devq (ncb_p np, struct cam_path *path)
 **==========================================================
 */
 
-void ncr_init
-(ncb_p np, char * msg, u_long code)
+void
+ncr_init(ncb_p np, char * msg, u_long code)
 {
 	int	i;
 
@@ -7060,8 +7078,8 @@ static void ncr_getclock (ncb_p np, u_char multiplier)
 	stest1 = INB(nc_stest1);
 	  
 	np->multiplier = 1;
-	/* always false, except for 875 with clock doubler selected */
-	if ((stest1 & (DBLEN+DBLSEL)) == DBLEN+DBLSEL) {
+
+	if (multiplier > 1) {
 		np->multiplier	= multiplier;
 		np->clock_khz	= 40000 * multiplier;
 	} else {

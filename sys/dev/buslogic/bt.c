@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bt.c,v 1.13.2.1 1999/03/08 21:39:34 gibbs Exp $
+ *      $Id: bt.c,v 1.13.2.2 1999/04/07 23:11:20 gibbs Exp $
  */
 
  /*
@@ -1255,7 +1255,7 @@ btaction(struct cam_sim *sim, union ccb *ccb)
 	case XPT_SET_TRAN_SETTINGS:
 	{
 		/* XXX Implement */
-		ccb->ccb_h.status = CAM_REQ_CMP;
+		ccb->ccb_h.status = CAM_PROVIDE_FAIL;
 		xpt_done(ccb);
 		break;
 	}
@@ -1359,6 +1359,7 @@ btaction(struct cam_sim *sim, union ccb *ccb)
 		cpi->max_lun = 7;
 		cpi->initiator_id = bt->scsi_id;
 		cpi->bus_id = cam_sim_bus(sim);
+		cpi->base_transfer_speed = 3300;
 		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 		strncpy(cpi->hba_vid, "BusLogic", HBA_IDLEN);
 		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);

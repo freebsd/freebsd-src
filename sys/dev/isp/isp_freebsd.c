@@ -1,4 +1,4 @@
-/* $Id: $ */
+/* $Id: isp_freebsd.c,v 1.10 1998/12/28 19:22:26 mjacob Exp $ */
 /* release_12_28_98_A */
 /*
  * Platform (FreeBSD) dependent common attachment code for Qlogic adapters.
@@ -83,15 +83,6 @@ isp_attach(struct ispsoftc *isp)
 	csa.callback_arg = isp->isp_sim;
 	xpt_action((union ccb *)&csa);
 
-	/*
-	 * Set base transfer capabilities for Fibre Channel.
-	 * Technically not correct because we don't know
-	 * what media we're running on top of- but we'll
-	 * look good if we always say 100MB/s.
-	 */
-	if (isp->isp_type & ISP_HA_FC) {
-		isp->isp_sim->base_transfer_speed = 100000;
-	}
 	isp->isp_state = ISP_RUNSTATE;
 }
 
@@ -489,6 +480,13 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 #else
 			cpi->max_lun = (1 << 4) - 1;
 #endif
+			/*
+			 * Set base transfer capabilities for Fibre Channel.
+			 * Technically not correct because we don't know
+			 * what media we're running on top of- but we'll
+			 * look good if we always say 100MB/s.
+			 */
+			cpi->base_transfer_speed = 100000;
 		} else {
 			cpi->initiator_id =
 			    ((sdparam *)isp->isp_param)->isp_initiator_id;
@@ -505,6 +503,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			} else {
 				cpi->max_lun = (1 << 3) - 1;
 			}
+			cpi->base_transfer_speed = 3300;
 		}
 
 		cpi->bus_id = cam_sim_bus(sim);

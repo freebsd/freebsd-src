@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.16.2.5 1999/04/07 23:10:04 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.16.2.6 1999/04/19 21:37:50 gibbs Exp $
  */
 /*
  * A few notes on features of the driver.
@@ -812,6 +812,7 @@ ahc_update_target_msg_request(struct ahc_softc *ahc,
 	targ_msg_req_orig = ahc->targ_msg_req;
 	if (tinfo->current.period != tinfo->goal.period
 	 || tinfo->current.width != tinfo->goal.width
+	 || tinfo->current.offset != tinfo->goal.offset
 	 || (force
 	  && (tinfo->goal.period != 0
 	   || tinfo->goal.width != MSG_EXT_WDTR_BUS_8_BIT)))
@@ -4193,7 +4194,8 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 				      cts->bus_width, update_type);
 		}
 
-		if ((cts->valid &  CCB_TRANS_SYNC_RATE_VALID) != 0) {
+		if (((cts->valid & CCB_TRANS_SYNC_RATE_VALID) != 0)
+		 || ((cts->valid & CCB_TRANS_SYNC_OFFSET_VALID) != 0)) {
 			struct ahc_syncrate *syncrate;
 			u_int maxsync;
 
@@ -4209,6 +4211,13 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 					cts->sync_offset = tinfo->user.offset;
 				else
 					cts->sync_offset = tinfo->goal.offset;
+			}
+
+			if ((cts->valid & CCB_TRANS_SYNC_RATE_VALID) == 0) {
+				if (update_type & AHC_TRANS_USER)
+					cts->sync_period = tinfo->user.period;
+				else
+					cts->sync_period = tinfo->goal.period;
 			}
 
 			syncrate = ahc_find_syncrate(ahc, &cts->sync_period,
@@ -4358,6 +4367,7 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 				cpi->hba_misc |= PIM_NOBUSRESET;
 		}
 		cpi->bus_id = cam_sim_bus(sim);
+		cpi->base_transfer_speed = 3300;
 		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 		strncpy(cpi->hba_vid, "Adaptec", HBA_IDLEN);
 		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);

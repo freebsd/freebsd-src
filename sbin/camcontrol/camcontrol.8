@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1998 Kenneth D. Merry.
+.\" Copyright (c) 1998, 1999 Kenneth D. Merry.
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: camcontrol.8,v 1.10 1999/02/27 07:55:58 ken Exp $
+.\"	$Id: camcontrol.8,v 1.9.2.1 1999/05/04 12:01:54 kris Exp $
 .\"
 .Dd September 14, 1998
 .Dt CAMCONTROL 8
@@ -97,6 +97,24 @@ debug
 .Op Fl S
 .Op Fl c
 .Aq all|off|bus Ns Op :target Ns Op :lun
+.Nm camcontrol
+tags
+.Op generic args
+.Op Fl N Ar tags
+.Op Fl q
+.Op Fl v
+.Nm camcontrol
+negotiate
+.Op generic args
+.Op Fl c
+.Op Fl D Ar enable|disable
+.Op Fl O Ar offset
+.Op Fl q
+.Op Fl R Ar syncrate
+.Op Fl T Ar enable|disable
+.Op Fl U
+.Op Fl W Ar bus_width
+.Op Fl v
 .Sh DESCRIPTION
 .Nm camcontrol
 is a utility designed to provide a way for users to access and control the
@@ -105,7 +123,7 @@ CAM subsystem.
 .Pp
 .Nm camcontrol
 can cause a loss of data and/or system crashes if used improperly.  Even
-expert users are encouraged to excercise caution when using this command.
+expert users are encouraged to exercise caution when using this command.
 Novice users should stay away from this utility.
 .Pp
 .Nm camcontrol
@@ -239,7 +257,7 @@ This can be overridden by specifying a different file in the
 .Ev SCSI_MODES
 environment variable.  The modepage command takes several arguments:
 .Bl -tag -width 012345678901
-.It Fl B
+.It Fl d
 Disable block descriptors for mode sense.
 .It Fl e
 This flag allows the user to edit values in the mode page.
@@ -314,6 +332,135 @@ Turn on debugging for the given bus, target or lun.  If the lun or target
 and lun are not specified, they are wildcarded.  (i.e., just specifying a
 bus turns on debugging printfs for all devices on that bus.)
 .El
+.It tags
+Show or set the number of "tagged openings" or simultaneous transactions
+we attempt to queue to a particular device.  By default, the
+.Sq tags
+command, with no command-specific arguments (i.e. only generic arguments)
+prints out the "soft" maximum number of transactions that can be queued to
+the device in question.  For more detailed information, use the
+.Fl v
+argument described below.
+.Bl -tag -width 0123456
+.It Fl N Ar tags
+Set the number of tags for the given device.  This must be between the
+minimum and maximum number set in the kernel quirk table.  The default for
+most devices that support tagged queueing is a minimum of 2 and a maximum
+of 255.  The minimum and maximum values for a given device may be
+determined by using the
+.Fl v
+switch.  The meaning of the
+.Fl v
+switch for this
+.Nm camcontrol
+subcommand is described below.
+.It Fl q
+Be quiet, and don't report the number of tags.  This is generally used when
+setting the number of tags.
+.It Fl v
+The verbose flag has special functionality for the
+.Em tags
+argument.  It causes
+.Nm camcontrol
+to print out the tagged queueing related fields of the XPT_GDEV_TYPE CCB:
+.Bl -tag -width 0123456789012
+.It dev_openings
+This is the amount of capacity for transactions queued to a given device.
+.It dev_active
+This is the number of transactions currently queued to a device.
+.It devq_openings
+This is the kernel queue space for transactions.  This count usually mirrors
+dev_openings except during error recovery operations when
+the device queue is frozen (device is not allowed to receive
+commands), the number of dev_openings is reduced, or transaction
+replay is occurring.
+.It devq_queued
+This is the number of transactions waiting in the kernel queue for capacity
+on the device.  This number is usually zero unless error recovery is in
+progress.
+.It held
+The held count is the number of CCBs held by peripheral drivers that have
+either just been completed or are about to be released to the transport
+layer for service by a device.  Held CCBs reserve capacity on a given
+device.
+.It mintags
+This is the current "hard" minimum number of transactions that can be
+queued to a device at once.  The
+.Ar dev_openings
+value above cannot go below this number.  The default value for
+.Ar mintags
+is 2, although it may be set higher or lower for various devices.
+.It maxtags
+This is the "hard" maximum number of transactions that can be queued to a
+device at one time.  The
+.Ar dev_openings
+value cannot go above this number.  The default value for
+.Ar maxtags
+is 255, although it may be set higher or lower for various devices.
+.El
+.El
+.It negotiate
+Show or negotiate various communication parameters.  Some controllers may
+not support setting or changing some of these values.  For instance, the
+Adaptec 174x controllers do not support changing a device's sync rate or
+offset.
+.Nm camcontrol
+will not attempt to set the parameter if the controller indicates that it
+does not support setting the parameter.  To find out what the controller
+supports, use the
+.Fl v
+flag.  The meaning of the
+.Fl v
+flag for the
+.Sq negotiate
+command is described below.  Also, some controller drivers don't support
+setting negotiation parameters, even if the underlying controller supports
+negotiation changes.  Some controllers, such as the Advansys wide
+controllers, support enabling and disabling synchronous negotiation for
+a device, but do not support setting the synchronous negotiation rate.
+.Bl -tag -width 01234567890123456
+.It Fl a
+Attempt to make the negotiation settings take effect immediately by sending
+a Test Unit Ready command to the device.
+.It Fl c
+Show or set current negotiation settings.  This is the default.
+.It Fl D Ar enable|disable
+Enable or disable disconnection.
+.It Fl O Ar offset
+Set the command delay offset.
+.It Fl q
+Be quiet, don't print anything.  This is generally useful when you want to
+set a parameter, but don't want any status information.
+.It Fl R Ar syncrate
+Change the synchronization rate for a device.  The sync rate is a floating
+point value specified in MHz.  So, for instance,
+.Sq 20.000
+is a legal value, as is
+.Sq 20 .
+.It Fl T Ar enable|disable
+Enable or disable tagged queueing for a device.
+.It Fl U
+Show or set user negotiation settings.  The default is to show or set
+current negotiation settings.
+.It Fl v
+The verbose switch has special meaning for the
+.Sq negotiate
+subcommand.  It causes
+.Nm camcontrol
+to print out the contents of a Path Inquiry (XPT_PATH_INQ) CCB sent to the
+controller driver.
+.It Fl W Ar bus_width
+Specify the bus width to negotiate with a device.  The bus width is
+specified in bits.  The only useful values to specify are 8, 16, and 32
+bits.  The controller must support the bus width in question in order for
+the setting to take effect.
+.El
+.Pp
+In general, sync rate and offset settings will not take effect for a
+device until a command has been sent to the device.  The
+.Fl a
+switch above will automatically send a Test Unit Ready to the device so
+negotiation parameters will take effect.
 .El
 .Sh ENVIRONMENT
 The
@@ -396,8 +543,53 @@ Rescan SCSI bus 0 for devices that have been added, removed or changed.
 .Pp
 Rescan SCSI bus 0, target 1, lun 0 to see if it has been added, removed, or
 changed.
+.Pp
+.Dl camcontrol tags -n da -u 5 -N 24
+.Pp
+Set the number of concurrent transactions for da5 to 24.
+.Pp
+.Bd -literal -offset foobar
+camcontrol negotiate -n da -u 4 -T disable
+.Ed
+.Pp
+Disable tagged queueing for da4.
+.Pp
+.Bd -literal -offset foobar
+camcontrol negotiate -n da -u 3 -R 20.000 -O 15 -a
+.Ed
+.Pp
+Negotiate a sync rate of 20MHz and an offset of 15 with da3.  Then send a
+Test Unit Ready command to make the settings take effect.
+.Pp
+.Bd -literal -offset foobar
+camcontrol cmd -n da -u 3 -v -t 7200 -c "4 0 0 0 0 0"
+.Ed
+.Pp
+Send the FORMAT UNIT (0x04) command to da3.  This will low-level format the
+disk.  Print sense information if the command fails, and set the timeout to
+two hours (or 7200 seconds).
+.Pp
+.Em WARNING! WARNING! WARNING!
+.Pp
+Low level formatting a disk will destroy ALL data on the disk.  Use
+extreme caution when issuing this command.  Many users low-level format
+disks that do not really need to be low-level formatted.  There are
+relatively few scenarios that call for low-level formatting a disk.
+One reason for
+low-level formatting a disk is if you want to change the physical sector
+size of the disk.  Another reason for low-level formatting a disk is to
+revive the disk if you are getting "medium format corrupted" errors from the
+disk in response to read and write requests.
+.Pp
+Some disks take longer than others to format.  Users should specify a
+timeout long enough to allow the format to complete.  Some hard disks
+will complete a format operation in a very short period of time (on the
+order of 5 minutes or less).  This is often because the drive doesn't
+really support the FORMAT UNIT command -- it just accepts the command,
+waits a few minutes and then returns it.
 .Sh SEE ALSO
 .Xr cam 3 ,
+.Xr cam_cdbparse 3 ,
 .Xr pass 4 ,
 .Xr cam 9 ,
 .Xr xpt 9

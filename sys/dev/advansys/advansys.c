@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: advansys.c,v 1.7.2.1 1999/04/07 23:09:27 gibbs Exp $
+ *      $Id: advansys.c,v 1.7.2.2 1999/04/19 21:37:28 gibbs Exp $
  */
 /*
  * Ported from:
@@ -237,18 +237,30 @@ adv_action(struct cam_sim *sim, union ccb *ccb)
 	{
 		struct	 ccb_trans_settings *cts;
 		target_bit_vector targ_mask;
-		struct adv_target_transinfo *tconf;
+		struct adv_transinfo *tconf;
 		u_int	 update_type;
 		int	 s;
 
 		cts = &ccb->cts;
 		targ_mask = ADV_TID_TO_TARGET_MASK(cts->ccb_h.target_id);
-		tconf = &adv->tinfo[cts->ccb_h.target_id];
 		update_type = 0;
-		if ((cts->flags & CCB_TRANS_CURRENT_SETTINGS) != 0)
+
+		/*
+		 * The user must specify which type of settings he wishes
+		 * to change.
+		 */
+		if (((cts->flags & CCB_TRANS_CURRENT_SETTINGS) != 0)
+		 && ((cts->flags & CCB_TRANS_USER_SETTINGS) == 0)) {
+			tconf = &adv->tinfo[cts->ccb_h.target_id].current;
 			update_type |= ADV_TRANS_GOAL;
-		if ((cts->flags & CCB_TRANS_USER_SETTINGS) != 0)
+		} else if (((cts->flags & CCB_TRANS_USER_SETTINGS) != 0)
+			&& ((cts->flags & CCB_TRANS_CURRENT_SETTINGS) == 0)) {
+			tconf = &adv->tinfo[cts->ccb_h.target_id].user;
 			update_type |= ADV_TRANS_USER;
+		} else {
+			ccb->ccb_h.status = CAM_REQ_INVALID;
+			break;
+		}
 		
 		s = splcam();
 
@@ -286,9 +298,26 @@ adv_action(struct cam_sim *sim, union ccb *ccb)
 			}
 		}
 		
-		if ((cts->valid &  CCB_TRANS_SYNC_RATE_VALID) != 0) {
+		/*
+		 * If the user specifies either the sync rate, or offset,
+		 * but not both, the unspecified parameter defaults to its
+		 * current value in transfer negotiations.
+		 */
+		if (((cts->valid & CCB_TRANS_SYNC_RATE_VALID) != 0)
+		 || ((cts->valid & CCB_TRANS_SYNC_OFFSET_VALID) != 0)) {
+			/*
+			 * If the user provided a sync rate but no offset,
+			 * use the current offset.
+			 */
 			if ((cts->valid & CCB_TRANS_SYNC_OFFSET_VALID) == 0)
-				cts->sync_offset = 0;
+				cts->sync_offset = tconf->offset;
+
+			/*
+			 * If the user provided an offset but no sync rate,
+			 * use the current sync rate.
+			 */
+			if ((cts->valid & CCB_TRANS_SYNC_RATE_VALID) == 0)
+				cts->sync_period = tconf->period;
 
 			adv_period_offset_to_sdtr(adv, &cts->sync_period,
 						  &cts->sync_offset,
@@ -298,6 +327,7 @@ adv_action(struct cam_sim *sim, union ccb *ccb)
 					 cts->ccb_h.target_id, cts->sync_period,
 					 cts->sync_offset, update_type);
 		}
+
 		splx(s);
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
@@ -402,6 +432,7 @@ adv_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->max_lun = 7;
 		cpi->initiator_id = adv->scsi_id;
 		cpi->bus_id = cam_sim_bus(sim);
+		cpi->base_transfer_speed = 3300;
 		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 		strncpy(cpi->hba_vid, "Advansys", HBA_IDLEN);
 		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);

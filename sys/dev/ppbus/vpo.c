@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vpo.c,v 1.10 1999/01/09 18:05:46 nsouch Exp $
+ *	$Id: vpo.c,v 1.11 1999/01/10 12:04:55 nsouch Exp $
  *
  */
 
@@ -187,7 +187,6 @@ vpoattach(struct ppb_device *dev)
 		return (0);
 	}
 
-	cam_sim_set_basexfer_speed(vpo->sim, 93/*kB/s*/);
 	if (xpt_bus_register(vpo->sim, /*bus*/0) != CAM_SUCCESS) {
 		cam_sim_free(vpo->sim, /*free_devq*/TRUE);
 		return (0);
@@ -421,6 +420,7 @@ vpo_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->max_lun = 0;
 		cpi->initiator_id = VP0_INITIATOR;
 		cpi->bus_id = sim->bus_id;
+		cpi->base_transfer_speed = 93;
 		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 		strncpy(cpi->hba_vid, "Iomega", HBA_IDLEN);
 		strncpy(cpi->dev_name, sim->sim_name, DEV_IDLEN);

@@ -55,7 +55,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aha.c,v 1.18 1998/12/22 22:31:06 imp Exp $
+ *      $Id: aha.c,v 1.19 1999/01/20 06:21:26 imp Exp $
  */
 
 #include "pnp.h"
@@ -1029,7 +1029,7 @@ ahaaction(struct cam_sim *sim, union ccb *ccb)
 	case XPT_SET_TRAN_SETTINGS:
 	{
 		/* XXX Implement */
-		ccb->ccb_h.status = CAM_REQ_CMP;
+		ccb->ccb_h.status = CAM_PROVIDE_FAIL;
 		xpt_done(ccb);
 		break;
 	}
@@ -1120,6 +1120,7 @@ ahaaction(struct cam_sim *sim, union ccb *ccb)
 		cpi->max_lun = 7;
 		cpi->initiator_id = aha->scsi_id;
 		cpi->bus_id = cam_sim_bus(sim);
+		cpi->base_transfer_speed = 3300;
 		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 		strncpy(cpi->hba_vid, "Adaptec", HBA_IDLEN);
 		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
