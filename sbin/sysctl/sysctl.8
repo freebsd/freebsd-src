@@ -121,7 +121,9 @@ The information available from
 consists of integers, strings, devices
 .Pq Vt dev_t ,
 and opaque types.
-.Nm Sysctl
+The
+.Nm
+utility
 only knows about a couple of opaque types, and will resort to hexdumps
 for the rest.
 The opaque information is much more useful if retrieved by special
@@ -139,10 +141,10 @@ privilege can change the value.
 String, integer, and devices values can be set using
 .Nm .
 For device values,
-.Ar value
+.Cm value
 can be specified as a character device special file name.
 Special values
-.Ar off
+.Cm off
 and
 .Ar none
 denote
@@ -268,14 +270,16 @@ option has been deprecated and is silently ignored.
 .Xr sysctl 3 ,
 .Xr sysctl.conf 5
 .Sh BUGS
-.Nm Sysctl
-presently exploits an undocumented interface to the kernel
+The
+.Nm
+utility presently exploits an undocumented interface to the kernel
 sysctl facility to traverse the sysctl tree and to retrieve format
 and name information.
 This correct interface is being thought about for the time being.
 .Sh HISTORY
-.Nm Sysctl
-first appeared in
+A
+.Nm
+utility first appeared in
 .Bx 4.4 .
 .Pp
 In
