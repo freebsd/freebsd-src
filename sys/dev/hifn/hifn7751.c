@@ -2066,12 +2066,6 @@ hifn_intr(void *arg)
 	}
 #endif
 
-	/* Nothing in the DMA unit interrupted */
-	if ((dmacsr & sc->sc_dmaier) == 0) {
-		hifnstats.hst_noirq++;
-		return;
-	}
-
 	WRITE_REG_1(sc, HIFN_1_DMA_CSR, dmacsr & sc->sc_dmaier);
 
 	if ((sc->sc_flags & HIFN_HAS_PUBLIC) &&
