@@ -33,7 +33,7 @@ static char sccsid[] = "from: @(#)rpc.rstatd.c 1.1 86/09/25 Copyr 1984 Sun Micro
 static char sccsid[] = "from: @(#)rstat_proc.c	2.2 88/08/01 4.0 RPCSRC";
 #endif
 static const char rcsid[] =
-	"$Id: rstat_proc.c,v 1.10 1998/01/19 23:13:19 wpaul Exp $";
+	"$Id: rstat_proc.c,v 1.11 1998/09/15 08:15:20 gibbs Exp $";
 #endif
 
 /*
@@ -373,7 +373,7 @@ void
 updatexfers(numdevs, devs)
 	int numdevs, *devs;
 {
-	register int i, j;
+	register int i, j, t;
 	struct statinfo stats;
 	int num_devices = 0;
 	u_int64_t total_transfers;
@@ -416,9 +416,10 @@ updatexfers(numdevs, devs)
 			 * architecture like the Alpha.
 			 */
 			if (total_transfers > INT_MAX)
-				devs[j] = INT_MAX;
+				t = INT_MAX;
 			else
-				devs[j] = total_transfers;
+				t = total_transfers;
+			devs[j] = t;
 			j++;
 		}
 	}
