@@ -40,6 +40,7 @@
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 
 #include <dev/aac/aac_compat.h>
 
@@ -182,6 +183,9 @@ static struct cdevsw aac_cdevsw = {
     nopsize,		/* psize */
     0,			/* flags */
 };
+
+/* sysctl node */
+SYSCTL_NODE(_hw, OID_AUTO, aac, CTLFLAG_RD, 0, "AAC driver parameters");
 
 /******************************************************************************
  ******************************************************************************
