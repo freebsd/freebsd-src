@@ -11,7 +11,7 @@
  * this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
  *
- * $Id: mse.c,v 1.25 1996/03/28 14:28:46 scrappy Exp $
+ * $Id: mse.c,v 1.26 1996/06/02 18:57:17 joerg Exp $
  */
 /*
  * Driver for the Logitech and ATI Inport Bus mice for use with 386bsd and
@@ -60,11 +60,8 @@
 #endif /*DEVFS*/
 
 #include <machine/clock.h>
-#include <machine/cpu.h>
 
 #include <i386/isa/isa_device.h>
-#include <i386/isa/icu.h>
-
 
 static int mseprobe(struct isa_device *);
 static int mseattach(struct isa_device *);
