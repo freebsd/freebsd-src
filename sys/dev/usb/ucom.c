@@ -102,7 +102,8 @@
 
 #ifdef USB_DEBUG
 static int	ucomdebug = 0;
-SYSCTL_INT(_debug_usb, OID_AUTO, ucom, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, ucom, CTLFLAG_RW, 0, "USB ucom");
+SYSCTL_INT(_hw_usb_ucom, OID_AUTO, debug, CTLFLAG_RW,
 	   &ucomdebug, 0, "ucom debug level");
 #define DPRINTF(x)	do { \
 				if (ucomdebug) \

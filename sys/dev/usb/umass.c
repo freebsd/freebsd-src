@@ -135,7 +135,8 @@
 #define UDMASS_WIRE	(UDMASS_BBB|UDMASS_CBI)
 #define UDMASS_ALL	0xffff0000	/* all of the above */
 int umassdebug = 0;
-SYSCTL_INT(_debug_usb, OID_AUTO, umass, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, umass, CTLFLAG_RW, 0, "USB umass");
+SYSCTL_INT(_hw_usb_umass, OID_AUTO, debug, CTLFLAG_RW,
 	   &umassdebug, 0, "umass debug level");
 #else
 #define DIF(m, x)	/* nop */

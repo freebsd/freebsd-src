@@ -80,7 +80,8 @@
 #define DPRINTF(x)	if (uriodebug) logprintf x
 #define DPRINTFN(n,x)	if (uriodebug>(n)) logprintf x
 int	uriodebug = 0;
-SYSCTL_INT(_debug_usb, OID_AUTO, urio, CTLFLAG_RW,
+SYSCTL_NODE(_hw_usb, OID_AUTO, urio, CTLFLAG_RW, 0, "USB urio");
+SYSCTL_INT(_hw_usb_urio, OID_AUTO, debug, CTLFLAG_RW,
 	   &uriodebug, 0, "urio debug level");
 #else
 #define DPRINTF(x)
