@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.6 1994/09/27 18:00:29 davidg Exp $
+ * $Id: vm_page.h,v 1.7 1994/10/05 09:48:44 davidg Exp $
  */
 
 /*
@@ -265,8 +265,12 @@ static inline void
 vm_page_unhold(mem)
 	vm_page_t mem;
 {
+#ifdef DIAGNOSTIC
 	if( --mem->hold_count < 0)
 		panic("vm_page_unhold: hold count < 0!!!");
+#else
+	--mem->hold_count;
+#endif
 }
 
 #endif /* KERNEL */
