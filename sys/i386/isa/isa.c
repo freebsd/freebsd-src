@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.64 1996/03/10 02:10:27 jkh Exp $
+ *	$Id: isa.c,v 1.65 1996/03/10 07:04:44 gibbs Exp $
  */
 
 /*
@@ -57,7 +57,6 @@
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
-#include <machine/cpu.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/isa.h>
 #include <i386/isa/icu.h>

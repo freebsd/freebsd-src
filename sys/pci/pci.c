@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.45 1996/02/17 23:57:03 se Exp $
+**  $Id: pci.c,v 1.46 1996/02/19 00:30:40 se Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -54,8 +54,6 @@
 #include <sys/sysctl.h>
 #include <sys/proc.h> /* declaration of wakeup(), used by vm.h */
 #include <sys/devconf.h>
-
-#include <machine/cpu.h> /* bootverbose */
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
