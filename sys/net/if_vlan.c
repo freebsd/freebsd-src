@@ -353,7 +353,8 @@ vlan_start(struct ifnet *ifp)
 		} else {
 			M_PREPEND(m, ifv->ifv_encaplen, M_DONTWAIT);
 			if (m == NULL) {
-				if_printf(ifp, "unable to prepend VLAN header");
+				if_printf(ifp,
+				    "unable to prepend VLAN header\n");
 				ifp->if_oerrors++;
 				continue;
 			}
@@ -363,7 +364,7 @@ vlan_start(struct ifnet *ifp)
 				m = m_pullup(m, sizeof(*evl));
 				if (m == NULL) {
 					if_printf(ifp,
-					    "cannot pullup VLAN header");
+					    "cannot pullup VLAN header\n");
 					ifp->if_oerrors++;
 					continue;
 				}
