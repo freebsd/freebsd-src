@@ -78,6 +78,10 @@
         ..
     ..
     geom
+        concat
+        ..
+        gate
+        ..
     ..
     gnu
         posix
