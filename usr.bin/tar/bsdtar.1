@@ -313,9 +313,11 @@ option can be used to access long options on systems that
 do not support this function.
 .It Fl w
 Ask for confirmation for every action.
-.It Fl X
-(c, r, u modes)
-When visiting subdirectories, ignore any that are on different devices.
+.It Fl X Ar filename
+Read a list of exclusion patterns from the specified file.
+See
+.Fl -exclude
+for more information about the handling of exclusions.
 .It Fl y
 (c mode only)
 Compress the resulting archive with
