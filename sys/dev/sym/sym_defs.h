@@ -499,13 +499,16 @@ struct sym_reg {
 /*b4*/	u32	nc_dbms;	/* Dynamic Block Move Selector      */
 /*b8*/	u32	nc_dnad64;	/* DMA Next Address 64              */
 /*bc*/	u16	nc_scntl4;	/* C1010 only                       */
-	#define   U3EN   0x80	/* Enable Ultra 3                   */
-	#define   AIPEN	 0x40   /* Allow check upper byte lanes     */
+	#define   U3EN    0x80	/* Enable Ultra 3                   */
+	#define   AIPCKEN 0x40  /* AIP checking enable              */
+				/* Also enable AIP generation on C10-33*/
 	#define   XCLKH_DT 0x08 /* Extra clock of data hold on DT edge */
 	#define   XCLKH_ST 0x04 /* Extra clock of data hold on ST edge */
 	#define   XCLKS_DT 0x02 /* Extra clock of data set  on DT edge */
 	#define   XCLKS_ST 0x01 /* Extra clock of data set  on ST edge */
-/*be*/	u16	nc_aipcntl;	/* Epat Control 1 C1010 only        */
+/*be*/	u8	nc_aipcntl0;	/* AIP Control 0 C1010 only         */
+/*bf*/	u8	nc_aipcntl1;	/* AIP Control 1 C1010 only         */
+	#define DISAIP  0x08	/* Disable AIP generation C10-66 only  */
 /*c0*/	u32	nc_pmjad1;	/* Phase Mismatch Jump Address 1    */
 /*c4*/	u32	nc_pmjad2;	/* Phase Mismatch Jump Address 2    */
 /*c8*/	u8	nc_rbc;		/* Remaining Byte Count             */
