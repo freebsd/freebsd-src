@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.69 1996/09/28 22:37:43 dyson Exp $
+ *	$Id: vm_machdep.c,v 1.70 1996/10/15 03:16:33 dyson Exp $
  */
 
 #include "npx.h"
@@ -66,7 +66,11 @@
 
 #include <sys/user.h>
 
+#ifdef PC98
+#include <pc98/pc98/pc98.h>
+#else
 #include <i386/isa/isa.h>
+#endif
 
 #ifdef BOUNCE_BUFFERS
 static vm_offset_t
@@ -90,7 +94,11 @@ static int		bounceallocarraysize;
 static unsigned	*bounceallocarray;
 static int		bouncefree;
 
+#if defined(PC98) && defined (EPSON_BOUNCEDMA)
+#define SIXTEENMEG (3840*4096)			/* 15MB boundary */
+#else
 #define SIXTEENMEG (4096*4096)
+#endif
 #define MAXBKVA 1024
 int		maxbkva = MAXBKVA*PAGE_SIZE;
 
@@ -748,7 +756,7 @@ cpu_reset() {
 	 * to do the reset here would then end up in no man's land.
 	 */
 
-#ifndef BROKEN_KEYBOARD_RESET
+#if !defined(BROKEN_KEYBOARD_RESET) && !defined(PC98)
 	outb(IO_KBD + 4, 0xFE);
 	DELAY(500000);	/* wait 0.5 sec to see if that did it */
 	printf("Keyboard reset did not work, attempting CPU shutdown\n");
@@ -761,6 +769,12 @@ cpu_reset() {
 	/* "good night, sweet prince .... <THUNK!>" */
 	invltlb();
 	/* NOTREACHED */
+#ifdef PC98
+	asm("   cli ");
+	outb(0x37, 0x0f);       /* SHUT 0 = 0 */
+	outb(0x37, 0x0b);       /* SHUT 1 = 0 */
+	outb(0xf0, 0x00);       /* reset port */
+#endif
 	while(1);
 }
 

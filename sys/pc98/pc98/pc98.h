@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.h	5.7 (Berkeley) 5/9/91
- *	$Id: pc98.h,v 1.5 1996/10/09 21:46:34 asami Exp $
+ *	$Id: pc98.h,v 1.6 1996/10/23 07:25:22 asami Exp $
  */
 
 #ifndef _PC98_PC98_PC98_H_
@@ -73,7 +73,7 @@
 #define IO_NMI		0x050		/* NMI Control */
 #define IO_WAIT		0x05F		/* WAIT 0.6 us */
 #define IO_GDC1		0x060		/* 7220 GDC Text Control */
-#define IO_TIMER	0x071		/* 8253C Timer */
+#define IO_TIMER1	0x071		/* 8253C Timer */
 #define IO_SASI		0x080		/* SASI Hard Disk Controller */
 #define IO_FD1		0x090		/* 765A 1MB FDC */
 #define	IO_GDC2		0x0a0		/* 7220 GDC Graphic Control */

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.9 1996/10/23 07:25:17 asami Exp $
+ *	$Id: if_ed.c,v 1.10 1996/10/29 08:36:20 asami Exp $
  */
 
 /*
@@ -106,7 +106,17 @@
 #include <i386/isa/if_edreg.h>
 
 #ifdef PC98
-#include <pc98/pc98/if_ed98.h>
+/* register offsets */
+struct pc98_edregister {
+	u_int *port;
+	u_int ioskip;
+	u_int nic_offset;
+	u_int asic_offset;
+	u_int data;
+	u_int reset;
+	u_int pc_misc;
+	u_int pc_reset;
+};
 #endif
 
 /*
@@ -160,11 +170,15 @@ struct ed_softc {
 	u_char  next_packet;	/* pointer to next unread RX packet */
 	struct	ifmib_iso_8802_3 mibdata; /* stuff for network mgmt */
 #ifdef PC98
-	int unit;
+	struct pc98_edregister edreg;	/* I/O port register offset info */
 #endif
 };
 
 static struct ed_softc ed_softc[NED];
+
+#ifdef PC98
+#include <pc98/pc98/if_ed98.h>
+#endif
 
 static int ed_attach		__P((struct ed_softc *, int, int));
 static int ed_attach_isa	__P((struct isa_device *));
@@ -421,10 +435,6 @@ ed_probe(isa_dev)
 {
 	int     nports;
 
-#ifdef PC98
-	ed_softc[isa_dev->id_unit].unit = isa_dev->id_unit;
-#endif
-
 #if NCRD > 0
 	/*
 	 * If PC-Card probe required, then register driver with
@@ -443,7 +453,7 @@ ed_probe(isa_dev)
 	if ((ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_GENERIC) ||
 		(ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_LPC)) {
 		ed_softc[isa_dev->id_unit].type = ED_TYPE98_LPC;
-		pc98_set_register(isa_dev, isa_dev->id_unit, ED_TYPE98_LPC);
+		pc98_set_register(isa_dev, ED_TYPE98_LPC);
 		nports = ed_probe_Novell(isa_dev);
 		if (nports)
 			return (nports);
@@ -454,7 +464,7 @@ ed_probe(isa_dev)
 	 * Allied Telesis CenterCom LA-98-T
 	 */
 	ed_softc[isa_dev->id_unit].type = ED_TYPE98_GENERIC;
-	pc98_set_register(isa_dev, isa_dev->id_unit, ED_TYPE98_GENERIC);
+	pc98_set_register(isa_dev, ED_TYPE98_GENERIC);
 
 	if (ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_GENERIC) {
 #endif
@@ -478,7 +488,7 @@ ed_probe(isa_dev)
 	if ((ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_GENERIC) ||
 		(ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_SIC)) {
 		ed_softc[isa_dev->id_unit].type = ED_TYPE98_SIC;
-		pc98_set_register(isa_dev, isa_dev->id_unit, ED_TYPE98_SIC);
+		pc98_set_register(isa_dev, ED_TYPE98_SIC);
 		nports = ed_probe_SIC98(isa_dev);
 		if (nports)
 			return (nports);
@@ -492,7 +502,7 @@ ed_probe(isa_dev)
 		(ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_BDN)) {
 		/* LD-BDN */
 		ed_softc[isa_dev->id_unit].type = ED_TYPE98_BDN;
-		pc98_set_register(isa_dev, isa_dev->id_unit, ED_TYPE98_BDN);
+		pc98_set_register(isa_dev, ED_TYPE98_BDN);
 		nports = ed_probe_Novell(isa_dev);
 		if (nports)
 			return (nports);
@@ -506,7 +516,7 @@ ed_probe(isa_dev)
 		(ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_LGY)) {
 		/* LGY-98 */
 		ed_softc[isa_dev->id_unit].type = ED_TYPE98_LGY;
-		pc98_set_register(isa_dev, isa_dev->id_unit, ED_TYPE98_LGY);
+		pc98_set_register(isa_dev, ED_TYPE98_LGY);
 		nports = ed_probe_Novell(isa_dev);
 		if (nports)
 			return (nports);
@@ -520,7 +530,7 @@ ed_probe(isa_dev)
 		(ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_ICM)) {
 		/* ICM */
 		ed_softc[isa_dev->id_unit].type = ED_TYPE98_ICM;
-		pc98_set_register(isa_dev, isa_dev->id_unit, ED_TYPE98_ICM);
+		pc98_set_register(isa_dev, ED_TYPE98_ICM);
 		nports = ed_probe_Novell(isa_dev);
 		if (nports)
 			return (nports);
@@ -534,7 +544,7 @@ ed_probe(isa_dev)
 		(ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_EGY)) {
 		/* EGY-98 */
 		ed_softc[isa_dev->id_unit].type = ED_TYPE98_EGY;
-		pc98_set_register(isa_dev, isa_dev->id_unit, ED_TYPE98_EGY);
+		pc98_set_register(isa_dev, ED_TYPE98_EGY);
 		nports = ed_probe_Novell(isa_dev);
 		if (nports)
 			return (nports);
@@ -547,7 +557,7 @@ ed_probe(isa_dev)
 		(ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_LA98)) {
 		/* LA-98 */
 		ed_softc[isa_dev->id_unit].type = ED_TYPE98_LA98;
-		pc98_set_register(isa_dev, isa_dev->id_unit, ED_TYPE98_LA98);
+		pc98_set_register(isa_dev, ED_TYPE98_LA98);
 		nports = ed_probe_Novell(isa_dev);
 		if (nports)
 			return (nports);
@@ -560,7 +570,7 @@ ed_probe(isa_dev)
 		(ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_108)) {
 		/* PC-9801-108 */
 		ed_softc[isa_dev->id_unit].type = ED_TYPE98_108;
-		pc98_set_register(isa_dev, isa_dev->id_unit, ED_TYPE98_108);
+		pc98_set_register(isa_dev, ED_TYPE98_108);
 		nports = ed_probe_Novell(isa_dev);
 		if (nports)
 			return (nports);
@@ -573,7 +583,7 @@ ed_probe(isa_dev)
 		(ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_CNET98EL)) {
 		/* C-NET(98)E/L */
 		ed_softc[isa_dev->id_unit].type = ED_TYPE98_CNET98EL;
-		pc98_set_register(isa_dev, isa_dev->id_unit, ED_TYPE98_CNET98EL);
+		pc98_set_register(isa_dev, ED_TYPE98_CNET98EL);
 		nports = ed_probe_CNET98EL(isa_dev);
 		if (nports)
 			return (nports);
@@ -586,7 +596,7 @@ ed_probe(isa_dev)
 		(ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_CNET98)) {
 		/* C-NET(98) */
 		ed_softc[isa_dev->id_unit].type = ED_TYPE98_CNET98;
-		pc98_set_register(isa_dev, isa_dev->id_unit, ED_TYPE98_CNET98);
+		pc98_set_register(isa_dev, ED_TYPE98_CNET98);
 		nports = ed_probe_CNET98(isa_dev);
 		if (nports)
 			return (nports);
@@ -627,10 +637,6 @@ static int
 ed_probe_generic8390(sc)
 	struct ed_softc *sc;
 {
-#ifdef PC98
-	int unit = sc->unit;
-#endif
-
 #ifdef PC98
   if (sc->type == ED_TYPE98_LPC) {
 	if ((inb(sc->nic_addr + ED_P0_CR) &
@@ -1036,9 +1042,6 @@ ed_probe_3Com(isa_dev)
 	int     i;
 	u_int   memsize;
 	u_char  isa16bit;
-#ifdef PC98
-	int unit = isa_dev->id_unit;
-#endif
 
 	sc->asic_addr = isa_dev->id_iobase + ED_3COM_ASIC_OFFSET;
 	sc->nic_addr = isa_dev->id_iobase + ED_3COM_NIC_OFFSET;
@@ -1359,7 +1362,6 @@ ed_probe_Novell_generic(sc, port, unit, flags)
 	if (sc->type == ED_TYPE98_LPC)
 		LPCT_1d0_OFF();
 #endif
-
 	DELAY(5000);
 
 	/*
@@ -1592,7 +1594,7 @@ ed_probe_Novell(isa_dev)
 }
 
 #if NCRD > 0
-  
+
 /*
  * Probe framework for pccards.  Replicates the standard framework, 
  * minus the pccard driver registration and ignores the ether address
@@ -1653,9 +1655,7 @@ ed_probe_HP_pclanp(isa_dev)
 	u_char irq;			/* board configured IRQ */
 	char test_pattern[ED_HPP_TEST_SIZE];	/* read/write areas for */
 	char test_buffer[ED_HPP_TEST_SIZE];	/* probing card */
-#ifdef PC98
-	int unit = isa_dev->id_unit;
-#endif
+
 
 	/* Fill in basic information */
 	sc->asic_addr = isa_dev->id_iobase + ED_HPP_ASIC_OFFSET;
@@ -2503,9 +2503,6 @@ ed_stop(sc)
 	struct ed_softc *sc;
 {
 	int     n = 5000;
-#ifdef PC98
-	int unit = sc->unit;
-#endif
 
 	if (sc->gone)
 		return;
@@ -2550,9 +2547,6 @@ ed_init(xsc)
 	struct ed_softc *sc = xsc;
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 	int     i, s;
-#ifdef PC98
-	int unit = sc->unit;
-#endif
 
 	if (sc->gone)
 		return;
@@ -2655,7 +2649,7 @@ ed_init(xsc)
 	 */
 #ifdef PC98
 		for (i = 0; i < ETHER_ADDR_LEN; ++i)
-			outb(sc->nic_addr + ED_P1_PAR0 + i * pc98_io_skip[unit],
+			outb(sc->nic_addr + ED_P1_PAR0 + i * sc->edreg.ioskip,
 				 sc->arpcom.ac_enaddr[i]);
 #else
 		for (i = 0; i < ETHER_ADDR_LEN; ++i)
@@ -2713,9 +2707,6 @@ ed_xmit(sc)
 {
 	struct ifnet *ifp = (struct ifnet *)sc;
 	unsigned short len;
-#ifdef PC98
-	int unit = sc->unit;
-#endif
 
 	if (sc->gone)
 		return;
@@ -2930,9 +2921,6 @@ ed_rint(sc)
 	u_short len;
 	struct ed_ring packet_hdr;
 	char   *packet_ptr;
-#ifdef PC98
-	int unit = sc->unit;
-#endif
 
 	if (sc->gone)
 		return;
@@ -3056,9 +3044,6 @@ edintr_sc(sc)
 {
 	struct ifnet *ifp = (struct ifnet *)sc;
 	u_char  isr;
-#ifdef PC98
-	int unit = sc->unit;
-#endif
 
 	if (sc->gone)
 		return;
@@ -3548,10 +3533,6 @@ ed_pio_readmem(sc, src, dst, amount)
 	unsigned char *dst;
 	unsigned short amount;
 {
-#ifdef PC98
-	int unit = sc->unit;
-#endif
-
 	/* HP cards need special handling */
 	if (sc->vendor == ED_VENDOR_HP && sc->type == ED_TYPE_HP_PCLANPLUS) {
 		ed_hpp_readmem(sc, src, dst, amount);
@@ -3603,9 +3584,6 @@ ed_pio_writemem(sc, src, dst, len)
 	unsigned short len;
 {
 	int     maxwait = 200;	/* about 240us */
-#ifdef PC98
-	int unit = sc->unit;
-#endif
 
 	if (sc->vendor == ED_VENDOR_NOVELL) {
 
@@ -3711,9 +3689,6 @@ ed_pio_write_mbufs(sc, m, dst)
 	unsigned short total_len, dma_len;
 	struct mbuf *mp;
 	int     maxwait = 200;	/* about 240us */
-#ifdef PC98
-	int unit = sc->unit;
-#endif
 
 	/*  HP PC Lan+ cards need special handling */
 	if ((sc->vendor == ED_VENDOR_HP) && 
@@ -3977,9 +3952,6 @@ ed_hpp_write_mbufs(struct ed_softc *sc, struct mbuf *m, int dst)
 	volatile u_short * const d = 
 		(volatile u_short *) sc->hpp_mem_start;
 	int use_32bit_accesses = !(sc->hpp_id & ED_HPP_ID_16_BIT_ACCESS);
-#ifdef PC98
-	int unit = sc->unit;
-#endif
 
 	/* select page 0 registers */
 	outb(sc->nic_addr + ED_P0_CR, sc->cr_proto | ED_CR_STA);
@@ -4095,9 +4067,6 @@ ed_setrcr(sc)
 {
 	struct ifnet *ifp = (struct ifnet *)sc;
 	int     i;
-#ifdef PC98
-	int unit = sc->unit;
-#endif
 
 	/* set page 1 registers */
 	outb(sc->nic_addr + ED_P0_CR, sc->cr_proto | ED_CR_PAGE_1 | ED_CR_STP);
@@ -4109,7 +4078,7 @@ ed_setrcr(sc)
 		 */
 #ifdef PC98
 			for (i = 0; i < 8; i++)
-				outb(sc->nic_addr + ED_P1_MAR0 + i * pc98_io_skip[unit], 0xff);
+				outb(sc->nic_addr + ED_P1_MAR0 + i * sc->edreg.ioskip, 0xff);
 #else
 			for (i = 0; i < 8; i++)
 				outb(sc->nic_addr + ED_P1_MAR0 + i, 0xff);
@@ -4139,7 +4108,7 @@ ed_setrcr(sc)
 			 */
 #ifdef PC98
 			for (i = 0; i < 8; i++)
-				outb(sc->nic_addr + ED_P1_MAR0 + i * pc98_io_skip[unit],
+				outb(sc->nic_addr + ED_P1_MAR0 + i * sc->edreg.ioskip,
 					 ((u_char *) mcaf)[i]);
 #else
 			for (i = 0; i < 8; i++)
@@ -4155,12 +4124,12 @@ ed_setrcr(sc)
 			 * Initialize multicast address hashing registers to
 			 * not accept multicasts.
 			 */
-#ifndef PC98
+#ifdef PC98
 			for (i = 0; i < 8; ++i)
-				outb(sc->nic_addr + ED_P1_MAR0 + i, 0x00);
+				outb(sc->nic_addr + ED_P1_MAR0 + i * sc->edreg.ioskip, 0x00);
 #else
 			for (i = 0; i < 8; ++i)
-				outb(sc->nic_addr + ED_P1_MAR0 + i * pc98_io_skip[unit], 0x00);
+				outb(sc->nic_addr + ED_P1_MAR0 + i, 0x00);
 #endif
 
 			/* Set page 0 registers */

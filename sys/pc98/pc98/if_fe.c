@@ -21,7 +21,7 @@
  */
 
 /*
- * $Id: if_fe.c,v 1.8 1996/09/12 11:09:48 asami Exp $
+ * $Id: if_fe.c,v 1.9 1996/10/09 21:46:25 asami Exp $
  *
  * Device driver for Fujitsu MB86960A/MB86965A based Ethernet cards.
  * To be used with FreeBSD 2.x
@@ -242,8 +242,8 @@ static struct fe_softc {
 #define sc_enaddr	arpcom.ac_enaddr
 
 /* Standard driver entry points.  These can be static.  */
-static int		fe_probe	( DEVICE * );
-static int		fe_attach	( DEVICE * );
+static int		fe_probe	( struct isa_device * );
+static int		fe_attach	( struct isa_device * );
 static void		fe_init		( int );
 static int		fe_ioctl	( struct ifnet *, int, caddr_t );
 static void		fe_start	( struct ifnet * );

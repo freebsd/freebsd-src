@@ -17,6 +17,18 @@
 /*
  * Disk Controller ATAPI register definitions.
  */
+#ifdef PC98
+#define AR_DATA         0x0             /* RW - data register (16 bits) */
+#define AR_ERROR        0x2             /*  R - error register */
+#define AR_FEATURES     0x2             /*  W - features */
+#define AR_IREASON      0x4             /* RW - interrupt reason */
+#define AR_TAG          0x6             /*    - reserved for SAM TAG byte */
+#define AR_CNTLO        0x8             /* RW - byte count, low byte */
+#define AR_CNTHI        0xa             /* RW - byte count, high byte */
+#define AR_DRIVE        0xc             /* RW - drive select */
+#define AR_COMMAND      0xe             /*  W - command register */
+#define AR_STATUS       0xe             /*  R - immediate status */
+#else
 #define AR_DATA         0x0             /* RW - data register (16 bits) */
 #define AR_ERROR        0x1             /*  R - error register */
 #define AR_FEATURES     0x1             /*  W - features */
@@ -27,6 +39,7 @@
 #define AR_DRIVE        0x6             /* RW - drive select */
 #define AR_COMMAND      0x7             /*  W - command register */
 #define AR_STATUS       0x7             /*  R - immediate status */
+#endif
 
 /*
  * Status register bits
