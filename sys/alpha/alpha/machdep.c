@@ -1058,6 +1058,7 @@ alpha_init(pfn, ptb, bim, bip, biv)
 
 		case 'v':
 		case 'V':
+			boothowto |= RB_VERBOSE;
 			bootverbose = 1;
 			break;
 
@@ -2113,8 +2114,9 @@ alpha_fpstate_switch(struct proc *p)
 /*
  * dummy version of read_random() until the random driver is ported.
  */
+int read_random __P((void));
 int
-read_random()
+read_random(void)
 {
 	return (0);
 }
