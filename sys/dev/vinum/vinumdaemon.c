@@ -34,7 +34,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumdaemon.c,v 1.3 1999/01/18 04:32:50 grog Exp grog $
+ * $Id: vinumdaemon.c,v 1.1.2.3 1999/02/11 05:28:41 grog Exp $
  */
 
 #define REALLYKERNEL
@@ -51,6 +51,7 @@ void recover_io(struct request *rq);
 struct daemonq *daemonq;				    /* daemon's work queue */
 struct daemonq *dqend;					    /* and the end of the queue */
 int daemon_options = 0;					    /* options */
+int daemonpid;						    /* PID of daemon */
 
 void 
 vinum_daemon(void)
@@ -59,9 +60,21 @@ vinum_daemon(void)
     int s;
 
     daemon_save_config();				    /* start by saving the configuration */
+    daemonpid = curproc->p_pid;				    /* mark our territory */
     while (1) {
 	tsleep(&vinum_daemon, PRIBIO, "vinum", 0);	    /* wait for something to happen */
 
+	/*
+	 * It's conceivable that, as the result of an
+	 * I/O error, we'll be out of action long
+	 * enough that another daemon gets started.
+	 * That's OK, just give up gracefully.
+	 */
+	if (curproc->p_pid != daemonpid) {		    /* we've been ousted in our sleep */
+	    if (daemon_options & daemon_verbose)
+		printf("vinumd: abdicating\n");
+	    return;
+	}
 	while (daemonq != NULL) {			    /* we have work to do, */
 	    s = splhigh();				    /* don't get interrupted here */
 	    request = daemonq;				    /* get the request */
@@ -111,7 +124,6 @@ vinum_daemon(void)
 		daemon_options |= daemon_stopped;	    /* note that we've stopped */
 		wakeup(vinum_daemon);			    /* in case somebody's waiting for us to stop */
 		return;
-		break;
 
 	    case daemonrq_ping:				    /* tell the caller we're here */
 		if (daemon_options & daemon_verbose)
@@ -181,7 +193,6 @@ queue_daemon_request(enum daemonrq type, union daemoninfo info)
  * see if the daemon is running.  Return 0 (no error)
  * if it is, ESRCH otherwise 
  */
-
 int 
 vinum_finddaemon()
 {
@@ -197,7 +208,7 @@ vinum_finddaemon()
     }
 
     if (result)						    /* will be EWOULDBLOCK or EINTR */
-	return ESRCH;					    /* no process */
+	vinum_daemon();					    /* start the daemon */
     return 0;
 }
 
