@@ -13,7 +13,7 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.64 1995/01/15 00:18:17 wollman Exp $
+ * $Id: if_ed.c,v 1.65 1995/01/23 19:06:06 davidg Exp $
  */
 
 #include "ed.h"
@@ -229,7 +229,7 @@ ed_probe(isa_dev)
 /*
  * Generic probe routine for testing for the existance of a DS8390.
  *	Must be called after the NIC has just been reset. This routine
- *	works by looking at certain register values that are gauranteed
+ *	works by looking at certain register values that are guaranteed
  *	to be initialized a certain way after power-up or reset. Seems
  *	not to currently work on the 83C690.
  *
