@@ -69,17 +69,15 @@ NON_GPROF_ENTRY(btext)
 
 	/* Find the metadata pointers before we lose them */
 	movq	%rsp, %rbp
-	xorq	%rax, %rax
-	movl	4(%rbp),%eax		/* modulep */
-	movq	%rax,modulep
-	movl	8(%rbp),%eax		/* kernend */
-	movq	%rax,physfree
+	movl	4(%rbp),%edi		/* modulep (arg 1) */
+	movl	8(%rbp),%esi		/* kernend (arg 2) */
 
 	/* Get onto a stack that we can trust - there is no going back now. */
 	movq	$bootstack,%rsp
-	xorq	%rbp, %rbp
+	xorl	%ebp, %ebp
 
 	call	hammer_time		/* set up cpu for unix operation */
+	movq	%rax,%rsp		/* set up kstack for mi_startup() */
 	call	mi_startup		/* autoconfiguration, mountroot etc */
 0:	hlt
 	jmp	0b
