@@ -433,7 +433,7 @@ u_short cse_isolatin[CSSIZE] = {
 /* 70 */	0x6B | CSH, 0xA4 | CSL, 0x95 | CSL, 0xA2 | CSL,
 /* 74 */	0x93 | CSL, 0x81 | CSH, 0x94 | CSL, 0xF6 | CSL,
 /* 78 */	0x7F | CSH, 0x97 | CSL, 0xA3 | CSL, 0x96 | CSL,
-/* 7C */	0x81 | CSL, 0x69 | CSL, 0x6A | CSH, 0x98 | CSL
+/* 7C */	0x81 | CSL, 0x69 | CSH, 0x6A | CSH, 0x98 | CSL
 };
 
 /*---------------------------------------------------------------------------*
