@@ -135,6 +135,20 @@
     <para>ACPI seems to make some i386 machines unstable.  Turning off
       ACPI support may help solve some of these problems; see an item
       in <xref linkend="late-news">.</para>
+
+    <para>An integer overflow could cause kernel panics on PAE-using
+      machines with certain memory sizes.  This bug has been corrected
+      on both the <literal>RELENG_5_1</literal> and
+      <literal>HEAD</literal> branches.  A workaround for this problem
+      is to remove some memory, update the system in question, and
+      reinstall the memory.</para>
+
+    <para>Attempting to write to an &man.msdosfs.5; file system that
+      has been upgraded from read-only to read-write via
+      <command>mount -u</command> will cause the system to lock up.
+      To work around this problem, unmount the file system first, then
+      mount it again with the appropriate options instead of using
+      <command>mount -u</command>.</para>
 ]]>
 
   </sect1>
@@ -185,12 +199,6 @@ hw.eisa_slots=0        # disable probing for EISA devices</programlisting>
       support, various MAC framework updates, the GEOM disk geometry
       system.</para>
 
-    <para>An integer overflow could cause kernel panics on PAE-using
-      machines with certain memory sizes.  This bug has been corrected
-      on both the <literal>RELENG_5_1</literal> and
-      <literal>HEAD</literal> branches.  A workaround for this problem
-      is to remove some memory, update the system in question, and
-      reinstall the memory.</para>
 ]]>
 
   </sect1>
