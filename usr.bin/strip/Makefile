@@ -1,10 +1,10 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
 
 PROG=	strip
+MAN1=	strip.1
+STRIP=
 
-install:
-	install -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} strip \
-	    ${DESTDIR}${BINDIR}
+afterinstall:
 	./strip ${DESTDIR}${BINDIR}/strip
 
 .include <bsd.prog.mk>
