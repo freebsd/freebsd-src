@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.36.2.45 1997/03/11 09:29:13 jkh Exp $
+ * $Id: dist.c,v 1.36.2.46 1997/03/11 17:49:17 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -439,7 +439,23 @@ distExtract(char *parent, Distribution *me)
     getinfo:
 	fp = mediaDevice->get(mediaDevice, buf, TRUE);
 	intr = check_for_interrupt();
-	if (fp > 0) {
+	if (fp == (FILE *)IO_ERROR || intr) {	/* Hard error, can't continue */
+	    if (!msgYesNo("Unable to open %s: %s.\nReinitialize media?",
+			  buf, !intr ? "I/O error." : "User interrupt.")) {
+		mediaDevice->shutdown(mediaDevice);
+		if (!mediaDevice->init(mediaDevice)) {
+		    status = FALSE;
+		    goto done;
+		}
+		else
+		    goto getinfo;
+	    }
+	    else {
+		status = FALSE;
+		goto done;
+	    }
+	}
+	else if (fp > 0) {
 	    int status;
 
 	    if (isDebug())
@@ -461,22 +477,6 @@ distExtract(char *parent, Distribution *me)
 	    if (!numchunks)
 		continue;
 	}
-	else if (fp == (FILE *)IO_ERROR || intr) {	/* Hard error, can't continue */
-	    if (!msgYesNo("Unable to open %s: %s.\nReinitialize media?",
-			  buf, !intr ? "I/O error." : "User interrupt.")) {
-		mediaDevice->shutdown(mediaDevice);
-		if (!mediaDevice->init(mediaDevice)) {
-		    status = FALSE;
-		    goto done;
-		}
-		else
-		    goto getinfo;
-	    }
-	    else {
-		status = FALSE;
-		goto done;
-	    }
-	}
 	else {
 	    /* Try to get the distribution as a single file */
 	    snprintf(buf, sizeof buf, "%s/%s.tgz", path, dist);
@@ -487,15 +487,7 @@ distExtract(char *parent, Distribution *me)
 	getsingle:
 	    fp = mediaDevice->get(mediaDevice, buf, TRUE);
 	    intr = check_for_interrupt();
-	    if (fp > 0) {
-		char *dir = root_bias(me[i].my_dir);
-
-		msgNotify("Extracting %s into %s directory...", dist, dir);
-		status = mediaExtractDist(dir, dist, fp);
-		fclose(fp);
-		goto done;
-	    }
-	    else if (fp == (FILE *)IO_ERROR || intr) {	/* Hard error, can't continue */
+	    if (fp == (FILE *)IO_ERROR || intr) {	/* Hard error, can't continue */
 		if (intr)	/* result of an interrupt */
 		    msgConfirm("Unable to open %s: User interrupt", buf);
 		else
@@ -507,6 +499,14 @@ distExtract(char *parent, Distribution *me)
 		}
 		else
 		    goto getsingle;
+	    }
+	    else if (fp > 0) {
+		char *dir = root_bias(me[i].my_dir);
+
+		msgNotify("Extracting %s into %s directory...", dist, dir);
+		status = mediaExtractDist(dir, dist, fp);
+		fclose(fp);
+		goto done;
 	    }
 	    else
 		numchunks = 0;
@@ -603,25 +603,22 @@ distExtract(char *parent, Distribution *me)
 
     done:
 	if (!status) {
-	    if (variable_get(VAR_NO_CONFIRM))
-		status = TRUE;
+	    if (me[i].my_dist) {
+		msgConfirm("Unable to transfer all components of the %s distribution.\n"
+			   "If this is a CDROM install, it may be because export restrictions prohibit\n"
+			   "DES code from being shipped from the U.S.  Try to get this code from a\n"
+			   "local FTP site instead!", me[i].my_name);
+	    }
 	    else {
-		if (me[i].my_dist) {
-		    msgConfirm("Unable to transfer all components of the %s distribution.\n"
-			       "If this is a CDROM install, it may be because export restrictions prohibit\n"
-			       "DES code from being shipped from the U.S.  Try to get this code from a\n"
-			       "local FTP site instead!", me[i].my_name);
-		    status = TRUE;
-		}
-		else {
-		    status = msgYesNo("Unable to transfer the %s distribution from\n%s.\n\n"
-				      "Do you want to try to retrieve it again?",
-				      me[i].my_name, mediaDevice->name);
-		    dialog_clear();
-		}
+		status = msgYesNo("Unable to transfer the %s distribution from\n%s.\n\n"
+				  "Do you want to try to retrieve it again?",
+				  me[i].my_name, mediaDevice->name);
+		if (!status)
+		    --i;
+		dialog_clear();
 	    }
 	}
-	/* Extract was successful, remove ourselves from further consideration */
+	/* If extract was successful, remove ourselves from further consideration */
 	if (status)
 	    *(me[i].my_mask) &= ~(me[i].my_bit);
 	else
