@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ping.c	8.1 (Berkeley) 6/5/93";
 */
 static const char rcsid[] =
-	"$Id: ping.c,v 1.36 1998/05/25 06:53:17 steve Exp $";
+	"$Id: ping.c,v 1.37 1998/05/25 20:16:05 fenner Exp $";
 #endif /* not lint */
 
 /*
@@ -526,8 +526,11 @@ main(argc, argv)
 #ifdef SO_TIMESTAMP
 			if (cmsg->cmsg_level == SOL_SOCKET &&
 			    cmsg->cmsg_type == SCM_TIMESTAMP &&
-			    cmsg->cmsg_len == (sizeof *cmsg + sizeof *t))
-				t = (struct timeval *)CMSG_DATA(cmsg);
+			    cmsg->cmsg_len == (sizeof *cmsg + sizeof *t)) {
+				/* Copy to avoid alignment problems: */
+				memcpy(&now,CMSG_DATA(cmsg),sizeof(now));
+				t = &now;
+			}
 #endif
 			if (t == 0) {
 				(void)gettimeofday(&now, NULL);
