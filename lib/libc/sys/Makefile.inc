@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.3 (Berkeley) 10/24/94
-#	$Id: Makefile.inc,v 1.35 1997/08/19 06:23:45 peter Exp $
+#	$Id: Makefile.inc,v 1.36 1997/08/19 07:00:53 peter Exp $
 
 # sys sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/sys ${.CURDIR}/../libc/sys
@@ -96,7 +96,8 @@ MAN2+=	sys/accept.2 sys/access.2 sys/acct.2 sys/adjtime.2 sys/bind.2 \
 	sys/getdirentries.2 sys/getdtablesize.2 sys/getfh.2 sys/getfsstat.2 \
 	sys/getgid.2 sys/getgroups.2 sys/getitimer.2 sys/getlogin.2 \
 	sys/getpeername.2 sys/getpgrp.2 sys/getpid.2 sys/getpriority.2 \
-	sys/getrlimit.2 sys/getrusage.2 sys/getsockname.2 sys/getsockopt.2 \
+	sys/getrlimit.2 sys/getrusage.2 sys/getsid.2 \
+	sys/getsockname.2 sys/getsockopt.2 \
 	sys/gettimeofday.2 sys/getuid.2 sys/intro.2 sys/ioctl.2 \
 	sys/issetugid.2 sys/kill.2 \
 	sys/ktrace.2 sys/link.2 sys/listen.2 sys/lseek.2 sys/mkdir.2 \
