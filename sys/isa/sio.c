@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.86 1995/04/02 19:28:58 ache Exp $
+ *	$Id: sio.c,v 1.87 1995/04/03 10:29:14 ache Exp $
  */
 
 #include "sio.h"
@@ -162,7 +162,6 @@ typedef u_char	bool_t;		/* boolean */
 
 /* com device structure */
 struct com_s {
-	int	unit;		/* unit	number */
 	u_char	state;		/* miscellaneous flag bits */
 	bool_t  active_out;	/* nonzero if the callout device is open */
 	u_char	cfcr_image;	/* copy of value written to CFCR */
@@ -176,6 +175,7 @@ struct com_s {
 #endif /* COM_MULTIPORT */
 	bool_t	no_irq;		/* nonzero if irq is not attached */
 	bool_t	poll;		/* nonzero if polling is required */
+	int	unit;		/* unit	number */
 	int	dtr_wait;	/* time to hold DTR down on close (* 1/hz) */
 	u_int	tx_fifo_size;
 	u_int	wopeners;	/* # processes waiting for DCD in open() */
@@ -281,7 +281,7 @@ static	void	sioregisterdev	__P((struct isa_device *id));
 static	void	comstart	__P((struct tty *tp));
 static	timeout_t comwakeup;
 static	int	tiocm_xxx2mcr	__P((int tiocm_xxx));
-static  void    set_bypass      __P((struct tty *tp, struct termios *t));
+static	void	disc_optim	__P((struct tty	*tp, struct termios *t,	struct com_s *com));
 
 #ifdef DSI_SOFT_MODEM
 static  int 	LoadSoftModem   __P((int unit,int base_io, u_long size, u_char *ptr));
@@ -888,7 +888,7 @@ open_top:
 		goto open_top;
 	}
 	error =	(*linesw[tp->t_line].l_open)(dev, tp);
-	set_bypass(tp, &(tp->t_termios));
+	disc_optim(tp, &(tp->t_termios), com);
 	if (tp->t_state & TS_ISOPEN && mynor & CALLOUT_MASK)
 		com->active_out = TRUE;
 out:
@@ -918,7 +918,7 @@ sioclose(dev, flag, mode, p)
 	tp = com->tp;
 	s = spltty();
 	(*linesw[tp->t_line].l_close)(tp, flag);
-	set_bypass(tp, &(tp->t_termios));
+	disc_optim(tp, &(tp->t_termios), com);
 	siostop(tp, FREAD | FWRITE);
 	comhardclose(com);
 	ttyclose(tp);
@@ -1355,7 +1355,7 @@ sioioctl(dev, cmd, data, flag, p)
 		return (error);
 	s = spltty();
 	error = ttioctl(tp, cmd, data, flag);
-	set_bypass(tp, &(tp->t_termios));
+	disc_optim(tp, &(tp->t_termios), com);
 	if (error >= 0) {
 		splx(s);
 		return (error);
@@ -1488,17 +1488,6 @@ repeat:
 			buf = NULL;     /* not used, but compiler can't tell */
 			incc = 0;
 		} else {
-			/*
-			 * Prepare to reduce input latency for packet
-			 * discplines with a end of packet character.
-			 * XXX should be elsewhere.
-			 */
-			if (tp->t_line == SLIPDISC)
-				com->hotchar = 0xc0;
-			else if (tp->t_line == PPPDISC)
-				com->hotchar = 0x7e;
-			else
-				com->hotchar = 0;
 			buf = ibuf;
 			disable_intr();
 			incc = com->iptr - buf;
@@ -1754,7 +1743,7 @@ retry:
 		if (!(com->last_modem_status & MSR_CTS))
 			com->state &= ~CS_ODEVREADY;
 	}
-	set_bypass(tp, t);
+	disc_optim(tp, t, com);
 	/*
 	 * Recover from fiddling with CS_TTGO.  We used to call siointr1()
 	 * unconditionally, but that defeated the careful discarding of
@@ -1977,9 +1966,10 @@ comwakeup(chan)
 }
 
 static void
-set_bypass(tp, t)
+disc_optim(tp, t, com)
 	struct tty	*tp;
 	struct termios	*t;
+	struct com_s	*com;
 {
 
 	if (!(t->c_iflag & (ICRNL | IGNCR | IMAXBEL | INLCR | ISTRIP
@@ -1993,6 +1983,16 @@ set_bypass(tp, t)
 		tp->t_state |= TS_CAN_BYPASS_L_RINT;
 	else
 		tp->t_state &= ~TS_CAN_BYPASS_L_RINT;
+	/*
+	 * Prepare to reduce input latency for packet
+	 * discplines with a end of packet character.
+	 */
+	if (tp->t_line == SLIPDISC)
+		com->hotchar = 0xc0;
+	else if (tp->t_line == PPPDISC)
+		com->hotchar = 0x7e;
+	else
+		com->hotchar = 0;
 }
 
 /*
