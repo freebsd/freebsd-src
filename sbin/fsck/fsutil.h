@@ -31,7 +31,6 @@
  * $FreeBSD$
  */
 
-void perror(const char *);
 void errexit(const char *, ...)
     __attribute__((__noreturn__,__format__(__printf__,1,2)));  
 void pfatal(const char *, ...)

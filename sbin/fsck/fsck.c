@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/wait.h>
 #define FSTYPENAMES
-#define DKTYPENAMES
 #include <sys/disklabel.h>
 #include <sys/ioctl.h>
 
