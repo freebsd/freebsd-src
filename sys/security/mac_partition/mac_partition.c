@@ -244,6 +244,24 @@ mac_partition_check_socket_visible(struct ucred *cred, struct socket *socket,
 	return (error ? ENOENT : 0);
 }
 
+static int
+mac_partition_check_vnode_exec(struct ucred *cred, struct vnode *vp,
+    struct label *label, struct image_params *imgp, struct label *execlabel)
+{
+
+	if (execlabel != NULL) {
+		/*
+		 * We currently don't permit labels to be changed at
+		 * exec-time as part of the partition model, so disallow
+		 * non-NULL partition label changes in execlabel.
+		 */
+		if (SLOT(execlabel) != 0)
+			return (EINVAL);
+	}
+
+	return (0);
+}
+
 static struct mac_policy_ops mac_partition_ops =
 {
 	.mpo_init = mac_partition_init,
@@ -261,6 +279,7 @@ static struct mac_policy_ops mac_partition_ops =
 	.mpo_check_proc_sched = mac_partition_check_proc_sched,
 	.mpo_check_proc_signal = mac_partition_check_proc_signal,
 	.mpo_check_socket_visible = mac_partition_check_socket_visible,
+	.mpo_check_vnode_exec = mac_partition_check_vnode_exec,
 };
 
 MAC_POLICY_SET(&mac_partition_ops, trustedbsd_mac_partition,

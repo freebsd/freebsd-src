@@ -2044,9 +2044,23 @@ mac_biba_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
 
 static int
 mac_biba_check_vnode_exec(struct ucred *cred, struct vnode *vp,
-    struct label *label, struct image_params *imgp)
+    struct label *label, struct image_params *imgp,
+    struct label *execlabel)
 {
-	struct mac_biba *subj, *obj;
+	struct mac_biba *subj, *obj, *exec;
+	int error;
+
+	if (execlabel != NULL) {
+		/*
+		 * We currently don't permit labels to be changed at
+		 * exec-time as part of Biba, so disallow non-NULL
+		 * Biba label elements in the execlabel.
+		 */
+		exec = SLOT(execlabel);
+		error = biba_atmostflags(exec, 0);
+		if (error)
+			return (error);
+	}
 
 	if (!mac_biba_enabled)
 		return (0);
