@@ -234,7 +234,6 @@ acd_init_lun(struct atapi_softc *atp, struct devstat *stats)
     bioq_init(&cdp->bio_queue);
     cdp->atp = atp;
     cdp->lun = ata_get_lun(&acd_lun_map);
-    cdp->flags &= ~(F_WRITTEN|F_DISK_OPEN|F_TRACK_OPEN);
     cdp->block_size = 2048;
     cdp->slot = -1;
     cdp->changer_info = NULL;
@@ -977,51 +976,18 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flags, struct proc *p)
 	break;
  
     case CDRIOCOPENDISK:
-	if ((cdp->flags & F_WRITTEN) || (cdp->flags & F_DISK_OPEN)) {
-	    error = EINVAL;
-	    printf("acd%d: sequence error (disk already open)\n", cdp->lun);
-	}
-	cdp->flags &= ~(F_WRITTEN | F_TRACK_OPEN);
-	cdp->flags |= F_DISK_OPEN;
 	break;
 
     case CDRIOCOPENTRACK:
-	if (!(cdp->flags & F_DISK_OPEN)) {
-	    error = EINVAL;
-	    printf("acd%d: sequence error (disk not open)\n", cdp->lun);
-	} 
-	else {
-	    if ((error = acd_open_track(cdp, (struct cdr_track *)addr)))
-		break;
-	    cdp->flags |= F_TRACK_OPEN;
-	}
+	error = acd_open_track(cdp, (struct cdr_track *)addr);
 	break;
 
     case CDRIOCCLOSETRACK:
-	if (!(cdp->flags & F_TRACK_OPEN)) {
-	    error = EINVAL;
-	    printf("acd%d: sequence error (no track open)\n", cdp->lun);
-	}
-	else {
-	    if (cdp->flags & F_WRITTEN) {
-		acd_close_track(cdp);
-		cdp->flags &= ~F_TRACK_OPEN;
-	    }
-	}
+	error = acd_close_track(cdp);
 	break;
 
     case CDRIOCCLOSEDISK:
-	if (!(cdp->flags & F_DISK_OPEN)) {
-	    error = EINVAL;
-	    printf("acd%d: sequence error (nothing to close)\n", cdp->lun);
-	}
-	else if (!(cdp->flags & F_WRITTEN)) {
-	    cdp->flags &= ~(F_DISK_OPEN | F_TRACK_OPEN);
-	}
-	else {
-	    error = acd_close_disk(cdp);
-	    cdp->flags &= ~(F_WRITTEN | F_DISK_OPEN | F_TRACK_OPEN);
-	}
+	error = acd_close_disk(cdp);
 	break;
 
     case CDRIOCWRITESPEED:
@@ -1192,11 +1158,8 @@ acd_done(struct atapi_request *request)
 	bp->bio_error = request->error;
 	bp->bio_flags |= BIO_ERROR;
     }	
-    else {
+    else
 	bp->bio_resid = bp->bio_bcount - request->donecount;
-	if (bp->bio_cmd == BIO_WRITE)
-	    cdp->flags |= F_WRITTEN;
-    }
     devstat_end_transaction_bio(cdp->stats, bp);
     biodone(bp);
     return 0;
@@ -1213,9 +1176,6 @@ acd_read_toc(struct acd_softc *cdp)
     bzero(ccb, sizeof(ccb));
 
     atapi_test_ready(cdp->atp);
-
-    if (cdp->atp->flags & ATAPI_F_MEDIA_CHANGED)
-	cdp->flags &= ~(F_WRITTEN | F_DISK_OPEN | F_TRACK_OPEN);
 
     cdp->atp->flags &= ~ATAPI_F_MEDIA_CHANGED;
 
@@ -1736,7 +1696,6 @@ acd_eject(struct acd_softc *cdp, int32_t close)
 	return 0;
     acd_prevent_allow(cdp, 0);
     cdp->flags &= ~F_LOCKED;
-    cdp->flags &= ~(F_WRITTEN | F_DISK_OPEN | F_TRACK_OPEN);
     cdp->atp->flags |= ATAPI_F_MEDIA_CHANGED;
     return acd_start_stop(cdp, 2);
 }
@@ -1749,7 +1708,6 @@ acd_blank(struct acd_softc *cdp)
     int32_t error;
 
     error = atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 60*60, NULL, NULL);
-    cdp->flags &= ~(F_WRITTEN | F_DISK_OPEN | F_TRACK_OPEN);
     cdp->atp->flags |= ATAPI_F_MEDIA_CHANGED;
     return error;
 }
