@@ -133,8 +133,8 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 
 #ifdef DEBUG
 	if (ldebug(clone)) {
-		printf(ARGS(clone, "flags %x, stack %x"),
-		    (unsigned int)args->flags, (unsigned int)args->stack);
+		printf(ARGS(clone, "flags %x, stack %p"),
+		    (unsigned int)args->flags, args->stack);
 		if (args->flags & CLONE_PID)
 		    printf(LMSG("CLONE_PID not yet supported"));
 	}
@@ -208,7 +208,7 @@ linux_mmap(struct thread *td, struct linux_mmap_args *linux_args)
 
 #ifdef DEBUG
 	if (ldebug(mmap))
-		printf(ARGS(mmap, "%p, 0x%lx, 0x%x, 0x%x, 0x%x, 0x%lx"),
+		printf(ARGS(mmap, "%p, 0x%lx, 0x%lx, 0x%lx, 0x%lx, 0x%lx"),
 		    (void *)linux_args->addr, linux_args->len,
 		    linux_args->prot, linux_args->flags, linux_args->fd,
 		    linux_args->pos);
@@ -314,7 +314,7 @@ linux_rt_sigsuspend(td, uap)
 
 #ifdef DEBUG
 	if (ldebug(rt_sigsuspend))
-		printf(ARGS(rt_sigsuspend, "%p, %d"),
+		printf(ARGS(rt_sigsuspend, "%p, %zd"),
 		    (void *)uap->newset, uap->sigsetsize);
 #endif
 	if (uap->sigsetsize != sizeof(l_sigset_t))
@@ -338,7 +338,7 @@ linux_mprotect(td, uap)
 
 #ifdef DEBUG
 	if (ldebug(mprotect))
-		printf(ARGS(mprotect, "%p, 0x%lx, 0x%x"),
+		printf(ARGS(mprotect, "%p, 0x%zx, 0x%lx"),
 		    (void *)uap->addr, uap->len, uap->prot);
 #endif
 	return (mprotect(td, (void *)uap));
