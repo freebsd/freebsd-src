@@ -54,7 +54,9 @@
  * tag value that goes with it.
  */
 
+#ifndef NVLAN
 #include "vlan.h"
+#endif
 #include "opt_inet.h"
 
 #include <sys/param.h>
@@ -67,6 +69,8 @@
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
+#include <machine/bus.h>	/* XXX: Shouldn't really be required! */
+#include <sys/rman.h>
 
 #include <net/bpf.h>
 #include <net/ethernet.h>
@@ -81,22 +85,31 @@
 #include <netinet/if_ether.h>
 #endif
 
+#define VLANNAME	"vlan"
+#define VLAN_MAXUNIT	0x7fff	/* ifp->if_unit is only 15 bits */
+
 SYSCTL_DECL(_net_link);
 SYSCTL_NODE(_net_link, IFT_L2VLAN, vlan, CTLFLAG_RW, 0, "IEEE 802.1Q VLAN");
 SYSCTL_NODE(_net_link_vlan, PF_LINK, link, CTLFLAG_RW, 0, "for consistency");
 
-u_int	vlan_proto = ETHERTYPE_VLAN;
-SYSCTL_INT(_net_link_vlan_link, VLANCTL_PROTO, proto, CTLFLAG_RW, &vlan_proto,
-	   0, "Ethernet protocol used for VLAN encapsulation");
+static MALLOC_DEFINE(M_VLAN, "vlan", "802.1Q Virtual LAN Interface");
+static struct rman vlanunits[1];
+static LIST_HEAD(, ifvlan) ifv_list;
 
-static	struct ifvlan ifv_softc[NVLAN];
-
+static	int vlan_clone_create(struct if_clone *, int *);
+static	void vlan_clone_destroy(struct ifnet *);
 static	void vlan_start(struct ifnet *ifp);
 static	void vlan_ifinit(void *foo);
+static	int vlan_input(struct ether_header *eh, struct mbuf *m);
+static	int vlan_input_tag(struct ether_header *eh, struct mbuf *m,
+		u_int16_t t);
 static	int vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t addr);
 static	int vlan_setmulti(struct ifnet *ifp);
 static	int vlan_unconfig(struct ifnet *ifp);
 static	int vlan_config(struct ifvlan *ifv, struct ifnet *p);
+
+struct if_clone vlan_cloner =
+    IF_CLONE_INITIALIZER("vlan", vlan_clone_create, vlan_clone_destroy);
 
 /*
  * Program our multicast filter. What we're actually doing is
@@ -142,14 +155,14 @@ vlan_setmulti(struct ifnet *ifp)
 		if (error)
 			return(error);
 		SLIST_REMOVE_HEAD(&sc->vlan_mc_listhead, mc_entries);
-		free(mc, M_DEVBUF);
+		free(mc, M_VLAN);
 	}
 
 	/* Now program new ones. */
 	LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		mc = malloc(sizeof(struct vlan_mc_entry), M_DEVBUF, M_WAITOK);
+		mc = malloc(sizeof(struct vlan_mc_entry), M_VLAN, M_WAITOK);
 		bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
 		    (char *)&mc->mc_addr, ETHER_ADDR_LEN);
 		SLIST_INSERT_HEAD(&sc->vlan_mc_listhead, mc, mc_entries);
@@ -163,44 +176,46 @@ vlan_setmulti(struct ifnet *ifp)
 	return(0);
 }
 
-static void
-vlaninit(void)
-{
-	int i;
-
-	for (i = 0; i < NVLAN; i++) {
-		struct ifnet *ifp = &ifv_softc[i].ifv_if;
-
-		ifp->if_softc = &ifv_softc[i];
-		ifp->if_name = "vlan";
-		ifp->if_unit = i;
-		/* NB: flags are not set here */
-		ifp->if_linkmib = &ifv_softc[i].ifv_mib;
-		ifp->if_linkmiblen = sizeof ifv_softc[i].ifv_mib;
-		/* NB: mtu is not set here */
-
-		ifp->if_init = vlan_ifinit;
-		ifp->if_start = vlan_start;
-		ifp->if_ioctl = vlan_ioctl;
-		ifp->if_output = ether_output;
-		ifp->if_snd.ifq_maxlen = ifqmaxlen;
-		ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
-		/* Now undo some of the damage... */
-		ifp->if_data.ifi_type = IFT_L2VLAN;
-		ifp->if_data.ifi_hdrlen = EVL_ENCAPLEN;
-	}
-}
-
 static int
 vlan_modevent(module_t mod, int type, void *data) 
 { 
+	int i;
+	int err;
+
 	switch (type) { 
 	case MOD_LOAD: 
-		vlaninit();
+		vlanunits->rm_type = RMAN_ARRAY;
+		vlanunits->rm_descr = "configurable if_vlan units";
+		err = rman_init(vlanunits);
+		if (err != 0)
+			return (err);
+		err = rman_manage_region(vlanunits, 0, VLAN_MAXUNIT);
+		if (err != 0) {
+			printf("%s: vlanunits: rman_manage_region: Failed %d\n",
+			    VLANNAME, err);
+			rman_fini(vlanunits);
+			return (err);
+		}
+		LIST_INIT(&ifv_list);
+		vlan_input_p = vlan_input;
+		vlan_input_tag_p = vlan_input_tag;
+		if_clone_attach(&vlan_cloner);
+		for(i = 0; i < NVLAN; i ++) {
+			err = vlan_clone_create(&vlan_cloner, &i);
+			KASSERT(err == 0,
+			    ("Unexpected error creating initial VLANs"));
+		}
 		break; 
 	case MOD_UNLOAD: 
-		printf("if_vlan module unload - not possible for this module type\n"); 
-		return EINVAL; 
+		if_clone_detach(&vlan_cloner);
+		vlan_input_p = NULL;
+		vlan_input_tag_p = NULL;
+		while (!LIST_EMPTY(&ifv_list))
+			vlan_clone_destroy(&LIST_FIRST(&ifv_list)->ifv_if);
+		err = rman_fini(vlanunits);
+		if (err != 0)
+			 return (err);
+		break;
 	} 
 	return 0; 
 } 
@@ -212,6 +227,80 @@ static moduledata_t vlan_mod = {
 }; 
 
 DECLARE_MODULE(if_vlan, vlan_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+
+static int
+vlan_clone_create(struct if_clone *ifc, int *unit)
+{
+	struct resource *r;
+	struct ifvlan *ifv;
+	struct ifnet *ifp;
+	int s;
+
+	if (*unit > VLAN_MAXUNIT)
+		return (ENXIO);
+
+	if (*unit < 0) {
+		r  = rman_reserve_resource(vlanunits, 0, VLAN_MAXUNIT, 1,
+		    RF_ALLOCATED | RF_ACTIVE, NULL);
+		if (r == NULL)
+			return (ENOSPC);
+		*unit = rman_get_start(r);
+	} else {
+		r  = rman_reserve_resource(vlanunits, *unit, *unit, 1,
+		    RF_ALLOCATED | RF_ACTIVE, NULL);
+		if (r == NULL)
+			return (EEXIST);
+	}
+
+	ifv = malloc(sizeof(struct ifvlan), M_VLAN, M_WAITOK);
+	memset(ifv, 0, sizeof(struct ifvlan));
+	ifp = &ifv->ifv_if;
+	SLIST_INIT(&ifv->vlan_mc_listhead);
+
+	s = splnet();
+	LIST_INSERT_HEAD(&ifv_list, ifv, ifv_list);
+	splx(s);
+
+	ifp->if_softc = ifv;
+	ifp->if_name = "vlan";
+	ifp->if_unit = *unit;
+	ifv->r_unit = r;
+	/* NB: flags are not set here */
+	ifp->if_linkmib = &ifv->ifv_mib;
+	ifp->if_linkmiblen = sizeof ifv->ifv_mib;
+	/* NB: mtu is not set here */
+
+	ifp->if_init = vlan_ifinit;
+	ifp->if_start = vlan_start;
+	ifp->if_ioctl = vlan_ioctl;
+	ifp->if_output = ether_output;
+	ifp->if_snd.ifq_maxlen = ifqmaxlen;
+	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	/* Now undo some of the damage... */
+	ifp->if_data.ifi_type = IFT_L2VLAN;
+	ifp->if_data.ifi_hdrlen = EVL_ENCAPLEN;
+
+	return (0);
+}
+
+static void
+vlan_clone_destroy(struct ifnet *ifp)
+{
+	struct ifvlan *ifv = ifp->if_softc;
+	int s;
+	int err;
+
+	s = splnet();
+	LIST_REMOVE(ifv, ifv_list);
+	vlan_unconfig(ifp);
+	splx(s);
+
+	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+
+	err = rman_release_resource(ifv->r_unit);
+	KASSERT(err == 0, ("Unexpected error freeing resource"));
+	free(ifv, M_VLAN);
+}
 
 static void
 vlan_ifinit(void *foo)
@@ -294,7 +383,7 @@ vlan_start(struct ifnet *ifp)
 			      sizeof(struct ether_header));
 			evl = mtod(m, struct ether_vlan_header *);
 			evl->evl_proto = evl->evl_encap_proto;
-			evl->evl_encap_proto = htons(vlan_proto);
+			evl->evl_encap_proto = htons(ETHERTYPE_VLAN);
 			evl->evl_tag = htons(ifv->ifv_tag);
 #ifdef DEBUG
 			printf("vlan_start: %*D\n", sizeof *evl,
@@ -326,19 +415,19 @@ vlan_start(struct ifnet *ifp)
 	return;
 }
 
-int
+static int
 vlan_input_tag(struct ether_header *eh, struct mbuf *m, u_int16_t t)
 {
-	int i;
 	struct ifvlan *ifv;
 
-	for (i = 0; i < NVLAN; i++) {
-		ifv = &ifv_softc[i];
-		if (ifv->ifv_tag == t)
+	for (ifv = LIST_FIRST(&ifv_list); ifv != NULL;
+	    ifv = LIST_NEXT(ifv, ifv_list)) {
+		if (m->m_pkthdr.rcvif == ifv->ifv_p
+		    && ifv->ifv_tag == t)
 			break;
 	}
 
-	if (i >= NVLAN || (ifv->ifv_if.if_flags & IFF_UP) == 0) {
+	if (ifv == NULL || (ifv->ifv_if.if_flags & IFF_UP) == 0) {
 		m_free(m);
 		return -1;	/* So the parent can take note */
 	}
@@ -346,7 +435,7 @@ vlan_input_tag(struct ether_header *eh, struct mbuf *m, u_int16_t t)
 	/*
 	 * Having found a valid vlan interface corresponding to
 	 * the given source interface and vlan tag, run the
-	 * the real packet through ethert_input().
+	 * the real packet through ether_input().
 	 */
 	m->m_pkthdr.rcvif = &ifv->ifv_if;
 
@@ -355,21 +444,20 @@ vlan_input_tag(struct ether_header *eh, struct mbuf *m, u_int16_t t)
 	return 0;
 }
 
-int
+static int
 vlan_input(struct ether_header *eh, struct mbuf *m)
 {
-	int i;
 	struct ifvlan *ifv;
 
-	for (i = 0; i < NVLAN; i++) {
-		ifv = &ifv_softc[i];
+	for (ifv = LIST_FIRST(&ifv_list); ifv != NULL;
+	    ifv = LIST_NEXT(ifv, ifv_list)) {
 		if (m->m_pkthdr.rcvif == ifv->ifv_p
 		    && (EVL_VLANOFTAG(ntohs(*mtod(m, u_int16_t *)))
 			== ifv->ifv_tag))
 			break;
 	}
 
-	if (i >= NVLAN || (ifv->ifv_if.if_flags & IFF_UP) == 0) {
+	if (ifv == NULL || (ifv->ifv_if.if_flags & IFF_UP) == 0) {
 		m_freem(m);
 		return -1;	/* so ether_input can take note */
 	}
@@ -472,7 +560,7 @@ vlan_unconfig(struct ifnet *ifp)
 			if (error)
 				return(error);
 			SLIST_REMOVE_HEAD(&ifv->vlan_mc_listhead, mc_entries);
-			free(mc, M_DEVBUF);
+			free(mc, M_VLAN);
 		}
 	}
 

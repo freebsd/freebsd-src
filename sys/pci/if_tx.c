@@ -54,8 +54,6 @@
 #if defined(__FreeBSD__)
 #define NBPFILTER	1
 
-#include "vlan.h"
-
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
@@ -63,9 +61,7 @@
 
 #include <net/bpf.h>
 
-#if NVLAN > 0
 #include <net/if_vlan_var.h>
-#endif
 
 #include <vm/vm.h>              /* for vtophys */
 #include <vm/pmap.h>            /* for vtophys */
@@ -562,9 +558,7 @@ epic_freebsd_attach(dev)
 
 	/* Attach to OS's managers */
 	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
-#if NVLAN > 0
 	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
-#endif
 	callout_handle_init(&sc->stat_ch);
 
 fail:
