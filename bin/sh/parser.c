@@ -137,6 +137,7 @@ parsecmd(interact)
 {
 	int t;
 
+	tokpushback = 0;
 	doprompt = interact;
 	if (doprompt)
 		setprompt(1);
