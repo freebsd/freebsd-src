@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: init_smp.c,v 1.11 1997/07/15 02:46:37 fsmp Exp $
+ * $Id: init_smp.c,v 1.12 1997/07/21 17:03:22 fsmp Exp $
  */
 
 #include "opt_smp.h"
@@ -46,9 +46,6 @@
 #include <machine/smp.h>
 #include <machine/smptests.h>	/** IGNORE_IDLEPROCS, TEST_TEST1 */
 #include <machine/specialreg.h>
-#ifndef CR0_EM
-#define	CR0_EM	0x00000004	/* EMulate non-NPX coproc. (trap ESC only) */
-#endif
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -198,10 +195,7 @@ secondary_main()
 #endif  /** TEST_TEST1 */
 
         /* Setup the FPU. */
-	temp = rcr0();
-	temp &= ~(CR0_EM);
-	temp |= (CR0_MP | CR0_NE | CR0_TS);
-	load_cr0(temp);
+        load_cr0((rcr0() & ~CR0_EM) | CR0_MP | CR0_NE | CR0_TS);
 
 	curproc = NULL;			/* ensure no context to save */
 	cpu_switch(curproc);		/* start first process */
