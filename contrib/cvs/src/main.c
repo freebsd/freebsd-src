@@ -331,6 +331,11 @@ main (argc, argv)
     const struct cmd *cm;
     int c, err = 0;
     int rcsbin_update_env, tmpdir_update_env, cvs_update_env;
+    int free_CVSroot = 0;
+    int free_Editor = 0;
+    int free_Tmpdir = 0;
+    int free_Rcsbin = 0;
+
     int help = 0;		/* Has the user asked for help?  This
 				   lets us support the `cvs -H cmd'
 				   convention to give help for cmd. */
@@ -406,11 +411,9 @@ main (argc, argv)
 	logoff = TRUE;
     }
 
-    /* I'm not sure whether this needs to be 1 instead of 0 anymore.  Using
-       1 used to accomplish what passing "+" as the first character to
-       the option string does, but that reason doesn't exist anymore.  */
-    optind = 1;
-
+    /* Set this to 0 to force getopt initialization.  getopt() sets
+       this to 1 internally.  */
+    optind = 0;
 
     /* We have to parse the options twice because else there is no
        chance to avoid reading the global options from ".cvsrc".  Set
@@ -432,7 +435,7 @@ main (argc, argv)
     if (use_cvsrc)
 	read_cvsrc (&argc, &argv, "cvs");
 
-    optind = 1;
+    optind = 0;
     opterr = 1;
 
     while ((c = getopt_long
@@ -487,18 +490,22 @@ main (argc, argv)
 		exit (0);
 		break;
 	    case 'b':
-		Rcsbin = optarg;
+		Rcsbin = xstrdup (optarg);
+		free_Rcsbin = 1;
 		rcsbin_update_env = 1;	/* need to update environment */
 		break;
 	    case 'T':
-		Tmpdir = optarg;
+		Tmpdir = xstrdup (optarg);
+		free_Tmpdir = 1;
 		tmpdir_update_env = 1;	/* need to update environment */
 		break;
 	    case 'e':
-		Editor = optarg;
+		Editor = xstrdup (optarg);
+		free_Editor = 1;
 		break;
 	    case 'd':
-		CVSroot = optarg;
+		CVSroot = xstrdup (optarg);
+		free_CVSroot = 1;
 		cvs_update_env = 1;	/* need to update environment */
 		break;
 	    case 'H':
@@ -878,6 +885,16 @@ main (argc, argv)
     }
 
     Lock_Cleanup ();
+
+    free (program_path);
+    if (free_CVSroot)
+	free (CVSroot);
+    if (free_Editor)
+	free (Editor);
+    if (free_Tmpdir)
+	free (Tmpdir);
+    if (free_Rcsbin)
+	free (Rcsbin);
 
 #ifdef SYSTEM_CLEANUP
     /* Hook for OS-specific behavior, for example socket subsystems on
