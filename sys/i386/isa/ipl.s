@@ -57,13 +57,19 @@
 doreti:
 	FAKE_MCOUNT(bintr)		/* init "from" bintr -> doreti */
 doreti_next:
-	/* Check if ASTs can be handled now. */
+	/*
+	 * Check if ASTs can be handled now.  PSL_VM must be checked first
+	 * since segment registers only have an RPL in non-VM86 mode.
+	 */
+	testl	$PSL_VM,TF_EFLAGS(%esp)	/* are we in vm86 mode? */
+	jz	doreti_notvm86
+	cmpl	$1,in_vm86call		/* are we in a vm86 call? */
+	jne	doreti_ast		/* can handle ASTs now if not */
+  	jmp	doreti_exit
+
+doreti_notvm86:
 	testb	$SEL_RPL_MASK,TF_CS(%esp)  /* are we in user mode? */
-	jne	doreti_ast		/* yes, do it now. */
-	testl	$PSL_VM,TF_EFLAGS(%esp) /* kernel mode */
-	je	doreti_exit		/* and not VM86 mode, defer */
-	cmpl	$1,in_vm86call		/* are we in a VM86 call? */
-	je	doreti_exit		/* no, defer */
+	jz	doreti_exit		/* can't handle ASTs now if not */
 
 doreti_ast:
 	/*
