@@ -154,6 +154,44 @@ g_destroy_geom(struct g_geom *gp)
 	g_free(gp);
 }
 
+/*
+ * This function is called (repeatedly) until has withered away.
+ */
+void
+g_wither_geom(struct g_geom *gp, int error)
+{
+	struct g_provider *pp, *pp2;
+	struct g_consumer *cp, *cp2;
+	static int once_is_enough;
+
+	if (once_is_enough)
+		return;
+	once_is_enough = 1;
+	g_trace(G_T_TOPOLOGY, "g_wither_geom(%p(%s))", gp, gp->name);
+	g_topology_assert();
+	if (!(gp->flags & G_GEOM_WITHER)) {
+		gp->flags |= G_GEOM_WITHER;
+		LIST_FOREACH(pp, &gp->provider, provider)
+			g_orphan_provider(pp, error);
+	}
+	for (pp = LIST_FIRST(&gp->provider); pp != NULL; pp = pp2) {
+		pp2 = LIST_NEXT(pp, provider);
+		if (!LIST_EMPTY(&pp->consumers))
+			continue;
+		g_destroy_provider(pp);
+	}
+	for (cp = LIST_FIRST(&gp->consumer); cp != NULL; cp = cp2) {
+		cp2 = LIST_NEXT(cp, consumer);
+		if (cp->acr || cp->acw || cp->ace)
+			continue;
+		g_detach(cp);
+		g_destroy_consumer(cp);
+	}
+	if (LIST_EMPTY(&gp->provider) && LIST_EMPTY(&gp->consumer))
+		g_destroy_geom(gp);
+	once_is_enough = 0;
+}
+
 struct g_consumer *
 g_new_consumer(struct g_geom *gp)
 {
@@ -176,6 +214,7 @@ g_new_consumer(struct g_geom *gp)
 void
 g_destroy_consumer(struct g_consumer *cp)
 {
+	struct g_geom *gp;
 
 	g_trace(G_T_TOPOLOGY, "g_destroy_consumer(%p)", cp);
 	g_topology_assert();
@@ -184,9 +223,12 @@ g_destroy_consumer(struct g_consumer *cp)
 	KASSERT (cp->acw == 0, ("g_destroy_consumer with acw"));
 	KASSERT (cp->ace == 0, ("g_destroy_consumer with ace"));
 	g_cancel_event(cp);
+	gp = cp->geom;
 	LIST_REMOVE(cp, consumer);
 	devstat_remove_entry(cp->stat);
 	g_free(cp);
+	if (gp->flags & G_GEOM_WITHER)
+		g_wither_geom(gp, 0);
 }
 
 static void
@@ -258,7 +300,6 @@ void
 g_destroy_provider(struct g_provider *pp)
 {
 	struct g_geom *gp;
-	struct g_consumer *cp;
 
 	g_topology_assert();
 	KASSERT(LIST_EMPTY(&pp->consumers),
@@ -272,18 +313,8 @@ g_destroy_provider(struct g_provider *pp)
 	gp = pp->geom;
 	devstat_remove_entry(pp->stat);
 	g_free(pp);
-	if (!(gp->flags & G_GEOM_WITHER))
-		return;
-	if (!LIST_EMPTY(&gp->provider))
-		return;
-	for (;;) {
-		cp = LIST_FIRST(&gp->consumer);
-		if (cp == NULL)
-			break;
-		g_detach(cp);
-		g_destroy_consumer(cp);
-	}
-	g_destroy_geom(gp);
+	if ((gp->flags & G_GEOM_WITHER))
+		g_wither_geom(gp, 0);
 }
 
 /*
@@ -389,10 +420,8 @@ g_detach(struct g_consumer *cp)
 	pp = cp->provider;
 	LIST_REMOVE(cp, consumers);
 	cp->provider = NULL;
-	if (LIST_EMPTY(&pp->consumers)) {
-		if (pp->geom->flags & G_GEOM_WITHER)
-			g_destroy_provider(pp);
-	}
+	if (pp->geom->flags & G_GEOM_WITHER)
+		g_wither_geom(pp->geom, 0);
 	redo_rank(cp->geom);
 }
 
