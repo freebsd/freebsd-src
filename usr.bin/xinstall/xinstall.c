@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "From: @(#)xinstall.c	8.1 (Berkeley) 7/21/93";
 #endif
 static const char rcsid[] =
-	"$Id: xinstall.c,v 1.28 1998/01/09 06:05:13 jb Exp $";
+	"$Id: xinstall.c,v 1.29 1998/01/11 11:43:36 peter Exp $";
 #endif /* not lint */
 
 /*-
@@ -57,7 +57,7 @@ static const char rcsid[] =
  *   set all attributes except the immutable flags, then rename, then
  *   set the immutable flags.  It's annoying that the immutable flags
  *   defeat the atomicicity of rename - it seems that there must be
- * o a window where the target is not immutable.
+ *   a window where the target is not immutable.
  */
 
 #include <sys/param.h>
@@ -84,7 +84,7 @@ static const char rcsid[] =
 
 /* Bootstrap aid - this doesn't exist in most older releases */
 #ifndef MAP_FAILED
-#define MAP_FAILED ((caddr_t)-1)	/* from <sys/mman.h> */
+#define MAP_FAILED ((void *)-1)	/* from <sys/mman.h> */
 #endif
 
 int debug, docompare, docopy, dodir, dopreserve, dostrip, verbose, nommap;
