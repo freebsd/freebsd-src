@@ -527,10 +527,10 @@ ast_start(struct ata_device *atadev)
     request->callback = ast_done;
     switch (bp->bio_cmd) {
     case BIO_READ:
-	request->flags |= (ATA_R_SKIPSTART | ATA_R_ATAPI | ATA_R_READ);
+	request->flags |= (ATA_R_ATAPI | ATA_R_READ);
 	break;
     case BIO_WRITE:
-	request->flags |= (ATA_R_SKIPSTART | ATA_R_ATAPI | ATA_R_WRITE);
+	request->flags |= (ATA_R_ATAPI | ATA_R_WRITE);
 	break;
     default:
 	ata_prtdev(atadev, "unknown BIO operation\n");
