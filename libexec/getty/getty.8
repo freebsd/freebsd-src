@@ -94,6 +94,11 @@ The
 utility can be set to timeout after some interval,
 which will cause dial up lines to hang up
 if the login name is not entered reasonably quickly.
+.Sh FILES
+.Bl -tag -width /etc/gettytab -compact
+.It Pa /etc/gettytab
+.It Pa /etc/ttys
+.El
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "ttyxx: No such device or address."
@@ -108,11 +113,6 @@ was not attached during boot-time system configuration,
 or the special file in
 .Pa /dev
 does not exist.
-.El
-.Sh FILES
-.Bl -tag -width /etc/gettytab -compact
-.It Pa /etc/gettytab
-.It Pa /etc/ttys
 .El
 .Sh SEE ALSO
 .Xr login 1 ,

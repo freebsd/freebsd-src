@@ -170,6 +170,23 @@ Turn off transport level keepalive messages.
 This will prevent sessions
 from timing out if the client crashes or becomes unreachable.
 .El
+.Sh FILES
+.Bl -tag -width /var/run/nologin -compact
+.It Pa /etc/hosts
+.It Pa /etc/hosts.equiv
+.It Pa /etc/login.conf
+.It Ev $HOME Ns Pa /.rhosts
+.Pp
+.It Pa /etc/pam.conf
+.Nm
+uses
+.Pa /etc/pam.conf
+entries with service name
+.Dq rsh .
+Authentication modules requiring passwords (such as
+.Nm pam_unix )
+are not supported.
+.El
 .Sh DIAGNOSTICS
 Except for the last one listed below,
 all diagnostic messages
@@ -230,23 +247,8 @@ and is not preceded by a flag byte.
 .Xr named 8 ,
 .Xr rlogind 8 ,
 .Xr syslogd 8
-.Sh FILES
-.Bl -tag -width /var/run/nologin -compact
-.It Pa /etc/hosts
-.It Pa /etc/hosts.equiv
-.It Pa /etc/login.conf
-.It Ev $HOME Ns Pa /.rhosts
-.Pp
-.It Pa /etc/pam.conf
-.Nm
-uses
-.Pa /etc/pam.conf
-entries with service name
-.Dq rsh .
-Authentication modules requiring passwords (such as
-.Nm pam_unix )
-are not supported.
-.El
+.Sh HISTORY
+IPv6 support was added by WIDE/KAME project.
 .Sh BUGS
 The authentication procedure used here assumes the integrity
 of each client machine and the connecting medium.
@@ -271,5 +273,3 @@ also needs the following patch applied besides properly configuring
 .Ed
 .Pp
 A more extensible protocol (such as Telnet) should be used.
-.Sh HISTORY
-IPv6 support was added by WIDE/KAME project.
