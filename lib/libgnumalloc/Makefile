@@ -1,7 +1,7 @@
-#	$Id: Makefile,v 1.7 1996/09/27 06:58:03 peter Exp $
+#	$Id: Makefile,v 1.8 1996/09/27 12:10:08 peter Exp $
 
 LIB=		gnumalloc
-INTERNALLIB=	yes		# Do not build or install lib*.a
+INTERNALLIB=	yes		# Do not build or install ${LIB}*.a
 SHLIB_MAJOR=	2
 SHLIB_MINOR=	0
 
@@ -16,9 +16,14 @@ SRCS=	cfree.c
 # you to run programs that were linked with -lgnumalloc (such as XFree86).
 #
 beforeinstall:
-	rm -f ${DESTDIR}${ORIG_SHLIBDIR}/libgnumalloc.a
-	rm -f ${DESTDIR}${ORIG_SHLIBDIR}/libgnumalloc.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
+	rm -f ${DESTDIR}${LIBDIR}/${LIB}.a ${DESTDIR}${LIBDIR}/${LIB}_p.a \
+	    ${DESTDIR}${ORIG_SHLIBDIR}/${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
 
 .include <bsd.lib.mk>
-ORIG_SHLIBDIR:= ${SHLIBDIR}
-SHLIBDIR=	${ORIG_SHLIBDIR}/compat
+
+# This must follow the .include in case SHLIBDIR is defined there.
+ORIG_SHLIBDIR:=	${SHLIBDIR}
+
+# The ldconfig line in/etc/rc doesn't depend on ${LIBDIR} or ${SHLIBDIR},
+# so neither does this.
+SHLIBDIR=	/usr/lib/compat
