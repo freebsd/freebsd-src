@@ -152,8 +152,9 @@ for i in base default ${bootp_ipbca} ${bootp_ipa} ; do
 	# NFS remount
 	#
 	if [ -d $j -a -f $j/diskless_remount ]; then
-	    mount_nfs `/bin/cat $j/diskless_remount` $j
-	    chkerr $? "mount_nfs `/bin/cat $j/diskless_remount` $j"
+	    nfspt=`/bin/cat $j/diskless_remount`
+	    mount_nfs $nfspt $j
+	    chkerr $? "mount_nfs $nfspt $j"
 	fi
     done
 done
