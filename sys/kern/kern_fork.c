@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.22 1996/06/12 05:07:30 gpalmer Exp $
+ * $Id: kern_fork.c,v 1.23 1996/07/31 09:26:34 davidg Exp $
  */
 
 #include "opt_ktrace.h"
@@ -63,6 +63,16 @@
 #include <vm/vm_inherit.h>
 
 static int fork1 __P((struct proc *p, int flags, int *retval));
+
+/*
+ * callout list for things to do at fork time
+ */
+typedef struct fork_list_element {
+	struct fork_list_element *next;
+	forklist_fn function;
+} *fle_p;
+
+static fle_p fork_list;
 
 #ifndef _SYS_SYSPROTO_H_
 struct fork_args {
@@ -114,6 +124,7 @@ fork1(p1, flags, retval)
 	struct proc *newproc;
 	int count;
 	static int nextpid, pidchecked = 0;
+	fle_p ep = fork_list;
 
 	if ((flags & RFPROC) == 0)
 		return (EINVAL);
@@ -335,6 +346,16 @@ again:
 	}
 
 	/*
+	 * Both processes are set up, 
+	 * check if any LKMs want to adjust anything
+	 * What if they have an error? XXX
+	 */
+        while(ep) {
+                (*ep->function)(p1,p2,flags);
+                ep = ep->next;
+        }
+
+	/*
 	 * Make child runnable and add to run queue.
 	 */
 	(void) splhigh();
@@ -363,3 +384,53 @@ again:
 	retval[1] = 0;
 	return (0);
 }
+
+
+/*********************************************************
+ * general routines to handle adding/deleting items on the
+ * fork callout list
+ *****
+ * Take the arguments given and put them onto the fork callout list.
+ * However first make sure that it's not already there.
+ * returns 0 on success.
+ */
+int
+at_fork(forklist_fn function)
+{
+	fle_p ep;
+	if(rm_at_fork(function)) {
+		printf("fork callout entry already present\n");
+	}
+	ep = malloc(sizeof(*ep),M_TEMP,M_NOWAIT);
+	if(!ep) return ENOMEM;
+	ep->next = fork_list;
+	ep->function = function;
+	fork_list = ep;
+	return 0;
+}
+/*
+ * Scan the exit callout list for the given items and remove them.
+ * Returns the number of items removed.
+ */
+int
+rm_at_fork(forklist_fn function)
+{
+	fle_p *epp,ep;
+	int count = 0;
+
+	epp = &fork_list;
+	ep = *epp;
+	while(ep) {
+		if(ep->function == function) {
+			*epp = ep->next;
+			free(ep,M_TEMP);
+			count++;
+		} else {
+			epp = &ep->next;
+		}
+		ep = *epp;
+	}
+	return count;
+}
+
+
