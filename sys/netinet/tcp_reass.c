@@ -36,6 +36,7 @@
 
 #include "opt_ipfw.h"		/* for ipfw_fwd		*/
 #include "opt_inet6.h"
+#include "opt_ipsec.h"
 #include "opt_tcpdebug.h"
 #include "opt_tcp_input.h"
 
@@ -93,6 +94,9 @@ struct tcphdr tcp_savetcp;
 
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
+#ifdef INET6
+#include <netinet6/ipsec6.h>
+#endif
 #include <netkey/key.h>
 #endif /*IPSEC*/
 

@@ -35,6 +35,7 @@
  */
 
 #include "opt_inet6.h"
+#include "opt_ipsec.h"
 #include "opt_tcpdebug.h"
 
 #include <stddef.h>
@@ -74,6 +75,10 @@
 #ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
 #endif
+
+#ifdef IPSEC
+#include <netinet6/ipsec.h>
+#endif /*IPSEC*/
 
 #ifdef notyet
 extern struct mbuf *m_copypack();
