@@ -6,3 +6,4 @@
 
 branches	= CURRENT
 platforms	= alpha, amd64, i386/i386, i386/pc98, ia64, powerpc, sparc64
+recipient	= current@freebsd.org,%%arch%%@freebsd.org
