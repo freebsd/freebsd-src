@@ -621,6 +621,7 @@ pipe_destroy_write_buffer(wpipe)
 {
 	int i;
 
+	mtx_lock(&vm_mtx);
 	if (wpipe->pipe_map.kva) {
 		pmap_qremove(wpipe->pipe_map.kva, wpipe->pipe_map.npages);
 
@@ -632,7 +633,6 @@ pipe_destroy_write_buffer(wpipe)
 			amountpipekva -= wpipe->pipe_buffer.size + PAGE_SIZE;
 		}
 	}
-	mtx_lock(&vm_mtx);
 	for (i = 0; i < wpipe->pipe_map.npages; i++)
 		vm_page_unwire(wpipe->pipe_map.ms[i], 1);
 	mtx_unlock(&vm_mtx);
