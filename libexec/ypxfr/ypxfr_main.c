@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: ypxfr_main.c,v 1.11 1997/12/08 07:49:54 charnier Exp $";
+	"$Id: ypxfr_main.c,v 1.13 1999/05/10 20:55:29 wpaul Exp $";
 #endif /* not lint */
 
 #include <errno.h>
@@ -81,14 +81,14 @@ static void ypxfr_exit(retval, temp)
 		}
 	}
 
-	if (_rpcpmstart) {
+	if (ypxfr_prognum) {
 		timeout.tv_sec = 20;
 		timeout.tv_usec = 0;
 
 		if ((clnt = clntudp_create(&ypxfr_callback_addr, ypxfr_prognum,
 					1, timeout, &sock)) == NULL) {
-			yp_error("%s", clnt_spcreateerror("failed to \
-establish callback handle"));
+			yp_error("%s", clnt_spcreateerror("failed to "
+			    "establish callback handle"));
 			exit(1);
 		}
 
