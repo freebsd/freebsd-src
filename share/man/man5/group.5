@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)group.5	8.3 (Berkeley) 4/19/94
-.\"	$Id: group.5,v 1.3 1996/06/30 16:09:51 wosch Exp $
+.\"	$Id: group.5,v 1.4 1996/07/02 21:53:54 mpp Exp $
 .\"
 .Dd September 29, 1994
 .Dt GROUP 5
@@ -133,13 +133,13 @@ is 1024 characters. Longer lines will be skiped.
 .It Pa /etc/group
 .El
 .Sh SEE ALSO
+.Xr passwd 1 ,
+.Xr setgroups 2 ,
 .Xr crypt 3 ,
 .Xr getgrent 3 ,
 .Xr initgroups 3 ,
-.Xr passwd 1 ,
-.Xr passwd 5 ,
-.Xr setgroups 2 ,
-.Xr yp 4
+.Xr yp 4 ,
+.Xr passwd 5
 .Sh BUGS
 The
 .Xr passwd 1
