@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.14 1998/09/25 22:35:56 gibbs Exp $
+ *      $Id: cam_xpt.c,v 1.15 1998/10/02 21:00:50 ken Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -344,6 +344,17 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 			"CD-R   CDU9*", "*"
 		},
 		CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
+	},
+	{
+		/*
+		 * The 8200 doesn't like multi-lun probing, and probably
+		 * don't like serial number requests either.
+		 */
+		{
+			T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "EXABYTE",
+			"EXB-8200*", "*"
+		},
+		CAM_QUIRK_NOSERIAL|CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
 	},
 	{
 		/* Default tagged queuing parameters for all devices */
