@@ -120,7 +120,7 @@ ttymsg(iov, iovcnt, line, tmout)
 			continue;
 		}
 		if (errno == EWOULDBLOCK) {
-			int cpid, off = 0;
+			int cpid;
 
 			if (forked) {
 				(void) close(fd);
@@ -143,7 +143,7 @@ ttymsg(iov, iovcnt, line, tmout)
 			(void) signal(SIGTERM, SIG_DFL); /* XXX */
 			(void) sigsetmask(0);
 			(void) alarm((u_int)tmout);
-			(void) fcntl(fd, O_NONBLOCK, &off);
+			(void) fcntl(fd, F_SETFL, 0);	/* clear O_NONBLOCK */
 			continue;
 		}
 		/*
