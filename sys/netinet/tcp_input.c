@@ -567,29 +567,21 @@ findpcb:
 						1, m->m_pkthdr.rcvif);
       }
 
+#if defined(IPSEC) || defined(FAST_IPSEC)
+	if (isipv6) {
+		if (inp != NULL && ipsec6_in_reject(m, inp)) {
 #ifdef IPSEC
-	if (isipv6) {
-		if (inp != NULL && ipsec6_in_reject(m, inp)) {
 			ipsec6stat.in_polvio++;
+#endif /*IPSEC*/
 			goto drop;
 		}
-	} else {
-		if (inp != NULL && ipsec4_in_reject(m, inp)) {
-			ipsecstat.in_polvio++;
-			goto drop;
-		}
-	}
-#endif
-#ifdef FAST_IPSEC
-	if (isipv6) {
-		if (inp != NULL && ipsec6_in_reject(m, inp)) {
-			goto drop;
-		}
-	} else
-	if (inp != NULL && ipsec4_in_reject(m, inp)) {
+	} else  if (inp != NULL && ipsec4_in_reject(m, inp)) {
+#ifdef IPSEC
+		ipsecstat.in_polvio++;
+#endif /*IPSEC*/
 		goto drop;
 	}
-#endif /*FAST_IPSEC*/
+#endif /*IPSEC || FAST_IPSEC*/
 
 	/*
 	 * If the state is CLOSED (i.e., TCB does not exist) then

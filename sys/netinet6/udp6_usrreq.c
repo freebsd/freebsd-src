@@ -239,23 +239,17 @@ udp6_input(mp, offp, proto)
 			if (last != NULL) {
 				struct mbuf *n;
 
+#if defined(IPSEC) || defined(FAST_IPSEC)
+				/*
+				 * Check AH/ESP integrity.
+				 */
+				if (ipsec6_in_reject(m, last)) {
 #ifdef IPSEC
-				/*
-				 * Check AH/ESP integrity.
-				 */
-				if (ipsec6_in_reject(m, last))
 					ipsec6stat.in_polvio++;
-					/* do not inject data into pcb */
-				else
 #endif /* IPSEC */
-#ifdef FAST_IPSEC
-				/*
-				 * Check AH/ESP integrity.
-				 */
-				if (ipsec6_in_reject(m, last))
-					;
-				else
-#endif /* FAST_IPSEC */
+					/* do not inject data into pcb */
+				} else
+#endif /*IPSEC || FAST_IPSEC*/
 				if ((n = m_copy(m, 0, M_COPYALL)) != NULL) {
 					/*
 					 * KAME NOTE: do not
@@ -305,23 +299,17 @@ udp6_input(mp, offp, proto)
 			udpstat.udps_noportmcast++;
 			goto bad;
 		}
+#if defined(IPSEC) || defined(FAST_IPSEC)
+		/*
+		 * Check AH/ESP integrity.
+		 */
+		if (ipsec6_in_reject(m, last)) {
 #ifdef IPSEC
-		/*
-		 * Check AH/ESP integrity.
-		 */
-		if (ipsec6_in_reject(m, last)) {
 			ipsec6stat.in_polvio++;
-			goto bad;
-		}
 #endif /* IPSEC */
-#ifdef FAST_IPSEC
-		/*
-		 * Check AH/ESP integrity.
-		 */
-		if (ipsec6_in_reject(m, last)) {
 			goto bad;
 		}
-#endif /* FAST_IPSEC */
+#endif /*IPSEC || FAST_IPSEC*/
 		if (last->in6p_flags & IN6P_CONTROLOPTS
 		    || last->in6p_socket->so_options & SO_TIMESTAMP)
 			ip6_savecontrol(last, m, &opts);
@@ -361,23 +349,17 @@ udp6_input(mp, offp, proto)
 		icmp6_error(m, ICMP6_DST_UNREACH, ICMP6_DST_UNREACH_NOPORT, 0);
 		return IPPROTO_DONE;
 	}
+#if defined(IPSEC) || defined(FAST_IPSEC)
+	/*
+	 * Check AH/ESP integrity.
+	 */
+	if (ipsec6_in_reject(m, in6p)) {
 #ifdef IPSEC
-	/*
-	 * Check AH/ESP integrity.
-	 */
-	if (ipsec6_in_reject(m, in6p)) {
 		ipsec6stat.in_polvio++;
-		goto bad;
-	}
 #endif /* IPSEC */
-#ifdef FAST_IPSEC
-	/*
-	 * Check AH/ESP integrity.
-	 */
-	if (ipsec6_in_reject(m, in6p)) {
 		goto bad;
 	}
-#endif /* FAST_IPSEC */
+#endif /*IPSEC || FAST_IPSEC*/
 
 	/*
 	 * Construct sockaddr format source address.

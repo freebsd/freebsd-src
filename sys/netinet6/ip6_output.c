@@ -185,14 +185,10 @@ ip6_output(m0, opt, ro, flags, im6o, ifpp, inp)
 	struct route_in6 *ro_pmtu = NULL;
 	int hdrsplit = 0;
 	int needipsec = 0;
-#ifdef FAST_IPSEC
+#if defined(IPSEC) || defined(FAST_IPSEC)
 	int needipsectun = 0;
 	struct secpolicy *sp = NULL;
-#endif /* FAST_IPSEC */
-#ifdef IPSEC
-	int needipsectun = 0;
-	struct secpolicy *sp = NULL;
-#endif /* IPSEC */
+#endif /*IPSEC || FAST_IPSEC*/
 
 	ip6 = mtod(m, struct ip6_hdr *);
 	finaldst = ip6->ip6_dst;
