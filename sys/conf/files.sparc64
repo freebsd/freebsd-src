@@ -36,10 +36,10 @@ sparc64/sparc64/db_interface.c	optional	ddb
 sparc64/sparc64/db_trace.c	optional	ddb
 sparc64/sparc64/db_hwwatch.c	optional	ddb
 sparc64/sparc64/elf_machdep.c	standard
-# locore.s and exception.s need to be handled in Makefile to put them first.
-# Otherwise it's they're normal.
-# sparc64/sparc64/locore.s	standard
-# sparc64/sparc64/exception.s	standard
+# locore.S and exception.S need to be handled in the Makefile to put them
+# first.  Otherwise they're normal.
+# sparc64/sparc64/locore.S	standard
+# sparc64/sparc64/exception.S	standard
 sparc64/sparc64/eeprom.c	optional	eeprom
 sparc64/sparc64/eeprom_ebus.c	optional	eeprom ebus
 sparc64/sparc64/eeprom_sbus.c	optional	eeprom sbus
@@ -49,8 +49,8 @@ sparc64/sparc64/intr_machdep.c	standard
 sparc64/sparc64/iommu.c		standard
 sparc64/sparc64/machdep.c	standard
 sparc64/sparc64/mem.c		standard
-sparc64/sparc64/mp_exception.s	optional	smp
-sparc64/sparc64/mp_locore.s	optional	smp
+sparc64/sparc64/mp_exception.S	optional	smp
+sparc64/sparc64/mp_locore.S	optional	smp
 sparc64/sparc64/mp_machdep.c	optional	smp
 sparc64/sparc64/nexus.c		standard
 sparc64/sparc64/ofw_bus.c	standard
@@ -59,9 +59,9 @@ sparc64/sparc64/pmap.c		standard
 sparc64/sparc64/prof_machdep.c	optional	profiling-routine
 sparc64/sparc64/rwindow.c	standard
 sparc64/sparc64/sparcbus_if.m	standard
-sparc64/sparc64/support.s	standard
+sparc64/sparc64/support.S	standard
 sparc64/sparc64/sys_machdep.c	standard
-sparc64/sparc64/swtch.s		standard
+sparc64/sparc64/swtch.S		standard
 sparc64/sparc64/tick.c		standard
 sparc64/sparc64/tlb.c		standard
 sparc64/sparc64/trap.c		standard
