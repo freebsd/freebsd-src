@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.54 1996/06/02 18:58:39 joerg Exp $
+ *	$Id: autoconf.c,v 1.55 1996/06/08 09:37:35 bde Exp $
  */
 
 /*
@@ -191,6 +191,9 @@ configure(dummy)
 	isa_configure();
 #endif
 
+	if (setdumpdev(dumpdev) != 0)
+		dumpdev = NODEV;
+
 	configure_finish();
 
 	cninit_finish();
@@ -268,15 +271,11 @@ configure(dummy)
 			setroot();
 	}
 #endif
+
 	if (!mountroot) {
 		panic("Nobody wants to mount my root for me");
 	}
-	/*
-	 * Configure swap area and related system
-	 * parameter based on device(s) used.
-	 */
-	if (bootverbose)
-		printf("Configuring root and swap devs.\n");
+
 	setconf();
 	cold = 0;
 	if (bootverbose)
@@ -292,7 +291,6 @@ setdumpdev(dev)
 
 	if (dev == NODEV) {
 		dumpdev = dev;
-		dumplo = 0;
 		return (0);
 	}
 	maj = major(dev);
@@ -379,9 +377,8 @@ sysctl_kern_dumpdev SYSCTL_HANDLER_ARGS
 
 	ndumpdev = dumpdev;
 	error = sysctl_handle_opaque(oidp, &ndumpdev, sizeof ndumpdev, req);
-	if (!error && ndumpdev != dumpdev) {
+	if (error == 0 && req->newptr != NULL)
 		error = setdumpdev(ndumpdev);
-	}
 	return (error);
 }
 
