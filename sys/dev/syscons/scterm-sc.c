@@ -406,6 +406,11 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 					tcp->cur_color.fg = ansi_col[n - 30];
 					tcp->cur_attr = mask2attr(tcp);
 					break;
+				case 39:
+					tcp->attr_mask &= ~FG_CHANGED;
+					tcp->cur_color.fg = tcp->std_color.fg;
+					tcp->cur_attr = mask2attr(tcp);
+					break;
 				case 40: case 41: /* set bg color */
 				case 42: case 43: case 44:
 				case 45: case 46: case 47:
@@ -413,6 +418,11 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 					tcp->cur_color.bg = ansi_col[n - 40];
 					tcp->cur_attr = mask2attr(tcp);
 		    			break;
+				case 49:
+					tcp->attr_mask &= ~BG_CHANGED;
+					tcp->cur_color.bg = tcp->std_color.bg;
+					tcp->cur_attr = mask2attr(tcp);
+					break;
 				}
 			}
 			break;
