@@ -498,14 +498,14 @@ iommu_dvma_valloc(bus_dma_tag_t t, struct iommu_state *is, bus_dmamap_t map,
 	 * allocation code.
 	 * Alignment to a page boundary is always enforced.
 	 */
-	align = (t->alignment + IO_PAGE_MASK) >> IO_PAGE_SHIFT;
+	align = (t->dt_alignment + IO_PAGE_MASK) >> IO_PAGE_SHIFT;
 	sgsize = round_io_page(size) >> IO_PAGE_SHIFT;
-	if (t->boundary > 0 && t->boundary < IO_PAGE_SIZE)
+	if (t->dt_boundary > 0 && t->dt_boundary < IO_PAGE_SIZE)
 		panic("iommu_dvmamap_load: illegal boundary specified");
-	bound = ulmax(t->boundary >> IO_PAGE_SHIFT, 1);
+	bound = ulmax(t->dt_boundary >> IO_PAGE_SHIFT, 1);
 	map->dvmaresv = 0;
 	map->res = rman_reserve_resource_bound(&iommu_dvma_rman, 0L,
-	    t->lowaddr, sgsize, bound >> IO_PAGE_SHIFT,
+	    t->dt_lowaddr, sgsize, bound >> IO_PAGE_SHIFT,
 	    RF_ACTIVE | rman_make_alignment_flags(align), NULL);
 	if (map->res == NULL)
 		return (ENOMEM);
@@ -540,7 +540,7 @@ iommu_dvmamem_alloc(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
 	 */
 	if ((error = sparc64_dmamem_alloc_map(dt, mapp)) != 0)
 		return (error);
-	if ((*vaddr = malloc(dt->maxsize, M_IOMMU,
+	if ((*vaddr = malloc(dt->dt_maxsize, M_IOMMU,
 	    (flags & BUS_DMA_NOWAIT) ? M_NOWAIT : M_WAITOK)) == NULL) {
 		error = ENOMEM;
 		goto failm;
@@ -549,7 +549,7 @@ iommu_dvmamem_alloc(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
 	 * Try to preallocate DVMA memory. If this fails, it is retried at load
 	 * time.
 	 */
-	iommu_dvma_valloc(dt, is, *mapp, IOMMU_SIZE_ROUNDUP(dt->maxsize));
+	iommu_dvma_valloc(dt, is, *mapp, IOMMU_SIZE_ROUNDUP(dt->dt_maxsize));
 	return (0);
 
 failm:
@@ -573,7 +573,7 @@ iommu_dvmamap_create(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
 {
 	int error;
 
-	if ((error = sparc64_dmamap_create(pt->parent, dt, flags, mapp)) != 0)
+	if ((error = sparc64_dmamap_create(pt->dt_parent, dt, flags, mapp)) != 0)
 		return (error);
 	KASSERT((*mapp)->res == NULL,
 	    ("iommu_dvmamap_create: hierarchy botched"));
@@ -584,7 +584,7 @@ iommu_dvmamap_create(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
 	 * handle more; that case is handled by reallocating at map load time.
 	 */
 	iommu_dvma_valloc(dt, is, *mapp,
-	    ulmin(IOMMU_SIZE_ROUNDUP(dt->maxsize), BUS_SPACE_MAXSIZE));
+	    ulmin(IOMMU_SIZE_ROUNDUP(dt->dt_maxsize), BUS_SPACE_MAXSIZE));
 	return (0);
 }
 
@@ -594,7 +594,7 @@ iommu_dvmamap_destroy(bus_dma_tag_t pt, bus_dma_tag_t dt,
 {
 
 	iommu_dvma_vfree(map);
-	return (sparc64_dmamap_destroy(pt->parent, dt, map));
+	return (sparc64_dmamap_destroy(pt->dt_parent, dt, map));
 }
 
 #define BUS_DMAMAP_NSEGS ((BUS_SPACE_MAXSIZE / PAGE_SIZE) + 1)
@@ -608,7 +608,7 @@ iommu_dvmamap_load(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
     void *cba, int flags)
 {
 #ifdef __GNUC__
-	bus_dma_segment_t sgs[dt->nsegments];
+	bus_dma_segment_t sgs[dt->dt_nsegments];
 #else
 	bus_dma_segment_t sgs[BUS_DMAMAP_NSEGS];
 #endif
@@ -626,7 +626,7 @@ iommu_dvmamap_load(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
 #endif
 		bus_dmamap_unload(dt, map);
 	}
-	if (buflen > dt->maxsize)
+	if (buflen > dt->dt_maxsize)
 		return (EINVAL);
 
 	maxsize = IOMMU_SIZE_ROUNDUP(buflen);
@@ -689,14 +689,14 @@ iommu_dvmamap_load(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
 		iommu_enter(is, trunc_io_page(dvmaddr), trunc_io_page(curaddr),
 		    flags);
 
-		if (sgcnt == -1 || sgs[sgcnt].ds_len + sgsize > dt->maxsegsz) {
-			if (sgsize > dt->maxsegsz) {
+		if (sgcnt == -1 || sgs[sgcnt].ds_len + sgsize > dt->dt_maxsegsz) {
+			if (sgsize > dt->dt_maxsegsz) {
 				/* XXX: add fixup */
 				panic("iommu_dvmamap_load: magsegsz too "
 				    "small\n");
 			}
 			sgcnt++;
-			if (sgcnt > dt->nsegments || sgcnt > BUS_DMAMAP_NSEGS) {
+			if (sgcnt > dt->dt_nsegments || sgcnt > BUS_DMAMAP_NSEGS) {
 				error = ENOMEM;
 				break;
 			}
@@ -729,7 +729,7 @@ iommu_dvmamap_unload(bus_dma_tag_t pt, bus_dma_tag_t dt, struct iommu_state *is,
 	map->buflen = 0;
 	iommu_map_insq(map);
 	/* Flush the caches */
-	sparc64_dmamap_unload(pt->parent, dt, map);
+	sparc64_dmamap_unload(pt->dt_parent, dt, map);
 }
 
 void
