@@ -32,31 +32,31 @@
 .\"	@(#)rogue.6	8.1 (Berkeley) 5/31/93
 .\" $FreeBSD$
 .\"
-.Dd December 07, 2000
+.Dd December 7, 2000
 .Dt ROGUE 6
 .Os
 .Sh NAME
 .Nm rogue
 .Nd exploring The Dungeons of Doom
-.Sh SYNOPSYS
+.Sh SYNOPSIS
 .Nm
 .Op Fl r
 .Op Ar save_file
 .Op Fl s
 .Op Fl d
 .Sh DESCRIPTION
-The game
+The
 .Nm
 is a computer fantasy with a new twist.
-It is crt oriented and the object of the game is to survive
+It is CRT oriented and the object of the game is to survive
 the attacks of various monsters and get a lot of gold, rather
 than the puzzle solving orientation of most computer fantasy games.
 .Pp
 To get started you really only need to know two commands.
 The command
-.Ql ?
+.Ic ?\&
 will give you a list of the available commands and the command
-.Ql /
+.Ic /
 will identify the things you see on the screen.
 .Pp
 To win the game (as opposed to merely playing to beat other people's high
@@ -70,9 +70,9 @@ among heroes.
 When the game ends, either by your death, when you quit, or if you (by
 some miracle) manage to win,
 .Nm
-will give you a list of the top-ten scorers.  The scoring is based entirely
-upon how much gold you get.  There is a 10% penalty for getting yourself
-killed.
+will give you a list of the top-ten scorers.
+The scoring is based entirely upon how much gold you get.
+There is a 10% penalty for getting yourself killed.
 .Pp
 If
 .Ar save_file
@@ -94,11 +94,11 @@ For more detailed directions, read the document
 .An Kenneth C. R. C. Arnold ,
 .An Glenn Wichman
 .Sh FILES
-.Bl -tag -width /var/games/rogue.scorresXX -compact
+.Bl -tag -width /var/games/rogue.scoresXX -compact
 .It Pa /var/games/rogue.scores
-Score file
+score file
 .It Pa rogue.save
-Default save file
+default save file
 .El
 .Sh SEE ALSO
 .Rs
