@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.6 1995/05/17 14:39:40 jkh Exp $
+ * $Id: dist.c,v 1.7 1995/05/18 09:01:52 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -138,6 +138,7 @@ static Distribution DistTable[] = {
 { "src/",	&Dists,		DIST_SRC,		SrcDistTable	},
 { "des",	&Dists,		DIST_DES,		NULL		},
 { "compat1x",	&Dists,		DIST_COMPAT1X,		NULL		},
+{ "compat20",	&Dists,		DIST_COMPAT20,		NULL		},
 { "xf86311/",	&Dists,		DIST_XF86,		XF86DistTable	},
 { NULL },
 };
