@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.24 1995/03/28 17:54:11 nate Exp $
+#	$Id: bsd.lib.mk,v 1.25 1995/08/02 22:31:52 davidg Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -165,7 +165,7 @@ _LIBSUBDIR: .USE
 	done
 .endif
 
-all: ${_LIBS} _LIBSUBDIR # llib-l${LIB}.ln
+all: ${_LIBS} all-man _LIBSUBDIR # llib-l${LIB}.ln
 
 OBJS+=	${SRCS:N*.h:R:S/$/.o/g}
 
@@ -312,6 +312,7 @@ tags: ${SRCS}
 .include <bsd.man.mk>
 .elif !target(maninstall)
 maninstall:
+all-man:
 .endif
 
 .if !target(obj)
