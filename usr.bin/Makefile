@@ -2,7 +2,7 @@
 
 # XXX MISSING:		bc dc deroff diction diff ex graph learn plot
 #			ptx spell spline struct units xsend
-# XXX MISSING SOURCES:	file grep sort
+# XXX MISSING SOURCES:	grep sort
 # XXX MISSING Makefile:	uucp
 # XXX Use GNU versions:	ld man apropos whatis patch
 # Moved to secure: bdes
@@ -10,7 +10,7 @@
 SUBDIR=	apply ar at banner basename biff cal calendar \
 	cap_mkdb checknr chflags chpass cksum col colcrt colrm column \
 	comm compress cpp ctags cut dirname du \
-	env error expand false find finger fmt fold fpr from \
+	env error expand false file find finger fmt fold fpr from \
 	fsplit fstat ftp gcore gprof head hexdump id indent \
 	join jot kdump ktrace key keyinfo keyinit lam last \
 	lastcomm leave lex locate lock logger login logname lorder \
