@@ -913,6 +913,10 @@ main(int argc, char **argv)
 		switch(ch) {
 		case 'c':
 			configfile = strdup(optarg);
+			if (configfile == NULL) {
+				fprintf(stderr, "strdup returned NULL\n");
+				return 1;
+			}
 			break;
 		case 'd':
 			debug++;
@@ -949,6 +953,10 @@ main(int argc, char **argv)
 			fds[ndevs] = open(buf, O_RDWR);
 			if (fds[ndevs] >= 0) {
 				devs[ndevs] = strdup(buf);
+				if (devs[ndevs] == NULL) {
+					fprintf(stderr, "strdup returned NULL\n");
+					return 1;
+				}
 				if (verbose)
 					printf("%s: opened %s\n", 
 					       __progname, devs[ndevs]);
