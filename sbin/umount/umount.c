@@ -212,37 +212,37 @@ umountfs(name, typelist)
 	struct timeval pertry, try;
 	CLIENT *clp;
 	int so;
-	char *type, *delimp, *hostp, *mntpt, *newname, rname[MAXPATHLEN];
+	char *type, *delimp, *hostp, *mntpt, *origname, rname[MAXPATHLEN];
 
 	if (realpath(name, rname) == NULL) {
 		/* Continue and let the system call check it... */
 		strcpy(rname, name);
 	}
 
+	origname = name;
 	if (stat(name, &sb) < 0) {
-		if (((mntpt = getmntname(rname, MNTFROM, &type)) == NULL) &&
+		mntpt = rname;
+		if ((getmntname(rname, MNTFROM, &type) == NULL) &&
 		    ((mntpt = getmntname(name, MNTON, &type)) == NULL)) {
 			warnx("%s: not currently mounted", name);
 			return (1);
 		}
-		name = rname;
 	} else if (S_ISBLK(sb.st_mode)) {
 		if ((mntpt = getmntname(name, MNTON, &type)) == NULL) {
 			warnx("%s: not currently mounted", name);
 			return (1);
 		}
-		name = rname;
 	} else if (S_ISDIR(sb.st_mode)) {
 		mntpt = rname;
-		if ((newname = getmntname(mntpt, MNTFROM, &type)) == NULL) {
+		if (getmntname(mntpt, MNTFROM, &type) == NULL) {
 			warnx("%s: not currently mounted", name);
 			return (1);
 		}
-		newname = name;
 	} else {
 		warnx("%s: not a directory or special device", name);
 		return (1);
 	}
+	name = rname;
 
 	if (checkvfsname(type, typelist))
 		return (1);
@@ -267,7 +267,7 @@ umountfs(name, typelist)
 		return (1);
 
 	if (vflag)
-		(void)printf("%s: unmount from %s\n", name, mntpt);
+		(void)printf("%s: unmount from %s\n", origname, mntpt);
 	if (fake)
 		return (0);
 
