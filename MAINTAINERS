@@ -65,7 +65,9 @@ linprocfs	des	Advance notification requested.
 lpr		gad	Pre-commit review requested, particularly for
 			lpd/recvjob.c and lpd/printjob.c.
 newsyslog(8)	gad	Heads-up appreciated.  I'm going thru the PR's for it.
-patch		gad	I have a WIP which will change the src a lot.
+pkill		gad	Heads-up appreciated.
+ps		gad	I am working on a number of changes to this.  Would
+			like advance notice of major changes planned to it.
 cvs		peter	Heads-up appreciated, try not to break it.
 ncurses		peter	Heads-up appreciated, try not to break it.
 nvi		peter	Try not to break it.
