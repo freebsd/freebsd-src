@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcibus.c,v 1.13 1999/05/18 23:20:14 peter Exp $
+ * $Id: pcibus.c,v 1.14 1999/05/20 15:33:24 gallatin Exp $
  *
  */
 
@@ -42,6 +42,7 @@
 #include <machine/cpuconf.h>
 #include <machine/resource.h>
 #include <alpha/pci/pcibus.h>
+#include <alpha/isa/isavar.h>
 
 char chipset_type[10];
 int chipset_bwx = 0;
@@ -313,7 +314,7 @@ DB_COMMAND(in, db_in)
 	return;
 
     size = -1;
-    while (c = *modif++) {
+    while ((c = *modif++) != '\0') {
 	switch (c) {
 	case 'b':
 	    size = 1;
