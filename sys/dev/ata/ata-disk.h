@@ -48,7 +48,6 @@ struct ad_request {
     struct bio			*bp;		/* associated bio ptr */
     u_int8_t			tag;		/* tag ID of this request */
     int				serv;		/* request had service */
-    struct ata_dmaentry		*dmatab;	/* DMA transfer table */
     TAILQ_ENTRY(ad_request)	chain;		/* list management */
 };
 
