@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media_strategy.c,v 1.16 1995/05/24 11:19:11 gpalmer Exp $
+ * $Id: media_strategy.c,v 1.17 1995/05/24 17:49:18 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -198,13 +198,15 @@ attr_match(struct attribs *attr, char *name)
     return NULL;
 }
 
+static pid_t getDistpid = 0;
+
 static int
 genericGetDist(char *path, struct attribs *dist_attrib)
 {
     int 	fd;
     char 	buf[512];
     struct stat	sb;
-    int		pfd[2], pid, numchunks;
+    int		pfd[2], numchunks;
     const char *tmp;
 
     snprintf(buf, 512, "%s.tgz", path);
@@ -224,25 +226,36 @@ genericGetDist(char *path, struct attribs *dist_attrib)
 
     tmp = attr_match(dist_attrib, "pieces");
     numchunks = atoi(tmp);
+
+    /* reap the previous child corpse - yuck! */
+    if (getDistpid) {
+	int i, j;
+
+	i = waitpid(getDistpid, &j, 0);
+	if (i < 0 || WEXITSTATUS(j)) {
+	    msgNotify("Warning: Previous extraction returned status code %d.", WEXITSTATUS(j));
+	    getDistpid = 0;
+	    return -1;
+	}
+	getDistpid = 0;
+    }
     msgDebug("Attempting to extract distribution from %u files\n", numchunks);
     pipe(pfd);
-    pid = fork();
-    if (!pid)
-    {
+    getDistpid = fork();
+    if (!getDistpid) {
 	caddr_t		memory;
-	int		chunk = 0;
+	int		chunk;
 	int		retval;
 
 	dup2(pfd[1], 1); close(pfd[1]);
 	close(pfd[0]);
 
-	while (chunk < numchunks)
-	{
+	for (chunk = 0; chunk < numchunks; chunk++) {
 	    int		fd;
 
 	    snprintf(buf, 512, "%s.%c%c", path, (chunk / 26) + 'a', (chunk % 26) + 'a');
 	    if ((fd = open(buf, O_RDONLY)) == -1)
-		msgFatal("Cannot find file `%s'!\n", buf);
+		msgFatal("Cannot find file `%s'!", buf);
 
 	    fstat(fd, &sb);
 	    msgDebug("mmap()ing %s (%d)\n", buf, fd);
@@ -253,19 +266,17 @@ genericGetDist(char *path, struct attribs *dist_attrib)
  	    retval = write(1, memory, sb.st_size);
 	    if (retval != sb.st_size)
 	    {
-		msgConfirm("write didn't write out the complete file!\n
-(wrote %d bytes of %d bytes)\n", retval, sb.st_size);
+		msgConfirm("write didn't write out the complete file!\n(wrote %d bytes of %d bytes)", retval, sb.st_size);
 		exit(1);
 	    }
 
 	    retval = munmap(memory, sb.st_size);
 	    if (retval != 0)
 	    {
-		msgConfirm("munmap() returned %d\n", retval);
+		msgConfirm("munmap() returned %d", retval);
 		exit(1);
 	    }
 	    close(fd);
-	    ++chunk;
 	}
 	close(1);
 	msgDebug("Extract of %s finished!!!\n", path);
@@ -348,6 +359,16 @@ void
 mediaShutdownCDROM(Device *dev)
 {
     msgDebug("In mediaShutdownCDROM\n");
+    if (getDistpid) {
+	int i, j;
+
+	i = waitpid(getDistpid, &j, 0);
+	if (i < 0 || WEXITSTATUS(j)) {
+	    msgConfirm("Warning: Last extraction returned status code %d.", WEXITSTATUS(j));
+	    getDistpid = 0;
+	}
+	getDistpid = 0;
+    }
     if (unmount("/cdrom", 0) != 0)
 	msgConfirm("Could not unmount the CDROM: %s\n", strerror(errno));
     msgDebug("Unmount returned\n");
@@ -554,6 +575,8 @@ mediaInitFTP(Device *dev)
     return TRUE;
 }
 
+static pid_t ftppid = 0;
+
 int
 mediaGetFTP(char *dist)
 {
@@ -562,7 +585,6 @@ mediaGetFTP(char *dist)
     int		pfd[2], numchunks;
     const char *tmp;
     struct attribs	*dist_attr;
-    static pid_t pid = 0;
 
     msgNotify("Attempting to retreive distribution `%s' over FTP", dist);
     dist_attr = safe_malloc(sizeof(struct attribs) * MAX_ATTRIBS);
@@ -588,21 +610,20 @@ mediaGetFTP(char *dist)
     }
 
     /* reap the previous child corpse - yuck! */
-    if (pid) {
+    if (ftppid) {
 	int i, j;
 
-	i = waitpid(pid, &j, 0);
+	i = waitpid(ftppid, &j, 0);
 	if (i < 0 || WEXITSTATUS(j)) {
 	    msgConfirm("Previous FTP transaction returned status code %d - aborting\ntransfer.", WEXITSTATUS(j));
-	    pid = 0;
+	    ftppid = 0;
 	    return -1;
 	}
-	pid = 0;
+	ftppid = 0;
     }
     pipe(pfd);
-    pid = fork();
-    if (!pid)
-    {
+    ftppid = fork();
+    if (!ftppid) {
 	int		chunk;
 	int		retval;
 
@@ -651,6 +672,14 @@ mediaShutdownFTP(Device *dev)
     if (ftp != NULL) {
 	FtpClose(ftp);
 	ftp = NULL;
+    }
+    if (ftppid) {
+	int i, j;
+
+	i = waitpid(ftppid, &j, 0);
+	if (i < 0 || WEXITSTATUS(j))
+	    msgConfirm("Warning: Last FTP transaction returned status code %d.", WEXITSTATUS(j));
+	ftppid = 0;
     }
     if (netdev->shutdown)
 	(*netdev->shutdown)(netdev);
