@@ -81,7 +81,7 @@ device		fhc
 # disabling this option may require reconfiguration, and can even
 # cause the machine to not boot without manual intervention before the
 # fstab is adjusted.
-#options 	OFW_NEWPCI
+options 	OFW_NEWPCI
 
 # Floppy drives
 #device		fdc
