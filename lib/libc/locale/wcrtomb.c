@@ -39,8 +39,10 @@ wcrtomb(char * __restrict s, wchar_t wc, mbstate_t * __restrict ps __unused)
 	char *e;
 	char buf[MB_LEN_MAX];
 
-	if (s == NULL)
+	if (s == NULL) {
 		s = buf;
+		wc = L'\0';
+	}
 	sputrune(wc, s, MB_CUR_MAX, &e);
 	if (e == NULL) {
 		errno = EILSEQ;
