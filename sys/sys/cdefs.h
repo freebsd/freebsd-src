@@ -201,7 +201,7 @@
 #else
 /*
  * This doesn't work in header files. But it may be better than nothing.
- * The alternative is: #define __IDSTRING(name,string) /* nothing */
+ * The alternative is: #define __IDSTRING(name,string)  [nothing]
  */
 #define	__IDSTRING(name,string)	static const char name[] __unused = string
 #endif
