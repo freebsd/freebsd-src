@@ -543,9 +543,6 @@ mp_Assemble(struct mp *mp, struct mbuf *m, struct physical *p)
         len = mp_ReadHeader(mp, *frag, &h);
         if (first == -1)
           first = h.seq;
-        (*frag)->m_offset += len;
-        (*frag)->m_len -= len;
-        (*frag)->m_nextpkt = NULL;
         if (frag == &q && !h.begin) {
           log_Printf(LogWARN, "Oops - MP frag %lu should have a begin flag\n",
                     (u_long)h.seq);
@@ -556,7 +553,7 @@ mp_Assemble(struct mp *mp, struct mbuf *m, struct physical *p)
                     (u_long)h.seq - 1);
           /*
            * Stuff our fragment back at the front of the queue and zap
-           * our half-assembed packet.
+           * our half-assembled packet.
            */
           (*frag)->m_nextpkt = mp->inbufs;
           mp->inbufs = *frag;
@@ -565,10 +562,14 @@ mp_Assemble(struct mp *mp, struct mbuf *m, struct physical *p)
           q = NULL;
           frag = &q;
           h.end = 0;	/* just in case it's a whole packet */
-        } else
+        } else {
+          (*frag)->m_offset += len;
+          (*frag)->m_len -= len;
+          (*frag)->m_nextpkt = NULL;
           do
             frag = &(*frag)->m_next;
           while (*frag != NULL);
+        }
       } while (!h.end);
 
       if (q) {
