@@ -440,8 +440,14 @@ find_pkgs_by_origin(const char *db_dir, const char *origin)
      	char *cp, tmp[PATH_MAX];
      	int cmd;
 
-	snprintf(tmp, PATH_MAX, "%s/%s/%s", db_dir, installed[i],
-		 CONTENTS_FNAME);
+	snprintf(tmp, PATH_MAX, "%s/%s", db_dir, installed[i]);
+	/*
+	 * SPECIAL CASE: ignore empty dirs, since we can can see them
+	 * during port installation.
+	 */
+	if (isemptydir(tmp))
+	    continue;
+	snprintf(tmp, PATH_MAX, "%s/%s", tmp, CONTENTS_FNAME);
 	fp = fopen(tmp, "r");
 	if (fp == NULL) {
 	    warn("%s", tmp);
