@@ -792,7 +792,13 @@ dsdt_from_fadt(struct FADTbody *fadt)
 {
 	struct	ACPIsdt *sdt;
 
-	sdt = (struct ACPIsdt *)acpi_map_sdt(fadt->dsdt_ptr);
+	/* Use the DSDT address if it is valid and version 2, else X_DSDT */
+	if (addr_size == 4 ||
+	    (addr_size == 8 && fadt->dsdt_ptr != 0 &&
+	    (fadt->x_dsdt_ptr & 0xffffffff) != fadt->dsdt_ptr))
+		sdt = (struct ACPIsdt *)acpi_map_sdt(fadt->dsdt_ptr);
+	else
+		sdt = (struct ACPIsdt *)acpi_map_sdt(fadt->x_dsdt_ptr);
 	if (acpi_checksum(sdt, sdt->len))
 		errx(1, "DSDT is corrupt\n");
 	return (sdt);
