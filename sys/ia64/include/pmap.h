@@ -128,7 +128,7 @@ void	pmap_unmapdev(vm_offset_t, vm_size_t);
 unsigned *pmap_pte(pmap_t, vm_offset_t) __pure2;
 void	pmap_set_opt	(unsigned *);
 void	pmap_set_opt_bsp	(void);
-struct pmap *pmap_install(struct pmap *pmap);
+struct pmap *pmap_switch(struct pmap *pmap);
 
 #endif /* _KERNEL */
 
