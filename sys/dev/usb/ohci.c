@@ -1,4 +1,4 @@
-/*	$NetBSD: ohci.c,v 1.116 2001/11/21 08:18:40 augustss Exp $	*/
+/*	$NetBSD: ohci.c,v 1.117 2001/12/27 11:27:11 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -1302,11 +1302,13 @@ ohci_softintr(void *v)
 		DPRINTFN(5, ("ohci_process_done: std=%p xfer=%p hcpriv=%p\n",
 				std, xfer, (xfer ? xfer->hcpriv : NULL)));
 		if (xfer == NULL || (std->flags & OHCI_TD_HANDLED)) {
-			/* xfer == NULL: There seems to be no xfer associated
+			/*
+			 * xfer == NULL: There seems to be no xfer associated
 			 * with this TD. It is tailp that happened to end up on
 			 * the done queue.
 			 * flags & OHCI_TD_HANDLED: The TD has already been
 			 * handled by process_done and should not be done again.
+			 * Shouldn't happen, but some chips are broken(?).
 			 */
 			continue;
 		}
