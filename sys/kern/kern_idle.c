@@ -112,7 +112,7 @@ idle_proc(void *dummy)
 				    " for a process");
 #endif
 
-#if defined(__i386__) || defined(__ia64__)
+#if defined(__i386__) || defined(__amd64__) || defined(__ia64__)
 			cpu_idle();
 #endif
 		}
