@@ -38,24 +38,25 @@ The
 .Nm
 module handles the AES-CCMP cryptographic requirements of the
 WPA and 802.11i protocols.
-.Nm
-does encapsulation and decapsulation of CCMP-encoded 802.11 frames
+It does encapsulation and decapsulation of CCMP-encoded 802.11 frames
 and optionally calculates the AES-CCMP cipher.
+The
 .Nm
-is an 802.11 cryptographic plugin module for use by the
+module is an 802.11 cryptographic plugin module for use by the
 .Xr wlan 4
 module.
 This module is automatically loaded if an AES-CCMP key is configured;
 typically by a WPA supplicant program such as wpa_supplicant,
-or a WPA authenticator program such as hostapd.
+or a WPA authenticator program such as
+.Nm hostapd .
 Should the underlying network device not be capable of doing the AES-CCMP
 calculations in hardware, the
 .Nm
 module will do the work.
 .Sh SEE ALSO
 .Xr wlan 4 ,
-.Xr wlan_wep 4 ,
-.Xr wlan_tkip 4
+.Xr wlan_tkip 4 ,
+.Xr wlan_wep 4
 .Sh STANDARDS
 More information can be found in the IEEE 802.11, WPA, and 802.11i Standards.
 .Sh HISTORY
