@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.182.2.11 1997/02/13 11:58:49 sos Exp $
+ *  $Id: syscons.c,v 1.182.2.12 1997/02/28 08:47:34 yokota Exp $
  */
 
 #include "sc.h"
@@ -864,7 +864,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	scrn_time_stamp = time.tv_sec;
 	if (scrn_blanked) {
 	    (*current_saver)(FALSE);
-	    mark_all(curr_console);
+	    mark_all(cur_console);
 	}
 	return 0;
     }
