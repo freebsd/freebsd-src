@@ -39,4 +39,4 @@
 #define	_PATH_DTMP	"/etc/dtmp"
 #define	_PATH_DUMPDATES	"/etc/dumpdates"
 #define	_PATH_LOCK	"/tmp/dumplockXXXXXX"
-#define	_PATH_RMT	"/etc/rmt"
+#define	_PATH_RMT	"/usr/sbin/rmt"
