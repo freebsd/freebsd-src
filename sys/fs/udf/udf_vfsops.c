@@ -95,7 +95,6 @@
 
 MALLOC_DEFINE(M_UDFMOUNT, "UDF mount", "UDF mount structure");
 MALLOC_DEFINE(M_UDFFENTRY, "UDF fentry", "UDF file entry structure");
-MALLOC_DEFINE(M_UDFSTABLE, "UDF s_table", "UDF sparing table");
 
 /* Zones */
 uma_zone_t udf_zone_trans = NULL;
@@ -482,7 +481,7 @@ udf_unmount(struct mount *mp, int mntflags, struct thread *td)
 	vrele(udfmp->im_devvp);
 
 	if (udfmp->s_table != NULL)
-		FREE(udfmp->s_table, M_UDFSTABLE);
+		FREE(udfmp->s_table, M_UDFMOUNT);
 
 	if (udfmp->hashtbl != NULL)
 		FREE(udfmp->hashtbl, M_UDFMOUNT);
@@ -729,7 +728,7 @@ udf_find_partmaps(struct udf_mnt *udfmp, struct logvol_desc *lvd)
 
 		pms = &pmap->pms;
 		MALLOC(udfmp->s_table, struct udf_sparing_table *, pms->st_size,
-		    M_UDFSTABLE, M_NOWAIT | M_ZERO);
+		    M_UDFMOUNT, M_NOWAIT | M_ZERO);
 		if (udfmp->s_table == NULL)
 			return (ENOMEM);
 
