@@ -36,6 +36,7 @@
 #include <unistd.h>
 #ifdef _THREAD_SAFE
 #include <pthread.h>
+#include <errno.h>
 #include "pthread_private.h"
 
 struct s_thread_info {
@@ -73,11 +74,31 @@ _thread_dump_info(void)
 	int             i;
 	int             j;
 	pthread_t       pthread;
+	char		tmpfile[128];
 
-	/* Open the dump file for append and create it if necessary: */
-	if ((fd = _thread_sys_open("/tmp/uthread.dump",
-	    O_RDWR | O_CREAT | O_APPEND, 0666)) < 0) {
-		/* Can't open the dump file. */
+	for (i = 0; i < 100000; i++) { 
+		snprintf(tmpfile, sizeof(tmpfile), "/tmp/uthread.dump.%u.%i",
+			getpid(), i);
+		/* Open the dump file for append and create it if necessary: */
+		if ((fd = _thread_sys_open(tmpfile, O_RDWR | O_CREAT | O_EXCL,
+			0666)) < 0) {
+				/* Can't open the dump file. */
+				if (errno == EEXIST)
+					continue;
+				/*
+				 * We only need to continue in case of
+				 * EEXIT error. Most other error
+				 * codes means that we will fail all
+				 * the times.
+				 */
+				return;
+		} else {
+			break;
+		}
+	}
+	if (i==100000) {
+		/* all 100000 possibilities are in use :( */
+		return;
 	} else {
 		/* Output a header for active threads: */
 		strcpy(s, "\n\n=============\nACTIVE THREADS\n\n");
