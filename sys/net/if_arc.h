@@ -128,7 +128,6 @@ struct	arccom {
 };
 
 #ifdef _KERNEL
-extern u_int8_t arcbroadcastaddr;
 extern int arc_ipmtu;	/* XXX new ip only, no RFC 1051! */
 
 void	arc_ifattach __P((struct ifnet *, u_int8_t));

@@ -127,6 +127,12 @@ static struct llinfo_arp
 static void	in_arpinput __P((struct mbuf *));
 #endif
 
+u_char arcbroadcastaddr = 0;
+
+#define IF_BCASTADDR(ifp)					\
+	((ifp)->if_type == IFT_ARCNET ?				\
+		&arcbroadcastaddr : etherbroadcastaddr)
+
 /*
  * Timeout routine.  Age arp_tab entries periodically.
  */
@@ -241,7 +247,7 @@ arp_rtrequest(req, rt, info)
 			rt->rt_expire = 0;
 		}
 		if (in_broadcast(SIN(rt_key(rt))->sin_addr, rt->rt_ifp)) {
-			memcpy(LLADDR(SDL(gate)), rt->rt_ifp->if_broadcastaddr,
+			memcpy(LLADDR(SDL(gate)), IF_BCASTADDR(rt->rt_ifp),
 			       rt->rt_ifp->if_addrlen);
 			SDL(gate)->sdl_alen = rt->rt_ifp->if_addrlen;
 			rt->rt_expire = 0;
@@ -315,7 +321,7 @@ arprequest(ifp, sip, tip, enaddr)
 		MH_ALIGN(m, m->m_len);
 
 		arh = (struct arc_header *)sa.sa_data;
-		arh->arc_dhost = *ifp->if_broadcastaddr;
+		arh->arc_dhost = arcbroadcastaddr;
 		arh->arc_type = ARCTYPE_ARP;
 
 		ah = mtod(m, struct arphdr *);
@@ -330,7 +336,7 @@ arprequest(ifp, sip, tip, enaddr)
 		MH_ALIGN(m, m->m_len);
 
 		(void)memcpy(mtod(m, caddr_t), llcx, sizeof(llcx));
-		(void)memcpy(sa.sa_data, ifp->if_broadcastaddr, 6);
+		(void)memcpy(sa.sa_data, etherbroadcastaddr, 6);
 		(void)memcpy(sa.sa_data + 6, enaddr, 6);
 		sa.sa_data[6] |= TR_RII;
 		sa.sa_data[12] = TR_AC;
@@ -354,7 +360,7 @@ arprequest(ifp, sip, tip, enaddr)
 		eh = (struct ether_header *)sa.sa_data;
 		/* if_output will not swap */
 		eh->ether_type = htons(ETHERTYPE_ARP);
-		(void)memcpy(eh->ether_dhost, ifp->if_broadcastaddr,
+		(void)memcpy(eh->ether_dhost, etherbroadcastaddr,
 		    sizeof(eh->ether_dhost));
 
 		ah = mtod(m, struct arphdr *);
@@ -398,7 +404,7 @@ arpresolve(ifp, rt, m, dst, desten, rt0)
 	struct sockaddr_dl *sdl;
 
 	if (m->m_flags & M_BCAST) {	/* broadcast */
-		(void)memcpy(desten, ifp->if_broadcastaddr, ifp->if_addrlen);
+		(void)memcpy(desten, IF_BCASTADDR(ifp), ifp->if_addrlen);
 		return (1);
 	}
 	if (m->m_flags & M_MCAST && ifp->if_type != IFT_ARCNET) {/* multicast */
@@ -614,7 +620,7 @@ match:
 		m_freem(m);	/* it's from me, ignore it. */
 		return;
 	}
-	if (!bcmp(ar_sha(ah), ifp->if_broadcastaddr, ifp->if_addrlen)) {
+	if (!bcmp(ar_sha(ah), IF_BCASTADDR(ifp), ifp->if_addrlen)) {
 		log(LOG_ERR,
 		    "arp: link address is broadcast for IP address %s!\n",
 		    inet_ntoa(isaddr));

@@ -116,6 +116,7 @@ struct	arpcom {
 };
 
 extern u_char	etherbroadcastaddr[6];
+extern u_char	arcbroadcastaddr;
 #endif
 
 #endif /* !_NET_IF_ARP_H_ */
