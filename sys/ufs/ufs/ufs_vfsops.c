@@ -206,6 +206,6 @@ ufs_fhtovp(mp, ufhp, vpp)
 		return (ESTALE);
 	}
 	*vpp = nvp;
-	vnode_create_vobject(*vpp, 0, curthread);
+	vnode_create_vobject(*vpp, DIP(ip, i_size), curthread);
 	return (0);
 }
