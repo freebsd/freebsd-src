@@ -301,6 +301,12 @@ random_harvest_internal(u_int64_t somecounter, const void *entropy,
 {
 	struct harvest *event;
 
+	KASSERT(origin == RANDOM_START || origin == RANDOM_WRITE ||
+            origin == RANDOM_KEYBOARD || origin == RANDOM_MOUSE ||
+            origin == RANDOM_NET || origin == RANDOM_INTERRUPT ||
+            origin == RANDOM_PURE || origin == ENTROPYSOURCE,
+	    ("random_harvest_internal: origin %d invalid\n", origin));
+
 	/* Lockless read to avoid lock operations if fifo is full. */
 	if (harvestfifo[origin].count >= RANDOM_FIFO_MAX)
 		return;
