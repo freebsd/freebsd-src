@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.23 1994/09/19 17:47:22 phk Exp $
+#	$Id: BSD.usr.dist,v 1.24 1994/10/10 15:17:14 rgrimes Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -51,7 +51,9 @@
             ..
             etc            
             ..
-            lkm            
+            ibcs2
+	    ..
+	    lkm            
             ..
             sunrpc         
             ..
