@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.10.2.5 1997/03/01 11:07:51 kato Exp $
+ *	$Id: clock.c,v 1.10.2.6 1997/03/05 16:21:28 kato Exp $
  */
 
 /*
@@ -405,15 +405,20 @@ release_timer2()
  *
  * The RTC chip requires that we read status register C (RTC_INTR)
  * to acknowledge an interrupt, before it will generate the next one.
+ * Under high interrupt load, rtcintr() can be indefinitely delayed and
+ * the clock can tick immediately after the read from RTC_INTR.  In this
+ * case, the mc146818A interrupt signal will not drop for long enough
+ * to register with the 8259 PIC.  If an interrupt is missed, the stat
+ * clock will halt, considerably degrading system performance.  This is
+ * why we use 'while' rather than a more straightforward 'if' below.
+ * Stat clock ticks can still be lost, causing minor loss of accuracy
+ * in the statistics, but the stat clock will no longer stop.
  */
 static void
 rtcintr(struct clockframe frame)
 {
-	u_char stat;
-	stat = rtcin(RTC_INTR);
-	if(stat & RTCIR_PERIOD) {
+	while (rtcin(RTC_INTR) & RTCIR_PERIOD)
 		statclock(&frame);
-	}
 }
 
 #include "opt_ddb.h"
