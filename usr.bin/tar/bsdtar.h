@@ -62,6 +62,7 @@ struct bsdtar {
 	char		  option_no_subdirs; /* -d */
 	char		  option_null; /* --null */
 	char		  option_stdout; /* -p */
+	char		  option_totals; /* --totals */
 	char		  option_unlink_first; /* -U */
 	char		  option_warn_links; /* -l */
 	char		  day_first; /* show day before month in -tv output */
