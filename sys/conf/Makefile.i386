@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.37 1994/09/16 10:23:46 jkh Exp $
+#	$Id: Makefile.i386,v 1.38 1994/09/23 07:01:59 phk Exp $
 #
 # Makefile for FreeBSD
 #
@@ -25,6 +25,15 @@ LD=	/usr/bin/ld
 CC=	cc 
 CPP=	cpp
 DBSYM=	/usr/sbin/dbsym
+.if defined(DEBUG)
+.if defined(NOSTRIP)
+STRIP=  echo '(skipping) strip'
+.else
+STRIP=  cp $@ $@.sym; strip
+.endif
+.else
+STRIP=  strip
+.endif
 
 .if exists(./@/.)
 S=	./@
@@ -65,7 +74,7 @@ SYSTEM_DEP=Makefile symbols.sort ${SYSTEM_OBJS} libkern.a
 SYSTEM_LD_HEAD= 	@echo loading $@; rm -f $@
 SYSTEM_LD= @${LD} -Bstatic -Z -T ${LOAD_ADDRESS} -o $@ -X ${SYSTEM_OBJS} vers.o libkern.a
 SYSTEM_LD_TAIL= @echo rearranging symbols; symorder symbols.sort $@; \
-	${DBSYM} -fT ${LOAD_ADDRESS} $@; size $@; chmod 755 $@
+	${DBSYM} -fT ${LOAD_ADDRESS} $@; ${STRIP} -x $@; size $@; chmod 755 $@
 
 # (XXX) ok, this is weird.  but we've got a working ed, and a broken ex, and
 # the script is identical for either... -- cgd
