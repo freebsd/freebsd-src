@@ -36,7 +36,7 @@
 .Sh SYNOPSIS
 .In search.h
 .Ft void *
-.Fn tdelete "const void *key" "void **rootp" "int (*compar) (const void *, const void *)"
+.Fn tdelete "const void *restrict key" "void **restrict rootp" "int (*compar) (const void *, const void *)"
 .Ft void *
 .Fn tfind "const void *key" "void **rootp" "int (*compar) (const void *, const void *)"
 .Ft void *
