@@ -128,21 +128,10 @@
 			abort();					\
 	} while (0)
 
+#define PTHREAD_LOCK(p)		UMTX_LOCK(&(p)->lock)
+#define PTHREAD_UNLOCK(p)	UMTX_UNLOCK(&(p)->lock)
 
-/*
- * State change macro:
- */
-#define PTHREAD_SET_STATE(thrd, newstate) do {				\
-	(thrd)->state = newstate;					\
-	(thrd)->fname = __FILE__;					\
-	(thrd)->lineno = __LINE__;					\
-} while (0)
-
-#define PTHREAD_NEW_STATE(thrd, newstate) do {				\
-	if (newstate == PS_RUNNING) 					\
-		thr_wake(thrd->thr_id);					\
-	PTHREAD_SET_STATE(thrd, newstate);				\
-} while (0)
+#define PTHREAD_WAKE(ptd)	thr_wake((ptd)->thr_id)
 
 /*
  * TailQ initialization values.
@@ -452,6 +441,26 @@ struct rwlock_held {
 LIST_HEAD(rwlock_listhead, rwlock_held);
 
 /*
+ * The cancel mode a thread is in is determined by the
+ * the cancel type and state it is set in. The two values
+ * are combined into one mode:
+ *	Mode		State		Type
+ *	----		-----		----
+ *	off		disabled	deferred
+ *	off		disabled	async
+ *	deferred	enabled		deferred
+ *	async		enabled		async
+ */
+enum cancel_mode { M_OFF, M_DEFERRED, M_ASYNC };
+
+/*
+ * A thread's cancellation is pending until the cancel
+ * mode has been tested to determine if the thread can be
+ * cancelled immediately.
+ */
+enum cancellation_state { CS_NULL, CS_PENDING, CS_SET };
+
+/*
  * Thread structure.
  */
 struct pthread {
@@ -466,6 +475,12 @@ struct pthread {
 	thr_id_t		thr_id;
 	sigset_t		savedsig;
 	int			signest; /* blocked signal netsting level */
+	int			ptdflags; /* used by other other threads
+					     to signal this thread */
+	int			isdead;
+	int			isdeadlocked;
+	int			exiting;
+	int			cancellationpoint;
 
 	/*
 	 * Lock for accesses to this thread structure.
@@ -493,19 +508,16 @@ struct pthread {
 	ucontext_t		ctx;
 
 	/*
-	 * Cancelability flags - the lower 2 bits are used by cancel
-	 * definitions in pthread.h
+	 * The primary method of obtaining a thread's cancel state
+	 * and type is through cancelmode. The cancelstate field is
+	 * only so we don't loose the cancel state when the mode is
+	 * turned off.
 	 */
-#define PTHREAD_AT_CANCEL_POINT		0x0004
-#define PTHREAD_CANCELLING		0x0008
+	enum cancel_mode	cancelmode;
+	enum cancel_mode	cancelstate;
 
-	/*
-	 * Protected by Giant.
-	 */ 
-	int	cancelflags;
-
-	/* Thread state: */
-	enum pthread_state	state;
+	/* Specifies if cancellation is pending, acted upon, or neither. */
+	enum cancellation_state	cancellation;
 
 	/*
 	 * Error variable used instead of errno. The function __error()
@@ -528,15 +540,6 @@ struct pthread {
 	 *
 	 * A thread can also be joining a thread (the joiner field above).
 	 *
-	 * It must not be possible for a thread to belong to any of the
-	 * above queues while it is handling a signal.  Signal handlers
-	 * may longjmp back to previous stack frames circumventing normal
-	 * control flow.  This could corrupt queue integrity if the thread
-	 * retains membership in the queue.  Therefore, if a thread is a
-	 * member of one of these queues when a signal handler is invoked,
-	 * it must remove itself from the queue before calling the signal
-	 * handler and reinsert itself after normal return of the handler.
-	 *
 	 * Use sqe for synchronization (mutex and condition variable) queue
 	 * links.
 	 */
@@ -548,14 +551,16 @@ struct pthread {
 	/* Miscellaneous flags; only set with signals deferred. */
 	int		flags;
 #define PTHREAD_FLAGS_PRIVATE	0x0001
-#define PTHREAD_EXITING		0x0002
 #define PTHREAD_FLAGS_BARR_REL	0x0004	/* has been released from barrier */
+#define PTHREAD_FLAGS_IN_BARRQ	0x0008	/* in barrier queue using sqe link */
 #define PTHREAD_FLAGS_IN_CONDQ	0x0080	/* in condition queue using sqe link*/
 #define PTHREAD_FLAGS_IN_MUTEXQ	0x0100	/* in mutex queue using sqe link */
 #define	PTHREAD_FLAGS_SUSPENDED	0x0200	/* thread is suspended */
 #define PTHREAD_FLAGS_TRACE	0x0400	/* for debugging purposes */
 #define PTHREAD_FLAGS_IN_SYNCQ	\
-    (PTHREAD_FLAGS_IN_CONDQ | PTHREAD_FLAGS_IN_MUTEXQ)
+    (PTHREAD_FLAGS_IN_CONDQ | PTHREAD_FLAGS_IN_MUTEXQ | PTHREAD_FLAGS_IN_BARRQ)
+#define PTHREAD_FLAGS_NOT_RUNNING \
+    (PTHREAD_FLAGS_IN_SYNCQ | PTHREAD_FLAGS_SUSPENDED)
 
 	/*
 	 * Base priority is the user setable and retrievable priority
@@ -773,7 +778,6 @@ void    *_thread_cleanup(pthread_t);
 void    _thread_cleanupspecific(void);
 void    _thread_dump_info(void);
 void    _thread_init(void);
-void	_thread_sig_wrapper(int sig, siginfo_t *info, void *context);
 void	_thread_printf(int fd, const char *, ...);
 void    _thread_start(void);
 void	_thread_seterrno(pthread_t, int);

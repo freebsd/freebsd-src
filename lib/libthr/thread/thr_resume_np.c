@@ -49,12 +49,12 @@ _pthread_resume_np(pthread_t thread)
 
 	/* Find the thread in the list of active threads: */
 	if ((ret = _find_thread(thread)) == 0) {
-		_thread_critical_enter(thread);
+		PTHREAD_LOCK(thread);
 
 		if ((thread->flags & PTHREAD_FLAGS_SUSPENDED) != 0)
 			resume_common(thread);
 
-		_thread_critical_exit(thread);
+		PTHREAD_UNLOCK(thread);
 	}
 	return (ret);
 }
@@ -64,16 +64,17 @@ _pthread_resume_all_np(void)
 {
 	struct pthread	*thread;
 
+	_thread_sigblock();
 	THREAD_LIST_LOCK;
 	TAILQ_FOREACH(thread, &_thread_list, tle) {
+		PTHREAD_LOCK(thread);
 		if ((thread != curthread) &&
-		    ((thread->flags & PTHREAD_FLAGS_SUSPENDED) != 0)) {
-			_thread_critical_enter(thread);
+		    ((thread->flags & PTHREAD_FLAGS_SUSPENDED) != 0))
 			resume_common(thread);
-			_thread_critical_exit(thread);
-		}
+		PTHREAD_UNLOCK(thread);
 	}
 	THREAD_LIST_UNLOCK;
+	_thread_sigunblock();
 }
 
 /*

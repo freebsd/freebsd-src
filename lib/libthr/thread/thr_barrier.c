@@ -85,11 +85,12 @@ _pthread_barrier_wait(pthread_barrier_t *barrier)
 	UMTX_LOCK(&b->b_lock);
 	if (b->b_subtotal == (b->b_total - 1)) {
 		TAILQ_FOREACH(ptd, &b->b_barrq, sqe) {
-			_thread_critical_enter(ptd);
-			PTHREAD_NEW_STATE(ptd, PS_RUNNING);
+			PTHREAD_LOCK(ptd);
 			TAILQ_REMOVE(&b->b_barrq, ptd, sqe);
+			ptd->flags &= ~PTHREAD_FLAGS_IN_BARRQ;
 			ptd->flags |= PTHREAD_FLAGS_BARR_REL;
-			_thread_critical_exit(ptd);
+			PTHREAD_WAKE(ptd);
+			PTHREAD_UNLOCK(ptd);
 		}
 		b->b_subtotal = 0;
 		UMTX_UNLOCK(&b->b_lock);
@@ -99,10 +100,10 @@ _pthread_barrier_wait(pthread_barrier_t *barrier)
 	/*
 	 * More threads need to reach the barrier. Suspend this thread.
 	 */
-	_thread_critical_enter(curthread);
+	PTHREAD_LOCK(curthread);
 	TAILQ_INSERT_HEAD(&b->b_barrq, curthread, sqe);
-	PTHREAD_NEW_STATE(curthread, PS_BARRIER_WAIT);
-	_thread_critical_exit(curthread);
+	curthread->flags |= PTHREAD_FLAGS_IN_BARRQ;
+	PTHREAD_UNLOCK(curthread);
 	b->b_subtotal++;
 	PTHREAD_ASSERT(b->b_subtotal < b->b_total,
 	    "the number of threads waiting at a barrier is too large");
@@ -114,15 +115,14 @@ _pthread_barrier_wait(pthread_barrier_t *barrier)
 			 * Make sure this thread wasn't released from
 			 * the barrier while it was handling the signal.
 			 */
-			_thread_critical_enter(curthread);
+			PTHREAD_LOCK(curthread);
 			if ((curthread->flags & PTHREAD_FLAGS_BARR_REL) != 0) {
 				curthread->flags &= ~PTHREAD_FLAGS_BARR_REL;
-				_thread_critical_exit(curthread);
+				PTHREAD_UNLOCK(curthread);
 				error = 0;
 				break;
 			}
-			PTHREAD_NEW_STATE(curthread, PS_BARRIER_WAIT);
-			_thread_critical_exit(curthread);
+			PTHREAD_UNLOCK(curthread);
 		}
 	} while (error == EINTR);
 	return (error);
