@@ -192,6 +192,7 @@ MAN=	aac.4 \
 	ng_pptpgre.4 \
 	ng_rfc1490.4 \
 	ng_socket.4 \
+	ng_source.4 \
 	ng_split.4 \
 	ng_sppp.4 \
 	ng_sscfu.4 \
