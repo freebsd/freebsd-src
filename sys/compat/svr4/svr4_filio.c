@@ -209,16 +209,17 @@ svr4_fil_ioctl(fp, td, retval, fd, cmd, data)
 
 	*retval = 0;
 
-	FILEDESC_LOCK(fdp);
 	switch (cmd) {
 	case SVR4_FIOCLEX:
+		FILEDESC_LOCK_FAST(fdp);
 		fdp->fd_ofileflags[fd] |= UF_EXCLOSE;
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_UNLOCK_FAST(fdp);
 		return 0;
 
 	case SVR4_FIONCLEX:
+		FILEDESC_LOCK_FAST(fdp);
 		fdp->fd_ofileflags[fd] &= ~UF_EXCLOSE;
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_UNLOCK_FAST(fdp);
 		return 0;
 
 	case SVR4_FIOGETOWN:
@@ -226,7 +227,6 @@ svr4_fil_ioctl(fp, td, retval, fd, cmd, data)
 	case SVR4_FIOASYNC:
 	case SVR4_FIONBIO:
 	case SVR4_FIONREAD:
-		FILEDESC_UNLOCK(fdp);
 		if ((error = copyin(data, &num, sizeof(num))) != 0)
 			return error;
 
@@ -249,7 +249,6 @@ svr4_fil_ioctl(fp, td, retval, fd, cmd, data)
 		return copyout(&num, data, sizeof(num));
 
 	default:
-		FILEDESC_UNLOCK(fdp);
 		DPRINTF(("Unknown svr4 filio %lx\n", cmd));
 		return 0;	/* ENOSYS really */
 	}
