@@ -114,6 +114,7 @@ COMMON ITEMS:
 	cd gnu/usr.bin/texinfo/install-info
 	make install
 	cd ../../../..
+	ldconfig -R /usr/obj/usr/src/lib/libc
 	make installworld				[5]
 	mergemaster					[4]
 	reboot
@@ -135,9 +136,6 @@ COMMON ITEMS:
 	[4] This step is optional, but is generally a good idea.  If
 	you wish to use many of the new features in 4.x, you must do
 	this anyway.
-	[5] If you get warnings from ld-elf.so that it cannot load
-	libc.so, run 'ldconfig -R /usr/obj/usr/src/lib/libc' and repeat
-	the installworld target.
 
 	To update from 4.0-RELEASE or later to the most current
 	4.x-STABLE
