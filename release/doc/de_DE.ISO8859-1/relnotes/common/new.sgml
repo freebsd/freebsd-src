@@ -1,6 +1,6 @@
 <!--
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.3.2.115 2003/01/11 18:23:13 ue Exp $
-  basiert auf: 1.22.2.318
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.3.2.118 2003/01/18 19:39:48 ue Exp $
+  basiert auf: 1.22.2.321
 -->
 
 <articleinfo>
@@ -130,6 +130,10 @@
       Unterst&uuml;tzung f&uuml;r Ger&auml;te mit
       FireWire-Schnittstellen (siehe &man.firewire.4;).</para>
 
+    <para arch="i386,pc98">Der neue Treiber ubsa unterst&uuml;tzt den
+      Belkin F5U103 USB-nach-seriell Konverter und kompatible
+      Ger&auml;te.</para>
+
     <para>Der neue Treiber &man.uftdi.4; unterst&uuml;tzt USB nach
       Seriell Konverter von FTDI.</para>
 
@@ -145,7 +149,8 @@
     <sect3>
       <title>&Auml;nderungen im Bootloader</title>
 
-      <para></para>
+      <para arch="pc98">Der PC98 Bootloader ist jetzt auch in der
+	Lage, von SCSI MO Medien zu booten.</para>
 
 <!-- Above this line, order boot loader changes by manpage/variable name-->
 
@@ -259,9 +264,26 @@
       Werte der in POSIX und X/Open angegebenen Variablen f&uuml;r die
       Pfad- und Systemkonfiguration ausgegeben werden.</para>
 
+    <para>Wird &man.make.1; mit der neuen Option <option>-C</option>
+      aufgerufen, wechselt es in das angegebene Verzeichnis, bevor es
+      mit der Arbeit beginnt.</para>
+
+    <para>Wird bei &man.newsyslog.8; bei einem Eintrag (bzw. einer
+      Gruppe von Eintr&auml;gen, bei denen die Option
+      <literal>G</literal> gesetzt ist) die neue Option
+      <literal>W</literal> angeben, wird das Programm zur Kompression
+      des Logfiles erst gestartet, wenn er die vorher gestarteten
+      Packprogramme durchgelaufen sind.  Dadurch soll verhindert
+      werden, da&szlig; Systeme durch die gleichzeitige Kompression
+      mehrerer gro&szlig;er Logfiles &uuml;berlastet werden.</para>
+
     <para>Mit dem neuen Programm &man.pathchk.1; k&ouml;nnen
       Pfadangaben auf ihre G&uuml;ltigkeit und Portabilit&auml;t
       zwischen POSIX-Systemen gepr&uuml;ft werden.</para>
+
+    <para>Bei &man.rarpd.8; kann jetzt mit <option>-t</option> ein
+      Verzeichnis angegeben werden, das statt
+      <filename>/tftpboot</filename> genutzt wird.</para>
 
     <para>Die Base64-Unterst&uuml;tzung von &man.uuencode.1; und
       &man.uudecode.1; wird jetzt automatisch aktiviert, wenn die
@@ -270,7 +292,7 @@
 
 <!-- Above this line, order userland changes by manpage/variable name-->
 
-    <para>Die Definitionen von <varname>stdio</varname>,
+    <para>Die Definitionen von <varname>stdin</varname>,
       <varname>stdout</varname> und <varname>stderr</varname> wurden
       ge&auml;ndert, um die bisher f&uuml;r die Compilierung
       notwendigen Konstanten &uuml;berfl&uuml;ssig zu machen.  Einige
