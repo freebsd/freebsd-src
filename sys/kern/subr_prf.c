@@ -97,7 +97,12 @@ int msgbuftrigger;
 static int      log_console_output = 1;
 TUNABLE_INT("kern.log_console_output", &log_console_output);
 SYSCTL_INT(_kern, OID_AUTO, log_console_output, CTLFLAG_RW,
-    &log_console_output, 0, "");
+    &log_console_output, 0, "Duplicate console output to the syslog.");
+
+static int	always_console_output = 0;
+TUNABLE_INT("kern.always_console_output", &always_console_output);
+SYSCTL_INT(_kern, OID_AUTO, always_console_output, CTLFLAG_RW,
+    &always_console_output, 0, "Always output to console despite TIOCCONS.");
 
 /*
  * Warn that a system table is full.
@@ -345,8 +350,12 @@ putchar(int c, void *arg)
 	} else {
 		if ((flags & TOTTY) && tp != NULL)
 			tputchar(c, tp);
-		if ((flags & TOCONS) && constty != NULL)
-			msgbuf_addchar(&consmsgbuf, c);
+		if (flags & TOCONS) {
+			if (constty != NULL)
+				msgbuf_addchar(&consmsgbuf, c);
+			if (always_console_output && c != '\0')
+				cnputc(c);
+		}
 	}
 	if ((flags & TOLOG))
 		msglogchar(c, ap->pri);
