@@ -1403,22 +1403,21 @@ fdinit(fdp)
 {
 	struct filedesc0 *newfdp;
 
-	FILEDESC_LOCK_ASSERT(fdp, MA_OWNED);
-
-	FILEDESC_UNLOCK(fdp);
-	MALLOC(newfdp, struct filedesc0 *, sizeof(struct filedesc0),
-	    M_FILEDESC, M_WAITOK | M_ZERO);
-	FILEDESC_LOCK(fdp);
+	newfdp = malloc(sizeof *newfdp, M_FILEDESC, M_WAITOK | M_ZERO);
 	mtx_init(&newfdp->fd_fd.fd_mtx, FILEDESC_LOCK_DESC, NULL, MTX_DEF);
-	newfdp->fd_fd.fd_cdir = fdp->fd_cdir;
-	if (newfdp->fd_fd.fd_cdir)
-		VREF(newfdp->fd_fd.fd_cdir);
-	newfdp->fd_fd.fd_rdir = fdp->fd_rdir;
-	if (newfdp->fd_fd.fd_rdir)
-		VREF(newfdp->fd_fd.fd_rdir);
-	newfdp->fd_fd.fd_jdir = fdp->fd_jdir;
-	if (newfdp->fd_fd.fd_jdir)
-		VREF(newfdp->fd_fd.fd_jdir);
+	if (fdp != NULL) {
+		FILEDESC_LOCK(fdp);
+		newfdp->fd_fd.fd_cdir = fdp->fd_cdir;
+		if (newfdp->fd_fd.fd_cdir)
+			VREF(newfdp->fd_fd.fd_cdir);
+		newfdp->fd_fd.fd_rdir = fdp->fd_rdir;
+		if (newfdp->fd_fd.fd_rdir)
+			VREF(newfdp->fd_fd.fd_rdir);
+		newfdp->fd_fd.fd_jdir = fdp->fd_jdir;
+		if (newfdp->fd_fd.fd_jdir)
+			VREF(newfdp->fd_fd.fd_jdir);
+		FILEDESC_UNLOCK(fdp);
+	}
 
 	/* Create the file descriptor table. */
 	newfdp->fd_fd.fd_refcnt = 1;
@@ -1460,7 +1459,9 @@ fdcopy(fdp)
 		return (NULL);
 
 	FILEDESC_LOCK_ASSERT(fdp, MA_OWNED);
+	FILEDESC_UNLOCK(fdp);
 	newfdp = fdinit(fdp);
+	FILEDESC_LOCK(fdp);
 	while (fdp->fd_lastfile >= newfdp->fd_nfiles) {
 		FILEDESC_UNLOCK(fdp);
 		FILEDESC_LOCK(newfdp);
