@@ -53,6 +53,7 @@ static const char rcsid[] =
 
 #include <sys/copyright.h>
 #include <sys/param.h>
+#include <sys/wait.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -78,9 +79,10 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <utmp.h>
 
+#ifndef NO_PAM
 #include <security/pam_appl.h>
 #include <security/pam_misc.h>
-#include <sys/wait.h>
+#endif
 
 #include "login.h"
 #include "pathnames.h"
@@ -90,24 +92,26 @@ static const char rcsid[] =
 #define	NI_WITHSCOPEID	0
 #endif
 
-static void	 badlogin __P((char *));
-static void	 dolastlog __P((int));
-static void	 getloginname __P((void));
-static void	 motd __P((const char *));
-static int	 rootterm __P((char *));
-static void	 sigint __P((int));
-static void	 sleepexit __P((int));
-static void	 refused __P((const char *,const char *,int));
-static const char	*stypeof __P((char *));
-static void	 timedout __P((int));
+static int	auth_traditional __P((void));
+static void	badlogin __P((char *));
+static void	dolastlog __P((int));
+static void	getloginname __P((void));
+static void	motd __P((const char *));
+static void	refused __P((const char *,const char *,int));
+static int	rootterm __P((char *));
+static void	sigint __P((int));
+static void	sleepexit __P((int));
+static const char *stypeof __P((char *));
+static void	timedout __P((int));
+static void	usage __P((void));
 
 #ifndef NO_PAM
-static int auth_pam __P((void));
-static int export_pam_environment __P((void));
-static int ok_to_export __P((const char *));
+static int	auth_pam __P((void));
+static int	export_pam_environment __P((void));
+static int	ok_to_export __P((const char *));
 
 static pam_handle_t *pamh = NULL;
-static char **environ_pam;
+static char	**environ_pam;
 
 #define PAM_END { \
 	if ((e = pam_setcred(pamh, PAM_DELETE_CRED)) != PAM_SUCCESS) \
@@ -118,9 +122,6 @@ static char **environ_pam;
 		syslog(LOG_ERR, "pam_end: %s", pam_strerror(pamh, e)); \
 }
 #endif /* NO_PAM */
-
-static int auth_traditional __P((void));
-static void usage __P((void));
 
 #define	TTYGRPNAME		"tty"			/* group to own ttys */
 #define	DEFAULT_BACKOFF		3
@@ -661,7 +662,7 @@ main(argc, argv)
 	(void)setenv("PATH", rootlogin ? _PATH_STDPATH : _PATH_DEFPATH, 0);
 
 	if (!quietlog) {
-		const char	*cw;
+		const char *cw;
 
 		cw = login_getcapstr(lc, "copyright", NULL, NULL);
 		if (cw != NULL && access(cw, F_OK) == 0)
@@ -703,7 +704,7 @@ main(argc, argv)
 	/*
 	 * Login shells have a leading '-' in front of argv[0]
 	 */
-	if ((size_t)snprintf(tbuf, sizeof(tbuf), "-%s",
+	if ((u_int)snprintf(tbuf, sizeof(tbuf), "-%s",
 	    (p = strrchr(pwd->pw_shell, '/')) ? p + 1 : pwd->pw_shell) >=
 	    sizeof(tbuf)) {
 		syslog(LOG_ERR, "user: %s: shell exceeds maximum pathname size",
@@ -716,7 +717,7 @@ main(argc, argv)
 }
 
 static int
-auth_traditional(void)
+auth_traditional()
 {
 	int rval;
 	char *p;
@@ -750,7 +751,7 @@ auth_traditional(void)
  * fall back to a different authentication mechanism.
  */
 static int
-auth_pam(void)
+auth_pam()
 {
 	const char *tmpl_user;
 	const void *item;
@@ -841,7 +842,7 @@ auth_pam(void)
 }
 
 static int
-export_pam_environment(void)
+export_pam_environment()
 {
 	char	**pp;
 
@@ -885,7 +886,7 @@ ok_to_export(s)
 #endif /* NO_PAM */
 
 static void
-usage(void)
+usage()
 {
 
 	(void)fprintf(stderr, "usage: login [-fp] [-h hostname] [username]\n");
@@ -897,7 +898,7 @@ usage(void)
  */
 
 void
-getloginname(void)
+getloginname()
 {
 	int ch;
 	char *p;
