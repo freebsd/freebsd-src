@@ -1,4 +1,4 @@
-#	$Id: bsd.libnames.mk,v 1.14 1998/05/31 11:32:38 bde Exp $
+#	$Id$
 #
 # The include file <bsd.libnames.mk> define library names. 
 # Other include files (e.g. bsd.prog.mk, bsd.lib.mk) include this 
@@ -47,6 +47,7 @@ LIBOBJC?=	${DESTDIR}${LIBDIR}/libobjc.a
 LIBOPIE?=	${DESTDIR}${LIBDIR}/libopie.a
 LIBPC?=		${DESTDIR}${LIBDIR}/libpc.a	# XXX doesn't exist
 LIBPCAP?=	${DESTDIR}${LIBDIR}/libpcap.a
+LIBPERL?=	${DESTDIR}${LIBDIR}/libperl.a
 LIBPLOT?=	${DESTDIR}${LIBDIR}/libplot.a	# XXX doesn't exist
 LIBREADLINE?=	${DESTDIR}${LIBDIR}/libreadline.a
 LIBRESOLV?=	${DESTDIR}${LIBDIR}/libresolv.a	# XXX doesn't exist
