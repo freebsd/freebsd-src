@@ -1876,7 +1876,7 @@ ng_queue_data(hook_p hook, struct mbuf *m, meta_p meta)
  * put the msg onto a queue to be picked up by another PPL (probably splnet)
  */
 int
-ng_queue_msg(node_p here, struct ng_mesg * msg, int len, const char *address)
+ng_queue_msg(node_p here, struct ng_mesg *msg, const char *address)
 {
 	register struct ng_queue_entry *q;
 	int     s;
