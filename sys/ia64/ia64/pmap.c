@@ -698,10 +698,8 @@ pmap_pinit(struct pmap *pmap)
 {
 	int i;
 
-	pmap->pm_flags = 0;
 	for (i = 0; i < 5; i++)
 		pmap->pm_rid[i] = pmap_allocate_rid();
-	pmap->pm_ptphint = NULL;
 	pmap->pm_active = 0;
 	TAILQ_INIT(&pmap->pm_pvlist);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
