@@ -336,6 +336,7 @@ vmspace_swap_count(struct vmspace *vmspace)
 	vm_map_entry_t cur;
 	int count = 0;
 
+	vm_map_lock_read(map);
 	for (cur = map->header.next; cur != &map->header; cur = cur->next) {
 		vm_object_t object;
 
@@ -351,6 +352,7 @@ vmspace_swap_count(struct vmspace *vmspace)
 			}
 		}
 	}
+	vm_map_unlock_read(map);
 	return (count);
 }
 
@@ -395,6 +397,14 @@ vm_map_unlock_read(vm_map_t map)
 {
 	vm_map_printf("locking map LK_RELEASE: %p\n", map);
 	lockmgr(&(map)->lock, LK_RELEASE, NULL, curthread);
+}
+
+int
+vm_map_trylock(vm_map_t map)
+{
+
+	return (lockmgr(&map->lock, LK_EXCLUSIVE | LK_NOWAIT, NULL,
+		    curthread) == 0);
 }
 
 static __inline__ int
