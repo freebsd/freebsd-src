@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.3 (Berkeley) 10/24/94
-#	$Id: Makefile.inc,v 1.31 1997/05/12 09:59:25 peter Exp $
+#	$Id: Makefile.inc,v 1.32 1997/05/12 12:18:14 peter Exp $
 
 # sys sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/sys ${.CURDIR}/../libc/sys
@@ -47,7 +47,8 @@ ASMR=	accept.o bind.o close.o connect.o dup.o dup2.o \
 	getpeername.o getsockname.o getsockopt.o ioctl.o listen.o \
 	mkfifo.o mknod.o nanosleep.o nfssvc.o open.o read.o readv.o \
 	recvfrom.o recvmsg.o select.o sendmsg.o sendto.o setsockopt.o \
-	shutdown.o sigaction.o sigaltstack.o socket.o socketpair.o \
+	shutdown.o sigaction.o sigaltstack.o signanosleep.o socket.o \
+	socketpair.o \
 	wait4.o write.o writev.o
 
 PSEUDO=	_getlogin.o
