@@ -43,23 +43,6 @@
 #include <sys/cdefs.h>
 #include <sys/_types.h>
 
-#ifndef _RUNE_T_DECLARED
-typedef	__rune_t	rune_t;
-#define	_RUNE_T_DECLARED
-#endif
-
-#ifndef _SIZE_T_DECLARED
-typedef	__size_t	size_t;
-#define	_SIZE_T_DECLARED
-#endif
-
-#ifndef	__cplusplus
-#ifndef _WCHAR_T_DECLARED
-typedef	__wchar_t	wchar_t;
-#define	_WCHAR_T_DECLARED
-#endif
-#endif
-
 #define	_CACHED_RUNES	(1 <<8 )	/* Must be a power of 2 */
 #define	_CRMASK		(~(_CACHED_RUNES - 1))
 
@@ -67,9 +50,9 @@ typedef	__wchar_t	wchar_t;
  * The lower 8 bits of runetype[] contain the digit value of the rune.
  */
 typedef struct {
-	rune_t		min;		/* First rune of the range */
-	rune_t		max;		/* Last rune (inclusive) of the range */
-	rune_t		map;		/* What first maps to in maps */
+	__rune_t	min;		/* First rune of the range */
+	__rune_t	max;		/* Last rune (inclusive) of the range */
+	__rune_t	map;		/* What first maps to in maps */
 	unsigned long	*types;		/* Array of types in range */
 } _RuneEntry;
 
@@ -82,13 +65,13 @@ typedef struct {
 	char		magic[8];	/* Magic saying what version we are */
 	char		encoding[32];	/* ASCII name of this encoding */
 
-	rune_t		(*sgetrune)(const char *, size_t, char const **);
-	int		(*sputrune)(rune_t, char *, size_t, char **);
-	rune_t		invalid_rune;
+	__rune_t	(*sgetrune)(const char *, __size_t, char const **);
+	int		(*sputrune)(__rune_t, char *, __size_t, char **);
+	__rune_t	invalid_rune;
 
 	unsigned long	runetype[_CACHED_RUNES];
-	rune_t		maplower[_CACHED_RUNES];
-	rune_t		mapupper[_CACHED_RUNES];
+	__rune_t	maplower[_CACHED_RUNES];
+	__rune_t	mapupper[_CACHED_RUNES];
 
 	/*
 	 * The following are to deal with Runes larger than _CACHED_RUNES - 1.
