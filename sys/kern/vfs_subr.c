@@ -584,6 +584,7 @@ getnewvnode(tag, mp, vops, vpp)
 					 */
 					if (cache_leaf_test(vp) < 0) {
 						mtx_unlock(&vp->v_interlock);
+						TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
 						vp = NULL;
 						continue;
 					}
@@ -597,6 +598,7 @@ getnewvnode(tag, mp, vops, vpp)
 					 * too quickly).
 					 */
 					mtx_unlock(&vp->v_interlock);
+					TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
 					vp = NULL;
 					continue;
 				}
