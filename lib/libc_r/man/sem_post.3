@@ -49,13 +49,15 @@ is called, then the highest priority thread that has been blocked the longest on
 the semaphore will be allowed to return from
 .Fn sem_wait .
 .Pp
+The
 .Fn sem_post
-is signal-reentrant and may be called within signal handlers.
+function is signal-reentrant and may be called within signal handlers.
 .Sh RETURN VALUES
 .Rv -std sem_post
 .Sh ERRORS
+The
 .Fn sem_post
-will fail if:
+function will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 .Fa sem
@@ -66,6 +68,7 @@ points to an invalid semaphore.
 .Xr sem_wait 3 ,
 .Xr sem 4
 .Sh STANDARDS
+The
 .Fn sem_post
-conforms to
+function conforms to
 .St -p1003.1-96 .
