@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.24 1994/01/03 07:55:21 davidg Exp $
+ *	$Id: machdep.c,v 1.25 1994/01/14 16:23:35 davidg Exp $
  */
 
 #include "npx.h"
@@ -85,9 +85,6 @@ extern vm_offset_t avail_start, avail_end;
 
 static void identifycpu(void);
 static void initcpu(void);
-
-#define	EXPECT_BASEMEM	640	/* The expected base memory*/
-#define	INFORM_WAIT	1	/* Set to pause berfore crash in weird cases*/
 
 #ifndef PANIC_REBOOT_WAIT_TIME
 #define PANIC_REBOOT_WAIT_TIME 15 /* default to 15 seconds */
@@ -1053,48 +1050,43 @@ init386(first)
 	 */
 	biosbasemem = rtcin(RTC_BASELO)+ (rtcin(RTC_BASEHI)<<8);
 	biosextmem = rtcin(RTC_EXTLO)+ (rtcin(RTC_EXTHI)<<8);
-/*printf("bios base %d ext %d ", biosbasemem, biosextmem);*/
 
 	/*
-	 * 15 Aug 92	Terry Lambert		The real fix for the CMOS bug
+	 * If BIOS tells us that it has more than 640k in the basemem,
+	 *	don't believe it - set it to 640k.
 	 */
-	if (biosbasemem != EXPECT_BASEMEM) {
-		printf("Warning: Base memory %dK, assuming %dK\n", biosbasemem, EXPECT_BASEMEM);
-		biosbasemem = EXPECT_BASEMEM;		/* assume base*/
-	}
+	if (biosbasemem > 640)
+		biosbasemem = 640;
 
+	/*
+	 * Some 386 machines might give us a bogus number for extended
+	 *	mem. If this happens, stop now.
+	 */
+#ifndef LARGEMEM
 	if (biosextmem > 65536) {
-		printf("Warning: Extended memory %dK(>64M), assuming 0K\n", biosextmem);
-		biosextmem = 0;				/* assume none*/
+		panic("extended memory beyond limit of 64MB");
+		/* NOT REACHED */
 	}
+#endif
+
+	pagesinbase = biosbasemem * 1024 / NBPG;
+	pagesinext = biosextmem * 1024 / NBPG;
 
 	/*
-	 * Go into normal calculation; Note that we try to run in 640K, and
-	 * that invalid CMOS values of non 0xffff are no longer a cause of
-	 * ptdi problems.  I have found a gutted kernel can run in 640K.
+	 * Maxmem isn't the "maximum memory", it's the highest page of
+	 * of the physical address space. It should be "Maxphyspage".
 	 */
-	pagesinbase = 640/4 - first/NBPG;
-	pagesinext = biosextmem/4;
-	/* use greater of either base or extended memory. do this
-	 * until I reinstitue discontiguous allocation of vm_page
-	 * array.
-	 */
-	if (pagesinbase > pagesinext)
-		Maxmem = 640/4;
-	else {
-		Maxmem = pagesinext + 0x100000/NBPG;
-	}
+	Maxmem = pagesinext + 0x100000/NBPG;
 
-	/* This used to explode, since Maxmem used to be 0 for bas CMOS*/
 #ifdef MAXMEM
 	if (MAXMEM/4 < Maxmem)
 		Maxmem = MAXMEM/4;
 #endif
 	maxmem = Maxmem - 1;	/* highest page of usable memory */
 	physmem = maxmem;	/* number of pages of physmem addr space */
-/*printf("using first 0x%x to 0x%x\n ", first, maxmem*NBPG);*/
-	if (maxmem < 2048/4) {
-		panic("Too little RAM memory.\n");
+
+	if (Maxmem < 2048/4) {
+		panic("Too little memory (2MB required)");
 		/* NOT REACHED */
 	}
 
@@ -1106,12 +1098,15 @@ init386(first)
 	 *	later in vm_page_startup.
 	 */
 	/* avail_start and avail_end are initialized in pmap_bootstrap */
-	phys_avail[0] = 0x1000;		/* memory up to the ISA hole */
-	phys_avail[1] = 0xa0000;
-	phys_avail[2] = avail_start;	/* memory up to the end */
-	phys_avail[3] = avail_end;
-	phys_avail[4] = 0;		/* no more chunks */
-	phys_avail[5] = 0;
+	x = 0;
+	if (pagesinbase > 1) {
+		phys_avail[x++] = NBPG;		/* skip first page of memory */
+		phys_avail[x++] = pagesinbase * NBPG;	/* memory up to the ISA hole */
+	}
+	phys_avail[x++] = avail_start;	/* memory up to the end */
+	phys_avail[x++] = avail_end;
+	phys_avail[x++] = 0;		/* no more chunks */
+	phys_avail[x++] = 0;
 
 	/* now running on new page tables, configured,and u/iom is accessible */
 
