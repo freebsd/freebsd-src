@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.7.2.5 1995/10/04 12:08:19 jkh Exp $
+ * $Id: network.c,v 1.7.2.6 1995/10/14 19:13:34 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -112,6 +112,7 @@ mediaInitNetwork(Device *dev)
 	msgConfirm("The %s device is not configured.  You will need to do so\nin the Networking configuration menu before proceeding.", ifname);
 	return FALSE;
     }
+    msgNotify("Configuring network device %s.", ifname);
     i = vsystem("ifconfig %s %s", ifname, cp);
     if (i) {
 	msgConfirm("Unable to configure the %s interface!\nThis installation method cannot be used.", ifname);
@@ -121,8 +122,10 @@ mediaInitNetwork(Device *dev)
     rp = variable_get(VAR_GATEWAY);
     if (!rp || *rp == '0')
 	msgConfirm("No gateway has been set. You may be unable to access hosts\nnot on your local network\n");
-    else
+    else {
+	msgNotify("Adding default route to %s.", rp);
 	vsystem("route add default %s", rp);
+    }
     networkInitialized = TRUE;
     return TRUE;
 }
@@ -143,15 +146,19 @@ mediaShutdownNetwork(Device *dev)
 	cp = variable_get(ifconfig);
 	if (!cp)
 	    return;
+	msgNotify("Shutting interface %s down.", dev->name);
 	i = vsystem("ifconfig %s down", dev->name);
 	if (i)
 	    msgConfirm("Warning: Unable to down the %s interface properly", dev->name);
 	cp = variable_get(VAR_GATEWAY);
-	if (cp)
+	if (cp) {
+	    msgNotify("Deleting default route.");
 	    vsystem("route delete default");
+	}
 	networkInitialized = FALSE;
     }
     else if (pppPid != 0) {
+	msgNotify("Killing PPP process.");
 	kill(pppPid, SIGTERM);
 	pppPid = 0;
     }

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.18 1995/10/14 19:13:31 jkh Exp $
+ * $Id: menus.c,v 1.42.2.19 1995/10/15 12:41:04 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -564,15 +564,13 @@ Mono servers are particularly well-suited to most LCD displays).",
 DMenu MenuDiskDevices = {
     DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
     "Select Drive(s)",
-    "Please select the drive, or drives, on which you wish to install\n\
-FreeBSD.  You need to select at least one drive containing some free\n\
-space, though FreeBSD can be installed across several drives if you do\n\
-not have the required space on a single drive.  If you wish to boot\n\
-off a drive that's not a `zero drive', or have multiple operating\n\
+    "Please select the drive, or drives, on which you wish to perform\n\
+this operation.  If you are attempting to install a boot partition\n\
+on a drive other than the first one or have multiple operating\n\
 systems on your machine, you will have the option to install a boot\n\
 manager later.  To select a drive, use the arrow keys to move to it\n\
 and press [SPACE].",
-    "Press F1 for important information regarding geometry!",
+    "Press F1 for important information regarding disk geometry!",
     "drives",
     { { NULL } },
 };

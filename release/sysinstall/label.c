@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.32.2.8 1995/10/07 11:55:27 jkh Exp $
+ * $Id: label.c,v 1.32.2.9 1995/10/14 19:13:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -84,6 +84,118 @@ static struct {
     PartType type;
 } label_chunk_info[MAX_CHUNKS + 1];
 static int here;
+
+static int diskLabel(char *str);
+
+static int
+labelHook(char *str)
+{
+    Device **devs = NULL;
+
+    /* Clip garbage off the ends */
+    string_prune(str);
+    str = string_skipwhite(str);
+    /* Try and open all the disks */
+    while (str) {
+	char *cp;
+
+	cp = index(str, '\n');
+	if (cp)
+	   *cp++ = 0;
+	if (!*str) {
+	    beep();
+	    return 0;
+	}
+	devs = deviceFind(str, DEVICE_TYPE_DISK);
+	if (!devs) {
+	    msgConfirm("Unable to find disk %s!", str);
+	    return 0;
+	}
+	else if (devs[1])
+	    msgConfirm("Bizarre multiple match for %s!", str);
+	devs[0]->enabled = TRUE;
+	diskLabel(str);
+	str = cp;
+    }
+    return devs ? 1 : 0;
+}
+
+int
+diskLabelEditor(char *str)
+{
+    if (variable_get(DISK_PARTITIONED))
+	return diskLabel(str);
+    else {
+	DMenu *menu;
+	Device **devs;
+	int i, cnt;
+
+	devs = deviceFind(NULL, DEVICE_TYPE_DISK);
+	cnt = deviceCount(devs);
+	if (!cnt) {
+	    msgConfirm("No disks found!  Please verify that your disk controller is being\n"
+		       "properly probed at boot time.  See the Hardware Guide on the\n"
+		       "Documentation menu for clues on diagnosing this type of problem.");
+	    i = RET_FAIL;
+	}
+	else if (cnt == 1)
+	    i = diskLabel(str);
+	else {
+	    menu = deviceCreateMenu(&MenuDiskDevices, DEVICE_TYPE_DISK, labelHook);
+	    if (!menu) {
+		msgConfirm("No devices suitable for installation found!\n\n"
+			   "Please verify that your disk controller (and attached drives)\n"
+			   "were detected properly.  This can be done by pressing the\n"
+			   "[Scroll Lock] key and using the Arrow keys to move back to\n"
+			   "the boot messages.  Press [Scroll Lock] again to return.");
+		i = RET_FAIL;
+	    }
+	    else {
+		if (!dmenuOpenSimple(menu))
+		    i = RET_FAIL;
+		else 
+		    i = RET_SUCCESS;
+		free(menu);
+	    }
+	}
+	return i;
+    }
+}
+
+int
+diskLabelCommit(char *str)
+{
+    char *cp;
+
+    /* Already done? */
+    if ((cp = variable_get(DISK_LABELLED)) && !strcmp(cp, "written"))
+	return RET_SUCCESS;
+    else if (!cp) {
+	msgConfirm("You must assign disk labels before this option can be used.");
+	return RET_FAIL;
+    }
+    else if ((cp = variable_get(DISK_PARTITIONED))) {
+	/* The routine will guard against redundant writes, just as this one does */
+	if (diskPartitionWrite(NULL) != RET_SUCCESS) {
+	    msgConfirm("Disk partition write returned an error status!");
+	    return RET_FAIL;
+	}
+    }
+    else {
+	msgConfirm("You must partition the disk(s) before this option can be used.");
+	return RET_FAIL;
+    }
+
+    if (installFilesystems() != RET_SUCCESS)
+	msgConfirm("Failed to make/mount all filesystems.  Please correct\n"
+		   "whatever went wrong and try again.");
+    else {
+	msgInfo("All filesystem information written successfully.");
+	variable_set2(DISK_LABELLED, "written");
+	return RET_SUCCESS;
+    }
+    return RET_FAIL;
+}
 
 /* See if we're already using a desired partition name */
 static Boolean
@@ -207,7 +319,7 @@ new_part(char *mpoint, Boolean newfs, u_long size)
 }
 
 /* Get the mountpoint for a partition and save it away */
-PartInfo *
+static PartInfo *
 get_mountpoint(struct chunk *old)
 {
     char *val;
@@ -299,7 +411,6 @@ getNewfsCmd(PartInfo *p)
     if (val)
 	strncpy(p->newfs_cmd, val, NEWFS_CMD_MAX);
 }
-
 
 #define MAX_MOUNT_NAME	12
 
@@ -413,8 +524,8 @@ print_command_summary()
     move(0, 0);
 }
 
-int
-diskLabelEditor(char *str)
+static int
+diskLabel(char *str)
 {
     int sz, key = 0;
     Boolean labeling;
@@ -427,10 +538,6 @@ diskLabelEditor(char *str)
     keypad(stdscr, TRUE);
     record_label_chunks();
 
-    if (!variable_get(DISK_PARTITIONED)) {
-	msgConfirm("You need to partition your disk(s) before you can assign disk labels.");
-	return RET_FAIL;
-    }
     dialog_clear(); clear();
     while (labeling) {
 	clear();
@@ -766,6 +873,7 @@ msgConfirm("This region cannot be used for your root partition as the\n"
 			  "one final 'commit' operation, and if you're at all unsure as\n"
 			  "to which option to chose, then please chose No!")) {
 		variable_set2(DISK_LABELLED, "yes");
+		clear();
 		diskLabelCommit(NULL);
 	    }
 	    break;
@@ -810,19 +918,4 @@ msgConfirm("This region cannot be used for your root partition as the\n"
     variable_set2(DISK_LABELLED, "yes");
     dialog_clear();
     return RET_SUCCESS;
-}
-
-int
-diskLabelCommit(char *str)
-{
-    if (!variable_get(DISK_PARTITIONED))
-	msgConfirm("You must first partition the disk before this option can be used.");
-    else if (!variable_get(DISK_LABELLED))
-	msgConfirm("You must assign disk labels before this option can be used.");
-    else if (installFilesystems() != RET_SUCCESS)
-	msgConfirm("Failed to make/mount all filesystems.  Please correct\n"
-		   "whatever went wrong and try again.");
-    else
-	return RET_SUCCESS;
-    return RET_FAIL;
 }

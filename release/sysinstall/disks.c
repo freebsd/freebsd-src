@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.31.2.13 1995/10/14 19:13:14 jkh Exp $
+ * $Id: disks.c,v 1.31.2.14 1995/10/15 15:45:17 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -284,8 +284,12 @@ diskPartition(Disk *d)
 			  "configuration information has been entered, at which\n"
 			  "point you can do it all at once.  If you're unsure, then\n"
 			  "choose No at this dialog.")) {
+		variable_set2(DISK_PARTITIONED, "yes");
+		clear();
 		if (diskPartitionWrite(NULL) != RET_SUCCESS)
 		    msgConfirm("Disk partition write returned an error status!");
+		else
+		    msgInfo("Wrote FDISK partition information out successfully.");
 	    }
 	    break;
 
@@ -350,8 +354,8 @@ partitionHook(char *str)
 	}
 	else if (devs[1])
 	    msgConfirm("Bizarre multiple match for %s!", str);
-	devs[0]->private = diskPartition((Disk *)devs[0]->private);
 	devs[0]->enabled = TRUE;
+	devs[0]->private = diskPartition((Disk *)devs[0]->private);
 	str = cp;
     }
     return devs ? 1 : 0;
@@ -382,10 +386,10 @@ diskPartitionEditor(char *str)
 	if (!menu) {
 	    msgConfirm("No devices suitable for installation found!\n\n"
 		       "Please verify that your disk controller (and attached drives)\n"
-		       "were detected properly.  This can be done by selecting the\n"
-		       "``Bootmsg'' option on the main menu and reviewing the boot\n"
-		       "messages carefully.");
-	   i = RET_FAIL;
+		       "were detected properly.  This can be done by pressing the\n"
+		       "[Scroll Lock] key and using the Arrow keys to move back to\n"
+		       "the boot messages.  Press [Scroll Lock] again to return.");
+	    i = RET_FAIL;
 	}
 	else {
 	    if (!dmenuOpenSimple(menu))
@@ -430,7 +434,15 @@ diskPartitionWrite(char *str)
     extern u_char boot1[], boot2[];
     u_char *mbrContents;
     Device **devs;
+    char *cp;
     int i;
+
+    if ((cp = variable_get(DISK_PARTITIONED)) && !strcmp(cp, "written"))
+	return RET_SUCCESS;
+    else if (!cp) {
+	msgConfirm("You must partition the disk(s) before this option can be used.");
+	return RET_FAIL;
+    }
 
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     if (!devs) {
@@ -472,5 +484,6 @@ diskPartitionWrite(char *str)
 	    }
 	}
     }
+    variable_set2(DISK_PARTITIONED, "written");
     return RET_SUCCESS;
 }
