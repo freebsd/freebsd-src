@@ -74,12 +74,16 @@ from {alpha,i386}/INSTALL.TXT.
   <sect2>
     <title>Hardware Requirements</title>
 
+<!-- i386/pc98 text starts here -->
+
     <para arch="i386,pc98">&os; for the &arch.print; requires a 386 or better
     processor to run (sorry, there is no support for 286 processors)
     and at least 5 megs of RAM to install and 4 megs of RAM to
     run. You will need at least 100MB of free hard drive space for the
     most minimal installation.  See below for ways of shrinking
     existing DOS partitions in order to install &os;.</para>
+
+<!-- alpha text starts here -->
 
     <para arch="alpha">&os; for the &arch.print; supports the platforms
     described in <filename>HARDWARE.TXT</filename>.</para>
@@ -101,6 +105,17 @@ from {alpha,i386}/INSTALL.TXT.
     necessary to download new firmware from the vendor's Web
     site.</para>
 
+<!-- sparc64 text starts here -->
+
+    <para arch="sparc64">&os; for the &arch.print; supports the platforms
+    described in <filename>HARDWARE.TXT</filename>.</para>
+
+    <para arch="sparc64">You will need a dedicated disk for
+    &os;/sparc64. It is not possible to share a disk with another
+    operating system at this time.</para>
+
+<!-- generic text starts here -->
+
     <para>If you are
     not familiar with configuring hardware for &os;, you should
     be sure to read the <filename>HARDWARE.TXT</filename> file; 
@@ -111,7 +126,7 @@ from {alpha,i386}/INSTALL.TXT.
   <sect2 id="floppies">
   <title>Floppy Disk Image Instructions</title>
 
-  <para>Depending on how you choose to install &os;, you may need to
+  <para arch="i386,alpha,pc98">Depending on how you choose to install &os;, you may need to
   create a set of floppy disks (usually two) to begin the installation
   process.  This section briefly describes how to create these disks,
   either from a CDROM installation or from the Internet.  Note that in
@@ -130,7 +145,7 @@ from {alpha,i386}/INSTALL.TXT.
   images (for 1.44MB floppies) or <filename>kern-small.flp</filename> and
   <filename>mfsroot-small.flp</filename> images (for 1.2MB floppies).</para>
 
-  <para>Getting these images over the network is easy.  Simply fetch
+  <para arch="i386,alpha,pc98">Getting these images over the network is easy.  Simply fetch
   the
   <replaceable>release</replaceable><filename>/floppies/kern.flp</filename>
   and
@@ -159,7 +174,7 @@ from {alpha,i386}/INSTALL.TXT.
   <filename>tools</filename> directory on your CDROM or &os; FTP
   mirror) or the &man.dd.1; command in UNIX.</para>
 
-  <para>For example, to create the kernel floppy image from DOS, you'd
+  <para arch="i386,alpha,pc98">For example, to create the kernel floppy image from DOS, you'd
   do something like this:</para>
 
   <screen arch="i386,alpha"><prompt>C></prompt> <userinput>fdimage kern.flp a:</userinput></screen>
@@ -171,18 +186,18 @@ from {alpha,i386}/INSTALL.TXT.
   <para arch="pc98">Assuming that you'd copied <filename>rawrite.exe</filename> and <filename>kern.flp</filename> into a directory
   somewhere.  You would do the same for <filename>mfsroot.flp</filename>, of course.</para>
 
-  <para>If you're creating the boot floppy from a UNIX machine, you
+  <para arch="i386,alpha,pc98">If you're creating the boot floppy from a UNIX machine, you
   may find that:</para>
 
   <screen arch="i386,alpha">&prompt.root; <userinput>dd if=floppies/kern.flp of=/dev/rfd0</userinput></screen>
   <screen arch="pc98">&prompt.root; <userinput>dd if=floppies/kern.flp of=/dev/rfd0.1440</userinput></screen>
 
-  <para>or</para>
+  <para arch="i386,alpha,pc98">or</para>
 
   <screen arch="i386,alpha">&prompt.root; <userinput>dd if=floppies/kern.flp of=/dev/floppy</userinput></screen>
   <screen arch="pc98">&prompt.root; <userinput>dd if=floppies/kern-small.flp of=/dev/rfd0.1200</userinput></screen>
 
-  <para>work well, depending on your hardware and operating system
+  <para arch="i386,alpha,pc98">work well, depending on your hardware and operating system
   environment (different versions of UNIX have different names
   for the floppy drive).</para>
 
@@ -198,6 +213,8 @@ from {alpha,i386}/INSTALL.TXT.
 
   <sect2 id="start-installation">
       <title>Installing &os; from CDROM or the Internet</title>
+
+<!-- i386/pc98 text starts here -->
 
       <para arch="i386">The easiest type of installation is from
       CDROM.  If you have a supported CDROM drive and a &os;
@@ -268,6 +285,8 @@ from {alpha,i386}/INSTALL.TXT.
       <xref linkend="ftpnfs"> for additional tips on installing
       via FTP or NFS.</para>
 
+<!-- alpha text starts here -->
+
       <para arch="alpha">The easiest type of installation is from
       CDROM.  If you have a supported CDROM drive and a &os;
       installation CDROM, you can boot &os; directly from the
@@ -292,6 +311,59 @@ from {alpha,i386}/INSTALL.TXT.
       <para arch="alpha">Insert the <filename>mfsroot.flp</filename>
       floppy when prompted and you will end up at the first screen of
       the install program.</para>
+
+<!-- sparc64 text starts here -->
+
+    <para arch="sparc64">Most &arch; systems are set up to boot automatically from
+      disk.  To install &os;, you need to boot over the network or
+      from a CDROM, which requires you to break into the PROM
+      (OpenFirmware).</para>
+
+    <para arch="sparc64">To do this, reboot the system, and wait until the boot
+      message appears.  It depends on the model, but should look about
+      like:</para>
+
+    <screen arch="sparc64">Sun Blade 100 (UltraSPARC-IIe), Keyboard Present
+Copyright 1998-2001 Sun Microsystems, Inc.  All rights reserved.
+OpenBoot 4.2, 128 MB memory installed, Serial #51090132.
+Ethernet address 0:3:ba:b:92:d4, Host ID: 830b92d4.</screen>
+
+    <para arch="sparc64">If your system proceeds to boot from disk at this point, you
+      need to press <keycombo
+      action="simul"><keycap>L1</keycap><keycap>A</keycap></keycombo>
+      or <keycombo
+      action="simul"><keycap>Stop</keycap><keycap>A</keycap></keycombo>
+      on the keyboard, or send a <command>BREAK</command> over the
+      serial console (using for example <command>~#</command> in
+      &man.tip.1; or &man.cu.1;) to get to the PROM prompt.  It looks
+      like this:</para>
+
+    <screenco arch="sparc64">
+      <areaspec>
+	<area id="prompt-single" coords="1 5">
+	<area id="prompt-smp" coords="2 5">
+      </areaspec>
+
+      <screen><prompt>ok     </prompt>
+<prompt>ok {0} </prompt></screen>
+
+      <calloutlist>
+	<callout arearefs="prompt-single">
+	  <para>This is the prompt used on systems with just one
+	    CPU.</para>
+	</callout>
+
+	<callout arearefs="prompt-smp">
+	  <para>This is the prompt used on SMP systems, the digit
+	    indicates the number of the active CPU.</para>
+	</callout>
+      </calloutlist>
+    </screenco>
+
+    <para arch="sparc64">At this point, place the CDROM into your
+      drive, and from the PROM prompt, type <command>boot
+      cdrom</command>.</para>
+
   </sect2>
   <sect2>
     <title>Detail on various installation types</title>
