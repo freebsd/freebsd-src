@@ -224,7 +224,6 @@ psmopen(dev_t dev, int flag, int fmt, struct proc *p)
 	int unit = PSMUNIT(dev);
 	struct psm_softc *sc;
 	int ioport;
-	char	name[32];
 
 	/* Validate unit number */
 
@@ -269,16 +268,12 @@ psmopen(dev_t dev, int flag, int fmt, struct proc *p)
 
 	/* Successful open */
 #ifdef	DEVFS
-	sprintf(name,"psm%d", unit);
-                                /*        path  name   devsw    minor */
-	sc->devfs_token = devfs_add_devsw( "/",	name, &psm_cdevsw, unit << 1,
-                                              /*type   uid gid perm*/
-						DV_CHR,	0, 0, 0666);
-	sprintf(name,"npsm%d", unit);
-                                /*        path  name   devsw    minor */
-	sc->n_devfs_token = devfs_add_devsw("/", name, &psm_cdevsw, (unit<<1)+1,
-                                              /*type   uid gid perm*/
-						DV_CHR,	0, 0, 0666);
+	sc->devfs_token = 
+		devfs_add_devswf(&psm_cdevsw, unit << 1, DV_CHR, 0, 0, 0666, 
+				 "psm%d", unit);
+	sc->n_devfs_token = 
+		devfs_add_devswf(&psm_cdevsw, (unit<<1)+1, DV_CHR,0, 0, 0666,
+				 "npsm%d", unit);
 #endif
 
 	return(0);

@@ -337,7 +337,7 @@ static char	MATCDVERSION[]="Version  1(26) 18-Oct-95";
 static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank Durda IV";
 /*	The proceeding strings may not be changed*/
 
-/* $Id: matcd.c,v 1.13 1995/12/10 13:40:42 phk Exp $ */
+/* $Id: matcd.c,v 1.14 1995/12/10 19:52:36 bde Exp $ */
 
 /*---------------------------------------------------------------------------
 	Include declarations
@@ -1460,9 +1460,6 @@ matcd_attach(struct isa_device *dev)
 	unsigned char data[12];
 	struct matcd_data *cd;
 	int port = dev->id_iobase;	/*Take port ID selected in probe()*/
-#ifdef DEVFS
-	char name[32];
-#endif
 
 #ifdef DIAGPORT
 	DIAGOUT(DIAGPORT,0x70);		/*Show where we are*/
@@ -1516,25 +1513,23 @@ matcd_attach(struct isa_device *dev)
 #ifdef DEVFS
 #define MATCD_UID 0
 #define MATCD_GID 13
-			sprintf(name, "rmatcd%da",i);
-			cd->ra_devfs_token = devfs_add_devsw(
-				"/", name, &matcd_cdevsw, 0,
-				DV_CHR,	MATCD_UID,  MATCD_GID, 0600);
-		
-			sprintf(name, "rmatcd%dc",i);
-			cd->rc_devfs_token = devfs_add_devsw(
-				"/", name, &matcd_cdevsw, RAW_PART,
-				DV_CHR,	MATCD_UID,  MATCD_GID, 0600);
-		
-			sprintf(name, "matcd%da",i);
-			cd->a_devfs_token = devfs_add_devsw(
-				"/", name, &matcd_bdevsw, 0,
-				DV_BLK,	MATCD_UID,  MATCD_GID, 0600);
+			cd->ra_devfs_token = 
+				devfs_add_devswf(&matcd_cdevsw, 0, DV_CHR,
+						 MATCD_UID,  MATCD_GID, 0600,
+						 "rmatcd%da", i);
+			cd->rc_devfs_token = 
+				devfs_add_devswf(&matcd_cdevsw, RAW_PART, 
+						 DV_CHR, MATCD_UID, MATCD_GID, 
+						 0600, "rmatcd%dc", i);
+			cd->a_devfs_token = 
+				devfs_add_devswf(&matcd_bdevsw, 0, DV_BLK,
+						 MATCD_UID, MATCD_GID, 0600,
+						 "matcd%da", i);
 
-			sprintf(name, "matcd%dc",i);
-			cd->c_devfs_token = devfs_add_devsw(
-				"/", name, &matcd_bdevsw, RAW_PART,
-				DV_BLK,	MATCD_UID,  MATCD_GID, 0600);
+			cd->c_devfs_token = 
+				devfs_add_devswf(&matcd_bdevsw, RAW_PART,
+						 DV_BLK, MATCD_UID, MATCD_GID, 
+						 0600, "matcd%dc", i);
 #endif
 		}
 	}

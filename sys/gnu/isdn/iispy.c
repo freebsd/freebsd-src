@@ -1,6 +1,6 @@
-static char     _ispyid[] = "@(#)$Id: iispy.c,v 1.9 1995/12/08 23:19:40 phk Exp $";
+static char     _ispyid[] = "@(#)$Id: iispy.c,v 1.10 1995/12/17 21:17:43 phk Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.9 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.10 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -74,7 +74,6 @@ static struct cdevsw ispy_cdevsw =
 int
 ispyattach(int ap)
 {
-	char	name[32];
 	struct ispy_data *ispy;
 
 	if(next_if >= NISPY)
@@ -83,9 +82,9 @@ ispyattach(int ap)
 	ispy->state= 0;
 	ispy_applnr= ap;
 #ifdef DEVFS
-	sprintf(name,"ispy%d",next_if);
-	ispy->devfs_token  =devfs_add_devsw("/isdn",name,&ispy_cdevsw,next_if,
-						DV_CHR,	0,  0, 0600);
+	ispy->devfs_token  =
+		devfs_add_devswf(&ispy_cdevsw, next_if, DV_CHR, 0, 0, 
+				 0600, "isdn/ispy%d", next_if);
 #endif
 	return(next_if++);
 }

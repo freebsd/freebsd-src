@@ -8,7 +8,7 @@
  *	of this software, nor does the author assume any responsibility
  *	for damages incurred with its use.
  *
- *	$Id: ctx.c,v 1.15 1995/12/15 00:29:28 bde Exp $
+ *	$Id: ctx.c,v 1.16 1995/12/15 00:53:55 bde Exp $
  */
 
 /*
@@ -214,7 +214,6 @@ static int
 ctxattach(struct isa_device * devp)
 {
 	struct ctx_soft_registers *sr;
-	char name[32];
 
 	sr = &(ctx_sr[devp->id_unit]);
 	sr->cp0 = 0;	/* zero out the shadow registers */
@@ -226,9 +225,9 @@ ctxattach(struct isa_device * devp)
 	kdc_ctx[devp->id_unit].kdc_state = DC_IDLE;
 	return (1);
 #ifdef DEVFS
-	sprintf(name,"ctx%d",devp->id_unit);
-	sr->devfs_token = devfs_add_devsw( "/", name, &ctx_cdevsw, 0,
-						DV_CHR, 0, 0, 0600);
+	sr->devfs_token = 
+		devfs_add_devswf(&ctx_cdevsw, 0, DV_CHR, 0, 0, 0600,
+				 "ctx%d", devp->id_unit);
 #endif /* DEVFS */
 }
 

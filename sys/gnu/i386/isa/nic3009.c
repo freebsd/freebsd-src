@@ -1,6 +1,6 @@
-static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.13 1995/12/08 23:19:30 phk Exp $";
+static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.14 1995/12/17 21:14:36 phk Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.13 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.14 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,9 @@ static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.13 1995/12/08 23:19:30 phk 
  *
  *******************************************************************************
  * $Log: nic3009.c,v $
+ * Revision 1.14  1995/12/17 21:14:36  phk
+ * Staticize.
+ *
  * Revision 1.13  1995/12/08  23:19:30  phk
  * Julian forgot to make the *devsw structures static.
  *
@@ -271,7 +274,6 @@ nnicattach(struct isa_device * is)
 	struct nnic_softc *sc;
 	int             cn;
 	isdn_ctrl_t    *ctrl0, *ctrl1;
-	char		name[32];
 
 	sc = &nnic_sc[is->id_unit];
 	sc->sc_ctrl = -1;
@@ -299,9 +301,9 @@ nnicattach(struct isa_device * is)
 	ctrl0->o_len = ctrl1->o_len = -1;
 	sc->sc_flags= LOAD_ENTITY;
 #ifdef	DEVFS
-	sprintf(name,"nnic%d",is->id_unit);
-	sc->devfs_token = devfs_add_devsw("/isdn",name,
-		&nnic_cdevsw, is->id_unit, DV_CHR, 0, 0, 0600 );
+	sc->devfs_token = 
+		devfs_add_devswf(&nnic_cdevsw, is->id_unit, DV_CHR, 0, 0, 
+				0600, "/isdn/nnic%d", is->id_unit);
 #endif
 
 	return (1);

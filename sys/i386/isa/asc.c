@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * $Id: asc.c,v 1.15 1996/01/13 20:43:08 bde Exp $
+ * $Id: asc.c,v 1.16 1996/01/27 00:53:55 bde Exp $
  */
 
 #include "asc.h"
@@ -438,9 +438,6 @@ ascattach(struct isa_device *isdp)
 {
   int unit = isdp->id_unit;
   struct asc_unit *scu = unittab + unit;
-#ifdef DEVFS
-  char name[32];
-#endif
 
   scu->flags |= FLAG_DEBUG;
   printf("asc%d: [GI1904/Trust Ami-Scan Grey, type S2]\n", unit);
@@ -484,22 +481,19 @@ ascattach(struct isa_device *isdp)
 #ifdef DEVFS
 #define ASC_UID 0
 #define ASC_GID 13
-    sprintf(name,"asc%d",unit);
-/*            path      name  devsw    minor    type   uid gid perm*/
-   scu->devfs_asc = devfs_add_devsw("/",   name,  &asc_cdevsw, unit<<6,
-					DV_CHR, ASC_UID,  ASC_GID, 0666);
-    sprintf(name,"asc%dp",unit);
-   scu->devfs_ascp = devfs_add_devsw("/",   name,  &asc_cdevsw,
-					((unit<<6) + FRMT_PBM),
-					DV_CHR, ASC_UID,  ASC_GID, 0666);
-    sprintf(name,"asc%dd",unit);
-   scu->devfs_ascd = devfs_add_devsw("/",   name,  &asc_cdevsw,
-					((unit<<6) + DBUG_MASK),
-					DV_CHR, ASC_UID,  ASC_GID, 0666);
-    sprintf(name,"asc%dpd",unit);
-   scu->devfs_ascpd = devfs_add_devsw("/",   name,  &asc_cdevsw,
-					((unit<<6) + DBUG_MASK + FRMT_PBM),
-					DV_CHR, ASC_UID,  ASC_GID, 0666);
+    scu->devfs_asc = 
+		devfs_add_devswf(&asc_cdevsw, unit<<6, DV_CHR, ASC_UID,
+				 ASC_GID, 0666, "asc%d", unit);
+    scu->devfs_ascp = 
+		devfs_add_devswf(&asc_cdevsw, ((unit<<6) + FRMT_PBM), DV_CHR, 
+				 ASC_UID,  ASC_GID, 0666, "asc%dp", unit);
+    scu->devfs_ascd = 
+		devfs_add_devswf(&asc_cdevsw, ((unit<<6) + DBUG_MASK), DV_CHR, 
+				 ASC_UID,  ASC_GID, 0666, "asc%dd", unit);
+    scu->devfs_ascpd = 
+		devfs_add_devswf(&asc_cdevsw, ((unit<<6) + DBUG_MASK+FRMT_PBM),
+				 DV_CHR, ASC_UID, ASC_GID, 0666, "asc%dpd", 
+				 unit);
 #endif /*DEVFS*/
   return ATTACH_SUCCESS;
 }
