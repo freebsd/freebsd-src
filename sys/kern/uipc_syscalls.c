@@ -272,6 +272,7 @@ accept1(p, uap, compat)
 		namelen = 0;
 		if (uap->name)
 			goto gotnoname;
+		splx(s);
 		return 0;
 	}
 	if (uap->name) {
