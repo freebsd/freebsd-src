@@ -534,7 +534,7 @@ procfs_getattr(ap)
 
 	case Pfile: {
 		char *fullpath, *freepath;
-		error = procfs_fullpath(procp, &fullpath, &freepath);
+		error = textvp_fullpath(procp, &fullpath, &freepath);
 		if (error == 0) {
 			vap->va_size = strlen(fullpath);
 			free(freepath, M_TEMP);
@@ -968,7 +968,7 @@ procfs_readlink(ap)
 			return (uiomove("unknown", sizeof("unknown") - 1,
 			    ap->a_uio));
 		}
-		error = procfs_fullpath(procp, &fullpath, &freepath);
+		error = textvp_fullpath(procp, &fullpath, &freepath);
 		if (error != 0)
 			return (uiomove("unknown", sizeof("unknown") - 1,
 			    ap->a_uio));

@@ -74,24 +74,7 @@ enum vtagtype	{
 TAILQ_HEAD(buflists, buf);
 
 typedef	int 	vop_t __P((void *));
-
-/*
- * This structure describes the elements in the cache of recent
- * names looked up by namei.
- */
-
-struct vnode;
-
-struct	namecache {
-	LIST_ENTRY(namecache) nc_hash;	/* hash chain */
-	LIST_ENTRY(namecache) nc_src;	/* source vnode list */
-	TAILQ_ENTRY(namecache) nc_dst;	/* destination vnode list */
-	struct	vnode *nc_dvp;		/* vnode of parent of name */
-	struct	vnode *nc_vp;		/* vnode the name refers to */
-	u_char	nc_flag;		/* flag bits */
-	u_char	nc_nlen;		/* length of name */
-	char	nc_name[0];		/* segment name */
-};
+struct namecache;
 
 /*
  * Reading or writing any of these items requires holding the appropriate lock.
@@ -567,6 +550,7 @@ int 	getnewvnode __P((enum vtagtype tag,
 int	lease_check __P((struct vop_lease_args *ap));
 int	spec_vnoperate __P((struct vop_generic_args *));
 int	speedup_syncer __P((void));
+int	textvp_fullpath __P((struct proc *p, char **retbuf, char **retfreebuf));
 void 	vattr_null __P((struct vattr *vap));
 int 	vcount __P((struct vnode *vp));
 void	vdrop __P((struct vnode *));
