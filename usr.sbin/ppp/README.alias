@@ -1,112 +1,352 @@
 User PPP Packet Aliasing
 
+
+
 0. Contents
     1. Background
     2. Setup
-    3. Future Development
+    3. New commands in ppp
+    4. Future Work
+    5. Authors / Acknowledgments
+    6. Revision History for Aliasing Code
+
 
 
 1. Background
 
-User ppp has embedded packet aliasing (IP masquerading) code.
-When this capability is enabled by the "-alias" command line
-option, the ppp host will automatically alias IP packets forwarded
-from a local network so that they appear to come from the ppp
-host machine.  Incoming packets from the outside world are then
-appropriately de-aliased.
+User mode ppp has embedded packet aliasing (IP masquerading) code.
+Enabling this, either by the "-alias" command line option or the
+"alias enable yes" command in a ppp.conf file, makes the ppp host
+automatically alias IP packets forwarded from a local network, making
+them appear to come from the ppp host machine.  Incoming packets
+from the outside world are then appropriately de-aliased.
 
-The process of aliasing involves both the IP address as well as
-TCP and UDP port numbers.  ICMP packets can be aliased by either
-their id or sequence numbers.
+The process of aliasing involves both the IP address and the TCP or UDP
+port numbers. ICMP echo and timestamp packets are aliased by their id
+numbers.  ICMP error messages can be properly directed by examining the
+fragment of the offending packet which is contained in the body of the
+message.
 
 This software was specifically meant to support users who have
-unregistered, private address IP networks (e.g. 192.168.0.x or
-10.0.0.x addresses).  The ppp host can act as a gateway for these
-networks, and computers on the local area net will have some
-degree of internet access without the need for a registered IP
-address.  Additionally, there will be no need for an internet
-service provider to maintain routing tables for the local area
-network. 
+unregistered, private address IP networks (e.g. 192.168.0.x or 10.0.0.x
+addresses).  The ppp host can act as a gateway for these networks, and
+computers on the local area net will have some degree of Internet access
+without the need for a registered IP address.  Additionally, there will
+be no need for an Internet service provider to maintain routing tables
+for the local area network.
 
-A disadvantage of packet aliasing is that machines on the local
-network, behind the ppp host, can establish tcp connections and
-make udp inqiries (such as domain name service requests), but these
-machines, other than the ppp host itself, are not visible from
-the outside world.  There is, in effect, a partial firewall.
+A disadvantage of packet aliasing is that machines on the local network,
+behind the ppp host, are not visible from the outside world.  They can
+establish TCP connections and make UDP inquiries (such as domain name
+service requests) but the connections seem to come from the ppp host
+itself.  There is, in effect, a partial firewall.  Of course, if this is
+what you want, the disadvantage becomes an advantage.
 
-A second disadvantage is that "IP encoding" protocols, which send
-IP address or port information within the data stream, are not
-supported unless exception code has been put in place.  A workaround
-for ftp, which is the most well known of the IP encoding protocols,
-has been developed in this implementation, so users do not have
-to depend on using the ftp passive mode, as is sometimes the case
-with other masquerading solutions.
+A second disadvantage is that "IP encoding" protocols, which send IP
+address or port information within the data stream, are not supported
+for the cases where exception code exists.  This implementation has
+workarounds for FTP and IRC DCC, the most well known of the IP encoding
+protocols.  This frees users from depending on using the ftp passive
+mode and avoiding IRC DCC sends, as is sometimes the case with other
+masquerading solutions.
 
-All standard, non-encoding TCP and UDP protocals are supported,
-Examples of these protocols are http, gopher and telnet.  The
-standard UDP mode of RealAudio is not presently supported,
-but the TCP mode does work correctly.  IRC is reported by users
-to work in some, but not all, modes.
+The implementation supports all standard, non-encoding TCP and UDP protocols.
+Examples of these protocols are http, gopher and telnet. The standard UDP
+mode of RealAudio is not presently supported, but the TCP mode does work
+correctly.
 
-The packet aliasing code also handle many ICMP messages.  In
-particular, ping and traceroute are supported.
+The packet aliasing code also handle many ICMP messages.  In particular,
+ping and traceroute are supported.
 
 
 
 2. Packet Aliasing Setup
 
-It is recommended that correct ppp operation first be verified
-without packet aliasing enabled.  Then ppp can be started with
-the "-alias" option in the command line.  Correct network operation
-of the ppp host in packet aliasing mode should then be verified.
-Finally, machines on the private network should be checked to see
-whether they can access the internet.
+It is recommended that users first verify correct ppp operation without
+packet aliasing enabled.  This will confirm that the ppp.conf file is
+properly set up and that there are no ppp problems. Then start ppp with
+the "-alias" option on the command line.  The user should verify that
+the ppp host can correctly connect to the Internet in packet aliasing
+mode.  Finally, check that machines on the private network can access
+the Internet.
 
-Since the masquerading software aliases all packets, whether
-they come from the host or another computer on the local area
-network, a correctly operating ppp host will indicate that the
-software should work properly for other computers on the private
-network.  
+The masquerading software aliases all packets, whether they come from
+the host or another computer on the local area network.  Thus, a correctly
+operating ppp host indicates that the software should work properly for
+other computers on the private network.
 
-If the ppp host can access the internet, but other computers on
-the local network cannot do this, then it should be checked that
-IP forwarding is enabled on the ppp host and that the other
-computers use this machine as a gateway.  Of course, proper
-communications between machines within the local area network
-should also be verified (do they use consistent subnet addresses
-and masks?).
-
+If the ppp host can access the Internet, but other computers on the local
+network cannot, check that IP forwarding is enabled on the ppp host. Also,
+verify that the other computers use this machine as a gateway.  Of course,
+you should also verify that machines within the local area network
+communicate properly.  A common error is inconsistent subnet addresses
+and masks.
 
 
-3.  Future Development
 
-What is called packet aliasing here has been variously called
-masquerading, network address translation (NAT) and transparent
-proxying by others.  It is an extremely useful function to
-many users, but it is also necessarily imperfect.  Workarounds
-(hacks) are always needed for the occasional IP-encoding
-protocols.
+3. New commands in ppp
 
-The specific solution implemented here does not block off or
-reserve any segment of TCP or UDP ports on the ppp host for use
-by the masquerading function.  No communication to the kernel
-is needed in this matter.  All packets are aliased, whether
-they originate from the ppp host or other computers on the
-local network.  This is a central issue, and some programmers
-may wish to handle this differently.
+In order to control aliasing behavior in a simple manner (no need for
+recompilation), a new command has been added to iij-ppp: alias.  This
+is in addition to the -alias command line option.  System managers and
+more experienced users may prefer to use the iij-ppp command syntax
+within the ppp.conf file.  The alias command also allows packet aliasing
+behavior to be more precisely specified.
 
-The packet aliasing engine (alias.c, alias_db.c, alias_ftp.c
-and alias_util.c) runs in user space, and is intended to be
-both portable and reusable for interfaces other than ppp.  The
-basic engine is accessed by four simple function calls
-(initialization, communication of host address, outgoing
-aliasing and incoming de-aliasing).
+The decision to add a command instead of extending 'set' or 'option' was
+to make obvious that these options only work when aliasing is enabled.
 
-Limited IP fragment handling exists.  Once the packet aliasing
-software sees the header fragment of a packet, all other fragments
-will be correctly forwarded.  However, if the header fragment
-does not come first, then some fragments will be lost.
+The syntax for 'alias' is
 
-Charles Mott (cmott@srv.net)
-December 4, 1996
+    ppp>  alias option [yes|no]
+
+where option is given by one of the following templates.
+
+
+ - alias enable [yes|no]  (default no)
+
+Enable packet aliasing functionality.  If disabled, no other alias
+options will have any effect.  You should usually enable aliasing
+before routing any packets over the link; good points are in the
+initial script or right before adding a route.  If you do not always
+want aliasing, consider using the -alias option to ppp instead of this
+command.
+
+
+ - alias deny_incoming [yes|no] (default yes)
+
+Set to "yes" to disable all incoming connections.  This just drops
+connections to, for example, ftp, telnet or web servers.  The aliasing
+mechanism prevents these connections. Technically, this option denies
+all incoming TCP and UDP requests, making the aliasing software a
+fairly efficient one-way firewall.  The default is no, which will
+all incoming connections to telnetd, ftpd, etc.
+
+
+ - alias log [yes|no]
+
+Controls logging of alias link creation to "/var/log/alias.log" - this
+is usually only useful if debugging a setup, to see if the bug is in
+the PPP aliasing.  The debugging information is fairly limited, listing
+the number of aliasing links open for different prototocols.
+
+
+ - alias same_ports [yes|no] (default yes)
+
+When a connection is being established going through the aliasing
+routines, it will normally have its port number changed to allow the
+aliasing code to track it.  If same_ports is enabled, the alias
+software attempts to keep the connection's source port unchanged.
+This will allow rsh, RPC and other specialized protocols to work
+_most of the time_, at least on the host machine.  Please, do not
+report this being unstable as a bug - it is a result of the way
+aliasing has to work. TCP/IP was intended to have one IP address
+per machine.
+
+
+ - alias use_sockets [yes|no] (default yes)
+
+This is a fairly obscure option.  For the most part, the packet aliasing
+software does not have to allocate system sockets when it chooses an
+aliasing port number.  Under very specific circumstances, FTP data
+connections (which don't know the remote port nubmer, though it is
+usually 20) and IRC DCC send (which doesn't know either the address or
+the port from which the connection will come), there can potentially be
+some interference with an open server socket having the same port number
+on the ppp host machine.  This possibility for interferience only exists
+until the TCP connection has been acknowledged on both sides.  The safe
+option is yes, though fewer system resources are consumed by specifying
+no.
+
+
+ - alias unregistered_only [yes|no] (default no)
+
+Packet aliasing normally remaps all packets coming from the local area
+network to the ppp host machine address.  Set this option to only map
+addresses from the following standard ranges for private, unregistered
+addresses:
+
+                10.0.0.0     ->   10.255.255.255
+                172.16.0.0   ->   172.31.255.255
+                192.168.0.0  ->   192.168.255.255  */
+
+In the instance that there is a subnet of public addresses and another
+subnet of private addresses being routed by the ppp host, then only the
+packets on the private subnet will be aliased.
+
+
+- alias port <proto> <local addr>:<port>  <alias port>
+
+This command allows incoming traffic to <alias port> on the host 
+machine to be redirected to a specific machine and port on the
+local area network.  One example of this would be:
+
+    alias port tcp 192.168.0.4:telnet  8066
+
+All traffic to port 8066 fthe ppp host would then be sent to
+the telnet port (23) of machine 192.168.0.4.  Port numbers
+can either be designated numerically or by symbolic names
+listed in /etc/services.  Similarly, addresses can be either
+in dotted quad notation or in /etc/hosts.
+
+
+- alias addr <local addr> <public addr>
+
+This command allows traffic for a public IP address to be
+redirected to a machine on the local network.  This function
+is known as "static NAT".  An address assignment of 0 refers
+to the default address of the ppp host.  Normally static
+NAT is useful if your ISP has allocated a small block of
+IP addresses to the user, but it can even be used in the
+case of a single, dynamically allocated IP address:
+
+    alias addr 10.0.0.8 0
+
+The above command would redirect all incoming traffic to
+machine 10.0.0.8. 
+
+If several address aliases specifiy the same public addres
+as follows
+
+    alias addr 192.168.0.2  public_addr
+    alias addr 192.168.0.3  public_addr
+    alias addr 192.168.0.4  public_addr
+
+then incoming traffice will be directed to the last
+translated local address (192.168.0.4), but outgoing
+traffic to the first two addresses will still be aliased
+to the specified public address.
+
+
+
+4. Future Work
+
+What is called packet aliasing here has been variously called masquerading,
+network address translation (NAT) and transparent proxying by others.  It
+is an extremely useful function to many users, but it is also necessarily
+imperfect.  The occasional IP-encoding protocols always need workarounds
+(hacks).  Users who are interested in supporting new IP-encoding protocols
+can follow the examples of alias_ftp.c and alias_irc.c.
+
+ICMP error messages are currently handled only in the incoming direction.
+A handler needs to be added to correctly alias outgoing error messages.
+
+IRC and FTP exception handling make reasonable, though not strictly correct
+assumptions, about how IP encoded messages will appear in the control
+stream.  Programmers may wish to consider how to make this process more
+robust.
+
+The packet aliasing engine (alias.c, alias_db.c, alias_ftp.c, alias_irc.c
+and alias_util.c) runs in user space, and is intended to be both portable
+and reusable for interfaces other than ppp.  To access the basic engine
+only requires four simple function calls (initialization, communication of
+host address, outgoing aliasing and incoming de-aliasing).
+
+
+
+5. Authors / Acknowledgments
+
+Charles Mott (cmott@srv.net)   <versions 1.0 - 1.8, 2.0, 2.1>
+Eivind Eklund (perhaps@yes.no) <versions 1.8b - 1.9, new ppp commands>
+
+Listed below, in chronological order, are individuals who have provided
+valuable comments and/or debugging assistance.
+
+    Gary Roberts
+    Tom Torrance
+    Reto Burkhalter
+    Martin Renters
+    Brian Somers
+    Paul Traina
+    Ari Suutari
+    J. Fortes
+    Andrzej Bialeki
+
+
+
+6. Revision History for Aliasing Code
+
+Version 1.0: August 11, 1996 (cjm)
+
+Version 1.1:  August 20, 1996  (cjm)
+    PPP host accepts incoming connections for ports 0 to 1023.
+
+Version 1.2:  September 7, 1996 (cjm)
+    Fragment handling error in alias_db.c corrected.
+
+Version 1.3: September 15, 1996 (cjm)
+    - Generalized mechanism for handling incoming connections
+      (no more 0 to 1023 restriction).
+    - Increased ICMP support (will handle traceroute now).
+    - Improved TCP close connection logic.
+
+Version 1.4: September 16, 1996
+    Can't remember (this version only lasted a day -- cjm).
+
+Version 1.5: September 17, 1996 (cjm)
+    Corrected error in handling incoming UDP packets
+    with zero checksum.
+
+Version 1.6: September 18, 1996
+    Simplified ICMP data storage.  Will now handle
+    tracert from Win95 as well as FreeBSD traceroute.
+
+Verstion 1.7: January 9, 1997 (cjm)
+    - Reduced malloc() activity for ICMP echo and 
+      timestamp requests.
+    - Added handling for out-of-order IP fragments.
+    - Switched to differential checksum computation
+      for IP headers (TCP, UDP and ICMP checksums
+      were already differential).
+    - Accepts FTP data connections from other than
+      port 20.  This allows one ftp connections
+      from two hosts which are both running packet
+      aliasing.
+
+Verstion 1.8: January 14, 1997 (cjm)
+    - Fixed data type error in function StartPoint()
+      in alias_db.c (this bug did not exist before v1.7)
+
+Version 1.8b: January 16, 1997 (Eivind Eklund <perhaps@yes.no>)
+    - Upgraded base PPP version to be the sourcecode from
+      FreeBSD 2.1.6, with additional security patches.  This
+      version should still be possible to run on 2.1.5, though -
+      I've run it with a 2.1.5 kernel without problems.
+      (Update done with the permission of cjm)
+
+Version 1.9: February 1, 1997 (Eivind Eklund <perhaps@yes.no>)
+    - Added support for IRC DCC (ee)
+    - Changed the aliasing routines to use ANSI style throughout -
+      minor API changes for integration with other programs than PPP (ee)
+    - Changed the build process, making all options switchable
+      from the Makefile (ee)
+    - Fixed minor security hole in alias_ftp.c for other applications
+      of the aliasing software.  Hole could _not_ manifest in
+      PPP+pktAlias, but could potentially manifest in other
+      applications of the aliasing. (ee)
+    - Connections initiated from packet aliasing host machine will
+      not have their port number aliased unless it conflicts with
+      an aliasing port already being used. (There is an option to
+      disable this for debugging) (cjm)
+    - Sockets will be allocated in cases where there might be
+      port interference with the host machine.  This can be disabled
+      in cases where the ppp host will be acting purely as a 
+      masquerading router and not generate any traffic of its own.
+      (cjm)
+
+Version 2.0: March, 1997 (cjm)
+    - Incoming packets which are not recognized by the packet
+      aliasing engine are now completely dropped in ip.c.
+    - Aliasing links are cleared when a host interface address
+      changes (due to re-dial and dynamic address allocatioa).
+    - PacketAliasPermanentLink() API added.
+    - Option for only aliasing private, unregistered IP addresses
+      added.
+    - Substantial rework to the aliasing lookup engine.
+
+Version 2.1: May, 1997 (cjm)
+    - Continuing rework to the aliasing lookup engine to support
+      multiple incoming addresses and static NAT.
+    - Now supports outgoing as well as incoming ICMP error messges/
+    - PPP commands to support address and port redirection.
 
