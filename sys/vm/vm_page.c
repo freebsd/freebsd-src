@@ -125,7 +125,6 @@
  *	Associated with page of user-allocatable memory is a
  *	page structure.
  */
-static struct mtx vm_page_buckets_mtx;
 static struct vm_page **vm_page_buckets; /* Array of buckets */
 static int vm_page_bucket_count;	/* How big is array? */
 static int vm_page_hash_mask;		/* Mask for hash function */
@@ -263,7 +262,6 @@ vm_page_startup(vm_offset_t starta, vm_offset_t enda, vm_offset_t vaddr)
 	    VM_PROT_READ | VM_PROT_WRITE);
 	bzero((caddr_t) mapped, end - new_end);
 
-	mtx_init(&vm_page_buckets_mtx, "vm page buckets mutex", NULL, MTX_SPIN);
 	vm_page_buckets = (struct vm_page **)mapped;
 	bucket = vm_page_buckets;
 	for (i = 0; i < vm_page_bucket_count; i++) {
