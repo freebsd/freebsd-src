@@ -109,6 +109,8 @@ static int	nfs_write(struct open_file *f, void *buf, size_t size, size_t *resid)
 static off_t	nfs_seek(struct open_file *f, off_t offset, int where);
 static int	nfs_stat(struct open_file *f, struct stat *sb);
 
+static struct	nfs_iodesc nfs_root_node;
+
 struct fs_ops nfs_fsops = {
 	"nfs",
 	nfs_open,
@@ -363,7 +365,6 @@ nfs_open(upath, f)
 	const char *upath;
 	struct open_file *f;
 {
-	static struct nfs_iodesc nfs_root_node;
 	struct iodesc *desc;
 	struct nfs_iodesc *currfd;
 #ifndef NFS_NOSYMLINK
@@ -546,7 +547,7 @@ nfs_close(f)
 		printf("nfs_close: fp=0x%lx\n", (u_long)fp);
 #endif
 
-	if (fp)
+	if (fp != &nfs_root_node && fp)
 		free(fp);
 	f->f_fsdata = (void *)0;
 	
