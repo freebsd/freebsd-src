@@ -932,8 +932,8 @@ check_nexus(dev, num)
 
 check_tz()
 {
-	if (abs(zone) > 12 * 60)
-		yyerror("timezone is unreasonable");
+	if (zone != 0 || dst != 0)
+		yyerror("timezone specification is no longer permitted");
 	else
 		hadtz = 1;
 }
