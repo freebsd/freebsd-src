@@ -329,7 +329,7 @@ static devclass_t dc_devclass;
 #ifdef __i386__
 static int dc_quick = 1;
 SYSCTL_INT(_hw, OID_AUTO, dc_quick, CTLFLAG_RW, &dc_quick, 0,
-    "do not mdevget in dc driver");
+    "do not m_devget() in dc driver");
 #endif
 
 DRIVER_MODULE(dc, cardbus, dc_driver, dc_devclass, 0, 0);
