@@ -451,8 +451,7 @@ sysctl_vm_zone(SYSCTL_HANDLER_ARGS)
 		offset += len;
 	}
 	mtx_unlock(&zone_mtx);
-	offset--;
-	*offset = '\0';
+	*offset++ = '\0';
 	error = SYSCTL_OUT(req, tmpbuf, offset - tmpbuf);
 out:
 	FREE(tmpbuf, M_TEMP);
