@@ -111,8 +111,6 @@ pam_child_conv(int n,
 	buffer_free(&buffer);
 	return (PAM_SUCCESS);
  fail:
-	while (i)
-		xfree(resp[--i]);
 	xfree(*resp);
 	*resp = NULL;
 	buffer_free(&buffer);
