@@ -53,7 +53,7 @@ struct acpi_powerres_info {
 #define ACPI_POWER_RESOURCE_ON	1
 #define ACPI_POWER_RESOURCE_OFF	0
 	u_int8_t	state;		/* OFF or ON */
-#define ACPI_PR_MAX		3
+#define ACPI_PR_MAX		3	/* _PR[0-2] */
 	LIST_HEAD(, acpi_powerres_device_ref) reflist[ACPI_PR_MAX];
 };
 
@@ -64,8 +64,10 @@ typedef struct acpi_softc {
 	struct	FACPbody *facp_body;
 	struct	ACPIsdt *dsdt;
 	struct	FACS *facs;
+	int	system_state;
 	int	system_state_initialized;
 	int	broken_wakeuplogic;
+	int	enabled;
 	struct	acpi_system_state_package system_state_package;
 	LIST_HEAD(, acpi_powerres_info) acpi_powerres_inflist;
 	LIST_HEAD(, acpi_powerres_device) acpi_powerres_devlist;
@@ -84,4 +86,4 @@ void		 acpi_set_powerres_state(acpi_softc_t *, struct aml_name *,
 				         u_int8_t);
 void		 acpi_powerres_set_sleeping_state(acpi_softc_t *, u_int8_t);
 
-#endif	/* _DEV_ACPI_ACPI_H_ */
+#endif	/* !_DEV_ACPI_ACPI_H_ */
