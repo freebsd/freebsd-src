@@ -7,7 +7,7 @@ SRCS=	kdump.c ioctl.c subr.c
 .PATH:	${.CURDIR}/../ktrace
 CLEANFILES+=ioctl.c
 
-ioctl.c: mkioctls
+ioctl.c: .PHONY
 	sh ${.CURDIR}/mkioctls ${DESTDIR}/usr/include > ioctl.c
 
 .include <bsd.prog.mk>
