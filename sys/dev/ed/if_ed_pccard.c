@@ -172,6 +172,7 @@ ed_pccard_probe(device_t dev)
 		ax88190_geteprom(sc);
 
 		ed_release_resources(dev);
+		goto end2;
 	}
 
 	error = ed_probe_Novell(dev, 0, flags);
