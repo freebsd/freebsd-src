@@ -52,6 +52,7 @@ _pam_exec(pam_handle_t *pamh __unused, int flags __unused,
     int argc, const char *argv[])
 {
 	int childerr, status;
+	char **env, **envlist;
 	pid_t pid;
 
 	if (argc < 1)
@@ -61,12 +62,17 @@ _pam_exec(pam_handle_t *pamh __unused, int flags __unused,
 	 * XXX For additional credit, divert child's stdin/stdout/stderr
 	 * to the conversation function.
 	 */
+	envlist = pam_getenvlist(pamh);
 	childerr = 0;
 	if ((pid = vfork()) == 0) {
-		execv(argv[0], argv);
+		execve(argv[0], argv, envlist);
 		childerr = errno;
 		_exit(1);
-	} else if (pid == -1) {
+	}
+	for (env = envlist; *env != NULL; ++env)
+		free(*env);
+	free(envlist);
+	if (pid == -1) {
 		openpam_log(PAM_LOG_ERROR, "vfork(): %m");
 		return (PAM_SYSTEM_ERR);
 	}
