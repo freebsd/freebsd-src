@@ -119,7 +119,9 @@ ${FULLKERNEL}: ${SYSTEM_DEP} vers.o
 	${SYSTEM_LD}
 	${SYSTEM_LD_TAIL}
 .if !defined(NO_MODULES) && exists(${.CURDIR}/../../modules)
-	cd ${.CURDIR}/../../modules && ${MAKE} all
+	@mkdir -p ${.CURDIR}/modules
+	cd ${.CURDIR}/../../modules && env MAKEOBJDIRPREFIX=${.CURDIR}/modules ${MAKE} obj
+	cd ${.CURDIR}/../../modules && env MAKEOBJDIRPREFIX=${.CURDIR}/modules ${MAKE} all
 .endif
 
 .if !exists(.depend)
@@ -139,7 +141,7 @@ clean:
 	      ${MFILES:T:S/.m$/.c/} ${MFILES:T:S/.m$/.h/} \
 	      ${CLEAN}
 .if !defined(NO_MODULES) && exists(${.CURDIR}/../../modules)
-	cd ${.CURDIR}/../../modules && ${MAKE} clean
+	cd ${.CURDIR}/../../modules && env MAKEOBJDIRPREFIX=${.CURDIR}/modules ${MAKE} clean
 .endif
 
 #lint: /tmp param.c
@@ -191,13 +193,15 @@ depend: assym.s param.c vnode_if.h ${BEFORE_DEPEND} \
 	rm -f .depend
 	mv -f .newdep .depend
 .if !defined(NO_MODULES) && exists(${.CURDIR}/../../modules)
-	cd ${.CURDIR}/../../modules && ${MAKE} depend
+	@mkdir -p ${.CURDIR}/modules
+	cd ${.CURDIR}/../../modules && env MAKEOBJDIRPREFIX=${.CURDIR}/modules ${MAKE} obj
+	cd ${.CURDIR}/../../modules && env MAKEOBJDIRPREFIX=${.CURDIR}/modules ${MAKE} depend
 .endif
 
 cleandepend:
 	rm -f .depend
 .if !defined(NO_MODULES) && exists(${.CURDIR}/../../modules)
-	cd ${.CURDIR}/../../modules && ${MAKE} cleandepend
+	cd ${.CURDIR}/../../modules && env MAKEOBJDIRPREFIX=${.CURDIR}/modules ${MAKE} cleandepend
 .endif
 
 links:
@@ -226,14 +230,14 @@ install install.debug:
 	install -c -m 555 -o root -g wheel -fschg \
 		${KERNEL}${.TARGET:S/install//} ${DESTDIR}/${KERNEL}
 .if !defined(NO_MODULES) && exists(${.CURDIR}/../../modules)
-	cd ${.CURDIR}/../../modules && ${MAKE} install
+	cd ${.CURDIR}/../../modules && env MAKEOBJDIRPREFIX=${.CURDIR}/modules ${MAKE} install
 .endif
 
 reinstall reinstall.debug:
 	install -c -m 555 -o root -g wheel -fschg \
 		${KERNEL}${.TARGET:S/reinstall//} ${DESTDIR}/${KERNEL}
 .if !defined(NO_MODULES) && exists(${.CURDIR}/../../modules)
-	cd ${.CURDIR}/../../modules && ${MAKE} install
+	cd ${.CURDIR}/../../modules && env MAKEOBJDIRPREFIX=${.CURDIR}/modules ${MAKE} install
 .endif
 
 config.o:
