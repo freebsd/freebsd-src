@@ -1,10 +1,10 @@
 # $FreeBSD$
 
 NL=     french
-DL=     fr_FR.ISO_8859-1
-LL=     fr_BE.ISO_8859-1 fr_CA.ISO_8859-1 fr_CH.ISO_8859-1 \
-	fr_BE.DIS_8859-15 fr_CA.DIS_8859-15 fr_CH.DIS_8859-15 \
-	fr_FR.DIS_8859-15
+DL=     fr_FR.ISO8859-1
+LL=     fr_BE.ISO8859-1 fr_CA.ISO8859-1 fr_CH.ISO8859-1 \
+	fr_BE.ISO8859-15 fr_CA.ISO8859-15 fr_CH.ISO8859-15 \
+	fr_FR.ISO8859-15
 
 .PATH: ${BASESRC}/${NL}
 

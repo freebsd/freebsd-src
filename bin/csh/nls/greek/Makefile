@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 NL=     greek
-DL=     el_GR.ISO_8859-7
+DL=     el_GR.ISO8859-7
 
 .PATH: ${BASESRC}/${NL}
 

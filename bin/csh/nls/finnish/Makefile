@@ -1,8 +1,8 @@
 # $FreeBSD$
 
 NL=     finnish
-DL=     fi_FI.ISO_8859-1
-LL=     fi_FI.DIS_8859-15
+DL=     fi_FI.ISO8859-1
+LL=     fi_FI.ISO8859-15
 
 .PATH: ${BASESRC}/${NL}
 
