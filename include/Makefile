@@ -116,6 +116,6 @@ symlinks:
 	rm -rf ${DESTDIR}/usr/include/machine
 	ln -s ../../sys/${MACHINE_ARCH}/include ${DESTDIR}/usr/include/machine
 
-_incsinstall: ${SHARED}
-
 .include <bsd.prog.mk>
+
+installincludes: ${SHARED}
