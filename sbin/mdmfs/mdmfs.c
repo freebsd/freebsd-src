@@ -493,7 +493,7 @@ extract_ugid(const char *str, struct mtpt_info *mip)
 	assert(ug != NULL);
 	rv = strlcpy(ug, str, strl);
 	if (rv >= strl)
-		errx(1, "-w word too long (%d >= %d)", rv, strl);
+		errx(1, "-w word too long (%ld >= %ld)", (long)rv, (long)strl);
 	group = ug;
 	user = strsep(&group, ":");
 	if (user == NULL || group == NULL || *user == '\0' || *group == '\0')
