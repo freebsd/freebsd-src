@@ -94,9 +94,10 @@ clnt_sperror(rpch, s)
 	strstart = str;
 	CLNT_GETERR(rpch, &e);
 
-	i = snprintf(str, len, "%s: ", s);  
-	str += i;
-	len -= i;
+	if ((i = snprintf(str, len, "%s: ", s)) > 0) {
+		str += i;
+		len -= i;
+	}
 
 	(void)strncpy(str, clnt_sperrno(e.re_status), len - 1);
 	i = strlen(str);
@@ -122,22 +123,28 @@ clnt_sperror(rpch, s)
 	case RPC_CANTSEND:
 	case RPC_CANTRECV:
 		i = snprintf(str, len, "; errno = %s", strerror(e.re_errno)); 
-		str += i;
-		len -= i;
+		if (i > 0) {
+			str += i;
+			len -= i;
+		}
 		break;
 
 	case RPC_VERSMISMATCH:
 		i = snprintf(str, len, "; low version = %u, high version = %u", 
 			e.re_vers.low, e.re_vers.high);
-		str += i;
-		len -= i;
+		if (i > 0) {
+			str += i;
+			len -= i;
+		}
 		break;
 
 	case RPC_AUTHERROR:
 		err = auth_errmsg(e.re_why);
 		i = snprintf(str, len, "; why = ");
-		str += i;
-		len -= i;
+		if (i > 0) {
+			str += i;
+			len -= i;
+		}
 		if (err != NULL) {
 			i = snprintf(str, len, "%s",err);
 		} else {
@@ -145,22 +152,28 @@ clnt_sperror(rpch, s)
 				"(unknown authentication error - %d)",
 				(int) e.re_why);
 		}
-		str += i;
-		len -= i;
+		if (i > 0) {
+			str += i;
+			len -= i;
+		}
 		break;
 
 	case RPC_PROGVERSMISMATCH:
 		i = snprintf(str, len, "; low version = %u, high version = %u", 
 			e.re_vers.low, e.re_vers.high);
-		str += i;
-		len -= i;
+		if (i > 0) {
+			str += i;
+			len -= i;
+		}
 		break;
 
 	default:	/* unknown */
 		i = snprintf(str, len, "; s1 = %u, s2 = %u", 
 			e.re_lb.s1, e.re_lb.s2);
-		str += i;
-		len -= i;
+		if (i > 0) {
+			str += i;
+			len -= i;
+		}
 		break;
 	}
 	strstart[CLNT_PERROR_BUFLEN-1] = '\0';
@@ -239,7 +252,8 @@ clnt_spcreateerror(s)
 		return(0);
 	len = CLNT_PERROR_BUFLEN;
 	i = snprintf(str, len, "%s: ", s);
-	len -= i;
+	if (i > 0)
+		len -= i;
 	(void)strncat(str, clnt_sperrno(rpc_createerr.cf_stat), len - 1);
 	switch (rpc_createerr.cf_stat) {
 	case RPC_PMAPFAILURE:
