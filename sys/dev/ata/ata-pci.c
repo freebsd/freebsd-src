@@ -52,6 +52,7 @@ struct ata_pci_controller {
     int bmaddr;
     struct resource *irq;
     int irqcnt;
+    int lock;
 };
 
 /* misc defines */
@@ -314,9 +315,24 @@ ata_pci_match(device_t dev)
     case 0x00081103:
 	switch (pci_get_revid(dev)) {
 	case 0x07:
+	    if (pci_get_function(dev) == 0)
+		return "HighPoint HPT374 ATA133 controller (channel 0+1)";
+	    if (pci_get_function(dev) == 1)
+		return "HighPoint HPT374 ATA133 controller (channel 2+3)";
 	    return "HighPoint HPT374 ATA133 controller";
 	}
 	return NULL;
+
+    case 0x00051191:
+	return "Acard ATP850 ATA-33 controller";
+
+    case 0x00061191:
+    case 0x00071191:
+	return "Acard ATP860 ATA-66 controller";
+
+    case 0x00081191:
+    case 0x00091191:
+	return "Acard ATP865 ATA-133 controller";
 
     case 0x000116ca:
 	return "Cenatek Rocket Drive controller";
@@ -354,17 +370,14 @@ ata_pci_probe(device_t dev)
 static int
 ata_pci_add_child(device_t dev, int unit)
 {
-    device_t child;
-
     /* check if this is located at one of the std addresses */
     if (ATA_MASTERDEV(dev)) {
-	if (!(child = device_add_child(dev, "ata", unit)))
+	if (!device_add_child(dev, "ata", unit))
 	    return ENOMEM;
     }
     else {
-	if (!(child =
-	      device_add_child(dev, "ata",
-			       devclass_find_free_unit(ata_devclass, 2))))
+	if (!device_add_child(dev, "ata",
+			      devclass_find_free_unit(ata_devclass, 2)))
 	    return ENOMEM;
     }
     return 0;
@@ -539,6 +552,7 @@ ata_pci_attach(device_t dev)
 			     SYS_RES_IOPORT, rid, controller->bmio);
 	controller->bmio = NULL;
     }
+    controller->lock = -1;
 
     /*
      * the Cypress chip is a mess, it contains two ATA functions, but 
@@ -574,16 +588,16 @@ ata_pci_intr(struct ata_channel *ch)
     case 0x00081103:	/* HighPoint HPT374 */
 	if (((dmastat = ata_dmastatus(ch)) &
 	    (ATA_BMSTAT_ACTIVE | ATA_BMSTAT_INTERRUPT)) != ATA_BMSTAT_INTERRUPT)
-	    return 1;
+	    return 0;
 	ATA_OUTB(ch->r_bmio, ATA_BMSTAT_PORT, dmastat | ATA_BMSTAT_INTERRUPT);
 	DELAY(1);
-	return 0;
+	return 1;
 
     case 0x06481095:	/* CMD 648 */
     case 0x06491095:	/* CMD 649 */
 	if (!(pci_read_config(device_get_parent(ch->dev), 0x71, 1) &
 	      (ch->unit ? 0x08 : 0x04)))
-	    return 1;
+	    return 0;
 	break;
 
     case 0x4d33105a:	/* Promise Ultra/Fasttrak 33 */
@@ -593,7 +607,7 @@ ata_pci_intr(struct ata_channel *ch)
     case 0x4d30105a:	/* Promise Ultra/Fasttrak 100 */
 	if (!(ATA_INL(ch->r_bmio, (ch->unit ? 0x14 : 0x1c)) &
 	      (ch->unit ? 0x00004000 : 0x00000400)))
-	    return 1;
+	    return 0;
 	break;
 
     case 0x4d68105a:	/* Promise TX2 ATA100 */
@@ -604,17 +618,70 @@ ata_pci_intr(struct ata_channel *ch)
     case 0x7275105a:	/* Promise TX2 ATA133 */
 	ATA_OUTB(ch->r_bmio, ATA_BMDEVSPEC_0, 0x0b);
 	if (!(ATA_INB(ch->r_bmio, ATA_BMDEVSPEC_1) & 0x20))
-	    return 1;
+	    return 0;
 	break;
+
+    case 0x00051191:	/* Acard ATP850 */
+	{
+	    struct ata_pci_controller *scp =
+		device_get_softc(device_get_parent(ch->dev));
+
+	    if (ch->unit != scp->lock)
+		return 0;
+	}
+	/* FALLTHROUGH */
+
+    case 0x00061191:	/* Acard ATP860 */
+    case 0x00071191:	/* Acard ATP860R */
+    case 0x00081191:	/* Acard ATP865 */
+    case 0x00091191:	/* Acard ATP865R */
+	if (ch->flags & ATA_DMA_ACTIVE) {
+	    if (!((dmastat = ata_dmastatus(ch)) & ATA_BMSTAT_INTERRUPT))
+		return 0;
+	    ATA_OUTB(ch->r_bmio, ATA_BMSTAT_PORT, dmastat|ATA_BMSTAT_INTERRUPT);
+	    DELAY(1);
+	    ATA_OUTB(ch->r_bmio, ATA_BMCMD_PORT,
+		     ATA_INB(ch->r_bmio, ATA_BMCMD_PORT)&~ATA_BMCMD_START_STOP);
+	    DELAY(1);
+    	}
+	return 1;
     }
 
     if (ch->flags & ATA_DMA_ACTIVE) {
 	if (!((dmastat = ata_dmastatus(ch)) & ATA_BMSTAT_INTERRUPT))
-	    return 1;
+	    return 0;
 	ATA_OUTB(ch->r_bmio, ATA_BMSTAT_PORT, dmastat | ATA_BMSTAT_INTERRUPT);
 	DELAY(1);
     }
-    return 0;
+    return 1;
+}
+
+static void
+ata_pci_locknoop(struct ata_channel *ch, int type)
+{
+}
+
+static void
+ata_pci_serialize(struct ata_channel *ch, int flags)
+{
+    struct ata_pci_controller *scp =
+	device_get_softc(device_get_parent(ch->dev));
+
+    switch (flags) {
+    case ATA_LF_LOCK:
+	if (scp->lock == ch->unit)
+	    break;
+	while (!atomic_cmpset_acq_int(&scp->lock, -1, ch->unit))
+	    tsleep((caddr_t)ch->lock_func, PRIBIO, "atalck", 1);
+	break;
+
+    case ATA_LF_UNLOCK:
+	if (scp->lock == -1 || scp->lock != ch->unit)
+	    break;
+	atomic_store_rel_int(&scp->lock, -1);
+	break;
+    }
+    return;
 }
 
 static int
@@ -864,8 +931,19 @@ ata_pcisub_probe(device_t dev)
 	    ch->unit = i;
     }
     free(children, M_TEMP);
-    ch->chiptype = pci_get_devid(device_get_parent(dev));
+
     ch->intr_func = ata_pci_intr;
+    ch->chiptype = pci_get_devid(device_get_parent(dev));
+    switch (ch->chiptype) {
+    case 0x10001042:	/* RZ 1000 */
+    case 0x10011042:	/* RZ 1001 */
+    case 0x06401095:	/* CMD 640 */
+    case 0x00051191:	/* Acard ATP850 */
+	ch->lock_func = ata_pci_serialize;
+	break;
+    default:
+	ch->lock_func = ata_pci_locknoop;
+    }
     return ata_probe(dev);
 }
 
