@@ -54,7 +54,8 @@ strsignal(int num)
 {
 	static char ebuf[NL_TEXTMAX];
 	char tmp[20];
-	int signum, n;
+	size_t n;
+	int signum;
 	char *t, *p;
 
 #if defined(NLS)
@@ -64,7 +65,7 @@ strsignal(int num)
 #endif
 
 	if (num > 0 && num < sys_nsig) {
-		strlcpy(ebuf,
+		n = strlcpy(ebuf,
 #if defined(NLS)
 			catgets(catd, 2, num, sys_siglist[num]),
 #else
