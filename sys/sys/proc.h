@@ -141,15 +141,9 @@ struct	pargs {
  *      m - Giant
  *      n - not locked, lazy
  *
- * If the locking identifier is followed by a plus '+', then the specified
- * member follows these special rules:
- *      - It is only written to by the current process.
- *      - It can be read by the current process and other processes.
- * Thus, the locking rules for it are slightly different, and allow us to
- * optimize the case where a process reads its own such value:
- *	- Writes to this member are locked.
- *	- Reads of this value by other processes are locked.
- *	- Reads of this value by the current process need not be locked.
+ * If the locking key specifies two identifiers (for example, p_pptr) then
+ * either lock is sufficient for read access, but both locks must be held
+ * for write access.
  */
 struct ithd;
 
@@ -159,7 +153,7 @@ struct	proc {
 	LIST_ENTRY(proc) p_list;	/* (d) List of all processes. */
 
 	/* substructures: */
-	struct	pcred *p_cred;		/* (c+) Process owner's identity. */
+	struct	pcred *p_cred;		/* (c + k) Process owner's identity. */
 	struct	filedesc *p_fd;		/* (b) Ptr to open files structure. */
 	struct	pstats *p_stats;	/* (b) Accounting/statistics (CPU). */
 	struct	plimit *p_limit;	/* (m) Process limits. */
@@ -180,14 +174,14 @@ struct	proc {
 	pid_t	p_pid;			/* (b) Process identifier. */
 	LIST_ENTRY(proc) p_hash;	/* (d) Hash chain. */
 	LIST_ENTRY(proc) p_pglist;	/* (c) List of processes in pgrp. */
-	struct	proc *p_pptr;		/* (e) Pointer to parent process. */
+	struct	proc *p_pptr;		/* (c + e) Pointer to parent process. */
 	LIST_ENTRY(proc) p_sibling;	/* (e) List of sibling processes. */
 	LIST_HEAD(, proc) p_children;	/* (e) Pointer to list of children. */
 
 /* The following fields are all zeroed upon creation in fork. */
 #define	p_startzero	p_oppid
 
-	pid_t	p_oppid;	 /* (c) Save parent pid during ptrace. XXX */
+	pid_t	p_oppid;	 /* (c + e) Save parent pid during ptrace. XXX */
 	int	p_dupfd;	 /* (c) Sideways ret value from fdopen. XXX */
 	struct	vmspace *p_vmspace;	/* (b) Address space. */
 
@@ -258,7 +252,7 @@ struct	proc {
 
 	struct 	pgrp *p_pgrp;	/* (e?/c?) Pointer to process group. */
 	struct 	sysentvec *p_sysent; /* (b) System call dispatch information. */
-	struct	pargs *p_args;		/* (b?) Process arguments. */
+	struct	pargs *p_args;		/* (c + k) Process arguments. */
 
 /* End area that is copied on creation. */
 #define	p_endcopy	p_addr
@@ -434,18 +428,24 @@ sigonstack(size_t sp)
 		FREE(s, M_SESSION);					\
 }
 
-/* STOPEVENT() is MP safe. */
 #define	STOPEVENT(p, e, v) do {						\
 	PROC_LOCK(p);							\
+	_STOPEVENT((p), (e), (v));					\
+	PROC_UNLOCK(p);							\
+} while (0)
+#define	_STOPEVENT(p, e, v) do {					\
+	PROC_LOCK_ASSERT(p, MA_OWNED);					\
 	if ((p)->p_stops & (e)) {					\
 		stopevent((p), (e), (v));				\
 	}								\
-	PROC_UNLOCK(p);							\
 } while (0)
 
 /* Lock and unlock a process. */
 #define PROC_LOCK(p)	mtx_lock(&(p)->p_mtx)
 #define PROC_UNLOCK(p)	mtx_unlock(&(p)->p_mtx)
+#define	PROC_UNLOCK_NOSWITCH(p)						\
+	mtx_unlock_flags(&(p)->p_mtx, MTX_NOSWITCH)
+#define	PROC_LOCK_ASSERT(p, type)	mtx_assert(&(p)->p_mtx, (type))
 
 /* Lock and unlock the proc lists. */
 #define	ALLPROC_LOCK(how)						\
@@ -469,15 +469,23 @@ sigonstack(size_t sp)
 /* Hold process U-area in memory, normally for ptrace/procfs work. */
 #define PHOLD(p) do {							\
 	PROC_LOCK(p);							\
-	if ((p)->p_lock++ == 0)						\
-		faultin(p);						\
+	_PHOLD(p);							\
 	PROC_UNLOCK(p);							\
+} while (0)
+#define _PHOLD(p) do {							\
+	PROC_LOCK_ASSERT((p), MA_OWNED);				\
+	if ((p)->p_lock++ == 0)						\
+		faultin((p));						\
 } while (0)
 
 #define	PRELE(p) do {							\
-	PROC_LOCK(p);							\
+	PROC_LOCK((p));							\
+	_PRELE((p));							\
+	PROC_UNLOCK((p));						\
+} while (0)
+#define	_PRELE(p) do {							\
+	PROC_LOCK_ASSERT((p), MA_OWNED);				\
 	(--(p)->p_lock);						\
-	PROC_UNLOCK(p);							\
 } while (0)
 
 #define	PIDHASH(pid)	(&pidhashtbl[(pid) & pidhash])
