@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.58.4.1 1995/09/12 05:36:42 davidg Exp $
+ *	$Id: pmap.c,v 1.58.4.4 1996/06/09 08:54:57 davidg Exp $
  */
 
 /*
@@ -1495,10 +1495,10 @@ pmap_object_init_pt(pmap, addr, object, offset, size)
 			    (p->bmapped == 0) &&
 				(p->busy == 0) &&
 			    (p->flags & (PG_BUSY | PG_FICTITIOUS | PG_CACHE)) == 0) {
-				vm_page_hold(p);
-				p->flags |= PG_MAPPED;
+				p->flags |= PG_BUSY;
 				pmap_enter_quick(pmap, addr + tmpoff, VM_PAGE_TO_PHYS(p));
-				vm_page_unhold(p);
+				p->flags |= PG_MAPPED;
+				PAGE_WAKEUP(p);
 			}
 			objbytes -= NBPG;
 		}
@@ -1512,10 +1512,10 @@ pmap_object_init_pt(pmap, addr, object, offset, size)
 			    (p->bmapped == 0) && (p->busy == 0) &&
 			    ((p->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL) &&
 			    (p->flags & (PG_BUSY | PG_FICTITIOUS | PG_CACHE)) == 0) {
-				vm_page_hold(p);
-				p->flags |= PG_MAPPED;
+				p->flags |= PG_BUSY;
 				pmap_enter_quick(pmap, addr + tmpoff, VM_PAGE_TO_PHYS(p));
-				vm_page_unhold(p);
+				p->flags |= PG_MAPPED;
+				PAGE_WAKEUP(p);
 			}
 		}
 	}
