@@ -3,7 +3,7 @@
 LIB		 = ypclnt
 SHLIB_MAJOR	 = 1
 SHLIB_MINOR	 = 0
-SRCS		 = 
+SRCS		 =
 SRCS		+= ypclnt_connect.c
 SRCS		+= ypclnt_error.c
 SRCS		+= ypclnt_free.c
@@ -21,6 +21,7 @@ GENSRCS		 =
 GENSRCS		+= yp.h
 GENSRCS		+= yp_clnt.c
 GENSRCS		+= yppasswd.h
+GENSRCS		+= yppasswd_xdr.c
 GENSRCS		+= yppasswd_clnt.c
 GENSRCS		+= yppasswd_private.h
 GENSRCS		+= yppasswd_private_clnt.c
@@ -39,6 +40,9 @@ yp_clnt.c: ${RPCSRC}
 
 yppasswd.h: ${RPCSRC_PW}
 	${RPCGEN} -h -o ${.TARGET} ${RPCSRC_PW}
+
+yppasswd_xdr.c: ${RPCSRC_PRIV}
+	${RPCGEN} -c -o ${.TARGET} ${RPCSRC_PW}
 
 yppasswd_clnt.c: ${RPCSRC_PW}
 	${RPCGEN} -l -o ${.TARGET} ${RPCSRC_PW}
