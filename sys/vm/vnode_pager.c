@@ -74,7 +74,6 @@ __FBSDID("$FreeBSD$");
 static void vnode_pager_init(void);
 static vm_offset_t vnode_pager_addr(struct vnode *vp, vm_ooffset_t address,
 					 int *run);
-static void vnode_pager_iodone(struct buf *bp);
 static int vnode_pager_input_smlfs(vm_object_t object, vm_page_t m);
 static int vnode_pager_input_old(vm_object_t object, vm_page_t m);
 static void vnode_pager_dealloc(vm_object_t);
@@ -421,17 +420,6 @@ vnode_pager_addr(vp, address, run)
 }
 
 /*
- * interrupt routine for I/O completion
- */
-static void
-vnode_pager_iodone(bp)
-	struct buf *bp;
-{
-	bp->b_flags |= B_DONE;
-	wakeup(bp);
-}
-
-/*
  * small block filesystem vnode pager input
  */
 static int
@@ -440,7 +428,6 @@ vnode_pager_input_smlfs(object, m)
 	vm_page_t m;
 {
 	int i;
-	int s;
 	struct vnode *dp, *vp;
 	struct buf *bp;
 	vm_offset_t kva;
@@ -477,7 +464,7 @@ vnode_pager_input_smlfs(object, m)
 
 			/* build a minimal buffer header */
 			bp->b_iocmd = BIO_READ;
-			bp->b_iodone = vnode_pager_iodone;
+			bp->b_iodone = bdone;
 			KASSERT(bp->b_rcred == NOCRED, ("leaking read ucred"));
 			KASSERT(bp->b_wcred == NOCRED, ("leaking write ucred"));
 			bp->b_rcred = crhold(curthread->td_ucred);
@@ -495,11 +482,8 @@ vnode_pager_input_smlfs(object, m)
 
 			/* we definitely need to be at splvm here */
 
-			s = splvm();
-			while ((bp->b_flags & B_DONE) == 0) {
-				tsleep(bp, PVM, "vnsrd", 0);
-			}
-			splx(s);
+			bwait(bp, PVM, "vnsrd");
+
 			if ((bp->b_ioflags & BIO_ERROR) != 0)
 				error = EIO;
 
@@ -650,7 +634,6 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	int runpg;
 	int runend;
 	struct buf *bp;
-	int s;
 	int count;
 	int error = 0;
 
@@ -817,7 +800,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 
 	/* build a minimal buffer header */
 	bp->b_iocmd = BIO_READ;
-	bp->b_iodone = vnode_pager_iodone;
+	bp->b_iodone = bdone;
 	/* B_PHYS is not set, but it is nice to fill this in */
 	KASSERT(bp->b_rcred == NOCRED, ("leaking read ucred"));
 	KASSERT(bp->b_wcred == NOCRED, ("leaking write ucred"));
@@ -839,13 +822,8 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	else
 		VOP_STRATEGY(bp->b_vp, bp);
 
-	s = splvm();
-	/* we definitely need to be at splvm here */
+	bwait(bp, PVM, "vnread");
 
-	while ((bp->b_flags & B_DONE) == 0) {
-		tsleep(bp, PVM, "vnread", 0);
-	}
-	splx(s);
 	if ((bp->b_ioflags & BIO_ERROR) != 0)
 		error = EIO;
 
