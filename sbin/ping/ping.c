@@ -620,8 +620,15 @@ main(argc, argv)
 		tcsetattr(STDOUT_FILENO, TCSANOW, &ts);
 	}
 
-	while (preload--)		/* fire off them quickies */
-		pinger();
+	if (preload == 0)
+		pinger();		/* send the first ping */
+	else {
+		if (npackets != 0 && preload > npackets)
+			preload = npackets;
+		while (preload--)	/* fire off them quickies */
+			pinger();
+	}
+	(void)gettimeofday(&last, NULL);
 
 	if (options & F_FLOOD) {
 		intvl.tv_sec = 0;
@@ -630,9 +637,6 @@ main(argc, argv)
 		intvl.tv_sec = interval / 1000;
 		intvl.tv_usec = interval % 1000 * 1000;
 	}
-
-	pinger();			/* send the first ping */
-	(void)gettimeofday(&last, NULL);
 
 	while (!finish_up) {
 		register int cc;
