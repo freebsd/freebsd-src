@@ -130,6 +130,7 @@
 #define SYSTEM_NAME "FreeBSD"
 #define TERMINFO "/usr/share/misc/terminfo"
 #define TERMINFO_DIRS "/usr/share/misc/terminfo"
+#define TIME_WITH_SYS_TIME 1
 #define TYPEOF_CHTYPE long
 #define USE_ASSUMED_COLOR 1
 #define USE_COLORFGBG 1
