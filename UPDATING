@@ -8,6 +8,10 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.  Important recent entries: 20040724 (default X changes).
 
+20050106:	p4	FreeBSD-EN-05:02.sk
+	Correct bugs in the sk(4) network driver that could result in
+	data corruption and system crashes on SMP systems.
+
 20050103:	p3	FreeBSD-EN-05:01.nfs
 	Correct a bug in nfsrv_create() where a call to nfsrv_access()
 	might be made while holding the NFS server mutex, which resulted
