@@ -53,7 +53,8 @@
    On a related note, see the comments at diff_exec, later in this file,
    for more on the diff library.  */
 
-static void RCS_output_diff_options PROTO ((char *, char *, char *, char *));
+static void RCS_output_diff_options PROTO ((const char *, const char *,
+                                            const char *, const char *));
 
 
 /* Stuff to deal with passing arguments the way libdiff.a wants to deal
@@ -76,7 +77,7 @@ static int call_diff_argc_allocated;
 
 static void call_diff_add_arg PROTO ((const char *));
 static void call_diff_setup PROTO ((const char *prog));
-static int call_diff PROTO ((char *out));
+static int call_diff PROTO ((const char *out));
 static int call_diff3 PROTO ((char *out));
 
 static void call_diff_write_output PROTO((const char *, size_t));
@@ -206,9 +207,11 @@ static struct diff_callbacks call_diff_file_callbacks =
     call_diff_error
 };
 
+
+
 static int
 call_diff (out)
-    char *out;
+    const char *out;
 {
     if (out == RUN_TTY)
 	return diff_run (call_diff_argc, call_diff_argv, NULL,
@@ -217,6 +220,8 @@ call_diff (out)
 	return diff_run (call_diff_argc, call_diff_argv, out,
 			 &call_diff_file_callbacks);
 }
+
+
 
 static int
 call_diff3 (out)
@@ -237,11 +242,11 @@ call_diff3 (out)
 int
 RCS_merge(rcs, path, workfile, options, rev1, rev2)
     RCSNode *rcs;
-    char *path;
-    char *workfile;
-    char *options;
-    char *rev1;
-    char *rev2;
+    const char *path;
+    const char *workfile;
+    const char *options;
+    const char *rev1;
+    const char *rev2;
 {
     char *xrev1, *xrev2;
     char *tmp1, *tmp2;
@@ -310,6 +315,7 @@ RCS_merge(rcs, path, workfile, options, rev1, rev2)
     call_diff_arg ("-L");
     call_diff_arg (xrev2);
 
+    call_diff_arg ("--");
     call_diff_arg (workfile);
     call_diff_arg (tmp1);
     call_diff_arg (tmp2);
@@ -378,23 +384,23 @@ RCS_merge(rcs, path, workfile, options, rev1, rev2)
    about this--any such features are undocumented in the context of
    CVS, and I'm not sure how important to users.  */
 int
-RCS_exec_rcsdiff (rcsfile, opts, options, rev1, rev2, label1, label2, workfile)
+RCS_exec_rcsdiff(rcsfile, opts, options, rev1, rev1_cache, rev2,
+                 label1, label2, workfile )
     RCSNode *rcsfile;
-    char *opts;
-    char *options;
-    char *rev1;
-    char *rev2;
-    char *label1;
-    char *label2;
-    char *workfile;
+    const char *opts;
+    const char *options;
+    const char *rev1;
+    const char *rev1_cache;
+    const char *rev2;
+    const char *label1;
+    const char *label2;
+    const char *workfile;
 {
-    char *tmpfile1;
-    char *tmpfile2;
-    char *use_file2;
+    char *tmpfile1 = NULL;
+    char *tmpfile2 = NULL;
+    const char *use_file1, *use_file2;
     int status, retval;
 
-    tmpfile1 = cvs_temp_name ();
-    tmpfile2 = NULL;
 
     cvs_output ("\
 ===================================================================\n\
@@ -411,19 +417,27 @@ RCS file: ", 0);
     cvs_output ("retrieving revision ", 0);
     cvs_output (rev1, 0);
     cvs_output ("\n", 1);
-    status = RCS_checkout (rcsfile, NULL, rev1, NULL, options, tmpfile1,
-			   (RCSCHECKOUTPROC)0, NULL);
-    if (status > 0)
+
+    if (rev1_cache != NULL)
+	use_file1 = rev1_cache;
+    else
     {
-	retval = status;
-	goto error_return;
-    }
-    else if (status < 0)
-    {
-	error (0, errno,
-	       "cannot check out revision %s of %s", rev1, rcsfile->path);
-	retval = 1;
-	goto error_return;
+	tmpfile1 = cvs_temp_name();
+	status = RCS_checkout (rcsfile, NULL, rev1, NULL, options, tmpfile1,
+	                       (RCSCHECKOUTPROC)0, NULL);
+	if (status > 0)
+	{
+	    retval = status;
+	    goto error_return;
+	}
+	else if (status < 0)
+	{
+	    error( 0, errno,
+	           "cannot check out revision %s of %s", rev1, rcsfile->path );
+	    retval = 1;
+	    goto error_return;
+	}
+	use_file1 = tmpfile1;
     }
 
     if (rev2 == NULL)
@@ -454,7 +468,7 @@ RCS file: ", 0);
     }
 
     RCS_output_diff_options (opts, rev1, rev2, workfile);
-    status = diff_exec (tmpfile1, use_file2, label1, label2, opts, RUN_TTY);
+    status = diff_exec( use_file1, use_file2, label1, label2, opts, RUN_TTY );
     if (status >= 0)
     {
 	retval = status;
@@ -463,38 +477,39 @@ RCS file: ", 0);
     else if (status < 0)
     {
 	error (0, errno,
-	       "cannot diff %s and %s", tmpfile1, use_file2);
+	       "cannot diff %s and %s", use_file1, use_file2);
 	retval = 1;
 	goto error_return;
     }
 
  error_return:
     {
-	int save_noexec = noexec;
-	noexec = 0;
-	if (unlink_file (tmpfile1) < 0)
+	/* Call CVS_UNLINK() below rather than unlink_file to avoid the check
+	 * for noexec.
+	 */
+	if( tmpfile1 != NULL )
 	{
-	    if (!existence_error (errno))
-		error (0, errno, "cannot remove temp file %s", tmpfile1);
+	    if( CVS_UNLINK( tmpfile1 ) < 0 )
+	    {
+		if( !existence_error( errno ) )
+		    error( 0, errno, "cannot remove temp file %s", tmpfile1 );
+	    }
+	    free( tmpfile1 );
 	}
-	noexec = save_noexec;
-    }
-    free (tmpfile1);
-    if (tmpfile2 != NULL)
-    {
-	int save_noexec = noexec;
-	noexec = 0;
-	if (unlink_file (tmpfile2) < 0)
+	if( tmpfile2 != NULL )
 	{
-	    if (!existence_error (errno))
-		error (0, errno, "cannot remove temp file %s", tmpfile2);
+	    if( CVS_UNLINK( tmpfile2 ) < 0 )
+	    {
+		if( !existence_error( errno ) )
+		    error( 0, errno, "cannot remove temp file %s", tmpfile2 );
+	    }
+	    free (tmpfile2);
 	}
-	noexec = save_noexec;
-	free (tmpfile2);
     }
 
     return retval;
 }
+
 
 
 /* Show differences between two files.  This is the start of a diff library.
@@ -533,12 +548,12 @@ RCS file: ", 0);
 
 int
 diff_exec (file1, file2, label1, label2, options, out)
-    char *file1;
-    char *file2;
-    char *label1;
-    char *label2;
-    char *options;
-    char *out;
+    const char *file1;
+    const char *file2;
+    const char *label1;
+    const char *label2;
+    const char *options;
+    const char *out;
 {
     char *args;
 
@@ -599,10 +614,10 @@ diff_exec (file1, file2, label1, label2, options, out)
 
 static void
 RCS_output_diff_options (opts, rev1, rev2, workfile)
-    char *opts;
-    char *rev1;
-    char *rev2;
-    char *workfile;
+    const char *opts;
+    const char *rev1;
+    const char *rev2;
+    const char *workfile;
 {
     char *tmp;
 
