@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: spl.h,v 1.21 1997/04/29 20:05:47 peter Exp $
+ *	$Id: spl.h,v 1.22 1997/05/07 19:50:31 peter Exp $
  */
 
 #ifndef _MACHINE_IPL_H_
@@ -93,20 +93,11 @@ extern	unsigned tty_imask;	/* group of interrupts masked with spltty() */
  * The volatile bitmap variables must be set atomically.  This normally
  * involves using a machine-dependent bit-set or `or' instruction.
  */
-static __inline void
-SETBITS(unsigned foo)
-{
-#ifdef SMP
-	__asm __volatile("lock ; orl %0, _ipending" : : "a" (foo) );
-#else
-	__asm __volatile("orl %0, _ipending" : : "a" (foo) );
-#endif /* SMP */
-}
-#define	setdelayed()	SETBITS(loadandclear(&idelayed))
-#define	setsoftast()	SETBITS(SWI_AST_PENDING)
-#define	setsoftclock()	SETBITS(SWI_CLOCK_PENDING)
-#define	setsoftnet()	SETBITS(SWI_NET_PENDING)
-#define	setsofttty()	SETBITS(SWI_TTY_PENDING)
+#define	setdelayed()	setbits(&ipending, loadandclear(&idelayed))
+#define	setsoftast()	setbits(&ipending, SWI_AST_PENDING)
+#define	setsoftclock()	setbits(&ipending, SWI_CLOCK_PENDING)
+#define	setsoftnet()	setbits(&ipending, SWI_NET_PENDING)
+#define	setsofttty()	setbits(&ipending, SWI_TTY_PENDING)
 
 #define	schedsofttty()	setbits(&idelayed, SWI_TTY_PENDING)
 #define	schedsoftnet()	setbits(&idelayed, SWI_NET_PENDING)
