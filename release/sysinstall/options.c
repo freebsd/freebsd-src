@@ -37,6 +37,8 @@
 #include "sysinstall.h"
 #include <ctype.h>
 
+int fixitTtyWhich(dialogMenuItem *);
+
 static char *
 varCheck(Option opt)
 {
@@ -142,6 +144,8 @@ static Option Options[] = {
       OPT_IS_VAR,	PKG_PROMPT,		VAR_PKG_TMPDIR,		varCheck	},
 { "Newfs Args",	 	"Default parameters for newfs(8)",
       OPT_IS_VAR,	NEWFS_PROMPT,		VAR_NEWFS_ARGS,		varCheck	},
+{ "Fixit Console",	"Which tty to use for the Fixit action.",
+      OPT_IS_FUNC,	fixitTtyWhich,		VAR_FIXIT_TTY,		varCheck	},
 { "Config save",	"Whether or not to save installation kernel config changes",
       OPT_IS_VAR,	NULL,			VAR_KGET,		varCheck	},
 { "Re-scan Devices",	"Re-run sysinstall's initial device probe",
@@ -312,3 +316,20 @@ optionsEditor(dialogMenuItem *self)
     return DITEM_SUCCESS;
 }
 
+int
+fixitTtyWhich(dialogMenuItem *self)
+{
+    char *cp = variable_get(VAR_FIXIT_TTY);
+
+    if (!cp) {
+	msgConfirm("The Fix-it TTY setting is not set to anything!");
+	return DITEM_FAILURE;
+    }
+    else {
+	if (!strcmp(cp, "standard"))
+	    variable_set2(VAR_FIXIT_TTY, "serial", 0);
+	else /* must be "serial" - wrap around */
+	    variable_set2(VAR_FIXIT_TTY, "standard", 0);
+    }
+    return DITEM_SUCCESS;
+}

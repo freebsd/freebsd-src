@@ -458,10 +458,11 @@ int mediaSetHTTP(dialogMenuItem *self)
     int what = DITEM_RESTORE;
 
 
-    var_hostname=variable_get(VAR_NAMESERVER);
+    var_hostname = variable_get(VAR_NAMESERVER);
     variable_unset(VAR_NAMESERVER);
     result = mediaSetFTP(self);
-    variable_set2(VAR_NAMESERVER, var_hostname, 0);
+    if (var_hostname)
+	variable_set2(VAR_NAMESERVER, var_hostname, 0);
 
     if (DITEM_STATUS(result) != DITEM_SUCCESS)
 	return result;
@@ -479,7 +480,7 @@ int mediaSetHTTP(dialogMenuItem *self)
 	*(idx - 1) = '\0';
     } else
 	idx = index(hostname, ':');
-    if (idx == NULL || *cp != ':')
+    if (idx == NULL || *idx != ':')
 	HttpPort = 3128;		/* try this as default */
     else {
 	*(idx++) = '\0';
