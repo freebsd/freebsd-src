@@ -390,6 +390,15 @@ ether_output_frame(ifp, m)
  * the packet is in the mbuf chain m without
  * the ether header, which is provided separately.
  *
+ * NOTA BENE: for many drivers "eh" is a pointer into the first mbuf or
+ * cluster, right before m_data. So be very careful when working on m,
+ * as you could destroy *eh !!
+ * A (probably) more convenient and efficient interface to ether_input
+ * is to have the whole packet (with the ethernet header) into the mbuf:
+ * modules which do not need the ethernet header can easily drop it, while
+ * others (most noticeably bridge and ng_ether) do not need to do additional
+ * work to put the ethernet header back into the mbuf.
+ *
  * First we perform any link layer operations, then continue
  * to the upper layers with ether_demux().
  */
