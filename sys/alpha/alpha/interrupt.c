@@ -107,14 +107,16 @@ interrupt(a0, a1, a2, framep)
 	framep->tf_regs[FRAME_TRAPARG_A1] = a1;
 	framep->tf_regs[FRAME_TRAPARG_A2] = a2;
 	switch (a0) {
+#ifdef SMP
 	case ALPHA_INTR_XPROC:	/* interprocessor interrupt */
 		CTR0(KTR_INTR|KTR_SMP, "interprocessor interrupt");
 		smp_handle_ipi(framep); /* note: lock not taken */
 		break;
+#endif
 		
 	case ALPHA_INTR_CLOCK:	/* clock interrupt */
 		CTR0(KTR_INTR, "clock interrupt");
-		if (PCPU_GET(cpuno) != hwrpb->rpb_primary_cpu_id) {
+		if (PCPU_GET(cpuid) != hwrpb->rpb_primary_cpu_id) {
 			CTR0(KTR_INTR, "ignoring clock on secondary");
 			atomic_subtract_int(&p->p_intr_nesting_level, 1);
 			return;
@@ -530,7 +532,7 @@ alpha_dispatch_intr(void *frame, unsigned long vector)
 	 * that this means that any fast interrupt handler must be MP safe.
 	 */
 	if (ithd->it_proc == NULL) {
-		KASSERT(ithd->it_ih->ih_flags & INTR_FAST != 0,
+		KASSERT((ithd->it_ih->ih_flags & INTR_FAST) != 0,
 			("threaded interrupt without a thread"));
 		KASSERT(ithd->it_ih->ih_next == NULL,
 			("fast interrupt with more than one handler"));
