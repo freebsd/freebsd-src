@@ -781,8 +781,8 @@ pmap_kenter(va, pa)
 	pte = (unsigned *)vtopte(va);
 	opte = *pte;
 	*pte = npte;
-	if (opte)
-		invltlb_1pg(va);
+	/*if (opte)*/
+		invltlb_1pg(va);	/* XXX what about SMP? */
 }
 
 /*
@@ -796,7 +796,7 @@ pmap_kremove(va)
 
 	pte = (unsigned *)vtopte(va);
 	*pte = 0;
-	invltlb_1pg(va);
+	invltlb_1pg(va);	/* XXX what about SMP? */
 }
 
 /*
@@ -2183,7 +2183,7 @@ validate:
 	 */
 	if ((origpte & ~(PG_M|PG_A)) != newpte) {
 		*pte = newpte | PG_A;
-		if (origpte) {
+		/*if (origpte)*/ {
 #ifdef SMP
 			cpu_invlpg((void *)va);
 			if (pmap->pm_active & other_cpus)
