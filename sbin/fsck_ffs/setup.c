@@ -258,12 +258,8 @@ setup(char *dev)
 		    (unsigned)(sizeof(struct inostatlist) * (sblock.fs_ncg)));
 		goto badsb;
 	}
-	numdirs = sblock.fs_cstotal.cs_ndir;
+	numdirs = MAX(sblock.fs_cstotal.cs_ndir, 128);
 	dirhash = numdirs;
-	if (numdirs == 0) {
-		printf("numdirs is zero, try using an alternate superblock\n");
-		goto badsb;
-	}
 	inplast = 0;
 	listmax = numdirs + 10;
 	inpsort = (struct inoinfo **)calloc((unsigned)listmax,
@@ -305,6 +301,12 @@ readsb(int listerr)
 		super = bflag;
 		if ((bread(fsreadfd, (char *)&sblock, super, (long)SBLOCKSIZE)))
 			return (0);
+		if (sblock.fs_magic != FS_UFS1_MAGIC &&
+		    sblock.fs_magic != FS_UFS2_MAGIC) {
+			fprintf(stderr, "%d is not a file system superblock\n",
+			    bflag);
+			return (0);
+		}
 	} else {
 		for (i = 0; sblock_try[i] != -1; i++) {
 			super = sblock_try[i] / dev_bsize;
@@ -333,10 +335,8 @@ readsb(int listerr)
 	dev_bsize = sblock.fs_fsize / fsbtodb(&sblock, 1);
 	sblk.b_bno = super / dev_bsize;
 	sblk.b_size = SBLOCKSIZE;
-	if (bflag) {
-		havesb = 1;
-		return (1);
-	}
+	if (bflag)
+		goto out;
 	/*
 	 * Compare all fields that should not differ in alternate super block.
 	 * When an alternate super-block is specified this check is skipped.
@@ -369,6 +369,7 @@ readsb(int listerr)
 		"VALUES IN SUPER BLOCK DISAGREE WITH THOSE IN FIRST ALTERNATE");
 		return (0);
 	}
+out:
 	/*
 	 * If not yet done, update UFS1 superblock with new wider fields.
 	 */
