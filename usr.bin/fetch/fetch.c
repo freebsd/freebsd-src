@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <signal.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -88,7 +89,7 @@ int	 sigint;	/* SIGINT received */
 
 long	 ftp_timeout;	/* default timeout for FTP transfers */
 long	 http_timeout;	/* default timeout for HTTP transfers */
-u_char	*buf;		/* transfer buffer */
+char	*buf;		/* transfer buffer */
 
 
 /*
@@ -126,7 +127,8 @@ static const char *
 stat_eta(struct xferstat *xs)
 {
 	static char str[16];
-	long elapsed, received, expected, eta;
+	long elapsed, eta;
+	off_t received, expected;
 
 	elapsed = xs->last.tv_sec - xs->start.tv_sec;
 	received = xs->rcvd - xs->offset;
@@ -155,7 +157,7 @@ stat_bytes(size_t bytes)
 		bytes /= 1024;
 		prefix++;
 	}
-	snprintf(str, sizeof str, "%4d %cB", bytes, *prefix);
+	snprintf(str, sizeof str, "%4ju %cB", (uintmax_t)bytes, *prefix);
 	return (str);
 }
 
@@ -316,8 +318,8 @@ fetch(char *URL, const char *path)
 	const char *slash;
 	char *tmppath;
 	int r;
-	u_int timeout;
-	u_char *ptr;
+	unsigned timeout;
+	char *ptr;
 
 	f = of = NULL;
 	tmppath = NULL;
@@ -397,7 +399,7 @@ fetch(char *URL, const char *path)
 		if (us.size == -1)
 			printf("Unknown\n");
 		else
-			printf("%lld\n", (long long)us.size);
+			printf("%jd\n", (intmax_t)us.size);
 		goto success;
 	}
 
@@ -443,8 +445,8 @@ fetch(char *URL, const char *path)
 			warnx("%s: size unknown", URL);
 			goto failure;
 		} else if (us.size != S_size) {
-			warnx("%s: size mismatch: expected %lld, actual %lld",
-			    URL, (long long)S_size, (long long)us.size);
+			warnx("%s: size mismatch: expected %jd, actual %jd",
+			    URL, (intmax_t)S_size, (intmax_t)us.size);
 			goto failure;
 		}
 	}
@@ -462,11 +464,11 @@ fetch(char *URL, const char *path)
 		warnx("%s: size of remote file is not known", URL);
 	if (v_level > 1) {
 		if (sb.st_size != -1)
-			fprintf(stderr, "local size / mtime: %lld / %ld\n",
-			    (long long)sb.st_size, (long)sb.st_mtime);
+			fprintf(stderr, "local size / mtime: %jd / %ld\n",
+			    (intmax_t)sb.st_size, (long)sb.st_mtime);
 		if (us.size != -1)
-			fprintf(stderr, "remote size / mtime: %lld / %ld\n",
-			    (long long)us.size, (long)us.mtime);
+			fprintf(stderr, "remote size / mtime: %jd / %ld\n",
+			    (intmax_t)us.size, (long)us.mtime);
 	}
 
 	/* open output file */
@@ -490,9 +492,9 @@ fetch(char *URL, const char *path)
 				goto success;
 			if (sb.st_size > us.size) {
 				/* local file too long! */
-				warnx("%s: local file (%lld bytes) is longer "
-				    "than remote file (%lld bytes)", path,
-				    (long long)sb.st_size, (long long)us.size);
+				warnx("%s: local file (%jd bytes) is longer "
+				    "than remote file (%jd bytes)", path,
+				    (intmax_t)sb.st_size, (intmax_t)us.size);
 				goto failure;
 			}
 			/* we got it, open local file */
@@ -647,8 +649,8 @@ fetch(char *URL, const char *path)
 
 	/* did the transfer complete normally? */
 	if (us.size != -1 && count < us.size) {
-		warnx("%s appears to be truncated: %lld/%lld bytes",
-		    path, (long long)count, (long long)us.size);
+		warnx("%s appears to be truncated: %jd/%jd bytes",
+		    path, (intmax_t)count, (intmax_t)us.size);
 		goto failure_keep;
 	}
 
