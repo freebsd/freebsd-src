@@ -45,6 +45,5 @@ void	pcic_isa_chip_intr_disestablish __P((pccard_chipset_handle_t, void *));
  * Figure out how wide the ISA bus is...
  */
 
-void pcic_isa_bus_width_probe (device_t, bus_space_tag_t, bus_space_handle_t,
-    bus_addr_t, u_int32_t);
+void pcic_isa_bus_width_probe(device_t);
 
