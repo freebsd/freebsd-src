@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 16, 2003
+.Dd July 23, 2003
 .Dt TBMASTER 1
 .Os
 .Sh NAME
@@ -35,99 +35,173 @@
 .Nd manage tinderbox runs
 .Sh SYNOPSIS
 .Nm
-.Oo
-.Ar setup
-.Oo
-.Ar arch Ns Op Ns : Ns Ar mach
-.Ar ...
-.Oc
-.Oc
+.Op options
 .Sh DESCRIPTION
 The
 .Nm
 script manages
 .Xr tinderbox 1
 runs, generates log summaries, and mails out failure reports.
-The first argument is the name of the setup to run (see
-.Sx Configuration
-below).
-Further arguments are target architectures or architecture / machine
-pairs to build for.
-If no arguments are specified, the setup corresponding to the hostname
-minus the domain part is run in full.
-.Ss Configuration
-The configuration, which is contained in the script itself in the form
-of a Perl hash, consists of a list of setups which by convention are
-named for the hosts that they run on.
 .Pp
-Each setup defines one or more of the following fields:
+The following options are recognized:
 .Bl -tag -width 12n
-.It COMMENT
-.Pq Vt scalar
-A terse comment describing the setup.
+.It Fl c Ar CONFIG , Fl -config Ns = Ns Ar CONFIG
+The name of the configuration to use.
+The default is the hostname minus the domain part.
+.It Fl e Ar DIR , Fl -etcdir Ns = Ns Ar DIR
+The directory where configuration files are located.
+The default is
+.Pa $HOME/etc .
+.El
+.Ss Configuration
+The
+.Nm
+script uses named configurations located in individual files named for
+the setup they describe, with a
+.Pa .rc
+suffix.
+For instance, the
+.Dq snoosnoo
+configuration is contained in
+.Pa snoosnoo.rc .
+.Pp
+In addition,
+.Nm
+attempts to read
+.Pa default.rc
+before reading the actual configuration file; thus, that file may be
+used to specify default values shared by multiple configurations.
+.Pp
+The configuration consists of a list of single- or multiple-value
+variable assignments:
+.Bl -tag
+.It Va variable Ns = Ns Ar value
+.It Va variable Ns = Ns Ar value1 , Ar value 2, ...
+.El
+.Pp
+Whitespace around the equal sign and around the commas separating
+multiple values is optional.
+.Pp
+Blank lines are ignoed, as is anything following a hash sign
+.Pq Dq # .
+.Pp
+The following configuration variables are defined:
+.Bl -tag -width 12n
+.It ARCH
+.Pq Vt simple
+The architecture currently being built for.
+Read-only.
+.It BRANCH
+.Pq Vt simple
+The branch currently being built.
+Read-only.
 .It BRANCHES
-.Pq Vt array
+.Pq Vt multiple
 A list of source branches to build.
-.It ARCHES
-.Pq Vt hash
-Which architectures and machines to build for.
-Each hash entry maps an architecture to a list of machines.
+The default value is
+.Dq CURRENT .
+.It COMMENT
+.Pq Vt single
+A terse comment describing the setup.
+No default value.
 .It DATE
-.Pq Vt scalar
+.Pq Vt single
 The date to use when checking out sources, or
 .Dq today
 for today's sources.
 If left undefined, the top of each branch is used.
-.It SANDBOX
-.Pq Vt scalar
-The location of the sandbox directory.
-.It LOGDIR
-.Pq Vt scalar
-The location of the log directory.
-.It TARGETS
-.Pq Vt array
-A list of targets (commands) to specify to the tinderbox script.
-.It OPTIONS
-.Pq Vt array
-A list of additional options to pass to the tinderbox script.
+No default value.
 .It ENV
-.Pq Vt hash
-Additional environment variables to pass to the tinderbox script.
-Each hash entry maps a variable's name to its value.
+.Pq Vt multiple
+A list of environment variables to pass to the
+.Xr tinderbox 1
+script.
+Each value is the name and value of an environment variable, separated
+by an equal sign
+.Pq Dq = .
+No default value.
+.It HOME
+.Pq Vt single
+The current user's home directory, as specified by the
+.Ev HOME
+environment variable.
+Note that it will not be defined unless it passes some simple sanity
+checks.
+Read-only.
+.It LOGDIR
+.Pq Vt single
+The location of the log directory.
+The default value is
+.Pa %%SANDBOX%%/logs .
+.It MACHINE
+.Pq Vt simple
+The machine currently being built for.
+Read-only.
+.It OPTIONS
+.Pq Vt multiple
+A list of additional options to pass to the
+.Xr tinderbox 1
+script.
+No default value.
+.It PLATFORMS
+.Pq Vt multiple
+Which architectures and machines to build for.
+Each value is the name of an architecture, optionally followed by a
+forward slash
+.Pq Dq /
+and a machine name.
+If the machine name is not specified, it is assumed to be identical to
+the architecture name.
+The default value is
+.Dq i386 .
+.It RECIPIENT
+.Pq Vt single
+The address to which failure reports should be mailed.
+No default value.
+.It SANDBOX
+.Pq Vt single
+The location of the sandbox directory.
+The default value is
+.Pa /tmp/tinderbox .
 .It SENDER
-.Pq Vt scalar
+.Pq Vt single
 The envelope sender to use when mailing out failure reports.
 This should be a single email address.
-It is subject to variable substitution as described below.
-.It RECIPIENT
-.Pq Vt scalar
-The address to which failure reports should be mailed.
-It is subject to variable substitution as described below.
+No default value.
 .It SUBJECT
-.Pq Vt scalar
+.Pq Vt single
 The subject to use on failure reports.
-It is subject to variable substitution as described below.
+The default value is
+.Dq Tinderbox failure on %%arch%%/%%machine%% .
+.It TARGETS
+.Pq Vt multiple
+A list of targets (commands) to specify to the
+.Xr tinderbox 1
+script.
+The default is
+.Dq world .
+.It TINDERBOX
+The location of the
+.Xr tinderbox(1)
+script.
+The default value is
+.Dq %%HOME%%/bin/tinderbox .
 .El
 .Pp
 Fields which are left undefined are filled in from the
 .Dq global
 setup.
 .Ss Variable Substitution
-As noted above, certain configuration fields are subject to variable
-substitution.
-Recognized variable names include all the scalar configuration
-variables, plus
-.Va BRANCH ,
-.Va ARCH
-and
-.Va MACHINE
-which correspond to the source branch, target architecture and target
-machine of the failed build.
-.Pp
-Variables are specified by enclosing their name in double percentage
-signs.
-If the variable's name is spelled in lowercase, its value is converted
-to lowercase before substitution.
+All single-valued configuration variables are subject to variable
+substitution immediately before use.
+If a variable's value contains strings of the form
+.Va %%VAR%%
+or
+.Va %%var%% ,
+those strings are replaced with the values of the corresponding
+variables.
+The difference between the first and the second form is that the
+latter expands to lower-case.
 For instance,
 .Dq %%BRANCH%%
 might expand to
@@ -136,45 +210,6 @@ while
 .Dq %%branch%%
 would expand to
 .Dq releng_4 .
-.Sh EXAMPLES
-The following configuration includes two setups which build world,
-LINT and a release for
-.Fx
-Tier 1 and 2 platforms.
-.Bd -literal
-my %SETUPS      = (
-    'global' => {
-        'SANDBOX'       => '/home/bob/tinderbox',
-        'LOGDIR'        => '/home/bob/public_html',
-        'TARGETS'       => [ 'update', 'world', 'lint', 'release' ],
-        'OPTIONS'       => [ '--verbose' ],
-        'RECIPIENT'     => 'bob+%%arch%%-%%branch%%@example.com',
-        'SUBJECT'       => '[%%COMMENT%%] failure on %%arch%%/%%machine%%',
-        'ENV'           => {
-            'NOPROFILE' => 'YES',
-        },
-    },
-
-    'tier1' => {
-        'COMMENT'       => "Tier 1",
-        'BRANCHES'      => [ 'CURRENT' ],
-        'ARCHES'        => {
-            'alpha'     => [ 'alpha' ],
-            'i386       => [ 'i386', 'pc98' ],
-            'sparc64'   => [ 'sparc64' ],
-        },
-    },
-
-    'tier2' => {
-        'COMMENT'       => "Tier 2",
-        'BRANCHES'      => [ 'CURRENT' ],
-        'ARCHES'        => {
-            'ia64'      => [ 'ia64' ],
-            'powerpc'   => [ 'powerpc' ],
-        },
-    },
-);
-.Ed
 .Sh SEE ALSO
 .Xr perl 1 ,
 .Xr tinderbox 1
@@ -184,8 +219,3 @@ was written by
 .An Dag-Erling Smørgrav Aq des@FreeBSD.org .
 .Sh BUGS
 - part of a complete breakfast!
-.Pp
-The
-.Nm
-script should read its configuration from a file rather than have it
-hardcoded.
