@@ -776,7 +776,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 	long len;
 	nfsfh_t *fhp;
 	struct nfsnode *np;
-	int wantparent, error = 0, attrflag, fhsize;
+	int error = 0, attrflag, fhsize;
 	int v3 = NFS_ISV3(dvp);
 	struct thread *td = cnp->cn_thread;
 
@@ -786,7 +786,6 @@ nfs_lookup(struct vop_lookup_args *ap)
 		return (EROFS);
 	if (dvp->v_type != VDIR)
 		return (ENOTDIR);
-	wantparent = flags & (LOCKPARENT|WANTPARENT);
 	nmp = VFSTONFS(dvp->v_mount);
 	np = VTONFS(dvp);
 	if ((error = VOP_ACCESS(dvp, VEXEC, cnp->cn_cred, td)) != 0) {
@@ -836,7 +835,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 	/*
 	 * Handle RENAME case...
 	 */
-	if (cnp->cn_nameiop == RENAME && wantparent && (flags & ISLASTCN)) {
+	if (cnp->cn_nameiop == RENAME && (flags & ISLASTCN)) {
 		if (NFS_CMPFH(np, fhp, fhsize)) {
 			m_freem(mrep);
 			return (EISDIR);
