@@ -360,8 +360,6 @@ psycho_attach(device_t dev)
 	 * (1) per-PBM PCI configuration space, containing only the
 	 *     PBM 256-byte PCI header
 	 * (2) the shared psycho configuration registers (struct psychoreg)
-	 *
-	 * XXX use the prom address for the psycho registers?  we do so far.
 	 */
 	reg = nexus_get_reg(dev);
 	nreg = nexus_get_nreg(dev);
@@ -420,7 +418,7 @@ psycho_attach(device_t dev)
 	if (sc->sc_mode == PSYCHO_MODE_PSYCHO)
 		sc->sc_ign = PSYCHO_GCSR_IGN(csr) << 6;
 
-	device_printf(dev, "%s, impl %d, version %d, ign %x ",
+	device_printf(dev, "%s, impl %d, version %d, ign %#x\n",
 	    desc->pd_name, (int)PSYCHO_GCSR_IMPL(csr),
 	    (int)PSYCHO_GCSR_VERS(csr), sc->sc_ign);
 
@@ -432,6 +430,17 @@ psycho_attach(device_t dev)
 	csr &= ~(PCICTL_SERR | PCICTL_CPU_PRIO | PCICTL_ARB_PRIO |
 	    PCICTL_RTRYWAIT);
 	PCICTL_WRITE8(sc, PCR_CS, csr);
+
+	if (sc->sc_mode == PSYCHO_MODE_SABRE) {
+		/*
+		 * Use the PROM preset for now.
+		 */
+		csr = PCICTL_READ8(sc, PCR_TAS);
+		if (csr == 0)
+			panic("psycho_attach: sabre TAS not initialized.");
+		sc->sc_dvmabase = (ffs(csr) - 1) << PCITAS_ADDR_SHIFT;
+	} else
+		sc->sc_dvmabase = -1;
 
 	/* Grab the psycho ranges */
 	psycho_get_ranges(sc->sc_node, &sc->sc_range, &sc->sc_nrange);
@@ -742,7 +751,7 @@ psycho_ue(void *arg)
 	if ((afsr & UEAFSR_P_DTE) != 0)
 		iommu_decode_fault(sc->sc_is, afar);
 	/* It's uncorrectable.  Dump the regs and panic. */
-	panic("%s: uncorrectable DMA error AFAR %#lx AFSR %#lx\n",
+	panic("%s: uncorrectable DMA error AFAR %#lx AFSR %#lx",
 	    device_get_name(sc->sc_dev), (u_long)afar, (u_long)afsr);
 }
 
@@ -769,7 +778,7 @@ psycho_bus_a(void *arg)
 	afar = PSYCHO_READ8(sc, PSR_PCICTL0 + PCR_AFA);
 	afsr = PSYCHO_READ8(sc, PSR_PCICTL0 + PCR_AFS);
 	/* It's uncorrectable.  Dump the regs and panic. */
-	panic("%s: PCI bus A error AFAR %#lx AFSR %#lx\n",
+	panic("%s: PCI bus A error AFAR %#lx AFSR %#lx",
 	    device_get_name(sc->sc_dev), (u_long)afar, (u_long)afsr);
 }
 
@@ -782,7 +791,7 @@ psycho_bus_b(void *arg)
 	afar = PSYCHO_READ8(sc, PSR_PCICTL1 + PCR_AFA);
 	afsr = PSYCHO_READ8(sc, PSR_PCICTL1 + PCR_AFS);
 	/* It's uncorrectable.  Dump the regs and panic. */
-	panic("%s: PCI bus B error AFAR %#lx AFSR %#lx\n",
+	panic("%s: PCI bus B error AFAR %#lx AFSR %#lx",
 	    device_get_name(sc->sc_dev), (u_long)afar, (u_long)afsr);
 }
 
@@ -820,9 +829,6 @@ psycho_iommu_init(struct psycho_softc *sc, int tsbsize)
 {
 	char *name;
 	struct iommu_state *is = sc->sc_is;
-	u_int32_t iobase = -1;
-	int *vdma = NULL;
-	int nitem;
 
 	/* punch in our copies */
 	is->is_bustag = sc->sc_bustag;
@@ -834,35 +840,13 @@ psycho_iommu_init(struct psycho_softc *sc, int tsbsize)
 	is->is_dva = PSR_IOMMU_SVADIAG;
 	is->is_dtcmp = PSR_IOMMU_TLB_CMP_DIAG;
 
-	/*
-	 * Separate the men from the boys.  Get the `virtual-dma'
-	 * property for sabre and use that to make sure the damn
-	 * iommu works.
-	 *
-	 * We could query the `#virtual-dma-size-cells' and
-	 * `#virtual-dma-addr-cells' and DTRT, but I'm lazy.
-	 */
-	nitem = OF_getprop_alloc(sc->sc_node, "virtual-dma", sizeof(vdma),
-	    (void **)&vdma);
-	if (nitem > 0) {
-		iobase = vdma[0];
-		tsbsize = ffs(vdma[1]);
-		if (tsbsize < 25 || tsbsize > 31 ||
-		    (vdma[1] & ~(1 << (tsbsize - 1))) != 0) {
-			printf("bogus tsb size %x, using 7\n", vdma[1]);
-			tsbsize = 31;
-		}
-		tsbsize -= 24;
-		free(vdma, M_OFWPROP);
-	}
-
 	/* give us a nice name.. */
 	name = (char *)malloc(32, M_DEVBUF, M_NOWAIT);
 	if (name == 0)
 		panic("couldn't malloc iommu name");
 	snprintf(name, 32, "%s dvma", device_get_name(sc->sc_dev));
 
-	iommu_init(name, is, tsbsize, iobase, 0);
+	iommu_init(name, is, tsbsize, sc->sc_dvmabase, 0);
 }
 
 static void
@@ -1190,7 +1174,6 @@ psycho_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	case SYS_RES_IOPORT:
 		rm = &sc->sc_io_rman;
 		bt = sc->sc_iot;
-		/* XXX: probably should use ranges property here. */
 		bh = sc->sc_bh[PCI_CS_IO];
 		break;
 	default:
