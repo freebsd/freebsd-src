@@ -595,6 +595,7 @@ ata_reset(struct ata_channel *ch)
 		   "reset tp2 mask=%02x stat0=%02x stat1=%02x devices=0x%b\n",
 		   mask, stat0, stat1, ch->devices,
 		   "\20\4ATAPI_SLAVE\3ATAPI_MASTER\2ATA_SLAVE\1ATA_MASTER");
+#if 0
     if (!mask)
 	return;
 
@@ -628,6 +629,7 @@ ata_reset(struct ata_channel *ch)
     if (bootverbose)
 	ata_printf(ch, -1, "reset tp3 devices=0x%b\n", ch->devices,
 		   "\20\4ATAPI_SLAVE\3ATAPI_MASTER\2ATA_SLAVE\1ATA_MASTER");
+#endif
 }
 
 static int
