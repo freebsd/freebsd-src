@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.145 1998/06/02 11:02:16 phk Exp $
+#	$Id: rc,v 1.146 1998/06/22 06:34:12 jkoshy Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -300,6 +300,11 @@ if [ "$vibackup" != '/var/tmp/vi.recover/vi.*' ]; then
 			fi
 		done
 	fi
+fi
+
+# make a bounds file for msgs(1) if there isn't one already
+if [ ! -f /var/msgs/bounds ]; then
+	echo 0 > /var/msgs/bounds
 fi
 
 # for each valid dir in $local_startup, search for init scripts matching *.sh
