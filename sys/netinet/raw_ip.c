@@ -168,7 +168,7 @@ rip_input(m, iphlen)
  */
 int
 rip_output(m, so, dst)
-	register struct mbuf *m;
+	struct mbuf *m;
 	struct socket *so;
 	u_long dst;
 {

@@ -493,7 +493,7 @@ SYSCTL_PROC(_net_inet6_udp6, OID_AUTO, getcred, CTLTYPE_OPAQUE|CTLFLAG_RW,
 int
 udp6_output(in6p, m, addr6, control, p)
 	register struct inpcb *in6p;
-	register struct mbuf *m;
+	struct mbuf *m;
 	struct sockaddr *addr6;
 	struct mbuf *control;
 	struct proc *p;

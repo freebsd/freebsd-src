@@ -192,11 +192,11 @@ ipx_output(ipxp, m0)
 	struct ipxpcb *ipxp;
 	struct mbuf *m0;
 {
-	register struct mbuf *m;
 	register struct ipx *ipx;
 	register struct socket *so;
 	register int len = 0;
 	register struct route *ro;
+	struct mbuf *m;
 	struct mbuf *mprev = NULL;
 
 	/*
