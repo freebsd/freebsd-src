@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.55 1994/11/20 23:31:36 wollman Exp $
+#	$Id: Makefile,v 1.56 1994/11/21 04:14:30 phk Exp $
 #
 
 # Evil floppies are, of course, 1.2MB floppies.
@@ -201,7 +201,7 @@ tarballs:
 			tar cf - . | \
 			${ZIPNSPLIT} ${RELEASEDIR}/tarballs/$$i/$${i}.) ; \
 	( cd ${RELEASEDIR}/tarballs/$${i}; sh -e ${.CURDIR}/mkchecksums.sh ) ; \
-	cp ${.CURDIR}/extract.sh cd ${RELEASEDIR}/tarballs/$${i} ;\
+	cp ${.CURDIR}/extract.sh ${RELEASEDIR}/tarballs/$${i} ;\
 	done
 
 .include <bsd.prog.mk>
