@@ -77,7 +77,7 @@ VarHead(const char *word, Boolean addSpace, Buffer *buf, void *dummy __unused)
 	if (addSpace) {
 	    Buf_AddByte(buf, (Byte)' ');
 	}
-	Buf_AddBytes(buf, slash - word, (const Byte *)word);
+	Buf_AppendRange(buf, word, slash);
     } else {
 	/*
 	 * If no directory part, give . (q.v. the POSIX standard)
@@ -182,7 +182,7 @@ VarRoot(const char *word, Boolean addSpace, Buffer *buf, void *dummy __unused)
 
     dot = strrchr(word, '.');
     if (dot != NULL) {
-	Buf_AddBytes(buf, dot - word, (const Byte *)word);
+	Buf_AppendRange(buf, word, dot);
     } else {
 	Buf_Append(buf, word);
     }
@@ -383,7 +383,7 @@ VarSubstitute(const char *word, Boolean addSpace, Buffer *buf, void *patternp)
 		    }
 		    addSpace = TRUE;
 		}
-		Buf_AddBytes(buf, cp - word, (const Byte *)word);
+		Buf_AppendRange(buf, word, cp);
 		Buf_AddBytes(buf, pattern->rightLen, (Byte *)pattern->rhs);
 	    } else {
 		/*
@@ -415,7 +415,7 @@ VarSubstitute(const char *word, Boolean addSpace, Buffer *buf, void *patternp)
 			Buf_AddByte(buf, (Byte)' ');
 			addSpace = FALSE;
 		    }
-		    Buf_AddBytes(buf, cp-word, (const Byte *)word);
+		    Buf_AppendRange(buf, word, cp);
 		    Buf_AddBytes(buf, pattern->rightLen, (Byte *)pattern->rhs);
 		    wordLen -= (cp - word) + pattern->leftLen;
 		    word = cp + pattern->leftLen;
