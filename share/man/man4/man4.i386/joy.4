@@ -54,6 +54,31 @@ status.
 .It Dv JOY_GET_Y_OFFSET Fa int *offset
 Get the value which is added to the Y position  when reading the joystick
 status. 
+
+.Sh TECHNICAL SPECIFICATIONS
+
+The pinout of the DB-15 connector is as follow:
+.Pp
+  1  XY1 (+5v)
+  2  Switch 1
+  3  X1 (potentiometer #1)
+  4  Switch 1 (GND)
+  5  Switch 2 (GND)
+  6  Y1 (potentiometer #2)
+  7  Switch 2
+  8  N.C.
+  9  XY2 (+5v)
+ 10  Switch 4
+ 11  X2 (potentiometer #3)
+ 12  Switch 3&4 (GND)
+ 13  Y2 (potentiometer #4)
+ 14  Switch 3
+ 15  N.C.
+.Pp
+Pots are normally 0-150k variable resistors (0-100k sometimes), and
+according to the IBM techref, the time is given by
+Time = 24.2e-6s + 0.011e-6s * R/Ohms
+
 .Sh FILES
 .Bl -tag -width /dev/joy?
 .It Pa /dev/joy?
