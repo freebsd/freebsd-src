@@ -14,8 +14,8 @@ CFLAGS+= -DNFS -I${MOUNT} -I${UMNTALL}
 .if exists(${DESTDIR}/usr/lib/libkrb.a) && (defined(MAKE_KERBEROS) \
 	|| defined(MAKE_EBONES))
 CFLAGS+=-DKERBEROS
-DPADD=	${LIBKRB} ${LIBDES}
-LDADD=	-lkrb -ldes
+DPADD=	${LIBKRB} ${LIBCRYPTO}
+LDADD=	-lkrb -lcrypto
 DISTRIBUTION=	krb
 .endif
 
