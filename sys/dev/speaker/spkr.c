@@ -4,7 +4,7 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- *    $Id: spkr.c,v 1.10 1994/10/14 16:37:58 ache Exp $
+ *    $Id: spkr.c,v 1.11 1995/02/03 10:19:38 ache Exp $
  */
 
 #include "speaker.h"
@@ -16,9 +16,11 @@
 #include <sys/kernel.h>
 #include <sys/errno.h>
 #include <sys/buf.h>
+#include <sys/proc.h>
 #include <sys/uio.h>
 #include <i386/isa/isa.h>
 #include <i386/isa/timerreg.h>
+#include <machine/clock.h>
 #include <machine/speaker.h>
 
 /**************** MACHINE DEPENDENT PART STARTS HERE *************************

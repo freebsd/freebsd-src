@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.29 1994/12/30 12:43:34 bde Exp $
+ *	$Id: clock.c,v 1.31 1995/01/19 22:05:27 ats Exp $
  */
 
 /*
@@ -55,6 +55,7 @@
 #include <machine/frame.h>
 #include <i386/isa/icu.h>
 #include <i386/isa/isa.h>
+#include <i386/isa/isa_device.h>
 #include <i386/isa/rtc.h>
 #include <i386/isa/timerreg.h>
 
@@ -558,8 +559,9 @@ cpu_initclocks()
 	profhz = RTC_PROFRATE;
 
 	/* Finish initializing 8253 timer 0. */
-	register_intr(/* irq */ 0, /* XXX id */ 0, /* flags */ 0, clkintr,
-		      &clk_imask, /* unit */ 0);
+	register_intr(/* irq */ 0, /* XXX id */ 0, /* flags */ 0,
+		      /* XXX */ (inthand2_t *)clkintr, &clk_imask,
+		      /* unit */ 0);
 	INTREN(IRQ0);
 
 	/* Initialize RTC. */
@@ -568,8 +570,9 @@ cpu_initclocks()
 	diag = rtcin(RTC_DIAG);
 	if (diag != 0)
 		printf("RTC BIOS diagnostic error %b\n", diag, RTCDG_BITS);
-	register_intr(/* irq */ 8, /* XXX id */ 1, /* flags */ 0, rtcintr,
-		      &stat_imask, /* unit */ 0);
+	register_intr(/* irq */ 8, /* XXX id */ 1, /* flags */ 0,
+		      /* XXX */ (inthand2_t *)rtcintr, &stat_imask,
+		      /* unit */ 0);
 	INTREN(IRQ8);
 	writertc(RTC_STATUSB, RTCSB_24HR | RTCSB_PINTR);
 }

@@ -54,7 +54,7 @@
  * functioning of this software, nor does the author assume any responsibility
  * for damages incurred with its use.
  *
- *	$Id: subr_rlist.c,v 1.7 1994/10/02 17:35:23 phk Exp $
+ *	$Id: subr_rlist.c,v 1.8 1995/01/31 06:48:53 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -64,9 +64,8 @@
 #include <sys/rlist.h>
 #include <sys/proc.h>
 #include <vm/vm.h>
+#include <vm/vm_kern.h>
 #include <vm/vm_map.h>
-
-extern vm_map_t kernel_map;
 
 /*
  * Resource lists.
@@ -83,7 +82,6 @@ rlist_malloc()
 	struct rlist *rl;
 	int i;
 	while( rlist_count < RLIST_MIN) {
-		extern vm_map_t kmem_map;
 		int s = splhigh();
 		rl = (struct rlist *)kmem_malloc(kmem_map, NBPG, M_WAITOK);
 		splx(s);

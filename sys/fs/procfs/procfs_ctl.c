@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_ctl.c	8.3 (Berkeley) 1/21/94
  *
- *	$Id: procfs_ctl.c,v 1.3 1994/12/31 12:26:50 ache Exp $
+ *	$Id: procfs_ctl.c,v 1.4 1995/02/20 15:53:32 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -47,10 +47,15 @@
 #include <sys/vnode.h>
 #include <sys/ioctl.h>
 #include <sys/tty.h>
+#include <sys/ptrace.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
+#include <sys/signal.h>
+#include <sys/signalvar.h>
+
+#include <vm/vm.h>
+
 #include <miscfs/procfs/procfs.h>
-#include <sys/signal.h>               /* for sigmask() */
 
 /*
  * True iff process (p) is in trace wait state

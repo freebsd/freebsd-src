@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_mroute.h	8.1 (Berkeley) 6/10/93
- * $Id: ip_mroute.h,v 1.4 1994/09/06 22:42:23 wollman Exp $
+ * $Id: ip_mroute.h,v 1.5 1994/09/14 03:10:12 wollman Exp $
  */
 
 #ifndef _NETINET_IP_MROUTE_H_
@@ -248,6 +248,7 @@ struct tbf
 
 extern int	(*ip_mrouter_cmd) __P((int, struct socket *, struct mbuf *));
 extern int	(*ip_mrouter_done) __P((void));
+extern int	(*mrt_ioctl) __P((int, caddr_t, struct proc *));
 
 #endif /* KERNEL */
 

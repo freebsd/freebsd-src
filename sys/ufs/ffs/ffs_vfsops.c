@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.8 (Berkeley) 4/18/94
- * $Id: ffs_vfsops.c,v 1.11 1994/10/28 12:42:03 jkh Exp $
+ * $Id: ffs_vfsops.c,v 1.12 1994/11/14 13:21:42 bde Exp $
  */
 
 #include <sys/param.h>
@@ -59,8 +59,6 @@
 
 #include <ufs/ffs/fs.h>
 #include <ufs/ffs/ffs_extern.h>
-
-#include <machine/clock.h> 	/* What is inittodr() doing in a fs anyway ? */
 
 int	ffs_sbupdate __P((struct ufsmount *, int));
 int	ffs_flushfiles __P((struct mount *, int, struct proc *));
@@ -552,7 +550,6 @@ ffs_flushfiles(mp, flags, p)
 	int flags;
 	struct proc *p;
 {
-	extern int doforce;
 	register struct ufsmount *ump;
 	int error;
 

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.5 (Berkeley) 2/13/94
- * $Id: nfs_vnops.c,v 1.11 1995/01/09 16:05:09 davidg Exp $
+ * $Id: nfs_vnops.c,v 1.12 1995/02/03 06:46:24 davidg Exp $
  */
 
 /*
@@ -2510,7 +2510,6 @@ nfsfifo_read(ap)
 		struct ucred *a_cred;
 	} */ *ap;
 {
-	extern int (**fifo_vnodeop_p)();
 	register struct nfsnode *np = VTONFS(ap->a_vp);
 
 	/*
@@ -2533,7 +2532,6 @@ nfsfifo_write(ap)
 		struct ucred *a_cred;
 	} */ *ap;
 {
-	extern int (**fifo_vnodeop_p)();
 	register struct nfsnode *np = VTONFS(ap->a_vp);
 
 	/*
@@ -2561,7 +2559,6 @@ nfsfifo_close(ap)
 	register struct vnode *vp = ap->a_vp;
 	register struct nfsnode *np = VTONFS(vp);
 	struct vattr vattr;
-	extern int (**fifo_vnodeop_p)();
 
 	if (np->n_flag & (NACC | NUPD)) {
 		if (np->n_flag & NACC)

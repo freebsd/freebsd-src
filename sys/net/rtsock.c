@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rtsock.c	8.3 (Berkeley) 1/4/94
- * $Id: rtsock.c,v 1.7 1994/10/11 23:16:29 wollman Exp $
+ * $Id: rtsock.c,v 1.8 1994/12/13 22:31:49 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -201,7 +201,6 @@ route_output(m, so)
 			senderr(ESRCH);
 		if (rtm->rtm_type != RTM_GET) {/* XXX: too grotty */
 			struct radix_node *rn;
-			extern struct radix_node_head *mask_rnhead;
 
 			if (Bcmp(dst, rt_key(rt), dst->sa_len) != 0)
 				senderr(ESRCH);

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ns_input.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: ns_input.c,v 1.2 1994/08/02 07:51:49 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -100,6 +100,7 @@ ns_init()
  */
 int nsintr_getpck = 0;
 int nsintr_swtch = 0;
+void
 nsintr()
 {
 	register struct idp *idp;

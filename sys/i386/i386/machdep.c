@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.112 1995/03/03 00:43:08 davidg Exp $
+ *	$Id: machdep.c,v 1.113 1995/03/07 19:58:02 davidg Exp $
  */
 
 #include "npx.h"
@@ -54,6 +54,7 @@
 #include <sys/callout.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/mount.h>
 #include <sys/msgbuf.h>
 #include <sys/ioctl.h>
 #include <sys/sysent.h>
@@ -79,9 +80,31 @@
 #include <sys/exec.h>
 #include <sys/vnode.h>
 
+#include <ddb/ddb.h>
+
 #include <net/netisr.h>
 
-extern vm_offset_t avail_start, avail_end;
+/* XXX correctly declaring all the netisr's is painful. */
+#include <net/if.h>
+#include <net/route.h>
+
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
+#include <netinet/if_ether.h>
+#include <netinet/ip_var.h>
+
+#include <netns/ns.h>
+#include <netns/ns_if.h>
+
+#include <netiso/iso.h>
+#include <netiso/iso_var.h>
+
+#include <netccitt/dll.h>
+#include <netccitt/x25.h>
+#include <netccitt/pk.h>
+#include <sys/socketvar.h>
+#include <netccitt/pk_var.h>
 
 #include "ether.h"
 
@@ -95,6 +118,7 @@ extern vm_offset_t avail_start, avail_end;
 #include <machine/cons.h>
 #include <machine/devconf.h>
 #include <machine/bootinfo.h>
+#include <machine/md_var.h>
 
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
@@ -160,7 +184,6 @@ cpu_startup()
 {
 	register unsigned i;
 	register caddr_t v;
-	extern void (*netisrs[32])(void);
 	vm_offset_t maxaddr;
 	vm_size_t size = 0;
 	int firstaddr;
@@ -193,7 +216,7 @@ cpu_startup()
 	/*
 	 * Quickly wire in netisrs.
 	 */
-#define DONET(isr, n) do { extern void isr(void); netisrs[n] = isr; } while(0)
+#define DONET(isr, n) do { netisrs[n] = isr; } while(0)
 #ifdef INET
 #if NETHER > 0
 	DONET(arpintr, NETISR_ARP);
@@ -377,8 +400,6 @@ struct cpu_nameclass i386_cpus[] = {
 static void
 identifycpu()
 {
-	extern u_long cpu_id, cpu_high, cpu_feature;
-	extern char cpu_vendor[];
 	printf("CPU: ");
 	if (cpu >= 0 
 	    && cpu < (sizeof i386_cpus/sizeof(struct cpu_nameclass))) {
@@ -481,8 +502,6 @@ identifycpu()
 		break;
 	}
 }
-
-extern char kstack[];
 
 /*
  * Send an interrupt to process.
@@ -726,7 +745,6 @@ boot(arghowto)
 	register long dummy;		/* r12 is reserved */
 	register int howto;		/* r11 == how to boot */
 	register int devtype;		/* r10 == major of root dev */
-	extern int cold;
 
 	if (cold) {
 		printf("hit reset please");
@@ -1161,18 +1179,14 @@ void
 init386(first)
 	int first;
 {
-	extern char etext[]; 
 	int x;
 	unsigned biosbasemem, biosextmem;
 	struct gate_descriptor *gdp;
 	int gsel_tss;
-	extern int sigcode,szsigcode;
 	/* table descriptors - used to load tables by microp */
 	struct region_descriptor r_gdt, r_idt;
 	int	pagesinbase, pagesinext;
 	int	target_page;
-	extern struct pte *CMAP1;
-	extern caddr_t CADDR1;
 
 	proc0.p_addr = proc0paddr;
 

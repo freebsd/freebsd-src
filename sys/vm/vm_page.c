@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.22 1995/02/22 10:27:16 davidg Exp $
+ *	$Id: vm_page.c,v 1.23 1995/03/01 23:29:59 davidg Exp $
  */
 
 /*
@@ -73,6 +73,7 @@
 #include <sys/proc.h>
 
 #include <vm/vm.h>
+#include <vm/vm_kern.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
 #include <vm/vm_pageout.h>
@@ -164,10 +165,6 @@ vm_page_startup(starta, enda, vaddr)
 	vm_offset_t pa;
 	int nblocks;
 	vm_offset_t first_managed_page;
-
-	extern vm_offset_t kentry_data;
-	extern vm_size_t kentry_data_size;
-	extern vm_offset_t phys_avail[];
 
 	/* the biggest memory array is the second group of pages */
 	vm_offset_t start;
@@ -693,7 +690,6 @@ vm_page_alloc_contig(size, low, high, alignment)
 	int i, s, start;
 	vm_offset_t addr, phys, tmp_addr;
 	vm_page_t pga = vm_page_array;
-	extern vm_map_t kernel_map;
 
 	if ((alignment & (alignment - 1)) != 0)
 		panic("vm_page_alloc_contig: alignment must be a power of 2");

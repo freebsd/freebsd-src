@@ -36,7 +36,7 @@
  *	@(#)null_vfsops.c	8.2 (Berkeley) 1/21/94
  *
  * @(#)lofs_vfsops.c	1.2 (Berkeley) 6/18/92
- * $Id: null_vfsops.c,v 1.3 1994/09/22 19:38:14 wollman Exp $
+ * $Id: null_vfsops.c,v 1.4 1994/10/10 07:55:28 phk Exp $
  */
 
 /*
@@ -186,7 +186,6 @@ nullfs_unmount(mp, mntflags, p)
 	struct vnode *nullm_rootvp = MOUNTTONULLMOUNT(mp)->nullm_rootvp;
 	int error;
 	int flags = 0;
-	extern int doforce;
 
 #ifdef NULLFS_DIAGNOSTIC
 	printf("nullfs_unmount(mp = %x)\n", mp);

@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.53 1995/03/06 05:36:59 davidg Exp $
+ *      $Id: sd.c,v 1.54 1995/03/15 14:22:10 dufault Exp $
  */
 
 #define SPLSD splbio
@@ -40,6 +40,8 @@
 #include <vm/vm.h>
 #include <sys/devconf.h>
 #include <sys/dkstat.h>
+#include <machine/md_var.h>
+#include <i386/i386/cons.h>		/* XXX */
 
 u_int32 sdstrats, sdqueues;
 
@@ -1030,10 +1032,7 @@ sddump(dev_t dev)
 	int32	nblocks;
 	char	*addr;
 	struct	scsi_rw_big cmd;
-	extern	int Maxmem;
 	static	int sddoingadump = 0;
-	extern	caddr_t CADDR1;	/* map the page we are about to write, here */
-	extern	struct pte *CMAP1;
 	struct	scsi_xfer *xs = &sx;
 	errval	retval;
 	int	c;
@@ -1041,8 +1040,8 @@ sddump(dev_t dev)
 	addr = (char *) 0;	/* starting address */
 
 	/* toss any characters present prior to dump */
-	while ((c = cncheckc(1)) && (c != 0x100)); 
-				/*syscons and pccons differ */
+	while (cncheckc())
+		;
 
 	/* size of memory to dump */
 	num = Maxmem;
@@ -1082,7 +1081,7 @@ sddump(dev_t dev)
 
 	blknum = dumplo + blkoff;
 	while (num > 0) {
-                *(int *)CMAP1 =
+                *(int *)CMAP1 =		/* XXX use pmap_enter() */
 			PG_V | PG_KW | trunc_page(addr);
                 pmap_update();
 		/*
@@ -1112,7 +1111,7 @@ sddump(dev_t dev)
 		xs->resid = blkcnt * 512;
 		xs->error = XS_NOERROR;
 		xs->bp = 0;
-		xs->data = (u_char *) CADDR1;
+		xs->data = (u_char *) CADDR1;	/* XXX use pmap_enter() */
 		xs->datalen = blkcnt * 512;
 
 		/*
@@ -1137,7 +1136,7 @@ sddump(dev_t dev)
 		(int) addr += 512 * blkcnt;
 
 		/* operator aborting dump? */
-		if ((c = cncheckc(1)) && (c != 0x100))
+		if (cncheckc())
 			return (EINTR);
 	}
 	return (0);

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_init.c,v 1.4 1994/10/09 01:52:09 phk Exp $
+ * $Id: vm_init.c,v 1.5 1995/01/09 16:05:42 davidg Exp $
  */
 
 /*
@@ -85,9 +85,6 @@
 void
 vm_mem_init()
 {
-	extern vm_offset_t avail_start, avail_end;
-	extern vm_offset_t virtual_avail, virtual_end;
-
 	/*
 	 * Initializes resident memory structures. From here on, all physical
 	 * memory is accounted for, and we use only virtual addresses.

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_var.h	8.1 (Berkeley) 6/10/93
- * $Id: in_var.h,v 1.6 1994/09/06 22:42:20 wollman Exp $
+ * $Id: in_var.h,v 1.7 1994/10/25 22:13:32 swallace Exp $
  */
 
 #ifndef _NETINET_IN_VAR_H_
@@ -82,6 +82,11 @@ struct	in_aliasreq {
 #ifdef	KERNEL
 extern	struct	in_ifaddr *in_ifaddr;
 extern	struct	ifqueue	ipintrq;		/* ip packet input queue */
+extern	struct	in_addr zeroin_addr;
+extern	u_char	inetctlerrmap[];
+extern	int rtq_reallyold;	/* XXX */
+extern	int rtq_minreallyold;	/* XXX */
+extern	int rtq_toomany;	/* XXX */
 
 /*
  * Macro for finding the interface (ifnet structure) corresponding to one

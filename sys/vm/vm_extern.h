@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_extern.h	8.2 (Berkeley) 1/12/94
- * $Id: vm_extern.h,v 1.11 1995/02/20 23:58:09 davidg Exp $
+ * $Id: vm_extern.h,v 1.12 1995/02/21 01:32:47 davidg Exp $
  */
 
 #ifndef _VM_EXTERN_H_
@@ -62,6 +62,8 @@ void thread_sleep_ __P((int, simple_lock_t, char *));
 #endif
 
 #ifdef KERNEL
+extern int indent;
+
 #ifdef TYPEDEF_FOR_UAP
 int getpagesize __P((struct proc * p, void *, int *));
 int madvise __P((struct proc *, void *, int *));
@@ -73,10 +75,12 @@ int obreak __P((struct proc *, void *, int *));
 int sbrk __P((struct proc *, void *, int *));
 int smmap __P((struct proc *, void *, int *));
 int sstk __P((struct proc *, void *, int *));
+int swapon __P((struct proc *, void *, int *));
 
 #endif
 
 void assert_wait __P((int, boolean_t));
+void faultin __P((struct proc *p));
 int grow __P((struct proc *, u_int));
 void iprintf __P((const char *,...));
 int kernacc __P((caddr_t, int, int));
@@ -95,7 +99,6 @@ void munmapfd __P((struct proc *, int));
 int pager_cache __P((vm_object_t, boolean_t));
 void sched __P((void));
 void swapinit __P((void));
-int swapon __P((struct proc *, void *, int *));
 void swapout __P((struct proc *));
 void swapout_threads __P((void));
 int swfree __P((struct proc *, int));
@@ -119,6 +122,7 @@ struct vmspace *vmspace_alloc __P((vm_offset_t, vm_offset_t, int));
 struct vmspace *vmspace_fork __P((struct vmspace *));
 void vmspace_free __P((struct vmspace *));
 void vmtotal __P((struct vmtotal *));
+vm_pager_t vnode_pager_alloc __P((caddr_t, vm_offset_t, vm_prot_t, vm_offset_t));
 void vnode_pager_setsize __P((struct vnode *, u_long));
 void vnode_pager_umount __P((struct mount *));
 boolean_t vnode_pager_uncache __P((struct vnode *));

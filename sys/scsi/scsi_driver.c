@@ -35,13 +35,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: scsi_driver.c,v 1.4 1995/03/05 20:01:44 dufault Exp $
+ * $Id: scsi_driver.c,v 1.5 1995/03/15 14:22:06 dufault Exp $
  *
  */
 #include <sys/types.h>
 #include <sys/errno.h>
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/buf.h>
+#include <sys/devconf.h>
 #include <sys/malloc.h>
 
 #include <scsi/scsi_all.h>

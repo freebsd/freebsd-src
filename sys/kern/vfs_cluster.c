@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.11 1995/03/02 19:36:50 davidg Exp $
+ * $Id: vfs_cluster.c,v 1.12 1995/03/04 03:24:28 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -65,7 +65,6 @@ struct ctldebug debug13 = {"doreallocblks", &doreallocblks};
  */
 struct buf *cluster_rbuild __P((struct vnode *, u_quad_t, struct buf *,
     daddr_t, daddr_t, long, int, long));
-void cluster_wbuild __P((struct vnode *, struct buf *, long, daddr_t, int, daddr_t));
 struct cluster_save *cluster_collectbufs __P((struct vnode *, struct buf *));
 
 int totreads;
@@ -508,7 +507,7 @@ redo:
 			--len;
 		}
 
-		pb = (struct buf *) trypbuf();
+		pb = trypbuf();
 		/* Get more memory for current buffer */
 		if (len <= 1 || pb == 0) {
 			relpbuf(pb);
@@ -528,7 +527,7 @@ redo:
 		}
 		tbp->b_flags |= B_BUSY;
 		last_bp = 0;
-		pb = (struct buf *) trypbuf();
+		pb = trypbuf();
 		if( pb == 0) {
 			bawrite(tbp);
 			return;

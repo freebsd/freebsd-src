@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_interface.c,v 1.10 1994/09/15 11:38:59 davidg Exp $
+ *	$Id: db_interface.c,v 1.11 1995/01/14 10:24:48 bde Exp $
  */
 
 /*
@@ -35,6 +35,7 @@
 #include <sys/proc.h>
 #include <sys/reboot.h>
 
+#include <machine/md_var.h>
 #include <machine/segments.h>
 
 #include <ddb/ddb.h>
@@ -192,7 +193,6 @@ db_write_bytes(addr, size, data)
 	vm_offset_t	addr1;
 	register pt_entry_t *ptep1 = 0;
 	pt_entry_t	oldmap1 = { 0 };
-	extern char	etext;
 
 	db_nofault = &db_jmpbuf;
 

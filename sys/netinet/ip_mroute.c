@@ -197,7 +197,6 @@ static int del_mfc(struct delmfcctl *);
 static void cleanup_cache(void *);
 static int ip_mdq(struct mbuf *, struct ifnet *, u_long, struct mfc *,
 		  struct ip_moptions *);
-extern int (*legal_vif_num)(int);
 static void phyint_send(struct ip *, struct vif *, struct mbuf *);
 static void srcrt_send(struct ip *, struct vif *, struct mbuf *);
 static void encap_send(struct ip *, struct vif *, struct mbuf *);
@@ -1873,7 +1872,6 @@ ip_mroute_mod_handle(struct lkm_table *lkmtp, int cmd)
 		static int (*old_mrt_ioctl)();
 		static void (*old_proto4_input)();
 		static int (*old_legal_vif_num)();
-		extern u_char ip_protox[];
 		extern struct protosw inetsw[];
 
 	case LKM_E_LOAD:

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)swapgeneric.c	5.5 (Berkeley) 5/9/91
- *	$Id: swapgeneric.c,v 1.5 1994/12/31 17:11:59 jkh Exp $
+ *	$Id: swapgeneric.c,v 1.6 1995/03/02 23:45:49 wpaul Exp $
  */
 
 #include <sys/param.h>
@@ -44,6 +44,8 @@
 #include <sys/reboot.h>
 #include <sys/disklabel.h>
 #include <sys/devconf.h>
+
+#include <machine/md_var.h>
 
 #include "wd.h"
 #include "fd.h"

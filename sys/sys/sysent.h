@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sysent.h,v 1.2 1994/10/09 21:53:05 sos Exp $
+ *	$Id: sysent.h,v 1.3 1995/02/14 19:23:20 sos Exp $
  */
 
 #ifndef _SYS_SYSENT_H_
@@ -53,6 +53,7 @@ struct sysentvec {
 };
 
 #ifdef KERNEL
+extern struct sysentvec aout_sysvec;
 extern struct sysent sysent[];
 #endif
 

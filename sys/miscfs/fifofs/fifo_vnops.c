@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fifo_vnops.c	8.2 (Berkeley) 1/4/94
- * $Id: fifo_vnops.c,v 1.6 1994/10/02 17:48:00 phk Exp $
+ * $Id: fifo_vnops.c,v 1.7 1995/02/03 06:46:13 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -48,6 +48,7 @@
 #include <sys/file.h>
 #include <sys/errno.h>
 #include <sys/malloc.h>
+#include <sys/un.h>
 #include <miscfs/fifofs/fifo.h>
 
 /*
