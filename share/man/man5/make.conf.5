@@ -106,7 +106,7 @@ is provided as a set of
 settings suggested by
 .An "Bruce Evans" Aq bde@FreeBSD.org
 for developing and testing changes.
-They can be used by:
+They can be used, if set, by:
 .Pp
 .Bd -literal -offset indent
 CXFLAGS+=${BDECFLAGS}
@@ -575,9 +575,9 @@ for postscript or graphics printers with a ghostscript
 filter.
 .El
 .Sh FILES
-.Bl -tag -width /etc/defaults/make.conf -compact
-.It Pa /etc/defaults/make.conf
+.Bl -tag -width /usr/share/examples/etc/make.conf -compact
 .It Pa /etc/make.conf
+.It Pa /usr/share/examples/etc/make.conf
 .It Pa /usr/doc/Makefile
 .It Pa /usr/src/Makefile
 .It Pa /usr/src/Makefile.inc1
@@ -603,5 +603,5 @@ This manual page may occasionally be out of date with respect to
 the options currently available for use in
 .Nm .
 Please check the
-.Pa /etc/defaults/make.conf
+.Pa /usr/share/examples/etc/make.conf
 file for the latest options which are available.
