@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.13 1996/02/22 03:33:52 dyson Exp $
+ * $Id: sys_pipe.c,v 1.14 1996/03/17 04:52:10 dyson Exp $
  */
 
 #ifndef OLD_PIPE
@@ -399,6 +399,7 @@ pipe_read(fp, uio, cred)
 			 * detect EOF condition
 			 */
 			if (rpipe->pipe_state & PIPE_EOF) {
+				/* XXX error = ? */
 				break;
 			}
 			/*
@@ -479,7 +480,7 @@ pipe_read(fp, uio, cred)
 		}
 	}
 
-	if ((rpipe->pipe_buffer.size - rpipe->pipe_buffer.cnt) > PIPE_BUF)
+	if ((rpipe->pipe_buffer.size - rpipe->pipe_buffer.cnt) >= PIPE_BUF)
 		pipeselwakeup(rpipe);
 
 	return error;
@@ -630,8 +631,12 @@ retry:
 		wpipe->pipe_state |= PIPE_WANTW;
 		error = tsleep(wpipe,
 				PRIBIO|PCATCH, "pipdww", 0);
-		if (error || (wpipe->pipe_state & PIPE_EOF))
+		if (error)
 			goto error1;
+		if (wpipe->pipe_state & PIPE_EOF) {
+			error = EPIPE;
+			goto error1;
+		}
 	}
 	wpipe->pipe_map.cnt = 0;	/* transfer not ready yet */
 	if (wpipe->pipe_buffer.cnt > 0) {
@@ -643,9 +648,10 @@ retry:
 		wpipe->pipe_state |= PIPE_WANTW;
 		error = tsleep(wpipe,
 				PRIBIO|PCATCH, "pipdwc", 0);
-		if (error || (wpipe->pipe_state & PIPE_EOF)) {
-			if (error == 0)
-				error = EPIPE;
+		if (error)
+			goto error1;
+		if (wpipe->pipe_state & PIPE_EOF) {
+			error = EPIPE;
 			goto error1;
 		}
 		goto retry;
@@ -666,8 +672,8 @@ retry:
 			pipe_destroy_write_buffer(wpipe);
 			pipeunlock(wpipe);
 			pipeselwakeup(wpipe);
-			wakeup(wpipe);
-			return EPIPE;
+			error = EPIPE;
+			goto error1;
 		}
 		if (wpipe->pipe_state & PIPE_WANTR) {
 			wpipe->pipe_state &= ~PIPE_WANTR;
@@ -854,7 +860,7 @@ pipewrite(wpipe, uio, nbio)
 		(error == EPIPE))
 		error = 0;
 
-	if (error = 0) {
+	if (error == 0) {
 		int s = splhigh();
 		wpipe->pipe_mtime = time;
 		splx(s);
