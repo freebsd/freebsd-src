@@ -67,42 +67,38 @@ devfs_mount(mp, path, data, ndp, p)
 	struct nameidata *ndp;
 	struct proc *p;
 {
-	int error = 0;
+	int error;
 	u_int size;
 	struct devfs_mount *fmp;
 	struct vnode *rvp;
 
+	error = 0;
 	/*
-	 * Update is a no-op
+	 * XXX: flag changes.
 	 */
 	if (mp->mnt_flag & MNT_UPDATE)
 		return (EOPNOTSUPP);
 
-	MALLOC(fmp, struct devfs_mount *, sizeof(struct devfs_mount), M_DEVFS, M_WAITOK);
-
+	MALLOC(fmp, struct devfs_mount *, sizeof(struct devfs_mount),
+	    M_DEVFS, M_WAITOK);
 	bzero(fmp, sizeof(*fmp));
 
-	error = getnewvnode(VT_DEVFS, mp, devfs_vnodeop_p, &rvp);
-	if (error) {
-		FREE(fmp, M_DEVFS);
-		return (error);
-	}
-
-	vhold(rvp);
-	rvp->v_type = VDIR;
-	rvp->v_flag |= VROOT;
 	mp->mnt_flag |= MNT_LOCAL;
 	mp->mnt_data = (qaddr_t) fmp;
 	vfs_getnewfsid(mp);
 
 	fmp->dm_inode = NDEVINO;
-	fmp->dm_root = rvp;
 
 	fmp->dm_rootdir = devfs_vmkdir("(root)", 6, NULL);
 	fmp->dm_rootdir->de_inode = 2;
-	rvp->v_data = fmp->dm_rootdir;
-
 	fmp->dm_basedir = fmp->dm_rootdir;
+
+	error = devfs_root(mp, &rvp);
+	if (error) {
+		FREE(fmp, M_DEVFS);
+		return (error);
+	}
+	VOP_UNLOCK(rvp, 0, p);
 
 	if (path != NULL) {
 		(void) copyinstr(path, mp->mnt_stat.f_mntonname, MNAMELEN - 1, &size);
@@ -127,55 +123,47 @@ devfs_unmount(mp, mntflags, p)
 {
 	int error;
 	int flags = 0;
-	struct vnode *rootvp = VFSTODEVFS(mp)->dm_root;
+	struct vnode *rootvp;
 	struct devfs_mount *fmp;
 
-	fmp = (struct devfs_mount*) mp->mnt_data;
+	error = devfs_root(mp, &rootvp);
+	if (error)
+		return (error);
+	fmp = VFSTODEVFS(mp);
 	if (mntflags & MNT_FORCE)
 		flags |= FORCECLOSE;
-
-	/*
-	 * Clear out buffer cache.  I don't think we
-	 * ever get anything cached at this level at the
-	 * moment, but who knows...
-	 */
 	if (rootvp->v_usecount > 2)
 		return (EBUSY);
 	devfs_purge(fmp->dm_rootdir);
 	error = vflush(mp, rootvp, flags);
 	if (error)
 		return (error);
-
-	/*
-	 * Release reference on underlying root vnode
-	 */
+	vput(rootvp);
 	vrele(rootvp);
-	/*
-	 * And blow it away for future re-use
-	 */
 	vgone(rootvp);
-	/*
-	 * Finally, throw away the devfs_mount structure
-	 */
-	free(mp->mnt_data, M_DEVFS);
 	mp->mnt_data = 0;
+	free(fmp, M_DEVFS);
 	return 0;
 }
+
+/* Return locked reference to root.  */
 
 static int
 devfs_root(mp, vpp)
 	struct mount *mp;
 	struct vnode **vpp;
 {
-	struct proc *p = curproc;	/* XXX */
+	int error;
+	struct proc *p;
 	struct vnode *vp;
+	struct devfs_mount *dmp;
 
-	/*
-	 * Return locked reference to root.
-	 */
-	vp = VFSTODEVFS(mp)->dm_root;
-	VREF(vp);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
+	p = curproc;					/* XXX */
+	dmp = VFSTODEVFS(mp);
+	error = devfs_allocv(dmp->dm_rootdir, mp, &vp, p);
+	if (error)
+		return (error);
+	vp->v_flag |= VROOT;
 	*vpp = vp;
 	return (0);
 }

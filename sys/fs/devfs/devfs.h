@@ -88,6 +88,8 @@ extern unsigned devfs_generation;
 extern vop_t **devfs_vnodeop_p;
 extern vop_t **devfs_specop_p;
 
+int devfs_allocv __P((struct devfs_dirent *de, struct mount *mp, struct vnode **vpp, struct proc *p));
+struct devfs_dirent * devfs_find __P((struct devfs_dirent *dd, const char *name, int namelen));
 int devfs_populate __P((struct devfs_mount *dm));
 struct devfs_dirent * devfs_newdirent __P((char *name, int namelen));
 void devfs_purge __P((struct devfs_dirent *dd));
