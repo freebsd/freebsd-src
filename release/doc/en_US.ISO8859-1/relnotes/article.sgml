@@ -191,6 +191,12 @@
       This is currently non-functional, and would require some amount of work
       to make it work under the &man.geom.4; API in 5-CURRENT.</para>
 
+    <para arch="alpha,amd64,i386">For the &man.uart.4; device
+      <varname>hw.uart.console</varname> and
+      <varname>hw.uart.dbgport</varname> environment variables
+      have been added.  They can be used to select a serial console and
+      debug port respectively, as well as the attributes.</para>
+
     <para>The &man.ubser.4; device driver has been added to support
       BWCT console management serial adapters.</para>
 
@@ -321,6 +327,9 @@
 	support for USB Ethernet adapters based on the Davicom DM9601
 	chipset.</para>
 
+      <para>The hardware TX checksum support of the &man.xl.4; driver
+	has been disabled as it does not work correctly and slows down
+	the transmission rate.</para>
     </sect3>
 
     <sect3 id="net-proto">
