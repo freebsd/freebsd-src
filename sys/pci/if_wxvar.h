@@ -283,6 +283,7 @@ typedef struct wx_softc {
 	rxpkt_t *rbase;			/* base of soft rdesc list */
 	u_int16_t rnxt;			/* next descriptor to check */
 	u_int16_t _pad;
+	struct mbuf *rpending;		/* pending partial packet */
 
 	/*
  	 * Transmit Management
@@ -313,5 +314,10 @@ typedef struct wx_softc {
 #define	WX_MAX_TDESC	256	/* number of transmit descriptors */
 #define	T_NXT_IDX(x)	((x + 1) & (WX_MAX_TDESC - 1))
 #define	WX_MAX_RDESC	64	/* number of receive descriptors */
-#define	R_NXT_IDX(x)	((x + 1) & (WX_MAX_RDESC - 1))
-#define	R_PREV_IDX(x)	((x - 1) & (WX_MAX_RDESC - 1))
+#ifdef	PADDED_CELL
+#define	RXINCR		2
+#else
+#define	RXINCR		1
+#endif
+#define	R_NXT_IDX(x)	((x + RXINCR) & (WX_MAX_RDESC - 1))
+#define	R_PREV_IDX(x)	((x - RXINCR) & (WX_MAX_RDESC - 1))
