@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)pmap_clnt.c 1.37 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)pmap_clnt.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: pmap_clnt.c,v 1.3 1995/10/22 14:51:28 phk Exp $";
+static char *rcsid = "$Id: pmap_clnt.c,v 1.4 1996/06/08 22:54:54 jraynard Exp $";
 #endif
 
 /*
@@ -44,8 +44,7 @@ static char *rcsid = "$Id: pmap_clnt.c,v 1.3 1995/10/22 14:51:28 phk Exp $";
 #include <rpc/rpc.h>
 #include <rpc/pmap_prot.h>
 #include <rpc/pmap_clnt.h>
-
-void get_myaddress(struct sockaddr_in *);
+#include <netinet/in.h>
 
 static struct timeval timeout = { 5, 0 };
 static struct timeval tottimeout = { 60, 0 };
@@ -70,7 +69,9 @@ pmap_set(program, version, protocol, port)
 	struct pmap parms;
 	bool_t rslt;
 
-	get_myaddress(&myaddress);
+	if (get_myaddress(&myaddress) != 0)
+		return (FALSE);
+	myaddress.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 	client = clntudp_bufcreate(&myaddress, PMAPPROG, PMAPVERS,
 	    timeout, &socket, RPCSMALLMSGSIZE, RPCSMALLMSGSIZE);
 	if (client == (CLIENT *)NULL)
@@ -85,7 +86,8 @@ pmap_set(program, version, protocol, port)
 		return (FALSE);
 	}
 	CLNT_DESTROY(client);
-	(void)close(socket);
+	if (socket != -1)
+		(void)close(socket);
 	return (rslt);
 }
 
@@ -104,7 +106,9 @@ pmap_unset(program, version)
 	struct pmap parms;
 	bool_t rslt;
 
-	get_myaddress(&myaddress);
+	if (get_myaddress(&myaddress) != 0)
+		return (FALSE);
+	myaddress.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 	client = clntudp_bufcreate(&myaddress, PMAPPROG, PMAPVERS,
 	    timeout, &socket, RPCSMALLMSGSIZE, RPCSMALLMSGSIZE);
 	if (client == (CLIENT *)NULL)
@@ -115,6 +119,7 @@ pmap_unset(program, version)
 	CLNT_CALL(client, PMAPPROC_UNSET, xdr_pmap, &parms, xdr_bool, &rslt,
 	    tottimeout);
 	CLNT_DESTROY(client);
-	(void)close(socket);
+	if (socket != -1)
+		(void)close(socket);
 	return (rslt);
 }
