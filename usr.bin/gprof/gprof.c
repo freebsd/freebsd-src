@@ -48,8 +48,6 @@ static const char rcsid[] =
 #include <err.h>
 #include "gprof.h"
 
-#define	UNITS_TO_CODE	(OFFSET_OF_CODE / sizeof(UNIT))
-
 static int valcmp(const void *, const void *);
 
 
@@ -306,8 +304,8 @@ openpfile(filename)
     }
     s_lowpc = (unsigned long) gmonhdr.lpc;
     s_highpc = (unsigned long) gmonhdr.hpc;
-    lowpc = (unsigned long)gmonhdr.lpc / sizeof(UNIT);
-    highpc = (unsigned long)gmonhdr.hpc / sizeof(UNIT);
+    lowpc = (unsigned long)gmonhdr.lpc / HISTORICAL_SCALE_2;
+    highpc = (unsigned long)gmonhdr.hpc / HISTORICAL_SCALE_2;
     sampbytes = gmonhdr.ncnt - size;
     nsamples = sampbytes / sizeof (UNIT);
 #   ifdef DEBUG
@@ -525,8 +523,8 @@ asgnsamples()
 #		ifdef DEBUG
 		    if (debug & SAMPLEDEBUG) {
 			printf("[asgnsamples] (0x%lx->0x%lx-0x%lx) %s gets %f ticks %lu overlap\n",
-				nl[j].value/sizeof(UNIT), svalue0, svalue1,
-				nl[j].name,
+				nl[j].value / HISTORICAL_SCALE_2,
+				svalue0, svalue1, nl[j].name,
 				overlap * time / scale, overlap);
 		    }
 #		endif DEBUG
@@ -573,17 +571,19 @@ alignentries()
     unsigned long	bucket_of_code;
 
     for (nlp = nl; nlp < npe; nlp++) {
-	nlp -> svalue = nlp -> value / sizeof(UNIT);
+	nlp -> svalue = nlp -> value / HISTORICAL_SCALE_2;
 	bucket_of_entry = (nlp->svalue - lowpc) / scale;
-	bucket_of_code = (nlp->svalue + UNITS_TO_CODE - lowpc) / scale;
+	bucket_of_code = (nlp->svalue + OFFSET_OF_CODE / HISTORICAL_SCALE_2 -
+	  lowpc) / scale;
 	if (bucket_of_entry < bucket_of_code) {
 #	    ifdef DEBUG
 		if (debug & SAMPLEDEBUG) {
 		    printf("[alignentries] pushing svalue 0x%lx to 0x%lx\n",
-			    nlp->svalue, nlp->svalue + UNITS_TO_CODE);
+			    nlp->svalue,
+			    nlp->svalue + OFFSET_OF_CODE / HISTORICAL_SCALE_2);
 		}
 #	    endif DEBUG
-	    nlp->svalue += UNITS_TO_CODE;
+	    nlp->svalue += OFFSET_OF_CODE / HISTORICAL_SCALE_2;
 	}
     }
 }
