@@ -240,6 +240,9 @@ isp_target_notify(isp, vptr, optrp)
 		rval = -1;
 		break;
 	}
+	if (isp_tdebug) {
+		MEMZERO(vptr, QENTRY_LEN);
+	}
 #undef	atiop
 #undef	at2iop
 #undef	ctiop
@@ -533,7 +536,8 @@ isp_target_async(isp, bus, event)
 		    isp->isp_name, event);
 		break;
 	}
-	isp_notify_ack(isp, NULL);
+	if (isp->isp_state == ISP_RUNSTATE)
+		isp_notify_ack(isp, NULL);
 }
 
 
