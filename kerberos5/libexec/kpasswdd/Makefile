@@ -1,0 +1,36 @@
+# $FreeBSD$
+
+PROG=		kpasswdd
+SRCS=		kpasswdd.c krb5_err.h heim_err.h hdb_err.h kadm5/admin.h 
+CFLAGS+=	-I${KRB5DIR}/include \
+		-I${KRB5DIR}/lib/asn1 \
+		-I${KRB5DIR}/lib/hdb \
+		-I${KRB5DIR}/lib/krb5 \
+		-I${KRB5DIR}/lib/roken \
+		-I${KRB5DIR}/kpasswd \
+		-I${ASN1OBJDIR} \
+		-I${HDBOBJDIR} \
+		-I${.OBJDIR}
+.if defined(KRB5_KRB4_COMPAT)
+_krb4libs=	-lkrb -lkafs
+_krb4deps=	${LIBKRB} ${LIBKAFS}
+.endif
+LDADD=		-L${KRB5OBJDIR} -lkrb5 -L${ROKENOBJDIR} -lroken ${_krb4libs} \
+		-L${KADM5SOBJDIR} -lkadm5srv -L${HDBOBJDIR} -lhdb \
+		-L${ASN1OBJDIR} -lasn1 -ldes -lcrypt -lcom_err
+DPADD=		${LIBKRB5} ${LIBROKEN} ${_krb4deps} \
+		${LIBASN1} ${LIBDES} ${LIBCRYPT} ${LIBCOM_ERR}
+MAN8=		kpasswdd.8
+
+.include <bsd.prog.mk>
+
+.PATH:	${KRB5DIR}/kpasswd
+
+kadm5/admin.h:	kadm5
+	cp ${KRB5DIR}/lib/kadm5/admin.h ${.TARGET}
+
+kadm5:
+	mkdir ${.TARGET}
+
+CLEANFILES+=	kadm5/admin.h
+CLEANDIRS+=	kadm5
