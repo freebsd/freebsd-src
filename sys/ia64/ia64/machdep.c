@@ -227,22 +227,21 @@ cpu_startup(dummy)
 	bufinit();
 	vm_pager_bufferinit();
 
+	if (!ia64_running_in_simulator()) {
 #ifdef DEV_ACPICA
-	/*
-	 * Traverse the MADT to discover IOSAPIC and Local SAPIC
-	 * information.
-	 */
-	if (!ia64_running_in_simulator())
+		/*
+		 * Traverse the MADT to discover IOSAPIC and Local SAPIC
+		 * information.
+		 */
 		ia64_probe_sapics();
+		ia64_mca_init();
 #else
-	/*
-	 * It is an error to boot a SKI-only kernel on hardware.
-	 */
-	if (!ia64_running_in_simulator())
+		/*
+		 * It is an error to boot a SKI-only kernel on hardware.
+		 */
 		panic("Mandatory 'device acpica' is missing");
 #endif
-
-	ia64_mca_init();
+	}
 }
 
 void
