@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_da.c,v 1.19 1999/01/07 20:19:09 mjacob Exp $
+ *      $Id: scsi_da.c,v 1.20 1999/02/10 00:03:15 ken Exp $
  */
 
 #include "opt_hw_wdog.h"
@@ -445,10 +445,30 @@ daclose(dev_t dev, int flag, int fmt, struct proc *p)
 				       SSD_FULL_SIZE,
 				       5 * 60 * 1000);
 
-		/* Ignore any errors */
 		cam_periph_runccb(ccb, /*error_routine*/NULL, /*cam_flags*/0,
 				  /*sense_flags*/SF_RETRY_UA,
 				  &softc->device_stats);
+
+		if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+			if ((ccb->ccb_h.status & CAM_STATUS_MASK) ==
+			     CAM_SCSI_STATUS_ERROR) {
+				int asc, ascq;
+				int sense_key, error_code;
+
+				scsi_extract_sense(&ccb->csio.sense_data,
+						   &error_code,
+						   &sense_key, 
+						   &asc, &ascq);
+				if (sense_key != SSD_KEY_ILLEGAL_REQUEST)
+					scsi_sense_print(&ccb->csio);
+			} else {
+				xpt_print_path(periph->path);
+				printf("Synchronize cache failed, status "
+				       "== 0x%x, scsi status == 0x%x\n",
+				       ccb->csio.ccb_h.status,
+				       ccb->csio.scsi_status);
+			}
+		}
 
 		if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
 			cam_release_devq(ccb->ccb_h.path,
@@ -736,9 +756,17 @@ dadump(dev_t dev)
 
 		if ((csio.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 			if ((csio.ccb_h.status & CAM_STATUS_MASK) ==
-			     CAM_SCSI_STATUS_ERROR)
-				scsi_sense_print(&csio);
-			else {
+			     CAM_SCSI_STATUS_ERROR) {
+				int asc, ascq;
+				int sense_key, error_code;
+
+				scsi_extract_sense(&csio.sense_data,
+						   &error_code,
+						   &sense_key, 
+						   &asc, &ascq);
+				if (sense_key != SSD_KEY_ILLEGAL_REQUEST)
+					scsi_sense_print(&csio);
+			} else {
 				xpt_print_path(periph->path);
 				printf("Synchronize cache failed, status "
 				       "== 0x%x, scsi status == 0x%x\n",
