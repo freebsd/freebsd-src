@@ -126,6 +126,7 @@ const struct option tar_longopts[] = {
 	{ "modification-time",  no_argument,       NULL, 'm' },
 	{ "nodump",             no_argument,       NULL, OPTION_NODUMP },
 	{ "norecurse",          no_argument,       NULL, 'n' },
+	{ "no-recursion",       no_argument,       NULL, 'n' },
 	{ "no-same-owner",	no_argument,	   NULL, 'o' },
 	{ "no-same-permissions",no_argument,	   NULL, OPTION_NO_SAME_PERMISSIONS },
 	{ "null",		no_argument,	   NULL, OPTION_NULL },
