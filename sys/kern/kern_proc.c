@@ -447,6 +447,7 @@ pgdelete(pgrp)
 	register struct pgrp *pgrp;
 {
 	struct session *savesess;
+	int i;
 
 	sx_assert(&proctree_lock, SX_XLOCKED);
 	PGRP_LOCK_ASSERT(pgrp, MA_NOTOWNED);
@@ -465,10 +466,10 @@ pgdelete(pgrp)
 	LIST_REMOVE(pgrp, pg_hash);
 	savesess = pgrp->pg_session;
 	SESS_LOCK(savesess);
-	savesess->s_count--;
+	i = --savesess->s_count;
 	SESS_UNLOCK(savesess);
 	PGRP_UNLOCK(pgrp);
-	if (savesess->s_count == 0) {
+	if (i == 0) {
 		mtx_destroy(&savesess->s_mtx);
 		FREE(pgrp->pg_session, M_SESSION);
 	}
