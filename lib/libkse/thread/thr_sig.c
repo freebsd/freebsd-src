@@ -105,7 +105,6 @@ _thread_sig_handler(int sig, int code, struct sigcontext * scp)
 {
 	char            c;
 	int             i;
-	int		dispatch = 0;
 	pthread_t       pthread;
 
 	/*
@@ -234,9 +233,6 @@ _thread_sig_handler(int sig, int code, struct sigcontext * scp)
 void
 _thread_signal(pthread_t pthread, int sig)
 {
-	pthread_t saved;
-	struct sigaction act;
-
 	/*
 	 * Flag the signal as pending. It will be dispatched later.
 	 */

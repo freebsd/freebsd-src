@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_file.c,v 1.3 1998/04/29 09:58:47 jb Exp $
+ * $Id: uthread_file.c,v 1.4 1998/06/09 23:20:44 jb Exp $
  *
  * POSIX stdio FILE locking functions. These assume that the locking
  * is only required at FILE structure level, not at file descriptor
@@ -181,8 +181,6 @@ do_lock(int idx, FILE *fp)
 void
 _flockfile_debug(FILE * fp, char *fname, int lineno)
 {
-	int	fd, flags;
-	int	status;
 	int	idx = file_idx(fp);
 	struct	file_lock	*p;
 
@@ -255,7 +253,6 @@ int
 _ftrylockfile(FILE * fp)
 {
 	int	ret = -1;
-	int	status;
 	int	idx = file_idx(fp);
 	struct	file_lock	*p;
 
