@@ -38,7 +38,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`@(#)knecht.mc	8.13 (Berkeley) 7/7/97')
+VERSIONID(`@(#)knecht.mc	8.15 (Berkeley) 10/20/97')
 OSTYPE(bsd4.4)dnl
 DOMAIN(generic)dnl
 define(`confFORWARD_PATH', `$z/.forward.$w:$z/.forward+$h:$z/.forward')dnl
@@ -48,6 +48,7 @@ define(`confTO_ICONNECT', `10s')dnl
 define(`confCOPY_ERRORS_TO', `Postmaster')dnl
 define(`confTO_QUEUEWARN', `8h')dnl
 define(`confPRIVACY_FLAGS', ``authwarnings,noexpn,novrfy'')dnl
+define(`LOCAL_MAILER_FLAGS', `rmn9P')dnl
 FEATURE(virtusertable)dnl
 MAILER(local)dnl
 MAILER(smtp)dnl
@@ -119,7 +120,7 @@ R<FAIL> $*		$#error $: 451 Sender domain must resolve
 # handle case of no @domain on address
 R<?> $*			$: < ? $&{client_name} > $1
 R<?> $*			$@ <OK>				...local unqualed ok
-R<? $+> $*		$#error $: 551 Domain name required
+R<? $+> $*		$#error $: 550 Domain name required
 							...remote is not
 R<$+> $*		$#error $: $1			error from domaincheck
 

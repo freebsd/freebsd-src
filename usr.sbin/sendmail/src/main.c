@@ -39,7 +39,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)main.c	8.249 (Berkeley) 7/25/97";
+static char sccsid[] = "@(#)main.c	8.258 (Berkeley) 10/20/97";
 #endif /* not lint */
 
 #define	_DEFINE
@@ -49,10 +49,6 @@ static char sccsid[] = "@(#)main.c	8.249 (Berkeley) 7/25/97";
 #if NAMED_BIND
 #include <resolv.h>
 #endif
-
-# ifdef lint
-char	edata, end;
-# endif /* lint */
 
 /*
 **  SENDMAIL -- Post mail to a set of destinations.
@@ -122,7 +118,6 @@ main(argc, argv, envp)
 	char **av;
 	extern char Version[];
 	char *ep, *from;
-	typedef int (*fnptr)();
 	STAB *st;
 	register int i;
 	int j;
@@ -133,7 +128,6 @@ main(argc, argv, envp)
 	bool run_in_foreground = FALSE;	/* -bD mode */
 	static bool reenter = FALSE;
 	struct passwd *pw;
-	struct stat stb;
 	struct hostent *hp;
 	bool nullserver = FALSE;
 	char jbuf[MAXHOSTNAMELEN];	/* holds MyHostName */
@@ -436,6 +430,8 @@ main(argc, argv, envp)
 		res_init();
 	if (tTd(8, 8))
 		_res.options |= RES_DEBUG;
+	else
+		_res.options &= ~RES_DEBUG;
 # ifdef RES_NOALIASES
 	_res.options |= RES_NOALIASES;
 # endif
@@ -832,6 +828,15 @@ main(argc, argv, envp)
 	ConfigFileRead = TRUE;
 	vendor_post_defaults(CurEnv);
 
+	/* Enforce use of local time (null string overrides this) */
+	if (TimeZoneSpec == NULL)
+		unsetenv("TZ");
+	else if (TimeZoneSpec[0] != '\0')
+		setuserenv("TZ", TimeZoneSpec);
+	else
+		setuserenv("TZ", NULL);
+	tzset();
+
 	/* avoid denial-of-service attacks */
 	resetlimits();
 
@@ -902,15 +907,6 @@ main(argc, argv, envp)
 	/* tweak default DSN notifications */
 	if (DefaultNotify == 0)
 		DefaultNotify = QPINGONFAILURE|QPINGONDELAY;
-
-	/* Enforce use of local time (null string overrides this) */
-	if (TimeZoneSpec == NULL)
-		unsetenv("TZ");
-	else if (TimeZoneSpec[0] != '\0')
-		setuserenv("TZ", TimeZoneSpec);
-	else
-		setuserenv("TZ", NULL);
-	tzset();
 
 	/* be sure we don't pick up bogus HOSTALIASES environment variable */
 	if (queuemode && RealUid != 0)
@@ -1321,7 +1317,7 @@ main(argc, argv, envp)
 	if (OpMode == MD_DAEMON || QueueIntvl != 0)
 	{
 		char dtype[200];
-		extern bool getrequests __P((ENVELOPE *));
+		extern void getrequests __P((ENVELOPE *));
 
 		if (!run_in_foreground && !tTd(99, 100))
 		{
@@ -1371,7 +1367,7 @@ main(argc, argv, envp)
 		dropenvelope(CurEnv, TRUE);
 
 #if DAEMON
-		nullserver = getrequests(CurEnv);
+		getrequests(CurEnv);
 
 		/* drop privileges */
 		(void) drop_privileges(FALSE);
@@ -1385,6 +1381,11 @@ main(argc, argv, envp)
 
 		p = getauthinfo(fileno(InChannel));
 		define('_', p, &BlankEnvelope);
+
+		/* validate the connection */
+		HoldErrs = TRUE;
+		nullserver = !validate_connection(&RealHostAddr, RealHostName, CurEnv);
+		HoldErrs = FALSE;
 #endif /* DAEMON */
 	}
 
@@ -1476,10 +1477,9 @@ main(argc, argv, envp)
 		CurEnv->e_flags &= ~EF_FATALERRS;
 		collect(InChannel, FALSE, NULL, CurEnv);
 
-		/* bail out if there were fatal errors in collect */
-		if (OpMode != MD_VERIFY && bitset(EF_FATALERRS, CurEnv->e_flags))
+		/* bail out if message too large */
+		if (bitset(EF_CLRQUEUE, CurEnv->e_flags))
 		{
-			CurEnv->e_flags |= EF_CLRQUEUE;
 			finis();
 			/*NOTREACHED*/
 			return -1;
@@ -2047,7 +2047,7 @@ sighup(sig)
 				RunAsUid, RunAsGid);
 		exit(EX_OSERR);
 	}
-	execv(SaveArgv[0], (ARGV_T) SaveArgv);
+	execve(SaveArgv[0], (ARGV_T) SaveArgv, (ARGV_T) ExternalEnviron);
 	if (LogLevel > 0)
 		sm_syslog(LOG_ALERT, NOQID, "could not exec %s: %m", SaveArgv[0]);
 	exit(EX_OSFILE);
@@ -2089,14 +2089,14 @@ drop_privileges(to_real_uid)
 
 #ifdef NGROUPS_MAX
 	/* reset group permissions; these can be set later */
-	emptygidset[0] = RunAsGid == 0 ? getegid() : RunAsGid;
+	emptygidset[0] = (to_real_uid || RunAsGid != 0) ? RunAsGid : getegid();
 	(void) setgroups(1, emptygidset);
 #endif
 
 	/* reset primary group and user id */
-	if (RunAsGid != 0 && setgid(RunAsGid) < 0)
+	if ((to_real_uid || RunAsGid != 0) && setgid(RunAsGid) < 0)
 		rval = EX_OSERR;
-	if (RunAsUid != 0 && setuid(RunAsUid) < 0)
+	if ((to_real_uid || RunAsUid != 0) && setuid(RunAsUid) < 0)
 		rval = EX_OSERR;
 	return rval;
 }
