@@ -60,7 +60,7 @@
 #define PACKAGE_NETCON	"commerce/netcon/bsd61"
 #define PACKAGE_PCNFSD	"pcnfsd-93.02.16"
 #define PACKAGE_SAMBA	"samba-1.9.15p8"
-#define PACKAGE_LYNX	"lynx-2.6"
+#define PACKAGE_LYNX	"lynx-2.6fm"
 
 /* device limits */
 #define DEV_NAME_MAX		64	/* The maximum length of a device name	*/
