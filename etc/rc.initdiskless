@@ -202,7 +202,8 @@ fi
 
 # Figure out our NFS root path
 #
-set `mount -t nfs`
+# The 'x' is there in case the list is empty.
+set x `mount -t nfs`
 while [ $# -ge 1 ] ; do
     if [ "$2" = "on" -a "$3" = "/" ]; then
 	nfsroot="$1"
