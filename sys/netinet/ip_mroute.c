@@ -9,7 +9,7 @@
  * Modified by Bill Fenner, PARC, April 1995
  *
  * MROUTING Revision: 3.5
- * $Id$
+ * $Id: ip_mroute.c,v 1.19 1995/06/26 16:15:49 wollman Exp $
  */
 
 
@@ -2116,14 +2116,15 @@ ip_rsvp_force_done(so)
 }
 
 void
-rsvp_input(m, ifp)
-    struct mbuf *m;
-    struct ifnet *ifp;
+rsvp_input(m, iphlen)
+	struct mbuf *m;
+	int iphlen;
 {
     int vifi;
     register struct ip *ip = mtod(m, struct ip *);
-    static struct sockaddr_in rsvp_src = { AF_INET };
+    static struct sockaddr_in rsvp_src = { sizeof rsvp_src, AF_INET };
     register int s;
+    struct ifnet *ifp;
 
     if (rsvpdebug)
 	printf("rsvp_input: rsvp_on %d\n",rsvp_on);
@@ -2152,6 +2153,12 @@ rsvp_input(m, ifp)
     if (rsvpdebug)
 	printf("rsvp_input: check vifs\n");
 
+#ifdef DIAGNOSTIC
+    if (!(m->m_flags & M_PKTHDR))
+	    panic("rsvp_input no hdr");
+#endif
+
+    ifp = m->m_pkthdr.rcvif;
     /* Find which vif the packet arrived on. */
     for (vifi = 0; vifi < numvifs; vifi++) {
 	if (viftable[vifi].v_ifp == ifp)
