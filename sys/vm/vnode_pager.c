@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.9 1994/10/05 09:48:45 davidg Exp $
+ *	$Id: vnode_pager.c,v 1.10 1994/10/09 01:52:19 phk Exp $
  */
 
 /*
@@ -785,7 +785,6 @@ vnode_pager_input(vnp, m, count, reqpage)
 	int     s;
 	int     failflag;
 
-	int     errtype = 0;	/* 0 is file type otherwise vm type */
 	int     error = 0;
 
 	object = m[reqpage]->object;	/* all vm_page_t items are in same
@@ -1131,10 +1130,8 @@ finishup:
 		}
 	}
 	if (error) {
-		printf("vnode pager read error: %d\n", error);
+		printf("vnode_pager_input: read error\n";
 	}
-	if (errtype)
-		return error;
 	return (error ? VM_PAGER_FAIL : VM_PAGER_OK);
 }
 
@@ -1491,7 +1488,7 @@ retryoutput:
 		goto retryoutput;
 	}
 	if (error) {
-		printf("vnode pager write error: %d\n", error);
+		printf("vnode_pager_output: write error\n";
 	}
 	return (error ? VM_PAGER_FAIL : VM_PAGER_OK);
 }
