@@ -7,9 +7,12 @@
  * blame Henry for some of the lack of readability.
  */
 
-/* $RCSfile: regexec.c,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:33 $
+/* $RCSfile: regexec.c,v $$Revision: 1.2 $$Date: 1995/05/30 05:03:16 $
  *
  * $Log: regexec.c,v $
+ * Revision 1.2  1995/05/30 05:03:16  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.1.1.1  1994/09/10  06:27:33  gclarkii
  * Initial import of Perl 4.046 bmaked
  *
@@ -791,7 +794,7 @@ char *prog;
 			reginput = locinput; /* put where regtry can find it */
 			return(1);	/* Success! */
 		default:
-			printf("%x %d\n",scan,scan[1]);
+			printf("%p %d\n",scan,scan[1]);
 			FAIL("regexp memory corruption");
 		}
 

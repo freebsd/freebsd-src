@@ -496,7 +496,7 @@ kvm_open (efile, cfile, sfile, perm, errout)
     }
 
   physrd (cfd, ksym_lookup ("IdlePTD") - KERNOFF, (char*)&sbr, sizeof sbr);
-  printf ("IdlePTD %x\n", sbr);
+  printf ("IdlePTD %lu\n", (unsigned long)sbr);
   curpcb = ksym_lookup ("curpcb") - KERNOFF;
   physrd (cfd, curpcb, (char*)&curpcb, sizeof curpcb);
 
@@ -506,7 +506,7 @@ kvm_open (efile, cfile, sfile, perm, errout)
   else
     paddr = kvtophys (cfd, curpcb);
   read_pcb (cfd, paddr);
-  printf ("initial pcb at %x\n", paddr);
+  printf ("initial pcb at %lx\n", (unsigned long)paddr);
 
   return (cfd);
 }

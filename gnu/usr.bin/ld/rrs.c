@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rrs.c,v 1.21 1997/04/25 15:26:12 jdp Exp $
+ *	$Id: rrs.c,v 1.22 1997/05/13 10:23:47 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -534,7 +534,7 @@ claim_rrs_internal_gotslot(entry, rp, lsp, addend)
 	if (lsp->gotslot_offset != -1) {
 		/* Already claimed */
 		if (*GOTP(lsp->gotslot_offset) != addend)
-			errx(1, "%s: gotslot at %#x is multiple valued",
+			errx(1, "%s: gotslot at %#lx is multiple valued",
 				get_file_name(entry), lsp->gotslot_offset);
 		return lsp->gotslot_offset;
 	}
