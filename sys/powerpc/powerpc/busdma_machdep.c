@@ -296,9 +296,7 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
         if (dmat->maxsize <= PAGE_SIZE)
 		free(vaddr, M_DEVBUF);
         else {
-		mtx_lock(&Giant);
 		contigfree(vaddr, dmat->maxsize, M_DEVBUF);
-		mtx_unlock(&Giant);
 	}
 }
 
