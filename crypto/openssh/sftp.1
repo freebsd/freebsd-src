@@ -1,4 +1,4 @@
-.\" $OpenBSD: sftp.1,v 1.52 2004/03/05 10:53:58 markus Exp $
+.\" $OpenBSD: sftp.1,v 1.57 2004/06/21 22:41:31 djm Exp $
 .\"
 .\" Copyright (c) 2001 Damien Miller.  All rights reserved.
 .\"
@@ -153,7 +153,9 @@ For full details of the options listed below, and their possible values, see
 .It Compression
 .It CompressionLevel
 .It ConnectionAttempts
-.It ConnectionTimeout
+.It ConnectTimeout
+.It ControlMaster
+.It ControlPath
 .It GlobalKnownHostsFile
 .It GSSAPIAuthentication
 .It GSSAPIDelegateCredentials
@@ -176,6 +178,7 @@ For full details of the options listed below, and their possible values, see
 .It PubkeyAuthentication
 .It RhostsRSAAuthentication
 .It RSAAuthentication
+.It SendEnv
 .It ServerAliveInterval
 .It ServerAliveCountMax
 .It SmartcardDevice
@@ -300,6 +303,24 @@ If the
 .Fl l
 flag is specified, then display additional details including permissions
 and ownership information.
+The
+.Fl n
+flag will produce a long listing with user and group information presented
+numerically.
+.Pp
+By default,
+.Ic ls
+listings are sorted in lexicographical order.
+This may be changed by specifying the
+.Fl S
+(sort by file size),
+.Fl t
+(sort by last modification time), or
+.Fl f
+(don't sort at all) flags.
+Additionally, the sort order may be reversed using the
+.Fl r
+flag.
 .It Ic lumask Ar umask
 Set local umask to
 .Ar umask .

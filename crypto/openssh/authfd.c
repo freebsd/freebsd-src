@@ -35,7 +35,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: authfd.c,v 1.63 2003/11/21 11:57:03 djm Exp $");
+RCSID("$OpenBSD: authfd.c,v 1.64 2004/08/11 21:44:31 avsm Exp $");
 
 #include <openssl/evp.h>
 
@@ -133,16 +133,9 @@ ssh_request_reply(AuthenticationConnection *auth, Buffer *request, Buffer *reply
 	 * Wait for response from the agent.  First read the length of the
 	 * response packet.
 	 */
-	len = 4;
-	while (len > 0) {
-		l = read(auth->fd, buf + 4 - len, len);
-		if (l == -1 && (errno == EAGAIN || errno == EINTR))
-			continue;
-		if (l <= 0) {
-			error("Error reading response length from authentication socket.");
-			return 0;
-		}
-		len -= l;
+	if (atomicio(read, auth->fd, buf, 4) != 4) {
+	    error("Error reading response length from authentication socket.");
+	    return 0;
 	}
 
 	/* Extract the length, and check it for sanity. */
@@ -156,9 +149,7 @@ ssh_request_reply(AuthenticationConnection *auth, Buffer *request, Buffer *reply
 		l = len;
 		if (l > sizeof(buf))
 			l = sizeof(buf);
-		l = read(auth->fd, buf, l);
-		if (l == -1 && (errno == EAGAIN || errno == EINTR))
-			continue;
+		l = atomicio(read, auth->fd, buf, l);
 		if (l <= 0) {
 			error("Error reading response from authentication socket.");
 			return 0;

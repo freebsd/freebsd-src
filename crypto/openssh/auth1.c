@@ -10,14 +10,13 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth1.c,v 1.55 2003/11/08 16:02:40 jakob Exp $");
+RCSID("$OpenBSD: auth1.c,v 1.59 2004/07/28 09:40:29 markus Exp $");
 
 #include "xmalloc.h"
 #include "rsa.h"
 #include "ssh1.h"
 #include "packet.h"
 #include "buffer.h"
-#include "mpaux.h"
 #include "log.h"
 #include "servconf.h"
 #include "compat.h"
@@ -70,10 +69,9 @@ do_authloop(Authctxt *authctxt)
 	u_int dlen;
 	u_int ulen;
 	int prev, type = 0;
-	struct passwd *pw = authctxt->pw;
 
 	debug("Attempting authentication for %s%.100s.",
-	    authctxt->valid ? "" : "illegal user ", authctxt->user);
+	    authctxt->valid ? "" : "invalid user ", authctxt->user);
 
 	/* If the user has no password, accept authentication immediately. */
 	if (options.password_authentication &&
@@ -81,8 +79,13 @@ do_authloop(Authctxt *authctxt)
 	    (!options.kerberos_authentication || options.kerberos_or_local_passwd) &&
 #endif
 	    PRIVSEP(auth_password(authctxt, ""))) {
-		auth_log(authctxt, 1, "without authentication", "");
-		return;
+#ifdef USE_PAM
+		if (options.use_pam && (PRIVSEP(do_pam_account())))
+#endif
+		{
+			auth_log(authctxt, 1, "without authentication", "");
+			return;
+		}
 	}
 
 	/* Indicate that authentication is needed. */
@@ -233,9 +236,10 @@ do_authloop(Authctxt *authctxt)
 
 #ifdef HAVE_CYGWIN
 		if (authenticated &&
-		    !check_nt_auth(type == SSH_CMSG_AUTH_PASSWORD, pw)) {
+		    !check_nt_auth(type == SSH_CMSG_AUTH_PASSWORD, 
+		    authctxt->pw)) {
 			packet_disconnect("Authentication rejected for uid %d.",
-			    pw == NULL ? -1 : pw->pw_uid);
+			    authctxt->pw == NULL ? -1 : authctxt->pw->pw_uid);
 			authenticated = 0;
 		}
 #else
@@ -262,7 +266,7 @@ do_authloop(Authctxt *authctxt)
 		if (authenticated)
 			return;
 
-		if (authctxt->failures++ > AUTH_FAIL_MAX)
+		if (authctxt->failures++ > options.max_authtries)
 			packet_disconnect(AUTH_FAIL_MSG, authctxt->user);
 
 		packet_start(SSH_SMSG_FAILURE);
@@ -298,11 +302,11 @@ do_authentication(Authctxt *authctxt)
 	if ((authctxt->pw = PRIVSEP(getpwnamallow(user))) != NULL)
 		authctxt->valid = 1;
 	else {
-		debug("do_authentication: illegal user %s", user);
+		debug("do_authentication: invalid user %s", user);
 		authctxt->pw = fakepw();
 	}
 
-	setproctitle("%s%s", authctxt->pw ? user : "unknown",
+	setproctitle("%s%s", authctxt->valid ? user : "unknown",
 	    use_privsep ? " [net]" : "");
 
 #ifdef USE_PAM

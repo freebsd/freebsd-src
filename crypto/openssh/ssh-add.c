@@ -35,7 +35,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: ssh-add.c,v 1.69 2003/11/21 11:57:03 djm Exp $");
+RCSID("$OpenBSD: ssh-add.c,v 1.70 2004/05/08 00:21:31 djm Exp $");
 
 #include <openssl/evp.h>
 
@@ -47,14 +47,7 @@ RCSID("$OpenBSD: ssh-add.c,v 1.69 2003/11/21 11:57:03 djm Exp $");
 #include "authfd.h"
 #include "authfile.h"
 #include "pathnames.h"
-#include "readpass.h"
 #include "misc.h"
-
-#ifdef HAVE___PROGNAME
-extern char *__progname;
-#else
-char *__progname;
-#endif
 
 /* argv0 */
 extern char *__progname;

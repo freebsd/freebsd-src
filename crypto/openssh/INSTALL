@@ -30,7 +30,7 @@ libraries and headers.
 GNOME:
 http://www.gnome.org/
 
-Alternatively, Jim Knoble <jmknoble@jmknoble.cx> has written an excellent X11
+Alternatively, Jim Knoble <jmknoble@pobox.com> has written an excellent X11
 passphrase requester. This is maintained separately at:
 
 http://www.jmknoble.net/software/x11-ssh-askpass/
@@ -200,4 +200,4 @@ Please refer to the "reporting bugs" section of the webpage at
 http://www.openssh.com/
 
 
-$Id: INSTALL,v 1.63 2003/11/21 12:48:55 djm Exp $
+$Id: INSTALL,v 1.64 2004/05/26 23:59:31 dtucker Exp $

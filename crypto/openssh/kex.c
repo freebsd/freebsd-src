@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: kex.c,v 1.56 2003/11/21 11:57:03 djm Exp $");
+RCSID("$OpenBSD: kex.c,v 1.60 2004/06/21 17:36:31 avsm Exp $");
 
 #include <openssl/crypto.h>
 
@@ -148,7 +148,7 @@ kex_finish(Kex *kex)
 void
 kex_send_kexinit(Kex *kex)
 {
-	u_int32_t rand = 0;
+	u_int32_t rnd = 0;
 	u_char *cookie;
 	int i;
 
@@ -168,9 +168,9 @@ kex_send_kexinit(Kex *kex)
 	cookie = buffer_ptr(&kex->my);
 	for (i = 0; i < KEX_COOKIE_LEN; i++) {
 		if (i % 4 == 0)
-			rand = arc4random();
-		cookie[i] = rand;
-		rand >>= 8;
+			rnd = arc4random();
+		cookie[i] = rnd;
+		rnd >>= 8;
 	}
 	packet_start(SSH2_MSG_KEXINIT);
 	packet_put_raw(buffer_ptr(&kex->my), buffer_len(&kex->my));
@@ -293,6 +293,8 @@ choose_kex(Kex *k, char *client, char *server)
 		fatal("no kex alg");
 	if (strcmp(k->name, KEX_DH1) == 0) {
 		k->kex_type = KEX_DH_GRP1_SHA1;
+	} else if (strcmp(k->name, KEX_DH14) == 0) {
+		k->kex_type = KEX_DH_GRP14_SHA1;
 	} else if (strcmp(k->name, KEX_DHGEX) == 0) {
 		k->kex_type = KEX_DH_GEX_SHA1;
 	} else
@@ -477,6 +479,39 @@ kex_get_newkeys(int mode)
 	ret = current_keys[mode];
 	current_keys[mode] = NULL;
 	return ret;
+}
+
+void
+derive_ssh1_session_id(BIGNUM *host_modulus, BIGNUM *server_modulus,
+    u_int8_t cookie[8], u_int8_t id[16])
+{
+	const EVP_MD *evp_md = EVP_md5();
+	EVP_MD_CTX md;
+	u_int8_t nbuf[2048], obuf[EVP_MAX_MD_SIZE];
+	int len;
+
+	EVP_DigestInit(&md, evp_md);
+
+	len = BN_num_bytes(host_modulus);
+	if (len < (512 / 8) || len > sizeof(nbuf))
+		fatal("%s: bad host modulus (len %d)", __func__, len);
+	BN_bn2bin(host_modulus, nbuf);
+	EVP_DigestUpdate(&md, nbuf, len);
+
+	len = BN_num_bytes(server_modulus);
+	if (len < (512 / 8) || len > sizeof(nbuf))
+		fatal("%s: bad server modulus (len %d)", __func__, len);
+	BN_bn2bin(server_modulus, nbuf);
+	EVP_DigestUpdate(&md, nbuf, len);
+
+	EVP_DigestUpdate(&md, cookie, 8);
+
+	EVP_DigestFinal(&md, obuf, NULL);
+	memcpy(id, obuf, 16);
+
+	memset(nbuf, 0, sizeof(nbuf));
+	memset(obuf, 0, sizeof(obuf));
+	memset(&md, 0, sizeof(md));
 }
 
 #if defined(DEBUG_KEX) || defined(DEBUG_KEXDH)

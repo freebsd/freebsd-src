@@ -1,4 +1,4 @@
-#	$OpenBSD: sshd_config,v 1.68 2003/12/29 16:39:50 millert Exp $
+#	$OpenBSD: sshd_config,v 1.69 2004/05/23 23:59:53 dtucker Exp $
 
 # This is the sshd server system-wide configuration file.  See
 # sshd_config(5) for more information.
@@ -35,6 +35,7 @@
 #LoginGraceTime 2m
 #PermitRootLogin yes
 #StrictModes yes
+#MaxAuthTries 6
 
 #RSAAuthentication yes
 #PubkeyAuthentication yes
@@ -67,9 +68,14 @@
 #GSSAPIAuthentication no
 #GSSAPICleanupCredentials yes
 
-# Set this to 'yes' to enable PAM authentication (via challenge-response)
-# and session processing. Depending on your PAM configuration, this may
-# bypass the setting of 'PasswordAuthentication' and 'PermitEmptyPasswords'
+# Set this to 'yes' to enable PAM authentication, account processing, 
+# and session processing. If this is enabled, PAM authentication will 
+# be allowed through the ChallengeResponseAuthentication mechanism. 
+# Depending on your PAM configuration, this may bypass the setting of 
+# PasswordAuthentication, PermitEmptyPasswords, and 
+# "PermitRootLogin without-password". If you just want the PAM account and 
+# session checks to run without PAM authentication, then enable this but set 
+# ChallengeResponseAuthentication=no
 #UsePAM no
 
 #AllowTcpForwarding yes

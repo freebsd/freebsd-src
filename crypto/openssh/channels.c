@@ -39,7 +39,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: channels.c,v 1.200 2004/01/19 09:24:21 markus Exp $");
+RCSID("$OpenBSD: channels.c,v 1.209 2004/08/11 21:43:04 avsm Exp $");
 
 #include "ssh.h"
 #include "ssh1.h"
@@ -68,7 +68,7 @@ static Channel **channels = NULL;
  * Size of the channel array.  All slots of the array must always be
  * initialized (at least the type field); unused slots set to NULL
  */
-static int channels_alloc = 0;
+static u_int channels_alloc = 0;
 
 /*
  * Maximum file descriptor value used in any of the channels.  This is
@@ -141,7 +141,7 @@ channel_lookup(int id)
 {
 	Channel *c;
 
-	if (id < 0 || id >= channels_alloc) {
+	if (id < 0 || (u_int)id >= channels_alloc) {
 		logit("channel_lookup: %d: bad id", id);
 		return NULL;
 	}
@@ -172,6 +172,7 @@ channel_register_fds(Channel *c, int rfd, int wfd, int efd,
 	c->rfd = rfd;
 	c->wfd = wfd;
 	c->sock = (rfd == wfd) ? rfd : -1;
+	c->ctl_fd = -1; /* XXX: set elsewhere */
 	c->efd = efd;
 	c->extended_usage = extusage;
 
@@ -208,7 +209,8 @@ Channel *
 channel_new(char *ctype, int type, int rfd, int wfd, int efd,
     u_int window, u_int maxpack, int extusage, char *remote_name, int nonblock)
 {
-	int i, found;
+	int found;
+	u_int i;
 	Channel *c;
 
 	/* Do initial allocation if this is the first call. */
@@ -222,10 +224,10 @@ channel_new(char *ctype, int type, int rfd, int wfd, int efd,
 	for (found = -1, i = 0; i < channels_alloc; i++)
 		if (channels[i] == NULL) {
 			/* Found a free slot. */
-			found = i;
+			found = (int)i;
 			break;
 		}
-	if (found == -1) {
+	if (found < 0) {
 		/* There are no free slots.  Take last+1 slot and expand the array.  */
 		found = channels_alloc;
 		if (channels_alloc > 10000)
@@ -263,6 +265,7 @@ channel_new(char *ctype, int type, int rfd, int wfd, int efd,
 	c->single_connection = 0;
 	c->detach_user = NULL;
 	c->confirm = NULL;
+	c->confirm_ctx = NULL;
 	c->input_filter = NULL;
 	debug("channel %d: new [%s]", found, remote_name);
 	return c;
@@ -271,7 +274,8 @@ channel_new(char *ctype, int type, int rfd, int wfd, int efd,
 static int
 channel_find_maxfd(void)
 {
-	int i, max = 0;
+	u_int i;
+	int max = 0;
 	Channel *c;
 
 	for (i = 0; i < channels_alloc; i++) {
@@ -304,10 +308,11 @@ channel_close_fd(int *fdp)
 static void
 channel_close_fds(Channel *c)
 {
-	debug3("channel %d: close_fds r %d w %d e %d",
-	    c->self, c->rfd, c->wfd, c->efd);
+	debug3("channel %d: close_fds r %d w %d e %d c %d",
+	    c->self, c->rfd, c->wfd, c->efd, c->ctl_fd);
 
 	channel_close_fd(&c->sock);
+	channel_close_fd(&c->ctl_fd);
 	channel_close_fd(&c->rfd);
 	channel_close_fd(&c->wfd);
 	channel_close_fd(&c->efd);
@@ -319,12 +324,12 @@ void
 channel_free(Channel *c)
 {
 	char *s;
-	int i, n;
+	u_int i, n;
 
 	for (n = 0, i = 0; i < channels_alloc; i++)
 		if (channels[i])
 			n++;
-	debug("channel %d: free: %s, nchannels %d", c->self,
+	debug("channel %d: free: %s, nchannels %u", c->self,
 	    c->remote_name ? c->remote_name : "???", n);
 
 	s = channel_open_message();
@@ -333,6 +338,8 @@ channel_free(Channel *c)
 
 	if (c->sock != -1)
 		shutdown(c->sock, SHUT_RDWR);
+	if (c->ctl_fd != -1)
+		shutdown(c->ctl_fd, SHUT_RDWR);
 	channel_close_fds(c);
 	buffer_free(&c->input);
 	buffer_free(&c->output);
@@ -348,7 +355,7 @@ channel_free(Channel *c)
 void
 channel_free_all(void)
 {
-	int i;
+	u_int i;
 
 	for (i = 0; i < channels_alloc; i++)
 		if (channels[i] != NULL)
@@ -363,7 +370,7 @@ channel_free_all(void)
 void
 channel_close_all(void)
 {
-	int i;
+	u_int i;
 
 	for (i = 0; i < channels_alloc; i++)
 		if (channels[i] != NULL)
@@ -377,7 +384,7 @@ channel_close_all(void)
 void
 channel_stop_listening(void)
 {
-	int i;
+	u_int i;
 	Channel *c;
 
 	for (i = 0; i < channels_alloc; i++) {
@@ -434,7 +441,7 @@ channel_not_very_much_buffered_data(void)
 int
 channel_still_open(void)
 {
-	int i;
+	u_int i;
 	Channel *c;
 
 	for (i = 0; i < channels_alloc; i++) {
@@ -477,12 +484,12 @@ channel_still_open(void)
 int
 channel_find_open(void)
 {
-	int i;
+	u_int i;
 	Channel *c;
 
 	for (i = 0; i < channels_alloc; i++) {
 		c = channels[i];
-		if (c == NULL)
+		if (c == NULL || c->remote_id < 0)
 			continue;
 		switch (c->type) {
 		case SSH_CHANNEL_CLOSED:
@@ -525,7 +532,7 @@ channel_open_message(void)
 	Buffer buffer;
 	Channel *c;
 	char buf[1024], *cp;
-	int i;
+	u_int i;
 
 	buffer_init(&buffer);
 	snprintf(buf, sizeof buf, "The following connections are open:\r\n");
@@ -550,12 +557,13 @@ channel_open_message(void)
 		case SSH_CHANNEL_X11_OPEN:
 		case SSH_CHANNEL_INPUT_DRAINING:
 		case SSH_CHANNEL_OUTPUT_DRAINING:
-			snprintf(buf, sizeof buf, "  #%d %.300s (t%d r%d i%d/%d o%d/%d fd %d/%d)\r\n",
+			snprintf(buf, sizeof buf,
+			    "  #%d %.300s (t%d r%d i%d/%d o%d/%d fd %d/%d cfd %d)\r\n",
 			    c->self, c->remote_name,
 			    c->type, c->remote_id,
 			    c->istate, buffer_len(&c->input),
 			    c->ostate, buffer_len(&c->output),
-			    c->rfd, c->wfd);
+			    c->rfd, c->wfd, c->ctl_fd);
 			buffer_append(&buffer, buf, strlen(buf));
 			continue;
 		default:
@@ -596,14 +604,14 @@ channel_request_start(int id, char *service, int wantconfirm)
 		logit("channel_request_start: %d: unknown channel id", id);
 		return;
 	}
-	debug2("channel %d: request %s", id, service) ;
+	debug2("channel %d: request %s confirm %d", id, service, wantconfirm);
 	packet_start(SSH2_MSG_CHANNEL_REQUEST);
 	packet_put_int(c->remote_id);
 	packet_put_cstring(service);
 	packet_put_char(wantconfirm);
 }
 void
-channel_register_confirm(int id, channel_callback_fn *fn)
+channel_register_confirm(int id, channel_callback_fn *fn, void *ctx)
 {
 	Channel *c = channel_lookup(id);
 
@@ -612,6 +620,7 @@ channel_register_confirm(int id, channel_callback_fn *fn)
 		return;
 	}
 	c->confirm = fn;
+	c->confirm_ctx = ctx;
 }
 void
 channel_register_cleanup(int id, channel_callback_fn *fn)
@@ -729,6 +738,10 @@ channel_pre_open(Channel *c, fd_set * readset, fd_set * writeset)
 		    buffer_len(&c->extended) < c->remote_window)
 			FD_SET(c->efd, readset);
 	}
+	/* XXX: What about efd? races? */
+	if (compat20 && c->ctl_fd != -1 &&
+	    c->istate == CHAN_INPUT_OPEN && c->ostate == CHAN_OUTPUT_OPEN)
+		FD_SET(c->ctl_fd, readset);
 }
 
 static void
@@ -1031,7 +1044,7 @@ channel_decode_socks5(Channel *c, fd_set * readset, fd_set * writeset)
 	buffer_get(&c->input, (char *)&dest_port, 2);
 	dest_addr[addrlen] = '\0';
 	if (s5_req.atyp == SSH_SOCKS5_DOMAIN)
-		strlcpy(c->path, dest_addr, sizeof(c->path));
+		strlcpy(c->path, (char *)dest_addr, sizeof(c->path));
 	else if (inet_ntop(af, dest_addr, c->path, sizeof(c->path)) == NULL)
 		return -1;
 	c->host_port = ntohs(dest_port);
@@ -1482,6 +1495,33 @@ channel_handle_efd(Channel *c, fd_set * readset, fd_set * writeset)
 	return 1;
 }
 static int
+channel_handle_ctl(Channel *c, fd_set * readset, fd_set * writeset)
+{
+	char buf[16];
+	int len;
+
+	/* Monitor control fd to detect if the slave client exits */
+	if (c->ctl_fd != -1 && FD_ISSET(c->ctl_fd, readset)) {
+		len = read(c->ctl_fd, buf, sizeof(buf));
+		if (len < 0 && (errno == EINTR || errno == EAGAIN))
+			return 1;
+		if (len <= 0) {
+			debug2("channel %d: ctl read<=0", c->self);
+			if (c->type != SSH_CHANNEL_OPEN) {
+				debug2("channel %d: not open", c->self);
+				chan_mark_dead(c);
+				return -1;
+			} else {
+				chan_read_failed(c);
+				chan_write_failed(c);
+			}
+			return -1;
+		} else
+			fatal("%s: unexpected data on ctl fd", __func__);
+	}
+	return 1;
+}
+static int
 channel_check_window(Channel *c)
 {
 	if (c->type == SSH_CHANNEL_OPEN &&
@@ -1511,6 +1551,7 @@ channel_post_open(Channel *c, fd_set * readset, fd_set * writeset)
 	if (!compat20)
 		return;
 	channel_handle_efd(c, readset, writeset);
+	channel_handle_ctl(c, readset, writeset);
 	channel_check_window(c);
 }
 
@@ -1635,7 +1676,7 @@ static void
 channel_handler(chan_fn *ftab[], fd_set * readset, fd_set * writeset)
 {
 	static int did_init = 0;
-	int i;
+	u_int i;
 	Channel *c;
 
 	if (!did_init) {
@@ -1658,10 +1699,9 @@ channel_handler(chan_fn *ftab[], fd_set * readset, fd_set * writeset)
  */
 void
 channel_prepare_select(fd_set **readsetp, fd_set **writesetp, int *maxfdp,
-    int *nallocp, int rekeying)
+    u_int *nallocp, int rekeying)
 {
-	int n;
-	u_int sz;
+	u_int n, sz;
 
 	n = MAX(*maxfdp, channel_max_fd);
 
@@ -1697,8 +1737,7 @@ void
 channel_output_poll(void)
 {
 	Channel *c;
-	int i;
-	u_int len;
+	u_int i, len;
 
 	for (i = 0; i < channels_alloc; i++) {
 		c = channels[i];
@@ -2011,7 +2050,7 @@ channel_input_open_confirmation(int type, u_int32_t seq, void *ctxt)
 		c->remote_maxpacket = packet_get_int();
 		if (c->confirm) {
 			debug2("callback start");
-			c->confirm(c->self, NULL);
+			c->confirm(c->self, c->confirm_ctx);
 			debug2("callback done");
 		}
 		debug2("channel %d: open confirm rwindow %u rmax %u", c->self,
@@ -2228,6 +2267,27 @@ channel_setup_fwd_listener(int type, const char *listen_addr, u_short listen_por
 	return success;
 }
 
+int
+channel_cancel_rport_listener(const char *host, u_short port)
+{
+	u_int i;
+	int found = 0;
+
+	for(i = 0; i < channels_alloc; i++) {
+		Channel *c = channels[i];
+
+		if (c != NULL && c->type == SSH_CHANNEL_RPORT_LISTENER &&
+		    strncmp(c->path, host, sizeof(c->path)) == 0 &&
+		    c->listening_port == port) {
+			debug2("%s: close clannel %d", __func__, i);
+			channel_free(c);
+			found = 1;
+		}
+	}
+
+	return (found);
+}
+
 /* protocol local port fwd, used by ssh (and sshd in v1) */
 int
 channel_setup_local_fwd_listener(u_short listen_port,
@@ -2305,6 +2365,41 @@ channel_request_remote_forwarding(u_short listen_port,
 }
 
 /*
+ * Request cancellation of remote forwarding of connection host:port from
+ * local side.
+ */
+void
+channel_request_rforward_cancel(u_short port)
+{
+	int i;
+	const char *address_to_bind = "0.0.0.0";
+
+	if (!compat20)
+		return;
+
+	for (i = 0; i < num_permitted_opens; i++) {
+		if (permitted_opens[i].host_to_connect != NULL &&
+		    permitted_opens[i].listen_port == port)
+			break;
+	}
+	if (i >= num_permitted_opens) {
+		debug("%s: requested forward not found", __func__);
+		return;
+	}
+	packet_start(SSH2_MSG_GLOBAL_REQUEST);
+	packet_put_cstring("cancel-tcpip-forward");
+	packet_put_char(0);
+	packet_put_cstring(address_to_bind);
+	packet_put_int(port);
+	packet_send();
+
+	permitted_opens[i].listen_port = 0;
+	permitted_opens[i].port_to_connect = 0;
+	free(permitted_opens[i].host_to_connect);
+	permitted_opens[i].host_to_connect = NULL;
+}
+
+/*
  * This is called after receiving CHANNEL_FORWARDING_REQUEST.  This initates
  * listening for the port, and sends back a success reply (or disconnect
  * message if there was an error).  This never returns if there was an error.
@@ -2373,7 +2468,8 @@ channel_clear_permitted_opens(void)
 	int i;
 
 	for (i = 0; i < num_permitted_opens; i++)
-		xfree(permitted_opens[i].host_to_connect);
+		if (permitted_opens[i].host_to_connect != NULL)
+			xfree(permitted_opens[i].host_to_connect);
 	num_permitted_opens = 0;
 
 }
@@ -2413,8 +2509,8 @@ connect_to(const char *host, u_short port)
 				verbose("socket: %.100s", strerror(errno));
 			continue;
 		}
-		if (fcntl(sock, F_SETFL, O_NONBLOCK) < 0)
-			fatal("connect_to: F_SETFL: %s", strerror(errno));
+		if (set_nonblock(sock) == -1)
+			fatal("%s: set_nonblock(%d)", __func__, sock);
 		if (connect(sock, ai->ai_addr, ai->ai_addrlen) < 0 &&
 		    errno != EINPROGRESS) {
 			error("connect_to %.100s port %s: %.100s", ntop, strport,
@@ -2441,7 +2537,8 @@ channel_connect_by_listen_address(u_short listen_port)
 	int i;
 
 	for (i = 0; i < num_permitted_opens; i++)
-		if (permitted_opens[i].listen_port == listen_port)
+		if (permitted_opens[i].host_to_connect != NULL &&
+		    permitted_opens[i].listen_port == listen_port)
 			return connect_to(
 			    permitted_opens[i].host_to_connect,
 			    permitted_opens[i].port_to_connect);
@@ -2459,7 +2556,8 @@ channel_connect_to(const char *host, u_short port)
 	permit = all_opens_permitted;
 	if (!permit) {
 		for (i = 0; i < num_permitted_opens; i++)
-			if (permitted_opens[i].port_to_connect == port &&
+			if (permitted_opens[i].host_to_connect != NULL &&
+			    permitted_opens[i].port_to_connect == port &&
 			    strcmp(permitted_opens[i].host_to_connect, host) == 0)
 				permit = 1;
 
@@ -2470,6 +2568,27 @@ channel_connect_to(const char *host, u_short port)
 		return -1;
 	}
 	return connect_to(host, port);
+}
+
+void
+channel_send_window_changes(void)
+{
+	u_int i;
+	struct winsize ws;
+
+	for (i = 0; i < channels_alloc; i++) {
+		if (channels[i] == NULL ||
+		    channels[i]->type != SSH_CHANNEL_OPEN)
+			continue;
+		if (ioctl(channels[i]->rfd, TIOCGWINSZ, &ws) < 0)
+			continue;
+		channel_request_start(i, "window-change", 0);
+		packet_put_int(ws.ws_col);
+		packet_put_int(ws.ws_row);
+		packet_put_int(ws.ws_xpixel);
+		packet_put_int(ws.ws_ypixel);
+		packet_send();
+	}
 }
 
 /* -- X11 forwarding */
@@ -2511,6 +2630,7 @@ x11_create_display_inet(int x11_display_offset, int x11_use_localhost,
 			if (sock < 0) {
 				if ((errno != EINVAL) && (errno != EAFNOSUPPORT)) {
 					error("socket: %.100s", strerror(errno));
+					freeaddrinfo(aitop);
 					return -1;
 				} else {
 					debug("x11_create_display_inet: Socket family %d not supported",
@@ -2783,7 +2903,7 @@ x11_request_forwarding_with_spoofing(int client_session_id,
 	char *new_data;
 	int screen_number;
 	const char *cp;
-	u_int32_t rand = 0;
+	u_int32_t rnd = 0;
 
 	cp = getenv("DISPLAY");
 	if (cp)
@@ -2808,10 +2928,10 @@ x11_request_forwarding_with_spoofing(int client_session_id,
 		if (sscanf(data + 2 * i, "%2x", &value) != 1)
 			fatal("x11_request_forwarding: bad authentication data: %.100s", data);
 		if (i % 4 == 0)
-			rand = arc4random();
+			rnd = arc4random();
 		x11_saved_data[i] = value;
-		x11_fake_data[i] = rand & 0xff;
-		rand >>= 8;
+		x11_fake_data[i] = rnd & 0xff;
+		rnd >>= 8;
 	}
 	x11_saved_data_len = data_len;
 	x11_fake_data_len = data_len;

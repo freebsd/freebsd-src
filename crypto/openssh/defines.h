@@ -25,7 +25,7 @@
 #ifndef _DEFINES_H
 #define _DEFINES_H
 
-/* $Id: defines.h,v 1.115 2004/04/14 07:24:30 dtucker Exp $ */
+/* $Id: defines.h,v 1.117 2004/06/22 03:27:16 dtucker Exp $ */
 
 
 /* Constants */
@@ -424,6 +424,10 @@ struct winsize {
 # define __attribute__(x)
 #endif /* !defined(__GNUC__) || (__GNUC__ < 2) */
 
+#ifndef __dead
+# define __dead	__attribute__((noreturn))
+#endif
+
 /* *-*-nto-qnx doesn't define this macro in the system headers */
 #ifdef MISSING_HOWMANY
 # define howmany(x,y)	(((x)+((y)-1))/(y))
@@ -462,6 +466,9 @@ struct winsize {
 	 (struct cmsghdr *)NULL)
 #endif /* CMSG_FIRSTHDR */
 
+#ifndef offsetof
+# define offsetof(type, member) ((size_t) &((type *)0)->member)
+#endif
 
 /* Function replacement / compatibility hacks */
 
