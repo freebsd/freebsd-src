@@ -1,5 +1,5 @@
 /*
- * $Id: md5.c,v 1.10 1997/02/22 14:32:37 peter Exp $
+ * $Id: md5.c,v 1.11 1997/12/29 03:40:37 steve Exp $
  *
  * Derived from:
  */
@@ -57,13 +57,13 @@ main(argc, argv)
 	int     argc;
 	char   *argv[];
 {
-	int     i;
+	int     ch;
 	char   *p;
 	char	buf[33];
 
 	if (argc > 1) {
-		while ((i = getopt(argc, argv, "ps:tx")) != EOF) {
-			switch (i) {
+		while ((ch = getopt(argc, argv, "ps:tx")) != -1) {
+			switch (ch) {
 			case 'p':
 				MDFilter(1);
 				break;
@@ -152,6 +152,7 @@ MDTimeTrial()
 static void
 MDTestSuite()
 {
+
 	printf("MD5 test suite:\n");
 
 	MDString("");
@@ -170,7 +171,8 @@ MDTestSuite()
  * Digests the standard input and prints the result.
  */
 static void
-MDFilter(int pipe)
+MDFilter(pipe)
+	int pipe;
 {
 	MD5_CTX context;
 	int     len;
@@ -188,13 +190,10 @@ MDFilter(int pipe)
 	printf("%s\n", MD5End(&context,buf));
 }
 
-/*
- * Displays a usage summary.
- */
 static void
-usage(void)
+usage()
 {
-	(void)fprintf(stderr,
-		"usage: md5 [-ptx] [-s string] [file ...]\n");
+
+	fprintf(stderr, "usage: md5 [-ptx] [-s string] [files ...]\n");
 	exit(1);
 }
