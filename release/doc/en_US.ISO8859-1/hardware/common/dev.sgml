@@ -137,8 +137,11 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Adaptec 2100S, 3200S, and 3400S SCSI RAID
+    <para arch="i386">Adaptec 2100S/32x0S/34x0S SCSI RAID
     controllers (&man.asr.4; driver)</para>
+
+    <para arch="i386">Adaptec 2000S/2005S Zero-Channel RAID controllers
+    (&man.asr.4; driver)</para>
 
     <para arch="i386">Adaptec 2400A ATA-100 RAID controller
     (&man.asr.4; driver)</para>
@@ -152,7 +155,7 @@
 	  <para>Adaptec AAC-364</para>
 	</listitem>
 	<listitem>
-	  <para>Adaptec AAC-3642</para>
+	  <para>Adaptec SCSI RAID 5400S</para>
 	</listitem>
 	<listitem>
 	  <para>Dell PERC 2/QC</para>
