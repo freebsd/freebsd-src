@@ -239,7 +239,9 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 int
 bus_dma_tag_destroy(bus_dma_tag_t dmat)
 {
+#ifdef KTR
 	bus_dma_tag_t dmat_copy = dmat;
+#endif
 
 	if (dmat != NULL) {
 		
@@ -276,7 +278,9 @@ int
 bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 {
 	bus_dmamap_t newmap;
+#ifdef KTR
 	int error = 0;
+#endif
 
 	newmap = malloc(sizeof(*newmap), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (newmap == NULL) {
