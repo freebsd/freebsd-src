@@ -284,10 +284,10 @@ enable_intr(void)
 	__asm __volatile (";; ssm psr.i;; srlz.d");
 }
 
-static __inline critical_t
+static __inline register_t
 intr_disable(void)
 {
-	critical_t psr;
+	register_t psr;
 
 	__asm __volatile ("mov %0=psr;;" : "=r" (psr));
 	disable_intr();

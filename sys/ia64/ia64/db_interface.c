@@ -294,7 +294,7 @@ int
 kdb_trap(int vector, struct trapframe *regs)
 {
 	int ddb_mode = !(boothowto & RB_GDB);
-	critical_t s;
+	register_t s;
 
 	/*
 	 * Don't bother checking for usermode, since a benign entry
