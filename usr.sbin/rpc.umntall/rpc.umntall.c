@@ -54,19 +54,15 @@ static int is_mounted (char *, char *);
 static void usage (void);
 int	xdr_dir (XDR *, char *);
 
-struct mtablist *mtabhead;
-
 int
 main(int argc, char **argv) {
 	int ch, keep, success, pathlen;
-	time_t expire, *now;
+	time_t expire, now;
 	char *host, *path;
 	struct mtablist *mtab;
 
-	mtab = NULL;
-	now = NULL;
 	expire = 0;
-	host = path = '\0';
+	host = path = NULL;
 	success = keep = verbose = 0;
 	while ((ch = getopt(argc, argv, "h:kp:ve:")) != -1)
 		switch (ch) {
@@ -74,7 +70,7 @@ main(int argc, char **argv) {
 			host = optarg;
 			break;
 		case 'e':
-			expire = (time_t)optarg;
+			expire = atoi(optarg);
 			break;
 		case 'k':
 			keep = 1;
@@ -92,75 +88,78 @@ main(int argc, char **argv) {
 	argc -= optind;
 	argv += optind;
 
-	/* Ignore SIGINT and SIGQUIT during shutdown */
-	signal(SIGINT, SIG_IGN);
-	signal(SIGQUIT, SIG_IGN);
-
 	/* Default expiretime is one day */
 	if (expire == 0)
 		expire = 86400;
-	/*
-	 * Read PATH_MOUNTTAB and check each entry
-	 * and do finally the unmounts.
-	 */
+	time(&now);
+
+	/* Read PATH_MOUNTTAB. */
+	if (!read_mtab()) {
+		if (verbose)
+			warnx("no mounttab entries (%s does not exist)",
+			    PATH_MOUNTTAB);
+		mtabhead = NULL;
+	}
+
 	if (host == NULL && path == NULL) {
-	    	if (!read_mtab(mtab)) {
-			if (verbose)
-				warnx("nothing to do, %s does not exist",
-				    PATH_MOUNTTAB);
-		}
+		/* Check each entry and do any necessary unmount RPCs. */
 		for (mtab = mtabhead; mtab != NULL; mtab = mtab->mtab_next) {
-			if (*mtab->mtab_host != '\0' ||
-			    mtab->mtab_time <= (time(now) - expire)) {
-				if (keep && is_mounted(mtab->mtab_host,
-				    mtab->mtab_dirp)) {
-					if (verbose) {
-						warnx("skip entry %s:%s",
-						    mtab->mtab_host,
-						    mtab->mtab_dirp);
-					}
-				} else if (do_umount(mtab->mtab_host,
-				    mtab->mtab_dirp) || 
-				    mtab->mtab_time <= (time(now) - expire)) {
-					clean_mtab(mtab->mtab_host,
-					    mtab->mtab_dirp);
-				}
+			if (*mtab->mtab_host == '\0')
+				continue;
+			if (mtab->mtab_time + expire < now) {
+				/* Clear expired entry. */
+				if (verbose)
+					warnx("remove expired entry %s:%s",
+					    mtab->mtab_host, mtab->mtab_dirp);
+				bzero(mtab->mtab_host,
+				    sizeof(mtab->mtab_host));
+				continue;
+			}
+			if (keep && is_mounted(mtab->mtab_host,
+			    mtab->mtab_dirp)) {
+				if (verbose)
+					warnx("skip entry %s:%s",
+					    mtab->mtab_host, mtab->mtab_dirp);
+				continue;
+			}
+			if (do_umount(mtab->mtab_host, mtab->mtab_dirp)) {
+				if (verbose)
+					warnx("umount RPC for %s:%s succeeded",
+					    mtab->mtab_host, mtab->mtab_dirp);
+				/* Remove all entries for this host + path. */
+				clean_mtab(mtab->mtab_host, mtab->mtab_dirp,
+				    verbose);
 			}
 		}
-	/* Only do a RPC UMNTALL for this specific host */
-	} else if (host != NULL && path == NULL) {
-		if (!do_umntall(host))
-			exit(1);
-		else 
-			success = 1;
-	/* Someone forgot to enter a hostname */
-	} else if (host == NULL && path != NULL)
-		usage();
-	/* Only do a RPC UMOUNT for this specific mount */
-	else {
-		for (pathlen = strlen(path);
-		    pathlen > 1 && path[pathlen - 1] == '/'; pathlen--)
-			path[pathlen - 1] = '\0';
-		if (!do_umount(host, path))
-			exit(1);
-		else 
-			success = 1;
+		success = 1;
+	} else {
+		if (host == NULL && path != NULL)
+			/* Missing hostname. */
+			usage();
+		if (path == NULL) {
+			/* Do a RPC UMNTALL for this specific host */
+			success = do_umntall(host);
+			if (verbose && success)
+				warnx("umntall RPC for %s succeeded", host);
+		} else {
+			/* Do a RPC UMNTALL for this specific mount */
+			for (pathlen = strlen(path);
+			    pathlen > 1 && path[pathlen - 1] == '/'; pathlen--)
+				path[pathlen - 1] = '\0';
+			success = do_umount(host, path);
+			if (verbose && success)
+				warnx("umount RPC for %s:%s succeeded", host,
+				    path);
+		}
+		/* If successful, remove any corresponding mounttab entries. */
+		if (success)
+			clean_mtab(host, path, verbose);
 	}
 	/* Write and unlink PATH_MOUNTTAB if necessary */
-	if (success) {
-		if (verbose)
-			warnx("UMOUNT RPC successfully sent to %s", host);
-		if (read_mtab(mtab)) {
-			mtab = mtabhead;
-			clean_mtab(host, path);
-		}
-	}
-	if (!write_mtab()) {
-		free_mtab();
-		exit(1);
-	}
+	if (success)
+		success = write_mtab(verbose);
 	free_mtab();
-	exit(0);
+	exit (success ? 0 : 1);
 }
 
 /*
@@ -189,9 +188,9 @@ do_umntall(char *hostname) {
 	pertry.tv_sec = 3;
 	pertry.tv_usec = 0;
 	so = RPC_ANYSOCK;
-	if ((clp = clntudp_create(&saddr, RPCPROG_MNT, RPCMNT_VER1,
-	    pertry, &so)) == NULL) {
-		clnt_pcreateerror("Cannot send MNT PRC");
+	clp = clntudp_create(&saddr, RPCPROG_MNT, RPCMNT_VER1, pertry, &so);
+	if (clp == NULL) {
+		warnx("%s: %s", hostname, clnt_spcreateerror("RPCPROG_MNT"));
 		return (0);
 	}
 	clp->cl_auth = authunix_create_default();
@@ -199,11 +198,11 @@ do_umntall(char *hostname) {
 	try.tv_usec = 0;
 	clnt_stat = clnt_call(clp, RPCMNT_UMNTALL, xdr_void, (caddr_t)0,
 	    xdr_void, (caddr_t)0, try);
-	if (clnt_stat != RPC_SUCCESS) {
-		clnt_perror(clp, "Bad MNT RPC");
-		return (0);
-	} else
-		return (1);
+	if (clnt_stat != RPC_SUCCESS)
+		warnx("%s: %s", hostname, clnt_sperror(clp, "RPCMNT_UMNTALL"));
+	auth_destroy(clp->cl_auth);
+	clnt_destroy(clp);
+	return (clnt_stat == RPC_SUCCESS);
 }
 
 /*
@@ -230,9 +229,9 @@ do_umount(char *hostname, char *dirp) {
 	pertry.tv_sec = 3;
 	pertry.tv_usec = 0;
 	so = RPC_ANYSOCK;
-	if ((clp = clntudp_create(&saddr, RPCPROG_MNT, RPCMNT_VER1,
-	    pertry, &so)) == NULL) {
-		clnt_pcreateerror("Cannot send MNT PRC");
+	clp = clntudp_create(&saddr, RPCPROG_MNT, RPCMNT_VER1, pertry, &so);
+	if (clp  == NULL) {
+		warnx("%s: %s", hostname, clnt_spcreateerror("RPCPROG_MNT"));
 		return (0);
 	}
 	clp->cl_auth = authunix_create_default();
@@ -240,11 +239,11 @@ do_umount(char *hostname, char *dirp) {
 	try.tv_usec = 0;
 	clnt_stat = clnt_call(clp, RPCMNT_UMOUNT, xdr_dir, dirp,
 	    xdr_void, (caddr_t)0, try);
-	if (clnt_stat != RPC_SUCCESS) {
-		clnt_perror(clp, "Bad MNT RPC");
-		return (0);
-	}
-	return (1);
+	if (clnt_stat != RPC_SUCCESS)
+		warnx("%s: %s", hostname, clnt_sperror(clp, "RPCMNT_UMOUNT"));
+	auth_destroy(clp->cl_auth);
+	clnt_destroy(clp);
+	return (clnt_stat == RPC_SUCCESS);
 }
 
 /*
@@ -254,17 +253,12 @@ int
 is_mounted(char *hostname, char *dirp) {
 	struct statfs *mntbuf;
 	char name[MNAMELEN + 1];
-	size_t bufsize, hostlen, dirlen;
+	size_t bufsize;
 	int mntsize, i;
 
-	hostlen = strlen(hostname);
-	dirlen = strlen(dirp);
-	if ((hostlen + dirlen) >= MNAMELEN)
+	if (strlen(hostname) + strlen(dirp) >= MNAMELEN)
 		return (0);
-	memmove(name, hostname, hostlen);
-	name[hostlen] = ':';
-	memmove(name + hostlen + 1, dirp, dirlen);
-	name[hostlen + dirlen + 1] = '\0';
+	snprintf(name, sizeof(name), "%s:%s", hostname, dirp);
 	mntsize = getfsstat(NULL, 0, MNT_NOWAIT);
 	if (mntsize <= 0)
 		return (0);
@@ -287,14 +281,12 @@ is_mounted(char *hostname, char *dirp) {
  */
 int
 xdr_dir(XDR *xdrsp, char *dirp) {
-
 	return (xdr_string(xdrsp, &dirp, RPCMNT_PATHLEN));
 }
 
 static void
 usage() {
-
 	(void)fprintf(stderr, "%s\n",
-	    "usage: rpc.umntall [-h host] [-k] [-p path] [-t expire] [-v]");
+	    "usage: rpc.umntall [-kv] [-e expire] [-h host] [-p path]");
 	exit(1);
 }

@@ -67,7 +67,6 @@ static const char rcsid[] =
 typedef enum { MNTON, MNTFROM, NOTHING } mntwhat;
 typedef enum { MARK, UNMARK, NAME, COUNT, FREE } dowhat;
 
-struct	mtablist *mtabhead;
 int	fflag, vflag;
 char   *nfshost;
 
@@ -435,11 +434,10 @@ umountfs(char *name, char **typelist)
 		/*
 		 * Remove the unmounted entry from /var/db/mounttab.
 		 */
-		if (read_mtab(mtab)) {
-			mtab = mtabhead;
-			clean_mtab(hostp, nfsdirname);
-			if(!write_mtab())
-				warnx("cannot remove entry %s:%s",
+		if (read_mtab()) {
+			clean_mtab(hostp, nfsdirname, vflag);
+			if(!write_mtab(vflag))
+				warnx("cannot remove mounttab entry %s:%s",
 				    hostp, nfsdirname);
 			free_mtab();
 		}

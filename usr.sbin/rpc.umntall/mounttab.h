@@ -37,9 +37,10 @@ struct mtablist {
 	struct mtablist *mtab_next;
 };
 
+extern struct mtablist *mtabhead;
+
 int	add_mtab(char *, char *);
-void	badline (char *);
-void	clean_mtab (char *, char *);
-int	read_mtab (struct mtablist *);
-int	write_mtab (void);
-void	free_mtab (void);
+void	clean_mtab(char *, char *, int);
+int	read_mtab(void);
+int	write_mtab(int);
+void	free_mtab(void);

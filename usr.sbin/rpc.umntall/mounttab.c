@@ -37,6 +37,7 @@ static const char rcsid[] =
 
 #include <err.h>
 #include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -44,8 +45,9 @@ static const char rcsid[] =
 
 #include "mounttab.h"
 
-int verbose;
 struct mtablist *mtabhead;
+
+static void badline(char *field, char *bad);
 
 /*
  * Add an entry to PATH_MOUNTTAB for each mounted NFS filesystem,
@@ -54,13 +56,12 @@ struct mtablist *mtabhead;
 int
 add_mtab(char *hostp, char *dirp) {
 	FILE *mtabfile;
-	time_t *now;
 
-	now = NULL;
 	if ((mtabfile = fopen(PATH_MOUNTTAB, "a")) == NULL)
 		return (0);
 	else {
-		fprintf(mtabfile, "%ld\t%s\t%s\n", time(now), hostp, dirp);
+		fprintf(mtabfile, "%ld\t%s\t%s\n",
+		    (long)time(NULL), hostp, dirp);
 		fclose(mtabfile);
 		return (1);
 	}
@@ -70,12 +71,13 @@ add_mtab(char *hostp, char *dirp) {
  * Read mounttab line for line and return struct mtablist.
  */
 int
-read_mtab(struct mtablist *mtabp) {
-	struct mtablist **mtabpp;
+read_mtab() {
+	struct mtablist **mtabpp, *mtabp;
 	char *hostp, *dirp, *cp;
 	char str[STRSIZ];
-	char *timep;
+	char *timep, *endp;
 	time_t time;
+	u_long ultmp;
 	FILE *mtabfile;
 
 	if ((mtabfile = fopen(PATH_MOUNTTAB, "r")) == NULL) {
@@ -94,25 +96,26 @@ read_mtab(struct mtablist *mtabp) {
 		if (*cp == '#' || *cp == ' ' || *cp == '\n')
 			continue;
 		timep = strsep(&cp, " \t\n");
-		if (timep == NULL || *timep == ' ' || *timep == '\n') {
-			badline(timep);
+		if (timep == NULL || *timep == '\0') {
+			badline("time", timep);
 			continue;
 		}
 		hostp = strsep(&cp, " \t\n");
-		if (hostp == NULL || *hostp == ' ' || *hostp == '\n') {
-			badline(hostp);
+		if (hostp == NULL || *hostp == '\0') {
+			badline("host", hostp);
 			continue;
 		}
 		dirp = strsep(&cp, " \t\n");
-		if (dirp == NULL || *dirp == ' ' || *dirp == '\n') {
-			badline(dirp);
+		if (dirp == NULL || *dirp == '\0') {
+			badline("dir", dirp);
 			continue;
 		}
-		time = strtoul(timep, (char **)NULL, 10);
-		if (errno == ERANGE) {
-			badline(timep);
+		ultmp = strtoul(timep, &endp, 10);
+		if (ultmp == ULONG_MAX || *endp != '\0') {
+			badline("time", timep);
 			continue;
 		}
+		time = ultmp;
 		if ((mtabp = malloc(sizeof (struct mtablist))) == NULL) {
 			syslog(LOG_ERR, "malloc");
 			fclose(mtabfile);
@@ -136,8 +139,8 @@ read_mtab(struct mtablist *mtabp) {
  * Unlink PATH_MOUNTAB if no entry is left.
  */
 int
-write_mtab() {
-	struct mtablist *mtabp;
+write_mtab(int verbose) {
+	struct mtablist *mtabp, *mp;
 	FILE *mtabfile;
 	int line;
 
@@ -147,17 +150,23 @@ write_mtab() {
 	}
 	line = 0;
 	for (mtabp = mtabhead; mtabp != NULL; mtabp = mtabp->mtab_next) {
-		if (mtabp->mtab_host != NULL &&
-		    strlen(mtabp->mtab_host) > 0) {
-			fprintf(mtabfile, "%ld\t%s\t%s\n", mtabp->mtab_time,
+		if (mtabp->mtab_host[0] == '\0')
+			continue;
+		/* Skip if a later (hence more recent) entry is identical. */
+		for (mp = mtabp->mtab_next; mp != NULL; mp = mp->mtab_next)
+			if (strcmp(mtabp->mtab_host, mp->mtab_host) == 0 &&
+			    strcmp(mtabp->mtab_dirp, mp->mtab_dirp) == 0)
+				break;
+		if (mp != NULL)
+			continue;
+
+		fprintf(mtabfile, "%ld\t%s\t%s\n",
+		    (long)mtabp->mtab_time, mtabp->mtab_host,
+		    mtabp->mtab_dirp);
+		if (verbose)
+			warnx("write mounttab entry %s:%s",
 			    mtabp->mtab_host, mtabp->mtab_dirp);
-			if (verbose) {
-				warnx("write entry " "%s:%s",
-				    mtabp->mtab_host, mtabp->mtab_dirp);
-			}
-			clean_mtab(mtabp->mtab_host, mtabp->mtab_dirp);
-			line++;
-		}		
+		line++;
 	}
 	fclose(mtabfile);
 	if (line == 0) {
@@ -173,30 +182,23 @@ write_mtab() {
  * Mark the entries as clean where RPC calls have been done successfully.
  */
 void
-clean_mtab(char *hostp, char *dirp) {
+clean_mtab(char *hostp, char *dirp, int verbose) {
 	struct mtablist *mtabp;
 	char *host;
 
+	/* Copy hostp in case it points to an entry that we are zeroing out. */
 	host = strdup(hostp);
 	for (mtabp = mtabhead; mtabp != NULL; mtabp = mtabp->mtab_next) {
-		if (mtabp->mtab_host != NULL &&
-		    strcmp(mtabp->mtab_host, host) == 0) {
-			if (dirp == NULL) {
-				if (verbose) {
-					warnx("delete entries "
-					    "host %s", host);
-				}
-				bzero(mtabp->mtab_host, RPCMNT_NAMELEN);
-			} else {
-				if (strcmp(mtabp->mtab_dirp, dirp) == 0) {
-					if (verbose) {
-						warnx("delete entry "
-						    "%s:%s", host, dirp);
-					}
-					bzero(mtabp->mtab_host, RPCMNT_NAMELEN);
-				}
-			}
-		}
+		if (strcmp(mtabp->mtab_host, host) != 0)
+			continue;
+		if (dirp != NULL && strcmp(mtabp->mtab_dirp, dirp) != 0)
+			continue;
+
+		if (verbose)
+			warnx("delete mounttab entry%s %s:%s",
+			    (dirp == NULL) ? " by host" : "",
+			    mtabp->mtab_host, mtabp->mtab_dirp);
+		bzero(mtabp->mtab_host, RPCMNT_NAMELEN);
 	}
 	free(host);
 }
@@ -207,20 +209,18 @@ clean_mtab(char *hostp, char *dirp) {
 void
 free_mtab() {
 	struct mtablist *mtabp;
-	struct mtablist *mtab_next;
 
-	for (mtabp = mtabhead; mtabp != NULL; mtabp = mtab_next) {
-		mtab_next = mtabp->mtab_next;
+	while ((mtabp = mtabhead) != NULL) {
+		mtabhead = mtabhead->mtab_next;
 		free(mtabp);
-		mtabp = mtab_next;
 	}
 }
 
 /*
  * Print bad lines to syslog.
  */
-void
-badline(char *bad) {
-
-	syslog(LOG_ERR, "skip bad line in mounttab with entry %s", bad);
+static void
+badline(char *field, char *bad) {
+	syslog(LOG_ERR, "bad mounttab %s field '%s'", field,
+	    (bad == NULL) ? "<null>" : bad);
 }
