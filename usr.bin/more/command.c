@@ -185,19 +185,21 @@ prompt()
 		putstr(current_name);
 		putstr(":");
 		if (!ispipe) {
-			(void)sprintf(pbuf, " file %d/%d", curr_ac + 1, ac);
+			(void)snprintf(pbuf, sizeof(pbuf),
+			    " file %d/%d", curr_ac + 1, ac);
 			putstr(pbuf);
 		}
 		if (linenums) {
-			(void)sprintf(pbuf, " line %d", currline(BOTTOM));
+			(void)snprintf(pbuf, sizeof(pbuf),
+			    " line %d", currline(BOTTOM));
 			putstr(pbuf);
 		}
 		if ((pos = position(BOTTOM)) != NULL_POSITION) {
-			(void)sprintf(pbuf, " byte %qd", pos);
+			(void)snprintf(pbuf, sizeof(pbuf), " byte %qd", pos);
 			putstr(pbuf);
 			if (!ispipe && (len = ch_length())) {
-				(void)sprintf(pbuf, "/%qd pct %qd%%",
-				    len, ((100 * pos) / len));
+				(void)snprintf(pbuf, sizeof(pbuf),
+				    "/%qd pct %qd%%", len, ((100 * pos) / len));
 				putstr(pbuf);
 			}
 		}
@@ -218,7 +220,8 @@ prompt()
 		else if (!ispipe &&
 		    (pos = position(BOTTOM)) != NULL_POSITION &&
 		    (len = ch_length())) {
-			(void)sprintf(pbuf, " (%qd%%)", ((100 * pos) / len));
+			(void)snprintf(pbuf, sizeof(pbuf),
+			    " (%qd%%)", ((100 * pos) / len));
 			putstr(pbuf);
 		}
 		so_exit();
@@ -620,9 +623,10 @@ editfile()
 			dolinenumber = 0;
 	}
 	if (dolinenumber && (c = currline(MIDDLE)))
-		(void)sprintf(buf, "%s +%d %s", editor, c, current_file);
+		(void)snprintf(buf, sizeof(buf),
+		    "%s +%d %s", editor, c, current_file);
 	else
-		(void)sprintf(buf, "%s %s", editor, current_file);
+		(void)snprintf(buf, sizeof(buf), "%s %s", editor, current_file);
 	lsystem(buf);
 }
 
