@@ -153,7 +153,7 @@ static driver_t acpi_video_driver = {
 
 static devclass_t acpi_video_devclass;
 
-DRIVER_MODULE(acpi_video, acpi, acpi_video_driver, acpi_video_devclass,
+DRIVER_MODULE(acpi_video, pci, acpi_video_driver, acpi_video_devclass,
 	      acpi_video_modevent, NULL);
 MODULE_DEPEND(acpi_video, acpi, 1, 1, 1);
 
@@ -180,8 +180,8 @@ acpi_video_modevent(struct module *mod __unused, int evt, void *cookie __unused)
 		STAILQ_INIT(&other_units);
 		break;
 	case MOD_UNLOAD:
-		acpi_video_sysctl_tree = NULL;
 		sysctl_ctx_free(&acpi_video_sysctl_ctx);
+		acpi_video_sysctl_tree = NULL;
 		break;
 	default:
 		err = EINVAL;
@@ -199,8 +199,7 @@ acpi_video_probe(device_t dev)
 
 	ACPI_LOCK;
 	handle = acpi_get_handle(dev);
-	if (acpi_get_type(dev) == ACPI_TYPE_DEVICE &&
-	    !acpi_disabled("video") &&
+	if (!acpi_disabled("video") &&
 	    vid_check_requirements(handle)) {
 		device_set_desc(dev, "ACPI video extension");
 		err = 0;
@@ -220,7 +219,7 @@ acpi_video_attach(device_t dev)
 	sc = device_get_softc(dev);
 	ACPI_LOCK;
 
-	acpi_sc = acpi_device_get_parent_softc(dev);
+	acpi_sc = devclass_get_softc(devclass_find("acpi"), 0);
 	if (acpi_video_sysctl_tree == NULL && acpi_sc != NULL) {
 		acpi_video_sysctl_tree = SYSCTL_ADD_NODE(&acpi_video_sysctl_ctx,
 				    SYSCTL_CHILDREN(acpi_sc->acpi_sysctl_tree),
