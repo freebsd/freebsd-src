@@ -1,12 +1,12 @@
 #
-# $Id$
+# $Id: Makefile,v 1.2 1997/01/13 09:54:38 jkh Exp $
 #
 
 TEXIDIR=	${.CURDIR}/../../../../contrib/texinfo
 INSTALLINFODIR=	${TEXIDIR}/util
-TXIDIR=	${TEXIDIR}/libtxi
-LIBTXI=	${.CURDIR}/../libtxi/libtxi.a
-BINDIR=	/usr/bin
+TXIDIR=		${TEXIDIR}/libtxi
+LIBTXI=		${.CURDIR}/../libtxi/libtxi.a
+BINDIR=		/usr/bin
 
 PROG= install-info
 NOMAN=yes
@@ -23,11 +23,5 @@ LDADD+= -L../libtxi -ltxi
 DPADD+= ${LIBTXI}
 
 .PATH: $(INSTALLINFODIR)
-
-afterinstall:
-	@if [ ! -f ${DESTDIR}/usr/share/info/dir ]; then \
-		${INSTALL} ${COPY} -o ${BINOWN} -m ${BINMODE} ${TEXIDIR}/dir \
-		  ${DESTDIR}/usr/share/info/dir; \
-	fi
 
 .include <bsd.prog.mk>
