@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.3 1997/08/23 04:10:36 smp Exp smp $
+ *	$Id: locore.s,v 1.95 1997/08/24 00:05:33 fsmp Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -90,24 +90,36 @@
 	.set	_SMP_prvstart,(MPPTDI << PDRSHIFT)
 
 	.globl	_SMP_prvpage,_SMP_prvpt,_lapic,_SMP_ioapic
+	.globl	_prv_CPAGE1,_prv_CPAGE2,_prv_CPAGE3
+	.globl	_idlestack,_idlestack_top
 	.set	_SMP_prvpage,_SMP_prvstart
 	.set	_SMP_prvpt,_SMP_prvstart + PAGE_SIZE
 	.set	_lapic,_SMP_prvstart + (2 * PAGE_SIZE)
+	.set	_idlestack,_SMP_prvstart + (3 * PAGE_SIZE)
+	.set	_idlestack_top,_SMP_prvstart + (4 * PAGE_SIZE)
+	.set	_prv_CPAGE1,_SMP_prvstart + (4 * PAGE_SIZE)
+	.set	_prv_CPAGE2,_SMP_prvstart + (5 * PAGE_SIZE)
+	.set	_prv_CPAGE3,_SMP_prvstart + (6 * PAGE_SIZE)
 	.set	_SMP_ioapic,_SMP_prvstart + (16 * PAGE_SIZE)
 
 	.globl	_cpuid,_curproc,_curpcb,_npxproc,_runtime,_cpu_lockid
-	.globl	_common_tss,_other_cpus,_ss_tpr
-	.set	_cpuid,_SMP_prvpage+0
-	.set	_curproc,_SMP_prvpage+4
-	.set	_curpcb,_SMP_prvpage+8
-	.set	_npxproc,_SMP_prvpage+12
-	.set	_runtime,_SMP_prvpage+16	/* 8 bytes struct timeval */
-	.set	_cpu_lockid,_SMP_prvpage+24
-	.set	_common_tss,_SMP_prvpage+28	/* 104 bytes long, next = 132 */
-	.set	_other_cpus,_SMP_prvpage+132	/* bitmap of available CPUs,
+	.globl	_common_tss,_other_cpus,_my_idlePTD,_ss_tpr
+	.globl	_prv_CMAP1,_prv_CMAP2,_prv_CMAP3
+	.set	_cpuid,_SMP_prvpage+0		/* [0] */
+	.set	_curproc,_SMP_prvpage+4		/* [1] */
+	.set	_curpcb,_SMP_prvpage+8		/* [2] */
+	.set	_npxproc,_SMP_prvpage+12	/* [3] */
+	.set	_runtime,_SMP_prvpage+16	/* [4,5] */
+	.set	_cpu_lockid,_SMP_prvpage+24	/* [6] */
+	.set	_other_cpus,_SMP_prvpage+28	/* [7] bitmap of available CPUs,
 						    excluding ourself */
-	.set	_ss_tpr,_SMP_prvpage+136
-	
+	.set	_my_idlePTD,_SMP_prvpage+32	/* [8] */
+	.set	_ss_tpr,_SMP_prvpage+36		/* [9] */
+	.set	_prv_CMAP1,_SMP_prvpage+40	/* [10] */
+	.set	_prv_CMAP2,_SMP_prvpage+44	/* [11] */
+	.set	_prv_CMAP3,_SMP_prvpage+48	/* [12] */
+	.set	_common_tss,_SMP_prvpage+52	/* 102 (ie: 104) bytes long */
+
 /* Fetch the .set's for the local apic */
 #include "i386/i386/mp_apicdefs.s"
 

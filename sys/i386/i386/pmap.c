@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.158 1997/08/07 05:15:48 dyson Exp $
+ *	$Id: pmap.c,v 1.159 1997/08/25 21:53:01 bde Exp $
  */
 
 /*
@@ -182,6 +182,13 @@ caddr_t CADDR1 = 0, ptvmmap = 0;
 static caddr_t CADDR2;
 static pt_entry_t *msgbufmap;
 struct msgbuf *msgbufp=0;
+
+#ifdef SMP
+extern char prv_CPAGE1[], prv_CPAGE2[], prv_CPAGE3[];
+extern pt_entry_t *prv_CMAP1, *prv_CMAP2, *prv_CMAP3;
+extern pd_entry_t *IdlePTDS[];
+extern pt_entry_t SMP_prvpt[];
+#endif
 
 pt_entry_t *PMAP1 = 0;
 unsigned *PADDR1 = 0;
@@ -408,7 +415,7 @@ pmap_bootstrap(firstaddr, loadaddr)
 	/* 1 = page table page */
 	/* 2 = local apic */
 	/* 16-31 = io apics */
-	SMP_prvpt[2] = PG_V | PG_RW | pgeflag | ((u_long)cpu_apic_address & PG_FRAME);
+	SMP_prvpt[2] = (pt_entry_t)(PG_V | PG_RW | pgeflag | ((u_long)cpu_apic_address & PG_FRAME));
 
 	for (i = 0; i < mp_napics; i++) {
 		for (j = 0; j < 16; j++) {
@@ -420,8 +427,8 @@ pmap_bootstrap(firstaddr, loadaddr)
 			}
 			/* use this slot if available */
 			if (((u_long)SMP_prvpt[j + 16] & PG_FRAME) == 0) {
-				SMP_prvpt[j + 16] = PG_V | PG_RW | pgeflag |
-				    ((u_long)io_apic_address[i] & PG_FRAME);
+				SMP_prvpt[j + 16] = (pt_entry_t)(PG_V | PG_RW | pgeflag |
+				    ((u_long)io_apic_address[i] & PG_FRAME));
 				ioapic[i] = (ioapic_t *)&SMP_ioapic[j * PAGE_SIZE];
 				break;
 			}
@@ -429,6 +436,11 @@ pmap_bootstrap(firstaddr, loadaddr)
 		if (j == 16)
 			panic("no space to map IO apic %d!", i);
 	}
+
+	/* BSP does this itself, AP's get it pre-set */
+	prv_CMAP1 = (pt_entry_t *)&SMP_prvpt[4];
+	prv_CMAP2 = (pt_entry_t *)&SMP_prvpt[5];
+	prv_CMAP3 = (pt_entry_t *)&SMP_prvpt[6];
 #endif
 
 	invltlb();
@@ -463,7 +475,8 @@ pmap_set_opt(unsigned *pdir) {
  * Setup the PTD for the boot processor
  */
 void
-pmap_set_opt_bsp(void) {
+pmap_set_opt_bsp(void)
+{
 	pmap_set_opt((unsigned *)kernel_pmap->pm_pdir);
 	pmap_set_opt((unsigned *)PTD);
 	invltlb();
@@ -1414,6 +1427,9 @@ pmap_growkernel(vm_offset_t addr)
 	struct proc *p;
 	struct pmap *pmap;
 	int s;
+#ifdef SMP
+	int i;
+#endif
 
 	s = splhigh();
 	if (kernel_vm_end == 0) {
@@ -1446,6 +1462,14 @@ pmap_growkernel(vm_offset_t addr)
 			pmap_zero_page(VM_PAGE_TO_PHYS(nkpg));
 		}
 		pdir_pde(PTD, kernel_vm_end) = (pd_entry_t) (VM_PAGE_TO_PHYS(nkpg) | PG_V | PG_RW | pgeflag);
+
+#ifdef SMP
+		for (i = 0; i < mp_naps; i++) {
+			if (IdlePTDS[i])
+				pdir_pde(IdlePTDS[i], kernel_vm_end) = (pd_entry_t) (VM_PAGE_TO_PHYS(nkpg) | PG_V | PG_RW | pgeflag);
+		}
+#endif
+
 		nkpg = NULL;
 
 		for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
@@ -2591,6 +2615,18 @@ void
 pmap_zero_page(phys)
 	vm_offset_t phys;
 {
+#ifdef SMP
+	if (*(int *) prv_CMAP3)
+		panic("pmap_zero_page: prv_CMAP3 busy");
+
+	*(int *) prv_CMAP3 = PG_V | PG_RW | (phys & PG_FRAME);
+	invltlb_1pg((vm_offset_t) &prv_CPAGE3);
+
+	bzero(&prv_CPAGE3, PAGE_SIZE);
+
+	*(int *) prv_CMAP3 = 0;
+	invltlb_1pg((vm_offset_t) &prv_CPAGE3);
+#else
 	if (*(int *) CMAP2)
 		panic("pmap_zero_page: CMAP busy");
 
@@ -2598,6 +2634,7 @@ pmap_zero_page(phys)
 	bzero(CADDR2, PAGE_SIZE);
 	*(int *) CMAP2 = 0;
 	invltlb_1pg((vm_offset_t) CADDR2);
+#endif
 }
 
 /*
@@ -2611,6 +2648,23 @@ pmap_copy_page(src, dst)
 	vm_offset_t src;
 	vm_offset_t dst;
 {
+#ifdef SMP
+	if (*(int *) prv_CMAP1)
+		panic("pmap_copy_page: prv_CMAP1 busy");
+	if (*(int *) prv_CMAP2)
+		panic("pmap_copy_page: prv_CMAP2 busy");
+
+	*(int *) prv_CMAP1 = PG_V | PG_RW | (src & PG_FRAME);
+	*(int *) prv_CMAP2 = PG_V | PG_RW | (dst & PG_FRAME);
+
+	invltlb_2pg( (vm_offset_t) &prv_CPAGE1, (vm_offset_t) &prv_CPAGE2);
+
+	bcopy(&prv_CPAGE1, &prv_CPAGE2, PAGE_SIZE);
+
+	*(int *) prv_CMAP1 = 0;
+	*(int *) prv_CMAP2 = 0;
+	invltlb_2pg( (vm_offset_t) &prv_CPAGE1, (vm_offset_t) &prv_CPAGE2);
+#else
 	if (*(int *) CMAP1 || *(int *) CMAP2)
 		panic("pmap_copy_page: CMAP busy");
 
@@ -2622,6 +2676,7 @@ pmap_copy_page(src, dst)
 	*(int *) CMAP1 = 0;
 	*(int *) CMAP2 = 0;
 	invltlb_2pg( (vm_offset_t) CADDR1, (vm_offset_t) CADDR2);
+#endif
 }
 
 
