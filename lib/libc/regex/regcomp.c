@@ -46,9 +46,10 @@ static char sccsid[] = "@(#)regcomp.c	8.5 (Berkeley) 3/20/94";
 #include <string.h>
 #include <ctype.h>
 #include <limits.h>
-#include <locale.h>
 #include <stdlib.h>
 #include <regex.h>
+
+#include "collate.h"
 
 #include "utils.h"
 #include "regex2.h"
@@ -803,10 +804,10 @@ register cset *cs;
 		if (start == finish)
 			CHadd(cs, start);
 		else {
-			(void)REQUIRE(collate_range_cmp(start, finish) <= 0, REG_ERANGE);
+			(void)REQUIRE(__collate_range_cmp(start, finish) <= 0, REG_ERANGE);
 			for (i = CHAR_MIN; i <= CHAR_MAX; i++) {
-				if (   collate_range_cmp(start, i) <= 0
-				    && collate_range_cmp(i, finish) <= 0
+				if (   __collate_range_cmp(start, i) <= 0
+				    && __collate_range_cmp(i, finish) <= 0
 				   )
 					CHadd(cs, i);
 			}
