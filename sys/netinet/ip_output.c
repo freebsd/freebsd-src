@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- * $Id: ip_output.c,v 1.7 1994/09/09 22:05:02 wollman Exp $
+ * $Id: ip_output.c,v 1.8 1994/09/14 03:10:13 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -52,6 +52,13 @@
 #include <netinet/in_pcb.h>
 #include <netinet/in_var.h>
 #include <netinet/ip_var.h>
+
+#ifdef IPFIREWALL
+#include <netinet/ip_fw.h>
+#endif
+#ifdef IPACCT
+#include <netinet/ip_fw.h>
+#endif
 
 #ifdef vax
 #include <machine/mtpr.h>
@@ -401,6 +408,15 @@ sendorfree:
 done:
 	if (ro == &iproute && (flags & IP_ROUTETOIF) == 0 && ro->ro_rt)
 		RTFREE(ro->ro_rt);
+#ifdef IPACCT
+	/*
+	 * Count outgoing packet,here we count both our packets and
+	 * those we forward.
+	 * Here we want to convert ip_len to host byte order when counting
+	 * so we set 3rd arg to 1.
+	 */
+	ip_acct_cnt(ip,ip_acct_chain,1);
+#endif
 	return (error);
 bad:
 	m_freem(m0);
