@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.58 1996/05/01 08:39:02 bde Exp $
+ *	$Id: clock.c,v 1.59 1996/06/11 16:02:55 pst Exp $
  */
 
 /*
@@ -423,7 +423,7 @@ calibrate_clocks(void)
 	u_int count, prev_count, tot_count;
 	int sec, start_sec, timeout;
 
-	printf("Calibrating clock(s) relative to mc146818A clock ... ");
+	printf("Calibrating clock(s) relative to mc146818A clock...\n");
 	if (!(rtcin(RTC_STATUSD) & RTCSD_PWR))
 		goto fail;
 	timeout = 100000000;
@@ -562,7 +562,8 @@ startrtclock()
 	delta = freq > timer_freq ? freq - timer_freq : timer_freq - freq;
 	if (delta < timer_freq / 100) {
 #ifndef CLK_USE_I8254_CALIBRATION
-		printf(
+		if (bootverbose)
+		    printf(
 "CLK_USE_I8254_CALIBRATION not specified - using default frequency\n");
 		freq = timer_freq;
 #endif
@@ -581,7 +582,8 @@ startrtclock()
 #if defined(I586_CPU) || defined(I686_CPU)
 #ifndef CLK_USE_I586_CALIBRATION
 	if (i586_ctr_rate != 0) {
-		printf(
+		if (bootverbose)
+		    printf(
 "CLK_USE_I586_CALIBRATION not specified - using old calibration method\n");
 		i586_ctr_freq = 0;
 		i586_ctr_rate = 0;
@@ -600,7 +602,9 @@ startrtclock()
 		DELAY(1000000);
 		i586_count = rdtsc();
 		i586_ctr_rate = (i586_count << I586_CTR_RATE_SHIFT) / 1000000;
+#ifdef CLK_USE_I586_CALIBRATION
 		printf("i586 clock: %u Hz\n", i586_ctr_freq);
+#endif
 	}
 #endif
 }
