@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.86 1999/07/22 08:51:42 jkh Exp $
+ * $Id: tcpip.c,v 1.87 1999/08/07 01:43:39 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -154,16 +154,17 @@ dhcpGetInfo(Device *devp)
 			 nameserver, ipaddr, gateway, netmask) == -1) {
 	FILE *ifp;
 	char *cp, cmd[256], data[2048];
-	int i = 0, j = 0;
+	int i, j;
 
 	/* Bah, now we have to kludge getting the information from ifconfig */
 	snprintf(cmd, sizeof cmd, "ifconfig %s", devp->name);
 	ifp = popen(cmd, "r");
 	if (ifp) {
-	    while ((j = fread(data + i, 1, 512, ifp)) > 0)
-		i += j;
+	    j = fread(data, 1, sizeof(data), ifp);
 	    fclose(ifp);
-	    data[i] = 0;
+	    if (j < 0)	/* paranoia */
+		j = 0;
+	    data[j] = '\0';
 	    if (isDebug())
 		msgDebug("DHCP configured interface returns %s\n", data);
 	    /* XXX This is gross as it assumes a certain ordering to
@@ -188,11 +189,8 @@ dhcpGetInfo(Device *devp)
     /* If we didn't get a name server value, hunt for it in resolv.conf */
     if (!nameserver[0] && file_readable("/etc/resolv.conf"))
 	configEnvironmentResolv("/etc/resolv.conf");
-
-    /* See if we have a hostname and can derive one if not */
-    if (!hostname[0] && ipaddr[0]) {
-    }
-    variable_set2(VAR_HOSTNAME, hostname, 1);
+    if (hostname[0])
+	variable_set2(VAR_HOSTNAME, hostname, 0);
 }
 
 /* This is it - how to get TCP setup values */
@@ -227,12 +225,13 @@ tcpOpenDialog(Device *devp)
 	    Mkdir("/var/run");
 	    Mkdir("/tmp");
 	    msgNotify("Scanning for DHCP servers...");
-	    for (k = 3; k; --k) {
+	    for (k = 1; k < 4; k++) {
 		if (0 == vsystem("dhclient -1 %s", devp->name)) {
 		    dhcpGetInfo(devp);
 		    use_dhcp = TRUE;
 		    break;
 		}
+		msgNotify("Scanning for DHCP servers...  Retry: %d", k);
 	    }
 	}
 
@@ -363,13 +362,13 @@ netconfig:
 	char *ifaces;
 
 	if (hostname[0]) {
-	    variable_set2(VAR_HOSTNAME, hostname, 1);
+	    variable_set2(VAR_HOSTNAME, hostname, use_dhcp ? 0 : 1);
 	    sethostname(hostname, strlen(hostname));
 	}
 	if (domainname[0])
 	    variable_set2(VAR_DOMAINNAME, domainname, 0);
 	if (gateway[0])
-	    variable_set2(VAR_GATEWAY, gateway, 1);
+	    variable_set2(VAR_GATEWAY, gateway, use_dhcp ? 0 : 1);
 	if (nameserver[0])
 	    variable_set2(VAR_NAMESERVER, nameserver, 0);
 	if (ipaddr[0])
