@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *		$Id: init.c,v 1.21 1997/07/04 22:09:07 ache Exp $
+ *		$Id: init.c,v 1.22 1997/07/05 19:36:55 ache Exp $
  */
 
 #ifndef lint
@@ -1394,13 +1394,13 @@ death()
 	pid_t pid;
 	static const int death_sigs[2] = { SIGTERM, SIGKILL };
 
+	/* NB: should send a message to the session logger to avoid blocking. */
+	logwtmp("~", "shutdown", "");
+
 	for (sp = sessions; sp; sp = sp->se_next) {
 		sp->se_flags |= SE_SHUTDOWN;
 		(void) revoke(sp->se_device);
 	}
-
-	/* NB: should send a message to the session logger to avoid blocking. */
-	logwtmp("~", "shutdown", "");
 
 	for (i = 0; i < 2; ++i) {
 		if (kill(-1, death_sigs[i]) == -1 && errno == ESRCH)
