@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.58 1996/01/30 14:30:43 ache Exp $
+ *      $Id: cd.c,v 1.59 1996/01/30 16:12:18 ache Exp $
  */
 
 #include "opt_bounce.h"
@@ -770,7 +770,7 @@ cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 			(struct ioc_read_toc_entry *) addr;
 			struct ioc_toc_header *th;
 			u_int32 len, readlen, idx, num;
-			u_int32 starting_track = te->starting_track;
+			u_int32 starting_track = te->starting_track, readtrack;
 
 			if (   te->data_len < sizeof(struct cd_toc_entry)
 			    || (te->data_len % sizeof(struct cd_toc_entry)) != 0
@@ -808,16 +808,17 @@ cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 			}
 			num = len / sizeof(struct cd_toc_entry);
 
-			/* calculate reading length without leadout entry */
-			readlen = ((int)th->ending_track - starting_track) + 1;
-			if (readlen < 1)        /* read at least one entry */
-				readlen = 1;
-			readlen *= sizeof(struct cd_toc_entry);
+			/* calculate reading track/length without leadout entry */
+			readtrack = starting_track;
+			if (readtrack == th->ending_track + 1)
+				readtrack--;
+			readlen = (th->ending_track - readtrack + 1) *
+				  sizeof(struct cd_toc_entry);
 			if (readlen > len)
 				readlen = len;
 
 			error = cd_read_toc(unit, te->address_format,
-				starting_track,
+				readtrack,
 				data.entries,
 				readlen);
 			if (error)
