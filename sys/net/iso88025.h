@@ -84,6 +84,13 @@ struct iso88025_header {
         u_short  rseg[RIF_LEN];                         /* routing registers */
 };
 
+struct iso88025_sockaddr_data {
+	u_char ether_dhost[ISO88025_ADDR_LEN];
+	u_char ether_shost[ISO88025_ADDR_LEN];
+	u_char ac;
+	u_char fc;
+};
+
 /*
  * Structure of a 48-bit iso 802.5 address.
  *  ( We could also add the 16 bit addresses as a union)
