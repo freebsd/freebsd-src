@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/8/93
-#	$FreeBSD$
+#	$Id$
 
 .if exists(${.CURDIR}/../../../../games)
 VOLUME=	usd/31.trek

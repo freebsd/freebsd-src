@@ -1,4 +1,4 @@
-<!-- $FreeBSD$ -->
+<!-- $Id$ -->
 <!-- The FreeBSD Japanese Documentation Project -->
 <!-- Original revision: 1.18 -->
 
@@ -12,7 +12,7 @@
 
                         THE FREEBSD CURRENT POLICY 
 
-Last updated: $Date: 1997/01/14 06:27:17 $
+Last updated: $Date: 1997/01/15 13:16:18 $
 
 This document attempts to explain the rationale behind
 FreeBSD-current, what you should expect should you decide to run it,

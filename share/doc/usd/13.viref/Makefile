@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.16 (Berkeley) 8/15/94
-#	$FreeBSD$
+#	$Id$
 
 VOLUME=	usd/13.viref
 SRCS=	vi.ref

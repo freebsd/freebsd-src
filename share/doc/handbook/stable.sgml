@@ -1,4 +1,4 @@
-<!-- $FreeBSD$ -->
+<!-- $Id$ -->
 <!-- The FreeBSD Documentation Project -->
 
 
@@ -10,7 +10,7 @@
 
                         THE FREEBSD STABLE POLICY 
 
-Last updated: $Date: 1997/01/14 06:26:47 $
+Last updated: $Date: 1997/01/18 16:43:23 $
 
 This document attempts to explain the rationale behind
 FreeBSD-stable, what you should expect should you decide to run it,
