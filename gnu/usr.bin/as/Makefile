@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	6.1 (Berkeley) 3/3/91
-#	$Id: Makefile,v 1.5 1994/08/29 17:38:17 davidg Exp $
+#	$Id: Makefile,v 1.6 1994/12/23 22:35:56 nate Exp $
 
 .include "config/Makefile.$(MACHINE)"
 
@@ -33,6 +33,8 @@ LDADD+=		-lgnumalloc
 CONF_HEADERS=	targ-cpu.h obj-format.h host.h targ-env.h
 
 .PATH: $(.CURDIR)/config
+
+SUBDIR+= doc
 
 beforedepend ${PROG}: ${CONF_HEADERS}
 
