@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.24 1996/02/02 22:59:48 joerg Exp $
+ *      $Id: worm.c,v 1.25 1996/03/10 07:13:15 gibbs Exp $
  */
 
 /* XXX This is PRELIMINARY.
@@ -107,10 +107,10 @@ struct scsi_data
 
 	struct worm_quirks *quirks; /* model-specific functions */
 
-	u_int8 dummy;		/* use dummy writes */
-	u_int8 speed;		/* select drive speed */
-	u_int8 audio;		/* write audio data */
-	u_int8 preemp;		/* audio only: use preemphasis */
+	u_int8_t dummy;		/* use dummy writes */
+	u_int8_t speed;		/* select drive speed */
+	u_int8_t audio;		/* write audio data */
+	u_int8_t preemp;		/* audio only: use preemphasis */
 
 	u_int32_t worm_flags;	/* driver-internal flags */
 #define WORMFL_DISK_PREPED	0x01 /* disk parameters have been spec'ed */
@@ -536,7 +536,7 @@ worm_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 	   struct scsi_link *sc_link)
 {
 	errval  error = 0;
-	u_int8  unit;
+	u_int8_t  unit;
 	register struct scsi_data *worm;
 
 	/*
