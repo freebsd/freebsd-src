@@ -50,7 +50,6 @@
 
 #ifdef __FreeBSD__
 #include "bktr.h"
-#include "smbus.h"
 #endif /* __FreeBSD__ */
 
 #include "opt_bktr.h"		/* include any kernel config options */
@@ -99,10 +98,6 @@
 #include <machine/clock.h>      /* for DELAY */
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
-
-#if (NSMBUS > 0)
-#include <dev/bktr/bktr_i2c.h>
-#endif
 
 #include <sys/sysctl.h>
 int bt848_card = -1; 
@@ -189,6 +184,9 @@ int bktr_debug = 0;
 #include <dev/bktr/bktr_audio.h>
 #include <dev/bktr/bktr_core.h>
 #include <dev/bktr/bktr_os.h>
+#if (NSMBUS > 0)
+#include <dev/bktr/bktr_i2c.h>
+#endif
 #endif
 
 
