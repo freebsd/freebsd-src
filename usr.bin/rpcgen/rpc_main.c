@@ -31,7 +31,11 @@
 #ident	"@(#)rpc_main.c	1.21	94/04/25 SMI"
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)rpc_main.c 1.30 89/03/30 (C) 1987 SMI";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif
 
 /*
@@ -39,10 +43,11 @@ static char sccsid[] = "@(#)rpc_main.c 1.30 89/03/30 (C) 1987 SMI";
  * Copyright (C) 1987, Sun Microsystems, Inc.
  */
 
+#include <err.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-#include <ctype.h>
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/file.h>
@@ -86,9 +91,6 @@ static void s_output __P(( int, char **, char *, char *, int, char *, int, int )
 #endif
 
 static int cppDefined = 0;	/* explicit path for C preprocessor */
-
-
-static char *cmdname;
 
 static char *svcclosetime = "120";
 static char *CPP = SVR4_CPP;
@@ -291,14 +293,12 @@ open_output(infile, outfile)
 	}
 
 	if (infile != NULL && streq(outfile, infile)) {
-	f_print(stderr, "%s: %s already exists.  No output generated.\n",
-		cmdname, infile);
+		warnx("%s already exists. No output generated", infile);
 		crash();
 	}
 	fout = fopen(outfile, "w");
 	if (fout == NULL) {
-		f_print(stderr, "%s: unable to open ", cmdname);
-		perror(outfile);
+		warn("unable to open %s", outfile);
 		crash();
 	}
 	record_open(outfile);
@@ -331,14 +331,12 @@ static void find_cpp()
 
 	if (stat(CPP, &buf) < 0)  { /* SVR4 or explicit cpp does not exist */
 		if (cppDefined) {
-			fprintf(stderr,
-				"cannot find C preprocessor: %s \n", CPP);
+			warnx("cannot find C preprocessor: %s", CPP);
 			crash();
 		} else {	/* try the other one */
 			CPP = SUNOS_CPP;
 			if (stat(CPP, &buf) < 0) { /* can't find any cpp */
-				fprintf(stderr,
-		"cannot find any C preprocessor (cpp)\n");
+				warnx("cannot find any C preprocessor (cpp)");
 				crash();
 			}
 		}
@@ -370,17 +368,16 @@ open_input(infile, define)
 		(void) dup2(pd[1], 1);
 		(void) close(pd[0]);
 		execv(arglist[0], arglist);
-		perror("execv");
+		warn("execv");
 		exit(1);
 	case -1:
-		perror("fork");
+		warn("fork");
 		exit(1);
 	}
 	(void) close(pd[1]);
 	fin = fdopen(pd[0], "r");
 	if (fin == NULL) {
-		f_print(stderr, "%s: ", cmdname);
-		perror(infilename);
+		warn("%s", infilename);
 		crash();
 	}
 }
@@ -418,7 +415,7 @@ char* list_to_check[];
 			return (1);
 		}
 	}
-	f_print(stderr, "illegal nettype :\'%s\'\n", name);
+	warnx("illegal nettype :\'%s\'", name);
 	return (0);
 }
 
@@ -1029,7 +1026,7 @@ addarg(cp)
 	char *cp;
 {
 	if (argcount >= ARGLISTLEN) {
-		f_print(stderr, "rpcgen: too many defines\n");
+		warnx("too many defines");
 		crash();
 		/*NOTREACHED*/
 	}
@@ -1043,7 +1040,7 @@ putarg(where, cp)
 	int where;
 {
 	if (where >= ARGLISTLEN) {
-		f_print(stderr, "rpcgen: arglist coding error\n");
+		warnx("arglist coding error");
 		crash();
 		/*NOTREACHED*/
 	}
@@ -1067,16 +1064,14 @@ char *outfile;
 	if (infile)		/* infile ! = NULL */
 		if (stat(infile, &buf) < 0)
 		{
-			perror(infile);
+			warn("%s", infile);
 			crash();
 		};
 	if (outfile) {
 		if (stat(outfile, &buf) < 0)
 			return;	/* file does not exist */
 		else {
-			f_print(stderr,
-	"file '%s' already exists and may be overwritten\n",
-				outfile);
+			warnx("file '%s' already exists and may be overwritten", outfile);
 			crash();
 		}
 	}
@@ -1097,7 +1092,6 @@ parseargs(argc, argv, cmd)
 	char flag[(1 << 8 * sizeof (char))];
 	int nflags;
 
-	cmdname = argv[0];
 	cmd->infile = cmd->outfile = NULL;
 	if (argc < 2) {
 		return (0);
@@ -1118,9 +1112,7 @@ parseargs(argc, argv, cmd)
 	for (i = 1; i < argc; i++) {
 		if (argv[i][0] != '-') {
 			if (cmd->infile) {
-				f_print(stderr,
-	"Cannot specify more than one input file.\n");
-
+				warnx("cannot specify more than one input file");
 				return (0);
 			}
 			cmd->infile = argv[i];
@@ -1272,7 +1264,7 @@ parseargs(argc, argv, cmd)
 		/* pmflag or inetdflag is always TRUE */
 		if ((inetdflag && cmd->nflag)) {
 			/* netid not allowed with inetdflag */
-	f_print(stderr, "Cannot use netid flag with inetd flag.\n");
+			warnx("cannot use netid flag with inetd flag");
 			return (0);
 		}
 	} else {		/* 4.1 mode */
@@ -1281,13 +1273,13 @@ parseargs(argc, argv, cmd)
 		inetdflag = 1;	/* inetdflag is TRUE by default */
 #endif
 		if (cmd->nflag) { /* netid needs TIRPC */
-	f_print(stderr, "Cannot use netid flag without TIRPC.\n");
+			warnx("cannot use netid flag without TIRPC");
 			return (0);
 		}
 	}
 
 	if (newstyle && (tblflag || cmd->tflag)) {
-		f_print(stderr, "Cannot use table flags with newstyle.\n");
+		warnx("cannot use table flags with newstyle");
 		return (0);
 	}
 
@@ -1302,12 +1294,10 @@ parseargs(argc, argv, cmd)
 		}
 	} else if (cmd->infile == NULL &&
 	    (cmd->Ssflag || cmd->Scflag || cmd->makefileflag)) {
-		f_print(stderr,
-		  "\"infile\" is required for template generation flags.\n");
+		warnx("\"infile\" is required for template generation flags");
 		return (0);
 	} if (nflags > 1) {
-		f_print(stderr,
-			"Cannot have more than one file generation flag.\n");
+		warnx("cannot have more than one file generation flag");
 		return (0);
 	}
 	return (1);
@@ -1316,17 +1306,14 @@ parseargs(argc, argv, cmd)
 static void
 usage()
 {
-	f_print(stderr, "usage:  %s infile\n", cmdname);
-	f_print(stderr,
-		"\t%s [-abCLNTM] [-Dname[=value]] [-i size]\
-[-I [-K seconds]] [-Y path] infile\n",
-		cmdname);
-	f_print(stderr,
-		"\t%s [-c | -h | -l | -m | -t | -Sc | -Ss | -Sm]\
-[-o outfile] [infile]\n",
-		cmdname);
-	f_print(stderr, "\t%s [-s nettype]* [-o outfile] [infile]\n", cmdname);
-	f_print(stderr, "\t%s [-n netid]* [-o outfile] [infile]\n", cmdname);
+	f_print(stderr, "%s\n%s\n%s\n%s\n%s\n", 
+		"usage: rpcgen infile",
+		"       rpcgen [-abCLNTM] [-Dname[=value]] [-i size]\
+[-I [-K seconds]] [-Y path] infile",
+		"       rpcgen [-c | -h | -l | -m | -t | -Sc | -Ss | -Sm]\
+[-o outfile] [infile]",
+		"       rpcgen [-s nettype]* [-o outfile] [infile]",
+		"       rpcgen [-n netid]* [-o outfile] [infile]");
 	options_usage();
 	exit(1);
 }
