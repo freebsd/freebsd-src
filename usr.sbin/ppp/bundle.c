@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.24 1998/06/27 12:03:35 brian Exp $
+ *	$Id: bundle.c,v 1.25 1998/06/27 12:03:46 brian Exp $
  */
 
 #include <sys/param.h>
@@ -37,6 +37,9 @@
 #include <netinet/ip.h>
 #include <sys/un.h>
 
+#ifndef NOALIAS
+#include <alias.h>
+#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
@@ -627,8 +630,8 @@ bundle_DescriptorRead(struct descriptor *d, struct bundle *bundle,
           struct mbuf *bp;
 
 #ifndef NOALIAS
-          if (alias_IsEnabled()) {
-            (*PacketAlias.In)(tun.data, sizeof tun.data);
+          if (bundle->AliasEnabled) {
+            PacketAliasIn(tun.data, sizeof tun.data);
             n = ntohs(((struct ip *)tun.data)->ip_len);
           }
 #endif
@@ -668,8 +671,8 @@ bundle_DescriptorRead(struct descriptor *d, struct bundle *bundle,
     pri = PacketCheck(bundle, tun.data, n, &bundle->filter.out);
     if (pri >= 0) {
 #ifndef NOALIAS
-      if (alias_IsEnabled()) {
-        (*PacketAlias.Out)(tun.data, sizeof tun.data);
+      if (bundle->AliasEnabled) {
+        PacketAliasOut(tun.data, sizeof tun.data);
         n = ntohs(((struct ip *)tun.data)->ip_len);
       }
 #endif
@@ -815,6 +818,7 @@ bundle_Create(const char *prefix, int type, const char **argv)
   bundle.routing_seq = 0;
   bundle.phase = PHASE_DEAD;
   bundle.CleaningUp = 0;
+  bundle.AliasEnabled = 0;
 
   bundle.fsm.LayerStart = bundle_LayerStart;
   bundle.fsm.LayerUp = bundle_LayerUp;

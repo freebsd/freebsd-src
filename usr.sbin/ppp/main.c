@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.136 1998/06/24 19:33:32 brian Exp $
+ * $Id: main.c,v 1.137 1998/06/27 12:03:37 brian Exp $
  *
  *	TODO:
  */
@@ -180,23 +180,25 @@ Usage(void)
 }
 
 static char *
-ProcessArgs(int argc, char **argv, int *mode)
+ProcessArgs(int argc, char **argv, int *mode, int *alias)
 {
   int optc, labelrequired, newmode;
   char *cp;
 
   optc = labelrequired = 0;
   *mode = PHYS_INTERACTIVE;
+  *alias = 0;
   while (argc > 0 && **argv == '-') {
     cp = *argv + 1;
     newmode = Nam2mode(cp);
     switch (newmode) {
       case PHYS_NONE:
         if (strcmp(cp, "alias") == 0) {
-#ifndef NOALIAS
-          if (alias_Load() != 0)
+#ifdef NOALIAS
+          log_Printf(LogWARN, "Cannot load alias library\n");
+#else
+          *alias = 1;
 #endif
-	    log_Printf(LogWARN, "Cannot load alias library\n");
           optc--;			/* this option isn't exclusive */
         } else
           Usage();
@@ -243,7 +245,7 @@ int
 main(int argc, char **argv)
 {
   char *name, *label;
-  int nfds, mode;
+  int nfds, mode, alias;
   struct bundle *bundle;
   struct prompt *prompt;
 
@@ -260,7 +262,7 @@ main(int argc, char **argv)
   name = strrchr(argv[0], '/');
   log_Open(name ? name + 1 : argv[0]);
 
-  label = ProcessArgs(argc - 1, argv + 1, &mode);
+  label = ProcessArgs(argc - 1, argv + 1, &mode, &alias);
 
 #ifdef __FreeBSD__
   /*
@@ -324,6 +326,7 @@ main(int argc, char **argv)
     prompt_Printf(prompt, "Using interface: %s\n", bundle->ifp.Name);
   }
   SignalBundle = bundle;
+  bundle->AliasEnabled = alias;
 
   if (system_Select(bundle, "default", CONFFILE, prompt, NULL) < 0)
     prompt_Printf(prompt, "Warning: No default entry found in config file.\n");
