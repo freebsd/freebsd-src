@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.234 1996/08/03 06:49:00 jkh Exp $
+#	$Id: Makefile,v 1.235 1996/09/07 01:05:16 pst Exp $
 #
 # How to roll a release:
 #
@@ -552,6 +552,7 @@ doMFSKERN:
 	  sed	-e '/SYSV/d' \
 		-e '/pty/d' \
 		-e '/PROCFS/d' \
+		-e '/KTRACE/d' \
 		-e 's/GENERIC/BOOTMFS/g' \
 		-e '/maxusers/s/10/4/' < GENERIC > BOOTMFS && \
 	  echo "options  MFS" >> BOOTMFS && \
