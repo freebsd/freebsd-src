@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.19 1997/11/18 03:41:51 jdp Exp $";
+	"$Id: main.c,v 1.20 1998/02/18 04:15:04 eivind Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -86,13 +86,16 @@ main(argc, argv)
 	int ch;
 	char *p;
 
-	while ((ch = getopt(argc, argv, "gpr")) != -1)
+	while ((ch = getopt(argc, argv, "gprn")) != -1)
 		switch (ch) {
 		case 'g':
 			debugging++;
 			break;
 		case 'p':
 			profiling++;
+			break;
+		case 'n':
+			/* no_config_clobber is now true by default, no-op */
 			break;
 		case 'r':
 			no_config_clobber = FALSE;
