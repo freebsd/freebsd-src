@@ -27,9 +27,6 @@
 #include "bsdtar_platform.h"
 __FBSDID("$FreeBSD$");
 
-#ifdef DMALLOC
-#include <dmalloc.h>
-#endif
 #include <errno.h>
 #include <fnmatch.h>
 #include <stdlib.h>
