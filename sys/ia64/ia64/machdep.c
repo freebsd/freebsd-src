@@ -814,6 +814,11 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		sbs = (u_int64_t) p->p_sigstk.ss_sp;
 		sfp = (struct sigframe *)((caddr_t)p->p_sigstk.ss_sp +
 		    p->p_sigstk.ss_size - rndfsize);
+		/*
+		 * Align sp and bsp.
+		 */
+		sbs = (sbs + 15) & ~15;
+		sfp = (struct sigframe *)((u_int64_t)sfp & ~15);
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 		p->p_sigstk.ss_flags |= SS_ONSTACK;
 #endif
