@@ -746,8 +746,6 @@ sched_switch(struct thread *td, struct thread *newtd)
 
 	if ((p->p_flag & P_NOLOAD) == 0)
 		sched_tdcnt--;
-	if (newtd != NULL && (newtd->td_proc->p_flag & P_NOLOAD) == 0)
-		sched_tdcnt++;
 	/* 
 	 * The thread we are about to run needs to be counted as if it had been 
 	 * added to the run queue and selected.
@@ -756,6 +754,8 @@ sched_switch(struct thread *td, struct thread *newtd)
 		newtd->td_ksegrp->kg_avail_opennings--;
 		newtd->td_kse->ke_flags |= KEF_DIDRUN;
         	TD_SET_RUNNING(newtd);
+		if ((newtd->td_proc->p_flag & P_NOLOAD) == 0)
+			sched_tdcnt++;
 	}
 	td->td_lastcpu = td->td_oncpu;
 	td->td_flags &= ~TDF_NEEDRESCHED;
