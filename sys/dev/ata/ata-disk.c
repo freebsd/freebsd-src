@@ -54,14 +54,14 @@ __FBSDID("$FreeBSD$");
 #include <dev/ata/ata-raid.h>
 
 /* prototypes */
-static void ad_detach(struct ata_device *atadev);
-static void ad_start(struct ata_device *atadev);
-static void ad_done(struct ata_request *request);
+static void ad_detach(struct ata_device *);
+static void ad_start(struct ata_device *);
+static void ad_done(struct ata_request *);
 static disk_open_t adopen;
 static disk_strategy_t adstrategy;
 static dumper_t addump;
-void ad_print(struct ad_softc *adp);
-static int ad_version(u_int16_t version);
+void ad_print(struct ad_softc *);
+static int ad_version(u_int16_t);
 
 /* internal vars */
 static MALLOC_DEFINE(M_AD, "AD driver", "ATA disk driver");

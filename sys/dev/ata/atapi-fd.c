@@ -51,15 +51,15 @@ static	disk_close_t	afd_close;
 static	disk_ioctl_t	afd_ioctl;
 #endif
 static disk_strategy_t	afdstrategy;
-static void afd_detach(struct ata_device *atadev);
-static void afd_start(struct ata_device *atadev);
+static void afd_detach(struct ata_device *);
+static void afd_start(struct ata_device *);
 static int afd_sense(struct afd_softc *);
 static void afd_describe(struct afd_softc *);
 static void afd_done(struct ata_request *);
 static int afd_eject(struct afd_softc *, int);
 static int afd_start_stop(struct afd_softc *, int);
 static int afd_prevent_allow(struct afd_softc *, int);
-static int afd_test_ready(struct ata_device *atadev);
+static int afd_test_ready(struct ata_device *);
 
 /* internal vars */
 static u_int32_t afd_lun_map = 0;

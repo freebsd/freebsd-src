@@ -73,14 +73,14 @@ ata_cbus_probe(device_t dev)
 
     /* dont probe PnP devices */
     if (isa_get_vendorid(dev))
-       return (ENXIO);
+	return (ENXIO);
 
     /* allocate the ioport range */
     rid = ATA_IOADDR_RID;
     io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
 			    ATA_PC98_IOSIZE, RF_ACTIVE);
     if (!io)
-       return ENOMEM;
+	return ENOMEM;
 
     /* calculate & set the altport range */
     rid = ATA_PC98_ALTADDR_RID;
@@ -125,8 +125,8 @@ ata_cbus_attach(device_t dev)
 
     rid = ATA_PC98_BANKADDR_RID;
     ctlr->bankio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-				     ATA_PC98_BANK, ~0,
-				     ATA_PC98_BANKIOSIZE, RF_ACTIVE);
+				      ATA_PC98_BANK, ~0,
+				      ATA_PC98_BANKIOSIZE, RF_ACTIVE);
     if (!ctlr->bankio) {
 	bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, ctlr->io);
 	bus_release_resource(dev, SYS_RES_IOPORT, ATA_ALTADDR_RID, ctlr->altio);
@@ -181,9 +181,8 @@ ata_cbus_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	    return ctlr->altio;
 	}
     }
-    if (type == SYS_RES_IRQ) {
+    if (type == SYS_RES_IRQ)
 	return ctlr->irq;
-    }
     return 0;
 }
 
