@@ -10,6 +10,6 @@ if [ "X$pccard_enable" = X"YES" ] ; then
 	else
 		pccardc pccardmem 0xd0000
 	fi
-	echo "Enable PC-card." 
-	pccardd &
+	echo -n "Enable PC-card." 
+	pccardd 2>&1 > /var/log/pccardd.debug &
 fi
