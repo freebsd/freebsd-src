@@ -205,7 +205,7 @@ main(int argc, char **argv)
 
 	if (stat(argv[optind], &sb) == -1 && errno == ENOENT) {
 		/* try prepending _PATH_DEV */
-		device = malloc(strlen(argv[optind] + sizeof _PATH_DEV + 1));
+		device = malloc(strlen(argv[optind]) + sizeof(_PATH_DEV) + 1);
 		if (device == 0)
 			errx(EX_UNAVAILABLE, "out of memory");
 		strcpy(device, _PATH_DEV);
