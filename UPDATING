@@ -14,6 +14,14 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20040526:	p8	FreeBSD-SA-04:11.msync
+	Fix a bug in msync(2) which could cause it to discard dirty
+	pages.
+
+	NOTE: In some cases involving NFS, the incorrect behaviour may
+	actually be preferrable.  Setting the vm.old_msync sysctl
+	variable to 1 will revert msync(2) to its old behaviour.
+
 20040519:       p7	FreeBSD-SA-04:10.cvs
 	Correct a heap overflow in cvs's pserver protocol parser.
 
