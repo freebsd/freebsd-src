@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.6 1996/09/10 09:37:50 asami Exp $
+ *	$Id: fd.c,v 1.7 1996/10/23 07:25:15 asami Exp $
  *
  */
 
@@ -75,14 +75,13 @@
 #include <pc98/pc98/epsonio.h>
 #include <i386/isa/isa_device.h>
 #include <pc98/pc98/fdreg.h>
-#include <pc98/pc98/fdc.h>
 #else
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/fdreg.h>
-#include <i386/isa/fdc.h>
 #include <i386/isa/rtc.h>
 #endif
+#include <i386/isa/fdc.h>
 #include <machine/stdarg.h>
 #if NFT > 0
 #include <sys/ftape.h>

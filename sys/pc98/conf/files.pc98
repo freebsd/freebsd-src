@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.8 1996/10/23 07:24:49 asami Exp $
+#	$Id: files.pc98,v 1.9 1996/10/30 22:39:31 asami Exp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/aic7xxx_asm.c"			   \
@@ -151,17 +151,17 @@ pc98/isa/seagate.c		optional	sea	device-driver
 pc98/isa/si.c			optional	si	device-driver
 pc98/isa/si_code.c		optional	si	device-driver
 pc98/pc98/sio.c			optional	sio	device-driver
-pc98/pc98/sound/pcm86.c		optional	pcm	device-driver
+i386/isa/sound/pcm86.c		optional	pcm	device-driver
 i386/isa/sound/dev_table.c	optional	snd	device-driver
-pc98/pc98/sound/soundcard.c	optional	snd	device-driver
-pc98/pc98/sound/sound_switch.c	optional	snd	device-driver
+i386/isa/sound/soundcard.c	optional	snd	device-driver
+i386/isa/sound/sound_switch.c	optional	snd	device-driver
 i386/isa/sound/audio.c		optional	snd	device-driver
 i386/isa/sound/dmabuf.c		optional	snd	device-driver
 i386/isa/sound/sys_timer.c	optional	snd	device-driver
 i386/isa/sound/sequencer.c	optional	snd	device-driver
 i386/isa/sound/patmgr.c		optional	snd	device-driver
 i386/isa/sound/adlib_card.c	optional	opl	device-driver
-pc98/pc98/sound/opl3.c		optional	opl	device-driver
+i386/isa/sound/opl3.c		optional	opl	device-driver
 i386/isa/sound/gus_card.c	optional	gus	device-driver
 i386/isa/sound/gus_midi.c	optional	gus	device-driver
 i386/isa/sound/gus_vol.c	optional	gus	device-driver
@@ -170,9 +170,9 @@ i386/isa/sound/ics2101.c	optional	gus	device-driver
 i386/isa/sound/sound_timer.c	optional	gus	device-driver
 i386/isa/sound/midi_synth.c	optional	gus	device-driver
 i386/isa/sound/midibuf.c	optional	gus	device-driver
-pc98/pc98/sound/ad1848.c	optional	gusxvi	device-driver
-pc98/pc98/sound/ad1848.c	optional	gus	device-driver
-pc98/pc98/sound/ad1848.c	optional	mss	device-driver
+i386/isa/sound/ad1848.c		optional	gusxvi	device-driver
+i386/isa/sound/ad1848.c		optional	gus	device-driver
+i386/isa/sound/ad1848.c		optional	mss	device-driver
 i386/isa/sound/midi_synth.c	optional	mss	device-driver
 i386/isa/sound/midibuf.c	optional	mss	device-driver
 i386/isa/sound/mpu401.c		optional	mpu	device-driver
@@ -181,17 +181,17 @@ i386/isa/sound/midibuf.c	optional	mpu	device-driver
 i386/isa/sound/pas2_card.c	optional	pas	device-driver
 i386/isa/sound/pas2_midi.c	optional	pas	device-driver
 i386/isa/sound/pas2_mixer.c	optional	pas	device-driver
-pc98/pc98/sound/pas2_pcm.c	optional	pas	device-driver
+i386/isa/sound/pas2_pcm.c	optional	pas	device-driver
 i386/isa/sound/midi_synth.c	optional	pas	device-driver
 i386/isa/sound/midibuf.c	optional	pas	device-driver
 i386/isa/sound/sb_card.c	optional	sb	device-driver
-pc98/pc98/sound/sb_dsp.c	optional	sb	device-driver
+i386/isa/sound/sb_dsp.c		optional	sb	device-driver
 i386/isa/sound/sb_midi.c	optional	sb	device-driver
 i386/isa/sound/sb_mixer.c	optional	sb	device-driver
 i386/isa/sound/midi_synth.c	optional	sb	device-driver
 i386/isa/sound/midibuf.c	optional	sb	device-driver
-pc98/pc98/sound/sb16_dsp.c	optional	sbxvi	device-driver
-pc98/pc98/sound/sb16_midi.c	optional	sbmidi	device-driver
+i386/isa/sound/sb16_dsp.c	optional	sbxvi	device-driver
+i386/isa/sound/sb16_midi.c	optional	sbmidi	device-driver
 i386/isa/sound/uart6850.c	optional	uart	device-driver
 i386/isa/sound/midi_synth.c	optional	uart	device-driver
 i386/isa/sound/midibuf.c	optional	uart	device-driver
@@ -206,7 +206,7 @@ pc98/isa/ultra14f.c		optional	uha	device-driver
 pc98/pc98/wd.c			optional	wdc	device-driver
 pc98/pc98/wd.c			optional	wd	device-driver
 i386/isa/atapi.c		optional	atapi	device-driver
-pc98/pc98/wcd.c			optional	wcd	device-driver
+i386/isa/wcd.c			optional	wcd	device-driver
 pc98/isa/wd7000.c		optional	wds	device-driver
 pc98/pc98/wt.c			optional	wt	device-driver
 i386/linux/imgact_linux.c	optional	compat_linux
