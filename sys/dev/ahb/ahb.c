@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ahb.c,v 1.1 1998/09/15 07:10:00 gibbs Exp $
  */
 
 #include "eisa.h"
@@ -178,7 +178,7 @@ ahbqueuembox(struct ahb_softc *ahb, u_int32_t mboxval, u_int attn_code)
 		DELAY(20);
 	}
 	if (loopmax == 0)
-		panic("ahb%d: adapter not taking commands\n", ahb->unit);
+		panic("ahb%ld: adapter not taking commands\n", ahb->unit);
 
 	ahb_outl(ahb, MBOXOUT0, mboxval);
 	ahb_outb(ahb, ATTN, attn_code);
@@ -410,7 +410,7 @@ ahballoc(u_long unit,  u_int iobase, u_int irq)
 	 */
 	ahb = malloc(sizeof(struct ahb_softc), M_TEMP, M_NOWAIT);
 	if (!ahb) {
-		printf("ahb%d: cannot malloc!\n", unit);
+		printf("ahb%ld: cannot malloc!\n", unit);
 		return (NULL);
 	}
 	bzero(ahb, sizeof(struct ahb_softc));
@@ -531,7 +531,7 @@ ahbxptattach(struct ahb_softc *ahb)
 
 	ahb->num_ecbs = MIN(ahb->num_ecbs,
 			    ahb->ha_inq_data->scsi_data.reserved[1]);
-	printf("ahb%d: %.8s %s SCSI Adapter, FW Rev. %.4s, ID=%d, %d ECBs\n",
+	printf("ahb%ld: %.8s %s SCSI Adapter, FW Rev. %.4s, ID=%d, %d ECBs\n",
 	       ahb->unit, ahb->ha_inq_data->scsi_data.product,
 	       (ahb->ha_inq_data->scsi_data.flags & 0x4) ? "Differential"
 							 : "Single Ended",
@@ -588,8 +588,8 @@ ahbhandleimmed(struct ahb_softc *ahb, u_int32_t mbox, u_int intstat)
 	u_int target_id;
 
 	if (ahb->immed_cmd == 0) {
-		printf("ahb%d: Immediate Command complete with no "
-		       " pending command\n");
+		printf("ahb%ld: Immediate Command complete with no "
+		       " pending command\n", ahb->unit);
 		return;
 	}
 
@@ -630,11 +630,11 @@ ahbhandleimmed(struct ahb_softc *ahb, u_int32_t mbox, u_int intstat)
 
 	if (ahb->immed_ecb != NULL) {
 		ahb->immed_ecb = NULL;
-		printf("ahb%d: No longer in timeout\n", ahb->unit);
+		printf("ahb%ld: No longer in timeout\n", ahb->unit);
 	} else if (target_id == ahb->scsi_id)
-		printf("ahb%d: SCSI Bus Reset Delivered\n", ahb->unit);
+		printf("ahb%ld: SCSI Bus Reset Delivered\n", ahb->unit);
 	else
-		printf("ahb%d:  Bus Device Reset Delibered to target %d\n",
+		printf("ahb%ld:  Bus Device Reset Delibered to target %d\n",
 		       ahb->unit, target_id);
 
 	ahb->immed_cmd = 0;
@@ -764,7 +764,7 @@ ahbprocesserror(struct ahb_softc *ahb, struct ecb *ecb, union ccb *ccb)
 	case HS_INVALID_CMD_LINK:
 	case HS_INVALID_ECB_PARAM:
 	case HS_PROGRAM_CKSUM_ERROR:
-		panic("ahb%d: Can't happen host status %x occurred",
+		panic("ahb%ld: Can't happen host status %x occurred",
 		      ahb->unit, status->ha_status);
 		break;
 	}
@@ -813,7 +813,7 @@ ahbdone(struct ahb_softc *ahb, u_int32_t mbox, u_int intstat)
 	} else {
 		/* Non CCB Command */
 		if ((intstat & INTSTAT_MASK) != INTSTAT_ECB_OK) {
-			printf("ahb%d: Command 0%x Failed %x:%x:%x\n",
+			printf("ahb%ld: Command 0%x Failed %x:%x:%x\n",
 			       ahb->unit, ecb->hecb.opcode,
 			       *((u_int16_t*)&ecb->status),
 			       ecb->status.ha_status, ecb->status.resid_count);
@@ -900,8 +900,8 @@ ahbexecuteecb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 
 	if (error != 0) {
 		if (error != EFBIG)
-			printf("ahb%d: Unexepected error 0x%x returned from "
-			       "bus_dmamap_load\n", ahb->unit);
+			printf("ahb%ld: Unexepected error 0x%x returned from "
+			       "bus_dmamap_load\n", ahb->unit, error);
 		if (ccb->ccb_h.status == CAM_REQ_INPROG) {
 			xpt_freeze_devq(ccb->ccb_h.path, /*count*/1);
 			ccb->ccb_h.status = CAM_REQ_TOO_BIG|CAM_DEV_QFRZN;
@@ -1259,13 +1259,14 @@ ahbtimeout(void *arg)
 	ccb = ecb->ccb;
 	ahb = (struct ahb_softc *)ccb->ccb_h.ccb_ahb_ptr;
 	xpt_print_path(ccb->ccb_h.path);
-	printf("ECB 0x%x - timed out\n", ecb);
+	printf("ECB 0x%x - timed out\n", (intptr_t)ecb);
 
 	s = splcam();
 
 	if ((ecb->state & ECB_ACTIVE) == 0) {
 		xpt_print_path(ccb->ccb_h.path);
-		printf("ECB 0x%x - timed out ECB already completed\n", ecb);
+		printf("ECB 0x%x - timed out ECB already completed\n",
+		       (intptr_t)ecb);
 		splx(s);
 		return;
 	}
@@ -1311,7 +1312,7 @@ ahbtimeout(void *arg)
 		 * later which will attempt a bus reset.
 		 */
 		xpt_print_path(ccb->ccb_h.path);
-		printf("Queuing BDR\n", ecb);
+		printf("Queuing BDR\n");
 		ecb->state |= ECB_DEVICE_RESET;
 		ccb->ccb_h.timeout_ch =
 		    timeout(ahbtimeout, (caddr_t)ecb, 2 * hz);
@@ -1324,7 +1325,7 @@ ahbtimeout(void *arg)
 		 * have already attempted to clear the condition with a BDR.
 		 */
 		xpt_print_path(ccb->ccb_h.path);
-		printf("Attempting SCSI Bus reset\n", ecb);
+		printf("Attempting SCSI Bus reset\n");
 		ecb->state |= ECB_SCSIBUS_RESET;
 		ccb->ccb_h.timeout_ch =
 		    timeout(ahbtimeout, (caddr_t)ecb, 2 * hz);
