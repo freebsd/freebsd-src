@@ -1,10 +1,8 @@
 You can install from the following types of media:
 
    CDROM    requires one of the following supported CDROM drives:
-            Sony CDU 31/33A
-            Matushita/Panasonic "Sound Blaster" CDROM.
-            Mitsumi FX-001{A-D} (older non-IDE drives).
-            IDE CDROM
+            ATAPI - Any standard ATAPI CDROM driver hooked to
+	    a supported controller <see Hardware Guide).
             SCSI - Any standard SCSI CDROM drive hooked to
             a supported controller (see Hardware Guide).
 
