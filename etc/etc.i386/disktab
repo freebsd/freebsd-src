@@ -222,6 +222,12 @@ zip100|zip 100:\
 	:pb#196608:ob#0:bb#4096:fb#512:\
 	:pc#196608:oc#0:bc#4096:fc#512:
 
+zip250|zip 250:\
+	:ty=removable:se#512:nc#239:nt#64:ns#32:\
+	:pa#489472:oa#0:ba#4096:fa#512:\
+	:pb#489472:ob#0:bb#4096:fb#512:\
+	:pc#489472:oc#0:bc#4096:fc#512:
+
 orb2200|orb22|orb:\
 	:ty=removable:ns#63:nt#128:nc#4273:sc#1008:su#4307184:se#512:\
 	:pa#4307184:oa#0:ba#8192:fa#1024:\

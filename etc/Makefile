@@ -37,14 +37,14 @@ SSH=	${.CURDIR}/../crypto/openssh/ssh_config \
 SSL=	${.CURDIR}/../crypto/openssl/apps/openssl.cnf
 .endif
 
-# -rwxr-xr-x root.wheel, for the new cron root.wheel
+# -rwxr-xr-x root:wheel, for the new cron root:wheel
 BIN2=	netstart pccard_ether rc.suspend rc.resume
 
 MTREE=	BSD.include.dist BSD.local.dist BSD.root.dist BSD.usr.dist \
 	BSD.var.dist BSD.x11.dist BSD.x11-4.dist
 NAMEDB= PROTO.localhost.rev PROTO.localhost-v6.rev named.conf named.root \
 	make-localhost
-PPPCNF=	ppp.conf
+PPPCNF= ppp.conf
 ETCMAIL=Makefile README mailer.conf access.sample virtusertable.sample \
 	mailertable.sample aliases
 
@@ -61,7 +61,7 @@ distribute:
 .if defined(OBJFORMAT)
 	echo OBJFORMAT=${OBJFORMAT} > ${DISTDIR}/bin/etc/objformat
 .endif
-	@echo 
+	@echo
 
 distribution:
 	(cd ${.CURDIR}; \
@@ -79,9 +79,7 @@ distribution:
 	( cd ${.CURDIR}/../gnu/usr.bin/send-pr; ${MAKE} etc-gnats-freefall ); \
 	( cd ${.CURDIR}/../share/termcap; ${MAKE} etc-termcap ); \
 	( cd ${.CURDIR}/../usr.sbin/rmt; ${MAKE} etc-rmt ); \
-	pwd_mkdb -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 555 \
-	     MAKEDEV.local MAKEDEV ${DESTDIR}/dev )
+	pwd_mkdb -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd )
 .if !defined(NO_I4B)
 	( cd ${.CURDIR}/isdn; ${MAKE} install )
 .endif
@@ -100,7 +98,11 @@ distribution:
 	    ${DESTDIR}/etc/ssl )
 .endif
 .if !defined(NO_MAKEDEV)
+	( cd ${.CURDIR}; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 555 \
+	    MAKEDEV.local MAKEDEV ${DESTDIR}/dev )
+.if !defined(NO_MAKEDEV_RUN)
 	(cd ${DESTDIR}/dev; sh MAKEDEV all)
+.endif
 .endif
 	(cd ${.CURDIR}/root; \
 		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 dot.cshrc \
@@ -123,7 +125,7 @@ distribution:
 	cd ${.CURDIR}/mail; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${ETCMAIL} ${DESTDIR}/etc/mail
 	@if [ -d ${DESTDIR}/etc/mail -a -f ${DESTDIR}/etc/mail/aliases -a \
-	      ! -f ${DESTDIR}/etc/aliases ]; then \
+	    ! -f ${DESTDIR}/etc/aliases ]; then \
 		set -x; \
 		ln -s mail/aliases ${DESTDIR}/etc/aliases; \
 	fi
@@ -131,9 +133,11 @@ distribution:
 	    ${DESTDIR}/etc/dumpdates
 	${INSTALL} -c -o nobody -g ${BINGRP} -m 644 /dev/null \
 	    ${DESTDIR}/var/db/locate.database
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
+	    ${DESTDIR}/var/log/auth.log
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
 	    ${DESTDIR}/var/log/lpd-errs
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 640 /dev/null \
 	    ${DESTDIR}/var/log/maillog
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
 	    ${DESTDIR}/var/log/lastlog
@@ -141,9 +145,9 @@ distribution:
 	    ${DESTDIR}/var/log/messages
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
 	    ${DESTDIR}/var/log/security
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
+	${INSTALL} -c -o ${BINOWN} -g network -m 640 /dev/null \
 	    ${DESTDIR}/var/log/slip.log
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
+	${INSTALL} -c -o ${BINOWN} -g network -m 640 /dev/null \
 	    ${DESTDIR}/var/log/ppp.log
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
 	    ${DESTDIR}/var/log/wtmp

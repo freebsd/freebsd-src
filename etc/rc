@@ -24,8 +24,8 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
+#	@(#)rc	5.27 (Berkeley) 6/5/91
 # $FreeBSD$
-#	From: @(#)rc	5.27 (Berkeley) 6/5/91
 #
 
 # System startup script run by init on autoboot
@@ -49,7 +49,7 @@ trap : 3	# shouldn't be needed
 bootmode=$1
 
 HOME=/
-PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
 export HOME PATH
 
 # BOOTP diskless boot.  We have to run the rc file early in order to
@@ -111,6 +111,7 @@ case ${dumpdev} in
 	;;
 *)
 	/sbin/dumpon -v ${dumpdev}
+	;;
 esac
 
 # Configure ccd devices.
@@ -224,7 +225,6 @@ case $? in
 	;;
 esac
 
-
 adjkerntz -i
 
 purgedir() {
@@ -252,23 +252,26 @@ purgedir() {
 }
 
 clean_var() {
-	if [ ! -f /var/run/clean_var ]; then
-		purgedir /var/run /var/spool/lock
-		rm -rf /var/spool/uucp/.Temp/*
+	if [ -d /var/run -a ! -f /var/run/clean_var ]; then
+		purgedir /var/run
 		# Keep a copy of the boot messages around
 		dmesg >/var/run/dmesg.boot
 		# And an initial utmp file
 		(cd /var/run && cp /dev/null utmp && chmod 644 utmp;)
 		>/var/run/clean_var
 	fi
+	if [ -d /var/spool/lock -a ! -f /var/spool/lock/clean_var ]; then
+		purgedir /var/spool/lock
+		>/var/spool/lock/clean_var
+	fi
+	rm -rf /var/spool/uucp/.Temp/*
 }
 
-if [ -d /var/run -a -d /var/spool/lock -a -d /var/spool/uucp/.Temp ]; then
-	# network_pass1() *may* end up writing stuff to /var - we don't want to
-	# remove it immediately afterwards - *nor* to we want to fail to clean
-	# an nfs-mounted /var.
-	clean_var
-fi
+# network_pass1() *may* end up writing stuff to /var - we don't want to
+# remove it immediately afterwards - *nor* do we want to fail to clean
+# an NFS-mounted /var.
+rm -f /var/run/clean_var /var/spool/lock/clean_var
+clean_var
 
 # Add additional swapfile, if configured.
 #
@@ -283,10 +286,10 @@ case ${swapfile} in
 	;;
 esac
 
-# Set sysctl variables as early as we can
+# Early pass to set the variables we can
 #
 if [ -r /etc/rc.sysctl ]; then
-	. /etc/rc.sysctl
+	sh /etc/rc.sysctl first
 fi
 
 # Configure serial devices
@@ -318,6 +321,7 @@ case ${ipv6_enable} in
 esac
 
 # Mount NFS filesystems if present in /etc/fstab
+#
 case "`mount -d -a -t nfs 2> /dev/null`" in
 *mount_nfs*)
 	echo -n 'Mounting NFS file systems:'
@@ -337,7 +341,7 @@ fi
 # Clean up left-over files
 #
 clean_var			# If it hasn't already been done
-rm /var/run/clean_var
+rm /var/run/clean_var /var/spool/lock/clean_var
 
 # Clearing /tmp at boot-time seems to have a long tradition.  It doesn't
 # help in any way for long-living systems, and it might accidentally
@@ -375,7 +379,7 @@ case ${syslogd_enable} in
 [Yy][Ee][Ss])
 	# Transitional symlink (for the next couple of years :) until all
 	# binaries have had a chance to move towards /var/run/log.
-	if [ ! -h /dev/log ]; then
+	if [ ! -L /dev/log ]; then
 		# might complain for r/o root f/s
 		ln -sf /var/run/log /dev/log
 	fi
@@ -405,7 +409,7 @@ if [ "${dumpdev}" != 'NO' ]; then
 		;;
 	esac
 
-	if [ "$dumpdir" != 'NO' ]; then
+	if [ "${dumpdir}" != 'NO' ]; then
 		echo -n 'Checking for core dump: '
 		/sbin/savecore ${savecore_flags} "${dumpdir}"
 	fi
@@ -699,6 +703,8 @@ case ${local_startup} in
 			(set -T
 			trap 'exit 1' 2
 			${script} start)
+		elif [ -f "${script}" -o -L "${script}" ]; then
+			echo -n " (skipping ${script##*/}, not executable)"
 		fi
 	done
 	IFS="${script_save_sep}"
@@ -708,6 +714,12 @@ esac
 
 if [ -n "${network_pass3_done}" ]; then
 	network_pass4
+fi
+
+# Late pass to set variables we missed the first time
+#
+if [ -r /etc/rc.sysctl ]; then
+	sh /etc/rc.sysctl last
 fi
 
 # Raise kernel security level.  This should be done only after `fsck' has

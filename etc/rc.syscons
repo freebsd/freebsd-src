@@ -180,7 +180,7 @@ if [ -n "${allscreens_flags}" ]; then
 	done
 fi
 
-# set this keyboard more for all virtual terminals
+# set this keyboard mode for all virtual terminals
 #
 if [ -n "${allscreens_kbdflags}" ]; then
 	echo -n ' allscreens_kbd'

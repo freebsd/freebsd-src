@@ -18,6 +18,7 @@ If you still have a question or problem, please take the output of
 as a question to the questions@FreeBSD.org mailing list.  If you are
 unfamiliar with FreeBSD's directory layout, please refer to the hier(7)
 man page.  If you are not familiar with man pages, type `man man'.
-You may also use `/stand/sysinstall' to re-enter the installation and
+
+You may also use /stand/sysinstall to re-enter the installation and
 configuration utility.  Edit /etc/motd to change this login announcement.
 
