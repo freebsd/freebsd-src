@@ -786,6 +786,12 @@
     <sect3>
       <title>Ports/Packages Collection</title>
 
+      <para>Due to delays in the certification process, native
+      <application>JDK</application> support for &os; will be released
+      shortly after 4.5-RELEASE.  An announcement will be made on the
+      &os; Web site, as well as the &a.announce;, when the
+      distribution is available.</para>
+
       <para>&man.pkg.create.1; now supports a <option>-b</option>
       option to create a package file from a locally-installed
       package.</para>
