@@ -49,7 +49,7 @@ it.
 
 If an entry is marked with an *, it means that support is currently
 not available for it but should be back as soon as someone converts
-the driver to work within the new 3.0 framework.
+the driver to work within the new 4.0 framework.
 
 FreeBSD GENERIC kernel:
 
@@ -61,16 +61,18 @@ wdc1    170     15      n/a     n/a     IDE/MFM/RLL disk controller
 
 adv0    n/a     n/a     n/a     n/a     AdvanSys Narrow SCSI controllers
 adw0    n/a     n/a     n/a     n/a     AdvanSys Wide SCSI controllers
+amd0    n/a     n/a     n/a     n/a     AMD 53C974 (Tekram DC390(T))
 ncr0    n/a     n/a     n/a     n/a     NCR PCI SCSI controller
 bt0     330     dyn     dyn     dyn     Buslogic SCSI controller
-uha0*   330     dyn     6       dyn     Ultrastore 14f
 aha0    330     dyn     5       dyn     Adaptec 154x/1535 SCSI controller
 ahb0    dyn     dyn     dyn     dyn     Adaptec 174x SCSI controller
 ahc0    dyn     dyn     dyn     dyn     Adaptec 274x/284x/294x SCSI controller
 aic0    340     11      dyn     dyn     Adaptec 152x/AIC-6360/AIC-6260 SCSI
                                         controller
 isp0    dyn     dyn     dyn     dyn     QLogic 10X0, 2100 SCSI/FC controllers
-dpt     n/a     n/a     n/a     n/a     DPT RAID SCSI controllers.
+dpt0    dyn    	dyn     n/a     n/a     DPT RAID SCSI controllers
+amr0    dyn	dyn	n/a	n/a	AMI MegaRAID controllers
+mlx0    dyn	dyn	n/a	dyn	Mylex DAC960 RAID controllers
 
 wt0     300     5       1       dyn     Wangtek and Archive QIC-02/QIC-36
 
@@ -83,8 +85,7 @@ scd0    230     n/a     n/a     n/a     Sony CD-ROM
 sio0    3f8     4       n/a     n/a     Serial Port 0 (COM1)
 sio1    2f8     3       n/a     n/a     Serial Port 1 (COM2)
 
-lpt0    dyn     7       n/a     n/a     Printer Port 0
-lpt1    dyn     dyn     n/a     n/a     Printer Port 1
+ppc0    dyn     7       n/a     n/a     Printer ports
 
 al0     dyn     dyn     n/a     dyn     ADMtek AL981/AN985 PCI based cards
 ax0     dyn     dyn     n/a     dyn     ASIX AX88140A PCI based cards
@@ -93,7 +94,6 @@ de0     n/a     n/a     n/a     n/a     DEC DC21x40 PCI based cards
 dm0     n/a     n/a     n/a     n/a     Davicom DM9100/DM9102 PCI based cards
 ed0     280     10      dyn     d8000   WD & SMC 80xx; Novell NE1000 &
                                         NE2000; 3Com 3C503; HP PC Lan+
-eg0     310     5       dyn     dyn     3Com 3C505
 ep0     300     10      dyn     dyn     3Com 3C509
 ex0     dyn     dyn     dyn     n/a     Intel EtherExpress Pro/10 cards
 fe0     300     dyn     n/a     n/a     Allied-Telesyn AT1700, RE2000 and
@@ -115,6 +115,7 @@ sf0     dyn     dyn     n/a     dyn     Adaptec AIC-6915 fast ethernet
 sis0    dyn     dyn     n/a     dyn     SiS 900/SiS 7016 fast ethernet
 ste0    dyn     dyn     n/a     dyn     Sundance ST201 fast ethernet
 tl0     dyn     dyn     n/a     dyn     TI TNET100 'ThunderLAN' cards.
+tx0     dyn     dyn     n/a     dyn     SMC 9432 'Epic' fast ethernet
 wb0     dyn     dyn     n/a     dyn     Winbond W89C840F PCI based cards.
 vr0     dyn     dyn     n/a     dyn     VIA VT3043/VT86C100A PCI based cards.
 vx0     dyn     dyn     n/a     dyn     3Com 3c59x ((Fast) Etherlink III)
@@ -122,10 +123,6 @@ xl0     dyn     dyn     n/a     dyn     3Com 3c900, 3c905, 3c905B, 3c905C,
                                         3c980, 3cSOHO100 ((Fast) Etherlink XL)
 cs0     0x300   dyn     n/a     n/a     Crystal Semiconductor CS89x0-based
                                         cards.
-ze0     300     5       n/a     d8000   IBM/National Semiconductor
-                                        PCMCIA Ethernet Controller
-zp0     300     10      n/a     d8000   3Com 3c589 Etherlink III
-                                        PCMCIA Ethernet Controller
 --- End of table ---
 
 
@@ -248,10 +245,11 @@ when the field is active.
 
 To finish configuring a driver, press 'Q'.
 
-Note that PCI and EISA devices can be probed reliably, therefore they
-are not shown in the table above nor can their settings be changed
-using UserConfig.  PCI drivers may be seen in the "PCI Devices" section
-in the Active Devices list, if you wish to check for their presence.
+Note that PCI, Microchannel and EISA devices can be probed reliably,
+therefore they are not shown in the table above nor can their settings
+be changed using UserConfig.  PCI drivers may be seen in the "PCI
+Devices" section in the Active Devices list, if you wish to check for
+their presence.
 
 
 3.      LINT - other possible configurations
@@ -271,6 +269,7 @@ The LINT file contains prototype entries for all of the below which you
 can easily cut-and-paste into your own file (or simply copy LINT and edit
 it to taste):
 
+ata:    Alternate high-performance driver for IDE controllers
 ctx:    Cortex-I frame grabber
 cx:     Cronyx/Sigma multiport sync/async
 cy:     Cyclades high-speed serial driver
@@ -301,9 +300,12 @@ sb:     SoundBlaster PCM - SoundBlaster, SB Pro, SB16, ProAudioSpectrum
 sbmidi: SoundBlaster 16 MIDI interface
 sbxvi:  SoundBlaster 16
 si:     Specialix SI/XIO/SX (old and enhanced ISA, PCI, EISA) serial
+sym:    Alternate high-performance driver for NCR/LSI Logic SCSI controllers
 spigot: Creative Labs Video Spigot video-acquisition board
 uart:   Stand-alone 6850 UART for MIDI
 wds:    Western Digital WD7000 IDE
+ze:     IBM/National Semiconductor PCMCIA Ethernet Controller
+zp:     3Com 3c589 Etherlink III PCMCIA Ethernet Controller
 
 --- end of list ---
 
@@ -311,11 +313,11 @@ wds:    Western Digital WD7000 IDE
 4.      Supported Hardware
 --      ------------------
 
-FreeBSD currently runs on a wide variety of ISA, VLB, EISA and PCI bus
-based PC's, ranging from 386sx to Pentium class machines (though the
-386sx is not recommended).  Support for generic IDE or ESDI drive
-configurations, various SCSI controller, network and serial cards is
-also provided.
+FreeBSD currently runs on a wide variety of ISA, VLB, EISA,
+Microchannel and PCI bus based PC's, ranging from 386sx to Pentium
+class machines (though the 386sx is not recommended).  Support for
+generic IDE or ESDI drive configurations, various SCSI controller,
+network and serial cards is also provided.
 
 What follows is a list of all peripherals currently known to work with
 FreeBSD.  Other configurations may also work, we have simply not as yet
@@ -325,10 +327,10 @@ received confirmation of this.
 4.1.    Disk Controllers
 ----    ----------------
 
-WD1003 (any generic MFM/RLL)
-WD1007 (any generic IDE/ESDI)
 IDE
 ATA
+WD1003 (any generic MFM/RLL - obsolete)
+WD1007 (any generic ESDI - obsolete)
 
 Adaptec 1535 ISA SCSI controllers
 Adaptec 154x series ISA SCSI controllers
@@ -365,6 +367,12 @@ DPT SmartCACHE Plus, SmartCACHE III, SmartRAID III, SmartCACHE IV and
 SmartRAID IV SCSI/RAID controllers are supported.  The DPT SmartRAID/CACHE V
 is not yet supported.
 
+AMI MegaRAID Express and Enterprise family controllers (all models).
+
+Mylex DAC960 controllers with 3.x and 4.x firmware, including the
+P, PL, PJ, PG and PTL (AcceleRAID 250).  Other AcceleRAID models may
+function but have not been tested.
+
 SymBios (formerly NCR) 53C810, 53C810a, 53C815, 53C820, 53C825a,
 53C860, 53C875, 53C875j, 53C885, 53C895 and 53C896 PCI SCSI controllers:
         ASUS SC-200
@@ -380,6 +388,9 @@ QLogic 1020, 1040, 1040B and 2100 SCSI and Fibre Channel Adapters
 
 DTC 3290 EISA SCSI controller in 1542 emulation mode.
 
+Tekram DC390 and DC390T controllers (maybe other cards based on the
+AMD 53c974 as well).
+
 With all supported SCSI controllers, full support is provided for
 SCSI-I & SCSI-II peripherals, including hard disks, optical disks,
 tape drives (including DAT and 8mm Exabyte), medium changers, processor
@@ -388,36 +399,13 @@ are supported for read-only access by the CDROM driver.  WORM/CD-R/CD-RW
 writing support is provided by cdrecord, which is in the ports tree.
 
 The following CD-ROM type systems are supported at this time:
-(cd)    SCSI interface (also includes ProAudio Spectrum and
-        SoundBlaster SCSI)
+(cd)    SCSI interface (also includes SoundBlaster SCSI)
 (matcd) Matsushita/Panasonic (Creative SoundBlaster) proprietary
         interface (562/563 models)
 (scd)   Sony proprietary interface (all models)
 (acd)   ATAPI IDE interface
 
-The following drivers were supported under the old SCSI subsystem, but are
-NOT YET supported under the new CAM SCSI subsystem:
-
-  Tekram DC390 and DC390T controllers (maybe other cards based on the
-  AMD 53c974 as well).
-
-  NCR5380/NCR53400 ("ProAudio Spectrum") SCSI controller. 
-
-  UltraStor 14F, 24F and 34F SCSI controllers.
-
-  Seagate ST01/02 SCSI controllers.
-
-  Future Domain 8xx/950 series SCSI controllers.
-
-  WD7000 SCSI controller.
-
-  [ Note:  There is work-in-progress to port the UltraStor driver to 
-    the new CAM SCSI framework, but no estimates on when or if it will 
-    be completed. ]
-
 Unmaintained drivers, they might or might not work for your hardware:
-
-  Floppy tape interface (Colorado/Mountain/Insight)
 
   (mcd)   Mitsumi proprietary CD-ROM interface (all models)
 
@@ -539,13 +527,11 @@ Isolink 4110     (8 bit)
 
 Novell NE1000, NE2000, and NE2100 ethernet interface.
 PCI network cards emulating the NE2000: RealTek 8029, NetVin 5000,
-Winbond W89C940, Surecom NE-34, VIA VT86C926.
+Winbond W89C940, Surecom NE-34, VIA VT86C926, etc.
 
 3Com 3C501 cards
 
 3Com 3C503 Etherlink II
-
-3Com 3c505 Etherlink/+
 
 3Com 3C507 Etherlink 16/TP
 
@@ -720,7 +706,6 @@ ONboard 4/16 and Brumby.
 Adlib, SoundBlaster, SoundBlaster Pro, ProAudioSpectrum, Gravis UltraSound
 and Roland MPU-401 sound cards.
 
-Connectix QuickCam
 Matrox Meteor Video frame grabber
 Creative Labs Video Spigot frame grabber
 Cortex1 frame grabber
@@ -740,8 +725,6 @@ GPIB and Transputer drivers.
 
 Genius and Mustek hand scanners.
 
-Floppy tape drives (some rather old models only, driver rather stale)
-
 Lucent Technologies WaveLAN/IEEE 802.11 PCMCIA and ISA standard speed
 (2Mbps) and turbo speed (6Mbps) wireless network adapters and workalikes
 (NCR WaveLAN/IEEE 802.11, Cabletron RoamAbout 802.11 DS).  Note: the
@@ -749,4 +732,14 @@ ISA versions of these adapters are actually PCMCIA cards combined with
 an ISA to PCMCIA bridge card, so both kinds of devices work with
 the same driver.
 
-FreeBSD currently does NOT support IBM's microchannel (MCA) bus.
+4.6.    Microchannel
+----    ------------
+
+Experimental support for Microchannel systems is new in FreeBSD 4.0
+
+Drivers with support for Microchannel peripherals are:
+
+aha:	Adaptec AHA-1640 SCSI controller
+bt:	Buslogic BT-640A and Storage Dimensions SDC3211 SCSI controllers
+ep:	3Com 3C529 network adapter
+
