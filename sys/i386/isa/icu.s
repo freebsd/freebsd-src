@@ -36,14 +36,10 @@
  *
  *	@(#)icu.s	7.2 (Berkeley) 5/21/91
  *
- *	$Id: icu.s,v 1.29 1997/02/22 09:36:14 peter Exp $
+ *	$Id: icu.s,v 1.30 1997/04/26 11:45:54 peter Exp $
  */
 
 #include "opt_smp.h"
-
-#if defined(SMP)
-#include <machine/smptests.h>	/** TEST_UPPERPRIO */
-#endif /* SMP */
 
 
 /*
@@ -407,12 +403,7 @@ __CONCAT(vec,irq_num): ; \
 	BUILD_VEC(8)
 #endif
 	BUILD_VEC(9)
-#if defined(TEST_UPPERPRIO)
-vec10: 	int	$64
-	ret
-#else
 	BUILD_VEC(10)
-#endif /* TEST_UPPERPRIO */
 	BUILD_VEC(11)
 	BUILD_VEC(12)
 	BUILD_VEC(13)
