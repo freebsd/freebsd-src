@@ -35,7 +35,7 @@
  *	Fritz!Card PCI specific routines for isic driver
  *	------------------------------------------------
  *
- *	$Id: i4b_avm_fritz_pci.c,v 1.6 1999/06/01 12:10:25 hm Exp $
+ *	$Id: i4b_avm_fritz_pci.c,v 1.3 1999/08/06 14:02:12 hm Exp $
  *
  *      last edit-date: [Tue Jun  1 14:08:01 1999]
  *
@@ -1650,7 +1650,7 @@ avma1pp_bchannel_stat(int unit, int h_chan, bchan_statistics_t *bsp)
  *	fill HSCX fifo with data from the current mbuf
  *	Put this here until it can go into i4b_hscx.c
  *---------------------------------------------------------------------------*/
-int
+static int
 isic_hscx_fifo(isic_Bchan_t *chan, struct isic_softc *sc)
 {
 	int len;
