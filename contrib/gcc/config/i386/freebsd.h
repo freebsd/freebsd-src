@@ -471,7 +471,7 @@ do {									\
 %{!maout: -D__ELF__} \
 %{munderscores: -D__UNDERSCORES__} \
 %{maout: %{!mno-underscores: -D__UNDERSCORES__}} \
-%{fPIC:-D__PIC__ -D__pic__} %{fpic:-D__PIC__ -D__pic__}}"
+%{fPIC:-D__PIC__ -D__pic__} %{fpic:-D__PIC__ -D__pic__}"
 
 #undef CC1_SPEC
 #define CC1_SPEC "\
