@@ -13,7 +13,7 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.68 1995/03/16 18:12:01 bde Exp $
+ * $Id: if_ed.c,v 1.69 1995/04/12 20:47:45 wollman Exp $
  */
 
 #include "ed.h"
@@ -465,29 +465,6 @@ ed_probe_WD80x3(isa_dev)
 	    && ((inb(sc->asic_addr + ED_WD_ICR) & ED_WD_ICR_16BIT) == 0)) {
 		isa16bit = 0;
 		memsize = 8192;
-	}
-
-
-	if (sc->is790) {
-		outb(sc->asic_addr + ED_WD790_HWR,
-		 inb(sc->asic_addr + ED_WD790_HWR) | ED_WD790_HWR_SWH);
-
-		switch (inb(sc->asic_addr + ED_WD790_RAR) & ED_WD790_RAR_SZ64) {
-		case ED_WD790_RAR_SZ64:
-			memsize = 65536;
-			break;
-		case ED_WD790_RAR_SZ32:
-			memsize = 32768;
-			break;
-		case ED_WD790_RAR_SZ16:
-			memsize = 16384;
-			break;
-		case ED_WD790_RAR_SZ8:
-			memsize = 8192;
-			break;
-		}
-		outb(sc->asic_addr + ED_WD790_HWR,
-		 inb(sc->asic_addr + ED_WD790_HWR) & ~ED_WD790_HWR_SWH);
 	}
 
 #if ED_DEBUG
