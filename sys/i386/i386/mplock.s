@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: mplock.s,v 1.16 1997/04/26 06:41:33 peter Exp $
+ * $Id: mplock.s,v 1.1 1997/05/03 19:00:42 smp Exp smp $
  *
  * Functions for locking between CPUs in a SMP system.
  *
@@ -37,11 +37,16 @@
  *  Destroys	%eax, %ecx and %edx.
  */
 
+/* XXX FIXME: remove this code entirely once it is proven unnecessary */
+#define BOTHER_TO_CHECK_NOT
+
 NON_GPROF_ENTRY(MPgetlock)
+#if defined(BOTHER_TO_CHECK)
 	movl	_smp_active, %eax	/* !MP ? -- skip it */
 	cmpl	$0, %eax
 	jne	1f
 	ret
+#endif  /* BOTHER_TO_CHECK */
 1:	movl	4(%esp), %edx		/* Get the address of the lock */
   	movl	(%edx), %eax		/* Try to see if we have it already */
 	andl	$0x00ffffff, %eax	/* - get count */
@@ -83,11 +88,13 @@ NON_GPROF_ENTRY(MPgetlock)
  */
 
 NON_GPROF_ENTRY(MPtrylock)
+#if defined(BOTHER_TO_CHECK)
 	movl	_smp_active, %eax	/* !MP ? -- skip it */
 	cmpl	$0, %eax
 	jne	1f
 	movl	$1, %eax
 	ret
+#endif  /* BOTHER_TO_CHECK */
 1:	movl	4(%esp), %edx		/* Get the address of the lock */
   	movl	(%edx), %eax		/* Try to see if we have it already */
 	andl	$0x00ffffff, %eax	/* - get count */
@@ -122,10 +129,12 @@ NON_GPROF_ENTRY(MPtrylock)
  */
 
 NON_GPROF_ENTRY(MPrellock)
+#if defined(BOTHER_TO_CHECK)
 	movl	_smp_active, %eax	/* !MP ? -- skip it */
 	cmpl	$0, %eax
 	jne	1f
 	ret
+#endif  /* BOTHER_TO_CHECK */
 1:	movl	4(%esp), %edx		/* Get the address of the lock */
   	movl	(%edx), %eax		/* - get the value */
 	movl	%eax,%ecx
