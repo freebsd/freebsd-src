@@ -399,7 +399,7 @@ ENTRY(BF_encrypt)
 	xorl	%eax,		%ebx
 	movl	3144(%ebp,%edx,4),%edx
 	addl	%edx,		%ebx
-	# Load parameter 0 (16) enc=1 
+	/* Load parameter 0 (16) enc=1 */
 	movl	20(%esp),	%eax
 	xorl	%ebx,		%edi
 	movl	68(%ebp),	%edx
@@ -421,7 +421,7 @@ ENTRY(BF_decrypt)
 	movl	16(%esp),	%ebp
 	pushl	%esi
 	pushl	%edi
-	# Load the 2 words 
+	/* Load the 2 words */
 	movl	(%ebx),		%edi
 	movl	4(%ebx),	%esi
 	xorl	%eax,		%eax
@@ -746,7 +746,7 @@ ENTRY(BF_decrypt)
 	xorl	%eax,		%ebx
 	movl	3144(%ebp,%edx,4),%edx
 	addl	%edx,		%ebx
-	# Load parameter 0 (1) enc=0 
+	/* Load parameter 0 (1) enc=0 */
 	movl	20(%esp),	%eax
 	xorl	%ebx,		%edi
 	movl	(%ebp),		%edx
