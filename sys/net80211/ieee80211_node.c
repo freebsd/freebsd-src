@@ -480,9 +480,14 @@ ieee80211_dup_bss(struct ieee80211com *ic, u_int8_t *macaddr)
 {
 	struct ieee80211_node *ni = (*ic->ic_node_alloc)(ic);
 	if (ni != NULL) {
-		memcpy(ni, ic->ic_bss, sizeof(struct ieee80211_node));
 		ieee80211_setup_node(ic, ni, macaddr);
-	}
+		/*
+		 * Inherit from ic_bss.
+		 */
+		IEEE80211_ADDR_COPY(ni->ni_bssid, ic->ic_bss->ni_bssid);
+		ni->ni_chan = ic->ic_bss->ni_chan;
+	} else
+		ic->ic_stats.is_rx_nodealloc++;
 	return ni;
 }
 
