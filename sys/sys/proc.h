@@ -447,6 +447,7 @@ sigonstack(size_t sp)
 
 /* Lock and unlock a process. */
 #define PROC_LOCK(p)	mtx_lock(&(p)->p_mtx)
+#define PROC_TRYLOCK(p)	mtx_trylock(&(p)->p_mtx)
 #define PROC_UNLOCK(p)	mtx_unlock(&(p)->p_mtx)
 #define	PROC_UNLOCK_NOSWITCH(p)						\
 	mtx_unlock_flags(&(p)->p_mtx, MTX_NOSWITCH)
