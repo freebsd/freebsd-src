@@ -20,12 +20,10 @@ Assuming that you'd copied fdimage.exe and kern.flp into a directory
 somewhere.  You would do the same for mfsroot.flp, of course.
 
 If you're creating the boot floppy from a UNIX machine, you may find
-that:
+that one of the following:
 
+        dd if=floppies/kern.flp of=/dev/fd0
         dd if=floppies/kern.flp of=/dev/rfd0
-
-or
-
         dd if=floppies/kern.flp of=/dev/floppy
 
 work well, depending on your hardware and operating system environment
@@ -54,6 +52,6 @@ hardware arise.  As long as the kernel is compiled with
 and boot an mfsroot.flp image in memory when run (see how the
 /boot/loader.rc file in kern.flp does its thing).  The mfsroot.flp
 image is also just a gzip'd filesystem image which is used as root,
-something which can be made rather easily using vnconfig(8).
+something which can be made rather easily using mdconfig(8).
 If none of that makes any sense to you then don't worry about it -
 just use the kern.flp and mfsroot.flp images as described above.
