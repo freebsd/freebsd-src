@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)param.c	8.2 (Berkeley) 1/21/94
+ *	@(#)param.c	8.3 (Berkeley) 8/20/94
  */
 
 #include <sys/param.h>
@@ -118,28 +118,3 @@ struct 	callout *callout;
 struct	cblock *cfree;
 struct	buf *buf, *swbuf;
 char	*buffers;
-
-/*
- * Proc/pgrp hashing.
- * Here so that hash table sizes can depend on MAXUSERS/NPROC.
- * Hash size must be a power of two.
- * NOW omission of this file will cause loader errors!
- */
-
-#if NPROC > 1024
-#define	PIDHSZ		512
-#else
-#if NPROC > 512
-#define	PIDHSZ		256
-#else
-#if NPROC > 256
-#define	PIDHSZ		128
-#else
-#define	PIDHSZ		64
-#endif
-#endif
-#endif
-
-struct	proc *pidhash[PIDHSZ];
-struct	pgrp *pgrphash[PIDHSZ];
-int	pidhashmask = PIDHSZ - 1;

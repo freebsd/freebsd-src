@@ -38,6 +38,7 @@ kern/kern_synch.c	standard
 kern/kern_sysctl.c	standard
 kern/kern_time.c	standard
 kern/kern_xxx.c		standard
+kern/kern_lock.c	standard
 kern/subr_log.c		standard
 kern/subr_prf.c		standard
 kern/subr_prof.c	standard
@@ -255,7 +256,6 @@ ufs/ufs/ufs_quota.c	standard
 ufs/ufs/ufs_vfsops.c	standard
 ufs/ufs/ufs_vnops.c	standard
 vm/device_pager.c	optional devpager
-vm/kern_lock.c		standard
 vm/swap_pager.c		optional swappager
 vm/vm_fault.c		standard
 vm/vm_glue.c		standard

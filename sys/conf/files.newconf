@@ -1,4 +1,4 @@
-#	@(#)files.newconf	8.9 (Berkeley) 3/31/94
+#	@(#)files.newconf	8.10 (Berkeley) 5/1/94
 
 # generic attributes
 define	disk
@@ -31,13 +31,13 @@ pseudo-device sl
 pseudo-device vn: disk
 
 # kernel sources
-file	isofs/cd9660/isofs_bmap.c	isofs
-file	isofs/cd9660/isofs_lookup.c	isofs
-file	isofs/cd9660/isofs_node.c	isofs
-file	isofs/cd9660/isofs_rrip.c	isofs
-file	isofs/cd9660/isofs_util.c	isofs
-file	isofs/cd9660/isofs_vfsops.c	isofs
-file	isofs/cd9660/isofs_vnops.c	isofs
+file	isofs/cd9660/cd9660_bmap.c	cd9660
+file	isofs/cd9660/cd9660_lookup.c	cd9660
+file	isofs/cd9660/cd9660_node.c	cd9660
+file	isofs/cd9660/cd9660_rrip.c	cd9660
+file	isofs/cd9660/cd9660_util.c	cd9660
+file	isofs/cd9660/cd9660_vfsops.c	cd9660
+file	isofs/cd9660/cd9660_vnops.c	cd9660
 file	kern/init_main.c
 file	kern/init_sysent.c
 file	kern/kern_acct.c
