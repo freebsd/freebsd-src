@@ -221,7 +221,7 @@ int	in_control __P((struct socket *, u_long, caddr_t, struct ifnet *,
 			struct proc *));
 void	in_rtqdrain __P((void));
 void	ip_input __P((struct mbuf *));
-int	in_ifadown __P((struct ifaddr *ifa));
+int	in_ifadown __P((struct ifaddr *ifa, int));
 void	in_ifscrub __P((struct ifnet *, struct in_ifaddr *));
 int	ipflow_fastforward __P((struct mbuf *));
 void	ipflow_create __P((const struct route *, struct mbuf *));

@@ -398,7 +398,7 @@ rip_ctlinput(cmd, sa, vip)
 				 * thing to do, but at least if we are running
 				 * a routing process they will come back.
 				 */
-				in_ifadown(&ia->ia_ifa);
+				in_ifadown(&ia->ia_ifa, 0);
 				break;
 			}
 		}
