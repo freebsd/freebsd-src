@@ -62,6 +62,7 @@ __RCSID("$NetBSD: lock_proc.c,v 1.7 2000/10/11 20:23:56 is Exp $");
 #define	CLIENT_CACHE_LIFETIME	120	/* In seconds */
 
 static void	log_from_addr __P((char *, struct svc_req *));
+static void	log_netobj __P((netobj *obj));
 static int	addrcmp __P((struct sockaddr *, struct sockaddr *));
 
 /* log_from_addr ----------------------------------------------------------- */
@@ -100,7 +101,7 @@ log_netobj(obj)
 {
 	char objvalbuffer[(sizeof(char)*2)*MAX_NETOBJ_SZ+2];
 	char objascbuffer[sizeof(char)*MAX_NETOBJ_SZ+1];
-	int i, maxlen;
+	unsigned int i, maxlen;
 	char *tmp1, *tmp2;
 
 	/* Notify of potential security attacks */
@@ -911,8 +912,10 @@ nlm4_test_4_svc(arg, rqstp)
 		syslog(LOG_DEBUG, "Owner Handle:\n");
 		log_netobj(&(arg->alock.oh));
 		syslog(LOG_DEBUG, "SVID:        %d\n", arg->alock.svid);
-		syslog(LOG_DEBUG, "Lock Offset: %d\n", arg->alock.l_offset);
-		syslog(LOG_DEBUG, "Lock Length: %d\n", arg->alock.l_len);
+		syslog(LOG_DEBUG, "Lock Offset: %llu\n",
+		    (unsigned long long)arg->alock.l_offset);
+		syslog(LOG_DEBUG, "Lock Length: %llu\n",
+		    (unsigned long long)arg->alock.l_len);
 		syslog(LOG_DEBUG, "Exclusive:   %s\n",
 		    (arg->exclusive ? "true" : "false"));
 	}
@@ -1007,8 +1010,10 @@ nlm4_lock_4_svc(arg, rqstp)
 		syslog(LOG_DEBUG, "Owner Handle:\n");
 		log_netobj(&(arg->alock.oh));
 		syslog(LOG_DEBUG, "SVID:        %d\n", arg->alock.svid);
-		syslog(LOG_DEBUG, "Lock Offset: %d\n", arg->alock.l_offset);
-		syslog(LOG_DEBUG, "Lock Length: %d\n", arg->alock.l_len);
+		syslog(LOG_DEBUG, "Lock Offset: %llu\n",
+		    (unsigned long long)arg->alock.l_offset);
+		syslog(LOG_DEBUG, "Lock Length: %llu\n", 
+		    (unsigned long long)arg->alock.l_len);
 		syslog(LOG_DEBUG, "Block:       %s\n", (arg->block ? "true" : "false"));
 		syslog(LOG_DEBUG, "Exclusive:   %s\n", (arg->exclusive ? "true" : "false"));
 		syslog(LOG_DEBUG, "Reclaim:     %s\n", (arg->reclaim ? "true" : "false"));

@@ -778,7 +778,7 @@ do_mon(hostname)
 
 void
 notify(hostname, state)
-	char *hostname;
+	const char *hostname;
 	int state;
 {
 	struct file_lock *fl, *next_fl;

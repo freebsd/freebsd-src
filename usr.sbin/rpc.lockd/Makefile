@@ -5,6 +5,8 @@ PROG=	rpc.lockd
 MAN=	rpc.lockd.8
 MLINKS=	rpc.lockd.8 lockd.8
 SRCS=	kern.c nlm_prot_svc.c lockd.c lock_proc.c lockd_lock.c
+NO_WERROR=	YES
+WARNS?=	1
 
 CFLAGS+= -I. -I${DESTDIR}/usr/include/rpcsvc
 
