@@ -22,9 +22,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>                                                         
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -45,8 +46,8 @@
 #include <sparc64/fhc/fhcvar.h>
 #include <sparc64/sbus/ofw_sbus.h>
 
-static int fhc_central_probe(device_t dev);
-static int fhc_central_attach(device_t dev);
+static device_probe_t fhc_central_probe;
+static device_attach_t fhc_central_attach;
 
 static device_method_t fhc_central_methods[] = {
 	/* Device interface. */
@@ -114,7 +115,7 @@ fhc_central_attach(device_t dev)
 
 	nreg = OF_getprop_alloc(node, "reg", sizeof(*reg), (void **)&reg);
 	if (nreg != FHC_NREG) {
-		device_printf(dev, "can't get registers");
+		device_printf(dev, "can't get registers\n");
 		return (ENXIO);
 	}
 	for (i = 0; i < nreg; i++) {
@@ -124,7 +125,7 @@ fhc_central_attach(device_t dev)
 		sc->sc_memres[i] = bus_alloc_resource(dev, SYS_RES_MEMORY,
 		    &rid, off, off + size - 1, size, RF_ACTIVE);
 		if (sc->sc_memres[i] == NULL)
-			panic("fhc_central_attach: can't allocate registers");
+			panic("%s: can't allocate registers", __func__);
 		sc->sc_bt[i] = rman_get_bustag(sc->sc_memres[i]);
 		sc->sc_bh[i] = rman_get_bushandle(sc->sc_memres[i]);
 	}
