@@ -179,7 +179,7 @@ static void
 usage()
 {
 	fprintf(stderr, "%s\n%s\n",
-"usage: renice [priority | [-n incr]] [ [ -p ] pids ] [ [ -g ] pgrps ]",
-"              [ [ -u ] users ]");
+"usage: renice [priority | [-n incr]] [[-p] pid ...] [[-g] pgrp ...]",
+"              [[-u] user ...]");
 	exit(1);
 }
