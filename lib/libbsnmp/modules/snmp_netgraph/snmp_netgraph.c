@@ -79,7 +79,7 @@ static struct clockinfo clockinfo;
 struct csock_buf {
 	STAILQ_ENTRY(csock_buf) link;
 	struct ng_mesg *mesg;
-	char path[NG_PATHLEN + 1];
+	char path[NG_PATHSIZ];
 };
 static STAILQ_HEAD(, csock_buf) csock_bufs =
 	STAILQ_HEAD_INITIALIZER(csock_bufs);
@@ -103,7 +103,7 @@ static SLIST_HEAD(, msgreg) msgreg_list =
  * Data messages are dispatched by hook names.
  */
 struct datareg {
-	char		hook[NG_HOOKLEN + 1];
+	char		hook[NG_HOOKSIZ];
 	ng_hook_f	*func;
 	void		*arg;
 	const struct lmodule *mod;
@@ -124,7 +124,7 @@ static u_int32_t stats[LEAF_begemotNgTooLargeDatas+1];
 
 /* netgraph type list */
 struct ngtype {
-	char		name[NG_TYPELEN + 1];
+	char		name[NG_TYPESIZ];
 	struct asn_oid	index;
 	TAILQ_ENTRY(ngtype) link;
 };
@@ -307,7 +307,7 @@ static void
 csock_input(int fd __unused, void *udata __unused)
 {
 	struct ng_mesg *mesg;
-	char path[NG_PATHLEN + 1];
+	char path[NG_PATHSIZ];
 
 	if ((mesg = csock_read(path)) == NULL)
 		return;
@@ -328,7 +328,7 @@ int
 ng_output_node(const char *node, u_int cookie, u_int opcode,
     const void *arg, size_t arglen)
 {
-	char path[NG_PATHLEN + 1];
+	char path[NG_PATHSIZ];
 
 	sprintf(path, "%s:", node);
 	return (ng_output(path, cookie, opcode, arg, arglen));
@@ -337,7 +337,7 @@ int
 ng_output_id(ng_ID_t node, u_int cookie, u_int opcode,
     const void *arg, size_t arglen)
 {
-	char path[NG_PATHLEN + 1];
+	char path[NG_PATHSIZ];
 
 	sprintf(path, "[%x]:", node);
 	return (ng_output(path, cookie, opcode, arg, arglen));
@@ -355,7 +355,7 @@ ng_dialog(const char *path, u_int cookie, u_int opcode,
 {
 	int token, err;
 	struct ng_mesg *mesg;
-	char rpath[NG_PATHLEN + 1];
+	char rpath[NG_PATHSIZ];
 	struct csock_buf *b;
 	struct timeval end, tv;
 
@@ -420,7 +420,7 @@ struct ng_mesg *
 ng_dialog_node(const char *node, u_int cookie, u_int opcode,
     const void *arg, size_t arglen)
 {
-	char path[NG_PATHLEN + 1];
+	char path[NG_PATHSIZ];
 
 	sprintf(path, "%s:", node);
 	return (ng_dialog(path, cookie, opcode, arg, arglen));
@@ -429,7 +429,7 @@ struct ng_mesg *
 ng_dialog_id(ng_ID_t id, u_int cookie, u_int opcode,
     const void *arg, size_t arglen)
 {
-	char path[NG_PATHLEN + 1];
+	char path[NG_PATHSIZ];
 
 	sprintf(path, "[%x]:", id);
 	return (ng_dialog(path, cookie, opcode, arg, arglen));
@@ -453,7 +453,7 @@ dsock_input(int fd __unused, void *udata __unused)
 {
 	u_char *resbuf, embuf[100];
 	ssize_t len;
-	char hook[NG_HOOKLEN + 1];
+	char hook[NG_HOOKSIZ];
 	struct datareg *d, *d1;
 
 	if ((resbuf = malloc(resbufsiz + 1)) == NULL) {
@@ -530,9 +530,9 @@ ng_init(struct lmodule *mod, int argc, char *argv[])
 			return (ENOMEM);
 		strcpy(snmp_nodename, NODENAME);
 	} else {
-		if ((snmp_nodename = malloc(NG_NODELEN + 1)) == NULL)
+		if ((snmp_nodename = malloc(NG_NODESIZ)) == NULL)
 			return (ENOMEM);
-		snprintf(snmp_nodename, NG_NODELEN + 1, "%s", argv[0]);
+		strlcpy(snmp_nodename, argv[0], NG_NODESIZ);
 	}
 
 	/* fetch clockinfo (for the number of microseconds per tick) */
@@ -610,9 +610,9 @@ ng_connect_node(const char *node, const char *ourhook, const char *peerhook)
 {
 	struct ngm_connect conn;
 
-	snprintf(conn.path, NG_PATHLEN + 1, "%s:", node);
-	snprintf(conn.ourhook, NG_HOOKLEN + 1, ourhook);
-	snprintf(conn.peerhook, NG_HOOKLEN + 1, peerhook);
+	snprintf(conn.path, NG_PATHSIZ, "%s:", node);
+	strlcpy(conn.ourhook, ourhook, NG_HOOKSIZ);
+	strlcpy(conn.peerhook, peerhook, NG_HOOKSIZ);
 	return (NgSendMsg(csock, ".:",
 	    NGM_GENERIC_COOKIE, NGM_CONNECT, &conn, sizeof(conn)));
 }
@@ -621,9 +621,9 @@ ng_connect_id(ng_ID_t id, const char *ourhook, const char *peerhook)
 {
 	struct ngm_connect conn;
 
-	snprintf(conn.path, NG_PATHLEN + 1, "[%x]:", id);
-	snprintf(conn.ourhook, NG_HOOKLEN + 1, ourhook);
-	snprintf(conn.peerhook, NG_HOOKLEN + 1, peerhook);
+	snprintf(conn.path, NG_PATHSIZ, "[%x]:", id);
+	strlcpy(conn.ourhook, ourhook, NG_HOOKSIZ);
+	strlcpy(conn.peerhook, peerhook, NG_HOOKSIZ);
 	return (NgSendMsg(csock, ".:",
 	    NGM_GENERIC_COOKIE, NGM_CONNECT, &conn, sizeof(conn)));
 }
@@ -633,13 +633,13 @@ ng_connect2_id(ng_ID_t id, ng_ID_t peer, const char *ourhook,
     const char *peerhook)
 {
 	struct ngm_connect conn;
-	char path[NG_PATHLEN + 1];
+	char path[NG_PATHSIZ];
 
-	snprintf(path, NG_PATHLEN + 1, "[%x]:", id);
+	snprintf(path, NG_PATHSIZ, "[%x]:", id);
 
-	snprintf(conn.path, NG_PATHLEN + 1, "[%x]:", peer);
-	snprintf(conn.ourhook, NG_HOOKLEN + 1, ourhook);
-	snprintf(conn.peerhook, NG_HOOKLEN + 1, peerhook);
+	snprintf(conn.path, NG_PATHSIZ, "[%x]:", peer);
+	strlcpy(conn.ourhook, ourhook, NG_HOOKSIZ);
+	strlcpy(conn.peerhook, peerhook, NG_HOOKSIZ);
 	return (NgSendMsg(csock, path,
 	    NGM_GENERIC_COOKIE, NGM_CONNECT, &conn, sizeof(conn)));
 }
@@ -649,17 +649,17 @@ ng_connect2_tee_id(ng_ID_t id, ng_ID_t peer, const char *ourhook,
     const char *peerhook)
 {
 	struct ngm_connect conn;
-	char path[NG_PATHLEN + 1];
+	char path[NG_PATHSIZ];
 	ng_ID_t tee;
 
 	if ((tee = ng_mkpeer_id(id, NULL, "tee", ourhook, "left")) == 0)
 		return (-1);
 
-	snprintf(path, NG_PATHLEN + 1, "[%x]:", tee);
+	snprintf(path, NG_PATHSIZ, "[%x]:", tee);
 
-	snprintf(conn.path, NG_PATHLEN + 1, "[%x]:", peer);
-	snprintf(conn.ourhook, NG_HOOKLEN + 1, "right");
-	snprintf(conn.peerhook, NG_HOOKLEN + 1, peerhook);
+	snprintf(conn.path, NG_PATHSIZ, "[%x]:", peer);
+	strlcpy(conn.ourhook, "right", NG_HOOKSIZ);
+	strlcpy(conn.peerhook, peerhook, NG_HOOKSIZ);
 	return (NgSendMsg(csock, path,
 	    NGM_GENERIC_COOKIE, NGM_CONNECT, &conn, sizeof(conn)));
 }
@@ -730,13 +730,13 @@ ng_ID_t
 ng_mkpeer_id(ng_ID_t id, const char *nodename, const char *type,
     const char *hook, const char *peerhook)
 {
-	char path[NG_PATHLEN + 1];
+	char path[NG_PATHSIZ];
 	struct ngm_mkpeer mkpeer;
 	struct ngm_name name;
 
-	strcpy(mkpeer.type, type);
-	strcpy(mkpeer.ourhook, hook);
-	strcpy(mkpeer.peerhook, peerhook);
+	strlcpy(mkpeer.type, type, NG_TYPESIZ);
+	strlcpy(mkpeer.ourhook, hook, NG_HOOKSIZ);
+	strlcpy(mkpeer.peerhook, peerhook, NG_HOOKSIZ);
 
 	sprintf(path, "[%x]:", id);
 	if (NgSendMsg(csock, path, NGM_GENERIC_COOKIE, NGM_MKPEER,
@@ -762,9 +762,9 @@ ng_mkpeer_id(ng_ID_t id, const char *nodename, const char *type,
 int
 ng_shutdown_id(ng_ID_t id)
 {
-	char path[NG_PATHLEN + 1];
+	char path[NG_PATHSIZ];
 
-	sprintf(path, "[%x]:", id);
+	snprintf(path, NG_PATHSIZ, "[%x]:", id);
 	return (NgSendMsg(csock, path, NGM_GENERIC_COOKIE,
 	    NGM_SHUTDOWN, NULL, 0));
 }
@@ -777,7 +777,7 @@ ng_rmhook(const char *ourhook)
 {
 	struct ngm_rmhook rmhook;
 
-	snprintf(rmhook.ourhook, NG_HOOKLEN + 1, "%s", ourhook);
+	strlcpy(rmhook.ourhook, ourhook, NG_HOOKSIZ);
 	return (NgSendMsg(csock, ".:",
 	    NGM_GENERIC_COOKIE, NGM_RMHOOK, &rmhook, sizeof(rmhook)));
 }
@@ -789,10 +789,10 @@ int
 ng_rmhook_id(ng_ID_t id, const char *hook)
 {
 	struct ngm_rmhook rmhook;
-	char path[NG_PATHLEN + 1];
+	char path[NG_PATHSIZ];
 
-	snprintf(rmhook.ourhook, NG_HOOKLEN + 1, "%s", hook);
-	sprintf(path, "[%x]:", id);
+	strlcpy(rmhook.ourhook, hook, NG_HOOKSIZ);
+	snprintf(path, NG_PATHSIZ, "[%x]:", id);
 	return (NgSendMsg(csock, path,
 	    NGM_GENERIC_COOKIE, NGM_RMHOOK, &rmhook, sizeof(rmhook)));
 }
@@ -1243,7 +1243,7 @@ op_ng_type(struct snmp_context *ctx, struct snmp_value *value,
 	  case SNMP_OP_SET:
 		if (index_decode(&value->var, sub, iidx, &name, &namelen))
 			return (SNMP_ERR_NO_CREATION);
-		if (namelen == 0 || namelen > NG_TYPELEN) {
+		if (namelen == 0 || namelen >= NG_TYPESIZ) {
 			free(name);
 			return (SNMP_ERR_NO_CREATION);
 		}

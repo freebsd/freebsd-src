@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 7, 2003
+.Dd November 14, 2003
 .Dt snmp_netgraph 3
 .Os
 .Sh NAME
@@ -289,8 +289,8 @@ retrieves the name of the node with id
 and writes it to the buffer pointed to by
 .Fa name .
 This buffer should be at least
-.Li NG_NODELEN
-+ 1 long. The function returns the node id or 0 if the
+.Li NG_NODESIZ
+bytes long. The function returns the node id or 0 if the
 node is not found
 .Pp
 The function
@@ -300,8 +300,8 @@ retrieves the name of the node with id
 and writes it to the buffer pointed to by
 .Fa type .
 This buffer should be at least
-.Li NG_TYPELEN
-+ 1 long. The function returns the node id or 0 if the
+.Li NG_TYPESIZ
+bytes long. The function returns the node id or 0 if the
 node is not found.
 .Pp
 The function
@@ -313,8 +313,8 @@ on the node with
 to the buffer pointed to by
 .Fa peer_hook .
 The buffer should be at least
-.Li NG_HOOKLEN
-+ 1 long. The function returns 0 if the node and the hook is found, -1
+.Li NG_HOOKSIZ
+bytes long. The function returns 0 if the node and the hook is found, -1
 otherwise. The function skips intermediate tee nodes (see
 .Xr ng_tee 4 ).
 .Pp
