@@ -107,6 +107,7 @@ int	ext2_new_block __P ((struct mount * mp, unsigned long goal,
 			    long * prealloc_count,
 			    long * prealloc_block));
 ino_t	ext2_new_inode __P ((const struct inode * dir, int mode));
+unsigned long ext2_count_free __P((struct buf *map, unsigned int numchars));
 void	ext2_free_blocks (struct mount * mp, unsigned long block,
 		       unsigned long count);
 void	ext2_free_inode (struct inode * inode);

@@ -49,6 +49,7 @@
 #endif
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/namei.h>
 #include <sys/buf.h>
 #include <sys/file.h>
@@ -56,7 +57,6 @@
 #include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/dirent.h>
-#include <sys/systm.h>
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
@@ -76,6 +76,12 @@
 #undef  DIRBLKSIZ
 
 extern	int dirchk;
+
+static void	ext2_dirconv2ffs __P((struct ext2_dir_entry *e2dir,
+				      struct dirent *ffsdir));
+static int	ext2_dirbadentry __P((struct vnode *dp,
+				      struct ext2_dir_entry *de,
+				      int entryoffsetinblock));
 
 /*
  * the problem that is tackled below is the fact that FFS
@@ -186,7 +192,8 @@ printf("ext2_readdir called uio->uio_offset %d uio->uio_resid %d count %d \n",
 					dp = (struct ext2_dir_entry *)
 					    ((char *)dp + dp->rec_len); 
 					error = 
-					  uiomove(&dstdp, dstdp.d_reclen, uio);
+					  uiomove((caddr_t)&dstdp,
+						  dstdp.d_reclen, uio);
 				} else
 					break;
 			} else {
@@ -709,7 +716,7 @@ found:
 /*
  *	changed so that it confirms to ext2_check_dir_entry
  */
-int
+static int
 ext2_dirbadentry(dp, de, entryoffsetinblock)
 	struct vnode *dp;
 	register struct ext2_dir_entry *de;
