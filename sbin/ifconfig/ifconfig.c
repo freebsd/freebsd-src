@@ -609,10 +609,10 @@ ifconfig(argc, argv, afp)
 		}
 	}
 	if (newaddr) {
-		if (afp->af_ridreq == NULL || afp->af_difaddr == 0) {
+		if (afp->af_addreq == NULL || afp->af_aifaddr == 0) {
 			warnx("interface %s cannot change %s addresses!",
 			      name, afp->af_name);
-			newaddr = NULL;
+			newaddr = 0;
 		}
 	}
 	if (newaddr) {
@@ -636,6 +636,8 @@ setifaddr(addr, param, s, afp)
 	int s;
 	const struct afswtch *afp;
 {
+	if (*afp->af_getaddr == NULL)
+		return;
 	/*
 	 * Delay the ioctl to set the interface addr until flags are all set.
 	 * The address interpretation may depend on the flags,
@@ -654,6 +656,8 @@ setifnetmask(addr, dummy, s, afp)
 	int s;
 	const struct afswtch *afp;
 {
+	if (*afp->af_getaddr == NULL)
+		return;
 	(*afp->af_getaddr)(addr, MASK);
 }
 
@@ -694,6 +698,8 @@ setifbroadaddr(addr, dummy, s, afp)
 	int s;
 	const struct afswtch *afp;
 {
+	if (*afp->af_getaddr == NULL)
+		return;
 	(*afp->af_getaddr)(addr, DSTADDR);
 }
 
@@ -738,6 +744,8 @@ setifdstaddr(addr, param, s, afp)
 	int s;
 	const struct afswtch *afp;
 {
+	if (*afp->af_getaddr == NULL)
+		return;
 	(*afp->af_getaddr)(addr, DSTADDR);
 }
 
