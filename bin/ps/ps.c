@@ -703,6 +703,13 @@ addelem_pid(struct listinfo *inf, const char *elem)
 }
 #undef	BSD_PID_MAX
 
+/*-
+ * The user can specify a device via one of three formats:
+ *     1) fully qualified, e.g.:     /dev/ttyp0 /dev/console
+ *     2) missing "/dev", e.g.:      ttyp0      console
+ *     3) two-letters, e.g.:         p0         co
+ *        (matching letters that would be seen in the "TT" column)
+ */
 static int
 addelem_tty(struct listinfo *inf, const char *elem)
 {
@@ -710,25 +717,46 @@ addelem_tty(struct listinfo *inf, const char *elem)
 	struct stat sb;
 	char pathbuf[PATH_MAX];
 
-	if (strcmp(elem, "co") == 0)
-		ttypath = strdup(_PATH_CONSOLE);
-	else if (*elem == '/')
+	ttypath = NULL;
+	switch (*elem) {
+	case '/':
 		ttypath = elem;
-	else {
-		strlcpy(pathbuf, _PATH_TTY, sizeof(pathbuf));
+		break;
+	case 'c':
+		if (strcmp(elem, "co") == 0) {
+			ttypath = _PATH_CONSOLE;
+			break;
+		}
+		/* FALLTHROUGH */
+	default:
+		strlcpy(pathbuf, _PATH_DEV, sizeof(pathbuf));
 		strlcat(pathbuf, elem, sizeof(pathbuf));
 		ttypath = pathbuf;
+		if (strncmp(pathbuf, _PATH_TTY, sizeof(_PATH_TTY)) == 0)
+			break;
+		if (strcmp(pathbuf, _PATH_CONSOLE) == 0)
+			break;
+		if (stat(pathbuf, &sb) == 0 && S_ISCHR(sb.st_mode)) {
+			/* No need to repeat stat() && S_ISCHR() checks */
+			ttypath = NULL;	
+			break;
+		}
+		/* /dev/${elem} does not exist, so try /dev/tty${elem} */
+		strlcpy(pathbuf, _PATH_TTY, sizeof(pathbuf));
+		strlcat(pathbuf, elem, sizeof(pathbuf));
+		break;
 	}
-
-	if (stat(ttypath, &sb) == -1) {
-		warn("%s", ttypath);
-		optfatal = 1;
-		return (0);
-	}
-	if (!S_ISCHR(sb.st_mode)) {
-		warn("%s: Not a terminal", ttypath);
-		optfatal = 1;
-		return (0);
+	if (ttypath) {
+		if (stat(ttypath, &sb) == -1) {
+			warn("%s", ttypath);
+			optfatal = 1;
+			return (0);
+		}
+		if (!S_ISCHR(sb.st_mode)) {
+			warn("%s: Not a terminal", ttypath);
+			optfatal = 1;
+			return (0);
+		}
 	}
 	if (inf->count >= inf->maxcount)
 		expand_list(inf);
