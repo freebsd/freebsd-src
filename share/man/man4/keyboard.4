@@ -1,5 +1,5 @@
 .\"
-.\"	$Id: keyboard.4,v 1.14 1998/06/08 06:11:59 jkoshy Exp $
+.\"	$Id: keyboard.4,v 1.15 1998/06/29 06:56:40 hoek Exp $
 .\"
 .Dd January 8, 1995
 .Dt KEYBOARD 4 i386
@@ -12,8 +12,8 @@
 The PC keyboard is used as the console character input device. The keyboard
 is owned by the current virtual console.
 To switch between the virtual consoles use the sequence 
-.Ar ALT+Fn
-, which means hold down ALT and press one of the function keys. The 
+.Ar ALT+Fn ,
+which means hold down ALT and press one of the function keys. The 
 virtual console with the same number as the function key is then
 selected as the current virtual console and given exclusive use of
 the keyboard and display.
@@ -93,7 +93,9 @@ The bitmap is backwards ie. 7 for base, 6 for shift etc.
 The flgs field defines if the key should react on caps-lock (1),
 num-lock (2), both (3) or ignore both (0). 
 
-The kbdcontrol utility is used to load such a description into/outof
+The
+.Xr kbdcontrol 1
+utility is used to load such a description into/outof
 the kernel at runtime. This makes it possible to change the key
 assignments at runtime, or more important to get (GIO_KEYMAP ioctl)
 the exact key meanings from the kernel (fx. used by the X server).
@@ -142,7 +144,9 @@ The function keys are numbered like this:
 	Menu			key 64
 .Ed
 
-The kbdcontrol utility also allows changing these values at runtime.
+The
+.Xr kbdcontrol 1
+utility also allows changing these values at runtime.
 .Pp
 .Sh AUTHORS
 .An Søren Schmidt Aq sos@FreeBSD.org
