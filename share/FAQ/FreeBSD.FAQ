@@ -6,7 +6,7 @@
 Please mail all suggestions and additions to <FAQ@FreeBSD.ORG>
 
 
-Revision: $Id: FreeBSD.FAQ,v 1.18 1995/02/26 21:27:29 gclarkii Exp $
+Revision: $Id: FreeBSD.FAQ,v 1.19 1995/02/27 08:25:47 phk Exp $
 
 All entries are assumed to be relevant to FreeBSD 2.0. 
 Any entries with a <XXX> are under construction.
@@ -557,6 +557,11 @@ it will tell you all you need to know.
 SUP stands for Software Update Protocol, and was developed by CMU for
 keeping their development trees in sync.  We use it to keep remote
 sites in sync with our central development sources.
+
+Unless you have direct internet connectivity, and don't care too much
+about the cost/duration of the sessions, you shouldn't use sup.  For
+those "low/expensive-bandwidth" applications, we have developed CTM,
+see 5.6 for more about that.
 
 To use it, you need to have direct internet connectivity (not just
 mail or news).  First, pick up the sup_bin.tgz package from:
