@@ -398,6 +398,7 @@ intprompt()
  */
 tipin()
 {
+	int i;
 	char gch, bol = 1;
 
 	/*
@@ -413,7 +414,10 @@ tipin()
 	}
 
 	while (1) {
-		gch = getchar()&0177;
+		i = getchar();
+		if (i == EOF)
+			break;
+		gch = i&0177;
 		if ((gch == character(value(ESCAPE))) && bol) {
 			if (!(gch = escape()))
 				continue;
@@ -426,8 +430,12 @@ tipin()
 			if (boolean(value(HALFDUPLEX)))
 				printf("\r\n");
 			continue;
-		} else if (!cumode && gch == character(value(FORCE)))
-			gch = getchar()&0177;
+		} else if (!cumode && gch == character(value(FORCE))) {
+			i = getchar();
+			if (i == EOF)
+				break;
+			gch = i & 0177;
+		}
 		bol = any(gch, value(EOL));
 		if (boolean(value(RAISE)) && islower(gch))
 			gch = toupper(gch);
@@ -448,8 +456,12 @@ escape()
 	register char gch;
 	register esctable_t *p;
 	char c = character(value(ESCAPE));
+	int i;
 
-	gch = (getchar()&0177);
+	i = getchar();
+	if (i == EOF)
+		return 0;
+	gch = (i&0177);
 	for (p = etable; p->e_char; p++)
 		if (p->e_char == gch) {
 			if ((p->e_flags&PRIV) && uid)
@@ -636,8 +648,7 @@ pwrite(fd, buf, n)
 			tipabort("Lost carrier.");
 		if (errno == ENODEV)
 			tipabort("tty not available.");
-		/* this is questionable */
-		perror("write");
+		tipabort("Something wrong...");
 	}
 }
 
