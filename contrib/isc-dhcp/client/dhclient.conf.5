@@ -518,7 +518,7 @@ interface "ep0" {
     request subnet-mask, broadcast-address, time-offset, routers,
 	    domain-name, domain-name-servers, host-name;
     require subnet-mask, domain-name-servers;
-    script "/etc/dhclient-script";
+    script "/sbin/dhclient-script";
     media "media 10baseT/UTP", "media 10base2/BNC";
 }
 

@@ -84,7 +84,7 @@ int read_client_conf ()
 	top_level_config.backoff_cutoff = 120;
 	top_level_config.initial_interval = 10;
 	top_level_config.bootp_policy = ACCEPT;
-	top_level_config.script_name = "/etc/dhclient-script";
+	top_level_config.script_name = "/sbin/dhclient-script";
 	top_level_config.requested_options
 		[top_level_config.requested_option_count++] =
 			DHO_SUBNET_MASK;
