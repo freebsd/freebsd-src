@@ -185,11 +185,19 @@ struct pf_rule		*pf_get_translation(struct pf_pdesc *, struct mbuf *,
 int			 pf_test_tcp(struct pf_rule **, struct pf_state **,
 			    int, struct pfi_kif *, struct mbuf *, int,
 			    void *, struct pf_pdesc *, struct pf_rule **,
+#ifdef __FreeBSD__
+			    struct pf_ruleset **, struct inpcb *);
+#else
 			    struct pf_ruleset **);
+#endif
 int			 pf_test_udp(struct pf_rule **, struct pf_state **,
 			    int, struct pfi_kif *, struct mbuf *, int,
 			    void *, struct pf_pdesc *, struct pf_rule **,
+#ifdef __FreeBSD__
+			    struct pf_ruleset **, struct inpcb *);
+#else
 			    struct pf_ruleset **);
+#endif
 int			 pf_test_icmp(struct pf_rule **, struct pf_state **,
 			    int, struct pfi_kif *, struct mbuf *, int,
 			    void *, struct pf_pdesc *, struct pf_rule **,
@@ -229,8 +237,13 @@ void			 pf_route(struct mbuf **, struct pf_rule *, int,
 			    struct ifnet *, struct pf_state *);
 void			 pf_route6(struct mbuf **, struct pf_rule *, int,
 			    struct ifnet *, struct pf_state *);
+#ifdef __FreeBSD__
+int			 pf_socket_lookup(uid_t *, gid_t *,
+			    int, struct pf_pdesc *, struct inpcb *);
+#else
 int			 pf_socket_lookup(uid_t *, gid_t *,
 			    int, struct pf_pdesc *);
+#endif
 u_int8_t		 pf_get_wscale(struct mbuf *, int, u_int16_t,
 			    sa_family_t);
 u_int16_t		 pf_get_mss(struct mbuf *, int, u_int16_t,
@@ -2376,7 +2389,12 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off, int direction,
 }
 
 int
+#ifdef __FreeBSD__
+pf_socket_lookup(uid_t *uid, gid_t *gid, int direction, struct pf_pdesc *pd,
+    struct inpcb *inp_arg)
+#else
 pf_socket_lookup(uid_t *uid, gid_t *gid, int direction, struct pf_pdesc *pd)
+#endif
 {
 	struct pf_addr		*saddr, *daddr;
 	u_int16_t		 sport, dport;
@@ -2389,6 +2407,17 @@ pf_socket_lookup(uid_t *uid, gid_t *gid, int direction, struct pf_pdesc *pd)
 
 	*uid = UID_MAX;
 	*gid = GID_MAX;
+#ifdef __FreeBSD__
+	if (inp_arg != NULL) {
+		INP_LOCK_ASSERT(inp_arg);
+		if (inp_arg->inp_socket) {
+			*uid = inp_arg->inp_socket->so_cred->cr_uid;
+			*gid = inp_arg->inp_socket->so_cred->cr_groups[0];
+			return (1);
+		} else
+			return (0);
+	}
+#endif
 	switch (pd->proto) {
 	case IPPROTO_TCP:
 		sport = pd->hdr.tcp->th_sport;
@@ -2663,7 +2692,12 @@ pf_set_rt_ifp(struct pf_state *s, struct pf_addr *saddr)
 int
 pf_test_tcp(struct pf_rule **rm, struct pf_state **sm, int direction,
     struct pfi_kif *kif, struct mbuf *m, int off, void *h,
+#ifdef __FreeBSD__
+    struct pf_pdesc *pd, struct pf_rule **am, struct pf_ruleset **rsm,
+    struct inpcb *inp)
+#else
     struct pf_pdesc *pd, struct pf_rule **am, struct pf_ruleset **rsm)
+#endif
 {
 	struct pf_rule		*nr = NULL;
 	struct pf_addr		*saddr = pd->src, *daddr = pd->dst;
@@ -2742,12 +2776,20 @@ pf_test_tcp(struct pf_rule **rm, struct pf_state **sm, int direction,
 		else if ((r->flagset & th->th_flags) != r->flags)
 			r = TAILQ_NEXT(r, entries);
 		else if (r->uid.op && (lookup != -1 || (lookup =
+#ifdef __FreeBSD__
+		    pf_socket_lookup(&uid, &gid, direction, pd, inp), 1)) &&
+#else
 		    pf_socket_lookup(&uid, &gid, direction, pd), 1)) &&
+#endif
 		    !pf_match_uid(r->uid.op, r->uid.uid[0], r->uid.uid[1],
 		    uid))
 			r = TAILQ_NEXT(r, entries);
 		else if (r->gid.op && (lookup != -1 || (lookup =
+#ifdef __FreeBSD__
+		    pf_socket_lookup(&uid, &gid, direction, pd, inp), 1)) &&
+#else
 		    pf_socket_lookup(&uid, &gid, direction, pd), 1)) &&
+#endif
 		    !pf_match_gid(r->gid.op, r->gid.gid[0], r->gid.gid[1],
 		    gid))
 			r = TAILQ_NEXT(r, entries);
@@ -3023,7 +3065,12 @@ cleanup:
 int
 pf_test_udp(struct pf_rule **rm, struct pf_state **sm, int direction,
     struct pfi_kif *kif, struct mbuf *m, int off, void *h,
+#ifdef __FreeBSD__
+    struct pf_pdesc *pd, struct pf_rule **am, struct pf_ruleset **rsm,
+    struct inpcb *inp)
+#else
     struct pf_pdesc *pd, struct pf_rule **am, struct pf_ruleset **rsm)
+#endif
 {
 	struct pf_rule		*nr = NULL;
 	struct pf_addr		*saddr = pd->src, *daddr = pd->dst;
@@ -3099,12 +3146,20 @@ pf_test_udp(struct pf_rule **rm, struct pf_state **sm, int direction,
 		else if (r->rule_flag & PFRULE_FRAGMENT)
 			r = TAILQ_NEXT(r, entries);
 		else if (r->uid.op && (lookup != -1 || (lookup =
+#ifdef __FreeBSD__
+		    pf_socket_lookup(&uid, &gid, direction, pd, inp), 1)) &&
+#else
 		    pf_socket_lookup(&uid, &gid, direction, pd), 1)) &&
+#endif
 		    !pf_match_uid(r->uid.op, r->uid.uid[0], r->uid.uid[1],
 		    uid))
 			r = TAILQ_NEXT(r, entries);
 		else if (r->gid.op && (lookup != -1 || (lookup =
+#ifdef __FreeBSD__
+		    pf_socket_lookup(&uid, &gid, direction, pd, inp), 1)) &&
+#else
 		    pf_socket_lookup(&uid, &gid, direction, pd), 1)) &&
+#endif
 		    !pf_match_gid(r->gid.op, r->gid.gid[0], r->gid.gid[1],
 		    gid))
 			r = TAILQ_NEXT(r, entries);
@@ -5229,7 +5284,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	if (oifp != ifp) {
 #ifdef __FreeBSD__
 		PF_UNLOCK();
-		if (pf_test(PF_OUT, ifp, &m0) != PF_PASS) {
+		if (pf_test(PF_OUT, ifp, &m0, NULL) != PF_PASS) {
 			PF_LOCK();
 			goto bad;
 		} else if (m0 == NULL) {
@@ -5519,7 +5574,7 @@ pf_route6(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	if (oifp != ifp) {
 #ifdef __FreeBSD__
 		PF_UNLOCK();
-		if (pf_test6(PF_OUT, ifp, &m0) != PF_PASS) {
+		if (pf_test6(PF_OUT, ifp, &m0, NULL) != PF_PASS) {
 			PF_LOCK();
 			goto bad;
 		} else if (m0 == NULL) {
@@ -5811,7 +5866,11 @@ pf_add_mbuf_tag(struct mbuf *m, u_int tag)
 
 #ifdef INET
 int
+#ifdef __FreeBSD__
+pf_test(int dir, struct ifnet *ifp, struct mbuf **m0, struct inpcb *inp)
+#else
 pf_test(int dir, struct ifnet *ifp, struct mbuf **m0)
+#endif
 {
 	struct pfi_kif		*kif;
 	u_short			 action, reason = 0, log = 0;
@@ -5925,8 +5984,13 @@ pf_test(int dir, struct ifnet *ifp, struct mbuf **m0)
 			a = s->anchor.ptr;
 			log = s->log;
 		} else if (s == NULL)
+#ifdef __FreeBSD__
+			action = pf_test_tcp(&r, &s, dir, kif,
+			    m, off, h, &pd, &a, &ruleset, inp);
+#else
 			action = pf_test_tcp(&r, &s, dir, kif,
 			    m, off, h, &pd, &a, &ruleset);
+#endif
 		break;
 	}
 
@@ -5959,8 +6023,13 @@ pf_test(int dir, struct ifnet *ifp, struct mbuf **m0)
 			a = s->anchor.ptr;
 			log = s->log;
 		} else if (s == NULL)
+#ifdef __FreeBSD__
+			action = pf_test_udp(&r, &s, dir, kif,
+			    m, off, h, &pd, &a, &ruleset, inp);
+#else
 			action = pf_test_udp(&r, &s, dir, kif,
 			    m, off, h, &pd, &a, &ruleset);
+#endif
 		break;
 	}
 
@@ -6137,7 +6206,11 @@ done:
 
 #ifdef INET6
 int
+#ifdef __FreeBSD__
+pf_test6(int dir, struct ifnet *ifp, struct mbuf **m0, struct inpcb *inp)
+#else
 pf_test6(int dir, struct ifnet *ifp, struct mbuf **m0)
+#endif
 {
 	struct pfi_kif		*kif;
 	u_short			 action, reason = 0, log = 0;
@@ -6274,8 +6347,13 @@ pf_test6(int dir, struct ifnet *ifp, struct mbuf **m0)
 			a = s->anchor.ptr;
 			log = s->log;
 		} else if (s == NULL)
+#ifdef __FreeBSD__
+			action = pf_test_tcp(&r, &s, dir, kif,
+			    m, off, h, &pd, &a, &ruleset, inp);
+#else
 			action = pf_test_tcp(&r, &s, dir, kif,
 			    m, off, h, &pd, &a, &ruleset);
+#endif
 		break;
 	}
 
@@ -6308,8 +6386,13 @@ pf_test6(int dir, struct ifnet *ifp, struct mbuf **m0)
 			a = s->anchor.ptr;
 			log = s->log;
 		} else if (s == NULL)
+#ifdef __FreeBSD__
+			action = pf_test_udp(&r, &s, dir, kif,
+			    m, off, h, &pd, &a, &ruleset, inp);
+#else
 			action = pf_test_udp(&r, &s, dir, kif,
 			    m, off, h, &pd, &a, &ruleset);
+#endif
 		break;
 	}
 
