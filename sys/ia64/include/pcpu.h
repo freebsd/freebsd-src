@@ -49,7 +49,7 @@ struct globaldata {
 	struct pcb	*gd_curpcb;		/* current pcb */
 	struct timeval	gd_switchtime;	
 	int		gd_switchticks;
-	u_int		gd_cpuno;		/* this cpu number */
+	u_int		gd_cpuid;		/* this cpu number */
 	u_int		gd_other_cpus;		/* all other cpus */
 	u_int64_t	gd_idlepcbphys;		/* pa of gd_idlepcb */
 	u_int64_t	gd_pending_ipis;	/* pending IPI events */
@@ -69,8 +69,8 @@ struct globaldata {
 SLIST_HEAD(cpuhead, globaldata);
 extern struct cpuhead cpuhead;
 
-void globaldata_init(struct globaldata *pcpu, int cpuno, size_t sz);
-struct globaldata *globaldata_find(int cpuno);
+void globaldata_init(struct globaldata *pcpu, int cpuid, size_t sz);
+struct globaldata *globaldata_find(int cpuid);
 
 #endif	/* _KERNEL */
 
