@@ -178,7 +178,7 @@ struct ifnet {
 	struct	ifqueue if_snd;		/* output queue */
 	struct	ifqueue *if_poll_slowq;	/* input queue for slow devices */
 	struct	ifprefixhead if_prefixhead; /* list of prefixes per if */
-	u_int8_t *if_broadcastaddr;	/* linklevel broadcast bytestring */
+	const u_int8_t *if_broadcastaddr; /* linklevel broadcast bytestring */
 	struct	label *if_label;	/* interface MAC label */
 
 	void	*if_afdata[AF_MAX];
