@@ -24,17 +24,23 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:34  rpd
- *	$Id$
+ *	$Id: sys.c,v 1.3 1993/10/16 19:11:39 rgrimes Exp $
  */
 
 #include "boot.h"
 #include <sys/dir.h>
 #include <sys/reboot.h>
 
+#ifdef 0
 /* #define BUFSIZE 4096 */
 #define BUFSIZE MAXBSIZE
 
 char buf[BUFSIZE], fsbuf[SBSIZE], iobuf[MAXBSIZE];
+#endif
+
+#define BUFSIZE 8192
+#define MAPBUFSIZE BUFSIZE
+char buf[BUFSIZE], fsbuf[BUFSIZE], iobuf[BUFSIZE]; 
 
 int xread(addr, size)
 	char		* addr;
@@ -93,7 +99,7 @@ find(path)
 	struct direct *dp;
 loop:	iodest = iobuf;
 	cnt = fs->fs_bsize;
-	bnum = fsbtodb(fs,itod(fs,ino)) + boff;
+	bnum = fsbtodb(fs,ino_to_fsba(fs,ino)) + boff;
 	devread();
 	bcopy(&((struct dinode *)iodest)[ino % fs->fs_inopb],
 	      &inode.i_din,
@@ -125,7 +131,7 @@ loop:	iodest = iobuf;
 	goto loop;
 }
 
-char mapbuf[MAXBSIZE];
+char mapbuf[MAPBUFSIZE];
 int mapblock = 0;
 
 block_map(file_block)
