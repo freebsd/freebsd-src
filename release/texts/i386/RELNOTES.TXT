@@ -1,5 +1,6 @@
                                  RELEASE NOTES
                             FreeBSD Release 5.0-SNAP
+                              (i386 Architecture)
 
 This is a 5.0-CURRENT release SNAPshot of FreeBSD, an active
 development branch which will produce its first release in early
