@@ -186,7 +186,7 @@ _
 \-f \fIfile\fP	Show messages in \fIfile\fP or \fI~/mbox\fP
 \-h \fInumber\fP	Pass on hop count for mail forwarding
 \-i	Ignore tty interrupt signals
-\-n	Inhibit reading of /usr/lib/Mail.rc
+\-n	Inhibit reading of /etc/mail.rc
 \-r \fIname\fP	Pass on \fIname\fP for mail forwarding
 \-s \fIstring\fP	Use \fIstring\fP as subject in outgoing mail
 \-u \fIname\fP	Read \fIname's\fP mail instead of your own

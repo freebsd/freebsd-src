@@ -78,7 +78,7 @@ You can override this default by setting the valued option
 .q EDITOR
 to something else.  For example, you might prefer:
 .(l
-set EDITOR=/usr/ucb/ex
+set EDITOR=/usr/bin/ex
 .)l
 .pp
 Many systems offer a screen editor as an alternative to the standard

@@ -54,11 +54,11 @@ begin with a `/,'
 .i Mail
 will assume that your folder directory is to be found starting from
 your home directory.  Thus, if your home directory is
-.b /usr/person
+.b /home/person
 the above example told
 .i Mail
 to find your folder directory in
-.b /usr/person/letters .
+.b /home/person/letters .
 .pp
 Anywhere a file name is expected, you can use a folder name, preceded
 with `+.'  For example, to put a message into a folder with the
