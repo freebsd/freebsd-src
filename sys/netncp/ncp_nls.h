@@ -31,8 +31,8 @@
  *
  * $FreeBSD$
  */
-#ifndef _NCP_NCP_NLS_H_
-#define _NCP_NCP_NLS_H_
+#ifndef _NETNCP_NCP_NLS_H_
+#define _NETNCP_NCP_NLS_H_
 
 /* options for handle path & caseopt in mount struct */
 #define NWHP_HDB	0x01	/* have dir base */
@@ -62,6 +62,8 @@ struct ncp_nlstables {
 
 extern struct ncp_nlstables ncp_nls;	/* active nls */
 
+__BEGIN_DECLS
+
 int   ncp_nls_setrecode(int scheme);
 int   ncp_nls_setrecodebyname(char *name);
 int   ncp_nls_setlocale(char *name);
@@ -69,6 +71,8 @@ char* ncp_nls_str_n2u(char *dst, const char *src);
 char* ncp_nls_str_u2n(char *dst, const char *src);
 char* ncp_nls_mem_n2u(char *dst, const char *src, int size);
 char* ncp_nls_mem_u2n(char *dst, const char *src, int size);
+
+__END_DECLS
 
 #else /* !KERNEL */
 
