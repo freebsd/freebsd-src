@@ -111,11 +111,10 @@ g_gpt_taste(struct g_class *mp, struct g_provider *pp, int insist)
 	struct g_consumer *cp;
 	struct g_geom *gp;
 	struct g_gpt_softc *gs;
-	struct g_slicer *gsp;
 	u_char *buf, *mbr;
 	struct gpt_ent *ent;
 	struct gpt_hdr *hdr;
-	u_int i, npart, secsz, tblsz;
+	u_int i, secsz, tblsz;
 	int error, ps;
 
 	g_trace(G_T_TOPOLOGY, "g_gpt_taste(%s,%s)", mp->name, pp->name);
@@ -131,13 +130,11 @@ g_gpt_taste(struct g_class *mp, struct g_provider *pp, int insist)
 	if (gp == NULL)
 		return (NULL);
 
-	gsp = gp->softc;
 	g_topology_unlock();
 	gp->dumpconf = g_gpt_dumpconf;
 
 	do {
 
-		npart = 0;
 		mbr = NULL;
 
 		if (gp->rank != 2 && insist == 0)
@@ -204,12 +201,10 @@ g_gpt_taste(struct g_class *mp, struct g_provider *pp, int insist)
 			    secsz,
 			    "%s%c%d", gp->name, ps, i + 1);
 			g_topology_unlock();
-			npart++;
 		}
 		g_free(buf);
 
 	} while (0);
-
 
 	if (mbr != NULL)
 		g_free(mbr);
