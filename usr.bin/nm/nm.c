@@ -64,7 +64,7 @@ int print_all_symbols;
 int print_file_each_line;
 int fcount;
 
-int rev;
+int rev, table;
 int fname(), rname(), value();
 int (*sfunc)() = fname;
 
@@ -87,7 +87,7 @@ main(argc, argv)
 	extern int optind;
 	int ch, errors;
 
-	while ((ch = getopt(argc, argv, "agnopruw")) != EOF) {
+	while ((ch = getopt(argc, argv, "agnoprtuw")) != EOF) {
 		switch (ch) {
 		case 'a':
 			print_all_symbols = 1;
@@ -106,6 +106,9 @@ main(argc, argv)
 			break;
 		case 'r':
 			rev = 1;
+			break;
+		case 't':
+			table = 1;
 			break;
 		case 'u':
 			print_only_undefined_symbols = 1;
@@ -153,7 +156,7 @@ process_file(fname)
 		return(1);
 	}
 
-	if (fcount > 1)
+	if (fcount > 1 && !table)
 		(void)printf("\n%s:\n", fname);
 
 	/*
@@ -270,7 +273,7 @@ show_archive(fname, fp)
 		 */
 		p = name;
 		*p = 0;
-		if (print_file_each_line)
+		if (print_file_each_line && !table)
 		{
 			p = scat(p, fname);
 			p = scat(p, ":");
@@ -293,7 +296,7 @@ show_archive(fname, fp)
 		} else {
 			(void)fseek(fp, (long)-sizeof(exec_head),
 			    SEEK_CUR);
-			if (!print_file_each_line)
+			if (!print_file_each_line && !table)
 				(void)printf("\n%s:\n", name);
 			rval |= show_objfile(name, fp);
 		}
@@ -460,6 +463,21 @@ print_symbol(objname, sym)
 {
 	char *typestring(), typeletter();
 
+	if (table) {
+		printf("%s|", objname);
+		if (SYMBOL_TYPE(sym->n_type) != N_UNDF)
+			(void)printf("%08lx", sym->n_value);
+		(void)printf("|");
+		if (IS_DEBUGGER_SYMBOL(sym->n_type))
+			(void)printf("-|%02x %04x %5s|", sym->n_other,
+			    sym->n_desc&0xffff, typestring(sym->n_type));
+		else
+			(void)printf("%c|", typeletter(sym->n_type));
+
+		/* print the symbol's name */
+		(void)printf("%s\n",sym->n_un.n_name);
+		return;
+	}
 	if (print_file_each_line)
 		(void)printf("%s:", objname);
 
