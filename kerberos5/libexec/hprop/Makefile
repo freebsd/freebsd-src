@@ -4,6 +4,7 @@ PROG=		hprop
 SRCS=		hprop.c mit_dump.c v4_dump.c hprop.h kadb.h hdb_err.h
 CFLAGS+=	-I${KRB5DIR}/include \
 		-I${KRB5DIR}/kdc \
+		-I${KRB5DIR}/lib \
 		-I${KRB5DIR}/lib/krb5 \
 		-I${KRB5DIR}/lib/asn1 \
 		-I${KRB5DIR}/lib/hdb \
