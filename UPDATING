@@ -11,6 +11,11 @@ ITEMS:'
 	your fstab, etc to use the ad devices instead of the wd
 	devices.
 
+	In addition, you'll need to update your boot blocks to a
+	more modern version, if you haven't already done so.  Modern
+	here means 4.0 release or newer (although older releases
+	may work).
+
 20000612:
 	Peter took an axe to config(8).  Besure that you read his mail
 	on the topic before even thinking about updating.  More details
