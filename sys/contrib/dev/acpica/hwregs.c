@@ -3,7 +3,7 @@
  *
  * Module Name: hwregs - Read/write access functions for the various ACPI
  *                       control and status registers.
- *              $Revision: 154 $
+ *              $Revision: 156 $
  *
  ******************************************************************************/
 
@@ -215,7 +215,7 @@ AcpiGetSleepTypeData (
     UINT8                   *SleepTypeB)
 {
     ACPI_STATUS             Status = AE_OK;
-    ACPI_OPERAND_OBJECT     *ObjDesc;
+    ACPI_PARAMETER_INFO     Info;
 
 
     ACPI_FUNCTION_TRACE ("AcpiGetSleepTypeData");
@@ -233,8 +233,9 @@ AcpiGetSleepTypeData (
     /*
      * Evaluate the namespace object containing the values for this state
      */
+    Info.Parameters = NULL;
     Status = AcpiNsEvaluateByName ((char *) (uintptr_t) AcpiGbl_SleepStateNames[SleepState],
-                    NULL, &ObjDesc);
+                    &Info);
     if (ACPI_FAILURE (Status))
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "%s while evaluating SleepState [%s]\n",
@@ -245,7 +246,7 @@ AcpiGetSleepTypeData (
 
     /* Must have a return object */
 
-    if (!ObjDesc)
+    if (!Info.ReturnObject)
     {
         ACPI_REPORT_ERROR (("Missing Sleep State object\n"));
         Status = AE_NOT_EXIST;
@@ -253,7 +254,7 @@ AcpiGetSleepTypeData (
 
     /* It must be of type Package */
 
-    else if (ACPI_GET_OBJECT_TYPE (ObjDesc) != ACPI_TYPE_PACKAGE)
+    else if (ACPI_GET_OBJECT_TYPE (Info.ReturnObject) != ACPI_TYPE_PACKAGE)
     {
         ACPI_REPORT_ERROR (("Sleep State object not a Package\n"));
         Status = AE_AML_OPERAND_TYPE;
@@ -261,7 +262,7 @@ AcpiGetSleepTypeData (
 
     /* The package must have at least two elements */
 
-    else if (ObjDesc->Package.Count < 2)
+    else if (Info.ReturnObject->Package.Count < 2)
     {
         ACPI_REPORT_ERROR (("Sleep State package does not have at least two elements\n"));
         Status = AE_AML_NO_OPERAND;
@@ -269,12 +270,12 @@ AcpiGetSleepTypeData (
 
     /* The first two elements must both be of type Integer */
 
-    else if ((ACPI_GET_OBJECT_TYPE (ObjDesc->Package.Elements[0]) != ACPI_TYPE_INTEGER) ||
-             (ACPI_GET_OBJECT_TYPE (ObjDesc->Package.Elements[1]) != ACPI_TYPE_INTEGER))
+    else if ((ACPI_GET_OBJECT_TYPE (Info.ReturnObject->Package.Elements[0]) != ACPI_TYPE_INTEGER) ||
+             (ACPI_GET_OBJECT_TYPE (Info.ReturnObject->Package.Elements[1]) != ACPI_TYPE_INTEGER))
     {
         ACPI_REPORT_ERROR (("Sleep State package elements are not both Integers (%s, %s)\n",
-            AcpiUtGetObjectTypeName (ObjDesc->Package.Elements[0]),
-            AcpiUtGetObjectTypeName (ObjDesc->Package.Elements[1])));
+            AcpiUtGetObjectTypeName (Info.ReturnObject->Package.Elements[0]),
+            AcpiUtGetObjectTypeName (Info.ReturnObject->Package.Elements[1])));
         Status = AE_AML_OPERAND_TYPE;
     }
     else
@@ -282,17 +283,19 @@ AcpiGetSleepTypeData (
         /*
          * Valid _Sx_ package size, type, and value
          */
-        *SleepTypeA = (UINT8) (ObjDesc->Package.Elements[0])->Integer.Value;
-        *SleepTypeB = (UINT8) (ObjDesc->Package.Elements[1])->Integer.Value;
+        *SleepTypeA = (UINT8) (Info.ReturnObject->Package.Elements[0])->Integer.Value;
+        *SleepTypeB = (UINT8) (Info.ReturnObject->Package.Elements[1])->Integer.Value;
     }
 
     if (ACPI_FAILURE (Status))
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "While evaluating SleepState [%s], bad Sleep object %p type %s\n",
-            AcpiGbl_SleepStateNames[SleepState], ObjDesc, AcpiUtGetObjectTypeName (ObjDesc)));
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
+            "While evaluating SleepState [%s], bad Sleep object %p type %s\n",
+            AcpiGbl_SleepStateNames[SleepState], Info.ReturnObject,
+            AcpiUtGetObjectTypeName (Info.ReturnObject)));
     }
 
-    AcpiUtRemoveReference (ObjDesc);
+    AcpiUtRemoveReference (Info.ReturnObject);
     return_ACPI_STATUS (Status);
 }
 
