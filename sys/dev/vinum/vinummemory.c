@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinummemory.c,v 1.20 1999/03/19 03:21:08 grog Exp grog $
+ * $Id: vinummemory.c,v 1.6.2.3 1999/05/05 05:20:01 grog Exp $
  */
 
 #define REALLYKERNEL
@@ -41,7 +41,6 @@
 #include <dev/vinum/vinumhdr.h>
 
 #ifdef VINUMDEBUG
-jmp_buf command_fail;					    /* return on a failed command */
 #undef longjmp						    /* this was defined as LongJmp */
 void longjmp(jmp_buf, int);				    /* the kernel doesn't define this */
 
