@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: spans_arp.c,v 1.2 1998/10/31 20:06:56 phk Exp $
+ *	@(#) $Id: spans_arp.c,v 1.3 1998/12/04 22:54:53 archie Exp $
  *
  */
 
@@ -44,7 +44,7 @@
 #include <netatm/spans/spans_cls.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: spans_arp.c,v 1.2 1998/10/31 20:06:56 phk Exp $");
+__RCSID("@(#) $Id: spans_arp.c,v 1.3 1998/12/04 22:54:53 archie Exp $");
 #endif
 
 
@@ -1123,6 +1123,13 @@ spansarp_ioctl(code, data, arg1)
 		 */
 		aip->air_buf_addr = buf_addr;
 		aip->air_buf_len = buf_len;
+		break;
+
+	case AIOCS_INF_ASV:
+		/*
+		 * Get ARP server information
+		 */
+		/* SPANS doesn't have an ARP server */
 		break;
 
 	default:
