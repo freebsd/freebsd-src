@@ -84,19 +84,19 @@ static ng_rcvdata_t	ng_pppoe_rcvdata;
 static ng_disconnect_t	ng_pppoe_disconnect;
 
 /* Parse type for struct ngpppoe_init_data */
-static const struct ng_parse_struct_info ngpppoe_init_data_type_info
+static const struct ng_parse_struct_field ngpppoe_init_data_type_fields[]
 	= NG_PPPOE_INIT_DATA_TYPE_INFO;
 static const struct ng_parse_type ngpppoe_init_data_state_type = {
 	&ng_parse_struct_type,
-	&ngpppoe_init_data_type_info
+	&ngpppoe_init_data_type_fields
 };
 
 /* Parse type for struct ngpppoe_sts */
-static const struct ng_parse_struct_info ng_pppoe_sts_type_info
+static const struct ng_parse_struct_field ng_pppoe_sts_type_fields[]
 	= NG_PPPOE_STS_TYPE_INFO;
 static const struct ng_parse_type ng_pppoe_sts_state_type = {
 	&ng_parse_struct_type,
-	&ng_pppoe_sts_type_info
+	&ng_pppoe_sts_type_fields
 };
 
 /* List of commands and how to convert arguments to/from ASCII */

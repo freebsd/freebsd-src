@@ -69,11 +69,9 @@ struct ng_cisco_ipaddr {
 
 /* Keep this in sync with the above structure definition */
 #define NG_CISCO_IPADDR_TYPE_INFO	{			\
-	{							\
 	  { "ipaddr",		&ng_parse_ipaddr_type	},	\
 	  { "netmask",		&ng_parse_ipaddr_type	},	\
-	  { NULL },						\
-	}							\
+	  { NULL }						\
 }
 
 struct ng_cisco_stats {
@@ -83,11 +81,9 @@ struct ng_cisco_stats {
 
 /* Keep this in sync with the above structure definition */
 #define NG_CISCO_STATS_TYPE_INFO	{			\
-	{							\
 	  { "seqRetries",	&ng_parse_uint32_type	},	\
 	  { "keepAlivePeriod",	&ng_parse_uint32_type	},	\
-	  { NULL },						\
-	}							\
+	  { NULL }						\
 }
 
 #endif /* _NETGRAPH_CISCO_H_ */
