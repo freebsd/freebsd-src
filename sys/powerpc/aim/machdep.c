@@ -372,6 +372,10 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 		printf("powerpc_init: no loader metadata.\n");
 	}
 
+#ifdef DDB
+	kdb_init();
+#endif
+
 	/*
 	 * XXX: Initialize the interrupt tables.
 	 */
