@@ -172,7 +172,7 @@ static int sigproptbl[NSIG] = {
  * process, 0 if none.  If there is a pending stop signal with default
  * action, the process stops in issignal().
  *
- * MP SAFE
+ * MP SAFE.
  */
 int
 CURSIG(struct proc *p)
@@ -180,16 +180,16 @@ CURSIG(struct proc *p)
 	sigset_t tmpset;
 	int r;
 
+	if (SIGISEMPTY(p->p_siglist))
+		return (0);
 	tmpset = p->p_siglist;
 	SIGSETNAND(tmpset, p->p_sigmask);
-	if (SIGISEMPTY(p->p_siglist) ||
-	     (!(p->p_flag & P_TRACED) && SIGISEMPTY(tmpset))) {
-		return(0);
-	}
+	if (SIGISEMPTY(tmpset) && (p->p_flag & P_TRACED) == 0)
+		return (0);
 	mtx_enter(&Giant, MTX_DEF);
 	r = issignal(p);
 	mtx_exit(&Giant, MTX_DEF);
-	return(r);
+	return (r);
 }
 
 static __inline int
