@@ -38,29 +38,29 @@
 .\"
 .\" Copyright (c) 1995 Carnegie-Mellon University.
 .\" All rights reserved.
-.\" 
+.\"
 .\" Author: Mark Holland
-.\" 
+.\"
 .\" Permission to use, copy, modify and distribute this software and
 .\" its documentation is hereby granted, provided that both the copyright
 .\" notice and this permission notice appear in all copies of the
 .\" software, derivative works or modified versions, and any portions
 .\" thereof, and that both notices appear in supporting documentation.
-.\" 
+.\"
 .\" CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
 .\" CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND
 .\" FOR ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
-.\" 
+.\"
 .\" Carnegie Mellon requests users of this software to return to
-.\" 
+.\"
 .\"  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
 .\"  School of Computer Science
 .\"  Carnegie Mellon University
 .\"  Pittsburgh PA 15213-3890
-.\" 
+.\"
 .\" any improvements or extensions that they make and grant Carnegie the
 .\" rights to redistribute these changes.
-.\" 
+.\"
 .Dd October 20, 2002
 .Dt RAID 4
 .Os
@@ -77,20 +77,20 @@ driver provides RAID 0, 1, 4, and 5 (and more!) capabilities to
 This
 document assumes that the reader has at least some familiarity with RAID
 and RAID concepts.  The reader is also assumed to know how to configure
-disks and pseudo-devices into kernels, how to generate kernels, and how 
+disks and pseudo-devices into kernels, how to generate kernels, and how
 to partition disks.
 .Pp
 RAIDframe provides a number of different RAID levels including:
 .Bl -tag -width indent
-.It RAID 0 
+.It RAID 0
 provides simple data striping across the components.
-.It RAID 1 
+.It RAID 1
 provides mirroring.
-.It RAID 4 
+.It RAID 4
 provides data striping across the components, with parity
 stored on a dedicated drive (in this case, the last component).
-.It RAID 5 
-provides data striping across the components, with parity 
+.It RAID 5
+provides data striping across the components, with parity
 distributed across all the components.
 .El
 .Pp
@@ -110,7 +110,7 @@ reconstructed from the data and parity present on the other
 components.  This results in much slower data accesses, but
 does mean that a failure need not bring the system to a complete halt.
 .Pp
-The RAID driver supports and enforces the use of 
+The RAID driver supports and enforces the use of
 .Sq component labels .
 A
 .Sq component label
@@ -147,8 +147,8 @@ root file system.  See
 .Xr raidctl 8
 for more information on auto-configuration of RAID sets.
 .Pp
-The driver supports 
-.Sq hot spares , 
+The driver supports
+.Sq hot spares ,
 disks which are on-line, but are not
 actively used in an existing file system.  Should a disk fail, the
 driver is capable of reconstructing the failed disk onto a hot spare
@@ -163,14 +163,14 @@ the reconstructed data from the hot spare to the previously failed
 If a component cannot be detected when the RAID device is configured,
 that component will be simply marked as 'failed'.
 .Pp
-The user-land utility for doing all 
+The user-land utility for doing all
 .Nm
 configuration and other operations
-is 
+is
 .Xr raidctl 8 .
-Most importantly, 
+Most importantly,
 .Xr raidctl 8
-must be used with the 
+must be used with the
 .Fl i
 option to initialize all RAID sets.  In particular, this
 initialization includes re-building the parity data.  This rebuilding
@@ -178,21 +178,21 @@ of parity data is also required when either a) a new RAID device is
 brought up for the first time or b) after an un-clean shutdown of a
 RAID device.  By using the
 .Fl P
-option to 
+option to
 .Xr raidctl 8 ,
-and performing this on-demand recomputation of all parity 
-before doing a 
+and performing this on-demand recomputation of all parity
+before doing a
 .Xr fsck 8
 or a
 .Xr newfs 8 ,
 file system integrity and parity integrity can be ensured.  It bears
-repeating again that parity recomputation is 
+repeating again that parity recomputation is
 .Ar required
 before any file systems are created or used on the RAID device.  If the
 parity is not correct, then missing data cannot be correctly recovered.
 .Pp
-RAID levels may be combined in a hierarchical fashion.  For example, a RAID 0 
-device can be constructed out of a number of RAID 5 devices (which, in turn, 
+RAID levels may be combined in a hierarchical fashion.  For example, a RAID 0
+device can be constructed out of a number of RAID 5 devices (which, in turn,
 may be constructed out of the physical disks, or of other RAID devices).
 .Pp
 It is important that drives be hard-coded at their respective
@@ -201,7 +201,7 @@ addresses (i.e. not left free-floating, where a drive with SCSI ID of
 device.  This is true for all types of drives, including IDE, SCSI,
 etc.  For IDE drivers, use the option ATAPI_STATIC_ID in your kernel
 config file.  For SCSI, you should 'wire down' the devices according to
-their ID.  See 
+their ID.  See
 .Xr cam 4
 for examples of this.
 The rationale for fixing the device addresses
@@ -218,7 +218,7 @@ about where the components live.  The auto-configuration code will
 correctly configure a device even after any number of the components
 have been re-arranged.
 .Pp
-The first step to using the 
+The first step to using the
 .Nm
 driver is to ensure that it is suitably configured in the kernel.  This is
 done by adding a line similar to:
@@ -237,7 +237,7 @@ options    RAID_AUTOCONFIG
 to the kernel configuration file.
 .Pp
 All component partitions must be of the type
-.Dv FS_BSDFFS 
+.Dv FS_BSDFFS
 (e.g. 4.2BSD) or
 .Dv FS_RAID .
 The use of the latter is strongly encouraged, and is required if
@@ -245,9 +245,9 @@ auto-configuration of the RAID set is desired.  Since RAIDframe leaves
 room for disklabels, RAID components can be simply raw disks, or
 partitions which use an entire disk.
 .Pp
-A more detailed treatment of actually using a 
+A more detailed treatment of actually using a
 .Nm
-device is found in 
+device is found in
 .Xr raidctl 8 .
 It is highly recommended that the steps to reconstruct, copyback, and
 re-compute parity are well understood by the system administrator(s)
@@ -261,11 +261,11 @@ data loss due to component failure.  However the loss of two
 components of a RAID 4 or 5 system, or the loss of a single component
 of a RAID 0 system, will result in the entire file systems on that RAID
 device being lost.
-RAID is 
+RAID is
 .Ar NOT
 a substitute for good backup practices.
 .Pp
-Recomputation of parity 
+Recomputation of parity
 .Ar MUST
 be performed whenever there is a chance that it may have been
 compromised.  This includes after system crashes, or before a RAID
@@ -273,7 +273,7 @@ device has been used for the first time.  Failure to keep parity
 correct will be catastrophic should a component ever fail -- it is
 better to use RAID 0 and get the additional space and speed, than it
 is to use parity, but not keep the parity correct.  At least with RAID
-0 there is no perception of increased data security. 
+0 there is no perception of increased data security.
 .Pp
 .Sh FILES
 .Bl -tag -width /dev/XXrXraidX -compact
@@ -289,16 +289,16 @@ device special files.
 .Xr newfs 8 ,
 .Xr raidctl 8
 .Sh HISTORY
-The 
+The
 .Nm
-driver in 
+driver in
 .Fx
 is a port of RAIDframe, a framework for rapid prototyping of RAID
 structures developed by the folks at the Parallel Data Laboratory at
 Carnegie Mellon University (CMU).  RAIDframe, as originally distributed
 by CMU, provides a RAID simulator for a number of different
 architectures, and a user-level device driver and a kernel device
-driver for Digital Unix.  The 
+driver for Digital Unix.  The
 .Nm
 driver is a kernelized version of RAIDframe v1.1, based on the
 .Nx
@@ -309,7 +309,7 @@ RAIDframe is found in the paper "RAIDframe: A Rapid Prototyping Tool
 for RAID Systems", by William V. Courtright II, Garth Gibson, Mark
 Holland, LeAnn Neal Reilly, and Jim Zelenka, and published by the
 Parallel Data Laboratory of Carnegie Mellon University.
-The 
+The
 .Nm
 driver first appeared in
 .Fx 4.4 .
