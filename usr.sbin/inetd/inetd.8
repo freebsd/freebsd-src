@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)inetd.8	8.3 (Berkeley) 4/13/94
-.\"	$Id: inetd.8,v 1.36 1999/07/16 15:41:14 sheldonh Exp $
+.\"	$Id: inetd.8,v 1.37 1999/07/23 15:37:39 green Exp $
 .\"
 .Dd February 7, 1996
 .Dt INETD 8
@@ -371,12 +371,14 @@ If the file
 .Pa .fakeid
 exists in the home directory of the identified user, report the username
 found in that file instead of the real username.
-.It Fl o Ar name
-Specify the operating system to be reported. It defaults to that returned by
-.Fn uname .
-.It Fl t Ar timeout
-Change the timeout from the default 10 seconds to a time specified in
-"sec" or "sec.usec" formats.
+.It Fl o Ar osname
+Use
+.Ar osname
+instead of the name of the system implementation
+returned by
+.Xr uname 3 .
+.It Fl t Ar sec[.usec]
+Specify a timeout for the service. The default timeout is 10.0 seconds.
 .El
 .Pp
 The
