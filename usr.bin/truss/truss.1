@@ -27,12 +27,18 @@ It does this by stopping and restarting the process being monitored via
 The options are as follows:
 .Bl -tag -width indent
 .It Fl f
-Trace decendants of the original traced process created by fork(),
-vfork, etc.
+Trace decendants of the original traced process created by
+.Xr fork 2 ,
+.Xr vfork 2 ,
+etc.
 .It Fl a
-Show the argument strings that are passed in each execve() system call.
+Show the argument strings that are passed in each
+.Xr execve 2
+system call.
 .It Fl e
-Show the environment strings that are passed in each execve() system call.
+Show the environment strings that are passed in each
+.Xr execve 2
+system call.
 .It Fl d
 Include timestamps in the output showing the time elapsed
 since the trace was started.
