@@ -82,7 +82,7 @@ prison_remote_ip(struct proc *p, int flag, u_int32_t *ip)
 {
 	u_int32_t tmp;
 
-	if (!p->p_prison)
+	if (!p || !p->p_prison)
 		return;
 	if (flag)
 		tmp = *ip;
