@@ -473,7 +473,7 @@ getdouble(double *dp)
 		*dp = asciicode();
 		return (0);
 	}
-	rval = 1;
+	rval = 0;
 	errno = 0;
 	*dp = strtod(*gargv, &ep);
 	if (ep == *gargv) {
