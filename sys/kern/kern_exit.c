@@ -523,6 +523,20 @@ loop:
 				vrele(p->p_textvp);
 
 			/*
+			 * Finally finished with old proc entry.
+			 * Unlink it from its process group and free it.
+			 */
+			leavepgrp(p);
+
+			sx_xlock(&allproc_lock);
+			LIST_REMOVE(p, p_list);	/* off zombproc */
+			sx_xunlock(&allproc_lock);
+
+			sx_xlock(&proctree_lock);
+			LIST_REMOVE(p, p_sibling);
+			sx_xunlock(&proctree_lock);
+
+			/*
 			 * Free up credentials.
 			 */
 			PROC_LOCK(p);
@@ -538,30 +552,13 @@ loop:
 			 */
 			if (p->p_args && --p->p_args->ar_ref == 0)
 				FREE(p->p_args, M_PARGS);
-			PROC_UNLOCK(p);
 
-			/*
-			 * Finally finished with old proc entry.
-			 * Unlink it from its process group and free it.
-			 */
-			leavepgrp(p);
-
-			sx_xlock(&allproc_lock);
-			LIST_REMOVE(p, p_list);	/* off zombproc */
-			sx_xunlock(&allproc_lock);
-
-			sx_xlock(&proctree_lock);
-			LIST_REMOVE(p, p_sibling);
-			sx_xunlock(&proctree_lock);
-
-			PROC_LOCK(p);
 			if (--p->p_procsig->ps_refcnt == 0) {
 				if (p->p_sigacts != &p->p_addr->u_sigacts)
 					FREE(p->p_sigacts, M_SUBPROC);
 			        FREE(p->p_procsig, M_SUBPROC);
 				p->p_procsig = NULL;
 			}
-			PROC_UNLOCK(p);
 
 			/*
 			 * Give machine-dependent layer a chance
