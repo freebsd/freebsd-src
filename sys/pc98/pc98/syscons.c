@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.91 1998/07/15 12:18:34 bde Exp $
+ *  $Id: syscons.c,v 1.92 1998/07/16 10:29:11 kato Exp $
  */
 
 #include "sc.h"
@@ -112,6 +112,8 @@
 #define MODE_MAP_SIZE		(M_VGA_CG320 + 1)
 #define MODE_PARAM_SIZE		64
 
+#define MAX_BLANKTIME		(7*24*60*60)	/* 7 days!? */
+
 /* for backward compatibility */
 #define OLD_CONS_MOUSECTL	_IOWR('c', 10, old_mouse_info_t)
 
@@ -166,6 +168,7 @@ static  int		sc_port = IO_KBD;
 static  KBDC		sc_kbdc = NULL;
 static  char        	init_done = COLD;
 static  u_short		sc_buffer[ROW*COL];
+static  char		shutdown_in_progress = FALSE;
 static  char        	font_loading_in_progress = FALSE;
 static  char        	switch_in_progress = FALSE;
 static  char        	write_in_progress = FALSE;
@@ -210,6 +213,7 @@ static  char		vgaregs[MODE_PARAM_SIZE];
 static  char		vgaregs2[MODE_PARAM_SIZE];
 static  int		rows_offset = 1;
 static	char 		*cut_buffer;
+static	int		cut_buffer_size;
 static	int		mouse_level = 0;	/* sysmouse protocol level */
 static	mousestatus_t	mouse_status = { 0, 0, 0, 0, 0, 0 };
 static  u_short 	mouse_and_mask[16] = {
@@ -280,6 +284,7 @@ static int sckbdprobe(int unit, int flags);
 static void scstart(struct tty *tp);
 static void scmousestart(struct tty *tp);
 static void scinit(void);
+static void scshutdown(int howto, void *arg);
 static void map_mode_table(char *map[], char *table, int max);
 static u_char map_mode_num(u_char mode);
 static char *get_mode_param(scr_stat *scp, u_char mode);
@@ -815,7 +820,10 @@ scattach(struct isa_device *dev)
     scp = console[0];
 
     if (crtc_vga) {
-    	cut_buffer = (char *)malloc(scp->xsize*scp->ysize, M_DEVBUF, M_NOWAIT);
+	cut_buffer_size = scp->xsize * scp->ysize + 1;
+    	cut_buffer = (char *)malloc(cut_buffer_size, M_DEVBUF, M_NOWAIT);
+	if (cut_buffer != NULL)
+	    cut_buffer[0] = '\0';
     }
 
     scp->scr_buf = (u_short *)malloc(scp->xsize*scp->ysize*sizeof(u_short),
@@ -930,6 +938,8 @@ scattach(struct isa_device *dev)
     scp->r_hook.ah_order = APM_MID_ORDER;
     apm_hook_establish(APM_HOOK_RESUME , &scp->r_hook);
 #endif
+
+    at_shutdown(scshutdown, NULL, SHUTDOWN_PRE_SYNC);
 
     cdevsw_add(&cdev, &scdevsw, NULL);
 
@@ -1177,7 +1187,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	return 0;
 
     case CONS_BLANKTIME:    	/* set screen saver timeout (0 = no saver) */
-	if (*(int *)data < 0)
+	if (*(int *)data < 0 || *(int *)data > MAX_BLANKTIME)
             return EINVAL;
 	scrn_blank_time = *(int *)data;
 	if (scrn_blank_time == 0)
@@ -1208,10 +1218,14 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	return 0;
 
     case CONS_BELLTYPE: 	/* set bell type sound/visual */
-	if (*data)
+	if ((*(int *)data) & 0x01)
 	    flags |= VISUAL_BELL;
 	else
 	    flags &= ~VISUAL_BELL;
+	if ((*(int *)data) & 0x02)
+	    flags |= QUIET_BELL;
+	else
+	    flags &= ~QUIET_BELL;
 	return 0;
 
     case CONS_HISTORY:  	/* set history size */
@@ -1432,7 +1446,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		else
 		    psignal(cur_console->mouse_proc, cur_console->mouse_signal);
 	    }
-	    else if (mouse->operation == MOUSE_ACTION) {
+	    else if (mouse->operation == MOUSE_ACTION && cut_buffer != NULL) {
 		/* process button presses */
 		if ((cur_console->mouse_buttons ^ mouse->u.data.buttons) && 
 		    !(cur_console->status & UNKNOWN_MODE)) {
@@ -1499,7 +1513,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		break;
 	    }
 
-	    if (cur_console->status & UNKNOWN_MODE)
+	    if ((cur_console->status & UNKNOWN_MODE) || (cut_buffer == NULL))
 		break;
 
 	    switch (mouse->u.event.id) {
@@ -1814,9 +1828,16 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
     	scp->mouse_pos = scp->mouse_oldpos = 
 	    scp->scr_buf + (scp->mouse_ypos / scp->font_size) * scp->xsize 
 	    + scp->mouse_xpos / 8;
-	free(cut_buffer, M_DEVBUF);
-    	cut_buffer = (char *)malloc(scp->xsize*scp->ysize, M_DEVBUF, M_NOWAIT);
-	cut_buffer[0] = 0x00;
+	/* allocate a larger cut buffer if necessary */
+	if ((cut_buffer == NULL)
+	    || (cut_buffer_size < scp->xsize * scp->ysize + 1)) {
+	    if (cut_buffer != NULL)
+		free(cut_buffer, M_DEVBUF);
+	    cut_buffer_size = scp->xsize * scp->ysize + 1;
+	    cut_buffer = (char *)malloc(cut_buffer_size, M_DEVBUF, M_NOWAIT);
+	    if (cut_buffer != NULL)
+		cut_buffer[0] = '\0';
+	}
 	splx(s);
 
 	usp = scp->history;
@@ -2601,7 +2622,7 @@ scrn_timer(void *arg)
 
     /* should we stop the screen saver? */
     getmicrouptime(&tv);
-    if (panicstr)
+    if (panicstr || shutdown_in_progress)
 	scrn_time_stamp = tv;
     if (tv.tv_sec <= scrn_time_stamp.tv_sec + scrn_blank_time)
 	if (scrn_blanked > 0)
@@ -3544,7 +3565,7 @@ scan_esc(scr_stat *scp, u_char c)
 	case 'B':   /* set bell pitch and duration */
 	    if (scp->term.num_param == 2) {
 		scp->bell_pitch = scp->term.param[0];
-		scp->bell_duration = scp->term.param[1]*10;
+		scp->bell_duration = scp->term.param[1];
 	    }
 	    break;
 
@@ -4192,6 +4213,16 @@ scinit(void)
     toggle_splash_screen(cur_console);
 #endif
 #endif
+}
+
+static void
+scshutdown(int howto, void *arg)
+{
+    getmicrouptime(&scrn_time_stamp);
+    if (!cold && cur_console->smode.mode == VT_AUTO 
+	&& console[0]->smode.mode == VT_AUTO)
+	switch_scr(cur_console, 0);
+    shutdown_in_progress = TRUE;
 }
 
 static void
@@ -6120,7 +6151,10 @@ load_palette(char *palette)
 static void
 do_bell(scr_stat *scp, int pitch, int duration)
 {
-    if (cold)
+    if (cold || shutdown_in_progress)
+	return;
+
+    if (scp != cur_console && (flags & QUIET_BELL))
 	return;
 
     if (flags & VISUAL_BELL) {
