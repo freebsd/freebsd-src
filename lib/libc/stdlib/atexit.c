@@ -32,16 +32,28 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)atexit.c	8.2 (Berkeley) 7/3/94";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <stddef.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <pthread.h>
 #include "atexit.h"
+#include "un-namespace.h"
+
+#include "libc_private.h"
+
+static pthread_mutex_t atexit_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+#define _MUTEX_LOCK(x)		if (__isthreaded) _pthread_mutex_lock(x)
+#define _MUTEX_UNLOCK(x)	if (__isthreaded) _pthread_mutex_unlock(x)
 
 struct atexit *__atexit;	/* points to head of LIFO stack */
 
@@ -55,15 +67,29 @@ atexit(fn)
 	static struct atexit __atexit0;	/* one guaranteed table */
 	register struct atexit *p;
 
+	_MUTEX_LOCK(&atexit_mutex);
 	if ((p = __atexit) == NULL)
 		__atexit = p = &__atexit0;
-	else if (p->ind >= ATEXIT_SIZE) {
-		if ((p = (struct atexit *)sbrk(sizeof(*p))) == (struct atexit *)-1)
+	else while (p->ind >= ATEXIT_SIZE) {
+		struct atexit *old__atexit;
+		old__atexit = __atexit;
+	        _MUTEX_UNLOCK(&atexit_mutex);
+		if ((p = (struct atexit *)malloc(sizeof(*p))) == NULL)
 			return (-1);
+		_MUTEX_LOCK(&atexit_mutex);
+		if (old__atexit != __atexit) {
+			/* Lost race, retry operation */
+			_MUTEX_UNLOCK(&atexit_mutex);
+			free(p);
+			_MUTEX_LOCK(&atexit_mutex);
+			p = __atexit;
+			continue;
+		}
 		p->ind = 0;
 		p->next = __atexit;
 		__atexit = p;
 	}
 	p->fns[p->ind++] = fn;
+	_MUTEX_UNLOCK(&atexit_mutex);
 	return (0);
 }
