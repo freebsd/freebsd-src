@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_eg.c,v 1.11 1996/01/26 09:27:17 phk Exp $
+ * $Id: if_eg.c,v 1.12 1996/02/06 18:50:39 wollman Exp $
  */
 
 /* To do:
@@ -74,7 +74,6 @@
 #include <net/bpfdesc.h>
 #endif
 
-#include <machine/cpu.h>
 #include <machine/clock.h>
 
 #include <i386/isa/isa.h>

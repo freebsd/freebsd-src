@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: if_ethersubr.c,v 1.5 1994/12/13 22:31:45 wollman Exp
- * $Id: if_fddisubr.c,v 1.5 1995/05/30 08:08:05 rgrimes Exp $
+ * $Id: if_fddisubr.c,v 1.6 1995/10/26 20:30:11 julian Exp $
  */
 
 #include <sys/param.h>
@@ -44,8 +44,6 @@
 #include <sys/ioctl.h>
 #include <sys/errno.h>
 #include <sys/syslog.h>
-
-#include <machine/cpu.h>
 
 #include <net/if.h>
 #include <net/netisr.h>
