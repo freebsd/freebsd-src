@@ -17,4 +17,4 @@ umask 22
 
 stty crt erase ^h
 
-/usr/games/fortune
+[ -x /usr/games/fortune ] && /usr/games/fortune
