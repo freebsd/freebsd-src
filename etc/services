@@ -1935,6 +1935,8 @@ vat-control	3457/tcp   #VAT default control
 vat-control	3457/udp   #VAT default control
 nut		3493/tcp   #Network UPS Tools
 nut		3493/udp   #Network UPS Tools
+tsp		3653/tcp   #Tunnel Setup Protocol
+tsp		3653/udp   #Tunnel Setup Protocol
 svn		3690/tcp   #Subversion
 svn		3690/udp   #Subversion
 udt_os		3900/tcp   #Unidata UDT OS
