@@ -33,9 +33,10 @@ Selecting OK in a menu will confirm whatever action it's controlling.
 Selecting Cancel will cancel the operation and generally return you to
 the previous menu.
 
-Most screens have Help - READ IT!  It generally offers
-context-specific hints on what to do next, and if you're confused at
-any point, hit the F1 key for tips on what to do next.
+Most screens obey the Help key (F1) - USE IT!  It generally offers useful
+context-specific hints on what to do at each stage of the installation,
+and if you're at all unsure about what to do at a given stage in the
+installation, hit F1!
 
 
 SPECIAL FEATURES:
