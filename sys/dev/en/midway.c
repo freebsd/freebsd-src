@@ -1265,7 +1265,7 @@ en_close_finish(struct en_softc *sc, struct en_vcc *vc)
  * LOCK: unlocked, needed
  */
 static int
-en_close_vcc(struct en_softc *sc, struct atmio_closevcc *cl, int wait)
+en_close_vcc(struct en_softc *sc, struct atmio_closevcc *cl)
 {
 	uint32_t oldmode, newmode;
 	struct en_vcc *vc;
@@ -1315,10 +1315,8 @@ en_close_vcc(struct en_softc *sc, struct atmio_closevcc *cl, int wait)
 	vc->vflags |= VCC_DRAIN;
 	DBG(sc, IOCTL, ("VCI %u now draining", cl->vci));
 
-	if (!wait || (vc->vcc.flags & ATMIO_FLAG_ASYNC)) {
-		vc->vflags |= VCC_ASYNC;
+	if (vc->vcc.flags & ATMIO_FLAG_ASYNC)
 		goto done;
-	}
 
 	vc->vflags |= VCC_CLOSE_RX;
 	while ((sc->ifatm.ifnet.if_flags & IFF_RUNNING) &&
@@ -1549,33 +1547,10 @@ en_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct en_softc *sc = (struct en_softc *)ifp->if_softc;
 	struct ifaddr *ifa = (struct ifaddr *)data;
 	struct ifreq *ifr = (struct ifreq *)data;
-	struct atm_pseudoioctl *pa = (struct atm_pseudoioctl *)data;
 	struct atmio_vcctable *vtab;
-	struct atmio_openvcc ena;
-	struct atmio_closevcc dis;
 	int error = 0;
 
 	switch (cmd) {
-
-	  case SIOCATMENA:		/* enable circuit for recv */
-		bzero(&ena, sizeof(ena));
-		ena.param.flags = ATM_PH_FLAGS(&pa->aph) &
-		    (ATM_PH_AAL5 | ATM_PH_LLCSNAP);
-		ena.param.vpi = ATM_PH_VPI(&pa->aph);
-		ena.param.vci = ATM_PH_VCI(&pa->aph);
-		ena.param.aal = (ATM_PH_FLAGS(&pa->aph) & ATM_PH_AAL5) ?
-		    ATMIO_AAL_5 : ATMIO_AAL_0;
-		ena.param.traffic = ATMIO_TRAFFIC_UBR;
-		ena.rxhand = pa->rxhand;
-		error = en_open_vcc(sc, &ena);
-		break;
-
-	  case SIOCATMDIS: 		/* disable circuit for recv */
-		bzero(&dis, sizeof(dis));
-		dis.vpi = ATM_PH_VPI(&pa->aph);
-		dis.vci = ATM_PH_VCI(&pa->aph);
-		error = en_close_vcc(sc, &dis, 0);
-		break;
 
 	  case SIOCSIFADDR: 
 		EN_LOCK(sc);
@@ -1627,12 +1602,12 @@ en_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		error = ifmedia_ioctl(ifp, ifr, &sc->media, cmd);
 		break;
 
-	  case SIOCATMOPENVCC:		/* netgraph/harp internal use */
+	  case SIOCATMOPENVCC:		/* kernel internal use */
 		error = en_open_vcc(sc, (struct atmio_openvcc *)data);
 		break;
 
-	  case SIOCATMCLOSEVCC:		/* netgraph and HARP internal use */
-		error = en_close_vcc(sc, (struct atmio_closevcc *)data, 1);
+	  case SIOCATMCLOSEVCC:		/* kernel internal use */
+		error = en_close_vcc(sc, (struct atmio_closevcc *)data);
 		break;
 
 	  case SIOCATMGETVCCS:	/* internal netgraph use */
@@ -1873,7 +1848,7 @@ en_rx_drain(struct en_softc *sc, u_int drq)
 		    (en_read(sc, MID_VC(vc->vcc.vci)) & MIDV_INSERVICE) == 0 &&
 		    (vc->vflags & VCC_SWSL) == 0) {
 			vc->vflags &= ~VCC_CLOSE_RX;
-			if (vc->vflags & VCC_ASYNC)
+			if (vc->vcc.flags & ATMIO_FLAG_ASYNC)
 				en_close_finish(sc, vc);
 			else
 				cv_signal(&sc->cv_close);

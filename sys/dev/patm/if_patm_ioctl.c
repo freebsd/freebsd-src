@@ -200,29 +200,6 @@ patm_open_vcc(struct patm_softc *sc, struct atmio_openvcc *arg)
 }
 
 /*
- * Enable ioctl for NATM. Map to an open ioctl.
- */
-static int
-patm_open_vcc1(struct patm_softc *sc, struct atm_pseudoioctl *ph)
-{
-	struct atmio_openvcc v;
-
-	bzero(&v, sizeof(v));
-	v.param.flags = ATM_PH_FLAGS(&ph->aph) & (ATM_PH_AAL5 | ATM_PH_LLCSNAP);
-	v.param.flags |= ATMIO_FLAG_ASYNC;
-
-	v.param.vpi = ATM_PH_VPI(&ph->aph);
-	v.param.vci = ATM_PH_VCI(&ph->aph);
-	v.param.aal = (ATM_PH_FLAGS(&ph->aph) & ATM_PH_AAL5)
-	    ? ATMIO_AAL_5 : ATMIO_AAL_0;
-	v.param.traffic = ATMIO_TRAFFIC_UBR;;
-	v.param.tparam.pcr = sc->ifatm.mib.pcr;
-	v.rxhand = ph->rxhand;
-
-	return (patm_open_vcc(sc, &v));
-}
-
-/*
  * Try to close the given VCC
  */
 static int
@@ -279,20 +256,6 @@ patm_close_vcc(struct patm_softc *sc, struct atmio_closevcc *arg)
 	mtx_unlock(&sc->mtx);
 
 	return (error);
-}
-
-/*
- * Close a VCC asynchronuosly
- */
-static int
-patm_close_vcc1(struct patm_softc *sc, struct atm_pseudoioctl *ph)
-{
-	struct atmio_closevcc v;
-
-	v.vpi = ATM_PH_VPI(&ph->aph);
-	v.vci = ATM_PH_VCI(&ph->aph);
-
-	return (patm_close_vcc(sc, &v));
 }
 
 /*
@@ -403,20 +366,12 @@ patm_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			ifp->if_mtu = ifr->ifr_mtu;
 		break;
 
-	  case SIOCATMOPENVCC:		/* netgraph/harp internal use */
+	  case SIOCATMOPENVCC:		/* kernel internal use */
 		error = patm_open_vcc(sc, (struct atmio_openvcc *)data);
 		break;
 
-	  case SIOCATMCLOSEVCC:		/* netgraph and HARP internal use */
+	  case SIOCATMCLOSEVCC:		/* kernel internal use */
 		error = patm_close_vcc(sc, (struct atmio_closevcc *)data);
-		break;
-
-	  case SIOCATMENA:	/* NATM internal use */
-		error = patm_open_vcc1(sc, (struct atm_pseudoioctl *)data);
-		break;
-
-	  case SIOCATMDIS:	/* NATM internal use */
-		error = patm_close_vcc1(sc, (struct atm_pseudoioctl *)data);
 		break;
 
 	  case SIOCATMGVCCS:	/* external use */
