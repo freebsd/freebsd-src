@@ -675,14 +675,17 @@ sink(argc, argv)
 		if (*cp++ != ' ')
 			SCREWUP("size not delimited");
 		if (targisdir) {
-			static char *namebuf;
-			static int cursize;
+			static char *namebuf = NULL;
+			static size_t cursize;
 			size_t need;
 
 			need = strlen(targ) + strlen(cp) + 250;
 			if (need > cursize) {
+				if (namebuf != NULL)
+					free(namebuf);
 				if (!(namebuf = malloc(need)))
 					run_err("%s", strerror(errno));
+				cursize = need;
 			}
 			(void)snprintf(namebuf, need, "%s%s%s", targ,
 			    *targ ? "/" : "", cp);
