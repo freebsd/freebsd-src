@@ -85,6 +85,10 @@ __tls_get_addr()
 
 #ifdef TLS_VARIANT_I
 
+#pragma weak _rtld_free_tls
+/*
+ * Free Static TLS using the Variant I method.
+ */
 void
 _rtld_free_tls(void *tls, size_t tcbsize, size_t tcbalign)
 {
@@ -97,6 +101,7 @@ _rtld_free_tls(void *tls, size_t tcbsize, size_t tcbalign)
 #endif
 }
 
+#pragma weak _rtld_allocate_tls
 /*
  * Allocate Static TLS using the Variant I method.
  */
