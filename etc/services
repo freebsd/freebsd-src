@@ -9,7 +9,7 @@
 # Kerberos services are for Kerberos v4, and are unofficial.  Sites running
 # v5 should uncomment v5 entries and comment v4 entries.
 #
-#	$Id: services,v 1.25 1996/08/22 10:29:28 asami Exp $
+#	$Id: services,v 1.26 1996/08/22 21:37:19 pst Exp $
 #	From: @(#)services	5.8 (Berkeley) 5/9/91
 #
 # WELL KNOWN PORT NUMBERS
@@ -1561,7 +1561,8 @@ nv-video	4444/tcp   #NV Video default
 nv-video	4444/udp   #NV Video default
 sae-urn		4500/tcp
 sae-urn		4500/udp
-fax		4557/tcp		# FAX transmission service
+fax		4557/tcp   #FAX transmission service
+hylafax		4559/tcp   #HylaFAX client-server protocol
 rfa		4672/tcp   #remote file access server
 rfa		4672/udp   #remote file access server
 commplex-main	5000/tcp
