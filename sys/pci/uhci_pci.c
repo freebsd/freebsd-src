@@ -154,7 +154,6 @@ uhci_pci_attach(device_t self)
 	int rid;
 	void *ih;
 	struct resource *res;
-	device_t usbus;
 	int intr;
 	int legsup;
 	int err;
@@ -178,33 +177,35 @@ uhci_pci_attach(device_t self)
 				 RF_SHAREABLE | RF_ACTIVE);
 	if (res == NULL) {
 		device_printf(self, "could not allocate irq\n");
-		return ENOMEM;
+		err = ENOMEM;
+		goto bad1;
 	}
 		
-	usbus = device_add_child(self, "usb", -1);
-	device_set_ivars(usbus, sc);
-	if (!usbus) {
+	sc->sc_bus.bdev = device_add_child(self, "usb", -1);
+	device_set_ivars(sc->sc_bus.bdev, sc);
+	if (!sc->sc_bus.bdev) {
 		device_printf(self, "could not add USB device\n");
-		return ENOMEM;
+		err = ENOMEM;
+		goto bad2;
 	}
 
 	switch (pci_get_devid(self)) {
 	case PCI_UHCI_DEVICEID_PIIX3:
-		device_set_desc(usbus, uhci_device_piix3);
+		device_set_desc(sc->sc_bus.bdev, uhci_device_piix3);
 		sprintf(sc->sc_vendor, "Intel");
 		break;
 	case PCI_UHCI_DEVICEID_PIIX4:
-		device_set_desc(usbus, uhci_device_piix4);
+		device_set_desc(sc->sc_bus.bdev, uhci_device_piix4);
 		sprintf(sc->sc_vendor, "Intel");
 		break;
 	case PCI_UHCI_DEVICEID_VT83C572:
-		device_set_desc(usbus, uhci_device_vt83c572);
+		device_set_desc(sc->sc_bus.bdev, uhci_device_vt83c572);
 		sprintf(sc->sc_vendor, "VIA");
 		break;
 	default:
 		device_printf(self, "(New UHCI DeviceId=0x%08x)\n",
 			      pci_get_devid(self));
-		device_set_desc(usbus, uhci_device_generic);
+		device_set_desc(sc->sc_bus.bdev, uhci_device_generic);
 		sprintf(sc->sc_vendor, "(0x%08x)", pci_get_devid(self));
 	}
 
@@ -224,16 +225,15 @@ uhci_pci_attach(device_t self)
 	if (intr == 0 || intr == 255) {
 		device_printf(self, "Invalid irq %d\n", intr);
 		device_printf(self, "Please switch on USB support and switch PNP-OS to 'No' in BIOS\n");
-		device_delete_child(self, usbus);
-		return ENXIO;
+		err = ENXIO;
+		goto bad3;
 	}
 
 	err = BUS_SETUP_INTR(parent, self, res, INTR_TYPE_BIO,
 			       (driver_intr_t *) uhci_intr, sc, &ih);
 	if (err) {
 		device_printf(self, "could not setup irq, %d\n", err);
-		device_delete_child(self, usbus);
-		return err;
+		goto bad3;
 	}
 
 	/* Verify that the PIRQD enable bit is set, some BIOS's don't do that */
@@ -247,31 +247,39 @@ uhci_pci_attach(device_t self)
 		pci_write_config(self, PCI_LEGSUP, legsup, 4);
 	}
 
-	sc->sc_bus.bdev = usbus;
 	err = uhci_init(sc);
-
 	if (!err)
 		err = device_probe_and_attach(sc->sc_bus.bdev);
 
 	if (err) {
 		device_printf(self, "init failed\n");
-
-		/* disable interrupts that might have been switched on
-		 * in uhci_init
-		 */
-		bus_space_write_2(sc->iot, sc->ioh, UHCI_INTR, 0);
-
-		err = BUS_TEARDOWN_INTR(parent, self, res, ih);
-		if (err)
-			/* XXX or should we panic? */
-			device_printf(self, "could not tear down irq, %d\n",
-				      err);
-
-		device_delete_child(self, usbus);
-		return EIO;	/* XXX arbitrary value */
+		err = EIO;	/* XXX arbitrary value */
+		goto bad4;
 	}
 
 	return 0;
+
+bad4:
+	/* disable interrupts that might have been switched on
+	 * in uhci_init
+	 */
+	bus_space_write_2(sc->iot, sc->ioh, UHCI_INTR, 0);
+
+	err = BUS_TEARDOWN_INTR(parent, self, res, ih);
+	if (err)
+		/* XXX or should we panic? */
+		device_printf(self, "could not tear down irq, %d\n",
+			      err);
+
+bad3:
+	device_delete_child(self, sc->sc_bus.bdev);
+bad2:
+	rid = 0;
+	bus_delete_resource(self, SYS_RES_IRQ, rid);
+bad1:
+	rid = PCI_UHCI_BASE_REG;
+	bus_delete_resource(self, SYS_RES_IOPORT, rid);
+	return err;
 }
 
 static device_method_t uhci_methods[] = {
