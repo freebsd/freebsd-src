@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: cardd.c,v 1.32 1998/04/20 16:24:03 nate Exp $";
+	"$Id: cardd.c,v 1.33 1999/01/10 13:00:09 guido Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -94,7 +94,7 @@ readslots(void)
 	slots = NULL;
 	for (i = 0; i < MAXSLOT; i++) {
 		sprintf(name, CARD_DEVICE, i);
-		fd = open(name, 2);
+		fd = open(name, O_RDWR);
 		if (fd < 0)
 			continue;
 		sp = xmalloc(sizeof(*sp));
