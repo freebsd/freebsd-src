@@ -621,7 +621,6 @@ ENTRY(lgdt)
 	MEXITCOUNT
 	lretq
 
-#ifdef DDB
 /*****************************************************************************/
 /* setjump, longjump                                                         */
 /*****************************************************************************/
@@ -652,7 +651,6 @@ ENTRY(longjmp)
 	xorl	%eax,%eax			/* return(1); */
 	incl	%eax
 	ret
-#endif
 
 /*
  * Support for BB-profiling (gcc -a).  The kernbb program will extract
