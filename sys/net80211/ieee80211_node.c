@@ -99,11 +99,13 @@ void
 ieee80211_node_lateattach(struct ifnet *ifp)
 {
 	struct ieee80211com *ic = (void *)ifp;
+	struct ieee80211_node *ni;
 
-	ic->ic_bss = (*ic->ic_node_alloc)(ic);
-	KASSERT(ic->ic_bss != NULL, ("unable to setup inital BSS node"));
+	ni = (*ic->ic_node_alloc)(ic);
+	KASSERT(ni != NULL, ("unable to setup inital BSS node"));
+	ni->ni_chan = IEEE80211_CHAN_ANYC;
+	ic->ic_bss = ni;
 	ic->ic_txpower = IEEE80211_TXPOWER_MAX;
-	ic->ic_bss->ni_chan = IEEE80211_CHAN_ANYC;
 }
 
 void
