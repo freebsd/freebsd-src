@@ -64,10 +64,32 @@ DUMMY(rt_sigqueueinfo);
 DUMMY(capget);
 DUMMY(capset);
 DUMMY(sendfile);
-DUMMY(mmap2);
 DUMMY(truncate64);
 DUMMY(setfsuid);
 DUMMY(setfsgid);
 DUMMY(pivot_root);
 DUMMY(mincore);
+DUMMY(fadvise64);
 DUMMY(madvise);
+
+#define DUMMY_XATTR(s)						\
+int								\
+linux_ ## s ## xattr(						\
+    struct proc *p, struct linux_ ## s ## xattr_args *arg)	\
+{								\
+								\
+	return (ENOATTR);					\
+}
+DUMMY_XATTR(set);
+DUMMY_XATTR(lset);
+DUMMY_XATTR(fset);
+DUMMY_XATTR(get);
+DUMMY_XATTR(lget);
+DUMMY_XATTR(fget);
+DUMMY_XATTR(list);
+DUMMY_XATTR(llist);
+DUMMY_XATTR(flist);
+DUMMY_XATTR(remove);
+DUMMY_XATTR(lremove);
+DUMMY_XATTR(fremove);
+
