@@ -1739,6 +1739,7 @@ sis_tick(xsc)
 
 	sc = xsc;
 	SIS_LOCK(sc);
+	sc->in_tick = 1;
 	ifp = &sc->arpcom.ac_if;
 
 	mii = device_get_softc(sc->sis_miibus);
@@ -1751,6 +1752,8 @@ sis_tick(xsc)
 			sis_start(ifp);
 	}
 
+	sc->sis_stat_ch = timeout(sis_tick, sc, hz);
+	sc->in_tick = 0;
 	SIS_UNLOCK(sc);
 
 	return;
@@ -2187,7 +2190,8 @@ sis_init(xsc)
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
 
-	sc->sis_stat_ch = timeout(sis_tick, sc, hz);
+	if (!sc->in_tick)
+		sc->sis_stat_ch = timeout(sis_tick, sc, hz);
 
 	SIS_UNLOCK(sc);
 

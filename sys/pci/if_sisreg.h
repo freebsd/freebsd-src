@@ -463,6 +463,7 @@ struct sis_softc {
 #ifdef DEVICE_POLLING
 	int			rxcycles;
 #endif
+	int			in_tick;
 	struct mtx		sis_mtx;
 };
 
