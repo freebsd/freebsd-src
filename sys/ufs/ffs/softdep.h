@@ -52,7 +52,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)softdep.h	9.4 (McKusick) 1/15/98
+ *	@(#)softdep.h	9.5 (McKusick) 2/11/98
  */
 
 #include <sys/queue.h>
@@ -201,31 +201,45 @@ struct pagedep {
 
 /*
  * The "inodedep" structure tracks the set of dependencies associated
- * with an inode. Each block that is allocated is represented by an
+ * with an inode. One task that it must manage is delayed operations
+ * (i.e., work requests that must be held until the inodedep's associated
+ * inode has been written to disk). Getting an inode from its incore 
+ * state to the disk requires two steps to be taken by the filesystem
+ * in this order: first the inode must be copied to its disk buffer by
+ * the VOP_UPDATE operation; second the inode's buffer must be written
+ * to disk. To ensure that both operations have happened in the required
+ * order, the inodedep maintains two lists. Delayed operations are
+ * placed on the id_inowait list. When the VOP_UPDATE is done, all
+ * operations on the id_inowait list are moved to the id_bufwait list.
+ * When the buffer is written, the items on the id_bufwait list can be
+ * safely moved to the work queue to be processed. A second task of the
+ * inodedep structure is to track the status of block allocation within
+ * the inode.  Each block that is allocated is represented by an
  * "allocdirect" structure (see below). It is linked onto the id_newinoupdt
  * list until both its contents and its allocation in the cylinder
- * group map have been written to disk. Once the dependencies have been
+ * group map have been written to disk. Once these dependencies have been
  * satisfied, it is removed from the id_newinoupdt list and any followup
  * actions such as releasing the previous block or fragment are placed
- * on the id_inowait list. When an inode is updated (copied from the
- * in-core inode structure to a disk buffer containing its on-disk
- * copy), the "inodedep" structure is linked onto the buffer through
- * its worklist. Thus it will be notified when the buffer is about
+ * on the id_inowait list. When an inode is updated (a VOP_UPDATE is
+ * done), the "inodedep" structure is linked onto the buffer through
+ * its worklist. Thus, it will be notified when the buffer is about
  * to be written and when it is done. At the update time, all the
  * elements on the id_newinoupdt list are moved to the id_inoupdt list
  * since those changes are now relevant to the copy of the inode in the
- * buffer. When the buffer containing the inode is written to disk, any
- * updates listed on the id_inoupdt list are rolled back as they are
- * not yet safe. Following the write, the changes are once again rolled
- * forward and any actions on the id_inowait list are processed (since
- * the previously allocated blocks are no longer claimed on the disk).
+ * buffer. Also at update time, the tasks on the id_inowait list are
+ * moved to the id_bufwait list so that they will be executed when
+ * the updated inode has been written to disk. When the buffer containing
+ * the inode is written to disk, any updates listed on the id_inoupdt
+ * list are rolled back as they are not yet safe. Following the write,
+ * the changes are once again rolled forward and any actions on the
+ * id_bufwait list are processed (since those actions are now safe).
  * The entries on the id_inoupdt and id_newinoupdt lists must be kept
  * sorted by logical block number to speed the calculation of the size
  * of the rolled back inode (see explanation in initiate_write_inodeblock).
  * When a directory entry is created, it is represented by a diradd.
- * The diradd is added to the id_inowait list and is not permitted to be
- * written to disk until the inode that it represents is written. After
- * the inode is written, the id_inowait list is processed and the diradd
+ * The diradd is added to the id_inowait list as it cannot be safely
+ * written to disk until the inode that it represents is on disk. After
+ * the inode is written, the id_bufwait list is processed and the diradd
  * entries are moved to the id_pendinghd list where they remain until
  * the directory block containing the name has been written to disk.
  * The purpose of keeping the entries on the id_pendinghd list is so that
@@ -244,7 +258,8 @@ struct inodedep {
 	struct	buf *id_buf;		/* related bmsafemap (if pending) */
 	off_t	id_savedsize;		/* file size saved during rollback */
 	struct	workhead id_pendinghd;	/* entries awaiting directory write */
-	struct	workhead id_inowait;	/* operations after inode written */
+	struct	workhead id_bufwait;	/* operations after inode written */
+	struct	workhead id_inowait;	/* operations waiting inode update */
 	struct	allocdirectlst id_inoupdt; /* updates before inode written */
 	struct	allocdirectlst id_newinoupdt; /* updates when inode written */
 };
@@ -460,7 +475,7 @@ struct freefile {
  * if appropriate and is never cleared.
  */
 struct diradd {
-	struct	worklist da_list;	/* id_inowait and id_pendinghd list */
+	struct	worklist da_list;	/* id_inowait or id_pendinghd list */
 #	define	da_state da_list.wk_state /* state of the new directory entry */
 	LIST_ENTRY(diradd) da_pdlist;	/* pagedep holding directory block */
 	doff_t	da_offset;		/* offset of new dir entry in dir blk */

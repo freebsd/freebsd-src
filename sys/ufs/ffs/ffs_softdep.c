@@ -53,7 +53,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ffs_softdep.c	9.14 (McKusick) 1/15/98
+ *	@(#)ffs_softdep.c	9.21 (McKusick) 2/15/98
  */
 
 /*
@@ -95,6 +95,7 @@ static	int flush_pagedep_deps __P((struct vnode *, struct mount *,
 	    struct diraddhd *));
 static	int flush_inodedep_deps __P((struct fs *, ino_t));
 static	int handle_written_filepage __P((struct pagedep *, struct buf *));
+static  void diradd_inode_written __P((struct diradd *, struct inodedep *));
 static	int handle_written_inodeblock __P((struct inodedep *, struct buf *));
 static	void handle_allocdirect_partdone __P((struct allocdirect *));
 static	void handle_allocindir_partdone __P((struct allocindir *));
@@ -129,6 +130,8 @@ static	int newblk_lookup __P((struct fs *, ufs_daddr_t, int,
 static	int inodedep_lookup __P((struct fs *, ino_t, int, struct inodedep **));
 static	int pagedep_lookup __P((struct inode *, ufs_lbn_t, int,
 	    struct pagedep **));
+static	void pause_timer __P((void *));
+static	int checklimit __P((long *, int));
 static	void add_to_worklist __P((struct worklist *));
 
 /*
@@ -427,6 +430,28 @@ workitem_free(item, type)
  */
 static struct workhead softdep_workitem_pending;
 static int softdep_worklist_busy;
+static int max_softdeps;	/* maximum number of structs before slowdown */
+static int tickdelay = 2;	/* number of ticks to pause during slowdown */
+static int max_limit_hit;	/* number of times slowdown imposed */
+static int rush_requests;	/* number of times I/O speeded up */
+static int proc_waiting;	/* tracks whether we have a timeout posted */
+static pid_t filesys_syncer_pid;/* records pid of filesystem syncer process */
+#ifdef DEBUG
+#include <vm/vm.h>
+#include <sys/sysctl.h>
+#if defined(__FreeBSD__)
+SYSCTL_INT(_debug, OID_AUTO, max_softdeps, CTLFLAG_RW, &max_softdeps, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, tickdelay, CTLFLAG_RW, &tickdelay, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, max_limit_hit, CTLFLAG_RW, &max_limit_hit, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, rush_requests, CTLFLAG_RW, &rush_requests, 0, "");
+#else /* !__FreeBSD__ */
+struct ctldebug debug4 = { "max_softdeps", &max_softdeps };
+struct ctldebug debug5 = { "tickdelay", &tickdelay };
+struct ctldebug debug6 = { "max_limit_hit", &max_limit_hit };
+struct ctldebug debug7 = { "rush_requests", &rush_requests };
+#endif	/* !__FreeBSD__ */
+
+#endif /* DEBUG */
 
 /*
  * Add an item to the end of the work queue.
@@ -465,10 +490,16 @@ int
 softdep_process_worklist(matchmnt)
 	struct mount *matchmnt;
 {
+	struct proc *p = curproc;
 	struct worklist *wk;
 	struct fs *matchfs;
 	int matchcnt;
 
+	/*
+	 * Record the process identifier of our caller so that we can
+	 * give this process preferential treatment in checklimit below.
+	 */
+	filesys_syncer_pid = p->p_pid;
 	matchcnt = 0;
 	matchfs = NULL;
 	if (matchmnt != NULL)
@@ -592,6 +623,71 @@ softdep_flushfiles(oldmnt, flags, p)
 }
 
 /*
+ * A large burst of file addition or deletion activity can drive the
+ * memory load excessively high. Therefore we deliberately slow things
+ * down and speed up the I/O processing if we find ourselves with too
+ * many dependencies in progress.
+ */
+static int
+checklimit(resource, islocked)
+	long *resource;
+	int islocked;
+{
+	struct proc *p = curproc;
+
+	/*
+	 * If we are under our limit, just proceed.
+	 */
+	if (*resource < max_softdeps)
+		return (0);
+	/*
+	 * We never hold up the filesystem syncer process.
+	 */
+	if (p->p_pid == filesys_syncer_pid)
+		return (0);
+	/*
+	 * Our first approach is to speed up the syncer process.
+	 * We never push it to speed up more than half of its
+	 * normal turn time, otherwise it could take over the cpu.
+	 */
+	if (rushjob < syncdelay / 2) {
+		rushjob += 1;
+		rush_requests += 1;
+		return (0);
+	}
+	/*
+	 * Every trick has failed, so we pause momentarily to let
+	 * the filesystem syncer process catch up.
+	 */
+	if (islocked == 0)
+		ACQUIRE_LOCK(&lk);
+	if (proc_waiting == 0) {
+		proc_waiting = 1;
+		timeout(pause_timer, NULL, tickdelay > 2 ? tickdelay : 2);
+	}
+	FREE_LOCK_INTERLOCKED(&lk);
+	(void) tsleep((caddr_t)&proc_waiting, PPAUSE | PCATCH, "softupdate", 0);
+	ACQUIRE_LOCK_INTERLOCKED(&lk);
+	if (islocked == 0)
+		FREE_LOCK(&lk);
+	max_limit_hit += 1;
+	return (1);
+}
+
+/*
+ * Awaken processes pausing in checklimit and clear proc_waiting
+ * to indicate that there is no longer a timer running.
+ */
+void
+pause_timer(arg)
+	void *arg;
+{
+
+	proc_waiting = 0;
+	wakeup(&proc_waiting);
+}
+
+/*
  * Structure hashing.
  * 
  * There are three types of structures that can be looked up:
@@ -690,7 +786,8 @@ top:
  * Structures and routines associated with inodedep caching.
  */
 LIST_HEAD(inodedep_hashhead, inodedep) *inodedep_hashtbl;
-u_long	inodedep_hash;		/* size of hash table - 1 */
+static u_long	inodedep_hash;	/* size of hash table - 1 */
+static long	num_inodedep;	/* number of inodedep allocated */
 #define	INODEDEP_HASH(fs, inum) \
       (&inodedep_hashtbl[((((register_t)(fs)) >> 13) + (inum)) & inodedep_hash])
 static struct sema inodedep_in_progress;
@@ -710,11 +807,13 @@ inodedep_lookup(fs, inum, flags, inodedeppp)
 {
 	struct inodedep *inodedep;
 	struct inodedep_hashhead *inodedephd;
+	int firsttry;
 
 #ifdef DEBUG
 	if (lk.lkt_held == -1)
 		panic("inodedep_lookup: lock not held");
 #endif
+	firsttry = 1;
 	inodedephd = INODEDEP_HASH(fs, inum);
 top:
 	for (inodedep = LIST_FIRST(inodedephd); inodedep;
@@ -729,10 +828,15 @@ top:
 		*inodedeppp = NULL;
 		return (0);
 	}
+	if (firsttry && checklimit(&num_inodedep, 1) == 1) {
+		firsttry = 0;
+		goto top;
+	}
 	if (sema_get(&inodedep_in_progress, &lk) == 0) {
 		ACQUIRE_LOCK(&lk);
 		goto top;
 	}
+	num_inodedep += 1;
 	MALLOC(inodedep, struct inodedep *, sizeof(struct inodedep),
 		M_INODEDEP, M_WAITOK);
 	inodedep->id_list.wk_type = D_INODEDEP;
@@ -745,6 +849,7 @@ top:
 	inodedep->id_buf = NULL;
 	LIST_INIT(&inodedep->id_pendinghd);
 	LIST_INIT(&inodedep->id_inowait);
+	LIST_INIT(&inodedep->id_bufwait);
 	TAILQ_INIT(&inodedep->id_inoupdt);
 	TAILQ_INIT(&inodedep->id_newinoupdt);
 	ACQUIRE_LOCK(&lk);
@@ -815,11 +920,11 @@ softdep_initialize()
 
 	LIST_INIT(&mkdirlisthd);
 	LIST_INIT(&softdep_workitem_pending);
-	pagedep_hashtbl = hashinit(desiredvnodes / 10, M_PAGEDEP,
+	max_softdeps = desiredvnodes * 8;
+	pagedep_hashtbl = hashinit(desiredvnodes / 5, M_PAGEDEP,
 	    &pagedep_hash);
 	sema_init(&pagedep_in_progress, "pagedep", PRIBIO, 0);
-	inodedep_hashtbl = hashinit(desiredvnodes / 2, M_INODEDEP,
-	    &inodedep_hash);
+	inodedep_hashtbl = hashinit(desiredvnodes, M_INODEDEP, &inodedep_hash);
 	sema_init(&inodedep_in_progress, "inodedep", PRIBIO, 0);
 	newblk_hashtbl = hashinit(64, M_NEWBLK, &newblk_hash);
 	sema_init(&newblk_in_progress, "newblk", PRIBIO, 0);
@@ -1452,6 +1557,7 @@ setup_allocindir_phase2(bp, ip, aip)
  * later release and zero the inode so that the calling routine
  * can release it.
  */
+static long num_freeblks;	/* number of freeblks allocated */
 void
 softdep_setup_freeblocks(ip, length)
 	struct inode *ip;	/* The inode whose length is to be reduced */
@@ -1468,6 +1574,8 @@ softdep_setup_freeblocks(ip, length)
 	fs = ip->i_fs;
 	if (length != 0)
 		panic("softde_setup_freeblocks: non-zero length");
+	(void) checklimit(&num_freeblks, 0);
+	num_freeblks += 1;
 	MALLOC(freeblks, struct freeblks *, sizeof(struct freeblks),
 		M_FREEBLKS, M_WAITOK);
 	bzero(freeblks, sizeof(struct freeblks));
@@ -1511,7 +1619,7 @@ softdep_setup_freeblocks(ip, length)
 	 * Add the freeblks structure to the list of operations that
 	 * must await the zero'ed inode being written to disk.
 	 */
-	WORKLIST_INSERT(&inodedep->id_inowait, &freeblks->fb_list);
+	WORKLIST_INSERT(&inodedep->id_bufwait, &freeblks->fb_list);
 	/*
 	 * Because the file length has been truncated to zero, any
 	 * pending block allocation dependency structures associated
@@ -1630,7 +1738,7 @@ deallocate_dependencies(bp, inodedep)
 				if (inodedep == NULL)
 					add_to_worklist(&dirrem->dm_list);
 				else
-					WORKLIST_INSERT(&inodedep->id_inowait,
+					WORKLIST_INSERT(&inodedep->id_bufwait,
 					    &dirrem->dm_list);
 			}
 			WORKLIST_REMOVE(&pagedep->pd_list);
@@ -1678,7 +1786,7 @@ free_allocdirect(adphead, adp, delay)
 		WORKLIST_REMOVE(&adp->ad_list);
 	if (adp->ad_freefrag != NULL) {
 		if (delay)
-			WORKLIST_INSERT(&adp->ad_inodedep->id_inowait,
+			WORKLIST_INSERT(&adp->ad_inodedep->id_bufwait,
 			    &adp->ad_freefrag->ff_list);
 		else
 			add_to_worklist(&adp->ad_freefrag->ff_list);
@@ -1690,6 +1798,7 @@ free_allocdirect(adphead, adp, delay)
  * Prepare an inode to be freed. The actual free operation is not
  * done until the zero'ed inode has been written to disk.
  */
+static long num_freefile;	/* number of freefile allocated */
 void
 softdep_freefile(pvp, ino, mode)
 		struct vnode *pvp;
@@ -1703,6 +1812,8 @@ softdep_freefile(pvp, ino, mode)
 	/*
 	 * This sets up the inode de-allocation dependency.
 	 */
+	(void) checklimit(&num_freefile, 0);
+	num_freefile += 1;
 	MALLOC(freefile, struct freefile *, sizeof(struct freefile),
 		M_FREEFILE, M_WAITOK);
 	freefile->fx_list.wk_type = D_FREEFILE;
@@ -1761,6 +1872,7 @@ free_inodedep(inodedep)
 	if ((inodedep->id_state & ONWORKLIST) != 0 ||
 	    (inodedep->id_state & ALLCOMPLETE) != ALLCOMPLETE ||
 	    LIST_FIRST(&inodedep->id_pendinghd) != NULL ||
+	    LIST_FIRST(&inodedep->id_bufwait) != NULL ||
 	    LIST_FIRST(&inodedep->id_inowait) != NULL ||
 	    TAILQ_FIRST(&inodedep->id_inoupdt) != NULL ||
 	    TAILQ_FIRST(&inodedep->id_newinoupdt) != NULL ||
@@ -1768,6 +1880,7 @@ free_inodedep(inodedep)
 		return (0);
 	LIST_REMOVE(inodedep, id_hash);
 	WORKITEM_FREE(inodedep, D_INODEDEP);
+	num_inodedep -= 1;
 	return (1);
 }
 
@@ -1836,6 +1949,7 @@ handle_workitem_freeblocks(freeblks)
 		softdep_error("handle_workitem_freeblks", allerror);
 #endif /* DIAGNOSTIC */
 	WORKITEM_FREE(freeblks, D_FREEBLKS);
+	num_freeblks -= 1;
 }
 
 /*
@@ -1940,7 +2054,7 @@ free_allocindir(aip, inodedep)
 		if (inodedep == NULL)
 			add_to_worklist(&freefrag->ff_list);
 		else
-			WORKLIST_INSERT(&inodedep->id_inowait,
+			WORKLIST_INSERT(&inodedep->id_bufwait,
 			    &freefrag->ff_list);
 	}
 	WORKITEM_FREE(aip, D_ALLOCINDIR);
@@ -2038,23 +2152,27 @@ softdep_setup_directory_add(bp, dp, diroffset, newinum, newdirbp)
 			WORKITEM_FREE(mkdir2, D_MKDIR);
 		} else {
 			LIST_INSERT_HEAD(&mkdirlisthd, mkdir2, md_mkdirs);
-			WORKLIST_INSERT(&inodedep->id_inowait,&mkdir2->md_list);
+			WORKLIST_INSERT(&inodedep->id_bufwait,&mkdir2->md_list);
 		}
 	}
 	/*
-	 * Link into parent directory pagedep and new inode inodedep
-	 * structures to await its being written.
+	 * Link into parent directory pagedep to await its being written.
 	 */
 	if (pagedep_lookup(dp, lbn, DEPALLOC, &pagedep) == 0)
 		WORKLIST_INSERT(&bp->b_dep, &pagedep->pd_list);
 	dap->da_pagedep = pagedep;
 	LIST_INSERT_HEAD(&pagedep->pd_diraddhd[DIRADDHASH(offset)], dap,
 	    da_pdlist);
-	if (inodedep_lookup(fs, newinum, DEPALLOC, &inodedep) == 1 &&
-	    (inodedep->id_state & ALLCOMPLETE) == ALLCOMPLETE)
-		WORKLIST_INSERT(&inodedep->id_pendinghd, &dap->da_list);
+	/*
+	 * Link into its inodedep. Put it on the id_bufwait list if the inode
+	 * is not yet written. If it is written, do the post-inode write
+	 * processing to put it on the id_pendinghd list.
+	 */
+	(void) inodedep_lookup(fs, newinum, DEPALLOC, &inodedep);
+	if ((inodedep->id_state & ALLCOMPLETE) == ALLCOMPLETE)
+		diradd_inode_written(dap, inodedep);
 	else
-		WORKLIST_INSERT(&inodedep->id_inowait, &dap->da_list);
+		WORKLIST_INSERT(&inodedep->id_bufwait, &dap->da_list);
 	FREE_LOCK(&lk);
 }
 
@@ -2314,7 +2432,7 @@ softdep_setup_directory_change(bp, dp, ip, newinum, isrmdir)
 		LIST_INSERT_HEAD(
 		    &dirrem->dm_pagedep->pd_diraddhd[DIRADDHASH(offset)],
 		    dap, da_pdlist);
-		WORKLIST_INSERT(&inodedep->id_inowait, &dap->da_list);
+		WORKLIST_INSERT(&inodedep->id_bufwait, &dap->da_list);
 	} else if ((dirrem->dm_state & COMPLETE) == 0) {
 		LIST_INSERT_HEAD(&dirrem->dm_pagedep->pd_dirremhd, dirrem,
 		    dm_next);
@@ -2366,12 +2484,8 @@ handle_workitem_remove(dirrem)
 	 */
 	if ((dirrem->dm_state & RMDIR) == 0) {
 		ip->i_nlink--;
-		if (ip->i_nlink < ip->i_effnlink) {
-#ifdef DIAGNOSTIC
-			vprint("handle_workitem_remove: bad file delta", vp);
-#endif
-			ip->i_effnlink = ip->i_nlink;
-		}
+		if (ip->i_nlink < ip->i_effnlink)
+			panic("handle_workitem_remove: bad file delta");
 		ip->i_flag |= IN_CHANGE;
 		vput(vp);
 		WORKITEM_FREE(dirrem, D_DIRREM);
@@ -2436,6 +2550,7 @@ handle_workitem_freefile(freefile)
 	if ((error = ffs_freefile(&vp, freefile->fx_oldinum, freefile->fx_mode)) != 0)
 		softdep_error("handle_workitem_freefile", error);
 	WORKITEM_FREE(freefile, D_FREEFILE);
+	num_freefile -= 1;
 }
 
 /*
@@ -3022,7 +3137,7 @@ handle_written_inodeblock(inodedep, bp)
 	 * before the old ones have been deleted.
 	 */
 	filefree = NULL;
-	while ((wk = LIST_FIRST(&inodedep->id_inowait)) != NULL) {
+	while ((wk = LIST_FIRST(&inodedep->id_bufwait)) != NULL) {
 		WORKLIST_REMOVE(wk);
 		switch (wk->wk_type) {
 
@@ -3043,18 +3158,7 @@ handle_written_inodeblock(inodedep, bp)
 			continue;
 
 		case D_DIRADD:
-			dap = WK_DIRADD(wk);
-			dap->da_state |= COMPLETE;
-			if ((dap->da_state & ALLCOMPLETE) == ALLCOMPLETE) {
-				if (dap->da_state & DIRCHG)
-					pagedep = dap->da_previous->dm_pagedep;
-				else
-					pagedep = dap->da_pagedep;
-				LIST_REMOVE(dap, da_pdlist);
-				LIST_INSERT_HEAD(&pagedep->pd_pendinghd, dap,
-				    da_pdlist);
-			}
-			WORKLIST_INSERT(&inodedep->id_pendinghd, wk);
+			diradd_inode_written(WK_DIRADD(wk), inodedep);
 			continue;
 
 		case D_FREEBLKS:
@@ -3069,8 +3173,12 @@ handle_written_inodeblock(inodedep, bp)
 			/* NOTREACHED */
 		}
 	}
-	if (filefree != NULL)
+	if (filefree != NULL) {
+		if (free_inodedep(inodedep) == 0)
+			panic("handle_written_inodeblock: live inodedep");
 		add_to_worklist(filefree);
+		return (0);
+	}
 
 	/*
 	 * If no outstanding dependencies, free it.
@@ -3078,6 +3186,29 @@ handle_written_inodeblock(inodedep, bp)
 	if (free_inodedep(inodedep) || TAILQ_FIRST(&inodedep->id_inoupdt) == 0)
 		return (0);
 	return (hadchanges);
+}
+
+/*
+ * Process a diradd entry after its dependent inode has been written.
+ * This routine must be called with splbio interrupts blocked.
+ */
+static void
+diradd_inode_written(dap, inodedep)
+	struct diradd *dap;
+	struct inodedep *inodedep;
+{
+	struct pagedep *pagedep;
+
+	dap->da_state |= COMPLETE;
+	if ((dap->da_state & ALLCOMPLETE) == ALLCOMPLETE) {
+		if (dap->da_state & DIRCHG)
+			pagedep = dap->da_previous->dm_pagedep;
+		else
+			pagedep = dap->da_pagedep;
+		LIST_REMOVE(dap, da_pdlist);
+		LIST_INSERT_HEAD(&pagedep->pd_pendinghd, dap, da_pdlist);
+	}
+	WORKLIST_INSERT(&inodedep->id_pendinghd, &dap->da_list);
 }
 
 /*
@@ -3229,6 +3360,7 @@ softdep_load_inodeblock(ip)
 	}
 	if (inodedep->id_nlinkdelta != 0) {
 		ip->i_effnlink -= inodedep->id_nlinkdelta;
+		ip->i_flag |= IN_MODIFIED;
 		inodedep->id_nlinkdelta = 0;
 		(void) free_inodedep(inodedep);
 	}
@@ -3252,6 +3384,7 @@ softdep_update_inodeblock(ip, bp, waitfor)
 	int waitfor;		/* 1 => update must be allowed */
 {
 	struct inodedep *inodedep;
+	struct worklist *wk;
 	int error, gotit;
 
 	/*
@@ -3273,15 +3406,6 @@ softdep_update_inodeblock(ip, bp, waitfor)
 		panic("softdep_update_inodeblock: bad delta");
 	inodedep->id_nlinkdelta = ip->i_nlink - ip->i_effnlink;
 	/*
-	 * If the last remaining use for the inodedep was to track the
-	 * link count, and there is no difference between the effective
-	 * and actual link count, then we can free the inodedep.
-	 */
-	if (free_inodedep(inodedep)) {
-		FREE_LOCK(&lk);
-		return;
-	}
-	/*
 	 * Changes have been initiated. Anything depending on these
 	 * changes cannot occur until this inode has been written.
 	 */
@@ -3297,6 +3421,16 @@ softdep_update_inodeblock(ip, bp, waitfor)
 	merge_inode_lists(inodedep);
 	if (TAILQ_FIRST(&inodedep->id_inoupdt) != NULL)
 		handle_allocdirect_partdone(TAILQ_FIRST(&inodedep->id_inoupdt));
+	/*
+	 * Now that the inode has been pushed into the buffer, the
+	 * operations dependent on the inode being written to disk
+	 * can be moved to the id_bufwait so that they will be
+	 * processed when the buffer I/O completes.
+	 */
+	while ((wk = LIST_FIRST(&inodedep->id_inowait)) != NULL) {
+		WORKLIST_REMOVE(wk);
+		WORKLIST_INSERT(&inodedep->id_bufwait, wk);
+	}
 	/*
 	 * Newly allocated inodes cannot be written until the bitmap
 	 * that allocates them have been written (indicated by
@@ -3378,6 +3512,7 @@ softdep_fsync(vp)
 		if (inodedep_lookup(fs, ip->i_number, 0, &inodedep) == 0)
 			break;
 		if (LIST_FIRST(&inodedep->id_inowait) != NULL ||
+		    LIST_FIRST(&inodedep->id_bufwait) != NULL ||
 		    TAILQ_FIRST(&inodedep->id_inoupdt) != NULL ||
 		    TAILQ_FIRST(&inodedep->id_newinoupdt) != NULL)
 			panic("softdep_fsync: pending ops");
@@ -3444,8 +3579,8 @@ softdep_fsync(vp)
 		 */
 		error = bread(pvp, lbn, blksize(fs, VTOI(pvp), lbn), p->p_ucred,
 		    &bp);
-		vput(pvp);
 		ret = VOP_BWRITE(bp);
+		vput(pvp);
 		if (error != 0)
 			return (error);
 		if (ret != 0)
@@ -3535,8 +3670,13 @@ loop:
 			if (adp->ad_state & DEPCOMPLETE)
 				break;
 			nbp = adp->ad_buf;
-			if (getdirtybuf(&nbp, waitfor) == 0)
+			if (getdirtybuf(&nbp, waitfor) == 0) {
+#if 0  /* [JRE] I suspect this should be here XXX */
+				if (waitfor == MNT_NOWAIT)
+					continue;
+#endif
 				break;
+			}
 			FREE_LOCK(&lk);
 			if (waitfor == MNT_NOWAIT) {
 				bawrite(nbp);
@@ -3713,8 +3853,11 @@ flush_inodedep_deps(fs, ino)
 			if (adp->ad_state & DEPCOMPLETE)
 				continue;
 			bp = adp->ad_buf;
-			if (getdirtybuf(&bp, waitfor) == 0)
+			if (getdirtybuf(&bp, waitfor) == 0) {
+				if (waitfor == MNT_NOWAIT)
+					continue;
 				break;
+			}
 			FREE_LOCK(&lk);
 			if (waitfor == MNT_NOWAIT) {
 				bawrite(bp);
@@ -3732,8 +3875,11 @@ flush_inodedep_deps(fs, ino)
 			if (adp->ad_state & DEPCOMPLETE)
 				continue;
 			bp = adp->ad_buf;
-			if (getdirtybuf(&bp, waitfor) == 0)
+			if (getdirtybuf(&bp, waitfor) == 0) {
+				if (waitfor == MNT_NOWAIT)
+					continue;
 				break;
+			}
 			FREE_LOCK(&lk);
 			if (waitfor == MNT_NOWAIT) {
 				bawrite(bp);
