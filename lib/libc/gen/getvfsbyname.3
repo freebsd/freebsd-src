@@ -44,7 +44,7 @@
 .In sys/param.h
 .In sys/mount.h
 .Ft int
-.Fn getvfsbyname "const char *name" "struct vfsconf *vfc"
+.Fn getvfsbyname "const char *name" "struct xvfsconf *vfc"
 .Sh DESCRIPTION
 The
 .Fn getvfsbyname
@@ -52,11 +52,11 @@ function provides access to information about a
 filesystem module that is configured in the kernel.
 If successful,
 the requested filesystem
-.Fa vfsconf
+.Fa xvfsconf
 is returned in the location pointed to by
 .Fa vfc .
 The fields in a
-.Dq Li struct vfsconf
+.Dq Li struct xvfsconf
 are defined as follows:
 .Pp
 .Bl -tag -compact -width vfc_refcount
@@ -67,8 +67,24 @@ the filesystem type number assigned by the kernel
 .It vfc_refcount
 the number of active mount points using the filesystem
 .It vfc_flags
-flag bits as described in
-.Xr getvfsent 3
+flag bits, as described below
+.El
+.Pp
+The flags are defined as follows:
+.Pp
+.Bl -tag -width VFCF_SYNTHETIC -compact
+.It Dv VFCF_STATIC
+statically compiled into kernel
+.It Dv VFCF_NETWORK
+may get data over the network
+.It Dv VFCF_READONLY
+writes are not implemented
+.It Dv VFCF_SYNTHETIC
+data does not represent real files
+.It Dv VFCF_LOOPBACK
+aliases some other mounted FS
+.It Dv VFCF_UNICODE
+stores file names as Unicode
 .El
 .Sh RETURN VALUES
 .Rv -std getvfsbyname
@@ -86,7 +102,6 @@ specifies a filesystem that is unknown or not configured in the kernel.
 .El
 .Sh SEE ALSO
 .Xr mount 2 ,
-.Xr getvfsent 3 ,
 .Xr sysctl 3 ,
 .Xr mount 8 ,
 .Xr sysctl 8

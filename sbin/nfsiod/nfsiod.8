@@ -69,9 +69,7 @@ detects that the running kernel does not include
 support, it will attempt to load a loadable kernel module containing
 .Tn NFS
 code, using
-.Xr kldload 8
-by way of
-.Xr vfsload 3 .
+.Xr kldload 2 .
 If this fails, or no
 .Tn NFS
 KLD was available,
@@ -81,8 +79,8 @@ exits with an error.
 .Ex -std
 .Sh SEE ALSO
 .Xr nfsstat 1 ,
+.Xr kldload 2 ,
 .Xr nfssvc 2 ,
-.Xr kldload 8 ,
 .Xr mountd 8 ,
 .Xr nfsd 8 ,
 .Xr rpcbind 8

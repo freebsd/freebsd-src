@@ -2630,6 +2630,56 @@ DB_SHOW_COMMAND(lockedvnods, lockedvnodes)
 #endif
 
 /*
+ * Fill in a struct xvfsconf based on a struct vfsconf.
+ */
+static void
+vfsconf2x(struct vfsconf *vfsp, struct xvfsconf *xvfsp)
+{
+
+	strcpy(xvfsp->vfc_name, vfsp->vfc_name);
+	xvfsp->vfc_typenum = vfsp->vfc_typenum;
+	xvfsp->vfc_refcount = vfsp->vfc_refcount;
+	xvfsp->vfc_flags = vfsp->vfc_flags;
+	/*
+	 * These are unused in userland, we keep them
+	 * to not break binary compatibility.
+	 */
+	xvfsp->vfc_vfsops = NULL;
+	xvfsp->vfc_next = NULL;
+}
+
+static int
+sysctl_vfs_conflist(SYSCTL_HANDLER_ARGS)
+{
+	struct vfsconf *vfsp;
+	struct xvfsconf *xvfsp;
+	int cnt, error, i;
+
+	cnt = 0;
+	for (vfsp = vfsconf; vfsp != NULL; vfsp = vfsp->vfc_next)
+		cnt++;
+	xvfsp = malloc(sizeof(struct xvfsconf) * cnt, M_TEMP, M_WAITOK);
+	/*
+	 * Handle the race that we will have here when struct vfsconf
+	 * will be locked down by using both cnt and checking vfc_next
+	 * against NULL to determine the end of the loop.  The race will
+	 * happen because we will have to unlock before calling malloc().
+	 * We are protected by Giant for now.
+	 */
+	i = 0;
+	for (vfsp = vfsconf; vfsp != NULL && i < cnt; vfsp = vfsp->vfc_next) {
+		vfsconf2x(vfsp, xvfsp + i);
+		i++;
+	}
+	error = SYSCTL_OUT(req, xvfsp, sizeof(struct xvfsconf) * i);
+	free(xvfsp, M_TEMP);
+	return (error);
+}
+
+SYSCTL_PROC(_vfs, OID_AUTO, conflist, CTLFLAG_RD, NULL, 0, sysctl_vfs_conflist,
+    "S,xvfsconf", "List of all configured filesystems");
+
+/*
  * Top level filesystem related information gathering.
  */
 static int	sysctl_ovfs_conf(SYSCTL_HANDLER_ARGS);
@@ -2640,6 +2690,10 @@ vfs_sysctl(SYSCTL_HANDLER_ARGS)
 	int *name = (int *)arg1 - 1;	/* XXX */
 	u_int namelen = arg2 + 1;	/* XXX */
 	struct vfsconf *vfsp;
+	struct xvfsconf xvfsp;
+
+	printf("WARNING: userland calling deprecated sysctl, "
+	    "please rebuild world\n");
 
 #if 1 || defined(COMPAT_PRELITE2)
 	/* Resolve ambiguity between VFS_VFSCONF and VFS_GENERIC. */
@@ -2647,21 +2701,6 @@ vfs_sysctl(SYSCTL_HANDLER_ARGS)
 		return (sysctl_ovfs_conf(oidp, arg1, arg2, req));
 #endif
 
-	/* XXX the below code does not compile; vfs_sysctl does not exist. */
-#ifdef notyet
-	/* all sysctl names at this level are at least name and field */
-	if (namelen < 2)
-		return (ENOTDIR);		/* overloaded */
-	if (name[0] != VFS_GENERIC) {
-		for (vfsp = vfsconf; vfsp; vfsp = vfsp->vfc_next)
-			if (vfsp->vfc_typenum == name[0])
-				break;
-		if (vfsp == NULL)
-			return (EOPNOTSUPP);
-		return ((*vfsp->vfc_vfsops->vfs_sysctl)(&name[1], namelen - 1,
-		    oldp, oldlenp, newp, newlen, td));
-	}
-#endif
 	switch (name[1]) {
 	case VFS_MAXTYPENUM:
 		if (namelen != 2)
@@ -2675,12 +2714,13 @@ vfs_sysctl(SYSCTL_HANDLER_ARGS)
 				break;
 		if (vfsp == NULL)
 			return (EOPNOTSUPP);
-		return (SYSCTL_OUT(req, vfsp, sizeof *vfsp));
+		vfsconf2x(vfsp, &xvfsp);
+		return (SYSCTL_OUT(req, &xvfsp, sizeof(xvfsp)));
 	}
 	return (EOPNOTSUPP);
 }
 
-SYSCTL_NODE(_vfs, VFS_GENERIC, generic, CTLFLAG_RD, vfs_sysctl,
+SYSCTL_NODE(_vfs, VFS_GENERIC, generic, CTLFLAG_RD | CTLFLAG_SKIP, vfs_sysctl,
 	"Generic filesystem");
 
 #if 1 || defined(COMPAT_PRELITE2)
