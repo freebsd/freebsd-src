@@ -32,6 +32,7 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>
 
+#include <machine/cpufunc.h>
 #include <machine/smptests.h>	/** TEST_TEST1 */
 #include <machine/smp.h>
 #include <machine/mpapic.h>
@@ -567,7 +568,7 @@ apic_ipi_singledest(int cpu, int vector, int delivery_mode)
 #endif  /* DETECT_DEADLOCK */
 
 	eflags = read_eflags();
-	__asm __volatile("cli" : : : "memory");
+	disable_intr();
 	icr_hi = lapic.icr_hi & ~APIC_ID_MASK;
 	icr_hi |= (CPU_TO_ID(cpu) << 24);
 	lapic.icr_hi = icr_hi;
