@@ -264,21 +264,14 @@ exits immediately.
 Is like W, but prints only those filesystems which need to be dumped.
 .El
 .Pp
-.Nm Dump
-honors the user
+Directories and regular files which have their
 .Dq nodump
 flag
 .Pq Dv UF_NODUMP
-on regular files and directories.
-If a directory is marked
-.Dq nodump ,
-the latter and all files and directories under it will not be backed
-up.
-That is,
-.Nm
-propagates the
-.Dq nodump
-flag on directories.
+set will be omitted along with everything under such directories,
+subject to the
+.Fl h
+option.
 .Pp
 .Nm Dump
 requires operator intervention on these conditions:
@@ -386,6 +379,7 @@ to find group
 .Em operator
 .El
 .Sh SEE ALSO
+.Xr chflags 1 ,
 .Xr fstab 5 ,
 .Xr restore 8 ,
 .Xr rmt 8
