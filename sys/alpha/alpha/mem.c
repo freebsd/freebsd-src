@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.6 1999/04/27 11:13:20 phk Exp $
+ *	$Id: mem.c,v 1.7 1999/05/25 19:32:53 dt Exp $
  */
 
 /*
@@ -298,7 +298,7 @@ memmmap(dev_t dev, vm_offset_t offset, int prot)
 	 */
 	if ((prot & alpha_pa_access(atop((vm_offset_t)offset))) != prot)
 		return (-1);
-	return (alpha_btop(offset));
+	return (alpha_btop(ALPHA_PHYS_TO_K0SEG(offset)));
 }
 
 /*
