@@ -28,9 +28,9 @@
 .\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
 .\" $FreeBSD$
 .\"
-.\"/
 .Dd November 24, 1997
 .Dt MSGSND 3
 .Os FreeBSD
@@ -46,7 +46,7 @@
 .Sh DESCRIPTION
 The 
 .Fn msgsnd
-function sends a message from the message queue specified in
+function sends a message to the message queue specified in
 .Fa msqid .
 .Fa msgp
 points to a structure containing the message. This structure should
