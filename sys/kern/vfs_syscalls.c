@@ -685,8 +685,20 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 	 * the descriptor while we are blocked in vn_open()
 	 */
 	fhold(fp);
-	error = vn_open(&nd, &flags, cmode, -1);
+	error = vn_open(&nd, &flags, cmode, indx);
 	if (error) {
+
+		/*
+		 * If the vn_open replaced the method vector, something
+		 * wonderous happened deep below and we just pass it up
+		 * pretending we know what we do.
+		 */
+		if (error == ENXIO && fp->f_ops != &badfileops) {
+			fdrop(fp, td);
+			td->td_retval[0] = indx;
+			return (0);
+		}
+
 		/*
 		 * release our own reference
 		 */
