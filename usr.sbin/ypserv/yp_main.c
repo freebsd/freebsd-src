@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_main.c,v 1.12 1995/12/11 22:38:19 wpaul Exp $
+ *	$Id: yp_main.c,v 1.1.1.1 1995/12/16 20:54:17 wpaul Exp $
  */
 
 /*
@@ -65,7 +65,7 @@
 
 #define	_RPCSVC_CLOSEDOWN 120
 #ifndef lint
-static char rcsid[] = "$Id: yp_main.c,v 1.12 1995/12/11 22:38:19 wpaul Exp $";
+static char rcsid[] = "$Id: yp_main.c,v 1.1.1.1 1995/12/16 20:54:17 wpaul Exp $";
 #endif /* not lint */
 int _rpcpmstart;		/* Started by a port monitor ? */
 static int _rpcfdtype;
@@ -196,9 +196,9 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	register SVCXPRT *transp;
+	register SVCXPRT *transp = NULL;
 	int sock;
-	int proto;
+	int proto = 0;
 	struct sockaddr_in saddr;
 	int asize = sizeof (saddr);
 	int ch;
@@ -206,7 +206,7 @@ main(argc, argv)
 	while ((ch = getopt(argc, argv, "hdnkp:")) != EOF) {
 		switch(ch) {
 		case 'd':
-			debug = 1;
+			debug = ypdb_debug = 1;
 			break;
 		case 'n':
 			do_dns = 1;
