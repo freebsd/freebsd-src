@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: atkbdc_isa.c,v 1.5 1999/05/09 20:45:53 peter Exp $
+ * $Id: atkbdc_isa.c,v 1.6 1999/05/18 11:33:14 yokota Exp $
  */
 
 #include "atkbdc.h"
@@ -36,6 +36,9 @@
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/malloc.h>
+#include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/rman.h>
 
 #include <dev/kbd/atkbdcreg.h>
 
@@ -91,11 +94,17 @@ static int
 atkbdc_probe(device_t dev)
 {
 	int error;
+	int rid;
+	struct resource *port;
 
 	device_set_desc(dev, "keyboard controller (i8042)");
-	error = atkbdc_probe_unit(device_get_unit(dev), isa_get_port(dev));
-	if (error == 0)
-		isa_set_portsize(dev, IO_KBDSIZE);
+	rid = 0;
+	port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+				  0, ~0, IO_KBDSIZE, RF_ACTIVE);
+	if (!port)
+		return ENXIO;
+	error = atkbdc_probe_unit(device_get_unit(dev), rman_get_start(port));
+	bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
 	return error;
 }
 
@@ -106,12 +115,17 @@ atkbdc_add_device(device_t dev, const char *name, int unit)
 	atkbdc_device_t	*kdev;
 	device_t	child;
 	int		t;
+	int rid;
+	struct resource *port;
 
 	kdev = malloc(sizeof(struct atkbdc_device), M_ATKBDDEV, M_NOWAIT);
 	if (!kdev)
 		return;
 	bzero(kdev, sizeof *kdev);
 
+	/* XXX should track resource in softc */
+	port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+				  0, ~0, IO_KBDSIZE, RF_ACTIVE);
 	kdev->port = sc->port;
 
 	if (resource_int_value(name, unit, "irq", &t) == 0)
