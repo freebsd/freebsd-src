@@ -1,3 +1,31 @@
+2002-05-09  Anton Blanchard  <anton@samba.org>
+
+	* ppc-opc.c: Add "tlbiel" for POWER4.
+
+2002-05-09  Alan Modra  <amodra@bigpond.net.au>
+
+	Merge from mainline.
+	2002-05-01  Alan Modra  <amodra@bigpond.net.au>
+	* ppc-opc.c: Add "tlbsx." and "tlbsxe." for booke.
+
+	2002-04-17  matthew green  <mrg@redhat.com>
+	* ppc-opc.c (powerpc_opcode): Fix dssall operand list.
+
+2002-04-29  Chris Demetriou  <cgd@broadcom.com>
+
+	Merge from mainline:
+	2002-03-06  Chris Demetriou  <cgd@broadcom.com>
+	* mips-opc.c (mips_builtin_opcodes): Mark "pref" as being
+	present on I4.
+
+	Merge from mainline:
+	2002-03-06  Chris Demetriou  <cgd@broadcom.com>
+	* mips-opc.c (mips_builtin_opcodes): Add "movn.ps" and "movz.ps".
+
+	Merge from mainline:
+	2002-03-15  Chris Demetriou  <cgd@broadcom.com>
+	* mips-dis.c (is_newabi): Fix ABI decoding.
+
 2002-04-04  Alan Modra  <amodra@bigpond.net.au>
 
 	* dep-in.sed: Cope with absolute paths.

@@ -1,5 +1,5 @@
 /* dlltool.c -- tool to generate stuff for PE style DLLs
-   Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2001
+   Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
@@ -658,6 +658,8 @@ static struct string_list *excludes;
 static const char *rvaafter PARAMS ((int));
 static const char *rvabefore PARAMS ((int));
 static const char *asm_prefix PARAMS ((int));
+static void process_def_file PARAMS ((const char *));
+static void new_directive PARAMS ((char *));
 static void append_import PARAMS ((const char *, const char *, int));
 static void run PARAMS ((const char *, char *));
 static void scan_drectve_symbols PARAMS ((bfd *));
@@ -674,6 +676,7 @@ static int sfunc PARAMS ((const void *, const void *));
 static void flush_page PARAMS ((FILE *, long *, int, int));
 static void gen_def_file PARAMS ((void));
 static void generate_idata_ofile PARAMS ((FILE *));
+static void assemble_file PARAMS ((const char *, const char *));
 static void gen_exp_file PARAMS ((void));
 static const char *xlate PARAMS ((const char *));
 #if 0
@@ -697,28 +700,17 @@ static void inform PARAMS ((const char *, ...));
 
 
 static void
-#ifdef __STDC__
-inform (const char * message, ...)
-#else
-inform (message, va_alist)
-     const char * message;
-     va_dcl
-#endif
+inform VPARAMS ((const char *message, ...))
 {
-  va_list args;
-  
+  VA_OPEN (args, message);
+  VA_FIXEDARG (args, const char *, message);
+
   if (!verbose)
     return;
 
-#ifdef __STDC__
-  va_start (args, message);
-#else
-  va_start (args);
-#endif
-
   report (message, args);
-  
-  va_end (args);
+
+  VA_CLOSE (args);
 }
 
 static const char *
@@ -820,7 +812,7 @@ asm_prefix (machine)
 
 static char **oav;
 
-void
+static void
 process_def_file (name)
      const char *name;
 {
@@ -943,7 +935,7 @@ def_description (desc)
   d_list = d;
 }
 
-void
+static void
 new_directive (dir)
      char *dir;
 {
@@ -1865,7 +1857,7 @@ gen_exp_file ()
 	if (!exp->noname || show_allnames)
 	  {
 	    fprintf (f, "n%d:	%s	\"%s\"\n",
-		     exp->ordinal, ASM_TEXT, exp->name);
+		     exp->ordinal, ASM_TEXT, xlate (exp->name));
 	    if (exp->forward != 0)
 	      fprintf (f, "f%d:	%s	\"%s\"\n",
 		       exp->forward, ASM_TEXT, exp->internal_name);
@@ -3205,6 +3197,8 @@ static const struct option long_options[] =
   {"compat-implib", no_argument, NULL, 'C'},
   {NULL,0,NULL,0}
 };
+
+int main PARAMS ((int, char **));
 
 int
 main (ac, av)

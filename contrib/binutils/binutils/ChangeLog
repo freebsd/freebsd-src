@@ -1,3 +1,131 @@
+2002-05-09  Alan Modra  <amodra@bigpond.net.au>
+
+	* configure.in: Replace `*pe' with `pe' throughout.
+	* configure: Regenerate.
+
+	Merge from mainline
+	2002-05-06  Alan Modra  <amodra@bigpond.net.au>
+	* dlltool.c (process_def_file): Add missing prototype.
+	(new_directive, assemble_file, main): Likewise.
+	(process_def_file, new_directive): Make static.
+	(inform): Rewrite using VA_FIXEDARG.
+	* dllwrap.c (mybasename): Add missing prototype.
+	(strhash, main): Likewise.
+	(inform): Rewrite using VA_FIXEDARG.
+	(warn): Likewise.
+	(cleanup_and_exit): Use old style function definition.
+	(strhash): Likewise.
+	* windres.c (define_resource): Use one memset to clear all of
+	struct res_resource.
+	* rcparse.y: Remove newcmd rule.  Move rcparse_discard_strings
+	call to rules that need no lookahead.  Check for no lookahead.
+
+	2002-05-06  Borut Razem  <borut.razem@siol.net>
+	* rclex.l (get_string): Correct "strings" list handling.
+	* resrc.c (read_rc_file): Discard strings.
+
+	2002-05-04  Bob Byrnes  <byrnes@curl.com>
+	* size.c (display_archive): Add last_arfile and code to close archives.
+
+	2002-05-01  Alan Modra  <amodra@bigpond.net.au>
+	* nm.c (print_symbol): Check returned filename from
+	bfd_find_nearest_line is non-NULL.
+
+	2002-04-17  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
+	* arparse.y: Fix syntax warning.
+
+	2002-04-16  Nick Clifton  <nickc@cambridge.redhat.com>
+	* rcparse.y: Set MEMFLAG_DISCARDABLE by default.
+
+	2002-04-15  Nick Clifton  <nickc@cambridge.redhat.com>
+	* resrc.c (write_rc_dialog): If charset is non-default value
+	display all of the DIALOGEX parameters.
+
+	2002-04-15  Eric Kohl <ekohl@rz-online.de>
+	* rcparse.y: Allow two to five parameter in FONT statement of 
+	DIALOGEX resources.
+	* resbin.c (bin_to_res_dialog): Fixed read/write code for dialogex
+	resource data.
+        (res_to_bin_dialog): Likewise.
+	* windres.h: Added misssing charset variable to dialog_ex
+	structure.
+
+	2002-04-10  Nick Clifton  <nickc@cambridge.redhat.com>
+	* rcparse.y: Set MEMFLAG_PURE by default.
+
+	2002-04-09  Bernd Herd <info@herdsoft.com>
+	* rcparse.y: CLASS definitions in DIALOG resources 
+	are quoted.
+	Fix typo in BEDIT warning.
+	Don't add default dialog style when explicit style specified.
+	Add WS_CAPTION dialog style if CAPTION is specified.
+	* rclex.l (handle_quotes): "\xhex" encoding in strings corrected.
+	(handle_quotes) "\a" escape (used for right justified key
+	definitions in menus) is encodes as binary 8.
+	* resrc.c (write_rc_dialog): Print style even if it is 0.
+	(write_rc_directory): Fix overlooked sublang shift bug.
+	(bin_to_res_dialog): Don't print empty dialog caption.
+	* resbin.c (bin_to_res_dialog): Use signature to identify
+	DIALOGEX.
+	* windres.c (main): Set default LANGUAGE to english/us.
+
+	2002-04-09  Gunnar Degnbol <degnbol@danbbs.dk>
+	* resrc.c: print CLASS names in quotes
+
+2002-04-27  Alan Modra  <amodra@bigpond.net.au>
+
+	Merge from mainline
+	2002-04-25  Elena Zannoni <ezannoni@redhat.com>
+        * readelf.c (get_AT_name): Handle DW_AT_GNU_vector.
+
+	2002-04-16  Nick Clifton  <nickc@cambridge.redhat.com>
+	* readelf.c (fetch_location_list): Remove unused function.
+	* readelf.c (process_corefile_note_segment): Catch corrupt notes
+	and display a warning message, then exit the loop.
+
+	2002-04-24  Christian Groessler <chris@groessler.org>
+	* MAINTAINERS: Changed my email address.
+
+	2002-04-09  J"orn Rennecke <joern.rennecke@superh.com>
+	* MAINTAINERS: Update my email address.
+
+	2002-03-27  Peter Targett  <peter.targett@arc.com>
+	* MAINTAINERS: Update my email address.
+
+	2002-03-20  Daniel Berlin  <dan@dberlin.org>
+	* readelf.c: Add support for displaying dwarf2 location lists.
+	(do_debug_loc, debug_loc_section, debug_loc_size): New.
+	(parse_args): Use 'O' as shorthand for displaying location list
+	section.
+	(process_section_headers): Handle debug_loc as well.
+	(load_debug_loc): New.
+	(free_debug_loc): New.
+	(fetch_location_list): New.
+	(display_debug_loc): New.
+	(display_debug_info): Call load_debug_loc and free_debug_loc.
+	(debug_displays): We can display .debug_loc now, too.
+	(usage): Update usage string.
+	(read_and_display_attr_value): Note location lists, but don't
+	display them inline.
+
+	2002-03-01  Dmitry Timoshkov <dmitry@baikal.ru>
+	* dlltool.c (gen_exp_file): Take into account --kill-at (-k) while
+	generating .exp file.
+
+	2002-02-21  Nick Clifton  <nickc@cambridge.redhat.com>
+	* readelf.c (dump_relocations): Fix typo.
+
+	2002-02-18  Timothy Daly  <remote_bob@yahoo.com>
+	* readelf.c (dump_relocations): Display 2nd and 3rd reloc 
+	types for 64-bit MIPS.  Narrow some fields for 80-char 
+	output.
+	(dump_relocations): Change spelling from 'unrecognised' 
+	to 'unrecognized'.
+	(decode_ARM_machine_flags): Likewise.
+	(parse_args): Likewise.
+	(read_and_display_attr_value): Likewise.
+	(display_debug_section): Likewise.
+
 2002-04-04  Alan Modra  <amodra@bigpond.net.au>
 
 	* dep-in.sed: Cope with absolute paths.

@@ -521,7 +521,7 @@ struct vfp_reg
   unsigned long regno;
 };
 
-static const struct vfp_reg vfp_regs[] = 
+static const struct vfp_reg vfp_regs[] =
 {
   {"fpsid", 0x00000000},
   {"FPSID", 0x00000000},
@@ -842,7 +842,7 @@ static void do_mav_binops_3a	PARAMS ((char *));
 static void do_mav_binops_3b	PARAMS ((char *));
 static void do_mav_binops_3c	PARAMS ((char *));
 static void do_mav_binops_3d	PARAMS ((char *));
-static void do_mav_triple	PARAMS ((char *, int, enum arm_reg_type, 
+static void do_mav_triple	PARAMS ((char *, int, enum arm_reg_type,
 					 enum arm_reg_type,
 					 enum arm_reg_type));
 static void do_mav_triple_4a	PARAMS ((char *));
@@ -855,7 +855,7 @@ static void do_mav_triple_5e	PARAMS ((char *));
 static void do_mav_triple_5f	PARAMS ((char *));
 static void do_mav_triple_5g	PARAMS ((char *));
 static void do_mav_triple_5h	PARAMS ((char *));
-static void do_mav_quad		PARAMS ((char *, int, enum arm_reg_type, 
+static void do_mav_quad		PARAMS ((char *, int, enum arm_reg_type,
 					 enum arm_reg_type,
 					 enum arm_reg_type,
 					 enum arm_reg_type));
@@ -1106,7 +1106,7 @@ static const struct asm_opcode insns[] =
   {"strh",       0xe00000b0, 3,  ARM_EXT_V4,       do_ldstv4},
 
   /* ARM Architecture 4T.  */
-  /* Note: bx (and blx) are required on V5, even if the processor does 
+  /* Note: bx (and blx) are required on V5, even if the processor does
      not support Thumb.  */
   {"bx",         0xe12fff10, 2,  ARM_EXT_V4T | ARM_EXT_V5, do_bx},
 
@@ -7447,7 +7447,9 @@ thumb_add_sub (str, subtract)
 		  return;
 		}
 	    }
-	  else
+	  /* Note - you cannot convert a subtract of 0 into an
+	     add of 0 because the carry flag is set differently.  */
+	  else if (offset > 0)
 	    subtract = 0;
 
 	  if (Rd == REG_SP)
@@ -7927,7 +7929,7 @@ mav_reg_required_here (str, shift, regtype)
 
   /* Restore the start point.  */
   *str = start;
-  
+
   /* In the few cases where we might be able to accept something else
      this error can be overridden.  */
   inst.error = _(all_reg_maps[regtype].expected);

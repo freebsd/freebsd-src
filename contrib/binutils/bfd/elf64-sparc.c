@@ -1,5 +1,5 @@
 /* SPARC-specific support for 64-bit ELF
-   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
+   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -1385,9 +1385,8 @@ sparc64_elf_add_symbol_hook (abfd, info, sym, namep, flagsp, secp, valp)
       *namep = NULL;
       return true;
     }
-  else if (! *namep || ! **namep)
-    return true;
-  else
+  else if (*namep && **namep
+	   && info->hash->creator->flavour == bfd_target_elf_flavour)
     {
       int i;
       struct sparc64_elf_app_reg *p;

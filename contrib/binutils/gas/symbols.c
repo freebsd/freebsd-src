@@ -986,6 +986,7 @@ resolve_symbol_value (symp)
 	case O_bit_not:
 	case O_logical_not:
 	  left = resolve_symbol_value (add_symbol);
+	  seg_left = S_GET_SEGMENT (add_symbol);
 
 	  if (op == O_uminus)
 	    left = -left;
@@ -996,7 +997,7 @@ resolve_symbol_value (symp)
 
 	  final_val += left + symp->sy_frag->fr_address;
 	  if (final_seg == expr_section || final_seg == undefined_section)
-	    final_seg = absolute_section;
+	    final_seg = seg_left;
 
 	  resolved = symbol_resolved_p (add_symbol);
 	  break;
@@ -1062,15 +1063,19 @@ resolve_symbol_value (symp)
 
 	     Don't emit messages unless we're finalizing the symbol value,
 	     otherwise we may get the same message multiple times.  */
-	  if (op != O_eq && op != O_ne
-	      && (seg_left != absolute_section
-		  || seg_right != absolute_section)
-	      && ((op != O_subtract
-		   && op != O_lt && op != O_le && op != O_ge && op != O_gt)
-		  || seg_left != seg_right
-		  || (seg_left == undefined_section
-		      && add_symbol != op_symbol))
-	      && finalize_syms)
+	  if ((op == O_eq || op == O_ne)
+	      || ((op == O_subtract
+		   || op == O_lt || op == O_le || op == O_ge || op == O_gt)
+		  && seg_left == seg_right
+		  && (seg_left != undefined_section
+		      || add_symbol == op_symbol))
+	      || (seg_left == absolute_section
+		  && seg_right == absolute_section))
+	    {
+	      if (final_seg == expr_section || final_seg == undefined_section)
+		final_seg = absolute_section;
+	    }
+	  else if (finalize_syms)
 	    {
 	      char *file;
 	      unsigned int line;
@@ -1105,6 +1110,9 @@ resolve_symbol_value (symp)
 		    as_bad (_("invalid section for operation setting `%s'"),
 			    S_GET_NAME (symp));
 		}
+	      /* Prevent the error propagating.  */
+	      if (final_seg == expr_section || final_seg == undefined_section)
+		final_seg = absolute_section;
 	    }
 
 	  /* Check for division by zero.  */
@@ -1160,7 +1168,15 @@ resolve_symbol_value (symp)
 
 	  final_val += symp->sy_frag->fr_address + left;
 	  if (final_seg == expr_section || final_seg == undefined_section)
-	    final_seg = absolute_section;
+	    {
+	      if (seg_left == undefined_section
+		  || seg_right == undefined_section)
+		final_seg = undefined_section;
+	      else if (seg_left == absolute_section)
+		final_seg = seg_right;
+	      else
+		final_seg = seg_left;
+	    }
 	  resolved = (symbol_resolved_p (add_symbol)
 		      && symbol_resolved_p (op_symbol));
 	  break;

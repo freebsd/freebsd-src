@@ -3695,6 +3695,16 @@ elf64_alpha_relocate_section (output_bfd, info, input_bfd, input_section,
 	  }
 	  goto default_reloc;
 
+	case R_ALPHA_SREL32:
+	case R_ALPHA_SREL64:
+	  /* ??? .eh_frame references to discarded sections will be smashed
+	     to relocations against SHN_UNDEF.  The .eh_frame format allows
+	     NULL to be encoded as 0 in any format, so this works here.  */
+	  if (r_symndx == 0)
+	    howto = (elf64_alpha_howto_table
+		     + (r_type - R_ALPHA_SREL32 + R_ALPHA_REFLONG));
+	  goto default_reloc;
+
 	default:
 	default_reloc:
 	  r = _bfd_final_link_relocate (howto, input_bfd, input_section,

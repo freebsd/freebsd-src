@@ -223,6 +223,13 @@ x86_64-*-linux-gnu*)
 *-*-linux*)
   ;;
 
+*-*-netbsd*)
+  NATIVE_LIB_DIRS=/usr/lib
+  # NetBSD typically does not use the GCC crtstuff, so ignore it.
+  HOSTING_CRT0='-dynamic-linker /usr/libexec/ld.elf_so /usr/lib/crt0.o /usr/lib/crtbegin.o'
+  HOSTING_LIBS='`if [ -f ../gcc/libgcc.a ] ; then echo ../gcc/libgcc.a ; else ${CC} -print-libgcc-file-name; fi` -lc `if [ -f ../gcc/libgcc.a ] ; then echo ../gcc/libgcc.a ; else ${CC} -print-libgcc-file-name; fi` /usr/lib/crtend.o'
+  ;;
+
 alpha*-*-*)
   HOSTING_CRT0=/usr/ccs/lib/crt0.o
   NATIVE_LIB_DIRS=/usr/ccs/lib

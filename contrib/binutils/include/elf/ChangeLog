@@ -1,3 +1,9 @@
+2002-04-2  Alan Modra  <amodra@bigpond.net.au>
+
+	Merge from mainline.
+	2002-04-24  Elena Zannoni  <ezannoni@redhat.com>
+	* dwarf2.h: Add DW_AT_GNU_vector.
+
 2002-02-13  Matt Fredette  <fredette@netbsd.org>
 
 	* m68k.h (EF_M68000): Define.

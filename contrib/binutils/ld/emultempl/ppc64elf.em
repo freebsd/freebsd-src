@@ -23,6 +23,7 @@
 #
 cat >>e${EMULATION_NAME}.c <<EOF
 
+#include "libbfd.h"
 #include "elf64-ppc.h"
 
 static int need_laying_out = 0;
@@ -35,8 +36,8 @@ static void gld${EMULATION_NAME}_finish PARAMS ((void));
 static void
 gld${EMULATION_NAME}_after_allocation ()
 {
-  if (!ppc64_elf_set_toc (output_bfd, &link_info))
-    einfo ("%X%P: can not set TOC base: %E\n");
+  if (!link_info.relocateable)
+    _bfd_set_gp_value (output_bfd, ppc64_elf_toc (output_bfd));
 }
 
 /* Final emulation specific call.  PowerPC64 has 24 byte .plt entries,

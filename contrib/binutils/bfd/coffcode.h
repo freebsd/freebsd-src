@@ -3014,6 +3014,7 @@ coff_compute_section_file_positions (abfd)
 	else
 	  current->target_index = target_index++;
       }
+    abfd->section_tail = &current->next;
 
     free (section_list);
   }
