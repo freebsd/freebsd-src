@@ -41,6 +41,9 @@
 #include <string.h>
 #include <sys/time.h>
 #include <termios.h>
+#include <ttyent.h>
+#include <unistd.h>
+#include <netdb.h>
 
 #include "layer.h"
 #include "defs.h"
@@ -336,8 +339,12 @@ void
 radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
                     const char *key, const char *challenge)
 {
+  struct ttyent *ttyp;
   struct timeval tv;
-  int got;
+  int got, slot;
+  char hostname[MAXHOSTNAMELEN];
+  struct hostent *hp;
+  struct in_addr hostaddr;
 
   if (!*r->cfg.file)
     return;
@@ -391,6 +398,44 @@ radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
     rad_close(r->cx.rad);
     return;
   }
+
+  if (gethostname(hostname, sizeof hostname) != 0)
+    log_Printf(LogERROR, "rad_put: gethostname(): %s\n", strerror(errno));
+  else {
+    if ((hp = gethostbyname(hostname)) != NULL) {
+      hostaddr.s_addr = *(u_long *)hp->h_addr;
+      if (rad_put_addr(r->cx.rad, RAD_NAS_IP_ADDRESS, hostaddr) != 0) {
+        log_Printf(LogERROR, "rad_put: rad_put_string: %s\n",
+                   rad_strerror(r->cx.rad));
+        rad_close(r->cx.rad);
+        return;
+      }
+    }
+    if (rad_put_string(r->cx.rad, RAD_NAS_IDENTIFIER, hostname) != 0) {
+      log_Printf(LogERROR, "rad_put: rad_put_string: %s\n",
+                 rad_strerror(r->cx.rad));
+      rad_close(r->cx.rad);
+      return;
+    }
+  }
+
+  if (authp->physical->handler &&
+      authp->physical->handler->type == TTY_DEVICE) {
+    setttyent();
+    for (slot = 1; (ttyp = getttyent()); ++slot)
+      if (!strcmp(ttyp->ty_name, authp->physical->name.base)) {
+        if(rad_put_int(r->cx.rad, RAD_NAS_PORT, slot) != 0) {
+          log_Printf(LogERROR, "rad_put: rad_put_string: %s\n",
+                      rad_strerror(r->cx.rad));
+          rad_close(r->cx.rad);
+          endttyent();
+          return;
+        }
+        break;
+      }
+    endttyent();
+  }
+
 
   if ((got = rad_init_send_request(r->cx.rad, &r->cx.fd, &tv)))
     radius_Process(r, got);
