@@ -1148,6 +1148,12 @@ static int sk_attach_xmac(dev)
 	ifp->if_snd.ifq_maxlen = SK_TX_RING_CNT - 1;
 
 	/*
+	 * Call MI attach routine.
+	 */
+	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	callout_handle_init(&sc_if->sk_tick_ch);
+
+	/*
 	 * Do miibus setup.
 	 */
 	sk_init_xmac(sc_if);
@@ -1156,15 +1162,10 @@ static int sk_attach_xmac(dev)
 		printf("skc%d: no PHY found!\n", sc_if->sk_unit);
 		contigfree(sc_if->sk_rdata,
 		    sizeof(struct sk_ring_data), M_DEVBUF);
+		ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
 		SK_UNLOCK(sc);
 		return(ENXIO);
 	}
-
-	/*
-	 * Call MI attach routine.
-	 */
-	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
-	callout_handle_init(&sc_if->sk_tick_ch);
 
 	SK_UNLOCK(sc);
 
