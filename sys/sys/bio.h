@@ -85,7 +85,7 @@ struct bio {
 	struct	iodone_chain *bio_done_chain;
 	struct bio *bio_linkage;
 	off_t	bio_length;
-	char	*bio_attribute;
+	const char *bio_attribute;
 	off_t	bio_completed;
 	struct g_consumer *bio_from;
 	struct g_provider *bio_to;
