@@ -36,7 +36,7 @@
 static const char sccsid[] = "@(#)sys_term.c	8.4+1 (Berkeley) 5/30/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: sys_term.c,v 1.3 1997/12/08 07:41:12 charnier Exp $";
 #endif /* not lint */
 
 #include "telnetd.h"
@@ -518,11 +518,11 @@ int *ptynum;
 #endif
 
 #ifndef	__hpux
-	(void) sprintf(line, "/dev/ptyXX");
+	(void) strcpy(line, "/dev/ptyXX");
 	p1 = &line[8];
 	p2 = &line[9];
 #else
-	(void) sprintf(line, "/dev/ptym/ptyXX");
+	(void) strcpy(line, "/dev/ptym/ptyXX");
 	p1 = &line[13];
 	p2 = &line[14];
 #endif
@@ -1484,7 +1484,7 @@ startslave(host, autologin, autoname)
 	 */
 	if ((i = open(INIT_FIFO, O_WRONLY)) < 0) {
 		char tbuf[128];
-		(void) sprintf(tbuf, "Can't open %s\n", INIT_FIFO);
+		(void) snprintf(tbuf, sizeof(tbuf), "Can't open %s\n", INIT_FIFO);
 		fatalperror(net, tbuf);
 	}
 	memset((char *)&request, 0, sizeof(request));
@@ -1507,7 +1507,7 @@ startslave(host, autologin, autoname)
 #endif /* BFTPDAEMON */
 	if (write(i, (char *)&request, sizeof(request)) < 0) {
 		char tbuf[128];
-		(void) sprintf(tbuf, "Can't write to %s\n", INIT_FIFO);
+		(void) snprintf(tbuf, sizeof(tbuf), "Can't write to %s\n", INIT_FIFO);
 		fatalperror(net, tbuf);
 	}
 	(void) close(i);
@@ -1519,7 +1519,7 @@ startslave(host, autologin, autoname)
 		if (i == 3 || n >= 0 || !gotalarm)
 			break;
 		gotalarm = 0;
-		sprintf(tbuf, "telnetd: waiting for /etc/init to start login process on %s\r\n", line);
+		snprintf(tbuf, sizeof(tbuf), "telnetd: waiting for /etc/init to start login process on %s\r\n", line);
 		(void) write(net, tbuf, strlen(tbuf));
 	}
 	if (n < 0 && gotalarm)
@@ -1727,7 +1727,8 @@ start_login(host, autologin, name)
 			len = strlen(name)+1;
 			write(xpty, name, len);
 			write(xpty, name, len);
-			sprintf(speed, "%s/%d", (cp = getenv("TERM")) ? cp : "",
+			snprintf(speed, sizeof(speed),
+				"%s/%d", (cp = getenv("TERM")) ? cp : "",
 				(def_rspeed > 0) ? def_rspeed : 9600);
 			len = strlen(speed)+1;
 			write(xpty, speed, len);
