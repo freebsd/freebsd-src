@@ -182,7 +182,7 @@ main(argc, argv)
 	 * Note that it is NOT sensible to run this program from inetd - the
 	 * protocol assumes that it will run immediately at boot time.
 	 */
-	if (daemon(0, 0)) {
+	if (daemon(0, debug_level > 0)) {
 		err(1, "cannot fork");
 		/* NOTREACHED */
 	}
