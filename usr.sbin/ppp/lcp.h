@@ -59,6 +59,7 @@ struct lcp {
   unsigned his_shortseq : 1;	/* Peer would like only 12bit seqs (MP) */
   unsigned his_protocomp : 1;	/* Does peer do Protocol field compression */
   unsigned his_acfcomp : 1;	/* Does peer do addr & cntrl fld compression */
+  unsigned mru_req : 1;		/* Has the peer requested an MRU */
 
   u_short want_mru;		/* Our maximum packet size */
   u_short want_mrru;		/* Our maximum reassembled packet size (MP) */
