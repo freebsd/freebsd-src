@@ -32,7 +32,12 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)ring.c	8.1 (Berkeley) 6/6/93";
+#if 0
+static const char sccsid[] = "@(#)ring.c	8.2 (Berkeley) 5/30/95";
+#else
+static const char rcsid[] =
+ "$FreeBSD$";
+#endif
 #endif /* not lint */
 
 /*
@@ -46,9 +51,9 @@ static char sccsid[] = "@(#)ring.c	8.1 (Berkeley) 6/6/93";
  *
  */
 
+#include	<errno.h>
 #include	<stdio.h>
 #include	<string.h>
-#include	<errno.h>
 
 #ifdef	size_t
 #undef	size_t
@@ -100,8 +105,9 @@ static u_long ring_clock = 0;
 
 /* Buffer state transition routines */
 
-    ring_init(ring, buffer, count)
-Ring *ring;
+    int
+ring_init(ring, buffer, count)
+    Ring *ring;
     unsigned char *buffer;
     int count;
 {

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)externs.h	8.2 (Berkeley) 12/15/93
+ *	@(#)externs.h	8.3 (Berkeley) 5/30/95
  *	$FreeBSD$
  */
 
@@ -84,8 +84,9 @@ typedef unsigned char cc_t;
 
 #ifndef	NO_STRING_H
 #include <string.h>
-#endif
+#else
 #include <strings.h>
+#endif
 
 #if defined(IPSEC)
 #include <netinet6/ipsec.h>
@@ -128,12 +129,12 @@ extern int
     flushout,		/* flush output */
     connected,		/* Are we connected to the other side? */
     globalmode,		/* Mode tty should be in */
-    In3270,			/* Are we in 3270 mode? */
+    In3270,		/* Are we in 3270 mode? */
     telnetport,		/* Are we connected to the telnet port? */
     localflow,		/* Flow control handled locally */
     restartany,		/* If flow control, restart output on any character */
     localchars,		/* we recognize interrupt/quit */
-    donelclchars,		/* the user has set "localchars" */
+    donelclchars,	/* the user has set "localchars" */
     showoptions,
     net,		/* Network file descriptor */
     tin,		/* Terminal input file descriptor */
@@ -252,6 +253,7 @@ extern jmp_buf
 extern void
     command P((int, char *, int)),
     Dump P((int, unsigned char *, int)),
+    ExitString P((char *, int)),
     init_3270 P((void)),
     printoption P((char *, int, int)),
     printsub P((int, unsigned char *, int)),
@@ -297,7 +299,14 @@ extern void
     slc_add_reply P((int, int, int)),
     slc_end_reply P((void));
 extern int
-    slc_update P((void));
+    NetClose P((int)),
+    netflush P((void)),
+    SetSockOpt P((int, int, int, int)),
+    slc_update P((void)),
+    telrcv P((void)),
+    TerminalWrite P((char *, int)),
+    TerminalAutoFlush P((void)),
+    ttyflush P((int));
 
 extern void
     env_opt P((unsigned char *, int)),
