@@ -760,15 +760,16 @@ pcic_probe(void)
 			pcic_imask = soft_imask;
 
 			/* See if the user has requested a specific IRQ */
-			if (getenv_int("machdep.pccard.pcic_irq", &desired_irq))
+			if (getenv_int("machdep.pccard.pcic_irq", &desired_irq)) {
 				/* legal IRQ? */
 				if (desired_irq >= 1 &&
 				    desired_irq <= ICU_LEN &&
 				    (1ul << desired_irq) & free_irqs)
 					free_irqs = 1ul << desired_irq;
 				else
-					/* illeagal, disable use of IRQ */
+					/* illegal, disable use of IRQ */
 					free_irqs = 0;
+			}
 
 			pcic_irq = pccard_alloc_intr(free_irqs,
 				pcicintr, 0, &pcic_imask, NULL);
