@@ -1,0 +1,30 @@
+.\" -*- nroff -*-
+.TH SGMLSASP 1
+.SH NAME
+sgmlsasp \- translate output of sgmls using ASP replacement files
+.SH SYNOPSIS
+.B sgmls
+.RB [ \-n ]
+.I replacement_file\|.\|.\|.
+.SH DESCRIPTION
+.I sgmlsasp
+translates the standard input using the specification in
+.I replacement_file\|.\|.\|.
+and writes the result to the standard output.
+The standard input must be in the format output by
+.IR sgmls .
+Each replacement file must be in the format of an
+Amsterdam SGML parser (ASP) replacement file;
+this format is described in the ASP documentation.
+Duplicate replacements are silently ignored.
+The
+.B \-n
+option disables upper-case substitution (folding) for names in
+replacement files; this option should be used with concrete syntaxes
+that do not specify upper-case substitution for general names (that
+is, names that are not entity names).
+.SH BUGS
+References to external data entities are ignored.
+(Support for external data entities is not implemented in ASP.)
+.SH "SEE ALSO"
+.IR sgmls (1)
