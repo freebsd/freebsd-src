@@ -50,6 +50,9 @@
 .Ar attrsize
 .Ar attrfile
 .Nm
+.Cm showattr
+.Ar attrfile
+.Nm
 .Cm enable
 .Ar path
 .Ar attrnamespace
@@ -109,6 +112,9 @@ from denying attribute service.
 .Pp
 This file should not exist before running
 .Cm initattr .
+.It Cm showattr Ar attrfile
+Show the attribute header values in the attribute file named by
+.Ar attrfile .
 .It Cm enable Ar path attrnamespace attrname attrfile
 Enable an attribute named
 .Ar attrname
