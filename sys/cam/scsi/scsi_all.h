@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsi_all.h,v 1.3 1998/09/29 22:11:30 ken Exp $
+ *	$Id: scsi_all.h,v 1.4 1998/10/02 05:25:49 ken Exp $
  */
 
 /*
@@ -709,7 +709,8 @@ int		scsi_interpret_sense(struct cam_device *device,
 
 const char *	scsi_op_desc(u_int16_t opcode, 
 			     struct scsi_inquiry_data *inq_data);
-char *		scsi_cdb_string(u_int8_t *cdb_ptr, char *cdb_string);
+char *		scsi_cdb_string(u_int8_t *cdb_ptr, char *cdb_string,
+				size_t len);
 
 void		scsi_print_inquiry(struct scsi_inquiry_data *inq_data);
 

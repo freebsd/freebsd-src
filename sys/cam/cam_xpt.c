@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.22 1998/10/14 22:51:51 ken Exp $
+ *      $Id: cam_xpt.c,v 1.23 1998/10/15 17:46:18 ken Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -2596,7 +2596,7 @@ xpt_action(union ccb *start_ccb)
 			  scsi_op_desc(start_ccb->csio.cdb_io.cdb_bytes[0],
 			  	       &path->device->inq_data),
 			  scsi_cdb_string(start_ccb->csio.cdb_io.cdb_bytes,
-					  cdb_str)));
+					  cdb_str, sizeof(cdb_str))));
 		/* FALLTRHOUGH */
 	}
 	case XPT_TARGET_IO:
@@ -3256,7 +3256,7 @@ xpt_run_dev_allocq(struct cam_eb *bus)
 		device = qinfo->device;
 
 		CAM_DEBUG_PRINT(CAM_DEBUG_SUBTRACE,
-				("running device 0x%x\n", device));
+				("running device %p\n", device));
 
 		drvq = &device->drvq;
 
@@ -3350,7 +3350,7 @@ xpt_run_dev_sendq(struct cam_eb *bus)
 		}
 
 		CAM_DEBUG_PRINT(CAM_DEBUG_SUBTRACE,
-				("running device 0x%x\n", device));
+				("running device %p\n", device));
 
 		work_ccb = cam_ccbq_peek_ccb(&device->ccbq, 0);
 		if (work_ccb == NULL) {
