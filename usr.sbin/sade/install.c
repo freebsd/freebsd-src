@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.21 1995/05/18 09:01:54 jkh Exp $
+ * $Id: install.c,v 1.22 1995/05/18 10:43:51 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -108,7 +108,7 @@ installCommit(char *str)
 	Write_Disk(d);
 
 	/* Now scan for bad blocks, if necessary */
-	for (c1 = d->chunks; c1; c1->next) {
+	for (c1 = d->chunks; c1; c1 = c1->next) {
 	    if (c1->flags & CHUNK_BAD144) {
 		int ret;
 
