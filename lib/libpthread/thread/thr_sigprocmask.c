@@ -41,7 +41,7 @@
 #include "pthread_private.h"
 
 int
-sigprocmask(int how, const sigset_t * set, sigset_t * oset)
+_libc_sigprocmask(int how, const sigset_t * set, sigset_t * oset)
 {
 	int ret = 0;
 
@@ -89,4 +89,6 @@ sigprocmask(int how, const sigset_t * set, sigset_t * oset)
 	/* Return the completion status: */
 	return (ret);
 }
+
+__weak_reference(_libc_sigprocmask, sigprocmask);
 #endif

@@ -37,7 +37,7 @@
 #include "pthread_private.h"
 
 int
-fsync(int fd)
+_libc_fsync(int fd)
 {
 	int             ret;
 
@@ -49,4 +49,6 @@ fsync(int fd)
 	_thread_leave_cancellation_point();
 	return (ret);
 }
+
+__weak_reference(_libc_fsync, fsync);
 #endif

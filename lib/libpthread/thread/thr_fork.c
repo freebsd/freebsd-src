@@ -41,7 +41,7 @@
 #include "pthread_private.h"
 
 pid_t
-fork(void)
+_libc_fork(void)
 {
 	int             i, flags;
 	pid_t           ret;
@@ -220,4 +220,6 @@ fork(void)
 	/* Return the process ID: */
 	return (ret);
 }
+
+__weak_reference(_libc_fork, fork);
 #endif

@@ -38,7 +38,7 @@
 #include "pthread_private.h"
 
 int
-fchmod(int fd, mode_t mode)
+_libc_fchmod(int fd, mode_t mode)
 {
 	int             ret;
 
@@ -48,4 +48,6 @@ fchmod(int fd, mode_t mode)
 	}
 	return (ret);
 }
+
+__weak_reference(_libc_fchmod, fchmod);
 #endif

@@ -38,7 +38,7 @@
 #include "pthread_private.h"
 
 int
-getsockname(int s, struct sockaddr * name, socklen_t *namelen)
+_libc_getsockname(int s, struct sockaddr * name, socklen_t *namelen)
 {
 	int             ret;
 
@@ -48,4 +48,6 @@ getsockname(int s, struct sockaddr * name, socklen_t *namelen)
 	}
 	return ret;
 }
+
+__weak_reference(_libc_getsockname, getsockname);
 #endif

@@ -41,7 +41,7 @@
 #include "pthread_private.h"
 
 int
-close(int fd)
+_libc_close(int fd)
 {
 	int		flags;
 	int		ret;
@@ -102,4 +102,6 @@ close(int fd)
 	_thread_leave_cancellation_point();
 	return (ret);
 }
+
+__weak_reference(_libc_close, close);
 #endif
