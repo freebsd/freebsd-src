@@ -421,7 +421,7 @@ legacy_pcib_probe(device_t dev)
 	return -100;
 }
 
-int
+static int
 legacy_pcib_attach(device_t dev)
 {
 	int bus;
