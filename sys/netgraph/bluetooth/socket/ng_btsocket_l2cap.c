@@ -309,7 +309,7 @@ ng_btsocket_l2cap_node_disconnect(hook_p hook)
 	 */
 
 	if (NG_HOOK_PRIVATE(hook) != NULL)
-		return (taskqueue_enqueue(taskqueue_swi, 
+		return (taskqueue_enqueue(taskqueue_swi_giant, 
 				&ng_btsocket_l2cap_rt_task));
 
 	NG_HOOK_UNREF(hook); /* Remove extra reference */
@@ -343,7 +343,7 @@ ng_btsocket_l2cap_node_rcvmsg(node_p node, item_p item, hook_p hook)
 			}
 
 			NG_BT_ITEMQ_ENQUEUE(&ng_btsocket_l2cap_queue, item);
-			error = taskqueue_enqueue(taskqueue_swi,
+			error = taskqueue_enqueue(taskqueue_swi_giant,
 						&ng_btsocket_l2cap_queue_task);
 		}
 		mtx_unlock(&ng_btsocket_l2cap_queue_mtx);
@@ -377,7 +377,7 @@ ng_btsocket_l2cap_node_rcvdata(hook_p hook, item_p item)
 		NGI_SET_HOOK(item, hook);
 
 		NG_BT_ITEMQ_ENQUEUE(&ng_btsocket_l2cap_queue, item);
-		error = taskqueue_enqueue(taskqueue_swi,
+		error = taskqueue_enqueue(taskqueue_swi_giant,
 						&ng_btsocket_l2cap_queue_task);
 	}
 	mtx_unlock(&ng_btsocket_l2cap_queue_mtx);
