@@ -104,7 +104,7 @@ int	docrc;			/* check/create file crc */
 char	*dirptr;		/* destination dir in a copy */
 char	*argv0;			/* root of argv[0] */
 sigset_t s_mask;		/* signal mask for cleanup critical sect */
-FILE	*listf = stderr;	/* file pointer to print file list to */
+FILE	*listf;			/* file pointer to print file list to */
 char	*tempfile;		/* tempfile to use for mkstemp(3) */
 char	*tempbase;		/* basename of tempfile to use for mkstemp(3) */
 
@@ -242,6 +242,7 @@ main(argc, argv)
 	size_t tdlen;
 
 	(void) setlocale(LC_ALL, "");
+	listf = stderr;
 	/*
 	 * Keep a reference to cwd, so we can always come back home.
 	 */
