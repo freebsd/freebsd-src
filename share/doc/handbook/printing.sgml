@@ -1,7 +1,7 @@
 <!-- This is an SGML document in the linuxdoc DTD describing
      Printing with FreeBSD.  By Sean Kelly, 1995.
 
-     $Id: printing.sgml,v 1.4 1996/01/31 14:26:14 mpp Exp $
+     $Id: printing.sgml,v 1.5 1996/01/31 19:03:00 mpp Exp $
 
      The FreeBSD Documentation Project
 
@@ -24,13 +24,13 @@
 
     <p><em>Contributed by &a.kelly;<newline>30 September 1995</em>
 
-        In order to use printers with FreeBSD, you'll need to set
+        In order to use printers with FreeBSD, you will need to set
 	them up to work with the Berkeley line printer spooling
-	system, also known as the LPD spooling system.  It's the
+	system, also known as the LPD spooling system.  It iss the
 	standard printer control system in FreeBSD.  This section
 	introduces the LPD spooling system, often simply called LPD.
 
-	If you're already familiar with LPD or another printer
+	If you are already familiar with LPD or another printer
 	spooling system, you may wish to skip to section <ref
 	id="printing:intro:setup" name="Setting up the spooling
 	system">.
@@ -38,7 +38,7 @@
       <sect><heading>What the Spooler Does<label
 	    id="printing:intro:spooler"></heading>
 
-	<p> LPD controls everything about a host's printers.  It's
+	<p> LPD controls everything about a host's printers.  It is
 	  responsible for a number of things:
 
 	  <itemize>
@@ -54,7 +54,7 @@
 
 	    <item>It can print <em/header pages/ (also known as
 	      <em/banner/ or <em/burst/ pages) so users can easily
-	      find jobs they've printed in a stack of printouts.
+	      find jobs they have printed in a stack of printouts.
 
 	    <item>It takes care of communications parameters for
 	      printers connected on serial ports.
@@ -77,7 +77,7 @@
       <sect><heading>Why You Should Use the Spooler<label
 	    id="printing:intro:why"></heading> 
 
-	<p> If you're the sole user of your system, you may be
+	<p> If you are the sole user of your system, you may be
 	  wondering why you should bother with the spooler when you
 	  don't need access control, header pages, or printer
 	  accounting.  While it's possible to enable direct access to
@@ -90,12 +90,12 @@
 	    <item>LPD can conveniently run a job to be printed
 	      through filters to add date/time headers or convert a
 	      special file format (such as a TeX DVI file) into a
-	      format the printer will understand.   You won't have to do
+	      format the printer will understand.   You will not have to do
 	      these steps manually.
 
 	    <item>Many free and commercial programs that provide a
 	      print feature usually expect to talk to the spooler on
-	      your system.  By setting up the spooling system, you'll
+	      your system.  By setting up the spooling system, you will
 	      more easily support other software you may later add or
 	      already have.
 	  </itemize>
@@ -103,7 +103,7 @@
       <sect><heading>Setting Up the Spooling System<label
 	    id="printing:intro:setup"></heading>
 
-	<p> To use printers with the LPD spooling system, you'll need
+	<p> To use printers with the LPD spooling system, you will need
 	  to set up both your printer hardware and the LPD software.
 	  This document describes two levels of setup:
 
@@ -137,12 +137,12 @@
 	    file <tt>/etc/printcap</tt>.
 	</itemize>
 
-        If you're setting up a printer that uses a network protocol
+        If you are setting up a printer that uses a network protocol
 	to accept data to print instead of a serial or parallel interface,
 	see <ref id="printing:advanced:network:net-if" name="Printers
 	  With Networked Data Stream Interaces">.
 
-	Although this section is called ``Simple Printer Setup,'' it's
+	Although this section is called ``Simple Printer Setup,'' it is
 	actually fairly complex.  Getting the printer to work with
 	your computer and the LPD spooler is the hardest part.  The
 	advanced options like header pages and accounting are fairly
@@ -155,7 +155,7 @@
 	  cables, and also the kernel configuration you may need to
 	  enable FreeBSD to speak to the printer.
 
-	  If you've already connected your printer and have
+	  If you have already connected your printer and have
 	  successfully printed with it under another operating system,
 	  you can probably skip to section <ref id="printing:software"
 	  name="Software Setup">.
@@ -193,14 +193,14 @@
 	    one-way communication (computer to printer) while serial
 	    gives you two-way.  Many newer parallel ports can also
 	    receive data from the printer, but only few printers need
-	    to send data back to the computer.  And FreeBSD doesn't
+	    to send data back to the computer.  And FreeBSD does not
 	    support two-way parallel communication yet.
 
 	    Usually, the only time you need two-way communication with
 	    the printer is if the printer speaks PostScript.
 	    PostScript printers can be very verbose.  In fact,
 	    PostScript jobs are actually programs sent to the printer;
-	    they needn't produce paper at all and may return results
+	    they need not produce paper at all and may return results
 	    directly to the computer.  PostScript also uses
 	    two-way communication to tell the computer about problems,
 	    such as errors in the PostScript program or paper jams.
@@ -219,11 +219,11 @@
 		port.  FreeBSD does not yet support two-way
 		communication over a parallel port.
 
-	      <item>If you don't need two-way communication and can
+	      <item>If you do not need two-way communication and can
 		pick parallel or serial, prefer the parallel
 		interface.  It keeps a serial port free for other
 		peripherals---such as a terminal or a modem---and is
-		faster most of the time.  It's also easier to
+		faster most of the time.  It is also easier to
 		configure.
 
 	      <item>Finally, use whatever works.	
@@ -248,7 +248,7 @@
 	    computer.  The instructions that came with the printer,
 	    the computer, or both should give you complete guidance.
 
-	    If you're unsure what the ``proper serial cable'' is, you
+	    If you are unsure what the ``proper serial cable'' is, you
 	    may wish to try one of the following alternatives:
 	    <itemize>
 	      <item>A <em/modem/ cable connects each pin of the
@@ -285,15 +285,15 @@
 	<p> This section describes the software setup necessary to
 	  print with the LPD spooling system in FreeBSD.
 
-	  Here's an outline of the steps involved:
+	  Here is an outline of the steps involved:
 	  <enum>
 	    <item>Configure your kernel, if necessary, for the port
-	      you're using for the printer; section <ref
+	      you are using for the printer; section <ref
 	      id="printing:kernel" name="Kernel Configuration"> tells
 	      you what you need to do.
 
 	    <item>Set the communications mode for the parallel port,
-	      if you're using a parallel port; section <ref
+	      if you are using a parallel port; section <ref
 	      id="printing:parallel-port-mode" name = "Setting the
 	      Communication Mode for the Parallel Port"> gives
 	      details.
@@ -316,10 +316,10 @@
 	    specific set of devices.  The serial or parallel interface
 	    for your printer is a part of that set.  Therefore, it
 	    might be necessary to add support for an additional serial
-	    or parallel port if your kernel isn't already configured
+	    or parallel port if your kernel is not already configured
 	    for one.
 
-	    To find out if the kernel you're currently using supports a serial
+	    To find out if the kernel you are currently using supports a serial
 	    interface, type
 <tscreen>
 <tt>dmesg &verbar; grep sio</tt><it/N/
@@ -346,7 +346,7 @@ lpt0 at 0x378-0x37f on isa
 
 	    You might have to reconfigure your kernel in order for the
 	    operating system to recognize and use the parallel or
-	    serial port you're using for the printer.
+	    serial port you are using for the printer.
 
 	    To add support for a serial port, see the section on
             kernel configuration.  To add support for a parallel port,
@@ -356,9 +356,9 @@ lpt0 at 0x378-0x37f on isa
 	      <label id="printing:dev-ports"></heading>
 
 	    <p> Even though the kernel may support communication along
-	      a serial or parallel port, you'll still need a software
+	      a serial or parallel port, you will still need a software
 	      interface through which programs running on the system
-	      can send and receive data.  That's what entries in the
+	      can send and receive data.  That is what entries in the
 	      <tt>/dev</tt> directory are for.
 
 	      <bf>To add a <tt>/dev</tt> entry for a port:</bf>
@@ -391,7 +391,7 @@ cd /dev
 	  <sect3><heading>Setting the Communication Mode for the Parallel Port
 	      <label id="printing:parallel-port-mode"></heading>
 
-	    <p> When you're using the parallel interface, you can
+	    <p> When you are using the parallel interface, you can
 	      choose whether FreeBSD should use interrupt-driven or
 	      polled communication with the printer.
 
@@ -402,7 +402,7 @@ cd /dev
 		  the printer is ready for data.
 
 		<item>The <em/polled/ method directs the operating
-		  system to repeatedly ask the printer if it's ready
+		  system to repeatedly ask the printer if it is ready
 		  for more data.  When it responds ready, the kernel
 		  sends more data.
 	      </itemize>
@@ -419,7 +419,7 @@ cd /dev
 		kernel:</bf>
 	      <enum>
 		<item>Edit your kernel configuration file.  Look for
-		  or add an <tt/lpt0/ entry.  If you're setting up the
+		  or add an <tt/lpt0/ entry.  If you are setting up the
 		  second parallel port, use <tt/lpt1/ instead.  Use
 		  <tt/lpt2/ for the third port, and so on.
 		  <itemize>
@@ -431,7 +431,7 @@ cd /dev
 		      where <it/N/ is the IRQ number for your
 		      computer's parallel port.
 
-		    <item>If you want polled mode, don't add the
+		    <item>If you want polled mode, do not add the
 		      <tt/irq/ specifier:
 <tscreen>
 <tt>device lpt0 at isa? port? tty vector lptintr</tt>		
@@ -469,17 +469,17 @@ cd /dev
 
 	    <p> Before proceeding to configure the spooling system,
 	      you should make sure the operating system can
-	      successfully send data to your printer.  It's a lot
+	      successfully send data to your printer.  It is a lot
 	      easier to debug printer communication and the spooling
 	      system separately.
 
-	      To test the printer, we'll send some text to it.  For
+	      To test the printer, we will send some text to it.  For
 	      printers that can immediately print characters sent to
 	      them, the program <tt/lptest/ is perfect: it generates
 	      all 96 printable ASCII characters in 96 lines.
 
 	      For a PostScript (or other language-based) printer,
-	      we'll need a more sophisticated test.  A small
+	      we will need a more sophisticated test.  A small
 	      PostScript program, such as the following, will suffice:
 <code>
 %!PS
@@ -490,11 +490,11 @@ cd /dev
 showpage
 </code>
 	      <em/Note:/ When this document refers to a printer
-	      language, I'm assuming a language like PostScript, and
+	      language, I am assuming a language like PostScript, and
 	      not Hewlett Packard's PCL.  Although PCL has great
 	      functionality, you can intermingle plain text with its
 	      escape sequences.  PostScript cannot directly print
-	      plain text, and that's the kind of printer language for
+	      plain text, and that is the kind of printer language for
 	      which we must make special accommodations.
 
 	    <sect4><heading>Checking a Parallel Printer<label
@@ -523,8 +523,8 @@ showpage
 <tt>cat > /dev/lpt<it/N/</tt>
 </tscreen>
 			Then, line by line, type the program
-			<em/carefully/ as you can't edit a line once
-			you've pressed RETURN or ENTER. When you've
+			<em/carefully/ as you cannot edit a line once
+			you have pressed RETURN or ENTER. When you have
 			finished entering the program, press
 			CONTROL+D, or whatever your end of file key
 			is.
@@ -540,7 +540,7 @@ showpage
 		    </itemize>
 		</enum>
 
-		You should see something print.  Don't worry if the
+		You should see something print.  Do not worry if the
 		text doesn't look right; we'll fix such things later.
 
 	    <sect4><heading>Checking a Serial Printer<label
@@ -565,7 +565,7 @@ showpage
 		    required by the printer (either <tt/even/,
 		    <tt/odd/, <tt/none/, or <tt/zero/).
 		    <p>
-		      Here's a sample entry for a printer connected
+		      Here is a sample entry for a printer connected
 		      via a serial line to the third serial port at
 		      19200 bps with no parity:
 <code>
@@ -576,7 +576,7 @@ printer:dv=/dev/ttyd2:br#19200:pa=none
 <tscreen><verb>
 tip printer
 </verb></tscreen>
-		    If this step doesn't work, edit the file
+		    If this step does not work, edit the file
 		    <tt>/etc/remote</tt> again and try using
 		    <tt>/dev/cuaa<it/N/</tt> instead of
 		    <tt>/dev/ttyd<it/N/</tt>.
@@ -612,16 +612,16 @@ tip printer
 		    </itemize>
 		</enum>
 
-		You should see something print.  Don't worry if the
-		text doesn't look right; we'll fix that later.
+		You should see something print.  Do not worry if the
+		text does not look right; we will fix that later.
 
 	<sect2><heading>Enabling the Spooler: The <tt>/etc/printcap</tt> File
 	    <label id="printing:printcap"></heading>
 
 	  <p> At this point, your printer should be hooked up, your
 	    kernel configured to communicate with it (if necessary),
-	    and you've been able to send some simple data to the
-	    printer.  Now, we're ready to configure LPD to control
+	    and you have been able to send some simple data to the
+	    printer.  Now, we are ready to configure LPD to control
 	    access to your printer.
 
 	    You configure LPD by editing the file
@@ -673,17 +673,17 @@ tip printer
 	    </enum>
 
 	    <em/Note:/ Language-based printers, such as PostScript
-	    printers, can't directly print plain text.  The simple
+	    printers, cannot directly print plain text.  The simple
 	    setup outlined above and described in the following
-	    sections assumes that if you're installing such a printer
-	    you'll print only files that the printer can understand.
+	    sections assumes that if you are installing such a printer
+	    you will print only files that the printer can understand.
 
 	    Users often expect that they can print plain text to any
 	    of the printers installed on your system.  Programs that
 	    interface to LPD to do their printing usually make the
-	    same assumption.  If you're installing such a printer and
+	    same assumption.  If you are installing such a printer and
 	    want to be able to print jobs in the printer language
-	    <em/and/ print plain text jobs, you're strongly urged to
+	    <em/and/ print plain text jobs, you are strongly urged to
 	    add an additional step to the simple setup outlined above:
 	    install an automatic plain-text--to--PostScript (or other
 	    printer language) conversion program.  Section <ref
@@ -695,23 +695,23 @@ tip printer
 		id="printing:naming"></heading>
 
 	    <p> The first (easy) step is to pick a name for your
-	      printer.  It really doesn't matter whether you choose
+	      printer.  It really does not matter whether you choose
 	      functional or whimsical names since you can also provide
 	      a number aliases for the printer.
 
 	      At least one of the printers specified in the
 	      <tt>/etc/printcap</tt> should have the alias
 	      <tt/lp/. This is the default printer's name.  If users
-	      don't have the PRINTER environment variable nor
+	      do not have the PRINTER environment variable nor
 	      specify a printer name on the command line of any of the
 	      LPD commands, then <tt/lp/ will be the default printer
 	      they get to use.
 
-	      Also, it's common practice to make the last alias for a
+	      Also, it is common practice to make the last alias for a
 	      printer be a full description of the printer, including
 	      make and model.
 
-	      Once you've picked a name and some common aliases, put
+	      Once you have picked a name and some common aliases, put
 	      them in the <tt>/etc/printcap</tt> file.  The name of
 	      the printer should start in the leftmost column.
 	      Separate each alias with a vertical bar and put a colon
@@ -732,7 +732,7 @@ bamboo|ps|PS|S|panasonic|Panasonic KX-P4455 PostScript v51.4:
 	      In this example, the first printer is named <tt/rattan/
 	      and has as aliases <tt/line/, <tt/diablo/, <tt/lp/, and
 	      <tt/Diablo 630 Line Printer/.  Since it has the alias
-	      <tt/lp/, it's also the default printer.  The second is
+	      <tt/lp/, it is also the default printer.  The second is
 	      named <tt/bamboo/, and has as aliases <tt/ps/, <tt/PS/,
 	      <tt/S/, <tt/panasonic/, and <tt/Panasonic KX-P4455
 	      PostScript v51.4/.
@@ -745,12 +745,12 @@ bamboo|ps|PS|S|panasonic|Panasonic KX-P4455 PostScript v51.4:
 	      the user name who requested the job, the host from which
 	      the job came, and the name of the job, in nice large
 	      letters.  Unfortunately, all this extra text gets in the
-	      way of debugging the simple printer setup, so we'll
+	      way of debugging the simple printer setup, so we will
 	      suppress header pages.
 
 	      To suppress header pages, add the <tt/sh/ capability to
 	      the entry for the printer in
-	      <tt>/etc/printcap</tt>. Here's the example
+	      <tt>/etc/printcap</tt>. Here is the example
 	      <tt>/etc/printcap</tt> with <tt/sh/ added:
 <code>
 #
@@ -772,17 +772,17 @@ bamboo|ps|PS|S|panasonic|Panasonic KX-P4455 PostScript v51.4:\
 
 	    <p> The next step in the simple spooler setup is to make a
 	      <em/spooling directory/, a directory where print jobs
-	      reside until they're printed, and where a number of
+	      reside until they are printed, and where a number of
 	      other spooler support files live.
 
 	      Because of the variable nature of spooling directories,
-	      it's customary to put these directories under
-	      <tt>/var/spool</tt>.  It's not necessary to backup the
+	      it is customary to put these directories under
+	      <tt>/var/spool</tt>.  It is not necessary to backup the
 	      contents of spooling directories, either.  Recreating
 	      them is as simple as running <tt/mkdir/.
 
-	      It's also customary to make the directory with a name
-	      that's identical to the name of the printer, as shown
+	      It is also customary to make the directory with a name
+	      that is identical to the name of the printer, as shown
 	      below:
 <tscreen>
 <tt>mkdir /var/spool/<it>printer-name</it></tt>
@@ -790,7 +790,7 @@ bamboo|ps|PS|S|panasonic|Panasonic KX-P4455 PostScript v51.4:\
 	      However, if you have a lot of printers on your network,
 	      you might want to put the spooling directories under a
 	      single directory that you reserve just for printing with
-	      LPD.  We'll do this for our two example printers
+	      LPD.  We will do this for our two example printers
 	      <tt/rattan/ and <tt/bamboo/:
 <tscreen><verb>
 mkdir /var/spool/lpd
@@ -798,12 +798,12 @@ mkdir /var/spool/lpd/rattan
 mkdir /var/spool/lpd/bamboo
 </verb></tscreen>
 
-	      <em/Note:/ If you're concerned about the privacy of jobs
+	      <em/Note:/ If you are concerned about the privacy of jobs
 	      that users print, you might want to protect the spooling
-	      directory so it's not publicly accessible.  Spooling
+	      directory so it is not publicly accessible.  Spooling
 	      directories should be owned and be readable, writable,
 	      and searchable by user daemon and group daemon, and no
-	      one else.  We'll do this for our example printers:
+	      one else.  We will do this for our example printers:
 
 <tscreen><verb>
 chown daemon.daemon /var/spool/lpd/rattan
@@ -831,7 +831,7 @@ bamboo|ps|PS|S|panasonic|Panasonic KX-P4455 PostScript v51.4:\
 	      should be indented with a tab and each line escaped with
 	      a backslash.
 
-	      If you don't specify a spooling directory with <tt/sd/,
+	      If you do not specify a spooling directory with <tt/sd/,
 	      the spooling system will use <tt>/var/spool/lpd</tt> as
 	      a default.
 
@@ -851,7 +851,7 @@ bamboo|ps|PS|S|panasonic|Panasonic KX-P4455 PostScript v51.4:\
 	      <tt>/etc/printcap</tt> file using the <tt/lp/
 	      capability.
 
-	      In our running example, let's assume that <tt/rattan/ is
+	      In our running example, let us assume that <tt/rattan/ is
 	      on the first parallel port, and <tt/bamboo/ is on a
 	      sixth serial port; here are the additions to
 	      <tt>/etc/printcap</tt>:
@@ -868,12 +868,12 @@ bamboo|ps|PS|S|panasonic|Panasonic KX-P4455 PostScript v51.4:\
 	:lp=/dev/ttyd5:
 </code>
 
-	      If you don't specify the <tt/lp/ capability for a
+	      If you do not specify the <tt/lp/ capability for a
 	      printer in your <tt>/etc/printcap</tt> file, LPD uses
 	      <tt>/dev/lp</tt> as a default.  <tt>/dev/lp</tt>
-	      currently doesn't exist in FreeBSD.
+	      currently does not exist in FreeBSD.
 
-	      If the printer you're installing is connected to a
+	      If the printer you are installing is connected to a
 	      parallel port, skip to the section <ref name="Installing
 	      the Text Filter" id="printing:textfilter">.  Otherwise,
 	      be sure to follow the instructions in the next section.
@@ -888,7 +888,7 @@ bamboo|ps|PS|S|panasonic|Panasonic KX-P4455 PostScript v51.4:\
 	      <itemize>
 		<item>It lets you try different communication
 		  parameters by simply editing the
-		  <tt>/etc/printcap</tt> file; you don't have to
+		  <tt>/etc/printcap</tt> file; you do not have to
 		  recompile the filter program.
 
 		<item>It enables the spooling system to use the same
@@ -937,10 +937,10 @@ bamboo|ps|PS|S|panasonic|Panasonic KX-P4455 PostScript v51.4:\
 	      the resultant setting.  It does the same for the local
 	      mode bits as well.
 
-	      Let's add to our example printer on the sixth serial
-	      port.  We'll set the bps rate to 38400. For the flag
-	      bits, we'll set the TANDEM, ANYP, LITOUT, FLUSHO, and
-	      PASS8 flags.  For the local mode bits, we'll set the
+	      Let us add to our example printer on the sixth serial
+	      port.  We will set the bps rate to 38400. For the flag
+	      bits, we will set the TANDEM, ANYP, LITOUT, FLUSHO, and
+	      PASS8 flags.  For the local mode bits, we will set the
 	      LITOUT and PASS8 flags:
 <tscreen><verb>
 bamboo|ps|PS|S|panasonic|Panasonic KX-P4455 PostScript v51.4:\
@@ -952,7 +952,7 @@ bamboo|ps|PS|S|panasonic|Panasonic KX-P4455 PostScript v51.4:\
 	  <sect3><heading>Installing the Text Filter<label
 		id="printing:textfilter"></heading>
 
-	    <p> We're now ready to tell LPD what text filter to use to
+	    <p> We are now ready to tell LPD what text filter to use to
 	      send jobs to the printer.  A <em/text filter/, also
 	      known as an <em/input filter/, is a program that LPD
 	      runs when it has a job to print.  When LPD runs the text
@@ -976,7 +976,7 @@ bamboo|ps|PS|S|panasonic|Panasonic KX-P4455 PostScript v51.4:\
 	      <tt/lpf/ is described in detail in section <ref
 	      id="printing:advanced:lpf" name="lpf: a Text Filter">.
 
-	      First, let's make the shell script
+	      First, let uss make the shell script
 	      <tt>/usr/local/libexec/if-simple</tt> be a simple text
 	      filter. Put the following text into that file with your
 	      favorite text editor:
@@ -997,7 +997,7 @@ chmod 555 /usr/local/libexec/if-simple
 </verb></tscreen>
 
 	      And then tell LPD to use it by specifying it with the
-	      <tt/if/ capability in <tt>/etc/printcap</tt>.  We'll add
+	      <tt/if/ capability in <tt>/etc/printcap</tt>.  We will add
 	      it to the two printers we have so far in the example
 	      <tt>/etc/printcap</tt>:
 <code>
@@ -1017,9 +1017,9 @@ bamboo|ps|PS|S|panasonic|Panasonic KX-P4455 PostScript v51.4:\
 
 	  <sect3><heading>Trying It Out<label id="printing:trying"></heading>
 
-	    <p> You've reached the end of the simple LPD setup.
+	    <p> You have reached the end of the simple LPD setup.
 	      Unfortunately, congratulations are not quite yet in
-	      order, since we've still got to test the setup and
+	      order, since we still have to test the setup and
 	      correct any problems.  To test the setup, try printing
 	      something.  To print with the LPD system, you use the
 	      command <tt/lpr/, which submits a job for printing.
@@ -1038,14 +1038,14 @@ bamboo|ps|PS|S|panasonic|Panasonic KX-P4455 PostScript v51.4:\
 	      where <it/printer-name/ is a the name of a printer (or
 	      an alias) specified in <tt>/etc/printcap</tt>.  To test
 	      the default printer, type <tt/lpr/ without any <tt/-P/
-	      argument.  Again, if you're testing a printer that
+	      argument.  Again, if you are testing a printer that
 	      expects PostScript, send a PostScript program in that
 	      language instead of using <tt/lptest/.  You can do so by
 	      putting the program in a file and typing <tt/lpr
 	      <it/file//.
 
 	      For a PostScript printer, you should get the results
-	      of the program.  If you're using <tt/lptest/, then your
+	      of the program.  If you are using <tt/lptest/, then your
 	      results should look like the following:
 
 <tscreen><verb>
@@ -1062,7 +1062,7 @@ $%&ero;'()*+,-./01234567
 	      <tt/lptest 80 60/ will produce 60 lines of 80 characters
 	      each.
 
-	      If the printer didn't work, see the next section, <ref
+	      If the printer did not work, see the next section, <ref
 		id="printing:troubleshooting" name="Troubleshooting">.
 
 	  <sect3><heading>Troubleshooting<label
@@ -1072,7 +1072,7 @@ $%&ero;'()*+,-./01234567
 	      might have gotten one of the following results instead of
 	      the correct printout:
 	      <descrip>
-		<tag/It worked, after awhile; or, it didn't eject a full sheet./
+		<tag/It worked, after awhile; or, it did not eject a full sheet./
 
 		  The printer printed the above, but it sat for awhile
 		  and did nothing.  In fact, you might have needed to
@@ -1086,9 +1086,9 @@ $%&ero;'()*+,-./01234567
 		  FEED character (or whatever is necessary) to the
 		  printer.  This is usually sufficient to have the
 		  printer immediately print any text remaining in its
-		  internal buffer.  It's also useful to make sure each
+		  internal buffer.  It is also useful to make sure each
 		  print job ends on a full sheet, so the next job
-		  doesn't start somewhere on the middle of the last
+		  does not start somewhere on the middle of the last
 		  page of the previous job.
 
 		  The following replacement for the shell script
@@ -1115,7 +1115,7 @@ exit 2
                         "#$%&ero;'()*+,-./012345
                                                 #$%&ero;'()*+,-./0123456
 </verb></tscreen>
-		  You've become another victim of the <em/staircase
+		  You have become another victim of the <em/staircase
 		  effect/, caused by conflicting interpretations of
 		  what characters should indicate a new-line.
 		  UNIX-style operating systems use a single character:
@@ -1129,12 +1129,12 @@ exit 2
 		  line feed character.  The printer, upon seeing a
 		  line feed character, advanced the paper one line,
 		  but maintained the same horizontal position on the
-		  page for the next character to print.  That's what
+		  page for the next character to print.  That is what
 		  the carriage return is for: to move the location of
 		  the next character to print to the left edge of the
 		  paper.
 
-		  Here's what FreeBSD wants your printer to do:
+		  Here is what FreeBSD wants your printer to do:
 <tscreen><verb>
 Printer received CR		Printer prints CR
 Printer received LF		Printer prints CR + LF
@@ -1170,7 +1170,7 @@ Printer received LF		Printer prints CR + LF
 		      text filter to send the code first, then send
 		      the print job.
 
-		      <p> Here's an example text filter for printers
+		      <p> Here is an example text filter for printers
 			that understand the Hewlett-Packard PCL escape
 			codes.  This filter makes the printer treat LF
 			characters as a LF and CR; then it sends the
@@ -1192,10 +1192,10 @@ printf "\033&ero;k2G" &ero;&ero; cat &ero;&ero; printf "\f" &ero;&ero; exit 0
 exit 2
 </code>
 
-			Here's an example <tt>/etc/printcap</tt> from
+			Here is an example <tt>/etc/printcap</tt> from
 			a host called orchid.  It has a single printer
 			attached to its first parallel port, a Hewlett
-			Packard LaserJet 3Si named <tt/teak/.  It's
+			Packard LaserJet 3Si named <tt/teak/.  It is
 			using the above script as its text filter:
 <code>
 #
@@ -1230,14 +1230,14 @@ Printer received LF		Printer prints CR + LF
 
 		<tag/The printer lost characters./
 
-		  While printing, the printer didn't print a few
+		  While printing, the printer did nott print a few
 		  characters in each line.  The problem might have
 		  gotten worse as the printer ran, losing more and
 		  more characters.
 
-		  The problem is that the printer can't keep up with
+		  The problem is that the printer cannot keep up with
 		  the speed at which the computer sends data over a
-		  serial line.  (This problem shouldn't occur with
+		  serial line.  (This problem should not occur with
 		  printers on parallel ports.)  There are two ways to
 		  overcome the problem:
 		  <itemize>
@@ -1251,7 +1251,7 @@ Printer received LF		Printer prints CR + LF
 		      printer to the computer is correctly wired for
 		      carrier flow control.
 
-		    <item>If the printer doesn't support any flow
+		    <item>If the printer does not support any flow
 		      control, use some combination of the NLDELAY,
 		      TBDELAY, CRDELAY, VTDELAY, and BSDELAY bits in
 		      the <tt/fs/ capability to add appropriate delays
@@ -1276,8 +1276,8 @@ Printer received LF		Printer prints CR + LF
 		  If nothing happened, the problem is probably within
 		  FreeBSD and not the hardware.  Add the log file
 		  (<tt/lf/) capability to the entry for the printer
-		  you're debugging in the <tt>/etc/printcap</tt> file.
-		  For example, here's the entry for <tt/rattan/, with
+		  you are debugging in the <tt>/etc/printcap</tt> file.
+		  For example, here is the entry for <tt/rattan/, with
 		  the <tt/lf/ capability:
 <tscreen><verb>
 rattan|line|diablo|lp|Diablo 630 Line Printer:\
@@ -1291,13 +1291,13 @@ rattan|line|diablo|lp|Diablo 630 Line Printer:\
 		  any error messages that might appear.  Based on the
 		  messages you see, try to correct the problem.
 
-		  If you don't specify a <tt/lf/ capability, LPD uses
+		  If you do not specify a <tt/lf/ capability, LPD uses
 		  <tt>/dev/console</tt> as a default.
 	      </descrip>
 
     <sect><heading>Using Printers<label id="printing:using"></heading>
 
-      <p> This section tells you how to use printers you've setup with
+      <p> This section tells you how to use printers you have setup with
 	FreeBSD.  Here's an overview of the user-level commands:
 	<descrip>
 	  <tag/<tt/lpr//
@@ -1311,7 +1311,7 @@ rattan|line|diablo|lp|Diablo 630 Line Printer:\
 
 	</descrip>
 
-	There's also an administrative command, <tt/lpc/, described in
+	There is also an administrative command, <tt/lpc/, described in
 	the section <ref id="printing:lpc" name="Administrating the
 	LPD Spooler">, used to control printers and their queues.
 
@@ -1319,15 +1319,15 @@ rattan|line|diablo|lp|Diablo 630 Line Printer:\
 	accept an option ``<tt/-P/ <it/printer-name/'' to specify on
 	which printer/queue to operate, as listed in the
 	<tt>/etc/printcap</tt> file.  This enables you to submit,
-	remove, and check on jobs for various printers.  If you don't
+	remove, and check on jobs for various printers.  If you do not
 	use the <tt/-P/ option, then these commands use the printer
 	specified in the PRINTER environment variable.  Finally, if
-	you don't have a PRINTER environment variable, these commands
+	you do not have a PRINTER environment variable, these commands
 	default to the printer named <tt/lp/.
 
 	Hereafter, the terminology <em/default printer/ means the
 	printer named in the PRINTER environment variable, or the
-	printer named <tt/lp/ when there's no PRINTER environment
+	printer named <tt/lp/ when there is no PRINTER environment
 	variable.
 
       <sect1><heading>Printing Jobs<label id="printing:lpr"></heading>
@@ -1378,7 +1378,7 @@ ls -l | lpr -P rattan
 <tscreen><verb>
 lpq -P bamboo
 </verb></tscreen>
-	  shows the queue for the printer named <tt/bamboo/.  Here's
+	  shows the queue for the printer named <tt/bamboo/.  Here is
 	  an example of the output of the <tt/lpq/ command:
 <tscreen><verb>
 bamboo is ready and printing
@@ -1391,16 +1391,16 @@ active kelly    9    /etc/host.conf, /etc/hosts.equiv   88 bytes
 	  first job, submitted by user kelly, got assigned <em/job
 	  number/ 9.  Every job for a printer gets a unique job
 	  number.  Most of the time you can ignore the job number, but
-	  you'll need it if you want to cancel the job; see section
+	  you will need it if you want to cancel the job; see section
 	  <ref id="printing:lprm" name="Removing Jobs"> for details.
 
 	  Job number nine consists of two files; multiple files given
 	  on the <tt/lpr/ command line are treated as part of a single
-	  job.  It's the currently active job (note the word
+	  job.  It is the currently active job (note the word
 	  <tt/active/ under the ``Rank'' column), which means the
 	  printer should be currently printing that job.  The second
 	  job consists of data passed as the standard input to the
-	  <tt/lpr/ command. The third job came from user mary; it's a
+	  <tt/lpr/ command. The third job came from user mary; it is a
 	  much larger job.  The pathname of the files she's trying to
 	  print is too long to fit, so the <tt/lpq/ command just shows
 	  three dots.
@@ -1410,7 +1410,7 @@ active kelly    9    /etc/host.conf, /etc/hosts.equiv   88 bytes
 	  least what LPD thinks the printer is doing).
 
 	  The <tt/lpq/ command also support a <tt/-l/ option to
-	  generate a detailed long listing. Here's an example of
+	  generate a detailed long listing. Here is an example of
 	  <tt/lpq -l/:
 <tscreen><verb>
 waiting for bamboo to become ready (offline ?)
@@ -1475,7 +1475,7 @@ lprm -P bamboo 10
 lprm -P rattan -
 </verb></tscreen>
 
-	  <em/Note:/ If you're working in a networked environment,
+	  <em/Note:/ If you are working in a networked environment,
 	  <tt/lprm/ will let you remove jobs only from the host from
 	  which the jobs were submitted, even if the same printer is
 	  available from other hosts.  The following command sequence
@@ -1508,7 +1508,7 @@ rose%
 	      id="printing:lpr:options:format"></heading>
 
 	  <p> The following <tt/lpr/ options control formatting of the
-	    files in the job.  Use these options if the job doesn't
+	    files in the job.  Use these options if the job does not
 	    contain plain text or if you want plain text formatted
 	    through the <tt/pr/ utility.
 
@@ -1518,7 +1518,7 @@ rose%
 <tscreen><verb>
 lpr -P bamboo -d fish-report.dvi
 </verb></tscreen>
-	    These options apply to every file in the job, so you can't
+	    These options apply to every file in the job, so you cannot
 	    mix (say) DVI and ditroff files together in a job.
 	    Instead, submit the files as separate jobs, using a
 	    different conversion option for each job.
@@ -1545,7 +1545,7 @@ lpr -P bamboo -d fish-report.dvi
 		<it/number/, indent by 8 columns.  This option works
 		only with certain conversion filters.
 
-		<em/Note:/ Don't put any space between the <tt/-i/ and
+		<em/Note:/ Do not put any space between the <tt/-i/ and
 		the number.
 
 	      <tag/<tt/-l//
@@ -1571,7 +1571,7 @@ lpr -P bamboo -d fish-report.dvi
 
 	    </descrip>
 		
-	    Here's an example: this command prints a nicely
+	    Here is an example: this command prints a nicely
 	    formatted version of the <tt/ls/ manual page on the
 	    default printer:
 <tscreen><verb>
@@ -1617,26 +1617,26 @@ lpr -#3 parser.c parser.h
 		it will tell you if the job completed successfully or
 		if there was an error, and (often) what the error was.
 
-	      <tag/-s/ Don't copy the files to the spooling directory,
+	      <tag/-s/ Do not copy the files to the spooling directory,
 		but make symbolic links to them instead.
 
-		If you're printing a large job, you probably want to
+		If you are printing a large job, you probably want to
 		use this option.  It saves space in the spooling
 		directory (your job might overflow the free space on
 		the filesystem where the spooling directory resides).
-		It saves time as well since LPD won't have to copy
+		It saves time as well since LPD will not have to copy
 		each and every byte of your job to the spooling
 		directory.
 
 		There is a drawback, though: since LPD will refer to
-		the original files directly, you can't modify or
+		the original files directly, you cannot modify or
 		remove them until they have been printed.
 
-		<em/Note:/ If you're printing to a remote printer, LPD
+		<em/Note:/ If you are printing to a remote printer, LPD
 		will eventually have to copy files from the local host
 		to the remote host, so the <tt/-s/ option will save
 		space only on the local spooling directory, not the
-		remote.  It's still useful, though.
+		remote.  It is still useful, though.
 
 	      <tag/-r/
 
@@ -1667,7 +1667,7 @@ lpr -#3 parser.c parser.h
 
 		Replace the job name on the header page with
 		<it/text/.  The job name is normally the name of the
-		first file of the job, or ``stdin'' if you're printing
+		first file of the job, or ``stdin'' if you are printing
 		standard input.
 
 	      <tag/-h/
@@ -1683,7 +1683,7 @@ lpr -#3 parser.c parser.h
       <sect1><heading>Administrating Printers<label
 	    id="printing:lpc"></heading>
 
-	<p> As an administrator for your printers, you've had to
+	<p> As an administrator for your printers, you have had to
 	  install, set up, and test them.  Using the <tt/lpc/ command,
 	  you can interact with your printers in yet more ways.  With
 	  <tt/lpc/, you can
@@ -1697,14 +1697,14 @@ lpr -#3 parser.c parser.h
 	  </itemize>
 
 	  First, a note about terminology: if a printer is
-	  <em/stopped/, it won't print anything in its queue.  Users
+	  <em/stopped/, it will not print anything in its queue.  Users
 	  can still submit jobs, which will wait in the queue until
 	  the printer is <em/started/ or the queue is cleared.
 
 	  If a queue is <em/disabled/, no user (except root) can
 	  submit jobs for the printer.  An <em/enabled/ queue allows
 	  jobs to be submitted.  A printer can be <em/started/ for a
-	  disabled queue, in which case it'll continue to print jobs
+	  disabled queue, in which case it will continue to print jobs
 	  in the queue until the queue is empty.
 
 	  In general, you have to have root privileges to use the
@@ -1727,10 +1727,10 @@ lpr -#3 parser.c parser.h
 	    <tag/<tt/clean <it/printer-name///
 
 	      Remove old files from the printer's spooling directory.
-	      Occasionally, the files that make up a job aren't
+	      Occasionally, the files that make up a job are not
 	      properly removed by LPD, particularly if there have been
 	      errors during printing or a lot of administrative
-	      activity.  This command finds files that don't belong in
+	      activity.  This command finds files that do not belong in
 	      the spooling directory and removes them.
 
 	    <tag/<tt/disable <it/printer-name///
@@ -1740,9 +1740,9 @@ lpr -#3 parser.c parser.h
 	      queue.  The superuser (root) can always submit jobs,
 	      even to a disabled queue.
 
-	      This command is useful while you're testing a new
+	      This command is useful while you are testing a new
 	      printer or filter installation: disable the queue and
-	      submit jobs as root.  Other users won't be able to
+	      submit jobs as root.  Other users will not be able to
 	      submit jobs until you complete your testing and re-enable
 	      the queue with the <tt/enable/ command.
 
@@ -1756,7 +1756,7 @@ lpr -#3 parser.c parser.h
 	    <tag/<tt/enable <it/printer-name///
 
 	      Enable the queue for a printer.  Users can submit jobs
-	      but the printer won't print anything until it's started.
+	      but the printer will not print anything until it is started.
 
 	    <tag/<tt/help <it/command-name///
 
@@ -1768,7 +1768,7 @@ lpr -#3 parser.c parser.h
 
 	      Start the printer.  Ordinary users can use this command
 	      if some extraordinary circumstance hangs LPD, but they
-	      can't start a printer stopped with either the <tt/stop/
+	      cannot start a printer stopped with either the <tt/stop/
 	      or <tt/down/ commands.  The <tt/restart/ command is
 	      equivalent to <tt/abort/ followed by <tt/start/.
 
@@ -1780,7 +1780,7 @@ lpr -#3 parser.c parser.h
 	    <tag/<tt/stop <it/printer-name///
 
 	      Stop the printer.  The printer will finish the current
-	      job and won't print anything else in its queue.  Even
+	      job and will not print anything else in its queue.  Even
 	      though the printer is stopped, users can still submit
 	      jobs to an enabled queue.
 
@@ -1789,7 +1789,7 @@ lpr -#3 parser.c parser.h
 	      Rearrange the queue for <it/printer-name/ by placing the
 	      jobs with the listed <it/job/ numbers or the jobs
 	      belonging to <it/username/ at the top of the queue.  For
-	      this command, you can't use <tt/all/ as the
+	      this command, you cannot use <tt/all/ as the
 	      <it/printer-name/.
 
 	    <tag/<tt/up <it/printer-name///
@@ -1801,7 +1801,7 @@ lpr -#3 parser.c parser.h
 	  </descrip>
 
 	  <tt/lpc/ accepts the above commands on the command line.  If
-	  you don't enter any commands, <tt/lpc/ enters an interactive
+	  you do not enter any commands, <tt/lpc/ enters an interactive
 	  mode, where you can enter commands until you type <tt/exit/,
 	  <tt/quit/, or end-of-file.
 
@@ -1831,22 +1831,22 @@ lpr -#3 parser.c parser.h
 	  the filter's responsibility to handle these aspects.  And the
 	  bad news is that most of the time <em/you/ have to provide
 	  filters yourself.  The good news is that many are generally
-	  available; when they're not, they're usually easy to write.
+	  available; when they are not, they are usually easy to write.
 
 	  Also, FreeBSD comes with one, <tt>/usr/libexec/lpr/lpf</tt>,
 	  that works with many printers that can print plain text.
 	  (It handles backspacing and tabs in the file, and does
-	  accounting, but that's about all it does.)  There are also
+	  accounting, but that is about all it does.)  There are also
 	  several filters and filter components in the FreeBSD ports
 	  collection.
 
-	  Here's what you'll find in this section:
+	  Here is what you will find in this section:
 
 	  <itemize>
 	    <item>Section <ref id="printing:advanced:filters"
 	      name="How Fitlers Work">, tries to give an overview of a
 	      filter's role in the printing process.  You should read
-	      this section to get an understanding of what's happening
+	      this section to get an understanding of what is happening
 	      ``under the hood'' when LPD uses filters.  This
 	      knowledge could help you anticipate and debug problems
 	      you might encounter as you install more and more filters
@@ -1854,7 +1854,7 @@ lpr -#3 parser.c parser.h
 	      
 	    <item>LPD expects every printer to be able to print plain
 	      text by default.  This presents a problem for PostScript
-	      (or other language-based printers) which can't directly
+	      (or other language-based printers) which cannot directly
 	      print plain text.  Section <ref
 	      id="printing:advanced:if-conversion" name="Accommodating
 	      Plain Text Jobs on PostScript Printers"> tells you what
@@ -1869,7 +1869,7 @@ lpr -#3 parser.c parser.h
 	      tells how you can further modify a printer's text filter
 	      to accept and print PostScript data on a
 	      <em/non-PostScript/ printer.  I recommend reading this
-	      section if you don't have a PostScript printer.
+	      section if you do not have a PostScript printer.
 	      
 	    <item>Section <ref id="printing:advanced:convfilters"
 		name="Conversion Filters"> tells about a way you can
@@ -1884,7 +1884,7 @@ lpr -#3 parser.c parser.h
 
 	    <item>Section <ref id="printing:advanced:of" name="Output
 		Filters"> tells all about a not often used feature of
-		LPD: output filters.  Unless you're printing header
+		LPD: output filters.  Unless you are printing header
 		pages (see <ref id="printing:advanced:header-pages"
 		name="Header Pages">), you can probably skip that
 		section altogether.
@@ -1914,7 +1914,7 @@ lpr -#3 parser.c parser.h
 	    <tt>/dev/console</tt> by default).
 
 	    Which filter LPD starts and the filter's arguments depend
-	    on what's listed in the <tt>/etc/printcap</tt> file and
+	    on what is listed in the <tt>/etc/printcap</tt> file and
 	    what arguments the user specified for the job on the
 	    <tt/lpr/ command line.  For example, if the user typed
 	    <tt/lpr -t/, LPD would start the troff filter, listed in
@@ -1931,11 +1931,11 @@ lpr -#3 parser.c parser.h
 		<em/input filter/ in LPD documentation, handles
 		regular text printing.  Think of it as the default
                 filter.  LPD expects every printer to be able to print
-		plain text by default, and it's the text filter's job
+		plain text by default, and it is the text filter's job
 		to make sure backspaces, tabs, or other special
-		characters don't confuse the printer.
+		characters do not confuse the printer.
 
-		If you're in an environment where you have to account
+		If you are in an environment where you have to account
 		for printer usage, the text filter must also account
 		for pages printed, usually by counting the number of
 		lines printed and comparing that to the number of
@@ -1985,7 +1985,7 @@ lpr -#3 parser.c parser.h
 
 	      <item>A <em/conversion filter/ converts a specific file
 		format into one the printer can render onto paper.
-		For example, ditroff typesetting data can't be
+		For example, ditroff typesetting data cannot be
 		directly printed, but you can install a conversion
 		filter for ditroff files to convert the ditroff data
 		into a form the printer can digest and print.  Section
@@ -2003,7 +2003,7 @@ lpr -#3 parser.c parser.h
 		capability (default 0) and <it/pixel-height/ is the
 		value from the <tt/py/ capability (default 0).
 
-	      <item>The <em/output filter/ is used only if there's no
+	      <item>The <em/output filter/ is used only if there is no
 		text filter, or if header pages are enabled.  In my
 		experience, output filters are rarely used.  Section
 		<ref id="printing:advanced:of" name="Output Filters">
@@ -2031,7 +2031,7 @@ lpr -#3 parser.c parser.h
 
 	      <tag/exit 2/
 
-	        If the filter failed to print the file and doesn't
+	        If the filter failed to print the file and does not
 		want LPD to try again.  LPD will throw out the file.
 	    </descrip>
 
@@ -2042,7 +2042,7 @@ lpr -#3 parser.c parser.h
 	    the login, host, and accounting file arguments to make the
 	    accounting entries.
 
-	    If you're shopping for filters, see if they're
+	    If you are shopping for filters, see if they are
 	    LPD-compatible.  If they are, they must support the
 	    argument lists described above.  If you plan on writing
 	    filters for general use, then have them support the same
@@ -2051,28 +2051,28 @@ lpr -#3 parser.c parser.h
 	<sect2><heading>Accommodating Plain Text Jobs on PostScript Printers
 	    <label id="printing:advanced:if-conversion"></heading>
 
-	  <p> If you're the only user of your computer and PostScript
+	  <p> If you are the only user of your computer and PostScript
 	    (or other language-based) printer, and you promise to
 	    never send plain text to your printer and to never use
 	    features of various programs that will want to send plain
-	    text to your printer, then you don't need to worry about
+	    text to your printer, then you do not need to worry about
 	    this section at all.
 
 	    But, if you would like to send both PostScript and plain
-	    text jobs to the printer, then you're urged to augment
+	    text jobs to the printer, then you are urged to augment
 	    your printer setup.  To do so, we have the text filter
 	    detect if the arriving job is plain text or PostScript.
 	    All PostScript jobs must start with <tt/&percnt;!/ (for
 	    other printer languages, see your printer documentation).
 	    If those are the first two characters in the job, we have
 	    PostScript, and can pass the rest of the job directly.  If
-	    those aren't the first two characters in the file, then
+	    those are not the first two characters in the file, then
 	    the filter will convert the text into PostScript and print
 	    the result.
 
 	    How do we do this?
 
-	    If you've got a serial printer, a great way to do it is to
+	    If you have got a serial printer, a great way to do it is to
 	    install <tt/lprps/.  <tt/lprps/ is a PostScript printer
 	    filter which performs two-way communication with the
 	    printer.  It updates the printer's status file with
@@ -2089,7 +2089,7 @@ lpr -#3 parser.c parser.h
 	    (see <ref id="ports" name="The Ports Collection">); if not,
 	    it should be shortly.  You can fetch, build and install it
 	    yourself, of course.  After installing <tt/lprps/, just
-	    specify the pathname to the <tt/psif/ program that's part
+	    specify the pathname to the <tt/psif/ program that is part
 	    of <tt/lprps/.  If you installed <tt/lprps/ from the ports
 	    collection, use the following in the serial PostScript
 	    printer's entry in <tt>/etc/printcap</tt>:
@@ -2100,7 +2100,7 @@ lpr -#3 parser.c parser.h
 	    LPD to open the printer in read-write mode.
 
 	    If you have a parallel PostScript printer (and therefore
-	    can't use two-way communication with the printer, which
+	    cannot use two-way communication with the printer, which
 	    <tt/lprps/ needs), you can use the following shell script
 	    as the text filter:
 <code>
@@ -2152,16 +2152,16 @@ fi
 	    printer.
 
 	    Ghostscript should be in the FreeBSD ports collection, if
-	    you'd like to install it from there.  You can fetch,
+	    you would like to install it from there.  You can fetch,
 	    build, and install it quite easily yourself, as well.
 
 	    To simulate PostScript, we have the text filter detect if
-	    it's printing a PostScript file.  If it's not, then the
+	    it is printing a PostScript file.  If it is not, then the
 	    filter will pass the file directly to the printer;
 	    otherwise, it will use Ghostscript to first convert the
 	    file into a format the printer will understand.
 
-	    Here's an example: the following script is a text filter
+	    Here is an example: the following script is a text filter
 	    for Hewlett Packard DeskJet 500 printers.  For other
 	    printers, substitute the <tt/-sDEVICE/ argument to the
 	    <tt/gs/ (Ghostscript) command.  (Type <tt/gs -h/ to get a
@@ -2186,7 +2186,7 @@ first_two_chars=`expr "$first_line" : '\(..\)'`
 
 if [ "$first_two_chars" = "%!" ]; then
     #
-    #  It's PostScript; use Ghostscript to scan-convert and print it
+    #  It is PostScript; use Ghostscript to scan-convert and print it
     #
     /usr/local/bin/gs -dSAFER -dNOPAUSE -q -sDEVICE=djet500 -sOutputFile=- - \
         &ero;&ero; exit 0
@@ -2206,7 +2206,7 @@ exit 2
 <tscreen><verb>
 	:if=/usr/local/libexec/hpif:
 </verb></tscreen>
-	    That's it.  You can type <tt/lpr plain.text/ and <tt/lpr
+	    That is it.  You can type <tt/lpr plain.text/ and <tt/lpr
 	    whatever.ps/ and both should print successfully.
 
 
@@ -2215,7 +2215,7 @@ exit 2
 
 	  <p> After completing the simple setup described in <ref
 	      name="Simple Printer Setup" id="printing:simple">, the
-	      first thing you'll probably want to do is install
+	      first thing you will probably want to do is install
 	      conversion filters for your favorite file formats
 	      (besides plain ASCII text).
 
@@ -2225,7 +2225,7 @@ exit 2
 	      files easy.  As an example, suppose we do a lot of work
 	      with the TeX typesetting system, and we have a
 	      PostScript printer.  Every time we generate a DVI file
-	      from TeX, we can't print it directly until we convert
+	      from TeX, we cannot print it directly until we convert
 	      the DVI file into PostScript.  The command sequence
 	      goes like this:
 <tscreen><verb>
@@ -2234,7 +2234,7 @@ lpr seaweed-analysis.ps
 </verb></tscreen>
 	      By installing a conversion filter for DVI files, we can
 	      skip the hand conversion step each time by having LPD do
-	      it for us.  Now, each time we get a DVI file, we're just
+	      it for us.  Now, each time we get a DVI file, we are just
 	      one step away from printing it:
 <tscreen><verb>
 lpr -d seaweed-analysis.dvi
@@ -2258,7 +2258,7 @@ lpr -d seaweed-analysis.dvi
 
 	    <p> You should install the conversion filters you expect
 	      to use.  If you print a lot of DVI data, then a DVI
-	      conversion filter is in order.  If you've got plenty of
+	      conversion filter is in order.  If you have got plenty of
 	      troff to print out, then you probably want a troff
 	      filter.
 
@@ -2288,7 +2288,7 @@ plain text         if     none, -p, or -l
 	      text and plot are probably obsolete.  At your site, you
 	      can give new meanings to these or any of the formatting
 	      options just by installing custom filters.  For example,
-	      suppose you'd like to directly print Printerleaf files
+	      suppose you would like to directly print Printerleaf files
 	      (files from the Interleaf desktop publishing program),
 	      but will never print plot files.  You could install a
 	      Printerleaf conversion filter under the <tt/gf/
@@ -2301,15 +2301,15 @@ plain text         if     none, -p, or -l
 	      outside of the base FreeBSD installation, they should
 	      probably go under <tt>/usr/local</tt>.  The directory
 	      <tt>/usr/local/libexec</tt> is a popular location, since
-	      they they're specialized programs that only LPD will
-	      run; regular users shouldn't ever need to run them.
+	      they they are specialized programs that only LPD will
+	      run; regular users should not ever need to run them.
 
 	      To enable a conversion filter, specify its pathname
 	      under the appropriate capability for the destination
 	      printer in <tt>/etc/printcap</tt>.
 
-	      In our example, we'll add the DVI conversion filter to
-	      the entry for the printer named <tt/bamboo/.  Here's the
+	      In our example, we will add the DVI conversion filter to
+	      the entry for the printer named <tt/bamboo/.  Here is the
 	      example <tt>/etc/printcap</tt> file again, with the new
 	      <tt/df/ capability for the printer <tt/bamboo/
 <code>
@@ -2328,7 +2328,7 @@ bamboo|ps|PS|S|panasonic|Panasonic KX-P4455 PostScript v51.4:\
 	:df=/usr/local/libexec/psdf:
 </code>
 	      The DVI filter is a shell script named
-	      <tt>/usr/local/libexec/psdf</tt>.  Here's that script:
+	      <tt>/usr/local/libexec/psdf</tt>.  Here is that script:
 <code>
 #!bin/sh
 #
@@ -2350,7 +2350,7 @@ exec /usr/local/bin/dvips -f | /usr/local/libexec/lprps "$@"
 
 	  <sect3><heading>More Conversion Filter Examples</heading>
 
-	    <p> Since there's no fixed set of steps to install
+	    <p> Since there is no fixed set of steps to install
 	      conversion filters, let me instead provide more
 	      examples.  Use these as guidance to making your own
 	      filters.  Use them directly, if appropriate.
@@ -2375,7 +2375,7 @@ giftopnm | ppmtopgm | pgmtopbm | pbmtolj -resolution 300 \
 	      converting that into a portable bitmap, and converting
 	      that into LaserJet/PCL-compatible data.
 
-	      Here's the <tt>/etc/printcap</tt> file with an entry for
+	      Here is the <tt>/etc/printcap</tt> file with an entry for
 	      a printer using the above filter:
 <code>
 #
@@ -2400,7 +2400,7 @@ exec grops | /usr/local/libexec/lprps "$@"
 </code>
 	      The above script makes use of <tt/lprps/ again to handle
 	      the communication with the printer.  If the printer were
-	      on a parallel port, we'd use this script instead:
+	      on a parallel port, we would use this script instead:
 <code>
 #!/bin/sh
 #
@@ -2409,15 +2409,15 @@ exec grops | /usr/local/libexec/lprps "$@"
 #
 exec grops
 </code>
-	      That's it.  Here's the entry we need to add to
+	      That is it.  Here is the entry we need to add to
 	      <tt>/etc/printcap</tt> to enable the filter:
 <tscreen><verb>
 	:tf=/usr/local/libexec/pstf:
 </verb></tscreen>
 
-              Here's an example that might make old hands at FORTRAN
-              blush.  It's a FORTRAN-text filter for any printer that
-	      can directly print plain text.  We'll install it for the
+              Here is an example that might make old hands at FORTRAN
+              blush.  It is a FORTRAN-text filter for any printer that
+	      can directly print plain text.  We will install it for the
 	      printer <tt/teak/:
 <code>
 #!/bin/sh
@@ -2429,13 +2429,13 @@ exec grops
 printf "\033&ero;k2G" &ero;&ero; fpr &ero;&ero; printf "\f" &ero;&ero; exit 0
 exit 2
 </code>
-	      And we'll add this line to the <tt>/etc/printcap</tt>
+	      And we will add this line to the <tt>/etc/printcap</tt>
 	      for the printer <tt/teak/ to enable this filter:
 <tscreen><verb>
 	:rf=/usr/local/libexec/hprf:
 </verb></tscreen>
 
-	      Here's one final, somewhat complex example.  We'll add a
+	      Here is one final, somewhat complex example.  We will add a
 	      DVI filter to the LaserJet printer <tt/teak/ introduced
 	      earlier.  First, the easy part: updating
 	      <tt>/etc/printcap</tt> with the location of the DVI
@@ -2454,8 +2454,8 @@ exit 2
 	      codes.
 
 	      <tt/dvilj2p/ makes the filter <tt/hpdf/ quite complex
-	      since <tt/dvilj2p/ can't read from standard input.  It
-	      wants to work with a filename.  What's worse, the
+	      since <tt/dvilj2p/ cannot read from standard input.  It
+	      wants to work with a filename.  What iss worse, the
 	      filename has to end in <tt/.dvi/ so using
 	      <tt>/dev/fd/0</tt> for standard input is problematic.
 	      We can get around that problem by linking (symbolically)
@@ -2464,18 +2464,18 @@ exit 2
 	      from standard input.
 
 	      The only other fly in the ointment is the fact that we
-	      can't use /tmp for the temporary link.  Symbolic links
+	      cannot use /tmp for the temporary link.  Symbolic links
 	      are owned by user and group <tt/bin/.  The filter runs
 	      as user <tt/daemon/.  And the <tt>/tmp</tt> directory
 	      has the sticky bit set.  The filter can create the link,
-	      but it won't be able clean up when done and remove it
+	      but it will not be able clean up when done and remove it
 	      since the link will belong to a different user.
 
 	      Instead, the filter will make the symbolic link in the
 	      current working directory, which is the spooling
 	      directory (specified by the <tt/sd/ capability in
 	      <tt>/etc/printcap</tt>).  This is a perfect place for
-	      filters to do their work, especially since there's
+	      filters to do their work, especially since there is
 	      (sometimes) more free disk space in the spooling directory
 	      than under <tt>/tmp</tt>.
 
@@ -2499,7 +2499,7 @@ cleanup() {
 
 #
 #  Define a function to handle fatal errors: print the given message
-#  and exit 2.  Exiting with 2 tells LPD to don't try to reprint the
+#  and exit 2.  Exiting with 2 tells LPD to do not try to reprint the
 #  job.
 #
 fatal() {
@@ -2515,7 +2515,7 @@ fatal() {
 trap cleanup 1 2 15 
 
 #
-#  Make sure we're not colliding with any existing files.
+#  Make sure we are not colliding with any existing files.
 #
 cleanup
 
@@ -2530,7 +2530,7 @@ ln -s /dev/fd/0 hpdf$$.dvi || fatal "Cannot symlink /dev/fd/0"
 printf "\033&ero;k2G" || fatal "Cannot initialize printer"
 
 # 
-#  Convert and print.  Return value from dvilj2p doesn't seem to be
+#  Convert and print.  Return value from dvilj2p does not seem to be
 #  reliable, so we ignore it.
 #
 dvilj2p -M1 -q -e- dfhp$$.dvi
@@ -2548,19 +2548,19 @@ exit 0
 	    <p> All these conversion filters accomplish a lot for your
 	      printing environment, but at the cost forcing the user
 	      to specify (on the <tt/lpr/ command line) which one to
-	      use.  If your users aren't particularly computer
+	      use.  If your users are not particularly computer
 	      literate, having to specify a filter option will become
-	      annoying.  What's worse, though, is that an incorrectly
+	      annoying.  What is worse, though, is that an incorrectly
 	      specified filter option may run a filter on the wrong
 	      type of file and cause your printer to spew out hundreds
 	      of sheets of paper.
 
 	      Rather than install conversion filters at all, you might
-	      want to try having the text filter (since it's the
+	      want to try having the text filter (since it is the
 	      default filter) detect the type of file it has been asked to
 	      print and then automatically run the right conversion
 	      filter.  Tools such as <tt/file/ can be of help here.
-	      Of course, it'll be hard to determine the differences
+	      Of course, it will be hard to determine the differences
 	      between <em/some/ file types---and, of course, you can
 	      still provide conversion filters just for them.
 
@@ -2573,20 +2573,20 @@ exit 0
 	      id="printing:advanced:of"></heading>
 	  
 	  <p> The LPD spooling system supports one other type of
-	    filter that we've not yet explored: an output filter.  An
+	    filter that we have not yet explored: an output filter.  An
 	    output filter is intended for printing plain text only,
 	    like the text filter, but with many simplifications.  If
-	    you're using an output filter but no text filter, then
+	    you are using an output filter but no text filter, then
 	    <itemize>
 	      <item>LPD starts an output filter once for the entire
 		job instead of once for each file in the job.
 
-	      <item>LPD doesn't make any provision to identify the
+	      <item>LPD does not make any provision to identify the
 		start or the end of files within the job for the
 		output filter.
 
-	      <item>LPD doesn't pass the user's login or host to
-		the filter, so it's not intended to do accounting.  In
+	      <item>LPD does not pass the user's login or host to
+		the filter, so it is not intended to do accounting.  In
 		fact, it gets only two arguments:
 <tscreen>
 <tt>-w<it/width/ -l<it/length/</tt>
@@ -2596,9 +2596,9 @@ exit 0
 		printer in question.
 	    </itemize>
 
-	    Don't be seduced by an output filter's simplicity.  If
-	    you'd like each file in a job to start on a different page
-	    an output filter <em/won't work/.  Use a text filter (also
+	    Do not be seduced by an output filter's simplicity.  If
+	    you would like each file in a job to start on a different page
+	    an output filter <em/will not work/.  Use a text filter (also
 	    known as an input filter); see section <ref
 	    id="printing:textfilter" name="Installing the Text
 	    Filter">.  Furthermore, an output filter is actually
@@ -2609,9 +2609,9 @@ exit 0
 	    However, an output filter is <em/necessary/ if you want
 	    header pages and need to send escape sequences or other
 	    initialization strings to be able to print the header
-	    page.  (But it's also <em/futile/ if you want to charge
+	    page.  (But it is also <em/futile/ if you want to charge
 	    header pages to the requesting user's account, since LPD
-	    doesn't give any user or host information to the output
+	    does not give any user or host information to the output
 	    filter.)
 
 	    On a single printer, LPD allows both an output filter and
@@ -2622,10 +2622,10 @@ exit 0
 	    itself/ by sending two bytes to the filter: ASCII 031
 	    followed by ASCII 001.  When an output filter sees these
 	    two bytes (031, 001), it should stop by sending SIGSTOP to
-	    itself.  When LPD's done running other filters, it'll
+	    itself.  When LPD's done running other filters, it will
 	    restart the output filter by sending SIGCONT to it.
 
-	    If there's an output filter but <em/no/ text filter and
+	    If there is an output filter but <em/no/ text filter and
 	    LPD is working on a plain text job, LPD uses the output
 	    filter to do the job.  As stated before, the output filter
 	    will print each file of the job in sequence with no
@@ -2635,7 +2635,7 @@ exit 0
 
 	    The program <tt/lpf/, which we introduced earlier as a text
 	    filter, can also run as an output filter.  If you need a
-	    quick-and-dirty output filter but don't want to write the
+	    quick-and-dirty output filter but do not want to write the
 	    byte detection and signal sending code, try <tt/lpf/.  You
 	    can also wrap <tt/lpf/ in a shell script to handle any
 	    initialization codes the printer might require.
@@ -2653,7 +2653,7 @@ exit 0
 
 	    <tt/lpf/ is suitable for many printing environments.  And
 	    although it has no capability to send initialization
-	    sequences to a printer, it's easy to write a shell script
+	    sequences to a printer, it is easy to write a shell script
 	    to do the needed initialization and then execute <tt/lpf/.
 
 	    In order for <tt/lpf/ to do page accounting correctly, it
@@ -2673,12 +2673,12 @@ exit 0
 	  <em/header pages/ as a necessary evil.
 
 	  Header pages, also known as <em/banner/ or <em/burst pages/
-	  identify to whom jobs belong after they're printed.  They're
+	  identify to whom jobs belong after they are printed.  They are
 	  usually printed in large, bold letters, perhaps with
 	  decorative borders, so that in a stack of printouts they
 	  stand out from the real documents that comprise users' jobs.
 	  They enable users to locate their jobs quickly.  The obvious
-	  drawback to a header page is that it's yet one more sheet
+	  drawback to a header page is that it is yet one more sheet
 	  that has to be printed for every job, their ephemeral
 	  usefulness lasting not more than a few minutes, ultimately
 	  finding themselves in a recycling bin or rubbish heap.
@@ -2687,7 +2687,7 @@ exit 0
 
 	  The LPD system can provide header pages automatically for
 	  your printouts <em/if/ your printer can directly print plain
-	  text.  If you have a PostScript printer, you'll need an
+	  text.  If you have a PostScript printer, you will need an
 	  external program to generate the header page; see <ref
 	  id="printing:advanced:header-pages:ps" name="Header Pages on
 	  PostScript Printers">.
@@ -2703,9 +2703,9 @@ exit 0
 
 	    Sounds too easy, right?
 
-	    You're right.  You <em/might/ have to provide an output
+	    You are right.  You <em/might/ have to provide an output
 	    filter to send initialization strings to the printer.
-	    Here's an example output filter for Hewlett Packard
+	    Here is an example output filter for Hewlett Packard
 	    PCL-compatible printers:
 <code>
 #!/bin/sh
@@ -2721,7 +2721,7 @@ exec /usr/libexec/lpr/lpf
 	    capability.  See <ref id="printing:advanced:of"
 	    name="Output Filters"> for more information.
 
-	    Here's an example <tt>/etc/printcap</tt> file for the printer
+	    Here is an example <tt>/etc/printcap</tt> file for the printer
 	    <tt/teak/ that we introduced earlier; we enabled header
 	    pages and added the above output filter:
 <code>
@@ -2751,7 +2751,7 @@ teak|hp|laserjet|Hewlett Packard LaserJet 3Si:\
 
 	  <p> By enabling header pages, LPD will produce a <em/long
 	      header/, a full page of large letters identifying the
-	    user, host, and job.  Here's an example (kelly printed
+	    user, host, and job.  Here is an example (kelly printed
 	    the job named outline from host rose):
 <tscreen><verb>
 k                   ll       ll
@@ -2828,18 +2828,18 @@ rose:kelly  Job: outline  Date: Sun Sep 17 11:07:51 1995
 
 	    Because the output filter is the only external program
 	    that will have control when the header page is printed
-	    that could do accounting, and it isn't provided with any
+	    that could do accounting, and it is not provided with any
 	    <em/user or host/ information or an accounting file, so it
-	    has no idea whom to charge for printer use.  It's also not
+	    has no idea whom to charge for printer use.  It is also not
 	    enough to just ``add one page'' to the text filter or any
 	    of the conversion filters (which do have user and host
 	    information) since users can suppress header pages with
 	    <tt/lpr -h/.  They could still be charged for header pages
-	    they didn't print.  Basically, <tt/lpr -h/ will be the
+	    they did not print.  Basically, <tt/lpr -h/ will be the
 	    preferred option of environmentally-minded users, but you
-	    can't offer any incentive to use it.
+	    cannot offer any incentive to use it.
 
-	    It's <em/still not enough/ to have each of the filters
+	    It is <em/still not enough/ to have each of the filters
 	    generate their own header pages (thereby being able to
 	    charge for them).  If users wanted the option of
 	    suppressing the header pages with <tt/lpr -h/, they will
@@ -2860,10 +2860,10 @@ rose:kelly  Job: outline  Date: Sun Sep 17 11:07:51 1995
 		LPD.
 
 	      <item>Write a <em/smart/ output filter.  Normally, an
-		output filter isn't meant to do anything more than
+		output filter is not meant to do anything more than
 		initialize a printer or do some simple character
-		conversion.  It's suited for header pages and plain
-		text jobs (when there's no text (input) filter).
+		conversion.  It is suited for header pages and plain
+		text jobs (when there is no text (input) filter).
 
 		But, if there is a text filter for the plain text
 		jobs, then LPD will start the output filter only for
@@ -2871,8 +2871,8 @@ rose:kelly  Job: outline  Date: Sun Sep 17 11:07:51 1995
 		header page text that LPD generates to determine what
 		user and host to charge for the header page.  The only
 		other problem with this method is that the output
-		filter still doesn't know what accounting file to use
-		(it's not passed the name of the file from the <tt/af/
+		filter still does not know what accounting file to use
+		(it is not passed the name of the file from the <tt/af/
 		capability), but if you have a well-known accounting
 		file, you can hard-code that into the output filter.
 
@@ -2889,7 +2889,7 @@ rose:kelly  Job: outline  Date: Sun Sep 17 11:07:51 1995
 
 	  <p> As described above, LPD can generate a plain text header
 	    page suitable for many printers.  Of course, PostScript
-	    can't directly print plain text, so the header page
+	    cannot directly print plain text, so the header page
 	    feature of LPD is useless---or mostly so.
 
 	    One obvious way to get header pages is to have every
@@ -2899,7 +2899,7 @@ rose:kelly  Job: outline  Date: Sun Sep 17 11:07:51 1995
 	    drawback of this method is that users will always get a
 	    header page, even if they submit jobs with <tt/lpr -h/.
 
-	    Let's explore this method.  The following script takes
+	    Let us explore this method.  The following script takes
 	    three arguments (user login name, host name, and job name)
 	    and makes a simple PostScript header page:
 <code>
@@ -2911,7 +2911,7 @@ rose:kelly  Job: outline  Date: Sun Sep 17 11:07:51 1995
 
 #
 #  These are PostScript units (72 to the inch).  Modify for A4 or
-#  whatever size paper you're using:
+#  whatever size paper you are using:
 #
 page_width=612
 page_height=792
@@ -2940,7 +2940,7 @@ exec cat <<EOF
 %!PS
 
 %
-%  Make sure we don't interfere with user's job that will follow
+%  Make sure we do not interfere with user's job that will follow
 %
 save
 
@@ -2977,7 +2977,7 @@ $page_width ($user) stringwidth pop sub 2 div $page_height 200 sub moveto
 } forall
 
 %
-%  That's it
+%  That is it
 %
 restore
 showpage
@@ -2985,7 +2985,7 @@ EOF
 </code>
 	    Now, each of the conversion filters and the text filter
 	    can call this script to first generate the header page,
-	    and then print the user's job.  Here's the DVI conversion
+	    and then print the user's job.  Here is the DVI conversion
 	    filter from earlier in this document, modified to make a
 	    header page:
 <code>
@@ -3028,20 +3028,20 @@ done
 	    (see section <ref id="printing:advanced:filters" name="How
 	    Filters Work">).
 
-	    As we've mentioned before, the above scheme, though fairly
+	    As we have mentioned before, the above scheme, though fairly
 	    simple, disables the ``suppress header page'' option (the
 	    <tt/-h/ option) to <tt/lpr/.  If users wanted to save a
 	    tree (or a few pennies, if you charge for header pages),
-	    they wouldn't be able to do so, since every filter's going
+	    they would not be able to do so, since every filter's going
 	    to print a header page with every job.
 
 	    To allow users to shut off header pages on a per-job
-	    basis, you'll need to use the trick introduced in section
+	    basis, you will need to use the trick introduced in section
 	    <ref id="printing:advanced:header-pages:accounting"
 	    name="Accounting for Header Pages">: write an output
 	    filter that parses the LPD-generated header page and
 	    produces a PostScript version.  If the user submits the
-	    job with <tt/lpr -h/, then LPD won't generate a header
+	    job with <tt/lpr -h/, then LPD will not generate a header
 	    page, and neither will your output filter.  Otherwise,
 	    your output filter will read the text from LPD and send
 	    the appropriate header page PostScript code to the
@@ -3050,7 +3050,7 @@ done
 	    If you have a PostScript printer on a serial line, you
 	    can make use of <tt/lprps/, which comes with an output
 	    filter, <tt/psof/, which does the above.  Note that
-	    <tt/psof/ doesn't charge for header pages.
+	    <tt/psof/ does not charge for header pages.
 
       <sect1><heading>Networked Printing<label
 	    id="printing:advanced:network-printers"></heading>
@@ -3109,9 +3109,9 @@ done
 	    advanced setup in <ref id="printing:advanced"
 	    name="Advanced Printer Setup"> that you need.  Make sure
 	    to test the printer and see if it works with the features
-	    of LPD you've enabled.
+	    of LPD you have enabled.
 
-	    If you're using a printer with a network interface that's
+	    If you are using a printer with a network interface that is
 	    compatible with LPD, then the <em/printer host/ in the
 	    discussion below is the printer itself, and the
 	    <em/printer name/ is the name you configured for the
@@ -3139,17 +3139,17 @@ done
 	      <item>Place the printer name on the <em/printer host/ in
 		the <tt/rp/ capability.
 	    </enum>
-	    That's it.  You don't need to list conversion filters,
+	    That is it.  You do not need to list conversion filters,
 	    page dimensions, or anything else in the
 	    <tt>/etc/printcap</tt> file.
 
-	    Here's an example.  The host rose has two printers,
-	    <tt/bamboo/ and <tt/rattan/.  We'll enable users on the
-	    host orchid to print to those printers.  Here's the
+	    Here is an example.  The host rose has two printers,
+	    <tt/bamboo/ and <tt/rattan/.  We will enable users on the
+	    host orchid to print to those printers.  Here is the
 	    <tt>/etc/printcap</tt> file for orchid (back from section
 	    <ref id="printing:advanced:header-pages:enabling"
 	    name="Enabling Header Pages">).  It already had the entry
-	    for the printer <tt/teak/; we've added entries for the two
+	    for the printer <tt/teak/; we have added entries for the two
 	    printers on the host rose:
 <code>
 #
@@ -3157,7 +3157,7 @@ done
 #
 
 #
-#  teak is local; it's connected directly to orchid:
+#  teak is local; it is connected directly to orchid:
 #
 teak|hp|laserjet|Hewlett Packard LaserJet 3Si:\
 	:lp=/dev/lpt0:sd=/var/spool/lpd/teak:mx#0:\
@@ -3212,15 +3212,15 @@ lpr -P bamboo -d sushi-review.dvi
 
 	    The format of the <tt>/etc/printcap</tt> file lets you
 	    specify what serial or parallel interface to use, and (if
-	    you're using a serial interface), what baud rate, whether
+	    you are using a serial interface), what baud rate, whether
 	    to use flow control, delays for tabs, conversion of
-	    newlines, and more.  But there's no way to specify a
-	    connection to a printer that's listening on a TCP/IP or
+	    newlines, and more.  But there is no way to specify a
+	    connection to a printer that is listening on a TCP/IP or
 	    other network port.
 
 	    To send data to a networked printer, you need to develop a
 	    communications program that can be called by the text and
-	    conversion filters.  Here's one such example: the script
+	    conversion filters.  Here is one such example: the script
 	    <tt/netprint/ takes all data on standard input and sends
 	    it to a network-attached printer.  We specify the hostname
 	    of the printer as the first argument and the port number
@@ -3259,7 +3259,7 @@ exit 0;
 	    We can then use this script in various filters.  Suppose
 	    we had a Diablo 750-N line printer connected to the
 	    network.  The printer accepts data to print on port number
-	    5100.  The host name of the printer is scrivener.  Here's
+	    5100.  The host name of the printer is scrivener.  Here is
 	    the text filter for the printer:
 <code>
 #!/bin/sh
@@ -3293,22 +3293,22 @@ exec /usr/libexec/lpr/lpf "$@" | /usr/local/libexec/netprint scrivener 5100
 	    tear on your printers, you can disable the <tt/-&num;/ option
 	    to <tt/lpr/ by adding the <tt/sc/ capability to the
 	    <tt>/etc/printcap</tt> file.  When users submit jobs
-	    with the <tt/-&num;/ option, they'll see
+	    with the <tt/-&num;/ option, they will see
 <tscreen><verb>
 lpr: multiple copies are not allowed
 </verb></tscreen>
 
-	    Note that if you've set up access to a printer remotely
+	    Note that if you have set up access to a printer remotely
 	    (see section <ref name="Printers Installed on Remote
 	    Hosts" id="printing:advanced:network:rm">), you need the
 	    <tt/sc/ capability on the remote <tt>/etc/printcap</tt>
 	    files as well, or else users will still be able to submit
 	    multiple-copy jobs by using another host.
 
-	    Here's an example.  This is the <tt>/etc/printcap</tt>
+	    Here is an example.  This is the <tt>/etc/printcap</tt>
 	    file for the host rose.  The printer <tt/rattan/ is quite
-	    hearty, so we'll allow multiple copies, but the laser
-	    printer <tt/bamboo/'s a bit more delicate, so we'll
+	    hearty, so we will allow multiple copies, but the laser
+	    printer <tt/bamboo/'s a bit more delicate, so we will
 	    disable multiple copies by adding the <tt/sc/ capability:
 <code>
 #
@@ -3326,8 +3326,8 @@ bamboo|ps|PS|S|panasonic|Panasonic KX-P4455 PostScript v51.4:\
 	:df=/usr/local/libexec/psdf:
 </code>
 	    Now, we also need to add the <tt/sc/ capability on the
-	    host orchid's <tt>/etc/printcap</tt> (and while we're at
-	    it, let's disable multiple copies for the printer
+	    host orchid's <tt>/etc/printcap</tt> (and while we are at
+	    it, let us disable multiple copies for the printer
 	    <tt/teak/):
 <code>
 #
@@ -3347,7 +3347,7 @@ bamboo|ps|PS|S|panasonic|Panasonic KX-P4455 PostScript v51.4:\
 	:lp=:rm=rose:rp=bamboo:sd=/var/spool/lpd/bamboo:sc:
 </code>
 	    By using the <tt/sc/ capability, we prevent the use of
-	    <tt/lpr -&num;/, but that still doesn't prevent users from
+	    <tt/lpr -&num;/, but that still does not prevent users from
 	    running <tt/lpr/ multiple times, or from submitting the
 	    same file multiple times in one job like this:
 <tscreen><verb>
@@ -3374,13 +3374,13 @@ lpr: Not a member of the restricted group
 
 	    As with the <tt/sc/ (suppress multiple copies) capability,
 	    you need to specify <tt/rg/ on remote hosts that also have
-	    access to your printers, if you feel it's appropriate (see
+	    access to your printers, if you feel it is appropriate (see
 	    section <ref name="Printers Installed on Remote Hosts"
 	    id="printing:advanced:network:rm">).
 
-	    For example, we'll let anyone access the printer
+	    For example, we will let anyone access the printer
 	    <tt/rattan/, but only those in group <tt/artists/ can use
-	    <tt/bamboo/.  Here's the familiar <tt>/etc/printcap</tt>
+	    <tt/bamboo/.  Here is the familiar <tt>/etc/printcap</tt>
 	    for host rose:
 <code>
 #
@@ -3397,7 +3397,7 @@ bamboo|ps|PS|S|panasonic|Panasonic KX-P4455 PostScript v51.4:\
 	:if=/usr/local/libexec/psif:\
 	:df=/usr/local/libexec/psdf:
 </code>
-	    Let's leave the other example <tt>/etc/printcap</tt> file
+	    Let us leave the other example <tt>/etc/printcap</tt> file
 	    (for the host orchid) alone.  Of course, anyone on orchid
 	    can print to <tt/bamboo/.  It might be the case that we
 	    only allow certain logins on orchid anyway, and want them
@@ -3411,27 +3411,27 @@ bamboo|ps|PS|S|panasonic|Panasonic KX-P4455 PostScript v51.4:\
 
 	  <p> If you have many users accessing the printers, you
 	    probably need to put an upper limit on the sizes of the
-	    files users can submit to print.  After all, there's only
+	    files users can submit to print.  After all, there is only
 	    so much free space on the filesystem that houses the
 	    spooling directories, and you also need to make sure
-	    there's room for the jobs of other users.
+	    there is room for the jobs of other users.
 
 	    LPD enables you to limit the maximum byte size a file in a
 	    job can be with the <tt/mx/ capability.  The units are in
 	    BUFSIZ blocks, which are 1024 bytes.  If you put a zero
-	    for this capability, there'll be no limit on file size.
+	    for this capability, there will be no limit on file size.
 	    Note that the limit applies to <em/files/ in a job, and
 	    <em/not/ the total job size.
 
-	    LPD won't refuse a file that's larger than the limit you
-	    place on a printer.  Instead, it'll queue as much of the
+	    LPD will not refuse a file that is larger than the limit you
+	    place on a printer.  Instead, it will queue as much of the
 	    file up to the limit, which will then get printed.  The
 	    rest will be discarded.  Whether this is correct behavior
 	    is up for debate.
 
-	    Let's add limits to our example printers <tt/rattan/ and
+	    Let us add limits to our example printers <tt/rattan/ and
 	    <tt/bamboo/.  Since those artists' PostScript files tend
-	    to be large, we'll limit them to five megabytes.  We'll
+	    to be large, we will limit them to five megabytes.  We will
 	    put no limit on the plain text line printer:
 <code>
 #
@@ -3456,14 +3456,14 @@ bamboo|ps|PS|S|panasonic|Panasonic KX-P4455 PostScript v51.4:\
 	:df=/usr/local/libexec/psdf:
 </code>
 	    Again, the limits apply to the local users only.  If
-	    you've set up access to your printers remotely, remote
-	    users won't get those limits.  You'll need to specify the
+	    you have set up access to your printers remotely, remote
+	    users will not get those limits.  You will need to specify the
 	    <tt/mx/ capability in the remote <tt>/etc/printcap</tt>
 	    files as well.  See section <ref name="Printers Installed
 	    on Remote Hosts" id="printing:advanced:network:rm"> for
 	    more information on remote printing.
 
-	    There's another specialized way to limit job sizes from
+	    There is another specialized way to limit job sizes from
 	    remote printers; see section <ref
 	    id="printing:advanced:restricting:remote"
 	    name="Restricting Jobs from Remote Printers">.
@@ -3489,7 +3489,7 @@ bamboo|ps|PS|S|panasonic|Panasonic KX-P4455 PostScript v51.4:\
 		also used by the ruserok(3) protocol, and affects
 		programs like <tt/rsh/ and <tt/rcp/, so be careful.
 
-		For example, here's the <tt>/etc/hosts.lpd</tt> file
+		For example, here is the <tt>/etc/hosts.lpd</tt> file
 		on the host rose:
 <code>
 orchid
@@ -3511,16 +3511,16 @@ madrigal.fishbaum.de
 		(512 bytes) of free space there has to be for a remote
 		job to be accepted.
 
-	        This lets you insure that remote users won't fill your
+	        This lets you insure that remote users will not fill your
 		filesystem.  You can also use it to give a certain
-		priority to local users: they'll be able to queue jobs
+		priority to local users: they will be able to queue jobs
 		long after the free disk space has fallen below the
 		amount specified in the <tt/minfree/ file.
 
-	        For example, let's add a <tt/minfree/ file for the
+	        For example, let us add a <tt/minfree/ file for the
 		printer <tt/bamboo/.  We examine
 		<tt>/etc/printcap</tt> to find the spooling directory
-		for this printer; here's <tt/bamboo/'s entry:
+		for this printer; here is <tt/bamboo/'s entry:
 <tscreen><verb>
 bamboo|ps|PS|S|panasonic|Panasonic KX-P4455 PostScript v51.4:\
 	:sh:sd=/var/spool/lpd/bamboo:sc:rg=artists:mx#5000:\
@@ -3529,7 +3529,7 @@ bamboo|ps|PS|S|panasonic|Panasonic KX-P4455 PostScript v51.4:\
 	:df=/usr/local/libexec/psdf:
 </verb></tscreen>
 		The spooling directory is the given in the <tt/sd/
-		capability.  We'll make three megabytes (which is 6144
+		capability.  We will make three megabytes (which is 6144
 		disk blocks) the amount of free disk space that must
 		exist on the filesystem for LPD to accept remote jobs:
 <tscreen><verb>
@@ -3550,7 +3550,7 @@ echo 6144 > /var/spool/lpd/bamboo/minfree
 		departments sharing a network, and some users
 		transcend departmental boundaries.  By giving them
 		accounts on your systems, they can use your printers
-		from their own departmental systems.  If you'd rather
+		from their own departmental systems.  If you would rather
 		allow them to use <em/only/ your printers and not your
 		compute resources, you can give them ``token''
 		accounts, with no home directory and a useless shell
@@ -3563,12 +3563,12 @@ echo 6144 > /var/spool/lpd/bamboo/minfree
 	<p> So, you need to charge for printouts.  And why not?  Paper
 	  and ink cost money.  And then there are maintenance
 	  costs---printers are loaded with moving parts and tend to
-	  break down.  You've examined your printers, usage patterns,
+	  break down.  You have examined your printers, usage patterns,
 	  and maintenance fees and have come up with a per-page (or
 	  per-foot, per-meter, or per-whatever) cost.  Now, how do you
 	  actually start accounting for printouts?
 
-	  Well, the bad news is the LPD spooling system doesn't
+	  Well, the bad news is the LPD spooling system does not
 	  provide much help in this department.  Accounting is highly
 	  dependent on the kind of printer in use, the formats being
 	  printed, and <em/your/ requirements in charging for printer
@@ -3577,7 +3577,7 @@ echo 6144 > /var/spool/lpd/bamboo/minfree
 	  To implement accounting, you have to modify a printer's text
 	  filter (to charge for plain text jobs) and the conversion
 	  filters (to charge for other file formats), to count pages
-	  or query the printer for pages printed.  You can't get away
+	  or query the printer for pages printed.  You cannot get away
 	  with using the simple output filter, since it cannot do
 	  accounting.  See section <ref name="Filters"
 	  id="printing:advanced:filter-intro">.
@@ -3585,7 +3585,7 @@ echo 6144 > /var/spool/lpd/bamboo/minfree
 	  Generally, there are two ways to do accounting:
 	  <itemize>
 	    <item><em/Periodic accounting/ is the more common way,
-	      possibly because it's easier.  Whenever someone prints a
+	      possibly because it is easier.  Whenever someone prints a
 	      job, the filter logs the user, host, and number of pages
 	      to an accounting file.  Every month, semester, year, or
 	      whatever time period you prefer, you collect the
@@ -3595,7 +3595,7 @@ echo 6144 > /var/spool/lpd/bamboo/minfree
 	      slate for the next period.
 
 	    <item><em/Timely accounting/ is less common, probably
-	      because it's more difficult.  This method has the
+	      because it is more difficult.  This method has the
 	      filters charge users for printouts as soon as they use
 	      the printers.  Like disk quotas, the accounting is
 	      immediate.  You can prevent users from printing when
@@ -3657,10 +3657,10 @@ echo 6144 > /var/spool/lpd/bamboo/minfree
 	    Then, each accounting file will be in the spooling directory
 	    for a printer, in a file named <tt/acct/.
 
-	    When you're ready to charge users for printouts, run the
+	    When you are ready to charge users for printouts, run the
 	    <tt/pac/ program.  Just change to the spooling directory
 	    for the printer you want to collect on and type <tt/pac/.
-	    You'll get a dollar-centric summary like the following:
+	    You will get a dollar-centric summary like the following:
 <code>
   Login               pages/feet   runs    price
 orchid:kelly                5.00    1   $  0.10
@@ -3678,7 +3678,7 @@ total                     337.00  154   $  6.74
 	      <tag/<tt/-P<it/printer///
 
 	        Which <it/printer/ to summarize.  This option works
-		only if there's an absolute path in the <tt/af/
+		only if there is an absolute path in the <tt/af/
 		capability in <tt>/etc/printcap</tt>.
 
 	      <tag/<tt/-c//
@@ -3690,7 +3690,7 @@ total                     337.00  154   $  6.74
 
 		Ignore host name in the accounting files.  With this
 		option, user smith on host alpha is the same user
-		smith on host gamma.  Without, they're different users.
+		smith on host gamma.  Without, they are different users.
 
 	      <tag/<tt/-p<it/price///
 
@@ -3717,7 +3717,7 @@ total                     337.00  154   $  6.74
 
 	    In the default summary that <tt/pac/ produces, you see the
 	    number of pages printed by each user from various hosts.
-	    If, at your site, host doesn't matter (because users can
+	    If, at your site, host does not matter (because users can
 	    use any host), run <tt/pac -m/, to produce the following
 	    summary:
 <code>
@@ -3762,7 +3762,7 @@ pac -p1.50
 
 	    For plain text jobs, the problem's not that hard to solve:
 	    you count how many lines are in a job and compare it to
-	    how many lines per page your printer supports.  Don't
+	    how many lines per page your printer supports.  Do not
 	    forget to take into account backspaces in the file which
 	    overprint lines, or long logical lines that wrap onto one
 	    or more additional physical lines.
@@ -3770,7 +3770,7 @@ pac -p1.50
 	    The text filter <tt/lpf/ (introduced in <ref
 	    id="printing:advanced:lpf" name="lpf: a Text Filter">)
 	    takes into account these things when it does accounting.
-	    If you're writing a text filter which needs to do
+	    If you are writing a text filter which needs to do
 	    accounting, you might want to examine <tt/lpf/'s source
 	    code.
 
@@ -3797,7 +3797,7 @@ pac -p1.50
 	    (networked Imagen laser printers, for example).  Modify
 	    the filters for these printers to get the page usage after
 	    they print each job and have them log accounting
-	    information based on that value <em/only/.  There's no
+	    information based on that value <em/only/.  There is no
 	    line counting nor error-prone file examination required.
 
 	    Of course, you can always be generous and make all
@@ -3806,15 +3806,15 @@ pac -p1.50
     <sect><heading>Alternatives to the Standard Spooler<label
 	  id="printing:lpd-alternatives"></heading> 
 
-      <p> If you've been reading straight through this manual, by now
-	you've learned just about everything there is to know about
+      <p> If you have been reading straight through this manual, by now
+	you have learned just about everything there is to know about
 	the LPD spooling system that comes with FreeBSD.  You can
 	probably appreciate many of its shortcomings, which naturally
 	leads to the question: ``What other spooling systems are out
 	there (and work with FreeBSD)?''
 
-	Unfortunately, I've located only <em/two/ alternatives---and
-	they're almost identical to each other!  They are:
+	Unfortunately, I have located only <em/two/ alternatives---and
+	they are almost identical to each other!  They are:
 	<descrip>
 	  <tag/PLP, the Portable Line Printer Spooler System/
 
@@ -3822,11 +3822,11 @@ pac -p1.50
 	    then maintained by an Internet-wide group of developers.
 	    The main site for the software is at <htmlurl
 	    url="ftp://ftp.iona.ie/pub/plp"
-	    name="ftp://ftp.iona.ie/pub/plp">.  There's also a <htmlurl
+	    name="ftp://ftp.iona.ie/pub/plp">.  There is also a <htmlurl
 	      url="http://www.iona.ie:8000/www/hyplan/jmason/plp.html"
 	      name="web page">.
 
-	    It's quite similar to the BSD LPD spooler, but boasts a
+	    It is quite similar to the BSD LPD spooler, but boasts a
 	    host of features, including:
 	    <itemize>
 	      <item>Better network support, including built-in support
@@ -3857,7 +3857,7 @@ pac -p1.50
 
     <sect><heading>Acknowledgments</heading>
 
-      <p> I'd like to thank the following people who have assisted in
+      <p> I would like to thank the following people who have assisted in
 	the development of this document:
 
 	<descrip>

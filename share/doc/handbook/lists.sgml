@@ -1,0 +1,57 @@
+<!-- $Id: authors.sgml,v 1.20 1996/05/09 23:04:30 mpp Exp $ -->
+<!-- The FreeBSD Documentation Project -->
+
+<!-- 
+Names and email address of contributing authors and CVS committers
+and some of the common FreeBSD mailing lists.  Use these
+entities when referencing people or mailing lists.  Please 
+note the use of single
+and double quotes.  
+-->
+
+<!ENTITY a.announce "FreeBSD announcments mailing list
+  <tt><htmlurl url='mailto:freebsd-announce@FreeBSD.ORG'
+  name='&lt;freebsd-announce@FreeBSD.ORG&gt;'></tt>">
+
+<!ENTITY a.doc "FreeBSD documentation project mailing list
+  <tt><htmlurl url='mailto:freebsd-doc@FreeBSD.ORG'
+  name='&lt;freebsd-doc@FreeBSD.ORG&gt;'></tt>">
+
+<!ENTITY a.bugs "FreeBSD problem reports mailing list
+  <tt><htmlurl url='mailto:freebsd-doc@FreeBSD.ORG'
+  name='&lt;freebsd-doc@FreeBSD.ORG&gt;'></tt>">
+
+<!ENTITY a.current "FreeBSD-current mailing list
+  <tt><htmlurl url='mailto:freebsd-current@FreeBSD.ORG'
+  name='&lt;freebsd-current@FreeBSD.ORG&gt;'></tt>">
+
+<!ENTITY a.emulation "FreeBSD-emulation mailing list
+  <tt><htmlurl url='mailto:freebsd-emulation@FreeBSD.ORG'
+  name='&lt;freebsd-emulation@FreeBSD.ORG&gt;'></tt>">
+
+<!ENTITY a.fs "FreeBSD filesystem project mailing list
+  <tt><htmlurl url='mailto:freebsd-fs@FreeBSD.ORG'
+  name='&lt;freebsd-fs@FreeBSD.ORG&gt;'></tt>">
+
+<!ENTITY a.hackers "FreeBSD technical discussions mailing list
+  <tt><htmlurl url='mailto:freebsd-hackers@FreeBSD.ORG'
+  name='&lt;freebsd-hackers@FreeBSD.ORG&gt;'></tt>">
+
+<!ENTITY a.ports "FreeBSD ports mailing list
+  <tt><htmlurl url='mailto:freebsd-ports@FreeBSD.ORG'
+  name='&lt;freebsd-ports@FreeBSD.ORG&gt;'></tt>">
+
+<!ENTITY a.questions "FreeBSD general questions mailing list
+  <tt><htmlurl url='mailto:freebsd-questions@FreeBSD.ORG'
+  name='&lt;freebsd-questions@FreeBSD.ORG&gt;'></tt>">
+
+<!ENTITY a.scsi "FreeBSD SCSI subsystem mailing list
+  <tt><htmlurl url='mailto:freebsd-questions@FreeBSD.ORG'
+  name='&lt;freebsd-questions@FreeBSD.ORG&gt;'></tt>">
+
+<!ENTITY a.stable "FreeBSD-stable mailing list
+  <tt><htmlurl url='mailto:freebsd-questions@FreeBSD.ORG'
+  name='&lt;freebsd-questions@FreeBSD.ORG&gt;'></tt>">
+
+<!ENTITY a.majordomo "<tt><htmlurl url='mailto:majordomo@FreeBSD.ORG'
+  name='&lt;majordomo@FreeBSD.ORG&gt;'></tt>">

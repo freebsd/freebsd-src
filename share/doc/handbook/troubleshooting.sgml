@@ -1,4 +1,4 @@
-<!-- $Id: troubleshooting.sgml,v 1.2 1995/06/30 17:37:53 jfieber Exp $ -->
+<!-- $Id: troubleshooting.sgml,v 1.3 1995/07/07 22:25:55 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Troubleshooting<label id="troubleshooting"></heading>
@@ -13,16 +13,16 @@
 
       <p><descrip>
 	  <tag>Problem:</tag> A device is conflicting with
-	another or doesn't match the kernel's compiled-in IRQ or
+	another or does not match the kernel's compiled-in IRQ or
 	address.
 
 	  <tag>Cause:</tag> While most device drivers in
 	FreeBSD are now smart enough to match themselves to your
 	hardware settings dynamically, there are a few that still
 	require fairly rigid configuration parameters to be
-	compiled in (and matched by the hardware) before they'll
-	work.  We're working hard to eliminate as many of these
-	last hold-outs as we can, but it's not always as easy as
+	compiled in (and matched by the hardware) before they will
+	work.  We are working hard to eliminate as many of these
+	last hold-outs as we can, but it is not always as easy as
 	it looks.
 
 	<tag>Solution:</tag> There are several possible
@@ -40,16 +40,16 @@
 	You can use this utility to reset the IRQ, memory
 	address, IO address or a number of other device
 	configuration parameters.  You can also disable a device
-	entirely if it's causing problems for other devices you'd
+	entirely if it is causing problems for other devices you would
 	much rather have work.
 
 	Another solution is, obviously, to remove the offending
 	hardware or simply strip the system down to the bare
 	essentials until the problem (hopefully) goes away.  Once
-	you're up, you can do the same thing mentioned
+	you are up, you can do the same thing mentioned
 	above---compile a kernel more suited to your hardware, or
 	incrementally try to figure out what it was about your
-	original hardware configuration that didn't work.
+	original hardware configuration that did not work.
 
 	</descrip>
 
@@ -62,8 +62,8 @@
 
 	Solution: You should re-enter the installation process,
 	invoke the (F)disk editor and chose the (W)rite option.
-	This won't hurt an existing installation and will make
+	This will not hurt an existing installation and will make
 	sure that the new boot blocks get written to the drive.
-	If you're installing for the first time, don't forget to
+	If you are installing for the first time, do not forget to
 	(W)rite out your new boot blocks! :-)
 

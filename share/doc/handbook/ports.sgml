@@ -1,4 +1,4 @@
-<!-- $Id: ports.sgml,v 1.8 1995/12/04 17:58:45 jfieber Exp $ -->
+<!-- $Id: ports.sgml,v 1.9 1996/05/09 23:04:49 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>The Ports collection<label id="ports"></heading>
@@ -41,8 +41,8 @@ up less than twenty megabytes.
 on your system (usually /usr/ports/distfiles, though this value can be
 customized) for the associated set of original distribution files that
 have been ``ported''.  Those not found locally are searched for
-wherever they're generally provided on the Internet.  If you have a
-CDROM distribution of FreeBSD then you've already got them available
+wherever they are generally provided on the Internet.  If you have a
+CDROM distribution of FreeBSD then you already have them available
 on your CD for ease of use.  See <ref id="ports:cd"
 name="Compiling ports from CD"> if you have such a CDROM
 distribution, otherwise skip to <ref id="ports:inet" 
@@ -58,11 +58,11 @@ from <tt>/usr/ports</tt> to that directory.  Then invoke the <tt>lndir(1)</tt> c
 the full pathname of the ``ports'' directory on the CDROM as an
 argument (this might be, for example, something like: <tt>lndir
 /cdrom/ports</tt>).  Then you can build ports directly off the CDROM by
-building them in the link tree you've created.
+building them in the link tree you have created.
 
-Note that there are some ports for which we can't provide the original
+Note that there are some ports for which we cannot provide the original
 source in the CDROM due to licensing limitations.  In that case,
-you'll need to look at the next section (<ref id="ports:inet"
+you will need to look at the next section (<ref id="ports:inet"
 name="Compiling ports using an Internet connection">).
 
 <sect1><heading>Compiling ports using an Internet connection<label id="ports:inet"></heading>
@@ -71,8 +71,8 @@ name="Compiling ports using an Internet connection">).
 your ports collection source tree up to date, updating the central
 ``distfiles'' version for you the next time you compile the port.
 
-    Of course, this assumes you have a permanent network link or don't
-mind heavy usage of your telephone.  If you don't want heavy network
+    Of course, this assumes you have a permanent network link or do not
+mind heavy usage of your telephone.  If you do not want heavy network
 usage when you compile your ports tree, you can pre-fetch the
 necessary tarballs beforehand and put them into /usr/ports/distfiles
 by hand.  A good way to see what files a port is going to need is to
@@ -86,15 +86,15 @@ line), or some FreeBSD mirror site also carrying a set of distfiles,
 as does the master FTP site on ftp.FreeBSD.org (aka ftp.cdrom.com) in
 the directory <tt>/pub/FreeBSD/distfiles</tt>.  Note that the files in
 that directory are not guaranteed to be kept up to date - this is a
-volunteer project!  We can't make any guarantees about the mirror
-sites either - they are obviously under independent control and don't
+volunteer project!  We canno make any guarantees about the mirror
+sites either - they are obviously under independent control and do not
 even have to mirror the distfiles directory.
 
     If you have a non-permanent link, you can fetch all the distfiles by
 going to the top of the tree and typing ``make fetch''.
 
 
-<sect1><heading>It doesn't work?!</heading>
+<sect1><heading>It does not work?!</heading>
 
 <p>Oh. You can do one of four (4) things :
 <enum>
@@ -105,17 +105,17 @@ going to the top of the tree and typing ``make fetch''.
 <item> Gripe. This is done by e-mail *ONLY*! The people at Walnut Creek are
    in no way responsible for the functionality (or lack thereof) of the
    FreeBSD system as a whole, and especially the ports system, which
-   is mainly contributed by 3rd parties. (If you don't believe me, check
+   is mainly contributed by 3rd parties. (If you do not believe me, check
    the catalogue, especially the line saying "We cannot offer tech-support
    on this product")
 
-   The e-mail address is Ports@FreeBSD.org.  Please include details of
+   The e-mail address is the &a.ports;.  Please include details of
    the port, where you got both the port source &amp; distfile(s) from, and
    what the error was.
 
-   Note: At time of writing, lang/Sather doesn't seem to work on Pentium
+   Note: At time of writing, lang/Sather does not seem to work on Pentium
    machines due to the Intel Curse (aka the Floating Point Division Bug).
-   Please don't tell us about this - gripe to Intel instead - it's their
+   Please do not tell us about this - gripe to Intel instead - it is their
    bug!
 
 <item> Forget it. This is the easiest for most - very few of the programs in
@@ -132,12 +132,12 @@ going to the top of the tree and typing ``make fetch''.
    install them to your system.
 </enum>
 
-<sect1><heading>I've ported a program and I want to make a port out of it. What now?</heading>
+<sect1><heading>I have ported a program and I want to make a port out of it. What now?</heading>
 
 <p>   See the <ref id="porting:starting" name="guidelines"> that
       contain details of the procedure and structure involved.
 
-<sect1><heading>I've got a good port, what now?</heading>
+<sect1><heading>I have got a good port, what now?</heading>
 
 <p>Upload the fixed version to <tt>ftp://freefall.cdrom.com/pub/incoming</tt> or
 <tt>ftp://ftp.FreeBSD.org/pub/FreeBSD/incoming</tt> and send e-mail to
@@ -146,7 +146,7 @@ all-volunteer `ports committee' will (hopefully) look it over and
 commit it to the ports collection if they like the looks of it.
 
 
-<sect1><heading>I want to leave the compile going overnight, but some ports don't like this.</heading>
+<sect1><heading>I want to leave the compile going overnight, but some ports do not like this.</heading>
 
 <p>   There is a way around this. Before starting the compilation, type:
 <verb>
@@ -176,8 +176,8 @@ minute.  The most up-to-date copy can be found in:
   <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FreeBSD-current/src/share/mk">
 
     If you find that you still need to go in there and alter things,
-by all means do so, and then send the diffs to ports@FreeBSD.org if
-you'd like them to be a part of the default distribution.  Please also
+by all means do so, and then send the diffs to the &a.ports if
+you would like them to be a part of the default distribution.  Please also
 remember that any changes must respect backwards-compatibility with
 any and all older Makefiles, unless you want a real nightmare of
 /usr/ports munging ahead of you!  Large scale changes will generally
@@ -187,7 +187,7 @@ alteration. Sorry!
 
 <sect1><heading>This FAQ is weak.  What can I do?</heading>
 
-<p>    Send changes to ports@FreeBSD.org.  Changes are most welcome!
+<p>    Send changes to the &a.ports;.  Changes are most welcome!
 This FAQ is also very green and should be considered no more than
 a `good start' for now.  Authors?  You can come out of hiding any
 time now! :-)
@@ -202,7 +202,7 @@ and type:
 </verb>
 This will print a summary of all ports in the tree.
 
-<sect1><heading>I've heard of a new checksum system. What is this for?</heading>
+<sect1><heading>I have heard of a new checksum system. What is this for?</heading>
 
 <p>    For various reasons, when using FTP over the Internet to obtain the
 source code, you may not always end up with the same copy of the code
@@ -223,7 +223,7 @@ checksum routine. The same technique can be applied to a single port.
 for that port. Not all ports currently have checksums, but this should be
 cured soon.
 
-    Some older versions of the system don't recognize the ``checksum''
+    Some older versions of the system do not recognize the ``checksum''
 target. In that case, try the command
 <verb>
 	make check-md5

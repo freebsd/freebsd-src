@@ -1,4 +1,4 @@
-<!-- $Id: memoryuse.sgml,v 1.5 1995/12/19 10:21:07 gclarkii Exp $ -->
+<!-- $Id: memoryuse.sgml,v 1.6 1996/01/31 19:02:59 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>PC memory utilization<label id="memoryuse"></heading>
@@ -16,7 +16,7 @@ for the <tt>%cs</tt> selector, done by an <tt>ljmp</tt>.)
 It then loads the first 15 sectors at <tt>0x10000</tt> (segment BOOTSEG in the
 biosboot Makefile), and sets up the stack to work below <tt>0x1fff0</tt>.
 After this, it jumps to the entry of boot2 within that code.  I.e., it
-jumps over itself and the (dummy) partition table, and it's going to
+jumps over itself and the (dummy) partition table, and it is going to
 adjust the %cs selector---we are still in 16-bit mode there.
 
 boot2 asks for the boot file, and examines the <tt>a.out</tt> header.  It masks
