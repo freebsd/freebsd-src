@@ -329,6 +329,8 @@ setdefaults(e)
 	DontProbeInterfaces = DPI_PROBEALL;
 	DoubleBounceAddr = "postmaster";
 	MaxHeadersLength = MAXHDRSLEN;
+	MaxMimeHeaderLength = MAXLINE;
+	MaxMimeFieldLength = MaxMimeHeaderLength / 2;
 	MaxForwardEntries = 0;
 	FastSplit = 1;
 #if SASL
