@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_devstat.c,v 1.4 1998/10/14 20:44:05 ken Exp $
+ *	$Id: subr_devstat.c,v 1.5 1998/11/14 21:58:51 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -177,18 +177,10 @@ devstat_end_transaction(struct devstat *ds, u_int32_t bytes,
 
 		/* Add our busy time to the total busy time. */
 		timevaladd(&ds->busy_time, &busy_time);
-	}
-	/*
-	 * XXX KDM this is temporarily disabled to avoid causing
-	 * unsophisticated users to panic.  There are unfixed bugs in the
-	 * wd driver that will set off this error message.
-	 */
-#if 0
-	else if (ds->busy_count < 0)
+	} else if (ds->busy_count < 0)
 		printf("devstat_end_transaction: HELP!! busy_count "
 		       "for %s%d is < 0 (%d)!\n", ds->device_name,
 		       ds->unit_number, ds->busy_count);
-#endif
 }
 
 /*
