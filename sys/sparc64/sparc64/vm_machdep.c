@@ -73,12 +73,14 @@ void
 cpu_exit(struct thread *td)
 {
 	struct md_utrap *ut;
+	struct proc *p;
 
-	if ((ut = td->td_proc->p_md.md_utrap) != NULL) {
+	p = td->td_proc;
+	if ((ut = p->p_md.md_utrap) != NULL) {
 		ut->ut_refcnt--;
 		if (ut->ut_refcnt == 0)
 			free(ut, M_SUBPROC);
-		td->td_proc->p_md.md_utrap = NULL;
+		p->p_md.md_utrap = NULL;
 	}
 }
 
