@@ -167,9 +167,10 @@ resettodr()
 void
 decr_intr(struct clockframe *frame)
 {
-	u_long	tb;
-	long	tick;
-	int	nticks;
+	u_long		tb;
+	long		tick;
+	int		nticks;
+	register_t	msr;
 
 	/*
 	 * Check whether we are initialized.
@@ -196,29 +197,24 @@ decr_intr(struct clockframe *frame)
 	 */
 
 	intrcnt[CNT_CLOCK]++;
-	{
-		int msr;
 
-		nticks += tickspending;
-		tickspending = 0;
+	nticks += tickspending;
+	tickspending = 0;
 
-#if 0
-		/*
-		 * Reenable interrupts
-		 */
-		msr = mfmsr();
-		mtmsr(msr | PSL_EE);
-#endif
-		
-		/*
-		 * Do standard timer interrupt stuff.
-		 * Do softclock stuff only on the last iteration.
-		 */
-		while (--nticks > 0) {
-			hardclock(frame);
-		}
+	/*
+	 * Reenable interrupts
+	 */
+	msr = mfmsr();
+	mtmsr(msr | PSL_EE | PSL_RI);
+	
+	/*
+	 * Do standard timer interrupt stuff.
+	 * Do softclock stuff only on the last iteration.
+	 */
+	while (--nticks > 0) {
 		hardclock(frame);
 	}
+	hardclock(frame);
 }
 
 void
@@ -228,6 +224,8 @@ cpu_initclocks(void)
 	char name[32];
 	unsigned int msr;
 	
+	phandle = 0;
+
 	/*
 	 * Get this info during autoconf?				XXX
 	 */
@@ -240,7 +238,7 @@ cpu_initclocks(void)
 			 * Should check for correct CPU here?		XXX
 			 */
 			msr = mfmsr();
-			mtmsr(msr & ~PSL_EE);
+			mtmsr(msr & ~(PSL_EE|PSL_RI));
 
 			powerpc_timecounter.tc_frequency = ticks_per_sec;
 			tc_init(&powerpc_timecounter);
@@ -298,7 +296,7 @@ delay(int n)
 	tbl = tb;
 	__asm ("1: mftbu %0; cmplw %0,%1; blt 1b; bgt 2f;"
 	       "mftb %0; cmplw %0,%2; blt 1b; 2:"
-	       :: "r"(scratch), "r"(tbh), "r"(tbl));
+	       : "=r"(scratch) : "r"(tbh), "r"(tbl));
 }
 
 /*
