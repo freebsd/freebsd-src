@@ -193,6 +193,7 @@ only usable diskless this should not cause any problems.
 
 For the same reason SLIP has been removed from the mfsroot image as well.
 
+Support for AlphaServer 2100A ('Lynx') has been added.
 
 1.2. SECURITY FIXES
 -------------------
