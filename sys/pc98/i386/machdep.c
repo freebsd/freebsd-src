@@ -687,6 +687,26 @@ sendsig(catcher, sig, mask, code)
 }
 
 /*
+ * Build siginfo_t for SA thread
+ */
+void
+thread_siginfo(int sig, u_long code, siginfo_t *si)
+{
+	struct proc *p;
+	struct thread *td;
+
+	td = curthread;
+	p = td->td_proc;
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	bzero(si, sizeof(*si));
+	si->si_signo = sig;
+	si->si_code = code;
+	si->si_addr = (void *)td->td_frame->tf_err;
+	/* XXXKSE fill other fields */
+}
+
+/*
  * System call to cleanup state after a signal
  * has been taken.  Reset signal mask and
  * stack state from context left by sendsig (above).
