@@ -117,6 +117,14 @@ realinstall:	beforeinstall
 all:		all-nls _SUBDIR
 install:	realinstall afterinstall
 
+.if !target(all-man)
+all-man: _SUBDIR
+.endif
+
+.if !target(maninstall)
+maninstall: _SUBDIR
+.endif
+
 .if !target(distribute)
 distribute:
 .endif
