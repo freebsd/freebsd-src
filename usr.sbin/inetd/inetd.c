@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.29 1997/10/29 21:49:04 dima Exp $";
+	"$Id: inetd.c,v 1.30 1998/02/24 21:55:14 pst Exp $";
 #endif /* not lint */
 
 /*
@@ -409,6 +409,8 @@ main(argc, argv, envp)
 	sigvec(SIGHUP, &sv, (struct sigvec *)0);
 	sv.sv_handler = reapchild;
 	sigvec(SIGCHLD, &sv, (struct sigvec *)0);
+	sv.sv_handler = SIG_IGN;
+	sigvec(SIGPIPE, &sv, (struct sigvec *)0);
 
 	{
 		/* space for daemons to overwrite environment for ps */
@@ -474,20 +476,6 @@ main(argc, argv, envp)
 					sep->se_service,
 					inet_ntoa(peer.sin_addr));
 			    }
-			    /*
-			     * Call tcpmux to find the real service to exec.
-			     */
-			    if (sep->se_bi &&
-				sep->se_bi->bi_fn == (void (*)()) tcpmux) {
-				    struct servtab *tsep;
-
-				    tsep = tcpmux(ctrl);
-				    if (tsep == NULL) {
-					    close(ctrl);
-					    continue;
-				    }
-				    sep = tsep;
-			    }
 		    } else
 			    ctrl = sep->se_fd;
 		    (void) sigblock(SIGBLOCK);
@@ -539,6 +527,17 @@ main(argc, argv, envp)
 				for (tmpint = maxsock; tmpint > 2; tmpint--)
 					if (tmpint != ctrl)
 						(void) close(tmpint);
+			    }
+			    /*
+			     * Call tcpmux to find the real service to exec.
+			     */
+			    if (sep->se_bi &&
+				sep->se_bi->bi_fn == (void (*)()) tcpmux) {
+				    sep = tcpmux(ctrl);
+				    if (sep == NULL) {
+					    close(ctrl);
+					    _exit(0);
+				    }
 			    }
 			    if (sep->se_bi) {
 				(*sep->se_bi->bi_fn)(ctrl, sep);
@@ -1742,9 +1741,15 @@ getline(fd, buf, len)
 	int len;
 {
 	int count = 0, n;
+	struct sigvec sv;
 
+	memset(&sv, 0, sizeof(sv));
+	sv.sv_handler = SIG_DFL;
+	sigvec(SIGALRM, &sv, (struct sigvec *)0);
 	do {
+		alarm(10);
 		n = read(fd, buf, len-count);
+		alarm(0);
 		if (n == 0)
 			return (count);
 		if (n < 0)
