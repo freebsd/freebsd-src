@@ -25,7 +25,10 @@
 	SUPERALIGN_TEXT ;						\
 IDTVEC(vec_name) ;							\
 	subq	$TF_RIP,%rsp ;	/* skip dummy tf_err and tf_trapno */	\
-	movq	%rdi,TF_RDI(%rsp) ;					\
+	testb	$SEL_RPL_MASK,TF_CS(%rsp) ; /* come from kernel? */	\
+	jz	1f ;		/* Yes, dont swapgs again */		\
+	swapgs ;							\
+1:	movq	%rdi,TF_RDI(%rsp) ;					\
 	movq	%rsi,TF_RSI(%rsp) ;					\
 	movq	%rdx,TF_RDX(%rsp) ;					\
 	movq	%rcx,TF_RCX(%rsp) ;					\
@@ -69,7 +72,10 @@ IDTVEC(vec_name) ;							\
 	SUPERALIGN_TEXT ;						\
 IDTVEC(vec_name) ;							\
 	subq	$TF_RIP,%rsp ;	/* skip dummy tf_err and tf_trapno */	\
-	movq	%rdi,TF_RDI(%rsp) ;					\
+	testb	$SEL_RPL_MASK,TF_CS(%rsp) ; /* come from kernel? */	\
+	jz	1f ;		/* Yes, dont swapgs again */		\
+	swapgs ;							\
+1:	movq	%rdi,TF_RDI(%rsp) ;					\
 	movq	%rsi,TF_RSI(%rsp) ;					\
 	movq	%rdx,TF_RDX(%rsp) ;					\
 	movq	%rcx,TF_RCX(%rsp) ;					\

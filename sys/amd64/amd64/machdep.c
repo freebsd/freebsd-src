@@ -465,6 +465,12 @@ exec_setregs(td, entry, stack, ps_strings)
 	u_long ps_strings;
 {
 	struct trapframe *regs = td->td_frame;
+	struct pcb *pcb = td->td_pcb;
+	
+	pcb->pcb_fsbase = 0;
+	pcb->pcb_gsbase = 0;
+	wrmsr(MSR_FSBASE, 0);
+	wrmsr(MSR_KGSBASE, 0);	/* User value while we're in the kernel */
 
 	bzero((char *)regs, sizeof(struct trapframe));
 	regs->tf_rip = entry;
@@ -654,7 +660,7 @@ extern inthand_t
 	IDTVEC(bnd), IDTVEC(ill), IDTVEC(dna), IDTVEC(fpusegm),
 	IDTVEC(tss), IDTVEC(missing), IDTVEC(stk), IDTVEC(prot),
 	IDTVEC(page), IDTVEC(mchk), IDTVEC(rsvd), IDTVEC(fpu), IDTVEC(align),
-	IDTVEC(xmm), IDTVEC(int0x80_syscall),
+	IDTVEC(xmm), IDTVEC(dblfault), IDTVEC(int0x80_syscall),
 	IDTVEC(fast_syscall), IDTVEC(fast_syscall32);
 
 void
@@ -1182,9 +1188,9 @@ hammer_time(void)
 	lgdt(&r_gdt);
 	pc = &__pcpu;
 
-	wrmsr(MSR_FSBASE, (u_int64_t)pc);
+	wrmsr(MSR_FSBASE, 0);		/* User value */
 	wrmsr(MSR_GSBASE, (u_int64_t)pc);
-	wrmsr(MSR_KGSBASE, (u_int64_t)pc);
+	wrmsr(MSR_KGSBASE, 0);		/* User value while we're in the kernel */
 
 	pcpu_init(pc, 0, sizeof(struct pcpu));
 	PCPU_SET(prvspace, pc);
@@ -1204,28 +1210,28 @@ hammer_time(void)
 
 	/* exceptions */
 	for (x = 0; x < NIDT; x++)
-		setidt(x, &IDTVEC(rsvd), SDT_SYSTGT, SEL_KPL, 0);
-	setidt(0, &IDTVEC(div),  SDT_SYSTGT, SEL_KPL, 0);
+		setidt(x, &IDTVEC(rsvd), SDT_SYSIGT, SEL_KPL, 0);
+	setidt(0, &IDTVEC(div),  SDT_SYSIGT, SEL_KPL, 0);
 	setidt(1, &IDTVEC(dbg),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(2, &IDTVEC(nmi),  SDT_SYSTGT, SEL_KPL, 0);
+	setidt(2, &IDTVEC(nmi),  SDT_SYSIGT, SEL_KPL, 0);
  	setidt(3, &IDTVEC(bpt),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(4, &IDTVEC(ofl),  SDT_SYSTGT, SEL_KPL, 0);
-	setidt(5, &IDTVEC(bnd),  SDT_SYSTGT, SEL_KPL, 0);
-	setidt(6, &IDTVEC(ill),  SDT_SYSTGT, SEL_KPL, 0);
-	setidt(7, &IDTVEC(dna),  SDT_SYSTGT, SEL_KPL, 0);
-	setidt(8, (inthand_t *)dblfault_handler, SDT_SYSIGT, SEL_KPL, 1);
-	setidt(9, &IDTVEC(fpusegm),  SDT_SYSTGT, SEL_KPL, 0);
-	setidt(10, &IDTVEC(tss),  SDT_SYSTGT, SEL_KPL, 0);
-	setidt(11, &IDTVEC(missing),  SDT_SYSTGT, SEL_KPL, 0);
-	setidt(12, &IDTVEC(stk),  SDT_SYSTGT, SEL_KPL, 0);
-	setidt(13, &IDTVEC(prot),  SDT_SYSTGT, SEL_KPL, 0);
+	setidt(4, &IDTVEC(ofl),  SDT_SYSIGT, SEL_KPL, 0);
+	setidt(5, &IDTVEC(bnd),  SDT_SYSIGT, SEL_KPL, 0);
+	setidt(6, &IDTVEC(ill),  SDT_SYSIGT, SEL_KPL, 0);
+	setidt(7, &IDTVEC(dna),  SDT_SYSIGT, SEL_KPL, 0);
+	setidt(8, &IDTVEC(dblfault), SDT_SYSIGT, SEL_KPL, 1);
+	setidt(9, &IDTVEC(fpusegm),  SDT_SYSIGT, SEL_KPL, 0);
+	setidt(10, &IDTVEC(tss),  SDT_SYSIGT, SEL_KPL, 0);
+	setidt(11, &IDTVEC(missing),  SDT_SYSIGT, SEL_KPL, 0);
+	setidt(12, &IDTVEC(stk),  SDT_SYSIGT, SEL_KPL, 0);
+	setidt(13, &IDTVEC(prot),  SDT_SYSIGT, SEL_KPL, 0);
 	setidt(14, &IDTVEC(page),  SDT_SYSIGT, SEL_KPL, 0);
-	setidt(15, &IDTVEC(rsvd),  SDT_SYSTGT, SEL_KPL, 0);
-	setidt(16, &IDTVEC(fpu),  SDT_SYSTGT, SEL_KPL, 0);
-	setidt(17, &IDTVEC(align), SDT_SYSTGT, SEL_KPL, 0);
-	setidt(18, &IDTVEC(mchk),  SDT_SYSTGT, SEL_KPL, 0);
-	setidt(19, &IDTVEC(xmm), SDT_SYSTGT, SEL_KPL, 0);
- 	setidt(0x80, &IDTVEC(int0x80_syscall), SDT_SYSTGT, SEL_UPL, 0);
+	setidt(15, &IDTVEC(rsvd),  SDT_SYSIGT, SEL_KPL, 0);
+	setidt(16, &IDTVEC(fpu),  SDT_SYSIGT, SEL_KPL, 0);
+	setidt(17, &IDTVEC(align), SDT_SYSIGT, SEL_KPL, 0);
+	setidt(18, &IDTVEC(mchk),  SDT_SYSIGT, SEL_KPL, 0);
+	setidt(19, &IDTVEC(xmm), SDT_SYSIGT, SEL_KPL, 0);
+ 	setidt(0x80, &IDTVEC(int0x80_syscall), SDT_SYSIGT, SEL_UPL, 0);
 
 	r_idt.rd_limit = sizeof(idt0) - 1;
 	r_idt.rd_base = (long) idt;
@@ -1251,8 +1257,6 @@ hammer_time(void)
 
 	/* make an initial tss so cpu can get interrupt stack on syscall! */
 	common_tss.tss_rsp0 = thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE - sizeof(struct pcb);
-	/* XXX we need to update tss_rsp0 in cpu_switch */
-	/* XXX maybe not yet, everything is still running in supervisor mode */
 
 	/* doublefault stack space, runs on ist1 */
 	common_tss.tss_ist1 = (long)&dblfault_stack[sizeof(dblfault_stack)];

@@ -92,27 +92,39 @@ ENTRY(cpu_switch)
 	jz	badsw2				/* no, panic */
 #endif
 
-	movq	TD_PCB(%rdi),%rdx
+	movq	TD_PCB(%rdi),%r8
 
 	movq	(%rsp),%rax			/* Hardware registers */
-	movq	%rax,PCB_RIP(%rdx)
-	movq	%rbx,PCB_RBX(%rdx)
-	movq	%rsp,PCB_RSP(%rdx)
-	movq	%rbp,PCB_RBP(%rdx)
-	movq	%r12,PCB_R12(%rdx)
-	movq	%r13,PCB_R13(%rdx)
-	movq	%r14,PCB_R14(%rdx)
-	movq	%r15,PCB_R15(%rdx)
+	movq	%rax,PCB_RIP(%r8)
+	movq	%rbx,PCB_RBX(%r8)
+	movq	%rsp,PCB_RSP(%r8)
+	movq	%rbp,PCB_RBP(%r8)
+	movq	%r12,PCB_R12(%r8)
+	movq	%r13,PCB_R13(%r8)
+	movq	%r14,PCB_R14(%r8)
+	movq	%r15,PCB_R15(%r8)
 	pushfq					/* PSL */
-	popq	PCB_RFLAGS(%rdx)
+	popq	PCB_RFLAGS(%r8)
+
+	/* Save userland %fs */
+	movl	$MSR_FSBASE,%ecx
+	rdmsr
+	movl	%eax,PCB_FSBASE(%r8)
+	movl	%edx,PCB_FSBASE+4(%r8)
+
+	/* Save userland %gs */
+	movl	$MSR_KGSBASE,%ecx
+	rdmsr
+	movl	%eax,PCB_GSBASE(%r8)
+	movl	%edx,PCB_GSBASE+4(%r8)
 
 	/* have we used fp, and need a save? */
 	cmpq	%rdi,PCPU(FPCURTHREAD)
 	jne	1f
 	pushq	%rdi
 	pushq	%rsi
-	addq	$PCB_SAVEFPU,%rdx		/* h/w bugs make saving complicated */
-	movq	%rdx, %rdi
+	addq	$PCB_SAVEFPU,%r8		/* h/w bugs make saving complicated */
+	movq	%r8, %rdi
 	call	npxsave				/* do it in a big C function */
 	popq	%rsi
 	popq	%rdi
@@ -123,12 +135,12 @@ ENTRY(cpu_switch)
 	testq	%rsi,%rsi			/* no thread? */
 	jz	badsw3				/* no, panic */
 #endif
-	movq	TD_PCB(%rsi),%rdx
+	movq	TD_PCB(%rsi),%r8
 	xorq	%rax, %rax
 	movl	PCPU(CPUID), %eax
 
 	/* switch address space */
-	movq	PCB_CR3(%rdx),%rdx
+	movq	PCB_CR3(%r8),%rdx
 	movq	%rdx,%cr3			/* new address space */
 
 	/* Release bit from old pmap->pm_active */
@@ -146,26 +158,38 @@ sw1:
 	 * At this point, we've switched address spaces and are ready
 	 * to load up the rest of the next context.
 	 */
-	movq	TD_PCB(%rsi),%rdx
+	movq	TD_PCB(%rsi),%r8
+
+	/* Restore userland %fs */
+	movl	$MSR_FSBASE,%ecx
+	movl	PCB_FSBASE(%r8),%eax
+	movl	PCB_FSBASE+4(%r8),%edx
+	wrmsr
+
+	/* Restore userland %gs */
+	movl	$MSR_KGSBASE,%ecx
+	movl	PCB_GSBASE(%r8),%eax
+	movl	PCB_GSBASE+4(%r8),%edx
+	wrmsr
 
 	/* Update the TSS_RSP0 pointer for the next interrupt */
-	leaq	-16(%rdx), %rbx
+	leaq	-16(%r8), %rbx
 	movq	%rbx, common_tss + COMMON_TSS_RSP0
 
 	/* Restore context. */
-	movq	PCB_RBX(%rdx),%rbx
-	movq	PCB_RSP(%rdx),%rsp
-	movq	PCB_RBP(%rdx),%rbp
-	movq	PCB_R12(%rdx),%r12
-	movq	PCB_R13(%rdx),%r13
-	movq	PCB_R14(%rdx),%r14
-	movq	PCB_R15(%rdx),%r15
-	movq	PCB_RIP(%rdx),%rax
+	movq	PCB_RBX(%r8),%rbx
+	movq	PCB_RSP(%r8),%rsp
+	movq	PCB_RBP(%r8),%rbp
+	movq	PCB_R12(%r8),%r12
+	movq	PCB_R13(%r8),%r13
+	movq	PCB_R14(%r8),%r14
+	movq	PCB_R15(%r8),%r15
+	movq	PCB_RIP(%r8),%rax
 	movq	%rax,(%rsp)
-	pushq	PCB_RFLAGS(%rdx)
+	pushq	PCB_RFLAGS(%r8)
 	popfq
 
-	movq	%rdx, PCPU(CURPCB)
+	movq	%r8, PCPU(CURPCB)
 	movq	%rsi, PCPU(CURTHREAD)		/* into next thread */
 
 	ret
