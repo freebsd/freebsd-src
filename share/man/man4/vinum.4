@@ -34,11 +34,10 @@
 .\" otherwise) arising in any way out of the use of this software, even if
 .\" advised of the possibility of such damage.
 .\"
-.\" $Id: vinum.4,v 1.11 1999/02/05 00:34:21 grog Exp $
+.\" $Id: vinum.4,v 1.9 1999/03/23 04:57:24 grog Exp grog $
 .\"
 .Dd 22 July 1998
 .Dt vinum 4
-.Os FreeBSD
 .Sh NAME
 .Nm vinum
 .Nd Logical Volume Manager
@@ -189,7 +188,8 @@ explaining the problem and what to do to correct it.
 is currently available in two versions: a freely available version which does
 not contain RAID-5 functionality, and a full version including RAID-5
 functionality, which is available from Cybernet Systems
-Inc. (http://www.cybernet.com\fR).
+Inc.   See their web page at 
+.Pa http://www.cybernet.com .
 .Sh RUNNING VINUM
 Normally, you start a configured version of
 .Nm
@@ -222,7 +222,7 @@ and the RAID-5 version is
 .Pa /modules/Vinum.o .
 To load the module:
 .Pp
-.Bd -unfilled -offset indent
+.Bd -literal -offset indent
 # kldload vinum
 .Ed
 .Pp
@@ -233,7 +233,7 @@ After loading
 .Nm vinum ,
 it must be configured.  In an existing installation, the following command reads
 the configuration an existing set of disks:
-.Bd -unfilled -offset indent
+.Bd -literal -offset indent
 # vinum read /dev/da1 /dev/da2 /dev/da3 /dev/da4 /dev/da5 /dev/da6
 .Ed
 .sp
@@ -255,7 +255,7 @@ To unload the kld, first find the
 .Ar Id
 field in 
 .Pa kldstat:
-.Bd -unfilled -offset indent
+.Bd -literal -offset indent
 # kldstat
 Id Refs Address    Size     Name
  1    2 0xf0100000 1c7de8   kernel
@@ -264,7 +264,7 @@ Id Refs Address    Size     Name
 .Pp
 To unload the module, use
 .Pa kldunload:
-.Bd -unfilled -offset indent
+.Bd -literal -offset indent
 # kldunload -n Vinum
 .Ed
 .Pp
@@ -303,13 +303,18 @@ result, the
 .Fl r
 option of
 .Xr disklabel 8 ,
-which reads the ``raw disk'', will fail.
+which reads the 
+.if t ``raw disk'', 
+.if n "raw disk", 
+will fail.
 .Pp
 In general, 
 .Xr disklabel 8
 serves no useful purpose on a vinum volume.  If you run it, it will show you
 three partitions, a, b and c, all the same except for the fstype, for example:
-.Bd -unfilled -offset
+.br
+.ne 1i
+.Bd -literal -offset
 3 partitions:
 #        size   offset    fstype   [fsize bsize bps/cpg]
   a:     2048        0    4.2BSD     1024  8192     0   # (Cyl.    0 - 0)
@@ -334,6 +339,17 @@ use the
 .Fl v
 flag to
 .Nm newfs .
+For example, if you have a volume
+.Pa concat ,
+use the following command to create a ufs file system on it:
+.Pp
+.Bd -literal
+  # newfs -v /dev/vinum/rconcat
+.Ed
+.Pp
+As with other file systems, you perform the
+.Nm newfs
+command on the raw device, not the block device.
 .Sh OBJECT NAMING
 .Nm
 assigns default names to plexes and subdisks, although they may be overridden.
@@ -453,7 +469,7 @@ objects described in the section CONFIGURATION FILE in
 The directory
 .Ar /dev/vinum
 looks like:
-.Bd -unfilled -offset indent
+.Bd -literal -offset indent
 # ls -lR /dev/vinum/ /dev/rvinum
 total 5
 brwxr-xr--  1 root  wheel   25,   2 Mar 30 16:08 concat
@@ -619,9 +635,9 @@ uses this state to determine the handling of the object.
 Volumes may have the following states:
 .sp
 .Bl -hang -width 14n
-.It volume_down
+.It Li down
 The volume is completely inaccessible.
-.It volume_up
+.It Li up
 The volume is up and at least partially functional.  Not all plexes may be
 available.
 .El
@@ -630,25 +646,25 @@ Plexes may have the following states:
 .sp
 .ne 1i
 .Bl -hang -width 14n
-.It faulty
+.It Li faulty
 A plex which has gone completely down because of I/O errors.
-.It down
+.It Li down
 A plex which has been taken down by the administrator.
-.It initializing
+.It Li initializing
 A plex which is being initialized.
 .sp
 The remaining states represent plexes which are at least partially up.
-.It corrupt
+.It Li corrupt
 A plex entry which is at least partially up.  Not all subdisks are available,
 and an inconsistency has occurred.  If no other plex is uncorrupted, the volume
 is no longer consistent.
-.It degraded
+.It Li degraded
 A RAID-5 plex entry which is accessible, but one subdisk is down, requiring
 recovery for many I/O requests.
-.It flaky
+.It Li flaky
 A plex which is really up, but which has a reborn subdisk which we don't
 completely trust, and which we don't want to read if we can avoid it.
-.It up
+.It Li up
 A plex entry which is completely up.  All subdisks are up.
 .El
 .sp 2v
@@ -657,38 +673,38 @@ Subdisks can have the following states:
 .sp
 .ne 1i
 .Bl -hang -width 14n
-.It empty
+.It Li empty
 A subdisk entry which has been created completely.  All fields are correct, and
 the disk has been updated, but there is no data on the disk.
-.It initializing
+.It Li initializing
 A subdisk entry which has been created completely and which is currently being
 initialized.
 .sp
 The following states represent invalid data.
-.It obsolete
+.It Li obsolete
 A subdisk entry which has been created completely.  All fields are correct, the
 config on disk has been updated, and the data was valid, but since then the
 drive has been taken down, and as a result updates have been missed.
-.It stale
+.It Li stale
 A subdisk entry which has been created completely.  All fields are correct, the
 disk has been updated, and the data was valid, but since then the drive has been
 crashed and updates have been lost.
 .sp
 The following states represent valid, inaccessible data.
-.It crashed
+.It Li crashed
 A subdisk entry which has been created completely.  All fields are correct, the
 disk has been updated, and the data was valid, but since then the drive has gone
 down.  No attempt has been made to write to the subdisk since the crash, so the
 data is valid.
-.It down
+.It Li down
 A subdisk entry which was up, which contained valid data, and which was taken
 down by the administrator.  The data is valid.
-.It reviving
+.It Li reviving
 The subdisk is currently in the process of being revived.  We can write but not
 read.
 .sp
 The following states represent accessible subdisks with valid data.
-.It reborn
+.It Li reborn
 A subdisk entry which has been created completely.  All fields are correct, the
 disk has been updated, and the data was valid, but since then the drive has gone
 down and up again.  No updates were lost, but it is possible that the subdisk
@@ -696,7 +712,7 @@ has been damaged.  We won't read from this subdisk if we have a choice.  If this
 is the only subdisk which covers this address space in the plex, we set its
 state to up under these circumstances, so this status implies that there is
 another subdisk to fulfil the request.
-.It up
+.It Li up
 A subdisk entry which has been created completely.  All fields are correct, the
 disk has been updated, and the data is valid.
 .El
@@ -706,12 +722,12 @@ Drives can have the following states:
 .sp
 .ne 1i
 .Bl -hang -width 14n
-.It referenced
+.It Li referenced
 At least one subdisk refers to the drive, but it is not currently accessible to
 the system.
-.It down
+.It Li down
 The drive is not accessible.
-.It up
+.It Li up
 The drive is up and running.
 .El
 .sp 2v
@@ -721,8 +737,10 @@ The drive is up and running.
 .Nm
 is a new product.  Many bugs can be expected.  The configuration mechanism is
 not yet fully functional.  If you have difficulties, please look at
-http://www.lemis.com/vinum_beta.html and
-http://www.lemis.com/vinum_debugging.html before reporting problems.
+.Pa http://www.lemis.com/vinum_beta.html
+and
+.Pa http://www.lemis.com/vinum_debugging.html 
+before reporting problems.
 .It
 Kernels with the
 .Nm
@@ -842,7 +860,14 @@ file:
 .Bd -literal
 options 	DDB
 options		BREAK_TO_DEBUGGER
+options		DDB_UNATTENDED
 .Ed
+.Pp
+The
+.Li DDB_UNATTENDED
+tells the kernel to reboot on a panic; otherwise it will remain in the
+.Nm ddb
+prompt until it receives input.
 .Pp
 You will need some additional steps to get symbolic information for the
 .Nm
@@ -993,4 +1018,5 @@ first appeared in FreeBSD 3.0.
 .Sh SEE ALSO
 .Xr vinum 8 ,
 .Xr disklabel 5 ,
-.Xr disklabel 8 .
+.Xr disklabel 8 ,
+.Xr newfs 8 .
