@@ -224,12 +224,13 @@ int main(int argc, char *argv[])
 	verbose = 0;
 	debug = 0;
 	cipher = 0;
-	
+
+	bio_err=BIO_new_fp(stderr,BIO_NOCLOSE);	
+
 	CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_ON);
 
 	RAND_seed(rnd_seed, sizeof rnd_seed);
 
-	bio_err=BIO_new_fp(stderr,BIO_NOCLOSE);
 	bio_stdout=BIO_new_fp(stdout,BIO_NOCLOSE);
 
 	argc--;
@@ -247,12 +248,22 @@ int main(int argc, char *argv[])
 			debug=1;
 		else if	(strcmp(*argv,"-reuse") == 0)
 			reuse=1;
-#ifndef NO_DH
 		else if	(strcmp(*argv,"-dhe1024") == 0)
+			{
+#ifndef NO_DH
 			dhe1024=1;
-		else if	(strcmp(*argv,"-dhe1024dsa") == 0)
-			dhe1024dsa=1;
+#else
+			fprintf(stderr,"ignoring -dhe1024, since I'm compiled without DH\n");
 #endif
+			}
+		else if	(strcmp(*argv,"-dhe1024dsa") == 0)
+			{
+#ifndef NO_DH
+			dhe1024dsa=1;
+#else
+			fprintf(stderr,"ignoring -dhe1024, since I'm compiled without DH\n");
+#endif
+			}
 		else if	(strcmp(*argv,"-no_dhe") == 0)
 			no_dhe=1;
 		else if	(strcmp(*argv,"-ssl2") == 0)
@@ -355,7 +366,7 @@ bad:
 			"the test anyway (and\n-d to see what happens), "
 			"or add one of -ssl2, -ssl3, -tls1, -reuse\n"
 			"to avoid protocol mismatch.\n");
-		exit(1);
+		EXIT(1);
 		}
 
 	if (print_time)
@@ -620,6 +631,8 @@ int doit_biopair(SSL *s_ssl, SSL *c_ssl, long count,
 			int i, r;
 			clock_t c_clock = clock();
 
+			memset(cbuf, 0, sizeof(cbuf));
+
 			if (debug)
 				if (SSL_in_init(c_ssl))
 					printf("client waiting in SSL_connect - %s\n",
@@ -703,6 +716,8 @@ int doit_biopair(SSL *s_ssl, SSL *c_ssl, long count,
 			MS_STATIC char sbuf[1024*8];
 			int i, r;
 			clock_t s_clock = clock();
+
+			memset(sbuf, 0, sizeof(sbuf));
 
 			if (debug)
 				if (SSL_in_init(s_ssl))
@@ -946,6 +961,9 @@ int doit(SSL *s_ssl, SSL *c_ssl, long count)
 	int done=0;
 	int c_write,s_write;
 	int do_server=0,do_client=0;
+
+	memset(cbuf,0,sizeof(cbuf));
+	memset(sbuf,0,sizeof(sbuf));
 
 	c_to_s=BIO_new(BIO_s_mem());
 	s_to_c=BIO_new(BIO_s_mem());

@@ -54,8 +54,6 @@
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
- *
- * $FreeBSD$
  */
 
 /* most of this code has been pilfered from my libdes speed.c program */
@@ -691,7 +689,7 @@ int MAIN(int argc, char **argv)
 			BIO_printf(bio_err,"\n");
 #endif
 
-#ifdef TIMES
+#if defined(TIMES) || defined(USE_TOD)
 			BIO_printf(bio_err,"\n");
 			BIO_printf(bio_err,"Available options:\n");
 			BIO_printf(bio_err,"-elapsed        measure time in real time instead of CPU user time.\n");
@@ -1414,7 +1412,7 @@ end:
 		if (dsa_key[i] != NULL)
 			DSA_free(dsa_key[i]);
 #endif
-	EXIT(mret);
+	OPENSSL_EXIT(mret);
 	}
 
 static void print_message(char *s, long num, int length)

@@ -200,7 +200,12 @@ int ssl_get_new_session(SSL *s, int session)
 		ss->session_id_length=0;
 		}
 
-	die(s->sid_ctx_length <= sizeof ss->sid_ctx);
+	if (s->sid_ctx_length > sizeof ss->sid_ctx)
+		{
+		SSLerr(SSL_F_SSL_GET_NEW_SESSION, SSL_R_INTERNAL_ERROR);
+		SSL_SESSION_free(ss);
+		return 0;
+		}
 	memcpy(ss->sid_ctx,s->sid_ctx,s->sid_ctx_length);
 	ss->sid_ctx_length=s->sid_ctx_length;
 	s->session=ss;
@@ -253,9 +258,12 @@ int ssl_get_prev_session(SSL *s, unsigned char *session_id, int len)
 			if (copy)
 				CRYPTO_add(&ret->references,1,CRYPTO_LOCK_SSL_SESSION);
 
-			/* The following should not return 1, otherwise,
-			 * things are very strange */
-			SSL_CTX_add_session(s->ctx,ret);
+			/* Add the externally cached session to the internal
+			 * cache as well if and only if we are supposed to. */
+			if(!(s->ctx->session_cache_mode & SSL_SESS_CACHE_NO_INTERNAL_STORE))
+				/* The following should not return 1, otherwise,
+				 * things are very strange */
+				SSL_CTX_add_session(s->ctx,ret);
 			}
 		if (ret == NULL)
 			goto err;
@@ -469,13 +477,13 @@ void SSL_SESSION_free(SSL_SESSION *ss)
 
 	CRYPTO_free_ex_data(ssl_session_meth,ss,&ss->ex_data);
 
-	memset(ss->key_arg,0,SSL_MAX_KEY_ARG_LENGTH);
-	memset(ss->master_key,0,SSL_MAX_MASTER_KEY_LENGTH);
-	memset(ss->session_id,0,SSL_MAX_SSL_SESSION_ID_LENGTH);
+	OPENSSL_cleanse(ss->key_arg,SSL_MAX_KEY_ARG_LENGTH);
+	OPENSSL_cleanse(ss->master_key,SSL_MAX_MASTER_KEY_LENGTH);
+	OPENSSL_cleanse(ss->session_id,SSL_MAX_SSL_SESSION_ID_LENGTH);
 	if (ss->sess_cert != NULL) ssl_sess_cert_free(ss->sess_cert);
 	if (ss->peer != NULL) X509_free(ss->peer);
 	if (ss->ciphers != NULL) sk_SSL_CIPHER_free(ss->ciphers);
-	memset(ss,0,sizeof(*ss));
+	OPENSSL_cleanse(ss,sizeof(*ss));
 	OPENSSL_free(ss);
 	}
 

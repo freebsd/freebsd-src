@@ -506,9 +506,9 @@ bad:
 			 * bug picked up by
 			 * Larry J. Hughes Jr. <hughes@indiana.edu> */
 			if (str == strbuf)
-				memset(str,0,SIZE);
+				OPENSSL_cleanse(str,SIZE);
 			else
-				memset(str,0,strlen(str));
+				OPENSSL_cleanse(str,strlen(str));
 			}
 		if ((hiv != NULL) && !set_hex(hiv,iv,8))
 			{
@@ -604,7 +604,7 @@ end:
 	if (benc != NULL) BIO_free(benc);
 	if (b64 != NULL) BIO_free(b64);
 	if(pass) OPENSSL_free(pass);
-	EXIT(ret);
+	OPENSSL_EXIT(ret);
 	}
 
 int set_hex(char *in, unsigned char *out, int size)

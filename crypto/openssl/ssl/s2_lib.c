@@ -54,8 +54,6 @@
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
- *
- * $FreeBSD$
  */
 
 #include "ssl_locl.h"
@@ -309,7 +307,7 @@ void ssl2_free(SSL *s)
 	s2=s->s2;
 	if (s2->rbuf != NULL) OPENSSL_free(s2->rbuf);
 	if (s2->wbuf != NULL) OPENSSL_free(s2->wbuf);
-	memset(s2,0,sizeof *s2);
+	OPENSSL_cleanse(s2,sizeof *s2);
 	OPENSSL_free(s2);
 	s->s2=NULL;
 	}
@@ -378,15 +376,19 @@ SSL_CIPHER *ssl2_get_cipher_by_char(const unsigned char *p)
 		{
 		CRYPTO_w_lock(CRYPTO_LOCK_SSL);
 
-		for (i=0; i<SSL2_NUM_CIPHERS; i++)
-			sorted[i]= &(ssl2_ciphers[i]);
+		if (init)
+			{
+			for (i=0; i<SSL2_NUM_CIPHERS; i++)
+				sorted[i]= &(ssl2_ciphers[i]);
 
-		qsort(  (char *)sorted,
-			SSL2_NUM_CIPHERS,sizeof(SSL_CIPHER *),
-			FP_ICC ssl_cipher_ptr_id_cmp);
+			qsort((char *)sorted,
+				SSL2_NUM_CIPHERS,sizeof(SSL_CIPHER *),
+				FP_ICC ssl_cipher_ptr_id_cmp);
 
+			init=0;
+			}
+			
 		CRYPTO_w_unlock(CRYPTO_LOCK_SSL);
-		init=0;
 		}
 
 	id=0x02000000L|((unsigned long)p[0]<<16L)|
@@ -417,7 +419,7 @@ int ssl2_put_cipher_by_char(const SSL_CIPHER *c, unsigned char *p)
 	return(3);
 	}
 
-void ssl2_generate_key_material(SSL *s)
+int ssl2_generate_key_material(SSL *s)
 	{
 	unsigned int i;
 	MD5_CTX ctx;
@@ -430,14 +432,24 @@ void ssl2_generate_key_material(SSL *s)
 #endif
 
 	km=s->s2->key_material;
- 	die(s->s2->key_material_length <= sizeof s->s2->key_material);
+
+	if (s->session->master_key_length < 0 || s->session->master_key_length > sizeof s->session->master_key)
+		{
+		SSLerr(SSL_F_SSL2_GENERATE_KEY_MATERIAL, SSL_R_INTERNAL_ERROR);
+		return 0;
+		}
+
 	for (i=0; i<s->s2->key_material_length; i+=MD5_DIGEST_LENGTH)
 		{
+		if (((km - s->s2->key_material) + MD5_DIGEST_LENGTH) > sizeof s->s2->key_material)
+			{
+			/* MD5_Final() below would write beyond buffer */
+			SSLerr(SSL_F_SSL2_GENERATE_KEY_MATERIAL, SSL_R_INTERNAL_ERROR);
+			return 0;
+			}
+
 		MD5_Init(&ctx);
 
- 		die(s->session->master_key_length >= 0
- 		    && s->session->master_key_length
- 		    < sizeof s->session->master_key);
 		MD5_Update(&ctx,s->session->master_key,s->session->master_key_length);
 		MD5_Update(&ctx,&c,1);
 		c++;
@@ -446,6 +458,8 @@ void ssl2_generate_key_material(SSL *s)
 		MD5_Final(km,&ctx);
 		km+=MD5_DIGEST_LENGTH;
 		}
+
+	return 1;
 	}
 
 void ssl2_return_error(SSL *s, int err)
@@ -470,18 +484,20 @@ void ssl2_write_error(SSL *s)
 	buf[2]=(s->error_code)&0xff;
 
 /*	state=s->rwstate;*/
-	error=s->error;
+
+	error=s->error; /* number of bytes left to write */
 	s->error=0;
-	die(error >= 0 && error <= 3);
+	if (error < 0 || error > sizeof buf) /* can't happen */
+		return;
+	
 	i=ssl2_write(s,&(buf[3-error]),error);
+
 /*	if (i == error) s->rwstate=state; */
 
 	if (i < 0)
 		s->error=error;
 	else if (i != s->error)
 		s->error=error-i;
-	/* else
-		s->error=0; */
 	}
 
 int ssl2_shutdown(SSL *s)

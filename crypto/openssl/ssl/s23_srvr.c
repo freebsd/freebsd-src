@@ -54,8 +54,6 @@
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
- *
- * $FreeBSD$
  */
 /* ====================================================================
  * Copyright (c) 1998-2001 The OpenSSL Project.  All rights reserved.
@@ -141,11 +139,18 @@ SSL_METHOD *SSLv23_server_method(void)
 
 	if (init)
 		{
-		memcpy((char *)&SSLv23_server_data,
-			(char *)sslv23_base_method(),sizeof(SSL_METHOD));
-		SSLv23_server_data.ssl_accept=ssl23_accept;
-		SSLv23_server_data.get_ssl_method=ssl23_get_server_method;
-		init=0;
+		CRYPTO_w_lock(CRYPTO_LOCK_SSL_METHOD);
+
+		if (init)
+			{
+			memcpy((char *)&SSLv23_server_data,
+				(char *)sslv23_base_method(),sizeof(SSL_METHOD));
+			SSLv23_server_data.ssl_accept=ssl23_accept;
+			SSLv23_server_data.get_ssl_method=ssl23_get_server_method;
+			init=0;
+			}
+
+		CRYPTO_w_unlock(CRYPTO_LOCK_SSL_METHOD);
 		}
 	return(&SSLv23_server_data);
 	}

@@ -480,9 +480,10 @@ int MAIN(int argc, char **argv)
 		    /* Exclude verified certificate */
 		    for (i = 1; i < sk_X509_num (chain2) ; i++) 
 			sk_X509_push(certs, sk_X509_value (chain2, i));
-		}
-		sk_X509_free(chain2);
-		if (vret) {
+		    /* Free first certificate */
+		    X509_free(sk_X509_value(chain2, 0));
+		    sk_X509_free(chain2);
+		} else {
 			BIO_printf (bio_err, "Error %s getting chain.\n",
 					X509_verify_cert_error_string(vret));
 			goto export_end;
@@ -509,8 +510,6 @@ int MAIN(int argc, char **argv)
 	}
 	sk_X509_pop_free(certs, X509_free);
 	certs = NULL;
-	/* ucert is part of certs so it is already freed */
-	ucert = NULL;
 
 #ifdef CRYPTO_MDEBUG
 	CRYPTO_pop_info();
@@ -598,7 +597,6 @@ int MAIN(int argc, char **argv)
 	if (certs) sk_X509_pop_free(certs, X509_free);
 	if (safes) sk_PKCS7_pop_free(safes, PKCS7_free);
 	if (bags) sk_PKCS12_SAFEBAG_pop_free(bags, PKCS12_SAFEBAG_free);
-	if (ucert) X509_free(ucert);
 
 #ifdef CRYPTO_MDEBUG
 	CRYPTO_pop_info();
@@ -668,7 +666,7 @@ int MAIN(int argc, char **argv)
     if (canames) sk_free(canames);
     if(passin) OPENSSL_free(passin);
     if(passout) OPENSSL_free(passout);
-    EXIT(ret);
+    OPENSSL_EXIT(ret);
 }
 
 int dump_certs_keys_p12 (BIO *out, PKCS12 *p12, char *pass,

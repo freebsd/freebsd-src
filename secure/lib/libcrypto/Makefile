@@ -35,8 +35,8 @@ SHLIB_MAJOR=	2
 MAINTAINER=	kris
 
 # base sources
-SRCS+=	cpt_err.c cryptlib.c cversion.c ebcdic.c ex_data.c mem.c mem_dbg.c \
-	tmdiff.c uid.c
+SRCS+=	cpt_err.c cryptlib.c cversion.c ebcdic.c ex_data.c mem.c mem_clr.c \
+	mem_dbg.c tmdiff.c uid.c
 
 # asn1
 

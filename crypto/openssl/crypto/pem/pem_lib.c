@@ -380,7 +380,7 @@ int PEM_ASN1_write_bio(int (*i2d)(), const char *name, BIO *bp, char *x,
 		 * NOT taken from the BytesToKey function */
 		EVP_BytesToKey(enc,EVP_md5(),iv,kstr,klen,1,key,NULL);
 
-		if (kstr == (unsigned char *)buf) memset(buf,0,PEM_BUFSIZE);
+		if (kstr == (unsigned char *)buf) OPENSSL_cleanse(buf,PEM_BUFSIZE);
 
 		buf[0]='\0';
 		PEM_proc_type(buf,PEM_TYPE_ENCRYPTED);
@@ -401,12 +401,15 @@ int PEM_ASN1_write_bio(int (*i2d)(), const char *name, BIO *bp, char *x,
 	i=PEM_write_bio(bp,name,buf,data,i);
 	if (i <= 0) ret=0;
 err:
-	memset(key,0,sizeof(key));
-	memset(iv,0,sizeof(iv));
-	memset((char *)&ctx,0,sizeof(ctx));
-	memset(buf,0,PEM_BUFSIZE);
-	memset(data,0,(unsigned int)dsize);
-	OPENSSL_free(data);
+	OPENSSL_cleanse(key,sizeof(key));
+	OPENSSL_cleanse(iv,sizeof(iv));
+	OPENSSL_cleanse((char *)&ctx,sizeof(ctx));
+	OPENSSL_cleanse(buf,PEM_BUFSIZE);
+	if (data != NULL)
+		{
+		OPENSSL_cleanse(data,(unsigned int)dsize);
+		OPENSSL_free(data);
+		}
 	return(ret);
 	}
 
@@ -444,8 +447,8 @@ int PEM_do_header(EVP_CIPHER_INFO *cipher, unsigned char *data, long *plen,
 	EVP_DecryptUpdate(&ctx,data,&i,data,j);
 	o=EVP_DecryptFinal(&ctx,&(data[i]),&j);
 	EVP_CIPHER_CTX_cleanup(&ctx);
-	memset((char *)buf,0,sizeof(buf));
-	memset((char *)key,0,sizeof(key));
+	OPENSSL_cleanse((char *)buf,sizeof(buf));
+	OPENSSL_cleanse((char *)key,sizeof(key));
 	j+=i;
 	if (!o)
 		{

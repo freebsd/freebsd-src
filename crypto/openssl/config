@@ -317,6 +317,10 @@ case "${SYSTEM}:${RELEASE}:${VERSION}:${MACHINE}" in
     *CRAY*)
        echo "j90-cray-unicos"; exit 0;
        ;;
+
+    NONSTOP_KERNEL*)
+       echo "nsr-tandem-nsk"; exit 0;
+       ;;
 esac
 
 #
@@ -384,6 +388,9 @@ done
 GCCVER=`(gcc -dumpversion) 2>/dev/null`
 if [ "$GCCVER" != "" ]; then
   CC=gcc
+  # then strip off whatever prefix egcs prepends the number with...
+  # Hopefully, this will work for any future prefixes as well.
+  GCCVER=`echo $GCCVER | sed 's/^[a-zA-Z]*\-//'`
   # Since gcc 3.1 gcc --version behaviour has changed.  gcc -dumpversion
   # does give us what we want though, so we use that.  We just just the
   # major and minor version numbers.
@@ -392,6 +399,7 @@ if [ "$GCCVER" != "" ]; then
 else
   CC=cc
 fi
+GCCVER=${GCCVER:-0}
 if [ "$SYSTEM" = "HP-UX" ];then
   # By default gcc is a ILP32 compiler (with long long == 64).
   GCC_BITS="32"
@@ -469,7 +477,8 @@ case "$GUESSOS" in
 	echo "WARNING! If you wish to build 64-bit library, then you have to"
 	echo "         invoke './Configure irix64-mips4-$CC' *manually*."
 	echo "         Type return if you want to continue, Ctrl-C to abort."
-	read waste < /dev/tty
+	# Do not stop if /dev/tty is unavailable
+	(read waste < /dev/tty) || true
         CPU=`(hinv -t cpu) 2>/dev/null | sed 's/^CPU:[^R]*R\([0-9]*\).*/\1/'`
         CPU=${CPU:-0}
         if [ $CPU -ge 5000 ]; then
@@ -524,7 +533,8 @@ EOF
 	#echo "WARNING! If you wish to build 64-bit library, then you have to"
 	#echo "         invoke './Configure linux64-sparcv9' *manually*."
 	#echo "         Type return if you want to continue, Ctrl-C to abort."
-	#read waste < /dev/tty
+	# Do not stop if /dev/tty is unavailable
+	#(read waste < /dev/tty) || true
 	OUT="linux-sparcv9" ;;
   sparc-*-linux2)
 	KARCH=`awk '/^type/{print$3}' /proc/cpuinfo`
@@ -565,7 +575,8 @@ EOF
 		echo "WARNING! If you wish to build 64-bit library, then you have to"
 		echo "         invoke './Configure solaris64-sparcv9-cc' *manually*."
 		echo "         Type return if you want to continue, Ctrl-C to abort."
-		read waste < /dev/tty
+		# Do not stop if /dev/tty is unavailable
+		(read waste < /dev/tty) || true
 	fi
 	OUT="solaris-sparcv9-$CC" ;;
   sun4m-*-solaris2)	OUT="solaris-sparcv8-$CC" ;;
@@ -626,6 +637,7 @@ EOF
   *-*-cygwin) OUT="Cygwin" ;;
   t3e-cray-unicosmk) OUT="cray-t3e" ;;
   j90-cray-unicos) OUT="cray-j90" ;;
+  nsr-tandem-nsk) OUT="tandem-c89" ;;
   *) OUT=`echo $GUESSOS | awk -F- '{print $3}'`;;
 esac
 

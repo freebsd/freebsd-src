@@ -155,7 +155,7 @@ extern "C" {
 #define BN_BYTES	4
 #define BN_BITS2	32
 #define BN_BITS4	16
-#ifdef _MSC_VER
+#if defined(_MSC_VER) || defined(__BORLANDC__)
 /* VC++ doesn't like the LL suffix */
 #define BN_MASK		(0xffffffffffffffffL)
 #else
@@ -413,7 +413,7 @@ int BN_mod_mul_montgomery(BIGNUM *r,BIGNUM *a,BIGNUM *b,BN_MONT_CTX *mont,
 			  BN_CTX *ctx);
 int BN_from_montgomery(BIGNUM *r,BIGNUM *a,BN_MONT_CTX *mont,BN_CTX *ctx);
 void BN_MONT_CTX_free(BN_MONT_CTX *mont);
-int BN_MONT_CTX_set(BN_MONT_CTX *mont,const BIGNUM *modulus,BN_CTX *ctx);
+int BN_MONT_CTX_set(BN_MONT_CTX *mont,const BIGNUM *mod,BN_CTX *ctx);
 BN_MONT_CTX *BN_MONT_CTX_copy(BN_MONT_CTX *to,BN_MONT_CTX *from);
 
 BN_BLINDING *BN_BLINDING_new(BIGNUM *A,BIGNUM *Ai,BIGNUM *mod);

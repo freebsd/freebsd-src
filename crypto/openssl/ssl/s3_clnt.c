@@ -146,18 +146,25 @@ SSL_METHOD *SSLv3_client_method(void)
 
 	if (init)
 		{
-		init=0;
-		memcpy((char *)&SSLv3_client_data,(char *)sslv3_base_method(),
-			sizeof(SSL_METHOD));
-		SSLv3_client_data.ssl_connect=ssl3_connect;
-		SSLv3_client_data.get_ssl_method=ssl3_get_client_method;
+		CRYPTO_w_lock(CRYPTO_LOCK_SSL_METHOD);
+
+		if (init)
+			{
+			memcpy((char *)&SSLv3_client_data,(char *)sslv3_base_method(),
+				sizeof(SSL_METHOD));
+			SSLv3_client_data.ssl_connect=ssl3_connect;
+			SSLv3_client_data.get_ssl_method=ssl3_get_client_method;
+			init=0;
+			}
+
+		CRYPTO_w_unlock(CRYPTO_LOCK_SSL_METHOD);
 		}
 	return(&SSLv3_client_data);
 	}
 
 int ssl3_connect(SSL *s)
 	{
-	BUF_MEM *buf;
+	BUF_MEM *buf=NULL;
 	unsigned long Time=time(NULL),l;
 	long num1;
 	void (*cb)()=NULL;
@@ -218,6 +225,7 @@ int ssl3_connect(SSL *s)
 					goto end;
 					}
 				s->init_buf=buf;
+				buf=NULL;
 				}
 
 			if (!ssl3_setup_buffers(s)) { ret= -1; goto end; }
@@ -496,6 +504,8 @@ int ssl3_connect(SSL *s)
 		}
 end:
 	s->in_handshake--;
+	if (buf != NULL)
+		BUF_MEM_free(buf);
 	if (cb != NULL)
 		cb(s,SSL_CB_CONNECT_EXIT,ret);
 	return(ret);
@@ -546,7 +556,11 @@ static int ssl3_client_hello(SSL *s)
 		*(p++)=i;
 		if (i != 0)
 			{
-			die(i <= sizeof s->session->session_id);
+			if (i > sizeof s->session->session_id)
+				{
+				SSLerr(SSL_F_SSL3_CLIENT_HELLO, SSL_R_INTERNAL_ERROR);
+				goto err;
+				}
 			memcpy(p,s->session->session_id,i);
 			p+=i;
 			}
@@ -628,23 +642,11 @@ static int ssl3_get_server_hello(SSL *s)
 	/* get the session-id */
 	j= *(p++);
 
-       if(j > sizeof s->session->session_id)
-               {
-               al=SSL_AD_ILLEGAL_PARAMETER;
-               SSLerr(SSL_F_SSL3_GET_SERVER_HELLO,
-                      SSL_R_SSL3_SESSION_ID_TOO_LONG);
-               goto f_err;
-               }
-
-	if ((j != 0) && (j != SSL3_SESSION_ID_SIZE))
+	if ((j > sizeof s->session->session_id) || (j > SSL3_SESSION_ID_SIZE))
 		{
-		/* SSLref returns 16 :-( */
-		if (j < SSL2_SSL_SESSION_ID_LENGTH)
-			{
-			al=SSL_AD_ILLEGAL_PARAMETER;
-			SSLerr(SSL_F_SSL3_GET_SERVER_HELLO,SSL_R_SSL3_SESSION_ID_TOO_SHORT);
-			goto f_err;
-			}
+		al=SSL_AD_ILLEGAL_PARAMETER;
+		SSLerr(SSL_F_SSL3_GET_SERVER_HELLO,SSL_R_SSL3_SESSION_ID_TOO_LONG);
+		goto f_err;
 		}
 	if (j != 0 && j == s->session->session_id_length
 	    && memcmp(p,s->session->session_id,j) == 0)
@@ -652,6 +654,7 @@ static int ssl3_get_server_hello(SSL *s)
 	    if(s->sid_ctx_length != s->session->sid_ctx_length
 	       || memcmp(s->session->sid_ctx,s->sid_ctx,s->sid_ctx_length))
 		{
+		/* actually a client application bug */
 		al=SSL_AD_ILLEGAL_PARAMETER;
 		SSLerr(SSL_F_SSL3_GET_SERVER_HELLO,SSL_R_ATTEMPT_TO_REUSE_SESSION_IN_DIFFERENT_CONTEXT);
 		goto f_err;
@@ -695,7 +698,12 @@ static int ssl3_get_server_hello(SSL *s)
 		goto f_err;
 		}
 
-	if (s->hit && (s->session->cipher != c))
+	/* Depending on the session caching (internal/external), the cipher
+	   and/or cipher_id values may not be set. Make sure that
+	   cipher_id is set and use it for comparison. */
+	if (s->session->cipher)
+		s->session->cipher_id = s->session->cipher->id;
+	if (s->hit && (s->session->cipher_id != c->id))
 		{
 		if (!(s->options &
 			SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG))
@@ -1456,7 +1464,7 @@ static int ssl3_send_client_key_exchange(SSL *s)
 				s->method->ssl3_enc->generate_master_secret(s,
 					s->session->master_key,
 					tmp_buf,SSL_MAX_MASTER_KEY_LENGTH);
-			memset(tmp_buf,0,SSL_MAX_MASTER_KEY_LENGTH);
+			OPENSSL_cleanse(tmp_buf,SSL_MAX_MASTER_KEY_LENGTH);
 			}
 		else
 #endif

@@ -9,6 +9,7 @@ OpenSSL  -  Frequently Asked Questions
 * Where can I get a compiled version of OpenSSL?
 * Why aren't tools like 'autoconf' and 'libtool' used?
 * What is an 'engine' version?
+* How do I check the authenticity of the OpenSSL distribution?
 
 [LEGAL] Legal questions
 
@@ -35,6 +36,7 @@ OpenSSL  -  Frequently Asked Questions
 * Why does the linker complain about undefined symbols?
 * Why does the OpenSSL test fail with "bc: command not found"?
 * Why does the OpenSSL test fail with "bc: 1 no implemented"?
+* Why does the OpenSSL test fail with "bc: stack empty"?
 * Why does the OpenSSL compilation fail on Alpha Tru64 Unix?
 * Why does the OpenSSL compilation fail with "ar: command not found"?
 * Why does the OpenSSL compilation fail on Win32 with VC++?
@@ -61,7 +63,7 @@ OpenSSL  -  Frequently Asked Questions
 * Which is the current version of OpenSSL?
 
 The current version is available from <URL: http://www.openssl.org>.
-OpenSSL 0.9.6e was released on 30 May, 2002.
+OpenSSL 0.9.7a was released on February 19, 2003.
 
 In addition to the current stable release, you can also access daily
 snapshots of the OpenSSL development version at <URL:
@@ -132,6 +134,19 @@ hardware. This was realized in a special release '0.9.6-engine'. With
 version 0.9.7 (not yet released) the changes were merged into the main
 development line, so that the special release is no longer necessary.
 
+* How do I check the authenticity of the OpenSSL distribution?
+
+We provide MD5 digests and ASC signatures of each tarball.
+Use MD5 to check that a tarball from a mirror site is identical:
+
+   md5sum TARBALL | awk '{print $1;}' | cmp - TARBALL.md5
+
+You can check authenticity using pgp or gpg. You need the OpenSSL team
+member public key used to sign it (download it from a key server). Then
+just do:
+
+   pgp TARBALL.asc
+
 [LEGAL] =======================================================================
 
 * Do I need patent licenses to use OpenSSL?
@@ -169,18 +184,30 @@ for permission to use their software with OpenSSL.
 
 Cryptographic software needs a source of unpredictable data to work
 correctly.  Many open source operating systems provide a "randomness
-device" that serves this purpose.  On other systems, applications have
-to call the RAND_add() or RAND_seed() function with appropriate data
-before generating keys or performing public key encryption.
-(These functions initialize the pseudo-random number generator, PRNG.)
+device" (/dev/urandom or /dev/random) that serves this purpose.
+All OpenSSL versions try to use /dev/urandom by default; starting with
+version 0.9.7, OpenSSL also tries /dev/random if /dev/urandom is not
+available.
 
-Some broken applications do not do this.  As of version 0.9.5, the
-OpenSSL functions that need randomness report an error if the random
-number generator has not been seeded with at least 128 bits of
-randomness.  If this error occurs, please contact the author of the
-application you are using.  It is likely that it never worked
-correctly.  OpenSSL 0.9.5 and later make the error visible by refusing
-to perform potentially insecure encryption.
+On other systems, applications have to call the RAND_add() or
+RAND_seed() function with appropriate data before generating keys or
+performing public key encryption. (These functions initialize the
+pseudo-random number generator, PRNG.)  Some broken applications do
+not do this.  As of version 0.9.5, the OpenSSL functions that need
+randomness report an error if the random number generator has not been
+seeded with at least 128 bits of randomness.  If this error occurs and
+is not discussed in the documentation of the application you are
+using, please contact the author of that application; it is likely
+that it never worked correctly.  OpenSSL 0.9.5 and later make the
+error visible by refusing to perform potentially insecure encryption.
+
+If you are using Solaris 8, you can add /dev/urandom and /dev/random
+devices by installing patch 112438 (Sparc) or 112439 (x86), which are
+available via the Patchfinder at <URL: http://sunsolve.sun.com>
+(Solaris 9 includes these devices by default). For /dev/random support
+for earlier Solaris versions, see Sun's statement at
+<URL: http://sunsolve.sun.com/pub-cgi/retrieve.pl?doc=fsrdb/27606&zone_32=SUNWski>
+(the SUNWski package is available in patch 105710).
 
 On systems without /dev/urandom and /dev/random, it is a good idea to
 use the Entropy Gathering Demon (EGD); see the RAND_egd() manpage for
@@ -212,16 +239,6 @@ The $RANDFILE environment variable and $HOME/.rnd are only used by the
 OpenSSL command line tools. Applications using the OpenSSL library
 provide their own configuration options to specify the entropy source,
 please check out the documentation coming the with application.
-
-For Solaris 2.6, Tim Nibbe <tnibbe@sprint.net> and others have suggested
-installing the SUNski package from Sun patch 105710-01 (Sparc) which
-adds a /dev/random device and make sure it gets used, usually through
-$RANDFILE.  There are probably similar patches for the other Solaris
-versions.  An official statement from Sun with respect to /dev/random
-support can be found at
-  http://sunsolve.sun.com/pub-cgi/retrieve.pl?doc=fsrdb/27606&zone_32=SUNWski
-However, be warned that /dev/random is usually a blocking device, which
-may have some effects on OpenSSL.
 
 
 * Why do I get an "unable to write 'random state'" error message?
@@ -386,6 +403,17 @@ tests, get GNU bc from ftp://ftp.gnu.org or from your OS distributor.
 On some SCO installations or versions, bc has a bug that gets triggered
 when you run the test suite (using "make test").  The message returned is
 "bc: 1 not implemented".
+
+The best way to deal with this is to find another implementation of bc
+and compile/install it.  GNU bc (see http://www.gnu.org/software/software.html
+for download instructions) can be safely used, for example.
+
+
+* Why does the OpenSSL test fail with "bc: stack empty"?
+
+On some DG/ux versions, bc seems to have a too small stack for calculations
+that the OpenSSL bntest throws at it.  This gets triggered when you run the
+test suite (using "make test").  The message returned is "bc: stack empty".
 
 The best way to deal with this is to find another implementation of bc
 and compile/install it.  GNU bc (see http://www.gnu.org/software/software.html

@@ -1,7 +1,6 @@
 #!/usr/local/bin/perl
 #
 # Mingw32.pl -- Mingw32 with GNU cp (Mingw32f.pl uses DOS tools) 
-# $FreeBSD$
 #
 
 $o='/';

@@ -173,6 +173,9 @@ void CRYPTO_get_mem_debug_functions(void (**m)(void *,int,const char *,int,int),
 void *CRYPTO_malloc_locked(int num, const char *file, int line)
 	{
 	void *ret = NULL;
+	extern unsigned char cleanse_ctr;
+
+	if (num < 0) return NULL;
 
 	allow_customize = 0;
 	if (malloc_debug_func != NULL)
@@ -186,6 +189,12 @@ void *CRYPTO_malloc_locked(int num, const char *file, int line)
 #endif
 	if (malloc_debug_func != NULL)
 		malloc_debug_func(ret, num, file, line, 1);
+
+        /* Create a dependency on the value of 'cleanse_ctr' so our memory
+         * sanitisation function can't be optimised out. NB: We only do
+         * this for >2Kb so the overhead doesn't bother us. */
+        if(ret && (num > 2048))
+		((unsigned char *)ret)[0] = cleanse_ctr;
 
 	return ret;
 	}
@@ -205,6 +214,9 @@ void CRYPTO_free_locked(void *str)
 void *CRYPTO_malloc(int num, const char *file, int line)
 	{
 	void *ret = NULL;
+	extern unsigned char cleanse_ctr;
+
+	if (num < 0) return NULL;
 
 	allow_customize = 0;
 	if (malloc_debug_func != NULL)
@@ -219,12 +231,23 @@ void *CRYPTO_malloc(int num, const char *file, int line)
 	if (malloc_debug_func != NULL)
 		malloc_debug_func(ret, num, file, line, 1);
 
+        /* Create a dependency on the value of 'cleanse_ctr' so our memory
+         * sanitisation function can't be optimised out. NB: We only do
+         * this for >2Kb so the overhead doesn't bother us. */
+        if(ret && (num > 2048))
+                ((unsigned char *)ret)[0] = cleanse_ctr;
+
 	return ret;
 	}
 
 void *CRYPTO_realloc(void *str, int num, const char *file, int line)
 	{
 	void *ret = NULL;
+
+	if (str == NULL)
+		return CRYPTO_malloc(num, file, line);
+
+	if (num < 0) return NULL;
 
 	if (realloc_debug_func != NULL)
 		realloc_debug_func(str, NULL, num, file, line, 0);

@@ -107,7 +107,6 @@
  * (eay@cryptsoft.com).  This product includes software written by Tim
  * Hudson (tjh@cryptsoft.com).
  *
- * $FreeBSD$
  */
 
 #include "ssl_locl.h"
@@ -146,11 +145,18 @@ SSL_METHOD *SSLv2_client_method(void)
 
 	if (init)
 		{
-		memcpy((char *)&SSLv2_client_data,(char *)sslv2_base_method(),
-			sizeof(SSL_METHOD));
-		SSLv2_client_data.ssl_connect=ssl2_connect;
-		SSLv2_client_data.get_ssl_method=ssl2_get_client_method;
-		init=0;
+		CRYPTO_w_lock(CRYPTO_LOCK_SSL_METHOD);
+
+		if (init)
+			{
+			memcpy((char *)&SSLv2_client_data,(char *)sslv2_base_method(),
+				sizeof(SSL_METHOD));
+			SSLv2_client_data.ssl_connect=ssl2_connect;
+			SSLv2_client_data.get_ssl_method=ssl2_get_client_method;
+			init=0;
+			}
+
+		CRYPTO_w_unlock(CRYPTO_LOCK_SSL_METHOD);
 		}
 	return(&SSLv2_client_data);
 	}
@@ -202,10 +208,13 @@ int ssl2_connect(SSL *s)
 			if (!BUF_MEM_grow(buf,
 				SSL2_MAX_RECORD_LENGTH_3_BYTE_HEADER))
 				{
+				if (buf == s->init_buf)
+					buf=NULL;
 				ret= -1;
 				goto end;
 				}
 			s->init_buf=buf;
+			buf=NULL;
 			s->init_num=0;
 			s->state=SSL2_ST_SEND_CLIENT_HELLO_A;
 			s->ctx->stats.sess_connect++;
@@ -332,6 +341,8 @@ int ssl2_connect(SSL *s)
 		}
 end:
 	s->in_handshake--;
+	if (buf != NULL)
+		BUF_MEM_free(buf);
 	if (cb != NULL) 
 		cb(s,SSL_CB_CONNECT_EXIT,ret);
 	return(ret);
@@ -519,7 +530,12 @@ static int get_server_hello(SSL *s)
 		}
 		
 	s->s2->conn_id_length=s->s2->tmp.conn_id_length;
-	die(s->s2->conn_id_length <= sizeof s->s2->conn_id);
+	if (s->s2->conn_id_length > sizeof s->s2->conn_id)
+		{
+		ssl2_return_error(s, SSL2_PE_UNDEFINED_ERROR);
+		SSLerr(SSL_F_GET_SERVER_HELLO, SSL_R_SSL2_CONNECTION_ID_TOO_LONG);
+		return -1;
+		}
 	memcpy(s->s2->conn_id,p,s->s2->tmp.conn_id_length);
 	return(1);
 	}
@@ -621,7 +637,12 @@ static int client_master_key(SSL *s)
 		/* make key_arg data */
 		i=EVP_CIPHER_iv_length(c);
 		sess->key_arg_length=i;
-		die(i <= SSL_MAX_KEY_ARG_LENGTH);
+		if (i > SSL_MAX_KEY_ARG_LENGTH)
+			{
+			ssl2_return_error(s, SSL2_PE_UNDEFINED_ERROR);
+			SSLerr(SSL_F_CLIENT_MASTER_KEY, SSL_R_INTERNAL_ERROR);
+			return -1;
+			}
 		if (i > 0) RAND_pseudo_bytes(sess->key_arg,i);
 
 		/* make a master key */
@@ -629,7 +650,12 @@ static int client_master_key(SSL *s)
 		sess->master_key_length=i;
 		if (i > 0)
 			{
-			die(i <= sizeof sess->master_key);
+			if (i > sizeof sess->master_key)
+				{
+				ssl2_return_error(s, SSL2_PE_UNDEFINED_ERROR);
+				SSLerr(SSL_F_CLIENT_MASTER_KEY, SSL_R_INTERNAL_ERROR);
+				return -1;
+				}
 			if (RAND_bytes(sess->master_key,i) <= 0)
 				{
 				ssl2_return_error(s,SSL2_PE_UNDEFINED_ERROR);
@@ -673,7 +699,12 @@ static int client_master_key(SSL *s)
 		d+=enc;
 		karg=sess->key_arg_length;	
 		s2n(karg,p); /* key arg size */
-		die(karg <= sizeof sess->key_arg);
+		if (karg > sizeof sess->key_arg)
+			{
+			ssl2_return_error(s,SSL2_PE_UNDEFINED_ERROR);
+			SSLerr(SSL_F_CLIENT_MASTER_KEY, SSL_R_INTERNAL_ERROR);
+			return -1;
+			}
 		memcpy(d,sess->key_arg,(unsigned int)karg);
 		d+=karg;
 
@@ -694,7 +725,11 @@ static int client_finished(SSL *s)
 		{
 		p=(unsigned char *)s->init_buf->data;
 		*(p++)=SSL2_MT_CLIENT_FINISHED;
-		die(s->s2->conn_id_length <= sizeof s->s2->conn_id);
+		if (s->s2->conn_id_length > sizeof s->s2->conn_id)
+			{
+			SSLerr(SSL_F_CLIENT_FINISHED, SSL_R_INTERNAL_ERROR);
+			return -1;
+			}
 		memcpy(p,s->s2->conn_id,(unsigned int)s->s2->conn_id_length);
 
 		s->state=SSL2_ST_SEND_CLIENT_FINISHED_B;
@@ -722,8 +757,8 @@ static int client_certificate(SSL *s)
 	if (s->state == SSL2_ST_SEND_CLIENT_CERTIFICATE_A)
 		{
 		i=ssl2_read(s,(char *)&(buf[s->init_num]),
-			SSL2_MAX_CERT_CHALLENGE_LENGTH+1-s->init_num);
-		if (i<(SSL2_MIN_CERT_CHALLENGE_LENGTH+1-s->init_num))
+			SSL2_MAX_CERT_CHALLENGE_LENGTH+2-s->init_num);
+		if (i<(SSL2_MIN_CERT_CHALLENGE_LENGTH+2-s->init_num))
 			return(ssl2_part_read(s,SSL_F_CLIENT_CERTIFICATE,i));
 		s->init_num += i;
 
@@ -951,10 +986,9 @@ static int get_server_finished(SSL *s)
 		{
 		if (!(s->options & SSL_OP_MICROSOFT_SESS_ID_BUG))
 			{
-			die(s->session->session_id_length
-			    <= sizeof s->session->session_id);
-			if (memcmp(buf,s->session->session_id,
-				(unsigned int)s->session->session_id_length) != 0)
+			if ((s->session->session_id_length > sizeof s->session->session_id)
+			    || (0 != memcmp(buf, s->session->session_id,
+			                    (unsigned int)s->session->session_id_length)))
 				{
 				ssl2_return_error(s,SSL2_PE_UNDEFINED_ERROR);
 				SSLerr(SSL_F_GET_SERVER_FINISHED,SSL_R_SSL_SESSION_ID_IS_DIFFERENT);
