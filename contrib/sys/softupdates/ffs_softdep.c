@@ -1,4 +1,3 @@
-
 /*
  * Copyright 1998 Marshall Kirk McKusick. All Rights Reserved.
  *
@@ -53,8 +52,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)ffs_softdep.c	9.28 (McKusick) 8/8/98
- *	$Id: ffs_softdep.c,v 1.20 1999/01/07 16:14:10 bde Exp $
+ *	from: @(#)ffs_softdep.c	9.34 (McKusick) 3/1/99
+ *	$Id: ffs_softdep.c,v 1.24 1999/03/02 06:38:07 mckusick Exp $
  */
 
 /*
@@ -1650,6 +1649,7 @@ softdep_setup_freeblocks(ip, length)
 	merge_inode_lists(inodedep);
 	while ((adp = TAILQ_FIRST(&inodedep->id_inoupdt)) != 0)
 		free_allocdirect(&inodedep->id_inoupdt, adp, 1);
+	FREE_LOCK(&lk);
 	bdwrite(bp);
 	/*
 	 * We must wait for any I/O in progress to finish so that
@@ -1658,6 +1658,7 @@ softdep_setup_freeblocks(ip, length)
 	 * any dependencies.
 	 */
 	vp = ITOV(ip);
+	ACQUIRE_LOCK(&lk);
 	while (vp->v_numoutput) {
 		vp->v_flag |= VBWAIT;
 		FREE_LOCK_INTERLOCKED(&lk);
@@ -1669,7 +1670,9 @@ softdep_setup_freeblocks(ip, length)
 		(void) inodedep_lookup(fs, ip->i_number, 0, &inodedep);
 		deallocate_dependencies(bp, inodedep);
 		bp->b_flags |= B_INVAL | B_NOCACHE;
+		FREE_LOCK(&lk);
 		brelse(bp);
+		ACQUIRE_LOCK(&lk);
 	}
 	/*
 	 * Try freeing the inodedep in case that was the last dependency.
@@ -2151,16 +2154,19 @@ softdep_setup_directory_add(bp, dp, diroffset, newinum, newdirbp)
 		mkdir2->md_list.wk_type = D_MKDIR;
 		mkdir2->md_state = MKDIR_PARENT;
 		mkdir2->md_diradd = dap;
-		ACQUIRE_LOCK(&lk);
 		/*
 		 * Dependency on "." and ".." being written to disk.
 		 */
+		mkdir1->md_buf = newdirbp;
+		ACQUIRE_LOCK(&lk);
 		LIST_INSERT_HEAD(&mkdirlisthd, mkdir1, md_mkdirs);
 		WORKLIST_INSERT(&newdirbp->b_dep, &mkdir1->md_list);
+		FREE_LOCK(&lk);
 		bdwrite(newdirbp);
 		/*
 		 * Dependency on link count increase for parent directory
 		 */
+		ACQUIRE_LOCK(&lk);
 		if (inodedep_lookup(dp->i_fs, dp->i_number, 0, &inodedep) == 0
 		    || (inodedep->id_state & ALLCOMPLETE) == ALLCOMPLETE) {
 			dap->da_state &= ~MKDIR_PARENT;
@@ -2230,15 +2236,15 @@ softdep_change_directoryentry_offset(dp, base, oldloc, newloc, entrysize)
 		    dap, da_pdlist);
 		break;
 	}
-	if (dap == NULL) { 
-		for (dap = LIST_FIRST(&pagedep->pd_pendinghd); 
-		     dap; dap = LIST_NEXT(dap, da_pdlist)) { 
-			if (dap->da_offset == oldoffset) { 
-				dap->da_offset = newoffset; 
-				break; 
-			} 
-		} 
-	} 
+	if (dap == NULL) {
+		for (dap = LIST_FIRST(&pagedep->pd_pendinghd);
+		     dap; dap = LIST_NEXT(dap, da_pdlist)) {
+			if (dap->da_offset == oldoffset) {
+				dap->da_offset = newoffset;
+				break;
+			}
+		}
+	}
 done:
 	bcopy(oldloc, newloc, entrysize);
 	FREE_LOCK(&lk);
@@ -3000,8 +3006,9 @@ softdep_disk_write_complete(bp)
 			indirdep->ir_state &= ~UNDONE;
 			indirdep->ir_state |= ATTACHED;
 			while ((aip = LIST_FIRST(&indirdep->ir_donehd)) != 0) {
-				LIST_REMOVE(aip, ai_next);
 				handle_allocindir_partdone(aip);
+				if (aip == LIST_FIRST(&indirdep->ir_donehd))
+					panic("disk_write_complete: not gone");
 			}
 			WORKLIST_INSERT(&reattach, wk);
 			bdirty(bp);
@@ -3842,6 +3849,48 @@ loop:
 					return (error);
 				}
 			}
+			break;
+
+		case D_MKDIR:
+			/*
+			 * This case should never happen if the vnode has
+			 * been properly sync'ed. However, if this function
+			 * is used at a place where the vnode has not yet
+			 * been sync'ed, this dependency can show up. So,
+			 * rather than panic, just flush it.
+			 */
+			nbp = WK_MKDIR(wk)->md_buf;
+			if (getdirtybuf(&nbp, waitfor) == 0)
+				break;
+			FREE_LOCK(&lk);
+			if (waitfor == MNT_NOWAIT) {
+				bawrite(nbp);
+			} else if ((error = VOP_BWRITE(nbp)) != 0) {
+				bawrite(bp);
+				return (error);
+			}
+			ACQUIRE_LOCK(&lk);
+			break;
+
+		case D_BMSAFEMAP:
+			/*
+			 * This case should never happen if the vnode has
+			 * been properly sync'ed. However, if this function
+			 * is used at a place where the vnode has not yet
+			 * been sync'ed, this dependency can show up. So,
+			 * rather than panic, just flush it.
+			 */
+			nbp = WK_BMSAFEMAP(wk)->sm_buf;
+			if (getdirtybuf(&nbp, waitfor) == 0)
+				break;
+			FREE_LOCK(&lk);
+			if (waitfor == MNT_NOWAIT) {
+				bawrite(nbp);
+			} else if ((error = VOP_BWRITE(nbp)) != 0) {
+				bawrite(bp);
+				return (error);
+			}
+			ACQUIRE_LOCK(&lk);
 			break;
 
 		default:
