@@ -178,7 +178,10 @@ yppasswd_local(ypclnt_t *ypclnt, const struct passwd *pwd, const char *passwd)
 	if (nc != NULL)
 		freenetconfigent(nc);
 	free(yppwd.newpw.pw_name);
-	free(yppwd.newpw.pw_passwd);
+	if (yppwd.newpw.pw_passwd != NULL) {
+		memset(yppwd.newpw.pw_passwd, 0, strlen(yppwd.newpw.pw_passwd));
+		free(yppwd.newpw.pw_passwd);
+	}
 	free(yppwd.newpw.pw_class);
 	free(yppwd.newpw.pw_gecos);
 	free(yppwd.newpw.pw_dir);
@@ -255,7 +258,10 @@ yppasswd_remote(ypclnt_t *ypclnt, const struct passwd *pwd, const char *passwd)
 		clnt_destroy(clnt);
 	}
 	free(yppwd.newpw.pw_name);
-	free(yppwd.newpw.pw_passwd);
+	if (yppwd.newpw.pw_passwd != NULL) {
+		memset(yppwd.newpw.pw_passwd, 0, strlen(yppwd.newpw.pw_passwd));
+		free(yppwd.newpw.pw_passwd);
+	}
 	free(yppwd.newpw.pw_gecos);
 	free(yppwd.newpw.pw_dir);
 	free(yppwd.newpw.pw_shell);
