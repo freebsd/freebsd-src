@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.161 1999/05/14 23:09:32 alc Exp $
+ * $Id: vm_map.c,v 1.162 1999/05/16 05:07:31 alc Exp $
  */
 
 /*
@@ -560,6 +560,11 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	if ((map->first_free == prev_entry) &&
 		(prev_entry->end >= new_entry->start))
 		map->first_free = new_entry;
+
+	if (cow & (MAP_PREFAULT|MAP_PREFAULT_PARTIAL))
+		pmap_object_init_pt(map->pmap, start,
+				    object, OFF_TO_IDX(offset), end - start,
+				    cow & MAP_PREFAULT_PARTIAL);
 
 	return (KERN_SUCCESS);
 }
