@@ -33,7 +33,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/rtprio.h>
 #include <sys/stat.h>
-#include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/watchdog.h>
 
@@ -70,8 +69,7 @@ int nap = 1;
 char *test_cmd = NULL;
 
 /*
- * Periodically write to the debug.watchdog.reset sysctl OID
- * to keep the software watchdog from firing.
+ * Periodically pat the watchdog, preventing it from firing.
  */
 int
 main(int argc, char *argv[])
@@ -140,8 +138,7 @@ sighandler(int signum)
 }
 
 /*
- * Locate the OID for the 'debug.watchdog.reset' sysctl setting.
- * Upon finding it, do an initial reset on the watchdog.
+ * Open the watchdog device.
  */
 static int
 watchdog_init()
