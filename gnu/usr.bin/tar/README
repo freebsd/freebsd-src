@@ -1,0 +1,40 @@
+Hey!  Emacs!  Yo!  This is -*- Text -*- !!!
+
+This GNU tar 1.11.2.  Please send bug reports, etc., to
+bug-gnu-utils@prep.ai.mit.edu.  This is a beta-test release.  Please
+try it out.  There is no manual; the release of version 1.12 will
+contain a manual.
+
+GNU tar is based heavily on John Gilmore's public domain tar, but with
+added features.  The manual is currently being written.  
+
+This distribution also includes rmt, the remote tape server (which
+normally must reside in /etc).  The mt tape drive control program is
+in the GNU cpio distribution.
+
+See the file INSTALL for compilation and installation instructions for Unix.
+See the file NEWS for information on all that is new in this version
+of tar.
+
+makefile.pc is a makefile for Turbo C 2.0 on MS-DOS.
+
+Various people have been having problems using floppies on a NeXT.  In
+order to have them work right, you need to kill the automounting
+program which tries to monut floppies as soon as they are added.
+
+If you want to do incremental dumps, use the distributed backup
+scripts.  They are what we use at the FSF to do all our backups.  Most
+importantly, do not use --incremental (-G) or --after-date (-N) or
+--newer-mtime to do incremental dumps.  The only option that works
+correctly for this purpose is --listed-incremental.  (When extracting
+incremental dumps, use --incremental (-G).)
+
+If your system needs to link with -lPW to get alloca, but has
+rename in the C library (so HAVE_RENAME is defined), -lPW might
+give you an incorrect version of rename.  On HP-UX this manifests
+itself as an undefined data symbol called "Error" when linking cp, ln,
+and mv.  If this happens, use `ar x' to extract alloca.o from libPW.a
+and `ar rc' to put it in a library liballoca.a, and put that in LIBS
+instead of -lPW.  This problem does not occur when using gcc, which
+has alloca built in.
+

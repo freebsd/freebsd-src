@@ -1,0 +1,102 @@
+.de Id
+.ds Rv \\$3
+.ds Dt \\$4
+..
+.Id $Id: merge.1,v 5.3 1991/02/28 19:18:45 eggert Exp $
+.TH MERGE 1 \*(Dt GNU
+.SH NAME
+merge \- three-way file merge
+.SH SYNOPSIS
+.B merge
+[
+.B \-L
+.I label1
+[
+.B \-L
+.I label3
+] ] [
+.B \-p
+] [
+.B \-q
+]
+.I "file1 file2 file3"
+.SH DESCRIPTION
+.B merge
+incorporates all changes that lead from
+.I file2
+to
+.I file3
+into
+.IR file1 .
+The result goes to standard output if
+.B \-p
+is present, into
+.I file1
+otherwise.
+.B merge
+is useful for combining separate changes to an original.  Suppose
+.I file2
+is the original, and both
+.I file1
+and
+.I file3
+are modifications of
+.IR file2 .
+Then
+.B merge
+combines both changes.
+.PP
+An overlap occurs if both
+.I file1
+and
+.I file3
+have changes in a common segment of lines.
+On a few older hosts where
+.B diff3
+does not support the
+.B \-E
+option,
+.B merge
+does not detect overlaps, and merely supplies the changed lines from
+.I file3.
+On most hosts, if overlaps occur,
+.B merge
+outputs a message (unless the
+.B \-q
+option is given),
+and includes both alternatives
+in the result.  The alternatives are delimited as follows:
+.LP
+.RS
+.nf
+.BI <<<<<<< " file1"
+.I "lines in file1"
+.B "======="
+.I "lines in file3"
+.BI >>>>>>> " file3"
+.RE
+.fi
+.LP
+If there are overlaps, the user should edit the result and delete one of the
+alternatives.
+If the
+.BI \-L "\ label1"
+and
+.BI \-L "\ label3"
+options are given, the labels are output in place of the names
+.I file1
+and
+.I file3
+in overlap reports.
+.SH DIAGNOSTICS
+Exit status is 0 for no overlaps, 1 for some overlaps, 2 for trouble.
+.SH IDENTIFICATION
+Author: Walter F. Tichy.
+.br
+Revision Number: \*(Rv; Release Date: \*(Dt.
+.br
+Copyright \(co 1982, 1988, 1989 by Walter F. Tichy.
+.br
+Copyright \(co 1990, 1991 by Paul Eggert.
+.SH SEE ALSO
+diff3(1), diff(1), rcsmerge(1), co(1).
