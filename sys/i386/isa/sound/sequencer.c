@@ -31,6 +31,8 @@
 #include "sound_config.h"
 #include "midi_ctrl.h"
 
+extern void seq_drain_midi_queues __P((void));
+
 #ifdef CONFIGURE_SOUNDCARD
 
 #ifndef EXCLUDE_SEQUENCER

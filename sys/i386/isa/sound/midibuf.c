@@ -29,6 +29,8 @@
 
 #include "sound_config.h"
 
+extern void drain_midi_queue __P((int dev));
+
 #if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_MIDI)
 
 /*
