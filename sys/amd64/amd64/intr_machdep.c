@@ -49,6 +49,7 @@
 #include <sys/proc.h>
 #include <sys/syslog.h>
 #include <sys/systm.h>
+#include <machine/clock.h>
 #include <machine/intr_machdep.h>
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -152,9 +153,13 @@ intr_remove_handler(void *cookie)
 void
 intr_execute_handlers(struct intsrc *isrc, struct intrframe *iframe)
 {
+	struct thread *td;
 	struct ithd *it;
 	struct intrhand *ih;
 	int error, vector;
+
+	td = curthread;
+	td->td_intr_nesting_level++;
 
 	/*
 	 * We count software interrupts when we process them.  The
@@ -165,18 +170,25 @@ intr_execute_handlers(struct intsrc *isrc, struct intrframe *iframe)
 	atomic_add_long(isrc->is_count, 1);
 	atomic_add_int(&cnt.v_intr, 1);
 
-	/*
-	 * Execute fast interrupt handlers directly.
-	 * To support clock handlers, if a handler registers
-	 * with a NULL argument, then we pass it a pointer to
-	 * a trapframe as its argument.
-	 */
 	it = isrc->is_ithread;
 	ih = TAILQ_FIRST(&it->it_handlers);
+
+	/*
+	 * XXX: We assume that IRQ 0 is only used for the ISA timer
+	 * device (clk).
+	 */
+	vector = isrc->is_pic->pic_vector(isrc);
+	if (vector == 0)
+		clkintr_pending = 1;
+
 	critical_enter();
-	if (ih == NULL)
-		error = EINVAL;
-	else if (ih->ih_flags & IH_FAST) {
+	if (ih != NULL && ih->ih_flags & IH_FAST) {
+		/*
+		 * Execute fast interrupt handlers directly.
+		 * To support clock handlers, if a handler registers
+		 * with a NULL argument, then we pass it a pointer to
+		 * a trapframe as its argument.
+		 */
 		TAILQ_FOREACH(ih, &it->it_handlers, ih_next) {
 			MPASS(ih->ih_flags & IH_FAST);
 			CTR3(KTR_INTR, "%s: executing handler %p(%p)",
@@ -188,13 +200,22 @@ intr_execute_handlers(struct intsrc *isrc, struct intrframe *iframe)
 			else
 				ih->ih_handler(ih->ih_argument);
 		}
-		isrc->is_pic->pic_enable_source(isrc);
+		isrc->is_pic->pic_eoi_source(isrc);
 		error = 0;
-	} else
-		error = ithread_schedule(it, !cold);
+	} else {
+		/*
+		 * For stray and threaded interrupts, we mask and EOI the
+		 * source.
+		 */
+		isrc->is_pic->pic_disable_source(isrc);
+		isrc->is_pic->pic_eoi_source(isrc);
+		if (ih == NULL)
+			error = EINVAL;
+		else
+			error = ithread_schedule(it, !cold);
+	}
 	critical_exit();
 	if (error == EINVAL) {
-		vector = isrc->is_pic->pic_vector(isrc);
 		atomic_add_long(isrc->is_straycount, 1);
 		if (*isrc->is_straycount < MAX_STRAY_LOG)
 			log(LOG_ERR, "stray irq%d\n", vector);
@@ -203,6 +224,7 @@ intr_execute_handlers(struct intsrc *isrc, struct intrframe *iframe)
 			    "too many stray irq %d's: not logging anymore\n",
 			    vector);
 	}
+	td->td_intr_nesting_level--;
 }
 
 void

@@ -201,8 +201,7 @@ static void
 ioapic_eoi_source(struct intsrc *isrc)
 {
 
-	TODO;
-	/* lapic_eoi(); */
+	lapic_eoi();
 }
 
 /*
