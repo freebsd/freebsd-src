@@ -72,7 +72,9 @@
 #endif
 /*
  * All devices need _some_ sort of bus settle delay, so we'll set it to
- * a minimum value of 100ms.
+ * a minimum value of 100ms. Note that this is pertinent only for SPI-
+ * not transport like Fibre Channel or iSCSI where 'delay' is completely
+ * meaningless.
  */
 #ifndef SCSI_MIN_DELAY
 #define SCSI_MIN_DELAY 100
@@ -80,7 +82,7 @@
 /*
  * Make sure the user isn't using seconds instead of milliseconds.
  */
-#if (SCSI_DELAY < SCSI_MIN_DELAY)
+#if (SCSI_DELAY < SCSI_MIN_DELAY && SCSI_DELAY != 0)
 #error "SCSI_DELAY is in milliseconds, not seconds!  Please use a larger value"
 #endif
 
