@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1994 by Joerg Wunsch, Dresden
+ * Copyright (C) 1994, 2001 by Joerg Wunsch, Dresden
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,110 +36,144 @@ static const char rcsid[] =
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 
-static int getnumber(void);
+#include "fdutil.h"
+
+
+static	int debug = -1, format, verbose, show = 1, showfmt;
+static	char *fmtstring;
+
+static void showdev(enum fd_drivetype, const char *);
 static void usage(void);
-
-static int
-getnumber(void)
-{
-  int i;
-  char b[80];
-
-  fgets(b, 80, stdin);
-  if(b[0] == '\n') return -1;
-
-  sscanf(b, " %i", &i);
-  return i;
-}
 
 static void
 usage(void)
 {
-  fprintf(stderr, "usage: fdcontrol [-d 0|1] | [-s] device-node\n");
-  exit(2);
+	errx(EX_USAGE,
+	     "usage: fdcontrol [-F] [-d dbg] [-f fmt] [-s fmtstr] [-v] device");
 }
 
+void
+showdev(enum fd_drivetype type, const char *fname)
+{
+	const char *name, *descr;
 
-#define ask(name, fmt) \
-printf(#name "? [" fmt "]: ", ft.name); fflush(stdout);   \
-if((i = getnumber()) != -1) ft.name = i
+	getname(type, &name, &descr);
+	if (verbose)
+		printf("%s: %s drive (%s)\n", fname, name, descr);
+	else
+		printf("%s\n", name);
+}
 
 int
 main(int argc, char **argv)
 {
-  struct fd_type ft;
-  int fd, i;
-  int debug = -1, settype = 1;
+	enum fd_drivetype type;
+	struct fd_type ft, newft, *fdtp;
+	const char *name, *descr;
+	int fd, i, mode;
 
-  while((i = getopt(argc, argv, "d:s")) != -1)
-    switch(i)
-      {
-      case 'd':
-	debug = atoi(optarg);
-	settype = 0;
-	break;
+	while((i = getopt(argc, argv, "d:Ff:s:v")) != -1)
+		switch(i) {
+		case 'd':
+			if (strcmp(optarg, "0") == 0)
+				debug = 0;
+			else if (strcmp(optarg, "1") == 0)
+				debug = 1;
+			else
+				usage();
+			show = 0;
+			break;
 
-      case 's':
-	debug = -1;
-	settype = 1;
-	break;
+		case 'F':
+			showfmt = 1;
+			show = 0;
+			break;
 
-      case '?':
-      default:
-	usage();
-      }
+		case 'f':
+			if (getnum(optarg, &format)) {
+				fprintf(stderr,
+			"Bad argument %s to -f option; must be numeric\n",
+					optarg);
+				usage();
+			}
+			show = 0;
+			break;
 
-  argc -= optind;
-  argv += optind;
+		case 's':
+			fmtstring = optarg;
+			show = 0;
+			break;
 
-  if(argc != 1)
-    usage();
+		case 'v':
+			verbose++;
+			break;
 
-  if((fd = open(argv[0], 0)) < 0)
-    {
-      warn("open(floppy)");
-      return 1;
-    }
+		default:
+			usage();
+		}
 
-  if(debug != -1)
-    {
-      if(ioctl(fd, FD_DEBUG, &debug) < 0)
-	{
-	  warn("ioctl(FD_DEBUG)");
-	  return 1;
+	argc -= optind;
+	argv += optind;
+
+	if(argc != 1)
+		usage();
+
+	if (show || showfmt)
+		mode = O_RDONLY | O_NONBLOCK;
+	else
+		mode = O_RDWR;
+
+	if((fd = open(argv[0], mode)) < 0)
+		err(EX_UNAVAILABLE, "open(%s)", argv[0]);
+
+	if (ioctl(fd, FD_GDTYPE, &type) == -1)
+		err(EX_OSERR, "ioctl(FD_GDTYPE)");
+	if (ioctl(fd, FD_GTYPE, &ft) == -1)
+		err(EX_OSERR, "ioctl(FD_GTYPE)");
+
+	if (show) {
+		showdev(type, argv[0]);
+		return (0);
 	}
-      return 0;
-    }
 
-  if(settype)
-    {
-      if(ioctl(fd, FD_GTYPE, &ft) < 0)
-	{
-	  warn("ioctl(FD_GTYPE)");
-	  return 1;
+	if (format) {
+		getname(type, &name, &descr);
+		fdtp = get_fmt(format, type);
+		if (fdtp == 0)
+			errx(EX_USAGE,
+			    "unknown format %d KB for drive type %s",
+			    format, name);
+		ft = *fdtp;
 	}
 
-      ask(sectrac, "%d");
-      ask(secsize, "%d");
-      ask(datalen, "0x%x");
-      ask(gap, "0x%x");
-      ask(tracks, "%d");
-      ask(size, "%d");
-      ask(steptrac, "%d");
-      ask(trans, "%d");
-      ask(heads, "%d");
-      ask(f_gap, "0x%x");
-      ask(f_inter, "%d");
-
-      if(ioctl(fd, FD_STYPE, &ft) < 0)
-	{
-	  warn("ioctl(FD_STYPE)");
-	  return 1;
+	if (fmtstring) {
+		parse_fmt(fmtstring, type, ft, &newft);
+		ft = newft;
 	}
-      return 0;
-    }
 
-  return 0;
+	if (showfmt) {
+		if (verbose)
+			printf("%s: %d KB media type, fmt = ",
+			       argv[0], ft.size / 2);
+		print_fmt(ft);
+		return (0);
+	}
+
+	if (format || fmtstring) {
+		if (ioctl(fd, FD_STYPE, &ft) == -1)
+			err(EX_OSERR, "ioctl(FD_STYPE)");
+		return (0);
+	}
+
+	if (debug != -1) {
+		if (ioctl(fd, FD_DEBUG, &debug) == -1)
+			err(EX_OSERR, "ioctl(FD_DEBUG)");
+		return (0);
+	}
+
+	return 0;
 }

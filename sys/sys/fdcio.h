@@ -42,7 +42,7 @@
 struct fd_formb {
 	int format_version;	/* == FD_FORMAT_VERSION */
 	int cyl, head;
-	int transfer_rate;	/* fdreg.h: FDC_???KBPS */
+	int transfer_rate;	/* FDC_???KBPS */
 
 	union {
 		struct fd_form_data {
@@ -88,13 +88,17 @@ struct fd_type {
 	int	secsize;		/* size code for sectors     */
 	int	datalen;		/* data len when secsize = 0 */
 	int	gap;			/* gap len between sectors   */
-	int	tracks;			/* total num of tracks       */
+	int	tracks;			/* total number of cylinders */
 	int	size;			/* size of disk in sectors   */
-	int	steptrac;		/* steps per cylinder        */
 	int	trans;			/* transfer speed code       */
 	int	heads;			/* number of heads	     */
 	int     f_gap;                  /* format gap len            */
 	int     f_inter;                /* format interleave factor  */
+	int	offset_side2;		/* offset of sectors on side2 */
+	int	flags;			/* misc. features */
+#define FL_MFM		0x0001		/* MFM recording */
+#define FL_2STEP	0x0002		/* 2 steps between cylinders */
+#define FL_PERPND	0x0004		/* perpendicular recording */
 };
 
 struct fdc_status {
@@ -111,6 +115,16 @@ struct fdc_readid {
 	u_char	sec;		/* R - 1...n */
 	u_char	secshift;	/* N - log2(secsize / 128) */
 };
+
+/*
+ * Diskette drive type, basically the same as stored in RTC on ISA
+ * machines (see /sys/isa/rtc.h), but right-shifted by four bits.
+ */
+enum fd_drivetype {
+	FDT_NONE, FDT_360K, FDT_12M, FDT_720K, FDT_144M, FDT_288M_1,
+	FDT_288M
+};
+
 
 #define FD_FORM   _IOW('F', 61, struct fd_formb) /* format a track */
 #define FD_GTYPE  _IOR('F', 62, struct fd_type)  /* get drive type */
@@ -129,26 +143,28 @@ struct fdc_readid {
  * Obtain NE765 status registers.  Only successful if there is
  * a valid status stored in fdc->status[].
  */
-#define FD_GSTAT  _IOR('F', 68, struct fdc_status)
+#define FD_GSTAT  _IOR('F', 69, struct fdc_status)
+
+#define FD_GDTYPE _IOR('F', 70, enum fd_drivetype) /* obtain drive type */
 
 /* Options for FD_GOPTS/FD_SOPTS, cleared on device close */
 #define FDOPT_NORETRY 0x0001	/* no retries on failure */
 #define FDOPT_NOERRLOG 0x002	/* no "hard error" kernel log messages */
 #define FDOPT_NOERROR 0x0004	/* do not indicate errors, caller will use
 				   FD_GSTAT in order to obtain status */
+#define FDOPT_AUTOSEL 0x8000	/* read/only option: device performs media
+				 * autoselection */
 
 /*
- * The following definitions duplicate those in sys/i386/isa/fdreg.h
- * They are here since their values are to be used in the above
- * structure when formatting a floppy. For very obvious reasons, both
- * definitions must match ;-)
+ * Transfer rate definitions.  Used in the structures above.  They
+ * represent the hardware encoding of bits 0 and 1 of the FDC control
+ * register when writing to the register.
+ * Transfer rates for FM encoding are half the values listed here
+ * (but we currently don't support FM encoding).
  */
-#ifndef FDC_500KBPS
 #define	FDC_500KBPS	0x00	/* 500KBPS MFM drive transfer rate */
 #define	FDC_300KBPS	0x01	/* 300KBPS MFM drive transfer rate */
 #define	FDC_250KBPS	0x02	/* 250KBPS MFM drive transfer rate */
-#define	FDC_125KBPS	0x03	/* 125KBPS FM drive transfer rate */
-				/* for some controllers 1MPBS instead */
-#endif /* FDC_500KBPS */
+#define	FDC_1MBPS	0x03	/* 1MPBS MFM drive transfer rate */
 
 #endif /* !_MACHINE_IOCTL_FD_H_ */
