@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: netdate.c,v 1.2 1994/09/24 02:54:38 davidg Exp $
  */
 
 #ifndef lint
@@ -169,7 +169,7 @@ loop:
 			(void)close(s);
 			return (0);
 		default:
-			warnx("wrong ack received from timed: %s", 
+			warnx("wrong ack received from timed: %s",
 			    tsptype[msg.tsp_type]);
 			timed_ack = -1;
 			break;

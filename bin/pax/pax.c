@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: pax.c,v 1.2 1994/09/24 02:56:27 davidg Exp $
  */
 
 #ifndef lint
@@ -116,7 +116,7 @@ sigset_t s_mask;		/* signal mask for cleanup critical sect */
  *
  * 1	READ ENHANCEMENTS
  * 1.1	Operations which read archives will continue to operate even when
- *	processing archives which may be damaged, truncated, or fail to meet 
+ *	processing archives which may be damaged, truncated, or fail to meet
  *	format specs in several different ways. Damaged sections of archives
  *	are detected and avoided if possible. Attempts will be made to resync
  *	archive read operations even with badly damaged media.
@@ -131,7 +131,7 @@ sigset_t s_mask;		/* signal mask for cleanup critical sect */
  * 1.5	The user is notified whenever something is found during archive
  *	read operations which violates spec (but the read will continue).
  * 1.6	Multiple archive volumes can be read and may span over different
- *	archive devices 
+ *	archive devices
  * 1.7	Rigidly restores all file attributes exactly as they are stored on the
  *	archive.
  * 1.8	Modification change time ranges can be specified via multiple -T
@@ -157,7 +157,7 @@ sigset_t s_mask;		/* signal mask for cleanup critical sect */
  *	these fields. This removes any restrictions on using these archive
  *	formats on large file systems.
  * 2.5	Multiple archive volumes can be written and may span over different
- *	archive devices 
+ *	archive devices
  * 2.6	A archive volume record limit allows the user to specify the number
  *	of bytes stored on an archive volume. When reached the user is
  *	prompted for the next archive volume. This is specified with the
@@ -204,7 +204,7 @@ sigset_t s_mask;		/* signal mask for cleanup critical sect */
  *	name modification (-Z)
  *
  * 4	GENERAL ENHANCEMENTS
- * 4.1	Internal structure is designed to isolate format dependent and 
+ * 4.1	Internal structure is designed to isolate format dependent and
  *	independent functions. Formats are selected via a format driver table.
  *	This encourages the addition of new archive formats by only having to
  *	write those routines which id, read and write the archive header.
@@ -235,7 +235,7 @@ main(argc, argv)
 		return(exit_val);
 
 	/*
-	 * select a primary operation mode 
+	 * select a primary operation mode
 	 */
 	switch(act) {
 	case EXTRACT:
@@ -349,7 +349,7 @@ gen_init()
 	/*
 	 * Handle posix locale
 	 *
-	 * set user defines time printing format for -v option 
+	 * set user defines time printing format for -v option
 	 */
 	ltmfrmt = getenv("LC_TIME");
 
@@ -371,27 +371,27 @@ gen_init()
 	n_hand.sa_handler = sig_cleanup;
 
 	if ((sigaction(SIGHUP, &n_hand, &o_hand) < 0) &&
-	    (o_hand.sa_handler == SIG_IGN) && 
+	    (o_hand.sa_handler == SIG_IGN) &&
 	    (sigaction(SIGHUP, &o_hand, &o_hand) < 0))
 		goto out;
 
 	if ((sigaction(SIGTERM, &n_hand, &o_hand) < 0) &&
-	    (o_hand.sa_handler == SIG_IGN) && 
+	    (o_hand.sa_handler == SIG_IGN) &&
 	    (sigaction(SIGTERM, &o_hand, &o_hand) < 0))
 		goto out;
 
 	if ((sigaction(SIGINT, &n_hand, &o_hand) < 0) &&
-	    (o_hand.sa_handler == SIG_IGN) && 
+	    (o_hand.sa_handler == SIG_IGN) &&
 	    (sigaction(SIGINT, &o_hand, &o_hand) < 0))
 		goto out;
 
 	if ((sigaction(SIGQUIT, &n_hand, &o_hand) < 0) &&
-	    (o_hand.sa_handler == SIG_IGN) && 
+	    (o_hand.sa_handler == SIG_IGN) &&
 	    (sigaction(SIGQUIT, &o_hand, &o_hand) < 0))
 		goto out;
 
 	if ((sigaction(SIGXCPU, &n_hand, &o_hand) < 0) &&
-	    (o_hand.sa_handler == SIG_IGN) && 
+	    (o_hand.sa_handler == SIG_IGN) &&
 	    (sigaction(SIGXCPU, &o_hand, &o_hand) < 0))
 		goto out;
 

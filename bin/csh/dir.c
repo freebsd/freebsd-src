@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: dir.c,v 1.2 1994/09/24 02:53:54 davidg Exp $
  */
 
 #ifndef lint
@@ -221,7 +221,7 @@ printdirs()
 	}
 	if (!(dirflag & DIR_LONG) && hp != NULL && !eq(hp, STRslash) &&
 	    (len = Strlen(hp), Strncmp(hp, dp->di_name, len) == 0) &&
-	    (dp->di_name[len] == '\0' || dp->di_name[len] == '/')) 
+	    (dp->di_name[len] == '\0' || dp->di_name[len] == '/'))
 	    len = Strlen(s = (dp->di_name + len)) + 2;
 	else
 	    len = Strlen(s = dp->di_name) + 1;

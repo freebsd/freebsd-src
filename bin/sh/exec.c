@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: exec.c,v 1.3 1994/09/24 02:57:32 davidg Exp $
  */
 
 #ifndef lint
@@ -744,7 +744,7 @@ delete_cmd_entry() {
 void
 getcmdentry(name, entry)
 	char *name;
-	struct cmdentry *entry; 
+	struct cmdentry *entry;
 	{
 	struct tblentry *cmdp = cmdlookup(name, 0);
 

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: glbl.c,v 1.2 1994/09/24 02:55:26 davidg Exp $
+ *	$Id: glbl.c,v 1.3 1995/03/19 13:28:27 joerg Exp $
  */
 
 #ifndef lint
@@ -158,7 +158,7 @@ set_active_node(lp)
 #if defined(sun) || defined(NO_REALLOC_NULL)
 		if (active_list != NULL) {
 #endif
-			if ((ts = (line_t **) realloc(active_list, 
+			if ((ts = (line_t **) realloc(active_list,
 			    (ti += MINBUFSZ) * sizeof(line_t **))) == NULL) {
 				fprintf(stderr, "%s\n", strerror(errno));
 				sprintf(errmsg, "out of memory");
@@ -167,7 +167,7 @@ set_active_node(lp)
 			}
 #if defined(sun) || defined(NO_REALLOC_NULL)
 		} else {
-			if ((ts = (line_t **) malloc((ti += MINBUFSZ) * 
+			if ((ts = (line_t **) malloc((ti += MINBUFSZ) *
 			    sizeof(line_t **))) == NULL) {
 				fprintf(stderr, "%s\n", strerror(errno));
 				sprintf(errmsg, "out of memory");

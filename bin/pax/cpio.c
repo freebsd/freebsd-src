@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: cpio.c,v 1.2 1994/09/24 02:56:16 davidg Exp $
  */
 
 #ifndef lint
@@ -93,7 +93,7 @@ cpio_strd()
  *	mode; looking for a valid header), and cnt (which starts at zero)
  *	which is used to count the number of empty blocks we have seen so far.
  * Return:
- *	0 if a valid trailer, -1 if not a valid trailer, 
+ *	0 if a valid trailer, -1 if not a valid trailer,
  */
 
 #if __STDC__
@@ -572,7 +572,7 @@ cpio_wr(arcn)
 /*
  * vcpio_id()
  *      determine if a block given to us is a valid system VR4 cpio header
- *	WITHOUT crc. WATCH it the magic cookies are in OCTAL, the header 
+ *	WITHOUT crc. WATCH it the magic cookies are in OCTAL, the header
  *	uses HEX
  * Return:
  *      0 if a valid header, -1 otherwise

@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ar_subs.c,v 1.2 1994/09/24 02:56:12 davidg Exp $
  */
 
 #ifndef lint
@@ -449,7 +449,7 @@ wr_archive(arcn, is_app)
 		if ((res > 0) || (docrc && (set_crc(arcn, fd) < 0))) {
 			/*
 			 * unable to obtain the crc we need, close the file,
-			 * purge link table entry 
+			 * purge link table entry
 			 */
 			rdfile_close(arcn, &fd);
 			purg_lnk(arcn);
@@ -472,7 +472,7 @@ wr_archive(arcn, is_app)
 		}
 		wr_one = 1;
 		if (res > 0) {
-			/* 
+			/*
 			 * format write says no file data needs to be stored
 			 * so we are done messing with this file
 			 */
@@ -535,7 +535,7 @@ wr_archive(arcn, is_app)
  *	is called to add the new members.
  *	PAX IMPLEMENTATION DETAIL NOTE:
  *	-u is implemented by adding the new members to the end of the archive.
- *	Care is taken so that these do not end up as links to the older 
+ *	Care is taken so that these do not end up as links to the older
  *	version of the same file already stored in the archive. It is expected
  *	when extraction occurs these newer versions will over-write the older
  *	ones stored "earlier" in the archive (this may be a bad assumption as
@@ -677,7 +677,7 @@ append()
 		(void)fputs("done.\n", stderr);
 		vfpart = 0;
 	}
-       
+
 	/*
 	 * go to the writing phase to add the new members
 	 */
@@ -765,7 +765,7 @@ copy()
 
 	/*
 	 * start up the hard link table; file traversal routines and the
-	 * modification time and access mode database 
+	 * modification time and access mode database
 	 */
 	if ((lnk_start() < 0) || (ftree_start() < 0) || (dir_start() < 0))
 		return;
@@ -881,7 +881,7 @@ copy()
 		 * try to create a hard link to the src file if requested
 		 * but make sure we are not trying to overwrite ourselves.
 		 */
-		if (lflag) 
+		if (lflag)
 			res = cross_lnk(arcn);
 		else
 			res = chk_same(arcn);
@@ -988,7 +988,7 @@ next_head(arcn)
 	register int hsz;
 	register int in_resync = 0; 	/* set when we are in resync mode */
 	int cnt = 0;			/* counter for trailer function */
-	
+
 	/*
 	 * set up initial conditions, we want a whole frmt->hsz block as we
 	 * have no data yet.
@@ -1132,7 +1132,7 @@ get_arc()
 	register int minhd = BLKMULT;
 	char *hdend;
 	int notice = 0;
-	
+
 	/*
 	 * find the smallest header size in all archive formats and then set up
 	 * to read the archive.
@@ -1192,7 +1192,7 @@ get_arc()
 			if ((*fsub[ford[i]].id)(hdbuf, hdsz) < 0)
 				continue;
 			frmt = &(fsub[ford[i]]);
-			/* 
+			/*
 			 * yuck, to avoid slow special case code in the extract
 			 * routines, just push this header back as if it was
 			 * not seen. We have left extra space at start of the

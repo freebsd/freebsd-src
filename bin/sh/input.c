@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: input.c,v 1.2 1994/09/24 02:57:39 davidg Exp $
  */
 
 #ifndef lint
@@ -264,7 +264,7 @@ eof:
 done:
 	if (parsefile->fd == 0 && hist && something) {
 		INTOFF;
-		history(hist, whichprompt == 1 ? H_ENTER : H_ADD, 
+		history(hist, whichprompt == 1 ? H_ENTER : H_ADD,
 			   parsefile->buf);
 		INTON;
 	}
@@ -276,7 +276,7 @@ done:
 		 */
 		i = parsenleft + 1;
 		p = parsefile->buf;
-		for (; i--; p++) 
+		for (; i--; p++)
 			out2c(*p)
 		flushout(out2);
 	}

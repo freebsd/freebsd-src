@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tables.h	8.1 (Berkeley) 5/31/93
- *	$Id$
+ *	$Id: tables.h,v 1.2 1994/09/24 02:56:35 davidg Exp $
  */
 
 /*
@@ -106,7 +106,7 @@ typedef struct namt {
  * this table. (When the inode field in the archive header are too small, we
  * remap the dev on writes to remove accidental collisions).
  *
- * The list is hashed by device number using chain collision resolution. Off of 
+ * The list is hashed by device number using chain collision resolution. Off of
  * each DEVT are linked the various remaps for this device based on those bits
  * in the inode which were truncated. For example if we are just remapping to
  * avoid a device number during an update append, off the DEVT we would have
