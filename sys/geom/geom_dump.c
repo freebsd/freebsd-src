@@ -120,10 +120,10 @@ static void
 g_conf_consumer(struct sbuf *sb, struct g_consumer *cp)
 {
 
-	sbuf_printf(sb, "\t<consumer>\n");
-	sbuf_printf(sb, "\t  <ref>%p</ref>\n", cp);
-	sbuf_printf(sb, "\t  <geom><ref>%p</ref></geom>\n", cp->geom);
-	sbuf_printf(sb, "\t  <provider><ref>%p</ref></provider>\n", cp->provider);
+	sbuf_printf(sb, "\t<consumer id=\"%p\">\n", cp);
+	sbuf_printf(sb, "\t  <geom ref=\"%p\"/>\n", cp->geom);
+	if (cp->provider != NULL)
+		sbuf_printf(sb, "\t  <provider ref=\"%p\"/>\n", cp->provider);
 	sbuf_printf(sb, "\t  <mode>r%dw%de%d</mode>\n",
 	    cp->acr, cp->acw, cp->ace);
 	if (cp->geom->dumpconf) {
@@ -138,9 +138,8 @@ static void
 g_conf_provider(struct sbuf *sb, struct g_provider *pp)
 {
 
-	sbuf_printf(sb, "\t<provider>\n");
-	sbuf_printf(sb, "\t  <ref>%p</ref>\n", pp);
-	sbuf_printf(sb, "\t  <geom><ref>%p</ref></geom>\n", pp->geom);
+	sbuf_printf(sb, "\t<provider id=\"%p\">\n", pp);
+	sbuf_printf(sb, "\t  <geom ref=\"%p\"/>\n", pp->geom);
 	sbuf_printf(sb, "\t  <mode>r%dw%de%d</mode>\n",
 	    pp->acr, pp->acw, pp->ace);
 	sbuf_printf(sb, "\t  <name>%s</name>\n", pp->name);
@@ -159,9 +158,8 @@ g_conf_geom(struct sbuf *sb, struct g_geom *gp, struct g_provider *pp, struct g_
 	struct g_consumer *cp2;
 	struct g_provider *pp2;
 
-	sbuf_printf(sb, "    <geom>\n");
-	sbuf_printf(sb, "      <ref>%p</ref>\n", gp);
-	sbuf_printf(sb, "      <class><ref>%p</ref></class>\n", gp->class);
+	sbuf_printf(sb, "    <geom id=\"%p\">\n", gp);
+	sbuf_printf(sb, "      <class ref=\"%p\"/>\n", gp->class);
 	sbuf_printf(sb, "      <name>%s</name>\n", gp->name);
 	sbuf_printf(sb, "      <rank>%d</rank>\n", gp->rank);
 	if (gp->dumpconf) {
@@ -188,8 +186,7 @@ g_conf_class(struct sbuf *sb, struct g_class *mp, struct g_geom *gp, struct g_pr
 {
 	struct g_geom *gp2;
 
-	sbuf_printf(sb, "  <class>\n");
-	sbuf_printf(sb, "    <ref>%p</ref>\n", mp);
+	sbuf_printf(sb, "  <class id=\"%p\">\n", mp);
 	sbuf_printf(sb, "    <name>%s</name>\n", mp->name);
 	LIST_FOREACH(gp2, &mp->geom, geom) {
 		if (gp != NULL && gp != gp2)
