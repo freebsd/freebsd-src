@@ -37,6 +37,9 @@ o /bin/sh signal and trap handling reworked. Among other things, this
   makes tty-mode emacs work when called from system(2), i.e. by a mail
   agent.
 
+o ppp(8) merged from 3.0, adding features like multilink and VPN
+  support as well as fixing a number of known bugs.
+
 
 Security issues:
 ----------------
