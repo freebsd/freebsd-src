@@ -80,11 +80,9 @@ call)
 .It "df	str" Ta Dv NULL Ta No "tex data filter"
 .Pf ( Tn DVI
 format)
-.It "fc	num	0	if lp is a tty, clear flag bits"
 .Pq Pa sgtty.h
 .It "ff	str" Ta So Li \ef Sc Ta No "string to send for a form feed"
 .It "fo	bool	false	print a form feed when device is opened"
-.It "fs	num	0	like `fc' but set bits"
 .It "gf	str" Ta Dv NULL Ta No "graph data filter"
 .Pf ( Xr plot 3
 format
@@ -94,6 +92,9 @@ format
 .It "lf	str" Ta Pa /dev/console Ta No "error logging file name"
 .It "lo	str" Ta Pa lock Ta No "name of lock file"
 .It "lp	str" Ta Pa /dev/lp Ta No "device name to open for output"
+.It "ms	str" Ta Dv NULL Ta No "if lp is a tty, a comma-seperated, "
+.Xr stty 1
+-like list describing the tty modes
 .It "mx	num	1000	maximum file size (in"
 .Dv BUFSIZ
 blocks), zero = unlimited
@@ -122,9 +123,6 @@ style text files
 .It "tf	str" Ta Dv NULL Ta No "troff data filter (cat phototypesetter)"
 .It "tr	str" Ta Dv NULL Ta No "trailer string to print when queue empties"
 .It "vf	str" Ta Dv NULL Ta No "raster image filter"
-.It "xc	num	0	if lp is a tty, clear local mode bits"
-.Pq Xr tty 4
-.It "xs	num	0	like `xc' but set bits"
 .El
 .Pp
 If the local line printer driver supports indentation, the daemon
