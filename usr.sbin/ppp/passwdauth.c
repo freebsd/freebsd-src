@@ -28,81 +28,77 @@
 #include "passwdauth.h"
 
 int
-PasswdAuth(name, key)
-char *name, *key;
+PasswdAuth(char *name, char *key)
 {
   static int logged_in = 0;
   struct passwd *pwd;
   char *salt, *ep;
   struct utmp utmp;
 
-  LogPrintf(LogDEBUG, "PasswdAuth: Called with name %s, key %s\n", name, key );
+  LogPrintf(LogDEBUG, "PasswdAuth: Called with name %s, key %s\n", name, key);
 
-  if(( pwd = getpwnam( name ) ))
+  if ((pwd = getpwnam(name)))
     salt = pwd->pw_passwd;
-  else
-  {
+  else {
     endpwent();
-    LogPrintf( LogLCP, "PasswdAuth - user (%s) not in passwd file\n", name );
-    return 0; /* false - failed to authenticate (password not in file) */
+    LogPrintf(LogLCP, "PasswdAuth - user (%s) not in passwd file\n", name);
+    return 0;			/* false - failed to authenticate (password
+				 * not in file) */
   }
 
 #ifdef LOCALHACK
+
   /*
    * All our PPP usernames start with 'P' so i check that here... if you
-   * don't do this i suggest all your PPP users be members of a group
-   * and you check the guid
+   * don't do this i suggest all your PPP users be members of a group and you
+   * check the guid
    */
 
-  if( name[0] != 'P' )
-  { 
-    LogPrintf( LogLCP, "PasswdAuth - user (%s) not a PPP user\n", name );
+  if (name[0] != 'P') {
+    LogPrintf(LogLCP, "PasswdAuth - user (%s) not a PPP user\n", name);
     endpwent();
     return 0;
   }
+#endif				/* LOCALHACK */
 
-#endif /* LOCALHACK */
-
-  ep = crypt( key, salt );
+  ep = crypt(key, salt);
 
   /* strcmp returns 0 if same */
-  if( strcmp( ep, pwd->pw_passwd ) != 0 )
-  {
-    LogPrintf( LogLCP, "PasswdAuth - user (%s,%s) authentication failed\n",
-	name, key );
+  if (strcmp(ep, pwd->pw_passwd) != 0) {
+    LogPrintf(LogLCP, "PasswdAuth - user (%s,%s) authentication failed\n",
+	      name, key);
     endpwent();
-    return 0;  /* false - failed to authenticate (didn't match up) */
+    return 0;			/* false - failed to authenticate (didn't
+				 * match up) */
   }
 
   /*
-   * now we log them in... we have a static login flag so we don't
-   * do it twice :)
+   * now we log them in... we have a static login flag so we don't do it
+   * twice :)
    */
 
-  if( ! logged_in )
-  {
-    (void)time(&utmp.ut_time);
-    (void)strncpy(utmp.ut_name, name, sizeof(utmp.ut_name));
+  if (!logged_in) {
+    (void) time(&utmp.ut_time);
+    (void) strncpy(utmp.ut_name, name, sizeof(utmp.ut_name));
 
     /*
-     * if the first three chacters are "pap" trim them off before doing
-     * utmp entry (see sample.ppp-pap-dialup 
+     * if the first three chacters are "pap" trim them off before doing utmp
+     * entry (see sample.ppp-pap-dialup
      */
 
-    if( strncmp( "pap", dstsystem, 3 ) == 0 )
-      (void)strncpy(utmp.ut_line, (char *)(dstsystem + 3), sizeof(utmp.ut_line));
+    if (strncmp("pap", dstsystem, 3) == 0)
+      (void) strncpy(utmp.ut_line, (char *) (dstsystem + 3), sizeof(utmp.ut_line));
     else
-      (void)strncpy(utmp.ut_line, dstsystem, sizeof(utmp.ut_line));
+      (void) strncpy(utmp.ut_line, dstsystem, sizeof(utmp.ut_line));
 
-    (void)strncpy(utmp.ut_host, "auto-ppp",sizeof(utmp.ut_host));
+    (void) strncpy(utmp.ut_host, "auto-ppp", sizeof(utmp.ut_host));
     login(&utmp);
-    (void)setlogin( pwd->pw_name );
+    (void) setlogin(pwd->pw_name);
 
-    LogPrintf( LogLCP, "PasswdAuth has logged in user %s\n", name );
+    LogPrintf(LogLCP, "PasswdAuth has logged in user %s\n", name);
 
     logged_in = 1;
   }
-
   endpwent();
 
   return 1;

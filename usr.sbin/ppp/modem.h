@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.h,v 1.7 1997/02/22 16:10:37 peter Exp $
+ * $Id: modem.h,v 1.8 1997/06/09 03:27:30 brian Exp $
  *
  *	TODO:
  */
@@ -41,4 +41,5 @@ extern speed_t IntToSpeed(int);
 extern void ModemTimeout(void);
 extern void DownConnection(void);
 extern void ModemOutput(int, struct mbuf *);
+
 #endif

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.c,v 1.12 1997/06/09 03:27:38 brian Exp $
+ * $Id: systems.c,v 1.13 1997/06/25 19:30:05 brian Exp $
  *
  *  TODO:
  */
@@ -28,6 +28,7 @@
 #include "pathnames.h"
 #include "vars.h"
 #include "server.h"
+#include "command.h"
 
 extern void DecodeCommand();
 
@@ -38,7 +39,7 @@ static int usermode;
 int
 OrigUid()
 {
-    return uid;
+  return uid;
 }
 
 void
@@ -88,8 +89,7 @@ SetPppId()
 }
 
 FILE *
-OpenSecret(file)
-char *file;
+OpenSecret(char *file)
 {
   FILE *fp;
   char *cp;
@@ -110,28 +110,25 @@ char *file;
   if (fp == NULL) {
     LogPrintf(LogWARN, "OpenSecret: Can't open %s.\n", line);
     SetPppId();
-    return(NULL);
+    return (NULL);
   }
-  return(fp);
+  return (fp);
 }
 
 void
-CloseSecret(fp)
-FILE *fp;
+CloseSecret(FILE * fp)
 {
   fclose(fp);
   SetPppId();
 }
 
 int
-SelectSystem(name, file)
-char *name;
-char *file;
+SelectSystem(char *name, char *file)
 {
   FILE *fp;
   char *cp, *wp;
   int n;
-  u_char  olauth;
+  u_char olauth;
   char line[200];
   char filename[200];
   int linenum;
@@ -144,14 +141,14 @@ char *file;
     fp = fopen(filename, "r");
   }
   if (fp == NULL) {
-    SetPppId();		/* fix from pdp@ark.jr3uom.iijnet.or.jp */
+    SetPppId();			/* fix from pdp@ark.jr3uom.iijnet.or.jp */
     snprintf(filename, sizeof filename, "%s/%s", _PATH_PPP, file);
     fp = fopen(filename, "r");
   }
   if (fp == NULL) {
     LogPrintf(LogDEBUG, "SelectSystem: Can't open %s.\n", filename);
     SetPppId();
-    return(-1);
+    return (-1);
   }
   LogPrintf(LogDEBUG, "SelectSystem: Checking %s (%s).\n", name, filename);
 
@@ -160,7 +157,7 @@ char *file;
     linenum++;
     cp = line;
     switch (*cp) {
-    case '#':		/* comment */
+    case '#':			/* comment */
       break;
     case ' ':
     case '\t':
@@ -169,8 +166,8 @@ char *file;
       wp = strpbrk(cp, ":\n");
       if (wp == NULL) {
 	LogPrintf(LogWARN, "Bad rule in %s (line %d) - missing colon.\n",
-		filename, linenum);
-        ServerClose();
+		  filename, linenum);
+	ServerClose();
 	exit(1);
       }
       *wp = '\0';
@@ -182,10 +179,10 @@ char *file;
 	    cp += n;
 	    LogPrintf(LogCOMMAND, "%s: %s", name, cp);
 	    SetPppId();
-            olauth = VarLocalAuth;
+	    olauth = VarLocalAuth;
 	    VarLocalAuth = LOCAL_AUTH;
 	    DecodeCommand(cp, strlen(cp), 0);
-            VarLocalAuth = olauth;
+	    VarLocalAuth = olauth;
 	    SetUserId();
 	  } else if (*cp == '#') {
 	    continue;
@@ -194,7 +191,7 @@ char *file;
 	}
 	fclose(fp);
 	SetPppId();
-	return(0);
+	return (0);
       }
       break;
     }
@@ -205,10 +202,7 @@ char *file;
 }
 
 int
-LoadCommand(list, argc, argv)
-struct cmdtab *list;
-int argc;
-char **argv;
+LoadCommand(struct cmdtab const * list, int argc, char **argv)
 {
   char *name;
 
@@ -221,15 +215,11 @@ char **argv;
     LogPrintf(LogWARN, "%s: not found.\n", name);
     return -1;
   }
-
   return 0;
 }
 
 int
-SaveCommand(list, argc, argv)
-struct cmdtab *list;
-int argc;
-char **argv;
+SaveCommand(struct cmdtab const * list, int argc, char **argv)
 {
   LogPrintf(LogWARN, "save command is not implemented (yet).\n");
   return 1;

@@ -5,7 +5,7 @@
 
 /*
  *
- * $Id: pred.c,v 1.12 1997/06/09 03:27:35 brian Exp $
+ * $Id: pred.c,v 1.13 1997/06/09 23:38:37 brian Exp $
  *
  * pred.c -- Test program for Dave Rand's rendition of the
  * predictor algorithm
@@ -28,105 +28,100 @@ static unsigned char InputGuessTable[65536];
 static unsigned char OutputGuessTable[65536];
 
 static int
-compress(source, dest, len)
-unsigned char *source, *dest;
-int len;
+compress(u_char * source, u_char * dest, int len)
 {
-    int i, bitmask;
-    unsigned char *flagdest, flags, *orgdest;
+  int i, bitmask;
+  unsigned char *flagdest, flags, *orgdest;
 
-    orgdest = dest;
-    while (len) {
-        flagdest = dest++; flags = 0;   /* All guess wrong initially */
-        for (bitmask=1, i=0; i < 8 && len; i++, bitmask <<= 1) {
-            if (OutputGuessTable[oHash] == *source) {
-                flags |= bitmask;       /* Guess was right - don't output */
-            } else {
-                OutputGuessTable[oHash] = *source;
-                *dest++ = *source;      /* Guess wrong, output char */
-            }
-            OHASH(*source++);len--;
-        }
-        *flagdest = flags;
+  orgdest = dest;
+  while (len) {
+    flagdest = dest++;
+    flags = 0;			/* All guess wrong initially */
+    for (bitmask = 1, i = 0; i < 8 && len; i++, bitmask <<= 1) {
+      if (OutputGuessTable[oHash] == *source) {
+	flags |= bitmask;	/* Guess was right - don't output */
+      } else {
+	OutputGuessTable[oHash] = *source;
+	*dest++ = *source;	/* Guess wrong, output char */
+      }
+      OHASH(*source++);
+      len--;
     }
-    return(dest - orgdest);
+    *flagdest = flags;
+  }
+  return (dest - orgdest);
 }
 
 static void
-SyncTable(source, dest, len)
-unsigned char *source, *dest;
-int len;
+SyncTable(u_char * source, u_char * dest, int len)
 {
 
-    while (len--) {
-        if (InputGuessTable[iHash] != *source) {
-            InputGuessTable[iHash] = *source;
-        }
-        IHASH(*dest++ = *source++);
+  while (len--) {
+    if (InputGuessTable[iHash] != *source) {
+      InputGuessTable[iHash] = *source;
     }
+    IHASH(*dest++ = *source++);
+  }
 }
 
 static int
-decompress(source, dest, len)
-unsigned char *source, *dest;
-int len;
+decompress(u_char * source, u_char * dest, int len)
 {
-    int i, bitmask;
-    unsigned char flags, *orgdest;
+  int i, bitmask;
+  unsigned char flags, *orgdest;
 
-    orgdest = dest;
-    while (len) {
-        flags = *source++;
-        len--;
-        for (i=0, bitmask = 1; i < 8; i++, bitmask <<= 1) {
-            if (flags & bitmask) {
-                *dest = InputGuessTable[iHash];       /* Guess correct */
-            } else {
-                if (!len)
-                    break;      /* we seem to be really done -- cabo */
-                InputGuessTable[iHash] = *source;     /* Guess wrong */
-                *dest = *source++;              /* Read from source */
-                len--;
-            }
-            IHASH(*dest++);
-        }
+  orgdest = dest;
+  while (len) {
+    flags = *source++;
+    len--;
+    for (i = 0, bitmask = 1; i < 8; i++, bitmask <<= 1) {
+      if (flags & bitmask) {
+	*dest = InputGuessTable[iHash];	/* Guess correct */
+      } else {
+	if (!len)
+	  break;		/* we seem to be really done -- cabo */
+	InputGuessTable[iHash] = *source;	/* Guess wrong */
+	*dest = *source++;	/* Read from source */
+	len--;
+      }
+      IHASH(*dest++);
     }
-    return(dest - orgdest);
+  }
+  return (dest - orgdest);
 }
 
 void
-Pred1Init(direction)
-int direction;
+Pred1Init(int direction)
 {
-  if (direction & 1) {	/* Input part */
+  if (direction & 1) {		/* Input part */
     iHash = 0;
     bzero(InputGuessTable, sizeof(InputGuessTable));
   }
-  if (direction & 2) { /* Output part */
+  if (direction & 2) {		/* Output part */
     oHash = 0;
     bzero(OutputGuessTable, sizeof(OutputGuessTable));
   }
 }
 
 void
-Pred1Output(int pri, u_short proto, struct mbuf *bp)
+Pred1Output(int pri, u_short proto, struct mbuf * bp)
 {
   struct mbuf *mwp;
   u_char *cp, *wp, *hp;
   int orglen, len;
-  u_char bufp[MAX_MTU+2];
+  u_char bufp[MAX_MTU + 2];
   u_short fcs;
 
   orglen = plength(bp) + 2;	/* add count of proto */
-  mwp = mballoc((orglen+2)/8*9+12, MB_HDLCOUT);
+  mwp = mballoc((orglen + 2) / 8 * 9 + 12, MB_HDLCOUT);
   hp = wp = MBUF_CTOP(mwp);
   cp = bufp;
   *wp++ = *cp++ = orglen >> 8;
   *wp++ = *cp++ = orglen & 0377;
   *cp++ = proto >> 8;
   *cp++ = proto & 0377;
-  mbread(bp, cp, orglen-2);
-  fcs = HdlcFcs(INITFCS, bufp, 2+orglen);
+  mbread(bp, cp, orglen - 2);
+  fcs = HdlcFcs(INITFCS, bufp, 2 + orglen);
   fcs = ~fcs;
 
   len = compress(bufp + 2, wp, orglen);
@@ -137,7 +132,7 @@ Pred1Output(int pri, u_short proto, struct mbuf *bp)
     wp += len;
     CcpInfo.compout += len;
   } else {
-    bcopy(bufp+2, wp, orglen);
+    bcopy(bufp + 2, wp, orglen);
     wp += orglen;
     CcpInfo.compout += orglen;
   }
@@ -149,8 +144,7 @@ Pred1Output(int pri, u_short proto, struct mbuf *bp)
 }
 
 void
-Pred1Input(bp)
-struct mbuf *bp;
+Pred1Input(struct mbuf * bp)
 {
   u_char *cp, *pp;
   int len, olen, len1;
@@ -158,7 +152,7 @@ struct mbuf *bp;
   u_char *bufp;
   u_short fcs, proto;
 
-  wp = mballoc(MAX_MTU+2, MB_IPIN);
+  wp = mballoc(MAX_MTU + 2, MB_IPIN);
   cp = MBUF_CTOP(bp);
   olen = plength(bp);
   pp = bufp = MBUF_CTOP(wp);
@@ -171,7 +165,7 @@ struct mbuf *bp;
     len1 = decompress(cp, pp, olen - 4);
     CcpInfo.compin += olen;
     len &= 0x7fff;
-    if (len != len1) {	/* Error is detected. Send reset request */
+    if (len != len1) {		/* Error is detected. Send reset request */
       LogPrintf(LogLCP, "%s: Length Error\n", CcpFsm.name);
       CcpSendResetReq(&CcpFsm);
       pfree(bp);
@@ -186,12 +180,12 @@ struct mbuf *bp;
     cp += len;
     pp += len;
   }
-  *pp++ = *cp++;	/* CRC */
+  *pp++ = *cp++;		/* CRC */
   *pp++ = *cp++;
   fcs = HdlcFcs(INITFCS, bufp, wp->cnt = pp - bufp);
   if (fcs != GOODFCS)
     LogPrintf(LogDEBUG, "Pred1Input: fcs = 0x%04x (%s), len = 0x%x,"
-	      " olen = 0x%x\n", fcs, (fcs == GOODFCS)? "good" : "bad",
+	      " olen = 0x%x\n", fcs, (fcs == GOODFCS) ? "good" : "bad",
 	      len, olen);
   if (fcs == GOODFCS) {
     wp->offset += 2;		/* skip length */
@@ -207,12 +201,10 @@ struct mbuf *bp;
       proto = (proto << 8) | *pp++;
     }
     DecodePacket(proto, wp);
-  }
-  else
-  {
-      LogDumpBp(LogHDLC, "Bad FCS", wp);
-      CcpSendResetReq(&CcpFsm);
-      pfree(wp);
+  } else {
+    LogDumpBp(LogHDLC, "Bad FCS", wp);
+    CcpSendResetReq(&CcpFsm);
+    pfree(wp);
   }
   pfree(bp);
 }

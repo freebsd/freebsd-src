@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.h,v 1.8 1997/06/09 03:27:21 brian Exp $
+ * $Id: fsm.h,v 1.9 1997/08/20 23:47:43 brian Exp $
  *
  *	TODO:
  */
@@ -53,46 +53,45 @@
 #define	OPEN_PASSIVE	1
 
 struct fsm {
-  char	  *name;		/* Name of protocol */
+  char *name;			/* Name of protocol */
   u_short proto;		/* Protocol number */
   u_short max_code;
-  int	  open_mode;
-  int	  state;		/* State of the machine */
-  int	  reqid;		/* Next request id */
-  int	  restart;		/* Restart counter value */
-  int	  maxconfig;
+  int open_mode;
+  int state;			/* State of the machine */
+  int reqid;			/* Next request id */
+  int restart;			/* Restart counter value */
+  int maxconfig;
 
-  int     reqcode;		/* Request code sent */
+  int reqcode;			/* Request code sent */
   struct pppTimer FsmTimer;	/* Restart Timer */
 
   /*
    * This timer times the ST_STOPPED state out after the given value
-   * (specified via "set stopped ...").  Although this isn't
-   * specified in the rfc, the rfc *does* say that "the application
-   * may use higher level timers to avoid deadlock".
-   * The StoppedTimer takes effect when the other side ABENDs rather
-   * than going into ST_ACKSENT (and sending the ACK), causing ppp to
-   * time out and drop into ST_STOPPED.  At this point, nothing will
-   * change this state :-(
+   * (specified via "set stopped ...").  Although this isn't specified in the
+   * rfc, the rfc *does* say that "the application may use higher level
+   * timers to avoid deadlock". The StoppedTimer takes effect when the other
+   * side ABENDs rather than going into ST_ACKSENT (and sending the ACK),
+   * causing ppp to time out and drop into ST_STOPPED.  At this point,
+   * nothing will change this state :-(
    */
   struct pppTimer StoppedTimer;
   int LogLevel;
 
-  void	  (*LayerUp)(struct fsm *);
-  void	  (*LayerDown)(struct fsm *);
-  void	  (*LayerStart)(struct fsm *);
-  void	  (*LayerFinish)(struct fsm *);
-  void	  (*InitRestartCounter)(struct fsm *);
-  void	  (*SendConfigReq)(struct fsm *);
-  void	  (*SendTerminateReq)(struct fsm *);
-  void	  (*SendTerminateAck)(struct fsm *);
-  void	  (*DecodeConfig)(u_char *, int, int);
+  void (*LayerUp) (struct fsm *);
+  void (*LayerDown) (struct fsm *);
+  void (*LayerStart) (struct fsm *);
+  void (*LayerFinish) (struct fsm *);
+  void (*InitRestartCounter) (struct fsm *);
+  void (*SendConfigReq) (struct fsm *);
+  void (*SendTerminateReq) (struct fsm *);
+  void (*SendTerminateAck) (struct fsm *);
+  void (*DecodeConfig) (u_char *, int, int);
 };
 
 struct fsmheader {
-  u_char  code;		/* Request code */
-  u_char  id;		/* Identification */
-  u_short length;	/* Length of packet */
+  u_char code;			/* Request code */
+  u_char id;			/* Identification */
+  u_short length;		/* Length of packet */
 };
 
 #define	CODE_CONFIGREQ	1
@@ -103,16 +102,16 @@ struct fsmheader {
 #define	CODE_TERMACK	6
 #define	CODE_CODEREJ	7
 #define	CODE_PROTOREJ	8
-#define	CODE_ECHOREQ	9		/* Used in LCP */
-#define	CODE_ECHOREP	10		/* Used in LCP */
+#define	CODE_ECHOREQ	9	/* Used in LCP */
+#define	CODE_ECHOREP	10	/* Used in LCP */
 #define	CODE_DISCREQ	11
-#define	CODE_IDENT	12		/* Used in LCP Extension */
-#define	CODE_TIMEREM	13		/* Used in LCP Extension */
-#define	CODE_RESETREQ	14		/* Used in CCP */
-#define	CODE_RESETACK	15		/* Used in CCP */
+#define	CODE_IDENT	12	/* Used in LCP Extension */
+#define	CODE_TIMEREM	13	/* Used in LCP Extension */
+#define	CODE_RESETREQ	14	/* Used in CCP */
+#define	CODE_RESETACK	15	/* Used in CCP */
 
 struct fsmcodedesc {
-  void (*action)(struct fsm *, struct fsmheader *, struct mbuf *);
+  void (*action) (struct fsm *, struct fsmheader *, struct mbuf *);
   char *name;
 };
 
@@ -142,8 +141,8 @@ extern void FsmRecvConfigAck(struct fsm *, struct fsmheader *, struct mbuf *);
 extern void FsmRecvConfigNak(struct fsm *, struct fsmheader *, struct mbuf *);
 extern void FsmRecvTermReq(struct fsm *, struct fsmheader *, struct mbuf *);
 extern void FsmRecvTermAck(struct fsm *, struct fsmheader *, struct mbuf *);
-extern void FsmClose(struct fsm *fp);
+extern void FsmClose(struct fsm * fp);
 
 extern struct fsm LcpFsm, IpcpFsm, CcpFsm;
 
-#endif	/* _FSM_H_ */
+#endif				/* _FSM_H_ */

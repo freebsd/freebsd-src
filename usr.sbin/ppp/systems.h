@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.h,v 1.4 1997/05/26 00:44:09 brian Exp $
+ * $Id: systems.h,v 1.5 1997/06/09 03:27:38 brian Exp $
  *
  */
 
@@ -25,5 +25,6 @@
 #define	_SYSTEMS_H_
 extern int OrigUid(void);
 extern void GetUid(void);
-extern int SelectSystem(char *, char*);
+extern int SelectSystem(char *, char *);
+
 #endif
