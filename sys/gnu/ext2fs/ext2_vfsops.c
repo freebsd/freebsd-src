@@ -1150,7 +1150,7 @@ ext2_fhtovp(mp, fhp, vpp)
 	ufhp = (struct ufid *)fhp;
 	fs = VFSTOUFS(mp)->um_e2fs;
 	if (ufhp->ufid_ino < ROOTINO ||
-	    ufhp->ufid_ino >= fs->s_groups_count * fs->s_es->s_inodes_per_group)
+	    ufhp->ufid_ino > fs->s_groups_count * fs->s_es->s_inodes_per_group)
 		return (ESTALE);
 	return (ufs_fhtovp(mp, ufhp, vpp));
 }
