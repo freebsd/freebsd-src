@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.209 1999/05/06 17:06:41 phk Exp $
+ * $Id: vfs_bio.c,v 1.210 1999/05/06 20:00:26 phk Exp $
  */
 
 /*
@@ -2960,10 +2960,11 @@ DB_SHOW_COMMAND(buffer, db_show_buffer)
 
 	db_printf("b_flags = 0x%b\n", (u_int)bp->b_flags, PRINT_BUF_FLAGS);
 	db_printf("b_error = %d, b_bufsize = %ld, b_bcount = %ld, "
-		  "b_resid = %ld\nb_dev = 0x%x, b_data = %p, "
+		  "b_resid = %ld\nb_dev = (%d,%d), b_data = %p, "
 		  "b_blkno = %d, b_pblkno = %d\n",
 		  bp->b_error, bp->b_bufsize, bp->b_bcount, bp->b_resid,
-		  bp->b_dev, bp->b_data, bp->b_blkno, bp->b_pblkno);
+		  major(bp->b_dev), minor(bp->b_dev),
+		  bp->b_data, bp->b_blkno, bp->b_pblkno);
 	if (bp->b_npages) {
 		int i;
 		db_printf("b_npages = %d, pages(OBJ, IDX, PA): ", bp->b_npages);
