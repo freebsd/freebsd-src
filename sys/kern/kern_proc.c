@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.7 (Berkeley) 2/14/95
- * $Id: kern_proc.c,v 1.52 1999/05/17 13:50:24 phk Exp $
+ * $Id: kern_proc.c,v 1.53 1999/07/17 20:29:10 phk Exp $
  */
 
 #include <sys/param.h>
@@ -54,10 +54,6 @@ static MALLOC_DEFINE(M_PGRP, "pgrp", "process group header");
 MALLOC_DEFINE(M_SESSION, "session", "session header");
 static MALLOC_DEFINE(M_PROC, "proc", "Proc structures");
 MALLOC_DEFINE(M_SUBPROC, "subproc", "Proc sub-structures");
-
-struct prochd qs[NQS];		/* as good a place as any... */
-struct prochd rtqs[NQS];	/* Space for REALTIME queues too */
-struct prochd idqs[NQS];	/* Space for IDLE queues too */
 
 static void pgdelete	__P((struct pgrp *));
 
