@@ -1,4 +1,4 @@
-/* $Id: param.h,v 1.5 1998/07/12 16:32:10 dfr Exp $ */
+/* $Id: param.h,v 1.6 1998/07/30 08:12:14 dfr Exp $ */
 /* From: NetBSD: param.h,v 1.20 1997/09/19 13:52:53 leo Exp */
 
 /*
@@ -54,6 +54,13 @@
 
 #include <machine/alpha_cpu.h>
 #include <machine/cpu.h>
+
+/*
+ * OBJFORMAT_NAMES is a comma-separated list of the object formats
+ * that are supported on the architecture.
+ */
+#define OBJFORMAT_NAMES		"elf"
+#define OBJFORMAT_DEFAULT	"elf"
 
 /*
  * Round p (pointer or byte index) up to a correctly-aligned value for all

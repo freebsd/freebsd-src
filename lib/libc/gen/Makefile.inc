@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.6 (Berkeley) 5/4/95
-#	$Id: Makefile.inc,v 1.48 1998/07/08 15:42:57 dt Exp $
+#	$Id: Makefile.inc,v 1.49 1998/08/03 15:35:41 bde Exp $
 
 # machine-independent gen sources
 .PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/gen ${.CURDIR}/../libc/gen
@@ -11,7 +11,8 @@ SRCS+=  _rand48.c _spinlock_stub.c alarm.c arc4random.c assert.c \
 	exec.c fnmatch.c fstab.c ftok.c fts.c getbootfile.c getbsize.c \
 	getcap.c getcwd.c getdomainname.c getgrent.c getgrouplist.c \
 	gethostname.c getloadavg.c getlogin.c getmntinfo.c getnetgrent.c \
-	getosreldate.c getpagesize.c getpass.c getpwent.c getttyent.c \
+	getobjformat.c getosreldate.c getpagesize.c \
+	getpass.c getpwent.c getttyent.c \
 	getusershell.c getvfsbyname.c getvfsent.c glob.c \
 	initgroups.c isatty.c jrand48.c lcong48.c \
 	lockf.c lrand48.c mrand48.c msgctl.c \
@@ -38,7 +39,8 @@ MAN3+=  alarm.3 arc4random.3 clock.3 \
 	getbootfile.3 getbsize.3 getcap.3 getcwd.3 \
 	getdiskbyname.3 getdomainname.3 getfsent.3 \
 	getgrent.3 getgrouplist.3 gethostname.3 getloadavg.3 \
-	getmntinfo.3 getnetgrent.3 getpagesize.3 getpass.3 getpwent.3 \
+	getmntinfo.3 getnetgrent.3 getobjformat.3 \
+	getpagesize.3 getpass.3 getpwent.3 \
 	getttyent.3 getusershell.3 getvfsbyname.3 getvfsent.3 \
 	glob.3 initgroups.3 isinf.3 \
 	ldexp.3 lockf.3 modf.3 msgctl.3 msgget.3 msgrcv.3 msgsnd.3 \

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
- *	$Id: param.h,v 1.44 1998/06/15 04:50:55 bde Exp $
+ *	$Id: param.h,v 1.45 1998/08/31 08:41:40 kato Exp $
  */
 
 #ifndef _MACHINE_PARAM_H_
@@ -48,6 +48,17 @@
 #define	_MACHINE_ARCH	i386
 #define	MACHINE_ARCH	"i386"
 #define MID_MACHINE	MID_I386
+
+/*
+ * OBJFORMAT_NAMES is a comma-separated list of the object formats
+ * that are supported on the architecture.
+ */
+#define OBJFORMAT_NAMES		"elf", "aout"
+#ifdef __ELF__
+#define OBJFORMAT_DEFAULT	"elf"
+#else
+#define OBJFORMAT_DEFAULT	"aout"
+#endif
 
 #ifdef SMP
 #define NCPUS		2
