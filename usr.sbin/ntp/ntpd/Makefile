@@ -28,8 +28,13 @@ SRCS=	cmd_args.c	map_vme.c	ntp_config.c \
 
 CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../
 
-DPADD=	${LIBPARSE} ${LIBNTP} ${LIBM} ${LIBCRYPTO} ${LIBMD}
-LDADD=	${LIBPARSE} ${LIBNTP} -lm -lcrypto -lmd
+DPADD=	${LIBPARSE} ${LIBNTP} ${LIBM} ${LIBMD}
+LDADD=	${LIBPARSE} ${LIBNTP} -lm -lmd
+
+.if !defined(NOCRYPT) && !defined(NO_OPENSSL) && !defined(RELEASE_CRUNCH)
+DPADD+=	${LIBCRYPTO}
+LDADD+=	-lcrypto
+.endif
 
 CLEANFILES+= .version version.c
 
