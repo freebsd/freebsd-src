@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.73.2.29 1997/05/16 07:46:59 jkh Exp $
+ * $Id: dist.c,v 1.73.2.30 1997/06/06 13:01:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -83,7 +83,7 @@ static Distribution DistTable[] = {
 #ifdef USE_XIG_ENVIRONMENT
 { "accelx",	"/usr/X11R6/lib/X11",	&Dists,		DIST_XIG_SERVER,	NULL		},
 #else
-{ "XF8632",	"/usr",			&Dists,		DIST_XF86,		XF86DistTable	},
+{ "XF8633",	"/usr",			&Dists,		DIST_XF86,		XF86DistTable	},
 #endif
 { NULL },
 };
@@ -122,64 +122,64 @@ static Distribution SrcDistTable[] = {
 #ifndef USE_XIG_ENVIRONMENT
 /* The XFree86 distribution */
 static Distribution XF86DistTable[] = {
-{ "XF8632",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_FONTS,	XF86FontDistTable },
-{ "XF8632",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_SERVER,	XF86ServerDistTable },
+{ "XF8633",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_FONTS,	XF86FontDistTable },
+{ "XF8633",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_SERVER,	XF86ServerDistTable },
 { "XF86-xc",	"/usr/X11R6/src",	&XF86Dists,	DIST_XF86_SRC,		NULL		},
 { "XF86-co",	"/usr/X11R6/src",	&XF86Dists,	DIST_XF86_CSRC,		NULL		},
-{ "X32bin",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_BIN,		NULL		},
-{ "X32cfg",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_CFG,		NULL		},
-{ "X32doc",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_DOC,		NULL		},
-{ "X32html",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_HTML,		NULL		},
-{ "X32lib",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_LIB,		NULL		},
-{ "X32lk98",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_LKIT98,	NULL		},
-{ "X32lkit",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_LKIT,		NULL		},
-{ "X32man",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_MAN,		NULL		},
-{ "X32prog",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_PROG,		NULL		},
-{ "X32ps",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_PS,		NULL		},
-{ "X32set",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_SET,		NULL		},
+{ "X33bin",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_BIN,		NULL		},
+{ "X33cfg",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_CFG,		NULL		},
+{ "X33doc",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_DOC,		NULL		},
+{ "X33html",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_HTML,		NULL		},
+{ "X33lib",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_LIB,		NULL		},
+{ "X33lk98",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_LKIT98,	NULL		},
+{ "X33lkit",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_LKIT,		NULL		},
+{ "X33man",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_MAN,		NULL		},
+{ "X33prog",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_PROG,		NULL		},
+{ "X33ps",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_PS,		NULL		},
+{ "X33set",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_SET,		NULL		},
 { NULL },
 };
 
 /* The XFree86 server distribution */
 static Distribution XF86ServerDistTable[] = {
-{ "X328514",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_8514,	NULL		},
-{ "X329480",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_9480,	NULL		},
-{ "X329EGC",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_9EGC,	NULL		},
-{ "X329GA9",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_9GA9,	NULL		},
-{ "X329GAN",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_9GAN,	NULL		},
-{ "X329LPW",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_9LPW,	NULL		},
-{ "X329NKV",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_9NKV,	NULL		},
-{ "X329NS3",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_9NS3,	NULL		},
-{ "X329SPW",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_9SPW,	NULL		},
-{ "X329TGU",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_9TGU,	NULL		},
-{ "X329WEP",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_9WEP,	NULL		},
-{ "X329WS",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_9WS,	NULL		},
-{ "X329WSN",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_9WSN,	NULL		},
-{ "X32AGX",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_AGX,	NULL		},
-{ "X32I128",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_I128,	NULL		},
-{ "X32Ma8",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_MACH8,	NULL		},
-{ "X32Ma32",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_MACH32,NULL		},
-{ "X32Ma64",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_MACH64,NULL		},
-{ "X32Mono",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_MONO,	NULL		},
-{ "X32P9K",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_P9000,	NULL		},
-{ "X32S3",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_S3,	NULL		},
-{ "X32S3V",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_S3V,	NULL		},
-{ "X32SVGA",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_SVGA,	NULL		},
-{ "X32VG16",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_VGA16,	NULL		},
-{ "X32W32",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_W32,	NULL		},
-{ "X32nest",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_NEST,	NULL		},
-{ "X32vfb",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_VFB,	NULL		},
+{ "X338514",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_8514,	NULL		},
+{ "X339480",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_9480,	NULL		},
+{ "X339EGC",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_9EGC,	NULL		},
+{ "X339GA9",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_9GA9,	NULL		},
+{ "X339GAN",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_9GAN,	NULL		},
+{ "X339LPW",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_9LPW,	NULL		},
+{ "X339NKV",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_9NKV,	NULL		},
+{ "X339NS3",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_9NS3,	NULL		},
+{ "X339SPW",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_9SPW,	NULL		},
+{ "X339TGU",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_9TGU,	NULL		},
+{ "X339WEP",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_9WEP,	NULL		},
+{ "X339WS",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_9WS,	NULL		},
+{ "X339WSN",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_9WSN,	NULL		},
+{ "X33AGX",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_AGX,	NULL		},
+{ "X33I128",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_I128,	NULL		},
+{ "X33Ma8",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_MACH8,	NULL		},
+{ "X33Ma32",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_MACH32,NULL		},
+{ "X33Ma64",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_MACH64,NULL		},
+{ "X33Mono",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_MONO,	NULL		},
+{ "X33P9K",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_P9000,	NULL		},
+{ "X33S3",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_S3,	NULL		},
+{ "X33S3V",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_S3V,	NULL		},
+{ "X33SVGA",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_SVGA,	NULL		},
+{ "X33VG16",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_VGA16,	NULL		},
+{ "X33W32",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_W32,	NULL		},
+{ "X33nest",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_NEST,	NULL		},
+{ "X33vfb",	"/usr/X11R6",		&XF86ServerDists,	DIST_XF86_SERVER_VFB,	NULL		},
 { NULL },
 };
 
 /* The XFree86 font distribution */
 static Distribution XF86FontDistTable[] = {
-{ "X32fnts",	"/usr/X11R6",		&XF86FontDists,		DIST_XF86_FONTS_MISC,	NULL		},
-{ "X32f100",	"/usr/X11R6",		&XF86FontDists,		DIST_XF86_FONTS_100,	NULL		},
-{ "X32fcyr",	"/usr/X11R6",		&XF86FontDists,		DIST_XF86_FONTS_CYR,	NULL		},
-{ "X32fscl",	"/usr/X11R6",		&XF86FontDists,		DIST_XF86_FONTS_SCALE,	NULL		},
-{ "X32fnon",	"/usr/X11R6",		&XF86FontDists,		DIST_XF86_FONTS_NON,	NULL		},
-{ "X32fsrv",	"/usr/X11R6",		&XF86FontDists,		DIST_XF86_FONTS_SERVER,	NULL		},
+{ "X33fnts",	"/usr/X11R6",		&XF86FontDists,		DIST_XF86_FONTS_MISC,	NULL		},
+{ "X33f100",	"/usr/X11R6",		&XF86FontDists,		DIST_XF86_FONTS_100,	NULL		},
+{ "X33fcyr",	"/usr/X11R6",		&XF86FontDists,		DIST_XF86_FONTS_CYR,	NULL		},
+{ "X33fscl",	"/usr/X11R6",		&XF86FontDists,		DIST_XF86_FONTS_SCALE,	NULL		},
+{ "X33fnon",	"/usr/X11R6",		&XF86FontDists,		DIST_XF86_FONTS_NON,	NULL		},
+{ "X33fsrv",	"/usr/X11R6",		&XF86FontDists,		DIST_XF86_FONTS_SERVER,	NULL		},
 { NULL },
 };
 #endif	/* !USE_XIG_ENVIRONMENT */
