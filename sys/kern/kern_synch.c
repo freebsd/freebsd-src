@@ -52,6 +52,7 @@
 #include <sys/resourcevar.h>
 #include <sys/vmmeter.h>
 #include <sys/sysctl.h>
+#include <sys/sysproto.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #ifdef KTRACE
@@ -1075,4 +1076,28 @@ schedclock(p)
 		if (p->p_priority >= PUSER)
 			p->p_priority = p->p_usrpri;
 	}
+}
+
+/*
+ * General purpose yield system call
+ */
+int
+yield(struct proc *p, struct yield_args *uap)
+{
+	int s;
+
+	p->p_retval[0] = 0;
+
+	s = splhigh();
+	mtx_enter(&sched_lock, MTX_SPIN);
+	DROP_GIANT_NOSWITCH();
+	p->p_priority = MAXPRI;
+	setrunqueue(p);
+	p->p_stats->p_ru.ru_nvcsw++;
+	mi_switch();
+	mtx_exit(&sched_lock, MTX_SPIN);
+	PICKUP_GIANT();
+	splx(s);
+
+	return (0);
 }
