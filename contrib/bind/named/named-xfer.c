@@ -92,7 +92,7 @@ char copyright[] =
 
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)named-xfer.c	4.18 (Berkeley) 3/7/91";
-static char rcsid[] = "$Id: named-xfer.c,v 8.23 1997/06/01 20:34:34 vixie Exp $";
+static char rcsid[] = "$Id: named-xfer.c,v 8.24 1998/04/07 04:59:45 vixie Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -740,6 +740,10 @@ getzone(zp, serial_no, port)
 			goto badsoa;
 		}
 		tmp += n;
+		if (tmp + 2 * INT16SZ > eom) {
+			badsoa_msg = "query error";
+			goto badsoa;
+		}
 		GETSHORT(type, tmp);
 		GETSHORT(class, tmp);
 		if (class != curclass || type != T_SOA ||
@@ -778,6 +782,10 @@ getzone(zp, serial_no, port)
 			GETSHORT(class, cp4);
 			GETLONG(ttl, cp4);
 			GETSHORT(dlen, cp4);
+			if (cp4 + dlen > eom) {
+				badsoa_msg = "zinfo dlen too big";
+				goto badsoa;
+			}
 			if (type == T_SOA)
 				break;
 			/* Skip to next record, if any.  */
@@ -1155,6 +1163,8 @@ soa_zinfo(zp, cp, eom)
 	register int n;
 	int type, class;
 	u_long ttl;
+	u_int dlen;
+	u_char *rdatap;
 
 	/* Are type, class, and ttl OK? */
 	if (eom - cp < 3 * INT16SZ + INT32SZ)
@@ -1162,7 +1172,8 @@ soa_zinfo(zp, cp, eom)
 	GETSHORT(type, cp);
 	GETSHORT(class, cp);
 	GETLONG(ttl, cp);
-	cp += INT16SZ;	/* dlen */
+	GETSHORT(dlen, cp);
+	rdatap = cp;
 	if (type != T_SOA || class != curclass)
 		return ("zinfo wrong typ/cla/ttl");
 	/* Skip master name and contact name, we can't validate them. */
@@ -1180,8 +1191,18 @@ soa_zinfo(zp, cp, eom)
 	GETLONG(zp->z_retry, cp);
 	GETLONG(zp->z_expire, cp);
 	GETLONG(zp->z_minimum, cp);
+	if (cp != rdatap + dlen)
+		return ("bad soa dlen");
 	return (NULL);
 }
+
+#define BOUNDS_CHECK(ptr, count) \
+	do { \
+		if ((ptr) + (count) > eom) { \
+			hp->rcode = FORMERR; \
+			return (-1); \
+		} \
+	} while (0)
 
 /*
  * Parse the message, determine if it should be printed, and if so, print it
@@ -1202,7 +1223,7 @@ print_output(zp, serial_no, msg, msglen, rrp)
 	int i, j, tab, result, class, type, dlen, n1, n;
 	char data[BUFSIZ];
 	u_char *cp1, *cp2, *temp_ptr, *eom, *rr_type_ptr;
-	u_char *cdata;
+	u_char *cdata, *rdatap;
 	char *origin, *proto, dname[MAXDNAME];
 	char *ignore = "";
 	const char *badsoa_msg;
@@ -1216,10 +1237,13 @@ print_output(zp, serial_no, msg, msglen, rrp)
 	}
 	cp += n;
 	rr_type_ptr = cp;
+	BOUNDS_CHECK(cp, 3 * INT16SZ + INT32SZ);
 	GETSHORT(type, cp);
 	GETSHORT(class, cp);
 	GETLONG(ttl, cp);
 	GETSHORT(dlen, cp);
+	BOUNDS_CHECK(cp, dlen);
+	rdatap = cp;
 
 	origin = strchr(dname, '.');
 	if (origin == NULL)
@@ -1294,10 +1318,7 @@ print_output(zp, serial_no, msg, msglen, rrp)
 		cp += n;
 		cp1 += strlen((char *) cp1) + 1;
 		if (type == T_SOA) {
-			if ((eom - cp) < (5 * INT32SZ)) {
-				hp->rcode = FORMERR;
-				return (-1);
-			}
+			BOUNDS_CHECK(cp, 5 * INT32SZ);
 			temp_ptr = cp + 4 * INT32SZ;
 			GETLONG(minimum_ttl, temp_ptr);
 			n = 5 * INT32SZ;
@@ -1311,24 +1332,31 @@ print_output(zp, serial_no, msg, msglen, rrp)
 
 	case T_NAPTR:
 		/* Grab weight and port. */
+		BOUNDS_CHECK(cp, INT16SZ*2);
 		bcopy(cp, data, INT16SZ*2);
 		cp1 = (u_char *) (data + INT16SZ*2);
 		cp += INT16SZ*2;
  
 		/* Flags */
+		BOUNDS_CHECK(cp, 1);
 		n = *cp++;
+		BOUNDS_CHECK(cp, n);
 		*cp1++ = n;
 		bcopy(cp, cp1, n);
 		cp += n; cp1 += n;
  
 		/* Service */
-		n = *cp++;
+		BOUNDS_CHECK(cp, 1);
+ 		n = *cp++;
+		BOUNDS_CHECK(cp, n);
 		*cp1++ = n;
 		bcopy(cp, cp1, n);
 		cp += n; cp1 += n;
  
 		/* Regexp */
-		n = *cp++;
+		BOUNDS_CHECK(cp, 1);
+ 		n = *cp++;
+		BOUNDS_CHECK(cp, n);
 		*cp1++ = n;
 		bcopy(cp, cp1, n);
 		cp += n; cp1 += n;
@@ -1352,11 +1380,13 @@ print_output(zp, serial_no, msg, msglen, rrp)
 	case T_RT:
 	case T_SRV:
 		/* grab preference */
+		BOUNDS_CHECK(cp, INT16SZ);
 		bcopy((char *)cp, data, INT16SZ);
 		cp1 = (u_char *)data + INT16SZ;
 		cp += INT16SZ;
 
 		if (type == T_SRV) {
+			BOUNDS_CHECK(cp, INT16SZ);
 			bcopy((char *)cp, cp1, INT16SZ*2);
 			cp1 += INT16SZ*2;
 			cp += INT16SZ*2;
@@ -1378,6 +1408,7 @@ print_output(zp, serial_no, msg, msglen, rrp)
 
 	case T_PX:
 		/* grab preference */
+		BOUNDS_CHECK(cp, INT16SZ);
 		bcopy((char *)cp, data, INT16SZ);
 		cp1 = (u_char *)data + INT16SZ;
 		cp += INT16SZ;
@@ -1408,6 +1439,7 @@ print_output(zp, serial_no, msg, msglen, rrp)
 
 		/* first just copy over the type_covered, algorithm, */
 		/* labels, orig ttl, two timestamps, and the footprint */
+		BOUNDS_CHECK(cp, 18);
 		bcopy( cp, cp1, 18 );
 		cp  += 18;
 		cp1 += 18;
@@ -1423,8 +1455,10 @@ print_output(zp, serial_no, msg, msglen, rrp)
 		/* finally, we copy over the variable-length signature.
 		   Its size is the total data length, minus what we copied. */
 		n = dlen - (18 + n);
-		if (n > (sizeof data) - (cp1 - (u_char *)data))
+		if (n > (int)((sizeof data) - (int)(cp1 - (u_char *)data))) {
+			hp->rcode = FORMERR;
 			return (-1);  /* out of room! */
+		}
 		bcopy(cp, cp1, n);
 		cp += n;
 		cp1 += n;
@@ -1448,6 +1482,14 @@ print_output(zp, serial_no, msg, msglen, rrp)
 		hp->rcode = FORMERR;
 		return (-1);
 	}
+	if (cp != rdatap + dlen) {
+		dprintf(1, (ddt,
+		    "encoded rdata length is %u, but actual length was %u\n",
+			dlen, (u_int)(cp - rdatap)));
+		hp->rcode = FORMERR;
+		return (-1);
+	}
+
 	cdata = cp1;
 	result = cp - rrp;
 
