@@ -59,13 +59,13 @@ static MALLOC_DEFINE(M_SYSCTL, "sysctl", "sysctl internal magic");
 static MALLOC_DEFINE(M_SYSCTLOID, "sysctloid", "sysctl dynamic oids");
 
 /*
- * Locking and stats
+ * Locking - this locks the sysctl tree in memory.
  */
-static struct sx memlock;
+static struct sx sysctllock;
 
-#define	MEMLOCK_LOCK()		sx_xlock(&memlock)
-#define	MEMLOCK_UNLOCK()	sx_xunlock(&memlock)
-#define	MEMLOCK_INIT()		sx_init(&memlock, "sysctl memlock")
+#define	SYSCTL_LOCK()		sx_xlock(&sysctllock)
+#define	SYSCTL_UNLOCK()	sx_xunlock(&sysctllock)
+#define	SYSCTL_INIT()		sx_init(&sysctllock, "sysctl sysctllock")
 
 static int sysctl_root(SYSCTL_HANDLER_ARGS);
 
@@ -397,7 +397,7 @@ sysctl_register_all(void *arg)
 {
 	struct sysctl_oid **oidp;
 
-	MEMLOCK_INIT();
+	SYSCTL_INIT();
 	SET_FOREACH(oidp, sysctl_set)
 		sysctl_register_oid(*oidp);
 }
@@ -901,14 +901,14 @@ kernel_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 	req.newfunc = sysctl_new_kernel;
 	req.lock = 1;
 
-	MEMLOCK_LOCK();
+	SYSCTL_LOCK();
 
 	error = sysctl_root(0, name, namelen, &req);
 
 	if (req.lock == 2)
 		vsunlock(req.oldptr, req.oldlen);
 
-	MEMLOCK_UNLOCK();
+	SYSCTL_UNLOCK();
 
 	if (error && error != ENOMEM)
 		return (error);
@@ -1178,7 +1178,7 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 	req.newfunc = sysctl_new_user;
 	req.lock = 1;
 
-	MEMLOCK_LOCK();
+	SYSCTL_LOCK();
 
 	do {
 	    req2 = req;
@@ -1189,7 +1189,7 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 	if (req.lock == 2)
 		vsunlock(req.oldptr, req.oldlen);
 
-	MEMLOCK_UNLOCK();
+	SYSCTL_UNLOCK();
 
 	if (error && error != ENOMEM)
 		return (error);
