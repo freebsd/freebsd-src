@@ -14,7 +14,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: conf.c,v 8.972.2.50 2003/09/03 21:37:03 ca Exp $")
+SM_RCSID("@(#)$Id: conf.c,v 8.972.2.54 2004/01/08 21:54:55 ca Exp $")
 
 #include <sendmail/pathnames.h>
 #if NEWDB
@@ -5572,6 +5572,9 @@ char	*CompileOptions[] =
 #if MIME7TO8
 	"MIME7TO8",
 #endif /* MIME7TO8 */
+#if MIME7TO8_OLD
+	"MIME7TO8_OLD",
+#endif /* MIME7TO8_OLD */
 #if MIME8TO7
 	"MIME8TO7",
 #endif /* MIME8TO7 */
@@ -6066,11 +6069,19 @@ char	*FFRCompileOptions[] =
 	/* Limit sleep(2) time in libsm/clock.c */
 	"_FFR_MAX_SLEEP_TIME",
 #endif /* _FFR_MAX_SLEEP_TIME */
+#if _FFR_MESSAGEID_MACRO
+	/* stick the message ID header's value in a macro */
+	"_FFR_MESSAGEID_MACRO",
+#endif /* _FFR_MESSAGEID_MACRO */
 #if MILTER
 # if _FFR_MILTER_421
 	/* If a filter returns 421, close the SMTP connection */
 	"_FFR_MILTER_421",
 # endif /* _FFR_MILTER_421 */
+# if _FFR_MILTER_MACROS_EOM
+	/* Add an EOM macro set for milter */
+	"_FFR_MILTER_MACROS_EOM",
+# endif /* _FFR_MILTER_MACROS_EOM */
 # if _FFR_MILTER_PERDAEMON
 	/* Per DaemonPortOptions InputMailFilter lists */
 	"_FFR_MILTER_PERDAEMON",
