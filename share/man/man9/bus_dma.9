@@ -262,7 +262,8 @@ Perform any synchronization required after a combination of DMA read
 and write operations.
 .El
 .It Vt bus_dma_lock_t
-Client specified lock/mutex manipulation method.  This will be called from
+Client specified lock/mutex manipulation method.
+This will be called from
 within busdma whenever a client lock needs to be manipulated.
 This method is of the format:
 .Bl -tag -width compact
@@ -279,8 +280,8 @@ performs standard mutex operations on the sleep mutex provided via the
 passed into
 .Fn bus_dma_tag_create .
 .Fn dflt_lock
-will generate a system panic if it is called.  It is substituted into
-the tag when
+will generate a system panic if it is called.
+It is substituted into the tag when
 .Fa lockfunc
 is passed as NULL to
 .Fn bus_dma_tag_create .
@@ -390,7 +391,8 @@ is returned.
 .El
 .It Fa lockfunc
 Optional lock manipulation function (may be NULL) to be called when busdma
-needs to manipulate a lock on behalf of the client.  If NULL is specified,
+needs to manipulate a lock on behalf of the client.
+If NULL is specified,
 .Fn dflt_lock
 is used.
 .It Fa lockfuncarg
