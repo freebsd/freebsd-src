@@ -47,14 +47,10 @@
 #include <sys/sockio.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
-#if defined(__FreeBSD__)
 #include <machine/clock.h>
-#endif
 
-#if defined(__FreeBSD__)
 #include "opt_inet.h"
 #include "opt_ipx.h"
-#endif
 
 #include <net/if.h>
 #if defined(SIOCSIFMEDIA) && !defined(TULIP_NOIFMEDIA)
@@ -87,7 +83,6 @@
 
 #include <vm/vm.h>
 
-#if defined(__FreeBSD__)
 #include <net/if_var.h>
 #include <vm/pmap.h>
 #include <pci/pcivar.h>
@@ -97,7 +92,6 @@
 #ifdef BRIDGE
 #include <net/bridge.h>
 #endif
-#endif /* __FreeBSD__ */
 
 /*
  * Intel CPUs should use I/O mapped access.
@@ -3044,13 +3038,8 @@ static void
 tulip_addr_filter(
     tulip_softc_t * const sc)
 {
-#if defined(__FreeBSD__)
     struct ifmultiaddr *ifma;
     u_char *addrp;
-#else
-    struct ether_multistep step;
-    struct ether_multi *enm;
-#endif
     int multicnt;
 
     sc->tulip_flags &= ~(TULIP_WANTHASHPERFECT|TULIP_WANTHASHONLY|TULIP_ALLMULTI);
@@ -3062,7 +3051,6 @@ tulip_addr_filter(
 	sc->tulip_flags |= TULIP_ALLMULTI ;
 #endif
 
-#if defined(__FreeBSD__)
     multicnt = 0;
     for (ifma = sc->tulip_if.if_multiaddrs.lh_first; ifma != NULL;
 	 ifma = ifma->ifma_link.le_next) {
@@ -3070,9 +3058,6 @@ tulip_addr_filter(
 	    if (ifma->ifma_addr->sa_family == AF_LINK)
 		multicnt++;
     }
-#else
-    multicnt = sc->tulip_multicnt;
-#endif
 
     sc->tulip_if.if_start = tulip_ifstart;	/* so the setup packet gets queued */
     if (multicnt > 14) {
@@ -3096,7 +3081,6 @@ tulip_addr_filter(
 	 */
 	bzero(sc->tulip_setupdata, sizeof(sc->tulip_setupdata));
 
-#if defined(__FreeBSD__)
 	for (ifma = sc->tulip_if.if_multiaddrs.lh_first; ifma != NULL;
 	     ifma = ifma->ifma_link.le_next) {
 
@@ -3104,26 +3088,12 @@ tulip_addr_filter(
 			continue;
 
 		hash = tulip_mchash(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
-		sp[hash >> 4] |= 1 << (hash & 0xF);
-	}
-#else
-	ETHER_FIRST_MULTI(step, TULIP_ETHERCOM(sc), enm);
-	while (enm != NULL) {
-		if (bcmp(enm->enm_addrlo, enm->enm_addrhi, 6) == 0) {
-		    hash = tulip_mchash(enm->enm_addrlo);
 #if BYTE_ORDER == BIG_ENDIAN
-		    sp[hash >> 4] |= bswap32(1 << (hash & 0xF));
+		sp[hash >> 4] |= bswap32(1 << (hash & 0xF));
 #else
-		    sp[hash >> 4] |= 1 << (hash & 0xF);
+		sp[hash >> 4] |= 1 << (hash & 0xF);
 #endif
-		} else {
-		    sc->tulip_flags |= TULIP_ALLMULTI;
-		    sc->tulip_flags &= ~(TULIP_WANTHASHONLY|TULIP_WANTHASHPERFECT);
-		    break;
-		}
-		ETHER_NEXT_MULTI(step, enm);
 	}
-#endif
 	/*
 	 * No reason to use a hash if we are going to be
 	 * receiving every multicast.
@@ -3162,37 +3132,22 @@ tulip_addr_filter(
 	    /*
 	     * Else can get perfect filtering for 16 addresses.
 	     */
-#if defined(__FreeBSD__)
 	    for (ifma = sc->tulip_if.if_multiaddrs.lh_first; ifma != NULL;
 		 ifma = ifma->ifma_link.le_next) {
 		    if (ifma->ifma_addr->sa_family != AF_LINK)
 			    continue;
 		    addrp = LLADDR((struct sockaddr_dl *)ifma->ifma_addr);
+#if BYTE_ORDER == BIG_ENDIAN
+		    *sp++ = ((u_int16_t *) addrp)[0] << 16;
+		    *sp++ = ((u_int16_t *) addrp)[1] << 16;
+		    *sp++ = ((u_int16_t *) addrp)[2] << 16;
+#else
 		    *sp++ = ((u_int16_t *) addrp)[0]; 
 		    *sp++ = ((u_int16_t *) addrp)[1]; 
 		    *sp++ = ((u_int16_t *) addrp)[2];
+#endif
 		    idx++;
 	    }
-#else
-	    ETHER_FIRST_MULTI(step, TULIP_ETHERCOM(sc), enm);
-	    for (; enm != NULL; idx++) {
-		if (bcmp(enm->enm_addrlo, enm->enm_addrhi, 6) == 0) {
-#if BYTE_ORDER == BIG_ENDIAN
-		    *sp++ = ((u_int16_t *) enm->enm_addrlo)[0] << 16;
-		    *sp++ = ((u_int16_t *) enm->enm_addrlo)[1] << 16;
-		    *sp++ = ((u_int16_t *) enm->enm_addrlo)[2] << 16;
-#else
-		    *sp++ = ((u_int16_t *) enm->enm_addrlo)[0]; 
-		    *sp++ = ((u_int16_t *) enm->enm_addrlo)[1]; 
-		    *sp++ = ((u_int16_t *) enm->enm_addrlo)[2];
-#endif
-		} else {
-		    sc->tulip_flags |= TULIP_ALLMULTI;
-		    break;
-		}
-		ETHER_NEXT_MULTI(step, enm);
-	    }
-#endif
 	    /*
 	     * Add the broadcast address.
 	     */
@@ -4771,22 +4726,9 @@ tulip_ifioctl(
 	    /*
 	     * Update multicast listeners
 	     */
-#if defined(__FreeBSD__)
 	    tulip_addr_filter(sc);		/* reset multicast filtering */
 	    tulip_init(sc);
 	    error = 0;
-#else
-	    if (cmd == SIOCADDMULTI)
-		error = ether_addmulti(ifr, TULIP_ETHERCOM(sc));
-	    else
-		error = ether_delmulti(ifr, TULIP_ETHERCOM(sc));
-
-	    if (error == ENETRESET) {
-		tulip_addr_filter(sc);		/* reset multicast filtering */
-		tulip_init(sc);
-		error = 0;
-	    }
-#endif
 	    break;
 	}
 #if defined(SIOCSIFMTU)
@@ -4969,16 +4911,6 @@ tulip_ifwatchdog(
     TULIP_PERFMERGE(sc, perf_rxintr);
     TULIP_PERFMERGE(sc, perf_rxget);
 }
-
-#if defined(__FreeBSD__) && BSD < 199506
-static ifnet_ret_t
-tulip_ifwatchdog_wrapper(
-    int unit)
-{
-    tulip_ifwatchdog(&TULIP_UNIT_TO_SOFTC(unit)->tulip_if);
-}
-#define	tulip_ifwatchdog	tulip_ifwatchdog_wrapper
-#endif
 
 /*
  * All printf's are real as of now!
@@ -5057,9 +4989,7 @@ tulip_attach(
     tulip_reset(sc);
 
     if_attach(ifp);
-#if defined(__FreeBSD__)
     ifp->if_snd.ifq_maxlen = ifqmaxlen;
-#endif
     TULIP_ETHER_IFATTACH(sc);
 
 #if NBPF > 0
@@ -5256,8 +5186,6 @@ tulip_initring(
 static const int tulip_eisa_irqs[4] = { IRQ5, IRQ9, IRQ10, IRQ11 };
 #endif
 
-#if defined(__FreeBSD__)
-
 #define	TULIP_PCI_ATTACH_ARGS	pcici_t config_id, int unit
 #define	TULIP_SHUTDOWN_ARGS	int howto, void * arg
 
@@ -5321,7 +5249,6 @@ static struct pci_device dedevice = {
 };
 
 COMPAT_PCI_DRIVER(de, dedevice);
-#endif /* __FreeBSD__ */
 
 static void
 tulip_shutdown(
@@ -5338,19 +5265,17 @@ static void
 tulip_pci_attach(
     TULIP_PCI_ATTACH_ARGS)
 {
-#if defined(__FreeBSD__)
     tulip_softc_t *sc;
 #define	PCI_CONF_WRITE(r, v)	pci_conf_write(config_id, (r), (v))
 #define	PCI_CONF_READ(r)	pci_conf_read(config_id, (r))
 #define	PCI_GETBUSDEVINFO(sc)	((void)((sc)->tulip_pci_busno = (config_id->bus), /* XXX */ \
 					(sc)->tulip_pci_devno = (config_id->slot))) /* XXX */
-#endif
 #if defined(__alpha__)
     tulip_media_t media = TULIP_MEDIA_UNKNOWN;
 #endif
     int retval, idx;
     u_int32_t revinfo, cfdainfo, id;
-#if !defined(TULIP_IOMAPPED) && defined(__FreeBSD__)
+#if !defined(TULIP_IOMAPPED)
     vm_offset_t pa_csrs;
 #endif
     unsigned csroffset = TULIP_PCI_CSROFFSET;
@@ -5359,9 +5284,7 @@ tulip_pci_attach(
     tulip_chipid_t chipid = TULIP_CHIPID_UNKNOWN;
 
     if (unit >= TULIP_MAX_DEVICES) {
-#ifdef __FreeBSD__
 	printf("de%d", unit);
-#endif
 	printf(": not configured; limit of %d reached or exceeded\n",
 	       TULIP_MAX_DEVICES);
 	return;
@@ -5385,27 +5308,20 @@ tulip_pci_attach(
 	return;
 
     if ((chipid == TULIP_21040 || chipid == TULIP_DE425) && revinfo < 0x20) {
-#ifdef __FreeBSD__
 	printf("de%d", unit);
-#endif
 	printf(": not configured; 21040 pass 2.0 required (%d.%d found)\n",
 	       revinfo >> 4, revinfo & 0x0f);
 	return;
     } else if (chipid == TULIP_21140 && revinfo < 0x11) {
-#ifndef __FreeBSD__
-	printf("\n");
-#endif
 	printf("de%d: not configured; 21140 pass 1.1 required (%d.%d found)\n",
 	       unit, revinfo >> 4, revinfo & 0x0f);
 	return;
     }
 
-#if defined(__FreeBSD__)
     sc = (tulip_softc_t *) malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT);
     if (sc == NULL)
 	return;
     bzero(sc, sizeof(*sc));				/* Zero out the softc*/
-#endif
 
     PCI_GETBUSDEVINFO(sc);
     sc->tulip_chipid = chipid;
@@ -5455,10 +5371,7 @@ tulip_pci_attach(
     sc->tulip_unit = unit;
     sc->tulip_name = "de";
     sc->tulip_revinfo = revinfo;
-#if defined(__FreeBSD__)
-#if BSD >= 199506
     sc->tulip_if.if_softc = sc;
-#endif
 #if defined(TULIP_IOMAPPED)
     retval = pci_map_port(config_id, PCI_CBIO, &csr_base);
 #else
@@ -5469,7 +5382,6 @@ tulip_pci_attach(
 	return;
     }
     tulips[unit] = sc;
-#endif /* __FreeBSD__ */
 
     tulip_initcsrs(sc, csr_base + csroffset, csrsize);
 
@@ -5479,7 +5391,6 @@ tulip_pci_attach(
 	return;
     }
 #else
-#if defined(__FreeBSD__)
     sc->tulip_rxdescs = (tulip_desc_t *) malloc(sizeof(tulip_desc_t) * TULIP_RXDESCS, M_DEVBUF, M_NOWAIT);
     sc->tulip_txdescs = (tulip_desc_t *) malloc(sizeof(tulip_desc_t) * TULIP_TXDESCS, M_DEVBUF, M_NOWAIT);
     if (sc->tulip_rxdescs == NULL || sc->tulip_txdescs == NULL) {
@@ -5491,10 +5402,6 @@ tulip_pci_attach(
 	free((caddr_t) sc, M_DEVBUF);
 	return;
     }
-#else
-    sc->tulip_txdescs = (tulip_desc_t *) malloc((TULIP_TXDESCS+TULIP_RXDESCS)*sizeof(tulip_desc_t), M_DEVBUF, M_WAITOK);
-    sc->tulip_rxdescs = sc->tulip_txdescs + TULIP_TXDESCS;
-#endif
 #endif
 
     tulip_initring(sc, &sc->tulip_rxinfo, sc->tulip_rxdescs, TULIP_RXDESCS);
@@ -5509,9 +5416,7 @@ tulip_pci_attach(
 		   bit longer anyways) */
 
     if ((retval = tulip_read_macaddr(sc)) < 0) {
-#if defined(__FreeBSD__)
 	printf(TULIP_PRINTF_FMT, TULIP_PRINTF_ARGS);
-#endif
 	printf(": can't read ENET ROM (why=%d) (", retval);
 	for (idx = 0; idx < 32; idx++)
 	    printf("%02x", sc->tulip_rombuf[idx]);
@@ -5528,7 +5433,6 @@ tulip_pci_attach(
 	if (sc->tulip_features & TULIP_HAVE_SHAREDINTR)
 	    intr_rtn = tulip_intr_shared;
 
-#if defined(__FreeBSD__)
 	if ((sc->tulip_features & TULIP_HAVE_SLAVEDINTR) == 0) {
 	    if (!pci_map_int (config_id, intr_rtn, (void*) sc, &net_imask)) {
 		printf(TULIP_PRINTF_FMT ": couldn't map interrupt\n",
@@ -5541,7 +5445,6 @@ tulip_pci_attach(
 	}
 #if !defined(TULIP_DEVCONF)
 	at_shutdown(tulip_shutdown, sc, SHUTDOWN_POST_SYNC);
-#endif
 #endif
 #if defined(TULIP_USE_SOFTINTR)
 	if (sc->tulip_unit > tulip_softintr_max_unit)
