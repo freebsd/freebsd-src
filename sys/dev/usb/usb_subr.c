@@ -1,4 +1,4 @@
-/*	$NetBSD: usb_subr.c,v 1.96 2001/11/22 21:59:33 augustss Exp $	*/
+/*	$NetBSD: usb_subr.c,v 1.98 2002/02/20 20:30:13 christos Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -672,6 +672,7 @@ usbd_set_config_index(usbd_device_handle dev, int index, int msg)
 #endif
 	power = cdp->bMaxPower * 2;
 	if (power > dev->powersrc->power) {
+		DPRINTF(("power exceeded %d %d\n", power,dev->powersrc->power));
 		/* XXX print nicer message. */
 		if (msg)
 			printf("%s: device addr %d (config %d) exceeds power "
