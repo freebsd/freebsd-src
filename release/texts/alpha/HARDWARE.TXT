@@ -237,7 +237,12 @@ a new power supply. The 3.3 Volts is only needed in case you run 3.3 Volts
 PCI expansion boards.
 
 IDE:
-SRM cannot boot from IDE disks.
+The IDE interface is supported by FreeBSD and requires a line in the 
+kernel configuration file as follows:
+
+        device ata0 at isa? port IO_WD1 irq 14
+
+The SRM console unfortunately cannot boot from IDE disks.
 
 Memory:
 Make sure you use true 36 bit SIMMs, and only FPM (Fast Page Mode). EDO RAM
