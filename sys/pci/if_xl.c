@@ -148,6 +148,8 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif
 
+#define XL905B_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP)
+
 /*
  * Various supported device vendors/types and their names.
  */
@@ -1407,9 +1409,10 @@ static int xl_attach(dev)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = xl_ioctl;
 	ifp->if_output = ether_output;
-	if (sc->xl_type == XL_TYPE_905B)
+	if (sc->xl_type == XL_TYPE_905B) {
 		ifp->if_start = xl_start_90xB;
-	else
+		ifp->if_hwassist = XL905B_CSUM_FEATURES;
+	} else
 		ifp->if_start = xl_start;
 	ifp->if_watchdog = xl_watchdog;
 	ifp->if_init = xl_init;
@@ -2378,6 +2381,14 @@ static int xl_encap_90xB(sc, c, m_head)
 	c->xl_ptr->xl_frag[frag - 1].xl_len |= XL_LAST_FRAG;
 	c->xl_ptr->xl_status = XL_TXSTAT_RND_DEFEAT;
 
+	if (m_head->m_pkthdr.csum_flags) {
+		if (m_head->m_pkthdr.csum_flags & CSUM_IP)
+			c->xl_ptr->xl_status |= XL_TXSTAT_IPCKSUM;
+		if (m_head->m_pkthdr.csum_flags & CSUM_TCP)
+			c->xl_ptr->xl_status |= XL_TXSTAT_TCPCKSUM;
+		if (m_head->m_pkthdr.csum_flags & CSUM_UDP)
+			c->xl_ptr->xl_status |= XL_TXSTAT_UDPCKSUM;
+	}
 	return(0);
 }
 
