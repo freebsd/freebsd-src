@@ -93,9 +93,11 @@ _kvm_mdopen(kd)
 	kvm_t	*kd;
 {
 
+#ifdef FBSD_NOT_YET
 	kd->usrstack = USRSTACK;
 	kd->min_uva = VM_MIN_ADDRESS;
 	kd->max_uva = VM_MAXUSER_ADDRESS;
+#endif
 
 	return (0);
 }
