@@ -164,6 +164,12 @@ cpu		I686_CPU		# aka Pentium Pro(tm)
 # the guest OS to run very slowly.  Enabling this with a SMP kernel
 # will cause the kernel to be unusable.
 #
+# CPU_ENABLE_TCC enables Thermal Control Circuitry (TCC) found in some
+# Pentium(tm) 4 and (possibly) later CPUs. When enabled and detected,
+# TCC allows to restrict power consumption by using machdep.cpuperf*
+# sysctls. This operates independently of SpeedStep and is useful on
+# systems where other mechanisms such as apm(4) or acpi(4) don't work.
+#
 # NOTE 1: The options, CPU_BTB_EN, CPU_LOOP_EN, CPU_IORT,
 # CPU_LOOP_EN and CPU_RSTK_EN should not be used because of CPU bugs.
 # These options may crash your system.
@@ -186,6 +192,7 @@ options 	CPU_SOEKRIS
 options 	CPU_ELAN_XTAL=32768000
 options 	CPU_ELAN_PPS
 options 	CPU_ENABLE_SSE
+options 	CPU_ENABLE_TCC
 #options 	CPU_DISABLE_SSE
 options 	CPU_FASTER_5X86_FPU
 options 	CPU_GEODE
