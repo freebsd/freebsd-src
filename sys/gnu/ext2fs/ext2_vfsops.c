@@ -75,6 +75,7 @@ static int ext2_root(struct mount *, struct vnode **vpp);
 static int ext2_sbupdate(struct ext2mount *, int);
 static int ext2_statfs(struct mount *, struct statfs *, struct thread *);
 static int ext2_sync(struct mount *, int, struct ucred *, struct thread *);
+static int ext2_uninit(struct vfsconf *);
 static int ext2_unmount(struct mount *, int, struct thread *);
 static int ext2_vget(struct mount *, ino_t, int, struct vnode **);
 static int ext2_vptofh(struct vnode *, struct fid *);
@@ -95,7 +96,7 @@ static struct vfsops ext2fs_vfsops = {
 	vfs_stdcheckexp,
 	ext2_vptofh,
 	ext2_init,
-	vfs_stduninit,
+	ext2_uninit,
 	vfs_stdextattrctl,
 };
 
@@ -1207,12 +1208,15 @@ ext2_root(mp, vpp)
 static int
 ext2_init(struct vfsconf *vfsp)
 {
-	static int done;
 
-	if (done)
-		return (0);
-	done = 1;
 	ext2_ihashinit();
+	return (0);
+}
 
+static int
+ext2_uninit(struct vfsconf *vfsp)
+{
+
+	ext2_ihashuninit();
 	return (0);
 }
