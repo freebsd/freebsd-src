@@ -63,7 +63,7 @@
 #
 # c_fmt
 #
-%a %Ex %T %Y
+%a %Ef %T %Y
 #
 # am
 #
@@ -92,6 +92,10 @@
 十一月
 十二月
 #
-# Ex_fmt
+# Ef_fmt
 #
 %b/%e
+#
+# EF_fmt
+#
+%B %e

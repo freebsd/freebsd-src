@@ -63,7 +63,7 @@ Szombat
 #
 # c_fmt
 #
-%a %Ex %X %Y
+%a %Ef %X %Y
 #
 # am
 #
@@ -75,7 +75,7 @@ du
 #
 # date_fmt
 #
-%Y %Ex %a %X %Z
+%Y %Ef %a %X %Z
 #
 # Long months names (alternative)
 #
@@ -92,6 +92,10 @@ Október
 November
 December
 #
-# Ex_fmt
+# Ef_fmt
 #
 %b %e
+#
+# EF_fmt
+#
+%B %e
