@@ -1926,7 +1926,7 @@ device		bktr
 device		pcic
 hint.pcic.0.at="isa"
 hint.pcic.1.at="isa"
-device		card
+device		card	1
 
 #
 # PC Card/PCMCIA and Cardbus
