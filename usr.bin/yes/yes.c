@@ -32,15 +32,22 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1987, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)yes.c	8.1 (Berkeley) 6/6/93";
+#else
+static const char rcsid[] = "$FreeBSD$";
+#endif
 #endif /* not lint */
 
+#include <stdio.h>
+
+int
 main(argc, argv)
 	int argc;
 	char **argv;
