@@ -29,7 +29,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: ypbind.c,v 1.26 1997/10/27 07:45:47 charnier Exp $";
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -230,7 +230,7 @@ rejecting.", *argp);
 
 	res.ypbind_status = YPBIND_SUCC_VAL;
 	res.ypbind_resp_u.ypbind_error = 0; /* Success */
-	*(u_long *)&res.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_addr =
+	*(u_int32_t *)&res.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_addr =
 		ypdb->dom_server_addr.sin_addr.s_addr;
 	*(u_short *)&res.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_port =
 		ypdb->dom_server_addr.sin_port;
@@ -247,6 +247,7 @@ ypbind_setdom *argp;
 CLIENT *clnt;
 {
 	struct sockaddr_in *fromsin, bindsin;
+	static char		*result = NULL;
 
 	if (strchr(argp->ypsetdom_domain, '/')) {
 		syslog(LOG_WARNING, "Domain name '%s' has embedded slash -- \
@@ -282,11 +283,11 @@ rejecting.", argp->ypsetdom_domain);
 
 	bzero((char *)&bindsin, sizeof bindsin);
 	bindsin.sin_family = AF_INET;
-	bindsin.sin_addr.s_addr = *(u_long *)argp->ypsetdom_binding.ypbind_binding_addr;
+	bindsin.sin_addr.s_addr = *(u_int32_t *)argp->ypsetdom_binding.ypbind_binding_addr;
 	bindsin.sin_port = *(u_short *)argp->ypsetdom_binding.ypbind_binding_port;
 	rpc_received(argp->ypsetdom_domain, &bindsin, 1);
 
-	return(NULL);
+	return((void *) &result);
 }
 
 static void
@@ -945,7 +946,7 @@ int force;
 
 	bzero(&ybr, sizeof ybr);
 	ybr.ypbind_status = YPBIND_SUCC_VAL;
-	*(u_long *)&ybr.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_addr = raddrp->sin_addr.s_addr;
+	*(u_int32_t *)&ybr.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_addr = raddrp->sin_addr.s_addr;
 	*(u_short *)&ybr.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_port = raddrp->sin_port;
 
 	if( writev(ypdb->dom_lockfd, iov, 2) != iov[0].iov_len + iov[1].iov_len) {
