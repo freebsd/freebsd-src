@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.186 1999/02/04 18:25:39 dillon Exp $
+ * $Id: vfs_subr.c,v 1.187 1999/02/19 17:36:58 dillon Exp $
  */
 
 /*
@@ -901,8 +901,8 @@ vn_syncer_add_to_worklist(struct vnode *vp, int delay)
 	splx(s);
 }
 
+static struct  proc *updateproc;
 static void sched_sync __P((void));
-static struct	proc *updateproc;
 static const struct kproc_desc up_kp = {
 	"syncer",
 	sched_sync,
@@ -1201,6 +1201,7 @@ checkalias(nvp, nvp_rdev, mp)
 	struct proc *p = curproc;	/* XXX */
 	struct vnode *vp;
 	struct vnode **vpp;
+	int rmaj = major(nvp_rdev);
 
 	if (nvp->v_type != VBLK && nvp->v_type != VCHR)
 		return (NULLVP);
@@ -1239,16 +1240,37 @@ loop:
 	 * and the clauses had been swapped.
 	 */
 	if (vp == NULL || vp->v_tag != VT_NON) {
+		struct specinfo *sinfo;
+
 		/*
 		 * Put the new vnode into the hash chain.
 		 * and if there was an alias, connect them.
 		 */
-		MALLOC(nvp->v_specinfo, struct specinfo *,
+		MALLOC(sinfo, struct specinfo *,
 		    sizeof(struct specinfo), M_VNODE, M_WAITOK);
-		nvp->v_rdev = nvp_rdev;
-		nvp->v_hashchain = vpp;
-		nvp->v_specnext = *vpp;
-		nvp->v_specmountpoint = NULL;
+		bzero(sinfo, sizeof(struct specinfo));
+		nvp->v_specinfo = sinfo;
+		sinfo->si_rdev = nvp_rdev;
+		sinfo->si_hashchain = vpp;
+		sinfo->si_specnext = *vpp;
+		sinfo->si_bsize_phys = DEV_BSIZE;
+		sinfo->si_bsize_best = BLKDEV_IOSIZE;
+		sinfo->si_bsize_max = MAXBSIZE;
+
+		/*
+		 * Ask the device to fix up specinfo.  Typically the 
+		 * si_bsize_* parameters may need fixing up.
+		 */
+
+		if (nvp->v_type == VBLK && rmaj < nblkdev) {
+			if (bdevsw[rmaj] && bdevsw[rmaj]->d_parms)
+				
+				(*bdevsw[rmaj]->d_parms)(nvp_rdev, sinfo, DPARM_GET);
+		} else if (nvp->v_type == VCHR && rmaj < nchrdev) {
+			if (cdevsw[rmaj] && cdevsw[rmaj]->d_parms)
+				(*cdevsw[rmaj]->d_parms)(nvp_rdev, sinfo, DPARM_GET);
+		}
+
 		simple_unlock(&spechash_slock);
 		*vpp = nvp;
 		if (vp != NULLVP) {
