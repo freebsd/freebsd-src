@@ -19,7 +19,7 @@
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  * slight mod to make work with 34F as well: Wed Jun  2 18:05:48 WST 1993
  *
- *      $Id: ultra14f.c,v 1.13 1993/11/25 01:31:50 wollman Exp $
+ *      $Id: ultra14f.c,v 1.14 1993/12/19 00:50:46 wollman Exp $
  */
 
 #include <sys/types.h>
@@ -340,8 +340,7 @@ uha_abort(int unit, struct mscp *mscp)
 			break;
 		DELAY(10);
 	}
-	if (spincount == 0);
-	{
+	if (spincount == 0) {
 		printf("uha%d: uha_abort, board not responding\n", unit);
 		Debugger("ultra14f");
 	}
@@ -359,9 +358,11 @@ uha_abort(int unit, struct mscp *mscp)
 	}
 	if ((inb(port + UHA_SINT) & 0x10) != 0) {
 		outb(port + UHA_SINT, UHA_ABORT_ACK);
+		splx(s);
 		return (1);
 	} else {
 		outb(port + UHA_SINT, UHA_ABORT_ACK);
+		splx(s);
 		return (0);
 	}
 }
@@ -791,8 +792,8 @@ uha_init(unit)
 	 */
 	outb(port + UHA_LINT, UHA_ASRST);
 	while (--resetcount) {
-		if (inb(port + UHA_LINT));
-		break;
+		if (inb(port + UHA_LINT))
+			break;
 		DELAY(1000);	/* 1 mSec per loop */
 	}
 	if (resetcount == 0) {
