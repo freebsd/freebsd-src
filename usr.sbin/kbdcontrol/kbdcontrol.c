@@ -100,7 +100,9 @@ int 		number;
 char 		letter;
 int		token;
 
-static void usage __P((void));
+int		get_accent_definition_line __P((accentmap_t *));
+int		get_key_definition_line __P((keymap_t *));
+void		usage __P((void));
 
 char *
 nextarg(int ac, char **av, int *indp, int oc)
@@ -121,11 +123,12 @@ mkfullname(const char *s1, const char *s2, const char *s3)
 	int		f;
 
 	f = strlen(s1) + strlen(s2) + strlen(s3) + 1;
-	if (f > bufl)
+	if (f > bufl) {
 		if (buf)
 			buf = (char *)realloc(buf, f);
 		else
 			buf = (char *)malloc(f);
+	}
 	if (!buf) {
 		bufl = 0;
 		return(NULL);
@@ -224,7 +227,7 @@ get_entry()
 	}
 }
 
-int
+static int
 get_definition_line(FILE *fd, keymap_t *keymap, accentmap_t *accentmap)
 {
 	int c;
@@ -879,7 +882,7 @@ set_bell_values(char *opt)
 		pitch = strtol(opt, &v1, 0);
 		if ((pitch < 0) || (*opt == '\0') || (*v1 != '\0')) {
 badopt:
-			warnx("argument to -b must be DURATION.PITCH");
+			warnx("argument to -b must be duration.pitch or [quiet.]visual|normal|off");
 			return;
 		}
 		if (pitch != 0)
@@ -921,7 +924,7 @@ set_keyrates(char *opt)
 		repeat = strtol(opt, &v1, 0);
 		if ((repeat < 0) || (*opt == '\0') || (*v1 != '\0')) {
 badopt:
-			warnx("argument to -r must be delay.repeat");
+			warnx("argument to -r must be delay.repeat or slow|normal|fast");
 			return;
 		}
 		for (n = 0; n < ndelays - 1; n++)
@@ -988,7 +991,7 @@ show_kbd_info(void)
 	}
 	printf("kbd%d:\n", info.kb_index);
 	printf("    %.*s%d, type:%s (%d)\n",
-		sizeof(info.kb_name), info.kb_name, info.kb_unit,
+		(int)sizeof(info.kb_name), info.kb_name, info.kb_unit,
 		get_kbd_type_name(info.kb_type), info.kb_type);
 }
 
@@ -1019,7 +1022,7 @@ set_keyboard(char *device)
 #if 1
 	printf("kbd%d\n", info.kb_index);
 	printf("    %.*s%d, type:%s (%d)\n",
-		sizeof(info.kb_name), info.kb_name, info.kb_unit,
+		(int)sizeof(info.kb_name), info.kb_name, info.kb_unit,
 		get_kbd_type_name(info.kb_type), info.kb_type);
 #endif
 
@@ -1044,7 +1047,7 @@ release_keyboard(void)
 #if 1
 	printf("kbd%d\n", info.kb_index);
 	printf("    %.*s%d, type:%s (%d)\n",
-		sizeof(info.kb_name), info.kb_name, info.kb_unit,
+		(int)sizeof(info.kb_name), info.kb_name, info.kb_unit,
 		get_kbd_type_name(info.kb_type), info.kb_type);
 #endif
 	if (ioctl(0, CONS_RELKBD, 0) == -1)
@@ -1052,11 +1055,11 @@ release_keyboard(void)
 }
 
 
-static void
+void
 usage()
 {
 	fprintf(stderr, "%s\n%s\n%s\n",
-"usage: kbdcontrol [-dFKix] [-b  duration.pitch | [quiet.]belltype]",
+"usage: kbdcontrol [-dFKix] [-b duration.pitch | [quiet.]belltype]",
 "                  [-r delay.repeat | speed] [-l mapfile] [-f # string]",
 "                  [-h size] [-k device] [-L mapfile]");
 	exit(1);
@@ -1114,5 +1117,3 @@ main(int argc, char **argv)
 		usage();
 	exit(0);
 }
-
-

@@ -67,3 +67,5 @@
 extern int number;
 extern char letter;
 extern FILE *yyin;
+
+extern int yylex __P((void));
