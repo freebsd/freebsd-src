@@ -152,7 +152,7 @@ isa_alloc_resourcev(device_t child, int type, int *rid,
 	linear_cnt = count;
 	ressz = 1;
 	for (i = 1; i < count; ++i) {
-		if (res[i] > res[i - 1] + 1) {
+		if (res[i] != res[i - 1] + 1) {
 			if (i < linear_cnt)
 				linear_cnt = i;
 			++ressz;
@@ -173,7 +173,7 @@ isa_alloc_resourcev(device_t child, int type, int *rid,
 
 	for (i = linear_cnt, k = 1; i < count; i = j, k++) {
 		for (j = i + 1; j < count; j++) {
-			if (res[j] > res[j - 1] + 1)
+			if (res[j] != res[j - 1] + 1)
 				break;
 		}
 		bsrid = *rid + k;
