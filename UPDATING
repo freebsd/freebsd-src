@@ -22,6 +22,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	to maximize performance.
 
 20050223:
+	The layout of struct image_params has changed. You have to
+	recompile all compatibility modules (linux, svr4, etc) for use
+	with the new kernel.
+
+20050223:
 	The p4tcc driver has been merged into cpufreq(4).  This makes
 	"options CPU_ENABLE_TCC" obsolete.  Please load cpufreq.ko or
 	compile in "device cpufreq" to restore this functionality.

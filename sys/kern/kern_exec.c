@@ -320,7 +320,7 @@ do_execve(td, args, mac_p)
 	imgp->entry_addr = 0;
 	imgp->vmspace_destroyed = 0;
 	imgp->interpreted = 0;
-	imgp->interpreter_name[0] = '\0';
+	imgp->interpreter_name = args->buf + PATH_MAX + ARG_MAX;
 	imgp->auxargs = NULL;
 	imgp->vp = NULL;
 	imgp->object = NULL;
@@ -931,9 +931,13 @@ exec_copyin_args(struct image_args *args, char *fname,
 		return (EFAULT);
 	/*
 	 * Allocate temporary demand zeroed space for argument and
-	 *	environment strings
+	 *	environment strings:
+	 *
+	 * o ARG_MAX for argument and environment;
+	 * o MAXSHELLCMDLEN for the name of interpreters.
 	 */
-	args->buf = (char *) kmem_alloc_wait(exec_map, PATH_MAX + ARG_MAX);
+	args->buf = (char *) kmem_alloc_wait(exec_map,
+	    PATH_MAX + ARG_MAX + MAXSHELLCMDLEN);
 	if (args->buf == NULL)
 		return (ENOMEM);
 	args->begin_argv = args->buf;
@@ -997,8 +1001,8 @@ exec_free_args(struct image_args *args)
 {
 
 	if (args->buf) {
-		kmem_free_wakeup(exec_map,
-		    (vm_offset_t)args->buf, PATH_MAX + ARG_MAX);
+		kmem_free_wakeup(exec_map, (vm_offset_t)args->buf,
+		    PATH_MAX + ARG_MAX + MAXSHELLCMDLEN);
 		args->buf = NULL;
 	}
 }
