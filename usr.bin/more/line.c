@@ -169,7 +169,7 @@ pappend(c)
 			if (curr <= linebuf + 1
 			    || curr[-1] != '\b')
 				break;
-			if (c == (curr[-2] & 0xff))
+			if (c == ((unsigned char)curr[-2]))
 				goto enter_boldface;
 			if (c == '_' || curr[-2] == '_')
 				goto enter_underline;
@@ -242,7 +242,7 @@ enter_underline:
 			/*
 			 * Termination of a sequence "_\bX" or "X\b_".
 			 */
-			if (c != '_' && curr[-2] != '_' && c == (curr[-2] & 0xff))
+			if (c != '_' && curr[-2] != '_' && c == ((unsigned char)curr[-2]))
 			{
 				/*
 				 * We seem to have run on from underlining
@@ -259,7 +259,7 @@ enter_underline:
 			}
 ln_ul_xb_case:
 			if (c == '_')
-				c = curr[-2] & 0xff;
+				c = (unsigned char)curr[-2];
 			curr -= 2;
 			ln_state = LN_UNDERLINE;
 			break;
@@ -267,7 +267,7 @@ ln_ul_xb_case:
 			/*
 			 * Termination of a sequnce "X\bX".
 			 */
-			if (c != (curr[-2] & 0xff) && (c == '_' || curr[-2] == '_'))
+			if (c != ((unsigned char)curr[-2]) && (c == '_' || curr[-2] == '_'))
 			{
 				/*
 				 * We seem to have run on from
