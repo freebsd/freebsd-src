@@ -23,7 +23,7 @@ if [ -f picobsd.bin ]; then
 fi
 
 rm -f kernel kernel.gz fs.PICOBSD *.o *core *.db \
-	.build.reply stage1.out build.status
+	.build.reply stage1.out build.status .image.list
 cd ..
 rm -rf help/tmp_hlp
 echo "===================== $0 tools started ===================="
