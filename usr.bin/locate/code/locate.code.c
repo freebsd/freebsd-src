@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * 	$Id$
  */
 
 #ifndef lint
@@ -93,18 +95,19 @@ u_char buf1[MAXPATHLEN] = " ";
 u_char buf2[MAXPATHLEN];
 char bigrams[BGBUFSIZE + 1] = { 0 };
 
-#define LOOKUP 1
+#define LOOKUP 1 /* use a lookup array instead a function, 3x faster */
+
 #ifdef LOOKUP
 #define BGINDEX(x) (big[(u_int)*x][(u_int)*(x+1)])
 typedef u_char bg_t;
 bg_t big[UCHAR_MAX][UCHAR_MAX];
-
 #else
 #define BGINDEX(x) bgindex(x)
 typedef int bg_t;
-#endif
-
 int	bgindex __P((char *));
+#endif /* LOOKUP */
+
+
 void	usage __P((void));
 extern int optind;
 extern int optopt;
@@ -135,6 +138,7 @@ main(argc, argv)
 
 	/* First copy bigram array to stdout. */
 	(void)fgets(bigrams, BGBUFSIZE + 1, fp);
+
 	if (fwrite(bigrams, 1, BGBUFSIZE, stdout) != BGBUFSIZE)
 		err(1, "stdout");
 	(void)fclose(fp);
@@ -147,11 +151,12 @@ main(argc, argv)
 
 	for (cp = bigrams, i = 0; *cp != NULL; i += 2, cp += 2)
 	        big[(int)*cp][(int)*(cp + 1)] = (bg_t)i;
-#endif
+#endif /* LOOKUP */
 
 	oldpath = buf1;
 	path = buf2;
 	oldcount = 0;
+
 	while (fgets(path, sizeof(buf2), stdin) != NULL) {
 
 	    	/* skip empty lines */
@@ -169,7 +174,7 @@ main(argc, argv)
 		}
 
 		/* Skip longest common prefix. */
-		for (cp = path; *cp == *oldpath && *cp; cp++, oldpath++);
+		for (cp = path; *cp == *oldpath && *cp != NULL; cp++, oldpath++);
 
 		count = cp - path;
 		diffcount = count - oldcount + OFFSET;
@@ -225,7 +230,7 @@ bgindex(bg)			/* Return location of bg in bigrams or -1. */
 	for (p = bigrams; *p != NULL; p++)
 		if (*p++ == bg0 && *p == bg1)
 			break;
-	return (*p == NULL ? -1 : --p - bigrams);
+	return (*p == NULL ? -1 : (--p - bigrams));
 }
 #endif /* !LOOKUP */
 
