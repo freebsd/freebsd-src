@@ -163,6 +163,7 @@ pccard_attach_card(device_t dev)
 		ivar = malloc(sizeof(struct pccard_ivar), M_DEVBUF, M_WAITOK);
 		child = device_add_child(dev, NULL, -1);
 		device_set_ivars(child, ivar);
+		ivar->fcn = pf;
 		pccard_function_init(pf);
 		pccard_function_enable(pf);
 		device_printf(dev, "pf %p pf->sc %p\n", pf, pf->sc);
@@ -641,7 +642,7 @@ pccard_print_resources(struct resource_list *rl, const char *name, int type,
 static int
 pccard_print_child(device_t dev, device_t child)
 {
-	struct pccard_ivar *devi = (struct pccard_ivar *) device_get_ivars(child);
+	struct pccard_ivar *devi = PCCARD_IVAR(child);
 	struct resource_list *rl = &devi->resources;
 	int retval = 0;
 
@@ -669,7 +670,7 @@ static int
 pccard_set_resource(device_t dev, device_t child, int type, int rid,
 		 u_long start, u_long count)
 {
-	struct pccard_ivar *devi = (struct pccard_ivar *) device_get_ivars(child);
+	struct pccard_ivar *devi = PCCARD_IVAR(child);
 	struct resource_list *rl = &devi->resources;
 
 	if (type != SYS_RES_IOPORT && type != SYS_RES_MEMORY
@@ -695,7 +696,7 @@ static int
 pccard_get_resource(device_t dev, device_t child, int type, int rid,
     u_long *startp, u_long *countp)
 {
-	struct pccard_ivar *devi = (struct pccard_ivar *) device_get_ivars(child);
+	struct pccard_ivar *devi = PCCARD_IVAR(child);
 	struct resource_list *rl = &devi->resources;
 	struct resource_list_entry *rle;
 
@@ -714,7 +715,7 @@ pccard_get_resource(device_t dev, device_t child, int type, int rid,
 static void
 pccard_delete_resource(device_t dev, device_t child, int type, int rid)
 {
-	struct pccard_ivar *devi = (struct pccard_ivar *) device_get_ivars(child);
+	struct pccard_ivar *devi = PCCARD_IVAR(child);
 	struct resource_list *rl = &devi->resources;
 	resource_list_delete(rl, type, rid);
 }
@@ -738,7 +739,7 @@ pccard_set_memory_offset(device_t dev, device_t child, int rid,
 static int
 pccard_read_ivar(device_t bus, device_t child, int which, u_char *result)
 {
-	struct pccard_ivar *devi = (struct pccard_ivar *) device_get_ivars(child);
+	struct pccard_ivar *devi = PCCARD_IVAR(child);
 	struct pccard_function *func = devi->fcn;
 	struct pccard_softc *sc = PCCARD_SOFTC(bus);
 
@@ -755,9 +756,11 @@ pccard_read_ivar(device_t bus, device_t child, int which, u_char *result)
 		*(u_int32_t *) result = sc->card.product;
 		break;
 	case PCCARD_IVAR_FUNCTION_NUMBER:
-		/* XXX imp XXX */
-		/* *(u_int32_t *) result = func->number; */
-		*(u_int32_t *) result = 0;
+		if (!func) {
+			device_printf(bus, "No function number, bug!\n");
+			return (ENOENT);
+		}
+		*(u_int32_t *) result = func->number;
 		break;
 	case PCCARD_IVAR_VENDOR_STR:
 		*(char **) result = sc->card.cis1_info[0];
