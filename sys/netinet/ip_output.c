@@ -1581,7 +1581,7 @@ ip_ctloutput(so, sopt)
 		case IP_RECVIF:
 		case IP_PORTRANGE:
 		case IP_FAITH:
-		case IP_EF:
+		case IP_EVIL_INTENT:
 			switch (sopt->sopt_name) {
 
 			case IP_TOS:
@@ -1622,8 +1622,9 @@ ip_ctloutput(so, sopt)
 			case IP_FAITH:
 				optval = OPTBIT(INP_FAITH);
 				break;
-			case IP_EF:
+			case IP_EVIL_INTENT:
 				optval = OPTBIT(INP_EVIL);
+				break;
 			}
 			error = sooptcopyout(sopt, &optval, sizeof optval);
 			break;
