@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ttycom.h	8.1 (Berkeley) 3/28/94
- * $Id: ttycom.h,v 1.6 1994/11/30 15:02:43 davidg Exp $
+ * $Id: ttycom.h,v 1.7 1995/01/05 00:01:07 ache Exp $
  */
 
 #ifndef	_SYS_TTYCOM_H_
@@ -126,7 +126,7 @@ struct winsize {
 #define TIOCMGDTRWAIT	_IOR('t', 90, int)	/* modem: get wait on close */
 #define TIOCTIMESTAMP	_IOR('t', 89, struct timeval)	/* get timestamp of 
 						last interrupt for xntp. */
-#define TIOCDSIMICROCODE _IO('t', 88)		/* Download microcode to
+#define TIOCDSIMICROCODE _IO('t', 85)		/* Download microcode to
 						DSI Softmodem */
 #define	TIOCSDRAINWAIT	_IOW('t', 87, int)	/* set ttywait timeout */
 #define	TIOCGDRAINWAIT	_IOR('t', 86, int)	/* get ttywait timeout */
