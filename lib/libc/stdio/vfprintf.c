@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)vfprintf.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id$";
+		"$Id: vfprintf.c,v 1.12 1997/02/22 15:02:40 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -284,7 +284,7 @@ static int exponent __P((char *, int, int));
 #define	ALT		0x001		/* alternate form */
 #define	HEXPREFIX	0x002		/* add 0x or 0X prefix */
 #define	LADJUST		0x004		/* left adjustment */
-#define	LONGDBL		0x008		/* long double; unimplemented */
+#define	LONGDBL		0x008		/* long double */
 #define	LONGINT		0x010		/* long integer */
 #define	QUADINT		0x020		/* quad integer */
 #define	SHORTINT	0x040		/* short integer */
@@ -591,6 +591,7 @@ reswitch:	switch (ch) {
 fp_begin:		if (prec == -1)
 				prec = DEFPREC;
 			if (flags & LONGDBL)
+				/* XXX this loses precision. */
 				_double = (double)GETARG(long double);
 			else
 				_double = GETARG(double);
