@@ -1,7 +1,7 @@
 /*
- *       Copyright (c) 2000-03 ICP vortex GmbH
- *       Copyright (c) 2002-03 Intel Corporation
- *       Copyright (c) 2003    Adaptec Inc.
+ *       Copyright (c) 2000-04 ICP vortex GmbH
+ *       Copyright (c) 2002-04 Intel Corporation
+ *       Copyright (c) 2003-04 Adaptec Inc.
  *       All Rights Reserved
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,7 @@
  *              Mike Smith;             Some driver source code.
  *              FreeBSD.ORG;            Great O/S to work on and for.
  *
- * $Id: iir.c 1.4 2003/08/26 12:29:44 achim Exp $"
+ * $Id: iir.c 1.5 2004/03/30 10:17:53 achim Exp $"
  */
 
 #include <sys/cdefs.h>
@@ -291,27 +291,12 @@ iir_init(struct gdt_softc *gdt)
         return (1);
     }
 
-    if (!gdt_internal_cmd(gdt, gccb, GDT_CACHESERVICE, GDT_INIT, 
-                          GDT_LINUX_OS, 0, 0)) {
-        printf("iir%d: Cache service initialization error %d\n",
-               gdt->sc_hanum, gdt->sc_status);
-        gdt_free_ccb(gdt, gccb);
-        return (1);
-    }
     gdt_internal_cmd(gdt, gccb, GDT_CACHESERVICE, GDT_UNFREEZE_IO,
                      0, 0, 0);
 
-    if (!gdt_internal_cmd(gdt, gccb, GDT_CACHESERVICE, GDT_MOUNT, 
-                          0xffff, 1, 0)) {
-        printf("iir%d: Cache service mount error %d\n",
-               gdt->sc_hanum, gdt->sc_status);
-        gdt_free_ccb(gdt, gccb);
-        return (1);
-    }
-
     if (!gdt_internal_cmd(gdt, gccb, GDT_CACHESERVICE, GDT_INIT, 
                           GDT_LINUX_OS, 0, 0)) {
-        printf("iir%d: Cache service post-mount initialization error %d\n",
+        printf("iir%d: Cache service initialization error %d\n",
                gdt->sc_hanum, gdt->sc_status);
         gdt_free_ccb(gdt, gccb);
         return (1);
