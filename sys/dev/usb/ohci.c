@@ -515,7 +515,7 @@ ohci_alloc_std_chain(struct ohci_pipe *opipe, ohci_softc_t *sc,
 
 	dataphys = DMAADDR(dma, 0);
 	dataphysend = OHCI_PAGE(DMAADDR(dma, len - 1));
-	tdflags = htole32(
+	tdflags = (
 	    (rd ? OHCI_TD_IN : OHCI_TD_OUT) |
 	    (flags & USBD_SHORT_XFER_OK ? OHCI_TD_R : 0) |
 	    OHCI_TD_NOCC | OHCI_TD_TOGGLE_CARRY);
@@ -723,6 +723,8 @@ ohci_init(ohci_softc_t *sc)
 	}
 	sc->sc_bus.usbrev = USBREV_1_0;
 
+	for (i = 0; i < OHCI_HASH_SIZE; i++)
+		LIST_INIT(&sc->sc_hash_tds[i]);
 	for (i = 0; i < OHCI_HASH_SIZE; i++)
 		LIST_INIT(&sc->sc_hash_itds[i]);
 
@@ -1162,7 +1164,7 @@ ohci_intr1(ohci_softc_t *sc)
 		return (0);
 	}
 
-        intrs = 0;
+	intrs = 0;
 	done = le32toh(sc->sc_hcca->hcca_done_head);
 
 	/* The LSb of done is used to inform the HC Driver that an interrupt
