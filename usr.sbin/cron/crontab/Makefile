@@ -6,7 +6,7 @@ PROG=	crontab
 MAN=	crontab.1 crontab.5
 BINOWN=	root
 BINMODE=4555
-INSTALLFLAGS=-fschg
+PRECIOUSPROG=
 
 CFLAGS+= -I${.CURDIR}/../cron
 

@@ -20,6 +20,6 @@ LDADD+=	${MINUSLPAM}
 
 BINOWN=	root
 BINMODE=4555
-INSTALLFLAGS=-fschg
+PRECIOUSPROG=
 
 .include <bsd.prog.mk>

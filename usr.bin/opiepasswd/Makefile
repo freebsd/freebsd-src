@@ -13,7 +13,7 @@ LDADD=	-lopie -lmd
 
 BINOWN=	root
 BINMODE=4555
-INSTALLFLAGS=-fschg
+PRECIOUSPROG=
 
 .PATH:	${OPIE_DIST}
 

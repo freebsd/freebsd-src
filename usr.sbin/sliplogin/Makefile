@@ -6,6 +6,6 @@ MAN=	sliplogin.8
 BINOWN=	root
 BINGRP=	network
 BINMODE=4550
-INSTALLFLAGS=-fschg
+PRECIOUSPROG=
 
 .include <bsd.prog.mk>
