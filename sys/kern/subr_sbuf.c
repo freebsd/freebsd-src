@@ -114,6 +114,7 @@ void
 sbuf_clear(struct sbuf *s)
 {
 	assert_sbuf_integrity(s);
+	/* don't care if it's finished or not */
 
 	SBUF_CLEARFLAG(s, SBUF_FINISHED);
 	SBUF_CLEARFLAG(s, SBUF_OVERFLOWED);
@@ -285,7 +286,7 @@ int
 sbuf_len(struct sbuf *s)
 {
 	assert_sbuf_integrity(s);
-	assert_sbuf_state(s, SBUF_FINISHED);
+	/* don't care if it's finished or not */
 	
 	if (SBUF_HASOVERFLOWED(s))
 		return (-1);
