@@ -506,6 +506,12 @@ verify_path(struct in_addr src, struct ifnet *ifp)
 		return 0;
 	}
 
+	/* or if this is a blackhole/reject route */
+	if (ifp == NULL && ro.ro_rt->rt_flags & (RTF_REJECT|RTF_BLACKHOLE)) {
+		RTFREE(ro.ro_rt);
+		return 0;
+	}
+
 	/* found valid route */
 	RTFREE(ro.ro_rt);
 	return 1;

@@ -1267,8 +1267,8 @@ packets with source addresses not from this interface.
 .It Cm versrcreach
 For incoming packets,
 a routing table lookup is done on the packet's source address.
-If a route to the source address exists, but not the default route,
-the packet matches.
+If a route to the source address exists, but not the default route
+or a blackhole/reject route, the packet matches.
 Otherwise the packet does not match.
 All outgoing packets match.
 .Pp
