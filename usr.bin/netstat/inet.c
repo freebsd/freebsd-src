@@ -259,7 +259,7 @@ protopr(proto, name, af)
 			       so->so_rcv.sb_cc,
 			       so->so_snd.sb_cc);
 		}
-		if (nflag) {
+		if (numeric_port) {
 			if (inp->inp_vflag & INP_IPV4) {
 				inetprint(&inp->inp_laddr, (int)inp->inp_lport,
 					  name, 1);
@@ -686,11 +686,11 @@ igmp_stats(off, name)
  * Pretty print an Internet address (net address + port).
  */
 void
-inetprint(in, port, proto,numeric)
+inetprint(in, port, proto, numeric_port)
 	register struct in_addr *in;
 	int port;
 	char *proto;
-	int numeric;
+	int numeric_port;
 {
 	struct servent *sp = 0;
 	char line[80], *cp;
@@ -699,9 +699,9 @@ inetprint(in, port, proto,numeric)
 	if (Wflag)
 	    sprintf(line, "%s.", inetname(in));
 	else
-	    sprintf(line, "%.*s.", (Aflag && !numeric) ? 12 : 16, inetname(in));
+	    sprintf(line, "%.*s.", (Aflag && !numeric_port) ? 12 : 16, inetname(in));
 	cp = index(line, '\0');
-	if (!numeric && port)
+	if (!numeric_port && port)
 		sp = getservbyport((int)port, proto);
 	if (sp || port == 0)
 		sprintf(cp, "%.15s ", sp ? sp->s_name : "*");
@@ -716,7 +716,7 @@ inetprint(in, port, proto,numeric)
 
 /*
  * Construct an Internet address representation.
- * If the nflag has been supplied, give
+ * If numeric_addr has been supplied, give
  * numeric value, otherwise try for symbolic name.
  */
 char *
@@ -729,7 +729,7 @@ inetname(inp)
 	struct netent *np;
 
 	cp = 0;
-	if (!nflag && inp->s_addr != INADDR_ANY) {
+	if (!numeric_addr && inp->s_addr != INADDR_ANY) {
 		int net = inet_netof(*inp);
 		int lna = inet_lnaof(*inp);
 

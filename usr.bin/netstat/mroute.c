@@ -77,7 +77,7 @@ mroutepr(mfcaddr, vifaddr)
 	register vifi_t vifi;
 	register int i;
 	register int banner_printed;
-	register int saved_nflag;
+	register int saved_numeric_addr;
 	vifi_t maxvif = 0;
 
 	if (mfcaddr == 0 || vifaddr == 0) {
@@ -85,8 +85,8 @@ mroutepr(mfcaddr, vifaddr)
 		return;
 	}
 
-	saved_nflag = nflag;
-	nflag = 1;
+	saved_numeric_addr = numeric_addr;
+	numeric_addr = 1;
 
 	kread(vifaddr, (char *)&viftable, sizeof(viftable));
 	banner_printed = 0;
@@ -145,7 +145,7 @@ mroutepr(mfcaddr, vifaddr)
 		printf("\nMulticast Routing Table is empty\n");
 
 	printf("\n");
-	nflag = saved_nflag;
+	numeric_addr = saved_numeric_addr;
 }
 
 
