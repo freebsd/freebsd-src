@@ -96,7 +96,12 @@ netfinger(name)
 	}
 
 	multi = (ai0->ai_next) != 0;
-	printf("[%s]\n", ai0->ai_canonname);
+
+	/* ai_canonname may not be filled in if the user specified an IP. */
+	if (ai0->ai_canonname == 0)
+		printf("[%s]\n", host);
+	else
+		printf("[%s]\n", ai0->ai_canonname);
 
 	for (ai = ai0; ai != 0; ai = ai->ai_next) {
 		if (multi)
