@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: scsi.c,v 1.1 1993/11/18 05:05:28 rgrimes Exp $
+ *	$Id: scsi.c,v 1.1.1.1 1995/01/24 12:07:27 dufault Exp $
  */
 
 #include <stdio.h>
@@ -191,7 +191,7 @@ char *cget(void *hook, char *name)
  */
 void arg_put(void *hook, int letter, void *arg, int count, char *name)
 {
-	if (verbose)
+	if (verbose && name && *name)
 		printf("%s: ", name);
 
 	switch(letter)
