@@ -12,7 +12,7 @@
 # latest information.
 #
 # An exhaustive list of options and more detailed explanations of the
-# device lines is also present in the ../../conf/NOTES and NOTES files. 
+# device lines is also present in the ../../conf/NOTES and NOTES files.
 # If you are in doubt as to the purpose or necessity of a line, check
 # first in NOTES.
 #
@@ -24,104 +24,90 @@ machine		ia64
 cpu		ITANIUM
 ident		GENERIC
 
-#To statically compile in device wiring instead of /boot/device.hints
-#hints		"GENERIC.hints"
+makeoptions	DEBUG=-g	# Build kernel with debug information.
 
-makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
+options 	CD9660		# ISO 9660 Filesystem
+options 	COMPAT_43	# Compatible with BSD 4.3 [KEEP THIS!]
+options 	DDB		# Enable the kernel debugger
+options 	FFS		# Berkeley Fast Filesystem
+options 	INET		# InterNETworking
+options 	INET6		# IPv6 communications protocols
+options 	KTRACE		# ktrace(1) syscall trace support
+options 	MD_ROOT		# MD usable as root device
+options 	MSDOSFS		# MSDOS Filesystem
+options 	NFSCLIENT	# Network Filesystem Client
+options 	NFSSERVER	# Network Filesystem Server
+options 	NFS_ROOT	# NFS usable as root device
+options 	PROCFS		# Process filesystem (/proc)
+options 	PSEUDOFS	# Pseudo-filesystem framework
+options 	SCHED_4BSD	# 4BSD scheduler
+options 	SCSI_DELAY=5000	# Delay (in ms) before probing SCSI
+#options 	SMP		# SMP support
+options 	SOFTUPDATES	# Enable FFS soft updates support
+options 	SYSVMSG		# SYSV-style message queues
+options 	SYSVSEM		# SYSV-style semaphores
+options 	SYSVSHM		# SYSV-style shared memory
+options 	UFS_ACL		# Support for access control lists
+options 	UFS_DIRHASH	# Hash-based directory lookup scheme
+options 	_KPOSIX_PRIORITY_SCHEDULING	# Posix P1003_1B RT extensions
 
-options 	SCHED_4BSD		#4BSD scheduler
-options 	INET			#InterNETworking
-options 	INET6			#IPv6 communications protocols
-options 	FFS			#Berkeley Fast Filesystem
-options 	SOFTUPDATES		#Enable FFS soft updates support
-options 	UFS_ACL			#Support for access control lists
-options 	UFS_DIRHASH		#Improve performance on big directories
-options 	MD_ROOT			#MD is a potential root device
-options 	NFSCLIENT		#Network Filesystem Client
-options 	NFSSERVER		#Network Filesystem Server
-options 	NFS_ROOT		#NFS usable as root device
-options 	MSDOSFS			#MSDOS Filesystem
-options 	CD9660			#ISO 9660 Filesystem
-options 	PROCFS			#Process filesystem (requires PSEUDOFS)
-options 	PSEUDOFS		#Pseudo-filesystem framework
-options 	COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
-options 	SCSI_DELAY=5000		#Delay (in ms) before probing SCSI 
-options 	KTRACE			#ktrace(1) syscall trace support
-options 	SYSVSHM			#SYSV-style shared memory
-options 	SYSVMSG			#SYSV-style message queues
-options 	SYSVSEM			#SYSV-style semaphores
-options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
-
-# To make an SMP kernel
-#options 	SMP
-
-# Debugging for use in -current
-#options 	DDB			#Enable the kernel debugger
-#options 	INVARIANTS		#Enable calls of extra sanity checking
-#options 	INVARIANT_SUPPORT	#Extra sanity checks of internal
-					#structures, required by INVARIANTS
-
-# Standard busses
-device		isa
-device		pci
-
-# IA64 uses ACPI
-device 		acpi
-
-# Floppy drives
-device		fdc
+# Various "busses"
+device 		acpi		# ACPI support (mandatory)
+device		firewire	# FireWire bus code
+device		miibus		# MII bus support (ethernet)
+device		pci		# PCI bus support
+device		scbus		# SCSI bus (required for SCSI)
+device		usb		# USB Bus (required for USB)
 
 # ATA and ATAPI devices
-device		ata
+device		ata		# ATA controller
 device		atadisk		# ATA disk drives
 device		atapicd		# ATAPI CDROM drives
 device		atapifd		# ATAPI floppy drives
-device		atapist		# ATAPI tape drives
+device		ataraid		# ATA RAID drives
 
 # SCSI Controllers
-device		ahc		# AHA2940 and onboard AIC7xxx devices
-device		ahd		# AHA39320/29320 and onboard AIC79xx devices
+device		ahc		# AHA2940 and AIC7xxx devices
+device		ahd		# AHA39320/29320 and AIC79xx devices
 device		isp		# Qlogic family
 device		mpt		# LSI-Logic MPT-Fusion
-device		sym		# NCR/Symbios Logic (newer chipsets + those of `ncr')
+device		sym		# NCR/Symbios Logic
 
 # RAID controllers interfaced to the SCSI subsystem
-device		asr		# DPT SmartRAID V, VI and Adaptec SCSI RAID
+device		asr		# DPT SmartRAID V, VI and Adaptec RAID
 device		ciss		# Compaq Smart RAID 5*
-device		dpt		# DPT Smartcache III, IV - See NOTES for options!
+device		dpt		# DPT Smartcache III, IV
 device		iir		# Intel Integrated RAID
 device		mly		# Mylex AcceleRAID/eXtremeRAID
 
 # SCSI peripherals
-device		scbus		# SCSI bus (required for SCSI)
-device		ch		# SCSI media changers
-device		da		# Direct Access (disks)
-device		sa		# Sequential Access (tape etc)
-device		cd		# CD
-device		pass		# Passthrough device (direct SCSI access)
-device		ses		# SCSI Environmental Services (and SAF-TE)
+device		cd		# CD-ROM, DVD-ROM etc.
+device		ch		# Media changer
+device		da		# Direct Access (ie disk)
+device		pass		# Passthrough (direct SCSI access)
+device		sa		# Sequential Access (ie tape)
+device		ses		# Environmental Services (and SAF-TE)
 
 # RAID controllers
 device		amr		# AMI MegaRAID
 device		ida		# Compaq Smart RAID
 device		mlx		# Mylex DAC960 family
 
+# USB host controllers and peripherals
+device		ehci		# EHCI host controller
+device		ohci		# OHCI PCI->USB interface
+device		ugen		# Generic device
+device		uhci		# UHCI PCI->USB interface
+device		uhid		# Human Interface Devices
+device		ukbd		# Keyboard
+device		ulpt		# Printer
+device		umass		# Disks/Mass storage (need scbus & da)
+device		ums		# Mouse
+
 # atkbdc0 controls both the keyboard and the PS/2 mouse
 device		atkbdc		# AT keyboard controller
 device		atkbd		# AT keyboard
 device		psm		# PS/2 mouse
-
-device		vga		# VGA video card driver
-
-device		splash		# Splash screen and screen saver support
-
-# syscons is the default console driver, resembling an SCO console
-device		sc
-
-#device		agp		# support several AGP chipsets
-
-# Serial ports (UARTs).
-device		uart
 
 # PCI Ethernet NICs.
 device		de		# DEC/Intel DC21x4x (``Tulip'')
@@ -130,8 +116,6 @@ device		txp		# 3Com 3cR990 (``Typhoon'')
 device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 
 # PCI Ethernet NICs that use the common MII bus controller code.
-# NOTE: Be sure to keep the 'device miibus' line in order to use these NICs!
-device		miibus		# MII bus support
 device		bge		# Broadcom BCM570xx Gigabit Ethernet
 device		dc		# DEC/Intel 21143 and various workalikes
 device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
@@ -139,41 +123,30 @@ device		pcn		# AMD Am79C97x PCI 10/100 NICs
 device		rl		# RealTek 8129/8139
 device		sf		# Adaptec AIC-6915 (``Starfire'')
 device		sis		# Silicon Integrated Systems SiS 900/SiS 7016
-device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
+device		xl		# 3Com 3c90x ("Boomerang", "Cyclone")
 
-# Pseudo devices - the number indicates how many units to allocated.
-device		random		# Entropy device
-device		loop		# Network loopback
-device		ether		# Ethernet support
-device		sl		# Kernel SLIP
-device		ppp		# Kernel PPP
-device		tun		# Packet tunnel.
-device		pty		# Pseudo-ttys (telnet etc)
-device		md		# Memory "disks"
-device		gif		# IPv6 and IPv4 tunneling
-device		faith		# IPv6-to-IPv4 relaying (translation)
-
-# The `bpf' device enables the Berkeley Packet Filter.
-# Be aware of the administrative consequences of enabling this!
-device		bpf		#Berkeley packet filter
-
-# USB support
-#device		uhci		# UHCI PCI->USB interface (breaks BigSur!)
-device		ehci		# EHCI host controller
-device		ohci		# OHCI PCI->USB interface
-device		usb		# USB Bus (required)
-device		ugen		# Generic
-device		uhid		# "Human Interface Devices"
-device		ukbd		# Keyboard
-device		ulpt		# Printer
-device		umass		# Disks/Mass storage - Requires scbus and da0
-device		ums		# Mouse
 # USB Ethernet
 device		aue		# ADMtek USB ethernet
 device		cue		# CATC USB ethernet
 device		kue		# Kawasaki LSI USB ethernet
 
 # FireWire support
-device		firewire	# FireWire bus code
-device		sbp		# SCSI over FireWire (Requires scbus and da)
-device		fwe		# Ethernet over FireWire (non-standard!)
+device		sbp		# SCSI over FireWire (need scbus & da)
+
+# Various (pseudo) devices
+device		ether		# Ethernet support
+device		faith		# IPv6-to-IPv4 relaying (translation)
+device		gif		# IPv6 and IPv4 tunneling
+device		loop		# Network loopback
+device		md		# Memory "disks"
+device		pty		# Pseudo-ttys (telnet etc)
+device		puc		# Multi I/O cards and multi-channel UARTs
+device		random		# Entropy device
+device		sc		# System console
+device		tun		# Packet tunnel.
+device		uart		# Serial port (UART)
+device		vga		# VGA video card driver
+
+# The `bpf' device enables the Berkeley Packet Filter.
+# Be aware of the administrative consequences of enabling this!
+device		bpf		# Berkeley packet filter
