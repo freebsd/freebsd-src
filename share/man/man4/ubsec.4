@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 3, 2002
+.Dd February 28, 2003
 .Dt UBSEC 4
 .Os
 .Sh NAME
@@ -63,6 +63,8 @@ Faster version of Bluesteel 5601.
 Faster version of the BCM5820.
 .It Broadcom BCM5822
 Faster version of the BCM5820.
+.It Broadcom BCM5823
+A BCM5822 with AES capability.
 .El
 .Pp
 The
@@ -100,3 +102,5 @@ device driver was imported to
 .Fx 5.0 .
 .Sh BUGS
 The BCM5801 and BCM5802 have not actually been tested.
+The AES capability of the BCM5823 is not yet supported; it is awaiting
+public disclosure of programming information from Broadcom.
