@@ -1380,9 +1380,7 @@ fdfree(td)
 		if (*fpp)
 			(void) closef(*fpp, td);
 	}
-	PROC_LOCK(td->td_proc);
 	td->td_proc->p_fd = NULL;
-	PROC_UNLOCK(td->td_proc);
 	if (fdp->fd_nfiles > NDFILE)
 		FREE(fdp->fd_ofiles, M_FILEDESC);
 	if (fdp->fd_cdir)
