@@ -38,16 +38,24 @@ static char sccsid[] = "@(#)getpagesize.c	8.1 (Berkeley) 6/4/93";
 #include <sys/param.h>
 #include <sys/sysctl.h>
 
+/*
+ * This is unlikely to change over the running time of any
+ * program, so we cache the result to save some syscalls.
+ */
+
 int
 getpagesize()
 {
-	int mib[2], value;
+	int mib[2]; 
+	static int value;
 	size_t size;
 
-	mib[0] = CTL_HW;
-	mib[1] = HW_PAGESIZE;
-	size = sizeof value;
-	if (sysctl(mib, 2, &value, &size, NULL, 0) == -1)
-		return (-1);
+	if (!value) {
+		mib[0] = CTL_HW;
+		mib[1] = HW_PAGESIZE;
+		size = sizeof value;
+		if (sysctl(mib, 2, &value, &size, NULL, 0) == -1)
+			return (-1);
+	}
 	return (value);
 }
