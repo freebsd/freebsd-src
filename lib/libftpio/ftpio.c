@@ -14,7 +14,7 @@
  * Turned inside out. Now returns xfers as new file ids, not as a special
  * `state' of FTP_t
  *
- * $Id: ftpio.c,v 1.8 1996/07/04 00:55:20 jkh Exp $
+ * $Id: ftpio.c,v 1.9 1996/08/03 11:58:53 jkh Exp $
  *
  */
 
@@ -163,6 +163,17 @@ ftpErrno(FILE *fp)
 {
     FTP_t ftp = fcookie(fp);
     return ftp->errno;
+}
+
+const char *
+ftpErrString(int errno)
+{
+    int	k;
+
+    for (k = 0; k < ftpErrListLength; k++)
+      if (ftpErrList[k].num == errno)
+	return(ftpErrList[k].string);
+    return("Unknown error");
 }
 
 size_t
