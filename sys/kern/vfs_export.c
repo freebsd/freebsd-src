@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.74 1997/02/27 05:28:58 dyson Exp $
+ * $Id: vfs_subr.c,v 1.75 1997/02/27 16:08:43 bde Exp $
  */
 
 /*
@@ -1643,6 +1643,63 @@ printlockedvnodes()
 	simple_unlock(&mountlist_slock);
 }
 #endif
+
+static int
+sysctl_vfs_conf SYSCTL_HANDLER_ARGS
+{
+	int error;
+	struct vfsconf *vfsp;
+
+	if (req->newptr)
+		return EINVAL;
+	for (vfsp = vfsconf; vfsp; vfsp = vfsp->vfc_next) {
+		error = SYSCTL_OUT(req, vfsp, sizeof *vfsp);
+		if (error)
+			return error;
+	}
+	return 0;
+}
+
+SYSCTL_PROC(_vfs, VFS_VFSCONF, vfsconf, CTLTYPE_OPAQUE|CTLFLAG_RD,
+	0, 0, sysctl_vfs_conf, "S,vfsconf", "");
+
+#ifndef NO_COMPAT_PRELITE2
+
+#define OVFS_MAXNAMELEN 32
+struct ovfsconf {
+	void *vfc_vfsops;
+	char vfc_name[OVFS_MAXNAMELEN];
+	int vfc_index;
+	int vfc_refcount;
+	int vfc_flags;
+};
+
+static int
+sysctl_ovfs_conf SYSCTL_HANDLER_ARGS
+{
+	int error;
+	struct vfsconf *vfsp;
+
+	if (req->newptr)
+		return EINVAL;
+	for (vfsp = vfsconf; vfsp; vfsp = vfsp->vfc_next) {
+		struct ovfsconf ovfs;
+		ovfs.vfc_vfsops = vfsp->vfc_vfsops;	/* XXX used as flag */
+		strcpy(ovfs.vfc_name, vfsp->vfc_name);
+		ovfs.vfc_index = vfsp->vfc_typenum;
+		ovfs.vfc_refcount = vfsp->vfc_refcount;
+		ovfs.vfc_flags = vfsp->vfc_flags;
+		error = SYSCTL_OUT(req, &ovfs, sizeof ovfs);
+		if (error)
+			return error;
+	}
+	return 0;
+}
+
+SYSCTL_PROC(_vfs, VFS_OVFSCONF, ovfsconf, CTLTYPE_OPAQUE|CTLFLAG_RD,
+	0, 0, sysctl_ovfs_conf, "S,ovfsconf", "");
+
+#endif /* !NO_COMPAT_PRELITE2 */
 
 int kinfo_vdebug = 1;
 int kinfo_vgetfailed;
