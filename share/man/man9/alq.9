@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 2003 Hiten M. Pandya <hmp@FreeBSD.org>
+.\" Copyright (c) 2003 Hiten Pandya <hmp@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -171,10 +171,6 @@ This function leaves the queue,
 in an unlocked state.
 .Sh IMPLEMENTATION NOTES
 The
-.Fn alq_open
-function uses the credentials of the invoking thread
-for opening files.
-The
 .Fn alq_write
 function is a wrapper around the
 .Fn alq_get
@@ -244,4 +240,4 @@ facility was written by
 .An Jeffrey Roberson Aq jeff@FreeBSD.org .
 .Pp
 This manual page was written by
-.An Hiten M. Pandya Aq hmp@FreeBSD.org .
+.An Hiten Pandya Aq hmp@FreeBSD.org .
