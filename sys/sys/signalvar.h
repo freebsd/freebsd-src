@@ -38,8 +38,6 @@
 #define	_SYS_SIGNALVAR_H_
 
 #include <sys/signal.h>
-#include <sys/proc.h>
-#include <machine/smp.h>
 
 /*
  * Kernel signal definitions and data structures,
@@ -189,10 +187,6 @@ __sigseteq(sigset_t *set1, sigset_t *set2)
 
 #ifdef _KERNEL
 
-#include <sys/ktr.h>
-#include <sys/systm.h>
-#include <machine/mutex.h>
-
 struct pgrp;
 struct proc;
 struct sigio;
@@ -202,6 +196,7 @@ extern int sugid_coredump;	/* Sysctl variable kern.sugid_coredump */
 /*
  * Machine-independent functions:
  */
+int	CURSIG(struct proc *p);
 void	check_sigacts __P((void));
 void	execsigs __P((struct proc *p));
 void	gsignal __P((int pgid, int sig));
@@ -214,41 +209,11 @@ void	psignal __P((struct proc *p, int sig));
 void	sigexit __P((struct proc *p, int signum));
 void	siginit __P((struct proc *p));
 void	trapsignal __P((struct proc *p, int sig, u_long code));
-static int	__cursig __P((struct proc *p));
 
 /*
  * Machine-dependent functions:
  */
 void	sendsig __P((sig_t action, int sig, sigset_t *retmask, u_long code));
-
-/*
- * Inline functions:
- */
-#define	CURSIG(p)	__cursig(p)
-
-/*
- * Determine signal that should be delivered to process p, the current
- * process, 0 if none.  If there is a pending stop signal with default
- * action, the process stops in issignal().
- *
- * MP SAFE
- */
-static __inline int __cursig(struct proc *p)
-{
-	sigset_t tmpset;
-	int r;
-
-	tmpset = p->p_siglist;
-	SIGSETNAND(tmpset, p->p_sigmask);
-	if (SIGISEMPTY(p->p_siglist) ||
-	     (!(p->p_flag & P_TRACED) && SIGISEMPTY(tmpset))) {
-		return(0);
-	}
-	mtx_enter(&Giant, MTX_DEF);
-	r = issignal(p);
-	mtx_exit(&Giant, MTX_DEF);
-	return(r);
-}
 
 #endif	/* _KERNEL */
 
