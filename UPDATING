@@ -23,6 +23,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20040906:
+	debug.witness_* has been renamed to debug.witness.*.  There are
+	compatibility tunables left in for a few days.  Update loader.conf
+	as necessary.
+
 20040902:
 	The ifi_epoch change has been reverted because the ABI breakage
 	was too extensive.  If you are running with a kernel/userland
