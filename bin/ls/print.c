@@ -34,14 +34,13 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)print.c	8.4 (Berkeley) 4/17/94";
-#else
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
 #endif /* not lint */
+#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -220,6 +219,31 @@ printlong(DISPLAY *dp)
 }
 
 void
+printstream(DISPLAY *dp)
+{
+	FTSENT *p;
+	extern int termwidth;
+	int chcnt;
+
+	for (p = dp->list, chcnt = 0; p; p = p->fts_link) {
+		if (p->fts_number == NO_PRINT)
+			continue;
+		if (strlen(p->fts_name) + chcnt +
+		    (p->fts_link ? 2 : 0) >= (unsigned)termwidth) {
+			putchar('\n');
+			chcnt = 0;
+		}
+		chcnt += printaname(p, dp->s_inode, dp->s_block);
+		if (p->fts_link) {
+			printf(", ");
+			chcnt += 2;
+		}
+	}
+	if (chcnt)
+		putchar('\n');
+}
+		
+void
 printcol(DISPLAY *dp)
 {
 	extern int termwidth;
@@ -279,15 +303,26 @@ printcol(DISPLAY *dp)
 
 	if (dp->list->fts_level != FTS_ROOTLEVEL && (f_longform || f_size))
 		(void)printf("total %lu\n", howmany(dp->btotal, blocksize));
+
+	if (f_sortacross)
+		base = 0;
 	for (row = 0; row < numrows; ++row) {
 		endcol = colwidth;
-		for (base = row, chcnt = col = 0; col < numcols; ++col) {
+		if (!f_sortacross)
+			base = row;
+		for (col = 0, chcnt = 0; col < numcols; ++col) {
 			chcnt += printaname(array[base], dp->s_inode,
 			    dp->s_block);
-			if ((base += numrows) >= num)
+			if (f_sortacross)
+				base++;
+			else
+				base += numrows;
+			if (base >= num)
 				break;
 			while ((cnt = ((chcnt + tabwidth) & ~(tabwidth - 1)))
 			    <= endcol) {
+				if (f_sortacross && col + 1 >= numcols)
+					break;
 				(void)putchar(f_notabs ? ' ' : '\t');
 				chcnt = cnt;
 			}
@@ -361,6 +396,15 @@ printtime(time_t ftime)
 static int
 printtype(u_int mode)
 {
+
+	if (f_slash) {
+		if ((mode & S_IFMT) == S_IFDIR) {
+			(void)putchar('/');
+			return (1);
+		}
+		return (0);
+	}
+
 	switch (mode & S_IFMT) {
 	case S_IFDIR:
 		(void)putchar('/');
@@ -378,6 +422,7 @@ printtype(u_int mode)
 		(void)putchar('%');
 		return (1);
 	default:
+		break;
 	}
 	if (mode & (S_IXUSR | S_IXGRP | S_IXOTH)) {
 		(void)putchar('*');
