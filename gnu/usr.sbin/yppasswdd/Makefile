@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile,v 1.2 1995/02/01 02:13:06 wpaul Exp $
 # @(#)Makefile	8.3 (Berkeley) 4/2/94
 
 PROG=	yppasswdd
@@ -11,13 +11,9 @@ CFLAGS+=-DCRYPT -I${.CURDIR} -I${.CURDIR}/../../../usr.sbin/vipw \
 	-I${.CURDIR}/../../../usr.bin/chpass
 CFLAGS+=-DVERSION=\"0.5\" -DYPLIBDIR=\"/usr/libexec\" -D_GNU_SOURCE
 
-BINOWN=	bin
-BINMODE=555
-BINDIR= /usr/sbin
-
 afterinstall: /usr/libexec/yppwupdate
 
-/usr/libexec/yppwupdate: yppwupdate
-	install -c -o bin -g bin -m 555 yppwupdate /usr/libexec/yppwupdate
+/usr/libexec/yppwupdate: ${.CURDIR}/yppwupdate
+	install -c -o bin -g bin -m 555 ${.CURDIR}/yppwupdate /usr/libexec/yppwupdate
 
 .include <bsd.prog.mk>
