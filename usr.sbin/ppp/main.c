@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.49 1997/05/11 10:23:16 brian Exp $
+ * $Id: main.c,v 1.50 1997/05/14 01:18:51 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -532,10 +532,7 @@ PacketMode()
   CcpInit();
   LcpUp();
 
-  if (mode & (MODE_DIRECT|MODE_DEDICATED))
-    LcpOpen(OPEN_ACTIVE);
-  else
-    LcpOpen(VarOpenMode);
+  LcpOpen(VarOpenMode);
   if ((mode & (MODE_INTER|MODE_AUTO)) == MODE_INTER) {
     TtyCommandMode(1);
     fprintf(stderr, "Packet mode.\r\n");
