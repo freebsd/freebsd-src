@@ -1008,6 +1008,40 @@ const struct puc_device_description puc_devices[] = {
 	    },
 	},
 
+	{   "IC Book Labs Ironclad x8 Lite",
+	    NULL,
+	    {   0xb00c, 0x041c, 0,      0       },
+	    {   0xffff, 0xffff, 0,      0       },
+	    {
+		{ PUC_PORT_TYPE_COM, 0x10, 0x00, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x08, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x10, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x18, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x20, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x28, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x30, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x38, COM_FREQ }
+	    },
+	    PUC_ILR_TYPE_DIGI, { 0x07 },
+	},
+
+	{   "IC Book Labs Ironclad x8 Pro",
+	    NULL,
+	    {   0xb00c, 0x051c, 0,      0       },
+	    {   0xffff, 0xffff, 0,      0       },
+	    {
+		{ PUC_PORT_TYPE_COM, 0x10, 0x00, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x08, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x10, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x18, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x20, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x28, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x30, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x10, 0x38, COM_FREQ }
+	    },
+	    PUC_ILR_TYPE_DIGI, { 0x07 },
+	},
+
 	{   "IC Book Labs Dreadnought x16 Lite",
 	    NULL,
 	    {	0xb00c, 0x091c, 0,	0	},
