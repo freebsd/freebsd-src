@@ -62,25 +62,27 @@ function printh(s) {print s > hfile;}
 function printp(s) {print s > pfile;}
 function printq(s) {print s > qfile;}
 
-function add_debug_code(name, arg, pos)
+function add_debug_code(name, arg, pos, ind)
 {
 	if (arg == "vpp")
-		arg = "*vpp";
+		star = "*";
+	else
+		star = "";
 	if (lockdata[name, arg, pos] && (lockdata[name, arg, pos] != "-")) {
 		if (arg ~ /^\*/) {
-			printh("\tif ("substr(arg, 2)" != NULL) {");
+			printc(ind"if ("substr(arg, 2)" != NULL) {");
 		}
-		printh("\tASSERT_VI_UNLOCKED("arg", \""uname"\");");
+		printc(ind"ASSERT_VI_UNLOCKED("star"a->a_"arg", \""uname"\");");
 		# Add assertions for locking
 		if (lockdata[name, arg, pos] == "L")
-			printh("\tASSERT_VOP_LOCKED("arg", \""uname"\");");
+			printc(ind"ASSERT_VOP_LOCKED(" star "a->a_"arg", \""uname"\");");
 		else if (lockdata[name, arg, pos] == "U")
-			printh("\tASSERT_VOP_UNLOCKED("arg", \""uname"\");");
+			printc(ind"ASSERT_VOP_UNLOCKED(" star "a->a_"arg", \""uname"\");");
 		else if (0) {
 			# XXX More checks!
 		}
 		if (arg ~ /^\*/) {
-			printh("\t}");
+			printc("ind}");
 		}
 	}
 }
@@ -88,18 +90,18 @@ function add_debug_code(name, arg, pos)
 function add_debug_pre(name)
 {
 	if (lockdata[name, "pre"]) {
-		printh("#ifdef	DEBUG_VFS_LOCKS");
-		printh("\t"lockdata[name, "pre"]"(&a);");
-		printh("#endif");
+		printc("#ifdef	DEBUG_VFS_LOCKS");
+		printc("\t"lockdata[name, "pre"]"(a);");
+		printc("#endif");
 	}
 }
 
 function add_debug_post(name)
 {
 	if (lockdata[name, "post"]) {
-		printh("#ifdef	DEBUG_VFS_LOCKS");
-		printh("\t"lockdata[name, "post"]"(&a, rc);");
-		printh("#endif");
+		printc("#ifdef	DEBUG_VFS_LOCKS");
+		printc("\t"lockdata[name, "post"]"(a, rc);");
+		printc("#endif");
 	}
 }
 
@@ -159,8 +161,6 @@ if (pfile) {
 
 if (qfile) {
 	printq(common_head)
-	printq("struct vop_generic_args;")
-	printq("typedef int vop_bypass_t(struct vop_generic_args *);\n")
 }
 
 if (hfile) {
@@ -176,9 +176,9 @@ if (cfile) {
 	    "#include <sys/vnode.h>\n" \
 	    "\n" \
 	    "struct vnodeop_desc vop_default_desc = {\n" \
-	    "	1,\t\t\t/* special case, vop_default => 1 */\n" \
 	    "	\"default\",\n" \
 	    "	0,\n" \
+	    "	(void *)(uintptr_t)vop_panic,\n" \
 	    "	NULL,\n" \
 	    "	VDESC_NO_OFFSET,\n" \
 	    "	VDESC_NO_OFFSET,\n" \
@@ -196,8 +196,6 @@ while ((getline < srcfile) > 0) {
 		    $2 !~ /^[a-z]+$/  ||  $3 !~ /^[a-z]+$/  || \
 		    $4 !~ /^.$/  ||  $5 !~ /^.$/  ||  $6 !~ /^.$/)
 			continue;
-		if ($3 == "vpp")
-			$3 = "*vpp";
 		lockdata["vop_" $2, $3, "Entry"] = $4;
 		lockdata["vop_" $2, $3, "OK"]    = $5;
 		lockdata["vop_" $2, $3, "Error"] = $6;			
@@ -280,9 +278,10 @@ while ((getline < srcfile) > 0) {
 		ctrargs = 6;
 	else
 		ctrargs = numargs;
-	ctrstr = "\tCTR" ctrargs "(KTR_VOP, " ctrstr ")\"";
-	for (i = 0; i < ctrargs; ++i)
-		ctrstr = ctrstr ", " args[i];
+	ctrstr = "\tCTR" ctrargs "(KTR_VOP,\n\t    " ctrstr ")\",\n\t    ";
+	ctrstr = ctrstr "a->a_" args[0];
+	for (i = 1; i < ctrargs; ++i)
+		ctrstr = ctrstr ", a->a_" args[i];
 	ctrstr = ctrstr ");";
 
 	if (pfile) {
@@ -299,44 +298,30 @@ while ((getline < srcfile) > 0) {
 		for (i = 0; i < numargs; ++i)
 			printh("\t" t_spc(types[i]) "a_" args[i] ";");
 		printh("};");
+		printh("");
 
 		# Print out extern declaration.
 		printh("extern struct vnodeop_desc " name "_desc;");
+		printh("");
 
-		# Print out function.
+		# Print out function prototypes.
+		printh("int " uname "_AP(struct " name "_args *);");
+		printh("");
 		printh("static __inline int " uname "(");
 		for (i = 0; i < numargs; ++i) {
 			printh("\t" t_spc(types[i]) args[i] \
 			    (i < numargs - 1 ? "," : ")"));
 		}
-		printh("{\n\tstruct " name "_args a;");
-		printh("\tint rc;");
+		printh("{");
+		printh("\tstruct " name "_args a;");
+		printh("");
 		printh("\ta.a_gen.a_desc = VDESC(" name ");");
 		for (i = 0; i < numargs; ++i)
 			printh("\ta.a_" args[i] " = " args[i] ";");
-		for (i = 0; i < numargs; ++i)
-			add_debug_code(name, args[i], "Entry");
-		add_debug_pre(name);
-		printh("\t{")
-		printh("\t\tstruct vop_vector *vop = "args[0]"->v_op;")
-		printh("\t\twhile(vop != NULL && vop->"name" == NULL && vop->vop_bypass == NULL)")
-		printh("\t\t\tvop = vop->vop_default;")
-		printh("\t\tKASSERT(vop != NULL, (\"No "name"(%p...)\", "args[0]"));")
-		printh("\t\tif (vop->"name" != NULL)")
-		printh("\t\t\trc = vop->"name"(&a);")
-		printh("\t\telse")
-		printh("\t\t\trc = vop->vop_bypass(&a.a_gen);")
-		printh("\t}")
-		printh(ctrstr);
-		printh("if (rc == 0) {");
-		for (i = 0; i < numargs; ++i)
-			add_debug_code(name, args[i], "OK");
-		printh("} else {");
-		for (i = 0; i < numargs; ++i)
-			add_debug_code(name, args[i], "Error");
+		printh("\treturn (" uname "_AP(&a));");
 		printh("}");
-		add_debug_post(name);
-		printh("\treturn (rc);\n}");
+
+		printh("");
 	}
 
 	if (cfile) {
@@ -362,10 +347,40 @@ while ((getline < srcfile) > 0) {
 		printc("\tVDESC_NO_OFFSET");
 		printc("};");
 
+		# Print out function.
+		printc("\nint\n" uname "_AP(struct " name "_args *a)");
+		printc("{");
+		printc("\tint rc;");
+		printc("\tstruct vnode *vp = a->a_" args[0]";");
+		printc("\tstruct vop_vector *vop = vp->v_op;");
+		printc("");
+		printc("\tKASSERT(a->a_gen.a_desc == VDESC(" name "),");
+		printc("\t    (\"Wrong a_desc in " name "(%p, %p)\", vp, a));");
+		printc("\twhile(vop != NULL && \\");
+		printc("\t    vop->"name" == NULL && vop->vop_bypass == NULL)")
+		printc("\t\tvop = vop->vop_default;")
+		printc("\tKASSERT(vop != NULL, (\"No "name"(%p, %p)\", vp, a));")
+		for (i = 0; i < numargs; ++i)
+			add_debug_code(name, args[i], "Entry", "\t");
+		add_debug_pre(name);
+		printc("\tif (vop->"name" != NULL)")
+		printc("\t\trc = vop->"name"(a);")
+		printc("\telse")
+		printc("\t\trc = vop->vop_bypass(&a->a_gen);")
+		printc(ctrstr);
+		printc("\tif (rc == 0) {");
+		for (i = 0; i < numargs; ++i)
+			add_debug_code(name, args[i], "OK", "\t\t");
+		printc("\t} else {");
+		for (i = 0; i < numargs; ++i)
+			add_debug_code(name, args[i], "Error", "\t\t");
+		printc("\t}");
+		add_debug_post(name);
+		printc("\treturn (rc);");
+		printc("}\n");
+
 		# Print out the vnodeop_desc structure.
 		printc("struct vnodeop_desc " name "_desc = {");
-		# offset
-		printc("\toffsetof(struct vop_vector, "name"),");
 		# printable name
 		printc("\t\"" name "\",");
 		# flags
@@ -381,6 +396,8 @@ while ((getline < srcfile) > 0) {
 			releflags = "0";
 		printc("\t" releflags vppwillrele ",");
 
+		# function to call
+		printc("\t(void*)(uintptr_t)" uname "_AP,");
 		# vp offsets
 		printc("\t" name "_vp_offsets,");
 		# vpp (if any)

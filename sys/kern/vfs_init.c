@@ -89,32 +89,6 @@ struct vattr va_null;
  * Routines having to do with the management of the vnode table.
  */
 
-/*
- * XXX: hack alert
- */
-int
-vcall(struct vnode *vp, u_int off, void *ap)
-{
-	struct vop_vector *vop = vp->v_op;
-	vop_bypass_t **bpt;
-	int rc;
-	
-	for(;;) {
-		bpt = (void *)((u_char *)vop + off);
-		if (vop != NULL && *bpt == NULL && vop->vop_bypass == NULL) {
-			vop = vop->vop_default;
-			continue;
-		}
-		break;
-	}
-	KASSERT(vop != NULL, ("No VCALL(%p...)", vp));
-	if (*bpt != NULL)
-		rc = (*bpt)(ap);
-	else
-		rc = vop->vop_bypass(ap);
-	return (rc);
-}
-
 struct vfsconf *
 vfs_byname(const char *name)
 {

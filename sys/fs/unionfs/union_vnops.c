@@ -829,7 +829,7 @@ union_close(ap)
 		vp = un->un_lowervp;
 	}
 	ap->a_vp = vp;
-	return (VCALL(vp, VOFFSET(vop_close), ap));
+	return (VOP_CLOSE_AP(ap));
 }
 
 /*
@@ -872,7 +872,7 @@ union_access(ap)
 
 	if ((vp = union_lock_upper(un, td)) != NULLVP) {
 		ap->a_vp = vp;
-		error = VCALL(vp, VOFFSET(vop_access), ap);
+		error = VOP_ACCESS_AP(ap);
 		union_unlock_upper(vp, td);
 		return(error);
 	}
@@ -888,7 +888,7 @@ union_access(ap)
 		if ((un->un_vnode->v_mount->mnt_flag & MNT_RDONLY) == 0)
 			ap->a_mode &= ~VWRITE;
 
-		error = VCALL(vp, VOFFSET(vop_access), ap);
+		error = VOP_ACCESS_AP(ap);
 		if (error == 0) {
 			struct union_mount *um;
 
@@ -896,7 +896,7 @@ union_access(ap)
 
 			if (um->um_op == UNMNT_BELOW) {
 				ap->a_cred = um->um_cred;
-				error = VCALL(vp, VOFFSET(vop_access), ap);
+				error = VOP_ACCESS_AP(ap);
 			}
 		}
 		VOP_UNLOCK(vp, 0, td);
@@ -1119,7 +1119,7 @@ union_lease(ap)
 	struct vnode *ovp = OTHERVP(ap->a_vp);
 
 	ap->a_vp = ovp;
-	return (VCALL(ovp, VOFFSET(vop_lease), ap));
+	return (VOP_LEASE_AP(ap));
 }
 
 static int
@@ -1136,7 +1136,7 @@ union_ioctl(ap)
 	struct vnode *ovp = OTHERVP(ap->a_vp);
 
 	ap->a_vp = ovp;
-	return (VCALL(ovp, VOFFSET(vop_ioctl), ap));
+	return (VOP_IOCTL_AP(ap));
 }
 
 static int
@@ -1151,7 +1151,7 @@ union_poll(ap)
 	struct vnode *ovp = OTHERVP(ap->a_vp);
 
 	ap->a_vp = ovp;
-	return (VCALL(ovp, VOFFSET(vop_poll), ap));
+	return (VOP_POLL_AP(ap));
 }
 
 static int
@@ -1594,7 +1594,7 @@ union_readdir(ap)
 
 	if ((uvp = union_lock_upper(un, td)) != NULLVP) {
 		ap->a_vp = uvp;
-		error = VCALL(uvp, VOFFSET(vop_readdir), ap);
+		error = VOP_READDIR_AP(ap);
 		union_unlock_upper(uvp, td);
 	}
 	return(error);
@@ -1618,7 +1618,7 @@ union_readlink(ap)
 	KASSERT(vp != NULL, ("union_readlink: backing vnode missing!"));
 
 	ap->a_vp = vp;
-	error = VCALL(vp, VOFFSET(vop_readlink), ap);
+	error = VOP_READLINK_AP(ap);
 	union_unlock_other(vp, td);
 
 	return (error);
@@ -1785,7 +1785,7 @@ union_pathconf(ap)
 	KASSERT(vp != NULL, ("union_pathconf: backing vnode missing!"));
 
 	ap->a_vp = vp;
-	error = VCALL(vp, VOFFSET(vop_pathconf), ap);
+	error = VOP_PATHCONF_AP(ap);
 	union_unlock_other(vp, td);
 
 	return (error);
@@ -1804,7 +1804,7 @@ union_advlock(ap)
 	register struct vnode *ovp = OTHERVP(ap->a_vp);
 
 	ap->a_vp = ovp;
-	return (VCALL(ovp, VOFFSET(vop_advlock), ap));
+	return (VOP_ADVLOCK_AP(ap));
 }
 
 
@@ -1851,7 +1851,7 @@ union_getacl(ap)
 
 	vp = union_lock_other(un, ap->a_td);
 	ap->a_vp = vp;
-	error = VCALL(vp, VOFFSET(vop_getacl), ap);
+	error = VOP_GETACL_AP(ap);
 	union_unlock_other(vp, ap->a_td);
 
 	return (error);
@@ -1873,7 +1873,7 @@ union_setacl(ap)
 
 	vp = union_lock_other(un, ap->a_td);
 	ap->a_vp = vp;
-	error = VCALL(vp, VOFFSET(vop_setacl), ap);
+	error = VOP_SETACL_AP(ap);
 	union_unlock_other(vp, ap->a_td);
 
 	return (error);
@@ -1892,7 +1892,7 @@ union_aclcheck(ap)
 	struct vnode *ovp = OTHERVP(ap->a_vp);
 
 	ap->a_vp = ovp;
-	return (VCALL(ovp, VOFFSET(vop_aclcheck), ap));
+	return (VOP_ACLCHECK_AP(ap));
 }
 
 static int
@@ -1910,7 +1910,7 @@ union_closeextattr(ap)
 
 	vp = union_lock_other(un, ap->a_td);
 	ap->a_vp = vp;
-	error = VCALL(vp, VOFFSET(vop_closeextattr), ap);
+	error = VOP_CLOSEEXTATTR_AP(ap);
 	union_unlock_other(vp, ap->a_td);
 
 	return (error);
@@ -1934,7 +1934,7 @@ union_getextattr(ap)
 
 	vp = union_lock_other(un, ap->a_td);
 	ap->a_vp = vp;
-	error = VCALL(vp, VOFFSET(vop_getextattr), ap);
+	error = VOP_GETEXTATTR_AP(ap);
 	union_unlock_other(vp, ap->a_td);
 
 	return (error);
@@ -1957,7 +1957,7 @@ union_listextattr(ap)
 
 	vp = union_lock_other(un, ap->a_td);
 	ap->a_vp = vp;
-	error = VCALL(vp, VOFFSET(vop_listextattr), ap);
+	error = VOP_LISTEXTATTR_AP(ap);
 	union_unlock_other(vp, ap->a_td);
 
 	return (error);
@@ -1977,7 +1977,7 @@ union_openextattr(ap)
 
 	vp = union_lock_other(un, ap->a_td);
 	ap->a_vp = vp;
-	error = VCALL(vp, VOFFSET(vop_openextattr), ap);
+	error = VOP_OPENEXTATTR_AP(ap);
 	union_unlock_other(vp, ap->a_td);
 
 	return (error);
@@ -1999,7 +1999,7 @@ union_deleteextattr(ap)
 
 	vp = union_lock_other(un, ap->a_td);
 	ap->a_vp = vp;
-	error = VCALL(vp, VOFFSET(vop_deleteextattr), ap);
+	error = VOP_DELETEEXTATTR_AP(ap);
 	union_unlock_other(vp, ap->a_td);
 
 	return (error);
@@ -2022,7 +2022,7 @@ union_setextattr(ap)
 
 	vp = union_lock_other(un, ap->a_td);
 	ap->a_vp = vp;
-	error = VCALL(vp, VOFFSET(vop_setextattr), ap);
+	error = VOP_SETEXTATTR_AP(ap);
 	union_unlock_other(vp, ap->a_td);
 
 	return (error);
@@ -2043,7 +2043,7 @@ union_setlabel(ap)
 
 	vp = union_lock_other(un, ap->a_td);
 	ap->a_vp = vp;
-	error = VCALL(vp, VOFFSET(vop_setlabel), ap);
+	error = VOP_SETLABEL_AP(ap);
 	union_unlock_other(vp, ap->a_td);
 
 	return (error);
