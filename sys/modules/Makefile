@@ -20,7 +20,6 @@ SUBDIR=	accf_data \
 	dc \
 	dummynet \
 	fdesc \
-	firewire \
 	fxp \
 	gx \
 	if_disc \
@@ -112,6 +111,7 @@ SUBDIR+=ar \
 	bktr \
 	coff \
 	em \
+	firewire \
 	fpu \
 	gnufpu \
 	hifn \
