@@ -118,9 +118,11 @@ struct cached_pthread {
   u_int64_t		uniqueid;
   int			state;
   CORE_ADDR		name;
-  int			sig_saved;
-  ucontext_t		saved_sigcontext;
-  jmp_buf		saved_jmp_buf;
+  int			ctxtype;
+  union {
+    ucontext_t	uc;
+    jmp_buf	jb;
+  }			ctx;
 };
 
 static int cached_thread;
@@ -151,21 +153,27 @@ static CORE_ADDR P_thread_next_offset;
 static CORE_ADDR P_thread_uniqueid_offset;
 static CORE_ADDR P_thread_state_offset;
 static CORE_ADDR P_thread_name_offset;
-static CORE_ADDR P_thread_sig_saved_offset;
-static CORE_ADDR P_thread_saved_sigcontext_offset;
-static CORE_ADDR P_thread_saved_jmp_buf_offset;
+static CORE_ADDR P_thread_ctxtype_offset;
+static CORE_ADDR P_thread_ctx_offset;
 static CORE_ADDR P_thread_PS_RUNNING_value;
 static CORE_ADDR P_thread_PS_DEAD_value;
+static CORE_ADDR P_thread_CTX_JB_NOSIG_value;
+static CORE_ADDR P_thread_CTX_JB_value;
+static CORE_ADDR P_thread_CTX_SJB_value;
+static CORE_ADDR P_thread_CTX_UC_value;
 
 static int next_offset;
 static int uniqueid_offset;
 static int state_offset;
 static int name_offset;
-static int sig_saved_offset;
-static int saved_sigcontext_offset;
-static int saved_jmp_buf_offset;
+static int ctxtype_offset;
+static int ctx_offset;
 static int PS_RUNNING_value;
 static int PS_DEAD_value;
+static int CTX_JB_NOSIG_value;
+static int CTX_JB_value;
+static int CTX_SJB_value;
+static int CTX_UC_value;
 
 #define UNIQUEID_HASH(id)	(id % MAPHASH_SIZE)
 #define TID_ADD1(tid)		(((tid) + 1) == TID_MAX + 1 \
@@ -256,12 +264,15 @@ read_thread_offsets ()
   READ_OFFSET(uniqueid);
   READ_OFFSET(state);
   READ_OFFSET(name);
-  READ_OFFSET(sig_saved);
-  READ_OFFSET(saved_sigcontext);
-  READ_OFFSET(saved_jmp_buf);
+  READ_OFFSET(ctxtype);
+  READ_OFFSET(ctx);
 
   READ_VALUE(PS_RUNNING);
   READ_VALUE(PS_DEAD);
+  READ_VALUE(CTX_JB_NOSIG);
+  READ_VALUE(CTX_JB);
+  READ_VALUE(CTX_SJB);
+  READ_VALUE(CTX_UC);
 }
 
 #define READ_FIELD(ptr, T, field, result) \
@@ -293,9 +304,8 @@ read_cached_pthread (ptr, cache)
   READ_FIELD(ptr, u_int64_t,	uniqueid,	cache->uniqueid);
   READ_FIELD(ptr, int,		state,		cache->state);
   READ_FIELD(ptr, CORE_ADDR,	name,		cache->name);
-  READ_FIELD(ptr, int,		sig_saved,	cache->sig_saved);
-  READ_FIELD(ptr, ucontext_t,	saved_sigcontext,cache->saved_sigcontext);
-  READ_FIELD(ptr, jmp_buf,	saved_jmp_buf,	cache->saved_jmp_buf);
+  READ_FIELD(ptr, int,		ctxtype,	cache->ctxtype);
+  READ_FIELD(ptr, ucontext_t,	ctx,		cache->ctx);
 }
 
 static int
@@ -590,7 +600,6 @@ freebsd_uthread_fetch_registers (regno)
 {
   struct cached_pthread *thread;
   struct cleanup *old_chain;
-  int i;
   int active;
   int first_regno, last_regno;
   register_t *regbase;
@@ -630,14 +639,14 @@ freebsd_uthread_fetch_registers (regno)
       last_regno = regno;
     }
 
-  if (thread->sig_saved)
+  if (thread->ctxtype == CTX_UC_value)
     {
-      regbase = (register_t*) &thread->saved_sigcontext.uc_mcontext;
+      regbase = (register_t*) &thread->ctx.uc.uc_mcontext;
       regmap = sigmap;
     }
   else
     {
-      regbase = (register_t*) &thread->saved_jmp_buf[0];
+      regbase = (register_t*) &thread->ctx.jb[0];
       regmap = jmpmap;
     }
 
@@ -659,7 +668,6 @@ freebsd_uthread_store_registers (regno)
   struct cached_pthread *thread;
   CORE_ADDR ptr;
   struct cleanup *old_chain;
-  int i;
   int first_regno, last_regno;
   u_int32_t *regbase;
   char *regmap;
@@ -696,14 +704,14 @@ freebsd_uthread_store_registers (regno)
       last_regno = regno;
     }
 
-  if (thread->sig_saved)
+  if (thread->ctxtype == CTX_UC_value)
     {
-      regbase = (u_int32_t*) &thread->saved_sigcontext;
+      regbase = (u_int32_t*) &thread->ctx.uc.uc_mcontext;
       regmap = sigmap;
     }
   else
     {
-      regbase = (u_int32_t*) &thread->saved_jmp_buf[0];
+      regbase = (u_int32_t*) &thread->ctx.jb[0];
       regmap = jmpmap;
     }
 
@@ -889,12 +897,15 @@ freebsd_uthread_new_objfile (objfile)
   LOOKUP_OFFSET(uniqueid);
   LOOKUP_OFFSET(state);
   LOOKUP_OFFSET(name);
-  LOOKUP_OFFSET(sig_saved);
-  LOOKUP_OFFSET(saved_sigcontext);
-  LOOKUP_OFFSET(saved_jmp_buf);
+  LOOKUP_OFFSET(ctxtype);
+  LOOKUP_OFFSET(ctx);
 
   LOOKUP_VALUE(PS_RUNNING);
   LOOKUP_VALUE(PS_DEAD);
+  LOOKUP_VALUE(CTX_JB_NOSIG);
+  LOOKUP_VALUE(CTX_JB);
+  LOOKUP_VALUE(CTX_SJB);
+  LOOKUP_VALUE(CTX_UC);
 
   freebsd_uthread_active = 1;
 }
@@ -1016,6 +1027,7 @@ static const char *statenames[] = {
   "FDLW_WAIT",
   "FDR_WAIT",
   "FDW_WAIT",
+  "POLL_WAIT",
   "FILE_WAIT",
   "SELECT_WAIT",
   "SLEEP_WAIT",
@@ -1053,6 +1065,7 @@ freebsd_uthread_get_thread_info (ref, selection, info)
     strcpy(info->shortname, "");
 
   do_cleanups (old_chain);
+  return (0);
 }
 
 char *
