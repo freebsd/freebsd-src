@@ -684,7 +684,7 @@ uvwrite_chat_script (e, pzarg)
     {
       if ((*pz)[0] != '-' && pz != pzarg)
 	fprintf (e, " ");
-      fprintf (e, *pz);
+      fprintf (e, "%s", *pz);
     }
 }
 
