@@ -98,6 +98,13 @@ mac_none_init(struct mac_policy_conf *conf)
 
 }
 
+static int
+mac_none_syscall(struct thread *td, int call, void *arg)
+{
+
+	return (0);
+}
+
 /*
  * Label operations.
  */
@@ -934,6 +941,8 @@ static struct mac_policy_op_entry mac_none_ops[] =
 	    (macop_t)mac_none_destroy },
 	{ MAC_INIT,
 	    (macop_t)mac_none_init },
+	{ MAC_SYSCALL,
+	    (macop_t)mac_none_syscall },
 	{ MAC_INIT_BPFDESC,
 	    (macop_t)mac_none_init_bpfdesc },
 	{ MAC_INIT_CRED,
