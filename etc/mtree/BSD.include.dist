@@ -13,6 +13,8 @@
         std
         ..
     ..
+    isc
+    ..
     isofs
         cd9660
         ..
