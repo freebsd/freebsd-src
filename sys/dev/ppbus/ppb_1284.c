@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppb_1284.c,v 1.6 1998/09/13 20:44:55 nsouch Exp $
+ *	$Id: ppb_1284.c,v 1.7 1999/01/10 12:04:54 nsouch Exp $
  *
  */
 
@@ -721,6 +721,13 @@ ppb_1284_negociate(struct ppb_device *dev, int mode, int options)
 
 	/* Event 7 - quering result consider nACK not to misunderstand
 	 * a remote computer terminate sequence */
+	if (options & PPB_EXTENSIBILITY_LINK) {
+
+		/* XXX not fully supported yet */
+		ppb_1284_terminate(dev);
+		return (0);
+
+	}
 	if (request_mode == NIBBLE_1284_NORMAL) {
 		if (do_1284_wait(dev, nACK | SELECT, nACK)) {
 			ppb_1284_set_error(dev, PPB_MODE_UNSUPPORTED, 7);
