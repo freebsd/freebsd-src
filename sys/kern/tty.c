@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.35 1995/02/28 23:20:11 ache Exp $
+ * $Id: tty.c,v 1.36 1995/03/16 18:12:45 bde Exp $
  */
 
 #include "snp.h"
@@ -284,7 +284,7 @@ ttyinput(c, tp)
 		CLR(c, TTY_ERRORMASK);
 		if (ISSET(err, TTY_FE) && !c) {	/* Break. */
 			if (ISSET(iflag, IGNBRK))
-				goto endcase;
+				return (0);
 			else if (ISSET(iflag, BRKINT) &&
 			    ISSET(lflag, ISIG) &&
 			    (cc[VINTR] != _POSIX_VDISABLE))
@@ -294,7 +294,7 @@ ttyinput(c, tp)
 		} else if ((ISSET(err, TTY_PE) && ISSET(iflag, INPCK))
 			|| ISSET(err, TTY_FE)) {
 			if (ISSET(iflag, IGNPAR))
-				goto endcase;
+				return (0);
 			else if (ISSET(iflag, PARMRK)) {
 parmrk:				(void)putc(0377 | TTY_QUOTE, &tp->t_rawq);
 				(void)putc(0 | TTY_QUOTE, &tp->t_rawq);
