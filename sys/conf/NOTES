@@ -86,7 +86,6 @@ options 	BLKDEV_IOSIZE=8192
 
 # Options for the VM subsystem
 options 	PQ_CACHESIZE=512	# color for 512k/16k cache
-options 	KSTACK_PAGES=3		# number of stack pages per process
 # Deprecated options supported for backwards compatibility
 #options 	PQ_NOOPT		# No coloring
 #options 	PQ_LARGECACHE		# color for 512k/16k cache
