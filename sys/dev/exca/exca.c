@@ -148,7 +148,7 @@ exca_mem_getb(struct exca_softc *sc, int reg)
 static void
 exca_mem_putb(struct exca_softc *sc, int reg, uint8_t val)
 {
-	return (bus_space_write_1(sc->bst, sc->bsh, sc->offset + reg, val));
+	bus_space_write_1(sc->bst, sc->bsh, sc->offset + reg, val);
 }
 
 static uint8_t
