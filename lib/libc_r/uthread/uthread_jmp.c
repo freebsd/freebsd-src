@@ -34,7 +34,6 @@
 #include <unistd.h>
 #include <setjmp.h>
 #include <sys/param.h>
-#include <sys/user.h>
 #include <machine/reg.h>
 #include <pthread.h>
 #include "pthread_private.h"

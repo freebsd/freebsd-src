@@ -56,7 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #endif
 #include <sys/signalvar.h>
-#include <sys/user.h>
 
 #include <machine/asmacros.h>
 #include <machine/cputypes.h>

@@ -39,10 +39,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
 
-#include <sys/user.h>
-
 #include <machine/md_var.h>
-#include <machine/pcb_ext.h>	/* pcb.h included via sys/user.h */
+#include <machine/pcb.h>
+#include <machine/pcb_ext.h>
 #include <machine/psl.h>
 #include <machine/specialreg.h>
 #include <machine/sysarch.h>

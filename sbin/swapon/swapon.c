@@ -43,8 +43,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/stat.h>
 #include <sys/param.h>
-#include <sys/user.h>
 #include <sys/sysctl.h>
+#include <vm/vm_param.h>
 
 #include <err.h>
 #include <errno.h>

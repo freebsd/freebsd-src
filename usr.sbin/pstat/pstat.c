@@ -58,10 +58,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/tty.h>
 #include <sys/blist.h>
 
-#include <sys/user.h>
 #include <sys/sysctl.h>
+#include <vm/vm_param.h>
 
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <kvm.h>
 #include <limits.h>

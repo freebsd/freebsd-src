@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/user.h>
 
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
@@ -47,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/fpu.h>
 #include <machine/inst.h>
 #include <machine/md_var.h>
+#include <machine/pcb.h>
 #include <machine/reg.h>
 
 #include <alpha/alpha/ieee_float.h>

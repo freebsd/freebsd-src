@@ -42,8 +42,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <sys/ptrace.h>
 #include <sys/sx.h>
-#include <sys/user.h>
 #include <sys/malloc.h>
+#include <sys/signalvar.h>
 
 #include <machine/reg.h>
 

@@ -173,9 +173,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 #include <vm/uma.h>
 
-#include <sys/user.h>
-
 #include <machine/md_var.h>
+#include <machine/pcb.h>
 #include <machine/rpb.h>
 
 #ifndef PMAP_SHPGPERPROC

@@ -54,6 +54,7 @@
 #include <sys/errno.h>
 #include <sys/msg.h>
 #include <sys/time.h>
+#include <sys/param.h>
 #include <sys/queue.h>
 #include <pthread_np.h>
 #include <sched.h>
@@ -69,6 +70,10 @@
 #include <machine/atomic.h>
 #include <sys/thr.h>
 #include <sys/umtx.h>
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
 
 #if defined(_PTHREADS_INVARIANTS)
 /*

@@ -32,13 +32,13 @@
 #include <sys/linker_set.h>
 #include <sys/proc.h>
 #include <sys/sysent.h>
-#include <sys/user.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
 
 #include <machine/cpu.h>
+#include <machine/pcb.h>
 #include <machine/trap.h>
 #include <machine/vmparam.h>
 

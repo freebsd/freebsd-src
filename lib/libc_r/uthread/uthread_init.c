@@ -49,7 +49,6 @@
 #include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/ttycom.h>
-#include <sys/user.h>
 #include <sys/wait.h>
 #include <sys/mman.h>
 #include <dirent.h>

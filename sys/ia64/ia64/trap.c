@@ -58,7 +58,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_param.h>
-#include <sys/user.h>
 #include <sys/ptrace.h>
 #include <machine/clock.h>
 #include <machine/cpu.h>
@@ -67,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/pal.h>
 #include <machine/fpu.h>
 #include <machine/efi.h>
+#include <machine/pcb.h>
 #ifdef SMP
 #include <machine/smp.h>
 #endif

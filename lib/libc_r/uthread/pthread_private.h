@@ -52,6 +52,7 @@
 #include <setjmp.h>
 #include <signal.h>
 #include <stdio.h>
+#include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/types.h>
 #include <sys/time.h>
@@ -60,6 +61,10 @@
 #include <spinlock.h>
 #include <ucontext.h>
 #include <pthread_np.h>
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
 
 /*
  * Define machine dependent macros to get and set the stack pointer

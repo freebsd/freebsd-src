@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
-#include <sys/user.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -50,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 
 #include <machine/cpu.h>
+#include <machine/pcb.h>
 #include <machine/sysarch.h>
 
 #include <vm/vm_kern.h>		/* for kernel_map */

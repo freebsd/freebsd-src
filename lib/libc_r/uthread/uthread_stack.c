@@ -31,7 +31,6 @@
 #include <sys/mman.h>
 #include <sys/param.h>
 #include <sys/queue.h>
-#include <sys/user.h>
 #include <stdlib.h>
 #include <pthread.h>
 #include "un-namespace.h"

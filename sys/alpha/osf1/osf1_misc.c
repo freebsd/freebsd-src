@@ -66,7 +66,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/systm.h>
 #include <sys/unistd.h>
-#include <sys/user.h>
 #include <sys/utsname.h>
 #include <sys/vnode.h>
 #include <sys/wait.h>
@@ -82,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpuconf.h>
 #include <machine/fpu.h>
 #include <machine/md_var.h>
+#include <machine/pcb.h>
 #include <machine/rpb.h>
 
 #include <alpha/osf1/exec_ecoff.h>

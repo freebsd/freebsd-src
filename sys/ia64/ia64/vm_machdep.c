@@ -85,6 +85,7 @@
 #include <machine/cpu.h>
 #include <machine/fpu.h>
 #include <machine/md_var.h>
+#include <machine/pcb.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -93,8 +94,6 @@
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
 #include <vm/vm_extern.h>
-
-#include <sys/user.h>
 
 #include <i386/include/psl.h>
 
