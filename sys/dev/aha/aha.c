@@ -166,37 +166,6 @@ static void	ahapoll(struct cam_sim *sim);
 /* Our timeout handler */
 static timeout_t ahatimeout;
 
-u_long aha_unit = 0;
-
-/*
- * Do our own re-probe protection until a configuration
- * manager can do it for us.  This ensures that we don't
- * reprobe a card already found by the EISA or PCI probes.
- */
-static struct aha_isa_port aha_isa_ports[] =
-{
-	{ 0x130, 4 },
-	{ 0x134, 5 },
-	{ 0x230, 2 },
-	{ 0x234, 3 },
-	{ 0x330, 0 },
-	{ 0x334, 1 }
-};
-
-/*
- * I/O ports listed in the order enumerated by the
- * card for certain op codes.
- */
-static uint16_t aha_board_ports[] =
-{
-	0x330,
-	0x334,
-	0x230,
-	0x234,
-	0x130,
-	0x134
-};
-
 /* Exported functions */
 void
 aha_alloc(struct aha_softc *aha, int unit, bus_space_tag_t tag,
@@ -662,41 +631,6 @@ aha_name(struct aha_softc *aha)
 
 	snprintf(name, sizeof(name), "aha%d", aha->unit);
 	return (name);
-}
-
-void
-aha_find_probe_range(int ioport, int *port_index, int *max_port_index)
-{
-	if (ioport > 0) {
-		int i;
-
-		for (i = 0;i < AHA_NUM_ISAPORTS; i++)
-			if (ioport <= aha_isa_ports[i].addr)
-				break;
-		if (i >= AHA_NUM_ISAPORTS || ioport != aha_isa_ports[i].addr) {
-			printf("\n"
-"aha_isa_probe: Invalid baseport of 0x%x specified.\n"
-"aha_isa_probe: Nearest valid baseport is 0x%x.\n"
-"aha_isa_probe: Failing probe.\n",
-			    ioport,
-			    i < AHA_NUM_ISAPORTS ? aha_isa_ports[i].addr
-			    : aha_isa_ports[AHA_NUM_ISAPORTS - 1].addr);
-			*port_index = *max_port_index = -1;
-			return;
-		}
-		*port_index = *max_port_index = aha_isa_ports[i].bio;
-	} else {
-		*port_index = 0;
-		*max_port_index = AHA_NUM_ISAPORTS - 1;
-	}
-}
-
-int
-aha_iop_from_bio(isa_compat_io_t bio_index)
-{
-	if (bio_index >= 0 && bio_index < AHA_NUM_ISAPORTS)
-		return (aha_board_ports[bio_index]);
-	return (-1);
 }
 
 static void
