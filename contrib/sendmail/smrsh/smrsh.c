@@ -22,7 +22,7 @@ SM_IDSTR(copyright,
      Copyright (c) 1993\n\
 	The Regents of the University of California.  All rights reserved.\n")
 
-SM_IDSTR(id, "@(#)$Id: smrsh.c,v 8.58 2002/05/25 02:41:31 ca Exp $")
+SM_IDSTR(id, "@(#)$Id: smrsh.c,v 8.58.2.2 2002/09/24 21:40:05 ca Exp $")
 
 /*
 **  SMRSH -- sendmail restricted shell
@@ -292,12 +292,12 @@ main(argc, argv)
 			{
 				/* too long */
 				(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
-						     "%s: %s not available for sendmail programs (filename too long)\n",
+						     "%s: \"%s\" not available for sendmail programs (filename too long)\n",
 						      prg, cmd);
 				if (p != NULL)
 					*p = ' ';
 #ifndef DEBUG
-				syslog(LOG_CRIT, "uid %d: attempt to use %s (filename too long)",
+				syslog(LOG_CRIT, "uid %d: attempt to use \"%s\" (filename too long)",
 				       (int) getuid(), cmd);
 #endif /* ! DEBUG */
 				exit(EX_UNAVAILABLE);
@@ -311,12 +311,12 @@ main(argc, argv)
 			{
 				/* can't stat it */
 				(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
-						     "%s: %s not available for sendmail programs (stat failed)\n",
+						     "%s: \"%s\" not available for sendmail programs (stat failed)\n",
 						      prg, cmd);
 				if (p != NULL)
 					*p = ' ';
 #ifndef DEBUG
-				syslog(LOG_CRIT, "uid %d: attempt to use %s (stat failed)",
+				syslog(LOG_CRIT, "uid %d: attempt to use \"%s\" (stat failed)",
 				       (int) getuid(), cmd);
 #endif /* ! DEBUG */
 				exit(EX_UNAVAILABLE);
@@ -329,12 +329,12 @@ main(argc, argv)
 			{
 				/* can't stat it */
 				(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
-						     "%s: %s not available for sendmail programs (not a file)\n",
+						     "%s: \"%s\" not available for sendmail programs (not a file)\n",
 						      prg, cmd);
 				if (p != NULL)
 					*p = ' ';
 #ifndef DEBUG
-				syslog(LOG_CRIT, "uid %d: attempt to use %s (not a file)",
+				syslog(LOG_CRIT, "uid %d: attempt to use \"%s\" (not a file)",
 				       (int) getuid(), cmd);
 #endif /* ! DEBUG */
 				exit(EX_UNAVAILABLE);
@@ -343,12 +343,12 @@ main(argc, argv)
 			{
 				/* oops....  crack attack possiblity */
 				(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
-						     "%s: %s not available for sendmail programs\n",
+						     "%s: \"%s\" not available for sendmail programs\n",
 						      prg, cmd);
 				if (p != NULL)
 					*p = ' ';
 #ifndef DEBUG
-				syslog(LOG_CRIT, "uid %d: attempt to use %s",
+				syslog(LOG_CRIT, "uid %d: attempt to use \"%s\"",
 				       (int) getuid(), cmd);
 #endif /* ! DEBUG */
 				exit(EX_UNAVAILABLE);

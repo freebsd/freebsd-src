@@ -15,7 +15,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: conf.c,v 8.972.2.5 2002/08/16 14:56:01 ca Exp $")
+SM_RCSID("@(#)$Id: conf.c,v 8.972.2.25 2002/12/12 21:19:29 ca Exp $")
 
 #include <sendmail/pathnames.h>
 
@@ -29,7 +29,6 @@ SM_RCSID("@(#)$Id: conf.c,v 8.972.2.5 2002/08/16 14:56:01 ca Exp $")
 #if HASULIMIT && defined(HPUX11)
 # include <ulimit.h>
 #endif /* HASULIMIT && defined(HPUX11) */
-
 
 static void	setupmaps __P((void));
 static void	setupmailers __P((void));
@@ -366,6 +365,12 @@ setdefaults(e)
 #if MILTER
 	InputFilters[0] = NULL;
 #endif /* MILTER */
+#if _FFR_REJECT_LOG
+	RejectLogInterval = 3 HOURS;
+#endif /* _FFR_REJECT_LOG */
+#if _FFR_REQ_DIR_FSYNC_OPT
+	RequiresDirfsync = true;
+#endif /* _FFR_REQ_DIR_FSYNC_OPT */
 	setupmaps();
 	setupqueues();
 	setupmailers();
@@ -2172,6 +2177,10 @@ refuseconnections(name, e, d, active)
 {
 	static time_t lastconn[MAXDAEMONS];
 	static int conncnt[MAXDAEMONS];
+#if _FFR_REJECT_LOG
+	static time_t firstrejtime[MAXDAEMONS];
+	static time_t nextlogtime[MAXDAEMONS];
+#endif /* _FFR_REJECT_LOG */
 
 #if XLA
 	if (!xla_smtp_ok())
@@ -2209,12 +2218,35 @@ refuseconnections(name, e, d, active)
 	sm_getla();
 	if (RefuseLA > 0 && CurrentLA >= RefuseLA)
 	{
+# if _FFR_REJECT_LOG
+		time_t now;
+
+#  define R2_MSG_LA "have been rejecting connections on daemon %s for %s"
+# endif /* _FFR_REJECT_LOG */
 # define R_MSG_LA "rejecting connections on daemon %s: load average: %d"
 		sm_setproctitle(true, e, R_MSG_LA, name, CurrentLA);
 		if (LogLevel > 8)
-			sm_syslog(LOG_INFO, NOQID, R_MSG_LA, name, CurrentLA);
+			sm_syslog(LOG_NOTICE, NOQID, R_MSG_LA, name, CurrentLA);
+#if _FFR_REJECT_LOG
+		now = curtime();
+		if (firstrejtime[d] == 0)
+		{
+			firstrejtime[d] = now;
+			nextlogtime[d] = now + RejectLogInterval;
+		}
+		else if (nextlogtime[d] < now)
+		{
+			sm_syslog(LOG_ERR, NOQID, R2_MSG_LA, name,
+				  pintvl(now - firstrejtime[d], true));
+			nextlogtime[d] = now + RejectLogInterval;
+		}
+#endif /* _FFR_REJECT_LOG */
 		return true;
 	}
+#if _FFR_REJECT_LOG
+	else
+		firstrejtime[d] = 0;
+#endif /* _FFR_REJECT_LOG */
 
 	if (DelayLA > 0 && CurrentLA >= DelayLA)
 	{
@@ -3069,13 +3101,13 @@ static char	*DefaultUserShells[] =
 # ifdef sgi
 	"/sbin/sh",		/* SGI's shells really live in /sbin */
 	"/usr/bin/sh",
-	"/sbin/bsh",		/* classic borne shell */
+	"/sbin/bsh",		/* classic Bourne shell */
 	"/bin/bsh",
 	"/usr/bin/bsh",
 	"/sbin/csh",		/* standard csh */
 	"/bin/csh",
 	"/usr/bin/csh",
-	"/sbin/jsh",		/* classic borne shell w/ job control*/
+	"/sbin/jsh",		/* classic Bourne shell w/ job control*/
 	"/bin/jsh",
 	"/usr/bin/jsh",
 	"/bin/ksh",		/* Korn shell */
@@ -3681,9 +3713,6 @@ chownsafe(fd, safedir)
 # endif /* RLIMIT_NEEDS_SYS_TIME_H */
 # include <sys/resource.h>
 #endif /* HASSETRLIMIT */
-#ifndef FD_SETSIZE
-# define FD_SETSIZE	256
-#endif /* ! FD_SETSIZE */
 
 void
 resetlimits()
@@ -5887,6 +5916,9 @@ char	*FFRCompileOptions[] =
 #if _FFR_DAEMON_NETUNIX
 	"_FFR_DAEMON_NETUNIX",
 #endif /* _FFR_DAEMON_NETUNIX */
+#if _FFR_DEAL_WITH_ERROR_SSL
+	"_FFR_DEAL_WITH_ERROR_SSL",
+#endif /* _FFR_DEAL_WITH_ERROR_SSL */
 #if _FFR_DEPRECATE_MAILER_FLAG_I
 	"_FFR_DEPRECATE_MAILER_FLAG_I",
 #endif /* _FFR_DEPRECATE_MAILER_FLAG_I */
@@ -5960,6 +5992,9 @@ char	*FFRCompileOptions[] =
 	"_FFR_MAX_FORWARD_ENTRIES",
 #endif /* _FFR_MAX_FORWARD_ENTRIES */
 #if MILTER
+# if _FFR_MILTER_421
+	"_FFR_MILTER_421",
+# endif /* _FFR_MILTER_421 */
 # if  _FFR_MILTER_PERDAEMON
 	"_FFR_MILTER_PERDAEMON",
 # endif /* _FFR_MILTER_PERDAEMON */
@@ -5968,10 +6003,6 @@ char	*FFRCompileOptions[] =
 /* Steven Pitzl */
 	"_FFR_NODELAYDSN_ON_HOLD",
 #endif /* _FFR_NODELAYDSN_ON_HOLD */
-#if _FFR_NONSTOP_PERSISTENCE
-/* Suggested by Jan Krueger of digitalanswers communications consulting gmbh. */
-	"_FFR_NONSTOP_PERSISTENCE",
-#endif /* _FFR_NONSTOP_PERSISTENCE */
 #if _FFR_NO_PIPE
 	"_FFR_NO_PIPE",
 #endif /* _FFR_NO_PIPE */
@@ -5997,6 +6028,12 @@ char	*FFRCompileOptions[] =
 #if _FFR_REDIRECTEMPTY
 	"_FFR_REDIRECTEMPTY",
 #endif /* _FFR_REDIRECTEMPTY */
+#if _FFR_REJECT_LOG
+	"_FFR_REJECT_LOG",
+#endif /* _FFR_REJECT_LOG */
+#if _FFR_REQ_DIR_FSYNC_OPT
+	"_FFR_REQ_DIR_FSYNC_OPT",
+#endif /* _FFR_REQ_DIR_FSYNC_OPT */
 #if _FFR_RESET_MACRO_GLOBALS
 	"_FFR_RESET_MACRO_GLOBALS",
 #endif /* _FFR_RESET_MACRO_GLOBALS */
@@ -6029,6 +6066,9 @@ char	*FFRCompileOptions[] =
 /* Chris Adams of HiWAAY Informations Services */
 	"_FFR_SPT_ALIGN",
 #endif /* _FFR_SPT_ALIGN */
+#if _FFR_STRIPBACKSL
+	"_FFR_STRIPBACKSL",
+#endif /* _FFR_STRIPBACKSL */
 #if _FFR_TIMERS
 	"_FFR_TIMERS",
 #endif /* _FFR_TIMERS */
