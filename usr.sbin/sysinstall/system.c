@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.34 1995/05/25 18:48:31 jkh Exp $
+ * $Id: system.c,v 1.35 1995/05/26 08:41:49 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -71,7 +71,7 @@ systemInitialize(int argc, char **argv)
 
 	i = ioctl(0, TIOCSCTTY, (char *)NULL);
 	setlogin("root");
-	setenv("PATH", "/stand:/bin:/sbin:/usr/sbin:/mnt/bin:/mnt/sbin:/mnt/usr/sbin:/mnt/usr/bin", 1);
+	setenv("PATH", "/stand:/bin:/sbin:/usr/sbin:/usr/bin:/mnt/bin:/mnt/sbin:/mnt/usr/sbin:/mnt/usr/bin", 1);
 	setbuf(stdin, 0);
 	setbuf(stderr, 0);
     }
@@ -279,7 +279,7 @@ int
 vsystem(char *fmt, ...)
 {
     va_list args;
-    union wait pstat;
+    int pstat;
     pid_t pid;
     int omask;
     sig_t intsave, quitsave;
@@ -343,11 +343,11 @@ vsystem(char *fmt, ...)
     }
     intsave = signal(SIGINT, SIG_IGN);
     quitsave = signal(SIGQUIT, SIG_IGN);
-    pid = waitpid(pid, (int *)&pstat, 0);
+    pid = waitpid(pid, &pstat, 0);
     (void)sigsetmask(omask);
     (void)signal(SIGINT, intsave);
     (void)signal(SIGQUIT, quitsave);
-    i = (pid == -1) ? -1 : pstat.w_status;
+    i = (pid == -1) ? -1 : WEXITSTATUS(pstat);
     msgDebug("Command `%s' returns status of %d\n", cmd, i);
     free(cmd);
     return i;

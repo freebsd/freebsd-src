@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.14 1995/05/25 18:48:32 jkh Exp $
+ * $Id: tcpip.c,v 1.16 1995/05/26 08:58:35 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -421,6 +421,10 @@ tcpOpenDialog(Device *devp)
 	sprintf(temp, "inet %s %s netmask %s", ipaddr, extras, netmask);
 	sprintf(ifn, "%s%s", VAR_IFCONFIG, devp->name);
 	variable_set2(ifn, temp);
+	sprintf(ifn, "%s %s", devp->name, getenv(VAR_INTERFACES) ? getenv(VAR_INTERFACES) : "");
+	variable_set2(VAR_INTERFACES, ifn);
+	if (ipaddr[0])
+	    variable_set2(VAR_IPADDR, ipaddr);
 	return 0;
     }
     return 1;
@@ -460,9 +464,13 @@ tcpDeviceSelect(char *str)
 
 /* Start PPP on the 3rd screen */
 Boolean
-tcpStartPPP(void)
+tcpStartPPP(Device *devp)
 {
     int fd;
+    FILE *fp;
+    char *val;
+    char myaddr[16];
+    char netmask[16];
 
     fd = open("/dev/ttyv2", O_RDWR);
     if (fd == -1)
@@ -470,9 +478,34 @@ tcpStartPPP(void)
     Mkdir("/var/log", NULL);
     Mkdir("/var/spool/lock", NULL);
     Mkdir("/etc/ppp", NULL);
-    /* XXX Put our IP addr in the right file instead of this stupidity!! XXX */
     vsystem("touch /etc/ppp/ppp.linkup; chmod +x /etc/ppp/ppp.linkup");
     vsystem("touch /etc/ppp/ppp.secret; chmod +x /etc/ppp/ppp.secret");
+    fp = fopen("/etc/ppp/ppp.conf", "w");
+    if (!fp) {
+	msgConfirm("Couldn't open /etc/ppp/ppp.conf file!  This isn't going to work");
+	return FALSE;
+    }
+    fprintf(fp, "default:\n");
+    fprintf(fp, " set device %s\n", devp->devname);
+    val = msgGetInput("115200", "Enter baud rate for your modem - this can be higher\nthan the actual maximum data rate since most modems can talk\nat one speed to the host (us) and at another speed to the remote end.\nIf you're not sure what to put here, just select the default.");
+    if (!val)
+	val = "115200";
+    fprintf(fp, " set speed %s\n", val);
+    val = msgGetInput("0", "Enter the IP address of your service provider or 0 if you\ndon't know it and would prefer to negotiate it dynamically.");
+    if (!val)
+	val = "0";
+    if (devp->private && ((DevInfo *)devp->private)->ipaddr[0])
+	strcpy(myaddr, ((DevInfo *)devp->private)->ipaddr);
+    else
+	strcpy(myaddr, "0");
+    fprintf(fp, " set ifaddr %s %s\n", myaddr, val);
+    if (devp->private && ((DevInfo *)devp->private)->netmask[0])
+	strcpy(netmask, ((DevInfo *)devp->private)->netmask);
+    else
+	strcpy(netmask, "255.255.255.240");
+    if (strcmp(val, "0"))
+	fprintf(fp, "add 0 %s %s\n", netmask, val);
+    fclose(fp);
     if (!fork()) {
 	dup2(fd, 0);
 	dup2(fd, 1);
@@ -480,5 +513,6 @@ tcpStartPPP(void)
 	execl("/stand/ppp", "/stand/ppp", (char *)NULL);
 	exit(1);
     }
+    msgConfirm("The PPP command is now started on screen 3 (type ALT-F3 to\ninteract with it, ALT-F1 to switch back here). The only command\nyou'll probably want or need to use is the \"term\" command\nwhich starts a terminal emulator you can use to talk to your\nmodem and dial the service provider.  Once you're connected,\ncome back to this screen and hit return.  DO NOT PRESS RETURN\nHERE UNTIL THE CONNECTION IS FULLY ESTABLISHED!");
     return TRUE;
 }
