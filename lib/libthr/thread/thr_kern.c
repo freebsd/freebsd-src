@@ -55,6 +55,20 @@ static sigset_t restore;
 void
 _thread_critical_enter(pthread_t pthread)
 {
+	_thread_sigblock();
+	_SPINLOCK(&pthread->lock);
+}
+
+void
+_thread_critical_exit(pthread_t pthread)
+{
+	_SPINUNLOCK(&pthread->lock);
+	_thread_sigunblock();
+}
+
+void
+_thread_sigblock()
+{
 	sigset_t set;
 	sigset_t sav;
 
@@ -62,18 +76,13 @@ _thread_critical_enter(pthread_t pthread)
 	 * Block all signals.
 	 */
 	SIGFILLSET(set);
+	SIGADDSET(set, SIGTHR);
 
-	/*
-	 * We can not use the global 'restore' set until after we have
-	 * acquired the giant lock.
-	 */
-	_SPINLOCK(&pthread->lock);
-
-	/* If we are already in a critical section, just up the refcount */
-	if (++curthread->crit_ref > 1)
+	/* If we have already blocked signals, just up the refcount */
+	if (++curthread->signest > 1)
 		return;
-	PTHREAD_ASSERT(curthread->crit_ref == 1,
-	    ("Critical section reference count must be 1!"));
+	PTHREAD_ASSERT(curthread->signest == 1,
+	    ("Blocked signal nesting level must be 1!"));
 
 	if (__sys_sigprocmask(SIG_SETMASK, &set, &sav)) {
 		_thread_printf(STDERR_FILENO, "Critical Enter: sig err %d\n",
@@ -84,15 +93,15 @@ _thread_critical_enter(pthread_t pthread)
 }
 
 void
-_thread_critical_exit(pthread_t pthread)
+_thread_sigunblock()
 {
 	sigset_t set;
 
-	/* We might be in a nested critical section */
-	if (--curthread->crit_ref > 0)
+	/* We might be in a nested 'blocked signal' section */
+	if (--curthread->signest > 0)
 		return;
-	PTHREAD_ASSERT(curthread->crit_ref == 0,
-	    ("Non-Zero critical section reference count."));
+	PTHREAD_ASSERT(curthread->signest == 0,
+	    ("Non-Zero blocked signal nesting level."));
 
 	/*
 	 * Restore signals.
@@ -103,7 +112,6 @@ _thread_critical_exit(pthread_t pthread)
 		    errno);
 		abort();
 	}
-	_SPINUNLOCK(&pthread->lock);
 }
 
 void
