@@ -152,7 +152,7 @@ static int is_valid_host(struct sockaddr_in *sin)
 		       inet_ntoa(sin->sin_addr),
 		       "");
 
-    if (sin->sin_addr.s_addr != oldaddr || status != oldstatus ) {
+    if (!status && (sin->sin_addr.s_addr != oldaddr || status != oldstatus)) {
 	syslog(status?allow_severity:deny_severity,
 	       "%sconnect from %s\n",status?"":"refused ",
 	       h?h:inet_ntoa(sin->sin_addr));

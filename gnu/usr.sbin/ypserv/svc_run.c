@@ -55,6 +55,10 @@ my_svc_run()
 #endif /* def FD_SETSIZE */
 	extern int errno;
 	extern int forked;
+	int pid;
+
+	/* Establish the identity of the parent ypserv process. */
+	pid = getpid();
 
 	for (;;) {
 #ifdef FD_SETSIZE
@@ -74,7 +78,7 @@ my_svc_run()
 			continue;
 		default:
 			svc_getreqset(&readfds);
-			if (forked)
+			if (forked && pid != getpid())
 				exit(0);
 		}
 	}
