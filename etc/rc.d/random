@@ -52,7 +52,7 @@ random_start()
 
 random_stop()
 {
-	# Write some entropy so when the machine reebots /dev/random
+	# Write some entropy so when the machine reboots /dev/random
 	# can be reseeded
 	#
 	case ${entropy_file} in
