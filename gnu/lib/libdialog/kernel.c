@@ -378,11 +378,27 @@ void draw_shadow(WINDOW *win, int y, int x, int height, int width)
   int i;
 
   if (has_colors()) {    /* Whether terminal supports color? */
+
+    /* small touchwin */
+    wattrset(win, A_NORMAL);
+    wmove(win, y + height, x + 2);
+    for (i = 0; i < width; i++)
+      waddch(win, winch(win) & A_CHARTEXT);
+
     wattrset(win, shadow_attr);
     wmove(win, y + height, x + 2);
     for (i = 0; i < width; i++)
       waddch(win, winch(win) & A_CHARTEXT);
+
     for (i = y + 1; i < y + height + 1; i++) {
+
+      /* small touchwin */
+      wattrset(win, A_NORMAL);
+      wmove(win, i, x + width);
+      waddch(win, winch(win) & A_CHARTEXT);
+      waddch(win, winch(win) & A_CHARTEXT);
+
+      wattrset(win, shadow_attr);
       wmove(win, i, x + width);
       waddch(win, winch(win) & A_CHARTEXT);
       waddch(win, winch(win) & A_CHARTEXT);
