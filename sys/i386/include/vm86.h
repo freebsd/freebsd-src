@@ -26,38 +26,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86.h,v 1.3 1997/08/28 14:36:56 jlemon Exp $
+ *	$Id: vm86.h,v 1.4 1997/11/20 18:43:55 bde Exp $
  */
 
 #ifndef _MACHINE_VM86_H_
 #define _MACHINE_VM86_H_ 1
-
-struct vm86_kernel {
-	caddr_t	vm86_intmap;			/* interrupt map */
-        u_long	vm86_eflags;			/* emulated flags */
-	int	vm86_has_vme;			/* VME support */
-	int	vm86_inited;			/* we were initialized */
-	int	vm86_debug;
-};
-
-struct i386_vm86_args {
-	int	sub_op;			/* sub-operation to perform */
-	char 	*sub_args;		/* args */
-};
-
-#define VM86_INIT	1
-#define VM86_SET_VME	2
-#define VM86_GET_VME	3
-
-struct vm86_init_args {
-        int     debug;                  /* debug flag */
-        int     cpu_type;               /* cpu type to emulate */
-        u_char  int_map[32];            /* interrupt map */ 
-};
-
-struct vm86_vme_args {
-	int	state;			/* status */
-};
 
 /* standard register representation */
 typedef union {
@@ -76,8 +49,8 @@ typedef union {
 /* layout must match definition of struct trapframe_vm86 in <machine/frame.h> */
 
 struct vm86frame {
-	int	:32;			/* kernel ES */
-	int	:32;			/* kernel DS */
+	int	kernel_es;
+	int	kernel_ds;
 	reg86_t	edi;
 	reg86_t	esi;
 	reg86_t	ebp;
@@ -86,8 +59,8 @@ struct vm86frame {
 	reg86_t	edx;
 	reg86_t	ecx;
 	reg86_t	eax;
-	int	:32;			/* trapno */
-	int	:32;			/* err */
+	int	vmf_trapno;
+	int	vmf_err;
 	reg86_t	eip;
 	reg86_t	cs;
 	reg86_t	eflags;
@@ -97,7 +70,21 @@ struct vm86frame {
 	reg86_t	ds;
 	reg86_t	fs;
 	reg86_t	gs;
+#define vmf_ah		eax.r_b.r_h
+#define vmf_al		eax.r_b.r_l
+#define vmf_ax		eax.r_w.r_x
+#define vmf_eax		eax.r_ex
+#define vmf_bx		ebx.r_w.r_x
+#define vmf_ebx		ebx.r_ex
+#define vmf_cx		ecx.r_w.r_x
+#define vmf_ecx		ecx.r_ex
+#define vmf_dx		edx.r_w.r_x
+#define vmf_edx		edx.r_ex
+#define vmf_si		esi.r_w.r_x
+#define vmf_di		edi.r_w.r_x
 #define vmf_cs		cs.r_w.r_x
+#define vmf_ds		ds.r_w.r_x
+#define vmf_es		es.r_w.r_x
 #define vmf_ss		ss.r_w.r_x
 #define vmf_sp		esp.r_w.r_x
 #define vmf_ip		eip.r_w.r_x
@@ -105,8 +92,52 @@ struct vm86frame {
 #define vmf_eflags	eflags.r_ex
 };
 
+#define VM_USERCHANGE   (PSL_USERCHANGE | PSL_RF)
+#define VME_USERCHANGE  (VM_USERCHANGE | PSL_VIP | PSL_VIF)
+
+struct vm86_kernel {
+	caddr_t	vm86_intmap;			/* interrupt map */
+	u_long	vm86_eflags;			/* emulated flags */
+	int	vm86_has_vme;			/* VME support */
+	int	vm86_inited;			/* we were initialized */
+	int	vm86_debug;
+	caddr_t	vm86_sproc;			/* address of sproc */
+};
+
+struct i386_vm86_args {
+	int	sub_op;			/* sub-operation to perform */
+	char 	*sub_args;		/* args */
+};
+
+#define VM86_INIT	1
+#define VM86_SET_VME	2
+#define VM86_GET_VME	3
+#define VM86_INTCALL	4
+
+struct vm86_init_args {
+        int     debug;                  /* debug flag */
+        int     cpu_type;               /* cpu type to emulate */
+        u_char  int_map[32];            /* interrupt map */ 
+};
+
+struct vm86_vme_args {
+	int	state;			/* status */
+};
+
+struct vm86_intcall_args {
+	int	intnum;
+	struct 	vm86frame vmf;
+};
+
+extern	int in_vm86call;
+
 struct proc;
 extern	int vm86_emulate __P((struct vm86frame *));
 extern	int vm86_sysarch __P((struct proc *, char *));
+extern void vm86_trap __P((struct vm86frame *));
+extern 	int vm86_intcall __P((int, struct vm86frame *));
+extern 	int vm86_datacall __P((int, struct vm86frame *, char *, int,
+				 u_short *, u_short *));
+extern void initial_bioscalls __P((u_int *, u_int *));
 
 #endif /* _MACHINE_VM86_H_ */

@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.103 1998/03/14 03:02:15 tegge Exp $
+ *	$Id: vm_machdep.c,v 1.104 1998/03/17 09:10:05 kato Exp $
  */
 
 #include "npx.h"
@@ -64,6 +64,10 @@
 #include <machine/md_var.h>
 #ifdef SMP
 #include <machine/smp.h>
+#endif
+#ifdef VM86
+#include <machine/pcb_ext.h>
+#include <machine/vm86.h>
 #endif
 
 #include <vm/vm.h>
@@ -599,7 +603,11 @@ cpu_fork(p1, p2)
 	 * syscall.  This copies the user mode register values.
 	 */
 	p2->p_md.md_regs = (struct trapframe *)
+#ifdef VM86
+			   ((int)p2->p_addr + UPAGES * PAGE_SIZE - 16) - 1;
+#else
 			   ((int)p2->p_addr + UPAGES * PAGE_SIZE) - 1;
+#endif /* VM86 */
 	*p2->p_md.md_regs = *p1->p_md.md_regs;
 
 	/*
