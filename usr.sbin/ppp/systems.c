@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.c,v 1.38 1998/06/15 19:06:25 brian Exp $
+ * $Id: systems.c,v 1.39 1998/10/17 12:28:03 brian Exp $
  *
  *  TODO:
  */
@@ -156,7 +156,10 @@ DecodeCtrlCommand(char *line, char *arg)
   return CTRL_UNKNOWN;
 }
 
-/* Initialised in system_IsValid(), set in ReadSystem(), used by system_IsValid() */
+/*
+ * Initialised in system_IsValid(), set in ReadSystem(),
+ * used by system_IsValid()
+ */
 static int modeok;
 static int userok;
 static int modereq;
@@ -341,22 +344,38 @@ ReadSystem(struct bundle *bundle, const char *name, const char *file,
   return -1;
 }
 
-int
+const char *
 system_IsValid(const char *name, struct prompt *prompt, int mode)
 {
   /*
    * Note:  The ReadSystem() calls only result in calls to the Allow*
    * functions.  arg->bundle will be set to NULL for these commands !
    */
-  if (ID0realuid() == 0)
-    return userok = modeok = 1;
+  int def;
+
+  if (ID0realuid() == 0) {
+    userok = modeok = 1;
+    return NULL;
+  }
+
+  def = !strcmp(name, "default");
   userok = 0;
   modeok = 1;
   modereq = mode;
-  ReadSystem(NULL, "default", CONFFILE, 0, prompt, NULL);
-  if (name != NULL)
-    ReadSystem(NULL, name, CONFFILE, 0, prompt, NULL);
-  return userok && modeok;
+
+  if (ReadSystem(NULL, "default", CONFFILE, 0, prompt, NULL) != 0 && def)
+    return "System not found";
+
+  if (!def && ReadSystem(NULL, name, CONFFILE, 0, prompt, NULL) != 0)
+    return "System not found";
+
+  if (!userok)
+    return "Invalid user id";
+
+  if (!modeok)
+    return "Invalid mode";
+
+  return NULL;
 }
 
 int
