@@ -1299,7 +1299,7 @@ sched_unlend_prio(struct thread *td, u_char prio)
 	else
 		base_pri = td->td_base_pri;
 	if (prio >= base_pri) {
-		td->td_flags &= ~ TDF_BORROWING;
+		td->td_flags &= ~TDF_BORROWING;
 		sched_thread_priority(td, base_pri);
 	} else
 		sched_lend_prio(td, prio);
@@ -1314,7 +1314,7 @@ sched_prio(struct thread *td, u_char prio)
 	td->td_base_pri = prio;
 
 	/*
-	 * If the therad is borrowing another thread's priority, don't
+	 * If the thread is borrowing another thread's priority, don't
 	 * ever lower the priority.
 	 */
 	if (td->td_flags & TDF_BORROWING && td->td_priority < prio)
@@ -1331,7 +1331,7 @@ sched_prio(struct thread *td, u_char prio)
 	if (TD_ON_LOCK(td) && oldprio != prio)
 		turnstile_adjust(td, oldprio);
 }
-	
+
 void
 sched_switch(struct thread *td, struct thread *newtd, int flags)
 {
