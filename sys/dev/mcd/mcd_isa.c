@@ -13,6 +13,7 @@
 #include <sys/disklabel.h>
 #include <sys/bus.h>
 
+#include <sys/lock.h>
 #include <sys/mutex.h>
 
 #include <machine/bus_pio.h>
