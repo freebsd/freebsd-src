@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.h,v 1.33 1999/01/06 23:05:42 julian Exp $
+ * $Id: vm_map.h,v 1.33.2.1 1999/01/27 20:51:44 julian Exp $
  */
 
 /*
@@ -244,10 +244,14 @@ typedef struct {
 
 static __inline__ int
 _vm_map_lock_upgrade(vm_map_t map, struct proc *p) {
+	int error;
 #if defined(MAP_LOCK_DIAGNOSTIC)
 	printf("locking map LK_EXCLUPGRADE: 0x%x\n", map); 
 #endif
-	return lockmgr(&(map)->lock, LK_EXCLUPGRADE, (void *)0, p);
+	error = lockmgr(&map->lock, LK_EXCLUPGRADE, (void *)0, p);
+	if (error == 0)
+		map->timestamp++;
+	return error;
 }
 
 #define vm_map_lock_upgrade(map) _vm_map_lock_upgrade(map, curproc)
