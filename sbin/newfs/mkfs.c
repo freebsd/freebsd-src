@@ -236,8 +236,14 @@ mkfs(struct partition *pp, char *fsys)
 	}
 	sblock.fs_fsbtodb = ilog2(sblock.fs_fsize / sectorsize);
 	sblock.fs_size = fssize = dbtofsb(&sblock, fssize);
+
+	/*
+	 * Before the filesystem is finally initialized, mark it
+	 * as incompletely initialized.
+	 */
+	sblock.fs_magic = FS_BAD_MAGIC;
+
 	if (Oflag == 1) {
-		sblock.fs_magic = FS_UFS1_MAGIC;
 		sblock.fs_sblockloc = SBLOCK_UFS1;
 		sblock.fs_nindir = sblock.fs_bsize / sizeof(ufs1_daddr_t);
 		sblock.fs_inopb = sblock.fs_bsize / sizeof(struct ufs1_dinode);
@@ -257,7 +263,6 @@ mkfs(struct partition *pp, char *fsys)
 		sblock.fs_old_postblformat = 1;
 		sblock.fs_old_nrpos = 1;
 	} else {
-		sblock.fs_magic = FS_BAD2_MAGIC;
 		sblock.fs_sblockloc = SBLOCK_UFS2;
 		sblock.fs_nindir = sblock.fs_bsize / sizeof(ufs2_daddr_t);
 		sblock.fs_inopb = sblock.fs_bsize / sizeof(struct ufs2_dinode);
@@ -455,8 +460,8 @@ mkfs(struct partition *pp, char *fsys)
 	}
 	if (Eflag == 2)
 		printf("** Leaving BAD MAGIC on Eflag 2\n");
-	else if (Oflag != 1)
-		sblock.fs_magic = FS_UFS2_MAGIC;
+	else
+		sblock.fs_magic = (Oflag != 1) ? FS_UFS2_MAGIC : FS_UFS1_MAGIC;
 
 	/*
 	 * Now build the cylinders group blocks and
