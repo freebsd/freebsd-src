@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "kadm5_locl.h"
 
-RCSID("$Id: acl.c,v 1.10 1999/12/02 17:05:05 joda Exp $");
+RCSID("$Id: acl.c,v 1.12 2000/08/10 19:24:08 assar Exp $");
 
 static struct units acl_units[] = {
     { "all",		KADM5_PRIV_ALL },
@@ -68,58 +68,112 @@ _kadm5_privs_to_string(u_int32_t privs, char *string, size_t len)
     return 0;
 }
 
-kadm5_ret_t
-_kadm5_acl_init(kadm5_server_context *context)
-{
-    FILE *f;
-    char buf[128];
-    krb5_principal princ;
-    int flags;
-    krb5_error_code ret;
-    
-    krb5_parse_name(context->context, KADM5_ADMIN_SERVICE, &princ);
-    ret = krb5_principal_compare(context->context, context->caller, princ);
-    krb5_free_principal(context->context, princ);
-    if(ret != 0){
-	context->acl_flags = KADM5_PRIV_ALL;
-	return 0;
-    }
+/*
+ * retrieve the right for the current caller on `princ' (NULL means all)
+ * and store them in `ret_flags'
+ * return 0 or an error.
+ */
 
-    flags = -1;
-    f = fopen(context->config.acl_file, "r");
-    if(f){
-	while(fgets(buf, sizeof(buf), f)){
+static kadm5_ret_t
+fetch_acl (kadm5_server_context *context,
+	   krb5_const_principal princ,
+	   unsigned *ret_flags)
+{
+    unsigned flags = -1;
+    FILE *f = fopen(context->config.acl_file, "r");
+    krb5_error_code ret = 0;
+
+    if(f != NULL) {
+	char buf[256];
+
+	while(fgets(buf, sizeof(buf), f) != NULL){
 	    char *foo = NULL, *p;
+	    krb5_principal this_princ;
+
+	    flags = -1;
 	    p = strtok_r(buf, " \t\n", &foo);
 	    if(p == NULL)
 		continue;
-	    ret = krb5_parse_name(context->context, p, &princ);
+	    ret = krb5_parse_name(context->context, p, &this_princ);
 	    if(ret)
 		continue;
 	    if(!krb5_principal_compare(context->context, 
-				       context->caller,  princ)){
-		krb5_free_principal(context->context, princ);
+				       context->caller, this_princ)) {
+		krb5_free_principal(context->context, this_princ);
 		continue;
 	    }
-	    krb5_free_principal(context->context, princ);
-	    p = strtok_r(NULL, "\n", &foo);
+	    krb5_free_principal(context->context, this_princ);
+	    p = strtok_r(NULL, " \t\n", &foo);
 	    if(p == NULL)
 		continue;
 	    ret = _kadm5_string_to_privs(p, &flags);
-	    break;
+	    if (ret)
+		break;
+	    p = strtok_r(NULL, "\n", &foo);
+	    if (p == NULL) {
+		ret = 0;
+		break;
+	    }
+	    if (princ != NULL) {
+		krb5_principal pattern_princ;
+		krb5_boolean tmp;
+
+		ret = krb5_parse_name (context->context, p, &pattern_princ);
+		if (ret)
+		    break;
+		tmp = krb5_principal_match (context->context,
+					    princ, pattern_princ);
+		krb5_free_principal (context->context, pattern_princ);
+		if (tmp) {
+		    ret = 0;
+		    break;
+		}
+	    }
 	}
 	fclose(f);
     }
     if(flags == -1)
 	flags = 0;
-    context->acl_flags = flags;
-    return 0;
+    if (ret == 0)
+	*ret_flags = flags;
+    return ret;
 }
 
+/*
+ * set global acl flags in `context' for the current caller.
+ * return 0 on success or an error
+ */
+
 kadm5_ret_t
-_kadm5_acl_check_permission(kadm5_server_context *context, unsigned op)
+_kadm5_acl_init(kadm5_server_context *context)
 {
-    unsigned res = ~context->acl_flags & op;
+    krb5_principal princ;
+    krb5_error_code ret;
+    
+    ret = krb5_parse_name(context->context, KADM5_ADMIN_SERVICE, &princ);
+    if (ret)
+	return ret;
+    ret = krb5_principal_compare(context->context, context->caller, princ);
+    krb5_free_principal(context->context, princ);
+    if(ret != 0) {
+	context->acl_flags = KADM5_PRIV_ALL;
+	return 0;
+    }
+
+    return fetch_acl (context, NULL, &context->acl_flags);
+}
+
+/*
+ * check if `flags' allows `op'
+ * return 0 if OK or an error
+ */
+
+static kadm5_ret_t
+check_flags (unsigned op,
+	     unsigned flags)
+{
+    unsigned res = ~flags & op;
+
     if(res & KADM5_PRIV_GET)
 	return KADM5_AUTH_GET;
     if(res & KADM5_PRIV_ADD)
@@ -135,4 +189,27 @@ _kadm5_acl_check_permission(kadm5_server_context *context, unsigned op)
     if(res)
 	return KADM5_AUTH_INSUFFICIENT;
     return 0;
+}
+
+/*
+ * return 0 if the current caller in `context' is allowed to perform
+ * `op' on `princ' and otherwise an error
+ * princ == NULL if it's not relevant.
+ */
+
+kadm5_ret_t
+_kadm5_acl_check_permission(kadm5_server_context *context,
+			    unsigned op,
+			    krb5_const_principal princ)
+{
+    kadm5_ret_t ret;
+    unsigned princ_flags;
+
+    ret = check_flags (op, context->acl_flags);
+    if (ret == 0)
+	return ret;
+    ret = fetch_acl (context, princ, &princ_flags);
+    if (ret)
+	return ret;
+    return check_flags (op, princ_flags);
 }

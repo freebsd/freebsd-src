@@ -55,7 +55,7 @@
 #include <config.h>
 #endif
 
-RCSID("$Id: kerberos.c,v 1.47 2000/02/07 03:14:19 assar Exp $");
+RCSID("$Id: kerberos.c,v 1.50 2000/11/23 02:28:06 joda Exp $");
 
 #ifdef	KRB4
 #ifdef HAVE_SYS_TYPES_H
@@ -170,7 +170,6 @@ kerberos4_send(char *name, Authenticator *ap)
     CREDENTIALS cred;
     int r;
 
-    printf("[ Trying %s ... ]\r\n", name);
     if (!UserNameRequested) {
 	if (auth_debug_mode) {
 	    printf("Kerberos V4: no user name supplied\r\n");
@@ -190,6 +189,8 @@ kerberos4_send(char *name, Authenticator *ap)
 	printf("Kerberos V4: no realm for %s\r\n", RemoteHostName);
 	return(0);
     }
+    printf("[ Trying %s (%s.%s@%s) ... ]\r\n", name, 
+	   KRB_SERVICE_NAME, instance, realm);
     r = krb_mk_req(&auth, KRB_SERVICE_NAME, instance, realm, 0L);
     if (r) {
 	printf("mk_req failed: %s\r\n", krb_get_err_text(r));
@@ -272,7 +273,7 @@ kerberos4_is(Authenticator *ap, unsigned char *data, int cnt)
     char realm[REALM_SZ];
     char instance[INST_SZ];
     int r;
-    int addr_len;
+    socklen_t addr_len;
 
     if (cnt-- < 1)
 	return;
@@ -331,7 +332,7 @@ kerberos4_is(Authenticator *ap, unsigned char *data, int cnt)
 			 "%s%u",
 			 TKT_ROOT,
 			 (unsigned)pw->pw_uid);
-		setenv("KRBTKFILE", ts, 1);
+		esetenv("KRBTKFILE", ts, 1);
 
 		if (pw->pw_uid == 0)
 		    syslog(LOG_INFO|LOG_AUTH,

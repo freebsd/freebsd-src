@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,15 +33,24 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: mcache.c,v 1.10 1999/12/02 17:05:11 joda Exp $");
+RCSID("$Id: mcache.c,v 1.12 2000/11/15 02:12:51 assar Exp $");
 
 typedef struct krb5_mcache {
+    char *name;
+    unsigned int refcnt;
     krb5_principal primary_principal;
     struct link {
 	krb5_creds cred;
 	struct link *next;
     } *creds;
+    struct krb5_mcache *next;
 } krb5_mcache;
+
+static struct krb5_mcache *mcc_head;
+
+#define	MCACHE(X)	((krb5_mcache *)(X)->data.data)
+
+#define MISDEAD(X)	((X)->primary_principal == NULL)
 
 #define MCC_CURSOR(C) ((struct link*)(C))
 
@@ -49,27 +58,72 @@ static char*
 mcc_get_name(krb5_context context,
 	     krb5_ccache id)
 {
-    return "";			/* XXX */
+    return MCACHE(id)->name;
+}
+
+static krb5_mcache *
+mcc_alloc(const char *name)
+{
+    krb5_mcache *m;
+    ALLOC(m, 1);
+    if(m == NULL)
+	return NULL;
+    if(name == NULL)
+	asprintf(&m->name, "%p", m);
+    else
+	m->name = strdup(name);
+    if(m->name == NULL) {
+	free(m);
+	return NULL;
+    }
+    m->refcnt = 1;
+    m->primary_principal = NULL;
+    m->creds = NULL;
+    m->next = mcc_head;
+    mcc_head = m;
+    return m;
 }
 
 static krb5_error_code
 mcc_resolve(krb5_context context, krb5_ccache *id, const char *res)
 {
-    krb5_abortx(context, "unimplemented mcc_resolve called");
+    krb5_mcache *m;
+
+    for (m = mcc_head; m != NULL; m = m->next)
+	if (strcmp(m->name, res) == 0)
+	    break;
+
+    if (m != NULL) {
+	m->refcnt++;
+	(*id)->data.data = m;
+	(*id)->data.length = sizeof(*m);
+	return 0;
+    }
+
+    m = mcc_alloc(res);
+    if (m == NULL)
+	return KRB5_CC_NOMEM;
+    
+    (*id)->data.data = m;
+    (*id)->data.length = sizeof(*m);
+
+    return 0;
 }
+
 
 static krb5_error_code
 mcc_gen_new(krb5_context context, krb5_ccache *id)
 {
     krb5_mcache *m;
 
-    m = malloc (sizeof(*m));
+    m = mcc_alloc(NULL);
+
     if (m == NULL)
 	return KRB5_CC_NOMEM;
-    m->primary_principal = NULL;
-    m->creds = NULL;
+
     (*id)->data.data = m;
     (*id)->data.length = sizeof(*m);
+
     return 0;
 }
 
@@ -78,37 +132,25 @@ mcc_initialize(krb5_context context,
 	       krb5_ccache id,
 	       krb5_principal primary_principal)
 {
-    krb5_error_code ret;
-    krb5_mcache *m;
-
-    m = (krb5_mcache *)id->data.data;
-
-    ret = krb5_copy_principal (context,
-			       primary_principal,
-			       &m->primary_principal);
-    if (ret)
-	return ret;
-    return 0;
+    return krb5_copy_principal (context,
+				primary_principal,
+				&MCACHE(id)->primary_principal);
 }
 
 static krb5_error_code
 mcc_close(krb5_context context,
 	  krb5_ccache id)
 {
-    krb5_mcache *m = (krb5_mcache *)id->data.data;
-    struct link *l;
+    krb5_mcache *m = MCACHE(id);
 
-    krb5_free_principal (context, m->primary_principal);
-    l = m->creds;
-    while (l != NULL) {
-	struct link *old;
+    if (--m->refcnt != 0)
+	return 0;
 
-	krb5_free_creds_contents (context, &l->cred);
-	old = l;
-	l = l->next;
-	free (old);
+    if (MISDEAD(m)) {
+	free (m->name);
+	krb5_data_free(&id->data);
     }
-    krb5_data_free(&id->data);
+
     return 0;
 }
 
@@ -116,6 +158,35 @@ static krb5_error_code
 mcc_destroy(krb5_context context,
 	    krb5_ccache id)
 {
+    krb5_mcache **n, *m = MCACHE(id);
+    struct link *l;
+
+    if (m->refcnt == 0)
+	krb5_abortx(context, "mcc_destroy: refcnt already 0");
+
+    if (!MISDEAD(m)) {
+	/* if this is an active mcache, remove it from the linked
+           list, and free all data */
+	for(n = &mcc_head; n && *n; n = &(*n)->next) {
+	    if(m == *n) {
+		*n = m->next;
+		break;
+	    }
+	}
+	krb5_free_principal (context, m->primary_principal);
+	m->primary_principal = NULL;
+	
+	l = m->creds;
+	while (l != NULL) {
+	    struct link *old;
+	    
+	    krb5_free_creds_contents (context, &l->cred);
+	    old = l;
+	    l = l->next;
+	    free (old);
+	}
+	m->creds = NULL;
+    }
     return 0;
 }
 
@@ -124,9 +195,12 @@ mcc_store_cred(krb5_context context,
 	       krb5_ccache id,
 	       krb5_creds *creds)
 {
+    krb5_mcache *m = MCACHE(id);
     krb5_error_code ret;
-    krb5_mcache *m = (krb5_mcache *)id->data.data;
     struct link *l;
+
+    if (MISDEAD(m))
+	return ENOENT;
 
     l = malloc (sizeof(*l));
     if (l == NULL)
@@ -148,7 +222,10 @@ mcc_get_principal(krb5_context context,
 		  krb5_ccache id,
 		  krb5_principal *principal)
 {
-    krb5_mcache *m = (krb5_mcache *)id->data.data;
+    krb5_mcache *m = MCACHE(id);
+
+    if (MISDEAD(m))
+	return ENOENT;
 
     return krb5_copy_principal (context,
 				m->primary_principal,
@@ -160,7 +237,11 @@ mcc_get_first (krb5_context context,
 	       krb5_ccache id,
 	       krb5_cc_cursor *cursor)
 {
-    krb5_mcache *m = (krb5_mcache *)id->data.data;
+    krb5_mcache *m = MCACHE(id);
+
+    if (MISDEAD(m))
+	return ENOENT;
+
     *cursor = m->creds;
     return 0;
 }
@@ -171,7 +252,11 @@ mcc_get_next (krb5_context context,
 	      krb5_cc_cursor *cursor,
 	      krb5_creds *creds)
 {
+    krb5_mcache *m = MCACHE(id);
     struct link *l;
+
+    if (MISDEAD(m))
+	return ENOENT;
 
     l = *cursor;
     if (l != NULL) {
@@ -195,9 +280,19 @@ static krb5_error_code
 mcc_remove_cred(krb5_context context,
 		 krb5_ccache id,
 		 krb5_flags which,
-		 krb5_creds *cred)
+		 krb5_creds *mcreds)
 {
-    return 0; /* XXX */
+    krb5_mcache *m = MCACHE(id);
+    struct link **q, *p;
+    for(q = &m->creds, p = *q; p; p = *q) {
+	if(krb5_compare_creds(context, which, mcreds, &p->cred)) {
+	    *q = p->next;
+	    krb5_free_cred_contents(context, &p->cred);
+	    free(p);
+	} else
+	    q = &p->next;
+    }
+    return 0;
 }
 
 static krb5_error_code

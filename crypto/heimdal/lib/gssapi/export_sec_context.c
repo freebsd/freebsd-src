@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: export_sec_context.c,v 1.2 2000/02/12 21:25:24 assar Exp $");
+RCSID("$Id: export_sec_context.c,v 1.3 2000/07/08 11:42:22 assar Exp $");
 
 OM_uint32
 gss_export_sec_context (
@@ -44,8 +44,6 @@ gss_export_sec_context (
 {
     krb5_storage *sp;
     krb5_auth_context ac;
-    unsigned char auth_buf[1024];
-    size_t sz;
     int ret;
     krb5_data data;
     gss_buffer_desc buffer;
@@ -97,16 +95,21 @@ gss_export_sec_context (
     krb5_store_int32 (sp, ac->remote_seqnumber);
 
 #if 0
-    ret = encode_Authenticator (auth_buf, sizeof(auth_buf),
-				ac->authenticator, &sz);
-    if (ret) {
-	krb5_storage_free (sp);
-	*minor_status = ret;
-	return GSS_S_FAILURE;
+    {
+	size_t sz;
+	unsigned char auth_buf[1024];
+
+	ret = encode_Authenticator (auth_buf, sizeof(auth_buf),
+				    ac->authenticator, &sz);
+	if (ret) {
+	    krb5_storage_free (sp);
+	    *minor_status = ret;
+	    return GSS_S_FAILURE;
+	}
+	data.data   = auth_buf;
+	data.length = sz;
+	krb5_store_data (sp, data);
     }
-    data.data   = auth_buf;
-    data.length = sz;
-    krb5_store_data (sp, data);
 #endif
     krb5_store_int32 (sp, ac->keytype);
     krb5_store_int32 (sp, ac->cksumtype);

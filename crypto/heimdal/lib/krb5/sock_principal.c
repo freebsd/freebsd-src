@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: sock_principal.c,v 1.9 1999/12/02 17:05:12 joda Exp $");
+RCSID("$Id: sock_principal.c,v 1.11 2000/08/09 20:53:11 assar Exp $");
 			
 krb5_error_code
 krb5_sock_to_principal (krb5_context context,
@@ -46,10 +46,11 @@ krb5_sock_to_principal (krb5_context context,
     krb5_address address;
     struct sockaddr_storage __ss;
     struct sockaddr *sa = (struct sockaddr *)&__ss;
-    int len = sizeof(__ss);
+    socklen_t len = sizeof(__ss);
     struct hostent *hostent;
     int family;
     char hname[256];
+    char *tmp;
 
     if (getsockname (sock, sa, &len) < 0)
 	return errno;
@@ -65,7 +66,18 @@ krb5_sock_to_principal (krb5_context context,
 
     if (hostent == NULL)
 	return h_errno;
-    strlcpy(hname, hostent->h_name, sizeof(hname));
+    tmp = hostent->h_name;
+    if (strchr(tmp, '.') == NULL) {
+	char **a;
+
+	for (a = hostent->h_aliases; a != NULL && *a != NULL; ++a)
+	    if (strchr(*a, '.') != NULL) {
+		tmp = *a;
+		break;
+	    }
+    }
+
+    strlcpy(hname, tmp, sizeof(hname));
     return krb5_sname_to_principal (context,
 				    hname,
 				    sname,

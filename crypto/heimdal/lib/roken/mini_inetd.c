@@ -33,35 +33,11 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: mini_inetd.c,v 1.25 2000/01/26 00:54:48 assar Exp $");
-#endif
-
-#include <stdio.h>
-
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-#ifdef HAVE_SYS_TYPES_H
-#include <sys/types.h>
-#endif
-#ifdef HAVE_SYS_TIME_H
-#include <sys/time.h>
-#endif
-#ifdef HAVE_SYS_SOCKET_H
-#include <sys/socket.h>
-#endif
-#ifdef HAVE_NETINET_IN_H
-#include <netinet/in.h>
-#endif
-#ifdef HAVE_NETINET_IN6_H
-#include <netinet/in6.h>
-#endif
-#ifdef HAVE_NETINET6_IN6_H
-#include <netinet6/in6.h>
+RCSID("$Id: mini_inetd.c,v 1.28 2000/10/08 13:38:47 assar Exp $");
 #endif
 
 #include <err.h>
-#include <roken.h>
+#include "roken.h"
 
 /*
  * accept a connection on `s' and pretend it's served by inetd.
@@ -72,7 +48,7 @@ accept_it (int s)
 {
     int s2;
 
-    s2 = accept(s, NULL, 0);
+    s2 = accept(s, NULL, NULL);
     if(s2 < 0)
 	err (1, "accept");
     close(s);
@@ -127,6 +103,8 @@ mini_inetd (int port)
 	    err (1, "bind");
 	if (listen (fds[i], SOMAXCONN) < 0)
 	    err (1, "listen");
+	if (fds[i] >= FD_SETSIZE)
+	    errx (1, "fd too large");
 	FD_SET(fds[i], &orig_read_set);
 	max_fd = max(max_fd, fds[i]);
 	++i;

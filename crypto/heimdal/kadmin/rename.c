@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,18 +33,40 @@
 
 #include "kadmin_locl.h"
 
-RCSID("$Id: rename.c,v 1.2 1999/12/02 17:04:58 joda Exp $");
+RCSID("$Id: rename.c,v 1.3 2000/09/10 19:19:20 joda Exp $");
+
+static struct getargs args[] = {
+    { "help", 'h', arg_flag, NULL }
+};
+
+static int num_args = sizeof(args) / sizeof(args[0]);
+
+static void
+usage(void)
+{
+    arg_printusage (args, num_args, "rename", "from to");
+}
 
 int
 rename_entry(int argc, char **argv)
 {
+    int optind = 0;
+    int help_flag = 0;
+
     krb5_error_code ret;
     krb5_principal princ1, princ2;
 
-    if(argc != 3){
-	krb5_warnx(context, "rename source target");
+    args[0].value = &help_flag;
+
+    if(getarg(args, num_args, argc, argv, &optind)) {
+	usage ();
 	return 0;
     }
+    if(argc - optind < 3 || help_flag) {
+	usage ();
+	return 0;
+    }
+
     ret = krb5_parse_name(context, argv[1], &princ1);
     if(ret){
 	krb5_warn(context, ret, "krb5_parse_name(%s)", argv[1]);

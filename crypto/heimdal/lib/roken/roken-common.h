@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -31,10 +31,18 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: roken-common.h,v 1.27 2000/02/14 02:24:44 assar Exp $ */
+/* $Id: roken-common.h,v 1.42 2001/01/29 02:09:09 assar Exp $ */
 
 #ifndef __ROKEN_COMMON_H__
 #define __ROKEN_COMMON_H__
+
+#ifdef __cplusplus
+#define ROKEN_CPP_START	extern "C" {
+#define ROKEN_CPP_END	}
+#else
+#define ROKEN_CPP_START
+#define ROKEN_CPP_END
+#endif
 
 #ifndef INADDR_NONE
 #define INADDR_NONE 0xffffffff
@@ -116,12 +124,20 @@
 #define _PATH_HEQUIV "/etc/hosts.equiv"
 #endif
 
+#ifndef _PATH_VARRUN
+#define _PATH_VARRUN "/var/run/"
+#endif
+
+#ifndef _PATH_BSHELL
+#define _PATH_BSHELL "/bin/sh"
+#endif
+
 #ifndef MAXPATHLEN
 #define MAXPATHLEN (1024+4)
 #endif
 
 #ifndef SIG_ERR
-#define SIG_ERR ((RETSIGTYPE (*)())-1)
+#define SIG_ERR ((RETSIGTYPE (*)(int))-1)
 #endif
 
 /*
@@ -233,9 +249,11 @@
 #define __attribute__(x)
 #endif
 
+ROKEN_CPP_START
+
 #if IRIX != 4 /* fix for compiler bug */
 #ifdef RETSIGTYPE
-typedef RETSIGTYPE (*SigAction)(/* int??? */);
+typedef RETSIGTYPE (*SigAction)(int);
 SigAction signal(int iSig, SigAction pAction); /* BSD compatible */
 #endif
 #endif
@@ -244,6 +262,7 @@ int ROKEN_LIB_FUNCTION simple_execve(const char*, char*const[], char*const[]);
 int ROKEN_LIB_FUNCTION simple_execvp(const char*, char *const[]);
 int ROKEN_LIB_FUNCTION simple_execlp(const char*, ...);
 int ROKEN_LIB_FUNCTION simple_execle(const char*, ...);
+int ROKEN_LIB_FUNCTION simple_execl(const char *file, ...);
 
 void ROKEN_LIB_FUNCTION print_version(const char *);
 
@@ -253,6 +272,9 @@ char *ROKEN_LIB_FUNCTION estrdup (const char *);
 
 ssize_t ROKEN_LIB_FUNCTION eread (int fd, void *buf, size_t nbytes);
 ssize_t ROKEN_LIB_FUNCTION ewrite (int fd, const void *buf, size_t nbytes);
+
+void
+esetenv(const char *var, const char *val, int rewrite);
 
 void
 socket_set_address_and_port (struct sockaddr *sa, const void *ptr, int port);
@@ -290,5 +312,19 @@ vstrcollect(va_list *ap);
 char **
 strcollect(char *first, ...);
 
+void timevalfix(struct timeval *t1);
+void timevaladd(struct timeval *t1, const struct timeval *t2);
+void timevalsub(struct timeval *t1, const struct timeval *t2);
+
+char *pid_file_write (const char *progname);
+void pid_file_delete (char **);
+
+int
+read_environment(const char *file, char ***env);
+
+void warnerr(int doerrno, const char *fmt, va_list ap)
+    __attribute__ ((format (printf, 2, 0)));
+
+ROKEN_CPP_END
 
 #endif /* __ROKEN_COMMON_H__ */

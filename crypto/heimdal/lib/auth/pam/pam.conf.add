@@ -32,36 +32,52 @@ To enable PAM in dtlogin and /bin/login under SunOS 5.6 apply this patch:
  #
  # Password management
 ---------------------------------------------------------------------------
-To enable PAM in /bin/login and xdm under Red Hat 6.1 apply these patches:
+To enable PAM in /bin/login and xdm under Red Hat 6.? apply these patches:
 
---- /etc/pam.d/login~   Thu Jul  8 00:14:02 1999
-+++ /etc/pam.d/login    Mon Aug 30 14:33:12 1999
+--- /etc/pam.d/login~	Tue Dec  7 12:01:35 1999
++++ /etc/pam.d/login	Wed May 31 16:27:55 2000
 @@ -1,9 +1,12 @@
  #%PAM-1.0
 +# Updated to work with kerberos
-+auth       sufficient   /lib/security/pam_krb4.so
- auth       required    /lib/security/pam_securetty.so
- auth       required    /lib/security/pam_pwdb.so shadow nullok
- auth       required    /lib/security/pam_nologin.so
- account    required    /lib/security/pam_pwdb.so
- password   required    /lib/security/pam_cracklib.so
- password   required    /lib/security/pam_pwdb.so nullok use_authtok shadow
-+session    required     /lib/security/pam_krb4.so
- session    required    /lib/security/pam_pwdb.so
- session    optional    /lib/security/pam_console.so
---- /etc/pam.d/xdm~     Mon Jun 14 17:39:05 1999
-+++ /etc/pam.d/xdm      Mon Aug 30 14:54:51 1999
-@@ -1,8 +1,10 @@
++auth       sufficient   /usr/athena/lib/pam_krb4.so.1.0.1
+ auth       required	/lib/security/pam_securetty.so
+ auth       required	/lib/security/pam_pwdb.so shadow nullok
+ auth       required	/lib/security/pam_nologin.so
+ account    required	/lib/security/pam_pwdb.so
+ password   required	/lib/security/pam_cracklib.so
+ password   required	/lib/security/pam_pwdb.so nullok use_authtok md5 shadow
++session    required     /usr/athena/lib/pam_krb4.so.1.0.1
+ session    required	/lib/security/pam_pwdb.so
+ session    optional	/lib/security/pam_console.so
+--- /etc/pam.d/xdm~	Wed May 31 16:33:54 2000
++++ /etc/pam.d/xdm	Wed May 31 16:28:29 2000
+@@ -1,8 +1,11 @@
  #%PAM-1.0
-+auth       sufficient   /lib/security/pam_krb4.so
- auth       required    /lib/security/pam_pwdb.so shadow nullok
- auth       required    /lib/security/pam_nologin.so
- account    required    /lib/security/pam_pwdb.so
- password   required    /lib/security/pam_cracklib.so
- password   required    /lib/security/pam_pwdb.so shadow nullok use_authtok
-+session    required     /lib/security/pam_krb4.so
- session    required    /lib/security/pam_pwdb.so
++# Updated to work with kerberos
++auth       sufficient   /usr/athena/lib/pam_krb4.so.1.0.1
+ auth       required	/lib/security/pam_pwdb.so shadow nullok
+ auth       required	/lib/security/pam_nologin.so
+ account    required	/lib/security/pam_pwdb.so
+ password   required	/lib/security/pam_cracklib.so
+ password   required	/lib/security/pam_pwdb.so shadow nullok use_authtok
++session    required     /usr/athena/lib/pam_krb4.so.1.0.1
+ session    required	/lib/security/pam_pwdb.so
  session    optional     /lib/security/pam_console.so
+--- /etc/pam.d/gdm~	Wed May 31 16:33:54 2000
++++ /etc/pam.d/gdm	Wed May 31 16:34:28 2000
+@@ -1,8 +1,11 @@
+ #%PAM-1.0
++# Updated to work with kerberos
++auth       sufficient   /usr/athena/lib/pam_krb4.so.1.0.1
+ auth       required	/lib/security/pam_pwdb.so shadow nullok
+ auth       required	/lib/security/pam_nologin.so
+ account    required	/lib/security/pam_pwdb.so
+ password   required	/lib/security/pam_cracklib.so
+ password   required	/lib/security/pam_pwdb.so shadow nullok use_authtok
++session    required     /usr/athena/lib/pam_krb4.so.1.0.1
+ session    required	/lib/security/pam_pwdb.so
+ session    optional     /lib/security/pam_console.so
+
 --------------------------------------------------------------------------
 
 This stuff may work under some other system.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: private.h,v 1.10 1999/12/04 23:09:34 assar Exp $ */
+/* $Id: private.h,v 1.14 2000/07/11 15:58:57 joda Exp $ */
 
 #ifndef __kadm5_private_h__
 #define __kadm5_private_h__
@@ -51,6 +51,8 @@ struct kadm_func {
     kadm5_ret_t (*randkey_principal) (void*, krb5_principal, 
 				      krb5_keyblock**, int*);
     kadm5_ret_t (*rename_principal) (void*, krb5_principal, krb5_principal);
+    kadm5_ret_t (*chpass_principal_with_key) (void *, krb5_principal,
+					      int, krb5_key_data *);
 };
 
 /* XXX should be integrated */
@@ -86,7 +88,7 @@ typedef struct kadm5_server_context {
     krb5_principal caller;
     unsigned acl_flags;
     kadm5_log_context log_context;
-}kadm5_server_context;
+} kadm5_server_context;
 
 typedef struct kadm5_client_context {
     krb5_context context;
@@ -98,6 +100,12 @@ typedef struct kadm5_client_context {
     char *admin_server;
     int kadmind_port;
     int sock;
+    char *client_name;
+    char *service_name;
+    krb5_prompter_fct prompter;
+    const char *keytab;
+    krb5_ccache ccache;
+    kadm5_config_params *realm_params;
 }kadm5_client_context;
 
 enum kadm_ops {
@@ -109,7 +117,9 @@ enum kadm_ops {
     kadm_modify,
     kadm_randkey,
     kadm_get_privs,
-    kadm_get_princs
+    kadm_get_princs,
+    kadm_chpass_with_key,
+    kadm_nop
 };
 
 #define KADMIN_APPL_VERSION "KADM0.1"
@@ -117,165 +127,6 @@ enum kadm_ops {
 
 #define KADM5_LOG_SIGNAL HDB_DB_DIR "/signal"
 
-kadm5_ret_t _kadm5_privs_to_string (u_int32_t, char*, size_t);
-
-kadm5_ret_t _kadm5_string_to_privs (const char*, u_int32_t*);
-
-HDB *_kadm5_s_get_db (void *);
-
-kadm5_ret_t
-_kadm5_acl_check_permission __P((
-	kadm5_server_context *context,
-	unsigned op));
-
-kadm5_ret_t
-_kadm5_acl_init __P((kadm5_server_context *context));
-
-kadm5_ret_t
-_kadm5_c_init_context __P((
-	kadm5_client_context **ctx,
-	kadm5_config_params *params,
-	krb5_context context));
-
-kadm5_ret_t
-_kadm5_client_recv __P((
-	kadm5_client_context *context,
-	krb5_data *reply));
-
-kadm5_ret_t
-_kadm5_client_send __P((
-	kadm5_client_context *context,
-	krb5_storage *sp));
-
-kadm5_ret_t
-_kadm5_error_code __P((kadm5_ret_t code));
-
-kadm5_ret_t
-_kadm5_s_init_context __P((
-	kadm5_server_context **ctx,
-	kadm5_config_params *params,
-	krb5_context context));
-
-kadm5_ret_t
-_kadm5_set_keys __P((
-	kadm5_server_context *context,
-	hdb_entry *ent,
-	const char *password));
-
-kadm5_ret_t
-_kadm5_set_keys2 __P((
-	hdb_entry *ent, 
-	int16_t n_key_data, 
-	krb5_key_data *key_data));
-
-kadm5_ret_t
-_kadm5_set_keys_randomly __P((kadm5_server_context *context,
-			      hdb_entry *ent,
-			      krb5_keyblock **new_keys,
-			      int *n_keys));
-
-kadm5_ret_t
-_kadm5_set_modifier __P((
-	kadm5_server_context *context,
-	hdb_entry *ent));
-
-kadm5_ret_t
-_kadm5_setup_entry __P((
-	hdb_entry *ent,
-	u_int32_t mask,
-	kadm5_principal_ent_t princ,
-	u_int32_t princ_mask,
-	kadm5_principal_ent_t def,
-	u_int32_t def_mask));
-
-kadm5_ret_t
-kadm5_log_get_version (int fd,
-		       u_int32_t *ver);
-
-kadm5_ret_t
-kadm5_log_init (kadm5_server_context *context);
-
-kadm5_ret_t
-kadm5_log_create (kadm5_server_context *context,
-		  hdb_entry *ent);
-
-kadm5_ret_t
-kadm5_log_delete (kadm5_server_context *context,
-		  krb5_principal princ);
-
-kadm5_ret_t
-kadm5_log_rename (kadm5_server_context *context,
-		  krb5_principal source,
-		  hdb_entry *ent);
-
-kadm5_ret_t
-kadm5_log_modify (kadm5_server_context *context,
-		  hdb_entry *ent,
-		  u_int32_t mask);
-
-kadm5_ret_t
-kadm5_log_end (kadm5_server_context *context);
-
-kadm5_ret_t
-kadm5_log_foreach (kadm5_server_context *context,
-		   void (*func)(kadm5_server_context *server_context,
-				u_int32_t ver,
-				time_t timestamp,
-				enum kadm_ops op,
-				u_int32_t len,
-				krb5_storage *sp));
-
-kadm5_ret_t
-kadm5_log_replay_create (kadm5_server_context *context,
-			 u_int32_t ver,
-			 u_int32_t len,
-			 krb5_storage *sp);
-
-kadm5_ret_t
-kadm5_log_replay_delete (kadm5_server_context *context,
-			 u_int32_t ver,
-			 u_int32_t len,
-			 krb5_storage *sp);
-
-kadm5_ret_t
-kadm5_log_replay_rename (kadm5_server_context *context,
-			 u_int32_t ver,
-			 u_int32_t len,
-			 krb5_storage *sp);
-
-kadm5_ret_t
-kadm5_log_replay_modify (kadm5_server_context *context,
-			 u_int32_t ver,
-			 u_int32_t len,
-			 krb5_storage *sp);
-
-kadm5_ret_t
-kadm5_log_replay (kadm5_server_context *context,
-		  enum kadm_ops op,
-		  u_int32_t ver,
-		  u_int32_t len,
-		  krb5_storage *sp);
-
-krb5_storage *
-kadm5_log_goto_end (int fd);
-
-kadm5_ret_t
-kadm5_log_previous (krb5_storage *sp,
-		    u_int32_t *ver,
-		    time_t *timestamp,
-		    enum kadm_ops *op,
-		    u_int32_t *len);
-
-kadm5_ret_t
-_kadm5_marshal_params __P((krb5_context context, 
-			   kadm5_config_params *params, 
-			   krb5_data *out));
-
-kadm5_ret_t
-_kadm5_unmarshal_params __P((krb5_context context,
-			     krb5_data *in,
-			     kadm5_config_params *params));
-
-
+#include "kadm5-private.h"
 
 #endif /* __kadm5_private_h__ */

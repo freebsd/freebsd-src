@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1998 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: security.h,v 1.7 1999/12/02 16:58:30 joda Exp $ */
+/* $Id: security.h,v 1.9 2000/10/04 06:07:52 assar Exp $ */
 
 #ifndef __security_h__
 #define __security_h__
@@ -94,14 +94,18 @@ void delete_ftp_command(void);
 
 
 int sec_fflush (FILE *);
-int sec_fprintf (FILE *, const char *, ...);
+int sec_fprintf (FILE *, const char *, ...)
+    __attribute__ ((format (printf, 2,3)));
 int sec_getc (FILE *);
 int sec_putc (int, FILE *);
 int sec_read (int, void *, int);
 int sec_read_msg (char *, int);
-int sec_vfprintf (FILE *, const char *, va_list);
-int sec_fprintf2(FILE *f, const char *fmt, ...);
-int sec_vfprintf2(FILE *, const char *, va_list);
+int sec_vfprintf (FILE *, const char *, va_list)
+    __attribute__ ((format (printf, 2,0)));
+int sec_fprintf2(FILE *f, const char *fmt, ...)
+    __attribute__ ((format (printf, 2,3)));
+int sec_vfprintf2(FILE *, const char *, va_list)
+    __attribute__ ((format (printf, 2,0)));
 int sec_write (int, char *, int);
 
 #ifdef FTP_SERVER

@@ -1,4 +1,4 @@
-# $Id: Makefile.am,v 1.30 1999/12/21 17:03:11 assar Exp $
+# $Id: Makefile.am,v 1.31 2000/07/02 16:08:29 assar Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -39,6 +39,7 @@ CLEANFILES =		\
 	krb5_err.h	\
 	md4.h		\
 	md5.h		\
+	rc4.h		\
 	otp.h		\
 	parse_time.h	\
 	parse_units.h	\

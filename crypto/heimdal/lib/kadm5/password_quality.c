@@ -33,7 +33,7 @@
 
 #include "kadm5_locl.h"
 
-RCSID("$Id: password_quality.c,v 1.3 1999/12/02 17:05:06 joda Exp $");
+RCSID("$Id: password_quality.c,v 1.4 2000/07/05 13:14:45 joda Exp $");
 
 #ifdef HAVE_DLFCN_H
 #include <dlfcn.h>
@@ -57,8 +57,6 @@ typedef const char* (*passwd_quality_check_func)(krb5_context,
 static passwd_quality_check_func passwd_quality_check = simple_passwd_quality;
 
 #ifdef HAVE_DLOPEN
-extern const char *check_library;
-extern const char *check_function;
 
 #define PASSWD_VERSION 0
 

@@ -33,7 +33,7 @@
  *	@(#)ext.h	8.2 (Berkeley) 12/15/93
  */
 
-/* $Id: ext.h,v 1.19 1999/09/05 19:15:21 assar Exp $ */
+/* $Id: ext.h,v 1.20 2000/11/15 23:03:38 assar Exp $ */
 
 #ifndef __EXT_H__
 #define __EXT_H__
@@ -78,7 +78,7 @@ extern int	SYNCHing;		/* we are in TELNET SYNCH mode */
 int telnet_net_write (unsigned char *str, int len);
 void net_encrypt (void);
 int telnet_spin (void);
-char *telnet_getenv (char *val);
+char *telnet_getenv (const char *val);
 char *telnet_gets (char *prompt, char *result, int length, int echo);
 void get_slc_defaults (void);
 void telrcv (void);

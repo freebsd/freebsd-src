@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: fcache.c,v 1.22 1999/12/02 17:05:09 joda Exp $");
+RCSID("$Id: fcache.c,v 1.31 2000/12/05 09:15:10 joda Exp $");
 
 typedef struct krb5_fcache{
     char *filename;
@@ -83,28 +83,86 @@ fcc_resolve(krb5_context context, krb5_ccache *id, const char *res)
     return 0;
 }
 
+/*
+ * Try to scrub the contents of `filename' safely.
+ */
+
+static int
+scrub_file (int fd)
+{
+    off_t pos;
+    char buf[128];
+
+    pos = lseek(fd, 0, SEEK_END);
+    if (pos < 0)
+        return errno;
+    if (lseek(fd, 0, SEEK_SET) < 0)
+        return errno;
+    memset(buf, 0, sizeof(buf));
+    while(pos > 0) {
+        ssize_t tmp = write(fd, buf, min(sizeof(buf), pos));
+
+	if (tmp < 0)
+	    return errno;
+	pos -= tmp;
+    }
+    fsync (fd);
+    return 0;
+}
+
+/*
+ * Erase `filename' if it exists, trying to remove the contents if
+ * it's `safe'.  We always try to remove the file, it it exists.  It's
+ * only overwritten if it's a regular file (not a symlink and not a
+ * hardlink)
+ */
+
 static krb5_error_code
 erase_file(const char *filename)
 {
     int fd;
-    off_t pos;
-    char buf[128];
+    struct stat sb1, sb2;
+    int ret;
+
+    ret = lstat (filename, &sb1);
+    if (ret < 0)
+	return errno;
 
     fd = open(filename, O_RDWR | O_BINARY);
-    if(fd < 0){
+    if(fd < 0) {
 	if(errno == ENOENT)
 	    return 0;
 	else
 	    return errno;
     }
-    pos = lseek(fd, 0, SEEK_END);
-    lseek(fd, 0, SEEK_SET);
-    memset(buf, 0, sizeof(buf));
-    while(pos > 0)
-	pos -= write(fd, buf, sizeof(buf));
-    close(fd);
-    unlink(filename);
-    return 0;
+    if (unlink(filename) < 0) {
+        close (fd);
+        return errno;
+    }
+
+    ret = fstat (fd, &sb2);
+    if (ret < 0) {
+	close (fd);
+	return errno;
+    }
+
+    /* check if someone was playing with symlinks */
+
+    if (sb1.st_dev != sb2.st_dev || sb1.st_ino != sb2.st_ino) {
+	close (fd);
+	return EPERM;
+    }
+
+    /* there are still hard links to this file */
+
+    if (sb2.st_nlink != 0) {
+        close (fd);
+        return 0;
+    }
+
+    ret = scrub_file (fd);
+    close (fd);
+    return ret;
 }
 
 static krb5_error_code
@@ -116,7 +174,7 @@ fcc_gen_new(krb5_context context, krb5_ccache *id)
     f = malloc(sizeof(*f));
     if(f == NULL)
 	return KRB5_CC_NOMEM;
-    asprintf(&file, "/tmp/krb5cc_XXXXXX"); /* XXX */
+    asprintf (&file, "%sXXXXXX", KRB5_DEFAULT_CCFILE_ROOT);
     if(file == NULL) {
 	free(f);
 	return KRB5_CC_NOMEM;
@@ -166,12 +224,11 @@ fcc_initialize(krb5_context context,
 	       krb5_principal primary_principal)
 {
     krb5_fcache *f = FCACHE(id);
-    int ret;
+    int ret = 0;
     int fd;
     char *filename = f->filename;
 
-    if((ret = erase_file(filename)))
-	return ret;
+    unlink (filename);
   
     fd = open(filename, O_RDWR | O_CREAT | O_EXCL | O_BINARY, 0600);
     if(fd == -1)
@@ -183,27 +240,29 @@ fcc_initialize(krb5_context context,
 	    f->version = context->fcache_vno;
 	else
 	    f->version = KRB5_FCC_FVNO_4;
-	krb5_store_int8(sp, 5);
-	krb5_store_int8(sp, f->version);
+	ret |= krb5_store_int8(sp, 5);
+	ret |= krb5_store_int8(sp, f->version);
 	storage_set_flags(context, sp, f->version);
-	if(f->version == KRB5_FCC_FVNO_4) {
+	if(f->version == KRB5_FCC_FVNO_4 && ret == 0) {
 	    /* V4 stuff */
 	    if (context->kdc_sec_offset) {
-		krb5_store_int16 (sp, 12); /* length */
-		krb5_store_int16 (sp, FCC_TAG_DELTATIME); /* Tag */
-		krb5_store_int16 (sp, 8); /* length of data */
-		krb5_store_int32 (sp, context->kdc_sec_offset);
-		krb5_store_int32 (sp, context->kdc_usec_offset);
+		ret |= krb5_store_int16 (sp, 12); /* length */
+		ret |= krb5_store_int16 (sp, FCC_TAG_DELTATIME); /* Tag */
+		ret |= krb5_store_int16 (sp, 8); /* length of data */
+		ret |= krb5_store_int32 (sp, context->kdc_sec_offset);
+		ret |= krb5_store_int32 (sp, context->kdc_usec_offset);
 	    } else {
-		krb5_store_int16 (sp, 0);
+		ret |= krb5_store_int16 (sp, 0);
 	    }
 	}
-	krb5_store_principal(sp, primary_principal);
+	ret |= krb5_store_principal(sp, primary_principal);
 	krb5_storage_free(sp);
     }
-    close(fd);
+    if(close(fd) < 0)
+	if (ret == 0)
+	    ret = errno;
 	
-    return 0;
+    return ret;
 }
 
 static krb5_error_code
@@ -232,6 +291,7 @@ fcc_store_cred(krb5_context context,
 	       krb5_ccache id,
 	       krb5_creds *creds)
 {
+    int ret;
     int fd;
     char *f;
 
@@ -244,11 +304,13 @@ fcc_store_cred(krb5_context context,
 	krb5_storage *sp;
 	sp = krb5_storage_from_fd(fd);
 	storage_set_flags(context, sp, FCACHE(id)->version);
-	krb5_store_creds(sp, creds);
+	ret = krb5_store_creds(sp, creds);
 	krb5_storage_free(sp);
     }
-    close(fd);
-    return 0; /* XXX */
+    if (close(fd) < 0)
+	if (ret == 0)
+	    ret = errno;
+    return ret;
 }
 
 static krb5_error_code
@@ -274,12 +336,17 @@ init_fcc (krb5_context context,
     int fd;
     int8_t pvno, tag;
     krb5_storage *sp;
+    krb5_error_code ret;
 
     fd = open(fcache->filename, O_RDONLY | O_BINARY);
     if(fd < 0)
 	return errno;
     sp = krb5_storage_from_fd(fd);
-    krb5_ret_int8(sp, &pvno);
+    ret = krb5_ret_int8(sp, &pvno);
+    if(ret == KRB5_CC_END)
+	return ENOENT;
+    if(ret)
+	return ret;
     if(pvno != 5) {
 	krb5_storage_free(sp);
 	close(fd);
@@ -341,10 +408,10 @@ fcc_get_principal(krb5_context context,
     ret = init_fcc (context, f, &sp, &fd);
     if (ret)
 	return ret;
-    krb5_ret_principal(sp, principal);
+    ret = krb5_ret_principal(sp, principal);
     krb5_storage_free(sp);
     close(fd);
-    return 0;
+    return ret;
 }
 
 static krb5_error_code

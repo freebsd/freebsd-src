@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,12 +32,9 @@
  */
 
 #include "kpasswd_locl.h"
-RCSID("$Id: kpasswdd.c,v 1.41 1999/12/02 17:05:00 joda Exp $");
+RCSID("$Id: kpasswdd.c,v 1.49 2001/01/11 21:33:53 assar Exp $");
 
 #include <kadm5/admin.h>
-#ifdef HAVE_DLFCN_H
-#include <dlfcn.h>
-#endif
 
 #include <hdb.h>
 
@@ -166,7 +163,7 @@ reply_priv (krb5_auth_context auth_context,
     krb5_data e_data;
 
     ret = krb5_mk_rep (context,
-		       &auth_context,
+		       auth_context,
 		       &ap_rep_data);
     if (ret) {
 	krb5_warn (context, ret, "Could not even generate error reply");
@@ -206,14 +203,10 @@ change (krb5_auth_context auth_context,
 {
     krb5_error_code ret;
     char *client;
-    kadm5_principal_ent_rec ent;
-    krb5_key_data *kd;
-    krb5_salt salt;
-    krb5_keyblock new_keyblock;
     const char *pwd_reason;
-    int unchanged;
     kadm5_config_params conf;
     void *kadm5_handle;
+    char *tmp;
 
     memset (&conf, 0, sizeof(conf));
     
@@ -244,75 +237,27 @@ change (krb5_auth_context auth_context,
 	return;
     }
 
-    ret = kadm5_get_principal (kadm5_handle,
-			       principal,
-			       &ent,
-			       KADM5_KEY_DATA);
-    if (ret) {
-	krb5_warn (context, ret, "kadm5_get_principal");
+    tmp = malloc (pwd_data->length + 1);
+    if (tmp == NULL) {
+	krb5_warnx (context, "malloc: out of memory");
 	reply_priv (auth_context, s, sa, sa_size, 2,
 		    "Internal error");
-	kadm5_destroy (kadm5_handle);
-	return;
+	goto out;
     }
+    memcpy (tmp, pwd_data->data, pwd_data->length);
+    tmp[pwd_data->length] = '\0';
 
-    /*
-     * Compare with the first key to see if it already has been
-     * changed.  If it hasn't, store the new key in the database and
-     * string2key all the rest of them.
-     */
-
-    kd = &ent.key_data[0];
-    
-    salt.salttype         = kd->key_data_type[1];
-    salt.saltvalue.length = kd->key_data_length[1];
-    salt.saltvalue.data   = kd->key_data_contents[1];
-
-    memset (&new_keyblock, 0, sizeof(new_keyblock));
-    krb5_string_to_key_data_salt (context,
-				  kd->key_data_type[0],
-				  *pwd_data,
-				  salt,
-				  &new_keyblock);
-
-    unchanged = new_keyblock.keytype == kd->key_data_type[0]
-	&& new_keyblock.keyvalue.length == kd->key_data_length[0]
-	&& memcmp(new_keyblock.keyvalue.data,
-		  kd->key_data_contents[0],
-		  new_keyblock.keyvalue.length) == 0;
-
-    krb5_free_keyblock_contents (context, &new_keyblock);
-
-    if (unchanged) {
-	ret = 0;
-    } else {
-	char *tmp;
-
-	tmp = malloc (pwd_data->length + 1);
-	if (tmp == NULL) {
-	    krb5_warnx (context, "malloc: out of memory");
-	    reply_priv (auth_context, s, sa, sa_size, 2,
-			"Internal error");
-	    goto out;
-	}
-	memcpy (tmp, pwd_data->data, pwd_data->length);
-	tmp[pwd_data->length] = '\0';
-
-	ret = kadm5_chpass_principal (kadm5_handle,
-				      principal,
-				      tmp);
-	memset (tmp, 0, pwd_data->length);
-	free (tmp);
-	if (ret) {
-	    krb5_warn (context, ret, "kadm5_s_chpass_principal");
-	    reply_priv (auth_context, s, sa, sa_size, 2,
-			"Internal error");
-	    goto out;
-	}
+    ret = kadm5_s_chpass_principal_cond (kadm5_handle, principal, tmp);
+    memset (tmp, 0, pwd_data->length);
+    free (tmp);
+    if (ret) {
+	krb5_warn (context, ret, "kadm5_s_chpass_principal_cond");
+	reply_priv (auth_context, s, sa, sa_size, 2,
+		    "Internal error");
+	goto out;
     }
     reply_priv (auth_context, s, sa, sa_size, 0, "Password changed");
 out:
-    kadm5_free_principal_ent (kadm5_handle, &ent);
     kadm5_destroy (kadm5_handle);
 }
 
@@ -421,9 +366,6 @@ process (krb5_principal server,
 	return;
     }
 
-    krb5_auth_con_setflags (context, auth_context,
-			    KRB5_AUTH_CONTEXT_DO_SEQUENCE);
-
     ret = krb5_sockaddr2address (sa, &other_addr);
     if (ret) {
 	krb5_warn (context, ret, "krb5_sockaddr2address");
@@ -447,6 +389,7 @@ process (krb5_principal server,
 		s,
 		sa, sa_size,
 		&out_data);
+	memset (out_data.data, 0, out_data.length);
 	krb5_free_ticket (context, ticket);
 	free (ticket);
     }
@@ -457,8 +400,7 @@ out:
 }
 
 static int
-doit (krb5_keytab keytab,
-      int port)
+doit (krb5_keytab keytab, int port)
 {
     krb5_error_code ret;
     krb5_principal server;
@@ -514,6 +456,8 @@ doit (krb5_keytab keytab,
 	    krb5_err (context, 1, errno, "bind(%s)", str);
 	}
 	maxfd = max (maxfd, sockets[i]);
+	if (maxfd >= FD_SETSIZE)
+	    krb5_errx (context, 1, "fd too large");
 	FD_SET(sockets[i], &real_fdset);
     }
 
@@ -531,7 +475,7 @@ doit (krb5_keytab keytab,
 	for (i = 0; i < n; ++i)
 	    if (FD_ISSET(sockets[i], &fdset)) {
 		u_char buf[BUFSIZ];
-		int addrlen = sizeof(__ss);
+		socklen_t addrlen = sizeof(__ss);
 
 		ret = recvfrom (sockets[i], buf, sizeof(buf), 0,
 				sa, &addrlen);
@@ -566,6 +510,7 @@ char *keytab_str = "HDB:";
 char *realm_str;
 int version_flag;
 int help_flag;
+char *port_str;
 
 struct getargs args[] = {
 #ifdef HAVE_DLOPEN
@@ -577,6 +522,7 @@ struct getargs args[] = {
     { "keytab", 'k', arg_string, &keytab_str, 
       "keytab to get authentication key from", "kspec" },
     { "realm", 'r', arg_string, &realm_str, "default realm", "realm" },
+    { "port",  'p', arg_string, &port_str, "port" },
     { "version", 0, arg_flag, &version_flag },
     { "help", 0, arg_flag, &help_flag }
 };
@@ -588,6 +534,7 @@ main (int argc, char **argv)
     int optind;
     krb5_keytab keytab;
     krb5_error_code ret;
+    int port;
     
     optind = krb5_program_setup(&context, argc, argv, args, num_args, NULL);
     
@@ -603,6 +550,22 @@ main (int argc, char **argv)
     
     krb5_openlog (context, "kpasswdd", &log_facility);
     krb5_set_warn_dest(context, log_facility);
+
+    if (port_str != NULL) {
+	struct servent *s = roken_getservbyname (port_str, "udp");
+
+	if (s != NULL)
+	    port = s->s_port;
+	else {
+	    char *ptr;
+
+	    port = strtol (port_str, &ptr, 10);
+	    if (port == 0 && ptr == port_str)
+		krb5_errx (context, 1, "bad port `%s'", port_str);
+	    port = htons(port);
+	}
+    } else
+	port = krb5_getportbyname (context, "kpasswd", "udp", KPASSWD_PORT);
 
     ret = krb5_kt_register(context, &hdb_kt_ops);
     if(ret)
@@ -622,13 +585,15 @@ main (int argc, char **argv)
 	sa.sa_handler = sigterm;
 	sigemptyset(&sa.sa_mask);
 
-	sigaction(SIGINT, &sa, NULL);
+	sigaction(SIGINT,  &sa, NULL);
+	sigaction(SIGTERM, &sa, NULL);
     }
 #else
-    signal(SIGINT, sigterm);
+    signal(SIGINT,  sigterm);
+    signal(SIGTERM, sigterm);
 #endif
 
-    return doit (keytab,
-		 krb5_getportbyname (context, "kpasswd", 
-				     "udp", KPASSWD_PORT));
+    pidfile(NULL);
+
+    return doit (keytab, port);
 }

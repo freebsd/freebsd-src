@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: get_for_creds.c,v 1.21 1999/12/20 00:57:37 assar Exp $");
+RCSID("$Id: get_for_creds.c,v 1.27 2000/08/18 06:47:40 assar Exp $");
 
 static krb5_error_code
 add_addrs(krb5_context context,
@@ -41,7 +41,7 @@ add_addrs(krb5_context context,
 	  struct addrinfo *ai)
 {
     krb5_error_code ret;
-    unsigned n, i;
+    unsigned n, i, j;
     void *tmp;
     struct addrinfo *a;
 
@@ -57,11 +57,18 @@ add_addrs(krb5_context context,
 	goto fail;
     }
     addr->val = tmp;
+    for (j = i; j < addr->len; ++j) {
+	addr->val[i].addr_type = 0;
+	krb5_data_zero(&addr->val[i].address);
+    }
     for (a = ai; a != NULL; a = a->ai_next) {
-	ret = krb5_sockaddr2address (a->ai_addr, &addr->val[i++]);
-	if (ret)
+	ret = krb5_sockaddr2address (a->ai_addr, &addr->val[i]);
+	if (ret == 0)
+	    ++i;
+	else if (ret != KRB5_PROG_ATYPE_NOSUPP)
 	    goto fail;
     }
+    addr->len = i;
     return 0;
 fail:
     krb5_free_addresses (context, addr);
@@ -137,7 +144,7 @@ krb5_get_forwarded_creds (krb5_context	    context,
 
     ret = getaddrinfo (hostname, NULL, NULL, &ai);
     if (ret)
-	return ret;
+	return krb5_eai_to_heim_errno(ret);
 
     ret = add_addrs (context, &addrs, ai);
     freeaddrinfo (ai);
@@ -194,22 +201,26 @@ krb5_get_forwarded_creds (krb5_context	    context,
     }
     *enc_krb_cred_part.usec      = usec;
 
-    ret = krb5_make_addrport (&enc_krb_cred_part.s_address,
-			      auth_context->local_address,
-			      auth_context->local_port);
-    if (ret)
-	goto out4;
-
-    ALLOC(enc_krb_cred_part.r_address, 1);
-    if (enc_krb_cred_part.r_address == NULL) {
-	ret = ENOMEM;
-	goto out4;
+    if (auth_context->local_address && auth_context->local_port) {
+	ret = krb5_make_addrport (&enc_krb_cred_part.s_address,
+				  auth_context->local_address,
+				  auth_context->local_port);
+	if (ret)
+	    goto out4;
     }
 
-    ret = krb5_copy_address (context, auth_context->remote_address,
-			     enc_krb_cred_part.r_address);
-    if (ret)
-	goto out4;
+    if (auth_context->remote_address) {
+	ALLOC(enc_krb_cred_part.r_address, 1);
+	if (enc_krb_cred_part.r_address == NULL) {
+	    ret = ENOMEM;
+	    goto out4;
+	}
+
+	ret = krb5_copy_address (context, auth_context->remote_address,
+				 enc_krb_cred_part.r_address);
+	if (ret)
+	    goto out4;
+    }
 
     /* fill ticket_info.val[0] */
 
@@ -252,7 +263,11 @@ krb5_get_forwarded_creds (krb5_context	    context,
 	return ret;
     }    
 
-    krb5_crypto_init(context, auth_context->local_subkey, 0, &crypto);
+    ret = krb5_crypto_init(context, auth_context->local_subkey, 0, &crypto);
+    if (ret) {
+	free_KRB_CRED(&cred);
+	return ret;
+    }
     ret = krb5_encrypt_EncryptedData (context,
 				      crypto,
 				      KRB5_KU_KRB_CRED,

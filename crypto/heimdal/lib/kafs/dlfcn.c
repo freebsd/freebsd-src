@@ -115,12 +115,12 @@ void *dlopen(const char *path, int mode)
 		}
 	if ((mp = (ModulePtr)calloc(1, sizeof(*mp))) == NULL) {
 		errvalid++;
-		snprintf (errbuf, "calloc: %s", strerror(errno));
+		snprintf (errbuf, sizeof(errbuf), "calloc: %s", strerror(errno));
 		return NULL;
 	}
 	if ((mp->name = strdup(path)) == NULL) {
 		errvalid++;
-		snprintf (errbuf, "strdup: %s", strerror(errno));
+		snprintf (errbuf, sizeof(errbuf), "strdup: %s", strerror(errno));
 		free(mp);
 		return NULL;
 	}

@@ -33,7 +33,28 @@
 
 #include "ktutil_locl.h"
 
-RCSID("$Id: list.c,v 1.1 2000/01/02 04:41:02 assar Exp $");
+RCSID("$Id: list.c,v 1.3 2000/06/29 08:21:40 joda Exp $");
+
+static int help_flag;
+static int list_keys;
+static int list_timestamp;
+
+static struct getargs args[] = {
+    { "help",      'h', arg_flag, &help_flag },
+    { "keys",	   0,   arg_flag, &list_keys, "show key value" },
+    { "timestamp", 0,   arg_flag, &list_timestamp, "show timestamp" },
+};
+
+static int num_args = sizeof(args) / sizeof(args[0]);
+
+struct key_info {
+    char *version;
+    char *etype;
+    char *principal;
+    char *timestamp;
+    char *key;
+    struct key_info *next;
+};
 
 int
 kt_list(int argc, char **argv)
@@ -41,43 +62,102 @@ kt_list(int argc, char **argv)
     krb5_error_code ret;
     krb5_kt_cursor cursor;
     krb5_keytab_entry entry;
+    int optind = 0;
+    struct key_info *ki, **kie = &ki, *kp;
+
+    int max_version = sizeof("Vno") - 1;
+    int max_etype = sizeof("Type") - 1;
+    int max_principal = sizeof("Principal") - 1;
+    int max_timestamp = sizeof("Date") - 1;
+    int max_key = sizeof("Key") - 1;
+
+    if(verbose_flag)
+	list_timestamp = 1;
+
+    if(getarg(args, num_args, argc, argv, &optind)){
+	arg_printusage(args, num_args, "ktutil list", "");
+	return 1;
+    }
+    if(help_flag){
+	arg_printusage(args, num_args, "ktutil list", "");
+	return 0;
+    }
 
     ret = krb5_kt_start_seq_get(context, keytab, &cursor);
     if(ret){
-	krb5_warn(context, ret, "krb5_kt_start_seq_get");
+	krb5_warn(context, ret, "krb5_kt_start_seq_get %s", keytab_string);
 	return 1;
     }
-    printf("%s", "Version");
-    printf("  ");
-    printf("%-15s", "Type");
-    printf("  ");
-    printf("%s", "Principal");
-    printf("\n");
     while((ret = krb5_kt_next_entry(context, keytab, &entry, &cursor)) == 0){
-	char *p;
-	printf("   %3d ", entry.vno);
-	printf("  ");
-	ret = krb5_enctype_to_string(context, entry.keyblock.keytype, &p);
-	if (ret != 0) 
-	    asprintf(&p, "unknown (%d)", entry.keyblock.keytype);
-	printf("%-15s", p);
-	free(p);
-	printf("  ");
-	krb5_unparse_name(context, entry.principal, &p);
-	printf("%s ", p);
-	free(p);
-	printf("\n");
-	if (verbose_flag) {
-	    char tstamp[256];
-	    struct tm *tm;
-	    time_t ts = entry.timestamp;
+#define CHECK_MAX(F) if(max_##F < strlen(kp->F)) max_##F = strlen(kp->F)
 
-	    tm = gmtime (&ts);
-	    strftime (tstamp, sizeof(tstamp), "%Y-%m-%d %H:%M:%S UTC", tm);
-	    printf("   Timestamp: %s\n", tstamp);
+	kp = malloc(sizeof(*kp));
+
+	asprintf(&kp->version, "%d", entry.vno);
+	CHECK_MAX(version);
+	ret = krb5_enctype_to_string(context, 
+				     entry.keyblock.keytype, &kp->etype);
+	if (ret != 0) 
+	    asprintf(&kp->etype, "unknown (%d)", entry.keyblock.keytype);
+	CHECK_MAX(etype);
+	krb5_unparse_name_short(context, entry.principal, &kp->principal);
+	CHECK_MAX(principal);
+	if (list_timestamp) {
+	    char tstamp[256];
+
+	    krb5_format_time(context, entry.timestamp, 
+			     tstamp, sizeof(tstamp), FALSE);
+
+	    kp->timestamp = strdup(tstamp);
+	    CHECK_MAX(timestamp);
 	}
+	if(list_keys) {
+	    int i;
+	    kp->key = malloc(2 * entry.keyblock.keyvalue.length + 1);
+	    for(i = 0; i < entry.keyblock.keyvalue.length; i++)
+		snprintf(kp->key + 2 * i, 3, "%02x", 
+			 ((unsigned char*)entry.keyblock.keyvalue.data)[i]);
+	    CHECK_MAX(key);
+	}
+	kp->next = NULL;
+	*kie = kp;
+	kie = &kp->next;
 	krb5_kt_free_entry(context, &entry);
     }
     ret = krb5_kt_end_seq_get(context, keytab, &cursor);
+
+    printf("%-*s  %-*s  %-*s", max_version, "Vno", 
+	   max_etype, "Type", 
+	   max_principal, "Principal");
+    if(list_timestamp)
+	printf("  %-*s", max_timestamp, "Date");
+    if(list_keys)
+	printf("  %s", "Key");
+    printf("\n");
+
+    for(kp = ki; kp; ) {
+	printf("%*s  %-*s  %-*s", max_version, kp->version, 
+	       max_etype, kp->etype, 
+	       max_principal, kp->principal);
+	if(list_timestamp)
+	    printf("  %-*s", max_timestamp, kp->timestamp);
+	if(list_keys)
+	    printf("  %s", kp->key);
+	printf("\n");
+
+	/* free entries */
+	free(kp->version);
+	free(kp->etype);
+	free(kp->principal);
+	if(list_timestamp)
+	    free(kp->timestamp);
+	if(list_keys) {
+	    memset(kp->key, 0, strlen(kp->key));
+	    free(kp->key);
+	}
+	ki = kp;
+	kp = kp->next;
+	free(ki);
+    }
     return 0;
 }
