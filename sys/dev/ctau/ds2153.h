@@ -1,4 +1,4 @@
-/*
+/*-
  * Dallas DS2153, DS21x54 single-chip E1 tranceiver registers.
  *
  * Copyright (C) 1996 Cronyx Engineering.

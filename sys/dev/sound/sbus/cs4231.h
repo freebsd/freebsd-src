@@ -35,7 +35,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
+/**
  * Register defs for Crystal Semiconductor CS4231 Audio Codec/mixer
  * chip, used on Gravis UltraSound MAX cards.
  *

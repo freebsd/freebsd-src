@@ -1,4 +1,4 @@
-/*
+/*-
  * Generic register and struct definitions for the BusLogic
  * MultiMaster SCSI host adapters.  Product specific probe and
  * attach routines can be found in:

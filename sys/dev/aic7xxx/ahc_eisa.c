@@ -1,4 +1,4 @@
-/*
+/*-
  * FreeBSD, EISA product support functions
  * 
  *

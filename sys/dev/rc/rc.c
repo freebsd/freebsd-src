@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (C) 1995 by Pavel Antonov, Moscow, Russia.
  * Copyright (C) 1995 by Andrey A. Chernov, Moscow, Russia.
  * Copyright (C) 2002 by John Baldwin <jhb@FreeBSD.org>

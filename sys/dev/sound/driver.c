@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2000 Cameron Grant <cg@freebsd.org>
  * All rights reserved.
  *

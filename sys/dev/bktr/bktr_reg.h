@@ -1,4 +1,4 @@
-/*
+/*-
  * $FreeBSD$
  *
  * Copyright (c) 1999 Roger Hardiman

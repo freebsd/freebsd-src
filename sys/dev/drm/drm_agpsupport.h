@@ -1,6 +1,6 @@
 /* drm_agpsupport.h -- DRM support for AGP/GART backend -*- linux-c -*-
- * Created: Mon Dec 13 09:56:45 1999 by faith@precisioninsight.com
- *
+ * Created: Mon Dec 13 09:56:45 1999 by faith@precisioninsight.com */
+/*-
  * Copyright 1999 Precision Insight, Inc., Cedar Park, Texas.
  * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
  * All Rights Reserved.

@@ -8,7 +8,6 @@
  *                   DC395U2D/U2W(TRM-S2080)
  *                   PCI SCSI Bus Master Host Adapter	
  *                   (SCSI chip set used Tekram ASIC TRM-S1040,TRM-S2080)
- *(C)Copyright 1995-2001 Tekram Technology Co.,Ltd.
  */
 
 #include <sys/cdefs.h>
@@ -27,8 +26,8 @@ __FBSDID("$FreeBSD$");
  *  1.11   10/13/2001  Oscar Feng  Fixed wrong Async speed display bug.	
  */
 
-/*
- *
+/*-
+ * (C)Copyright 1995-2001 Tekram Technology Co.,Ltd.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions

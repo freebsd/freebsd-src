@@ -1,4 +1,4 @@
-/*
+/*-
  * Low level routines for Second Generation
  * Advanced Systems Inc. SCSI controllers chips
  *
@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-/*
+/*-
  * Ported from:
  * advansys.c - Linux Host Driver for AdvanSys SCSI Adapters
  *     

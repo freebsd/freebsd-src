@@ -1,4 +1,4 @@
-/*
+/*-
  * CAM SCSI device driver for the Adaptec 174X SCSI Host adapter
  *
  * Copyright (c) 1998 Justin T. Gibbs

@@ -2,7 +2,8 @@
 
 	Matsushita(Panasonic) / Creative CD-ROM Driver	(matcd)
 	Authored by Frank Durda IV
-
+*/
+/*-
 Copyright 1994, 1995, 2002, 2003  Frank Durda IV.  All rights reserved.
 "FDIV" is a trademark of Frank Durda IV.
 

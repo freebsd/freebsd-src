@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (C) 2000
  * Dr. Duncan McLennan Barclay, dmlb@ragnet.demon.co.uk.
  *

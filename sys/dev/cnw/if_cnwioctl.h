@@ -1,7 +1,7 @@
 /*	$NetBSD: if_cnwioctl.h,v 1.2 1999/11/29 12:54:00 itojun Exp $	*/
 /* $FreeBSD$ */
 
-/*
+/*-
  * Copyright (c) 1996, 1997 Berkeley Software Design, Inc.
  * All rights reserved.
  *

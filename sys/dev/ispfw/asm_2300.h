@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-/*
+/*-
  * Copyright (C) 2001 Qlogic, Inc.
  * All rights reserved.
  *

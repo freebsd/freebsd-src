@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2002 Myson Technology Inc.
  * All rights reserved.
  *
