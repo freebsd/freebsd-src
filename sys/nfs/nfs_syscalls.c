@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_syscalls.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_syscalls.c,v 1.38 1998/05/19 07:11:25 peter Exp $
+ * $Id: nfs_syscalls.c,v 1.39 1998/05/31 17:27:53 peter Exp $
  */
 
 #include <sys/param.h>
@@ -433,6 +433,7 @@ nfssvc_addsock(fp, mynam, p)
 	s = splnet();
 	so->so_upcallarg = (caddr_t)slp;
 	so->so_upcall = nfsrv_rcv;
+	so->so_rcv.sb_flags |= SB_UPCALL;
 	slp->ns_flag = (SLP_VALID | SLP_NEEDQ);
 	nfsrv_wakenfsd(slp);
 	splx(s);
@@ -770,7 +771,9 @@ nfsrv_zapsock(slp)
 	if (fp) {
 		slp->ns_fp = (struct file *)0;
 		so = slp->ns_so;
+		so->so_rcv.sb_flags &= ~SB_UPCALL;
 		so->so_upcall = NULL;
+		so->so_upcallarg = NULL;
 		soshutdown(so, 2);
 		closef(fp, (struct proc *)0);
 		if (slp->ns_nam)
