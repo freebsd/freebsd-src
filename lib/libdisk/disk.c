@@ -44,12 +44,14 @@ Open_Disk(const char *name)
 	return Int_Open_Disk(name,0);
 }
 
+#ifndef PC98
 static u_int32_t
 Read_Int32(u_int32_t *p)
 {
     u_int8_t *bp = (u_int8_t *)p;
     return bp[0] | (bp[1] << 8) | (bp[2] << 16) | (bp[3] << 24);
 }
+#endif
 
 struct disk *
 Int_Open_Disk(const char *name, u_long size)
@@ -155,7 +157,7 @@ Int_Open_Disk(const char *name, u_long size)
 #ifdef __i386__
 #ifdef PC98
 	/* XXX -- Quick Hack!
-	 * Check MS-DOG MO
+	 * Check MS-DOS MO
 	 */
 	if ((*p == 0xf0 || *p == 0xf8) &&
 	    (*(p+1) == 0xff) &&
@@ -186,6 +188,7 @@ Int_Open_Disk(const char *name, u_long size)
 			case 0x21:
 			case 0x22:
 			case 0x23:
+			case 0x24:
 				ce = fat;
 				break;
 #else /* IBM-PC */
