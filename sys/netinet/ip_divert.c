@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ip_divert.c,v 1.1.2.3 1997/06/20 23:05:32 julian Exp $
+ *	$Id: ip_divert.c,v 1.1.2.4 1997/09/30 16:25:06 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -274,7 +274,7 @@ div_usrreq(so, req, m, nam, control)
 {
 	register int error = 0;
 	register struct inpcb *inp = sotoinpcb(so);
-	int s = 0;
+	int s;
 
 	if (inp == NULL && req != PRU_ATTACH) {
 		error = EINVAL;
@@ -289,8 +289,13 @@ div_usrreq(so, req, m, nam, control)
 			error = EACCES;
 			break;
 		}
-		if ((error = soreserve(so, div_sendspace, div_recvspace)) ||
-		    (error = in_pcballoc(so, &divcbinfo)))
+		s = splnet();
+		error = in_pcballoc(so, &divcbinfo);
+		splx(s);
+		if (error)
+			break;
+		error = soreserve(so, div_sendspace, div_recvspace);
+		if (error)
 			break;
 		inp = (struct inpcb *)so->so_pcb;
 		inp->inp_ip_p = (int)nam;	/* XXX */

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
- *	$Id: raw_ip.c,v 1.37.2.3 1997/05/22 20:53:36 fenner Exp $
+ *	$Id: raw_ip.c,v 1.37.2.4 1997/09/30 16:25:09 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -327,6 +327,7 @@ rip_usrreq(so, req, m, nam, control)
 {
 	register int error = 0;
 	register struct inpcb *inp = sotoinpcb(so);
+	int s;
 
 	if (req == PRU_CONTROL)
 		return (in_control(so, (u_long)m, (caddr_t)nam,
@@ -341,8 +342,13 @@ rip_usrreq(so, req, m, nam, control)
 			error = EACCES;
 			break;
 		}
-		if ((error = soreserve(so, rip_sendspace, rip_recvspace)) ||
-		    (error = in_pcballoc(so, &ripcbinfo)))
+		s = splnet();
+		error = in_pcballoc(so, &ripcbinfo);
+		splx(s);
+		if (error)
+			break;
+		error = soreserve(so, rip_sendspace, rip_recvspace);
+		if (error)
 			break;
 		inp = (struct inpcb *)so->so_pcb;
 		inp->inp_ip_p = (int)nam;
