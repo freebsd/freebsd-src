@@ -358,6 +358,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       cause &man.lpd.8; not to open a socket for network print
       jobs).</para>
 
+    <para>&man.ls.1; now accepts a <option>-h</option> flag, which
+      when combined with the <option>-l</option> flag, causes file
+      sizes to be printed with unit suffixes, such that the number of
+      digits printed is less than three.</para>
+
     <para>&man.m4.1; now accepts a <option>-s</option> flag to cause
       it to emit <literal>#line</literal> directives for use by
       &man.cpp.1;.</para>
@@ -393,6 +398,8 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       who do not have S/Key enabled.  The prior behavior created
       confusing, useless one-time-password prompts when using some
       newer SSH clients to connect to a &os; system.</para>
+
+    <para>&man.tftp.1; and &man.tftpd.8; now support IPv6.</para>
 
     <para>The &man.usbhidctl.1; utility has been added to manipulate
       USB Human Interface Devices.</para>
