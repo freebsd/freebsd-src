@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2004, Robert N. M. Watson
  * Copyright (c) 1983, 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -68,13 +69,8 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include "netstat.h"
 
-struct	ipxpcb ipxpcb;
-struct	spxpcb spxpcb;
-struct	socket sockb;
-
 static char *ipx_prpr (struct ipx_addr *);
 
-static	int first = 1;
 extern char *tcpstates[];
 
 /*
@@ -87,27 +83,26 @@ extern char *tcpstates[];
 void
 ipxprotopr(u_long off, const char *name, int af1 __unused)
 {
-	struct ipxpcb cb;
-	struct ipxpcb *prev, *next;
+	struct ipxpcbhead cb;
+	struct ipxpcb *ipxp;
+	struct ipxpcb ipxpcb;
+	struct spxpcb spxpcb;
+	struct socket sockb;
+	static int first = 1;
 	int isspx;
 
 	if (off == 0)
 		return;
+
 	isspx = strcmp(name, "spx") == 0;
-	kread(off, (char *)&cb, sizeof (struct ipxpcb));
-	ipxpcb = cb;
-	prev = (struct ipxpcb *)off;
-	if (ipxpcb.ipxp_next == (struct ipxpcb *)off)
-		return;
-	for (;ipxpcb.ipxp_next != (struct ipxpcb *)off; prev = next) {
+	kread(off, (char *)&cb, sizeof (struct ipxpcbhead));
+	ipxp = LIST_FIRST(&cb);
+	while (ipxp != NULL) {
 		u_long ppcb;
 
-		next = ipxpcb.ipxp_next;
-		kread((u_long)next, (char *)&ipxpcb, sizeof (ipxpcb));
-		if (ipxpcb.ipxp_prev != prev) {
-			printf("???\n");
-			break;
-		}
+		kread((u_long)ipxp, (char *)&ipxpcb, sizeof (ipxpcb));
+		ipxp = LIST_NEXT(&ipxpcb, ipxp_list);
+
 		if (!aflag && ipx_nullhost(ipxpcb.ipxp_faddr) ) {
 			continue;
 		}
@@ -147,7 +142,6 @@ ipxprotopr(u_long off, const char *name, int af1 __unused)
 				printf(" %s", tcpstates[spxpcb.s_state]);
 		}
 		putchar('\n');
-		prev = next;
 	}
 }
 
