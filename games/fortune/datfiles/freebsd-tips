@@ -34,7 +34,7 @@ all the possible matches when doing filename/directory expansion.
 		--  Giorgos Keramidas <keramida@ceid.upatras.gr>
 %
 You can `set autologout = 30' to have tcsh log you off automatically
-if you leave the shell idle for more than 30 seconds.
+if you leave the shell idle for more than 30 minutes.
 		--  Giorgos Keramidas <keramida@ceid.upatras.gr>
 %
 If you `set filec' (file completion) in tcsh and write a part of the
