@@ -28,7 +28,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: vidcontrol.c,v 1.26 1999/01/12 23:05:45 mjacob Exp $";
+	"$Id: vidcontrol.c,v 1.27 1999/01/25 08:48:49 dfr Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -262,7 +262,6 @@ video_mode(int argc, char **argv, int *index)
 		char *name;
 		unsigned long mode;
 	} modes[] = {
-#ifdef SW_TEXT_80x25
 		{ "80x25",		SW_TEXT_80x25 },
 		{ "80x30",		SW_TEXT_80x30 },
 		{ "80x43",		SW_TEXT_80x43 },
@@ -273,12 +272,18 @@ video_mode(int argc, char **argv, int *index)
 		{ "132x43",		SW_TEXT_132x43 },
 		{ "132x50",		SW_TEXT_132x50 },
 		{ "132x60",		SW_TEXT_132x60 },
-#endif
 		{ "VGA_40x25",		SW_VGA_C40x25 },
 		{ "VGA_80x25",		SW_VGA_C80x25 },
 		{ "VGA_80x30",		SW_VGA_C80x30 },
 		{ "VGA_80x50",		SW_VGA_C80x50 },
 		{ "VGA_80x60",		SW_VGA_C80x60 },
+#ifdef SW_VGA_C90x25
+		{ "VGA_90x25",		SW_VGA_C90x25 },
+		{ "VGA_90x30",		SW_VGA_C90x30 },
+		{ "VGA_90x43",		SW_VGA_C90x43 },
+		{ "VGA_90x50",		SW_VGA_C90x50 },
+		{ "VGA_90x60",		SW_VGA_C90x60 },
+#endif
 		{ "VGA_320x200",	SW_VGA_CG320 },
 		{ "EGA_80x25",		SW_ENH_C80x25 },
 		{ "EGA_80x43",		SW_ENH_C80x43 },
@@ -290,9 +295,13 @@ video_mode(int argc, char **argv, int *index)
 		{ NULL },
 	};
 	unsigned long mode = 0;
+	int cur_mode; 
+	int ioerr;
 	int size[3];
 	int i;
 
+	if (ioctl(0, CONS_GET, &cur_mode) < 0)
+		err(1, "cannot get the current video mode");
 	if (*index < argc) {
 		for (i = 0; modes[i].name != NULL; ++i) {
 			if (!strcmp(argv[*index], modes[i].name)) {
@@ -308,8 +317,14 @@ video_mode(int argc, char **argv, int *index)
 			size[0] = 80;	/* columns */
 			size[1] = 25;	/* rows */
 			size[2] = 16;	/* font size */
-			if (ioctl(0, KDRASTER, size))
-				warn("cannot activate raster display");
+			if (ioctl(0, KDRASTER, size)) {
+				ioerr = errno;
+				if (cur_mode >= M_VESA_BASE)
+					ioctl(0, _IO('V', cur_mode), NULL);
+				else
+					ioctl(0, _IO('S', cur_mode), NULL);
+				warnc(ioerr, "cannot activate raster display");
+			}
 		}
 		(*index)++;
 	}
@@ -418,6 +433,7 @@ static char
 	{ KD_EGA,	"EGA" },
 	{ KD_VGA,	"VGA" },
 	{ KD_PC98,	"PC-98xx" },
+	{ KD_TGA,	"TGA" },
 	{ -1,		"Unknown" },
     };
     int i;
@@ -446,6 +462,13 @@ show_adapter_info(void)
 	       adapter_name(ad.va_type), ad.va_type, ad.va_flags);
 	printf("    initial mode:%d, current mode:%d, BIOS mode:%d\n",
 	       ad.va_initial_mode, ad.va_mode, ad.va_initial_bios_mode);
+	printf("    frame buffer window:0x%x, buffer size:0x%x\n",
+	       ad.va_window, ad.va_buffer_size);
+	printf("    window size:0x%x, origin:0x%x\n",
+	       ad.va_window_size, ad.va_window_orig);
+	printf("    display start address (%d, %d), scan line width:%d\n",
+	       ad.va_disp_start.x, ad.va_disp_start.y, ad.va_line_width);
+	printf("    reserved:0x%x\n", ad.va_unused0);
 }
 
 void
@@ -463,6 +486,8 @@ show_mode_info(void)
 	for (mode = 0; mode < M_VESA_MODE_MAX; ++mode) {
 		info.vi_mode = mode;
 		if (ioctl(0, CONS_MODEINFO, &info))
+			continue;
+		if (info.vi_mode != mode)
 			continue;
 
 		printf("%3d (0x%03x)", mode, mode);
@@ -484,7 +509,7 @@ show_mode_info(void)
     		printf(" 0x%05x %2dk %2dk", 
 		       info.vi_window, (int)info.vi_window_size/1024, 
 		       (int)info.vi_window_gran/1024);
-    		printf(" 0x%08x %2dk\n",
+    		printf(" 0x%08x %dk\n",
 		       info.vi_buffer, (int)info.vi_buffer_size/1024);
 	}
 }

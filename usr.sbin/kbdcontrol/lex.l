@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: lex.l,v 1.7 1998/08/03 11:33:22 yokota Exp $
+ *	$Id: lex.l,v 1.8 1998/08/06 09:44:23 yokota Exp $
  */
 
 %{
@@ -51,6 +51,7 @@ lalt|alt 	{ return TLALT; }
 btab		{ return TBTAB; }
 lctrl|ctrl 	{ return TLCTR; }
 nscr 		{ return TNEXT; }
+pscr 		{ return TPREV; }
 rctrl 		{ return TRCTR; }
 ralt 		{ return TRALT; }
 alock 		{ return TALK; }
