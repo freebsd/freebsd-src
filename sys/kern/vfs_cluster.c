@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.23 1995/10/29 15:31:22 phk Exp $
+ * $Id: vfs_cluster.c,v 1.24 1995/11/14 09:19:07 phk Exp $
  */
 
 #include <sys/param.h>
@@ -278,7 +278,6 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run)
 	long size;
 	int run;
 {
-	struct cluster_save *b_save;
 	struct buf *bp, *tbp;
 	daddr_t bn;
 	int i, inc, j;
@@ -311,11 +310,7 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run)
 	bp->b_lblkno = lbn;
 	pbgetvp(vp, bp);
 
-	b_save = malloc(sizeof(struct buf *) * run +
-		sizeof(struct cluster_save), M_SEGMENT, M_WAITOK);
-	b_save->bs_nchildren = 0;
-	b_save->bs_children = (struct buf **) (b_save + 1);
-	bp->b_saveaddr = b_save;
+	TAILQ_INIT(&bp->b_cluster.cluster_head);
 
 	bp->b_bcount = 0;
 	bp->b_bufsize = 0;
@@ -360,8 +355,8 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run)
 				break;
 			}
 		}
-		++b_save->bs_nchildren;
-		b_save->bs_children[i] = tbp;
+		TAILQ_INSERT_TAIL(&bp->b_cluster.cluster_head,
+			tbp, b_cluster.cluster_entry);
 		for (j = 0; j < tbp->b_npages; j += 1) {
 			vm_page_t m;
 			m = tbp->b_pages[j];
@@ -398,8 +393,7 @@ void
 cluster_callback(bp)
 	struct buf *bp;
 {
-	struct cluster_save *b_save;
-	struct buf **bpp, *tbp;
+	struct buf *nbp, *tbp;
 	int error = 0;
 
 	/*
@@ -408,21 +402,20 @@ cluster_callback(bp)
 	if (bp->b_flags & B_ERROR)
 		error = bp->b_error;
 
-	b_save = (struct cluster_save *) (bp->b_saveaddr);
 	pmap_qremove(trunc_page((vm_offset_t) bp->b_data), bp->b_npages);
 	/*
 	 * Move memory from the large cluster buffer into the component
 	 * buffers and mark IO as done on these.
 	 */
-	for (bpp = b_save->bs_children; b_save->bs_nchildren--; ++bpp) {
-		tbp = *bpp;
+	for (tbp = bp->b_cluster.cluster_head.tqh_first;
+		tbp; tbp = nbp) {
+		nbp = tbp->b_cluster.cluster_entry.tqe_next;
 		if (error) {
 			tbp->b_flags |= B_ERROR;
 			tbp->b_error = error;
 		}
 		biodone(tbp);
 	}
-	free(b_save, M_SEGMENT);
 	relpbuf(bp);
 }
 
@@ -445,8 +438,10 @@ cluster_write(bp, filesize)
 	daddr_t lbn;
 	int maxclen, cursize;
 	int lblocksize;
+	int async;
 
 	vp = bp->b_vp;
+	async = (vp->v_mount && (vp->v_mount->mnt_flag & MNT_ASYNC));
 	lblocksize = vp->v_mount->mnt_stat.f_iosize;
 	lbn = bp->b_lblkno;
 
@@ -468,11 +463,21 @@ cluster_write(bp, filesize)
 			 * reallocating to make it sequential.
 			 */
 			cursize = vp->v_lastw - vp->v_cstart + 1;
+#if 1
+			if ((lbn + 1) * lblocksize != filesize ||
+				lbn != vp->v_lastw + 1 ||
+				vp->v_clen <= cursize) {
+				if (!async)
+					cluster_wbuild(vp, lblocksize,
+						vp->v_cstart, cursize);
+			}
+#else
 			if (!doreallocblks ||
 			    (lbn + 1) * lblocksize != filesize ||
 			    lbn != vp->v_lastw + 1 || vp->v_clen <= cursize) {
-				cluster_wbuild(vp, NULL, lblocksize,
-				    vp->v_cstart, cursize, lbn);
+				if (!async)
+					cluster_wbuild(vp, lblocksize,
+						vp->v_cstart, cursize);
 			} else {
 				struct buf **bpp, **endbp;
 				struct cluster_save *buflist;
@@ -488,8 +493,8 @@ cluster_write(bp, filesize)
 					     bpp < endbp; bpp++)
 						brelse(*bpp);
 					free(buflist, M_SEGMENT);
-					cluster_wbuild(vp, NULL, lblocksize,
-					    vp->v_cstart, cursize, lbn);
+					cluster_wbuild(vp, lblocksize,
+					    vp->v_cstart, cursize);
 				} else {
 					/*
 					 * Succeeded, keep building cluster.
@@ -503,6 +508,7 @@ cluster_write(bp, filesize)
 					return;
 				}
 			}
+#endif
 		}
 		/*
 		 * Consider beginning a cluster. If at end of file, make
@@ -521,7 +527,7 @@ cluster_write(bp, filesize)
 			return;
 		}
 		vp->v_clen = maxclen;
-		if (maxclen == 0) {	/* I/O not contiguous */
+		if (!async && maxclen == 0) {	/* I/O not contiguous */
 			vp->v_cstart = lbn + 1;
 			bawrite(bp);
 		} else {	/* Wait for rest of cluster */
@@ -532,8 +538,9 @@ cluster_write(bp, filesize)
 		/*
 		 * At end of cluster, write it out.
 		 */
-		cluster_wbuild(vp, bp, bp->b_bcount, vp->v_cstart,
-		    vp->v_clen + 1, lbn);
+		bdwrite(bp);
+		cluster_wbuild(vp, lblocksize, vp->v_cstart,
+		    vp->v_clen + 1);
 		vp->v_clen = 0;
 		vp->v_cstart = lbn + 1;
 	} else
@@ -553,61 +560,29 @@ cluster_write(bp, filesize)
  * the current block (if last_bp == NULL).
  */
 void
-cluster_wbuild(vp, last_bp, size, start_lbn, len, lbn)
+cluster_wbuild(vp, size, start_lbn, len)
 	struct vnode *vp;
-	struct buf *last_bp;
 	long size;
 	daddr_t start_lbn;
 	int len;
-	daddr_t lbn;
 {
-	struct cluster_save *b_save;
-	struct buf *bp, *tbp, *pb;
+	struct buf *bp, *tbp;
 	int i, j, s;
+	int dbsize = btodb(size);
+	int origlen = len;
 
-#ifdef DIAGNOSTIC
-	if (size != vp->v_mount->mnt_stat.f_iosize)
-		panic("cluster_wbuild: size %d != filesize %d\n",
-		    size, vp->v_mount->mnt_stat.f_iosize);
-#endif
 redo:
-	if( (lbn != -1) || (last_bp == 0)) {
-		while ((!(tbp = incore(vp, start_lbn)) || (tbp->b_flags & B_BUSY)
-			|| (start_lbn == lbn)) && len) {
-			++start_lbn;
-			--len;
-		}
-
-		pb = trypbuf();
-		/* Get more memory for current buffer */
-		if (len <= 1 || pb == NULL) {
-			if (pb != NULL)
-				relpbuf(pb);
-			if (last_bp) {
-				bawrite(last_bp);
-			} else if (len) {
-				bp = getblk(vp, start_lbn, size, 0, 0);
-				bawrite(bp);
-			}
-			return;
-		}
-		tbp = getblk(vp, start_lbn, size, 0, 0);
-	} else {
-		tbp = last_bp;
-		if( tbp->b_flags & B_BUSY) {
-			printf("vfs_cluster: warning: buffer already busy\n");
-		}
-		tbp->b_flags |= B_BUSY;
-		last_bp = 0;
-		pb = trypbuf();
-		if (pb == NULL) {
-			bawrite(tbp);
-			return;
-		}
+	if (len == 0)
+		return;
+	if ( ((tbp = incore(vp, start_lbn)) == NULL) ||
+		((tbp->b_flags & (B_INVAL|B_BUSY|B_DELWRI)) != B_DELWRI)) {
+		++start_lbn;
+		--len;
+		goto redo;
 	}
 
-	if (!(tbp->b_flags & B_DELWRI)) {
-		relpbuf(pb);
+	tbp = getblk(vp, start_lbn, size, 0, 0);
+	if ((tbp->b_flags & B_DELWRI) == 0) {
 		++start_lbn;
 		--len;
 		brelse(tbp);
@@ -620,26 +595,27 @@ redo:
 	 * potentially pull it back up if the cluster was terminated
 	 * prematurely--too much hassle.
 	 */
-	if (((tbp->b_flags & B_VMIO) == 0) ||
-		(tbp->b_bcount != tbp->b_bufsize)) {
-		relpbuf(pb);
+	if (((tbp->b_flags & (B_VMIO|B_CLUSTEROK)) != (B_VMIO|B_CLUSTEROK)) ||
+		(tbp->b_bcount != tbp->b_bufsize) ||
+		len == 1) {
+		bawrite(tbp);
 		++start_lbn;
 		--len;
-		bawrite(tbp);
 		goto redo;
 	}
-	bp = pb;
-	b_save = malloc(sizeof(struct buf *) * (len + 1) + sizeof(struct cluster_save),
-	    M_SEGMENT, M_WAITOK);
-	b_save->bs_nchildren = 0;
-	b_save->bs_children = (struct buf **) (b_save + 1);
-	bp->b_saveaddr = b_save;
+
+	bp = trypbuf();
+	if (bp == NULL) {
+		bawrite(tbp);
+		++start_lbn;
+		--len;
+		goto redo;
+	}
+
+	TAILQ_INIT(&bp->b_cluster.cluster_head);
 	bp->b_bcount = 0;
 	bp->b_bufsize = 0;
 	bp->b_npages = 0;
-
-	if (tbp->b_flags & B_VMIO)
-		bp->b_flags |= B_VMIO;
 
 	bp->b_blkno = tbp->b_blkno;
 	bp->b_lblkno = tbp->b_lblkno;
@@ -650,41 +626,27 @@ redo:
 
 	for (i = 0; i < len; ++i, ++start_lbn) {
 		if (i != 0) {
-			/*
-			 * Block is not in core or the non-sequential block
-			 * ending our cluster was part of the cluster (in
-			 * which case we don't want to write it twice).
-			 */
-			if (!(tbp = incore(vp, start_lbn)) ||
-			    (last_bp == NULL && start_lbn == lbn))
+			s = splhigh();
+			if ((tbp = incore(vp, start_lbn)) == NULL) {
+				splx(s);
 				break;
+			}
 
-			if ((tbp->b_flags & (B_INVAL | B_CLUSTEROK)) != B_CLUSTEROK)
+			if ((tbp->b_flags & (B_CLUSTEROK|B_INVAL|B_BUSY|B_DELWRI)) != (B_DELWRI|B_CLUSTEROK)) {
+				splx(s);
 				break;
+			}
 
-			if ((tbp->b_npages + bp->b_npages) > (MAXPHYS / PAGE_SIZE))
+			if ((tbp->b_bcount != size) ||
+				((bp->b_blkno + dbsize * i) != tbp->b_blkno) ||
+				((tbp->b_npages + bp->b_npages) > (MAXPHYS / PAGE_SIZE))) {
+				splx(s);
 				break;
-
-			if ( (tbp->b_blkno != tbp->b_lblkno) &&
-				((bp->b_blkno + btodb(size) * i) != tbp->b_blkno))
-				break;
-
-			/*
-			 * Get the desired block buffer (unless it is the
-			 * final sequential block whose buffer was passed in
-			 * explictly as last_bp).
-			 */
-			if (last_bp == NULL || start_lbn != lbn) {
-				if( tbp->b_flags & B_BUSY)
-					break;
-				tbp = getblk(vp, start_lbn, size, 0, 0);
-				if (!(tbp->b_flags & B_DELWRI) ||
-				    ((tbp->b_flags & B_VMIO) != (bp->b_flags & B_VMIO))) {
-					brelse(tbp);
-					break;
-				}
-			} else
-				tbp = last_bp;
+			}
+			bremfree(tbp);
+			tbp->b_flags |= B_BUSY;
+			tbp->b_flags &= ~B_DONE;
+			splx(s);
 		}
 		for (j = 0; j < tbp->b_npages; j += 1) {
 			vm_page_t m;
@@ -706,19 +668,18 @@ redo:
 		reassignbuf(tbp, tbp->b_vp);	/* put on clean list */
 		++tbp->b_vp->v_numoutput;
 		splx(s);
-		b_save->bs_children[i] = tbp;
+		TAILQ_INSERT_TAIL(&bp->b_cluster.cluster_head,
+			tbp, b_cluster.cluster_entry);
 	}
-	b_save->bs_nchildren = i;
 	pmap_qenter(trunc_page((vm_offset_t) bp->b_data),
 		(vm_page_t *) bp->b_pages, bp->b_npages);
 	bawrite(bp);
 
-	if (i < len) {
-		len -= i;
-		goto redo;
-	}
+	len -= i;
+	goto redo;
 }
 
+#if 0
 /*
  * Collect together all the buffers in a cluster.
  * Plus add one additional buffer.
@@ -744,3 +705,4 @@ cluster_collectbufs(vp, last_bp)
 	buflist->bs_nchildren = i + 1;
 	return (buflist);
 }
+#endif
