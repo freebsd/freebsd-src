@@ -69,19 +69,15 @@ confstr(int name, char *buf, size_t len)
 		 * this environment -- determined via sysconf() -- then
 		 * the value we return is unspecified.  So, we return
 		 * something which will cause obvious breakage.)
-		 *
-		 * Note that the _V6_LP64_OFF64 is actually an *I*LP64
-		 * environment; FreeBSD's LP64 architectures use the
-		 * _V6_LPBIG_OFFBIG environment instead.
 		 */
 	case _CS_POSIX_V6_ILP32_OFF32_CFLAGS:
 	case _CS_POSIX_V6_ILP32_OFF32_LDFLAGS:
 	case _CS_POSIX_V6_ILP32_OFF32_LIBS:
-	case _CS_POSIX_V6_LP64_OFF64_CFLAGS:
-	case _CS_POSIX_V6_LP64_OFF64_LDFLAGS:
-	case _CS_POSIX_V6_LP64_OFF64_LIBS:
+	case _CS_POSIX_V6_LPBIG_OFFBIG_CFLAGS:
+	case _CS_POSIX_V6_LPBIG_OFFBIG_LDFLAGS:
+	case _CS_POSIX_V6_LPBIG_OFFBIG_LIBS:
 		/*
-		 * These six environments are never supported.
+		 * These two environments are never supported.
 		 */
 		p = UPE;
 		goto docopy;
@@ -96,9 +92,9 @@ confstr(int name, char *buf, size_t len)
 			p = UPE;
 		goto docopy;
 
-	case _CS_POSIX_V6_LPBIG_OFFBIG_CFLAGS:
-	case _CS_POSIX_V6_LPBIG_OFFBIG_LDFLAGS:
-	case _CS_POSIX_V6_LPBIG_OFFBIG_LIBS:
+	case _CS_POSIX_V6_LP64_OFF64_CFLAGS:
+	case _CS_POSIX_V6_LP64_OFF64_LDFLAGS:
+	case _CS_POSIX_V6_LP64_OFF64_LIBS:
 		if (sizeof(long) * CHAR_BIT >= 64 &&
 		    sizeof(void *) * CHAR_BIT >= 64 &&
 		    sizeof(int) * CHAR_BIT >= 32 &&
@@ -110,9 +106,9 @@ confstr(int name, char *buf, size_t len)
 
 	case _CS_POSIX_V6_WIDTH_RESTRICTED_ENVS:
 		if (sizeof(long) * CHAR_BIT >= 64)
-			p = "_V6_LPBIG_OFFBIG";
+			p = "_POSIX_V6_LPBIG_OFFBIG";
 		else
-			p = "_V6_ILP32_OFFBIG";
+			p = "_POSIX_V6_ILP32_OFFBIG";
 		goto docopy;
 
 docopy:
