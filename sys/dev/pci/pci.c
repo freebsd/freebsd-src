@@ -782,7 +782,7 @@ pci_add_resources(device_t pcib, device_t dev)
 	pcicfgregs *cfg = &dinfo->cfg;
 	struct resource_list *rl = &dinfo->resources;
 	struct pci_quirk *q;
-	int b, i, f, s;
+	int b, i, irq, f, s;
 
 	b = cfg->bus;
 	s = cfg->slot;
@@ -800,14 +800,18 @@ pci_add_resources(device_t pcib, device_t dev)
 	if (cfg->intpin > 0 && PCI_INTERRUPT_VALID(cfg->intline)) {
 #if defined(__ia64__) || (defined(__i386__) && !defined(SMP))
 		/*
-		 * Re-route interrupts on ia64 so that we can get the
-		 * I/O SAPIC interrupt numbers (the BIOS leaves legacy
-		 * PIC interrupt numbers in the intline registers).
+		 * Try to re-route interrupts. Sometimes the BIOS or
+		 * firmware may leave bogus values in these registers.
+		 * If the re-route fails, then just stick with what we
+		 * have.
 		 */
-		cfg->intline = PCIB_ROUTE_INTERRUPT(pcib, dev, cfg->intpin);
+		irq = PCIB_ROUTE_INTERRUPT(pcib, dev, cfg->intpin);
+		if (PCI_INTERRUPT_VALID(irq))
+			cfg->intline = irq;
+		else
 #endif
-		resource_list_add(rl, SYS_RES_IRQ, 0, cfg->intline,
-		  cfg->intline, 1);
+			irq = cfg->intline;
+		resource_list_add(rl, SYS_RES_IRQ, 0, irq, irq, 1);
 	}
 }
 
