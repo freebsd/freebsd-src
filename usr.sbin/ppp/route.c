@@ -847,7 +847,7 @@ rt_Update(struct bundle *bundle, const struct sockaddr *dst,
   rtmes.m_rtm.rtm_addrs = 0;
   rtmes.m_rtm.rtm_seq = ++bundle->routing_seq;
   rtmes.m_rtm.rtm_pid = getpid();
-  rtmes.m_rtm.rtm_flags = RTF_UP | RTF_GATEWAY | RTF_STATIC;
+  rtmes.m_rtm.rtm_flags = RTF_UP | RTF_STATIC;
 
   if (bundle->ncp.cfg.sendpipe > 0) {
     rtmes.m_rtm.rtm_rmx.rmx_sendpipe = bundle->ncp.cfg.sendpipe;
@@ -866,6 +866,13 @@ rt_Update(struct bundle *bundle, const struct sockaddr *dst,
   if (dst) {
     rtmes.m_rtm.rtm_addrs |= RTA_DST;
     p += memcpy_roundup(p, dst, dst->sa_len);
+  }
+
+  rtmes.m_rtm.rtm_addrs |= RTA_GATEWAY;
+  p += memcpy_roundup(p, gw, gw->sa_len);
+  if (mask) {
+    rtmes.m_rtm.rtm_addrs |= RTA_NETMASK;
+    p += memcpy_roundup(p, mask, mask->sa_len);
   }
 
   rtmes.m_rtm.rtm_msglen = p - (char *)&rtmes;
