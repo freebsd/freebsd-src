@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.51 1996/05/24 06:08:54 jkh Exp $
+ * $Id: menus.c,v 1.42.2.52 1996/06/14 18:35:10 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -199,27 +199,98 @@ checkTrue(dialogMenuItem *item)
  * expansion.
  */
 
+DMenu MenuIndex = {
+    DMENU_NORMAL_TYPE,
+    "Glossary of functions",
+    "This menu contains an alphabetized index of all top level\n"
+    "functions in this program (sysinstall).  Please select the\n"
+    "function you wish to invoke below and press [ENTER] or\n"
+    "Cancel to leave this menu.",
+    "Use PageUp or PageDown to move through this menu faster!",
+    NULL,
+    { { "Add User",	"Add users to the system.", NULL, dmenuSystemCommand, NULL, "adduser -config_create ; adduser -s" },
+      { "Anon FTP",	"Configure anonymous FTP logins.",	dmenuVarCheck, configAnonFTP, NULL, "anon_ftp" },
+      { "Console settings",	"Customize system console behavior.", NULL, dmenuSubmenu, NULL, &MenuSyscons },
+      { "Configure",		"The system configuration menu.",	NULL, dmenuSubmenu, NULL, &MenuConfigure },
+      { "Device, Mouse",	"The mouse configuration menu.",	NULL, dmenuSubmenu, NULL, &MenuMouse },
+      { "Dists, All",	"Root of the distribution tree.",	NULL, dmenuSubmenu, NULL, &MenuDistributions },
+      { "Dists, Basic",	"Basic FreeBSD distribution menu.",	NULL, dmenuSubmenu, NULL, &MenuSubDistributions },
+      { "Dists, DES",	"DES distribution menu.",		NULL, dmenuSubmenu, NULL, &MenuDESDistributions },
+      { "Dists, Developer", "Select developer's distribution.", checkDistDeveloper, distSetDeveloper },
+      { "Dists, Src",	"Src distribution menu.",		NULL, dmenuSubmenu, NULL, &MenuSrcDistributions },
+      { "Dists, X Developer", "Select X developer's distribution.",	checkDistXDeveloper, distSetXDeveloper },
+      { "Dists, Kern Developer", "Select kernel developer's distribution.", checkDistKernDeveloper, distSetKernDeveloper },
+      { "Dists, User",		"Select average user distribution.", checkDistUser, distSetUser },
+      { "Dists, X User",	"Select average X user distribution.", checkDistXUser, distSetXUser },
+      { "Distributions, XFree86","XFree86 distribution menu.",		NULL, distSetXF86 },
+      { "Doc Menu",		"Installation instructions, README, etc.", NULL, dmenuSubmenu, NULL, &MenuDocumentation },
+      { "Doc, README",		"The distribution README file.",	NULL, dmenuDisplayFile, NULL, "readme" },
+      { "Doc, Hardware",	"The distribution hardware guide.",	NULL, dmenuDisplayFile,	NULL, "hardware" },
+      { "Doc, Install",		"The distribution installation guide.",	NULL, dmenuDisplayFile,	NULL, "install" },
+      { "Doc, Copyright",	"The distribution copyright notices.",	NULL, dmenuDisplayFile,	NULL, "COPYRIGHT" },
+      { "Doc, Release",		"The distribution release notes.",	NULL, dmenuDisplayFile, NULL, "relnotes" },
+      { "Doc, HTML",		"The HTML documentation menu.",		NULL, docBrowser },
+      { "Fixit",		"Repair mode with CDROM or floppy.",	NULL, dmenuSubmenu, NULL, &MenuFixit },
+      { "FTP sites",		"The FTP mirror site listing.",		NULL, dmenuSubmenu, NULL, &MenuMediaFTP },
+      { "Gated",		"Load and configure gated instead of routed.",  dmenuVarCheck, configGated, NULL, "gated" },
+      { "Gateway",		"Set flag to route packets between interfaces.", dmenuVarCheck, dmenuToggleVariable, NULL, "gateway=YES" },
+      { "Install, Novice",	"A novice system installation.",	NULL, installNovice },
+      { "Install, Express",	"An express system installation.",	NULL, installExpress },
+      { "Install, Custom Menu",	"The custom installation menu",		NULL, dmenuSubmenu, NULL, &MenuInstallCustom },
+      { "Media, All",		"Top level media selection menu.",	NULL, dmenuSubmenu, NULL, &MenuMedia },
+      { "Media, Tape",		"Select tape installation media.",	NULL, mediaSetTape },
+      { "Media, NFS",		"Select NFS installation media.",	NULL, mediaSetNFS },
+      { "Media, Floppy",	"Select floppy installation media.",	NULL, mediaSetFloppy },
+      { "Media, CDROM",		"Select CDROM installation media.",	NULL, mediaSetCDROM },
+      { "Media, DOS",		"Select DOS installation media.",	NULL, mediaSetDOS },
+      { "Media, UFS",		"Select UFS installation media.",	NULL, mediaSetUFS },
+      { "Media, FTP",		"Select FTP installation media.",	NULL, mediaSetFTP },
+      { "Media, FTP Passive",	"Select passive FTP installation media.", NULL, mediaSetFTPPassive },
+      { "Networking Menu",	"The network configuration menu.",	NULL, dmenuSubmenu, NULL, &MenuNetworking },
+      { "NFS, client",		"Set NFS client flag.",			dmenuVarCheck, dmenuToggleVariable, NULL, "nfs_client=YES" },
+      { "NFS, server",		"Set NFS server flag.",			dmenuVarCheck, configNFSServer, NULL, "nfs_server" },
+      { "NTP Menu",		"The NTP configuration menu.",	NULL, dmenuSubmenu, NULL, &MenuNTP },
+      { "Options",		"The options editor.",			NULL, optionsEditor },
+      { "PCNFSD",		"Run authentication server for PC-NFS.",	dmenuVarCheck, configPCNFSD, NULL, "pcnfsd" },
+      { "Ports",		"Link to FreeBSD ports collection.",	NULL, configPorts },
+      { "Root Password",	"Set the system manager's password.",   NULL, dmenuSystemCommand, NULL, "passwd root" },
+      { "Routed",		"Set flags for routed (default: -q)",	dmenuVarCheck, configRoutedFlags, NULL, "routed" },
+      { "Samba",		"Configure Samba for LanManager access.", dmenuVarCheck, configSamba, NULL, "samba" },
+      { "Syscons Menu",		"The system console configuration menu.",	NULL, dmenuSubmenu, NULL, &MenuSyscons },
+      { "Syscons Menu, Keymap",	"The console keymap configuration menu.",	NULL, dmenuSubmenu, NULL, &MenuSysconsKeymap },
+      { "Syscons Menu, Keyrate","The console key rate configuration menu.",	NULL, dmenuSubmenu, NULL, &MenuSysconsKeyrate },
+      { "Syscons Menu, Saver",	"The console screen saver configuration menu.",	NULL, dmenuSubmenu, NULL, &MenuSysconsSaver },
+      { "Time Zone",		"Set the system's time zone.",		NULL, dmenuSystemCommand, NULL, "rm -f /etc/wall_cmos_clock /etc/localtime; tzsetup" },
+      { "Upgrade",		"Upgrade an existing system.",		NULL, installUpgrade },
+      { "Usage",		"Quick start - How to use this menu system.",	NULL, dmenuDisplayFile, NULL, "usage" },
+      { "WEB Server",		"Configure host as a WWW server.",	dmenuVarCheck, configApache, NULL, "apache_httpd" },
+      { "XFree86, Fonts",	"XFree86 Font selection menu.",		NULL, dmenuSubmenu, NULL, &MenuXF86SelectFonts },
+      { "XFree86, Server",	"XFree86 Server selection menu.",	NULL, dmenuSubmenu, NULL, &MenuXF86SelectServer },
+      { NULL } },
+};
+      
 /* The initial installation menu */
 DMenu MenuInitial = {
     DMENU_NORMAL_TYPE,
     "Welcome to FreeBSD!",				/* title */
-    "This is the main menu of the FreeBSD installation system.  Please\n\
-select one of the options below by using the arrow keys or typing the\n\
-first character of the option name you're interested in.  Invoke an\n\
-option by pressing [ENTER].",				/* prompt */
-    "Press F1 for usage instructions",			/* help line */
-    "usage",						/* help file */
-{ { "1 Usage",	"Quick start - How to use this menu system",		NULL, dmenuDisplayFile, NULL, "usage" },
-  { "2 Doc",	"More detailed documentation on FreeBSD",		NULL, dmenuSubmenu, NULL, &MenuDocumentation },
-  { "3 Options", "Go to the options editor",				NULL, optionsEditor },
-  { "4 Novice",	"Begin a novice installation (for beginners)",		NULL, installNovice },
-  { "5 Express", "Begin a quick installation (for the impatient)",	NULL, installExpress },
-  { "6 Custom",	"Begin a custom installation (for experts)",		NULL, dmenuSubmenu, NULL, &MenuInstallCustom },
-  { "7 Fixit",	"Go into repair mode with CDROM or floppy",		NULL, dmenuSubmenu, NULL, &MenuFixit },
-  { "8 Upgrade", "Upgrade an existing 2.0.5 system",			NULL, installUpgrade },
-  { "9 Configure", "Do post-install configuration of FreeBSD",		NULL, dmenuSubmenu, NULL, &MenuConfigure },
-  { "0 Exit",	"Exit this menu (and the installation)",		NULL, dmenuExit },
-  { NULL } },
+    "This is the main menu of the FreeBSD installation system.  Please\n"
+    "select one of the options below by using the arrow keys or typing the\n"
+    "first character of the option name you're interested in.  Invoke an\n"
+    "option by pressing [ENTER].  Exit the installation by selecting\n"
+    "Cancel [TAB-ENTER].",				/* prompt */
+    "Press F1 for Installation Guide",			/* help line */
+    "install",						/* help file */
+    { { "1 Usage",	"Quick start - How to use this menu system",		NULL, dmenuDisplayFile, NULL, "usage" },
+      { "2 Doc",	"Installation instructions, README, etc.",		NULL, dmenuSubmenu, NULL, &MenuDocumentation },
+      { "3 Options",	"Go to the options editor",				NULL, optionsEditor },
+      { "4 Novice",	"Begin a novice installation (for beginners)",		NULL, installNovice },
+      { "5 Express",	"Begin a quick installation (for the impatient)",	NULL, installExpress },
+      { "6 Custom",	"Begin a custom installation (for experts)",		NULL, dmenuSubmenu, NULL, &MenuInstallCustom },
+      { "7 Fixit",	"Go into repair mode with CDROM or floppy",		NULL, dmenuSubmenu, NULL, &MenuFixit },
+      { "8 Upgrade",	"Upgrade an existing 2.0.5 system",			NULL, installUpgrade },
+      { "9 Configure",	"Do post-install configuration of FreeBSD",		NULL, dmenuSubmenu, NULL, &MenuConfigure },
+      { "0 Index",	"Glossary list of all possible operations.",		NULL, dmenuSubmenu, NULL, &MenuIndex },
+      { NULL } },
 };
 
 DMenu MenuFixit = {

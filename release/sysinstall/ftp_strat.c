@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.17 1996/05/23 11:50:11 jkh Exp $
+ * $Id: ftp_strat.c,v 1.7.2.45 1996/05/24 06:08:37 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -108,8 +108,8 @@ Boolean
 mediaInitFTP(Device *dev)
 {
     int i, retries;
-    char *cp, *hostname, *dir, *rel;
-    char *user, *login_name, password[80], url[BUFSIZ];
+    char *cp, *rel, *hostname, *dir;
+    char *user, *login_name, password[80];
     Device *netDevice = (Device *)dev->private;
 
     if (ftpInitted)
@@ -134,37 +134,6 @@ mediaInitFTP(Device *dev)
 	return FALSE;
     }
 
-    if (isDebug())
-	msgDebug("Attempting to open connection for URL: %s\n", cp);
-    if (strncmp("ftp://", cp, 6) != NULL) {
-	msgConfirm("Invalid URL: %s\n(A URL must start with `ftp://' here)", cp);
-	return FALSE;
-    }
-    strncpy(url, cp, BUFSIZ);
-    if (isDebug())
-	msgDebug("Using URL `%s'\n", url);
-    hostname = url + 6;
-    if ((cp = index(hostname, ':')) != NULL) {
-	*(cp++) = '\0';
-	FtpPort = strtol(cp, 0, 0);
-    }
-    else
-	FtpPort = 21;
-    if ((dir = index(cp ? cp : hostname, '/')) != NULL)
-	*(dir++) = '\0';
-    if (isDebug()) {
-	msgDebug("hostname = `%s'\n", hostname);
-	msgDebug("dir = `%s'\n", dir ? dir : "/");
-	msgDebug("port # = `%d'\n", FtpPort);
-    }
-    msgNotify("Looking up host %s..", hostname);
-    if ((gethostbyname(hostname) == NULL) && (inet_addr(hostname) == INADDR_NONE)) {
-	msgConfirm("Cannot resolve hostname `%s'!  Are you sure that your\n"
-		   "name server, gateway and network interface are correctly configured?", hostname);
-	netDevice->shutdown(netDevice);
-	tcpOpenDialog(netDevice);
-	return FALSE;
-    }
     user = variable_get(VAR_FTP_USER);
     if (!user || !*user) {
 	snprintf(password, BUFSIZ, "installer@%s", variable_get(VAR_HOSTNAME));
@@ -175,6 +144,10 @@ mediaInitFTP(Device *dev)
 	strcpy(password, variable_get(VAR_FTP_PASS) ? variable_get(VAR_FTP_PASS) : login_name);
     }
     retries = 0;
+    hostname = variable_get(VAR_FTP_HOST);
+    dir = variable_get(VAR_FTP_DIR);
+    if (!hostname || !dir)
+	msgFatal("Missing FTP host or directory specification - something's wrong!");
 
 retry:
     msgNotify("Logging in as %s..", login_name);
