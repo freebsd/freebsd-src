@@ -316,7 +316,7 @@ main (argc, argv)
 	    }
 	    (void) strcat (path, "/");
 	    (void) strcat (path, CVSROOTADM_HISTORY);
-	    if (isfile (path) && access (path, R_OK | W_OK))
+	    if (isfile (path) && access (path, R_OK | (logoff ? 0 : W_OK)))
 	    {
 		save_errno = errno;
 		error (0, 0,
