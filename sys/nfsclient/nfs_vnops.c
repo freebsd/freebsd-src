@@ -789,49 +789,29 @@ nfs_lookup(struct vop_lookup_args *ap)
 	wantparent = flags & (LOCKPARENT|WANTPARENT);
 	nmp = VFSTONFS(dvp->v_mount);
 	np = VTONFS(dvp);
+	if ((error = VOP_ACCESS(dvp, VEXEC, cnp->cn_cred, td)) != 0) {
+		*vpp = NULLVP;
+		return (error);
+	}
 	if ((error = cache_lookup(dvp, vpp, cnp)) && error != ENOENT) {
 		struct vattr vattr;
 
-		if ((error = VOP_ACCESS(dvp, VEXEC, cnp->cn_cred, td)) != 0) {
-			*vpp = NULLVP;
-			return (error);
-		}
-
-		vhold(*vpp);
 		newvp = *vpp;
-		/*
-		 * See the comment starting `Step through' in ufs/ufs_lookup.c
-		 * for an explanation of the locking protocol
-		 */
-		if (dvp == newvp) {
-			VREF(newvp);
-			error = 0;
-		} else if (flags & ISDOTDOT) {
-			VOP_UNLOCK(dvp, 0, td);
-			error = vget(newvp, LK_EXCLUSIVE, td);
-			if (error)
-				vn_lock(dvp, LK_EXCLUSIVE|LK_RETRY, td);
-		} else
-			error = vget(newvp, LK_EXCLUSIVE, td);
-		if (!error) {
-			if (!VOP_GETATTR(newvp, &vattr, cnp->cn_cred, td)
-			 && vattr.va_ctime.tv_sec == VTONFS(newvp)->n_ctime) {
-			     nfsstats.lookupcache_hits++;
-			     if (cnp->cn_nameiop != LOOKUP &&
-				 (flags & ISLASTCN))
-				     cnp->cn_flags |= SAVENAME;
-			     vdrop(newvp);
-			     return (0);
-			}
-			cache_purge(newvp);
-			if (dvp != newvp)
-				vput(newvp);
-			else 
-				vrele(newvp);
-			if (flags & ISDOTDOT)
-				vn_lock(dvp, LK_EXCLUSIVE|LK_RETRY, td);
+		if (!VOP_GETATTR(newvp, &vattr, cnp->cn_cred, td)
+		 && vattr.va_ctime.tv_sec == VTONFS(newvp)->n_ctime) {
+		     nfsstats.lookupcache_hits++;
+		     if (cnp->cn_nameiop != LOOKUP &&
+			 (flags & ISLASTCN))
+			     cnp->cn_flags |= SAVENAME;
+		     return (0);
 		}
-		vdrop(newvp);
+		cache_purge(newvp);
+		if (dvp != newvp)
+			vput(newvp);
+		else 
+			vrele(newvp);
+		if (flags & ISDOTDOT)
+			vn_lock(dvp, LK_EXCLUSIVE|LK_RETRY, td);
 		*vpp = NULLVP;
 	}
 	error = 0;
