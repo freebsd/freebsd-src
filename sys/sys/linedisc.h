@@ -247,14 +247,10 @@ struct devsw_module_data {
 };
 
 #define DEV_MODULE(name, evh, arg)					\
-static struct devsw_module_data name##_devsw_mod = {			\
-    evh, arg,								\
-};									\
-									\
 static moduledata_t name##_mod = {					\
     #name,								\
-    devsw_module_handler,						\
-    &name##_devsw_mod							\
+    evh,								\
+    arg									\
 };									\
 DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE)
 
