@@ -257,6 +257,30 @@ pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 }
 
 /*
+ * Is this a decoded ISA I/O port address?  Note, we need to do the mask that
+ * we do below because of the ISA alias addresses.  I'm not 100% sure that
+ * this is correct.
+ */
+static int
+pcib_is_isa_io(u_long start)
+{
+    if ((start & 0xfffUL)  > 0x3ffUL)
+	return (0);
+    return (1);
+}
+
+/*
+ * Is this a decoded ISA memory address?
+ */
+static int
+pcib_is_isa_mem(u_long start)
+{
+    if (start > 0xfffffUL)
+	return (0);
+    return (1);
+}
+
+/*
  * We have to trap resource allocation requests and ensure that the bridge
  * is set up to, or capable of handling them.
  */
@@ -282,18 +306,13 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	 */
 	switch (type) {
 	case SYS_RES_IOPORT:
-	    if (start < sc->iobase)
-		start = sc->iobase;
-	    if (end > sc->iolimit && start < end)
-		end = sc->iolimit;
-	    if ((start < sc->iobase) || (end > sc->iolimit)) {
+	    if (!pcib_is_isa_io(start) &&
+	      ((start < sc->iobase) || (end > sc->iolimit))) {
 		device_printf(dev, "device %s%d requested unsupported I/O range 0x%lx-0x%lx"
 			      " (decoding 0x%x-0x%x)\n",
 			      device_get_name(child), device_get_unit(child), start, end,
 			      sc->iobase, sc->iolimit);
-#ifndef PCI_ALLOW_UNSUPPORTED_IO_RANGE
-		return(NULL);
-#endif
+		return (NULL);
 	    }
 	    if (bootverbose)
 		device_printf(sc->dev, "device %s%d requested decoded I/O range 0x%lx-0x%lx\n",
@@ -307,12 +326,9 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	     *     flag as the request bubbles up?
 	     */
 	case SYS_RES_MEMORY:
-	    if (start < sc->membase && end > sc->membase)
-		start = sc->membase;
-	    if (end > sc->memlimit && start < end)
-		end = sc->memlimit;
-	    if (((start < sc->membase) || (end > sc->memlimit)) &&
-		((start < sc->pmembase) || (end > sc->pmemlimit))) {
+	    if (!pcib_is_isa_mem(start) &&
+	        (((start < sc->membase) || (end > sc->memlimit)) &&
+		((start < sc->pmembase) || (end > sc->pmemlimit)))) {
 		device_printf(dev, "device %s%d requested unsupported memory range 0x%lx-0x%lx"
 			      " (decoding 0x%x-0x%x, 0x%x-0x%x)\n",
 			      device_get_name(child), device_get_unit(child), start, end,
