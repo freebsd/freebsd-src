@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: moused.8,v 1.20 1999/08/14 22:29:34 chris Exp $
+.\"	$Id: moused.8,v 1.18.2.2 1999/08/14 22:30:18 chris Exp $
 .\"
 .Dd December 3, 1997
 .Dt MOUSED 8
@@ -274,6 +274,8 @@ Hitachi tablet protocol.
 X10 MouseRemote.
 .It Ar kidspad
 Genius Kidspad and Easypad protocol.
+.It Ar versapad
+Interlink VersaPad protocol.
 .El
 .Pp
 For the bus and InPort mouse:
@@ -528,7 +530,8 @@ command does not currently work with the alternative console driver
 .Pp
 Many pad devices behave as if the first (left) button were pressed if
 the user `taps' the surface of the pad.
-In contrast, some ALPS GlidePoint pad models treat the tapping action 
+In contrast, some ALPS GlidePoint and Interlink VersaPad models 
+treat the tapping action 
 as fourth button events. Use the option ``-m 1=4'' for these models
 to obtain the same effect as the other pad devices.
 .Pp
