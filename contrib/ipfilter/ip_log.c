@@ -1,11 +1,11 @@
 /*
- * Copyright (C) 1997-1998 by Darren Reed.
+ * Copyright (C) 1997-2000 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
  *
- * $Id: ip_log.c,v 2.1.2.2 1999/09/21 11:55:44 darrenr Exp $
+ * $Id: ip_log.c,v 2.5 2000/03/13 22:10:21 darrenr Exp $
  */
 #include <sys/param.h>
 #if defined(KERNEL) && !defined(_KERNEL)
@@ -16,7 +16,6 @@
 #endif
 #ifdef  __FreeBSD__
 # if defined(_KERNEL) && !defined(IPFILTER_LKM)
-#  include <sys/osreldate.h>
 #  if defined(__FreeBSD_version) && (__FreeBSD_version >= 300000)
 #   include "opt_ipfilter.h"
 #  endif
@@ -128,7 +127,7 @@ extern	kcondvar_t	iplwait;
 
 iplog_t	**iplh[IPL_LOGMAX+1], *iplt[IPL_LOGMAX+1], *ipll[IPL_LOGMAX+1];
 size_t	iplused[IPL_LOGMAX+1];
-fr_info_t	iplcrc[IPL_LOGMAX+1];
+static fr_info_t	iplcrc[IPL_LOGMAX+1];
 # ifdef	linux
 static struct wait_queue *iplwait[IPL_LOGMAX+1];
 # endif
@@ -171,6 +170,7 @@ mb_t *m;
 	size_t sizes[2];
 	void *ptrs[2];
 	int types[2];
+	u_char p;
 # if SOLARIS
 	ill_t *ifp = fin->fin_ifp;
 # else
@@ -181,15 +181,16 @@ mb_t *m;
 	 * calculate header size.
 	 */
 	hlen = fin->fin_hlen;
-	if ((ip->ip_off & IP_OFFMASK) == 0) {
-		if (ip->ip_p == IPPROTO_TCP)
+	if (fin->fin_off == 0) {
+		p = fin->fin_fi.fi_p;
+		if (p == IPPROTO_TCP)
 			hlen += MIN(sizeof(tcphdr_t), fin->fin_dlen);
-		else if (ip->ip_p == IPPROTO_UDP)
+		else if (p == IPPROTO_UDP)
 			hlen += MIN(sizeof(udphdr_t), fin->fin_dlen);
-		else if (ip->ip_p == IPPROTO_ICMP) {
-			struct	icmp	*icmp;
+		else if (p == IPPROTO_ICMP) {
+			struct icmp *icmp;
 
-			icmp = (struct icmp *)((char *)ip + hlen);
+			icmp = (struct icmp *)fin->fin_dp;
 	 
 			/*
 			 * For ICMP, if the packet is an error packet, also
@@ -234,7 +235,7 @@ mb_t *m;
 			if ((ipfl.fl_ifname[2] = ifp->if_name[2]))
 				ipfl.fl_ifname[3] = ifp->if_name[3];
 #  endif
-	mlen = (flags & FR_LOGBODY) ? MIN(ip->ip_len - hlen, 128) : 0;
+	mlen = (flags & FR_LOGBODY) ? MIN(fin->fin_plen - hlen, 128) : 0;
 # endif
 	ipfl.fl_plen = (u_char)mlen;
 	ipfl.fl_hlen = (u_char)hlen;
