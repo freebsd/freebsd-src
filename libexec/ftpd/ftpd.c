@@ -149,6 +149,8 @@ int	usedefault = 1;		/* for data transfers */
 int	pdata = -1;		/* for passive mode */
 int	readonly=0;		/* Server is in readonly mode.	*/
 int	noepsv=0;		/* EPSV command is disabled.	*/
+int	noretr=0;		/* RETR command is disabled.	*/
+
 sig_atomic_t transflag;
 off_t	file_size;
 off_t	byte_count;
@@ -299,7 +301,7 @@ main(argc, argv, envp)
 #endif /* OLD_SETPROCTITLE */
 
 
-	while ((ch = getopt(argc, argv, "AdlDESURrt:T:u:va:p:46")) != -1) {
+	while ((ch = getopt(argc, argv, "AdlDESURrt:T:u:voa:p:46")) != -1) {
 		switch (ch) {
 		case 'D':
 			daemon_mode++;
@@ -380,6 +382,10 @@ main(argc, argv, envp)
 
 		case '6':
 			family = AF_INET6;
+			break;
+
+		case 'o':
+			noretr = 1;
 			break;
 
 		default:

@@ -50,6 +50,7 @@
 .Op Fl S
 .Op Fl U
 .Op Fl r
+.Op Fl o
 .Op Fl E
 .Op Fl T Ar maxtimeout
 .Op Fl t Ar timeout
@@ -157,6 +158,9 @@ Allow only anonymous ftp access.
 .It Fl r
 Put server in read-only mode.
 All commands which may modify the local filesystem are disabled.
+.It Fl o
+Put server in write-only mode.
+RETR is disabled, preventing downloads.
 .It Fl E
 Disable the EPSV command.
 This is useful for servers behind older firewalls.
