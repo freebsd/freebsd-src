@@ -310,8 +310,8 @@ icintr (device_t dev, int event, char *ptr)
 	  sc->ic_if.if_ipackets ++;
 	  sc->ic_if.if_ibytes += len;
 
-	if (sc->ic_if.if_bpf)
-		bpf_tap(&sc->ic_if, sc->ic_ifbuf, len + ICHDRLEN);
+	  if (sc->ic_if.if_bpf)
+	    bpf_tap(&sc->ic_if, sc->ic_ifbuf, len + ICHDRLEN);
 
 	  top = m_devget(sc->ic_ifbuf + ICHDRLEN, len, 0, &sc->ic_if, 0);
 
