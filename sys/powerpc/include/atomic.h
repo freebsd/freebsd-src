@@ -336,8 +336,6 @@ atomic_cmpset_32(volatile u_int32_t* p, u_int32_t cmpval, u_int32_t newval)
 {
 	u_int32_t	ret;
 
-	ret = 0;
-
 	__asm __volatile (
 		"1:\tlwarx %0, 0, %3\n\t"	/* load old value */
 		"cmplw 0, %1, %0\n\t"		/* compare */
@@ -346,6 +344,7 @@ atomic_cmpset_32(volatile u_int32_t* p, u_int32_t cmpval, u_int32_t newval)
 		"stwcx. %0, 0, %3\n\t"		/* attempt to store */
 		"bne- 1b\n\t"			/* spin if failed */
 		"eieio\n"			/* memory barrier */
+		"sync\n"
 		"2:\t\n"
 		: "=&r" (ret)
 		: "r" (cmpval), "r" (newval), "r" (p)
