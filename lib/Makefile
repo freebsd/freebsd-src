@@ -66,23 +66,23 @@ _libvgl=	libvgl
 .if !defined(NOLIBPTHREAD)
 _libpthread=	libpthread
 .endif
-.if !defined(NOLIBTHR)
-_libthr=	libthr
-.endif
 .endif
 
 .if ${MACHINE_ARCH} == "ia64"
 .if !defined(NOLIBPTHREAD)
 _libpthread=	libpthread
 .endif
-.if !defined(NOLIBTHR)
-_libthr=	libthr
-.endif
 .endif
 
 .if ${MACHINE_ARCH} == "alpha"
 _libio=		libio
 _compat=	compat
+.endif
+
+.if ${MACHINE_ARCH} != "amd64" && ${MACHINE_ARCH} != "powerpc"
+.if !defined(NOLIBTHR)
+_libthr=	libthr
+.endif
 .endif
 
 .if ${MACHINE_ARCH} != "powerpc"
