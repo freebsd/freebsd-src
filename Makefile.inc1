@@ -169,7 +169,7 @@ CROSSENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
 		MACHINE_ARCH=${TARGET_ARCH} \
 		MACHINE=${TARGET} \
 		OBJFORMAT_PATH=${WORLDTMP}/usr/libexec \
-		PERL5LIB=${WORLDTMP}/usr/libdata/perl/5.6.0 \
+		PERL5LIB=${WORLDTMP}/usr/libdata/perl/5.6.1 \
 		GROFF_BIN_PATH=${WORLDTMP}/usr/bin \
 		GROFF_FONT_PATH=${WORLDTMP}/usr/share/groff_font \
 		GROFF_TMAC_PATH=${WORLDTMP}/usr/share/tmac
