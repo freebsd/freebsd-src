@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic7xxx.h#76 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic7xxx.h#77 $
  *
  * $FreeBSD$
  */
@@ -93,7 +93,7 @@ struct seeprom_descriptor;
 #define	SCB_GET_CHANNEL(ahc, scb) \
 	SCSIID_CHANNEL(ahc, (scb)->hscb->scsiid)
 #define	SCB_GET_LUN(scb) \
-	((scb)->hscb->lun)
+	((scb)->hscb->lun & LID)
 #define SCB_GET_TARGET_OFFSET(ahc, scb)	\
 	(SCB_GET_TARGET(ahc, scb) + (SCB_IS_SCSIBUS_B(ahc, scb) ? 8 : 0))
 #define SCB_GET_TARGET_MASK(ahc, scb) \
