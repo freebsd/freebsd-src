@@ -458,6 +458,16 @@ struct rl_softc {
 #define DLINK_DEVICEID_530TXPLUS		0x1300
 
 /*
+ * Peppercon vendor ID.
+ */
+#define PEPPERCON_VENDORID			0x1743
+
+/*
+ * Peppercon AG ROL/F device ID.
+ */
+#define PEPPERCON_DEVICEID_ROLF			0x8139
+
+/*
  * PCI low memory base and low I/O base register, and
  * other PCI registers.
  */

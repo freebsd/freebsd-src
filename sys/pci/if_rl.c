@@ -153,6 +153,8 @@ static struct rl_type rl_devs[] = {
 		"D-Link DFE-530TX+ 10/100BaseTX" },
 	{ NORTEL_VENDORID, ACCTON_DEVICEID_5030,
 		"Nortel Networks 10/100BaseTX" },
+	{ PEPPERCON_VENDORID, PEPPERCON_DEVICEID_ROLF,
+		"Peppercon AG ROL/F" },
 	{ 0, 0, NULL }
 };
 
