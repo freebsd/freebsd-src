@@ -23,6 +23,7 @@ ia64/acpica/acpi_wakeup.c	optional	acpica
 ia64/acpica/OsdEnvironment.c	optional	acpica
 ia64/acpica/madt.c		optional	acpica
 ia64/ia64/ia64-gdbstub.c	optional	ddb
+ia64/ia64/ia64dump.c		standard
 ia64/ia64/autoconf.c		standard
 ia64/ia64/busdma_machdep.c	standard
 ia64/ia64/clock.c		standard
