@@ -392,6 +392,7 @@ tcp_timer_rexmt(xtp)
 		 */
 		tp->snd_cwnd_prev = tp->snd_cwnd;
 		tp->snd_ssthresh_prev = tp->snd_ssthresh;
+		tp->snd_high_prev = tp->snd_high;
 		tp->t_badrxtwin = ticks + (tp->t_srtt >> (TCP_RTT_SHIFT + 1));
 	}
 	tcpstat.tcps_rexmttimeo++;
@@ -429,11 +430,7 @@ tcp_timer_rexmt(xtp)
 		tp->t_srtt = 0;
 	}
 	tp->snd_nxt = tp->snd_una;
-	/*
-	 * Note:  We overload snd_recover to function also as the
-	 * snd_last variable described in RFC 2582
-	 */
-	tp->snd_recover = tp->snd_max;
+	tp->snd_high = tp->snd_max;
 	/*
 	 * Force a segment to be sent.
 	 */
