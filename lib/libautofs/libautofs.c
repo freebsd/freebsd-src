@@ -80,7 +80,7 @@ getmntlst(struct statfs **sfsp, int *cntp)
 	*sfsp = NULL;
 	cnt = getfsstat(NULL, 0, MNT_NOWAIT);
 	bufsize = cnt * sizeof(**sfsp);
-	fprintf(stderr, "getmntlst bufsize %ld, cnt %d\n", bufsize, cnt);
+	/*fprintf(stderr, "getmntlst bufsize %ld, cnt %d\n", bufsize, cnt);*/
 	*sfsp = malloc(bufsize);
 	if (sfsp == NULL)
 		goto err;
@@ -88,12 +88,12 @@ getmntlst(struct statfs **sfsp, int *cntp)
 	if (cnt == -1)
 		goto err;
 	*cntp = cnt;
-	fprintf(stderr, "getmntlst ok, cnt %d\n", cnt);
+	/*fprintf(stderr, "getmntlst ok, cnt %d\n", cnt);*/
 	return (0);
 err:
 	safe_free(sfsp);
 	*sfsp = NULL;
-	fprintf(stderr, "getmntlst bad\n");
+	/*fprintf(stderr, "getmntlst bad\n");*/
 	return (-1);
 }
 
@@ -117,7 +117,7 @@ autoh_get(const char *path, autoh_t *ahp)
 			break;
 	}
 	if (i == cnt) {
-		fprintf(stderr, "autoh_get bad %d %d\n", i, cnt);
+		/*fprintf(stderr, "autoh_get bad %d %d\n", i, cnt);*/
 		errno = ENOENT;
 		goto err;
 	}
