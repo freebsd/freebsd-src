@@ -54,6 +54,7 @@
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
+#include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
@@ -457,6 +458,16 @@ setdumpdev(dev_t dev)
 static void
 dump_conf(void *dummy)
 {
+	char *path;
+	dev_t dev;
+
+	path = malloc(MNAMELEN, M_TEMP, M_WAITOK);
+	if (TUNABLE_STR_FETCH("dumpdev", path, MNAMELEN) != 0) {
+		dev = getdiskbyname(path);
+		if (dev != NODEV)
+			dumpdev = dev;
+	}
+	free(path, M_TEMP);
 	if (setdumpdev(dumpdev) != 0)
 		dumpdev = NODEV;
 }
