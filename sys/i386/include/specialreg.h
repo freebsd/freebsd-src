@@ -125,13 +125,30 @@
 #define MSR_P5_MC_ADDR		0x000
 #define MSR_P5_MC_TYPE		0x001
 #define MSR_TSC			0x010
+#define	MSR_P5_CESR		0x011
+#define	MSR_P5_CTR0		0x012
+#define	MSR_P5_CTR1		0x013
+#define	MSR_IA32_PLATFORM_ID	0x017
 #define MSR_APICBASE		0x01b
 #define MSR_EBL_CR_POWERON	0x02a
+#define	MSR_TEST_CTL		0x033
 #define MSR_BIOS_UPDT_TRIG	0x079
+#define	MSR_BBL_CR_D0		0x088
+#define	MSR_BBL_CR_D1		0x089
+#define	MSR_BBL_CR_D2		0x08a
 #define MSR_BIOS_SIGN		0x08b
 #define MSR_PERFCTR0		0x0c1
 #define MSR_PERFCTR1		0x0c2
 #define MSR_MTRRcap		0x0fe
+#define	MSR_BBL_CR_ADDR		0x116
+#define	MSR_BBL_CR_DECC		0x118
+#define	MSR_BBL_CR_CTL		0x119
+#define	MSR_BBL_CR_TRIG		0x11a
+#define	MSR_BBL_CR_BUSY		0x11b
+#define	MSR_BBL_CR_CTL3		0x11e
+#define	MSR_SYSENTER_CS_MSR	0x174
+#define	MSR_SYSENTER_ESP_MSR	0x175
+#define	MSR_SYSENTER_EIP_MSR	0x176
 #define MSR_MCG_CAP		0x179
 #define MSR_MCG_STATUS		0x17a
 #define MSR_MCG_CTL		0x17b
@@ -168,6 +185,14 @@
 #define MSR_MC3_STATUS		0x411
 #define MSR_MC3_ADDR		0x412
 #define MSR_MC3_MISC		0x413
+
+/*
+ * Constants related to MSR's.
+ */
+#define	APICBASE_RESERVED	0x000006ff
+#define	APICBASE_BSP		0x00000100
+#define	APICBASE_ENABLED	0x00000800
+#define	APICBASE_ADDRESS	0xfffff000
 
 /*
  * Constants related to MTRRs
