@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.195 1999/04/24 01:53:54 jkh Exp $
+ * $Id: menus.c,v 1.196 1999/04/27 14:33:26 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -854,7 +854,11 @@ DMenu MenuSrcDistributions = {
     "you wish to install.",
     NULL,
     NULL,
-    { { "base",		"top-level files in /usr/src",
+    { { "All",		"Select all of the below",
+	NULL,		setSrc, NULL, NULL, ' ', ' ', ' ' },
+      { "Clear",	"Reset all of the below",
+	NULL,		clearSrc, NULL, NULL, ' ', ' ', ' ' },
+      { "base",		"top-level files in /usr/src",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_BASE },
       { "contrib",	"/usr/src/contrib (contributed software)",
 	dmenuFlagCheck,	dmenuSetFlag,	NULL, &SrcDists, '[', 'X', ']', DIST_SRC_CONTRIB },
@@ -884,10 +888,6 @@ DMenu MenuSrcDistributions = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_UBIN },
       { "usbin",	"/usr/src/usr.sbin (aux system binaries)",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_USBIN },
-      { "All",		"Select all of the above",
-	NULL,		setSrc, NULL, NULL, ' ', ' ', ' ' },
-      { "Clear",	"Reset all of the above",
-	NULL,		clearSrc, NULL, NULL, ' ', ' ', ' ' },
       { "Exit",		"Exit this menu (returning to previous)",
 	checkTrue,	dmenuExit, NULL, NULL, '<', '<', '<' },
       { NULL } },
