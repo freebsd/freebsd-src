@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)master.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: master.c,v 1.3 1997/10/22 06:19:48 charnier Exp $";
 #endif /* not lint */
 
 #include "globals.h"
@@ -150,9 +150,7 @@ loop:
 				to.tsp_vers = TSPVERSION;
 				to.tsp_seq = sequence++;
 				to.tsp_hopcnt = MAX_HOPCNT;
-				(void)strncpy(to.tsp_name, hostname,
-						sizeof to.tsp_name-1);
-				to.tsp_name[sizeof to.tsp_name-1] = '\0';
+				(void)strcpy(to.tsp_name, hostname);
 				bytenetorder(&to);
 				if (sendto(sock, (char *)&to,
 					   sizeof(struct tsp), 0,
@@ -181,9 +179,7 @@ loop:
 #ifdef sgi
 			(void)cftime(newdate, "%D %T", &msg->tsp_time.tv_sec);
 #else
-			(void)strncpy(newdate, ctime(&msg->tsp_time.tv_sec),
-					sizeof newdate-1);
-			newdate[sizeof newdate-1] = '\0';
+			(void)strcpy(newdate, ctime(&msg->tsp_time.tv_sec));
 #endif /* sgi */
 			if (!good_host_name(msg->tsp_name)) {
 				syslog(LOG_NOTICE,
@@ -204,9 +200,7 @@ loop:
 #ifdef sgi
 			(void)cftime(newdate, "%D %T", &msg->tsp_time.tv_sec);
 #else
-			(void)strncpy(newdate, ctime(&msg->tsp_time.tv_sec),
-					sizeof newdate-1);
-			newdate[sizeof newdate-1] = '\0';
+			(void)strcpy(newdate, ctime(&msg->tsp_time.tv_sec));
 #endif /* sgi */
 			htp = findhost(msg->tsp_name);
 			if (htp == 0) {
@@ -254,12 +248,9 @@ loop:
 				(void)addmach(msg->tsp_name, &from,fromnet);
 			}
 			taddr = from;
-			(void)strncpy(tname, msg->tsp_name, sizeof tname-1);
-			tname[sizeof tname-1] = '\0';
+			(void)strcpy(tname, msg->tsp_name);
 			to.tsp_type = TSP_QUIT;
-			(void)strncpy(to.tsp_name, hostname,
-					sizeof to.tsp_name-1);
-			to.tsp_name[sizeof to.tsp_name-1] = '\0';
+			(void)strcpy(to.tsp_name, hostname);
 			answer = acksend(&to, &taddr, tname,
 					 TSP_ACK, 0, 1);
 			if (answer == NULL) {
@@ -276,9 +267,7 @@ loop:
 			 */
 			if (!fromnet || fromnet->status != MASTER)
 				break;
-			(void)strncpy(to.tsp_name, hostname,
-					sizeof to.tsp_name-1);
-			to.tsp_name[sizeof to.tsp_name-1] = '\0';
+			(void)strcpy(to.tsp_name, hostname);
 
 			/* The other master often gets into the same state,
 			 * with boring results if we stay at it forever.
@@ -286,9 +275,7 @@ loop:
 			ntp = fromnet;	/* (acksend() can leave fromnet=0 */
 			for (i = 0; i < 3; i++) {
 				to.tsp_type = TSP_RESOLVE;
-				(void)strncpy(to.tsp_name, hostname,
-						sizeof to.tsp_name-1);
-				to.tsp_name[sizeof to.tsp_name-1] = '\0';
+				(void)strcpy(to.tsp_name, hostname);
 				answer = acksend(&to, &ntp->dest_addr,
 						 ANYADDR, TSP_MASTERACK,
 						 ntp, 0);
@@ -333,9 +320,7 @@ loop:
 			 */
 			htp = addmach(msg->tsp_name, &from,fromnet);
 			to.tsp_type = TSP_QUIT;
-			(void)strncpy(to.tsp_name, hostname,
-					sizeof to.tsp_name-1);
-			to.tsp_name[sizeof to.tsp_name-1] = '\0';
+			(void)strcpy(to.tsp_name, hostname);
 			answer = acksend(&to, &htp->addr, htp->name,
 					 TSP_ACK, 0, 1);
 			if (!answer) {
@@ -379,13 +364,11 @@ mchgdate(msg)
 	char olddate[32];
 	struct timeval otime, ntime;
 
-	(void)strncpy(tname, msg->tsp_name, sizeof tname-1);
-	tname[sizeof tname-1] = '\0';
+	(void)strcpy(tname, msg->tsp_name);
 
 	xmit(TSP_DATEACK, msg->tsp_seq, &from);
 
-	(void)strncpy(olddate, date(), sizeof olddate-1);
-	olddate[sizeof olddate-1] = '\0';
+	(void)strcpy(olddate, date());
 
 	/* adjust time for residence on the queue */
 	(void)gettimeofday(&otime, 0);
@@ -520,8 +503,7 @@ spreadtime()
 	dictate = 2;
 	for (htp = self.l_fwd; htp != &self; htp = htp->l_fwd) {
 		to.tsp_type = TSP_SETTIME;
-		(void)strncpy(to.tsp_name, hostname, sizeof to.tsp_name-1);
-		to.tsp_name[sizeof to.tsp_name-1] = '\0';
+		(void)strcpy(to.tsp_name, hostname);
 		(void)gettimeofday(&to.tsp_time, 0);
 		answer = acksend(&to, &htp->addr, htp->name,
 				 TSP_ACK, 0, htp->noanswer);
@@ -805,8 +787,7 @@ newslave(msg)
 	if (now.tv_sec >= fromnet->slvwait.tv_sec+3
 	    || now.tv_sec < fromnet->slvwait.tv_sec) {
 		to.tsp_type = TSP_SETTIME;
-		(void)strncpy(to.tsp_name, hostname, sizeof to.tsp_name-1);
-		to.tsp_name[sizeof to.tsp_name-1] = '\0';
+		(void)strcpy(to.tsp_name, hostname);
 		(void)gettimeofday(&to.tsp_time, 0);
 		answer = acksend(&to, &htp->addr,
 				 htp->name, TSP_ACK,
