@@ -11,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.h,v 1.36 1998/12/14 18:09:13 luigi Exp $
+ *	$Id: ip_fw.h,v 1.36.2.1 1999/08/16 17:29:51 luigi Exp $
  */
 
 #ifndef _IP_FW_H
@@ -81,6 +81,10 @@ struct ip_fw {
 					/* count of 0 means match all ports) */
     void *pipe_ptr;                    /* Pipe ptr in case of dummynet pipe */
     void *next_rule_ptr ;              /* next rule in case of match */
+    uid_t fw_uid;			/* uid to match */
+    gid_t fw_gid;			/* gid to match */
+    int fw_logamount;			/* amount to log */
+    u_int64_t fw_loghighest;		/* highest number packet to log */
 };
 
 /*
@@ -160,9 +164,13 @@ struct ip_fw_chain {
 
 #define IP_FW_F_ICMPBIT 0x00100000	/* ICMP type bitmap is valid		*/
 
+#define	IP_FW_F_UID	0x00200000	/* filter by uid			*/
+
+#define IP_FW_F_GID	0x00400000	/* filter by gid			*/
+
 #define IP_FW_F_RND_MATCH 0x00800000	/* probabilistic rule match		*/
 
-#define IP_FW_F_MASK	0x009FFFFF	/* All possible flag bits mask		*/
+#define IP_FW_F_MASK	0x00FFFFFF	/* All possible flag bits mask		*/
 
 /*
  * For backwards compatibility with rules specifying "via iface" but
