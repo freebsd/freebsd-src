@@ -437,7 +437,7 @@ cam_open_btl(path_id_t path_id, target_id_t target_id, lun_id_t target_lun,
 	}
 	default:
 		sprintf(cam_errbuf, "%s: asked for a peripheral match, but"
-			" got a bus or device match??!!", func_name);
+			" got a bus or device match", func_name);
 		goto btl_bailout;
 		break; /* NOTREACHED */
 	}
@@ -527,7 +527,7 @@ cam_lookup_pass(const char *dev_name, int unit, int flags,
 	 * the device the user gave us.
 	 */
 	if (ccb.cgdl.status == CAM_GDEVLIST_ERROR) {
-		sprintf(cam_errbuf, "%s: device %s%d does not exist",
+		sprintf(cam_errbuf, "%s: device %s%d does not exist!",
 			func_name, dev_name, unit);
 		return(NULL);
 	}
@@ -628,7 +628,7 @@ cam_real_open_device(const char *path, int flags, struct cam_device *device,
 	 * the device the user gave us.
 	 */
 	if (ccb.cgdl.status == CAM_GDEVLIST_ERROR) {
-		sprintf(cam_errbuf, "%s: passthrough device does not exist??!!",
+		sprintf(cam_errbuf, "%s: passthrough device does not exist!",
 			func_name);
 		goto crod_bailout;
 	}
