@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 1999-2002 Robert N. M. Watson
- * Copyright (c) 2001-2003 Networks Associates Technology, Inc.
+ * Copyright (c) 2001-2004 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
@@ -221,9 +221,9 @@ mac_biba_subject_dominate_high(struct mac_biba *mac_biba)
 {
 	struct mac_biba_element *element;
 
-	KASSERT((mac_biba->mb_flags & MAC_BIBA_FLAG_SINGLE) != 0,
-	    ("mac_biba_single_in_range: mac_biba not single"));
-	element = &mac_biba->mb_single;
+	KASSERT((mac_biba->mb_flags & MAC_BIBA_FLAG_EFFECTIVE) != 0,
+	    ("mac_biba_effective_in_range: mac_biba not effective"));
+	element = &mac_biba->mb_effective;
 
 	return (element->mbe_type == MAC_BIBA_TYPE_EQUAL ||
 	    element->mbe_type == MAC_BIBA_TYPE_HIGH);
@@ -240,31 +240,31 @@ mac_biba_range_in_range(struct mac_biba *rangea, struct mac_biba *rangeb)
 }
 
 static int
-mac_biba_single_in_range(struct mac_biba *single, struct mac_biba *range)
+mac_biba_effective_in_range(struct mac_biba *effective, struct mac_biba *range)
 {
 
-	KASSERT((single->mb_flags & MAC_BIBA_FLAG_SINGLE) != 0,
-	    ("mac_biba_single_in_range: a not single"));
+	KASSERT((effective->mb_flags & MAC_BIBA_FLAG_EFFECTIVE) != 0,
+	    ("mac_biba_effective_in_range: a not effective"));
 	KASSERT((range->mb_flags & MAC_BIBA_FLAG_RANGE) != 0,
-	    ("mac_biba_single_in_range: b not range"));
+	    ("mac_biba_effective_in_range: b not range"));
 
 	return (mac_biba_dominate_element(&range->mb_rangehigh,
-	    &single->mb_single) &&
-	    mac_biba_dominate_element(&single->mb_single,
+	    &effective->mb_effective) &&
+	    mac_biba_dominate_element(&effective->mb_effective,
 	    &range->mb_rangelow));
 
 	return (1);
 }
 
 static int
-mac_biba_dominate_single(struct mac_biba *a, struct mac_biba *b)
+mac_biba_dominate_effective(struct mac_biba *a, struct mac_biba *b)
 {
-	KASSERT((a->mb_flags & MAC_BIBA_FLAG_SINGLE) != 0,
-	    ("mac_biba_dominate_single: a not single"));
-	KASSERT((b->mb_flags & MAC_BIBA_FLAG_SINGLE) != 0,
-	    ("mac_biba_dominate_single: b not single"));
+	KASSERT((a->mb_flags & MAC_BIBA_FLAG_EFFECTIVE) != 0,
+	    ("mac_biba_dominate_effective: a not effective"));
+	KASSERT((b->mb_flags & MAC_BIBA_FLAG_EFFECTIVE) != 0,
+	    ("mac_biba_dominate_effective: b not effective"));
 
-	return (mac_biba_dominate_element(&a->mb_single, &b->mb_single));
+	return (mac_biba_dominate_element(&a->mb_effective, &b->mb_effective));
 }
 
 static int
@@ -279,23 +279,23 @@ mac_biba_equal_element(struct mac_biba_element *a, struct mac_biba_element *b)
 }
 
 static int
-mac_biba_equal_single(struct mac_biba *a, struct mac_biba *b)
+mac_biba_equal_effective(struct mac_biba *a, struct mac_biba *b)
 {
 
-	KASSERT((a->mb_flags & MAC_BIBA_FLAG_SINGLE) != 0,
-	    ("mac_biba_equal_single: a not single"));
-	KASSERT((b->mb_flags & MAC_BIBA_FLAG_SINGLE) != 0,
-	    ("mac_biba_equal_single: b not single"));
+	KASSERT((a->mb_flags & MAC_BIBA_FLAG_EFFECTIVE) != 0,
+	    ("mac_biba_equal_effective: a not effective"));
+	KASSERT((b->mb_flags & MAC_BIBA_FLAG_EFFECTIVE) != 0,
+	    ("mac_biba_equal_effective: b not effective"));
 
-	return (mac_biba_equal_element(&a->mb_single, &b->mb_single));
+	return (mac_biba_equal_element(&a->mb_effective, &b->mb_effective));
 }
 
 static int
 mac_biba_contains_equal(struct mac_biba *mac_biba)
 {
 
-	if (mac_biba->mb_flags & MAC_BIBA_FLAG_SINGLE)
-		if (mac_biba->mb_single.mbe_type == MAC_BIBA_TYPE_EQUAL)
+	if (mac_biba->mb_flags & MAC_BIBA_FLAG_EFFECTIVE)
+		if (mac_biba->mb_effective.mbe_type == MAC_BIBA_TYPE_EQUAL)
 			return (1);
 
 	if (mac_biba->mb_flags & MAC_BIBA_FLAG_RANGE) {
@@ -316,8 +316,8 @@ mac_biba_subject_privileged(struct mac_biba *mac_biba)
 	    MAC_BIBA_FLAGS_BOTH,
 	    ("mac_biba_subject_privileged: subject doesn't have both labels"));
 
-	/* If the single is EQUAL, it's ok. */
-	if (mac_biba->mb_single.mbe_type == MAC_BIBA_TYPE_EQUAL)
+	/* If the effective is EQUAL, it's ok. */
+	if (mac_biba->mb_effective.mbe_type == MAC_BIBA_TYPE_EQUAL)
 		return (0);
 
 	/* If either range endpoint is EQUAL, it's ok. */
@@ -335,30 +335,30 @@ mac_biba_subject_privileged(struct mac_biba *mac_biba)
 }
 
 static int
-mac_biba_high_single(struct mac_biba *mac_biba)
+mac_biba_high_effective(struct mac_biba *mac_biba)
 {
 
-	KASSERT((mac_biba->mb_flags & MAC_BIBA_FLAG_SINGLE) != 0,
-	    ("mac_biba_equal_single: mac_biba not single"));
+	KASSERT((mac_biba->mb_flags & MAC_BIBA_FLAG_EFFECTIVE) != 0,
+	    ("mac_biba_equal_effective: mac_biba not effective"));
 
-	return (mac_biba->mb_single.mbe_type == MAC_BIBA_TYPE_HIGH);
+	return (mac_biba->mb_effective.mbe_type == MAC_BIBA_TYPE_HIGH);
 }
 
 static int
 mac_biba_valid(struct mac_biba *mac_biba)
 {
 
-	if (mac_biba->mb_flags & MAC_BIBA_FLAG_SINGLE) {
-		switch (mac_biba->mb_single.mbe_type) {
+	if (mac_biba->mb_flags & MAC_BIBA_FLAG_EFFECTIVE) {
+		switch (mac_biba->mb_effective.mbe_type) {
 		case MAC_BIBA_TYPE_GRADE:
 			break;
 
 		case MAC_BIBA_TYPE_EQUAL:
 		case MAC_BIBA_TYPE_HIGH:
 		case MAC_BIBA_TYPE_LOW:
-			if (mac_biba->mb_single.mbe_grade != 0 ||
+			if (mac_biba->mb_effective.mbe_grade != 0 ||
 			    !MAC_BIBA_BIT_SET_EMPTY(
-			    mac_biba->mb_single.mbe_compartments))
+			    mac_biba->mb_effective.mbe_compartments))
 				return (EINVAL);
 			break;
 
@@ -366,7 +366,7 @@ mac_biba_valid(struct mac_biba *mac_biba)
 			return (EINVAL);
 		}
 	} else {
-		if (mac_biba->mb_single.mbe_type != MAC_BIBA_TYPE_UNDEF)
+		if (mac_biba->mb_effective.mbe_type != MAC_BIBA_TYPE_UNDEF)
 			return (EINVAL);
 	}
 
@@ -438,16 +438,16 @@ mac_biba_set_range(struct mac_biba *mac_biba, u_short typelow,
 }
 
 static void
-mac_biba_set_single(struct mac_biba *mac_biba, u_short type, u_short grade,
+mac_biba_set_effective(struct mac_biba *mac_biba, u_short type, u_short grade,
     u_char *compartments)
 {
 
-	mac_biba->mb_single.mbe_type = type;
-	mac_biba->mb_single.mbe_grade = grade;
+	mac_biba->mb_effective.mbe_type = type;
+	mac_biba->mb_effective.mbe_grade = grade;
 	if (compartments != NULL)
-		memcpy(mac_biba->mb_single.mbe_compartments, compartments,
-		    sizeof(mac_biba->mb_single.mbe_compartments));
-	mac_biba->mb_flags |= MAC_BIBA_FLAG_SINGLE;
+		memcpy(mac_biba->mb_effective.mbe_compartments, compartments,
+		    sizeof(mac_biba->mb_effective.mbe_compartments));
+	mac_biba->mb_flags |= MAC_BIBA_FLAG_EFFECTIVE;
 }
 
 static void
@@ -463,22 +463,22 @@ mac_biba_copy_range(struct mac_biba *labelfrom, struct mac_biba *labelto)
 }
 
 static void
-mac_biba_copy_single(struct mac_biba *labelfrom, struct mac_biba *labelto)
+mac_biba_copy_effective(struct mac_biba *labelfrom, struct mac_biba *labelto)
 {
 
-	KASSERT((labelfrom->mb_flags & MAC_BIBA_FLAG_SINGLE) != 0,
-	    ("mac_biba_copy_single: labelfrom not single"));
+	KASSERT((labelfrom->mb_flags & MAC_BIBA_FLAG_EFFECTIVE) != 0,
+	    ("mac_biba_copy_effective: labelfrom not effective"));
 
-	labelto->mb_single = labelfrom->mb_single;
-	labelto->mb_flags |= MAC_BIBA_FLAG_SINGLE;
+	labelto->mb_effective = labelfrom->mb_effective;
+	labelto->mb_flags |= MAC_BIBA_FLAG_EFFECTIVE;
 }
 
 static void
 mac_biba_copy(struct mac_biba *source, struct mac_biba *dest)
 {
 
-	if (source->mb_flags & MAC_BIBA_FLAG_SINGLE)
-		mac_biba_copy_single(source, dest);
+	if (source->mb_flags & MAC_BIBA_FLAG_EFFECTIVE)
+		mac_biba_copy_effective(source, dest);
 	if (source->mb_flags & MAC_BIBA_FLAG_RANGE)
 		mac_biba_copy_range(source, dest);
 }
@@ -581,8 +581,8 @@ static int
 mac_biba_to_string(struct sbuf *sb, struct mac_biba *mac_biba)
 {
 
-	if (mac_biba->mb_flags & MAC_BIBA_FLAG_SINGLE) {
-		if (mac_biba_element_to_string(sb, &mac_biba->mb_single)
+	if (mac_biba->mb_flags & MAC_BIBA_FLAG_EFFECTIVE) {
+		if (mac_biba_element_to_string(sb, &mac_biba->mb_effective)
 		    == -1)
 			return (EINVAL);
 	}
@@ -686,12 +686,12 @@ mac_biba_parse_element(struct mac_biba_element *element, char *string)
 static int
 mac_biba_parse(struct mac_biba *mac_biba, char *string)
 {
-	char *rangehigh, *rangelow, *single;
+	char *rangehigh, *rangelow, *effective;
 	int error;
 
-	single = strsep(&string, "(");
-	if (*single == '\0')
-		single = NULL;
+	effective = strsep(&string, "(");
+	if (*effective == '\0')
+		effective = NULL;
 
 	if (string != NULL) {
 		rangelow = strsep(&string, "-");
@@ -712,11 +712,11 @@ mac_biba_parse(struct mac_biba *mac_biba, char *string)
 	    ("mac_biba_parse: range mismatch"));
 
 	bzero(mac_biba, sizeof(*mac_biba));
-	if (single != NULL) {
-		error = mac_biba_parse_element(&mac_biba->mb_single, single);
+	if (effective != NULL) {
+		error = mac_biba_parse_element(&mac_biba->mb_effective, effective);
 		if (error)
 			return (error);
-		mac_biba->mb_flags |= MAC_BIBA_FLAG_SINGLE;
+		mac_biba->mb_flags |= MAC_BIBA_FLAG_EFFECTIVE;
 	}
 
 	if (rangelow != NULL) {
@@ -790,7 +790,7 @@ mac_biba_create_devfs_device(struct mount *mp, struct cdev *dev,
 		biba_type = MAC_BIBA_TYPE_EQUAL;
 	else
 		biba_type = MAC_BIBA_TYPE_HIGH;
-	mac_biba_set_single(mac_biba, biba_type, 0, NULL);
+	mac_biba_set_effective(mac_biba, biba_type, 0, NULL);
 }
 
 static void
@@ -800,7 +800,7 @@ mac_biba_create_devfs_directory(struct mount *mp, char *dirname,
 	struct mac_biba *mac_biba;
 
 	mac_biba = SLOT(label);
-	mac_biba_set_single(mac_biba, MAC_BIBA_TYPE_HIGH, 0, NULL);
+	mac_biba_set_effective(mac_biba, MAC_BIBA_TYPE_HIGH, 0, NULL);
 }
 
 static void
@@ -813,7 +813,7 @@ mac_biba_create_devfs_symlink(struct ucred *cred, struct mount *mp,
 	source = SLOT(cred->cr_label);
 	dest = SLOT(delabel);
 
-	mac_biba_copy_single(source, dest);
+	mac_biba_copy_effective(source, dest);
 }
 
 static void
@@ -824,9 +824,9 @@ mac_biba_create_mount(struct ucred *cred, struct mount *mp,
 
 	source = SLOT(cred->cr_label);
 	dest = SLOT(mntlabel);
-	mac_biba_copy_single(source, dest);
+	mac_biba_copy_effective(source, dest);
 	dest = SLOT(fslabel);
-	mac_biba_copy_single(source, dest);
+	mac_biba_copy_effective(source, dest);
 }
 
 static void
@@ -837,9 +837,9 @@ mac_biba_create_root_mount(struct ucred *cred, struct mount *mp,
 
 	/* Always mount root as high integrity. */
 	mac_biba = SLOT(fslabel);
-	mac_biba_set_single(mac_biba, MAC_BIBA_TYPE_HIGH, 0, NULL);
+	mac_biba_set_effective(mac_biba, MAC_BIBA_TYPE_HIGH, 0, NULL);
 	mac_biba = SLOT(mntlabel);
-	mac_biba_set_single(mac_biba, MAC_BIBA_TYPE_HIGH, 0, NULL);
+	mac_biba_set_effective(mac_biba, MAC_BIBA_TYPE_HIGH, 0, NULL);
 }
 
 static void
@@ -877,7 +877,7 @@ mac_biba_associate_vnode_devfs(struct mount *mp, struct label *fslabel,
 	source = SLOT(delabel);
 	dest = SLOT(vlabel);
 
-	mac_biba_copy_single(source, dest);
+	mac_biba_copy_effective(source, dest);
 }
 
 static int
@@ -897,7 +897,7 @@ mac_biba_associate_vnode_extattr(struct mount *mp, struct label *fslabel,
 	    MAC_BIBA_EXTATTR_NAME, &buflen, (char *) &temp, curthread);
 	if (error == ENOATTR || error == EOPNOTSUPP) {
 		/* Fall back to the fslabel. */
-		mac_biba_copy_single(source, dest);
+		mac_biba_copy_effective(source, dest);
 		return (0);
 	} else if (error)
 		return (error);
@@ -911,12 +911,12 @@ mac_biba_associate_vnode_extattr(struct mount *mp, struct label *fslabel,
 		printf("mac_biba_associate_vnode_extattr: invalid\n");
 		return (EPERM);
 	}
-	if ((temp.mb_flags & MAC_BIBA_FLAGS_BOTH) != MAC_BIBA_FLAG_SINGLE) {
-		printf("mac_biba_associate_vnode_extattr: not single\n");
+	if ((temp.mb_flags & MAC_BIBA_FLAGS_BOTH) != MAC_BIBA_FLAG_EFFECTIVE) {
+		printf("mac_biba_associate_vnode_extattr: not effective\n");
 		return (EPERM);
 	}
 
-	mac_biba_copy_single(&temp, dest);
+	mac_biba_copy_effective(&temp, dest);
 	return (0);
 }
 
@@ -929,7 +929,7 @@ mac_biba_associate_vnode_singlelabel(struct mount *mp,
 	source = SLOT(fslabel);
 	dest = SLOT(vlabel);
 
-	mac_biba_copy_single(source, dest);
+	mac_biba_copy_effective(source, dest);
 }
 
 static int
@@ -946,12 +946,12 @@ mac_biba_create_vnode_extattr(struct ucred *cred, struct mount *mp,
 
 	source = SLOT(cred->cr_label);
 	dest = SLOT(vlabel);
-	mac_biba_copy_single(source, &temp);
+	mac_biba_copy_effective(source, &temp);
 
 	error = vn_extattr_set(vp, IO_NODELOCKED, MAC_BIBA_EXTATTR_NAMESPACE,
 	    MAC_BIBA_EXTATTR_NAME, buflen, (char *) &temp, curthread);
 	if (error == 0)
-		mac_biba_copy_single(source, dest);
+		mac_biba_copy_effective(source, dest);
 	return (error);
 }
 
@@ -967,10 +967,10 @@ mac_biba_setlabel_vnode_extattr(struct ucred *cred, struct vnode *vp,
 	bzero(&temp, buflen);
 
 	source = SLOT(intlabel);
-	if ((source->mb_flags & MAC_BIBA_FLAG_SINGLE) == 0)
+	if ((source->mb_flags & MAC_BIBA_FLAG_EFFECTIVE) == 0)
 		return (0);
 
-	mac_biba_copy_single(source, &temp);
+	mac_biba_copy_effective(source, &temp);
 
 	error = vn_extattr_set(vp, IO_NODELOCKED, MAC_BIBA_EXTATTR_NAMESPACE,
 	    MAC_BIBA_EXTATTR_NAME, buflen, (char *) &temp, curthread);
@@ -989,7 +989,7 @@ mac_biba_create_inpcb_from_socket(struct socket *so, struct label *solabel,
 	source = SLOT(solabel);
 	dest = SLOT(inplabel);
 
-	mac_biba_copy_single(source, dest);
+	mac_biba_copy_effective(source, dest);
 }
 
 static void
@@ -1001,7 +1001,7 @@ mac_biba_create_mbuf_from_socket(struct socket *so, struct label *socketlabel,
 	source = SLOT(socketlabel);
 	dest = SLOT(mbuflabel);
 
-	mac_biba_copy_single(source, dest);
+	mac_biba_copy_effective(source, dest);
 }
 
 static void
@@ -1013,7 +1013,7 @@ mac_biba_create_socket(struct ucred *cred, struct socket *socket,
 	source = SLOT(cred->cr_label);
 	dest = SLOT(socketlabel);
 
-	mac_biba_copy_single(source, dest);
+	mac_biba_copy_effective(source, dest);
 }
 
 static void
@@ -1025,7 +1025,7 @@ mac_biba_create_pipe(struct ucred *cred, struct pipepair *pp,
 	source = SLOT(cred->cr_label);
 	dest = SLOT(pipelabel);
 
-	mac_biba_copy_single(source, dest);
+	mac_biba_copy_effective(source, dest);
 }
 
 static void
@@ -1038,7 +1038,7 @@ mac_biba_create_socket_from_socket(struct socket *oldsocket,
 	source = SLOT(oldsocketlabel);
 	dest = SLOT(newsocketlabel);
 
-	mac_biba_copy_single(source, dest);
+	mac_biba_copy_effective(source, dest);
 }
 
 static void
@@ -1074,7 +1074,7 @@ mac_biba_set_socket_peer_from_mbuf(struct mbuf *mbuf, struct label *mbuflabel,
 	source = SLOT(mbuflabel);
 	dest = SLOT(socketpeerlabel);
 
-	mac_biba_copy_single(source, dest);
+	mac_biba_copy_effective(source, dest);
 }
 
 /*
@@ -1090,7 +1090,7 @@ mac_biba_set_socket_peer_from_socket(struct socket *oldsocket,
 	source = SLOT(oldsocketlabel);
 	dest = SLOT(newsocketpeerlabel);
 
-	mac_biba_copy_single(source, dest);
+	mac_biba_copy_effective(source, dest);
 }
 
 static void
@@ -1102,7 +1102,7 @@ mac_biba_create_bpfdesc(struct ucred *cred, struct bpf_d *bpf_d,
 	source = SLOT(cred->cr_label);
 	dest = SLOT(bpflabel);
 
-	mac_biba_copy_single(source, dest);
+	mac_biba_copy_effective(source, dest);
 }
 
 static void
@@ -1158,7 +1158,7 @@ mac_biba_create_ifnet(struct ifnet *ifnet, struct label *ifnetlabel)
 		}
 	}
 set:
-	mac_biba_set_single(dest, type, 0, NULL);
+	mac_biba_set_effective(dest, type, 0, NULL);
 	mac_biba_set_range(dest, type, 0, NULL, type, 0, NULL);
 }
 
@@ -1171,7 +1171,7 @@ mac_biba_create_ipq(struct mbuf *fragment, struct label *fragmentlabel,
 	source = SLOT(fragmentlabel);
 	dest = SLOT(ipqlabel);
 
-	mac_biba_copy_single(source, dest);
+	mac_biba_copy_effective(source, dest);
 }
 
 static void
@@ -1184,7 +1184,7 @@ mac_biba_create_datagram_from_ipq(struct ipq *ipq, struct label *ipqlabel,
 	dest = SLOT(datagramlabel);
 
 	/* Just use the head, since we require them all to match. */
-	mac_biba_copy_single(source, dest);
+	mac_biba_copy_effective(source, dest);
 }
 
 static void
@@ -1196,7 +1196,7 @@ mac_biba_create_fragment(struct mbuf *datagram, struct label *datagramlabel,
 	source = SLOT(datagramlabel);
 	dest = SLOT(fragmentlabel);
 
-	mac_biba_copy_single(source, dest);
+	mac_biba_copy_effective(source, dest);
 }
 
 static void
@@ -1208,7 +1208,7 @@ mac_biba_create_mbuf_from_inpcb(struct inpcb *inp, struct label *inplabel,
 	source = SLOT(inplabel);
 	dest = SLOT(mlabel);
 
-	mac_biba_copy_single(source, dest);
+	mac_biba_copy_effective(source, dest);
 }
 
 static void
@@ -1240,7 +1240,7 @@ mac_biba_create_mbuf_linklayer(struct ifnet *ifnet, struct label *ifnetlabel,
 
 	dest = SLOT(mbuflabel);
 
-	mac_biba_set_single(dest, MAC_BIBA_TYPE_EQUAL, 0, NULL);
+	mac_biba_set_effective(dest, MAC_BIBA_TYPE_EQUAL, 0, NULL);
 }
 
 static void
@@ -1252,7 +1252,7 @@ mac_biba_create_mbuf_from_bpfdesc(struct bpf_d *bpf_d, struct label *bpflabel,
 	source = SLOT(bpflabel);
 	dest = SLOT(mbuflabel);
 
-	mac_biba_copy_single(source, dest);
+	mac_biba_copy_effective(source, dest);
 }
 
 static void
@@ -1264,7 +1264,7 @@ mac_biba_create_mbuf_from_ifnet(struct ifnet *ifnet, struct label *ifnetlabel,
 	source = SLOT(ifnetlabel);
 	dest = SLOT(mbuflabel);
 
-	mac_biba_copy_single(source, dest);
+	mac_biba_copy_effective(source, dest);
 }
 
 static void
@@ -1277,7 +1277,7 @@ mac_biba_create_mbuf_multicast_encap(struct mbuf *oldmbuf,
 	source = SLOT(oldmbuflabel);
 	dest = SLOT(newmbuflabel);
 
-	mac_biba_copy_single(source, dest);
+	mac_biba_copy_effective(source, dest);
 }
 
 static void
@@ -1289,7 +1289,7 @@ mac_biba_create_mbuf_netlayer(struct mbuf *oldmbuf, struct label *oldmbuflabel,
 	source = SLOT(oldmbuflabel);
 	dest = SLOT(newmbuflabel);
 
-	mac_biba_copy_single(source, dest);
+	mac_biba_copy_effective(source, dest);
 }
 
 static int
@@ -1301,7 +1301,7 @@ mac_biba_fragment_match(struct mbuf *fragment, struct label *fragmentlabel,
 	a = SLOT(ipqlabel);
 	b = SLOT(fragmentlabel);
 
-	return (mac_biba_equal_single(a, b));
+	return (mac_biba_equal_effective(a, b));
 }
 
 static void
@@ -1346,7 +1346,7 @@ mac_biba_create_proc0(struct ucred *cred)
 
 	dest = SLOT(cred->cr_label);
 
-	mac_biba_set_single(dest, MAC_BIBA_TYPE_EQUAL, 0, NULL);
+	mac_biba_set_effective(dest, MAC_BIBA_TYPE_EQUAL, 0, NULL);
 	mac_biba_set_range(dest, MAC_BIBA_TYPE_LOW, 0, NULL,
 	    MAC_BIBA_TYPE_HIGH, 0, NULL);
 }
@@ -1358,7 +1358,7 @@ mac_biba_create_proc1(struct ucred *cred)
 
 	dest = SLOT(cred->cr_label);
 
-	mac_biba_set_single(dest, MAC_BIBA_TYPE_HIGH, 0, NULL);
+	mac_biba_set_effective(dest, MAC_BIBA_TYPE_HIGH, 0, NULL);
 	mac_biba_set_range(dest, MAC_BIBA_TYPE_LOW, 0, NULL,
 	    MAC_BIBA_TYPE_HIGH, 0, NULL);
 }
@@ -1389,7 +1389,7 @@ mac_biba_check_bpfdesc_receive(struct bpf_d *bpf_d, struct label *bpflabel,
 	a = SLOT(bpflabel);
 	b = SLOT(ifnetlabel);
 
-	if (mac_biba_equal_single(a, b))
+	if (mac_biba_equal_effective(a, b))
 		return (0);
 	return (EACCES);
 }
@@ -1405,7 +1405,7 @@ mac_biba_check_cred_relabel(struct ucred *cred, struct label *newlabel)
 
 	/*
 	 * If there is a Biba label update for the credential, it may
-	 * be an update of the single, range, or both.
+	 * be an update of the effective, range, or both.
 	 */
 	error = biba_atmostflags(new, MAC_BIBA_FLAGS_BOTH);
 	if (error)
@@ -1417,20 +1417,20 @@ mac_biba_check_cred_relabel(struct ucred *cred, struct label *newlabel)
 	if (new->mb_flags & MAC_BIBA_FLAGS_BOTH) {
 		/*
 		 * If the change request modifies both the Biba label
-		 * single and range, check that the new single will be
+		 * effective and range, check that the new effective will be
 		 * in the new range.
 		 */
 		if ((new->mb_flags & MAC_BIBA_FLAGS_BOTH) ==
 		    MAC_BIBA_FLAGS_BOTH &&
-		    !mac_biba_single_in_range(new, new))
+		    !mac_biba_effective_in_range(new, new))
 			return (EINVAL);
 
 		/*
-		 * To change the Biba single label on a credential, the
-		 * new single label must be in the current range.
+		 * To change the Biba effective label on a credential, the
+		 * new effective label must be in the current range.
 		 */
-		if (new->mb_flags & MAC_BIBA_FLAG_SINGLE &&
-		    !mac_biba_single_in_range(new, subj))
+		if (new->mb_flags & MAC_BIBA_FLAG_EFFECTIVE &&
+		    !mac_biba_effective_in_range(new, subj))
 			return (EPERM);
 
 		/*
@@ -1468,7 +1468,7 @@ mac_biba_check_cred_visible(struct ucred *u1, struct ucred *u2)
 	obj = SLOT(u2->cr_label);
 
 	/* XXX: range */
-	if (!mac_biba_dominate_single(obj, subj))
+	if (!mac_biba_dominate_effective(obj, subj))
 		return (ESRCH);
 
 	return (0);
@@ -1486,7 +1486,7 @@ mac_biba_check_ifnet_relabel(struct ucred *cred, struct ifnet *ifnet,
 
 	/*
 	 * If there is a Biba label update for the interface, it may
-	 * be an update of the single, range, or both.
+	 * be an update of the effective, range, or both.
 	 */
 	error = biba_atmostflags(new, MAC_BIBA_FLAGS_BOTH);
 	if (error)
@@ -1514,7 +1514,7 @@ mac_biba_check_ifnet_transmit(struct ifnet *ifnet, struct label *ifnetlabel,
 	p = SLOT(mbuflabel);
 	i = SLOT(ifnetlabel);
 
-	return (mac_biba_single_in_range(p, i) ? 0 : EACCES);
+	return (mac_biba_effective_in_range(p, i) ? 0 : EACCES);
 }
 
 static int
@@ -1529,7 +1529,7 @@ mac_biba_check_inpcb_deliver(struct inpcb *inp, struct label *inplabel,
 	p = SLOT(mlabel);
 	i = SLOT(inplabel);
 
-	return (mac_biba_equal_single(p, i) ? 0 : EACCES);
+	return (mac_biba_equal_effective(p, i) ? 0 : EACCES);
 }
 
 static int
@@ -1549,7 +1549,7 @@ mac_biba_check_kld_load(struct ucred *cred, struct vnode *vp,
 		return (error);
 
 	obj = SLOT(label);
-	if (!mac_biba_high_single(obj))
+	if (!mac_biba_high_effective(obj))
 		return (EACCES);
 
 	return (0);
@@ -1581,7 +1581,7 @@ mac_biba_check_mount_stat(struct ucred *cred, struct mount *mp,
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(mntlabel);
 
-	if (!mac_biba_dominate_single(obj, subj))
+	if (!mac_biba_dominate_effective(obj, subj))
 		return (EACCES);
 
 	return (0);
@@ -1612,7 +1612,7 @@ mac_biba_check_pipe_poll(struct ucred *cred, struct pipepair *pp,
 	subj = SLOT(cred->cr_label);
 	obj = SLOT((pipelabel));
 
-	if (!mac_biba_dominate_single(obj, subj))
+	if (!mac_biba_dominate_effective(obj, subj))
 		return (EACCES);
 
 	return (0);
@@ -1630,7 +1630,7 @@ mac_biba_check_pipe_read(struct ucred *cred, struct pipepair *pp,
 	subj = SLOT(cred->cr_label);
 	obj = SLOT((pipelabel));
 
-	if (!mac_biba_dominate_single(obj, subj))
+	if (!mac_biba_dominate_effective(obj, subj))
 		return (EACCES);
 
 	return (0);
@@ -1649,9 +1649,9 @@ mac_biba_check_pipe_relabel(struct ucred *cred, struct pipepair *pp,
 
 	/*
 	 * If there is a Biba label update for a pipe, it must be a
-	 * single update.
+	 * effective update.
 	 */
-	error = biba_atmostflags(new, MAC_BIBA_FLAG_SINGLE);
+	error = biba_atmostflags(new, MAC_BIBA_FLAG_EFFECTIVE);
 	if (error)
 		return (error);
 
@@ -1659,18 +1659,18 @@ mac_biba_check_pipe_relabel(struct ucred *cred, struct pipepair *pp,
 	 * To perform a relabel of a pipe (Biba label or not), Biba must
 	 * authorize the relabel.
 	 */
-	if (!mac_biba_single_in_range(obj, subj))
+	if (!mac_biba_effective_in_range(obj, subj))
 		return (EPERM);
 
 	/*
 	 * If the Biba label is to be changed, authorize as appropriate.
 	 */
-	if (new->mb_flags & MAC_BIBA_FLAG_SINGLE) {
+	if (new->mb_flags & MAC_BIBA_FLAG_EFFECTIVE) {
 		/*
 		 * To change the Biba label on a pipe, the new pipe label
 		 * must be in the subject range.
 		 */
-		if (!mac_biba_single_in_range(new, subj))
+		if (!mac_biba_effective_in_range(new, subj))
 			return (EPERM);
 
 		/*
@@ -1699,7 +1699,7 @@ mac_biba_check_pipe_stat(struct ucred *cred, struct pipepair *pp,
 	subj = SLOT(cred->cr_label);
 	obj = SLOT((pipelabel));
 
-	if (!mac_biba_dominate_single(obj, subj))
+	if (!mac_biba_dominate_effective(obj, subj))
 		return (EACCES);
 
 	return (0);
@@ -1717,7 +1717,7 @@ mac_biba_check_pipe_write(struct ucred *cred, struct pipepair *pp,
 	subj = SLOT(cred->cr_label);
 	obj = SLOT((pipelabel));
 
-	if (!mac_biba_dominate_single(subj, obj))
+	if (!mac_biba_dominate_effective(subj, obj))
 		return (EACCES);
 
 	return (0);
@@ -1735,9 +1735,9 @@ mac_biba_check_proc_debug(struct ucred *cred, struct proc *proc)
 	obj = SLOT(proc->p_ucred->cr_label);
 
 	/* XXX: range checks */
-	if (!mac_biba_dominate_single(obj, subj))
+	if (!mac_biba_dominate_effective(obj, subj))
 		return (ESRCH);
-	if (!mac_biba_dominate_single(subj, obj))
+	if (!mac_biba_dominate_effective(subj, obj))
 		return (EACCES);
 
 	return (0);
@@ -1755,9 +1755,9 @@ mac_biba_check_proc_sched(struct ucred *cred, struct proc *proc)
 	obj = SLOT(proc->p_ucred->cr_label);
 
 	/* XXX: range checks */
-	if (!mac_biba_dominate_single(obj, subj))
+	if (!mac_biba_dominate_effective(obj, subj))
 		return (ESRCH);
-	if (!mac_biba_dominate_single(subj, obj))
+	if (!mac_biba_dominate_effective(subj, obj))
 		return (EACCES);
 
 	return (0);
@@ -1775,9 +1775,9 @@ mac_biba_check_proc_signal(struct ucred *cred, struct proc *proc, int signum)
 	obj = SLOT(proc->p_ucred->cr_label);
 
 	/* XXX: range checks */
-	if (!mac_biba_dominate_single(obj, subj))
+	if (!mac_biba_dominate_effective(obj, subj))
 		return (ESRCH);
-	if (!mac_biba_dominate_single(subj, obj))
+	if (!mac_biba_dominate_effective(subj, obj))
 		return (EACCES);
 
 	return (0);
@@ -1795,7 +1795,7 @@ mac_biba_check_socket_deliver(struct socket *so, struct label *socketlabel,
 	p = SLOT(mbuflabel);
 	s = SLOT(socketlabel);
 
-	return (mac_biba_equal_single(p, s) ? 0 : EACCES);
+	return (mac_biba_equal_effective(p, s) ? 0 : EACCES);
 }
 
 static int
@@ -1811,28 +1811,28 @@ mac_biba_check_socket_relabel(struct ucred *cred, struct socket *so,
 
 	/*
 	 * If there is a Biba label update for the socket, it may be
-	 * an update of single.
+	 * an update of effective.
 	 */
-	error = biba_atmostflags(new, MAC_BIBA_FLAG_SINGLE);
+	error = biba_atmostflags(new, MAC_BIBA_FLAG_EFFECTIVE);
 	if (error)
 		return (error);
 
 	/*
-	 * To relabel a socket, the old socket single must be in the subject
+	 * To relabel a socket, the old socket effective must be in the subject
 	 * range.
 	 */
-	if (!mac_biba_single_in_range(obj, subj))
+	if (!mac_biba_effective_in_range(obj, subj))
 		return (EPERM);
 
 	/*
 	 * If the Biba label is to be changed, authorize as appropriate.
 	 */
-	if (new->mb_flags & MAC_BIBA_FLAG_SINGLE) {
+	if (new->mb_flags & MAC_BIBA_FLAG_EFFECTIVE) {
 		/*
-		 * To relabel a socket, the new socket single must be in
+		 * To relabel a socket, the new socket effective must be in
 		 * the subject range.
 		 */
-		if (!mac_biba_single_in_range(new, subj))
+		if (!mac_biba_effective_in_range(new, subj))
 			return (EPERM);
 
 		/*
@@ -1861,7 +1861,7 @@ mac_biba_check_socket_visible(struct ucred *cred, struct socket *socket,
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(socketlabel);
 
-	if (!mac_biba_dominate_single(obj, subj))
+	if (!mac_biba_dominate_effective(obj, subj))
 		return (ENOENT);
 
 	return (0);
@@ -1905,7 +1905,7 @@ mac_biba_check_system_acct(struct ucred *cred, struct vnode *vp,
 		return (0);
 
 	obj = SLOT(label);
-	if (!mac_biba_high_single(obj))
+	if (!mac_biba_high_effective(obj))
 		return (EACCES);
 
 	return (0);
@@ -1946,7 +1946,7 @@ mac_biba_check_system_swapon(struct ucred *cred, struct vnode *vp,
 	if (error)
 		return (error);
 
-	if (!mac_biba_high_single(obj))
+	if (!mac_biba_high_effective(obj))
 		return (EACCES);
 
 	return (0);
@@ -2012,7 +2012,7 @@ mac_biba_check_vnode_chdir(struct ucred *cred, struct vnode *dvp,
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(dlabel);
 
-	if (!mac_biba_dominate_single(obj, subj))
+	if (!mac_biba_dominate_effective(obj, subj))
 		return (EACCES);
 
 	return (0);
@@ -2030,7 +2030,7 @@ mac_biba_check_vnode_chroot(struct ucred *cred, struct vnode *dvp,
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(dlabel);
 
-	if (!mac_biba_dominate_single(obj, subj))
+	if (!mac_biba_dominate_effective(obj, subj))
 		return (EACCES);
 
 	return (0);
@@ -2048,7 +2048,7 @@ mac_biba_check_vnode_create(struct ucred *cred, struct vnode *dvp,
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(dlabel);
 
-	if (!mac_biba_dominate_single(subj, obj))
+	if (!mac_biba_dominate_effective(subj, obj))
 		return (EACCES);
 
 	return (0);
@@ -2067,12 +2067,12 @@ mac_biba_check_vnode_delete(struct ucred *cred, struct vnode *dvp,
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(dlabel);
 
-	if (!mac_biba_dominate_single(subj, obj))
+	if (!mac_biba_dominate_effective(subj, obj))
 		return (EACCES);
 
 	obj = SLOT(label);
 
-	if (!mac_biba_dominate_single(subj, obj))
+	if (!mac_biba_dominate_effective(subj, obj))
 		return (EACCES);
 
 	return (0);
@@ -2090,7 +2090,7 @@ mac_biba_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(label);
 
-	if (!mac_biba_dominate_single(subj, obj))
+	if (!mac_biba_dominate_effective(subj, obj))
 		return (EACCES);
 
 	return (0);
@@ -2108,7 +2108,7 @@ mac_biba_check_vnode_deleteextattr(struct ucred *cred, struct vnode *vp,
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(label);
 
-	if (!mac_biba_dominate_single(subj, obj))
+	if (!mac_biba_dominate_effective(subj, obj))
 		return (EACCES);
 
 	return (0);
@@ -2140,7 +2140,7 @@ mac_biba_check_vnode_exec(struct ucred *cred, struct vnode *vp,
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(label);
 
-	if (!mac_biba_dominate_single(obj, subj))
+	if (!mac_biba_dominate_effective(obj, subj))
 		return (EACCES);
 
 	return (0);
@@ -2158,7 +2158,7 @@ mac_biba_check_vnode_getacl(struct ucred *cred, struct vnode *vp,
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(label);
 
-	if (!mac_biba_dominate_single(obj, subj))
+	if (!mac_biba_dominate_effective(obj, subj))
 		return (EACCES);
 
 	return (0);
@@ -2176,7 +2176,7 @@ mac_biba_check_vnode_getextattr(struct ucred *cred, struct vnode *vp,
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(label);
 
-	if (!mac_biba_dominate_single(obj, subj))
+	if (!mac_biba_dominate_effective(obj, subj))
 		return (EACCES);
 
 	return (0);
@@ -2195,12 +2195,12 @@ mac_biba_check_vnode_link(struct ucred *cred, struct vnode *dvp,
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(dlabel);
 
-	if (!mac_biba_dominate_single(subj, obj))
+	if (!mac_biba_dominate_effective(subj, obj))
 		return (EACCES);
 
 	obj = SLOT(label);
 
-	if (!mac_biba_dominate_single(subj, obj))
+	if (!mac_biba_dominate_effective(subj, obj))
 		return (EACCES);
 
 	return (0);
@@ -2218,7 +2218,7 @@ mac_biba_check_vnode_listextattr(struct ucred *cred, struct vnode *vp,
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(label);
 
-	if (!mac_biba_dominate_single(obj, subj))
+	if (!mac_biba_dominate_effective(obj, subj))
 		return (EACCES);
 
 	return (0);
@@ -2236,7 +2236,7 @@ mac_biba_check_vnode_lookup(struct ucred *cred, struct vnode *dvp,
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(dlabel);
 
-	if (!mac_biba_dominate_single(obj, subj))
+	if (!mac_biba_dominate_effective(obj, subj))
 		return (EACCES);
 
 	return (0);
@@ -2259,11 +2259,11 @@ mac_biba_check_vnode_mmap(struct ucred *cred, struct vnode *vp,
 	obj = SLOT(label);
 
 	if (prot & (VM_PROT_READ | VM_PROT_EXECUTE)) {
-		if (!mac_biba_dominate_single(obj, subj))
+		if (!mac_biba_dominate_effective(obj, subj))
 			return (EACCES);
 	}
 	if (prot & VM_PROT_WRITE) {
-		if (!mac_biba_dominate_single(subj, obj))
+		if (!mac_biba_dominate_effective(subj, obj))
 			return (EACCES);
 	}
 
@@ -2284,11 +2284,11 @@ mac_biba_check_vnode_open(struct ucred *cred, struct vnode *vp,
 
 	/* XXX privilege override for admin? */
 	if (acc_mode & (VREAD | VEXEC | VSTAT)) {
-		if (!mac_biba_dominate_single(obj, subj))
+		if (!mac_biba_dominate_effective(obj, subj))
 			return (EACCES);
 	}
 	if (acc_mode & (VWRITE | VAPPEND | VADMIN)) {
-		if (!mac_biba_dominate_single(subj, obj))
+		if (!mac_biba_dominate_effective(subj, obj))
 			return (EACCES);
 	}
 
@@ -2307,7 +2307,7 @@ mac_biba_check_vnode_poll(struct ucred *active_cred, struct ucred *file_cred,
 	subj = SLOT(active_cred->cr_label);
 	obj = SLOT(label);
 
-	if (!mac_biba_dominate_single(obj, subj))
+	if (!mac_biba_dominate_effective(obj, subj))
 		return (EACCES);
 
 	return (0);
@@ -2325,7 +2325,7 @@ mac_biba_check_vnode_read(struct ucred *active_cred, struct ucred *file_cred,
 	subj = SLOT(active_cred->cr_label);
 	obj = SLOT(label);
 
-	if (!mac_biba_dominate_single(obj, subj))
+	if (!mac_biba_dominate_effective(obj, subj))
 		return (EACCES);
 
 	return (0);
@@ -2343,7 +2343,7 @@ mac_biba_check_vnode_readdir(struct ucred *cred, struct vnode *dvp,
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(dlabel);
 
-	if (!mac_biba_dominate_single(obj, subj))
+	if (!mac_biba_dominate_effective(obj, subj))
 		return (EACCES);
 
 	return (0);
@@ -2361,7 +2361,7 @@ mac_biba_check_vnode_readlink(struct ucred *cred, struct vnode *vp,
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(label);
 
-	if (!mac_biba_dominate_single(obj, subj))
+	if (!mac_biba_dominate_effective(obj, subj))
 		return (EACCES);
 
 	return (0);
@@ -2380,9 +2380,9 @@ mac_biba_check_vnode_relabel(struct ucred *cred, struct vnode *vp,
 
 	/*
 	 * If there is a Biba label update for the vnode, it must be a
-	 * single label.
+	 * effective label.
 	 */
-	error = biba_atmostflags(new, MAC_BIBA_FLAG_SINGLE);
+	error = biba_atmostflags(new, MAC_BIBA_FLAG_EFFECTIVE);
 	if (error)
 		return (error);
 
@@ -2390,18 +2390,18 @@ mac_biba_check_vnode_relabel(struct ucred *cred, struct vnode *vp,
 	 * To perform a relabel of the vnode (Biba label or not), Biba must
 	 * authorize the relabel.
 	 */
-	if (!mac_biba_single_in_range(old, subj))
+	if (!mac_biba_effective_in_range(old, subj))
 		return (EPERM);
 
 	/*
 	 * If the Biba label is to be changed, authorize as appropriate.
 	 */
-	if (new->mb_flags & MAC_BIBA_FLAG_SINGLE) {
+	if (new->mb_flags & MAC_BIBA_FLAG_EFFECTIVE) {
 		/*
 		 * To change the Biba label on a vnode, the new vnode label
 		 * must be in the subject range.
 		 */
-		if (!mac_biba_single_in_range(new, subj))
+		if (!mac_biba_effective_in_range(new, subj))
 			return (EPERM);
 
 		/*
@@ -2431,12 +2431,12 @@ mac_biba_check_vnode_rename_from(struct ucred *cred, struct vnode *dvp,
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(dlabel);
 
-	if (!mac_biba_dominate_single(subj, obj))
+	if (!mac_biba_dominate_effective(subj, obj))
 		return (EACCES);
 
 	obj = SLOT(label);
 
-	if (!mac_biba_dominate_single(subj, obj))
+	if (!mac_biba_dominate_effective(subj, obj))
 		return (EACCES);
 
 	return (0);
@@ -2455,13 +2455,13 @@ mac_biba_check_vnode_rename_to(struct ucred *cred, struct vnode *dvp,
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(dlabel);
 
-	if (!mac_biba_dominate_single(subj, obj))
+	if (!mac_biba_dominate_effective(subj, obj))
 		return (EACCES);
 
 	if (vp != NULL) {
 		obj = SLOT(label);
 
-		if (!mac_biba_dominate_single(subj, obj))
+		if (!mac_biba_dominate_effective(subj, obj))
 			return (EACCES);
 	}
 
@@ -2480,7 +2480,7 @@ mac_biba_check_vnode_revoke(struct ucred *cred, struct vnode *vp,
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(label);
 
-	if (!mac_biba_dominate_single(subj, obj))
+	if (!mac_biba_dominate_effective(subj, obj))
 		return (EACCES);
 
 	return (0);
@@ -2498,7 +2498,7 @@ mac_biba_check_vnode_setacl(struct ucred *cred, struct vnode *vp,
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(label);
 
-	if (!mac_biba_dominate_single(subj, obj))
+	if (!mac_biba_dominate_effective(subj, obj))
 		return (EACCES);
 
 	return (0);
@@ -2517,7 +2517,7 @@ mac_biba_check_vnode_setextattr(struct ucred *cred, struct vnode *vp,
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(vnodelabel);
 
-	if (!mac_biba_dominate_single(subj, obj))
+	if (!mac_biba_dominate_effective(subj, obj))
 		return (EACCES);
 
 	/* XXX: protect the MAC EA in a special way? */
@@ -2537,7 +2537,7 @@ mac_biba_check_vnode_setflags(struct ucred *cred, struct vnode *vp,
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(vnodelabel);
 
-	if (!mac_biba_dominate_single(subj, obj))
+	if (!mac_biba_dominate_effective(subj, obj))
 		return (EACCES);
 
 	return (0);
@@ -2555,7 +2555,7 @@ mac_biba_check_vnode_setmode(struct ucred *cred, struct vnode *vp,
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(vnodelabel);
 
-	if (!mac_biba_dominate_single(subj, obj))
+	if (!mac_biba_dominate_effective(subj, obj))
 		return (EACCES);
 
 	return (0);
@@ -2573,7 +2573,7 @@ mac_biba_check_vnode_setowner(struct ucred *cred, struct vnode *vp,
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(vnodelabel);
 
-	if (!mac_biba_dominate_single(subj, obj))
+	if (!mac_biba_dominate_effective(subj, obj))
 		return (EACCES);
 
 	return (0);
@@ -2591,7 +2591,7 @@ mac_biba_check_vnode_setutimes(struct ucred *cred, struct vnode *vp,
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(vnodelabel);
 
-	if (!mac_biba_dominate_single(subj, obj))
+	if (!mac_biba_dominate_effective(subj, obj))
 		return (EACCES);
 
 	return (0);
@@ -2609,7 +2609,7 @@ mac_biba_check_vnode_stat(struct ucred *active_cred, struct ucred *file_cred,
 	subj = SLOT(active_cred->cr_label);
 	obj = SLOT(vnodelabel);
 
-	if (!mac_biba_dominate_single(obj, subj))
+	if (!mac_biba_dominate_effective(obj, subj))
 		return (EACCES);
 
 	return (0);
@@ -2627,7 +2627,7 @@ mac_biba_check_vnode_write(struct ucred *active_cred,
 	subj = SLOT(active_cred->cr_label);
 	obj = SLOT(label);
 
-	if (!mac_biba_dominate_single(subj, obj))
+	if (!mac_biba_dominate_effective(subj, obj))
 		return (EACCES);
 
 	return (0);
