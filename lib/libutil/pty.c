@@ -63,9 +63,9 @@ openpty(amaster, aslave, name, termp, winp)
 	else
 		ttygid = -1;
 
-	for (cp1 = "pqrs"; *cp1; cp1++) {
+	for (cp1 = "pqrsPQRS"; *cp1; cp1++) {
 		line[8] = *cp1;
-		for (cp2 = "0123456789abcdef"; *cp2; cp2++) {
+		for (cp2 = "0123456789abcdefghijklmnopqrstuv"; *cp2; cp2++) {
 			line[9] = *cp2;
 			if ((master = open(line, O_RDWR, 0)) == -1) {
 				if (errno == ENOENT)
