@@ -60,6 +60,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_puc.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -76,8 +78,6 @@ __FBSDID("$FreeBSD$");
 
 #define PUC_ENTRAILS	1
 #include <dev/puc/pucvar.h>
-
-#include <opt_puc.h>
 
 static int
 puc_pci_probe(device_t dev)
