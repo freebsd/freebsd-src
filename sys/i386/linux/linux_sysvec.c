@@ -738,7 +738,8 @@ static int
 exec_linux_imgact_try(struct image_params *imgp)
 {
     const char *head = (const char *)imgp->image_header;
-    int error = -1;
+    char *rpath;
+    int error = -1, len;
 
     /*
      * The interpreter for shell scripts run from a linux binary needs
@@ -752,12 +753,10 @@ exec_linux_imgact_try(struct image_params *imgp)
 	     * path is found, use our stringspace to store it.
 	     */
 	    if ((error = exec_shell_imgact(imgp)) == 0) {
-		    char *rpath = NULL;
-
-		    linux_emul_find(FIRST_THREAD_IN_PROC(imgp->proc), NULL,
-			imgp->interpreter_name, &rpath, 0);
-		    if (rpath != imgp->interpreter_name) {
-			    int len = strlen(rpath) + 1;
+		    linux_emul_convpath(FIRST_THREAD_IN_PROC(imgp->proc),
+			imgp->interpreter_name, UIO_SYSSPACE, &rpath, 0);
+		    if (rpath != NULL) {
+			    len = strlen(rpath) + 1;
 
 			    if (len <= MAXSHELLCMDLEN) {
 				    memcpy(imgp->interpreter_name, rpath, len);
