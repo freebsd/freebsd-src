@@ -356,11 +356,16 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, cred, aresid, td)
 
 	if ((ioflg & IO_NODELOCKED) == 0) {
 		mp = NULL;
-		if (rw == UIO_WRITE &&
-		    vp->v_type != VCHR &&
-		    (error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
-			return (error);
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+		if (rw == UIO_WRITE) { 
+			if (vp->v_type != VCHR &&
+			    (error = vn_start_write(vp, &mp, V_WAIT | PCATCH))
+			    != 0)
+				return (error);
+			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+		} else {
+			vn_lock(vp, LK_SHARED | LK_RETRY, td);
+		}
+
 	}
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
@@ -382,7 +387,8 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, cred, aresid, td)
 		if (auio.uio_resid && error == 0)
 			error = EIO;
 	if ((ioflg & IO_NODELOCKED) == 0) {
-		vn_finished_write(mp);
+		if (rw == UIO_WRITE)
+			vn_finished_write(mp);
 		VOP_UNLOCK(vp, 0, td);
 	}
 	return (error);
