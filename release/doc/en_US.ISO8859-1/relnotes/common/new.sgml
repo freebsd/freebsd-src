@@ -101,7 +101,8 @@
 
       <para arch="alpha">Whitebox (NT-only) AlphaServer 530x machines are
       now supported by &os;.  &os; is, as always, booted from SRM, not from
-      AlphaBIOS.</para>
+      AlphaBIOS. Make sure your SCSI adapters are on hose 0 for use with &os;.
+      </para>
     </sect3>
 
     <sect3>
@@ -200,6 +201,10 @@
 
       <para>The &man.wd.4; compatibility devices were removed from the
       &man.ata.4; driver.</para>
+
+      <para arch="alpha">Access to the floppy drive on AlphaServer DS10
+      and AlphaServer DS20 is broken in &os; 4.4-RELEASE. On DS10 various
+      errors are reported, on DS20 the machine locks up.</para>
     </sect3>
 
     <sect3>
