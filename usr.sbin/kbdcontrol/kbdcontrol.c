@@ -183,6 +183,20 @@ get_entry()
 		return SUSP | 0x100;
 	case TSPSC:
 		return SPSC | 0x100;
+	case TPANIC:
+		return PNC | 0x100;
+	case TLSHA:
+		return LSHA | 0x100;
+	case TRSHA:
+		return RSHA | 0x100;
+	case TLCTRA:
+		return LCTRA | 0x100;
+	case TRCTRA:
+		return RCTRA | 0x100;
+	case TLALTA:
+		return LALTA | 0x100;
+	case TRALTA:
+		return RALTA | 0x100;
 	case TACC:
 		if (ACC(number) > L_ACC)
 			return -1;
@@ -393,6 +407,27 @@ print_entry(FILE *fp, int value)
 	case SPSC | 0x100:
 		fprintf(fp, " saver ");
 		break;
+	case PNC | 0x100:
+		fprintf(fp, " panic ");
+		break;
+	case LSHA | 0x100:
+		fprintf(fp, " lshifta");
+		break;
+	case RSHA | 0x100:
+		fprintf(fp, " rshifta");
+		break;
+	case LCTRA | 0x100:
+		fprintf(fp, " lctrla");
+		break;
+	case RCTRA | 0x100:
+		fprintf(fp, " rctrla");
+		break;
+	case LALTA | 0x100:
+		fprintf(fp, " lalta ");
+		break;
+	case RALTA | 0x100:
+		fprintf(fp, " ralta ");
+		break;
 	default:
 		if (value & 0x100) {
 		 	if (val >= F_FN && val <= L_FN)
@@ -564,6 +599,27 @@ dump_entry(int value)
 			break;
 		case SPSC:
 			printf(" SPSC, ");
+			break;
+		case PNC:
+			printf("  PNC, ");
+			break;
+		case LSHA:
+			printf(" LSHA, ");
+			break;
+		case RSHA:
+			printf(" RSHA, ");
+			break;
+		case LCTRA:
+			printf("LCTRA, ");
+			break;
+		case RCTRA:
+			printf("RCTRA, ");
+			break;
+		case LALTA:
+			printf("LALTA, ");
+			break;
+		case RALTA:
+			printf("RALTA, ");
 			break;
 		default:
 	 		if (value >= F_FN && value <= L_FN)

@@ -163,6 +163,13 @@ typedef struct keymap keymap_t;
 
 #define STBY		0x98		/* Go into standby mode (apm)   */
 #define PREV		0x99		/* switch to previous screen 	*/
+#define PNC		0x9a		/* force system panic */
+#define LSHA		0x9b		/* left shift key / alt lock	*/
+#define RSHA		0x9c		/* right shift key / alt lock	*/
+#define LCTRA		0x9d		/* left ctrl key / alt lock	*/
+#define RCTRA		0x9e		/* right ctrl key / alt lock	*/
+#define LALTA		0x9f		/* left alt key / alt lock	*/
+#define RALTA		0xa0		/* right alt key / alt lock	*/
 
 #define F(x)		((x)+F_FN-1)
 #define	S(x)		((x)+F_SCR-1)
