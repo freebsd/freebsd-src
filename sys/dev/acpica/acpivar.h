@@ -198,7 +198,7 @@ extern void		acpi_UserNotify(const char *subsystem, ACPI_HANDLE h,
 					uint8_t notify);
 
 struct acpi_parse_resource_set {
-    void	(*set_init)(device_t dev, void **context);
+    void	(*set_init)(device_t dev, void *arg, void **context);
     void	(*set_done)(device_t dev, void *context);
     void	(*set_ioport)(device_t dev, void *context, u_int32_t base,
 			      u_int32_t length);
@@ -221,7 +221,7 @@ struct acpi_parse_resource_set {
 
 extern struct acpi_parse_resource_set	acpi_res_parse_set;
 extern ACPI_STATUS	acpi_parse_resources(device_t dev, ACPI_HANDLE handle,
-			    struct acpi_parse_resource_set *set);
+			    struct acpi_parse_resource_set *set, void *arg);
 
 /* ACPI event handling */
 extern UINT32	acpi_event_power_button_sleep(void *context);

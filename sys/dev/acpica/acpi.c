@@ -1211,7 +1211,7 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 	     * device.  Ignore the return value here; it's OK for the
 	     * device not to have any resources.
 	     */
-	    acpi_parse_resources(child, handle, &acpi_res_parse_set);
+	    acpi_parse_resources(child, handle, &acpi_res_parse_set, NULL);
 
 	    /* If we're debugging, probe/attach now rather than later */
 	    ACPI_DEBUG_EXEC(device_probe_and_attach(child));
