@@ -43,6 +43,7 @@ int
 _pthread_detach(pthread_t pthread)
 {
 	struct pthread *curthread = _get_curthread();
+	struct kse_mailbox *kmbx = NULL;
 	struct pthread *joiner;
 	int rval = 0;
 
@@ -83,12 +84,11 @@ _pthread_detach(pthread_t pthread)
 				joiner->join_status.ret = NULL;
 				joiner->join_status.thread = NULL;
 
-				_thr_setrunnable_unlocked(joiner);
+				kmbx = _thr_setrunnable_unlocked(joiner);
 			}
 			joiner = NULL;
 		}
 		THR_SCHED_UNLOCK(curthread, pthread);
-
 		/* See if there is a thread waiting in pthread_join(): */
 		if ((joiner != NULL) &&
 		    (_thr_ref_add(curthread, joiner, 0) == 0)) {
@@ -102,12 +102,14 @@ _pthread_detach(pthread_t pthread)
 				joiner->join_status.ret = NULL;
 				joiner->join_status.thread = NULL;
 
-				_thr_setrunnable_unlocked(joiner);
+				kmbx = _thr_setrunnable_unlocked(joiner);
 			}
 			THR_SCHED_UNLOCK(curthread, joiner);
 			_thr_ref_delete(curthread, joiner);
 		}
 		_thr_ref_delete(curthread, pthread);
+		if (kmbx != NULL)
+			kse_wakeup(kmbx);
 	}
 
 	/* Return the completion status: */

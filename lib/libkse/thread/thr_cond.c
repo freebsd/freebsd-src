@@ -584,6 +584,7 @@ _pthread_cond_signal(pthread_cond_t * cond)
 {
 	struct pthread	*curthread = _get_curthread();
 	struct pthread	*pthread;
+	struct kse_mailbox *kmbx;
 	int		rval = 0;
 
 	THR_ASSERT(curthread->locklevel == 0,
@@ -619,8 +620,10 @@ _pthread_cond_signal(pthread_cond_t * cond)
 				    (pthread->active_priority >
 				    curthread->active_priority))
 					curthread->critical_yield = 1;
-				_thr_setrunnable_unlocked(pthread);
+				kmbx = _thr_setrunnable_unlocked(pthread);
 				THR_SCHED_UNLOCK(curthread, pthread);
+				if (kmbx != NULL)
+					kse_wakeup(kmbx);
 			}
 			/* Check for no more waiters: */
 			if (TAILQ_FIRST(&(*cond)->c_queue) == NULL)
@@ -649,6 +652,7 @@ _pthread_cond_broadcast(pthread_cond_t * cond)
 {
 	struct pthread	*curthread = _get_curthread();
 	struct pthread	*pthread;
+	struct kse_mailbox *kmbx;
 	int		rval = 0;
 
 	THR_ASSERT(curthread->locklevel == 0,
@@ -682,8 +686,10 @@ _pthread_cond_broadcast(pthread_cond_t * cond)
 				    (pthread->active_priority >
 				    curthread->active_priority))
 					curthread->critical_yield = 1;
-				_thr_setrunnable_unlocked(pthread);
+				kmbx = _thr_setrunnable_unlocked(pthread);
 				THR_SCHED_UNLOCK(curthread, pthread);
+				if (kmbx != NULL)
+					kse_wakeup(kmbx);
 			}
 
 			/* There are no more waiting threads: */

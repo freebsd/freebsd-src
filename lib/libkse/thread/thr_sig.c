@@ -249,6 +249,7 @@ _thr_start_sig_daemon(void)
 void
 _thr_sig_dispatch(struct kse *curkse, int sig, siginfo_t *info)
 {
+	struct kse_mailbox *kmbx;
 	struct pthread *thread;
 
 	DBG_MSG(">>> _thr_sig_dispatch(%d)\n", sig);
@@ -280,9 +281,11 @@ _thr_sig_dispatch(struct kse *curkse, int sig, siginfo_t *info)
 			KSE_SCHED_UNLOCK(curkse, thread->kseg);
 			_thr_ref_delete(NULL, thread);
 		} else {
-			_thr_sig_add(thread, sig, info);
+			kmbx = _thr_sig_add(thread, sig, info);
 			KSE_SCHED_UNLOCK(curkse, thread->kseg);
 			_thr_ref_delete(NULL, thread);
+			if (kmbx != NULL)
+				kse_wakeup(kmbx);
 			break;
 		}
 	}
@@ -533,6 +536,7 @@ _thr_getprocsig_unlocked(int sig, siginfo_t *siginfo)
 struct pthread *
 thr_sig_find(struct kse *curkse, int sig, siginfo_t *info)
 {
+	struct kse_mailbox *kmbx = NULL;
 	struct pthread	*pthread;
 	struct pthread	*suspended_thread, *signaled_thread;
 	__siginfohandler_t *sigfunc;
@@ -582,7 +586,7 @@ thr_sig_find(struct kse *curkse, int sig, siginfo_t *info)
 				/*  where to put siginfo ? */
 				*(pthread->data.sigwaitinfo) = si;
 				pthread->sigmask = pthread->oldsigmask;
-				_thr_setrunnable_unlocked(pthread);
+				kmbx = _thr_setrunnable_unlocked(pthread);
 			}
 			KSE_SCHED_UNLOCK(curkse, pthread->kseg);
 			/*
@@ -596,6 +600,8 @@ thr_sig_find(struct kse *curkse, int sig, siginfo_t *info)
 			 * to the process pending set.
 			 */
 			KSE_LOCK_RELEASE(curkse, &_thread_list_lock);
+			if (kmbx != NULL)
+				kse_wakeup(kmbx);
 			return (NULL);
 		} else if (!SIGISMEMBER(pthread->sigmask, sig) ||
 			   (!SIGISMEMBER(pthread->oldsigmask, sig) &&
@@ -811,15 +817,16 @@ handle_special_signals(struct kse *curkse, int sig)
  *
  * This must be called with the thread's scheduling lock held.
  */
-void
+struct kse_mailbox *
 _thr_sig_add(struct pthread *pthread, int sig, siginfo_t *info)
 {
+	siginfo_t siginfo;
+	struct kse *curkse;
+	struct kse_mailbox *kmbx = NULL;
+	struct pthread *curthread = _get_curthread();
 	int	restart;
 	int	suppress_handler = 0;
 	int	fromproc = 0;
-	struct  pthread *curthread = _get_curthread();
-	struct	kse *curkse;
-	siginfo_t siginfo;
 
 	DBG_MSG(">>> _thr_sig_add %p (%d)\n", pthread, sig);
 
@@ -829,12 +836,12 @@ _thr_sig_add(struct pthread *pthread, int sig, siginfo_t *info)
 
 	if (pthread->state == PS_DEAD || pthread->state == PS_DEADLOCK ||
 	    pthread->state == PS_STATE_MAX)
-	    	return; /* return false */
+	    	return (NULL); /* return false */
 
 	if ((pthread->attr.flags & PTHREAD_SCOPE_SYSTEM) &&
 	    (curthread != pthread)) {
 	    	PANIC("Please use _thr_send_sig for bound thread");
-		return;
+		return (NULL);
 	}
 
 	if (pthread->curframe == NULL ||
@@ -851,7 +858,7 @@ _thr_sig_add(struct pthread *pthread, int sig, siginfo_t *info)
 					 sizeof(*info));
 		} else {
 			if (!_thr_getprocsig(sig, &pthread->siginfo[sig-1]))
-				return;
+				return (NULL);
 			SIGADDSET(pthread->sigpend, sig);
 		}
 		if (!SIGISMEMBER(pthread->sigmask, sig)) {
@@ -867,7 +874,7 @@ _thr_sig_add(struct pthread *pthread, int sig, siginfo_t *info)
 		/* if process signal not exists, just return */
 		if (fromproc) {
 			if (!_thr_getprocsig(sig, &siginfo))
-				return;
+				return (NULL);
 			info = &siginfo;
 		}
 		/*
@@ -877,7 +884,7 @@ _thr_sig_add(struct pthread *pthread, int sig, siginfo_t *info)
 		case PS_DEAD:
 		case PS_DEADLOCK:
 		case PS_STATE_MAX:
-			return;	/* XXX return false */
+			return (NULL);	/* XXX return false */
 		case PS_LOCKWAIT:
 		case PS_SUSPENDED:
 			/*
@@ -937,7 +944,7 @@ _thr_sig_add(struct pthread *pthread, int sig, siginfo_t *info)
 				*(pthread->data.sigwaitinfo) = pthread->siginfo[sig-1];
 				pthread->sigmask = pthread->oldsigmask;
 				/* Make the thread runnable: */
-				_thr_setrunnable_unlocked(pthread);
+				kmbx = _thr_setrunnable_unlocked(pthread);
 			} else {
 				/* Increment the pending signal count. */
 				SIGADDSET(pthread->sigpend, sig);
@@ -945,11 +952,10 @@ _thr_sig_add(struct pthread *pthread, int sig, siginfo_t *info)
 					pthread->check_pending = 1;
 					pthread->interrupted = 1;
 					pthread->sigmask = pthread->oldsigmask;
-					_thr_setrunnable_unlocked(pthread);
+					kmbx = _thr_setrunnable_unlocked(pthread);
 				}
 			}
-		
-			return;
+			return (kmbx);
 		}
 
 		SIGADDSET(pthread->sigpend, sig);
@@ -967,11 +973,12 @@ _thr_sig_add(struct pthread *pthread, int sig, siginfo_t *info)
 			if (pthread->flags & THR_FLAGS_IN_RUNQ)
 				THR_RUNQ_REMOVE(pthread);
 			pthread->active_priority |= THR_SIGNAL_PRIORITY;
-			_thr_setrunnable_unlocked(pthread);
+			kmbx = _thr_setrunnable_unlocked(pthread);
 		} else {
 			pthread->check_pending = 1;
 		}
 	}
+	return (kmbx);
 }
 
 /*
@@ -981,6 +988,7 @@ void
 _thr_sig_send(struct pthread *pthread, int sig)
 {
 	struct pthread *curthread = _get_curthread();
+	struct kse_mailbox *kmbx;
 
 	if (pthread->attr.flags & PTHREAD_SCOPE_SYSTEM) {
 		kse_thr_interrupt(&pthread->tmbx, KSE_INTR_SENDSIG, sig);
@@ -990,8 +998,10 @@ _thr_sig_send(struct pthread *pthread, int sig)
 	/* Lock the scheduling queue of the target thread. */
 	THR_SCHED_LOCK(curthread, pthread);
 	if (_thread_sigact[sig - 1].sa_handler != SIG_IGN) {
-		_thr_sig_add(pthread, sig, NULL);
+		kmbx = _thr_sig_add(pthread, sig, NULL);
 		THR_SCHED_UNLOCK(curthread, pthread);
+		if (kmbx != NULL)
+			kse_wakeup(kmbx);
 		/* XXX
 		 * If thread sent signal to itself, check signals now.
 		 * It is not really needed, _kse_critical_leave should

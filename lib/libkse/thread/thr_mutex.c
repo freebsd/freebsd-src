@@ -67,7 +67,8 @@
 /*
  * Prototypes
  */
-static void		mutex_handoff(struct pthread *, struct pthread_mutex *);
+static struct kse_mailbox *mutex_handoff(struct pthread *,
+			    struct pthread_mutex *);
 static inline int	mutex_self_trylock(struct pthread *, pthread_mutex_t);
 static inline int	mutex_self_lock(struct pthread *, pthread_mutex_t);
 static int		mutex_unlock_common(pthread_mutex_t *, int);
@@ -860,6 +861,7 @@ static int
 mutex_unlock_common(pthread_mutex_t *m, int add_reference)
 {
 	struct pthread *curthread = _get_curthread();
+	struct kse_mailbox *kmbx = NULL;
 	int ret = 0;
 
 	if (m == NULL || *m == NULL)
@@ -904,7 +906,7 @@ mutex_unlock_common(pthread_mutex_t *m, int add_reference)
 				 * Hand off the mutex to the next waiting
 				 * thread:
 				 */
-				mutex_handoff(curthread, *m);
+				kmbx = mutex_handoff(curthread, *m);
 			}
 			break;
 
@@ -961,7 +963,7 @@ mutex_unlock_common(pthread_mutex_t *m, int add_reference)
 				 * Hand off the mutex to the next waiting
 				 * thread:
 				 */
-				mutex_handoff(curthread, *m);
+				kmbx = mutex_handoff(curthread, *m);
 			}
 			break;
 
@@ -1017,7 +1019,7 @@ mutex_unlock_common(pthread_mutex_t *m, int add_reference)
 				 * Hand off the mutex to the next waiting
 				 * thread:
 				 */
-				mutex_handoff(curthread, *m);
+				kmbx = mutex_handoff(curthread, *m);
 			}
 			break;
 
@@ -1034,6 +1036,8 @@ mutex_unlock_common(pthread_mutex_t *m, int add_reference)
 
 		/* Unlock the mutex structure: */
 		THR_LOCK_RELEASE(curthread, &(*m)->m_lock);
+		if (kmbx != NULL)
+			kse_wakeup(kmbx);
 	}
 
 	/* Return the completion status: */
@@ -1460,9 +1464,10 @@ _mutex_lock_backout(struct pthread *curthread)
  * is necessary to lock the thread's scheduling queue while also
  * holding the mutex lock.
  */
-static void
+static struct kse_mailbox *
 mutex_handoff(struct pthread *curthread, struct pthread_mutex *mutex)
 {
+	struct kse_mailbox *kmbx = NULL;
 	struct pthread *pthread;
 
 	/* Keep dequeueing until we find a valid thread: */
@@ -1564,7 +1569,7 @@ mutex_handoff(struct pthread *curthread, struct pthread_mutex *mutex)
 		}
 
 		/* Make the thread runnable and unlock the scheduling queue: */
-		_thr_setrunnable_unlocked(pthread);
+		kmbx = _thr_setrunnable_unlocked(pthread);
 
 		/* Add a preemption point. */
 		if ((curthread->kseg == pthread->kseg) &&
@@ -1583,6 +1588,7 @@ mutex_handoff(struct pthread *curthread, struct pthread_mutex *mutex)
 	if ((pthread == NULL) && (mutex->m_protocol == PTHREAD_PRIO_INHERIT))
 		/* This mutex has no priority: */
 		mutex->m_prio = 0;
+	return (kmbx);
 }
 
 /*
