@@ -32,7 +32,6 @@
 //	o devd.conf and devd man pages need a lot of help:
 //	  - devd.conf needs to lose the warning about zone files.
 //	  - devd.conf needs more details on the supported statements.
-//	  - devd.conf needs an example or two.
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
