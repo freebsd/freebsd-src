@@ -129,6 +129,16 @@
       on the server when accessing remote CVS repositories.
       More details can be found in security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:07.cvs.asc">FreeBSD-SA-04:07</ulink>.</para>
+
+    <para>A bugfix for <application>Heimdal</application> rectifies a
+      problem in which it would not perform adequate checking of
+      authentication across autonomous realms.  For more information,
+      see security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:08.heimdal.asc">FreeBSD-SA-04:08</ulink>.</para>
+
+    <para>A fix in &man.kadmind.8; closes a potential buffer overflow.
+      Details can be found in security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:09.kadmind.asc">FreeBSD-SA-04:09</ulink>.</para>
   </sect2>
 
   <sect2 id="kernel">
