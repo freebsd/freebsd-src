@@ -865,9 +865,9 @@ main(argc, argv)
 			 */
 			Compat_Run(targs);
 		}
+		Lst_Destroy(targs, NOFREE);
 	}
 
-	Lst_Destroy(targs, NOFREE);
 	Lst_Destroy(variables, NOFREE);
 	Lst_Destroy(makefiles, NOFREE);
 	Lst_Destroy(create, (void (*)(void *)) free);
