@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7870.c,v 1.41 1996/10/28 06:10:33 gibbs Exp $
+ *	$Id: aic7870.c,v 1.37.2.3 1996/11/05 08:56:59 gibbs Exp $
  */
 
 #if defined(__FreeBSD__)
@@ -115,7 +115,6 @@
 
 /*
  * Define the format of the aic78X0 SEEPROM registers (16 bits).
- *
  */
 
 struct seeprom_config {
@@ -179,7 +178,7 @@ struct seeprom_config {
   u_int16_t checksum;		/* word 31 */
 };
 
-static void load_seeprom __P((struct ahc_softc *ahc));
+static void load_seeprom __P((struct ahc_softc *ahc, u_int8_t *sxfrctl1));
 static int acquire_seeprom __P((struct seeprom_descriptor *sd));
 static void release_seeprom __P((struct seeprom_descriptor *sd));
 
@@ -323,30 +322,32 @@ ahc_pci_attach(parent, self, aux)
 #endif
 	u_int32_t id;
 	struct scb_data *shared_scb_data;
-	int opri = 0;
-	ahc_type  ahc_t = AHC_NONE;
-	ahc_flag  ahc_f = AHC_FNONE;
+	int opri;
+	ahc_type    ahc_t = AHC_NONE;
+	ahc_flag    ahc_f = AHC_FNONE;
 	vm_offset_t vaddr;
 	vm_offset_t paddr;
 	u_int8_t    ultra_enb = 0;
 	u_int8_t    our_id = 0;
+	u_int8_t    sxfrctl1;
 
 	shared_scb_data = NULL;
-#if defined(__FreeBSD__)
-	if (pci_map_port(config_id, PCI_BASEADR0, &io_port) == 0)
-		return;
-#ifdef AHC_FORCE_PIO
 	vaddr = NULL;
 	paddr = NULL;
-#else
+#if defined(__FreeBSD__)
+	io_port = 0;
+#ifndef AHC_FORCE_PIO
 	if (pci_map_mem(config_id, PCI_BASEADR1, &vaddr, &paddr) == 0)
-		return;
 #endif
+		if (pci_map_port(config_id, PCI_BASEADR0, &io_port) == 0)
+			return;
+		
 #elif defined(__NetBSD__)
-	if (pci_io_find(pa->pa_pc, pa->pa_tag, PCI_BASEADR0, &iobase, &iosize))
-		return;
+	/* XXX Memory mapped I/O?? */
 	if (bus_io_map(pa->pa_bc, iobase, iosize, &ioh))
-		return;
+		if (pci_io_find(pa->pa_pc, pa->pa_tag, PCI_BASEADR0, &iobase,
+				&iosize))
+			return;
 #endif
 
 #if defined(__FreeBSD__)
@@ -435,38 +436,24 @@ ahc_pci_attach(parent, self, aux)
 
 	/* On all PCI adapters, we allow SCB paging */
 	ahc_f |= AHC_PAGESCBS;
+#if defined(__FreeBSD__)
+	if ((ahc = ahc_alloc(unit, io_port, vaddr, ahc_t, ahc_f,
+	     shared_scb_data)) == NULL)
+		return;  /* XXX PCI code should take return status */
+#else
+	ahc_construct(ahc, pa->pa_bc, ioh, ahc_t, ahc_f);
+#endif
 
 	/* Remeber how the card was setup in case there is no SEEPROM */
-#if defined(__FreeBSD__)
-	our_id = inb(SCSIID + io_port) & OID;
+	our_id = ahc_inb(ahc, SCSIID) & OID;
 	if (ahc_t & AHC_ULTRA)
-		ultra_enb = inb(SXFRCTL0 + io_port) & ULTRAEN;
-#else
-	our_id = bus_io_read_1(pa->pa_bc, ioh, SCSIID) & OID;
-	if (ahc_t & AHC_ULTRA)
-		ultra_enb = bus_io_read_1(pa->pa_bc, ioh, SXFRCTL0) & ULTRAEN;
-#endif
+		ultra_enb = ahc_inb(ahc, SXFRCTL0) & ULTRAEN;
+	sxfrctl1 = ahc_inb(ahc, SXFRCTL1) & STPWEN;
 
-#if AHC_DEBUG
-	{
-		u_int32_t config_info;
-		config_info = pci_conf_read(config_id, DEVCONFIG);
-		printf("DEVCONF == 0x%x\n", config_info);
-
-		outb(io_port + HCNTRL, IRQMS|INTEN|PAUSE);
-		printf("SEECTL == 0x%x, BRDCTL == 0x%x\n"
-		       "SXFRCTL0 == 0x%x, SXFRCTL1 == 0x%x\n",
-			inb(io_port + SEECTL), inb(io_port + 0x1D),
-			inb(io_port + SXFRCTL0), inb(io_port + SXFRCTL1));
-	}
-#endif
-
-#if defined(__FreeBSD__)
-	ahc_reset(io_port);
-#elif defined(__NetBSD__)
+#if defined(__NetBSD__)
 	printf("\n");
-	ahc_reset(ahc->sc_dev.dv_xname, pa->pa_bc, ioh);
 #endif
+	ahc_reset(ahc);
 
 #ifdef AHC_SHARE_SCBS
 	if (ahc_t & AHC_AIC7870) {
@@ -500,16 +487,11 @@ ahc_pci_attach(parent, self, aux)
 #endif
 
 #if defined(__FreeBSD__)
-	if ((ahc = ahc_alloc(unit, io_port, vaddr, ahc_t, ahc_f,
-	     shared_scb_data)) == NULL)
-		return;  /* XXX PCI code should take return status */
-
 	if (!(pci_map_int(config_id, ahc_intr, (void *)ahc, &bio_imask))) {
 		ahc_free(ahc);
 		return;
 	}
 #elif defined(__NetBSD__)
-	ahc_construct(ahc, pa->pa_bc, ioh, ahc_t, ahc_f);
 
 	if (pci_intr_map(pa->pa_pc, pa->pa_intrtag, pa->pa_intrpin,
 			 pa->pa_intrline, &ih)) {
@@ -556,19 +538,19 @@ ahc_pci_attach(parent, self, aux)
 		case AHC_294U:
 		case AHC_AIC7880:
 			id_string = "aic7880 ";
-			load_seeprom(ahc);
+			load_seeprom(ahc, &sxfrctl1);
 			break;
 		case AHC_398:
 		case AHC_394:
 		case AHC_294:
 		case AHC_AIC7870:
 			id_string = "aic7870 ";
-			load_seeprom(ahc);
+			load_seeprom(ahc, &sxfrctl1);
 			break;
 		case AHC_294AU:
 		case AHC_AIC7860:
 			id_string = "aic7860 ";
-			load_seeprom(ahc);
+			load_seeprom(ahc, &sxfrctl1);
 			break;
 		case AHC_AIC7850:
 			id_string = "aic7850 ";
@@ -588,14 +570,14 @@ ahc_pci_attach(parent, self, aux)
 		/*
 		 * Take the LED out of diagnostic mode
 		 */
-		sblkctl = AHC_INB(ahc, SBLKCTL);
-		AHC_OUTB(ahc, SBLKCTL, (sblkctl & ~(DIAGLEDEN|DIAGLEDON)));
+		sblkctl = ahc_inb(ahc, SBLKCTL);
+		ahc_outb(ahc, SBLKCTL, (sblkctl & ~(DIAGLEDEN|DIAGLEDON)));
 
 		/*
 		 * I don't know where this is set in the SEEPROM or by the
 		 * BIOS, so we default to 100%.
 		 */
-		AHC_OUTB(ahc, DSPCISTATUS, DFTHRSH_100);
+		ahc_outb(ahc, DSPCISTATUS, DFTHRSH_100);
 
 		if (ahc->flags & AHC_USEDEFAULTS) {
 			/*
@@ -606,7 +588,7 @@ ahc_pci_attach(parent, self, aux)
 			/* See if someone else set us up already */
 			u_int32_t i;
 		        for (i = TARG_SCRATCH; i < 0x60; i++) {
-                        	if (AHC_INB(ahc, i) != 0x00)
+                        	if (ahc_inb(ahc, i) != 0x00)
 					break;
 			}
 			if (i == TARG_SCRATCH) {
@@ -615,7 +597,7 @@ ahc_pci_attach(parent, self, aux)
 				 * either.
 				 */
 				for (i = TARG_SCRATCH; i < 0x60; i++) {
-                        		if (AHC_INB(ahc, i) != 0xff)
+                        		if (ahc_inb(ahc, i) != 0xff)
 						break;
 				}
 			}
@@ -623,12 +605,18 @@ ahc_pci_attach(parent, self, aux)
 				printf("%s: Using left over BIOS settings\n",
 					ahc_name(ahc));
 				ahc->flags &= ~AHC_USEDEFAULTS;
-			} else
+			} else {
+				/*
+				 * Assume only one connector and always turn
+				 * on termination.
+				 */
 				our_id = 0x07;
-			AHC_OUTB(ahc, SCSICONF,
+				sxfrctl1 = STPWEN;
+			}
+			ahc_outb(ahc, SCSICONF,
 				 (our_id & 0x07)|ENSPCHK|RESET_SCSI);
 			/* In case we are a wide card */
-			AHC_OUTB(ahc, SCSICONF + 1, our_id);
+			ahc_outb(ahc, SCSICONF + 1, our_id);
 
 			if (!ultra_enb || (ahc->flags & AHC_USEDEFAULTS)) {
 				/*
@@ -649,6 +637,13 @@ ahc_pci_attach(parent, self, aux)
 		return; /* XXX PCI code should take return status */
 	}
 
+	/*
+	 * Put our termination setting into sxfrctl1 now that the
+	 * generic initialization is complete.
+	 */
+	sxfrctl1 |= ahc_inb(ahc, SXFRCTL1);
+	ahc_outb(ahc, SXFRCTL1, sxfrctl1);
+
 	if ((ahc->type & AHC_398) == AHC_398) {
 		/* Only set this once we've successfully probed */
 		if (shared_scb_data == NULL)
@@ -663,8 +658,9 @@ ahc_pci_attach(parent, self, aux)
  * Read the SEEPROM.  Return 0 on failure
  */
 void
-load_seeprom(ahc)
-	struct	ahc_softc *ahc;
+load_seeprom(ahc, sxfrctl1)
+	struct	 ahc_softc *ahc;
+	u_int8_t *sxfrctl1;
 {
 	struct	  seeprom_descriptor sd;
 	struct	  seeprom_config sc;
@@ -675,12 +671,12 @@ load_seeprom(ahc)
 	int	  have_seeprom;
                  
 #if defined(__FreeBSD__)
-#ifdef AHC_FORCE_PIO
-	sd.sd_maddr = NULL;
-#else
-	sd.sd_maddr = ahc->maddr + SEECTL;
-#endif
-	sd.sd_iobase = ahc->baseport + SEECTL;
+	sd.sd_maddr = ahc->maddr;
+	if (sd.sd_maddr != NULL)
+		sd.sd_maddr += SEECTL;
+	sd.sd_iobase = ahc->baseport;
+	if (sd.sd_iobase != 0)
+		sd.sd_iobase += SEECTL;
 #elif defined(__NetBSD__)
 	sd.sd_bc = ahc->sc_bc;
 	sd.sd_ioh = ahc->sc_ioh;
@@ -742,10 +738,10 @@ load_seeprom(ahc)
 				target_settings |= WIDEXFER;
 			if (sc.device_flags[i] & CFDISC)
 				ahc->discenable |= (0x01 << i);
-			AHC_OUTB(ahc, TARG_SCRATCH+i, target_settings);
+			ahc_outb(ahc, TARG_SCRATCH+i, target_settings);
 		}
-		AHC_OUTB(ahc, DISC_DSB, ~(ahc->discenable & 0xff));
-		AHC_OUTB(ahc, DISC_DSB + 1, ~((ahc->discenable >> 8) & 0xff));
+		ahc_outb(ahc, DISC_DSB, ~(ahc->discenable & 0xff));
+		ahc_outb(ahc, DISC_DSB + 1, ~((ahc->discenable >> 8) & 0xff));
 
 		host_id = sc.brtime_id & CFSCSIID;
 
@@ -755,6 +751,14 @@ load_seeprom(ahc)
 		if (sc.adapter_control & CFRESETB)
 			scsi_conf |= RESET_SCSI;
 
+		/*
+		 * Update the settings in sxfrctl1 to match the
+		 *termination settings
+		 */
+		*sxfrctl1 = 0;
+		if (sc.adapter_control & CFSTERM)
+			*sxfrctl1 |= STPWEN;
+
 		if (ahc->type & AHC_ULTRA) {
 			/* Should we enable Ultra mode? */
 			if (!(sc.adapter_control & CFULTRAEN))
@@ -762,9 +766,9 @@ load_seeprom(ahc)
 				ahc->type &= ~AHC_ULTRA;
 		}
 		/* Set the host ID */
-		AHC_OUTB(ahc, SCSICONF, scsi_conf);
+		ahc_outb(ahc, SCSICONF, scsi_conf);
 		/* In case we are a wide card */
-		AHC_OUTB(ahc, SCSICONF + 1, host_id);
+		ahc_outb(ahc, SCSICONF + 1, host_id);
 	}
 }
 
