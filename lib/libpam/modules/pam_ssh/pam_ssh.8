@@ -32,6 +32,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
+.\" $Id: pam_ssh.8,v 1.3 2002/04/09 02:13:44 akorty Exp $
 .\" $FreeBSD$
 .\"
 .Dd November 26, 2001
@@ -39,7 +40,7 @@
 .Os
 .Sh NAME
 .Nm pam_ssh
-.Nd SSH PAM module
+.Nd authentication and session management with SSH private keys
 .Sh SYNOPSIS
 .Op Ar service-name
 .Ar module-type
@@ -133,16 +134,24 @@ level.
 .Sh FILES
 .Bl -tag -width ".Pa $HOME/.ssh2/id_dsa_*" -compact
 .It Pa $HOME/.ssh/identity
-SSH1/OpenSSH RSA key.
+SSH1/OpenSSH RSA key
 .It Pa $HOME/.ssh/id_dsa
-OpenSSH DSA key.
+OpenSSH DSA key
 .It Pa $HOME/.ssh2/id_rsa_*
-SSH2 RSA keys.
+SSH2 RSA keys
 .It Pa $HOME/.ssh2/id_dsa_*
-SSH2 DSA keys.
+SSH2 DSA keys
 .El
 .Sh SEE ALSO
 .Xr ssh-agent 1 ,
 .Xr syslog 3 ,
 .Xr pam.conf 5 ,
 .Xr pam 8
+.Sh AUTHORS
+.Pp
+.An -nosplit
+.An "Andrew J. Korty" Aq ajk@iu.edu
+wrote
+.Nm .
+.An "Mark R V Murray"
+wrote this manual page.
