@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.109.2.33 1998/07/03 14:28:32 jkh Exp $
+#	$Id: Makefile,v 1.109.2.34 1998/09/04 06:07:43 jkh Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -629,6 +629,7 @@ build-tools:
 		bin/date		\
 		bin/dd			\
 		bin/echo		\
+		usr.bin/yacc		\
 		bin/expr		\
 		bin/hostname		\
 		bin/ln			\
@@ -674,7 +675,6 @@ build-tools:
 		usr.bin/vgrind		\
 		usr.bin/vi		\
 		usr.bin/wc		\
-		usr.bin/yacc		\
 		usr.sbin/chown		\
 		usr.sbin/mtree		\
 		usr.sbin/zic		\
