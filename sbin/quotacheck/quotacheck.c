@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: quotacheck.c,v 1.5.2.2 1997/06/30 11:16:18 charnier Exp $
+ *	$Id: quotacheck.c,v 1.5.2.3 1997/09/14 19:41:18 jkh Exp $
  */
 
 #ifndef lint
@@ -584,7 +584,7 @@ resetinodebuf()
 	}
 	if (inodebuf == NULL &&
 	   (inodebuf = malloc((u_int)inobufsize)) == NULL)
-		err(1, NULL);
+		errx(1, "malloc failed");
 	while (nextino < ROOTINO)
 		getnextinode(nextino);
 }
