@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)if.c	8.1 (Berkeley) 6/5/93";
 #elif defined(__NetBSD__)
 static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.23 $"
+#ident "$Revision: 1.1.1.5 $"
 
 #include "defs.h"
 #include "pathnames.h"
@@ -596,7 +596,12 @@ if_ok(struct interface *ifp,
 }
 
 
-/* disassemble routing message
+#ifdef _HAVE_SA_LEN
+static struct sockaddr sa_zero = { sizeof(struct sockaddr), AF_INET };
+#endif
+/*
+ * disassemble routing message
+ * copied bug for bug from the BSD kernel
  */
 void
 rt_xaddrs(struct rt_addrinfo *info,
@@ -604,10 +609,9 @@ rt_xaddrs(struct rt_addrinfo *info,
 	  struct sockaddr *lim,
 	  int addrs)
 {
+	char  *sa_limit; /* next byte after the sockaddr */
 	int i;
-#ifdef _HAVE_SA_LEN
-	static struct sockaddr sa_zero;
-#endif
+	int len;
 #ifdef sgi
 #define ROUNDUP(a) ((a) > 0 ? (1 + (((a) - 1) | (sizeof(__uint64_t) - 1))) \
 		    : sizeof(__uint64_t))
@@ -623,14 +627,30 @@ rt_xaddrs(struct rt_addrinfo *info,
 		if ((addrs & (1 << i)) == 0)
 			continue;
 #ifdef _HAVE_SA_LEN
-		info->rti_info[i] = (sa->sa_len != 0) ? sa : &sa_zero;
-		sa = (struct sockaddr *)((char*)(sa)
-					 + ROUNDUP(sa->sa_len));
+		len = sa->sa_len;
+
+		/* Check the sockaddr doesn't go past the end of the buffer. */
+		/* Cope with buggy (malicious?) sender.*/
+		if (len) {
+			sa_limit = ((char*)sa) + len;
+			if ( sa_limit > (char *)lim ) /* equal is ok */
+				return;
+		} else {
+			/*
+			 * We allow the last broken sockaddr
+			 * to be replaced by a good null one
+			 * because some old versions of routing stuff
+			 * would do this (4.4 route(1) for example).
+			 * This should go away eventually.
+			 */
+			info->rti_info[i] = &sa_zero;
+			return; /* this one had unknown length */
+		}
 #else
-		info->rti_info[i] = sa;
-		sa = (struct sockaddr *)((char*)(sa)
-					 + ROUNDUP(_FAKE_SA_LEN_DST(sa)));
+		len = _FAKE_SA_LEN_DST(sa);
 #endif
+		info->rti_info[i] = sa;
+		sa = (struct sockaddr *)((char*)(sa) + ROUNDUP(len));
 	}
 }
 
