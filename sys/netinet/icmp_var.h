@@ -31,13 +31,15 @@
  * SUCH DAMAGE.
  *
  *	@(#)icmp_var.h	8.1 (Berkeley) 6/10/93
- * $Id: icmp_var.h,v 1.9 1997/09/07 05:26:34 bde Exp $
+ * $Id: icmp_var.h,v 1.10 1998/12/03 20:23:20 dillon Exp $
  */
 
 #ifndef _NETINET_ICMP_VAR_H_
 #define _NETINET_ICMP_VAR_H_
 
+#ifdef KERNEL
 #include "opt_icmp_bandlim.h"		/* for ICMP_BANDLIM     */
+#endif
 
 /*
  * Variables related to this implementation
