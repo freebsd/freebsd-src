@@ -109,6 +109,7 @@ int options;
 #define	F_NOLOOP	0x0400
 #define	F_MTTL		0x0800
 #define	F_MIF		0x1000
+#define	F_AUDIBLE	0x2000
 
 /*
  * MAX_DUP_CHK is the number of bits in received table, i.e. the maximum
@@ -185,8 +186,11 @@ main(argc, argv)
 	preload = 0;
 
 	datap = &outpack[8 + sizeof(struct timeval)];
-	while ((ch = getopt(argc, argv, "I:LQRT:c:dfh:i:l:np:qrs:v")) != EOF)
+	while ((ch = getopt(argc, argv, "I:LQRT:c:adfh:i:l:np:qrs:v")) != EOF)
 		switch(ch) {
+		case 'a':
+			options |= F_AUDIBLE;
+			break;
 		case 'c':
 			npackets = atoi(optarg);
 			if (npackets <= 0) {
@@ -619,6 +623,8 @@ pr_pack(buf, cc, from)
 				(void)printf(" time=%.3f ms", triptime);
 			if (dupflag)
 				(void)printf(" (DUP!)");
+			if (options & F_AUDIBLE)
+				(void)printf("\a");
 			/* check the data */
 			cp = (u_char*)&icp->icmp_data[8];
 			dp = &outpack[8 + sizeof(struct timeval)];
@@ -1134,6 +1140,6 @@ fill(bp, patp)
 usage()
 {
 	(void)fprintf(stderr,
-	    "usage: ping [-LQRdfnqrv] [-c count] [-i wait] [-I interface]\n\t[-l preload] [-p pattern] [-s packetsize] [-T ttl] host\n");
+	    "usage: ping [-LQRadfnqrv] [-c count] [-i wait] [-I interface]\n\t[-l preload] [-p pattern] [-s packetsize] [-T ttl] host\n");
 	exit(1);
 }
