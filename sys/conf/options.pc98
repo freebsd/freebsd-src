@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.8 1996/10/30 22:39:32 asami Exp $
+#	$Id: options.pc98,v 1.9 1996/11/02 10:38:48 asami Exp $
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
@@ -42,7 +42,6 @@ I486_CPU		opt_cpu.h
 I586_CPU		opt_cpu.h
 I686_CPU		opt_cpu.h
 
-I586_FAST_BCOPY		opt_temporary.h
 I586_OPTIMIZED_BCOPY	opt_temporary.h
 I586_OPTIMIZED_BZERO	opt_temporary.h
 
