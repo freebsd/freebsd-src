@@ -1,6 +1,6 @@
-<!-- $Id: porting.sgml,v 1.5 1996/12/17 04:29:56 max Exp $ -->
+<!-- $Id: porting.sgml,v 1.6 1996/12/17 07:38:33 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.48 -->
+<!-- Original revision: 1.49 -->
 
 <sect1><heading>フリーソフトウェアの移植<label id="porting"></heading>
 
