@@ -143,7 +143,7 @@ sndbuf_resize(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz)
 	b->bufsize = blkcnt * blksz;
 	if (b->tmpbuf)
 		free(b->tmpbuf, M_DEVBUF);
-	b->tmpbuf = malloc(b->bufsize, M_DEVBUF, M_WAITOK);
+	b->tmpbuf = malloc(b->bufsize, M_DEVBUF, M_NOWAIT);
 	sndbuf_reset(b);
 	return 0;
 }
@@ -151,26 +151,38 @@ sndbuf_resize(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz)
 int
 sndbuf_remalloc(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz)
 {
+        u_int8_t *buf, *tmpbuf, *f1, *f2;
+        unsigned int bufsize;
+
 	if (blkcnt < 2 || blksz < 16)
 		return EINVAL;
 
+	bufsize = blksz * blkcnt;
+
+
+	buf = malloc(bufsize, M_DEVBUF, M_NOWAIT);
+	if (buf == NULL)
+		return ENOMEM;
+
+	tmpbuf = malloc(bufsize, M_DEVBUF, M_NOWAIT);
+   	if (tmpbuf == NULL) {
+		free(buf, M_DEVBUF);
+		return ENOMEM;
+	}
+
 	b->blkcnt = blkcnt;
 	b->blksz = blksz;
+	b->bufsize = bufsize;
+	b->maxsize = bufsize;
+	f1 = b->buf;
+	f2 = b->tmpbuf;
+	b->buf = buf;
+	b->tmpbuf = tmpbuf;
 
-	b->maxsize = blkcnt * blksz;
-	b->bufsize = b->maxsize;
-
-	if (b->buf)
-		free(b->buf, M_DEVBUF);
-	b->buf = malloc(b->bufsize, M_DEVBUF, M_WAITOK);
-	if (b->buf == NULL)
-		return ENOMEM;
-
-	if (b->tmpbuf)
-		free(b->tmpbuf, M_DEVBUF);
-	b->tmpbuf = malloc(b->bufsize, M_DEVBUF, M_WAITOK);
-	if (b->tmpbuf == NULL)
-		return ENOMEM;
+      	if (f1)
+		free(f1, M_DEVBUF);
+      	if (f2)
+		free(f2, M_DEVBUF);
 
 	sndbuf_reset(b);
 	return 0;

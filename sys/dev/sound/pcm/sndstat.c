@@ -261,9 +261,9 @@ sndstat_unregister(device_t dev)
 	SLIST_FOREACH(ent, &sndstat_devlist, link) {
 		if (ent->dev == dev) {
 			SLIST_REMOVE(&sndstat_devlist, ent, sndstat_entry, link);
-			free(ent, M_DEVBUF);
 			mtx_unlock(&sndstat_lock);
 			splx(s);
+			free(ent, M_DEVBUF);
 
 			return 0;
 		}
@@ -285,10 +285,10 @@ sndstat_unregisterfile(char *str)
 	SLIST_FOREACH(ent, &sndstat_devlist, link) {
 		if (ent->dev == NULL && ent->str == str) {
 			SLIST_REMOVE(&sndstat_devlist, ent, sndstat_entry, link);
-			free(ent, M_DEVBUF);
 			sndstat_files--;
 			mtx_unlock(&sndstat_lock);
 			splx(s);
+			free(ent, M_DEVBUF);
 
 			return 0;
 		}
