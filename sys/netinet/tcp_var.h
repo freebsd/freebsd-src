@@ -38,6 +38,7 @@
 #define _NETINET_TCP_VAR_H_
 
 #include <netinet/in_pcb.h>		/* needed for in_conninfo, inp_gen_t */
+#include <netinet/tcp.h>
 
 /*
  * Kernel variables for tcp.

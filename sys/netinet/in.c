@@ -426,8 +426,8 @@ in_control(so, cmd, data, ifp, td)
 		 * from if_detach()
 		 */
 		if (ifaddr_byindex(ifp->if_index) != NULL) {
-			in_pcbpurgeif0(LIST_FIRST(ripcbinfo.listhead), ifp);
-			in_pcbpurgeif0(LIST_FIRST(udbinfo.listhead), ifp);
+			in_pcbpurgeif0(&ripcbinfo, ifp);
+			in_pcbpurgeif0(&udbinfo, ifp);
 		}
 		error = 0;
 		break;
