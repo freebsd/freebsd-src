@@ -1,7 +1,7 @@
 #
 # GENERICAH -- Generic machine with WD/AHx/NCR family disks
 #
-#	$Id: GENERICAH,v 1.51 1994/10/15 08:09:39 phk Exp $
+#	$Id: GENERICAH,v 1.52 1994/10/15 22:19:37 phk Exp $
 #
 
 machine		"i386"
@@ -41,8 +41,8 @@ controller	wdc1	at isa? port "IO_WD2" bio irq 15 vector wdintr
 disk		wd2	at wdc1 drive 0
 disk		wd3	at wdc1 drive 1
 
-controller	ahb0	at isa? bio irq 11 vector ahbintr
-controller	aha0	at isa? port "IO_AHA0" bio irq 11 drq 5 vector ahaintr
+controller	ahb0	at isa? bio irq ? vector ahbintr
+controller	aha0	at isa? port "IO_AHA0" bio irq ? drq 5 vector ahaintr
 controller	pas0	at isa? port 0x1f88 bio
 controller	aic0    at isa? port 0x340 bio irq 11 vector aicintr
 controller	pci0
