@@ -1,11 +1,11 @@
 #	@(#)Makefile	8.2 (Berkeley) 12/13/93
-#	$Id: Makefile,v 1.12 1997/02/22 13:24:13 peter Exp $
+#	$Id: Makefile,v 1.13 1998/02/04 22:30:20 jlemon Exp $
 
 MAN3=	assert.3 bitstring.3 end.3 fpgetround.3 intro.3 pthread.3 queue.3 \
 	stdarg.3 sysexits.3
 MLINKS+=bitstring.3 bit_alloc.3 bitstring.3 bit_clear.3 \
-	bitstring.3 bit_decl.3 bitstring.3 bit_ffs.3 bitstring.3 bit_nclear.3 \
-	bitstring.3 bit_nset.3 bitstring.3 bit_set.3 \
+	bitstring.3 bit_decl.3 bitstring.3 bit_ffc.3 bitstring.3 bit_ffs.3 \
+	bitstring.3 bit_nclear.3 bitstring.3 bit_nset.3 bitstring.3 bit_set.3 \
 	bitstring.3 bitstr_size.3 bitstring.3 bit_test.3
 MLINKS+=end.3 edata.3 end.3 etext.3
 MLINKS+=fpgetround.3 fpsetround.3 fpgetround.3 fpgetmask.3
