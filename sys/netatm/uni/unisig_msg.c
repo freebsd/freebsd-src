@@ -34,12 +34,13 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/errno.h>
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <net/if.h>
 #include <netatm/port.h>
 #include <netatm/queue.h>
@@ -69,12 +70,15 @@ static void	unisig_rcv_setup(struct unisig *, struct unisig_msg *);
 
 
 /*
- * Local variables
+ * net.harp.uni.unisig_print_msg
+ *
+ * 0 - disable
+ * 1 - dump UNI message
+ * 2 - dump UNI message + print decoded form
  */
-#ifdef DIAGNOSTIC
 static int	unisig_print_msg = 0;
-#endif
-
+SYSCTL_INT(_net_harp_uni, OID_AUTO, unisig_print_msg, CTLFLAG_RW,
+    &unisig_print_msg, 0, "dump UNI messages");
 
 /*
  * Set a Cause IE based on information in an ATM attribute block
@@ -204,13 +208,11 @@ unisig_send_msg(usp, msg)
 	if (usp->us_state != UNISIG_ACTIVE)
 		return(ENETDOWN);
 
-#ifdef DIAGNOSTIC
 	/*
 	 * Print the message we're sending.
 	 */
 	if (unisig_print_msg)
 		usp_print_msg(msg, UNISIG_MSG_OUT);
-#endif
 
 	/*
 	 * Convert message to network order
@@ -228,13 +230,11 @@ unisig_send_msg(usp, msg)
 		return(EIO);
 	}
 
-#ifdef DIAGNOSTIC
 	/*
 	 * Print the converted message
 	 */
 	if (unisig_print_msg > 1)
 		unisig_print_mbuf(usf.usf_m_base);
-#endif
 
 	/*
 	 * Send the message
@@ -860,13 +860,11 @@ unisig_rcv_msg(usp, m)
 		goto done;
 	}
 
-#ifdef DIAGNOSTIC
 	/*
 	 * Debug--print some information about the message
 	 */
 	if (unisig_print_msg)
 		usp_print_msg(msg, UNISIG_MSG_IN);
-#endif
 
 	/*
 	 * Get the call reference value

@@ -34,12 +34,13 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/syslog.h>
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <net/if.h>
 #include <netatm/port.h>
 #include <netatm/queue.h>
@@ -55,6 +56,11 @@ __FBSDID("$FreeBSD$");
 #include <netatm/atm_var.h>
 
 #include <netatm/uni/unisig_var.h>
+
+/*
+ * net.harp.uni
+ */
+SYSCTL_NODE(_net_harp, OID_AUTO, uni, CTLFLAG_RW, 0, "UNI");
 
 /*
  * Process a UNISIG timeout

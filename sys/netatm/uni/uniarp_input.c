@@ -104,10 +104,8 @@ uniarp_cpcs_data(tok, m)
 	KBuffer		*n;
 	int		len, plen = sizeof(struct atmarp_hdr);
 
-#ifdef DIAGNOSTIC
 	if (uniarp_print)
 		uniarp_pdu_print(ivp, m, "receive");
-#endif
 
 	/*
 	 * Verify IP's VCC state
