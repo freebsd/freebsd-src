@@ -105,6 +105,13 @@ static void wihap_disassoc_req(struct wi_softc *sc, struct wi_frame *rxfrm,
     caddr_t pkt, int len);
 
 /*
+ * Spl use in this driver.
+ *
+ * splnet is used everywhere here to block timeouts when we need to do
+ * so.
+ */
+
+/*
  * take_hword()
  *
  *	Used for parsing management frames.  The pkt pointer and length
@@ -294,7 +301,7 @@ wihap_shutdown(struct wi_softc *sc)
 	 * a single broadcast.  Maybe try that someday.
 	 */
 
-	s = splimp();
+	s = splnet();
 	sta = LIST_FIRST(&whi->sta_list);
 	while (sta) {
 		untimeout(wihap_sta_timeout, sta, sta->tmo);
@@ -318,6 +325,7 @@ wihap_shutdown(struct wi_softc *sc)
 	}
 
 	whi->apflags = 0;
+	splx(s);
 }
 
 /* sta_hash_func()
@@ -345,7 +353,7 @@ wihap_sta_timeout(void *v)
 	struct wihap_info	*whi = &sc->wi_hostap_info;
 	int	s;
 
-	s = splimp();
+	s = splnet();
 	if (sta->flags & WI_SIFLAGS_ASSOC) {
 		if (sc->arpcom.ac_if.if_flags & IFF_DEBUG)
 			device_printf(sc->dev, "inactivity disassoc: %6D\n",
@@ -505,7 +513,7 @@ wihap_auth_req(struct wi_softc *sc, struct wi_frame *rxfrm,
 	u_int16_t		seq;
 	u_int16_t		status;
 	int			i, challenge_len;
-	u_int8_t		challenge[32];
+	u_int32_t		challenge[32];
 
 	struct wi_80211_hdr	*resp_hdr;
 
@@ -938,7 +946,7 @@ wihap_mgmt_input(struct wi_softc *sc, struct wi_frame *rxfrm, struct mbuf *m)
 	    htole16(WI_FTYPE_MGMT)) {
 
 		/* any of the following will mess w/ the station list */
-		s = splsoftclock();
+		s = splnet();
 		switch (le16toh(rxfrm->wi_frame_ctl) & WI_FCTL_STYPE) {
 		case WI_STYPE_MGMT_ASREQ:
 			wihap_assoc_req(sc, rxfrm, pkt, len);
@@ -983,17 +991,20 @@ static int
 wihap_sta_is_assoc(struct wihap_info *whi, u_int8_t addr[])
 {
 	struct wihap_sta_info *sta;
+	int retval, s;
 
+	s = splnet();
+	retval = 0;
 	sta = wihap_sta_find(whi, addr);
 	if (sta != NULL && (sta->flags & WI_SIFLAGS_ASSOC)) {
 		/* Keep it active. */
 		untimeout(wihap_sta_timeout, sta, sta->tmo);
 		sta->tmo = timeout(wihap_sta_timeout, sta,
 		    hz * whi->inactivity_time);
-		return(1);
+		retval = 1;
 	}
-	else
-		return(0);
+	splx(s);
+	return (retval);
 }
 
 /* wihap_check_tx()
@@ -1008,11 +1019,11 @@ wihap_check_tx(struct wihap_info *whi, u_int8_t addr[], u_int8_t *txrate)
 	static u_int8_t txratetable[] = { 10, 20, 55, 110 };
 	int s;
 
-	s = splclock();
 	if (addr[0] & 0x01) {
 		*txrate = 0; /* XXX: multicast rate? */
 		return(1);
 	}
+	s = splnet();
 	sta = wihap_sta_find(whi, addr);
 	if (sta != NULL && (sta->flags & WI_SIFLAGS_ASSOC)) {
 		/* Keep it active. */
@@ -1064,7 +1075,7 @@ wihap_data_input(struct wi_softc *sc, struct wi_frame *rxfrm, struct mbuf *m)
 		return (1);
 	}
 
-	s = splsoftclock();
+	s = splnet();
 
 	/* Find source station. */
 	sta = wihap_sta_find(whi, rxfrm->wi_addr2);
@@ -1137,7 +1148,7 @@ wihap_ioctl(struct wi_softc *sc, u_long command, caddr_t data)
 			break;
 		if ((error = copyin(ifr->ifr_data, &reqsta, sizeof(reqsta))))
 			break;
-		s = splimp();
+		s = splnet();
 		sta = wihap_sta_find(whi, reqsta.addr);
 		if (sta == NULL)
 			error = ENOENT;
@@ -1159,21 +1170,21 @@ wihap_ioctl(struct wi_softc *sc, u_long command, caddr_t data)
 	case SIOCHOSTAP_GET:
 		if ((error = copyin(ifr->ifr_data, &reqsta, sizeof(reqsta))))
 			break;
-		s = splimp();
+		s = splnet();
 		sta = wihap_sta_find(whi, reqsta.addr);
-		if (sta == NULL)
+		if (sta == NULL) {
 			error = ENOENT;
-		else {
+			splx(s);
+		} else {
 			reqsta.flags = sta->flags;
 			reqsta.asid = sta->asid;
 			reqsta.capinfo = sta->capinfo;
 			reqsta.sig_info = sta->sig_info;
 			reqsta.rates = sta->rates;
-
+			splx(s);
 			error = copyout(&reqsta, ifr->ifr_data,
 			    sizeof(reqsta));
 		}
-		splx(s);
 		break;
 
 	case SIOCHOSTAP_ADD:
@@ -1181,7 +1192,7 @@ wihap_ioctl(struct wi_softc *sc, u_long command, caddr_t data)
 			break;
 		if ((error = copyin(ifr->ifr_data, &reqsta, sizeof(reqsta))))
 			break;
-		s = splimp();
+		s = splnet();
 		sta = wihap_sta_find(whi, reqsta.addr);
 		if (sta != NULL) {
 			error = EEXIST;
@@ -1221,7 +1232,7 @@ wihap_ioctl(struct wi_softc *sc, u_long command, caddr_t data)
 
 		reqall.nstations = whi->n_stations;
 		n = 0;
-		s = splimp();
+		s = splnet();
 		sta = LIST_FIRST(&whi->sta_list);
 		while (sta && reqall.size >= n+sizeof(struct hostap_sta)) {
 
