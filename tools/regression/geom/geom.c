@@ -46,6 +46,7 @@
 #include <sys/time.h>
 #include <sys/sbuf.h>
 #include <geom/geom.h>
+#include <geom/geom_int.h>
 
 void
 conff(char *file)
@@ -99,7 +100,7 @@ thread_event(void *ptr)
 	printf("Running %s\n", tp->name);
 	for (;;) {
 		usleep(100000);
-		g_run_events(tp);
+		g_run_events();
 		tsleep(&g_wait_event, 0, "events", 0);
 	}
 }

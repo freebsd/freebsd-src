@@ -49,7 +49,7 @@
 
 
 static struct g_geom *
-dev_taste(struct g_class *mp, struct g_provider *pp, struct thread *tp __unused, int insist __unused)
+dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
@@ -70,7 +70,7 @@ dev_taste(struct g_class *mp, struct g_provider *pp, struct thread *tp __unused,
 
 
 static void
-g_dev_orphan(struct g_consumer *cp, struct thread *tp __unused)
+g_dev_orphan(struct g_consumer *cp)
 {
 	struct g_geom *gp;
 
@@ -141,7 +141,7 @@ g_dev_done(struct bio *bp)
 	if (bp->bio_from->biocount > 0)
 		return;
 	g_topology_lock();
-	g_dev_orphan(bp->bio_from, NULL);
+	g_dev_orphan(bp->bio_from);
 	g_topology_unlock();
 }
 
