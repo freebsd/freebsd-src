@@ -8,7 +8,7 @@ MAN=	mtree.8
 SRCS=	compare.c crc.c create.c excludes.c misc.c mtree.c spec.c verify.c \
 	strtofflags.c
 
-.if !defined(WORLD)
+.if !defined(BOOTSTRAPPING)
 CFLAGS+= -DMD5 -DSHA1 -DRMD160
 DPADD=	${LIBMD}
 LDADD=	-lmd
