@@ -77,6 +77,20 @@ struct bsdtar {
 
 	struct links_entry	*links_head;
 	struct archive_dir_entry *archive_dir_head, *archive_dir_tail;
+
+	/* An arbitrary prime number. */
+	#define bsdtar_hash_size 71
+	/* A simple hash of uid/uname for caching uname lookups. */
+	struct {
+		uid_t uid;
+		char *uname;
+	} uname_lookup[bsdtar_hash_size];
+
+	/* A simple hash of gid/gname for caching gname lookups. */
+	struct {
+		gid_t gid;
+		char *gname;
+	} gname_lookup[bsdtar_hash_size];
 };
 
 const char	*bsdtar_progname(void);
