@@ -92,6 +92,7 @@
 #define ATAPI_READ_BUFFER		0x3c	/* read device buffer */
 #define ATAPI_READ_SUBCHANNEL		0x42	/* get subchannel info */
 #define ATAPI_READ_TOC			0x43	/* get table of contents */
+#define ATAPI_PLAY_10			0x45	/* play by lba */
 #define ATAPI_PLAY_MSF			0x47	/* play by MSF address */
 #define ATAPI_PLAY_TRACK		0x48	/* play by track number */
 #define ATAPI_PAUSE			0x4b	/* pause audio operation */
@@ -109,7 +110,7 @@
 #define ATAPI_BLANK			0xa1	/* blank the media */
 #define ATAPI_SEND_KEY			0xa3	/* send DVD key structure */
 #define ATAPI_REPORT_KEY		0xa4	/* get DVD key structure */
-#define ATAPI_PLAY_BIG			0xa5	/* play by lba */
+#define ATAPI_PLAY_12			0xa5	/* play by lba */
 #define ATAPI_LOAD_UNLOAD		0xa6	/* changer control command */
 #define ATAPI_READ_STRUCTURE		0xad	/* get DVD structure */
 #define ATAPI_PLAY_CD			0xb4	/* universal play command */

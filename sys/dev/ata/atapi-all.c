@@ -707,6 +707,7 @@ atapi_cmd2str(u_int8_t cmd)
     case 0x3c: return ("READ_BUFFER");
     case 0x42: return ("READ_SUBCHANNEL");
     case 0x43: return ("READ_TOC");
+    case 0x45: return ("PLAY_10");
     case 0x47: return ("PLAY_MSF");
     case 0x48: return ("PLAY_TRACK");
     case 0x4b: return ("PAUSE");
@@ -724,7 +725,7 @@ atapi_cmd2str(u_int8_t cmd)
     case 0xa1: return ("BLANK_CMD");
     case 0xa3: return ("SEND_KEY");
     case 0xa4: return ("REPORT_KEY");
-    case 0xa5: return ("PLAY_BIG");
+    case 0xa5: return ("PLAY_12");
     case 0xa6: return ("LOAD_UNLOAD");
     case 0xad: return ("READ_DVD_STRUCTURE");
     case 0xb4: return ("PLAY_CD");
