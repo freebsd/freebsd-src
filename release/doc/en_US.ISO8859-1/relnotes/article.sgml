@@ -814,10 +814,19 @@
 
     <para arch="i386,pc98">The <filename>libkse</filename> library,
       providing POSIX threading support using KSE, is now enabled and
-      installed by default.  It is still considered a
+      installed by default.
+      This library currently supports M:N threading.  Both process and
+      system scope threads are supported, as well as getting/setting
+      the concurrency level.  By default, the library sets the
+      concurrency level to the number of CPUs in the system.  Each
+      concurrency level correlates to a KSE, and all process scope
+      threads run in these KSEs.  Each system scope thread gets its
+      own KSE in addition to those corresponding to concurrency levels.
+      <filename>libkse</filename> is still considered a
       work-in-progress, and is not used by default.  However, it can
       be used as a replacement for the <filename>libc_r</filename>
-      thread library.</para>
+      thread library, by substituting <option>-lkse</option> instead of
+      <option>-pthread</option> when linking programs.</para>
 
     <para arch="i386,pc98,sparc64,ia64">A 1:1 threading package (where for every pthread in an
       application there is one KSE and thread) has been implemented.
