@@ -203,6 +203,17 @@
 #define	_SC_NPROCESSORS_CONF	57
 #define	_SC_NPROCESSORS_ONLN	58
 
+#endif /* !_POSIX_SOURCE */
+
+/* POSIX.1e pathconf and fpathconf options */
+#define	_POSIX_ACL_EXTENDED	59
+#define	_POSIX_ACL_PATH_MAX	60
+#define	_POSIX_ACL_CAP_PRESENT	61
+#define	_POSIX_INF_PRESENT	62
+#define	_POSIX_MAC_PRESENT	63
+
+#ifndef _POSIX_SOURCE
+
 /*
  * rfork() options.
  *
