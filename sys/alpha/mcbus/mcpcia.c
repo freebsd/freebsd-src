@@ -120,6 +120,40 @@ static void mcpcia_sgmap_map(void *, bus_addr_t, vm_offset_t);
 
 static struct mcpcia_softc *mcpcia_root;
 
+/*
+ * Early console support requires us to partially probe the bus to
+ * find the ISA bus resources.
+ */
+void
+mcpcia_init(int gid, int mid)
+{
+	static struct swiz_space io_space;
+	static struct swiz_space mem_space;
+	u_int64_t sysbase;
+	vm_offset_t regs, io_base, smem_base;
+
+	sysbase = MCBUS_IOSPACE |
+		(((u_int64_t) gid) << MCBUS_GID_SHIFT) |
+		(((u_int64_t) mid) << MCBUS_MID_SHIFT);
+
+	if (EISA_PRESENT(REGVAL(sysbase
+				| MCPCIA_PCI_BRIDGE
+				| _MCPCIA_PCI_REV))) {
+		/*
+		 * Define temporary spaces for bootstrap i/o.
+		 */
+		regs	  = (vm_offset_t) KV(sysbase);
+		io_base	  = regs + MCPCIA_PCI_IOSPACE;
+		smem_base = regs + MCPCIA_PCI_SPARSE;
+
+		swiz_init_space(&io_space, io_base);
+		swiz_init_space(&mem_space, smem_base);
+
+		busspace_isa_io = (struct alpha_busspace *) &io_space;
+		busspace_isa_mem = (struct alpha_busspace *) &mem_space;
+	}
+}
+
 static int
 mcpcia_probe(device_t dev)
 {
@@ -233,10 +267,6 @@ mcpcia_attach(device_t dev)
 				&sc->io_space;
 			busspace_isa_mem = (struct alpha_busspace *)
 				&sc->mem_space;
-			printf("Attaching Real Console\n");
-			mcpcia_enable_intr(sc, 16);
-			dec_kn300_cons_init();
-			promcndetach();
 			/*
 			 * Enable EISA interrupts.
 			 */
