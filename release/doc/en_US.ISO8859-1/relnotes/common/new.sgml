@@ -195,7 +195,7 @@
       support the Broadcom BCM570x family of Gigabit Ethernet
       controllers, including the 3Com 3c996-T, the SysKonnect SK-9D21
       and SK-9D41, and the built-in Gigabit Ethernet NICs on Dell
-      PowerEdge 2550 servers.  TCP/IP checksum offload, jumbo frames
+      PowerEdge 2550 servers.  Output TCP/IP checksum offload, jumbo frames
       and VLAN tag insertion/stripping are supported, as well as
       interrupt moderation.</para>
 
@@ -228,6 +228,10 @@
       boards support VLAN tagging/insertion, and the 82543 additionally
       supports TCP/IP checksum offload.</para>
 
+      <para arch="i386">The sbni driver, for supporting the Granch
+      SBNI12 series of ISA and PCI point-to-point communications
+      interfaces, has been added.</para>
+
       <para>The &man.sis.4; driver now supports VLANs.</para>
 
       <para>&man.vlan.4; devices are now loadable, unloadable, and
@@ -240,6 +244,10 @@
       <para>The &man.xl.4; driver now supports send- and receive-side TCP/IP
       checksum offloading for NICs implementing this feature, such as
       the 3C905B, 3C905C, and 3C980C.</para>
+
+      <para>A bug in the &man.xl.4; driver, related to stats overflow
+      interrupt handling, was causing slowdowns at medium to high
+      packet rates; this has been fixed.</para>
 
       <para>The per-interface <varname>ifnet</varname> structure now
       has the ability to indicate a set of capabilities supported by a
@@ -333,6 +341,10 @@
       <para>A bug that prevented the root filesystem from being
       mounted from a SCSI CDROM has been fixed (ATAPI CDROMs were
       always supported).</para>
+
+      <para>The <literal>UFS_DIRHASH</literal> hash-based lookup
+      optimization for large directories is now enabled by default in
+      the <filename>GENERIC</filename> kernel.</para>
     </sect3>
 
     <sect3>
@@ -416,6 +428,10 @@
     these can be used to create a relatively safe anonymous FTP drop box
     for others to upload to.</para>
 
+    <para>The &man.groups.1; and &man.whoami.1; shell scripts are now
+    unnecessary; their functionality has been completely folded into
+    &man.id.1;.</para>
+
     <para>&man.ipfw.8; will now avoid the display of dynamic
     firewall rules unless the <option>-d</option> flag is passed to
     it.  The <option>-e</option> option lists expired dynamic
@@ -427,6 +443,10 @@
 
     <para>&man.keyinfo.1; is now a C program, rather than a Perl
     script.</para>
+
+    <para><filename>libfetch</filename> has been synchronized to the
+    version in &os; CURRENT; among other features, it now has support
+    for an authentication callback.</para>
 
     <para><filename>libstand</filename> now has support for
     filesystems containing <application>bzip2</application>-compressed
@@ -490,6 +510,11 @@
     <para>&man.sh.1; now implements <command>test</command> as a
     built-in command for improved efficiency.</para>
 
+    <para>&man.sysctl.8; now supports a <option>-e</option> option to
+    separate variable names and values by <literal>=</literal> rather
+    than <literal>:</literal>.  This feature is useful for producing
+    output that can be fed back to &man.sysctl.8;.</para>
+
     <para>&man.sysinstall.8; now has the ability to load KLDs as a
     part of the installation.</para>
 
@@ -533,7 +558,10 @@
       <para arch="i386">Version 1.4.1 of the <application>smbfs</application>
       userland utilities have been imported.  &man.smbutil.1; and
       &man.mount.smbfs.8; are now available in the base system,
-      without the need to install the <port>net/smbfs</port> port.</para>
+      without the need to install the <port>net/smbfs</port> port.  Note that
+      &man.mount.smbfs.8; will automatically load the smbfs
+      module into the kernel, even if <literal>LIBMCHAIN</literal> and
+      <literal>LIBICONV</literal> were not compiled into the kernel.</para>
 
       <para>The timezone database has been updated to the
       <filename>tzdata2001d</filename> release.</para>
