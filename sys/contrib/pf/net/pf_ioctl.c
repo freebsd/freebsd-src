@@ -51,6 +51,7 @@
 #include <sys/time.h>
 #include <sys/malloc.h>
 #ifdef __FreeBSD__
+#include <sys/module.h>
 #include <sys/conf.h>
 #else
 #include <sys/timeout.h>

@@ -56,6 +56,7 @@
 #ifdef __FreeBSD__
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/sockio.h>
 #else
 #include <sys/ioctl.h>
