@@ -349,6 +349,7 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, char *args)
 	bcopy(&decrint, (void *)EXC_DECR, (size_t)&decrsize);
 	bcopy(&dsitrap, (void *)EXC_DSI, (size_t)&dsisize);
 	bcopy(&isitrap, (void *)EXC_ISI, (size_t)&isisize);
+	bcopy(&trapcode, (void *)EXC_SC, (size_t)&trapsize);
 
 	/*
 	 * Start initializing proc0 and thread0.
