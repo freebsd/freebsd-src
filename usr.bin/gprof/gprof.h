@@ -40,6 +40,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#if __alpha__
+#   include "alpha.h"
+#endif
 #if vax
 #   include "vax.h"
 #endif
@@ -207,7 +210,7 @@ UNIT	*samples;
 
 unsigned long	s_lowpc;	/* lowpc from the profile file */
 unsigned long	s_highpc;	/* highpc from the profile file */
-unsigned lowpc, highpc;		/* range profiled, in UNIT's */
+unsigned long	lowpc, highpc;	/* range profiled, in UNIT's */
 unsigned sampbytes;		/* number of bytes of samples */
 int	nsamples;		/* number of samples */
 double	actime;			/* accumulated time thus far for putprofline */
