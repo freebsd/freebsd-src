@@ -34,6 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)runetype.h	8.1 (Berkeley) 6/2/93
+ * $FreeBSD$
  */
 
 #ifndef	_RUNETYPE_H_
@@ -52,9 +53,11 @@ typedef	_BSD_SIZE_T_	size_t;
 #undef	_BSD_SIZE_T_
 #endif
 
+#ifndef __cplusplus
 #ifdef	_BSD_WCHAR_T_
 typedef	_BSD_WCHAR_T_	wchar_t;
 #undef	_BSD_WCHAR_T_
+#endif
 #endif
 
 #define	_CACHED_RUNES	(1 <<8 )	/* Must be a power of 2 */
