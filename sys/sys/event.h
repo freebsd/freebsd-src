@@ -151,6 +151,7 @@ extern int 	kqueue_register(struct kqueue *kq,
 #else 	/* !_KERNEL */
 
 #include <sys/cdefs.h>
+struct timespec;
 
 __BEGIN_DECLS
 int     kqueue __P((void));
