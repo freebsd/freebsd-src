@@ -100,7 +100,7 @@ case "$osvers" in
 0.*|1.0*) ;;
 
 # allow a 2.2.* a.out --> 3.0 ELF to work.
-2.2*) objformat=`objformat`
+2.2*)	objformat=`objformat`
 	if [ x$objformat = xelf ]; then
 	    libpth="/usr/lib /usr/local/lib"
             glibpth="/usr/lib /usr/local/lib"
