@@ -1187,18 +1187,21 @@ getline(char *s, int n, FILE *iop)
 	while ((c = getc(iop)) != EOF) {
 		c &= 0377;
 		if (c == IAC) {
-		    if ((c = getc(iop)) != EOF) {
+			if ((c = getc(iop)) == EOF)
+				goto got_eof;
 			c &= 0377;
 			switch (c) {
 			case WILL:
 			case WONT:
-				c = getc(iop);
+				if ((c = getc(iop)) == EOF)
+					goto got_eof;
 				printf("%c%c%c", IAC, DONT, 0377&c);
 				(void) fflush(stdout);
 				continue;
 			case DO:
 			case DONT:
-				c = getc(iop);
+				if ((c = getc(iop)) == EOF)
+					goto got_eof;
 				printf("%c%c%c", IAC, WONT, 0377&c);
 				(void) fflush(stdout);
 				continue;
@@ -1207,12 +1210,12 @@ getline(char *s, int n, FILE *iop)
 			default:
 				continue;	/* ignore command */
 			}
-		    }
 		}
 		*cs++ = c;
 		if (--n <= 0 || c == '\n')
 			break;
 	}
+got_eof:
 	if (c == EOF && cs == s)
 		return (NULL);
 	*cs++ = '\0';
