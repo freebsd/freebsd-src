@@ -485,7 +485,7 @@ main(int argc, char **argv)
 		udpconf = getnetconfigent("udp");
 		tcpconf = getnetconfigent("tcp");
 		if (udpconf == NULL || tcpconf == NULL) {	
-			syslog(LOG_ERR, "unknown rpc/udp or rpc/tpc");
+			syslog(LOG_ERR, "unknown rpc/udp or rpc/tcp");
 			exit(EX_USAGE);
 		}
 	}
@@ -494,7 +494,7 @@ main(int argc, char **argv)
 		udp6conf = getnetconfigent("udp6");
 		tcp6conf = getnetconfigent("tcp6");
 		if (udp6conf == NULL || tcp6conf == NULL) {	
-			syslog(LOG_ERR, "unknown rpc/udp6 or rpc/tpc6");
+			syslog(LOG_ERR, "unknown rpc/udp6 or rpc/tcp6");
 			exit(EX_USAGE);
 		}
 	}
