@@ -4,7 +4,7 @@
 PROG=	dpt_sig
 MAN=	dpt_sig.8
 
-CFLAGS+=-Wall -I${.CURDIR}/../../../sys
+CFLAGS+=-I${.CURDIR}/../../../sys
 BINMODE=500
 
 .include <bsd.prog.mk>
