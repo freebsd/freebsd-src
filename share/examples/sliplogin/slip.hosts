@@ -1,11 +1,13 @@
 #	@(#)slip.hosts	8.1 (Berkeley) 6/6/93
 #
-# login		local-addr	remote-addr	mask		opt1	opt2
-#						(normal,compress,noicmp)
+# login		local-addr	remote-addr	mask		option(s)
 #
+# option(s) consist of the following: (see the sliplogin man page)
+#   (normal,compress,noicmp,autocomp)
+# 
 Schez		vangogh		chez		0xffffff00	compress
 Sjun		vangogh		128.32.130.36	0xffffff00	normal
 Sleconte	vangogh		leconte		0xffffff00	compress
 Sleeb		vangogh		leeb		0xffffff00	compress
-Smjk		vangogh		pissaro-sl	0xffffff00	compress
-Soxford		vangogh		oxford		0xffffff00	compress
+Smjk		vangogh		pissaro-sl	0xffffff00	noicmp
+Soxford		vangogh		oxford		0xffffff00	autocomp
