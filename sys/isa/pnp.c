@@ -639,6 +639,10 @@ pnp_create_devices(device_t parent, pnp_id *p, int csn,
  * bytes already in the buffer should be passed in '*lenp'. The memory
  * allocated will be returned in '*resourcesp' with its size and the
  * number of bytes of resources in '*spacep' and '*lenp' respectively.
+ *
+ * XXX: Multiple problems here, we forget to free() stuff in one
+ * XXX: error return, and in another case we free (*resourcesp) but
+ * XXX: don't tell the caller.
  */
 static int
 pnp_read_bytes(int amount, u_char **resourcesp, int *spacep, int *lenp)
