@@ -117,5 +117,5 @@ int
 scmp(p, q)
 	const void *p, *q;
 {
-	return(strncmp((char *)p, (char *)q, UT_NAMESIZE));
+	return(strncmp(p, q, UT_NAMESIZE));
 }
