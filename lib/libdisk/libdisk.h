@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: libdisk.h,v 1.4 1995/04/29 04:50:38 phk Exp $
+ * $Id: libdisk.h,v 1.5 1995/04/29 07:21:11 phk Exp $
  *
  */
 
@@ -22,7 +22,6 @@ struct disk {
 	char		*name;
 	u_long		flags;
 #		define DISK_ON_TRACK	1
-#		define DISK_REAL_GEOM	2
 	u_long		real_cyl;
 	u_long		real_hd;
 	u_long		real_sect;
@@ -44,9 +43,6 @@ struct chunk {
 	char		*name;
 	chunk_e		type;
 	int		subtype;
-#		define SUBTYPE_BSD_FS          1
-#		define SUBTYPE_BSD_SWAP        2
-#		define SUBTYPE_BSD_UNUSED      3
 	u_long		flags;
 #		define CHUNK_PAST_1024		1
 			/* this chunk cannot be booted from */
@@ -142,6 +138,40 @@ Write_Disk(struct disk *d);
 	/* Write all the MBRs, disklabels, bootblocks and boot managers
 	 */
 
+int
+Cyl_Aligned(struct disk *d, u_long offset);
+	/* Check if offset is aligned on a cylinder according to the
+	 * bios geometry
+	 */
+
+u_long
+Next_Cyl_Aligned(struct disk *d, u_long offset);
+	/* Round offset up to next cylinder according to the bios-geometry
+	 */
+
+u_long
+Prev_Cyl_Aligned(struct disk *d, u_long offset);
+	/* Round offset down to previous cylinder according to the bios-
+	 * geometry
+	 */
+
+int
+Track_Aligned(struct disk *d, u_long offset);
+	/* Check if offset is aligned on a track according to the
+	 * bios geometry
+	 */
+
+u_long
+Next_Track_Aligned(struct disk *d, u_long offset);
+	/* Round offset up to next track according to the bios-geometry
+	 */
+
+u_long
+Prev_Track_Aligned(struct disk *d, u_long offset);
+	/* Check if offset is aligned on a track according to the
+	 * bios geometry
+	 */
+
 /* 
  * Implementation details  >>> DO NOT USE <<<
  */
@@ -152,11 +182,9 @@ struct chunk * Clone_Chunk(struct chunk *);
 int Add_Chunk(struct disk *, u_long , u_long , char *, chunk_e, int , u_long);
 void Bios_Limit_Chunk(struct chunk *, u_long);
 void * read_block(int, daddr_t );
+void write_block(int fd, daddr_t block, void *foo);
 struct disklabel * read_disklabel(int, daddr_t);
 u_short	dkcksum(struct disklabel *);
-int Aligned(struct disk *d, u_long offset);
-u_long Next_Aligned(struct disk *d, u_long offset);
-u_long Prev_Aligned(struct disk *d, u_long offset);
 struct chunk * Find_Mother_Chunk(struct chunk *, u_long , u_long , chunk_e);
 struct disk * Int_Open_Disk(char *name, u_long size);
 
@@ -181,6 +209,8 @@ struct disk * Int_Open_Disk(char *name, u_long size);
  * Make Create_DWIM().
  *
  * Make Is_Unchanged(struct disk *d1, struct chunk *c1)
+ * 
+ * Make Set_Active_Slice()
  *
  *Sample output from tst01:
  *

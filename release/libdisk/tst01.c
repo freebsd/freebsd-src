@@ -6,16 +6,19 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: tst01.c,v 1.4 1995/04/29 04:50:39 phk Exp $
+ * $Id: tst01.c,v 1.5 1995/04/29 07:21:13 phk Exp $
  *
  */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 #include <err.h>
+#ifdef READLINE
 #include <readline/readline.h>
 #include <readline/history.h>
+#endif
 #include <sys/types.h>
 #include "libdisk.h"
 
@@ -26,6 +29,9 @@ main(int argc, char **argv)
 {
 	struct disk *d,*db;
 	char myprompt[BUFSIZ];
+#ifndef READLINE
+	char input[BUFSIZ];
+#endif
 	char *p,*q=0;
 	char **cp,*cmds[200];
 	int ncmd,i;
@@ -36,7 +42,7 @@ main(int argc, char **argv)
 	}
 	d = Open_Disk(argv[1]);
 	if (!d) 
-		err(1,"Coudn't open disk %s",argv[1]);
+		err(1,"Couldn't open disk %s",argv[1]);
 
 	sprintf(myprompt,"%s %s> ",argv[0],argv[1]);
 	while(1) {
@@ -47,12 +53,18 @@ main(int argc, char **argv)
 			printf("%s",p);
 			free(p);
 		}
+#ifdef READLINE
 		if (q)
 			free(q);
 		q = p = readline(myprompt);
+#else
+		printf(myprompt);
+		fflush(stdout);
+		q = p = fgets(input,sizeof(input),stdin);
+#endif
 		if(!p)
 			break;
-		for(cp = cmds; (*cp = strsep(&p, " \t")) != NULL;)
+		for(cp = cmds; (*cp = strsep(&p, " \t\n")) != NULL;)
 			if (**cp != '\0')
 				cp++;
 		ncmd = cp - cmds;
@@ -128,9 +140,16 @@ main(int argc, char **argv)
 				d = db;
 			continue;
 		}
+		if (!strcasecmp(*cmds,"boot")) {
+			extern u_char boot1[],boot2[];
+			Set_Boot_Blocks(d,boot1,boot2);
+			continue;
+		}
 		if (!strcasecmp(*cmds,"write")) {
 			printf("Write=%d\n",
 				Write_Disk(d));
+			Free_Disk(d);
+			d = Open_Disk(d->name);
 			continue;
 		}
 		if (strcasecmp(*cmds,"help"))
@@ -138,6 +157,7 @@ main(int argc, char **argv)
 		printf("CMDS:\n");
 		printf("\tallfreebsd\n");
 		printf("\tbios cyl hd sect\n");
+		printf("\tboot\n");
 		printf("\tcollapse [pointer]\n");
 		printf("\tcreate offset size enum subtype flags\n");
 		printf("\tdelete pointer\n");

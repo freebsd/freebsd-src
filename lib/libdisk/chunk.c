@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: chunk.c,v 1.2 1995/04/29 01:55:19 phk Exp $
+ * $Id: chunk.c,v 1.3 1995/04/29 04:00:54 phk Exp $
  *
  */
 
@@ -190,7 +190,7 @@ Add_Chunk(struct disk *d, u_long offset, u_long size, char *name, chunk_e type,
 		c2->size = c1->size = size;
 		c2->end = c1->end = end;
 		c1->name = strdup(name);
-		c2->name = strdup(name);
+		c2->name = strdup("-");
 		c1->type = type;
 		c2->type = unused;
 		c1->flags = flags;
@@ -302,6 +302,7 @@ Delete_Chunk(struct disk *d, struct chunk *c)
 		Free_Chunk(c3);
 		goto scan;
 	}
+	Fixup_Names(d);
 	return 0;
 }
 
