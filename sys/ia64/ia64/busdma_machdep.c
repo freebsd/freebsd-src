@@ -498,7 +498,7 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 			struct thread *td,
 			int flags,
 			bus_addr_t *lastaddrp,
-			bus_dma_segment_t *segs;
+			bus_dma_segment_t *segs,
 			int *segp,
 			int first)
 {
@@ -712,7 +712,7 @@ bus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map,
 			struct mbuf *m0, bus_dma_segment_t *segs,
 			int *nsegs, int flags)
 {
-	int nsegs, error;
+	int error;
 
 	M_ASSERTPKTHDR(m0);
 
