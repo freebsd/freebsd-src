@@ -1476,10 +1476,10 @@ uma_zone_slab(uma_zone_t zone, int flags)
 		    zone->uz_pages >= zone->uz_maxpages) {
 			zone->uz_flags |= UMA_ZFLAG_FULL;
 
-			if (flags & M_WAITOK)
-				msleep(zone, &zone->uz_lock, PVM, "zonelimit", 0);
-			else 
+			if (flags & M_NOWAIT)
 				break;
+			else 
+				msleep(zone, &zone->uz_lock, PVM, "zonelimit", 0);
 			continue;
 		}
 		zone->uz_recurse++;
@@ -1499,7 +1499,7 @@ uma_zone_slab(uma_zone_t zone, int flags)
 		 * could have while we were unlocked.  Check again before we
 		 * fail.
 		 */
-		if ((flags & M_WAITOK) == 0)
+		if (flags & M_NOWAIT)
 			flags |= M_NOVM;
 	}
 	return (slab);
@@ -1587,7 +1587,6 @@ uma_zalloc_bucket(uma_zone_t zone, int flags)
 		}
 		/* Don't block on the next fill */
 		flags |= M_NOWAIT;
-		flags &= ~M_WAITOK;
 	}
 
 	zone->uz_fills--;
