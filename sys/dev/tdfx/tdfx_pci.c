@@ -456,43 +456,54 @@ tdfx_mmap(dev_t dev, vm_offset_t offset, int nprot)
 	 * associated with this device be mapped for the process to work with. Nprot
 	 * holds the protections requested, PROT_READ, PROT_WRITE, or both.
 	 */
-	struct tdfx_softc* tdfx_info;
+
+	/**** OLD GET CONFIG ****/
+	/* struct tdfx_softc* tdfx_info; */
 	
 	/* Get the configuration for our card XXX*/
-	tdfx_info = (struct tdfx_softc*)devclass_get_softc(tdfx_devclass,
-			UNIT(minor(dev)));
+	/*tdfx_info = (struct tdfx_softc*)devclass_get_softc(tdfx_devclass,
+			UNIT(minor(dev)));*/
+	/************************/
+
+	struct tdfx_softc* tdfx_info[2];
 	
+	tdfx_info[0] = (struct tdfx_softc*)devclass_get_softc(tdfx_devclass, 0);
+
 	/* If, for some reason, its not configured, we bail out */
-	if(tdfx_info == NULL) {
+	if(tdfx_info[0] == NULL) {
 #ifdef	DEBUG
 	   printf("tdfx: tdfx_info (softc) is NULL\n");
 #endif
 	   return -1;
 	}
-	
+
 	/* We must stay within the bound of our address space */
-	if((offset & 0xff000000) == tdfx_info->addr0)
+	if((offset & 0xff000000) == tdfx_info[0]->addr0) {
 		offset &= 0xffffff;
+		return atop(rman_get_start(tdfx_info[0]->memrange) + offset);
+	}
+	
+	if(tdfx_count > 1) {
+		tdfx_info[1] = (struct tdfx_softc*)devclass_get_softc(tdfx_devclass, 1);
+		if((offset & 0xff000000) == tdfx_info[1]->addr0) {
+			offset &= 0xffffff;
+			return atop(rman_get_start(tdfx_info[1]->memrange) + offset);
+		}
+	}
 
 	/* See if the Banshee/V3 LFB is being requested */
-	if(tdfx_info->memrange2 != NULL && (offset & 0xff000000) ==
+	/*if(tdfx_info->memrange2 != NULL && (offset & 0xff000000) ==
 			tdfx_info->addr1) {
 	  	offset &= 0xffffff;
-		return atop(rman_get_start(tdfx_info->memrange2) + offset);
-	}
+		return atop(rman_get_start(tdfx_info[1]->memrange2) + offset);
+	}*/ /* VoodooNG code */
 
-	if((offset >= 0x1000000) || (offset < 0)) {
-#ifdef  DEBUG
-	   printf("tdfx: offset %x out of range\n", offset);
-#endif
-	   return -1;
-	}
-
+	/* The ret call */
 	/* atop -> address to page
 	 * rman_get_start, get the (struct resource*)->r_start member,
 	 * the mapping base address.
 	 */
-	return atop(rman_get_start(tdfx_info->memrange) + offset);
+	return -1;
 }
 
 static int
