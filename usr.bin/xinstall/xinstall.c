@@ -97,7 +97,7 @@ void	install_dir(char *);
 u_long	numeric_id(const char *, const char *);
 void	strip(const char *);
 int	trymmap(int);
-void	usage(int);
+void	usage(void);
 
 int
 main(int argc, char *argv[])
@@ -165,18 +165,18 @@ main(int argc, char *argv[])
 			break;
 		case '?':
 		default:
-			usage(__LINE__);
+			usage();
 		}
 	argc -= optind;
 	argv += optind;
 
 	/* some options make no sense when creating directories */
 	if (dostrip && dodir)
-		usage(__LINE__);
+		usage();
 
 	/* must have at least two arguments, except when creating directories */
-	if (argc < 2 && !dodir)
-		usage(__LINE__);
+	if (argc == 0 || (argc == 1 && !dodir))
+		usage();
 
 	/* need to make a temp copy so we can compare stripped version */
 	if (docompare && dostrip)
@@ -216,7 +216,7 @@ main(int argc, char *argv[])
 
 	/* can't do file1 file2 directory/file */
 	if (argc != 2)
-		usage(__LINE__);
+		usage();
 
 	if (!no_target) {
 		if (stat(*argv, &from_sb))
@@ -757,15 +757,14 @@ install_dir(char *path)
  *	print a usage message and die
  */
 void
-usage(int line)
+usage()
 {
-	(void)fprintf(stderr, "line %d\n"
+	(void)fprintf(stderr,
 "usage: install [-bCcpSsv] [-B suffix] [-f flags] [-g group] [-m mode]\n"
 "               [-o owner] file1 file2\n"
 "       install [-bCcpSsv] [-B suffix] [-f flags] [-g group] [-m mode]\n"
 "               [-o owner] file1 ... fileN directory\n"
-"       install -d [-v] [-g group] [-m mode] [-o owner] directory ...\n",
-	line);
+"       install -d [-v] [-g group] [-m mode] [-o owner] directory ...\n");
 	exit(EX_USAGE);
 	/* NOTREACHED */
 }
