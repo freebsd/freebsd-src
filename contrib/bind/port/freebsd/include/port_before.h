@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 #define WANT_IRS_NIS
 #define WANT_IRS_PW
 #define HAVE_PW_CLASS
@@ -26,7 +27,7 @@
 #define GROUP_R_ENT_ARGS void
 #define GROUP_R_OK gptr
 #define GROUP_R_BAD NULL
-#define GETGROUPLIST_ARGS const char *name, int basegid, int *groups, \
+#define GETGROUPLIST_ARGS const char *name, gid_t basegid, gid_t *groups, \
 			  int *ngroups
 
 #define HOST_R_RETURN struct hostent *
