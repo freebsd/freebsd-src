@@ -83,8 +83,8 @@ static void wi_zerocache(const char *);
 static void wi_readcache(const char *);
 #endif
 static void usage(const char *);
-
-int listaps;
+static int listaps;
+static int quiet;
 
 /*
  * Print a value a la the %b format of the kernel's printf
@@ -495,6 +495,35 @@ wi_printhex(struct wi_req *wreq)
 	return;
 }
 
+static int
+get_wiaprate(int inrate)
+{
+	int rate;
+
+	switch (inrate) {
+	case WI_APRATE_1:
+		rate = 1;
+		break;
+	case WI_APRATE_2:
+		rate = 2;
+		break;
+	case WI_APRATE_5:
+		rate = 5.5;
+		break;
+	case WI_APRATE_11:
+		rate = 11;
+		break;
+#ifdef WI_APRATE_0
+	case WI_APRATE_0:
+#endif
+	default:
+		rate = 0;
+		break;
+	}
+
+	return (rate);
+}
+
 void
 wi_printaplist(const char *iface)
 {
@@ -504,7 +533,8 @@ wi_printaplist(const char *iface)
 	int i, nstations;
 	float rate;
 
-	printf("Available APs:\n");
+	if (!quiet)
+		printf("Available APs:\n");
 
 	/* first determine if this is a prism2 card or not */
 	wreq.wi_len = WI_MAX_DATALEN;
@@ -532,11 +562,14 @@ wi_printaplist(const char *iface)
 	} while (wi_getval(iface, &wreq) == -1 && errno == EINPROGRESS);
 
 	nstations = *(int *)wreq.wi_val;
-	printf("%d station%s:\n", nstations, nstations == 1 ? "" : "s");
+	if (!quiet) {
+		printf("%d station%s:\n", nstations, nstations == 1 ? "" : "s");
+		printf("SSID                 BSSID             Chan    SN   S   N   Intrvl  Capinfo\n");
+	}
 	w =  (struct wi_apinfo *)(((char *)&wreq.wi_val) + sizeof(int));
 	for ( i = 0; i < nstations; i++, w++) {
-		printf("    %-8.*s  [ %02x:%02x:%02x:%02x:%02x:%02x ]  [ %-2d ]  "
-		    "[ %d %d %d ]  %-3d  "
+		printf("%-20.*s %02x:%02x:%02x:%02x:%02x:%02x   %-2d "
+		    "[ %3d %3d %3d ]    %-3d  "
 		    , w->namelen, w->name
 		    , w->bssid[0]&0xff, w->bssid[1]&0xff
 		    , w->bssid[2]&0xff, w->bssid[3]&0xff
@@ -545,34 +578,18 @@ wi_printaplist(const char *iface)
 		    , w->quality, w->signal, w->noise
 		    , w->interval
 		);
-		printf("[ ");
-		if (w->capinfo & IEEE80211_CAPINFO_ESS)
-			printf("ESS ");
-		if (w->capinfo & IEEE80211_CAPINFO_PRIVACY)
-			printf("WEP ");
-		printf("]\n              ");
 
-		switch (w->rate) {
-		case WI_APRATE_1:
-			rate = 1;
-			break;
-		case WI_APRATE_2:
-			rate = 2;
-			break;
-		case WI_APRATE_5:
-			rate = 5.5;
-			break;
-		case WI_APRATE_11:
-			rate = 11;
-			break;
-#ifdef WI_APRATE_0
-		case WI_APRATE_0:
-#endif
-		default:
-			rate = 0;
-			break;
+		if (!quiet) {
+			printf("[ ");
+			if (w->capinfo & IEEE80211_CAPINFO_ESS)
+				printf("ESS ");
+			if (w->capinfo & IEEE80211_CAPINFO_PRIVACY)
+				printf("WEP ");
+			printf("]\n              ");
+
+			rate = get_wiaprate(w->rate);
+			if (rate) printf("* %2.1f *\n", rate);
 		}
-		if (rate) printf("* %2.1f *\n", rate);
 		putchar('\n');
 	}
 }
@@ -996,7 +1013,7 @@ main(int argc, char *argv[])
 	opterr = 1;
 		
 	while((ch = getopt(argc, argv,
-	    "a:hoc:d:e:f:i:k:lp:r:q:t:n:s:m:v:F:LP:S:T:ZC")) != -1) {
+	    "a:c:d:e:f:hi:k:lm:n:op:q:r:s:t:v:CF:LP:QS:T:Z")) != -1) {
 		switch(ch) {
 		case 'Z':
 #ifdef WICACHE
@@ -1042,7 +1059,7 @@ main(int argc, char *argv[])
  			key = optarg;
 			break;
 		case 'L':
-			listaps = 1;
+			listaps++;
 			break;
 		case 'l':
 			wi_dumpstations(iface);
@@ -1071,6 +1088,9 @@ main(int argc, char *argv[])
 		case 'm':
 			wi_sethex(iface, WI_RID_MAC_NODE, optarg);
 			exit(0);
+			break;
+		case 'Q':
+			quiet = 1;
 			break;
 		case 'q':
 			wi_setstr(iface, WI_RID_OWN_SSID, optarg);
@@ -1109,6 +1129,11 @@ main(int argc, char *argv[])
 
 	if (key != NULL) {
 		wi_setkeys(iface, key, modifier);
+		exit(0);
+	}
+
+	if (listaps > 1) {
+		wi_printaplist(iface);
 		exit(0);
 	}
 
