@@ -348,7 +348,7 @@ main(argc, argv)
 				else if (strcmp(optarg, "time") == 0)
 					opt = FS_OPTTIME;
 				else
-	fatal("%s: unknown optimization preference: use `space' or `time'");
+	fatal("%s: unknown optimization preference: use `space' or `time'", optarg);
 			}
 			break;
 		case 'p':
