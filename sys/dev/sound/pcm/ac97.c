@@ -26,6 +26,7 @@
 
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/ac97.h>
+#include <dev/sound/pcm/ac97_patch.h>
 
 #include "mixer_if.h"
 
@@ -62,6 +63,7 @@ struct ac97_info {
 struct ac97_codecid {
 	u_int32_t id, noext:1;
 	char *name;
+	ac97_patch patch;
 };
 
 static const struct ac97mixtable_entry ac97mixtable_default[32] = {
@@ -82,47 +84,49 @@ static const struct ac97mixtable_entry ac97mixtable_default[32] = {
 };
 
 static struct ac97_codecid ac97codecid[] = {
-	{ 0x41445303, 0, "Analog Devices AD1819" },
-	{ 0x41445340, 0, "Analog Devices AD1881" },
-	{ 0x41445348, 0, "Analog Devices AD1881A" },
-	{ 0x41445360, 0, "Analog Devices AD1885" },
-	{ 0x414b4d00, 1, "Asahi Kasei AK4540" },
-	{ 0x414b4d01, 1, "Asahi Kasei AK4542" },
-	{ 0x414b4d02, 1, "Asahi Kasei AK4543" },
-	{ 0x414c4710, 0, "Avance Logic ALC200/200P" },
-	{ 0x414c4720, 0, "Realtek Semiconductor ALC650" },
-	{ 0x43525900, 0, "Cirrus Logic CS4297" },
-	{ 0x43525903, 0, "Cirrus Logic CS4297" },
-	{ 0x43525913, 0, "Cirrus Logic CS4297A" },
-	{ 0x43525914, 0, "Cirrus Logic CS4297B" },
-	{ 0x43525923, 0, "Cirrus Logic CS4294C" },
-	{ 0x4352592b, 0, "Cirrus Logic CS4298C" },
-	{ 0x43525931, 0, "Cirrus Logic CS4299A" },
-	{ 0x43525933, 0, "Cirrus Logic CS4299C" },
-	{ 0x43525934, 0, "Cirrus Logic CS4299D" },
-	{ 0x43525941, 0, "Cirrus Logic CS4201A" },
-	{ 0x43525951, 0, "Cirrus Logic CS4205A" },
-	{ 0x43525961, 0, "Cirrus Logic CS4291A" },
-	{ 0x45838308, 0, "ESS Technology ES1921" },
-	{ 0x49434511, 0, "ICEnsemble ICE1232" },
-	{ 0x4e534331, 0, "National Semiconductor LM4549" },
-	{ 0x83847600, 0, "SigmaTel STAC9700/9783/9784" },
-	{ 0x83847604, 0, "SigmaTel STAC9701/9703/9704/9705" },
-	{ 0x83847605, 0, "SigmaTel STAC9704" },
-	{ 0x83847608, 0, "SigmaTel STAC9708/9711" },
-	{ 0x83847609, 0, "SigmaTel STAC9721/9723" },
-	{ 0x83847644, 0, "SigmaTel STAC9744" },
-	{ 0x83847656, 0, "SigmaTel STAC9756/9757" },
-	{ 0x53494c22, 0, "Silicon Laboratory Si3036" },
-	{ 0x53494c23, 0, "Silicon Laboratory Si3038" },
-	{ 0x54524103, 0, "TriTech TR?????" },
-	{ 0x54524106, 0, "TriTech TR28026" },
-	{ 0x54524108, 0, "TriTech TR28028" },
-	{ 0x54524123, 0, "TriTech TR28602" },
-	{ 0x574d4c00, 0, "Wolfson WM9701A" },
-	{ 0x574d4c03, 0, "Wolfson WM9703/9704" },
-	{ 0x574d4c04, 0, "Wolfson WM9704 (quad)" },
-	{ 0, 0, NULL }
+	{ 0x41445303, 0, "Analog Devices AD1819",	0 },
+	{ 0x41445340, 0, "Analog Devices AD1881",	0 },
+	{ 0x41445348, 0, "Analog Devices AD1881A",	0 },
+	{ 0x41445360, 0, "Analog Devices AD1885",	0 },
+	{ 0x41445361, 0, "Analog Devices AD1886", 	ad1886_patch },
+	{ 0x414b4d00, 1, "Asahi Kasei AK4540", 		0 },
+	{ 0x414b4d01, 1, "Asahi Kasei AK4542", 		0 },
+	{ 0x414b4d02, 1, "Asahi Kasei AK4543", 		0 },
+	{ 0x414c4710, 0, "Avance Logic ALC200/200P", 	0 },
+	{ 0x414c4720, 0, "Realtek ALC650", 		0 },
+	{ 0x43525900, 0, "Cirrus Logic CS4297", 	0 },
+	{ 0x43525903, 0, "Cirrus Logic CS4297", 	0 },
+	{ 0x43525913, 0, "Cirrus Logic CS4297A", 	0 },
+	{ 0x43525914, 0, "Cirrus Logic CS4297B",	0 },
+	{ 0x43525923, 0, "Cirrus Logic CS4294C",	0 },
+	{ 0x4352592b, 0, "Cirrus Logic CS4298C",	0 },
+	{ 0x43525931, 0, "Cirrus Logic CS4299A",	0 },
+	{ 0x43525933, 0, "Cirrus Logic CS4299C",	0 },
+	{ 0x43525934, 0, "Cirrus Logic CS4299D",	0 },
+	{ 0x43525941, 0, "Cirrus Logic CS4201A",	0 },
+	{ 0x43525951, 0, "Cirrus Logic CS4205A",	0 },
+	{ 0x43525961, 0, "Cirrus Logic CS4291A",	0 },
+	{ 0x43585429, 0, "Conexant CX20468",		0 },
+	{ 0x45838308, 0, "ESS Technology ES1921",	0 },
+	{ 0x49434511, 0, "ICEnsemble ICE1232",		0 },
+	{ 0x4e534331, 0, "National Semiconductor LM4549", 0 },
+	{ 0x83847600, 0, "SigmaTel STAC9700/9783/9784",	0 },
+	{ 0x83847604, 0, "SigmaTel STAC9701/9703/9704/9705", 0 },
+	{ 0x83847605, 0, "SigmaTel STAC9704",		0 },
+	{ 0x83847608, 0, "SigmaTel STAC9708/9711",	0 },
+	{ 0x83847609, 0, "SigmaTel STAC9721/9723",	0 },
+	{ 0x83847644, 0, "SigmaTel STAC9744",		0 },
+	{ 0x83847656, 0, "SigmaTel STAC9756/9757",	0 },
+	{ 0x53494c22, 0, "Silicon Laboratory Si3036",	0 },
+	{ 0x53494c23, 0, "Silicon Laboratory Si3038",	0 },
+	{ 0x54524103, 0, "TriTech TR?????",		0 },
+	{ 0x54524106, 0, "TriTech TR28026",		0 },
+	{ 0x54524108, 0, "TriTech TR28028",		0 },
+	{ 0x54524123, 0, "TriTech TR28602",		0 },
+	{ 0x574d4c00, 0, "Wolfson WM9701A",		0 },
+	{ 0x574d4c03, 0, "Wolfson WM9703/9704",		0 },
+	{ 0x574d4c04, 0, "Wolfson WM9704 (quad)",	0 },
+	{ 0, 0, NULL, 0 }
 };
 
 static char *ac97enhancement[] = {
@@ -190,14 +194,14 @@ static char *ac97extfeature[] = {
 	"reserved 7",
 };
 
-static u_int16_t
-rdcd(struct ac97_info *codec, int reg)
+u_int16_t
+ac97_rdcd(struct ac97_info *codec, int reg)
 {
 	return AC97_READ(codec->methods, codec->devinfo, reg);
 }
 
-static void
-wrcd(struct ac97_info *codec, int reg, u_int16_t val)
+void
+ac97_wrcd(struct ac97_info *codec, int reg, u_int16_t val)
 {
 	AC97_WRITE(codec->methods, codec->devinfo, reg, val);
 }
@@ -206,14 +210,14 @@ static void
 ac97_reset(struct ac97_info *codec)
 {
 	u_int32_t i, ps;
-	wrcd(codec, AC97_REG_RESET, 0);
+	ac97_wrcd(codec, AC97_REG_RESET, 0);
 	for (i = 0; i < 500; i++) {
-		ps = rdcd(codec, AC97_REG_POWER) & AC97_POWER_STATUS;
-		if (ps == AC97_POWER_STATUS) 
+		ps = ac97_rdcd(codec, AC97_REG_POWER) & AC97_POWER_STATUS;
+		if (ps == AC97_POWER_STATUS)
 			return;
 		DELAY(1000);
 	}
-	device_printf(codec->dev, "AC97 reset timed out.");
+	device_printf(codec->dev, "AC97 reset timed out.\n");
 }
 
 int
@@ -238,9 +242,9 @@ ac97_setrate(struct ac97_info *codec, int which, int rate)
 		v = rate;
 		if (codec->extstat & AC97_EXTCAP_DRA)
 			v >>= 1;
-		wrcd(codec, which, v);
+		ac97_wrcd(codec, which, v);
 	}
-	v = rdcd(codec, which);
+	v = ac97_rdcd(codec, which);
 	if (codec->extstat & AC97_EXTCAP_DRA)
 		v <<= 1;
 	snd_mtxunlock(codec->lock);
@@ -257,8 +261,8 @@ ac97_setextmode(struct ac97_info *codec, u_int16_t mode)
 		return -1;
 	}
 	snd_mtxlock(codec->lock);
-	wrcd(codec, AC97_REGEXT_STAT, mode);
-	codec->extstat = rdcd(codec, AC97_REGEXT_STAT) & AC97_EXTCAPS;
+	ac97_wrcd(codec, AC97_REGEXT_STAT, mode);
+	codec->extstat = ac97_rdcd(codec, AC97_REGEXT_STAT) & AC97_EXTCAPS;
 	snd_mtxunlock(codec->lock);
 	return (mode == codec->extstat)? 0 : -1;
 }
@@ -290,7 +294,7 @@ ac97_setrecsrc(struct ac97_info *codec, int channel)
 		int val = e->recidx - 1;
 		val |= val << 8;
 		snd_mtxlock(codec->lock);
-		wrcd(codec, AC97_REG_RECSEL, val);
+		ac97_wrcd(codec, AC97_REG_RECSEL, val);
 		snd_mtxunlock(codec->lock);
 		return 0;
 	} else
@@ -330,14 +334,14 @@ ac97_setmixer(struct ac97_info *codec, unsigned channel, unsigned left, unsigned
 			val &= max;
 			val <<= e->ofs;
 			if (e->mask) {
-				int cur = rdcd(codec, e->reg);
+				int cur = ac97_rdcd(codec, e->reg);
 				val |= cur & ~(max << e->ofs);
 			}
 		}
 		if (left == 0 && right == 0 && e->mute == 1)
 			val = AC97_MUTE;
 		snd_mtxlock(codec->lock);
-		wrcd(codec, reg, val);
+		ac97_wrcd(codec, reg, val);
 		snd_mtxunlock(codec->lock);
 		return left | (right << 8);
 	} else {
@@ -355,7 +359,7 @@ ac97_getmixer(struct ac97_info *codec, int channel)
 		int max, val, volume;
 
 		max = (1 << e->bits) - 1;
-		val = rdcd(code, e->reg);
+		val = ac97_rdcd(code, e->reg);
 		if (val == AC97_MUTE && e->mute == 1)
 			volume = 0;
 		else {
@@ -386,7 +390,7 @@ ac97_fix_auxout(struct ac97_info *codec)
 		 * Leave AC97_MIX_AUXOUT - SOUND_MIXER_MONITOR relationship */
 		return;
 	} else if (codec->extcaps & AC97_EXTCAP_SDAC &&
-		   rdcd(codec, AC97_MIXEXT_SURROUND) == 0x8080) {
+		   ac97_rdcd(codec, AC97_MIXEXT_SURROUND) == 0x8080) {
 		/* 4-Channel Out, add an additional gain setting. */
 		codec->mix[SOUND_MIXER_OGAIN] = codec->mix[SOUND_MIXER_MONITOR];
 	} else {
@@ -402,6 +406,7 @@ ac97_fix_auxout(struct ac97_info *codec)
 static unsigned
 ac97_initmixer(struct ac97_info *codec)
 {
+	ac97_patch codec_patch;
 	unsigned i, j, k, old;
 	u_int32_t id;
 
@@ -413,15 +418,15 @@ ac97_initmixer(struct ac97_info *codec)
 		return ENODEV;
 	}
 
-	wrcd(codec, AC97_REG_POWER, (codec->flags & AC97_F_EAPD_INV)? 0x8000 : 0x0000);
+	ac97_wrcd(codec, AC97_REG_POWER, (codec->flags & AC97_F_EAPD_INV)? 0x8000 : 0x0000);
 	ac97_reset(codec);
-	wrcd(codec, AC97_REG_POWER, (codec->flags & AC97_F_EAPD_INV)? 0x8000 : 0x0000);
+	ac97_wrcd(codec, AC97_REG_POWER, (codec->flags & AC97_F_EAPD_INV)? 0x8000 : 0x0000);
 
-	i = rdcd(codec, AC97_REG_RESET);
+	i = ac97_rdcd(codec, AC97_REG_RESET);
 	codec->caps = i & 0x03ff;
 	codec->se =  (i & 0x7c00) >> 10;
 
-	id = (rdcd(codec, AC97_REG_ID1) << 16) | rdcd(codec, AC97_REG_ID2);
+	id = (ac97_rdcd(codec, AC97_REG_ID1) << 16) | ac97_rdcd(codec, AC97_REG_ID2);
 	codec->rev = id & 0x000000ff;
 	if (id == 0 || id == 0xffffffff) {
 		device_printf(codec->dev, "ac97 codec invalid or not present (id == %x)\n", id);
@@ -431,10 +436,12 @@ ac97_initmixer(struct ac97_info *codec)
 
 	codec->noext = 0;
 	codec->id = NULL;
+	codec_patch = NULL;
 	for (i = 0; ac97codecid[i].id; i++) {
 		if (ac97codecid[i].id == id) {
 			codec->id = ac97codecid[i].name;
 			codec->noext = ac97codecid[i].noext;
+			codec_patch = ac97codecid[i].patch;
 		}
 	}
 
@@ -442,11 +449,11 @@ ac97_initmixer(struct ac97_info *codec)
 	codec->extid = 0;
 	codec->extstat = 0;
 	if (!codec->noext) {
-		i = rdcd(codec, AC97_REGEXT_ID);
+		i = ac97_rdcd(codec, AC97_REGEXT_ID);
 		if (i != 0xffff) {
 			codec->extcaps = i & 0x3fff;
 			codec->extid =  (i & 0xc000) >> 14;
-			codec->extstat = rdcd(codec, AC97_REGEXT_STAT) & AC97_EXTCAPS;
+			codec->extstat = ac97_rdcd(codec, AC97_REGEXT_STAT) & AC97_EXTCAPS;
 		}
 	}
 
@@ -454,14 +461,16 @@ ac97_initmixer(struct ac97_info *codec)
 		codec->mix[i] = ac97mixtable_default[i];
 	}
 	ac97_fix_auxout(codec);
+	if (codec_patch)
+		codec_patch(codec);
 
 	for (i = 0; i < 32; i++) {
 		k = codec->noext? codec->mix[i].enable : 1;
 		if (k && (codec->mix[i].reg > 0)) {
-			old = rdcd(codec, codec->mix[i].reg);
-			wrcd(codec, codec->mix[i].reg, 0x3f);
-			j = rdcd(codec, codec->mix[i].reg);
-			wrcd(codec, codec->mix[i].reg, old);
+			old = ac97_rdcd(codec, codec->mix[i].reg);
+			ac97_wrcd(codec, codec->mix[i].reg, 0x3f);
+			j = ac97_rdcd(codec, codec->mix[i].reg);
+			ac97_wrcd(codec, codec->mix[i].reg, old);
 			codec->mix[i].enable = (j != 0 && j != old)? 1 : 0;
 			for (k = 1; j & (1 << k); k++);
 			codec->mix[i].bits = j? k - codec->mix[i].ofs : 0;
@@ -469,11 +478,14 @@ ac97_initmixer(struct ac97_info *codec)
 		/* printf("mixch %d, en=%d, b=%d\n", i, codec->mix[i].enable, codec->mix[i].bits); */
 	}
 
+	if (codec->id) {
+		device_printf(codec->dev, "<%s ac97 codec>\n", codec->id);
+	} else {
+		device_printf(codec->dev, 
+			      "<unknown ac97 codec> (id=0x%08x)\n", id);
+	}
+
 	if (bootverbose) {
-		device_printf(codec->dev, "ac97 codec id 0x%08x", id);
-		if (codec->id)
-			printf(" (%s)", codec->id);
-		printf("\n");
 		device_printf(codec->dev, "ac97 codec features ");
 		for (i = j = 0; i < 10; i++)
 			if (codec->caps & (1 << i))
@@ -493,7 +505,7 @@ ac97_initmixer(struct ac97_info *codec)
 		}
 	}
 
-	if ((rdcd(codec, AC97_REG_POWER) & 2) == 0)
+	if ((ac97_rdcd(codec, AC97_REG_POWER) & 2) == 0)
 		device_printf(codec->dev, "ac97 codec reports dac not ready\n");
 	snd_mtxunlock(codec->lock);
 	return 0;
@@ -510,21 +522,21 @@ ac97_reinitmixer(struct ac97_info *codec)
 		return ENODEV;
 	}
 
-	wrcd(codec, AC97_REG_POWER, (codec->flags & AC97_F_EAPD_INV)? 0x8000 : 0x0000);
+	ac97_wrcd(codec, AC97_REG_POWER, (codec->flags & AC97_F_EAPD_INV)? 0x8000 : 0x0000);
 	ac97_reset(codec);
-	wrcd(codec, AC97_REG_POWER, (codec->flags & AC97_F_EAPD_INV)? 0x8000 : 0x0000);
+	ac97_wrcd(codec, AC97_REG_POWER, (codec->flags & AC97_F_EAPD_INV)? 0x8000 : 0x0000);
 
 	if (!codec->noext) {
-		wrcd(codec, AC97_REGEXT_STAT, codec->extstat);
-		if ((rdcd(codec, AC97_REGEXT_STAT) & AC97_EXTCAPS)
+		ac97_wrcd(codec, AC97_REGEXT_STAT, codec->extstat);
+		if ((ac97_rdcd(codec, AC97_REGEXT_STAT) & AC97_EXTCAPS)
 		    != codec->extstat)
 			device_printf(codec->dev, "ac97 codec failed to reset extended mode (%x, got %x)\n",
 				      codec->extstat,
-				      rdcd(codec, AC97_REGEXT_STAT) &
-					AC97_EXTCAPS);
+				      ac97_rdcd(codec, AC97_REGEXT_STAT) &
+				      AC97_EXTCAPS);
 	}
 
-	if ((rdcd(codec, AC97_REG_POWER) & 2) == 0)
+	if ((ac97_rdcd(codec, AC97_REG_POWER) & 2) == 0)
 		device_printf(codec->dev, "ac97 codec reports dac not ready\n");
 	snd_mtxunlock(codec->lock);
 	return 0;
@@ -541,7 +553,7 @@ ac97_create(device_t dev, void *devinfo, kobj_class_t cls)
 
 	snprintf(codec->name, AC97_NAMELEN, "%s:ac97", device_get_nameunit(dev));
 	codec->lock = snd_mtxcreate(codec->name, "ac97 codec");
-	codec->methods = kobj_create(cls, M_AC97, M_WAITOK);
+	codec->methods = kobj_create(cls, M_AC97, 0);
 	if (codec->methods == NULL) {
 		snd_mtxlock(codec->lock);
 		snd_mtxfree(codec->lock);

@@ -101,3 +101,6 @@ u_int16_t ac97_getextmode(struct ac97_info *codec);
 u_int16_t ac97_getextcaps(struct ac97_info *codec);
 u_int16_t ac97_getcaps(struct ac97_info *codec);
 
+u_int16_t ac97_rdcd(struct ac97_info *codec, int reg);
+void	  ac97_wrcd(struct ac97_info *codec, int reg, u_int16_t val);
+
