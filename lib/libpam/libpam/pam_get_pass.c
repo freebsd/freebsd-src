@@ -26,34 +26,35 @@
  *	$FreeBSD$
  */
 
+#include <stdlib.h>
 #include <security/pam_modules.h>
 #include "pam_mod_misc.h"
 
-static int	 pam_conv_pass(pam_handle_t *, const char *, int);
+static int	 pam_conv_pass(pam_handle_t *, const char *, struct options *);
 
 static int
-pam_conv_pass(pam_handle_t *pamh, const char *prompt, int options)
+pam_conv_pass(pam_handle_t *pamh, const char *prompt, struct options *options)
 {
-	int retval;
-	const void *item;
 	const struct pam_conv *conv;
 	struct pam_message msg;
 	const struct pam_message *msgs[1];
 	struct pam_response *resp;
+	const void *item;
+	int retval;
 
-	if ((retval = pam_get_item(pamh, PAM_CONV, &item)) !=
-	    PAM_SUCCESS)
+	retval = pam_get_item(pamh, PAM_CONV, &item);
+	if (retval != PAM_SUCCESS)
 		return retval;
 	conv = (const struct pam_conv *)item;
-	msg.msg_style = options & PAM_OPT_ECHO_PASS ?
+	msg.msg_style = pam_test_option(options, PAM_OPT_ECHO_PASS, NULL) ?
 	    PAM_PROMPT_ECHO_ON : PAM_PROMPT_ECHO_OFF;
 	msg.msg = prompt;
 	msgs[0] = &msg;
-	if ((retval = conv->conv(1, msgs, &resp, conv->appdata_ptr)) !=
-	    PAM_SUCCESS)
+	retval = conv->conv(1, msgs, &resp, conv->appdata_ptr);
+	if (retval != PAM_SUCCESS)
 		return retval;
-	if ((retval = pam_set_item(pamh, PAM_AUTHTOK, resp[0].resp)) !=
-	    PAM_SUCCESS)
+	retval = pam_set_item(pamh, PAM_AUTHTOK, resp[0].resp);
+	if (retval != PAM_SUCCESS)
 		return retval;
 	memset(resp[0].resp, 0, strlen(resp[0].resp));
 	free(resp[0].resp);
@@ -63,7 +64,7 @@ pam_conv_pass(pam_handle_t *pamh, const char *prompt, int options)
 
 int
 pam_get_pass(pam_handle_t *pamh, const char **passp, const char *prompt,
-    int options)
+    struct options *options)
 {
 	int retval;
 	const void *item = NULL;
@@ -71,21 +72,23 @@ pam_get_pass(pam_handle_t *pamh, const char **passp, const char *prompt,
 	/*
 	 * Grab the already-entered password if we might want to use it.
 	 */
-	if (options & (PAM_OPT_TRY_FIRST_PASS | PAM_OPT_USE_FIRST_PASS)) {
-		if ((retval = pam_get_item(pamh, PAM_AUTHTOK, &item)) !=
-		    PAM_SUCCESS)
+	if (pam_test_option(options, PAM_OPT_TRY_FIRST_PASS, NULL) ||
+	    pam_test_option(options, PAM_OPT_USE_FIRST_PASS, NULL)) {
+		retval = pam_get_item(pamh, PAM_AUTHTOK, &item);
+		if (retval != PAM_SUCCESS)
 			return retval;
 	}
 
 	if (item == NULL) {
 		/* The user hasn't entered a password yet. */
-		if (options & PAM_OPT_USE_FIRST_PASS)
+		if (pam_test_option(options, PAM_OPT_USE_FIRST_PASS, NULL))
 			return PAM_AUTH_ERR;
 		/* Use the conversation function to get a password. */
-		if ((retval = pam_conv_pass(pamh, prompt, options)) !=
-		    PAM_SUCCESS ||
-		    (retval = pam_get_item(pamh, PAM_AUTHTOK, &item)) !=
-		    PAM_SUCCESS)
+		retval = pam_conv_pass(pamh, prompt, options);
+		if (retval != PAM_SUCCESS)
+			return retval;
+		retval = pam_get_item(pamh, PAM_AUTHTOK, &item);
+		if (retval != PAM_SUCCESS)
 			return retval;
 	}
 	*passp = (const char *)item;

@@ -61,7 +61,7 @@ SRCS+=		help_env.c misc_conv.c xstrdup.c
 HDRS2=		pam_misc.h
 
 # Files from ${.CURDIR}:
-SRCS+=		pam_get_pass.c pam_prompt.c pam_std_option.c
+SRCS+=		pam_get_pass.c pam_prompt.c pam_std_option.c pam_debug_log.c
 HDRS3=		pam_mod_misc.h
 
 # Static PAM modules:
