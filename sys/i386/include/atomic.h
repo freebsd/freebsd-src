@@ -23,56 +23,76 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: atomic.h,v 1.1 1998/08/24 08:39:36 dfr Exp $
+ *	$Id: atomic.h,v 1.2 1999/07/13 03:32:17 alc Exp $
  */
 #ifndef _MACHINE_ATOMIC_H_
 #define _MACHINE_ATOMIC_H_
 
 /*
  * Various simple arithmetic on memory which is atomic in the presence
- * of interrupts.  This code is now SMP safe as well.
+ * of interrupts and multiple processors.
  *
- * The assembly is volatilized to demark potential before-and-after side
- * effects if an interrupt or SMP collision were to occurs.
+ * atomic_set_char(P, V)	(*(u_char*)(P) |= (V))
+ * atomic_clear_char(P, V)	(*(u_char*)(P) &= ~(V))
+ * atomic_add_char(P, V)	(*(u_char*)(P) += (V))
+ * atomic_subtract_char(P, V)	(*(u_char*)(P) -= (V))
+ *
+ * atomic_set_short(P, V)	(*(u_short*)(P) |= (V))
+ * atomic_clear_short(P, V)	(*(u_short*)(P) &= ~(V))
+ * atomic_add_short(P, V)	(*(u_short*)(P) += (V))
+ * atomic_subtract_short(P, V)	(*(u_short*)(P) -= (V))
+ *
+ * atomic_set_int(P, V)		(*(u_int*)(P) |= (V))
+ * atomic_clear_int(P, V)	(*(u_int*)(P) &= ~(V))
+ * atomic_add_int(P, V)		(*(u_int*)(P) += (V))
+ * atomic_subtract_int(P, V)	(*(u_int*)(P) -= (V))
+ *
+ * atomic_set_long(P, V)	(*(u_long*)(P) |= (V))
+ * atomic_clear_long(P, V)	(*(u_long*)(P) &= ~(V))
+ * atomic_add_long(P, V)	(*(u_long*)(P) += (V))
+ * atomic_subtract_long(P, V)	(*(u_long*)(P) -= (V))
  */
 
-#ifdef SMP
-#define ATOMIC_ASM(NAME, TYPE, OP, V)	\
-static __inline void			\
-NAME(void *p, TYPE v)			\
-{					\
-	__asm __volatile("lock; "	\
-			 OP : "=m" (*(TYPE *)p) : "ir" (V), "0" (*(TYPE *)p)); \
-}
+/*
+ * Make kernel modules portable between UP and SMP.
+ */
+#if defined(SMP) || defined(KLD_MODULE)
+#define MPLOCKED	"lock ; "
 #else
-#define ATOMIC_ASM(NAME, TYPE, OP, V)	\
-static __inline void			\
-NAME(void *p, TYPE v)			\
-{					\
-	__asm __volatile(OP : "=m" (*(TYPE *)p) : "ir" (V), "0" (*(TYPE *)p)); \
-}
+#define MPLOCKED
 #endif
 
-ATOMIC_ASM(atomic_set_char,	u_char, "orb %1,%0",   v)
-ATOMIC_ASM(atomic_clear_char,	u_char, "andb %1,%0", ~v)
-ATOMIC_ASM(atomic_add_char,	u_char, "addb %1,%0",  v)
-ATOMIC_ASM(atomic_subtract_char,u_char, "subb %1,%0",  v)
+/*
+ * The assembly is volatilized to demark potential before-and-after side
+ * effects if an interrupt or SMP collision were to occur.
+ */
+#define ATOMIC_ASM(NAME, TYPE, OP, V)			\
+static __inline void					\
+atomic_##NAME##_##TYPE(void *p, u_##TYPE v)		\
+{							\
+	__asm __volatile(MPLOCKED OP			\
+			 : "=m" (*(u_##TYPE *)p)	\
+			 :  "0" (*(u_##TYPE *)p), "ir" (V)); \
+}
 
-ATOMIC_ASM(atomic_set_short,	u_short,"orw %1,%0",   v)
-ATOMIC_ASM(atomic_clear_short,	u_short,"andw %1,%0", ~v)
-ATOMIC_ASM(atomic_add_short,	u_short,"addw %1,%0",  v)
-ATOMIC_ASM(atomic_subtract_short,u_short,"subw %1,%0", v)
+ATOMIC_ASM(set,	     char,  "orb %2,%0",   v)
+ATOMIC_ASM(clear,    char,  "andb %2,%0", ~v)
+ATOMIC_ASM(add,	     char,  "addb %2,%0",  v)
+ATOMIC_ASM(subtract, char,  "subb %2,%0",  v)
 
-ATOMIC_ASM(atomic_set_int,	u_int,	"orl %1,%0",   v)
-ATOMIC_ASM(atomic_clear_int,	u_int,	"andl %1,%0", ~v)
-ATOMIC_ASM(atomic_add_int,	u_int,	"addl %1,%0",  v)
-ATOMIC_ASM(atomic_subtract_int,	u_int,	"subl %1,%0",  v)
+ATOMIC_ASM(set,	     short, "orw %2,%0",   v)
+ATOMIC_ASM(clear,    short, "andw %2,%0", ~v)
+ATOMIC_ASM(add,	     short, "addw %2,%0",  v)
+ATOMIC_ASM(subtract, short, "subw %2,%0",  v)
 
-ATOMIC_ASM(atomic_set_long,	u_long,	"orl %1,%0",   v)
-ATOMIC_ASM(atomic_clear_long,	u_long,	"andl %1,%0", ~v)
-ATOMIC_ASM(atomic_add_long,	u_long,	"addl %1,%0",  v)
-ATOMIC_ASM(atomic_subtract_long,u_long,	"subl %1,%0",  v)
+ATOMIC_ASM(set,	     int,   "orl %2,%0",   v)
+ATOMIC_ASM(clear,    int,   "andl %2,%0", ~v)
+ATOMIC_ASM(add,	     int,   "addl %2,%0",  v)
+ATOMIC_ASM(subtract, int,   "subl %2,%0",  v)
 
-#undef ATOMIC_ASM
+ATOMIC_ASM(set,	     long,  "orl %2,%0",   v)
+ATOMIC_ASM(clear,    long,  "andl %2,%0", ~v)
+ATOMIC_ASM(add,	     long,  "addl %2,%0",  v)
+ATOMIC_ASM(subtract, long,  "subl %2,%0",  v)
 
 #endif /* ! _MACHINE_ATOMIC_H_ */
