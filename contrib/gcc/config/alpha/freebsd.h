@@ -1,26 +1,29 @@
 /* Definitions for DEC Alpha/AXP running FreeBSD using the ELF format
-   Copyright (C) 2000, 2002 Free Software Foundation, Inc.
+   Copyright (C) 2000, 2002, 2004 Free Software Foundation, Inc.
    Contributed by David E. O'Brien <obrien@FreeBSD.org> and BSDi.
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
+GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
-GNU CC is distributed in the hope that it will be useful,
+GCC is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
+along with GCC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-
 /* $FreeBSD$ */
+
+#undef  SUBTARGET_EXTRA_SPECS
+#define SUBTARGET_EXTRA_SPECS \
+  { "fbsd_dynamic_linker", FBSD_DYNAMIC_LINKER }
 
 /* Provide a FBSD_TARGET_CPU_CPP_BUILTINS and CPP_SPEC appropriate for
    FreeBSD/alpha.  Besides the dealing with
@@ -44,16 +47,16 @@ Boston, MA 02111-1307, USA.  */
 #define CPP_SPEC "%(cpp_subtarget) %{posix:-D_POSIX_SOURCE}"
 
 #define LINK_SPEC "%{G*} %{relax:-relax}				\
-  %{p:%e`-p' not supported; use `-pg' and gprof(1)}			\
+  %{p:%nconsider using `-pg' instead of `-p' with gprof(1)}		\
   %{Wl,*:%*}								\
   %{assert*} %{R*} %{rpath*} %{defsym*}					\
   %{shared:-Bshareable %{h*} %{soname*}}				\
-  %{symbolic:-Bsymbolic}						\
   %{!shared:								\
     %{!static:								\
       %{rdynamic:-export-dynamic}					\
-      %{!dynamic-linker:-dynamic-linker /libexec/ld-elf.so.1}}		\
-    %{static:-Bstatic}}"
+      %{!dynamic-linker:-dynamic-linker %(fbsd_dynamic_linker) }}	\
+    %{static:-Bstatic}}							\
+  %{symbolic:-Bsymbolic}"
 
 /* Reset our STARTFILE_SPEC because of a moronic pigheaded
    Linuxism(glibc'ism) that was added to alpha/elf.h.  */
