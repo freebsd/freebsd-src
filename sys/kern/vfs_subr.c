@@ -3008,44 +3008,6 @@ vn_isdisk(vp, errp)
 }
 
 /*
- * Free data allocated by namei(); see namei(9) for details.
- */
-void
-NDFREE(ndp, flags)
-     struct nameidata *ndp;
-     const u_int flags;
-{
-
-	if (!(flags & NDF_NO_FREE_PNBUF) &&
-	    (ndp->ni_cnd.cn_flags & HASBUF)) {
-		uma_zfree(namei_zone, ndp->ni_cnd.cn_pnbuf);
-		ndp->ni_cnd.cn_flags &= ~HASBUF;
-	}
-	if (!(flags & NDF_NO_DVP_UNLOCK) &&
-	    (ndp->ni_cnd.cn_flags & LOCKPARENT) &&
-	    ndp->ni_dvp != ndp->ni_vp)
-		VOP_UNLOCK(ndp->ni_dvp, 0, ndp->ni_cnd.cn_thread);
-	if (!(flags & NDF_NO_DVP_RELE) &&
-	    (ndp->ni_cnd.cn_flags & (LOCKPARENT|WANTPARENT))) {
-		vrele(ndp->ni_dvp);
-		ndp->ni_dvp = NULL;
-	}
-	if (!(flags & NDF_NO_VP_UNLOCK) &&
-	    (ndp->ni_cnd.cn_flags & LOCKLEAF) && ndp->ni_vp)
-		VOP_UNLOCK(ndp->ni_vp, 0, ndp->ni_cnd.cn_thread);
-	if (!(flags & NDF_NO_VP_RELE) &&
-	    ndp->ni_vp) {
-		vrele(ndp->ni_vp);
-		ndp->ni_vp = NULL;
-	}
-	if (!(flags & NDF_NO_STARTDIR_RELE) &&
-	    (ndp->ni_cnd.cn_flags & SAVESTART)) {
-		vrele(ndp->ni_startdir);
-		ndp->ni_startdir = NULL;
-	}
-}
-
-/*
  * Common filesystem object access control check routine.  Accepts a
  * vnode's type, "mode", uid and gid, requested access mode, credentials,
  * and optional call-by-reference privused argument allowing vaccess()
