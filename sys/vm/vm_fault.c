@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.7 1994/10/09 01:52:07 phk Exp $
+ * $Id: vm_fault.c,v 1.8 1994/10/15 10:33:47 davidg Exp $
  */
 
 /*
@@ -274,6 +274,7 @@ vm_fault(map, vaddr, fault_type, change_wiring)
 				s = splhigh();
 				if (m->flags & (PG_BUSY|PG_VMIO)) {
 					m->flags |= PG_WANTED;
+					cnt.v_intrans++;
 					tsleep((caddr_t)m,PSWP,"vmpfw",0);
 				}
 				splx(s);
@@ -371,7 +372,6 @@ vm_fault(map, vaddr, fault_type, change_wiring)
 			 * the routine.  The reqpage return value is the index into the
 			 * marray for the vm_page_t passed to the routine.
 			 */
-			cnt.v_pageins++;
 			faultcount = vm_fault_additional_pages(
 				first_object, first_offset,
 				m, VM_FAULT_READ_BEHIND, VM_FAULT_READ_AHEAD,
@@ -400,7 +400,6 @@ vm_fault(map, vaddr, fault_type, change_wiring)
 				 */
 				m = vm_page_lookup(object, offset);
 
-				cnt.v_pgpgin++;
 				m->flags &= ~PG_FAKE;
 				pmap_clear_modify(VM_PAGE_TO_PHYS(m));
 				hardfault++;
