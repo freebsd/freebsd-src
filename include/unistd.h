@@ -146,6 +146,7 @@ int	 getlogin_r __P((char *, int));
 mode_t	 getmode __P((const void *, mode_t));
 int	 getpagesize __P((void)) __pure2;
 char	*getpass __P((const char *));
+int	 getpeereid __P((int, uid_t *, gid_t *));
 int	 getpgid __P((pid_t _pid));
 int	 getresgid __P((gid_t *, gid_t *, gid_t *));
 int	 getresuid __P((uid_t *, uid_t *, uid_t *));
