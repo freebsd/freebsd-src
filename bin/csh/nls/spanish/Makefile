@@ -1,8 +1,8 @@
 # $FreeBSD$
 
 NL=     spanish
-DL=     es_ES.ISO_8859-1
-LL=     es_ES.ISO_8859-15
+DL=     es_ES.ISO8859-1
+LL=     es_ES.ISO8859-15
 
 .PATH: ${BASESRC}/${NL}
 
