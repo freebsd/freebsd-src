@@ -197,6 +197,7 @@ chrdev	name		comments
 179	raid		RAIDframe (disk device)
 180	nvidia		NVIDIA (nvidiaN/nvidiactl)
 181	casm		HP/Compaq ProLiant Advanced Server Management <peter>
+182	mdsio		RS-485 driver for 8250-family UARTs <doconnor@gsoft.com.au>
 200	??		entries from 200-252 are reserved for local use
 252	??		entries from 200-252 are reserved for local use
 254	internal	Used internally by the kernel
