@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: shlib.c,v 1.19 1998/05/26 20:12:49 sos Exp $
+ *	$Id: shlib.c,v 1.20 1998/06/07 03:53:08 brian Exp $
  */
 
 #include <sys/param.h>
@@ -301,15 +301,14 @@ search_lib_dir(dir, name, majorp, minorp, do_dot_a)
 			int cur_ndewey;
 
 			cur_ndewey = getdewey(cur_dewey, extension+3);
-			if(cur_ndewey == 0)	/* No version number */
+			if(cur_ndewey < 2)	/* Too few version numbers */
 				continue;
 
 			if(*majorp != -1) {	/* Need exact match on major */
 				if(cur_dewey[0] != *majorp)
 					continue;
 				if(*minorp != -1) {  /* Need minor >= minimum */
-					if(cur_ndewey < 2 ||
-					   cur_dewey[1] < *minorp)
+					if(cur_dewey[1] < *minorp)
 						continue;
 				}
 			}
@@ -330,8 +329,7 @@ search_lib_dir(dir, name, majorp, minorp, do_dot_a)
 
 	if(dot_so_name[0] != '\0') {
 		*majorp = best_dewey[0];
-		if(best_ndewey >= 2)
-			*minorp = best_dewey[1];
+		*minorp = best_dewey[1];
 		return concat(dir, "/", dot_so_name);
 	}
 
