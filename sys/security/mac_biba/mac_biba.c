@@ -118,9 +118,6 @@ static int	mac_biba_slot;
 
 MALLOC_DEFINE(M_MACBIBA, "biba label", "MAC/Biba labels");
 
-static int	mac_biba_check_vnode_open(struct ucred *cred, struct vnode *vp,
-		    struct label *vnodelabel, mode_t acc_mode);
-
 static struct mac_biba *
 biba_alloc(int flag)
 {
@@ -1505,14 +1502,6 @@ mac_biba_check_socket_visible(struct ucred *cred, struct socket *socket,
 }
 
 static int
-mac_biba_check_vnode_access(struct ucred *cred, struct vnode *vp,
-    struct label *label, mode_t flags)
-{
-
-	return (mac_biba_check_vnode_open(cred, vp, label, flags));
-}
-
-static int
 mac_biba_check_vnode_chdir(struct ucred *cred, struct vnode *dvp,
     struct label *dlabel)
 {
@@ -2274,7 +2263,7 @@ static struct mac_policy_op_entry mac_biba_ops[] =
 	{ MAC_CHECK_SOCKET_VISIBLE,
 	    (macop_t)mac_biba_check_socket_visible },
 	{ MAC_CHECK_VNODE_ACCESS,
-	    (macop_t)mac_biba_check_vnode_access },
+	    (macop_t)mac_biba_check_vnode_open },
 	{ MAC_CHECK_VNODE_CHDIR,
 	    (macop_t)mac_biba_check_vnode_chdir },
 	{ MAC_CHECK_VNODE_CHROOT,
