@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: i686_mem.c,v 1.1 1999/04/07 03:57:45 msmith Exp $
  */
 
 #include "opt_smp.h"
@@ -62,21 +62,27 @@ static char *mem_owner_bios = "BIOS";
 
 #define mrcopyflags(curr, new) (((curr) & ~MDF_ATTRMASK) | ((new) & MDF_ATTRMASK))
 
-static void			i686_mrinit(struct mem_range_softc *);
-static int			i686_mrset(struct mem_range_softc *,
-					   struct mem_range_desc *,
-					   int *);
+static void			i686_mrinit(struct mem_range_softc *sc);
+static int			i686_mrset(struct mem_range_softc *sc,
+					   struct mem_range_desc *mrd,
+					   int *arg);
+static void			i686_mrAPinit(struct mem_range_softc *sc);
 
 static struct mem_range_ops i686_mrops = {
     i686_mrinit,
-    i686_mrset
+    i686_mrset,
+    i686_mrAPinit
 };
+
+/* XXX for AP startup hook */
+static u_int64_t		mtrrcap, mtrrdef;
 
 static struct mem_range_desc	*mem_range_match(struct mem_range_softc *sc,
 						 struct mem_range_desc *mrd);
 static void			i686_mrfetch(struct mem_range_softc *sc);
 static int			i686_mtrrtype(int flags);
 static int			i686_mrstore(struct mem_range_softc *sc);
+static int			i686_mrstoreone(struct mem_range_softc *sc);
 static struct mem_range_desc	*i686_mtrrfixsearch(struct mem_range_softc *sc,
 						    u_int64_t addr);
 static int			i686_mrsetlow(struct mem_range_softc *sc,
@@ -218,18 +224,15 @@ i686_mtrrtype(int flags)
     return(-1);
 }
 
-
 /*
- * Update the current CPU's MTRRs with those represented in the
- * descriptor list.
+ * Update running CPU(s) MTRRs to match the ranges in the descriptor
+ * list.
+ *
+ * XXX Must be called with interrupts enabled.
  */
 static int
 i686_mrstore(struct mem_range_softc *sc)
 {
-    struct mem_range_desc	*mrd;
-    u_int64_t			msrv;
-    int				i, j, msr;
-    u_int			cr4save;
 
 #ifdef SMP
     /*
@@ -242,6 +245,23 @@ i686_mrstore(struct mem_range_softc *sc)
 #endif
 
     disable_intr();				/* disable interrupts */
+    return(i686_mrstoreone(sc));
+    enable_intr();
+}
+
+/*
+ * Update the current CPU's MTRRs with those represented in the
+ * descriptor list.
+ */
+static int
+i686_mrstoreone(struct mem_range_softc *sc)
+{
+    struct mem_range_desc	*mrd;
+    u_int64_t			msrv;
+    int				i, j, msr;
+    u_int			cr4save;
+
+
     cr4save = rcr4();				/* save cr4 */
     if (cr4save & CR4_PGE)
 	load_cr4(cr4save & ~CR4_PGE);
@@ -312,7 +332,6 @@ i686_mrstore(struct mem_range_softc *sc)
     wrmsr(MSR_MTRRdefType, rdmsr(MSR_MTRRdefType) | 0x800);	/* restore MTRR state */
     load_cr0(rcr0() & ~(CR0_CD | CR0_NW));  			/* enable caches CD = 0 and NW = 0 */
     load_cr4(cr4save);						/* restore cr4 */
-    enable_intr();						/* enable interrupts */
     return(0);
 }
 
@@ -477,7 +496,6 @@ static void
 i686_mrinit(struct mem_range_softc *sc)
 {
     struct mem_range_desc	*mrd;
-    u_int64_t			mtrrcap, mtrrdef;
     int				nmdesc = 0;
     int				i;
 
@@ -491,8 +509,12 @@ i686_mrinit(struct mem_range_softc *sc)
 	return;
     }
     nmdesc = mtrrcap & 0xff;
-    printf("Pentium Pro MTRR support enabled, default memory type is %s\n",
-	   i686_mtrrtotext[mtrrdef & 0xff]);
+    printf("Pentium Pro MTRR support enabled, default memory type is ");
+    if ((mtrrdef & 0xff) < (sizeof(i686_mtrrtotext) / sizeof(i686_mtrrtotext[0]))) {
+	printf("%s\n", i686_mtrrtotext[mtrrdef & 0xff]);
+    } else {
+	printf("unknown (0x%x)\n", (int)(mtrrdef & 0xff));
+    }
 
     /* If fixed MTRRs supported and enabled */
     if ((mtrrcap & 0x100) && (mtrrdef & 0x400)) {
@@ -539,10 +561,19 @@ i686_mrinit(struct mem_range_softc *sc)
     }
 }
 
+/*
+ * Initialise MTRRs on an AP after the BSP has run the init code.
+ */
+static void
+i686_mrAPinit(struct mem_range_softc *sc)
+{
+    i686_mrstoreone(sc);		/* set MTRRs to match BSP */
+    wrmsr(MSR_MTRRdefType, mtrrdef);	/* set MTRR behaviour to match BSP */
+}
+
 static void
 i686_mem_drvinit(void *unused)
 {
-
     /* Try for i686 MTRRs */
     if (cpu_feature & CPUID_MTRR) {
 	mem_range_softc.mr_op = &i686_mrops;
