@@ -657,6 +657,27 @@ program is used.
 As an example, this variable might be set to
 .Dq portversion
 if the portupgrade port has been installed.
+.It Va pkg_version_index
+.Pq Vt string
+This variable specifies the INDEX file from
+.Pa /usr/ports
+that should be used by
+.Xr pkg_version 1 .
+Because the dependency tree may be substantially different between versions of
+.Fx ,
+there may be more than one INDEX file in
+.Pa /usr/ports .
+.Pp
+Note, if the
+.Va pkg_version
+variable is set to
+.Dq portversion ,
+it will also be neccessary to arrange that the correct INDEX file is specified
+using environment variables and that
+.Dq pkg_version_index
+is cleared in
+.Pa /etc/periodic.conf
+.Pq pkg_version_index= .
 .It Va weekly_local
 .Pq Vt str
 Set to a list of extra scripts that should be run after all other
