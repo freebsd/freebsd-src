@@ -324,6 +324,15 @@ configSysconfig(char *config)
 }
 
 int
+configSaver(dialogMenuItem *self)
+{
+    variable_set((char *)self->data);
+    if (!variable_get(VAR_BLANKTIME))
+	variable_set2(VAR_BLANKTIME, "300");
+    return DITEM_SUCCESS;
+}
+
+int
 configSaverTimeout(dialogMenuItem *self)
 {
     if (variable_get(VAR_BLANKTIME)) {
