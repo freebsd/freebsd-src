@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.42 1998/11/13 22:40:37 msmith Exp $
+ * $Id: kern_shutdown.c,v 1.43 1998/12/04 22:54:51 archie Exp $
  */
 
 #include "opt_ddb.h"
@@ -80,9 +80,9 @@
 
 #ifdef DDB
 #ifdef DDB_UNATTENDED
-static int debugger_on_panic = 0;
+int debugger_on_panic = 0;
 #else
-static int debugger_on_panic = 1;
+int debugger_on_panic = 1;
 #endif
 SYSCTL_INT(_debug, OID_AUTO, debugger_on_panic, CTLFLAG_RW,
 	&debugger_on_panic, 0, "");
