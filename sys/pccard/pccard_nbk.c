@@ -322,6 +322,18 @@ pccard_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 	case PCCARD_IVAR_PRODEXT:
 		*(u_int16_t *) result = devi->prodext;
 		return (0);
+	case PCCARD_IVAR_VENDOR_STR:
+		*(char **) result = devi->manufstr;
+		break;
+	case PCCARD_IVAR_PRODUCT_STR:
+		*(char **) result = devi->versstr;
+		break;
+	case PCCARD_IVAR_CIS3_STR:
+		*(char **) result = devi->cis3str;
+		break;
+	case PCCARD_IVAR_CIS4_STR:
+		*(char **) result = devi->cis4str;
+		break;
 	}
 	return (ENOENT);
 }
