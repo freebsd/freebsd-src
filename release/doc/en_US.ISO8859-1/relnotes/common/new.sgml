@@ -104,7 +104,7 @@
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
     <para>A number of bugs have been fixed in the ULE
-      scheduler. &merged;</para>
+      scheduler.</para>
 
     <sect3 id="boot">
       <title>Boot Loader Changes</title>
@@ -207,7 +207,7 @@
       enabled independently of LQR reports.  Older versions of
       &man.ppp.8; would revert to LCP ECHO mode on negotiation
       failure.  It is now necessary to specify <command>enable
-      echo</command> to get this behaviour. &merged;</para>
+      echo</command> to get this behaviour.</para>
 
     <para>&man.whois.1; now supports
       a <option>-k</option> flag
