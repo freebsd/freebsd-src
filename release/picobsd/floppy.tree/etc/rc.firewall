@@ -1,65 +1,20 @@
-############
-# Setup system for firewall service.
 # $FreeBSD$
 
-############
-# Define the firewall type in /etc/rc.conf.  Valid values are:
+# Setup system for firewall service, with some sample configurations.
+# Select one using ${firewall_type} which you can set in /etc/rc.conf.local.
+#
+# If you override this file with your own copy, you can use ${hostname}
+# as the key for the case statement. On entry, the firewall will be flushed
+# and $fwcmd will point to the appropriate command (usually /sbin/ipfw)
+#
+# Sample configurations are:
 #   open     - will allow anyone in
-#   client   - will try to protect just this machine
-#   simple   - will try to protect a whole network
+#   client   - will try to protect just this machine (should be customized).
+#   simple   - will try to protect a whole network (should be customized).
 #   closed   - totally disables IP services except via lo0 interface
 #   UNKNOWN  - disables the loading of firewall rules.
 #   filename - will load the rules in the given filename (full path required)
 #
-# For ``client'' and ``simple'' the entries below should be customized 
-# appropriately.
-
-############
-#
-# If you don't know enough about packet filtering, we suggest that you
-# take time to read this book:
-#
-#	Building Internet Firewalls
-#	Brent Chapman and Elizabeth Zwicky
-#
-#	O'Reilly & Associates, Inc
-#	ISBN 1-56592-124-0
-#	http://www.ora.com/
-#
-# For a more advanced treatment of Internet Security read:
-#
-#	Firewalls & Internet Security
-#	Repelling the wily hacker
-#	William R. Cheswick, Steven M. Bellowin
-#
-#	Addison-Wesley
-#	ISBN 0-201-6337-4
-#	http://www.awl.com/
-#
-
-if [ "x$1" != "x" ]; then
-	firewall_type=$1
-fi
-
-############
-# Set quiet mode if requested
-if [ "x$firewall_quiet" = "xYES" ]; then
-	fwcmd="/sbin/ipfw -q"
-else
-	fwcmd="/sbin/ipfw"
-fi
-
-############
-# Flush out the list before we begin.
-$fwcmd -f flush
-
-############
-# If you just configured ipfw in the kernel as a tool to solve network
-# problems or you just want to disallow some particular kinds of traffic
-# they you will want to change the default policy to open.  You can also
-# do this as your only action by setting the firewall_type to ``open''.
-
-# $fwcmd add 65000 pass all from any to any
 
 ############
 # Only in rare cases do you want to change these rules
@@ -68,11 +23,12 @@ $fwcmd add 1010 deny all from 127.0.0.0/8 to 127.0.0.0/8
 
 
 # Prototype setups.
-if [ "${firewall_type}" = "open" -o "${firewall_type}" = "OPEN" ]; then
+case "${firewall_type}" in
+open|OPEN)
+    $fwcmd add 65000 pass all from any to any
+    ;;
 
-	$fwcmd add 65000 pass all from any to any
-
-elif [ "${firewall_type}" = "client" ]; then
+client)
 
     ############
     # This is a prototype setup that will protect your system somewhat against
@@ -109,8 +65,10 @@ elif [ "${firewall_type}" = "client" ]; then
     $fwcmd add pass udp from ${ip} to any 123
 
     # Everything else is denied as default.
+    $fwcmd add 65000 deny all from any to any
+    ;;
 
-elif [ "${firewall_type}" = "simple" ]; then
+simple)
 
     ############
     # This is a prototype setup for a simple firewall.  Configure this machine 
@@ -166,7 +124,19 @@ elif [ "${firewall_type}" = "simple" ]; then
     $fwcmd add pass udp from ${oip} to any 123
 
     # Everything else is denied as default.
+    $fwcmd add 65000 deny all from any to any
+    ;;
 
-elif [ "${firewall_type}" != "UNKNOWN" -a -r "${firewall_type}" ]; then
+UNKNOWN|"")
+    echo "WARNING: firewall rules not loaded."
+    ;;
+
+*)  # an absolute pathname ?
+    if [ -f "${firewall_type}" ] ; then
 	$fwcmd ${firewall_type}
-fi
+    else
+	echo "WARNING: firewall config script (${firewall_type}) not found,"
+	echo "         firewall rules not loaded."
+    fi
+    ;;
+esac

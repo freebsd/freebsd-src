@@ -1,36 +1,24 @@
 #!/bin/sh
-# $FreeBSD$
-### Special setup for one floppy PICOBSD ###
-# WARNING !!! We overwrite this file during execution with a new rc file.
-# Awful things happen if this file's size is > 1024B
 
 stty status '^T'
 trap : 2
 trap : 3
 
 HOME=/; export HOME
-PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin
-export PATH
+PATH=/sbin:/bin:/usr/sbin:/usr/bin; export PATH
 dev="/dev/fd0"
-cp -p /etc/rc /etc/rc.master
 
 trap "echo 'Reboot interrupted'; exit 1" 3
-echo "Reading from MFS ..."
-cd /fd; cp -Rp etc root / ; cd /
-ls /dev
-echo "Reading /etc from ${dev}..."
-mount -o rdonly ${dev} /fd
-cd /fd; cp -Rp etc root / ; cd / ; umount /fd
+echo "Loading /etc from MFS:/fd ..."
+cp -Rp /fd/* /
+echo "Updating /etc from ${dev}..."
+mount -o rdonly ${dev} /fd && \
+{ cd /fd; cp -Rp etc root / ; cd / ; umount /fd ; }
 cd /etc
 #rm files to stop overwrite warning
 for i in *; do
-    if [ -f $i.gz ]; then
-	rm $i
-    fi
+    [ -f $i.gz ] && rm $i
 done
 gzip -d *.gz
-pwd_mkdb -p ./master.passwd
-echo "Ok. (Now you can remove ${dev} if you like)"
-echo ""
-. rc
+. rc1
 exit 0
