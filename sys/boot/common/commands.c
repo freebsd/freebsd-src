@@ -326,7 +326,7 @@ command_echo(int argc, char *argv[])
 
     s = unargv(argc, argv);
     if (s != NULL) {
-	printf(s);
+	printf("%s", s);
 	free(s);
     }
     if (!nl)
@@ -378,7 +378,7 @@ command_read(int argc, char *argv[])
     name = (argc > 0) ? argv[0]: NULL;
 	
     if (prompt != NULL)
-	printf(prompt);
+	printf("%s", prompt);
     if (timeout >= 0) {
 	when = time(NULL) + timeout;
 	while (!ischar())
