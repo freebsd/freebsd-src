@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /* $NetBSD: db_trace.c,v 1.1 1997/09/06 02:00:50 thorpej Exp $ */
 
 #include <sys/cdefs.h>			/* RCS ID & Copyright macro defns */

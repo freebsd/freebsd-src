@@ -1,5 +1,7 @@
 /*
  * mjs copyright
+ *
+ * $FreeBSD$
  */
 /*
  * "Plug and Play" functionality.

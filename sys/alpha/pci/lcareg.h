@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /* $NetBSD: lcareg.h,v 1.8 1997/09/05 02:14:31 thorpej Exp $ */
 
 /*

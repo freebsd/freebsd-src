@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /* $NetBSD: db_instruction.h,v 1.4 1997/09/16 22:53:32 thorpej Exp $ */
 
 /* 
