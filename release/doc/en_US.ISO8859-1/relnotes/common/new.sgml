@@ -140,6 +140,14 @@
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:02.shmat.asc">FreeBSD-SA-04:02</ulink>.
       &merged;</para>
 
+    <para>A programming error in the &man.jail.attach.2; system call
+      has been fixed.  This error could allow a process with superuser
+      privileges inside a &man.jail.8; environment to change its root
+      directory to that of a different jail, and thus gain full read
+      and write acecss to files and directories within the target
+      jail.  More information can be found in security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:03.jail.asc">FreeBSD-SA-04:03</ulink>.</para>
+
   </sect2>
 
   <sect2 id="kernel">
@@ -167,6 +175,18 @@
       framework for more optimizations in the future.  As fine-grained
       kernel locking continues, the scheduler will be able to make
       more efficient use of the available parallel resources.</para>
+
+    <para>The device driver infrastructure (as well as many drivers)
+      have been updated.  Among the changes: Many more drivers now use
+      automatically-assigned major numbers (instead of the old static
+      major numbers).  Enhanced functions to support cloning of
+      pseudodevices.  Several changes to the driver API, including a
+      new <varname>d_version</varname> field in <varname>struct
+      cdevsw</varname>.  Note that third-party device drivers will
+      require recompiling after this change.</para>
+
+    <para>The kernel's file descriptor allocation code has been
+      updated, and is now derived from similar code in OpenBSD.</para>
 
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
@@ -222,10 +242,17 @@
       <para>Several bugs related to multicast and promiscuous mode
 	handling in the &man.sk.4; driver have been fixed.</para>
 
+      <para>The &man.udav.4; driver has been added.  It provides
+	support for USB Ethernet adapters based on the Davicom DM9601
+	chipset.</para>
+
     </sect3>
 
     <sect3 id="net-proto">
       <title>Network Protocols</title>
+
+      <para>The &man.gre.4; tunnel driver now supports WCCP version
+	2.</para>
 
       <para>Some bugs in the IPsec implementation from the KAME
 	Project have been fixed.  These bugs were related to freeing
@@ -262,6 +289,13 @@
 	support for the TCP-MD5 class of security associations.
 	&merged;</para>
 
+      <para>The TCP segment reassembly queue now uses the UMA kernel
+	memory allocator and limits the maximum number of segments it
+	will hold, thus preventing a certain class of denial of
+	service attack.  Its behavior is controlled by the
+	<varname>net.inet.tcp.reass</varname> hierarchy of sysctl
+	variables.</para>
+
     </sect3>
 
     <sect3 id="disks">
@@ -277,8 +311,21 @@
     <sect3 id="fs">
       <title>File Systems</title>
 
+      <para>The EXT2FS file system code now includes partial support
+	for large (&gt; 4GB) files.  This support is partial in that
+	it will refuse to create large files on filesystems that have
+	not been upgraded to <literal>EXT2_DYN_REV</literal> or that
+	don not have the
+	<literal>EXT2_FEATURE_RO_COMPAT_LARGE_FILE</literal> flag set
+	in the superblock.</para>
+
       <para>A bug in GEOM that could result in I/O hangs in some rare
 	cases has been fixed.</para>
+
+      <para>A new geom_concat class has been added to concatenate
+        multiple disks to appear as a single larger disk.  The
+        &man.gconcat.8; utility is used for configurating concatenated
+        disks.</para>
 
       <para>A panic in the NFSv4 client has been fixed; this occurred
 	when attempting operations against an NFSv3/NFSv2-only
@@ -307,13 +354,28 @@
   <sect2 id="userland">
     <title>Userland Changes</title>
 
-    <para>The configuration files used by the &man.resolver.5; now
+    <para>The configuration files used by the &man.resolver.3; now
       support the <literal>timeout:</literal> and
       <literal>attempts:</literal> keywords.</para>
+
+    <para>&man.indent.1; now supports a <option>-ldi</option> option
+      to control indentation of local variables.  A number of other
+      tunings were made to this utility.</para>
+
+    <para>&man.ifconfig.8; now supports renaming of network interfaces
+      at run-time using the <option>name</option> parameter.</para>
+
+    <para>&man.ip6fw.8; now supports a <option>-n</option> flag to
+      stop it from making any changes to the rules in the kernel</para>
 
     <para>&man.ipfw.8; now supports a <option>-b</option> flag to
       print only the action and comment for each rule, thus omitting
       the rule body.</para>
+
+    <para>&man.libalias.3; now has support (and a new API) for
+      multiple aliasing instances in a single process.  The existing
+      API has been reimplemented in terms of the new one to preserve
+      compatibility.</para>
 
     <para>A <filename>libarchive</filename> library for manipulation
       of compressed and uncompressed archive files has been
@@ -354,6 +416,11 @@
       make the <option>-u</option> operate on effective, rather than
       real, user ids. &merged;</para>
 
+    <para>&man.newfs.8; and &man.mdmfs.8; now support a
+      <option>-l</option> flag to enable them to set the MAC
+      multilabel flag on new filesystems without requiring the use of
+      &man.tunefs.8;.</para>
+
     <para>A bugfix has been applied to NSS support, which fixes
       problems when using third-party NSS modules (such as <filename
       role="package">net/nss_ldap</filename>) and groups with large
@@ -362,8 +429,30 @@
     <para>&man.pw.8; now supports a <option>-H</option> option, which
       accepts an encrypted password on a file descriptor. &merged;</para>
 
+    <para>The &man.resolver.3; and associated interfaces are now much
+      more reentrant and thread-safe.  Multiple DNS lookups can now be
+      run at the same time, showing major improvements in the
+      performance of some multi-threaded applications.  Some
+      multi-threaded programs need to be recompiled; examples from the
+      Ports Collection are <filename
+      role="package">www/mozilla</filename> and variants.</para>
+
+    <para>&man.savecore.8; now works correctly for dump files larger
+      than 2GB.</para>
+
+    <para>A bug in &man.script.1; has been fixed so that it now works
+      correctly if its stdin is closed.  This fix prevents a
+      potentially dangerous interaction with the <filename
+      role="package">sysutils/portupgrade</filename> package; if it was
+      run non-interactively, it could remove all out-of-date
+      ports without reinstalling them.</para>
+
     <para>The &man.sdpd.8; Bluetooth Service Discovery Protocol daemon
       has been added.</para>
+
+    <para>Many userland utilities in the base system (mostly GNU
+      contributed utilities) now use the system version of
+      &man.getopt.long.3;, rather than the GNU version.</para>
 
   </sect2>
 
@@ -383,6 +472,10 @@
       <command>cvs pserver</command> mode, attempts to authenticate as
       <username>root</username> are rejected and recorded via
       &man.syslog.3;.</para>
+
+    <para><application>gdtoa</application> (a library that performs
+      conversions of numbers between binary and decimal form) has been
+      updated from version 20030324 to version 20040118.</para>
 
     <para><application>GNU readline</application> 4.3 has been updated
       with official patches 001 through 005.</para>
