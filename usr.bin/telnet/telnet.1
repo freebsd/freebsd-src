@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)telnet.1	8.5 (Berkeley) 3/1/94
-.\"	$Id: telnet.1,v 1.11 1999/06/16 15:26:22 ru Exp $
+.\"	$Id: telnet.1,v 1.12 1999/06/17 07:12:39 ru Exp $
 .\"
 .Dd March 1, 1994
 .Dt TELNET 1
@@ -1026,6 +1026,10 @@ Displays the legal
 .Pq Ic unset
 commands.
 .El
+.It Ic skey Ar sequence challenge 
+The
+.Ic skey
+command computes a response to the S/Key challenge.
 .It Ic slc Ar state 
 The
 .Ic slc
