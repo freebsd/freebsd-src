@@ -15,9 +15,9 @@
    
    You should have received a copy of the GNU General Public
    License along with GAS; see the file COPYING.  If not, write
-   to the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. */
-/*
- * $Id: obj-aout.h,v 1.1 1993/11/03 00:53:50 paul Exp $
+   to the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+
+   $Id: obj-aout.h,v 1.2 1993/11/30 20:57:40 jkh Exp $
  */
 
 
@@ -30,10 +30,19 @@
 
 #ifndef AOUT_MACHTYPE
 #define AOUT_MACHTYPE 0
-#endif /* AOUT_MACHTYPE */
+#endif
+
+#ifndef AOUT_VERSION
+#define AOUT_VERSION 0
+#endif
+
+#ifndef AOUT_FLAGS
+#define AOUT_FLAGS 0
+#endif
 
 extern const short seg_N_TYPE[];
 extern const segT  N_TYPE_seg[];
+#define N_REGISTER		0x12	/* Fake register type */
 
 #ifndef DEFAULT_MAGIC_NUMBER_FOR_OBJECT_FILE
 #define DEFAULT_MAGIC_NUMBER_FOR_OBJECT_FILE	(OMAGIC)
@@ -136,30 +145,116 @@ typedef struct nlist obj_symbol_type; /* Symbol table entry */
 #define H_GET_STRING_SIZE(h)		((h)->string_table_size)
 #define H_GET_LINENO_SIZE(h)		(0)
 
+#if defined(FREEBSD_AOUT) || defined(NETBSD_AOUT)
+
+#if defined(FREEBSD_AOUT)
+/* duplicate part of <sys/imgact_aout.h> */
+#define H_GET_FLAGS(h)						\
+	( (((h)->header.a_info)&0xffff)				\
+		? ((h)->header.a_info >> 26) & 0x3f )		\
+		: 0						\
+	)
+#define H_GET_MACHTYPE(h)					\
+	( (((h)->header.a_info)&0xffff)				\
+		? ((h)->header.a_info >>16 ) & 0x3ff)		\
+		: 0						\
+	)
+
+#define H_GET_MAGIC_NUMBER(h)					\
+	( (((h)->header.a_info)&0xffff)				\
+		? ((h)->header.a_info & 0xffff)			\
+		: (ntohl(((h)->header.a_info))&0xffff)		\
+	)
+
+#define H_SET_INFO(h,mag,mid,f,v)				\
+	( (h)->header.a_info =					\
+	   htonl( (((f)&0x3f)<<26) | (((mid)&0x03ff)<<16) | (((mag)&0xffff)) ) )
+
+#endif /* FREEBSD_AOUT */
+
+#if defined(NETBSD_AOUT)
+/* SH*T, duplicate part of <a.out.h> */
+#define H_GET_FLAGS(h)						\
+	( (((h)->header.a_info)&0xffff0000)			\
+		? ((ntohl(((h)->header.a_info))>>26)&0x3f)	\
+		: 0						\
+	)
+
+#define H_GET_MACHTYPE(h)					\
+	( (((h)->header.a_info)&0xffff0000)			\
+		? ((ntohl(((h)->header.a_info))>>16)&0x3ff)	\
+		: 0						\
+	)
+
+#define H_GET_MAGIC_NUMBER(h)					\
+	( (((h)->header.a_info)&0xffff0000)			\
+		? (ntohl(((h)->header.a_info))&0xffff)		\
+		: ((h)->header.a_info & 0xffff)			\
+	)
+
+#define H_SET_INFO(h,mag,mid,f,v)				\
+	( (h)->header.a_info =					\
+	   htonl( (((f)&0x3f)<<26) | (((mid)&0x03ff)<<16) | (((mag)&0xffff)) ) )
+
+#endif /* NETBSD_AOUT */
+
+#define EX_DYNAMIC			0x20
+#define EX_PIC				0x10
+#undef AOUT_FLAGS
+#define AOUT_FLAGS			(flagseen['k'] ? EX_PIC : 0)
+
+#define H_GET_DYNAMIC(h)		(H_GET_FLAGS(h) & EX_DYNAMIC)
+
+#define H_GET_VERSION(h)		(0)
+
+#define H_SET_DYNAMIC(h,v)					\
+	H_SET_INFO(h, H_GET_MAGIC_NUMBER(h), H_GET_MACHTYPE(h),	\
+		   (v)?(H_GET_FLAGS(h)|0x20):(H_GET_FLAGS(h)&(~0x20)), 0)
+
+#define H_SET_VERSION(h,v)
+
+#define H_SET_MACHTYPE(h,v)					\
+	H_SET_INFO(h, H_GET_MAGIC_NUMBER(h), (v), H_GET_FLAGS(h), 0)
+
+#define H_SET_MAGIC_NUMBER(h,v)					\
+	H_SET_INFO(h, (v), H_GET_MACHTYPE(h), H_GET_FLAGS(h), 0)
+
+#else /* !(FREEBSD_AOUT || NETBSD_AOUT) */
+
 #define H_GET_DYNAMIC(h)		((h)->header.a_info >> 31)
 #define H_GET_VERSION(h)		(((h)->header.a_info >> 24) & 0x7f)
 #define H_GET_MACHTYPE(h)		(((h)->header.a_info >> 16) & 0xff)
 #define H_GET_MAGIC_NUMBER(h)		((h)->header.a_info & 0xffff)
 
-#define H_SET_DYNAMIC(h,v)		((h)->header.a_info = (((v) << 31) \
-							       | (H_GET_VERSION(h) << 24) \
-							       | (H_GET_MACHTYPE(h) << 16) \
-							       | (H_GET_MAGIC_NUMBER(h))))
+#define H_SET_DYNAMIC(h,v)		((h)->header.a_info = \
+						(((v) << 31) \
+						| (H_GET_VERSION(h) << 24) \
+						| (H_GET_MACHTYPE(h) << 16) \
+						| (H_GET_MAGIC_NUMBER(h))))
 
-#define H_SET_VERSION(h,v)		((h)->header.a_info = ((H_GET_DYNAMIC(h) << 31) \
-							       | ((v) << 24) \
-							       | (H_GET_MACHTYPE(h) << 16) \
-							       | (H_GET_MAGIC_NUMBER(h))))
+#define H_SET_VERSION(h,v)		((h)->header.a_info = \
+						((H_GET_DYNAMIC(h) << 31) \
+						| ((v) << 24) \
+						| (H_GET_MACHTYPE(h) << 16) \
+						| (H_GET_MAGIC_NUMBER(h))))
 
-#define H_SET_MACHTYPE(h,v)		((h)->header.a_info = ((H_GET_DYNAMIC(h) << 31) \
-							       | (H_GET_VERSION(h) << 24) \
-							       | ((v) << 16) \
-							       | (H_GET_MAGIC_NUMBER(h))))
+#define H_SET_MACHTYPE(h,v)		((h)->header.a_info = \
+						((H_GET_DYNAMIC(h) << 31) \
+						| (H_GET_VERSION(h) << 24) \
+						| ((v) << 16) \
+						| (H_GET_MAGIC_NUMBER(h))))
 
-#define H_SET_MAGIC_NUMBER(h,v)		((h)->header.a_info = ((H_GET_DYNAMIC(h) << 31) \
-							       | (H_GET_VERSION(h) << 24) \
-							       | (H_GET_MACHTYPE(h) << 16) \
-							       | ((v))))
+#define H_SET_MAGIC_NUMBER(h,v)		((h)->header.a_info = \
+						((H_GET_DYNAMIC(h) << 31) \
+						| (H_GET_VERSION(h) << 24) \
+						| (H_GET_MACHTYPE(h) << 16) \
+						| ((v))))
+#define H_SET_INFO(h,mag,mid,f,v)	((h)->header.a_info = \
+						((((f)==0x20) << 31) \
+						| ((v) << 24) \
+						| ((mid) << 16) \
+						| ((mag))) )
+#endif /* FREEBSD_AOUT || NETBSD_AOUT */
 
 #define H_SET_TEXT_SIZE(h,v)		((h)->header.a_text = md_section_align(SEG_TEXT, (v)))
 #define H_SET_DATA_SIZE(h,v)		((h)->header.a_data = md_section_align(SEG_DATA, (v)))

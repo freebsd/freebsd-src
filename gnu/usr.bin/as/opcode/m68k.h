@@ -1909,8 +1909,15 @@ struct m68k_opcode m68k_opcodes[] =
 
 {"jbsr",	one(0060400),		one(0177400),		"Bg", m68000up },
 {"jbsr",	one(0047200),		one(0177700),		"!s", m68000up },
+#ifdef	PIC
+{"jbsr",	one(0060400),		one(0177400),		"Bg  ", m68020up },
+#endif	/* PIC */
+
 {"jra",		one(0060000),		one(0177400),		"Bg", m68000up },
 {"jra",		one(0047300),		one(0177700),		"!s", m68000up },
+#ifdef	PIC
+{"jra",		one(0060000),		one(0177400),		"Bg  ", m68000up },
+#endif	/* PIC */
 
 {"jhi",		one(0061000),		one(0177400),		"Bg", m68000up },
 {"jls",		one(0061400),		one(0177400),		"Bg", m68000up },

@@ -17,9 +17,13 @@
    along with GAS; see the file COPYING.  If not, write to
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
+#ifndef TC_NS32K
+#define TC_NS32K 1
 #include "bit_fix.h"
 
-#define NO_LISTING
+#define LOCAL_LABELS_FB
+
+#define AOUT_MACHTYPE 137
 
 #define tc_aout_pre_write_hook(x)	{;} /* not used */
 #define tc_crawl_symbol_chain(a)	{;} /* not used */
@@ -48,7 +52,8 @@ void fix_new_ns32k(fragS *frag,
 		   int pcrel_adjust,
 		   int im_disp,
 		   bit_fixS *bit_fixP, /* really bit_fixS */
-		   int bsr);
+		   int bsr,
+		   int r_type);
 
 #else /* not __STDC__ */
 
@@ -56,5 +61,6 @@ void fix_new_ns32k();
 
 #endif /* not __STDC__ */
 
+#endif /* TC_NS32K */
 
 /* end of tc-ns32k.h */
