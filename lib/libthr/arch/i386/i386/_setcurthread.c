@@ -27,6 +27,7 @@
  */
 
 #include <sys/types.h>
+#include <sys/ucontext.h>
 
 #include <stdio.h>
 
@@ -66,7 +67,7 @@ _retire_thread(void *entry)
 }
 
 void *
-_set_curthread(void *thr)
+_set_curthread(ucontext_t *uc, void *thr)
 {
 	union descriptor desc;
 	void **ldt_entry;
@@ -116,7 +117,10 @@ _set_curthread(void *thr)
 	/*
 	 * Set up our gs with the index into the ldt for this entry.
 	 */
-	_set_gs(LSEL(ldt_index, SEL_UPL));
+	if (uc != NULL)
+		uc->uc_mcontext.mc_gs = LSEL(ldt_index, SEL_UPL);
+	else
+		_set_gs(LSEL(ldt_index, SEL_UPL));
 
 	return (ldt_entry);
 }
