@@ -545,6 +545,7 @@ static cam_status isp_target_start_ctio(struct ispsoftc *, union ccb *);
 static int isp_handle_platform_atio(struct ispsoftc *, at_entry_t *);
 static int isp_handle_platform_atio2(struct ispsoftc *, at2_entry_t *);
 static int isp_handle_platform_ctio(struct ispsoftc *, void *);
+static void isp_handle_platform_ctio_fastpost(struct ispsoftc *, u_int32_t);
 static int isp_handle_platform_notify_scsi(struct ispsoftc *, in_entry_t *);
 static int isp_handle_platform_notify_fc(struct ispsoftc *, in_fcentry_t *);
 
@@ -1272,7 +1273,7 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 		hp = &cto->ct_syshandle;
 	}
 
-	if (isp_save_xs(isp, (XS_T *)ccb, hp)) {
+	if (isp_save_xs_tgt(isp, ccb, hp)) {
 		xpt_print_path(ccb->ccb_h.path);
 		printf("No XFLIST pointers for isp_target_start_ctio\n");
 		return (CAM_RESRC_UNAVAIL);
@@ -1297,11 +1298,11 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 
 	case CMD_EAGAIN:
 		ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
-		isp_destroy_handle(isp, save_handle);
+		isp_destroy_tgt_handle(isp, save_handle);
 		return (CAM_RESRC_UNAVAIL);
 
 	default:
-		isp_destroy_handle(isp, save_handle);
+		isp_destroy_tgt_handle(isp, save_handle);
 		return (XS_ERR(ccb));
 	}
 }
@@ -1637,9 +1638,9 @@ isp_handle_platform_ctio(struct ispsoftc *isp, void *arg)
 	 * CTIO and CTIO2 are close enough....
 	 */
 
-	ccb = (union ccb *) isp_find_xs(isp, ((ct_entry_t *)arg)->ct_syshandle);
+	ccb = isp_find_xs_tgt(isp, ((ct_entry_t *)arg)->ct_syshandle);
 	KASSERT((ccb != NULL), ("null ccb in isp_handle_platform_ctio"));
-	isp_destroy_handle(isp, ((ct_entry_t *)arg)->ct_syshandle);
+	isp_destroy_tgt_handle(isp, ((ct_entry_t *)arg)->ct_syshandle);
 
 	if (IS_FC(isp)) {
 		ct2_entry_t *ct = arg;
@@ -1732,6 +1733,19 @@ isp_handle_platform_ctio(struct ispsoftc *isp, void *arg)
 
 	}
 	return (0);
+}
+
+static void
+isp_handle_platform_ctio_fastpost(struct ispsoftc *isp, u_int32_t token)
+{
+	union ccb *ccb;
+	ccb = isp_find_xs_tgt(isp, token & 0xffff);
+	KASSERT((ccb != NULL),
+	    ("null ccb in isp_handle_platform_ctio_fastpost"));
+	isp_destroy_tgt_handle(isp, token & 0xffff);
+	isp_prt(isp, ISP_LOGTDEBUG1, "CTIOx[%x] fastpost complete",
+	    token & 0xffff);
+	isp_complete_ctio(ccb);
 }
 
 static int
@@ -3019,6 +3033,15 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 	case ISPASYNC_TARGET_EVENT:
 	{
 		tmd_event_t *ep = arg;
+		if (ep->ev_event == ASYNC_CTIO_DONE) {
+			/*
+			 * ACK the interrupt first
+			 */
+			ISP_WRITE(isp, BIU_SEMA, 0);
+			ISP_WRITE(isp, HCCR, HCCR_CMD_CLEAR_RISC_INT);
+			isp_handle_platform_ctio_fastpost(isp, ep->ev_bus);
+			break;
+		}
 		isp_prt(isp, ISP_LOGALL,
 		    "bus %d event code 0x%x", ep->ev_bus, ep->ev_event);
 		break;

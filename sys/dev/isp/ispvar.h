@@ -54,7 +54,7 @@
 #endif
 
 #define	ISP_CORE_VERSION_MAJOR	2
-#define	ISP_CORE_VERSION_MINOR	7
+#define	ISP_CORE_VERSION_MINOR	8
 
 /*
  * Vector for bus specific code to provide specific services.
@@ -425,6 +425,13 @@ typedef struct ispsoftc {
 	 * Active commands are stored here, indexed by handle functions.
 	 */
 	XS_T **isp_xflist;
+
+#ifdef	ISP_TARGET_MODE
+	/*
+	 * Active target commands are stored here, indexed by handle function.
+	 */
+	void **isp_tgtlist;
+#endif
 
 	/*
 	 * request/result queue pointers and DMA handles for them.
