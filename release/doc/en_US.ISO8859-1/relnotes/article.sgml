@@ -327,9 +327,12 @@
     <para arch="alpha">The console driver has gained support for TGA-based
     display adapters.</para>
 
-    <para arch="i386">A new cdboot bootstrap utility for CDROMs provides
+    <para arch="i386">A new <filename>cdboot</filename> bootstrap utility for CDROMs provides
     better compatability with some BIOS implementations that do not
-    completely implement the El Torito bootable CDROM standard.</para>
+    completely implement the El Torito bootable CDROM standard.  This
+    boot loader supports <quote>no emulation</quote> mode booting,
+    thus eliminating the need for an emulated floppy disk image on
+    a bootable CDROM. &merged;</para>
 
     <para arch="i386">The pmc driver, which supports the power
     management controller of the NEC PC-98NOTE, has been
