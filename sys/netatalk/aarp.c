@@ -6,9 +6,11 @@
  */
 
 #include "opt_atalk.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/mac.h>
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
@@ -128,6 +130,9 @@ aarpwhohas( struct arpcom *ac, struct sockaddr_at *sat )
     if (( m = m_gethdr( M_DONTWAIT, MT_DATA )) == NULL ) {
 	return;
     }
+#ifdef MAC
+    mac_create_mbuf_linklayer(&ac->ac_if, m);
+#endif
     m->m_len = sizeof( *ea );
     m->m_pkthdr.len = sizeof( *ea );
     MH_ALIGN( m, sizeof( *ea ));
@@ -549,6 +554,9 @@ aarpprobe( void *arg )
     if (( m = m_gethdr( M_DONTWAIT, MT_DATA )) == NULL ) {
 	return;
     }
+#ifdef MAC
+    mac_create_mbuf_linklayer(&ac->ac_if, m);
+#endif
     m->m_len = sizeof( *ea );
     m->m_pkthdr.len = sizeof( *ea );
     MH_ALIGN( m, sizeof( *ea ));
