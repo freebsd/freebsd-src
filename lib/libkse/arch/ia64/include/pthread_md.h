@@ -29,11 +29,12 @@
 #ifndef _PTHREAD_MD_H_
 #define	_PTHREAD_MD_H_
 
-#define	THR_GETCONTEXT(ucp)	getcontext(ucp)
-#define	THR_SETCONTEXT(ucp)	setcontext(ucp)
+#define	THR_GETCONTEXT(ucp)	_ia64_save_context(&(ucp)->uc_mcontext)
+#define	THR_SETCONTEXT(ucp)	_ia64_restore_context(&(ucp)->uc_mcontext, \
+				    0, NULL)
 
-#define	THR_ALIGNBYTES	15
-#define	THR_ALIGN(td)	(((uintptr_t)(td) + THR_ALIGNBYTES) & ~THR_ALIGNBYTES)
+#define	THR_ALIGNBYTES	0
+#define	THR_ALIGN(td)	(td)
 
 /* KSE Specific Data. */
 struct ksd {
