@@ -1,65 +1,47 @@
-                                 RELEASE NOTES
-                          FreeBSD 2.2.6-RELEASE VERSION
+================================================================
+                         RELEASE NOTES
+                  FreeBSD 2.2.6-RELEASE VERSION
+================================================================
 
-o For information about the layout of the release directory, see
-  the ABOUT.TXT file.  If you are installing from floppies, it is
-  especially important that you *read this section!*
-
-o For installation instructions, see the INSTALL.TXT and HARDWARE.TXT
-  files.
-
-o It is also important to check the ERRATA.TXT file for any
-  late-breaking issues with this release.  This file contains the
-  latest information on significant bugs, security problems or 
-  other similar issues which an administrator should be aware of. 
-
-For the most up-to-date releases along the RELENG_2_2 branch (which
-is now proceeding onwards toward release 2.2.6), please install from:
-
-        ftp://releng22.freebsd.org/pub/FreeBSD/
-
-Or for the latest 3.0-current (HEAD branch) snapshot releases,
-please install from:
-
-        ftp://current.freebsd.org/pub/FreeBSD
-
-
-1. What's new since 2.2.5
--------------------------
+What's new since 2.2.5
+----------------------
 
 Kernel features:
 
 o Added support for SMC EtherPower II 10/100 Fast Ethernet card
   (aka SMC9432TX based on SMC83c170 EPIC chip).
 
-o New Plug and Play (PnP) support that allows you to (re)configure PnP
-  devices.  Also support modems being detected by the PnP part and 
-  automatically attached.
+o Added support for DPT SCSI RAID controllers (see LINT).
 
-o Alternate sound driver (/sys/i386/isa/snd) from Luigi Rizzo; it does not
-  yet support MIDI (for that, use the old sound driver) but t does have
-  much better support for PNP sound cards and is much easier to configure
-  (only one device).  See /sys/i386/conf/LINT for more info.
+o New Plug and Play (PnP) support that allows you to (re)configure
+  PnP devices.  Also support modems being detected by the PnP
+  part and automatically attached.
+
+o Alternate sound driver (/sys/i386/isa/snd) from Luigi Rizzo;
+  it does not yet support MIDI (for that, use the old sound
+  driver) but it does have much better support for PNP sound
+  cards and is much easier to configure (only one device).
+  See /sys/i386/conf/LINT for more info.
+
+o Better Linux emulation (applications like RealVideo 5.0 for
+  Linux now work).
 
 o Added support for ATAPI floppy drives (LS-120)
 
-o The psm, mse and sysmouse drivers are improved to provide better mouse
-  support.  moused(8) has been modified to support various mice with a
-  ``wheel''.  It also automatically recognizes mice which support the
-  PnP COM device standard so that the user is no longer required to
-  supply a mouse protocol type on the command line.
-
-o The Specialix multiport serial driver has had a facelift in an attempt
-  to support the newer module types and host cards.  It should support
-  ISA, EISA and PCI now.  Thanks to Nick Sayer of Specialix for providing
-  patches for integration.
+o The psm, mse and sysmouse drivers are improved to provide
+  better mouse support.  moused(8) has been modified to support
+  various mice with a ``wheel''.  It also automatically
+  recognizes mice which support the PnP COM device standard so
+  that the user is no longer required to supply a mouse protocol
+  type on the command line. 
 
 Userland features:
 
-o popen() library call now uses (and offers) bidirectional pipes.
+o popen() library call now uses and offers bidirectional pipes.
 
-o Added support for parallel makes in /usr/src (-j<n> works now with
-  world target, particularly useful with SMP machines).
+o Added support for parallel makes in /usr/src (-j<n> works
+  now with   world target, particularly useful with SMP
+  machines).
 
 o tcpdump(1) utility enhanced
 
@@ -82,367 +64,14 @@ o Various improvements to the NIS code.
 
 Security issues:
 
-Fixed /dev/io security hole.
+o Fixed /dev/io and mmap security holes.
 
+o Better protection against "LAND attacks"
 
-2. Supported Configurations
----------------------------
+o Various buffer overruns detected and extra checks added.
 
-FreeBSD currently runs on a wide variety of ISA, VLB, EISA and PCI bus
-based PC's, ranging from 386sx to Pentium class machines (though the
-386sx is not recommended).  Support for generic IDE or ESDI drive
-configurations, various SCSI controller, network and serial cards is
-also provided.
+o Pentium "F00F bug" is detected and a work-around installed to
+  prevent hangs.
 
-What follows is a list of all peripherals currently known to work with
-FreeBSD.  Other configurations may also work, we have simply not as yet
-received confirmation of this.
-
-
-2.1. Disk Controllers
----------------------
-
-WD1003 (any generic MFM/RLL)
-WD1007 (any generic IDE/ESDI)
-IDE
-ATA
-
-Adaptec 1535 ISA SCSI controllers
-Adaptec 154x series ISA SCSI controllers
-Adaptec 174x series EISA SCSI controller in standard and enhanced mode.
-Adaptec 274X/284X/2940/3940 (Narrow/Wide/Twin) series ISA/EISA/PCI SCSI
-controllers.
-Adaptec AIC7850 on-board SCSI controllers.
-
-Support for the following controllers is rather weak:
-Adaptec 1510 series ISA SCSI controllers (not for bootable devices)
-Adaptec 152x series ISA SCSI controllers
-Adaptec AIC-6260 and AIC-6360 based boards, which includes the AHA-152x
-and SoundBlaster SCSI cards.
-
-** Note: You cannot boot from the SoundBlaster cards as they have no
-   on-board BIOS, such being necessary for mapping the boot device into the
-   system BIOS I/O vectors.  They're perfectly usable for external tapes,
-   CDROMs, etc, however.  The same goes for any other AIC-6x60 based card
-   without a boot ROM.  Some systems DO have a boot ROM, which is generally
-   indicated by some sort of message when the system is first powered up
-   or reset, and in such cases you *will* also be able to boot from them.
-   Check your system/board documentation for more details.
-
-Buslogic 545S & 545c
-Buslogic 445S/445c VLB SCSI controller
-Buslogic 742A, 747S, 747c EISA SCSI controller.
-Buslogic 946c PCI SCSI controller
-Buslogic 956c PCI SCSI controller
-
-SymBios (formerly NCR) 53C810, 53C825, 53c860 and 53c875 PCI SCSI
-controllers:
-        ASUS SC-200
-        Data Technology DTC3130 (all variants)
-        NCR cards (all)
-        Symbios cards (all)
-        Tekram DC390W, 390U and 390F
-        Tyan S1365
-
-Tekram DC390 and DC390T controllers (maybe other cards based on the
-AMD 53c974 as well).
-
-NCR5380/NCR53400 ("ProAudio Spectrum") SCSI controller. 
-
-DTC 3290 EISA SCSI controller in 1542 emulation mode.
-
-UltraStor 14F, 24F and 34F SCSI controllers.
-
-Seagate ST01/02 SCSI controllers.
-
-Future Domain 8xx/950 series SCSI controllers.
-
-WD7000 SCSI controller.
-
-FreeBSD 2.2.5 will be accompanied by a contributed driver for the
-Future Domain 36C20 / Adaptec AHA2920 controller.  This is not fully
-supported (yet), but basically functional.  Look into the /xperimnt
-section of the CD-ROM.
-
-With all supported SCSI controllers, full support is provided for
-SCSI-I & SCSI-II peripherals, including Disks, tape drives (including
-DAT and 8mm Exabyte) and CD ROM drives.
-
-The following CD-ROM type systems are supported at this time:
-(cd)    SCSI interface (also includes ProAudio Spectrum and
-        SoundBlaster SCSI)
-(mcd)   Mitsumi proprietary interface (all models, driver is rather stale)
-(matcd) Matsushita/Panasonic (Creative SoundBlaster) proprietary
-        interface (562/563 models)
-(scd)   Sony proprietary interface (all models)
-(wcd)   ATAPI IDE interface.
-
-
-2.2. Ethernet cards
--------------------
-
-Allied-Telesis AT1700 and RE2000 cards
-
-AMD PCnet/PCI (79c970 & 53c974 or 79c974)
-
-SMC Elite 16 WD8013 ethernet interface, and most other WD8003E,
-WD8003EBT, WD8003W, WD8013W, WD8003S, WD8003SBT and WD8013EBT
-based clones.  SMC Elite Ultra is also supported.
-
-DEC EtherWORKS III NICs (DE203, DE204, and DE205)
-DEC EtherWORKS II NICs (DE200, DE201, DE202, and DE422)
-DEC DC21040, DC21041, or DC21140 based NICs (SMC Etherpower 8432T, DE245, etc)
-DEC FDDI (DEFPA/DEFEA) NICs
-
-Fujitsu MB86960A/MB86965A
-
-HP PC Lan+ cards (model numbers: 27247B and 27252A).
-
-Intel EtherExpress (not recommended due to driver instability)
-Intel EtherExpress Pro/10
-Intel EtherExpress Pro/100B PCI Fast Ethernet
-
-Isolan AT 4141-0 (16 bit)
-Isolink 4110     (8 bit)
-
-Novell NE1000, NE2000, and NE2100 ethernet interface.
-
-3Com 3C501 cards
-
-3Com 3C503 Etherlink II
-
-3Com 3c505 Etherlink/+
-
-3Com 3C507 Etherlink 16/TP
-
-3Com 3C509, 3C579, 3C589 (PCMCIA), 3C590/592/595/900/905 PCI and EISA
-(Fast) Etherlink III / (Fast) Etherlink XL
-
-Toshiba ethernet cards
-
-PCMCIA ethernet cards from IBM and National Semiconductor are also
-supported.
-
-Note that NO token ring cards are supported at this time as we're
-still waiting for someone to donate a driver for one of them.  Any
-takers?
-
-
-2.3. Misc
----------
-
-AST 4 port serial card using shared IRQ.
-
-ARNET 8 port serial card using shared IRQ.
-ARNET (now Digiboard) Sync 570/i high-speed serial.
-
-Boca BB1004 4-Port serial card (Modems NOT supported)
-Boca IOAT66 6-Port serial card (Modems supported)
-Boca BB1008 8-Port serial card (Modems NOT supported)
-Boca BB2016 16-Port serial card (Modems supported)
-
-Cyclades Cyclom-y Serial Board.
-
-STB 4 port card using shared IRQ.
-
-SDL Communications Riscom/8 Serial Board.
-SDL Communications RISCom/N2 and N2pci high-speed sync serial boards.
-
-Specialix SI/XIO/SX multiport serial cards, with both the older
-SIHOST2.x and the new "enhanced" (transputer based, aka JET) host cards.
-ISA, EISA and PCI are supported.
-
-Stallion multiport serial boards: EasyIO, EasyConnection 8/32 & 8/64,
-ONboard 4/16 and Brumby.
-
-Adlib, SoundBlaster, SoundBlaster Pro, ProAudioSpectrum, Gravis UltraSound
-and Roland MPU-401 sound cards.
-
-Connectix QuickCam
-Matrox Meteor Video frame grabber
-Creative Labs Video Spigot frame grabber
-Cortex1 frame grabber
-Various Frame grabbers based on Brooktree Bt848 chip.
-
-HP4020, HP6020, Philips CDD2000/CDD2660 and Plasmon CD-R drives.
-
-PS/2 mice
-
-Standard PC Joystick
-
-X-10 power controllers
-
-GPIB and Transputer drivers.
-
-Genius and Mustek hand scanners.
-
-Floppy tape drives (some rather old models only, driver rather stale)
-
-
-FreeBSD currently does NOT support IBM's microchannel (MCA) bus.
-
-
-3. Obtaining FreeBSD
---------------------
-
-You may obtain FreeBSD in a variety of ways:
-
-3.1. FTP/Mail
--------------
-
-You can ftp FreeBSD and any or all of its optional packages from
-`ftp.freebsd.org' - the official FreeBSD release site.
-
-For other locations that mirror the FreeBSD software see the file
-MIRROR.SITES.  Please ftp the distribution from the site closest (in
-networking terms) to you.  Additional mirror sites are always welcome!
-Contact freebsd-admin@FreeBSD.org for more details if you'd like to 
-become an official mirror site.
-
-If you do not have access to the Internet and electronic mail is your
-only recourse, then you may still fetch the files by sending mail to
-`ftpmail@ftpmail.vix.com' - putting the keyword "help" in your message
-to get more information on how to fetch files using this mechanism.
-Please do note, however, that this will end up sending many *tens of
-megabytes* through the mail and should only be employed as an absolute
-LAST resort!
-
-
-3.2. CDROM
-----------
-
-FreeBSD 2.2.x-RELEASE and 3.0-SNAPSHOT CDs may be ordered on CDROM from:
-
-        Walnut Creek CDROM
-        4041 Pike Lane, Suite F
-        Concord CA  94520
-        1-800-786-9907, +1-925-674-0783, +1-925-674-0821 (fax)
-
-Or via the Internet from orders@cdrom.com or http://www.cdrom.com.
-Their current catalog can be obtained via ftp from:
-        ftp://ftp.cdrom.com/cdrom/catalog.
-
-Cost per -RELEASE CD is $39.95 or $24.95 with a FreeBSD subscription.
-FreeBSD 3.0-SNAP CDs are $29.95 or $14.95 with a FreeBSD-SNAP subscription
-(-RELEASE and -SNAP subscriptions are entirely separate).  With a
-subscription, you will automatically receive updates as they are released.
-Your credit card will be billed when each disk is shipped and you may cancel
-your subscription at any time without further obligation.
-
-Shipping (per order not per disc) is $5 in the US, Canada or Mexico
-and $9.00 overseas.  They accept Visa, Mastercard, Discover, American
-Express or checks in U.S. Dollars and ship COD within the United
-States.  California residents please add 8.25% sales tax.
-
-Should you be dissatisfied for any reason, the CD comes with an
-unconditional return policy.
-
-
-4. Reporting problems, making suggestions, submitting code.
------------------------------------------------------------
-
-Your suggestions, bug reports and contributions of code are always
-valued - please do not hesitate to report any problems you may find
-(preferably with a fix attached, if you can!).
-
-The preferred method to submit bug reports from a machine with
-Internet mail connectivity is to use the send-pr command or use the CGI
-script at http://www.freebsd.org/send-pr.html.  Bug reports
-will be dutifully filed by our faithful bugfiler program and you can
-be sure that we'll do our best to respond to all reported bugs as soon
-as possible.  Bugs filed in this way are also visible on our WEB site
-in the support section and are therefore valuable both as bug reports
-and as "signposts" for other users concerning potential problems to
-watch out for.
-
-If, for some reason, you are unable to use the send-pr command to
-submit a bug report, you can try to send it to:
-
-                freebsd-bugs@FreeBSD.org
-
-Note that send-pr itself is a shell script that should be easy to move
-even onto a totally different system.  We much prefer if you could use
-this interface, since it make it easier to keep track of the problem
-reports.  However, before submitting, please try to make sure whether
-the problem might have already been fixed since.
-
-
-Otherwise, for any questions or suggestions, please send mail to:
-
-                freebsd-questions@FreeBSD.org
-
-
-Additionally, being a volunteer effort, we are always happy to have
-extra hands willing to help - there are already far more desired
-enhancements than we'll ever be able to manage by ourselves!  To
-contact us on technical matters, or with offers of help, please send
-mail to:
-
-                freebsd-hackers@FreeBSD.org
-
-
-Please note that these mailing lists can experience *significant*
-amounts of traffic and if you have slow or expensive mail access and
-are only interested in keeping up with significant FreeBSD events, you
-may find it preferable to subscribe instead to:
-
-                freebsd-announce@FreeBSD.org
-
-
-All but the freebsd-bugs groups can be freely joined by anyone wishing
-to do so.  Send mail to MajorDomo@FreeBSD.org and include the keyword
-`help' on a line by itself somewhere in the body of the message.  This
-will give you more information on joining the various lists, accessing
-archives, etc.  There are a number of mailing lists targeted at
-special interest groups not mentioned here, so send mail to majordomo
-and ask about them!
-
-It also goes almost without saying that proper etiquette and topic
-discipline is essential to making sure that the FreeBSD mailing lists
-continue to be viable forums for communication, and your cooperation
-is requested.  Please read the mailing list usage charters at
-http://www.freebsd.org/handbook/eresources.html
-
-
-5. Acknowledgements
--------------------
-
-FreeBSD represents the cumulative work of many dozens, if not
-hundreds, of individuals from around the world who have worked very
-hard to bring you this release.  For a complete list of FreeBSD
-project staffers, please see:
-
-        http://www.freebsd.org/handbook/staff.html
-
-or, if you've loaded the doc distribution:
-
-        file:/usr/share/doc/handbook/staff.html
-
-Additional FreeBSD helpers and beta testers:
-
-        Coranth Gryphon            Dave Rivers 
-        Kaleb S. Keithley          Terry Lambert
-        David Dawes                Don Lewis
-
-Special mention to:
-
-        Walnut Creek CDROM, without whose help (and continuing support)
-        this release would never have been possible.
-
-        Dermot McDonnell for his donation of a Toshiba XM3401B CDROM
-        drive.
-
-        Chuck Robey for his donation of a floppy tape streamer for
-        testing.
-
-        Larry Altneu and Wilko Bulte for providing us with Wangtek
-        and Archive QIC-02 tape drives for testing and driver hacking.
-
-        Everyone at Montana State University for their initial support.
-
-        And to the many thousands of FreeBSD users and testers all over the
-        world, without whom this release simply would not have been possible.
-
-We sincerely hope you enjoy this release of FreeBSD!
-
-                        The FreeBSD Project
+o srandomdev() support merged from -current and utilities updated
+  to use it.

@@ -1,14 +1,12 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.9.2.27 1998/03/23 05:24:14 jkh Exp $
-
-Contents last changed:  Jan 14th, 1997
-
 Table of Contents
 -----------------
 0.  Document Conventions
 1.  Default Configuration (GENERIC kernel)
 2.  Using UserConfig to change FreeBSD kernel settings
-3.  LINT - other possible configurations.
-4.  Known Hardware Problems.
+3.  LINT - other possible configurations
+4.  Supported Hardware
+
+See TROUBLE.TXT for Q&A on known hardware problems.
 
 =========================================================================
 
@@ -22,8 +20,8 @@ throughout this document to differentiate it from the machine output.
 --      -------------------------------
 
 The following table contains a list of all of the devices that are
-present in the GENERIC kernel, that being the kernel (the operating
-system) that was placed in your root partition during the FreeBSD
+present in the GENERIC kernel. This is the essential part of the 
+operating system that is placed in your root partition during the 
 installation process.  A compressed version of the GENERIC kernel is
 also used on the installation floppy diskette and DOS boot image.
 
@@ -264,7 +262,7 @@ gus:    Gravis Ultrasound - Ultrasound, Ultrasound 16, Ultrasound MAX
 gusxvi: Gravis Ultrasound 16-bit PCM
 joy:    Joystick
 labpc:  National Instrument's Lab-PC and Lab-PC+
-meteor:	Matrox Meteor frame-grabber card
+meteor: Matrox Meteor frame-grabber card
 bktr:   Brooktree Bt848 based frame-grabber cards.
 mpu:    Roland MPU-401 stand-alone card
 mse:    Logitech & ATI InPort bus mouse ports
@@ -278,7 +276,6 @@ rc:     RISCom/8 multiport card
 sb:     SoundBlaster PCM - SoundBlaster, SB Pro, SB16, ProAudioSpectrum
 sbmidi: SoundBlaster 16 MIDI interface
 sbxvi:  SoundBlaster 16
-si:     Specialix SI/XIO/SX (old and enhanced ISA, PCI, EISA) serial
 spigot: Creative Labs Video Spigot video-acquisition board
 uart:   Stand-alone 6850 UART for MIDI
 wds:    Western Digital WD7000 IDE
@@ -286,239 +283,194 @@ wds:    Western Digital WD7000 IDE
 --- end of list ---
 
 
-4.      Known Hardware Problems, Q & A:
---      -------------------------------
+4.      Supported Hardware
+--      ------------------
 
-Q: mcd0 keeps thinking that it has found a device and this stops my Intel
-   EtherExpress card from working.
+FreeBSD currently runs on a wide variety of ISA, VLB, EISA and PCI bus
+based PC's, ranging from 386sx to Pentium class machines (though the
+386sx is not recommended).  Support for generic IDE or ESDI drive
+configurations, various SCSI controller, network and serial cards is
+also provided.
 
-A: Use the UserConfig utility (see section 1.0) and disable the probing of
-   the mcd0 and mcd1 devices.  Generally speaking, you should only leave
-   the devices that you will be using enabled in your kernel.
-
-
-Q: FreeBSD claims to support the 3Com PCMCIA card, but my card isn't
-   recognized when it's plugged into my laptop.
-
-A: There are a couple of possible problems.  First of all, FreeBSD does
-   not support multi-function cards, so if you have a combo
-   ethernet/modem card (such as the 3C562), it won't work.  The
-   default driver for the 3C589 card was written just like all of the
-   other drivers in FreeBSD, and depend on the card's own configuration
-   data stored in NVRAM to work.  You must correctly configure FreeBSD's
-   driver to match the IRQ, port, and IOMEM stored in NVRAM.
-       Unfortunately, the only program capable of reading them is the
-   3COM supplied DOS program.  This program must be run on a absolutely
-   clean system (no other drivers must be running), and the program will
-   whine about CARD-Services not being found, but it will continue.
-   This is necessary to read the NVRAM values.  You want to know the
-   IRQ, port, and IOMEM values (the latter is called the CIS tuple by
-   3COM).  The first two can be set in the program, the third is
-   un-settable, and can only be read.  Once you have these values, set
-   them in UserConfig and your card will be recognized.
-
-Q: FreeBSD finds my PCMCIA network card, but no packets appear to
-   be sent even though it claims to be working.
-
-A: Many PCMCIA cards have the ability to use either the 10-Base2 (BNC)
-   or 10-BaseT connectors for connecting to the network.  The driver is
-   unable to 'auto-select' the correct connector, so you must tell it
-   which connector to use. In order to switch between the two
-   connectors, the link flags must be set.  Depending on the model of
-   the card, '-link0 link1' or 'link0 -link1' will choose the correct
-   network connector.  You can set these in sysinstall by using the
-   'Extra options to ifconfig:' field in the network setup screen.
+What follows is a list of all peripherals currently known to work with
+FreeBSD.  Other configurations may also work, we have simply not as yet
+received confirmation of this.
 
 
-Q: The system finds my ed network card, but I keep getting device 
-   timeout errors.
+4.1.    Disk Controllers
+----    ----------------
 
-A: Your card is probably on a different IRQ from what is specified in the
-   kernel configuration.  The ed driver does not use the `soft' configuration
-   by default (values entered using EZSETUP in DOS), but it will use the
-   software configuration if you specify `?' in the IRQ field of your kernel
-   config file.  
+WD1003 (any generic MFM/RLL)
+WD1007 (any generic IDE/ESDI)
+IDE
+ATA
 
-   Either move the jumper on the card to a hard configuration setting
-   (altering the kernel settings if necessary), or specify the IRQ as
-   `-1' in UserConfig or `?' in your kernel config file.  This will
-   tell the kernel to use the soft configuration.
+Adaptec 1535 ISA SCSI controllers
+Adaptec 154x series ISA SCSI controllers
+Adaptec 174x series EISA SCSI controller in standard and enhanced mode.
+Adaptec 274X/284X/2940/3940 (Narrow/Wide/Twin) series ISA/EISA/PCI SCSI
+controllers.
+Adaptec AIC7850 on-board SCSI controllers.
 
-   Another possibility is that your card is at IRQ 9, which is shared
-   by IRQ 2 and frequently a cause of problems (especially when you
-   have a VGA card using IRQ 2! :).  You should not use IRQ 2 or 9 if at
-   all possible.
+Support for the following controllers is rather weak:
+Adaptec 1510 series ISA SCSI controllers (not for bootable devices)
+Adaptec 152x series ISA SCSI controllers
+Adaptec AIC-6260 and AIC-6360 based boards, which includes the AHA-152x
+and SoundBlaster SCSI cards.
 
+** Note: You cannot boot from the SoundBlaster cards as they have no
+   on-board BIOS, such being necessary for mapping the boot device into the
+   system BIOS I/O vectors.  They're perfectly usable for external tapes,
+   CDROMs, etc, however.  The same goes for any other AIC-6x60 based card
+   without a boot ROM.  Some systems DO have a boot ROM, which is generally
+   indicated by some sort of message when the system is first powered up
+   or reset, and in such cases you *will* also be able to boot from them.
+   Check your system/board documentation for more details.
 
-Q: I go to boot from the hard disk for the first time after installing
-   FreeBSD, but the Boot Manager prompt just prints `F?' at the boot menu
-   each time but the boot won't go any further.
+Buslogic 545S & 545c
+Buslogic 445S/445c VLB SCSI controller
+Buslogic 742A, 747S, 747c EISA SCSI controller.
+Buslogic 946c PCI SCSI controller
+Buslogic 956c PCI SCSI controller
 
-A: The hard disk geometry was set incorrectly in the Partition editor when
-   you installed FreeBSD.  Go back into the partition editor and specify
-   the actual geometry of your hard disk.  You must reinstall FreeBSD
-   again from the beginning with the correct geometry.
+SymBios (formerly NCR) 53C810, 53C825, 53c860 and 53c875 PCI SCSI
+controllers:
+        ASUS SC-200
+        Data Technology DTC3130 (all variants)
+        NCR cards (all)
+        Symbios cards (all)
+        Tekram DC390W, 390U and 390F
+        Tyan S1365
 
-   If you are failing entirely in figuring out the correct geometry for
-   your machine, here's a tip:  Install a small DOS partition at the
-   beginning of the disk and install FreeBSD after that.  The install
-   program will see the DOS partition and try to infer the correct
-   geometry from it, which usually works.
+Tekram DC390 and DC390T controllers (maybe other cards based on the
+AMD 53c974 as well).
 
-   If you are setting up a truly dedicated FreeBSD server or work-
-   station where you don't care for (future) compatibility with DOS,
-   Linux or another operating system, you've also got the option to use
-   the entire disk (`A' in the partition editor), selecting the
-   non-standard option where FreeBSD occupies the entire disk from
-   the very first to the very last sector.  This will leave all geometry
-   considerations aside, but is somewhat limiting unless you're never
-   going to run anything other than FreeBSD on a disk.
+NCR5380/NCR53400 ("ProAudio Spectrum") SCSI controller. 
 
-Q: I have a Matsushita/Panasonic drive but it isn't recognized by the
-   system.
+DTC 3290 EISA SCSI controller in 1542 emulation mode.
 
-A: Make certain that the I/O port that the matcd driver is set to is
-   correct for the host interface card you have.  (Some SoundBlaster DOS
-   drivers report a hardware I/O port address for the CD-ROM interface
-   that is 0x10 lower than it really is.)
+UltraStor 14F, 24F and 34F SCSI controllers.
 
-   If you are unable to determine the settings for the card by examining 
-   the board or documentation, you can use UserConfig to change the 'port'
-   address (I/O port) to -1 and start the system.  This setting causes the
-   driver to look at a number of I/O ports that various manufacturers
-   use for their Matsushita/Panasonic/Creative CD-ROM interfaces.
-   Once the driver locates the address, you should run UserConfig again
-   and specify the correct address.  Leaving the 'port' parameter set to -1
-   increases the amount of time that it takes the system to boot, and
-   this could interfere with other devices.
+Seagate ST01/02 SCSI controllers.
 
-   The double-speed Matsushita CR-562 and CR-563 are the only drives
-   that are supported.
-   
+Future Domain 8xx/950 series SCSI controllers.
 
-Q: I booted the install floppy on my IBM ThinkPad (tm) laptop, and the
-   keyboard is all messed up.
+WD7000 SCSI controller.
 
-A: Older IBM laptops use a non-standard keyboard controller, so you must
-   tell the console driver (sc0) to go into a special mode which works
-   on the ThinkPads.  Change the sc0 'Flags' to 0x10 in UserConfig and
-   it should work fine.  (Look in the Input Menu for 'Syscons Console
-   Driver'.)
+FreeBSD 2.2.5 will be accompanied by a contributed driver for the
+Future Domain 36C20 / Adaptec AHA2920 controller.  This is not fully
+supported (yet), but basically functional.  Look into the /xperimnt
+section of the CD-ROM.
 
+With all supported SCSI controllers, full support is provided for
+SCSI-I & SCSI-II peripherals, including Disks, tape drives (including
+DAT and 8mm Exabyte) and CD ROM drives.
 
-Q: I have a Matsushita/Panasonic CR-522, a Matsushita/Panasonic CR-523 or
-   a TEAC CD55a drive, but it is not recognized even when the correct I/O
-   port is set.
-
-A: These CD-ROM drives are currently not supported by FreeBSD.  The command
-   sets for these drives are not compatible with the double-speed CR-562
-   and CR-563 drives.
-   
-   The single-speed CR-522 and CR-523 drives can be identified by their
-   use of a CD-caddy. 
+The following CD-ROM type systems are supported at this time:
+(cd)    SCSI interface (also includes ProAudio Spectrum and
+        SoundBlaster SCSI)
+(mcd)   Mitsumi proprietary interface (all models, driver is rather stale)
+(matcd) Matsushita/Panasonic (Creative SoundBlaster) proprietary
+        interface (562/563 models)
+(scd)   Sony proprietary interface (all models)
+(wcd)   ATAPI IDE interface.
 
 
-Q: I'm trying to install from a tape drive but all I get is something like:
-        st0(aha0:1:0) NOT READY csi 40,0,0,0
-   on the screen.  Help!
+4.2.    Ethernet cards
+----    --------------
 
-A: There's a limitation in the current sysinstall that the tape MUST
-   be in the drive while sysinstall is started or it won't be detected.
-   Try again with the tape in the drive the whole time.
+Allied-Telesis AT1700 and RE2000 cards
 
+AMD PCnet/PCI (79c970 & 53c974 or 79c974)
 
-Q: I've installed FreeBSD onto my system, but it hangs when booting from 
-   the hard drive with the message: ``Changing root to /dev/sd0a''.
+SMC Elite 16 WD8013 ethernet interface, and most other WD8003E,
+WD8003EBT, WD8003W, WD8013W, WD8003S, WD8003SBT and WD8013EBT
+based clones.  SMC Elite Ultra is also supported.
 
-A: This problem may occur in a system with a 3com 3c509 Ethernet adaptor.
-   The ep0 device driver appears to be sensitive to probes for other
-   devices that also use address 0x300.  Boot your FreeBSD system by power
-   cycling the machine (turn off and on).  At the ``Boot:'' prompt specify
-   the ``-c''.  This will invoke UserConfig (see Section 1. above).  Use
-   the ``disable'' command to disable the device probes for all devices
-   at address 0x300 except the ep0 driver.   On exit, your machine should
-   successfully boot FreeBSD.
+DEC EtherWORKS III NICs (DE203, DE204, and DE205)
+DEC EtherWORKS II NICs (DE200, DE201, DE202, and DE422)
+DEC DC21040, DC21041, or DC21140 based NICs (SMC Etherpower 8432T, DE245, etc)
+DEC FDDI (DEFPA/DEFEA) NICs
 
+Fujitsu MB86960A/MB86965A
 
-Q: My system hangs during boot, right after the "fd0: [my floppy drive]"
-   line.
+HP PC Lan+ cards (model numbers: 27247B and 27252A).
 
-A: This is not actually a hang, simply a very LONG "wdc0" probe that
-   often takes a long time to complete on certain systems (where there
-   usually _isn't_ a WD controller).  Be patient, your system will boot!
-   To eliminate the problem, boot with the -c flag and eliminate the wdc0
-   device, or compile a custom kernel.
+Intel EtherExpress (not recommended due to driver instability)
+Intel EtherExpress Pro/10
+Intel EtherExpress Pro/100B PCI Fast Ethernet
 
+Isolan AT 4141-0 (16 bit)
+Isolink 4110     (8 bit)
 
-Q: My system can not find my Intel EtherExpress 16 card.
+Novell NE1000, NE2000, and NE2100 ethernet interface.
 
-A: You must set your Intel EtherExpress 16 card to be memory mapped at
-   address 0xD0000, and set the amount of mapped memory to 32K using
-   the Intel supplied softset.exe program.
+3Com 3C501 cards
 
+3Com 3C503 Etherlink II
 
-Q: When installing on an EISA HP Netserver, my on-board AIC-7xxx
-   SCSI controller isn't detected.
+3Com 3c505 Etherlink/+
 
-A: This is a known problem, and will hopefully be fixed in the future.
-   In order to get your system installed at all, boot with the -c
-   option into UserConfig, but _don't_ use the pretty visual mode but
-   the plain old CLI mode.  Type
+3Com 3C507 Etherlink 16/TP
 
-	eisa 12
-	quit
+3Com 3C509, 3C579, 3C589 (PCMCIA), 3C590/592/595/900/905 PCI and EISA
+(Fast) Etherlink III / (Fast) Etherlink XL
 
-   there at the prompt.  (Instead of `quit', you might also type
-   `visual', and continue the rest of the configuration session in
-   visual mode.)  While it's recommended to compile a custom kernel,
-   dset(8) now also understands to save this value.
+Toshiba ethernet cards
 
-   Refer to the FAQ topic 3.16 for an explanation of the problem, and
-   for how to continue.  Remember that you can find the FAQ on your
-   local system in /usr/share/doc/FAQ, provided you have installed the
-   `doc' distribution.
+PCMCIA ethernet cards from IBM and National Semiconductor are also
+supported.
 
-Q: I have a Panasonic AL-N1 or Rios Chandler Pentium machine and I find
-   that the system hangs before ever getting into the installation
-   now.
-
-A: Your machine doesn't like the new i586_copyout and i586_copyin code
-   for some reason.  To disable this, boot the installation boot floppy
-   and when it comes to the very first menu (the choice to drop into
-   kernel UserConfig mode or not) choose the command-line interface
-   ("expert mode") version and type the following at it:
-
-        flags npx0 1
-
-   Then proceed normally to boot.  This will be saved into your kernel,
-   so you only need to do it once.
+Note that NO token ring cards are supported at this time as we're
+still waiting for someone to donate a driver for one of them.  Any
+takers?
 
 
-Q: I have this CMD640 IDE controller that is said to be broken.
+4.3.    Misc
+----    ----
 
-A: Yes, it is.  There's a workaround available now and it is enabled
-   automatically if this chip is used on your system.
-   For the details refer to the manual page of the disk driver (man 4 wd).
+AST 4 port serial card using shared IRQ.
+
+ARNET 8 port serial card using shared IRQ.
+ARNET (now Digiboard) Sync 570/i high-speed serial.
+
+Boca BB1004 4-Port serial card (Modems NOT supported)
+Boca IOAT66 6-Port serial card (Modems supported)
+Boca BB1008 8-Port serial card (Modems NOT supported)
+Boca BB2016 16-Port serial card (Modems supported)
+
+Cyclades Cyclom-y Serial Board.
+
+STB 4 port card using shared IRQ.
+
+SDL Communications Riscom/8 Serial Board.
+SDL Communications RISCom/N2 and N2pci high-speed sync serial boards.
+
+Stallion multiport serial boards: EasyIO, EasyConnection 8/32 & 8/64,
+ONboard 4/16 and Brumby.
+
+Adlib, SoundBlaster, SoundBlaster Pro, ProAudioSpectrum, Gravis UltraSound
+and Roland MPU-401 sound cards.
+
+Connectix QuickCam
+Matrox Meteor Video frame grabber
+Creative Labs Video Spigot frame grabber
+Cortex1 frame grabber
+Various Frame grabbers based on Brooktree Bt848 chip.
+
+HP4020, HP6020, Philips CDD2000/CDD2660 and Plasmon CD-R drives.
+
+PS/2 mice
+
+Standard PC Joystick
+
+X-10 power controllers
+
+GPIB and Transputer drivers.
+
+Genius and Mustek hand scanners.
+
+Floppy tape drives (some rather old models only, driver rather stale)
 
 
-Q: On a Compaq Aero notebook, I get the message "No floppy devices found!
-   Please check ..." when trying to install from floppy.
-
-A: With Compaq being always a little different from other systems, they
-   do not announce their floppy drive in the CMOS RAM of an Aero notebook.
-   Therefore, the floppy disk driver assumes there is no drive configured.
-   Go to the UserConfig screen, and set the Flags value of the fdc0 device
-   to 0x1.  This pretends the existance of the first floppy drive (as a
-   1.44 MB drive) to the driver without asking the CMOS at all.
-
-Q: When I go to boot my Intel AL440LX ("Atlanta") -based system from the
-   hard disk the first time, it stops with a "Read Error" message.
-
-A: There appears to be a bug in the BIOS on at least some of these boards,
-   this bug results in the FreeBSD bootloader thinking that it is booting
-   from a floppy disk.
-   This is only a problem if you are not using the BootEasy boot manager.
-   Slice the disk in 'compatible' mode and install BootEasy during the
-   FreeBSD installation to avoid the bug.
-
-[ Please add more hardware tips to this Q&A section! ]
+FreeBSD currently does NOT support IBM's microchannel (MCA) bus.
