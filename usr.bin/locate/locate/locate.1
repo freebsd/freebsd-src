@@ -77,7 +77,7 @@ As a special case, a pattern containing no globbing characters
 is matched as though it were
 .Dq *foo* .
 .Pp
-Historically, locate store only characters between 32 and 127.  The
+Historically, locate only stored characters between 32 and 127.  The
 current implementation store any character except newline
 .Pq Sq \en
 and NUL
@@ -170,8 +170,8 @@ Use
 instead of the
 .Xr stdio 3
 library.
-This is the default behavior.
-Usually faster in most cases.
+This is the default behavior
+and is faster in most cases.
 .It Fl s
 Use the
 .Xr stdio 3
