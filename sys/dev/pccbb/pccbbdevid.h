@@ -27,14 +27,15 @@
  */
 
 /* Vendor/Device IDs */
-#define PCIC_ID_INTEL_82092AA	0x12218086ul	/* 16bit I/O */
 #define	PCIC_ID_CLPD6729	0x11001013ul	/* 16bit I/O */
 #define	PCIC_ID_CLPD6832	0x11101013ul
 #define	PCIC_ID_CLPD6833	0x11131013ul
 #define	PCIC_ID_CLPD6834	0x11121013ul
-#define PCIC_ID_OMEGA_82C094	0x1221119bul	/* 16bit I/O */
-#define	PCIC_ID_OZ6729		0x67291217ul
-#define	PCIC_ID_OZ6730		0x673A1217ul
+#define	PCIC_ID_INTEL_82092AA_0	0x12218086ul	/* 16bit I/O */
+#define	PCIC_ID_INTEL_82092AA_1	0x12228086ul	/* 16bit I/O */
+#define	PCIC_ID_OMEGA_82C094	0x1221119bul	/* 16bit I/O */
+#define	PCIC_ID_OZ6729		0x67291217ul	/* 16bit I/O */
+#define	PCIC_ID_OZ6730		0x673A1217ul	/* 16bit I/O */
 #define	PCIC_ID_OZ6832		0x68321217ul	/* Also 6833 */
 #define	PCIC_ID_OZ6860		0x68361217ul	/* Also 6836 */
 #define	PCIC_ID_OZ6872		0x68721217ul	/* Also 6812 */
@@ -47,6 +48,7 @@
 #define	PCIC_ID_RICOH_RL5C476	0x04761180ul
 #define	PCIC_ID_RICOH_RL5C477	0x04771180ul
 #define	PCIC_ID_RICOH_RL5C478	0x04781180ul
+#define	PCIC_ID_SMC_34C90	0xb10610b3ul	/* XXX */
 #define	PCIC_ID_TI1031		0xac13104cul
 #define	PCIC_ID_TI1130		0xac12104cul
 #define	PCIC_ID_TI1131		0xac15104cul
@@ -80,7 +82,6 @@
  * Other ID, from sources too vague to be reliable
  *	Mfg		  model		PCI ID
  *   smc/Databook	DB87144		0x310610b3
- *   SMC/databook	smc34c90	0xb10610b3
  *   Omega/Trident	82c194		0x01941023
  *   Omega/Trident	82c722		0x07221023?
  *   Opti		82c814		0xc8141045
