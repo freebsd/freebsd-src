@@ -77,6 +77,7 @@
 #define DC_TYPE_PNICII		0x9	/* 82c115 PNIC II */
 #define DC_TYPE_PNIC		0xA	/* 82c168/82c169 PNIC I */
 #define	DC_TYPE_XIRCOM		0xB	/* Xircom X3201 */
+#define DC_TYPE_CONEXANT	0xC	/* Conexant LANfinity RS7112 */
 
 #define DC_IS_MACRONIX(x)			\
 	(x->dc_type == DC_TYPE_98713 ||		\
@@ -95,6 +96,7 @@
 #define DC_IS_PNICII(x)		(x->dc_type == DC_TYPE_PNICII)
 #define DC_IS_PNIC(x)		(x->dc_type == DC_TYPE_PNIC)
 #define	DC_IS_XIRCOM(x)		(x->dc_type == DC_TYPE_XIRCOM)
+#define DC_IS_CONEXANT(x)	(x->dc_type == DC_TYPE_CONEXANT)
 
 /* MII/symbol mode port types */
 #define DC_PMODE_MII		0x1
@@ -676,6 +678,16 @@ struct dc_mii_frame {
 
 /* End of PNIC specific registers */
 
+/*
+ * CONEXANT specific registers.
+ */
+
+#define DC_CONEXANT_PHYADDR	0x1
+#define DC_CONEXANT_EE_NODEADDR	0x19A
+
+/* End of CONEXANT specific registers */
+
+
 struct dc_softc {
 	struct arpcom		arpcom;		/* interface info */
 	bus_space_handle_t	dc_bhandle;	/* bus space handle */
@@ -881,6 +893,16 @@ struct dc_softc {
  * Abocom device IDs.
  */
 #define DC_DEVICEID_FE2500	0xAB02
+
+/*
+ * Conexant vendor ID.
+ */
+#define DC_VENDORID_CONEXANT	0x14f1
+
+/*
+ * Conexant device IDs.
+ */
+#define DC_DEVICEID_RS7112	0x1803
 
 /*
  * PCI low memory base and low I/O base register, and
