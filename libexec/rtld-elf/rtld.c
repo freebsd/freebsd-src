@@ -2131,16 +2131,8 @@ unload_object(Obj_Entry *root)
 {
     Obj_Entry *obj;
     Obj_Entry **linkp;
-    Objlist_Entry *elm;
 
     assert(root->refcount == 0);
-
-    /* Remove the DAG from all objects' DAG lists. */
-    STAILQ_FOREACH(elm, &root->dagmembers , link)
-	objlist_remove(&elm->obj->dldags, root);
-
-    /* Remove the DAG from the RTLD_GLOBAL list. */
-    objlist_remove(&list_global, root);
 
     /* Unmap all objects that are no longer referenced. */
     linkp = &obj_list->next;
@@ -2162,14 +2154,23 @@ static void
 unref_dag(Obj_Entry *root)
 {
     const Needed_Entry *needed;
+    Objlist_Entry *elm;
 
     if (root->refcount == 0)
 	return;
     root->refcount--;
-    if (root->refcount == 0)
+    if (root->refcount == 0) {
 	for (needed = root->needed;  needed != NULL;  needed = needed->next)
 	    if (needed->obj != NULL)
 		unref_dag(needed->obj);
+
+	/* Remove the object from the RTLD_GLOBAL list. */
+	objlist_remove(&list_global, root);
+
+    	/* Remove the object from all objects' DAG lists. */
+    	STAILQ_FOREACH(elm, &root->dagmembers , link)
+	    objlist_remove(&elm->obj->dldags, root);
+    }
 }
 
 /*
