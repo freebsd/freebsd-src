@@ -113,7 +113,7 @@ struct qm_trace {
 };
 
 #define TRACEBUF	struct qm_trace trace;
-#define TRASHIT(x)	do {(x) = (void *)-1} while (0)
+#define TRASHIT(x)	do {(x) = (void *)-1;} while (0)
 
 #define QMD_TRACE_HEAD(head) do {					\
 	(head)->trace.prevline = (head)->trace.lastline;		\
