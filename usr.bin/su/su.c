@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)su.c	8.3 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: su.c,v 1.20 1997/05/10 19:01:32 davidn Exp $";
+	"$Id: su.c,v 1.21 1997/08/12 06:45:43 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -151,7 +151,10 @@ main(argc, argv)
 		break;
 	    }
 
-	if((nargv = malloc (sizeof (char *) * (argc + 4))) == NULL) {
+	if (user == NULL)
+		usage();
+
+	if ((nargv = malloc (sizeof (char *) * (argc + 4))) == NULL) {
 	    errx(1, "malloc failure");
 	}
 
