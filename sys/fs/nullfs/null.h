@@ -51,6 +51,8 @@ struct null_node {
 	LIST_ENTRY(null_node)	null_hash;	/* Hash list */
 	struct vnode	        *null_lowervp;	/* VREFed once */
 	struct vnode		*null_vnode;	/* Back pointer */
+	int			null_pending_locks;
+	int			null_drain_wakeup;
 };
 
 #define	MOUNTTONULLMOUNT(mp) ((struct null_mount *)((mp)->mnt_data))
