@@ -93,6 +93,7 @@ GEOM_BDE	opt_geom.h
 GEOM_BSD	opt_geom.h
 GEOM_GPT	opt_geom.h
 GEOM_MBR	opt_geom.h
+GEOM_MIRROR	opt_geom.h
 GEOM_PC98	opt_geom.h
 GEOM_SUNLABEL	opt_geom.h
 HW_WDOG
