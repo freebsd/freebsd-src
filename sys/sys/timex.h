@@ -295,7 +295,7 @@ struct timex {
 		      }
 
 #ifdef KERNEL
-void ntp_update_second __P((long *newsec));
+void ntp_update_second __P((struct timecounter *tc));
 extern long time_phase;
 extern long time_adj;
 #else
