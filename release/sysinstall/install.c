@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.2 1995/04/27 18:03:53 jkh Exp $
+ * $Id: install.c,v 1.3 1995/04/29 19:33:01 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -43,22 +43,145 @@
 
 #include "sysinstall.h"
 
-int
-installCustom(void)
+static int
+installHook(char *str)
 {
+    int rcode = 0;
+
+    /* Clip garbage off the ends */
+    string_prune(str);
+    str = string_skipwhite(str);
+    while (str) {
+	char *cp;
+
+	cp = index(str, ' ');
+	if (cp)
+	   *cp++ = 0; 
+	rcode = !device_slice_disk(str);
+	str = cp;
+    }
+    return rcode;
+}
+
+/* Create a menu listing all the devices in the system. */
+static DMenu *
+getAllDisks(DMenu *menu, Device **rdevs)
+{
+    Device *devices;
+    int numdevs;
+
+    devices = device_get_all(DEVICE_TYPE_DISK, &numdevs);
+    *rdevs = devices;
+    if (!devices) {
+	msgConfirm("No devices suitable for installation found!\n\nPlease verify that your disk controller (and attached drives) were detected properly.  This can be done by selecting the ``Bootmsg'' option on the main menu and reviewing the boot messages carefully.");
+	return NULL;
+    }
+    else {
+	Device *start;
+	DMenu *tmp;
+	int i;
+
+	tmp = (DMenu *)safe_malloc(sizeof(DMenu) +
+				   (sizeof(DMenuItem) * (numdevs + 1)));
+	bcopy(menu, tmp, sizeof(DMenu));
+	for (start = devices, i = 0; start->name[0]; start++, i++) {
+	    tmp->items[i].title = start->name;
+	    if (!strncmp(start->name, "sd", 2))
+		tmp->items[i].prompt = "SCSI disk";
+	    else if (!strncmp(start->name, "wd", 2))
+		tmp->items[i].prompt = "IDE/ESDI/MFM/ST506 disk";
+	    else
+		msgFatal("Unknown disk type: %s!", start->name);
+	    tmp->items[i].type = DMENU_CALL;
+	    tmp->items[i].ptr = installHook;
+	    tmp->items[i].disabled = FALSE;
+	}
+	tmp->items[i].type = DMENU_NOP;
+	tmp->items[i].title = NULL;
+	return tmp;
+    }
+}
+
+int
+installCustom(char *str)
+{
+    int scroll, choice, curr, max;
+    extern DMenu MenuDiskDevices;
+    DMenu *menu;
+    Device *devs;
+
     msgInfo("Installating the system custom");
-    return 0;
+    variable_set2("install_type", "custom");
+    menu = getAllDisks(&MenuDiskDevices, &devs);
+    if (!menu)
+	return 0;
+    choice = scroll = curr = max = 0;
+    dmenuOpen(menu, &choice, &scroll, &curr, &max);
+    free(menu);
+    free(devs);
+    return 1;
 }
 
 int
-installExpress(void)
+installExpress(char *str)
 {
+    int scroll, choice, curr, max;
+    extern DMenu MenuDiskDevices;
+    DMenu *menu;
+    Device *devs;
+
     msgInfo("Installating the system express");
+    variable_set2("install_type", "express");
+    menu = getAllDisks(&MenuDiskDevices, &devs);
+    if (!menu)
+	return 0;
+    choice = scroll = curr = max = 0;
+    dmenuOpen(menu, &choice, &scroll, &curr, &max);
+    free(menu);
+    free(devs);
+    return 1;
+}
+
+int
+installMaint(char *str)
+{
+    msgConfirm("Sorry, maintainance mode is not implemented in this version.");
     return 0;
 }
 
 int
-installMaint(void)
+installSetDeveloper(char *str)
+{
+    /* Dists = DIST_BIN | DIST_MAN | DIST_FOO; */
+    return 0;
+}
+
+int
+installSetXDeveloper(char *str)
+{
+    return 0;
+}
+
+int
+installSetUser(char *str)
+{
+    return 0;
+}
+
+int
+installSetXUser(char *str)
+{
+    return 0;
+}
+
+int
+installSetMinimum(char *str)
+{
+    return 0;
+}
+
+int
+installSetEverything(char *str)
 {
     return 0;
 }

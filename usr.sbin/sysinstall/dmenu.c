@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.2 1995/04/27 18:03:52 jkh Exp $
+ * $Id: dmenu.c,v 1.3 1995/04/29 19:33:00 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -63,7 +63,7 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
 	    char *title = tmp->title;
 	    char *prompt = tmp->prompt;
 
-	    if (menu->options & DMENU_RADIO_TYPE) {
+	    if (menu->options & (DMENU_RADIO_TYPE | DMENU_MULTIPLE_TYPE)) {
 		if (*title == '*') {
 		    addme = "ON";
 		    ++title;
@@ -80,11 +80,11 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
     nitems = item_add(nitems, NULL, curr, max); /* Terminate it */
 
     while (1) {
+	char buf[FILENAME_MAX];
+
 	/* Any helpful hints, put 'em up! */
-	if (menu->helpline)
-	    use_helpline(menu->helpline);
-	if (menu->helpfile)
-	    use_helpfile(menu->helpfile);
+	use_helpline(menu->helpline);
+	use_helpfile(systemHelpFile(menu->helpfile, buf));
 
 	/* Pop up that dialog! */
 	if (menu->options & DMENU_NORMAL_TYPE) {
@@ -106,17 +106,30 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
 				    (unsigned char **)nitems,
 				    (unsigned char *)result);
 	}
+	else if (menu->options & DMENU_MULTIPLE_TYPE) {
+	    rval = dialog_checklist((unsigned char *)menu->title,
+				    (unsigned char *)menu->prompt,
+				    -1, -1,
+				    n > MAX_MENU ? MAX_MENU : n,
+				    n,
+				    (unsigned char **)nitems,
+				    (unsigned char *)result);
+	}
 	dialog_clear();
 	if (!rval) {
-	    for (tmp = menu->items; tmp->title; tmp++)
-		if (!strcmp(result,
-			    (*tmp->title == '*') ? tmp->title + 1 :
-			     tmp->title))
-		    break;
-	    if (!tmp->title)
-		msgFatal("Menu item `%s' not found??", result);
+	    if (menu->options & DMENU_MULTIPLE_TYPE)
+		tmp = &(menu->items[0]);
+	    else {
+		for (tmp = menu->items; tmp->title; tmp++)
+		    if (!strcmp(result,
+				(*tmp->title == '*') ? tmp->title + 1 :
+				tmp->title))
+			break;
+		if (!tmp->title)
+		    msgFatal("Menu item `%s' not found??", result);
+	    }
 	}
-	else if (rval == 255)
+	else if (rval == -1)
 	    tmp = &shellAction;
 	else {
 	    items_free(nitems, curr, max);
@@ -149,11 +162,14 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
 
 	    /* Same as above, but execute it in a prgbox */
 	case DMENU_SYSTEM_COMMAND_BOX:
+	    use_helpfile(NULL);
+	    use_helpline("Select OK to dismiss this dialog");
 	    dialog_prgbox(tmp->title, (char *)tmp->ptr, 22, 76, 1, 1);
+	    dialog_clear();
 	    break;
 
 	case DMENU_CALL:
-	    if (((int (*)())tmp->ptr)()) {
+	    if (((int (*)())tmp->ptr)(result)) {
 		items_free(nitems, curr, max);
 		return;
 	    }
@@ -163,20 +179,9 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
 	    items_free(nitems, curr, max);
 	    return;
 
-	case DMENU_SET_VARIABLE: {
-	    Variable *newvar;
-
-	    if (!index((char *)tmp->ptr, '='))
-		msgWarn("Improperly formatted variable: %s", tmp->ptr);
-	    putenv((char *)tmp->ptr);
-	    newvar = (Variable *)malloc(sizeof(Variable));
-	    if (!newvar)
-		msgFatal("Out of Memory!");
-	    strncpy(newvar->value, tmp->ptr, 1024);
-	    newvar->next = VarHead;
-	    VarHead = newvar;
-	    msgInfo("Setting option %s", newvar->value);
-	}
+	case DMENU_SET_VARIABLE:
+	    variable_set((char *)tmp->ptr);
+	    msgInfo("Setting option %s", tmp->ptr);
 	    break;
 	    
 	default:
