@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fstab.h>
 #include <paths.h>
+#include <stdint.h>
 #include <string.h>
 
 #include "fsck.h"
@@ -190,8 +191,9 @@ checkfilesys(char *filesys)
 	struct statfs *mntp;
 	struct zlncnt *zlnp;
 	ufs2_daddr_t blks;
-	int cylno, size, ret;
+	int cylno, ret;
 	ino_t files;
+	size_t size;
 
 	cdevname = filesys;
 	if (debug && preen)
@@ -372,11 +374,12 @@ checkfilesys(char *filesys)
 		pwarn("Reclaimed: %ld directories, %ld files, %lld fragments\n",
 		    countdirs, (long)files - countdirs, (long long)blks);
 	}
-	pwarn("%ld files, %lld used, %llu free ",
-	    (long)n_files, (long long)n_blks,
-	    n_ffree + sblock.fs_frag * n_bfree);
-	printf("(%qu frags, %qu blocks, %.1f%% fragmentation)\n",
-	    n_ffree, n_bfree, n_ffree * 100.0 / sblock.fs_dsize);
+	pwarn("%ld files, %jd used, %ju free ",
+	    (long)n_files, (intmax_t)n_blks,
+	    (uintmax_t)n_ffree + sblock.fs_frag * n_bfree);
+	printf("(%ju frags, %ju blocks, %.1f%% fragmentation)\n",
+	    (uintmax_t)n_ffree, (uintmax_t)n_bfree,
+	    n_ffree * 100.0 / sblock.fs_dsize);
 	if (debug) {
 		if (files < 0)
 			printf("%d inodes missing\n", -files);
