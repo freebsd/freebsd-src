@@ -91,6 +91,9 @@ extern u_char	at_org_code[ 3 ];
 extern u_char	aarp_org_code[ 3 ];
 #endif /* NETATALK */
 
+static u_char fddibroadcastaddr[FDDI_ADDR_LEN] =
+			{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+
 static	int fddi_resolvemulti(struct ifnet *, struct sockaddr **,
 			      struct sockaddr *);
 
@@ -549,6 +552,102 @@ fddi_ifattach(ifp)
 	bcopy(IFP2AC(ifp)->ac_enaddr, LLADDR(sdl), ifp->if_addrlen);
 
 	return;
+}
+
+void
+fddi_ifdetach(ifp, bpf)
+	struct ifnet *ifp;
+	int bpf;
+{
+     
+	if (bpf)
+		bpfdetach(ifp);
+
+	if_detach(ifp);
+
+	return;
+}
+
+int
+fddi_ioctl (ifp, command, data)
+	struct ifnet *ifp;
+	int command;
+	caddr_t data;
+{
+	struct ifaddr *ifa;
+	struct ifreq *ifr;
+	int error;
+
+	ifa = (struct ifaddr *) data;
+	ifr = (struct ifreq *) data;
+	error = 0;
+
+	switch (command) {
+	case SIOCSIFADDR:
+		ifp->if_flags |= IFF_UP;
+
+		switch (ifa->ifa_addr->sa_family) {
+#ifdef INET
+		case AF_INET:	/* before arpwhohas */
+			ifp->if_init(ifp->if_softc);
+			arp_ifinit(ifp, ifa);
+			break;
+#endif
+#ifdef IPX
+		/*
+		 * XXX - This code is probably wrong
+		 */
+		case AF_IPX: {
+				struct ipx_addr *ina;
+				struct arpcom *ac;
+
+				ina = &(IA_SIPX(ifa)->sipx_addr);
+				ac = IFP2AC(ifp);
+
+				if (ipx_nullhost(*ina)) {
+					ina->x_host = *(union ipx_host *)
+							ac->ac_enaddr;
+				} else {
+					bcopy((caddr_t) ina->x_host.c_host,
+					      (caddr_t) ac->ac_enaddr,
+					      sizeof(ac->ac_enaddr));
+				}
+	
+				/*
+				 * Set new address
+				 */
+				ifp->if_init(ifp->if_softc);
+			}
+			break;
+#endif
+		default:
+			ifp->if_init(ifp->if_softc);
+			break;
+	}
+	case SIOCGIFADDR: {
+			struct sockaddr *sa;
+
+			sa = (struct sockaddr *) & ifr->ifr_data;
+			bcopy(IFP2AC(ifp)->ac_enaddr,
+			      (caddr_t) sa->sa_data, FDDI_ADDR_LEN);
+
+		}
+		break;
+	case SIOCSIFMTU:
+		/*
+		 * Set the interface MTU.
+		 */
+		if (ifr->ifr_mtu > FDDIMTU) {
+			error = EINVAL;
+		} else {
+			ifp->if_mtu = ifr->ifr_mtu;
+		}
+		break;
+	default:
+		break;
+	}
+
+	return (error);
 }
 
 static int
