@@ -32,7 +32,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $P4: //depot/projects/openpam/misc/gendoc.pl#13 $
+# $P4: //depot/projects/openpam/misc/gendoc.pl#14 $
 #
 
 use strict;
@@ -201,6 +201,8 @@ sub parse_source($) {
 	s/\s*=$func\b\s*/\n.Nm\n/gs;
 	s/\s*=$argnames\b\s*/\n.Va $1\n/gs;
 	s/\s*=(struct \w+(?: \*)?)\b\s*/\n.Vt $1\n/gs;
+	s/\s*:([a-z_]+)\b\s*/\n.Va $1\n/gs;
+	s/\s*;([a-z_]+)\b\s*/\n.Dv $1\n/gs;
 	if (s/\s*=([a-z_]+)\b\s*/\n.Xr $1 3\n/gs) {
 	    ++$xref{"$1 3"};
 	}
@@ -378,8 +380,8 @@ as part of the DARPA CHATS research program.
 
     $fn = "$func->{'name'}.3";
     if (sysopen(FILE, $fn, O_RDWR|O_CREAT|O_TRUNC)) {
-        print(FILE $mdoc);
-        close(FILE);
+	print(FILE $mdoc);
+	close(FILE);
     } else {
 	warn("$fn: open(): $!\n");
     }

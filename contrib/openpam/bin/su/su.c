@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/bin/su/su.c#5 $
+ * $P4: //depot/projects/openpam/bin/su/su.c#6 $
  */
 
 #include <sys/param.h>
@@ -40,6 +40,7 @@
 #include <err.h>
 #include <pwd.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <syslog.h>
 #include <unistd.h>
 
