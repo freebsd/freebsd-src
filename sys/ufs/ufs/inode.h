@@ -63,8 +63,6 @@
 struct inode {
 	LIST_ENTRY(inode) i_hash;/* Hash chain. */
 	TAILQ_ENTRY(inode) i_nextsnap; /* snapshot file list. */
-	daddr_t	  i_snaplistsize; /* size of snapblklist. */
-	daddr_t	  *i_snapblklist; /* list of known snapshot blocks. */
 	struct	vnode  *i_vnode;/* Vnode associated with this inode. */
 	struct	ufsmount *i_ump;/* Ufsmount point associated with this inode. */
 	struct	vnode  *i_devvp;/* Vnode for block I/O. */
@@ -87,7 +85,10 @@ struct inode {
 	ino_t	  i_ino;	/* Inode number of found directory. */
 	u_int32_t i_reclen;	/* Size of found directory entry. */
 
-	struct dirhash *i_dirhash; /* Hashing for large directories */
+	union {
+		struct dirhash *dirhash; /* Hashing for large directories. */
+		daddr_t *snapblklist;    /* Collect expunged snapshot blocks. */
+	} i_un;
 
 	/*
 	 * Data for extended attribute modification.
@@ -126,6 +127,8 @@ struct inode {
 #define	IN_LAZYMOD	0x0040		/* Modified, but don't write yet. */
 #define	IN_SPACECOUNTED	0x0080		/* Blocks to be freed in free count. */
 
+#define i_dirhash i_un.dirhash
+#define i_snapblklist i_un.snapblklist
 #define i_din1 dinode_u.din1
 #define i_din2 dinode_u.din2
 
