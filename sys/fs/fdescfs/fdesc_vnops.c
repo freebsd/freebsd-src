@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vnops.c	8.9 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vnops.c,v 1.31 1997/10/16 22:00:05 phk Exp $
+ * $Id: fdesc_vnops.c,v 1.32 1997/10/26 20:55:14 phk Exp $
  */
 
 /*
@@ -47,7 +47,6 @@
 #include <sys/proc.h>
 #include <sys/kernel.h>	/* boottime */
 #include <sys/filedesc.h>
-#include <sys/unistd.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/file.h>

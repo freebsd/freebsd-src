@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vnops.c	8.14 (Berkeley) 5/21/95
  *
- * $Id: portal_vnops.c,v 1.26 1997/10/16 22:00:27 phk Exp $
+ * $Id: portal_vnops.c,v 1.27 1997/10/26 20:55:20 phk Exp $
  */
 
 /*
@@ -49,7 +49,6 @@
 #include <sys/time.h>
 #include <sys/proc.h>
 #include <sys/filedesc.h>
-#include <sys/unistd.h>
 #include <sys/vnode.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
