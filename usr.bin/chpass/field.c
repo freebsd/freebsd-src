@@ -33,6 +33,8 @@
 
 #ifndef lint
 static const char sccsid[] = "@(#)field.c	8.4 (Berkeley) 4/2/94";
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -242,7 +244,6 @@ p_shell(p, pw, ep)
 	struct passwd *pw;
 	ENTRY *ep;
 {
-	char *t, *ok_shell();
 	struct stat sbuf;
 
 	if (!*p) {
@@ -254,15 +255,16 @@ p_shell(p, pw, ep)
 		warnx("%s: current shell non-standard", pw->pw_shell);
 		return (1);
 	}
-	if (!(t = ok_shell(p))) {
+	if (!ok_shell(p)) {
 		if (uid) {
 			warnx("%s: non-standard shell", p);
 			return (1);
 		}
+		pw->pw_shell = strdup(p);
 	}
 	else
-		p = t;
-	if (!(pw->pw_shell = strdup(p))) {
+		pw->pw_shell = dup_shell(p);
+	if (!pw->pw_shell) {
 		warnx("can't save entry");
 		return (1);
 	}

@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)chpass.h	8.4 (Berkeley) 4/2/94
+ *	$FreeBSD$ 
  */
 
 struct passwd;
@@ -55,7 +56,8 @@ extern uid_t uid;
 int	 atot __P((char *, time_t *));
 void	 display __P((int, struct passwd *));
 void	 edit __P((struct passwd *));
-char    *ok_shell __P((char *));
+int      ok_shell __P((char *));
+char    *dup_shell __P((char *));
 int	 p_change __P((char *, struct passwd *, ENTRY *));
 int	 p_class __P((char *, struct passwd *, ENTRY *));
 int	 p_expire __P((char *, struct passwd *, ENTRY *));
