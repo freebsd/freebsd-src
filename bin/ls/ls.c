@@ -438,7 +438,7 @@ traverse(int argc, char *argv[], int options)
 
 	if ((ftsp =
 	    fts_open(argv, options, f_nosort ? NULL : mastercmp)) == NULL)
-		err(1, NULL);
+		err(1, "fts_open");
 
 	display(NULL, fts_children(ftsp, 0));
 	if (f_listdir)
@@ -539,7 +539,7 @@ display(FTSENT *p, FTSENT *list)
 		/* Fill-in "::" as "0:0:0" for the sake of scanf. */
 		jinitmax = initmax2 = malloc(strlen(initmax) * 2 + 2);
 		if (jinitmax == NULL)
-			err(1, NULL);
+			err(1, "malloc");
 		if (*initmax == ':')
 			strcpy(initmax2, "0:"), initmax2 += 2;
 		else
@@ -675,7 +675,7 @@ display(FTSENT *p, FTSENT *list)
 						flags = strdup("-");
 					}
 					if (flags == NULL)
-						err(1, NULL);
+						err(1, "fflagstostr");
 					flen = strlen(flags);
 					if (flen > (size_t)maxflags)
 						maxflags = flen;
@@ -692,7 +692,7 @@ display(FTSENT *p, FTSENT *list)
 
 				if ((np = malloc(sizeof(NAMES) + lattrlen +
 				    ulen + glen + flen + 4)) == NULL)
-					err(1, NULL);
+					err(1, "malloc");
 
 				np->user = &np->data[0];
 				(void)strcpy(np->user, user);
