@@ -1,7 +1,7 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: GENERIC,v 1.60 1996/01/20 06:14:33 nate Exp $
+#	$Id: GENERIC,v 1.61 1996/03/11 18:47:38 jkh Exp $
 #
 
 machine		"i386"
@@ -111,6 +111,7 @@ device ed0 at isa? port 0x280 net irq  5 iomem 0xd8000 vector edintr
 device ed1 at isa? port 0x300 net irq  5 iomem 0xd8000 vector edintr
 device ie0 at isa? port 0x360 net irq  7 iomem 0xd0000 vector ieintr
 device ep0 at isa? port 0x300 net irq 10 vector epintr
+device fe0 at isa? port 0x300 net irq ? vector feintr
 device ix0 at isa? port 0x300 net irq 10 iomem 0xd0000 iosiz 32768 vector ixintr
 device le0 at isa? port 0x300 net irq 5 iomem 0xd0000 vector le_intr
 device lnc0 at isa? port 0x280 net irq 10 drq 0 vector lncintr
