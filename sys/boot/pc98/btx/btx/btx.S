@@ -271,14 +271,14 @@ exit:		cli				# Disable interrupts
 # Turn off paging.
 #
 		movl %cr0,%eax			# Get CR0
-ifdef(`PAGING',`
 		andl $~0x80000000,%eax		# Disable
 		movl %eax,%cr0			#  paging
-')
 		xorl %ecx,%ecx			# Zero
-ifdef(`PAGING',`
 		movl %ecx,%cr3			# Flush TLB
-')
+#
+# Restore the GDT in case we caught a kernel trap.
+#
+		lgdt gdtdesc	 		# Set GDT
 #
 # To 16 bits.
 #
