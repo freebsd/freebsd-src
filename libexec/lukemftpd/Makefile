@@ -13,7 +13,7 @@ SRCS+=	strsuftoll.c
 WFORMAT= 0
 CFLAGS+= -include nbsd2fbsd.h
 CFLAGS+= -I${.CURDIR} -I${LUKEMFTPD} -I${LUKEMFTPD}/src
-CFLAGS+= -I${.CURDIR}/../..//lib/libc/stdtime
+CFLAGS+= -I${.CURDIR}/../../lib/libc/stdtime
 YFLAGS=
 
 LDADD=	-lcrypt -lutil
