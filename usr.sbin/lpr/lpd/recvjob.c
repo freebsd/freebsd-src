@@ -65,6 +65,7 @@ static const char rcsid[] =
 #include <string.h>
 #include "lp.h"
 #include "lp.local.h"
+#include "ctlinfo.h"
 #include "extern.h"
 #include "pathnames.h"
 
@@ -145,6 +146,7 @@ readjob(struct printer *pp)
 	register int size;
 	register char *cp;
 	int cfcnt, dfcnt;
+	char *errmsg;
 	char givenid[32], givenhost[MAXHOSTNAMELEN];
 
 	ack();
@@ -206,11 +208,12 @@ readjob(struct printer *pp)
 				rcleanup(0);
 				continue;
 			}
-			if (link(tfname, cp) < 0)
-				frecverr("%s: link(%s): %s", pp->printer,
-				    tfname, strerror(errno));
-			(void) unlink(tfname);
+			errmsg = ctl_renametf(pp->printer, tfname);
 			tfname[0] = '\0';
+			if (errmsg != NULL) {
+				frecverr("%s: %s", pp->printer, errmsg);
+				/*NOTREACHED*/
+			}
 			cfcnt++;
 			continue;
 
