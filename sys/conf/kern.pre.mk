@@ -60,12 +60,7 @@ PROF=	-pg
 .endif
 .endif
 DEFINED_PROF=	${PROF}
-
-.if defined(NO_WERROR)
-WERROR=
-.else
 WERROR?=	-Werror
-.endif
 
 # Put configuration-specific C flags last (except for ${PROF}) so that they
 # can override the others.
