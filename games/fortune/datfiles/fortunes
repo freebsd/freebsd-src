@@ -12186,6 +12186,19 @@ of "Camptown Races".  Nobody has to stand up for it, nobody has to
 listen to it, and, even better, nobody has to play it.
 		-- Mike Harding, "The Armchair Anarchist's Almanac"
 %
+The answer is that libdialog, the library on which sysinstall depends
+for these menus, is genuinely evil.  It is the unloved, satanic
+bastard child of multiple parents and torturing users like yourself
+constitutes the only joy in life it has left.  Its source files are
+all chmod'd 0666 and dire README files warn against trespass by
+neophyte programmers.  It is the 7th gate of Hell.  It makes the baby
+Jesus cry.  Were libdialog given anthropomorphic representation, it
+would be promptly burnt at the stake and its ashes scattered in the
+desert, to be then doused with holy water from altitude by
+fire-fighting aircraft.
+
+		-- Jordan K. Hubbard on the evils of libdialog
+%
 The Arkansas legislature passed a law that states that the Arkansas
 River can rise no higher than to the Main Street bridge in Little
 Rock.
