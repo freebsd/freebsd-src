@@ -96,7 +96,7 @@ After transmitting a RIP
 and
 Router Discovery Advertisements or Solicitations on a new interface,
 the daemon enters a loop, listening for
-RIP request and response and Router Discover packets from other hosts.
+RIP request and response and Router Discovery packets from other hosts.
 .Pp
 When a
 .Em request
@@ -137,7 +137,7 @@ When an update is applied,
 .Nm
 records the change in its own tables and updates the kernel routing table
 if the best route to the destination changes.
-The change in the kernel routing tableis reflected in the next batch of
+The change in the kernel routing table is reflected in the next batch of
 .Em response
 packets sent.
 If the next response is not scheduled for a while, a
@@ -199,11 +199,11 @@ If all discovered routers disappear,
 the daemon resumes listening to RIP responses.
 .Pp
 While using Router Discovery (which happens by default when
-the system has a single network interface and a Router Discover Advertisement
+the system has a single network interface and a Router Discovery Advertisement
 is received), there is a single default route and a variable number of
 redirected host routes in the kernel table.
 .Pp
-The Router Discover standard requires that advertisements
+The Router Discovery standard requires that advertisements
 have a default "lifetime" of 30 minutes.  That means should
 something happen, a client can be without a good route for
 30 minutes.  It is a good idea to reduce the default to 45
@@ -219,14 +219,23 @@ While using Router Discovery (which happens by default when
 the system has a single network interface and a Router Discover Advertisement
 is received), there is a single default route and a variable number of
 redirected host routes in the kernel table.
+On a host with more than one network interface,
+this default route will be via only one of the interfaces.
+Thus, multi-homed hosts running with \f3\-q\f1 might need
+.Cm no_rdisc
+described below.
 .Pp
 See the
 .Cm pm_rdisc
 facility described below to support "legacy" systems
 that can handle neither RIPv2 nor Router Discovery.
 .Pp
-By default, neither Router Discovery advertisements nor solicications
+By default, neither Router Discovery advertisements nor solicitations
 are sent over point to point links (e.g. PPP).
+The netmask associated with point-to-point links (such as SLIP
+or PPP, with the IFF_POINTOPOINT flag) is used by
+.Nm routed
+to infer the netmask used by the remote system when RIPv1 is used.
 
 .Pp
 Options supported by
@@ -243,6 +252,7 @@ ipforwarding=1.
 is the opposite of the
 .Fl s
 option.
+This is the default when only one interface is present.
 .It Fl d
 Do not run in the background.
 This option is meant for interactive use.
@@ -266,7 +276,7 @@ This is typically used on a gateway to the Internet,
 or on a gateway that uses another routing protocol whose routes
 are not reported to other local routers.
 Notice that because a metric of 1 is used, this feature is
-dangerous.  It is more commonly accidently used to create chaos with routing
+dangerous.  It is more commonly accidentally used to create chaos with routing
 loop than to solve problems.
 .It Fl h
 This causes host or point-to-point routes to not be advertised,
@@ -401,7 +411,7 @@ are also passive, but are not placed in the kernel
 routing table nor are they included in routing updates.
 The function of external entries is to indicate
 that another routing process
-will install such a route if ncessary,
+will install such a route if necessary,
 and that alternate routes to that destination should not be installed
 by
 .Nm routed .
@@ -504,21 +514,41 @@ specifies a RIPv2 password that will be included on all RIPv2
 responses sent and checked on all RIPv2 responses received.
 The password must not contain any blanks, tab characters, commas
 or '#' characters.
+.It Cm passwd Ns \&= Ns Ar XXX1[|KeyID[start|stop]][XXX2...]
+specifies one or more RIPv2 cleartext passwords that will be included on
+all RIPv2 responses sent, and checked on all RIPv2 responses received.
+Any blanks, tab characters, commas, or '#' or '|' characters in the
+password must be escaped with a backslash (\\).
+The
+.Cm KeyID
+must be unique but is ignored for cleartext passwords.
+If present,
+.Cm start
+and
+.Cm stop
+are timestamps in the form year/month/day@hour:minute.
+They specify when the password is valid.
+The first valid password is used on output packets.
+Incoming packets can carry any password that is valid, will
+be valid within 24 hours, or that was valid within 24 hours.
+.It Cm md5_passwd Ns \&= Ns Ar XXX1|KeyID[start|stop][XXX2...]
+specifes one or more RIPv2 MD5 passwords.
+Except that a
+.Cm KeyID
+is required, this keyword is the similar to
+.Cm passwd .
 .It Cm no_ag
 turns off aggregation of subnets in RIPv1 and RIPv2 responses.
 .It Cm no_super_ag
 turns off aggregation of networks into supernets in RIPv2 responses.
 .It Cm passive
-is equivalent
-.Cm no_rip Cm no_rdisc .
+marks the interface to not be advertised in updates sent via other
+interfaces, and turns off all RIP and router discovery through the interface.
 .It Cm no_rip
 disables all RIP processing on the specified interface.
 If no interfaces are allowed to process RIP packets,
 .Nm
 acts purely as a router discovery daemon.
-.Cm No_rip
-is equivalent to
-.Cm no_ripv1_in no_ripv2_in no_ripv1_out no_ripv2_out .
 
 Note that turning off RIP without explicitly turning on router
 discovery advertisements with
@@ -527,7 +557,7 @@ or
 .Fl s
 causes
 .Nm routed
-to act as a client router discovery daemon, not adveritising.
+to act as a client router discovery daemon, not advertising.
 .It Cm no_ripv1_in
 causes RIPv1 received responses to be ignored.
 .It Cm no_ripv2_in
@@ -535,10 +565,15 @@ causes RIPv2 received responses to be ignored.
 .It Cm ripv2_out
 turns off RIPv1 output and causes RIPv2 advertisements to be
 multicast when possible.
+.It Cm ripv2
+is equivalent to
+.Cm no_ripv1_in
+and
+.Cm no_ripv1_out .
 .It Cm no_rdisc
 disables the Internet Router Discovery Protocol.
 .It Cm no_solicit
-disables the tranmission of Router Discovery Solicitations.
+disables the transmission of Router Discovery Solicitations.
 .It Cm send_solicit
 specifies that Router Discovery solicitations should be sent,
 even on point-to-point links,
@@ -546,7 +581,7 @@ which by default only listen to Router Discovery messages.
 .It Cm no_rdisc_adv
 disables the transmission of Router Discovery Advertisements
 .It Cm rdisc_adv
-specifies that Router Discovery advertisements should be sent,
+specifies that Router Discovery Advertisements should be sent,
 even on point-to-point links,
 which by default only listen to Router Discovery messages
 .It Cm bcast_rdisc
@@ -560,7 +595,7 @@ sets the nominal interval with which Router Discovery Advertisements
 are transmitted to N seconds and their lifetime to 3*N.
 .It Cm fake_default Ns \&= Ns Ar metric
 has an identical effect to
-.Fl F Ar net[/mask][,metric]
+.Fl F Ar net[/mask][=metric]
 with the network and mask coming from the sepcified interface.
 .It Cm pm_rdisc
 is similar to
@@ -572,12 +607,12 @@ Unless modified with
 .Cm fake_default ,
 the default route is broadcast with a metric of 14.
 That serves as a "poor man's router discovery" protocol.
+.It Cm trust_gateway Ns \&= Ns Ar rname
+causes RIP packets from that router and other routers named in
+other
+.Cm trust_gateway
+keywords to be accept, and packets from other routers to be ignored.
 .El
-.Pp
-Note that the netmask associated with point-to-point links (such as SLIP
-or PPP, with the IFF_POINTOPOINT flag) is used by
-.Nm routed
-to infer the netmask used by the remote system when RIPv1 is used.
 .Pp
 .Sh FILES
 .Bl -tag -width /etc/gateways -compact
