@@ -128,9 +128,9 @@ void		OF_exit(void) __attribute__((noreturn));
 void		OF_chain(void *, u_int,
     void (*)(void *, u_int, void *, void *, u_int), void *, u_int);
 
-#if 0
 /* User interface functions */
-/* OF_interpret */
+int		OF_interpret(char *, int, ...);
+#if 0
 void 		*OF_set_callback(void *);
 void		OF_set_symbol_lookup(void *, void *);
 #endif
