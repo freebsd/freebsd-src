@@ -1,15 +1,9 @@
-<!--
-  $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/sparc64/install.sgml,v 1.1 2002/03/14 18:23:47 ue Exp $
-  basiert auf: 1.7
-  This file contains sparc64-specific installation instructions.
--->
 <sect1>
   <title>Installation von &os;</title>
 
   <para>Hier finden Sie Informationen, wie Sie die &arch; Version
     installieren und booten k&ouml;nnen.  Wenn Sie diese Version
-    benutzen, sollten Sie sich auf jeden Fall auf der &a.sparc;
+    benutzen, sollten Sie sich auf jeden Fall auf der Mailingliste &a.sparc;
     eintragen.</para>
 
   <warning>
@@ -71,7 +65,7 @@
       <important>
         <para>Die hier genannten URLs sind vorl&auml;ufig und
           k&ouml;nnen sich jederzeit &auml;ndern.  Sie sollten im
-          Zweifelsfall einen Blick in das Archiv der &a.sparc; werfen,
+          Zweifelsfall einen Blick in das Archiv der Mailingliste &a.sparc; werfen,
           um die derzeit aktuellen URLs zu erhalten.  Wenn sich die
           Situation stabilisiert hat, wird dieser Hinweis
           entfernt.</para>
@@ -617,3 +611,9 @@ drivedata: 0
       funktionieren.</para>
   </sect2>
 </sect1>
+<!--
+  $FreeBSD$
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/sparc64/install.sgml,v 1.2 2002/03/17 10:26:36 ue Exp $
+  basiert auf: 1.7
+  This file contains sparc64-specific installation instructions.
+-->
