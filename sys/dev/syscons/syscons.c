@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.55 1994/09/24 21:29:38 ache Exp $
+ *	$Id: syscons.c,v 1.56 1994/09/25 02:06:51 ache Exp $
  */
 
 #include "sc.h"
@@ -591,7 +591,25 @@ pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
         	if (!crtc_vga)
         		return ENXIO;
-		scp->mode = cmd & 0xFF;
+		cmd &= 0xFF;
+		i = cmd < M_VGA_C80x50 ?
+		    *(video_mode_ptr + (cmd*64) + 2) : 0x08;
+		switch (i) {
+		default:
+		case 0x08:
+			if (!(fonts_loaded & FONT_8_LOADED))
+				return EINVAL;
+			break;
+		case 0x0E:
+			if (!(fonts_loaded & FONT_14_LOADED))
+				return EINVAL;
+			break;
+		case 0x10:
+			if (!(fonts_loaded & FONT_16_LOADED))
+				return EINVAL;
+			break;
+		}
+		scp->mode = cmd;
             	scp->status &= ~UNKNOWN_MODE;	/* text mode */
 		if (scp->mode < M_VGA_C80x50) {
             		scp->xsize = *(video_mode_ptr + (scp->mode*64));
