@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.201 1999/05/12 06:58:18 jkh Exp $
+ * $Id: menus.c,v 1.202 1999/05/12 22:06:00 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -998,6 +998,8 @@ DMenu MenuXF86SelectServer = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_VGA16 },
       { "Mono",		"Standard Monochrome card",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_MONO },
+      { "3DL",		"8, 16 and 24 bit color 3D Labs boards",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_3DL },
       { "8514",		"8-bit (256 color) IBM 8514 or compatible card",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_8514 },
       { "AGX",		"8-bit AGX card",
@@ -1018,8 +1020,6 @@ DMenu MenuXF86SelectServer = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_S3V },
       { "W32",		"8-bit ET4000/W32, /W32i and /W32p cards",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_W32 },
-      { "nest",		"A nested server for testing purposes",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_NEST },
       { "PC98",		"Select an X server for a NEC PC98 [Submenu]",
 	NULL,		dmenuSubmenu,  NULL, &MenuXF86SelectPC98Server, '>', ' ', '>', 0 },
       { "All",		"Select all of the above",
