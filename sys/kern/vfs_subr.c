@@ -234,7 +234,26 @@ int (*softdep_process_worklist_hook)(struct mount *);
 int vfs_badlock_print = 1;
 /* Panic on violation */
 int vfs_badlock_panic = 1;
-#endif
+
+void
+vop_rename_pre(void *ap)
+{
+	struct vop_rename_args *a = ap;
+
+	/* Check the source (from) */
+	if (a->a_tdvp != a->a_fdvp)
+		ASSERT_VOP_UNLOCKED(a->a_fdvp, "vop_rename: fdvp locked.\n");
+	if (a->a_tvp != a->a_fvp)
+		ASSERT_VOP_UNLOCKED(a->a_fvp, "vop_rename: tvp locked.\n");
+
+	/* Check the target */
+	if (a->a_tvp)
+		ASSERT_VOP_LOCKED(a->a_tvp, "vop_rename: tvp not locked.\n");
+
+	ASSERT_VOP_LOCKED(a->a_tdvp, "vop_rename: tdvp not locked.\n");
+}
+
+#endif	/* DEBUG_VFS_LOCKS */
 
 void
 v_addpollinfo(struct vnode *vp)
