@@ -207,9 +207,7 @@ sub spawn($@) {
 sub make($) {
     my $target = shift;
 
-    return spawn('/usr/bin/make',
-	($jobs > 1) ? "-j$jobs" : "-B",
-	$target);
+    return spawn('/usr/bin/make', "-Pj$jobs", $target);
 }
 
 sub logstage($) {
@@ -284,7 +282,7 @@ MAIN:{
     $machine = `/usr/bin/uname -m`;
     chomp($machine);
     $branch = "CURRENT";
-    $jobs = 0;
+    $jobs = 1;
     $repository = "/home/ncvs";
     $sandbox = "/tmp/tinderbox";
 
@@ -304,7 +302,7 @@ MAIN:{
 	"v|verbose+"		=> \$verbose,
 	) or usage();
 
-    if ($jobs < 0) {
+    if ($jobs < 1) {
 	error("invalid number of jobs");
     }
     if ($branch !~ m|^(\w+)$|) {
@@ -466,8 +464,7 @@ MAIN:{
 	    if $branch ne 'CURRENT';
 	$ENV{'CVSCMDARGS'} = "-D$date"
 	    if defined($date);
-	$ENV{'WORLD_FLAGS'} = $ENV{'KERNEL_FLAGS'} =
-	    ($jobs > 1) ? "-j$jobs" : "-B";
+	$ENV{'WORLD_FLAGS'} = $ENV{'KERNEL_FLAGS'} = "-Pj$jobs";
 	if ($patch) {
 	    $ENV{'LOCAL_PATCHES'} = $patch;
 	    $ENV{'PATCH_FLAGS'} = "-fs";
