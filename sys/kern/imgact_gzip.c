@@ -7,7 +7,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: imgact_gzip.c,v 1.3 1994/10/04 03:09:13 phk Exp $
+ * $Id: imgact_gzip.c,v 1.4 1994/10/04 06:51:42 phk Exp $
  *
  * This module handles execution of a.out files which have been run through
  * "gzip -9".
@@ -91,10 +91,10 @@ exec_gzip_imgact(iparams)
 		return ENOMEM;
 	bzero(gz,sizeof *gz); /* waste of time ? */
 
-	gz->gz_slide = malloc(WSIZE,M_TEMP,M_NOWAIT);
-	if (!gz->gz_slide) {
+	error = vm_allocate(kernel_map, &gz->gz_slide, WSIZE, TRUE);
+	if (error) {
 		free(gz,M_GZIP);
-		return ENOMEM;
+		return error;
 	}
 
 	gz->ip = iparams;
@@ -142,7 +142,7 @@ exec_gzip_imgact(iparams)
 
     done:
 	error = gz->error;
-	free(gz->gz_slide,M_TEMP);
+	vm_deallocate(kernel_map, gz->gz_slide, WSIZE);
 	free(gz,M_GZIP);
 	return error;
 }
