@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.45 1995/05/30 08:01:05 rgrimes Exp $
+ *      $Id: aha1542.c,v 1.46 1995/08/23 23:02:22 gibbs Exp $
  */
 
 /*
@@ -320,7 +320,7 @@ struct aha_ccb *aha_get_ccb();
 int     ahaprobe();
 void	aha_done();
 int     ahaattach();
-int     ahaintr();
+inthand2_t ahaintr;
 int32   aha_scsi_cmd();
 timeout_t aha_timeout;
 void    ahaminphys();
@@ -666,7 +666,7 @@ aha_adapter_info(unit)
 /*
  * Catch an interrupt from the adaptor
  */
-int
+void
 ahaintr(unit)
 	int unit;
 {
@@ -684,7 +684,7 @@ ahaintr(unit)
 	stat = inb(AHA_INTR_PORT);
 	outb(AHA_CTRL_STAT_PORT, AHA_IRST);
 	if (!(stat & AHA_MBIF))
-		return 1;
+		return;
 #ifdef	AHADEBUG
 	printf("mbxin ");
 #endif /*AHADEBUG */
@@ -773,7 +773,6 @@ ahaintr(unit)
 			mbi->stat = AHA_MBI_FREE;
 		}
 	}
-	return 1;
 }
 
 /*

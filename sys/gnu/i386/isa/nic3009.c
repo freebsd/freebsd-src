@@ -1,6 +1,6 @@
-static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.6 1995/05/11 19:25:56 rgrimes Exp $";
+static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.7 1995/09/08 11:06:47 bde Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.6 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.7 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,10 @@ static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.6 1995/05/11 19:25:56 rgrim
  *
  *******************************************************************************
  * $Log: nic3009.c,v $
+ * Revision 1.7  1995/09/08  11:06:47  bde
+ * Fix benign type mismatches in devsw functions.  82 out of 299 devsw
+ * functions were wrong.
+ *
  * Revision 1.6  1995/05/11  19:25:56  rgrimes
  * Fix -Wformat warnings from LINT kernel.
  *
@@ -1234,7 +1238,7 @@ nnnicintr(void *gen)
 		dn_intr(unit,sc);
 }
 void
-nnicintr(unsigned unit)
+nnicintr(int unit)
 {
         timeout(nnnicintr, (void *)unit,1);
 }

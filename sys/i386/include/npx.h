@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.h	5.3 (Berkeley) 1/18/91
- *	$Id: npx.h,v 1.7 1995/01/03 03:57:46 bde Exp $
+ *	$Id: npx.h,v 1.8 1995/08/17 11:30:02 davidg Exp $
  */
 
 /*
@@ -143,7 +143,7 @@ struct proc;
 int	npxdna __P((void));
 void	npxexit __P((struct proc *p));
 void	npxinit __P((int control));
-void	npxintr __P((struct intrframe frame));
+void	npxintr __P((int unit));
 void	npxsave __P((struct save87 *addr));
 #endif
 
