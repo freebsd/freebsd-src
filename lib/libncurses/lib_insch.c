@@ -26,7 +26,7 @@ chtype	*end;
 	while (temp1 > end)
 	    *temp1-- = *temp2--;
 
-	*temp1 = c | win->_attrs;
+	*temp1 = _nc_render(win, c);
 
 	win->_lastchar[win->_cury] = win->_maxx;
 	if (win->_firstchar[win->_cury] == _NOCHANGE

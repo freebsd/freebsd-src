@@ -144,7 +144,7 @@ WINDOW	*win;
 
 	win->_flags      = 0;
 	win->_attrs      = A_NORMAL;
-	win->_bkgd       = ' ';
+	win->_bkgd       = BLANK;
 
 	win->_clear      = (num_lines == lines  &&  num_columns == columns);
 	win->_idlok      = FALSE;
