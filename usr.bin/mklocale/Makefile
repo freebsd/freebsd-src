@@ -11,8 +11,8 @@ LOCALEDIR=	${DESTDIR}/usr/share/locale
 afterinstall:
 	for locale in ${LOCALES}; do \
 		mklocale -o ${LOCALEDIR}/$$locale/LC_CTYPE ${.CURDIR}/data/$$locale; \
-		chown ${BINOWN}.${BINGRP} ${LOCALEDIR}/$$locale; \
-		chmod ${BINMODE} ${LOCALEDIR}/$$locale; \
+		chown ${BINOWN}.${BINGRP} ${LOCALEDIR}/$$locale/LC_CTYPE; \
+		chmod 644 ${LOCALEDIR}/$$locale/LC_CTYPE; \
 	done
 
 .include <bsd.prog.mk>
