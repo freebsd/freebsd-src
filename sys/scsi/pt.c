@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pt.c,v 1.10 1995/12/08 23:22:23 phk Exp $
+ *      $Id: pt.c,v 1.11 1995/12/14 09:54:24 phk Exp $
  */
 
 /*
@@ -58,14 +58,9 @@
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
 
-
 struct scsi_data {
 	struct buf_queue_head buf_queue;
 };
-
-static void ptstart(u_int32 unit, u_int32 flags);
-static void pt_strategy(struct buf *bp, struct scsi_link *sc_link);
-static int	pt_sense(struct scsi_xfer *scsi_xfer);
 
 static	d_open_t	ptopen;
 static	d_close_t	ptclose;
@@ -80,6 +75,9 @@ static struct cdevsw pt_cdevsw =
 
 SCSI_DEVICE_ENTRIES(pt)
 
+static void	ptstart(u_int32 unit, u_int32 flags);
+static void	pt_strategy(struct buf *bp, struct scsi_link *sc_link);
+static int	pt_sense(struct scsi_xfer *scsi_xfer);
 
 static struct scsi_device pt_switch =
 {
@@ -103,6 +101,7 @@ static struct scsi_device pt_switch =
 	0,
 	pt_strategy,
 };
+
 /*
  * ptstart looks to see if there is a buf waiting for the device
  * and that the device is not already busy. If both are true,
