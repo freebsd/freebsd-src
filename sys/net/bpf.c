@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.34 1997/09/16 11:43:42 bde Exp $
+ * $Id: bpf.c,v 1.35 1997/10/03 21:32:05 julian Exp $
  */
 
 #include "bpfilter.h"
@@ -55,7 +55,6 @@
 #include <sys/conf.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/buf.h>
 #include <sys/time.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
@@ -63,28 +62,22 @@
 #include <sys/sockio.h>
 #include <sys/ttycom.h>
 
-#include <sys/fcntl.h>
 #if defined(sparc) && BSD < 199103
 #include <sys/stream.h>
 #endif
-#include <sys/uio.h>
 #include <sys/poll.h>
 
 #include <sys/socket.h>
-#include <sys/socketvar.h>
-#include <sys/protosw.h>
-#include <net/if.h>
+#include <sys/vnode.h>
 
+#include <net/if.h>
 #include <net/bpf.h>
 #include <net/bpfdesc.h>
-
-#include <sys/errno.h>
 
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
-#include <sys/conf.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
@@ -465,11 +458,11 @@ bpfread(dev, uio, ioflag)
 			ROTATE_BUFFERS(d);
 			break;
 		}
-		if (d->bd_rtout != -1)
+		if (ioflag & IO_NDELAY)
+			error = EWOULDBLOCK;
+		else
 			error = BPF_SLEEP((caddr_t)d, PRINET|PCATCH, "bpf",
 					  d->bd_rtout);
-		else
-			error = EWOULDBLOCK; /* User requested non-blocking I/O */
 		if (error == EINTR || error == ERESTART) {
 			splx(s);
 			return (error);
@@ -822,12 +815,7 @@ bpfioctl(dev, cmd, addr, flags, p)
 			break;
 		}
 
-
 	case FIONBIO:		/* Non-blocking I/O */
-		if (*(int *)addr)
-			d->bd_rtout = -1;
-		else
-			d->bd_rtout = 0;
 		break;
 
 	case FIOASYNC:		/* Send signal on receive packets */
