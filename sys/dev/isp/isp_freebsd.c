@@ -2532,8 +2532,6 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 	case XPT_CALC_GEOMETRY:
 	{
 		struct ccb_calc_geometry *ccg;
-		u_int32_t secs_per_cylinder;
-		u_int32_t size_mb;
 
 		ccg = &ccb->ccg;
 		if (ccg->block_size == 0) {
@@ -2544,17 +2542,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			xpt_done(ccb);
 			break;
 		}
-		size_mb = ccg->volume_size /((1024L * 1024L) / ccg->block_size);
-		if (size_mb > 1024) {
-			ccg->heads = 255;
-			ccg->secs_per_track = 63;
-		} else {
-			ccg->heads = 64;
-			ccg->secs_per_track = 32;
-		}
-		secs_per_cylinder = ccg->heads * ccg->secs_per_track;
-		ccg->cylinders = ccg->volume_size / secs_per_cylinder;
-		ccb->ccb_h.status = CAM_REQ_CMP;
+		cam_calc_geometry(ccg, /*extended*/1);
 		xpt_done(ccb);
 		break;
 	}

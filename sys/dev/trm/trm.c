@@ -984,29 +984,10 @@ trm_action(struct cam_sim *psim, union ccb *pccb)
 		 * Calculate the geometry parameters for a device give
 		 * the sector size and volume size. 
    		 */
-		case XPT_CALC_GEOMETRY:	{
-			struct		ccb_calc_geometry *ccg;
-			u_int32_t	size_mb;
-			u_int32_t	secs_per_cylinder;
-			int		extended;
-
+		case XPT_CALC_GEOMETRY:
 			TRM_DPRINTF(" XPT_CALC_GEOMETRY \n");
-			ccg = &pccb->ccg;
-			size_mb = ccg->volume_size / 
-			    ((1024L * 1024L) / ccg->block_size);
-			extended =  1;		
-			if (size_mb > 1024 && extended) {
-				ccg->heads = 255;
-				ccg->secs_per_track = 63;
-			} else {
-				ccg->heads = 64;
-				ccg->secs_per_track = 32;
-			}
-			secs_per_cylinder = ccg->heads * ccg->secs_per_track;
-			ccg->cylinders = ccg->volume_size / secs_per_cylinder;
-			pccb->ccb_h.status = CAM_REQ_CMP;
+			cam_calc_geometry(&pccb->ccg, /*extended*/1);
 			xpt_done(pccb);
-					}
 			break;
 		case XPT_ENG_INQ:           
 			TRM_DPRINTF(" XPT_ENG_INQ \n");
