@@ -26,6 +26,7 @@ SUBDIR=	adjkerntz \
 	init \
 	ip6fw \
 	ipf \
+	ipfs \
 	ipfstat \
 	ipfw \
 	ipmon \
