@@ -443,9 +443,6 @@ gv_drive_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	g_trace(G_T_TOPOLOGY, "gv_drive_taste(%s, %s)", mp->name, pp->name);
 	g_topology_assert();
 
-	if (pp->sectorsize == 0)
-		return(NULL);
-
 	/* Find the VINUM class and its associated geom. */
 	gp2 = find_vinum_geom();
 	if (gp2 == NULL)
