@@ -1113,7 +1113,7 @@ iris-ansi|iris-ansi-net|IRIS emulating ANSI terminal:\
 #
 # D menu: 0110 1001   1   0
 #	LF is newline/LF is down one line, same column*
-#	wrap to preceeding line if move left from col 1*/don't wrap
+#	wrap to preceding line if move left from col 1*/don't wrap
 #	wrap to next line if move right from col 80*/don't wrap
 #	backspace is/is not destructive*
 #
@@ -2207,17 +2207,20 @@ c100-rv-s|concept-rv-s|concept100-rv-s|c100rvs|slow reverse concept 100:\
 # for syscons
 # common entry without semigraphics
 cons25w|ansiw|ansi80x25-raw:\
-	:al=\E[L:am:bs:NP:cd=\E[J:ce=\E[K:cl=\E[H\E[J:cm=\E[%i%d;%dH:co#80:\
-	:dc=\E[P:dl=\E[M:do=\E[B:bt=\E[Z:ho=\E[H:ic=\E[@:li#25:cb=\E[1K:\
-	:ms:nd=\E[C:pt:rs=\Ec:so=\E[7m:se=\E[27m:up=\E[A:\
-	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m:AX:sc=\E7:rc=\E8:\
+	:am:bs:NP:ms:pt:AX:eo:bw:ut:km:\
+	:co#80:li#25:pa#64:Co#8:it#8:\
+	:al=\E[L:cd=\E[J:ce=\E[K:cl=\E[H\E[J:cm=\E[%i%d;%dH:\
+	:dc=\E[P:dl=\E[M:do=\E[B:bt=\E[Z:ho=\E[H:ic=\E[@:cb=\E[1K:\
+	:nd=\E[C:rs=\Ec:so=\E[7m:se=\E[27m:up=\E[A:cr=^M:ta=^I:\
+	:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m:sc=\E7:rc=\E8:\
 	:k1=\E[M:k2=\E[N:k3=\E[O:k4=\E[P:k5=\E[Q:k6=\E[R:k7=\E[S:k8=\E[T:\
 	:k9=\E[U:k;=\E[V:F1=\E[W:F2=\E[X:K2=\E[E:nw=\E[E:ec=\E[%dX:\
-	:kb=^H:kh=\E[H:ku=\E[A:kd=\E[B:kl=\E[D:kr=\E[C:le=^H:eo:sf=\E[S:sr=\E[T:\
+	:kb=^H:kh=\E[H:ku=\E[A:kd=\E[B:kl=\E[D:kr=\E[C:le=^H:sf=\E[S:sr=\E[T:\
 	:kN=\E[G:kP=\E[I:@7=\E[F:kI=\E[L:kD=\177:kB=\E[Z:\
 	:IC=\E[%d@:DC=\E[%dP:SF=\E[%dS:SR=\E[%dT:AL=\E[%dL:DL=\E[%dM:\
-	:DO=\E[%dB:LE=\E[%dD:RI=\E[%dC:UP=\E[%dA:cv=\E[%i%dd:ch=\E[%i%d`:bw:\
-	:mb=\E[5m:md=\E[1m:mr=\E[7m:me=\E[m:bl=^G:ut:it#8:km:
+	:DO=\E[%dB:LE=\E[%dD:RI=\E[%dC:UP=\E[%dA:cv=\E[%i%dd:ch=\E[%i%d`:\
+	:mb=\E[5m:md=\E[1m:mr=\E[7m:me=\E[m:bl=^G:
+# CP437 FreeBSD console with ACS support
 cons25|ansis|ansi80x25:\
 	:ac=l\332m\300k\277j\331u\264t\303v\301w\302q\304x\263n\305`^Da\260f\370g\361~\371.^Y-^Xh\261i^U0\333y\363z\362:\
 	:tc=cons25w:
@@ -2239,31 +2242,31 @@ cons60|ansi80x60:\
 	:li#60:tc=cons25:
 cons60-m|ansi80x60-mono:\
 	:li#60:tc=cons25-m:
-# KOI8-R FreeBSD console with ACS support
-cons25r|pc3r|ibmpc3r|cons25-koi8-r:\
-	:ac=q\200x\201m\204v\211j\205t\206n\212u\207l\202w\210k\203y\230z\231f\234~\225a\220h\221`^D.^Y-^Xi^U0\215:\
+# KOI8-R/KOI8-U FreeBSD console with ACS support
+cons25r|cons25u|pc3r|ibmpc3r|cons25-koi8:\
+	:ac=q\200x\201m\204v\211j\205t\206n\212u\207l\202w\210k\203y\230z\231f\234~\225a\220h\2210\215:\
 	:tc=cons25w:
-cons25r-m|pc3r-m|ibmpc3r-mono|cons25-koi8-r-mono:\
+cons25r-m|cons25u-m|pc3r-m|ibmpc3r-mono|cons25-koi8-mono:\
 	:pa@:Co@:AF@:AB@:AX@:op@:us=\E[4m:ue=\E[24m:tc=cons25r:
-cons30r|cons30-koi8-r:\
+cons30r|cons30u|cons30-koi8:\
 	:li#30:tc=cons25r:
-cons30r-m|cons30-koi8-r-mono:\
+cons30r-m|cons30u-m|cons30-koi8-mono:\
 	:li#30:tc=cons25r-m:
-cons43r|cons43-koi8-r:\
+cons43r|cons43u|cons43-koi8:\
 	:li#43:tc=cons25r:
-cons43r-m|cons43-koi8-r-mono:\
+cons43r-m|cons43u-m|cons43-koi8-mono:\
 	:li#43:tc=cons25r-m:
-cons50r|cons50-koi8-r:\
+cons50r|cons50u|cons50-koi8:\
 	:li#50:tc=cons25r:
-cons50r-m|cons50-koi8-r-mono:\
+cons50r-m|cons50u-m|cons50-koi8-mono:\
 	:li#50:tc=cons25r-m:
-cons60r|cons60-koi8-r:\
+cons60r|cons60u|cons60-koi8:\
 	:li#60:tc=cons25r:
-cons60r-m|cons60-koi8-r-mono:\
+cons60r-m|cons60u-m|cons60-koi8-mono:\
 	:li#60:tc=cons25r-m:
 # ISO 8859-2 FreeBSD console with ACS support
 cons25l2|cons25-iso8859-2:\
-	:ac=l\215m\216k\214j\213u\226t\225v\227w\230q\222x\231n\217o\220s\224p\221r\223`\201a\202f\207g\210~\237,\206.\204-\203h\212+\205i\2110\200y\232z\233{\234|\235}\236:\
+	:ac=f\260i\247:\
 	:tc=cons25w:
 cons25l2-m|cons25-iso8859-2-mono:\
 	:pa@:Co@:AF@:AB@:AX@:op@:us=\E[4m:ue=\E[24m:tc=cons25l2:
@@ -2285,7 +2288,7 @@ cons60l2-m|cons60-iso8859-2-mono:\
 	:li#60:tc=cons25l2-m:
 # ISO 8859-1 FreeBSD console with ACS support
 cons25l1|cons25-iso8859-1:\
-	:ac=l\215m\216k\214j\213u\226t\225v\227w\230q\222x\231n\217o\220s\224p\221r\223`\201a\202f\207g\210~\237.^Y-^X+\253,\273i\247y\232z\233:\
+	:ac=f\260g\261}\243+\253,\273i\247:\
 	:tc=cons25w:
 cons25l1-m|cons25-iso8859-1-mono:\
 	:pa@:Co@:AF@:AB@:AX@:op@:us=\E[4m:ue=\E[24m:tc=cons25l1:
@@ -2305,6 +2308,28 @@ cons60l1|cons60-iso8859-1:\
 	:li#60:tc=cons25l1:
 cons60l1-m|cons60-iso8859-1-mono:\
 	:li#60:tc=cons25l1-m:
+# ISO 8859-7 FreeBSD console with ACS support
+cons25l7:cons25-iso8859-7:\
+	:ac=f\260g\261{\360}\243+\253,\273i\247:\
+	:tc=cons25w:
+cons25l7-m|cons25-iso8859-7-mono:\
+	:pa@:Co@:AF@:AB@:AX@:op@:us=\E[4m:ue=\E[24m:tc=cons25l7:
+cons30l7|cons30-iso8859-7:\
+	:li#30:tc=cons25l7:
+cons30l7-m|cons30-iso8859-7-mono:\
+	:li#30:tc=cons25l7-m:
+cons43l7|cons43-iso8859-7:\
+	:li#43:tc=cons25l7:
+cons43l7-m|cons43-iso8859-7-mono:\
+	:li#43:tc=cons25l7-m:
+cons50l7|cons50-iso8859-7:\
+	:li#50:tc=cons25l7:
+cons50l7-m|cons50-iso8859-7-mono:\
+	:li#50:tc=cons25l7-m:
+cons60l7|cons60-iso8859-7:\
+	:li#60:tc=cons25l7:
+cons60l7-m|cons60-iso8859-7-mono:\
+	:li#60:tc=cons25l7-m:
 #
 dosansi|ANSI.SYS standard crt:\
 	:am:bs:ce=\E[K:cl=\E[2J:cm=\E[%i%d;%dH:co#80:\
@@ -2355,22 +2380,23 @@ vt100|dec-vt100|vt100-am|vt100am|dec vt100:\
 	:md=2\E[1m:mr=2\E[7m:mb=2\E[5m:me=2\E[m:\
 	:is=\E>\E[?1;3;4;5l\E[?7;8h\E[1;24r\E[24;1H:\
 	:if=/usr/share/tabset/vt100:nw=2\EE:ho=\E[H:\
-	:as=2\E(0:ae=2\E(B:ac=llmmkkjjuuttvvwwqqxxnnpprr``aa:\
+	:as=2\E(0:ae=2\E(B:\
+	:ac=``aaffggjjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||:\
 	:rs=\E>\E[?1;3;4;5l\E[?7;8h:ks=\E[?1h\E=:ke=\E[?1l\E>:\
 	:ku=\EOA:kd=\EOB:kr=\EOC:kl=\EOD:kb=\177:\
 	:k0=\EOy:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:k5=\EOt:\
 	:k6=\EOu:k7=\EOv:k8=\EOl:k9=\EOw:k;=\EOx:@8=\EOM:\
-	:K1=\EOq:K2=\EOr:K3=\EOs:K4=\EOp:K5=\EOn:pt:sr=2*\EM:vt#3:xn:\
+	:K1=\EOq:K2=\EOr:K3=\EOs:K4=\EOp:K5=\EOn:pt:sr=2*\EM:xn:\
 	:sc=2\E7:rc=2\E8:cs=5\E[%i%d;%dr:UP=2\E[%dA:DO=2\E[%dB:RI=2\E[%dC:\
-	:LE=2\E[%dD:ct=2\E[3g:st=2\EH:ta=^I:ms:bl=^G:cr=^M:eo:it#8:ut:\
+	:LE=2\E[%dD:ct=2\E[3g:st=2\EH:ta=^I:ms:bl=^G:cr=^M:eo:it#8:\
 	:RA=\E[?7l:SA=\E[?7h:
 vt100-nam|dec-vt100-nam|vt100nam|vt100 w/no am:\
 	:am@:xn@:\
 	:is=\E>\E[?1;3;4;5;7l\E[?8h\E[1;24r\E[24;1H:\
 	:rs=\E>\E[?1;3;4;5;7l\E[?8h:\
 	:tc=vt100-am:
-vt100-np|dec-vt100-np|vt100 with no padding (for psl games):\
-	:do=\E[B:cl=\E[H\E[J:sf=\ED:as=\E(0:ae=\E(B:\
+vt100-np|dec-vt100-np|vt100 with no padding:\
+	:NP:do=\E[B:cl=\E[H\E[J:sf=\ED:as=\E(0:ae=\E(B:\
 	:cm=\E[%i%d;%dH:nd=\E[C:up=\E[A:nw=\EE:\
 	:ce=\E[K:cd=\E[J:so=\E[7m:se=\E[m:us=\E[4m:ue=\E[m:\
 	:md=\E[1m:mr=\E[7m:mb=\E[5m:me=\E[m:sr=\EM:\
@@ -2492,12 +2518,14 @@ pro350|decpro|dec pro console:\
 	:se=\E^N:so=\E^H:us=\E^D:ue=\E^C:\
 	:ae=\EG:as=\EF:
 #
-vt200|vt220|vt220am|vt200am|dec-vt220|dec-vt200|dec vt200 series with jump scroll:\
+vt200|vt220|vt220am|vt200am|dec-vt220|dec-vt200|dec vt2X0 series with jump scroll:\
 	:@7=\E[4~:kD=\E[3~:kI=\E[2~:kN=\E[6~:kP=\E[5~:kh=\E[1~:\
 	:k6=\E[17~:k7=\E[18~:k8=\E[19~:k9=\E[20~:k;=\E[21~:\
 	:k1=\E[11~:k2=\E[12~:k3=\E[13~:k4=\E[14~:k5=\E[15~:\
-	:ve=\E[?25h:vi=\E[?25l:k0@:im@:ei@:\
-	:F1=\E[23~:F2=\E[24~:ic=\E[@:IC=\E[%d@:ec=\E[%dX:tc=vt102:
+	:ve=\E[?25h:vi=\E[?25l:k0@:\
+	:F1=\E[23~:F2=\E[24~:ic=\E[@:IC=\E[%d@:ec=\E[%dX:\
+	:al=\E[L:dl=\E[M:dc=\E[P:\
+	:AL=\E[%dL:DL=\E[%dM:DC=\E[%dP:tc=vt100-np:
 vt220-pf|vt200-pf|dec-vt220-pf|dec-vt200-pf|dec vt200 with PF1-PF4:\
 	:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:\
 	:tc=vt220:
@@ -2592,7 +2620,7 @@ vt420-36w|DEC vt420 7 bit controls 132x36 autowrap:\
 # assigned to an unknown key, Set-Up may be entered by pressing
 # [F3] as the first key after power up, regardless of keyboard type.
 #
-d6|vt520|DEC VT520 :\
+vt520|DEC VT520 :\
 	:am:mi:xn:xo:bs:pt:\
 	:co#80:li#24:kn#3:\
 	:ae=4\E(B:al=\E[L:as=2\E(0:cd=50\E[J:ce=3\E[K:\
@@ -2612,11 +2640,30 @@ d6|vt520|DEC VT520 :\
         :se=\E[m:so=\E[7m:\
 	:sr=\EM:ue=\E[m:up=\E[A:us=\E[4m:nl=\E[B:ko=do,nd,up:
 #
-df|vt520nam|vt520-nam|v520n|DEC VT520 with no automargins:\
+vt520nam|vt520-nam|v520n|DEC VT520 with no automargins:\
 	:am@:tc=vt520:
 
 #
-# SC,SW names needed for screen(1)        ache
+# For ANSI color-enabled terminal emulators
+#
+vt100-color|vt100-co|vt100 emulator with ANSI colors:\
+	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m\E[m:tc=vt100:
+vt102-color|vt102-co|vt102 emulator with ANSI colors:\
+	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m\E[m:tc=vt102:
+vt220-color|vt220-co|vt220 emulator with ANSI colors:\
+	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m\E[m:tc=vt220:
+# Attempt to save some of 1024 buf space truncating description
+# and names list
+vt320-co|vt320 color:\
+	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m\E[m:tc=vt320:
+vt320-color|vt320 co:\
+	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m\E[m:tc=vt320:
+vt340-co|vt340 color:\
+	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m\E[m:tc=vt340:
+vt340-color|vt340 co:\
+	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m\E[m:tc=vt340:
+#
+# SC,SW names needed for screen(1)
 SC|screen|VT 100/ANSI X3.64 virtual terminal:\
 	:am:xn:ms:mi:G0:km:\
 	:DO=\E[%dB:LE=\E[%dD:RI=\E[%dC:UP=\E[%dA:bs:bt=\E[Z:\
@@ -2696,7 +2743,7 @@ xterm-xf86-v32|xterm terminal emulator (X Window System):\
 	:u6=\E[%i%d;%dR:u7=\E[6n:u8=\E[?1;2c:u9=\E[c:
 # @(#)termcap	X10/6.6	11/7/86, minus alternate screen, plus :cs
 xterm|vs100|xterm terminal emulator (X window system):\
-	:li#65:\
+	:li#24:\
 	:kh=\EOH:@7=\EOF:kb=^H:kD=^?:\
 	:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:km:\
 	:is=\E>\E[?1;3;4;5l\E[?7;8h\E[1;65r\E[65;1H:\
@@ -4250,6 +4297,17 @@ linux-m|Linux Console no color:\
 	:tc=linux:
 cygwin:\
 	:xn@:op=\E[39;49m:Km=\E[M:tc=linux:
+# Multilingual Sysinstall (kon2 console)
+# HOSOKAWA, Tatsumi (hosokawa@FreeBSD.org)
+kons25jx|kon3jx|jkons3jx|kons24-jis1983-j:\
+	:ac=q\207x\214m\205v\212j\202t\210n\206u\211l\204w\213k\203y\053z\053f\336~\245a\043h\043`^D.v-\136I^U0\215:\
+	:ve=\E[25h:vi=\E[25l:\
+	:k1=\E[M:k2=\E[N:k3=\E[O:k4=\E[P:k5=\E[Q:k6=\E[R:k7=\E[S:k8=\E[T:\
+	:k9=\E[U:k;=\E[V:F1=\E[W:F2=\E[X:K2=\E[E:\
+	:kN=\E[G:kP=\E[I:\
+	:tc=linux:
+kons25jx-m|kon3jx-m|jkons3jx-mono|kons24-jis1983-j-mono:\
+	:pa@:Co@:Sf@:Sb@:op@:us=\E[4m:ue=\E[m:md@:mh@:tc=kons25jx:
 
 # Termcap for Top Gun Telnet and SSH on the Palm Pilot.
 # http://www.isaac.cs.berkeley.edu/pilot/tgtelnet.html
