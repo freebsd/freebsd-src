@@ -132,6 +132,7 @@
 #define VAR_NETINTERACTIVE		"netInteractive"
 #define VAR_NETMASK			"netmask"
 #define VAR_NETWORK_DEVICE		"netDev"
+#define VAR_NEWFS_ARGS			"newfsArgs"
 #define VAR_NFS_PATH			"nfs"
 #define VAR_NFS_HOST			"nfsHost"
 #define VAR_NFS_SECURE			"nfs_reserved_port_only"
@@ -473,6 +474,7 @@ extern int	dispatch_load_file(dialogMenuItem *self);
 extern int	distReset(dialogMenuItem *self);
 extern int	distConfig(dialogMenuItem *self);
 extern int	distSetCustom(dialogMenuItem *self);
+extern int	distUnsetCustom(dialogMenuItem *self);
 extern int	distSetDeveloper(dialogMenuItem *self);
 extern int	distSetXDeveloper(dialogMenuItem *self);
 extern int	distSetKernDeveloper(dialogMenuItem *self);

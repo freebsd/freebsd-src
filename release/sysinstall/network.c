@@ -39,6 +39,7 @@
 
 #include "sysinstall.h"
 #include <signal.h>
+#include <termios.h>
 #include <sys/fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>

@@ -309,7 +309,8 @@ new_part(char *mpoint, Boolean newfs, u_long size)
 
     ret = (PartInfo *)safe_malloc(sizeof(PartInfo));
     sstrncpy(ret->mountpoint, mpoint, FILENAME_MAX);
-    strcpy(ret->newfs_cmd, "newfs -b 8192 -f 1024");
+    strcpy(ret->newfs_cmd, "newfs ");
+    strcat(ret->newfs_cmd, variable_get(VAR_NEWFS_ARGS));
     ret->newfs = newfs;
     if (!size)
 	return ret;
