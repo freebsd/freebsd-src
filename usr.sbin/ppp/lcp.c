@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.14 1997/05/05 23:45:15 brian Exp $
+ * $Id: lcp.c,v 1.15 1997/05/10 01:22:13 brian Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
@@ -47,6 +47,7 @@ extern void StopIdleTimer();
 extern void OsLinkdown();
 extern void Cleanup();
 extern struct pppTimer IpcpReportTimer;
+extern int randinit;
 
 struct lcpstate LcpInfo;
 
@@ -179,14 +180,13 @@ ReportLcpStatus()
 u_long
 GenerateMagic()
 {
-  time_t tl;
-  struct timeval tval;
+  if (!randinit) {
+    randinit = 1;
+    if (srandomdev() < 0)
+      srandom((unsigned long)(time(NULL) ^ getpid()));
+  }
 
-  time(&tl);
-  gettimeofday(&tval, NULL);
-  tl += (tval.tv_sec ^ tval.tv_usec) + getppid();
-  tl *= getpid();
-  return(tl);
+  return (random());
 }
 
 void
