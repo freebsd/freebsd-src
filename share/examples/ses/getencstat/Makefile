@@ -35,5 +35,6 @@
 MAN8	=	getencstat.0
 SRCS	=	getencstat.c eltsub.c
 PROG	=	getencstat
+VPATH	=	${.CURDIR}/../srcs
 
 .include <bsd.prog.mk>
