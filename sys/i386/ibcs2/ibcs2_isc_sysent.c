@@ -5,8 +5,6 @@
  * created from	Id: syscalls.isc,v 1.4 1997/04/09 15:44:44 bde Exp 
  */
 
-#include "opt_compat.h"
-
 #include <sys/param.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
@@ -14,12 +12,6 @@
 #include <i386/ibcs2/ibcs2_signal.h>
 #include <i386/ibcs2/ibcs2_proto.h>
 #include <i386/ibcs2/ibcs2_xenix.h>
-
-#ifdef COMPAT_43
-#define compat(n, name) n, (sy_call_t *)__CONCAT(o,name)
-#else
-#define compat(n, name) 0, (sy_call_t *)nosys
-#endif
 
 /* The casts are bogus but will do for now. */
 struct sysent isc_sysent[] = {
