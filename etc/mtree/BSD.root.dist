@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: BSD.root.dist,v 1.18 1994/09/19 01:40:37 rgrimes Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -20,6 +20,8 @@
         ..
         namedb         
         ..
+	ppp
+	..
         uucp            uname=uucp gname=uucp mode=0770
         ..
     ..
