@@ -1509,7 +1509,7 @@ trapsignal(struct thread *td, int sig, u_long code)
 				ps->ps_sigact[_SIG_IDX(sig)], sig,
 				&td->td_sigmask, code);
 		else {
-			thread_siginfo(sig, code, &siginfo);
+			cpu_thread_siginfo(sig, code, &siginfo);
 			mtx_unlock(&ps->ps_mtx);
 			PROC_UNLOCK(p);
 			error = copyout(&siginfo, &td->td_mailbox->tm_syncsig,
