@@ -53,7 +53,7 @@
 
 #ifdef LIBC_RCS
 static const char rcsid[] =
-	"$Id: strptime.c,v 1.2 1997/08/09 15:43:56 joerg Exp $";
+	"$Id: strptime.c,v 1.3 1997/08/13 13:11:53 ache Exp $";
 #endif
 
 #ifndef lint
@@ -71,7 +71,7 @@ static char sccsid[] = "@(#)strptime.c	0.1 (Powerdog) 94/03/27";
 
 #define asizeof(a)	(sizeof (a) / sizeof ((a)[0]))
 
-const char *
+char *
 strptime(const char *buf, const char *fmt, struct tm *tm)
 {
 	char	c;
@@ -345,5 +345,5 @@ strptime(const char *buf, const char *fmt, struct tm *tm)
 		}
 	}
 
-	return buf;
+	return (char *)buf;
 }
