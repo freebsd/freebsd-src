@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: apache.c,v 1.3 1995/10/22 23:20:44 jkh Exp $
+ * $Id: apache.c,v 1.5 1995/10/26 08:55:27 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.
@@ -396,9 +396,6 @@ installApache(char *unused)
     msgConfirm("Since you elected to install the WEB server, we'll now add the\n"
 	       "Apache HTTPD package and set up a few configuration files.");
     i = package_add(APACHE_PACKAGE);
-    if (i == RET_SUCCESS)
-	i = apacheOpenDialog();
-
     if (i != RET_SUCCESS) {
 	msgConfirm("Hmmmmm.  Looks like we weren't able to fetch the Apache WEB server\n"
 		   "package.  You may wish to fetch and configure it by hand by looking\n"
@@ -407,6 +404,12 @@ installApache(char *unused)
         return (i);
     }
     
+    i = apacheOpenDialog();
+    if (i != RET_SUCCESS) {
+	msgConfirm("Configuration of the Apache WEB server was cancelled per\n"
+		   "user request.");
+	return i;
+    }
     /*** Fix defaults for invalid value ***/
     maxcon = atoi(tconf.maxcon);
     if (maxcon <= 0)
@@ -443,9 +446,7 @@ installApache(char *unused)
 	sprintf(file,"%s/welcome.html",tconf.docroot);
 	if (! file_readable(file))
 	{
-	    msgNotify("Creating sample web page...");
-	    sleep(1);
-	    
+	    dialog_clear();
 	    tptr = msgGetInput(NULL,
 			       "What is your company name?");
 	    if (tptr && strlen(tptr))
@@ -453,6 +454,7 @@ installApache(char *unused)
 	    else
 		strcpy(company,"our Web Page");
 	    
+	    msgNotify("Creating sample web page...");
 	    fptr = fopen(file,"w");
 	    if (fptr)
 	    {
