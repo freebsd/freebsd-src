@@ -245,7 +245,7 @@ cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
 	mtx_unlock(mp);
 
 	sleepq_add(sq, cvp, mp, cvp->cv_description, SLEEPQ_CONDVAR);
-	sleepq_set_timeout(sq, cvp, timo);
+	sleepq_set_timeout(cvp, timo);
 	rval = sleepq_timedwait(cvp, 0);
 
 #ifdef KTRACE
@@ -303,7 +303,7 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 	mtx_unlock(mp);
 
 	sleepq_add(sq, cvp, mp, cvp->cv_description, SLEEPQ_CONDVAR);
-	sleepq_set_timeout(sq, cvp, timo);
+	sleepq_set_timeout(cvp, timo);
 	sig = sleepq_catch_signals(cvp);
 	/*
 	 * XXX: Missing magic return value handling for no signal
