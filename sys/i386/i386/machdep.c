@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.31 1994/01/31 10:26:55 davidg Exp $
+ *	$Id: machdep.c,v 1.32 1994/01/31 23:47:25 davidg Exp $
  */
 
 #include "npx.h"
@@ -478,6 +478,10 @@ sendsig(catcher, sig, mask, code)
 	fp->sf_sc.sc_ps = regs[tEFLAGS];
 	regs[tESP] = (int)fp;
 	regs[tEIP] = (int)((struct pcb *)kstack)->pcb_sigc;
+	regs[tCS] = _ucodesel;
+	regs[tDS] = _udatasel;
+	regs[tES] = _udatasel;
+	regs[tSS] = _udatasel;
 }
 
 /*
