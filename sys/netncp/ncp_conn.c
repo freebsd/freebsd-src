@@ -352,6 +352,31 @@ ncp_conn_reconnect(struct ncp_conn *ncp)
 	return 0;
 }
 
+int
+ncp_conn_login(struct ncp_conn *conn, struct proc *p, struct ucred *cred)
+{
+	struct ncp_bindery_object user;
+	u_char ncp_key[8];
+	int error;
+
+	error = ncp_get_encryption_key(conn, ncp_key);
+	if (error) {
+		printf("%s: Warning: use unencrypted login\n", __FUNCTION__);
+		error = ncp_login_unencrypted(conn, conn->li.objtype,
+		    conn->li.user, conn->li.password, p, cred);
+	} else {
+		error = ncp_get_bindery_object_id(conn, conn->li.objtype,
+		    conn->li.user, &user, p, cred);
+		if (error)
+			return error;
+		error = ncp_login_encrypted(conn, &user, ncp_key,
+		    conn->li.password, p, cred);
+	}
+	if (!error)
+		conn->flags |= NCPFL_LOGGED | NCPFL_WASLOGGED;
+	return error;
+}
+
 /* 
  * Lookup connection by handle, return a locked conn descriptor 
  */

@@ -221,6 +221,7 @@ int  ncp_conn_putprochandles(struct proc *p);
 int  ncp_conn_getinfo(struct ncp_conn *ncp, struct ncp_conn_stat *ncs);
 
 int  ncp_conn_reconnect(struct ncp_conn *ncp);
+int  ncp_conn_login(struct ncp_conn *conn, struct proc *p, struct ucred *cred);
 
 extern struct ncp_conn_head conn_list;
 extern int ncp_burst_enabled;

@@ -150,6 +150,40 @@ bad:
 }
 
 static int
+ncp_mod_login(struct ncp_conn *conn, char *user, int objtype, char *password,
+	struct proc *p, struct ucred *cred)
+{
+	int error;
+
+	if (ncp_suser(cred) != 0 && cred->cr_uid != conn->nc_owner->cr_uid)
+		return EACCES;
+	conn->li.user = ncp_str_dup(user);
+	if (conn->li.user == NULL)
+		return ENOMEM;
+	conn->li.password = ncp_str_dup(password);
+	if (conn->li.password == NULL) {
+		error = ENOMEM;
+		goto bad;
+	}
+	ncp_str_upper(conn->li.user);
+	if ((conn->li.opt & NCP_OPT_NOUPCASEPASS) == 0)
+		ncp_str_upper(conn->li.password);
+	conn->li.objtype = objtype;
+	error = ncp_conn_login(conn, p, cred);
+	return error;
+bad:
+	if (conn->li.user) {
+		free(conn->li.user, M_NCPDATA);
+		conn->li.user = NULL;
+	}
+	if (conn->li.password) {
+		free(conn->li.password, M_NCPDATA);
+		conn->li.password = NULL;
+	}
+	return error;
+}
+
+static int
 ncp_conn_handler(struct proc *p, struct sncp_request_args *uap,
 	struct ncp_conn *conn, struct ncp_handle *hp)
 {
@@ -218,11 +252,15 @@ ncp_conn_handler(struct proc *p, struct sncp_request_args *uap,
 	    case NCP_CONN_LOGIN: {
 		struct ncp_conn_login la;
 
-		if (rqsize != sizeof(la)) return (EBADRPC);	
-		if ((error = copyin(pdata,&la,rqsize)) != 0) break;
+		if (rqsize != sizeof(la))
+			return EBADRPC;
+		if (conn->flags & NCPFL_LOGGED)
+			return EALREADY;
+		if ((error = copyin(pdata,&la,rqsize)) != 0)
+			break;
 		error = ncp_conn_lock(conn, p, cred, NCPM_EXECUTE | NCPM_WRITE);
 		if (error) return error;
-		error = ncp_login(conn, la.username, la.objtype, la.password, p, p->p_ucred);
+		error = ncp_mod_login(conn, la.username, la.objtype, la.password, p, p->p_ucred);
 		ncp_conn_unlock(conn, p);
 		p->p_retval[0] = error;
 		break;
