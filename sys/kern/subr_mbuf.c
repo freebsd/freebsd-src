@@ -1050,10 +1050,9 @@ mb_reclaim(void)
 } while (0)
 
 #define	_mext_init_ref(m, ref) do {					\
-	if ((ref) == NULL)						\
-		malloc(sizeof(u_int), M_MBUF, M_NOWAIT);		\
-	else								\
-		(m)->m_ext.ref_cnt = (u_int *)(ref);			\
+	(m)->m_ext.ref_cnt = ((ref) == NULL) ?				\
+	    malloc(sizeof(u_int), M_MBUF, M_NOWAIT) :			\
+	    (m)->m_ext.ref_cnt = (u_int *)(ref);			\
 	if ((m)->m_ext.ref_cnt != NULL) {				\
 		*((m)->m_ext.ref_cnt) = 0;				\
 		MEXT_ADD_REF((m));					\
