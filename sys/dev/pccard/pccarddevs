@@ -99,20 +99,32 @@ vendor IODATA2			0x028a	I-O DATA
 vendor ASUS			0x02aa	ASUS
 vendor SIEMENS			0x02ac	Siemens
 vendor MICROSOFT		0x02d2	Microsoft Corporation
+
+/*
+ * The following vendor IDs are byte-swapped from what the company is assigned.
+ */
 vendor NWN			0x0602	No Wires Needed
 vendor BREEZECOM		0x0a02	BreezeCOM
-vendor NEWMEDIA2		0x10cd	NewMedia
-vendor PLANEX_2			0x14ea	PLANEX
-vendor ACTIONTEC		0x1668	ACTIONTEC
 vendor LASAT			0x3401	Lasat Communications A/S
 vendor BONDWELL			0x3b01	Bondwell
 vendor LEXARMEDIA		0x4e01	Lexar Media
+vendor COMPEX			0x8a01	Compex Corporation
+vendor ZONET			0x8a01	Zonet Technology Inc.
+vendor ELSA			0xd601  Elsa 
+
+/*
+ * The following vendor IDs are not, as far as I can tell, actually
+ * assigned to these people.  However, all the ones starting with '0xc'
+ * look coherent enough that maybe somebody other than PCMCIA is
+ * assigning numbers in that range.
+ */
+vendor NEWMEDIA2		0x10cd	NewMedia
+vendor PLANEX_2			0x14ea	PLANEX
+vendor ACTIONTEC		0x1668	ACTIONTEC
 vendor AIRVAST                  0x50c2  AirVast Technology
 vendor ARCHOS			0x5241	Archos
 vendor DUAL			0x890f	Dual
 vendor EDIMAX			0x890f	Edimax Technology Inc.
-vendor COMPEX			0x8a01	Compex Corporation
-vendor ZONET			0x8a01	Zonet Technology Inc.
 vendor CONTEC			0xc001	Contec
 vendor MACNICA			0xc00b	MACNICA
 vendor ROLAND			0xc00c	Roland
@@ -122,7 +134,6 @@ vendor HAGIWARASYSCOM		0xc012	Hagiwara SYS-COM
 vendor RATOC			0xc015  RATOC System Inc.
 vendor WORKBIT			0xc024	WORKBIT
 vendor EMTAC			0xc250	EMTAC Technology Corporation
-vendor ELSA			0xd601  Elsa 
 
 /*
  * List of known products.  Grouped by vendor, sorted by number within the
