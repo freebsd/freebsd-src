@@ -27,6 +27,7 @@
 #include <sys/filio.h>
 #include <sys/uio.h>
 #include <sys/kernel.h>
+#include <sys/poll.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
 #include <sys/signalvar.h>
