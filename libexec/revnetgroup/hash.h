@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: hash.h,v 1.1.1.1 1995/10/26 16:25:29 wpaul Exp $
+ *	$Id: hash.h,v 1.2 1996/05/12 17:17:42 wpaul Exp $
  */
 
 /* Groupname entry hung off a member_entry node. */
@@ -56,3 +56,12 @@ struct group_entry {
 /* Table size (chosen arbitrarily). Not too big, not too small. */
 #define TABLESIZE 256
 #define HASH_MASK 0x000000FF
+
+#define LINSIZ 1024 * 10
+
+extern void store __P(( struct group_entry ** , char *, char * ));
+extern void mstore __P(( struct member_entry ** , char *, char *, char * ));
+extern char *lookup __P(( struct group_entry **, char * ));
+extern void __endnetgrent __P(( void ));
+extern void __setnetgrent __P(( char * ));
+extern int __getnetgrent __P(( char **, char **, char ** ));
