@@ -179,7 +179,7 @@ struct cmdtable cmds[] = {
 	{ "quit", "Exit", 1, 1, FL_RO, quit },
 	{ "q", "Exit", 1, 1, FL_RO, quit },
 	{ "exit", "Exit", 1, 1, FL_RO, quit },
-	{ NULL, 0, 0, 0 },
+	{ NULL, 0, 0, 0, 0, NULL },
 };
 
 int
@@ -351,7 +351,7 @@ CMDFUNCSTART(uplink)
 {
     if (!checkactive())
 	return 1;
-    DIP(curinode, di_nlink) += 1;
+    DIP_SET(curinode, di_nlink, DIP(curinode, di_nlink) + 1);
     printf("inode %d link count now %d\n", curinum, DIP(curinode, di_nlink));
     inodirty();
     return 0;
@@ -361,7 +361,7 @@ CMDFUNCSTART(downlink)
 {
     if (!checkactive())
 	return 1;
-    DIP(curinode, di_nlink) -= 1;
+    DIP_SET(curinode, di_nlink, DIP(curinode, di_nlink) - 1);
     printf("inode %d link count now %d\n", curinum, DIP(curinode, di_nlink));
     inodirty();
     return 0;
@@ -635,8 +635,8 @@ CMDFUNCSTART(newtype)
 	warnx("try one of `file', `dir', `socket', `fifo'");
 	return 1;
     }
-    DIP(curinode, di_mode) &= ~IFMT;
-    DIP(curinode, di_mode) |= type;
+    DIP_SET(curinode, di_mode, DIP(curinode, di_mode) & ~IFMT);
+    DIP_SET(curinode, di_mode, DIP(curinode, di_mode) | type);
     inodirty();
     printactive(0);
     return 0;
@@ -657,7 +657,7 @@ CMDFUNCSTART(chlen)
 	return 1;
     }
     
-    DIP(curinode, di_size) = len;
+    DIP_SET(curinode, di_size, len);
     inodirty();
     printactive(0);
     return rval;
@@ -678,8 +678,8 @@ CMDFUNCSTART(chmode)
 	return 1;
     }
     
-    DIP(curinode, di_mode) &= ~07777;
-    DIP(curinode, di_mode) |= modebits;
+    DIP_SET(curinode, di_mode, DIP(curinode, di_mode) & ~07777);
+    DIP_SET(curinode, di_mode, DIP(curinode, di_mode) | modebits);
     inodirty();
     printactive(0);
     return rval;
@@ -704,7 +704,7 @@ CMDFUNCSTART(chaflags)
 	warnx("flags set beyond 32-bit range of field (%lx)\n", flags);
 	return(1);
     }
-    DIP(curinode, di_flags) = flags;
+    DIP_SET(curinode, di_flags, flags);
     inodirty();
     printactive(0);
     return rval;
@@ -729,7 +729,7 @@ CMDFUNCSTART(chgen)
 	warnx("gen set beyond 32-bit range of field (%lx)\n", gen);
 	return(1);
     }
-    DIP(curinode, di_gen) = gen;
+    DIP_SET(curinode, di_gen, gen);
     inodirty();
     printactive(0);
     return rval;
@@ -754,7 +754,7 @@ CMDFUNCSTART(linkcount)
 	return 1;
     }
     
-    DIP(curinode, di_nlink) = lcnt;
+    DIP_SET(curinode, di_nlink, lcnt);
     inodirty();
     printactive(0);
     return rval;
@@ -781,7 +781,7 @@ CMDFUNCSTART(chowner)
 	}
     }
     
-    DIP(curinode, di_uid) = uid;
+    DIP_SET(curinode, di_uid, uid);
     inodirty();
     printactive(0);
     return rval;
@@ -807,7 +807,7 @@ CMDFUNCSTART(chgroup)
 	}
     }
     
-    DIP(curinode, di_gid) = gid;
+    DIP_SET(curinode, di_gid, gid);
     inodirty();
     printactive(0);
     return rval;
@@ -877,7 +877,7 @@ CMDFUNCSTART(chmtime)
 	curinode->dp1.di_mtime = _time_to_time32(secs);
     else
 	curinode->dp2.di_mtime = _time_to_time64(secs);
-    DIP(curinode, di_mtimensec) = nsecs;
+    DIP_SET(curinode, di_mtimensec, nsecs);
     inodirty();
     printactive(0);
     return 0;
@@ -894,7 +894,7 @@ CMDFUNCSTART(chatime)
 	curinode->dp1.di_atime = _time_to_time32(secs);
     else
 	curinode->dp2.di_atime = _time_to_time64(secs);
-    DIP(curinode, di_atimensec) = nsecs;
+    DIP_SET(curinode, di_atimensec, nsecs);
     inodirty();
     printactive(0);
     return 0;
@@ -911,7 +911,7 @@ CMDFUNCSTART(chctime)
 	curinode->dp1.di_ctime = _time_to_time32(secs);
     else
 	curinode->dp2.di_ctime = _time_to_time64(secs);
-    DIP(curinode, di_ctimensec) = nsecs;
+    DIP_SET(curinode, di_ctimensec, nsecs);
     inodirty();
     printactive(0);
     return 0;
