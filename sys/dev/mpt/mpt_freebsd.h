@@ -89,6 +89,7 @@
 #define	MPT_LOCK_SETUP(mpt)
 #define	MPT_LOCK_DESTROY(mpt)
 #else
+#if	LOCKING_WORKED_AS_IT_SHOULD
 #define	MPT_IFLAGS		INTR_TYPE_CAM | INTR_ENTROPY | INTR_MPSAFE
 #define	MPT_LOCK_SETUP(mpt)						\
 		mtx_init(&mpt->mpt_lock, "mpt", NULL, MTX_DEF);		\
@@ -105,17 +106,26 @@
 	mtx_unlock(&(mpt)->mpt_lock); mtx_lock(&Giant)
 #define	CAMLOCK_2_MPTLOCK(mpt)	\
 	mtx_unlock(&Giant); mtx_lock(&(mpt)->mpt_lock)
+#else
+#define	MPT_IFLAGS		INTR_TYPE_CAM | INTR_ENTROPY
+#define	MPT_LOCK_SETUP(mpt)	do { } while (0)
+#define	MPT_LOCK_DESTROY(mpt)	do { } while (0)
+#define	MPT_LOCK(mpt)		do { } while (0)
+#define	MPT_UNLOCK(mpt)		do { } while (0)
+#define	MPTLOCK_2_CAMLOCK(mpt)	do { } while (0)
+#define	CAMLOCK_2_MPTLOCK(mpt)	do { } while (0)
+#endif
 #endif
 	
 
 
 /* Max MPT Reply we are willing to accept (must be power of 2) */
-#define MPT_REPLY_SIZE   128
+#define MPT_REPLY_SIZE   	128
 
-#define MPT_MAX_REQUESTS 256	/* XXX: should be derived from GlobalCredits */
+#define MPT_MAX_REQUESTS(mpt)	((mpt)->is_fc? 1024 : 256)
 #define MPT_REQUEST_AREA 512
 #define MPT_SENSE_SIZE    32	/* included in MPT_REQUEST_SIZE */
-#define MPT_REQ_MEM_SIZE	(MPT_MAX_REQUESTS * MPT_REQUEST_AREA)
+#define MPT_REQ_MEM_SIZE(mpt)	(MPT_MAX_REQUESTS(mpt) * MPT_REQUEST_AREA)
 
 /*
  * We cannot tell prior to getting IOC facts how big the IOC's request
@@ -196,7 +206,7 @@ typedef struct mpt_softc {
 	u_int32_t		: 16,
 		unit		: 8,
 		verbose		: 3,
-				: 1,
+		outofbeer	: 1,
 		mpt_locksetup	: 1,
 		disabled	: 1,
 		is_fc		: 1,
@@ -279,7 +289,7 @@ typedef struct mpt_softc {
 	 * CAM && Software Management
 	 */
 
-	request_t		requests[MPT_MAX_REQUESTS];
+	request_t *		request_pool;
 	SLIST_HEAD(req_queue, req_entry) request_free_list;
 
 	struct cam_sim *	sim;
@@ -315,7 +325,6 @@ mpt_read(mpt_softc_t *mpt, int offset)
 void mpt_cam_attach(mpt_softc_t *);
 void mpt_cam_detach(mpt_softc_t *);
 void mpt_done(mpt_softc_t *, u_int32_t);
-void mpt_notify(mpt_softc_t *, void *, u_int32_t);
 void mpt_set_config_regs(mpt_softc_t *);
 
 #ifdef	RELENG_4

@@ -61,6 +61,10 @@
 #define	PCI_PRODUCT_LSI_FC909A		0x0621
 #endif
 
+#ifndef	PCI_PRODUCT_LSI_FC919
+#define	PCI_PRODUCT_LSI_FC919		0x0624
+#endif
+
 #ifndef	PCI_PRODUCT_LSI_FC929
 #define	PCI_PRODUCT_LSI_FC929		0x0622
 #endif
@@ -107,11 +111,15 @@ MODULE_VERSION(mpt, 1);
 int
 mpt_intr(void *dummy)
 {
+	int nrepl = 0;
 	u_int32_t reply;
 	mpt_softc_t *mpt = (mpt_softc_t *)dummy;
 
+	if ((mpt_read(mpt, MPT_OFFSET_INTR_STATUS) & MPT_INTR_REPLY_READY) == 0)
+		return (0);
 	reply = mpt_pop_reply_queue(mpt);
 	while (reply != MPT_REPLY_EMPTY) {
+		nrepl++;
 		if (mpt->verbose > 1) {
 			if ((reply & MPT_CONTEXT_REPLY) != 0)  {
 				/* Address reply; IOC has something to say */
@@ -125,7 +133,7 @@ mpt_intr(void *dummy)
 		mpt_done(mpt, reply);
 		reply = mpt_pop_reply_queue(mpt);
 	}
-	return 0;
+	return (nrepl != 0);
 }
 
 static int
@@ -142,6 +150,9 @@ mpt_probe(device_t dev)
 		break;
 	case PCI_PRODUCT_LSI_FC909A:
 		desc = "LSILogic FC909A FC Adapter";
+		break;
+	case PCI_PRODUCT_LSI_FC919:
+		desc = "LSILogic FC919 FC Adapter";
 		break;
 	case PCI_PRODUCT_LSI_FC929:
 		desc = "LSILogic FC929 FC Adapter";
@@ -247,6 +258,7 @@ mpt_attach(device_t dev)
 	switch ((pci_get_device(dev) & ~1)) {
 	case PCI_PRODUCT_LSI_FC909:
 	case PCI_PRODUCT_LSI_FC909A:
+	case PCI_PRODUCT_LSI_FC919:
 	case PCI_PRODUCT_LSI_FC929:
 		mpt->is_fc = 1;
 		break;
@@ -456,12 +468,31 @@ mpt_dma_mem_alloc(mpt_softc_t *mpt)
 	int i, error;
 	u_char *vptr;
 	u_int32_t pptr, end;
+	size_t len;
 	struct imush im;
 	device_t dev = mpt->dev;
 
 	/* Check if we alreay have allocated the reply memory */
-	if (mpt->reply_phys != NULL)
+	if (mpt->reply_phys != NULL) {
 		return 0;
+	}
+
+	len = sizeof (request_t *) * MPT_REQ_MEM_SIZE(mpt);
+#ifdef	RELENG_4
+	mpt->request_pool = (request_t *) malloc(len, M_DEVBUF, M_WAITOK);
+	if (mpt->request_pool == NULL) {
+		device_printf(dev, "cannot allocate request pool\n");
+		return (1);
+	}
+	bzero(mpt->request_pool, len);
+#else
+	mpt->request_pool = (request_t *)
+	    malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
+	if (mpt->request_pool == NULL) {
+		device_printf(dev, "cannot allocate request pool\n");
+		return (1);
+	}
+#endif
 
 	/*
 	 * Create a dma tag for this device
@@ -521,7 +552,7 @@ mpt_dma_mem_alloc(mpt_softc_t *mpt)
 	/* Create a child tag for request buffers */
 	if (bus_dma_tag_create(mpt->parent_dmat, PAGE_SIZE,
 	    0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
-	    NULL, NULL, MPT_REQ_MEM_SIZE, 1, BUS_SPACE_MAXSIZE_32BIT, 0,
+	    NULL, NULL, MPT_REQ_MEM_SIZE(mpt), 1, BUS_SPACE_MAXSIZE_32BIT, 0,
 	    &mpt->request_dmat) != 0) {
 		device_printf(dev, "cannot create a dma tag for requests\n");
 		return (1);
@@ -532,7 +563,7 @@ mpt_dma_mem_alloc(mpt_softc_t *mpt)
 	    BUS_DMA_NOWAIT, &mpt->request_dmap) != 0) {
 		device_printf(dev,
 		    "cannot allocate %d bytes of request memory\n",
-		    MPT_REQ_MEM_SIZE);
+		    MPT_REQ_MEM_SIZE(mpt));
 		return (1);
 	}
 
@@ -541,7 +572,7 @@ mpt_dma_mem_alloc(mpt_softc_t *mpt)
 
 	/* Load and lock it into "bus space" */
         bus_dmamap_load(mpt->request_dmat, mpt->request_dmap, mpt->request,
-	    MPT_REQ_MEM_SIZE, mpt_map_rquest, &im, 0);
+	    MPT_REQ_MEM_SIZE(mpt), mpt_map_rquest, &im, 0);
 
 	if (im.error) {
 		device_printf(dev,
@@ -554,9 +585,9 @@ mpt_dma_mem_alloc(mpt_softc_t *mpt)
 	i = 0;
 	pptr =  mpt->request_phys;
 	vptr =  mpt->request;
-	end = pptr + MPT_REQ_MEM_SIZE;
+	end = pptr + MPT_REQ_MEM_SIZE(mpt);
 	while(pptr < end) {
-		request_t *req = &mpt->requests[i];
+		request_t *req = &mpt->request_pool[i];
 		req->index = i++;
 
 		/* Store location of Request Data */
@@ -595,8 +626,8 @@ mpt_dma_mem_free(mpt_softc_t *mpt)
 		return;
         }
                 
-	for (i = 0; i < MPT_MAX_REQUESTS; i++) {
-		bus_dmamap_destroy(mpt->buffer_dmat, mpt->requests[i].dmap);
+	for (i = 0; i < MPT_MAX_REQUESTS(mpt); i++) {
+		bus_dmamap_destroy(mpt->buffer_dmat, mpt->request_pool[i].dmap);
 	}
 	bus_dmamap_unload(mpt->request_dmat, mpt->request_dmap);
 	bus_dmamem_free(mpt->request_dmat, mpt->request, mpt->request_dmap);
@@ -607,6 +638,8 @@ mpt_dma_mem_free(mpt_softc_t *mpt)
 	bus_dma_tag_destroy(mpt->reply_dmat);
 	bus_dma_tag_destroy(mpt->parent_dmat);
 	mpt->reply_dmat = 0;
+	free(mpt->request_pool, M_DEVBUF);
+	mpt->request_pool = 0;
 
 }
 
@@ -675,6 +708,6 @@ mpt_pci_intr(void *arg)
 {
 	mpt_softc_t *mpt = arg;
 	MPT_LOCK(mpt);
-	mpt_intr(mpt);
+	(void) mpt_intr(mpt);
 	MPT_UNLOCK(mpt);
 }
