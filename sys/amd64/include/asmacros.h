@@ -47,13 +47,8 @@
  * language name.  HIDENAME is given an assembly-language name, and expands
  * to a possibly-modified form that will be invisible to C programs.
  */
-#if defined(__ELF__)
 #define CNAME(csym)		csym
 #define HIDENAME(asmsym)	__CONCAT(.,asmsym)
-#else
-#define CNAME(csym)		__CONCAT(_,csym)
-#define HIDENAME(asmsym)	asmsym
-#endif
 
 #define ALIGN_DATA	.p2align 2	/* 4 byte alignment, zero filled */
 #ifdef GPROF
