@@ -135,9 +135,6 @@ main(int argc, char **argv)
     argc -= optind;
     argv += optind;
 
-    if (getenv("DISPLAY") != NULL)
-	xmode = 1;
-
     if (vflag && debugf == stderr) {
 	debugf = stdout;
 	setbuf (stdout, NULL);
