@@ -23,17 +23,7 @@
 # extra-bits-dir, if provided, contains additional files to be merged
 # into base-bits-dir as part of making the image.
 
-publisher="The FreeBSD Project.  http://www.freebsd.org/"
 set -e
-
-# The hackery function is to help with the development of the release
-# process. It's not intended to be an integral part of it. JFYI...
-hackery() {
-    echo "Sorry, no hackery today and you're out of milk too"
-    exit 2
-}
-
-MKISOFS_PORT=/usr/ports/sysutils/cdrtools
 
 if [ "x$1" = "x-b" ]; then
     bootable=yes
@@ -47,23 +37,27 @@ if [ $# -lt 3 ]; then
     exit 1
 fi
 
-BOOTOPTS=""
 LABEL=$1; shift
 NAME=$1; shift
 BASE=$1; shift
 
-if ! which mkisofs; then
-    echo 'mkisofs(8) does not exist. Fetching the package...'
-    if ! pkg_add -r cdrtools; then
-	if [ -f /usr/ports/sysutils/cdrtools/Makefile ]; then
-	    echo "Don't worry; building the port..."
-	    if ! (cd $MKISOFS_PORT && make install BATCH=yes && make clean); then
-		echo "Worry; reverting to hackery..."
-		hackery
-	    fi
-	else
-	    echo "Ports not present. Reverting to hackery..."
-	    hackery
+MKISOFS=mkisofs
+MKISOFS_PKG=cdrtools
+MKISOFS_PORT=/usr/ports/sysutils/${MKISOFS_PKG}
+
+if ! which ${MKISOFS} > /dev/null; then
+    echo -n "${MKISOFS}(8) does not exist: "
+    if [ -f ${MKISOFS_PORT}/Makefile ]; then
+	echo building the port...
+	if ! (cd ${MKISOFS_PORT} && make install BATCH=yes && make clean); then
+	    echo "error: cannot build ${MKISOFS}(8). Bailing out..."
+	    exit 2
+	fi
+    else
+	echo fetching the package...
+	if ! pkg_add -r ${MKISOFS_PKG}; then
+	    echo "error: cannot fetch ${MKISOFS}(8). Bailing out..."
+	    exit 2
 	fi
     fi
 fi
@@ -90,8 +84,12 @@ if [ $bootable = yes ]; then
     umount $MNT
     mdconfig -d -u $md
     BOOTOPTS="-b $EFIPART -no-emul-boot"
+else
+    BOOTOPTS=""
 fi
 
-mkisofs $BOOTOPTS -r -J -V $LABEL -P "$publisher" -o $NAME $BASE $*
+publisher="The FreeBSD Project.  http://www.freebsd.org/"
+
+$MKISOFS $BOOTOPTS -r -J -V $LABEL -P "$publisher" -o $NAME $BASE $*
 rm -f $BASE/$EFIPART
 exit 0
