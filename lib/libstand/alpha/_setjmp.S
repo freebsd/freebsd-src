@@ -60,6 +60,7 @@ LEAF(_setjmp, 1)
 	/* Too bad we can't check if we actually used FP */
 	ldiq	t0, 1
 	stq	t0, (36 * 8)(a0)		/* say we've used FP.  */
+#if 0
 	stt	fs0, ((2 + 37) * 8)(a0)		/* saved bits of sc_fpregs */
 	stt	fs1, ((3 + 37) * 8)(a0)
 	stt	fs2, ((4 + 37) * 8)(a0)
@@ -71,6 +72,7 @@ LEAF(_setjmp, 1)
 	mf_fpcr ft0				/* get FP control reg */
 	stt	ft0, (69 * 8)(a0)		/* and store it in sc_fpcr */
 	stq	zero, (70 * 8)(a0)		/* FP software control XXX */
+#endif
 	stq	zero, (71 * 8)(a0)		/* sc_reserved[0] */
 	stq	zero, (72 * 8)(a0)		/* sc_reserved[1] */
 	stq	zero, (73 * 8)(a0)		/* sc_xxx[0] */
@@ -99,6 +101,7 @@ LEAF(_longjmp, 2)
 	ldq	s6, ((15 + 4) * 8)(a0)
 	/* ldq	ra, ((26 + 4) * 8)(a0)		set above */
 	ldq	sp, ((30 + 4) * 8)(a0)
+#if 0
 	ldt	fs0, ((2 + 37) * 8)(a0)		/* saved bits of sc_fpregs */
 	ldt	fs1, ((3 + 37) * 8)(a0)
 	ldt	fs2, ((4 + 37) * 8)(a0)
@@ -109,6 +112,7 @@ LEAF(_longjmp, 2)
 	ldt	fs7, ((9 + 37) * 8)(a0)
 	ldt	ft0, (69 * 8)(a0)		/* get sc_fpcr */
 	mt_fpcr	ft0				/* and restore it. */
+#endif
 
 	mov	a1, v0				/* return second arg */
 	RET
