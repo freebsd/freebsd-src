@@ -535,7 +535,7 @@ svcunix_create(sock, sendsize, recvsize, path)
 
 	memset(&sun, 0, sizeof sun);
 	sun.sun_family = AF_LOCAL;
-	if (strlcpy(sun.sun_path, path, sizeof(sun.sun_path)) >=
+	if (_strlcpy(sun.sun_path, path, sizeof(sun.sun_path)) >=
 	    sizeof(sun.sun_path))
 		goto done;
 	sun.sun_len = SUN_LEN(&sun);

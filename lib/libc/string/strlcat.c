@@ -33,9 +33,12 @@ static char *rcsid = "$OpenBSD: strlcat.c,v 1.2 1999/06/17 16:28:58 millert Exp 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "namespace.h"
 #include <sys/types.h>
 #include <string.h>
+#include "un-namespace.h"
 
+__weak_reference(_strlcat, strlcat);
 /*
  * Appends src to string dst of size siz (unlike strncat, siz is the
  * full size of dst, not space left).  At most siz-1 characters
@@ -44,7 +47,7 @@ __FBSDID("$FreeBSD$");
  * If retval >= siz, truncation occurred.
  */
 size_t
-strlcat(dst, src, siz)
+_strlcat(dst, src, siz)
 	char *dst;
 	const char *src;
 	size_t siz;

@@ -160,7 +160,7 @@ catopen(name, type)
 			put_tmpptr:
 					spcleft = sizeof(path) -
 						  (pathP - path) - 1;
-					if (strlcpy(pathP, tmpptr, spcleft) >=
+					if (_strlcpy(pathP, tmpptr, spcleft) >=
 					    spcleft) {
 				too_long:
 						free(plang);
