@@ -5,6 +5,7 @@ MAN=	aac.4 \
 	acpi.4 \
 	adv.4 \
 	adw.4 \
+	agp.4 \
 	aha.4 \
 	ahb.4 \
 	ahc.4 \
@@ -191,7 +192,8 @@ MAN=	aac.4 \
 	yp.4 \
 	zero.4
 
-MLINKS=	ata.4 acd.4 ata.4 ad.4 ata.4 afd.4 ata.4 ast.4
+MLINKS=	agp.4 agpgart.4
+MLINKS+=ata.4 acd.4 ata.4 ad.4 ata.4 afd.4 ata.4 ast.4
 MLINKS+=bktr.4 brooktree.4
 MLINKS+=fd.4 stderr.4 fd.4 stdin.4 fd.4 stdout.4
 MLINKS+=fpa.4 fea.4
