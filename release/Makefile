@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.393 1998/09/28 17:17:49 jkh Exp $
+#	$Id: Makefile,v 1.394 1998/09/30 20:54:28 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -197,7 +197,7 @@ rerelease release:
 	-test -f install.cfg && cp install.cfg ${CHROOTDIR}/usr/src/release
 	echo "#!/bin/sh"			> ${CHROOTDIR}/mk
 	echo "set -ex"				>> ${CHROOTDIR}/mk
-	echo "export CFLAGS='-O2 -pipe'"	>> ${CHROOTDIR}/mk
+	echo "export CFLAGS='-O -pipe'"	>> ${CHROOTDIR}/mk
 	echo "export DISTRIBUTIONS=\"${DISTRIBUTIONS}\"" >> ${CHROOTDIR}/mk
 	echo "export BUILDNAME=${BUILDNAME}"	>> ${CHROOTDIR}/mk
 	echo "export VNDEVICE=${VNDEVICE}"	>> ${CHROOTDIR}/mk
