@@ -1,4 +1,4 @@
-/*	$NetBSD: usbdi.c,v 1.87 2001/11/21 15:37:41 augustss Exp $	*/
+/*	$NetBSD: usbdi.c,v 1.88 2001/11/22 04:31:01 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -168,7 +168,7 @@ usbd_dump_pipe(usbd_pipe_handle pipe)
 	usbd_dump_endpoint(pipe->endpoint);
 	printf(" (usbd_dump_pipe:)\n refcnt=%d running=%d aborting=%d\n",
 	       pipe->refcnt, pipe->running, pipe->aborting);
-	printf("intrxfer=%p, repeat=%d, interval=%d\n",
+	printf(" intrxfer=%p, repeat=%d, interval=%d\n",
 	       pipe->intrxfer, pipe->repeat, pipe->interval);
 }
 #endif
