@@ -1,4 +1,4 @@
-#	$Id: bsd.own.mk,v 1.16 1998/08/18 00:50:36 jb Exp $
+#	$Id: bsd.own.mk,v 1.17 1998/08/30 20:35:24 jb Exp $
 #
 # The include file <bsd.own.mk> set common variables for owner,
 # group, mode, and directories. Defaults are in brackets.
@@ -126,8 +126,8 @@ MACHINE_ARCH?=	i386
 # object format from the OBJFORMAT environment variable and if this is not
 # defined, it reads /etc/objectformat.
 #
-.if exists(/etc/objectformat) && !defined(OBJFORMAT)
-.include "/etc/objectformat"
+.if exists(/etc/objformat) && !defined(OBJFORMAT)
+.include "/etc/objformat"
 .endif
 
 # Default executable format
