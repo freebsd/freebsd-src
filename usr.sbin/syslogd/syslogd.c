@@ -1236,7 +1236,9 @@ wallmsg(struct filed *f, struct iovec *iov)
 	while (fread((char *)&ut, sizeof(ut), 1, uf) == 1) {
 		if (ut.ut_name[0] == '\0')
 			continue;
-		(void)strlcpy(line, ut.ut_line, sizeof(line));
+		/* We must use strncpy since ut_* may not be NUL terminated. */
+		strncpy(line, ut.ut_line, sizeof(line) - 1);
+		line[sizeof(line) - 1] = '\0';
 		if (f->f_type == F_WALL) {
 			if ((p = ttymsg(iov, 7, line, TTYMSGTIME)) != NULL) {
 				errno = 0;	/* already in msg */
@@ -1544,9 +1546,8 @@ init(int signo)
 			prog[i] = 0;
 			continue;
 		}
-		for (p = strchr(cline, '\0'); isspace(*--p);)
-			continue;
-		*++p = '\0';
+		for (i = strlen(cline) - 1; i >= 0 && isspace(cline[i]); i--)
+			cline[i] = '\0';
 		f = (struct filed *)calloc(1, sizeof(*f));
 		if (f == NULL) {
 			logerror("calloc");
@@ -1724,6 +1725,10 @@ cfline(const char *line, struct filed *f, const char *prog, const char *host)
 			pri = LOG_PRIMASK + 1;
 			pri_cmp = PRI_LT | PRI_EQ | PRI_GT;
 		} else {
+			/* Ignore trailing spaces. */
+			for (i = strlen(buf) - 1; i >= 0 && buf[i] == ' '; i--)
+				buf[i] = '\0';
+
 			pri = decode(buf, prioritynames);
 			if (pri < 0) {
 				(void)snprintf(ebuf, sizeof ebuf,
