@@ -609,7 +609,6 @@ init_term()
 	char *capptr = cap+10;
 	char *term;
 	struct sgttyb tt;
-	extern short ospeed;
 
 	switch (tgetent(termbuf, term = getenv("TERM")))
 		{
@@ -623,7 +622,7 @@ init_term()
 		};
 
 	if (gtty(0, &tt) == 0)
-		ospeed = tt.sg_ospeed;
+		/* ospeed = tt.sg_ospeed */ ;
 
 	CM = tgetstr("cm", &capptr);  /* Cursor motion */
 	CE = tgetstr("ce", &capptr);  /* Clear to eoln */
