@@ -310,8 +310,7 @@ int dir;
 }
 # endif
 #endif /* __NetBSD_Version >= 105110000 && _KERNEL */
-#if (__FreeBSD_version >= 501108)
-# include <net/pfil.h>
+#if (__FreeBSD_version >= 501108) && defined(_KERNEL)
 
 static int
 fr_check_wrapper(void *arg, struct mbuf **mp, struct ifnet *ifp, int dir)
