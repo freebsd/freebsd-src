@@ -378,6 +378,7 @@ static DEV_INFO device_info[] = {
 
 {"plip",	"Parallel Port IP link",		FLG_FIXED,	CLS_NETWORK},
 {"aue",		"ADMtek AN986 USB ethernet adapter",	FLG_FIXED,	CLS_NETWORK},
+{"kue",		"Kawasaki LSI USB ethernet adapter",	FLG_FIXED,	CLS_NETWORK},
 {"cs",          "IBM EtherJet, CS89x0-based Ethernet adapters",0,	CLS_NETWORK},
 {"ed",          "NE1000,NE2000,3C503,WD/SMC80xx Ethernet adapters",0,	CLS_NETWORK},
 {"el",          "3C501 Ethernet adapter",		0,		CLS_NETWORK},

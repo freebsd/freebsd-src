@@ -41,6 +41,7 @@ $FreeBSD$
  * List of known USB vendors
  */
 
+vendor KLSI		0x03e8	Kawasaki LSI
 vendor HP		0x03f0	Hewlett Packard
 vendor NEC		0x0409	NEC
 vendor KODAK		0x040a	Eastman Kodak Corp.
@@ -65,13 +66,14 @@ vendor ACER		0x04a5	Acer Peripheral Inc.
 vendor CANON		0x04a9	Canon Inc.
 vendor CYPRESS		0x04b4	Cypress Semiconductor
 vendor EPSON		0x04b8	Seiko Epson Corp.
-vendor 3COM		0x04c1	U.S. Robotics
+vendor 3COMUSR		0x04c1	U.S. Robotics
 vendor KONICA		0x04c8	Konica Corp.
 vendor ALTEC		0x04d2	Altec Lansing
 vendor SHUTTLE		0x04e6	Shuttle Technology
 vendor CHICONY		0x04f2	Chicony Electronics Co., Ltd.
 vendor BROTHER		0x04f9	Brother Industries Corp.
 vendor DALLAS		0x04fa	Dallas Semiconductor
+vendor 3COM		0x0506	3Com Corp.
 vendor BELKIN		0x050d	Belkin Components
 vendor KAWATSU		0x050f	Kawatsu Semiconductor, Inc.
 vendor APC		0x051d	American Power Conversion
@@ -116,6 +118,9 @@ vendor INTEL		0x8086	Intel
 /*
  * List of known products.  Grouped by vendor.
  */
+
+/* Kawasaki LSI products */
+product KLSI USB101		0x0008	USB ethernet
 
 /* HP products */
 product HP 4100C		0x0101	Scanjet 4100C
@@ -198,7 +203,7 @@ product CYPRESS THERMO		0x0002	thermometer
 product EPSON PRINTER3		0x0003	ISD USB Smart Cable
 
 /* 3Com products */
-product 3COM USR56K		0x3021	U.S.Robotics 56000 Voice Faxmodem Pro
+product 3COMUSR USR56K		0x3021	U.S.Robotics 56000 Voice Faxmodem Pro
 
 /* Konica Corp. Products */
 product KONICA CAMERA		0x0720	Digital Color Camera
@@ -217,6 +222,9 @@ product	BROTHER HL1050		0x0002	HL-1050 laser printer
 
 /* Dallas Semiconductor products */
 product DALLAS J6502		0x4201	J-6502 speakers
+
+/* 3Com products */
+product 3COM 3C19250		0x03E8	3C19250 Ethernet adapter
 
 /* Kawatsu products */
 product KAWATSU MH4000P		0x0003	MiniHub 4000P
@@ -247,6 +255,8 @@ product TELEX MIC1		0x0001	Enhanced USB Microphone
 
 /* Peracom products */
 product PERACOM SERIAL1		0x0001	Serial Converter
+product PERACOM ENET		0x0002	Ethernet adapter
+product PERACOM ENET2		0x0005	Ethernet adapter
 
 /* Wacom products */
 product WACOM CT0405U		0x0000	CT-0405-U Tablet
@@ -308,6 +318,7 @@ product ENTREGA 1S		0x0001	1S serial connector
 product ENTREGA 2S		0x0002	2S serial connector
 product ENTREGA 1S25		0x0003	1S25 serial connector
 product ENTREGA 4S		0x0004	4S serial connector
+product ENTREGA E45		0x0005	E45 Ethernet adapter
 product ENTREGA CENTRONICS	0x0006	Centronics connector
 product ENTREGA 1S9		0x0093	1S9 serial connector
 product ENTREGA EZUSB		0x8000	EZ-USB

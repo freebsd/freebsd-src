@@ -137,6 +137,11 @@ PCI ethernet NIC. [MERGED]
 Driver support has been added for USB ethernet adapters based on
 the ADMtek AN986 Pegasus chip, including the LinkSys USB100TX.
 
+Driver support has been added for USB ethernet adapters based on
+the Kawasaki LSI KL5KUSB101B chip, including the LinkSys USB10T,
+the Peracom USB Ethernet Adapter, the 3Com 3c19250, the Entrega
+NET-USB-E45 and the ADS Technologies USB-10BT.
+
 1.2. SECURITY FIXES
 -------------------
 
@@ -371,6 +376,14 @@ ADMtek Inc. AN986-based USB ethernet NICs including the following:
   LinkSys USB100TX
   Billionton USB100
   Melco Inc. LU-ATX
+
+Kawasaki LSI KU5KUSB101B-based USB ethernet NICs including
+the following:
+  LinkSys USB10T
+  Entrega NET-USB-E45
+  Peracom USB Ethernet Adapter
+  3Com 3c19250
+  ADS Technologies USB-10BT
 
 ASIX Electronics AX88140A PCI NICs, including the following:
   Alfa Inc. GFC2204
