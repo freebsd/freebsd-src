@@ -147,11 +147,45 @@ extern int vm_pageout_page_count;
 static long object_collapses;
 static long object_bypasses;
 static int next_index;
-static vm_zone_t obj_zone;
-static struct vm_zone obj_zone_store;
 static int object_hash_rand;
+static vm_zone_t obj_zone;
 #define VM_OBJECTS_INIT 256
-static struct vm_object vm_objects_init[VM_OBJECTS_INIT];
+
+static void vm_object_zinit(void *mem, int size);
+
+#ifdef INVARIANTS
+static void vm_object_zdtor(void *mem, int size, void *arg);
+
+static void
+vm_object_zdtor(void *mem, int size, void *arg)
+{
+	vm_object_t object;
+
+	object = (vm_object_t)mem;
+	KASSERT(object->paging_in_progress == 0,
+	    ("object %p paging_in_progress = %d",
+	    object, object->paging_in_progress));
+	KASSERT(object->resident_page_count == 0,
+	    ("object %p resident_page_count = %d",
+	    object, object->resident_page_count));
+	KASSERT(object->shadow_count == 0,
+	    ("object %p shadow_count = %d",
+	    object, object->shadow_count));
+}
+#endif
+
+static void
+vm_object_zinit(void *mem, int size)
+{
+	vm_object_t object;
+
+	object = (vm_object_t)mem;
+
+	/* These are true for any object that has been freed */
+	object->paging_in_progress = 0;
+	object->resident_page_count = 0;
+	object->shadow_count = 0;
+}
 
 void
 _vm_object_allocate(objtype_t type, vm_size_t size, vm_object_t object)
@@ -169,9 +203,6 @@ _vm_object_allocate(objtype_t type, vm_size_t size, vm_object_t object)
 	object->flags = 0;
 	if ((object->type == OBJT_DEFAULT) || (object->type == OBJT_SWAP))
 		vm_object_set_flag(object, OBJ_ONEMAPPING);
-	object->paging_in_progress = 0;
-	object->resident_page_count = 0;
-	object->shadow_count = 0;
 	object->pg_color = next_index;
 	if (size > (PQ_L2_SIZE / 3 + PQ_PRIME1))
 		incr = PQ_L2_SIZE / 3 + PQ_PRIME1;
@@ -216,16 +247,19 @@ vm_object_init(void)
 	kmem_object = &kmem_object_store;
 	_vm_object_allocate(OBJT_DEFAULT, OFF_TO_IDX(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS),
 	    kmem_object);
-
-	obj_zone = &obj_zone_store;
-	zbootinit(obj_zone, "VM OBJECT", sizeof (struct vm_object),
-		vm_objects_init, VM_OBJECTS_INIT);
+	obj_zone = uma_zcreate("VM OBJECT", sizeof (struct vm_object), NULL,
+#ifdef INVARIANTS
+	    vm_object_zdtor,
+#else
+	    NULL,
+#endif
+	    vm_object_zinit, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	uma_prealloc(obj_zone, VM_OBJECTS_INIT);
 }
 
 void
 vm_object_init2(void)
 {
-	zinitna(obj_zone, NULL, NULL, 0, 0, 0, 1);
 }
 
 void

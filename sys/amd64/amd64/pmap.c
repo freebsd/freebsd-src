@@ -168,11 +168,9 @@ vm_offset_t kernel_vm_end;
  * Data for the pv entry allocation mechanism
  */
 static vm_zone_t pvzone;
-static struct vm_zone pvzone_store;
 static struct vm_object pvzone_obj;
 static int pv_entry_count = 0, pv_entry_max = 0, pv_entry_high_water = 0;
 static int pmap_pagedaemon_waken = 0;
-static struct pv_entry *pvinit;
 
 /*
  * All those kernel PT submaps that BSD is so fond of
@@ -221,6 +219,7 @@ static pt_entry_t *pmap_pte_quick __P((pmap_t pmap, vm_offset_t va));
 static vm_page_t pmap_page_lookup __P((vm_object_t object, vm_pindex_t pindex));
 static int pmap_unuse_pt __P((pmap_t, vm_offset_t, vm_page_t));
 static vm_offset_t pmap_kmem_choose(vm_offset_t addr);
+static void *pmap_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait);
 
 static pd_entry_t pdir4mb;
 
@@ -446,6 +445,13 @@ pmap_set_opt(void)
 }
 #endif
 
+void *
+pmap_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
+{
+	*flags = UMA_SLAB_PRIV;
+	return (void *)kmem_alloc(kernel_map, bytes);
+}
+
 /*
  *	Initialize the pmap module.
  *	Called by vm_init, to initialize any structures that the pmap
@@ -484,11 +490,16 @@ pmap_init(phys_start, phys_end)
 	initial_pvs = vm_page_array_size;
 	if (initial_pvs < MINPV)
 		initial_pvs = MINPV;
+#if 0
 	pvzone = &pvzone_store;
 	pvinit = (struct pv_entry *) kmem_alloc(kernel_map,
 		initial_pvs * sizeof (struct pv_entry));
 	zbootinit(pvzone, "PV ENTRY", sizeof (struct pv_entry), pvinit,
 	    vm_page_array_size);
+#endif
+	pvzone = zinit("PV ENTRY", sizeof (struct pv_entry), 0, 0, 0);
+	uma_zone_set_allocf(pvzone, pmap_allocf);
+	uma_prealloc(pvzone, initial_pvs);
 
 	/*
 	 * Now it is safe to enable pv_table recording.
@@ -510,7 +521,10 @@ pmap_init2()
 	pv_entry_max = shpgperproc * maxproc + vm_page_array_size;
 	TUNABLE_INT_FETCH("vm.pmap.pv_entries", &pv_entry_max);
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
+#if 0
 	zinitna(pvzone, &pvzone_obj, NULL, 0, pv_entry_max, ZONE_INTERRUPT, 1);
+#endif
+	uma_zone_set_obj(pvzone, &pvzone_obj, pv_entry_max);
 }
 
 

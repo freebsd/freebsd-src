@@ -37,7 +37,11 @@
 #ifndef _SYS_MALLOC_H_
 #define	_SYS_MALLOC_H_
 
+#include <vm/uma.h>
+
 #define splmem splhigh
+
+#define MINALLOCSIZE	UMA_SMALLEST_UNIT
 
 /*
  * flags to malloc.
@@ -80,74 +84,6 @@ MALLOC_DECLARE(M_TEMP);
 
 MALLOC_DECLARE(M_IP6OPT); /* for INET6 */
 MALLOC_DECLARE(M_IP6NDP); /* for INET6 */
-#endif /* _KERNEL */
-
-/*
- * Array of descriptors that describe the contents of each page
- */
-struct kmemusage {
-	short ku_indx;		/* bucket index */
-	union {
-		u_short freecnt;/* for small allocations, free pieces in page */
-		u_short pagecnt;/* for large allocations, pages alloced */
-	} ku_un;
-};
-#define ku_freecnt ku_un.freecnt
-#define ku_pagecnt ku_un.pagecnt
-
-/*
- * Set of buckets for each size of memory block that is retained
- */
-struct kmembuckets {
-	caddr_t kb_next;	/* list of free blocks */
-	caddr_t kb_last;	/* last free block */
-	int64_t	kb_calls;	/* total calls to allocate this size */
-	long	kb_total;	/* total number of blocks allocated */
-	long	kb_elmpercl;	/* # of elements in this sized allocation */
-	long	kb_totalfree;	/* # of free elements in this bucket */
-	long	kb_highwat;	/* high water mark */
-	long	kb_couldfree;	/* over high water mark and could free */
-};
-
-#ifdef _KERNEL
-#define	MINALLOCSIZE	(1 << MINBUCKET)
-#define BUCKETINDX(size) \
-	((size) <= (MINALLOCSIZE * 128) \
-		? (size) <= (MINALLOCSIZE * 8) \
-			? (size) <= (MINALLOCSIZE * 2) \
-				? (size) <= (MINALLOCSIZE * 1) \
-					? (MINBUCKET + 0) \
-					: (MINBUCKET + 1) \
-				: (size) <= (MINALLOCSIZE * 4) \
-					? (MINBUCKET + 2) \
-					: (MINBUCKET + 3) \
-			: (size) <= (MINALLOCSIZE* 32) \
-				? (size) <= (MINALLOCSIZE * 16) \
-					? (MINBUCKET + 4) \
-					: (MINBUCKET + 5) \
-				: (size) <= (MINALLOCSIZE * 64) \
-					? (MINBUCKET + 6) \
-					: (MINBUCKET + 7) \
-		: (size) <= (MINALLOCSIZE * 2048) \
-			? (size) <= (MINALLOCSIZE * 512) \
-				? (size) <= (MINALLOCSIZE * 256) \
-					? (MINBUCKET + 8) \
-					: (MINBUCKET + 9) \
-				: (size) <= (MINALLOCSIZE * 1024) \
-					? (MINBUCKET + 10) \
-					: (MINBUCKET + 11) \
-			: (size) <= (MINALLOCSIZE * 8192) \
-				? (size) <= (MINALLOCSIZE * 4096) \
-					? (MINBUCKET + 12) \
-					: (MINBUCKET + 13) \
-				: (size) <= (MINALLOCSIZE * 16384) \
-					? (MINBUCKET + 14) \
-					: (MINBUCKET + 15))
-
-/*
- * Turn virtual addresses into kmemusage pointers.
- */
-#define btokup(addr)	(&kmemusage[((caddr_t)(addr) - kmembase) >> PAGE_SHIFT])
 
 /*
  * Deprecated macro versions of not-quite-malloc() and free().

@@ -80,7 +80,7 @@ static struct filterops soread_filtops =
 static struct filterops sowrite_filtops =
 	{ 1, NULL, filt_sowdetach, filt_sowrite };
 
-struct	vm_zone *socket_zone;
+vm_zone_t socket_zone;
 so_gen_t	so_gencnt;	/* generation count for sockets */
 
 MALLOC_DEFINE(M_SONAME, "soname", "socket name");

@@ -23,40 +23,30 @@
 
 #include	<sys/_lock.h>
 #include	<sys/_mutex.h>
+#include	<vm/uma.h>
 
-typedef struct vm_zone {
-	struct mtx	zmtx;		/* lock for data structure */
-	void		*zitems;	/* linked list of items */
-	int		zfreecnt;	/* free entries */
-	int		zfreemin;	/* minimum number of free entries */
-	int		znalloc;	/* number of allocations */
-	vm_offset_t	zkva;		/* Base kva of zone */
-	int		zpagecount;	/* Total # of allocated pages */
-	int		zpagemax;	/* Max address space */
-	int		zmax;		/* Max number of entries allocated */
-	int		ztotal;		/* Total entries allocated now */
-	int		zsize;		/* size of each entry */
-	int		zalloc;		/* hint for # of pages to alloc */
-	int		zflags;		/* flags for zone */
-	int		zallocflag;	/* flag for allocation */
-	struct vm_object *zobj;		/* object to hold zone */
-	char		*zname;		/* name for diags */
-	/* NOTE: zent is protected by the subsystem lock, *not* by zmtx */
-	SLIST_ENTRY(vm_zone) zent;	/* singly-linked list of zones */
-} *vm_zone_t;
+typedef uma_zone_t vm_zone_t;
 
+#if 0
+static void		 vm_zone_init(void);
+static void		 vm_zone_init2(void);
 
-void		 vm_zone_init(void);
-void		 vm_zone_init2(void);
-
+static vm_zone_t	 zinit(char *name, int size, int nentries,
+                     int flags, int zalloc);
 int		 zinitna(vm_zone_t z, struct vm_object *obj, char *name,
                      int size, int nentries, int flags, int zalloc);
-vm_zone_t	 zinit(char *name, int size, int nentries,
-                     int flags, int zalloc);
 void		 zbootinit(vm_zone_t z, char *name, int size,
                      void *item, int nitems);
-void		 zdestroy(vm_zone_t z);
-void		*zalloc(vm_zone_t z);
-void		 zfree(vm_zone_t z, void *item);
+static void		 zdestroy(vm_zone_t z);
+static void		*zalloc(vm_zone_t z);
+static void		 zfree(vm_zone_t z, void *item);
+#endif
 
+#define vm_zone_init2() uma_startup2()
+
+#define zinit(name, size, nentries, flags, zalloc)		\
+	uma_zcreate((name), (size), NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE)
+#define zdestroy()
+#define zalloc(z) uma_zalloc((z), M_WAITOK)
+#define zfree(z, item) uma_zfree((z), (item))
 #endif /* _SYS_ZONE_H */

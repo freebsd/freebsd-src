@@ -649,6 +649,7 @@ vm_pageout_scan(int pass)
 	 * Do whatever cleanup that the pmap code can.
 	 */
 	pmap_collect();
+	uma_reclaim();
 
 	addl_page_shortage_init = vm_pageout_deficit;
 	vm_pageout_deficit = 0;
