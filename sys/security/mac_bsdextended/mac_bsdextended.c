@@ -33,6 +33,7 @@
  *
  * $FreeBSD$
  */
+
 /*
  * Developed by the TrustedBSD Project.
  * "BSD Extended" MAC policy, allowing the administrator to impose
