@@ -149,7 +149,7 @@ static int sk_newbuf		(struct sk_if_softc *,
 					struct sk_chain *, struct mbuf *);
 static int sk_alloc_jumbo_mem	(struct sk_if_softc *);
 static void *sk_jalloc		(struct sk_if_softc *);
-static void sk_jfree		(caddr_t, void *);
+static void sk_jfree		(void *, void *);
 static int sk_init_rx_ring	(struct sk_if_softc *);
 static void sk_init_tx_ring	(struct sk_if_softc *);
 static u_int32_t sk_win_read_4	(struct sk_softc *, int);
@@ -795,7 +795,7 @@ static void *sk_jalloc(sc_if)
  * Release a jumbo buffer.
  */
 static void sk_jfree(buf, args)
-	caddr_t			buf;
+	void			*buf;
 	void			*args;
 {
 	struct sk_if_softc	*sc_if;
