@@ -663,7 +663,7 @@ aacd*|ad*|ar*|afd*|amrd*|da*|fla*|idad*|md*|mlxd*|twed*|wd*|wfd*)
 	esac
 	case $unit in
 	[0-9]|[0-9][0-9]|[0-4][0-9][0-9]|50[0-9]|51[0-1])
-		for slicepartname in s0h s1 s2 s3 s4
+		for slicepartname in s0h s1h s2 s3 s4
 		do
 			sh $0 $name$unit$slicepartname
 		done
