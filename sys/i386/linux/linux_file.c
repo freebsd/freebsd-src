@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_file.c,v 1.11 1997/02/22 09:38:20 peter Exp $
+ *  $Id: linux_file.c,v 1.12 1997/03/24 11:24:29 bde Exp $
  */
 
 #include <sys/param.h>
@@ -414,7 +414,9 @@ linux_getdents(struct proc *p, struct linux_getdents_args *args, int *retval)
     struct vattr va;
     off_t off;
     struct linux_dirent linux_dirent;
-    int buflen, error, eofflag, nbytes, justone, blockoff;
+    int buflen, error, eofflag, nbytes, justone;
+    u_long *cookies = NULL, *cookiep;
+    int ncookies;
 
 #ifdef DEBUG
     printf("Linux-emul(%d): getdents(%d, *, %d)\n",
@@ -445,8 +447,7 @@ linux_getdents(struct proc *p, struct linux_getdents_args *args, int *retval)
 	justone = 0;
 
     off = fp->f_offset;
-    blockoff = off % DIRBLKSIZ;
-    buflen = max(DIRBLKSIZ, nbytes + blockoff);
+    buflen = max(DIRBLKSIZ, nbytes);
     buflen = min(buflen, MAXBSIZE);
     buf = malloc(buflen, M_TEMP, M_WAITOK);
     vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
@@ -459,22 +460,47 @@ again:
     auio.uio_segflg = UIO_SYSSPACE;
     auio.uio_procp = p;
     auio.uio_resid = buflen;
-    auio.uio_offset = off - (off_t)blockoff;
+    auio.uio_offset = off;
 
-    error = VOP_READDIR(vp, &auio, fp->f_cred, &eofflag, NULL, NULL);
+    if (cookies) {
+	free(cookies, M_TEMP);
+	cookies = NULL;
+    }
+
+    error = VOP_READDIR(vp, &auio, fp->f_cred, &eofflag, &ncookies, &cookies);
     if (error) {
 	goto out;
     }
 
     inp = buf;
-    inp += blockoff;
     outp = (caddr_t) args->dent;
     resid = nbytes;
-    if ((len = buflen - auio.uio_resid - blockoff) == 0) {
+    if ((len = buflen - auio.uio_resid) <= 0) {
 	goto eof;
     }
 
+    cookiep = cookies;
+
+    if (cookies) {
+	/*
+	 * When using cookies, the vfs has the option of reading from
+	 * a different offset than that supplied (UFS truncates the
+	 * offset to a block boundary to make sure that it never reads
+	 * partway through a directory entry, even if the directory
+	 * has been compacted).
+	 */
+	while (len > 0 && ncookies > 0 && *cookiep <= off) {
+	    bdp = (struct dirent *) inp;
+	    len -= bdp->d_reclen;
+	    inp += bdp->d_reclen;
+	    cookiep++;
+	    ncookies--;
+	}
+    }
+
     while (len > 0) {
+	if (cookiep && ncookies == 0)
+	    break;
 	bdp = (struct dirent *) inp;
 	reclen = bdp->d_reclen;
 	if (reclen & 3) {
@@ -485,7 +511,11 @@ again:
   
 	if (bdp->d_fileno == 0) {
 	    inp += reclen;
-	    off += reclen;
+	    if (cookiep) {
+		off = *cookiep++;
+		ncookies--;
+	    } else
+		off += reclen;
 	    len -= reclen;
 	    continue;
 	}
@@ -510,7 +540,11 @@ again:
 	    goto out;
 	}
 	inp += reclen;
-	off += reclen;
+	if (cookiep) {
+	    off = *cookiep++;
+	    ncookies--;
+	} else
+	    off += reclen;
 	outp += linuxreclen;
 	resid -= linuxreclen;
 	len -= reclen;
@@ -528,6 +562,8 @@ again:
 eof:
     *retval = nbytes - resid;
 out:
+    if (cookies)
+	free(cookies, M_TEMP);
     VOP_UNLOCK(vp, 0, p);
     free(buf, M_TEMP);
     return error;
