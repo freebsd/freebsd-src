@@ -105,6 +105,7 @@ The following operations are valid for connectionless transports only:
 .Bl -column CLSET_RETRY_TIMEOUT "struct timeval *" "set total timeout"
 .It Dv CLSET_RETRY_TIMEOUT Ta "struct timeval *" Ta "set the retry timeout"
 .It Dv CLGET_RETRY_TIMEOUT Ta "struct timeval *" Ta "get the retry timeout"
+.It Dv CLSET_CONNECT Ta Vt "int *" Ta use Xr connect 2
 .El
 .Pp
 The retry timeout is the time that RPC
