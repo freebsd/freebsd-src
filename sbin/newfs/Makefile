@@ -6,7 +6,7 @@ MAN8=	newfs.8
 
 MOUNT=	${.CURDIR}/../mount
 CFLAGS+= -D_NEW_VFSCONF
-CFLAGS+=-DMFS -I${MOUNT}
+CFLAGS+=-DMFS -DFSIRAND -I${MOUNT}
 .PATH:	${MOUNT} ${.CURDIR}/../disklabel
 
 LINKS=	${BINDIR}/newfs ${BINDIR}/mount_mfs
