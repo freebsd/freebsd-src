@@ -815,10 +815,6 @@ static int stliprobe(struct isa_device *idp)
 {
 	stlibrd_t	*brdp;
 	int		btype, bclass;
-	static int once;
-
-	if (!once++)
-		cdevsw_add(&stli_cdevsw);
 
 #if DEBUG
 	printf("stliprobe(idp=%x): unit=%d iobase=%x flags=%x\n", (int) idp,
@@ -919,6 +915,9 @@ static int stliattach(struct isa_device *idp)
 		return(0);
 	if (brdp->state & BST_FOUND)
 		stli_brdattach(brdp);
+	if (0) {
+		make_dev(&stli_cdevsw, 0, 0, 0, 0, "istallion_is_broken");
+	}
 	return(1);
 }
 
