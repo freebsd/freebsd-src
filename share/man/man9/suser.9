@@ -44,9 +44,9 @@
 .Fd #include <sys/param.h>
 .Fd #include <sys/systm.h>
 .Ft int
-.Fn suser "struct proc *proc"
+.Fn suser "const struct proc *proc"
 .Ft int
-.Fn suser_xxx "struct ucred *cred" "struct proc *proc" "int flags"
+.Fn suser_xxx "const struct ucred *cred" "const struct proc *proc" "int flags"
 .Sh DESCRIPTION
 The
 .Nm
