@@ -55,6 +55,8 @@ extern void TtyOldMode(), TtyCommandMode();
 extern struct pppvars pppVars;
 extern struct cmdtab const SetCommands[];
 
+extern char *IfDevName;
+
 struct in_addr ifnetmask;
 
 static int ShowCommand(), TerminalCommand(), QuitCommand();
@@ -213,6 +215,9 @@ char **argv;
        for (i=1; i<argc; i++) {
          if (strcmp(argv[i], "HISADDR") == 0) {
            argv[i] = strdup(inet_ntoa(IpcpInfo.his_ipaddr));
+         }
+         if (strcmp(argv[i], "INTERFACE") == 0) {
+           argv[i] = strdup(IfDevName);
          }
          if (strcmp(argv[i], "MYADDR") == 0) {
            argv[i] = strdup(inet_ntoa(IpcpInfo.want_ipaddr));
