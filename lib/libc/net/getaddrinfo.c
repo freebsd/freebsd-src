@@ -1829,7 +1829,9 @@ res_queryN(name, target)
 		}
 #endif
 
-		if (n < 0 || hp->rcode != NOERROR || ntohs(hp->ancount) == 0) {
+		if (n < 0 || n > anslen)
+			hp->rcode = FORMERR; /* XXX not very informative */
+		if (hp->rcode != NOERROR || ntohs(hp->ancount) == 0) {
 			rcode = hp->rcode;	/* record most recent error */
 #ifdef DEBUG
 			if (_res.options & RES_DEBUG)
