@@ -350,14 +350,11 @@ udp_input(m, off, proto)
 			goto bad;
 		}
 		*ip = save_ip;
-
 		if (badport_bandlim(0) < 0)
 			goto bad;
-
-		if (!blackhole)
-			icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_PORT, 0, 0);
-		else
+		if (blackhole)
 			goto bad;
+		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_PORT, 0, 0);
 		return;
 	}
 #ifdef IPSEC
@@ -905,4 +902,3 @@ struct pr_usrreqs udp_usrreqs = {
 	pru_rcvoob_notsupp, udp_send, pru_sense_null, udp_shutdown,
 	in_setsockaddr, sosend, soreceive, sopoll
 };
-
