@@ -243,7 +243,7 @@ aue_csr_read_1(struct aue_softc *sc, int reg)
 	u_int8_t		val = 0;
 
 	if (sc->aue_gone)
-		return(0);
+		return (0);
 
 	AUE_LOCK(sc);
 
@@ -258,10 +258,11 @@ aue_csr_read_1(struct aue_softc *sc, int reg)
 
 	AUE_UNLOCK(sc);
 
-	if (err)
-		return(0);
+	if (err) {
+		return (0);
+	}
 
-	return(val);
+	return (val);
 }
 
 Static int
@@ -272,7 +273,7 @@ aue_csr_read_2(struct aue_softc *sc, int reg)
 	u_int16_t		val = 0;
 
 	if (sc->aue_gone)
-		return(0);
+		return (0);
 
 	AUE_LOCK(sc);
 
@@ -287,10 +288,11 @@ aue_csr_read_2(struct aue_softc *sc, int reg)
 
 	AUE_UNLOCK(sc);
 
-	if (err)
-		return(0);
+	if (err) {
+		return (0);
+	}
 
-	return(val);
+	return (val);
 }
 
 Static int
@@ -300,7 +302,7 @@ aue_csr_write_1(struct aue_softc *sc, int reg, int val)
 	usbd_status		err;
 
 	if (sc->aue_gone)
-		return(0);
+		return (0);
 
 	AUE_LOCK(sc);
 
@@ -315,10 +317,11 @@ aue_csr_write_1(struct aue_softc *sc, int reg, int val)
 
 	AUE_UNLOCK(sc);
 
-	if (err)
-		return(-1);
+	if (err) {
+		return (-1);
+	}
 
-	return(0);
+	return (0);
 }
 
 Static int
@@ -328,7 +331,7 @@ aue_csr_write_2(struct aue_softc *sc, int reg, int val)
 	usbd_status		err;
 
 	if (sc->aue_gone)
-		return(0);
+		return (0);
 
 	AUE_LOCK(sc);
 
@@ -343,10 +346,11 @@ aue_csr_write_2(struct aue_softc *sc, int reg, int val)
 
 	AUE_UNLOCK(sc);
 
-	if (err)
-		return(-1);
+	if (err) {
+		return (-1);
+	}
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -355,15 +359,14 @@ aue_csr_write_2(struct aue_softc *sc, int reg, int val)
 Static void
 aue_eeprom_getword(struct aue_softc *sc, int addr, u_int16_t *dest)
 {
-	register int		i;
-	u_int16_t		word = 0;
+	int		i;
+	u_int16_t	word = 0;
 
 	aue_csr_write_1(sc, AUE_EE_REG, addr);
 	aue_csr_write_1(sc, AUE_EE_CTL, AUE_EECTL_READ);
 
 	for (i = 0; i < AUE_TIMEOUT; i++) {
-		if (aue_csr_read_1(sc, AUE_EE_CTL) &
-		    AUE_EECTL_DONE)
+		if (aue_csr_read_1(sc, AUE_EE_CTL) & AUE_EECTL_DONE)
 			break;
 	}
 
@@ -421,49 +424,47 @@ aue_miibus_readreg(device_t dev, int phy, int reg)
 	if (sc->aue_info->aue_vid == USB_VENDOR_ADMTEK &&
 	    sc->aue_info->aue_did == USB_PRODUCT_ADMTEK_PEGASUS) {
 		if (phy == 3)
-			return(0);
+			return (0);
 #ifdef notdef
 		if (phy != 1)
-			return(0);
+			return (0);
 #endif
 	}
 
 	aue_csr_write_1(sc, AUE_PHY_ADDR, phy);
-	aue_csr_write_1(sc, AUE_PHY_CTL, reg|AUE_PHYCTL_READ);
+	aue_csr_write_1(sc, AUE_PHY_CTL, reg | AUE_PHYCTL_READ);
 
 	for (i = 0; i < AUE_TIMEOUT; i++) {
-		if (aue_csr_read_1(sc, AUE_PHY_CTL) &
-		    AUE_PHYCTL_DONE)
+		if (aue_csr_read_1(sc, AUE_PHY_CTL) & AUE_PHYCTL_DONE)
 			break;
 	}
 
 	if (i == AUE_TIMEOUT) {
-		printf("aue%d: MII read timed out\n",
-		    sc->aue_unit);
+		printf("aue%d: MII read timed out\n", sc->aue_unit);
 	}
 
 	val = aue_csr_read_2(sc, AUE_PHY_DATA);
 
-	return(val);
+	return (val);
 }
 
-Static int aue_miibus_writereg(device_t dev, int phy, int reg, int data)
+Static int
+aue_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
 	struct aue_softc	*sc;
 	int			i;
 
 	if (phy == 3)
-		return(0);
+		return (0);
 
 	sc = device_get_softc(dev);
 
 	aue_csr_write_2(sc, AUE_PHY_DATA, data);
 	aue_csr_write_1(sc, AUE_PHY_ADDR, phy);
-	aue_csr_write_1(sc, AUE_PHY_CTL, reg|AUE_PHYCTL_WRITE);
+	aue_csr_write_1(sc, AUE_PHY_CTL, reg | AUE_PHYCTL_WRITE);
 
 	for (i = 0; i < AUE_TIMEOUT; i++) {
-		if (aue_csr_read_1(sc, AUE_PHY_CTL) &
-		    AUE_PHYCTL_DONE)
+		if (aue_csr_read_1(sc, AUE_PHY_CTL) & AUE_PHYCTL_DONE)
 			break;
 	}
 
@@ -475,7 +476,8 @@ Static int aue_miibus_writereg(device_t dev, int phy, int reg, int data)
 	return(0);
 }
 
-Static void aue_miibus_statchg(device_t dev)
+Static void
+aue_miibus_statchg(device_t dev)
 {
 	struct aue_softc	*sc;
 	struct mii_data		*mii;
@@ -483,19 +485,19 @@ Static void aue_miibus_statchg(device_t dev)
 	sc = device_get_softc(dev);
 	mii = device_get_softc(sc->aue_miibus);
 
-	AUE_CLRBIT(sc, AUE_CTL0, AUE_CTL0_RX_ENB|AUE_CTL0_TX_ENB);
+	AUE_CLRBIT(sc, AUE_CTL0, AUE_CTL0_RX_ENB | AUE_CTL0_TX_ENB);
 	if (IFM_SUBTYPE(mii->mii_media_active) == IFM_100_TX) {
 		AUE_SETBIT(sc, AUE_CTL1, AUE_CTL1_SPEEDSEL);
 	} else {
 		AUE_CLRBIT(sc, AUE_CTL1, AUE_CTL1_SPEEDSEL);
 	}
 
-	if ((mii->mii_media_active & IFM_GMASK) == IFM_FDX) {
+	if ((mii->mii_media_active & IFM_GMASK) == IFM_FDX)
 		AUE_SETBIT(sc, AUE_CTL1, AUE_CTL1_DUPLEX);
-	} else {
+	else
 		AUE_CLRBIT(sc, AUE_CTL1, AUE_CTL1_DUPLEX);
-	}
-	AUE_SETBIT(sc, AUE_CTL0, AUE_CTL0_RX_ENB|AUE_CTL0_TX_ENB);
+
+	AUE_SETBIT(sc, AUE_CTL0, AUE_CTL0_RX_ENB | AUE_CTL0_TX_ENB);
 
 	/*
 	 * Set the LED modes on the LinkSys adapter.
@@ -503,7 +505,7 @@ Static void aue_miibus_statchg(device_t dev)
 	 * register of the Broadcom PHY.
 	 */
 	if (sc->aue_info->aue_flags & LSYS) {
-		u_int16_t		auxmode;
+		u_int16_t auxmode;
 		auxmode = aue_miibus_readreg(dev, 0, 0x1b);
 		aue_miibus_writereg(dev, 0, 0x1b, auxmode | 0x04);
 	}
@@ -575,9 +577,10 @@ aue_reset_pegasus_II(struct aue_softc *sc)
 		aue_csr_write_1(sc, AUE_REG_81, 2);
 }
 
-Static void aue_reset(struct aue_softc *sc)
+Static void
+aue_reset(struct aue_softc *sc)
 {
-	register int		i;
+	int		i;
 
 	AUE_SETBIT(sc, AUE_CTL1, AUE_CTL1_RESETMAC);
 
@@ -601,11 +604,12 @@ Static void aue_reset(struct aue_softc *sc)
 	aue_csr_write_1(sc, AUE_GPIO0, AUE_GPIO_OUT0|AUE_GPIO_SEL0);
 	aue_csr_write_1(sc, AUE_GPIO0, AUE_GPIO_OUT0|AUE_GPIO_SEL0|AUE_GPIO_SEL1);
 
-	/* Grrr. LinkSys has to be different from everyone else. */
 	if (sc->aue_info->aue_flags & LSYS) {
-		aue_csr_write_1(sc, AUE_GPIO0, AUE_GPIO_SEL0|AUE_GPIO_SEL1);
-		aue_csr_write_1(sc, AUE_GPIO0, AUE_GPIO_SEL0|AUE_GPIO_SEL1|
-			AUE_GPIO_OUT0);
+		/* Grrr. LinkSys has to be different from everyone else. */
+		aue_csr_write_1(sc, AUE_GPIO0,
+		    AUE_GPIO_SEL0 | AUE_GPIO_SEL1);
+		aue_csr_write_1(sc, AUE_GPIO0,
+		    AUE_GPIO_SEL0 | AUE_GPIO_SEL1 | AUE_GPIO_OUT0);
 	}
 
 	if (sc->aue_info->aue_flags & PII)
@@ -614,7 +618,7 @@ Static void aue_reset(struct aue_softc *sc)
 	/* Wait a little while for the chip to get its brains in order. */
 	DELAY(10000);
 
-        return;
+	return;
 }
 
 /*
@@ -625,19 +629,19 @@ USB_MATCH(aue)
 	USB_MATCH_START(aue, uaa);
 	struct aue_type			*t;
 
-	if (!uaa->iface)
-		return(UMATCH_NONE);
+	if (uaa->iface != NULL)
+		return (UMATCH_NONE);
 
 	t = aue_devs;
 	while(t->aue_vid) {
 		if (uaa->vendor == t->aue_vid &&
 		    uaa->product == t->aue_did) {
-			return(UMATCH_VENDOR_PRODUCT);
+			return (UMATCH_VENDOR_PRODUCT);
 		}
 		t++;
 	}
 
-	return(UMATCH_NONE);
+	return (UMATCH_NONE);
 }
 
 /*
@@ -685,7 +689,7 @@ USB_ATTACH(aue)
 	/* Find endpoints. */
 	for (i = 0; i < id->bNumEndpoints; i++) {
 		ed = usbd_interface2endpoint_descriptor(uaa->iface, i);
-		if (!ed) {
+		if (ed == NULL) {
 			printf("aue%d: couldn't get ep %d\n",
 			    sc->aue_unit, i);
 			USB_ATTACH_ERROR_RETURN;
@@ -797,7 +801,7 @@ aue_detach(device_t dev)
 	AUE_UNLOCK(sc);
 	mtx_destroy(&sc->aue_mtx);
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -813,7 +817,7 @@ aue_newbuf(struct aue_softc *sc, struct aue_chain *c, struct mbuf *m)
 		if (m_new == NULL) {
 			printf("aue%d: no memory for rx list "
 			    "-- packet dropped!\n", sc->aue_unit);
-			return(ENOBUFS);
+			return (ENOBUFS);
 		}
 
 		MCLGET(m_new, M_DONTWAIT);
@@ -821,7 +825,7 @@ aue_newbuf(struct aue_softc *sc, struct aue_chain *c, struct mbuf *m)
 			printf("aue%d: no memory for rx list "
 			    "-- packet dropped!\n", sc->aue_unit);
 			m_freem(m_new);
-			return(ENOBUFS);
+			return (ENOBUFS);
 		}
 		m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
 	} else {
@@ -833,7 +837,7 @@ aue_newbuf(struct aue_softc *sc, struct aue_chain *c, struct mbuf *m)
 	m_adj(m_new, ETHER_ALIGN);
 	c->aue_mbuf = m_new;
 
-	return(0);
+	return (0);
 }
 
 Static int
@@ -849,15 +853,15 @@ aue_rx_list_init(struct aue_softc *sc)
 		c->aue_sc = sc;
 		c->aue_idx = i;
 		if (aue_newbuf(sc, c, NULL) == ENOBUFS)
-			return(ENOBUFS);
+			return (ENOBUFS);
 		if (c->aue_xfer == NULL) {
 			c->aue_xfer = usbd_alloc_xfer(sc->aue_udev);
 			if (c->aue_xfer == NULL)
-				return(ENOBUFS);
+				return (ENOBUFS);
 		}
 	}
 
-	return(0);
+	return (0);
 }
 
 Static int
@@ -876,25 +880,24 @@ aue_tx_list_init(struct aue_softc *sc)
 		if (c->aue_xfer == NULL) {
 			c->aue_xfer = usbd_alloc_xfer(sc->aue_udev);
 			if (c->aue_xfer == NULL)
-				return(ENOBUFS);
+				return (ENOBUFS);
 		}
 		c->aue_buf = malloc(AUE_BUFSZ, M_USBDEV, M_NOWAIT);
 		if (c->aue_buf == NULL)
-			return(ENOBUFS);
+			return (ENOBUFS);
 	}
 
-	return(0);
+	return (0);
 }
 
 #ifdef AUE_INTR_PIPE
 Static void
 aue_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 {
-	struct aue_softc	*sc;
+	struct aue_softc	*sc = priv;
 	struct ifnet		*ifp;
 	struct aue_intrpkt	*p;
 
-	sc = priv;
 	AUE_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
@@ -962,15 +965,13 @@ aue_rxstart(struct ifnet *ifp)
 Static void
 aue_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 {
-	struct aue_softc	*sc;
-	struct aue_chain	*c;
+	struct aue_chain	*c = priv;
+	struct aue_softc	*sc = c->aue_sc;
         struct mbuf		*m;
         struct ifnet		*ifp;
 	int			total_len = 0;
 	struct aue_rxpkt	r;
 
-	c = priv;
-	sc = c->aue_sc;
 	if (sc->aue_gone)
 		return;
 	AUE_LOCK(sc);
@@ -1042,13 +1043,11 @@ done:
 Static void
 aue_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 {
-	struct aue_softc	*sc;
-	struct aue_chain	*c;
+	struct aue_chain	*c = priv;
+	struct aue_softc	*sc = c->aue_sc;
 	struct ifnet		*ifp;
 	usbd_status		err;
 
-	c = priv;
-	sc = c->aue_sc;
 	AUE_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
@@ -1088,11 +1087,9 @@ aue_txeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 Static void
 aue_tick(void *xsc)
 {
-	struct aue_softc	*sc;
+	struct aue_softc	*sc = xsc;
 	struct ifnet		*ifp;
 	struct mii_data		*mii;
-
-	sc = xsc;
 
 	if (sc == NULL)
 		return;
@@ -1156,21 +1153,20 @@ aue_encap(struct aue_softc *sc, struct mbuf *m, int idx)
 	err = usbd_transfer(c->aue_xfer);
 	if (err != USBD_IN_PROGRESS) {
 		aue_stop(sc);
-		return(EIO);
+		return (EIO);
 	}
 
 	sc->aue_cdata.aue_tx_cnt++;
 
-	return(0);
+	return (0);
 }
 
 Static void
 aue_start(struct ifnet *ifp)
 {
-	struct aue_softc	*sc;
+	struct aue_softc	*sc = ifp->if_softc;
 	struct mbuf		*m_head = NULL;
 
-	sc = ifp->if_softc;
 	AUE_LOCK(sc);
 
 	if (!sc->aue_link) {
@@ -1243,11 +1239,10 @@ aue_init(void *xsc)
 		aue_csr_write_1(sc, AUE_PAR0 + i, sc->arpcom.ac_enaddr[i]);
 
 	 /* If we want promiscuous mode, set the allframes bit. */
-	if (ifp->if_flags & IFF_PROMISC) {
+	if (ifp->if_flags & IFF_PROMISC)
 		AUE_SETBIT(sc, AUE_CTL2, AUE_CTL2_RX_PROMISC);
-	} else {
+	else
 		AUE_CLRBIT(sc, AUE_CTL2, AUE_CTL2_RX_PROMISC);
-	}
 
 	/* Init TX ring. */
 	if (aue_tx_list_init(sc) == ENOBUFS) {
@@ -1271,9 +1266,10 @@ aue_init(void *xsc)
 	aue_setmulti(sc);
 
 	/* Enable RX and TX */
-	aue_csr_write_1(sc, AUE_CTL0, AUE_CTL0_RXSTAT_APPEND|AUE_CTL0_RX_ENB);
+	aue_csr_write_1(sc, AUE_CTL0, AUE_CTL0_RXSTAT_APPEND | AUE_CTL0_RX_ENB);
 	AUE_SETBIT(sc, AUE_CTL0, AUE_CTL0_TX_ENB);
 	AUE_SETBIT(sc, AUE_CTL2, AUE_CTL2_EP3_CLR);
+
 	mii_mediachg(mii);
 
 	/* Open RX and TX pipes. */
@@ -1332,10 +1328,8 @@ aue_init(void *xsc)
 Static int
 aue_ifmedia_upd(struct ifnet *ifp)
 {
-	struct aue_softc	*sc;
+	struct aue_softc	*sc = ifp->if_softc;
 	struct mii_data		*mii;
-
-	sc = ifp->if_softc;
 
 	mii = device_get_softc(sc->aue_miibus);
 	sc->aue_link = 0;
@@ -1346,7 +1340,7 @@ aue_ifmedia_upd(struct ifnet *ifp)
 	}
 	mii_mediachg(mii);
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -1355,10 +1349,8 @@ aue_ifmedia_upd(struct ifnet *ifp)
 Static void
 aue_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
-	struct aue_softc	*sc;
+	struct aue_softc	*sc = ifp->if_softc;
 	struct mii_data		*mii;
-
-	sc = ifp->if_softc;
 
 	mii = device_get_softc(sc->aue_miibus);
 	mii_pollstat(mii);
@@ -1372,7 +1364,7 @@ Static int
 aue_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	struct aue_softc	*sc = ifp->if_softc;
-	struct ifreq		*ifr = (struct ifreq *) data;
+	struct ifreq		*ifr = (struct ifreq *)data;
 	struct mii_data		*mii;
 	int			error = 0;
 
@@ -1420,17 +1412,16 @@ aue_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	AUE_UNLOCK(sc);
 
-	return(error);
+	return (error);
 }
 
 Static void
 aue_watchdog(struct ifnet *ifp)
 {
-	struct aue_softc	*sc;
+	struct aue_softc	*sc = ifp->if_softc;
 	struct aue_chain	*c;
 	usbd_status		stat;
 
-	sc = ifp->if_softc;
 	AUE_LOCK(sc);
 
 	ifp->if_oerrors++;
