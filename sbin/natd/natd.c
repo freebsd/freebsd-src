@@ -161,7 +161,7 @@ int main (int argc, char** argv)
 	dynamicMode		= 0;
  	logDropped		= 0;
  	logFacility		= LOG_DAEMON;
-	logIpfwDenied		= 0;
+	logIpfwDenied		= -1;
 /*
  * Mark packet buffer empty.
  */
@@ -169,6 +169,11 @@ int main (int argc, char** argv)
 	packetDirection		= DONT_KNOW;
 
 	ParseArgs (argc, argv);
+/*
+ * Log ipfw(8) denied packets by default in verbose mode.
+ */
+	if (logIpfwDenied == -1)
+		logIpfwDenied = verbose;
 /*
  * Open syslog channel.
  */
