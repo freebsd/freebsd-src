@@ -758,7 +758,7 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 		kernel_pmap->pm_sr[i] = EMPTY_SEGMENT;
 	}
 	kernel_pmap->pm_sr[KERNEL_SR] = KERNEL_SEGMENT;
-	kernel_pmap->pm_sr[KERNEL2_SR] = KERNEL_SEGMENT;
+	kernel_pmap->pm_sr[KERNEL2_SR] = KERNEL2_SEGMENT;
 	kernel_pmap->pm_active = ~0;
 
 	/*
@@ -799,6 +799,8 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 	}
 	__asm __volatile ("mtsr %0,%1"
 	    :: "n"(KERNEL_SR), "r"(KERNEL_SEGMENT));
+	__asm __volatile ("mtsr %0,%1"
+	    :: "n"(KERNEL2_SR), "r"(KERNEL2_SEGMENT));
 	__asm __volatile ("sync; mtsdr1 %0; isync"
 	    :: "r"((u_int)pmap_pteg_table | (pmap_pteg_mask >> 10)));
 	tlbia();
