@@ -1,4 +1,4 @@
-# GENERIC -- Generic kernel configuration file for FreeBSD/i386
+# GENERIC -- Generic kernel configuration file for FreeBSD/arm
 #
 # For more information on this file, please read the handbook section on
 # Kernel Configuration Files:
