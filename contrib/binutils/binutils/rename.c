@@ -165,8 +165,8 @@ smart_rename (from, to, preserve_dates)
   ret = rename (from, to);
   if (ret != 0)
     {
-      /* We have to clean up here. */
-      
+      /* We have to clean up here.  */
+
       non_fatal (_("%s: rename: %s"), to, strerror (errno));
       unlink (from);
     }
@@ -199,7 +199,7 @@ smart_rename (from, to, preserve_dates)
 	}
       else
 	{
-	  /* We have to clean up here. */
+	  /* We have to clean up here.  */
 	  non_fatal (_("%s: rename: %s"), to, strerror (errno));
 	  unlink (from);
 	}

@@ -28,6 +28,13 @@ AC_DEFUN([CY_WITH_NLS],)
 AC_SUBST(INTLLIBS)
 ])
 
+dnl AM_INSTALL_LIBBFD already included in bfd/acinclude.m4
+ifelse(yes,no,[
+AC_DEFUN([AM_INSTALL_LIBBFD],)
+AC_SUBST(bfdlibdir)
+AC_SUBST(bfdincludedir)
+])
+
 # Do all the work for Automake.  This macro actually does too much --
 # some checks are only needed if your package does certain things.
 # But this isn't really a big deal.

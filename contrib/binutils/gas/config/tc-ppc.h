@@ -1,5 +1,5 @@
 /* tc-ppc.h -- Header file for tc-ppc.c.
-   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
+   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
 
@@ -196,10 +196,6 @@ extern int ppc_frob_symbol PARAMS ((symbolS *));
 #define tc_adjust_symtab() ppc_adjust_symtab ()
 extern void ppc_adjust_symtab PARAMS ((void));
 
-/* Niclas Andersson <nican@ida.liu.se> says this is needed.  */
-extern int ppc_subseg_align PARAMS ((void));
-#define SUB_SEGMENT_ALIGN(SEG) ppc_subseg_align()
-
 /* We also need to copy, in particular, the class of the symbol,
    over what obj-coff would otherwise have copied.  */
 #define OBJ_COPY_SYMBOL_ATTRIBUTES(dest,src)			\
@@ -223,8 +219,7 @@ do {								\
  || (FIXP)->fx_r_type == BFD_RELOC_PPC_B16_BRNTAKEN			\
  || (FIXP)->fx_r_type == BFD_RELOC_PPC_BA16_BRTAKEN			\
  || (FIXP)->fx_r_type == BFD_RELOC_PPC_BA16_BRNTAKEN			\
- || (BFD_DEFAULT_TARGET_SIZE == 64					\
-     && (FIXP)->fx_r_type == BFD_RELOC_PPC64_TOC)			\
+ || (FIXP)->fx_r_type == BFD_RELOC_PPC64_TOC				\
  || (FIXP)->fx_r_type == BFD_RELOC_VTABLE_INHERIT			\
  || (FIXP)->fx_r_type == BFD_RELOC_VTABLE_ENTRY)
 
@@ -244,24 +239,20 @@ extern int ppc_section_flags PARAMS ((int, int, int));
 #define md_elf_section_word(STR, LEN)		ppc_section_word (STR, LEN)
 #define md_elf_section_flags(FLAGS, ATTR, TYPE)	ppc_section_flags (FLAGS, ATTR, TYPE)
 
-#if BFD_DEFAULT_TARGET_SIZE == 64
-/* Extra sections for 64-bit ELF PPC. */
-#define ELF_TC_SPECIAL_SECTIONS \
-  { ".toc",		SHT_PROGBITS,	SHF_ALLOC + SHF_WRITE}, \
-  { ".tocbss",		SHT_NOBITS,	SHF_ALLOC + SHF_WRITE},
-#else
 /* Add extra PPC sections -- Note, for now, make .sbss2 and .PPC.EMB.sbss0 a
    normal section, and not a bss section so that the linker doesn't crater
    when trying to make more than 2 sections.  */
 #define ELF_TC_SPECIAL_SECTIONS \
-  { ".tags",		SHT_ORDERED,	SHF_ALLOC }, \
-  { ".sdata",		SHT_PROGBITS,	SHF_ALLOC + SHF_WRITE }, \
-  { ".sbss",		SHT_NOBITS,	SHF_ALLOC + SHF_WRITE }, \
-  { ".sdata2",		SHT_PROGBITS,	SHF_ALLOC }, \
-  { ".sbss2",		SHT_PROGBITS,	SHF_ALLOC }, \
-  { ".PPC.EMB.sdata0",	SHT_PROGBITS,	SHF_ALLOC }, \
-  { ".PPC.EMB.sbss0",	SHT_PROGBITS,	SHF_ALLOC },
-#endif
+  { ".tags",		SHT_ORDERED,	SHF_ALLOC },			\
+  { ".sdata",		SHT_PROGBITS,	SHF_ALLOC + SHF_WRITE },	\
+  { ".sbss",		SHT_NOBITS,	SHF_ALLOC + SHF_WRITE },	\
+  { ".sdata2",		SHT_PROGBITS,	SHF_ALLOC },			\
+  { ".sbss2",		SHT_PROGBITS,	SHF_ALLOC },			\
+  { ".PPC.EMB.sdata0",	SHT_PROGBITS,	SHF_ALLOC },			\
+  { ".PPC.EMB.sbss0",	SHT_PROGBITS,	SHF_ALLOC },			\
+  /* Extra sections for 64-bit ELF PPC.  */				\
+  { ".toc",		SHT_PROGBITS,	SHF_ALLOC + SHF_WRITE},		\
+  { ".tocbss",		SHT_NOBITS,	SHF_ALLOC + SHF_WRITE},
 
 #define tc_comment_chars ppc_comment_chars
 extern const char *ppc_comment_chars;
@@ -280,11 +271,8 @@ extern int ppc_fix_adjustable PARAMS ((struct fix *));
        && S_IS_DEFINED ((FIX)->fx_addsy) \
        && ! S_IS_COMMON ((FIX)->fx_addsy)))
 
-#if BFD_DEFAULT_TARGET_SIZE == 64
-/* Finish up the symbol.  */
-#define tc_frob_symbol(sym, punt) punt = ppc_elf_frob_symbol (sym)
-extern int ppc_elf_frob_symbol PARAMS ((symbolS *));
-#endif
+#define tc_frob_file_before_adjust ppc_frob_file_before_adjust
+extern void ppc_frob_file_before_adjust PARAMS ((void));
 
 #define DWARF2_LINE_MIN_INSN_LENGTH 4
 #endif /* OBJ_ELF */

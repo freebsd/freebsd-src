@@ -1,6 +1,6 @@
 /* BFD back-end for PowerPC Microsoft Portable Executable files.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001
+   2000, 2001, 2002
    Free Software Foundation, Inc.
 
    Original version pieced together by Kim Knuttila (krk@cygnus.com)
@@ -204,13 +204,13 @@ ppc_coff_link_hash_table_create (abfd)
   struct ppc_coff_link_hash_table *ret;
   bfd_size_type amt = sizeof (struct ppc_coff_link_hash_table);
 
-  ret = (struct ppc_coff_link_hash_table *) bfd_alloc (abfd, amt);
+  ret = (struct ppc_coff_link_hash_table *) bfd_malloc (amt);
   if (ret == NULL)
     return NULL;
   if (! ppc_coff_link_hash_table_init (ret, abfd,
 					ppc_coff_link_hash_newfunc))
     {
-      bfd_release (abfd, ret);
+      free (ret);
       return (struct bfd_link_hash_table *) NULL;
     }
   return &ret->root.root;

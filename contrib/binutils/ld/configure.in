@@ -1,6 +1,6 @@
 dnl Process this file with autoconf to produce a configure script
 dnl
-AC_PREREG(2.13)
+AC_PREREQ(2.13)
 AC_INIT(ldmain.c)
 
 AC_CANONICAL_SYSTEM

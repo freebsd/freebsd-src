@@ -1,5 +1,5 @@
 /* BFD ECOFF object file private structure.
-   Copyright 1993, 1994, 1995, 1996, 1999, 2001
+   Copyright 1993, 1994, 1995, 1996, 1999, 2001, 2002
    Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
 
@@ -330,8 +330,10 @@ extern int _bfd_ecoff_sizeof_headers PARAMS ((bfd *abfd, boolean reloc));
 /* ecoff_bfd_relax_section defined by backend.  */
 extern struct bfd_link_hash_table *_bfd_ecoff_bfd_link_hash_table_create
   PARAMS ((bfd *));
+#define _bfd_ecoff_bfd_link_hash_table_free _bfd_generic_link_hash_table_free
 extern boolean _bfd_ecoff_bfd_link_add_symbols
   PARAMS ((bfd *, struct bfd_link_info *));
+#define _bfd_ecoff_bfd_link_just_syms _bfd_generic_link_just_syms
 extern boolean _bfd_ecoff_bfd_final_link
   PARAMS ((bfd *, struct bfd_link_info *));
 

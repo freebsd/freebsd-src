@@ -128,6 +128,9 @@ CODE_FRAGMENT
 .  {* Symbol table for output BFD (with symcount entries).  *}
 .  struct symbol_cache_entry  **outsymbols;
 .
+.  {* Used for slurped dynamic symbol tables.  *}
+.  unsigned int dynsymcount;
+.
 .  {* Pointer to structure which contains architecture information.  *}
 .  const struct bfd_arch_info *arch_info;
 .
@@ -749,7 +752,6 @@ bfd_get_arch_size (abfd)
   if (abfd->xvec->flavour == bfd_target_elf_flavour)
     return (get_elf_backend_data (abfd))->s->arch_size;
 
-  bfd_set_error (bfd_error_wrong_format);
   return -1;
 }
 
@@ -1008,7 +1010,8 @@ DESCRIPTION
 	in hex if a leading "0x" or "0X" is found, otherwise
 	in octal if a leading zero is found, otherwise in decimal.
 
-	Overflow is not detected.
+	If the value would overflow, the maximum <<bfd_vma>> value is
+	returned.
 */
 
 bfd_vma
@@ -1018,15 +1021,13 @@ bfd_scan_vma (string, end, base)
      int base;
 {
   bfd_vma value;
-  int digit;
+  bfd_vma cutoff;
+  unsigned int cutlim;
+  int overflow;
 
   /* Let the host do it if possible.  */
   if (sizeof (bfd_vma) <= sizeof (unsigned long))
     return (bfd_vma) strtoul (string, (char **) end, base);
-
-  /* A negative base makes no sense, and we only need to go as high as hex.  */
-  if ((base < 0) || (base > 16))
-    return (bfd_vma) 0;
 
   if (base == 0)
     {
@@ -1034,32 +1035,50 @@ bfd_scan_vma (string, end, base)
 	{
 	  if ((string[1] == 'x') || (string[1] == 'X'))
 	    base = 16;
-	  /* XXX should we also allow "0b" or "0B" to set base to 2?  */
 	  else
 	    base = 8;
 	}
-      else
-	base = 10;
     }
 
-  if ((base == 16) &&
-      (string[0] == '0') && ((string[1] == 'x') || (string[1] == 'X')))
-    string += 2;
-  /* XXX should we also skip over "0b" or "0B" if base is 2?  */
+  if ((base < 2) || (base > 36))
+    base = 10;
 
-/* Speed could be improved with a table like hex_value[] in gas.  */
-#define HEX_VALUE(c) \
-  (ISXDIGIT (c)							\
-   ? (ISDIGIT (c)						\
-      ? (c - '0')						\
-      : (10 + c - (ISLOWER (c) ? 'a' : 'A')))			\
-   : 42)
+  if (base == 16
+      && string[0] == '0'
+      && (string[1] == 'x' || string[1] == 'X')
+      && ISXDIGIT (string[2]))
+    {
+      string += 2;
+    }
 
-  for (value = 0; (digit = HEX_VALUE (* string)) < base; string ++)
-    value = value * base + digit;
+  cutoff = (~ (bfd_vma) 0) / (bfd_vma) base;
+  cutlim = (~ (bfd_vma) 0) % (bfd_vma) base;
+  value = 0;
+  overflow = 0;
+  while (1)
+    {
+      unsigned int digit;
 
-  if (end)
-    * end = string;
+      digit = *string;
+      if (ISDIGIT (digit))
+	digit = digit - '0';
+      else if (ISALPHA (digit))
+	digit = TOUPPER (digit) - 'A' + 10;
+      else
+	break;
+      if (digit >= (unsigned int) base)
+	break;
+      if (value > cutoff || (value == cutoff && digit > cutlim))
+	overflow = 1;
+      value = value * base + digit;
+      ++string;
+    }
+
+  if (overflow)
+    value = ~ (bfd_vma) 0;
+
+  if (end != NULL)
+    *end = string;
 
   return value;
 }
@@ -1169,11 +1188,20 @@ DESCRIPTION
 .#define bfd_merge_sections(abfd, link_info) \
 .	BFD_SEND (abfd, _bfd_merge_sections, (abfd, link_info))
 .
+.#define bfd_discard_group(abfd, sec) \
+.	BFD_SEND (abfd, _bfd_discard_group, (abfd, sec))
+.
 .#define bfd_link_hash_table_create(abfd) \
 .	BFD_SEND (abfd, _bfd_link_hash_table_create, (abfd))
 .
+.#define bfd_link_hash_table_free(abfd, hash) \
+.	BFD_SEND (abfd, _bfd_link_hash_table_free, (hash))
+.
 .#define bfd_link_add_symbols(abfd, info) \
 .	BFD_SEND (abfd, _bfd_link_add_symbols, (abfd, info))
+.
+.#define bfd_link_just_syms(sec, info) \
+.	BFD_SEND (abfd, _bfd_link_just_syms, (sec, info))
 .
 .#define bfd_final_link(abfd, info) \
 .	BFD_SEND (abfd, _bfd_final_link, (abfd, info))
@@ -1309,27 +1337,27 @@ FUNCTION
 	bfd_alt_mach_code
 
 SYNOPSIS
-	boolean bfd_alt_mach_code(bfd *abfd, int index);
+	boolean bfd_alt_mach_code(bfd *abfd, int alternative);
 
 DESCRIPTION
 
 	When more than one machine code number is available for the
 	same machine type, this function can be used to switch between
-	the preferred one (index == 0) and any others.  Currently,
+	the preferred one (alternative == 0) and any others.  Currently,
 	only ELF supports this feature, with up to two alternate
 	machine codes.
 */
 
 boolean
-bfd_alt_mach_code (abfd, index)
+bfd_alt_mach_code (abfd, alternative)
      bfd *abfd;
-     int index;
+     int alternative;
 {
   if (bfd_get_flavour (abfd) == bfd_target_elf_flavour)
     {
       int code;
 
-      switch (index)
+      switch (alternative)
 	{
 	case 0:
 	  code = get_elf_backend_data (abfd)->elf_machine_code;

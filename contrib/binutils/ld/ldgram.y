@@ -1,6 +1,6 @@
 /* A YACC grammar to parse a superset of the AT&T linker scripting language.
    Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001 Free Software Foundation, Inc.
+   2001, 2002 Free Software Foundation, Inc.
    Written by Steve Chamberlain of Cygnus Support (steve@cygnus.com).
 
 This file is part of GNU ld.
@@ -66,6 +66,12 @@ static int error_index;
 %}
 %union {
   bfd_vma integer;
+  struct big_int
+    {
+      bfd_vma integer;
+      char *str;
+    } bigint;
+  fill_type *fill;
   char *name;
   const char *cname;
   struct wildcard_spec wildcard;
@@ -89,14 +95,14 @@ static int error_index;
 
 %type <etree> exp opt_exp_with_type mustbe_exp opt_at phdr_type phdr_val
 %type <etree> opt_exp_without_type
-%type <integer> fill_opt
+%type <fill> fill_opt fill_exp
 %type <name_list> exclude_name_list
 %type <wildcard_list> file_NAME_list
 %type <name> memspec_opt casesymlist
 %type <name> memspec_at_opt
 %type <cname> wildcard_name
 %type <wildcard> wildcard_spec
-%token <integer> INT  
+%token <bigint> INT  
 %token <name> NAME LNAME
 %type <integer> length
 %type <phdr> phdr_qualifiers
@@ -122,7 +128,7 @@ static int error_index;
 %token END 
 %left <token> '('
 %token <token> ALIGN_K BLOCK BIND QUAD SQUAD LONG SHORT BYTE
-%token SECTIONS PHDRS SORT
+%token SECTIONS PHDRS SORT DATA_SEGMENT_ALIGN DATA_SEGMENT_END
 %token '{' '}'
 %token SIZEOF_HEADERS OUTPUT_FORMAT FORCE_COMMON_ALLOCATION OUTPUT_ARCH
 %token INHIBIT_COMMON_ALLOCATION
@@ -170,6 +176,7 @@ defsym_expr:
 		  ldlex_popstate();
 		  lang_add_assignment(exp_assop($3,$2,$4));
 		}
+	;
 
 /* SYNTAX WITHIN AN MRI SCRIPT FILE */  
 mri_script_file:
@@ -230,11 +237,11 @@ mri_script_command:
 	|	ALIAS NAME ',' NAME
 			{ mri_alias($2,$4,0);}
 	|	ALIAS NAME ',' INT
-			{ mri_alias($2,0,(int) $4);}
+			{ mri_alias ($2, 0, (int) $4.integer); }
 	|	BASE     exp
 			{ mri_base($2); }
-        |       TRUNCATE INT
-		{  mri_truncate((unsigned int) $2); }
+	|	TRUNCATE INT
+		{ mri_truncate ((unsigned int) $2.integer); }
 	|	CASE casesymlist
 	|	EXTERN extern_name_list
 	|	INCLUDE filename
@@ -512,16 +519,12 @@ statement:
 	| input_section_spec
         | length '(' mustbe_exp ')'
         	        {
-			lang_add_data((int) $1,$3);
+			  lang_add_data ((int) $1, $3);
 			}
   
-	| FILL '(' mustbe_exp ')'
+	| FILL '(' fill_exp ')'
 			{
-			  lang_add_fill
-			    (exp_get_value_int($3,
-					       0,
-					       "fill value",
-					       lang_first_phase_enum));
+			  lang_add_fill ($3);
 			}
 	;
 
@@ -548,18 +551,21 @@ length:
 			{ $$ = $1; }
 	;
 
-fill_opt:
-          '=' mustbe_exp
+fill_exp:
+	mustbe_exp
 		{
-		  $$ =	 exp_get_value_int($2,
-					   0,
-					   "fill value",
-					   lang_first_phase_enum);
+		  $$ = exp_get_fill ($1,
+				     0,
+				     "fill value",
+				     lang_first_phase_enum);
 		}
-	| 	{ $$ = 0; }
 	;
 
-		
+fill_opt:
+	  '=' fill_exp
+		{ $$ = $2; }
+	| 	{ $$ = (fill_type *) 0; }
+	;
 
 assign_op:
 		PLUSEQ
@@ -781,7 +787,7 @@ exp	:
 	|	DEFINED '(' NAME ')'
 			{ $$ = exp_nameop(DEFINED, $3); }
 	|	INT
-			{ $$ = exp_intop($1); }
+			{ $$ = exp_bigintop ($1.integer, $1.str); }
         |	SIZEOF_HEADERS
 			{ $$ = exp_nameop(SIZEOF_HEADERS,0); }
 
@@ -795,6 +801,10 @@ exp	:
 			{ $$ = exp_unop(ABSOLUTE, $3); }
 	|	ALIGN_K '(' exp ')'
 			{ $$ = exp_unop(ALIGN_K,$3); }
+	|	DATA_SEGMENT_ALIGN '(' exp ',' exp ')'
+			{ $$ = exp_binop (DATA_SEGMENT_ALIGN, $3, $5); }
+	|	DATA_SEGMENT_END '(' exp ')'
+			{ $$ = exp_unop(DATA_SEGMENT_END, $3); }
 	|	BLOCK '(' exp ')'
 			{ $$ = exp_unop(ALIGN_K,$3); }
 	|	NAME
@@ -810,7 +820,7 @@ exp	:
 
 memspec_at_opt:
                 AT '>' NAME { $$ = $3; }
-        |       { $$ = "*default*"; }
+        |       { $$ = 0; }
         ;
 
 opt_at:
@@ -841,7 +851,7 @@ section:	NAME 		{ ldlex_expression(); }
 			{ ldlex_popstate (); ldlex_script (); }
 		'{' 
 			{
-			  lang_enter_overlay ($3, $5, (int) $4);
+			  lang_enter_overlay ($3);
 			}
 		overlay_section
 		'}'
@@ -849,7 +859,8 @@ section:	NAME 		{ ldlex_expression(); }
 		memspec_opt memspec_at_opt phdr_opt fill_opt
 			{
 			  ldlex_popstate ();
-			  lang_leave_overlay ($15, $12, $14, $13);
+			  lang_leave_overlay ($5, (int) $4,
+					      $15, $12, $14, $13);
 			}
 		opt_comma
 	|	/* The GROUP case is just enough to support the gcc

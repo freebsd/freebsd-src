@@ -603,8 +603,6 @@ bfd_generic_archive_p (abfd)
   char armag[SARMAG + 1];
   bfd_size_type amt;
 
-  tdata_hold = abfd->tdata.aout_ar_data;
-
   if (bfd_bread ((PTR) armag, (bfd_size_type) SARMAG, abfd) != SARMAG)
     {
       if (bfd_get_error () != bfd_error_system_call)
@@ -621,13 +619,15 @@ bfd_generic_archive_p (abfd)
     return 0;
 #endif
 
-  /* We are setting bfd_ardata(abfd) here, but since bfd_ardata
-     involves a cast, we can't do it as the left operand of assignment.  */
-  amt = sizeof (struct artdata);
-  abfd->tdata.aout_ar_data = (struct artdata *) bfd_zalloc (abfd, amt);
+  tdata_hold = bfd_ardata (abfd);
 
+  amt = sizeof (struct artdata);
+  bfd_ardata (abfd) = (struct artdata *) bfd_zalloc (abfd, amt);
   if (bfd_ardata (abfd) == NULL)
-    return NULL;
+    {
+      bfd_ardata (abfd) = tdata_hold;
+      return NULL;
+    }
 
   bfd_ardata (abfd)->first_file_filepos = SARMAG;
   bfd_ardata (abfd)->cache = NULL;
@@ -636,21 +636,13 @@ bfd_generic_archive_p (abfd)
   bfd_ardata (abfd)->extended_names = NULL;
   bfd_ardata (abfd)->tdata = NULL;
 
-  if (!BFD_SEND (abfd, _bfd_slurp_armap, (abfd)))
+  if (!BFD_SEND (abfd, _bfd_slurp_armap, (abfd))
+      || !BFD_SEND (abfd, _bfd_slurp_extended_name_table, (abfd)))
     {
-      bfd_release (abfd, bfd_ardata (abfd));
-      abfd->tdata.aout_ar_data = tdata_hold;
       if (bfd_get_error () != bfd_error_system_call)
 	bfd_set_error (bfd_error_wrong_format);
-      return NULL;
-    }
-
-  if (!BFD_SEND (abfd, _bfd_slurp_extended_name_table, (abfd)))
-    {
       bfd_release (abfd, bfd_ardata (abfd));
-      abfd->tdata.aout_ar_data = tdata_hold;
-      if (bfd_get_error () != bfd_error_system_call)
-	bfd_set_error (bfd_error_wrong_format);
+      bfd_ardata (abfd) = tdata_hold;
       return NULL;
     }
 
@@ -686,9 +678,9 @@ bfd_generic_archive_p (abfd)
 		 release bfd_ardata.  FIXME.  */
 	      (void) bfd_close (first);
 	      bfd_release (abfd, bfd_ardata (abfd));
-	      abfd->tdata.aout_ar_data = tdata_hold;
 #endif
 	      bfd_set_error (bfd_error_wrong_object_format);
+	      bfd_ardata (abfd) = tdata_hold;
 	      return NULL;
 	    }
 	  /* And we ought to close `first' here too.  */
@@ -1746,7 +1738,7 @@ _bfd_write_archive_contents (arch)
 
   if (makemap && hasobjects)
     {
-      if (_bfd_compute_and_write_armap (arch, (unsigned int) elength) != true)
+      if (! _bfd_compute_and_write_armap (arch, (unsigned int) elength))
 	return false;
     }
 
@@ -1876,8 +1868,8 @@ _bfd_compute_and_write_armap (arch, elength)
        current != (bfd *) NULL;
        current = current->next, elt_no++)
     {
-      if ((bfd_check_format (current, bfd_object) == true)
-	  && ((bfd_get_file_flags (current) & HAS_SYMS)))
+      if (bfd_check_format (current, bfd_object)
+	  && (bfd_get_file_flags (current) & HAS_SYMS) != 0)
 	{
 	  long storage;
 	  long symcount;

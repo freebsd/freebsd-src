@@ -4,7 +4,7 @@
 
 /* BFD COFF object file private structure.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001
+   2000, 2001, 2002
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -584,6 +584,8 @@ extern long _bfd_xcoff_canonicalize_dynamic_reloc
   PARAMS ((bfd *, arelent **, asymbol **));
 extern struct bfd_link_hash_table *_bfd_xcoff_bfd_link_hash_table_create
   PARAMS ((bfd *));
+extern void _bfd_xcoff_bfd_link_hash_table_free
+  PARAMS ((struct bfd_link_hash_table *));
 extern boolean _bfd_xcoff_bfd_link_add_symbols
   PARAMS ((bfd *, struct bfd_link_info *));
 extern boolean _bfd_xcoff_bfd_final_link
@@ -600,8 +602,7 @@ extern boolean ppc_allocate_toc_section
 extern boolean ppc_process_before_allocation
   PARAMS ((bfd *, struct bfd_link_info *));
 
-/* And more taken from the source .. */
-
+/* Extracted from coffcode.h.  */
 typedef struct coff_ptr_struct
 {
   /* Remembers the offset from the first symbol in the file for

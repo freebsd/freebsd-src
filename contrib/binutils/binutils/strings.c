@@ -61,7 +61,7 @@
 #endif
 #include "bfd.h"
 #include <stdio.h>
-#include <getopt.h>
+#include "getopt.h"
 #include <errno.h>
 #include "bucomm.h"
 #include "libiberty.h"

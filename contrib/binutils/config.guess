@@ -3,7 +3,7 @@
 #   Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
 #   2000, 2001, 2002 Free Software Foundation, Inc.
 
-timestamp='2002-02-19'
+timestamp='2002-05-22'
 
 # This file is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by
@@ -98,7 +98,7 @@ trap 'rm -f $dummy.c $dummy.o $dummy.rel $dummy; exit 1' 1 2 15
 
 set_cc_for_build='case $CC_FOR_BUILD,$HOST_CC,$CC in
  ,,)    echo "int dummy(){}" > $dummy.c ;
-	for c in cc gcc c89 ; do
+	for c in cc gcc c89 c99 ; do
 	  ($c $dummy.c -c -o $dummy.o) >/dev/null 2>&1 ;
 	  if test $? = 0 ; then
 	     CC_FOR_BUILD="$c"; break ;
@@ -138,9 +138,11 @@ case "${UNAME_MACHINE}:${UNAME_SYSTEM}:${UNAME_RELEASE}:${UNAME_VERSION}" in
 	#
 	# Note: NetBSD doesn't particularly care about the vendor
 	# portion of the name.  We always set it to "unknown".
-	UNAME_MACHINE_ARCH=`(uname -p) 2>/dev/null` || \
-	    UNAME_MACHINE_ARCH=unknown
+	sysctl="sysctl -n hw.machine_arch"
+	UNAME_MACHINE_ARCH=`(/sbin/$sysctl 2>/dev/null || \
+	    /usr/sbin/$sysctl 2>/dev/null || echo unknown)`
 	case "${UNAME_MACHINE_ARCH}" in
+	    armeb) machine=armeb-unknown ;;
 	    arm*) machine=arm-unknown ;;
 	    sh3el) machine=shl-unknown ;;
 	    sh3eb) machine=sh-unknown ;;
@@ -426,6 +428,9 @@ EOF
 	exit 0 ;;
     Motorola:PowerMAX_OS:*:*)
 	echo powerpc-motorola-powermax
+	exit 0 ;;
+    Night_Hawk:*:*:PowerMAX_OS)
+	echo powerpc-harris-powermax
 	exit 0 ;;
     Night_Hawk:Power_UNIX:*:*)
 	echo powerpc-harris-powerunix
@@ -759,7 +764,7 @@ EOF
 	echo ${UNAME_MACHINE}-unknown-linux-gnu
 	exit 0 ;;
     ia64:Linux:*:*)
-	echo ${UNAME_MACHINE}-unknown-linux
+	echo ${UNAME_MACHINE}-unknown-linux-gnu
 	exit 0 ;;
     m68*:Linux:*:*)
 	echo ${UNAME_MACHINE}-unknown-linux-gnu
@@ -770,15 +775,15 @@ EOF
 	#undef CPU
 	#undef mips
 	#undef mipsel
-	#if defined(__MIPSEL__) || defined(__MIPSEL) || defined(_MIPSEL) || defined(MIPSEL) 
-	CPU=mipsel 
+	#if defined(__MIPSEL__) || defined(__MIPSEL) || defined(_MIPSEL) || defined(MIPSEL)
+	CPU=mipsel
 	#else
-	#if defined(__MIPSEB__) || defined(__MIPSEB) || defined(_MIPSEB) || defined(MIPSEB) 
+	#if defined(__MIPSEB__) || defined(__MIPSEB) || defined(_MIPSEB) || defined(MIPSEB)
 	CPU=mips
 	#else
 	CPU=
 	#endif
-	#endif 
+	#endif
 EOF
 	eval `$CC_FOR_BUILD -E $dummy.c 2>/dev/null | grep ^CPU=`
 	rm -f $dummy.c
@@ -957,7 +962,7 @@ EOF
 	exit 0 ;;
     M68*:*:R3V[567]*:*)
 	test -r /sysV68 && echo 'm68k-motorola-sysv' && exit 0 ;;
-    3[34]??:*:4.0:3.0 | 3[34]??A:*:4.0:3.0 | 3[34]??,*:*:4.0:3.0 | 3[34]??/*:*:4.0:3.0 | 4850:*:4.0:3.0 | SKA40:*:4.0:3.0)
+    3[34]??:*:4.0:3.0 | 3[34]??A:*:4.0:3.0 | 3[34]??,*:*:4.0:3.0 | 3[34]??/*:*:4.0:3.0 | 4400:*:4.0:3.0 | 4850:*:4.0:3.0 | SKA40:*:4.0:3.0)
 	OS_REL=''
 	test -r /etc/.relid \
 	&& OS_REL=.`sed -n 's/[^ ]* [^ ]* \([0-9][0-9]\).*/\1/p' < /etc/.relid`
@@ -1058,12 +1063,12 @@ EOF
 	echo `uname -p`-apple-darwin${UNAME_RELEASE}
 	exit 0 ;;
     *:procnto*:*:* | *:QNX:[0123456789]*:*)
-	if test "${UNAME_MACHINE}" = "x86pc"; then
+	UNAME_PROCESSOR=`uname -p`
+	if test "$UNAME_PROCESSOR" = "x86"; then
+		UNAME_PROCESSOR=i386
 		UNAME_MACHINE=pc
-		echo i386-${UNAME_MACHINE}-nto-qnx
-	else
-		echo `uname -p`-${UNAME_MACHINE}-nto-qnx
 	fi
+	echo ${UNAME_PROCESSOR}-${UNAME_MACHINE}-nto-qnx${UNAME_RELEASE}
 	exit 0 ;;
     *:QNX:*:4*)
 	echo i386-pc-qnx

@@ -1,5 +1,5 @@
 /* mri.c -- handle MRI style linker scripts
-   Copyright 1991, 1992, 1993, 1994, 1996, 1997, 1998, 1999, 2000
+   Copyright 1991, 1992, 1993, 1994, 1996, 1997, 1998, 1999, 2000, 2002
    Free Software Foundation, Inc.
 
 This file is part of GLD, the Gnu Linker.
@@ -36,8 +36,8 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 
 struct section_name_struct {
   struct section_name_struct *next;
-  CONST char *name;
-  CONST char *alias;
+  const char *name;
+  const char *alias;
   etree_type *vma;
   etree_type *align;
   etree_type *subalign;
@@ -62,7 +62,7 @@ static void mri_add_to_list PARAMS ((struct section_name_struct **list,
 
 static struct section_name_struct **
 lookup (name, list)
-     CONST char *name;
+     const char *name;
      struct section_name_struct **list;
 {
   struct section_name_struct **ptr = list;
@@ -84,9 +84,9 @@ lookup (name, list)
 static void
 mri_add_to_list (list, name, vma, zalias, align, subalign)
      struct section_name_struct **list;
-     CONST char *name;
+     const char *name;
      etree_type *vma;
-     CONST char *zalias;
+     const char *zalias;
      etree_type *align;
      etree_type *subalign;
 {
@@ -103,7 +103,7 @@ mri_add_to_list (list, name, vma, zalias, align, subalign)
 
 void
 mri_output_section (name, vma)
-     CONST char *name;
+     const char *name;
      etree_type *vma;
 {
   mri_add_to_list (&address, name, vma, 0, 0, 0);
@@ -114,7 +114,7 @@ mri_output_section (name, vma)
 
 void
 mri_only_load (name)
-     CONST char *name;
+     const char *name;
 {
   mri_add_to_list (&only_load, name, 0, 0, 0, 0);
 }
@@ -260,7 +260,7 @@ mri_draw_tree ()
 
 	  lang_leave_output_section_statement
 	    (0, "*default*", (struct lang_output_section_phdr_list *) NULL,
-	     "*default*");
+	     NULL);
 
 	  p = p->next;
 	}
@@ -271,7 +271,7 @@ mri_draw_tree ()
 
 void
 mri_load (name)
-     CONST char *name;
+     const char *name;
 {
   base = 0;
   lang_add_input_file (name,
@@ -283,15 +283,15 @@ mri_load (name)
 
 void
 mri_order (name)
-     CONST char *name;
+     const char *name;
 {
   mri_add_to_list (&order, name, 0, 0, 0, 0);
 }
 
 void
 mri_alias (want, is, isn)
-     CONST char *want;
-     CONST char *is;
+     const char *want;
+     const char *is;
      int isn;
 {
   if (!is)
@@ -312,14 +312,14 @@ mri_alias (want, is, isn)
 
 void
 mri_name (name)
-     CONST char *name;
+     const char *name;
 {
   lang_add_output (name, 1);
 }
 
 void
 mri_format (name)
-     CONST char *name;
+     const char *name;
 {
   if (strcmp (name, "S") == 0)
     lang_add_output_format ("srec", (char *) NULL, (char *) NULL, 1);
@@ -336,7 +336,7 @@ mri_format (name)
 
 void
 mri_public (name, exp)
-     CONST char *name;
+     const char *name;
      etree_type *exp;
 {
   lang_add_assignment (exp_assop ('=', name, exp));
@@ -344,7 +344,7 @@ mri_public (name, exp)
 
 void
 mri_align (name, exp)
-     CONST char *name;
+     const char *name;
      etree_type *exp;
 {
   mri_add_to_list (&alignment, name, 0, 0, exp, 0);
@@ -352,7 +352,7 @@ mri_align (name, exp)
 
 void
 mri_alignmod (name, exp)
-     CONST char *name;
+     const char *name;
      etree_type *exp;
 {
   mri_add_to_list (&subalignment, name, 0, 0, 0, exp);

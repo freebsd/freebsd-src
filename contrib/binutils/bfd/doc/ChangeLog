@@ -1,4 +1,44 @@
-2002-03-28  Alan Modra  <amodra@bigpond.net.au>
+2002-09-23  Daniel Jacobowitz  <drow@mvista.com>
+
+	Merge from mainline:
+	2002-08-28  John David Anglin  <dave@hiauly1.hia.nrc.ca>
+	* chew.c (paramstuff, outputdots, perform, bang and usage): Remove
+	void from function definitions.
+
+2002-08-13  Alan Modra  <amodra@bigpond.net.au>
+
+	* header.sed: Strip tabs.
+
+2002-06-08  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.am: Fix quote style in last change.
+	* Makefile.in: Regenerate.
+
+2002-06-07  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.am (libbfd.h): Don't use "echo -n".
+	(libcoff.h, bfd.h): Likewise.
+	* Makefile.in: Regenerate.
+
+2002-06-06  Lars Brinkhoff  <lars@nocrew.org>
+
+	* bfdint.texi: Change registry@sco.com to registry@caldera.com.
+
+2002-06-05  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.am (libbfd.h): Add "Extracted from.." comment.
+	(libcoff.h, bfd.h): Likewise.
+	* Makefile.in: Regenerate.
+
+2002-05-25  Alan Modra  <amodra@bigpond.net.au>
+
+	* chew.c: Use #include "" instead of <> for local header files.
+
+2002-04-20  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.in: Regenerate.
+
+2002-02-11  Alan Modra  <amodra@bigpond.net.au>
 
 	* Makefile.in: Regenerate.
 

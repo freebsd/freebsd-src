@@ -1,5 +1,5 @@
 /* ELF core file support for BFD.
-   Copyright 1995, 1996, 1997, 1998, 2000, 2001
+   Copyright 1995, 1996, 1997, 1998, 2000, 2001, 2002
    Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -100,7 +100,7 @@ elf_core_file_p (abfd)
     }
 
   /* Check the magic number.  */
-  if (elf_file_p (&x_ehdr) == false)
+  if (! elf_file_p (&x_ehdr))
     goto wrong;
 
   /* FIXME: Check EI_VERSION here ! */
@@ -244,7 +244,7 @@ elf_core_file_p (abfd)
      information.  */
   if (ebd->elf_backend_object_p)
     {
-      if ((*ebd->elf_backend_object_p) (abfd) == false)
+      if (! (*ebd->elf_backend_object_p) (abfd))
 	goto wrong;
     }
 

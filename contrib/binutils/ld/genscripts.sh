@@ -45,31 +45,25 @@ fi
 # To force a logically empty LIB_PATH, do LIBPATH=":".
 
 if [ "x${LIB_PATH}" = "x" ] ; then
-  # Cross, or native non-default emulation not requesting LIB_PATH.
-  LIB_PATH=
-
   if [ "x${host}" = "x${target}" ] ; then
     case " $EMULATION_LIBPATH " in
       *" ${EMULATION_NAME} "*)
         # Native, and default or emulation requesting LIB_PATH.
-        LIB_PATH=/lib:/usr/lib
-        if [ -n "${NATIVE_LIB_DIRS}" ]; then
-	  LIB_PATH=${LIB_PATH}:${NATIVE_LIB_DIRS}
-        fi
-        if [ "${libdir}" != /usr/lib ]; then
-	  LIB_PATH=${LIB_PATH}:${libdir}
-        fi
-        if [ "${libdir}" != /usr/local/lib ] ; then
-	  LIB_PATH=${LIB_PATH}:/usr/local/lib
-        fi
+	LIB_PATH=${libdir}
+	for lib in ${NATIVE_LIB_DIRS}; do
+	  case :${LIB_PATH}: in
+	    *:${lib}:*) ;;
+	    *) LIB_PATH=${LIB_PATH}:${lib} ;;
+	  esac
+	done
     esac
   fi
 fi
 
 # Always search $(tooldir)/lib, aka /usr/local/TARGET/lib.
-LIB_PATH=${LIB_PATH}:${tool_lib}
+LIB_PATH=${tool_lib}:${LIB_PATH}
 
-LIB_SEARCH_DIRS=`echo ${LIB_PATH} | tr ':' ' ' | sed -e 's/\([^ ][^ ]*\)/SEARCH_DIR(\\"\1\\");/g'`
+LIB_SEARCH_DIRS=`echo ${LIB_PATH} | sed -e 's/:/ /g' -e 's/\([^ ][^ ]*\)/SEARCH_DIR(\\"\1\\");/g'`
 
 # Generate 5 or 6 script files from a master script template in
 # ${srcdir}/scripttempl/${SCRIPT_NAME}.sh.  Which one of the 5 or 6
@@ -181,9 +175,9 @@ if test -n "$GENERATE_SHLIB_SCRIPT"; then
   fi
 fi
 
-for i in $EMULATION_LIBPATH ; do
-  test "$i" = "$EMULATION_NAME" && COMPILE_IN=true
-done
+case " $EMULATION_LIBPATH " in
+    *" ${EMULATION_NAME} "*) COMPILE_IN=true;;
+esac
 
 # Generate e${EMULATION_NAME}.c.
 . ${srcdir}/emultempl/${TEMPLATE_NAME-generic}.em

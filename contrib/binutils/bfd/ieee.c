@@ -471,7 +471,7 @@ must_parse_int (ieee)
      common_header_type *ieee;
 {
   bfd_vma result;
-  BFD_ASSERT (parse_int (ieee, &result) == true);
+  BFD_ASSERT (parse_int (ieee, &result));
   return result;
 }
 
@@ -983,7 +983,7 @@ ieee_slurp_external_symbols (abfd)
 	    /* Fetch the default size if not resolved */
 	    size = must_parse_int (&(ieee->h));
 	    /* Fetch the defautlt value if available */
-	    if (parse_int (&(ieee->h), &value) == false)
+	    if (! parse_int (&(ieee->h), &value))
 	      {
 		value = 0;
 	      }
@@ -1058,7 +1058,7 @@ static boolean
 ieee_slurp_symbol_table (abfd)
      bfd *abfd;
 {
-  if (IEEE_DATA (abfd)->read_symbols == false)
+  if (! IEEE_DATA (abfd)->read_symbols)
     {
       if (! ieee_slurp_external_symbols (abfd))
 	return false;
@@ -1112,7 +1112,7 @@ ieee_get_symtab (abfd, location)
       if (! ieee_slurp_symbol_table (abfd))
 	return -1;
 
-      if (ieee->symbol_table_full == false)
+      if (! ieee->symbol_table_full)
 	{
 	  /* Arrgh - there are gaps in the table, run through and fill them */
 	  /* up with pointers to a null place */
@@ -1414,7 +1414,7 @@ ieee_archive_p (abfd)
 
   abfd->tdata.ieee_ar_data = (ieee_ar_data_type *) bfd_alloc (abfd, amt);
   if (!abfd->tdata.ieee_ar_data)
-    goto error_return;
+    goto error_ret_restore;
   ieee = IEEE_AR_DATA (abfd);
 
   /* Ignore the return value here.  It doesn't matter if we don't read
@@ -1530,13 +1530,13 @@ ieee_archive_p (abfd)
   return abfd->xvec;
 
  got_wrong_format_error:
-  bfd_release (abfd, ieee);
-  abfd->tdata.ieee_ar_data = save;
   bfd_set_error (bfd_error_wrong_format);
-
  error_return:
   if (elts != NULL)
     free (elts);
+  bfd_release (abfd, ieee);
+ error_ret_restore:
+  abfd->tdata.ieee_ar_data = save;
 
   return NULL;
 }
@@ -1663,11 +1663,11 @@ ieee_object_p (abfd)
     }
   next_byte (&(ieee->h));
 
-  if (parse_int (&(ieee->h), &ieee->ad.number_of_bits_mau) == false)
+  if (! parse_int (&(ieee->h), &ieee->ad.number_of_bits_mau))
     {
       goto fail;
     }
-  if (parse_int (&(ieee->h), &ieee->ad.number_of_maus_in_address) == false)
+  if (! parse_int (&(ieee->h), &ieee->ad.number_of_maus_in_address))
     {
       goto fail;
     }
@@ -1690,7 +1690,7 @@ ieee_object_p (abfd)
 	}
 
       ieee->w.offset[part] = parse_i (&(ieee->h), &ok);
-      if (ok == false)
+      if (! ok)
 	{
 	  goto fail;
 	}
@@ -1732,7 +1732,7 @@ ieee_object_p (abfd)
 got_wrong_format:
   bfd_set_error (bfd_error_wrong_format);
 fail:
-  (void) bfd_release (abfd, ieee);
+  bfd_release (abfd, ieee);
   abfd->tdata.ieee_data = save;
   return (const bfd_target *) NULL;
 }
@@ -1895,7 +1895,7 @@ do_one (ieee, current_map, location_ptr, s, iterations)
 		    case 0:
 		    case 4:
 
-		      if (pcrel == true)
+		      if (pcrel)
 			{
 #if KEEPMINUSPCININST
 			  bfd_put_32 (ieee->h.abfd, -current_map->pc,
@@ -1917,7 +1917,7 @@ do_one (ieee, current_map, location_ptr, s, iterations)
 		      current_map->pc += 4;
 		      break;
 		    case 2:
-		      if (pcrel == true)
+		      if (pcrel)
 			{
 #if KEEPMINUSPCININST
 			  bfd_put_16 (ieee->h.abfd, (bfd_vma) -current_map->pc,
@@ -1941,7 +1941,7 @@ do_one (ieee, current_map, location_ptr, s, iterations)
 		      current_map->pc += 2;
 		      break;
 		    case 1:
-		      if (pcrel == true)
+		      if (pcrel)
 			{
 #if KEEPMINUSPCININST
 			  bfd_put_8 (ieee->h.abfd, (int) (-current_map->pc), location_ptr + current_map->pc);
@@ -1969,7 +1969,7 @@ do_one (ieee, current_map, location_ptr, s, iterations)
 	      default:
 		{
 		  bfd_vma this_size;
-		  if (parse_int (&(ieee->h), &this_size) == true)
+		  if (parse_int (&(ieee->h), &this_size))
 		    {
 		      unsigned int i;
 		      for (i = 0; i < this_size; i++)
@@ -2007,7 +2007,7 @@ ieee_slurp_section_data (abfd)
   ieee_per_section_type *current_map = (ieee_per_section_type *) NULL;
   asection *s;
   /* Seek to the start of the data area */
-  if (ieee->read_data == true)
+  if (ieee->read_data)
     return true;
   ieee->read_data = true;
   ieee_seek (ieee, ieee->w.r.data_part);
@@ -2398,10 +2398,9 @@ do_with_relocs (abfd, s)
       if ((PTR) stream == (PTR) NULL)
 	{
 	  /* Outputting a section without data, fill it up */
-	  stream = (unsigned char *) (bfd_alloc (abfd, s->_raw_size));
+	  stream = (unsigned char *) bfd_zalloc (abfd, s->_raw_size);
 	  if (!stream)
 	    return false;
-	  memset ((PTR) stream, 0, (size_t) s->_raw_size);
 	}
       while (current_byte_index < s->_raw_size)
 	{
@@ -2626,7 +2625,7 @@ ieee_mkobject (abfd)
   output_buffer = 0;
   amt = sizeof (ieee_data_type);
   abfd->tdata.ieee_data = (ieee_data_type *) bfd_zalloc (abfd, amt);
-  return abfd->tdata.ieee_data ? true : false;
+  return abfd->tdata.ieee_data != NULL;
 }
 
 static void
@@ -3943,7 +3942,7 @@ ieee_bfd_debug_info_accumulate (abfd, section)
   if (section->owner->xvec != abfd->xvec)
     return;
   /* Only bother once per bfd */
-  if (ieee->done_debug == true)
+  if (ieee->done_debug)
     return;
   ieee->done_debug = true;
 
@@ -4010,8 +4009,11 @@ ieee_bfd_debug_info_accumulate (abfd, section)
 #define ieee_bfd_relax_section bfd_generic_relax_section
 #define ieee_bfd_gc_sections bfd_generic_gc_sections
 #define ieee_bfd_merge_sections bfd_generic_merge_sections
+#define ieee_bfd_discard_group bfd_generic_discard_group
 #define ieee_bfd_link_hash_table_create _bfd_generic_link_hash_table_create
+#define ieee_bfd_link_hash_table_free _bfd_generic_link_hash_table_free
 #define ieee_bfd_link_add_symbols _bfd_generic_link_add_symbols
+#define ieee_bfd_link_just_syms _bfd_generic_link_just_syms
 #define ieee_bfd_final_link _bfd_generic_final_link
 #define ieee_bfd_link_split_section  _bfd_generic_link_split_section
 
@@ -4084,6 +4086,7 @@ const bfd_target ieee_vec =
 
   /* ieee_sizeof_headers, ieee_bfd_get_relocated_section_contents,
      ieee_bfd_relax_section, ieee_bfd_link_hash_table_create,
+     _bfd_generic_link_hash_table_free,
      ieee_bfd_link_add_symbols, ieee_bfd_final_link,
      ieee_bfd_link_split_section, ieee_bfd_gc_sections,
      ieee_bfd_merge_sections  */

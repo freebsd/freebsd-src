@@ -6,7 +6,7 @@
 /* libbfd.h -- Declarations used by bfd library *implementation*.
    (This include file is not for users of the library.)
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001
+   2000, 2001, 2002
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -327,10 +327,18 @@ extern boolean _bfd_generic_set_section_contents
   ((boolean (*) \
     PARAMS ((bfd *, struct bfd_link_info *))) \
    bfd_false)
+#define _bfd_nolink_bfd_discard_group \
+  ((boolean (*) \
+    PARAMS ((bfd *, struct sec *))) \
+   bfd_false)
 #define _bfd_nolink_bfd_link_hash_table_create \
   ((struct bfd_link_hash_table *(*) PARAMS ((bfd *))) bfd_nullvoidptr)
+#define _bfd_nolink_bfd_link_hash_table_free \
+  ((void (*) PARAMS ((struct bfd_link_hash_table *))) bfd_void)
 #define _bfd_nolink_bfd_link_add_symbols \
   ((boolean (*) PARAMS ((bfd *, struct bfd_link_info *))) bfd_false)
+#define _bfd_nolink_bfd_link_just_syms \
+  ((void (*) PARAMS ((asection *, struct bfd_link_info *))) bfd_void)
 #define _bfd_nolink_bfd_final_link \
   ((boolean (*) PARAMS ((bfd *, struct bfd_link_info *))) bfd_false)
 #define _bfd_nolink_bfd_link_split_section \
@@ -394,6 +402,10 @@ extern boolean _bfd_link_hash_table_init
 extern struct bfd_link_hash_table *_bfd_generic_link_hash_table_create
   PARAMS ((bfd *));
 
+/* Generic link hash table destruction routine.  */
+extern void _bfd_generic_link_hash_table_free
+  PARAMS ((struct bfd_link_hash_table *));
+
 /* Generic add symbol routine.  */
 extern boolean _bfd_generic_link_add_symbols
   PARAMS ((bfd *, struct bfd_link_info *));
@@ -409,8 +421,6 @@ extern boolean _bfd_generic_link_add_archive_symbols
   PARAMS ((bfd *, struct bfd_link_info *,
 	   boolean (*checkfn) (bfd *, struct bfd_link_info *, boolean *)));
 
-
-
 /* Forward declaration to avoid prototype errors.  */
 typedef struct bfd_link_hash_entry _bfd_link_hash_entry;
 
@@ -419,6 +429,10 @@ extern boolean _bfd_generic_link_add_one_symbol
   PARAMS ((struct bfd_link_info *, bfd *, const char *name, flagword,
 	   asection *, bfd_vma, const char *, boolean copy,
 	   boolean constructor, struct bfd_link_hash_entry **));
+
+/* Generic routine to mark section as supplying symbols only.  */
+extern void _bfd_generic_link_just_syms
+  PARAMS ((asection *, struct bfd_link_info *));
 
 /* Generic link routine.  */
 extern boolean _bfd_generic_final_link
@@ -584,14 +598,15 @@ extern boolean _bfd_sh_align_load_span
 	   boolean (*) (bfd *, asection *, PTR, bfd_byte *, bfd_vma),
 	   PTR, bfd_vma **, bfd_vma *, bfd_vma, bfd_vma, boolean *));
 
-/* And more follows */
-
+/* Extracted from init.c.  */
+/* Extracted from libbfd.c.  */
 boolean
 bfd_write_bigendian_4byte_int PARAMS ((bfd *, unsigned int));
 
 unsigned int
 bfd_log2 PARAMS ((bfd_vma x));
 
+/* Extracted from cache.c.  */
 #define BFD_CACHE_MAX_OPEN 10
 extern bfd *bfd_last_cache;
 
@@ -611,6 +626,7 @@ bfd_open_file PARAMS ((bfd *abfd));
 FILE *
 bfd_cache_lookup_worker PARAMS ((bfd *abfd));
 
+/* Extracted from reloc.c.  */
 #ifdef _BFD_MAKE_TABLE_bfd_reloc_code_real
 
 static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
@@ -722,6 +738,19 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_ALPHA_GPREL_HI16",
   "BFD_RELOC_ALPHA_GPREL_LO16",
   "BFD_RELOC_ALPHA_BRSGP",
+  "BFD_RELOC_ALPHA_TLSGD",
+  "BFD_RELOC_ALPHA_TLSLDM",
+  "BFD_RELOC_ALPHA_DTPMOD64",
+  "BFD_RELOC_ALPHA_GOTDTPREL16",
+  "BFD_RELOC_ALPHA_DTPREL64",
+  "BFD_RELOC_ALPHA_DTPREL_HI16",
+  "BFD_RELOC_ALPHA_DTPREL_LO16",
+  "BFD_RELOC_ALPHA_DTPREL16",
+  "BFD_RELOC_ALPHA_GOTTPREL16",
+  "BFD_RELOC_ALPHA_TPREL64",
+  "BFD_RELOC_ALPHA_TPREL_HI16",
+  "BFD_RELOC_ALPHA_TPREL_LO16",
+  "BFD_RELOC_ALPHA_TPREL16",
   "BFD_RELOC_MIPS_JMP",
   "BFD_RELOC_MIPS16_JMP",
   "BFD_RELOC_MIPS16_GPREL",
@@ -752,6 +781,15 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_MIPS_REL16",
   "BFD_RELOC_MIPS_RELGOT",
   "BFD_RELOC_MIPS_JALR",
+  "BFD_RELOC_FRV_LABEL16",
+  "BFD_RELOC_FRV_LABEL24",
+  "BFD_RELOC_FRV_LO16",
+  "BFD_RELOC_FRV_HI16",
+  "BFD_RELOC_FRV_GPREL12",
+  "BFD_RELOC_FRV_GPRELU12",
+  "BFD_RELOC_FRV_GPREL32",
+  "BFD_RELOC_FRV_GPRELHI",
+  "BFD_RELOC_FRV_GPRELLO",
 
   "BFD_RELOC_386_GOT32",
   "BFD_RELOC_386_PLT32",
@@ -761,6 +799,18 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_386_RELATIVE",
   "BFD_RELOC_386_GOTOFF",
   "BFD_RELOC_386_GOTPC",
+  "BFD_RELOC_386_TLS_TPOFF",
+  "BFD_RELOC_386_TLS_IE",
+  "BFD_RELOC_386_TLS_GOTIE",
+  "BFD_RELOC_386_TLS_LE",
+  "BFD_RELOC_386_TLS_GD",
+  "BFD_RELOC_386_TLS_LDM",
+  "BFD_RELOC_386_TLS_LDO_32",
+  "BFD_RELOC_386_TLS_IE_32",
+  "BFD_RELOC_386_TLS_LE_32",
+  "BFD_RELOC_386_TLS_DTPMOD32",
+  "BFD_RELOC_386_TLS_DTPOFF32",
+  "BFD_RELOC_386_TLS_TPOFF32",
   "BFD_RELOC_X86_64_GOT32",
   "BFD_RELOC_X86_64_PLT32",
   "BFD_RELOC_X86_64_COPY",
@@ -967,6 +1017,9 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_D30V_21_PCREL_R",
   "BFD_RELOC_D30V_32",
   "BFD_RELOC_D30V_32_PCREL",
+  "BFD_RELOC_DLX_HI16_S",
+  "BFD_RELOC_DLX_LO16",
+  "BFD_RELOC_DLX_JMP26",
   "BFD_RELOC_M32R_24",
   "BFD_RELOC_M32R_10_PCREL",
   "BFD_RELOC_M32R_18_PCREL",
@@ -1132,12 +1185,25 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_IA64_IPLTMSB",
   "BFD_RELOC_IA64_IPLTLSB",
   "BFD_RELOC_IA64_COPY",
-  "BFD_RELOC_IA64_TPREL22",
-  "BFD_RELOC_IA64_TPREL64MSB",
-  "BFD_RELOC_IA64_TPREL64LSB",
-  "BFD_RELOC_IA64_LTOFF_TP22",
   "BFD_RELOC_IA64_LTOFF22X",
   "BFD_RELOC_IA64_LDXMOV",
+  "BFD_RELOC_IA64_TPREL14",
+  "BFD_RELOC_IA64_TPREL22",
+  "BFD_RELOC_IA64_TPREL64I",
+  "BFD_RELOC_IA64_TPREL64MSB",
+  "BFD_RELOC_IA64_TPREL64LSB",
+  "BFD_RELOC_IA64_LTOFF_TPREL22",
+  "BFD_RELOC_IA64_DTPMOD64MSB",
+  "BFD_RELOC_IA64_DTPMOD64LSB",
+  "BFD_RELOC_IA64_LTOFF_DTPMOD22",
+  "BFD_RELOC_IA64_DTPREL14",
+  "BFD_RELOC_IA64_DTPREL22",
+  "BFD_RELOC_IA64_DTPREL64I",
+  "BFD_RELOC_IA64_DTPREL32MSB",
+  "BFD_RELOC_IA64_DTPREL32LSB",
+  "BFD_RELOC_IA64_DTPREL64MSB",
+  "BFD_RELOC_IA64_DTPREL64LSB",
+  "BFD_RELOC_IA64_LTOFF_DTPREL22",
   "BFD_RELOC_M68HC11_HI8",
   "BFD_RELOC_M68HC11_LO8",
   "BFD_RELOC_M68HC11_3B",
@@ -1199,6 +1265,9 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
   "BFD_RELOC_XSTORMY16_REL_12",
   "BFD_RELOC_XSTORMY16_24",
   "BFD_RELOC_XSTORMY16_FPTR16",
+  "BFD_RELOC_VAX_GLOB_DAT",
+  "BFD_RELOC_VAX_JMP_SLOT",
+  "BFD_RELOC_VAX_RELATIVE",
  "@@overflow: BFD_RELOC_UNUSED@@",
 };
 #endif
@@ -1226,6 +1295,7 @@ bfd_generic_get_relocated_section_contents PARAMS ((bfd *abfd,
     boolean relocateable,
     asymbol **symbols));
 
+/* Extracted from archures.c.  */
 extern const bfd_arch_info_type bfd_default_arch_struct;
 boolean
 bfd_default_set_arch_mach PARAMS ((bfd *abfd,
@@ -1239,6 +1309,7 @@ bfd_default_compatible PARAMS ((const bfd_arch_info_type *a,
 boolean
 bfd_default_scan PARAMS ((const struct bfd_arch_info *info, const char *string));
 
+/* Extracted from elf.c.  */
 struct elf_internal_shdr *
 bfd_elf_find_section PARAMS ((bfd *abfd, char *name));
 

@@ -1,7 +1,7 @@
 #
 # Makefile for directory with subdirs to build.
 #   Copyright (C) 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-#   1999, 2000, 2001 Free Software Foundation
+#   1999, 2000, 2001, 2002 Free Software Foundation
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,6 +17,12 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #
+
+# Tell GNU make 3.79 not to run the top level in parallel.  This 
+# prevents contention for $builddir/$target/config.cache, as well
+# as minimizing scatter in file system caches.
+NOTPARALLEL = .NOTPARALLEL
+$(NOTPARALLEL):
 
 srcdir = .
 
@@ -59,6 +65,12 @@ GDB_NLM_DEPS =
 
 SHELL = /bin/sh
 
+# pwd command to use.  Allow user to override default by setting PWDCMD in
+# the environment to account for automounters.  The make variable must not
+# be called PWDCMD, otherwise the value set here is passed to make
+# subprocesses and overrides the setting from the user's environment.
+PWD = $${PWDCMD-pwd}
+
 # INSTALL_PROGRAM_ARGS is changed by configure.in to use -x for a
 # cygwin host.
 INSTALL_PROGRAM_ARGS =
@@ -78,8 +90,8 @@ CC = cc
 # Special variables passed down in EXTRA_GCC_FLAGS.  They are defined
 # here so that they can be overridden by Makefile fragments.
 HOST_CC = $(CC_FOR_BUILD)
-HOST_PREFIX = 
-HOST_PREFIX_1 = loser-
+BUILD_PREFIX = 
+BUILD_PREFIX_1 = loser-
 
 # These flag values are normally overridden by the configure script.
 CFLAGS = -g
@@ -87,22 +99,23 @@ CXXFLAGS = -g -O2
 
 LDFLAGS = 
 LIBCFLAGS = $(CFLAGS)
-CFLAGS_FOR_TARGET = $(CFLAGS)
+CFLAGS_FOR_BUILD = $(CFLAGS)
+# During gcc bootstrap, if we use some random cc for stage1 then
+# CFLAGS will be just -g.  We want to ensure that TARGET libraries
+# (which we know are built with gcc) are built with optimizations so
+# prepend -O2 when setting CFLAGS_FOR_TARGET.
+CFLAGS_FOR_TARGET = -O2 $(CFLAGS)
 LDFLAGS_FOR_TARGET = 
 LIBCFLAGS_FOR_TARGET = $(CFLAGS_FOR_TARGET)
 PICFLAG = 
 PICFLAG_FOR_TARGET = 
 
-CHILLFLAGS = $(CFLAGS)
-CHILL_LIB = -lchill
 CXX = c++
 
 # Use -O2 to stress test the compiler.
 LIBCXXFLAGS = $(CXXFLAGS) -fno-implicit-templates
 CXXFLAGS_FOR_TARGET = $(CXXFLAGS)
 LIBCXXFLAGS_FOR_TARGET = $(CXXFLAGS_FOR_TARGET) -fno-implicit-templates
-
-RANLIB = ranlib
 
 DLLTOOL = dlltool
 WINDRES = windres
@@ -143,7 +156,7 @@ M4 = `if [ -f $$r/m4/m4 ] ; \
 
 # For an installed makeinfo, we require it to be from texinfo 4 or
 # higher, else we use the "missing" dummy.
-MAKEINFO = `if [ -f $$r/texinfo/makeinfo/Makefile ] ; \
+MAKEINFO = `if [ -f $$r/texinfo/makeinfo/makeinfo ] ; \
 	then echo $$r/texinfo/makeinfo/makeinfo ; \
 	else if (makeinfo --version \
 	  | egrep 'texinfo[^0-9]*([1-3][0-9]|[4-9])') >/dev/null 2>&1; \
@@ -173,7 +186,7 @@ OTHERS =
 
 # This is set by the configure script to the list of directories which
 # should be built using the target tools.
-TARGET_CONFIGDIRS = libiberty libgloss $(SPECIAL_LIBS) newlib libio librx libstdc++ libg++ winsup opcodes bsp libstub cygmon libf2c libchill libobjc
+TARGET_CONFIGDIRS = libiberty libgloss $(SPECIAL_LIBS) newlib winsup opcodes libf2c libobjc
 
 # Target libraries are put under this directory:
 # Changed by configure to $(target_alias) if cross.
@@ -204,7 +217,7 @@ HOST_LIB_PATH = $$r/bfd:$$r/opcodes
 
 # This is the list of directories that may be needed in RPATH_ENVVAR
 # so that prorgams built for the target machine work.
-TARGET_LIB_PATH = $$r/$(TARGET_SUBDIR)/libstdc++-v3/src/.libs:$$r/$(TARGET_SUBDIR)/libstdc++
+TARGET_LIB_PATH = $$r/$(TARGET_SUBDIR)/libstdc++-v3/src/.libs:
 
 # configure.in sets SET_LIB_PATH to this if --enable-shared was used.
 # Some platforms don't like blank entries, so we remove duplicate,
@@ -230,9 +243,9 @@ INSTALL_TARGET_CROSS = installdirs \
 # Should be substed by configure.in
 FLAGS_FOR_TARGET =
 CC_FOR_TARGET =
-CHILL_FOR_TARGET =
 CXX_FOR_TARGET =
 CXX_FOR_TARGET_FOR_RECURSIVE_MAKE =
+GCJ_FOR_TARGET =
 
 # If GCC_FOR_TARGET is not overriden on the command line, then this
 # variable is passed down to the gcc Makefile, where it is used to
@@ -353,9 +366,7 @@ BASE_FLAGS_TO_PASS = \
 	"CC_FOR_TARGET=$(CC_FOR_TARGET)" \
 	"CFLAGS=$(CFLAGS)" \
 	"CFLAGS_FOR_TARGET=$(CFLAGS_FOR_TARGET)" \
-	"CHILLFLAGS=$(CHILLFLAGS)" \
-	"CHILL_FOR_TARGET=$(CHILL_FOR_TARGET)" \
-	"CHILL_LIB=$(CHILL_LIB)" \
+	"GCJ_FOR_TARGET=$(GCJ_FOR_TARGET)" \
 	"CXX_FOR_BUILD=$(CXX_FOR_BUILD)" \
 	"CXXFLAGS=$(CXXFLAGS)" \
 	"CXXFLAGS_FOR_TARGET=$(CXXFLAGS_FOR_TARGET)" \
@@ -393,6 +404,8 @@ BASE_FLAGS_TO_PASS = \
 	"libdir=$(libdir)" \
 	"libexecdir=$(libexecdir)" \
 	"lispdir=$(lispdir)" \
+	"libstdcxx_incdir=$(libstdcxx_incdir)" \
+	"libsubdir=$(libsubdir)" \
 	"localstatedir=$(localstatedir)" \
 	"mandir=$(mandir)" \
 	"oldincludedir=$(oldincludedir)" \
@@ -405,8 +418,7 @@ BASE_FLAGS_TO_PASS = \
 	"gxx_include_dir=$(gxx_include_dir)" \
 	"gcc_version=$(gcc_version)" \
 	"gcc_version_trigger=$(gcc_version_trigger)" \
-	"target_alias=$(target_alias)" \
-	"libsubdir=$(libsubdir)"
+	"target_alias=$(target_alias)" 
 
 # For any flags above that may contain shell code that varies from one
 # target library to another.  When doing recursive invocations of the
@@ -427,7 +439,7 @@ EXTRA_HOST_FLAGS = \
 	'DLLTOOL=$(DLLTOOL)' \
 	'LD=$(LD)' \
 	'NM=$(NM)' \
-	'RANLIB=$(RANLIB)' \
+	"`echo 'RANLIB=$(RANLIB)' | sed -e s/.*=$$/XFOO=/`" \
 	'WINDRES=$(WINDRES)'
 
 FLAGS_TO_PASS = $(BASE_FLAGS_TO_PASS) $(EXTRA_HOST_FLAGS)
@@ -478,20 +490,21 @@ EXTRA_GCC_FLAGS = \
 	'CXX=$(CXX)' \
 	'DLLTOOL=$$(DLLTOOL_FOR_TARGET)' \
 	'HOST_CC=$(CC_FOR_BUILD)' \
-	'HOST_PREFIX=$(HOST_PREFIX)' \
-	'HOST_PREFIX_1=$(HOST_PREFIX_1)' \
+	'BUILD_PREFIX=$(BUILD_PREFIX)' \
+	'BUILD_PREFIX_1=$(BUILD_PREFIX_1)' \
 	'NM=$(NM)' \
-	'RANLIB=$(RANLIB)' \
+	"`echo 'RANLIB=$(RANLIB)' | sed -e s/.*=$$/XFOO=/`" \
 	'WINDRES=$$(WINDRES_FOR_TARGET)' \
 	"GCC_FOR_TARGET=$(GCC_FOR_TARGET)" \
+	"CFLAGS_FOR_BUILD=$(CFLAGS_FOR_BUILD)" \
 	"`echo 'LANGUAGES=$(LANGUAGES)' | sed -e s/.*=$$/XFOO=/`" \
 	"`echo 'STMP_FIXPROTO=$(STMP_FIXPROTO)' | sed -e s/.*=$$/XFOO=/`" \
 	"`echo 'LIMITS_H_TEST=$(LIMITS_H_TEST)' | sed -e s/.*=$$/XFOO=/`" \
-	"`echo 'LIBGCC1_TEST=$(LIBGCC1_TEST)' | sed -e s/.*=$$/XFOO=/`" \
 	"`echo 'LIBGCC2_CFLAGS=$(LIBGCC2_CFLAGS)' | sed -e s/.*=$$/XFOO=/`" \
 	"`echo 'LIBGCC2_DEBUG_CFLAGS=$(LIBGCC2_DEBUG_CFLAGS)' | sed -e s/.*=$$/XFOO=/`" \
 	"`echo 'LIBGCC2_INCLUDES=$(LIBGCC2_INCLUDES)' | sed -e s/.*=$$/XFOO=/`" \
 	"`echo 'ENQUIRE=$(ENQUIRE)' | sed -e s/.*=$$/XFOO=/`" \
+	"`echo 'STAGE1_CFLAGS=$(STAGE1_CFLAGS)' | sed -e s/.*=$$/XFOO=/`" \
 	"`echo 'BOOT_CFLAGS=$(BOOT_CFLAGS)' | sed -e s/.*=$$/XFOO=/`"
 
 GCC_FLAGS_TO_PASS = $(BASE_FLAGS_TO_PASS) $(EXTRA_GCC_FLAGS)
@@ -511,7 +524,6 @@ CONFIGURE_BUILD_MODULES = \
 # This is a list of the targets for all of the modules which are compiled
 # using $(FLAGS_TO_PASS).
 ALL_MODULES = \
-	all-apache \
 	all-ash \
 	all-autoconf \
 	all-automake \
@@ -521,13 +533,12 @@ ALL_MODULES = \
 	all-bison \
 	all-byacc \
 	all-bzip2 \
-	all-cgen \
-	all-cvssrc \
 	all-db \
 	all-dejagnu \
 	all-diff \
 	all-dosutils \
 	all-etc \
+	all-fastjar \
 	all-fileutils \
 	all-findutils \
 	all-find \
@@ -538,13 +549,10 @@ ALL_MODULES = \
 	all-gnuserv \
 	all-gprof \
 	all-grep \
-	all-grez \
 	all-gzip \
 	all-hello \
 	all-indent \
-	all-inet \
 	all-intl \
-	all-ispell \
 	all-itcl \
 	all-ld \
 	all-libgui \
@@ -569,10 +577,8 @@ ALL_MODULES = \
 	all-snavigator \
 	all-tar \
 	all-tcl \
-	all-tcl8.1 \
 	all-texinfo \
 	all-textutils \
-	all-tgas \
 	all-time \
 	all-uudecode \
 	all-wdiff \
@@ -589,11 +595,11 @@ ALL_MODULES = \
 NATIVE_CHECK_MODULES = \
 	check-bison \
 	check-byacc \
+	check-fastjar \
 	check-flex \
 	check-zip
 
 CROSS_CHECK_MODULES = \
-	check-apache \
 	check-ash \
 	check-autoconf \
 	check-automake \
@@ -601,8 +607,6 @@ CROSS_CHECK_MODULES = \
 	check-bfd \
 	check-binutils \
 	check-bzip2 \
-	check-cgen \
-	check-cvssrc \
 	check-db \
 	check-dejagnu \
 	check-diff \
@@ -619,9 +623,7 @@ CROSS_CHECK_MODULES = \
 	check-gzip \
 	check-hello \
 	check-indent \
-	check-inet \
 	check-intl \
-	check-ispell \
 	check-itcl \
 	check-ld \
 	check-libgui \
@@ -647,7 +649,6 @@ CROSS_CHECK_MODULES = \
 	check-tcl \
 	check-texinfo \
 	check-textutils \
-	check-tgas \
 	check-time \
 	check-uudecode \
 	check-wdiff \
@@ -663,7 +664,6 @@ CHECK_MODULES=$(NATIVE_CHECK_MODULES) $(CROSS_CHECK_MODULES)
 # We put install-tcl before install-itcl because itcl wants to run a
 # program on installation which uses the Tcl libraries.
 INSTALL_MODULES = \
-	install-apache \
 	install-ash \
 	install-autoconf \
 	install-automake \
@@ -674,13 +674,12 @@ INSTALL_MODULES = \
 	install-binutils \
 	install-bison \
 	install-byacc \
-	install-cgen \
-	install-cvssrc \
 	install-db \
 	install-dejagnu \
 	install-diff \
 	install-dosutils \
 	install-etc \
+	install-fastjar \
 	install-fileutils \
 	install-findutils \
 	install-find \
@@ -691,15 +690,11 @@ INSTALL_MODULES = \
 	install-gnuserv \
 	install-gprof \
 	install-grep \
-	install-grez \
 	install-gzip \
 	install-hello \
 	install-indent \
-	install-inet \
 	install-intl \
-	install-ispell \
 	install-tcl \
-	install-tcl8.1 \
 	install-itcl \
 	install-ld \
 	install-libgui \
@@ -722,7 +717,6 @@ INSTALL_MODULES = \
 	install-snavigator \
 	install-tar \
 	install-textutils \
-	install-tgas \
 	install-time \
 	install-uudecode \
 	install-wdiff \
@@ -732,25 +726,19 @@ INSTALL_MODULES = \
 # This is a list of the targets for all of the modules which are compiled
 # using $(X11_FLAGS_TO_PASS).
 ALL_X11_MODULES = \
-	all-emacs \
-	all-emacs19 \
 	all-gdb \
 	all-expect \
-	all-gash \
 	all-guile \
 	all-tclX \
 	all-tk \
-	all-tk8.1 \
 	all-tix
 
 # This is a list of the check targets for all of the modules which are
 # compiled using $(X11_FLAGS_TO_PASS).
 CHECK_X11_MODULES = \
-	check-emacs \
 	check-gdb \
 	check-guile \
 	check-expect \
-	check-gash \
 	check-tclX \
 	check-tk \
 	check-tix
@@ -758,28 +746,19 @@ CHECK_X11_MODULES = \
 # This is a list of the install targets for all the modules which are
 # compiled using $(X11_FLAGS_TO_PASS).
 INSTALL_X11_MODULES = \
-	install-emacs \
-	install-emacs19 \
 	install-gdb \
 	install-guile \
 	install-expect \
-	install-gash \
 	install-tclX \
 	install-tk \
-	install-tk8.1 \
 	install-tix
 
 # This is a list of the targets for all of the modules which are compiled
 # using $(TARGET_FLAGS_TO_PASS).
 ALL_TARGET_MODULES = \
-	all-target-libio \
-	all-target-libstdc++ \
 	all-target-libstdc++-v3 \
-	all-target-librx \
-	all-target-libg++ \
 	all-target-newlib \
 	all-target-libf2c \
-	all-target-libchill \
 	all-target-libobjc \
 	all-target-libtermcap \
 	all-target-winsup \
@@ -787,26 +766,18 @@ ALL_TARGET_MODULES = \
 	all-target-libiberty \
 	all-target-gperf \
 	all-target-examples \
-	all-target-libstub \
 	all-target-libffi \
 	all-target-libjava \
 	all-target-zlib \
 	all-target-boehm-gc \
-	all-target-qthreads \
-	all-target-bsp \
-	all-target-cygmon
+	all-target-qthreads
 
 # This is a list of the configure targets for all of the modules which
 # are compiled using the target tools.
 CONFIGURE_TARGET_MODULES = \
-	configure-target-libio \
-	configure-target-libstdc++ \
 	configure-target-libstdc++-v3 \
-	configure-target-librx \
-	configure-target-libg++ \
 	configure-target-newlib \
 	configure-target-libf2c \
-	configure-target-libchill \
 	configure-target-libobjc \
 	configure-target-libtermcap \
 	configure-target-winsup \
@@ -814,25 +785,18 @@ CONFIGURE_TARGET_MODULES = \
 	configure-target-libiberty \
 	configure-target-gperf \
 	configure-target-examples \
-	configure-target-libstub \
 	configure-target-libffi \
 	configure-target-libjava \
 	configure-target-zlib \
 	configure-target-boehm-gc \
-	configure-target-qthreads \
-	configure-target-bsp \
-	configure-target-cygmon
+	configure-target-qthreads
 
 # This is a list of the check targets for all of the modules which are
 # compiled using $(TARGET_FLAGS_TO_PASS).
 CHECK_TARGET_MODULES = \
-	check-target-libio \
-	check-target-libstdc++ \
 	check-target-libstdc++-v3 \
-	check-target-libg++ \
 	check-target-newlib \
 	check-target-libf2c \
-	check-target-libchill \
 	check-target-libobjc \
 	check-target-winsup \
 	check-target-libiberty \
@@ -846,19 +810,14 @@ CHECK_TARGET_MODULES = \
 # This is a list of the install targets for all of the modules which are
 # compiled using $(TARGET_FLAGS_TO_PASS).
 INSTALL_TARGET_MODULES = \
-	install-target-libio \
-	install-target-libstdc++ \
 	install-target-libstdc++-v3 \
-	install-target-libg++ \
 	install-target-newlib \
 	install-target-libf2c \
-	install-target-libchill \
 	install-target-libobjc \
 	install-target-libtermcap \
 	install-target-winsup \
 	install-target-libgloss \
 	install-target-libiberty \
-	install-target-bsp \
 	install-target-libjava \
 	install-target-zlib \
 	install-target-boehm-gc \
@@ -867,7 +826,6 @@ INSTALL_TARGET_MODULES = \
 
 # This is a list of the targets for which we can do a clean-{target}.
 CLEAN_MODULES = \
-	clean-apache \
 	clean-ash \
 	clean-autoconf \
 	clean-automake \
@@ -877,13 +835,12 @@ CLEAN_MODULES = \
 	clean-bison \
 	clean-byacc \
 	clean-bzip2 \
-	clean-cgen \
-	clean-cvssrc \
 	clean-db \
 	clean-dejagnu \
 	clean-diff \
 	clean-dosutils \
 	clean-etc \
+	clean-fastjar \
 	clean-fileutils \
 	clean-findutils \
 	clean-find \
@@ -894,13 +851,10 @@ CLEAN_MODULES = \
 	clean-gnuserv \
 	clean-gprof \
 	clean-grep \
-	clean-grez \
 	clean-gzip \
 	clean-hello \
 	clean-indent \
-	clean-inet \
 	clean-intl \
-	clean-ispell \
 	clean-itcl \
 	clean-ld \
 	clean-libgui \
@@ -927,7 +881,6 @@ CLEAN_MODULES = \
 	clean-tcl \
 	clean-texinfo \
 	clean-textutils \
-	clean-tgas \
 	clean-time \
 	clean-uudecode \
 	clean-wdiff \
@@ -936,36 +889,25 @@ CLEAN_MODULES = \
 
 # All of the target modules that can be cleaned
 CLEAN_TARGET_MODULES = \
-	clean-target-libio \
-	clean-target-libstdc++ \
 	clean-target-libstdc++-v3 \
-	clean-target-librx \
-	clean-target-libg++ \
 	clean-target-newlib \
 	clean-target-libf2c \
-	clean-target-libchill \
 	clean-target-libobjc \
 	clean-target-winsup \
 	clean-target-libgloss \
 	clean-target-libiberty \
 	clean-target-gperf \
 	clean-target-examples \
-	clean-target-libstub \
 	clean-target-libffi \
 	clean-target-libjava \
 	clean-target-zlib \
 	clean-target-boehm-gc \
-	clean-target-qthreads \
-	clean-target-bsp \
-	clean-target-cygmon
+	clean-target-qthreads
 
 # All of the x11 modules that can be cleaned
 CLEAN_X11_MODULES = \
-	clean-emacs \
-	clean-emacs19 \
 	clean-gdb \
 	clean-expect \
-	clean-gash \
 	clean-guile \
 	clean-tclX \
 	clean-tk \
@@ -1000,8 +942,8 @@ DO_X = \
 .PHONY: $(DO_X)
 $(DO_X):
 	@target=`echo $@ | sed -e 's/^do-//'`; \
-	r=`pwd`; export r; \
-	s=`cd $(srcdir); pwd`; export s; \
+	r=`${PWD}`; export r; \
+	s=`cd $(srcdir); ${PWD}`; export s; \
 	$(SET_LIB_PATH) \
 	for i in $(SUBDIRS) -dummy-; do \
 	  if [ -f ./$$i/Makefile ]; then \
@@ -1020,15 +962,15 @@ $(DO_X):
 	    if (cd ./$$i; \
 	        $(MAKE) $(BASE_FLAGS_TO_PASS) "AR=$${AR}" "AS=$${AS}" \
 			"CC=$${CC}" "CXX=$${CXX}" "LD=$${LD}" "NM=$${NM}" \
-			"RANLIB=$${RANLIB}" \
+	                "`echo \"RANLIB=$${RANLIB}\" | sed -e 's/.*=$$/XFOO=/'`" \
 			"DLLTOOL=$${DLLTOOL}" "WINDRES=$${WINDRES}" \
 			$${target}); \
 	    then true; else exit 1; fi; \
 	  else true; fi; \
 	done
 	@target=`echo $@ | sed -e 's/^do-//'`; \
-	r=`pwd`; export r; \
-	s=`cd $(srcdir); pwd`; export s; \
+	r=`${PWD}`; export r; \
+	s=`cd $(srcdir); ${PWD}`; export s; \
 	$(SET_LIB_PATH) \
 	for i in $(TARGET_CONFIGDIRS) -dummy-; do \
 	  if [ -f $(TARGET_SUBDIR)/$$i/Makefile ]; then \
@@ -1038,7 +980,7 @@ $(DO_X):
 	    if (cd $(TARGET_SUBDIR)/$$i; \
 	        $(MAKE) $(BASE_FLAGS_TO_PASS) "AR=$${AR}" "AS=$${AS}" \
 			"CC=$${CC}" "CXX=$${CXX}" "LD=$${LD}" "NM=$${NM}" \
-			"RANLIB=$${RANLIB}" \
+	                "`echo \"RANLIB=$${RANLIB}\" | sed -e 's/.*=$$/XFOO=/'`" \
 			"DLLTOOL=$${DLLTOOL}" "WINDRES=$${WINDRES}" \
 			$${target}); \
 	    then true; else exit 1; fi; \
@@ -1058,7 +1000,7 @@ dvi: do-dvi
 do-info: all-texinfo
 
 install-info: do-install-info dir.info
-	s=`cd $(srcdir); pwd`; export s; \
+	s=`cd $(srcdir); ${PWD}`; export s; \
 	if [ -f dir.info ] ; then \
 	  $(INSTALL_DATA) dir.info $(infodir)/dir.info ; \
 	else true ; fi
@@ -1071,6 +1013,11 @@ local-distclean:
 	-if [ "$(TARGET_SUBDIR)" != "." ]; then \
 	  rm -rf $(TARGET_SUBDIR); \
 	else true; fi
+	-rm -f texinfo/po/Makefile texinfo/po/Makefile.in texinfo/info/Makefile
+	-rm -f texinfo/doc/Makefile texinfo/po/POTFILES
+	-rmdir texinfo/doc texinfo/info texinfo/intl texinfo/lib 2>/dev/null
+	-rmdir texinfo/makeinfo texinfo/po texinfo/util 2>/dev/null
+	-rmdir fastjar gcc libiberty texinfo zlib 2>/dev/null
 
 local-maintainer-clean:
 	@echo "This command is intended for maintainers to use;"
@@ -1088,8 +1035,8 @@ realclean: maintainer-clean
 $(CLEAN_MODULES) $(CLEAN_X11_MODULES) clean-gcc:
 	@dir=`echo $@ | sed -e 's/clean-//'`; \
 	if [ -f ./$${dir}/Makefile ] ; then \
-	  r=`pwd`; export r; \
-	  s=`cd $(srcdir); pwd`; export s; \
+	  r=`${PWD}`; export r; \
+	  s=`cd $(srcdir); ${PWD}`; export s; \
 	  $(SET_LIB_PATH) \
 	  (cd $${dir}; $(MAKE) $(FLAGS_TO_PASS) clean); \
 	else \
@@ -1101,8 +1048,8 @@ $(CLEAN_TARGET_MODULES):
 	@dir=`echo $@ | sed -e 's/clean-target-//'`; \
 	rm -f $(TARGET_SUBDIR)/$${dir}/multilib.out $(TARGET_SUBDIR)/$${dir}/tmpmulti.out; \
 	if [ -f $(TARGET_SUBDIR)/$${dir}/Makefile ] ; then \
-	  r=`pwd`; export r; \
-	  s=`cd $(srcdir); pwd`; export s; \
+	  r=`${PWD}`; export r; \
+	  s=`cd $(srcdir); ${PWD}`; export s; \
 	  $(SET_LIB_PATH) \
 	  (cd $(TARGET_SUBDIR)/$${dir}; $(MAKE) $(TARGET_FLAGS_TO_PASS) clean); \
 	else \
@@ -1118,8 +1065,11 @@ clean-target-libgcc:
 
 # Check target.
 
-.PHONY: check
-check: $(CHECK_MODULES) \
+.PHONY: check do-check
+check:
+	$(MAKE) do-check NOTPARALLEL=parallel-ok
+
+do-check: $(CHECK_MODULES) \
 	$(CHECK_TARGET_MODULES) \
 	$(CHECK_X11_MODULES) \
 	check-gcc
@@ -1172,18 +1122,13 @@ vault-install:
 .PHONY: install.all
 install.all: install-no-fixedincludes
 	@if [ -f ./gcc/Makefile ] ; then \
-		r=`pwd` ; export r ; \
+		r=`${PWD}` ; export r ; \
 		$(SET_LIB_PATH) \
 		(cd ./gcc; \
 		$(MAKE) $(FLAGS_TO_PASS) install-headers) ; \
 	else \
 		true ; \
 	fi
-
-# inet-install is used because the I*Net wants DejaGNU installed but
-# not built.  Similarly, gzip is built but not installed.
-inet-install:
-	$(MAKE) INSTALL_MODULES="`echo $(INSTALL_MODULES) | sed -e 's/install-dejagnu//' -e 's/install-gzip//'`" install
 
 # install-no-fixedincludes is used because Cygnus can not distribute
 # the fixed header files.
@@ -1207,8 +1152,8 @@ gcc-no-fixedincludes:
 	  cp $(srcdir)/gcc/gsyslimits.h gcc/include/syslimits.h; \
 	  touch gcc/stmp-fixinc gcc/include/fixed; \
 	  rm -f gcc/stmp-headers gcc/stmp-int-hdrs; \
-	  r=`pwd`; export r; \
-	  s=`cd $(srcdir); pwd` ; export s; \
+	  r=`${PWD}`; export r; \
+	  s=`cd $(srcdir); ${PWD}` ; export s; \
 	  $(SET_LIB_PATH) \
 	  (cd ./gcc; \
 	   $(MAKE) $(GCC_FLAGS_TO_PASS) install); \
@@ -1222,8 +1167,8 @@ gcc-no-fixedincludes:
 $(ALL_BUILD_MODULES):
 	dir=`echo $@ | sed -e 's/all-build-//'`; \
 	if [ -f ./$${dir}/Makefile ] ; then \
-	  r=`pwd`; export r; \
-	  s=`cd $(srcdir); pwd`; export s; \
+	  r=`${PWD}`; export r; \
+	  s=`cd $(srcdir); ${PWD}`; export s; \
 	  (cd $(BUILD_SUBDIR)/$${dir} && $(MAKE) all); \
 	else \
 	  true; \
@@ -1241,8 +1186,8 @@ $(CONFIGURE_BUILD_MODULES):
 	elif echo " $(BUILD_CONFIGDIRS) " | grep " $${dir} " >/dev/null 2>&1; then \
 	  if [ -d $(srcdir)/$${dir} ]; then \
 	    [ -d $(BUILD_SUBDIR)/$${dir} ] || mkdir $(BUILD_SUBDIR)/$${dir};\
-	    r=`pwd`; export r; \
-	    s=`cd $(srcdir); pwd`; export s; \
+	    r=`${PWD}`; export r; \
+	    s=`cd $(srcdir); ${PWD}`; export s; \
 	    AR="$(AR_FOR_BUILD)"; export AR; \
 	    AS="$(AS_FOR_BUILD)"; export AS; \
 	    CC="$(CC_FOR_BUILD)"; export CC; \
@@ -1326,8 +1271,8 @@ $(CONFIGURE_BUILD_MODULES):
 $(ALL_MODULES) all-gui all-libproc:
 	@dir=`echo $@ | sed -e 's/all-//'`; \
 	if [ -f ./$${dir}/Makefile ] ; then \
-	  r=`pwd`; export r; \
-	  s=`cd $(srcdir); pwd`; export s; \
+	  r=`${PWD}`; export r; \
+	  s=`cd $(srcdir); ${PWD}`; export s; \
 	  $(SET_LIB_PATH) \
 	  (cd $${dir}; $(MAKE) $(FLAGS_TO_PASS) all); \
 	else \
@@ -1343,8 +1288,8 @@ $(NATIVE_CHECK_MODULES):
 	@if [ '$(host_canonical)' = '$(target_canonical)' ] ; then \
 	  dir=`echo $@ | sed -e 's/check-//'`; \
 	  if [ -f ./$${dir}/Makefile ] ; then \
-	    r=`pwd`; export r; \
-	    s=`cd $(srcdir); pwd`; export s; \
+	    r=`${PWD}`; export r; \
+	    s=`cd $(srcdir); ${PWD}`; export s; \
 	    $(SET_LIB_PATH) \
 	    (cd $${dir}; $(MAKE) $(FLAGS_TO_PASS) check); \
 	  else \
@@ -1355,8 +1300,8 @@ $(NATIVE_CHECK_MODULES):
 $(CROSS_CHECK_MODULES):
 	@dir=`echo $@ | sed -e 's/check-//'`; \
 	if [ -f ./$${dir}/Makefile ] ; then \
-	  r=`pwd`; export r; \
-	  s=`cd $(srcdir); pwd`; export s; \
+	  r=`${PWD}`; export r; \
+	  s=`cd $(srcdir); ${PWD}`; export s; \
 	  $(SET_LIB_PATH) \
 	  (cd $${dir}; $(MAKE) $(FLAGS_TO_PASS) check); \
 	else \
@@ -1369,8 +1314,8 @@ $(CROSS_CHECK_MODULES):
 $(INSTALL_MODULES): installdirs
 	@dir=`echo $@ | sed -e 's/install-//'`; \
 	if [ -f ./$${dir}/Makefile ] ; then \
-	  r=`pwd`; export r; \
-	  s=`cd $(srcdir); pwd`; export s; \
+	  r=`${PWD}`; export r; \
+	  s=`cd $(srcdir); ${PWD}`; export s; \
 	  $(SET_LIB_PATH) \
 	  (cd $${dir}; $(MAKE) $(FLAGS_TO_PASS) install); \
 	else \
@@ -1383,7 +1328,7 @@ $(INSTALL_MODULES): installdirs
 $(CONFIGURE_TARGET_MODULES):
 	@dir=`echo $@ | sed -e 's/configure-target-//'`; \
 	if [ -d $(TARGET_SUBDIR)/$${dir} ]; then \
-	  r=`pwd`; export r; \
+	  r=`${PWD}`; export r; \
 	  $(CC_FOR_TARGET) --print-multi-lib > $(TARGET_SUBDIR)/$${dir}/tmpmulti.out 2> /dev/null; \
 	  if [ -s $(TARGET_SUBDIR)/$${dir}/tmpmulti.out ]; then \
 	    if [ -f $(TARGET_SUBDIR)/$${dir}/multilib.out ]; then \
@@ -1407,8 +1352,8 @@ $(CONFIGURE_TARGET_MODULES):
 	elif echo " $(TARGET_CONFIGDIRS) " | grep " $${dir} " >/dev/null 2>&1; then \
 	  if [ -d $(srcdir)/$${dir} ]; then \
 	    [ -d $(TARGET_SUBDIR)/$${dir} ] || mkdir $(TARGET_SUBDIR)/$${dir};\
-	    r=`pwd`; export r; \
-	    s=`cd $(srcdir); pwd`; export s; \
+	    r=`${PWD}`; export r; \
+	    s=`cd $(srcdir); ${PWD}`; export s; \
 	    $(SET_LIB_PATH) \
 	    AR="$(AR_FOR_TARGET)"; export AR; \
 	    AS="$(AS_FOR_TARGET)"; export AS; \
@@ -1416,6 +1361,7 @@ $(CONFIGURE_TARGET_MODULES):
 	    CFLAGS="$(CFLAGS_FOR_TARGET)"; export CFLAGS; \
 	    CXX="$(CXX_FOR_TARGET)"; export CXX; \
 	    CXXFLAGS="$(CXXFLAGS_FOR_TARGET)"; export CXXFLAGS; \
+	    GCJ="$(GCJ_FOR_TARGET)"; export GCJ; \
 	    DLLTOOL="$(DLLTOOL_FOR_TARGET)"; export DLLTOOL; \
 	    LD="$(LD_FOR_TARGET)"; export LD; \
             LDFLAGS="$(LDFLAGS_FOR_TARGET)"; export LDFLAGS; \
@@ -1423,9 +1369,9 @@ $(CONFIGURE_TARGET_MODULES):
 	    RANLIB="$(RANLIB_FOR_TARGET)"; export RANLIB; \
 	    WINDRES="$(WINDRES_FOR_TARGET)"; export WINDRES; \
 	    echo Configuring in $(TARGET_SUBDIR)/$${dir}; \
-	    cd $(TARGET_SUBDIR)/$${dir}; \
+	    cd "$(TARGET_SUBDIR)/$${dir}" || exit 1; \
 	    case $(srcdir) in \
-	    /*) \
+	    /* | [A-Za-z]:[\\/]*) \
 	      topdir=$(srcdir) ;; \
 	    *) \
 	      case "$(TARGET_SUBDIR)" in \
@@ -1467,7 +1413,7 @@ $(CONFIGURE_TARGET_MODULES):
 	      CONFIG_SITE=no-such-file $(SHELL) $$s/configure \
 		$(TARGET_CONFIGARGS) $${srcdiroption} \
 		--with-target-subdir="$(TARGET_SUBDIR)"; \
-	    fi; \
+	    fi || exit 1; \
 	    if [ -f skip-this-dir ] ; then \
 	      sh skip-this-dir; \
 	      rm -f skip-this-dir; \
@@ -1488,8 +1434,8 @@ $(CONFIGURE_TARGET_MODULES):
 $(ALL_TARGET_MODULES):
 	@dir=`echo $@ | sed -e 's/all-target-//'`; \
 	if [ -f $(TARGET_SUBDIR)/$${dir}/Makefile ] ; then \
-	  r=`pwd`; export r; \
-	  s=`cd $(srcdir); pwd`; export s; \
+	  r=`${PWD}`; export r; \
+	  s=`cd $(srcdir); ${PWD}`; export s; \
 	  $(SET_LIB_PATH) \
 	  (cd $(TARGET_SUBDIR)/$${dir}; \
 	    $(MAKE) $(TARGET_FLAGS_TO_PASS) all); \
@@ -1503,8 +1449,8 @@ $(ALL_TARGET_MODULES):
 $(CHECK_TARGET_MODULES):
 	@dir=`echo $@ | sed -e 's/check-target-//'`; \
 	if [ -f $(TARGET_SUBDIR)/$${dir}/Makefile ] ; then \
-	  r=`pwd`; export r; \
-	  s=`cd $(srcdir); pwd`; export s; \
+	  r=`${PWD}`; export r; \
+	  s=`cd $(srcdir); ${PWD}`; export s; \
 	  $(SET_LIB_PATH) \
 	  (cd $(TARGET_SUBDIR)/$${dir}; \
 	    $(MAKE) $(TARGET_FLAGS_TO_PASS) check);\
@@ -1519,8 +1465,8 @@ $(CHECK_TARGET_MODULES):
 $(INSTALL_TARGET_MODULES): installdirs
 	@dir=`echo $@ | sed -e 's/install-target-//'`; \
 	if [ -f $(TARGET_SUBDIR)/$${dir}/Makefile ] ; then \
-	  r=`pwd`; export r; \
-	  s=`cd $(srcdir); pwd`; export s; \
+	  r=`${PWD}`; export r; \
+	  s=`cd $(srcdir); ${PWD}`; export s; \
 	  $(SET_LIB_PATH) \
 	  (cd $(TARGET_SUBDIR)/$${dir}; \
 	    $(MAKE) $(TARGET_FLAGS_TO_PASS) install); \
@@ -1534,8 +1480,8 @@ $(INSTALL_TARGET_MODULES): installdirs
 $(ALL_X11_MODULES):
 	@dir=`echo $@ | sed -e 's/all-//'`; \
 	if [ -f ./$${dir}/Makefile ] ; then \
-	  r=`pwd`; export r; \
-	  s=`cd $(srcdir); pwd`; export s; \
+	  r=`${PWD}`; export r; \
+	  s=`cd $(srcdir); ${PWD}`; export s; \
 	  $(SET_LIB_PATH) \
 	  (cd $${dir}; \
 	   $(MAKE) $(FLAGS_TO_PASS) $(X11_FLAGS_TO_PASS) all); \
@@ -1549,8 +1495,8 @@ $(ALL_X11_MODULES):
 $(CHECK_X11_MODULES):
 	@dir=`echo $@ | sed -e 's/check-//'`; \
 	if [ -f ./$${dir}/Makefile ] ; then \
-	  r=`pwd`; export r; \
-	  s=`cd $(srcdir); pwd`; export s; \
+	  r=`${PWD}`; export r; \
+	  s=`cd $(srcdir); ${PWD}`; export s; \
 	  $(SET_LIB_PATH) \
 	  (cd $${dir}; \
 	   $(MAKE) $(FLAGS_TO_PASS) $(X11_FLAGS_TO_PASS) check); \
@@ -1564,8 +1510,8 @@ $(CHECK_X11_MODULES):
 $(INSTALL_X11_MODULES): installdirs
 	@dir=`echo $@ | sed -e 's/install-//'`; \
 	if [ -f ./$${dir}/Makefile ] ; then \
-	  r=`pwd`; export r; \
-	  s=`cd $(srcdir); pwd`; export s; \
+	  r=`${PWD}`; export r; \
+	  s=`cd $(srcdir); ${PWD}`; export s; \
 	  $(SET_LIB_PATH) \
 	  (cd $${dir}; \
 	   $(MAKE) $(FLAGS_TO_PASS) $(X11_FLAGS_TO_PASS) install); \
@@ -1577,8 +1523,8 @@ $(INSTALL_X11_MODULES): installdirs
 .PHONY: all-gcc
 all-gcc:
 	@if [ -f ./gcc/Makefile ] ; then \
-	  r=`pwd`; export r; \
-	  s=`cd $(srcdir); pwd`; export s; \
+	  r=`${PWD}`; export r; \
+	  s=`cd $(srcdir); ${PWD}`; export s; \
 	  $(SET_LIB_PATH) \
 	  (cd gcc; $(MAKE) $(GCC_FLAGS_TO_PASS) all); \
 	else \
@@ -1597,13 +1543,13 @@ all-gcc:
 #
 .PHONY: bootstrap bootstrap-lean bootstrap2 bootstrap2-lean bootstrap3 bootstrap3-lean bootstrap4 bootstrap4-lean
 bootstrap bootstrap-lean bootstrap2 bootstrap2-lean bootstrap3 bootstrap3-lean bootstrap4 bootstrap4-lean: all-bootstrap
-	@r=`pwd`; export r; \
-	s=`cd $(srcdir); pwd`; export s; \
+	@r=`${PWD}`; export r; \
+	s=`cd $(srcdir); ${PWD}`; export s; \
 	$(SET_LIB_PATH) \
 	echo "Bootstrapping the compiler"; \
 	cd gcc && $(MAKE) $(GCC_FLAGS_TO_PASS) $@
-	@r=`pwd`; export r; \
-	s=`cd $(srcdir); pwd`; export s; \
+	@r=`${PWD}`; export r; \
+	s=`cd $(srcdir); ${PWD}`; export s; \
 	case "$@" in \
 	  *bootstrap4-lean ) \
 			msg="Comparing stage3 and stage4 of the compiler"; \
@@ -1618,21 +1564,21 @@ bootstrap bootstrap-lean bootstrap2 bootstrap2-lean bootstrap3 bootstrap3-lean b
 	$(SET_LIB_PATH) \
 	echo "$$msg"; \
 	cd gcc && $(MAKE) $(GCC_FLAGS_TO_PASS) $$compare
-	@r=`pwd`; export r; \
-	s=`cd $(srcdir); pwd` ; export s; \
+	@r=`${PWD}`; export r; \
+	s=`cd $(srcdir); ${PWD}` ; export s; \
 	$(SET_LIB_PATH) \
 	echo "Building runtime libraries"; \
 	$(MAKE) $(BASE_FLAGS_TO_PASS) $(RECURSE_FLAGS) all
 
 .PHONY: cross
 cross: all-texinfo all-bison all-byacc all-binutils all-gas all-ld
-	@r=`pwd`; export r; \
-	s=`cd $(srcdir); pwd`; export s; \
+	@r=`${PWD}`; export r; \
+	s=`cd $(srcdir); ${PWD}`; export s; \
 	$(SET_LIB_PATH) \
 	echo "Building the C and C++ compiler"; \
 	cd gcc && $(MAKE) $(GCC_FLAGS_TO_PASS) LANGUAGES="c c++"
-	@r=`pwd`; export r; \
-	s=`cd $(srcdir); pwd` ; export s; \
+	@r=`${PWD}`; export r; \
+	s=`cd $(srcdir); ${PWD}` ; export s; \
 	$(SET_LIB_PATH) \
 	echo "Building runtime libraries"; \
 	$(MAKE) $(BASE_FLAGS_TO_PASS) $(RECURSE_FLAGS) \
@@ -1641,19 +1587,31 @@ cross: all-texinfo all-bison all-byacc all-binutils all-gas all-ld
 .PHONY: check-gcc
 check-gcc:
 	@if [ -f ./gcc/Makefile ] ; then \
-	  r=`pwd`; export r; \
-	  s=`cd $(srcdir); pwd`; export s; \
+	  r=`${PWD}`; export r; \
+	  s=`cd $(srcdir); ${PWD}`; export s; \
 	  $(SET_LIB_PATH) \
 	  (cd gcc; $(MAKE) $(GCC_FLAGS_TO_PASS) check); \
 	else \
 	  true; \
 	fi
 
+.PHONY: check-c++
+check-c++:
+	@if [ -f ./gcc/Makefile ] ; then \
+	  r=`${PWD}`; export r; \
+	  s=`cd $(srcdir); ${PWD}`; export s; \
+	  $(SET_LIB_PATH) \
+	  (cd gcc; $(MAKE) $(GCC_FLAGS_TO_PASS) check-c++); \
+	  $(MAKE) check-target-libstdc++-v3; \
+	else \
+	  true; \
+	fi 
+
 .PHONY: install-gcc
 install-gcc:
 	@if [ -f ./gcc/Makefile ] ; then \
-	  r=`pwd`; export r; \
-	  s=`cd $(srcdir); pwd`; export s; \
+	  r=`${PWD}`; export r; \
+	  s=`cd $(srcdir); ${PWD}`; export s; \
 	  $(SET_LIB_PATH) \
 	  (cd gcc; $(MAKE) $(GCC_FLAGS_TO_PASS) install); \
 	else \
@@ -1663,8 +1621,8 @@ install-gcc:
 .PHONY: install-gcc-cross
 install-gcc-cross:
 	@if [ -f ./gcc/Makefile ] ; then \
-	  r=`pwd`; export r; \
-	  s=`cd $(srcdir); pwd`; export s; \
+	  r=`${PWD}`; export r; \
+	  s=`cd $(srcdir); ${PWD}`; export s; \
 	  $(SET_LIB_PATH) \
 	  (cd gcc; $(MAKE) $(GCC_FLAGS_TO_PASS) LANGUAGES="c c++" install); \
 	else \
@@ -1677,8 +1635,8 @@ install-gcc-cross:
 install-dosrel: installdirs info
 	@dir=`echo $@ | sed -e 's/install-//'`; \
 	if [ -f ./$${dir}/Makefile ] ; then \
-	  r=`pwd`; export r; \
-	  s=`cd $(srcdir); pwd`; export s; \
+	  r=`${PWD}`; export r; \
+	  s=`cd $(srcdir); ${PWD}`; export s; \
 	  $(SET_LIB_PATH) \
 	  (cd $${dir}; $(MAKE) $(FLAGS_TO_PASS) install); \
 	else \
@@ -1689,10 +1647,9 @@ install-dosrel-fake:
 
 ALL_GCC = all-gcc
 ALL_GCC_C = $(ALL_GCC) all-target-newlib all-target-libgloss
-ALL_GCC_CXX = $(ALL_GCC_C) all-target-libstdc++ all-target-libstdc++-v3
+ALL_GCC_CXX = $(ALL_GCC_C) all-target-libstdc++-v3
 
 # This is a list of inter-dependencies among modules.
-all-apache:
 all-ash:
 all-autoconf: all-m4 all-texinfo
 all-automake: all-m4 all-texinfo
@@ -1700,21 +1657,13 @@ all-bash:
 all-bfd: all-libiberty all-intl
 all-binutils: all-libiberty all-opcodes all-bfd all-flex all-bison all-byacc all-intl
 all-bison: all-texinfo
-configure-target-boehm-gc: $(ALL_GCC_CXX) configure-target-qthreads
+configure-target-boehm-gc: $(ALL_GCC_C) configure-target-qthreads
 all-target-boehm-gc: configure-target-boehm-gc
-configure-target-bsp: $(ALL_GCC_C)
-all-target-bsp: configure-target-bsp
 all-byacc:
 all-bzip2:
-all-cgen: all-libiberty
-all-cvssrc:
-configure-target-cygmon: $(ALL_GCC_C)
-all-target-cygmon: configure-target-cygmon all-target-libiberty all-target-libio all-target-libstub all-target-bsp
 all-db:
 all-dejagnu: all-tcl all-expect all-tk
 all-diff: all-libiberty
-all-emacs:
-all-emacs19: all-bison all-byacc
 all-etc:
 configure-target-examples: $(ALL_GCC_C)
 all-target-examples: configure-target-examples
@@ -1724,7 +1673,6 @@ all-findutils:
 all-find:
 all-flex: all-libiberty all-bison all-byacc
 all-gas: all-libiberty all-opcodes all-bfd all-intl
-all-gash: all-tcl
 all-gawk:
 all-gcc: all-bison all-byacc all-binutils all-gas all-ld all-zlib
 all-bootstrap: all-libiberty all-texinfo all-bison all-byacc all-binutils all-gas all-ld all-zlib
@@ -1736,46 +1684,30 @@ configure-target-gperf: $(ALL_GCC_CXX)
 all-target-gperf: configure-target-gperf all-target-libiberty all-target-libstdc++-v3
 all-gprof: all-libiberty all-bfd all-opcodes all-intl
 all-grep: all-libiberty
-all-grez: all-libiberty all-bfd all-opcodes
-all-gui: all-gdb all-libproc all-target-librx
+all-gui: all-gdb all-libproc
 all-guile:
 all-gzip: all-libiberty
 all-hello: all-libiberty
 all-indent:
-all-inet: all-tcl all-send-pr all-perl
 all-intl:
-all-ispell: all-emacs19
-all-itcl: all-tcl all-tk all-tcl8.1 all-tk8.1
+all-itcl: all-tcl all-tk
 all-ld: all-libiberty all-bfd all-opcodes all-bison all-byacc all-flex all-intl
-configure-target-libg++: $(ALL_GCC_CXX) configure-target-librx
-all-target-libg++: configure-target-libg++ all-target-libiberty all-target-librx
 configure-target-libgloss: $(ALL_GCC)
 all-target-libgloss: configure-target-libgloss configure-target-newlib
-configure-target-libio: $(ALL_GCC_C)
-all-target-libio: configure-target-libio all-gas all-ld all-gcc all-target-libiberty all-target-newlib
-check-target-libio: all-target-libstdc++
-all-libgui: all-tcl all-tk all-tcl8.1 all-tk8.1 all-itcl
+all-libgui: all-tcl all-tk all-itcl
 all-libiberty:
 
 all-build-libiberty: configure-build-libiberty
 
 configure-target-libffi: $(ALL_GCC_C) 
 all-target-libffi: configure-target-libffi
-configure-target-libjava: $(ALL_GCC_CXX) configure-target-zlib configure-target-boehm-gc configure-target-qthreads configure-target-libffi
-all-target-libjava: configure-target-libjava all-zip all-target-zlib all-target-boehm-gc all-target-qthreads all-target-libffi
-configure-target-librx: $(ALL_GCC_C)
-all-target-librx: configure-target-librx
-configure-target-libstdc++: $(ALL_GCC_C)
-all-target-libstdc++: configure-target-libstdc++ all-target-libiberty all-target-libio
+configure-target-libjava: $(ALL_GCC_C) configure-target-zlib configure-target-boehm-gc configure-target-qthreads configure-target-libffi
+all-target-libjava: configure-target-libjava all-fastjar all-target-zlib all-target-boehm-gc all-target-qthreads all-target-libffi
 configure-target-libstdc++-v3: $(ALL_GCC_C)
 all-target-libstdc++-v3: configure-target-libstdc++-v3 all-target-libiberty
-configure-target-libstub: $(ALL_GCC_C)
-all-target-libstub: configure-target-libstub
 all-libtool:
 configure-target-libf2c: $(ALL_GCC_C)
 all-target-libf2c: configure-target-libf2c all-target-libiberty
-configure-target-libchill: $(ALL_GCC_C)
-all-target-libchill: configure-target-libchill all-target-libiberty
 configure-target-libobjc: $(ALL_GCC_C)
 all-target-libobjc: configure-target-libobjc all-target-libiberty
 all-m4: all-libiberty all-texinfo
@@ -1785,7 +1717,7 @@ configure-target-newlib: $(ALL_GCC)
 all-target-newlib: configure-target-newlib
 configure-target-libtermcap: $(ALL_GCC_C)
 all-target-libtermcap: configure-target-libtermcap
-all-opcodes: all-bfd all-libiberty all-cgen
+all-opcodes: all-bfd all-libiberty
 all-patch: all-libiberty
 all-perl:
 all-prms: all-libiberty
@@ -1798,19 +1730,16 @@ all-sed: all-libiberty
 all-send-pr: all-prms
 all-shellutils:
 all-sid: all-tcl all-tk
-all-sim: all-libiberty all-bfd all-opcodes all-readline all-cgen
+all-sim: all-libiberty all-bfd all-opcodes all-readline
 all-snavigator: all-tcl all-tk all-itcl all-tix all-db all-grep all-libgui
 all-tar: all-libiberty
 all-tcl:
-all-tcl8.1:
 all-tclX: all-tcl all-tk
 all-tk: all-tcl
-all-tk8.1: all-tcl8.1
 all-texinfo: all-libiberty
 all-textutils:
-all-tgas: all-libiberty all-bfd all-opcodes
 all-time:
-all-tix: all-tcl all-tk all-tcl8.1 all-tk8.1
+all-tix: all-tcl all-tk
 all-wdiff:
 configure-target-winsup: $(ALL_GCC_C)
 all-target-winsup: all-target-libiberty all-target-libtermcap configure-target-winsup
@@ -1819,6 +1748,9 @@ all-zip:
 all-zlib:
 configure-target-zlib: $(ALL_GCC_C)
 all-target-zlib: configure-target-zlib
+all-fastjar: all-zlib all-libiberty
+configure-target-fastjar: configure-target-zlib
+all-target-fastjar: configure-target-fastjar all-target-zlib all-target-libiberty
 configure-target-libiberty: $(ALL_GCC_C)
 all-target-libiberty: configure-target-libiberty
 all-target: $(ALL_TARGET_MODULES)
@@ -1828,8 +1760,8 @@ install-sid: install-tcl install-tk
 ### other supporting targets
 
 MAKEDIRS= \
-	$(prefix) \
-	$(exec_prefix)
+	$(DESTDIR)$(prefix) \
+	$(DESTDIR)$(exec_prefix)
 .PHONY: installdirs
 installdirs: mkinstalldirs
 	$(SHELL) $(srcdir)/mkinstalldirs $(MAKEDIRS)
@@ -1910,13 +1842,17 @@ taz: $(DEVO_SUPPORT) $(SUPPORT_FILES) texinfo/texinfo.tex
 		TOOL=$(TOOL) PACKAGE="$(PACKAGE)" VER="$(VER)" \
 		MD5PROG="$(MD5PROG)" \
 		SUPPORT_FILES="$(SUPPORT_FILES)"
-	$(MAKE) -f Makefile.in do-tar-bz2 \
+	$(MAKE) -f Makefile.in do-tar \
+		TOOL=$(TOOL) PACKAGE="$(PACKAGE)" VER="$(VER)" \
+		MD5PROG="$(MD5PROG)" \
+		SUPPORT_FILES="$(SUPPORT_FILES)"
+	$(MAKE) -f Makefile.in do-bz2 \
 		TOOL=$(TOOL) PACKAGE="$(PACKAGE)" VER="$(VER)" \
 		MD5PROG="$(MD5PROG)" \
 		SUPPORT_FILES="$(SUPPORT_FILES)"
 
-.PHONY: gdb-taz
-gdb-taz: $(DEVO_SUPPORT) $(SUPPORT_FILES) texinfo/texinfo.tex
+.PHONY: gdb-tar
+gdb-tar: $(DEVO_SUPPORT) $(SUPPORT_FILES) texinfo/texinfo.tex
 	$(MAKE) -f Makefile.in do-proto-toplev \
 		TOOL=$(TOOL) PACKAGE="$(PACKAGE)" VER="$(VER)" \
 		MD5PROG="$(MD5PROG)" \
@@ -1929,7 +1865,18 @@ gdb-taz: $(DEVO_SUPPORT) $(SUPPORT_FILES) texinfo/texinfo.tex
 		TOOL=$(TOOL) PACKAGE="$(PACKAGE)" VER="$(VER)" \
 		MD5PROG="$(MD5PROG)" \
 		SUPPORT_FILES="$(SUPPORT_FILES)"
-	$(MAKE) -f Makefile.in do-tar-bz2 \
+	$(MAKE) -f Makefile.in do-tar \
+		TOOL=$(TOOL) PACKAGE="$(PACKAGE)" VER="$(VER)" \
+		MD5PROG="$(MD5PROG)" \
+		SUPPORT_FILES="$(SUPPORT_FILES)"
+
+.PHONY: gdb-taz
+gdb-taz: gdb-tar $(DEVO_SUPPORT) $(SUPPORT_FILES) texinfo/texinfo.tex
+	$(MAKE) -f Makefile.in gdb-tar \
+		TOOL=$(TOOL) PACKAGE="$(PACKAGE)" VER="$(VER)" \
+		MD5PROG="$(MD5PROG)" \
+		SUPPORT_FILES="$(SUPPORT_FILES)"
+	$(MAKE) -f Makefile.in do-bz2 \
 		TOOL=$(TOOL) PACKAGE="$(PACKAGE)" VER="$(VER)" \
 		MD5PROG="$(MD5PROG)" \
 		SUPPORT_FILES="$(SUPPORT_FILES)"
@@ -1996,12 +1943,17 @@ do-proto-toplev: $(DEVO_SUPPORT) $(SUPPORT_FILES) texinfo/texinfo.tex
 	-rm -f $(PACKAGE)-$(VER)
 	ln -s proto-toplev $(PACKAGE)-$(VER)
 
-.PHONY: do-tar-bz2
-do-tar-bz2:
-	echo "==> Making $(PACKAGE)-$(VER).tar.bz2"
-	-rm -f $(PACKAGE)-$(VER).tar.bz2
+.PHONY: do-tar
+do-tar:
+	echo "==> Making $(PACKAGE)-$(VER).tar"
+	-rm -f $(PACKAGE)-$(VER).tar
 	find $(PACKAGE)-$(VER) -follow -name CVS -prune -o -type f -print \
 		| tar cTfh - $(PACKAGE)-$(VER).tar
+
+.PHONY: do-bz2
+do-bz2:
+	echo "==> Bzipping $(PACKAGE)-$(VER).tar.bz2"
+	-rm -f $(PACKAGE)-$(VER).tar.bz2
 	$(BZIPPROG) -v -9 $(PACKAGE)-$(VER).tar
 
 .PHONY: do-md5sum
@@ -2046,13 +1998,6 @@ gas+binutils.tar.bz2: $(DIST_SUPPORT) $(GASB_SUPPORT_DIRS) gas
 		MD5PROG="$(MD5PROG)" \
 		SUPPORT_FILES="$(GASB_SUPPORT_DIRS)"
 
-.PHONY: libg++.tar.bz2
-LIBGXX_SUPPORT_DIRS=include libstdc++ libio librx libiberty
-libg++.tar.bz2: $(DIST_SUPPORT) libg++
-	$(MAKE) -f Makefile.in taz TOOL=libg++ \
-		MD5PROG="$(MD5PROG)" \
-		SUPPORT_FILES="$(LIBGXX_SUPPORT_DIRS)"
-
 GNATS_SUPPORT_DIRS=include libiberty send-pr
 gnats.tar.bz2: $(DIST_SUPPORT) $(GNATS_SUPPORT_DIRS) gnats
 	$(MAKE) -f  Makefile.in taz TOOL=gnats \
@@ -2065,9 +2010,14 @@ gdb.tar.bz2: $(DIST_SUPPORT) $(GDB_SUPPORT_DIRS) gdb
 	$(MAKE) -f Makefile.in gdb-taz TOOL=gdb \
 		MD5PROG="$(MD5PROG)" \
 		SUPPORT_FILES="$(GDB_SUPPORT_DIRS)"
+.PHONY: gdb.tar
+gdb.tar: $(DIST_SUPPORT) $(GDB_SUPPORT_DIRS) gdb
+	$(MAKE) -f Makefile.in gdb-tar TOOL=gdb \
+		MD5PROG="$(MD5PROG)" \
+		SUPPORT_FILES="$(GDB_SUPPORT_DIRS)"
 
-.PHONY: dejagnu.tar.bz2
 DEJAGNU_SUPPORT_DIRS=  tcl expect libiberty
+.PHONY: dejagnu.tar.bz2
 dejagnu.tar.bz2: $(DIST_SUPPORT) $(DEJAGNU_SUPPORT_DIRS) dejagnu
 	$(MAKE) -f Makefile.in taz TOOL=dejagnu \
 		MD5PROG="$(MD5PROG)" \
@@ -2079,6 +2029,11 @@ gdb+dejagnu.tar.bz2: $(DIST_SUPPORT) $(GDBD_SUPPORT_DIRS) gdb
 	$(MAKE) -f Makefile.in gdb-taz TOOL=gdb PACKAGE=gdb+dejagnu \
 		MD5PROG="$(MD5PROG)" \
 		SUPPORT_FILES="$(GDBD_SUPPORT_DIRS)"
+.PHONY: gdb+dejagnu.tar
+gdb+dejagnu.tar: $(DIST_SUPPORT) $(GDBD_SUPPORT_DIRS) gdb
+	$(MAKE) -f Makefile.in gdb-tar TOOL=gdb PACKAGE=gdb+dejagnu \
+		MD5PROG="$(MD5PROG)" \
+		SUPPORT_FILES="$(GDBD_SUPPORT_DIRS)"
 
 .PHONY: insight.tar.bz2
 INSIGHT_SUPPORT_DIRS= $(GDB_SUPPORT_DIRS) tcl tk itcl tix libgui
@@ -2086,11 +2041,21 @@ insight.tar.bz2: $(DIST_SUPPORT) $(GDB_SUPPORT_DIRS) gdb
 	$(MAKE) -f Makefile.in gdb-taz TOOL=gdb PACKAGE=insight \
 		MD5PROG="$(MD5PROG)" \
 		SUPPORT_FILES="$(INSIGHT_SUPPORT_DIRS)"
+.PHONY: insight.tar
+insight.tar: $(DIST_SUPPORT) $(GDB_SUPPORT_DIRS) gdb
+	$(MAKE) -f Makefile.in gdb-tar TOOL=gdb PACKAGE=insight \
+		MD5PROG="$(MD5PROG)" \
+		SUPPORT_FILES="$(INSIGHT_SUPPORT_DIRS)"
 
 .PHONY: insight+dejagnu.tar.bz2
 INSIGHTD_SUPPORT_DIRS= $(INSIGHT_SUPPORT_DIRS) expect dejagnu
 insight+dejagnu.tar.bz2: $(DIST_SUPPORT) $(INSIGHTD_SUPPORT_DIRS) gdb
 	$(MAKE) -f Makefile.in gdb-taz TOOL=gdb PACKAGE="insight+dejagnu" \
+		MD5PROG="$(MD5PROG)" \
+		SUPPORT_FILES="$(INSIGHTD_SUPPORT_DIRS)"
+.PHONY: insight+dejagnu.tar
+insight+dejagnu.tar: $(DIST_SUPPORT) $(INSIGHTD_SUPPORT_DIRS) gdb
+	$(MAKE) -f Makefile.in gdb-tar TOOL=gdb PACKAGE="insight+dejagnu" \
 		MD5PROG="$(MD5PROG)" \
 		SUPPORT_FILES="$(INSIGHTD_SUPPORT_DIRS)"
 

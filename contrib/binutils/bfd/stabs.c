@@ -284,6 +284,7 @@ _bfd_link_section_stabs (abfd, psinfo, stabsec, stabstrsec, psecinfo)
        sym < symend;
        sym += STABSIZE, ++pstridx)
     {
+      bfd_size_type symstroff;
       int type;
       const char *string;
 
@@ -311,9 +312,18 @@ _bfd_link_section_stabs (abfd, psinfo, stabsec, stabstrsec, psecinfo)
 	}
 
       /* Store the string in the hash table, and record the index.  */
-      string = ((char *) stabstrbuf
-		+ stroff
-		+ bfd_get_32 (abfd, sym + STRDXOFF));
+      symstroff = stroff + bfd_get_32 (abfd, sym + STRDXOFF);
+      if (symstroff >= stabstrsec->_raw_size)
+	{
+	  (*_bfd_error_handler)
+	    (_("%s(%s+0x%lx): Stabs entry has invalid string index."),
+	     bfd_archive_filename (abfd),
+	     bfd_get_section_name (abfd, stabsec),
+	     (long) (sym - stabbuf));
+	  bfd_set_error (bfd_error_bad_value);
+	  goto error_return;
+	}
+      string = (char *) stabstrbuf + symstroff;
       *pstridx = _bfd_stringtab_add (sinfo->strings, string, true, true);
 
       /* An N_BINCL symbol indicates the start of the stabs entries

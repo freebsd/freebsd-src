@@ -25,7 +25,6 @@
 #include "coff/internal.h"
 #include "bucomm.h"
 #include "libiberty.h"
-#include "demangle.h"
 #include "debug.h"
 #include "budbg.h"
 
@@ -655,7 +654,7 @@ parse_coff_symbol (abfd, types, sym, coff_symno, psyment, dhandle, type,
       break;
     }
 
-  return true;				   
+  return true;
 }
 
 /* Determine if a symbol has external visibility.  */
@@ -666,13 +665,13 @@ external_coff_symbol_p (sym_class)
 {
   switch (sym_class)
     {
-      case C_EXT:
-      case C_WEAKEXT:
-        return true;
+    case C_EXT:
+    case C_WEAKEXT:
+      return true;
     default:
       break;
     }
-  return false;         
+  return false;
 }
 
 /* This is the main routine.  It looks through all the symbols and
@@ -786,7 +785,7 @@ parse_coff (abfd, syms, symcount, dhandle)
 	  if (syment.n_type == T_NULL)
 	    break;
 	  /* Fall through.  */
- 	case C_WEAKEXT:
+	case C_WEAKEXT:
 	case C_EXT:
 	  if (ISFCN (syment.n_type))
 	    {
