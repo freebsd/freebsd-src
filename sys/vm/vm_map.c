@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.95 1997/10/28 15:59:26 bde Exp $
+ * $Id: vm_map.c,v 1.96 1997/11/07 08:53:44 phk Exp $
  */
 
 /*
@@ -1270,8 +1270,9 @@ vm_map_user_pageable(map, start, end, new_pageable)
 	register vm_offset_t end;
 	register boolean_t new_pageable;
 {
-	register vm_map_entry_t entry;
+	vm_map_entry_t entry;
 	vm_map_entry_t start_entry;
+	vm_offset_t estart;
 	int rv;
 
 	vm_map_lock(map);
@@ -1303,19 +1304,11 @@ vm_map_user_pageable(map, start, end, new_pageable)
 				if (entry->wired_count == 0)
 					vm_fault_unwire(map, entry->start, entry->end);
 			}
+			vm_map_simplify_entry(map,entry);
 			entry = entry->next;
 		}
-		vm_map_simplify_entry(map, start_entry);
 		vm_map_clear_recursive(map);
 	} else {
-
-		/*
-		 * Because of the possiblity of blocking, etc.  We restart
-		 * through the process's map entries from beginning so that
-		 * we don't end up depending on a map entry that could have
-		 * changed.
-		 */
-	rescan:
 
 		entry = start_entry;
 
@@ -1361,6 +1354,7 @@ vm_map_user_pageable(map, start, end, new_pageable)
 
 			entry->wired_count++;
 			entry->eflags |= MAP_ENTRY_USER_WIRED;
+			estart = entry->start;
 
 			/* First we need to allow map modifications */
 			vm_map_set_recursive(map);
@@ -1380,9 +1374,19 @@ vm_map_user_pageable(map, start, end, new_pageable)
 			}
 
 			vm_map_clear_recursive(map);
-			vm_map_lock_upgrade(map);
-
-			goto rescan;
+			if (vm_map_lock_upgrade(map)) {
+				vm_map_lock(map);
+				if (vm_map_lookup_entry(map, estart, &entry) 
+				    == FALSE) {
+					vm_map_unlock(map);
+					(void) vm_map_user_pageable(map,
+								    start,
+								    estart,
+								    TRUE);
+					return (KERN_INVALID_ADDRESS);
+				}
+			}
+			vm_map_simplify_entry(map,entry);
 		}
 	}
 	vm_map_unlock(map);
