@@ -57,7 +57,7 @@ static g_access_t g_slice_access;
 static g_start_t g_slice_start;
 
 static struct g_slicer *
-g_slice_init(unsigned nslice, unsigned scsize)
+g_slice_alloc(unsigned nslice, unsigned scsize)
 {
 	struct g_slicer *gsp;
 
@@ -67,6 +67,17 @@ g_slice_init(unsigned nslice, unsigned scsize)
 	    M_WAITOK | M_ZERO);
 	gsp->nslice = nslice;
 	return (gsp);
+}
+
+static void
+g_slice_free(struct g_slicer *gsp)
+{
+
+	g_free(gsp->slices);
+	if (gsp->hotspot != NULL)
+		g_free(gsp->hotspot);
+	g_free(gsp->softc);
+	g_free(gsp);
 }
 
 static int
@@ -416,7 +427,7 @@ g_slice_new(struct g_class *mp, u_int slices, struct g_provider *pp, struct g_co
 	g_topology_assert();
 	vp = (void **)extrap;
 	gp = g_new_geomf(mp, "%s", pp->name);
-	gsp = g_slice_init(slices, extra);
+	gsp = g_slice_alloc(slices, extra);
 	gsp->start = start;
 	gp->access = g_slice_access;
 	gp->orphan = g_slice_orphan;
@@ -432,8 +443,7 @@ g_slice_new(struct g_class *mp, u_int slices, struct g_provider *pp, struct g_co
 		if (cp->provider != NULL)
 			g_detach(cp);
 		g_destroy_consumer(cp);
-		g_free(gsp->slices);
-		g_free(gp->softc);
+		g_slice_free(gsp);
 		g_destroy_geom(gp);
 		return (NULL);
 	}
