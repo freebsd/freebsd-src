@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)route.c	8.3 (Berkeley) 3/9/94";
+#if 0
+static char sccsid[] = "From: @(#)route.c	8.3 (Berkeley) 3/9/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -57,6 +61,8 @@ static char sccsid[] = "@(#)route.c	8.3 (Berkeley) 3/9/94";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <err.h>
+#include <time.h>
 #include "netstat.h"
 
 #define kget(p, d) (kread((u_long)(p), (char *)&(d), sizeof (d)))
@@ -194,10 +200,10 @@ pr_rthdr()
 
 	if (Aflag)
 		printf("%-8.8s ","Address");
-	printf("%-*.*s %-*.*s %-6.6s  %6.6s%8.8s  %s\n",
+	printf("%-*.*s %-*.*s %-6.6s  %6.6s%8.8s  %8.8s %6s\n",
 		WID_DST, WID_DST, "Destination",
 		WID_GW, WID_GW, "Gateway",
-		"Flags", "Refs", "Use", "Interface");
+		"Flags", "Refs", "Use", "Netif", "Expire");
 }
 
 static struct sockaddr *
@@ -293,12 +299,16 @@ ntreestuff()
         mib[3] = 0;
         mib[4] = NET_RT_DUMP;
         mib[5] = 0;
-        if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0)
-		{ perror("route-sysctl-estimate"); exit(1);}
-	if ((buf = malloc(needed)) == 0)
-		{ printf("out of space\n"); exit(1);}
-        if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0)
-		{ perror("sysctl of routing table"); exit(1);}
+        if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0) {
+		err(1, "sysctl: net.route.0.0.dump estimate");
+	}
+
+	if ((buf = malloc(needed)) == 0) {
+		err(2, "malloc(%lu)", (unsigned long)needed);
+	}
+        if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0) {
+		err(1, "sysctl: net.route.0.0.dump");
+	}
 	lim  = buf + needed;
 	for (next = buf; next < lim; next += rtm->rtm_msglen) {
 		rtm = (struct rt_msghdr *)next;
@@ -447,6 +457,13 @@ p_rtentry(rt)
 {
 	static struct ifnet ifnet, *lastif;
 	static char name[16];
+	static char prettyname[9];
+
+	/*
+	 * Don't print protocol-cloned routes unless -a.
+	 */
+	if(rt->rt_parent && !aflag)
+		return;
 
 	p_sockaddr(kgetsa(rt_key(rt)), rt->rt_flags, WID_DST);
 	p_sockaddr(kgetsa(rt->rt_gateway), RTF_HOST, WID_GW);
@@ -457,9 +474,20 @@ p_rtentry(rt)
 			kget(rt->rt_ifp, ifnet);
 			kread((u_long)ifnet.if_name, name, 16);
 			lastif = rt->rt_ifp;
+			snprintf(prettyname, sizeof prettyname,
+				 "%.6s%d", name, ifnet.if_unit);
 		}
-		printf(" %.15s%d%s", name, ifnet.if_unit,
-			rt->rt_nodes[0].rn_dupedkey ? " =>" : "");
+		if(rt->rt_rmx.rmx_expire) {
+			time_t now = time((time_t *)0);
+
+			printf(" %8.8s %6d%s", prettyname,
+			       rt->rt_rmx.rmx_expire - now,
+			       rt->rt_nodes[0].rn_dupedkey ? " =>" : "");
+		} else {
+			printf(" %8.8s%s", prettyname, 
+			       rt->rt_nodes[0].rn_dupedkey ? " =>" : "");
+		}
+
 	}
 	putchar('\n');
 }
