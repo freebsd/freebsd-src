@@ -76,7 +76,10 @@ main(int argc, char **argv)
 	int dao = 0, eject = 0, fixate = 0, list = 0, multi = 0, preemp = 0;
 	int nogap = 0, speed = 4 * 177, test_write = 0, force = 0;
 	int block_size = 0, block_type = 0, cdopen = 0, dvdrw = 0;
-	const char *dev = "/dev/acd0c";
+	const char *dev;
+
+	if ((dev = getenv("CDROM")) == NULL)
+		dev = "/dev/acd0";
 
 	while ((ch = getopt(argc, argv, "def:Flmnpqs:tv")) != -1) {
 		switch (ch) {
