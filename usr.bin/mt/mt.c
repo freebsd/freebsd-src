@@ -29,8 +29,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #ifndef lint
@@ -43,9 +41,10 @@ static const char copyright[] =
 #if 0
 static char sccsid[] = "@(#)mt.c	8.2 (Berkeley) 5/4/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * mt --
@@ -84,42 +83,43 @@ struct commands {
 	int c_ronly;
 	int c_flags;
 } com[] = {
-	{ "bsf",	MTBSF,	1 },
-	{ "bsr",	MTBSR,	1 },
+	{ "bsf",	MTBSF,	1, 0 },
+	{ "bsr",	MTBSR,	1, 0 },
 	/* XXX FreeBSD considered "eof" dangerous, since it's being
 	   confused with "eom" (and is an alias for "weof" anyway) */
 	{ "eof",	MTWEOF, 0, DISABLE_THIS },
-	{ "fsf",	MTFSF,	1 },
-	{ "fsr",	MTFSR,	1 },
-	{ "offline",	MTOFFL,	1 },
-	{ "rewind",	MTREW,	1 },
-	{ "rewoffl",	MTOFFL,	1 },
-	{ "status",	MTNOP,	1 },
+	{ "fsf",	MTFSF,	1, 0 },
+	{ "fsr",	MTFSR,	1, 0 },
+	{ "offline",	MTOFFL,	1, 0 },
+	{ "rewind",	MTREW,	1, 0 },
+	{ "rewoffl",	MTOFFL,	1, 0 },
+	{ "status",	MTNOP,	1, 0 },
 	{ "weof",	MTWEOF,	0, ZERO_ALLOWED },
 	{ "erase",	MTERASE, 0, ZERO_ALLOWED},
 	{ "blocksize",	MTSETBSIZ, 0, NEED_2ARGS|ZERO_ALLOWED },
 	{ "density",	MTSETDNSTY, 0, NEED_2ARGS|ZERO_ALLOWED|IS_DENSITY },
-	{ "eom",	MTEOD, 1 },
-	{ "eod",	MTEOD, 1 },
-	{ "smk",	MTWSS, 0 },
-	{ "wss",	MTWSS, 0 },
-	{ "fss",	MTFSS, 1 },
-	{ "bss",	MTBSS, 1 },
+	{ "eom",	MTEOD, 1, 0 },
+	{ "eod",	MTEOD, 1, 0 },
+	{ "smk",	MTWSS, 0, 0 },
+	{ "wss",	MTWSS, 0, 0 },
+	{ "fss",	MTFSS, 1, 0 },
+	{ "bss",	MTBSS, 1, 0 },
 	{ "comp",	MTCOMP, 0, NEED_2ARGS|ZERO_ALLOWED|IS_COMP },
-	{ "retension",	MTRETENS, 1 },
-	{ "rdhpos",     MTIOCRDHPOS,  0 },
-	{ "rdspos",     MTIOCRDSPOS,  0 },
+	{ "retension",	MTRETENS, 1, 0 },
+	{ "rdhpos",     MTIOCRDHPOS,  0, 0 },
+	{ "rdspos",     MTIOCRDSPOS,  0, 0 },
 	{ "sethpos",    MTIOCHLOCATE, 0, NEED_2ARGS|ZERO_ALLOWED },
 	{ "setspos",    MTIOCSLOCATE, 0, NEED_2ARGS|ZERO_ALLOWED },
-	{ "errstat",	MTIOCERRSTAT, 0 },
+	{ "errstat",	MTIOCERRSTAT, 0, 0 },
 	{ "setmodel",	MTIOCSETEOTMODEL, 0, NEED_2ARGS|ZERO_ALLOWED },
 	{ "seteotmodel",	MTIOCSETEOTMODEL, 0, NEED_2ARGS|ZERO_ALLOWED },
-	{ "getmodel",	MTIOCGETEOTMODEL },
-	{ "geteotmodel",	MTIOCGETEOTMODEL },
-	{ NULL }
+	{ "getmodel",	MTIOCGETEOTMODEL, 0, 0 },
+	{ "geteotmodel",	MTIOCGETEOTMODEL, 0, 0 },
+	{ NULL, 0, 0, 0 }
 };
 
-void printreg(char *, u_int, char *);
+const char *getblksiz(int);
+void printreg(const char *, u_int, char *);
 void status(struct mtget *);
 void usage(void);
 void st_status (struct mtget *);
@@ -211,7 +211,7 @@ main(argc, argv)
 		switch (comp->c_code) {
 		case MTIOCERRSTAT:
 		{
-			int i;
+			unsigned int i;
 			union mterrstat umn;
 			struct scsi_tape_errors *s = &umn.scsi_errstat;
 
@@ -329,7 +329,7 @@ struct tape_desc {
 	{ MT_ISVIPER1,	"Archive Viper", WTDS_BITS, WTER_BITS },
 	{ MT_ISMFOUR,	"Wangtek",	 WTDS_BITS, WTER_BITS },
 #endif
-	{ 0 }
+	{ 0, NULL, 0, 0 }
 };
 
 /*
@@ -366,7 +366,7 @@ status(bp)
  */
 void
 printreg(s, v, bits)
-	char *s;
+	const char *s;
 	register u_int v;
 	register char *bits;
 {
@@ -400,7 +400,7 @@ printreg(s, v, bits)
 void
 usage()
 {
-	(void)fprintf(stderr, "usage: mt [-f device] command [ count ]\n");
+	(void)fprintf(stderr, "usage: mt [-f device] command [count]\n");
 	exit(1);
 }
 
@@ -647,7 +647,7 @@ st_status(struct mtget *bp)
 	    bp->mt_blkno == (daddr_t) -1)
 		return;
 	printf("---------------------------------\n");
-	printf("File Number: %ld\tRecord Number: %ld\tResidual Count %d\n",
+	printf("File Number: %d\tRecord Number: %d\tResidual Count %d\n",
 	    bp->mt_fileno, bp->mt_blkno, bp->mt_resid);
 }
 
