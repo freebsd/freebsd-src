@@ -1,4 +1,4 @@
-/*	$Id$ */
+/*	$Id: fetch.c,v 1.1 1997/06/25 08:56:39 msmith Exp $ */
 /*	$NetBSD: fetch.c,v 1.10 1997/05/23 18:54:18 lukem Exp $	*/
 
 /*-
@@ -38,7 +38,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: fetch.c,v 1.1 1997/06/25 08:56:39 msmith Exp $";
 #endif /* not lint */
 
 /*
@@ -162,7 +162,7 @@ url_get(origline, proxyenv)
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
 
-	if (isdigit(host[0])) {
+	if (isdigit((unsigned char)host[0])) {
 		if (inet_aton(host, &sin.sin_addr) == 0) {
 			warnx("Invalid IP address: %s", host);
 			goto cleanup_url_get;
@@ -260,7 +260,7 @@ url_get(origline, proxyenv)
 	 */
 #define CONTENTLEN "Content-Length: "
 	for (cp = buf; *cp != '\0'; cp++) {
-		if (tolower(*cp) == 'c' &&
+		if (tolower((unsigned char)*cp) == 'c' &&
 		    strncasecmp(cp, CONTENTLEN, sizeof(CONTENTLEN) - 1) == 0)
 			break;
 	}
