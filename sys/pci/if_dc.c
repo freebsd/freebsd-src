@@ -194,6 +194,8 @@ static struct dc_type dc_devs[] = {
 		"Abocom FE2500 10/100BaseTX" },
 	{ DC_VENDORID_CONEXANT, DC_DEVICEID_RS7112,
 		"Conexant LANfinity MiniPCI 10/100BaseTX" },
+	{ DC_VENDORID_HAWKING, DC_DEVICEID_HAWKING_PN672TX,
+		"Hawking CB102 CardBus 10/100" },
 	{ 0, 0, NULL }
 };
 
@@ -2013,6 +2015,7 @@ dc_attach(dev)
 	case DC_DEVICEID_AN985:
 	case DC_DEVICEID_FE2500:
 	case DC_DEVICEID_EN2242:
+	case DC_DEVICEID_HAWKING_PN672TX:
 		sc->dc_type = DC_TYPE_AN985;
 		sc->dc_flags |= DC_TX_USE_TX_INTR;
 		sc->dc_flags |= DC_TX_ADMTEK_WAR;
