@@ -113,201 +113,49 @@
 ]]>
 
 <![ %release.type.snapshot [
-
-    <para>A race condition existed whereby a file could be removed
-      between a &man.fstatfs.2; call and the point where the file is
-      accessed, causing a kernel panic.  Only the &man.procfs.5;
-      filesystem was known to be vulnerable to this attack.  This bug
-      was fixed in &os; &release.prev;, but the security advisory
-      describing the bug was issued after the release.  For more
-      information, including a workaround and bug fix, see security
-      advisory <ulink 
-        url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:09.fstatfs.asc">FreeBSD-SA-02:09</ulink>.</para>
-
-    <para>An <quote>off-by-one</quote> bug has been fixed in
-      <application>OpenSSH</application>'s multiplexing code.  This bug
-      could have allowed an authenticated remote user to cause
-      &man.sshd.8; to execute arbitrary code with superuser
-      privileges, or allowed a malicious SSH server to execute arbitrary
-      code on the client system with the privileges of the client user.  Various workarounds
-      and bugfixes, for versions of
-      <application>OpenSSH</application> in both the base system and
-      Ports Collection, can be found in security advisory <ulink
-        url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:13.openssh.asc">FreeBSD-SA-02:13</ulink>.</para>
-
-    <para>A programming error in <application>zlib</application> could
-      result in attempts to free memory multiple times.  The
-      &man.malloc.3;/&man.free.3; routines used in &os; are not
-      vulnerable to this error, but applications receiving
-      specially-crafted blocks of invalid compressed data could
-      be made to function incorrectly or abort.  This
-      <application>zlib</application> bug has been fixed.  For a
-      workaround and solutions, see security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:18.zlib.v1.2.asc">FreeBSD-SA-02:18</ulink>.</para>
-
-    <para>Bugs in the TCP SYN cache (<quote>syncache</quote>) and SYN
-      cookie (<quote>syncookie</quote>) implementations, which could
-      cause legitimate TCP/IP traffic to crash a machine, have been
-      fixed.  For a workaround and patches, see security advisory
-      <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:20.syncache.asc">FreeBSD-SA-02:20</ulink>.</para>
-
-    <para>A routing table memory leak, which could allow a remote
-      attacker to exhaust the memory of a target machine, has been
-      fixed.  A workaround and patches can be found in security
-      advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:21.tcpip.asc">FreeBSD-SA-02:21</ulink>.</para>
-
-    <para>A bug with memory-mapped I/O, which could cause a system
-      crash, has been fixed.  For more information about a solution,
-      see security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:22.mmap.asc">FreeBSD-SA-02:22</ulink>.
-      </para>
-
-    <para>A security hole, in which SUID programs could be made to
-      read from or write to inappropriate files through manipulation
-      of their standard I/O file descriptors, has been fixed.
-      Information regarding a solution can be found in security
-      advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:23.stdio.asc">FreeBSD-SA-02:23</ulink>.
-      </para>
-
-    <para>Unlike &man.su.1;, &man.k5su.8;
-      does not require that an invoking user be a member of
-      the <groupname>wheel</groupname> group when attempting to become
-      the superuser.  This could
-      result in some unexpected behavior.  To avoid this
-      situation, &man.k5su.8; is now installed non-SUID by default
-      (effectively disabling it).  More information can be found in
-      security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:24.k5su.asc">FreeBSD-SA-02:24</ulink>.</para>
-
-    <para>Multiple vulnerabilities were found in the &man.bzip2.1;
-      utility, which could allow files to be overwritten without
-      warning or allow local users unintended access to files.  These
-      problems have been corrected with a new import of
-      <application>bzip2</application>.  For more information, see
-      security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:25.bzip2.asc">FreeBSD-SA-02:25</ulink>.</para>
-
-    <para>A bug has been fixed in the implementation of the TCP SYN 
-      cache (<quote>syncache</quote>), which could allow a remote
-      attacker to deny access to a service when accept filters
-      (see &man.accept.filter.9;) were in use.  This bug has been 
-      fixed; for more information, see security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:26.accept.asc">FreeBSD-SA-02:26</ulink>.</para>
-
-    <para>Due to a bug in &man.rc.8;'s use of shell globbing, users
-      may be able to remove the contents of arbitrary files if
-      <filename>/tmp/.X11-unix</filename> does not exist and the
-      system can be made to reboot.  This bug has been corrected (see
-      security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:27.rc.asc">FreeBSD-SA-02:27</ulink>).</para>
-
+    <para>No active security advisories.</para>
 ]]>
   </sect1>
 
   <sect1>
-    <title>System Update Information</title>
+    <title>Late-Breaking News</title>
 
 <![ %release.type.release [
-    <para>No active updates.</para>
+    <para>No news.</para>
 ]]>
 
 <![ %release.type.snapshot [
 
-    <para>Certain SSH clients, when attempting to connect to a &os;
-      &release.prev; server, will unexpectedly present an
-      <application>S/Key</application> prompt, even if &man.sshd.8; on
-      the server has not been later explicitly configured for
-      <application>S/Key</application> authentication.  This is due to
-      the default settings of clients having changed (e.g. use of SSH
-      protocol version 2 where it was not used before), or from a
-      change from the client's old default authentication sequence.
-      There are a number of ways to disable this behavior:
+    <para>In &os; &release.prev;, the default maximum TCP window size
+      was lowered from 65536 bytes to 57334 bytes, for better
+      compatability with some versions of
+      <application>IPFilter</application>.</para>
 
-      <itemizedlist>
-        <listitem>
-	  <para>On newer <application>OpenSSH</application> clients,
-	      add the following line to your 
-	      <filename>~/.ssh/config</filename> file:
-<programlisting>PreferredAuthentications publickey,password,keyboard-interactive</programlisting>
-	  </para>
-	</listitem>
-        <listitem>
-	  <para>For <application>PuTTY</application> clients, the
-	      authentication sequence order cannot be changed, but
-	      keyboard-interactive authentication can be disabled in the
-	      settings.</para>
-	</listitem>
-        <listitem>
-	  <para>To disable keyboard-interactive authentication in the
-	      server, uncomment the following line in the
-	      <filename>/etc/ssh/sshd_config</filename> file (on the
-	      server host):
-<programlisting>ChallengeResponseAuthentication no</programlisting> 
-	  </para>
-	</listitem>
-      </itemizedlist>
+    <para>A recently-discovered interaction between the &os; kernel
+      and the <filename role="port">archivers/zip</filename> port can
+      result in some errors on the alpha platform.  A post-release fix
+      has been committed to the &os; ports tree; versions of the
+      <filename role="port">archivers/zip</filename> port beginning
+      with 2.3_1 will function correctly.</para>
 
-      This problem has been corrected in &os; &release.current;.
-    </para>
+    <para>On the alpha platform, the &man.de.4; and &man.txp.4;
+      drivers were moved from the boot kernel on the floppy images to
+      modules on the <filename>mfsroot</filename> floppy.  This change
+      was made in order to get the alpha kernel to fit onto the boot
+      floppy.  It should be transparent to all users, as
+      &man.sysinstall.8; will automatically load any kernel modules it
+      finds on the <filename>mfsroot</filename> floppy.</para>
 
-    <para>The release notes mentioned the new sbni device driver, but
-      gave an incorrect reference to the program in the &os; Ports
-      Collection used to configure the driver.  The correct filename for
-      the port is <filename role="package">sysutils/sbniconfig</filename>.</para>
-
-    <para>Linux emulation now requires <literal>options
-      SYSVSEM</literal> in the kernel configuration.  This dependency
-      was introduced into &os; before &release.prev;.</para>
-
-    <para>Packages containing some optional components of 
-      <application>KDE</application> were accidentally omitted from
-      the ISO images (and hence the official 4-CD set).  In prior
-      releases, these packages could be installed using the
-      <filename role="package">x11/kde2</filename> package.  These components can either be
-      installed using the &os; Ports Collection or by downloading the
-      binary packages from one of the &os; FTP servers.  The affected
-      ports are:
-      <filename role="package">games/kdegames2</filename>, <filename role="package">misc/kdeutils2</filename>,
-      <filename role="package">editors/koffice</filename>, <filename role="package">net/kdenetwork2</filename>,
-      <filename role="package">graphics/kdegraphics2</filename>, and
-      <filename role="package">audio/kdemultimedia2</filename>.  Note that the 
-      <filename role="package">x11/kdelibs2</filename> and <filename role="package">x11/kdebase2</filename>
-      packages, which are frequently required by these other
-      components, <emphasis>are</emphasis> included on disk 1 of the
-      official 4-CD set.
-	<footnote>
-	  <para>The complete &os; package collection currently fills
-	    nine CDROMs.  The official 4-CD set therefore only
-	    contains a subset of the available packages.  Several &os;
-	    vendors offer distributions that contain a more complete
-	    set of packages; a more complete collection can also be
-	    found on the &os; FTP sites.</para>
-	</footnote>
-      </para>
-
-    <para>A binary package containing <application>Samba</application>
-      was accidentally omitted from the ISO images.  This software can
-      either be installed using the <filename role="package">net/samba</filename> port in the
-      &os; Ports Collection or by downloading and installing its
-      binary package from one of the &os; FTP servers.</para>
-
-    <para>A bug has been fixed in soft updates that can cause
-      occasional filesystem corruption if the system is shut down
-      immediately after performing heavy filesystem activities,
-      such as installing a new kernel or other software.
-      The system shutdown was unable to flush all buffers on
-      shutdown and would report this fact.  The problem can be
-      worked around by running &man.sync.8; a few times before rebooting, or
-      solved by updating to a recent &os; &release.current; snapshot.</para>
-
-    <para>The ciss driver was inadvertently omitted from the &os;
-      &release.prev; <filename>GENERIC</filename> kernel, thus making
-      it impossible (or at least very difficult) to perform an initial
-      install to disks attached to this controller.  This problem has
-      been corrected in &os; &release.current;.</para>
+    <para>Several last-minute patches were made to the <filename
+      role="port">x11-servers/XFree86-4-Server</filename> package.
+      These allow the various server configuration programs to give
+      better support for the <filename>sysmouse</filename> device
+      supported by &man.moused.8;.  The binary packages on the CDROMs
+      and the FTP sites incoporate this patch and bear the version
+      number 4.2.0_3.  However, the ports collection included in the
+      distribution does not contain this patch.  To get an updated
+      version, use <application>CVSup</application> to obtain a more
+      recent ports collection.</para>
 
 ]]>
   </sect1>
