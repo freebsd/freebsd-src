@@ -615,7 +615,7 @@ acpi_pwr_find_resource(ACPI_HANDLE res)
     TAILQ_FOREACH(rp, &acpi_powerresources, ap_link)
 	if (rp->ap_resource == res)
 	    break;
-    return_VALUE(rp);
+    return_PTR(rp);
 }
 
 /*
@@ -631,6 +631,6 @@ acpi_pwr_find_consumer(ACPI_HANDLE consumer)
     TAILQ_FOREACH(pc, &acpi_powerconsumers, ac_link)
 	if (pc->ac_consumer == consumer)
 	    break;
-    return_VALUE(pc);
+    return_PTR(pc);
 }
 
