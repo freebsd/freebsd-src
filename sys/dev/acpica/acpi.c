@@ -414,6 +414,7 @@ acpi_attach(device_t dev)
     SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "verbose", CTLFLAG_RD | CTLFLAG_RW,
 	&sc->acpi_verbose, 0, "verbose mode");
+    sc->acpi_s4bios = 1;
     if (bootverbose)
 	sc->acpi_verbose = 1;
     
@@ -1758,8 +1759,10 @@ acpi_sleep_state_sysctl(SYSCTL_HANDLER_ARGS)
 			sizeof(sleep_state)) == 0)
 		break;
 	}
-	if ((new_state != old_state) && (new_state <= ACPI_S_STATES_MAX+1)) {
-	    *(u_int *)oidp->oid_arg1 = new_state;
+	if (new_state <= ACPI_S_STATES_MAX+1) {
+	    if (new_state != old_state) {
+		*(u_int *)oidp->oid_arg1 = new_state;
+	    }
 	} else {
 	    error = EINVAL;
 	}
