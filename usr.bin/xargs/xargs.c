@@ -96,6 +96,7 @@ main(int argc, char *argv[])
 	long arg_max;
 	int ch, Jflag, nargs, nflag, nline;
 	size_t linelen;
+	char *endptr;
 
 	inpline = replstr = NULL;
 	ep = environ;
@@ -158,8 +159,9 @@ main(int argc, char *argv[])
 			pflag = 1;
 			break;
 		case 'R':
-			if ((Rflag = atoi(optarg)) <= 0)
-				errx(1, "illegal number of replacements");
+			Rflag = strtol(optarg, &endptr, 10);
+			if (*endptr != '\0')
+				errx(1, "replacements must be a number");
 			break;
 		case 's':
 			nline = atoi(optarg);
@@ -444,7 +446,8 @@ prerun(int argc, char *argv[])
 		*tmp = *avj++;
 		if (repls && strstr(*tmp, replstr) != NULL) {
 			strnsubst(tmp++, replstr, inpline, (size_t)255);
-			repls--;
+			if (repls > 0)
+				repls--;
 		} else {
 			if ((*tmp = strdup(*tmp)) == NULL)
 				errx(1, "strdup failed");
