@@ -546,9 +546,6 @@ static void
 acd_done(struct acd *cdp, struct buf *bp, int resid, struct atapires result)
 {
 
-    devstat_end_transaction(cdp->device_stats, bp->b_bcount - resid,
-                            DEVSTAT_TAG_NONE,
-                            (bp->b_flags&B_READ) ? DEVSTAT_READ:DEVSTAT_WRITE);  
     if (result.code) {
         atapi_error(cdp->ata, cdp->unit, result);
         bp->b_error = EIO;
@@ -558,6 +555,7 @@ acd_done(struct acd *cdp, struct buf *bp, int resid, struct atapires result)
         if ((bp->b_flags & B_READ) == B_WRITE)
             cdp->flags |= F_WRITTEN;
     }
+    devstat_end_transaction_buf(cdp->device_stats, bp);
     biodone(bp);
     acd_start(cdp);
 }

@@ -395,9 +395,7 @@ afd_done(struct atapi_request *request)
     else
 	bp->b_resid += request->bytecount;
 
-    devstat_end_transaction(&fdp->stats, bp->b_bcount - bp->b_resid,
-                            DEVSTAT_TAG_NONE,
-                            (bp->b_flags&B_READ) ? DEVSTAT_READ:DEVSTAT_WRITE);
+    devstat_end_transaction_buf(&fdp->stats, bp);
  
     biodone(bp);
     afd_start(fdp);
