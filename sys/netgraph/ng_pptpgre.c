@@ -255,7 +255,6 @@ static struct ng_type ng_pptpgre_typestruct = {
 	NULL,
 	NULL,
 	ng_pptpgre_rcvdata,
-	ng_pptpgre_rcvdata,
 	ng_pptpgre_disconnect,
 	ng_pptpgre_cmdlist
 };
@@ -394,7 +393,7 @@ done:
  */
 static int
 ng_pptpgre_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta)
+		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
 {
 	const node_p node = hook->node;
 	const priv_p priv = node->private;

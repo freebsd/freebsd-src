@@ -130,7 +130,6 @@ static struct ng_type typestruct = {
 	NULL,
 	NULL,
 	ngs_rcvdata,
-	ngs_rcvdata,
 	ngs_disconnect,
 	NULL
 };
@@ -239,7 +238,7 @@ ngc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 
 	/* The callee will free the msg when done. The addr is our business. */
 	error = ng_send_msg(pcbp->sockdata->node,
-			    (struct ng_mesg *) msg, path, &resp);
+			    (struct ng_mesg *) msg, path, NULL, NULL, &resp);
 
 	/* If the callee responded with a synchronous response, then put it
 	 * back on the receive side of the socket; sap is source address. */
@@ -307,7 +306,6 @@ ngd_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 {
 	struct ngpcb *const pcbp = sotongpcb(so);
 	struct sockaddr_ng *const sap = (struct sockaddr_ng *) addr;
-	meta_p  mp = NULL;
 	int     len, error;
 	hook_p  hook = NULL;
 	char	hookname[NG_HOOKLEN + 1];
@@ -359,7 +357,7 @@ ngd_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	}
 
 	/* Send data (OK if hook is NULL) */
-	NG_SEND_DATA(error, hook, m, mp);	/* makes m NULL */
+	NG_SEND_DATA_ONLY(error, hook, m);	/* makes m NULL */
 
 release:
 	if (control != NULL)
@@ -394,7 +392,7 @@ ng_setsockaddr(struct socket *so, struct sockaddr **addr)
 
 	s = splnet();
 	pcbp = sotongpcb(so);
-	if (pcbp == 0) {
+	if ((pcbp == NULL) || (pcbp->sockdata == NULL)) {
 		splx(s);
 		return (EINVAL);
 	}
@@ -608,7 +606,7 @@ ng_connect_data(struct sockaddr *nam, struct ngpcb *pcbp)
 	/* Find the target (victim) and check it doesn't already have a data
 	 * socket. Also check it is a 'socket' type node. */
 	sap = (struct sockaddr_ng *) nam;
-	if ((error = ng_path2node(NULL, sap->sg_data, &farnode, NULL, NULL)))
+	if ((error = ng_path2node(NULL, sap->sg_data, &farnode, NULL)))
 		return (error);
 
 	if (strcmp(farnode->type->name, NG_SOCKET_NODE_TYPE) != 0)
@@ -668,7 +666,10 @@ ng_bind(struct sockaddr *nam, struct ngpcb *pcbp)
 		TRAP_ERROR;
 		return (EINVAL);
 	}
-	if (sap->sg_len < 3 || sap->sg_data[sap->sg_len - 3] != '\0') {
+	if ((sap->sg_len < 4)
+	||  (sap->sg_len > (NG_NODELEN + 3))
+	||  (sap->sg_data[0] == '\0')
+	||  (sap->sg_data[sap->sg_len - 3] != '\0')) {
 		TRAP_ERROR;
 		return (EINVAL);
 	}
@@ -792,7 +793,7 @@ ngs_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
  */
 static int
 ngs_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta)
+		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
 {
 	struct ngsock *const sockdata = hook->node->private;
 	struct ngpcb *const pcbp = sockdata->datasock;

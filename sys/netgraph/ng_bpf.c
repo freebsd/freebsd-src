@@ -196,7 +196,6 @@ static struct ng_type typestruct = {
 	NULL,
 	NULL,
 	ng_bpf_rcvdata,
-	ng_bpf_rcvdata,
 	ng_bpf_disconnect,
 	ng_bpf_cmdlist
 };
@@ -375,7 +374,7 @@ done:
  */
 static int
 ng_bpf_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta)
+		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
 {
 	const hinfo_p hip = hook->private;
 	int totlen = m->m_pkthdr.len;

@@ -2408,6 +2408,8 @@ sr_get_packets(struct sr_softc *sc)
 	sca_descriptor *rxdesc;	/* descriptor in memory */
 #ifndef NETGRAPH
 	struct ifnet *ifp;	/* network intf ctl table */
+#else
+	int error;
 #endif /* NETGRAPH */
 	struct mbuf *m = NULL;	/* message buffer */
 
@@ -2533,7 +2535,7 @@ sr_get_packets(struct sr_softc *sc)
 				       bp[9], bp[10], bp[11]);
 			}
 #endif
-			ng_queue_data(sc->hook, m, NULL);
+			NG_SEND_DATA_ONLY(error, sc->hook, m);
 			sc->ipackets++;
 #endif /* NETGRAPH */
 			/*
@@ -3239,7 +3241,7 @@ ngsr_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
  */
 static	int
 ngsr_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-			struct mbuf **ret_m, meta_p *ret_meta)
+		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
 {
 	int s;
 	int error = 0;
@@ -3306,6 +3308,8 @@ ngsr_rmnode(node_p node)
 static	int
 ngsr_connect(hook_p hook)
 {
+	/* probably not at splnet, force outward queueing */
+	hook->peer->flags |= HK_QUEUE;
 	/* be really amiable and just say "YUP that's OK by me! " */
 	return (0);
 }

@@ -108,7 +108,6 @@ static struct ng_type typestruct = {
 	NULL,
 	NULL,
 	nglmi_rcvdata,
-	nglmi_rcvdata,
 	nglmi_disconnect,
 	NULL
 };
@@ -559,7 +558,7 @@ nglmi_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
  */
 static int
 nglmi_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta)
+		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
 {
 	sc_p    sc = hook->node->private;
 	u_char *data;
