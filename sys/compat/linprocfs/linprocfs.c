@@ -750,8 +750,10 @@ linprocfs_init(PFS_INIT_ARGS)
 	    NULL, NULL, PFS_RD);
 	pfs_create_link(dir, "exe", &linprocfs_doprocexe,
 	    NULL, NULL, 0);
+#if 0
 	pfs_create_file(dir, "mem", &procfs_doprocmem,
 	    &procfs_attr, &procfs_candebug, PFS_RDWR|PFS_RAW);
+#endif
 	pfs_create_file(dir, "stat", &linprocfs_doprocstat,
 	    NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "status", &linprocfs_doprocstatus,
