@@ -255,6 +255,9 @@
     processes) no longer lock up the machine for long periods of
     time. &merged;</para>
 
+    <para>Each &man.jail.2; environment can now run under its own
+    securelevel.</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
@@ -2195,7 +2198,8 @@
 	version 2.9, which adds two new programs, &man.sftp.1; and
 	&man.ssh-keyscan.1;.  Among the various enhancements: The
 	default protocol is now v2, rekeying of existing SSH sessions
-	is now supported, and an experimental
+	is now supported, &man.ssh-agent.1; now
+	supports authentication forwarding for DSA keys, and an experimental
 	<application>SOCKS4</application> proxy has been added to
 	&man.ssh.1;. &merged;</para>
       </sect4>
