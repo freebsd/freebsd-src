@@ -130,7 +130,7 @@ pos_out()
 	 * going to fail, but don't protect the user -- they shouldn't
 	 * have specified the seek operand.
 	 */
-	if (!(out.flags & ISTAPE)) {
+	if (out.flags & (ISSEEK | ISPIPE)) {
 		errno = 0;
 		if (lseek(out.fd, out.offset * out.dbsz, SEEK_CUR) == -1 &&
 		    errno != 0)
@@ -166,9 +166,13 @@ pos_out()
 		if (ioctl(out.fd, MTIOCTOP, &t_op) == -1)
 			err(1, "%s", out.name);
 
-		while (cnt++ < out.offset)
-			if ((n = write(out.fd, out.db, out.dbsz)) != out.dbsz)
+		while (cnt++ < out.offset) {
+			n = write(out.fd, out.db, out.dbsz);
+			if (n == -1)
 				err(1, "%s", out.name);
+			if ((size_t)n != out.dbsz)
+				errx(1, "%s: write failure", out.name);
+		}
 		break;
 	}
 }
