@@ -33,14 +33,14 @@
 struct RtldLockInfo
 {
 	unsigned int rtli_version;
-	void *(*lock_create)();
+	void *(*lock_create)(void);
 	void  (*lock_destroy)(void *);
 	void  (*rlock_acquire)(void *);
 	void  (*wlock_acquire)(void *);
 	void  (*lock_release)(void *);
 	int   (*thread_set_flag)(int);
 	int   (*thread_clr_flag)(int);
-	void  (*at_fork)();
+	void  (*at_fork)(void);
 };
 
 extern void _rtld_thread_init(struct RtldLockInfo *);
