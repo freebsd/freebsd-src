@@ -1229,7 +1229,7 @@ if_slowtimo(void *arg)
 struct ifnet *
 ifunit(const char *name)
 {
-	char namebuf[IFNAMSIZ + 1];
+	char namebuf[IFNAMSIZ + sizeof("net")];	/* XXX net_cdevsw.d_name */
 	struct ifnet *ifp;
 	dev_t dev;
 
@@ -1241,7 +1241,7 @@ ifunit(const char *name)
 	 * XXX
 	 * Devices should really be known as /dev/fooN, not /dev/net/fooN.
 	 */
-	snprintf(namebuf, IFNAMSIZ, "%s/%s", net_cdevsw.d_name, name);
+	snprintf(namebuf, sizeof(namebuf), "%s/%s", net_cdevsw.d_name, name);
 	IFNET_RLOCK();
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
 		dev = ifdev_byindex(ifp->if_index);
