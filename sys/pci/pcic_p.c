@@ -289,6 +289,9 @@ pcic_pci_probe(device_t dev)
 	case PCI_DEVICE_ID_RICOH_RL5C478:
 		desc = "Ricoh RL5C478 PCI-CardBus Bridge";
 		break;
+	case PCI_DEVICE_ID_PCIC_OZ6832:
+		desc = "O2micro 6832 PCI-Cardbus Bridge";
+		break;
 
 	/* 16bit PC-card bridges */
 	case PCI_DEVICE_ID_PCIC_CLPD6729:
@@ -315,7 +318,8 @@ pcic_pci_probe(device_t dev)
 
 /*
  * General PCI based card dispatch routine.  Right now
- * it only understands the CL-PD6832.
+ * it only understands the CL-PD6832 and TI parts.  It does
+ * try to do generic things with other parts.
  */
 static int
 pcic_pci_attach(device_t dev)
