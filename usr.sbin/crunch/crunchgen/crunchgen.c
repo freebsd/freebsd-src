@@ -515,7 +515,6 @@ void gen_outputs(void)
 void fillin_program(prog_t *p)
 {
     char path[MAXPATHLEN];
-    char *srcparent;
     char line[MAXLINELEN];
     FILE *f;
 
@@ -524,27 +523,29 @@ void fillin_program(prog_t *p)
 
     if(!p->ident)
 	p->ident = genident(p->name);
+
+    /* look for the source directory if one wasn't specified by a special */
     if(!p->srcdir) {
-	srcparent = dir_search(p->name);
-	if(srcparent)
-	    snprintf(line, MAXLINELEN, "%s/%s", srcparent, p->name);
-	if(is_dir(line))
-	    if ((p->srcdir = strdup(line)) == NULL)
-		out_of_memory();
+	p->srcdir = dir_search(p->name);
     }
 
     /* Determine the actual srcdir (maybe symlinked). */
-    snprintf(line, MAXLINELEN, "cd %s && echo -n `/bin/pwd`", p->srcdir);
-    f = popen(line,"r");
-    if (f) {
+    if (p->srcdir) {
+	snprintf(line, MAXLINELEN, "cd %s && echo -n `/bin/pwd`", p->srcdir);
+	f = popen(line,"r");
+	if (!f)
+	    errx(1, "Can't execute: %s\n", line);
+
 	path[0] = '\0';
 	fgets(path, sizeof path, f);
-	if (!pclose(f)) {
-	    p->realsrcdir = strdup(path);
-	}
+	if (pclose(f))
+	    errx(1, "Can't execute: %s\n", line);
+
+	if (!*path)
+	    errx(1, "Can't perform pwd on: %s\n", p->srcdir);
+
+	p->realsrcdir = strdup(path);
     }
-    if (!p->realsrcdir) 
-	errx(1, "Can't execute: %s\n", line);
 
     /* Unless the option to make object files was specified the
      * the objects will be built in the source directory unless
@@ -809,10 +810,17 @@ char *dir_search(char *progname)
 {
     char path[MAXPATHLEN];
     strlst_t *dir;
+    char *srcdir;
 
     for(dir=srcdirs; dir != NULL; dir=dir->next) {
 	snprintf(path, MAXPATHLEN, "%s/%s", dir->str, progname);
-	if(is_dir(path)) return dir->str;
+	if (!is_dir(path)) {
+	    continue;
+	}
+
+	if ((srcdir = strdup(path)) == NULL)
+	    out_of_memory();
+	return srcdir;
     }
     return NULL;
 }
