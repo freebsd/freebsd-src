@@ -1,3 +1,158 @@
+1998-10-20  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	*******************************************************************
+	*** Released am-utils-6.0b1					***
+	*******************************************************************
+
+1998-10-18  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* mk-amd-map/mk-amd-map.c (main): use perror not strerror.
+	(main): set return type to int if no ndbm maps.
+
+	* include/am_defs.h: avoid conflicts with <sys/mount.h> in 2.1
+	kernels.
+
+1998-10-18  Erez Zadok  <ezk@london.mcl.cs.columbia.edu>
+
+	* A.i386-unknown-netbsd1.3.2/amu_nfs_prot.h: trim down and cleanup
+	for netbsd 1.3.2.
+
+1998-10-17  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* aux/configure.in: check for yp_all in libnsl, b/c redhat 5.1
+	systems put NIS functions there.
+
+	* mk-amd-map/mk-amd-map.c: patch from "David O'Brien"
+	<obrien@NUXI.com> merged in.  Use POSIX -1 return code from
+	getopt(), not EOF.  Use .db extentions for systems that use it,
+	instead of .{pag,dir}.
+
+1998-10-15  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* wire-test/wire-test.c, hlfsd/hlfsd.c, fixmount/fixmount.c,
+	amd/amd.c (main): avoid overrunning hostname buffer.  Bug fix from
+	"David O'Brien" <obrien@NUXI.com>.
+
+	* scripts/amd.conf.5: minor typo reported by "David O'Brien"
+	<obrien@NUXI.com> in .TH section of man page.
+
+	* amd/info_nis.c (am_yp_all): don't leak key-val entries.  Patch
+	from Thomas Richter <richter@chemie.fu-berlin.de>.
+
+1998-10-12  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* doc/am-utils.texi (Program Filesystem): minor typo fixed as per
+	Andreas Stolcke <stolcke@speech.sri.com>.
+
+	* minor new ports: sparc64-unknown-linux-gnu, i386-pc-solaris2.7,
+	and sparc-sun-solaris2.7.
+
+	* conf/mount/mount_freebsd3.c (mount_freebsd3): freebsd 3.0 is now
+	a 4.4lite kernel, and somethings were removed, such as
+	INITMOUNTNAMES.
+
+	* amd/ops_autofs.c (autofs_lookuppn): don't leak memory while
+	processing /defaults.  Free temporary opts.  Patch from
+	dsr@mail.lns.cornell.edu (Daniel S. Riley)
+
+	* amd/amfs_auto.c (amfs_auto_lookuppn): don't leak memory while
+	processing /defaults.  Free temporary opts.  Patch from
+	dsr@mail.lns.cornell.edu (Daniel S. Riley)
+
+	* conf/mtab/mtab_osf.c (read_mtab): patch from
+	 dsr@mail.lns.cornell.edu (Daniel S. Riley) not to access
+	 uninitialized memory on Digital Unix.
+
+1998-10-09  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* aux/macros/{check_mtype_type,check_mtype_printf_type}.m4: most
+	systems now use "char *" as their mount type.
+
+1998-10-08  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* amd/conf.c (gopt_map_type, ropt_map_type): check if map type
+	exists.
+
+	* amd/mapc.c (mapc_type_exists): function to test if a map of
+	certain type exists.
+
+1998-10-08  Erez Zadok  <ezk@horatio.mcl.cs.columbia.edu>
+
+	* aux/macros/{mount_headers,try_compile_anyfs,try_compile_nfs}.m4,
+	include/am_defs.h: Avoid a conflict in definitions of ntohl/htonl
+	in RH-5.1 sparc64 between <netinet/in.h> and
+	<linux/byteorder/generic.h> (2.1 kernels).
+
+1998-09-28  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* aux/macros/func_bad_yp_all.m4 (ac_cv_func_yp_all_clean): RedHat
+	5.1 systems with glibc glibc-2.0.7-19 or below leak a UDP socket
+	from yp_all().
+
+1998-09-25  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* conf/mount/mount_linux.c (parse_opts): check for pcfs support
+	only if autoconfigured.
+
+1998-09-18  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* Makefile.am (EXTRA_DIST): distribute README.yk2 file.
+
+	* README.y2k: explain y2k compliance status of am-utils.
+
+1998-09-16  Erez Zadok  <ezk@iguana.mcl.cs.columbia.edu>
+
+	* amd/amfs_host.c (fetch_fhandle, amfs_host_fmount,
+	amfs_host_umounted): clnt_sperrno() may return a const.
+
+Sat Aug  8 23:28:32 1998  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* aux/configure.in: check for <nfs/nfsmount.h>, as per Christos
+	Zoulas. Turned on checking for mount options: async, synchronous,
+	deadthresh, leasterm, nqnfs, and readahead.
+
+	* amd/info_nis.c: patch from christos@zoulas.com (Christos Zoulas)
+	to include prototype definition for nis_isup().
+
+Sun Jul 19 18:50:10 1998  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* hlfsd/stubs.c (getcreds): force sscanf arg to u_long.
+
+Tue Jul 14 20:34:25 1998  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* released snapshot am-utils-6.0a17s1
+
+Wed Jul  8 21:49:15 1998  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* aux/macros/host_macros.m4: all x86 hosts should have $arch be
+	i386, not i[456]86.
+
+Tue Jul  7 18:55:09 1998  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* aux/macros/{mount_headers,try_compile_anyfs,try_compile_nfs}.m4,
+	include/am_defs.h: include <linux/posix_types.h> before
+	<linux/fs.h> because on redhat 5.1, there is a bug (misuse) of
+	headers in <socketbits.h> (it defines _LINUX_TYPES_H instead of
+	__KERNEL_STRICT_NAMES).
+
+	* aux/configure.in: check for <linux/posix_types.h> because it is
+	need for RedHat 5.1.
+
+Wed Jun 17 00:05:33 1998  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* scripts/Makefile.am (EXTRA_DIST): have fixrmtab generated from
+	.in as well, so it doesn't get removed by make clean.
+
+Tue Jun 16 22:00:15 1998  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* aux/macros/{check_fs_mntent.m4, check_mnttab_type.m4,
+	check_mount_type.m4}: redhat 5.1 puts some modules in
+	/lib/modules/preferred/.
+
+Wed May 13 16:33:57 1998  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
+
+	* amd/ops_autofs.c (mount_autofs): cast pid to long.
+
 Thu Apr 23 00:22:17 1998  Erez Zadok  <ezk@shekel.mcl.cs.columbia.edu>
 
 	*******************************************************************

@@ -34,7 +34,7 @@ EXTRA_DIST = 		\
 	amd2sun.in	\
 	ctl-amd.in	\
 	ctl-hlfsd.in	\
-	fixrmtab	\
+	fixrmtab.in	\
 	fix-amd-map.in	\
 	lostaltmail.in	\
 	wait4amd.in	\

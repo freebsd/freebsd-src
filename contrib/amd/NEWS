@@ -1,3 +1,19 @@
+*** Notes specific to am-utils version 6.0b1:
+
+- updated or minor new ports:
+	- *-pc-linux-gnu (glibc2 systems such as RedHat 5.1)
+	- sparc-sun-solaris2.7
+	- i386-pc-solaris2.7
+	- i386-unknown-freebsd3.0 (official release, post 4.4lite port)
+	- sparc64-unknown-linux-gnu (RH 5.1 on Sun Sparc Ultra)
+
+- bugs fixed:
+	- major memory leak in processing of /defaults
+	- core dump if map_type given in amd.conf doesn't exist
+	- memory leak in replacement yp_all
+	- don't access uninitialized memory in DU 4.0
+	- other smaller bugs, see ChangeLog
+
 *** Notes specific to am-utils version 6.0a16:
 
 - new ports:
