@@ -13,10 +13,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -55,47 +51,91 @@ __FBSDID("$FreeBSD$");
 int
 namecmp(const FTSENT *a, const FTSENT *b)
 {
+
 	return (strcoll(a->fts_name, b->fts_name));
 }
 
 int
 revnamecmp(const FTSENT *a, const FTSENT *b)
 {
+
 	return (strcoll(b->fts_name, a->fts_name));
 }
 
 int
 modcmp(const FTSENT *a, const FTSENT *b)
 {
-	return (b->fts_statp->st_mtime - a->fts_statp->st_mtime);
+
+	if (b->fts_statp->st_mtimespec.tv_sec >
+	    a->fts_statp->st_mtimespec.tv_sec)
+		return (1);
+	if (b->fts_statp->st_mtimespec.tv_sec <
+	    a->fts_statp->st_mtimespec.tv_sec)
+		return (-1);
+	if (b->fts_statp->st_mtimespec.tv_nsec >
+	    a->fts_statp->st_mtimespec.tv_nsec)
+		return (1);
+	if (b->fts_statp->st_mtimespec.tv_nsec <
+	    a->fts_statp->st_mtimespec.tv_nsec)
+		return (-1);
+	return (strcoll(a->fts_name, b->fts_name));
 }
 
 int
 revmodcmp(const FTSENT *a, const FTSENT *b)
 {
-	return (a->fts_statp->st_mtime - b->fts_statp->st_mtime);
+
+	return (modcmp(b, a));
 }
 
 int
 acccmp(const FTSENT *a, const FTSENT *b)
 {
-	return (b->fts_statp->st_atime - a->fts_statp->st_atime);
+
+	if (b->fts_statp->st_atimespec.tv_sec >
+	    a->fts_statp->st_atimespec.tv_sec)
+		return (1);
+	if (b->fts_statp->st_atimespec.tv_sec <
+	    a->fts_statp->st_atimespec.tv_sec)
+		return (-1);
+	if (b->fts_statp->st_atimespec.tv_nsec >
+	    a->fts_statp->st_atimespec.tv_nsec)
+		return (1);
+	if (b->fts_statp->st_atimespec.tv_nsec <
+	    a->fts_statp->st_atimespec.tv_nsec)
+		return (-1);
+	return (strcoll(a->fts_name, b->fts_name));
 }
 
 int
 revacccmp(const FTSENT *a, const FTSENT *b)
 {
-	return (a->fts_statp->st_atime - b->fts_statp->st_atime);
+
+	return (acccmp(b, a));
 }
 
 int
 statcmp(const FTSENT *a, const FTSENT *b)
 {
-	return (b->fts_statp->st_ctime - a->fts_statp->st_ctime);
+
+	if (b->fts_statp->st_ctimespec.tv_sec >
+	    a->fts_statp->st_ctimespec.tv_sec)
+		return (1);
+	if (b->fts_statp->st_ctimespec.tv_sec <
+	    a->fts_statp->st_ctimespec.tv_sec)
+		return (-1);
+	if (b->fts_statp->st_ctimespec.tv_nsec >
+	    a->fts_statp->st_ctimespec.tv_nsec)
+		return (1);
+	if (b->fts_statp->st_ctimespec.tv_nsec <
+	    a->fts_statp->st_ctimespec.tv_nsec)
+		return (-1);
+	return (strcoll(a->fts_name, b->fts_name));
 }
 
 int
 revstatcmp(const FTSENT *a, const FTSENT *b)
 {
-	return (a->fts_statp->st_ctime - b->fts_statp->st_ctime);
+
+	return (statcmp(b, a));
 }
