@@ -49,7 +49,6 @@
 #include <sys/malloc.h>
 #include <sys/syslog.h>
 
-#include <vm/vm_zone.h>
 
 #include <stddef.h>
 

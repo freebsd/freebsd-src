@@ -61,7 +61,6 @@
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
-#include <vm/vm_zone.h>
 
 static MALLOC_DEFINE(M_FFSNODE, "FFS node", "FFS vnode private part");
 

@@ -55,7 +55,6 @@
 #include <sys/domain.h>
 #include <sys/protosw.h>
 #include <sys/namei.h>
-#include <vm/vm_zone.h>
 
 #include <netinet/in.h>
 #include <netinet/tcp.h>

@@ -56,7 +56,6 @@
 #include <sys/resourcevar.h>
 #include <sys/tty.h>
 
-#include <vm/vm_zone.h>
 
 /*
  * The routines implemented in this file are described in:

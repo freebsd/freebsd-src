@@ -52,7 +52,6 @@
 #include <sys/malloc.h>
 #include <sys/filedesc.h>
 #include <miscfs/union/union.h>
-#include <vm/vm_zone.h>
 
 static MALLOC_DEFINE(M_UNIONFSMNT, "UNION mount", "UNION mount structure");
 

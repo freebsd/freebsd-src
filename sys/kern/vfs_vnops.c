@@ -52,7 +52,6 @@
 #include <sys/filio.h>
 #include <sys/ttycom.h>
 #include <sys/conf.h>
-#include <vm/vm_zone.h>
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>

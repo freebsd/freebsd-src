@@ -49,7 +49,6 @@
 #include <i386/ibcs2/ibcs2_xenix.h>
 #include <i386/ibcs2/ibcs2_xenix_syscall.h>
 
-#include <vm/vm_zone.h>
 
 extern struct sysent xenix_sysent[];
 

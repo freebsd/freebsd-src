@@ -44,7 +44,6 @@
 #include <sys/vnode.h>
 #include <sys/sysctl.h>
 
-#include <vm/vm_zone.h>
 
 #include "linker_if.h"
 
