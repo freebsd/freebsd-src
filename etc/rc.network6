@@ -289,15 +289,6 @@ network6_interface_setup() {
 			rtsol_interface=no
 			ifconfig $i inet6 ${ipv6_ifconfig} alias
 		fi
-		alias=0
-		while : ; do
-			eval ipv6_ifconfig=\$ipv6_ifconfig_${i}_alias${alias}
-			if [ -z "${ipv6_ifconfig}" ]; then
-				break;
-			fi
-			ifconfig $i inet6 ${ipv6_ifconfig} alias
-			alias=$((${alias} + 1))
-		done
 
 		if [ ${rtsol_available} = yes -a ${rtsol_interface} = yes ]
 		then
@@ -323,6 +314,18 @@ network6_interface_setup() {
 		ifconfig $1 up
 		rtsol $1
 	fi
+
+	for i in $interfaces; do
+		alias=0
+		while : ; do
+			eval ipv6_ifconfig=\$ipv6_ifconfig_${i}_alias${alias}
+			if [ -z "${ipv6_ifconfig}" ]; then
+				break;
+			fi
+			ifconfig $i inet6 ${ipv6_ifconfig} alias
+			alias=$((${alias} + 1))
+		done
+	done
 }
 
 network6_stf_setup() {
