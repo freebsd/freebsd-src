@@ -53,8 +53,9 @@ int	 len_octal __P((char *, int));
 int	 prn_octal __P((char *));
 #ifdef COLORLS
 void	 parsecolors __P((char *cs));
+void     colorquit __P((int));
 
-char	*ansi_fgcol;
-char	*ansi_bgcol;
-char	*ansi_coloff;
+extern  char    *ansi_fgcol;
+extern  char    *ansi_bgcol;
+extern  char    *ansi_coloff;
 #endif
