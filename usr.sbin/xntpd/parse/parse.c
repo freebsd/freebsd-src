@@ -605,7 +605,9 @@ parse_iodone(parseio)
 /*
  * convert a struct clock to UTC since Jan, 1st 1970 0:00 (the UNIX EPOCH)
  */
-#define dysize(x)	((x) % 4 ? 365 : ((x % 400) ? 365 :366))
+#define dysize(x)	(((x) % 4) ? 365 : \
+                                    (((x) % 100) ? : 366 \
+                                                    (((x) % 400) ? 365 : 366)))
 
 time_t
 parse_to_unixtime(clock, cvtrtc)
@@ -649,8 +651,8 @@ parse_to_unixtime(clock, cvtrtc)
       return -1;		/* bad month */
     }
 				/* adjust leap year */
-  if (clock->month >= 3 && dysize(clock->year) == 366)
-      t++;
+  if (clock->month < 3 && dysize(clock->year) == 366)
+      t--;
 
   for (i = 1; i < clock->month; i++)
     {
