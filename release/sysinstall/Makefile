@@ -10,7 +10,7 @@ SRCS=	attr.c cdrom.c command.c config.c crc.c decode.c devices.c disks.c dist.c 
 	tcpip.c termcap.c ufs.c variable.c wizard.c
 
 
-CFLAGS+=	-Wall -g -I${.CURDIR}/../libdisk \
+CFLAGS+=	-Wall -I${.CURDIR}/../libdisk \
 		-I${.CURDIR}/../../gnu/lib/libdialog
 
 LDADD=  -ldialog -lncurses -lmytinfo -lutil
