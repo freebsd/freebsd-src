@@ -207,9 +207,7 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "ithread table lock", &lock_class_mtx_spin },
 	{ "ithread list lock", &lock_class_mtx_spin },
 	{ "sched lock", &lock_class_mtx_spin },
-#ifdef __i386__
 	{ "clk", &lock_class_mtx_spin },
-#endif
 	{ "callout", &lock_class_mtx_spin },
 	/*
 	 * leaf locks
@@ -639,7 +637,7 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 out:
 #ifdef DDB
 	if (witness_ddb && go_into_ddb)
-		Debugger("witness_enter");
+		Debugger(__func__);
 #endif /* DDB */
 	w->w_file = file;
 	w->w_line = line;
@@ -752,7 +750,7 @@ again:
 	}
 #ifdef DDB
 	if (witness_ddb && n)
-		Debugger("witness_sleep");
+		Debugger(__func__);
 #endif /* DDB */
 	critical_exit(savecrit);
 	return (n);
