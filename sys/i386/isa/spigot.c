@@ -221,6 +221,8 @@ struct	spigot_info	*info;
 	if(!data) return(EINVAL);
 	switch(cmd){
 	case	SPIGOT_SETINT:
+		if (*(int *)data < 0 || *(int *)data > _SIG_MAXSIG)
+			return (EINVAL);
 		ss->p = p;
 		ss->signal_num = *((int *)data);
 		break;
