@@ -16,16 +16,20 @@
  * 11-Oct-1995: Serge V.Vakulenko <vak@cronyx.ru>
  *              New eject algorithm.
  *              Some code style reformatting.
- *
- * $Id: cdcontrol.c,v 1.12 1996/02/09 01:16:23 ache Exp $
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 #include <ctype.h>
+#include <err.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <errno.h>
 #include <sys/file.h>
 #include <sys/cdio.h>
 #include <sys/ioctl.h>
@@ -96,8 +100,6 @@ int             fd = -1;
 int             verbose = 1;
 int             msf = 1;
 
-extern char     *__progname;
-
 int             setvol __P((int, int));
 int             read_toc_entrys __P((int));
 int             play_msf __P((int, int, int, int, int, int));
@@ -144,14 +146,7 @@ void help ()
 
 void usage ()
 {
-	printf ("Usage:\n\t%s [ -vs ] [ -f disc ] [ command args... ]\n", __progname);
-	printf ("Options:\n");
-	printf ("\t-v       - verbose mode\n");
-	printf ("\t-s       - silent mode\n");
-	printf ("\t-f disc  - a block device name such as /dev/cd0c\n");
-	printf ("\tMUSIC_CD - shell variable with device name\n");
-	printf ("Commands:\n");
-	help ();
+	fprintf (stderr, "usage: cdcontrol [-vs] [-f disc] [command args ...]\n");
 	exit (1);
 }
 
@@ -195,8 +190,7 @@ int main (int argc, char **argv)
 
 	if (! cdname) {
 		cdname = DEFAULT_CD_DRIVE;
-		fprintf (stderr,
-			 "No CD device name specified. Defaulting to %s.\n", cdname);
+		warnx("no CD device name specified, defaulting to %s", cdname);
 	}
 
 	if (argc > 0) {
@@ -232,7 +226,7 @@ int main (int argc, char **argv)
 		arg = input (&cmd);
 		if (run (cmd, arg) < 0) {
 			if (verbose)
-				perror (__progname);
+				warn(NULL);
 			close (fd);
 			fd = -1;
 		}
@@ -304,7 +298,7 @@ int run (int cmd, char *arg)
 		if (! strcasecmp (arg, "off"))
 			return ioctl (fd, CDIOCCLRDEBUG);
 
-		printf ("%s: Invalid command arguments\n", __progname);
+		warnx("invalid command arguments");
 
 		return (0);
 
@@ -345,7 +339,7 @@ int run (int cmd, char *arg)
 		else if (! strcasecmp (arg, "lba"))
 			msf = 0;
 		else
-			printf ("%s: Invalid command arguments\n", __progname);
+			warnx("invalid command arguments");
 		return (0);
 
 	case CMD_VOLUME:
@@ -368,7 +362,7 @@ int run (int cmd, char *arg)
 			return ioctl (fd, CDIOCSETMUTE);
 
 		if (2 != sscanf (arg, "%d %d", &l, &r)) {
-			printf ("%s: Invalid command arguments\n", __progname);
+			warnx("invalid command arguments");
 			return (0);
 		}
 
@@ -660,7 +654,7 @@ Try_Absolute_Timed_Addresses:
 	return (play_track (start, istart, end, iend));
 
 Clean_up:
-	printf ("%s: Invalid command arguments\n", __progname);
+	warnx("invalid command arguments");
 	return (0);
 }
 
@@ -737,7 +731,7 @@ int info (char *arg)
 			printf ("%d %d %d\n", h.starting_track,
 				h.ending_track, h.len);
 	} else {
-		perror ("getting toc header");
+		warn("getting toc header");
 		return (rc);
 	}
 
@@ -911,7 +905,7 @@ char *input (int *cmd)
 
 	do {
 		if (verbose)
-			fprintf (stderr, "%s> ", __progname);
+			fprintf (stderr, "cdcontrol> ");
 		if (! fgets (buf, sizeof (buf), stdin)) {
 			*cmd = CMD_QUIT;
 			fprintf (stderr, "\r\n");
@@ -963,7 +957,7 @@ char *parse (char *buf, int *cmd)
 		/* Try short hand forms then... */
 		if (len >= c->min && ! strncasecmp (buf, c->name, len)) {
 			if (*cmd != -1 && *cmd != c->command) {
-				fprintf (stderr, "Ambiguous command\n");
+				warnx("ambiguous command");
 				return (0);
 			}
 			*cmd = c->command;
@@ -971,8 +965,7 @@ char *parse (char *buf, int *cmd)
 	}
 
 	if (*cmd == -1) {
-		fprintf (stderr, "%s: Invalid command, enter ``help'' for commands.\n",
-			__progname);
+		warnx("invalid command, enter ``help'' for commands");
 		return (0);
 	}
 
@@ -1007,11 +1000,10 @@ int open_cd ()
 			/*  ENXIO has an overloaded meaning here.
 			 *  The original "Device not configured" should
 			 *  be interpreted as "No disc in drive %s". */
-			fprintf (stderr, "%s: No disc in drive %s.\n", __progname, devbuf);
+			warnx("no disc in drive %s", devbuf);
 			return (0);
 		}
-		perror (devbuf);
-		exit (1);
+		err(1, "%s", devbuf);
 	}
 	return (1);
 }

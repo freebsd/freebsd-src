@@ -1,4 +1,4 @@
-.\"	$Id$
+.\"	$Id: cdcontrol.1,v 1.8 1996/10/05 22:27:24 wosch Exp $
 .\"
 .Dd July 3, 1995
 .Dt CDCONTROL 1
@@ -11,9 +11,9 @@
 .Op Fl s
 .Op Fl v
 .Op Fl f Ar discname
-.Op Ar command args...
+.Op Ar command args ...
 .Sh DESCRIPTION
-.Nm cdcontrol
+.Nm Cdcontrol
 is a program to control audio features of a CD drive. The device is a name such
 as cd0 or mcd0. 
 .Pp
@@ -22,7 +22,7 @@ If the device not specified, the environment variable
 will be used to find the cd device.
 .Pp
 If no command is given, then
-.Nm cdcontrol
+.Nm
 enters an interactive mode, reading commands from the standard input.
 .Pp
 The following options are available:
@@ -157,6 +157,6 @@ Andrey A.\ Chernov,
 Serge V.\ Vakulenko
 .Sh HISTORY
 The
-.Nm cdcontrol
+.Nm
 command appeared in
 .Fx 2.1 .
