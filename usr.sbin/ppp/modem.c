@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.66 1997/11/18 14:52:06 brian Exp $
+ * $Id: modem.c,v 1.67 1997/11/22 03:37:41 brian Exp $
  *
  *  TODO:
  */
@@ -680,7 +680,8 @@ HangupModem(int flag)
   if (modem >= 0) {
     char ScriptBuffer[SCRIPT_LEN];
 
-    strcpy(ScriptBuffer, VarHangupScript);	/* arrays are the same size */
+    strncpy(ScriptBuffer, VarHangupScript, sizeof(ScriptBuffer));
+    ScriptBuffer[sizeof(ScriptBuffer) - 1] = '\0';
     LogPrintf(LogDEBUG, "HangupModem: Script: %s\n", ScriptBuffer);
     if (flag || !(mode & MODE_DEDICATED)) {
       DoChat(ScriptBuffer);
