@@ -5,9 +5,9 @@ MODULES		+= pam_chroot
 MODULES		+= pam_deny
 MODULES		+= pam_echo
 MODULES		+= pam_exec
-MODULES		+= pam_ftp
 MODULES		+= pam_ftpusers
 MODULES		+= pam_group
+MODULES		+= pam_guest
 .if !defined(NO_KERBEROS) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
 MODULES		+= pam_krb5
 MODULES		+= pam_ksu
