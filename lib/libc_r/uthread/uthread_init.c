@@ -368,7 +368,8 @@ _thread_init(void)
 		mib[1] = KERN_CLOCKRATE;
 		len = sizeof (struct clockinfo);
 		if (sysctl(mib, 2, &clockinfo, &len, NULL, 0) == 0)
-			_clock_res_usec = clockinfo.tick;
+			_clock_res_usec = clockinfo.tick > CLOCK_RES_USEC_MIN ?
+			    clockinfo.tick : CLOCK_RES_USEC_MIN;
 
 		/* Get the table size: */
 		if ((_thread_dtablesize = getdtablesize()) < 0) {
