@@ -25,7 +25,7 @@ DPADD+=		${LIBM}
 
 # libstdc++ sources (libstdc++/src/Makefile.in, do not reorder)
 SRCS+=	globals.cc limits.cc basic_file_stdio.cc complex_io.cc ios.cc \
-	strstream-fixed.cc cmath.cc bitset.cc functexcept.cc stdexcept.cc \
+	strstream-fixed.cc bitset.cc functexcept.cc stdexcept.cc \
 	vterminate.cc ctype.cc c_locale.cc locale.cc localename.cc codecvt.cc \
 	codecvt_members.cc collate_members.cc ctype_members.cc messages_members.cc \
 	monetary_members.cc numeric_members.cc time_members.cc concept-inst.cc \
