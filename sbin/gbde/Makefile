@@ -2,7 +2,6 @@
 
 PROG=	gbde
 SRCS=	gbde.c template.c
-SRCS+=	geom_enc.c
 SRCS+=	rijndael-alg-fst.c
 SRCS+=	rijndael-api-fst.c
 SRCS+=	sha2.c
@@ -17,8 +16,7 @@ WARNS?=	3
 .endif
 
 CFLAGS+= -I${.CURDIR}/../../sys
-.PATH:	${.CURDIR}/../../sys/geom \
-	${.CURDIR}/../../sys/geom/bde \
+.PATH:	${.CURDIR}/../../sys/geom/bde \
 	${.CURDIR}/../../sys/crypto/rijndael \
 	${.CURDIR}/../../sys/crypto/sha2
 
