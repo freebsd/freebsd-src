@@ -25,6 +25,7 @@
 #include <sys/file.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
+#include <stdlib.h>
 
 #if defined (HAVE_SYS_TIME_H)
 #  include <sys/time.h>
@@ -3751,8 +3752,8 @@ info_get_another_input_char ()
 
       FD_ZERO (&readfds);
       FD_SET (fileno (info_input_stream), &readfds);
-      timer.tv_sec = 1;
-      timer.tv_usec = 750;
+      timer.tv_sec = 0;
+      timer.tv_usec = 0;
       ready = select (1, &readfds, (fd_set *)NULL, (fd_set *)NULL, &timer);
 #endif /* FD_SET */
     }

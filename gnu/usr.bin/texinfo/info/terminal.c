@@ -26,6 +26,7 @@
    Written by Brian Fox (bfox@ai.mit.edu). */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #include "terminal.h"
 #include "termdep.h"
@@ -109,6 +110,12 @@ static char *term_invbeg;
 /* The string to turn off inverse mode, if this term has one. */
 static char *term_invend;
 
+/* The string to turn on keypad transmit mode, if this term has one. */
+static char *term_ks;
+
+/* The string to turn off keypad transmit mode, if this term has one. */
+static char *term_ke;
+
 static void
 output_character_function (c)
      int c;
@@ -128,6 +135,8 @@ static void
 terminal_begin_using_terminal ()
 {
   send_to_terminal (term_begin_use);
+  if (term_ks)
+      send_to_terminal(term_ks);
 }
 
 /* Tell the terminal that we will not be doing any more cursor addressable
@@ -135,6 +144,8 @@ terminal_begin_using_terminal ()
 static void
 terminal_end_using_terminal ()
 {
+  if (term_ke)
+      send_to_terminal(term_ke);
   send_to_terminal (term_end_use);
 }
 
@@ -166,7 +177,9 @@ int terminal_use_visible_bell_p = 0;
 int terminal_can_scroll = 0;
 
 /* The key sequences output by the arrow keys, if this terminal has any. */
+/* Also use PageUp, PageDown, Home, End, if available. */
 char *term_ku, *term_kd, *term_kr, *term_kl;
+char *term_kP, *term_kN, *term_kh, *term_kH;
 
 /* Move the cursor to the terminal location of X and Y. */
 void
@@ -498,6 +511,7 @@ terminal_initialize_terminal (terminal_name)
       term_cr = "\r";
       term_up = term_dn = audible_bell = visible_bell = (char *)NULL;
       term_ku = term_kd = term_kl = term_kr = (char *)NULL;
+      term_kP = term_kN = term_kh = term_kH = (char *)NULL;
       return;
     }
 
@@ -564,11 +578,19 @@ terminal_initialize_terminal (terminal_name)
       term_mo = (char *)NULL;
     }
 
-  /* Attempt to find the arrow keys.  */
+  /* Attempt to find the arrow keys. */
   term_ku = tgetstr ("ku", &buffer);
   term_kd = tgetstr ("kd", &buffer);
   term_kr = tgetstr ("kr", &buffer);
   term_kl = tgetstr ("kl", &buffer);
+  term_kP = tgetstr ("kP", &buffer);
+  term_kN = tgetstr ("kN", &buffer);
+  term_kh = tgetstr ("kh", &buffer);
+  term_kH = tgetstr ("kH", &buffer);
+
+  /* Enable keypad and cursor keys if ks defined */
+  term_ks = tgetstr ("ks", &buffer);
+  term_ke = tgetstr ("ke", &buffer);
 
   /* If this terminal is not cursor addressable, then it is really dumb. */
   if (!term_goto)
