@@ -55,7 +55,7 @@
  *
  * W. Metzenthen   June 1994.
  *
- *  $Id: fpu_entry.c,v 1.14 1998/08/16 01:21:48 bde Exp $
+ *  $Id: fpu_entry.c,v 1.15 1998/10/16 03:54:59 peter Exp $
  *
  */
 
@@ -544,6 +544,6 @@ moduledata_t gnufpumod = {
 	gnufpu_modevent,
 	0
 };
-DECLARE_MODULE(gnufpu, gnufpu_modevent, SI_SUB_PSEUDO, SI_ORDER_ANY);
+DECLARE_MODULE(gnufpu, gnufpumod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 
 #endif /* LKM */
