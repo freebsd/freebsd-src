@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.13 1997/02/22 16:10:20 peter Exp $
+ * $Id: ipcp.c,v 1.14 1997/05/10 01:22:12 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -309,8 +309,8 @@ struct in_addr ipaddr;
   logprintf("%x, %x\n", htonl(prange->ipaddr.s_addr & prange->mask.s_addr),
     htonl(ipaddr.s_addr & prange->mask.s_addr));
 #endif
-  return((prange->ipaddr.s_addr & prange->mask.s_addr) ==
-	(ipaddr.s_addr & prange->mask.s_addr));
+  return (prange->ipaddr.s_addr & prange->mask.s_addr) ==
+	(ipaddr.s_addr & prange->mask.s_addr) && ipaddr.s_addr;
 }
 
 static void
