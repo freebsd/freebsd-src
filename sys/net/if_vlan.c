@@ -144,6 +144,9 @@ struct if_clone vlan_cloner = IFC_CLONE_INITIALIZER(VLANNAME, NULL, IF_MAXUNIT,
  * traffic that it doesn't really want, which ends up being discarded
  * later by the upper protocol layers. Unfortunately, there's no way
  * to avoid this: there really is only one physical interface.
+ *
+ * XXX: There is a possible race here if more than one thread is
+ *      modifying the multicast state of the vlan interface at the same time.
  */
 static int
 vlan_setmulti(struct ifnet *ifp)
@@ -154,6 +157,8 @@ vlan_setmulti(struct ifnet *ifp)
 	struct vlan_mc_entry	*mc = NULL;
 	struct sockaddr_dl	sdl;
 	int			error;
+
+	/*VLAN_LOCK_ASSERT();*/
 
 	/* Find the parent. */
 	sc = ifp->if_softc;
@@ -188,7 +193,9 @@ vlan_setmulti(struct ifnet *ifp)
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		mc = malloc(sizeof(struct vlan_mc_entry), M_VLAN, M_WAITOK);
+		mc = malloc(sizeof(struct vlan_mc_entry), M_VLAN, M_NOWAIT);
+		if (mc == NULL)
+			return (ENOMEM);
 		bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
 		    (char *)&mc->mc_addr, ETHER_ADDR_LEN);
 		SLIST_INSERT_HEAD(&sc->vlan_mc_listhead, mc, mc_entries);
@@ -716,7 +723,7 @@ vlan_config(struct ifvlan *ifv, struct ifnet *p)
 	 * Configure multicast addresses that may already be
 	 * joined on the vlan device.
 	 */
-	(void)vlan_setmulti(&ifv->ifv_if);
+	(void)vlan_setmulti(&ifv->ifv_if); /* XXX: VLAN lock held */
 
 	return (0);
 }
@@ -981,7 +988,9 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
+		/*VLAN_LOCK();*/
 		error = vlan_setmulti(ifp);
+		/*VLAN_UNLOCK();*/
 		break;
 	default:
 		error = EINVAL;
