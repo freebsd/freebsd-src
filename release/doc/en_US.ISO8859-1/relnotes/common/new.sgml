@@ -89,41 +89,14 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
-    <para>&man.acct.2; has been changed to open the accounting file in
-      append mode, so that &man.accton.8; can be used to enable
-      accounting to an append-only file.</para>
-
-    <para><literal>RLIMIT_VMEM</literal> support has been added.  This
-      feature defines a new resource limit that covers a process's
-      entire virtual memory space, including &man.mmap.2; space.  This
-      limit can be configured in &man.login.conf.5; via the new
-      <varname>vmemoryuse</varname> variable.</para>
-
-    <para>A bug in the &man.sendfile.2; system call, in which headers
-      counted against the size of the file to be sent, has been
-      fixed.</para>
-
-    <para>The &man.ucom.4; device driver has been added, to support USB
-      modems, serial devices, and other programs that need to look
-      like a tty.  The related &man.uplcom.4; and &man.uvscom.4; drivers provide specific
-      support for the Prolific PL-2303 serial adapter and the SUNTAC
-      Slipper U VS-10U, respectively.</para>
-
-    <para>The &man.uvisor.4; driver for connecting Handspring Visors via USB
-      has been added.</para>
+    <para></para>
 
 <!-- Above this line, kernel changes ordered by manpage/variable name -->
 
     <sect3>
       <title>Processor/Motherboard Support</title>
 
-      <para arch="i386">Support for the AMD &Eacute;lan SC520 has been
-	added; this requires the <literal>CPU_ELAN</literal> option in
-	the kernel configuration file.</para>
-
-      <para arch="alpha">Support for the AlphaServer 8200/8400 TurboLaser
-	is broken, the install kernel causes a machine check during 
-        startup.</para>
+      <para></para>
 
     </sect3>
 
@@ -139,12 +112,7 @@
     <sect3>
       <title>Network Interface Support</title>
 
-      <para arch="i386,pc98">The &man.em.4; driver now supports the
-        Intel 82545EM and 82545EB chips.  It also has VLAN
-        support.</para>
-
-      <para arch="i386">The &man.rp.4; driver has been updated to
-        version 3.02 and can now be built as a module.</para>
+      <para></para>
 
 <!-- Above this line, order network driver changes by manpage/variable name-->
 
@@ -153,81 +121,14 @@
     <sect3>
       <title>Network Protocols</title>
 
-      <para>A new version of &man.ipfw.4; 
-        (commonly referred to as <quote>IPFW2</quote>) has been added
-        as an option.  It now uses
-        variable-sized representation of rules in the kernel, similar
-        to &man.bpf.4; instructions.  Most of the externally-visible
-        behavior (i.e. through &man.ipfw.8;) should be unchanged.,
-        although &man.ipfw.8; now supports <literal>or</literal>
-        connectives between match fields.  This new version is
-        <emphasis>not</emphasis> enabled by default.  To use it:</para>
-
-      <procedure>
-	<step>
-	  <para>Add <literal>options IPFW2</literal> (undocumented)
-	    to the kernel configuration.</para>
-	</step>
-
-	<step>
-	  <para>Compile and install <filename>libalias</filename> and
-	    &man.ipfw.8; with the <option>-DIPFW2</option> option
-	    specified to &man.make.1;.</para>
-	</step>
-      </procedure>
-
-      <para>A new &man.ng.l2tp.4; netgraph node type, which implements
-	the encapsulation layer of the L2TP protocol as described in
-	RFC 2661, has been added.</para>
-
-    <para>The &man.tcp.4; protocol's retransmission timer can now be
-      manipulated with two sysctl variables,
-      <varname>net.inet.tcp.rexmit_min</varname> and
-      <varname>net.inet.tcp.rexmit_slop</varname>.</para>
-
-    <para>The &man.tcp.4; protocol now has the ability to dynamically
-      limit the send-side window to maximize bandwidth and minimize
-      round trip times.  The feature can be enabled via the
-      <varname>net.inet.tcp.inflight_enable</varname>
-      sysctl.</para>
+      <para></para>
 
     </sect3>
 
     <sect3>
       <title>Disks and Storage</title>
 
-      <para arch="i386">The &man.ahd.4; driver, which supports the Adaptec
-        AIC7901, AIC7901A, and AIC7902 Ultra320 PCI-X SCSI Controller chips, has been
-        added.</para>
-
-      <para>A bug which sometimes prevented &man.ata.4; tagged
-        queueing from working correctly has been corrected.</para>
-
-      <para>The &man.ata.4; driver now computes maximum transfer sizes
-        correctly.  This fixes numerous <literal>READ_BIG</literal>
-        and other errors that occurred when accessing certain ATA
-        devices.</para>
-
-      <para>The &man.ata.4; driver now has support for the Sil 0680
-        and VIA 8233/8235 controllers.</para>
-
-      <para arch="i386,alpha">The mpt driver, for
-	supporting the LSI Logic Fusion/MP architecture Fiber Channel
-	controllers, has been added.</para>
-
-      <para arch="i386">The pst driver, for supporting Promise
-	SuperTrak ATA RAID controllers, has been
-	added.</para>
-
-      <para arch="alpha">The floppy disk drive on the AlphaStation /
-        AlphaServer DS10 does not work with &os; due to unfound bugs.</para>
-
-      <para arch="alpha">When installing on alphas that have QLogic 
-      Fibrechannel cards installed, disable recognition of these cards 
-      from the loader. This to avoid very long &man.isp.4; timeouts 
-      during kernel startup. For example, assume you have a system with 
-      a QLogic Fiberchannel card that would show up as isp1. You would 
-      enter at the 'ok ' prompt: set isp_disable=0x2</para>
+      <para></para>
 
     </sect3>
 
@@ -235,38 +136,27 @@
       <title>Filesystems</title>
 
       <para></para>
+
     </sect3>
 
     <sect3>
       <title>PCCARD Support</title>
 
       <para></para>
+
     </sect3>
 
     <sect3>
       <title>Multimedia Support</title>
 
-      <para arch="i386">The VT8233 audio controller now has its own
-        driver to facilitate supporting all known revisions of the
-        hardware.  It is loadable at boot time by adding
-        <literal>device pcm</literal> to the kernel configuration or
-        by adding <literal>snd_via8233="YES"</literal> to
-        <filename>/boot/loader.conf</filename>.  Documentation to
-        support this work was provided by VIA.</para>
-
-      <para arch="i386">The ich sound driver now provides rudimentary
-	support for ich4 audio support.</para>
-
-      <para>The uaudio driver, for USB audio devices, has been
-        added.</para>
+      <para></para>
 
     </sect3>
 
     <sect3>
       <title>Contributed Software</title>
 
-      <para><application>IPFilter</application> has been updated to
-	3.4.29.</para>
+      <para></para>
 
     </sect3>
   </sect2>
@@ -274,381 +164,26 @@
   <sect2 id="security">
     <title>Security Advisories</title>
 
-    <para>The original fix for security advisory SA-02:23 (which
-      addressed the use of file descriptors by set-user-id or
-      set-group-id programs) contained an error.  It was still
-      possible for systems using &man.procfs.5; or &man.linprocfs.5;
-      to be exploited.  This error has now been corrected; a revised
-      version of security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:23.stdio.asc">FreeBSD-SA-02:23</ulink>
-      contains more details.</para>
+    <para></para>
 
-    <para>A buffer overflow in the resolver, which could be exploited
-      by a malicious domain name server or an attacker forging DNS
-      messages, has been fixed.  See security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:28.resolv.asc">FreeBSD-SA-02:28</ulink>
-      for more details.</para>
-
-    <para>A buffer overflow in &man.tcpdump.1;, which could be triggered by
-      badly-formed NFS packets, has been fixed.  See security advisory
-      <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:29.tcpdump.asc">FreeBSD-SA-02:29</ulink>
-      for more details.</para>
-
-    <para>&man.ktrace.1; can no longer trace the operation of formerly
-      privileged processes; this prevents the leakage of sensitive
-      information that the process could have obtained before
-      abandoning its privileges.  For a discussion of this issue, see
-      security advisory
-      <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:30.ktrace.asc">FreeBSD-SA-02:30</ulink>
-      for more details.</para>
-
-    <para>A race condition in &man.pppd.8;, which could be used to
-      change the permissions of an arbitrary file, has been corrected.
-      For more information, see security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:32.pppd.asc">FreeBSD-SA-02:32</ulink>.</para>
-
-    <para>Multiple buffer overflows in
-      <application>OpenSSL</application> have been corrected, by way
-      of an upgrade to the base system version of
-      <application>OpenSSL</application>.  More details can be found
-      in security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:33.openssl.asc">FreeBSD-SA-02:33</ulink>.</para>
-
-    <para>A heap buffer overflow in the XDR decoder has been fixed.
-      For more details, see security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:34.rpc.asc">FreeBSD-SA-02:34</ulink>.</para>
-
-    <para>A bug that could allow local users to read and write
-      arbitrary blocks on an FFS filesystem has been corrected.  More
-      details can be found in security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:35.ffs.asc">FreeBSD-SA-02:35</ulink>.</para>
-
-    <para>A bug in the NFS server code, which could allow a remote
-      denial of service attack, has been fixed.  Security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:36.nfs.asc">FreeBSD-SA-02:36</ulink>
-      has more details.</para>
-
-    <para>A bug that could allow local users to panic a system using
-      the &man.kqueue.2; mechanism has been fixed.  More information
-      is contained in security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:37.kqueue.asc">FreeBSD-SA-02:37</ulink>.</para>
-
-    <para>Several bounds-checking bugs in system calls, which could
-      result in some system calls returning a large portion of kernel
-      memory, have been fixed.  More information can be found in
-      security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:38.signed-error.asc">FreeBSD-SA-02:38</ulink>.</para>
-
-    <para>A bug that could allow applications using
-      <filename>libkvm</filename> to leak sensitive file descriptors
-      has been corrected.  (See security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:39.libkvm.asc">FreeBSD-SA-02:39</ulink>
-      for more details.)</para>
   </sect2>
 
   <sect2 id="userland">
     <title>Userland Changes</title>
 
-    <para>&man.biff.1; now accepts a <option>b</option> argument to
-      enable <quote>bell notification</quote> of new mail (which does
-      not disturb the terminal contents as <command>biff y</command>
-      would).</para>
-
-    <para>&man.cp.1; now takes a (nonstandard) <option>-n</option>
-      option to automatically answer <quote>no</quote> when it would
-      ask to overwrite a file.</para>
-
-    <para>The &man.daemon.8; program, a command-line interface to
-      &man.daemon.3;, has been added.  It detaches itself from its
-      controlling terminal and executes a program specified on the
-      command line.  This allows the user to run an arbitrary program
-      as if it were written to be a daemon.</para>
-
-    <para>&man.dump.8; now supports a new <option>-S</option> flag to allow
-      it to just print out the dump size estimates and exit.</para>
-
-    <para>&man.finger.1; now has support for a
-      <filename>.pubkey</filename> file.</para>
-
-    <para>&man.finger.1; now supports a <option>-g</option> flag to
-      restrict the printing of GECOS information to the user's full
-      name only.</para>
-
-    <para>&man.finger.1; now supports the <option>-4</option> and
-      <option>-6</option> flags to specify an address family for
-      remote queries.</para>
-
-    <para>&man.fold.1; now supports a <option>-b</option> flag to
-      break at byte positions and a <option>-s</option> flag to break at
-      word boundaries.</para>
-
-    <para>&man.ftp.1; now supports the <command>epsv4</command> command
-      to switch between using the new EPSV/EPRT and plain old PASV/PORT
-      requests when talking over IPv4.  This command is intended to remedy
-      the problem arising when running &man.ftp.1; through
-      <application>IPFilter</application> or another
-      firewall not supporting the newer FTP requests.</para>
-
-    <para>&man.ftpd.8; now supports the <option>-m</option> option
-      to permit guest users to modify existing files if allowed
-      by filesystem permissions.
-      In particular, this enables guest users to resume uploads.
-      </para>
-
-    <para>&man.ftpd.8; now supports the <option>-M</option> option
-      to prevent guest users from creating directories.</para>
-
-    <para>&man.ftpd.8; now supports the <option>-W</option> option
-      to disable logging FTP sessions to &man.wtmp.5;.</para>
-
-    <para>&man.ifconfig.8; now supports a <option>eui64</option>
-      command to fill in the lowermost 64 bits of an IPv6 address
-      automatically.  This makes &man.prefix.8; obsolete.</para>
-
-    <para>&man.ifconfig.8; now has the ability to set promiscuous mode
-      on an interface, via the new <option>promisc</option>
-      flag.</para>
-
-    <para>&man.inetd.8; now has the capability for limiting the
-      maximum number of simultaneous invocations of each service from
-      a single IP address.</para>
-
-    <para>&man.lock.1; now accepts a <option>-v</option> to disable
-      switching VTYs while the current terminal is locked.  This permits
-      locking the entire console from a single terminal.</para>
-
-    <para>The &man.ls.1; program now supports a <option>-m</option>
-      flag to list files across a page, a <option>-p</option> flag to
-      force printing of a <literal>/</literal> after directories, and
-      a <option>-x</option> flag to sort filenames across a
-      page.</para>
-
-    <para>&man.mv.1; now takes a (nonstandard) <option>-n</option>
-      option to automatically answer <quote>no</quote> when it would
-      ask to overwrite a file.</para>
-
-    <para>&man.nice.1; now uses the <option>-n</option> option to
-      specify the <quote>niceness</quote> of the utility being
-      run.</para>
-
-    <para>&man.od.1; now supports the <option>-A</option> option to
-      specify the input address base, the <option>-N</option> option to
-      specify the number of bytes to dump, the <option>-j</option>
-      option to specify the number of bytes to skip, the
-      <option>-s</option> option to output signed decimal shorts, and
-      the <option>-t</option> option to specify output type.</para>
-
-    <para>&man.pam.opie.8; no longer emits fake challenges when the
-      <varname>no_fake_prompts</varname> variable is specified.</para>
-
-    <para>A &man.pam.opieaccess.8; module has been added.</para>
-
-    <para>&man.pam.radius.8;, &man.pam.ssh.8;, and &man.pam.tacplus.8;
-      have been synchronized with the versions in &os; -CURRENT as of 3
-      July 2002.</para>
-
-    <para>&man.pam.unix.8; has been synchronized with the version in
-      &os; -CURRENT as of 9 March 2002
-      (pre-<application>OpenPAM</application>).</para>
-
-    <para>&man.pwd.1; now supports the <option>-L</option> flag to
-      print the logical current working directory.</para>
-
-    <para>The &man.renice.8; command implements a <option>-n</option>
-      option, which specifies an increment to be applied to the
-      priority of a process.</para>
-
-    <para>&man.sed.1; now takes a <option>-i</option> option to enable
-      in-place editing of files.</para>
-
-    <para>&man.sh.1; now supports a <option>-C</option> option to
-      prevent existing regular files from being overwritten by output
-      redirection, and a <option>-u</option> to give an error if an
-      unset variable is expanded.</para>
-
-    <para>The &man.sh.1; built-in <command>cd</command> command now
-      supports <option>-L</option> and <option>-P</option> flags to
-      invoke logical or physical modes of operation, respectively.
-      Logical mode is the default, but the default can be changed with
-      the <varname>physical</varname> &man.sh.1; option.</para>
-
-    <para>The &man.sh.1; built-in <command>jobs</command> command now
-      supports a <option>-s</option> flag to output PIDs only and a
-      <option>-l</option> flag to add PIDs to the output.</para>
-
-    <para>The &man.sh.1; built-in <command>export</command> and
-      <command>readonly</command> commands now support a
-      <option>-p</option> flag to print their output in
-      <quote>portable</quote> format.</para>
-
-    <para>&man.sh.1; no longer accepts invalid constructs as
-      <command><replaceable>command</replaceable> &amp; &amp;&amp;
-      <replaceable>command</replaceable></command>, <command>&amp;&amp;
-      <replaceable>command</replaceable></command>, or <command>||
-      <replaceable>command</replaceable></command>.</para>
-
-    <para>&man.split.1; now supports a <option>-a</option> option to
-      specify the number of letters to use for the suffix of split
-      files.</para>
-
-    <para>&man.su.1; now has support for Kerberos V authentication.</para>
-
-    <para>&man.tr.1; now has basic support for equivalence classes
-      for locales that support them.</para>
-
-    <para>&man.unexpand.1; now supports a <option>-t</option> to
-      specify tabstabs analogous to &man.expand.1;.</para>
-
-    <para>&man.vidcontrol.1; now accepts a <option>-S</option> to
-      allow the user to disable VTY switching.</para>
-
-    <para>&man.who.1; now has a number of new options:
-      <option>-H</option> shows column headings; <option>-T</option>
-      shows &man.mesg.1; state; <option>-m</option> is an equivalent
-      to <option>am i</option>; <option>-u</option> shows idle time;
-      <option>-q</option> to list names in columns.</para>
-
-    <para>&man.xargs.1; now supports a <option>-I</option>
-      <replaceable>replstr</replaceable> option that allows the user
-      to tell &man.xargs.1; to insert the data read from standard
-      input at specific points in the command line arguments rather
-      than at the end.  (A &os;-specific <option>-J</option> option is
-      similar, but is now deprecated in favor of the more portable
-      <option>-I</option> option.)</para>
-
-    <para>&man.xargs.1; now supports a <option>-L</option> option to
-      force its utility argument to be called after some number of
-      lines.</para>
+    <para></para>
 
 <!-- Above this line, order userland changes by manpage/variable name-->
 
     <sect3>
       <title>Contributed Software</title>
 
-      <para><application>BIND</application> has been updated to
-	8.3.3.</para>
-
-      <para><application>Binutils</application> has been updated to
-	2.12.1 (specifically, a post-release snapshot from 20 July 2002).</para>
-
-      <para><application>gcc</application> has been updated to
-	a snapshot from the GCC 2.95 CVS branch from 20 March 2002.  It
-	carries the unofficial version number of 2.95.4.</para>
-
-      <para><application>Heimdal Kerberos</application> has been updated to
-	a pre-0.5 snapshot from 29 August 2002.</para>
-
-      <para><application>libpcap</application> has been updated to
-	0.7.1.</para>
-
-      <para>The FTP daemon from NetBSD, otherwise known as
-	<application>lukemftpd</application> 1.2 beta 1, has been imported and is
-	available as &man.lukemftpd.8;.</para>
-
-      <para>&man.m4.1; has been imported from OpenBSD, as of 26 April
-	2002.</para>
-
-      <para>The <application>OPIE</application> one-time-password
-	suite has been updated to 2.4.</para>
-
-      <para><application>OpenSSH</application> has been updated to
-	version 3.4p1.  Among the changes:
-	  <itemizedlist>
-	    <listitem>
-	      <para>The <filename>*2</filename> files are obsolete
-		(for example,
-		<filename>~/.ssh/known_hosts</filename> can hold the
-		contents of
-		<filename>~/.ssh/known_hosts2</filename>).</para>
-	    </listitem>
-
-	    <listitem>
-	      <para>&man.ssh-keygen.1; can import and export keys using
-		the SECSH Public Key File Format, for key exchange
-		with several commercial SSH implementations.</para>
-	    </listitem>
-
-	    <listitem>
-	      <para>&man.ssh-add.1; now adds all three default keys.</para>
-	    </listitem>
-
-	    <listitem>
-	      <para>&man.ssh-keygen.1; no longer defaults to a
-		specific key type; one must be specified with the
-		<option>-t</option> option.</para>
-	    </listitem>
-
-	    <listitem>
-	      <para>A <quote>privilege separation</quote> feature,
-		which uses unprivileged processes to contain and
-		restrict the effects of future compromises or
-		programming errors.</para>
-	    </listitem>
-
-	    <listitem>
-	      <para>Several bugfixes, including closure of a
-		security hole that could lead to an integer overflow
-		and undesired privilege escalation.</para>
-	    </listitem>
-
-	    <listitem>
-	      <para>The default SSH protocol to use is now Version 2
-	        (with a fallback to Version 1), rather than Version 1
-	        (with a fallback to Version 2).</para>
-	    </listitem>
-
-	  </itemizedlist>
-	</para>
-
-      <para><application>OpenSSL</application> has been updated to
-	0.9.6g.</para>
-
-      <para><application>sendmail</application> has been updated 
-	from version 8.12.3 to version 8.12.6.</para>
-
-      <para arch="i386">Version 1.4.5 of the
-	<application>smbfs</application> userland utilities has been
-	imported.</para>
-
-      <para><application>GNU tar</application> has been updated to
-	1.13.25.</para>
-
-      <para><application>tcsh</application> has been updated to version
-	6.12.</para>
-
-      <para><application>texinfo</application> has been updated to
-	4.2.</para>
-
-      <para>The contributed version of
-	<application>tcp_wrappers</application> now includes the
-	&man.tcpd.8; helper daemon.  While not strictly necessary in a
-	standard &os; installation (because &man.inetd.8; already
-	incorporates this functionality), this may be useful for
-	&man.inetd.8; replacements such as
-	<application>xinetd</application>.</para>
-
-      <para><application>tcpdump</application> has been updated to
-	3.7.1.</para>
-
-      <para><application>top</application> has been updated to version
-	3.5b12.</para>
-
-    </sect3>
+      <para></para>
 
     <sect3>
       <title>Ports/Packages Collection</title>
 
-      <para>The libraries installed by the <filename
-	role="package">emulators/linux_base</filename> port (required
-	for Linux emulation) have been updated; they now correspond to
-	those included with <application>Red Hat Linux</application>
-	7.1.</para>
-
-      <para><application>XFree86</application> has been updated to
-	4.2.1.  This version provides some security and bug fixes over
-	version 4.2.0.</para>
+      <para></para>
 
     </sect3>
   </sect2>
@@ -656,15 +191,7 @@
   <sect2>
     <title>Release Engineering and Integration</title>
 
-    <para>A bug that caused <filename>/usr/share/examples</filename>
-      to be incompletely populated on fresh installs has been
-      fixed.</para>
-
-    <para>It is now possible to make releases of &os;
-      5-CURRENT on a &os; 4-STABLE host and vice versa.  Cross-architecture
-      (building a release for a target architecture on a host of a
-      different architecture) releases are also possible.  See
-      &man.release.7; for details.</para>
+    <para></para>
 
   </sect2>
 </sect1>
