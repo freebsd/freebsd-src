@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/syslimits.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
@@ -50,11 +51,11 @@ __part_load_locale(const char *name,
 		const char *category_filename,
 		int locale_buf_size_max,
 		int locale_buf_size_min,
-		const char **dst_localebuf) {
-
+		const char **dst_localebuf)
+{
 	static char		locale_buf_C[] = "C";
 	static int		num_lines;
-
+	int                     saverr;
 	int			 fd;
 	char			*lbuf;
 	char			*p;
@@ -68,8 +69,7 @@ __part_load_locale(const char *name,
 	save_using_locale = *using_locale;
 	*using_locale = 0;
 
-	if (name == NULL)
-		goto no_locale;
+	/* 'name' must be already checked. */
 
 	if (!strcmp(name, "C") || !strcmp(name, "POSIX"))
 		return 0;
@@ -89,8 +89,8 @@ __part_load_locale(const char *name,
 	 */
 	namesize = strlen(name) + 1;
 
-	if (!_PathLocale)
-		goto no_locale;
+	/* 'PathLocale' must be already set & checked. */
+
 	/* Range checking not needed, 'name' size is limited */
 	strcpy(filename, _PathLocale);
 	strcat(filename, "/");
@@ -102,8 +102,10 @@ __part_load_locale(const char *name,
 		goto no_locale;
 	if (_fstat(fd, &st) != 0)
 		goto bad_locale;
-	if (st.st_size <= 0)
+	if (st.st_size <= 0) {
+		errno = EFTYPE;
 		goto bad_locale;
+	}
 	bufsize = namesize + st.st_size;
 	locale_buf = NULL;
 	lbuf = (lbuf == NULL || lbuf == locale_buf_C) ?
@@ -120,15 +122,19 @@ __part_load_locale(const char *name,
 	/*
 	 * Parse the locale file into localebuf.
 	 */
-	if (plim[-1] != '\n')
+	if (plim[-1] != '\n') {
+		errno = EFTYPE;
 		goto bad_lbuf;
+	}
 	num_lines = split_lines(p, plim);
 	if (num_lines >= locale_buf_size_max)
 		num_lines = locale_buf_size_max;
 	else if (num_lines >= locale_buf_size_min)
 		num_lines = locale_buf_size_min;
-	else
+	else {
+		errno = EFTYPE;
 		goto reset_locale;
+	}
 	set_from_buf(lbuf, num_lines, dst_localebuf);
 	/*
 	 * Record the successful parse in the cache.
@@ -142,9 +148,9 @@ reset_locale:
 	locale_buf = locale_buf_C;
 	save_using_locale = 0;
 bad_lbuf:
-	free(lbuf);
+	saverr = errno; free(lbuf); errno = saverr;
 bad_locale:
-	(void)_close(fd);
+	saverr = errno; (void)_close(fd); errno = saverr;
 no_locale:
 	*using_locale = save_using_locale;
 	return -1;
