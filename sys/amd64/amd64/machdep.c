@@ -245,7 +245,7 @@ sendsig(catcher, sig, mask, code)
 	sf.sf_uc.uc_stack.ss_flags = (p->p_flag & P_ALTSTACK)
 	    ? ((oonstack) ? SS_ONSTACK : 0) : SS_DISABLE;
 	sf.sf_uc.uc_mcontext.mc_onstack = (oonstack) ? 1 : 0;
-	bcopy(regs, &sf.sf_uc.uc_mcontext.mc_r15, sizeof(*regs));
+	bcopy(regs, &sf.sf_uc.uc_mcontext.mc_rdi, sizeof(*regs));
 	sf.sf_uc.uc_mcontext.mc_len = sizeof(sf.sf_uc.uc_mcontext); /* magic */
 	get_fpcontext(td, &sf.sf_uc.uc_mcontext);
 	fpstate_drop(td);
@@ -371,7 +371,7 @@ sigreturn(td, uap)
 	ret = set_fpcontext(td, &ucp->uc_mcontext);
 	if (ret != 0)
 		return (ret);
-	bcopy(&ucp->uc_mcontext.mc_r15, regs, sizeof(*regs));
+	bcopy(&ucp->uc_mcontext.mc_rdi, regs, sizeof(*regs));
 
 	PROC_LOCK(p);
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
