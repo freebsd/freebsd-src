@@ -12,7 +12,8 @@ expected results.
 Test operations:
 
 ptrace		cred1 attempts ptrace attach to cred2
-signal		cred1 attempts SIGHUP of cred2
+sighup		cred1 attempts SIGHUP of cred2
+sigsegv		cred1 attempts SIGSEGV of cred2
 see		cred1 attempts getpriority() on cred2
 sched		cred1 attempts setpriority() on cred2
 
@@ -41,7 +42,7 @@ The credential elements supported by the test suite are:
 
 Other untested aspects of interest include groups, as well as session
 relationship.  Other test operations that might be of interest are SIGCONT,
-SIGIO, and SIGSEGV.
+and SIGIO.
 
 The current set of tests includes some tests where normally the P_SUGID
 flag is set, but isn't in the test.  The result is that some tests fail
