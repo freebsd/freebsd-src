@@ -377,7 +377,7 @@ parse(string, flags)
 		struct timeval *btp = (struct timeval *)buf;
 
 		if (!nflag)
-			fprintf(stdout, "%s = %s\n", string,
+			fprintf(stdout, "%s = %s", string,
 			    ctime(&btp->tv_sec));
 		else
 			fprintf(stdout, "%d\n", btp->tv_sec);
