@@ -270,19 +270,6 @@ trap(frame)
 	}
 
 	eva = 0;
-	if (frame.tf_trapno == T_PAGEFLT) {
-		/*
-		 * For some Cyrix CPUs, %cr2 is clobbered by
-		 * interrupts.  This problem is worked around by using
-		 * an interrupt gate for the pagefault handler.  We
-		 * are finally ready to read %cr2 and then must
-		 * reenable interrupts.
-		 */
-		eva = rcr2();
-		enable_intr();
-	}	
-
-	mtx_enter(&Giant, MTX_DEF);
 
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
 restart:
@@ -325,7 +312,9 @@ restart:
 		case T_PROTFLT:		/* general protection fault */
 		case T_STKFLT:		/* stack fault */
 			if (frame.tf_eflags & PSL_VM) {
+				mtx_enter(&Giant, MTX_DEF);
 				i = vm86_emulate((struct vm86frame *)&frame);
+				mtx_exit(&Giant, MTX_DEF);
 				if (i == 0)
 					goto user;
 				break;
@@ -341,7 +330,18 @@ restart:
 			break;
 
 		case T_PAGEFLT:		/* page fault */
+			/*
+			 * For some Cyrix CPUs, %cr2 is clobbered by
+			 * interrupts.  This problem is worked around by using
+			 * an interrupt gate for the pagefault handler.  We
+			 * are finally ready to read %cr2 and then must
+			 * reenable interrupts.
+			 */
+			eva = rcr2();
+			enable_intr();
+			mtx_enter(&Giant, MTX_DEF);
 			i = trap_pfault(&frame, TRUE, eva);
+			mtx_exit(&Giant, MTX_DEF);
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
 			if (i == -2) {
 				/*
@@ -371,14 +371,17 @@ restart:
 #ifndef TIMER_FREQ
 #  define TIMER_FREQ 1193182
 #endif
+			mtx_enter(&Giant, MTX_DEF);
 			if (time_second - lastalert > 10) {
 				log(LOG_WARNING, "NMI: power fail\n");
 				sysbeep(TIMER_FREQ/880, hz);
 				lastalert = time_second;
 			}
+			mtx_exit(&Giant, MTX_DEF);
 			goto out;
 #else /* !POWERFAIL_NMI */
 			/* machine/parity/power fail/"kitchen sink" faults */
+			/* XXX Giant */
 			if (isa_nmi(code) == 0) {
 #ifdef DDB
 				/*
@@ -418,7 +421,9 @@ restart:
 				ucode = FPE_FPU_NP_TRAP;
 				break;
 			}
+			mtx_enter(&Giant, MTX_DEF);
 			i = (*pmath_emulate)(&frame);
+			mtx_exit(&Giant, MTX_DEF);
 			if (i == 0) {
 				if (!(frame.tf_eflags & PSL_T))
 					goto out;
@@ -438,7 +443,18 @@ restart:
 
 		switch (type) {
 		case T_PAGEFLT:			/* page fault */
+			/*
+			 * For some Cyrix CPUs, %cr2 is clobbered by
+			 * interrupts.  This problem is worked around by using
+			 * an interrupt gate for the pagefault handler.  We
+			 * are finally ready to read %cr2 and then must
+			 * reenable interrupts.
+			 */
+			eva = rcr2();
+			enable_intr();
+			mtx_enter(&Giant, MTX_DEF);
 			(void) trap_pfault(&frame, FALSE, eva);
+			mtx_exit(&Giant, MTX_DEF);
 			goto out;
 
 		case T_DNA:
@@ -461,12 +477,13 @@ restart:
 		case T_PROTFLT:		/* general protection fault */
 		case T_STKFLT:		/* stack fault */
 			if (frame.tf_eflags & PSL_VM) {
+				mtx_enter(&Giant, MTX_DEF);
 				i = vm86_emulate((struct vm86frame *)&frame);
+				mtx_exit(&Giant, MTX_DEF);
 				if (i != 0)
 					/*
 					 * returns to original process
 					 */
-					mtx_exit(&Giant, MTX_DEF);
 					vm86_trap((struct vm86frame *)&frame);
 				goto out;
 			}
@@ -493,7 +510,9 @@ restart:
 			 */
 			if (frame.tf_eip == (int)cpu_switch_load_gs) {
 				PCPU_GET(curpcb)->pcb_gs = 0;
+				mtx_enter(&Giant, MTX_DEF);
 				psignal(p, SIGBUS);
+				mtx_exit(&Giant, MTX_DEF);
 				goto out;
 			}
 
@@ -575,6 +594,7 @@ restart:
 			 * in kernel space because that is useful when
 			 * debugging the kernel.
 			 */
+			/* XXX Giant */
 			if (user_dbreg_trap() && !in_vm86call) {
 				/*
 				 * Reset breakpoint bits because the
@@ -592,6 +612,7 @@ restart:
 			 * Otherwise, debugger traps "can't happen".
 			 */
 #ifdef DDB
+			/* XXX Giant */
 			if (kdb_trap (type, 0, &frame))
 				goto out;
 #endif
@@ -600,13 +621,16 @@ restart:
 #if NISA > 0
 		case T_NMI:
 #ifdef POWERFAIL_NMI
+			mtx_enter(&Giant, MTX_DEF);
 			if (time_second - lastalert > 10) {
 				log(LOG_WARNING, "NMI: power fail\n");
 				sysbeep(TIMER_FREQ/880, hz);
 				lastalert = time_second;
 			}
+			mtx_exit(&Giant, MTX_DEF);
 			goto out;
 #else /* !POWERFAIL_NMI */
+			/* XXX Giant */
 			/* machine/parity/power fail/"kitchen sink" faults */
 			if (isa_nmi(code) == 0) {
 #ifdef DDB
@@ -627,10 +651,13 @@ restart:
 #endif /* NISA > 0 */
 		}
 
+		mtx_enter(&Giant, MTX_DEF);
 		trap_fatal(&frame, eva);
+		mtx_exit(&Giant, MTX_DEF);
 		goto out;
 	}
 
+	mtx_enter(&Giant, MTX_DEF);
 	/* Translate fault for emulators (e.g. Linux) */
 	if (*p->p_sysent->sv_transtrap)
 		i = (*p->p_sysent->sv_transtrap)(i, type);
@@ -646,12 +673,14 @@ restart:
 		uprintf("\n");
 	}
 #endif
+	mtx_exit(&Giant, MTX_DEF);
 
 user:
 	userret(p, &frame, sticks);
-out:
 	if (mtx_owned(&Giant))
 		mtx_exit(&Giant, MTX_DEF);
+out:
+	return;
 }
 
 #ifdef notyet
