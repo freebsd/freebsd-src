@@ -37,6 +37,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl DRcdfs
+.Op Fl r Ar samplerate
 .Op Fl S Ar baudrate
 .Fl p Ar port
 .Fl t Ar mousetype
@@ -63,6 +64,8 @@ Do not become a daemon and instead run as a foreground process.
 Use
 .Ar port
 as the serial port to communicate with the mouse.
+.It Fl r
+Set the bit sample rate on devices that support it (in Dots Per Inch).
 .It Fl s
 Select a baudrate of 9600 for the serial line.
 .It Fl t Ar mousetype

@@ -30,7 +30,7 @@
  ** EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
  **
- **      $Id$
+ **      $Id: moused.c,v 1.7 1997/02/22 16:06:42 peter Exp $
  **/
 
 /**
@@ -157,7 +157,7 @@ main(int argc, char *argv[])
 
     progname = argv[0];
 
-    while((c = getopt(argc,argv,"cdfsp:t:h?RDS:")) != EOF)
+    while((c = getopt(argc,argv,"cdfr:sp:t:h?RDS:")) != EOF)
 	switch(c)
 	{
 	case 'c':
@@ -174,6 +174,10 @@ main(int argc, char *argv[])
 
 	case 'p':
 	    rodent.portname = optarg;
+	    break;
+
+	case 'r':
+	    rodent.samplerate = atoi(optarg);
 	    break;
 
 	case 's':
