@@ -315,7 +315,7 @@ twe_intr(struct twe_softc *sc)
 	twe_attention_intr(sc);
     if (status_reg & TWE_STATUS_COMMAND_INTERRUPT)
 	twe_command_intr(sc);
-    if (status_reg * TWE_STATUS_RESPONSE_INTERRUPT)
+    if (status_reg & TWE_STATUS_RESPONSE_INTERRUPT)
 	twe_done(sc);
 };
 
