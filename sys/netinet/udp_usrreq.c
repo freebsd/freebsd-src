@@ -307,6 +307,8 @@ udp_input(m, iphlen)
 #endif
 		if (!blackhole)
 			icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_PORT, 0, 0);
+		else
+			goto bad;
 		return;
 	}
 
