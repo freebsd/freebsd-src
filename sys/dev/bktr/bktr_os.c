@@ -499,6 +499,9 @@ bktr_detach( device_t dev )
 		printf("bktr%d: i2c_attach: can't attach\n",
 		     device_get_unit(dev));
 #endif
+#ifdef USE_VBIMUTEX
+        mtx_destroy(&bktr->vbimutex);
+#endif
 
 	/* Note: We do not free memory for RISC programs, grab buffer, vbi buffers */
 	/* The memory is retained by the bktr_mem module so we can unload and */
@@ -830,6 +833,7 @@ bktr_poll( dev_t dev, int events, struct thread *td)
 		return (ENXIO);
 	}
 
+	LOCK_VBI(bktr);
 	DISABLE_INTR(s);
 
 	if (events & (POLLIN | POLLRDNORM)) {
@@ -845,6 +849,7 @@ bktr_poll( dev_t dev, int events, struct thread *td)
 	}
 
 	ENABLE_INTR(s);
+	UNLOCK_VBI(bktr);
 
 	return (revents);
 }
