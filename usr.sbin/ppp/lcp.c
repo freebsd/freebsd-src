@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.68 1999/02/18 00:52:14 brian Exp $
+ * $Id: lcp.c,v 1.69 1999/02/26 21:28:12 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -645,14 +645,26 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
       switch (mode_type) {
       case MODE_REQ:
 	lcp->his_accmap = accmap;
-	memcpy(dec->ackend, cp, 6);
-	dec->ackend += 6;
+        lcp->want_accmap |= accmap;	/* restrict our requested map */
+        if (lcp->want_accmap == accmap) {
+	  memcpy(dec->ackend, cp, 6);
+	  dec->ackend += 6;
+        } else {
+          /* NAK with what we now want */
+          *dec->nakend++ = *cp;
+          *dec->nakend++ = 6;
+          ua_htonl(&lcp->want_accmap, dec->nakend);
+          dec->nakend += 4;
+        }
 	break;
       case MODE_NAK:
-	lcp->want_accmap = accmap;
+	lcp->want_accmap |= accmap;
 	break;
       case MODE_REJ:
-	lcp->his_reject |= (1 << type);
+        if (lcp->want_accmap)
+          log_Printf(LogWARN, "Peer is rejecting our ACCMAP.... bad news !\n");
+        else
+	  lcp->his_reject |= (1 << type);
 	break;
       }
       break;
