@@ -55,6 +55,8 @@
  * $FreeBSD$
  */
 
+#include "opt_ddb.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/lock.h>
@@ -455,7 +457,11 @@ cpu_ipi_send(u_int mid, u_long d0, u_long d1, u_long d2)
 		if ((ldxa(0, ASI_INTR_DISPATCH_STATUS) & IDR_NACK) == 0)
 			return;
 	}
-	if (db_active || panicstr != NULL)
+	if (
+#ifdef DDB
+	    db_active ||
+#endif
+	    panicstr != NULL)
 		printf("ipi_send: couldn't send ipi to module %u\n", mid);
 	else
 		panic("ipi_send: couldn't send ipi");
