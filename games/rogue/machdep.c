@@ -417,17 +417,6 @@ int nsecs;
  * values are strings, and each string is identified by a name.  The names
  * of the values needed, and their use, is as follows:
  *
- *   TERMCAP
- *     The name of the users's termcap file, NOT the termcap entries
- *     themselves.  This is used ONLY if the program is compiled with
- *     CURSES defined (-DCURSES).  Even in this case, the program need
- *     not find a string for TERMCAP.  If it does not, it will use the
- *     default termcap file as returned by md_gdtcf();
- *   TERM
- *     The name of the users's terminal.  This is used ONLY if the program
- *     is compiled with CURSES defined (-DCURSES).  In this case, the string
- *     value for TERM must be found, or the routines in curses.c cannot
- *     function, and the program will quit.
  *   ROGUEOPTS
  *     A string containing the various game options.  This need not be
  *     defined.
@@ -438,14 +427,6 @@ int nsecs;
  *   SHELL
  *     The user's favorite shell.  If not found, "/bin/sh" is assumed.
  *
- * If your system does not provide a means of searching for these values,
- * you will have to do it yourself.  None of the values above really need
- * to be defined except TERM when the program is compiled with CURSES
- * defined.  In this case, as a bare minimum, you can check the 'name'
- * parameter, and if it is "TERM" find the terminal name and return that,
- * else return zero.  If the program is not compiled with CURSES, you can
- * get by with simply always returning zero.  Returning zero indicates
- * that their is no defined value for the given string.
  */
 
 char *
@@ -569,114 +550,4 @@ const char *shell;
 	wait(w);
 }
 
-/* If you have a viable curses/termlib library, then use it and don't bother
- * implementing the routines below.  And don't compile with -DCURSES.
- */
-
-#ifdef CURSES
-
-/* md_cbreak_no_echo_nonl:
- *
- * This routine sets up some terminal characteristics.  The tty-driver
- * must be told to:
- *   1.)  Not echo input.
- *   2.)  Transmit input characters immediately upon typing. (cbreak mode)
- *   3.)  Move the cursor down one line, without changing column, and
- *        without generating a carriage-return, when it
- *        sees a line-feed.  This is only necessary if line-feed is ever
- *        used in the termcap 'do' (cursor down) entry, in which case,
- *        your system should must have a way of accomplishing this.
- *
- * When the parameter 'on' is true, the terminal is set up as specified
- * above.  When this parameter is false, the terminal is restored to the
- * original state.
- *
- * Raw mode should not to be used.  Keyboard signals/events/interrupts should
- * be sent, although they are not strictly necessary.  See notes in
- * md_heed_signals().
- *
- * This function must be implemented for rogue to run properly if the
- * program is compiled with CURSES defined to use the enclosed curses
- * emulation package.  If you are not using this, then this routine is
- * totally unnecessary.
- *
- * Notice that information is saved between calls.  This is used to
- * restore the terminal to an initial saved state.
- *
- */
-
-md_cbreak_no_echo_nonl(on)
-boolean on;
-{
-#ifdef UNIX_BSD4_2
-	static struct sgttyb tty_buf;
-	static int tsave_flags;
-
-	if (on) {
-		ioctl(0, TIOCGETP, &tty_buf);
-		tsave_flags = tty_buf.sg_flags;
-		tty_buf.sg_flags |= CBREAK;
-		tty_buf.sg_flags &= ~(ECHO | CRMOD);	/* CRMOD: see note 3 above */
-		ioctl(0, TIOCSETP, &tty_buf);
-	} else {
-		tty_buf.sg_flags = tsave_flags;
-		ioctl(0, TIOCSETP, &tty_buf);
-	}
-#endif
-#ifdef UNIX_SYSV
-	struct termio tty_buf;
-	static struct termio tty_save;
-
-	if (on) {
-		ioctl(0, TCGETA, &tty_buf);
-		tty_save = tty_buf;
-		tty_buf.c_lflag &= ~(ICANON | ECHO);
-		tty_buf.c_oflag &= ~ONLCR;
-		tty_buf.c_cc[4] = 1;  /* MIN */
-		tty_buf.c_cc[5] = 2;  /* TIME */
-		ioctl(0, TCSETAF, &tty_buf);
-	} else {
-		ioctl(0, TCSETAF, &tty_save);
-	}
-#endif
-}
-
-/* md_gdtcf(): (Get Default Termcap File)
- *
- * This function is called ONLY when the program is compiled with CURSES
- * defined.  If you use your system's curses/termlib library, this function
- * won't be called.  On most UNIX systems, "/etc/termcap" suffices.
- *
- * If their is no such termcap file, then return 0, but in that case, you
- * must have a TERMCAP file returned from md_getenv("TERMCAP").  The latter
- * will override the value returned from md_gdtcf().  If the program is
- * compiled with CURSES defined, and md_gdtcf() returns 0, and
- * md_getenv("TERMCAP") returns 0, the program will have no terminal
- * capability information and will quit.
- */
-
-char *
-md_gdtcf()
-{
-	return("/etc/termcap");
-}
-
-/* md_tstp():
- *
- * This function puts the game to sleep and returns to the shell.  This
- * only applies to UNIX 4.2 and 4.3.  For other systems, the routine should
- * be provided as a do-nothing routine.  md_tstp() will only be referenced
- * in the code when compiled with CURSES defined.
- *
- */
-
-md_tstp()
-{
-#ifdef UNIX_BSD4_2
-	kill(0, SIGTSTP);
-#endif
-}
-
-#endif
-
-#endif
+#endif /* UNIX */
