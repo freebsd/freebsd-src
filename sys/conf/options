@@ -498,7 +498,6 @@ KTR_ENTRIES		opt_global.h
 KTR_EXTEND		opt_global.h
 KTR_VERBOSE		opt_ktr.h
 MUTEX_DEBUG		opt_global.h
-CV_DEBUG		opt_global.h
 WITNESS			opt_global.h
 WITNESS_DDB		opt_witness.h
 WITNESS_SKIPSPIN	opt_witness.h
