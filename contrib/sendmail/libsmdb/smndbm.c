@@ -8,7 +8,7 @@
 */
 
 #ifndef lint
-static char id[] = "@(#)$Id: smndbm.c,v 8.40 2000/03/19 05:03:30 ca Exp $";
+static char id[] = "@(#)$Id: smndbm.c,v 8.40.4.1 2000/08/24 17:08:00 gshapiro Exp $";
 #endif /* ! lint */
 
 #include <fcntl.h>
@@ -154,6 +154,15 @@ smdbm_fd(database, fd)
 		return EINVAL;
 
 	return SMDBE_OK;
+}
+
+int
+smdbm_lockfd(database)
+	SMDB_DATABASE *database;
+{
+	SMDB_DBM_DATABASE *db = (SMDB_DBM_DATABASE *) database->smdb_impl;
+
+	return db->smndbm_lock_fd;
 }
 
 int
@@ -555,6 +564,7 @@ smdb_ndbm_open(database, db_name, mode, mode_mask, sff, type, user_info,
 		smdb_db->smdb_close = smdbm_close;
 		smdb_db->smdb_del = smdbm_del;
 		smdb_db->smdb_fd = smdbm_fd;
+		smdb_db->smdb_lockfd = smdbm_lockfd;
 		smdb_db->smdb_get = smdbm_get;
 		smdb_db->smdb_put = smdbm_put;
 		smdb_db->smdb_set_owner = smndbm_set_owner;

@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: parseaddr.c,v 8.234.4.1 2000/05/25 18:56:16 gshapiro Exp $";
+static char id[] = "@(#)$Id: parseaddr.c,v 8.234.4.5 2000/09/25 07:53:29 gshapiro Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -2721,7 +2721,12 @@ rscheck(rwset, p1, p2, e, rmcomm, cnt, logl)
 */
 		goto finis;
 	}
+
+	MapOpenErr = FALSE;
 	(void) rewrite(pvp, rsno, 0, e);
+	if (MapOpenErr)
+		usrerrenh("4.3.0", "451 Temporary failure");
+
 	if (pvp[0] == NULL || (pvp[0][0] & 0377) != CANONNET ||
 	    pvp[1] == NULL || (strcmp(pvp[1], "error") != 0 &&
 			       strcmp(pvp[1], "discard") != 0))

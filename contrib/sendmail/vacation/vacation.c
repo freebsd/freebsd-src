@@ -21,7 +21,7 @@ static char copyright[] =
 #endif /* ! lint */
 
 #ifndef lint
-static char id[] = "@(#)$Id: vacation.c,v 8.68.4.4 2000/07/18 05:10:29 gshapiro Exp $";
+static char id[] = "@(#)$Id: vacation.c,v 8.68.4.7 2000/09/05 21:48:45 gshapiro Exp $";
 #endif /* ! lint */
 
 #include <ctype.h>
@@ -106,6 +106,13 @@ static void debuglog __P((int, const char *, ...));
 # define msglog		syslog
 #endif /* _FFR_DEBUG */
 
+static void eatmsg __P((void));
+
+/* exit after reading input */
+#define EXITIT(excode)	{ \
+				eatmsg(); \
+				exit(excode); \
+			}
 int
 main(argc, argv)
 	int argc;
@@ -118,6 +125,7 @@ main(argc, argv)
 	int mfail = 0, ufail = 0;
 	int ch;
 	int result;
+	long sff;
 	time_t interval;
 	struct passwd *pw;
 	ALIAS *cur;
@@ -135,6 +143,19 @@ main(argc, argv)
 	extern void setreply __P((char *, time_t));
 	extern void sendmessage __P((char *, char *, bool));
 	extern void xclude __P((FILE *));
+#if _FFR_LISTDB
+#define EXITM(excode)	{ \
+				if (!iflag && !lflag) \
+					eatmsg(); \
+				exit(excode); \
+			}
+#else /* _FFR_LISTDB */
+#define EXITM(excode)	{ \
+				if (!iflag) \
+					eatmsg(); \
+				exit(excode); \
+			}
+#endif /* _FFR_LISTDB */
 
 	/* Vars needed to link with smutil */
 	clrbitmap(DontBlameSendmail);
@@ -261,7 +282,7 @@ main(argc, argv)
 	{
 		msglog(LOG_NOTICE,
 		       "vacation: can't allocate memory for alias.\n");
-		exit(EX_TEMPFAIL);
+		EXITM(EX_TEMPFAIL);
 	}
 	if (ufail != 0)
 		usage();
@@ -278,7 +299,7 @@ main(argc, argv)
 		{
 			msglog(LOG_ERR,
 			       "vacation: no such user uid %u.\n", getuid());
-			exit(EX_NOUSER);
+			EXITM(EX_NOUSER);
 		}
 	}
 #if _FFR_BLACKBOX
@@ -287,14 +308,14 @@ main(argc, argv)
 	else if ((pw = getpwnam(*argv)) == NULL)
 	{
 		msglog(LOG_ERR, "vacation: no such user %s.\n", *argv);
-		exit(EX_NOUSER);
+		EXITM(EX_NOUSER);
 	}
 	name = pw->pw_name;
 	if (chdir(pw->pw_dir) != 0)
 	{
 		msglog(LOG_NOTICE,
 		       "vacation: no such directory %s.\n", pw->pw_dir);
-		exit(EX_NOINPUT);
+		EXITM(EX_NOINPUT);
 	}
 #endif /* _FFR_BLACKBOX */
 	user_info.smdbu_id = pw->pw_uid;
@@ -302,15 +323,23 @@ main(argc, argv)
 	(void) strlcpy(user_info.smdbu_name, pw->pw_name,
 		       SMDB_MAX_USER_NAME_LEN);
 
+	sff = SFF_CREAT;
+#if _FFR_BLACKBOX
+	if (getegid() != getgid())
+		RunAsGid = user_info.smdbu_group_id = getegid();
+
+	sff |= SFF_NOPATHCHECK|SFF_OPENASROOT;
+#endif /* _FFR_BLACKBOX */
+
 	result = smdb_open_database(&Db, dbfilename,
 				    O_CREAT|O_RDWR | (iflag ? O_TRUNC : 0),
-				    S_IRUSR|S_IWUSR, SFF_CREAT,
+				    S_IRUSR|S_IWUSR, sff,
 				    SMDB_TYPE_DEFAULT, &user_info, NULL);
 	if (result != SMDBE_OK)
 	{
 		msglog(LOG_NOTICE, "vacation: %s: %s\n", dbfilename,
 		       errstring(result));
-		exit(EX_DATAERR);
+		EXITM(EX_DATAERR);
 	}
 
 #if _FFR_LISTDB
@@ -338,14 +367,14 @@ main(argc, argv)
 	{
 		xclude(stdin);
 		result = Db->smdb_close(Db);
-		exit(EX_OK);
+		EXITM(EX_OK);
 	}
 
 	if ((cur = (ALIAS *)malloc((u_int)sizeof(ALIAS))) == NULL)
 	{
 		msglog(LOG_NOTICE,
 		       "vacation: can't allocate memory for username.\n");
-		exit(EX_OSERR);
+		EXITM(EX_OSERR);
 	}
 	cur->name = name;
 	cur->next = Names;
@@ -369,6 +398,27 @@ main(argc, argv)
 }
 
 /*
+** EATMSG -- read stdin till EOF
+**
+**	Parameters:
+**		none.
+**
+**	Returns:
+**		nothing.
+**
+*/
+static void
+eatmsg()
+{
+	/*
+	**  read the rest of the e-mail and ignore it to avoid problems
+	**  with EPIPE in sendmail
+	*/
+	while (getc(stdin) != EOF)
+		continue;
+}
+
+/*
 ** READHEADERS -- read mail headers
 **
 **	Parameters:
@@ -376,6 +426,9 @@ main(argc, argv)
 **
 **	Returns:
 **		nothing.
+**
+**	Side Effects:
+**		may exit().
 **
 */
 void
@@ -410,7 +463,7 @@ readheaders()
 						{
 							msglog(LOG_NOTICE,
 							       "vacation: badly formatted \"From \" line.\n");
-							exit(EX_DATAERR);
+							EXITIT(EX_DATAERR);
 						}
 					}
 					else if (*p == '"')
@@ -425,7 +478,7 @@ readheaders()
 				{
 					msglog(LOG_NOTICE,
 					       "vacation: badly formatted \"From \" line.\n");
-					exit(EX_DATAERR);
+					EXITIT(EX_DATAERR);
 				}
 				*p = '\0';
 
@@ -436,7 +489,7 @@ readheaders()
 				if ((p = strchr(buf + 5, '\n')) != NULL)
 					*p = '\0';
 				if (junkmail(buf + 5))
-					exit(EX_OK);
+					EXITIT(EX_OK);
 			}
 			break;
 
@@ -456,7 +509,7 @@ readheaders()
 			if (strncasecmp(p, "junk", 4) == 0 ||
 			    strncasecmp(p, "bulk", 4) == 0 ||
 			    strncasecmp(p, "list", 4) == 0)
-				exit(EX_OK);
+				EXITIT(EX_OK);
 			break;
 
 		  case 'C':		/* "Cc:" */
@@ -487,11 +540,11 @@ findme:
 		}
 	}
 	if (!tome)
-		exit(EX_OK);
+		EXITIT(EX_OK);
 	if (*From == '\0')
 	{
 		msglog(LOG_NOTICE, "vacation: no initial \"From \" line.\n");
-		exit(EX_DATAERR);
+		EXITIT(EX_DATAERR);
 	}
 }
 
@@ -801,8 +854,8 @@ sendmessage(myname, msgfn, emptysender)
 		(void) fclose(mfp);
 		if (emptysender)
 			myname = "<>";
-		(void) execl(_PATH_SENDMAIL, "sendmail", "-f", myname, "--",
-		      From, NULL);
+		(void) execl(_PATH_SENDMAIL, "sendmail", "-oi",
+			     "-f", myname, "--", From, NULL);
 		msglog(LOG_ERR, "vacation: can't exec %s: %s",
 			_PATH_SENDMAIL, errstring(errno));
 		exit(EX_UNAVAILABLE);

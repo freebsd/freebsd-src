@@ -13,7 +13,7 @@
 #include <sendmail.h>
 
 #ifndef lint
-static char id[] = "@(#)$Id: alias.c,v 8.142.4.1 2000/05/25 18:56:12 gshapiro Exp $";
+static char id[] = "@(#)$Id: alias.c,v 8.142.4.3 2000/09/21 21:52:16 ca Exp $";
 #endif /* ! lint */
 
 # define SEPARATOR ':'
@@ -837,11 +837,11 @@ readaliases(map, af, announcestats, logstats)
 	CurEnv->e_to = NULL;
 	FileName = NULL;
 	if (Verbose || announcestats)
-		message("%s: %d aliases, longest %d bytes, %d bytes total",
+		message("%s: %ld aliases, longest %ld bytes, %ld bytes total",
 			map->map_file, naliases, longest, bytes);
 	if (LogLevel > 7 && logstats)
 		sm_syslog(LOG_INFO, NOQID,
-			"%s: %d aliases, longest %d bytes, %d bytes total",
+			"%s: %ld aliases, longest %ld bytes, %ld bytes total",
 			map->map_file, naliases, longest, bytes);
 }
 /*
