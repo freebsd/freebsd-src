@@ -616,7 +616,7 @@ nwfs_vinvalbuf(vp, flags, cred, td, intrflg)
 	while (np->n_flag & NFLUSHINPROG) {
 		np->n_flag |= NFLUSHWANT;
 		error = tsleep((caddr_t)&np->n_flag, PRIBIO + 2, "nwfsvinv", slptimeo);
-		error = ncp_chkintr(NWFSTOCONN(VTONWFS(vp)), td->td_proc);
+		error = ncp_chkintr(NWFSTOCONN(VTONWFS(vp)), td);
 		if (error == EINTR && intrflg)
 			return EINTR;
 	}
