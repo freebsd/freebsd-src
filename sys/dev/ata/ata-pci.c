@@ -577,10 +577,13 @@ ata_pci_intr(struct ata_channel *ch)
 
     case 0x06481095:	/* CMD 648 */
     case 0x06491095:	/* CMD 649 */
-	if (!(pci_read_config(device_get_parent(ch->dev), 0x71, 1) &
-	      (ch->unit ? 0x08 : 0x04)))
-	    return 1;
-	break;
+        if (!(pci_read_config(device_get_parent(ch->dev), 0x71, 1) &
+              (ch->unit ? 0x08 : 0x04)))
+            return 1;
+        pci_write_config(device_get_parent(ch->dev), 0x71, 
+                  pci_read_config(device_get_parent(ch->dev), 0x71, 1) & 
+                  ~(ch->unit ? 0x04 : 0x08), 1);
+        break;
 
     case 0x06801095:	/* SiI 680 */
 	if (!(pci_read_config(device_get_parent(ch->dev),
