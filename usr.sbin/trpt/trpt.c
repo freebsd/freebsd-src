@@ -164,6 +164,7 @@ main(argc, argv)
 		errx(1, "%s: no namelist", system);
 	if ((memf = open(core, O_RDONLY)) < 0)
 		err(2, "%s", core);
+	setgid(getgid());
 	if (kflag)
 		errx(1, "can't do core files yet");
 	(void)klseek(memf, (off_t)nl[N_TCP_DEBX].n_value, L_SET);

@@ -291,6 +291,7 @@ main(argc, argv)
 
 	if ((kd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, buf)) == 0)
 		errx(1, "kvm_openfiles: %s", buf);
+	(void)setgid(getgid());
 	if ((ret = kvm_nlist(kd, nl)) != 0) {
 		if (ret == -1)
 			errx(1, "kvm_nlist: %s", kvm_geterr(kd));
