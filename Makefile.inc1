@@ -596,7 +596,8 @@ _libroken4= kerberosIV/lib/libroken
 
 .if exists(${.CURDIR}/kerberos5) && exists(${.CURDIR}/crypto) && \
     !defined(NOCRYPT) && defined(MAKE_KERBEROS5)
-_libkrb5= kerberos5/lib/libasn1 kerberos5/lib/libhdb kerberos5/lib/libsl
+_libkrb5= kerberos5/lib/libasn1 kerberos5/lib/libhdb kerberos5/lib/libsl \
+    kerberos5/lib/libroken
 .endif
 
 build-tools:
