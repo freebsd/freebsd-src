@@ -5,6 +5,7 @@
 #
 # XXX -- I HATE Perl!  This *will* be re-written in shell/awk/sed soon!
 #
+# $FreeBSD$
 
 # Usage:  log.pl [[-m user] ...] [-s] -f logfile 'dirname file ...'
 #
@@ -91,7 +92,7 @@ $mailcmd = "| Mail -s 'CVS update: $modulepath'";
 @days = (Sunday,Monday,Tuesday,Wednesday,Thursday,Friday,Saturday);
 
 ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime;
-$year+=1900;
+$year += 1900;
 
 # get a login name for the guy doing the commit....
 #
