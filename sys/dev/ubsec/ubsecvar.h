@@ -53,6 +53,8 @@
 #define UBS_DEF_TOUT		0xff	/* PCI TRDY Timeout */
 #define UBS_DEF_CACHELINE	0x01	/* Cache Line setting */
 
+#ifdef _KERNEL
+
 struct ubsec_dma_alloc {
 	u_int32_t		dma_paddr;
 	caddr_t			dma_vaddr;
@@ -216,6 +218,7 @@ struct ubsec_session {
 	u_int32_t	ses_hmouter[5];		/* hmac outer state */
 	u_int32_t	ses_iv[2];		/* [3]DES iv */
 };
+#endif /* _KERNEL */
 
 struct ubsec_stats {
 	u_int64_t hst_ibytes;
