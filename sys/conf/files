@@ -138,6 +138,7 @@ dev/ppbus/vpo.c		optional vpo
 dev/ppbus/vpoio.c	optional vpo
 dev/ppbus/immio.c	optional vpo
 dev/ppbus/if_plip.c	optional plip
+dev/ppbus/lpbb.c	optional lpbb
 smbus_if.o		optional smbus					\
 	dependency	"smbus_if.c smbus_if.h"				\
 	compile-with	"${NORMAL_C}"					\
@@ -155,6 +156,21 @@ smbus_if.h		optional smbus					\
 dev/smbus/smbconf.c	optional smbus
 dev/smbus/smbus.c	optional smbus
 dev/smbus/smb.c		optional smb
+dev/iicbus/iicbb.c	optional iicbb
+iicbb_if.o		optional iicbb					\
+	dependency	"iicbb_if.c"					\
+	compile-with	"${NORMAL_C}"					\
+	no-implicit-rule local
+iicbb_if.c		optional iicbb					\ 
+	dependency	"$S/kern/makedevops.sh $S/dev/iicbus/iicbb_if.m" \
+	compile-with	"sh $S/kern/makedevops.sh -c $S/dev/iicbus/iicbb_if.m" \
+	no-obj no-implicit-rule before-depend local			\
+	clean		"iicbb_if.c"
+iicbb_if.h		optional iicbb					\ 
+	dependency	"$S/kern/makedevops.sh $S/dev/iicbus/iicbb_if.m" \
+	compile-with	"sh $S/kern/makedevops.sh -h $S/dev/iicbus/iicbb_if.m" \
+	no-obj no-implicit-rule before-depend				\
+	clean		"iicbb_if.h"
 dev/iicbus/iicsmb.c	optional iicsmb					\
 	dependency	"iicbus_if.h"
 iicbus_if.o		optional iicbus					\
@@ -510,6 +526,7 @@ pci/adw_pci.c		optional adw device-driver
 pci/ahc_pci.c		optional ahc device-driver			\
 	dependency	"aic7xxx_reg.h $S/pci/ahc_pci.c"
 pci/brooktree848.c	optional bktr device-driver
+pci/bt848_i2c.c		optional bktr device-driver
 pci/bt_pci.c		optional bt device-driver
 pci/dpt_pci.c		optional pci dpt device-driver
 pci/cy_pci.c		optional cy device-driver
