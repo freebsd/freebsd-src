@@ -43,6 +43,7 @@ static const char rcsid[] =
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
 #ifdef sunos
 #include <sys/vnode.h>
 
@@ -320,6 +321,7 @@ flushtape()
 void
 trewind()
 {
+	struct stat sb;
 	int f;
 	int got;
 
@@ -364,6 +366,10 @@ trewind()
 		return;
 	}
 #endif
+	if (fstat(tapefd, &sb) == 0 && S_ISFIFO(sb.st_mode)) {
+		(void)close(tapefd);
+		return;
+	}
 	(void) close(tapefd);
 	while ((f = open(tape, 0)) < 0)
 		sleep (10);
