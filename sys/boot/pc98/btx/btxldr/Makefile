@@ -1,10 +1,9 @@
 # $FreeBSD$
 
-PROG=	btxldr.out
+PROG=	btxldr
 INTERNALPROG=
 NOMAN=
 SRCS=	btxldr.S
-CLEANFILES= btxldr
 
 CFLAGS+=-DPC98
 CFLAGS+=-DLOADER_ADDRESS=${LOADER_ADDRESS}
@@ -13,11 +12,6 @@ CFLAGS+=-DLOADER_ADDRESS=${LOADER_ADDRESS}
 CFLAGS+=-DBTXLDR_VERBOSE
 .endif
 
-all: btxldr
-
-LDFLAGS=-N -e start -Ttext ${LOADER_ADDRESS}
-
-btxldr: btxldr.out
-	objcopy -S -O binary btxldr.out ${.TARGET}
+LDFLAGS=-N -e start -Ttext ${LOADER_ADDRESS} -Wl,-S,--oformat,binary
 
 .include <bsd.prog.mk>
