@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: exec.c,v 1.7 1994/11/08 18:44:13 jkh Exp $
+ * $Id: exec.c,v 1.8 1994/11/18 11:30:02 phk Exp $
  *
  */
 
@@ -38,8 +38,7 @@ exec(int magic, char *cmd, char *args, ...)
 	struct stat dummy;
 
 	if (stat(cmd, &dummy) == -1) {
-		sprintf(errmsg, "Executable %s does not exist\n", cmd);
-		return(-1);
+		Fatal("Executable %s does not exist", cmd);
 	}
 
 	va_start(ap, args);

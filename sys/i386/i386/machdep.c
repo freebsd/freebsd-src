@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.92 1994/11/15 14:12:55 bde Exp $
+ *	$Id: machdep.c,v 1.87 1994/11/06 04:46:53 davidg Exp $
  */
 
 #include "npx.h"
@@ -342,7 +342,6 @@ again:
 	callfree = callout;
 	for (i = 1; i < ncallout; i++)
 		callout[i-1].c_next = &callout[i];
-
         if (boothowto & RB_CONFIG)
 		userconfig();
 	printf("avail memory = %d (%d pages)\n", ptoa(cnt.v_free_count), cnt.v_free_count);
@@ -930,11 +929,11 @@ cpu_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
  * Initialize segments & interrupt table
  */
 
-int currentldt;
-int _default_ldt;
-union descriptor gdt[NGDT];		/* global descriptor table */
-struct gate_descriptor idt[NIDT];	/* interrupt descriptor table */
+union descriptor gdt[NGDT];
 union descriptor ldt[NLDT];		/* local descriptor table */
+struct gate_descriptor idt[NIDT];	/* interrupt descriptor table */
+
+int _default_ldt, currentldt;
 
 struct	i386tss	tss, panic_tss;
 
@@ -1088,13 +1087,12 @@ struct soft_segment_descriptor ldt_segs[] = {
 	1,			/* segment descriptor present */
 	0, 0,
 	1,			/* default 32 vs 16 bit size */
-	1  			/* limit granularity (byte/page units)*/ },
-};
+	1  			/* limit granularity (byte/page units)*/ } };
 
 void
 setidt(idx, func, typ, dpl)
 	int idx;
-	inthand_t *func;
+	void (*func)();
 	int typ;
 	int dpl;
 {
@@ -1111,8 +1109,9 @@ setidt(idx, func, typ, dpl)
 }
 
 #define	IDTVEC(name)	__CONCAT(X,name)
+typedef void idtvec_t();
 
-extern inthand_t
+extern idtvec_t
 	IDTVEC(div), IDTVEC(dbg), IDTVEC(nmi), IDTVEC(bpt), IDTVEC(ofl),
 	IDTVEC(bnd), IDTVEC(ill), IDTVEC(dna), IDTVEC(dble), IDTVEC(fpusegm),
 	IDTVEC(tss), IDTVEC(missing), IDTVEC(stk), IDTVEC(prot),
@@ -1122,7 +1121,10 @@ extern inthand_t
 	IDTVEC(rsvd9), IDTVEC(rsvd10), IDTVEC(rsvd11), IDTVEC(rsvd12),
 	IDTVEC(rsvd13), IDTVEC(rsvd14), IDTVEC(syscall);
 
-void
+int _gsel_tss;
+
+/* added sdtossd() by HOSOKAWA Tatsumi <hosokawa@mt.cs.keio.ac.jp> */
+int
 sdtossd(sd, ssd)
 	struct segment_descriptor *sd;
 	struct soft_segment_descriptor *ssd;
@@ -1134,17 +1136,17 @@ sdtossd(sd, ssd)
 	ssd->ssd_p     = sd->sd_p;
 	ssd->ssd_def32 = sd->sd_def32;
 	ssd->ssd_gran  = sd->sd_gran;
+	return 0;
 }
 
 void
 init386(first)
 	int first;
 {
-	extern char etext[]; 
+	extern lgdt(), lidt(), lldt();
 	int x;
 	unsigned biosbasemem, biosextmem;
 	struct gate_descriptor *gdp;
-	int gsel_tss;
 	extern int sigcode,szsigcode;
 	/* table descriptors - used to load tables by microp */
 	struct region_descriptor r_gdt, r_idt;
@@ -1166,14 +1168,9 @@ init386(first)
 	 * page with etext in it, the data segment goes to the end of
 	 * the address space
 	 */
-	/*
-	 * XXX text protection is temporarily (?) disabled.  The limit was
-	 * i386_btop(i386_round_page(etext)) - 1.
-	 */
-	gdt_segs[GCODE_SEL].ssd_limit = i386_btop(0) - 1;
+	gdt_segs[GCODE_SEL].ssd_limit = i386_btop(0) - 1 /* i386_btop(i386_round_page(&etext)) - 1 */;
 	gdt_segs[GDATA_SEL].ssd_limit = i386_btop(0) - 1;
-	for (x = 0; x < NGDT; x++)
-		ssdtosd(&gdt_segs[x], &gdt[x].sd);
+	for (x=0; x < NGDT; x++) ssdtosd(gdt_segs+x, gdt+x);
 
 	/* make ldt memory segments */
 	/*
@@ -1197,8 +1194,7 @@ init386(first)
 	ldt_segs[LUCODE_SEL].ssd_limit = i386_btop(VM_END_USER_R_ADDRESS) - 1;
 	ldt_segs[LUDATA_SEL].ssd_limit = i386_btop(VM_END_USER_RW_ADDRESS) - 1;
 	/* Note. eventually want private ldts per process */
-	for (x = 0; x < NLDT; x++)
-		ssdtosd(&ldt_segs[x], &ldt[x].sd);
+	for (x=0; x < 5; x++) ssdtosd(ldt_segs+x, ldt+x);
 
 	/* exceptions */
 	setidt(0, &IDTVEC(div),  SDT_SYS386TGT, SEL_KPL);
@@ -1307,7 +1303,8 @@ init386(first)
 	Maxmem = pagesinext + 0x100000/PAGE_SIZE;
 
 #ifdef MAXMEM
-	Maxmem = MAXMEM/4;
+	if (MAXMEM/4 < Maxmem)
+		Maxmem = MAXMEM/4;
 #endif
 	/*
 	 * Calculate number of physical pages, but account for Maxmem
@@ -1325,7 +1322,7 @@ init386(first)
 	 */
 	printf("Testing memory (%dMB)...", ptoa(Maxmem)/1024/1024);
 
-	for (target_page = Maxmem - 2; target_page >= atop(first); target_page--) {
+	for (target_page = Maxmem - 1; target_page >= atop(first); target_page--) {
 
 		/*
 		 * map page into kernel: valid, read/write, non-cacheable
@@ -1401,12 +1398,12 @@ init386(first)
 	/* make a initial tss so microp can get interrupt stack on syscall! */
 	proc0.p_addr->u_pcb.pcb_tss.tss_esp0 = (int) kstack + UPAGES*NBPG;
 	proc0.p_addr->u_pcb.pcb_tss.tss_ss0 = GSEL(GDATA_SEL, SEL_KPL) ;
-	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
+	_gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
 
 	((struct i386tss *)gdt_segs[GPROC0_SEL].ssd_base)->tss_ioopt = 
 		(sizeof(tss))<<16;
 
-	ltr(gsel_tss);
+	ltr(_gsel_tss);
 
 	/* make a call gate to reenter kernel with */
 	gdp = &ldt[LSYS5CALLS_SEL].gd;
@@ -1557,6 +1554,7 @@ Debugger(const char *msg)
 }
 #endif /* no DDB */
 
+#include <sys/dkbad.h>
 #include <sys/disklabel.h>
 #define b_cylin	b_resid
 /*

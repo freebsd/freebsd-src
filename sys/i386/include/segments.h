@@ -35,11 +35,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)segments.h	7.1 (Berkeley) 5/9/91
- *	$Id: segments.h,v 1.6 1994/11/14 14:18:15 bde Exp $
+ *	$Id: segments.h,v 1.4 1994/01/31 10:27:13 davidg Exp $
  */
 
 #ifndef _MACHINE_SEGMENTS_H_
-#define	_MACHINE_SEGMENTS_H_
+#define _MACHINE_SEGMENTS_H_ 1
 
 /*
  * 386 Segmentation Data Structures and definitions
@@ -172,6 +172,9 @@ struct	soft_segment_descriptor	{
 	unsigned ssd_gran:1 ;		/* limit granularity (byte/page units)*/
 };
 
+extern ssdtosd() ;	/* to decode a ssd */
+extern sdtossd() ;	/* to encode a sd */
+
 /*
  * region descriptors, used to load gdt/idt tables before segments yet exist.
  */
@@ -194,7 +197,7 @@ struct region_descriptor {
  * Size of IDT table
  */
 
-#define	NIDT	48		/* 32 reserved, 16 h/w, 0 s/w */
+#define	NIDT	256
 #define	NRSVIDT	32		/* reserved entries for cpu exceptions */
 
 /*
@@ -212,11 +215,7 @@ struct region_descriptor {
 #define GAPMCODE16_SEL	9	/* APM BIOS 32-bit interface (16bit Code) */
 #define GAPMDATA_SEL	10	/* APM BIOS 32-bit interface (Data) */
 
-#ifdef BDE_DEBUGGER
-#define	NGDT		18	/* some of 11-17 are reserved for debugger */
-#else
-#define NGDT 		(GAPMDATA_SEL + 1)
-#endif
+#define NGDT 	(GAPMDATA_SEL+1)
 
 /*
  * Entries in the Local Descriptor Table (LDT)
@@ -228,23 +227,13 @@ struct region_descriptor {
 #define	LUDATA_SEL	4
 /* seperate stack, es,fs,gs sels ? */
 /* #define	LPOSIXCALLS_SEL	5*/	/* notyet */
-#define NLDT		(LUDATA_SEL + 1)
+#define NLDT		LUDATA_SEL+1
 
 #ifdef KERNEL
-extern int	currentldt;
-extern int	_default_ldt;
+extern int currentldt;
 extern union descriptor gdt[NGDT];
-extern struct soft_segment_descriptor gdt_segs[];
-extern struct gate_descriptor idt[NIDT];
 extern union descriptor ldt[NLDT];
+extern struct soft_segment_descriptor gdt_segs[];
+#endif
 
-void	lgdt		__P((struct region_descriptor *rdp));
-void	lidt		__P((struct region_descriptor *rdp));
-void	lldt		__P((u_short sel));
-void	sdtossd		__P((struct segment_descriptor *sdp,
-			     struct soft_segment_descriptor *ssdp));
-void	ssdtosd		__P((struct soft_segment_descriptor *ssdp,
-			     struct segment_descriptor *sdp));
-#endif /* KERNEL */
-
-#endif /* !_MACHINE_SEGMENTS_H_ */
+#endif /* _MACHINE_SEGMENTS_H_ */

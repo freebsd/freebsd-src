@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: main.c,v 1.16 1994/11/17 19:44:49 ache Exp $
+ * $Id: main.c,v 1.17 1994/11/17 23:36:46 ache Exp $
  *
  */
 
@@ -35,8 +35,6 @@ jmp_buf	jmp_restart;
  * XXX: label: Import dos-slice.
  * XXX: mbr: edit geometry
  */
-
-extern int alloc_memory();
 
 void
 handle_intr(int sig)
@@ -78,9 +76,6 @@ main(int argc, char **argv)
 	dialog_active = 1;
 
 	signal(SIGINT, handle_intr);
-
-	if (alloc_memory() < 0)
-		Fatal("No memory\n");
 
 	if (getpid() != 1) {
 		stage0();

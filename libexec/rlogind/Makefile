@@ -11,7 +11,6 @@ LDADD=	-lutil
 CFLAGS+=-DKERBEROS -DCRYPT
 DPADD=	${LIBKRB} ${LIBDES}
 LDADD+=	-lkrb -ldes
-DISTRIBUTION=	krb
 .endif
 
 .include <bsd.prog.mk>

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: pmap.h,v 1.4 1994/09/02 04:12:26 davidg Exp $
+ * $Id: pmap.h,v 1.3 1994/08/06 10:25:49 davidg Exp $
  */
 
 /*
@@ -89,9 +89,7 @@ typedef struct pmap_statistics	*pmap_statistics_t;
 #ifdef KERNEL
 __BEGIN_DECLS
 void *		pmap_bootstrap_alloc	__P((int));
-#if 0 /* XXX */
 void		pmap_bootstrap		__P((/* machine dependent */));
-#endif
 void		pmap_change_wiring	__P((pmap_t, vm_offset_t, boolean_t));
 void		pmap_clear_modify	__P((vm_offset_t pa));
 void		pmap_clear_reference	__P((vm_offset_t pa));

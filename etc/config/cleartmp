@@ -1,4 +1,0 @@
-# $Id$
-# This option determines whether the /tmp directory should be
-# automatically cleared on startup.  Default is on.
-on

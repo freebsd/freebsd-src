@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)newvers.sh	8.1 (Berkeley) 4/20/94
-# $Id: newvers.sh,v 1.6 1994/10/18 01:50:21 phk Exp $
+# $Id: newvers.sh,v 1.6.2.1 1994/11/08 21:24:57 phk Exp $
 
 if [ ! -r version ]
 then
@@ -42,9 +42,9 @@ fi
 touch version
 v=`cat version` u=${USER-root} d=`pwd` h=`hostname` t=`date`
 echo "char ostype[] = \"FreeBSD\";" > vers.c
-echo "char osrelease[] = \"2.1.0-Development\";" >> vers.c
-echo "int osreldate = 199412;" >> vers.c
+echo "char osrelease[] = \"2.0-BETA\";" >> vers.c
+echo "int osreldate = 199411;" >> vers.c
 echo "char sccs[4] = { '@', '(', '#', ')' };" >>vers.c
-echo "char version[] = \"FreeBSD 2.1.0-Development #${v}: ${t}\\n    ${u}@${h}:${d}\\n\";" >>vers.c
+echo "char version[] = \"FreeBSD 2.0-BETA #${v}: ${t}\\n    ${u}@${h}:${d}\\n\";" >>vers.c
 
 echo `expr ${v} + 1` > version

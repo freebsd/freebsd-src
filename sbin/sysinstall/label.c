@@ -1,401 +1,383 @@
-#define DKTYPENAMES
-#include <sys/param.h>
-#include <sys/types.h>
-#include <sys/disklabel.h>
-#include <sys/devconf.h>
-#include <ufs/ffs/fs.h>
+/*
+ * $Id: label.c,v 1.23.2.1 1994/11/21 03:12:01 phk Exp $
+ */
 
-#include <fstab.h>
 #include <stdlib.h>
 #include <limits.h>
-#include <fcntl.h>
+#define DKTYPENAMES
+#include <sys/param.h>
+#include <ufs/ffs/fs.h>
+#include <sys/types.h>
 #include <string.h>
+#include <sys/disklabel.h>
+#include <ufs/ffs/fs.h>
+
 #include <string.h>
 #include <dialog.h>
-
-#include "disk.h"
 #include "sysinstall.h"
-#include "editor.h"
-#include "label.h"
 
-/* Forward decls */
-int disk_size(struct disklabel *);
-int getfstype(char *);
-int sectstoMb(int, int);
-
-char *partname[MAXPARTITIONS] = {"a", "b", "c", "d", "e", "f", "g", "h"};
-extern char boot1[];
-extern char boot2[];
-
-char *yesno[] = {"yes", "no", 0};
-
-int
-disk_size(struct disklabel *lbl)
+static int
+AskWhichPartition(char *prompt)
 {
-	int size;
-
-	size = lbl->d_secsize * lbl->d_nsectors *
-	lbl->d_ntracks * lbl->d_ncylinders;
-	return (size / 1024 / 1024);
-}
-
-int
-sectstoMb(int nsects, int secsize)
-{
-	int size;
-
-	size = nsects * secsize;
-	if (size)
-	size /= 1024 * 1024;
-	return (size);
-}
-
-int
-Mbtosects(int Mb, int secsize)
-{
-	int nsects;
-    
-	nsects = (Mb * 1024 * 1024) / secsize;
-	return(nsects);
-}
-
-int
-rndtocylbdry(int size, int secpercyl)
-{
-	int nocyls;
-
-	nocyls = size / secpercyl;
-	if ((nocyls * secpercyl) < size)
-		nocyls++;
-	return (nocyls * secpercyl);
-}
-
-char *
-diskname(int disk)
-{
-	sprintf(scratch, "/dev/r%s%dd", disk_list[disk].devconf->dc_name,
-											  disk_list[disk].devconf->dc_unit);
-	return (scratch);
-}
-
-int
-get_fs_type(char *fstype)
-{
-	int i;
-
-	for (i=0; fstypenames[i]; i++)
-		if (strcmp(fstype, fstypenames[i]))
-			return (i);
-
-	return (FS_OTHER);
-}
-
-int
-read_disklabel(int disk)
-{
-	int fd;
-
-	if ((fd = open(diskname(disk), O_RDONLY)) == -1) {
-		sprintf(errmsg, "Couldn't open %s to read disklabel\n%s\n",
-				  scratch,strerror(errno));
-		return (-1);
-	}
-
-	if (ioctl(fd, DIOCGDINFO, &disk_list[disk].lbl) == -1) {
-		sprintf(errmsg, "Couldn't get disklabel from %s\n%s\n",
-				  scratch, strerror(errno));
-		return (-1);
-	}
-
-	if (close(fd) == -1) {
-		sprintf(errmsg, "Couldn't close %s after reading disklabel\n%s\n",
-				  scratch, strerror(errno));
-		return (-1);
-	}
-	return (0);
-}
-
-int
-edit_disklabel(int disk)
-{
-	WINDOW *window;
-	int key = 0;
-	int done;
-	int next;
-	int cur_field;
-	int cur_part;
-	int i;
-	struct disklabel *lbl = &disk_list[disk].lbl;
-	int offset, slop;
-	int nsects, hog;
-	int avail_sects, free;
-
-	lbl->d_magic = DISKMAGIC;
-	bcopy("INSTALLATION", lbl->d_typename, strlen("INSTALLATION"));
-	lbl->d_rpm = 3600;
-	lbl->d_interleave = 1;
-	lbl->d_trackskew = 0;
-	lbl->d_cylskew = 0;
-	lbl->d_magic2 = DISKMAGIC;
-	lbl->d_checksum = 0;
-	lbl->d_bbsize = BBSIZE;
-	lbl->d_sbsize = SBSIZE;
-	lbl->d_npartitions = 8;
-
-	/* Initialise the entries */
-
-	for (i=0; i < MAXPARTITIONS; i++) {
-
-		disk_list[disk].mounts[i].fs_spec = 
-			(char *)malloc(80);
-		if (!disk_list[disk].mounts[i].fs_spec) {
-			sprintf(errmsg, "Couldn't allocate memory for device mounts\n");
-			return (-1);
-		}
-		sprintf(disk_list[disk].mounts[i].fs_spec,
-			     "%s%d%s", disk_list[disk].devconf->dc_name,
-								disk_list[disk].devconf->dc_unit,
-								partname[i]);
-
-		disk_list[disk].mounts[i].fs_file =
-			(char *)malloc(80);
-		if (!disk_list[disk].mounts[i].fs_file) {
-			sprintf(errmsg, "Couldn't allocate memory for mount points\n");
-			return (-1);
-		}
-		sprintf(disk_list[disk].mounts[i].fs_file, "%s", "Not Mounted");
-
-		disk_list[disk].mounts[i].fs_vfstype =
-			(char *)malloc(80);
-		if (!disk_list[disk].mounts[i].fs_vfstype) {
-			sprintf(errmsg, "Couldn't allocate memory for filesystem type\n");
-			return (-1);
-		}
-		switch (lbl->d_partitions[i].p_fstype) {
-			case FS_BSDFFS:
-				sprintf(disk_list[disk].mounts[i].fs_vfstype, "%s", "ufs");
-				break;
-			case FS_MSDOS:
-				sprintf(disk_list[disk].mounts[i].fs_vfstype, "%s", "msdos");
-				break;
-			case FS_SWAP:
-				sprintf(disk_list[disk].mounts[i].fs_vfstype, "%s", "swap");
-				break;
-			default:
-				sprintf(disk_list[disk].mounts[i].fs_vfstype, "%s", "unused");
-		}
-
-		disk_list[disk].mounts[i].fs_mntops =
-			(char *)malloc(80);
-		if (!disk_list[disk].mounts[i].fs_mntops) {
-			sprintf(errmsg, "Couldn't allocate memory for mount options\n");
-			return (-1);
-		}
-		sprintf(disk_list[disk].mounts[i].fs_mntops, "%s", "YES");
-
-		sprintf(label_field[(i*5)+3].field, "%d",
-			     sectstoMb(lbl->d_partitions[i].p_size, lbl->d_secsize));
-	}
-
-	/*
-	 * Setup the RAWPART and OURPART partition ourselves from the MBR
-	 * in case either one doesn't exist or the new MBR invalidates them.
-	 */
-
-	cur_part = disk_list[disk].inst_part;
-	lbl->d_partitions[OURPART].p_size = 
-				disk_list[disk].mbr.dospart[cur_part].dp_size;
-	lbl->d_partitions[OURPART].p_offset =
-				disk_list[disk].mbr.dospart[cur_part].dp_start;
-	lbl->d_partitions[RAWPART].p_size = lbl->d_secperunit;
-	lbl->d_partitions[RAWPART].p_offset = 0;
-
-	if (!(window = newwin(LINES, COLS, 0, 0))) {
-		sprintf(errmsg, "Failed to open window for disklabel editor\n");
-		return (-1);
-	}
-
-	keypad(window, TRUE);
-    
-	draw_box(window, 0, 0, 24, 79, dialog_attr, border_attr);
-
-	/* Only one toggle to set up */
-	for (i=0; i < MAXPARTITIONS; i++)
-		label_field[(i*5)+1].misc = yesno;
-
-	cur_field = 1;
-	done = 0;
-	while (!done && (key != ESC)) {
-
-		/* Update disklabel */
-
-		avail_sects = lbl->d_partitions[OURPART].p_size;
-		offset = lbl->d_partitions[OURPART].p_offset;
-		slop = rndtocylbdry(offset, lbl->d_secpercyl) - offset;
-		for (i=0; i < MAXPARTITIONS; i++) {
-			if (i == OURPART)
-				continue;
-			if (i == RAWPART)
-				continue;
-			lbl->d_partitions[i].p_offset = offset;
-			nsects = atoi(label_field[(i*5)+3].field);
-			nsects = Mbtosects(nsects, lbl->d_secsize);
-			nsects = rndtocylbdry(nsects, lbl->d_secpercyl);
-			if (slop) {
-				nsects += slop;
-				slop = 0;
-			}
-			if (nsects > avail_sects)
-				nsects = avail_sects;
-			avail_sects -= nsects;
-			offset += nsects;
-			if (nsects == 0)
-				lbl->d_partitions[i].p_offset = 0;
-			lbl->d_partitions[i].p_size = nsects;
-			lbl->d_partitions[i].p_fsize = DEFFSIZE;
-			lbl->d_partitions[i].p_frag = DEFFRAG;
-		}
-
-		for (i=0; i < MAXPARTITIONS; i++) {
-			sprintf(label_field[(i*5)].field, "%s",
-					  disk_list[disk].mounts[i].fs_spec);
-			sprintf(label_field[(i*5)+1].field, "%s",
-					  disk_list[disk].mounts[i].fs_mntops);
-			sprintf(label_field[(i*5)+2].field, "%s",
-					  disk_list[disk].mounts[i].fs_vfstype);
-			sprintf(label_field[(i*5)+3].field, "%d",
-			        sectstoMb(lbl->d_partitions[i].p_size,lbl->d_secsize));
-			sprintf(label_field[(i*5)+4].field, "%s",
-					  disk_list[disk].mounts[i].fs_file);
-		}
-
-		sprintf(label_field[47].field, "%d",
-					sectstoMb(avail_sects, lbl->d_secsize));
-
-		disp_fields(window, label_field,
-						sizeof(label_field)/sizeof(struct field));
-
-		switch (label_field[cur_field].type) {
-			case F_EDIT:
-				key = line_edit(window, label_field[cur_field].y,
-										label_field[cur_field].x,
-										label_field[cur_field].width,
-										label_field[cur_field].maxlen,
-										item_selected_attr, 1,
-										label_field[cur_field].field);
-
-				/* Update mount info */
-
-				for (i=0; i<MAXPARTITIONS; i++) {
-					sprintf(disk_list[disk].mounts[i].fs_spec, "%s",
-							 label_field[(i*5)].field);
-					sprintf(disk_list[disk].mounts[i].fs_file, "%s",
-							 label_field[(i*5)+4].field);
-					sprintf(disk_list[disk].mounts[i].fs_vfstype, "%s", 
-							  label_field[(i*5)+2].field);
-					sprintf(disk_list[disk].mounts[i].fs_mntops, "%s",
-							 label_field[(i*5)+1].field);
-				}
-				break;
-			case F_BUTTON:
-				key = button_press(window, label_field[cur_field]);
-				if (!key && !strcmp(label_field[cur_field].field, "OK")) {
-					done = 1;
-					continue;
-				}
-				if (!key && !strcmp(label_field[cur_field].field, "Cancel")) {
-					sprintf(errmsg, "\nUser aborted.\n");
-					dialog_clear_norefresh();
-					return (-1);
-				}
-				break;
-			case F_TOGGLE:
-				key = toggle_press(window, label_field[cur_field]);
-				break;
-			case F_TITLE:
-			default:
-				break;
-		}
-		next = change_field(label_field[cur_field], key);
-		if (next == -1) {
-			beep();
-		} else
-			cur_field = next;
-	}
-
-	if (write_bootblocks(disk) == -1)
-		return(-1);
-
-	delwin(window);
-	dialog_clear();
-	return(0);
+    char buf[10];
+    int i;
+    *buf = 0;
+    i = AskEm(stdscr, prompt, buf, 2);
+    if (i != '\n' && i != '\r') return -1;
+    if (!strchr("abefghABEFGH",*buf)) return -1;
+    return tolower(*buf) - 'a';
 }
 
 void
-display_disklabel(int disk)
+DiskLabel()
 {
-    int i, key=0;
-    WINDOW *window;
-	 struct disklabel *lbl = &disk_list[disk].lbl;
+    int i, j, done = 0, diskno, k;
+    char buf[128],*p;
+    struct disklabel *lbl, olbl;
+    struct dos_partition dp[NDOSPART];
     
-    if (use_shadow)
-	draw_shadow(stdscr, 1, 1, LINES-2, COLS-2);
-    window = newwin(LINES-2, COLS-2, 1, 1);
-    keypad(window, TRUE);
+    u_long cyl, hd, sec, tsec;
+    u_long l1, l2, l3, l4;
+    char *yip = NULL;
+    u_long allocated_space, ourpart_size, ourpart_offset;
     
-    draw_box(window, 1, 1, LINES - 2, COLS - 2, dialog_attr, border_attr);
-    wattrset(window, dialog_attr);
-    
-    mvwprintw(window, 2, 2, "Dumping label for disk %d, %s\n", disk, lbl->d_typename);
-    mvwprintw(window, 3, 2, "magic = %lu",lbl->d_magic);
-    mvwprintw(window, 3, 22, "type = %x",lbl->d_type);
-    mvwprintw(window, 3, 32, "subtype = %x\n",lbl->d_subtype);
-    mvwprintw(window, 4, 2, "Typename = %s",lbl->d_typename);
-    mvwprintw(window, 4, 38, "Packname = %s",lbl->d_packname);
-    mvwprintw(window, 5, 74, "boot0 = %s",lbl->d_boot0);
-    mvwprintw(window, 5, 50, "boot1 = %s\n",lbl->d_boot1);
-    mvwprintw(window, 5, 2, "secsize = %ld",lbl->d_secsize);
-    mvwprintw(window, 5, 20, "nsectors = %ld",lbl->d_nsectors);
-    mvwprintw(window, 5, 30, "ntracks = %ld",lbl->d_ntracks);
-    mvwprintw(window, 5, 50, "ncylinders = %ld\n",lbl->d_ncylinders);
-    mvwprintw(window, 6, 2, "secpercyl = %ld",lbl->d_secpercyl);
-    mvwprintw(window, 6, 40, "secperunit = %ld\n",lbl->d_secperunit);
-    mvwprintw(window, 7, 2, "sparespertrack = %d",lbl->d_sparespertrack);
-    mvwprintw(window, 7, 20, "sparespercyl = %d",lbl->d_sparespercyl);
-    mvwprintw(window, 7, 40, "acylinders = %ld\n",lbl->d_acylinders);
-    mvwprintw(window, 8, 2, "rpm = %d",lbl->d_rpm);
-    mvwprintw(window, 8, 20, "interleave = %d",lbl->d_interleave);
-    mvwprintw(window, 8, 40, "trackskew = %d",lbl->d_trackskew);
-    mvwprintw(window, 8, 60, "cylskew = %d\n",lbl->d_cylskew);
-    mvwprintw(window, 9, 2, "headswitch = %ld",lbl->d_headswitch);
-    mvwprintw(window, 9, 30, "trkseek = %ld",lbl->d_trkseek);
-    mvwprintw(window, 9, 55, "flags = %ld\n",lbl->d_flags);
-    mvwprintw(window, 10, 2, "Drivedata");
-    for (i=0; i< NDDATA; i++) {
-	mvwprintw(window, 10, 11 + (i*10), " : %d = %ld",i,lbl->d_drivedata[i]);
+    *buf = 0;
+    i = AskEm(stdscr, "Enter number of disk to Disklabel> ", buf, 3);
+    Debug("%d", i);
+    if (i != '\n' && i != '\r') return;
+    diskno = atoi(buf);
+    if (!(diskno >= 0 && diskno < MAX_NO_DISKS && Dname[diskno])) {
+	return;
     }
-    mvwprintw(window, 11, 2, "Spare");
-    for (i=0; i< NSPARE; i++) {
-	mvwprintw(window, 11, 7 + (i*10), " : %d = %ld",i,lbl->d_spare[i]);
+    olbl = *Dlbl[diskno];
+    lbl = &olbl;
+    cyl = lbl->d_ncylinders;
+    hd = lbl->d_ntracks;
+    sec = lbl->d_nsectors;
+    tsec = lbl->d_secperunit;
+    for (i = lbl->d_npartitions; i < MAXPARTITIONS; i++) {
+       lbl->d_partitions[i].p_offset = 0;
+       lbl->d_partitions[i].p_size = 0;
+       lbl->d_partitions[i].p_fstype = 0;
     }
-    mvwprintw(window, 12, 2, "magic2 = %lu",lbl->d_magic2);
-    mvwprintw(window, 12, 40, "checksum = %d\n",lbl->d_checksum);
-    mvwprintw(window, 13, 2,  "npartitions = %d",lbl->d_npartitions);
-    mvwprintw(window, 13, 25, "bbsize = %lu",lbl->d_bbsize);
-    mvwprintw(window, 13, 50, "sbsize = %lu\n",lbl->d_sbsize);
-    for (i=0; i< MAXPARTITIONS; i++) {
-	mvwprintw(window, 14+i, 2, "%d: size: %ld",i,lbl->d_partitions[i].p_size);
-	mvwprintw(window, 14+i, 20, "offset: %ld",lbl->d_partitions[i].p_offset);
-	mvwprintw(window, 14+i, 36, "fsize: %ld",lbl->d_partitions[i].p_fsize);
-	mvwprintw(window, 14+i, 49, "fstype: %d",lbl->d_partitions[i].p_fstype);
-	mvwprintw(window, 14+i, 60, "frag: %d",lbl->d_partitions[i].p_frag);
-	mvwprintw(window, 14+i, 70, "cpg: %d",lbl->d_partitions[i].p_cpg);
+    lbl->d_npartitions = MAXPARTITIONS;
+
+    if(Dname[diskno][0] == 's' && Dname[diskno][1] == 'd')
+        lbl->d_type = DTYPE_SCSI;
+    else
+        lbl->d_type = DTYPE_ST506;
+ 
+    while(!done) {
+	clear(); standend();
+	if (yip) {
+		standout();
+		mvprintw(24, 0, yip);
+		standend();
+		beep();
+		yip = NULL;
+	}
+	j = 0;
+	mvprintw(j++, 0, "%s -- Diskspace editor -- DISKLABEL",  TITLE);
+	j++;
+
+	allocated_space = 0;
+	ourpart_size = lbl->d_partitions[OURPART].p_size;
+	ourpart_offset = lbl->d_partitions[OURPART].p_offset;
+
+        mvprintw(j++, 0, "Part  Start       End    Blocks     MB  Type    Action  Mountpoint");
+	for (i = 0; i < MAXPARTITIONS; i++) {
+	    refresh();
+	    mvprintw(j++, 0, "%c ", 'a'+i);
+	    printw(" %8u  %8u  %8u  %5u  ",
+		   lbl->d_partitions[i].p_offset,
+		   lbl->d_partitions[i].p_offset+
+		   (lbl->d_partitions[i].p_size ? 
+		    lbl->d_partitions[i].p_size-1 : 0),
+		   lbl->d_partitions[i].p_size,
+		   (lbl->d_partitions[i].p_size + 1024)/2048);
+	    
+	    k = lbl->d_partitions[i].p_fstype;
+	    if (k > FSMAXTYPES)
+		printw("%04x   ", k);
+	    else
+		printw("%-7.7s ", fstypenames[k]);
+
+	    if(!MP[diskno][i])
+		printw("        ");
+	    else if(!strcmp(Ftype[MP[diskno][i]],"swap"))
+		printw("swap    ");
+	    else if(Faction[MP[diskno][i]]) 
+		printw("newfs   ");
+	    else
+		printw("mount   ");
+	    if (i == OURPART)
+		printw("<Entire FreeBSD slice>");
+	    else if (i == RAWPART)
+		printw("<Entire Disk>");
+	    else {
+		if (Fmount[MP[diskno][i]])
+		    printw(Fmount[MP[diskno][i]]);
+		if ((lbl->d_partitions[i].p_offset >= ourpart_offset) &&
+		    ((lbl->d_partitions[i].p_offset +
+		     lbl->d_partitions[i].p_size) <= 
+		     (ourpart_offset + ourpart_size)))
+		    allocated_space += lbl->d_partitions[i].p_size;
+	    }
+	}
+	mvprintw(17, 0, "Total size:      %8lu blocks  %5luMb",
+	    ourpart_size, (ourpart_size + 1024)/2048);
+	mvprintw(18, 0, "Space allocated: %8lu blocks  %5luMb",
+	    allocated_space, (allocated_space + 1024)/2048);
+	mvprintw(20, 0, "Commands available:   ");
+	if (memcmp(lbl, Dlbl[diskno], sizeof *lbl)) {
+	    standout();
+ 	    printw("Use (W)rite to save changes to disk");
+	    standend();
+	}
+	mvprintw(21, 0, "(H)elp  (T)utorial  (E)dit  (A)ssign  (D)elete  (R)eread  (W)rite  (Q)uit");
+	mvprintw(22, 0, "(P)reserve  (S)lice");
+	mvprintw(23, 0, "Enter Command> ");
+	i=getch();
+	switch(i) {
+        case 'h': case 'H': case '?':
+	    clear();
+	    mvprintw(0, 0, 
+"%s -- Diskspace editor -- DISKLABEL -- Command Help
+
+Basic commands:
+
+(H)elp          - This screen
+(T)utorial      - More detailed information on MBRs, disklabels, etc.
+(E)dit          - Edit an existing disklabel entry
+(A)ssign	- Assign a filesystem (or swap) to a partition
+(D)elete        - Delete an existing disklabel entry
+(R)eread        - Re-read disklabel from disk, discarding any changes
+(W)rite         - Write updated disklabel information to disk
+(P)reserve      - Don't newfs the filesystem (preserve old contents)
+(S)lice         - Import foreign slice from MBR (for example, DOS)
+(Q)uit          - Exit from the disklabel editor
+            
+Press any key to return to Disklabel editor...
+", TITLE);
+	    getch();
+	    break;
+	case 't': case 'T':
+            ShowFile(HELPME_FILE,"Help file for disklayout");
+	    break;
+	case 'd': case 'D':
+	    j = AskWhichPartition("Delete which partition> ");
+	    if (j < 0) {
+		yip = "Invalid partition";
+		break;
+	    }
+	    CleanMount(diskno, j);
+	    lbl->d_partitions[j].p_fstype = FS_UNUSED;
+	    lbl->d_partitions[j].p_size = 0;
+	    lbl->d_partitions[j].p_offset = 0;
+	    break;
+
+	case 'p': case 'P':
+	    j = AskWhichPartition("Preserve which partition> ");
+	    if (j < 0) {
+		yip = "Invalid partition";
+		break;
+	    }
+	    if (!MP[diskno][j]) {
+		yip = "Unmounted partitions are preserved by default";
+		break;
+	    }
+	    if (lbl->d_partitions[j].p_fstype == FS_SWAP) {
+		yip = "swap partitions cannot be preserved.";
+		break;
+	    }
+	    if (lbl->d_partitions[j].p_fstype != FS_BSDFFS) {
+		yip = "All non-ufs partitions are preserved by default.";
+		break;
+	    }
+	    if (!fixit && !strcmp(Fmount[MP[diskno][j]],"/")) {
+		yip = "/ cannot be preserved.";
+		break;
+	    }
+	    if (!fixit && !strcmp(Fmount[MP[diskno][j]],"/usr")) {
+		yip = "/usr cannot be preserved.";
+		break;
+	    }
+	    if (!fixit && !strcmp(Fmount[MP[diskno][j]],"/var")) {
+		yip = "/var cannot be preserved.";
+		break;
+	    }
+	    Faction[MP[diskno][j]] = 1 - Faction[MP[diskno][j]];
+	    break;
+
+	case 's': case 'S':
+	    read_dospart(Dfd[diskno],&dp[0]);
+	    *buf = 0;
+	    j = AskEm(stdscr,"Import which fdisk slice> ",buf,4);
+	    if(j != '\n' && j != '\r') 
+		break;
+	    i = strtoul(buf,0,0);
+	    if (i < 1 || i > 4) {
+		yip = "Invalid slice, must be '1' to '4'";
+	        break;
+	    }
+	    if (!dp[i-1].dp_size) {
+	        yip = "empty slice cannot be imported";
+		break;
+	    }
+	    j = AskWhichPartition("Import on which partition> ");
+	    if (j < 0) {
+		yip = "Invalid partition";
+		break;
+	    }
+	    CleanMount(diskno, j);
+	    lbl->d_partitions[j].p_offset = dp[i-1].dp_start;
+	    lbl->d_partitions[j].p_size = dp[i-1].dp_size;
+	    switch (dp[i-1].dp_typ) {
+		case 0x01:
+		case 0x04:
+		case 0x06:
+		    lbl->d_partitions[j].p_fstype=FS_MSDOS;
+		    break;
+		default:
+		    lbl->d_partitions[j].p_fstype=FS_OTHER;
+		    break;
+	    }
+	    break;
+	
+	case 'e': case 'E':
+	    j = AskWhichPartition("Change size of which partition> ");
+	    if (j < 0) {
+		yip = "Invalid partition";
+		break;
+	    }
+	    if (lbl->d_partitions[j].p_fstype != FS_BSDFFS &&
+	       lbl->d_partitions[j].p_fstype != FS_UNUSED &&
+	       lbl->d_partitions[j].p_fstype != FS_SWAP) {
+		yip = "Invalid partition type";
+		break;
+	    }
+	    if (lbl->d_partitions[OURPART].p_size == 0) {
+		yip = "No FreeBSD partition defined?";
+		break;
+	    }
+	    l1=lbl->d_partitions[OURPART].p_offset;
+	    l2=lbl->d_partitions[OURPART].p_offset +
+		lbl->d_partitions[OURPART].p_size;
+	    for (i = 0; i < MAXPARTITIONS; i++) {
+		if (i == OURPART) continue;
+		if (i == RAWPART) continue;
+		if (i == j) continue;
+		if (lbl->d_partitions[i].p_size == 0) continue;
+		if (lbl->d_partitions[i].p_offset >= l2) continue;
+		if ((lbl->d_partitions[i].p_offset+
+		    lbl->d_partitions[i].p_size) <= l1) continue;
+		l3 = lbl->d_partitions[i].p_offset - l1;
+		l4 = l2 - (lbl->d_partitions[i].p_offset+
+			   lbl->d_partitions[i].p_size);
+		if (l3 > 0 && l3 >= l4)
+		    l2 = l1+l3;
+		else if (l4 > 0 && l4 > l3)
+		    l1 = l2-l4;
+		else
+		    l2 = l1;
+	    }
+	    if (!(l2 - l1)) {
+		yip = "Sizes unchanged - couldn't find room";
+		break;
+	    }
+	    sprintf(buf, "%lu", (l2-l1+1024L)/2048L);
+	    i = AskEm(stdscr, "Size of partition in MB> ", buf, 10);
+	    l3= strtol(buf, 0, 0) * 2048L;
+	    if (!l3) {
+		yip = "Invalid size given";
+		break;
+	    }
+	    if (l3 > l2 - l1)
+		l3 = l2 - l1;
+	    lbl->d_partitions[j].p_size = l3;
+	    lbl->d_partitions[j].p_offset = l1;
+	    if (j == 1)
+		lbl->d_partitions[j].p_fstype = FS_SWAP;
+	    else
+		lbl->d_partitions[j].p_fstype = FS_BSDFFS;
+	    break;
+
+	case 'r': case 'R':
+	    olbl = *Dlbl[diskno];
+	    /* XXX be more selective here */
+	    for (i = 0; i < MAXPARTITIONS; i++) 
+		CleanMount(diskno, i);
+	    break;
+
+	case 'a': case 'A':
+	    if (memcmp(lbl, Dlbl[diskno], sizeof *lbl)) {
+		yip = "Please (W)rite changed partition information first";
+		break;
+	    }
+	    j = AskWhichPartition("Assign which partition> ");
+	    if (j < 0) {
+		yip = "Invalid partition";
+		break;
+	    }
+	    k = lbl->d_partitions[j].p_fstype;
+	    if (k != FS_BSDFFS && k != FS_MSDOS && k != FS_SWAP) {
+		yip = "Invalid partition type";
+		break;
+	    }
+	    if (!lbl->d_partitions[j].p_size) {
+		yip = "Zero partition size";
+		break;
+	    }
+	    if (k == FS_SWAP)
+		strcpy(buf, "swap");
+	    else if (Fmount[MP[diskno][j]]) 
+		strcpy(buf, Fmount[MP[diskno][j]]);
+	    else
+		*buf = 0;
+	    if (k != FS_SWAP) {
+		i = AskEm(stdscr, "Directory mountpoint> ", buf, 28);
+		if (i != '\n' && i != '\r') 
+		    break;
+		p = buf + strlen(buf) - 1;
+		
+		while (isspace(*p) && p >= buf)
+		    *p-- = '\0';
+		if (*buf && *buf != '/') {
+		    yip = "Mountpoint must start with a '/'";
+		    break;
+		}
+	    }
+	    CleanMount(diskno, j);
+	    if (!*buf)
+		break;
+	    p = SetMount(diskno,j,buf);
+	    yip = p;
+	    break;
+
+	case 'w': case 'W':
+	    *Dlbl[diskno] = *lbl;
+	    Dlbl[diskno]->d_magic = DISKMAGIC;
+	    Dlbl[diskno]->d_magic2 = DISKMAGIC;
+	    Dlbl[diskno]->d_checksum = 0;
+	    Dlbl[diskno]->d_checksum = dkcksum(Dlbl[diskno]);
+	    *lbl = *Dlbl[diskno];
+	    enable_label(Dfd[diskno]);
+	    if (ioctl(Dfd[diskno], DIOCSDINFO, Dlbl[diskno]) == -1)
+		Fatal("Couldn't set label: %s", strerror(errno));
+	    if (ioctl(Dfd[diskno], DIOCWDINFO, Dlbl[diskno]) == -1)
+		Fatal("Couldn't write label: %s", strerror(errno));
+	    disable_label(Dfd[diskno]);
+	    yip = "Label written successfully.";
+	    break;
+
+	case 'q': case 'Q':
+	    if (!memcmp(lbl, Dlbl[diskno], sizeof *lbl))
+		return;
+	    /* XXX be more selective here */
+	    for (i = 0; i < MAXPARTITIONS; i++)
+		CleanMount(diskno, i);
+	    return;
+	    break;
+	}
     }
-    
-    dialog_update();
-    
-    while (key != '\n' && key != ' ' && key != '\033')
-	key = wgetch(window);
-    delwin(window);
-    dialog_clear();
 }

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)libkern.h	8.1 (Berkeley) 6/10/93
- * $Id: libkern.h,v 1.4 1994/09/18 23:04:25 bde Exp $
+ * $Id: libkern.h,v 1.3 1994/08/30 18:19:47 davidg Exp $
  */
 
 #include <sys/types.h>
@@ -49,9 +49,7 @@ static inline u_long ulmin(u_long a, u_long b) { return (a < b ? a : b); }
 
 /* Prototypes for non-quad routines. */
 int	 bcmp __P((const void *, const void *, size_t));
-#ifndef HAVE_INLINE_FFS
 int	 ffs __P((int));
-#endif
 int	 locc __P((int, char *, u_int));
 u_long	 random __P((void));
 char	*rindex __P((const char *, int));
