@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.60 1996/10/09 09:53:38 jkh Exp $
+ * $Id: media.c,v 1.61 1996/10/12 19:30:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -262,11 +262,11 @@ mediaSetFTP(dialogMenuItem *self)
     static Boolean network_init = 1;
     int what = DITEM_RESTORE;
 
-    /* If we've been through here before ... */
-    if (!network_init && msgYesNo("Re-use old FTP site selection values?"))
-	variable_unset(VAR_FTP_PATH);
-
     cp = variable_get(VAR_FTP_PATH);
+    /* If we've been through here before ... */
+    if (!network_init && cp && msgYesNo("Re-use old FTP site selection values?"))
+	cp = NULL;
+
     if (!cp) {
 	dialog_clear_norefresh();
 	if (!dmenuOpenSimple(&MenuMediaFTP, FALSE))
@@ -337,7 +337,6 @@ mediaSetFTP(dialogMenuItem *self)
 		       "name server, gateway and network interface are correctly configured?", hostname);
 	    mediaDevice->shutdown(mediaDevice);
 	    network_init = TRUE;
-	    variable_unset(VAR_FTP_PATH);
 	    return DITEM_FAILURE | what;
 	}
     }
