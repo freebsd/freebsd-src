@@ -44,7 +44,8 @@
 
 #include <machine/asm.h>
 
-inc2:	.stabs	__FILE__,132,0,0,inc2; .loc	1 __LINE__
+/*inc2:	.stabs	__FILE__,132,0,0,inc2; .loc	1 __LINE__*/
+inc2:	.stabs	__FILE__,132,0,0,inc2
 /*
  * alpha_rpcc: read process cycle counter (XXX INSTRUCTION, NOT PALcode OP)
  */
