@@ -75,6 +75,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
+#include <sys/selinfo.h>
+#include <sys/pipe.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
 
@@ -195,6 +197,7 @@ again:
 	pager_map->system_map = 1;
 	exec_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
 				(16*(ARG_MAX+(PAGE_SIZE*3))));
+	pipe_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr, maxpipekva);
 
 	/*
 	 * XXX: Mbuf system machine-specific initializations should

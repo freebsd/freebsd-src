@@ -77,7 +77,6 @@ int	nbuf;
 int	nswbuf;
 int	maxswzone;			/* max swmeta KVA storage */
 int	maxbcache;			/* max buffer cache KVA storage */
-int	maxpipes;			/* Limit on # of pipes */
 int	maxpipekva;			/* Limit on pipe KVA */
 int	maxpipekvawired;		/* Limit on wired pipe KVA */
 u_quad_t	maxtsiz;			/* max text size */
@@ -180,19 +179,18 @@ void
 init_param3(long kmempages)
 {
 	/*
-	 * Limit number of pipes to a reasonable fraction of kmap entries,
-	 * pageable pipe memory usage to 2.5% of the kernel map, and wired
-	 * pipe memory usage to 1% of the same.  Ensure that all have
-	 * reasonable floors.  (See sys_pipe.c for more info.)
+	 * Limit pageable pipe memory usage to 5% of the kernel map
+	 * (via pipe_map), and nonpageable pipe memory usage to 2.5%
+	 * of the same.  Ensure that all have reasonable floors.
+	 * (See sys_pipe.c for more info.)
 	 */
-	maxpipes = kmempages / 5;
-	maxpipekva = (kmempages / 40) * PAGE_SIZE;
-	maxpipekvawired = (kmempages / 100) * PAGE_SIZE;
+	maxpipekva = (kmempages / 20) * PAGE_SIZE;
+	maxpipekvawired = (kmempages / 40) * PAGE_SIZE;
 
-	if (maxpipes < 128)
-		maxpipes = 128;
 	if (maxpipekva < 512 * 1024)
 		maxpipekva = 512 * 1024;
 	if (maxpipekvawired < 512 * 1024)
 		maxpipekvawired = 512 * 1024;
+
+	TUNABLE_INT_FETCH("kern.ipc.maxpipekva", &maxpipekva);
 }
