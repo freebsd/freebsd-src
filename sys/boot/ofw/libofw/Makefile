@@ -15,6 +15,7 @@ CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 # Pick up the bootstrap header for some interface items
 CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../../.. -I.
 
+CFLAGS+=	-ffreestanding
 .if ${MACHINE_ARCH} == "powerpc"
 CFLAGS+=	-msoft-float
 .endif
