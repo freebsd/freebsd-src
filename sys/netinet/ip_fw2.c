@@ -1180,6 +1180,8 @@ lookup_next_rule(struct ip_fw *me)
 
 	/* look for action, in case it is a skipto */
 	cmd = ACTION_PTR(me);
+	if (cmd->opcode == O_LOG)
+		cmd += F_LEN(cmd);
 	if ( cmd->opcode == O_SKIPTO )
 		for (rule = me->next; rule ; rule = rule->next)
 			if (rule->rulenum >= cmd->arg1)
