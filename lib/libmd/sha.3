@@ -67,18 +67,22 @@ The
 and
 .Li SHA1_
 functions calculate a 160-bit cryptographic checksum (digest)
-for any number of input bytes.  A cryptographic checksum is a one-way
+for any number of input bytes.
+A cryptographic checksum is a one-way
 hash function; that is, it is computationally impractical to find
-the input corresponding to a particular output.  This net result is
-a ``fingerprint'' of the input-data, which doesn't disclose the actual
-input.
+the input corresponding to a particular output.
+This net result is
+a
+.Dq fingerprint
+of the input-data, which doesn't disclose the actual input.
 .Pp
 .Tn SHA
 (or
 .Tn SHA-0 )
 is the original Secure Hash Algorithm specified in
 .Tn FIPS
-160.  It was quickly proven insecure, and has been superseded by
+160.
+It was quickly proven insecure, and has been superseded by
 .Tn SHA-1 .
 .Tn SHA-0
 is included for compatibility purposes only.
@@ -88,7 +92,10 @@ The
 .Fn SHA1_Update ,
 and
 .Fn SHA1_Final
-functions are the core functions.  Allocate an SHA_CTX, initialize it with
+functions are the core functions.
+Allocate an
+.Vt SHA_CTX ,
+initialize it with
 .Fn SHA1_Init ,
 run over the data with
 .Fn SHA1_Update ,
@@ -170,8 +177,8 @@ The
 .Tn SHA-1
 makes heavy use of the
 .Ql bswapl
-instruction, which is not present on the original 80386.  Attempts
-to use
+instruction, which is not present on the original 80386.
+Attempts to use
 .Tn SHA-1
 on those processors will cause an illegal instruction trap.
 (Arguably, the kernel should simply emulate this instruction.)
