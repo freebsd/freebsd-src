@@ -7,7 +7,7 @@ SRCS+=	rijndael-alg-fst.c
 SRCS+=	rijndael-api-fst.c
 SRCS+=	g_bde_lock.c
 
-CFLAGS+= -I/sys
+CFLAGS+= -I${.CURDIR}/../../sys
 .PATH: ${.CURDIR}/../../sys/geom ${.CURDIR}/../../sys/geom/bde \
 	${.CURDIR}/../../sys/crypto/rijndael
 
