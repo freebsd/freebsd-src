@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ * $FreeBSD$
  */
 
 #ifndef _SYS_EVENT_H_
@@ -114,7 +114,7 @@ struct kevent {
 
 /*
  * This is currently visible to userland to work around broken
- * programs which pull in <sys/proc.h> or <sys/select.h>.
+ * programs which pull in <sys/proc.h>.
  */
 #include <sys/queue.h> 
 struct knote;
