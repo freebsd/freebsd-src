@@ -1,6 +1,6 @@
 /*
  * print serial line IP statistics:
- *	slstat [-i interval] [-v] [interface] [system] [core]
+ *	slstat [-i interval] [-v] [interface]
  *
  * Copyright (c) 1989, 1990, 1991, 1992 Regents of the University of
  * California. All rights reserved.
@@ -22,143 +22,118 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: slstat.c,v 1.4 1995/05/30 03:52:30 rgrimes Exp $";
+static char rcsid[] = "$Id: slstat.c,v 1.5 1996/05/30 02:19:55 pst Exp $";
 #endif
 
+#include <sys/param.h>
+#include <sys/mbuf.h>
+#include <sys/socket.h>
+#include <sys/sockio.h>
+#include <sys/sysctl.h>
+
+#include <errno.h>
+#include <signal.h>
 #include <stdio.h>
-#include <paths.h>
-#include <nlist.h>
-#include <kvm.h>
+#include <stdlib.h>
 
 #define INET
 
-#include <limits.h>
-#include <sys/param.h>
-#include <sys/mbuf.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/sockio.h>
-#include <sys/file.h>
-#include <errno.h>
-#include <signal.h>
 #include <net/if.h>
+#include <net/if_mib.h>
+#include <net/if_types.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
-
 #include <net/slcompress.h>
 #include <net/if_slvar.h>
 
-struct nlist nl[] = {
-#define N_SOFTC 0
-	{ "_sl_softc" },
-	{ 0 }
-};
+static	void usage __P((const char *argv0));
+static	void intpr __P((void));
+static	void catchalarm __P((int));
 
 #define INTERFACE_PREFIX        "sl%d"
 char    interface[IFNAMSIZ];
 
-const char	*system = NULL;
-char	*kmemf = NULL;
-
-kvm_t	*kvm_h;
-int	kflag;
 int	rflag;
 int	vflag;
 unsigned interval = 5;
 int	unit;
+int	name[6];
 
-extern	char *malloc();
-extern	off_t lseek();
-
+int
 main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	int c;
-	char errbuf[_POSIX2_LINE_MAX];
+	int c, i;
+	size_t len;
+	int maxifno;
+	int index;
+	struct ifmibdata ifmd;
 
-	system = getbootfile();
-
-	--argc; ++argv;
-	while (argc > 0) {
-		if (strcmp(argv[0], "-v") == 0) {
+	while ((c = getopt(argc, argv, "vri:")) != -1) {
+		switch(c) {
+		case 'v':
 			++vflag;
-			++argv, --argc;
-			continue;
-		}
-		if (strcmp(argv[0], "-r") == 0) {
+			break;
+		case 'r':
 			++rflag;
-			++argv, --argc;
-			continue;
-		}
-		if (strcmp(argv[0], "-i") == 0 && argv[1] &&
-		    isdigit(argv[1][0])) {
-			interval = atoi(argv[1]);
+			break;
+		case 'i':
+			interval = atoi(optarg);
 			if (interval <= 0)
-				usage();
-			++argv, --argc;
-			++argv, --argc;
-			continue;
-		}
-		if (isdigit(argv[0][0])) {
-			int s;
-			struct ifreq ifr;
-
-			unit = atoi(argv[0]);
-			if (unit < 0)
-				usage();
-			sprintf(interface, INTERFACE_PREFIX, unit);
-			s = socket(AF_INET, SOCK_DGRAM, 0);
-			if (s < 0)
-				err(1, "creating socket");
-			strcpy(ifr.ifr_name, interface);
-			if (ioctl(s, SIOCGIFFLAGS, (caddr_t)&ifr) < 0)
-				errx(1,
-				"unable to confirm existence of interface '%s'",
-                    		interface);
-			++argv, --argc;
-			continue;
-		}
-		if (kflag)
-			usage();
-
-		system = *argv;
-		++argv, --argc;
-		if (argc > 0) {
-			kmemf = *argv++;
-			--argc;
-			kflag++;
+				usage(argv[0]);
+			break;
+		default:
+			usage(argv[0]);
 		}
 	}
-	/*
-	 * Discard setgid privileges if not the running kernel so that bad
-	 * guys can't print interesting stuff from kernel memory.
-	 */
-	if (system != NULL || kmemf != NULL)
-	        setgid(getgid());
 
-	kvm_h = kvm_openfiles(system, kmemf, NULL, O_RDONLY, errbuf);
-	if (kvm_h == 0) {
-		(void)fprintf(stderr,
-		    "slstat: kvm_openfiles(%s,%s,0): %s\n",
-			      system, kmemf, errbuf);
-		exit(1);
+	name[0] = CTL_NET;
+	name[1] = PF_LINK;
+	name[2] = NETLINK_GENERIC;
+	name[3] = IFMIB_SYSTEM;
+	name[4] = IFMIB_IFCOUNT;
+	len = sizeof maxifno;
+	if (sysctl(name, 5, &maxifno, &len, 0, 0) < 0)
+		err(1, "sysctl net.link.generic.system.ifcount");
+
+	if (isdigit(argv[optind][0])) {
+		int s;
+		struct ifmibdata ifmd;
+
+		unit = atoi(argv[optind]);
+		if (unit < 0)
+			usage(argv[0]);
+		sprintf(interface, INTERFACE_PREFIX, unit);
+	} else if(strncmp(argv[optind], "sl", 2) == 0
+		  && isdigit(argv[optind][2])
+		  && sscanf(argv[optind], "sl%d", &unit) == 1) {
+		strncpy(interface, argv[optind], IFNAMSIZ);
+	} else {
+		usage(argv[0]);
 	}
-	if ((c = kvm_nlist(kvm_h, nl)) != 0) {
-		if (c > 0) {
-			(void)fprintf(stderr,
-			    "slstat: undefined symbols in %s:", system);
-			for (c = 0; c < sizeof(nl)/sizeof(nl[0]); c++)
-				if (nl[c].n_type == 0)
-					fprintf(stderr, " %s", nl[c].n_name);
-			(void)fputc('\n', stderr);
-		} else
-			(void)fprintf(stderr, "slstat: kvm_nlist: %s\n",
-			    kvm_geterr(kvm_h));
-		exit(1);
+
+	name[3] = IFMIB_IFDATA;
+	name[5] = IFDATA_GENERAL;
+	len = sizeof ifmd;
+	for (i = 1; i <= maxifno; i++) {
+		name[4] = i;
+
+		if (sysctl(name, 6, &ifmd, &len, 0, 0) < 0)
+			err(1, "sysctl");
+		if (strncmp(interface, ifmd.ifmd_name, IFNAMSIZ) == 0
+		    && ifmd.ifmd_data.ifi_type == IFT_SLIP) {
+			index = i;
+			break;
+		}
 	}
+	if (i > maxifno)
+		errx(1, "interface %s does not exist", interface);
+
+	name[4] = index;
+	name[5] = IFDATA_LINKSPECIFIC;
 	intpr();
 	exit(0);
 }
@@ -167,12 +142,12 @@ main(argc, argv)
 		  (rflag ? interval : 1)) : sc->offset)
 #define AMT (sizeof(*sc) - 2 * sizeof(sc->sc_comp.tstate))
 
-usage()
+static void
+usage(argv0)
+	const char *argv0;
 {
-	static char umsg[] =
-		"usage: slstat [-i interval] [-v] [unit] [system] [core]\n";
-
-	fprintf(stderr, umsg);
+	fprintf(stderr, "%s: usage:\n\t%s [-i interval] [-rv] [unit]\n",
+		argv0, argv0);
 	exit(1);
 }
 
@@ -184,22 +159,24 @@ u_char	signalled;			/* set if alarm goes off "early" */
  * collected over that interval.  Assumes that interval is non-zero.
  * First line printed at top of screen is always cumulative.
  */
+static void
 intpr()
 {
 	register int line = 0;
 	int oldmask;
-	void catchalarm();
 	struct sl_softc *sc, *osc;
 	off_t addr;
+	size_t len;
 
-	addr = nl[N_SOFTC].n_value + unit * sizeof(struct sl_softc);
 	sc = (struct sl_softc *)malloc(AMT);
 	osc = (struct sl_softc *)malloc(AMT);
 	bzero((char *)osc, AMT);
+	len = AMT;
 
 	while (1) {
-		if (kvm_read(kvm_h, addr, (char *)sc, AMT) < 0)
-			perror("kmem read");
+		if (sysctl(name, 6, sc, &len, 0, 0) < 0)
+			err(1, "sysctl linkspecific");
+
 		(void)signal(SIGALRM, catchalarm);
 		signalled = 0;
 		(void)alarm(interval);
@@ -261,62 +238,10 @@ intpr()
  * Called if an interval expires before sidewaysintpr has completed a loop.
  * Sets a flag to not wait for the alarm.
  */
-void
-catchalarm()
+static void
+catchalarm(sig)
+	int sig;
 {
 	signalled = 1;
 }
-
-#if 0
-
-#include <kvm.h>
-#include <fcntl.h>
-
-int kd;
-
-kopen(system, kmemf, errstr)
-	char *system;
-	char *kmemf;
-	char *errstr;
-{
-	if (strcmp(system, _PATH_UNIX) == 0 &&
-	    strcmp(kmemf, _PATH_KMEM) == 0) {
-		system = 0;
-		kmemf = 0;
-	}
-	kd = kvm_openfiles(system, kmemf, (void *)0);
-	if (kd == 0)
-		return -1;
-
-	return 0;
-}
-
-int
-knlist(system, nl, errstr)
-	char *system;
-	struct nlist *nl;
-	char *errstr;
-{
-	if (kd == 0)
-		/* kopen() must be called first */
-		abort();
-
-	if (kvm_nlist(nl) < 0 || nl[0].n_type == 0) {
-		fprintf(stderr, "%s: %s: no namelist\n", errstr, system);
-		return -1;
-	}
-	return 0;
-}
-
-int
-kread(addr, buf, size)
-	off_t addr;
-	char *buf;
-	int size;
-{
-	if (kvm_read((char *)addr, buf, size) != size)
-		return -1;
-	return 0;
-}
-#endif
 
