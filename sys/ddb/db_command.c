@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_command.c,v 1.28 1998/07/08 10:53:45 bde Exp $
+ *	$Id: db_command.c,v 1.29 1999/01/14 06:22:01 jdp Exp $
  */
 
 /*
@@ -535,6 +535,8 @@ db_fncall(dummy1, dummy2, dummy3, dummy4)
 
 /* Enter GDB remote protocol debugger on the next trap. */
 
+dev_t gdbdev;
+
 static void
 db_gdb (dummy1, dummy2, dummy3, dummy4)
 	db_expr_t	dummy1;
@@ -542,6 +544,12 @@ db_gdb (dummy1, dummy2, dummy3, dummy4)
 	db_expr_t	dummy3;
 	char *		dummy4;
 {
+
+	if (gdbdev == -1) {
+		db_printf("No gdb port enabled. Set flag 0x80 on desired port\n");
+		db_printf("in your configuration file (currently sio only).\n");
+		return;
+	}
 	boothowto ^= RB_GDB;
 
 	db_printf("Next trap will enter %s\n",
