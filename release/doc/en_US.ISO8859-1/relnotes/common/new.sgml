@@ -108,7 +108,7 @@
       provide access to the system monitoring functions of the AMD 756
       chipset. &merged;</para>
 
-    <para arch="i386" role="historic">The &man.agp.4; driver for AGP devices has been
+    <para arch="i386,alpha,ia64" role="historic">The &man.agp.4; driver for AGP devices has been
       added. &merged;</para>
 
     <para>A new in-kernel cryptographic framework (see &man.crypto.4;
