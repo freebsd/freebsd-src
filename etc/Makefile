@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.117 1995/05/30 03:57:47 rgrimes Exp $
+#	$Id: Makefile,v 1.118 1995/06/17 03:17:16 ache Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -161,55 +161,55 @@ distribute:
 
 distribution:
 	(cd ${.CURDIR}; \
-	install -c -o ${BINOWN} -g ${BINGRP} -m 644 ${BIN1} ${DESTDIR}/etc; \
-	install -c -o ${BINOWN} -g ${BINGRP} -m 666 ${BIN2} ${DESTDIR}/etc; \
-	install -c -o ${BINOWN} -g ${BINGRP} -m 755 ${BIN3} ${DESTDIR}/etc; \
-	install -c -o ${BINOWN} -g ${BINGRP} -m 644 crontab ${DESTDIR}/etc; \
-	install -c -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 ${BIN1} ${DESTDIR}/etc; \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 666 ${BIN2} ${DESTDIR}/etc; \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 755 ${BIN3} ${DESTDIR}/etc; \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 crontab ${DESTDIR}/etc; \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
 	    ${DESTDIR}/var/cron/log; \
-	install -c -o ${BINOWN} -g ${BINGRP} -m 600 \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 \
 	    master.passwd ${DESTDIR}/etc; \
 	pwd_mkdb -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd; \
-	install -c -o ${BINOWN} -g ${BINGRP} -m 555 \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 555 \
 	     MAKEDEV.local etc.${MACHINE}/MAKEDEV ${DESTDIR}/dev )
 	(cd ${DESTDIR}/dev; sh MAKEDEV all) ;
 	(cd ${.CURDIR}/root; \
-		install -c -o ${BINOWN} -g ${BINGRP} -m 644 dot.cshrc \
+		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 dot.cshrc \
 		    ${DESTDIR}/root/.cshrc; \
-		install -c -o ${BINOWN} -g ${BINGRP} -m 644 dot.klogin \
+		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 dot.klogin \
 		    ${DESTDIR}/root/.klogin; \
-		install -c -o ${BINOWN} -g ${BINGRP} -m 644 dot.login \
+		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 dot.login \
 		    ${DESTDIR}/root/.login; \
-		install -c -o ${BINOWN} -g ${BINGRP} -m 644 dot.profile \
+		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 dot.profile \
 		    ${DESTDIR}/root/.profile; \
 		rm -f ${DESTDIR}/.cshrc ${DESTDIR}/.profile; \
 		ln ${DESTDIR}/root/.cshrc ${DESTDIR}/.cshrc; \
 		ln ${DESTDIR}/root/.profile ${DESTDIR}/.profile)
-	cd ${.CURDIR}/mtree; install -c -o ${BINOWN} -g ${BINGRP} -m 444 \
+	cd ${.CURDIR}/mtree; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${MTREE} ${DESTDIR}/etc/mtree
-	cd ${.CURDIR}/namedb; install -c -o ${BINOWN} -g ${BINGRP} -m 644 \
+	cd ${.CURDIR}/namedb; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${NAMEDB} ${DESTDIR}/etc/namedb
-	cd ${.CURDIR}/ppp; install -c -o ${BINOWN} -g ${BINGRP} -m 644 \
+	cd ${.CURDIR}/ppp; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${PPPCNF} ${DESTDIR}/etc/ppp
-	install -c -o ${BINOWN} -g operator -m 664 /dev/null \
+	${INSTALL} -c -o ${BINOWN} -g operator -m 664 /dev/null \
 	    ${DESTDIR}/etc/dumpdates
-	install -c -o nobody -g ${BINGRP} -m 664 /dev/null \
+	${INSTALL} -c -o nobody -g ${BINGRP} -m 664 /dev/null \
 	    ${DESTDIR}/var/db/locate.database
-	install -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
 	    ${DESTDIR}/var/log/lpd-errs
-	install -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
 	    ${DESTDIR}/var/log/maillog
-	install -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
 	    ${DESTDIR}/var/log/lastlog
-	install -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
 	    ${DESTDIR}/var/log/messages
-	install -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
 	    ${DESTDIR}/var/log/wtmp
-	install -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
 	    ${DESTDIR}/var/run/utmp
-	install -c -o ${BINOWN} -g ${BINGRP} -m 664 ${.CURDIR}/minfree \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 664 ${.CURDIR}/minfree \
 	    ${DESTDIR}/var/crash
-	(cd ${.CURDIR}/etc.${MACHINE}; install -c -o ${BINOWN} -g ${BINGRP} \
+	(cd ${.CURDIR}/etc.${MACHINE}; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} \
 	    -m 444 fstab.* ${DESTDIR}/etc)
 	(cd ${.CURDIR}/../usr.sbin/sendmail/src; \
 	    ${MAKE} obj; \
@@ -218,10 +218,11 @@ distribution:
 	 cd ../cf/cf; \
 	    ${MAKE} obj; \
 	    ${MAKE} freefall.cf; \
-	    install -o ${BINOWN} -g ${BINGRP} -m 644 obj/freefall.cf \
-	        ${DESTDIR}/etc/sendmail.cf)
+	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 obj/freefall.cf \
+		${DESTDIR}/etc/sendmail.cf)
 	(cd ${.CURDIR}/..; \
-	    install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${FREEBSD} ${DESTDIR}/)
+	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${FREEBSD} \
+		${DESTDIR}/)
 	(cd ${.CURDIR}/../share/man; ${MAKE} makedb; )
 
 crunch:
@@ -231,25 +232,25 @@ crunch:
 	${MAKE} -f filesystem.mk objs exe
 
 extract:
-	install -c -o ${BINOWN} -g ${BINGRP} -m 555 \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 555 \
 	    ${.CURDIR}/etc.i386/EXTRACT_bin.sh \
 	    ${RELEASEDIR}/tarballs/bin/EXTRACT.sh
-	install -c -o ${BINOWN} -g ${BINGRP} -m 555 \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 555 \
 	    ${.CURDIR}/etc.i386/EXTRACT_src.sh \
 	    ${RELEASEDIR}/tarballs/bin/EXTRACT.sh
-	install -c -o ${BINOWN} -g ${BINGRP} -m 555 \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 555 \
 	    ${.CURDIR}/etc.i386/EXTRACT_secr.sh \
 	    ${RELEASEDIR}/tarballs/bin/EXTRACT.sh
 
 hcx9-distribution:
-	(cd ${.CURDIR}/etc.tahoe; install -c -o ${BINOWN} -g ${BINGRP} \
+	(cd ${.CURDIR}/etc.tahoe; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} \
 	    -m 444 ${WCS2} ${DESTDIR}/)
 
 kcopy-kernels: ${.CURDIR}/../sys/i386/conf/GENERIC
 	(cd ${.CURDIR}/../sys/compile; rm -rf GENERIC)
 	(cd ${.CURDIR}/../sys/i386/conf; config GENERIC)
 	(cd ${.CURDIR}/../sys/compile/GENERIC; ${MAKE} depend; ${MAKE} all; \
-	    install -c -o ${BINOWN} -g ${BINGRP} -m 755 kernel \
+	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 755 kernel \
 	        ${DESTDIR}/kernel.GENERIC)
 
 kcopy-floppy:
@@ -265,9 +266,9 @@ kcopy-floppy:
 	${MAKEDEVS}
 	(cd ${DESTDIR}/; \
 	    ls ${KC_FILES} | cpio -pdamuv ${MOUNT})
-	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 755 \
 	    ${.CURDIR}/etc.i386/kc.profile ${MOUNT}/etc/rc
-	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 755 \
 	    kcopy ${MOUNT}/bin/kcopy
 	(cd ${MOUNT}/; \
 	    for i in ${KC_LINKS}; do \
@@ -277,7 +278,7 @@ kcopy-floppy:
 kcopy.flp:
 	(cd ${.CURDIR}; ${MAKE} kcopy-floppy)
 	(cd ${.CURDIR}/../sys/compile/GENERIC; \
-	    install -c -o ${BINOWN} -g ${BINGRP} -m 755 kernel ${MOUNT}/)
+	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 755 kernel ${MOUNT}/)
 	df -ik ${MOUNT}
 	# XXX umount is returning 1 for some reason :-(
 	-umount /dev/${FLOPPY}
@@ -297,16 +298,16 @@ cdins-floppy:
 	mkdir ${MOUNT}/cdrom
 	chown ${BINOWN}.${BINGRP} ${MOUNT}/cdrom
 	chmod 755 ${MOUNT}/cdrom
-	#install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
+	#${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 755 \
 	#    ${.CURDIR}/etc.i386/cdinst1.profile ${MOUNT}/.profile
-	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 755 \
 	    ${.CURDIR}/etc.i386/cdinst1.install ${MOUNT}/install
 	ln ${MOUNT}/install ${MOUNT}/etc/rc
 
 cdins.flp:
 	(cd ${.CURDIR}; ${MAKE} kcopy-floppy)
 	(cd ${.CURDIR}/../sys/compile/GENERIC; \
-	    install -c -o ${BINOWN} -g ${BINGRP} -m 755 kernel ${MOUNT}/)
+	    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 755 kernel ${MOUNT}/)
 	df -ik ${MOUNT}
 	# XXX umount is returning 1 for some reason :-(
 	-umount /dev/${FLOPPY}
@@ -332,12 +333,12 @@ filesyst.flp:
 	    (find ${FILESYSTEM_CPIO}; ls -d ${FILESYSTEM_CPIO_DIRS}) | \
 		cpio -H newc --block-size=16 -oav | \
 		gzip -9 >${MOUNT}/inst1.cpio.gz)
-	#install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
+	#${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 755 \
 	#    ${.CURDIR}/etc.i386/inst1.profile ${MOUNT}/.profile
-	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 755 \
 	    ${.CURDIR}/etc.i386/inst1.install ${MOUNT}/install
 	ln ${MOUNT}/install ${MOUNT}/etc/rc
-	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 755 \
 	    filesystem ${MOUNT}/bin/filesystem
 	(cd ${MOUNT}/; \
 	    for i in ${FILESYSTEM_LINKS}; do \
@@ -376,7 +377,7 @@ cpio.flp:
 	# need to install the smaller one in the same location.
 	#
 	mv ${DESTDIR}/usr/share/misc/termcap ${DESTDIR}/usr/share/misc/otermcap
-	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 755 \
 	    ${.CURDIR}/termcap.small ${DESTDIR}/usr/share/misc/termcap
 	(cd ${DESTDIR}/; \
 	    (find ${CPIO_CPIO}; ls -d ${CPIO_CPIO_DIRS}) | \
@@ -384,11 +385,11 @@ cpio.flp:
 		gzip -9 >${MOUNT}/inst2.cpio.gz)
 	# XXX cpio is done, put everything back in shape for the bindist.
 	mv ${DESTDIR}/usr/share/misc/otermcap ${DESTDIR}/usr/share/misc/termcap
-	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 755 \
 	    ${.CURDIR}/etc.i386/cpio.rc ${MOUNT}/rc
-	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 755 \
 	    ${.CURDIR}/etc.i386/cpio.install ${MOUNT}/install
-	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 755 \
 	    ${.CURDIR}/etc.i386/cpio.magic ${MOUNT}/magic
 	df -ik ${MOUNT}
 	# XXX umount is returning 1 for some reason :-(
