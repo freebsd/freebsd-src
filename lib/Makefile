@@ -9,7 +9,7 @@
 # libcrypt must be built before libskey.
 # libm must be built before libstdc++.
 # libmd must be built before libatm, libopie, libradius, libskey,
-# and libtacplus.
+# libtacplus and libcrypt.
 # libncurses must be built before libdialog, libedit and libreadline.
 # libradius must be built before libpam.
 # libskey must be built before libpam.
@@ -17,7 +17,7 @@
 #
 # Otherwise, the SUBDIR list should be in alphabetical order.
 
-SUBDIR=	${_csu} libcom_err ${_libcrypt} ${_libm} libmd \
+SUBDIR=	${_csu} libcom_err ${_libm} libmd ${_libcrypt} \
 	libradius libskey libtacplus \
 	${_compat} libalias libatm libbind libc ${_libc_r} libcalendar libcam \
 	libcompat libdevstat libdisk libncurses libedit libfetch \
@@ -37,12 +37,11 @@ _csu=csu/${MACHINE_ARCH}
 _libc_r=	libc_r
 .endif
 
+_libcrypt=	libcrypt
+.if exists(${.CURDIR}/../secure) && !defined(NOSECURE) && !defined(NOCRYPT)
 # Build both libraries. They have different names, so no harm,
 # and this avoids having stale libscrypt.*
-.if exists(${.CURDIR}/../secure) && !defined(NOSECURE) && !defined(NOCRYPT)
-_libcrypt=	../secure/lib/libcrypt libcrypt
-.else
-_libcrypt=	libcrypt
+_libcrypt+=	../secure/lib/libcrypt
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
