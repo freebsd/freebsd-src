@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: intpm.c,v 1.10 1999/05/09 09:56:43 phk Exp $
+ *	$Id: intpm.c,v 1.11 1999/07/03 20:17:06 peter Exp $
  */
 
 #include <sys/param.h>
@@ -239,16 +239,18 @@ intsmb_intr(device_t dev)
 		return 1;
 		
 	}
-	if(sc->isbusy&&(status&(PIIX4_SMBHSTSTAT_INTR|
+	if(status&(PIIX4_SMBHSTSTAT_INTR|
 				PIIX4_SMBHSTSTAT_ERR|
 				PIIX4_SMBHSTSTAT_BUSC|
-				PIIX4_SMBHSTSTAT_FAIL))){
+				PIIX4_SMBHSTSTAT_FAIL)){
 		int tmp;
-		sc->isbusy=0;
 		tmp=bus_space_read_1(sc->st,sc->sh,PIIX4_SMBHSTCNT);
 		bus_space_write_1(sc->st,sc->sh,PIIX4_SMBHSTCNT,
 				  tmp&~PIIX4_SMBHSTCNT_INTREN);
-		wakeup(sc);
+		if(sc->isbusy){
+		  sc->isbusy=0;
+		  wakeup(sc);
+		}
 		return 0;
 	}
 	return 1;/* Not Completed*/
@@ -342,6 +344,7 @@ static        int
 intsmb_stop_poll(device_t dev){
         int error,i;
         struct intsmb_softc *sc = (struct intsmb_softc *)device_get_softc(dev);
+	
 	/*
 	 *  In smbtx driver ,Simply waiting.
 	 *  This loops 100-200 times.
@@ -366,7 +369,13 @@ intsmb_stop_poll(device_t dev){
 			return error;
 		}
 	}
-	sc->isbusy=0;
+	{
+	  int tmp;
+	  sc->isbusy=0;
+	  tmp=bus_space_read_1(sc->st,sc->sh,PIIX4_SMBHSTCNT);
+	  bus_space_write_1(sc->st,sc->sh,PIIX4_SMBHSTCNT,
+			    tmp&~PIIX4_SMBHSTCNT_INTREN);
+	}
 	return EIO;
 }
 /*
@@ -737,6 +746,7 @@ intpm_probe(device_t dev)
 {
     struct _pcsid *ep =pci_ids;
     u_int32_t device_id=pci_get_devid(dev);
+
     while (ep->type && ep->type != device_id)
 	  ++ep;
     if(ep->desc!=NULL){
@@ -754,4 +764,5 @@ static void intpm_intr(void *arg)
         sc=(struct intpm_pci_softc *)arg;
 	intsmb_intr(sc->smbus);
 	intsmb_slvintr(sc->smbus);
+	
 }
