@@ -1924,6 +1924,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "Palm m505",
 	},
 	{
+	    USB_VENDOR_PALM, USB_PRODUCT_PALM_M515,
+	    0,
+	    "Palm Computing",
+	    "Palm m515",
+	},
+	{
 	    USB_VENDOR_PALM, USB_PRODUCT_PALM_M125,
 	    0,
 	    "Palm Computing",
