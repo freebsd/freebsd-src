@@ -49,7 +49,7 @@ boot1.o: boot1.m4 boot1.s
 	(cd ${.CURDIR}; ${M4} -DFLAGS=${B1FLAGS} boot1.m4 boot1.s) | \
 		${AS} ${AFLAGS} -o ${.TARGET}
 
-boot2: boot2.ldr boot2.bin
+boot2: boot2.ldr boot2.bin ${BTX}/btx/btx
 	btxld -v -E ${ORG2} -f bin -b ${BTX}/btx/btx -l boot2.ldr \
 		-o boot2.ld -P 1 boot2.bin
 	@ls -l boot2.ld | awk '{ x = 7680 - $$5; \
