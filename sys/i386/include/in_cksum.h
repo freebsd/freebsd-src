@@ -33,7 +33,7 @@
  *	from tahoe:	in_cksum.c	1.2	86/01/05
  *	from:		@(#)in_cksum.c	1.3 (Berkeley) 1/19/91
  *	from: Id: in_cksum.c,v 1.8 1995/12/03 18:35:19 bde Exp
- *	$Id$
+ *	$Id: in_cksum.h,v 1.1 1996/04/18 15:39:27 wollman Exp $
  */
 
 #ifndef _MACHINE_IN_CKSUM_H_
@@ -69,8 +69,24 @@ in_cksum_hdr(const struct ip *ip)
 
 	return ~sum & 0xffff;
 }
+
+static __inline void
+in_cksum_update(struct ip *ip)
+{
+	int __tmpsum;
+	__tmpsum = (int)ntohs(ip->ip_sum) + 256;
+	ip->ip_sum = htons(__tmpsum + (__tmpsum >> 16));
+}
+
 #else
 u_int in_cksum_hdr __P((const struct ip *));
+#define	in_cksum_update(ip) \
+	do { \
+		int __tmpsum; \
+		__tmpsum = (int)ntohs(ip->ip_sum) + 256; \
+		ip->ip_sum = htons(__tmpsum + (__tmpsum >> 16)); \
+	} while(0)
+
 #endif
 
 #endif /* _MACHINE_IN_CKSUM_H_ */
