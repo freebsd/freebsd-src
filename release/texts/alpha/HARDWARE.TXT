@@ -134,6 +134,15 @@ Most PCI devices from the PC-world will also work in FreeBSD/alpha PCI-based
 machines. Check the /sys/alpha/conf/GENERIC file for the latest word on
 this. Be careful to check the appropriate machine type's discussion
 in case you want to use PCI cards that have PCI bridge chips on them.
+In some cases you might encounter problems with PCI cards not handling
+PCI parity correctly. This can lead to panics. PCI parity checking can be
+disabled using the following SRM command: SET PCI_PARITY OFF. This is not
+a FreeBSD problem, all operating systems running on Alpha hardware will
+need this workaround.
+
+If your system (also) contains EISA expansion slots you will need to run
+the EISA Configuration Utility (ECU) after you have installed EISA cards
+or have upgraded your console firmware. 
 
 Parallel ports that can be found on most Alpha machines are supported.
 
