@@ -2583,13 +2583,6 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "Trek Technology",
 	    "ThumbDrive",
 	},
-
-	{
-	    USB_VENDOR_TREK, USB_PRODUCT_TREK_THUMBDRIVE_8MB,
-	    0,
-	    "Trek Technology",
-	    "ThumbDrive",
-	},
 	{
 	    USB_VENDOR_ULTIMA, USB_PRODUCT_ULTIMA_1200UBPLUS,
 	    0,

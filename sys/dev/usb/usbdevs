@@ -1068,7 +1068,6 @@ product TI TUSB2046		0x2046	TUSB2046 hub
 /* Thrustmaster products */
 product THRUST FUSION_PAD	0xa0a3	Fusion Digital Gamepad
 
-product TREK THUMBDRIVE_8MB	0x9988	ThumbDrive_8MB
 /* Trek Technology products */
 product TREK THUMBDRIVE		0x1111	ThumbDrive
 product TREK THUMBDRIVE		0x9988	ThumbDrive
