@@ -9,29 +9,29 @@ of things to watch out for, etc) before starting a new installation.
 Table of Contents:
 ==================
 
-1.0	DOS User's Q&A section.
-	1.1	How do I make space for FreeBSD?
-	1.2	Can I use compressed DOS filesystems from FreeBSD?
-	1.3	Can I use DOS extended partitions?
-	1.4	Can I run DOS executables under FreeBSD?
+1.0     DOS User's Q&A section.
+        1.1     How do I make space for FreeBSD?
+        1.2     Can I use compressed DOS filesystems from FreeBSD?
+        1.3     Can I use DOS extended partitions?
+        1.4     Can I run DOS executables under FreeBSD?
 
-2.0	Preparing for the installation.
-	2.1	Before installing from CDROM
-	2.2	Before installing from Floppy
-	2.3	Before installing from a DOS partition
-	2.4	Before installing from QIC/SCSI tape
-	2.5	Before installing over a network
-		2.5.1	Preparing for NFS Installation 
-		2.5.2	Preparing for FTP Installation
+2.0     Preparing for the installation.
+        2.1     Before installing from CDROM
+        2.2     Before installing from Floppy
+        2.3     Before installing from a DOS partition
+        2.4     Before installing from QIC/SCSI tape
+        2.5     Before installing over a network
+                2.5.1   Preparing for NFS Installation 
+                2.5.2   Preparing for FTP Installation
 
-3.0	Installing FreeBSD.
+3.0     Installing FreeBSD.
 
 
 
-1.0	DOS user's Question and Answer section
-===	======================================
+1.0     DOS user's Question and Answer section
+===     ======================================
 
-1.1	Help!  I have no space!  Do I need to delete everything first?
+1.1     Help!  I have no space!  Do I need to delete everything first?
 
 If your machine is already running DOS and has little or no free space
 available for FreeBSD's installation, all is not lost!  You may find
@@ -48,7 +48,7 @@ Distributions menu for an estimation of how much free space you'll
 need for the kind of installation you want.
 
 
-1.2	Can I use compressed DOS filesystems from FreeBSD?
+1.2     Can I use compressed DOS filesystems from FreeBSD?
 
 No.  If you are using a utility such as Stacker(tm) or DoubleSpace(tm),
 FreeBSD will only be able to use whatever portion of the filesystem
@@ -60,14 +60,14 @@ It is probably better to create another uncompressed DOS primary
 partition and use this for communications between DOS and FreeBSD.
 
 
-1.3	Can I mount my DOS extended partitions?
+1.3     Can I mount my DOS extended partitions?
 
 This feature isn't in FreeBSD 2.0.5 but should be in 2.1.  We've laid
 all the groundwork for making this happen, now we just need to do the
 last 1% of the work involved.
 
 
-1.4	Can I run DOS binaries under FreeBSD?
+1.4     Can I run DOS binaries under FreeBSD?
 
 Not yet!  We'd like to add support for this someday, but are still
 lacking anyone to actually do the work.  Ongoing work with Linux's
@@ -77,10 +77,10 @@ joining this effort!
 
 
 
-2.0	Preparing for the installation
-===	==============================
+2.0     Preparing for the installation
+===     ==============================
 
-2.1	Before installing from CDROM:
+2.1     Before installing from CDROM:
 
 If your CDROM is of an unsupported type, such as an IDE CDROM, then
 please skip to section 2.3: DOS Preparation.
@@ -112,15 +112,15 @@ may also find useful: It allows you to create "link tree" directories
 to things on Read-Only media like CDROM.  One example might be
 something like this:
 
-	mkdir /usr/ports
-	lndir /cdrom/ports /usr/ports
+        mkdir /usr/ports
+        lndir /cdrom/ports /usr/ports
 
 Which would allow you to then "cd /usr/ports; make" and get all the
 sources from the CD, but yet create all the intermediate files in
 /usr/ports, which is presumably on a more writable media! :-)
 
 
-2.2	Before installing from Floppy:
+2.2     Before installing from Floppy:
 
 If you must install from floppy disks, either due to unsupported
 hardware or just because you enjoy doing things the hard way, you must
@@ -154,7 +154,7 @@ fashion.  Select ``Floppy'' from the Media menu at installation time
 and you will be prompted for everything after that.
 
 
-2.3	Before installing from a DOS partition:
+2.3     Before installing from a DOS partition:
 
 To prepare for installation from an MS-DOS partition, you should
 simply copy the files from the distribution into a directory called
@@ -162,9 +162,9 @@ simply copy the files from the distribution into a directory called
 DOS using files copied from the CDROM, you might do something like
 this:
 
-	C> MD C:\FREEBSD
-	C> XCOPY /S E:\DISTS\BIN C:\FREEBSD
-	C> XCOPY /S E:\FLOPPIES C:\FREEBSD
+        C> MD C:\FREEBSD
+        C> XCOPY /S E:\DISTS\BIN C:\FREEBSD
+        C> XCOPY /S E:\FLOPPIES C:\FREEBSD
 
 Asssuming that `C:' was where you had free space and `E:' was where
 your CD was mounted.  Note that you need the FLOPPIES directory
@@ -176,7 +176,7 @@ space for), install each one under `C:\FREEBSD' - the BIN dist is only
 the minimal requirement.
 
 
-2.4	Before installing from QIC/SCSI Tape:
+2.4     Before installing from QIC/SCSI Tape:
 
 Installing from tape is probably the easiest method, short of an
 on-line install using FTP or a CDROM instal.  The installation program
@@ -184,8 +184,8 @@ expects the files to be simply tar'ed onto the tape, so after getting
 all of the files for distribution you're interested in, simply tar
 them onto the tape with a command like:
 
-	cd /freebsd/distdir
-	tar cvf /dev/rwt0 (or /dev/rst0) dist1 .. dist2
+        cd /freebsd/distdir
+        tar cvf /dev/rwt0 (or /dev/rst0) dist1 .. dist2
 
 When you go to do the installation, you should make sure that you
 leave enough room in some temporary directory (which you'll be allowed
@@ -196,13 +196,13 @@ expect to require as much temporary storage as you have stuff written
 on tape.
 
 
-2.5	Before installing over a network:
+2.5     Before installing over a network:
 
 You can do network installations over 3 types of communications links:
 
-	Serial port:	SLIP / PPP
-	Parallel port:	PLIP (laplink cable)
-	Ethernet:	A standard ethernet controller (includes some PCMCIA).
+        Serial port:    SLIP / PPP
+        Parallel port:  PLIP (laplink cable)
+        Ethernet:       A standard ethernet controller (includes some PCMCIA).
 
 SLIP support is rather primitive, and limited primarily to hard-wired
 links, such as a serial cable running between a laptop computer and
@@ -250,58 +250,58 @@ trying this type of installation!
 Once you have a network link of some sort working, the installation
 can continue over NFS or FTP.
 
-2.5.1	Preparing for NFS installation:
+2.5.1   Preparing for NFS installation:
 
-	NFS installation is fairly straight-forward: Simply copy the
-	FreeBSD distribution files you're interested onto a server
-	somewhere and then point the NFS media selection at it.
+        NFS installation is fairly straight-forward: Simply copy the
+        FreeBSD distribution files you're interested onto a server
+        somewhere and then point the NFS media selection at it.
 
-	If this server supports only "privileged port" access (as is
-	generally the default for Sun workstations), you will need to set
-	this option in the Options menu before installation can proceed.
+        If this server supports only "privileged port" access (as is
+        generally the default for Sun workstations), you will need to set
+        this option in the Options menu before installation can proceed.
 
-	If you have a poor quality ethernet card which suffers from very
-	slow transfer rates, you may also wish to toggle the appropriate
-	Options flag.
+        If you have a poor quality ethernet card which suffers from very
+        slow transfer rates, you may also wish to toggle the appropriate
+        Options flag.
 
-	In order for NFS installation to work, the server must support
-	"subdir mounts", e.g. if your FreeBSD 2.0.5 distribution directory
-	lives on:  ziggy:/usr/archive/stuff/FreeBSD
-	Then ziggy will have to allow the direct mounting of
-	/usr/archive/stuff/FreeBSD, not just /usr or /usr/archive/stuff.
+        In order for NFS installation to work, the server must support
+        "subdir mounts", e.g. if your FreeBSD 2.0.5 distribution directory
+        lives on:  ziggy:/usr/archive/stuff/FreeBSD
+        Then ziggy will have to allow the direct mounting of
+        /usr/archive/stuff/FreeBSD, not just /usr or /usr/archive/stuff.
 
-	In FreeBSD's /etc/exports file, this is controlled by the
-	``-alldirs'' option.  Other NFS servers may have different
-	conventions.  If you are getting `Permission Denied' messages
-	from the server then it's likely that you don't have this
-	enabled properly!
-
-
-2.5.2	Preparing for FTP Installation
-
-	FTP installation may be done from any mirror site containing a
-	reasonably up-to-date version of FreeBSD 2.0.5, a full menu of
-	reasonable choices from almost anywhere in the world being
-	provided by the FTP site menu.
-
-	If you are installing from some other FTP site not listed in this
-	menu, or you are having troubles getting your name server configured
-	properly, you can also specify your own URL by selecting the ``Other''
-	choice in that menu.  A URL can also be a direct IP address, so
-	the following would work in the absence of a name server:
-
-		ftp://192.216.222.4/pub/FreeBSD/2.0.5-RELEASE
-	
-	[Substitute "ALPHA" for "RELEASE" during the ALPHA test period!]
-
-	If you are installing through a firewall then you should probably
-	select ``Passive mode'' ftp, which is the default.  If you are
-	talking to a server which does not support passive mode for some
-	reason, see the Options menu to select Active mode transfers.
+        In FreeBSD's /etc/exports file, this is controlled by the
+        ``-alldirs'' option.  Other NFS servers may have different
+        conventions.  If you are getting `Permission Denied' messages
+        from the server then it's likely that you don't have this
+        enabled properly!
 
 
-3.	Installing FreeBSD
---	------------------
+2.5.2   Preparing for FTP Installation
+
+        FTP installation may be done from any mirror site containing a
+        reasonably up-to-date version of FreeBSD 2.0.5, a full menu of
+        reasonable choices from almost anywhere in the world being
+        provided by the FTP site menu.
+
+        If you are installing from some other FTP site not listed in this
+        menu, or you are having troubles getting your name server configured
+        properly, you can also specify your own URL by selecting the ``Other''
+        choice in that menu.  A URL can also be a direct IP address, so
+        the following would work in the absence of a name server:
+
+                ftp://192.216.222.4/pub/FreeBSD/2.0.5-RELEASE
+        
+        [Substitute "ALPHA" for "RELEASE" during the ALPHA test period!]
+
+        If you are installing through a firewall then you should probably
+        select ``Passive mode'' ftp, which is the default.  If you are
+        talking to a server which does not support passive mode for some
+        reason, see the Options menu to select Active mode transfers.
+
+
+3.      Installing FreeBSD
+--      ------------------
 
 Once you've taken note of the appropriate preinstallation steps, you
 should be able to install FreeBSD without any further trouble.
@@ -354,44 +354,44 @@ o You can do anything you like in this menu without altering
   If you're confused at any point, the F1 key usually pulls
   up the right information for the screen you're in.
 
-	o The first step is generally `Partition', which allows
-	  you to chose how your drives will be used for FreeBSD.
+        o The first step is generally `Partition', which allows
+          you to chose how your drives will be used for FreeBSD.
 
-	o Next, with the `Label' editor, you can specify how the space
-	  in any allocated FreeBSD partitions should be used by FreeBSD,
-	  or where to mount a non-FreeBSD partition (such as DOS).
+        o Next, with the `Label' editor, you can specify how the space
+          in any allocated FreeBSD partitions should be used by FreeBSD,
+          or where to mount a non-FreeBSD partition (such as DOS).
 
-	o Next, the `Distributions' menu allows you to specify which
-	  parts of FreeBSD you wish to load.  A good choice is
-	  "User" for a small system or "Developer" for someone
-	  wanting a bit more out of FreeBSD.  If none of the existing
-	  collections sound applicable, select Custom.
+        o Next, the `Distributions' menu allows you to specify which
+          parts of FreeBSD you wish to load.  A good choice is
+          "User" for a small system or "Developer" for someone
+          wanting a bit more out of FreeBSD.  If none of the existing
+          collections sound applicable, select Custom.
 
-	o Next, the `Media' menu allows you to specify what kind of
-	  media you wish to install from.  If a desired media choice is
-	  found and configured automatically then this menu will simply
-	  return, otherwise you'll be asked for additional details on
-	  the media device type.
+        o Next, the `Media' menu allows you to specify what kind of
+          media you wish to install from.  If a desired media choice is
+          found and configured automatically then this menu will simply
+          return, otherwise you'll be asked for additional details on
+          the media device type.
 
-	o Finally, the Commit command will actually perform all the
-	  actions at once (nothing has been written to your disk
-	  so far, nor will it until you give the final confirmation).
-	  All new or changed partition information will be written
-	  out, file systems will be created and/or non-destructively
-	  labelled (depending on how you set their newfs flags in the
-	  Label editor) and all selected distributions will be
-	  extracted.
+        o Finally, the Commit command will actually perform all the
+          actions at once (nothing has been written to your disk
+          so far, nor will it until you give the final confirmation).
+          All new or changed partition information will be written
+          out, file systems will be created and/or non-destructively
+          labelled (depending on how you set their newfs flags in the
+          Label editor) and all selected distributions will be
+          extracted.
 
-	o The Configure menu choice allows you to furthur configure your
-	  FreeBSD installation by giving you menu-driven access to 
-	  various system defaults.  Some items, like networking, may
-	  be especially important if you did a CDROM/Tape/Floppy
-	  installation and have not yet configured your network
-	  interfaces (assuming you have some).  Properly configuring
-	  your network here will allow FreeBSD to come up on the network
-	  when you first reboot from the hard disk.
+        o The Configure menu choice allows you to furthur configure your
+          FreeBSD installation by giving you menu-driven access to 
+          various system defaults.  Some items, like networking, may
+          be especially important if you did a CDROM/Tape/Floppy
+          installation and have not yet configured your network
+          interfaces (assuming you have some).  Properly configuring
+          your network here will allow FreeBSD to come up on the network
+          when you first reboot from the hard disk.
 
-	o Exit returns you to the top menu.
+        o Exit returns you to the top menu.
 
 
   At this point, you're generally done with the sysinstall utility and
@@ -404,6 +404,6 @@ will be shown) and you should boot up into FreeBSD off the hard disk.
   If this fails to happen for some reason, see the Q & A section
 of the Hardware Guide for possible clues!
 
-					Jordan
+                                        Jordan
 
 ---- End of Installation Guide ---
