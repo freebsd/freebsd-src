@@ -771,8 +771,7 @@ pmap_get_asn(pmap_t pmap)
 				printf("pmap_get_asn: generation rollover\n");
 #endif
 				pmap_current_asngen = 1;
-				for (p = allproc.lh_first;
-				     p != 0; p = p->p_list.le_next) {
+				LIST_FOREACH(p, &allproc, p_list) {
 					if (p->p_vmspace) {
 						tpmap = vmspace_pmap(p->p_vmspace);
 						tpmap->pm_asngen = 0;
@@ -1601,7 +1600,7 @@ pmap_growkernel(vm_offset_t addr)
 			newlev1 = pmap_phys_to_pte(pa)
 				| PG_V | PG_ASM | PG_KRE | PG_KWE;
 
-			for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
+			LIST_FOREACH(p, &allproc, p_list) {
 				if (p->p_vmspace) {
 					pmap = vmspace_pmap(p->p_vmspace);
 					*pmap_lev1pte(pmap, kernel_vm_end) = newlev1;
@@ -3137,7 +3136,7 @@ pmap_pid_dump(int pid) {
 	struct proc *p;
 	int npte = 0;
 	int index;
-	for (p = allproc.lh_first; p != NULL; p = p->p_list.le_next) {
+	LIST_FOREACH(p, &allproc, p_list) {
 		if (p->p_pid != pid)
 			continue;
 
