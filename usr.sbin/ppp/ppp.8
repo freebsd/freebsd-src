@@ -3143,6 +3143,9 @@ you wish to map to specific machines behind your gateway.
 .It nat deny_incoming yes|no
 If set to yes, this command will refuse all incoming connections
 by dropping the packets in much the same way as a firewall would.
+.Pp
+It should be noted that enabling this option also drops IP packets
+that cannot be identified by libalias.  This will be fixed in the future.
 .It nat help|?
 This command gives a summary of available nat commands.
 .It nat log yes|no
