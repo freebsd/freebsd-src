@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.37 1995/09/18 16:52:24 peter Exp $
+ * $Id: dist.c,v 1.38 1995/12/07 10:33:41 peter Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -68,8 +68,8 @@ extern Distribution XF86ServerDistTable[];
 /* The top-level distribution categories */
 static Distribution DistTable[] = {
 { "bin",	"/",			&Dists,		DIST_BIN,		NULL		},
+{ "doc",	"/",			&Dists,		DIST_DOC,		NULL		},
 { "games",	"/",			&Dists,		DIST_GAMES,		NULL		},
-{ "help",	NULL,			&Dists,		DIST_HELP,		NULL		},
 { "manpages",	"/",			&Dists,		DIST_MANPAGES,		NULL		},
 { "proflibs",	"/",			&Dists,		DIST_PROFLIBS,		NULL		},
 { "dict",	"/",			&Dists,		DIST_DICT,		NULL		},
