@@ -185,10 +185,11 @@ ShowFile(char *filename, char *header)
     if (access(filename, R_OK)) {
 	sprintf(buf, "The %s file is not provided on the 1.2MB floppy image.", filename);
 	dialog_msgbox("Sorry!", buf, -1, -1, 1);
+	dialog_clear_norefresh();
 	return;
     }
-    dialog_clear();
+    dialog_clear_norefresh();
     dialog_textbox(header, filename, LINES, COLS);
-    dialog_clear();
+    dialog_clear_norefresh();
 }
 
