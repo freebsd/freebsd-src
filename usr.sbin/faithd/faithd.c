@@ -428,7 +428,9 @@ again:
 		len = sizeof(srcaddr);
 		s_src = accept(s_wld, (struct sockaddr *)&srcaddr,
 			&len);
-		if (s_src == -1) {
+		if (s_src < 0) {
+			if (errno == ECONNABORTED)
+				goto again;
 			exit_failure("socket: %s", strerror(errno));
 			/*NOTREACHED*/
 		}
