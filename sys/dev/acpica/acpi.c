@@ -49,9 +49,6 @@
 #include <dev/acpica/acpivar.h>
 #include <dev/acpica/acpiio.h>
 
-#include <pci/pcivar.h>
-#include "pcib_if.h"
-
 MALLOC_DEFINE(M_ACPIDEV, "acpidev", "ACPI devices");
 
 /*
