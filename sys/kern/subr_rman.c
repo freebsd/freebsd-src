@@ -539,13 +539,20 @@ int_rman_release_resource(struct rman *rm, struct resource *r)
 
 	/*
 	 * Look at the adjacent resources in the list and see if our
-	 * segment can be merged with any of them.
+	 * segment can be merged with any of them.  If either of the
+	 * resources is allocated or is not exactly adjacent then they
+	 * cannot be merged with our segment.
 	 */
 	s = TAILQ_PREV(r, resource_head, r_link);
+	if (s != NULL && ((s->r_flags & RF_ALLOCATED) != 0 ||
+	    s->r_end + 1 != r->r_start))
+		s = NULL;
 	t = TAILQ_NEXT(r, r_link);
+	if (t != NULL && ((t->r_flags & RF_ALLOCATED) != 0 ||
+	    r->r_end + 1 != t->r_start))
+		t = NULL;
 
-	if (s != NULL && (s->r_flags & RF_ALLOCATED) == 0
-	    && t != NULL && (t->r_flags & RF_ALLOCATED) == 0) {
+	if (s != NULL && t != NULL) {
 		/*
 		 * Merge all three segments.
 		 */
@@ -553,13 +560,13 @@ int_rman_release_resource(struct rman *rm, struct resource *r)
 		TAILQ_REMOVE(&rm->rm_list, r, r_link);
 		TAILQ_REMOVE(&rm->rm_list, t, r_link);
 		free(t, M_RMAN);
-	} else if (s != NULL && (s->r_flags & RF_ALLOCATED) == 0) {
+	} else if (s != NULL) {
 		/*
 		 * Merge previous segment with ours.
 		 */
 		s->r_end = r->r_end;
 		TAILQ_REMOVE(&rm->rm_list, r, r_link);
-	} else if (t != NULL && (t->r_flags & RF_ALLOCATED) == 0) {
+	} else if (t != NULL) {
 		/*
 		 * Merge next segment with ours.
 		 */
