@@ -389,7 +389,8 @@ acpi_pr_FindLapic(device_t dev, ACPI_HANDLE handle, PROCESSOR_APIC *lapic)
 	return;
     }
     lapic->ProcessorEnabled = (cpuno == 0);
-    
+
+#if 0	/* broken by new ACPICA code that doesn't support the APIC table */
     /*
      * Perform the tedious double-get to fetch the actual APIC table, and suck it in.
      */
@@ -434,6 +435,7 @@ acpi_pr_FindLapic(device_t dev, ACPI_HANDLE handle, PROCESSOR_APIC *lapic)
 	hdr = (APIC_HEADER *)((char *)hdr + hdr->Length);
     }
     AcpiOsFree(buf.Pointer);
+#endif
 }
 
 static ACPI_STATUS
