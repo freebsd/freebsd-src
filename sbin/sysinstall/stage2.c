@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: stage2.c,v 1.25 1995/02/13 06:52:10 phk Exp $
+ * $Id: stage2.c,v 1.26 1995/03/15 06:16:10 phk Exp $
  *
  */
 
@@ -153,7 +153,7 @@ stage2()
     }
     chdir("/");
     TellEm("Writing procfs");
-    fprintf(f1,"proc\t\t/proc\tprocfs rw 0 0\n");
+    fprintf(f1,"proc\t\t\t/proc\tprocfs rw 0 0\n");
     fclose(f1);
 
     j = fork();
