@@ -1,11 +1,11 @@
-# $Id: Makefile,v 1.7 1998/02/15 21:38:17 eivind Exp $
+# $Id: Makefile,v 1.8 1998/03/07 10:48:10 eivind Exp $
 
 PROG= kztail.o kzhead.o
 BINMODE = 444	# target is a relocatable object
 SRCS= tail.S head.S boot.c unzip.c misc.c malloc.c inflate.c
 OBJS_KZHEAD= head.o
 OBJS_KZTAIL= tail.o boot.o unzip.o misc.o malloc.o inflate.o
-BINDIR= /usr/lib
+BINDIR= /usr/lib/aout
 .PATH:	${.CURDIR}/../../../kern
 NOMAN= toobad
 
