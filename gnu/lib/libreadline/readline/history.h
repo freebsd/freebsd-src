@@ -125,6 +125,10 @@ extern int history_search ();
   error message. */
 extern int history_expand ();
 
+/* Return an array of tokens, much as the shell might.  The tokens are
+   parsed out of STRING. */
+extern char **history_tokenize ();
+
 /* Extract a string segment consisting of the FIRST through LAST
    arguments present in STRING.  Arguments are broken up as in
    the shell. */
@@ -133,3 +137,13 @@ extern char *history_arg_extract ();
 /* Return the number of bytes that the primary history entries are using.
    This just adds up the lengths of the_history->lines. */
 extern int history_total_bytes ();
+
+/* Exported history variables. */
+extern int history_stifled;
+extern int history_length;
+extern int max_input_history;
+extern char history_expansion_char;
+extern char history_subst_char;
+extern char history_comment_char;
+extern char *history_no_expand_chars;
+extern int history_base;

@@ -19,18 +19,7 @@
    along with Readline; see the file COPYING.  If not, write to the Free
    Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. */
 
-#if defined (__GNUC__)
-#  undef alloca
-#  define alloca __builtin_alloca
-#else /* !__GNUC__ */
-#  if defined (_AIX)
-     #pragma alloca
-#  else /* !_AIX */
-#    if defined (HAVE_ALLOCA_H)
-#      include <alloca.h>
-#    endif /* HAVE_ALLOCA_H */
-#  endif /* !AIX */
-#endif /* !__GNUC__ */
+#include "memalloc.h"
 
 #if defined (HAVE_STRING_H)
 #  include <string.h>
@@ -44,15 +33,12 @@
 #  include "ansi_stdlib.h"
 #endif /* HAVE_STDLIB_H */
 
-#include <tilde.h>
+#include "tilde.h"
 #include <pwd.h>
 
-#if defined (USG) && !defined (isc386) && !defined (sgi)
-extern struct passwd *getpwuid (), *getpwent ();
-#endif
-#if defined (isc386) && !defined (__STDC__) && defined (_POSIX_SOURCE)
-extern struct passwd *getpwent ();
-#endif
+#if defined (USG) && !defined (HAVE_GETPW_DECLS)
+extern struct passwd *getpwuid (), *getpwnam ();
+#endif /* USG && !defined (HAVE_GETPW_DECLS) */
 
 #if !defined (savestring)
 extern char *xmalloc ();
@@ -254,21 +240,23 @@ tilde_expand_word (filename)
 		temp_home = entry->pw_dir;
 	    }
 
-	  temp_name = (char *)alloca (1 + strlen (&dirname[1])
-				      + (temp_home ? strlen (temp_home) : 0));
+	  temp_name = xmalloc (1 + strlen (&dirname[1])
+				 + (temp_home ? strlen (temp_home) : 0));
 	  temp_name[0] = '\0';
 	  if (temp_home)
 	    strcpy (temp_name, temp_home);
-	  strcat (temp_name, &dirname[1]);
+	  strcat (temp_name, dirname + 1);
 	  free (dirname);
-	  dirname = savestring (temp_name);
+	  dirname = temp_name;
 	}
       else
 	{
+	  char u_name[257];
 	  struct passwd *user_entry;
-	  char *username = (char *)alloca (257);
+	  char *username;
 	  int i, c;
 
+	  username = u_name;
 	  for (i = 1; c = dirname[i]; i++)
 	    {
 	      if (c == '/')
@@ -291,25 +279,25 @@ tilde_expand_word (filename)
 
 		  if (expansion)
 		    {
-		      temp_name = (char *)alloca (1 + strlen (expansion)
+		      temp_name = xmalloc (1 + strlen (expansion)
 						  + strlen (&dirname[i]));
 		      strcpy (temp_name, expansion);
 		      strcat (temp_name, &dirname[i]);
 		      free (expansion);
-		      goto return_name;
+		      free (dirname);
+		      dirname = temp_name;
 		    }
 		}
 	      /* We shouldn't report errors. */
 	    }
 	  else
 	    {
-	      temp_name = (char *)alloca (1 + strlen (user_entry->pw_dir)
-					  + strlen (&dirname[i]));
+	      temp_name = xmalloc (1 + strlen (user_entry->pw_dir)
+				     + strlen (&dirname[i]));
 	      strcpy (temp_name, user_entry->pw_dir);
 	      strcat (temp_name, &dirname[i]);
-	    return_name:
 	      free (dirname);
-	      dirname = savestring (temp_name);
+	      dirname = temp_name;
 	    }
 	    endpwent ();
 	}

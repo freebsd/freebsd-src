@@ -36,6 +36,7 @@ extern char *xmalloc (), *xrealloc ();
 #  include "ansi_stdlib.h"
 #endif /* HAVE_STDLIB_H */
 
+#include "rlconf.h"
 #include "readline.h"
 
 FUNMAP **funmap = (FUNMAP **)NULL;
@@ -68,18 +69,24 @@ static FUNMAP default_funmap[] = {
   { "do-lowercase-version", rl_do_lowercase_version },
   { "downcase-word", rl_downcase_word },
   { "dump-functions", rl_dump_functions },
+  { "emacs-editing-mode", rl_emacs_editing_mode },
   { "end-kbd-macro", rl_end_kbd_macro },
   { "end-of-history", rl_end_of_history },
   { "end-of-line", rl_end_of_line },
   { "forward-char", rl_forward },
   { "forward-search-history", rl_forward_search_history },
   { "forward-word", rl_forward_word },
+  { "history-search-backward", rl_history_search_backward },
+  { "history-search-forward", rl_history_search_forward },
   { "insert-completions", rl_insert_completions },
+  { "kill-whole-line", rl_kill_full_line },
   { "kill-line", rl_kill_line },
   { "kill-word", rl_kill_word },
   { "next-history", rl_get_next_history },
   { "non-incremental-forward-search-history", rl_noninc_forward_search },
   { "non-incremental-reverse-search-history", rl_noninc_reverse_search },
+  { "non-incremental-forward-search-history-again", rl_noninc_forward_search_again },
+  { "non-incremental-reverse-search-history-again", rl_noninc_reverse_search_again },
   { "possible-completions", rl_possible_completions },
   { "previous-history", rl_get_previous_history },
   { "quoted-insert", rl_quoted_insert },
@@ -90,6 +97,7 @@ static FUNMAP default_funmap[] = {
   { "self-insert", rl_insert },
   { "start-kbd-macro", rl_start_kbd_macro },
   { "tab-insert", rl_tab_insert },
+  { "tilde-expand", rl_tilde_expand },
   { "transpose-chars", rl_transpose_chars },
   { "transpose-words", rl_transpose_words },
   { "undo", rl_undo_command },
@@ -102,7 +110,6 @@ static FUNMAP default_funmap[] = {
   { "yank-pop", rl_yank_pop },
 
 #if defined (VI_MODE)
-
   { "vi-append-eol", rl_vi_append_eol },
   { "vi-append-mode", rl_vi_append_mode },
   { "vi-arg-digit", rl_vi_arg_digit },
@@ -135,10 +142,12 @@ static FUNMAP default_funmap[] = {
   { "vi-overstrike-delete", rl_vi_overstrike_delete },
   { "vi-prev-word", rl_vi_prev_word },
   { "vi-put", rl_vi_put },
+  { "vi-redo", rl_vi_redo },
   { "vi-replace", rl_vi_replace },
   { "vi-search", rl_vi_search },
   { "vi-search-again", rl_vi_search_again },
   { "vi-subst", rl_vi_subst },
+  { "vi-tilde-expand", rl_vi_tilde_expand },
   { "vi-yank-arg", rl_vi_yank_arg },
   { "vi-yank-to", rl_vi_yank_to },
 
@@ -163,6 +172,7 @@ rl_add_funmap_entry (name, function)
   funmap[funmap_entry]->function = function;
 
   funmap[++funmap_entry] = (FUNMAP *)NULL;
+  return funmap_entry;
 }
 
 static int funmap_initialized = 0;

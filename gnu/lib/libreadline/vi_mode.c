@@ -20,12 +20,14 @@
    is generally kept in a file called COPYING or LICENSE.  If you do not
    have a copy of the license, write to the Free Software Foundation,
    675 Mass Ave, Cambridge, MA 02139, USA. */
-
+
 /* **************************************************************** */
 /*								    */
 /*			VI Emulation Mode			    */
 /*								    */
 /* **************************************************************** */
+#include "rlconf.h"
+
 #if defined (VI_MODE)
 
 #include <sys/types.h>
@@ -35,12 +37,6 @@
 #else
 #  include "ansi_stdlib.h"
 #endif /* HAVE_STDLIB_H */
-
-#if defined (STATIC_MALLOC)
-static char *xmalloc (), *xrealloc ();
-#else
-extern char *xmalloc (), *xrealloc ();
-#endif /* STATIC_MALLOC */
 
 #include <stdio.h>
 
@@ -77,6 +73,12 @@ extern char *xmalloc (), *xrealloc ();
 #define VI_COMMENT_BEGIN_DEFAULT "#"
 #endif
 
+#if defined (STATIC_MALLOC)
+static char *xmalloc (), *xrealloc ();
+#else
+extern char *xmalloc (), *xrealloc ();
+#endif /* STATIC_MALLOC */
+
 /* Variables imported from readline.c */
 extern int rl_point, rl_end, rl_mark, rl_done;
 extern FILE *rl_instream;
@@ -86,11 +88,13 @@ extern char *rl_prompt;
 extern char *rl_line_buffer;
 extern int rl_arg_sign;
 
+extern void _rl_dispatch ();
+
 extern void rl_extend_line_buffer ();
-extern int rl_vi_check (), rl_digit_loop1 ();
+extern int rl_vi_check ();
 
 /* Non-zero means enter insertion mode. */
-int _rl_vi_doing_insert = 0;
+static int _rl_vi_doing_insert = 0;
 
 /* String inserted into the line by rl_vi_comment (). */
 char *rl_vi_comment_begin = (char *)NULL;
@@ -106,9 +110,14 @@ static Keymap vi_replace_map = (Keymap)NULL;
 /* The number of characters inserted in the last replace operation. */
 static int vi_replace_count = 0;
 
-int _rl_vi_last_command = 'i';	/* default `.' puts you in insert mode */
-int _rl_vi_last_repeat = 1;
-int _rl_vi_last_arg_sign = 1;
+/* If non-zero, we have text inserted after a c[motion] command that put
+   us implicitly into insert mode.  Some people want this text to be
+   attached to the command so that it is `redoable' with `.'. */
+static int vi_continued_command = 0;
+
+static int _rl_vi_last_command = 'i';	/* default `.' puts you in insert mode */
+static int _rl_vi_last_repeat = 1;
+static int _rl_vi_last_arg_sign = 1;
 static int _rl_vi_last_motion = 0;
 static int _rl_vi_last_search_char = 0;
 static int _rl_vi_last_replacement = 0;
@@ -118,13 +127,24 @@ static int vi_redoing = 0;
 /* Text modification commands.  These are the `redoable' commands. */
 static char *vi_textmod = "_*\\AaIiCcDdPpYyRrSsXx~";
 
+static int rl_digit_loop1 ();
+
 void
-rl_vi_set_last ()
+_rl_vi_reset_last ()
 {
   _rl_vi_last_command = 'i';
   _rl_vi_last_repeat = 1;
   _rl_vi_last_arg_sign = 1;
   _rl_vi_last_motion = 0;
+}
+
+void
+_rl_vi_set_last (key, repeat, sign)
+     int key, repeat, sign;
+{
+  _rl_vi_last_command = key;
+  _rl_vi_last_repeat = repeat;
+  _rl_vi_last_arg_sign = sign;
 }
 
 /* Is the command C a VI mode text modification command? */
@@ -148,7 +168,7 @@ rl_vi_redo (count, c)
     }
 
   vi_redoing = 1;
-  rl_dispatch (_rl_vi_last_command, _rl_keymap);
+  _rl_dispatch (_rl_vi_last_command, _rl_keymap);
   vi_redoing = 0;
 
   return (0);
@@ -158,9 +178,6 @@ rl_vi_redo (count, c)
 rl_vi_yank_arg (count)
      int count;
 {
-  /* vi mode is defined to insert a space before the last argument. */
-  rl_insert (1, ' ');
-
   /* Readline thinks that the first word on a line is the 0th, while vi
      thinks the first word on a line is the 1st.  Compensate. */
   if (rl_explicit_arg)
@@ -168,7 +185,6 @@ rl_vi_yank_arg (count)
   else
     rl_yank_nth_arg ('$', 0);
 
-  rl_vi_insertion_mode ();
   return (0);
 }
 
@@ -256,7 +272,10 @@ rl_vi_complete (ignore, key)
     rl_complete (0, key);
 
   if (key == '*' || key == '\\')
-    rl_vi_insertion_mode ();
+    {
+      _rl_vi_set_last (key, 1, rl_arg_sign);
+      rl_vi_insertion_mode ();
+    }
   return (0);
 }
 
@@ -265,6 +284,7 @@ rl_vi_tilde_expand (ignore, key)
      int ignore, key;
 {
   rl_tilde_expand (0, key);
+  _rl_vi_set_last (key, 1, rl_arg_sign);	/* XXX */
   rl_vi_insertion_mode ();
   return (0);
 }
@@ -292,7 +312,7 @@ rl_vi_prev_word (count, key)
 
 /* Next word in vi mode. */
 rl_vi_next_word (count, key)
-     int count;
+     int count, key;
 {
   if (count < 0)
     return (rl_vi_prev_word (-count, key));
@@ -493,7 +513,7 @@ rl_vi_insert_beg ()
 rl_vi_append_mode ()
 {
   if (rl_point < rl_end)
-    rl_point += 1;
+    rl_point++;
   rl_vi_insertion_mode ();
   return (0);
 }
@@ -522,25 +542,33 @@ rl_vi_insertion_mode ()
   return (0);
 }
 
+void
+_rl_vi_done_inserting ()
+{
+  if (_rl_vi_doing_insert)
+    {
+      rl_end_undo_group ();
+      /* Now, the text between rl_undo_list->next->start and
+	 rl_undo_list->next->end is what was inserted while in insert
+	 mode. */
+      _rl_vi_doing_insert = 0;
+      vi_continued_command = 1;
+    }
+  else
+    vi_continued_command = 0;
+}
+
 rl_vi_movement_mode ()
 {
   if (rl_point > 0)
     rl_backward (1);
 
-  rl_vi_set_last ();
+#if 0
+  _rl_vi_reset_last ();
+#endif
 
   _rl_keymap = vi_movement_keymap;
-  vi_done_inserting ();
-  return (0);
-}
-
-vi_done_inserting ()
-{
-  if (_rl_vi_doing_insert)
-    {
-      rl_end_undo_group ();
-      _rl_vi_doing_insert = 0;
-    }
+  _rl_vi_done_inserting ();
   return (0);
 }
 
@@ -639,9 +667,7 @@ rl_vi_domove (key, nextkey)
 	  c = rl_read_key ();	/* real command */
 	  *nextkey = c;
 	}
-      else if ((key == 'd' && c == 'd') ||
-	       (key == 'y' && c == 'y') ||
-	       (key == 'c' && c == 'c'))
+      else if (key == c && (key == 'd' || key == 'y' || key == 'c'))
 	{
 	  rl_mark = rl_end;
 	  rl_beg_of_line ();
@@ -660,7 +686,7 @@ rl_vi_domove (key, nextkey)
   rl_line_buffer[rl_end++] = ' ';
   rl_line_buffer[rl_end] = '\0';
 
-  rl_dispatch (c, _rl_keymap);
+  _rl_dispatch (c, _rl_keymap);
 
   /* Remove the blank that we added. */
   rl_end = old_end;
@@ -675,23 +701,30 @@ rl_vi_domove (key, nextkey)
   /* rl_vi_f[wW]ord () leaves the cursor on the first character of the next
      word.  If we are not at the end of the line, and we are on a
      non-whitespace character, move back one (presumably to whitespace). */
-  if ((c == 'w' || c == 'W') && (rl_point < rl_end) &&
+  if ((to_upper (c) == 'W') && rl_point < rl_end && rl_point > rl_mark &&
       !whitespace (rl_line_buffer[rl_point]))
     rl_point--;
 
   /* If cw or cW, back up to the end of a word, so the behaviour of ce
      or cE is the actual result.  Brute-force, no subtlety. */
-  if (key == 'c' && (to_upper (c) == 'W'))
+  if (key == 'c' && rl_point >= rl_mark && (to_upper (c) == 'W'))
     {
-      while (rl_point && whitespace (rl_line_buffer[rl_point]))
+      /* Don't move farther back than where we started. */
+      while (rl_point > rl_mark && whitespace (rl_line_buffer[rl_point]))
 	rl_point--;
 
-      /* Move past the end of the word so that the kill doesn't remove the
-	 last letter of the previous word.  Only do this if we are not at
-	 the end of the line. */
-      if ((rl_point >= 0) && (rl_point < (rl_end - 1)) &&
-	  !whitespace (rl_line_buffer[rl_point]))
-	rl_point++;
+      /* Posix.2 says that if cw or cW moves the cursor towards the end of
+	 the line, the character under the cursor should be deleted. */
+      if (rl_point == rl_mark)
+        rl_point++;
+      else
+	{
+	  /* Move past the end of the word so that the kill doesn't
+	     remove the last letter of the previous word.  Only do this
+	     if we are not at the end of the line. */
+	  if (rl_point >= 0 && rl_point < (rl_end - 1) && !whitespace (rl_line_buffer[rl_point]))
+	    rl_point++;
+	}
     }
 
   if (rl_mark < rl_point)
@@ -702,6 +735,7 @@ rl_vi_domove (key, nextkey)
 
 /* A simplified loop for vi. Don't dispatch key at end.
    Don't recognize minus sign? */
+static int
 rl_digit_loop1 ()
 {
   int key, c;
@@ -790,9 +824,11 @@ rl_vi_change_to (count, key)
   if ((to_upper (c) == 'W') && rl_point < start_pos)
     rl_point = start_pos;
 
+  rl_kill_text (rl_point, rl_mark);
+
   rl_begin_undo_group ();
   _rl_vi_doing_insert = 1;
-  rl_kill_text (rl_point, rl_mark);
+  _rl_vi_set_last (key, count, rl_arg_sign);
   rl_vi_insertion_mode ();
 
   return (0);
@@ -930,7 +966,7 @@ rl_vi_char_search (count, key)
 	  if (pos == 0)
 	    {
 	      ding ();
-	      return;
+	      return -1;
 	    }
 
 	  pos--;
@@ -1096,7 +1132,6 @@ rl_vi_subst (count, key)
      int count, key;
 {
   rl_begin_undo_group ();
-  _rl_vi_doing_insert = 1;
 
   if (uppercase_p (key))
     {
@@ -1108,7 +1143,12 @@ rl_vi_subst (count, key)
 
   rl_end_undo_group ();
 
+  _rl_vi_set_last (key, count, rl_arg_sign);
+
+  rl_begin_undo_group ();
+  _rl_vi_doing_insert = 1;
   rl_vi_insertion_mode ();
+
   return (0);
 }
 
@@ -1202,6 +1242,7 @@ rl_vi_replace (count, key)
   return (0);
 }
 
+#if 0
 /* Try to complete the word we are standing on or the word that ends with
    the previous character.  A space matches everything.  Word delimiters are
    space and ;. */
@@ -1211,9 +1252,9 @@ rl_vi_possible_completions()
 
   if (rl_line_buffer[rl_point] != ' ' && rl_line_buffer[rl_point] != ';')
     {
-      while (rl_line_buffer[rl_point] != ' ' &&
+      while (rl_point < rl_end && rl_line_buffer[rl_point] != ' ' &&
 	     rl_line_buffer[rl_point] != ';')
-	;
+	rl_point++;
     }
   else if (rl_line_buffer[rl_point - 1] == ';')
     {
@@ -1226,6 +1267,7 @@ rl_vi_possible_completions()
 
   return (0);
 }
+#endif
 
 #if defined (STATIC_MALLOC)
 

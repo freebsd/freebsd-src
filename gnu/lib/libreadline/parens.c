@@ -27,6 +27,8 @@
 #endif
 #include "readline.h"
 
+extern int rl_explicit_arg;
+
 /* Non-zero means try to blink the matching open parenthesis when the
    close parenthesis is inserted. */
 #if defined (FD_SET)
@@ -40,8 +42,6 @@ static int find_matching_open ();
 rl_insert_close (count, invoking_key)
      int count, invoking_key;
 {
-  extern int rl_explicit_arg;
-
   if (rl_explicit_arg || !rl_blink_matching_paren)
     rl_insert (count, invoking_key);
   else
@@ -58,7 +58,7 @@ rl_insert_close (count, invoking_key)
 
       /* Emacs might message or ring the bell here, but I don't. */
       if (match_point < 0)
-	return;
+	return -1;
 
       FD_ZERO (&readfds);
       FD_SET (fileno (rl_instream), &readfds);
@@ -74,6 +74,7 @@ rl_insert_close (count, invoking_key)
       rl_insert (count, invoking_key);
 #endif /* !FD_SET */
     }
+  return 0;
 }
 
 static int

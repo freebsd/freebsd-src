@@ -66,24 +66,26 @@ extern KEYMAP_ENTRY_ARRAY vi_insertion_keymap, vi_movement_keymap;
 
 /* Return a new, empty keymap.
    Free it with free() when you are done. */
-Keymap rl_make_bare_keymap ();
+extern Keymap rl_make_bare_keymap ();
 
 /* Return a new keymap which is a copy of MAP. */
-Keymap rl_copy_keymap ();
+extern Keymap rl_copy_keymap ();
 
 /* Return a new keymap with the printing characters bound to rl_insert,
    the lowercase Meta characters bound to run their equivalents, and
    the Meta digits bound to produce numeric arguments. */
-Keymap rl_make_keymap ();
+extern Keymap rl_make_keymap ();
+
+extern void rl_discard_keymap ();
 
 /* Return the keymap corresponding to a given name.  Names look like
    `emacs' or `emacs-meta' or `vi-insert'. */
-Keymap rl_get_keymap_by_name ();
+extern Keymap rl_get_keymap_by_name ();
 
 /* Return the current keymap. */
-Keymap rl_get_keymap ();
+extern Keymap rl_get_keymap ();
 
 /* Set the current keymap to MAP. */
-void rl_set_keymap ();
+extern void rl_set_keymap ();
 
 #endif /* _KEYMAPS_H_ */

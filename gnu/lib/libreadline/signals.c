@@ -62,10 +62,11 @@ static void cr ();
 
 extern int readline_echoing_p;
 extern int rl_pending_input;
+extern char *term_cr;
 
 extern int _rl_meta_flag;
 
-extern void _rl_output_character_function ();
+extern int _rl_output_character_function ();
 
 extern void free_undo_list ();
 
@@ -79,9 +80,9 @@ extern void free_undo_list ();
    to say SigHandler *foo = signal (SIGKILL, SIG_IGN); */
 typedef sighandler SigHandler ();
 
-#if defined (_GO32_)
+#if defined (__GO32__)
 #  undef HANDLE_SIGNALS
-#endif /* _GO32_ */
+#endif /* __GO32__ */
 
 #if defined (STATIC_MALLOC)
 static char *xmalloc (), *xrealloc ();
@@ -125,11 +126,14 @@ rl_handle_sigwinch (sig)
 /* Interrupt handling. */
 static SigHandler
   *old_int  = (SigHandler *)NULL,
+  *old_alrm = (SigHandler *)NULL;
+#if !defined (SHELL)
+static SigHandler
   *old_tstp = (SigHandler *)NULL,
   *old_ttou = (SigHandler *)NULL,
   *old_ttin = (SigHandler *)NULL,
-  *old_cont = (SigHandler *)NULL,
-  *old_alrm = (SigHandler *)NULL;
+  *old_cont = (SigHandler *)NULL;
+#endif /* !SHELL */
 
 /* Handle an interrupt character. */
 static sighandler
@@ -261,6 +265,7 @@ rl_set_signals ()
   old_sigwinch =
     (SigHandler *) rl_set_sighandler (SIGWINCH, rl_handle_sigwinch);
 #endif /* SIGWINCH */
+  return 0;
 }
 
 rl_clear_signals ()
@@ -284,14 +289,14 @@ rl_clear_signals ()
 #if defined (SIGWINCH)
   signal (SIGWINCH, old_sigwinch);
 #endif
+
+  return 0;
 }
 
 /* Move to the start of the current line. */
 static void
 cr ()
 {
-  extern char *term_cr;
-
   if (term_cr)	
     tputs (term_cr, 1, _rl_output_character_function);
 }
