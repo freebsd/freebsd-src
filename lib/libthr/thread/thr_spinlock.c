@@ -64,6 +64,17 @@ _spinlock(spinlock_t *lck)
 		abort();
 }
 
+int
+_spintrylock(spinlock_t *lck)
+{
+	int error;
+
+	error = umtx_lock((struct umtx *)lck, curthread->thr_id);
+	if (error != 0 && error != EBUSY)
+		abort();
+	return (error);
+}
+
 /*
  * Lock a location for the running thread. Yield to allow other
  * threads to run if this thread is blocked because the lock is
