@@ -4,19 +4,14 @@
 #ifdef	__MSDOS__
 #include <dos.h>
 #endif
-#ifdef unix	/* Assume POSIX */
+#ifdef unix
 #include <fcntl.h>
 #include <termios.h>
+#include <signal.h>
 #endif
-#include <skey.h>
-#include "md4.h"
 
-#ifndef LITTLE_ENDIAN
-#if (defined(__MSDOS__) || defined(MPU8086) || defined(MPU8080) \
- || defined(vax) || defined (MIPSEL))
-#define	LITTLE_ENDIAN	/* Low order bytes are first in memory */
-#endif			/* Almost all other machines are big-endian */
-#endif
+#include "skey.h"
+#include "mdx.h"
 
 /* Crunch a key:
  * concatenate the seed and the password, run through MD4 and
@@ -24,17 +19,14 @@
  */
 int
 keycrunch(result,seed,passwd)
-char *result;	/* 8-byte result */
-char *seed;	/* Seed, any length */
-char *passwd;	/* Password, any length */
+char *result;   /* 8-byte result */
+char *seed;     /* Seed, any length */
+char *passwd;   /* Password, any length */
 {
 	char *buf;
-	MDstruct md;
+	MDX_CTX md;
+	u_long results[4];
 	unsigned int buflen;
-#ifndef	LITTLE_ENDIAN
-	int i;
-	register long tmp;
-#endif
 	
 	buflen = strlen(seed) + strlen(passwd);
 	if((buf = malloc(buflen+1)) == NULL)
@@ -42,35 +34,17 @@ char *passwd;	/* Password, any length */
 	strcpy(buf,seed);
 	strcat(buf,passwd);
 
-	/* Crunch the key through MD4 */
+	/* Crunch the key through MD[45] */
 	sevenbit(buf);
-	MDbegin(&md);
-	MDupdate(&md,(unsigned char *)buf,8*buflen);
-
+	MDXInit(&md);
+	MDXUpdate(&md,(unsigned char *)buf,buflen);
+	MDXFinal((unsigned char *)results,&md);
 	free(buf);
 
-	/* Fold result from 128 to 64 bits */
-	md.buffer[0] ^= md.buffer[2];
-	md.buffer[1] ^= md.buffer[3];
+	results[0] ^= results[2];
+	results[1] ^= results[3];
 
-#ifdef	LITTLE_ENDIAN
-	/* Only works on byte-addressed little-endian machines!! */
-	memcpy(result,(char *)md.buffer,8);
-#else
-	/* Default (but slow) code that will convert to
-	 * little-endian byte ordering on any machine
-	 */
-	for(i=0;i<2;i++){
-		tmp = md.buffer[i];
-		*result++ = tmp;
-		tmp >>= 8;
-		*result++ = tmp;
-		tmp >>= 8;
-		*result++ = tmp;
-		tmp >>= 8;
-		*result++ = tmp;
-	}
-#endif
+	memcpy(result,(char *)results,8);
 
 	return 0;
 }
@@ -80,44 +54,18 @@ void
 f(x)
 char *x;
 {
-	MDstruct md;
-#ifndef	LITTLE_ENDIAN
-	register long tmp;
-#endif
+	MDX_CTX md;
+	u_long results[4];
 
-	MDbegin(&md);
-	MDupdate(&md,(unsigned char *)x,64);
-
+	MDXInit(&md);
+	MDXUpdate(&md,(unsigned char *)x,8);
+	MDXFinal((unsigned char *)results,&md);
 	/* Fold 128 to 64 bits */
-	md.buffer[0] ^= md.buffer[2];
-	md.buffer[1] ^= md.buffer[3];
+	results[0] ^= results[2];
+	results[1] ^= results[3];
 
-#ifdef	LITTLE_ENDIAN
 	/* Only works on byte-addressed little-endian machines!! */
-	memcpy(x,(char *)md.buffer,8);
-
-#else
-	/* Default (but slow) code that will convert to
-	 * little-endian byte ordering on any machine
-	 */
-	tmp = md.buffer[0];
-	*x++ = tmp;
-	tmp >>= 8;
-	*x++ = tmp;
-	tmp >>= 8;
-	*x++ = tmp;
-	tmp >>= 8;
-	*x++ = tmp;
-
-	tmp = md.buffer[1];
-	*x++ = tmp;
-	tmp >>= 8;
-	*x++ = tmp;
-	tmp >>= 8;
-	*x++ = tmp;
-	tmp >>= 8;
-	*x = tmp;
-#endif
+	memcpy(x,(char *)results,8);
 }
 
 /* Strip trailing cr/lf from a line of text */
@@ -152,16 +100,26 @@ int n;
 	return buf;
 }
 #else
+static struct termios saved_ttymode;
+
+static void interrupt()
+{
+	tcsetattr(0, TCSANOW, &saved_ttymode);
+	exit(1);
+}
+
 char *
 readpass(buf,n)
 char *buf;
 int n;
 {
-	struct termios saved_ttymode;
 	struct termios noecho_ttymode;
+	void (*oldsig)();
 
 	/* Save normal line editing modes */
 	tcgetattr(0, &saved_ttymode);
+	if ((oldsig = signal(SIGINT, SIG_IGN)) != SIG_IGN)
+		signal(SIGINT, interrupt);
 
 	/* Turn off echoing */
 	tcgetattr(0, &noecho_ttymode);
@@ -172,6 +130,8 @@ int n;
 
 	/* Restore previous tty modes */
 	tcsetattr(0, TCSANOW, &saved_ttymode);
+	if (oldsig != SIG_IGN)
+		signal(SIGINT, oldsig);
 
 	/*
 	after the secret key is taken from the keyboard, the line feed is
@@ -189,33 +149,6 @@ int n;
 
 #endif
 
-/* removebackspaced over charaters from the string*/
-backspace(buf)
-char *buf;
-{
-	char bs = 0x8;
-	char *cp = buf;
-	char *out = buf;
-
-	while(*cp){
-		if( *cp == bs ) {
-			if(out == buf){
-				cp++;
-				continue;
-			}
-			else {
-			  cp++;
-			  out--;
-			}
-		}
-		else {
-			*out++ = *cp++;
-		}
-
-	}
-	*out = '\0';
-	
-}
 sevenbit(s)
 char *s;
 {
