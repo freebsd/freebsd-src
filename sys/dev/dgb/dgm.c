@@ -265,25 +265,25 @@ static struct cdevsw dgm_cdevsw = {
 static	speed_t	dgmdefaultrate = TTYDEF_SPEED;
 
 static	struct speedtab dgmspeedtab[] = {
-	0,	FEP_B0, /* old (sysV-like) Bx codes */
-	50,	FEP_B50,
-	75,	FEP_B75,
-	110,	FEP_B110,
-	134,	FEP_B134,
-	150,	FEP_B150,
-	200,	FEP_B200,
-	300,	FEP_B300,
-	600,	FEP_B600,
-	1200,	FEP_B1200,
-	1800,	FEP_B1800,
-	2400,	FEP_B2400,
-	4800,	FEP_B4800,
-	9600,	FEP_B9600,
-	19200,	FEP_B19200,
-	38400,	FEP_B38400,
-	57600,	(FEP_FASTBAUD|FEP_B50),	/* B50 & fast baud table */
-	115200, (FEP_FASTBAUD|FEP_B110), /* B100 & fast baud table */
-	-1,	-1
+	{ 0,		FEP_B0 }, /* old (sysV-like) Bx codes */
+	{ 50,		FEP_B50 },
+	{ 75,		FEP_B75 },
+	{ 110,		FEP_B110 },
+	{ 134,		FEP_B134 },
+	{ 150,		FEP_B150 },
+	{ 200,		FEP_B200 },
+	{ 300,		FEP_B300 },
+	{ 600,		FEP_B600 },
+	{ 1200,		FEP_B1200 },
+	{ 1800,		FEP_B1800 },
+	{ 2400,		FEP_B2400 },
+	{ 4800,		FEP_B4800 },
+	{ 9600,		FEP_B9600 },
+	{ 19200,	FEP_B19200 },
+	{ 38400,	FEP_B38400 },
+	{ 57600,	(FEP_FASTBAUD|FEP_B50) }, /* B50 & fast baud table */
+	{ 115200,	(FEP_FASTBAUD|FEP_B110) }, /* B100 & fast baud table */
+	{ -1,	-1 }
 };
 
 static struct dbgflagtbl
