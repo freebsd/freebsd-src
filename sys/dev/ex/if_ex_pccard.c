@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ex/if_exvar.h>
 
 #include <dev/pccard/pccardvar.h>
+#include <dev/pccard/pccard_cis.h>
 
 #include "pccarddevs.h"
 
@@ -88,6 +89,12 @@ static int
 ex_pccard_match(device_t dev)
 {
 	const struct pccard_product *pp;
+	/* Make sure we're a network function */
+	error = pccard_get_function(dev, &fcn);
+	if (error != 0)
+		return (error);
+	if (fcn != PCCARD_FUNCTION_NETWORK)
+		return (ENXIO);
 
 	if ((pp = pccard_product_lookup(dev, ex_pccard_products,
 	    sizeof(ex_pccard_products[0]), NULL)) != NULL) {
