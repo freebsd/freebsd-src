@@ -26,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: link.5,v 1.1 1994/12/23 22:41:46 nate Exp $
+.\"	$Id: link.5,v 1.2 1995/04/16 12:35:13 ats Exp $
 .\"
 .Dd October 23, 1993
 .Dt LINK 5
@@ -62,8 +62,8 @@ format offers no room for it elsewhere.
 Several utilities cooperate to ensure that the task of getting a program
 ready to run can complete successfully in a way that optimizes the use
 of system resources. The compiler emits PIC code from which shared libraries
-can be build by
-.Xr ld 1.
+can be built by
+.Xr ld 1 .
 The compiler also includes size information of any initialized data items
 through the .size assembler directive. PIC code differs from conventional code
 in that it accesses data variables through an indirection table, the
