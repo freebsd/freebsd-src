@@ -17,6 +17,17 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20040322:
+	The debug.mpsafenet tunable controls whether the kernel Giant
+	lock is held across the lower levels of the network stack, and
+	by default is turned off.  In the few days following 20040322,
+	the behavior of debug.mpsafenet will change such that this
+	tunable controls Giant over all levels of the network stack.
+	If you are currently setting debug.mpsafenet to 1, you should
+	set it back to 0 (the default) again during the change-over.
+	An additional note will be added to UPDATING when sufficient
+	locking is merged to permit this to take place.
+
 20040310:
 	The FreeBSD/sparc64 platform is changing time_t from 32-bits to
 	64-bits.  This is a very major incompatible change, so people
