@@ -358,7 +358,6 @@ char	hostname[80];
 #define	LOG_FILE	"/var/log/ilmid"
 FILE	*Log;			/* File descriptor for log messages */
 
-void	set_reqid( u_char *, int );
 void	Increment_DL( int );
 void	Decrement_DL( int );
 
@@ -1483,38 +1482,6 @@ print_pdu(dir, intf, Hdr, len, buf)
 		print_header(Hdr);
 
 	hexdump(Log, (u_char *)&buf[1], len, NULL);
-
-	return;
-}
-
-/*
- * Set Request ID in PDU
- *
- * Arguments:
- *	resp	- Response PDU buffer
- *	reqid	- request id value
- *
- * Returns:
- *	none	- request id may/may not be set
- *
- */
-void
-set_reqid ( resp, reqid )
-	u_char	*resp;
-	int	reqid;
-{
-	u_char		*bp = (u_char *)&resp[18];
-	union {
-		int	i;
-		u_char	c[4];
-	} u;	
-
-	u.i = htonl(reqid);
-
-	/*
-	 * Replace the current Request ID with the supplied value
-	 */
-	bcopy ( (caddr_t)&u.c[4-resp[17]], bp, resp[17] );
 
 	return;
 }
