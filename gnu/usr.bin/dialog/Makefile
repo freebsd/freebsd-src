@@ -1,6 +1,8 @@
 # Makefile for dialog
 # $FreeBSD$
 
+SUBDIR=	TESTS
+
 PROG=   dialog
 MAN1=   dialog.1
 
