@@ -6,7 +6,7 @@
  * Include file for the Kerberos library.
  *
  *	from: krb.h,v 4.26 89/08/08 17:55:25 jtkohl Exp $
- *	$Id$
+ *	$Id: krb.h,v 1.11 1997/02/22 14:36:42 peter Exp $
  */
 
 /* Only one time, please */
@@ -15,6 +15,7 @@
 
 /* Need some defs from des.h	 */
 #include <stdio.h>
+#include <sys/types.h>
 #include <des.h>
 #include <netinet/in.h>
 
