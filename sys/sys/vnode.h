@@ -486,6 +486,7 @@ struct vop_generic_args {
 	/* other random data follows, presumably */
 };
 
+#ifdef DEBUG_VFS_LOCKS
 /*
  * Support code to aid in debugging VFS locking problems.  Not totally
  * reliable since if the thread sleeps between changing the lock
@@ -493,45 +494,54 @@ struct vop_generic_args {
  * change the state.  They are good enough for debugging a single
  * filesystem using a single-threaded test.
  */
-void assert_vi_locked(struct vnode *vp, const char *str);
-void assert_vi_unlocked(struct vnode *vp, const char *str);
-void assert_vop_unlocked(struct vnode *vp, const char *str);
-void assert_vop_locked(struct vnode *vp, const char *str);
-void assert_vop_slocked(struct vnode *vp, const char *str);
-void assert_vop_elocked(struct vnode *vp, const char *str);
-void assert_vop_elocked_other(struct vnode *vp, const char *str);
+void	assert_vi_locked(struct vnode *vp, const char *str);
+void	assert_vi_unlocked(struct vnode *vp, const char *str);
+#if 0
+void	assert_vop_elocked(struct vnode *vp, const char *str);
+void	assert_vop_elocked_other(struct vnode *vp, const char *str);
+#endif
+void	assert_vop_locked(struct vnode *vp, const char *str);
+#if 0
+voi0	assert_vop_slocked(struct vnode *vp, const char *str);
+#endif
+void	assert_vop_unlocked(struct vnode *vp, const char *str);
 
-/* These are called from within the actuall VOPS */
-void vop_rename_pre(void *a);
-void vop_strategy_pre(void *a);
-void vop_lookup_pre(void *a);
-void vop_lookup_post(void *a, int rc);
-void vop_lock_pre(void *a);
-void vop_lock_post(void *a, int rc);
-void vop_unlock_pre(void *a);
-void vop_unlock_post(void *a, int rc);
-
-#ifdef DEBUG_VFS_LOCKS
+/* These are called from within the actual VOPS. */
+void	vop_lock_pre(void *a);
+void	vop_lock_post(void *a, int rc);
+void	vop_lookup_post(void *a, int rc);
+void	vop_lookup_pre(void *a);
+void	vop_rename_pre(void *a);
+void	vop_strategy_pre(void *a);
+void	vop_unlock_post(void *a, int rc);
+void	vop_unlock_pre(void *a);
 
 #define	ASSERT_VI_LOCKED(vp, str)	assert_vi_locked((vp), (str))
 #define	ASSERT_VI_UNLOCKED(vp, str)	assert_vi_unlocked((vp), (str))
-#define	ASSERT_VOP_LOCKED(vp, str)	assert_vop_locked((vp), (str))
-#define	ASSERT_VOP_UNLOCKED(vp, str)	assert_vop_unlocked((vp), (str))
+#if 0
 #define	ASSERT_VOP_ELOCKED(vp, str)	assert_vop_elocked((vp), (str))
 #define	ASSERT_VOP_ELOCKED_OTHER(vp, str) assert_vop_locked_other((vp), (str))
+#endif
+#define	ASSERT_VOP_LOCKED(vp, str)	assert_vop_locked((vp), (str))
+#if 0
 #define	ASSERT_VOP_SLOCKED(vp, str)	assert_vop_slocked((vp), (str))
+#endif
+#define	ASSERT_VOP_UNLOCKED(vp, str)	assert_vop_unlocked((vp), (str))
 
-#else
+#else /* !DEBUG_VFS_LOCKS */
 
-#define	ASSERT_VOP_LOCKED(vp, str)
-#define	ASSERT_VOP_UNLOCKED(vp, str)
+#define	ASSERT_VI_LOCKED(vp, str)
+#define	ASSERT_VI_UNLOCKED(vp, str)
+#if 0
 #define	ASSERT_VOP_ELOCKED(vp, str)
 #define	ASSERT_VOP_ELOCKED_OTHER(vp, str)
-#define	ASSERT_VOP_SLOCKED(vp, str)
-#define	ASSERT_VI_UNLOCKED(vp, str)
-#define	ASSERT_VI_LOCKED(vp, str)
-
 #endif
+#define	ASSERT_VOP_LOCKED(vp, str)
+#if 0
+#define	ASSERT_VOP_SLOCKED(vp, str)
+#endif
+#define	ASSERT_VOP_UNLOCKED(vp, str)
+#endif /* DEBUG_VFS_LOCKS */
 
 /*
  * VOCALL calls an op given an ops vector.  We break it out because BSD's
