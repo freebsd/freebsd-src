@@ -40,10 +40,6 @@ __FBSDID("$FreeBSD$");
  * Asus laptop which doesn't appear to be supported, or strange things happen
  * when using this driver, please report to <acpi@FreeBSD.org>.
  *
- * XXX:
- * Led support is disabled for the time being because it causes the kernel to
- * panic when unloading the module.  This is being investigated.
- *
  */
 
 #include "opt_acpi.h"
@@ -173,11 +169,9 @@ static int	acpi_asus_probe(device_t dev);
 static int	acpi_asus_attach(device_t dev);
 static int	acpi_asus_detach(device_t dev);
 
-#ifdef notyet
 static void	acpi_asus_mled(device_t dev, int state);
 static void	acpi_asus_tled(device_t dev, int state);
 static void	acpi_asus_wled(device_t dev, int state);
-#endif
 
 static int	acpi_asus_sysctl_brn(SYSCTL_HANDLER_ARGS);
 static int	acpi_asus_sysctl_lcd(SYSCTL_HANDLER_ARGS);
@@ -285,7 +279,6 @@ acpi_asus_attach(device_t dev)
 	    SYSCTL_CHILDREN(acpi_sc->acpi_sysctl_tree),
 	    OID_AUTO, "asus", CTLFLAG_RD, 0, "");
 
-#ifdef notyet
 	/* Attach leds */
 	if (sc->model->mled_set)
 		sc->s_mled = led_create((led_t *)acpi_asus_mled, dev, "mled");
@@ -295,7 +288,6 @@ acpi_asus_attach(device_t dev)
 
 	if (sc->model->wled_set)
 		sc->s_wled = led_create((led_t *)acpi_asus_wled, dev, "wled");
-#endif
 
 	/* Attach brightness for GPLV/SPLV models */
 	if (sc->model->brn_get &&
@@ -385,7 +377,6 @@ acpi_asus_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-#ifdef notyet
 	/* Turn the lights off */
 	if (sc->model->mled_set)
 		led_destroy(sc->s_mled);
@@ -395,7 +386,6 @@ acpi_asus_detach(device_t dev)
 
 	if (sc->model->wled_set)
 		led_destroy(sc->s_wled);
-#endif
 
 	/* Remove notify handler */
 	AcpiRemoveNotifyHandler(sc->handle,
@@ -407,7 +397,6 @@ acpi_asus_detach(device_t dev)
 	return (0);
 }
 
-#ifdef notyet
 static void
 acpi_asus_mled(device_t dev, int state)
 {
@@ -467,7 +456,6 @@ acpi_asus_wled(device_t dev, int state)
 
 	AcpiEvaluateObject(sc->handle, sc->model->wled_set, &Args, NULL);
 }
-#endif
 
 static int
 acpi_asus_sysctl_brn(SYSCTL_HANDLER_ARGS)
