@@ -1,6 +1,9 @@
 # $FreeBSD$
 
 .PATH:	${.CURDIR}/../../i386/linux
+
+MAINTAINER=	marcel@FreeBSD.org
+
 KMOD=	linux
 SRCS=	linux_file.c linux_ioctl.c linux_misc.c linux_signal.c \
 	linux_ipc.c linux_socket.c linux_stats.c linux_mib.c \
@@ -9,7 +12,7 @@ SRCS=	linux_file.c linux_ioctl.c linux_misc.c linux_signal.c \
 OBJS=	linux_locore.o
 MAN8=	linux.8
 
-CFLAGS+= -DCOMPAT_LINUX -DVM_STACK #-DDEBUG
+# CFLAGS+=	-DDEBUG
 EXPORT_SYMS=_linux_mod
 CLEANFILES+= vnode_if.h vnode_if.c linux_genassym.o linux_genassym \
 	linux_assym.h opt_compat.h opt_linux.h opt_vmpage.h
