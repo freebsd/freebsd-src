@@ -7,7 +7,8 @@
  *
  * Updated 3/3/95 to include Cirrus Logic stuff.
  *-------------------------------------------------------------------------
- *
+ */
+/*-
  * Copyright (c) 2001 M. Warner Losh.  All rights reserved.
  * Copyright (c) 1995 Andrew McRae.  All rights reserved.
  *

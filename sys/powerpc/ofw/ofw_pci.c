@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1996 Christopher G. Demetriou.  All rights reserved.
  * Copyright (c) 1994 Charles M. Hannum.  All rights reserved.
  *

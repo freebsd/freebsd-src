@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1994 David S. Miller, davem@nadzieja.rutgers.edu
  * Copyright (c) 1995 Paul Kranenburg
  * Copyright (c) 2001 Thomas Moestl <tmm@FreeBSD.org>

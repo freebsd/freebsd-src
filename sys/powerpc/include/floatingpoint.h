@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2004 Suleiman Souhlal <refugee@segfaulted.com>
  * All rights reserved.
  *

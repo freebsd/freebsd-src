@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright 2004 by Peter Grehan. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

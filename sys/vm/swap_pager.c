@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1998 Matthew Dillon,
  * Copyright (c) 1994 John S. Dyson
  * Copyright (c) 1990 University of Utah.

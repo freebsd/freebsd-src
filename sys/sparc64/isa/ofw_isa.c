@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1999, 2000 Matthew R. Green
  * Copyright (c) 2001, 2003 Thomas Moestl <tmm@FreeBSD.org>
  * All rights reserved.

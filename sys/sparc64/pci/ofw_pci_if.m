@@ -1,3 +1,4 @@
+#-
 # Copyright (c) 2001, 2003 by Thomas Moestl <tmm@FreeBSD.org>
 # All rights reserved.
 #
