@@ -47,9 +47,18 @@ pthread_kill(pthread_t pthread, int sig)
 		ret = EINVAL;
 
 	/* Find the thread in the list of active threads: */
-	else if ((ret = _find_thread(pthread)) == 0)
-		/* Increment the pending signal count: */
-		sigaddset(&pthread->sigpend,sig);
+	else if ((ret = _find_thread(pthread)) == 0) {
+		if ((pthread->state == PS_SIGWAIT) &&
+		    sigismember(&pthread->sigmask, sig)) {
+			/* Change the state of the thread to run: */
+			PTHREAD_NEW_STATE(pthread,PS_RUNNING);
+
+			/* Return the signal number: */
+			pthread->signo = sig;
+		} else
+			/* Increment the pending signal count: */
+			sigaddset(&pthread->sigpend,sig);
+	}
 
 	/* Return the completion status: */
 	return (ret);
