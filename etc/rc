@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.168 1999/01/18 03:25:10 grog Exp $
+#	$Id: rc,v 1.169 1999/01/20 12:30:13 jkh Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -21,6 +21,17 @@ trap : 3	# shouldn't be needed
 HOME=/; export HOME
 PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin
 export PATH
+
+# BOOTP diskless boot.  We have to run the rc file early in order to
+# handle read-only NFS mounts, where the various config files
+# in /etc often don't apply.  rc.diskless may terminate the rc script
+# early or it may fall through, depending on the case.
+#
+if [ -f /etc/rc.diskless ]; then
+	if [ `/sbin/sysctl -n vfs.nfs.diskless_valid` != 0 ]; then
+		. /etc/rc.diskless
+	fi
+fi
 
 # Configure ccd devices.
 if [ -f /etc/ccd.conf ]; then
