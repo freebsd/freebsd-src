@@ -54,6 +54,20 @@ ENTRY(cpu_switch)
 	mov	%i1, %i0
 
 	/*
+	 * If the current thread was using floating point in the kernel, save
+	 * its context.  The userland floating point context has already been
+	 * saved.
+	 */
+	rd	%fprs, %l2
+	andcc	%l2, FPRS_FEF, %g0
+	bz,a,pt %xcc, 1f
+	 nop
+	call	savefpctx
+	 add	PCB_REG, PCB_KFP, %o0
+	ba,a	%xcc, 2f
+	 nop
+
+	/*
 	 * If the current thread was using floating point in userland, save
 	 * its context.
 	 */

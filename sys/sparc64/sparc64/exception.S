@@ -1219,6 +1219,36 @@ ENTRY(tl1_insn_exceptn_trap)
 	 mov	%g2, %o0
 END(tl1_insn_exceptn_trap)
 
+	.macro	tl1_fp_disabled
+	ba,a	%xcc, tl1_fp_disabled_1
+	 nop
+	.align	32
+	.endm
+
+ENTRY(tl1_fp_disabled_1)
+	rdpr	%tpc, %g1
+	set	fpu_fault_begin, %g2
+	sub	%g1, %g2, %g1
+	cmp	%g1, fpu_fault_size
+	bgeu,a,pn %xcc, 1f
+	 nop
+
+	wr	%g0, FPRS_FEF, %fprs
+	wr	%g0, ASI_BLK_S, %asi
+	ldda	[PCB_REG + PCB_KFP + (0 * 64)] %asi, %f0
+	ldda	[PCB_REG + PCB_KFP + (1 * 64)] %asi, %f16
+	ldda	[PCB_REG + PCB_KFP + (2 * 64)] %asi, %f32
+	ldda	[PCB_REG + PCB_KFP + (3 * 64)] %asi, %f48
+	membar	#Sync
+	retry
+
+1:	tl1_split
+	clr	%o1
+	set	trap, %o2
+	ba	%xcc, tl1_trap
+	 mov	T_FP_DISABLED | T_KERNEL, %o0
+END(tl1_fp_disabled_1)
+
 	.macro	tl1_data_excptn
 	wrpr	%g0, PSTATE_ALT, %pstate
 	b,a	%xcc, tl1_data_excptn_trap
@@ -1913,7 +1943,7 @@ tl1_priv_opcode:
 	tl1_gen		T_PRIVILEGED_OPCODE		! 0x211
 	tl1_reserved	14				! 0x212-0x21f
 tl1_fp_disabled:
-	tl1_gen		T_FP_DISABLED			! 0x220
+	tl1_fp_disabled					! 0x220
 tl1_fp_ieee:
 	tl1_gen		T_FP_EXCEPTION_IEEE_754		! 0x221
 tl1_fp_other:
