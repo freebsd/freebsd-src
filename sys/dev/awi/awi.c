@@ -848,6 +848,7 @@ awi_start(struct ifnet *ifp)
 			if (k == NULL) {
 				if (ni != NULL)
 					ieee80211_free_node(ni);
+				m_freem(m0);
 				continue;
 			}
 		}
