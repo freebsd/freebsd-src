@@ -3179,28 +3179,15 @@ static int cx_modevent (module_t mod, int type, void *unused)
 
 #ifdef NETGRAPH
 static struct ng_type typestruct = {
-#if __FreeBSD_version >= 500000
-	NG_ABI_VERSION,
-#else
-	NG_VERSION,
-#endif
-	NG_CX_NODE_TYPE,
-#if __FreeBSD_version < 500000 && defined KLD_MODULE
-	cx_modevent,
-#else
-	NULL,
-#endif
-	ng_cx_constructor,
-	ng_cx_rcvmsg,
-	ng_cx_rmnode,
-	ng_cx_newhook,
-	NULL,
-	ng_cx_connect,
-	ng_cx_rcvdata,
-#if __FreeBSD_version < 500000
-	NULL,
-#endif
-	ng_cx_disconnect
+	.version	= NG_ABI_VERSION,
+	.name		= NG_CX_NODE_TYPE,
+	.constructor	= ng_cx_constructor,
+	.rcvmsg		= ng_cx_rcvmsg,
+	.shutdown	= ng_cx_rmnode,
+	.newhook	= ng_cx_newhook,
+	.connect	= ng_cx_connect,
+	.rcvdata	= ng_cx_rcvdata,
+	.disconnect	= ng_cx_disconnect
 };
 
 #if __FreeBSD_version < 400000
