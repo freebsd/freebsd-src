@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.164 1998/03/14 13:58:21 bde Exp $
+#	$Id: Makefile,v 1.165 1998/03/15 04:52:58 bde Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -570,7 +570,7 @@ lib-tools:
 		usr.bin/uudecode
 	cd ${.CURDIR}/$d && ${MAKE} ${MK_FLAGS} depend && \
 		${MAKE} ${MK_FLAGS} all && \
-		${MAKE} ${MK_FLAGS} install && \
+		${MAKE} ${MK_FLAGS} -B install && \
 		${MAKE} ${MK_FLAGS:S/-DNOPIC//} -B ${CLEANDIR} ${OBJDIR}
 .endfor
 
