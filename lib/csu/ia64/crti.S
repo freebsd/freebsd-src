@@ -36,14 +36,22 @@
 	.global	_init#
 	.proc	_init#
 _init:
+	.regstk	0,2,0,0
+	.prologue 12,loc0
+	.save	ar.pfs,loc1
 	alloc	loc1=ar.pfs,0,2,0,0
 	mov	loc0=b0			/* Save return addr */
+	.body
 	.endp	_init#
 
 	.section .fini,"ax",@progbits
 	.global	_fini#
 	.proc	_fini#
 _fini:
+	.regstk	0,2,0,0
+	.prologue 12,loc0
+	.save	ar.pfs,loc1
 	alloc	loc1=ar.pfs,0,2,0,0
 	mov	loc0=b0			/* Save return addr */
+	.body
 	.endp	_fini#
