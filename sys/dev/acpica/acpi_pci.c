@@ -193,15 +193,12 @@ acpi_pci_set_powerstate_method(device_t dev, device_t child, int state)
 		if (error)
 			return (error);
 	}
-	h = acpi_get_handle(child);
-	if (h != NULL) {
-		status = acpi_pwr_switch_consumer(h, acpi_state);
-		if (ACPI_FAILURE(status))
-			device_printf(dev,
-			    "Failed to set ACPI power state D%d on %s: %s\n",
-			    acpi_state, device_get_nameunit(child),
-			    AcpiFormatException(status));
-	}
+	h = acpi_get_handle(dev);
+	status = acpi_pwr_switch_consumer(h, acpi_state);
+	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND)
+		device_printf(dev,
+		    "Failed to set ACPI power state D%d on %s: %s\n",
+		    acpi_state, acpi_name(h), AcpiFormatException(status));
 	if (old_state > state)
 		return (pci_set_powerstate_method(dev, child, state));
 	else
