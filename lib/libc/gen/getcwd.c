@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1989, 1991, 1993
+ * Copyright (c) 1989, 1991, 1993, 1995
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)getcwd.c	8.1 (Berkeley) 6/4/93";
+static char sccsid[] = "@(#)getcwd.c	8.2 (Berkeley) 1/31/95";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -63,10 +63,29 @@ getcwd(pt, size)
 	struct stat s;
 	dev_t root_dev;
 	ino_t root_ino;
-	size_t ptsize, upsize;
+	size_t ptsize, pwdlen, upsize;
 	int save_errno;
-	char *ept, *eup, *up;
+	char *ept, *eup, *pwd, *up;
 
+	/* Check $PWD -- if it's right, it's fast. */
+	if ((pwd = getenv("PWD")) != NULL && !stat(pwd, &s) && *pwd == '/') {
+		dev = s.st_dev;
+		ino = s.st_ino;
+		if (!stat(".", &s) && dev == s.st_dev && ino == s.st_ino) {
+			pwdlen = strlen(pwd);
+			if (size != 0) {
+				if (pwdlen + 1 > size) {
+					errno = ERANGE;
+					return (NULL);
+				}
+			} else if ((pt = malloc(pwdlen + 1)) == NULL)
+				return (NULL);
+			memmove(pt, pwd, pwdlen);
+			pwd[pwdlen] = '\0';
+			return (pt);
+		}
+	}
+		
 	/*
 	 * If no buffer specified by the user, allocate one as necessary.
 	 * If a buffer is specified, the size has to be non-zero.  The path
@@ -94,7 +113,7 @@ getcwd(pt, size)
 	/*
 	 * Allocate bytes (1024 - malloc space) for the string of "../"'s.
 	 * Should always be enough (it's 340 levels).  If it's not, allocate
-	 * as necessary.  Special * case the first stat, it's ".", not "..".
+	 * as necessary.  Special case the first stat, it's ".", not "..".
 	 */
 	if ((up = malloc(upsize = 1024 - 4)) == NULL)
 		goto err;
