@@ -2904,11 +2904,8 @@
 .\" NS rZ macro - reference print
 .de rZ
 .nh
-.if \\n(uK \{\&\\*(U1,
-.	nr aK 1
-.	if (\\n(uK>1 \{\
-.		aK
-.	\}
+.if \\n(uK \{\
+.	aK
 .	nr Kl -\\n(uK
 .\}
 .if \\n(tK \{\
@@ -2976,12 +2973,14 @@
 ..
 .\" NS aK macro - print out reference authors
 .de aK
-.nr aK \\n(aK+1
-.ie (\\n(uK-\\n(aK)==0 \{\&and \\*(U\\n(aK,
+.nr aK 1
+.while (\\n(aK<\\n(uK) \{\
+.ie (\\n(uK>2) \&\\*(U\\n(aK,
+.el            \&\\*(U\\n(aK
+.nr aK +1
 .\}
-.el \{\&\\*(U\\n(aK,
-.	aK
-.\}
+.if (\\n(uK>1) \&and
+\&\\*(U\\n(aK,
 ..
 .\" NS %A macro - reference author(s)
 .\" NS uK register - reference author(s) counter
