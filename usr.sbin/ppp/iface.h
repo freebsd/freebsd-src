@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1997 Brian Somers <brian@Awfulhak.org>
+ * Copyright (c) 1998 Brian Somers <brian@Awfulhak.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,56 +23,38 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tun.c,v 1.9 1998/08/09 16:41:01 brian Exp $
+ *	$Id:$
  */
 
-#include <sys/types.h>
-#include <sys/socket.h>		/* For IFF_ defines */
-#include <net/if.h>		/* For IFF_ defines */
-#include <netinet/in.h>
-#include <net/if_types.h>
-#include <net/if_tun.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <sys/un.h>
+struct iface_addr {
+  struct in_addr ifa;		/* local address */
+  struct in_addr mask;		/* netmask */
+  int bits;			/* netmask bits - -1 if not contiguous */
+  struct in_addr brd;		/* peer address */
+};
 
-#include <string.h>
-#include <sys/ioctl.h>
-#include <sys/errno.h>
+struct iface {
+  char *name;			/* Interface name (malloc'd) */
+  int index;			/* Interface index */
+  int flags;			/* Interface flags (IFF_*) */
 
-#include "mbuf.h"
-#include "log.h"
-#include "timer.h"
-#include "lqr.h"
-#include "hdlc.h"
-#include "defs.h"
-#include "fsm.h"
-#include "throughput.h"
-#include "iplist.h"
-#include "slcompress.h"
-#include "ipcp.h"
-#include "filter.h"
-#include "descriptor.h"
-#include "lcp.h"
-#include "ccp.h"
-#include "link.h"
-#include "mp.h"
-#include "bundle.h"
-#include "tun.h"
+  int in_addrs;			/* How many in_addr's */
+  struct iface_addr *in_addr;	/* Array of addresses (malloc'd) */
+};
 
-void
-tun_configure(struct bundle *bundle, int mtu)
-{
-  struct tuninfo info;
+#define IFACE_CLEAR_ALL		0	/* Nuke 'em all */
+#define IFACE_CLEAR_ALIASES	1	/* Leave the IPCP address */
 
-  memset(&info, '\0', sizeof info);
-  info.type = IFT_PPP;
-  info.mtu = mtu;
-  info.baudrate = bundle->ifSpeed;
-#ifdef __OpenBSD__                                           
-  info.flags = IFF_UP|IFF_POINTOPOINT;                             
-#endif
-  if (ioctl(bundle->dev.fd, TUNSIFINFO, &info) < 0)
-    log_Printf(LogERROR, "tun_configure: ioctl(TUNSIFINFO): %s\n",
-	      strerror(errno));
-}
+#define IFACE_ADD_LAST		0	/* Just another alias */
+#define IFACE_ADD_FIRST		1	/* The IPCP address */
+#define IFACE_FORCE_ADD		2	/* OR'd with IFACE_ADD_{FIRST,LAST} */
+
+#define iface_Clear iface_inClear	/* Same for now */
+
+extern struct iface *iface_Create(const char *name);
+extern void iface_inClear(struct iface *, int);
+extern int iface_inAdd(struct iface *, struct in_addr, struct in_addr,
+                     struct in_addr, int);
+extern int iface_inDelete(struct iface *, struct in_addr);
+extern int iface_Show(struct cmdargs const *);
+extern void iface_Destroy(struct iface *);
