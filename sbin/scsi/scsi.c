@@ -38,21 +38,22 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: scsi.c,v 1.15 1997/03/29 03:33:04 imp Exp $
  */
 
-#include <stdio.h>
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <ctype.h>
+#include <err.h>
+#include <errno.h>
+#include <scsi.h>
 #include <string.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <errno.h>
-#include <sys/scsiio.h>
 #include <sys/file.h>
-#include <scsi.h>
-#include <ctype.h>
 #include <signal.h>
-#include <err.h>
+#include <unistd.h>
 
 int	fd;
 int	debuglevel;
@@ -329,8 +330,7 @@ do_cmd(int fd, char *fmt, int argc, char **argv)
 					}
 					if (amount == -1)
 					{
-						perror("read");
-						exit(errno);
+						err(1, "read");
 					}
 					else if (amount == 0)
 					{
@@ -375,8 +375,7 @@ do_cmd(int fd, char *fmt, int argc, char **argv)
 			}
 			if (amount < 0)
 			{
-				perror("write");
-				exit(errno);
+				err(1, "write");
 			}
 			else if (amount == 0)
 				fprintf(stderr, "Warning: wrote only %d bytes out of %d.\n",
@@ -396,13 +395,11 @@ static void
 freeze_ioctl(int fd, int op, void *data)
 {
 	if (ioctl(fd, SCIOCFREEZE, 0) == -1) {
-		if (errno == ENODEV) {
-			fprintf(stderr,
-			"Your kernel must be configured with option SCSI_FREEZE.\n");
-		}
+		if (errno == ENODEV)
+			errx(1,
+		"your kernel must be configured with option SCSI_FREEZE");
 		else
-			perror("SCIOCFREEZE");
-		exit(errno);
+			err(1, "ioctl [SCIOCFREEZE]");
 	}
 }
 
@@ -457,7 +454,7 @@ void mode_sense(int fd, u_char *data, int len, int pc, int page)
 	if (SCSIREQ_ERROR(scsireq))
 	{
 		scsi_debug(stderr, 0, scsireq);
-		exit(-1);
+		exit(1);
 	}
 
 	free(scsireq);
@@ -480,7 +477,7 @@ void mode_select(int fd, u_char *data, int len, int perm)
 	if (SCSIREQ_ERROR(scsireq))
 	{
 		scsi_debug(stderr, 0, scsireq);
-		exit(-1);
+		exit(1);
 	}
 
 	free(scsireq);
@@ -542,16 +539,14 @@ static char *mode_lookup(int page)
 			found = 1;
 
 		skipwhite(modes);
-		if (getc(modes) != START_ENTRY) {
-			fprintf(stderr, "Expected %c.\n", START_ENTRY);
-			exit(-1);
-		}
+		if (getc(modes) != START_ENTRY)
+			errx(1, "expected %c", START_ENTRY);
 
 		match = 1;
 		while (match != 0) {
 			c = getc(modes);
 			if (c == EOF) {
-				fprintf(stderr, "Expected %c.\n", END_ENTRY);
+				warnx("expected %c", END_ENTRY);
 			}
 
 			if (c == START_ENTRY) {
@@ -563,10 +558,8 @@ static char *mode_lookup(int page)
 					break;
 			}
 			if (found && c != '\n') {
-				if (next >= sizeof(fmt)) {
-					fprintf(stderr, "Stupid program: Buffer overflow.\n");
-					exit(ENOMEM);
-				}
+				if (next >= sizeof(fmt))
+					errx(1, "buffer overflow");
 
 				fmt[next++] = (u_char)c;
 			}
@@ -614,9 +607,9 @@ edit_done(void)
 	if (opened)
 	{
 		if (fclose(edit_file))
-			perror(edit_name);
+			warn("%s", edit_name);
 		if (unlink(edit_name))
-			perror(edit_name);
+			warn("%s", edit_name);
 	}
 }
 
@@ -624,14 +617,10 @@ static void
 edit_init(void)
 {
 	edit_rewind();
-	if (tmpnam(edit_name) == 0) {
-		perror("tmpnam failed");
-		exit(errno);
-	}
-	if ( (edit_file = fopen(edit_name, "w")) == 0) {
-		perror(edit_name);
-		exit(errno);
-	}
+	if (tmpnam(edit_name) == 0)
+		errx(1, "tmpnam failed");
+	if ((edit_file = fopen(edit_name, "w")) == 0)
+		err(1, "%s", edit_name);
 	edit_opened = 1;
 
 	atexit(edit_done);
@@ -640,15 +629,12 @@ edit_init(void)
 static void
 edit_check(void *hook, int letter, void *arg, int count, char *name)
 {
-	if (letter != 'i' && letter != 'b') {
-		fprintf(stderr, "Can't edit format %c.\n", letter);
-		exit(-1);
-	}
+	if (letter != 'i' && letter != 'b')
+		errx(1, "can't edit format %c", letter);
 
-	if (editind >= sizeof(editinfo) / sizeof(editinfo[0])) {
-		fprintf(stderr, "edit table overflow\n");
-		exit(ENOMEM);
-	}
+	if (editind >= sizeof(editinfo) / sizeof(editinfo[0]))
+		errx(1, "edit table overflow");
+
 	editinfo[editind].can_edit = ((int)arg != 0);
 	editind++;
 }
@@ -656,10 +642,8 @@ edit_check(void *hook, int letter, void *arg, int count, char *name)
 static void
 edit_defaults(void *hook, int letter, void *arg, int count, char *name)
 {
-	if (letter != 'i' && letter != 'b') {
-		fprintf(stderr, "Can't edit format %c.\n", letter);
-		exit(-1);
-	}
+	if (letter != 'i' && letter != 'b')
+		errx(1, "can't edit format %c", letter);
 
 	editinfo[editind].default_value = ((int)arg);
 	editind++;
@@ -669,10 +653,8 @@ static void
 edit_report(void *hook, int letter, void *arg, int count, char *name)
 {
 	if (editinfo[editind].can_edit) {
-		if (letter != 'i' && letter != 'b') {
-			fprintf(stderr, "Can't report format %c.\n", letter);
-			exit(-1);
-		}
+		if (letter != 'i' && letter != 'b')
+			errx(1, "can't report format %c", letter);
 
 		fprintf(edit_file, "%s:  %d\n", name, (int)arg);
 	}
@@ -687,18 +669,13 @@ edit_get(void *hook, char *name)
 
 	if (editinfo[editind].can_edit) {
 		char line[80];
-		if (fgets(line, sizeof(line), edit_file) == 0) {
-			perror("fgets");
-			exit(errno);
-		}
+		if (fgets(line, sizeof(line), edit_file) == 0)
+			err(1, "fgets");
 
 		line[strlen(line) - 1] = 0;
 
-		if (strncmp(name, line, strlen(name)) != 0) {
-			fprintf(stderr, "Expected \"%s\" and read \"%s\"\n",
-			name, line);
-			exit(-1);
-		}
+		if (strncmp(name, line, strlen(name)) != 0)
+			errx(1, "expected \"%s\" and read \"%s\"", name, line);
 
 		arg = strtoul(line + strlen(name) + 2, 0, 0);
 	}
@@ -722,10 +699,8 @@ edit_edit(void)
 	system(system_line);
 	free(system_line);
 
-	if ( (edit_file = fopen(edit_name, "r")) == 0) {
-		perror(edit_name);
-		exit(errno);
-	}
+	if ((edit_file = fopen(edit_name, "r")) == 0)
+		err(1, "%s", edit_name);
 }
 
 static void
@@ -759,16 +734,12 @@ mode_edit(int fd, int page, int edit, int argc, char *argv[])
 	}
 
 	if (edit) {
-		if (!fmt) {
-			fprintf(stderr, "Sorry: can't edit without a format.\n");
-			exit(-1);
-		}
+		if (!fmt)
+			errx(1, "can't edit without a format");
 
-		if (pagectl != 0 && pagectl != 3) {
-			fprintf(stderr,
-"It only makes sense to edit page 0 (current) or page 3 (saved values)\n");
-			exit(-1);
-		}
+		if (pagectl != 0 && pagectl != 3)
+			errx(1,
+"it only makes sense to edit page 0 (current) or page 3 (saved values)");
 
 		verbose = 1;
 
@@ -929,18 +900,15 @@ void main(int argc, char **argv)
 		scaddr.lun = lun;
 
 		if (ioctl(fd,SCIOCREPROBE,&scaddr) == -1)
-			perror("ioctl");
+			warn("ioctl [SCIOCREPROBE]");
 	} else if(debugflag) {
 		if (ioctl(fd,SCIOCDEBUG,&debuglevel) == -1)
-		{
-			perror("ioctl [SCIODEBUG]");
-			exit(1);
-		}
+			err(1, "ioctl [SCIODEBUG]");
 	} else if (commandflag) {
 		char *fmt;
 
 		if (argc < 1) {
-			fprintf(stderr, "Need the command format string.\n");
+			warnx("need the command format string");
 			usage();
 		}
 
