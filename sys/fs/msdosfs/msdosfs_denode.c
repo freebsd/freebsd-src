@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_denode.c,v 1.9 1995/03/16 18:14:18 bde Exp $ */
+/*	$Id: msdosfs_denode.c,v 1.10 1995/03/19 12:11:13 davidg Exp $ */
 /*	$NetBSD: msdosfs_denode.c,v 1.9 1994/08/21 18:44:00 ws Exp $	*/
 
 /*-
@@ -119,13 +119,6 @@ msdosfs_hashins(dep)
 	dep->de_next = deq;
 	dep->de_prev = depp;
 	*depp = dep;
-	if (dep->de_flag & DE_LOCKED)
-		panic("msdosfs_hashins: already locked");
-	if (curproc)
-		dep->de_lockholder = curproc->p_pid;
-	else
-		dep->de_lockholder = -1;
-	dep->de_flag |= DE_LOCKED;
 }
 
 static void
@@ -235,6 +228,7 @@ deget(pmp, dirclust, diroffset, direntptr, depp)
 	 * can't be accessed until we've read it in and have done what we
 	 * need to it.
 	 */
+	VOP_LOCK(nvp);
 	msdosfs_hashins(ldep);
 
 	/*
