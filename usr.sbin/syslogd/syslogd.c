@@ -258,7 +258,6 @@ int	Initialized = 0;	/* set when we have initialized ourselves */
 int	MarkInterval = 20 * 60;	/* interval between marks in seconds */
 int	MarkSeq = 0;		/* mark sequence number */
 int	SecureMode = 0;		/* when true, receive only unix domain socks */
-u_int	Vogons = 0;		/* packets arriving in SecureMode */
 
 char	bootfile[MAXLINE+1];	/* booted kernel file */
 
@@ -297,13 +296,14 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	int ch, i, l, len;
+	int ch, i, l;
 	struct sockaddr_un sunx, fromunix;
 	struct sockaddr_in sin, frominet;
 	FILE *fp;
 	char *p, *hname, line[MAXLINE + 1];
 	struct timeval tv, *tvp;
 	pid_t ppid = 1;
+	socklen_t len;
 
 	while ((ch = getopt(argc, argv, "a:dl:f:m:p:suv")) != -1)
 		switch(ch) {
@@ -417,6 +417,17 @@ main(argc, argv)
 				die(0);
 		}
 	}
+	if (finet >= 0 && SecureMode) {
+		int bufsize;
+	    
+		bufsize = 1;
+		if (setsockopt(finet, SOL_SOCKET, SO_RCVBUF,
+			       &bufsize, sizeof bufsize) < 0) {
+			logerror("setsockopt");
+			if (!Debug)
+				die(0);
+		}
+	}
 
 	if ((fklog = open(_PATH_KLOG, O_RDONLY, 0)) >= 0)
 		if (fcntl(fklog, F_SETFL, O_NONBLOCK) < 0)
@@ -449,7 +460,7 @@ main(argc, argv)
 			if (fklog > nfds)
 				nfds = fklog;
 		}
-		if (finet != -1) {
+		if (finet != -1 && !SecureMode) {
 			FD_SET(finet, &readfds);
 			if (finet > nfds)
 				nfds = finet;
@@ -485,16 +496,7 @@ main(argc, argv)
 			len = sizeof(frominet);
 			l = recvfrom(finet, line, MAXLINE, 0,
 			    (struct sockaddr *)&frominet, &len);
-			if (SecureMode) {
-				Vogons++;
-				if (!(Vogons & (Vogons - 1))) {
-					(void)snprintf(line, sizeof line,
-"syslogd: discarded %d unwanted packets in secure mode, last from %s", Vogons,
-						inet_ntoa(frominet.sin_addr));
-					logmsg(LOG_SYSLOG|LOG_AUTH, line,
-					    LocalHostName, ADDDATE);
-				}
-			} else if (l > 0) {
+			if (l > 0) {
 				line[l] = '\0';
 				hname = cvthname(&frominet);
 				if (validate(&frominet, hname))
@@ -1084,6 +1086,7 @@ reapchild(signo)
 				break;
 			}
 	  oncemore:
+		continue;
 	}
 }
 
