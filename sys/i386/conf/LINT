@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.442 1998/06/30 08:01:28 jmg Exp $
+#	$Id: LINT,v 1.443 1998/06/30 08:13:26 jmg Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1113,6 +1113,11 @@ options		NATM			#native ATM
 # options SBC_IRQ=5		#PAS-16. Must match irq on sb0 line.
 # PAS16: The order of the pas0/sb0/opl0 is important since the
 #	sb emulation is enabled in the pas-16 attach.
+#
+# To overide the GUS defaults use:
+# options GUS_DMA2
+# options GUS_DMA
+# options GUS_IRQ
 #
 # The i386/isa/sound/sound.doc has more information.
 
