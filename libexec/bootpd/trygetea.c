@@ -1,5 +1,7 @@
 /*
  * trygetea.c - test program for getether.c
+ *
+ *	$Id$
  */
 
 #include <sys/types.h>

@@ -1,4 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 7/19/93
+#	$Id$
 
 PROG=	mail.local
 MAN8=	mail.local.8

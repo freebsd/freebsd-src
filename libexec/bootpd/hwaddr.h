@@ -1,4 +1,9 @@
-/* hwaddr.h */
+/* 
+ * hwaddr.h
+ *
+ *	$Id$
+ */
+
 #ifndef	HWADDR_H
 #define HWADDR_H
 

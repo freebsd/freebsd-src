@@ -1,4 +1,4 @@
-#	Makefile,v 1.5 1994/12/11 21:27:14 wollman Exp
+#	$Id$
 
 .PATH:	${.CURDIR}/../../sys/i386/ibcs2
 KMOD=	ibcs2_mod

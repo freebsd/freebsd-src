@@ -1,5 +1,7 @@
 /*
  * trygetif.c - test program for getif.c
+ *
+ *	$Id$
  */
 
 #include <sys/types.h>
