@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.5 (Berkeley) 12/30/93
- * $Id: ffs_inode.c,v 1.13 1995/03/26 23:29:10 davidg Exp $
+ * $Id: ffs_inode.c,v 1.14 1995/08/04 05:49:17 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -138,7 +138,7 @@ ffs_update(ap)
 	}
 	*((struct dinode *)bp->b_data +
 	    ino_to_fsbo(fs, ip->i_number)) = ip->i_din;
-	if (ap->a_waitfor)
+	if (ap->a_waitfor && (ap->a_vp->v_mount->mnt_flag & MNT_ASYNC) == 0)
 		return (bwrite(bp));
 	else {
 		bdwrite(bp);
