@@ -57,67 +57,83 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-void dofile __P((void));
+static void dofile __P((void));
 static void usage __P((void));
+
+#define	FILENAME	"nohup.out"
+/*
+ * POSIX mandates that we exit with:
+ * 126 - If the utility was found, but failed to execute.
+ * 127 - If any other error occurred. 
+ */
+#define	EXIT_NOEXEC	126
+#define	EXIT_NOTFOUND	127
+#define	EXIT_MISC	127
 
 int
 main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	if (argc < 2)
+	int exit_status;
+
+	while (getopt(argc, argv, "") != -1)
+		usage();
+	argc -= optind;
+	argv += optind;
+	if (argc < 1)
 		usage();
 
 	if (isatty(STDOUT_FILENO))
 		dofile();
-	if (isatty(STDERR_FILENO) && dup2(STDOUT_FILENO, STDERR_FILENO) == -1) {
+	if (isatty(STDERR_FILENO) && dup2(STDOUT_FILENO, STDERR_FILENO) == -1)
 		/* may have just closed stderr */
-		(void)fprintf(stdin, "nohup: %s\n", strerror(errno));
-		exit(1);
-	}
+		err(EXIT_MISC, "%s", argv[0]);
 
 	(void)signal(SIGHUP, SIG_IGN);
-	(void)signal(SIGQUIT, SIG_IGN);
 
-	execvp(argv[1], &argv[1]);
-	err(1, "%s", argv[1]);
+	execvp(*argv, argv);
+	exit_status = (errno == ENOENT) ? EXIT_NOTFOUND : EXIT_NOEXEC;
+	err(exit_status, "%s", argv[0]);
 }
 
-void
+static void
 dofile()
 {
-	int append;
 	int fd;
-	char *p, path[MAXPATHLEN];
+	char path[MAXPATHLEN];
+	const char *p;
 
-#define	FILENAME	"nohup.out"
+	/*
+	 * POSIX mandates if the standard output is a terminal, the standard
+	 * output is appended to nohup.out in the working directory.  Failing
+	 * that, it will be appended to nohup.out in the directory obtained
+	 * from the HOME environment variable.  If file creation is required,
+	 * the mode_t is set to S_IRUSR | S_IWUSR.
+	 */
 	p = FILENAME;
-	append = !access(p, F_OK);
-	if ((fd = open(p, O_RDWR|O_CREAT, S_IRUSR | S_IWUSR)) >= 0)
+	fd = open(p, O_RDWR | O_CREAT | O_APPEND, S_IRUSR | S_IWUSR);
+	if (fd != -1)
 		goto dupit;
-	if ((p = getenv("HOME"))) {
-		(void)strcpy(path, p);
-		(void)strcat(path, "/");
-		(void)strcat(path, FILENAME);
-		append = !access(path, F_OK);
-		if ((fd = open(p = path,
-		    O_RDWR|O_CREAT, S_IRUSR | S_IWUSR)) >= 0)
+	if ((p = getenv("HOME")) != NULL && *p != '\0' &&
+	    (size_t)snprintf(path, sizeof(path), "%s/%s", p, FILENAME) <
+	    sizeof(path)) {
+		fd = open(p = path, O_RDWR | O_CREAT | O_APPEND,
+		    S_IRUSR | S_IWUSR);
+		if (fd != -1)
 			goto dupit;
 	}
-	errx(1, "can't open a nohup.out file");
+	errx(EXIT_MISC, "can't open a nohup.out file");
 
-dupit:	(void)lseek(fd, (off_t)0, SEEK_END);
+dupit:
 	if (dup2(fd, STDOUT_FILENO) == -1)
-		err(1, NULL);
-	if (append)
-		(void)fprintf(stderr, "appending output to existing %s\n", p);
-	else
-		(void)fprintf(stderr, "sending output to %s\n", p);
+		err(EXIT_MISC, NULL);
+	(void)fprintf(stderr, "appending output to %s\n", p);
 }
 
-void
+static void
 usage()
 {
-	(void)fprintf(stderr, "usage: nohup command [arguments]\n");
-	exit(1);
+	(void)fprintf(stderr, "usage: nohup [--] command [arguments]\n");
+	exit(EXIT_MISC);
 }
