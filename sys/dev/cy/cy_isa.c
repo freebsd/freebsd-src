@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.63 1998/06/07 17:10:16 dfr Exp $
+ *	$Id: cy.c,v 1.64 1998/07/15 12:18:12 bde Exp $
  */
 
 #include "opt_compat.h"
@@ -2482,7 +2482,9 @@ comspeed(speed, prescaler_io)
 	if (divider > 255)
 		divider = 255;
 	actual = CY_CLOCK/prescaler/divider;
-	error = ((actual - speed) * 2000 / speed + 1) / 2;	/* percentage */
+
+	/* 10 times error in percent: */
+	error = ((actual - (long)speed) * 2000 / (long)speed + 1) / 2;
 
 	/* 3.0% max error tolerance */
 	if (error < -30 || error > 30)
