@@ -30,7 +30,7 @@
 #if defined(arch_i386)
 #define	__ELF_WORD_SIZE	32
 #include <sys/elf32.h>
-#elif defined(arch_alpha) || defined(arch_sparc64)
+#elif defined(arch_alpha) || defined(arch_sparc64) || defined(arch_ia64)
 #define	__ELF_WORD_SIZE	64
 #include <sys/elf64.h>
 #endif
@@ -81,11 +81,23 @@ main(int argc, char **argv)
 	hashent	*list;
 	FILE	*fp;
 	char	*ptrop;
-	int	 align;
+	int	 align, ptrsize;
 
 	for (i = 1;  i < argc;  i++)
 		if (enter_sets(argv[i]) == -1)
 			status = EXIT_FAILURE;
+
+#if defined(arch_i386)
+	ptrop = "long";
+	ptrsize = 4;
+	align = 2;
+#elif defined(arch_alpha) || defined(arch_ia64)
+	ptrop = "quad";
+	ptrsize = 8;
+	align = 3;
+#endif
+	if (!ptrop)
+		errx(1, "unknown architecture");
 
 	fp = fopen("setdefs.h", "w");
 	if (!fp)
@@ -95,23 +107,13 @@ main(int argc, char **argv)
 		hashent *next;
 
 		fprintf(fp, "DEFINE_SET(%s, %lu);\n", list->name,
-			(unsigned long) (list->size / sizeof (void *)));
+			(unsigned long) (list->size / ptrsize));
 		next = list->next;
 		free(list->name);
 		free(list);
 		list = next;
 	}
 	fclose(fp);
-
-#if defined(arch_i386)
-	ptrop = "long";
-	align = 2;
-#elif defined(arch_alpha)
-	ptrop = "quad";
-	align = 3;
-#endif
-	if (!ptrop)
-		errx(1, "unknown architecture");
 
 	fp = fopen("setdef0.c", "w");
 	if (!fp)
