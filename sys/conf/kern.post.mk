@@ -222,6 +222,15 @@ vnode_if.c: $S/tools/vnode_if.awk $S/kern/vnode_if.src
 vnode_if.h: $S/tools/vnode_if.awk $S/kern/vnode_if.src
 	${AWK} -f $S/tools/vnode_if.awk $S/kern/vnode_if.src -h
 
+emu10k1-alsa%diked.h: $S/gnu/dev/sound/pci/emu10k1-alsa.h
+	grep -v '#include' ${.OODATE} | ${CC} -E -D__KERNEL__ -dM - \
+	    | awk -F"[ 	(]" '/define/ \
+	    { print "#ifndef " $$2 ; print ; print "#endif" }' \
+	    >${.TARGET}
+.if !exists(${.OBJDIR}/.depend)
+_kernel-depend: emu10k1-alsa%diked.h
+.endif
+
 # XXX strictly, everything depends on Makefile because changes to ${PROF}
 # only appear there, but we don't handle that.
 
