@@ -1,0 +1,37 @@
+/* BSDI README,v 2.2 1996/04/08 19:32:16 bostic Exp*/
+
+This is the merged doscmd/rundos project.  Please read the man
+page for help on configuring doscmd.
+
+Things known not to work:
+    *	No mouse support (yet)
+    *	No xms/ems support (yet)
+    *	No raw VGA support (yet)
+    *	Printer support (yet)
+    *	COM ports (being worked on)
+    *	redirected file system only supported for DOS 4.0 and above
+	(3.3 will be supported in a future version)
+    *	Graphics in an X window (not planned to work)
+
+Even with this, I think it is actually a much better product.  There have 
+been problems reported with the ibmpc font and the distributed X server.
+If you have that problem, try setting
+
+	X11_FONT=fixed
+
+in your .doscmdrc.  Be aware that graphics characters will not print correctly
+if you do this.
+
+You will need to patch your kernel.  Diffs are provided against the CD-ROM.
+Please let me know if there are a problem with them (I am running a pre 1.1
+kernel now).
+
+It is possible there are some problems in the floppy code due to the fact
+that I am not set up to test under 1.0 at this point.  I will be in a few
+days I hope.
+
+Please send all bug reports to prb@BSDI.COM.
+
+			-Paul Borman
+			 prb@BSDI.COM
+			 Jan 4 1994
