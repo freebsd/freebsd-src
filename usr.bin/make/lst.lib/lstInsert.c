@@ -69,9 +69,9 @@ __FBSDID("$FreeBSD$");
  *-----------------------------------------------------------------------
  */
 ReturnStatus
-Lst_Insert(Lst list, LstNode ln, void *d)
+Lst_Insert(Lst *list, LstNode *ln, void *d)
 {
-    LstNode	nLNode;	/* new lnode for d */
+    LstNode *nLNode;	/* new lnode for d */
 
     /*
      * check validity of arguments

@@ -88,8 +88,8 @@ __FBSDID("$FreeBSD$");
 #include	  "hash.h"
 #include	  "dir.h"
 
-static Lst        allTargets;	/* the list of all targets found so far */
-static Lst	  allGNs;	/* List of all the GNodes */
+static Lst        *allTargets;	/* the list of all targets found so far */
+static Lst	  *allGNs;	/* List of all the GNodes */
 static Hash_Table targets;	/* a hash table of same */
 
 #define	HTSIZE	191		/* initial size of hash table */
@@ -276,11 +276,11 @@ Targ_FindNode(char *name, int flags)
  *	an error message will be printed for each name which can't be found.
  * -----------------------------------------------------------------------
  */
-Lst
-Targ_FindList(Lst names, int flags)
+Lst *
+Targ_FindList(Lst *names, int flags)
 {
-    Lst            nodes;	/* result list */
-    LstNode	   ln;		/* name list element */
+    Lst            *nodes;	/* result list */
+    LstNode	   *ln;		/* name list element */
     GNode	   *gn;		/* node in tLn */
     char    	   *name;
 

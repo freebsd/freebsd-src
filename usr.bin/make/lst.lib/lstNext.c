@@ -67,10 +67,10 @@ __FBSDID("$FreeBSD$");
  *
  *-----------------------------------------------------------------------
  */
-LstNode
-Lst_Next(Lst list)
+LstNode *
+Lst_Next(Lst *list)
 {
-    LstNode	tln;
+    LstNode *tln;
 
     if ((Lst_Valid(list) == FALSE) || (list->isOpen == FALSE)) {
 	    return (NULL);
