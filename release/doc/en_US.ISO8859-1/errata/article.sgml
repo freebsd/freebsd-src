@@ -194,5 +194,10 @@
       fail because it cannot open <filename>/dev/tty</filename>.  This
       bug has been fixed in 5.0-CURRENT.</para>
 
+    <para>&man.growfs.8; no longer works on &man.vinum.4; volumes (and
+      presumably, on &man.geom.4; entities) since these subsystems no
+      longer fake disklabels, but &man.growfs.8; insists on examining
+      a label.</para>
+
   </sect1>
 </article>
