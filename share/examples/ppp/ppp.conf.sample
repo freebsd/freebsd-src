@@ -10,10 +10,11 @@
 
 # This file is separated into sections.  Each section is named with
 # a label starting in column 0 and followed directly by a ``:''.  The
-# section continues until the next section.  Blank lines and lines
-# beginning with ``#'' are ignored.  All commands inside sections that do
-# not begin with ``!'' (e.g., ``!include'') *must* be indented by at least
-# one space or tab or they will not be recognized!
+# section continues until the next label.  Blank lines and characters
+# after a ``#'' are ignored (a literal ``#'' must be escaped with a ``\''
+# or quoted with "").  All commands inside sections that do not begin
+# with ``!'' (e.g., ``!include'') *must* be indented by at least one
+# space or tab or they will not be recognized!
 #
 # Lines beginning with "!include" will ``include'' another file.  You
 # may want to ``!include ~/.ppp.conf'' for backwards compatibility.
@@ -130,6 +131,11 @@ examples:
 # are allowed.
 #
     set phone 12345678|12345679:12345670|12345671
+#
+# Some phone numbers may include # characters - don't forget to escape
+# (or quote) them:
+#
+    set phone "12345##678"
 #
 # Ppp can accept control instructions from the ``pppctl'' program.
 # First, you must set up your control socket.  It's safest to use
