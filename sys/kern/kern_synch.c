@@ -167,16 +167,12 @@ static void
 roundrobin(arg)
 	void *arg;
 {
-#ifndef SMP
- 	struct proc *p = curproc; /* XXX */
-#endif
- 
-#ifdef SMP
+
+	mtx_lock_spin(&sched_lock);
 	need_resched();
+	mtx_unlock_spin(&sched_lock);
+#ifdef SMP
 	forward_roundrobin();
-#else 
- 	if (p == PCPU_GET(idleproc) || RTP_PRIO_NEED_RR(p->p_rtprio.type))
- 		need_resched();
 #endif
 
 	callout_reset(&roundrobin_callout, sched_quantum, roundrobin, NULL);
