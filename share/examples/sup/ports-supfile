@@ -1,27 +1,54 @@
-ports-base release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
-ports-archivers release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
-ports-benchmarks release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
-ports-audio release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
-ports-cad release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
-ports-comms release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
-ports-databases release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
-ports-devel release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
-ports-editors release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old 
-ports-emulators release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old 
-ports-games release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
-ports-graphics release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
-ports-japanese release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
-ports-lang release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old 
-ports-mail release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old 
-ports-math release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
-ports-misc release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
-ports-net release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old 
-ports-news release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
-ports-plan9 release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
-ports-print release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
-ports-russian release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
-ports-security release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old 
-ports-shells release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old 
-ports-sysutils release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old 
-ports-www release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old 
-ports-x11 release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old 
+# $Id$
+#
+# This file contains all of the "SUP collections" that comprise the FreeBSD
+# ports distribution.  SUP (Software Update Protocol) allows you to download
+# the latest ports collection to your system easily.  SUP, availible as a
+# FreeBSD package or in the ports collection, should be invoked as:
+#
+#	sup -v ports-supfile
+#
+# You may want to change some of the settings in this file to better
+# suit your system:
+#
+# base=/usr	
+#		base specifies the root where SUP will store information
+#		about the collections you have transfered to your system.
+#		A setting of "/usr" will generate this information in
+#		/usr/sup.  Even if you are SUPing a large number of
+#		collections, you will be hard pressed to generate more than
+#		~1MB of data in this directory.
+#
+# prefix=/usr/ports
+#		prefix specifies where to place the requested files.  A
+#		setting of "/usr/ports" will place the all of the files
+#		requested in /usr/ports (ie /usr/ports/devel, /usr/ports/cad).
+#		The directory that is the prefix must exist in order for
+#		SUP to transfer files successfully.
+
+ports-base release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
+ports-archivers release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
+ports-benchmarks release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
+ports-audio release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
+ports-cad release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
+ports-comms release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
+ports-databases release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
+ports-devel release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
+ports-editors release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix 
+ports-emulators release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix 
+ports-games release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
+ports-graphics release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
+ports-japanese release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
+ports-lang release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix 
+ports-mail release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix 
+ports-math release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
+ports-misc release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
+ports-net release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix 
+ports-news release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
+ports-plan9 release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
+ports-print release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
+ports-russian release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
+ports-security release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix 
+ports-shells release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix 
+ports-sysutils release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix 
+ports-www release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix 
+ports-x11 release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix 
