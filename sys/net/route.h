@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.h	8.3 (Berkeley) 4/19/94
- * $Id: route.h,v 1.9 1995/02/07 02:01:48 wollman Exp $
+ * $Id: route.h,v 1.10 1995/02/07 06:19:56 davidg Exp $
  */
 
 #ifndef _NET_ROUTE_H_
@@ -185,10 +185,6 @@ struct rt_msghdr {
 };
 
 #define RTM_VERSION	5	/* Up the ante and ignore older versions */
-#ifdef TTCP
-#undef	RTM_VERSION
-#define	RTM_VERSION	6	/* T/TCP requires changes in the rmx */
-#endif
 
 #define RTM_ADD		0x1	/* Add Route */
 #define RTM_DELETE	0x2	/* Delete Route */
