@@ -1,12 +1,12 @@
-#	$Id: bsd.kern.mk,v 1.5 1997/02/22 13:56:10 peter Exp $
+#	$Id: bsd.kern.mk,v 1.6 1997/10/21 06:53:24 bde Exp $
 
 #
 # Warning flags for compiling the kernel and components of the kernel.
 #
 CWARNFLAGS?=	-Wreturn-type -Wcomment -Wredundant-decls -Wimplicit \
 		-Wnested-externs -Wstrict-prototypes -Wmissing-prototypes \
-		-Wpointer-arith -Winline -Wuninitialized # -W -Wunused \
-		-Wcast-qual
+		-Wpointer-arith -Winline -Wuninitialized
+		# -W -Wunused -Wcast-qual
 #
 # The following flags are next up for working on:
 #	-Wformat -Wall
