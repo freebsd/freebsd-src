@@ -151,7 +151,7 @@
 
 	/* set the hae register if this process has specified a value */
 	ldq	t1, TD_MD_FLAGS(s0)
-	and	t1, MDP_HAEUSED
+	and	t1, MDTD_HAEUSED
 	beq	t1, 3f
 	ldq	a0, TD_MD_HAE(s0)
 	ldq	pv, chipset + CHIPSET_WRITE_HAE
@@ -302,7 +302,7 @@ Lkernelret:
 Lrestoreregs:
 	/* set the hae register if this process has specified a value */
 	ldq	t1, TD_MD_FLAGS(s0)
-	and	t1, MDP_HAEUSED
+	and	t1, MDTD_HAEUSED
 	beq	t1, Lnohae
 	ldq	a0, TD_MD_HAE(t0)
 	ldq	pv, chipset + CHIPSET_WRITE_HAE

@@ -40,6 +40,11 @@ struct mdbpt {
 	u_int32_t	contents;
 };
 
+#define	MDTD_FPUSED	0x0001		/* Process used the FPU */
+#define	MDTD_STEP1	0x0002		/* Single step normal instruction */
+#define	MDTD_STEP2	0x0004		/* Single step branch instruction */
+#define	MDTD_HAEUSED	0x0008		/* Process used the HAE */
+
 struct mdthread {
 	u_long		md_flags;
 	struct pcb	*md_pcbpaddr;	/* phys addr of the pcb */
@@ -50,17 +55,14 @@ struct mdthread {
 	register_t	md_savecrit;	/* save PSL for critical section */
 };
 
-#define	MDP_FPUSED	0x0001		/* Process used the FPU */
-#define MDP_STEP1	0x0002		/* Single step normal instruction */
-#define MDP_STEP2	0x0004		/* Single step branch instruction */
-#define MDP_HAEUSED	0x0008		/* Process used the HAE */
-#define MDP_UAC_NOPRINT	0x0010		/* Don't print unaligned traps */
-#define MDP_UAC_NOFIX	0x0020		/* Don't fixup unaligned traps */
-#define MDP_UAC_SIGBUS	0x0040		/* Deliver SIGBUS upon
+#define	MDP_UAC_NOPRINT	0x0010		/* Don't print unaligned traps */
+#define	MDP_UAC_NOFIX	0x0020		/* Don't fixup unaligned traps */
+#define	MDP_UAC_SIGBUS	0x0040		/* Deliver SIGBUS upon
 					   unaligned access */
-#define MDP_UAC_MASK	(MDP_UAC_NOPRINT | MDP_UAC_NOFIX | MDP_UAC_SIGBUS)
+#define	MDP_UAC_MASK	(MDP_UAC_NOPRINT | MDP_UAC_NOFIX | MDP_UAC_SIGBUS)
 
 struct mdproc {
+	u_int	md_uac;			/* Unaligned Access Check flags. */
 };
 
 #endif /* !_MACHINE_PROC_H_ */

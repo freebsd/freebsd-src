@@ -1209,7 +1209,7 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 
 	/* save the floating-point state, if necessary, then copy it. */
 	alpha_fpstate_save(td, 1);		/* XXX maybe write=0 */
-	ksi.si_sc.sc_ownedfp = td->td_md.md_flags & MDP_FPUSED;
+	ksi.si_sc.sc_ownedfp = td->td_md.md_flags & MDTD_FPUSED;
 	bcopy(&td->td_pcb->pcb_fp, (struct fpreg *)ksi.si_sc.sc_fpregs,
 	    sizeof(struct fpreg));
 	ksi.si_sc.sc_fp_control = td->td_pcb->pcb_fp_control;
@@ -1332,7 +1332,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 #endif
 	/* save the floating-point state, if necessary, then copy it. */
 	alpha_fpstate_save(td, 1);
-	sf.sf_uc.uc_mcontext.mc_ownedfp = td->td_md.md_flags & MDP_FPUSED;
+	sf.sf_uc.uc_mcontext.mc_ownedfp = td->td_md.md_flags & MDTD_FPUSED;
 	bcopy(&td->td_pcb->pcb_fp,
 	      (struct fpreg *)sf.sf_uc.uc_mcontext.mc_fpregs,
 	      sizeof(struct fpreg));
@@ -1606,7 +1606,7 @@ setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 	tfp->tf_regs[FRAME_T12] = tfp->tf_regs[FRAME_PC];	/* a.k.a. PV */
 	tfp->tf_regs[FRAME_FLAGS] = 0;			/* full restore */
 
-	td->td_md.md_flags &= ~MDP_FPUSED;
+	td->td_md.md_flags &= ~MDTD_FPUSED;
 	alpha_fpstate_drop(td);
 }
 
@@ -1720,13 +1720,13 @@ ptrace_set_bpt(struct thread *td, struct mdbpt *bpt)
 int
 ptrace_clear_single_step(struct thread *td)
 {
-	if (td->td_md.md_flags & MDP_STEP2) {
+	if (td->td_md.md_flags & MDTD_STEP2) {
 		ptrace_clear_bpt(td, &td->td_md.md_sstep[1]);
 		ptrace_clear_bpt(td, &td->td_md.md_sstep[0]);
-		td->td_md.md_flags &= ~MDP_STEP2;
-	} else if (td->td_md.md_flags & MDP_STEP1) {
+		td->td_md.md_flags &= ~MDTD_STEP2;
+	} else if (td->td_md.md_flags & MDTD_STEP1) {
 		ptrace_clear_bpt(td, &td->td_md.md_sstep[0]);
-		td->td_md.md_flags &= ~MDP_STEP1;
+		td->td_md.md_flags &= ~MDTD_STEP1;
 	}
 	return 0;
 }
@@ -1740,7 +1740,7 @@ ptrace_single_step(struct thread *td)
 	vm_offset_t addr[2];	/* places to set breakpoints */
 	int count = 0;		/* count of breakpoints */
 
-	if (td->td_md.md_flags & (MDP_STEP1|MDP_STEP2))
+	if (td->td_md.md_flags & (MDTD_STEP1|MDTD_STEP2))
 		panic("ptrace_single_step: step breakpoints not removed");
 
 	error = ptrace_read_int(td, pc, &ins.bits);
@@ -1793,9 +1793,9 @@ ptrace_single_step(struct thread *td)
 			ptrace_clear_bpt(td, &td->td_md.md_sstep[0]);
 			return error;
 		}
-		td->td_md.md_flags |= MDP_STEP2;
+		td->td_md.md_flags |= MDTD_STEP2;
 	} else
-		td->td_md.md_flags |= MDP_STEP1;
+		td->td_md.md_flags |= MDTD_STEP1;
 
 	return 0;
 }
@@ -2132,7 +2132,7 @@ alpha_fpstate_switch(struct thread *td)
 		SET_FEN(td);
 	}
 
-	td->td_md.md_flags |= MDP_FPUSED;
+	td->td_md.md_flags |= MDTD_FPUSED;
 	intr_restore(s);
 }
 
