@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/signalvar.h>
+#include <sys/ptrace.h>
 #ifdef KDB
 #include <sys/kdb.h>
 #endif
@@ -135,26 +136,17 @@ gdb_trapper(u_int addr, u_int insn, struct trapframe *frame, int code)
 	struct thread *td;
 	td = (curthread == NULL) ? &thread0 : curthread;
 
-#if 0
 	if (insn == GDB_BREAKPOINT || insn == GDB5_BREAKPOINT) {
 		if (code == FAULT_USER) {
-			ksiginfo_t ksi;
-
-			KSI_INIT_TRAP(&ksi);
-			ksi.ksi_signo = SIGTRAP;
-			ksi.ksi_code = TRAP_BRKPT;
-			ksi.ksi_addr = (u_int32_t *)addr;
-			ksi.ksi_trap = 0;
-			PROC_LOCK(td->td_proc);
-			trapsignal(td, &ksi);
-			PROC_UNLOCK(td->td_proc);
+			trapsignal(td, SIGTRAP, 0);
 			return 0;
 		}
+#if 0
 #ifdef KGDB
 		return !kgdb_trap(T_BREAKPOINT, frame);
 #endif
-	}
 #endif
+	}
 	return 1;
 }
 
@@ -257,6 +249,11 @@ undefinedinstruction(trapframe_t *frame)
 			       fault_code) == 0)
 		    break;
 
+	if (fault_code & FAULT_USER && fault_instruction == PTRACE_BREAKPOINT) {
+		ptrace_clear_single_step(td);
+		return;
+	}
+
 	if (uh == NULL && (fault_code & FAULT_USER)) {
 		/* Fault has not been handled */
 		trapsignal(td, SIGILL, 0);
@@ -272,7 +269,7 @@ undefinedinstruction(trapframe_t *frame)
 		return;
 		} else
 			panic("Undefined instruction in kernel.\n");
-	}		
+	}
 
 #ifdef FAST_FPE
 	/* Optimised exit code */
