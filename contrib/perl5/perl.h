@@ -1,6 +1,6 @@
 /*    perl.h
  *
- *    Copyright (c) 1987-2000, Larry Wall
+ *    Copyright (c) 1987-2001, Larry Wall
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
@@ -165,8 +165,8 @@ class CPerlObj;
 #define aTHXo_			this,
 #define PERL_OBJECT_THIS	aTHXo
 #define PERL_OBJECT_THIS_	aTHXo_
-#define dTHXoa(a)		pTHXo = a
-#define dTHXo			dTHXoa(PERL_GET_THX)
+#define dTHXoa(a)		pTHXo = (CPerlObj*)a
+#define dTHXo			pTHXo = PERL_GET_THX
 
 #define pTHXx		void
 #define pTHXx_
@@ -180,16 +180,17 @@ class CPerlObj;
 struct perl_thread;
 #    define pTHX	register struct perl_thread *thr
 #    define aTHX	thr
-#    define dTHR	dNOOP
+#    define dTHR	dNOOP /* only backward compatibility */
+#    define dTHXa(a)	pTHX = (struct perl_thread*)a
 #  else
 #    ifndef MULTIPLICITY
 #      define MULTIPLICITY
 #    endif
 #    define pTHX	register PerlInterpreter *my_perl
 #    define aTHX	my_perl
+#    define dTHXa(a)	pTHX = (PerlInterpreter*)a
 #  endif
-#  define dTHXa(a)	pTHX = a
-#  define dTHX		dTHXa(PERL_GET_THX)
+#  define dTHX		pTHX = PERL_GET_THX
 #  define pTHX_		pTHX,
 #  define aTHX_		aTHX,
 #  define pTHX_1	2	
@@ -243,6 +244,7 @@ struct perl_thread;
 #  define aTHXo		aTHX
 #  define aTHXo_	aTHX_
 #  define dTHXo		dTHX
+#  define dTHXoa(x)	dTHXa(x)
 #endif
 
 #ifndef pTHXx
@@ -298,7 +300,7 @@ register struct op *Perl_op asm(stringify(OP_IN_REGISTER));
 #endif
 
 #define WITH_THX(s) STMT_START { dTHX; s; } STMT_END
-#define WITH_THR(s) STMT_START { dTHR; s; } STMT_END
+#define WITH_THR(s) WITH_THX(s)
 
 /*
  * SOFT_CAST can be used for args to prototyped functions to retain some
@@ -487,19 +489,14 @@ register struct op *Perl_op asm(stringify(OP_IN_REGISTER));
 #   include <sys/param.h>
 #endif
 
-/* needed for IAMSUID case for 4.4BSD systems 
- * XXX there should probably be a Configure variable
- */
-
-#ifdef I_SYS_PARAM
-#if (defined (BSD) && (BSD >= 199306))
-#   include <sys/mount.h>
-#endif /* !BSD */
-#endif /* !I_SYS_PARAM */
-
 /* Use all the "standard" definitions? */
 #if defined(STANDARD_C) && defined(I_STDLIB)
 #   include <stdlib.h>
+#endif
+
+/* If this causes problems, set i_unistd=undef in the hint file.  */
+#ifdef I_UNISTD
+#   include <unistd.h>
 #endif
 
 #ifdef PERL_MICRO /* Last chance to export Perl_my_swap */
@@ -547,17 +544,6 @@ Malloc_t Perl_realloc (Malloc_t where, MEM_SIZE nbytes);
 Free_t   Perl_mfree (Malloc_t where);
 
 typedef struct perl_mstats perl_mstats_t;
-
-struct perl_mstats {
-    unsigned long *nfree;
-    unsigned long *ntotal;
-    long topbucket, topbucket_ev, topbucket_odd, totfree, total, total_chain;
-    long total_sbrk, sbrks, sbrk_good, sbrk_slack, start_slack, sbrked_remains;
-    long minbucket;
-    /* Level 1 info */
-    unsigned long *bucket_mem_size;
-    unsigned long *bucket_available_size;
-};
 
 #  define safemalloc  Perl_malloc
 #  define safecalloc  Perl_calloc
@@ -719,10 +705,50 @@ struct perl_mstats {
 #endif
 
 #include <errno.h>
-#ifdef HAS_SOCKET
-#   ifdef I_NET_ERRNO
-#     include <net/errno.h>
+
+#if defined(WIN32) && (defined(PERL_OBJECT) || defined(PERL_IMPLICIT_SYS) || defined(PERL_CAPI))
+#  define WIN32SCK_IS_STDSCK		/* don't pull in custom wsock layer */
+#endif
+
+#if defined(HAS_SOCKET) && !defined(VMS) /* VMS handles sockets via vmsish.h */
+# include <sys/socket.h>
+# if defined(USE_SOCKS) && defined(I_SOCKS)
+#   if !defined(INCLUDE_PROTOTYPES)
+#       define INCLUDE_PROTOTYPES /* for <socks.h> */
+#       define PERL_SOCKS_NEED_PROTOTYPES
 #   endif
+#   ifdef USE_THREADS
+#       define PERL_USE_THREADS /* store our value */
+#       undef USE_THREADS
+#   endif
+#   include <socks.h>
+#   ifdef USE_THREADS
+#       undef USE_THREADS /* socks.h does this on its own */
+#   endif
+#   ifdef PERL_USE_THREADS
+#       define USE_THREADS /* restore our value */
+#       undef PERL_USE_THREADS
+#   endif
+#   ifdef PERL_SOCKS_NEED_PROTOTYPES /* keep cpp space clean */
+#       undef INCLUDE_PROTOTYPES
+#       undef PERL_SOCKS_NEED_PROTOTYPES
+#   endif
+#   ifdef USE_64_BIT_ALL
+#       define SOCKS_64BIT_BUG /* until proven otherwise */
+#   endif
+# endif 
+# ifdef I_NETDB
+#  include <netdb.h>
+# endif
+# ifndef ENOTSOCK
+#  ifdef I_NET_ERRNO
+#   include <net/errno.h>
+#  endif
+# endif
+#endif
+
+#ifdef SETERRNO
+# undef SETERRNO  /* SOCKS might have defined this */
 #endif
 
 #ifdef VMS
@@ -1072,8 +1098,16 @@ typedef UVTYPE UV;
 #define PTR2IV(p)	INT2PTR(IV,p)
 #define PTR2UV(p)	INT2PTR(UV,p)
 #define PTR2NV(p)	NUM2PTR(NV,p)
+#if PTRSIZE == LONGSIZE 
+#  define PTR2ul(p)	(unsigned long)(p)
+#else
+#  define PTR2ul(p)	INT2PTR(unsigned long,p)	
+#endif
   
 #ifdef USE_LONG_DOUBLE
+#  if defined(HAS_LONG_DOUBLE) && LONG_DOUBLESIZE == DOUBLESIZE
+#      define LONG_DOUBLE_EQUALS_DOUBLE
+#  endif
 #  if !(defined(HAS_LONG_DOUBLE) && (LONG_DOUBLESIZE > DOUBLESIZE))
 #     undef USE_LONG_DOUBLE /* Ouch! */
 #  endif
@@ -1154,16 +1188,22 @@ typedef NVTYPE NV;
 #       include <sunmath.h>
 #   endif
 #   define NV_DIG LDBL_DIG
-#   ifdef HAS_SQRTL
-        /* libsunmath doesn't have modfl and frexpl as of mid-March 2000 */
-	/* XXX Configure probe for modfl and frexpl needed XXX */
-#       if defined(__sun) && defined(__svr4)
-#           define Perl_modf(x,y) ((long double)modf((double)(x),(double*)(y)))
-#           define Perl_frexp(x) ((long double)frexp((double)(x)))
+#   ifdef LDBL_MANT_DIG
+#       define NV_MANT_DIG LDBL_MANT_DIG
+#   endif
+#   ifdef LDBL_MAX
+#       define NV_MAX LDBL_MAX
+#       define NV_MIN LDBL_MIN
+#   else
+#       ifdef HUGE_VALL
+#           define NV_MAX HUGE_VALL
 #       else
-#           define Perl_modf modfl
-#           define Perl_frexp frexpl
+#           ifdef HUGE_VAL
+#               define NV_MAX ((NV)HUGE_VAL)
+#           endif
 #       endif
+#   endif
+#   ifdef HAS_SQRTL
 #       define Perl_cos cosl
 #       define Perl_sin sinl
 #       define Perl_sqrt sqrtl
@@ -1174,10 +1214,39 @@ typedef NVTYPE NV;
 #       define Perl_floor floorl
 #       define Perl_fmod fmodl
 #   endif
+/* e.g. libsunmath doesn't have modfl and frexpl as of mid-March 2000 */
+#   ifdef HAS_MODFL
+#       define Perl_modf(x,y) modfl(x,y)
+#   else
+#       define Perl_modf(x,y) ((long double)modf((double)(x),(double*)(y)))
+#   endif
+#   ifdef HAS_FREXPL
+#       define Perl_frexp(x,y) frexpl(x,y)
+#   else
+#       define Perl_frexp(x,y) ((long double)frexp((double)(x),y))
+#   endif
+#   ifdef HAS_ISNANL
+#       define Perl_isnan(x) isnanl(x)
+#   else
+#       ifdef HAS_ISNAN
+#           define Perl_isnan(x) isnan((double)(x))
+#       else
+#           define Perl_isnan(x) ((x)!=(x))
+#       endif
+#   endif
 #else
 #   define NV_DIG DBL_DIG
-#   define Perl_modf modf
-#   define Perl_frexp frexp
+#   ifdef DBL_MANT_DIG
+#       define NV_MANT_DIG DBL_MANT_DIG
+#   endif
+#   ifdef DBL_MAX
+#       define NV_MAX DBL_MAX
+#       define NV_MIN DBL_MIN
+#   else
+#       ifdef HUGE_VAL
+#           define NV_MAX HUGE_VAL
+#       endif
+#   endif
 #   define Perl_cos cos
 #   define Perl_sin sin
 #   define Perl_sqrt sqrt
@@ -1187,18 +1256,32 @@ typedef NVTYPE NV;
 #   define Perl_pow pow
 #   define Perl_floor floor
 #   define Perl_fmod fmod
+#   define Perl_modf(x,y) modf(x,y)
+#   define Perl_frexp(x,y) frexp(x,y)
+#   ifdef HAS_ISNAN
+#       define Perl_isnan(x) isnan(x)
+#   else
+#       define Perl_isnan(x) ((x)!=(x))
+#   endif
 #endif
 
 #if !defined(Perl_atof) && defined(USE_LONG_DOUBLE) && defined(HAS_LONG_DOUBLE)
 #   if !defined(Perl_atof) && defined(HAS_STRTOLD) 
-#       define Perl_atof(s) strtold(s, (char**)NULL)
+#       define Perl_atof(s) (NV)strtold(s, (char**)NULL)
 #   endif
 #   if !defined(Perl_atof) && defined(HAS_ATOLF)
-#       define Perl_atof atolf
+#       define Perl_atof (NV)atolf
+#   endif
+#   if !defined(Perl_atof) && defined(PERL_SCNfldbl)
+#       define Perl_atof PERL_SCNfldbl
+#       define Perl_atof2(s,f) sscanf((s), "%"PERL_SCNfldbl, &(f))
 #   endif
 #endif
 #if !defined(Perl_atof)
 #   define Perl_atof atof /* we assume atof being available anywhere */
+#endif
+#if !defined(Perl_atof2)
+#   define Perl_atof2(s,f) ((f) = (NV)Perl_atof(s))
 #endif
 
 /* Previously these definitions used hardcoded figures. 
@@ -1372,27 +1455,24 @@ typedef NVTYPE NV;
 
 #ifdef UV_IS_QUAD
 
-#  ifdef UQUAD_MAX
-#    define PERL_UQUAD_MAX ((UV)UQUAD_MAX)
-#  else
 #    define PERL_UQUAD_MAX	(~(UV)0)
-#  endif
-
-#  define PERL_UQUAD_MIN ((UV)0)
-
-#  ifdef QUAD_MAX
-#    define PERL_QUAD_MAX ((IV)QUAD_MAX)
-#  else
+#    define PERL_UQUAD_MIN	((UV)0)
 #    define PERL_QUAD_MAX 	((IV) (PERL_UQUAD_MAX >> 1))
-#  endif
-
-#  ifdef QUAD_MIN
-#    define PERL_QUAD_MIN ((IV)QUAD_MIN)
-#  else
 #    define PERL_QUAD_MIN 	(-PERL_QUAD_MAX - ((3 & -1) == 3))
-#  endif
 
 #endif
+
+struct perl_mstats {
+    UV *nfree;
+    UV *ntotal;
+    IV topbucket, topbucket_ev, topbucket_odd, totfree, total, total_chain;
+    IV total_sbrk, sbrks, sbrk_good, sbrk_slack, start_slack, sbrked_remains;
+    IV minbucket;
+    /* Level 1 info */
+    UV *bucket_mem_size;
+    UV *bucket_available_size;
+    UV nbuckets;
+};
 
 typedef MEM_SIZE STRLEN;
 
@@ -1409,7 +1489,12 @@ typedef struct pvop PVOP;
 typedef struct loop LOOP;
 
 typedef struct interpreter PerlInterpreter;
-typedef struct sv SV;
+#ifdef UTS
+#   define STRUCT_SV perl_sv /* Amdahl's <ksync.h> has struct sv */
+#else
+#   define STRUCT_SV sv
+#endif
+typedef struct STRUCT_SV SV;
 typedef struct av AV;
 typedef struct hv HV;
 typedef struct cv CV;
@@ -1574,6 +1659,9 @@ typedef struct ptr_tbl PTR_TBL_t;
 #         else
 #           if defined(MACOS_TRADITIONAL)
 #             include "macos/macish.h"
+#	      ifndef NO_ENVIRON_ARRAY
+#               define NO_ENVIRON_ARRAY
+#             endif
 #           else
 #             include "unixish.h"
 #           endif
@@ -1582,7 +1670,18 @@ typedef struct ptr_tbl PTR_TBL_t;
 #     endif
 #   endif
 # endif
-#endif         
+#endif
+
+#ifndef NO_ENVIRON_ARRAY
+#  define USE_ENVIRON_ARRAY
+#endif
+
+#ifdef JPL
+    /* E.g. JPL needs to operate on a copy of the real environment.
+     * JDK 1.2 and 1.3 seem to get upset if the original environment
+     * is diddled with. */
+#   define NEED_ENVIRON_DUP_FOR_MODIFY
+#endif
 
 #ifndef PERL_SYS_INIT3
 #  define PERL_SYS_INIT3(argvp,argcp,envp) PERL_SYS_INIT(argvp,argcp)
@@ -1772,9 +1871,25 @@ typedef pthread_key_t	perl_key;
 #  endif 
 #endif
 
+#ifndef UVf
+#  ifdef CHECK_FORMAT
+#    define UVf UVuf
+#  else
+#    define UVf "Vu"
+#  endif 
+#endif
+
+#ifndef VDf
+#  ifdef CHECK_FORMAT
+#    define VDf "p"
+#  else
+#    define VDf "vd"
+#  endif 
+#endif
+
 /* Some unistd.h's give a prototype for pause() even though
    HAS_PAUSE ends up undefined.  This causes the #define
-   below to be rejected by the compmiler.  Sigh.
+   below to be rejected by the compiler.  Sigh.
 */
 #ifdef HAS_PAUSE
 #define Pause	pause
@@ -1994,6 +2109,7 @@ Gid_t getegid (void);
 
 #ifndef Perl_error_log
 #  define Perl_error_log	(PL_stderrgv			\
+				 && GvIOp(PL_stderrgv)          \
 				 && IoOFP(GvIOp(PL_stderrgv))	\
 				 ? IoOFP(GvIOp(PL_stderrgv))	\
 				 : PerlIO_stderr())
@@ -2014,9 +2130,11 @@ Gid_t getegid (void);
 #  if defined(PERL_OBJECT)
 #    define DEBUG_m(a) if (PL_debug & 128)	a
 #  else
+     /* Temporarily turn off memory debugging in case the a
+      * does memory allocation, either directly or indirectly. */
 #    define DEBUG_m(a)  \
     STMT_START {							\
-	if (PERL_GET_INTERP) { dTHX; if (PL_debug & 128) { a; } }	\
+        if (PERL_GET_INTERP) { dTHX; if (PL_debug & 128) {PL_debug&=~128; a; PL_debug|=128;} } \
     } STMT_END
 #  endif
 #define DEBUG_f(a) if (PL_debug & 256)	a
@@ -2032,6 +2150,7 @@ Gid_t getegid (void);
 #  else
 #    define DEBUG_S(a)
 #  endif
+#define DEBUG_T(a) if (PL_debug & (1<<17))	a
 #else
 #define DEB(a)
 #define DEBUG(a)
@@ -2052,6 +2171,7 @@ Gid_t getegid (void);
 #define DEBUG_X(a)
 #define DEBUG_D(a)
 #define DEBUG_S(a)
+#define DEBUG_T(a)
 #endif
 #define YYMAXDEPTH 300
 
@@ -2122,8 +2242,12 @@ char *crypt (const char*, const char*);
 #    ifndef getenv
 char *getenv (const char*);
 #    endif /* !getenv */
-#    if !defined(EPOC) && !(defined(__hpux) && defined(_FILE_OFFSET_BITS) && _FILE_OFFSET_BITS == 64) && !defined(HAS_LSEEK_PROTO)
+#    if !defined(HAS_LSEEK_PROTO) && !defined(EPOC) && !defined(__hpux)
+#      ifdef _FILE_OFFSET_BITS
+#        if _FILE_OFFSET_BITS == 64
 Off_t lseek (int,Off_t,int);
+#        endif
+#      endif
 #    endif
 #  endif /* !DONT_DECLARE_STD */
 char *getlogin (void);
@@ -2209,18 +2333,18 @@ typedef OP* (CPERLscope(*PPADDR_t)[]) (pTHX);
 #    define environ (*environ_pointer)
 EXT char *** environ_pointer;
 #  else
-#    if defined(__APPLE__)
+#    if defined(__APPLE__) && defined(PERL_CORE)
 #      include <crt_externs.h>	/* for the env array */
 #      define environ (*_NSGetEnviron())
 #    endif
 #  endif
 #else
    /* VMS and some other platforms don't use the environ array */
-#  if !defined(VMS)
+#  ifdef USE_ENVIRON_ARRAY
 #    if !defined(DONT_DECLARE_STD) || \
         (defined(__svr4__) && defined(__GNUC__) && defined(sun)) || \
         defined(__sgi) || \
-        defined(__DGUX) || defined(EPOC)
+        defined(__DGUX) 
 extern char **	environ;	/* environment variables supplied via exec */
 #    endif
 #  endif
@@ -2585,10 +2709,6 @@ typedef char* (CPERLscope(*re_intuit_start_t)) (pTHX_ regexp *prog, SV *sv,
 typedef SV*	(CPERLscope(*re_intuit_string_t)) (pTHX_ regexp *prog);
 typedef void	(CPERLscope(*regfree_t)) (pTHX_ struct regexp* r);
 
-#ifdef USE_PURE_BISON
-int Perl_yylex(pTHX_ YYSTYPE *lvalp, int *lcharp);
-#endif
-
 typedef void (*DESTRUCTORFUNC_NOCONTEXT_t) (void*);
 typedef void (*DESTRUCTORFUNC_t) (pTHXo_ void*);
 typedef void (*SVFUNC_t) (pTHXo_ SV*);
@@ -2834,7 +2954,8 @@ EXT MGVTBL PL_vtbl_defelem = {MEMBER_TO_FPTR(Perl_magic_getdefelem),MEMBER_TO_FP
 
 EXT MGVTBL PL_vtbl_regexp = {0,0,0,0, MEMBER_TO_FPTR(Perl_magic_freeregexp)};
 EXT MGVTBL PL_vtbl_regdata = {0, 0, MEMBER_TO_FPTR(Perl_magic_regdata_cnt), 0, 0};
-EXT MGVTBL PL_vtbl_regdatum = {MEMBER_TO_FPTR(Perl_magic_regdatum_get), 0, 0, 0, 0};
+EXT MGVTBL PL_vtbl_regdatum = {MEMBER_TO_FPTR(Perl_magic_regdatum_get),
+			       MEMBER_TO_FPTR(Perl_magic_regdatum_set), 0, 0, 0};
 
 #ifdef USE_LOCALE_COLLATE
 EXT MGVTBL PL_vtbl_collxfrm = {0,
@@ -3062,23 +3183,29 @@ typedef struct am_table_short AMTS;
 #ifdef USE_LOCALE_NUMERIC
 
 #define SET_NUMERIC_STANDARD() \
-    STMT_START {				\
-	if (! PL_numeric_standard)		\
-	    set_numeric_standard();		\
-    } STMT_END
+	set_numeric_standard();
 
 #define SET_NUMERIC_LOCAL() \
-    STMT_START {				\
-	if (! PL_numeric_local)			\
-	    set_numeric_local();		\
-    } STMT_END
+	set_numeric_local();
 
-#define IS_NUMERIC_RADIX(c)	\
+#define IS_NUMERIC_RADIX(s)	\
 	((PL_hints & HINT_LOCALE) && \
-	  PL_numeric_radix && (c) == PL_numeric_radix)
+	  PL_numeric_radix_sv && memEQ(s, SvPVX(PL_numeric_radix_sv), SvCUR(PL_numeric_radix_sv)))
 
-#define RESTORE_NUMERIC_LOCAL()		if ((PL_hints & HINT_LOCALE) && PL_numeric_standard) SET_NUMERIC_LOCAL()
-#define RESTORE_NUMERIC_STANDARD()	if ((PL_hints & HINT_LOCALE) && PL_numeric_local) SET_NUMERIC_STANDARD()
+#define STORE_NUMERIC_LOCAL_SET_STANDARD() \
+	bool was_local = (PL_hints & HINT_LOCALE) && PL_numeric_local; \
+	if (was_local) SET_NUMERIC_STANDARD();
+
+#define STORE_NUMERIC_STANDARD_SET_LOCAL() \
+	bool was_standard = (PL_hints & HINT_LOCALE) && PL_numeric_standard; \
+	if (was_standard) SET_NUMERIC_LOCAL();
+
+#define RESTORE_NUMERIC_LOCAL() \
+	if (was_local) SET_NUMERIC_LOCAL();
+
+#define RESTORE_NUMERIC_STANDARD() \
+	if (was_standard) SET_NUMERIC_STANDARD();
+
 #define Atof				my_atof
 
 #else /* !USE_LOCALE_NUMERIC */
@@ -3086,6 +3213,8 @@ typedef struct am_table_short AMTS;
 #define SET_NUMERIC_STANDARD()  	/**/
 #define SET_NUMERIC_LOCAL()     	/**/
 #define IS_NUMERIC_RADIX(c)		(0)
+#define STORE_NUMERIC_LOCAL_SET_STANDARD()	/**/
+#define STORE_NUMERIC_STANDARD_SET_LOCAL()	/**/
 #define RESTORE_NUMERIC_LOCAL()		/**/
 #define RESTORE_NUMERIC_STANDARD()	/**/
 #define Atof				Perl_atof
@@ -3310,6 +3439,10 @@ typedef struct am_table_short AMTS;
 #   include <libutil.h>		/* setproctitle() in some FreeBSDs */
 #endif
 
+#ifndef EXEC_ARGV_CAST
+#define EXEC_ARGV_CAST(x) x
+#endif
+
 /* and finally... */
 #define PERL_PATCHLEVEL_H_IMPLICIT
 #include "patchlevel.h"
@@ -3335,6 +3468,10 @@ typedef struct am_table_short AMTS;
    HAS_MUNMAP
    I_SYSMMAN
    Mmap_t
+
+   NVef
+   NVff
+   NVgf
 
    so that Configure picks them up. */
 

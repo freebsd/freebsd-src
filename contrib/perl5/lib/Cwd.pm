@@ -4,7 +4,7 @@ require 5.000;
 
 =head1 NAME
 
-getcwd - get pathname of current working directory
+Cwd - get pathname of current working directory
 
 =head1 SYNOPSIS
 
@@ -13,6 +13,9 @@ getcwd - get pathname of current working directory
 
     use Cwd;
     $dir = getcwd;
+
+    use Cwd;
+    $dir = fastcwd;
 
     use Cwd;
     $dir = fastgetcwd;
@@ -29,15 +32,20 @@ getcwd - get pathname of current working directory
 
 =head1 DESCRIPTION
 
+This module provides functions for determining the pathname of the
+current working directory.  By default, it exports the functions
+cwd(), getcwd(), fastcwd(), and fastgetcwd() into the caller's
+namespace.  Each of these functions are called without arguments and
+return the absolute path of the current working directory.  It is
+recommended that cwd (or another *cwd() function) be used in I<all>
+code to ensure portability.
+
+The cwd() is the most natural and safe form for the current
+architecture. For most systems it is identical to `pwd` (but without
+the trailing line terminator).
+
 The getcwd() function re-implements the getcwd(3) (or getwd(3)) functions
 in Perl.
-
-The abs_path() function takes a single argument and returns the
-absolute pathname for that argument.  It uses the same algorithm
-as getcwd().  (Actually, getcwd() is abs_path("."))  Symbolic links
-and relative-path components ("." and "..") are resolved to return
-the canonical pathname, just like realpath(3).  Also callable as
-realpath().
 
 The fastcwd() function looks the same as getcwd(), but runs faster.
 It's also more dangerous because it might conceivably chdir() you out
@@ -49,16 +57,17 @@ that it leaves you in the same directory that it started in. If it has
 changed it will C<die> with the message "Unstable directory path,
 current directory changed unexpectedly". That should never happen.
 
-The fast_abs_path() function looks the same as abs_path(), but runs faster.
-And like fastcwd() is more dangerous.
+The fastgetcwd() function is provided as a synonym for cwd().
 
-The cwd() function looks the same as getcwd and fastgetcwd but is
-implemented using the most natural and safe form for the current
-architecture. For most systems it is identical to `pwd` (but without
-the trailing line terminator).
+The abs_path() function takes a single argument and returns the
+absolute pathname for that argument.  It uses the same algorithm as
+getcwd().  (Actually, getcwd() is abs_path("."))  Symbolic links and
+relative-path components ("." and "..") are resolved to return the
+canonical pathname, just like realpath(3).  This function is also
+callable as realpath().
 
-It is recommended that cwd (or another *cwd() function) is used in
-I<all> code to ensure portability.
+The fast_abs_path() function looks the same as abs_path() but runs
+faster and, like fastcwd(), is more dangerous.
 
 If you ask to override your chdir() built-in function, then your PWD
 environment variable will be kept up to date.  (See
@@ -67,31 +76,42 @@ kept up to date if all packages which use chdir import it from Cwd.
 
 =cut
 
-## use strict;
+use strict;
 
 use Carp;
 
-$VERSION = '2.02';
+our $VERSION = '2.04';
 
-require Exporter;
-@ISA = qw(Exporter);
-@EXPORT = qw(cwd getcwd fastcwd fastgetcwd);
-@EXPORT_OK = qw(chdir abs_path fast_abs_path realpath fast_realpath);
+use base qw/ Exporter /;
+our @EXPORT = qw(cwd getcwd fastcwd fastgetcwd);
+our @EXPORT_OK = qw(chdir abs_path fast_abs_path realpath fast_realpath);
 
 
 # The 'natural and safe form' for UNIX (pwd may be setuid root)
 
 sub _backtick_pwd {
-    my $cwd;
-    chop($cwd = `/bin/pwd`);
+    my $cwd = `/bin/pwd`;
+    # `pwd` may fail e.g. if the disk is full
+    chomp($cwd) if defined $cwd;
     $cwd;
 }
 
 # Since some ports may predefine cwd internally (e.g., NT)
 # we take care not to override an existing definition for cwd().
 
-*cwd = \&_backtick_pwd unless defined &cwd;
+unless(defined &cwd) {
+    # The pwd command is not available in some chroot(2)'ed environments
+    if($^O eq 'MacOS' || grep { -x "$_/pwd" } split(':', $ENV{PATH})) {
+	*cwd = \&_backtick_pwd;
+    }
+    else {
+	*cwd = \&getcwd;
+    }
+}
 
+# set a reasonable (and very safe) default for fastgetcwd, in case it
+# isn't redefined later (20001212 rspier)
+*fastgetcwd = \&cwd;
 
 # By Brandon S. Allbery
 #
@@ -157,7 +177,7 @@ sub fastcwd {
 my $chdir_init = 0;
 
 sub chdir_init {
-    if ($ENV{'PWD'} and $^O ne 'os2' and $^O ne 'dos') {
+    if ($ENV{'PWD'} and $^O ne 'os2' and $^O ne 'dos' and $^O ne 'MSWin32') {
 	my($dd,$di) = stat('.');
 	my($pd,$pi) = stat($ENV{'PWD'});
 	if (!defined $dd or !defined $pd or $di != $pi or $dd != $pd) {
@@ -165,10 +185,12 @@ sub chdir_init {
 	}
     }
     else {
-	$ENV{'PWD'} = cwd();
+	my $wd = cwd();
+	$wd = Win32::GetFullPathName($wd) if $^O eq 'MSWin32';
+	$ENV{'PWD'} = $wd;
     }
     # Strip an automounter prefix (where /tmp_mnt/foo/bar == /foo/bar)
-    if ($ENV{'PWD'} =~ m|(/[^/]+(/[^/]+/[^/]+))(.*)|s) {
+    if ($^O ne 'MSWin32' and $ENV{'PWD'} =~ m|(/[^/]+(/[^/]+/[^/]+))(.*)|s) {
 	my($pd,$pi) = stat($2);
 	my($dd,$di) = stat($1);
 	if (defined $pd and defined $dd and $di == $pi and $dd == $pd) {
@@ -179,11 +201,27 @@ sub chdir_init {
 }
 
 sub chdir {
-    my $newdir = shift || '';	# allow for no arg (chdir to HOME dir)
-    $newdir =~ s|///*|/|g;
+    my $newdir = @_ ? shift : '';	# allow for no arg (chdir to HOME dir)
+    $newdir =~ s|///*|/|g unless $^O eq 'MSWin32';
     chdir_init() unless $chdir_init;
+    my $newpwd;
+    if ($^O eq 'MSWin32') {
+	# get the full path name *before* the chdir()
+	$newpwd = Win32::GetFullPathName($newdir);
+    }
+
     return 0 unless CORE::chdir $newdir;
-    if ($^O eq 'VMS') { return $ENV{'PWD'} = $ENV{'DEFAULT'} }
+
+    if ($^O eq 'VMS') {
+	return $ENV{'PWD'} = $ENV{'DEFAULT'}
+    }
+    elsif ($^O eq 'MacOS') {
+	return $ENV{'PWD'} = cwd();
+    }
+    elsif ($^O eq 'MSWin32') {
+	$ENV{'PWD'} = $newpwd;
+	return 1;
+    }
 
     if ($newdir =~ m#^/#s) {
 	$ENV{'PWD'} = $newdir;
@@ -264,7 +302,7 @@ sub abs_path
 
 sub fast_abs_path {
     my $cwd = getcwd();
-    my $path = shift || '.';
+    my $path = @_ ? shift : '.';
     CORE::chdir($path) || croak "Cannot chdir to $path:$!";
     my $realpath = getcwd();
     CORE::chdir($cwd)  || croak "Cannot chdir back to $cwd:$!";
@@ -333,10 +371,15 @@ sub _qnx_cwd {
 }
 
 sub _qnx_abs_path {
-    my $path = shift || '.';
+    my $path = @_ ? shift : '.';
     my $realpath=`/usr/bin/fullpath -t $path`;
     chop $realpath;
     return $realpath;
+}
+
+sub _epoc_cwd {
+    $ENV{'PWD'} = EPOC::getcwd();
+    return $ENV{'PWD'};
 }
 
 {
@@ -386,6 +429,19 @@ sub _qnx_abs_path {
         *fastgetcwd	= \&cwd;
         *fastcwd	= \&cwd;
         *abs_path	= \&fast_abs_path;
+    }
+    elsif ($^O eq 'epoc') {
+        *cwd            = \&_epoc_cwd;
+        *getcwd	        = \&_epoc_cwd;
+        *fastgetcwd	= \&_epoc_cwd;
+        *fastcwd	= \&_epoc_cwd;
+        *abs_path	= \&fast_abs_path;
+    }
+    elsif ($^O eq 'MacOS') {
+    	*getcwd     = \&cwd;
+    	*fastgetcwd = \&cwd;
+    	*fastcwd    = \&cwd;
+    	*abs_path   = \&fast_abs_path;
     }
 }
 
