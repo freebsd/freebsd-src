@@ -50,7 +50,7 @@ interest), then one of the developers can ask the devel-cvs mailing
 list whether it is OK to make this person a developer (after first
 sending the prospective developer a copy of this file and then having
 the prospective developer say they want to be a developer).  If there
-are no objections, an account will be created.
+are no objections, the person will be made a developer.
 
 ----------------------------------------------------------------------
 Policy regarding checkout-only access:

@@ -3,7 +3,7 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.4 kit.
+ * specified in the README file that comes with the CVS source distribution.
  */
 
 #include "cvs.h"
@@ -12,14 +12,16 @@
 static void time_stamp_server PROTO((char *, Vers_TS *, Entnode *));
 #endif
 
-/*
- * Fill in and return a Vers_TS structure "user" is the name of the local
- * file; entries is the entries file - preparsed for our pleasure. rcs is
- * the current source control file - preparsed for our pleasure.
- */
+/* Fill in and return a Vers_TS structure for the file FINFO.  TAG and
+   DATE are from the command line.  */
+
 Vers_TS *
 Version_TS (finfo, options, tag, date, force_tag_match, set_time)
     struct file_info *finfo;
+
+    /* Keyword expansion options, I think generally from the command
+       line.  Can be either NULL or "" to indicate none are specified
+       here.  */
     char *options;
     char *tag;
     char *date;
@@ -57,6 +59,18 @@ Version_TS (finfo, options, tag, date, force_tag_match, set_time)
     {
 	entdata = (Entnode *) p->data;
 
+	if (entdata->type == ENT_SUBDIR)
+	{
+	    /* According to cvs.texinfo, the various fields in the Entries
+	       file for a directory (other than the name) do not have a
+	       defined meaning.  We need to pass them along without getting
+	       confused based on what is in them.  Therefore we make sure
+	       not to set vn_user and the like from Entries, add.c and
+	       perhaps other code will expect these fields to be NULL for
+	       a directory.  */
+	    vers_ts->entdata = entdata;
+	}
+	else
 #ifdef SERVER_SUPPORT
 	/* An entries line with "D" in the timestamp indicates that the
 	   client sent Is-modified without sending Entry.  So we want to
@@ -79,12 +93,15 @@ Version_TS (finfo, options, tag, date, force_tag_match, set_time)
 		if (!(sdtp && sdtp->aflag))
 		    vers_ts->date = xstrdup (entdata->date);
 	    }
-	    if (!options || (options && *options == '\0'))
-	    {
-		if (!(sdtp && sdtp->aflag))
-		    vers_ts->options = xstrdup (entdata->options);
-	    }
 	    vers_ts->entdata = entdata;
+	}
+	/* Even if we don't have an "entries line" as such
+	   (vers_ts->entdata), we want to pick up options which could
+	   have been from a Kopt protocol request.  */
+	if (!options || (options && *options == '\0'))
+	{
+	    if (!(sdtp && sdtp->aflag))
+		vers_ts->options = xstrdup (entdata->options);
 	}
     }
 
@@ -92,9 +109,9 @@ Version_TS (finfo, options, tag, date, force_tag_match, set_time)
      * -k options specified on the command line override (and overwrite)
      * options stored in the entries file
      */
-    if (options)
+    if (options && *options != '\0')
 	vers_ts->options = xstrdup (options);
-    else if (!vers_ts->options)
+    else if (!vers_ts->options || *vers_ts->options == '\0')
     {
 	if (finfo->rcs != NULL)
 	{
@@ -175,7 +192,7 @@ Version_TS (finfo, options, tag, date, force_tag_match, set_time)
 	 * get the Date the revision was checked in.  If "user" exists, set
 	 * its mtime.
 	 */
-	if (set_time)
+	if (set_time && vers_ts->vn_rcs != NULL)
 	{
 #ifdef SERVER_SUPPORT
 	    if (server_active)
@@ -186,15 +203,18 @@ Version_TS (finfo, options, tag, date, force_tag_match, set_time)
 		struct utimbuf t;
 
 		memset (&t, 0, sizeof (t));
-		if (vers_ts->vn_rcs)
+		t.modtime =
+		    RCS_getrevtime (rcsdata, vers_ts->vn_rcs, 0, 0);
+		if (t.modtime != (time_t) -1)
 		{
-		    t.modtime =
-			RCS_getrevtime (rcsdata, vers_ts->vn_rcs, 0, 0);
-		    if (t.modtime != (time_t) -1)
-		    {
-			t.actime = t.modtime;
-			(void) utime (finfo->file, &t);
-		    }
+		    t.actime = t.modtime;
+
+		    /* This used to need to ignore existence_errors
+		       (for cases like where update.c now clears
+		       set_time if noexec, but didn't used to).  I
+		       think maybe now it doesn't (server_modtime does
+		       not like those kinds of cases).  */
+		    (void) utime (finfo->file, &t);
 		}
 	    }
 	}

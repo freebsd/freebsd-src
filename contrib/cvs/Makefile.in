@@ -89,12 +89,12 @@ DISTFILES = \
 	ChangeLog NEWS ChangeLog.zoo \
 	configure configure.in stamp-h.in config.h.in Makefile.in acconfig.h \
 	cvs-format.el mkinstalldirs install-sh \
-	cvsnt.mak \
+	cvsnt.mak cvsnt.dsp \
 	.cvsignore cvs.spec
 
 ### Subdirectories to run make in for the primary targets.
 # Unix source subdirs, where we'll want to run lint and etags:
-USOURCE_SUBDIRS = lib zlib src
+USOURCE_SUBDIRS = lib zlib diff src
 # All other subdirs:
 SUBDIRS = ${USOURCE_SUBDIRS} man doc contrib tools \
 	windows-NT os2 emx macintosh vms
@@ -188,18 +188,21 @@ saber:
 check:
 	cd lib ; $(MAKE) $(FLAGS_TO_PASS)
 	cd zlib ; $(MAKE) $(FLAGS_TO_PASS)
+	cd diff ; $(MAKE) $(FLAGS_TO_PASS)
 	cd src ; $(MAKE) $(FLAGS_TO_PASS) check
 
 .PHONY: remotecheck
 remotecheck:
 	cd lib ; $(MAKE) $(FLAGS_TO_PASS)
 	cd zlib ; $(MAKE) $(FLAGS_TO_PASS)
+	cd diff ; $(MAKE) $(FLAGS_TO_PASS)
 	cd src ; $(MAKE) $(FLAGS_TO_PASS) remotecheck
 
 .PHONY: installcheck
 installcheck:
 	cd lib ; $(MAKE) $(FLAGS_TO_PASS)
 	cd zlib ; $(MAKE) $(FLAGS_TO_PASS)
+	cd diff ; $(MAKE) $(FLAGS_TO_PASS)
 	cd src ; $(MAKE) $(FLAGS_TO_PASS) installcheck
 
 .PHONY: lint
@@ -239,7 +242,7 @@ spec:
 	echo > .fname cvs-`cat .version`
 	rm -f `cat .fname`.spec
 	sed < $(top_srcdir)/cvs.spec \
-	    -e 's/@VERSION@/'`cat .version`'/' \
+	    -e 's/@VERSION@/'`cat .version`'/g' \
 	    > `cat .fname`.spec
 
 

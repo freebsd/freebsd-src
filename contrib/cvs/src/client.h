@@ -11,9 +11,14 @@ extern int filter_through_gunzip PROTO((int, int, pid_t *));
 
 #if defined (CLIENT_SUPPORT) || defined (SERVER_SUPPORT)
 
+/* Whether the connection should be encrypted.  */
 extern int cvsencrypt;
 
+/* Whether the connection should use per-packet authentication.  */
+extern int cvsauthenticate;
+
 #ifdef ENCRYPTION
+
 #ifdef HAVE_KERBEROS
 
 /* We can't declare the arguments without including krb.h, and I don't
@@ -21,7 +26,23 @@ extern int cvsencrypt;
 extern struct buffer *krb_encrypt_buffer_initialize ();
 
 #endif /* HAVE_KERBEROS */
+
+#ifdef HAVE_GSSAPI
+
+/* Set this to turn on GSSAPI encryption.  */
+extern int cvs_gssapi_encrypt;
+
+#endif /* HAVE_GSSAPI */
+
 #endif /* ENCRYPTION */
+
+#ifdef HAVE_GSSAPI
+
+/* We can't declare the arguments without including gssapi.h, and I
+   don't want to do that in every file.  */
+extern struct buffer *cvs_gssapi_wrap_buffer_initialize ();
+
+#endif /* HAVE_GSSAPI */
 
 #endif /* defined (CLIENT_SUPPORT) || defined (SERVER_SUPPORT) */
 
@@ -37,13 +58,14 @@ extern int client_prune_dirs;
 
 #ifdef AUTH_CLIENT_SUPPORT
 extern int use_authenticating_server;
-int connect_to_pserver PROTO((int *tofdp, int* fromfdp, int verify_only));
+void connect_to_pserver PROTO ((int *tofdp, int* fromfdp, int verify_only,
+				int do_gssapi));
 # ifndef CVS_AUTH_PORT
 # define CVS_AUTH_PORT 2401
 # endif /* CVS_AUTH_PORT */
 #endif /* AUTH_CLIENT_SUPPORT */
 
-#ifdef AUTH_SERVER_SUPPORT
+#if defined (AUTH_SERVER_SUPPORT) || (defined (SERVER_SUPPORT) && defined (HAVE_GSSAPI))
 extern void pserver_authenticate_connection PROTO ((void));
 #endif
 
@@ -97,6 +119,8 @@ send_arg PROTO((char *string));
 /* Send a string of single-char options to the remote server, one by one.  */
 void
 send_option_string PROTO((char *string));
+
+extern void send_a_repository PROTO ((char *, char *, char *));
 
 #endif /* CLIENT_SUPPORT */
 

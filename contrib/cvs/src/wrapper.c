@@ -57,12 +57,17 @@ static int wrap_size=0;
 static int wrap_count=0;
 static int wrap_tempcount=0;
 
-/* FIXME: wrap_saved_count is never set to any non-zero value.
-   wrap_name_has and wrap_matching_entry should be using
-   wrap_tempcount instead.  I believe the consequence of this is that
-   .cvswrappers files are ignored (that was my own experience when I
-   tried to use one).  If this bug is fixed, would be nice to write a
-   sanity.sh testcase for .cvswrappers files.  */
+/* FIXME: the relationship between wrap_count, wrap_tempcount,
+ * wrap_saved_count, and wrap_saved_tempcount is not entirely clear;
+ * it is certainly suspicious that wrap_saved_count is never set to a
+ * value other than zero!  If the variable isn't being used, it should
+ * be removed.  And in general, we should describe how temporary
+ * vs. permanent wrappers are implemented, and then make sure the
+ * implementation is actually doing that.
+ *
+ * Right now things seem to be working, but that's no guarantee there
+ * isn't a bug lurking somewhere in the murk.
+ */
 
 static int wrap_saved_count=0;
 
@@ -79,7 +84,7 @@ void wrap_restore_saved PROTO((void));
 
 void wrap_setup()
 {
-    struct passwd *pw;
+    char *homedir;
 
 #ifdef CLIENT_SUPPORT
     if (!client_active)
@@ -102,14 +107,14 @@ void wrap_setup()
     }
 
     /* Then add entries found in home dir, (if user has one) and file
-       exists.  (FIXME: I think this probably should be using
-       get_homedir, i.e. $HOME).  */
-    if ((pw = (struct passwd *) getpwuid (getuid ())) && pw->pw_dir)
+       exists.  */
+    homedir = get_homedir ();
+    if (homedir != NULL)
     {
 	char *file;
 
-	file = xmalloc (strlen (pw->pw_dir) + sizeof (CVSDOTWRAPPER) + 10);
-	(void) sprintf (file, "%s/%s", pw->pw_dir, CVSDOTWRAPPER);
+	file = xmalloc (strlen (homedir) + sizeof (CVSDOTWRAPPER) + 10);
+	(void) sprintf (file, "%s/%s", homedir, CVSDOTWRAPPER);
 	if (isfile (file))
 	{
 	    wrap_add_file (file, 0);
@@ -383,7 +388,7 @@ wrap_name_has (name,has)
     const char   *name;
     WrapMergeHas  has;
 {
-    int x,count=wrap_count+wrap_saved_count;
+    int x,count=wrap_count+wrap_tempcount;
     char *temp;
 
     for(x=0;x<count;++x)
@@ -415,7 +420,7 @@ static WrapperEntry *
 wrap_matching_entry (name)
     const char *name;
 {
-    int x,count=wrap_count+wrap_saved_count;
+    int x,count=wrap_count+wrap_tempcount;
 
     for(x=0;x<count;++x)
 	if (CVS_FNMATCH (wrap_list[x]->wildCard, name, 0) == 0)
@@ -456,6 +461,7 @@ wrap_tocvs_process_file(fileName)
 {
     WrapperEntry *e=wrap_matching_entry(fileName);
     static char *buf = NULL;
+    char *args;
 
     if(e==NULL || e->tocvsFilter==NULL)
 	return NULL;
@@ -464,8 +470,16 @@ wrap_tocvs_process_file(fileName)
 	free (buf);
     buf = cvs_temp_name ();
 
-    run_setup(e->tocvsFilter,fileName,buf);
+    args = xmalloc (strlen (e->tocvsFilter)
+		    + strlen (fileName)
+		    + strlen (buf));
+    /* FIXME: sprintf will blow up if the format string contains items other
+       than %s, or contains too many %s's.  We should instead be parsing
+       e->tocvsFilter ourselves and giving a real error.  */
+    sprintf (args, e->tocvsFilter, fileName, buf);
+    run_setup (args);
     run_exec(RUN_TTY, RUN_TTY, RUN_TTY, RUN_NORMAL|RUN_REALLY );
+    free (args);
 
     return buf;
 }
@@ -485,12 +499,20 @@ void
 wrap_fromcvs_process_file(fileName)
     const char *fileName;
 {
+    char *args;
     WrapperEntry *e=wrap_matching_entry(fileName);
 
     if(e==NULL || e->fromcvsFilter==NULL)
 	return;
 
-    run_setup(e->fromcvsFilter,fileName);
+    args = xmalloc (strlen (e->fromcvsFilter)
+		    + strlen (fileName));
+    /* FIXME: sprintf will blow up if the format string contains items other
+       than %s, or contains too many %s's.  We should instead be parsing
+       e->fromcvsFilter ourselves and giving a real error.  */
+    sprintf (args, e->fromcvsFilter, fileName);
+    run_setup (args);
     run_exec(RUN_TTY, RUN_TTY, RUN_TTY, RUN_NORMAL );
+    free (args);
     return;
 }
