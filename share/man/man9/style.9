@@ -1,4 +1,5 @@
-.\" Copyright (c) 1995-2001 FreeBSD Inc.
+.\"-
+.\" Copyright (c) 1995-2005 The FreeBSD Project
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -22,6 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
+.\" $FreeBSD$
 .\"
 .Dd December 7, 2001
 .Dt STYLE 9
@@ -57,6 +59,27 @@ is silent on an issue.
  * them so they look like real paragraphs.
  */
 .Ed
+.Pp
+The copyright header should be a multi-line comment, with the first
+line of the comment having a dash after the star like so:
+.Bd -literal
+/*-
+ * Copyright (c) 1984-2025 John Q. Public.  All Rights Reserved.
+ *
+ * Long, boring license goes here, but redacted for brevity
+ */
+.Ed
+.Pp
+An automatic script collects license information from the tree for
+all comments that start in the first column with
+.Dq Li "/*-" .
+If you desire to flag
+.Xr indent 1
+to not reformat a comment that starts in the first column which is not a
+license or copyright notice, change the dash to a star for those
+comments.
+Comments starting in columns other than the first comment are never
+considered license statements.
 .Pp
 After any copyright header, there is a blank line, and the
 .Va rcsid
@@ -278,7 +301,7 @@ other than the one being declared.)
 Separate these identifiers from asterisks using a single space.
 .Pp
 When declaring variables in structures, declare them sorted by use, then
-by size, and then in alphabetical order.
+by size (largest to smallest), and then in alphabetical order.
 The first category normally does not apply, but there are exceptions.
 Each one gets its own line.
 Try to make the structure
@@ -665,12 +688,12 @@ not:
 .Pp
 Do not use
 .Ic \&!
-for tests unless it is a boolean, e.g.\& use
+for tests unless it is a boolean, e.g.\& use:
 .Bd -literal
 if (*p == '\e0')
 .Ed
 .Pp
-not
+not:
 .Bd -literal
 if (!*p)
 .Ed
@@ -711,7 +734,7 @@ function(a1, a2, fl, a4)
 Use ANSI function declarations unless you explicitly need K&R compatibility.
 Long parameter lists are wrapped with a normal four space indent.
 .Pp
-Variable numbers of arguments should look like this.
+Variable numbers of arguments should look like this:
 .Bd -literal
 #include <stdarg.h>
 
