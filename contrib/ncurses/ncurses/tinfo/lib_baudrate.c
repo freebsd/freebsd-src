@@ -134,7 +134,7 @@ static struct speed const speeds[] =
 #endif
 };
 
-NCURSES_EXPORT(int)
+int
 _nc_baudrate(int OSpeed)
 {
     static int last_OSpeed;
@@ -160,7 +160,7 @@ _nc_baudrate(int OSpeed)
     return (result);
 }
 
-NCURSES_EXPORT(int)
+int
 _nc_ospeed(int BaudRate)
 {
     int result = 1;
@@ -177,7 +177,7 @@ _nc_ospeed(int BaudRate)
     return (result);
 }
 
-NCURSES_EXPORT(int)
+int
 baudrate(void)
 {
     int result;
