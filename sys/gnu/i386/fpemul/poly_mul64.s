@@ -59,12 +59,12 @@
  * W. Metzenthen   June 1994.
  *
  *
- *    $Id: poly_mul64.s,v 1.2 1994/04/29 21:23:29 gclarkii Exp $
+ *    $Id: poly_mul64.s,v 1.3 1994/06/10 07:44:39 rich Exp $
  *
  */
 
 
-#include "fpu_asm.h"
+#include <gnu/i386/fpemul/fpu_asm.h>
 
 .text
 	.align 2,144

@@ -57,7 +57,7 @@
  * W. Metzenthen   June 1994.
  *
  * 
- *     $Id: div_small.s,v 1.2 1994/04/29 21:07:11 gclarkii Exp $
+ *     $Id: div_small.s,v 1.3 1994/06/10 07:44:08 rich Exp $
  *
  */
 
@@ -65,7 +65,7 @@
  |    unsigned long div_small(unsigned long long *x, unsigned long y)        |
  +---------------------------------------------------------------------------*/
 
-#include "fpu_asm.h"
+#include <gnu/i386/fpemul/fpu_asm.h>
 
 .text
 	.align 2,144

@@ -61,7 +61,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: reg_u_sub.s,v 1.2 1994/04/29 21:34:26 gclarkii Exp $
+ *     $Id: reg_u_sub.s,v 1.3 1994/06/10 07:44:59 rich Exp $
  *
  */
 
@@ -76,9 +76,9 @@
  |    Basic checks are performed if PARANOID is defined.
  */
 
-#include "exception.h"
-#include "fpu_asm.h"
-#include "control_w.h"
+#include <gnu/i386/fpemul/exception.h>
+#include <gnu/i386/fpemul/fpu_asm.h>
+#include <gnu/i386/fpemul/control_w.h>
 
 .text
 	.align 2,144

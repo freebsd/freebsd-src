@@ -55,7 +55,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: reg_add_sub.c,v 1.2 1994/04/29 21:30:15 gclarkii Exp $
+ *     $Id: reg_add_sub.c,v 1.3 1994/06/10 07:44:44 rich Exp $
  *
  */
 
@@ -64,11 +64,11 @@
  | the source FPU_REGs.                                                      |
  +---------------------------------------------------------------------------*/
 
-#include "exception.h"
-#include "reg_constant.h"
-#include "fpu_emu.h"
-#include "control_w.h"
-#include "fpu_system.h"
+#include <gnu/i386/fpemul/exception.h>
+#include <gnu/i386/fpemul/reg_constant.h>
+#include <gnu/i386/fpemul/fpu_emu.h>
+#include <gnu/i386/fpemul/control_w.h>
+#include <gnu/i386/fpemul/fpu_system.h>
 
 
 void

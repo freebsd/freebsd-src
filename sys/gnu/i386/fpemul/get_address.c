@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: get_address.c,v 1.2 1994/04/29 21:16:26 gclarkii Exp $
+ *     $Id: get_address.c,v 1.3 1994/06/10 07:44:29 rich Exp $
  *
  */
 
@@ -67,16 +67,16 @@
  |    other processes using the emulator while swapping is in progress.      |
  +---------------------------------------------------------------------------*/
 
-#include "param.h"
-#include "proc.h"
-#include "systm.h"
-#include "machine/cpu.h"
-#include "machine/pcb.h"
-#include "machine/reg.h"
+#include <sys/param.h>
+#include <sys/proc.h>
+#include <sys/systm.h>
+#include <machine/cpu.h>
+#include <machine/pcb.h>
+#include <machine/reg.h>
 
-#include "fpu_emu.h"
-#include "fpu_system.h"
-#include "exception.h"
+#include <gnu/i386/fpemul/fpu_emu.h>
+#include <gnu/i386/fpemul/fpu_system.h>
+#include <gnu/i386/fpemul/exception.h>
 
 static int reg_offset[] = {
 tEAX, tECX, tEDX, tEBX, tESP, tEBP, tESI, tEDI};

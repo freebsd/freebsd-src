@@ -57,7 +57,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *    $Id: load_store.c,v 1.4 1994/09/21 22:22:46 bde Exp $
+ *    $Id: load_store.c,v 1.5 1996/06/25 20:29:21 bde Exp $
  *
  */
 
@@ -68,17 +68,17 @@
  |    other processes using the emulator while swapping is in progress.      |
  +---------------------------------------------------------------------------*/
 
-#include "param.h"
-#include "proc.h"
-#include "systm.h"
-#include "machine/cpu.h"
-#include "machine/md_var.h"
-#include "machine/pcb.h"
+#include <sys/param.h>
+#include <sys/proc.h>
+#include <sys/systm.h>
+#include <machine/cpu.h>
+#include <machine/md_var.h>
+#include <machine/pcb.h>
 
-#include "fpu_emu.h"
-#include "fpu_system.h"
-#include "exception.h"
-#include "status_w.h"
+#include <gnu/i386/fpemul/fpu_emu.h>
+#include <gnu/i386/fpemul/fpu_system.h>
+#include <gnu/i386/fpemul/exception.h>
+#include <gnu/i386/fpemul/status_w.h>
 
 
 #define _NONE_ 0		/* FPU_st0_ptr etc not needed */

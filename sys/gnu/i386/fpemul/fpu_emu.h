@@ -54,7 +54,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: fpu_emu.h,v 1.2 1994/04/29 21:16:20 gclarkii Exp $
+ *     $Id: fpu_emu.h,v 1.3 1994/06/10 07:44:19 rich Exp $
  *
  */
 
@@ -80,7 +80,7 @@
 #define PECULIAR_486
 
 #ifdef LOCORE
-#include "fpu_asm.h"
+#include <gnu/i386/fpemul/fpu_asm.h>
 #define	Const(x)	$/**/x
 #else
 #define	Const(x)	x
@@ -108,8 +108,8 @@
 
 #ifndef LOCORE
 
-#include "types.h"
-#include "math_emu.h"
+#include <sys/types.h>
+#include <gnu/i386/fpemul/math_emu.h>
 
 #ifdef PARANOID
 extern char emulating;
@@ -180,7 +180,7 @@ polynomial(unsigned accum[], unsigned x[],
             unsigned int control_w);
 
 #ifndef MAKING_PROTO
-#include "fpu_proto.h"
+#include <gnu/i386/fpemul/fpu_proto.h>
 #endif
 
 #endif				/* LOCORE */

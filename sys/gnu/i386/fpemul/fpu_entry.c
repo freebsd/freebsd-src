@@ -55,7 +55,7 @@
  *
  * W. Metzenthen   June 1994.
  *
- *  $Id: fpu_entry.c,v 1.7 1995/12/14 08:21:17 phk Exp $
+ *  $Id: fpu_entry.c,v 1.8 1995/12/14 20:21:49 bde Exp $
  *
  */
 
@@ -83,11 +83,11 @@
 #include <machine/cpu.h>
 #include <machine/pcb.h>
 
-#include "fpu_emu.h"
-#include "fpu_system.h"
-#include "exception.h"
-#include "control_w.h"
-#include "status_w.h"
+#include <gnu/i386/fpemul/fpu_emu.h>
+#include <gnu/i386/fpemul/fpu_system.h>
+#include <gnu/i386/fpemul/exception.h>
+#include <gnu/i386/fpemul/control_w.h>
+#include <gnu/i386/fpemul/status_w.h>
 
 
 #define __BAD__ Un_impl		/* Not implemented */

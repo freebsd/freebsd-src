@@ -19,10 +19,10 @@
 #undef s_net
 #include <netinet/if_ether.h>
 
-#include "at.h"
-#include "at_var.h"
-#include "aarp.h"
-#include "phase2.h"
+#include <netatalk/at.h>
+#include <netatalk/at_var.h>
+#include <netatalk/aarp.h>
+#include <netatalk/phase2.h>
 #include <netatalk/at_extern.h>
 
 static int aa_dorangeroute(struct ifaddr *ifa,

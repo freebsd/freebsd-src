@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: qdivrem.c,v 1.2 1994/08/02 07:44:19 davidg Exp $
+ * $Id: qdivrem.c,v 1.3 1995/05/30 08:06:42 rgrimes Exp $
  */
 
 /*
@@ -42,7 +42,7 @@
  * section 4.3.1, pp. 257--259.
  */
 
-#include "quad.h"
+#include <libkern/quad.h>
 
 #define	B	(1 << HALF_BITS)	/* digit base */
 

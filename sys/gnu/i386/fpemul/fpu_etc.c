@@ -56,20 +56,20 @@
  * W. Metzenthen   June 1994.
  *
  *
- *    $Id: fpu_etc.c,v 1.2 1994/04/29 21:16:22 gclarkii Exp $
+ *    $Id: fpu_etc.c,v 1.3 1994/06/10 07:44:24 rich Exp $
  *
  */
 
-#include "param.h"
-#include "proc.h"
-#include "machine/cpu.h"
-#include "machine/pcb.h"
+#include <sys/param.h>
+#include <sys/proc.h>
+#include <machine/cpu.h>
+#include <machine/pcb.h>
 
-#include "fpu_emu.h"
-#include "fpu_system.h"
-#include "exception.h"
-#include "status_w.h"
-#include "reg_constant.h"
+#include <gnu/i386/fpemul/fpu_emu.h>
+#include <gnu/i386/fpemul/fpu_system.h>
+#include <gnu/i386/fpemul/exception.h>
+#include <gnu/i386/fpemul/status_w.h>
+#include <gnu/i386/fpemul/reg_constant.h>
 
 
 static void

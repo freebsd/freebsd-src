@@ -44,7 +44,7 @@
  *                 pcmcia controller chip (PCIC) support                     *
  *               (eventually, move this to a separate file)                  *
  *****************************************************************************/
-#include "ic/i82365.h"
+#include <i386/isa/ic/i82365.h>
 
 /*
  * Each PCIC chip (82365SL or clone) can handle two card slots, and there

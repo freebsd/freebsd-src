@@ -104,7 +104,7 @@
 
 #endif /* PCVT_FREEBSD >= 200 */
 
-#include "pcvt_conf.h"
+#include <i386/isa/pcvt/pcvt_conf.h>
 
 #if PCVT_NETBSD > 9
 #include "device.h"
@@ -158,7 +158,7 @@
 #endif
 
 #if PCVT_NETBSD > 9
-#include "i386/isa/pcvt/pcvt_ioctl.h"
+#include <i386/isa/pcvt/pcvt_ioctl.h>
 #elif PCVT_FREEBSD >= 200
 #include <machine/pcvt_ioctl.h>
 #else

@@ -1,23 +1,25 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.12 1996/06/12 05:08:30 gpalmer Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.13 1996/06/15 20:37:22 gpalmer Exp $
  *
  *
  */
 
-#include "param.h"
-#include "systm.h"
-#include "namei.h"
-#include "proc.h"
-#include "kernel.h"
-#include "vnode.h"
-#include "miscfs/specfs/specdev.h"	/* defines v_rdev	*/
-#include "mount.h"
-#include "buf.h"
-#include "file.h"
-#include "malloc.h"
-#include "devfsdefs.h"
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/namei.h>
+#include <sys/proc.h>
+#include <sys/kernel.h>
+#include <sys/vnode.h>
+#include <sys/mount.h>
+#include <sys/buf.h>
+#include <sys/file.h>
+#include <sys/malloc.h>
+
+#include <miscfs/devfs/devfsdefs.h>
+
+#include <miscfs/specfs/specdev.h>	/* defines v_rdev	*/
 
 static int devfs_statfs( struct mount *mp, struct statfs *sbp, struct proc *p);
 static int mountdevfs( struct mount *mp, struct proc *p);

@@ -1,6 +1,6 @@
-/* @(#)$Id: if_ii.c,v 1.5 1995/12/17 21:17:41 phk Exp $
+/* @(#)$Id: if_ii.c,v 1.6 1996/06/12 05:02:18 gpalmer Exp $
  *******************************************************************************
- *  II - Version 0.1 $Revision: 1.5 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.6 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -20,28 +20,28 @@
  * Uses loop driver as template. Small - and simple - is beautiful.
  */
 
-#include "param.h"
-#include "systm.h"
-#include "mbuf.h"
-#include "socket.h"
-#include "errno.h"
-#include "ioctl.h"
-#include "protosw.h"
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/mbuf.h>
+#include <sys/socket.h>
+#include <sys/errno.h>
+#include <sys/ioctl.h>
+#include <sys/protosw.h>
 
-#include "net/if.h"
-#include "net/if_types.h"
-#include "net/netisr.h"
-#include "net/route.h"
+#include <net/if.h>
+#include <net/if_types.h>
+#include <net/netisr.h>
+#include <net/route.h>
 
 #ifdef	INET
-#include "netinet/in.h"
-#include "netinet/in_systm.h"
-#include "netinet/in_var.h"
-#include "netinet/ip.h"
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/in_var.h>
+#include <netinet/ip.h>
 #endif
 
 #include "ii.h"
-#include "gnu/isdn/isdn_ioctl.h"
+#include <gnu/isdn/isdn_ioctl.h>
 
 #define	IIMTU	1500
 

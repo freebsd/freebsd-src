@@ -64,7 +64,7 @@
 
 #define PCVT_INCLUDE_VT_SELATTR	/* get inline function from pcvt_hdr.h */
 
-#include "pcvt_hdr.h"		/* global include */
+#include <i386/isa/pcvt/pcvt_hdr.h>	/* global include */
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>

@@ -28,11 +28,11 @@
  *
  */
 
-#include "sound_config.h"
+#include <i386/isa/sound/sound_config.h>
 
 #ifdef CONFIGURE_SOUNDCARD
 
-#include "pas.h"
+#include <i386/isa/sound/pas.h>
 
 static int pcm_set_bits __P((int arg));
 static int pcm_set_channels __P((int arg));

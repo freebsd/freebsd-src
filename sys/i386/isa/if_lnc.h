@@ -8,7 +8,7 @@
  *
  */
 
-#include "ic/Am7990.h"
+#include <i386/isa/ic/Am7990.h>
 
 /*
  * Initialize multicast address hashing registers to accept
