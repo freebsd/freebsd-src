@@ -496,7 +496,7 @@ ft*)
 	umask 77
 	;;
 
-ad*|afd*|amrd*|da*|fla*|ida*|md*|mlxd*|od*|sd*|vn*|wd*|wfd*)
+ad*|afd*|amrd*|da*|fla*|ida*|md*|mlxd*|sd*|vn*|wd*|wfd*)
 	umask $disk_umask
 	case $i in
 	ad*) name=ad; blk=30; chr=116;;
@@ -507,7 +507,6 @@ ad*|afd*|amrd*|da*|fla*|ida*|md*|mlxd*|od*|sd*|vn*|wd*|wfd*)
 	ida*) name=ida; blk=29; chr=109;;
 	md*) name=md; blk=22; chr=95;;
 	mlxd*) name=mlxd; blk=27; chr=131;;
-	od*) name=od; blk=4; chr=13;;
 	sd*) name=sd; blk=4; chr=13;;
 	vn*) name=vn; blk=15; chr=43;;
 	wd*) name=wd; blk=0;  chr=3;;
