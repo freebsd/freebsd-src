@@ -28,12 +28,43 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+/*-
+ * Copyright (c) 2003-2005 McAfee, Inc.
+ * All rights reserved.
+ *
+ * This software was developed for the FreeBSD Project in part by McAfee
+ * Research, the Security Research Division of McAfee, Inc under DARPA/SPAWAR
+ * contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA CHATS research
+ * program.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
 #include "opt_sysvipc.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -53,6 +84,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/jail.h>
+#include <sys/mac.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -61,6 +93,12 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
+
+#ifdef MAC_DEBUG
+#define MPRINTF(a)      printf a
+#else
+#define MPRINTF(a)	
+#endif
 
 static MALLOC_DEFINE(M_SHM, "shm", "SVID compatible shared memory segments");
 
@@ -211,6 +249,9 @@ shm_deallocate_segment(shmseg)
 	shm_committed -= btoc(size);
 	shm_nused--;
 	shmseg->u.shm_perm.mode = SHMSEG_FREE;
+#ifdef MAC
+	mac_cleanup_sysv_shm(shmseg);
+#endif
 }
 
 static int
@@ -254,6 +295,9 @@ shmdt(td, uap)
 {
 	struct proc *p = td->td_proc;
 	struct shmmap_state *shmmap_s;
+#ifdef MAC
+	struct shmid_kernel *shmsegptr;
+#endif
 	int i;
 	int error = 0;
 
@@ -275,6 +319,14 @@ shmdt(td, uap)
 		error = EINVAL;
 		goto done2;
 	}
+#ifdef MAC
+	shmsegptr = &shmsegs[IPCID_TO_IX(shmmap_s->shmid)];
+	error = mac_check_sysv_shmdt(td->td_ucred, shmsegptr);
+	if (error != 0) {
+		MPRINTF(("mac_check_sysv_shmdt returned %d\n", error));
+		goto done2;
+	}
+#endif
 	error = shm_delete_mapping(p->p_vmspace, shmmap_s);
 done2:
 	mtx_unlock(&Giant);
@@ -329,6 +381,13 @@ kern_shmat(td, shmid, shmaddr, shmflg)
 	    (shmflg & SHM_RDONLY) ? IPC_R : IPC_R|IPC_W);
 	if (error)
 		goto done2;
+#ifdef MAC
+	error = mac_check_sysv_shmat(td->td_ucred, shmseg, shmflg);
+	if (error != 0) {
+	 	MPRINTF(("mac_check_sysv_shmat returned %d\n", error));
+		goto done2;
+	}
+#endif
 	for (i = 0; i < shminfo.shmseg; i++) {
 		if (shmmap_s->shmid == -1)
 			break;
@@ -442,6 +501,14 @@ oshmctl(td, uap)
 		error = ipcperm(td, &shmseg->u.shm_perm, IPC_R);
 		if (error)
 			goto done2;
+#ifdef MAC
+		error = mac_check_sysv_shmctl(td->td_ucred, shmseg, uap->cmd);
+		if (error != 0) {
+			MPRINTF(("mac_check_sysv_shmctl returned %d\n",
+			    error));
+			goto done2;
+		}
+#endif
 		outbuf.shm_perm = shmseg->u.shm_perm;
 		outbuf.shm_segsz = shmseg->u.shm_segsz;
 		outbuf.shm_cpid = shmseg->u.shm_cpid;
@@ -523,6 +590,13 @@ kern_shmctl(td, shmid, cmd, buf, bufsz)
 		error = EINVAL;
 		goto done2;
 	}
+#ifdef MAC
+	error = mac_check_sysv_shmctl(td->td_ucred, shmseg, cmd);
+	if (error != 0) {
+		MPRINTF(("mac_check_sysv_shmctl returned %d\n", error));
+		goto done2;
+	}
+#endif
 	switch (cmd) {
 	case SHM_STAT:
 	case IPC_STAT:
@@ -646,6 +720,11 @@ shmget_existing(td, uap, mode, segnum)
 	if ((uap->shmflg & (IPC_CREAT | IPC_EXCL)) == (IPC_CREAT | IPC_EXCL))
 		return (EEXIST);
 	error = ipcperm(td, &shmseg->u.shm_perm, mode);
+#ifdef MAC
+	error = mac_check_sysv_shmget(td->td_ucred, shmseg, uap->shmflg);
+	if (error != 0)
+		MPRINTF(("mac_check_sysv_shmget returned %d\n", error));
+#endif
 	if (error)
 		return (error);
 	if (uap->size && uap->size > shmseg->u.shm_segsz)
@@ -721,6 +800,9 @@ shmget_allocate_segment(td, uap, mode)
 	shmseg->u.shm_cpid = td->td_proc->p_pid;
 	shmseg->u.shm_lpid = shmseg->u.shm_nattch = 0;
 	shmseg->u.shm_atime = shmseg->u.shm_dtime = 0;
+#ifdef MAC
+	mac_create_sysv_shm(cred, shmseg);
+#endif
 	shmseg->u.shm_ctime = time_second;
 	shm_committed += btoc(size);
 	shm_nused++;
@@ -852,6 +934,9 @@ shmrealloc(void)
 	for (; i < shminfo.shmmni; i++) {
 		shmsegs[i].u.shm_perm.mode = SHMSEG_FREE;
 		shmsegs[i].u.shm_perm.seq = 0;
+#ifdef MAC
+		mac_init_sysv_shm(&shmsegs[i]);
+#endif
 	}
 	free(shmsegs, M_SHM);
 	shmsegs = newsegs;
@@ -881,6 +966,9 @@ shminit()
 	for (i = 0; i < shmalloced; i++) {
 		shmsegs[i].u.shm_perm.mode = SHMSEG_FREE;
 		shmsegs[i].u.shm_perm.seq = 0;
+#ifdef MAC
+		mac_init_sysv_shm(&shmsegs[i]);
+#endif
 	}
 	shm_last_free = 0;
 	shm_nused = 0;
@@ -892,10 +980,17 @@ shminit()
 static int
 shmunload()
 {
+#ifdef MAC
+	int i;	
+#endif
 
 	if (shm_nused > 0)
 		return (EBUSY);
 
+#ifdef MAC
+	for (i = 0; i < shmalloced; i++)
+		mac_destroy_sysv_shm(&shmsegs[i]);
+#endif
 	free(shmsegs, M_SHM);
 	shmexit_hook = NULL;
 	shmfork_hook = NULL;
