@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $Id: periodic.sh,v 1.3 1997/08/13 06:23:54 pst Exp $
+# $Id: periodic.sh,v 1.4 1997/08/16 17:08:35 pst Exp $
 #
 # Run nightly periodic scripts
 #
@@ -30,7 +30,7 @@ run=`basename $dir`
 
 if [ "$dir" = "$run" ] ; then
     dirlist=""
-    for top in /etc/periodic ${local_cron} ; do
+    for top in /etc/periodic ${local_periodic} ; do
 	if [ -d $top/$dir ] ; then
 	    dirlist="${dirlist} $top/$dir"
 	fi
