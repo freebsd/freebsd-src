@@ -764,21 +764,21 @@ header_ustar(struct archive *a, struct tar *tar, struct archive_entry *entry,
     struct stat *st, const void *h)
 {
 	const struct archive_entry_header_ustar	*header;
+	struct archive_string *as;
 
 	header = h;
 
 	/* Copy name into an internal buffer to ensure null-termination. */
+	as = &(tar->entry_name);
 	if (header->prefix[0]) {
-		archive_strncpy(&(tar->entry_name), header->prefix,
-		    sizeof(header->prefix));
-		archive_strappend_char(&(tar->entry_name), '/');
-		archive_strncat(&(tar->entry_name), header->name,
-		    sizeof(header->name));
+		archive_strncpy(as, header->prefix, sizeof(header->prefix));
+		if (as->s[archive_strlen(as) - 1] != '/')
+			archive_strappend_char(as, '/');
+		archive_strncat(as, header->name, sizeof(header->name));
 	} else
-		archive_strncpy(&(tar->entry_name), header->name,
-		    sizeof(header->name));
+		archive_strncpy(as, header->name, sizeof(header->name));
 
-	archive_entry_set_pathname(entry, tar->entry_name.s);
+	archive_entry_set_pathname(entry, as->s);
 
 	/* Handle rest of common fields. */
 	header_common(a, tar, entry, st, h);
