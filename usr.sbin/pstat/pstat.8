@@ -287,16 +287,24 @@ A list of letters representing vnode flags:
 \- VXWANT
 .It B
 \- VBWAIT
-.It A
-\- VALIASED
 .It V
 \- VOBJBUF
+.It C
+\- VCOPYONWRITE
 .It a
 \- VAGE
 .It l
 \- VOLOCK
 .It w
 \- VOWANT
+.It D
+\- VDOOMED
+.It F
+\- VFREE
+.It O
+\- VONWORKLST
+.It M
+\- VMOUNT
 .El
 .Pp
 .It USE
@@ -322,20 +330,22 @@ update time
 must be corrected
 .It A
 access time must be corrected
-.It W
-wanted by another process (L flag is on)
 .It C
 changed time must be corrected
-.It S
-shared lock applied
-.It E
-exclusive lock applied
-.It Z
-someone waiting for a lock
+.It U
+modification time most be corrected
 .It M
 contains modifications
 .It R
 has a rename in progress
+.It S
+shared lock applied
+.It E
+exclusive lock applied
+.It H
+inode is on hash list
+.It L
+modified, but don't write key
 .El
 .It "For nfs:"
 .Bl -tag -width indent
@@ -353,6 +363,16 @@ non-cacheable lease (nqnfs)
 write lease (nqnfs)
 .It G
 lease was evicted (nqnfs)
+.It A
+special file accessed
+.It U
+special file updated
+.It C
+special file times changed
+.It L
+node is locked
+.It w
+someone wants to lock
 .El
 .El
 .It SIZ/RDEV
