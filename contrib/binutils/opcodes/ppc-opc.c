@@ -3065,6 +3065,8 @@ const struct powerpc_opcode powerpc_opcodes[] = {
 { "addo.",   XO(31,266,1,1), XO_MASK,	PPCCOM,		{ RT, RA, RB } },
 { "caxo.",   XO(31,266,1,1), XO_MASK,	PWRCOM,		{ RT, RA, RB } },
 
+{ "tlbiel",  X(31,274), XRTRA_MASK,	POWER4,		{ RB } },
+
 { "mfapidi", X(31,275), X_MASK,		BOOKE,		{ RT, RA } },
 
 { "lscbx",   XRC(31,277,0), X_MASK,	M601,		{ RT, RA, RB } },
@@ -3672,7 +3674,7 @@ const struct powerpc_opcode powerpc_opcodes[] = {
 { "rac",     X(31,818),	X_MASK,		PWRCOM,		{ RT, RA, RB } },
 
 { "dss",     XDSS(31,822,0), XDSS_MASK,	PPCVEC,		{ STRM } },
-{ "dssall",  XDSS(31,822,1), XDSS_MASK,	PPCVEC,		{ STRM } },
+{ "dssall",  XDSS(31,822,1), XDSS_MASK,	PPCVEC,		{ 0 } },
 
 { "srawi",   XRC(31,824,0), X_MASK,	PPCCOM,		{ RA, RS, SH } },
 { "srai",    XRC(31,824,0), X_MASK,	PWRCOM,		{ RA, RS, SH } },
@@ -3688,7 +3690,9 @@ const struct powerpc_opcode powerpc_opcodes[] = {
 { "tlbsx.",  XRC(31,914,1), X_MASK, 	PPC403,		{ RT, RA, RB } },
 
 { "tlbsx",   XRC(31,914,0), X_MASK,	BOOKE,		{ RA, RB } },
+{ "tlbsx.",  XRC(31,914,1), X_MASK,	BOOKE,		{ RA, RB } },
 { "tlbsxe",  XRC(31,915,0), X_MASK,	BOOKE,		{ RA, RB } },
+{ "tlbsxe.", XRC(31,915,1), X_MASK,	BOOKE,		{ RA, RB } },
 
 { "slbmfee", X(31,915), XRA_MASK,	PPC64,		{ RT, RB } },
 

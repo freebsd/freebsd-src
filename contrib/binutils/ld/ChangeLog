@@ -1,3 +1,39 @@
+2002-05-09  Alan Modra  <amodra@bigpond.net.au>
+
+	Merge from mainline.
+	2002-05-02  Alan Modra  <amodra@bigpond.net.au>
+	* emultempl/ppc64elf.em (gld${EMULATION_NAME}_after_allocation):
+	Adjust for ppc64_elf_set_toc change.  #include libbfd.h.
+
+	2002-04-28  Alan Modra  <amodra@bigpond.net.au>
+	* Makefile.am (mpw): New maintainer mode rule to make mpw-*.c files.
+	* Makefile.in: Regenerate.
+	* mpw-elfmips.c: Delete.
+	* mpw-eppcmac.c: Delete.
+	* mpw-esh.c: Delete.
+	* mpw-idtmips.c: Delete.
+
+2002-04-27  Alan Modra  <amodra@bigpond.net.au>
+
+	Merge from mainline
+	2002-04-08  Alan Modra  <amodra@bigpond.net.au>
+	* ldlang.c (lang_size_sections): Don't complain about
+	SEC_NEVER_LOAD sections having no memory region specified.
+	* ld.texinfo (Format Commands <OUTPUT_FORMAT>): Typo fix.
+
+	2002-04-07  matthew green  <mrg@redhat.com>
+	* ld/configure.host (*-*-netbsd*): Add support for NetBSD/ELF.
+
+	2002-02-19  Martin Schwidefsky  <schwidefsky@de.ibm.com>
+	* emulparams/elf64_s390.sh (ARCH): Change to "s390:64-bit".
+	* emulparams/elf_s390.sh (ARCH): Change to "s390:31-bit".
+
+2002-04-11  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* emultempl/armelf.em (PARSE_AND_LIST_SHORTOPTS): Add 'n' in order
+	to prevent "-n" from being taken as an abbreviation for
+	"--no-pipeline-knowledge".
+
 2002-04-04  Alan Modra  <amodra@bigpond.net.au>
 
 	* dep-in.sed: Cope with absolute paths.

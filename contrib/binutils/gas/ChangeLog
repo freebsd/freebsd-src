@@ -1,3 +1,94 @@
+2002-05-13  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* stabs.c (s_stab_generic): Fix grammatical error in warning
+	message.
+
+2002-05-11  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* stabs.c (s_stab_generic): Warn about a description field that is
+	too big.
+
+2002-05-11  Daniel Jacobowitz  <drow@mvista.com>
+
+	Merge from mainline:
+	2002-05-11  Nick Clifton  <nickc@cambridge.redhat.com>
+	* config/obj-coff.c: Fix compile time warnings when compiling
+	without BFD_ASSEMBLER defined.
+	Fix formatting.
+
+	* config/tc-sh.c (md_pcrel_from): Define for use with sh-hms
+	target.
+	(md_pcrel_from_section): Use md_pcrel_from().
+
+2002-05-09  Alan Modra  <amodra@bigpond.net.au>
+
+	* config/tc-i386.c (md_estimate_size_before_relax) Don't lose
+	reloc when no_cond_jump_promotion.
+
+	Merge from mainline
+	2002-05-08  Jim Wilson  <wilson@redhat.com>
+	* config/tc-i960.c (md_estimate_size_before_relax): Return size of
+	current variable part of frag.
+
+	2002-05-02  Alan Modra  <amodra@bigpond.net.au>
+	* config/tc-ppc.c (mapping): Map sectoff to BFD_RELOC_16_BASEREL.
+	(ppc_elf_validate_fix): Replace BFD_RELOC_32_BASEREL with
+	BFD_RELOC_16_BASEREL.
+	(md_assemble): Likewise.
+	(md_apply_fix3): Likewise.
+
+	2002-05-01  Andrew Macleod  <amacleod@cygnus.com>
+	* config/tc-i386.c (extra_symbol_chars): Add '[' to the list.
+
+	2002-04-28  Alan Modra  <amodra@bigpond.net.au>
+	* config/tc-i386.c: Formatting fixes, add missing space in error
+	message.
+
+2002-05-03  Alexandre Oliva  <aoliva@redhat.com>
+
+	* config/tc-s390.c (md_gather_operands): Emit dwarf2 line-number
+	information for instructions.
+
+2002-05-02  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* config/tc-arm.c (thumb_add_sub): Do not convert a subtract of
+	zero into an add of zero - it is not the same.
+
+2002-04-27  Alan Modra  <amodra@bigpond.net.au>
+
+	Merge from mainline.
+	2002-04-17  Martin Schwidefsky  <schwidefsky@de.ibm.com>
+	* config/tc-s390.c (tc_s390_fix_adjustable): Prevent adjustments to
+	symbols in merge sections.
+
+	2002-02-19  Martin Schwidefsky  <schwidefsky@de.ibm.com>
+	* config/tc-s390.c (md_parse_option): Add switches -m31 and -m64.
+	Make bit size independent of architecture switch.
+	(md_begin): Add warning for -m64 with -Aesa.
+	(s390_md_end): Use renamed architecture defines.
+
+	2002-02-19  Tom Tromey  <tromey@redhat.com>
+	* config/tc-xstormy16.h (DWARF2_LINE_MIN_INSN_LENGTH): Define.
+
+	Tue Apr  9 16:45:48 2002  J"orn Rennecke <joern.rennecke@superh.com>
+	* config/tc-sh.h (TC_FIX_ADJUSTABLE): Disable adjusting if
+	symbol_used_in_reloc_p is true.
+	* config/tc-sh.c (md_apply_fix3): Don't zero relocations on big
+	endian hosts.
+
+	2002-04-03  Alan Modra  <amodra@bigpond.net.au>
+	* symbols.c (resolve_symbol_value <O_uminus, O_bit_not,
+	O_logical_not>): Derive final_seg from add_symbol.
+	<O_multiply..O_logical_or>: More final_seg twiddles.
+
+2002-04-24  Andreas Schwab  <schwab@suse.de>
+
+	* config/tc-i386.c (output_jump, output_disp)
+	(md_estimate_size_before_relax): Don't set fx_pcrel_adjust any
+	more.
+	(md_apply_fix3): Remember addend value for rela relocations.
+	(tc_gen_reloc): Correctly compute pc-relative relocation addend.
+
 2002-04-10  Alan Modra  <amodra@bigpond.net.au>
 
 	* as.c (parse_args <OPTION_VERSION>): Use VERSION is

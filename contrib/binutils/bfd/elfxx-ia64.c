@@ -3502,6 +3502,7 @@ elfNN_ia64_relocate_section (output_bfd, info, input_bfd, input_section,
 
       elf_section_data(input_section->output_section)
 	->this_hdr.sh_flags |= flags;
+      return true;
     }
 
   gp_val = _bfd_get_gp_value (output_bfd);
@@ -3534,29 +3535,9 @@ elfNN_ia64_relocate_section (output_bfd, info, input_bfd, input_section,
 	  ret_val = false;
 	  continue;
 	}
+
       howto = lookup_howto (r_type);
       r_symndx = ELFNN_R_SYM (rel->r_info);
-
-      if (info->relocateable)
-	{
-	  /* This is a relocateable link.  We don't have to change
-	     anything, unless the reloc is against a section symbol,
-	     in which case we have to adjust according to where the
-	     section symbol winds up in the output section.  */
-	  if (r_symndx < symtab_hdr->sh_info)
-	    {
-	      sym = local_syms + r_symndx;
-	      if (ELF_ST_TYPE (sym->st_info) == STT_SECTION)
-		{
-		  sym_sec = local_sections[r_symndx];
-		  rel->r_addend += sym_sec->output_offset;
-		}
-	    }
-	  continue;
-	}
-
-      /* This is a final link.  */
-
       h = NULL;
       sym = NULL;
       sym_sec = NULL;
@@ -4561,6 +4542,7 @@ elfNN_hpux_backend_section_from_bfd_section (abfd, sec, retval)
 #define elf_backend_copy_indirect_symbol elfNN_ia64_hash_copy_indirect
 #define elf_backend_hide_symbol		elfNN_ia64_hash_hide_symbol
 #define elf_backend_reloc_type_class	elfNN_ia64_reloc_type_class
+#define elf_backend_rela_normal		1
 
 #include "elfNN-target.h"
 
