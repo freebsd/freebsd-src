@@ -232,6 +232,7 @@ _thr_start_sig_daemon(void)
 	pthread_sigmask(SIG_SETMASK, &sigset, &oldset);
 	pthread_attr_init(&attr);
 	pthread_attr_setscope(&attr, PTHREAD_SCOPE_SYSTEM);
+	attr->flags |= THR_SIGNAL_THREAD;
 	/* sigmask will be inherited */
 	if (pthread_create(&_thr_sig_daemon, &attr, sig_daemon, NULL))
 		PANIC("can not create signal daemon thread!\n");
@@ -347,6 +348,11 @@ _thr_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 	err_save = errno;
 	timeout_save = curthread->timeout;
 	intr_save = curthread->interrupted;
+	/* Check if the signal requires a dump of thread information: */
+	if (sig == SIGINFO) {
+		/* Dump thread information to file: */
+		_thread_dump_info();
+	}
 	_kse_critical_enter();
 	/* Get a fresh copy of signal mask */
 	__sys_sigprocmask(SIG_BLOCK, NULL, &curthread->sigmask);
@@ -504,6 +510,12 @@ static void
 handle_signal(struct pthread *curthread, struct sighandle_info *shi)
 {
 	_kse_critical_leave(&curthread->tcb->tcb_tmbx);
+
+	/* Check if the signal requires a dump of thread information: */
+	if (shi->sig == SIGINFO) {
+		/* Dump thread information to file: */
+		_thread_dump_info();
+	}
 
 	if (((__sighandler_t *)shi->sigfunc != SIG_DFL) &&
 	    ((__sighandler_t *)shi->sigfunc != SIG_IGN)) {
@@ -695,12 +707,18 @@ thr_sig_find(struct kse *curkse, int sig, siginfo_t *info)
 				kse_wakeup(kmbx);
 			return (NULL);
 		} else if (!SIGISMEMBER(pthread->sigmask, sig)) {
-			sigfunc = _thread_sigact[sig - 1].sa_sigaction;
-			if ((__sighandler_t *)sigfunc == SIG_DFL) {
-				if (sigprop(sig) & SA_KILL) {
-					kse_thr_interrupt(NULL,
-						 KSE_INTR_SIGEXIT, sig);
-					/* Never reach */
+			/*
+			 * If debugger is running, we don't quick exit,
+			 * and give it a chance to check the signal.
+			 */  
+			if (_libkse_debug == 0) {
+				sigfunc = _thread_sigact[sig - 1].sa_sigaction;
+				if ((__sighandler_t *)sigfunc == SIG_DFL) {
+					if (sigprop(sig) & SA_KILL) {
+						kse_thr_interrupt(NULL,
+							 KSE_INTR_SIGEXIT, sig);
+						/* Never reach */
+					}
 				}
 			}
 			if (pthread->state == PS_SIGSUSPEND) {
@@ -1198,13 +1216,8 @@ _thr_signal_init(void)
 	__sys_sigprocmask(SIG_SETMASK, &sigset, &_thr_initial->sigmask);
 	/* Enter a loop to get the existing signal status: */
 	for (i = 1; i <= _SIG_MAXSIG; i++) {
-		/* Check for signals which cannot be trapped: */
-		if (i == SIGKILL || i == SIGSTOP) {
-		}
-
 		/* Get the signal handler details: */
-		else if (__sys_sigaction(i, NULL,
-			    &_thread_sigact[i - 1]) != 0) {
+		if (__sys_sigaction(i, NULL, &_thread_sigact[i - 1]) != 0) {
 			/*
 			 * Abort this process if signal
 			 * initialisation fails:
