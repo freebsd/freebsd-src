@@ -492,7 +492,7 @@ nosyms:
 
     ef->strsz = 0;
     for (i = 0; i < ndp; i++) {
-	if (dp[i].d_tag == NULL)
+	if (dp[i].d_tag == 0)
 	    break;
 	switch (dp[i].d_tag) {
 	case DT_HASH:
