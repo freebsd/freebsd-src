@@ -20,6 +20,8 @@ Commercial  usage is  also  possible  with  participation of it's author.
     extern "C" {
 #endif
 #include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/timeb.h>
@@ -173,6 +175,9 @@ STATUS  FtpPort ( FTP *con ,int ,int ,int ,int ,int ,int );
 #define FtpOpenAppend(ftp,file)     FtpData(ftp,"APPE %s",file,"r")
 STATUS  FtpOpenDir( FTP * con , char * files );
 STATUS  FtpClose ( FTP *);
+
+STATUS	FtpReadBlock(FTP *ftp, char *buffer, int size);
+STATUS FtpWriteBlock(FTP *ftp, char *buffer, int size);
 
 /* Command for hand transfer */
 

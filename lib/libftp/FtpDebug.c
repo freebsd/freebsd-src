@@ -49,6 +49,7 @@ STATUS FtpDebugError(FTP *ftp,int n, char * Message)
   FtpLog(ftp->title,Message);
   if ( ! FtpTestFlag(ftp,FTP_NOEXIT))
     exit(1);
+  return 0;
 }
 
 STATUS FtpDebugIO(FTP *ftp,int n, char * Message)
@@ -57,6 +58,7 @@ STATUS FtpDebugIO(FTP *ftp,int n, char * Message)
   FtpLog(ftp->title,Message);
   if ( ! FtpTestFlag(ftp,FTP_NOEXIT))
     exit(1);
+  return 0;
 }
 
 STATUS FtpLog(char *name,char *str)
@@ -66,14 +68,16 @@ STATUS FtpLog(char *name,char *str)
   fprintf(stderr,"%02d:%02d:%02d %s %s\n",lt->tm_hour,
 	  lt->tm_min,lt->tm_sec,name,str);
   fflush(stderr);
+  return 0;
 }
 
+int
 FtpHash(FTP *ftp, unsigned long chars)
 {
   
   if (chars==0) return ftp->counter=0;
   ftp->counter+=chars;
-  fprintf(stdout,"%10u bytes transfered\r",ftp->counter);
+  fprintf(stdout,"%10u bytes transfered\r",(unsigned int)ftp->counter);
   fflush(stdout);
   return ftp->counter;
 }

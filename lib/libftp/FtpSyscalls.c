@@ -13,12 +13,13 @@ Commercial  usage is  also  possible  with  participation of it's author.
 */
 
 #include "FtpLibrary.h"
+#include <unistd.h>
 #include <errno.h>
 
-#define DEF(syscal,name) name(a,b,c,d,e,f,g,h) \
+#define DEF(syscal,name) int name(void *a, void *b, void *c) \
 {\
    register int status;\
-   while (((status=syscal(a,b,c,d,e,f,g,h))==-1) && (errno==EINTR));\
+   while (((status=syscal(a,b,c))==-1) && (errno==EINTR));\
    return status;\
 }
 
