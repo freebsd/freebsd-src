@@ -52,12 +52,15 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <machine/cpu.h>
+#include <machine/md_var.h>
 
-#include <i386/linux/linux.h>
-#include <i386/linux/linux_proto.h>
+#include <alpha/linux/linux.h>
+#include <alpha/linux/linux_proto.h>
 #include <compat/linux/linux_util.h>
+#undef szsigcode
 
 MODULE_VERSION(linux, 1);
+MODULE_DEPEND(linux, osf1, 1, 1, 1);
 
 MALLOC_DEFINE(M_LINUX, "linux", "Linux mode structures");
 
@@ -67,103 +70,20 @@ MALLOC_DEFINE(M_LINUX, "linux", "Linux mode structures");
 #define SHELLMAGIC      0x2321
 #endif
 
-extern char linux_sigcode[];
-extern int linux_szsigcode;
-
-extern struct sysent linux_sysent[LINUX_SYS_MAXSYSCALL];
 
 extern struct linker_set linux_ioctl_handler_set;
 
-static int	linux_fixup __P((register_t **stack_base,
-				 struct image_params *iparams));
-static int	elf_linux_fixup __P((register_t **stack_base,
+static int	elf_linux_fixup __P((long **stack_base,
 				     struct image_params *iparams));
-static void	linux_prepsyscall __P((struct trapframe *tf, int *args,
-				       u_int *code, caddr_t *params));
-static void     linux_sendsig __P((sig_t catcher, int sig, sigset_t *mask,
-				   u_long code));
-
-/*
- * Linux syscalls return negative errno's, we do positive and map them
- */
-static int bsd_to_linux_errno[ELAST + 1] = {
-  	-0,  -1,  -2,  -3,  -4,  -5,  -6,  -7,  -8,  -9,
- 	-10, -35, -12, -13, -14, -15, -16, -17, -18, -19,
- 	-20, -21, -22, -23, -24, -25, -26, -27, -28, -29,
- 	-30, -31, -32, -33, -34, -11,-115,-114, -88, -89,
- 	-90, -91, -92, -93, -94, -95, -96, -97, -98, -99,
-	-100,-101,-102,-103,-104,-105,-106,-107,-108,-109,
-	-110,-111, -40, -36,-112,-113, -39, -11, -87,-122,
-	-116, -66,  -6,  -6,  -6,  -6,  -6, -37, -38,  -9,
-  	-6, -6, -43, -42, -75, -6, -84
-};
-
-int bsd_to_linux_signal[LINUX_SIGTBLSZ] = {
-	LINUX_SIGHUP, LINUX_SIGINT, LINUX_SIGQUIT, LINUX_SIGILL,
-	LINUX_SIGTRAP, LINUX_SIGABRT, 0, LINUX_SIGFPE,
-	LINUX_SIGKILL, LINUX_SIGBUS, LINUX_SIGSEGV, 0,
-	LINUX_SIGPIPE, LINUX_SIGALRM, LINUX_SIGTERM, LINUX_SIGURG,
-	LINUX_SIGSTOP, LINUX_SIGTSTP, LINUX_SIGCONT, LINUX_SIGCHLD,
-	LINUX_SIGTTIN, LINUX_SIGTTOU, LINUX_SIGIO, LINUX_SIGXCPU,
-	LINUX_SIGXFSZ, LINUX_SIGVTALRM, LINUX_SIGPROF, LINUX_SIGWINCH,
-	0, LINUX_SIGUSR1, LINUX_SIGUSR2
-};
-
-int linux_to_bsd_signal[LINUX_SIGTBLSZ] = {
-	SIGHUP, SIGINT, SIGQUIT, SIGILL,
-	SIGTRAP, SIGABRT, SIGBUS, SIGFPE,
-	SIGKILL, SIGUSR1, SIGSEGV, SIGUSR2,
-	SIGPIPE, SIGALRM, SIGTERM, SIGBUS,
-	SIGCHLD, SIGCONT, SIGSTOP, SIGTSTP,
-	SIGTTIN, SIGTTOU, SIGURG, SIGXCPU,
-	SIGXFSZ, SIGVTALRM, SIGPROF, SIGWINCH,
-	SIGIO, SIGURG, 0
-};
-
-/*
- * If FreeBSD & Linux have a difference of opinion about what a trap
- * means, deal with it here.
- */
-static int
-translate_traps(int signal, int trap_code)
-{
-	if (signal != SIGBUS)
-		return signal;
-	switch (trap_code) {
-	case T_PROTFLT:
-	case T_TSSFLT:
-	case T_DOUBLEFLT:
-	case T_PAGEFLT:
-		return SIGSEGV;
-	default:
-		return signal;
-	}
-}
 
 static int
-linux_fixup(register_t **stack_base, struct image_params *imgp)
+elf_linux_fixup(long **stack_base, struct image_params *imgp)
 {
-	register_t *argv, *envp;
+	Elf64_Auxargs *args = (Elf64_Auxargs *)imgp->auxargs;
+	long *pos;
 
-	argv = *stack_base;
-	envp = *stack_base + (imgp->argc + 1);
-	(*stack_base)--;
-	**stack_base = (intptr_t)(void *)envp;
-	(*stack_base)--;
-	**stack_base = (intptr_t)(void *)argv;
-	(*stack_base)--;
-	**stack_base = imgp->argc;
-	return 0;
-}
+	pos = *stack_base + (imgp->argc + imgp->envc + 2);
 
-static int
-elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
-{
-	Elf32_Auxargs *args = (Elf32_Auxargs *)imgp->auxargs;
-	register_t *pos;
-             
-	pos = *stack_base + (imgp->argc + imgp->envc + 2);  
-    
 	if (args->trace) {
 		AUXARGS_ENTRY(pos, AT_DEBUG, 1);
 	}
@@ -193,221 +113,8 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 
 extern int _ucodesel, _udatasel;
 
-/*
- * Send an interrupt to process.
- *
- * Stack is set up to allow sigcode stored
- * in u. to call routine, followed by kcall
- * to sigreturn routine below.  After sigreturn
- * resets the signal mask, the stack, and the
- * frame pointer, it returns to the user
- * specified pc, psl.
- */
-
-static void
-linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
-{
-	register struct proc *p = curproc;
-	register struct trapframe *regs;
-	struct linux_sigframe *fp, frame;
-	struct sigacts *psp = p->p_sigacts;
-	int oonstack;
-
-	regs = p->p_md.md_regs;
-	oonstack = p->p_sigstk.ss_flags & SS_ONSTACK;
-
-#ifdef DEBUG
-	printf("Linux-emul(%ld): linux_sendsig(%p, %d, %p, %lu)\n",
-	    (long)p->p_pid, catcher, sig, (void*)mask, code);
-#endif
-	/*
-	 * Allocate space for the signal handler context.
-	 */
-	if ((p->p_flag & P_ALTSTACK) && !oonstack &&
-	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		fp = (struct linux_sigframe *)(p->p_sigstk.ss_sp +
-		    p->p_sigstk.ss_size - sizeof(struct linux_sigframe));
-		p->p_sigstk.ss_flags |= SS_ONSTACK;
-	} else {
-		fp = (struct linux_sigframe *)regs->tf_esp - 1;
-	}
-
-	/*
-	 * grow() will return FALSE if the fp will not fit inside the stack
-	 *	and the stack can not be grown. useracc will return FALSE
-	 *	if access is denied.
-	 */
-	if ((grow_stack (p, (int)fp) == FALSE) ||
-	    !useracc((caddr_t)fp, sizeof (struct linux_sigframe), 
-	    VM_PROT_WRITE)) {
-		/*
-		 * Process has trashed its stack; give it an illegal
-		 * instruction to halt it in its tracks.
-		 */
-		SIGACTION(p, SIGILL) = SIG_DFL;
-		SIGDELSET(p->p_sigignore, SIGILL);
-		SIGDELSET(p->p_sigcatch, SIGILL);
-		SIGDELSET(p->p_sigmask, SIGILL);
-		psignal(p, SIGILL);
-		return;
-	}
-
-	/*
-	 * Build the argument list for the signal handler.
-	 */
-	if (p->p_sysent->sv_sigtbl)
-		if (sig <= p->p_sysent->sv_sigsize)
-			sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];
-
-	frame.sf_handler = catcher;
-	frame.sf_sig = sig;
-
-	/*
-	 * Build the signal context to be used by sigreturn.
-	 */
-	frame.sf_sc.sc_mask   = mask->__bits[0];
-	frame.sf_sc.sc_gs     = rgs();
-	frame.sf_sc.sc_fs     = regs->tf_fs;
-	frame.sf_sc.sc_es     = regs->tf_es;
-	frame.sf_sc.sc_ds     = regs->tf_ds;
-	frame.sf_sc.sc_edi    = regs->tf_edi;
-	frame.sf_sc.sc_esi    = regs->tf_esi;
-	frame.sf_sc.sc_ebp    = regs->tf_ebp;
-	frame.sf_sc.sc_ebx    = regs->tf_ebx;
-	frame.sf_sc.sc_edx    = regs->tf_edx;
-	frame.sf_sc.sc_ecx    = regs->tf_ecx;
-	frame.sf_sc.sc_eax    = regs->tf_eax;
-	frame.sf_sc.sc_eip    = regs->tf_eip;
-	frame.sf_sc.sc_cs     = regs->tf_cs;
-	frame.sf_sc.sc_eflags = regs->tf_eflags;
-	frame.sf_sc.sc_esp_at_signal = regs->tf_esp;
-	frame.sf_sc.sc_ss     = regs->tf_ss;
-	frame.sf_sc.sc_err    = regs->tf_err;
-	frame.sf_sc.sc_trapno = code;	/* XXX ???? */
-
-	if (copyout(&frame, fp, sizeof(frame)) != 0) {
-		/*
-		 * Process has trashed its stack; give it an illegal
-		 * instruction to halt it in its tracks.
-		 */
-		sigexit(p, SIGILL);
-		/* NOTREACHED */
-	}
-
-	/*
-	 * Build context to run handler in.
-	 */
-	regs->tf_esp = (int)fp;
-	regs->tf_eip = PS_STRINGS - *(p->p_sysent->sv_szsigcode);
-	regs->tf_eflags &= ~PSL_VM;
-	regs->tf_cs = _ucodesel;
-	regs->tf_ds = _udatasel;
-	regs->tf_es = _udatasel;
-	regs->tf_fs = _udatasel;
-	load_gs(_udatasel);
-	regs->tf_ss = _udatasel;
-}
-
-/*
- * System call to cleanup state after a signal
- * has been taken.  Reset signal mask and
- * stack state from context left by sendsig (above).
- * Return to previous pc and psl as specified by
- * context left by sendsig. Check carefully to
- * make sure that the user has not modified the
- * psl to gain improper privileges or to cause
- * a machine fault.
- */
-int
-linux_sigreturn(p, args)
-	struct proc *p;
-	struct linux_sigreturn_args *args;
-{
-	struct linux_sigcontext context;
-	register struct trapframe *regs;
-	int eflags;
-
-	regs = p->p_md.md_regs;
-
-#ifdef DEBUG
-	printf("Linux-emul(%ld): linux_sigreturn(%p)\n",
-	    (long)p->p_pid, (void *)args->scp);
-#endif
-	/*
-	 * The trampoline code hands us the context.
-	 * It is unsafe to keep track of it ourselves, in the event that a
-	 * program jumps out of a signal handler.
-	 */
-	if (copyin((caddr_t)args->scp, &context, sizeof(context)) != 0)
-		return (EFAULT);
-
-	/*
-	 * Check for security violations.
-	 */
-#define	EFLAGS_SECURE(ef, oef)	((((ef) ^ (oef)) & ~PSL_USERCHANGE) == 0)
-	eflags = context.sc_eflags;
-	/*
-	 * XXX do allow users to change the privileged flag PSL_RF.  The
-	 * cpu sets PSL_RF in tf_eflags for faults.  Debuggers should
-	 * sometimes set it there too.  tf_eflags is kept in the signal
-	 * context during signal handling and there is no other place
-	 * to remember it, so the PSL_RF bit may be corrupted by the
-	 * signal handler without us knowing.  Corruption of the PSL_RF
-	 * bit at worst causes one more or one less debugger trap, so
-	 * allowing it is fairly harmless.
-	 */
-	if (!EFLAGS_SECURE(eflags & ~PSL_RF, regs->tf_eflags & ~PSL_RF)) {
-    		return(EINVAL);
-	}
-
-	/*
-	 * Don't allow users to load a valid privileged %cs.  Let the
-	 * hardware check for invalid selectors, excess privilege in
-	 * other selectors, invalid %eip's and invalid %esp's.
-	 */
-#define	CS_SECURE(cs)	(ISPL(cs) == SEL_UPL)
-	if (!CS_SECURE(context.sc_cs)) {
-		trapsignal(p, SIGBUS, T_PROTFLT);
-		return(EINVAL);
-	}
-
-	p->p_sigstk.ss_flags &= ~SS_ONSTACK;
-	SIGSETOLD(p->p_sigmask, context.sc_mask);
-	SIG_CANTMASK(p->p_sigmask);
-
-	/*
-	 * Restore signal context.
-	 */
-	/* %gs was restored by the trampoline. */
-	regs->tf_fs     = context.sc_fs;
-	regs->tf_es     = context.sc_es;
-	regs->tf_ds     = context.sc_ds;
-	regs->tf_edi    = context.sc_edi;
-	regs->tf_esi    = context.sc_esi;
-	regs->tf_ebp    = context.sc_ebp;
-	regs->tf_ebx    = context.sc_ebx;
-	regs->tf_edx    = context.sc_edx;
-	regs->tf_ecx    = context.sc_ecx;
-	regs->tf_eax    = context.sc_eax;
-	regs->tf_eip    = context.sc_eip;
-	regs->tf_cs     = context.sc_cs;
-	regs->tf_eflags = eflags;
-	regs->tf_esp    = context.sc_esp_at_signal;
-	regs->tf_ss     = context.sc_ss;
-
-	return (EJUSTRETURN);
-}
-
-static void
-linux_prepsyscall(struct trapframe *tf, int *args, u_int *code, caddr_t *params)
-{
-	args[0] = tf->tf_ebx;
-	args[1] = tf->tf_ecx;
-	args[2] = tf->tf_edx;
-	args[3] = tf->tf_esi;
-	args[4] = tf->tf_edi;
-	*params = NULL;		/* no copyin */
-}
+void osf1_sendsig __P((sig_t, int , sigset_t *, u_long ));
+void osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code);
 
 /*
  * If a linux binary is exec'ing something, try this image activator 
@@ -453,59 +160,45 @@ exec_linux_imgact_try(imgp)
     return(error);
 }
 
-struct sysentvec linux_sysvec = {
-	LINUX_SYS_MAXSYSCALL,
-	linux_sysent,
-	0xff,
-	LINUX_SIGTBLSZ,
-	bsd_to_linux_signal,
-	ELAST + 1, 
-	bsd_to_linux_errno,
-	translate_traps,
-	linux_fixup,
-	linux_sendsig,
-	linux_sigcode,	
-	&linux_szsigcode,
-	linux_prepsyscall,
-	"Linux a.out",
-	aout_coredump,
-	exec_linux_imgact_try
-};
+/*
+ * To maintain OSF/1 compat, linux uses BSD signals & errnos on their
+ * alpha port.  This greatly simplfies things for us.
+ */
 
 struct sysentvec elf_linux_sysvec = {
 	LINUX_SYS_MAXSYSCALL,
 	linux_sysent,
-	0xff,
-	LINUX_SIGTBLSZ,
-	bsd_to_linux_signal,
-	ELAST + 1,
-	bsd_to_linux_errno,
-	translate_traps,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
 	elf_linux_fixup,
-	linux_sendsig,
+	osendsig,
 	linux_sigcode,
 	&linux_szsigcode,
-	linux_prepsyscall,
+	0,
 	"Linux ELF",
 	elf_coredump,
 	exec_linux_imgact_try
 };
 
-static Elf32_Brandinfo linux_brand = {
+static Elf64_Brandinfo linux_brand = {
 					ELFOSABI_LINUX,
 					"/compat/linux",
 					"/lib/ld-linux.so.1",
 					&elf_linux_sysvec
 				 };
 
-static Elf32_Brandinfo linux_glibc2brand = {
+static Elf64_Brandinfo linux_glibc2brand = {
 					ELFOSABI_LINUX,
 					"/compat/linux",
 					"/lib/ld-linux.so.2",
 					&elf_linux_sysvec
 				 };
 
-Elf32_Brandinfo *linux_brandlist[] = {
+Elf64_Brandinfo *linux_brandlist[] = {
 					&linux_brand,
 					&linux_glibc2brand,
 					NULL
@@ -514,7 +207,7 @@ Elf32_Brandinfo *linux_brandlist[] = {
 static int
 linux_elf_modevent(module_t mod, int type, void *data)
 {
-	Elf32_Brandinfo **brandinfo;
+	Elf64_Brandinfo **brandinfo;
 	int error;
 
 	error = 0;
