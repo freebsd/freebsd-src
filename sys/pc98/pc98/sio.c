@@ -944,6 +944,9 @@ static struct isa_pnp_id sio_ids[] = {
 	{0x31307256, NULL},				/* USR3031 */
 	{0x8020b04e, NULL},				/* SUP2080 */
 	{0x8024b04e, NULL},				/* SUP2480 */
+#ifdef PC98
+	{0x0100e4a5, "RSA-98III"},
+#endif
 	{0}
 };
 
@@ -951,9 +954,17 @@ static int
 sio_isa_probe(dev)
 	device_t	dev;
 {
+#ifdef PC98
+	int	logical_id;
+#endif
 	/* Check isapnp ids */
 	if (ISA_PNP_PROBE(device_get_parent(dev), dev, sio_ids) == ENXIO)
 		return (ENXIO);
+#ifdef PC98
+	logical_id = isa_get_logicalid(dev);
+	if (logical_id == 0x0100e4a5)		/* RSA-98III */
+		device_set_flags(dev, COM_IF_RSA98III << 24);
+#endif
 	return (sioprobe(dev));
 }
 
