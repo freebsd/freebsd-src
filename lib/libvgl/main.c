@@ -105,7 +105,7 @@ struct vt_mode smode;
 }
 
 static void 
-VGLAbort()
+VGLAbort(int arg __unused)
 {
   VGLAbortPending = 1;
   signal(SIGINT, SIG_IGN);
@@ -116,7 +116,7 @@ VGLAbort()
 }
 
 static void
-VGLSwitch()
+VGLSwitch(int arg __unused)
 {
   if (!VGLOnDisplay)
     VGLOnDisplay = 1;
