@@ -113,8 +113,10 @@ struct context {
 	int	rdev;		/* device number of file */
 	time_t	atime_sec;	/* access time seconds */
 	time_t	mtime_sec;	/* modified time seconds */
+	time_t	birthtime_sec;	/* creation time seconds */
 	int	atime_nsec;	/* access time nanoseconds */
 	int	mtime_nsec;	/* modified time nanoseconds */
+	int	birthtime_nsec;	/* creation time nanoseconds */
 	off_t	size;		/* size of file */
 	char	*name;		/* name of file */
 } curfile;

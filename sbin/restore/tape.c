@@ -521,15 +521,19 @@ extractfile(char *name)
 {
 	int flags;
 	mode_t mode;
-	struct timeval timep[2];
+	struct timeval mtimep[2], ctimep[2];
 	struct entry *ep;
 
 	curfile.name = name;
 	curfile.action = USING;
-	timep[0].tv_sec = curfile.atime_sec;
-	timep[0].tv_usec = curfile.atime_nsec / 1000;
-	timep[1].tv_sec = curfile.mtime_sec;
-	timep[1].tv_usec = curfile.mtime_nsec / 1000;
+	mtimep[0].tv_sec = curfile.atime_sec;
+	mtimep[0].tv_usec = curfile.atime_nsec / 1000;
+	mtimep[1].tv_sec = curfile.mtime_sec;
+	mtimep[1].tv_usec = curfile.mtime_nsec / 1000;
+	ctimep[0].tv_sec = curfile.atime_sec;
+	ctimep[0].tv_usec = curfile.atime_nsec / 1000;
+	ctimep[1].tv_sec = curfile.birthtime_sec;
+	ctimep[1].tv_usec = curfile.birthtime_nsec / 1000;
 	mode = curfile.mode;
 	flags = curfile.file_flags;
 	switch (mode & IFMT) {
@@ -567,7 +571,8 @@ extractfile(char *name)
 		if (linkit(lnkbuf, name, SYMLINK) == GOOD) {
 			(void) lchown(name, curfile.uid, curfile.gid);
 			(void) lchmod(name, mode);
-			(void) lutimes(name, timep);
+			(void) lutimes(name, ctimep);
+			(void) lutimes(name, mtimep);
 			return (GOOD);
 		}
 		return (FAIL);
@@ -588,7 +593,8 @@ extractfile(char *name)
 		}
 		(void) chown(name, curfile.uid, curfile.gid);
 		(void) chmod(name, mode);
-		(void) utimes(name, timep);
+		(void) utimes(name, ctimep);
+		(void) utimes(name, mtimep);
 		(void) chflags(name, flags);
 		skipfile();
 		return (GOOD);
@@ -610,7 +616,8 @@ extractfile(char *name)
 		}
 		(void) chown(name, curfile.uid, curfile.gid);
 		(void) chmod(name, mode);
-		(void) utimes(name, timep);
+		(void) utimes(name, ctimep);
+		(void) utimes(name, mtimep);
 		(void) chflags(name, flags);
 		skipfile();
 		return (GOOD);
@@ -634,7 +641,8 @@ extractfile(char *name)
 		(void) fchmod(ofile, mode);
 		getfile(xtrfile, xtrskip);
 		(void) close(ofile);
-		utimes(name, timep);
+		(void) utimes(name, ctimep);
+		(void) utimes(name, mtimep);
 		(void) chflags(name, flags);
 		return (GOOD);
 	}
@@ -1174,6 +1182,8 @@ findinode(struct s_spcl *header)
 			curfile.atime_nsec = header->c_atimensec;
 			curfile.mtime_sec = header->c_mtime;
 			curfile.mtime_nsec = header->c_mtimensec;
+			curfile.birthtime_sec = header->c_birthtime;
+			curfile.birthtime_nsec = header->c_birthtimensec;
 			curfile.size = header->c_size;
 			curfile.ino = header->c_inumber;
 			break;

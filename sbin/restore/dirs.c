@@ -82,7 +82,8 @@ static struct inotab *inotab[HASHSIZE];
  */
 struct modeinfo {
 	ino_t ino;
-	struct timeval timep[2];
+	struct timeval ctimep[2];
+	struct timeval mtimep[2];
 	mode_t mode;
 	uid_t uid;
 	gid_t gid;
@@ -597,7 +598,8 @@ setdirmodes(int flags)
 			if (!Nflag) {
 				(void) chown(cp, node.uid, node.gid);
 				(void) chmod(cp, node.mode);
-				utimes(cp, node.timep);
+				utimes(cp, node.ctimep);
+				utimes(cp, node.mtimep);
 				(void) chflags(cp, node.flags);
 			}
 			ep->e_flags &= ~NEW;
@@ -685,10 +687,14 @@ allocinotab(struct context *ctxp, long seekpt)
 	if (mf == NULL)
 		return (itp);
 	node.ino = ctxp->ino;
-	node.timep[0].tv_sec = ctxp->atime_sec;
-	node.timep[0].tv_usec = ctxp->atime_nsec / 1000;
-	node.timep[1].tv_sec = ctxp->mtime_sec;
-	node.timep[1].tv_usec = ctxp->mtime_nsec / 1000;
+	node.mtimep[0].tv_sec = ctxp->atime_sec;
+	node.mtimep[0].tv_usec = ctxp->atime_nsec / 1000;
+	node.mtimep[1].tv_sec = ctxp->mtime_sec;
+	node.mtimep[1].tv_usec = ctxp->mtime_nsec / 1000;
+	node.ctimep[0].tv_sec = ctxp->atime_sec;
+	node.ctimep[0].tv_usec = ctxp->atime_nsec / 1000;
+	node.ctimep[1].tv_sec = ctxp->birthtime_sec;
+	node.ctimep[1].tv_usec = ctxp->birthtime_nsec / 1000;
 	node.mode = ctxp->mode;
 	node.flags = ctxp->file_flags;
 	node.uid = ctxp->uid;

@@ -518,6 +518,8 @@ vattr_null(vap)
 	vap->va_mtime.tv_nsec = VNOVAL;
 	vap->va_ctime.tv_sec = VNOVAL;
 	vap->va_ctime.tv_nsec = VNOVAL;
+	vap->va_birthtime.tv_sec = VNOVAL;
+	vap->va_birthtime.tv_nsec = VNOVAL;
 	vap->va_flags = VNOVAL;
 	vap->va_gen = VNOVAL;
 	vap->va_vaflags = 0;
