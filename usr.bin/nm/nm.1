@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)nm.1	8.1 (Berkeley) 6/6/93
-.\"	$Id$
+.\"	$Id: nm.1,v 1.3 1996/08/29 18:06:05 wosch Exp $
 .\"
 .Dd June 6, 1993
 .Dt NM 1
@@ -40,7 +40,7 @@
 .Nd display name list (symbol table)
 .Sh SYNOPSIS
 .Nm nm
-.Op Fl agnoprtuw
+.Op Fl agnoprtuwW
 .Ar
 .Sh DESCRIPTION
 The symbol table (name list) of each object in
@@ -80,6 +80,8 @@ Display undefined symbols only.
 Warn about non-object archive members.
 Normally, nm will silently ignore all archive members which are not
 object files.
+.It Fl W
+Include an extra column in the output with a ``W'' indicating weak symbols.
 .El
 .Pp
 Each symbol name is preceded by its value (a blank field if the symbol
@@ -100,10 +102,14 @@ common symbol
 data segment symbol
 .It Li f
 file name
+.It Li I
+indirect reference symbol
 .It Li T
 text segment symbol
 .It Li U
 undefined
+.It Li W
+warn if next symbol is referenced
 .El
 .Pp
 If the symbol is local (non-external) the type letter is in lower case.

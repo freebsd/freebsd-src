@@ -62,6 +62,7 @@ int print_only_external_symbols;
 int print_only_undefined_symbols;
 int print_all_symbols;
 int print_file_each_line;
+int print_weak_symbols;
 int fcount;
 
 int rev, table;
@@ -72,6 +73,7 @@ int (*sfunc)() = fname;
 #define	IS_DEBUGGER_SYMBOL(x)	((x) & N_STAB)
 #define	IS_EXTERNAL(x)		((x) & N_EXT)
 #define	SYMBOL_TYPE(x)		((x) & (N_TYPE | N_STAB))
+#define SYMBOL_BIND(x)		(((x) >> 4) & 0xf)
 
 void *emalloc();
 void usage __P(( void ));
@@ -79,6 +81,7 @@ int process_file __P(( char * ));
 int show_archive __P(( char *, FILE * ));
 int show_objfile __P(( char *, FILE * ));
 void print_symbol __P(( char *, struct nlist * ));
+char typeletter __P((u_char));
 
 /*
  * main()
@@ -93,7 +96,7 @@ main(argc, argv)
 	extern int optind;
 	int ch, errors;
 
-	while ((ch = getopt(argc, argv, "agnoprtuw")) != EOF) {
+	while ((ch = getopt(argc, argv, "agnoprtuwW")) != EOF) {
 		switch (ch) {
 		case 'a':
 			print_all_symbols = 1;
@@ -121,6 +124,9 @@ main(argc, argv)
 			break;
 		case 'w':
 			ignore_bad_archive_entries = 0;
+			break;
+		case 'W':
+			print_weak_symbols = 1;
 			break;
 		case '?':
 		default:
@@ -471,7 +477,7 @@ print_symbol(objname, sym)
 	char *objname;
 	register struct nlist *sym;
 {
-	char *typestring(), typeletter();
+	char *typestring();
 
 	if (table) {
 		printf("%s|", objname);
@@ -481,8 +487,12 @@ print_symbol(objname, sym)
 		if (IS_DEBUGGER_SYMBOL(sym->n_type))
 			(void)printf("-|%02x %04x %5s|", sym->n_other,
 			    sym->n_desc&0xffff, typestring(sym->n_type));
-		else
-			(void)printf("%c|", typeletter(sym->n_type));
+		else {
+			putchar(typeletter(sym->n_type));
+			if (print_weak_symbols && SYMBOL_BIND(sym->n_other)== 2)
+				putchar('W');
+			putchar('|');
+		}
 
 		/* print the symbol's name */
 		(void)printf("%s\n",sym->n_un.n_name);
@@ -510,8 +520,17 @@ print_symbol(objname, sym)
 	if (IS_DEBUGGER_SYMBOL(sym->n_type))
 		(void)printf(" - %02x %04x %5s ", sym->n_other,
 		    sym->n_desc&0xffff, typestring(sym->n_type));
-	else
-		(void)printf(" %c ", typeletter(sym->n_type));
+	else {
+		putchar(' ');
+		putchar(typeletter(sym->n_type));
+		if (print_weak_symbols) {
+			if (SYMBOL_BIND(sym->n_other) == 2)
+				putchar('W');
+			else
+				putchar(' ');
+		}
+		putchar(' ');
+	}
 
 	/* print the symbol's name */
 	(void)puts(sym->n_un.n_name);
@@ -590,7 +609,10 @@ typeletter(type)
 	case N_DATA:
 		return(IS_EXTERNAL(type) ? 'D' : 'd');
 	case N_FN:
-		return(IS_EXTERNAL(type) ? 'F' : 'f');
+		/* This one is overloaded. EXT = Warn, INT = filename */
+		return(IS_EXTERNAL(type) ? 'W' : 'f');
+	case N_INDR:
+		return(IS_EXTERNAL(type) ? 'I' : 'i');
 	case N_TEXT:
 		return(IS_EXTERNAL(type) ? 'T' : 't');
 	case N_UNDF:
