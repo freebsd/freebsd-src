@@ -254,11 +254,14 @@ ata_pci_match(device_t dev)
     case 0x71998086:
 	return "Intel PIIX4 ATA33 controller";
 
+    case 0x24218086:
+	return "Intel ICH0 ATA33 controller";
+
     case 0x24118086:
 	return "Intel ICH ATA66 controller";
 
-    case 0x24218086:
-	return "Intel ICH0 ATA33 controller";
+    case 0x244b8086:
+	return "Intel ICH2 ATA100 controller";
 
     case 0x522910b9:
 	return "AcerLabs Aladdin ATA33 controller";
@@ -294,8 +297,22 @@ ata_pci_match(device_t dev)
     case 0x4d38105a:
 	return "Promise ATA66 controller";
 
+    case 0x4d30105a:
+	return "Promise ATA100 controller";
+
     case 0x00041103:
-	return "HighPoint HPT366 ATA66 controller";
+	switch (pci_get_revid(dev)) {
+	case 0x00:
+	case 0x01:
+	    return "HighPoint HPT366 ATA66 controller";
+	case 0x02:
+	    return "HighPoint HPT368 ATA66 controller";
+	case 0x03:
+	case 0x04:
+	    return "HighPoint HPT370 ATA100 controller";
+	default:
+	    return "Unknown revision HighPoint ATA controller";
+	}
 
    /* unsupported but known chipsets, generic DMA only */
     case 0x10001042:
@@ -379,8 +396,9 @@ ata_pci_attach(device_t dev)
 	    device_printf(dev, "Busmastering DMA not enabled\n");
     }
     else {
-    	if (type == 0x4d33105a || type == 0x4d38105a || type == 0x00041103) {
-	    /* Promise and HPT366 controllers support busmastering DMA */
+    	if (type == 0x4d33105a || type == 0x4d38105a || 
+	    type == 0x4d30105a || type == 0x00041103) {
+	    /* Promise and HighPoint controllers support busmastering DMA */
 	    rid = 0x20;
 	    sc->bmio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
 					  0, ~0, 1, RF_ACTIVE);
@@ -398,6 +416,7 @@ ata_pci_attach(device_t dev)
 	break;
 
     case 0x4d38105a: /* Promise 66's need their clock changed */
+    case 0x4d30105a: /* Promise 100 too */
 	outb(rman_get_start(sc->bmio) + 0x11, 
 	     inb(rman_get_start(sc->bmio) + 0x11) | 0x0a);
 	/* FALLTHROUGH */
@@ -407,8 +426,25 @@ ata_pci_attach(device_t dev)
 	     inb(rman_get_start(sc->bmio) + 0x1f) | 0x01);
 	break;
 
-    case 0x00041103: /* HPT366 turn of fast interrupt prediction */
-	pci_write_config(dev, 0x51, (pci_read_config(dev, 0x51, 1) & ~0x80), 1);
+    case 0x00041103: /* HighPoint's need to turn off interrupt prediction */
+	switch (pci_get_revid(dev)) {
+	case 0x00:
+	case 0x01:
+	    pci_write_config(dev, 0x51, 
+	    		     (pci_read_config(dev, 0x51, 1) & ~0x80), 1);
+	    break;
+
+	case 0x02:
+	case 0x03:
+	case 0x04:
+	    pci_write_config(dev, 0x51, 
+	    		     (pci_read_config(dev, 0x51, 1) & ~0x02), 1);
+	    pci_write_config(dev, 0x55, 
+	    		     (pci_read_config(dev, 0x55, 1) & ~0x02), 1);
+	    pci_write_config(dev, 0x5a, 
+	    		     (pci_read_config(dev, 0x5a, 1) & ~0x10), 1);
+
+	}
 	break;
 
     case 0x05711106:
@@ -1086,7 +1122,7 @@ ata_intr(void *data)
      */
     switch (scp->chiptype) {
 #if NPCI > 0
-    case 0x00041103:    /* HighPoint HPT366 */
+    case 0x00041103:    /* HighPoint HPT366/368/370 */
 	if (!((dmastat = ata_dmastatus(scp)) & ATA_BMSTAT_INTERRUPT))
 	    return;
 	outb(scp->bmaddr + ATA_BMSTAT_PORT, dmastat | ATA_BMSTAT_INTERRUPT);
@@ -1094,6 +1130,7 @@ ata_intr(void *data)
 
     case 0x4d33105a:	/* Promise 33's */
     case 0x4d38105a:	/* Promise 66's */
+    case 0x4d30105a:	/* Promise 100's */
     {
 	struct ata_pci_softc *sc=device_get_softc(device_get_parent(scp->dev));
 
@@ -1463,6 +1500,7 @@ ata_mode2str(int32_t mode)
     case ATA_WDMA2: return "WDMA2";
     case ATA_UDMA2: return "UDMA33";
     case ATA_UDMA4: return "UDMA66";
+    case ATA_UDMA5: return "UDMA100";
     case ATA_DMA: return "BIOSDMA";
     default: return "???";
     }
@@ -1515,6 +1553,8 @@ int
 ata_umode(struct ata_params *ap)
 {
     if (ap->atavalid & ATA_FLAG_88) {
+	if (ap->udmamodes & 0x20)
+	    return 5;
 	if (ap->udmamodes & 0x10)
 	    return 4;
 	if (ap->udmamodes & 0x08)
