@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.105 1996/10/05 18:36:38 ache Exp $
+#	$Id: Makefile,v 1.106 1996/10/06 02:17:43 jkh Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -239,21 +239,6 @@ reinstall:
 	@echo " Rebuilding /usr/share/mk"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR} && ${MAKE} mk
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo " Rebuilding /usr/include"
-	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && ${MAKE} includes
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo " Rebuilding dependencies"
-	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && ${MAKE} depend
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo " Building everything.."
-	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && ${MAKE} all
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Installing everything.."
