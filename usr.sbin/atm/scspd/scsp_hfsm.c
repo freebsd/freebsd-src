@@ -66,13 +66,13 @@ __RCSID("@(#) $FreeBSD$");
  * HELLO FSM actions
  */
 #define	HELLO_ACTION_CNT	7
-int	scsp_hello_act_00 __P((Scsp_dcs *, Scsp_msg *));
-int	scsp_hello_act_01 __P((Scsp_dcs *, Scsp_msg *));
-int	scsp_hello_act_02 __P((Scsp_dcs *, Scsp_msg *));
-int	scsp_hello_act_03 __P((Scsp_dcs *, Scsp_msg *));
-int	scsp_hello_act_04 __P((Scsp_dcs *, Scsp_msg *));
-int	scsp_hello_act_05 __P((Scsp_dcs *, Scsp_msg *));
-int	scsp_hello_act_06 __P((Scsp_dcs *, Scsp_msg *));
+int	scsp_hello_act_00(Scsp_dcs *, Scsp_msg *);
+int	scsp_hello_act_01(Scsp_dcs *, Scsp_msg *);
+int	scsp_hello_act_02(Scsp_dcs *, Scsp_msg *);
+int	scsp_hello_act_03(Scsp_dcs *, Scsp_msg *);
+int	scsp_hello_act_04(Scsp_dcs *, Scsp_msg *);
+int	scsp_hello_act_05(Scsp_dcs *, Scsp_msg *);
+int	scsp_hello_act_06(Scsp_dcs *, Scsp_msg *);
 
 static int (*scsp_action_vector[HELLO_ACTION_CNT])() = {
 	scsp_hello_act_00,
