@@ -80,10 +80,6 @@ extern int vm_pages_needed;	/* should be some "event" structure */
 extern int vm_pageout_pages_needed;
 extern int vm_pageout_deficit;
 
-#define VM_PAGEOUT_ASYNC 0
-#define VM_PAGEOUT_SYNC 1
-#define VM_PAGEOUT_FORCE 2
-
 /*
  * Swap out requests
  */
@@ -110,8 +106,6 @@ void vm_proc_swapin_all(int);
 #endif	/* !NO_SWAPPING */
 
 #ifdef _KERNEL
-void vm_pageout_page(vm_page_t, vm_object_t);
-void vm_pageout_cluster(vm_page_t, vm_object_t);
 int vm_pageout_flush(vm_page_t *, int, int, int is_object_locked);
 #endif
 #endif	/* _VM_VM_PAGEOUT_H_ */
