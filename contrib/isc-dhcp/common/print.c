@@ -3,7 +3,7 @@
    Turn data structures into printable text. */
 
 /*
- * Copyright (c) 1995-2002 Internet Software Consortium.
+ * Copyright (c) 1995-2003 Internet Software Consortium.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,7 +43,7 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: print.c,v 1.53.2.7 2002/11/17 02:26:59 dhankins Exp $ Copyright (c) 1995-2002 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: print.c,v 1.53.2.9 2003/03/31 03:06:56 dhankins Exp $ Copyright (c) 1995-2003 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
@@ -223,7 +223,7 @@ void print_lease (lease)
 	       lease -> host ? lease -> host -> name : "<none>");
 }	
 
-#if defined (DEBUG)
+#if defined (DEBUG_PACKET)
 void dump_packet_option (struct option_cache *oc,
 			 struct packet *packet,
 			 struct lease *lease,
@@ -304,19 +304,46 @@ void dump_raw (buf, len)
 	char lbuf [80];
 	int lbix = 0;
 
-	lbuf [0] = 0;
+/*
+          1         2         3         4         5         6         7
+01234567890123456789012345678901234567890123456789012345678901234567890123
+280: 00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00   .................  
+*/
+
+	memset(lbuf, ' ', 79);
+	lbuf [79] = 0;
 
 	for (i = 0; i < len; i++) {
 		if ((i & 15) == 0) {
-			if (lbix)
-				log_info (lbuf);
-			sprintf (lbuf, "%03x:", i);
-			lbix = 4;
+		  if (lbix) {
+		    	lbuf[53]=' ';
+			lbuf[54]=' ';
+			lbuf[55]=' ';
+			lbuf[73]='\0';
+			log_info (lbuf);
+		  }
+		  memset(lbuf, ' ', 79);
+		  lbuf [79] = 0;
+		  sprintf (lbuf, "%03x:", i);
+		  lbix = 4;
 		} else if ((i & 7) == 0)
 			lbuf [lbix++] = ' ';
+
+		if(isprint(buf[i])) {
+		  lbuf[56+(i%16)]=buf[i];
+		} else {
+		  lbuf[56+(i%16)]='.';
+		}
+
 		sprintf (&lbuf [lbix], " %02x", buf [i]);
 		lbix += 3;
+		lbuf[lbix]=' ';
+
 	}
+	lbuf[53]=' ';
+	lbuf[54]=' ';
+	lbuf[55]=' ';
+	lbuf[73]='\0';
 	log_info (lbuf);
 }
 
@@ -337,7 +364,7 @@ void hash_dump (table)
 			if (bp -> len)
 				dump_raw (bp -> name, bp -> len);
 			else
-				log_info ((const char *)bp -> name);
+				log_info ("%s", (const char *)bp -> name);
 		}
 	}
 }
@@ -1248,6 +1275,9 @@ void print_dns_status (int status, ns_updque *uq)
 		      case T_TXT:
 			en = "TXT";
 			break;
+		      case T_KEY:
+			en = "KEY";
+			break;
 		      case T_CNAME:
 			en = "CNAME";
 			break;
@@ -1268,13 +1298,19 @@ void print_dns_status (int status, ns_updque *uq)
 				if (s + 1 < end)
 					*s++ = '"';
 			}
-			if (s + u -> r_size < end) {
-				memcpy (s, u -> r_data, u -> r_size);
-				s += u -> r_size;
-				if (u -> r_type == T_TXT) {
-					if (s + 1 < end)
-						*s++ = '"';
-				}
+			if(u->r_type == T_KEY) {
+			  strcat(s, "<keydata>");
+			  s+=strlen("<keydata>");
+			}
+			else {  
+			  if (s + u -> r_size < end) {
+			    memcpy (s, u -> r_data, u -> r_size);
+			    s += u -> r_size;
+			    if (u -> r_type == T_TXT) {
+			      if (s + 1 < end)
+				*s++ = '"';
+			    }
+			  }
 			}
 		}
 		if (position) {
