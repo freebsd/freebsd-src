@@ -228,6 +228,13 @@
       values of POSIX or X/Open path or system configuration
       variables.</para>
 
+    <para>&man.newsyslog.8; now supports a <literal>W</literal> flag
+      to force previously-started compression jobs for an entry (or
+      group of entries specified with the <literal>G</literal> flag)
+      to finish before beginning a new one.  This feature is designed
+      to prevent system overloads caused by starting several
+      compression jobs on big files simultaneously.</para>
+
     <para>The &man.pathchk.1; utility, which checks pathnames for
       validity or portability between POSIX systems, has been
       added.</para>
