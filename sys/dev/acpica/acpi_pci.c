@@ -136,12 +136,12 @@ acpi_pci_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
     struct acpi_pci_devinfo *dinfo;
 
     switch (which) {
-    case  ACPI_IVAR_HANDLE:
+    case ACPI_IVAR_HANDLE:
 	dinfo = device_get_ivars(child);
 	*result = (uintptr_t)dinfo->ap_handle;
-	return(0);
+	return (0);
     }
-    return(pci_read_ivar(dev, child, which, result));
+    return (pci_read_ivar(dev, child, which, result));
 }
 
 static int
@@ -149,10 +149,10 @@ acpi_pci_child_location_str_method(device_t cbdev, device_t child, char *buf,
     size_t buflen)
 {
     struct acpi_pci_devinfo *dinfo = device_get_ivars(child);
-    int status;
+
     pci_child_location_str_method(cbdev, child, buf, buflen);
     
-    if(dinfo->ap_handle){
+    if (dinfo->ap_handle) {
 	strlcat(buf, " path=", buflen);
 	strlcat(buf, acpi_name(dinfo->ap_handle), buflen);
     }
