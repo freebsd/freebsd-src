@@ -221,6 +221,8 @@ pfs_exit(struct proc *p)
 			vgone(pvd->pvd_vnode);
 			pvd = prev ? prev->pvd_next : pfs_vncache;
 		}
+		if (pvd == NULL)
+			break;
 	}
 	mtx_unlock(&pfs_vncache_mutex);
 }
@@ -245,6 +247,8 @@ pfs_disable(struct pfs_node *pn)
 			vgone(pvd->pvd_vnode);
 			pvd = prev ? prev->pvd_next : pfs_vncache;
 		}
+		if (pvd == NULL)
+			break;
 	}
 	mtx_unlock(&pfs_vncache_mutex);
 	return (0);
