@@ -71,6 +71,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <machine/clock.h>
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
+#include <sys/endian.h>
 #include "opt_bdg.h"
 
 #include <dev/em/if_em_hw.h>
@@ -242,6 +243,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #define EM_RXBUFFER_8192        8192
 #define EM_RXBUFFER_16384      16384
 
+#define EM_MAX_SCATTER            64
+
 #ifdef __alpha__
 	#undef vtophys
 	#define vtophys(va)     alpha_XXX_dmamap((vm_offset_t)(va))
@@ -264,9 +267,29 @@ typedef struct _em_vendor_info_t {
 
 
 struct em_buffer {
-	struct mbuf    *m_head;
+        struct mbuf    *m_head;
+        bus_dmamap_t    map;         /* bus_dma map for packet */
 };
 
+struct em_q {
+        bus_dmamap_t       map;         /* bus_dma map for packet */
+        int                nsegs;       /* # of segments/descriptors */
+        bus_dma_segment_t  segs[EM_MAX_SCATTER];
+};
+
+/*
+ * Bus dma allocation structure used by
+ * em_dma_malloc and em_dma_free.
+ */
+struct em_dma_alloc {
+        u_int32_t               dma_paddr;
+        caddr_t                 dma_vaddr;
+        bus_dma_tag_t           dma_tag;
+        bus_dmamap_t            dma_map;
+        bus_dma_segment_t       dma_seg;
+        bus_size_t              dma_size;
+        int                     dma_nseg;
+};
 
 typedef enum _XSUM_CONTEXT_T {
 	OFFLOAD_NONE,
@@ -316,6 +339,7 @@ struct adapter {
          * The index of the next available descriptor is next_avail_tx_desc.
          * The number of remaining tx_desc is num_tx_desc_avail.
          */
+	struct em_dma_alloc txdma;              /* bus_dma glue for tx desc */
         struct em_tx_desc *tx_desc_base;
         u_int32_t          next_avail_tx_desc;
 	u_int32_t          oldest_used_tx_desc;
@@ -323,6 +347,7 @@ struct adapter {
         u_int16_t          num_tx_desc;
         u_int32_t          txd_cmd;
         struct em_buffer   *tx_buffer_area;
+	bus_dma_tag_t      txtag;               /* dma tag for tx */
 
 	/* 
 	 * Receive definitions
@@ -332,11 +357,13 @@ struct adapter {
          * (at rx_buffer_area).
          * The next pair to check on receive is at offset next_rx_desc_to_check
          */
+	struct em_dma_alloc rxdma;              /* bus_dma glue for rx desc */
         struct em_rx_desc *rx_desc_base;
         u_int32_t          next_rx_desc_to_check;
         u_int16_t          num_rx_desc;
         u_int32_t          rx_buffer_len;
         struct em_buffer   *rx_buffer_area;
+	bus_dma_tag_t      rxtag;
 
 	/* Jumbo frame */
 	struct mbuf        *fmp;
@@ -350,6 +377,8 @@ struct adapter {
 	unsigned long   mbuf_cluster_failed;
 	unsigned long   no_tx_desc_avail1;
 	unsigned long   no_tx_desc_avail2;
+	unsigned long   no_tx_map_avail;
+        unsigned long   no_tx_dma_setup;
 	u_int64_t       tx_fifo_reset;
 	u_int64_t       tx_fifo_wrk;
 
