@@ -101,11 +101,9 @@
  * Poul-Henning Kamp <phk@freebsd.org>
  */
 
-#include "olpt.h"
 #include "opt_inet.h"
 #ifdef PC98
 #undef INET	/* PLIP is not supported for old PC-98 */
-#define LPT_DRVINIT_AT_ATTACH	/* avoid conflicting with lpt on ppbus */
 #endif
 
 #include <sys/param.h>
@@ -118,7 +116,13 @@
 #include <sys/uio.h>
 #include <sys/syslog.h>
 
-#include <i386/isa/isa_device.h>
+#include <machine/clock.h>
+#include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/rman.h>
+
+#include <isa/isavar.h>
+
 #include <i386/isa/lptreg.h>
 #include <dev/ppbus/lptio.h>
 
@@ -135,10 +139,6 @@
 #include <netinet/in_var.h>
 #include <net/bpf.h>
 #endif /* INET */
-
-#ifndef COMPAT_OLDISA
-#error "The olpt device requires the old isa compatibility shims"
-#endif
 
 #define	LPINITRDY	4	/* wait up to 4 seconds for a ready */
 #define	LPTOUTINITIAL	10	/* initial timeout to wait for ready 1/10 s */
@@ -198,7 +198,11 @@ static int volatile lptflag = 1;
 #define	LPTUNIT(s)	((s)&0x03)
 #define	LPTFLAGS(s)	((s)&0xfc)
 
-static struct lpt_softc {
+struct lpt_softc {
+	struct resource *res_port;
+	struct resource *res_irq;
+	void *sc_ih;
+
 	int	sc_port;
 	short	sc_state;
 	/* default case: negative prime, negative ack, handshake strobe,
@@ -226,7 +230,7 @@ static struct lpt_softc {
 	u_char		*sc_ifbuf;
 	int		sc_iferrs;
 #endif
-} lpt_sc[NOLPT] ;
+};
 
 /* bits for state */
 #define	OPEN		(1<<0)	/* device is open */
@@ -257,10 +261,9 @@ static struct lpt_softc {
 #define	MAX_SPIN	20	/* Max delay for device ready in usecs */
 
 static timeout_t lptout;
-static int	lptprobe (struct isa_device *dvp);
-static int	lptattach (struct isa_device *isdp);
-static ointhand2_t	lptintr;
-static void 	lpt_drvinit(void *unused);
+static int lpt_probe(device_t);
+static int lpt_attach(device_t);
+static void lpt_intr(void *);
 
 #ifdef INET
 
@@ -286,13 +289,21 @@ static int lpoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
 static void lpintr(int);
 #endif /* INET */
 
-struct	isa_driver olptdriver = {
-	INTR_TYPE_TTY,
-	lptprobe,
-	lptattach,
-	"olpt"
+static devclass_t olpt_devclass;
+
+static device_method_t olpt_methods[] = {
+	DEVMETHOD(device_probe,		lpt_probe),
+	DEVMETHOD(device_attach,	lpt_attach),
+	{ 0, 0 }
 };
-COMPAT_ISA_DRIVER(olpt, olptdriver);
+
+static driver_t olpt_driver = {
+	"olpt",
+	olpt_methods,
+	sizeof (struct lpt_softc),
+};
+
+DRIVER_MODULE(olpt, isa, olpt_driver, olpt_devclass, 0, 0);
 
 static	d_open_t	lptopen;
 static	d_close_t	lptclose;
@@ -315,6 +326,8 @@ static struct cdevsw lpt_cdevsw = {
 	/* psize */	nopsize,
 	/* flags */	0,
 };
+
+static bus_addr_t lpt_iat[] = {0, 2, 4, 6};
 
 #ifndef PC98
 /*
@@ -385,14 +398,28 @@ lpt_port_test (int port, u_char data, u_char mask)
  */
 
 int
-lptprobe(struct isa_device *dvp)
+lpt_probe(device_t dev)
 {
 #ifdef PC98
 #define PC98_OLD_LPT 0x40
 #define PC98_IEEE_1284_FUNCTION 0x149
-	unsigned int pc98_ieee_mode, tmp;
+	int rid;
+	struct resource *res;
 
-	if (dvp->id_iobase == PC98_OLD_LPT) {
+	/* Check isapnp ids */
+	if (isa_get_vendorid(dev))
+		return ENXIO;
+
+	rid = 0;
+	res = isa_alloc_resourcev(dev, SYS_RES_IOPORT, &rid, lpt_iat, 4,
+				  RF_ACTIVE);
+	if (res == NULL)
+		return ENXIO;
+	isa_load_resourcev(res, lpt_iat, 4);
+
+	if (isa_get_port(dev) == PC98_OLD_LPT) {
+		unsigned int pc98_ieee_mode, tmp;
+
 		tmp = inb(PC98_IEEE_1284_FUNCTION);
 		pc98_ieee_mode = tmp;
 		if ((tmp & 0x10) == 0x10) {
@@ -400,11 +427,15 @@ lptprobe(struct isa_device *dvp)
 			tmp = inb(PC98_IEEE_1284_FUNCTION);
 			if ((tmp & 0x10) != 0x10) {
 				outb(PC98_IEEE_1284_FUNCTION, pc98_ieee_mode);
-				return 0;
+				bus_release_resource(dev, SYS_RES_IOPORT, rid,
+						     res);
+				return ENXIO;
 			}
 		}
 	}
-	return 8;
+
+	bus_release_resource(dev, SYS_RES_IOPORT, rid, res);
+	return 0;
 #else
 	int		port;
 	static short	next_bios_lpt = 0;
@@ -458,15 +489,22 @@ end_probe:
 
 /* XXX Todo - try and detect if interrupt is working */
 int
-lptattach(struct isa_device *isdp)
+lpt_attach(device_t dev)
 {
+	int	rid, unit;
 	struct	lpt_softc	*sc;
-	int	unit;
 
-	isdp->id_ointr = lptintr;
-	unit = isdp->id_unit;
-	sc = lpt_sc + unit;
-	sc->sc_port = isdp->id_iobase;
+	unit = device_get_unit(dev);
+	sc = device_get_softc(dev);
+
+	rid = 0;
+	sc->res_port = isa_alloc_resourcev(dev, SYS_RES_IOPORT, &rid,
+					   lpt_iat, 4, RF_ACTIVE);
+	if (sc->res_port == NULL)
+		return ENXIO;
+	isa_load_resourcev(sc->res_port, lpt_iat, 4);
+
+	sc->sc_port = rman_get_start(sc->res_port);
 	sc->sc_primed = 0;	/* not primed yet */
 #ifdef PC98
 	outb(sc->sc_port+lpt_pstb_ctrl,	LPC_DIS_PSTB);	/* PSTB disable */
@@ -478,29 +516,37 @@ lptattach(struct isa_device *isdp)
 	outb(sc->sc_port+lpt_control, LPC_NINIT);
 #endif
 
-	/* check if we can use interrupt */
-	lprintf(("oldirq %x\n", sc->sc_irq));
-	if (isdp->id_irq) {
+	sc->sc_irq = 0;
+	if (isa_get_irq(dev) != -1) {
+		rid = 0;
+		sc->res_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
+						 0, ~0, 1, RF_ACTIVE);
+		if (sc->res_irq == NULL) {
+			bus_release_resource(dev, SYS_RES_IOPORT, 0,
+					     sc->res_port);
+			return ENXIO;
+		}
+		if (bus_setup_intr(dev, sc->res_irq, INTR_TYPE_TTY, lpt_intr,
+				   sc, &sc->sc_ih)) {
+			bus_release_resource(dev, SYS_RES_IOPORT, 0,
+					     sc->res_port);
+			bus_release_resource(dev, SYS_RES_IRQ, 0,
+					     sc->res_irq);
+			return ENXIO;
+		}
 		sc->sc_irq = LP_HAS_IRQ | LP_USE_IRQ | LP_ENABLE_IRQ;
-		printf("lpt%d: Interrupt-driven port\n", unit);
+		device_printf(dev, "Interrupt-driven port");
 #ifdef INET
 		lpattach(sc, unit);
 #endif
-	} else {
-		sc->sc_irq = 0;
-		lprintf(("lpt%d: Polled port\n", unit));
 	}
-	lprintf(("irq %x\n", sc->sc_irq));
 
 	/* XXX what to do about the flags in the minor number? */
 	make_dev(&lpt_cdevsw, unit, UID_ROOT, GID_WHEEL, 0600, "lpt%d", unit);
 	make_dev(&lpt_cdevsw, unit | LP_BYPASS,
 			UID_ROOT, GID_WHEEL, 0600, "lpctl%d", unit);
 
-#ifdef LPT_DRVINIT_AT_ATTACH
-	lpt_drvinit(NULL);
-#endif
-	return (1);
+	return 0;
 }
 
 /*
@@ -519,10 +565,9 @@ lptopen (dev_t dev, int flags, int fmt, struct proc *p)
 #else
 	int trys, port;
 #endif
-	u_int unit = LPTUNIT(minor(dev));
 
-	sc = lpt_sc + unit;
-	if ((unit >= NOLPT) || (sc->sc_port == 0))
+	sc = devclass_get_softc(olpt_devclass, LPTUNIT(minor(dev)));
+	if (sc->sc_port == 0)
 		return (ENXIO);
 
 #ifdef INET
@@ -640,7 +685,7 @@ lptout (void *arg)
 	 */
 	if (sc->sc_xfercnt) {
 		pl = spltty();
-		lptintr(sc - lpt_sc);
+		lpt_intr(sc);
 		splx(pl);
 	} else {
 		sc->sc_state &= ~OBUSY;
@@ -657,14 +702,18 @@ lptout (void *arg)
 static	int
 lptclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
-	struct lpt_softc *sc = lpt_sc + LPTUNIT(minor(dev));
+	struct lpt_softc *sc;
 #ifndef PC98
-	int port = sc->sc_port;
+	int port;
 #endif
 
+	sc = devclass_get_softc(olpt_devclass, LPTUNIT(minor(dev)));
 	if(sc->sc_flags & LP_BYPASS)
 		goto end_close;
 
+#ifndef PC98
+	port = sc->sc_port;
+#endif
 	sc->sc_state &= ~OPEN;
 
 #ifndef PC98
@@ -768,8 +817,9 @@ lptwrite(dev_t dev, struct uio * uio, int ioflag)
 {
 	register unsigned n;
 	int pl, err;
-	struct lpt_softc *sc = lpt_sc + LPTUNIT(minor(dev));
+	struct lpt_softc *sc;
 
+	sc = devclass_get_softc(olpt_devclass, LPTUNIT(minor(dev)));
 	if(sc->sc_flags & LP_BYPASS) {
 		/* we can't do writes in bypass mode */
 		return(EPERM);
@@ -787,7 +837,7 @@ lptwrite(dev_t dev, struct uio * uio, int ioflag)
 			if ((sc->sc_state & OBUSY) == 0){
 				lprintf(("\nC %d. ", sc->sc_xfercnt));
 				pl = spltty();
-				lptintr(sc - lpt_sc);
+				lpt_intr(sc);
 				(void) splx(pl);
 			}
 			lprintf(("W "));
@@ -816,10 +866,10 @@ lptwrite(dev_t dev, struct uio * uio, int ioflag)
  */
 
 static void
-lptintr(int unit)
+lpt_intr(void *arg)
 {
 #if defined(INET) || !defined(PC98)
-	struct lpt_softc *sc = lpt_sc + unit;
+	struct lpt_softc *sc = arg;
 #endif
 #ifndef PC98
 	int port = sc->sc_port, sts;
@@ -887,7 +937,7 @@ lptioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
         u_int	unit = LPTUNIT(minor(dev));
 	u_char	old_sc_irq;	/* old printer IRQ status */
 
-        sc = lpt_sc + unit;
+        sc = devclass_get_softc(olpt_devclass, unit);
 
 	switch (cmd) {
 	case LPT_IRQ :
@@ -1429,17 +1479,3 @@ lpoutput (struct ifnet *ifp, struct mbuf *m,
 }
 
 #endif /* INET */
-
-static int lpt_devsw_installed;
-
-static void 	lpt_drvinit(void *unused)
-{
-
-	if( ! lpt_devsw_installed ) {
-		cdevsw_add(&lpt_cdevsw);
-		lpt_devsw_installed = 1;
-    	}
-}
-#ifndef LPT_DRVINIT_AT_ATTACH
-SYSINIT(lptdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,lpt_drvinit,NULL)
-#endif
