@@ -1,4 +1,4 @@
-.\"	$Id$
+.\"	$Id: rtld.1,v 1.13 1997/02/22 15:46:47 peter Exp $
 .\"
 .\" Copyright (c) 1995 Paul Kranenburg
 .\" All rights reserved.
@@ -55,7 +55,7 @@ proceeds to resolve external references from both the main program and
 all objects loaded. A mechanism is provided for initialization routines
 to be called, on a per-object basis, giving a shared object an opportunity
 to perform any extra set-up, before execution of the program proper begins.
-This is useful for C++ libraries that contain static constrictors.
+This is useful for C++ libraries that contain static constructors.
 .Pp
 .Nm
 is itself a shared object that is initially loaded by the startup module
@@ -70,7 +70,7 @@ uses the special symbol
 to determine whether a program is in fact dynamically linked or not. Whenever
 the linker
 .Xr ld 1
-has relocated this symbol to a location other then 0,
+has relocated this symbol to a location other than 0,
 .Em crt0
 assumes the services of
 .Nm
