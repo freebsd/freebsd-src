@@ -1155,7 +1155,7 @@ static int
 processor_entry(proc_entry_ptr entry, int cpu)
 {
 	/* check for usability */
-	if ((cpu >= NCPU) || !(entry->cpu_flags & PROCENTRY_FLAG_EN))
+	if (!(entry->cpu_flags & PROCENTRY_FLAG_EN))
 		return 0;
 
 	/* check for BSP flag */
@@ -1167,11 +1167,13 @@ processor_entry(proc_entry_ptr entry, int cpu)
 	}
 
 	/* add another AP to list, if less than max number of CPUs */
-	else {
+	else if (cpu < NCPU) {
 		CPU_TO_ID(cpu) = entry->apic_id;
 		ID_TO_CPU(entry->apic_id) = cpu;
 		return 1;
 	}
+
+	return 0;
 }
 
 
