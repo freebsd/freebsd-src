@@ -126,11 +126,11 @@ _rl_find_next_mbchar_internal (string, seed, count, find_non_zero)
   if (find_non_zero)
     {
       tmp = mbrtowc (&wc, string + point, strlen (string + point), &ps);
-      while (wcwidth (wc) == 0)
+      while (tmp > 0 && wcwidth (wc) == 0)
 	{
 	  point += tmp;
 	  tmp = mbrtowc (&wc, string + point, strlen (string + point), &ps);
-	  if (tmp == (size_t)(0) || tmp == (size_t)(-1) || tmp == (size_t)(-2))
+	  if (MB_NULLWCH (tmp) || MB_INVALIDCH (tmp))
 	    break;
 	}
     }
