@@ -130,7 +130,7 @@ bytes of a
 .Nm ktr_type
 record.
 The type specific records are defined in the
-.Pa <sys/ktrace.h>
+.Aq Pa sys/ktrace.h
 include file.
 .Sh RETURN VALUES
 On successful completion a value of 0 is returned.
@@ -140,7 +140,7 @@ is set to show the error.
 .Sh ERRORS
 .Fn Ktrace
 will fail if:
-.Bl -tag -width ENAMETOOLONGAA
+.Bl -tag -width Er
 .It Bq Er ENOTDIR
 A component of the path prefix is not a directory.
 .It Bq Er ENAMETOOLONG
