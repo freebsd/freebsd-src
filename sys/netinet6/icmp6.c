@@ -1941,11 +1941,8 @@ icmp6_rip6_input(mp, off)
 					if (opts) {
 						m_freem(opts);
 					}
-				} else {
-					SOCK_LOCK(last->in6p_socket);
+				} else
 					sorwakeup(last->in6p_socket);
-					SOCK_UNLOCK(last->in6p_socket);
-				}
 				opts = NULL;
 			}
 		}
@@ -1961,11 +1958,8 @@ icmp6_rip6_input(mp, off)
 			m_freem(m);
 			if (opts)
 				m_freem(opts);
-		} else {
-			SOCK_LOCK(last->in6p_socket);
+		} else
 			sorwakeup(last->in6p_socket);
-			SOCK_UNLOCK(last->in6p_socket);
-		}
 	} else {
 		m_freem(m);
 		ip6stat.ip6s_delivered--;

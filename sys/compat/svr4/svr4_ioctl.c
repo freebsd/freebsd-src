@@ -29,12 +29,10 @@
  */
 
 #include <sys/param.h>
-#include <sys/fcntl.h>
+#include <sys/proc.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
-#include <sys/lock.h>
-#include <sys/proc.h>
-#include <sys/mutex.h>
+#include <sys/fcntl.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/systm.h>
@@ -95,7 +93,6 @@ svr4_sys_ioctl(td, uap)
 	char		 c;
 	int		 num;
 	int		 argsiz;
-	int		 sostate;
 
 	svr4_decode_cmd(SCARG(uap, com), dir, &c, &num, &argsiz);
 
@@ -116,10 +113,7 @@ svr4_sys_ioctl(td, uap)
 #if defined(DEBUG_SVR4)
 	if (fp->f_type == DTYPE_SOCKET) {
 	        struct socket *so = (struct socket *)fp->f_data;
-		SOCK_LOCK(so);
-		sostate = so->so_state;
-		SOCK_UNLOCK(so);
-		DPRINTF(("<<< IN: so_state = 0x%x\n", sostate));
+		DPRINTF(("<<< IN: so_state = 0x%x\n", so->so_state));
 	}
 #endif
 
@@ -164,10 +158,7 @@ svr4_sys_ioctl(td, uap)
 	        struct socket *so;
 
 	        so = (struct socket *)fp->f_data;
-		SOCK_LOCK(so);
-		sostate = so->so_state;
-		SOCK_UNLOCK(so);
-		DPRINTF((">>> OUT: so_state = 0x%x\n", sostate));
+		DPRINTF((">>> OUT: so_state = 0x%x\n", so->so_state));
 	}
 #endif
 	error = (*fun)(fp, td, retval, SCARG(uap, fd), cmd, SCARG(uap, data));

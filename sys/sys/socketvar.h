@@ -38,8 +38,6 @@
 #define _SYS_SOCKETVAR_H_
 
 #include <sys/queue.h>			/* for TAILQ macros */
-#include <sys/_lock.h>
-#include <sys/_mutex.h>
 #include <sys/selinfo.h>		/* for struct selinfo */
 
 /*
@@ -50,27 +48,27 @@
  */
 typedef	u_quad_t so_gen_t;
 
-struct socket;
-typedef	void so_upcall_t(struct socket *, void *, int);
-
 /*
  * List of locks:
  * (c)	const, inited in either socreate() or sonewconn()
  * (m)	sb_mtx mutex
- * (mh)	the mutex of so_head
  * (mr)	so_rcv.sb_mtx mutex
- * (sg)	sigio_lock mutex
+ * (sg)	sigio_lock sx
+ * (sh)	sohead_lock sx
  *
- * Members marked by brackets are not locked yet.
+ * Lock of so_rcv.sb_mtx can duplicate, provided that sohead_lock
+ * is exclusively locked.
+ *
+ * Brackets mean that this data is not protected yet.
  */
 struct socket {
-	int	so_count;		/* (mr)	reference count */
-	short	so_type;		/* (c)	generic type, see socket.h */
-	short	so_options;		/* (mr)	from socket call, see socket.h */
-	short	so_linger;		/* (mr)	time to linger while closing */
-	short	so_state;		/* (mr)	internal state flags SS_*, below */
-	caddr_t	so_pcb;			/* [mr]	protocol control block */
-	struct	protosw *so_proto;	/* (c)	protocol handle */
+	int	so_count;		/* reference count */
+	short	so_type;		/* generic type, see socket.h */
+	short	so_options;		/* from socket call, see socket.h */
+	short	so_linger;		/* time to linger while closing */
+	short	so_state;		/* internal state flags SS_*, below */
+	caddr_t	so_pcb;			/* protocol control block */
+	struct	protosw *so_proto;	/* protocol handle */
 /*
  * Variables for connection queuing.
  * Socket where accepts occur is so_head in all subsidiary sockets.
@@ -82,36 +80,33 @@ struct socket {
  * We allow connections to queue up based on current queue lengths
  * and limit on number of queued connections for this socket.
  */
-	struct	socket *so_head;	/* [mr]	back pointer to accept socket */
-	TAILQ_HEAD(, socket) so_incomp;	/* [mr]	queue of partial unaccepted connections */
-	TAILQ_HEAD(, socket) so_comp;	/* [mr]	queue of complete unaccepted connections */
-	TAILQ_ENTRY(socket) so_list;	/* [mh]	list of unaccepted connections */
-	short	so_qlen;		/* [mr]	number of unaccepted connections */
-	short	so_incqlen;		/* [mr]	number of unaccepted incomplete
+	struct	socket *so_head;	/* back pointer to accept socket */
+	TAILQ_HEAD(, socket) so_incomp;	/* queue of partial unaccepted connections */
+	TAILQ_HEAD(, socket) so_comp;	/* queue of complete unaccepted connections */
+	TAILQ_ENTRY(socket) so_list;	/* list of unaccepted connections */
+	short	so_qlen;		/* number of unaccepted connections */
+	short	so_incqlen;		/* number of unaccepted incomplete
 					   connections */
-	short	so_qlimit;		/* [mr]	max number queued connections */
-	short	so_timeo;		/* [mr]	connection timeout */
-	u_short	so_error;		/* [mr]	error affecting connection */
-	struct  sigio *so_sigio;	/* (sg)	information for async I/O or
+	short	so_qlimit;		/* max number queued connections */
+	short	so_timeo;		/* connection timeout */
+	u_short	so_error;		/* error affecting connection */
+	struct	sigio *so_sigio;	/* [sg] information for async I/O or
 					   out of band data (SIGURG) */
-	u_long	so_oobmark;		/* [mr]	chars to oob mark */
-	TAILQ_HEAD(, aiocblist) so_aiojobq; /* [mr]	AIO ops waiting on socket */
+	u_long	so_oobmark;		/* chars to oob mark */
+	TAILQ_HEAD(, aiocblist) so_aiojobq; /* AIO ops waiting on socket */
 /*
  * Variables for socket buffering.
  */
 	struct sockbuf {
-#define sb_startzero	sb_cc
-		u_long	sb_cc;		/* [m]	actual chars in buffer */
-		u_long	sb_hiwat;	/* [m]	max actual char count */
-		u_long	sb_mbcnt;	/* [m]	chars of mbufs used */
-		u_long	sb_mbmax;	/* [m]	max chars of mbufs to use */
-		long	sb_lowat;	/* [m]	low water mark */
-		struct	mbuf *sb_mb;	/* [m]	the mbuf chain */
-		struct	selinfo sb_sel;	/* [m]	process selecting read/write */
-		short	sb_flags;	/* [m]	flags, see below */
-		short	sb_timeo;	/* [m]	timeout for read/write */
-#define sb_endzero	sb_timeo
-		struct mtx	sb_mtx;	/* mutex of this socket buffer */
+		u_long	sb_cc;		/* actual chars in buffer */
+		u_long	sb_hiwat;	/* max actual char count */
+		u_long	sb_mbcnt;	/* chars of mbufs used */
+		u_long	sb_mbmax;	/* max chars of mbufs to use */
+		long	sb_lowat;	/* low water mark */
+		struct	mbuf *sb_mb;	/* the mbuf chain */
+		struct	selinfo sb_sel;	/* process selecting read/write */
+		short	sb_flags;	/* flags, see below */
+		short	sb_timeo;	/* timeout for read/write */
 	} so_rcv, so_snd;
 #define	SB_MAX		(256*1024)	/* default for max chars in sockbuf */
 #define	SB_LOCK		0x01		/* lock on data queue */
@@ -124,34 +119,18 @@ struct socket {
 #define SB_AIO		0x80		/* AIO operations queued */
 #define SB_KNOTE	0x100		/* kernel note attached */
 
-	so_upcall_t	*so_upcall;	/* [mr] */
-	void	*so_upcallarg;		/* [mr] */
-	struct	ucred *so_cred;		/* (c)	user credentials */
+	void	(*so_upcall)(struct socket *, void *, int);
+	void	*so_upcallarg;
+	struct	ucred *so_cred;		/* user credentials */
 	/* NB: generation count must not be first; easiest to make it last. */
-	so_gen_t so_gencnt;		/* [mr]	generation count */
-	void	*so_emuldata;		/* [mr]	private data for emulators */
-	struct so_accf { 
-		struct	accept_filter *so_accept_filter;	/* [mr] */
-		void	*so_accept_filter_arg;	/* [mr]	saved filter args */
-		char	*so_accept_filter_str;	/* [mr]	saved user args */
-	} *so_accf;			/* [mr] */
+	so_gen_t so_gencnt;		/* generation count */
+	void	*so_emuldata;		/* private data for emulators */
+ 	struct so_accf {
+		struct	accept_filter *so_accept_filter;
+		void	*so_accept_filter_arg;	/* saved filter args */
+		char	*so_accept_filter_str;	/* saved user args */
+	} *so_accf;
 };
-
-/*
- * Macros to lock a socket.
- */
-#define SOCKBUF_LOCK(sb)	mtx_lock(&(sb)->sb_mtx)
-#define SOCKBUF_TRYLOCK(sb)	mtx_trylock(&(sb)->sb_mtx)
-#define SOCKBUF_UNLOCK(sb)	mtx_unlock(&(sb)->sb_mtx)
-#define SOCKBUF_LOCKED(sb)	mtx_owned(&(sb)->sb_mtx)
-#define SOCKBUF_ASSERT(sb, type)	mtx_assert(&(sb)->sb_mtx, type)
-
-#define SOCK_MTX(so)	(&(so)->so_rcv.sb_mtx)
-#define SOCK_LOCK(so)	SOCKBUF_LOCK(&(so)->so_rcv)
-#define SOCK_TRYLOCK(so)	SOCKBUF_TRYLOCK(&(so)->so_rcv)
-#define SOCK_UNLOCK(so)	SOCKBUF_UNLOCK(&(so)->so_rcv)
-#define SOCK_LOCKED(so)	SOCKBUF_LOCKED(&(so)->so_rcv)
-#define SOCK_ASSERT(so, type)	SOCKBUF_ASSERT(&(so)->so_rcv, type)
 
 /*
  * Socket state bits.
@@ -281,41 +260,39 @@ struct xsocket {
  * still explicitly close the socket, but the last ref count will free
  * the structure.
  */
-
-#define soref(so)	do {					\
-				SOCK_ASSERT(so, MA_OWNED);	\
-				++(so)->so_count;		\
+#define soref(so)	do {			\
+				++(so)->so_count; \
 			} while (0)
 
-#define sorele(so)	do {					\
-				SOCK_ASSERT(so, MA_OWNED);	\
+#define sorele(so)	do {				\
 				if ((so)->so_count <= 0)	\
-					panic("sorele");	\
-				if (--(so)->so_count == 0)	\
-					sofree(so);		\
-				else				\
-					SOCK_UNLOCK(so);	\
+					panic("sorele");\
+				if (--(so)->so_count == 0)\
+					sofree(so);	\
 			} while (0)
 
-#define sotryfree(so)	do {					\
-				SOCK_ASSERT(so, MA_OWNED);	\
+#define sotryfree(so)	do {				\
 				if ((so)->so_count == 0)	\
-					sofree(so);		\
-				else				\
-					SOCK_UNLOCK(so);	\
+					sofree(so);	\
 			} while(0)
 
-#define	sorwakeup(so)	do {						\
-				SOCK_ASSERT(so, MA_OWNED);		\
-				if (sb_notify(&(so)->so_rcv))		\
-					sowakeup((so), &(so)->so_rcv);	\
-			} while (0)
+#define	sorwakeup_locked(so)	do {					\
+					if (sb_notify(&(so)->so_rcv))	\
+						sowakeup((so), &(so)->so_rcv); \
+				} while (0)
 
-#define	sowwakeup(so)	do {						\
-				SOCK_ASSERT(so, MA_OWNED);		\
-				if (sb_notify(&(so)->so_snd))		\
-					sowakeup((so), &(so)->so_snd);	\
-			} while (0)
+#define	sorwakeup(so)		do {					\
+					sorwakeup_locked(so);		\
+				} while (0)
+
+#define	sowwakeup_locked(so)	do {					\
+					if (sb_notify(&(so)->so_snd))	\
+						sowakeup((so), &(so)->so_snd); \
+				} while (0)
+
+#define	sowwakeup(so)		do {					\
+					sowwakeup_locked(so);		\
+				} while (0)
 
 #ifdef _KERNEL
 
@@ -425,12 +402,14 @@ int	soconnect2(struct socket *so1, struct socket *so2);
 int	socreate(int dom, struct socket **aso, int type, int proto,
 	    struct ucred *cred, struct thread *td);
 int	sodisconnect(struct socket *so);
+void	soisconnected_locked(struct socket *so);
 void	sofree(struct socket *so);
 int	sogetopt(struct socket *so, struct sockopt *sopt);
 void	sohasoutofband(struct socket *so);
 void	soisconnected(struct socket *so);
 void	soisconnecting(struct socket *so);
 void	soisdisconnected(struct socket *so);
+void	soisdisconnected_locked(struct socket *so);
 void	soisdisconnecting(struct socket *so);
 int	solisten(struct socket *so, int backlog, struct thread *td);
 struct socket *

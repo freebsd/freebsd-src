@@ -734,9 +734,7 @@ ship_msg(struct ngpcb *pcbp, struct ng_mesg *msg, struct sockaddr_ng *addr)
 		m_freem(mdata);
 		return (ENOBUFS);
 	}
-	SOCK_LOCK(so);
 	sorwakeup(so);
-	SOCK_UNLOCK(so);
 	return (0);
 }
 
@@ -772,13 +770,9 @@ ngs_connect(hook_p hook)
 	if ((priv->datasock)
 	&&  (priv->datasock->ng_socket)) {
 		if (NG_NODE_NUMHOOKS(node) == 1) {
-			SOCK_LOCK(priv->datasock->ng_socket);
 			priv->datasock->ng_socket->so_state |= SS_ISCONNECTED;
-			SOCK_UNLOCK(priv->datasock->ng_socket);
 		} else {
-			SOCK_LOCK(priv->datasock->ng_socket);
 			priv->datasock->ng_socket->so_state &= ~SS_ISCONNECTED;
-			SOCK_UNLOCK(priv->datasock->ng_socket);
 		}
 	}
 	return (0);
@@ -892,9 +886,7 @@ ngs_rcvdata(hook_p hook, item_p item)
 		TRAP_ERROR;
 		return (ENOBUFS);
 	}
-	SOCK_LOCK(so);
 	sorwakeup(so);
-	SOCK_UNLOCK(so);
 	return (0);
 }
 
@@ -913,13 +905,9 @@ ngs_disconnect(hook_p hook)
 	if ((priv->datasock)
 	&&  (priv->datasock->ng_socket)) {
 		if (NG_NODE_NUMHOOKS(node) == 1) {
-			SOCK_LOCK(priv->datasock->ng_socket);
 			priv->datasock->ng_socket->so_state |= SS_ISCONNECTED;
-			SOCK_UNLOCK(priv->datasock->ng_socket);
 		} else {
-			SOCK_LOCK(priv->datasock->ng_socket);
 			priv->datasock->ng_socket->so_state &= ~SS_ISCONNECTED;
-			SOCK_UNLOCK(priv->datasock->ng_socket);
 		}
 	}
 
@@ -944,17 +932,13 @@ ngs_shutdown(node_p node)
 	struct ngpcb *const pcbp = priv->ctlsock;
 
 	if (dpcbp != NULL) {
-		SOCK_LOCK(dpcbp->ng_socket);
 		soisdisconnected(dpcbp->ng_socket);
-		SOCK_UNLOCK(dpcbp->ng_socket);
 		dpcbp->sockdata = NULL;
 		priv->datasock = NULL;
 		priv->refs--;
 	}
 	if (pcbp != NULL) {
-		SOCK_LOCK(pcbp->ng_socket);
 		soisdisconnected(pcbp->ng_socket);
-		SOCK_UNLOCK(pcbp->ng_socket);
 		pcbp->sockdata = NULL;
 		priv->ctlsock = NULL;
 		priv->refs--;

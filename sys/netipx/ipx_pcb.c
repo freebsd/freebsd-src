@@ -156,12 +156,8 @@ ipx_pcbconnect(ipxp, nam, td)
 	 */
 	ro = &ipxp->ipxp_route;
 	dst = &satoipx_addr(ro->ro_dst);
-	SOCK_LOCK(ipxp->ipxp_socket);
-	if (ipxp->ipxp_socket->so_options & SO_DONTROUTE) {
-		SOCK_UNLOCK(ipxp->ipxp_socket);
+	if (ipxp->ipxp_socket->so_options & SO_DONTROUTE)
 		goto flush;
-	}
-	SOCK_UNLOCK(ipxp->ipxp_socket);
 	if (!ipx_neteq(ipxp->ipxp_lastdst, sipx->sipx_addr))
 		goto flush;
 	if (!ipx_hosteq(ipxp->ipxp_lastdst, sipx->sipx_addr)) {
@@ -176,18 +172,15 @@ ipx_pcbconnect(ipxp, nam, td)
 		}
 	}/* else cached route is ok; do nothing */
 	ipxp->ipxp_lastdst = sipx->sipx_addr;
-	SOCK_LOCK(ipxp->ipxp_socket);
 	if ((ipxp->ipxp_socket->so_options & SO_DONTROUTE) == 0 && /*XXX*/
 	    (ro->ro_rt == NULL || ro->ro_rt->rt_ifp == NULL)) {
-		SOCK_UNLOCK(ipxp->ipxp_socket);
 		    /* No route yet, so try to acquire one */
 		    ro->ro_dst.sa_family = AF_IPX;
 		    ro->ro_dst.sa_len = sizeof(ro->ro_dst);
 		    *dst = sipx->sipx_addr;
 		    dst->x_port = 0;
 		    rtalloc(ro);
-	} else
-		SOCK_UNLOCK(ipxp->ipxp_socket);
+	}
 	if (ipx_neteqnn(ipxp->ipxp_laddr.x_net, ipx_zeronet)) {
 		/* 
 		 * If route is known or can be allocated now,
@@ -264,12 +257,8 @@ ipx_pcbdisconnect(ipxp)
 {
 
 	ipxp->ipxp_faddr = zeroipx_addr;
-	SOCK_LOCK(ipxp->ipxp_socket);
-	if (ipxp->ipxp_socket->so_state & SS_NOFDREF) {
-		SOCK_UNLOCK(ipxp->ipxp_socket);
+	if (ipxp->ipxp_socket->so_state & SS_NOFDREF)
 		ipx_pcbdetach(ipxp);
-	} else
-		SOCK_UNLOCK(ipxp->ipxp_socket);
 }
 
 void
@@ -279,7 +268,6 @@ ipx_pcbdetach(ipxp)
 	struct socket *so = ipxp->ipxp_socket;
 
 	so->so_pcb = 0;
-	SOCK_LOCK(so);
 	sotryfree(so);
 	if (ipxp->ipxp_route.ro_rt != NULL)
 		rtfree(ipxp->ipxp_route.ro_rt);
