@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.92 1995/04/13 09:22:40 ache Exp $
+ *	$Id: sio.c,v 1.93 1995/04/13 11:11:11 ache Exp $
  */
 
 #include "sio.h"
@@ -353,8 +353,9 @@ static struct kern_devconf kdc_sio[NSIO] = { {
 	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
 	&kdc_isa0,		/* parent */
 	0,			/* parentdata */
-	DC_UNCONFIGURED,
-	"RS-232 serial port"
+	DC_UNCONFIGURED,	/* state */
+	"RS-232 serial port",
+	DC_CLS_SERIAL		/* class */
 } };
 
 static void
@@ -368,7 +369,6 @@ sioregisterdev(id)
 		kdc_sio[unit] = kdc_sio[0];
 	kdc_sio[unit].kdc_unit = unit;
 	kdc_sio[unit].kdc_isa = id;
-	kdc_sio[unit].kdc_state = DC_IDLE;
 	dev_attach(&kdc_sio[unit]);
 }
 
@@ -909,7 +909,6 @@ open_top:
 	disc_optim(tp, &(tp->t_termios), com);
 	if (tp->t_state & TS_ISOPEN && mynor & CALLOUT_MASK)
 		com->active_out = TRUE;
-	kdc_sio[unit].kdc_state = DC_BUSY;
 out:
 	splx(s);
 	if (!(tp->t_state & TS_ISOPEN) && com->wopeners == 0)
@@ -943,7 +942,6 @@ sioclose(dev, flag, mode, p)
 	siostop(tp, FREAD | FWRITE);
 	comhardclose(com);
 	ttyclose(tp);
-	kdc_sio[unit].kdc_state = DC_IDLE;
 	splx(s);
 	return (0);
 }
