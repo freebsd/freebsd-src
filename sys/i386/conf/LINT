@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.421 1998/03/24 02:55:03 yokota Exp $
+#	$Id: LINT,v 1.422 1998/03/28 11:49:25 dufault Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1350,8 +1350,8 @@ device		bktr0
 # card: slot controller
 # pcic: slots
 controller	card0
-controller	pcic0 at card?
-controller	pcic1 at card?
+device		pcic0 at card?
+device		pcic1 at card?
 
 #
 # Laptop/Notebook options:
