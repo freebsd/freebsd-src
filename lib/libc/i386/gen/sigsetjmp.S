@@ -59,8 +59,7 @@
  *	use sigreturn() if sigreturn() works.
  */
 
-ALTENTRY(sigsetjmp)
-ENTRY(__sigsetjmp)
+ENTRY(sigsetjmp)
 	movl	8(%esp),%eax
 	movl	4(%esp),%ecx
 	movl	%eax,44(%ecx)
@@ -90,10 +89,12 @@ ENTRY(__sigsetjmp)
 	xorl	%eax,%eax
 	ret
 
-#ifndef _THREAD_SAFE
-ALTENTRY(siglongjmp)
-#endif
+#ifdef _THREAD_SAFE
 ENTRY(__siglongjmp)
+#else
+ALTENTRY(__siglongjmp)
+ENTRY(siglongjmp)
+#endif
 	movl	4(%esp),%edx
 	cmpl	$0,44(%edx)
 	jz	2f

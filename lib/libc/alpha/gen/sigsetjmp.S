@@ -45,24 +45,29 @@
 
 	.set	noreorder
 
-XLEAF(sigsetjmp, 2)
-LEAF(__sigsetjmp, 2)
+LEAF(sigsetjmp, 2)
 	LDGP(pv)
 	stq	a1, (81 * 8)(a0)		/* save the mask */
 	bne	a1, Lsavesig			/* if !zero, save signals */
 	jmp	zero, _setjmp				/* else don't. */
 Lsavesig:
 	jmp	zero, setjmp
-END(__sigsetjmp)
+END(sigsetjmp)
 
-#ifndef _THREAD_SAFE
-XLEAF(siglongjmp, 2)
-#endif
+#ifdef _THREAD_SAFE
 LEAF(__siglongjmp, 2)
+#else
+XLEAF(__siglongjmp, 2)
+LEAF(siglongjmp, 2)
+#endif
 	LDGP(pv)
 	ldq	t0, (81 * 8)(a0)		/* get the mask */
 	bne	t0, Lrestoresig			/* if !zero, restore signals */
 	jmp	zero, _longjmp
 Lrestoresig:
 	jmp	zero, longjmp
+#ifdef _THREAD_SAFE
 END(__siglongjmp)
+#else
+END(siglongjmp)
+#endif
