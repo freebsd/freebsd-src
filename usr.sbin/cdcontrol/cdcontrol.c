@@ -40,12 +40,12 @@ static const char rcsid[] =
 
 #define VERSION "2.0"
 
-#define ASTS_INVALID    0x00  /* Audio status byte not valid */
-#define ASTS_PLAYING    0x11  /* Audio play operation in progress */
-#define ASTS_PAUSED     0x12  /* Audio play operation paused */
-#define ASTS_COMPLETED  0x13  /* Audio play operation successfully completed */
-#define ASTS_ERROR      0x14  /* Audio play operation stopped due to error */
-#define ASTS_VOID       0x15  /* No current audio status to return */
+#define ASTS_INVALID	0x00  /* Audio status byte not valid */
+#define ASTS_PLAYING	0x11  /* Audio play operation in progress */
+#define ASTS_PAUSED	0x12  /* Audio play operation paused */
+#define ASTS_COMPLETED	0x13  /* Audio play operation successfully completed */
+#define ASTS_ERROR	0x14  /* Audio play operation stopped due to error */
+#define ASTS_VOID	0x15  /* No current audio status to return */
 
 #ifndef DEFAULT_CD_DRIVE
 #  define DEFAULT_CD_DRIVE  "/dev/cd0c"
@@ -55,26 +55,26 @@ static const char rcsid[] =
 #  define DEFAULT_CD_PARTITION  "c"
 #endif
 
-#define CMD_DEBUG       1
-#define CMD_EJECT       2
-#define CMD_HELP        3
-#define CMD_INFO        4
-#define CMD_PAUSE       5
-#define CMD_PLAY        6
-#define CMD_QUIT        7
-#define CMD_RESUME      8
-#define CMD_STOP        9
-#define CMD_VOLUME      10
-#define CMD_CLOSE       11
-#define CMD_RESET       12
-#define CMD_SET         13
-#define CMD_STATUS      14
-#define CMD_CDID        15
-#define CMD_NEXT        16
-#define CMD_PREVIOUS    17
-#define STATUS_AUDIO    0x1
-#define STATUS_MEDIA    0x2
-#define STATUS_VOLUME   0x4
+#define CMD_DEBUG	1
+#define CMD_EJECT	2
+#define CMD_HELP	3
+#define CMD_INFO	4
+#define CMD_PAUSE	5
+#define CMD_PLAY	6
+#define CMD_QUIT	7
+#define CMD_RESUME	8
+#define CMD_STOP	9
+#define CMD_VOLUME	10
+#define CMD_CLOSE	11
+#define CMD_RESET	12
+#define CMD_SET		13
+#define CMD_STATUS	14
+#define CMD_CDID	15
+#define CMD_NEXT	16
+#define CMD_PREVIOUS	17
+#define STATUS_AUDIO	0x1
+#define STATUS_MEDIA	0x2
+#define STATUS_VOLUME	0x4
 
 struct cmdtab {
 	int command;
@@ -82,63 +82,64 @@ struct cmdtab {
 	unsigned min;
 	const char *args;
 } cmdtab[] = {
-{ CMD_CLOSE,    "close",        1, "" },
-{ CMD_DEBUG,    "debug",        1, "on | off" },
-{ CMD_EJECT,    "eject",        1, "" },
-{ CMD_HELP,     "?",            1, 0 },
-{ CMD_HELP,     "help",         1, "" },
-{ CMD_INFO,     "info",         1, "" },
-{ CMD_NEXT,     "next",         1, "" },
-{ CMD_PAUSE,    "pause",        2, "" },
-{ CMD_PLAY,     "play",         1, "min1:sec1[.fram1] [min2:sec2[.fram2]]" },
-{ CMD_PLAY,     "play",         1, "track1[.index1] [track2[.index2]]" },
-{ CMD_PLAY,     "play",         1, "tr1 m1:s1[.f1] [[tr2] [m2:s2[.f2]]]" },
-{ CMD_PLAY,     "play",         1, "[#block [len]]" },
-{ CMD_PREVIOUS, "previous",     2, "" },
-{ CMD_QUIT,     "quit",         1, "" },
-{ CMD_RESET,    "reset",        4, "" },
-{ CMD_RESUME,   "resume",       1, "" },
-{ CMD_SET,      "set",          2, "msf | lba" },
-{ CMD_STATUS,   "status",       1, "[audio | media | volume]" },
-{ CMD_STOP,     "stop",         3, "" },
-{ CMD_VOLUME,   "volume",       1, "<l> <r> | left | right | mute | mono | stereo" },
-{ CMD_CDID,     "cdid",         2, "" },
-{ 0, NULL, 0, NULL }
+{ CMD_CLOSE,	"close",	1, "" },
+{ CMD_DEBUG,	"debug",	1, "on | off" },
+{ CMD_EJECT,	"eject",	1, "" },
+{ CMD_HELP,	"?",		1, 0 },
+{ CMD_HELP,	"help",		1, "" },
+{ CMD_INFO,	"info",		1, "" },
+{ CMD_NEXT,	"next",		1, "" },
+{ CMD_PAUSE,	"pause",	2, "" },
+{ CMD_PLAY,	"play",		1, "min1:sec1[.fram1] [min2:sec2[.fram2]]" },
+{ CMD_PLAY,	"play",		1, "track1[.index1] [track2[.index2]]" },
+{ CMD_PLAY,	"play",		1, "tr1 m1:s1[.f1] [[tr2] [m2:s2[.f2]]]" },
+{ CMD_PLAY,	"play",		1, "[#block [len]]" },
+{ CMD_PREVIOUS,	"previous",	2, "" },
+{ CMD_QUIT,	"quit",		1, "" },
+{ CMD_RESET,	"reset",	4, "" },
+{ CMD_RESUME,	"resume",	1, "" },
+{ CMD_SET,	"set",		2, "msf | lba" },
+{ CMD_STATUS,	"status",	1, "[audio | media | volume]" },
+{ CMD_STOP,	"stop",		3, "" },
+{ CMD_VOLUME,	"volume",	1,
+      "<l> <r> | left | right | mute | mono | stereo" },
+{ CMD_CDID,	"cdid",		2, "" },
+{ 0,		NULL,		0, NULL }
 };
 
-struct cd_toc_entry     toc_buffer[100];
+struct cd_toc_entry	toc_buffer[100];
 
-const char      *cdname;
-int             fd = -1;
-int             verbose = 1;
-int             msf = 1;
+const char	*cdname;
+int		fd = -1;
+int		verbose = 1;
+int		msf = 1;
 
-int             setvol __P((int, int));
-int             read_toc_entrys __P((int));
-int             play_msf __P((int, int, int, int, int, int));
-int             play_track __P((int, int, int, int));
-int             get_vol __P((int *, int *));
-int             status __P((int *, int *, int *, int *));
-int             open_cd __P((void));
-int             next_prev __P((char *arg, int));
-int             play __P((char *arg));
-int             info __P((char *arg));
-int             cdid __P((void));
-int             pstatus __P((char *arg));
-char            *input __P((int *));
-void            prtrack __P((struct cd_toc_entry *e, int lastflag));
-void            lba2msf __P((unsigned long lba,
-                            u_char *m, u_char *s, u_char *f));
-unsigned int    msf2lba __P((u_char m, u_char s, u_char f));
-int             play_blocks __P((int blk, int len));
-int             run __P((int cmd, char *arg));
-char            *parse __P((char *buf, int *cmd));
-void            help __P((void));
-void            usage __P((void));
-char            *use_cdrom_instead __P((const char *));
-__const char    *strstatus __P((int));
-static u_int    dbprog_discid __P((void));
-__const char    *cdcontrol_prompt __P((void));
+int		 setvol __P((int, int));
+int		 read_toc_entrys __P((int));
+int		 play_msf __P((int, int, int, int, int, int));
+int		 play_track __P((int, int, int, int));
+int		 get_vol __P((int *, int *));
+int		 status __P((int *, int *, int *, int *));
+int		 open_cd __P((void));
+int		 next_prev __P((char *arg, int));
+int		 play __P((char *arg));
+int		 info __P((char *arg));
+int		 cdid __P((void));
+int		 pstatus __P((char *arg));
+char		*input __P((int *));
+void		 prtrack __P((struct cd_toc_entry *e, int lastflag));
+void		 lba2msf __P((unsigned long lba,
+		     u_char *m, u_char *s, u_char *f));
+unsigned int	 msf2lba __P((u_char m, u_char s, u_char f));
+int		 play_blocks __P((int blk, int len));
+int		 run __P((int cmd, char *arg));
+char		*parse __P((char *buf, int *cmd));
+void		 help __P((void));
+void		 usage __P((void));
+char		*use_cdrom_instead __P((const char *));
+__const char	*strstatus __P((int));
+static u_int	 dbprog_discid __P((void));
+__const char	*cdcontrol_prompt __P((void));
 
 void help ()
 {
@@ -747,13 +748,13 @@ int next_prev (char *arg, int cmd)
 const char *strstatus (int sts)
 {
 	switch (sts) {
-	case ASTS_INVALID:   return ("invalid");
-	case ASTS_PLAYING:   return ("playing");
-	case ASTS_PAUSED:    return ("paused");
-	case ASTS_COMPLETED: return ("completed");
-	case ASTS_ERROR:     return ("error");
-	case ASTS_VOID:      return ("void");
-	default:             return ("??");
+	case ASTS_INVALID:	return ("invalid");
+	case ASTS_PLAYING:	return ("playing");
+	case ASTS_PAUSED:	return ("paused");
+	case ASTS_COMPLETED:	return ("completed");
+	case ASTS_ERROR:	return ("error");
+	case ASTS_VOID:		return ("void");
+	default:		return ("??");
 	}
 }
 
@@ -801,7 +802,7 @@ int pstatus (char *arg)
 	    rc = ioctl (fd, CDIOCREADSUBCHANNEL, (char *) &ss);
 	    if (rc >= 0) {
 		printf("Media catalog is %sactive",
-		       ss.data->what.media_catalog.mc_valid ? "": "in");
+		    ss.data->what.media_catalog.mc_valid ? "": "in");
 		if (ss.data->what.media_catalog.mc_valid &&
 		    ss.data->what.media_catalog.mc_number[0])
 		{
@@ -893,7 +894,7 @@ dbprog_discid()
 		n += dbprog_sum((TC_MM(i) * 60) + TC_SS(i));
 
 		t += ((TC_MM(i+1) * 60) + TC_SS(i+1)) -
-		     ((TC_MM(i) * 60) + TC_SS(i));
+		    ((TC_MM(i) * 60) + TC_SS(i));
 	}
 
 	return((n % 0xff) << 24 | t << 8 | ntr);
@@ -952,8 +953,8 @@ int info (char *arg __unused)
 
 void lba2msf (unsigned long lba, u_char *m, u_char *s, u_char *f)
 {
-	lba += 150;                     /* block start offset */
-	lba &= 0xffffff;                /* negative lbas use only 24 bits */
+	lba += 150;			/* block start offset */
+	lba &= 0xffffff;		/* negative lbas use only 24 bits */
 	*m = lba / (60 * 75);
 	lba %= (60 * 75);
 	*s = lba / 75;
@@ -1051,7 +1052,7 @@ int read_toc_entrys (int len)
 int play_msf (int start_m, int start_s, int start_f,
 	int end_m, int end_s, int end_f)
 {
-	struct ioc_play_msf     a;
+	struct ioc_play_msf a;
 
 	a.start_m = start_m;
 	a.start_s = start_s;
@@ -1177,7 +1178,7 @@ char *parse (char *buf, int *cmd)
 	if (! len)
 		return (0);
 
-	if (*p) {                       /* It must be a spacing character! */
+	if (*p) {		/* It must be a spacing character! */
 		char *q;
 
 		*p++ = 0;
