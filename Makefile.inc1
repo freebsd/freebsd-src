@@ -784,8 +784,7 @@ _startup_libs+=	lib/csu/${MACHINE_ARCH}-elf
 _startup_libs+=	lib/csu/${MACHINE_ARCH}
 .endif
 
-_prebuild_libs=
-
+_prebuild_libs+= lib/libc
 _generic_libs=	gnu/lib
 
 .if exists(${.CURDIR}/kerberos5) && exists(${.CURDIR}/crypto) && \
