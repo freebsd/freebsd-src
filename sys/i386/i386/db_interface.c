@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_interface.c,v 1.9 1997/07/13 00:48:28 smp Exp smp $
+ *	$Id: db_interface.c,v 1.10 1997/07/18 19:45:41 smp Exp smp $
  */
 
 /*
@@ -40,7 +40,7 @@
 #include <machine/segments.h>
 #ifdef SMP
 #include <machine/smp.h>
-#include <machine/smptests.h>	/** TEST_CPUSTOP */
+#include <machine/smptests.h>	/** CPUSTOP_ON_DDBBREAK */
 #endif
 
 #include <vm/vm.h>
@@ -138,10 +138,22 @@ kdb_trap(type, code, regs)
 
 	cnpollc(TRUE);
 
-#if defined(SMP) && defined(TEST_CPUSTOP)
-	/* XXX FIXME: we stop all CPUs except ourselves (obviously) */
+#ifdef SMP
+#ifdef CPUSTOP_ON_DDBBREAK
+
+#if defined(VERBOSE_CPUSTOP_ON_DDBBREAK)
+	db_printf("\nCPU%d stopping CPUs: 0x%08x\n", cpuid, other_cpus);
+#endif /* VERBOSE_CPUSTOP_ON_DDBBREAK */
+
+	/* We stop all CPUs except ourselves (obviously) */
 	stop_cpus(other_cpus);
-#endif  /** SMP && TEST_CPUSTOP */
+
+#if defined(VERBOSE_CPUSTOP_ON_DDBBREAK)
+	db_printf(" stopped\n");
+#endif /* VERBOSE_CPUSTOP_ON_DDBBREAK */
+
+#endif /* CPUSTOP_ON_DDBBREAK */
+#endif /* SMP */
 
 	(void) setjmp(db_global_jmpbuf);
 	db_global_jmpbuf_valid = TRUE;
@@ -151,15 +163,27 @@ kdb_trap(type, code, regs)
 	    gdb_handle_exception(&ddb_regs, type, code);
 	db_global_jmpbuf_valid = FALSE;
 
-#if defined(SMP) && defined(TEST_CPUSTOP)
-	/* XXX FIXME: restart all the CPUs we previously stopped */
+#ifdef SMP
+#ifdef CPUSTOP_ON_DDBBREAK
+
+#if defined(VERBOSE_CPUSTOP_ON_DDBBREAK)
+	db_printf("\nCPU%d restarting CPUs: 0x%08x\n", cpuid, stopped_cpus);
+#endif /* VERBOSE_CPUSTOP_ON_DDBBREAK */
+
+	/* Restart all the CPUs we previously stopped */
 	if (stopped_cpus != other_cpus) {
 		db_printf("whoa, other_cpus: 0x%08x, stopped_cpus: 0x%08x\n",
-		       other_cpus, stopped_cpus);
-		cngetc();
+			  other_cpus, stopped_cpus);
+		panic("stop_cpus() failed");
 	}
 	restart_cpus(stopped_cpus);
-#endif  /** SMP && TEST_CPUSTOP */
+
+#if defined(VERBOSE_CPUSTOP_ON_DDBBREAK)
+	db_printf(" restarted\n");
+#endif /* VERBOSE_CPUSTOP_ON_DDBBREAK */
+
+#endif /* CPUSTOP_ON_DDBBREAK */
+#endif /* SMP */
 
 	cnpollc(FALSE);
 
