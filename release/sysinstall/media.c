@@ -453,15 +453,16 @@ mediaSetFTPPassive(dialogMenuItem *self)
 int mediaSetHTTP(dialogMenuItem *self)
 {
     int result;
-    char *cp, *idx, hbuf[MAXHOSTNAMELEN], *hostname, *var_hostname;
+    char *cp, hbuf[MAXHOSTNAMELEN], *hostname, *var_hostname;
     int HttpPort;
     int what = DITEM_RESTORE;
 
 
-    var_hostname=variable_get(VAR_NAMESERVER);
+    var_hostname = variable_get(VAR_NAMESERVER);
     variable_unset(VAR_NAMESERVER);
     result = mediaSetFTP(self);
-    variable_set2(VAR_NAMESERVER, var_hostname, 0);
+    if (var_hostname)
+	variable_set2(VAR_NAMESERVER, var_hostname, 0);
 
     if (DITEM_STATUS(result) != DITEM_SUCCESS)
 	return result;
@@ -473,18 +474,17 @@ int mediaSetHTTP(dialogMenuItem *self)
 	return DITEM_FAILURE;
     SAFE_STRCPY(hbuf, cp);
     hostname = hbuf;
-    if (*hostname == '[' && (idx = index(hostname + 1, ']')) != NULL &&
-	(*++idx == '\0' || *idx == ':')) {
+    if (*hostname == '[' && (cp = index(hostname + 1, ']')) != NULL) {
 	++hostname;
-	*(idx - 1) = '\0';
-    } else
-	idx = index(hostname, ':');
-    if (idx == NULL || *cp != ':')
-	HttpPort = 3128;		/* try this as default */
-    else {
-	*(idx++) = '\0';
-	HttpPort = strtol(idx, 0, 0);
+	*cp = '\0';
     }
+    cp = index(hostname, ':');
+    if (cp != NULL && *cp == ':') {
+	*(cp++) = '\0';
+	HttpPort = strtol(cp, 0, 0);
+    }
+    else
+	HttpPort = 3128;
 
     variable_set2(VAR_HTTP_HOST, hostname, 0);
     variable_set2(VAR_HTTP_PORT, itoa(HttpPort), 0);
@@ -501,8 +501,7 @@ int mediaSetHTTP(dialogMenuItem *self)
     mediaDevice->shutdown = dummyShutdown;
     return DITEM_SUCCESS | DITEM_LEAVE_MENU | what;
 }
-   
-
+ 
 int
 mediaSetUFS(dialogMenuItem *self)
 {
