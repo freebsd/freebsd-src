@@ -276,6 +276,14 @@ static struct da_quirk_entry da_quirk_table[] =
 	},
 	{
 		/*
+		 * Intelligent Stick USB disk-on-key
+		 * Reported by: Samuel Tardieu <sam@rfc1149.net>
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "USB Card", "IntelligentStick*", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
 		 * Sony DSC cameras (DSC-S30, DSC-S50, DSC-S70)
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Sony", "Sony DSC", "*"},
