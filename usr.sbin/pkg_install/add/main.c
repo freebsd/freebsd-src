@@ -111,7 +111,7 @@ main(int argc, char **argv)
 	    break;
 
 	case 't':
-	    if (strlcpy(FirstPen, optarg, sizeof(FirstPen)) > sizeof(FirstPen))
+	    if (s_strlcpy(FirstPen, optarg, sizeof(FirstPen)))
 		errx(1, "-t Argument too long.");
 	    break;
 
@@ -145,27 +145,27 @@ main(int argc, char **argv)
     	    if (Remote) {
 		if ((packagesite = getpackagesite()) == NULL)
 		    errx(1, "package name too long");
-		if (strlcpy(temppackageroot, packagesite,
-		    sizeof(temppackageroot)) >= sizeof(temppackageroot))
+		if (s_strlcpy(temppackageroot, packagesite,
+		    sizeof(temppackageroot)))
 		    errx(1, "package name too long");
-		if (strlcat(temppackageroot, *argv,
-		    sizeof(temppackageroot)) >= sizeof(temppackageroot))
+		if (s_strlcat(temppackageroot, *argv,
+		    sizeof(temppackageroot)))
 		    errx(1, "package name too long");
 		remotepkg = temppackageroot;
 		if (!((ptr = strrchr(remotepkg, '.')) && ptr[1] == 't' && 
 			ptr[2] == 'g' && ptr[3] == 'z' && !ptr[4]))
-		    if (strlcat(remotepkg, ".tgz", sizeof(temppackageroot)) >= sizeof(temppackageroot))
+		    if (s_strlcat(remotepkg, ".tgz", sizeof(temppackageroot)))
 			errx(1, "package name too long");
     	    }
 	    if (!strcmp(*argv, "-"))	/* stdin? */
 		pkgs[ch] = "-";
 	    else if (isURL(*argv)) {  	/* preserve URLs */
-		if (strlcpy(pkgnames[ch], *argv, sizeof(pkgnames[ch])) >= sizeof(pkgnames[ch]))
+		if (s_strlcpy(pkgnames[ch], *argv, sizeof(pkgnames[ch])))
 		    errx(1, "package name too long");
 		pkgs[ch] = pkgnames[ch];
 	    }
 	    else if ((Remote) && isURL(remotepkg)) {
-	    	if (strlcpy(pkgnames[ch], remotepkg, sizeof(pkgnames[ch])) >= sizeof(pkgnames[ch]))
+	    	if (s_strlcpy(pkgnames[ch], remotepkg, sizeof(pkgnames[ch])))
 		    errx(1, "package name too long");
 		pkgs[ch] = pkgnames[ch];
 	    } else {			/* expand all pathnames to fullnames */
@@ -174,11 +174,11 @@ main(int argc, char **argv)
 		else {		/* look for the file in the expected places */
 		    if (!(cp = fileFindByPath(NULL, *argv))) {
 			/* let pkg_do() fail later, so that error is reported */
-			if (strlcpy(pkgnames[ch], *argv, sizeof(pkgnames[ch])) >= sizeof(pkgnames[ch]))
+			if (s_strlcpy(pkgnames[ch], *argv, sizeof(pkgnames[ch])))
 			    errx(1, "package name too long");
 			pkgs[ch] = pkgnames[ch];
 		    } else {
-			if (strlcpy(pkgnames[ch], cp, sizeof(pkgnames[ch])) >= sizeof(pkgnames[ch]))
+			if (s_strlcpy(pkgnames[ch], cp, sizeof(pkgnames[ch])))
 			    errx(1, "package name too long");
 			pkgs[ch] = pkgnames[ch];
 		    }
@@ -220,37 +220,37 @@ getpackagesite(void)
     struct utsname u;
 
     if (getenv("PACKAGESITE")) {
-	if (strlcpy(sitepath, getenv("PACKAGESITE"), 
-	    sizeof(sitepath)) >= sizeof(sitepath))
+	if (s_strlcpy(sitepath, getenv("PACKAGESITE"), 
+	    sizeof(sitepath)))
 	    return NULL;
 	return sitepath;
     }
 
     if (getenv("PACKAGEROOT")) {
-	if (strlcpy(sitepath, getenv("PACKAGEROOT"), sizeof(sitepath)) >= sizeof(sitepath))
+	if (s_strlcpy(sitepath, getenv("PACKAGEROOT"), sizeof(sitepath)))
 	    return NULL;
     } else {
-	if (strlcat(sitepath, "ftp://ftp.freebsd.org", sizeof(sitepath)) >= sizeof(sitepath))
+	if (s_strlcat(sitepath, "ftp://ftp.freebsd.org", sizeof(sitepath)))
 	    return NULL;
     }
 
-    if (strlcat(sitepath, "/pub/FreeBSD/ports/", sizeof(sitepath)) >= sizeof(sitepath))
+    if (s_strlcat(sitepath, "/pub/FreeBSD/ports/", sizeof(sitepath)))
 	return NULL;
 
     uname(&u);
-    if (strlcat(sitepath, u.machine, sizeof(sitepath)) >= sizeof(sitepath))
+    if (s_strlcat(sitepath, u.machine, sizeof(sitepath)))
 	return NULL;
 
     reldate = getosreldate();
     for(i = 0; releases[i].directory != NULL; i++) {
 	if (reldate >= releases[i].lowver && reldate <= releases[i].hiver) {
-	    if (strlcat(sitepath, releases[i].directory, sizeof(sitepath)) >= sizeof(sitepath))
+	    if (s_strlcat(sitepath, releases[i].directory, sizeof(sitepath)))
 		return NULL;
 	    break;
 	}
     }
 
-    if (strlcat(sitepath, "/Latest/", sizeof(sitepath)) >= sizeof(sitepath))
+    if (s_strlcat(sitepath, "/Latest/", sizeof(sitepath)))
 	return NULL;
 
     return sitepath;
