@@ -112,6 +112,24 @@ Is equivalent to:
 .Pp
 .Dl mail -f /var/mail/user
 .El
+.Ss Startup actions
+At startup time
+.Nm
+will execute commands in the system command files
+.Pa /usr/share/misc/mail.rc ,
+.Pa /usr/local/etc/mail.rc
+and
+.Pa /etc/mail.rc
+in order, unless explicitly told not to by the use of the
+.Fl n
+option.
+Next, the commands in the user's personal command file
+.Pa ~/.mailrc
+are executed.
+.Nm
+then examines its command line options to determine whether a 
+new message is to be sent, or whether an existing mailbox is to 
+be read.
 .Ss Sending mail
 To send a message to one or more people,
 .Nm mail
