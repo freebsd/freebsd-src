@@ -220,10 +220,6 @@ smbfs_open(ap)
 	return error;
 }
 
-/*
- * XXX: VOP_CLOSE() usually called without lock held which is suck. Here we
- * do some heruistic to determine if vnode should be locked.
- */
 static int
 smbfs_close(ap)
 	struct vop_close_args /* {
@@ -238,22 +234,13 @@ smbfs_close(ap)
 	struct thread *td = ap->a_td;
 	struct smbnode *np = VTOSMB(vp);
 	struct smb_cred scred;
-	int dolock;
 
-	VI_LOCK(vp);
-	dolock = (vp->v_iflag & VI_XLOCK) == 0;
-	if (dolock)
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY | LK_INTERLOCK, td);
-	else
-		VI_UNLOCK(vp);
 	if (vp->v_type == VDIR && (np->n_flag & NOPEN) != 0 &&
 	    np->n_dirseq != NULL) {
 		smb_makescred(&scred, td, ap->a_cred);
 		smbfs_findclose(np->n_dirseq, &scred);
 		np->n_dirseq = NULL;
 	}
-	if (dolock)
-		VOP_UNLOCK(vp, 0, td);
 	return 0;
 }
 
@@ -1187,9 +1174,9 @@ smbfs_lookup(ap)
 			     return (0);
 			}
 			cache_purge(vp);
-			vput(vp);
 			if (killit)
 				vgone(vp);
+			vput(vp);
 			if (lockparent && dvp != vp && islastcn)
 				VOP_UNLOCK(dvp, 0, td);
 		}

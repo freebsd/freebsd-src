@@ -447,10 +447,7 @@ fifo_close(ap)
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
-	struct thread *td = ap->a_td;
 	struct fifoinfo *fip = vp->v_fifoinfo;
-
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 
 	if (ap->a_fflag & FREAD) {
 		fip->fi_readers--;
@@ -463,7 +460,6 @@ fifo_close(ap)
 			socantrcvmore(fip->fi_readsock);
 	}
 	fifo_cleanup(vp);
-	VOP_UNLOCK(vp, 0, td);
 	return (0);
 }
 

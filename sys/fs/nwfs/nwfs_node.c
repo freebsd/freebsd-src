@@ -297,7 +297,6 @@ nwfs_inactive(ap)
 		error = ncp_close_file(NWFSTOCONN(VTONWFS(vp)), &np->n_fh, td, cred);
 		np->opened = 0;
 	}
-	VOP_UNLOCK(vp, 0, td);
 	if (np->n_flag & NSHOULDFREE) {
 		cache_purge(vp);
 		vgone(vp);

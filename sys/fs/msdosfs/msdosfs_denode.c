@@ -695,7 +695,6 @@ msdosfs_inactive(ap)
 	deupdat(dep, 0);
 
 out:
-	VOP_UNLOCK(vp, 0, td);
 	/*
 	 * If we are done with the denode, reclaim it
 	 * so that it can be reused immediately.
