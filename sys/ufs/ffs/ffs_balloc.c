@@ -8,9 +8,6 @@
  * contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA CHATS
  * research program
  *
- * Copyright (c) 1982, 1989, 1993
- *	The Regents of the University of California.  All rights reserved.
- * (c) UNIX System Laboratories, Inc.
  * Copyright (c) 1982, 1986, 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
