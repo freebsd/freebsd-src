@@ -231,6 +231,8 @@ UINT32                      AcpiGbl_NestingLevel = 0;
 
 BOOLEAN                     AcpiGbl_DbTerminateThreads = FALSE;
 BOOLEAN                     AcpiGbl_MethodExecuting = FALSE;
+NATIVE_CHAR                 *AcpiGbl_DbDisasmIndent = "....";
+ACPI_TABLE_HEADER           *AcpiGbl_DbTablePtr = NULL;
 
 /* System flags */
 
