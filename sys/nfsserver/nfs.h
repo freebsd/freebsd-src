@@ -351,7 +351,6 @@ void	nfsrv_init(int);
 int	nfsrv_errmap(struct nfsrv_descript *, int);
 void	nfsrvw_sort(gid_t *, int);
 void	nfsrv_setcred(struct ucred *, struct ucred *);
-int	nfsrv_object_create(struct vnode *);
 void	nfsrv_wakenfsd(struct nfssvc_sock *slp);
 int	nfsrv_writegather(struct nfsrv_descript **, struct nfssvc_sock *,
 	    struct thread *, struct mbuf **);
