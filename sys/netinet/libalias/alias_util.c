@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
     Initial Version:  August, 1996  (cjm)
 
     Version 1.7:  January 9, 1997
-         Added differential checksum update function.
+	 Added differential checksum update function.
 */
 
 /*
