@@ -496,13 +496,6 @@ installkernel reinstallkernel:
 	    ${CROSSENV} ${MAKE} KERNEL=${INSTKERNNAME} ${.TARGET:S/kernel$//}
 
 #
-# kernel
-#
-# Short hand for `make buildkernel installkernel'
-#
-kernel: buildkernel installkernel
-
-#
 # update
 #
 # Update the source tree, by running sup and/or running cvs to update to the
