@@ -34,7 +34,6 @@ SUBDIR=	IPXrouted \
 	fdread \
 	fdwrite \
 	getextattr \
-	gifconfig \
 	ifmcstat \
 	inetd \
 	iostat \
