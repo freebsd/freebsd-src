@@ -46,7 +46,7 @@
  * in Germany will I accept domestic beer.  This code may or may not work
  * and I certainly make no claims as to its fitness for *any* purpose.
  * 
- * $Id$
+ * $Id: kern_threads.c,v 1.1 1997/06/16 00:27:26 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -80,13 +80,12 @@
  */
 int
 thr_sleep(struct proc *p, struct thr_sleep_args *uap, int *retval) {
-	int sleepStart;
-	long long sleeptime;
-	int sleepclocks;
+	int sleepstart;
 	struct timespec ts;
-	int error;
+	struct timeval atv, utv;
+	int error, s, timo;
 
-	sleepclocks = 0;
+	timo = 0;
 	if (uap->timeout != 0) {
 		/*
 		 * Get timespec struct
@@ -95,24 +94,33 @@ thr_sleep(struct proc *p, struct thr_sleep_args *uap, int *retval) {
 			p->p_wakeup = 0;
 			return error;
 		}
-		sleeptime = (long long) (hz * ts.tv_nsec);
-		sleeptime /= 1000000000LL;
-		sleeptime += ts.tv_sec * hz;
-		sleepclocks = sleeptime;
-		if (sleepclocks != sleeptime) {
+		if (ts.tv_nsec < 0 || ts.tv_nsec >= 1000000000) {
 			p->p_wakeup = 0;
-			retval[0] = EINVAL;
-			return 0;
+			return (EINVAL);
 		}
-		if (sleepclocks == 0)
-			sleepclocks = 1;
+		TIMESPEC_TO_TIMEVAL(&atv, &ts)
+		if (itimerfix(&atv)) {
+			p->p_wakeup = 0;
+			return (EINVAL);
+		}
+
+		/*
+		 * XXX this is not as careful as settimeofday() about minimising
+		 * interrupt latency.  The hzto() interface is inconvenient as usual.
+		 */
+		s = splclock();
+		timevaladd(&atv, &time);
+		timo = hzto(&atv);
+		splx(s);
+		if (timo == 0)
+			timo = 1;
 	}
 
 	retval[0] = 0;
 	if (p->p_wakeup == 0) {
-		sleepStart = ticks;
+		sleepstart = ticks;
 		p->p_flag |= P_SINTR;
-		error = tsleep(p, PUSER, "thrslp", sleepclocks);
+		error = tsleep(p, PUSER, "thrslp", timo);
 		p->p_flag &= ~P_SINTR;
 		if (error == EWOULDBLOCK) {
 			p->p_wakeup = 0;
@@ -120,7 +128,7 @@ thr_sleep(struct proc *p, struct thr_sleep_args *uap, int *retval) {
 			return 0;
 		}
 		if (uap->timeout == 0)
-			retval[0] = ticks - sleepStart;
+			retval[0] = ticks - sleepstart;
 	}
 	p->p_wakeup = 0;
 	return (0);

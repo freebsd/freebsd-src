@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)malloc.h	8.5 (Berkeley) 5/3/95
- * $Id$
+ * $Id: malloc.h,v 1.20 1997/02/22 09:45:32 peter Exp $
  */
 
 #ifndef _SYS_MALLOC_H_
@@ -134,7 +134,8 @@
 #define	M_GEOM_REQ	87	/* geometry request */
 #define	M_GEOM_MISC	88	/* geometry misc */
 #define M_VFSCONF	89	/* vfsconf structure */
-#define	M_LAST		90	/* Must be last type + 1 */
+#define M_AIO		90	/* AIO structure(s) */
+#define	M_LAST		91	/* Must be last type + 1 */
 
 #define INITKMEMNAMES { \
 	"free",		/* 0 M_FREE */ \
@@ -224,6 +225,7 @@
 	"GEOM req",	/* 87 M_GEOM_REQ */ \
 	"GEOM misc",	/* 88 M_GEOM_MISC */ \
 	"VFS conf",	/* 89 M_VFSCONF */ \
+	"AIO",		/* 90 M_AIO */ \
 }
 
 struct kmemstats {
