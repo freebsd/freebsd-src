@@ -35,16 +35,24 @@
 
 extern	char	sigcode[];
 extern	int	szsigcode;
+extern	char	tl0_base[];
+extern	char	_end[];
+
 extern	int	Maxmem;
+
+extern	vm_offset_t kstack0;
+extern	vm_offset_t kstack0_phys;
 
 struct	dbreg;
 struct	fpreg;
 struct	thread;
 struct	reg;
+struct	pcpu;
 
 void	cpu_halt(void);
 void	cpu_identify(u_int clock);
 void	cpu_reset(void);
+void	cpu_setregs(struct pcpu *pc);
 int	is_physical_memory(vm_offset_t addr);
 void	swi_vm(void *v);
 
