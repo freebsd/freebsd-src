@@ -42,7 +42,11 @@
 /* XXX too much duplication in various asm*.h's. */
 
 #define ALIGN_DATA	.align	2	/* 4 byte alignment, zero filled */
+#ifdef GPROF
+#define ALIGN_TEXT	.align	4,0x90	/* 16-byte alignment, nop filled */
+#else
 #define ALIGN_TEXT	.align	2,0x90	/* 4-byte alignment, nop filled */
+#endif
 #define SUPERALIGN_TEXT	.align	4,0x90	/* 16-byte alignment, nop filled */
 
 #define GEN_ENTRY(name)		ALIGN_TEXT; .globl __CONCAT(_,name); \
