@@ -806,8 +806,6 @@ siclose(dev_t dev, int flag, int mode, struct thread *td)
 		pp->sp_state &= ~SS_LSTART;
 	}
 
-	si_stop(tp, FREAD | FWRITE);
-
 	sihardclose(pp);
 	ttyclose(tp);
 	pp->sp_state &= ~SS_OPEN;
