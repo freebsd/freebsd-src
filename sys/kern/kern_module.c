@@ -23,12 +23,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_module.c,v 1.17 1999/05/08 13:01:57 peter Exp $
+ *	$Id: kern_module.c,v 1.18 1999/05/20 00:00:58 peter Exp $
  */
 
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/eventhandler.h>
 #include <sys/malloc.h>
 #include <sys/sysproto.h>
 #include <sys/sysent.h>
@@ -56,19 +57,20 @@ struct module {
 static modulelist_t modules;
 static int nextid = 1;
 
-static void module_shutdown(int, void*);
+static void module_shutdown(void*, int);
 
 static void
 module_init(void* arg)
 {
     TAILQ_INIT(&modules);
-    at_shutdown(module_shutdown, 0, SHUTDOWN_POST_SYNC);
+    EVENTHANDLER_REGISTER(shutdown_post_sync, module_shutdown, NULL,
+			  SHUTDOWN_PRI_DEFAULT);
 }
 
 SYSINIT(module, SI_SUB_KLD, SI_ORDER_FIRST, module_init, 0);
 
 static void
-module_shutdown(int arg1, void* arg2)
+module_shutdown(void* arg1, int arg2)
 {
     module_t mod;
 

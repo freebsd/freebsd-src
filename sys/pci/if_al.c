@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_al.c,v 1.5 1999/07/02 04:17:12 peter Exp $
+ *	$Id: if_al.c,v 1.6 1999/07/06 19:23:22 des Exp $
  */
 
 /*
@@ -90,7 +90,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_al.c,v 1.5 1999/07/02 04:17:12 peter Exp $";
+	"$Id: if_al.c,v 1.6 1999/07/06 19:23:22 des Exp $";
 #endif
 
 /*
@@ -137,7 +137,7 @@ static int al_ioctl		__P((struct ifnet *, u_long, caddr_t));
 static void al_init		__P((void *));
 static void al_stop		__P((struct al_softc *));
 static void al_watchdog		__P((struct ifnet *));
-static void al_shutdown		__P((int, void *));
+static void al_shutdown		__P((void *, int));
 static int al_ifmedia_upd	__P((struct ifnet *));
 static void al_ifmedia_sts	__P((struct ifnet *, struct ifmediareq *));
 
@@ -1069,7 +1069,8 @@ al_attach(config_id, unit)
 #if NBPF > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
-	at_shutdown(al_shutdown, sc, SHUTDOWN_POST_SYNC);
+	EVENTHANDLER_REGISTER(shutdown_post_sync, al_shutdown, sc,
+			      SHUTDOWN_PRI_DEFAULT);
 
 fail:
 	splx(s);
@@ -1976,9 +1977,9 @@ static void al_stop(sc)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void al_shutdown(howto, arg)
-	int			howto;
+static void al_shutdown(arg, howto)
 	void			*arg;
+	int			howto;
 {
 	struct al_softc		*sc = (struct al_softc *)arg;
 

@@ -1,5 +1,5 @@
 /*	$OpenBSD: if_tx.c,v 1.3 1998/10/10 04:30:09 jason Exp $	*/
-/*	$Id: if_tx.c,v 1.28 1999/07/03 20:17:05 peter Exp $ */
+/*	$Id: if_tx.c,v 1.29 1999/07/06 19:23:30 des Exp $ */
 
 /*-
  * Copyright (c) 1997 Semen Ustimenko (semen@iclub.nsu.ru)
@@ -378,7 +378,7 @@ epic_shutdown(
 
 static const char* epic_freebsd_probe __P((pcici_t, pcidi_t));
 static void epic_freebsd_attach __P((pcici_t, int));
-static void epic_shutdown __P((int, void *));
+static void epic_shutdown __P((void *, int));
 
 /* Global variables */
 static u_long epic_pci_count;
@@ -546,7 +546,8 @@ epic_freebsd_attach(
 	}
 
 	/* Set shut down routine to stop DMA processes on reboot */
-	at_shutdown(epic_shutdown, sc, SHUTDOWN_POST_SYNC);
+	EVENTHANDLER_REGISTER(shutdown_post_sync, epic_shutdown, sc,
+			      SHUTDOWN_PRI_DEFAULT);
 
 	/*  Attach to if manager */
 	if_attach(ifp);
@@ -565,8 +566,8 @@ epic_freebsd_attach(
 
 static void
 epic_shutdown(
-    int howto,
-    void *sc)
+    void *sc,
+    int howto)
 {
 	epic_stop(sc);
 }

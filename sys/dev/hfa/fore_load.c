@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: fore_load.c,v 1.8 1999/05/10 22:53:45 mks Exp $
+ *	@(#) $Id: fore_load.c,v 1.9 1999/05/30 16:51:25 phk Exp $
  *
  */
 
@@ -38,7 +38,7 @@
 #include <dev/hfa/fore_include.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: fore_load.c,v 1.8 1999/05/10 22:53:45 mks Exp $");
+__RCSID("@(#) $Id: fore_load.c,v 1.9 1999/05/30 16:51:25 phk Exp $");
 #endif
 
 
@@ -59,7 +59,7 @@ static void	fore_pci_attach __P((pcici_t, int));
 #if BSD < 199506
 static int	fore_pci_shutdown __P((struct kern_devconf *, int));
 #else
-static void	fore_pci_shutdown __P((int, void *));
+static void	fore_pci_shutdown __P((void *, int));
 #endif
 #endif
 static void	fore_unattach __P((Fore_unit *));
@@ -1055,7 +1055,8 @@ fore_pci_attach(config_id, unit)
 	/*
 	 * Add hook to our shutdown function
 	 */
-	at_shutdown(fore_pci_shutdown, fup, SHUTDOWN_POST_SYNC);
+	EVENTHANDLER_REGISTER(shutdown_post_sync, fore_pci_shutdown, fup,
+			      SHUTDOWN_PRI_DEFAULT);
 #endif
 
 	/*
@@ -1125,9 +1126,9 @@ fore_pci_shutdown(kdc, force)
  *
  */
 static void
-fore_pci_shutdown(howto, fup)
-	int		howto;
+fore_pci_shutdown(fup, howto)
 	void		*fup;
+	int		howto;
 {
 
 	fore_reset((Fore_unit *) fup);

@@ -43,7 +43,7 @@
  *	       arrays that span controllers (Wow!).
  */
 
-#ident "$Id: dpt_scsi.c,v 1.23 1999/05/06 20:16:22 ken Exp $"
+#ident "$Id: dpt_scsi.c,v 1.24 1999/08/16 01:49:35 gibbs Exp $"
 
 #define _DPT_C_
 
@@ -155,7 +155,7 @@ static void		dptprocesserror(dpt_softc_t *dpt, dpt_ccb_t *dccb,
 					u_int scsi_stat, u_int32_t resid);
 
 static void		dpttimeout(void *arg);
-static void		dptshutdown(int howto, void *arg);
+static void		dptshutdown(void *arg, int howto);
 
 /* ================= Private Inline Function definitions ====================*/
 static __inline int
@@ -1407,7 +1407,8 @@ dpt_attach(dpt_softc_t *dpt)
 
 	}
 	if (i > 0)
-		at_shutdown(dptshutdown, dpt, SHUTDOWN_FINAL);
+		EVENTHANDLER_REGISTER(shutdown_final, dptshutdown,
+				      dpt, SHUTDOWN_PRI_DEFAULT);
 	return (i);
 }
 
@@ -1639,10 +1640,10 @@ dpttimeout(void *arg)
 
 /*
  * Shutdown the controller and ensure that the cache is completely flushed.
- * Called via at_shutdown(9) after all disk access has completed.
+ * Called from the shutdown_final event after all disk access has completed.
  */
 static void
-dptshutdown(int howto, void *arg)
+dptshutdown(void *arg, int howto)
 {
 	dpt_softc_t *dpt;
 
