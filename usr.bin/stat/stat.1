@@ -1,4 +1,4 @@
-.\"	$NetBSD: stat.1,v 1.5 2002/07/08 18:48:42 atatat Exp $
+.\"	$NetBSD: stat.1,v 1.11 2003/05/08 13:07:10 wiz Exp $
 .\"
 .\" Copyright (c) 2002 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -36,7 +36,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 24, 2002
+.Dd May 8, 2003
 .Dt STAT 1
 .Os
 .Sh NAME
@@ -65,14 +65,15 @@ utility displays information about the file pointed to by
 .Ar file .
 Read, write or execute permissions of the named file are not required, but
 all directories listed in the path name leading to the file must be
-searchable.  If no argument is given,
+searchable.
+If no argument is given,
 .Nm
 displays information about the file descriptor for standard input.
 .Pp
 When invoked as
 .Nm readlink ,
-only the target of the symbolic link is printed.  If the given argument
-is not a symbolic link,
+only the target of the symbolic link is printed.
+If the given argument is not a symbolic link,
 .Nm readlink
 will print nothing and exit with an error.
 .Pp
@@ -88,7 +89,8 @@ As in
 display a slash (/) immediately after each pathname that is a directory, an
 asterisk (*) after each that is executable, an at sign (@) after each symbolic
 link, a percent sign (%) after each whiteout, an equal sign (=) after each
-socket, and a vertical bar (|) after each that is a FIFO.  The use of
+socket, and a vertical bar (|) after each that is a FIFO.
+The use of
 .Fl F
 implies
 .Fl l .
@@ -116,14 +118,16 @@ When run as
 .Nm readlink ,
 error messages are automatically suppressed.
 .It Fl f Ar format
-Display information using the specified format.  See the FORMATS section
+Display information using the specified format.
+See the FORMATS section
 for a description of valid formats.
 .It Fl l
 Display output in
 .Ic ls Fl lT
 format.
 .It Fl r
-Display raw information.  That is, for all the fields in the stat-structure,
+Display raw information.
+That is, for all the fields in the stat-structure,
 display the raw, numerical value (for example, times in seconds since the
 epoch, etc.)
 .It Fl s
@@ -132,7 +136,8 @@ Display information in ``shell output'', suitable for initializing variables.
 Display information in a more verbose way as known from some Linux
 distributions.
 .It Fl t Ar timefmt
-Display timestamps using the specified format.  This format is
+Display timestamps using the specified format.
+This format is
 passed directly to
 .Xr strftime 3 .
 .El
@@ -143,7 +148,8 @@ formats in that they start with
 .Cm % ,
 are then followed by a sequence of formatting characters, and end in
 a character that selects the field of the struct stat which is to be
-formatted.  If the
+formatted.
+If the
 .Cm %
 is immediately followed by one of
 .Cm n ,
@@ -163,7 +169,8 @@ Non-zero octal output will have a leading zero, and non-zero
 hexadecimal output will have ``0x'' prepended to it.
 .It Cm +
 Asserts that a sign indicating whether a number is positive or negative
-should always be printed.  Non-negative numbers are not usually printed
+should always be printed.
+Non-negative numbers are not usually printed
 with a sign.
 .It Cm -
 Aligns string output to the left of the field, instead of to the right.
@@ -171,7 +178,8 @@ Aligns string output to the left of the field, instead of to the right.
 Sets the fill character for left padding to the 0 character, instead of
 a space.
 .It space
-Reserves a space at the front of non-negative signed output fields.  A
+Reserves a space at the front of non-negative signed output fields.
+A
 .Sq Cm +
 overrides a space if both are used.
 .El
@@ -197,7 +205,8 @@ or
 .Cm S .
 These represent signed decimal output, octal output, unsigned decimal
 output, hexadecimal output, floating point output, and string output,
-respectively.  Some output formats do not apply to all fields.
+respectively.
+Some output formats do not apply to all fields.
 Floating point output only applies to timespec fields (the
 .Cm a ,
 .Cm m ,
@@ -208,7 +217,8 @@ fields).
 The special output specifier
 .Cm S
 may be used to indicate that the output, if
-applicable, should be in string format.  May be used in combination with
+applicable, should be in string format.
+May be used in combination with
 .Bl -tag -width Ds
 .It Cm amc
 Display date in strftime(3) format.
@@ -228,21 +238,24 @@ Displays the name of
 Displays the type of
 .Ar file .
 .It Cm Y
-Insert a `` -\*[Gt] '' into the output.  Note that the default output format
+Insert a `` -\*[Gt] '' into the output.
+Note that the default output format
 for
 .Cm Y
 is a string, but if specified explicitly, these four characters are
 prepended.
 .El
 .It Cm sub
-An optional sub field specifier (high, middle, low).  Only applies to
+An optional sub field specifier (high, middle, low).
+Only applies to
 the
 .Cm p ,
 .Cm d ,
 .Cm r ,
 and
 .Cm T
-output formats.  It can be one of the following:
+output formats.
+It can be one of the following:
 .Bl -tag -width Ds
 .It Cm H
 ``High'' -- specifies the major number for devices from
@@ -299,10 +312,11 @@ User-id and group-id of
 owner.
 .It Cm r
 Device number for character and block device special files.
-.It Cm a , m , c
+.It Cm a , m , c , B
 The time
 .Ar file
-was last accessed, modified, or of when the inode was last changed.
+was last accessed or modified, of when the inode was last changed, or
+the birth time of the inode.
 .It Cm z
 The size of
 .Ar file
@@ -340,8 +354,8 @@ special devices and gives size output for all others.
 .Pp
 Only the
 .Cm %
-and the field specifier are required.  Most field
-specifiers default to
+and the field specifier are required.
+Most field specifiers default to
 .Cm U
 as an output form, with the
 exception of
@@ -371,7 +385,7 @@ as follows:
 lrwxrwxrwx 1 jschauma cs 1 Apr 24 16:37:28 2002 /tmp/foo@ -\*[Gt] /
 
 \*[Gt] stat -LF /tmp/foo
-lrwxrwxrwx 16 root wheel 512 Apr 19 10:57:54 2002 /tmp/foo/
+drwxr-xr-x 16 root wheel 512 Apr 19 10:57:54 2002 /tmp/foo/
 .Ed
 .Pp
 To initialize some shell-variables, you could use the
@@ -447,8 +461,9 @@ utility appeared in
 .Sh AUTHORS
 The
 .Nm
-utility was written by Andrew Brown
-.Aq atatat@netbsd.org .
-This man page
-was written by Jan Schaumann
-.Aq jschauma@netbsd.org .
+utility was written by
+.An Andrew Brown
+.Aq atatat@NetBSD.org .
+This man page was written by
+.An Jan Schaumann
+.Aq jschauma@NetBSD.org .
