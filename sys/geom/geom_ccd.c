@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.29 1998/02/15 08:14:39 jkh Exp $ */
+/* $Id: ccd.c,v 1.30 1998/02/15 08:28:26 jkh Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -885,6 +885,7 @@ ccdbuffer(cb, cs, bp, bn, addr, bcount)
 	 * Fill in the component buf structure.
 	 */
 	cbp = getccdbuf();
+	bzero(cbp, sizeof (struct ccdbuf));
 	cbp->cb_buf.b_flags = bp->b_flags | B_CALL;
 	cbp->cb_buf.b_iodone = (void (*)(struct buf *))ccdiodone;
 	cbp->cb_buf.b_proc = bp->b_proc;
@@ -919,6 +920,7 @@ ccdbuffer(cb, cs, bp, bn, addr, bcount)
 	    (cbp->cb_buf.b_flags & B_READ) == 0) {
 		/* mirror, start one more write */
 		cbp = getccdbuf();
+		bzero(cbp, sizeof (struct ccdbuf));
 		*cbp = *cb[0];
 		cbp->cb_buf.b_dev = ci2->ci_dev;
 		cbp->cb_buf.b_vp = ci2->ci_vp;
