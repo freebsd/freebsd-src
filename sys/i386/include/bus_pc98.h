@@ -46,6 +46,8 @@
 #ifndef _I386_BUS_PC98_H_
 #define _I386_BUS_PC98_H_
 
+#include <sys/systm.h>
+
 #include <machine/cpufunc.h>
 
 /*
