@@ -601,7 +601,7 @@ kqueue_register(struct kqueue *kq, struct kevent *kev, struct thread *td)
 			/*
 			 * The user may change some filter values after the
 			 * initial EV_ADD, but doing so will not reset any 
-			 * filter which have already been triggered.
+			 * filter which has already been triggered.
 			 */
 			kn->kn_sfflags = kev->fflags;
 			kn->kn_sdata = kev->data;
