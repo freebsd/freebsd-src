@@ -1505,7 +1505,6 @@ pci/if_xl.c		optional xl
 pci/intpm.c		optional intpm
 pci/meteor.c		count meteor pci nowerror
 pci/ncr.c		optional ncr
-pci/simos.c		optional simos nowerror
 pci/viapm.c		optional viapm
 pci/xrpu.c		optional xrpu
 posix4/ksched.c	optional _kposix_priority_scheduling

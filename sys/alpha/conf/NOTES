@@ -253,7 +253,3 @@ device		cardbus
 
 #####################################################################
 # SIMULATOR OPTIONS
-
-# Include support for running under the SIMOS simulator.
-device		simos
-options 	SIMOS
