@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.18 1997/05/05 14:11:09 kato Exp $
+ *	$Id: identcpu.c,v 1.19 1997/05/05 14:30:00 kato Exp $
  */
 
 #include "opt_cpu.h"
@@ -157,6 +157,21 @@ printcpuinfo(void)
 		 */
 		strcpy(cpu_model, "AMD ");
 		switch (cpu_id & 0xFF0) {
+		case 0x410:
+			strcat(cpu_model, "Standard Am486DX");
+			break;
+		case 0x430:
+			strcat(cpu_model, "Am486DX2/4 Write-Through");
+			break;
+		case 0x470:
+			strcat(cpu_model, "Enhanced Am486DX4 Write-Back");
+			break;
+		case 0x480:
+			strcat(cpu_model, "Enhanced Am486DX4 Write-Through");
+			break;
+		case 0x490:
+			strcat(cpu_model, "Enhanced Am486DX4 Write-Back");
+			break;
 		case 0x4E0:
 			strcat(cpu_model, "Am5x86 Write-Through");
 			break;
