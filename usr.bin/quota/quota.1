@@ -68,18 +68,18 @@ of which the user is a member.
 .It Fl l
 Do not report quotas on
 .Tn NFS
-filesystems.
+file systems.
 .It Fl q
 Print a more terse message,
 containing only information
-on filesystems where usage is over quota.
+on file systems where usage is over quota.
 .It Fl u
 Print the user quotas.
 This is the default unless
 .Fl g
 is specified.
 .It Fl v
-Display quotas on filesystems
+Display quotas on file systems
 where no storage is allocated.
 .El
 .Pp
@@ -109,8 +109,8 @@ flag.
 .Pp
 The
 .Nm
-utility tries to report the quotas of all mounted filesystems.
-If the filesystem is mounted via
+utility tries to report the quotas of all mounted file systems.
+If the file system is mounted via
 .Tn NFS ,
 it will attempt to contact the
 .Xr rpc.rquotad 8
@@ -119,11 +119,11 @@ daemon on the
 server.
 For
 .Tn UFS
-filesystems, quotas must be turned on in
+file systems, quotas must be turned on in
 .Pa /etc/fstab .
 If
 .Nm
-exits with a non-zero status, one or more filesystems
+exits with a non-zero status, one or more file systems
 are over quota.
 .Pp
 If the
@@ -132,15 +132,15 @@ flag is specified,
 .Nm
 will not check
 .Tn NFS
-filesystems.
+file systems.
 .Sh FILES
 .Bl -tag -width quota.group -compact
 .It Pa quota.user
-located at the filesystem root with user quotas
+located at the file system root with user quotas
 .It Pa quota.group
-located at the filesystem root with group quotas
+located at the file system root with group quotas
 .It Pa /etc/fstab
-to find filesystem names and locations
+to find file system names and locations
 .El
 .Sh HISTORY
 The
