@@ -596,8 +596,17 @@ typedef int		pid_t;
 # endif
 # if defined(__FreeBSD__)
 #  undef SPT_TYPE
-#  define SPT_TYPE	SPT_REUSEARGV
-#  define SPT_PADCHAR	'\0'	/* pad process title with nulls */
+#  if __FreeBSD__ == 2
+#   include <osreldate.h>		/* and this works */
+#   if __FreeBSD_version >= 199512	/* 2.2-current right now */
+#    define SPT_TYPE	SPT_BUILTIN
+#    include <libutil.h>
+#   endif
+#  endif
+#  ifndef SPT_TYPE
+#   define SPT_TYPE	SPT_REUSEARGV
+#   define SPT_PADCHAR	'\0'	/* pad process title with nulls */
+#  endif
 # endif
 #endif
 
