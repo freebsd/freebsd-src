@@ -222,7 +222,7 @@ draw:
 		}
 		delwin(save);
 	    }
-	    else {
+	    else if (result) {
 		*result = '\0';
 		for (i = 0; i < item_no; i++) {
 		    if (status[i]) {
