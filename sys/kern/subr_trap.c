@@ -253,8 +253,14 @@ ast(struct trapframe *framep)
 			sigs++;
 		}
 		PROC_UNLOCK(p);
-		if (p->p_flag & P_THREADED && sigs)
-			thread_signal_upcall(td);
+		if (p->p_flag & P_THREADED && sigs) {
+			struct kse_upcall *ku = td->td_upcall;
+			if ((void *)TRAPF_PC(framep) != ku->ku_func) {
+				mtx_lock_spin(&sched_lock);
+				ku->ku_flags |= KUF_DOUPCALL;
+				mtx_unlock_spin(&sched_lock);
+			}
+		}
 	}
 
 	userret(td, framep, sticks);
