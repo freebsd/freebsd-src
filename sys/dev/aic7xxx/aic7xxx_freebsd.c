@@ -68,25 +68,24 @@ static void	ahc_setup_data(struct ahc_softc *ahc, struct cam_sim *sim,
 static void	ahc_abort_ccb(struct ahc_softc *ahc, struct cam_sim *sim,
 			      union ccb *ccb);
 static int	ahc_create_path(struct ahc_softc *ahc,
-				struct ahc_devinfo *devinfo,
+				char channel, u_int target, u_int lun,
 				struct cam_path **path);
 
 static void	ahc_set_recoveryscb(struct ahc_softc *ahc, struct scb *scb);
 
 static int
-ahc_create_path(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
-		     struct cam_path **path)
+ahc_create_path(struct ahc_softc *ahc, char channel, u_int target,
+	        u_int lun, struct cam_path **path)
 {
 	path_id_t path_id;
 
-	if (devinfo->channel == 'B')
+	if (channel == 'B')
 		path_id = cam_sim_path(ahc->platform_data->sim_b);
 	else 
 		path_id = cam_sim_path(ahc->platform_data->sim);
 
 	return (xpt_create_path(path, /*periph*/NULL,
-				path_id, devinfo->target,
-				devinfo->lun));
+				path_id, target, lun));
 }
 
 /*
@@ -1713,18 +1712,16 @@ ahc_abort_ccb(struct ahc_softc *ahc, struct cam_sim *sim, union ccb *ccb)
 }
 
 void
-ahc_send_async(struct ahc_softc *ahc, struct ahc_devinfo *devinfo, ac_code code)
+ahc_send_async(struct ahc_softc *ahc, char channel, u_int target,
+		u_int lun, ac_code code)
 {
-	struct ahc_devinfo mod_devinfo;
 	struct	ccb_trans_settings cts;
 	struct cam_path *path;
 	void *arg;
 	int error;
 
-	mod_devinfo = *devinfo;
-	mod_devinfo.lun = CAM_LUN_WILDCARD;
 	arg = NULL;
-	error = ahc_create_path(ahc, &mod_devinfo, &path);
+	error = ahc_create_path(ahc, channel, target, lun, &path);
 
 	if (error != CAM_REQ_CMP)
 		return;
@@ -1737,10 +1734,11 @@ ahc_send_async(struct ahc_softc *ahc, struct ahc_devinfo *devinfo, ac_code code)
 		cts.flags = CCB_TRANS_CURRENT_SETTINGS;
 #endif
 		cts.ccb_h.path = path;
-		cts.ccb_h.target_id = devinfo->target;
-		cts.ccb_h.target_lun = devinfo->lun;
-		ahc_get_tran_settings(ahc, devinfo->our_scsiid,
-				      devinfo->channel, &cts);
+		cts.ccb_h.target_id = target;
+		cts.ccb_h.target_lun = lun;
+		ahc_get_tran_settings(ahc, channel == 'A' ? ahc->our_id
+							  : ahc->our_id_b,
+				      channel, &cts);
 		arg = &cts;
 		break;
 	case AC_SENT_BDR:

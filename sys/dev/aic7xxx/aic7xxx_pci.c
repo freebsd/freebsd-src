@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: //depot/src/aic7xxx/aic7xxx_pci.c#4 $
  *
  * $FreeBSD$
  */
@@ -1569,25 +1569,29 @@ read_brdctl(ahc)
 void
 ahc_pci_intr(struct ahc_softc *ahc)
 {
-	uint8_t status1;
+	u_int error;
+	u_int status1;
+
+	error = ahc_inb(ahc, ERROR);
+	if ((error & PCIERRSTAT) == 0)
+		return;
 
 	status1 = ahc_pci_read_config(ahc->dev_softc,
 				      PCIR_STATUS + 1, /*bytes*/1);
 
-	if (status1 & (DPE|SSE|RMA|RTA|STA|DPR)) {
-		printf("%s: PCI Interrupt at seqaddr = 0x%x\n",
-		      ahc_name(ahc),
-		      ahc_inb(ahc, SEQADDR0) | (ahc_inb(ahc, SEQADDR1) << 8));
-	}
+	printf("%s: PCI error Interrupt at seqaddr = 0x%x\n",
+	      ahc_name(ahc),
+	      ahc_inb(ahc, SEQADDR0) | (ahc_inb(ahc, SEQADDR1) << 8));
+
 	if (status1 & DPE) {
 		printf("%s: Data Parity Error Detected during address "
 		       "or write data phase\n", ahc_name(ahc));
 	}
 	if (status1 & SSE) {
-		printf("%s: Signal System Error Detected\n", ahc_name(ahc));
+		printf("%s: Signaled System Error Detected\n", ahc_name(ahc));
 	}
 	if (status1 & RMA) {
-		printf("%s: Received a Master Abort\n", ahc_name(ahc));
+		printf("%s: Signaled a Master Abort\n", ahc_name(ahc));
 	}
 	if (status1 & RTA) {
 		printf("%s: Received a Target Abort\n", ahc_name(ahc));
@@ -1609,6 +1613,8 @@ ahc_pci_intr(struct ahc_softc *ahc)
 	if (status1 & (DPR|RMA|RTA)) {
 		ahc_outb(ahc, CLRINT, CLRPARERR);
 	}
+
+	unpause_sequencer(ahc);
 }
 
 static int

@@ -137,6 +137,7 @@ ahc_pci_map_registers(struct ahc_softc *ahc)
 	regs = NULL;
 	regs_type = 0;
 	regs_id = 0;
+#ifdef AHC_ALLOW_MEMIO
 	if ((command & PCIM_CMD_MEMEN) != 0) {
 		regs_type = SYS_RES_MEMORY;
 		regs_id = AHC_PCI_MEMADDR;
@@ -163,6 +164,7 @@ ahc_pci_map_registers(struct ahc_softc *ahc)
 			}
 		}
 	}
+#endif
 	if (regs == NULL && (command & PCIM_CMD_PORTEN) != 0) {
 		regs_type = SYS_RES_IOPORT;
 		regs_id = AHC_PCI_IOADDR;

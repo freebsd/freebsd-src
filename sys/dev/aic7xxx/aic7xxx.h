@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: //depot/src/aic7xxx/aic7xxx.h#4 $
  *
  * $FreeBSD$
  */
@@ -897,8 +897,8 @@ struct ahc_softc {
 	 */
 	uint8_t			  send_msg_perror;
 	ahc_msg_type		  msg_type;
-	uint8_t			  msgout_buf[8];/* Message we are sending */
-	uint8_t			  msgin_buf[8];	/* Message we are receiving */
+	uint8_t			  msgout_buf[12];/* Message we are sending */
+	uint8_t			  msgin_buf[12];/* Message we are receiving */
 	u_int			  msgout_len;	/* Length of message to send */
 	u_int			  msgout_index;	/* Current index in msgout */
 	u_int			  msgin_index;	/* Current index in msgin */
