@@ -240,7 +240,7 @@
 
     <para>The &man.mount.nwfs.8;, &man.mount.portalfs.8;, and
       &man.mount.smbfs.8; utilities have been moved from
-      <filename>/sbin</filename> to <filename>/usr/sbin</filename>.
+      <filename>/sbin</filename> to <filename>/usr/sbin</filename>.</para>
 
     <para>The &man.pam.guest.8; PAM module has been added to allow
       guest logins.  It replaces the pam_ftp(8) module.</para>
