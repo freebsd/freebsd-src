@@ -718,6 +718,20 @@ pmap_kremove(vm_offset_t va)
 }
 
 /*
+ * Inverse of pmap_kenter_flags, used by bus_space_unmap().
+ */
+void
+pmap_kremove_flags(vm_offset_t va)
+{
+	struct tte *tp;
+
+	tp = tsb_kvtotte(va);
+	CTR3(KTR_PMAP, "pmap_kremove: va=%#lx tp=%p data=%#lx", va, tp,
+	    tp->tte_data);
+	TTE_ZERO(tp);
+}
+
+/*
  * Map a range of physical addresses into kernel virtual address space.
  *
  * The value passed in *virt is a suggested virtual address for the mapping.
