@@ -47,23 +47,26 @@ utility is a network server for GEOM Gate class.
 It runs on a server machine to service GEOM Gate requests from workers
 placed on a client machine.
 Keep in mind, that connection between
-.Nm ggatec
+.Xr ggatec 8
 and
-.Nm ggated
+.Nm
 is not encrypted.
 .Pp
 Available options:
-.Bl -tag -width ".Ar exports file"
+.Bl -tag -width ".Ar exports\ file"
 .It Fl a Ar address
 Specifies an IP address to bind to.
 .It Fl h
 Print available options.
 .It Fl n
-Do not use TCP_NODELAY option on TCP sockets.
+Do not use
+.Dv TCP_NODELAY
+option on TCP sockets.
 .It Fl p Ar port
 Port on which
 .Nm
-listens for connection. Default is 3080.
+listens for connection.
+Default is 3080.
 .It Fl R Ar rcvbuf
 Size of receive buffer to use.
 Default is 131072 (128kB).
@@ -83,16 +86,13 @@ The format of an exports file is as follows:
 1.2.3.0/24	RW	/tmp/test.img
 hostname	WO	/tmp/image
 .Ed
-.Pp
 .Sh EXAMPLES
-Export CD\-ROM device and a file:
-.Pp
+Export CD-ROM device and a file:
 .Bd -literal -offset indent
 # echo "1.2.3.0/24 RO /dev/acd0" > /etc/gg.exports
 # echo "client RW /image" >> /etc/gg.exports
 # ggated
 .Ed
-.Pp
 .Sh DIAGNOSTICS
 Exit status is 0 on success, or 1 if the command fails.
 To get details about the failure,
@@ -108,6 +108,4 @@ option.
 The
 .Nm
 utility as well as this manual page was written by
-.An -split
 .An Pawel Jakub Dawidek Aq pjd@FreeBSD.org .
-.An -nosplit

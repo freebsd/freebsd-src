@@ -32,10 +32,10 @@
 .Nd "GEOM Gate network client and control utility"
 .Sh SYNOPSIS
 .Nm
-.Ar create
+.Cm create
 .Op Fl n
 .Op Fl v
-.Op Fl o Ar ro | wo | rw
+.Op Fl o Cm ro | wo | rw
 .Op Fl p Ar port
 .Op Fl q Ar queue_size
 .Op Fl R Ar rcvbuf
@@ -46,10 +46,10 @@
 .Ar host
 .Ar path
 .Nm
-.Ar attach
+.Cm attach
 .Op Fl n
 .Op Fl v
-.Op Fl o Ar ro | wo | rw
+.Op Fl o Cm ro | wo | rw
 .Op Fl p Ar port
 .Op Fl R Ar rcvbuf
 .Op Fl S Ar sndbuf
@@ -57,11 +57,11 @@
 .Ar host
 .Ar path
 .Nm
-.Ar destroy
+.Cm destroy
 .Op Fl f
 .Fl u Ar unit
 .Nm
-.Ar list
+.Cm list
 .Op Fl v
 .Op Fl u Ar unit
 .Sh DESCRIPTION
@@ -73,49 +73,51 @@ It is responsible for creation of
 devices and forwarding I/O requests between
 .Nm geom_gate.ko
 kernel module and
-.Nm ggated
+.Xr ggated 8
 network daemon.
 Available commands:
-.Bl -tag -width ".Ar destroy"
-.It Ar create
+.Bl -tag -width ".Cm destroy"
+.It Cm create
 Connect to given
-.Nm ggated
+.Xr ggated 8
 daemon and create a
 .Nm ggate
 provider related to the given remote file or device.
-.It Ar attach
+.It Cm attach
 Attach a worker process to an existing
 .Nm ggate
 provider (create a new connection to the
-.Nm ggated
+.Xr ggated 8
 daemon).
-.It Ar destroy
+.It Cm destroy
 Destroy the given
 .Nm ggate
 provider.
-.It Ar list
+.It Cm list
 List
 .Nm ggate
 providers.
 .El
 .Pp
 Available options:
-.Bl -tag -width ".Fl s Ar ro | wo | rw"
+.Bl -tag -width ".Fl s Cm ro | wo | rw"
 .It Fl f
 Forcibly destroy
 .Nm ggate
 provider (cancels all pending requests).
 .It Fl n
-Do not use TCP_NODELAY option on TCP sockets.
-.It Fl o Ar ro | wo | rw
-Specify permission to use when opening the file or device: read\-only
-.Ar ( ro ) ,
-write\-only
-.Ar ( wo ) ,
-or read\-write
-.Ar ( rw ) .
+Do not use
+.Dv TCP_NODELAY
+option on TCP sockets.
+.It Fl o Cm ro | wo | rw
+Specify permission to use when opening the file or device: read-only
+.Pq Cm ro ,
+write-only
+.Pq Cm wo ,
+or read-write
+.Pq Cm rw .
 Default is
-.Ar rw .
+.Cm rw .
 .It Fl p Ar port
 Port to connect to on the remote host.
 Default is 3080.
@@ -133,7 +135,7 @@ Default is 131072 (128kB).
 Sector size for
 .Nm ggate
 provider.
-If not specified, it is taken from device or set to 512 bytes for files.
+If not specified, it is taken from device, or set to 512 bytes for files.
 .It Fl t Ar timeout
 Number of seconds to wait before an I/O request will be canceled.
 0 means no timeout.
@@ -148,10 +150,8 @@ Remote host to connect to.
 .It Ar path
 Path to a regular file or device.
 .El
-.Pp
 .Sh EXAMPLES
-Made use of CD\-ROM device from remote host.
-.Pp
+Made use of CD-ROM device from remote host.
 .Bd -literal -offset indent
 server# cat /etc/gg.exports
 client RO /dev/acd0
@@ -161,7 +161,6 @@ client# ggatec create -o ro server /dev/acd0
 ggate0
 client# mount_cd9660 /dev/ggate0 /cdrom
 .Ed
-.Pp
 .Sh DIAGNOSTICS
 Exit status is 0 on success, or 1 if the command fails.
 To get details about the failure,
@@ -178,6 +177,4 @@ option.
 The
 .Nm
 utility as well as this manual page was written by
-.An -split
 .An Pawel Jakub Dawidek Aq pjd@FreeBSD.org .
-.An -nosplit
