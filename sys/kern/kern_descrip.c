@@ -1791,10 +1791,12 @@ fdcheckstd(td)
 				break;
 			}
 			NDFREE(&nd, NDF_ONLY_PNBUF);
-			fp->f_vnode = nd.ni_vp;
-			fp->f_data = nd.ni_vp;
 			fp->f_flag = flags;
-			fp->f_ops = &vnops;
+			fp->f_vnode = nd.ni_vp;
+			if (fp->f_data == NULL)
+				fp->f_data = nd.ni_vp;
+			if (fp->f_ops == &badfileops)
+				fp->f_ops = &vnops;
 			fp->f_type = DTYPE_VNODE;
 			VOP_UNLOCK(nd.ni_vp, 0, td);
 			devnull = fd;
