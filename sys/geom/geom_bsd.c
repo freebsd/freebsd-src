@@ -339,19 +339,17 @@ g_bsd_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		}
 		error = g_bsd_try(gsp, cp, secsize, ms, secsize);
 		if (!error) {
-			g_new_magicspaces(gp, 4);
-			g_add_magicspace(gp, 0, "boot1",     0, 512, 0);
-			g_add_magicspace(gp, 1, "label",   512, 276, 0);
-			g_add_magicspace(gp, 2, "fill0",   748, 236, 0);
-			g_add_magicspace(gp, 3, "boot2", 1024, 7168, 0);
+			g_add_magicspace(gp, "boot1",     0, 512, 0);
+			g_add_magicspace(gp, "label",   512, 276, 0);
+			g_add_magicspace(gp, "fill0",   748, 236, 0);
+			g_add_magicspace(gp, "boot2", 1024, 7168, 0);
 		}
 		if (error) {
 			error = g_bsd_try(gsp, cp, secsize, ms, 64);
 			if (!error) {
-				g_new_magicspaces(gp, 3);
-				g_add_magicspace(gp, 0, "fill0",     0,  64, 0);
-				g_add_magicspace(gp, 1, "label",    64, 276, 0);
-				g_add_magicspace(gp, 2, "fill1",   340, 172, 0);
+				g_add_magicspace(gp, "fill0",     0,  64, 0);
+				g_add_magicspace(gp, "label",    64, 276, 0);
+				g_add_magicspace(gp, "fill1",   340, 172, 0);
 			}
 		}
 		if (error)
