@@ -4189,7 +4189,7 @@ pmap_copy_page_xscale(vm_paddr_t src, vm_paddr_t dst)
 	 * the duration of the copy so that no other mappings can
 	 * be created while we have a potentially aliased mapping.
 	 */
-	(void) pmap_clean_page(src_pg->md.pvh_list, TRUE);
+	(void) pmap_clean_page(TAILQ_FIRST(&src_pg->md.pv_list), TRUE);
 
 	/*
 	 * Map the pages into the page hook points, copy them, and purge
