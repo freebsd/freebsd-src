@@ -48,7 +48,11 @@ static const char sccsid[] = "@(#)split.c	8.2 (Berkeley) 4/16/94";
 
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
+#include <inttypes.h>
+#include <limits.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -58,7 +62,7 @@ static const char sccsid[] = "@(#)split.c	8.2 (Berkeley) 4/16/94";
 
 #define DEFLINE	1000			/* Default num lines per file. */
 
-int	 bytecnt;			/* Byte count to split on. */
+off_t	 bytecnt;			/* Byte count to split on. */
 long	 numlines;			/* Line count to split on. */
 int	 file_open;			/* If a file open. */
 int	 ifd = -1, ofd = -1;		/* Input/output file descriptors. */
@@ -76,6 +80,8 @@ static void usage(void);
 int
 main(int argc, char **argv)
 {
+	intmax_t bytecnti;
+	long scale;
 	int ch;
 	char *ep, *p;
 
@@ -110,14 +116,21 @@ main(int argc, char **argv)
 				    "%s: illegal suffix length", optarg);
 			break;
 		case 'b':		/* Byte count. */
-			if ((bytecnt = strtoq(optarg, &ep, 10)) <= 0 ||
-			    (*ep != '\0' && *ep != 'k' && *ep != 'm'))
+			errno = 0;
+			if ((bytecnti = strtoimax(optarg, &ep, 10)) <= 0 ||
+			    (*ep != '\0' && *ep != 'k' && *ep != 'm') ||
+			    errno != 0)
 				errx(EX_USAGE,
 				    "%s: illegal byte count", optarg);
 			if (*ep == 'k')
-				bytecnt *= 1024;
+				scale = 1024;
 			else if (*ep == 'm')
-				bytecnt *= 1048576;
+				scale = 1024 * 1024;
+			else
+				scale = 1;
+			if (bytecnti > OFF_MAX / scale)
+				errx(EX_USAGE, "%s: offset too large", optarg);
+			bytecnt = (off_t)(bytecnti * scale);
 			break;
 		case 'p' :      /* pattern matching. */
 			if (regcomp(&rgx, optarg, REG_EXTENDED|REG_NOSUB) != 0)
@@ -181,9 +194,9 @@ main(int argc, char **argv)
 void
 split1(void)
 {
-	size_t bcnt;
+	off_t bcnt;
 	char *C;
-	int dist, len;
+	ssize_t dist, len;
 
 	for (bcnt = 0;;)
 		switch ((len = read(ifd, bfr, MAXBSIZE))) {
@@ -195,7 +208,7 @@ split1(void)
 		default:
 			if (!file_open)
 				newfile();
-			if (bcnt + len >= (u_int)bytecnt) {
+			if (bcnt + len >= bytecnt) {
 				dist = bytecnt - bcnt;
 				if (write(ofd, bfr, dist) != dist)
 					err(EX_IOERR, "write");
