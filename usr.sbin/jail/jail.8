@@ -30,6 +30,7 @@ Please see the
 .Xr jail 2
 man page for further details.
 .Sh EXAMPLES
+.Ss Setting up a Jail Directory Tree
 This shows how to setup a jail directory tree:
 .Bd -literal 
 D=/here/is/the/jail
@@ -45,6 +46,166 @@ sh MAKEDEV jail
 cd $D
 ln -sf dev/null kernel
 .Ed
+.Ss Setting Up a Jail
+Do what was described in
+.Sx Setting Up a Jail Directory Tree
+to build the jail directory tree.  For the sake of this example, we will
+assume you built it in
+.Pa /data/jail/192.168.11.100 ,
+named for the jailed IP address.  Substitute below as needed with your
+own directory, IP address, and hostname.
+.Pp
+First, you will want to set up your real system's environment to be
+.Dq jail-friendly.
+For consistency, we will refer to the parent box as the
+.Dq host environment,
+and to the jailed virtual machine as the
+.Dq jail environment.
+Because jail is implemented using IP aliases, one of the first things to do
+is to disable IP services on the host system that listen on all local
+IP addresses for a service.  This means changing inetd to only listen on the
+appropriate IP address, and so forth.  Add the following to
+.Pa /etc/rc.conf
+in the host environment:
+.Bd -literal -offset indent
+sendmail_enable="NO"
+inetd_flas="-wW -a 192.168.11.23"
+portmap_enable="NO"
+.Ed
+.Pp
+.Li 192.169.11.23
+is the native IP address for the host system, in this case.  It is possible
+to set up jails without using an exposed host IP, but in most virtual hosting
+environments, you won't want to do this.  Sendmail can be configured to
+listen to a specific IP, but this involves modifying
+.Pa /etc/sendmail.cf ,
+so it's easier to just disable it, and only have mail service within
+jails.  This is also more secure.  You will probably also want to disable
+the portmapper.  You can reboot to let this take effect, or manually
+kill/restart the daemons.
+.Pp
+Start your jail for the first time without configuring the network
+interface so that you can clean it up a little and set up accounts.  As
+with any machine (virtual or not) you will need to set a root password, time
+zone, etc.  Before beginning, you may want to copy
+.Xr sysinstall 8
+into the tree so that you can use it to set things up easily.  Do this using:
+.Bd -literal -offset indent
+# mkdir /data/jail/192.168.11.100/stand
+# cp /stand/sysinstall /data/jail/192.168.11.100/stand
+.Ed
+.Pp
+Now start the jail:
+.Bd -literal -offset indent
+# jail /data/jail/192.168.11.100 testhostname 192.168.11.100 /bin/sh
+.Ed
+.Pp
+You will end up with a shell prompt, assuming no errors, within the jail.  You
+can now run
+.Pa /stand/sysinstall
+and do the post-install configuration to set various configuration options,
+including:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+Disable the port mapper
+.It
+Set a root password, probably different from the real host system
+.It
+Set the timezone
+.It
+Add accounts for users in the jail environment
+.It
+Install any packages that you think the environment requires
+.El
+.Pp
+Outside of
+.Xr sysinstall 8 ,
+you will probably also want to configure
+.Xr resolv.conf 5
+appropriately, as well as any package-specific configuration, such as
+Web servers, ssh, etc.  You'll probably want to replace the
+.Dq /dev/console
+line of
+.Pa /etc/syslog.conf
+with something more useful, such as UDP-based logging to a log host, or
+even the host environment's syslog.
+.Pp
+Exit from the shell, and the jail will be shut down.
+.Ss Starting the Jail
+You are now ready to restart the jail and bring up the environment with
+all of its daemons and other programs.  To do this, first bring up the
+virtual host interface, and then start the jail's
+.Pa /etc/rc
+script from within the jail.
+.Bd -literal -offset indent
+# ifconfig ed0 inet alias 192.168.11.100 netmask 255.255.255.255
+# mount -t procfs proc /data/jail/192.168.11.100/proc
+# jail /data/jail/192.168.11.100 testhostname 192.168.11.100 \\
+	/bin/sh /etc/rc
+.Ed
+.Pp
+A few warnings will be produced, because most
+.Xr sysctl 8
+configuration variables cannot be set from within the jail, as they are
+global across all jails and the host environment. However, it should all
+work properly. You should be able to see
+.Xr inetd 8 ,
+.Xr syslogd 8 ,
+and other processes running within the jail using
+.Xr ps 1 ,
+with the
+.Dq J
+flag appearing beside jailed processes.  You should also be able to
+telnet to the hostname or IP address of the jailed environment, and log
+in using the acounts you created previously.
+.Ss Managing the jail
+Normal machine shutdown commands, such as
+.Xr halt 8 ,
+.Xr reboot 8 ,
+and
+.Xr shutdown 8 ,
+cannot be used successfully within the jail.  To kill all processes in a
+jail, you may log into the jail and, as root, use one of the following
+commands, depending on what you want to accomplish:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+.Li kill -TERM -1
+.It
+.Li kill -KILL -1
+.El
+.Pp
+This will send the
+.Dq TERM
+or
+.Dq KILL
+signals to all processes in the jail from within the jail.  Depending on
+the intended use of the jail, you may also want to run
+.Pa /etc/rc.shutdown
+from within the jail.  Currently there is no way to insert new processes 
+into a jail, so you must first log into the jail before performing these
+actions.
+.Pp
+To kill processes from outside the jail, you must individually identify the
+PID of each process to be killed.  The
+.Pa /proc/ Ns Va pid Ns Pa /status
+file contains, as its last field, the hostname of the jail in which the
+process runs, or
+.Dq -
+to indicate that the process is not running within a jail.  The
+.Xr ps 1
+command also shows a
+.Dq J
+flag for processes in a jail.  However, the hostname for a jail may be, by
+default, modified from within the jail, so the
+.Pa /proc
+status entry is unreliably by default.  To disable the setting of the hostname
+from within a jail, set the
+.Dq Va kern.jail.set_hostname_allowed
+sysctl variable in the host environment to 0, which will affect all jails.  In
+a future version of FreeBSD, the mechanisms for managing jails will be more
+refined.
 .Sh SEE ALSO
 .Xr chroot 2 ,
 .Xr jail 2
