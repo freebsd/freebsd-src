@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.128.4.5 1996/01/13 10:46:27 davidg Exp $
+ *	$Id: machdep.c,v 1.128.4.6 1996/01/29 12:28:22 davidg Exp $
  */
 
 #include "npx.h"
@@ -571,8 +571,25 @@ identifycpu()
 	if (!strcmp(cpu_vendor, "GenuineIntel")) {
 		printf("  Stepping=%ld", cpu_id & 0xf);
 		if (cpu_high > 0) {
-#define FEATUREFMT "\020\001FPU\002VME\003PSE\004MCE\005CX8\006APIC"
-			printf("\n  Features=0x%b", cpu_feature, FEATUREFMT);
+			printf("\n  Features=0x%b", cpu_feature, 
+			"\020"
+			"\001FPU"
+			"\002VME"
+			"\003DE"
+			"\004PSE"
+			"\005TSC"
+			"\006MSR"
+			"\007PAE"
+			"\010MCE"
+			"\011CX8"
+			"\012APIC"
+			"\013<b10>"
+			"\014<b11>"
+			"\015MTRR"
+			"\016PGE"
+			"\017MCA"
+			"\020CMOV"
+			);
 		}
 	}
 	/* Avoid ugly blank lines: only print newline when we have to. */
