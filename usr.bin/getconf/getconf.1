@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 25, 2000
+.Dd September 18, 2002
 .Dt GETCONF 1
 .Os
 .Sh NAME
@@ -65,8 +65,14 @@ configuration variables using
 and
 .Xr sysconf 3 ,
 depending on the type of variable.
+As an extension, the second form can also be used to query static limits from
+.Aq Pa limits.h .
 .Pp
-All variables use the same name as the manifest constants defined in
+All
+.Xr sysconf 3
+and
+.Xr pathconf 2
+variables use the same name as the manifest constants defined in
 the relevant standard C-language bindings, including any leading
 underscore or prefix.
 That is to say,
@@ -81,33 +87,82 @@ names
 .Dv _SC_ARG_MAX
 or
 .Dv _SC_POSIX_VERSION .
-(There is one exception: there is no corresponding manifest constant
-to
-.Dv _CS_PATH ,
-so a
+Variables retrieved from
+.Xr confstr 3
+have the leading
+.Ql _CS_
+stripped off; thus,
+.Dv _CS_PATH
+is queried by a
 .Ar system_var
 of
-.Dq Li PATH
-is used.)
-.Pp
+.Dq Li PATH .
+.Ss Programming Environments
 The
 .Fl v Ar environment
-option is not supported, but provided for compatibility purposes.
+option specifies a
+.St -p1003.1-2001
+programming environment under which the values are to be queried.
+This option currently does nothing, but may in the future be used
+to select between 32-bit and 64-bit execution environments on platforms
+which support both.
+Specifying an environment which is not supported on the current execution
+platform gives undefined results.
+.Pp
+The standard programming environments are as follows:
+.Bl -tag -width ".Li POSIX_V6_LPBIG_OFFBIG" -offset indent
+.It Li POSIX_V6_ILP32_OFF32
+Exactly 32-bit integer, long, pointer, and file offset.
+.Sy Supported platforms :
+None.
+.It Li POSIX_V6_ILP32_OFFBIG
+Exactly 32-bit integer, long, and pointer; at least 64-bit file offset.
+.Sy Supported platforms :
+.Tn IA32 ,
+.Tn PowerPC .
+.It Li POSIX_V6_LP64_OFF64
+Exactly 32-bit integer; exactly 64-bit long, pointer, and file offset.
+.Sy Supported platforms :
+.Tn Alpha ,
+.Tn SPARC64 .
+.It Li POSIX_V6_LPBIG_OFFBIG
+At least 32-bit integer; at least 64-bit long, pointer, and file offset.
+.Sy Supported platforms :
+None.
+.El
+.Pp
+The command:
+.Bd -literal -offset indent
+getconf POSIX_V6_WIDTH_RESTRICTED_ENVS
+.Ed
+.Pp
+returns a newline-separated list of environments in which the width
+of certain fundamental types is no greater than the width of the native
+C type
+.Ql long .
+At present, all programming environments supported by
+.Fx
+have this property.
+Several of the
+.Xr confstr 3
+variables provide information on the necessary compiler and linker flags
+to use the standard programming environments described above.
 .Sh DIAGNOSTICS
 .Ex -std
 Use of a
 .Ar system_var
 or
 .Ar path_var
-which is completely unknown to the system is considered an error,
-causing a diagnostic message to be written to standard error; one
+which is completely unrecognized is considered an error,
+causing a diagnostic message to be written to standard error.
+One
 which is known but merely undefined does not result in an error
 indication.
-.Pp
-Use of the unsupported
-.Fl v Ar environment
-option will result in a diagnostic message indicating that it is not
-supported.
+The
+.Nm
+command recognizes all of the variables defined for
+.St -p1003.1-2001 ,
+including those which are not currently implemented.
 .Sh EXAMPLES
 The command:
 .Bd -literal -offset indent
@@ -126,6 +181,18 @@ getconf NAME_MAX /tmp
 will display the maximum length of a filename in the
 .Pa /tmp
 directory.
+.Pp
+The command:
+.Bd -literal -offset indent
+getconf -v POSIX_V6_LPBIG_OFFBIG LONG_MAX
+.Ed
+.Pp
+will display the maximum value of the C type
+.Ql long
+in the
+.Li POSIX_V6_LPBIG_OFFBIG
+programming environment,
+if the system supports that environment.
 .Sh SEE ALSO
 .Xr pathconf 2 ,
 .Xr confstr 3 ,
@@ -134,7 +201,7 @@ directory.
 The
 .Nm
 utility is expected to be compliant with
-.St -susv2 .
+.St -p1003.1-2001 .
 .Sh HISTORY
 The
 .Nm
