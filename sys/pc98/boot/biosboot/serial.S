@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:26  rpd
- *	$Id: serial.S,v 1.4 1997/02/22 09:43:08 peter Exp $
+ *	$Id: serial.S,v 1.5 1997/05/18 12:28:38 kato Exp $
  */
 
 /*
@@ -71,12 +71,13 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 	.file	"serial.s"
 
-#include "asm.h"
 #ifdef PC98
-#include "../../pc98/sioreg.h"
+#include <pc98/pc98/sioreg.h>
 #else
-#include "../../isa/sioreg.h"
+#include <i386/isa/sioreg.h>
 #endif
+#include "asm.h"
+
 	.text
 
 /*
@@ -99,20 +100,16 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 ENTRY(serial_putc)
-	push	%ebp
-	mov	%esp, %ebp
-
 	mov	$COMCONSOLE + 2, %edx	# line status reg
 1:	inb	%dx, %al
-	test	$0x01, %al
+	testb	$0x01, %al
 	jz	1b		# TX buffer not empty
 
-	movb	0x8(%ebp), %al
+	movb	0x4(%esp), %al
 
 	sub	$2, %edx	# TX output reg
 	outb	%al, %dx	# send this one
 
-	pop	%ebp
 	ret
 
 /*
@@ -121,24 +118,20 @@ ENTRY(serial_putc)
  */
 
 ENTRY(serial_getc)
-	push	%ebp
-	mov	%esp, %ebp
-
 	mov	$COMCONSOLE + 2, %edx	# line status reg
 1:
 	inb	%dx, %al
 	testb	$0x02, %al
 	jz	1b		# no RX char available
 
-	xor	%eax, %eax
-	sub	$2, %edx	# RX buffer reg
+	xorb	%eax, %eax
+	subb	$2, %edx	# RX buffer reg
 	inb	%dx, %al	# fetch (first) character
 
 	cmp	$0x7F, %eax	# make DEL...
 	jne	2f
-	mov	$0x08, %eax	# look like BS
+	movb	$0x08, %eax	# look like BS
 2:
-	pop	%ebp
 	ret
 
 /*
@@ -146,15 +139,11 @@ ENTRY(serial_getc)
  *       if there is a character pending, return true; otherwise return 0
  */
 ENTRY(serial_ischar)
-	push	%ebp
-	mov	%esp, %ebp
-
 	xorl	%eax, %eax
-	mov	$COMCONSOLE + 2, %edx	# line status reg
+	movl	$COMCONSOLE + 2, %edx	# line status reg
 	inb	%dx, %al
 	andb	$0x02, %al		# RX char available?
 
-	pop	%ebp
 	ret
 
 /*
@@ -162,9 +151,6 @@ ENTRY(serial_ischar)
  * 	initialize the serial console port to 9600 Bd, 8 bpc
  */
 ENTRY(init_serial)
-	push	%ebp
-	mov	%esp, %ebp
-
 	/* set 8253 */
 	movb	0xb6, %al
 	outb	%al, $0x77
@@ -187,14 +173,14 @@ ENTRY(init_serial)
 	outb	%al, $0x02
 	
 	/* dummy command */
-	xor	%al,%al
-	mov	$COMCONSOLE + 2, %edx
+	xorb	%al,%al
+	movl	$COMCONSOLE + 2, %edx
 	outb	%al, %dx
 	inb	$0x5f, %al
-	xor	%al,%al
+	xorb	%al,%al
 	outb	%al, %dx
 	inb	$0x5f, %al
-	xor	%al,%al
+	xorb	%al,%al
 	outb	%al, %dx
 	inb	$0x5f, %al
 
@@ -212,5 +198,4 @@ ENTRY(init_serial)
 	movb	$0x37, %al
 	outb	%al, %dx
 
-	pop	%ebp
 	ret
