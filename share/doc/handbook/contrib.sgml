@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.81 1996/05/09 23:32:43 jkh Exp $ -->
+<!-- $Id: contrib.sgml,v 1.82 1996/05/13 02:04:39 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -156,7 +156,7 @@
 	  <item>Andrew McRae &lt;amcrae@cisco.com&gt;
 	  <item>Andrew Moore &lt;alm@FreeBSD.org&gt;
 	  <item>Anthony Yee-Hang Chan &lt;yeehang@netcom.com&gt;
-	  <item>Bernd Rosauer &lt;br@netland.sub.de&gt;
+	  <item>Bernd Rosauer &lt;br@netland.inka.de&gt;
 	  <item>Bob Wilcox &lt;bob@obiwan.uucp&gt;
 	  <item>Brent J. Nordquist &lt;nordquist@platinum.com&gt;
 	  <item>Brian Clapper &lt;bmc@telebase.com&gt;
