@@ -325,4 +325,3 @@ static driver_t ohci_driver = {
 static devclass_t ohci_devclass;
 
 DRIVER_MODULE(ohci, pci, ohci_driver, ohci_devclass, 0, 0);
-DRIVER_MODULE(ohci, cardbus, ohci_driver, ohci_devclass, 0, 0);
