@@ -98,13 +98,26 @@ argument to
 .Fn sema_timedwait
 specifies the minimum time in ticks to wait before returning with failure.
 .Fn sema_value
+is used to read the current value of the semaphore.
+.Sh RETURN VALUES
+.Fn sema_value
 returns the current value of the semaphore.
 .Pp
-.Fn sema_timedwait
-and
+If decrementing the semaphore would result in its value being negative,
 .Fn sema_trywait
-will return 0 if waiting on the semaphore failed; otherwise a non-zero value
-will be returned to indicate success.
+returns 0 to indicate failure.
+Otherwise, a non-zero value is returned to indicate success.
+.Pp
+.Fn sema_timedwait
+returns 0 if waiting on the semaphore succeeded; otherwise a
+non-zero error code is returned.
+.Sh ERRORS
+.Fn sema_timedwait
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EWOULDBLOCK
+Timeout expired.
+.El
 .Sh SEE ALSO
 .Xr condvar 9 ,
 .Xr mtx_pool 9 ,

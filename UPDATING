@@ -17,6 +17,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20040614:
+	The return value of sema_timedwait(9) has been changed to
+	make it consistent with cv_timedwait(9).  Be sure to recompile
+	the ips module and any third-party modules which call
+	sema_timedwait.
+
 20040613:
 	ALTQ is now linked to the build. This breaks ABI for struct ifnet.
 	Make sure to recompile modules and any userland that makes use of
