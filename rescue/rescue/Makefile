@@ -248,8 +248,8 @@ $(CONF): Makefile
 
 .ORDER: $(OUTPUTS) objs
 $(OUTPUTS): $(CONF)
-	MAKEOBJDIRPREFIX=${CRUNCHOBJS} crunchgen -q -m $(OUTMK) -c $(OUTC) \
-	    $(CONF)
+	MAKEFLAGS= MAKEOBJDIRPREFIX=${CRUNCHOBJS} crunchgen -q -m $(OUTMK) \
+	    -c $(OUTC) $(CONF)
 
 $(PROG): $(OUTPUTS) objs
 	MAKEOBJDIRPREFIX=${CRUNCHOBJS} make -f $(OUTMK) 
