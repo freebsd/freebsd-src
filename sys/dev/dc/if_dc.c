@@ -1759,6 +1759,15 @@ static int dc_attach(dev)
 		sc->dc_flags |= DC_21143_NWAY;
 		mii_phy_probe(dev, &sc->dc_miibus,
 		    dc_ifmedia_upd, dc_ifmedia_sts);
+		/*
+		 * For non-MII cards, we need to have the 21143
+		 * drive the LEDs. Except there are some systems
+		 * like the NEC VersaPro NoteBook PC which have no
+		 * LEDs, and twiddling these bits has adverse effects
+		 * on them. (I.e. you suddenly can't get a link.)
+		 */
+		if (pci_read_config(dev, DC_PCI_CSID, 4) != 0x80281033)
+			sc->dc_flags |= DC_TULIP_LEDS;
 		error = 0;
 	}
 
@@ -2730,10 +2739,10 @@ static void dc_init(xsc)
 	 * MII port, program the LED control pins so we get
 	 * link and activity indications.
 	 */
-	if (DC_IS_INTEL(sc) && sc->dc_pmode == DC_PMODE_SYM) {
+	if (sc->dc_flags & DC_TULIP_LEDS) {
 		CSR_WRITE_4(sc, DC_WATCHDOG,
 		    DC_WDOG_CTLWREN|DC_WDOG_LINK|DC_WDOG_ACTIVITY);   
-		CSR_WRITE_4(sc, DC_WATCHDOG, DC_WDOG_LINK|DC_WDOG_ACTIVITY);
+		CSR_WRITE_4(sc, DC_WATCHDOG, 0);
 	}
 
 	/*
