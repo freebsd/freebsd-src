@@ -264,7 +264,7 @@ ata_completed(void *context, int pending)
 	if (request->result)
 	    break;
 
-	if (request->error & ATA_E_MASK) {
+	if (request->error) {
 	    switch ((request->error & ATA_SK_MASK)) {
 	    case ATA_SK_RECOVERED_ERROR:
 		ata_prtdev(request->device, "WARNING - %s recovered error\n",
@@ -297,6 +297,8 @@ ata_completed(void *context, int pending)
 			       "\2NO_MEDIA\1ILLEGAL_LENGTH");
 		request->result = EIO;
 	    }
+	    if (request->error & ATA_E_MASK)
+		request->result = EIO;
 	}
 	break;
     }
@@ -369,6 +371,7 @@ ata_cmd2str(struct ata_request *request)
 	case 0x0a: return ("WRITE");
 	case 0x10: return ("WEOF");
 	case 0x11: return ("SPACE");
+	case 0x12: return ("INQUIRY");
 	case 0x15: return ("MODE_SELECT");
 	case 0x19: return ("ERASE");
 	case 0x1a: return ("MODE_SENSE");
