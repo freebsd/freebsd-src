@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id$
+ * $Id: vfs_vnops.c,v 1.3 1994/08/02 07:43:33 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -398,6 +398,15 @@ vn_ioctl(fp, com, data, p)
 	case VBLK:
 		error = VOP_IOCTL(vp, com, data, fp->f_flag, p->p_ucred, p);
 		if (error == 0 && com == TIOCSCTTY) {
+
+			/* Do nothing if reassigning same control tty */
+			if (p->p_session->s_ttyvp == vp)
+				return (0);
+
+			/* Get rid of reference to old control tty */
+			if (p->p_session->s_ttyvp)
+				vrele(p->p_session->s_ttyvp);
+
 			p->p_session->s_ttyvp = vp;
 			VREF(vp);
 		}
