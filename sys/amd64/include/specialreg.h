@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)specialreg.h	7.1 (Berkeley) 5/9/91
- *	$Id: specialreg.h,v 1.7 1995/05/30 08:00:54 rgrimes Exp $
+ *	$Id: specialreg.h,v 1.8 1996/01/30 22:55:06 mpp Exp $
  */
 
 #ifndef _MACHINE_SPECIALREG_H_
@@ -57,6 +57,8 @@
 #define CR0_NE	0x00000020	/* Numeric Error enable (EX16 vs IRQ13) */
 #define CR0_WP	0x00010000	/* Write Protect (honor page protect in all modes) */
 #define CR0_AM	0x00040000	/* Alignment Mask (set to enable AC flag) */
+#define CR0_NW  0x20000000      /* Not Write-through */
+#define CR0_CD  0x40000000      /* Cache Disable */
 
 /*
  * Cyrix 486 DLC special registers, accessible as IO ports.
