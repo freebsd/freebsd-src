@@ -1,4 +1,4 @@
-/* $OpenBSD: if_pflog.h,v 1.9 2003/07/15 20:27:27 dhartmei Exp $ */
+/* $OpenBSD: if_pflog.h,v 1.10 2004/03/19 04:52:04 frantzen Exp $ */
 /*
  * Copyright 2001 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.
@@ -51,7 +51,7 @@ struct pfloghdr {
 
 #define PFLOG_HDRLEN		sizeof(struct pfloghdr)
 /* minus pad, also used as a signature */
-#define PFLOG_REAL_HDRLEN	offsetof(struct pfloghdr, pad);
+#define PFLOG_REAL_HDRLEN	offsetof(struct pfloghdr, pad)
 
 /* XXX remove later when old format logs are no longer needed */
 struct old_pfloghdr {

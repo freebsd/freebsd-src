@@ -1,4 +1,4 @@
-/*	$OpenBSD: pf_osfp.c,v 1.3 2003/08/27 18:23:36 frantzen Exp $ */
+/*	$OpenBSD: pf_osfp.c,v 1.9 2004/01/04 20:08:42 pvalchev Exp $ */
 
 /*
  * Copyright (c) 2003 Mike Frantzen <frantzen@w4g.org>
@@ -50,13 +50,14 @@ typedef struct pool pool_t;
 # include <errno.h>
 # include <stdio.h>
 # include <stdlib.h>
+# include <string.h>
 # define pool_t			int
 # define pool_get(pool, flags)	malloc(*(pool))
 # define pool_put(pool, item)	free(item)
 # define pool_init(pool, size, a, ao, f, m, p)	(*(pool)) = (size)
 
 # ifdef PFDEBUG
-#  include <stdarg.h>
+#  include <sys/stdarg.h>
 #  define DPFPRINTF(format, x...)	fprintf(stderr, format , ##x)
 # else
 #  define DPFPRINTF(format, x...)	((void)0)
@@ -106,7 +107,7 @@ pf_osfp_fingerprint_hdr(const struct ip *ip, const struct tcphdr *tcp)
 {
 	struct pf_os_fingerprint fp, *fpresult;
 	int cnt, optlen = 0;
-	u_int8_t *optp;
+	const u_int8_t *optp;
 
 	if ((tcp->th_flags & (TH_SYN|TH_ACK)) != TH_SYN || (ip->ip_off &
 	    htons(IP_OFFMASK)))
@@ -122,7 +123,7 @@ pf_osfp_fingerprint_hdr(const struct ip *ip, const struct tcphdr *tcp)
 
 
 	cnt = (tcp->th_off << 2) - sizeof(*tcp);
-	optp = (caddr_t)tcp + sizeof(*tcp);
+	optp = (const u_int8_t *)((const char *)tcp + sizeof(*tcp));
 	for (; cnt > 0; cnt -= optlen, optp += optlen) {
 		if (*optp == TCPOPT_EOL)
 			break;
