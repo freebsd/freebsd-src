@@ -4234,12 +4234,6 @@ prep_headers (abfd)
   i_ehdrp->e_ident[EI_VERSION] = bed->s->ev_current;
 
   i_ehdrp->e_ident[EI_OSABI] = ELFOSABI_FREEBSD;
-#ifdef WANT_OLD_BRANDELF_METHOD
-#define _OLD_EI_BRAND_OFFSET 8
-#define _OLD_BRANDING	"FreeBSD"
-  strncpy((char *) &i_ehdrp->e_ident[_OLD_EI_BRAND_OFFSET], _OLD_BRANDING,
-	  EI_NIDENT-_OLD_EI_BRAND_OFFSET);
-#endif
 
   if ((abfd->flags & DYNAMIC) != 0)
     i_ehdrp->e_type = ET_DYN;
