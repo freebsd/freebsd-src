@@ -52,6 +52,7 @@ SUBDIR=	${_3dfx} \
 	${_cp} \
 	${_crypto} \
 	${_cryptodev} \
+	${_cs} \
 	${_ctau} \
 	cue \
 	${_cx} \
@@ -351,6 +352,7 @@ _cardbus=	cardbus
 _cbb=		cbb
 _ciss=		ciss
 _cm=		cm
+_cs=		cs
 _ctau=		ctau
 _cx=		cx
 _dpt=		dpt
