@@ -28,30 +28,48 @@
 % * Mountain View, California  94043
 % */
 
-%/*
-% * Copyright (c) 1984, 1990 by Sun Microsystems, Inc.
-% */
-%
-%/* from @(#)rwall.x	1.6 91/03/11 TIRPC 1.0 */
+/*
+ *	nis_callback.x
+ *
+ *	Copyright (c) 1988-1992 Sun Microsystems Inc
+ *	All Rights Reserved.
+ */
 
-#ifdef RPC_HDR
-%
-%#ifndef _rpcsvc_rwall_h
-%#define _rpcsvc_rwall_h
-%
-%typedef char *wrapstring;
-%
+/* From: %#pragma ident	"@(#)nis_callback.x	1.7	94/05/03 SMI" */
+
+#ifndef RPC_HDR
+%#ifndef lint
+%static const char rcsid[] = "$Id: nis_callback.x,v 1.3 1996/07/29 14:32:56 wpaul Exp $";
+%#endif /* not lint */
 #endif
 
-program WALLPROG {
-	version WALLVERS {
-		void	
-		WALLPROC_WALL(wrapstring) = 2;
+/*
+ * "@(#)zns_cback.x 1.2 90/09/10 Copyr 1990 Sun Micro" 
+ *
+ * RPCL description of the Callback Service.
+ */
 
+#ifdef RPC_HDR
+%#include <rpcsvc/nis.h>
+#endif
+#ifdef RPC_XDR
+#ifdef SOLARIS
+%#include "nis_clnt.h"
+#else
+%#include "nis.h"
+#endif
+#endif
+
+typedef nis_object	*obj_p;
+
+struct cback_data {
+	obj_p		entries<>;	/* List of objects */
+};
+
+program CB_PROG {
+	version CB_VERS {
+		bool	CBPROC_RECEIVE(cback_data) = 1;
+		void	CBPROC_FINISH(void) = 2;
+		void	CBPROC_ERROR(nis_error) = 3;
 	} = 1;
-} = 100008;
-
-#ifdef RPC_HDR
-%
-%#endif /* ! _rpcsvc_rwall_h */
-#endif
+} = 100302;

@@ -1,37 +1,33 @@
 #	from: @(#)Makefile	2.3 88/08/11 4.0 RPCSRC
-#	$Id: Makefile,v 1.2 1994/06/07 15:53:21 guido Exp $
+#	$Id: Makefile,v 1.12 1996/08/30 22:36:45 peter Exp $
 
 .SUFFIXES: .x
 
 RPCCOM = rpcgen
 
-HDRS= klm_prot.h mount.h nfs_prot.h nlm_prot.h rex.h rnusers.h\
-      rquota.h rstat.h rwall.h sm_inter.h spray.h yppasswd.h yp.h
-XFILES= bootparam_prot.x klm_prot.x mount.x nfs_prot.x nlm_prot.x \
+HDRS= key_prot.h klm_prot.h mount.h nfs_prot.h nlm_prot.h rex.h rnusers.h \
+      rquota.h rstat.h rwall.h sm_inter.h spray.h yppasswd.h yp.h \
+      ypxfrd.h ypupdate_prot.h nis.h nis_cache.h nis_callback.h \
+      bootparam_prot.h crypt.h
+XFILES= bootparam_prot.x key_prot.x klm_prot.x mount.x nfs_prot.x nlm_prot.x \
       rex.x rnusers.x rquota.x rstat.x rwall.x sm_inter.x spray.x \
-      yppasswd.x yp.x
-HFILES= yp_prot.h ypclnt.h
+      yppasswd.x yp.x ypxfrd.x ypupdate_prot.x nis.x nis_cache.x nis_object.x \
+      nis_callback.x crypt.x
+HFILES= yp_prot.h ypclnt.h nis_db.h nis_tags.h nislib.h
 
 CLEANFILES+= ${HDRS}
 
 all: ${HDRS}
 
-install: all
-	@echo "Creating RPC service headers directory"
-	@/bin/rm -rf ${DESTDIR}/usr/include/rpcsvc
-	@-mkdir ${DESTDIR}/usr/include/rpcsvc
-	@echo "Installing RPC service header and definition files"
-	@for i in $(XFILES); do \
-		(install -c -m 644 ${.CURDIR}/$$i ${DESTDIR}/usr/include/rpcsvc) done
-	@for i in $(HDRS); do \
-		(install ${COPY} -m 644 $$i ${DESTDIR}/usr/include/rpcsvc) done
-	@for i in $(HFILES); do \
-		(install -c -m 644 ${.CURDIR}/$$i ${DESTDIR}/usr/include/rpcsvc) done
-	@chown -R ${BINOWN}.${BINGRP} ${DESTDIR}/usr/include/rpcsvc
-	@chmod -R a-w ${DESTDIR}/usr/include/rpcsvc
+#	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
+beforeinstall:
+	${INSTALL} -C -m 444 \
+		${HFILES:S;^;${.CURDIR}/;} \
+		${XFILES:S;^;${.CURDIR}/;} \
+		${HDRS} \
+		${DESTDIR}/usr/include/rpcsvc
 
 .x.h:
-	@echo generating $@...
-	@CURPWD=`pwd` ; cd ${.CURDIR} ; ${RPCCOM} -h $*.x -o $$CURPWD/$@
+	${RPCCOM} -h ${.IMPSRC} -o ${.TARGET}
 
 .include <bsd.prog.mk>
