@@ -86,12 +86,12 @@ typedef	struct fd_set {
 #endif
 
 #define	__fdset_mask(n)	((__fd_mask)1 << ((n) % _NFDBITS))
-#define	FD_CLR(n, p)	((p)->fds_bits[(n)/_NFDBITS] &= ~__fdset_mask(n))
+#define	FD_CLR(n, p)	((p)->__fds_bits[(n)/_NFDBITS] &= ~__fdset_mask(n))
 #if __BSD_VISIBLE
 #define	FD_COPY(f, t)	(void)(*(t) = *(f))
 #endif
-#define	FD_ISSET(n, p)	((p)->fds_bits[(n)/_NFDBITS] & __fdset_mask(n))
-#define	FD_SET(n, p)	((p)->fds_bits[(n)/_NFDBITS] |= __fdset_mask(n))
+#define	FD_ISSET(n, p)	((p)->__fds_bits[(n)/_NFDBITS] & __fdset_mask(n))
+#define	FD_SET(n, p)	((p)->__fds_bits[(n)/_NFDBITS] |= __fdset_mask(n))
 #define	FD_ZERO(p) do {					\
 	fd_set *_p;					\
 	__size_t _n;					\
