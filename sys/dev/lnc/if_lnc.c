@@ -317,7 +317,7 @@ alloc_mbuf_cluster(struct lnc_softc *sc, struct host_ring_entry *desc)
 		MGET(m, M_DONTWAIT, MT_DATA);
    	if (!m)
 			return(1);
-      MCLGET(m, M_DONTWAIT);
+        MCLGET(m, M_DONTWAIT);
    	if (!m->m_ext.ext_buf) {
 			m_free(m);
 			return(1);
@@ -680,12 +680,12 @@ lnc_tint(struct lnc_softc *sc)
 		next = sc->trans_ring + sc->trans_next;
 
 #ifdef DIAGNOSTIC
-	if (!(next->md->md1 & STP)) {
-		int unit = sc->arpcom.ac_if.if_unit;
-		log(LOG_ERR, "lnc%d: Transmit interrupt but not start of packet -- Resetting\n", unit);
-		lnc_reset(sc);
-		return;
-	}
+		if (!(next->md->md1 & STP)) {
+			int unit = sc->arpcom.ac_if.if_unit;
+			log(LOG_ERR, "lnc%d: Transmit interrupt but not start of packet -- Resetting\n", unit);
+			lnc_reset(sc);
+			return;
+		}
 #endif
 
 		/*
