@@ -346,6 +346,7 @@ sigaction(p, uap)
 	return (error);
 }
 
+#ifdef COMPAT_43	/* XXX - COMPAT_FBSD3 */
 #ifndef _SYS_SYSPROTO_H_
 struct osigaction_args {
 	int	signum;
@@ -385,6 +386,7 @@ osigaction(p, uap)
 	}
 	return (error);
 }
+#endif /* COMPAT_43 */
 
 /*
  * Initialize signal state for process 0;
@@ -517,10 +519,10 @@ sigprocmask(p, uap)
 	return (error);
 }
 
+#ifdef COMPAT_43	/* XXX - COMPAT_FBSD3 */
 /*
  * osigprocmask() - MP SAFE
  */
-
 #ifndef _SYS_SYSPROTO_H_
 struct osigprocmask_args {
 	int	how;
@@ -540,6 +542,7 @@ osigprocmask(p, uap)
 	SIG2OSIG(oset, p->p_retval[0]);
 	return (error);
 }
+#endif /* COMPAT_43 */
 
 #ifndef _SYS_SYSPROTO_H_
 struct sigpending_args {
@@ -556,6 +559,7 @@ sigpending(p, uap)
 	return (copyout(&p->p_siglist, uap->set, sizeof(sigset_t)));
 }
 
+#ifdef COMPAT_43	/* XXX - COMPAT_FBSD3 */
 #ifndef _SYS_SYSPROTO_H_
 struct osigpending_args {
 	int	dummy;
@@ -571,6 +575,7 @@ osigpending(p, uap)
 	SIG2OSIG(p->p_siglist, p->p_retval[0]);
 	return (0);
 }
+#endif /* COMPAT_43 */
 
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 /*
@@ -710,6 +715,7 @@ sigsuspend(p, uap)
 	return (EINTR);
 }
 
+#ifdef COMPAT_43	/* XXX - COMPAT_FBSD3 */
 #ifndef _SYS_SYSPROTO_H_
 struct osigsuspend_args {
 	osigset_t mask;
@@ -734,6 +740,7 @@ osigsuspend(p, uap)
 	/* always return EINTR rather than ERESTART... */
 	return (EINTR);
 }
+#endif /* COMPAT_43 */
 
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 #ifndef _SYS_SYSPROTO_H_
