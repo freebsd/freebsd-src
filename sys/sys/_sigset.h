@@ -247,8 +247,11 @@ typedef struct sigaltstack {
 #define	SS_DISABLE	0x0004	/* disable taking signals on alternate stack */
 #define	SIGSTKSZ	(MINSIGSTKSZ + 32768)	/* recommended stack size */
 
-/* Have enough typedefs for this now.  XXX */
-#include <sys/ucontext.h>
+/*
+ * Forward declaration for __ucontext so that sigreturn can use it
+ * without having to include <ucontext.h>.
+ */
+struct __ucontext;
 
 /*
  * 4.3 compatibility:

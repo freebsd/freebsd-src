@@ -31,15 +31,17 @@
 #ifndef _MACHINE_SIGFRAME_H_
 #define _MACHINE_SIGFRAME_H_ 1
 
+#ifdef _KERNEL
 struct osigframe {
 	struct osigcontext	sf_sc;
 	osiginfo_t		sf_si;
 };
+#endif
 
 struct sigframe {
-	unsigned long	__spare__;
-	ucontext_t	sf_uc;
-	siginfo_t	sf_si;
+	unsigned long		__spare__;
+	struct __ucontext	sf_uc;
+	siginfo_t		sf_si;
 };
 
 #endif /* _MACHINE_SIGFRAME_H_ */
