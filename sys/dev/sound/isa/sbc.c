@@ -114,7 +114,7 @@ static void sb_setmixer(struct resource *io, u_int port, u_int value);
 static void
 sbc_lockinit(struct sbc_softc *scp)
 {
-	scp->lock = snd_mtxcreate(device_get_nameunit(scp->dev));
+	scp->lock = snd_mtxcreate(device_get_nameunit(scp->dev), "sound softc");
 }
 
 static void

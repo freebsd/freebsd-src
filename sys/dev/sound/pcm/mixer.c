@@ -202,7 +202,7 @@ mixer_init(device_t dev, kobj_class_t cls, void *devinfo)
 
 	m = (struct snd_mixer *)kobj_create(cls, M_MIXER, M_WAITOK | M_ZERO);
 	snprintf(m->name, MIXER_NAMELEN, "%s:mixer", device_get_nameunit(dev));
-	m->lock = snd_mtxcreate(m->name);
+	m->lock = snd_mtxcreate(m->name, "pcm mixer");
 	m->type = cls->name;
 	m->devinfo = devinfo;
 	m->busy = 0;
