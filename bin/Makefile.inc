@@ -2,3 +2,13 @@
 
 BINDIR?=	/bin
 NOSHARED?=	YES
+
+.if exists (${.CURDIR}/../../secure)
+
+.if exists(${.CURDIR}/../../secure/lib/libcrypt/obj)
+CRYPTOBJDIR=	${.CURDIR}/../../secure/lib/libcrypt/obj
+.else
+CRYPTOBJDIR=	${.CURDIR}/../../secure/lib/libcrypt
+.endif
+
+.endif
