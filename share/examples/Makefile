@@ -18,7 +18,6 @@ LDIRS=	BSD_daemon \
 	kld \
 	libvgl \
 	mdoc \
-	meteor \
 	netgraph \
 	nwclient \
 	perfmon \
@@ -137,12 +136,6 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	mdoc/example.1 \
 	mdoc/example.3 \
 	mdoc/example.4 \
-	meteor/README \
-	meteor/rgb16.c \
-	meteor/rgb24.c \
-	meteor/test-n.c \
-	meteor/yuvpk.c \
-	meteor/yuvpl.c \
 	netgraph/bluetooth/rc.bluetooth \
 	netgraph/ether.bridge \
 	netgraph/frame_relay \
