@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.28.2.3 1997/01/17 08:53:45 jkh Exp $
+ * $Id: main.c,v 1.28.2.4 1997/01/17 10:59:22 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -135,7 +135,7 @@ main(int argc, char **argv)
 	    extern char *distWanted;
 
 	    /* Tell mediaSetFloppy() to try floppy now */
-	    distWanted = (char *)1;
+	    distWanted = LOAD_CONFIG_FILE;
 
 	    /* Try to open the floppy drive if we can do that first */
 	    if (DITEM_STATUS(mediaSetFloppy(NULL)) != DITEM_FAILURE && mediaDevice->init(mediaDevice)) {

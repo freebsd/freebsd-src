@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.82.2.12 1997/01/16 01:19:25 jkh Exp $
+ * $Id: sysinstall.h,v 1.82.2.13 1997/01/17 08:53:48 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -68,6 +68,9 @@
 #define INTERFACE_MAX		50	/* Maximum number of network interfaces we'll deal with */
 #define IO_ERROR		-2	/* Status code for I/O error rather than normal EOF */
 
+/* Number of seconds to wait for data to come off even the slowest media */
+#define MEDIA_TIMEOUT		300
+
 /*
  * I make some pretty gross assumptions about having a max of 50 chunks
  * total - 8 slices and 42 partitions.  I can't easily display many more
@@ -114,6 +117,7 @@
 #define VAR_LABEL			"label"
 #define VAR_LABEL_COUNT			"labelCount"
 #define VAR_MEDIA_TYPE			"mediaType"
+#define VAR_MEDIA_TIMEOUT		"MEDIA_TIMEOUT"
 #define VAR_NAMESERVER			"nameserver"
 #define VAR_NETMASK			"netmask"
 #define VAR_NFS_PATH			"nfs"
@@ -544,6 +548,7 @@ extern u_char		default_scrnmap[];
 
 /* media.c */
 extern char	*cpioVerbosity(void);
+extern int	mediaTimeout(void);
 extern int	mediaSetCDROM(dialogMenuItem *self);
 extern int	mediaSetFloppy(dialogMenuItem *self);
 extern int	mediaSetDOS(dialogMenuItem *self);
@@ -627,6 +632,8 @@ extern int	package_extract(Device *dev, char *name, Boolean depended);
 extern Boolean	package_exists(char *name);
 
 /* system.c */
+extern int	alarm_clear(void);
+extern void	alarm_set(int delay, void (*handler)(int sig));
 extern void	systemInitialize(int argc, char **argv);
 extern void	systemShutdown(int status);
 extern int	execExecute(char *cmd, char *name);

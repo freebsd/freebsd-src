@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.48.2.8 1997/01/16 01:19:27 jkh Exp $
+ * $Id: tcpip.c,v 1.48.2.9 1997/01/17 08:53:49 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -361,5 +361,5 @@ int
 tcpMenuSelect(dialogMenuItem *self)
 {
     (void)tcpDeviceSelect();
-    return DITEM_SUCCESS | DITEM_RECREATE | DITEM_RESTORE;
+    return DITEM_SUCCESS | DITEM_RESTORE;
 }
