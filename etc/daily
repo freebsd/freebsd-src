@@ -1,5 +1,6 @@
 #!/bin/sh -
 #
+#	$Id:$
 #	@(#)daily	5.12 (Berkeley) 5/24/91
 #
 PATH=/bin:/usr/bin:/sbin:/usr/sbin
