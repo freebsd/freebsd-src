@@ -764,7 +764,7 @@ nfs_mount(mp, path, data, ndp, p)
 	struct nfs_args args;
 	struct sockaddr *nam;
 	struct vnode *vp;
-	char pth[MNAMELEN], hst[MNAMELEN];
+	char hst[MNAMELEN];
 	size_t len;
 	u_char nfh[NFSX_V3FHMAX];
 
@@ -810,10 +810,6 @@ nfs_mount(mp, path, data, ndp, p)
 	error = copyin((caddr_t)args.fh, (caddr_t)nfh, args.fhsize);
 	if (error)
 		return (error);
-	error = copyinstr(path, pth, MNAMELEN-1, &len);
-	if (error)
-		return (error);
-	bzero(&pth[len], MNAMELEN - len);
 	error = copyinstr(args.hostname, hst, MNAMELEN-1, &len);
 	if (error)
 		return (error);
@@ -823,7 +819,7 @@ nfs_mount(mp, path, data, ndp, p)
 	if (error)
 		return (error);
 	args.fh = nfh;
-	error = mountnfs(&args, mp, nam, pth, hst, &vp);
+	error = mountnfs(&args, mp, nam, path, hst, &vp);
 	return (error);
 }
 

@@ -323,9 +323,8 @@ ffs_mount(mp, path, data, ndp, p)
 		 * We need the name for the mount point (also used for
 		 * "last mounted on") copied in. If an error occurs,
 		 * the mount point is discarded by the upper level code.
+		 * Note that vfs_mount() populates f_mntonname for us.
 		 */
-		copyinstr(path, mp->mnt_stat.f_mntonname, MNAMELEN - 1, &size);
-		bzero( mp->mnt_stat.f_mntonname + size, MNAMELEN - size);
 		if ((error = ffs_mountfs(devvp, mp, p, M_FFSNODE)) != 0) {
 			vrele(devvp);
 			return (error);

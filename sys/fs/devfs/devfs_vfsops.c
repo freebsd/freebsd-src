@@ -67,7 +67,6 @@ devfs_mount(mp, path, data, ndp, p)
 	struct proc *p;
 {
 	int error;
-	size_t size;
 	struct devfs_mount *fmp;
 	struct vnode *rvp;
 
@@ -100,13 +99,6 @@ devfs_mount(mp, path, data, ndp, p)
 	}
 	VOP_UNLOCK(rvp, 0, p);
 
-	if (path != NULL) {
-		(void) copyinstr(path, mp->mnt_stat.f_mntonname, MNAMELEN - 1, &size);
-	} else {
-		strcpy(mp->mnt_stat.f_mntonname, "/");
-		size = 1;
-	}
-	bzero(mp->mnt_stat.f_mntonname + size, MNAMELEN - size);
 	bzero(mp->mnt_stat.f_mntfromname, MNAMELEN);
 	bcopy("devfs", mp->mnt_stat.f_mntfromname, sizeof("devfs"));
 	(void)devfs_statfs(mp, &mp->mnt_stat, p);
