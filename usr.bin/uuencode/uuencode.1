@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)uuencode.1	8.1 (Berkeley) 6/6/93
+.\"	$Id$
 .\"
 .Dd June 6, 1993
 .Dt UUENCODE 1
@@ -43,6 +44,7 @@
 .Op Ar file
 .Ar name
 .Nm uudecode
+.Op Fl cp
 .Op Ar file ...
 .Sh DESCRIPTION
 .Nm Uuencode
@@ -76,6 +78,18 @@ and will have the mode of the original file except that setuid
 and execute bits are not retained.
 .Nm Uudecode
 ignores any leading and trailing lines.
+.Pp
+The following options are available for
+.Nm uudecode :
+.Bl -tag -width ident
+.It Fl c
+Decode more than one uuencode'd file from 
+.Ar file 
+if possible.
+.It Fl p
+Decode
+.Ar file
+and write output to standard output.
 .Sh EXAMPLES
 The following example packages up a source tree, compresses it,
 uuencodes it and mails it to a user on another system.
@@ -88,6 +102,20 @@ tree.
 .Bd -literal -offset indent -compact
 tar cf \- src_tree \&| compress \&|
 uuencode src_tree.tar.Z \&| mail sys1!sys2!user
+.Ed
+
+The following example unpack all uuencode'd 
+files from your mailbox into your current working directory.
+.Pp
+.Bd -literal -offset indent -compact
+uudecode -c < $MAIL
+.Ed
+
+The following example extract a compress'ed tar
+archive from your mailbox
+.Pp
+.Bd -literal -offset indent -compact
+uudecode -p < $MAIL | zcat | tar xfv -
 .Ed
 .Sh SEE ALSO
 .Xr compress 1 ,
