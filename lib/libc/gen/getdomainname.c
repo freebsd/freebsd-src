@@ -36,13 +36,15 @@
 static char sccsid[] = "From: @(#)gethostname.c	8.1 (Berkeley) 6/4/93";
 */
 static const char rcsid[] =
-  "$Id$";
+  "$Id: getdomainname.c,v 1.1 1994/08/08 00:40:23 wollman Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
 #include <sys/sysctl.h>
 
-long
+#include <unistd.h>
+
+int
 getdomainname(name, namelen)
 	char *name;
 	int namelen;
