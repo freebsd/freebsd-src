@@ -37,6 +37,7 @@ SOFTWORDS=	softcore.fr jhlocal.fr marker.fr freebsd.fr ficllocal.fr \
 CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/${MACHINE_ARCH} -I${.CURDIR}/../common -DFICL_TRACE
 
 softcore.c:	${SOFTWORDS} softcore.awk
-	(cd ${.CURDIR}/softwords; cat ${SOFTWORDS} | awk -f softcore.awk) > ${.TARGET}
+	(cd ${.CURDIR}/softwords; cat ${SOFTWORDS} \
+	    | awk -f softcore.awk -v datestamp="`date`") > ${.TARGET}
 
 
