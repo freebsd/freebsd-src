@@ -51,8 +51,8 @@ should be invoked by using the
 command
 with a
 .BR \-Tascii ,
-.BR \-Tkoi8-r ,
-.B \-Tlatin1
+.BR \-Tlatin1 ,
+.B \-Tkoi8-r
 or
 .B \-Tutf8
 option on ASCII based systems, and with
@@ -237,8 +237,8 @@ to the search path for font and device description files;
 .I name
 is the name of the device, usually
 .BR ascii ,
-.BR koi8-r ,
 .BR latin1 ,
+.BR koi8-r ,
 .BR utf8 ,
 or
 .BR cp1047 .
