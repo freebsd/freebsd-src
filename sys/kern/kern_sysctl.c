@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.39 1995/11/13 13:54:09 phk Exp $
+ * $Id: kern_sysctl.c,v 1.40 1995/11/14 09:05:40 phk Exp $
  */
 
 /*
@@ -729,9 +729,6 @@ kern_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 		return (sysctl_doprof(name + 1, namelen - 1, oldp, oldlenp,
 		    newp, newlen));
 #endif
-	case KERN_NTP_PLL:
-		return (ntp_sysctl(name + 1, namelen - 1, oldp, oldlenp,
-				   newp, newlen, p));
 	case KERN_DUMPDEV:
 		ndumpdev = dumpdev;
 		error = sysctl_struct(oldp, oldlenp, newp, newlen, &ndumpdev,
