@@ -883,7 +883,7 @@ ndis_create_timer(timer, handle, func, ctx)
 	block = (ndis_miniport_block *)handle;
 
 	ne = malloc(sizeof(struct ndis_timer_entry), M_DEVBUF, M_NOWAIT);
-	callout_handle_init(&ne->nte_ch);
+	callout_init(&ne->nte_ch, CALLOUT_MPSAFE);
 	TAILQ_INSERT_TAIL(&block->nmb_timerlist, ne, link);
 	ne->nte_timer = timer;
 
@@ -927,7 +927,7 @@ ndis_set_timer(timer, msecs)
 	ndis_miniport_timer	*timer;
 	uint32_t		msecs;
 {
-	struct callout_handle	*ch;
+	struct callout		*ch;
 	struct timeval		tv;
 
 	tv.tv_sec = 0;
@@ -936,8 +936,7 @@ ndis_set_timer(timer, msecs)
 	ch = timer->nmt_dpc.nk_deferredctx;
 	timer->nmt_dpc.nk_sysarg2 = ndis_timercall;
 	timer->nmt_ktimer.nk_header.dh_sigstate = TRUE;
-	*ch = timeout((timeout_t *)timer->nmt_dpc.nk_sysarg2, (void *)timer,
-	    tvtohz(&tv));
+	callout_reset(ch, tvtohz(&tv), timer->nmt_dpc.nk_sysarg2, timer);
 
 	return;
 }
@@ -947,7 +946,7 @@ ndis_tick(arg)
 	void			*arg;
 {
 	ndis_miniport_timer	*timer;
-	struct callout_handle	*ch;
+	struct callout		*ch;
 	__stdcall ndis_timer_function	timerfunc;
 	struct timeval		tv;
 
@@ -964,8 +963,7 @@ ndis_tick(arg)
 	ch = timer->nmt_dpc.nk_deferredctx;
 	timer->nmt_ktimer.nk_header.dh_sigstate = TRUE;
 	timer->nmt_dpc.nk_sysarg2 = ndis_tick;
-	*ch = timeout((timeout_t *)timer->nmt_dpc.nk_sysarg2, timer,
-	    tvtohz(&tv));
+	callout_reset(ch, tvtohz(&tv), timer->nmt_dpc.nk_sysarg2, timer);
 
 	return;
 }
@@ -975,7 +973,7 @@ ndis_set_periodic_timer(timer, msecs)
 	ndis_miniport_timer	*timer;
 	uint32_t		msecs;
 {
-	struct callout_handle	*ch;
+	struct callout		*ch;
 	struct timeval		tv;
 
 	tv.tv_sec = 0;
@@ -985,8 +983,7 @@ ndis_set_periodic_timer(timer, msecs)
 	ch = timer->nmt_dpc.nk_deferredctx;
 	timer->nmt_dpc.nk_sysarg2 = ndis_tick;
 	timer->nmt_ktimer.nk_header.dh_sigstate = TRUE;
-	*ch = timeout((timeout_t *)timer->nmt_dpc.nk_sysarg2, timer,
-	    tvtohz(&tv));
+	callout_reset(ch, tvtohz(&tv), timer->nmt_dpc.nk_sysarg2, timer);
 
 	return;
 }
@@ -996,10 +993,10 @@ ndis_cancel_timer(timer, cancelled)
 	ndis_miniport_timer	*timer;
 	uint8_t			*cancelled;
 {
-	struct callout_handle	*ch;
+	struct callout		*ch;
 
 	ch = timer->nmt_dpc.nk_deferredctx;
-	untimeout(ch->callout->c_func, ch->callout->c_arg, *ch);
+	callout_stop(ch);
 	*cancelled = timer->nmt_ktimer.nk_header.dh_sigstate;
 
 	return;
