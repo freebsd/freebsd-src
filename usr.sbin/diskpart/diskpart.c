@@ -375,8 +375,13 @@ promptfordisk(name)
 		(void) fgets(buf, BUFSIZ, stdin);
 		if (buf[0] == 0)
 			dp->d_type = 1;
-		else
+		else {
+			int len = strlen(buf);
+
+			if (buf[len - 1] == '\n')
+				buf[len - 1] = '\0';
 			dp->d_type = gettype(buf, dktypenames);
+		}
 		if (dp->d_type >= 0)
 			break;
 		fprintf(stderr, "%s: unrecognized controller type\n", buf);
