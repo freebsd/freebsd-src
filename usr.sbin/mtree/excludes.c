@@ -103,7 +103,7 @@ check_excludes(const char *fname, const char *path)
 #define MATCH(g, n) (fnmatch((g), (n), FNM_PATHNAME) == 0)
 
 	LIST_FOREACH(e, &excludes, link) {
-		if (e->pathname && MATCH(e->glob, path) 
+		if ((e->pathname && MATCH(e->glob, path)) 
 		    || MATCH(e->glob, fname))
 			return 1;
 	}
