@@ -31,7 +31,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.3 1994/10/23 21:27:07 wollman Exp $
+ * $Id: aic6360.c,v 1.4 1994/11/15 14:54:13 bde Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -494,7 +494,9 @@
 
 
 
-#if defined(KERNEL) && !defined(DDB)
+#ifdef DDB
+#define	fatal_if_no_DDB()
+#else
 #define	fatal_if_no_DDB() panic("panic for historical reasons")
 #endif
 
