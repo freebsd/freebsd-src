@@ -34,6 +34,8 @@
 
 /*
  * driver for AMD AM79c873 PHYs
+ * This driver also works for the Davicom DM9101 PHY, which appears to
+ * be an AM79c873 workalike.
  */
 
 #include <sys/param.h>
@@ -92,11 +94,16 @@ static int amphy_probe(dev)
 
 	ma = device_get_ivars(dev);
 
-	if (MII_OUI(ma->mii_id1, ma->mii_id2) != MII_OUI_xxAMD ||
-	    MII_MODEL(ma->mii_id2) != MII_MODEL_xxAMD_79C873)
+	if ((MII_OUI(ma->mii_id1, ma->mii_id2) != MII_OUI_xxAMD ||
+	    MII_MODEL(ma->mii_id2) != MII_MODEL_xxAMD_79C873) &&
+	    (MII_OUI(ma->mii_id1, ma->mii_id2) != MII_OUI_xxDAVICOM ||
+	    MII_MODEL(ma->mii_id2) != MII_MODEL_xxDAVICOM_DM9101))
 		return(ENXIO);
 
-	device_set_desc(dev, MII_STR_xxAMD_79C873);
+	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxAMD)
+		device_set_desc(dev, MII_STR_xxAMD_79C873);
+	else if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxDAVICOM)
+		device_set_desc(dev, MII_STR_xxDAVICOM_DM9101);
 
 	return(0);
 }
