@@ -30,7 +30,6 @@ static char Options[] = "abcdDe:EfgGhiIjkl:LmoO:pPqQrRst:vVW:xX";
 
 int	Flags		= 0;
 match_t	MatchType	= MATCH_GLOB;
-Boolean Quiet		= FALSE;
 Boolean QUIET		= FALSE;
 Boolean UseBlkSz	= FALSE;
 char *InfoPrefix	= (char *)(uintptr_t)"";

@@ -25,7 +25,7 @@ __FBSDID("$FreeBSD$");
 #include "version.h"
 #include <err.h>
 
-static char Options[] = "dhl:L:s:XtTv";
+static char Options[] = "dhl:L:qs:XtTv";
 
 char	*LimitChars = NULL;
 char	*PreventChars = NULL;
@@ -60,6 +60,10 @@ main(int argc, char **argv)
 
 	case 'L':
 	    PreventChars = optarg;
+	    break;
+
+	case 'q':
+	    Quiet = TRUE;
 	    break;
 
 	case 's':
