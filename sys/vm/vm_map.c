@@ -821,14 +821,10 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		 * reference counting is insufficient to recognize
 		 * aliases with precision.) 
 		 */
-		if (object != kmem_object)
-			mtx_lock(&Giant);
 		VM_OBJECT_LOCK(object);
 		if (object->ref_count > 1 || object->shadow_count != 0)
 			vm_object_clear_flag(object, OBJ_ONEMAPPING);
 		VM_OBJECT_UNLOCK(object);
-		if (object != kmem_object)
-			mtx_unlock(&Giant);
 	}
 	else if ((prev_entry != &map->header) &&
 		 (prev_entry->eflags == protoeflags) &&
