@@ -2,7 +2,7 @@
  * Functions to provide access to special i386 instructions.
  * XXX - bezillions more are defined in locore.s but are not declared anywhere.
  *
- *	$Id: cpufunc.h,v 1.5 1993/11/25 01:31:07 wollman Exp $
+ *	$Id: cpufunc.h,v 1.6 1993/12/19 00:50:14 wollman Exp $
  */
 
 #ifndef _MACHINE_CPUFUNC_H_
@@ -224,9 +224,9 @@ void	setidt	__P((int, void (*)(), int, int));
 extern u_long kvtop(void *);
 extern void tlbflush(void);
 extern void outw(int /*u_short*/, int /*u_short*/); /* XXX inline!*/
-extern void outsb(int /*u_short*/, caddr_t, size_t);
-extern void outsw(int /*u_short*/, caddr_t, size_t);
-extern void insw(int /*u_short*/, caddr_t, size_t);
-extern void fillw(int /*u_short*/, caddr_t, size_t);
+extern void outsb(int /*u_short*/, void *, size_t);
+extern void outsw(int /*u_short*/, void *, size_t);
+extern void insw(int /*u_short*/, void *, size_t);
+extern void fillw(int /*u_short*/, void *, size_t);
 
 #endif /* _MACHINE_CPUFUNC_H_ */
