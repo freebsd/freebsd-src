@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.3 (Berkeley) 10/24/94
-#	$Id: Makefile.inc,v 1.57.2.3 1999/07/30 10:09:28 mpp Exp $
+#	$Id: Makefile.inc,v 1.57.2.4 1999/07/30 11:33:40 mpp Exp $
 
 # sys sources
 .PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/sys ${.CURDIR}/../libc/sys
@@ -82,7 +82,9 @@ MAN2+=	_exit.2 accept.2 access.2 acct.2 adjtime.2 aio_read.2 \
 	getpeername.2 getpgrp.2 getpid.2 getpriority.2 getrlimit.2 \
 	getrusage.2 getsid.2 getsockname.2 \
 	getsockopt.2 gettimeofday.2 getuid.2 \
-	intro.2 ioctl.2 issetugid.2 kill.2 ktrace.2 link.2 listen.2 lseek.2 \
+	intro.2 ioctl.2 issetugid.2 kill.2 \
+	kldfind.2 kldfirstmod.2 kldload.2 kldnext.2 kldstat.2 kldunload.2 \
+	ktrace.2 link.2 listen.2 lseek.2 \
 	madvise.2 mincore.2 minherit.2 mkdir.2 mkfifo.2 mknod.2 mlock.2 mmap.2 \
 	mount.2 mprotect.2 msync.2 munmap.2 nanosleep.2 \
 	nfssvc.2 open.2 pathconf.2 pipe.2 poll.2 profil.2 ptrace.2 quotactl.2 \
