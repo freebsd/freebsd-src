@@ -30,11 +30,14 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <assert.h>
 #include <err.h>
 #include <fcntl.h>
 #include <kvm.h>
 #include <nlist.h>
+#include <limits.h>
 #include <paths.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -43,12 +46,21 @@ static const char rcsid[] =
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/proc.h>
+#include <sys/sysctl.h>
 #define _KERNEL
 #include <sys/ipc.h>
 #include <sys/sem.h>
 #include <sys/shm.h>
 #include <sys/msg.h>
 
+/* SysCtlGatherStruct structure. */
+struct scgs_vector {
+	const char *sysctl;
+	off_t offset;
+	size_t size;
+};
+
+int	use_sysctl = 1;
 struct semid_ds	*sema;
 struct seminfo	seminfo;
 struct msginfo	msginfo;
@@ -56,25 +68,65 @@ struct msqid_ds	*msqids;
 struct shminfo	shminfo;
 struct shmid_ds	*shmsegs;
 
+void	sysctlgatherstruct __P((void *addr, size_t size,
+    struct scgs_vector *vec));
+void	kget __P((int idx, void *addr, size_t size));
 void	usage __P((void));
 
 static struct nlist symbols[] = {
-	{"_sema"},
+	{"sema"},
 #define X_SEMA		0
-	{"_seminfo"},
+	{"seminfo"},
 #define X_SEMINFO	1
-	{"_semu"},
-#define X_SEMU		2
-	{"_msginfo"},
-#define X_MSGINFO	3
-	{"_msqids"},
-#define X_MSQIDS	4
-	{"_shminfo"},
-#define X_SHMINFO	5
-	{"_shmsegs"},
-#define X_SHMSEGS	6
+	{"msginfo"},
+#define X_MSGINFO	2
+	{"msqids"},
+#define X_MSQIDS	3
+	{"shminfo"},
+#define X_SHMINFO	4
+	{"shmsegs"},
+#define X_SHMSEGS	5
 	{NULL}
 };
+
+#define	SHMINFO_XVEC				\
+X(shmmax, sizeof(int))				\
+X(shmmin, sizeof(int))				\
+X(shmmni, sizeof(int))				\
+X(shmseg, sizeof(int))				\
+X(shmall, sizeof(int))
+
+#define	SEMINFO_XVEC				\
+X(semmap, sizeof(int))				\
+X(semmni, sizeof(int))				\
+X(semmns, sizeof(int))				\
+X(semmnu, sizeof(int))				\
+X(semmsl, sizeof(int))				\
+X(semopm, sizeof(int))				\
+X(semume, sizeof(int))				\
+X(semusz, sizeof(int))				\
+X(semvmx, sizeof(int))				\
+X(semaem, sizeof(int))
+
+#define	MSGINFO_XVEC				\
+X(msgmax, sizeof(int))				\
+X(msgmni, sizeof(int))				\
+X(msgmnb, sizeof(int))				\
+X(msgtql, sizeof(int))				\
+X(msgssz, sizeof(int))				\
+X(msgseg, sizeof(int))
+
+#define	X(a, b)	{ "kern.ipc." #a, offsetof(TYPEC, a), (b) },
+#define	TYPEC	struct shminfo
+struct scgs_vector shminfo_scgsv[] = { SHMINFO_XVEC { NULL } };
+#undef	TYPEC
+#define	TYPEC	struct seminfo
+struct scgs_vector seminfo_scgsv[] = { SEMINFO_XVEC { NULL } };
+#undef	TYPEC
+#define	TYPEC	struct msginfo
+struct scgs_vector msginfo_scgsv[] = { MSGINFO_XVEC { NULL } };
+#undef	TYPEC
+#undef	X
 
 static kvm_t *kd;
 
@@ -135,9 +187,10 @@ main(argc, argv)
 	int     display = SHMINFO | MSGINFO | SEMINFO;
 	int     option = 0;
 	char   *core = NULL, *namelist = NULL;
+	char	kvmoferr[_POSIX2_LINE_MAX];  /* Error buf for kvm_openfiles. */
 	int     i;
 
-	while ((i = getopt(argc, argv, "MmQqSsabC:cN:optT")) != -1)
+	while ((i = getopt(argc, argv, "MmQqSsabC:cN:optTy")) != -1)
 		switch (i) {
 		case 'M':
 			display = SHMTOTAL;
@@ -184,39 +237,44 @@ main(argc, argv)
 		case 't':
 			option |= TIME;
 			break;
+		case 'y':
+			use_sysctl = 0;
+			break;
 		default:
 			usage();
 		}
 
 	/*
-	 * Discard setgid privileges if not the running kernel so that bad
-	 * guys can't print interesting stuff from kernel memory.
+	 * If paths to the exec file or core file were specified, we
+	 * aren't operating on the running kernel, so we can't use
+	 * sysctl.
 	 */
 	if (namelist != NULL || core != NULL)
-		setgid(getgid());
+		use_sysctl = 0;
 
-	if ((kd = kvm_open(namelist, core, NULL, O_RDONLY, "ipcs")) == NULL)
-		exit(1);
-
-	switch (kvm_nlist(kd, symbols)) {
-	case 0:
-		break;
-	case -1:
-		errx(1, "unable to read kernel symbol table");
-	default:
+	if (!use_sysctl) {
+		kd = kvm_openfiles(namelist, core, NULL, O_RDONLY, kvmoferr);
+		if (kd == NULL)
+			errx(1, "kvm_openfiles: %s", kvmoferr);
+		switch (kvm_nlist(kd, symbols)) {
+		case 0:
+			break;
+		case -1:
+			errx(1, "unable to read kernel symbol table");
+		default:
 #ifdef notdef		/* they'll be told more civilly later */
-		warnx("nlist failed");
-		for (i = 0; symbols[i].n_name != NULL; i++)
-			if (symbols[i].n_value == 0)
-				warnx("symbol %s not found",
-				    symbols[i].n_name);
-		break;
+			warnx("nlist failed");
+			for (i = 0; symbols[i].n_name != NULL; i++)
+				if (symbols[i].n_value == 0)
+					warnx("symbol %s not found",
+					    symbols[i].n_name);
+			break;
 #endif
+		}
 	}
 
-	if ((display & (MSGINFO | MSGTOTAL)) &&
-	    kvm_read(kd, symbols[X_MSGINFO].n_value, &msginfo, sizeof(msginfo))== sizeof(msginfo)) {
-
+	kget(X_MSGINFO, &msginfo, sizeof(msginfo));
+	if ((display & (MSGINFO | MSGTOTAL))) {
 		if (display & MSGTOTAL) {
 			printf("msginfo:\n");
 			printf("\tmsgmax: %6d\t(max characters in a message)\n",
@@ -234,10 +292,12 @@ main(argc, argv)
 		}
 		if (display & MSGINFO) {
 			struct msqid_ds *xmsqids;
+			size_t xmsqids_len;
 
-			kvm_read(kd, symbols[X_MSQIDS].n_value, &msqids, sizeof(msqids));
-			xmsqids = malloc(sizeof(struct msqid_ds) * msginfo.msgmni);
-			kvm_read(kd, (u_long) msqids, xmsqids, sizeof(struct msqid_ds) * msginfo.msgmni);
+
+			xmsqids_len = sizeof(struct msqid_ds) * msginfo.msgmni;
+			xmsqids = malloc(xmsqids_len);
+			kget(X_MSQIDS, xmsqids, xmsqids_len);
 
 			printf("Message Queues:\n");
 			printf("T     ID     KEY        MODE       OWNER    GROUP");
@@ -304,8 +364,9 @@ main(argc, argv)
 			fprintf(stderr,
 			    "SVID messages facility not configured in the system\n");
 		}
-	if ((display & (SHMINFO | SHMTOTAL)) &&
-	    kvm_read(kd, symbols[X_SHMINFO].n_value, &shminfo, sizeof(shminfo))) {
+
+	kget(X_SHMINFO, &shminfo, sizeof(shminfo));
+	if ((display & (SHMINFO | SHMTOTAL))) {
 		if (display & SHMTOTAL) {
 			printf("shminfo:\n");
 			printf("\tshmmax: %7d\t(max shared memory segment size)\n",
@@ -321,11 +382,11 @@ main(argc, argv)
 		}
 		if (display & SHMINFO) {
 			struct shmid_ds *xshmids;
+			size_t xshmids_len;
 
-			kvm_read(kd, symbols[X_SHMSEGS].n_value, &shmsegs, sizeof(shmsegs));
-			xshmids = malloc(sizeof(struct shmid_ds) * shminfo.shmmni);
-			kvm_read(kd, (u_long) shmsegs, xshmids, sizeof(struct shmid_ds) *
-			    shminfo.shmmni);
+			xshmids_len = sizeof(struct shmid_ds) * shminfo.shmmni;
+			xshmids = malloc(xshmids_len);
+			kget(X_SHMSEGS, xshmids, xshmids_len);
 
 			printf("Shared Memory:\n");
 			printf("T     ID     KEY        MODE       OWNER    GROUP");
@@ -391,9 +452,11 @@ main(argc, argv)
 			fprintf(stderr,
 			    "SVID shared memory facility not configured in the system\n");
 		}
-	if ((display & (SEMINFO | SEMTOTAL)) &&
-	    kvm_read(kd, symbols[X_SEMINFO].n_value, &seminfo, sizeof(seminfo))) {
+
+	kget(X_SEMINFO, &seminfo, sizeof(seminfo));
+	if ((display & (SEMINFO | SEMTOTAL))) {
 		struct semid_ds *xsema;
+		size_t xsema_len;
 
 		if (display & SEMTOTAL) {
 			printf("seminfo:\n");
@@ -419,9 +482,9 @@ main(argc, argv)
 			    seminfo.semaem);
 		}
 		if (display & SEMINFO) {
-			kvm_read(kd, symbols[X_SEMA].n_value, &sema, sizeof(sema));
-			xsema = malloc(sizeof(struct semid_ds) * seminfo.semmni);
-			kvm_read(kd, (u_long) sema, xsema, sizeof(struct semid_ds) * seminfo.semmni);
+			xsema_len = sizeof(struct semid_ds) * seminfo.semmni;
+			xsema = malloc(xsema_len);
+			kget(X_SEMA, xsema, xsema_len);
 
 			printf("Semaphores:\n");
 			printf("T     ID     KEY        MODE       OWNER    GROUP");
@@ -471,9 +534,117 @@ main(argc, argv)
 		if (display & (SEMINFO | SEMTOTAL)) {
 			fprintf(stderr, "SVID semaphores facility not configured in the system\n");
 		}
-	kvm_close(kd);
+	if (!use_sysctl)
+		kvm_close(kd);
 
 	exit(0);
+}
+
+void
+sysctlgatherstruct(addr, size, vecarr)
+	void *addr;
+	size_t size;
+	struct scgs_vector *vecarr;
+{
+	struct scgs_vector *xp;
+	size_t tsiz;
+	int rv;
+
+	for (xp = vecarr; xp->sysctl != NULL; xp++) {
+		assert(xp->offset <= size);
+		tsiz = xp->size;
+		rv = sysctlbyname(xp->sysctl, (char *)addr + xp->offset,
+		    &tsiz, NULL, 0);
+		if (rv == -1)
+			errx(1, "sysctlbyname: %s", xp->sysctl);
+		if (tsiz != xp->size)
+			errx(1, "%s size mismatch (expected %d, got %d)",
+			    xp->sysctl, xp->size, tsiz);
+	}
+}
+
+void
+kget(idx, addr, size)
+	int idx;
+	void *addr;
+	size_t size;
+{
+	char *symn;			/* symbol name */
+	size_t tsiz;
+	int rv;
+	unsigned long kaddr;
+	const char *sym2sysctl[] = {	/* symbol to sysctl name table */
+		"kern.ipc.sema",
+		"kern.ipc.seminfo",
+		"kern.ipc.msginfo",
+		"kern.ipc.msqids",
+		"kern.ipc.shminfo",
+		"kern.ipc.shmsegs" };
+
+	assert((unsigned)idx <= sizeof(sym2sysctl) / sizeof(*sym2sysctl));
+	if (!use_sysctl) {
+		symn = symbols[idx].n_name;
+		if (*symn == '_')
+			symn++;
+		if (symbols[idx].n_type == 0 || symbols[idx].n_value == 0)
+			errx(1, "symbol %s undefined", symn);
+		/*
+		 * For some symbols, the value we retreieve is
+		 * actually a pointer; since we want the actual value,
+		 * we have to manually dereference it.
+		 */
+		switch (idx) {
+		case X_MSQIDS:
+			tsiz = sizeof(msqids);
+			rv = kvm_read(kd, symbols[idx].n_value,
+			    &msqids, tsiz);
+			kaddr = (u_long)msqids;
+			break;
+		case X_SHMSEGS:
+			tsiz = sizeof(shmsegs);
+			rv = kvm_read(kd, symbols[idx].n_value,
+			    &shmsegs, tsiz);
+			kaddr = (u_long)shmsegs;
+			break;
+		case X_SEMA:
+			tsiz = sizeof(sema);
+			rv = kvm_read(kd, symbols[idx].n_value,
+			    &sema, tsiz);
+			kaddr = (u_long)sema;
+			break;
+		default:
+			rv = tsiz = 0;
+			kaddr = symbols[idx].n_value;
+			break;
+		}
+		if ((unsigned)rv != tsiz)
+			errx(1, "%s: %s", symn, kvm_geterr(kd));
+		if ((unsigned)kvm_read(kd, kaddr, addr, size) != size)
+			errx(1, "%s: %s", symn, kvm_geterr(kd));
+	} else {
+		switch (idx) {
+		case X_SHMINFO:
+			sysctlgatherstruct(addr, size, shminfo_scgsv);
+			break;
+		case X_SEMINFO:
+			sysctlgatherstruct(addr, size, seminfo_scgsv);
+			break;
+		case X_MSGINFO:
+			sysctlgatherstruct(addr, size, msginfo_scgsv);
+			break;
+		default:
+			tsiz = size;
+			rv = sysctlbyname(sym2sysctl[idx], addr, &tsiz,
+			    NULL, 0);
+			if (rv == -1)
+				err(1, "sysctlbyname: %s", sym2sysctl[idx]);
+			if (tsiz != size)
+				errx(1, "%s size mismatch "
+				    "(expected %d, got %d)",
+				    sym2sysctl[idx], size, tsiz);
+			break;
+		}
+	}
 }
 
 void
@@ -481,6 +652,6 @@ usage()
 {
 
 	fprintf(stderr,
-	    "usage: ipcs [-abcmopqst] [-C corefile] [-N namelist]\n");
+	    "usage: ipcs [-abcmopqsty] [-C corefile] [-N namelist]\n");
 	exit(1);
 }
