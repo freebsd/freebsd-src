@@ -35,6 +35,16 @@ typedef long	sig_atomic_t;
 
 #ifndef _ANSI_SOURCE
 
+#ifndef _IA64_FPREG_DEFINED
+
+struct ia64_fpreg {
+	unsigned long	fpr_bits[2];
+} __attribute__ ((aligned (16)));
+
+#define _IA64_FPREG_DEFINED
+
+#endif
+
 /*
  * Information pushed on stack when a signal is delivered.
  * This is used by the kernel to restore state following

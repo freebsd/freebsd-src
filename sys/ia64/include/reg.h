@@ -29,9 +29,15 @@
 #ifndef _MACHINE_REG_H_
 #define _MACHINE_REG_H_
 
+#ifndef _IA64_FPREG_DEFINED
+
 struct ia64_fpreg {
 	u_int64_t	fpr_bits[2];
 } __attribute__ ((aligned (16)));
+
+#define _IA64_FPREG_DEFINED
+
+#endif
 
 struct reg {
 	u_int64_t	r_regs[128];

@@ -536,7 +536,9 @@ _mtx_exit(struct mtx *mtxp, int type, const char *file, int line)
 #define MTX_ENTER(lck, rPSR, rOLD, rNEW, rLCK)		\
 	mov	rPSR=psr ;				\
 	mov	rNEW=globalp ;				\
-	mov	rLCK=lck+MTX_LOCK ;;			\
+	addl	rLCK=@ltoff(lck),gp ;;			\
+	ld8	rLCK=[rLCK] ;;				\
+	add	rLCK=MTX_LOCK,rLCK ;;			\
 	rsm	psr.i ;					\
 	mov	ar.ccv=MTX_UNOWNED ;			\
 	add	rNEW=PC_CURPROC,rNEW ;;			\
@@ -544,18 +546,19 @@ _mtx_exit(struct mtx *mtxp, int type, const char *file, int line)
 1:	cmpxchg8.acq rOLD=[rLCK],rNEW,ar.ccv ;;		\
 	cmp.eq	p1,p0=MTX_UNOWNED,rOLD ;;		\
 (p1)	br.cond.spnt.few 1b ;;				\
-	mov	rLCK=lck+MTX_SAVEPSR ;;			\
+	addl	rLCK=@ltoff(lck),gp ;;			\
+	ld8	rLCK=[rLCK] ;;				\
+	add	rLCK=MTX_SAVEPSR,rLCK ;;		\
 	st4	[rLCK]=rPSR
 
-#define MTX_EXIT(lck, rTMP, rLCK)		\
-	mov	rTMP=MTX_UNOWNED ;		\
-	addl	rLCK=@ltoff(lck),gp;;		\
-	add	rLCK=MTX_LOCK,rLCK;;		\
-	st8.rel	[rLCK]=rTMP ;;			\
-	addl	rLCK=@ltoff(lck),gp;;		\
-	add	rLCK=MTX_SAVEPSR,rLCK;;		\
-	ld4	rTMP=[rLCK] ;;			\
-	mov	psr.l=rTMP ;;			\
+#define MTX_EXIT(lck, rTMP, rLCK)			\
+	mov	rTMP=MTX_UNOWNED ;			\
+	addl	rLCK=@ltoff(lck),gp;;			\
+	ld8	rLCK=[rLCK];;				\
+	add	rLCK=MTX_LOCK,rLCK;;			\
+	st8.rel	[rLCK]=rTMP,MTX_SAVEPSR-MTX_LOCK ;;	\
+	ld4	rTMP=[rLCK] ;;				\
+	mov	psr.l=rTMP ;;				\
 	srlz.d
 
 #endif	/* !LOCORE */

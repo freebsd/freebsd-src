@@ -183,6 +183,166 @@ ia64_tpa(u_int64_t va)
 }
 
 /*
+ * Read the value of ar.k0.
+ */
+static __inline u_int64_t
+ia64_get_k0(void)
+{
+	u_int64_t result;
+	__asm __volatile("mov %0=ar.k0" : "=r" (result));
+	return result;
+}
+
+/*
+ * Read the value of ar.k1.
+ */
+static __inline u_int64_t
+ia64_get_k1(void)
+{
+	u_int64_t result;
+	__asm __volatile("mov %0=ar.k1" : "=r" (result));
+	return result;
+}
+
+/*
+ * Read the value of ar.k2.
+ */
+static __inline u_int64_t
+ia64_get_k2(void)
+{
+	u_int64_t result;
+	__asm __volatile("mov %0=ar.k2" : "=r" (result));
+	return result;
+}
+
+/*
+ * Read the value of ar.k3.
+ */
+static __inline u_int64_t
+ia64_get_k3(void)
+{
+	u_int64_t result;
+	__asm __volatile("mov %0=ar.k3" : "=r" (result));
+	return result;
+}
+
+/*
+ * Read the value of ar.k4.
+ */
+static __inline u_int64_t
+ia64_get_k4(void)
+{
+	u_int64_t result;
+	__asm __volatile("mov %0=ar.k4" : "=r" (result));
+	return result;
+}
+
+/*
+ * Read the value of ar.k5.
+ */
+static __inline u_int64_t
+ia64_get_k5(void)
+{
+	u_int64_t result;
+	__asm __volatile("mov %0=ar.k5" : "=r" (result));
+	return result;
+}
+
+/*
+ * Read the value of ar.k6.
+ */
+static __inline u_int64_t
+ia64_get_k6(void)
+{
+	u_int64_t result;
+	__asm __volatile("mov %0=ar.k6" : "=r" (result));
+	return result;
+}
+
+/*
+ * Read the value of ar.k7.
+ */
+static __inline u_int64_t
+ia64_get_k7(void)
+{
+	u_int64_t result;
+	__asm __volatile("mov %0=ar.k7" : "=r" (result));
+	return result;
+}
+
+/*
+ * Write the value of ar.k0.
+ */
+static __inline void
+ia64_set_k0(u_int64_t v)
+{
+	__asm __volatile("mov ar.k0=%0" :: "r" (v));
+}
+
+/*
+ * Write the value of ar.k1.
+ */
+static __inline void
+ia64_set_k1(u_int64_t v)
+{
+	__asm __volatile("mov ar.k1=%0" :: "r" (v));
+}
+
+/*
+ * Write the value of ar.k2.
+ */
+static __inline void
+ia64_set_k2(u_int64_t v)
+{
+	__asm __volatile("mov ar.k2=%0" :: "r" (v));
+}
+
+/*
+ * Write the value of ar.k3.
+ */
+static __inline void
+ia64_set_k3(u_int64_t v)
+{
+	__asm __volatile("mov ar.k3=%0" :: "r" (v));
+}
+
+/*
+ * Write the value of ar.k4.
+ */
+static __inline void
+ia64_set_k4(u_int64_t v)
+{
+	__asm __volatile("mov ar.k4=%0" :: "r" (v));
+}
+
+/*
+ * Write the value of ar.k5.
+ */
+static __inline void
+ia64_set_k5(u_int64_t v)
+{
+	__asm __volatile("mov ar.k5=%0" :: "r" (v));
+}
+
+/*
+ * Write the value of ar.k6.
+ */
+static __inline void
+ia64_set_k6(u_int64_t v)
+{
+	__asm __volatile("mov ar.k6=%0" :: "r" (v));
+}
+
+/*
+ * Write the value of ar.k7.
+ */
+static __inline void
+ia64_set_k7(u_int64_t v)
+{
+	__asm __volatile("mov ar.k7=%0" :: "r" (v));
+}
+
+/*
  * Read the value of ar.itc.
  */
 static __inline u_int64_t

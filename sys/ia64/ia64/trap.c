@@ -239,13 +239,6 @@ trap(int vector, struct trapframe *framep)
 	u_quad_t sticks;
 	int user;
 
-#if 0
-	/*
-	 * Find our per-cpu globals.
-	 */
-	globalp = (struct globaldata *) alpha_pal_rdval(); /* XXx */
-#endif
-
 	cnt.v_trap++;
 	p = curproc;
 	ucode = 0;
@@ -395,7 +388,7 @@ trap(int vector, struct trapframe *framep)
 		if (map != kernel_map) {
 			/*
 			 * Keep swapout from messing with us
-			 * during thiscritical time.
+			 * during this critical time.
 			 */
 			++p->p_lock;
 
@@ -509,7 +502,6 @@ syscall(code, framep)
 	u_int64_t code;
 	struct trapframe *framep;
 {
-#if 0
 	struct sysent *callp;
 	struct proc *p;
 	int error = 0;
@@ -518,12 +510,6 @@ syscall(code, framep)
 	u_int64_t args[10];					/* XXX */
 	u_int hidden = 0, nargs;
 
-	/*
-	 * Find our per-cpu globals.
-	 */
-#if 0
-	globalp = (struct globaldata *) alpha_pal_rdval();
-#endif
 	mtx_enter(&Giant, MTX_DEF);
 
 #if notdef				/* can't happen, ever. */
@@ -538,9 +524,10 @@ syscall(code, framep)
 	sticks = p->p_sticks;
 
 #ifdef DIAGNOSTIC
-	alpha_fpstate_check(p);
+	ia64_fpstate_check(p);
 #endif
 
+#if 0
 	if (p->p_sysent->sv_prepsyscall) {
 		/* (*p->p_sysent->sv_prepsyscall)(framep, args, &code, &params); */
 		panic("prepsyscall");
@@ -588,6 +575,8 @@ syscall(code, framep)
 	case 0:
 		break;
 	}
+#endif
+
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_SYSCALL))
 		ktrsyscall(p->p_tracep, code, (callp->sy_narg & SYF_ARGMASK), args + hidden);
@@ -604,12 +593,12 @@ syscall(code, framep)
 
 	switch (error) {
 	case 0:
-		framep->tf_regs[FRAME_V0] = p->p_retval[0];
-		framep->tf_regs[FRAME_A4] = p->p_retval[1];
-		framep->tf_regs[FRAME_A3] = 0;
+		framep->tf_r[FRAME_R8] = p->p_retval[0];
+		framep->tf_r[FRAME_R9] = p->p_retval[1];
+		framep->tf_r[FRAME_R10] = 0;
 		break;
 	case ERESTART:
-		framep->tf_regs[FRAME_PC] = opc;
+		framep->tf_cr_iip = opc;
 		break;
 	case EJUSTRETURN:
 		break;
@@ -620,8 +609,8 @@ syscall(code, framep)
 			else
 				error = p->p_sysent->sv_errtbl[error];
 		}
-		framep->tf_regs[FRAME_V0] = error;
-		framep->tf_regs[FRAME_A3] = 1;
+		framep->tf_r[FRAME_R8] = error;
+		framep->tf_r[FRAME_R10] = 1;
 		break;
 	}
 
@@ -631,7 +620,7 @@ syscall(code, framep)
          */
 	p = curproc;
 
-	userret(p, framep->tf_regs[FRAME_PC], sticks, 1);
+	userret(p, framep->tf_cr_iip, sticks, 1);
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_SYSRET))
 		ktrsysret(p->p_tracep, code, error, p->p_retval[0]);
@@ -644,7 +633,6 @@ syscall(code, framep)
 	 */
 	STOPEVENT(p, S_SCX, code);
 	mtx_exit(&Giant, MTX_DEF);
-#endif
 }
 
 /*

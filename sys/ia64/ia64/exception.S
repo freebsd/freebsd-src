@@ -33,6 +33,7 @@
 /*
  * ar.k7 = curproc
  * ar.k6 = ksp
+ * ar.k5 = globalp
  */
 
 /*
@@ -784,7 +785,7 @@ ia64_vhpt:	.quad 0
  *	sp+16	trapframe pointer
  *
  */
-LEAF(exception_return, 0)
+ENTRY(exception_return, 0)
 
 	rsm	psr.ic|psr.dt		// disable interrupt collection and vm
 	add	r3=16,sp;
@@ -792,6 +793,13 @@ LEAF(exception_return, 0)
 	srlz.d
 	dep	r3=0,r3,61,3		// physical address
 	;; 
+	extr.u	r16=rIPSR,32,2		// extract ipsr.cpl
+	;;
+	cmp.eq	p1,p2=r0,r16		// test for return to kernel mode
+	;;
+(p1)	add	r16=SIZEOF_TRAPFRAME+16,sp  // restore ar.k6 (kernel sp)
+	;; 
+(p1)	mov	ar.k6=r16
 	add	r1=SIZEOF_TRAPFRAME-16,r3 // r1=&tf_f[FRAME_F15]
 	add	r2=SIZEOF_TRAPFRAME-32,r3 // r2=&tf_f[FRAME_F14]
 	;;
@@ -943,7 +951,7 @@ LEAF(exception_return, 0)
  * Return:
  *	sp	kernel stack pointer
  */
-LEAF(exception_save_regs, 0)
+ENTRY(exception_save_regs, 0)
 	rsm	psr.dt			// turn off data translations
 	;;
 	srlz.d				// serialize
@@ -1135,6 +1143,7 @@ LEAF(exception_save_regs, 0)
 	stf.spill [r1]=f15		// 
 	;; 
 	movl	r1=__gp			// kernel globals
+	mov	r13=ar.k5		// processor globals
 	ssm	psr.ic|psr.dt		// enable interrupts & translation
 	;;
 	srlz.d				// serialize
