@@ -11,7 +11,7 @@
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
  *
- * $Id: if_is.c,v 1.31 1994/10/29 10:19:32 phk Exp $
+ * $Id: if_is.c,v 1.32 1994/11/24 14:29:22 davidg Exp $
  */
 
 /* TODO
@@ -945,15 +945,7 @@ is_ioctl(ifp, cmd, data)
 #ifdef INET
 		case AF_INET:
 			is_init(ifp->if_unit);	/* before arpwhohas */
-                        /*
-                         * See if another station has *our* IP address.
-                         * i.e.: There is an address conflict! If a
-                         * conflict exists, a message is sent to the
-                         * console.
-                         */
-			((struct arpcom *)ifp)->ac_ipaddr =
-				IA_SIN(ifa)->sin_addr;
-			arpwhohas((struct arpcom *)ifp, &IA_SIN(ifa)->sin_addr);
+			arp_ifinit((struct arpcom *)ifp, ifa);
 			break;
 #endif
 #ifdef NS
