@@ -153,6 +153,9 @@ strcpy (char *dst, const char *src)
 /* XXX sio always uses its major with minor 0 no matter what we specify.  */
 #define	REMOTE_DEV	0
 
+cn_getc_t		siocngetc;
+cn_putc_t		siocnputc;
+
 static int
 putDebugChar (int c)		/* write a single character      */
 {

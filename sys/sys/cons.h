@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.h	7.2 (Berkeley) 5/9/91
- *	$Id: cons.h,v 1.16 1997/04/01 16:13:31 bde Exp $
+ *	$Id: cons.h,v 1.17 1997/07/01 00:54:37 bde Exp $
  */
 
 #ifndef _MACHINE_CONS_H_
@@ -48,30 +48,6 @@ typedef	void	cn_init_t __P((struct consdev *));
 typedef	int	cn_getc_t __P((dev_t));
 typedef	int	cn_checkc_t __P((dev_t));
 typedef	void	cn_putc_t __P((dev_t, int));
-
-#ifdef KERNEL
-/*
- * XXX public functions in drivers should be declared in headers produced
- * by `config', not here.
- */
-cn_probe_t	pccnprobe;
-cn_init_t	pccninit;
-cn_getc_t	pccngetc;
-cn_checkc_t	pccncheckc;
-cn_putc_t	pccnputc;
-
-cn_probe_t	sccnprobe;
-cn_init_t	sccninit;
-cn_getc_t	sccngetc;
-cn_checkc_t	sccncheckc;
-cn_putc_t	sccnputc;
-
-cn_probe_t	siocnprobe;
-cn_init_t	siocninit;
-cn_getc_t	siocngetc;
-cn_checkc_t	siocncheckc;
-cn_putc_t	siocnputc;
-#endif /* KERNEL */
 
 struct consdev {
 	cn_probe_t	*cn_probe;
@@ -96,7 +72,14 @@ struct consdev {
 #define CN_REMOTE	3	/* serial interface with remote bit set */
 
 #ifdef KERNEL
+extern	struct linker_set cons_set;
 extern	int cons_unavail;
+
+#define CONS_DRIVER(name, probe, init, getc, checkc, putc)	\
+	static struct consdev name##_consdev = {		\
+		probe, init, getc, checkc, putc			\
+	};							\
+	DATA_SET(cons_set, name##_consdev);
 
 /* Other kernel entry points. */
 int	cncheckc __P((void));

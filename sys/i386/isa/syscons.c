@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.287 1998/11/08 12:39:02 dfr Exp $
+ *	$Id: syscons.c,v 1.288 1998/12/07 21:58:23 archie Exp $
  */
 
 #include "sc.h"
@@ -300,6 +300,14 @@ static void scsplash_saver(int show);
 #else
 #define scsplash_stick(stick)
 #endif
+
+static cn_probe_t	sccnprobe;
+static cn_init_t	sccninit;
+static cn_getc_t	sccngetc;
+static cn_checkc_t	sccncheckc;
+static cn_putc_t	sccnputc;
+
+CONS_DRIVER(sc, sccnprobe, sccninit, sccngetc, sccncheckc, sccnputc);
 
 struct  isa_driver scdriver = {
     scprobe, scattach, "sc", 1
@@ -1876,7 +1884,7 @@ scmousestart(struct tty *tp)
     splx(s);
 }
 
-void
+static void
 sccnprobe(struct consdev *cp)
 {
     struct isa_device *dvp;
@@ -1902,13 +1910,13 @@ sccnprobe(struct consdev *cp)
     sc_kbdc = kbdc_open(sc_port);
 }
 
-void
+static void
 sccninit(struct consdev *cp)
 {
     scinit();
 }
 
-void
+static void
 sccnputc(dev_t dev, int c)
 {
     u_char buf[1];
@@ -1931,7 +1939,7 @@ sccnputc(dev_t dev, int c)
     splx(s);
 }
 
-int
+static int
 sccngetc(dev_t dev)
 {
     int s = spltty();	/* block scintr and scrn_timer while we poll */
@@ -1950,7 +1958,7 @@ sccngetc(dev_t dev)
     return(c);
 }
 
-int
+static int
 sccncheckc(dev_t dev)
 {
     int s = spltty();	/* block scintr and scrn_timer while we poll */
