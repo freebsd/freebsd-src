@@ -73,7 +73,7 @@ options 	DFLDSIZ="(256*1024*1024)"
 
 #
 # BLKDEV_IOSIZE sets the default block size used in user block
-# device I/O.  Note that this value will be overriden by the label
+# device I/O.  Note that this value will be overridden by the label
 # when specifying a block device from a label with a non-0
 # partition blocksize.  The default is PAGE_SIZE.
 #
@@ -1643,7 +1643,7 @@ options 	NATM			#native ATM
 # Gravis UltraSound ISA PnP/non-PnP
 # Crystal Semiconductor CS461x/428x PCI
 # Neomagic 256AV (ac97)
-# Most of the more common ISA/PnP sb/mss/ess compatable cards.
+# Most of the more common ISA/PnP sb/mss/ess compatible cards.
 
 # For non-pnp sound cards with no bridge drivers only:
 device		pcm0 at isa? irq 10 drq 1 flags 0x0
@@ -2042,7 +2042,7 @@ options 	AHD_REG_PRETTY_PRINT
 # options 	BROOKTREE_SYSTEM_DEFAULT=BROOKTREE_PAL
 # or
 # options 	BROOKTREE_SYSTEM_DEFAULT=BROOKTREE_NTSC
-# Specifes the default video capture mode.
+# Specifies the default video capture mode.
 # This is required for Dual Crystal (28&35Mhz) boards where PAL is used
 # to prevent hangs during initialisation.  eg VideoLogic Captivator PCI.
 #
@@ -2100,7 +2100,7 @@ device		trm		# Tekram DC395U/UW/F and DC315U
 
 # MII bus support is required for some PCI 10/100 ethernet NICs,
 # namely those which use MII-compliant transceivers or implement
-# tranceiver control interfaces that operate like an MII. Adding
+# transceiver control interfaces that operate like an MII. Adding
 # "device miibus0" to the kernel config pulls in support for
 # the generic miibus API and all of the PHY drivers, including a
 # generic one for PHYs that aren't specifically handled by an
@@ -2781,12 +2781,12 @@ options 	UKBD_DFLT_KEYMAP	# specify the built-in keymap
 makeoptions	UKBD_DFLT_KEYMAP=it.iso
 
 # options for uplcom:
-options		UPLCOM_INTR_INTERVAL=100	# interrpt pipe interval
+options		UPLCOM_INTR_INTERVAL=100	# interrupt pipe interval
 						# in milliseconds
 
 # options for uvscom:
 options		UVSCOM_DEFAULT_OPKTSIZE=8	# default output packet size
-options		UVSCOM_INTR_INTERVAL=100	# interrpt pipe interval
+options		UVSCOM_INTR_INTERVAL=100	# interrupt pipe interval
 						# in milliseconds
 
 # FireWire support
