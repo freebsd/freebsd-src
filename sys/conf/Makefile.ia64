@@ -8,11 +8,9 @@
 # This makefile is constructed from a machine description:
 #	config machineid
 # Most changes should be made in the machine description
-#	/sys/alpha/conf/``machineid''
+#	/sys/ia64/conf/``machineid''
 # after which you should do
 #	 config machineid
-# Generic makefile changes should be made in
-#	/sys/alpha/conf/Makefile.alpha
 # after which config should be rerun for all machines.
 #
 
@@ -48,13 +46,18 @@ SIZE?=		size
 OBJCOPY?=	objcopy
 
 COPTFLAGS?=-O
-INCLUDES= -nostdinc -I- ${INCLMAGIC} -I. -I$S
+INCLUDES= -nostdinc -I- ${INCLMAGIC} -I. -I$S -I$S/dev
 # This hack is to allow kernel compiles to succeed on machines w/out srcdist
 .if exists($S/../include)
 INCLUDES+= -I$S/../include
 .else
 INCLUDES+= -I/usr/include
 .endif
+
+# This hack lets us use the Intel ACPICA code without spamming a new 
+# include path into 100+ source files.
+INCLUDES+= -I$S/contrib/dev/acpica/Subsystem/Include
+
 COPTS=	${INCLUDES} ${IDENT} -D_KERNEL -include opt_global.h
 CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS}
 
@@ -159,12 +162,6 @@ kernel-clean:
 	      ${MFILES:T:S/.m$/.c/} ${MFILES:T:S/.m$/.h/} \
 	      ${CLEAN}
 
-#lint: /tmp param.c
-#	@lint -hbxn -DGENERIC -Dvolatile= ${COPTS} \
-#	  $S/$M/$M/Locore.c ${CFILES} param.c | \
-#	    grep -v 'struct/union .* never defined' | \
-#	    grep -v 'possible pointer alignment problem'
-
 locore.o: $S/$M/$M/locore.s assym.s
 	${NORMAL_S}
 
@@ -185,7 +182,7 @@ setdef1.o: setdef1.c setdefs.h
 	${NORMAL_C}
 
 setdef0.c setdef1.c setdefs.h: Makefile ${OBJS}
-	@./gensetdefs ${OBJS}
+	@gensetdefs ${OBJS}
 
 # this rule stops ./assym.s in .depend from causing problems
 ./assym.s: assym.s
@@ -266,6 +263,7 @@ all:	modules
 depend: modules-depend
 clean:  modules-clean
 cleandepend:  modules-cleandepend
+cleandir:  modules-cleandir
 tags:  modules-tags
 install install.debug: modules-install
 reinstall reinstall.debug: modules-reinstall
@@ -331,11 +329,7 @@ vnode_if.h: $S/kern/vnode_if.pl $S/kern/vnode_if.src
 vnode_if.o:
 	${NORMAL_C}
 
-.if exists($S/../share/mk)
-.include "$S/../share/mk/bsd.kern.mk"
-.else
 .include <bsd.kern.mk>
-.endif
 
 %RULES
 
