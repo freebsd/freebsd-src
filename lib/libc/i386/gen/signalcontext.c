@@ -36,10 +36,12 @@ __FBSDID("$FreeBSD");
 #include <machine/psl.h>
 #include <machine/sigframe.h>
 
+__weak_reference(__signalcontext, signalcontext);
+
 extern void _ctx_start(ucontext_t *, int argc, ...);
 
 int
-signalcontext(ucontext_t *ucp, int sig, __sighandler_t *func)
+__signalcontext(ucontext_t *ucp, int sig, __sighandler_t *func)
 {
 	struct sigframe *sfp;
 	int *p;
