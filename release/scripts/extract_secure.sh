@@ -1,5 +1,6 @@
 #!/bin/sh
-# $Id: extract_secure.sh,v 1.5 1995/02/07 01:01:21 jkh Exp $
+# $Id: extract_secure.sh,v 1.6 1995/04/07 01:20:26 phk Exp $
+set -e
 PATH=/stand:$PATH
 DDIR=/
 

@@ -1,5 +1,6 @@
 #!/bin/sh
-# $Id: extract_proflibs.sh,v 1.1 1995/01/14 07:41:44 jkh Exp $
+# $Id: extract_proflibs.sh,v 1.2 1995/01/28 09:11:36 jkh Exp $
+set -e
 PATH=/stand:$PATH
 DDIR=/
 
