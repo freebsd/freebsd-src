@@ -84,6 +84,9 @@
 #define	PCIC_ID_TI4451		0xac42104cul
 #define PCIC_ID_TI4510		0xac44104cul
 #define PCIC_ID_TI4520		0xac46104cul
+#define PCIC_ID_TI6411		0x8031104cul	/* PCI[67]x[12]1 */
+#define PCIC_ID_TI6420		0xac8d104cul	/* PCI[67]x20 Smartcard dis */
+#define PCIC_ID_TI6420SD	0xac8e104cul	/* PCI[67]x20 Smartcard en */
 #define PCIC_ID_TI7410		0xac49104cul
 #define PCIC_ID_TI7510		0xac47104cul
 #define PCIC_ID_TI7610		0xac48104cul
