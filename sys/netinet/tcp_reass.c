@@ -1352,7 +1352,9 @@ after_listen:
 			tcpstat.tcps_connects++;
 			soisconnected(so);
 #ifdef MAC
+			SOCK_LOCK(so);
 			mac_set_socket_peer_from_mbuf(m, so);
+			SOCK_UNLOCK(so);
 #endif
 			/* Do window scaling on this connection? */
 			if ((tp->t_flags & (TF_RCVD_SCALE|TF_REQ_SCALE)) ==

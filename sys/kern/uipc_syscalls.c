@@ -190,7 +190,9 @@ kern_bind(td, fd, sa)
 	if ((error = fgetsock(td, fd, &so, NULL)) != 0)
 		goto done2;
 #ifdef MAC
+	SOCK_LOCK(so);
 	error = mac_check_socket_bind(td->td_ucred, so, sa);
+	SOCK_UNLOCK(so);
 	if (error)
 		goto done1;
 #endif
@@ -223,7 +225,9 @@ listen(td, uap)
 	NET_LOCK_GIANT();
 	if ((error = fgetsock(td, uap->s, &so, NULL)) == 0) {
 #ifdef MAC
+		SOCK_LOCK(so);
 		error = mac_check_socket_listen(td->td_ucred, so);
+		SOCK_UNLOCK(so);
 		if (error)
 			goto done;
 #endif
@@ -482,7 +486,9 @@ kern_connect(td, fd, sa)
 		goto done1;
 	}
 #ifdef MAC
+	SOCK_LOCK(so);
 	error = mac_check_socket_connect(td->td_ucred, so, sa);
+	SOCK_UNLOCK(so);
 	if (error)
 		goto bad;
 #endif
@@ -701,7 +707,9 @@ kern_sendit(td, s, mp, flags, control)
 		goto bad2;
 
 #ifdef MAC
+	SOCK_LOCK(so);
 	error = mac_check_socket_send(td->td_ucred, so);
+	SOCK_UNLOCK(so);
 	if (error)
 		goto bad;
 #endif
@@ -944,7 +952,9 @@ recvit(td, s, mp, namelenp)
 	}
 
 #ifdef MAC
+	SOCK_LOCK(so);
 	error = mac_check_socket_receive(td->td_ucred, so);
+	SOCK_UNLOCK(so);
 	if (error) {
 		fputsock(so);
 		NET_UNLOCK_GIANT();
@@ -1750,7 +1760,9 @@ do_sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 	}
 
 #ifdef MAC
+	SOCK_LOCK(so);
 	error = mac_check_socket_send(td->td_ucred, so);
+	SOCK_UNLOCK(so);
 	if (error)
 		goto done;
 #endif

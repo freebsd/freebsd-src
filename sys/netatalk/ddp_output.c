@@ -52,7 +52,9 @@ ddp_output(struct mbuf *m, struct socket *so)
     struct ddpcb *ddp = sotoddpcb(so);
 
 #ifdef MAC
+    SOCK_LOCK(so);
     mac_create_mbuf_from_socket(so, m);
+    SOCK_UNLOCK(so);
 #endif
 
     M_PREPEND(m, sizeof(struct ddpehdr), M_TRYWAIT);

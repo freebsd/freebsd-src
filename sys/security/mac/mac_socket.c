@@ -218,6 +218,7 @@ mac_create_socket_from_socket(struct socket *oldsocket,
     struct socket *newsocket)
 {
 
+	SOCK_LOCK_ASSERT(oldsocket);
 	MAC_PERFORM(create_socket_from_socket, oldsocket, oldsocket->so_label,
 	    newsocket, newsocket->so_label);
 }
@@ -227,6 +228,7 @@ mac_relabel_socket(struct ucred *cred, struct socket *socket,
     struct label *newlabel)
 {
 
+	SOCK_LOCK_ASSERT(socket);
 	MAC_PERFORM(relabel_socket, cred, socket, socket->so_label, newlabel);
 }
 
@@ -234,6 +236,8 @@ void
 mac_set_socket_peer_from_mbuf(struct mbuf *mbuf, struct socket *socket)
 {
 	struct label *label;
+
+	SOCK_LOCK_ASSERT(socket);
 
 	label = mac_mbuf_to_label(mbuf);
 
@@ -246,6 +250,12 @@ mac_set_socket_peer_from_socket(struct socket *oldsocket,
     struct socket *newsocket)
 {
 
+	/*
+	 * XXXRW: only hold the socket lock on one at a time, as one
+	 * socket is the original, and one is the new.  However, it's
+	 * called in both directions, so we can't assert the lock
+	 * here currently.
+	 */
 	MAC_PERFORM(set_socket_peer_from_socket, oldsocket,
 	    oldsocket->so_label, newsocket, newsocket->so_peerlabel);
 }
@@ -257,6 +267,7 @@ mac_create_mbuf_from_socket(struct socket *socket, struct mbuf *mbuf)
 
 	label = mac_mbuf_to_label(mbuf);
 
+	SOCK_LOCK_ASSERT(socket);
 	MAC_PERFORM(create_mbuf_from_socket, socket, socket->so_label, mbuf,
 	    label);
 }
@@ -266,6 +277,8 @@ mac_check_socket_bind(struct ucred *ucred, struct socket *socket,
     struct sockaddr *sockaddr)
 {
 	int error;
+
+	SOCK_LOCK_ASSERT(socket);
 
 	if (!mac_enforce_socket)
 		return (0);
@@ -282,6 +295,8 @@ mac_check_socket_connect(struct ucred *cred, struct socket *socket,
 {
 	int error;
 
+	SOCK_LOCK_ASSERT(socket);
+
 	if (!mac_enforce_socket)
 		return (0);
 
@@ -296,6 +311,8 @@ mac_check_socket_deliver(struct socket *socket, struct mbuf *mbuf)
 {
 	struct label *label;
 	int error;
+
+	SOCK_LOCK_ASSERT(socket);
 
 	if (!mac_enforce_socket)
 		return (0);
@@ -313,6 +330,8 @@ mac_check_socket_listen(struct ucred *cred, struct socket *socket)
 {
 	int error;
 
+	SOCK_LOCK_ASSERT(socket);
+
 	if (!mac_enforce_socket)
 		return (0);
 
@@ -324,6 +343,8 @@ int
 mac_check_socket_receive(struct ucred *cred, struct socket *so)
 {
 	int error;
+
+	SOCK_LOCK_ASSERT(so);
 
 	if (!mac_enforce_socket)
 		return (0);
@@ -339,6 +360,8 @@ mac_check_socket_relabel(struct ucred *cred, struct socket *socket,
 {
 	int error;
 
+	SOCK_LOCK_ASSERT(socket);
+
 	MAC_CHECK(check_socket_relabel, cred, socket, socket->so_label,
 	    newlabel);
 
@@ -349,6 +372,8 @@ int
 mac_check_socket_send(struct ucred *cred, struct socket *so)
 {
 	int error;
+
+	SOCK_LOCK_ASSERT(so);
 
 	if (!mac_enforce_socket)
 		return (0);
@@ -362,6 +387,8 @@ int
 mac_check_socket_visible(struct ucred *cred, struct socket *socket)
 {
 	int error;
+
+	SOCK_LOCK_ASSERT(socket);
 
 	if (!mac_enforce_socket)
 		return (0);
@@ -377,12 +404,24 @@ mac_socket_label_set(struct ucred *cred, struct socket *so,
 {
 	int error;
 
+	/*
+	 * We acquire the socket lock when we perform the test and set,
+	 * but have to release it as the pcb code needs to acquire the
+	 * pcb lock, which will precede the socket lock in the lock
+	 * order.  However, this is fine, as any race will simply
+	 * result in the inpcb being refreshed twice, but still
+	 * consistently, as the inpcb code will acquire the socket lock
+	 * before refreshing, holding both locks.
+	 */
+	SOCK_LOCK(so);
 	error = mac_check_socket_relabel(cred, so, label);
-	if (error)
+	if (error) {
+		SOCK_UNLOCK(so);
 		return (error);
+	}
 
 	mac_relabel_socket(cred, so, label);
-
+	SOCK_UNLOCK(so);
 	/*
 	 * If the protocol has expressed interest in socket layer changes,
 	 * such as if it needs to propagate changes to a cached pcb
@@ -419,9 +458,7 @@ mac_setsockopt_label(struct ucred *cred, struct socket *so, struct mac *mac)
 	if (error)
 		goto out;
 
-	/* XXX: Socket lock here. */
 	error = mac_socket_label_set(cred, so, intlabel);
-	/* XXX: Socket unlock here. */
 out:
 	mac_socket_label_free(intlabel);
 	return (error);
@@ -431,6 +468,7 @@ int
 mac_getsockopt_label(struct ucred *cred, struct socket *so, struct mac *mac)
 {
 	char *buffer, *elements;
+	struct label *intlabel;
 	int error;
 
 	error = mac_check_structmac_consistent(mac);
@@ -445,8 +483,13 @@ mac_getsockopt_label(struct ucred *cred, struct socket *so, struct mac *mac)
 	}
 
 	buffer = malloc(mac->m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
-	error = mac_externalize_socket_label(so->so_label, elements,
-	    buffer, mac->m_buflen);
+	intlabel = mac_socket_label_alloc(M_WAITOK);
+	SOCK_LOCK(so);
+	mac_copy_socket_label(so->so_label, intlabel);
+	SOCK_UNLOCK(so);
+	error = mac_externalize_socket_label(intlabel, elements, buffer,
+	    mac->m_buflen);
+	mac_socket_label_free(intlabel);
 	if (error == 0)
 		error = copyout(buffer, mac->m_string, strlen(buffer)+1);
 
@@ -461,6 +504,7 @@ mac_getsockopt_peerlabel(struct ucred *cred, struct socket *so,
     struct mac *mac)
 {
 	char *elements, *buffer;
+	struct label *intlabel;
 	int error;
 
 	error = mac_check_structmac_consistent(mac);
@@ -475,8 +519,13 @@ mac_getsockopt_peerlabel(struct ucred *cred, struct socket *so,
 	}
 
 	buffer = malloc(mac->m_buflen, M_MACTEMP, M_WAITOK | M_ZERO);
-	error = mac_externalize_socket_peer_label(so->so_peerlabel,
-	    elements, buffer, mac->m_buflen);
+	intlabel = mac_socket_label_alloc(M_WAITOK);
+	SOCK_LOCK(so);
+	mac_copy_socket_label(so->so_peerlabel, intlabel);
+	SOCK_UNLOCK(so);
+	error = mac_externalize_socket_peer_label(intlabel, elements, buffer,
+	    mac->m_buflen);
+	mac_socket_label_free(intlabel);
 	if (error == 0)
 		error = copyout(buffer, mac->m_string, strlen(buffer)+1);
 
