@@ -857,7 +857,9 @@ pmap_growkernel(vm_offset_t addr)
 
 		nkpt++;
 
+		vm_page_lock_queues();
 		vm_page_wire(nkpg);
+		vm_page_unlock_queues();
 		ptepage = (struct ia64_lpte *)
 			IA64_PHYS_TO_RR7(VM_PAGE_TO_PHYS(nkpg));
 		bzero(ptepage, PAGE_SIZE);
