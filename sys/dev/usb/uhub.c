@@ -1,4 +1,4 @@
-/*	$NetBSD: uhub.c,v 1.44 2000/04/27 15:26:48 augustss Exp $	*/
+/*	$NetBSD: uhub.c,v 1.47 2000/09/24 02:08:38 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -320,8 +320,7 @@ USB_ATTACH(uhub)
 }
 
 usbd_status
-uhub_explore(dev)
-	usbd_device_handle dev;
+uhub_explore(usbd_device_handle dev)
 {
 	usb_hub_descriptor_t *hd = &dev->hub->hubdesc;
 	struct uhub_softc *sc = dev->hub->hubsoftc;
@@ -359,16 +358,17 @@ uhub_explore(dev)
 				       USBDEVNAME(sc->sc_dev), port);
 			} else {
 				/* Port error condition. */
-				if (up->restartcnt++ < USBD_RESTART_MAX) {
+				if (up->restartcnt) /* no message first time */
 					printf("%s: port error, restarting "
 					       "port %d\n",
 					       USBDEVNAME(sc->sc_dev), port);
+
+				if (up->restartcnt++ < USBD_RESTART_MAX)
 					goto disco;
-				} else {
+				else
 					printf("%s: port error, giving up "
 					       "port %d\n",
 					       USBDEVNAME(sc->sc_dev), port);
-				}
 			}
 		}
 		if (!(change & UPS_C_CONNECT_STATUS)) {
@@ -415,8 +415,6 @@ uhub_explore(dev)
 			printf("%s: strange, connected port %d has no power\n",
 			       USBDEVNAME(sc->sc_dev), port);
 
-		up->restartcnt = 0;
-
 		/* Wait for maximum device power up time. */
 		usbd_delay_ms(dev, USB_PORT_POWERUP_DELAY);
 
@@ -446,9 +444,10 @@ uhub_explore(dev)
 			printf("%s: device problem, disabling port %d\n",
 			       USBDEVNAME(sc->sc_dev), port);
 			usbd_clear_port_feature(dev, port, UHF_PORT_ENABLE);
-			/* Make sure we don't try to restart it infinitely. */
-			up->restartcnt = USBD_RESTART_MAX;
 		} else {
+			/* The port set up succeeded, reset error count. */
+			up->restartcnt = 0;
+
 			if (up->device->hub)
 				up->device->hub->explore(up->device);
 		}
@@ -458,9 +457,7 @@ uhub_explore(dev)
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 int
-uhub_activate(self, act)
-	device_ptr_t self;
-	enum devact act;
+uhub_activate(device_ptr_t self, enum devact act)
 {
 	struct uhub_softc *sc = (struct uhub_softc *)self;
 	struct usbd_hub *hub = sc->sc_hub->hub;
@@ -478,8 +475,8 @@ uhub_activate(self, act)
 		nports = hub->hubdesc.bNbrPorts;
 		for(port = 0; port < nports; port++) {
 			dev = hub->ports[port].device;
-			if (dev != NULL) {
-				for (i = 0; dev->subdevs[i]; i++)
+			if (dev != NULL && dev->subdevs != NULL) {
+				for (i = 0; dev->subdevs[i] != NULL; i++)
 					config_deactivate(dev->subdevs[i]);
 			}
 		}
@@ -529,9 +526,7 @@ USB_DETACH(uhub)
 #if defined(__FreeBSD__)
 /* Called when a device has been detached from it */
 Static void
-uhub_child_detached(self, child)
-       device_t self;
-       device_t child;
+uhub_child_detached(device_t self, device_t child)
 {
        struct uhub_softc *sc = device_get_softc(self);
        usbd_device_handle devhub = sc->sc_hub;
@@ -567,10 +562,7 @@ uhub_child_detached(self, child)
  * to be explored again.
  */
 void
-uhub_intr(xfer, addr, status)
-	usbd_xfer_handle xfer;
-	usbd_private_handle addr;
-	usbd_status status;
+uhub_intr(usbd_xfer_handle xfer, usbd_private_handle addr, usbd_status status)
 {
 	struct uhub_softc *sc = addr;
 
