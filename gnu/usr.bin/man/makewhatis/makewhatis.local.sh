@@ -27,13 +27,13 @@
 # makewhatis.local - start makewhatis(1) only for file systems 
 #		     physically mounted on the system
 #
-# Running makewhatis from /etc/weekly for rw nfs-mounted /usr may kill
-# your NFS server -- all clients start makewhatis at the same time!
-# So use this wrapper instead calling makewhatis directly.
+# Running makewhatis from /etc/periodic/weekly/320.whatis for rw nfs-mounted
+# /usr may kill your NFS server -- all clients start makewhatis at the same
+# time! So use this wrapper instead calling makewhatis directly.
 #
 # PS: this wrapper works also for catman(1)
 #
-# $Id$
+# $Id: makewhatis.local.sh,v 1.5 1997/02/22 15:47:03 peter Exp $
 
 PATH=/bin:/usr/bin:$PATH; export PATH
 opt= dirs= localdirs=
