@@ -52,17 +52,6 @@ This document assumes that you are familiar with how to generate kernels,
 how to properly configure disks and devices in a kernel
 configuration file, and how to partition disks.
 .Pp
-Note that the
-.Dq raw
-partitions of the disks
-.Em should not
-be combined.
-The kernel will only allow component partitions of type
-.Dv FS_BSDFFS (type
-.Dq Li 4.2BSD
-as shown by
-.Xr disklabel 8 ) .
-.Pp
 In order to compile in support for the
 .Nm ,
 you must add a line similar
