@@ -96,7 +96,7 @@
 #	isdn*	ISDN devices
 #	labpc*	National Instrument's Lab-PC and LAB-PC+
 #
-#	$Id: MAKEDEV,v 1.95.4.6 1995/10/30 02:59:41 jkh Exp $
+#	$Id: MAKEDEV,v 1.95.4.7 1995/11/09 15:53:38 jkh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -864,8 +864,7 @@ mouse*)
 	if [ ! -c $name ]; then
 		$0 $name			# make the appropriate device
 	fi
-	rm -f mouse
-	ln -s $name mouse
+	ln -fs $name mouse
 	;;
 
 pcaudio)
@@ -901,13 +900,13 @@ snd*)
 	umask $snd_security_hole
 
 	if [ $unit = "0" ] ; then
-		rm -f mixer     ; ln -s mixer$unit mixer
-		rm -f sequencer ; ln -s sequencer$unit sequencer
-		rm -f dsp       ; ln -s dsp$unit dsp
-		rm -f audio     ; ln -s audio$unit audio
-		rm -f dspW      ; ln -s dspW$unit dspW
-		rm -f music	; ln -s music$unit music
-		rm -f pss       ; ln -s pss$unit pss
+		ln -fs mixer$unit mixer
+		ln -fs sequencer$unit sequencer
+		ln -fs dsp$unit dsp
+		ln -fs audio$unit audio
+		ln -fs dspW$unit dspW
+		ln -fs music$unit music
+		ln -fs pss$unit pss
 	fi
 
 	rm -f mixer$unit	# Mixer	[ Control ]
@@ -946,6 +945,7 @@ snd*)
 # More specialized cases of snd driver.
 gusmax)
 	sh /dev/MAKEDEV snd0 snd1 snd2
+	ln -fs /dev/dsp2 /dev/dsp
 	;;
 pas16)
 	sh /dev/MAKEDEV snd0 snd1
