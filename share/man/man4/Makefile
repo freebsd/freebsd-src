@@ -180,6 +180,7 @@ MAN=	aac.4 \
 	raid.4 \
 	random.4 \
 	rl.4 \
+	rndtest.4 \
 	route.4 \
 	rp.4 \
 	sa.4 \
