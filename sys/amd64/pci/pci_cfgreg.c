@@ -35,13 +35,14 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/malloc.h>
-
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <machine/md_var.h>
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
 #include <isa/isavar.h>
 #include <machine/nexusvar.h>
 #include <machine/pci_cfgreg.h>
-
 #include <machine/segments.h>
 #include <machine/pc/bios.h>
 
@@ -58,13 +59,20 @@ static int	pcireg_cfgread(int bus, int slot, int func, int reg, int bytes);
 static void	pcireg_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes);
 static int	pcireg_cfgopen(void);
 
+static struct PIR_entry	*pci_route_table;
+static int		pci_route_count;
+
 /* 
  * Initialise access to PCI configuration space 
  */
 int
 pci_cfgregopen(void)
 {
-    static int	opened = 0;
+    static int			opened = 0;
+    u_long			sigaddr;
+    static struct PIR_table	*pt;
+    u_int8_t			ck, *cv;
+    int				i;
 
     if (opened)
 	return(1);
@@ -76,6 +84,24 @@ pci_cfgregopen(void)
     } else {
 	return(0);
     }
+
+    /*
+     * Look for the interrupt routing table.
+     */
+    /* XXX use PCI BIOS if it's available */
+
+    if ((pt == NULL) && ((sigaddr = bios_sigsearch(0, "$PIR", 4, 16, 0)) != 0)) {
+	pt = (struct PIR_table *)(uintptr_t)BIOS_PADDRTOVADDR(sigaddr);
+	for (cv = (u_int8_t *)pt, ck = 0, i = 0; i < (pt->pt_header.ph_length); i++) {
+	    ck += cv[i];
+	}
+	if (ck == 0) {
+	    pci_route_table = &pt->pt_entry[0];
+	    pci_route_count = (pt->pt_header.ph_length - sizeof(struct PIR_header)) / sizeof(struct PIR_entry);
+	    printf("Using $PIR table, %d entries at %p\n", pci_route_count, pci_route_table);
+	}
+    }
+
     opened = 1;
     return(1);
 }
@@ -101,6 +127,42 @@ pci_cfgregwrite(int bus, int slot, int func, int reg, u_int32_t data, int bytes)
 	   pcibios_cfgwrite(bus, slot, func, reg, data, bytes) : 
 	   pcireg_cfgwrite(bus, slot, func, reg, data, bytes));
 }
+
+/*
+ * Route a PCI interrupt
+ *
+ * XXX this needs to learn to actually route uninitialised interrupts as well
+ *     as just returning interrupts for stuff that's already initialised.
+ */
+int
+pci_cfgintr(int bus, int device, int pin)
+{
+    struct PIR_entry	*pe;
+    int			i;
+    
+    if ((bus < 0) || (bus > 255) || (device < 0) || (device > 255) || (pin < 1) || (pin > 4)) {
+	printf("bus %d pin %d device %d, returning 255\n", bus, pin, device);
+	return(255);
+    }
+
+    /*
+     * Scan the entry table for a contender
+     */
+    printf("bus %d device %d\n", bus, device);
+    for (i = 0, pe = pci_route_table; i < pci_route_count; i++, pe++) {
+	printf("pe_bus %d pe_device %d\n", pe->pe_bus, pe->pe_device);
+	if ((bus != pe->pe_bus) || (device != pe->pe_device))
+	    continue;
+	if (!powerof2(pe->pe_intpin[pin - 1].irqs)) {
+	    printf("pci_cfgintr: %d:%d:%c is not routed to a unique interrupt\n", bus, device, 'A' + pin - 1);
+	    break;
+	}
+	printf("pci_cfgintr: %d:%d:%c routed to irq %d\n", bus, device, 'A' + pin - 1, ffs(pe->pe_intpin[pin - 1].irqs));
+	return(ffs(pe->pe_intpin[pin - 1].irqs));
+    }
+    return(255);
+}
+
 
 /*
  * Config space access using BIOS functions 
