@@ -1,7 +1,7 @@
 /*
  * random.c -- A strong random number generator
  *
- * $Id: random.c,v 1.1 1995/10/28 16:58:02 markm Exp $
+ * $Id: random.c,v 1.2 1995/11/04 16:00:50 markm Exp $
  *
  * Version 0.92, last modified 21-Sep-95
  * 
@@ -94,14 +94,15 @@ flush_random(struct random_bucket *random_state)
 void
 rand_initialize(void)
 {
-	int irq;
-	long interrupts;
 
 	random_state.length = RANDPOOL;
 	random_state.pool = random_pool;
 	flush_random(&random_state);
 
 #if 0
+	{
+	int irq;
+	long interrupts;
 	/* XXX Dreadful hack - should be replaced by something more elegant */
 	interrupts = RANDOM_INTERRUPTS;
 
@@ -110,6 +111,7 @@ rand_initialize(void)
 		interrupts >>= 1;
 		printf("Randomising irq %d %s\n", irq, interrupt_allowed[irq] ?
 			"on" : "off");
+	}
 	}
 #endif
 }
