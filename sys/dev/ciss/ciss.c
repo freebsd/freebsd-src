@@ -2493,7 +2493,7 @@ ciss_cam_rescan_all(struct ciss_softc *sc)
     for (i = 0; i < sc->ciss_max_logical_bus; i++)
 	ciss_cam_rescan_target(sc, i, CAM_TARGET_WILDCARD);
     /* Rescan the physical buses */
-    for (i = CISS_PHYSICAL_BASE; i < sc->ciss_max_logical_bus +
+    for (i = CISS_PHYSICAL_BASE; i < sc->ciss_max_physical_bus +
 	 CISS_PHYSICAL_BASE; i++)
 	ciss_cam_rescan_target(sc, i, CAM_TARGET_WILDCARD);
 }
