@@ -789,25 +789,35 @@ isp_scsi_init(isp)
 	isp->isp_reqidx = isp->isp_reqodx = 0;
 
 	/*
-	 *  Turn on Fast Posting, LVD transitions
+	 * Turn on Fast Posting, LVD transitions
+	 *
+	 * Ultra2 F/W always has had fast posting (and LVD transitions)
+	 *
+	 * Ultra and older (i.e., SBus) cards may not. Assume SBus cards
+	 * do not, and only guess that 4.55.0 <= x < 5.0.0 (initiator
+	 * only) and x >= 7.55 (initiator/target) has fast posting.
 	 */
 
-	if (IS_ULTRA2(isp) ||
-	    ISP_FW_REVX(isp->isp_fwrev) >= ISP_FW_REV(7, 55, 0)) {
-		mbs.param[0] = MBOX_SET_FW_FEATURES;
+	mbs.param[0] = MBOX_SET_FW_FEATURES;
+	mbs.param[1] = 0;
+	if (IS_ULTRA2(isp))
+		mbs.param[1] |= FW_FEATURE_LVD_NOTIFY;
 #ifndef	ISP_NO_FASTPOST_SCSI
+	if ((ISP_FW_REVX(isp->isp_fwrev) >= ISP_FW_REV(4, 55, 0) &&
+	    (ISP_FW_REVX(isp->isp_fwrev) < ISP_FW_REV(5, 0, 0))) ||
+	    (ISP_FW_REVX(isp->isp_fwrev) >= ISP_FW_REV(7, 55, 0))) {
 		mbs.param[1] |= FW_FEATURE_FAST_POST;
-#else
-		mbs.param[1] = 0;
+	}
 #endif
-		if (IS_ULTRA2(isp))
-			mbs.param[1] |= FW_FEATURE_LVD_NOTIFY;
-		if (mbs.param[1] != 0) {
-			isp_mboxcmd(isp, &mbs);
-			if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-				PRINTF("%s: unable enable FW features\n",
-				    isp->isp_name);
-			}
+	if (mbs.param[1] != 0) {
+		u_int16_t sfeat = mbs.param[1];
+		isp_mboxcmd(isp, &mbs);
+		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
+			PRINTF("%s: cannot enable FW features (0x%x)\n",
+			    isp->isp_name, sfeat);
+		} else {
+			CFGPRINTF("%s: enabled FW features (0x%x)\n",
+			    isp->isp_name, sfeat);
 		}
 	}
 
@@ -861,13 +871,17 @@ isp_scsi_channel_init(isp, channel)
 		if (IS_ULTRA2(isp) && sdp->isp_lvdmode) {
 			sdf = DPARM_DEFAULT & ~DPARM_TQING;
 		} else {
+			int rvf = ISP_FW_REVX(isp->isp_fwrev);
 			sdf = DPARM_SAFE_DFLT;
+			
 			/*
 			 * It is not quite clear when this changed over so that
-			 * we could force narrow and async, so assume >= 7.55.
+			 * we could force narrow and async, so assume >= 7.55
+			 * for i/t F/W and = 4.55 for initiator f/w.
 			 */
-			if (ISP_FW_REVX(isp->isp_fwrev) >=
-			    ISP_FW_REV(7, 55, 0)) {
+			if ((ISP_FW_REV(4, 55, 0) <= rvf &&
+			    (ISP_FW_REV(5, 0, 0) > rvf)) ||
+			    (ISP_FW_REV(7, 55, 0) <= rvf)) {
 				sdf |= DPARM_NARROW | DPARM_ASYNC;
 			}
 		}
@@ -917,6 +931,7 @@ isp_scsi_channel_init(isp, channel)
 		}
 		IDPRINTF(3, ("%s: set flags 0x%x got 0x%x back for target %d\n",
 		    isp->isp_name, sdf, mbs.param[2], tgt));
+
 #else
 		/*
 		 * We don't update any information because we need to run
@@ -931,7 +946,9 @@ isp_scsi_channel_init(isp, channel)
 		 * seen yet.
 		 */
 		sdp->isp_devparam[tgt].cur_dflags &= ~DPARM_TQING;
-		if (ISP_FW_REVX(isp->isp_fwrev) >= ISP_FW_REV(7, 55, 0))
+		if ((ISP_FW_REV(4, 55, 0) <= ISP_FW_REVX(isp->isp_fwrev) &&
+		    (ISP_FW_REV(5, 0, 0) > ISP_FW_REVX(isp->isp_fwrev))) ||
+		    (ISP_FW_REVX(isp->isp_fwrev) >= ISP_FW_REV(7, 55, 0)))
 			maxlun = 32;
 		else
 			maxlun = 8;
@@ -3719,7 +3736,7 @@ isp_setdfltparm(isp, channel)
 {
 	int tgt;
 	mbreg_t mbs;
-	sdparam *sdp, *sdp_chan0, *sdp_chan1;
+	sdparam *sdp;
 
 	if (IS_FC(isp)) {
 		fcparam *fcp = (fcparam *) isp->isp_param;
@@ -3749,9 +3766,8 @@ isp_setdfltparm(isp, channel)
 		return;
 	}
 
-	sdp_chan0 = (sdparam *) isp->isp_param;
-	sdp_chan1 = sdp_chan0 + 1;
-	sdp = sdp_chan0 + channel;
+	sdp = (sdparam *) isp->isp_param;
+	sdp += channel;
 
 	/*
 	 * Been there, done that, got the T-shirt...
@@ -3776,26 +3792,28 @@ isp_setdfltparm(isp, channel)
 	/*
 	 * Now try and see whether we have specific values for them.
 	 */
-	mbs.param[0] = MBOX_GET_ACT_NEG_STATE;
-	isp_mboxcmd(isp, &mbs);
-	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-		IDPRINTF(2, ("could not GET ACT NEG STATE\n"));
-		sdp_chan0->isp_req_ack_active_neg = 1;
-		sdp_chan0->isp_data_line_active_neg = 1;
-		if (IS_DUALBUS(isp)) {
-			sdp_chan1->isp_req_ack_active_neg = 1;
-			sdp_chan1->isp_data_line_active_neg = 1;
+	if ((isp->isp_confopts & ISP_CFG_NONVRAM) == 0) {
+		mbs.param[0] = MBOX_GET_ACT_NEG_STATE;
+		isp_mboxcmd(isp, &mbs);
+		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
+			IDPRINTF(2, ("could not GET ACT NEG STATE\n"));
+			sdp->isp_req_ack_active_neg = 1;
+			sdp->isp_data_line_active_neg = 1;
+		} else {
+			sdp->isp_req_ack_active_neg =
+			    (mbs.param[1+channel] >> 4) & 0x1;
+			sdp->isp_data_line_active_neg =
+			    (mbs.param[1+channel] >> 5) & 0x1;
 		}
 	} else {
-		sdp_chan0->isp_req_ack_active_neg = (mbs.param[1] >> 4) & 0x1;
-		sdp_chan0->isp_data_line_active_neg = (mbs.param[1] >> 5) & 0x1;
-		if (IS_DUALBUS(isp)) {
-			sdp_chan1->isp_req_ack_active_neg =
-			    (mbs.param[2] >> 4) & 0x1;
-			sdp_chan1->isp_data_line_active_neg =
-			    (mbs.param[2] >> 5) & 0x1;
-		}
+		sdp->isp_req_ack_active_neg = 1;
+		sdp->isp_data_line_active_neg = 1;
 	}
+
+	IDPRINTF(3, ("%s: defaulting bus %d REQ/ACK Active Negation is %d\n",
+	    isp->isp_name, channel, sdp->isp_req_ack_active_neg));
+	IDPRINTF(3, ("%s: defaulting bus %d DATA Active Negation is %d\n",
+	    isp->isp_name, channel, sdp->isp_data_line_active_neg));
 
 	/*
 	 * The trick here is to establish a default for the default (honk!)
@@ -3830,47 +3848,51 @@ isp_setdfltparm(isp, channel)
 		 * Don't get current target parameters if we've been
 		 * told not to use NVRAM- it's really the same thing.
 		 */
-		if (isp->isp_confopts & ISP_CFG_NONVRAM) {
-			continue;
-		}
+		if ((isp->isp_confopts & ISP_CFG_NONVRAM) == 0) {
 
-		mbs.param[0] = MBOX_GET_TARGET_PARAMS;
-		mbs.param[1] = tgt << 8;
-		isp_mboxcmd(isp, &mbs);
-		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-			continue;
-		}
-		sdp->isp_devparam[tgt].cur_dflags = mbs.param[2];
-		sdp->isp_devparam[tgt].dev_flags = mbs.param[2];
-		sdp->isp_devparam[tgt].cur_period = mbs.param[3] & 0xff;
-		sdp->isp_devparam[tgt].cur_offset = mbs.param[3] >> 8;
+			mbs.param[0] = MBOX_GET_TARGET_PARAMS;
+			mbs.param[1] = tgt << 8;
+			isp_mboxcmd(isp, &mbs);
+			if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
+				continue;
+			}
+			sdp->isp_devparam[tgt].cur_dflags = mbs.param[2];
+			sdp->isp_devparam[tgt].dev_flags = mbs.param[2];
+			sdp->isp_devparam[tgt].cur_period = mbs.param[3] & 0xff;
+			sdp->isp_devparam[tgt].cur_offset = mbs.param[3] >> 8;
 
-		/*
-		 * The maximum period we can really see
-		 * here is 100 (decimal), or 400 ns.
-		 * For some unknown reason we sometimes
-		 * get back wildass numbers from the
-		 * boot device's parameters (alpha only).
-		 */
-		if ((mbs.param[3] & 0xff) <= 0x64) {
-			sdp->isp_devparam[tgt].sync_period =
-			    mbs.param[3] & 0xff;
-			sdp->isp_devparam[tgt].sync_offset =
-			    mbs.param[3] >> 8;
-		}
+			/*
+			 * The maximum period we can really see
+			 * here is 100 (decimal), or 400 ns.
+			 * For some unknown reason we sometimes
+			 * get back wildass numbers from the
+			 * boot device's parameters (alpha only).
+			 */
+			if ((mbs.param[3] & 0xff) <= 0x64) {
+				sdp->isp_devparam[tgt].sync_period =
+				    mbs.param[3] & 0xff;
+				sdp->isp_devparam[tgt].sync_offset =
+				    mbs.param[3] >> 8;
+			}
 
-		/*
-		 * It is not safe to run Ultra Mode with a clock < 60.
-		 */
-		if (((isp->isp_clock && isp->isp_clock < 60) ||
-		    (isp->isp_type < ISP_HA_SCSI_1020A)) &&
-		    (sdp->isp_devparam[tgt].sync_period <=
-		    (ISP_20M_SYNCPARMS & 0xff))) {
-			sdp->isp_devparam[tgt].sync_offset =
-			    ISP_10M_SYNCPARMS >> 8;
-			sdp->isp_devparam[tgt].sync_period =
-			    ISP_10M_SYNCPARMS & 0xff;
+			/*
+			 * It is not safe to run Ultra Mode with a clock < 60.
+			 */
+			if (((isp->isp_clock && isp->isp_clock < 60) ||
+			    (isp->isp_type < ISP_HA_SCSI_1020A)) &&
+			    (sdp->isp_devparam[tgt].sync_period <=
+			    (ISP_20M_SYNCPARMS & 0xff))) {
+				sdp->isp_devparam[tgt].sync_offset =
+				    ISP_10M_SYNCPARMS >> 8;
+				sdp->isp_devparam[tgt].sync_period =
+				    ISP_10M_SYNCPARMS & 0xff;
+			}
 		}
+		IDPRINTF(3, ("%s: bus %d tgt %d flags %x offset %x period %x\n",
+		    isp->isp_name, channel, tgt,
+		    sdp->isp_devparam[tgt].dev_flags,
+		    sdp->isp_devparam[tgt].sync_period,
+		    sdp->isp_devparam[tgt].sync_period));
 	}
 
 	/*
