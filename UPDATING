@@ -25,6 +25,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	may wish to check that users do not have over 16 groups
 	defined, or they will be unable to log in.
 
+20031203:
+	The ACPI module has been reactivated.  It is no longer required
+	to compile ACPI support into kernels statically.
+
 20031112:
 	The statfs structure has been updated with 64-bit fields to
 	allow accurate reporting of multi-terabyte filesystem
