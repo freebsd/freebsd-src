@@ -1,8 +1,5 @@
-/* $Id$ */
-/*	From: NetBSD: crtbegin.c,v 1.2 1997/03/21 05:47:28 cgd Exp */
-
-/*
- * Copyright (c) 1993 Paul Kranenburg
+/*-
+ * Copyright 1996-1998 John D. Polstra.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -13,11 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by Paul Kranenburg.
- * 4. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -29,92 +21,48 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
-
-#ifndef ECOFF_COMPAT
-
-/*
- * XXX EVENTUALLY SHOULD BE MERGED BACK WITH c++rt0.c
- */
-
-/*
- * Run-time module which handles constructors and destructors,
- * and NetBSD identification.
  *
- * The linker constructs the following arrays of pointers to global
- * constructors and destructors. The first element contains the
- * number of pointers in each or -1 to indicate that the run-time
- * code should figure out how many there are.  The tables are also
- * null-terminated.
+ *      $Id: crtbegin.c,v 1.1.1.1 1998/03/07 20:27:10 jdp Exp $
  */
 
-#include <sys/param.h>
-#include <sys/exec.h>
-#include <sys/exec_elf.h>
-#include <stdlib.h>
+typedef void (*fptr)(void);
 
-/* #include "sysident.h" */
+static fptr ctor_list[1] __attribute__((section(".ctors"))) = { (fptr) -1 };
+static fptr dtor_list[1] __attribute__((section(".dtors"))) = { (fptr) -1 };
 
-static void (*__CTOR_LIST__[1]) __P((void))
-    __attribute__((section(".ctors"))) = { (void *)-1 };	/* XXX */
-static void (*__DTOR_LIST__[1]) __P((void))
-    __attribute__((section(".dtors"))) = { (void *)-1 };	/* XXX */
-
-static void	__dtors __P((void));
-static void	__ctors __P((void));
-
+/* Both do_ctors() and do_dtors() live in .text (the default) */
 static void
-__dtors()
+do_ctors(void)
 {
-	unsigned long i = (unsigned long) __DTOR_LIST__[0];
-	void (**p)(void);
+    fptr *fpp;
 
-	if (i == -1)  {
-		for (i = 1; __DTOR_LIST__[i] != NULL; i++)
-			;
-		i--;
-	}
-	p = __DTOR_LIST__ + i;
-	while (i--)
-		(**p--)();
+    for(fpp = ctor_list + 1;  *fpp != 0;  ++fpp)
+	(**fpp)();
 }
 
 static void
-__ctors()
+do_dtors(void)
 {
-	void (**p)(void) = __CTOR_LIST__ + 1;
+    fptr *fpp;
 
-	while (*p)
-		(**p++)();
+    for(fpp = dtor_list + 1;  *fpp != 0;  ++fpp)
+	;
+    while(--fpp > dtor_list)
+	(**fpp)();
 }
 
-extern void __init(void) __attribute__((section(".init")));
+extern void _init(void) __attribute__((section(".init")));
 
 void
-__init()
+_init(void)
 {
-	static int initialized = 0;
-
-	/*
-	 * Call global constructors.
-	 * Arrange to call global destructors at exit.
-	 */
-	if (!initialized) {
-		initialized = 1;
-		__ctors();
-	}
-
+	do_ctors();
 }
 
-extern void __fini(void) __attribute__((section(".fini")));
+extern void _fini(void) __attribute__((section(".fini")));
 
 void
-__fini()
+_fini(void)
 {
-	/*
-	 * Call global destructors.
-	 */
-	__dtors();
+	do_dtors();
 }
-
-#endif /* !ECOFF_COMPAT */
