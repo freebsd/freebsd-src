@@ -25,9 +25,9 @@ LOCALEDIR=      ${DESTDIR}/usr/share/locale
 all: ${LOCALES:S/$/.out/g}
 
 afterinstall:
-	for l in ${LOCALES}; do \
-		${INSTALL} ${COPY} -m 644 -o ${BINOWN} -g ${BINGRP} $$l.out \
-			   ${LOCALEDIR}/$$l/LC_NUMERIC; \
-	done
+.for lang in ${LOCALES}
+	${INSTALL} ${COPY} -m 644 -o ${BINOWN} -g ${BINGRP} ${lang}.out \
+			   ${LOCALEDIR}/${lang}/LC_NUMERIC
+.endfor
 
 .include <bsd.prog.mk>
