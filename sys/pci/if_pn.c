@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_pn.c,v 1.10 1999/03/30 19:33:47 wpaul Exp $
+ *	$Id: if_pn.c,v 1.45 1999/04/10 18:22:22 wpaul Exp $
  */
 
 /*
@@ -97,7 +97,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_pn.c,v 1.10 1999/03/30 19:33:47 wpaul Exp $";
+	"$Id: if_pn.c,v 1.45 1999/04/10 18:22:22 wpaul Exp $";
 #endif
 
 /*
@@ -105,7 +105,9 @@ static const char rcsid[] =
  */
 static struct pn_type pn_devs[] = {
 	{ PN_VENDORID, PN_DEVICEID_PNIC,
-		"82c168/82c169 PNIC 10/100BaseTX" },
+		"82c168 PNIC 10/100BaseTX" },
+	{ PN_VENDORID, PN_DEVICEID_PNIC,
+		"82c169 PNIC 10/100BaseTX" },
 	{ PN_VENDORID, PN_DEVICEID_PNIC_II,
 		"82c115 PNIC II 10/100BaseTX" },
 	{ 0, 0, NULL }
@@ -164,7 +166,9 @@ static void pn_autoneg_xmit	__P((struct pn_softc *));
 static void pn_autoneg_mii	__P((struct pn_softc *, int, int));
 static void pn_setmode_mii	__P((struct pn_softc *, int));
 static void pn_getmode_mii	__P((struct pn_softc *));
-static void pn_setcfg		__P((struct pn_softc *, u_int16_t));
+static void pn_autoneg		__P((struct pn_softc *, int, int));
+static void pn_setmode		__P((struct pn_softc *, int));
+static void pn_setcfg		__P((struct pn_softc *, u_int32_t));
 static u_int32_t pn_calchash	__P((u_int8_t *));
 static void pn_setfilt		__P((struct pn_softc *));
 static void pn_reset		__P((struct pn_softc *));
@@ -441,7 +445,7 @@ static void pn_autoneg_mii(sc, flag, verbose)
 		media &= ~PHY_BMCR_AUTONEGENBL;
 
 		/* Set ASIC's duplex mode to match the PHY. */
-		pn_setcfg(sc, media);
+		pn_setcfg(sc, ifm->ifm_media);
 		pn_phy_writereg(sc, PHY_BMCR, media);
 	} else {
 		if (verbose)
@@ -539,9 +543,166 @@ static void pn_getmode_mii(sc)
 	return;
 }
 
-/*
- * Set speed and duplex mode.
- */
+static void pn_autoneg(sc, flag, verbose)
+	struct pn_softc		*sc;
+	int			flag;
+	int			verbose;
+{
+	u_int32_t		nway = 0, ability;
+	struct ifnet		*ifp;
+	struct ifmedia		*ifm;
+
+	ifm = &sc->ifmedia;
+	ifp = &sc->arpcom.ac_if;
+
+	ifm->ifm_media = IFM_ETHER | IFM_AUTO;
+
+	switch (flag) {
+	case PN_FLAG_FORCEDELAY:
+		/*
+	 	 * XXX Never use this option anywhere but in the probe
+	 	 * routine: making the kernel stop dead in its tracks
+ 		 * for three whole seconds after we've gone multi-user
+		 * is really bad manners.
+	 	 */
+		CSR_WRITE_4(sc, PN_GEN,
+		    PN_GEN_MUSTBEONE|PN_GEN_100TX_LOOP);
+		PN_CLRBIT(sc, PN_NWAY, PN_NWAY_AUTONEGRSTR);
+		PN_SETBIT(sc, PN_NWAY, PN_NWAY_AUTOENB);
+		DELAY(5000000);
+		break;
+	case PN_FLAG_SCHEDDELAY:
+		/*
+		 * Wait for the transmitter to go idle before starting
+		 * an autoneg session, otherwise pn_start() may clobber
+	 	 * our timeout, and we don't want to allow transmission
+		 * during an autoneg session since that can screw it up.
+	 	 */
+		if (sc->pn_cdata.pn_tx_head != NULL) {
+			sc->pn_want_auto = 1;
+			return;
+		}
+		CSR_WRITE_4(sc, PN_GEN,
+		    PN_GEN_MUSTBEONE|PN_GEN_100TX_LOOP);
+		PN_CLRBIT(sc, PN_NWAY, PN_NWAY_AUTONEGRSTR);
+		PN_SETBIT(sc, PN_NWAY, PN_NWAY_AUTOENB);
+		ifp->if_timer = 5;
+		sc->pn_autoneg = 1;
+		sc->pn_want_auto = 0;
+		return;
+		break;
+	case PN_FLAG_DELAYTIMEO:
+		ifp->if_timer = 0;
+		sc->pn_autoneg = 0;
+		break;
+	default:
+		printf("pn%d: invalid autoneg flag: %d\n", sc->pn_unit, flag);
+		return;
+	}
+
+	if (CSR_READ_4(sc, PN_NWAY) & PN_NWAY_LPAR) {
+		if (verbose)
+			printf("pn%d: autoneg complete, ", sc->pn_unit);
+	} else {
+		if (verbose)
+			printf("pn%d: autoneg not complete, ", sc->pn_unit);
+	}
+
+	/* Link is good. Report modes and set duplex mode. */
+	if (CSR_READ_4(sc, PN_ISR) & PN_ISR_LINKPASS) {
+		if (verbose)
+			printf("link status good ");
+
+		ability = CSR_READ_4(sc, PN_NWAY);
+		if (ability & PN_NWAY_LPAR100T4) {
+			ifm->ifm_media = IFM_ETHER|IFM_100_T4;
+			nway = PN_NWAY_MODE_100T4;
+			printf("(100baseT4)\n");
+		} else if (ability & PN_NWAY_LPAR100FULL) {
+			ifm->ifm_media = IFM_ETHER|IFM_100_TX|IFM_FDX;
+			nway = PN_NWAY_MODE_100FD;
+			printf("(full-duplex, 100Mbps)\n");
+		} else if (ability & PN_NWAY_LPAR100HALF) {
+			ifm->ifm_media = IFM_ETHER|IFM_100_TX|IFM_HDX;
+			nway = PN_NWAY_MODE_100HD;
+			printf("(half-duplex, 100Mbps)\n");
+		} else if (ability & PN_NWAY_LPAR10FULL) {
+			ifm->ifm_media = IFM_ETHER|IFM_10_T|IFM_FDX;
+			nway = PN_NWAY_MODE_10FD;
+			printf("(full-duplex, 10Mbps)\n");
+		} else if (ability & PN_NWAY_LPAR10HALF) {
+			ifm->ifm_media = IFM_ETHER|IFM_10_T|IFM_HDX;
+			nway = PN_NWAY_MODE_10HD;
+			printf("(half-duplex, 10Mbps)\n");
+		}
+
+		/* Set ASIC's duplex mode to match the PHY. */
+		pn_setcfg(sc, ifm->ifm_media);
+		CSR_WRITE_4(sc, PN_NWAY, nway);
+	} else {
+		if (verbose)
+			printf("no carrier\n");
+	}
+
+	pn_init(sc);
+
+	if (sc->pn_tx_pend) {
+		sc->pn_autoneg = 0;
+		sc->pn_tx_pend = 0;
+		pn_start(ifp);
+	}
+
+	return;
+}
+
+static void pn_setmode(sc, media)
+	struct pn_softc		*sc;
+	int			media;
+{
+	u_int32_t		nway = 0;
+	struct ifnet		*ifp;
+
+	ifp = &sc->arpcom.ac_if;
+
+	/*
+	 * If an autoneg session is in progress, stop it.
+	 */
+	if (sc->pn_autoneg) {
+		printf("pn%d: canceling autoneg session\n", sc->pn_unit);
+		ifp->if_timer = sc->pn_autoneg = sc->pn_want_auto = 0;
+		PN_CLRBIT(sc, PN_NWAY, PN_NWAY_AUTONEGRSTR);
+	}
+
+	printf("pn%d: selecting NWAY, ", sc->pn_unit);
+
+	if (IFM_SUBTYPE(media) == IFM_100_T4) {
+		printf("100Mbps/T4, half-duplex\n");
+		nway = PN_NWAY_MODE_100T4;
+	}
+
+	if (IFM_SUBTYPE(media) == IFM_100_TX) {
+		printf("100Mbps, ");
+		nway = PN_NWAY_MODE_100HD;
+	}
+
+	if (IFM_SUBTYPE(media) == IFM_10_T) {
+		printf("10Mbps, ");
+		nway = PN_NWAY_MODE_10HD;
+	}
+
+	if ((media & IFM_GMASK) == IFM_FDX) {
+		printf("full duplex\n");
+		nway |= PN_NWAY_DUPLEX;
+	} else {
+		printf("half duplex\n");
+	}
+
+	pn_setcfg(sc, media);
+	CSR_WRITE_4(sc, PN_NWAY, nway);
+
+	return;
+}
+
 static void pn_setmode_mii(sc, media)
 	struct pn_softc		*sc;
 	int			media;
@@ -593,7 +754,7 @@ static void pn_setmode_mii(sc, media)
 		bmcr &= ~PHY_BMCR_DUPLEX;
 	}
 
-	pn_setcfg(sc, bmcr);
+	pn_setcfg(sc, media);
 	pn_phy_writereg(sc, PHY_BMCR, bmcr);
 
 	return;
@@ -688,9 +849,9 @@ void pn_setfilt(sc)
  * 'full-duplex' and '100Mbps' bits in the netconfig register, we
  * first have to put the transmit and/or receive logic in the idle state.
  */
-static void pn_setcfg(sc, bmcr)
+static void pn_setcfg(sc, media)
 	struct pn_softc		*sc;
-	u_int16_t		bmcr;
+	u_int32_t		media;
 {
 	int			i, restart = 0;
 
@@ -711,12 +872,17 @@ static void pn_setcfg(sc, bmcr)
 
 	}
 
-	if (bmcr & PHY_BMCR_SPEEDSEL)
+	if (IFM_SUBTYPE(media) == IFM_100_TX) {
 		PN_CLRBIT(sc, PN_NETCFG, PN_NETCFG_SPEEDSEL);
-	else
+		CSR_WRITE_4(sc, PN_GEN, PN_GEN_MUSTBEONE|
+		    PN_GEN_SPEEDSEL|PN_GEN_100TX_LOOP);
+	} else {
 		PN_SETBIT(sc, PN_NETCFG, PN_NETCFG_SPEEDSEL);
+		CSR_WRITE_4(sc, PN_GEN,
+		    PN_GEN_MUSTBEONE|PN_GEN_100TX_LOOP);
+	}
 
-	if (bmcr & PHY_BMCR_DUPLEX)
+	if ((media & IFM_GMASK) == IFM_FDX)
 		PN_SETBIT(sc, PN_NETCFG, PN_NETCFG_FULLDUPLEX);
 	else
 		PN_CLRBIT(sc, PN_NETCFG, PN_NETCFG_FULLDUPLEX);
@@ -757,12 +923,28 @@ pn_probe(config_id, device_id)
 	pcidi_t			device_id;
 {
 	struct pn_type		*t;
+	u_int32_t		rev;
 
 	t = pn_devs;
 
 	while(t->pn_name != NULL) {
 		if ((device_id & 0xFFFF) == t->pn_vid &&
 		    ((device_id >> 16) & 0xFFFF) == t->pn_did) {
+			if (t->pn_did == PN_DEVICEID_PNIC) {
+				rev = pci_conf_read(config_id,
+				    PN_PCI_REVISION) & 0xFF;
+				switch(rev & PN_REVMASK) {
+				case PN_REVID_82C168:
+					return(t->pn_name);
+					break;
+				case PN_REVID_82C169:
+					t++;
+					return(t->pn_name);
+				default:
+					printf("unknown PNIC rev: %x\n", rev);
+					break;
+				}
+			}
 			return(t->pn_name);
 		}
 		t++;
@@ -886,6 +1068,9 @@ pn_attach(config_id, unit)
 		goto fail;
 	}
 
+	/* Save the cache line size. */
+	sc->pn_cachesize = pci_conf_read(config_id, PN_PCI_CACHELEN) & 0xFF;
+
 	/* Reset the adapter. */
 	pn_reset(sc);
 
@@ -951,6 +1136,8 @@ pn_attach(config_id, unit)
 	ifp->if_baudrate = 10000000;
 	ifp->if_snd.ifq_maxlen = PN_TX_LIST_CNT - 1;
 
+	ifmedia_init(&sc->ifmedia, 0, pn_ifmedia_upd, pn_ifmedia_sts);
+
 	if (bootverbose)
 		printf("pn%d: probing for a PHY\n", sc->pn_unit);
 	for (i = PN_PHYADDR_MIN; i < PN_PHYADDR_MAX + 1; i++) {
@@ -988,21 +1175,25 @@ pn_attach(config_id, unit)
 		if (bootverbose)
 			printf("pn%d: PHY type: %s\n",
 				sc->pn_unit, sc->pn_pinfo->pn_name);
+
+		pn_getmode_mii(sc);
+		pn_autoneg_mii(sc, PN_FLAG_FORCEDELAY, 1);
 	} else {
-		printf("pn%d: MII without any phy!\n", sc->pn_unit);
-		goto fail;
+		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_T, 0, NULL);
+		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_T|IFM_HDX, 0, NULL);
+		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_T|IFM_FDX, 0, NULL);
+		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_100_TX, 0, NULL);
+		ifmedia_add(&sc->ifmedia,
+		    IFM_ETHER|IFM_100_TX|IFM_HDX, 0, NULL);
+		ifmedia_add(&sc->ifmedia,
+		    IFM_ETHER|IFM_100_TX|IFM_FDX, 0, NULL);
+		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_100_T4, 0, NULL);
+		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_AUTO, 0, NULL);
+		pn_autoneg(sc, PN_FLAG_FORCEDELAY, 1);
 	}
 
-	/*
-	 * Do ifmedia setup.
-	 */
-	ifmedia_init(&sc->ifmedia, 0, pn_ifmedia_upd, pn_ifmedia_sts);
-
-	pn_getmode_mii(sc);
-	pn_autoneg_mii(sc, PN_FLAG_FORCEDELAY, 1);
 	media = sc->ifmedia.ifm_media;
 	pn_stop(sc);
-
 	ifmedia_set(&sc->ifmedia, media);
 
 	/*
@@ -1477,8 +1668,13 @@ static void pn_txeoc(sc)
 	if (sc->pn_cdata.pn_tx_head == NULL) {
 		ifp->if_flags &= ~IFF_OACTIVE;
 		sc->pn_cdata.pn_tx_tail = NULL;
-		if (sc->pn_want_auto)
-			pn_autoneg_mii(sc, PN_FLAG_SCHEDDELAY, 1);
+		if (sc->pn_want_auto) {
+			if (sc->pn_pinfo == NULL)
+				pn_autoneg(sc, PN_FLAG_SCHEDDELAY, 1);
+			else
+				pn_autoneg_mii(sc, PN_FLAG_SCHEDDELAY, 1);
+		}
+
 	}
 
 	return;
@@ -1746,7 +1942,22 @@ static void pn_init(xsc)
 	/*
 	 * Set cache alignment and burst length.
 	 */
-	CSR_WRITE_4(sc, PN_BUSCTL, PN_BUSCTL_CONFIG);
+	switch(sc->pn_cachesize) {
+	case 32:
+		PN_SETBIT(sc, PN_BUSCTL, PN_CACHEALIGN_32LONG);
+		break;
+	case 16:
+		PN_SETBIT(sc, PN_BUSCTL, PN_CACHEALIGN_16LONG);
+		break;
+	case 8:
+		PN_SETBIT(sc, PN_BUSCTL, PN_CACHEALIGN_8LONG);
+		break;
+	case 0:
+	default:
+		PN_SETBIT(sc, PN_BUSCTL, PN_CACHEALIGN_NONE);
+		break;
+	}
+	CSR_WRITE_4(sc, PN_BUSCTL, PN_BURSTLEN_USECA);
 
 	PN_CLRBIT(sc, PN_NETCFG, PN_NETCFG_TX_IMMEDIATE);
 	PN_CLRBIT(sc, PN_NETCFG, PN_NETCFG_NO_RXCRC);
@@ -1757,12 +1968,15 @@ static void pn_init(xsc)
 	PN_CLRBIT(sc, PN_NETCFG, PN_NETCFG_TX_THRESH);
 	PN_SETBIT(sc, PN_NETCFG, PN_TXTHRESH_72BYTES);
 
-	pn_setcfg(sc, pn_phy_readreg(sc, PHY_BMCR));
-
-	if (sc->pn_pinfo != NULL) {
+	if (sc->pn_pinfo == NULL) {
+		PN_CLRBIT(sc, PN_NETCFG, PN_NETCFG_MIIENB);
+		PN_SETBIT(sc, PN_NETCFG, PN_NETCFG_TX_BACKOFF);
+	} else {
 		PN_SETBIT(sc, PN_NETCFG, PN_NETCFG_MIIENB);
 		PN_SETBIT(sc, PN_ENDEC, PN_ENDEC_JABBERDIS);
 	}
+
+	pn_setcfg(sc, sc->ifmedia.ifm_media);
 
 	/* Init circular RX list. */
 	if (pn_list_rx_init(sc) == ENOBUFS) {
@@ -1825,10 +2039,17 @@ static int pn_ifmedia_upd(ifp)
 	if (IFM_TYPE(ifm->ifm_media) != IFM_ETHER)
 		return(EINVAL);
 
-	if (IFM_SUBTYPE(ifm->ifm_media) == IFM_AUTO)
-		pn_autoneg_mii(sc, PN_FLAG_SCHEDDELAY, 1);
-	else
-		pn_setmode_mii(sc, ifm->ifm_media);
+	if (IFM_SUBTYPE(ifm->ifm_media) == IFM_AUTO) {
+		if (sc->pn_pinfo == NULL)
+			pn_autoneg(sc, PN_FLAG_SCHEDDELAY, 1);
+		else
+			pn_autoneg_mii(sc, PN_FLAG_SCHEDDELAY, 1);
+	} else {
+		if (sc->pn_pinfo == NULL)
+			pn_setmode(sc, ifm->ifm_media);
+		else
+			pn_setmode_mii(sc, ifm->ifm_media);
+	}
 
 	return(0);
 }
@@ -1934,7 +2155,10 @@ static void pn_watchdog(ifp)
 	sc = ifp->if_softc;
 
 	if (sc->pn_autoneg) {
-		pn_autoneg_mii(sc, PN_FLAG_DELAYTIMEO, 1);
+		if (sc->pn_pinfo == NULL)
+			pn_autoneg(sc, PN_FLAG_DELAYTIMEO, 1);
+		else
+			pn_autoneg_mii(sc, PN_FLAG_DELAYTIMEO, 1);
 		return;
 	}
 
