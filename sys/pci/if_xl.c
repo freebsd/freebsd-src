@@ -29,13 +29,13 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.32 1999/04/16 21:22:51 peter Exp $
+ *	$Id: if_xl.c,v 1.95 1999/04/30 14:19:47 wpaul Exp $
  */
 
 /*
  * 3Com 3c90x Etherlink XL PCI NIC driver
  *
- * Supports the 3Com "boomerang" and "cyclone" PCI
+ * Supports the 3Com "boomerang", "cyclone" and "hurricane" PCI
  * bus-master chips (3c90x cards and embedded controllers) including
  * the following:
  *
@@ -46,6 +46,7 @@
  * 3Com 3c900B-TPO	10Mbps/RJ-45
  * 3Com 3c900B-COMBO	10Mbps/RJ-45,AUI,BNC
  * 3Com 3c900B-TPC	10Mbps/RJ-45,BNC
+ * 3Com 3c900B-FL	10Mbps/Fiber-optic
  * 3Com 3c905B-COMBO	10/100Mbps/RJ-45,AUI,BNC
  * 3Com 3c905B-TX	10/100Mbps/RJ-45
  * 3Com 3c905B-FL/FX	10/100Mbps/Fiber-optic
@@ -122,12 +123,6 @@
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 
-#ifdef __alpha__
-#undef vtophys
-#define	vtophys(va)	(pmap_kextract(((vm_offset_t) (va))) \
-			 + 1*1024*1024*1024)
-#endif
-
 /*
  * The following #define causes the code to use PIO to access the
  * chip's registers instead of memory mapped mode. The reason PIO mode
@@ -164,7 +159,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_xl.c,v 1.32 1999/04/16 21:22:51 peter Exp $";
+	"$Id: if_xl.c,v 1.95 1999/04/30 14:19:47 wpaul Exp $";
 #endif
 
 /*
@@ -179,15 +174,15 @@ static struct xl_type xl_devs[] = {
 		"3Com 3c905-TX Fast Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_BOOMERANG_100BT4,
 		"3Com 3c905-T4 Fast Etherlink XL" },
-	{ TC_VENDORID, TC_DEVICEID_CYCLONE_10BT,
+	{ TC_VENDORID, TC_DEVICEID_KRAKATOA_10BT,
 		"3Com 3c900B-TPO Etherlink XL" },
-	{ TC_VENDORID, TC_DEVICEID_CYCLONE_10BT_COMBO,
+	{ TC_VENDORID, TC_DEVICEID_KRAKATOA_10BT_COMBO,
 		"3Com 3c900B-COMBO Etherlink XL" },
-	{ TC_VENDORID, TC_DEVICEID_CYCLONE_10BT_TPC,
+	{ TC_VENDORID, TC_DEVICEID_KRAKATOA_10BT_TPC,
 		"3Com 3c900B-TPC Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_CYCLONE_10FL,
 		"3Com 3c900B-FL Etherlink XL" },
-	{ TC_VENDORID, TC_DEVICEID_CYCLONE_10_100BT,
+	{ TC_VENDORID, TC_DEVICEID_HURRICANE_10_100BT,
 		"3Com 3c905B-TX Fast Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_CYCLONE_10_100BT4,
 		"3Com 3c905B-T4 Fast Etherlink XL" },
@@ -195,7 +190,7 @@ static struct xl_type xl_devs[] = {
 		"3Com 3c905B-FX/SC Fast Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_CYCLONE_10_100_COMBO,
 		"3Com 3c905B-COMBO Fast Etherlink XL" },
-	{ TC_VENDORID, TC_DEVICEID_CYCLONE_10_100BT_SERV,
+	{ TC_VENDORID, TC_DEVICEID_HURRICANE_10_100BT_SERV,
 		"3Com 3c980 Fast Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_HURRICANE_SOHO100TX,
 		"3Com 3cSOHO100-TX OfficeConnect" },
@@ -1135,7 +1130,7 @@ static void xl_setmode(sc, media)
 	XL_SEL_WIN(3);
 	icfg = CSR_READ_4(sc, XL_W3_INTERNAL_CFG);
 
-	if (sc->xl_media & XL_MEDIAOPT_BT) {
+	if (sc->xl_media & (XL_MEDIAOPT_BT|XL_MEDIAOPT_10FL)) {
 		if (IFM_SUBTYPE(media) == IFM_10_T) {
 			printf("10baseT transceiver, ");
 			sc->xl_xcvr = XL_XCVR_10BT;
@@ -1143,6 +1138,14 @@ static void xl_setmode(sc, media)
 			icfg |= (XL_XCVR_10BT << XL_ICFG_CONNECTOR_BITS);
 			mediastat |= XL_MEDIASTAT_LINKBEAT|
 					XL_MEDIASTAT_JABGUARD;
+			mediastat &= ~XL_MEDIASTAT_SQEENB;
+		}
+		if (IFM_SUBTYPE(media) == IFM_10_FL) {
+			printf("10baseFL transceiver, ");
+			sc->xl_xcvr = XL_XCVR_10BT;
+			icfg &= ~XL_ICFG_CONNECTOR_MASK;
+			icfg |= (XL_XCVR_10BT << XL_ICFG_CONNECTOR_BITS);
+			mediastat |= XL_MEDIASTAT_LINKBEAT;
 			mediastat &= ~XL_MEDIASTAT_SQEENB;
 		}
 	}
@@ -1276,11 +1279,14 @@ static void xl_mediacheck(sc)
 	 * XXX I should check for 10baseFL, but I don't have an adapter
 	 * to test with.
 	 */
-	if (sc->xl_media & (XL_MEDIAOPT_MASK & ~XL_MEDIAOPT_VCO)) {
+	if (sc->xl_media & XL_MEDIAOPT_MASK) {
 		/*
-	 	* Check the XCVR value. If it's not in the normal range
-	 	* of values, we need to fake it up here.
-	 	*/
+	 	 * Check the XCVR value. If it's not in the normal range
+	 	 * of values, we need to fake it up here.
+	 	 */
+		if (sc->xl_type == XL_TYPE_905B &&
+		    sc->xl_media & XL_MEDIAOPT_10FL)
+			return;
 		if (sc->xl_xcvr <= XL_XCVR_AUTO)
 			return;
 		else {
@@ -1308,21 +1314,26 @@ static void xl_mediacheck(sc)
 
 	switch(devid) {
 	case TC_DEVICEID_BOOMERANG_10BT:	/* 3c900-TP */
-	case TC_DEVICEID_CYCLONE_10BT:		/* 3c900B-TP */
+	case TC_DEVICEID_KRAKATOA_10BT:		/* 3c900B-TP */
 		sc->xl_media = XL_MEDIAOPT_BT;
 		sc->xl_xcvr = XL_XCVR_10BT;
 		printf("xl%d: guessing 10BaseT transceiver\n", sc->xl_unit);
 		break;
 	case TC_DEVICEID_BOOMERANG_10BT_COMBO:	/* 3c900-COMBO */
-	case TC_DEVICEID_CYCLONE_10BT_COMBO:	/* 3c900B-COMBO */
+	case TC_DEVICEID_KRAKATOA_10BT_COMBO:	/* 3c900B-COMBO */
 		sc->xl_media = XL_MEDIAOPT_BT|XL_MEDIAOPT_BNC|XL_MEDIAOPT_AUI;
 		sc->xl_xcvr = XL_XCVR_10BT;
 		printf("xl%d: guessing COMBO (AUI/BNC/TP)\n", sc->xl_unit);
 		break;
-	case TC_DEVICEID_CYCLONE_10BT_TPC:	/* 3c900B-TPC */
+	case TC_DEVICEID_KRAKATOA_10BT_TPC:	/* 3c900B-TPC */
 		sc->xl_media = XL_MEDIAOPT_BT|XL_MEDIAOPT_BNC;
 		sc->xl_xcvr = XL_XCVR_10BT;
 		printf("xl%d: guessing TPC (BNC/TP)\n", sc->xl_unit);
+		break;
+	case TC_DEVICEID_CYCLONE_10FL:		/* 3c900B-FL */
+		sc->xl_media = XL_MEDIAOPT_10FL;
+		sc->xl_xcvr = XL_XCVR_10BT;
+		printf("xl%d: guessing 10baseFL\n", sc->xl_unit);
 		break;
 	case TC_DEVICEID_BOOMERANG_10_100BT:	/* 3c905-TX */
 		sc->xl_media = XL_MEDIAOPT_MII;
@@ -1335,8 +1346,8 @@ static void xl_mediacheck(sc)
 		sc->xl_xcvr = XL_XCVR_MII;
 		printf("xl%d: guessing 100BaseT4/MII\n", sc->xl_unit);
 		break;
-	case TC_DEVICEID_CYCLONE_10_100BT:	/* 3c905B-TX */
-	case TC_DEVICEID_CYCLONE_10_100BT_SERV:	/* 3c980-TX */
+	case TC_DEVICEID_HURRICANE_10_100BT:	/* 3c905B-TX */
+	case TC_DEVICEID_HURRICANE_10_100BT_SERV:/*3c980-TX */
 	case TC_DEVICEID_HURRICANE_SOHO100TX:	/* 3cSOHO100-TX */
 		sc->xl_media = XL_MEDIAOPT_BTX;
 		sc->xl_xcvr = XL_XCVR_AUTO;
@@ -1642,14 +1653,30 @@ xl_attach(config_id, unit)
 	 */
 	ifmedia_init(&sc->ifmedia, 0, xl_ifmedia_upd, xl_ifmedia_sts);
 
-	if (sc->xl_media & XL_MEDIAOPT_BT) {
-		if (bootverbose)
-			printf("xl%d: found 10baseT\n", sc->xl_unit);
-		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_T, 0, NULL);
-		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_T|IFM_HDX, 0, NULL);
-		if (sc->xl_caps & XL_CAPS_FULL_DUPLEX)
-			ifmedia_add(&sc->ifmedia,
-				IFM_ETHER|IFM_10_T|IFM_FDX, 0, NULL);
+	if (sc->xl_media & (XL_MEDIAOPT_BT|XL_MEDIAOPT_10FL)) {
+		/*
+		 * Check for a 10baseFL board in disguise.
+		 */
+		if (sc->xl_type == XL_TYPE_905B &&
+		    sc->xl_media == XL_MEDIAOPT_10FL) {
+			if (bootverbose)
+				printf("xl%d: found 10baseFL\n", sc->xl_unit);
+			ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_FL, 0, NULL);
+			ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_FL|IFM_HDX,
+			    0, NULL);
+			if (sc->xl_caps & XL_CAPS_FULL_DUPLEX)
+				ifmedia_add(&sc->ifmedia,
+				    IFM_ETHER|IFM_10_FL|IFM_FDX, 0, NULL);
+		} else {
+			if (bootverbose)
+				printf("xl%d: found 10baseT\n", sc->xl_unit);
+			ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_T, 0, NULL);
+			ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_T|IFM_HDX,
+			    0, NULL);
+			if (sc->xl_caps & XL_CAPS_FULL_DUPLEX)
+				ifmedia_add(&sc->ifmedia,
+				    IFM_ETHER|IFM_10_T|IFM_FDX, 0, NULL);
+		}
 	}
 
 	if (sc->xl_media & XL_MEDIAOPT_AUI) {
@@ -1704,8 +1731,14 @@ xl_attach(config_id, unit)
 	/* Choose a default media. */
 	switch(sc->xl_xcvr) {
 	case XL_XCVR_10BT:
-		media = IFM_ETHER|IFM_10_T;
-		xl_setmode(sc, media);
+		if (sc->xl_type == XL_TYPE_905B &&
+		    sc->xl_media == XL_MEDIAOPT_10FL) {
+			media = IFM_ETHER|IFM_10_FL;
+			xl_setmode(sc, media);
+		} else {
+			media = IFM_ETHER|IFM_10_T;
+			xl_setmode(sc, media);
+		}
 		break;
 	case XL_XCVR_AUI:
 		media = IFM_ETHER|IFM_10_5;
@@ -1778,7 +1811,6 @@ static int xl_list_tx_init(sc)
 	ld = sc->xl_ldata;
 	for (i = 0; i < XL_TX_LIST_CNT; i++) {
 		cd->xl_tx_chain[i].xl_ptr = &ld->xl_tx_list[i];
-		cd->xl_tx_chain[i].xl_unsent = 0;
 		if (i == (XL_TX_LIST_CNT - 1))
 			cd->xl_tx_chain[i].xl_next = NULL;
 		else
@@ -1851,10 +1883,8 @@ static int xl_newbuf(sc, c)
 		return(ENOBUFS);
 	}
 
-#ifdef __alpha__
-	/* Force longword alignment for packet payload to pacify alpha. */
+	/* Force longword alignment for packet payload. */
 	m_new->m_data += 2;
-#endif
 
 	c->xl_mbuf = m_new;
 	c->xl_ptr->xl_status = 0;
@@ -1932,51 +1962,45 @@ again:
 		eh = mtod(m, struct ether_header *);
 		m->m_pkthdr.rcvif = ifp;
 		m->m_pkthdr.len = m->m_len = total_len;
+
 #if NBPFILTER > 0
-		/*
-		 * Handle BPF listeners. Let the BPF user see the packet.
-		 */
+		/* Handle BPF listeners. Let the BPF user see the packet. */
 		if (ifp->if_bpf)
 			bpf_mtap(ifp, m);
 #endif
+
 #ifdef BRIDGE
 		if (do_bridge) {
 			struct ifnet *bdg_ifp ;
 			bdg_ifp = bridge_in(m);
-			if (bdg_ifp == BDG_DROP)
-				goto dropit ;
-			if (bdg_ifp != BDG_LOCAL)
-		    		bdg_forward(&m, bdg_ifp);
-			if (bdg_ifp != BDG_LOCAL &&
-				bdg_ifp != BDG_BCAST &&
-				bdg_ifp != BDG_MCAST)
-				goto dropit ;
-			goto getit ;
+			if (bdg_ifp != BDG_LOCAL && bdg_ifp != BDG_DROP)
+				bdg_forward(&m, bdg_ifp);
+			if (((bdg_ifp != BDG_LOCAL) && (bdg_ifp != BDG_BCAST) &&
+			    (bdg_ifp != BDG_MCAST)) || bdg_ifp == BDG_DROP) {
+				m_freem(m);
+				continue;
+			}
 		}
 #endif
+
+#if NBPFILTER > 0
 		/*
 		 * Don't pass packet up to the ether_input() layer unless it's
 		 * a broadcast packet, multicast packet, matches our ethernet
 		 * address or the interface is in promiscuous mode.
 		 */
-		if (ifp->if_flags & IFF_PROMISC &&
-			(bcmp(eh->ether_dhost, sc->arpcom.ac_enaddr,
-			ETHER_ADDR_LEN) &&
-			 (eh->ether_dhost[0] & 1) == 0)) {
-#ifdef BRIDGE
-dropit:
-#endif
-			if (m)
+		if (ifp->if_bpf) {
+			if (ifp->if_flags & IFF_PROMISC &&
+			    (bcmp(eh->ether_dhost, sc->arpcom.ac_enaddr,
+			    ETHER_ADDR_LEN) && (eh->ether_dhost[0] & 1) == 0)){
 				m_freem(m);
-			continue;
+				continue;
+			}
 		}
-#ifdef BRIDGE
-getit:
 #endif
+
 		/* Remove header from mbuf and pass it on. */
-		m->m_pkthdr.len = m->m_len =
-				total_len - sizeof(struct ether_header);
-		m->m_data += sizeof(struct ether_header);
+		m_adj(m, sizeof(struct ether_header));
 		ether_input(ifp, eh, m);
 	}
 
@@ -2033,9 +2057,8 @@ static void xl_txeof(sc)
 	while(sc->xl_cdata.xl_tx_head != NULL) {
 		cur_tx = sc->xl_cdata.xl_tx_head;
 		if ((sc->xl_type == XL_TYPE_905B &&
-		    !(cur_tx->xl_ptr->xl_status & XL_TXSTAT_DL_COMPLETE)) ||
-		    (CSR_READ_1(sc, XL_TX_STATUS) & XL_TXSTATUS_COMPLETE) ||
-		    cur_tx->xl_unsent) {
+		!(cur_tx->xl_ptr->xl_status & XL_TXSTAT_DL_COMPLETE)) ||
+			CSR_READ_4(sc, XL_DOWNLIST_PTR)) {
 			break;
 		}
 		sc->xl_cdata.xl_tx_head = cur_tx->xl_next;
@@ -2053,8 +2076,8 @@ static void xl_txeof(sc)
 		if (sc->xl_want_auto)
 			xl_autoneg_mii(sc, XL_FLAG_SCHEDDELAY, 1);
 	} else {
-		if (sc->xl_cdata.xl_tx_head->xl_unsent) {
-			sc->xl_cdata.xl_tx_head->xl_unsent = 0;
+		if (CSR_READ_4(sc, XL_DMACTL) & XL_DMACTL_DOWN_STALLED ||
+			!CSR_READ_4(sc, XL_DOWNLIST_PTR)) {
 			CSR_WRITE_4(sc, XL_DOWNLIST_PTR,
 				vtophys(sc->xl_cdata.xl_tx_head->xl_ptr));
 			CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_DOWN_UNSTALL);
@@ -2090,6 +2113,8 @@ static void xl_txeoc(sc)
 			 * first generation 3c90X chips.
 			 */
 			CSR_WRITE_1(sc, XL_TX_FREETHRESH, XL_PACKET_SIZE >> 8);
+			CSR_WRITE_2(sc, XL_COMMAND,
+			    XL_CMD_TX_SET_START|XL_MIN_FRAMELEN);
 			if (sc->xl_type == XL_TYPE_905B) {
 				CSR_WRITE_2(sc, XL_COMMAND,
 				XL_CMD_SET_TX_RECLAIM|(XL_PACKET_SIZE >> 4));
@@ -2124,36 +2149,28 @@ static void xl_intr(arg)
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ENB);
 
 	for (;;) {
-
 		status = CSR_READ_2(sc, XL_STATUS);
 
 		if ((status & XL_INTRS) == 0)
 			break;
 
-		if (status & XL_STAT_UP_COMPLETE) {
-			xl_rxeof(sc);
-			CSR_WRITE_2(sc, XL_COMMAND,
-				XL_CMD_INTR_ACK|XL_STAT_UP_COMPLETE);
-		}
+		CSR_WRITE_2(sc, XL_COMMAND,
+		    XL_CMD_INTR_ACK|(status & XL_INTRS));
 
-		if (status & XL_STAT_DOWN_COMPLETE) {
+		if (status & XL_STAT_UP_COMPLETE)
+			xl_rxeof(sc);
+
+		if (status & XL_STAT_DOWN_COMPLETE)
 			xl_txeof(sc);
-			CSR_WRITE_2(sc, XL_COMMAND,
-				XL_CMD_INTR_ACK|XL_STAT_DOWN_COMPLETE);
-		}
 
 		if (status & XL_STAT_TX_COMPLETE) {
 			ifp->if_oerrors++;
 			xl_txeoc(sc);
-			CSR_WRITE_2(sc, XL_COMMAND,
-				XL_CMD_INTR_ACK|XL_STAT_TX_COMPLETE);
 		}
 
 		if (status & XL_STAT_ADFAIL) {
 			xl_reset(sc);
 			xl_init(sc);
-			CSR_WRITE_2(sc, XL_COMMAND,
-				XL_CMD_INTR_ACK|XL_STAT_ADFAIL);
 		}
 
 		if (status & XL_STAT_STATSOFLOW) {
@@ -2161,9 +2178,6 @@ static void xl_intr(arg)
 			xl_stats_update(sc);
 			sc->xl_stats_no_timeout = 0;
 		}
-
-		CSR_WRITE_2(sc, XL_STATUS, XL_CMD_INTR_ACK|XL_STAT_INTREQ|
-							XL_STAT_INTLATCH);
 	}
 
 	/* Re-enable interrupts. */
@@ -2171,9 +2185,8 @@ static void xl_intr(arg)
 
 	XL_SEL_WIN(7);
 
-	if (ifp->if_snd.ifq_head != NULL) {
+	if (ifp->if_snd.ifq_head != NULL)
 		xl_start(ifp);
-	}
 
 	return;
 }
@@ -2307,7 +2320,6 @@ static int xl_encap(sc, c, m_head)
  * copy of the pointers since the transmit list fragment pointers are
  * physical addresses.
  */
-
 static void xl_start(ifp)
 	struct ifnet		*ifp;
 {
@@ -2383,16 +2395,28 @@ static void xl_start(ifp)
 	 */
 	cur_tx->xl_ptr->xl_status |= XL_TXSTAT_DL_INTR;
 
-	if (sc->xl_cdata.xl_tx_head == NULL) {
+	/*
+	 * Queue the packets. If the TX channel is clear, update
+	 * the downlist pointer register.
+	 */
+	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_DOWN_STALL);
+	xl_wait(sc);
+
+	if (CSR_READ_4(sc, XL_DOWNLIST_PTR)) {
+		sc->xl_cdata.xl_tx_tail->xl_next = start_tx;
+		sc->xl_cdata.xl_tx_tail->xl_ptr->xl_next =
+					vtophys(start_tx->xl_ptr);
+		sc->xl_cdata.xl_tx_tail->xl_ptr->xl_status &=
+					~XL_TXSTAT_DL_INTR;
+		sc->xl_cdata.xl_tx_tail = cur_tx;
+	} else {
 		sc->xl_cdata.xl_tx_head = start_tx;
 		sc->xl_cdata.xl_tx_tail = cur_tx;
 		CSR_WRITE_4(sc, XL_DOWNLIST_PTR, vtophys(start_tx->xl_ptr));
-		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_DOWN_UNSTALL);
-	} else {
-		start_tx->xl_unsent++;
-		sc->xl_cdata.xl_tx_tail->xl_next = start_tx;
-		sc->xl_cdata.xl_tx_tail = cur_tx;
 	}
+	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_DOWN_UNSTALL);
+
+	XL_SEL_WIN(7);
 
 	/*
 	 * Set a timeout in case the chip goes out to lunch.
@@ -2486,6 +2510,9 @@ static void xl_init(xsc)
 	 * cards in order to enable the download engine.
 	 */
 	CSR_WRITE_1(sc, XL_TX_FREETHRESH, XL_PACKET_SIZE >> 8);
+
+	/* Set the TX start threshold for best performance. */
+	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_TX_SET_START|XL_MIN_FRAMELEN);
 
 	/*
 	 * If this is a 3c905B, also set the tx reclaim threshold.
@@ -2662,7 +2689,11 @@ static void xl_ifmedia_sts(ifp, ifmr)
 
 	switch(icfg) {
 	case XL_XCVR_10BT:
-		ifmr->ifm_active = IFM_ETHER|IFM_10_T;
+		if (sc->xl_type == XL_TYPE_905B &&
+		    sc->xl_media == XL_MEDIAOPT_10FL)
+			ifmr->ifm_active = IFM_ETHER|IFM_10_FL;
+		else
+			ifmr->ifm_active = IFM_ETHER|IFM_10_T;
 		if (CSR_READ_1(sc, XL_W3_MAC_CTRL) & XL_MACCTRL_DUPLEX)
 			ifmr->ifm_active |= IFM_FDX;
 		else
