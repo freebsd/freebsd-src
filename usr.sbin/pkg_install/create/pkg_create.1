@@ -45,6 +45,7 @@
 .Op Fl X Ar excludefile
 .Op Fl D Ar displayfile
 .Op Fl m Ar mtreefile
+.Op Fl o Ar originpath
 .Fl c Ar comment
 .Fl d Ar description
 .Fl f Ar packlist
@@ -243,6 +244,13 @@ where
 is the name of the first directory named by a
 .Cm @cwd
 directive.
+.It Fl o Ar originpath
+Record an
+.Ar originpath ,
+as location of the port from which package has been created in the
+.Em "FreeBSD Ports Collection" .
+It should be in the form
+.Pa MASTERCATEGORY/PORTDIR .
 .El
 .Pp
 .Sh PACKING LIST DETAILS

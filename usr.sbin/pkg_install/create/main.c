@@ -18,7 +18,7 @@ static const char rcsid[] =
 #include "lib.h"
 #include "create.h"
 
-static char Options[] = "YNOhvf:p:P:c:d:i:I:k:K:r:t:X:D:m:s:";
+static char Options[] = "YNOhvf:p:P:c:d:i:I:k:K:r:t:X:D:m:s:o:";
 
 char	*Prefix		= NULL;
 char	*Comment        = NULL;
@@ -34,6 +34,7 @@ char	*Require	= NULL;
 char	*ExcludeFrom	= NULL;
 char	*Mtree		= NULL;
 char	*Pkgdeps	= NULL;
+char	*Origin		= NULL;
 char	PlayPen[FILENAME_MAX];
 int	Dereference	= 0;
 int	PlistOnly	= 0;
@@ -129,6 +130,10 @@ main(int argc, char **argv)
 	    Pkgdeps = optarg;
 	    break;
 
+	case 'o':
+	    Origin = optarg;
+	    break;
+
 	case '?':
 	default:
 	    usage();
@@ -165,7 +170,7 @@ usage()
 "usage: pkg_create [-YNOhv] [-P pkgs] [-p prefix] [-f contents] [-i iscript]",
 "                  [-I piscript] [-k dscript] [-K pdscript] [-r rscript] ",
 "                  [-t template] [-X excludefile] [-D displayfile] ",
-"                  [-m mtreefile] -c comment -d description -f packlist ",
-"                  pkg-name");
+"                  [-m mtreefile] [-o origin] -c comment -d description ",
+"                  -f packlist pkg-name");
     exit(1);
 }
