@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.2 (Berkeley) 11/15/93
- *	$Id: route.c,v 1.35 1996/08/24 03:11:13 peter Exp $
+ *	$Id: route.c,v 1.36 1996/09/02 02:49:40 fenner Exp $
  */
 
 #include "opt_mrouting.h"
@@ -108,6 +108,10 @@ rtalloc_ign(ro, ignore)
 	ro->ro_rt = rtalloc1(&ro->ro_dst, 1, ignore);
 }
 
+/*
+ * Look up the route that matches the address given
+ * Or, at least try.. Create a cloned route if needed.
+ */
 struct rtentry *
 rtalloc1(dst, report, ignflags)
 	register struct sockaddr *dst;
@@ -122,27 +126,57 @@ rtalloc1(dst, report, ignflags)
 	u_long nflags;
 	int  s = splnet(), err = 0, msgtype = RTM_MISS;
 
+	/* 
+	 * Look up the address in the table for that Address Family
+	 */
 	if (rnh && (rn = rnh->rnh_matchaddr((caddr_t)dst, rnh)) &&
 	    ((rn->rn_flags & RNF_ROOT) == 0)) {
+		/*
+		 * If we find it and it's not the root node, then
+		 * get a refernce on the rtentry associated.
+		 */
 		newrt = rt = (struct rtentry *)rn;
 		nflags = rt->rt_flags & ~ignflags;
 		if (report && (nflags & (RTF_CLONING | RTF_PRCLONING))) {
+			/*
+			 * We are apparently adding (report = 0 in delete).
+			 * If it requires that it be cloned, do so.
+			 * (This implies it wasn't a HOST route.)
+			 */
 			err = rtrequest(RTM_RESOLVE, dst, SA(0),
 					      SA(0), 0, &newrt);
 			if (err) {
+				/*
+				 * If the cloning didn't succeed, maybe
+				 * what we have will do. Return that.
+				 */
 				newrt = rt;
 				rt->rt_refcnt++;
 				goto miss;
 			}
 			if ((rt = newrt) && (rt->rt_flags & RTF_XRESOLVE)) {
+				/*
+				 * If the new route specifies it be 
+				 * externally resolved, then go do that.
+				 */
 				msgtype = RTM_RESOLVE;
 				goto miss;
 			}
 		} else
 			rt->rt_refcnt++;
 	} else {
+		/*
+		 * Either we hit the root or couldn't find any match,
+		 * Which basically means
+		 * "caint get there frm here"
+		 */
 		rtstat.rts_unreach++;
 	miss:	if (report) {
+			/*
+			 * If required, report the failure to the supervising
+			 * Authorities.
+			 * For a delete, this is not an error. (report == 0)
+			 */
 			bzero((caddr_t)&info, sizeof(info));
 			info.rti_info[RTAX_DST] = dst;
 			rt_missmsg(msgtype, &info, 0, err);
@@ -371,6 +405,10 @@ struct rtfc_arg {
 	struct radix_node_head *rnh;
 };
 
+/*
+ * Do appropriate manipulations of a routing tree given
+ * all the bits of info needed
+ */
 int
 rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 	int req, flags;
@@ -385,12 +423,23 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 	struct sockaddr *ndst;
 #define senderr(x) { error = x ; goto bad; }
 
+	/*
+	 * Find the correct routing tree to use for this Address Family
+	 */
 	if ((rnh = rt_tables[dst->sa_family]) == 0)
 		senderr(ESRCH);
+	/*
+	 * If we are adding a host route then we don't want to put
+	 * a netmask in the tree
+	 */
 	if (flags & RTF_HOST)
 		netmask = 0;
 	switch (req) {
 	case RTM_DELETE:
+		/*
+		 * Remove the item from the tree and return it.
+		 * Complain if it is not there and do no more processing.
+		 */
 		if ((rn = rnh->rnh_deladdr(dst, netmask, rnh)) == 0)
 			senderr(ESRCH);
 		if (rn->rn_flags & (RNF_ACTIVE | RNF_ROOT))
@@ -406,8 +455,14 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 					       rt_fixdelete, rt);
 		}
 
+		/*
+		 * Remove any external references we may have.
+		 * This might result in another rtentry being freed if
+		 * we held it's last reference.
+		 */
 		if (rt->rt_gwroute) {
-			rt = rt->rt_gwroute; RTFREE(rt);
+			rt = rt->rt_gwroute;
+			RTFREE(rt);
 			(rt = (struct rtentry *)rn)->rt_gwroute = 0;
 		}
 
@@ -418,13 +473,21 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 		 */
 		rt->rt_flags &= ~RTF_UP;
 
+		/* 
+		 * If there is llinfo or similar associated with the 
+		 * route, give the interface a chance to deal with it..
+		 */
 		if ((ifa = rt->rt_ifa) && ifa->ifa_rtrequest)
 			ifa->ifa_rtrequest(RTM_DELETE, rt, SA(0));
 		rttrash++;
+		/*
+		 * If the caller wants it, then it can have it, but it's up to it
+		 * to free the rtentry as we won't be doing it.
+		 */
 		if (ret_nrt)
 			*ret_nrt = rt;
 		else if (rt->rt_refcnt <= 0) {
-			rt->rt_refcnt++;
+			rt->rt_refcnt++; /* make a 1->0 transition */
 			rtfree(rt);
 		}
 		break;
@@ -765,49 +828,131 @@ rtinit(ifa, cmd, flags)
 	int error;
 
 	dst = flags & RTF_HOST ? ifa->ifa_dstaddr : ifa->ifa_addr;
+	/*
+	 * If it's a delete, check that if it exists, it's on the correct
+	 * interface or we might scrub a route to another ifa which would
+	 * be confusing at best and possibly worse.
+	 */
 	if (cmd == RTM_DELETE) {
+		/* 
+		 * It's a delete, so it should already exist..
+		 * If it's a net, mask off the host bits
+		 * (Assuming we have a mask)
+		 */
 		if ((flags & RTF_HOST) == 0 && ifa->ifa_netmask) {
 			m = m_get(M_WAIT, MT_SONAME);
 			deldst = mtod(m, struct sockaddr *);
 			rt_maskedcopy(dst, deldst, ifa->ifa_netmask);
 			dst = deldst;
 		}
+		/*
+		 * Get an rtentry that is in the routing tree and
+		 * contains the correct info. (if this fails we can't get there).
+		 * We set "report" to FALSE so that if it doesn't exist,
+		 * it doesn't report an error or clone a route, etc. etc.
+		 */
 		rt = rtalloc1(dst, 0, 0UL);
 		if (rt) {
+			/*
+			 * Ok so we found the rtentry. it has an extra reference
+			 * for us at this stage. we won't need that so
+			 * lop that off now.
+			 */
 			rt->rt_refcnt--;
 			if (rt->rt_ifa != ifa) {
+				/*
+				 * If the interface in the rtentry doesn't match
+				 * the interface we are using, then we don't
+				 * want to delete it, so return an error.
+				 * This seems to be the only point of 
+				 * this whole RTM_DELETE clause.
+				 */
 				if (m)
 					(void) m_free(m);
 				return (flags & RTF_HOST ? EHOSTUNREACH
 							: ENETUNREACH);
 			}
 		}
+		/* XXX */
+#if 0
+		else {
+			/* 
+			 * One would think that as we are deleting, and we know
+			 * it doesn't exist, we could just return at this point
+			 * with an "ELSE" clause, but apparently not..
+			 */
+			return (flags & RTF_HOST ? EHOSTUNREACH
+							: ENETUNREACH);
+		}
+#endif
 	}
+	/*
+	 * Do the actual request
+	 */
 	error = rtrequest(cmd, dst, ifa->ifa_addr, ifa->ifa_netmask,
 			flags | ifa->ifa_flags, &nrt);
 	if (m)
 		(void) m_free(m);
+	/*
+	 * If we are deleting, and we found an entry, then
+	 * it's been removed from the tree.. now throw it away.
+	 */
 	if (cmd == RTM_DELETE && error == 0 && (rt = nrt)) {
+		/*
+		 * notify any listenning routing agents of the change
+		 */
 		rt_newaddrmsg(cmd, ifa, error, nrt);
 		if (rt->rt_refcnt <= 0) {
-			rt->rt_refcnt++;
+			rt->rt_refcnt++; /* need a 1->0 transition to free */
 			rtfree(rt);
 		}
 	}
+
+	/*
+	 * We are adding, and we have a returned routing entry.
+	 * We need to sanity check the result.
+	 */
 	if (cmd == RTM_ADD && error == 0 && (rt = nrt)) {
+		/*
+		 * We just wanted to add it.. we don't actually need a reference
+		 */
 		rt->rt_refcnt--;
+		/*
+		 * If it came back with an unexpected interface, then it must 
+		 * have already existed or something. (XXX)
+		 */
 		if (rt->rt_ifa != ifa) {
 			printf("rtinit: wrong ifa (%p) was (%p)\n", ifa,
 				rt->rt_ifa);
+			/*
+			 * Ask that the route we got back be removed
+			 * from the routing tables as we are trying
+			 * to supersede it.
+			 */
 			if (rt->rt_ifa->ifa_rtrequest)
 			    rt->rt_ifa->ifa_rtrequest(RTM_DELETE, rt, SA(0));
+			/* 
+			 * Remove the referenve to the it's ifaddr.
+			 */
 			IFAFREE(rt->rt_ifa);
+			/*
+			 * And substitute in references to the ifaddr
+			 * we are adding.
+			 */
 			rt->rt_ifa = ifa;
 			rt->rt_ifp = ifa->ifa_ifp;
 			ifa->ifa_refcnt++;
+			/*
+			 * Now add it to the routing table
+			 * XXX could we have just left it?
+			 * as it might have been in the right place..
+			 */
 			if (ifa->ifa_rtrequest)
 			    ifa->ifa_rtrequest(RTM_ADD, rt, SA(0));
 		}
+		/*
+		 * notify any listenning routing agents of the change
+		 */
 		rt_newaddrmsg(cmd, ifa, error, nrt);
 	}
 	return (error);
