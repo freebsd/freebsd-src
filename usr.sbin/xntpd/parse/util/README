@@ -10,3 +10,10 @@ dcfd:		simple DCF77 raw impulse receiver with NTP loopfilter
 		without network code in a nutshell)
 
 Frank Kardel
+
+----------------
+
+1995-03-20	Dcfd has been ported to FreeBSD 2.0, it works with a
+		Boeder Receiver connected to a 50Baud RS232.
+
+Vincenzo Capuano
