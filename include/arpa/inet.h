@@ -69,7 +69,7 @@ typedef	__uint32_t	in_addr_t;
 #endif
 
 #ifndef	_IN_PORT_T_DECLARED_
-typedef	_uint16_t	in_port_t;
+typedef	__uint16_t	in_port_t;
 #define	_IN_PORT_T_DECLARED_
 #endif
 
