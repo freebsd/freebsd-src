@@ -94,6 +94,7 @@
 #include <netinet/in_var.h>
 #include <netinet/ip6.h>
 #include <netinet/icmp6.h>
+#include <netinet/tcp_var.h>
 #include <netinet6/in6_ifattach.h>
 #include <netinet6/in6_pcb.h>
 #include <netinet6/ip6protosw.h>
@@ -1105,8 +1106,7 @@ icmp6_mtudisc_update(ip6cp, validated)
 	struct icmp6_hdr *icmp6 = ip6cp->ip6c_icmp6;
 	struct mbuf *m = ip6cp->ip6c_m;	/* will be necessary for scope issue */
 	u_int mtu = ntohl(icmp6->icmp6_mtu);
-	struct rtentry *rt = NULL;
-	struct sockaddr_in6 sin6;
+	struct in_conninfo inc;
 
 #if 0
 	/*
@@ -1131,31 +1131,19 @@ icmp6_mtudisc_update(ip6cp, validated)
 	if (!validated)
 		return;
 
-	bzero(&sin6, sizeof(sin6));
-	sin6.sin6_family = PF_INET6;
-	sin6.sin6_len = sizeof(struct sockaddr_in6);
-	sin6.sin6_addr = *dst;
+	bzero(&inc, sizeof(inc));
+	inc.inc_flags = 1; /* IPv6 */
+	inc.inc6_faddr = *dst;
 	/* XXX normally, this won't happen */
 	if (IN6_IS_ADDR_LINKLOCAL(dst)) {
-		sin6.sin6_addr.s6_addr16[1] =
+		inc.inc6_faddr.s6_addr16[1] =
 		    htons(m->m_pkthdr.rcvif->if_index);
 	}
-	/* sin6.sin6_scope_id = XXX: should be set if DST is a scoped addr */
-	rt = rtalloc1((struct sockaddr *)&sin6, 0, RTF_CLONING);
 
-	if (rt && (rt->rt_flags & RTF_HOST) &&
-	    !(rt->rt_rmx.rmx_locks & RTV_MTU)) {
-		if (mtu < IPV6_MMTU) {
-				/* xxx */
-			rt->rt_rmx.rmx_locks |= RTV_MTU;
-		} else if (mtu < rt->rt_ifp->if_mtu &&
-			   rt->rt_rmx.rmx_mtu > mtu) {
-			icmp6stat.icp6s_pmtuchg++;
-			rt->rt_rmx.rmx_mtu = mtu;
-		}
+	if (mtu >= IPV6_MMTU) {
+		tcp_hc_updatemtu(&inc, mtu);
+		icmp6stat.icp6s_pmtuchg++;
 	}
-	if (rt)
-		rtfree(rt);
 }
 
 /*

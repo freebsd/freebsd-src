@@ -551,10 +551,8 @@ tcp_timer_rexmt(xtp)
 	if ((tp->t_state == TCPS_SYN_SENT) && (tp->t_rxtshift == 3))
 		tp->t_flags &= ~(TF_REQ_SCALE|TF_REQ_TSTMP|TF_REQ_CC);
 	/*
-	 * If losing, let the lower level know and try for
-	 * a better route.  Also, if we backed off this far,
-	 * our srtt estimate is probably bogus.  Clobber it
-	 * so we'll take the next rtt measurement as our srtt;
+	 * If we backed off this far, our srtt estimate is probably bogus.
+	 * Clobber it so we'll take the next rtt measurement as our srtt;
 	 * move the current srtt into rttvar to keep the current
 	 * retransmit times until then.
 	 */
@@ -564,7 +562,6 @@ tcp_timer_rexmt(xtp)
 			in6_losing(tp->t_inpcb);
 		else
 #endif
-		in_losing(tp->t_inpcb);
 		tp->t_rttvar += (tp->t_srtt >> TCP_RTT_SHIFT);
 		tp->t_srtt = 0;
 	}

@@ -466,10 +466,13 @@ verify_rev_path(struct in_addr src, struct ifnet *ifp)
 		rtalloc_ign(&ro, RTF_CLONING);
 	}
 
-	if ((ro.ro_rt == NULL) || (ifp == NULL) ||
-	    (ro.ro_rt->rt_ifp->if_index != ifp->if_index))
+	if (ro.ro_rt == NULL)
 		return 0;
-
+	if ((ifp == NULL) || (ro.ro_rt->rt_ifp->if_index != ifp->if_index)) {
+		RTFREE(ro.ro_rt);
+		return 0;
+	}
+	RTFREE(ro.ro_rt);
 	return 1;
 }
 

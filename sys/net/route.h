@@ -58,6 +58,12 @@ struct route {
  * These numbers are used by reliable protocols for determining
  * retransmission behavior and are included in the routing structure.
  */
+struct rt_metrics_lite {
+	u_long	rmx_mtu;	/* MTU for this path */
+	u_long	rmx_expire;	/* lifetime for route, e.g. redirect */
+	u_long	rmx_pksent;	/* packets sent using this route */
+};
+
 struct rt_metrics {
 	u_long	rmx_locks;	/* Kernel must leave these values alone */
 	u_long	rmx_mtu;	/* MTU for this path */
@@ -104,10 +110,10 @@ struct rtentry {
 	long	rt_refcnt;		/* # held references */
 	u_long	rt_flags;		/* up/down?, host/net */
 	struct	ifnet *rt_ifp;		/* the answer: interface to use */
-	struct	ifaddr *rt_ifa;		/* the answer: interface to use */
+	struct	ifaddr *rt_ifa;		/* the answer: interface address to use */
 	struct	sockaddr *rt_genmask;	/* for generation of cloned routes */
 	caddr_t	rt_llinfo;		/* pointer to link level info cache */
-	struct	rt_metrics rt_rmx;	/* metrics used by rx'ing protocols */
+	struct	rt_metrics_lite rt_rmx;	/* metrics used by rx'ing protocols */
 	struct	rtentry *rt_gwroute;	/* implied entry for gatewayed routes */
 	int	(*rt_output)(struct ifnet *, struct mbuf *, struct sockaddr *,
 		    struct rtentry *);

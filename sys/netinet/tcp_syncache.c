@@ -202,29 +202,9 @@ static MALLOC_DEFINE(M_SYNCACHE, "syncache", "TCP syncache");
 static void
 syncache_free(struct syncache *sc)
 {
-	struct rtentry *rt;
-
 	if (sc->sc_ipopts)
 		(void) m_free(sc->sc_ipopts);
-#ifdef INET6
-	if (sc->sc_inc.inc_isipv6)
-		rt = sc->sc_route6.ro_rt;
-	else
-#endif
-		rt = sc->sc_route.ro_rt;
-	if (rt != NULL) {
-		/*
-		 * If this is the only reference to a protocol cloned 
-		 * route, remove it immediately.
-		 */
-		if (rt->rt_flags & RTF_WASCLONED &&
-		    (sc->sc_flags & SCF_KEEPROUTE) == 0 &&
-		    rt->rt_refcnt == 1)
-			rtrequest(RTM_DELETE, rt_key(rt),
-			    rt->rt_gateway, rt_mask(rt),
-			    rt->rt_flags, NULL);
-		RTFREE(rt);
-	}
+
 	uma_zfree(tcp_syncache.zone, sc);
 }
 
@@ -644,8 +624,6 @@ syncache_socket(sc, lso, m)
 		if (oinp->in6p_outputopts)
 			inp->in6p_outputopts =
 			    ip6_copypktopts(oinp->in6p_outputopts, M_NOWAIT);
-		inp->in6p_route = sc->sc_route6;
-		sc->sc_route6.ro_rt = NULL;
 
 		MALLOC(sin6, struct sockaddr_in6 *, sizeof *sin6,
 		    M_SONAME, M_NOWAIT | M_ZERO);
@@ -675,8 +653,6 @@ syncache_socket(sc, lso, m)
 			inp->inp_options = sc->sc_ipopts;
 			sc->sc_ipopts = NULL;
 		}
-		inp->inp_route = sc->sc_route;
-		sc->sc_route.ro_rt = NULL;
 
 		MALLOC(sin, struct sockaddr_in *, sizeof *sin,
 		    M_SONAME, M_NOWAIT | M_ZERO);
@@ -733,6 +709,10 @@ syncache_socket(sc, lso, m)
 		tp->cc_recv = sc->sc_cc_recv;
 	}
 
+	/*
+	 * Set up MSS and get cached values from tcp_hostcache.
+	 * This might overwrite some of the defaults we just set.
+	 */
 	tcp_mss(tp, sc->sc_peer_mss);
 
 	/*
@@ -811,10 +791,9 @@ resetandabort:
 #endif
 		m_freem(m);			/* XXX only needed for above */
 		tcpstat.tcps_sc_aborted++;
-	} else {
-		sc->sc_flags |= SCF_KEEPROUTE;
+	} else
 		tcpstat.tcps_sc_completed++;
-	}
+
 	if (sch == NULL)
 		syncache_free(sc);
 	else
@@ -849,13 +828,14 @@ syncache_add(inc, to, th, sop, m)
 	struct syncache *sc = NULL;
 	struct syncache_head *sch;
 	struct mbuf *ipopts = NULL;
-	struct rmxp_tao *taop;
+	struct rmxp_tao tao;
 	int i, win;
 
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 
 	so = *sop;
 	tp = sototcpcb(so);
+	bzero(&tao, sizeof(tao));
 
 	/*
 	 * Remember the IP options, if any.
@@ -949,13 +929,11 @@ syncache_add(inc, to, th, sop, m)
 	if (inc->inc_isipv6) {
 		sc->sc_inc.inc6_faddr = inc->inc6_faddr;
 		sc->sc_inc.inc6_laddr = inc->inc6_laddr;
-		sc->sc_route6.ro_rt = NULL;
 	} else
 #endif
 	{
 		sc->sc_inc.inc_faddr = inc->inc_faddr;
 		sc->sc_inc.inc_laddr = inc->inc_laddr;
-		sc->sc_route.ro_rt = NULL;
 	}
 	sc->sc_irs = th->th_seq;
 	sc->sc_flags = 0;
@@ -1027,17 +1005,19 @@ syncache_add(inc, to, th, sop, m)
 	 *	processing: drop SYN, process data and FIN.
 	 * - otherwise do a normal 3-way handshake.
 	 */
-	taop = tcp_gettaocache(&sc->sc_inc);
+	if (tcp_do_rfc1644)
+		tcp_hc_gettao(&sc->sc_inc, &tao);
+
 	if ((to->to_flags & TOF_CC) != 0) {
 		if (((tp->t_flags & TF_NOPUSH) != 0) &&
-		    sc->sc_flags & SCF_CC && 
-		    taop != NULL && taop->tao_cc != 0 &&
-		    CC_GT(to->to_cc, taop->tao_cc)) {
+		    sc->sc_flags & SCF_CC && tao.tao_cc != 0 &&
+		    CC_GT(to->to_cc, tao.tao_cc)) {
 			sc->sc_rxtslot = 0;
 			so = syncache_socket(sc, *sop, m);
 			if (so != NULL) {
-				sc->sc_flags |= SCF_KEEPROUTE;
-				taop->tao_cc = to->to_cc;
+				tao.tao_cc = to->to_cc;
+				tcp_hc_updatetao(&sc->sc_inc, TCP_HC_TAO_CC,
+						 tao.tao_cc, 0);
 				*sop = so;
 			}
 			syncache_free(sc);
@@ -1047,9 +1027,13 @@ syncache_add(inc, to, th, sop, m)
 		/*
 		 * No CC option, but maybe CC.NEW: invalidate cached value.
 		 */
-		if (taop != NULL)
-			taop->tao_cc = 0;
+		if (tcp_do_rfc1644) {
+			tao.tao_cc = 0;
+			tcp_hc_updatetao(&sc->sc_inc, TCP_HC_TAO_CC,
+					 tao.tao_cc, 0);
+		}
 	}
+
 	/*
 	 * TAO test failed or there was no CC option,
 	 *    do a standard 3-way handshake.
@@ -1087,33 +1071,22 @@ syncache_respond(sc, m)
 	int optlen, error;
 	u_int16_t tlen, hlen, mssopt;
 	struct ip *ip = NULL;
-	struct rtentry *rt;
 	struct tcphdr *th;
 	struct inpcb *inp;
 #ifdef INET6
 	struct ip6_hdr *ip6 = NULL;
 #endif
 
+	hlen =
 #ifdef INET6
-	if (sc->sc_inc.inc_isipv6) {
-		rt = tcp_rtlookup6(&sc->sc_inc);
-		if (rt != NULL)
-			mssopt = rt->rt_ifp->if_mtu -
-			     (sizeof(struct ip6_hdr) + sizeof(struct tcphdr));
-		else 
-			mssopt = tcp_v6mssdflt;
-		hlen = sizeof(struct ip6_hdr);
-	} else
+	       (sc->sc_inc.inc_isipv6) ? sizeof(struct ip6_hdr) : 
 #endif
-	{
-		rt = tcp_rtlookup(&sc->sc_inc);
-		if (rt != NULL)
-			mssopt = rt->rt_ifp->if_mtu -
-			     (sizeof(struct ip) + sizeof(struct tcphdr));
-		else 
-			mssopt = tcp_mssdflt;
-		hlen = sizeof(struct ip);
-	}
+		sizeof(struct ip);
+
+	KASSERT((&sc->sc_inc) != NULL, ("syncache_respond with NULL in_conninfo pointer"));
+
+	/* Determine MSS we advertize to other end of connection */
+	mssopt = tcp_mssopt(&sc->sc_inc);
 
 	/* Compute the size of the TCP options. */
 	if (sc->sc_flags & SCF_NOOPT) {
@@ -1244,13 +1217,10 @@ syncache_respond(sc, m)
 
 #ifdef INET6
 	if (sc->sc_inc.inc_isipv6) {
-		struct route_in6 *ro6 = &sc->sc_route6;
-
 		th->th_sum = 0;
 		th->th_sum = in6_cksum(m, IPPROTO_TCP, hlen, tlen - hlen);
-		ip6->ip6_hlim = in6_selecthlim(NULL,
-		    ro6->ro_rt ? ro6->ro_rt->rt_ifp : NULL);
-		error = ip6_output(m, NULL, ro6, 0, NULL, NULL, inp);
+		ip6->ip6_hlim = in6_selecthlim(NULL, NULL);
+		error = ip6_output(m, NULL, NULL, 0, NULL, NULL, inp);
 	} else
 #endif
 	{
@@ -1268,7 +1238,7 @@ syncache_respond(sc, m)
 			    mtod(m, void *), th, 0);
 		}
 #endif
-		error = ip_output(m, sc->sc_ipopts, &sc->sc_route, 0, NULL,inp);
+		error = ip_output(m, sc->sc_ipopts, NULL, 0, NULL, inp);
 	}
 	INP_UNLOCK(inp);
 	return (error);
@@ -1435,13 +1405,11 @@ syncookie_lookup(inc, th, so)
 	if (inc->inc_isipv6) {
 		sc->sc_inc.inc6_faddr = inc->inc6_faddr;
 		sc->sc_inc.inc6_laddr = inc->inc6_laddr;
-		sc->sc_route6.ro_rt = NULL;
 	} else
 #endif
 	{
 		sc->sc_inc.inc_faddr = inc->inc_faddr;
 		sc->sc_inc.inc_laddr = inc->inc_laddr;
-		sc->sc_route.ro_rt = NULL;
 	}
 	sc->sc_irs = th->th_seq - 1;
 	sc->sc_iss = th->th_ack - 1;
