@@ -35,7 +35,8 @@ typedef unsigned int _G_uid_t;
 typedef int _G_wchar_t;
 typedef int _G_ssize_t;
 typedef int /* default */ _G_wint_t;
-typedef char * _G_va_list;
+#define _G_NEED_STDARG_H
+#define _G_va_list va_list
 #define _G_signal_return_type void
 #define _G_sprintf_return_type int
 
