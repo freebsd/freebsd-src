@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.60 1996/03/11 02:18:22 hsu Exp $
+ * $Id: kern_mib.c,v 1.1 1996/04/07 13:03:05 phk Exp $
  */
 
 #include <sys/param.h>
@@ -134,7 +134,7 @@ SYSCTL_PROC(_kern, KERN_SECURELVL, securelevel, CTLTYPE_INT|CTLFLAG_RW,
 	0, 0, sysctl_kern_securelvl, "I", "");
 
 char domainname[MAXHOSTNAMELEN];
-SYSCTL_STRING(_kern, KERN_DOMAINNAME, domainname, CTLFLAG_RW,
+SYSCTL_STRING(_kern, KERN_NISDOMAINNAME, domainname, CTLFLAG_RW,
 	&domainname, sizeof(domainname), "");
 
 long hostid;
