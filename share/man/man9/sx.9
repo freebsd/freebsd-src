@@ -161,6 +161,8 @@ by the first argument.
 .Pp
 A thread may not own a shared lock and an exclusive lock simultaneously;
 attempting to do so will result in deadlock.
+.Sh CONTEXT
+It is allowed to to own a shared lock or an exclusive lock while sleeping.
 .Sh SEE ALSO
 .Xr condvar 9 ,
 .Xr mtx_pool 9 ,
