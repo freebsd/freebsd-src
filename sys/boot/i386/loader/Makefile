@@ -38,7 +38,7 @@ CFLAGS+=	-DLOADER_GZIP_SUPPORT
 CFLAGS+=	-I${.CURDIR}/../../common
 CFLAGS+=	-I.
 
-CLEANFILES=	vers.c loader loader.list loader.bin loader.help
+CLEANFILES=	vers.c loader loader.bin loader.help
 
 CFLAGS+=	-Wall
 LDFLAGS=	-static -Ttext 0x0
