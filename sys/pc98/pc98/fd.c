@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.38 1998/07/30 09:01:12 kato Exp $
+ *	$Id: fd.c,v 1.39 1998/09/14 19:56:40 sos Exp $
  *
  */
 
@@ -66,12 +66,10 @@
 #include <machine/ioctl_fd.h>
 #include <sys/disklabel.h>
 #include <sys/buf.h>
+#include <sys/devicestat.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/syslog.h>
-#ifdef notyet
-#include <sys/dkstat.h>
-#endif
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
 #include <pc98/pc98/pc98_machdep.h>
@@ -211,11 +209,9 @@ static struct fd_data {
 #define FD_NO_TRACK -2
 	int	track;		/* where we think the head is */
 	int	options;	/* user configurable options, see ioctl_fd.h */
-#ifdef notyet
-	int	dkunit;		/* disk stats unit number */
-#endif
 	struct	callout_handle toffhandle;
 	struct	callout_handle tohandle;
+	struct	devstat device_stats;
 #ifdef DEVFS
 	void	*bdevs[1 + NUMDENS + MAXPARTITIONS];
 	void	*cdevs[1 + NUMDENS + MAXPARTITIONS];
@@ -1078,18 +1074,14 @@ fdattach(struct isa_device *dev)
 					   "rfd%d%c", fdu, 'a' + i);
 		}
 #endif /* DEVFS */
-#ifdef notyet
-		if (dk_ndrive < DK_NDRIVE) {
-			sprintf(dk_names[dk_ndrive], "fd%d", fdu);
-			fd->dkunit = dk_ndrive++;
-			/*
-			 * XXX assume rate is FDC_500KBPS.
-			 */
-			dk_wpms[dk_ndrive] = 500000 / 8 / 2;
-		} else {
-			fd->dkunit = -1;
-		}
-#endif
+		/*
+		 * Export the drive to the devstat interface.
+		 */
+		devstat_add_entry(&fd->device_stats, "fd", 
+				  fdu, 512,
+				  DEVSTAT_NO_ORDERED_TAGS,
+				  DEVSTAT_TYPE_FLOPPY | DEVSTAT_TYPE_IF_OTHER);
+		
 	}
 
 	return (1);
@@ -1532,6 +1524,10 @@ fdstrategy(struct buf *bp)
 	s = splbio();
 	bufqdisksort(&fdc->head, bp);
 	untimeout(fd_turnoff, (caddr_t)fdu, fd->toffhandle); /* a good idea */
+
+	/* Tell devstat we are starting on the transaction */
+	devstat_start_transaction(&fd->device_stats);
+
 	fdstart(fdcu);
 	splx(s);
 	return;
@@ -1539,7 +1535,6 @@ fdstrategy(struct buf *bp)
 bad:
 	biodone(bp);
 }
-
 
 /***************************************************************\
 *				fdstart				*
@@ -2047,6 +2042,12 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 			/* ALL DONE */
 			fd->skip = 0;
 			bufq_remove(&fdc->head, bp);
+			/* Tell devstat we have finished with the transaction */
+			devstat_end_transaction(&fd->device_stats,
+						bp->b_bcount - bp->b_resid,
+						DEVSTAT_TAG_NONE,
+						(bp->b_flags & B_READ) ?
+						DEVSTAT_READ : DEVSTAT_WRITE);
 			biodone(bp);
 			fdc->fd = (fd_p) 0;
 			fdc->fdu = -1;
@@ -2172,6 +2173,8 @@ retrier(fdcu)
 	struct subdev *sd;
 	fdc_p fdc = fdc_data + fdcu;
 	register struct buf *bp;
+	struct fd_data *fd;
+	int fdu;
 
 	bp = bufq_first(&fdc->head);
 
@@ -2218,6 +2221,13 @@ retrier(fdcu)
 		bp->b_error = EIO;
 		bp->b_resid += bp->b_bcount - fdc->fd->skip;
 		bufq_remove(&fdc->head, bp);
+	
+		/* Tell devstat we have finished with the transaction */
+		devstat_end_transaction(&fd->device_stats,
+					bp->b_bcount - bp->b_resid,
+					DEVSTAT_TAG_NONE,
+					(bp->b_flags & B_READ) ? DEVSTAT_READ :
+								 DEVSTAT_WRITE);
 		fdc->fd->skip = 0;
 		biodone(bp);
 		fdc->state = FINDWORK;
