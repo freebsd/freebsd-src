@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)signal.h	8.4 (Berkeley) 5/4/95
- * $Id$
+ * $Id: signal.h,v 1.11 1997/02/22 09:45:53 peter Exp $
  */
 
 #ifndef	_SYS_SIGNAL_H_
@@ -132,6 +132,7 @@ struct	sigaction {
 #define SA_RESTART	0x0002	/* restart system call on signal return */
 #define	SA_RESETHAND	0x0004	/* reset to SIG_DFL when taking signal */
 #define	SA_NODEFER	0x0010	/* don't mask the signal we're delivering */
+#define	SA_NOCLDWAIT	0x0020	/* don't keep zombies around */
 #ifdef COMPAT_SUNOS
 #define	SA_USERTRAMP	0x0100	/* do not bounce off kernel's sigtramp */
 #endif
