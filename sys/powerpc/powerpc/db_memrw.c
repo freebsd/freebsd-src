@@ -47,7 +47,7 @@
 
 #include <machine/db_machdep.h>
 
-#include <ddb/db_access.h>
+#include <ddb/ddb.h>
 
 /*
  * Read bytes from kernel address space for debugger.

@@ -29,6 +29,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/user.h>
 
@@ -46,48 +47,48 @@
 #include <ddb/db_variables.h>
 
 struct db_variable db_regs[] = {
-	{ "r0",  (long *)&ddb_regs.r[0],  FCN_NULL },
-	{ "r1",  (long *)&ddb_regs.r[1],  FCN_NULL },
-	{ "r2",  (long *)&ddb_regs.r[2],  FCN_NULL },
-	{ "r3",  (long *)&ddb_regs.r[3],  FCN_NULL },
-	{ "r4",  (long *)&ddb_regs.r[4],  FCN_NULL },
-	{ "r5",  (long *)&ddb_regs.r[5],  FCN_NULL },
-	{ "r6",  (long *)&ddb_regs.r[6],  FCN_NULL },
-	{ "r7",  (long *)&ddb_regs.r[7],  FCN_NULL },
-	{ "r8",  (long *)&ddb_regs.r[8],  FCN_NULL },
-	{ "r9",  (long *)&ddb_regs.r[9],  FCN_NULL },
-	{ "r10", (long *)&ddb_regs.r[10], FCN_NULL },
-	{ "r11", (long *)&ddb_regs.r[11], FCN_NULL },
-	{ "r12", (long *)&ddb_regs.r[12], FCN_NULL },
-	{ "r13", (long *)&ddb_regs.r[13], FCN_NULL },
-	{ "r14", (long *)&ddb_regs.r[14], FCN_NULL },
-	{ "r15", (long *)&ddb_regs.r[15], FCN_NULL },
-	{ "r16", (long *)&ddb_regs.r[16], FCN_NULL },
-	{ "r17", (long *)&ddb_regs.r[17], FCN_NULL },
-	{ "r18", (long *)&ddb_regs.r[18], FCN_NULL },
-	{ "r19", (long *)&ddb_regs.r[19], FCN_NULL },
-	{ "r20", (long *)&ddb_regs.r[20], FCN_NULL },
-	{ "r21", (long *)&ddb_regs.r[21], FCN_NULL },
-	{ "r22", (long *)&ddb_regs.r[22], FCN_NULL },
-	{ "r23", (long *)&ddb_regs.r[23], FCN_NULL },
-	{ "r24", (long *)&ddb_regs.r[24], FCN_NULL },
-	{ "r25", (long *)&ddb_regs.r[25], FCN_NULL },
-	{ "r26", (long *)&ddb_regs.r[26], FCN_NULL },
-	{ "r27", (long *)&ddb_regs.r[27], FCN_NULL },
-	{ "r28", (long *)&ddb_regs.r[28], FCN_NULL },
-	{ "r29", (long *)&ddb_regs.r[29], FCN_NULL },
-	{ "r30", (long *)&ddb_regs.r[30], FCN_NULL },
-	{ "r31", (long *)&ddb_regs.r[31], FCN_NULL },
-	{ "iar", (long *)&ddb_regs.iar,   FCN_NULL },
-	{ "msr", (long *)&ddb_regs.msr,   FCN_NULL },
-	{ "lr",  (long *)&ddb_regs.lr,    FCN_NULL },
-	{ "ctr", (long *)&ddb_regs.ctr,   FCN_NULL },
-	{ "cr",  (long *)&ddb_regs.cr,    FCN_NULL },
-	{ "xer", (long *)&ddb_regs.xer,   FCN_NULL },
+	{ "r0",  &ddb_regs.r[0],  FCN_NULL },
+	{ "r1",  &ddb_regs.r[1],  FCN_NULL },
+	{ "r2",  &ddb_regs.r[2],  FCN_NULL },
+	{ "r3",  &ddb_regs.r[3],  FCN_NULL },
+	{ "r4",  &ddb_regs.r[4],  FCN_NULL },
+	{ "r5",  &ddb_regs.r[5],  FCN_NULL },
+	{ "r6",  &ddb_regs.r[6],  FCN_NULL },
+	{ "r7",  &ddb_regs.r[7],  FCN_NULL },
+	{ "r8",  &ddb_regs.r[8],  FCN_NULL },
+	{ "r9",  &ddb_regs.r[9],  FCN_NULL },
+	{ "r10", &ddb_regs.r[10], FCN_NULL },
+	{ "r11", &ddb_regs.r[11], FCN_NULL },
+	{ "r12", &ddb_regs.r[12], FCN_NULL },
+	{ "r13", &ddb_regs.r[13], FCN_NULL },
+	{ "r14", &ddb_regs.r[14], FCN_NULL },
+	{ "r15", &ddb_regs.r[15], FCN_NULL },
+	{ "r16", &ddb_regs.r[16], FCN_NULL },
+	{ "r17", &ddb_regs.r[17], FCN_NULL },
+	{ "r18", &ddb_regs.r[18], FCN_NULL },
+	{ "r19", &ddb_regs.r[19], FCN_NULL },
+	{ "r20", &ddb_regs.r[20], FCN_NULL },
+	{ "r21", &ddb_regs.r[21], FCN_NULL },
+	{ "r22", &ddb_regs.r[22], FCN_NULL },
+	{ "r23", &ddb_regs.r[23], FCN_NULL },
+	{ "r24", &ddb_regs.r[24], FCN_NULL },
+	{ "r25", &ddb_regs.r[25], FCN_NULL },
+	{ "r26", &ddb_regs.r[26], FCN_NULL },
+	{ "r27", &ddb_regs.r[27], FCN_NULL },
+	{ "r28", &ddb_regs.r[28], FCN_NULL },
+	{ "r29", &ddb_regs.r[29], FCN_NULL },
+	{ "r30", &ddb_regs.r[30], FCN_NULL },
+	{ "r31", &ddb_regs.r[31], FCN_NULL },
+	{ "iar", &ddb_regs.iar,   FCN_NULL },
+	{ "msr", &ddb_regs.msr,   FCN_NULL },
+	{ "lr",  &ddb_regs.lr,    FCN_NULL },
+	{ "ctr", &ddb_regs.ctr,   FCN_NULL },
+	{ "cr",  &ddb_regs.cr,    FCN_NULL },
+	{ "xer", &ddb_regs.xer,   FCN_NULL },
 #ifdef PPC_IBM4XX
-	{ "dear", (long *)&ddb_regs.dear, FCN_NULL },
-	{ "esr", (long *)&ddb_regs.esr,   FCN_NULL },
-	{ "pid", (long *)&ddb_regs.pid,   FCN_NULL },
+	{ "dear", &ddb_regs.dear, FCN_NULL },
+	{ "esr", &ddb_regs.esr,   FCN_NULL },
+	{ "pid", &ddb_regs.pid,   FCN_NULL },
 #endif
 };
 struct db_variable *db_eregs = db_regs + sizeof (db_regs)/sizeof (db_regs[0]);
@@ -98,19 +99,15 @@ extern int end[];
 /*
  *	Frame tracing.
  */
-void
-db_stack_trace_print(addr, have_addr, count, modif, pr)
-	db_expr_t addr;
-	int have_addr;
-	db_expr_t count;
-	char *modif;
-	void (*pr) __P((const char *, ...));
+static void
+db_stack_trace_print(db_expr_t addr, int have_addr, db_expr_t count, 
+		     char *modif, void (*pr)(const char *, ...))
 {
 	db_addr_t frame, lr, caller, *args;
 	db_addr_t fakeframe[2];
 	db_expr_t diff;
-	db_sym_t sym;
-	char *symname;
+	c_db_sym_t sym;
+	const char *symname;
 	boolean_t kernel_only = TRUE;
 	boolean_t trace_thread = FALSE;
 	boolean_t full = FALSE;
