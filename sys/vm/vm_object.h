@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.36 1997/08/05 00:02:06 dyson Exp $
+ * $Id: vm_object.h,v 1.37 1997/09/01 02:55:50 bde Exp $
  */
 
 /*
@@ -183,6 +183,7 @@ void vm_object_pmap_remove __P((vm_object_t, vm_pindex_t, vm_pindex_t));
 void vm_object_reference __P((vm_object_t));
 void vm_object_shadow __P((vm_object_t *, vm_ooffset_t *, vm_size_t));
 void vm_object_madvise __P((vm_object_t, vm_pindex_t, int, int));
+void vm_object_init2 __P((void));
 #endif				/* KERNEL */
 
 #endif				/* _VM_OBJECT_ */

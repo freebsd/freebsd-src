@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_node.c	8.6 (Berkeley) 5/22/95
- * $Id: nfs_node.c,v 1.17 1997/05/09 13:04:43 dfr Exp $
+ * $Id: nfs_node.c,v 1.18 1997/08/02 14:33:07 bde Exp $
  */
 
 
@@ -373,6 +373,6 @@ nfs_abortop(ap)
 {
 
 	if ((ap->a_cnp->cn_flags & (HASBUF | SAVESTART)) == HASBUF)
-		FREE(ap->a_cnp->cn_pnbuf, M_NAMEI);
+		zfree(namei_zone, ap->a_cnp->cn_pnbuf);
 	return (0);
 }

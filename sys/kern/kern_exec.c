@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.64 1997/08/04 05:39:24 davidg Exp $
+ *	$Id: kern_exec.c,v 1.65 1997/09/02 20:05:38 bde Exp $
  */
 
 #include <sys/param.h>
@@ -224,7 +224,7 @@ interpret:
 			}
 			/* free old vnode and name buffer */
 			vrele(ndp->ni_vp);
-			FREE(ndp->ni_cnd.cn_pnbuf, M_NAMEI);
+			zfree(namei_zone, ndp->ni_cnd.cn_pnbuf);
 			/* set new name to that of the interpreter */
 			NDINIT(ndp, LOOKUP, LOCKLEAF | FOLLOW | SAVENAME,
 			    UIO_SYSSPACE, imgp->interpreter_name, p);
@@ -356,7 +356,7 @@ interpret:
 	else if (imgp->image_header != NULL)
 		free((void *)imgp->image_header, M_TEMP);
 	vrele(ndp->ni_vp);
-	FREE(ndp->ni_cnd.cn_pnbuf, M_NAMEI);
+	zfree(namei_zone, ndp->ni_cnd.cn_pnbuf);
 
 	return (0);
 
@@ -369,7 +369,7 @@ exec_fail_dealloc:
 		free((void *)imgp->image_header, M_TEMP);
 	if (ndp->ni_vp) {
 		vrele(ndp->ni_vp);
-		FREE(ndp->ni_cnd.cn_pnbuf, M_NAMEI);
+		zfree(namei_zone, ndp->ni_cnd.cn_pnbuf);
 	}
 
 exec_fail:

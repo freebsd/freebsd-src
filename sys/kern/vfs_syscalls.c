@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.70 1997/09/15 19:11:07 phk Exp $
+ * $Id: vfs_syscalls.c,v 1.71 1997/09/16 08:05:09 phk Exp $
  */
 
 /*
@@ -1157,7 +1157,7 @@ symlink(p, uap, retval)
 	int error;
 	struct nameidata nd;
 
-	MALLOC(path, char *, MAXPATHLEN, M_NAMEI, M_WAITOK);
+	path = zalloc(namei_zone);
 	if (error = copyinstr(SCARG(uap, path), path, MAXPATHLEN, NULL))
 		goto out;
 	NDINIT(&nd, CREATE, LOCKPARENT, UIO_USERSPACE, SCARG(uap, link), p);
@@ -1180,7 +1180,7 @@ symlink(p, uap, retval)
 	ASSERT_VOP_UNLOCKED(nd.ni_dvp, "symlink");
 	ASSERT_VOP_UNLOCKED(nd.ni_vp, "symlink");
 out:
-	FREE(path, M_NAMEI);
+	zfree(namei_zone, path);
 	return (error);
 }
 
@@ -2288,11 +2288,11 @@ out:
 	ASSERT_VOP_UNLOCKED(fromnd.ni_vp, "rename");
 	ASSERT_VOP_UNLOCKED(tond.ni_dvp, "rename");
 	ASSERT_VOP_UNLOCKED(tond.ni_vp, "rename");
-	FREE(tond.ni_cnd.cn_pnbuf, M_NAMEI);
+	zfree(namei_zone, tond.ni_cnd.cn_pnbuf);
 out1:
 	if (fromnd.ni_startdir)
 		vrele(fromnd.ni_startdir);
-	FREE(fromnd.ni_cnd.cn_pnbuf, M_NAMEI);
+	zfree(namei_zone, fromnd.ni_cnd.cn_pnbuf);
 	if (error == -1)
 		return (0);
 	return (error);
@@ -2616,6 +2616,7 @@ unionread:
 	auio.uio_segflg = UIO_USERSPACE;
 	auio.uio_procp = p;
 	auio.uio_resid = SCARG(uap, count);
+	/* vn_lock(vp, LK_SHARED | LK_RETRY, p); */
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 	loff = auio.uio_offset = fp->f_offset;
 	error = VOP_READDIR(vp, &auio, fp->f_cred, &eofflag, NULL, NULL);

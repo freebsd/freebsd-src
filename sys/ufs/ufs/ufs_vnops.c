@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.56 1997/09/02 20:06:59 bde Exp $
+ * $Id: ufs_vnops.c,v 1.57 1997/09/14 02:58:12 peter Exp $
  */
 
 #include "opt_quota.h"
@@ -740,7 +740,7 @@ ufs_link(ap)
 		ip->i_nlink--;
 		ip->i_flag |= IN_CHANGE;
 	}
-	FREE(cnp->cn_pnbuf, M_NAMEI);
+	zfree(namei_zone, cnp->cn_pnbuf);
 out1:
 	if (tdvp != vp)
 		VOP_UNLOCK(vp, 0, p);
@@ -800,7 +800,7 @@ ufs_whiteout(ap)
 		break;
 	}
 	if (cnp->cn_flags & HASBUF) {
-		FREE(cnp->cn_pnbuf, M_NAMEI);
+		zfree(namei_zone, cnp->cn_pnbuf);
 		cnp->cn_flags &= ~HASBUF;
 	}
 	return (error);
@@ -1342,7 +1342,7 @@ ufs_mkdir(ap)
 #ifdef QUOTA
 	if ((error = getinoquota(ip)) ||
 	    (error = chkiq(ip, 1, cnp->cn_cred, 0))) {
-		free(cnp->cn_pnbuf, M_NAMEI);
+		zfree(namei_zone, cnp->cn_pnbuf);
 		VOP_VFREE(tvp, ip->i_number, dmode);
 		vput(tvp);
 		vput(dvp);
@@ -1434,7 +1434,7 @@ bad:
 	} else
 		*ap->a_vpp = tvp;
 out:
-	FREE(cnp->cn_pnbuf, M_NAMEI);
+	zfree(namei_zone, cnp->cn_pnbuf);
 	vput(dvp);
 	return (error);
 #ifdef EXT2FS
@@ -1718,7 +1718,7 @@ ufs_abortop(ap)
 	} */ *ap;
 {
 	if ((ap->a_cnp->cn_flags & (HASBUF | SAVESTART)) == HASBUF)
-		FREE(ap->a_cnp->cn_pnbuf, M_NAMEI);
+		zfree(namei_zone, ap->a_cnp->cn_pnbuf);
 	return (0);
 }
 
@@ -2093,7 +2093,7 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 
 	error = VOP_VALLOC(dvp, mode, cnp->cn_cred, &tvp);
 	if (error) {
-		free(cnp->cn_pnbuf, M_NAMEI);
+		zfree(namei_zone, cnp->cn_pnbuf);
 		vput(dvp);
 		return (error);
 	}
@@ -2103,7 +2103,7 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 #ifdef QUOTA
 	if ((error = getinoquota(ip)) ||
 	    (error = chkiq(ip, 1, cnp->cn_cred, 0))) {
-		free(cnp->cn_pnbuf, M_NAMEI);
+		zfree(namei_zone, cnp->cn_pnbuf);
 		VOP_VFREE(tvp, ip->i_number, mode);
 		vput(tvp);
 		vput(dvp);
@@ -2141,7 +2141,7 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 		goto bad;
 
 	if ((cnp->cn_flags & SAVESTART) == 0)
-		FREE(cnp->cn_pnbuf, M_NAMEI);
+		zfree(namei_zone, cnp->cn_pnbuf);
 	vput(dvp);
 	*vpp = tvp;
 	return (0);
@@ -2151,7 +2151,7 @@ bad:
 	 * Write error occurred trying to update the inode
 	 * or the directory so must deallocate the inode.
 	 */
-	free(cnp->cn_pnbuf, M_NAMEI);
+	zfree(namei_zone, cnp->cn_pnbuf);
 	vput(dvp);
 	ip->i_nlink = 0;
 	ip->i_flag |= IN_CHANGE;

@@ -19,7 +19,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *	are met.
  *
- * $Id: vm_zone.h,v 1.4 1997/08/07 03:52:55 dyson Exp $
+ * $Id: vm_zone.h,v 1.5 1997/08/10 00:12:13 dyson Exp $
  */
 
 #if !defined(_SYS_ZONE_H)
@@ -54,6 +54,7 @@ typedef struct vm_zone {
 } *vm_zone_t;
 
 
+void zerror __P((int)) __dead2;
 vm_zone_t zinit __P((char *name, int size, int nentries, int flags, int zalloc));
 int zinitna __P((vm_zone_t z, struct vm_object *obj, char *name, int size,
 		int nentries, int flags, int zalloc));
@@ -64,6 +65,12 @@ void zfreei __P((vm_zone_t z, void *item));
 void zbootinit __P((vm_zone_t z, char *name, int size, void *item, int nitems));
 void * _zget __P((vm_zone_t z));
 
+#define ZONE_ERROR_INVALID 0
+#define ZONE_ERROR_NOTFREE 1
+#define ZONE_ERROR_ALREADYFREE 2
+
+
+#define ZENTRY_FREE	0x12342378
 /*
  * void *zalloc(vm_zone_t zone) --
  *	Returns an item from a specified zone.
@@ -75,12 +82,23 @@ static __inline__ void *
 _zalloc(vm_zone_t z) {
 	void *item;
 
+#if defined(DIAGNOSTIC)
+	if (z == 0)
+		zerror(ZONE_ERROR_INVALID);
+#endif
+
 	if (z->zfreecnt <= z->zfreemin) {
 		return _zget(z);
 	}
 	
 	item = z->zitems;
-	z->zitems = *(void **) item;
+	z->zitems = ((void **) item)[0];
+#if defined(DIAGNOSTIC)
+	if (((void **) item)[1] != (void *) ZENTRY_FREE)
+		zerror(ZONE_ERROR_NOTFREE);
+	((void **) item)[1] = 0;
+#endif
+	
 	z->zfreecnt--;
 	z->znalloc++;
 	return item;
@@ -88,14 +106,19 @@ _zalloc(vm_zone_t z) {
 
 static __inline__ void
 _zfree(vm_zone_t z, void *item) {
-	* (void **) item = z->zitems;
+	((void **) item)[0] = z->zitems;
+#if defined(DIAGNOSTIC)
+	if ((( void **) item)[1] == (void *) ZENTRY_FREE)
+		zerror(ZONE_ERROR_ALREADYFREE);
+	((void **) item)[1] = (void *) ZENTRY_FREE;
+#endif
 	z->zitems = item;
 	z->zfreecnt++;
 }
 
 static __inline__ void *
 zalloc(vm_zone_t z) {
-#if NCPU > 1
+#if defined(SMP)
 	return zalloci(z);
 #else
 	return _zalloc(z);
@@ -104,7 +127,7 @@ zalloc(vm_zone_t z) {
 
 static __inline__ void
 zfree(vm_zone_t z, void *item) {
-#if NCPU > 1
+#if defined(SMP)
 	zfreei(z, item);
 #else
 	_zfree(z, item);
