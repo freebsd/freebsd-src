@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -371,6 +373,16 @@ Bigint {
 
  static Bigint *freelist[Kmax+1];
 
+  /*
+   * Make Balloc/Bfree thread-safe in libc for use with
+   * kernel threads.
+   */
+#include "libc_private.h"
+#include "spinlock.h"
+static spinlock_t thread_lock	= _SPINLOCK_INITIALIZER;
+#define THREAD_LOCK()		if (__isthreaded) _SPINLOCK(&thread_lock);
+#define THREAD_UNLOCK()		if (__isthreaded) _SPINUNLOCK(&thread_lock);
+
  static Bigint *
 Balloc
 #ifdef KR_headers
@@ -382,9 +394,12 @@ Balloc
 	int x;
 	Bigint *rv;
 
+	THREAD_LOCK();
 	if ( (rv = freelist[k]) ) {
 		freelist[k] = rv->next;
+		THREAD_UNLOCK();
 	} else {
+		THREAD_UNLOCK();
 		x = 1 << k;
 		rv = (Bigint *)malloc(sizeof(Bigint) + (x-1)*sizeof(long));
 		rv->k = k;
@@ -403,8 +418,10 @@ Bfree
 #endif
 {
 	if (v) {
+		THREAD_LOCK();
 		v->next = freelist[v->k];
 		freelist[v->k] = v;
+		THREAD_UNLOCK();
 	}
 }
 
@@ -1839,10 +1856,11 @@ quorem
 char *
 __dtoa
 #ifdef KR_headers
-	(d, mode, ndigits, decpt, sign, rve)
-	double d; int mode, ndigits, *decpt, *sign; char **rve;
+	(d, mode, ndigits, decpt, sign, rve, resultp)
+	double d; int mode, ndigits, *decpt, *sign; char **rve, **resultp;
 #else
-	(double d, int mode, int ndigits, int *decpt, int *sign, char **rve)
+	(double d, int mode, int ndigits, int *decpt, int *sign, char **rve,
+	 char **resultp)
 #endif
 {
  /*	Arguments ndigits, decpt, sign are similar to those
@@ -1890,15 +1908,6 @@ __dtoa
 	Bigint *b, *b1, *delta, *mlo, *mhi, *S;
 	double d2, ds, eps;
 	char *s, *s0;
-	static Bigint *result;
-	static int result_k;
-
-	if (result) {
-		result->k = result_k;
-		result->maxwds = 1 << result_k;
-		Bfree(result);
-		result = 0;
-	}
 
 	if (word0(d) & Sign_bit) {
 		/* set sign for everything, including 0's and NaNs */
@@ -2057,11 +2066,8 @@ __dtoa
 			if (i <= 0)
 				i = 1;
 	}
-	j = sizeof(unsigned long);
-	for (result_k = 0; sizeof(Bigint) - sizeof(unsigned long) + j < i;
-		j <<= 1) result_k++;
-	result = Balloc(result_k);
-	s = s0 = (char *)result;
+	*resultp = (char *) malloc(i + 1);
+	s = s0 = *resultp;
 
 	if (ilim >= 0 && ilim <= Quick_max && try_quick) {
 
