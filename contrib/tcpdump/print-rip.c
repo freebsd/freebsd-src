@@ -99,7 +99,7 @@ rip_print(const u_char *dat, u_int length)
 	register const struct rip_netinfo *ni;
 	register int i, j, trunc;
 
-	i = min(length, snapend - dat) - (sizeof(*rp) - sizeof(*ni));
+	i = min(length, snapend - dat) - sizeof(*rp);
 	if (i < 0)
 		return;
 
