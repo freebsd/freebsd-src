@@ -22,6 +22,10 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	integrity.  Re-enabling write caching can substantially improve
 	performance.
 
+20020421:
+	When exec'ing set[ug]id executables, the kernel now ensures that the
+	stdio file descriptors (0..2) are open.  See FreeBSD-SA-02:23.stdio.
+
 20020404:
 	New sendmail startup scripts have been installed to make it
 	easier to use alternative MTAs with FreeBSD.  Setting the rc.conf
