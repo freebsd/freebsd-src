@@ -1,5 +1,6 @@
 /* Specific flags and argument handling of the Fortran front-end.
-   Copyright (C) 1997, 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1997, 1999, 2000, 2001, 2002, 2003
+   Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -49,7 +50,6 @@ Boston, MA 02111-1307, USA.  */
 #include "config.h"
 #include "system.h"
 #include "gcc.h"
-#include <f/version.h>
 
 #ifndef MATH_LIBRARY
 #define MATH_LIBRARY "-lm"
@@ -111,35 +111,13 @@ static void append_arg PARAMS ((const char *));
 static int g77_newargc;
 static const char **g77_newargv;
 
-/* --- This comes from gcc.c (2.8.1) verbatim: */
-
-/* This defines which switch letters take arguments.  */
-
-#define DEFAULT_SWITCH_TAKES_ARG(CHAR)      \
-  ((CHAR) == 'D' || (CHAR) == 'U' || (CHAR) == 'o' \
-   || (CHAR) == 'e' || (CHAR) == 'T' || (CHAR) == 'u' \
-   || (CHAR) == 'I' || (CHAR) == 'm' || (CHAR) == 'x' \
-   || (CHAR) == 'L' || (CHAR) == 'A')
-
 #ifndef SWITCH_TAKES_ARG
 #define SWITCH_TAKES_ARG(CHAR) DEFAULT_SWITCH_TAKES_ARG(CHAR)
 #endif
 
-/* This defines which multi-letter switches take arguments.  */
-
-#define DEFAULT_WORD_SWITCH_TAKES_ARG(STR)		\
- (!strcmp (STR, "Tdata") || !strcmp (STR, "Ttext")	\
-  || !strcmp (STR, "Tbss") || !strcmp (STR, "include")	\
-  || !strcmp (STR, "imacros") || !strcmp (STR, "aux-info") \
-  || !strcmp (STR, "idirafter") || !strcmp (STR, "iprefix") \
-  || !strcmp (STR, "iwithprefix") || !strcmp (STR, "iwithprefixbefore") \
-  || !strcmp (STR, "isystem") || !strcmp (STR, "specs"))
-
 #ifndef WORD_SWITCH_TAKES_ARG
 #define WORD_SWITCH_TAKES_ARG(STR) DEFAULT_WORD_SWITCH_TAKES_ARG (STR)
 #endif
-
-/* --- End of verbatim.  */
 
 /* Assumes text[0] == '-'.  Returns number of argv items that belong to
    (and follow) this one, an option id for options important to the
@@ -397,7 +375,7 @@ lang_specific_driver (in_argc, in_argv, in_added_libraries)
 
 	case OPTION_version:
 	  printf ("\
-GNU Fortran (GCC %s) %s\n\
+GNU Fortran (GCC) %s\n\
 Copyright (C) 2002 Free Software Foundation, Inc.\n\
 \n\
 GNU Fortran comes with NO WARRANTY, to the extent permitted by law.\n\
@@ -405,7 +383,7 @@ You may redistribute copies of GNU Fortran\n\
 under the terms of the GNU General Public License.\n\
 For more information about these matters, see the file named COPYING\n\
 or type the command `info -f g77 Copying'.\n\
-", version_string, ffe_version_string);
+", version_string);
 	  exit (0);
 	  break;
 
@@ -590,3 +568,9 @@ int lang_specific_pre_link ()  /* Not used for F77. */
 
 /* Number of extra output files that lang_specific_pre_link may generate. */
 int lang_specific_extra_outfiles = 0;  /* Not used for F77. */
+
+/* Table of language-specific spec functions.  */ 
+const struct spec_function lang_specific_spec_functions[] =
+{
+  { 0, 0 }
+};
