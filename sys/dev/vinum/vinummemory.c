@@ -112,7 +112,7 @@ MMalloc(int size, char *file, int line)
 		f++;					    /* skip the / */
 	    i = malloccount++;
 	    total_malloced += size;
-	    getmicrotime(&malloced[i].time);
+	    microtime(&malloced[i].time);
 	    malloced[i].seq = mallocseq++;
 	    malloced[i].size = size;
 	    malloced[i].line = line;
@@ -147,7 +147,7 @@ FFree(void *mem, char *file, int line)
 		else
 		    f++;				    /* skip the / */
 
-		getmicrotime(&freeinfo[lastfree].time);
+		microtime(&freeinfo[lastfree].time);
 		freeinfo[lastfree].seq = malloced[i].seq;
 		freeinfo[lastfree].size = malloced[i].size;
 		freeinfo[lastfree].line = line;
