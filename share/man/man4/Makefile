@@ -13,7 +13,7 @@ MAN=	aac.4 adv.4 adw.4 aha.4 ahb.4 ahc.4 amd.4 amr.4 an.4 ata.4 atkbd.4 \
 	kue.4 lge.4 lo.4 lp.4 lpbb.4 lpt.4 md.4 mem.4 mlx.4 mly.4 mouse.4 \
 	mtio.4 natm.4 ncr.4 netintro.4 \
 	ng_bridge.4 ng_ether.4 ng_one2many.4 nge.4 nmdm.4 \
-	null.4 ohci.4 orm.4 pass.4 pci.4 pcm.4 pcn.4 pcvt.4 \
+	null.4 ohci.4 orm.4 pass.4 pci.4 pcic.4 pcm.4 pcn.4 pcvt.4 \
 	ppbus.4 ppc.4 ppi.4 ppp.4 psm.4 pt.4 pty.4 rl.4 \
 	route.4 sa.4 sbc.4 screen.4 scsi.4 \
 	sd.4 ses.4 sf.4 si.4 sio.4 sis.4 sk.4 sl.4 smb.4 smbus.4 smp.4 snp.4 \
