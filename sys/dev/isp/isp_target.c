@@ -1113,9 +1113,11 @@ isp_handle_ctio2(struct ispsoftc *isp, ct2_entry_t *ct)
 	case CT_PORTNOTAVAIL:
 		if (fmsg == NULL)
 			fmsg = "Port not available";
+		/*FALLTHROUGH*/
 	case CT_PORTCHANGED:
 		if (fmsg == NULL)
 			fmsg = "Port Changed";
+		/*FALLTHROUGH*/
 	case CT_NOACK:
 		if (fmsg == NULL)
 			fmsg = "unacknowledged Immediate Notify pending";
