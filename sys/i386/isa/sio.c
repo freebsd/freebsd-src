@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.28 1994/02/07 18:37:21 ache Exp $
+ *	$Id: sio.c,v 1.29 1994/02/24 16:39:48 phk Exp $
  */
 
 #include "sio.h"
@@ -1243,7 +1243,8 @@ repeat:
 			 * of input, so enable RTS if it is now disabled and
 			 * there is room in the high-level buffer.
 			 */
-			if (!(com->mcr_image & MCR_RTS)
+			if ((com->state & CS_RTS_IFLOW)
+			    && !(com->mcr_image & MCR_RTS)
 			    && !(tp->t_state & TS_RTS_IFLOW))
 				outb(com->modem_ctl_port,
 				     com->mcr_image |= MCR_RTS);
