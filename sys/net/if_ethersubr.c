@@ -31,12 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.51 1998/06/14 20:58:14 julian Exp $
+ * $Id: if_ethersubr.c,v 1.52 1998/08/04 23:17:05 julian Exp $
  */
 
 #include "opt_atalk.h"
 #include "opt_inet.h"
 #include "opt_ipx.h"
+#include "opt_bdg.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -100,6 +101,10 @@ extern struct ifqueue pkintrq;
 extern u_char	at_org_code[3];
 extern u_char	aarp_org_code[3];
 #endif /* NETATALK */
+
+#ifdef BRIDGE
+#include <net/bridge.h>
+#endif
 
 #include "vlan.h"
 #if NVLAN > 0
@@ -372,7 +377,19 @@ ether_output(ifp, m0, dst, rt0)
 			return(0);	/* XXX */
 		}
 	}
-
+#ifdef BRIDGE
+	if (do_bridge) {
+		struct ifnet *old_ifp = ifp ;
+		struct mbuf *m0 = m ;
+		if (m->m_pkthdr.rcvif )
+			m->m_pkthdr.rcvif = NULL ;
+		ifp = bridge_dst_lookup(m);
+		bdg_forward(&m0, ifp);
+		if (m0)
+			m_freem(m0);
+		return 0 ;
+	}
+#endif
 	s = splimp();
 	/*
 	 * Queue message on interface, and start output if interface
