@@ -1,4 +1,4 @@
-/*	$KAME: traceroute6.c,v 1.66 2003/01/21 09:04:15 itojun Exp $	*/
+/*	$KAME: traceroute6.c,v 1.68 2004/01/25 11:16:12 suz Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -294,15 +294,17 @@ static const char rcsid[] =
 /*
  * format of a (udp) probe packet.
  */
-struct opacket {
-	u_char seq;		/* sequence number of this packet */
-	u_char hops;		/* hop limit of the packet */
-	struct timeval tv;	/* time packet left */
-};
 struct tv32 {
 	u_int32_t tv32_sec;
 	u_int32_t tv32_usec;
 };
+
+struct opacket {
+	u_char seq;		/* sequence number of this packet */
+	u_char hops;		/* hop limit of the packet */
+	u_char pad[2];
+	struct tv32 tv;		/* time packet left */
+} __attribute__((__packed__));
 
 u_char	packet[512];		/* last inbound (icmp) packet */
 struct opacket	*outpacket;	/* last output (udp) packet */
@@ -321,7 +323,6 @@ double	deltaT __P((struct timeval *, struct timeval *));
 char	*pr_type __P((int));
 int	packet_ok __P((struct msghdr *, int, int));
 void	print __P((struct msghdr *, int));
-void	tvsub __P((struct timeval *, struct timeval *));
 const char *inetname __P((struct sockaddr *));
 void	usage __P((void));
 
@@ -364,18 +365,14 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	struct hostent *hp;
-	int error;
-	struct addrinfo hints, *res;
-	int ch, i, on, seq, rcvcmsglen;
-	u_long probe, hops;
-	static u_char *rcvcmsgbuf;
-	char hbuf[NI_MAXHOST], src0[NI_MAXHOST];
-	char *ep;
 	int mib[4] = { CTL_NET, PF_INET6, IPPROTO_IPV6, IPV6CTL_DEFHLIM };
+	char hbuf[NI_MAXHOST], src0[NI_MAXHOST], *ep;
+	int ch, i, on = 1, seq, rcvcmsglen, error, minlen;
+	struct addrinfo hints, *res;
+	static u_char *rcvcmsgbuf;
+	u_long probe, hops, lport;
+	struct hostent *hp;
 	size_t size;
-	u_long lport;
-	int minlen;
 
 	/*
 	 * Receive ICMP
@@ -393,8 +390,6 @@ main(argc, argv)
 	(void) sysctl(mib, sizeof(mib)/sizeof(mib[0]), &i, &size, NULL, 0);
 	max_hops = i;
 
-	/* set a minimum set of socket options */
-	on = 1;
 	/* specify to tell receiving interface */
 #ifdef IPV6_RECVPKTINFO
 	if (setsockopt(rcvsock, IPPROTO_IPV6, IPV6_RECVPKTINFO, &on,
@@ -418,7 +413,7 @@ main(argc, argv)
 #endif
 
 	seq = 0;
-	
+
 	while ((ch = getopt(argc, argv, "df:g:Ilm:np:q:rs:w:v")) != -1)
 		switch (ch) {
 		case 'd':
@@ -566,7 +561,7 @@ main(argc, argv)
 #if 1
 	setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
 #else
-	setlinebuf (stdout);
+	setlinebuf(stdout);
 #endif
 
 	memset(&hints, 0, sizeof(hints));
@@ -622,7 +617,7 @@ main(argc, argv)
 		exit(1);
 	}
 	outpacket = (struct opacket *)malloc((unsigned)datalen);
-	if (! outpacket) {
+	if (!outpacket) {
 		perror("malloc");
 		exit(1);
 	}
@@ -635,8 +630,8 @@ main(argc, argv)
 	rcvmhdr.msg_namelen = sizeof(Rcv);
 	rcvmhdr.msg_iov = rcviov;
 	rcvmhdr.msg_iovlen = 1;
-	rcvcmsglen = CMSG_SPACE(sizeof(struct in6_pktinfo))
-		+ CMSG_SPACE(sizeof(int));
+	rcvcmsglen = CMSG_SPACE(sizeof(struct in6_pktinfo)) +
+	    CMSG_SPACE(sizeof(int));
 	if ((rcvcmsgbuf = malloc(rcvcmsglen)) == NULL) {
 		fprintf(stderr, "traceroute6: malloc failed\n");
 		exit(1);
@@ -872,7 +867,7 @@ main(argc, argv)
 			while ((cc = wait_for_reply(rcvsock, &rcvmhdr))) {
 				(void) gettimeofday(&t2, NULL);
 				if ((i = packet_ok(&rcvmhdr, cc, seq))) {
-					if (! IN6_ARE_ADDR_EQUAL(&Rcv.sin6_addr,
+					if (!IN6_ARE_ADDR_EQUAL(&Rcv.sin6_addr,
 					    &lastaddr)) {
 						print(&rcvmhdr, cc);
 						lastaddr = Rcv.sin6_addr;
@@ -985,6 +980,8 @@ send_probe(seq, hops)
 	int seq;
 	u_long hops;
 {
+	struct timeval tv;
+	struct tv32 tv32;
 	int i;
 
 	i = hops;
@@ -994,32 +991,32 @@ send_probe(seq, hops)
 	}
 
 	Dst.sin6_port = htons(port + seq);
+	(void) gettimeofday(&tv, NULL);
+	tv32.tv32_sec = htonl(tv.tv_sec);
+	tv32.tv32_usec = htonl(tv.tv_usec);
 
 	if (useicmp) {
 		struct icmp6_hdr *icp = (struct icmp6_hdr *)outpacket;
-		struct timeval tv;
-		struct tv32 *tv32;
 
 		icp->icmp6_type = ICMP6_ECHO_REQUEST;
 		icp->icmp6_code = 0;
 		icp->icmp6_cksum = 0;
 		icp->icmp6_id = ident;
 		icp->icmp6_seq = htons(seq);
-		(void) gettimeofday(&tv, NULL);
-		tv32 = (struct tv32 *)((u_int8_t *)outpacket + ICMP6ECHOLEN);
-		tv32->tv32_sec = htonl(tv.tv_sec);
-		tv32->tv32_usec = htonl(tv.tv_usec);
+		bcopy(&tv32, ((u_int8_t *)outpacket + ICMP6ECHOLEN),
+		    sizeof(tv32));
 	} else {
 		struct opacket *op = outpacket;
+
 		op->seq = seq;
 		op->hops = hops;
-		(void) gettimeofday(&op->tv, NULL);
+		bcopy(&tv32, &op->tv, sizeof tv32);
 	}
 
 	i = sendto(sndsock, (char *)outpacket, datalen, 0,
 	    (struct sockaddr *)&Dst, Dst.sin6_len);
 	if (i < 0 || i != datalen)  {
-		if (i<0)
+		if (i < 0)
 			perror("sendto");
 		printf("traceroute6: wrote %s %lu chars, ret=%d\n",
 		    hostname, datalen, i);
@@ -1048,7 +1045,7 @@ double
 deltaT(t1p, t2p)
 	struct timeval *t1p, *t2p;
 {
-	register double dt;
+	double dt;
 
 	dt = (double)(t2p->tv_sec - t1p->tv_sec) * 1000.0 +
 	    (double)(t2p->tv_usec - t1p->tv_usec) / 1000.0;
@@ -1121,7 +1118,7 @@ packet_ok(mhdr, cc, seq)
 	int cc;
 	int seq;
 {
-	register struct icmp6_hdr *icp;
+	struct icmp6_hdr *icp;
 	struct sockaddr_in6 *from = (struct sockaddr_in6 *)mhdr->msg_name;
 	u_char type, code;
 	char *buf = (char *)mhdr->msg_iov[0].iov_base;
@@ -1191,7 +1188,7 @@ packet_ok(mhdr, cc, seq)
 	type = icp->icmp6_type;
 	code = icp->icmp6_code;
 	if ((type == ICMP6_TIME_EXCEEDED && code == ICMP6_TIME_EXCEED_TRANSIT)
-	 || type == ICMP6_DST_UNREACH) {
+	    || type == ICMP6_DST_UNREACH) {
 		struct ip6_hdr *hip;
 		struct udphdr *up;
 
@@ -1215,9 +1212,9 @@ packet_ok(mhdr, cc, seq)
 			return (ICMP6_DST_UNREACH_NOPORT + 1);
 	}
 	if (verbose) {
-		int i;
-		u_int8_t *p;
 		char sbuf[NI_MAXHOST+1], dbuf[INET6_ADDRSTRLEN];
+		u_int8_t *p;
+		int i;
 
 		if (getnameinfo((struct sockaddr *)from, from->sin6_len,
 		    sbuf, sizeof(sbuf), NULL, 0, NI_NUMERICHOST) != 0)
@@ -1322,22 +1319,6 @@ print(mhdr, cc)
 }
 
 /*
- * Subtract 2 timeval structs:  out = out - in.
- * Out is assumed to be >= in.
- */
-void
-tvsub(out, in)
-	register struct timeval *out, *in;
-{
-
-	if ((out->tv_usec -= in->tv_usec) < 0)   {
-		out->tv_sec--;
-		out->tv_usec += 1000000;
-	}
-	out->tv_sec -= in->tv_sec;
-}
-
-/*
  * Construct an Internet address representation.
  * If the nflag has been supplied, give
  * numeric value, otherwise try for symbolic name.
@@ -1346,10 +1327,9 @@ const char *
 inetname(sa)
 	struct sockaddr *sa;
 {
-	register char *cp;
-	static char line[NI_MAXHOST];
-	static char domain[MAXHOSTNAMELEN + 1];
+	static char line[NI_MAXHOST], domain[MAXHOSTNAMELEN + 1];
 	static int first = 1;
+	char *cp;
 
 	if (first && !nflag) {
 		first = 0;
