@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_var.h	8.4 (Berkeley) 5/24/95
- * 	$Id: tcp_var.h,v 1.20 1995/10/12 17:37:25 wollman Exp $
+ * 	$Id: tcp_var.h,v 1.21 1995/10/16 18:21:26 wollman Exp $
  */
 
 #ifndef _NETINET_TCP_VAR_H_
@@ -70,6 +70,7 @@ struct tcpcb {
 #define TF_NOPUSH	0x1000		/* don't push */
 #define TF_REQ_CC	0x2000		/* have/will request CC */
 #define	TF_RCVD_CC	0x4000		/* a CC was received in SYN */
+#define TF_SENDCCNEW	0x8000		/* send CCnew instead of CC in SYN */
 
 	struct	tcpiphdr *t_template;	/* skeletal packet for transmit */
 	struct	inpcb *t_inpcb;		/* back pointer to internet pcb */
