@@ -464,11 +464,14 @@ struct vr_softc {
 	u_int8_t		vr_unit;	/* interface number */
 	u_int8_t		vr_type;
 	u_int8_t		vr_revid;	/* Rhine chip revision */
+	u_int8_t                vr_flags;       /* See VR_F_* below */
 	struct vr_list_data	*vr_ldata;
 	struct vr_chain_data	vr_cdata;
 	struct callout_handle	vr_stat_ch;
 	struct mtx		vr_mtx;
 };
+
+#define VR_F_RESTART		0x01		/* Restart unit on next tick */
 
 #define	VR_LOCK(_sc)		mtx_lock(&(_sc)->vr_mtx)
 #define	VR_UNLOCK(_sc)		mtx_unlock(&(_sc)->vr_mtx)
