@@ -11,7 +11,7 @@
 .\"    documentation and/or other materials provided with the distribution.
 .\"
 .\"     @(#)vidcontrol.1
-.\"	$Id: vidcontrol.1,v 1.13 1998/09/15 18:16:39 sos Exp $
+.\"	$Id: vidcontrol.1,v 1.14 1998/09/23 10:00:15 yokota Exp $
 .\"
 .Dd May 22, 1994
 .Dt VIDCONTROL 1
@@ -76,7 +76,7 @@ and
 can also be chosen.
 Note that not all modes listed above may be supported by the video
 hardware, and that the VESA BIOS support must be linked to the kernel
-or loaded as a LKM if you wish to use VESA video modes or 
+or loaded as a KLD if you wish to use VESA video modes or 
 132 column modes.
 .It fgcol Op bgcol
 Change colors when displaying text. Specify the foreground color
