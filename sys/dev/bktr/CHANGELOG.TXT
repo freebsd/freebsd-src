@@ -442,10 +442,45 @@
 
 2.07  24 Jan 2000 Update i2c code to build on FreeBSD 3.x and 4.x machines.
                   Added GPIO audio values for the Askey/Dynalink TV card
-		  taken from postings on the V4L mailing list.
+                  taken from postings on the V4L mailing list.
                   Update Australian Channel Set. Submitted by
-		  John Birrell <jb@cimlogic.com.au>
+                  John Birrell <jb@cimlogic.com.au>
                   Add new Channel Set for France. Submitted by
-		  Daniel Dagneaux <dagneaux@lure.u-psud.fr>
+                  Daniel Dagneaux <dagneaux@lure.u-psud.fr>
+
+2.08   6 Mar 2000 Reinstate rgb_vbi_prog as the default RISC program for
+                  PAL video. This does not want to work for NTSC, which will
+                  continue to use the rgb_prog RISC program.
+                  Add support for cable channels above channel 100.
+                  Submitted by Scott Presnell <srp@zgi.com>
+                  New MSP3410/3415 setup code submitted by
+                  Frank Nobis<fn@radio-do.de>. This is experimental and is
+                  enabled by setting the sysctl, hw.bt848.slow_msp_audio to 1
+                  before starting FXTV (or before opening /dev/bktrN)
+
+2.09  20 Mar 2000 Thomas Klausner <wiz@danbala.ifoer.tuwien.ac.at> submitted
+                  patches to include the NetBSD and OpenBSD support from driver
+                  1.74 into the new 2.xx driver. NetBSD is tested. OpenBSD is
+                  untested.
+                  Also fixed coding error in bktr_audio.c spotted by Thomas.
+                  Change xxx_ioctl functions to use ioctl_cmd_t for the cmd
+                  parameter. Found by looking at OpenBSDs change logs.
+                  Delete PROT_EXEC from OpenBSD (as per OpenBSD cvs logs).
+
+2.10   4 Apr 2000 Convert to using bus_space() to access the Bt848/878 registers
+                  rather than using a memory mapped structure. This makes the
+                  driver portable to other architectures, like Alpha and PPC.
+                  This was done by Thomas Klausner <wiz@netbsd.org> and
+                  myself Roger Hardiman <roger@freebsd.org>
+
+2.11  15 Apr 2000 Made changes so the driver compiles on FreeBSD/Alpha.
+                  Stop printing MSP autodetect. Requested by
+                  Chris D. Faulhaber <jedgar@fxp.org>
+
+2.12  16 Apr 2000 Set adelay as an 8 bit value, noticed by
+                  Thomas Klausner <wiz@netbsd.org>
+                  Fix typo in the new interrupt code.
+
+
 
 

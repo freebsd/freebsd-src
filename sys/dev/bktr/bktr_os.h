@@ -56,3 +56,17 @@ vm_offset_t     get_bktr_mem(bktr_ptr_t, bus_dmamap_t *, unsigned size);
 void            free_bktr_mem(bktr_ptr_t, bus_dmamap_t, vm_offset_t);
 #endif 
 
+/************************************/
+/* *** Interrupt Enable/Disable *** */
+/************************************/
+#if defined(__FreeBSD__)
+#define DECLARE_INTR_MASK(s)	intrmask_t s
+#define DISABLE_INTR(s)		s=spltty()
+#define ENABLE_INTR(s)		splx(s)
+#else
+#define DECLARE_INTR_MASK(s)	/* no need to declare 's' */
+#define DISABLE_INTR(s)		disable_intr()
+#define ENABLE_INTR(s)		enable_intr()
+#endif
+
+

@@ -50,13 +50,29 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/vnode.h>
+#ifdef __NetBSD__
+#include <sys/proc.h>
+static int bootverbose = 1;
+#endif
 
+#ifdef __FreeBSD__
 #include <machine/clock.h>		/* for DELAY */
-
 #include <pci/pcivar.h>
+#endif
 
-#include <machine/ioctl_meteor.h>
+#if (__FreeBSD_version >=300000)
+#include <machine/bus_memio.h>		/* for bus space */
+#include <machine/bus.h>
+#include <sys/bus.h>
+#endif
+
+#ifdef __NetBSD__
+#include <dev/ic/ioctl_meteor.h>	/* NetBSD location of .h files */
+#include <dev/ic/ioctl_bt848.h>
+#else
+#include <machine/ioctl_meteor.h>	/* Traditional location of .h files */
 #include <machine/ioctl_bt848.h>        /* extensions to ioctl_meteor.h */
+#endif
 #include <dev/bktr/bktr_reg.h>
 #include <dev/bktr/bktr_core.h>
 #include <dev/bktr/bktr_tuner.h>
@@ -101,7 +117,6 @@ void init_audio_devices( bktr_ptr_t bktr ) {
 int
 set_audio( bktr_ptr_t bktr, int cmd )
 {
-	bt848_ptr_t	bt848;
 	u_long		temp;
 	volatile u_char	idx;
 
@@ -160,8 +175,6 @@ set_audio( bktr_ptr_t bktr, int cmd )
 	 * of Bt848 cards.
 	 */
 
-	bt848 =	bktr->base;
-
 	/*
 	 * Leave the upper bits of the GPIO port alone in case they control
 	 * something like the dbx or teletext chips.  This doesn't guarantee
@@ -184,13 +197,12 @@ set_audio( bktr_ptr_t bktr, int cmd )
 	else
 		idx = bktr->audio_mux_select;
 
-	temp = bt848->gpio_data & ~bktr->card.gpio_mux_bits;
-	bt848->gpio_data =
+	temp = INL(bktr, BKTR_GPIO_DATA) & ~bktr->card.gpio_mux_bits;
 #if defined( AUDIOMUX_DISCOVER )
-		bt848->gpio_data = temp | (cmd & 0xff);
-		printf("cmd: %d audio mux %x temp %x \n", cmd,bktr->card.audiomuxs[ idx ], temp );
+	OUTL(bktr, BKTR_GPIO_DATA, temp | (cmd & 0xff));
+	printf("cmd: %d audio mux %x temp %x \n", cmd,bktr->card.audiomuxs[ idx ], temp );
 #else
-		temp | bktr->card.audiomuxs[ idx ];
+	OUTL(bktr, BKTR_GPIO_DATA, temp | bktr->card.audiomuxs[ idx ]);
 #endif /* AUDIOMUX_DISCOVER */
 
 	return( 0 );
@@ -328,7 +340,6 @@ set_bctv_audio( bktr_ptr_t bktr )
 void
 bctv_gpio_write( bktr_ptr_t bktr, int port, int val )
 {
-        bt848_ptr_t bt848 = bktr->base;
         u_long data, outbits;
 
         port &= BCTV_GPIO_PORT_MASK;
@@ -343,23 +354,22 @@ bctv_gpio_write( bktr_ptr_t bktr, int port, int val )
         default:
                 return;
         }
-        bt848->gpio_out_en = 0;
-        bt848->gpio_data = data;
-        bt848->gpio_out_en = outbits;
+        OUTL(bktr, BKTR_GPIO_OUT_EN, 0);
+        OUTL(bktr, BKTR_GPIO_DATA, data);
+        OUTL(bktr, BKTR_GPIO_OUT_EN, outbits);
         DELAY(BCTV_BITS);
-        bt848->gpio_data = data & ~BCTV_GPIO_WE;
+        OUTL(bktr, BKTR_GPIO_DATA, data & ~BCTV_GPIO_WE);
         DELAY(BCTV_BITS);
-        bt848->gpio_data = data;
+        OUTL(bktr, BKTR_GPIO_DATA, data);
         DELAY(BCTV_BITS);
-        bt848->gpio_data = ~0;
-        bt848->gpio_out_en = 0;
+        OUTL(bktr, BKTR_GPIO_DATA, ~0);
+        OUTL(bktr, BKTR_GPIO_OUT_EN, 0);
 }
 
 /* Not yet used
 int
 bctv_gpio_read( bktr_ptr_t bktr, int port )
 {
-        bt848_ptr_t bt848 = bktr->base;
         u_long data, outbits, ret;
 
         port &= BCTV_GPIO_PORT_MASK;
@@ -373,18 +383,18 @@ bctv_gpio_read( bktr_ptr_t bktr, int port )
         default:
                 return( -1 );
         }
-        bt848->gpio_out_en = 0;
-        bt848->gpio_data = data;
-        bt848->gpio_out_en = outbits;
+        OUTL(bktr, BKTR_GPIO_OUT_EN, 0);
+        OUTL(bktr, BKTR_GPIO_DATA, data);
+        OUTL(bktr, BKTR_GPIO_OUT_EN, outbits);
         DELAY(BCTV_BITS);
-        bt848->gpio_data = data & ~BCTV_GPIO_OE;
+        OUTL(bktr, BKTR_GPIO_DATA, data & ~BCTV_GPIO_OE);
         DELAY(BCTV_BITS);
-        ret = bt848->gpio_data;
+        ret = INL(bktr, BKTR_GPIO_DATA);
         DELAY(BCTV_BITS);
-        bt848->gpio_data = data;
+        OUTL(bktr, BKTR_GPIO_DATA, data);
         DELAY(BCTV_BITS);
-        bt848->gpio_data = ~0;
-        bt848->gpio_out_en = 0;
+        OUTL(bktr, BKTR_GPIO_DATA, ~0);
+        OUTL(bktr, BKTR_GPIO_OUT_EN, 0);
         return( (ret & BCTV_GPIO_VAL_MASK) >> BCTV_GPIO_VAL_SHIFT );
 }
 */
@@ -409,27 +419,119 @@ void msp_read_id( bktr_ptr_t bktr ){
 }
 
 
-/* Configure the MSP chip to Auto-detect the audio format */
+/* Configure the MSP chip to Auto-detect the audio format.
+ * For the MSP3430G, we use fast autodetect mode
+ * For the MSP3410/3415 there are two schemes for this
+ *  a) Fast autodetection - the chip is put into autodetect mode, and the function
+ *     returns immediatly. This works in most cases and is the Default Mode.
+ *  b) Slow mode. The function sets the MSP3410/3415 chip, then waits for feedback from 
+ *     the chip and re-programs it if needed.
+ */
 void msp_autodetect( bktr_ptr_t bktr ) {
+  int auto_detect, loops;
+  int stereo;
 
+  /* MSP3430G - countries with mono and DBX stereo */
   if (strncmp("3430G", bktr->msp_version_string, 5) == 0){
 
-    /* For MSP3430G - countries with mono and DBX stereo */
     msp_dpl_write(bktr, bktr->msp_addr, 0x10, 0x0030,0x2003);/* Enable Auto format detection */
     msp_dpl_write(bktr, bktr->msp_addr, 0x10, 0x0020,0x0020);/* Standard Select Reg. = BTSC-Stereo*/
     msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x000E,0x2403);/* darned if I know */
     msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x0008,0x0320);/* Source select = (St or A) */
-					 /*   & Ch. Matrix = St */
+					                     /* & Ch. Matrix = St */
     msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x0000,0x7300);/* Set volume to 0db gain */
+  }
 
-  } else {
 
-    /* For MSP3410 / 3415 - countries with mono, stereo using 2 FM channels
-       and NICAM */
+  /* MSP3410/MSP3415 - countries with mono, stereo using 2 FM channels and NICAM */
+  /* FAST sound scheme */
+  if ( (strncmp("3430G", bktr->msp_version_string, 5) != 0)
+    && (bktr->slow_msp_audio == 0) ){
+    if(bootverbose)printf("inside fast MSP autodetect code\n");
     msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x0000,0x7300);/* Set volume to 0db gain */
     msp_dpl_write(bktr, bktr->msp_addr, 0x10, 0x0020,0x0001);/* Enable Auto format detection */
     msp_dpl_write(bktr, bktr->msp_addr, 0x10, 0x0021,0x0001);/* Auto selection of NICAM/MONO mode */
   }
+
+
+  /* MSP3410/MSP3415 - European Countries where the fast MSP3410/3415 programming fails */
+  /* SLOW sound scheme */
+  if ( (strncmp("3430G", bktr->msp_version_string, 5) != 0)
+    && (bktr->slow_msp_audio == 1) ){
+    if (bootverbose)printf("inside slow MSP autodetect code\n");
+    msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x0000,0x7300);/* Set volume to 0db gain */
+    msp_dpl_write(bktr, bktr->msp_addr, 0x10, 0x0020,0x0001);/* Enable Auto format detection */
+    
+    /* wait for 0.5s max for terrestrial sound autodetection */
+    loops = 10;
+    do {
+      DELAY(100000);
+      auto_detect = msp_dpl_read(bktr, bktr->msp_addr, 0x10, 0x007e);
+      loops++;
+    } while (auto_detect > 0xff && loops < 50);
+    if (bootverbose)printf ("Result of autodetect after %dms: %d\n", loops*10, auto_detect);
+
+    /* Now set the audio baseband processing */
+    switch (auto_detect) {
+    case 0:                    /* no TV sound standard detected */
+      break;
+    case 2:                    /* M Dual FM */
+      break;
+    case 3:                    /* B/G Dual FM; German stereo */
+      /* Read the stereo detection value from DSP reg 0x0018 */
+      DELAY(20000);
+      stereo = msp_dpl_read(bktr, bktr->msp_addr, 0x12, 0x0018);
+      if (bootverbose)printf ("Stereo reg 0x18 a: %d\n", stereo);
+      DELAY(20000);
+      stereo = msp_dpl_read(bktr, bktr->msp_addr, 0x12, 0x0018);
+      if (bootverbose)printf ("Stereo reg 0x18 b: %d\n", stereo);
+      DELAY(20000); 
+      stereo = msp_dpl_read(bktr, bktr->msp_addr, 0x12, 0x0018);
+      if (bootverbose)printf ("Stereo reg 0x18 c: %d\n", stereo);
+      if (stereo > 0x0100 && stereo < 0x8000) { /* Seems to be stereo */
+        msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x0008,0x0020);/* Loudspeaker set stereo*/
+        /*
+          set spatial effect strength to 50% enlargement
+          set spatial effect mode b, stereo basewidth enlargment only
+        */
+        msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x0005,0x3f28);
+      } else if (stereo > 0x8000) {    /* bilingual mode */
+        if (bootverbose) printf ("Bilingual mode detected\n");
+        msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x0008,0x0000);/* Loudspeaker */
+        msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x0005,0x0000);/* all spatial effects off */
+       } else {                 /* must be mono */
+        msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x0008,0x0030);/* Loudspeaker */
+        /*
+          set spatial effect strength to 50% enlargement
+          set spatial effect mode a, stereo basewidth enlargment
+          and pseudo stereo effect with automatic high-pass filter
+        */
+        msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x0005,0x3f08);
+      }
+#if 0
+       /* The reset value for Channel matrix mode is FM/AM and SOUNDA/LEFT */
+       /* We would like STEREO instead val: 0x0020 */
+       msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x0008,0x0020);/* Loudspeaker */
+       msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x0009,0x0020);/* Headphone */
+       msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x000a,0x0020);/* SCART1 */
+       msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x0041,0x0020);/* SCART2 */
+       msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x000b,0x0020);/* I2S */
+       msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x000c,0x0020);/* Quasi-Peak Detector Source */
+       msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x000e,0x0001);
+#endif
+      break;
+    case 8:                    /* B/G FM NICAM */
+       msp_dpl_write(bktr, bktr->msp_addr, 0x10, 0x0021,0x0001);/* Auto selection of NICAM/MONO mode */
+       break;
+     case 9:                    /* L_AM NICAM or D/K*/
+     case 10:                   /* i-FM NICAM */
+       break;
+     default:
+       if (bootverbose) printf ("Unkown autodetection result value: %d\n", auto_detect);
+     }
+
+  }
+
 
   /* uncomment the following line to enable the MSP34xx 1Khz Tone Generator */
   /* turn your speaker volume down low before trying this */
