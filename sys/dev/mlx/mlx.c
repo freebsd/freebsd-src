@@ -242,15 +242,14 @@ mlx_sglist_map(struct mlx_softc *sc)
     }
     segsize = sizeof(struct mlx_sgentry) * MLX_NSEG * ncmd;
     error = bus_dma_tag_create(sc->mlx_parent_dmat, 	/* parent */
-			       1, 0, 			/* alignment, boundary */
+			       1, 0, 			/* alignment,boundary */
 			       BUS_SPACE_MAXADDR,	/* lowaddr */
 			       BUS_SPACE_MAXADDR, 	/* highaddr */
 			       NULL, NULL, 		/* filter, filterarg */
 			       segsize, 1,		/* maxsize, nsegments */
 			       BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			       0,			/* flags */
-			       busdma_lock_mutex,	/* lockfunc */
-			       &Giant,			/* lockarg */
+			       NULL, NULL,		/* lockfunc, lockarg */
 			       &sc->mlx_sg_dmat);
     if (error != 0) {
 	device_printf(sc->mlx_dev, "can't allocate scatter/gather DMA tag\n");
@@ -262,15 +261,18 @@ mlx_sglist_map(struct mlx_softc *sc)
      * controller-visible space.
      *	
      * XXX this assumes we can get enough space for all the s/g maps in one 
-     * contiguous slab.  We may need to switch to a more complex arrangement where
-     * we allocate in smaller chunks and keep a lookup table from slot to bus address.
+     * contiguous slab.  We may need to switch to a more complex arrangement
+     * where we allocate in smaller chunks and keep a lookup table from slot
+     * to bus address.
      */
-    error = bus_dmamem_alloc(sc->mlx_sg_dmat, (void **)&sc->mlx_sgtable, BUS_DMA_NOWAIT, &sc->mlx_sg_dmamap);
+    error = bus_dmamem_alloc(sc->mlx_sg_dmat, (void **)&sc->mlx_sgtable,
+			     BUS_DMA_NOWAIT, &sc->mlx_sg_dmamap);
     if (error) {
 	device_printf(sc->mlx_dev, "can't allocate s/g table\n");
 	return(ENOMEM);
     }
-    bus_dmamap_load(sc->mlx_sg_dmat, sc->mlx_sg_dmamap, sc->mlx_sgtable, segsize, mlx_dma_map_sg, sc, 0);
+    bus_dmamap_load(sc->mlx_sg_dmat, sc->mlx_sg_dmamap, sc->mlx_sgtable,
+		    segsize, mlx_dma_map_sg, sc, 0);
     return(0);
 }
 
