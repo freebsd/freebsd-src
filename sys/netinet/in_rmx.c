@@ -141,13 +141,10 @@ in_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 
 	/*
 	 * If the new route created successfully, and we are forwarding,
-	 * and there is a cached route, free it.  Otherwise, we may end
-	 * up using the wrong route.
+	 * flush any cached routes to avoid using a stale value.
 	 */
-	if (ret != NULL && ipforwarding && ipforward_rt.ro_rt) {
-		RTFREE(ipforward_rt.ro_rt);
-		ipforward_rt.ro_rt = 0;
-	}
+	if (ret != NULL && ipforwarding)
+		ip_forward_cacheinval();
 
 	return ret;
 }
