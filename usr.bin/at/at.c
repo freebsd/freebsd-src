@@ -499,12 +499,12 @@ list_jobs()
 	runtime = *localtime(&runtimer);
 	strftime(timestr, TIMESIZE, "%+", &runtime);
 	if (first) {
-	    printf("Date\t\t\tOwner\tQueue\tJob#\n");
+	    printf("Date\t\t\t\tOwner\t\tQueue\tJob#\n");
 	    first=0;
 	}
 	pw = getpwuid(buf.st_uid);
 
-	printf("%s\t%s\t%c%s\t%ld\n", 
+	printf("%s\t%-16s%c%s\t%ld\n", 
 	       timestr, 
 	       pw ? pw->pw_name : "???", 
 	       queue, 
