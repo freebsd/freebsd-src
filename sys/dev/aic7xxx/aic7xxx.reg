@@ -704,6 +704,8 @@ register HS_MAILBOX {
 	address			0x086
 	mask	HOST_MAILBOX	0xF0
 	mask	SEQ_MAILBOX	0x0F
+	mask	HOST_REQ_INT	0x10
+	mask	HOST_TQINPOS	0x80	/* Boundary at either 0 or 128 */
 }
 
 const	HOST_MAILBOX_SHIFT	4
@@ -1465,8 +1467,6 @@ const HOST_MSG			0xff
 const CMD_GROUP_CODE_SHIFT	0x05
 
 const TCL_TARGET_SHIFT		4
-/* The update interval must be a power of 2 */
-const TQINFIFO_UPDATE_CNT	32
 
 const STATUS_BUSY		0x08
 const STATUS_QUEUE_FULL		0x28

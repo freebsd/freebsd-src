@@ -113,6 +113,8 @@ struct bpf_version {
 #define BIOCSRSIG	_IOW('B',115, u_int)
 #define BIOCGHDRCMPLT	_IOR('B',116, u_int)
 #define BIOCSHDRCMPLT	_IOW('B',117, u_int)
+#define BIOCGSEESENT	_IOR('B',118, u_int)
+#define BIOCSSEESENT	_IOW('B',119, u_int)
 
 /*
  * Structure prepended to each packet.

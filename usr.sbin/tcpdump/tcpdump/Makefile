@@ -21,7 +21,9 @@ SRCS =	version.c tcpdump.c \
 CLEANFILES+=	version.c
 DPADD+=	${LIBL} ${LIBPCAP}
 LDADD+=	-ll -lpcap
-.if exists(../../../crypto) && !defined(NOSECURE) && !defined(NO_OPENSSL)
+.if exists(../../../secure) && !defined(NOCRYPT) && !defined(NOSECURE) && \
+	!defined(NO_OPENSSL) && !defined(RELEASE_CRUNCH)
+DISTRIBUTION=crypto
 DPADD+= ${LIBCRYPTO}
 LDADD+= -lcrypto
 CFLAGS+= -I${DESTDIR}/usr/include/openssl -DCRYPTO -DHAVE_LIBCRYPTO -DHAVE_RC5_H -DHAVE_CAST_H
