@@ -185,6 +185,8 @@ chrdev	name		comments
 166	ciss		Compaq SmartArray 5* adapter <msmith>
 167	ufm		USB Fm Radio
 168	pst		Promise SX6000 driver.
+171	mide		LSI MegaRAID IDE (control device)
+172	mided		LSI MegaRAID IDE (disk device)
 200	??		entries from 200-252 are reserved for local use
 252	??		entries from 200-252 are reserved for local use
 253	mfs		Used by MFS
