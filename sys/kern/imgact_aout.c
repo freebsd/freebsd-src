@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_aout.c,v 1.44 1999/01/01 14:41:51 bde Exp $
+ *	$Id: imgact_aout.c,v 1.44.2.1 1999/04/14 04:55:22 jdp Exp $
  */
 
 #include <sys/param.h>
@@ -259,8 +259,8 @@ aout_coredump(p)
 	name = expand_name(p->p_comm, p->p_ucred->cr_uid, p->p_pid);
 	if (name == NULL)
 		return (EFAULT);	/* XXX -- not the best error */
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, name, p);
-	error = vn_open(&nd, O_CREAT | FWRITE, S_IRUSR | S_IWUSR);
+	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, name, p);
+	error = vn_open(&nd, O_CREAT | FWRITE | O_NOFOLLOW, S_IRUSR | S_IWUSR);
 	free(name, M_TEMP);
 	if (error)
 		return (error);
