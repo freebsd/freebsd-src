@@ -52,7 +52,9 @@ they are interrupted by the specified signal
 and no data has been transferred yet.
 System call restart has been the default behavior since
 .Bx 4.2 ,
-and is the default behaviour on
+and is the default behaviour for
+.Xr signal 3
+on
 .Tn FreeBSD .
 .Pp
 If the flag is true (1),
@@ -100,7 +102,8 @@ A \-1 value indicates that an invalid signal number has been supplied.
 .Xr sigaction 2 ,
 .Xr sigblock 2 ,
 .Xr sigpause 2 ,
-.Xr sigsetmask 2 .
+.Xr sigsetmask 2 ,
+.Xr signal 3
 .Sh HISTORY
 The
 .Fn siginterrupt
