@@ -19,7 +19,7 @@ Current active security advisories for 2.2.6:	None
 
 ---- System Update Information:
 
-o  Root mountpoint change which effect those upgrading via "make world"
+o  Root mountpoint change which affects those upgrading via "make world"
    or a FreeBSD 2.2.6 upgrade.
 
 Fix:  2.2.6 introduces a change in the naming of the device from
