@@ -32,6 +32,7 @@
 #include <sys/malloc.h>
 #include <sys/memrange.h>
 #include <sys/smp.h>
+#include <sys/sysctl.h>
 
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
@@ -59,6 +60,11 @@ static char *mem_owner_bios = "BIOS";
      !((base) & ((len) - 1)))		/* range is not discontiuous */
 
 #define mrcopyflags(curr, new) (((curr) & ~MDF_ATTRMASK) | ((new) & MDF_ATTRMASK))
+
+static int			mtrrs_disabled;
+TUNABLE_INT("machdep.disable_mtrrs", &mtrrs_disabled);
+SYSCTL_INT(_machdep, OID_AUTO, disable_mtrrs, CTLFLAG_RD,
+	&mtrrs_disabled, 0, "Disable i686 MTRRs.");
 
 static void			i686_mrinit(struct mem_range_softc *sc);
 static int			i686_mrset(struct mem_range_softc *sc,
@@ -601,7 +607,7 @@ static void
 i686_mem_drvinit(void *unused)
 {
     /* Try for i686 MTRRs */
-    if ((cpu_feature & CPUID_MTRR) &&
+    if (!mtrrs_disabled && (cpu_feature & CPUID_MTRR) &&
 	((cpu_id & 0xf00) == 0x600 || (cpu_id & 0xf00) == 0xf00) &&
 	((strcmp(cpu_vendor, "GenuineIntel") == 0) ||
 	(strcmp(cpu_vendor, "AuthenticAMD") == 0))) {
