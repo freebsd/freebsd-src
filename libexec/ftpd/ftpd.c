@@ -2038,6 +2038,7 @@ send_data(FILE *instr, FILE *outstr, off_t blksize, off_t filesize, int isreg)
 
 		if (isreg) {
 
+			char *msg = "Transfer complete.";
 			off_t offset;
 			int err;
 
@@ -2062,10 +2063,20 @@ send_data(FILE *instr, FILE *outstr, off_t blksize, off_t filesize, int isreg)
 
 					goto data_err;
 				}
+
+				/*
+				 * We hit the EOF prematurely.
+				 * Perhaps the file was externally truncated.
+				 */
+				if (cnt == 0) {
+					msg = "Transfer finished due to "
+					      "premature end of file.";
+					break;
+				}
 			}
 
 			transflag = 0;
-			reply(226, "Transfer complete.");
+			reply(226, msg);
 			return (0);
 		}
 
