@@ -14,9 +14,9 @@ HOME=/var/log
 0	*	*	*	*	root	newsyslog
 #
 # do daily/weekly/monthly maintenance
-59	1	*	*	*	root	periodic daily 2>&1 | sendmail root
-30	3	*	*	6	root	periodic weekly 2>&1 | sendmail root
-30	5	1	*	*	root	periodic monthly 2>&1 | sendmail root
+59	1	*	*	*	root	periodic daily
+30	3	*	*	6	root	periodic weekly
+30	5	1	*	*	root	periodic monthly
 #
 # time zone change adjustment for wall cmos clock,
 # does nothing, if you have UTC cmos clock.
