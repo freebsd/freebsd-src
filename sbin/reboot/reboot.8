@@ -41,13 +41,13 @@
 stopping and restarting the system
 .Sh SYNOPSIS
 .Nm halt
-.Op Fl nq
+.Op Fl nqp
 .Nm reboot
-.Op Fl nq
+.Op Fl nqp
 .Nm fasthalt
-.Op Fl nq
+.Op Fl nqp
 .Nm fastboot
-.Op Fl nq
+.Op Fl nqp
 .Sh DESCRIPTION
 The
 .Nm halt
@@ -74,6 +74,14 @@ option is specified,
 the system is halted or restarted quickly and ungracefully, and only
 the flushing of the file system cache is performed.
 This option should probably not be used.
+.It Fl p
+If the
+.Fl p
+option is specified, then the system will turn off the power
+if it can. This is of course likely to make 
+.Nm reboot
+rather similar to 
+.Nm halt.
 .El
 .Pp
 The
