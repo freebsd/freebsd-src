@@ -7,7 +7,8 @@
 #ifndef _calendar_christian_
 #define _calendar_christian_
 
-01/06*	Epiphany
+01/05	Last (twelfth) day of Christmastide
+01/06	Epiphany
 Easter-47	Shrove Tuesday / Mardi Gras (day before Ash Wednesday)
 Easter-46	Ash Wednesday (First day of Lent)
 Easter-7	Palm Sunday (7 days before Easter)
@@ -24,5 +25,8 @@ Easter+60	Corpus Christi (11 days after Pentecost)
 11/SunLast	First Sunday of Advent (4th Sunday before Christmas)
 12/SunFirst	First Sunday of Advent (4th Sunday before Christmas)
 12/06	St. Nicholas' Day
+12/24   Christmas eve
+12/25   Christmastide begins: First day of Christmas
+12/26   Second day of Christmas (Boxing Day)
 
 #endif /* !_calendar_christian_ */
