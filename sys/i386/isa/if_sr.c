@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_sr.c,v 1.18 1999/01/12 01:17:00 eivind Exp $
+ * $Id: if_sr.c,v 1.19 1999/01/18 07:55:02 julian Exp $
  */
 
 /*
@@ -860,15 +860,20 @@ srattach(struct sr_hardc *hc)
 }
 
 /*
- * Get the ISA interrupts
+ * N2 Interrupt Service Routine.
+ * Get the ISA interrupts.
+ * 
+ * First figure out which SCA gave the interrupt.
+ * 
  */
-void
-srintr(void * cookie)
+static void
+srintr(int init)
 { 
 	struct sr_hardc *hc; 
 
 	hc = &sr_hardc[unit];
 	srintr_hc(hc);
+
 	return; 
 }
 
