@@ -80,9 +80,6 @@ ata_generic_transaction(struct ata_request *request)
 	return ATA_OP_FINISHED;
     }
 
-    /* record the request as running */
-    ch->running = request;
-
     ATA_DEBUG_RQ(request, "transaction");
 
     /* disable ATAPI DMA writes if HW doesn't support it */
@@ -120,10 +117,8 @@ ata_generic_transaction(struct ata_request *request)
 		else
 		    printf("ATAPI_RESET timeout\n");
 
-		if (request->status & ATA_S_ERROR) {
+		if (request->status & ATA_S_ERROR)
 		    request->error = ATA_IDX_INB(ch, ATA_ERROR);
-		    //request->result = EIO;
-		}
 		break;
 	    }
 
@@ -139,7 +134,8 @@ ata_generic_transaction(struct ata_request *request)
 	    }
 	}
 	
-	/* return and wait for interrupt */
+	/* record the request as running and return for interrupt */
+	ch->running = request;
 	return ATA_OP_CONTINUES;
 
     /* ATA DMA data transfer commands */
@@ -168,7 +164,8 @@ ata_generic_transaction(struct ata_request *request)
 	    break;
 	}
 
-	/* return and wait for interrupt */
+	/* record the request as running and return for interrupt */
+	ch->running = request;
 	return ATA_OP_CONTINUES;
 
     /* ATAPI PIO commands */
@@ -192,8 +189,10 @@ ata_generic_transaction(struct ata_request *request)
 	}
 
 	/* command interrupt device ? just return and wait for interrupt */
-	if ((request->device->param->config & ATA_DRQ_MASK) == ATA_DRQ_INTR)
+	if ((request->device->param->config & ATA_DRQ_MASK) == ATA_DRQ_INTR) {
+	    ch->running = request;
 	    return ATA_OP_CONTINUES;
+	}
 
 	/* wait for ready to write ATAPI command block */
 	{
@@ -224,7 +223,8 @@ ata_generic_transaction(struct ata_request *request)
 			   (request->device->param->config & ATA_PROTO_MASK) ==
 			   ATA_PROTO_ATAPI_12 ? 6 : 8);
 
-	/* return and wait for interrupt */
+	/* record the request as running and return for interrupt */
+	ch->running = request;
 	return ATA_OP_CONTINUES;
 
     case ATA_R_ATAPI|ATA_R_DMA:
@@ -289,14 +289,14 @@ ata_generic_transaction(struct ata_request *request)
 	    break;
 	}
 
-	/* return and wait for interrupt */
+	/* record the request as running and return for interrupt */
+	ch->running = request;
 	return ATA_OP_CONTINUES;
     }
 
     /* request finish here */
-    if (ch->dma->flags & ATA_DMA_ACTIVE)
+    if (ch->dma->flags & ATA_DMA_LOADED)
 	ch->dma->unload(ch);
-    ch->running = NULL;
     return ATA_OP_FINISHED;
 }
 
