@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.6.4.4 1996/06/04 21:42:29 nate Exp $
+ *	$Id: if_zp.c,v 1.6.4.5 1997/05/21 18:43:37 nate Exp $
  */
 /*-
  * TODO:
@@ -1388,8 +1388,7 @@ zpioctl(ifp, cmd, data)
 	    zpmbufempty(sc);
 	    break;
 	}
-	if (ifp->if_flags & IFF_UP && (ifp->if_flags & IFF_RUNNING) == 0)
-	    zpinit(ifp->if_unit);
+	zpinit(ifp->if_unit);
 	break;
 #ifdef notdef
     case SIOCGHWADDR:
