@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.184.4.15 1996/05/04 07:15:11 pst Exp $
+#	$Id: LINT,v 1.184.4.16 1996/06/08 11:30:37 joerg Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -330,6 +330,24 @@ device sctarg0 at scbus? # SCSI target
 options		SCSIDEBUG
 #options	NO_SCSI_SENSE
 options		SCSI_REPORT_GEOMETRY
+
+# Options for the `od' optical disk driver:
+#
+# If drive returns sense key as 0x02 with vendor specific additional
+# sense code (ASC) and additional sense code qualifier (ASCQ), or
+# illegal ASC and ASCQ. This cause an error (NOT READY) and retrying.
+# To suppress this, use the following option.
+#
+options		OD_BOGUS_NOT_READY
+#
+# For an automatic spindown, try this.  Again, preferrably as an
+# option in your config file.
+# WARNING!  Use at your own risk.  Joerg's ancient SONY SMO drive
+# groks it fine, while Shunsuke's Fujitsu chokes on it and times
+# out.
+#
+options		OD_AUTO_TURNOFF
+
 
 
 #####################################################################
