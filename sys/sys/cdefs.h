@@ -139,9 +139,9 @@
 
 /*
  * GCC 2.95 provides `__restrict' as an extention to C90 to support the
- * C99-specific `restrict' type qualifier.  We happen to use `__restrict' as a
- * way to define the `restrict' type qualifier without disturbing older software
- * that is unaware of C99 keywords.
+ * C99-specific `restrict' type qualifier.  We happen to use `__restrict' as
+ * a way to define the `restrict' type qualifier without disturbing older
+ * software that is unaware of C99 keywords.
  */
 #if !(__GNUC__ == 2 && __GNUC_MINOR__ == 95)
 #if __STDC_VERSION__ < 199901
