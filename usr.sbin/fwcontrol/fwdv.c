@@ -122,8 +122,11 @@ int dvrecv(int d, char *filename, char ich, int count)
 		wbuf[0].iov_len = 0;
 		len = read(d, buf, BUFSIZE);
 		if (len < 0) {
-			if (errno == EAGAIN)
+			if (errno == EAGAIN) {
+				fprintf(stderr, "(EAGAIN)\n");
+				fflush(stderr);
 				continue;
+			}
 			err(1, "read failed");
 		}
 		ptr = (u_int32_t *) buf;
@@ -135,7 +138,7 @@ again:
 			goto next;
 		}
 #if 0
-		printf("%08x %08x %08x %08x\n",
+		fprintf(stderr, "%08x %08x %08x %08x\n",
 			htonl(ptr[0]), htonl(ptr[1]),
 			htonl(ptr[2]), htonl(ptr[3]));
 #endif
@@ -153,13 +156,13 @@ again:
 				dv++) {
 
 #if 0
-			printf("(%d,%d) ", dv->sct, dv->dseq);
+			fprintf(stderr, "(%d,%d) ", dv->sct, dv->dseq);
 #endif
 			if  (dv->sct == DV_SCT_HEADER && dv->dseq == 0) {
 #if 0
-				printf("%d(%d) ", k, m);
+				fprintf(stderr, "%d(%d) ", k, m);
 #else
-				printf("%d", k%10);
+				fprintf(stderr, "%d", k%10);
 #endif
 				pal = ((dv->payload[0] & DV_DSF_12) != 0);
 				nb = nblocks[pal];
@@ -169,16 +172,17 @@ again:
 					npad = ((nb - m) % nb);
 					if (npad < 0)
 						npad += nb;
-					printf("(%d blocks padded)", npad);
+					fprintf(stderr, "(%d blocks padded)",
+								npad);
 					npad *= BLOCKSIZE;
 					npad = write(fd, pad, npad);
 				}
 #endif
 				k++;
 				if (k % 30 == 0) { /* every second */
-					printf("\n");
+					fprintf(stderr, "\n");
 				}
-				fflush(stdout);
+				fflush(stderr);
 				m = 0;
 			}
 			if (k == 0 || (count > 0 && k > count))
@@ -209,7 +213,7 @@ next:
 		}
 	}
 	close(fd);
-	printf("\n");
+	fprintf(stderr, "\n");
 	return 0;
 }
 
@@ -264,7 +268,8 @@ int dvsend(int d, char *filename, char ich, int count)
 
 	gettimeofday(&start, NULL);
 #if 0
-	printf("%08x %08x %08x\n", htonl(hdr[0]), htonl(hdr[1]), htonl(hdr[2]));
+	fprintf(stderr, "%08x %08x %08x\n",
+			htonl(hdr[0]), htonl(hdr[1]), htonl(hdr[2]));
 #endif
 	frames = 0;
 	packets = 0;
@@ -278,7 +283,7 @@ int dvsend(int d, char *filename, char ich, int count)
 		while (dlen < DSIZE) {
 			len = read(fd, pbuf + dlen, DSIZE - dlen);
 			if (len <= 0) {
-				printf("\nend of file(len=%d)\n", len);
+				fprintf(stderr, "\nend of file(len=%d)\n", len);
 				goto send_end;
 			}
 			dlen += len;
@@ -291,13 +296,13 @@ int dvsend(int d, char *filename, char ich, int count)
 #endif
 
 		if (header) {
-			printf("%d", frames % 10);
+			fprintf(stderr, "%d", frames % 10);
 			frames ++;
 			if (count > 0 && frames > count)
 				break;
 			if (frames % 30 == 0)
-				printf("\n");
-			fflush(stdout);
+				fprintf(stderr, "\n");
+			fflush(stderr);
 			system = ((dv->payload[0] & DV_DSF_12) != 0);
 			f_cycle = (cycle_acc / frame_cycle[system].d) & 0xf;
 			f_frac = (cycle_acc % frame_cycle[system].d
@@ -328,7 +333,8 @@ again1:
 			len = writev(d, wbuf, 1);
 			if (len < 0) {
 				if (errno == EAGAIN) {
-					printf("again"); fflush(stdout);
+					fprintf(stderr, "(EAGAIN)\n");
+					fflush(stderr);
 					goto again1;
 				}
 				err(1, "write failed");
@@ -341,22 +347,20 @@ again2:
 		len = writev(d, wbuf, 2);
 		if (len < 0) {
 			if (errno == EAGAIN) {
-				printf("again"); fflush(stdout);
+				fprintf(stderr, "(EAGAIN)\n");
+				fflush(stderr);
 				goto again2;
 			}
 			err(1, "write failed");
 		}
-#if 0
-		printf("."); fflush(stdout);
-#endif
 	}
 	close(fd);
-	printf("\n");
+	fprintf(stderr, "\n");
 send_end:
 	gettimeofday(&end, NULL);
 	rtime = end.tv_sec - start.tv_sec 
 			+ (end.tv_usec - start.tv_usec) * 1e-6;
-	printf("%d frames, %.2f secs, %.2f frames/sec\n",
+	fprintf(stderr, "%d frames, %.2f secs, %.2f frames/sec\n",
 			frames, rtime, frames/rtime);
 	return 0;
 }
