@@ -300,7 +300,7 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 	g_topology_lock();
 	g_access_rel(cp, -1, 0, 0);
 	if (LIST_EMPTY(&gp->provider)) {
-		g_std_spoiled(cp);
+		g_slice_spoiled(cp);
 		return (NULL);
 	}
 	return (gp);
@@ -398,8 +398,10 @@ g_mbrext_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 			buf = g_read_data(cp, off, sectorsize, &error);
 			if (buf == NULL || error != 0)
 				break;
-			if (buf[0x1fe] != 0x55 && buf[0x1ff] != 0xaa)
+			if (buf[0x1fe] != 0x55 && buf[0x1ff] != 0xaa) {
+				g_free(buf);
 				break;
+			}
 			for (i = 0; i < NDOSPART; i++) 
 				dos_partition_dec(
 				    buf + DOSPARTOFF + 
@@ -440,7 +442,7 @@ g_mbrext_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	g_topology_lock();
 	g_access_rel(cp, -1, 0, 0);
 	if (LIST_EMPTY(&gp->provider)) {
-		g_std_spoiled(cp);
+		g_slice_spoiled(cp);
 		return (NULL);
 	}
 	return (gp);

@@ -105,6 +105,8 @@ g_gpt_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	}
 }
 
+MALLOC_DEFINE(M_GEOMGPT, "GEOMGPT", "Geom data structures");
+
 static struct g_geom *
 g_gpt_taste(struct g_class *mp, struct g_provider *pp, int insist)
 {
@@ -188,7 +190,10 @@ g_gpt_taste(struct g_class *mp, struct g_provider *pp, int insist)
 			ent = (void*)(buf + i * hdr->hdr_entsz);
 			if (!memcmp(&ent->ent_type, &unused, sizeof(unused)))
 				continue;
-			gs->part[i] = g_malloc(hdr->hdr_entsz, M_WAITOK);
+			/*
+			 * XXX: memory leak, this is never freed.
+			 */
+			gs->part[i] = malloc(hdr->hdr_entsz, M_GEOMGPT, M_WAITOK);
 			if (gs->part[i] == NULL)
 				break;
 			bcopy(ent, gs->part[i], hdr->hdr_entsz);
@@ -214,7 +219,7 @@ g_gpt_taste(struct g_class *mp, struct g_provider *pp, int insist)
 	g_topology_lock();
 	g_access_rel(cp, -1, 0, 0);
 	if (LIST_EMPTY(&gp->provider)) {
-		g_std_spoiled(cp);
+		g_slice_spoiled(cp);
 		return (NULL);
 	}
 	return (gp);
