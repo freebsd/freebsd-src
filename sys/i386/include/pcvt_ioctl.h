@@ -570,7 +570,7 @@ typedef struct vt_mode vtmode_t;
 
 #ifndef _KEYMAP_DECLARED
 #define	_KEYMAP_DECLARED
-struct key_t {
+struct keyent_t {
 	u_char map[NUM_STATES];
 	u_char spcl;
 	u_char flgs;
@@ -578,7 +578,7 @@ struct key_t {
 
 struct keymap {
 	u_short	n_keys;
-	struct key_t key[NUM_KEYS];
+	struct keyent_t key[NUM_KEYS];
 };
 
 typedef struct keymap keymap_t;
