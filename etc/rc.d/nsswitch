@@ -61,7 +61,7 @@ generate_nsswitch_conf()
     cat >$nsswitch_conf <<EOF
 group: compat
 group_compat: nis
-hosts: dns files
+hosts: files dns
 networks: files
 passwd: compat
 passwd_compat: nis
