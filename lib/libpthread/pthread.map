@@ -123,6 +123,7 @@ global:
 	_pthread_switch_delete_np;
 	_pthread_testcancel;
 	_pthread_yield;
+	_raise;
 	_sched_yield;
 	_sem_close;
 	_sem_destroy;
@@ -255,6 +256,7 @@ global:
 	pthread_switch_delete_np;
 	pthread_testcancel;
 	pthread_yield;
+	raise;
 	read;
 	readv;
 	sched_yield;
