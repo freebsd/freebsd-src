@@ -283,14 +283,14 @@ usage(void)
 {
 
 	(void)fprintf(stderr,
-	    "Usage: %s [-abceghprvwxzHF] [-s|-t] [-i|-nu] [-Dname[=def]]"
-	    " [-Uname] [-X <id>[,<id>]...\n", getprogname());
+	    "Usage: lint [-abceghprvwxzHF] [-s|-t] [-i|-nu] [-Dname[=def]]"
+	    " [-Uname] [-X <id>[,<id>]...\n");
 	(void)fprintf(stderr,
 	    "\t[-Idirectory] [-Ldirectory] [-llibrary] [-ooutputfile]"
 	    " file...\n");
 	(void)fprintf(stderr,
-	    "       %s [-abceghprvwzHF] [-s|-t] -Clibrary [-Dname[=def]]\n"
-	    " [-X <id>[,<id>]...\n", getprogname());
+	    "       lint [-abceghprvwzHF] [-s|-t] -Clibrary [-Dname[=def]]\n"
+	    " [-X <id>[,<id>]...\n");
 	(void)fprintf(stderr, "\t[-Idirectory] [-Uname] [-Bpath] file"
 	    " ...\n");
 	terminate(-1);
@@ -303,8 +303,6 @@ main(int argc, char *argv[])
 	int	c;
 	char	flgbuf[3], *tmp, *s;
 	size_t	len;
-
-	setprogname(argv[0]);
 
 	if ((tmp = getenv("TMPDIR")) == NULL || (len = strlen(tmp)) == 0) {
 		tmpdir = xstrdup(_PATH_TMP);
