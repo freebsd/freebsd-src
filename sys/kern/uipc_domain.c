@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_domain.c	8.2 (Berkeley) 10/18/93
- * $Id: uipc_domain.c,v 1.8 1995/08/28 09:18:51 julian Exp $
+ * $Id: uipc_domain.c,v 1.9 1995/09/09 18:10:11 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -39,12 +39,8 @@
 #include <sys/protosw.h>
 #include <sys/domain.h>
 #include <sys/mbuf.h>
-#include <sys/time.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
-#include <vm/vm.h>
-#include <sys/sysctl.h>
 
 /*
  * System initialization
@@ -69,8 +65,8 @@ SYSINIT(domain, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST, domaininit, NULL)
 SYSINIT(splx, SI_SUB_PROTO_END, SI_ORDER_FIRST, kludge_splx, &x_save_spl)
 
 
-void	pffasttimo __P((void *));
-void	pfslowtimo __P((void *));
+static void	pffasttimo __P((void *));
+static void	pfslowtimo __P((void *));
 
 struct domain *domains;
 
@@ -151,8 +147,7 @@ kludge_splx(udata)
 
 
 struct protosw *
-pffindtype(family, type)
-	int family, type;
+pffindtype(int family, int type)
 {
 	register struct domain *dp;
 	register struct protosw *pr;
@@ -169,8 +164,7 @@ found:
 }
 
 struct protosw *
-pffindproto(family, protocol, type)
-	int family, protocol, type;
+pffindproto(int family, int protocol, int type)
 {
 	register struct domain *dp;
 	register struct protosw *pr;
@@ -194,44 +188,6 @@ found:
 	return (maybe);
 }
 
-int
-net_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
-	int *name;
-	u_int namelen;
-	void *oldp;
-	size_t *oldlenp;
-	void *newp;
-	size_t newlen;
-	struct proc *p;
-{
-	register struct domain *dp;
-	register struct protosw *pr;
-	int family, protocol;
-
-	/*
-	 * All sysctl names at this level are nonterminal;
-	 * next two components are protocol family and protocol number,
-	 * then at least one addition component.
-	 */
-	if (namelen < 3)
-		return (EISDIR);		/* overloaded */
-	family = name[0];
-	protocol = name[1];
-
-	if (family == 0)
-		return (0);
-	for (dp = domains; dp; dp = dp->dom_next)
-		if (dp->dom_family == family)
-			goto found;
-	return (ENOPROTOOPT);
-found:
-	for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++)
-		if (pr->pr_protocol == protocol && pr->pr_sysctl)
-			return ((*pr->pr_sysctl)(name + 2, namelen - 2,
-			    oldp, oldlenp, newp, newlen));
-	return (ENOPROTOOPT);
-}
-
 void
 pfctlinput(cmd, sa)
 	int cmd;
@@ -246,7 +202,7 @@ pfctlinput(cmd, sa)
 				(*pr->pr_ctlinput)(cmd, sa, (caddr_t)0);
 }
 
-void
+static void
 pfslowtimo(arg)
 	void *arg;
 {
@@ -260,7 +216,7 @@ pfslowtimo(arg)
 	timeout(pfslowtimo, (void *)0, hz/2);
 }
 
-void
+static void
 pffasttimo(arg)
 	void *arg;
 {
