@@ -1,4 +1,4 @@
-.\" Copyright (c) 1989, 1991, 1993
+.\" Copyright (c) 1995
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -29,76 +29,70 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)setmode.3	8.2 (Berkeley) 4/28/95
+.\"     @(#)kvm_getvfsbyname.3	8.3 (Berkeley) 5/4/95
 .\"
-.Dd April 28, 1995
-.Dt SETMODE 3
+.Dd May 4, 1995
+.Dt GETVFSBYNAME 3
 .Os
 .Sh NAME
-.Nm getmode ,
-.Nm setmode
-.Nd modify mode bits
+.Nm getvfsbyname
+.Nd get information about a filesystem
 .Sh SYNOPSIS
-.Ft mode_t
-.Fn getmode "const void *set" "mode_t mode"
-.Ft void *
-.Fn setmode "const char *mode_str"
+.Fd #include <sys/types.h>
+.Fd #include <sys/mount.h>
+.Fd #include <kvm.h>
+.br
+.Ft int
+.Fn getvfsbyname "const char *name" "struct vfsconf *vfc"
 .Sh DESCRIPTION
 The
-.Fn getmode
-function
-returns a copy of the file permission bits
-.Fa mode
-as altered by the values pointed to by
-.Fa set .
-While only the mode bits are altered, other parts of the file mode
-may be examined.
+.Fn getvfsbyname
+function provides access to information about a
+filesystem module that is configured in the kernel.
+If successful,
+the requested filesystem
+.Fa vfsconf
+is returned in the location pointed to by
+.Nm vfc .
+The fields in a
+.Dq Li struct vfsconf
+are defined as follows:
 .Pp
-The
-.Fn setmode
-function
-takes an absolute (octal) or symbolic value, as described in
-.Xr chmod 1 ,
-as an argument
-and returns a pointer to mode values to be supplied to
-.Fn getmode .
-Because some of the symbolic values are relative to the file
-creation mask,
-.Fn setmode
-may call
-.Xr umask 2 .
-If this occurs, the file creation mask will be restored before
-.Fn setmode
-returns.
-If the calling program changes the value of its file creation mask
-after calling
-.Fn setmode ,
-.Fn setmode
-must be called again if
-.Fn getmode
-is to modify future file modes correctly.
-.Pp
-If the mode passed to
-.Fn setmode
-is invalid,
-.Fn setmode
-returns
-.Dv NULL . 
+.Bl -tag -compact -width vfc_refcount
+.It vfc_name
+the name of the filesystem
+.It vfc_typenum
+the filesystem type number assigned by the kernel
+.It vfc_refcount
+the number of active mount points using the filesystem
+.It vfc_flags
+flag bits that are used to initialize a new mount point
+using the filesystem
+.El
+.Sh RETURN VALUES
+If the call to
+.Nm getvfsbyname
+is successful, 0 is returned.
+Otherwise \-1 is returned and
+.Va errno
+is set appropriately.
 .Sh ERRORS
+The following errors may be reported:
+.Bl -tag -width Er
+.It Bq Er EFAULT
 The
-.Fn setmode
-function
-may fail and set errno for any of the errors specified for the library
-routine
-.Xr malloc 3 .
+.Fa vfc
+pointer contains an invalid address.
+.It Bq Er ENOENT
+The
+.Fa name
+specifies a filesystem that is unknown or not configured in the kernel.
 .Sh SEE ALSO
-.Xr chmod 1 ,
-.Xr stat 2 ,
-.Xr umask 2 ,
-.Xr malloc 3
+.Xr sysctl 1 ,
+.Xr mount 2 ,
+.Xr sysctl 3 ,
+.Xr mount 8
 .Sh HISTORY
-The
-.Fn getmode
-and
-.Fn setmode
-functions first appeared in 4.4BSD.
+A variant of the
+.Fn getvfsbyname
+function first appeared in FreeBSD 2.0.

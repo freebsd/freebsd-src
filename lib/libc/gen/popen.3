@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)popen.3	8.1 (Berkeley) 6/4/93
+.\"     @(#)popen.3	8.2 (Berkeley) 5/3/95
 .\"
-.Dd June 4, 1993
+.Dd May 3, 1995
 .Dt POPEN 3
 .Os
 .Sh NAME
@@ -50,13 +50,32 @@ The
 .Fn popen
 function
 .Dq opens
-a process by creating a pipe,
+a process by creating an IPC connection,
 forking,
 and invoking the shell.
-Since a pipe is by definition unidirectional, the
+Historically,
+.Nm popen
+was implemented with a unidirectional pipe;
+hence many implementations of
+.Nm popen
+only allow the
 .Fa type
-argument may specify only reading or writing, not both;
-the resulting stream is correspondingly read-only or write-only.
+argument to specify reading or writing, not both.
+Since
+.Nm popen
+is now implemented using sockets, the
+.Fa type
+may request a bidirectional data flow.
+The
+.Fa type
+argument is a pointer to a null-terminated string
+which must be
+.Ql r
+for reading,
+.Ql w
+for writing, or
+.Ql r+
+for reading and writing.
 .Pp
 The
 .Fa command
@@ -67,15 +86,6 @@ This command is passed to
 using the
 .Fl c
 flag; interpretation, if any, is performed by the shell.
-The
-.Fa mode
-argument is a pointer to a null-terminated string
-which must be either
-.Ql r
-for reading
-or
-.Ql w
-for writing.
 .Pp
 The return value from
 .Fn popen
@@ -113,9 +123,10 @@ The
 function returns
 .Dv NULL
 if the
-.Xr fork 2
+.Xr fork 2 ,
+.Xr pipe 2 ,
 or
-.Xr pipe 2
+.Xr socketpair 2
 calls fail,
 or if it cannot allocate memory.
 .Pp
@@ -142,6 +153,7 @@ function does not reliably set
 .Xr fork 2 ,
 .Xr sh 1 ,
 .Xr pipe 2 ,
+.Xr socketpair 2 ,
 .Xr wait4 2 ,
 .Xr fflush 3 ,
 .Xr fclose 3 ,

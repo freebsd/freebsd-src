@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)msync.2	8.1 (Berkeley) 6/9/93
+.\"	@(#)msync.2	8.2 (Berkeley) 6/21/94
 .\"
-.Dd June 9, 1993
+.Dd June 21, 1994
 .Dt MSYNC 2
 .Os
 .Sh NAME
@@ -62,6 +62,23 @@ will also take place at this time.
 Filesystem operations on a file that is mapped for shared modifications
 are unpredictable except after an
 .Fn msync .
+.Sh ERRORS
+The following errors may be reported:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa addr
+parameter was not page aligned.
+.It Bq Er EINVAL
+The
+.Fa addr
+parameter did not specify an address part of a mapped region.
+.It Bq Er EINVAL
+The
+.Fa len
+parameter was negative.
+.It Bq Er EIO
+An I/O error occured while writing to the file system.
 .Sh SEE ALSO
 .Xr madvise 2 ,
 .Xr munmap 2 ,

@@ -1,6 +1,6 @@
 /*-
- * Copyright (c) 1990 The Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1990, 1993
+ *	The Regents of the University of California.  All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
  * Sean Eric Fagan.
@@ -35,7 +35,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-	.asciz "@(#)modf.s	5.5 (Berkeley) 3/18/91"
+	.asciz "@(#)modf.s	8.1 (Berkeley) 6/4/93"
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -49,7 +49,6 @@
 /* With CHOP mode on, frndint behaves as TRUNC does.  Useful. */
 .text
 .globl _modf
-.type _modf,@function
 _modf:
 	pushl %ebp
 	movl %esp,%ebp

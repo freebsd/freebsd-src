@@ -32,16 +32,16 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)quotactl.2	8.1 (Berkeley) 6/4/93
+.\"	@(#)quotactl.2	8.2 (Berkeley) 3/10/95
 .\"
-.Dd June 4, 1993
+.Dd March 10, 1995
 .Dt QUOTACTL 2
 .Os
 .Sh NAME
 .Nm quotactl
 .Nd manipulate filesystem quotas
 .Sh SYNOPSIS
-.Ft #include <ufs/quota.h>	/* for ufs quotas */
+.Fd #include <ufs/quota.h>	/* for ufs quotas */
 .Ft int
 .Fn quotactl "const char *path" "int cmd" "int id" "char *addr"
 .Sh DESCRIPTION

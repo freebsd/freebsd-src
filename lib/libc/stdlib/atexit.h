@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)atexit.h	8.1 (Berkeley) 6/4/93
+ *	@(#)atexit.h	8.2 (Berkeley) 7/3/94
  */
 
 /* must be at least 32 to guarantee ANSI conformance */
@@ -42,4 +42,4 @@ struct atexit {
 	void (*fns[ATEXIT_SIZE])();	/* the table itself */
 };
 
-struct atexit *__atexit;	/* points to head of LIFO stack */
+extern struct atexit *__atexit;	/* points to head of LIFO stack */

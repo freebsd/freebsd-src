@@ -1,6 +1,6 @@
 /*-
- * Copyright (c) 1990 The Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1990, 1993
+ *	The Regents of the University of California.  All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
  * William Jolitz.
@@ -32,12 +32,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: brk.S,v 1.3 1994/02/21 05:13:26 rgrimes Exp $
  */
 
 #if defined(SYSLIBC_SCCS) && !defined(lint)
-	.asciz "@(#)brk.s	5.2 (Berkeley) 12/17/90"
+	.asciz "@(#)brk.s	8.1 (Berkeley) 6/4/93"
 #endif /* SYSLIBC_SCCS and not lint */
 
 #include "SYS.h"
@@ -50,29 +48,6 @@ ENTRY(_brk)
 	jmp	ok
 
 ENTRY(brk)
-#ifdef PIC
-	movl	4(%esp),%eax
-	PIC_PROLOGUE
-	movl	PIC_GOT(curbrk),%edx	# set up GOT addressing
-	movl	PIC_GOT(minbrk),%ecx	#
-	cmpl	%eax,(%ecx)
-	PIC_EPILOGUE
-	jl	ok
-	movl	(%ecx),%eax
-	movl	%eax,4(%esp)
-ok:
-	lea	SYS_brk,%eax
-	LCALL(7,0)
-	jb	err
-	movl	4(%esp),%eax
-	movl	%eax,(%edx)
-	movl	$0,%eax
-	ret
-err:
-	jmp	PIC_PLT(cerror)
-
-#else
-
 	movl	4(%esp),%eax
 	cmpl	%eax,minbrk
 	jl	ok
@@ -88,4 +63,3 @@ ok:
 	ret
 err:
 	jmp	cerror
-#endif

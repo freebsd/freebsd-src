@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)crypt.3	8.2 (Berkeley) 12/11/93
+.\"     @(#)crypt.3	8.1.1.1 (Berkeley) 8/18/93
 .\"
-.Dd December 11, 1993
+.Dd August 18, 1993
 .Dt CRYPT 3
 .Os
 .Sh NAME
@@ -161,9 +161,8 @@ If the value of
 is 0,
 the argument
 .Fa block
-is encrypted, otherwise it
-is decrypted.
-The encryption or decryption is returned in the original
+is encrypted, otherwise it fails.
+The encryption is returned in the original
 array
 .Fa block
 after using the
@@ -189,9 +188,7 @@ significant bit in each character is ignored and the next 7 bits of each
 character are concatenated to yield a 56-bit key.
 The function
 .Fn des_cipher
-encrypts (or decrypts if
-.Fa count
-is negative) the 64-bits stored in the 8 characters at
+encrypts the 64-bits stored in the 8 characters at
 .Fa in
 using
 .Xr abs 3

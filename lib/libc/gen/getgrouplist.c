@@ -32,7 +32,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)getgrouplist.c	8.1 (Berkeley) 6/4/93";
+static char sccsid[] = "@(#)getgrouplist.c	8.2 (Berkeley) 12/8/94";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -72,12 +72,12 @@ getgrouplist(uname, agroup, groups, grpcnt)
 	while (grp = getgrent()) {
 		if (grp->gr_gid == agroup)
 			continue;
-		if (ngroups >= maxgroups) {
-			ret = -1;
-			break;
-		}
 		for (i = 0; grp->gr_mem[i]; i++) {
 			if (!strcmp(grp->gr_mem[i], uname)) {
+				if (ngroups >= maxgroups) {
+					ret = -1;
+					break;
+				}
 				groups[ngroups++] = grp->gr_gid;
 				break;
 			}

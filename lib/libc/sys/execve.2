@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)execve.2	8.3 (Berkeley) 1/24/94
+.\"     @(#)execve.2	8.5 (Berkeley) 6/1/94
 .\"
-.Dd January 24, 1994
+.Dd June 1, 1994
 .Dt EXECVE 2
 .Os BSD 4
 .Sh NAME
@@ -66,9 +66,11 @@ An interpreter file begins with a line of the form:
 .Ed
 .Pp
 When an interpreter file is
-.Fn execve Ap d ,
+.\" was .Fn execve Ap d ,
+\fBexecve\fP'd,
 the system
-.Fn execve Ap s
+.\" was .Fn execve Ap s
+\fBexecve\fP's
 runs the specified
 .Em interpreter .
 If the optional
@@ -76,13 +78,16 @@ If the optional
 is specified, it becomes the first argument to the
 .Em interpreter ,
 and the name of the originally
-.Fn execve Ap d
+.\" was .Fn execve Ap d
+\fBexecve\fP'd
 file becomes the second argument;
 otherwise, the name of the originally
-.Fn execve Ap d
+.\" was .Fn execve Ap d
+\fBexecve\fP'd
 file becomes the first argument.  The original arguments are shifted over to
 become the subsequent arguments.  The zeroth argument, normally the name of the
-.Fn execve Ap d
+.\" was .Fn execve Ap d
+\fBexecve\fP'd
 file, is left unchanged.
 .Pp
 The argument
@@ -140,6 +145,7 @@ the effective user ID is recorded as the saved set-user-ID,
 and the effective group ID is recorded as the saved set-group-ID.
 These values may be used in changing the effective IDs later (see
 .Xr setuid 2 ) .
+.ne 1i
 .Pp
 The new process also inherits the following attributes from
 the calling process:
@@ -217,6 +223,7 @@ permission, but has an invalid magic number in its header.
 .It Bq Er ETXTBSY
 The new process file is a pure procedure (shared text)
 file that is currently open for writing or reading by some process.
+.ne 1i
 .It Bq Er ENOMEM
 The new process requires more virtual memory than
 is allowed by the imposed maximum
