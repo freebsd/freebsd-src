@@ -67,7 +67,7 @@ devfs_init(struct vfsconf *vfsp)
 
 	/* Mark a reference for the "invisible" blueprint mount */
 	mp->mnt_vfc->vfc_refcount++;
-	CIRCLEQ_INSERT_TAIL(&mountlist, mp, mnt_list);
+	TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
 
 	printf("DEVFS: ready to run\n");
 	return 0; /*XXX*/

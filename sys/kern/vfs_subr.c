@@ -116,7 +116,7 @@ int vfs_ioopt = 0;
 SYSCTL_INT(_vfs, OID_AUTO, ioopt, CTLFLAG_RW, &vfs_ioopt, 0, "");
 #endif
 
-struct mntlist mountlist;	/* mounted filesystem list */
+struct mntlist mountlist = TAILQ_HEAD_INITIALIZER(mountlist); /* mounted fs */
 struct simplelock mountlist_slock;
 struct simplelock mntvnode_slock;
 int	nfs_mount_type = -1;
@@ -172,7 +172,6 @@ vntblinit()
 	TAILQ_INIT(&vnode_free_list);
 	TAILQ_INIT(&vnode_tobefree_list);
 	simple_lock_init(&vnode_free_list_slock);
-	CIRCLEQ_INIT(&mountlist);
 	vnode_zone = zinit("VNODE", sizeof (struct vnode), 0, 0, 5);
 	/*
 	 * Initialize the filesystem syncer.
@@ -315,7 +314,7 @@ vfs_getvfs(fsid)
 	register struct mount *mp;
 
 	simple_lock(&mountlist_slock);
-	CIRCLEQ_FOREACH(mp, &mountlist, mnt_list) {
+	TAILQ_FOREACH(mp, &mountlist, mnt_list) {
 		if (mp->mnt_stat.f_fsid.val[0] == fsid->val[0] &&
 		    mp->mnt_stat.f_fsid.val[1] == fsid->val[1]) {
 			simple_unlock(&mountlist_slock);
@@ -1973,9 +1972,9 @@ DB_SHOW_COMMAND(lockedvnodes, lockedvnodes)
 
 	printf("Locked vnodes\n");
 	simple_lock(&mountlist_slock);
-	for (mp = CIRCLEQ_FIRST(&mountlist); mp != (void *)&mountlist; mp = nmp) {
+	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
 		if (vfs_busy(mp, LK_NOWAIT, &mountlist_slock, p)) {
-			nmp = CIRCLEQ_NEXT(mp, mnt_list);
+			nmp = TAILQ_NEXT(mp, mnt_list);
 			continue;
 		}
 		LIST_FOREACH(vp, &mp->mnt_vnodelist, v_mntvnodes) {
@@ -1983,7 +1982,7 @@ DB_SHOW_COMMAND(lockedvnodes, lockedvnodes)
 				vprint((char *)0, vp);
 		}
 		simple_lock(&mountlist_slock);
-		nmp = CIRCLEQ_NEXT(mp, mnt_list);
+		nmp = TAILQ_NEXT(mp, mnt_list);
 		vfs_unbusy(mp, p);
 	}
 	simple_unlock(&mountlist_slock);
@@ -2091,10 +2090,9 @@ sysctl_vnode SYSCTL_HANDLER_ARGS
 			(numvnodes + KINFO_VNODESLOP) * (VPTRSZ + VNODESZ)));
 
 	simple_lock(&mountlist_slock);
-	mp = CIRCLEQ_FIRST(&mountlist);
-	for (; mp != (void *)&mountlist; mp = nmp) {
+	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
 		if (vfs_busy(mp, LK_NOWAIT, &mountlist_slock, p)) {
-			nmp = CIRCLEQ_NEXT(mp, mnt_list);
+			nmp = TAILQ_NEXT(mp, mnt_list);
 			continue;
 		}
 again:
@@ -2120,7 +2118,7 @@ again:
 		}
 		simple_unlock(&mntvnode_slock);
 		simple_lock(&mountlist_slock);
-		nmp = CIRCLEQ_NEXT(mp, mnt_list);
+		nmp = TAILQ_NEXT(mp, mnt_list);
 		vfs_unbusy(mp, p);
 	}
 	simple_unlock(&mountlist_slock);
@@ -2159,7 +2157,7 @@ vfs_mountedon(vp)
 void
 vfs_unmountall()
 {
-	struct mount *mp, *nmp;
+	struct mount *mp;
 	struct proc *p;
 	int error;
 
@@ -2170,17 +2168,19 @@ vfs_unmountall()
 	/*
 	 * Since this only runs when rebooting, it is not interlocked.
 	 */
-	mp = CIRCLEQ_LAST(&mountlist);
-	for (; mp != (void *)&mountlist; mp = nmp) {
-		nmp = CIRCLEQ_PREV(mp, mnt_list);
+	while(!TAILQ_EMPTY(&mountlist)) {
+		mp = TAILQ_LAST(&mountlist, mntlist);
 		error = dounmount(mp, MNT_FORCE, p);
 		if (error) {
+			TAILQ_REMOVE(&mountlist, mp, mnt_list);
 			printf("unmount of %s failed (",
 			    mp->mnt_stat.f_mntonname);
 			if (error == EBUSY)
 				printf("BUSY)\n");
 			else
 				printf("%d)\n", error);
+		} else {
+			/* The unmount has removed mp from the mountlist */
 		}
 	}
 }

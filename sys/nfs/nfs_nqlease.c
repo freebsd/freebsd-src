@@ -1216,9 +1216,9 @@ nqnfs_lease_updatetime(deltat)
 	 * queues.
 	 */
 	simple_lock(&mountlist_slock);
-	for (mp = mountlist.cqh_first; mp != (void *)&mountlist; mp = nxtmp) {
+	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nxtmp) {
 		if (vfs_busy(mp, LK_NOWAIT, &mountlist_slock, p)) {
-			nxtmp = mp->mnt_list.cqe_next;
+			nxtmp = TAILQ_NEXT(mp, mnt_list);
 			continue;
 		}
 		if (mp->mnt_stat.f_type == nfs_mount_type) {
@@ -1232,7 +1232,7 @@ nqnfs_lease_updatetime(deltat)
 			}
 		}
 		simple_lock(&mountlist_slock);
-		nxtmp = mp->mnt_list.cqe_next;
+		nxtmp = TAILQ_NEXT(mp, mnt_list);
 		vfs_unbusy(mp, p);
 	}
 	simple_unlock(&mountlist_slock);
