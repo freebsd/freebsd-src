@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $Id$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -84,6 +86,9 @@ _RuneLocale _DefaultRuneLocale = {
 		_L|_R|_G|_A,	_L|_R|_G|_A,	_L|_R|_G|_A,	_L|_R|_G|_A,
 	/*78*/	_L|_R|_G|_A,	_L|_R|_G|_A,	_L|_R|_G|_A,	_P|_R|_G,
 		_P|_R|_G,	_P|_R|_G,	_P|_R|_G,	_C,
+
+/* Populated from ISO 8859-1, attempt to not violate POSIX/ANSI	*/
+
 	/*80*/	_C,		_C,		_C,		_C,
 		_C,		_C,		_C,		_C,
 	/*88*/	_C,		_C,		_C,		_C,
@@ -92,9 +97,6 @@ _RuneLocale _DefaultRuneLocale = {
 		_C,		_C,		_C,		_C,
 	/*98*/	_C,		_C,		_C,		_C,
 		_C,		_C,		_C,		_C,
-
-/* Populated from ISO 8859-1, attempt to not violate POSIX/ANSI	*/
-
 	/*A0*/	_B|_R,		_P|_R|_G,	_P|_R|_G,	_P|_R|_G,
 		_P|_R|_G,	_P|_R|_G,	_P|_R|_G,	_P|_R|_G,
 	/*A8*/	_P|_R|_G,	_P|_R|_G,	_P|_R|_G,	_P|_R|_G,
