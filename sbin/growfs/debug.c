@@ -49,6 +49,7 @@ static const char rcsid[] =
 
 #include <limits.h>
 #include <stdio.h>
+#include <string.h>
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
 
@@ -783,10 +784,10 @@ dbg_dump_ufs2_ino(struct fs *sb, const char *comment, struct ufs2_dinode *ino)
 	fprintf(dbg_log, "blocks     u_int64_t      0x%08x%08x\n", 
 		((unsigned int *)&(ino->di_blocks))[1],
 		((unsigned int *)&(ino->di_blocks))[0]);
-	fprintf(dbg_log, "atime      ufs_time_t     %10u\n", ino->di_atime);
-	fprintf(dbg_log, "mtime      ufs_time_t     %10u\n", ino->di_mtime);
-	fprintf(dbg_log, "ctime      ufs_time_t     %10u\n", ino->di_ctime);
-	fprintf(dbg_log, "birthtime  ufs_time_t     %10u\n", ino->di_birthtime);
+	fprintf(dbg_log, "atime      ufs_time_t     %10jd\n", ino->di_atime);
+	fprintf(dbg_log, "mtime      ufs_time_t     %10jd\n", ino->di_mtime);
+	fprintf(dbg_log, "ctime      ufs_time_t     %10jd\n", ino->di_ctime);
+	fprintf(dbg_log, "birthtime  ufs_time_t     %10jd\n", ino->di_birthtime);
 	fprintf(dbg_log, "mtimensec  int32_t        0x%08x\n", ino->di_mtimensec);
 	fprintf(dbg_log, "atimensec  int32_t        0x%08x\n", ino->di_atimensec);
 	fprintf(dbg_log, "ctimensec  int32_t        0x%08x\n", ino->di_ctimensec);
@@ -800,24 +801,24 @@ dbg_dump_ufs2_ino(struct fs *sb, const char *comment, struct ufs2_dinode *ino)
 
 	remaining_blocks=howmany(ino->di_size, sb->fs_bsize); /* XXX ts - +1? */
 	for(ictr=0; ictr < MIN(NDADDR, remaining_blocks); ictr++) {
-		fprintf(dbg_log, "db         ufs2_daddr_t[%x] 0x%16x\n", ictr,
+		fprintf(dbg_log, "db         ufs2_daddr_t[%x] 0x%16jx\n", ictr,
 		    ino->di_db[ictr]);
 	}
 	remaining_blocks-=NDADDR;
 	if(remaining_blocks>0) {
-		fprintf(dbg_log, "ib         ufs2_daddr_t[0] 0x%16x\n",
+		fprintf(dbg_log, "ib         ufs2_daddr_t[0] 0x%16jx\n",
 		    ino->di_ib[0]);
 	}
 	remaining_blocks-=howmany(sb->fs_bsize, sizeof(ufs2_daddr_t));
 	if(remaining_blocks>0) {
-		fprintf(dbg_log, "ib         ufs2_daddr_t[1] 0x%16x\n",
+		fprintf(dbg_log, "ib         ufs2_daddr_t[1] 0x%16jx\n",
 		    ino->di_ib[1]);
 	}
 #define SQUARE(a) ((a)*(a))
 	remaining_blocks-=SQUARE(howmany(sb->fs_bsize, sizeof(ufs2_daddr_t)));
 #undef SQUARE
 	if(remaining_blocks>0) {
-		fprintf(dbg_log, "ib         ufs2_daddr_t[2] 0x%16x\n",
+		fprintf(dbg_log, "ib         ufs2_daddr_t[2] 0x%16jx\n",
 		    ino->di_ib[2]);
 	}
 
@@ -835,8 +836,7 @@ dbg_dump_ufs2_ino(struct fs *sb, const char *comment, struct ufs2_dinode *ino)
 void
 dbg_dump_iblk(struct fs *sb, const char *comment, char *block, size_t length)
 {
-	unsigned int *mem;
-	int i, j, size;
+	unsigned int *mem, i, j, size;
 
 	if(!dbg_log) {
 		return;
