@@ -35,9 +35,7 @@ viddev=/dev/ttyv0
 
 # Handle diskless boots, and other situations where syscons is not present
 #
-if [ ! -c "${kbddev}" ]; then
-	exit 0
-fi
+if [ -c "${kbddev}" ]; then
 
 echo -n 'Configuring syscons:'
 
@@ -196,3 +194,4 @@ if [ -n "${allscreens_kbdflags}" ]; then
 fi
 
 echo '.'
+fi
