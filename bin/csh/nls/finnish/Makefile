@@ -3,7 +3,7 @@
 .include "${.CURDIR}/../Makefile.inc"
 
 NL=     finnish
-DL=
+DL=	fi_FI.ISO_8859-1 fi_FI.DIS_8859-15
 
 .PATH: ${BASESRC}/${NL}
 
