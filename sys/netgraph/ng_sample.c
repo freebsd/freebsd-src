@@ -377,9 +377,10 @@ ng_xxx_rcvdata(hook_p hook, item_p item )
 		}
 	} else {
 		/* It's the debug hook, throw it away.. */
-		if (hook == xxxp->downstream_hook.hook)
+		if (hook == xxxp->downstream_hook.hook) {
 			NG_FREE_ITEM(item);
 			NG_FREE_M(m);
+		}
 	}
 	return 0;
 }

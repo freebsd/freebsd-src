@@ -361,10 +361,8 @@ ng_bpf_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		error = EINVAL;
 		break;
 	}
-	NG_RESPOND_MSG(error, node, item, resp);
 done:
-	if (item)
-		NG_FREE_ITEM(item);
+	NG_RESPOND_MSG(error, node, item, resp);
 	NG_FREE_MSG(msg);
 	return (error);
 }
