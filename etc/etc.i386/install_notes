@@ -230,7 +230,9 @@ shell.
 
 The full binary distribution  extracts to about 46 MB.
 The full source distribution extracts to about 72 MB.
+The kernel source only extracts to about 7 MB.
 To recompile the sources requires an additional 55 MB.
+To recompile the kernel requires an additional 2 MB.
 
 Since additional room is required for extracting the distributions,
 a full binary installation requires a minimum of about 70 MB (46
@@ -417,7 +419,6 @@ To prepare for installing via Kermit:
 
 	Once you have done this, you can proceed to the next
 	step in the installation process, preparing your hard disk.
-
 
 To upgrade:
 
@@ -874,6 +875,32 @@ Further Tips on Installing FreeBSD
 	the install profile will be active (i.e., you will find the
 	commands load_fd, extract etc available to you again).
 
+	If your disk has several operating systems, you may want to
+	install the Thomas Wolfram's os-bs boot manager for selecting
+	which system to boot.  os-bs135.exe if available from the
+	tools directory of the FreeBSD FTP site.  This works well
+	with DOS, OS/2, FreeBSD and other systems.  To install
+	it, boot the system with MS-DOS and insert the dos-floppy
+	containing os-bs135.exe in floppy drive A:.  Then enter the 
+	DOS commands:
+	> A:
+	> os-bs135
+	> cd os-bs
+	> os-bs
+	A menu should now appear on the screen. Use the cursor keys
+	to highlight the install option and hit ENTER.    And follow the
+	instructions from there.
+
+	For more information about the ob-bs program, including its
+	capabilities and limitations, see the file `readme.1st' in the
+	os-bs directory.
+
+	If your disk has several operating systems and you  choose
+	not to install os-bs, then fdisk can be used to change
+	the boot system.  This is done by making the primary
+	partition for the boot system active.  FreeBSD has an
+	fdisk command that can be used for this purpose as well.
+
 
 Configuring Your System:
 ----------- ---- ------
@@ -939,4 +966,4 @@ THANKS FOR USING THIS; that's what makes it all worthwhile.
  as they will end up in our personal mail spools.  We will be
  happy to make other arrangements]
 
-This is $Id: install_notes,v 1.3 1993/09/13 13:37:21 alm Exp $
+This is $Id: install_notes,v 1.4 1993/09/14 02:36:09 alm Exp $

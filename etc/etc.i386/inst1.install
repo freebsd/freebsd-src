@@ -80,7 +80,7 @@ while read data; do
 		fi
 		[ "$sysid" = "$OPSYSID" ] && have_opsys_part=$part_id
 		eval sysid${part_id}=$sysid
-		eval sysname${part_id}="$sysname"
+		eval sysname${part_id}=\"$sysname\"
 		got_sysid=1
 	else 
 		part_id=`expr "$data" : 'The data[^0-9]*\([0-9]*\)'`
@@ -106,16 +106,78 @@ fi
 return 0
 }
 
+set_existing_part() {
+# Set existing partiton values as default (adjusting to cylinder boundaries)
+eval opsys_size=\$size${opsys_part}
+eval opsys_start=\$start${opsys_part}
+[ $opsys_size -eq 50000 ] && opsys_size=$disksize
+opsys_off=`expr $opsys_start / $cylindersize`
+opsys_adjusted=`expr $opsys_off \* $cylindersize`
+if [ $opsys_adjusted -lt $opsys_start -o $opsys_off -eq 0 ]; then
+	opsys_off=`expr $opsys_off + 1`
+	opsys_adjusted=`expr $opsys_off \* $cylindersize`
+	opsys_size=`expr $opsys_size - $opsys_adjusted + $opsys_start`
+fi
+cyls_per_opsys=`expr $opsys_size / $cylindersize`
+RUN_FDISK="fdisk -u"
+}
+
+
+set_overwrite_part() {
+while :; do
+	echo
+	echo -n "Please specify partition to overwrite: [3] "
+	read resp junk
+	opsys_part=${resp:-3}
+	if [ "$opsys_part" -ge 0 -a "$opsys_part" -le 3 ]; then
+		break
+	else
+		echo
+		echo "Partition must be in the range [0-3]"
+	fi
+done
+set_existing_part
+}
+
 analyze_fdisk_data() {
+if [ "$part_cnt" -gt 0 ]; then
+	echo
+	echo "Partition	Offset*	Size*	Name"
+	echo "---------	------	----	----"
+	i=0
+	while [ $i -lt $part_cnt ]; do
+		pcyls=
+		poff=
+		eval psize=\$size${i}
+		eval pstart=\$start${i}
+		eval pname=\$sysname${i}
+		[ "$psize" -eq 50000 ] && psize=$disksize
+		if [ "$psize" ]; then
+			poff=`expr $pstart / $cylindersize`
+			padjusted=`expr $poff \* $cylindersize`
+			if [ "$padjusted" -lt "$pstart" ]; then
+				poff=`expr $poff + 1`
+				padjusted=`expr $poff \* $cylindersize`
+				psize=`expr $psize - $padjusted + $pstart`
+			fi
+			pcyls=`expr $psize / $cylindersize`
+		fi
+		echo -n "${i}"
+		echo -n "		${poff:-0}"
+		echo -n "	${pcyls:-0}"
+		echo "	${pname:-(Unused)}"
+		i=`expr $i + 1`
+	done
+	echo "* Sizes and offsets are in units of cylinders."
+fi
 # Case I: >1024 cylinders
 force_offset=
 if [ $cyls_per_disk -gt 1024 ]; then
 	echo
 	echo "	WARNING: >1024 cylinders.  On some hardware, this prevents"
 	echo "	${OPSYSTEM} from sharing the disk with other operating systems."
-	echo -n "Overwriting existing partitions - okay? [y] "
+	echo -n "Install ${OPSYSTEM} on entire disk, overwriting existing partitions? [n] "
 	read resp junk
-	[ ! "$resp" ] && resp=y
 	case "$resp" in
 	y*|Y*)
 		RUN_FDISK=""
@@ -153,26 +215,12 @@ if [ $sysid_cnt -eq 0 ]; then
 elif [ "$have_opsys_part" ]; then
 	echo
 	echo "386/Net/FreeBSD partition already exists!"
-	echo -n "Overwriting existing partition - okay? [y] "
+	echo -n "Overwrite existing partition? [n] "
 	read resp junk
-	[ ! "$resp" ] && resp=y
 	case "$resp" in
 	y*|Y*)
-		# Set existing partiton values as default (after adjusting to
-		# cylinder boundaries)
-		eval opsys_size=\$size${have_opsys_part}
-		eval opsys_start=\$start${have_opsys_part}
-		[ $opsys_size -eq 50000 ] && opsys_size=$disksize
-		opsys_off=`expr $opsys_start / $cylindersize`
-		opsys_adjusted=`expr $opsys_off \* $cylindersize`
-		if [ $opsys_adjusted -lt $opsys_start -o $opsys_off -eq 0 ]; then
-			opsys_off=`expr $opsys_off + 1`
-			opsys_adjusted=`expr $opsys_off \* $cylindersize`
-			opsys_size=`expr $opsys_size - $opsys_adjusted + $opsys_start`
-		fi
-		cyls_per_opsys=`expr $opsys_size / $cylindersize`
 		opsys_part=${have_opsys_part}
-		RUN_FDISK="fdisk -u"
+		set_existing_part
 		return 0
 		;;
 	*)
@@ -186,7 +234,6 @@ fi
 if [ $sysid_cnt -eq $part_cnt -a ! "$have_opsys_part" ]; then
 	echo
 	echo "No unused partitions."
-	echo "$OPSYSTEM cannot selectively overwrite existing partitions."
 	echo -n "Install $OPSYSTEM and overwrite the entire disk? [n] "
 	read resp junk
 	case "$resp" in
@@ -196,12 +243,12 @@ if [ $sysid_cnt -eq $part_cnt -a ! "$have_opsys_part" ]; then
 		cyls_per_opsys=`expr $cyls_per_disk - 1`
 		opsys_part=${unused_last_part}
 		RUN_FDISK="overwrite"
-		return 0
 		;;
 	*)
-		return 2
+		set_overwrite_part
 		;;
 	esac
+	return 0
 fi
 
 
@@ -216,6 +263,7 @@ mb_sect=`expr 1024 \* 1024 / $bytes_per_sect`
 disk_minimum=`expr $DISKMIN \* $mb_sect`
 
 # Case IV: No room (at end of disk) for mininal install
+[ $extent_max -eq 50000 ] && extent_max=$disksize
 disk_remaining=`expr $disksize - $extent_max`
 if [ $disk_remaining -lt $disk_minimum ]; then
 	echo
@@ -232,14 +280,25 @@ if [ $disk_remaining -lt $disk_minimum ]; then
 		;;
 	*)
 		echo
-		echo "	WARNING: To install ${OPSYSTEM}, you're on your own in figuring"
-		echo "	out where on the disk it will fit without overwriting another"
-		echo "	partition..."
-		# Set defaults assuming there is only one partition at end of disk
-		eval start=\$start${extent_max_part}
-		# don't use first cylinder!
-		opsys_off=1
-		cyls_per_opsys=`expr $start / $cylindersize - 1`
+		echo -n "Overwrite an existing partition? [n] "
+		read resp junk
+		case "$resp" in
+		y*|Y*)
+			set_overwrite_part
+			;;
+		*)
+			echo
+			echo "	WARNING: To install ${OPSYSTEM}, you're on your own in figuring"
+			echo "	out where on the disk it will fit without overwriting another"
+			echo "	partition..."
+			# Set defaults assuming there is only one partition at end of disk
+			eval start=\$start${extent_max_part}
+			# don't use first cylinder!
+			opsys_off=1
+			cyls_per_opsys=`expr $start / $cylindersize - 1`
+			[ $cyls_per_opsys -lt 0 ] && cyls_per_opsys=0
+			;;
+		esac
 		;;
 	esac
 	return 0
@@ -420,38 +479,6 @@ if [ ! "$partition" ]; then
 			continue
 			;;
 		esac
-
-	elif [ "$part_cnt" -gt 0 ]; then
-		cylindersize=`expr $sects_per_track \* $tracks_per_cyl`
-		disksize=`expr $cylindersize \* $cyls_per_disk`
-		echo
-		echo "Partition	Offset*	Size*	Name"
-		echo "---------	------	----	----"
-		i=0
-		while [ $i -lt $part_cnt ]; do
-			pcyls=
-			poff=
-			eval psize=\$size${i}
-			eval pstart=\$start${i}
-			eval pname=\$sysname${i}
-			[ "$psize" -eq 50000 ] && psize=$disksize
-			if [ "$psize" ]; then
-				poff=`expr $pstart / $cylindersize`
-				padjusted=`expr $poff \* $cylindersize`
-				if [ "$padjusted" -lt "$pstart" ]; then
-					poff=`expr $poff + 1`
-					padjusted=`expr $poff \* $cylindersize`
-					psize=`expr $psize - $padjusted + $pstart`
-				fi
-				pcyls=`expr $psize / $cylindersize`
-			fi
-			echo -n "${i}"
-			echo -n "		${poff:-0}"
-			echo -n "	${pcyls:-0}"
-			echo "	${pname:-(Unused)}"
-			i=`expr $i + 1`
-		done
-		echo "* Sizes and offsets are in units of cylinders."
 	fi
 fi
 echo
