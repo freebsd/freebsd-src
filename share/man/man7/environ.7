@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)environ.7	8.3 (Berkeley) 4/19/94
-.\"	$Id$
+.\"	$Id: environ.7,v 1.9 1997/03/07 03:28:14 jmg Exp $
 .\"
 .Dd April 19, 1994
 .Dt ENVIRON 7
@@ -77,6 +77,13 @@ from the password file
 This variable configures all programs which use
 .Xr setlocale 3
 to use the specified locale.
+.It Ev MAIL
+The location of the user's
+mailbox instead of the default in /var/mail, 
+used by
+.Xr mail  1 ,
+.Xr sh 1 ,
+and many other mailclients.
 .It Ev PATH
 The sequence of directories, separated by colons, searched by
 .Xr csh  1  ,
