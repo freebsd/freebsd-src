@@ -45,7 +45,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)mount_nfs.c	8.11 (Berkeley) 5/4/95";
 */
 static const char rcsid[] =
-	"$Id: mount_nfs.c,v 1.21 1997/04/18 16:23:10 dfr Exp $";
+	"$Id: mount_nfs.c,v 1.22 1997/05/01 12:30:02 dfr Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -111,6 +111,7 @@ struct mntopt mopts[] = {
 	MOPT_STDOPTS,
 	MOPT_FORCE,
 	MOPT_UPDATE,
+	MOPT_ASYNC,
 	{ "bg", 0, ALTF_BG, 1 },
 	{ "conn", 1, ALTF_NOCONN, 1 },
 	{ "dumbtimer", 0, ALTF_DUMBTIMR, 1 },
