@@ -345,6 +345,13 @@ static struct da_quirk_entry da_quirk_table[] =
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "DIVA USB", "Media Reader","*"},
 		/*quirks*/ DA_Q_NO_6_BYTE
+	},
+	{
+		/*
+		 * Daisy Technology PhotoClip USB Camera
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Digital", "World   DMC","*"},
+		/*quirks*/ DA_Q_NO_6_BYTE
 	}
 };
 
