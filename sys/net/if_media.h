@@ -110,8 +110,7 @@ int	ifmedia_ioctl __P((struct ifnet *ifp, struct ifreq *ifr,
  * if_media Options word:
  *	Bits	Use
  *	----	-------
- *	0-3	Media variant
- *	4	RFU
+ *	0-4	Media variant
  *	5-7	Media type
  *	8-15	Type specific options
  *	16-19	RFU
@@ -138,6 +137,8 @@ int	ifmedia_ioctl __P((struct ifnet *ifp, struct ifreq *ifr,
 #define IFM_1000_LX	15		/* 1000BaseLX Single-mode Fiber */
 #define IFM_1000_CX	16		/* 1000BaseCX 150ohm STP */
 #define IFM_1000_TX	17		/* 1000BaseTX 4 pair cat 5 */
+#define IFM_homePNA	18		/* HomePNA media for ethernet frames */
+/* note 31 is the max! */
 
 /*
  * Token ring
@@ -186,7 +187,7 @@ int	ifmedia_ioctl __P((struct ifnet *ifp, struct ifreq *ifr,
  * Masks
  */
 #define	IFM_NMASK	0x000000e0	/* Network type */
-#define	IFM_TMASK	0x0000000f	/* Media sub-type */
+#define	IFM_TMASK	0x0000001f	/* Media sub-type */
 #define	IFM_IMASK	0xf0000000	/* Instance */
 #define	IFM_ISHIFT	28		/* Instance shift */
 #define	IFM_OMASK	0x0000ff00	/* Type specific options */
@@ -250,6 +251,7 @@ struct ifmedia_description {
 	{ IFM_1000_LX,	"1000baseLX" },					\
 	{ IFM_1000_CX,	"1000baseCX" },					\
 	{ IFM_1000_TX,	"1000baseTX" },					\
+	{ IFM_homePNA,	"homePNA" },					\
 	{ 0, NULL },							\
 }
 
