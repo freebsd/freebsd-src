@@ -137,7 +137,7 @@ main(argc, argv)
 		protoprivs = getprivs(0, quotatype);
 		if (writetimes(protoprivs, tmpfd, quotatype) == 0)
 			exit(1);
-		if (editit(tmpfil) && readtimes(protoprivs, tmpfd))
+		if (editit(tmpfil) && readtimes(protoprivs, tmpfil))
 			putprivs(0, quotatype, protoprivs);
 		freeprivs(protoprivs);
 		exit(0);
@@ -148,7 +148,7 @@ main(argc, argv)
 		curprivs = getprivs(id, quotatype);
 		if (writeprivs(curprivs, tmpfd, *argv, quotatype) == 0)
 			continue;
-		if (editit(tmpfil) && readprivs(curprivs, tmpfd))
+		if (editit(tmpfil) && readprivs(curprivs, tmpfil))
 			putprivs(id, quotatype, curprivs);
 		freeprivs(curprivs);
 	}
@@ -396,9 +396,9 @@ writeprivs(quplist, outfd, name, quotatype)
 /*
  * Merge changes to an ASCII file into a quotause list.
  */
-readprivs(quplist, infd)
+readprivs(quplist, inname)
 	struct quotause *quplist;
-	int infd;
+	char *inname;
 {
 	register struct quotause *qup;
 	FILE *fd;
@@ -407,8 +407,7 @@ readprivs(quplist, infd)
 	struct dqblk dqblk;
 	char *fsp, line1[BUFSIZ], line2[BUFSIZ];
 
-	lseek(infd, 0, L_SET);
-	fd = fdopen(dup(infd), "r");
+	fd = fopen(inname, "r");
 	if (fd == NULL) {
 		fprintf(stderr, "Can't re-read temp file!!\n");
 		return (0);
@@ -537,9 +536,9 @@ writetimes(quplist, outfd, quotatype)
 /*
  * Merge changes of grace times in an ASCII file into a quotause list.
  */
-readtimes(quplist, infd)
+readtimes(quplist, inname)
 	struct quotause *quplist;
-	int infd;
+	char *inname;
 {
 	register struct quotause *qup;
 	FILE *fd;
@@ -548,8 +547,7 @@ readtimes(quplist, infd)
 	time_t itime, btime, iseconds, bseconds;
 	char *fsp, bunits[10], iunits[10], line1[BUFSIZ];
 
-	lseek(infd, 0, L_SET);
-	fd = fdopen(dup(infd), "r");
+	fd = fopen(inname, "r");
 	if (fd == NULL) {
 		fprintf(stderr, "Can't re-read temp file!!\n");
 		return (0);
