@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)fpgetround.3	1.0 (Berkeley) 9/23/93
-.\"	$Id$
+.\"	$Id: fpgetround.3,v 1.3 1997/03/07 03:27:53 jmg Exp $
 .\"
 .Dd August 23, 1993
 .Dt FPGETROUND 3
@@ -47,22 +47,22 @@
 .Fd #include <floatingpoint.h>
 .Ft typedef enum {
 .br
-.Ft 	FP_RN,
+.Fa 	FP_RN,
 .Li		/* round to nearest */
 .br
-.Ft 	FP_RM,
+.Fa 	FP_RM,
 .Li		/* round to minus infinity */
 .br
-.Ft 	FP_RP,
+.Fa 	FP_RP,
 .Li		/* round to plus infinity */
 .br
-.Ft 	FP_RZ,
+.Fa 	FP_RZ,
 .Li		/* truncate */
 .br
 .Ft } fp_rnd;
 .Pp
 .Ft fp_rnd
-.Fn fpgetround ""
+.Fn fpgetround void
 .Ft fp_rnd
 .Fn fpsetround "fp_rnd direction"
 .Fd #define fp_except int
@@ -73,11 +73,11 @@
 .Fd #define FP_X_IMP	0x20		/* loss of precision */
 .Fd #define FP_X_DNML	0x02		/* denormal */
 .Ft fp_except
-.Fn fpgetmask ""
+.Fn fpgetmask void
 .Ft fp_except
 .Fn fpsetmask "fp_except mask"
 .Ft fp_except
-.Fn fpgetsticky ""
+.Fn fpgetsticky void
 .Ft fp_except
 .Fn fpresetsticky "fp_except sticky"
 .Sh DESCRIPTION
