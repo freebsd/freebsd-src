@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: saver.h,v 1.14 1998/12/31 13:40:26 des Exp $
+ *	$Id: saver.h,v 1.15 1999/01/11 03:18:42 yokota Exp $
  */
 #include <machine/apm_bios.h>
 #include <machine/console.h>
@@ -43,6 +43,8 @@
 	}
 #define get_mode_info(adp, mode, buf)					\
 	(*vidsw[(adp)->va_index]->get_info)((adp), (mode), (buf))
+#define set_origin(adp, o)						\
+	(*vidsw[(adp)->va_index]->set_win_org)(adp, o)
 	
 extern scr_stat	*cur_console;
 extern char	scr_map[];
