@@ -736,8 +736,10 @@ dadump(dev_t dev)
 		addr += PAGE_SIZE * dumppages;
 
 		/* operator aborting dump? */
-		if (cncheckc() != -1)
+		if (cncheckc() == 0x03)
 			return (EINTR);
+		else
+			printf("[CTRL-C to abort] ");
 	}
 
 	/*
