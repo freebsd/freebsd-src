@@ -40,8 +40,8 @@
  * $FreeBSD$
  */
 
-#ifndef _VARARGS_H_
-#define	_VARARGS_H_
+#ifndef _MACHINE_VARARGS_H_
+#define	_MACHINE_VARARGS_H_
 
 #if defined(__GNUC__) && (__GNUC__ == 2 && __GNUC_MINOR__ > 95 || __GNUC__ >= 3)
 
@@ -86,4 +86,4 @@ typedef char *va_list;
 
 #endif /* __GNUC__ post GCC 2.95 */
 
-#endif /* !_VARARGS_H_ */
+#endif /* !_MACHINE_VARARGS_H_ */
