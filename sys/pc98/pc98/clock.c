@@ -874,14 +874,6 @@ set_timer_freq(u_int freq, int intr_freq)
 	mtx_unlock_spin(&clock_lock);
 }
 
-/*
- * i8254_restore is called from apm_default_resume() to reload
- * the countdown register.
- * this should not be necessary but there are broken laptops that
- * do not restore the countdown register on resume.
- * when it happnes, it messes up the hardclock interval and system clock,
- * which leads to the infamous "calcru: negative time" problem.
- */
 static void
 i8254_restore(void)
 {
@@ -898,15 +890,20 @@ static void
 rtc_restore(void)
 {
 
-	/* Reenable RTC updates and interrupts. */
-	/* XXX locking is needed for RTC access? */
-	writertc(RTC_STATUSB, RTCSB_HALT | RTCSB_24HR);
+	/* Restore all of the RTC's "status" (actually, control) registers. */
+	/* XXX locking is needed for RTC access. */
+	writertc(RTC_STATUSB, RTCSB_24HR);
+	writertc(RTC_STATUSA, rtc_statusa);
 	writertc(RTC_STATUSB, rtc_statusb);
 }
 #endif
 
 /*
- * Restore all the timers atomically.
+ * Restore all the timers non-atomically (XXX: should be atomically).
+ *
+ * This function is called from pmtimer_resume() to restore all the timers.
+ * This should not be necessary, but there are broken laptops that do not
+ * restore all the timers on resume.
  */
 void
 timer_restore(void)
@@ -1431,6 +1428,7 @@ cpu_initclocks()
 			 * on the IO APIC.
 			 * Workaround: Limited variant of mixed mode.
 			 */
+
 			crit = intr_disable();
 			mtx_lock_spin(&icu_lock);
 			INTRDIS(1 << apic_8254_intr);
