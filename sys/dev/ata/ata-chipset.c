@@ -926,14 +926,17 @@ ata_promise_ident(device_t dev)
      { ATA_PDC20263,  0, PRNEW, 0x00,	ATA_UDMA4, "Promise" },
      { ATA_PDC20265,  0, PRNEW, 0x00,	ATA_UDMA5, "Promise" },
      { ATA_PDC20267,  0, PRNEW, 0x00,	ATA_UDMA5, "Promise" },
-     { ATA_PDC20268,  0, PRTX2, PRTX4,	ATA_UDMA5, "Promise TX2" },
-     { ATA_PDC20268R, 0, PRTX2, PRTX4,	ATA_UDMA5, "Promise TX2" },
-     { ATA_PDC20269,  0, PRTX2, 0x00,	ATA_UDMA6, "Promise TX2" },
-     { ATA_PDC20271,  0, PRTX2, 0x00,	ATA_UDMA6, "Promise TX2" },
-     { ATA_PDC20275,  0, PRTX2, 0x00,	ATA_UDMA6, "Promise TX2" },
-     { ATA_PDC20276,  0, PRTX2, PRSX6K, ATA_UDMA6, "Promise TX2" },
-     { ATA_PDC20277,  0, PRTX2, 0x00,	ATA_UDMA6, "Promise TX2" },
-     { ATA_PDC20376,  0, PRTX2, 0x00,	ATA_UDMA6, "Promise SATA" },
+     { ATA_PDC20268,  0, PRTX,  PRTX4,	ATA_UDMA5, "Promise TX2" },
+     { ATA_PDC20268R, 0, PRTX,  PRTX4,	ATA_UDMA5, "Promise TX2" },
+     { ATA_PDC20269,  0, PRTX,  0x00,	ATA_UDMA6, "Promise TX2" },
+     { ATA_PDC20271,  0, PRTX,  0x00,	ATA_UDMA6, "Promise TX2" },
+     { ATA_PDC20275,  0, PRTX,  0x00,	ATA_UDMA6, "Promise TX2" },
+     { ATA_PDC20276,  0, PRTX,  PRSX6K, ATA_UDMA6, "Promise TX2" },
+     { ATA_PDC20277,  0, PRTX,  0x00,	ATA_UDMA6, "Promise TX2" },
+#if notyet
+     { ATA_PDC20376,  0, PRCH,  0x00,	ATA_UDMA6, "Promise SATA" },
+     { ATA_PDC20621,  0, PRCH,  0x00,	ATA_UDMA6, "Promise SX4000" },
+#endif
      { 0, 0, 0, 0, 0, 0}};
     char *desc, buffer[64];
     uintptr_t devid = 0;
@@ -942,20 +945,19 @@ ata_promise_ident(device_t dev)
 	return ENXIO;
 
     /* if we are on a SuperTrak SX6000 dont attach */
-    if (idx->cfg2 & PRSX6K &&
+    if ((idx->cfg2 & PRSX6K) && pci_get_class(GRANDPARENT(dev))==PCIC_BRIDGE &&
 	!BUS_READ_IVAR(device_get_parent(GRANDPARENT(dev)),
 		       GRANDPARENT(dev), PCI_IVAR_DEVID, &devid) &&
-	devid == ATA_I960RM && pci_get_class(GRANDPARENT(dev)) == PCIC_BRIDGE)
+	devid == ATA_I960RM) 
 	return ENXIO;
 
-    if (idx->cfg2 & PRTX4 &&
+    /* if we are on a FastTrak TX4, adjust the interrupt resource */
+    if ((idx->cfg2 & PRTX4) && pci_get_class(GRANDPARENT(dev))==PCIC_BRIDGE &&
 	!BUS_READ_IVAR(device_get_parent(GRANDPARENT(dev)),
 		       GRANDPARENT(dev), PCI_IVAR_DEVID, &devid) &&
-		       devid == ATA_DEC_21150 &&
-		       pci_get_class(GRANDPARENT(dev)) == PCIC_BRIDGE) {
+	devid == ATA_DEC_21150) {
 	static long start = 0, end = 0;
 
-	/* we belive we are on a TX4, now do our (simple) magic */
 	if (pci_get_slot(dev) == 1) {
 	    bus_get_resource(dev, SYS_RES_IRQ, 0, &start, &end);
 	    desc = "Promise TX4 (channel 0+1)";
@@ -991,7 +993,7 @@ ata_promise_chipinit(device_t dev)
 	return ENXIO;
     }
     if ((bus_setup_intr(dev, ctlr->r_irq, INTR_TYPE_BIO | INTR_ENTROPY,
-			ctlr->chip->cfg1 == PRTX2 ?
+			ctlr->chip->cfg1 == PRTX ?
 			    ata_promise_tx2_intr : ata_promise_intr,
 			ctlr, &ctlr->handle))) {
 	device_printf(dev, "unable to setup interrupt\n");
@@ -1083,7 +1085,7 @@ ata_promise_setmode(struct ata_device *atadev, int mode)
     mode = ata_limit_mode(atadev, mode, ctlr->chip->max_dma);
 
     /* is this a TX2 or later chip ? */
-    if (ctlr->chip->cfg1 >= PRTX2) {
+    if (ctlr->chip->cfg1 >= PRTX) {
 	ATA_OUTB(atadev->channel->r_bmio, ATA_BMDEVSPEC_0, 0x0b);
 	if (mode > ATA_UDMA2 &&
 	    ATA_INB(atadev->channel->r_bmio, ATA_BMDEVSPEC_1) & 0x04) {
@@ -1110,7 +1112,7 @@ ata_promise_setmode(struct ata_device *atadev, int mode)
 		   (error) ? "failed" : "success",
 		   ata_mode2str(mode), ctlr->chip->text);
     if (!error) {
-	if (ctlr->chip->cfg1 < PRTX2)
+	if (ctlr->chip->cfg1 < PRTX)
 	    pci_write_config(device_get_parent(atadev->channel->dev),
 			     0x60 + (devno << 2),
 			     timings33[ctlr->chip->cfg1][ata_mode2idx(mode)],4);

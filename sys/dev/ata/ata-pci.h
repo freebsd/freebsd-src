@@ -128,6 +128,7 @@ struct ata_pci_controller {
 #define ATA_PDC20276		0x5275105a
 #define ATA_PDC20277		0x7275105a
 #define ATA_PDC20376		0x3376105a
+#define ATA_PDC20621		0x6621105a
 
 #define ATA_SERVERWORKS_ID	0x1166
 #define ATA_ROSB4		0x02111166
@@ -212,7 +213,8 @@ struct ata_pci_controller {
 
 #define PROLD		0
 #define PRNEW		1
-#define PRTX2		2
+#define PRTX		2
+#define PRCH		3
 #define PRTX4		0x01
 #define PRSX6K		0x02
 
