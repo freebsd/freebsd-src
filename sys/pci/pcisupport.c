@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.28 1996/01/23 21:31:51 wollman Exp $
+**  $Id: pcisupport.c,v 1.29 1996/01/25 20:38:31 wollman Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -468,8 +468,9 @@ static const struct condmsg conf82371fb[] =
     { 0x4e, 0x10, 0x10, M_EN, 0 },
     { 0x00, 0x00, 0x00, M_TR, "\n" },
 
+    { 0x00, 0x00, 0x00, M_TR, "\tInterrupt Routing: " },
 #define PIRQ(x, n) \
-    { 0x00, 0x00, 0x00, M_TR, "\t" n " Routing: " }, \
+    { 0x00, 0x00, 0x00, M_TR, n ": " }, \
     { x, 0x80, 0x80, M_EQ, "disabled" }, \
     { x, 0xc0, 0x40, M_EQ, "[shared] " }, \
     { x, 0x8f, 0x03, M_EQ, "IRQ3" }, \
@@ -482,20 +483,34 @@ static const struct condmsg conf82371fb[] =
     { x, 0x8f, 0x0b, M_EQ, "IRQ11" }, \
     { x, 0x8f, 0x0c, M_EQ, "IRQ12" }, \
     { x, 0x8f, 0x0e, M_EQ, "IRQ14" }, \
-    { x, 0x8f, 0x0f, M_EQ, "IRQ15" }, \
-    { 0x00, 0x00, 0x00, M_TR, "\n" }
+    { x, 0x8f, 0x0f, M_EQ, "IRQ15" }
 
     /* Interrupt routing */
-    PIRQ(0x60, "INTA"),
-    PIRQ(0x61, "INTB"),
-    PIRQ(0x62, "INTC"),
-    PIRQ(0x63, "INTD"),
-    PIRQ(0x70, "MBIRQ0"),
-    PIRQ(0x71, "MBIRQ1"),
+    PIRQ(0x60, "A"),
+    PIRQ(0x61, ", B"),
+    PIRQ(0x62, ", C"),
+    PIRQ(0x63, ", D"),
+    PIRQ(0x70, "\n\t\tMB0"),
+    PIRQ(0x71, ", MB1"),
+
+    { 0x00, 0x00, 0x00, M_TR, "\n" },
 
 #undef PIRQ
 
     /* XXX - do DMA routing, too? */
+    { 0 }
+};
+
+static const struct condmsg conf82371fb2[] =
+{
+    /* IDETM -- IDE Timing Register */
+    { 0x00, 0x00, 0x00, M_TR, "\tPrimary IDE: " },
+    { 0x41, 0x80, 0x80, M_EN, 0 },
+    { 0x00, 0x00, 0x00, M_TR, "\n\tSecondary IDE: " },
+    { 0x43, 0x80, 0x80, M_EN, 0 },
+    { 0x00, 0x00, 0x00, M_TR, "\n" },
+
+    /* end of list */
     { 0 }
 };
 
@@ -571,6 +586,11 @@ chipset_attach (pcici_t config_id, int unit)
 		break;
 	case 0x122e8086:
 		writeconfig (config_id, conf82371fb);
+		break;
+	case 0x12308086:
+		printf("\tI/O Base Address: %#lx\n",
+		       (u_long)pci_conf_read(config_id, 0x20) & 0xfff0);
+		writeconfig (config_id, conf82371fb2);
 		break;
 	};
 #endif /* PCI_QUIET */

@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.41 1996/01/23 21:47:16 se Exp $
+**  $Id: pci.c,v 1.42 1996/01/25 18:31:58 se Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -429,6 +429,13 @@ pci_bus_config (void)
 		continue;
 
 	real_device:
+		/*
+		 * Ack.  The Triton PIIX doesn't correctly set
+		 * the multifunction bit.  Fake it.
+		 */
+		if (type == 0x122e8086) {
+			maxfunc = 1;
+		}
 
 		if (func == 0 && (pcibus->pb_read (tag, PCI_HEADER_MISC) 
 						& PCI_HEADER_MULTIFUNCTION)) {
