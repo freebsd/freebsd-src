@@ -30,42 +30,42 @@ extern char boot2[];
 int
 disk_size(struct disklabel *lbl)
 {
-    int size;
-    
-    size = lbl->d_secsize * lbl->d_nsectors *
+	int size;
+
+	size = lbl->d_secsize * lbl->d_nsectors *
 	lbl->d_ntracks * lbl->d_ncylinders;
-    return (size / 1024 / 1024);
+	return (size / 1024 / 1024);
 }
 
 int
 sectstoMb(int nsects, int secsize)
 {
-    int size;
-    
-    size = nsects * secsize;
-    if (size)
+	int size;
+
+	size = nsects * secsize;
+	if (size)
 	size /= 1024 * 1024;
-    return (size);
+	return (size);
 }
 
 int
 Mbtosects(int Mb, int secsize)
 {
-    int nsects;
+	int nsects;
     
-    nsects = (Mb * 1024 * 1024) / secsize;
-    return(nsects);
+	nsects = (Mb * 1024 * 1024) / secsize;
+	return(nsects);
 }
 
 int
 rndtocylbdry(int size, int secpercyl)
 {
-    int nocyls;
-    
-    nocyls = size / secpercyl;
-    if ((nocyls * secpercyl) < size)
-	nocyls++;
-    return (nocyls * secpercyl);
+	int nocyls;
+
+	nocyls = size / secpercyl;
+	if ((nocyls * secpercyl) < size)
+		nocyls++;
+	return (nocyls * secpercyl);
 }
 
 char *
@@ -108,11 +108,12 @@ edit_disklabel(int disk)
 	int key = 0;
 	int next;
 	int cur_field;
+	int cur_part;
 	int i;
 	struct disklabel *lbl = &disk_list[disk].lbl;
-	int offset;
-	int nsects;
-	int avail_sects;
+	int offset, slop;
+	int nsects, hog;
+	int avail_sects, free;
 
 	lbl->d_magic = DISKMAGIC;
 	bcopy("INSTALLATION", lbl->d_typename, strlen("INSTALLATION"));
@@ -126,7 +127,7 @@ edit_disklabel(int disk)
 	lbl->d_sbsize = SBSIZE;
 	lbl->d_npartitions = 8;
 
-	/* Inialise the fstab entries */
+	/* Initialise the entries */
 	for (i=0; i < MAXPARTITIONS; i++) {
 		disk_list[disk].mounts[i].fs_spec = 
 			(char *)malloc(label_field[i*5].maxlen+1);
@@ -152,6 +153,9 @@ edit_disklabel(int disk)
 			return (-1);
 		}
 		sprintf(disk_list[disk].mounts[i].fs_file, "%s", "Not Mounted");
+
+		sprintf(label_field[(i*5)+3].field, "%d",
+			     sectstoMb(lbl->d_partitions[i].p_size, lbl->d_secsize));
 	}
 
 	if (!(window = newwin(24, 79, 0, 0))) {
@@ -162,10 +166,39 @@ edit_disklabel(int disk)
 	keypad(window, TRUE);
     
 	draw_box(window, 0, 0, 24, 79, dialog_attr, border_attr);
-   
 
 	cur_field = 1;
 	while (key != ESC) {
+
+		/* Update disklabel */
+
+		avail_sects = lbl->d_partitions[OURPART].p_size;
+		offset = lbl->d_partitions[OURPART].p_offset;
+		slop = rndtocylbdry(offset, lbl->d_secpercyl) - offset;
+		for (i=0; i < MAXPARTITIONS; i++) {
+			if (i == OURPART)
+				continue;
+			if (i == RAWPART)
+				continue;
+			lbl->d_partitions[i].p_offset = offset;
+			nsects = atoi(label_field[(i*5)+3].field);
+			nsects = Mbtosects(nsects, lbl->d_secsize);
+			nsects = rndtocylbdry(nsects, lbl->d_secpercyl);
+			if (slop) {
+				nsects += slop;
+				slop = 0;
+			}
+			if (nsects > avail_sects)
+				nsects = avail_sects;
+			avail_sects -= nsects;
+			offset += nsects;
+			if (nsects == 0)
+				lbl->d_partitions[i].p_offset = 0;
+			lbl->d_partitions[i].p_size = nsects;
+			lbl->d_partitions[i].p_fsize = DEFFSIZE;
+			lbl->d_partitions[i].p_frag = DEFFRAG;
+		}
+
 		for (i=0; i < MAXPARTITIONS; i++) {
 			sprintf(label_field[(i*5)].field, "%s",
 					  disk_list[disk].mounts[i].fs_spec);
@@ -179,21 +212,47 @@ edit_disklabel(int disk)
 					  disk_list[disk].mounts[i].fs_file);
 		}
 
-		disp_fields(window, label_field, sizeof(label_field)/sizeof(struct field));
-		key = line_edit(window, label_field[cur_field].y,
-					label_field[cur_field].x,
-					label_field[cur_field].width,
-					label_field[cur_field].maxlen,
-					item_selected_attr,
-					1,
-					label_field[cur_field].field);
-		next = change_field(label_field[cur_field], key);
-		if (next == -1)
-			beep();
-		else
-			cur_field = next;
+		sprintf(label_field[47].field, "%d",
+					sectstoMb(avail_sects, lbl->d_secsize));
 
-		/* Update label */
+		disp_fields(window, label_field,
+						sizeof(label_field)/sizeof(struct field));
+
+		do {
+			next = change_field(label_field[cur_field], key);
+			if (next == -1) {
+				beep();
+				break;
+			} else
+				cur_field = next;
+			cur_part = cur_field/5;
+		} while ((cur_part == OURPART) || (cur_part == RAWPART));
+
+		if (label_field[cur_field].type == F_EDIT)
+			key = edit_line(window, label_field[cur_field].y,
+										label_field[cur_field].x,
+										label_field[cur_field].field,
+										label_field[cur_field].width,
+										label_field[cur_field].maxlen);
+		if (label_field[cur_field].type == F_TOGGLE) {
+			/* There's ony one fortunately */
+			key = edit_line(window, label_field[cur_field].y,
+										label_field[cur_field].x,
+										label_field[cur_field].field,
+										label_field[cur_field].width,
+										label_field[cur_field].maxlen);
+			if (key == ' ') {
+				if (strcmp(label_field[cur_field].field, "YES"))
+					strcpy(label_field[cur_field].field, "NO");
+			} else
+					strcpy(label_field[cur_field].field, "YES");
+		}
+		/*
+		 * Skip certain partitions.
+		 * XXX - This isn't very elegant.
+		 */
+		/* Update mount info */
+
 		for (i=0; i<MAXPARTITIONS; i++) {
 			sprintf(disk_list[disk].mounts[i].fs_spec, "%s",
 					 label_field[(i*5)].field);
@@ -201,27 +260,6 @@ edit_disklabel(int disk)
 					 label_field[(i*5)+1].field);
 			sprintf(disk_list[disk].mounts[i].fs_file, "%s",
 					 label_field[(i*5)+4].field);
-		}
-
-		avail_sects = lbl->d_partitions[OURPART].p_size;
-		offset = lbl->d_partitions[OURPART].p_offset;
-		for (i=0; i < MAXPARTITIONS; i++) {
-			if (i == OURPART)
-				continue;
-			if (i == RAWPART)
-				continue;
-			lbl->d_partitions[i].p_offset = offset;
-			nsects = atoi(label_field[(i*5)+3].field);
-			nsects = Mbtosects(nsects, lbl->d_secsize);
-			if (nsects > avail_sects)
-				nsects = avail_sects;
-			avail_sects -= nsects;
-			offset += nsects;
-			if (nsects == 0)
-				lbl->d_partitions[i].p_offset = 0;
-			lbl->d_partitions[i].p_size = nsects;
-			lbl->d_partitions[i].p_fsize = DEFFSIZE;
-			lbl->d_partitions[i].p_frag = DEFFRAG;
 		}
 	}
 

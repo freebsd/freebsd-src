@@ -151,46 +151,46 @@ clear_mbr(struct mbr *mbr, char *bootcode)
     int fd;
     
     /*
-     * If installing to the whole disk
-     * then clobber any existing bootcode.
+     * Must replace any old bootcode that was read
+     * from disk with our bootblocks.
      */
     
-    TellEm("Loading MBR code from %s", bootcode);
-    fd = open(bootcode, O_RDONLY);
-    if (fd < 0) {
-	sprintf(errmsg, "Couldn't open boot file %s\n", bootcode);
-	return(-1);
-    }  
+	TellEm("Loading MBR code from %s", bootcode);
+	fd = open(bootcode, O_RDONLY);
+	if (fd < 0) {
+		sprintf(errmsg, "Couldn't open boot file %s\n", bootcode);
+		return(-1);
+	}  
     
-    if (read(fd, mbr->bootcode, MBRSIZE) < 0) {
-	sprintf(errmsg, "Couldn't read from boot file %s\n", bootcode);
-	return(-1);
-    }
+	if (read(fd, mbr->bootcode, MBRSIZE) < 0) {
+		sprintf(errmsg, "Couldn't read from boot file %s\n", bootcode);
+		return(-1);
+	}
     
-    if (close(fd) == -1) {
-	sprintf(errmsg, "Couldn't close boot file %s\n", bootcode);
-	return(-1);
-    }
+	if (close(fd) == -1) {
+		sprintf(errmsg, "Couldn't close boot file %s\n", bootcode);
+		return(-1);
+	}
     
-    /* Create an empty partition table */
-    
-    for (i=0; i < NDOSPART; i++) {
-	mbr->dospart[i].dp_flag = 0;
-	mbr->dospart[i].dp_shd = 0;
-	mbr->dospart[i].dp_ssect = 0;
-	mbr->dospart[i].dp_scyl = 0;
-	mbr->dospart[i].dp_typ = 0;
-	mbr->dospart[i].dp_ehd = 0;
-	mbr->dospart[i].dp_esect = 0;
-	mbr->dospart[i].dp_ecyl = 0;
-	mbr->dospart[i].dp_start = 0;
-	mbr->dospart[i].dp_size = 0;
-    }
+	/* Create an empty partition table */
 
-    mbr->magic = MBR_MAGIC;
-    
-    dialog_clear();
-    return(0);
+	for (i=0; i < NDOSPART; i++) {
+		mbr->dospart[i].dp_flag = 0;
+		mbr->dospart[i].dp_shd = 0;
+		mbr->dospart[i].dp_ssect = 0;
+		mbr->dospart[i].dp_scyl = 0;
+		mbr->dospart[i].dp_typ = 0;
+		mbr->dospart[i].dp_ehd = 0;
+		mbr->dospart[i].dp_esect = 0;
+		mbr->dospart[i].dp_ecyl = 0;
+		mbr->dospart[i].dp_start = 0;
+		mbr->dospart[i].dp_size = 0;
+	}
+
+	mbr->magic = MBR_MAGIC;
+ 
+	dialog_clear();
+	return(0);
 }
 
 int
@@ -212,7 +212,7 @@ dedicated_mbr(struct mbr *mbr, char *bootcode, struct disklabel *lbl)
 	dp->dp_size =
 	(lbl->d_nsectors * lbl->d_ntracks * lbl->d_ncylinders) - dp->dp_start;
     
-	dp->dp_typ = DOSPTYP_386BSD;
+	dp->dp_typ = MBR_PTYPE_FreeBSD;
 	dp->dp_flag = ACTIVE;
 
 	return(0);
@@ -253,12 +253,9 @@ get_geom_values(int disk)
 		sprintf(field[2].field, "%ld", lbl->d_nsectors);
 
 		disp_fields(window, field, sizeof(field)/sizeof(struct field));
-		key = line_edit(window, field[cur_field].y, field[cur_field].x,
-					 field[cur_field].width,
-					 field[cur_field].maxlen,
-					 item_selected_attr,
-					 1,
-					 field[cur_field].field);
+		key = edit_line(window, field[cur_field].y, field[cur_field].x,
+					 field[cur_field].field, field[cur_field].width,
+					 field[cur_field].maxlen);
 		next = change_field(field[cur_field], key);
 		if (next == -1)
 			beep();
@@ -288,7 +285,7 @@ edit_mbr(int disk)
 
 	/* Confirm disk parameters */
 #ifdef 0
-	dialog_msgbox("BIOS disk geometry values", "In order to setup the boot area of the disk it is necessary to know the BIOS values for the disk geometry i.e. the number of cylinders, heads and sectors. These values may be different form the real geometry of the disk, depending on whether or not your system uses geometry translation. At this stage it is the entries from the BIOS that are needed. If you do not know these they can be found by rebooting the machine and entering th BIOS setup routine. See you BIOS manual for details", -1, -1, 1)
+	dialog_msgbox("\nBIOS disk geometry values", "In order to setup the boot area of the disk it is necessary to know the BIOS values for the disk geometry i.e. the number of cylinders, heads and sectors. These values may be different form the real geometry of the disk, depending on whether or not your system uses geometry translation. At this stage it is the entries from the BIOS that are needed. If you do not know these they can be found by rebooting the machine and entering th BIOS setup routine. See you BIOS manual for details.\n", -1, -1, 1)
 #endif
 	if (get_geom_values(disk) == -1)
 		return(-1);
@@ -303,10 +300,11 @@ edit_mbr(int disk)
 		while (!ok) {
 			AskAbort(scratch);
 			if (!dialog_yesno(TITLE,
-						"Are you sure you wish to proceed ?",
-						-1, -1)) {
+									"\nAre you sure you wish to proceed ?\n",
+									-1, -1)) {
+				dialog_clear();
 				if (dedicated_mbr(mbr, boot1, &disk_list[disk].lbl) == -1) {
-					sprintf(scratch, "\n\nCouldn't create new master boot record.\n\n%s", errmsg);
+					sprintf(scratch, "\nCouldn't create new master boot record.\n\n%s", errmsg);
 					return(-1);
 				}
 				ok = 1;
@@ -314,16 +312,13 @@ edit_mbr(int disk)
 		}
 	}
 
-	sprintf(scratch, "Do you wish to dedicate the whole disk to FreeBSD?\n\nDoing so will overwrite any existing data on the disk.");
+	sprintf(scratch, "\nDo you wish to dedicate the whole disk to FreeBSD?\n\nDoing so will overwrite any existing data on the disk.\n");
 	dialog_clear_norefresh();
 	if (!dialog_yesno(TITLE, scratch, -1, -1))
 		if (dedicated_mbr(mbr, boot1, &disk_list[disk].lbl) == -1) {
-			sprintf(scratch, "\n\nCouldn't dedicate disk to FreeBSD.\n\n %s", errmsg);
+			sprintf(scratch, "\nCouldn't dedicate disk to FreeBSD.\n\n %s", errmsg);
 			return(-1);
 		}
-
-	/* Fill in fields with mbr data */
-
 
 	if (!(window = newwin(24, 79, 0, 0))) {
 		sprintf(errmsg, "Failed to open window for MBR editor\n");
@@ -353,41 +348,58 @@ edit_mbr(int disk)
 		}
 
 		disp_fields(window, mbr_field, sizeof(mbr_field)/sizeof(struct field));
-		key = line_edit(window, mbr_field[cur_field].y, mbr_field[cur_field].x,
-				mbr_field[cur_field].width,
-				mbr_field[cur_field].maxlen,
-				item_selected_attr,
-				1,
-				mbr_field[cur_field].field);
-
-		/* Propagate changes to MBR */
-		for (i=0; i < NDOSPART; i++) {
-			mbr->dospart[i].dp_start = atoi(mbr_field[(i*12)+2].field);
-			mbr->dospart[i].dp_scyl = atoi(mbr_field[(i*12)+3].field);
-			mbr->dospart[i].dp_shd = atoi(mbr_field[(i*12)+4].field);
-			mbr->dospart[i].dp_ssect = atoi(mbr_field[(i*12)+5].field);
-			mbr->dospart[i].dp_ecyl = atoi(mbr_field[(i*12)+7].field);
-			mbr->dospart[i].dp_ehd = atoi(mbr_field[(i*12)+8].field);
-			mbr->dospart[i].dp_esect = atoi(mbr_field[(i*12)+9].field);
-			mbr->dospart[i].dp_size = atoi(mbr_field[(i*12)+10].field);
+		switch (mbr_field[cur_field].type) {
+			case F_EDIT:
+				key = edit_line(window, mbr_field[cur_field].y,
+							 mbr_field[cur_field].x,
+		                mbr_field[cur_field].field, mbr_field[cur_field].width,
+		                mbr_field[cur_field].maxlen);
+				/* Propagate changes to MBR */
+				for (i=0; i < NDOSPART; i++) {
+					mbr->dospart[i].dp_start = atoi(mbr_field[(i*12)+2].field);
+					mbr->dospart[i].dp_scyl = atoi(mbr_field[(i*12)+3].field);
+					mbr->dospart[i].dp_shd = atoi(mbr_field[(i*12)+4].field);
+					mbr->dospart[i].dp_ssect = atoi(mbr_field[(i*12)+5].field);
+					mbr->dospart[i].dp_ecyl = atoi(mbr_field[(i*12)+7].field);
+					mbr->dospart[i].dp_ehd = atoi(mbr_field[(i*12)+8].field);
+					mbr->dospart[i].dp_esect = atoi(mbr_field[(i*12)+9].field);
+					mbr->dospart[i].dp_size = atoi(mbr_field[(i*12)+10].field);
+				}
+				next = change_field(mbr_field[cur_field], key); 
+				if (next == -1) 
+					beep();
+				else
+					cur_field = next;
+				break;	
+			case F_TITLE:
+			default:
+				break;
 		}
+	} 
 
-		next = change_field(mbr_field[cur_field], key); 
-		if (next == -1) 
-			beep();
-		else
-			cur_field = next;
-	}
-
-	sprintf(scratch, "Writing a new master boot record can erase the current disk contents.\n\n Are you sure you want to write the new MBR?");
+	sprintf(scratch, "\nWriting a new master boot record can erase the current disk contents.\n\n                Are you sure you want to write the new MBR?\n");
 	dialog_clear_norefresh();
 	if (!dialog_yesno("Write new MBR?", scratch, -1, -1)) {
 		sprintf(scratch, "/dev/r%s%dd", disk_list[disk].devconf->dc_name,
 											     disk_list[disk].devconf->dc_unit);
 		if (write_mbr(scratch, mbr) == -1) {
-			sprintf(scratch, "The following error occured while trying to write the new MBR\n\n%s", errmsg);
+			sprintf(scratch, "\nThe following error occured while trying to write the new MBR.\n\n%s", errmsg);
 			return(-1);
 		}
+	}
+
+	/* Find first FreeBSD partition, as kernel would upon boot */
+	disk_list[disk].inst_part = -1;
+	for (i=0; i < NDOSPART; i++)
+		if (mbr->dospart[i].dp_typ == MBR_PTYPE_FreeBSD) {
+			disk_list[disk].inst_part = i;
+			break;
+		}
+
+	if (disk_list[disk].inst_part == -1) {
+		sprintf(errmsg, "\nThere is no space allocated to FreeBSD on %s\n",
+				  diskname(disk));
+		return (-1);
 	}
 
 	delwin(window);
