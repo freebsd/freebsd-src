@@ -1,6 +1,6 @@
 ############
 # Setup system for firewall service.
-# $Id$
+# $Id: rc.firewall,v 1.1 1996/04/03 17:13:58 phk Exp $
 
 ############
 #
@@ -12,6 +12,14 @@
 #
 # If you don't know enough about packet filtering, we suggest that you
 # take time to read this book:
+#
+#	Building Internet Firewalls
+#	Brent Chapman and Elizabeth Zwicky
+#
+#	O'Reilly & Associates, Inc
+#	ISBN 1-56592-124-0
+#
+# For a more advanced treatment of Internet Security read:
 #
 #	Firewalls & Internet Security
 #	Repelling the wily hacker
@@ -50,7 +58,7 @@ if false ; then
     /sbin/ipfw add pass all from ${net}:${mask} to ${ip}
 
     # Allow TCP through if setup succeeded
-    /sbin/ipfw add deny tcp from any to any established
+    /sbin/ipfw add pass tcp from any to any established
 
     # Allow setup of incoming email 
     /sbin/ipfw add pass tcp from any to ${ip} 25 setup
@@ -103,7 +111,7 @@ if false ; then
     /sbin/ipfw add deny all from 10.0.0.0:255.0.0.0 to any via ${oif}
 
     # Allow TCP through if setup succeeded
-    /sbin/ipfw add deny tcp from any to any established
+    /sbin/ipfw add pass tcp from any to any established
 
     # Allow setup of incoming email 
     /sbin/ipfw add pass tcp from any to ${oip} 25 setup
