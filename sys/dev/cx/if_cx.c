@@ -85,7 +85,7 @@ __FBSDID("$FreeBSD$");
 #   include <net/if_sppp.h>
 #   define PP_CISCO IFF_LINK2
 #   if __FreeBSD_version < 500000
-#       include <bpf.h>
+#	include <bpf.h>
 #   endif
 #   include <net/bpf.h>
 #   define NBPFILTER NBPF
@@ -111,10 +111,10 @@ __FBSDID("$FreeBSD$");
 #define CX_DEBUG2(d,s)	({if (d->chan->debug>1) {\
 				printf ("%s: ", d->name); printf s;}})
 
-#define UNIT(d)         (minor(d) & 0x3f)
-#define IF_CUNIT(d)     (minor(d) & 0x40)
-#define UNIT_CTL        0x3f
-#define CALLOUT(d)      (minor(d) & 0x80)
+#define UNIT(d)		(minor(d) & 0x3f)
+#define IF_CUNIT(d)	(minor(d) & 0x40)
+#define UNIT_CTL	0x3f
+#define CALLOUT(d)	(minor(d) & 0x80)
 #define CDEV_MAJOR	42
 
 typedef struct _async_q {
@@ -863,18 +863,18 @@ static int cx_attach (device_t dev)
 #if __FreeBSD_version > 501000
 		if_initname (&d->pp.pp_if, "cx", b->num * NCHAN + c->num);
 #else
-		d->pp.pp_if.if_unit     = b->num * NCHAN + c->num;
-		d->pp.pp_if.if_name     = "cx";
+		d->pp.pp_if.if_unit	= b->num * NCHAN + c->num;
+		d->pp.pp_if.if_name	= "cx";
 #endif
-		d->pp.pp_if.if_mtu      = PP_MTU;
-		d->pp.pp_if.if_flags    = IFF_POINTOPOINT | IFF_MULTICAST;
-		d->pp.pp_if.if_ioctl    = cx_sioctl;
-		d->pp.pp_if.if_start    = cx_ifstart;
-		d->pp.pp_if.if_watchdog = cx_ifwatchdog;
-		d->pp.pp_if.if_init     = cx_initialize;
+		d->pp.pp_if.if_mtu	= PP_MTU;
+		d->pp.pp_if.if_flags	= IFF_POINTOPOINT | IFF_MULTICAST;
+		d->pp.pp_if.if_ioctl	= cx_sioctl;
+		d->pp.pp_if.if_start	= cx_ifstart;
+		d->pp.pp_if.if_watchdog	= cx_ifwatchdog;
+		d->pp.pp_if.if_init	= cx_initialize;
 		sppp_attach (&d->pp.pp_if);
 		if_attach (&d->pp.pp_if);
-		d->pp.pp_tlf            = cx_tlf;
+		d->pp.pp_tlf		= cx_tlf;
 		d->pp.pp_tls		= cx_tls;
 		/* If BPF is in the kernel, call the attach for it.
 		 * Size of PPP header is 4 bytes. */
@@ -1018,14 +1018,14 @@ static int cx_detach (device_t dev)
 #ifndef NETGRAPH
 static void cx_ifstart (struct ifnet *ifp)
 {
-        drv_t *d = ifp->if_softc;
+	drv_t *d = ifp->if_softc;
 
 	cx_start (d);
 }
 
 static void cx_ifwatchdog (struct ifnet *ifp)
 {
-        drv_t *d = ifp->if_softc;
+	drv_t *d = ifp->if_softc;
 
 	cx_watchdog (d);
 }
@@ -1083,7 +1083,7 @@ static int cx_sioctl (struct ifnet *ifp, u_long cmd, caddr_t data)
 		d->chan->debug = 1;
 
 	switch (cmd) {
-	default:           CX_DEBUG2 (d, ("ioctl 0x%lx\n", cmd)); return 0;
+	default:	   CX_DEBUG2 (d, ("ioctl 0x%lx\n", cmd)); return 0;
 	case SIOCADDMULTI: CX_DEBUG2 (d, ("SIOCADDMULTI\n"));     return 0;
 	case SIOCDELMULTI: CX_DEBUG2 (d, ("SIOCDELMULTI\n"));     return 0;
 	case SIOCSIFFLAGS: CX_DEBUG2 (d, ("SIOCSIFFLAGS\n"));     break;
@@ -1289,7 +1289,7 @@ static void cx_receive (cx_chan_t *c, char *data, int len)
 				return;
 
 			if (len > size) {
-			        c->ierrs++;
+				c->ierrs++;
 				cx_error (c, CX_OVERRUN);
 				len = size - 1;
 			}
@@ -1594,7 +1594,7 @@ again:
 	ttyldoptim (d->tty);
 	spl0 ();
 	if (error) {
-failed:         if (! (d->tty->t_state & TS_ISOPEN)) {
+failed:		if (! (d->tty->t_state & TS_ISOPEN)) {
 			splhigh ();
 			cx_set_dtr (d->chan, 0);
 			cx_set_rts (d->chan, 0);
@@ -1685,7 +1685,7 @@ static int cx_modem_status (drv_t *d)
 	/* Already opened by someone or network interface is up? */
 	if ((d->chan->mode == M_ASYNC && d->tty && (d->tty->t_state & TS_ISOPEN) &&
 	    (d->open_dev|0x2)) || (d->chan->mode != M_ASYNC && d->running))
-		status = TIOCM_LE;      /* always enabled while open */
+		status = TIOCM_LE;	/* always enabled while open */
 
 	if (cx_get_dsr (d->chan)) status |= TIOCM_DSR;
 	if (cx_get_cd  (d->chan)) status |= TIOCM_CD;
@@ -1713,18 +1713,18 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		
 	switch (cmd) {
 	case SERIAL_GETREGISTERED:
-	        CX_DEBUG2 (d, ("ioctl: getregistered\n"));
+		CX_DEBUG2 (d, ("ioctl: getregistered\n"));
 		bzero (mask, sizeof(mask));
 		for (s=0; s<NCX*NCHAN; ++s)
 			if (channel [s])
 				mask [s/8] |= 1 << (s & 7);
-	        bcopy (mask, data, sizeof (mask));
+		bcopy (mask, data, sizeof (mask));
 		return 0;
 
 	case SERIAL_GETPORT:
-	        CX_DEBUG2 (d, ("ioctl: getport\n"));
+		CX_DEBUG2 (d, ("ioctl: getport\n"));
 		s = splhigh ();
-	        *(int *)data = cx_get_port (c);
+		*(int *)data = cx_get_port (c);
 		splx (s);
 		if (*(int *)data<0)
 			return (EINVAL);
@@ -1732,123 +1732,123 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 			return 0;
 
 	case SERIAL_SETPORT:
-	        CX_DEBUG2 (d, ("ioctl: setproto\n"));
-	        /* Only for superuser! */
+		CX_DEBUG2 (d, ("ioctl: setproto\n"));
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
-	        error = suser (td);
+		error = suser (td);
 #endif /* __FreeBSD_version >= 500000 */
-	        if (error)
-	                return error;
+		if (error)
+			return error;
 
 		s = splhigh ();
 		cx_set_port (c, *(int *)data);
 		splx (s);
-	        return 0;
+		return 0;
 
 #ifndef NETGRAPH
 	case SERIAL_GETPROTO:
-	        CX_DEBUG2 (d, ("ioctl: getproto\n"));
+		CX_DEBUG2 (d, ("ioctl: getproto\n"));
 		s = splhigh ();
-	        strcpy ((char*)data, (c->mode == M_ASYNC) ? "async" :
+		strcpy ((char*)data, (c->mode == M_ASYNC) ? "async" :
 			(d->pp.pp_flags & PP_FR) ? "fr" :
 			(d->pp.pp_if.if_flags & PP_CISCO) ? "cisco" : "ppp");
 		splx (s);
-	        return 0;
+		return 0;
 
 	case SERIAL_SETPROTO:
-	        CX_DEBUG2 (d, ("ioctl: setproto\n"));
-	        /* Only for superuser! */
+		CX_DEBUG2 (d, ("ioctl: setproto\n"));
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
-	        error = suser (td);
+		error = suser (td);
 #endif /* __FreeBSD_version >= 500000 */
-	        if (error)
-	                return error;
-	        if (c->mode == M_ASYNC)
-	                return EBUSY;
+		if (error)
+			return error;
+		if (c->mode == M_ASYNC)
+			return EBUSY;
 		if (d->pp.pp_if.if_flags & IFF_RUNNING)
 			return EBUSY;
-	        if (! strcmp ("cisco", (char*)data)) {
-	                d->pp.pp_flags &= ~(PP_FR);
-	                d->pp.pp_flags |= PP_KEEPALIVE;
-	                d->pp.pp_if.if_flags |= PP_CISCO;
-	        } else if (! strcmp ("fr", (char*)data)) {
-	                d->pp.pp_if.if_flags &= ~(PP_CISCO);
-	                d->pp.pp_flags |= PP_FR | PP_KEEPALIVE;
-	        } else if (! strcmp ("ppp", (char*)data)) {
-	                d->pp.pp_flags &= ~(PP_FR | PP_KEEPALIVE);
-	                d->pp.pp_if.if_flags &= ~(PP_CISCO);
-	        } else
+		if (! strcmp ("cisco", (char*)data)) {
+			d->pp.pp_flags &= ~(PP_FR);
+			d->pp.pp_flags |= PP_KEEPALIVE;
+			d->pp.pp_if.if_flags |= PP_CISCO;
+		} else if (! strcmp ("fr", (char*)data)) {
+			d->pp.pp_if.if_flags &= ~(PP_CISCO);
+			d->pp.pp_flags |= PP_FR | PP_KEEPALIVE;
+		} else if (! strcmp ("ppp", (char*)data)) {
+			d->pp.pp_flags &= ~(PP_FR | PP_KEEPALIVE);
+			d->pp.pp_if.if_flags &= ~(PP_CISCO);
+		} else
 			return EINVAL;
-	        return 0;
+		return 0;
 
 	case SERIAL_GETKEEPALIVE:
-	        CX_DEBUG2 (d, ("ioctl: getkeepalive\n"));
-	        if ((d->pp.pp_flags & PP_FR) ||
+		CX_DEBUG2 (d, ("ioctl: getkeepalive\n"));
+		if ((d->pp.pp_flags & PP_FR) ||
 		    (d->pp.pp_if.if_flags & PP_CISCO) ||
 		    (c->mode == M_ASYNC))
 			return EINVAL;
 		s = splhigh ();
-	        *(int*)data = (d->pp.pp_flags & PP_KEEPALIVE) ? 1 : 0;
+		*(int*)data = (d->pp.pp_flags & PP_KEEPALIVE) ? 1 : 0;
 		splx (s);
-	        return 0;
+		return 0;
 
 	case SERIAL_SETKEEPALIVE:
-	        CX_DEBUG2 (d, ("ioctl: setkeepalive\n"));
-	        /* Only for superuser! */
+		CX_DEBUG2 (d, ("ioctl: setkeepalive\n"));
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
-	        error = suser (td);
+		error = suser (td);
 #endif /* __FreeBSD_version >= 500000 */
-	        if (error)
-	                return error;
-	        if ((d->pp.pp_flags & PP_FR) ||
+		if (error)
+			return error;
+		if ((d->pp.pp_flags & PP_FR) ||
 			(d->pp.pp_if.if_flags & PP_CISCO))
 			return EINVAL;
 		s = splhigh ();
-	        if (*(int*)data)
-	                d->pp.pp_flags |= PP_KEEPALIVE;
+		if (*(int*)data)
+			d->pp.pp_flags |= PP_KEEPALIVE;
 		else
-	                d->pp.pp_flags &= ~PP_KEEPALIVE;
+			d->pp.pp_flags &= ~PP_KEEPALIVE;
 		splx (s);
-	        return 0;
+		return 0;
 #endif /*NETGRAPH*/
 
 	case SERIAL_GETMODE:
-	        CX_DEBUG2 (d, ("ioctl: getmode\n"));
+		CX_DEBUG2 (d, ("ioctl: getmode\n"));
 		s = splhigh ();
 		*(int*)data = (c->mode == M_ASYNC) ?
 			SERIAL_ASYNC : SERIAL_HDLC;
 		splx (s);
-	        return 0;
+		return 0;
 
 	case SERIAL_SETMODE:
-	        CX_DEBUG2 (d, ("ioctl: setmode\n"));
-	        /* Only for superuser! */
+		CX_DEBUG2 (d, ("ioctl: setmode\n"));
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
-	        error = suser (td);
+		error = suser (td);
 #endif /* __FreeBSD_version >= 500000 */
-	        if (error)
-	                return error;
+		if (error)
+			return error;
 
-	        /* Somebody is waiting for carrier? */
-	        if (d->lock)
-	                return EBUSY;
-	        /* /dev/ttyXX is already opened by someone? */
-	        if (c->mode == M_ASYNC && d->tty && (d->tty->t_state & TS_ISOPEN) &&
+		/* Somebody is waiting for carrier? */
+		if (d->lock)
+			return EBUSY;
+		/* /dev/ttyXX is already opened by someone? */
+		if (c->mode == M_ASYNC && d->tty && (d->tty->t_state & TS_ISOPEN) &&
 		    (d->open_dev|0x2))
-	                return EBUSY;
-	        /* Network interface is up?
-	         * Cannot change to async mode. */
-	        if (c->mode != M_ASYNC && d->running &&
-	            (*(int*)data == SERIAL_ASYNC))
-	                return EBUSY;
+			return EBUSY;
+		/* Network interface is up?
+		 * Cannot change to async mode. */
+		if (c->mode != M_ASYNC && d->running &&
+		    (*(int*)data == SERIAL_ASYNC))
+			return EBUSY;
 
 		s = splhigh ();
 		if (c->mode == M_HDLC && *(int*)data == SERIAL_ASYNC) {
@@ -1860,171 +1860,171 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 			cx_enable_receive (c, 1);
 			cx_enable_transmit (c, 1);
 		}
-	        splx (s);
+		splx (s);
 		return 0;
 
 	case SERIAL_GETSTAT:
-	        CX_DEBUG2 (d, ("ioctl: getestat\n"));
-	        st = (struct serial_statistics*) data;
+		CX_DEBUG2 (d, ("ioctl: getestat\n"));
+		st = (struct serial_statistics*) data;
 		s = splhigh ();
-	        st->rintr  = c->rintr;
-	        st->tintr  = c->tintr;
-	        st->mintr  = c->mintr;
-	        st->ibytes = c->ibytes;
-	        st->ipkts  = c->ipkts;
-	        st->ierrs  = c->ierrs;
-	        st->obytes = c->obytes;
-	        st->opkts  = c->opkts;
-	        st->oerrs  = c->oerrs;
+		st->rintr  = c->rintr;
+		st->tintr  = c->tintr;
+		st->mintr  = c->mintr;
+		st->ibytes = c->ibytes;
+		st->ipkts  = c->ipkts;
+		st->ierrs  = c->ierrs;
+		st->obytes = c->obytes;
+		st->opkts  = c->opkts;
+		st->oerrs  = c->oerrs;
 		splx (s);
-	        return 0;
+		return 0;
 
 	case SERIAL_CLRSTAT:
-	        CX_DEBUG2 (d, ("ioctl: clrstat\n"));
-	        /* Only for superuser! */
+		CX_DEBUG2 (d, ("ioctl: clrstat\n"));
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
-	        error = suser (td);
+		error = suser (td);
 #endif /* __FreeBSD_version >= 500000 */
-	        if (error)
-	                return error;
+		if (error)
+			return error;
 		s = splhigh ();
 		c->rintr = 0;
-	        c->tintr = 0;
-	        c->mintr = 0;
-	        c->ibytes = 0;
-	        c->ipkts = 0;
-	        c->ierrs = 0;
-	        c->obytes = 0;
-	        c->opkts = 0;
-	        c->oerrs = 0;
+		c->tintr = 0;
+		c->mintr = 0;
+		c->ibytes = 0;
+		c->ipkts = 0;
+		c->ierrs = 0;
+		c->obytes = 0;
+		c->opkts = 0;
+		c->oerrs = 0;
 		splx (s);
-	        return 0;
+		return 0;
 
 	case SERIAL_GETBAUD:
-	        CX_DEBUG2 (d, ("ioctl: getbaud\n"));
-	        if (c->mode == M_ASYNC)
-	                return EINVAL;
+		CX_DEBUG2 (d, ("ioctl: getbaud\n"));
+		if (c->mode == M_ASYNC)
+			return EINVAL;
 		s = splhigh ();
-	        *(long*)data = cx_get_baud(c);
+		*(long*)data = cx_get_baud(c);
 		splx (s);
-	        return 0;
+		return 0;
 
 	case SERIAL_SETBAUD:
-	        CX_DEBUG2 (d, ("ioctl: setbaud\n"));
-	        /* Only for superuser! */
+		CX_DEBUG2 (d, ("ioctl: setbaud\n"));
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
-	        error = suser (td);
+		error = suser (td);
 #endif /* __FreeBSD_version >= 500000 */
-	        if (error)
-	                return error;
-	        if (c->mode == M_ASYNC)
-	                return EINVAL;
+		if (error)
+			return error;
+		if (c->mode == M_ASYNC)
+			return EINVAL;
 		s = splhigh ();
-	        cx_set_baud (c, *(long*)data);
-	        splx (s);
-	        return 0;
+		cx_set_baud (c, *(long*)data);
+		splx (s);
+		return 0;
 
 	case SERIAL_GETLOOP:
-	        CX_DEBUG2 (d, ("ioctl: getloop\n"));
-	        if (c->mode == M_ASYNC)
-	                return EINVAL;
+		CX_DEBUG2 (d, ("ioctl: getloop\n"));
+		if (c->mode == M_ASYNC)
+			return EINVAL;
 		s = splhigh ();
-	        *(int*)data = cx_get_loop (c);
+		*(int*)data = cx_get_loop (c);
 		splx (s);
-	        return 0;
+		return 0;
 
 	case SERIAL_SETLOOP:
-	        CX_DEBUG2 (d, ("ioctl: setloop\n"));
-	        /* Only for superuser! */
+		CX_DEBUG2 (d, ("ioctl: setloop\n"));
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
-	        error = suser (td);
+		error = suser (td);
 #endif /* __FreeBSD_version >= 500000 */
-	        if (error)
-	                return error;
-	        if (c->mode == M_ASYNC)
-	                return EINVAL;
+		if (error)
+			return error;
+		if (c->mode == M_ASYNC)
+			return EINVAL;
 		s = splhigh ();
-	        cx_set_loop (c, *(int*)data);
-	        splx (s);
-	        return 0;
+		cx_set_loop (c, *(int*)data);
+		splx (s);
+		return 0;
 
 	case SERIAL_GETDPLL:
-	        CX_DEBUG2 (d, ("ioctl: getdpll\n"));
-	        if (c->mode == M_ASYNC)
-	                return EINVAL;
+		CX_DEBUG2 (d, ("ioctl: getdpll\n"));
+		if (c->mode == M_ASYNC)
+			return EINVAL;
 		s = splhigh ();
-	        *(int*)data = cx_get_dpll (c);
+		*(int*)data = cx_get_dpll (c);
 		splx (s);
-	        return 0;
+		return 0;
 
 	case SERIAL_SETDPLL:
-	        CX_DEBUG2 (d, ("ioctl: setdpll\n"));
-	        /* Only for superuser! */
+		CX_DEBUG2 (d, ("ioctl: setdpll\n"));
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
-	        error = suser (td);
+		error = suser (td);
 #endif /* __FreeBSD_version >= 500000 */
-	        if (error)
-	                return error;
-	        if (c->mode == M_ASYNC)
-	                return EINVAL;
+		if (error)
+			return error;
+		if (c->mode == M_ASYNC)
+			return EINVAL;
 		s = splhigh ();
-	        cx_set_dpll (c, *(int*)data);
-	        splx (s);
-	        return 0;
+		cx_set_dpll (c, *(int*)data);
+		splx (s);
+		return 0;
 
 	case SERIAL_GETNRZI:
-	        CX_DEBUG2 (d, ("ioctl: getnrzi\n"));
-	        if (c->mode == M_ASYNC)
-	                return EINVAL;
+		CX_DEBUG2 (d, ("ioctl: getnrzi\n"));
+		if (c->mode == M_ASYNC)
+			return EINVAL;
 		s = splhigh ();
-	        *(int*)data = cx_get_nrzi (c);
+		*(int*)data = cx_get_nrzi (c);
 		splx (s);
-	        return 0;
+		return 0;
 
 	case SERIAL_SETNRZI:
-	        CX_DEBUG2 (d, ("ioctl: setnrzi\n"));
-	        /* Only for superuser! */
+		CX_DEBUG2 (d, ("ioctl: setnrzi\n"));
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
-	        error = suser (td);
+		error = suser (td);
 #endif /* __FreeBSD_version >= 500000 */
-	        if (error)
-	                return error;
-	        if (c->mode == M_ASYNC)
-	                return EINVAL;
+		if (error)
+			return error;
+		if (c->mode == M_ASYNC)
+			return EINVAL;
 		s = splhigh ();
-	        cx_set_nrzi (c, *(int*)data);
-	        splx (s);
-	        return 0;
+		cx_set_nrzi (c, *(int*)data);
+		splx (s);
+		return 0;
 
 	case SERIAL_GETDEBUG:
-	        CX_DEBUG2 (d, ("ioctl: getdebug\n"));
+		CX_DEBUG2 (d, ("ioctl: getdebug\n"));
 		s = splhigh ();
-	        *(int*)data = c->debug;
+		*(int*)data = c->debug;
 		splx (s);
-	        return 0;
+		return 0;
 
 	case SERIAL_SETDEBUG:
-	        CX_DEBUG2 (d, ("ioctl: setdebug\n"));
-	        /* Only for superuser! */
+		CX_DEBUG2 (d, ("ioctl: setdebug\n"));
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
-	        error = suser (td);
+		error = suser (td);
 #endif /* __FreeBSD_version >= 500000 */
-	        if (error)
-	                return error;
+		if (error)
+			return error;
 		s = splhigh ();
-	        c->debug = *(int*)data;
+		c->debug = *(int*)data;
 		splx (s);
 #ifndef	NETGRAPH
 		if (d->chan->debug)
@@ -2032,7 +2032,7 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		else
 			d->pp.pp_if.if_flags &= (~IFF_DEBUG);
 #endif
-	        return 0;
+		return 0;
 	}
 
 	if (c->mode == M_ASYNC && !IF_CUNIT(dev) && d->tty) {
@@ -2067,62 +2067,62 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	}
 
 	switch (cmd) {
-	case TIOCSBRK:          /* Start sending line break */
+	case TIOCSBRK:	/* Start sending line break */
 	        CX_DEBUG2 (d, ("ioctl: tiocsbrk\n"));
 		s = splhigh ();
 		cx_send_break (c, 500);
 		splx (s);
 	        return 0;
 
-	case TIOCCBRK:          /* Stop sending line break */
-	        CX_DEBUG2 (d, ("ioctl: tioccbrk\n"));
-	        return 0;
+	case TIOCCBRK:	/* Stop sending line break */
+		CX_DEBUG2 (d, ("ioctl: tioccbrk\n"));
+		return 0;
 
-	case TIOCSDTR:          /* Set DTR */
-	        CX_DEBUG2 (d, ("ioctl: tiocsdtr\n"));
+	case TIOCSDTR:	/* Set DTR */
+		CX_DEBUG2 (d, ("ioctl: tiocsdtr\n"));
 		s = splhigh ();
 		cx_set_dtr (c, 1);
 		splx (s);
-	        return 0;
+		return 0;
 
-	case TIOCCDTR:          /* Clear DTR */
-	        CX_DEBUG2 (d, ("ioctl: tioccdtr\n"));
+	case TIOCCDTR:	/* Clear DTR */
+		CX_DEBUG2 (d, ("ioctl: tioccdtr\n"));
 		s = splhigh ();
 		cx_set_dtr (c, 0);
 		splx (s);
-	        return 0;
+		return 0;
 
-	case TIOCMSET:          /* Set DTR/RTS */
-	        CX_DEBUG2 (d, ("ioctl: tiocmset\n"));
+	case TIOCMSET:	/* Set DTR/RTS */
+		CX_DEBUG2 (d, ("ioctl: tiocmset\n"));
 		s = splhigh ();
 		cx_set_dtr (c, (*(int*)data & TIOCM_DTR) ? 1 : 0);
 		cx_set_rts (c, (*(int*)data & TIOCM_RTS) ? 1 : 0);
 		splx (s);
-	        return 0;
+		return 0;
 
-	case TIOCMBIS:          /* Add DTR/RTS */
-	        CX_DEBUG2 (d, ("ioctl: tiocmbis\n"));
+	case TIOCMBIS:	/* Add DTR/RTS */
+		CX_DEBUG2 (d, ("ioctl: tiocmbis\n"));
 		s = splhigh ();
 		if (*(int*)data & TIOCM_DTR) cx_set_dtr (c, 1);
 		if (*(int*)data & TIOCM_RTS) cx_set_rts (c, 1);
 		splx (s);
-	        return 0;
+		return 0;
 
-	case TIOCMBIC:          /* Clear DTR/RTS */
-	        CX_DEBUG2 (d, ("ioctl: tiocmbic\n"));
+	case TIOCMBIC:	/* Clear DTR/RTS */
+		CX_DEBUG2 (d, ("ioctl: tiocmbic\n"));
 		s = splhigh ();
 		if (*(int*)data & TIOCM_DTR) cx_set_dtr (c, 0);
 		if (*(int*)data & TIOCM_RTS) cx_set_rts (c, 0);
 		splx (s);
-	        return 0;
+		return 0;
 
-	case TIOCMGET:          /* Get modem status */
-	        CX_DEBUG2 (d, ("ioctl: tiocmget\n"));
+	case TIOCMGET:	/* Get modem status */
+		CX_DEBUG2 (d, ("ioctl: tiocmget\n"));
 		*(int*)data = cx_modem_status (d);
-	        return 0;
+		return 0;
 
 	}
-        CX_DEBUG2 (d, ("ioctl: 0x%lx\n", cmd));
+	CX_DEBUG2 (d, ("ioctl: 0x%lx\n", cmd));
 	return ENOTTY;
 }
 
@@ -2300,11 +2300,11 @@ static int cx_param (struct tty *tp, struct termios *t)
 	/* Check requested parameters. */
 	if (t->c_ospeed < 300 || t->c_ospeed > 256*1024) {
 		splx (s);
-                return EINVAL;
+		return EINVAL;
 	}
 	if (t->c_ispeed && (t->c_ispeed < 300 || t->c_ispeed > 256*1024)) {
 		splx (s);
-                return EINVAL;
+		return EINVAL;
 	}
 
   	/* And copy them to tty and channel structures. */
@@ -2788,7 +2788,7 @@ static int ng_cx_disconnect (hook_p hook)
 
 static int cx_modevent (module_t mod, int type, void *unused)
 {
-        struct cdev *dev;
+	struct cdev *dev;
 	static int load_count = 0;
 	struct cdevsw *cdsw;
 
