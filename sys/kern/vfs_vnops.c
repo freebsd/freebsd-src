@@ -729,17 +729,19 @@ vn_start_write(vp, mpp, flags)
  * time, these operations are halted until the suspension is over.
  */
 int
-vn_write_suspend_wait(vp, flags)
+vn_write_suspend_wait(vp, mp, flags)
 	struct vnode *vp;
+	struct mount *mp;
 	int flags;
 {
-	struct mount *mp;
 	int error;
 
-	if ((error = VOP_GETWRITEMOUNT(vp, &mp)) != 0) {
-		if (error != EOPNOTSUPP)
-			return (error);
-		return (0);
+	if (vp != NULL) {
+		if ((error = VOP_GETWRITEMOUNT(vp, &mp)) != 0) {
+			if (error != EOPNOTSUPP)
+				return (error);
+			return (0);
+		}
 	}
 	/*
 	 * If we are not suspended or have not yet reached suspended

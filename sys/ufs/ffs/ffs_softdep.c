@@ -548,41 +548,45 @@ softdep_process_worklist(matchmnt)
 		case D_DIRREM:
 			/* removal of a directory entry */
 			mp = WK_DIRREM(wk)->dm_mnt;
+			if (vn_write_suspend_wait(NULL, mp, V_NOWAIT))
+				panic("%s: dirrem on suspended filesystem",
+					"softdep_process_worklist");
 			if (mp == matchmnt)
 				matchcnt += 1;
-			vn_start_write(NULL, &mp, V_WAIT);
 			handle_workitem_remove(WK_DIRREM(wk));
-			vn_finished_write(mp);
 			break;
 
 		case D_FREEBLKS:
 			/* releasing blocks and/or fragments from a file */
 			mp = WK_FREEBLKS(wk)->fb_mnt;
+			if (vn_write_suspend_wait(NULL, mp, V_NOWAIT))
+				panic("%s: freeblks on suspended filesystem",
+					"softdep_process_worklist");
 			if (mp == matchmnt)
 				matchcnt += 1;
-			vn_start_write(NULL, &mp, V_WAIT);
 			handle_workitem_freeblocks(WK_FREEBLKS(wk));
-			vn_finished_write(mp);
 			break;
 
 		case D_FREEFRAG:
 			/* releasing a fragment when replaced as a file grows */
 			mp = WK_FREEFRAG(wk)->ff_mnt;
+			if (vn_write_suspend_wait(NULL, mp, V_NOWAIT))
+				panic("%s: freefrag on suspended filesystem",
+					"softdep_process_worklist");
 			if (mp == matchmnt)
 				matchcnt += 1;
-			vn_start_write(NULL, &mp, V_WAIT);
 			handle_workitem_freefrag(WK_FREEFRAG(wk));
-			vn_finished_write(mp);
 			break;
 
 		case D_FREEFILE:
 			/* releasing an inode when its link count drops to 0 */
 			mp = WK_FREEFILE(wk)->fx_mnt;
+			if (vn_write_suspend_wait(NULL, mp, V_NOWAIT))
+				panic("%s: freefile on suspended filesystem",
+					"softdep_process_worklist");
 			if (mp == matchmnt)
 				matchcnt += 1;
-			vn_start_write(NULL, &mp, V_WAIT);
 			handle_workitem_freefile(WK_FREEFILE(wk));
-			vn_finished_write(mp);
 			break;
 
 		default:
@@ -646,13 +650,13 @@ softdep_move_dependencies(oldbp, newbp)
  * Purge the work list of all items associated with a particular mount point.
  */
 int
-softdep_flushfiles(oldmnt, flags, p)
+softdep_flushworklist(oldmnt, countp, p)
 	struct mount *oldmnt;
-	int flags;
+	int *countp;
 	struct proc *p;
 {
 	struct vnode *devvp;
-	int error, loopcnt;
+	int count, error = 0;
 
 	/*
 	 * Await our turn to clear out the queue.
@@ -660,32 +664,16 @@ softdep_flushfiles(oldmnt, flags, p)
 	while (softdep_worklist_busy)
 		tsleep(&lbolt, PRIBIO, "softflush", 0);
 	softdep_worklist_busy = 1;
-	if ((error = ffs_flushfiles(oldmnt, flags, p)) != 0) {
-		softdep_worklist_busy = 0;
-		return (error);
-	}
 	/*
 	 * Alternately flush the block device associated with the mount
 	 * point and process any dependencies that the flushing
-	 * creates. In theory, this loop can happen at most twice,
-	 * but we give it a few extra just to be sure.
+	 * creates. We continue until no more worklist dependencies
+	 * are found.
 	 */
+	*countp = 0;
 	devvp = VFSTOUFS(oldmnt)->um_devvp;
-	for (loopcnt = 10; loopcnt > 0; ) {
-		if (softdep_process_worklist(oldmnt) == 0) {
-			loopcnt--;
-			/*
-			 * Do another flush in case any vnodes were brought in
-			 * as part of the cleanup operations.
-			 */
-			if ((error = ffs_flushfiles(oldmnt, flags, p)) != 0)
-				break;
-			/*
-			 * If we still found nothing to do, we are really done.
-			 */
-			if (softdep_process_worklist(oldmnt) == 0)
-				break;
-		}
+	while ((count = softdep_process_worklist(oldmnt)) > 0) {
+		*countp += count;
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
 		error = VOP_FSYNC(devvp, p->p_ucred, MNT_WAIT, p);
 		VOP_UNLOCK(devvp, 0, p);
@@ -693,6 +681,37 @@ softdep_flushfiles(oldmnt, flags, p)
 			break;
 	}
 	softdep_worklist_busy = 0;
+	return (error);
+}
+
+/*
+ * Flush all vnodes and worklist items associated with a specified mount point.
+ */
+int
+softdep_flushfiles(oldmnt, flags, p)
+	struct mount *oldmnt;
+	int flags;
+	struct proc *p;
+{
+	int error, count, loopcnt;
+
+	/*
+	 * Alternately flush the vnodes associated with the mount
+	 * point and process any dependencies that the flushing
+	 * creates. In theory, this loop can happen at most twice,
+	 * but we give it a few extra just to be sure.
+	 */
+	for (loopcnt = 10; loopcnt > 0; loopcnt--) {
+		/*
+		 * Do another flush in case any vnodes were brought in
+		 * as part of the cleanup operations.
+		 */
+		if ((error = ffs_flushfiles(oldmnt, flags, p)) != 0)
+			break;
+		if ((error = softdep_flushworklist(oldmnt, &count, p)) != 0 ||
+		    count == 0)
+			break;
+	}
 	/*
 	 * If we are unmounting then it is an error to fail. If we
 	 * are simply trying to downgrade to read-only, then filesystem
@@ -4432,8 +4451,8 @@ clear_remove(p)
 			mp = pagedep->pd_mnt;
 			ino = pagedep->pd_ino;
 			FREE_LOCK(&lk);
-			if (vn_start_write(NULL, &mp, V_WAIT | PCATCH) != 0)
-				return;
+			if (vn_start_write(NULL, &mp, V_NOWAIT) != 0)
+				continue;
 			if ((error = VFS_VGET(mp, ino, &vp)) != 0) {
 				softdep_error("clear_remove: vget", error);
 				vn_finished_write(mp);
@@ -4503,8 +4522,8 @@ clear_inodedeps(p)
 		if (inodedep_lookup(fs, ino, 0, &inodedep) == 0)
 			continue;
 		FREE_LOCK(&lk);
-		if (vn_start_write(NULL, &mp, V_WAIT | PCATCH) != 0)
-			return;
+		if (vn_start_write(NULL, &mp, V_NOWAIT) != 0)
+			continue;
 		if ((error = VFS_VGET(mp, ino, &vp)) != 0) {
 			softdep_error("clear_inodedeps: vget", error);
 			vn_finished_write(mp);

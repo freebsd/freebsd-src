@@ -183,7 +183,7 @@ struct buf {
 #define	B_UNUSED0	0x00000008	/* Old B_BAD */
 #define	B_DEFERRED	0x00000010	/* Skipped over for cleaning */
 #define	B_CACHE		0x00000020	/* Bread found us in the cache. */
-#define	B_UNUSED40	0x00000040	/* Old B_CALL */
+#define	B_VALIDSUSPWRT	0x00000040	/* Valid write during suspension. */
 #define	B_DELWRI	0x00000080	/* Delay I/O until buffer reused. */
 #define	B_DONE		0x00000200	/* I/O completed. */
 #define	B_EINTR		0x00000400	/* I/O was interrupted */
@@ -237,7 +237,7 @@ extern char *buf_wmesg;			/* Default buffer lock message */
  * Initialize a lock.
  */
 #define BUF_LOCKINIT(bp) \
-	lockinit(&(bp)->b_lock, PRIBIO + 4, buf_wmesg, 0, 0)
+	lockinit(&(bp)->b_lock, PRIBIO + 4, buf_wmesg, 0, LK_CANRECURSE)
 /*
  *
  * Get a lock sleeping non-interruptably until it becomes available.
@@ -467,6 +467,7 @@ buf_countdeps(struct buf *bp, int i)
 #define B_CLRBUF	0x01	/* Request allocated buffer be cleared. */
 #define B_SYNC		0x02	/* Do all allocations synchronously. */
 #define	B_METAONLY	0x04	/* Return indirect block buffer. */
+#define B_NOWAIT	0x08	/* do not sleep to await lock */
 
 #ifdef _KERNEL
 extern int	nbuf;			/* The number of buffer headers */

@@ -908,7 +908,7 @@ ffs_sync(mp, waitfor, cred, p)
 	struct inode *ip;
 	struct ufsmount *ump = VFSTOUFS(mp);
 	struct fs *fs;
-	int error, allerror = 0;
+	int error, count, wait, lockreq, allerror = 0;
 
 	fs = ump->um_fs;
 	if (fs->fs_fmod != 0 && fs->fs_ronly != 0) {		/* XXX */
@@ -918,6 +918,12 @@ ffs_sync(mp, waitfor, cred, p)
 	/*
 	 * Write back each (modified) inode.
 	 */
+	wait = 0;
+	lockreq = LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK;
+	if (waitfor == MNT_WAIT) {
+		wait = 1;
+		lockreq = LK_EXCLUSIVE | LK_INTERLOCK;
+	}
 	simple_lock(&mntvnode_slock);
 loop:
 	for (vp = mp->mnt_vnodelist.lh_first; vp != NULL; vp = nvp) {
@@ -938,9 +944,7 @@ loop:
 		}
 		if (vp->v_type != VCHR) {
 			simple_unlock(&mntvnode_slock);
-			error =
-			  vget(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK, p);
-			if (error) {
+			if ((error = vget(vp, lockreq, p)) != 0) {
 				simple_lock(&mntvnode_slock);
 				if (error == ENOENT)
 					goto loop;
@@ -948,14 +952,12 @@ loop:
 			}
 			if ((error = VOP_FSYNC(vp, cred, waitfor, p)) != 0)
 				allerror = error;
-			VOP_UNLOCK(vp, 0, p);
-			vrele(vp);
+			vput(vp);
 			simple_lock(&mntvnode_slock);
 		} else {
 			simple_unlock(&mntvnode_slock);
 			simple_unlock(&vp->v_interlock);
-			/* UFS_UPDATE(vp, waitfor == MNT_WAIT); */
-			UFS_UPDATE(vp, 0);
+			UFS_UPDATE(vp, wait);
 			simple_lock(&mntvnode_slock);
 		}
 	}
@@ -963,9 +965,16 @@ loop:
 	/*
 	 * Force stale file system control information to be flushed.
 	 */
-	if (waitfor != MNT_LAZY) {
-		if (ump->um_mountp->mnt_flag & MNT_SOFTDEP)
-			waitfor = MNT_NOWAIT;
+	if (waitfor == MNT_WAIT) {
+		if ((error = softdep_flushworklist(ump->um_mountp, &count, p)))
+			allerror = error;
+		/* Flushed work items may create new vnodes to clean */
+		if (count) {
+			simple_lock(&mntvnode_slock);
+			goto loop;
+		}
+	}
+	if (waitfor == MNT_NOWAIT) {
 		vn_lock(ump->um_devvp, LK_EXCLUSIVE | LK_RETRY, p);
 		if ((error = VOP_FSYNC(ump->um_devvp, cred, waitfor, p)) != 0)
 			allerror = error;

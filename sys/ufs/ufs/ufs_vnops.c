@@ -2036,7 +2036,8 @@ ufs_vinit(mntp, specops, fifoops, vpp)
 	case VCHR:
 	case VBLK:
 		vp->v_op = specops;
-		addaliasu(vp, ip->i_rdev);
+		vp = addaliasu(vp, ip->i_rdev);
+		ip->i_vnode = vp;
 		break;
 	case VFIFO:
 		vp->v_op = fifoops;
