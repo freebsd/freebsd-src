@@ -39,6 +39,7 @@
 #include "opt_ipsec.h"
 #include "opt_mac.h"
 #include "opt_tcpdebug.h"
+#include "opt_tcp_sack.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -704,7 +705,10 @@ syncache_socket(sc, lso, m)
 	if (sc->sc_flags & SCF_SIGNATURE)
 		tp->t_flags |= TF_SIGNATURE;
 #endif
-
+	if (sc->sc_flags & SCF_SACK) {
+		tp->sack_enable = 1;
+		tp->t_flags |= TF_SACK_PERMIT;
+	}
 	/*
 	 * Set up MSS and get cached values from tcp_hostcache.
 	 * This might overwrite some of the defaults we just set.
@@ -991,6 +995,9 @@ syncache_add(inc, to, th, sop, m)
 		sc->sc_flags = SCF_SIGNATURE;
 #endif
 
+	if (to->to_flags & TOF_SACK)  
+		sc->sc_flags |= SCF_SACK;
+
 	/*
 	 * XXX
 	 * We have the option here of not doing TAO (even if the segment
@@ -1107,6 +1114,7 @@ syncache_respond(sc, m)
 		optlen += (sc->sc_flags & SCF_SIGNATURE) ?
 		    TCPOLEN_SIGNATURE + 2 : 0;
 #endif
+		optlen += ((sc->sc_flags & SCF_SACK) ? 4 : 0);
 	}
 	tlen = hlen + sizeof(struct tcphdr) + optlen;
 
@@ -1244,6 +1252,11 @@ syncache_respond(sc, m)
 			optp += TCPOLEN_SIGNATURE + 2;
 		}
 #endif /* TCP_SIGNATURE */
+
+	if (sc->sc_flags & SCF_SACK) {
+		*(u_int32_t *)optp = htonl(TCPOPT_SACK_PERMIT_HDR);
+		optp += 4;
+	}
 	}
 
 #ifdef INET6

@@ -52,6 +52,17 @@ LIST_HEAD(tsegqe_head, tseg_qent);
 extern int	tcp_reass_qsize;
 extern struct uma_zone *tcp_reass_zone;
 
+struct sackblk {
+	tcp_seq start;		/* start seq no. of sack block */
+	tcp_seq end; 		/* end seq no. */
+};
+
+struct sackhole {
+	tcp_seq start;		/* start seq no. of hole */
+	tcp_seq end;		/* end seq no. */
+	tcp_seq rxmit;		/* next seq. no in hole to be retransmitted */
+	struct sackhole *next;	/* next in list */
+};
 struct tcptemp {
 	u_char	tt_ipgen[40]; /* the size must be of max ip header, now IPv6 */
 	struct	tcphdr tt_t;
@@ -179,6 +190,16 @@ struct tcpcb {
 	u_long	rcv_second;		/* start of interval second */
 	u_long	rcv_pps;		/* received packets per second */
 	u_long	rcv_byps;		/* received bytes per second */
+	/* SACK related state */
+	int	sack_enable;		/* enable SACK for this connection */
+	int	snd_numholes;		/* number of holes seen by sender */
+	struct sackhole *snd_holes;	/* linked list of holes (sorted) */
+
+	tcp_seq	rcv_laststart;		/* start of last segment recd. */
+	tcp_seq	rcv_lastend;		/* end of ... */
+	tcp_seq	rcv_lastsack;		/* last seq number(+1) sack'd by rcv'r*/
+	int	rcv_numsacks;		/* # distinct sack blks present */
+	struct sackblk sackblks[MAX_SACK_BLKS]; /* seq nos. of sack blocks */
 };
 
 #define IN_FASTRECOVERY(tp)	(tp->t_flags & TF_FASTRECOVERY)
@@ -216,6 +237,7 @@ struct tcpopt {
 #define	TOF_SCALE	0x0020
 #define	TOF_SIGNATURE	0x0040		/* signature option present */
 #define	TOF_SIGLEN	0x0080		/* signature length valid (RFC2385) */
+#define	TOF_SACK	0x0100		/* Peer sent SACK option */
 	u_int32_t	to_tsval;
 	u_int32_t	to_tsecr;
 	tcp_cc		to_cc;		/* holds CC or CCnew */
@@ -249,6 +271,7 @@ struct syncache {
 #define SCF_CC		0x08			/* negotiated CC */
 #define SCF_UNREACH	0x10			/* icmp unreachable received */
 #define SCF_SIGNATURE	0x20			/* send MD5 digests */
+#define SCF_SACK	0x80			/* send SACK option */
 	TAILQ_ENTRY(syncache)	sc_hash;
 	TAILQ_ENTRY(syncache)	sc_timerq;
 };
@@ -434,6 +457,13 @@ struct	tcpstat {
 
 	u_long	tcps_hc_added;		/* entry added to hostcache */
 	u_long	tcps_hc_bucketoverflow;	/* hostcache per bucket limit hit */
+
+	/* SACK related stats */
+	u_long	tcps_sack_recovery_episode; /* SACK recovery episodes */
+	u_long  tcps_sack_rexmits;	    /* SACK rexmit segments   */
+	u_long  tcps_sack_rexmit_bytes;	    /* SACK rexmit bytes      */	
+	u_long  tcps_sack_rcv_blocks;	    /* SACK blocks (options) received */
+	u_long  tcps_sack_send_blocks;	    /* SACK blocks (options) sent     */
 };
 
 /*
@@ -467,7 +497,8 @@ struct	xtcpcb {
 #define	TCPCTL_PCBLIST		11	/* list of all outstanding PCBs */
 #define	TCPCTL_DELACKTIME	12	/* time before sending delayed ACK */
 #define	TCPCTL_V6MSSDFLT	13	/* MSS default for IPv6 */
-#define	TCPCTL_MAXID		14
+#define	TCPCTL_SACK		14	/* Selective Acknowledgement,rfc 2018 */
+#define	TCPCTL_MAXID		15
 
 #define TCPCTL_NAMES { \
 	{ 0, 0 }, \
@@ -504,6 +535,8 @@ extern	int tcp_do_newreno;
 extern	int path_mtu_discovery;
 extern	int ss_fltsz;
 extern	int ss_fltsz_local;
+
+extern	int tcp_do_sack;	/* SACK enabled/disabled */
 
 void	 tcp_canceltimers(struct tcpcb *);
 struct tcpcb *
@@ -577,6 +610,20 @@ extern	struct pr_usrreqs tcp_usrreqs;
 extern	u_long tcp_sendspace;
 extern	u_long tcp_recvspace;
 tcp_seq tcp_new_isn(struct tcpcb *);
+
+int	 tcp_sack_option(struct tcpcb *,struct tcphdr *,u_char *,int);
+void	 tcp_update_sack_list(struct tcpcb *tp);
+void	 tcp_del_sackholes(struct tcpcb *, struct tcphdr *);
+void	 tcp_clean_sackreport(struct tcpcb *tp);
+void	 tcp_sack_adjust(struct tcpcb *tp);
+struct sackhole *tcp_sack_output(struct tcpcb *tp);
+void	 tcp_sack_partialack(struct tcpcb *, struct tcphdr *);
+void	 tcp_free_sackholes(struct tcpcb *tp);
+int	 tcp_newreno(struct tcpcb *, struct tcphdr *);
+u_long	 tcp_seq_subtract(u_long, u_long );
+#ifdef TCP_SACK_DEBUG
+void 	 tcp_print_holes(struct tcpcb *tp);
+#endif /* TCP_SACK_DEBUG */
 
 #endif /* _KERNEL */
 
