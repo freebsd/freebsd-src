@@ -1020,14 +1020,9 @@ digi_loadmoduledata(struct digi_softc *sc)
 	modlen = strlen(sc->module);
 	modfile = malloc(modlen + 6, M_TEMP, M_WAITOK);
 	snprintf(modfile, modlen + 6, "digi_%s", sc->module);
-	if ((res = linker_reference_module(modfile, NULL, &lf)) != 0) {
-		if (res == ENOENT && rootdev == NULL)
-			printf("%s: Failed to autoload module: No filesystem\n",
-			    modfile);
-		else
-			printf("%s: Failed %d to autoload module\n", modfile,
-			    res);
-	}
+	res = linker_reference_module(modfile, NULL, &lf);
+	if ((res = linker_reference_module(modfile, NULL, &lf)) != 0)
+		printf("%s: Failed %d to autoload module\n", modfile, res);
 	free(modfile, M_TEMP);
 	if (res != 0)
 		return (res);
