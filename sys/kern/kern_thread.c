@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/sched.h>
 #include <sys/sleepqueue.h>
@@ -70,6 +71,9 @@ int max_threads_hits;
 SYSCTL_INT(_kern_threads, OID_AUTO, max_threads_hits, CTLFLAG_RD,
 	&max_threads_hits, 0, "");
 
+int virtual_cpu;
+
+#define RANGEOF(type, start, end) (offsetof(type, end) - offsetof(type, start))
 
 TAILQ_HEAD(, thread) zombie_threads = TAILQ_HEAD_INITIALIZER(zombie_threads);
 TAILQ_HEAD(, kse) zombie_kses = TAILQ_HEAD_INITIALIZER(zombie_kses);
@@ -85,6 +89,30 @@ extern void	kseinit(void);
 extern void	kse_GC(void);
 
 
+static int
+sysctl_kse_virtual_cpu(SYSCTL_HANDLER_ARGS)
+{
+	int error, new_val;
+	int def_val;
+
+	def_val = mp_ncpus;
+	if (virtual_cpu == 0)
+		new_val = def_val;
+	else
+		new_val = virtual_cpu;
+	error = sysctl_handle_int(oidp, &new_val, 0, req);
+        if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (new_val < 0)
+		return (EINVAL);
+	virtual_cpu = new_val;
+	return (0);
+}
+
+/* DEBUG ONLY */
+SYSCTL_PROC(_kern_threads, OID_AUTO, virtual_cpu, CTLTYPE_INT|CTLFLAG_RW,
+	0, sizeof(virtual_cpu), sysctl_kse_virtual_cpu, "I",
+	"debug virtual cpus");
 
 /*
  * Thread ID allocator. The allocator keeps track of assigned IDs by
@@ -556,11 +584,24 @@ thread_new_tid(void)
 
 /*
  * Discard the current thread and exit from its context.
+ * Always called with scheduler locked.
  *
  * Because we can't free a thread while we're operating under its context,
  * push the current thread into our CPU's deadthread holder. This means
  * we needn't worry about someone else grabbing our context before we
- * do a cpu_throw().
+ * do a cpu_throw().  This may not be needed now as we are under schedlock.
+ * Maybe we can just do a thread_stash() as thr_exit1 does.
+ */
+/*  XXX
+ * libthr expects its thread exit to return for the last
+ * thread, meaning that the program is back to non-threaded
+ * mode I guess. Because we do this (cpu_throw) unconditionally
+ * here, they have their own version of it. (thr_exit1()) 
+ * that doesn't do it all if this was the last thread.
+ * It is also called from thread_suspend_check().
+ * Of course in the end, they end up coming here through exit1
+ * anyhow..  After fixing 'thr' to play by the rules we should be able 
+ * to merge these two functions together.
  */
 void
 thread_exit(void)
