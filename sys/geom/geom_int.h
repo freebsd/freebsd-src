@@ -35,68 +35,53 @@
  * $FreeBSD$
  */
 
+LIST_HEAD(class_list_head, g_class);
+TAILQ_HEAD(g_tailq_head, g_geom);
+TAILQ_HEAD(event_tailq_head, g_event);
+
+extern struct g_tailq_head geoms;
+extern struct event_tailq_head events;
+extern int g_debugflags;
+
 /*
- * This file contains routines to pack and unpack integerfields of varying
- * width and endianess with.  Ideally the C language would have this built
- * in but I guess Dennis and Brian forgot that back in the early 70ies.
- *
- * The function names are systematic: g_{enc|dec}_{be|le}%d
- *	enc -> encode
- *	dec -> decode
- *	be -> big endian
- *	le -> little endian
- *	%d -> width in bytes
- *
- * Please keep the functions sorted:
- *	decode before encode
- *	big endian before little endian
- *	small width before larger width
- *	(this happens to be alphabetically)
+ * Various internal actions are tracked by tagging g_event[s] onto
+ * an internal eventqueue.
  */
+enum g_events {
+	EV_NEW_CLASS,		/* class */
+	EV_NEW_PROVIDER,	/* provider */
+	EV_SPOILED,		/* provider, consumer */
+	EV_LAST
+};
 
-#include <sys/param.h>
-#ifdef _KERNEL
-#include <sys/malloc.h>
-#endif
-#include <geom/geom.h>
-#include <geom/geom_int.h>
+struct g_event {
+	enum g_events 		event;
+	TAILQ_ENTRY(g_event)	events;
+	struct g_class		*class;
+	struct g_geom		*geom;
+	struct g_provider	*provider;
+	struct g_consumer	*consumer;
+};
 
-uint32_t
-g_dec_be2(u_char *p)
-{
-
-	return((p[0] << 8) | p[1]);
-}
-
-uint32_t
-g_dec_be4(u_char *p)
-{
-
-	return((p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3]);
-}
-
-uint32_t
-g_dec_le2(u_char *p)
-{
-
-	return((p[1] << 8) | p[0]);
-}
-
-uint32_t
-g_dec_le4(u_char *p)
-{
-
-	return((p[3] << 24) | (p[2] << 16) | (p[1] << 8) | p[0]);
-}
+/* geom_dump.c */
+struct sbuf * g_conf(void);
+struct sbuf * g_conf_specific(struct g_class *mp, struct g_geom *gp, struct g_provider *pp, struct g_consumer *cp);
+struct sbuf * g_confdot(void);
 
 
-void
-g_enc_le4(u_char *p, uint32_t u)
-{
+/* geom_event.c */
+void g_event_init(void);
+void g_post_event(enum g_events ev, struct g_class *mp, struct g_geom *gp, struct g_provider *pp, struct g_consumer *cp);
+void g_run_events(void);
 
-	p[0] = u & 0xff;
-	p[1] = (u >> 8) & 0xff;
-	p[2] = (u >> 16) & 0xff;
-	p[3] = (u >> 24) & 0xff;
-}
+/* geom_subr.c */
+extern struct class_list_head g_classs;
+extern char *g_wait_event, *g_wait_sim, *g_wait_up, *g_wait_down;
 
+/* geom_io.c */
+void g_io_init(void);
+void g_io_schedule_down(struct thread *tp);
+void g_io_schedule_up(struct thread *tp);
+
+/* geom_kern.c / geom_kernsim.c */
+void g_init(void);

@@ -84,7 +84,7 @@ g_sunlabel_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp, struct g_c
 }
 
 static struct g_geom *
-g_sunlabel_taste(struct g_class *mp, struct g_provider *pp, struct thread *tp, int flags)
+g_sunlabel_taste(struct g_class *mp, struct g_provider *pp, int flags)
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
@@ -110,14 +110,14 @@ g_sunlabel_taste(struct g_class *mp, struct g_provider *pp, struct thread *tp, i
 		if (gp->rank != 2 && flags == G_TF_NORMAL)
 			break;
 		j = sizeof secsize;
-		error = g_io_getattr("GEOM::sectorsize", cp, &j, &secsize, tp);
+		error = g_io_getattr("GEOM::sectorsize", cp, &j, &secsize);
 		if (error) {
 			secsize = 512;
 			printf("g_sunlabel_taste: error %d Sectors are %d bytes\n",
 			    error, secsize);
 		}
 		j = sizeof mediasize;
-		error = g_io_getattr("GEOM::mediasize", cp, &j, &mediasize, tp);
+		error = g_io_getattr("GEOM::mediasize", cp, &j, &mediasize);
 		if (error) {
 			mediasize = 0;
 			printf("g_error %d Mediasize is %lld bytes\n",
