@@ -98,7 +98,7 @@ print_chunks(Disk *d, int u)
 #ifndef PC98
     if (d->bios_cyl > 65536 || d->bios_hd > 256 || d->bios_sect >= 64) {
 	dialog_clear_norefresh();
-	msgConfirm("WARNING:  A geometry of %d/%d/%d for %s is incorrect.  Using\n"
+	msgConfirm("WARNING:  A geometry of %ld/%ld/%ld for %s is incorrect.  Using\n"
 		   "a more likely geometry.  If this geometry is incorrect or you\n"
 		   "are unsure as to whether or not it's correct, please consult\n"
 		   "the Hardware Guide in the Documentation submenu or use the\n"
@@ -688,7 +688,7 @@ bootalloc(char *name)
 	    if (read(fd, cp, sb.st_size) != sb.st_size) {
 		free(cp);
 		close(fd);
-		msgDebug("bootalloc: couldn't read %d bytes from %s\n", sb.st_size, buf);
+		msgDebug("bootalloc: couldn't read %ld bytes from %s\n", (long)sb.st_size, buf);
 		return NULL;
 	    }
 	    close(fd);
