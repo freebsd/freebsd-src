@@ -441,7 +441,7 @@ alsmb_smb_quick(device_t dev, u_char slave, int how)
 		ALPM_SMBOUTB(sc, SMBHADDR, slave | LSB);
 		break;
 	default:
-		panic("%s: unknown QUICK command (%x)!", __FUNCTION__,
+		panic("%s: unknown QUICK command (%x)!", __func__,
 			how);
 	}
 	ALPM_SMBOUTB(sc, SMBCMD, SMBQUICK);

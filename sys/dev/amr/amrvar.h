@@ -32,13 +32,13 @@
 #endif
 
 #ifdef AMR_DEBUG
-# define debug(level, fmt, args...)	do {if (level <= AMR_DEBUG) printf("%s: " fmt "\n", __FUNCTION__ , ##args);} while(0)
-# define debug_called(level)		do {if (level <= AMR_DEBUG) printf("%s: called\n", __FUNCTION__);} while(0)
+# define debug(level, fmt, args...)	do {if (level <= AMR_DEBUG) printf("%s: " fmt "\n", __func__ , ##args);} while(0)
+# define debug_called(level)		do {if (level <= AMR_DEBUG) printf("%s: called\n", __func__);} while(0)
 #else
 # define debug(level, fmt, args...)
 # define debug_called(level)
 #endif
-#define xdebug(fmt, args...)	printf("%s: " fmt "\n", __FUNCTION__ , ##args)
+#define xdebug(fmt, args...)	printf("%s: " fmt "\n", __func__ , ##args)
 
 /*
  * Per-logical-drive datastructure

@@ -95,14 +95,14 @@
 
 #define RAY_DPRINTF(sc, mask, fmt, args...) do {if (RAY_DEBUG & (mask)) {\
     device_printf((sc)->dev, "%s(%d) " fmt "\n",			\
-    	__FUNCTION__ , __LINE__ , ##args);				\
+    	__func__ , __LINE__ , ##args);					\
 } } while (0)
 
 /* This macro assumes that common memory is mapped into kernel space */
 #define RAY_DHEX8(sc, mask, off, len, s) do { if (RAY_DEBUG & (mask)) {	\
     int i, j;								\
     device_printf((sc)->dev, "%s(%d) %s\n",				\
-    	__FUNCTION__ , __LINE__ , (s));					\
+    	__func__ , __LINE__ , (s));					\
     for (i = (off); i < (off)+(len); i += 8) {				\
 	    printf(".  0x%04x ", i);					\
 	    for (j = 0; j < 8; j++)					\
@@ -113,7 +113,7 @@
 
 #define RAY_DCOM(sc, mask, com, s) do { if (RAY_DEBUG & (mask)) {	\
     device_printf((sc)->dev, "%s(%d) %s com entry 0x%p\n",		\
-        __FUNCTION__ , __LINE__ , (s) , (com));				\
+        __func__ , __LINE__ , (s) , (com));				\
     printf(".  c_mesg %s\n", (com)->c_mesg);				\
     printf(".  c_flags 0x%b\n", (com)->c_flags, RAY_COM_FLAGS_PRINTFB);	\
     printf(".  c_retval 0x%x\n", (com)->c_retval);			\
@@ -134,13 +134,13 @@
 #if RAY_DEBUG
 #define RAY_RECERR(sc, fmt, args...) do {				\
     device_printf((sc)->dev, "%s(%d) " fmt "\n",			\
-	__FUNCTION__ , __LINE__ , ##args);				\
+	__func__ , __LINE__ , ##args);					\
 } while (0)
 #endif /* RAY_DEBUG */
 
 #if RAY_DEBUG & RAY_DBG_COM
 #define RAY_COM_CHECK(sc, com) do { if (RAY_DEBUG & RAY_DBG_COM) {	\
-    ray_com_ecf_check((sc), (com), __FUNCTION__ );			\
+    ray_com_ecf_check((sc), (com), __func__ );				\
 } } while (0)
 #endif /* RAY_DEBUG & RAY_DBG_COM */
 

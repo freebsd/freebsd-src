@@ -297,7 +297,7 @@ vpoio_connect(struct vpoio_data *vpo, int how)
 	if ((error = ppb_request_bus(ppbus, vpo->vpo_dev, how))) {
 
 #ifdef VP0_DEBUG
-		printf("%s: can't request bus!\n", __FUNCTION__);
+		printf("%s: can't request bus!\n", __func__);
 #endif
 		return error;
 	}
@@ -652,7 +652,7 @@ vpoio_reset_bus(struct vpoio_data *vpo)
 	if (vpoio_connect(vpo, PPB_WAIT|PPB_INTR) || !vpoio_in_disk_mode(vpo)) {
 
 #ifdef VP0_DEBUG
-		printf("%s: not in disk mode!\n", __FUNCTION__);
+		printf("%s: not in disk mode!\n", __func__);
 #endif
 		/* release ppbus */
 		vpoio_disconnect(vpo);

@@ -150,7 +150,7 @@ divert_packet(struct mbuf *m, int incoming, int port)
 	u_int16_t nport;
 
 	/* Sanity check */
-	KASSERT(port != 0, ("%s: port=0", __FUNCTION__));
+	KASSERT(port != 0, ("%s: port=0", __func__));
 
 	/* Record and reset divert cookie */
 	divsrc.sin_port = ip_divert_cookie;
@@ -172,7 +172,7 @@ divert_packet(struct mbuf *m, int incoming, int port)
 		struct ifaddr *ifa;
 
 		/* Sanity check */
-		KASSERT((m->m_flags & M_PKTHDR), ("%s: !PKTHDR", __FUNCTION__));
+		KASSERT((m->m_flags & M_PKTHDR), ("%s: !PKTHDR", __func__));
 
 		/* Find IP address for receive interface */
 		TAILQ_FOREACH(ifa, &m->m_pkthdr.rcvif->if_addrhead, ifa_link) {

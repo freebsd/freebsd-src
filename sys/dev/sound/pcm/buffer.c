@@ -307,7 +307,7 @@ sndbuf_getbuf(struct snd_dbuf *b)
 void *
 sndbuf_getbufofs(struct snd_dbuf *b, unsigned int ofs)
 {
-	KASSERT((ofs >= 0) && (ofs <= b->bufsize), ("%s: ofs invalid %d", __FUNCTION__, ofs));
+	KASSERT((ofs >= 0) && (ofs <= b->bufsize), ("%s: ofs invalid %d", __func__, ofs));
 
 	return b->buf + ofs;
 }
@@ -379,7 +379,7 @@ unsigned int
 sndbuf_getready(struct snd_dbuf *b)
 {
 	SNDBUF_LOCKASSERT(b);
-	KASSERT((b->rl >= 0) && (b->rl <= b->bufsize), ("%s: b->rl invalid %d", __FUNCTION__, b->rl));
+	KASSERT((b->rl >= 0) && (b->rl <= b->bufsize), ("%s: b->rl invalid %d", __func__, b->rl));
 
 	return b->rl;
 }
@@ -388,7 +388,7 @@ unsigned int
 sndbuf_getreadyptr(struct snd_dbuf *b)
 {
 	SNDBUF_LOCKASSERT(b);
-	KASSERT((b->rp >= 0) && (b->rp <= b->bufsize), ("%s: b->rp invalid %d", __FUNCTION__, b->rp));
+	KASSERT((b->rp >= 0) && (b->rp <= b->bufsize), ("%s: b->rp invalid %d", __func__, b->rp));
 
 	return b->rp;
 }
@@ -397,7 +397,7 @@ unsigned int
 sndbuf_getfree(struct snd_dbuf *b)
 {
 	SNDBUF_LOCKASSERT(b);
-	KASSERT((b->rl >= 0) && (b->rl <= b->bufsize), ("%s: b->rl invalid %d", __FUNCTION__, b->rl));
+	KASSERT((b->rl >= 0) && (b->rl <= b->bufsize), ("%s: b->rl invalid %d", __func__, b->rl));
 
 	return b->bufsize - b->rl;
 }
@@ -406,8 +406,8 @@ unsigned int
 sndbuf_getfreeptr(struct snd_dbuf *b)
 {
 	SNDBUF_LOCKASSERT(b);
-	KASSERT((b->rp >= 0) && (b->rp <= b->bufsize), ("%s: b->rp invalid %d", __FUNCTION__, b->rp));
-	KASSERT((b->rl >= 0) && (b->rl <= b->bufsize), ("%s: b->rl invalid %d", __FUNCTION__, b->rl));
+	KASSERT((b->rp >= 0) && (b->rp <= b->bufsize), ("%s: b->rp invalid %d", __func__, b->rp));
+	KASSERT((b->rl >= 0) && (b->rl <= b->bufsize), ("%s: b->rl invalid %d", __func__, b->rl));
 
 	return (b->rp + b->rl) % b->bufsize;
 }
@@ -451,8 +451,8 @@ sndbuf_acquire(struct snd_dbuf *b, u_int8_t *from, unsigned int count)
 {
 	int l;
 
-	KASSERT(count <= sndbuf_getfree(b), ("%s: count %d > free %d", __FUNCTION__, count, sndbuf_getfree(b)));
-	KASSERT((b->rl >= 0) && (b->rl <= b->bufsize), ("%s: b->rl invalid %d", __FUNCTION__, b->rl));
+	KASSERT(count <= sndbuf_getfree(b), ("%s: count %d > free %d", __func__, count, sndbuf_getfree(b)));
+	KASSERT((b->rl >= 0) && (b->rl <= b->bufsize), ("%s: b->rl invalid %d", __func__, b->rl));
 	b->total += count;
 	if (from != NULL) {
 		while (count > 0) {
@@ -464,7 +464,7 @@ sndbuf_acquire(struct snd_dbuf *b, u_int8_t *from, unsigned int count)
 		}
 	} else
 		b->rl += count;
-	KASSERT((b->rl >= 0) && (b->rl <= b->bufsize), ("%s: b->rl invalid %d, count %d", __FUNCTION__, b->rl, count));
+	KASSERT((b->rl >= 0) && (b->rl <= b->bufsize), ("%s: b->rl invalid %d, count %d", __func__, b->rl, count));
 
 	return 0;
 }
@@ -474,8 +474,8 @@ sndbuf_dispose(struct snd_dbuf *b, u_int8_t *to, unsigned int count)
 {
 	int l;
 
-	KASSERT(count <= sndbuf_getready(b), ("%s: count %d > ready %d", __FUNCTION__, count, sndbuf_getready(b)));
-	KASSERT((b->rl >= 0) && (b->rl <= b->bufsize), ("%s: b->rl invalid %d", __FUNCTION__, b->rl));
+	KASSERT(count <= sndbuf_getready(b), ("%s: count %d > ready %d", __func__, count, sndbuf_getready(b)));
+	KASSERT((b->rl >= 0) && (b->rl <= b->bufsize), ("%s: b->rl invalid %d", __func__, b->rl));
 	if (to != NULL) {
 		while (count > 0) {
 			l = MIN(count, sndbuf_getsize(b) - sndbuf_getreadyptr(b));
@@ -489,7 +489,7 @@ sndbuf_dispose(struct snd_dbuf *b, u_int8_t *to, unsigned int count)
 		b->rl -= count;
 		b->rp = (b->rp + count) % b->bufsize;
 	}
-	KASSERT((b->rl >= 0) && (b->rl <= b->bufsize), ("%s: b->rl invalid %d, count %d", __FUNCTION__, b->rl, count));
+	KASSERT((b->rl >= 0) && (b->rl <= b->bufsize), ("%s: b->rl invalid %d, count %d", __func__, b->rl, count));
 
 	return 0;
 }

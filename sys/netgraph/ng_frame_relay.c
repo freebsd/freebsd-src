@@ -400,7 +400,7 @@ ngfrm_rcvdata(hook_p hook, item_p item)
 		data[3] |= BYTEX_EA;
 		break;
 	default:
-		panic(__FUNCTION__);
+		panic(__func__);
 	}
 
 	/* Send it */

@@ -58,7 +58,7 @@
 #define	CDMAJOR			15
 
 #ifdef DISK_DEBUG
-# define DEBUG(fmt, args...)	printf("%s: " fmt "\n" , __FUNCTION__ , ## args)
+# define DEBUG(fmt, args...)	printf("%s: " fmt "\n" , __func__ , ## args)
 #else
 # define DEBUG(fmt, args...)
 #endif

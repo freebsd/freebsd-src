@@ -198,7 +198,7 @@ ppc_detect_fifo(struct ppc_data *ppc)
 
 	/* XXX 16 and 32 bits implementations not supported */
 	if (ppc->ppc_pword != PPC_PWORD_8) {
-		LOG_PPC(__FUNCTION__, ppc, "PWord not supported");
+		LOG_PPC(__func__, ppc, "PWord not supported");
 		goto error;
 	}
 
@@ -217,7 +217,7 @@ ppc_detect_fifo(struct ppc_data *ppc)
 	}
 
 	if (i >= 1024) {
-		LOG_PPC(__FUNCTION__, ppc, "can't flush FIFO");
+		LOG_PPC(__func__, ppc, "can't flush FIFO");
 		goto error;
 	}
 
@@ -240,7 +240,7 @@ ppc_detect_fifo(struct ppc_data *ppc)
 	}
 
 	if (i >= 1024) {
-		LOG_PPC(__FUNCTION__, ppc, "can't fill FIFO");
+		LOG_PPC(__func__, ppc, "can't fill FIFO");
 		goto error;
 	}
 
@@ -253,7 +253,7 @@ ppc_detect_fifo(struct ppc_data *ppc)
 	 */
 	for (i=ppc->ppc_fifo; i>0; i--) {
 		if (r_fifo(ppc) != (char)(ppc->ppc_fifo-i)) {
-			LOG_PPC(__FUNCTION__, ppc, "invalid data in FIFO");
+			LOG_PPC(__func__, ppc, "invalid data in FIFO");
 			goto error;
 		}
 		if (r_ecr(ppc) & PPC_SERVICE_INTR) {
@@ -262,14 +262,14 @@ ppc_detect_fifo(struct ppc_data *ppc)
 		}
 		/* if FIFO empty before the last byte, error */
 		if (i>1 && (r_ecr(ppc) & PPC_FIFO_EMPTY)) {
-			LOG_PPC(__FUNCTION__, ppc, "data lost in FIFO");
+			LOG_PPC(__func__, ppc, "data lost in FIFO");
 			goto error;
 		}
 	}
 
 	/* FIFO must be empty after the last byte */
 	if (!(r_ecr(ppc) & PPC_FIFO_EMPTY)) {
-		LOG_PPC(__FUNCTION__, ppc, "can't empty the FIFO");
+		LOG_PPC(__func__, ppc, "can't empty the FIFO");
 		goto error;
 	}
 	
@@ -1148,7 +1148,7 @@ found:
 				printf(" ECP+EPP SPP");
 			break;
 		default:
-			printf("%s: unknown case (0x%x)!\n", __FUNCTION__, r);
+			printf("%s: unknown case (0x%x)!\n", __func__, r);
 		}
 
 	} else {
@@ -1499,7 +1499,7 @@ ppc_exec_microseq(device_t dev, struct ppb_microseq **p_msq)
 
 		case MS_OP_CALL:
 			if (stack)
-				panic("%s: too much calls", __FUNCTION__);
+				panic("%s: too much calls", __func__);
 
 			if (mi->arg[0].p) {
 				/* store the state of the actual
@@ -1533,7 +1533,7 @@ ppc_exec_microseq(device_t dev, struct ppb_microseq **p_msq)
 			 * of a submicrosequence */
 			if (stack)
 				panic("%s: can't return to ppb level",
-								__FUNCTION__);
+								__func__);
 
 			/* update pc for ppb level of execution */
 			*p_msq = mi;
@@ -1543,7 +1543,7 @@ ppc_exec_microseq(device_t dev, struct ppb_microseq **p_msq)
 
                 default:                         
                         panic("%s: unknown microsequence opcode 0x%x",
-                                __FUNCTION__, mi->opcode);        
+                                __func__, mi->opcode);        
                 }
 	}
 
@@ -2077,7 +2077,7 @@ ppc_io(device_t ppcdev, int iop, u_char *addr, int cnt, u_char byte)
 		w_fifo(ppc, byte);
 		break;
 	default:
-		panic("%s: unknown I/O operation", __FUNCTION__);
+		panic("%s: unknown I/O operation", __func__);
 		break;
 	}
 

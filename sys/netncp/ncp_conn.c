@@ -275,7 +275,7 @@ ncp_conn_free(struct ncp_conn *ncp)
 		return EACCES;
 	}
 	p = ncp->procp;
-	error = ncp_conn_assert_locked(ncp, __FUNCTION__, p);
+	error = ncp_conn_assert_locked(ncp, __func__, p);
 	if (error)
 		return error;
 	if (ncp->ref_cnt != 0 || (ncp->flags & NCPFL_PERMANENT))
@@ -357,7 +357,7 @@ ncp_conn_login(struct ncp_conn *conn, struct proc *p, struct ucred *cred)
 
 	error = ncp_get_encryption_key(conn, ncp_key);
 	if (error) {
-		printf("%s: Warning: use unencrypted login\n", __FUNCTION__);
+		printf("%s: Warning: use unencrypted login\n", __func__);
 		error = ncp_login_unencrypted(conn, conn->li.objtype,
 		    conn->li.user, conn->li.password, p, cred);
 	} else {

@@ -468,7 +468,7 @@ pcfintr(void *arg)
 			break;
 
 		    default:
-			panic("%s: unknown slave mode (%d)!", __FUNCTION__,
+			panic("%s: unknown slave mode (%d)!", __func__,
 				pcf->pcf_slave_mode);
 		    }
 

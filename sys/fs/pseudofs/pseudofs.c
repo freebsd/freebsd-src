@@ -60,13 +60,13 @@ static int
 _pfs_add_node(struct pfs_node *parent, struct pfs_node *node)
 {
 	KASSERT(parent != NULL,
-	    (__FUNCTION__ "(): parent is NULL"));
+	    ("%s(): parent is NULL", __func__));
 	KASSERT(parent->pn_info != NULL,
-	    (__FUNCTION__ "(): parent has no pn_info"));
+	    ("%s(): parent has no pn_info", __func__));
 	KASSERT(parent->pn_type == pfstype_dir ||
 	    parent->pn_type == pfstype_procdir ||
 	    parent->pn_type == pfstype_root,
-	    (__FUNCTION__ "(): parent is not a directory"));
+	    ("%s(): parent is not a directory", __func__));
 
 	/* XXX should check for duplicate names etc. */
 	
@@ -121,7 +121,7 @@ pfs_create_dir(struct pfs_node *parent, char *name,
 	struct pfs_node *dir;
 
 	KASSERT(strlen(name) < PFS_NAMELEN,
-	    (__FUNCTION__ "(): node name is too long"));
+	    ("%s(): node name is too long", __func__));
 
 	MALLOC(dir, struct pfs_node *, sizeof *dir,
 	    M_PFSNODES, M_WAITOK|M_ZERO);
@@ -154,7 +154,7 @@ pfs_create_file(struct pfs_node *parent, char *name, pfs_fill_t fill,
 	struct pfs_node *node;
 
 	KASSERT(strlen(name) < PFS_NAMELEN,
-	    (__FUNCTION__ "(): node name is too long"));
+	    ("%s(): node name is too long", __func__));
 
 	MALLOC(node, struct pfs_node *, sizeof *node,
 	    M_PFSNODES, M_WAITOK|M_ZERO);
@@ -198,9 +198,9 @@ pfs_destroy(struct pfs_node *node)
 	struct pfs_node *parent, *rover;
 	
 	KASSERT(node != NULL,
-	    (__FUNCTION__ "(): node is NULL"));
+	    ("%s(): node is NULL", __func__));
 	KASSERT(node->pn_info != NULL,
-	    (__FUNCTION__ "(): node has no pn_info"));
+	    ("%s(): node has no pn_info", __func__));
 
 	/* destroy children */
 	if (node->pn_type == pfstype_dir ||
@@ -212,7 +212,7 @@ pfs_destroy(struct pfs_node *node)
 	/* unlink from parent */
 	if ((parent = node->pn_parent) != NULL) {
 		KASSERT(parent->pn_info == node->pn_info,
-		    (__FUNCTION__ "(): parent has different pn_info"));
+		    ("%s(): parent has different pn_info", __func__));
 		mtx_lock(&node->pn_info->pi_mutex);
 		if (parent->pn_nodes == node) {
 			parent->pn_nodes = node->pn_next;
