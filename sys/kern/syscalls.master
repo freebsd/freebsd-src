@@ -8,7 +8,7 @@
 ;	number	system call number, must be in order
 ;	type	one of [M]STD, [M]OBSOL, [M]UNIMPL, [M]COMPAT, [M]CPT_NOA,
 ;		[M]LIBCOMPAT, [M]NODEF,  [M]NOARGS,  [M]NOPROTO,  [M]NOIMPL,
-;		[M]NOSTD
+;		[M]NOSTD, [M]COMPAT4
 ;	namespc one of POSIX, BSD, NOHIDE
 ;	name	psuedo-prototype of syscall routine
 ;		If one of the following alts is different, then all appear:
@@ -23,6 +23,7 @@
 ;		lock for the syscall.
 ;	STD	always included
 ;	COMPAT	included on COMPAT #ifdef
+;	COMPAT4	included on COMPAT4 #ifdef (FreeBSD 4 compat)
 ;	LIBCOMPAT included on COMPAT #ifdef, and placed in syscall.h
 ;	OBSOL	obsolete, not included in system, only specifies name
 ;	UNIMPL	not implemented, placeholder only
@@ -479,7 +480,7 @@
 333     MSTD     POSIX   { int sched_get_priority_min (int policy); }
 334     MSTD     POSIX   { int sched_rr_get_interval (pid_t pid, struct timespec *interval); }
 335	STD	BSD	{ int utrace(const void *addr, size_t len); }
-336	MSTD	BSD	{ int sendfile(int fd, int s, off_t offset, size_t nbytes, \
+336	MCOMPAT4	BSD	{ int sendfile(int fd, int s, off_t offset, size_t nbytes, \
 				struct sf_hdtr *hdtr, off_t *sbytes, int flags); }
 337	STD	BSD	{ int kldsym(int fileid, int cmd, void *data); }
 338	MSTD	BSD	{ int jail(struct jail *jail); }
@@ -563,3 +564,5 @@
 			    int len); }
 391	STD	BSD	{ int lchflags(const char *path, int flags); }
 392	STD	BSD	{ int uuidgen(struct uuid *store, int count); }
+393	MSTD	BSD	{ int sendfile(int fd, int s, off_t offset, size_t nbytes, \
+				struct sf_hdtr *hdtr, off_t *sbytes, int flags); }
