@@ -86,8 +86,8 @@
 #define PCI_OHCI_DEVICEID_ALADDIN_V	0x523710b9
 static const char *ohci_device_aladdin_v = "AcerLabs M5237 (Aladdin-V) USB Host Controller";
 #define PCI_OHCI_DEVICEID_ADS		0x
-static const char *ohci_device_ads = "ADS Technologies USB Host Controller";
-static const char *ohci_device_generic = "OHCI USB Host Controller (generic)";
+static const char ohci_device_ads[] = "ADS Technologies USB Host Controller";
+static const char ohci_device_generic[] = "OHCI USB Host Controller (generic)";
 
 #define PCI_OHCI_BASE_REG	0x10
 
