@@ -123,7 +123,7 @@ static int
 linux_do_sigaction(struct proc *p, int linux_sig, linux_sigaction_t *linux_nsa,
 		   linux_sigaction_t *linux_osa)
 {
-	struct sigaction *nsa, *osa, sa;
+	struct sigaction *nsa, *osa;
 	struct sigaction_args sa_args;
 	int error;
 	caddr_t sg = stackgap_init();
@@ -138,10 +138,7 @@ linux_do_sigaction(struct proc *p, int linux_sig, linux_sigaction_t *linux_nsa,
 
 	if (linux_nsa != NULL) {
 		nsa = stackgap_alloc(&sg, sizeof(struct sigaction));
-		linux_to_bsd_sigaction(linux_nsa, &sa);
-		error = copyout(&sa, nsa, sizeof(struct sigaction));
-		if (error)
-			return (error);
+		linux_to_bsd_sigaction(linux_nsa, nsa);
 	}
 	else
 		nsa = NULL;
@@ -157,12 +154,8 @@ linux_do_sigaction(struct proc *p, int linux_sig, linux_sigaction_t *linux_nsa,
 	if (error)
 		return (error);
 
-	if (linux_osa != NULL) {
-		error = copyin(osa, &sa, sizeof(struct sigaction));
-		if (error)
-			return (error);
-		bsd_to_linux_sigaction(&sa, linux_osa);
-	}
+	if (linux_osa != NULL)
+		bsd_to_linux_sigaction(osa, linux_osa);
 
 	return (0);
 }
@@ -516,4 +509,47 @@ linux_kill(struct proc *p, struct linux_kill_args *args)
 
 	tmp.pid = args->pid;
 	return (kill(p, &tmp));
+}
+
+int
+linux_sigaltstack(p, uap)
+	struct proc *p;
+	struct linux_sigaltstack_args *uap;
+{
+	struct sigaltstack_args bsd;
+	stack_t *ss, *oss;
+	linux_stack_t lss;
+	int error;
+	caddr_t sg = stackgap_init();
+
+#ifdef DEBUG
+	printf("Linux-emul(%ld): sigaltstack(%p, %p)\n",
+	    (long)p->p_pid, args->uss, args->uoss);
+#endif
+
+	error = copyin(uap->uss, &lss, sizeof(linux_stack_t));
+	if (error)
+		return (error);
+
+	ss = stackgap_alloc(&sg, sizeof(stack_t));
+	ss->ss_sp = lss.ss_sp;
+	ss->ss_size = lss.ss_size;
+	ss->ss_flags = lss.ss_flags;
+
+	oss = (uap->uoss != NULL)
+	    ? stackgap_alloc(&sg, sizeof(stack_t))
+	    : NULL;
+
+	bsd.ss = ss;
+	bsd.oss = oss;
+	error = sigaltstack(p, &bsd);
+
+	if (!error && oss != NULL) {
+		lss.ss_sp = oss->ss_sp;
+		lss.ss_size = oss->ss_size;
+		lss.ss_flags = oss->ss_flags;
+		error = copyout(&lss, uap->uoss, sizeof(linux_stack_t));
+	}
+
+	return (error);
 }
