@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.5 1994/08/18 22:36:06 wollman Exp $
+ * $Id: vm_object.c,v 1.6 1994/08/27 16:14:39 davidg Exp $
  */
 
 /*
@@ -657,7 +657,7 @@ vm_object_cache_trim()
 		vm_object_cache_unlock();
 
 		if (object != vm_object_lookup(object->pager))
-			panic("vm_object_deactivate: I'm sooo confused.");
+			panic("vm_object_cache_trim: I'm sooo confused.");
 
 		pager_cache(object, FALSE);
 

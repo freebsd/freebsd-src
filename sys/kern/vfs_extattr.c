@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.9 1994/09/28 16:45:11 dfr Exp $
+ * $Id: vfs_syscalls.c,v 1.10 1994/10/02 17:35:39 phk Exp $
  */
 
 #include <sys/param.h>
@@ -2224,6 +2224,8 @@ revoke(p, uap, retval)
 	if (p->p_ucred->cr_uid != vattr.va_uid &&
 	    (error = suser(p->p_ucred, &p->p_acflag)))
 		goto out;
+	if( vp->v_vmdata)
+		vnode_pager_uncache( vp);
 	if (vp->v_usecount > 1 || (vp->v_flag & VALIASED))
 		vgoneall(vp);
 out:

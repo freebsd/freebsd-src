@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.12 1994/09/25 19:33:51 phk Exp $
+ * $Id: vfs_bio.c,v 1.13 1994/10/04 03:10:47 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -60,6 +60,7 @@ bufinit()
 {
 	struct buf *bp;
 	int i;
+	caddr_t baddr;
 
 	TAILQ_INIT(&bswlist);
 	LIST_INIT(&invalhash);
@@ -72,6 +73,7 @@ bufinit()
 	for(i=0;i<BUFFER_QUEUES;i++)
 		TAILQ_INIT(&bufqueues[i]);
 
+	baddr = (caddr_t)kmem_alloc_pageable(buffer_map, MAXBSIZE * nbuf);
 	/* finally, initialize each buffer header and stick on empty q */
 	for(i=0;i<nbuf;i++) {
 		bp = &buf[i];
@@ -83,7 +85,7 @@ bufinit()
 		bp->b_wcred = NOCRED;
 		bp->b_qindex = QUEUE_EMPTY;
 		bp->b_vnbufs.le_next = NOLIST;
-		bp->b_data = (caddr_t)kmem_alloc_pageable(buffer_map, MAXBSIZE);
+		bp->b_data = baddr + i * MAXBSIZE;
 		TAILQ_INSERT_TAIL(&bufqueues[QUEUE_EMPTY], bp, b_freelist);
 		LIST_INSERT_HEAD(&invalhash, bp, b_hash);
 	}
@@ -446,11 +448,13 @@ incore(struct vnode *vp, daddr_t blkno)
 
 	/* Search hash chain */
 	while (bp) {
+#ifdef DEBUG
 		if( (bp < buf) || (bp >= buf + nbuf)) {
 			printf("incore: buf out of range: %p, hash: %d\n",
 				bp, bh - bufhashtbl); 
 			panic("incore: buf fault");
 		}
+#endif
 		/* hit */
 		if (bp->b_lblkno == blkno && bp->b_vp == vp
 			&& (bp->b_flags & B_INVAL) == 0) {
@@ -494,25 +498,14 @@ loop:
 			goto loop;
 		}
 	} else {
-
 		if ((bp = getnewbuf(0, 0)) == 0)
 			goto loop;
-		allocbuf(bp, size);
-		/*
-		 * have to check again, because of a possible
-		 * race condition.
-		 */
-		if (incore( vp, blkno)) {
-			allocbuf(bp, 0);
-			bp->b_flags |= B_INVAL;
-			brelse(bp);
-			goto loop;
-		}
 		bp->b_blkno = bp->b_lblkno = blkno;
 		bgetvp(vp, bp);
 		LIST_REMOVE(bp, b_hash);
 		bh = BUFHASH(vp, blkno);
 		LIST_INSERT_HEAD(bh, bp, b_hash);
+		allocbuf(bp, size);
 	}
 	splx(s);
 	return (bp);
@@ -664,11 +657,13 @@ vfs_update() {
 	}
 }
 
+#if 0
 #define MAXFREEBP 128
 #define LDFREE_BUSY 1
 #define LDFREE_WANT 2
 int loadfreeing;
 struct buf *freebp[MAXFREEBP];
+#endif
 /*
  * these routines are not in the correct place (yet)
  * also they work *ONLY* for kernel_pmap!!!
