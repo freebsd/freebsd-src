@@ -2405,12 +2405,13 @@ scsi_print_inquiry(struct scsi_inquiry_data *inq_data)
  */
 static struct {
 	u_int period_factor;
-	u_int period;	/* in 10ths of ns */
+	u_int period;	/* in 100ths of ns */
 } scsi_syncrates[] = {
-	{ 0x09, 125 },	/* FAST-80 */
-	{ 0x0a, 250 },	/* FAST-40 40MHz */
-	{ 0x0b, 303 },	/* FAST-40 33MHz */
-	{ 0x0c, 500 }	/* FAST-20 */
+	{ 0x08, 625 },	/* FAST-160 */
+	{ 0x09, 1250 },	/* FAST-80 */
+	{ 0x0a, 2500 },	/* FAST-40 40MHz */
+	{ 0x0b, 3030 },	/* FAST-40 33MHz */
+	{ 0x0c, 5000 }	/* FAST-20 */
 };
 
 /*
@@ -2429,7 +2430,7 @@ scsi_calc_syncsrate(u_int period_factor)
 
 		if (period_factor == scsi_syncrates[i].period_factor) {
 			/* Period in kHz */
-			return (10000000 / scsi_syncrates[i].period);
+			return (100000000 / scsi_syncrates[i].period);
 		}
 	}
 
@@ -2453,12 +2454,14 @@ scsi_calc_syncparam(u_int period)
 	if (period == 0)
 		return (~0);	/* Async */
 
+	/* Adjust for exception table being in 100ths. */
+	period *= 10;
 	num_syncrates = sizeof(scsi_syncrates) / sizeof(scsi_syncrates[0]);
 	/* See if the period is in the "exception" table */
 	for (i = 0; i < num_syncrates; i++) {
 
 		if (period <= scsi_syncrates[i].period) {
-			/* Period in kHz */
+			/* Period in 100ths of ns */
 			return (scsi_syncrates[i].period_factor);
 		}
 	}
@@ -2467,7 +2470,7 @@ scsi_calc_syncparam(u_int period)
 	 * Wasn't in the table, so use the standard
 	 * 1/4 period in ns conversion.
 	 */
-	return (period/40);
+	return (period/400);
 }
 
 void
