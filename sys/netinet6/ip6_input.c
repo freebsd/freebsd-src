@@ -1055,15 +1055,14 @@ ip6_unknown_opt(optp, m, off)
  * very first mbuf on the mbuf chain.
  */
 void
-ip6_savecontrol(in6p, mp, ip6, m)
+ip6_savecontrol(in6p, m, mp)
 	struct inpcb *in6p;
-	struct mbuf **mp;
-	struct ip6_hdr *ip6;
-	struct mbuf *m;
+	struct mbuf *m, **mp;
 {
 #define IS2292(x, y)	((in6p->in6p_flags & IN6P_RFC2292) ? (x) : (y))
 	struct thread *td = curthread;	/* XXX */
 	int privileged = 0;
+	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
 
 	if (td && !suser(td))
 		privileged++;
