@@ -150,8 +150,8 @@
 #
 #     /* Structure used for NGM_LISTHOOKS */
 #     struct linkinfo {
-#             char            ourhook[NG_HOOKLEN + 1];        /* hook name */
-#             char            peerhook[NG_HOOKLEN + 1];       /* peer hook */
+#             char            ourhook[NG_HOOKSIZ];        /* hook name */
+#             char            peerhook[NG_HOOKSIZ];       /* peer hook */
 #             struct nodeinfo nodeinfo;
 #     };
 #

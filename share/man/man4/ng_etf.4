@@ -100,7 +100,7 @@ are specified in a structure of type
 .Vt "struct ng_etffilter" :
 .Bd -literal -offset 4n
 struct ng_etffilter {
-        char       matchhook[NG_HOOKLEN + 1]; /* hook name */
+        char       matchhook[NG_HOOKSIZ];     /* hook name */
         u_int16_t  ethertype;	              /* catch these */
 };
 .Ed
