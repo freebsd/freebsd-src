@@ -28,7 +28,10 @@
 
 /*
  * HISTORY
- * $Log:	README,v $
+ * $Log: README.MACH,v $
+Revision 1.1  1993/03/21  18:08:16  cgd
+after 0.2.2 "stable" patches applied
+
  * Revision 2.2  92/04/04  11:33:55  rpd
  * 	From 2.5
  * 	[92/03/30            mg32]
