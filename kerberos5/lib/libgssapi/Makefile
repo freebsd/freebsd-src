@@ -25,7 +25,6 @@ SRCS=	\
 	external.c			\
 	get_mic.c			\
 	gssapi.h			\
-	gssapi_locl.h			\
 	import_name.c			\
 	import_sec_context.c		\
 	indicate_mechs.c		\
@@ -46,24 +45,15 @@ SRCS=	\
 	v1.c				\
 	verify_mic.c			\
         wrap.c				\
-        address_to_krb5addr.c		\
-	${.OBJDIR}/heim_err.h		\
-	${.OBJDIR}/krb5_err.h		\
-	${.OBJDIR}/k524_err.h
+        address_to_krb5addr.c
 
 CFLAGS+=-I${KRB5DIR}/lib/gssapi		\
 	-I${KRB5DIR}/lib/krb5		\
 	-I${KRB5DIR}/lib/asn1		\
 	-I${KRB5DIR}/lib/roken		\
-	-I${KRB5DIR}/lib/des		\
-	-I${KRB5DIR}/include		\
-	-I${ASN1OBJDIR}			\
-	-I${.OBJDIR}
+	-I.
 
-INCS=	gssapi.h			\
-	${.OBJDIR}/heim_err.h		\
-	${.OBJDIR}/krb5_err.h		\
-	${.OBJDIR}/k524_err.h
+INCS=	gssapi.h
 
 MAN=	\
 	gss_acquire_cred.3		\

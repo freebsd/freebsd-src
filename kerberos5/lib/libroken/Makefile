@@ -33,7 +33,6 @@ SRCS=	\
 	resolve.c			\
 	roken_gethostby.c		\
 	rtbl.c				\
-	rtbl.h				\
 	signal.c			\
 	simple_exec.c			\
 	snprintf.c			\
@@ -46,25 +45,28 @@ SRCS=	\
 	vis.c				\
 	warnerr.c			\
 	write_pid.c			\
-	xdbm.h				\
 	copyhostent.c			\
 	strlwr.c			\
 	strndup.c			\
 	strnlen.c			\
 	strsep_copy.c			\
 	strupr.c			\
-	${.OBJDIR}/roken.h
+	roken.h
 
-CFLAGS+=-I${KRB5DIR}/include		\
-	-I${INCLUDEOBJDIR}		\
-	-I${KRB5DIR}/lib/roken		\
-	-I${.OBJDIR}
+CFLAGS+=-I${KRB5DIR}/lib/roken		\
+	-I.
 
-INCS=	${.OBJDIR}/roken.h		\
-	${KRB5DIR}/lib/roken/roken-common.h
+INCS=	roken.h				\
+	roken-common.h
+
+roken.h: ../../tools/make-roken/make-roken
+	../../tools/make-roken/make-roken > ${.TARGET}
+
+../../tools/make-roken/make-roken:
+	cd ${.CURDIR}/../../tools/make-roken && ${MAKE}
+
+CLEANFILES= roken.h
 
 .include <bsd.lib.mk>
 
 .PATH:		${KRB5DIR}/lib/roken
-
-build-tools: make-roken

@@ -6,7 +6,7 @@ INCS=	\
 	admin.h			\
 	kadm5-private.h		\
 	kadm5-protos.h		\
-	${.OBJDIR}/kadm5_err.h		\
+	kadm5_err.h		\
 	private.h
 INCSDIR=${INCLUDEDIR}/kadm5
 
@@ -29,20 +29,12 @@ SRCS=	\
 	rename_c.c			\
 	send_recv.c			\
 	client_glue.c			\
-	admin.h				\
-	private.h			\
-	kadm5_locl.h			\
-	${.OBJDIR}/kadm5_err.h
+	kadm5_err.h
 
-CFLAGS+=-I${KRB5DIR}/include		\
-	-I${KRB5DIR}/lib/krb5		\
-	-I${KRB5DIR}/lib/kadm5		\
-	-I${KRB5DIR}/lib/hdb		\
+CFLAGS+=-I${KRB5DIR}/lib/kadm5		\
 	-I${KRB5DIR}/lib/asn1		\
 	-I${KRB5DIR}/lib/roken		\
-	-I${ASN1OBJDIR}			\
-	-I${HDBOBJDIR}			\
-	-I${.OBJDIR}
+	-I.
 
 .include <bsd.lib.mk>
 
