@@ -444,10 +444,13 @@ The value cannot be set below the default
 determined when the kernel was compiled.
 Modifies
 .Va NMBCLUSTERS .
+.It Va kern.ipc.nsfbufs
+Set the number of sendfile buffers to be allocated.
+Modifies
+.Va NSFBUFS .
 .It Va kern.vm.kmem.size
 Sets the size of kernel memory (bytes).
-This overrides completely the value
-determined when the kernel was compiled.
+This overrides the value determined when the kernel was compiled.
 Modifies
 .Va VM_KMEM_SIZE .
 .It Va kern.maxswzone
