@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.88 1997/06/22 03:00:21 dyson Exp $
+ * $Id: vfs_subr.c,v 1.89 1997/07/17 07:17:31 dfr Exp $
  */
 
 /*
@@ -354,24 +354,29 @@ getnewvnode(tag, mp, vops, vpp)
 
 	simple_lock(&vnode_free_list_slock);
 
-	TAILQ_FOREACH(vp, &vnode_free_list, v_freelist) {
-		if (!simple_lock_try(&vp->v_interlock)) 
-			continue;
-		if (vp->v_usecount)
-			panic("free vnode isn't");
+	if (freevnodes >= desiredvnodes) {
+		TAILQ_FOREACH(vp, &vnode_free_list, v_freelist) {
+			if (!simple_lock_try(&vp->v_interlock)) 
+				continue;
+			if (vp->v_usecount)
+				panic("free vnode isn't");
 
-		if (vp->v_object && vp->v_object->resident_page_count) {
-			/* Don't recycle if it's caching some pages */
-			simple_unlock(&vp->v_interlock);
-			continue;
-		} else if (LIST_FIRST(&vp->v_cache_src)) {
-			/* Don't recycle if active in the namecache */
-			simple_unlock(&vp->v_interlock);
-			continue;
-		} else {
-			break;
+			if (vp->v_object && vp->v_object->resident_page_count) {
+				/* Don't recycle if it's caching some pages */
+				simple_unlock(&vp->v_interlock);
+				continue;
+			} else if (LIST_FIRST(&vp->v_cache_src)) {
+				/* Don't recycle if active in the namecache */
+				simple_unlock(&vp->v_interlock);
+				continue;
+			} else {
+				break;
+			}
 		}
+	} else {
+		vp = NULL;
 	}
+
 	if (vp) {
 		TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
 		freevnodes--;
