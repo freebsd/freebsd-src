@@ -3,7 +3,7 @@
 
 SUBDIR=	sendmail
 
-BIN1=   aliases amd.map apmd.conf auth.conf \
+BIN1=   amd.map apmd.conf auth.conf \
 	crontab csh.cshrc csh.login csh.logout \
 	dhclient.conf dm.conf fbtab ftpusers gettytab group \
 	hosts hosts.allow host.conf hosts.equiv hosts.lpd \
