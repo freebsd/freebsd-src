@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_seq.h	8.1 (Berkeley) 6/10/93
- * $Id: tcp_seq.h,v 1.3 1994/08/21 05:27:37 paul Exp $
+ * $Id: tcp_seq.h,v 1.4 1995/02/08 20:18:46 wollman Exp $
  */
 
 #ifndef _NETINET_TCP_SEQ_H_
@@ -50,7 +50,6 @@
 #define TSTMP_LT(a,b)	((int)((a)-(b)) < 0)
 #define TSTMP_GEQ(a,b)	((int)((a)-(b)) >= 0)
 
-#ifdef TTCP
 /*
  * TCP connection counts are 32 bit integers operated
  * on with modular arithmetic.  These macros can be
@@ -63,7 +62,6 @@
 
 /* Macro to increment a CC: skip 0 which has a special meaning */
 #define CC_INC(c)	(++(c) == 0 ? ++(c) : (c))
-#endif
 
 /*
  * Macros to initialize tcp sequence numbers for
@@ -83,9 +81,7 @@
 					/* timestamp wrap-around time */
 
 #ifdef KERNEL
-tcp_seq	tcp_iss;		/* tcp initial send seq # */
-#ifdef TTCP
-tcp_cc	tcp_ccgen;		/* global connection count */
-#endif
+extern tcp_seq	tcp_iss;		/* tcp initial send seq # */
+extern tcp_cc	tcp_ccgen;		/* global connection count */
 #endif
 #endif
