@@ -26,12 +26,12 @@
  *
  *	i4b_q931.c - Q931 received messages handling
  *	--------------------------------------------
- *
- * $FreeBSD$
- *
  *      last edit-date: [Sun Aug 11 19:18:08 2002]
  *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>

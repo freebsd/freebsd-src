@@ -26,12 +26,12 @@
  *
  *	i4b_l4timer.c - timer and timeout handling for layer 4
  *	--------------------------------------------------------
- *
- * $FreeBSD$
- *
  *      last edit-date: [Sat Mar  9 19:49:13 2002]
  *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

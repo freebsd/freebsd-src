@@ -26,12 +26,12 @@
  *
  *	i4b_i4bdrv.c - i4b userland interface driver
  *	--------------------------------------------
- *
- * $FreeBSD$
- *
  *      last edit-date: [Sun Aug 11 12:42:46 2002]
  *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "i4bipr.h"
 #include "i4btel.h"

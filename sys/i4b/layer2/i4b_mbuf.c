@@ -26,12 +26,12 @@
  *
  *	i4b - mbuf handling support routines
  *	------------------------------------
- *
- * $FreeBSD$
- *
  *      last edit-date: [Sat Mar  9 17:51:22 2002]
  *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
