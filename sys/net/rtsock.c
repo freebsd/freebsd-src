@@ -424,8 +424,14 @@ route_output(m, so)
 			/* new gateway could require new ifaddr, ifp;
 			   flags may also be different; ifp may be specified
 			   by ll sockaddr when protocol address is ambiguous */
-			if ((error = rt_getifa(&info)) != 0)
-				senderr(error);
+#define	equal(a1, a2) (bcmp((caddr_t)(a1), (caddr_t)(a2), (a1)->sa_len) == 0)
+			if ((rt->rt_flags & RTF_GATEWAY && gate != NULL) ||
+			    ifpaddr != NULL ||
+			    (ifaaddr != NULL &&
+			    !equal(ifaaddr, rt->rt_ifa->ifa_addr))) {
+				if ((error = rt_getifa(&info)) != 0)
+					senderr(error);
+			}
 			if (gate != NULL &&
 			    (error = rt_setgate(rt, rt_key(rt), gate)) != 0)
 				senderr(error);
