@@ -184,8 +184,7 @@
     <sect3>
       <title>Contributed Software</title>
 
-      <para><application>tcsh</application> has been updated to version
-      6.11.</para>
+      <para></para>
     </sect3>
   </sect2>
   <sect2 id="security">
@@ -274,6 +273,9 @@
           the default is <literal>Protocol 2,1</literal>.</para>
 	</note>
       </para>
+
+      <para><application>tcsh</application> has been updated to version
+      6.11.</para>
 
       <sect4>
         <title>CVS</title>
