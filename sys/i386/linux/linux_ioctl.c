@@ -50,6 +50,7 @@
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
 #include <i386/linux/linux_util.h>
+#include <i386/linux/linux_mib.h>
 
 #define ISSIGVALID(sig)		((sig) > 0 && (sig) < NSIG)
 
@@ -1268,6 +1269,13 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args)
 	error = copyout((caddr_t)&sc, (caddr_t)args->arg,
 			sizeof(struct linux_cdrom_subchnl));
 	return error;
+    }
+
+    case LINUX_OSS_GETVERSION: {
+	int version;
+
+	version = linux_get_oss_version(p);
+	return copyout((caddr_t)&version, (caddr_t)args->arg, sizeof(int));
     }
 
     }
