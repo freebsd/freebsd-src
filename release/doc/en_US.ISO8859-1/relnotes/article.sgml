@@ -438,8 +438,8 @@
       <para>The &man.faith.4; device is now loadable, unloadable, and
       clonable.</para>
 
-      <para>Support for Fujitsu MB86960A/MB86965A based Ethernet
-      PC-Cards is back. &merged;</para>
+      <para arch="i386">Support for Fujitsu MB86960A/MB86965A based Ethernet
+      PC-Cards has been added back in the &man.fe.4; driver. &merged;</para>
 
       <para arch="alpha">The &man.fpa.4; driver now supports Digital's
       DEFPA FDDI adaptors on the Alpha.</para>
