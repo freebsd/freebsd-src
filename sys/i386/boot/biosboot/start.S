@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:29  rpd
- *	$Id: start.S,v 1.3 1994/06/13 19:27:52 jkh Exp $
+ *	$Id: start.S,v 1.4 1994/10/02 05:18:26 rgrimes Exp $
  */
 
 /*
@@ -53,8 +53,6 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 	.file	"start.s"
 
-BOOTSEG=	0x9000	/* boot will be loaded here (below 640K) */
-BOOTSTACK=	0xe000	/* boot stack */
 SIGNATURE=	0xaa55
 LOADSZ=		15	/* size of unix boot */
 PARTSTART=	0x1be	/* starting address of partition table */
