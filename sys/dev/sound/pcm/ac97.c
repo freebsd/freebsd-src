@@ -45,9 +45,9 @@ struct ac97_info {
 	ac97_read *read;
 	ac97_write *write;
 	void *devinfo;
-	char id[4];
+	char *name;
 	char rev;
-	unsigned caps, se, extcaps, extid, extstat, noext:1;
+	unsigned count, caps, se, extcaps, extid, extstat, noext:1;
 	struct ac97mixtable_entry mix[32];
 };
 
@@ -82,13 +82,13 @@ static const unsigned ac97recdevs =
 
 static struct ac97_codecid ac97codecid[] = {
 	{ 0x414b4d00, 1, "Asahi Kasei AK4540 rev 0" },
+	{ 0x414b4d01, 1, "Asahi Kasei AK4540 rev 1" },
 	{ 0x43525900, 0, "Cirrus Logic CS4297" 	},
 	{ 0x83847600, 0, "SigmaTel STAC????" 	},
 	{ 0x83847604, 0, "SigmaTel STAC9701/3/4/5" },
 	{ 0x83847605, 0, "SigmaTel STAC9704" 	},
 	{ 0x83847608, 0, "SigmaTel STAC9708" 	},
 	{ 0x83847609, 0, "SigmaTel STAC9721" 	},
-	{ 0x414b4d01, 1, "Asahi Kasei AK4540 rev 1" },
 	{ 0, 	      0, NULL			}
 };
 
@@ -300,11 +300,13 @@ ac97_initmixer(struct ac97_info *codec)
 		codec->mix[i] = ac97mixtable_default[i];
 
 	if (codec->init) {
-		if (codec->init(codec->devinfo)) {
+		codec->count = codec->init(codec->devinfo);
+		if (codec->count == 0) {
 			device_printf(codec->dev, "ac97 codec init failed\n");
 			return ENODEV;
 		}
-	}
+	} else
+		codec->count = 1;
 	wrcd(codec, AC97_REG_POWER, 0);
 	wrcd(codec, AC97_REG_RESET, 0);
 	DELAY(100000);
@@ -320,19 +322,24 @@ ac97_initmixer(struct ac97_info *codec)
 		return ENODEV;
 	}
 
-	for (i = 0; ac97codecid[i].id; i++)
-		if (ac97codecid[i].id == id)
-			codec->noext = 1;
+	codec->noext = 0;
+	codec->name = NULL;
+	for (i = 0; ac97codecid[i].id; i++) {
+		if (ac97codecid[i].id == id) {
+			codec->name = ac97codecid[i].name;
+			codec->noext = ac97codecid[i].noext;
+		}
+	}
 
-	if (!codec->noext) {
+	if (codec->noext) {
+		codec->extcaps = 0;
+		codec->extid = 0;
+		codec->extstat = 0;
+	} else {
 		i = rdcd(codec, AC97_REGEXT_ID);
 		codec->extcaps = i & 0x3fff;
 		codec->extid =  (i & 0xc000) >> 14;
 		codec->extstat = rdcd(codec, AC97_REGEXT_STAT) & AC97_EXTCAPS;
-	} else {
-		codec->extcaps = 0;
-		codec->extid = 0;
-		codec->extstat = 0;
 	}
 
 	wrcd(codec, AC97_MIX_MASTER, 0x20);
@@ -342,9 +349,8 @@ ac97_initmixer(struct ac97_info *codec)
 
 	if (bootverbose) {
 		device_printf(codec->dev, "ac97 codec id 0x%08x", id);
-		for (i = 0; ac97codecid[i].id; i++)
-			if (ac97codecid[i].id == id)
-				printf(" (%s)", ac97codecid[i].name);
+		if (codec->name)
+			printf(" (%s)", codec->name);
 		printf("\n");
 		device_printf(codec->dev, "ac97 codec features ");
 		for (i = j = 0; i < 10; i++)
