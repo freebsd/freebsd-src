@@ -268,6 +268,7 @@ udp_stats(off, name)
 	p(udps_noport, "\t%lu dropped due to no socket\n");
 	p(udps_noportbcast, "\t%lu broadcast/multicast datagram%s dropped due to no socket\n");
 	p(udps_fullsock, "\t%lu dropped due to full socket buffers\n");
+	p(udpps_pcbhashmiss, "\t%lu not for hashed pcb\n");
 	delivered = udpstat.udps_ipackets -
 		    udpstat.udps_hdrops -
 		    udpstat.udps_badlen -
