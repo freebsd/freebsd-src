@@ -40,6 +40,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ktrace.h"
 #include "opt_mac.h"
 #ifdef __i386__
 #include "opt_npx.h"
@@ -59,6 +60,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/signalvar.h>
 #include <sys/systm.h>
 #include <sys/vmmeter.h>
+#ifdef KTRACE
+#include <sys/uio.h>
+#include <sys/ktrace.h>
+#endif
+
 #include <machine/cpu.h>
 #include <machine/pcb.h>
 
@@ -236,11 +242,19 @@ ast(struct trapframe *framep)
 		mac_thread_userret(td);
 #endif
 	if (flags & TDF_NEEDRESCHED) {
+#ifdef KTRACE
+		if (KTRPOINT(td, KTR_CSW))
+			ktrcsw(1, 0);
+#endif
 		mtx_lock_spin(&sched_lock);
 		sched_prio(td, kg->kg_user_pri);
 		p->p_stats->p_ru.ru_nivcsw++;
 		mi_switch();
 		mtx_unlock_spin(&sched_lock);
+#ifdef KTRACE
+		if (KTRPOINT(td, KTR_CSW))
+			ktrcsw(0, 0);
+#endif
 	}
 	if (flags & TDF_NEEDSIGCHK) {
 		PROC_LOCK(p);
