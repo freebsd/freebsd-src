@@ -618,7 +618,6 @@ release.9:
 ftp.1:
 	@echo "Setting up FTP distribution area"
 	@mkdir -p ${FD}
-	-@ln -s . ${FD}/${BUILDNAME}
 	@cd ${RD} && find floppies -print | cpio -dumpl ${FD}
 	@cd ${RD}/dists && find . -print | cpio -dumpl ${FD}
 	@for i in ${DIST_DOCS}; do \
