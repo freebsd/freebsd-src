@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)pw_copy.h	8.1 (Berkeley) 4/2/94
+ *	$FreeBSD$
  */
 
-void	 pw_copy __P((int, int, struct passwd *));
+void	 pw_copy __P((int, int, struct passwd *, struct passwd *));
