@@ -73,7 +73,7 @@ SYSCTL_DECL(_security_mac);
 SYSCTL_NODE(_security_mac, OID_AUTO, test, CTLFLAG_RW, 0,
     "TrustedBSD mac_test policy controls");
 
-static int	mac_test_enabled = 0;
+static int	mac_test_enabled = 1;
 SYSCTL_INT(_security_mac_test, OID_AUTO, enabled, CTLFLAG_RW,
     &mac_test_enabled, 0, "Enforce test policy");
 
