@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.5 (Berkeley) 4/10/94
- * $Id: tcp_input.c,v 1.10 1994/10/13 18:36:32 wollman Exp $
+ * $Id: tcp_input.c,v 1.11 1995/02/09 23:13:23 wollman Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -65,6 +65,11 @@ struct	tcpiphdr tcp_saveti;
 
 int	tcprexmtthresh = 3;
 struct	inpcb *tcp_last_inpcb = &tcb;
+tcp_seq	tcp_iss;
+tcp_cc	tcp_ccgen;
+struct	inpcb tcb;
+struct	tcpstat tcpstat;
+u_long	tcp_now;
 
 #endif /* TUBA_INCLUDE */
 
