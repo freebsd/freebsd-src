@@ -79,7 +79,7 @@ SYSCTL_INT(_debug, OID_AUTO, ufs_extattr_sync, CTLFLAG_RW, &ufs_extattr_sync,
 static int	ufs_extattr_valid_attrname(int attrnamespace,
 		    const char *attrname);
 static int	ufs_extattr_credcheck(struct vnode *vp,
-		    struct ufs_extattr_list_entry *uele, struct ucred *cred,
+		    int attrnamespace, struct ucred *cred,
 		    struct thread *td, int access);
 static int	ufs_extattr_enable_with_open(struct ufsmount *ump,
 		    struct vnode *vp, int attrnamespace, const char *attrname,
@@ -793,7 +793,7 @@ ufs_extattrctl(struct mount *mp, int cmd, struct vnode *filename_vp,
  * permissions.
  */
 static int
-ufs_extattr_credcheck(struct vnode *vp, struct ufs_extattr_list_entry *uele,
+ufs_extattr_credcheck(struct vnode *vp, int attrnamespace,
     struct ucred *cred, struct thread *td, int access)
 {
 
@@ -810,7 +810,7 @@ ufs_extattr_credcheck(struct vnode *vp, struct ufs_extattr_list_entry *uele,
 	 * XXX What capability should apply here?
 	 * Probably CAP_SYS_SETFFLAG.
 	 */
-	switch (uele->uele_attrnamespace) {
+	switch (attrnamespace) {
 	case EXTATTR_NAMESPACE_SYSTEM:
 		/* Potentially should be: return (EPERM); */
 		return (suser_cred(cred, 0));
@@ -880,12 +880,13 @@ ufs_extattr_get(struct vnode *vp, int attrnamespace, const char *name,
 		return (EINVAL);
 	}
 
+	error = ufs_extattr_credcheck(vp, attrnamespace, cred, td, IREAD);
+	if (error)
+		return (error);
+
 	attribute = ufs_extattr_find_attr(ump, attrnamespace, name);
 	if (!attribute)
 		return (ENOATTR);
-
-	if ((error = ufs_extattr_credcheck(vp, attribute, cred, td, IREAD)))
-		return (error);
 
 	/*
 	 * Allow only offsets of zero to encourage the read/replace
@@ -1058,12 +1059,13 @@ ufs_extattr_set(struct vnode *vp, int attrnamespace, const char *name,
 	if (!ufs_extattr_valid_attrname(attrnamespace, name))
 		return (EINVAL);
 
+	error = ufs_extattr_credcheck(vp, attrnamespace, cred, td, IWRITE);
+	if (error)
+		return (error);
+
 	attribute = ufs_extattr_find_attr(ump, attrnamespace, name);
 	if (!attribute)
 		return (ENOATTR);
-
-	if ((error = ufs_extattr_credcheck(vp, attribute, cred, td, IWRITE)))
-		return (error);
 
 	/*
 	 * Early rejection of invalid offsets/length.
@@ -1169,12 +1171,13 @@ ufs_extattr_rm(struct vnode *vp, int attrnamespace, const char *name,
 	if (!ufs_extattr_valid_attrname(attrnamespace, name))
 		return (EINVAL);
 
+	error = ufs_extattr_credcheck(vp, attrnamespace, cred, td, IWRITE);
+	if (error)
+		return (error);
+
 	attribute = ufs_extattr_find_attr(ump, attrnamespace, name);
 	if (!attribute)
 		return (ENOATTR);
-
-	if ((error = ufs_extattr_credcheck(vp, attribute, cred, td, IWRITE)))
-		return (error);
 
 	/*
 	 * Find base offset of header in file based on file header size, and
