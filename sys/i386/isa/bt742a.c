@@ -18,6 +18,11 @@
 /*
  * HISTORY
  * $Log: bt742a.c,v $
+ * Revision 1.2  1993/07/29  11:55:35  nate
+ * Syncing our sources back with Julian's, and removing PATCHKIT headers.
+ *
+ * Large Bustek changes, most everything else is minimal.
+ *
  * Revision 1.1.1.1  1993/06/12  14:57:58  rgrimes
  * Initial import, 0.1 + pk 0.2.4-B1
  *
@@ -679,7 +684,7 @@ struct	isa_dev	*dev;
 
 
 #ifdef  __386BSD__
-	printf(" probing for scsi devices**\n");
+	printf("bt%d: **probing for scsi devices**\n", unit);
 #endif  __386BSD__
 
 	/***********************************************\
