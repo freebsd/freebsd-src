@@ -282,6 +282,8 @@ int	LogFacPri = 0;		/* Put facility and priority in log message: */
 				/* 0=no, 1=numeric, 2=names */
 int	KeepKernFac = 0;	/* Keep remotely logged kernel facility */
 
+volatile sig_atomic_t MarkSet, WantDie;
+
 int	allowaddr __P((char *));
 void	cfline __P((char *, struct filed *, char *, char *));
 char   *cvthname __P((struct sockaddr *));
@@ -289,6 +291,7 @@ void	deadq_enter __P((pid_t, const char *));
 int	deadq_remove __P((pid_t));
 int	decode __P((const char *, CODE *));
 void	die __P((int));
+void	dodie __P((int));
 void	domark __P((int));
 void	fprintlog __P((struct filed *, int, char *));
 int*	socksetup __P((int));
@@ -296,6 +299,7 @@ void	init __P((int));
 void	logerror __P((const char *));
 void	logmsg __P((int, char *, char *, int));
 void	log_deadchild __P((pid_t, int, const char *));
+void	markit __P((void));
 void	printline __P((char *, char *));
 void	printsys __P((char *));
 int	p_open __P((char *, pid_t *));
@@ -314,9 +318,10 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	int ch, i, l;
+	int ch, i, fdsrmax = 0, l;
 	struct sockaddr_un sunx, fromunix;
 	struct sockaddr_storage frominet;
+	fd_set *fdsr = NULL;
 	FILE *fp;
 	char *hname, line[MAXLINE + 1];
 	struct timeval tv, *tvp;
@@ -397,11 +402,12 @@ main(argc, argv)
 		endservent();
 
 	consfile.f_type = F_CONSOLE;
-	(void)strcpy(consfile.f_un.f_fname, ctty + sizeof _PATH_DEV - 1);
-	(void)strcpy(bootfile, getbootfile());
-	(void)signal(SIGTERM, die);
-	(void)signal(SIGINT, Debug ? die : SIG_IGN);
-	(void)signal(SIGQUIT, Debug ? die : SIG_IGN);
+	(void)strlcpy(consfile.f_un.f_fname, ctty + sizeof _PATH_DEV - 1,
+	    sizeof(consfile.f_un.f_fname));
+	(void)strlcpy(bootfile, getbootfile(), sizeof(bootfile));
+	(void)signal(SIGTERM, dodie);
+	(void)signal(SIGINT, Debug ? dodie : SIG_IGN);
+	(void)signal(SIGQUIT, Debug ? dodie : SIG_IGN);
 	/*
 	 * We don't want the SIGCHLD and SIGHUP handlers to interfere
 	 * with each other; they are likely candidates for being called
@@ -426,7 +432,7 @@ main(argc, argv)
 	for (i = 0; i < nfunix; i++) {
 		memset(&sunx, 0, sizeof(sunx));
 		sunx.sun_family = AF_UNIX;
-		(void)strncpy(sunx.sun_path, funixn[i], sizeof(sunx.sun_path));
+		(void)strlcpy(sunx.sun_path, funixn[i], sizeof(sunx.sun_path));
 		funix[i] = socket(AF_UNIX, SOCK_DGRAM, 0);
 		if (funix[i] < 0 ||
 		    bind(funix[i], (struct sockaddr *)&sunx,
@@ -484,53 +490,65 @@ main(argc, argv)
 	tvp = &tv;
 	tv.tv_sec = tv.tv_usec = 0;
 
-	for (;;) {
-		fd_set readfds;
-		int nfds = 0;
-
-		FD_ZERO(&readfds);
-		if (fklog != -1) {
-			FD_SET(fklog, &readfds);
-			if (fklog > nfds)
-				nfds = fklog;
+	if (fklog != -1 && fklog > fdsrmax)
+		fdsrmax = fklog;
+	if (finet && !SecureMode) {
+		for (i = 0; i < *finet; i++) {
+		    if (finet[i+1] != -1 && finet[i+1] > fdsrmax)
+			fdsrmax = finet[i+1];
 		}
+	}
+	for (i = 0; i < nfunix; i++) {
+		if (funix[i] != -1 && funix[i] > fdsrmax)
+			fdsrmax = funix[i];
+	}
+
+	fdsr = (fd_set *)calloc(howmany(fdsrmax+1, NFDBITS),
+	    sizeof(fd_mask));
+	if (fdsr == NULL)
+		errx(1, "calloc fd_set");
+
+	for (;;) {
+		if (MarkSet)
+			markit();
+		if (WantDie)
+			die(WantDie);
+
+		bzero(fdsr, howmany(fdsrmax+1, NFDBITS) *
+		    sizeof(fd_mask));
+
+		if (fklog != -1)
+			FD_SET(fklog, fdsr);
 		if (finet && !SecureMode) {
 			for (i = 0; i < *finet; i++) {
-				FD_SET(finet[i+1], &readfds);
-				if (finet[i+1] > nfds)
-					nfds = finet[i+1];
+				if (finet[i+1] != -1)
+					FD_SET(finet[i+1], fdsr);
 			}
 		}
 		for (i = 0; i < nfunix; i++) {
-			if (funix[i] != -1) {
-				FD_SET(funix[i], &readfds);
-				if (funix[i] > nfds)
-					nfds = funix[i];
-			}
+			if (funix[i] != -1)
+				FD_SET(funix[i], fdsr);
 		}
 
-		/*dprintf("readfds = %#x\n", readfds);*/
-		nfds = select(nfds+1, &readfds, (fd_set *)NULL,
-			      (fd_set *)NULL, tvp);
-		if (nfds == 0) {
+		i = select(fdsrmax+1, fdsr, NULL, NULL, tvp);
+		switch (i) {
+		case 0:
 			if (tvp) {
 				tvp = NULL;
 				if (ppid != 1)
 					kill(ppid, SIGALRM);
 			}
 			continue;
-		}
-		if (nfds < 0) {
+		case -1:
 			if (errno != EINTR)
 				logerror("select");
 			continue;
 		}
-		/*dprintf("got a message (%d, %#x)\n", nfds, readfds);*/
-		if (fklog != -1 && FD_ISSET(fklog, &readfds))
+		if (fklog != -1 && FD_ISSET(fklog, fdsr))
 			readklog();
 		if (finet && !SecureMode) {
 			for (i = 0; i < *finet; i++) {
-				if (FD_ISSET(finet[i+1], &readfds)) {
+				if (FD_ISSET(finet[i+1], fdsr)) {
 					len = sizeof(frominet);
 					l = recvfrom(finet[i+1], line, MAXLINE,
 					     0, (struct sockaddr *)&frominet,
@@ -547,7 +565,7 @@ main(argc, argv)
 			}
 		}
 		for (i = 0; i < nfunix; i++) {
-			if (funix[i] != -1 && FD_ISSET(funix[i], &readfds)) {
+			if (funix[i] != -1 && FD_ISSET(funix[i], fdsr)) {
 				len = sizeof(fromunix);
 				l = recvfrom(funix[i], line, MAXLINE, 0,
 				    (struct sockaddr *)&fromunix, &len);
@@ -559,6 +577,8 @@ main(argc, argv)
 			}
 		}
 	}
+	if (fdsr)
+		free(fdsr);
 }
 
 static void
@@ -837,7 +857,7 @@ logmsg(pri, msg, from, flags)
 		if ((flags & MARK) == 0 && msglen == f->f_prevlen &&
 		    !strcmp(msg, f->f_prevline) &&
 		    !strcasecmp(from, f->f_prevhost)) {
-			(void)strncpy(f->f_lasttime, timestamp, 15);
+			(void)strlcpy(f->f_lasttime, timestamp, 16);
 			f->f_prevcount++;
 			dprintf("msg repeated %d times, %ld sec of %d\n",
 			    f->f_prevcount, (long)(now - f->f_time),
@@ -858,13 +878,12 @@ logmsg(pri, msg, from, flags)
 				fprintlog(f, 0, (char *)NULL);
 			f->f_repeatcount = 0;
 			f->f_prevpri = pri;
-			(void)strncpy(f->f_lasttime, timestamp, 15);
-			(void)strncpy(f->f_prevhost, from,
-					sizeof(f->f_prevhost)-1);
-			f->f_prevhost[sizeof(f->f_prevhost)-1] = '\0';
+			(void)strlcpy(f->f_lasttime, timestamp, 16);
+			(void)strlcpy(f->f_prevhost, from,
+			    sizeof(f->f_prevhost));
 			if (msglen < MAXSVLINE) {
 				f->f_prevlen = msglen;
-				(void)strcpy(f->f_prevline, msg);
+				(void)strlcpy(f->f_prevline, msg, sizeof(f->f_prevline));
 				fprintlog(f, flags, (char *)NULL);
 			} else {
 				f->f_prevline[0] = 0;
@@ -963,8 +982,8 @@ fprintlog(f, flags, msg)
 		v->iov_len = strlen(msg);
 	} else if (f->f_prevcount > 1) {
 		v->iov_base = repbuf;
-		v->iov_len = sprintf(repbuf, "last message repeated %d times",
-		    f->f_prevcount);
+		v->iov_len = snprintf(repbuf, sizeof repbuf,
+		    "last message repeated %d times", f->f_prevcount);
 	} else {
 		v->iov_base = f->f_prevline;
 		v->iov_len = f->f_prevlen;
@@ -1121,8 +1140,7 @@ wallmsg(f, iov)
 	while (fread((char *)&ut, sizeof(ut), 1, uf) == 1) {
 		if (ut.ut_name[0] == '\0')
 			continue;
-		strncpy(line, ut.ut_line, sizeof(ut.ut_line));
-		line[sizeof(ut.ut_line)] = '\0';
+		(void)strlcpy(line, ut.ut_line, sizeof(line));
 		if (f->f_type == F_WALL) {
 			if ((p = ttymsg(iov, 7, line, TTYMSGTIME)) != NULL) {
 				errno = 0;	/* already in msg */
@@ -1224,56 +1242,19 @@ cvthname(f)
 }
 
 void
+dodie(signo)
+	int signo;
+{
+
+	WantDie = signo;
+}
+
+void
 domark(signo)
 	int signo;
 {
-	struct filed *f;
-	dq_t q;
 
-	now = time((time_t *)NULL);
-	MarkSeq += TIMERINTVL;
-	if (MarkSeq >= MarkInterval) {
-		logmsg(LOG_INFO, "-- MARK --", LocalHostName, ADDDATE|MARK);
-		MarkSeq = 0;
-	}
-
-	for (f = Files; f; f = f->f_next) {
-		if (f->f_prevcount && now >= REPEATTIME(f)) {
-			dprintf("flush %s: repeated %d times, %d sec.\n",
-			    TypeNames[f->f_type], f->f_prevcount,
-			    repeatinterval[f->f_repeatcount]);
-			fprintlog(f, 0, (char *)NULL);
-			BACKOFF(f);
-		}
-	}
-
-	/* Walk the dead queue, and see if we should signal somebody. */
-	for (q = TAILQ_FIRST(&deadq_head); q != NULL; q = TAILQ_NEXT(q, dq_entries))
-		switch (q->dq_timeout) {
-		case 0:
-			/* Already signalled once, try harder now. */
-			if (kill(q->dq_pid, SIGKILL) != 0)
-				(void)deadq_remove(q->dq_pid);
-			break;
-
-		case 1:
-			/*
-			 * Timed out on dead queue, send terminate
-			 * signal.  Note that we leave the removal
-			 * from the dead queue to reapchild(), which
-			 * will also log the event (unless the process
-			 * didn't even really exist, in case we simply
-			 * drop it from the dead queue).
-			 */
-			if (kill(q->dq_pid, SIGTERM) != 0)
-				(void)deadq_remove(q->dq_pid);
-			/* FALLTHROUGH */
-
-		default:
-			q->dq_timeout--;
-		}
-
-	(void)alarm(TIMERINTVL);
+	MarkSet = 1;
 }
 
 /*
@@ -1316,7 +1297,7 @@ die(signo)
 	Initialized = was_initialized;
 	if (signo) {
 		dprintf("syslogd: exiting on signal %d\n", signo);
-		(void)sprintf(buf, "exiting on signal %d", signo);
+		(void)snprintf(buf, sizeof(buf), "exiting on signal %d", signo);
 		errno = 0;
 		logerror(buf);
 	}
@@ -1406,8 +1387,8 @@ init(signo)
 	 *  Foreach line in the conf table, open that file.
 	 */
 	f = NULL;
-	strcpy(host, "*");
-	strcpy(prog, "*");
+	(void)strlcpy(host, "*", sizeof(host));
+	(void)strlcpy(prog, "*", sizeof(prog));
 	while (fgets(cline, sizeof(cline), cf) != NULL) {
 		/*
 		 * check for end-of-section, comments, strip off trailing
@@ -1427,7 +1408,7 @@ init(signo)
 			host[0] = *p++;
 			while (isspace(*p)) p++;
 			if ((!*p) || (*p == '*')) {
-				strcpy(host, "*");
+				(void)strlcpy(host, "*", sizeof(host));
 				continue;
 			}
 			if (*p == '@')
@@ -1444,7 +1425,7 @@ init(signo)
 			p++;
 			while (isspace(*p)) p++;
 			if ((!*p) || (*p == '*')) {
-				strcpy(prog, "*");
+				(void)strlcpy(prog, "*", sizeof(prog));
 				continue;
 			}
 			for (i = 0; i < NAME_MAX; i++) {
@@ -1652,9 +1633,8 @@ cfline(line, f, prog, host)
 	switch (*p)
 	{
 	case '@':
-		(void)strncpy(f->f_un.f_forw.f_hname, ++p,
-			sizeof(f->f_un.f_forw.f_hname)-1);
-		f->f_un.f_forw.f_hname[sizeof(f->f_un.f_forw.f_hname)-1] = '\0';
+		(void)strlcpy(f->f_un.f_forw.f_hname, ++p,
+			sizeof(f->f_un.f_forw.f_hname));
 		memset(&hints, 0, sizeof(hints));
 		hints.ai_family = family;
 		hints.ai_socktype = SOCK_DGRAM;
@@ -1679,16 +1659,17 @@ cfline(line, f, prog, host)
 				f->f_type = F_CONSOLE;
 			else
 				f->f_type = F_TTY;
-			(void)strcpy(f->f_un.f_fname, p + sizeof _PATH_DEV - 1);
+			(void)strlcpy(f->f_un.f_fname, p + sizeof(_PATH_DEV - 1),
+			    sizeof(f->f_un.f_fname));
 		} else {
-			(void)strcpy(f->f_un.f_fname, p);
+			(void)strlcpy(f->f_un.f_fname, p, sizeof(f->f_un.f_fname));
 			f->f_type = F_FILE;
 		}
 		break;
 
 	case '|':
 		f->f_un.f_pipe.f_pid = 0;
-		(void)strcpy(f->f_un.f_pipe.f_pname, p + 1);
+		(void)strlcpy(f->f_un.f_fname, p + 1, sizeof(f->f_un.f_fname));
 		f->f_type = F_PIPE;
 		break;
 
@@ -1741,6 +1722,59 @@ decode(name, codetab)
 			return (c->c_val);
 
 	return (-1);
+}
+
+void
+markit(void)
+{
+	struct filed *f;
+	dq_t q;
+
+	now = time((time_t *)NULL);
+	MarkSeq += TIMERINTVL;
+	if (MarkSeq >= MarkInterval) {
+		logmsg(LOG_INFO, "-- MARK --",
+		    LocalHostName, ADDDATE|MARK);
+		MarkSeq = 0;
+	}
+
+	for (f = Files; f; f = f->f_next) {
+		if (f->f_prevcount && now >= REPEATTIME(f)) {
+			dprintf("flush %s: repeated %d times, %d sec.\n",
+			    TypeNames[f->f_type], f->f_prevcount,
+			    repeatinterval[f->f_repeatcount]);
+			fprintlog(f, 0, (char *)NULL);
+			BACKOFF(f);
+		}
+	}
+
+	/* Walk the dead queue, and see if we should signal somebody. */
+	for (q = TAILQ_FIRST(&deadq_head); q != NULL; q = TAILQ_NEXT(q, dq_entries))
+		switch (q->dq_timeout) {
+		case 0:
+			/* Already signalled once, try harder now. */
+			if (kill(q->dq_pid, SIGKILL) != 0)
+				(void)deadq_remove(q->dq_pid);
+			break;
+
+		case 1:
+			/*
+			 * Timed out on dead queue, send terminate
+			 * signal.  Note that we leave the removal
+			 * from the dead queue to reapchild(), which
+			 * will also log the event (unless the process
+			 * didn't even really exist, in case we simply
+			 * drop it from the dead queue).
+			 */
+			if (kill(q->dq_pid, SIGTERM) != 0)
+				(void)deadq_remove(q->dq_pid);
+			/* FALLTHROUGH */
+
+		default:
+			q->dq_timeout--;
+		}
+	MarkSet = 0;
+	(void)alarm(TIMERINTVL);
 }
 
 /*
@@ -1812,7 +1846,7 @@ timedout(sig)
 	if (left == 0)
 		errx(1, "timed out waiting for child");
 	else
-		exit(0);
+		_exit(0);
 }
 
 /*
@@ -2006,7 +2040,7 @@ validate(sa, hname)
 		/* traditional behaviour, allow everything */
 		return 1;
 
-	strlcpy(name, hname, sizeof name);
+	(void)strlcpy(name, hname, sizeof(name));
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = PF_UNSPEC;
 	hints.ai_socktype = SOCK_DGRAM;
