@@ -2,6 +2,6 @@
 
 PROG=	fmt
 SRCS=	fmt.c head.c
-.PATH: /usr/src/usr.bin/mail
+.PATH: ${.CURDIR}/../mail
 
 .include <bsd.prog.mk>
