@@ -70,8 +70,8 @@ sea0    dyn     5       dyn     c8000   Seagate ST01/02 8 bit controller
 
 wt0     300     5       1       dyn     Wangtek and Archive QIC-02/QIC-36
 
-mse0    23c     5       n/a     n/a     Microsoft Bus Mouse
-psm0    60      12      n/a     n/a     PS/2 Mouse (disabled by default)
+mse0    23c     5       n/a     n/a     Microsoft/Logitech/ATI Bus Mouse
+psm0    60      12      n/a     n/a     PS/2 Mouse
 
 mcd0    300     10      n/a     n/a     Mitsumi CD-ROM
 matcd0  230     n/a     n/a     n/a     Matsushita/Panasonic CD-ROM
@@ -265,7 +265,7 @@ labpc:  National Instrument's Lab-PC and Lab-PC+
 meteor: Matrox Meteor frame-grabber card
 bktr:   Brooktree Bt848 based frame-grabber cards.
 mpu:    Roland MPU-401 stand-alone card
-mse:    Logitech & ATI InPort bus mouse ports
+mse:    Microsoft, Logitech, ATI bus mouse ports
 mss:    Microsoft Sound System
 nic:    Dr Neuhaus NICCY 3008, 3009 & 5000 ISDN cards
 opl:    Yamaha OPL-2 and OPL-3 FM - SB, SB Pro, SB 16, ProAudioSpectrum
@@ -464,6 +464,8 @@ Cortex1 frame grabber
 Various Frame grabbers based on Brooktree Bt848 chip.
 
 HP4020, HP6020, Philips CDD2000/CDD2660 and Plasmon CD-R drives.
+
+Bus mice
 
 PS/2 mice
 
