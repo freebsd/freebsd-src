@@ -1,5 +1,6 @@
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* hack.ioctl.c - version 1.0.2 */
+/* $FreeBSD$
 
 /* This cannot be part of hack.tty.c (as it was earlier) since on some
    systems (e.g. MUNIX) the include files <termio.h> and <sgtty.h>
@@ -32,8 +33,8 @@ setioctls() {
 }
 
 #ifdef SUSPEND		/* implies BSD */
-dosuspend() {
 #include	<signal.h>
+dosuspend() {
 #ifdef SIGTSTP
 	if(signal(SIGTSTP, SIG_IGN) == SIG_DFL) {
 		settty((char *) 0);
