@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.70 1997/08/21 16:21:34 brian Exp $
+ * $Id: main.c,v 1.71 1997/08/25 00:29:19 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -198,10 +198,8 @@ CloseConnection(int signo)
   /* NOTE, these are manual, we've done a setsid() */
   LogPrintf(LogPHASE, "Caught signal %d, abort connection\n", signo);
   reconnectState = RECON_FALSE;
-  \
-    reconnectCount = 0;
-  \
-    DownConnection();
+  reconnectCount = 0;
+  DownConnection();
   dial_up = FALSE;
 }
 
