@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /* Target macro definitions for i386 running FreeBSD
    Copyright (C) 1997 Free Software Foundation, Inc.
 
@@ -54,5 +55,12 @@ extern CORE_ADDR fbsd_kern_frame_saved_pc (struct frame_info *);
 #undef SIGTRAMP_END
 #define SIGTRAMP_START(pc)	0xbfbfdfd8
 #define SIGTRAMP_END(pc)	0xbfbfdff0
+
+struct objfile;
+void freebsd_uthread_new_objfile PARAMS ((struct objfile *objfile));
+#define target_new_objfile(OBJFILE) freebsd_uthread_new_objfile (OBJFILE)
+
+extern char *freebsd_uthread_pid_to_str PARAMS ((int pid));
+#define target_pid_to_str(PID) freebsd_uthread_pid_to_str (PID)
 
 #endif  /* ifndef TM_FBSD_H */
