@@ -33,12 +33,6 @@
 /* Define as the path of the `chmod' program. */
 #undef CHMOD_PATH
 
-/* Define if your gettimeofday takes only one argument. */
-#undef GETTIMEOFDAY_ONE_ARGUMENT
-
-/* Define if your gettimeofday takes a time zome argument. */
-#undef HAVE_TIMEZONE
-
 /* Define if you have the alarm function.  */
 #undef HAVE_ALARM
 
@@ -59,9 +53,6 @@
 
 /* Define if you have the getrusage function.  */
 #undef HAVE_GETRUSAGE
-
-/* Define if you have the gettimeofday function.  */
-#undef HAVE_GETTIMEOFDAY
 
 /* Define if you have the getuid function.  */
 #undef HAVE_GETUID
@@ -110,3 +101,16 @@
 
 /* Define if you have the <unistd.h> header file.  */
 #undef HAVE_UNISTD_H
+
+/* Get Single Unix Specification semantics */
+#undef _XOPEN_SOURCE
+
+/* Get Single Unix Specification semantics */
+#undef _XOPEN_SOURCE_EXTENDED
+
+/* Solaris extensions */
+#undef __EXTENSIONS__
+
+/* Get 64-bit file size support */
+#undef _FILE_OFFSET_BITS
+
