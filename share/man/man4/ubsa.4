@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 7, 2002
+.Dd September 12, 2004
 .Dt UBSA 4
 .Os
 .Sh NAME
@@ -44,6 +44,16 @@
 .Sh SYNOPSIS
 .Cd "device ubsa"
 .Cd "device ucom"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the USB-to-RS232 Bridge chip used by a variety of
+serial adapters from Belkin and other vendors.
+.Pp
+The device is accessed through the
+.Xr ucom 4
+driver which makes it behave like a
+.Xr tty 4 .
 .Sh HARDWARE
 The
 .Nm
@@ -61,16 +71,6 @@ GoHubs GoCOM232
 .It
 Peracom single port serial adapter
 .El
-.Sh DESCRIPTION
-The
-.Nm
-driver provides support for the USB-to-RS232 Bridge chip used by a variety of
-serial adapters from Belkin and other vendors.
-.Pp
-The device is accessed through the
-.Xr ucom 4
-driver which makes it behave like a
-.Xr tty 4 .
 .Sh SEE ALSO
 .Xr tty 4 ,
 .Xr ucom 4 ,
