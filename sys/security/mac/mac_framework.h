@@ -279,6 +279,8 @@ int	mac_check_vnode_delete(struct ucred *cred, struct vnode *dvp,
 	    struct vnode *vp, struct componentname *cnp);
 int	mac_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
 	    acl_type_t type);
+int	mac_check_vnode_deleteextattr(struct ucred *cred, struct vnode *vp,
+	    int attrnamespace, const char *name);
 int	mac_check_vnode_exec(struct ucred *cred, struct vnode *vp,
 	    struct image_params *imgp);
 int	mac_check_vnode_getacl(struct ucred *cred, struct vnode *vp,
@@ -287,6 +289,8 @@ int	mac_check_vnode_getextattr(struct ucred *cred, struct vnode *vp,
 	    int attrnamespace, const char *name, struct uio *uio);
 int	mac_check_vnode_link(struct ucred *cred, struct vnode *dvp,
 	    struct vnode *vp, struct componentname *cnp);
+int	mac_check_vnode_listextattr(struct ucred *cred, struct vnode *vp,
+	    int attrnamespace);
 int	mac_check_vnode_lookup(struct ucred *cred, struct vnode *dvp,
  	    struct componentname *cnp);
 int	mac_check_vnode_mmap(struct ucred *cred, struct vnode *vp,

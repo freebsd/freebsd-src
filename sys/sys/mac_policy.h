@@ -359,6 +359,9 @@ struct mac_policy_ops {
 		    struct componentname *cnp);
 	int	(*mpo_check_vnode_deleteacl)(struct ucred *cred,
 		    struct vnode *vp, struct label *label, acl_type_t type);
+	int	(*mpo_check_vnode_deleteextattr)(struct ucred *cred,
+		    struct vnode *vp, struct label *label, int attrnamespace,
+		    const char *name);
 	int	(*mpo_check_vnode_exec)(struct ucred *cred, struct vnode *vp,
 		    struct label *label, struct image_params *imgp,
 		    struct label *execlabel);
@@ -370,6 +373,8 @@ struct mac_policy_ops {
 	int	(*mpo_check_vnode_link)(struct ucred *cred, struct vnode *dvp,
 		    struct label *dlabel, struct vnode *vp,
 		    struct label *label, struct componentname *cnp);
+	int	(*mpo_check_vnode_listextattr)(struct ucred *cred,
+		    struct vnode *vp, struct label *label, int attrnamespace);
 	int	(*mpo_check_vnode_lookup)(struct ucred *cred,
 		    struct vnode *dvp, struct label *dlabel,
 		    struct componentname *cnp);
