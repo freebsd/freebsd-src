@@ -1512,14 +1512,14 @@
     workalikes (xe driver)
       <itemizedlist>
 	<listitem>
-	  <para>Accton EN2226/Fast EtherCard (16-bit verison)</para>
+	  <para>Accton EN2226/Fast EtherCard (16-bit version)</para>
         </listitem>
 	<listitem>
 	  <para>Compaq Netelligent 10/100 PC Card</para>
         </listitem>
 	<listitem>
 	  <para>Intel EtherExpress PRO/100 Mobile Adapter (16-bit
-	  verison)</para>
+	  version)</para>
         </listitem>
 	<listitem>
 	  <para>Xircom 10/100 Network PC Card adapter</para>
