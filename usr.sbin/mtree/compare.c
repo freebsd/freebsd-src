@@ -212,8 +212,8 @@ typeerr:		LABEL;
 				LABEL;
 				(void)printf("%scksum expected %lu found %lu\n",
 				    tab, s->cksum, val);
+				tab = "\t";
 			}
-			tab = "\t";
 		}
 	}
 	/*
@@ -301,7 +301,7 @@ typeerr:		LABEL;
 	    strcmp(cp = rlink(p->fts_accpath), s->slink)) {
 		LABEL;
 		(void)printf("%slink_ref expected %s found %s\n",
-		      tab, cp, s->slink);
+		      tab, s->slink, cp);
 	}
 	return (label);
 }
