@@ -32,11 +32,15 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)pi.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
-#include <stdio.h>
 #include <ctype.h>
+#include <stdio.h>
 #include <string.h>
 #include "error.h"
 

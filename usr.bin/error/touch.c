@@ -32,18 +32,23 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)touch.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/param.h>
-#include <signal.h>
-#include <unistd.h>
-#include <stdio.h>
 #include <ctype.h>
+#include <err.h>
+#include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "error.h"
 #include "pathnames.h"
 
@@ -56,6 +61,23 @@ static char sccsid[] = "@(#)touch.c	8.1 (Berkeley) 6/6/93";
 #define	FILEITERATE(fi, lb)	for (fi = lb; fi <= nfiles; fi++)
 int	touchstatus = Q_YES;
 
+int countfiles __P((Eptr *));
+boolean edit __P((char *));
+void errorprint __P((FILE *, Eptr, boolean));
+void execvarg __P((int, int *, char ***));
+void diverterrors __P((char *, int, Eptr **, int, boolean, int));
+void hackfile __P((char *, Eptr **, int, int));
+void insert __P((int));
+int mustoverwrite __P((FILE *, FILE *));
+int mustwrite __P((char *, int, FILE *));
+int nopertain __P((Eptr **));
+int oktotouch __P((char *));
+boolean preview __P((char *, int, Eptr **, int));
+int settotouch __P((char *));
+void text __P((Eptr, boolean));
+boolean writetouched __P((int));
+
+void
 findfiles(nerrors, errors, r_nfiles, r_files)
 		int	nerrors;
 	Eptr	*errors;
@@ -143,6 +165,7 @@ char	*class_table[] = {
 
 int	class_count[C_LAST - C_FIRST] = {0};
 
+void
 filenames(nfiles, files)
 	int	nfiles;
 	Eptr	**files;
@@ -274,13 +297,14 @@ boolean touchfiles(nfiles, files, r_edargc, r_edargv)
 	}
 }
 
+void
 hackfile(name, files, ix, nerrors)
 	char	*name;
 	Eptr	**files;
 	int	ix;
 {
 	boolean	previewed;
-	int	errordest;	/* where errors go*/
+	int	errordest;	/* where errors go */
 
 	if (!oktotouch(name)) {
 		previewed = FALSE;
@@ -384,6 +408,7 @@ int settotouch(name)
 	return(dest);
 }
 
+void
 diverterrors(name, dest, files, ix, previewed, nterrors)
 	char	*name;
 	int	dest;
@@ -480,6 +505,7 @@ int oktotouch(filename)
  *	We fill in the initial search string.
  *	We fill in the arguments, and the null.
  */
+void
 execvarg(n_pissed_on, r_argc, r_argv)
 	int	n_pissed_on;
 	int	*r_argc;
@@ -531,8 +557,7 @@ boolean edit(name)
 	
 	o_name = name;
 	if ( (o_touchedfile = fopen(name, "r")) == NULL){
-		fprintf(stderr, "%s: Can't open file \"%s\" to touch (read).\n",
-			processname, name);
+		warnx("can't open file \"%s\" to touch (read)", name);
 		return(TRUE);
 	}
 	(void)strcpy(n_name, canon_name);
@@ -541,8 +566,7 @@ boolean edit(name)
 	if ( fd < 0 || (n_touchedfile = fdopen(fd, "w")) == NULL) {
 		if (fd >= 0)
 			close(fd);
-		fprintf(stderr,"%s: Can't open file \"%s\" to touch (write).\n",
-			processname, name);
+		warnx("can't open file \"%s\" to touch (write)", name);
 		return(TRUE);
 	}
 	tempfileopen = TRUE;
@@ -554,6 +578,8 @@ boolean edit(name)
  *	Position to the line (before, after) the line given by place
  */
 char	edbuf[BUFSIZ];
+
+void
 insert(place)
 	int	place;
 {
@@ -565,6 +591,7 @@ insert(place)
 	}
 }
 
+void
 text(p, use_all)
 	reg	Eptr	p;
 		boolean	use_all;
@@ -584,6 +611,7 @@ text(p, use_all)
  *	write the touched file to its temporary copy,
  *	then bring the temporary in over the local file
  */
+boolean
 writetouched(overwrite)
 	int	overwrite;
 {
@@ -601,9 +629,8 @@ writetouched(overwrite)
 			 *	Catastrophe in temporary area: file system full?
 			 */
 			botch = 1;
-			fprintf(stderr,
-			  "%s: write failure: No errors inserted in \"%s\"\n",
-			  processname, o_name);
+			warnx("write failure: no errors inserted in \"%s\"",
+			      o_name);
 		}
 	}
 	fclose(n_touchedfile);
@@ -617,14 +644,11 @@ writetouched(overwrite)
 		localfile = NULL;
 		tmpfile = NULL;
 		if ((localfile = fopen(o_name, "w")) == NULL){
-			fprintf(stderr,
-				"%s: Can't open file \"%s\" to overwrite.\n",
-				processname, o_name);
+			warnx("can't open file \"%s\" to overwrite", o_name);
 			botch++;
 		}
 		if ((tmpfile = fopen(n_name, "r")) == NULL){
-			fprintf(stderr, "%s: Can't open file \"%s\" to read.\n",
-				processname, n_name);
+			warnx("can't open file \"%s\" to read", n_name);
 			botch++;
 		}
 		if (!botch)
@@ -634,11 +658,9 @@ writetouched(overwrite)
 		if (tmpfile != NULL)
 			fclose(tmpfile);
 	}
-	if (oktorm == 0){
-		fprintf(stderr, "%s: Catastrophe: A copy of \"%s\": was saved in \"%s\"\n",
-			processname, o_name, n_name);
-		exit(1);
-	}
+	if (oktorm == 0)
+		errx(1, "catastrophe: a copy of \"%s\" was saved in \"%s\"",
+			o_name, n_name);
 	/*
 	 *	Kiss the temp file good bye
 	 */
@@ -649,7 +671,8 @@ writetouched(overwrite)
 /*
  *	return 1 if the tmpfile can be removed after writing it out
  */
-int mustoverwrite(preciousfile, tmpfile)
+int
+mustoverwrite(preciousfile, tmpfile)
 	FILE	*preciousfile;
 	FILE	*tmpfile;
 {
@@ -664,6 +687,7 @@ int mustoverwrite(preciousfile, tmpfile)
 /*
  *	return 0 on catastrophe
  */
+int
 mustwrite(base, n, preciousfile)
 	char	*base;
 	int	n;
@@ -676,7 +700,7 @@ mustwrite(base, n, preciousfile)
 	nwrote = fwrite(base, 1, n, preciousfile);
 	if (nwrote == n)
 		return(1);
-	perror(processname);
+	warn("fwrite");
 	switch(inquire(terse
 	    ? "Botch overwriting: retry? "
 	    : "Botch overwriting the source file: retry? ")){
@@ -722,6 +746,7 @@ onintr()
 	/*NOTREACHED*/
 }
 
+void
 errorprint(place, errorp, print_all)
 	FILE	*place;
 	Eptr	errorp;

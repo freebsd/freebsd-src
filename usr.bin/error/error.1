@@ -55,8 +55,8 @@ traditional methods of scribbling abbreviations of errors on paper, and
 permits error messages and source code to be viewed simultaneously
 without machinations of multiple windows in a screen editor.
 .Pp
-Options are:
-.Bl -tag -width Ds
+The following options are available:
+.Bl -tag -width indent
 .It Fl n
 Do
 .Em not
@@ -94,7 +94,7 @@ Thus the suffix list:
 .Dl ".c.y.foo*.h"
 .Pp
 allows
-.Nm error
+.Nm
 to touch files ending with ``.c'', ``.y'', ``.foo*'' and ``.h''.
 .It Fl s
 Print out
@@ -128,7 +128,7 @@ connected via a pipe to the error message source.
 Some language processors put error messages on their standard error file;
 others put their messages on the standard output.
 Hence, both error sources should be piped together into
-.Nm error .
+.Nm Ns .
 For example, when using the
 .Xr csh 1
 syntax,
@@ -163,7 +163,7 @@ For all languages except
 error messages are restricted to be on one line.
 Some error messages refer to more than one line in more than
 one files;
-.Nm error
+.Nm
 will duplicate the error message and insert it at
 all of the places referenced.
 .Pp
@@ -177,7 +177,7 @@ which file it is processing.
 uses these to determine the file name for languages that
 don't include the file name in each error message.
 These synchronization messages are consumed entirely by
-.Nm error .
+.Nm Ns .
 .It Em discard
 Error messages from
 .Xr lint 1
@@ -190,7 +190,7 @@ and
 are discarded,
 to prevent accidently touching these libraries.
 Again, these error messages are consumed entirely by
-.Nm error .
+.Nm Ns .
 .It Em nullify
 Error messages from
 .Xr lint 1
@@ -226,7 +226,7 @@ insertion into the file to which they refer.
 Only true error messages are candidates for inserting into
 the file they refer to.
 Other error messages are consumed entirely by
-.Nm error
+.Nm
 or are written to the standard output.
 .Nm Error
 inserts the error messages into the source file on the line
@@ -267,12 +267,12 @@ user's teletype
 .El
 .Sh HISTORY
 The
-.Nm error
+.Nm
 command
 appeared in
 .Bx 4.0 .
 .Sh AUTHOR
-Robert Henry
+.An Robert Henry
 .Sh BUGS
 .Pp
 Opens the teletype directly to do user querying.
@@ -282,7 +282,7 @@ only one link to it.
 .Pp
 Changing a language processor's format of error messages
 may cause
-.Nm error
+.Nm
 to not understand the error message.
 .Pp
 .Nm Error ,
@@ -294,7 +294,7 @@ Humans are still much better at discarding these related errors.
 Pascal error messages belong after the lines affected
 (error puts them before).  The alignment of the `\\' marking
 the point of error is also disturbed by
-.Nm error .
+.Nm Ns .
 .Pp
 .Nm Error
 was designed for work on

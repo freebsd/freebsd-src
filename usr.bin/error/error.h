@@ -113,7 +113,6 @@ FILE	*errorfile;	/* where error file comes from */
 FILE	*queryfile;	/* where the query responses from the user come from*/
 
 extern	char	*currentfilename;
-extern	char	*processname;
 extern	char	*scriptname;
 
 extern	boolean	query;
@@ -222,3 +221,21 @@ boolean	persperdexplode();
  *	Printing hacks
  */
 char	*plural(), *verbform();
+
+void  arrayify __P((int *, Eptr **, Eptr));
+void  clob_last __P((char *, char));
+Errorclass discardit __P((Eptr));
+void eaterrors __P((int *, Eptr **));
+void erroradd __P((int, char **, Errorclass, Errorclass));
+void  filenames __P((int, Eptr **));
+void  findfiles __P((int, Eptr *, int *, Eptr ***));
+void getignored __P((char *));
+void onintr __P((void));
+int position __P((char *, char));
+void  printerrors __P((boolean, int, Eptr []));
+char *substitute __P((char *, char, char));
+boolean touchfiles __P((int, Eptr **, int *, char ***));
+void  wordvbuild __P((char *, int *, char ***));
+void wordvprint __P((FILE *, int, char *[]));
+
+
