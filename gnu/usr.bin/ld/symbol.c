@@ -1,5 +1,5 @@
 /*
- * $Id: symbol.c,v 1.2 1993/11/09 04:19:04 paul Exp $		- symbol table routines
+ * $Id: symbol.c,v 1.3 1993/11/22 19:04:45 jkh Exp $		- symbol table routines
  */
 
 /* Create the symbol table entries for `etext', `edata' and `end'.  */
@@ -15,6 +15,15 @@
 
 #include "ld.h"
 
+symbol	*symtab[SYMTABSIZE];	/* The symbol table. */
+int	num_hash_tab_syms;	/* Number of symbols in symbol hash table. */
+
+symbol	*edata_symbol;		/* the symbol _edata */
+symbol	*etext_symbol;		/* the symbol _etext */
+symbol	*end_symbol;		/* the symbol _end */
+symbol	*got_symbol;		/* the symbol __GLOBAL_OFFSET_TABLE_ */
+symbol	*dynamic_symbol;	/* the symbol __DYNAMIC */
+
 void
 symtab_init (relocatable_output)
 int	relocatable_output;
@@ -22,36 +31,40 @@ int	relocatable_output;
 	/*
 	 * Put linker reserved symbols into symbol table.
 	 */
+#ifndef nounderscore
+#define ETEXT_SYM	"_etext"
+#define EDATA_SYM	"_edata"
+#define END_SYM		"_end"
+#define DYN_SYM		"__DYNAMIC"
+#define GOT_SYM		"__GLOBAL_OFFSET_TABLE_"
+#else
+#define ETEXT_SYM	"etext"
+#define EDATA_SYM	"edata"
+#define END_SYM		"end"
+#define DYN_SYM		"_DYNAMIC"
+#define GOT_SYM		"_GLOBAL_OFFSET_TABLE_"
+#endif
 
-	dynamic_symbol = getsym ("__DYNAMIC");
+	dynamic_symbol = getsym (DYN_SYM);
 	dynamic_symbol->defined = relocatable_output?N_UNDF:(N_DATA | N_EXT);
-	dynamic_symbol->referenced = 0;
-	dynamic_symbol->value = 0;
 
-	got_symbol = getsym ("__GLOBAL_OFFSET_TABLE_");
+	got_symbol = getsym (GOT_SYM);
 	got_symbol->defined = N_DATA | N_EXT;
-	got_symbol->referenced = 0;
-	got_symbol->value = 0;
 
 	if (relocatable_output)
 		return;
 
-#ifndef nounderscore
-	edata_symbol = getsym ("_edata");
-	etext_symbol = getsym ("_etext");
-	end_symbol = getsym ("_end");
-#else
-	edata_symbol = getsym ("edata");
-	etext_symbol = getsym ("etext");
-	end_symbol = getsym ("end");
-#endif
-	edata_symbol->defined = N_DATA | N_EXT;
+	etext_symbol = getsym (ETEXT_SYM);
+	edata_symbol = getsym (EDATA_SYM);
+	end_symbol = getsym (END_SYM);
+
 	etext_symbol->defined = N_TEXT | N_EXT;
+	edata_symbol->defined = N_DATA | N_EXT;
 	end_symbol->defined = N_BSS | N_EXT;
 
-	edata_symbol->referenced = 1;
-	etext_symbol->referenced = 1;
-	end_symbol->referenced = 1;
+	etext_symbol->flags |= GS_REFERENCED;
+	edata_symbol->flags |= GS_REFERENCED;
+	end_symbol->flags |= GS_REFERENCED;
 }
 
 /* Compute the hash code for symbol name KEY.  */
@@ -82,7 +95,7 @@ getsym(key)
 	register symbol *bp;
 
 	/* Determine the proper bucket.  */
-	hashval = hash_string (key) % TABSIZE;
+	hashval = hash_string (key) % SYMTABSIZE;
 
 	/* Search the bucket.  */
 	for (bp = symtab[hashval]; bp; bp = bp->link)
@@ -91,17 +104,15 @@ getsym(key)
 
 	/* Nothing was found; create a new symbol table entry.  */
 	bp = (symbol *) xmalloc (sizeof (symbol));
-	bp->refs = 0;
 	bp->name = (char *) xmalloc (strlen (key) + 1);
 	strcpy (bp->name, key);
+	bp->refs = 0;
 	bp->defined = 0;
-	bp->referenced = 0;
-	bp->trace = 0;
 	bp->value = 0;
-	bp->max_common_size = 0;
+	bp->common_size = 0;
 	bp->warning = 0;
 	bp->undef_refs = 0;
-	bp->multiply_defined = 0;
+	bp->mult_defs = 0;
 	bp->alias = 0;
 	bp->setv_count = 0;
 	bp->symbolnum = 0;
@@ -114,10 +125,7 @@ getsym(key)
 	bp->def_nlist = 0;
 	bp->jmpslot_offset = -1;
 	bp->gotslot_offset = -1;
-	bp->jmpslot_claimed = 0;
-	bp->gotslot_claimed = 0;
-	bp->cpyreloc_reserved = 0;
-	bp->cpyreloc_claimed = 0;
+	bp->flags = 0;
 
 	/* Add the entry to the bucket.  */
 	bp->link = symtab[hashval];
@@ -139,7 +147,7 @@ getsym_soft (key)
 
 	/* Determine which bucket.  */
 
-	hashval = hash_string (key) % TABSIZE;
+	hashval = hash_string (key) % SYMTABSIZE;
 
 	/* Search the bucket.  */
 
