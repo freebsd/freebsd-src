@@ -552,7 +552,7 @@ watchdog_fire(void)
 		curname += strlen(curname) + 1;
 		inttotal += *curintr++;
 	}
-	printf("Total        %20llu\n", inttotal);
+	printf("Total        %20ju\n", (uintmax_t)inttotal);
 
 #ifdef DDB
 	db_print_backtrace();
