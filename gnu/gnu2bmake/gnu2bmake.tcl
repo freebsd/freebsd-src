@@ -59,10 +59,10 @@ proc copy_c {src dst files} {
     regsub -all {\.c} $files {} files
     foreach f $files {
 	if {![file exists $src/${f}.c]} {
-	    sh "cd $src ; set +e ; make ${f}.c"
+	    sh "cd $src ; set +e ; make ${f}.c ; exit 0"
 	}
 	if {![file exists $src/${f}.c]} {
-	    sh "cd $src ; set +e ; make ${f}.o"
+	    sh "cd $src ; set +e ; make ${f}.o ; exit 0"
 	}
 	if {![file exists $src/${f}.c]} {
 	    error "Couldn't produce ${f}.c in $src"
@@ -72,13 +72,38 @@ proc copy_c {src dst files} {
 }
 
 #######################################################################
+# find_source -- Return a list of sourcefiles.
+#	argv[1] source directory
+#	argv[2] source list.
+#	argv[3] list of extensions
+#
+proc find_source {dir files ext} {
+    set l ""
+    foreach f $files {
+        set k ""
+	foreach i $ext {
+	    if {[file exists $dir/${f}${i}]} { set k ${f}${i} ; break }
+	}
+	if {$k == ""} {
+	    error "cannot find source for $f using extensions <$ext>"
+	}
+	lappend l $k
+    }
+    return $l
+}
+
+#######################################################################
 # zap_suffix -- remove suffixes from list if filenames
 #	argv[1] list of filenames
 #	argv[2] (optional) regex matching suffixes to be removed,
 #		default removes all known suffixes, (AND warts too!).
 #
-proc zap_suffix {lst {suf {\.[cyolhsxS]}}} {
-    regsub -all $suf $lst {} a
+proc zap_suffix {lst {suf {\.cc$|\.[cyolhsxS]$}}} {
+    set a ""
+    foreach i $lst {
+	regsub -all $suf $i {} i
+	lappend a $i
+    }
     return $a
 }
 
@@ -122,11 +147,11 @@ proc basename {lst} {
 #
 proc makefile_macro {macro dir {makefile Makefile}} {
     # Nobody will miss a core file, right ?
-    cp $dir/$makefile $dir/make.core
+    sh "cd $dir ; cp $makefile make.core"
     set f [open $dir/make.core a]
     puts $f "\n\nGNU2TCL_test:\n\t@echo \$\{$macro\}"
     close $f
-    set a [exec make -f $dir/make.core GNU2TCL_test]
+    set a [exec sh -e -c "cd $dir ; make -f make.core GNU2TCL_test"]
     sh "rm -f $dir/make.core"
     return $a
 }
