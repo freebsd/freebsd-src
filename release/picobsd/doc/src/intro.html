@@ -1,5 +1,5 @@
 <HTML>
-<! $Id: intro.html,v 1.2 1998/09/26 17:39:21 abial Exp $ >
+<! $Id: intro.html,v 1.3 1998/10/12 07:53:34 abial Exp $ >
 <HEAD>
    <TITLE>PicoBSD</TITLE>
 </HEAD>
@@ -9,7 +9,6 @@
 <HR shade align="center" size="8" width="25%"></CENTER>
 
 
-<IMG SRC="../../icons/daemon.gif" ALIGN="right">
 <p><b>Contents:</b></p>
 <ul>
 <li>
@@ -216,14 +215,15 @@ imagination and coding skills:</p>
 <ul>
 <li>
 To write a command line tool patterned after Cisco IOS, which could configure
-various aspects of router-like version of PicoBSD. I'm nowhere near with this
-goal - I even don't have any good idea how to do it cleanly (I do have some
-ideas, but I classify them as dirty hacks).
+various aspects of router-like version of PicoBSD.
+<p>Well, currently you can read very preliminary draft of proposed
+architecture, called the <A HREF="UCI.html">Unified Configuration Interface.</a></p>
 </li>
 <li>
 To put an XWindow-like GUI on the 'dialup' floppy. (Update: you can look at
 <A HREF="http://www.freebsd.org/~picobsd/preview/preview2.tgz">preview
-version</a> and send me your comments).
+version</a> and send me your comments. <b>I need some help in porting newer
+version of W</b>).
 </li>
 <li>
 To gain some experience with solid state disks, and prepare standard images
@@ -247,23 +247,23 @@ to be able to run truely effortlessly on 4MB machines... This would
 probably include rewriting oinit(8) to run multithreaded.
 </li>
 <li>
-And many others, too vague to put them here. <b>You</b> can also suggest me
-some others applications/solutions you're dreaming of...
+And many others... You can find a complete list
+<A HREF="TODO.html">here</a>.
 </li>
 </ul>
 
 <A NAME="credits"><h3>Credits</h3>
 
 <p>The following people are either responsible for the very existence of this
-project, or significantly eased my pains of gaining necessary knowledge:</p>
+project, or significantly eased my pains in gaining necessary knowledge:</p>
 <ul>
 <li>
 the whole FreeBSD team for this magnificent OS, and their hard work of
 continuous development,
 </li>
 <li>
-Dinesh Nair, for co-development and preparing of the version which compiles
-on -RELEASE,
+Dinesh Nair, for co-development and preparing of the version which compiled
+on 2.2.5-RELEASE,
 </li>
 <li>
 Joe Greco, for his encouraging example of XKERNEL (some parts of the scripts
@@ -295,7 +295,7 @@ with this project, either by donating some time to write code, or by
 some other donation, just <A HREF="mailto:abial@nask.pl">contact me</a>.</p>
 
 <h5>Last modified: 
-Fri Sep  4 01:17:44 PDT 1998
+@DATE@
 </h5>
 
 <HR shade align="left" size="2" width="100%">
