@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  *  	@(#) src/sys/coda/coda_vnops.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_vnops.c,v 1.16 1999/07/21 12:51:36 phk Exp $
+ *  $Id: coda_vnops.c,v 1.17 1999/08/08 13:22:05 bde Exp $
  * 
  */
 
@@ -561,8 +561,7 @@ coda_ioctl(v)
      * Make sure this is a coda style cnode, but it may be a
      * different vfsp 
      */
-    /* XXX: this totally violates the comment about vtagtype in vnode.h */
-    if (tvp->v_tag != VT_CODA) {
+    if (tvp->v_op != coda_vnodeop_p) {
 	vrele(tvp);
 	MARK_INT_FAIL(CODA_IOCTL_STATS);
 	CODADEBUG(CODA_IOCTL, 
