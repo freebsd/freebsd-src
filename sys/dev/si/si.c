@@ -714,7 +714,7 @@ open_top:
 		/* set initial DCD state */
 		pp->sp_last_hi_ip = ccbp->hi_ip;
 		if ((pp->sp_last_hi_ip & IP_DCD) || IS_CALLOUT(mynor)) {
-			(*linesw[tp->t_line].l_modem)(tp, 1);
+			ttyld_modem(tp, 1);
 		}
 	}
 
@@ -740,7 +740,7 @@ open_top:
 		goto open_top;
 	}
 
-	error = (*linesw[tp->t_line].l_open)(dev, tp);
+	error = ttyld_open(tp, dev);
 	si_disc_optim(tp, &tp->t_termios, pp);
 	if (tp->t_state & TS_ISOPEN && IS_CALLOUT(mynor))
 		pp->sp_active_out = TRUE;
@@ -790,7 +790,7 @@ siclose(dev_t dev, int flag, int mode, struct thread *td)
 	si_write_enable(pp, 0);		/* block writes for ttywait() */
 
 	/* THIS MAY SLEEP IN TTYWAIT!!! */
-	(*linesw[tp->t_line].l_close)(tp, flag);
+	ttyld_close(tp, flag);
 
 	si_write_enable(pp, 1);
 
@@ -900,7 +900,7 @@ siwrite(dev_t dev, struct uio *uio, int flag)
 		}
 	}
 
-	error = (*linesw[tp->t_line].l_write)(tp, uio, flag);
+	error = ttyld_write(tp, uio, flag);
 out:
 	splx(oldspl);
 	return (error);
@@ -1466,12 +1466,12 @@ si_modem_state(struct si_port *pp, struct tty *tp, int hi_ip)
 		if (!(pp->sp_last_hi_ip & IP_DCD)) {
 			DPRINT((pp, DBG_INTR, "modem carr on t_line %d\n",
 				tp->t_line));
-			(void)(*linesw[tp->t_line].l_modem)(tp, 1);
+			(void)ttyld_modem(tp, 1);
 		}
 	} else {
 		if (pp->sp_last_hi_ip & IP_DCD) {
 			DPRINT((pp, DBG_INTR, "modem carr off\n"));
-			if ((*linesw[tp->t_line].l_modem)(tp, 0))
+			if (ttyld_modem(tp, 0))
 				(void) si_modem(pp, SET, 0);
 		}
 	}
@@ -1679,7 +1679,7 @@ si_intr(void *arg)
 			 */
 			if (ccbp->hi_state & ST_BREAK) {
 				if (isopen) {
-				    (*linesw[tp->t_line].l_rint)(TTY_BI, tp);
+				    ttyld_rint(tp, TTY_BI);
 				}
 				ccbp->hi_state &= ~ST_BREAK;   /* A Bit iffy this */
 				DPRINT((pp, DBG_INTR, "si_intr break\n"));
@@ -1808,7 +1808,7 @@ si_intr(void *arg)
 				 */
 				for(x = 0; x < n; x++) {
 					i = si_rxbuf[x];
-					if ((*linesw[tp->t_line].l_rint)(i, tp)
+					if (ttyld_rint(tp, i)
 					     == -1) {
 						pp->sp_delta_overflows++;
 					}
@@ -1821,7 +1821,7 @@ si_intr(void *arg)
 			/*
 			 * Do TX stuff
 			 */
-			(*linesw[tp->t_line].l_start)(tp);
+			ttyld_start(tp);
 
 		} /* end of for (all ports on this controller) */
 	} /* end of for (all controllers) */
@@ -1963,7 +1963,7 @@ si_lstart(void *arg)
 	ttwwakeup(tp);
 
 	/* nudge protocols - eg: ppp */
-	(*linesw[tp->t_line].l_start)(tp);
+	ttyld_start(tp);
 
 	pp->sp_state &= ~SS_INLSTART;
 	splx(oldspl);

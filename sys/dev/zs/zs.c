@@ -436,13 +436,13 @@ zstty_softintr(struct zstty_softc *sc)
 		if (sc->sc_iget == sc->sc_ibuf + sizeof(sc->sc_ibuf))
 			sc->sc_iget = sc->sc_ibuf;
 
-		(*linesw[tp->t_line].l_rint)(data, tp);
+		ttyld_rint(tp, data);
 	}
 
 	if (sc->sc_tx_done != 0) {
 		sc->sc_tx_done = 0;
 		tp->t_state &= ~TS_BUSY;
-		(*linesw[tp->t_line].l_start)(tp);
+		ttyld_start(tp);
 	}
 }
 
@@ -495,7 +495,7 @@ zsttyopen(dev_t dev, int flags, int mode, struct thread *td)
 	if (error != 0)
 		return (error);
 
-	error = (*linesw[tp->t_line].l_open)(dev, tp);
+	error = ttyld_open(tp, dev);
 	if (error != 0)
 		return (error);
 
@@ -512,7 +512,7 @@ zsttyclose(dev_t dev, int flags, int mode, struct thread *td)
 	if ((tp->t_state & TS_ISOPEN) == 0)
 		return (0);
 
-	(*linesw[tp->t_line].l_close)(tp, flags);
+	ttyld_close(tp, flags);
 	ttyclose(tp);
 
 	return (0);

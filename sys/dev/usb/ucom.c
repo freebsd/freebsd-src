@@ -213,7 +213,7 @@ ucom_detach(struct ucom_softc *sc)
 		if (tp->t_state & TS_ISOPEN) {
 			device_printf(sc->sc_dev,
 				      "still open, forcing close\n");
-			(*linesw[tp->t_line].l_close)(tp, 0);
+			ttyld_close(tp, 0);
 			ttyclose(tp);
 		}
 	} else {
@@ -385,7 +385,7 @@ ucomopen(dev_t dev, int flag, int mode, usb_proc_ptr p)
 		 */
 		if (ISSET(sc->sc_msr, UMSR_DCD) ||
 		    (minor(dev) & UCOM_CALLOUT_MASK))
-			(*linesw[tp->t_line].l_modem)(tp, 1);
+			ttyld_modem(tp, 1);
 
 		ucomstartread(sc);
 	}
@@ -398,7 +398,7 @@ ucomopen(dev_t dev, int flag, int mode, usb_proc_ptr p)
 	if (error)
 		goto bad;
 
-	error = (*linesw[tp->t_line].l_open)(dev, tp);
+	error = ttyld_open(tp, dev);
 	if (error)
 		goto bad;
 
@@ -461,7 +461,7 @@ ucomclose(dev_t dev, int flag, int mode, usb_proc_ptr p)
 		goto quit;
 
 	s = spltty();
-	(*linesw[tp->t_line].l_close)(tp, flag);
+	ttyld_close(tp, flag);
 	disc_optim(tp, &tp->t_termios, sc);
 	ttyclose(tp);
 	splx(s);
@@ -503,7 +503,7 @@ ucomread(dev_t dev, struct uio *uio, int flag)
 	if (sc->sc_dying)
 		return (EIO);
 
-	error = (*linesw[tp->t_line].l_read)(tp, uio, flag);
+	error = ttyld_read(tp, uio, flag);
 
 	DPRINTF(("ucomread: error = %d\n", error));
 
@@ -525,7 +525,7 @@ ucomwrite(dev_t dev, struct uio *uio, int flag)
 	if (sc->sc_dying)
 		return (EIO);
 
-	error = (*linesw[tp->t_line].l_write)(tp, uio, flag);
+	error = ttyld_write(tp, uio, flag);
 
 	DPRINTF(("ucomwrite: error = %d\n", error));
 
@@ -762,7 +762,7 @@ ucom_status_change(struct ucom_softc *sc)
 			return;
 		onoff = ISSET(sc->sc_msr, UMSR_DCD) ? 1 : 0;
 		DPRINTF(("ucom_status_change: DCD changed to %d\n", onoff));
-		(*linesw[tp->t_line].l_modem)(tp, onoff);
+		ttyld_modem(tp, onoff);
 	}
 }
 
@@ -993,7 +993,7 @@ ucomwritecb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 		CLR(tp->t_state, TS_FLUSH);
 	else
 		ndflush(&tp->t_outq, cc);
-	(*linesw[tp->t_line].l_start)(tp);
+	ttyld_start(tp);
 	splx(s);
 
 	return;
