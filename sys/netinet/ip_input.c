@@ -125,6 +125,11 @@ SYSCTL_INT(_net_inet_ip, OID_AUTO, maxfragpackets, CTLFLAG_RW,
 	&ip_maxfragpackets, 0,
 	"Maximum number of IPv4 fragment reassembly queue entries");
 
+static int	ip_sendsourcequench = 0;
+SYSCTL_INT(_net_inet_ip, OID_AUTO, sendsourcequench, CTLFLAG_RW,
+	&ip_sendsourcequench, 0,
+	"Enable the transmission of source quench packets");
+
 /*
  * XXX - Setting ip_checkinterface mostly implements the receive side of
  * the Strong ES model described in RFC 1122, but since the routing table
@@ -1971,8 +1976,21 @@ ip_forward(struct mbuf *m, int srcrt, struct sockaddr_in *next_hop)
 		break;
 
 	case ENOBUFS:
-		type = ICMP_SOURCEQUENCH;
-		code = 0;
+		/*
+		 * A router should not generate ICMP_SOURCEQUENCH as
+		 * required in RFC1812 Requirements for IP Version 4 Routers.
+		 * Source quench could be a big problem under DoS attacks,
+		 * or if the underlying interface is rate-limited.
+		 * Those who need source quench packets may re-enable them
+		 * via the net.inet.ip.sendsourcequench sysctl.
+		 */
+		if (ip_sendsourcequench == 0) {
+			m_freem(mcopy);
+			return;
+		} else {
+			type = ICMP_SOURCEQUENCH;
+			code = 0;
+		}
 		break;
 
 	case EACCES:			/* ipfw denied packet */
