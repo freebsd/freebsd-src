@@ -44,11 +44,15 @@ static const char copyright[] =
 #if 0
 static char sccsid[] = "@(#)nm.c	8.1 (Berkeley) 6/6/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/types.h>
+
+#include <arpa/inet.h>
+
 #include <a.out.h>
 #include <ar.h>
 #include <ctype.h>
@@ -70,8 +74,7 @@ int print_weak_symbols;
 int fcount;
 
 int rev, table;
-int fname(), rname(), value();
-int (*sfunc)() = fname;
+const char *typestring(u_char);
 
 /* some macros for symbol type (nlist.n_type) handling */
 #define	IS_DEBUGGER_SYMBOL(x)	((x) & N_STAB)
@@ -79,12 +82,17 @@ int (*sfunc)() = fname;
 #define	SYMBOL_TYPE(x)		((x) & (N_TYPE | N_STAB))
 #define SYMBOL_BIND(x)		(((x) >> 4) & 0xf)
 
-static void usage( void );
-int process_file( char * );
-int show_archive( char *, FILE * );
-int show_objfile( char *, FILE * );
-void print_symbol( char *, struct nlist * );
+static void usage(void);
+int process_file(const char *);
+int show_archive(const char *, FILE *);
+int show_objfile(const char *, FILE *);
+void print_symbol(const char *, struct nlist *);
 char typeletter(u_char);
+int fname(const void *, const void *);
+int rname(const void *, const void *);
+int value(const void *, const void *);
+
+int (*sfunc)(const void *, const void *) = fname;
 
 /*
  * main()
@@ -92,9 +100,7 @@ char typeletter(u_char);
  *	specified on the command line.
  */
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char *argv[])
 {
 	int ch, errors;
 
@@ -158,28 +164,27 @@ main(argc, argv)
  *	object files as input.
  */
 int
-process_file(fname)
-	char *fname;
+process_file(const char *fn)
 {
 	struct exec exec_head;
 	FILE *fp;
 	int retval;
 	char magic[SARMAG];
 
-	if (!(fp = fopen(fname, "r"))) {
-		warnx("cannot read %s", fname);
+	if (!(fp = fopen(fn, "r"))) {
+		warnx("cannot read %s", fn);
 		return(1);
 	}
 
 	if (fcount > 1 && !table)
-		(void)printf("\n%s:\n", fname);
+		(void)printf("\n%s:\n", fn);
 
 	/*
 	 * first check whether this is an object file - read a object
 	 * header, and skip back to the beginning
 	 */
 	if (fread((char *)&exec_head, sizeof(exec_head), (size_t)1, fp) != 1) {
-		warnx("%s: bad format", fname);
+		warnx("%s: bad format", fn);
 		(void)fclose(fp);
 		return(1);
 	}
@@ -189,13 +194,13 @@ process_file(fname)
 	if (N_BADMAG(exec_head)) {
 		if (fread(magic, sizeof(magic), (size_t)1, fp) != 1 ||
 		    strncmp(magic, ARMAG, SARMAG)) {
-			warnx("%s: not object file or archive", fname);
+			warnx("%s: not object file or archive", fn);
 			(void)fclose(fp);
 			return(1);
 		}
-		retval = show_archive(fname, fp);
+		retval = show_archive(fn, fp);
 	} else
-		retval = show_objfile(fname, fp);
+		retval = show_objfile(fn, fp);
 	(void)fclose(fp);
 	return(retval);
 }
@@ -203,7 +208,8 @@ process_file(fname)
 /* scat: concatenate strings, returning new concatenation point
  * and permitting overlap.
  */
-static char *scat(char *dest, char *src)
+static char
+*scat(char *dest, const char *src)
 {
 	char *end;
 	int l1 = strlen(dest), l2 = strlen(src);
@@ -220,16 +226,14 @@ static char *scat(char *dest, char *src)
  *	show symbols in the given archive file
  */
 int
-show_archive(fname, fp)
-	char *fname;
-	FILE *fp;
+show_archive(const char *fn, FILE *fp)
 {
 	struct ar_hdr ar_head;
 	struct exec exec_head;
 	int i, rval;
 	long last_ar_off;
 	char *p, *name, *ar_name;
-	int extra = strlen(fname) + 3;
+	int extra = strlen(fn) + 3;
 
 	if ((name = malloc(MAXNAMLEN + extra)) == NULL)
 		err(1, NULL);
@@ -241,7 +245,7 @@ show_archive(fname, fp)
 	while (fread((char *)&ar_head, sizeof(ar_head), (size_t)1, fp) == 1) {
 		/* bad archive entry - stop processing this archive */
 		if (strncmp(ar_head.ar_fmag, ARFMAG, sizeof(ar_head.ar_fmag))) {
-			warnx("%s: bad format archive header", fname);
+			warnx("%s: bad format archive header", fn);
 			(void)free(name);
 			return(1);
 		}
@@ -276,7 +280,7 @@ show_archive(fname, fp)
 		else
 		{
 			p = ar_head.ar_name;
-			for (i = 0; i < sizeof(ar_head.ar_name) && p[i] && p[i] != ' '; i++)
+			for (i = 0; i < (int)sizeof(ar_head.ar_name) && p[i] && p[i] != ' '; i++)
 					ar_name[i] = p[i];
 			ar_name[i] = 0;
 		}
@@ -290,7 +294,7 @@ show_archive(fname, fp)
 		*p = 0;
 		if (print_file_each_line && !table)
 		{
-			p = scat(p, fname);
+			p = scat(p, fn);
 			p = scat(p, ":");
 		}
 		p = scat(p, ar_name);
@@ -322,7 +326,7 @@ show_archive(fname, fp)
 #define even(x) (((x) + 1) & ~1)
 skip:		if (fseek(fp, last_ar_off + even(atol(ar_head.ar_size)),
 		    SEEK_SET)) {
-			warn("%s", fname);
+			warn("%s", fn);
 			(void)free(name);
 			return(1);
 		}
@@ -338,12 +342,10 @@ skip:		if (fseek(fp, last_ar_off + even(atol(ar_head.ar_size)),
  *	header.
  */
 int
-show_objfile(objname, fp)
-	char *objname;
-	FILE *fp;
+show_objfile(const char *objname, FILE *fp)
 {
-	register struct nlist *names, *np;
-	register int i, nnames, nrawnames;
+	struct nlist *names, *np;
+	int i, nnames, nrawnames;
 	struct exec head;
 	int32_t stabsize;
 	char *stab;
@@ -444,7 +446,7 @@ show_objfile(objname, fp)
 		if (np->n_un.n_strx)
 			np->n_un.n_name = stab + np->n_un.n_strx;
 		else
-			np->n_un.n_name = "";
+			np->n_un.n_name = strdup("");
 		names[nnames++] = *np;
 	}
 
@@ -466,12 +468,8 @@ show_objfile(objname, fp)
  *	show one symbol
  */
 void
-print_symbol(objname, sym)
-	char *objname;
-	register struct nlist *sym;
+print_symbol(const char *objname, struct nlist *sym)
 {
-	char *typestring();
-
 	if (table) {
 		printf("%s|", objname);
 		if (SYMBOL_TYPE(sym->n_type) != N_UNDF)
@@ -533,9 +531,8 @@ print_symbol(objname, sym)
  * typestring()
  *	return the a description string for an STAB entry
  */
-char *
-typestring(type)
-	register u_char type;
+const char *
+typestring(u_char type)
 {
 	switch(type) {
 	case N_BCOMM:
@@ -589,8 +586,7 @@ typestring(type)
  *	external, lower case for internal symbols.
  */
 char
-typeletter(type)
-	u_char type;
+typeletter(u_char type)
 {
 	switch(SYMBOL_TYPE(type)) {
 	case N_ABS:
@@ -615,28 +611,25 @@ typeletter(type)
 }
 
 int
-fname(a0, b0)
-	void *a0, *b0;
+fname(const void *a0, const void *b0)
 {
-	struct nlist *a = a0, *b = b0;
+	const struct nlist *a = a0, *b = b0;
 
 	return(strcmp(a->n_un.n_name, b->n_un.n_name));
 }
 
 int
-rname(a0, b0)
-	void *a0, *b0;
+rname(const void *a0, const void *b0)
 {
-	struct nlist *a = a0, *b = b0;
+	const struct nlist *a = a0, *b = b0;
 
 	return(strcmp(b->n_un.n_name, a->n_un.n_name));
 }
 
 int
-value(a0, b0)
-	void *a0, *b0;
+value(const void *a0, const void *b0)
 {
-	register struct nlist *a = a0, *b = b0;
+	const struct nlist *a = a0, *b = b0;
 
 	if (SYMBOL_TYPE(a->n_type) == N_UNDF)
 		if (SYMBOL_TYPE(b->n_type) == N_UNDF)
