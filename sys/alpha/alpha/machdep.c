@@ -112,7 +112,6 @@
 #include <sys/sysctl.h>
 #include <sys/uio.h>
 #include <sys/linker.h>
-#include <sys/random.h>
 #include <net/netisr.h>
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
@@ -998,11 +997,6 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	    (u_int64_t)proc0paddr + USPACE - sizeof(struct trapframe);
 	proc0.p_md.md_tf =
 	    (struct trapframe *)proc0paddr->u_pcb.pcb_hw.apcb_ksp;
-
-	/*
-	 * Initialise entropy pool.
-	 */
-	rand_initialize();
 
 	/*
 	 * Look at arguments passed to us and compute boothowto.
