@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.163 1998/03/13 09:41:58 bde Exp $
+#	$Id: Makefile,v 1.164 1998/03/14 13:58:21 bde Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -141,11 +141,12 @@ SUPFLAGS?=	-v
 # shared or profiled libraries, shared linkage, or documentation, except
 # when the tools won't get cleaned we must use the defaults for shared
 # libraries and shared linkage (and this doesn't waste time).
+# XXX actually, we do need to waste time building shared libraries.
 #
 .if defined(NOCLEAN)
-MK_FLAGS=	-DNOINFO -DNOMAN         -DNOPROFILE
+MK_FLAGS=	-DNOINFO -DNOMAN -DNOPROFILE
 .else
-MK_FLAGS=	-DNOINFO -DNOMAN -DNOPIC -DNOPROFILE -DNOSHARED
+MK_FLAGS=	-DNOINFO -DNOMAN -DNOPROFILE -DNOSHARED
 .endif
 
 #
