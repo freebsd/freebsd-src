@@ -626,7 +626,8 @@ lmc_rx_intr(lmc_softc_t * const sc)
 			if (accept) {
 				ms->m_pkthdr.len = total_len;
 				ms->m_pkthdr.rcvif = NULL;
-				ng_send_data(sc->lmc_hook, ms, NULL);
+				ng_send_data(sc->lmc_hook,
+				    ms, NULL, NULL, NULL);
 			}
 			ms = m0;
 		}
@@ -1293,8 +1294,8 @@ ng_lmc_newhook(node_p node, hook_p hook, const char *name)
  * Just respond to the generic TEXT_STATUS message
  */
 static  int
-ng_lmc_rcvmsg(node_p node,
-        struct ng_mesg *msg, const char *retaddr, struct ng_mesg **rptr)
+ng_lmc_rcvmsg(node_p node, struct ng_mesg *msg,
+	const char *retaddr, struct ng_mesg **rptr, hook_p lasthook)
 {
 	lmc_softc_t *sc = (lmc_softc_t *) node->private;
 	struct ng_mesg *resp = NULL;
@@ -1395,7 +1396,8 @@ ng_lmc_rcvmsg(node_p node,
  * get data from another node and transmit it to the line
  */
 static  int
-ng_lmc_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
+ng_lmc_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
+	struct mbuf **ret_m, meta_p *ret_meta)
 {
         int s;
         int error = 0;
