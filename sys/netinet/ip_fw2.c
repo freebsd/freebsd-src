@@ -111,7 +111,8 @@ struct ip_fw_chain {
 	struct mtx	mtx;		/* lock guarding rule list */
 };
 #define	IPFW_LOCK_INIT(_chain) \
-	mtx_init(&(_chain)->mtx, "IPFW static rules", NULL, MTX_DEF)
+	mtx_init(&(_chain)->mtx, "IPFW static rules", NULL, \
+		MTX_DEF | MTX_RECURSE)
 #define	IPFW_LOCK_DESTROY(_chain)	mtx_destroy(&(_chain)->mtx)
 #define	IPFW_LOCK(_chain)	mtx_lock(&(_chain)->mtx)
 #define	IPFW_UNLOCK(_chain)	mtx_unlock(&(_chain)->mtx)
