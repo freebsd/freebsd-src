@@ -215,6 +215,8 @@ int opt_flags;
 #define	OP_MASK		0x08
 #define	OP_NET		0x10
 #define	OP_ALLDIRS	0x40
+/* 0x80 is OP_HAVEMASK in FreeBSD 5+ */
+#define	OP_QUIET	0x100
 
 #ifdef DEBUG
 int debug = 1;
@@ -1061,7 +1063,8 @@ getexp_err(ep, grp)
 {
 	struct grouplist *tgrp;
 
-	syslog(LOG_ERR, "bad exports list line %s", line);
+	if (!(opt_flags & OP_QUIET))
+		syslog(LOG_ERR, "bad exports list line %s", line);
 	if (ep && (ep->ex_flag & EX_LINKED) == 0)
 		free_exp(ep);
 	while (grp) {
@@ -1406,6 +1409,8 @@ do_opt(cpp, endcpp, ep, grp, has_hostp, exflagsp, cr)
 			opt_flags |= OP_MAPALL;
 		} else if (cpoptarg && !strcmp(cpopt, "index")) {
 			ep->ex_indexfile = strdup(cpoptarg);
+		} else if (!strcmp(cpopt, "quiet")) {
+			opt_flags |= OP_QUIET;
 		} else {
 			syslog(LOG_ERR, "bad opt %s", cpopt);
 			return (1);
@@ -1678,14 +1683,22 @@ do_mount(ep, grp, exflags, anoncrp, dirp, dirplen, fsb)
 				*cp-- = savedc;
 			else
 				cp = dirp + dirplen - 1;
+			if (opt_flags & OP_QUIET)
+				return (1);
 			if (errno == EPERM) {
 				syslog(LOG_ERR,
 				   "can't change attributes for %s", dirp);
 				return (1);
 			}
 			if (opt_flags & OP_ALLDIRS) {
-				syslog(LOG_ERR, "could not remount %s: %m",
-					dirp);
+				if (errno == EINVAL)
+					syslog(LOG_ERR,
+		"-alldirs requested but %s is not a filesystem mountpoint",
+						dirp);
+				else
+					syslog(LOG_ERR,
+						"could not remount %s: %m",
+						dirp);
 				return (1);
 			}
 			/* back up over the last component */
