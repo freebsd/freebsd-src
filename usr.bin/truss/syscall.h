@@ -34,7 +34,7 @@ struct syscall_args {
 };
 
 struct syscall {
-	char *name;
+	const char *name;
 	int ret_type;	/* 0, 1, or 2 return values */
 	int nargs;	/* actual number of meaningful arguments */
 			/* Hopefully, no syscalls with > 10 args */
