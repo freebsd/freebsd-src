@@ -31,7 +31,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <termios.h>
+#ifdef __FreeBSD__
 #include <sha.h>
+#else
+#include <openssl/sha.h>
+#endif
 #include <openssl/rc4.h>
 
 #include "defs.h"
