@@ -2227,6 +2227,8 @@ vm_map_remove(vm_map_t map, vm_offset_t start, vm_offset_t end)
  *	might be mapped into a larger address space.
  *
  *	NOTE!  This code is also called by munmap().
+ *
+ *	The map must be locked.  A read lock is sufficient.
  */
 boolean_t
 vm_map_check_protection(vm_map_t map, vm_offset_t start, vm_offset_t end,
@@ -2235,37 +2237,27 @@ vm_map_check_protection(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	vm_map_entry_t entry;
 	vm_map_entry_t tmp_entry;
 
-	vm_map_lock_read(map);
-	if (!vm_map_lookup_entry(map, start, &tmp_entry)) {
-		vm_map_unlock_read(map);
+	if (!vm_map_lookup_entry(map, start, &tmp_entry))
 		return (FALSE);
-	}
 	entry = tmp_entry;
 
 	while (start < end) {
-		if (entry == &map->header) {
-			vm_map_unlock_read(map);
+		if (entry == &map->header)
 			return (FALSE);
-		}
 		/*
 		 * No holes allowed!
 		 */
-		if (start < entry->start) {
-			vm_map_unlock_read(map);
+		if (start < entry->start)
 			return (FALSE);
-		}
 		/*
 		 * Check protection associated with entry.
 		 */
-		if ((entry->protection & protection) != protection) {
-			vm_map_unlock_read(map);
+		if ((entry->protection & protection) != protection)
 			return (FALSE);
-		}
 		/* go to next entry */
 		start = entry->end;
 		entry = entry->next;
 	}
-	vm_map_unlock_read(map);
 	return (TRUE);
 }
 
