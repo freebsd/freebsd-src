@@ -1,5 +1,5 @@
 /*
- *	$Id$
+ * $FreeBSD$
  *
  *	Copyright (c) 1997
  *	OLICOM A/S
