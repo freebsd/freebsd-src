@@ -224,7 +224,7 @@ sonewconn3(head, connstatus, p)
 	}
 	if (connstatus) {
 		sorwakeup(head);
-		wakeup((caddr_t)&head->so_timeo);
+		wakeup_one(&head->so_timeo);
 		so->so_state |= connstatus;
 	}
 	return (so);
