@@ -127,7 +127,7 @@ static off_t	nfs_seek(struct open_file *f, off_t offset, int where);
 static int	nfs_stat(struct open_file *f, struct stat *sb);
 static int	nfs_readdir(struct open_file *f, struct dirent *d);
 
-static struct	nfs_iodesc nfs_root_node;
+struct	nfs_iodesc nfs_root_node;
 
 struct fs_ops nfs_fsops = {
 	"nfs",
