@@ -218,7 +218,7 @@ separate counters.  Each rate limiting queue now has its own
 description.
 
 ICMP UNREACH_FILTER_PROHIB messages can now RST TCP connections, as
-controlled by the net.inet.tcp.icmp_admin_prohib_like_rst sysctl.
+controlled by the net.inet.tcp.icmp_may_rst sysctl.
 
 TCP has received some bug fixes for its delayed ACK behavior. [MERGED]
 
@@ -781,7 +781,7 @@ pkg_delete(1) now can perform glob/regexp matching of package names.
 In addition, it supports the -a option for removing all packages and
 the -i option for rm(1)-style interactive confirmation.
 
-tar(1) now supports the TAR_SSH variable, principally to enable the
+tar(1) now supports the TAR_RSH variable, principally to enable the
 use of ssh(1) as a transport. [MERGED]
 
 disklabel(8) now supports partition sizes expressed in kilobytes,
