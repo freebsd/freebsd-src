@@ -23,10 +23,21 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isavar.h,v 1.6 1999/05/14 11:22:35 dfr Exp $
+ *	$Id: isavar.h,v 1.7 1999/05/22 15:18:28 dfr Exp $
  */
 
 #include "isa_if.h"
+
+/*
+ * ISA devices are partially ordered to ensure that devices which are
+ * sensitive to other driver probe routines are probed first. Plug and
+ * Play devices are added after devices with speculative probes so that
+ * the legacy hardware can claim resources allowing the Plug and Play
+ * hardware to choose different resources.
+ */
+#define ISA_ORDER_SENSITIVE	0 /* legacy sensitive hardware */
+#define ISA_ORDER_SPECULATIVE	1 /* legacy non-sensitive hardware */
+#define ISA_ORDER_PNP		2 /* plug-and-play hardware */
 
 #define	ISA_NPORT_IVARS	2
 #define	ISA_NMEM_IVARS	2
