@@ -1,4 +1,4 @@
-# $Id: stable-supfile,v 1.2.2.5 1997/07/22 18:21:51 jdp Exp $
+# $Id: stable-supfile,v 1.2.2.6 1997/09/03 20:43:41 jdp Exp $
 #
 # This file contains all of the "CVSup collections" that make up the
 # FreeBSD-stable source tree.
@@ -87,6 +87,7 @@ src-all
 #src-games
 #src-gnu
 #src-include
+#src-kerberosIV
 #src-lib
 #src-libexec
 #src-release
