@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: icu_vector.s,v 1.2 1997/05/31 08:59:51 peter Exp $
+ *	$Id: icu_vector.s,v 1.3 1997/07/24 03:24:57 fsmp Exp $
  */
 
 /*
@@ -16,7 +16,7 @@
 #define	ICU_EOI			0x20	/* XXX - define elsewhere */
 
 #define	IRQ_BIT(irq_num)	(1 << ((irq_num) % 8))
-#define	IRQ_BYTE(irq_num)	((irq_num) / 8)
+#define	IRQ_BYTE(irq_num)	((irq_num) >> 3)
 
 #ifdef AUTO_EOI_1
 #define	ENABLE_ICU1		/* use auto-EOI to reduce i/o */
