@@ -48,8 +48,12 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <string.h>
 
+char	*__strtok_r(char *, const char *, char **);
+
+__weak_reference(__strtok_r, strtok_r);
+
 char *
-strtok_r(char *s, const char *delim, char **last)
+__strtok_r(char *s, const char *delim, char **last)
 {
 	char *spanp, *tok;
 	int c, sc;
@@ -99,7 +103,7 @@ strtok(char *s, const char *delim)
 {
 	static char *last;
 
-	return (strtok_r(s, delim, &last));
+	return (__strtok_r(s, delim, &last));
 }
 
 #ifdef DEBUG_STRTOK
