@@ -33,7 +33,7 @@
 
 #if !defined(lint) && defined(LIBC_SCCS)
 static	char	sccsid[] ="@(#)parse.c	1.44 6/5/96 (C) 1993-1996 Darren Reed";
-static	char	rcsid[] = "$Id: parse.c,v 2.0.1.1 1997/01/09 15:14:44 darrenr Exp $";
+static	char	rcsid[] = "$Id: parse.c,v 2.0.1.2 1997/02/17 13:59:44 darrenr Exp $";
 #endif
 
 extern	struct	ipopt_names	ionames[], secclass[];
@@ -143,9 +143,18 @@ char	*line;
 	}
 	cpp++;
 
-	if (!strcasecmp("in", *cpp))
+	if (!strcasecmp("in", *cpp)) {
 		fil.fr_flags |= FR_INQUE;
-	else if (!strcasecmp("out", *cpp))
+		if (fil.fr_flags & FR_RETICMP) {
+			(void)fprintf(stderr,
+				"Can only use return-icmp with 'in'\n");
+			return NULL;
+		} else if (fil.fr_flags & FR_RETRST) {
+			(void)fprintf(stderr,
+				"Can only use return-rst with 'in'\n");
+			return NULL;
+		}
+	} else if (!strcasecmp("out", *cpp))
 		fil.fr_flags |= FR_OUTQUE;
 	else {
 		(void)fprintf(stderr,

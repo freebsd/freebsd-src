@@ -7,7 +7,7 @@
  */
 #if !defined(lint) && defined(LIBC_SCCS)
 static	char	sccsid[] = "@(#)fil.c	1.36 6/5/96 (C) 1993-1996 Darren Reed";
-static	char	rcsid[] = "$Id: fil.c,v 2.0.1.4 1997/02/04 13:59:41 darrenr Exp $";
+static	char	rcsid[] = "$Id: fil.c,v 2.0.1.7 1997/02/18 10:53:47 darrenr Exp $";
 #endif
 
 #include <sys/errno.h>
@@ -97,10 +97,19 @@ extern	int	ipl_unreach, ipllog();
 # endif
 #endif
 
+#ifndef	IPF_LOGGING
+#define	IPF_LOGGING	0
+#endif
+#ifdef	IPF_DEFAULT_PASS
+#define	IPF_NOMATCH	(IPF_DEFAULT_PASS|FR_NOMATCH)
+#else
+#define	IPF_NOMATCH	(FR_NOMATCH)
+#endif
+
 struct	filterstats frstats[2] = {{0,0,0,0,0},{0,0,0,0,0}};
 struct	frentry	*ipfilter[2][2] = { { NULL, NULL }, { NULL, NULL } },
 		*ipacct[2][2] = { { NULL, NULL }, { NULL, NULL } };
-int	fr_flags = 0, fr_active = 0;
+int	fr_flags = IPF_LOGGING, fr_active = 0;
 
 fr_info_t	frcache[2];
 
@@ -573,16 +582,12 @@ int out;
 			frstats[out].fr_chit++;
 			pass = fin->fin_fr->fr_flags;
 		} else {
-			pass = FR_NOMATCH;
+			pass = IPF_NOMATCH;
 			if ((fin->fin_fr = ipfilter[out][fr_active]))
-				pass = FR_SCANLIST(FR_NOMATCH, ip, fin, m);
+				pass = FR_SCANLIST(IPF_NOMATCH, ip, fin, m);
 			bcopy((char *)fin, (char *)fc, FI_CSIZE);
-			if (pass & FR_NOMATCH) {
+			if (pass & FR_NOMATCH)
 				frstats[out].fr_nom++;
-#ifdef	NOMATCH
-				pass |= NOMATCH;
-#endif
-			}
 		}
 		fr = fin->fin_fr;
 
@@ -651,34 +656,40 @@ logit:
 		/*
 		 * Should we return an ICMP packet to indicate error
 		 * status passing through the packet filter ?
+		 * WARNING: ICMP error packets AND TCP RST packets should
+		 * ONLY be sent in repsonse to incoming packets.  Sending them
+		 * in response to outbound packets can result in a panic on
+		 * some operating systems.
 		 */
+		if (!out) {
 #ifdef	_KERNEL
-		if (pass & FR_RETICMP) {
+			if (pass & FR_RETICMP) {
 # if SOLARIS
-			ICMP_ERROR(q, ip, ICMP_UNREACH, fin->fin_icode,
-				   qif, ip->ip_src);
+				ICMP_ERROR(q, ip, ICMP_UNREACH, fin->fin_icode,
+					   qif, ip->ip_src);
 # else
-			ICMP_ERROR(m, ip, ICMP_UNREACH, fin->fin_icode,
-				   ifp, ip->ip_src);
-			m = NULL;	/* freed by icmp_error() */
+				ICMP_ERROR(m, ip, ICMP_UNREACH, fin->fin_icode,
+					   ifp, ip->ip_src);
+				m = *mp = NULL;	/* freed by icmp_error() */
 # endif
 
-			frstats[0].fr_ret++;
-		} else if ((pass & FR_RETRST) &&
-			   !(fin->fin_fi.fi_fl & FI_SHORT)) {
-			if (SEND_RESET(ip, qif, q) == 0)
-				frstats[1].fr_ret++;
-		}
+				frstats[0].fr_ret++;
+			} else if ((pass & FR_RETRST) &&
+				   !(fin->fin_fi.fi_fl & FI_SHORT)) {
+				if (SEND_RESET(ip, qif, q) == 0)
+					frstats[1].fr_ret++;
+			}
 #else
-		if (pass & FR_RETICMP) {
-			verbose("- ICMP unreachable sent\n");
-			frstats[0].fr_ret++;
-		} else if ((pass & FR_RETRST) &&
-			   !(fin->fin_fi.fi_fl & FI_SHORT)) {
-			verbose("- TCP RST sent\n");
-			frstats[1].fr_ret++;
-		}
+			if (pass & FR_RETICMP) {
+				verbose("- ICMP unreachable sent\n");
+				frstats[0].fr_ret++;
+			} else if ((pass & FR_RETRST) &&
+				   !(fin->fin_fi.fi_fl & FI_SHORT)) {
+				verbose("- TCP RST sent\n");
+				frstats[1].fr_ret++;
+			}
 #endif
+		}
 	}
 #ifdef	_KERNEL
 # if	!SOLARIS
@@ -691,7 +702,6 @@ logit:
 		    (fdp->fd_ifp && fdp->fd_ifp != (struct ifnet *)-1)) {
 			ipfr_fastroute(m, fin, fdp);
 			m = *mp = NULL;
-			pass = 0;
 		}
 		if (mc)
 			ipfr_fastroute(mc, fin, &fr->fr_dif);

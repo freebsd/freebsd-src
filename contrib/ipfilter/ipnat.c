@@ -51,7 +51,7 @@
 
 #if !defined(lint) && defined(LIBC_SCCS)
 static  char    sccsid[] ="@(#)ipnat.c	1.9 6/5/96 (C) 1993 Darren Reed";
-static	char	rcsid[] = "$Id: ipnat.c,v 2.0.1.7 1997/01/30 12:02:32 darrenr Exp $";
+static	char	rcsid[] = "$Id: ipnat.c,v 2.0.1.8 1997/02/16 21:23:40 darrenr Exp $";
 #endif
 
 #if	SOLARIS
@@ -190,7 +190,7 @@ void *ptr;
 			printf(" udp");
 		printf("\n");
 		if (verbose)
-			printf("\t%x %u %x %u %x %d\n", (u_int)np->in_ifp,
+			printf("\t%p %u %x %u %x %d\n", (u_int)np->in_ifp,
 			       np->in_space, np->in_flags, np->in_pnext, np,
 			       np->in_use);
 	} else {
@@ -220,7 +220,7 @@ void *ptr;
 		}
 		printf("\n");
 		if (verbose)
-			printf("\t%x %u %s %d %x\n", (u_int)np->in_ifp,
+			printf("\t%p %u %s %d %x\n", (u_int)np->in_ifp,
 			       np->in_space, inet_ntoa(np->in_nextip),
 			       np->in_pnext, np->in_flags);
 	}
@@ -264,7 +264,7 @@ int fd, opts;
 			ns.ns_added, ns.ns_expire);
 		printf("inuse\t%lu\n", ns.ns_inuse);
 		if (opts & OPT_VERBOSE)
-			printf("table %#x list %#x\n",
+			printf("table %p list %p\n",
 				(u_int)ns.ns_table, (u_int)ns.ns_list);
 	}
 	if (opts & OPT_LIST) {
@@ -384,7 +384,7 @@ int	*resolved;
 	struct	netent	*np;
 
 	*resolved = 0;
-	if (!strcasecmp("any",host))
+	if (!strcasecmp("any", host))
 		return 0L;
 	if (isdigit(*host))
 		return inet_addr(host);

@@ -52,7 +52,7 @@ char	*addr, *eaddr;
 {
 	int	mib[6];
 	size_t	needed;
-	char	*malloc(), *lim, *buf, *next;
+	char	*lim, *buf, *next;
 	struct	rt_msghdr	*rtm;
 	struct	sockaddr_inarp	*sin;
 	struct	sockaddr_dl	*sdl;
