@@ -2306,6 +2306,8 @@ static void create(FICL_VM *pVM)
     FICL_DICT *dp = ficlGetDict();
     STRINGINFO si = vmGetWord(pVM);
 
+    dictCheckThreshold(dp);
+
     dictAppendWord2(dp, si, createParen, FW_DEFAULT);
     dictAllotCells(dp, 1);
     return;
