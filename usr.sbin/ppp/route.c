@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.42.2.3 1998/01/31 02:48:30 brian Exp $
+ * $Id: route.c,v 1.42.2.4 1998/02/02 19:32:14 brian Exp $
  *
  */
 
@@ -339,7 +339,7 @@ ShowRoute(struct cmdargs const *arg)
  *  Delete routes associated with our interface
  */
 void
-DeleteIfRoutes(const struct bundle *bundle, int all)
+DeleteIfRoutes(struct bundle *bundle, int all)
 {
   struct rt_msghdr *rtm;
   struct sockaddr *sa;

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: bundle.h,v 1.1.2.1 1998/02/02 19:32:02 brian Exp $
  */
 
 struct bundle {
@@ -32,6 +32,7 @@ struct bundle {
   int tun_fd;
   char dev[20];
   char *ifname;
+  int routing_seq;
 
   /* These belong at the NCP level */
   int linkup;
@@ -47,5 +48,5 @@ extern int  bundle_TrySetIPaddress(struct bundle *, struct in_addr,
 extern void bundle_Linkup(struct bundle *);
 extern int  bundle_LinkIsUp(const struct bundle *);
 extern void bundle_Linkdown(struct bundle *);
-extern void bundle_SetRoute(const struct bundle *, int, struct in_addr,
+extern void bundle_SetRoute(struct bundle *, int, struct in_addr,
                             struct in_addr, struct in_addr, int);

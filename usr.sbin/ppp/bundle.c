@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: bundle.c,v 1.1.2.1 1998/02/02 19:32:01 brian Exp $
  */
 
 #include <sys/param.h>
@@ -137,7 +137,7 @@ bundle_SetIpDevice(struct bundle *bundle, struct in_addr myaddr,
   bundle->if_mine.s_addr = myaddr.s_addr;
 
   if (Enabled(ConfProxy))
-    sifproxyarp(s, hisaddr);
+    sifproxyarp(bundle, s);
 
   close(s);
   return (0);
@@ -288,7 +288,7 @@ bundle_InterfaceDown(struct bundle *bundle)
   }
 
   if (Enabled(ConfProxy))
-    cifproxyarp(s, bundle->if_peer);
+    cifproxyarp(bundle, s);
 
   memset(&ifrq, '\0', sizeof ifrq);
   strncpy(ifrq.ifr_name, bundle->ifname, sizeof ifrq.ifr_name - 1);
@@ -425,6 +425,7 @@ bundle_Create(const char *prefix)
 
   bundle.linkup = 0;
   bundle.if_mine.s_addr = bundle.if_peer.s_addr = INADDR_ANY;
+  bundle.routing_seq = 0;
 
   /* Clean out any leftover crud */
   bundle_CleanInterface(&bundle);
@@ -438,7 +439,7 @@ struct rtmsg {
 };
 
 void
-bundle_SetRoute(const struct bundle *bundle, int cmd, struct in_addr dst,
+bundle_SetRoute(struct bundle *bundle, int cmd, struct in_addr dst,
                 struct in_addr gateway, struct in_addr mask, int bang)
 {
   struct rtmsg rtmes;
@@ -446,7 +447,6 @@ bundle_SetRoute(const struct bundle *bundle, int cmd, struct in_addr dst,
   char *cp;
   const char *cmdstr;
   struct sockaddr_in rtdata;
-  static int seqno;
 
   if (bang)
     cmdstr = (cmd == RTM_ADD ? "Add!" : "Delete!");
@@ -461,7 +461,7 @@ bundle_SetRoute(const struct bundle *bundle, int cmd, struct in_addr dst,
   rtmes.m_rtm.rtm_version = RTM_VERSION;
   rtmes.m_rtm.rtm_type = cmd;
   rtmes.m_rtm.rtm_addrs = RTA_DST;
-  rtmes.m_rtm.rtm_seq = ++seqno;
+  rtmes.m_rtm.rtm_seq = ++bundle->routing_seq;
   rtmes.m_rtm.rtm_pid = getpid();
   rtmes.m_rtm.rtm_flags = RTF_UP | RTF_GATEWAY | RTF_STATIC;
 

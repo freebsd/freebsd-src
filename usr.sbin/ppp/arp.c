@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: arp.c,v 1.26 1998/01/23 22:29:16 brian Exp $
+ * $Id: arp.c,v 1.27 1998/01/24 00:03:14 brian Exp $
  *
  */
 
@@ -51,6 +51,7 @@
 #include "log.h"
 #include "id.h"
 #include "route.h"
+#include "bundle.h"
 #include "arp.h"
 
 #ifdef DEBUG
@@ -71,8 +72,6 @@
 #define ID0socket socket
 #define ID0ioctl ioctl
 #endif
-
-static int rtm_seq;
 
 static int get_ether_addr(int, struct in_addr, struct sockaddr_dl *);
 
@@ -101,7 +100,7 @@ static struct {
 static int arpmsg_valid;
 
 int
-sifproxyarp(int unit, struct in_addr hisaddr)
+sifproxyarp(struct bundle *bundle, int s)
 {
   int routes;
 
@@ -110,7 +109,7 @@ sifproxyarp(int unit, struct in_addr hisaddr)
    * address.
    */
   memset(&arpmsg, 0, sizeof arpmsg);
-  if (!get_ether_addr(unit, hisaddr, &arpmsg.hwa)) {
+  if (!get_ether_addr(s, bundle->if_peer, &arpmsg.hwa)) {
     LogPrintf(LogERROR, "Cannot determine ethernet address for proxy ARP\n");
     return 0;
   }
@@ -123,12 +122,12 @@ sifproxyarp(int unit, struct in_addr hisaddr)
   arpmsg.hdr.rtm_type = RTM_ADD;
   arpmsg.hdr.rtm_flags = RTF_ANNOUNCE | RTF_HOST | RTF_STATIC;
   arpmsg.hdr.rtm_version = RTM_VERSION;
-  arpmsg.hdr.rtm_seq = ++rtm_seq;
+  arpmsg.hdr.rtm_seq = ++bundle->routing_seq;
   arpmsg.hdr.rtm_addrs = RTA_DST | RTA_GATEWAY;
   arpmsg.hdr.rtm_inits = RTV_EXPIRE;
   arpmsg.dst.sin_len = sizeof(struct sockaddr_inarp);
   arpmsg.dst.sin_family = AF_INET;
-  arpmsg.dst.sin_addr.s_addr = hisaddr.s_addr;
+  arpmsg.dst.sin_addr.s_addr = bundle->if_peer.s_addr;
   arpmsg.dst.sin_other = SIN_PROXY;
 
   arpmsg.hdr.rtm_msglen = (char *) &arpmsg.hwa - (char *) &arpmsg
@@ -147,7 +146,7 @@ sifproxyarp(int unit, struct in_addr hisaddr)
  * cifproxyarp - Delete the proxy ARP entry for the peer.
  */
 int
-cifproxyarp(int unit, struct in_addr hisaddr)
+cifproxyarp(struct bundle *bundle, int s)
 {
   int routes;
 
@@ -156,7 +155,7 @@ cifproxyarp(int unit, struct in_addr hisaddr)
   arpmsg_valid = 0;
 
   arpmsg.hdr.rtm_type = RTM_DELETE;
-  arpmsg.hdr.rtm_seq = ++rtm_seq;
+  arpmsg.hdr.rtm_seq = ++bundle->routing_seq;
 
   routes = ID0socket(PF_ROUTE, SOCK_RAW, AF_INET);
   if (routes < 0) {
@@ -179,7 +178,7 @@ cifproxyarp(int unit, struct in_addr hisaddr)
  * sifproxyarp - Make a proxy ARP entry for the peer.
  */
 int
-sifproxyarp(int unit, struct in_addr hisaddr)
+sifproxyarp(struct bundle *bundle, int s)
 {
   struct arpreq arpreq;
   struct {
@@ -193,7 +192,7 @@ sifproxyarp(int unit, struct in_addr hisaddr)
    * Get the hardware address of an interface on the same subnet as our local
    * address.
    */
-  if (!get_ether_addr(unit, hisaddr, &dls.sdl)) {
+  if (!get_ether_addr(s, bundle->if_peer, &dls.sdl)) {
     LogPrintf(LOG_PHASE_BIT, "Cannot determine ethernet address for proxy ARP\n");
     return 0;
   }
@@ -201,9 +200,10 @@ sifproxyarp(int unit, struct in_addr hisaddr)
   arpreq.arp_ha.sa_family = AF_UNSPEC;
   memcpy(arpreq.arp_ha.sa_data, LLADDR(&dls.sdl), dls.sdl.sdl_alen);
   SET_SA_FAMILY(arpreq.arp_pa, AF_INET);
-  ((struct sockaddr_in *) & arpreq.arp_pa)->sin_addr.s_addr = hisaddr.s_addr;
+  ((struct sockaddr_in *)&arpreq.arp_pa)->sin_addr.s_addr =
+    bundle->if_peer.s_addr;
   arpreq.arp_flags = ATF_PERM | ATF_PUBL;
-  if (ID0ioctl(unit, SIOCSARP, (caddr_t) & arpreq) < 0) {
+  if (ID0ioctl(s, SIOCSARP, (caddr_t) & arpreq) < 0) {
     LogPrintf(LogERROR, "sifproxyarp: ioctl(SIOCSARP): %s\n", strerror(errno));
     return 0;
   }
@@ -214,14 +214,15 @@ sifproxyarp(int unit, struct in_addr hisaddr)
  * cifproxyarp - Delete the proxy ARP entry for the peer.
  */
 int
-cifproxyarp(int unit, struct in_addr hisaddr)
+cifproxyarp(struct bundle *bundle, int s)
 {
   struct arpreq arpreq;
 
   memset(&arpreq, '\0', sizeof arpreq);
   SET_SA_FAMILY(arpreq.arp_pa, AF_INET);
-  ((struct sockaddr_in *) & arpreq.arp_pa)->sin_addr.s_addr = hisaddr.s_addr;
-  if (ID0ioctl(unit, SIOCDARP, (caddr_t) & arpreq) < 0) {
+  ((struct sockaddr_in *)&arpreq.arp_pa)->sin_addr.s_addr =
+    bundle->if_peer.s_addr;
+  if (ID0ioctl(s, SIOCDARP, (caddr_t) & arpreq) < 0) {
     LogPrintf(LogERROR, "cifproxyarp: ioctl(SIOCDARP): %s\n", strerror(errno));
     return 0;
   }
