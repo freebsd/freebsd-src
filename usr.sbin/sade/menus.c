@@ -328,18 +328,14 @@ DMenu MenuDocumentation = {
 static int
 whichMouse(dialogMenuItem *self)
 {
+    int i;
     char buf[BUFSIZ];
     
-    if (!file_readable("/dev/mouse")) {
-	msgDebug("No /dev/mouse device!\n");
+    if (!file_readable("/dev/mouse"))
 	return FALSE;
-    }
-    if (readlink("/dev/mouse", buf, sizeof buf) == -1) {
-	msgDebug("Can't read /dev/mouse symlink!\n");
+    if ((i = readlink("/dev/mouse", buf, sizeof buf)) == -1)
 	return FALSE;
-    }
-    if (isDebug)
-	msgDebug("The evil link value is `%s'\n", buf);
+    buf[i] = '\0';
     if (!strcmp(self->prompt, "COM1"))
 	return !strcmp(buf, "/dev/cuaa0");
     else if (!strcmp(self->prompt, "COM2"))
