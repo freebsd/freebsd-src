@@ -332,15 +332,14 @@ cpu_mp_setmaxid(void)
 	int i;
 
 	mp_maxid = 0;
-	for (i = 0; i < hwrpb->rpb_pcs_cnt; i++) {
+	for (i = 0; i < hwrpb->rpb_pcs_cnt && i < MAXCPU; i++) {
 		if (i == PCPU_GET(cpuid))
 			continue;
 		if (!smp_cpu_enabled(LOCATE_PCS(hwrpb, i)))
 			continue;
-		if (i > MAXCPU)
-			continue;
 		mp_maxid = i;
 	}
+	mp_maxid++;
 }
 
 int
