@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.424 1998/11/03 03:36:34 jkh Exp $
+#	$Id: Makefile,v 1.425 1998/11/03 21:09:11 msmith Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -707,11 +707,7 @@ doMFSKERN:
 	@cp ${RD}/kernels/BOOTMFS.${FSIMAGE} ${RD}/boot.${FSIMAGE}/kernel
 .if !defined(_MFSKERN) || ${MACHINE_ARCH} == "alpha"
 	@mkdir -p ${RD}/boot.${FSIMAGE}/boot
-.if ${MACHINE_ARCH} == "alpha"
-	@cp /usr/mdec/loader ${RD}/boot.${FSIMAGE}/boot
-.else
 	@cp /boot/* ${RD}/boot.${FSIMAGE}/boot
-.endif
 	@echo "@load /kernel" > ${RD}/boot.${FSIMAGE}/boot/boot.conf
 	@echo "@echo Please insert MFS root floppy and press enter:" >> ${RD}/boot.${FSIMAGE}/boot/boot.conf
 	@echo "@read" >> ${RD}/boot.${FSIMAGE}/boot/boot.conf
