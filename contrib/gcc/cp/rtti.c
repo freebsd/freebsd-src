@@ -1,5 +1,5 @@
 /* RunTime Type Identification
-   Copyright (C) 1995, 1996 Free Software Foundation, Inc.
+   Copyright (C) 1995, 96-97, 1998, 1999 Free Software Foundation, Inc.
    Mostly written by Jason Merrill (jason@cygnus.com).
 
 This file is part of GNU CC.
@@ -35,18 +35,17 @@ Boston, MA 02111-1307, USA.  */
 
 extern struct obstack permanent_obstack;
 
-static tree call_void_fn PROTO((char *));
+static tree call_void_fn PROTO((const char *));
 static tree build_headof_sub PROTO((tree));
 static tree build_headof PROTO((tree));
 static tree get_tinfo_var PROTO((tree));
-static tree get_typeid_1 PROTO((tree));
 static tree ifnonnull PROTO((tree, tree));
 static tree build_dynamic_cast_1 PROTO((tree, tree));
 static void expand_si_desc PROTO((tree, tree));
 static void expand_class_desc PROTO((tree, tree));
 static void expand_attr_desc PROTO((tree, tree));
 static void expand_ptr_desc PROTO((tree, tree));
-static void expand_generic_desc PROTO((tree, tree, char *));
+static void expand_generic_desc PROTO((tree, tree, const char *));
 static tree throw_bad_cast PROTO((void));
 static tree throw_bad_typeid PROTO((void));
 
@@ -60,12 +59,13 @@ init_rtti_processing ()
   if (flag_honor_std)
     push_namespace (get_identifier ("std"));
   type_info_type_node = xref_tag
-    (class_type_node, get_identifier ("type_info"), NULL_TREE, 1);
+    (class_type_node, get_identifier ("type_info"), 1);
   if (flag_honor_std)
     pop_namespace ();
   tinfo_fn_id = get_identifier ("__tf");
   tinfo_fn_type = build_function_type
-    (build_reference_type (build_type_variant (type_info_type_node, 1, 0)),
+    (build_reference_type (build_qualified_type (type_info_type_node, 
+						 TYPE_QUAL_CONST)),
      void_list_node);
 }
 
@@ -108,6 +108,11 @@ build_headof (exp)
 
   if (!TYPE_VIRTUAL_P (type))
     return exp;
+  if (CLASSTYPE_COM_INTERFACE (type))
+    {
+      cp_error ("RTTI not supported for COM interface type `%T'", type);
+      return error_mark_node;
+    }
 
   /* If we don't have rtti stuff, get to a sub-object that does.  */
   if (!CLASSTYPE_VFIELDS (TREE_TYPE (TREE_TYPE (exp))))
@@ -123,8 +128,8 @@ build_headof (exp)
   else
     offset = build_component_ref (aref, delta_identifier, NULL_TREE, 0);
 
-  type = build_type_variant (ptr_type_node, TREE_READONLY (exp),
-			     TREE_THIS_VOLATILE (exp));
+  type = build_qualified_type (ptr_type_node, 
+			       CP_TYPE_QUALS (TREE_TYPE (exp)));
   return build (PLUS_EXPR, type, exp,
 		cp_convert (ptrdiff_type_node, offset));
 }
@@ -133,7 +138,7 @@ build_headof (exp)
 
 static tree
 call_void_fn (name)
-     char *name;
+     const char *name;
 {
   tree d = get_identifier (name);
   tree type;
@@ -151,11 +156,10 @@ call_void_fn (name)
       DECL_ARTIFICIAL (d) = 1;
       pushdecl_top_level (d);
       make_function_rtl (d);
-      assemble_external (d);
-
       pop_obstacks ();
     }
 
+  mark_used (d);
   return build_call (d, void_type_node, NULL_TREE);
 }
 
@@ -203,6 +207,12 @@ get_tinfo_fn_dynamic (exp)
   /* Peel off cv qualifiers.  */
   type = TYPE_MAIN_VARIANT (type);
 
+  if (TYPE_SIZE (complete_type (type)) == NULL_TREE)
+    {
+      cp_error ("taking typeid of incomplete type `%T'", type);
+      return error_mark_node;
+    }
+
   /* If exp is a reference to polymorphic type, get the real type_info.  */
   if (TYPE_VIRTUAL_P (type) && ! resolves_to_fixed_type_p (exp, 0))
     {
@@ -210,12 +220,11 @@ get_tinfo_fn_dynamic (exp)
       tree t;
 
       if (! flag_rtti)
+	error ("taking dynamic typeid of object with -fno-rtti");
+      if (CLASSTYPE_COM_INTERFACE (type))
 	{
-	  warning ("taking dynamic typeid of object without -frtti");
-	  push_obstacks (&permanent_obstack, &permanent_obstack);
-	  init_rtti_processing ();
-	  pop_obstacks ();
-	  flag_rtti = 1;
+	  cp_error ("RTTI not supported for COM interface type `%T'", type);
+	  return error_mark_node;
 	}
 
       /* If we don't have rtti stuff, get to a sub-object that does.  */
@@ -252,9 +261,21 @@ build_x_typeid (exp)
      tree exp;
 {
   tree cond = NULL_TREE;
-  tree type = TREE_TYPE (tinfo_fn_type);
+  tree type;
   int nonnull;
 
+  if (! flag_rtti)
+    {
+      error ("cannot use typeid with -fno-rtti");
+      return error_mark_node;
+    }
+  
+  if (TYPE_SIZE (type_info_type_node) == NULL_TREE)
+    {
+      error ("must #include <typeinfo> before using typeid");
+      return error_mark_node;
+    }
+  
   if (processing_template_decl)
     return build_min_nt (TYPEID_EXPR, exp);
 
@@ -273,6 +294,7 @@ build_x_typeid (exp)
   if (exp == error_mark_node)
     return error_mark_node;
 
+  type = TREE_TYPE (tinfo_fn_type);
   exp = build_call (exp, type, NULL_TREE);
 
   if (cond)
@@ -302,7 +324,7 @@ get_tinfo_var (type)
   /* Figure out how much space we need to allocate for the type_info object.
      If our struct layout or the type_info classes are changed, this will
      need to be modified.  */
-  if (TYPE_VOLATILE (type) || TYPE_READONLY (type))
+  if (TYPE_QUALS (type) != TYPE_UNQUALIFIED)
     size = 3 * POINTER_SIZE + INT_TYPE_SIZE;
   else if (TREE_CODE (type) == POINTER_TYPE
 	   && ! (TREE_CODE (TREE_TYPE (type)) == OFFSET_TYPE
@@ -366,23 +388,25 @@ get_tinfo_fn (type)
   TREE_PUBLIC (d) = 1;
   DECL_ARTIFICIAL (d) = 1;
   DECL_NOT_REALLY_EXTERN (d) = 1;
-  DECL_MUTABLE_P (d) = 1;
+  SET_DECL_TINFO_FN_P (d);
   TREE_TYPE (name) = copy_to_permanent (type);
 
   pushdecl_top_level (d);
   make_function_rtl (d);
-  assemble_external (d);
+  mark_used (d);
   mark_inline_for_output (d);
   pop_obstacks ();
 
   return d;
 }
 
-static tree
+tree
 get_typeid_1 (type)
      tree type;
 {
-  tree t = build_call
+  tree t;
+
+  t = build_call
     (get_tinfo_fn (type), TREE_TYPE (tinfo_fn_type), NULL_TREE);
   return convert_from_reference (t);
 }
@@ -395,15 +419,15 @@ get_typeid (type)
 {
   if (type == error_mark_node)
     return error_mark_node;
+
+  if (TYPE_SIZE (type_info_type_node) == NULL_TREE)
+    {
+      error ("must #include <typeinfo> before using typeid");
+      return error_mark_node;
+    }
   
   if (! flag_rtti)
-    {
-      warning ("requesting typeid of object without -frtti");
-      push_obstacks (&permanent_obstack, &permanent_obstack);
-      init_rtti_processing ();
-      pop_obstacks ();
-      flag_rtti = 1;
-    }
+    error ("requesting typeid with -fno-rtti");
 
   if (processing_template_decl)
     return build_min_nt (TYPEID_EXPR, type);
@@ -417,6 +441,12 @@ get_typeid (type)
   /* The top-level cv-qualifiers of the lvalue expression or the type-id
      that is the operand of typeid are always ignored.  */
   type = TYPE_MAIN_VARIANT (type);
+
+  if (TYPE_SIZE (complete_type (type)) == NULL_TREE)
+    {
+      cp_error ("taking typeid of incomplete type `%T'", type);
+      return error_mark_node;
+    }
 
   return get_typeid_1 (type);
 }
@@ -442,10 +472,15 @@ build_dynamic_cast_1 (type, expr)
      tree type, expr;
 {
   enum tree_code tc = TREE_CODE (type);
-  tree exprtype = TREE_TYPE (expr);
+  tree exprtype;
   enum tree_code ec;
   tree dcast_fn;
+  tree old_expr = expr;
 
+  if (TREE_CODE (expr) == OFFSET_REF)
+    expr = resolve_offset_ref (expr);
+  
+  exprtype = TREE_TYPE (expr);
   assert (exprtype != NULL_TREE);
   ec = TREE_CODE (exprtype);
 
@@ -464,8 +499,8 @@ build_dynamic_cast_1 (type, expr)
 	goto fail;
       if (TYPE_SIZE (complete_type (TREE_TYPE (exprtype))) == NULL_TREE)
 	goto fail;
-      if (TREE_READONLY (TREE_TYPE (exprtype))
-	  && ! TYPE_READONLY (TREE_TYPE (type)))
+      if (!at_least_as_qualified_p (TREE_TYPE (type),
+				    TREE_TYPE (exprtype)))
 	goto fail;
       if (TYPE_MAIN_VARIANT (TREE_TYPE (type)) == void_type_node)
 	break;
@@ -484,8 +519,6 @@ build_dynamic_cast_1 (type, expr)
   /* Apply trivial conversion T -> T& for dereferenced ptrs.  */
   if (ec == RECORD_TYPE)
     {
-      exprtype = build_type_variant (exprtype, TREE_READONLY (expr),
-				     TREE_THIS_VOLATILE (expr));
       exprtype = build_reference_type (exprtype);
       expr = convert_to_reference (exprtype, expr, CONV_IMPLICIT,
 				   LOOKUP_NORMAL, NULL_TREE);
@@ -500,8 +533,8 @@ build_dynamic_cast_1 (type, expr)
 	goto fail;
       if (TYPE_SIZE (complete_type (TREE_TYPE (exprtype))) == NULL_TREE)
 	goto fail;
-      if (TREE_READONLY (TREE_TYPE (exprtype))
-	  && ! TYPE_READONLY (TREE_TYPE (type)))
+      if (!at_least_as_qualified_p (TREE_TYPE (type),
+				    TREE_TYPE (exprtype)))
 	goto fail;
     }
 
@@ -513,6 +546,20 @@ build_dynamic_cast_1 (type, expr)
 
     distance = get_base_distance (TREE_TYPE (type), TREE_TYPE (exprtype), 1,
 				  &path);
+
+    if (distance == -2)
+      {
+	cp_error ("dynamic_cast from `%T' to ambiguous base class `%T'",
+		  TREE_TYPE (exprtype), TREE_TYPE (type));
+	return error_mark_node;
+      }
+    if (distance == -3)
+      {
+	cp_error ("dynamic_cast from `%T' to private base class `%T'",
+		  TREE_TYPE (exprtype), TREE_TYPE (type));
+	return error_mark_node;
+      }
+
     if (distance >= 0)
       return build_vbase_path (PLUS_EXPR, type, expr, path, 0);
   }
@@ -548,11 +595,11 @@ build_dynamic_cast_1 (type, expr)
 	     dynamic_cast<D&>(b) (b an object) cannot succeed.  */
 	  if (ec == REFERENCE_TYPE)
 	    {
-	      if (TREE_CODE (expr) == VAR_DECL
-		  && TREE_CODE (TREE_TYPE (expr)) == RECORD_TYPE)
+	      if (TREE_CODE (old_expr) == VAR_DECL
+		  && TREE_CODE (TREE_TYPE (old_expr)) == RECORD_TYPE)
 		{
 		  cp_warning ("dynamic_cast of `%#D' to `%#T' can never succeed",
-			      expr, type);
+			      old_expr, type);
 		  return throw_bad_cast ();
 		}
 	    }
@@ -564,7 +611,7 @@ build_dynamic_cast_1 (type, expr)
 		  && TREE_CODE (TREE_TYPE (op)) == RECORD_TYPE)
 		{
 		  cp_warning ("dynamic_cast of `%#D' to `%#T' can never succeed",
-			      expr, type);
+			      op, type);
 		  retval = build_int_2 (0, 0); 
 		  TREE_TYPE (retval) = type; 
 		  return retval;
@@ -622,10 +669,10 @@ build_dynamic_cast_1 (type, expr)
 	      DECL_ARTIFICIAL (dcast_fn) = 1;
 	      pushdecl_top_level (dcast_fn);
 	      make_function_rtl (dcast_fn);
-	      assemble_external (dcast_fn);
 	      pop_obstacks ();
 	    }
 	  
+	  mark_used (dcast_fn);
           result = build_call
 	    (dcast_fn, TREE_TYPE (TREE_TYPE (dcast_fn)), elems);
 
@@ -689,7 +736,7 @@ expand_si_desc (tdecl, type)
      tree type;
 {
   tree t, elems, fn;
-  char *name = build_overload_name (type, 1, 1);
+  const char *name = build_overload_name (type, 1, 1);
   tree name_string = combine_strings (build_string (strlen (name)+1, name));
 
   type = BINFO_TYPE (TREE_VEC_ELT (TYPE_BINFO_BASETYPES (type), 0));
@@ -720,10 +767,10 @@ expand_si_desc (tdecl, type)
       DECL_ARTIFICIAL (fn) = 1;
       pushdecl_top_level (fn);
       make_function_rtl (fn);
-      assemble_external (fn);
       pop_obstacks ();
     }
 
+  mark_used (fn);
   fn = build_call (fn, TREE_TYPE (TREE_TYPE (fn)), elems);
   expand_expr_stmt (fn);
 }
@@ -737,7 +784,7 @@ expand_class_desc (tdecl, type)
 {
   tree name_string;
   tree fn, tmp;
-  char *name;
+  const char *name;
 
   int i = CLASSTYPE_N_BASECLASSES (type);
   int base_cnt = 0;
@@ -763,7 +810,9 @@ expand_class_desc (tdecl, type)
       /* Actually const __user_type_info * */
       fields [0] = build_lang_field_decl
 	(FIELD_DECL, NULL_TREE,
-	 build_pointer_type (build_type_variant (type_info_type_node, 1, 0)));
+	 build_pointer_type (build_qualified_type
+			     (type_info_type_node,
+			      TYPE_QUAL_CONST)));
       fields [1] = build_lang_field_decl
 	(FIELD_DECL, NULL_TREE, unsigned_intSI_type_node);
       DECL_BIT_FIELD (fields[1]) = 1;
@@ -795,11 +844,10 @@ expand_class_desc (tdecl, type)
       if (TREE_VIA_VIRTUAL (binfo))
 	{
 	  tree t = BINFO_TYPE (binfo);
-	  char *name;
+	  const char *name;
 	  tree field;
 
-	  name = (char *) alloca (TYPE_NAME_LENGTH (t)+sizeof (VBASE_NAME)+1);
-	  sprintf (name, VBASE_NAME_FORMAT, TYPE_NAME_STRING (t));
+	  FORMAT_VBASE_NAME (name, t);
 	  field = lookup_field (type, get_identifier (name), 0, 0);
 	  offset = size_binop (FLOOR_DIV_EXPR, 
 		DECL_FIELD_BITPOS (field), size_int (BITS_PER_UNIT));
@@ -900,10 +948,10 @@ expand_class_desc (tdecl, type)
       DECL_ARTIFICIAL (fn) = 1;
       pushdecl_top_level (fn);
       make_function_rtl (fn);
-      assemble_external (fn);
       pop_obstacks ();
     }
 
+  mark_used (fn);
   fn = build_call (fn, TREE_TYPE (TREE_TYPE (fn)), elems);
   expand_expr_stmt (fn);
 }
@@ -916,7 +964,7 @@ expand_ptr_desc (tdecl, type)
      tree type;
 {
   tree t, elems, fn;
-  char *name = build_overload_name (type, 1, 1);
+  const char *name = build_overload_name (type, 1, 1);
   tree name_string = combine_strings (build_string (strlen (name)+1, name));
 
   type = TREE_TYPE (type);
@@ -947,10 +995,10 @@ expand_ptr_desc (tdecl, type)
       DECL_ARTIFICIAL (fn) = 1;
       pushdecl_top_level (fn);
       make_function_rtl (fn);
-      assemble_external (fn);
       pop_obstacks ();
     }
 
+  mark_used (fn);
   fn = build_call (fn, TREE_TYPE (TREE_TYPE (fn)), elems);
   expand_expr_stmt (fn);
 }
@@ -963,10 +1011,9 @@ expand_attr_desc (tdecl, type)
      tree type;
 {
   tree elems, t, fn;
-  char *name = build_overload_name (type, 1, 1);
+  const char *name = build_overload_name (type, 1, 1);
   tree name_string = combine_strings (build_string (strlen (name)+1, name));
-  tree attrval = build_int_2
-    (TYPE_READONLY (type) | TYPE_VOLATILE (type) * 2, 0);
+  tree attrval = build_int_2 (TYPE_QUALS (type), 0);
 
   expand_expr_stmt (get_typeid_1 (TYPE_MAIN_VARIANT (type)));
   t = decay_conversion (get_tinfo_var (TYPE_MAIN_VARIANT (type)));
@@ -996,10 +1043,10 @@ expand_attr_desc (tdecl, type)
       DECL_ARTIFICIAL (fn) = 1;
       pushdecl_top_level (fn);
       make_function_rtl (fn);
-      assemble_external (fn);
       pop_obstacks ();
     }
 
+  mark_used (fn);
   fn = build_call (fn, TREE_TYPE (TREE_TYPE (fn)), elems);
   expand_expr_stmt (fn);
 }
@@ -1010,9 +1057,9 @@ static void
 expand_generic_desc (tdecl, type, fnname)
      tree tdecl;
      tree type;
-     char *fnname;
+     const char *fnname;
 {
-  char *name = build_overload_name (type, 1, 1);
+  const char *name = build_overload_name (type, 1, 1);
   tree name_string = combine_strings (build_string (strlen (name)+1, name));
   tree elems = tree_cons
     (NULL_TREE, decay_conversion (tdecl), tree_cons
@@ -1036,10 +1083,10 @@ expand_generic_desc (tdecl, type, fnname)
       DECL_ARTIFICIAL (fn) = 1;
       pushdecl_top_level (fn);
       make_function_rtl (fn);
-      assemble_external (fn);
       pop_obstacks ();
     }
 
+  mark_used (fn);
   fn = build_call (fn, TREE_TYPE (TREE_TYPE (fn)), elems);
   expand_expr_stmt (fn);
 }
@@ -1089,14 +1136,14 @@ synthesize_tinfo_fn (fndecl)
   addr = decay_conversion (tdecl);
   tmp = cp_convert (build_pointer_type (ptr_type_node), addr);
   tmp = build_indirect_ref (tmp, 0);
-  tmp = build_binary_op (EQ_EXPR, tmp, integer_zero_node, 1);
+  tmp = build_binary_op (EQ_EXPR, tmp, integer_zero_node);
   expand_start_cond (tmp, 0);
 
   if (TREE_CODE (type) == FUNCTION_TYPE)
     expand_generic_desc (tdecl, type, "__rtti_func");
   else if (TREE_CODE (type) == ARRAY_TYPE)
     expand_generic_desc (tdecl, type, "__rtti_array");
-  else if (TYPE_VOLATILE (type) || TYPE_READONLY (type))
+  else if (TYPE_QUALS (type) != TYPE_UNQUALIFIED)
     expand_attr_desc (tdecl, type);
   else if (TREE_CODE (type) == POINTER_TYPE)
     {

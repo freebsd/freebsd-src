@@ -1,5 +1,5 @@
 /* OSF/rose half-pic support definitions.
-   Copyright (C) 1992, 1996, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1992, 1996, 1997, 1998 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -20,9 +20,7 @@ Boston, MA 02111-1307, USA.  */
 
 #ifndef NO_HALF_PIC
 
-#include "gansidecl.h"
-
-#if defined (USE_PROTOTYPES) ? USE_PROTOTYPES : defined (__STDC__)
+#ifdef ANSI_PROTOTYPES
 union tree_node;		/* forward reference */
 struct rtx_def;
 #endif

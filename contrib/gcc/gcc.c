@@ -1,5 +1,5 @@
 /* Compiler driver program that can handle many languages.
-   Copyright (C) 1987, 89, 92-97, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1987, 89, 92-98, 1999 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -32,61 +32,15 @@ Once it knows which kind of compilation to perform, the procedure for
 compilation is specified by a string called a "spec".  */
 
 #include "config.h"
-
-#ifdef __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 #include "system.h"
 #include <signal.h>
-#include <sys/stat.h>
 
-#include "gansidecl.h"
 #include "obstack.h"
-
-
-/* ??? Need to find a GCC header to put these in.  */
-extern int pexecute PROTO ((const char *, char * const *, const char *,
-			    const char *, char **, char **, int));
-extern int pwait PROTO ((int, int *, int));
-extern char *update_path PROTO((char *, char *));
-extern void set_std_prefix PROTO((char *, int));
-/* Flag arguments to pexecute.  */
-#define PEXECUTE_FIRST   1
-#define PEXECUTE_LAST    2
-#define PEXECUTE_SEARCH  4
-#define PEXECUTE_VERBOSE 8
-
-#ifndef WIFSIGNALED
-#define WIFSIGNALED(S) (((S) & 0xff) != 0 && ((S) & 0xff) != 0x7f)
-#endif
-#ifndef WTERMSIG
-#define WTERMSIG(S) ((S) & 0x7f)
-#endif
-#ifndef WIFEXITED
-#define WIFEXITED(S) (((S) & 0xff) == 0)
-#endif
-#ifndef WEXITSTATUS
-#define WEXITSTATUS(S) (((S) & 0xff00) >> 8)
-#endif
+#include "intl.h"
+#include "prefix.h"
 
 #ifdef VMS
 #define exit __posix_exit
-#endif
-
-#ifdef USG
-#define vfork fork
-#endif /* USG */
-
-/* Test if something is a normal file.  */
-#ifndef S_ISREG
-#define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
-#endif
-
-/* Test if something is a directory.  */
-#ifndef S_ISDIR
-#define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
 #endif
 
 /* By default there is no special suffix for executables.  */
@@ -112,16 +66,22 @@ extern void set_std_prefix PROTO((char *, int));
 #define DIR_SEPARATOR '/'
 #endif
 
+/* Define IS_DIR_SEPARATOR.  */
+#ifndef DIR_SEPARATOR_2
+# define IS_DIR_SEPARATOR(ch) ((ch) == DIR_SEPARATOR)
+#else /* DIR_SEPARATOR_2 */
+# define IS_DIR_SEPARATOR(ch) \
+	(((ch) == DIR_SEPARATOR) || ((ch) == DIR_SEPARATOR_2))
+#endif /* DIR_SEPARATOR_2 */
+
 static char dir_separator_str[] = {DIR_SEPARATOR, 0};
 
 #define obstack_chunk_alloc xmalloc
 #define obstack_chunk_free free
 
-#ifndef GET_ENVIRONMENT
-#define GET_ENVIRONMENT(ENV_VALUE,ENV_NAME) ENV_VALUE = getenv (ENV_NAME)
+#ifndef GET_ENV_PATH_LIST
+#define GET_ENV_PATH_LIST(VAR,NAME)	do { (VAR) = getenv (NAME); } while (0)
 #endif
-
-extern char *my_strerror PROTO((int));
 
 #ifndef HAVE_KILL
 #define kill(p,s) raise(s)
@@ -140,11 +100,11 @@ static int print_search_dirs;
 /* Flag saying to print the full filename of this file
    as found through our usual search mechanism.  */
 
-static char *print_file_name = NULL;
+static const char *print_file_name = NULL;
 
 /* As print_file_name, but search for executable file.  */
 
-static char *print_prog_name = NULL;
+static const char *print_prog_name = NULL;
 
 /* Flag saying to print the relative path we'd use to
    find libgcc.a given the current compiler flags.  */
@@ -180,7 +140,7 @@ static char *spec_version = DEFAULT_TARGET_VERSION;
 
 /* The target machine specified with -b.  */
 
-static char *spec_machine = DEFAULT_TARGET_MACHINE;
+static const char *spec_machine = DEFAULT_TARGET_MACHINE;
 
 /* Nonzero if cross-compiling.
    When -b is used, the value comes from the `specs' file.  */
@@ -212,56 +172,63 @@ extern char *version_string;
 struct path_prefix;
 
 static void init_spec		PROTO((void));
-static void read_specs		PROTO((char *, int));
-static void set_spec		PROTO((char *, char *));
-static struct compiler *lookup_compiler PROTO((char *, size_t, char *));
-static char *build_search_list	PROTO((struct path_prefix *, char *, int));
-static void putenv_from_prefixes PROTO((struct path_prefix *, char *));
-static char *find_a_file	PROTO((struct path_prefix *, char *, int));
-static void add_prefix		PROTO((struct path_prefix *, char *, char *,
-				       int, int, int *));
+static void read_specs		PROTO((const char *, int));
+static void set_spec		PROTO((const char *, const char *));
+static struct compiler *lookup_compiler PROTO((const char *, size_t, const char *));
+static char *build_search_list	PROTO((struct path_prefix *, const char *, int));
+static void putenv_from_prefixes PROTO((struct path_prefix *, const char *));
+static char *find_a_file	PROTO((struct path_prefix *, const char *, int));
+static void add_prefix		PROTO((struct path_prefix *, const char *,
+				       const char *, int, int, int *));
 static char *skip_whitespace	PROTO((char *));
-static void record_temp_file	PROTO((char *, int, int));
-static void delete_if_ordinary	PROTO((char *));
+static void record_temp_file	PROTO((const char *, int, int));
+static void delete_if_ordinary	PROTO((const char *));
 static void delete_temp_files	PROTO((void));
 static void delete_failure_queue PROTO((void));
 static void clear_failure_queue PROTO((void));
 static int check_live_switch	PROTO((int, int));
-static char *handle_braces	PROTO((char *));
-static char *save_string	PROTO((char *, int));
-static char *concat		PVPROTO((char *, ...));
-extern int do_spec		PROTO((char *));
-static int do_spec_1		PROTO((char *, int, char *));
-static char *find_file		PROTO((char *));
-static int is_directory		PROTO((char *, char *, int));
-static void validate_switches	PROTO((char *));
+static const char *handle_braces PROTO((const char *));
+static char *save_string	PROTO((const char *, int));
+extern int do_spec		PROTO((const char *));
+static int do_spec_1		PROTO((const char *, int, const char *));
+static const char *find_file	PROTO((const char *));
+static int is_directory		PROTO((const char *, const char *, int));
+static void validate_switches	PROTO((const char *));
 static void validate_all_switches PROTO((void));
 static void give_switch		PROTO((int, int, int));
-static int used_arg		PROTO((char *, int));
-static int default_arg		PROTO((char *, int));
+static int used_arg		PROTO((const char *, int));
+static int default_arg		PROTO((const char *, int));
 static void set_multilib_dir	PROTO((void));
 static void print_multilib_info	PROTO((void));
-static void pfatal_with_name	PROTO((char *));
-static void perror_with_name	PROTO((char *));
-static void pfatal_pexecute	PROTO((char *, char *));
-static void fatal		PVPROTO((char *, ...));
-static void error		PVPROTO((char *, ...));
+static void pfatal_with_name	PROTO((const char *)) ATTRIBUTE_NORETURN;
+static void perror_with_name	PROTO((const char *));
+static void pfatal_pexecute	PROTO((const char *, const char *))
+  ATTRIBUTE_NORETURN;
+static void error		PVPROTO((const char *, ...))
+  ATTRIBUTE_PRINTF_1;
+static void notice		PVPROTO((const char *, ...))
+  ATTRIBUTE_PRINTF_1;
 static void display_help 	PROTO((void));
+static void add_preprocessor_option	PROTO ((const char *, int));
+static void add_assembler_option	PROTO ((const char *, int));
+static void add_linker_option		PROTO ((const char *, int));
+static void process_command		PROTO ((int, char **));
+static int execute			PROTO ((void));
+static void unused_prefix_warnings	PROTO ((struct path_prefix *));
+static void clear_args			PROTO ((void));
+static void fatal_error			PROTO ((int));
 
-void fancy_abort ();
-char *xmalloc ();
-char *xrealloc ();
+void fancy_abort		PROTO((void)) ATTRIBUTE_NORETURN;
 
-#ifdef LANG_SPECIFIC_DRIVER
 /* Called before processing to change/add/remove arguments. */
-extern void lang_specific_driver PROTO ((void (*) PVPROTO((char *, ...)), int *, char ***, int *));
+extern void lang_specific_driver PROTO ((void (*) PVPROTO((const char *, ...)),
+					 int *, char ***, int *));
 
 /* Called before linking.  Returns 0 on success and -1 on failure. */
 extern int lang_specific_pre_link ();
 
 /* Number of extra output files that lang_specific_pre_link may generate. */
 extern int lang_specific_extra_outfiles;
-#endif
 
 /* Specs are strings containing lines, each of which (if not blank)
 is made up of a program name, and arguments separated by spaces.
@@ -537,7 +504,7 @@ static char *multilib_defaults_raw[] = MULTILIB_DEFAULTS;
 
 struct user_specs {
   struct user_specs *next;
-  char *filename;
+  const char *filename;
 };
 
 static struct user_specs *user_specs_head, *user_specs_tail;
@@ -585,10 +552,10 @@ static struct user_specs *user_specs_head, *user_specs_tail;
 
 struct compiler
 {
-  char *suffix;			/* Use this compiler for input files
+  const char *suffix;		/* Use this compiler for input files
 				   whose names end in this suffix.  */
 
-  char *spec[4];		/* To use this compiler, concatenate these
+  const char *spec[4];		/* To use this compiler, concatenate these
 				   specs and pass to do_spec.  */
 };
 
@@ -615,8 +582,10 @@ static struct compiler default_compilers[] =
      were not present when we built the driver, we will hit these copies
      and be given a more meaningful error than "file not used since
      linking is not done".  */
-  {".cc", {"#C++"}}, {".cxx", {"#C++"}}, {".cpp", {"#C++"}}, {".c++", {"#C++"}},
-  {".C", {"#C++"}}, {".ads", {"#Ada"}}, {".adb", {"#Ada"}}, {".ada", {"#Ada"}},
+  {".m", {"#Objective-C"}},
+  {".cc", {"#C++"}}, {".cxx", {"#C++"}}, {".cpp", {"#C++"}},
+  {".c++", {"#C++"}}, {".C", {"#C++"}},
+  {".ads", {"#Ada"}}, {".adb", {"#Ada"}}, {".ada", {"#Ada"}},
   {".f", {"#Fortran"}}, {".for", {"#Fortran"}}, {".F", {"#Fortran"}},
   {".fpp", {"#Fortran"}},
   {".p", {"#Pascal"}}, {".pas", {"#Pascal"}},
@@ -625,120 +594,107 @@ static struct compiler default_compilers[] =
   {"@c",
    {
 #if USE_CPPLIB
-     "%{E|M|MM:cpp -lang-c%{ansi:89} %{nostdinc*} %{C} %{v} %{A*} %{I*} %{P} %I\
+     "%{E|M|MM:cpp -lang-c %{ansi:-std=c89} %{std*} %{nostdinc*}\
+	%{C} %{v} %{A*} %{I*} %{P} %{$} %I\
 	%{C:%{!E:%eGNU C does not support -C without using -E}}\
 	%{M} %{MM} %{MD:-MD %b.d} %{MMD:-MMD %b.d} %{MG}\
-        -undef -D__GNUC__=%v1 -D__GNUC_MINOR__=%v2\
-	%{ansi:-trigraphs -D__STRICT_ANSI__}\
-	%{!undef:%{!ansi:%p} %P} %{trigraphs} \
+        %{!no-gcc:-D__GNUC__=%v1 -D__GNUC_MINOR__=%v2}\
+	%{ansi|std=*:%{!std=gnu*:-trigraphs -D__STRICT_ANSI__}}\
+	%{!undef:%{!ansi:%{!std=*:%p}%{std=gnu*:%p}} %P} %{trigraphs}\
         %c %{Os:-D__OPTIMIZE_SIZE__} %{O*:%{!O0:-D__OPTIMIZE__}}\
+	%{ffast-math:-D__FAST_MATH__}\
         %{traditional} %{ftraditional:-traditional}\
         %{traditional-cpp:-traditional}\
+	%{fleading-underscore} %{fno-leading-underscore}\
 	%{g*} %{W*} %{w} %{pedantic*} %{H} %{d*} %C %{D*} %{U*} %{i*} %Z\
         %i %{E:%W{o*}}%{M:%W{o*}}%{MM:%W{o*}}\n}\
       %{!E:%{!M:%{!MM:cc1 %i %1 \
-                  -lang-c%{ansi:89} %{nostdinc*} %{A*} %{I*} %I\
+                  %{std*} %{nostdinc*} %{A*} %{I*} %I\
                   %{!Q:-quiet} -dumpbase %b.c %{d*} %{m*} %{a*}\
                   %{MD:-MD %b.d} %{MMD:-MMD %b.d} %{MG}\
-                  -undef -D__GNUC__=%v1 -D__GNUC_MINOR__=%v2\
-                  %{ansi:-trigraphs -D__STRICT_ANSI__}\
-                  %{!undef:%{!ansi:%p} %P} %{trigraphs} \
+                  %{!no-gcc:-D__GNUC__=%v1 -D__GNUC_MINOR__=%v2}\
+		  %{ansi|std=*:%{!std=gnu*:-trigraphs -D__STRICT_ANSI__}}\
+		  %{!undef:%{!ansi:%{!std=*:%p}%{std=gnu*:%p}} %P} %{trigraphs}\
                   %c %{Os:-D__OPTIMIZE_SIZE__} %{O*:%{!O0:-D__OPTIMIZE__}}\
+		  %{ffast-math:-D__FAST_MATH__}\
                   %{H} %C %{D*} %{U*} %{i*} %Z\
                   %{ftraditional:-traditional}\
                   %{traditional-cpp:-traditional}\
 		  %{traditional} %{v:-version} %{pg:-p} %{p} %{f*}\
-		  %{aux-info*}\
-		  %{--help:--help} \
-		  %{g*} %{O*} %{W*} %{w} %{pedantic*} %{ansi} \
+		  %{aux-info*} %{Qn:-fno-ident}\
+		  %{--help:--help}\
+		  %{g*} %{O*} %{W*} %{w} %{pedantic*}\
 		  %{pg:%{fomit-frame-pointer:%e-pg and -fomit-frame-pointer are incompatible}}\
 		  %{S:%W{o*}%{!o*:-o %b.s}}%{!S:-o %{|!pipe:%g.s}} |\n\
                   %{!S:as %a %Y\
 		     %{c:%W{o*}%{!o*:-o %w%b%O}}%{!c:-o %d%w%u%O}\
                      %{!pipe:%g.s} %A\n }}}}"
-  }},
 #else /* ! USE_CPPLIB */
-    "cpp -lang-c%{ansi:89} %{nostdinc*} %{C} %{v} %{A*} %{I*} %{P} %I\
+    "cpp -lang-c %{ansi:-std=c89} %{std*} %{nostdinc*}\
+	%{C} %{v} %{A*} %{I*} %{P} %{$} %I\
 	%{C:%{!E:%eGNU C does not support -C without using -E}}\
 	%{M} %{MM} %{MD:-MD %b.d} %{MMD:-MMD %b.d} %{MG}\
-        -undef -D__GNUC__=%v1 -D__GNUC_MINOR__=%v2\
-	%{ansi:-trigraphs -D__STRICT_ANSI__}\
-	%{!undef:%{!ansi:%p} %P} %{trigraphs} \
+        %{!no-gcc:-D__GNUC__=%v1 -D__GNUC_MINOR__=%v2}\
+	%{ansi|std=*:%{!std=gnu*:-trigraphs -D__STRICT_ANSI__}}\
+	%{!undef:%{!ansi:%{!std=*:%p}%{std=gnu*:%p}} %P} %{trigraphs}\
         %c %{Os:-D__OPTIMIZE_SIZE__} %{O*:%{!O0:-D__OPTIMIZE__}}\
+	%{ffast-math:-D__FAST_MATH__}\
         %{traditional} %{ftraditional:-traditional}\
         %{traditional-cpp:-traditional}\
+	%{fleading-underscore} %{fno-leading-underscore}\
 	%{g*} %{W*} %{w} %{pedantic*} %{H} %{d*} %C %{D*} %{U*} %{i*} %Z\
         %i %{!M:%{!MM:%{!E:%{!pipe:%g.i}}}}%{E:%W{o*}}%{M:%W{o*}}%{MM:%W{o*}} |\n",
    "%{!M:%{!MM:%{!E:cc1 %{!pipe:%g.i} %1 \
 		   %{!Q:-quiet} -dumpbase %b.c %{d*} %{m*} %{a*}\
-		   %{g*} %{O*} %{W*} %{w} %{pedantic*} %{ansi} \
+		   %{g*} %{O*} %{W*} %{w} %{pedantic*} %{std*}\
 		   %{traditional} %{v:-version} %{pg:-p} %{p} %{f*}\
-		   %{aux-info*}\
+		   %{aux-info*} %{Qn:-fno-ident}\
 		   %{--help:--help} \
 		   %{pg:%{fomit-frame-pointer:%e-pg and -fomit-frame-pointer are incompatible}}\
 		   %{S:%W{o*}%{!o*:-o %b.s}}%{!S:-o %{|!pipe:%g.s}} |\n\
               %{!S:as %a %Y\
 		      %{c:%W{o*}%{!o*:-o %w%b%O}}%{!c:-o %d%w%u%O}\
                       %{!pipe:%g.s} %A\n }}}}"
-  }},
 #endif /* ! USE_CPPLIB */
+  }},
   {"-",
-   {"%{E:cpp -lang-c%{ansi:89} %{nostdinc*} %{C} %{v} %{A*} %{I*} %{P} %I\
+   {"%{E:cpp -lang-c %{ansi:-std=c89} %{std*} %{nostdinc*}\
+	%{C} %{v} %{A*} %{I*} %{P} %{$} %I\
 	%{C:%{!E:%eGNU C does not support -C without using -E}}\
 	%{M} %{MM} %{MD:-MD %b.d} %{MMD:-MMD %b.d} %{MG}\
-        -undef -D__GNUC__=%v1 -D__GNUC_MINOR__=%v2\
-	%{ansi:-trigraphs -D__STRICT_ANSI__}\
-	%{!undef:%{!ansi:%p} %P} %{trigraphs}\
+        %{!no-gcc:-D__GNUC__=%v1 -D__GNUC_MINOR__=%v2}\
+	%{ansi|std=*:%{!std=gnu*:-trigraphs -D__STRICT_ANSI__}}\
+	%{!undef:%{!ansi:%{!std=*:%p}%{std=gnu*:%p}} %P} %{trigraphs}\
         %c %{Os:-D__OPTIMIZE_SIZE__} %{O*:%{!O0:-D__OPTIMIZE__}}\
+	%{ffast-math:-D__FAST_MATH__}\
         %{traditional} %{ftraditional:-traditional}\
         %{traditional-cpp:-traditional}\
+	%{fleading-underscore} %{fno-leading-underscore}\
 	%{g*} %{W*} %{w} %{pedantic*} %{H} %{d*} %C %{D*} %{U*} %{i*} %Z\
         %i %W{o*}}\
     %{!E:%e-E required when input is from standard input}"}},
-  {".m", {"@objective-c"}},
-  {"@objective-c",
-   {"cpp -lang-objc %{nostdinc*} %{C} %{v} %{A*} %{I*} %{P} %I\
-	%{C:%{!E:%eGNU C does not support -C without using -E}}\
-	%{M} %{MM} %{MD:-MD %b.d} %{MMD:-MMD %b.d} %{MG}\
-        -undef -D__OBJC__ -D__GNUC__=%v1 -D__GNUC_MINOR__=%v2\
-	 %{ansi:-trigraphs -D__STRICT_ANSI__}\
-	%{!undef:%{!ansi:%p} %P} %{trigraphs}\
-        %c %{Os:-D__OPTIMIZE_SIZE__} %{O*:%{!O0:-D__OPTIMIZE__}}\
-        %{traditional} %{ftraditional:-traditional}\
-        %{traditional-cpp:-traditional}\
-	%{g*} %{W*} %{w} %{pedantic*} %{H} %{d*} %C %{D*} %{U*} %{i*} %Z\
-        %i %{!M:%{!MM:%{!E:%{!pipe:%g.i}}}}%{E:%W{o*}}%{M:%W{o*}}%{MM:%W{o*}} |\n",
-    "%{!M:%{!MM:%{!E:cc1obj %{!pipe:%g.i} %1 \
-		   %{!Q:-quiet} -dumpbase %b.m %{d*} %{m*} %{a*}\
-		   %{g*} %{O*} %{W*} %{w} %{pedantic*} %{ansi} \
-		   %{traditional} %{v:-version} %{pg:-p} %{p} %{f*} \
-    		   -lang-objc %{gen-decls} \
-		   %{aux-info*}\
-		   %{pg:%{fomit-frame-pointer:%e-pg and -fomit-frame-pointer are incompatible}}\
-		   %{S:%W{o*}%{!o*:-o %b.s}}%{!S:-o %{|!pipe:%g.s}} |\n\
-              %{!S:as %a %Y\
-		      %{c:%W{o*}%{!o*:-o %w%b%O}}%{!c:-o %d%w%u%O}\
-                      %{!pipe:%g.s} %A\n }}}}"}},
   {".h", {"@c-header"}},
   {"@c-header",
    {"%{!E:%eCompilation of header file requested} \
-    cpp %{nostdinc*} %{C} %{v} %{A*} %{I*} %{P} %I\
+    cpp %{nostdinc*} %{C} %{v} %{A*} %{I*} %{P} %{$} %I\
 	%{C:%{!E:%eGNU C does not support -C without using -E}}\
-	 %{M} %{MM} %{MD:-MD %b.d} %{MMD:-MMD %b.d} %{MG}\
-        -undef -D__GNUC__=%v1 -D__GNUC_MINOR__=%v2\
-	 %{ansi:-trigraphs -D__STRICT_ANSI__}\
-	%{!undef:%{!ansi:%p} %P} %{trigraphs}\
+	%{M} %{MM} %{MD:-MD %b.d} %{MMD:-MMD %b.d} %{MG}\
+        %{!no-gcc:-D__GNUC__=%v1 -D__GNUC_MINOR__=%v2}\
+	%{std=*:%{!std=gnu*:-trigraphs -D__STRICT_ANSI__}}\
+	%{!undef:%{!std=*:%p}%{std=gnu*:%p} %P} %{trigraphs}\
         %c %{Os:-D__OPTIMIZE_SIZE__} %{O*:%{!O0:-D__OPTIMIZE__}}\
+	%{ffast-math:-D__FAST_MATH__}\
         %{traditional} %{ftraditional:-traditional}\
         %{traditional-cpp:-traditional}\
+	%{fleading-underscore} %{fno-leading-underscore}\
 	%{g*} %{W*} %{w} %{pedantic*} %{H} %{d*} %C %{D*} %{U*} %{i*} %Z\
         %i %W{o*}"}},
   {".i", {"@cpp-output"}},
   {"@cpp-output",
    {"%{!M:%{!MM:%{!E:cc1 %i %1 %{!Q:-quiet} %{d*} %{m*} %{a*}\
-			%{g*} %{O*} %{W*} %{w} %{pedantic*} %{ansi}\
+			%{g*} %{O*} %{W*} %{w} %{pedantic*} %{std*}\
 			%{traditional} %{v:-version} %{pg:-p} %{p} %{f*}\
-			%{aux-info*}\
+			%{aux-info*} %{Qn:-fno-ident}\
 			%{pg:%{fomit-frame-pointer:%e-pg and -fomit-frame-pointer are incompatible}}\
 			%{S:%W{o*}%{!o*:-o %b.s}}%{!S:-o %{|!pipe:%g.s}} |\n\
 		     %{!S:as %a %Y\
@@ -751,13 +707,15 @@ static struct compiler default_compilers[] =
 			    %i %A\n }}}}"}},
   {".S", {"@assembler-with-cpp"}},
   {"@assembler-with-cpp",
-   {"cpp -lang-asm %{nostdinc*} %{C} %{v} %{A*} %{I*} %{P} %I\
+   {"cpp -lang-asm %{nostdinc*} %{C} %{v} %{A*} %{I*} %{P} %{$} %I\
 	%{C:%{!E:%eGNU C does not support -C without using -E}}\
 	%{M} %{MM} %{MD:-MD %b.d} %{MMD:-MMD %b.d} %{MG} %{trigraphs}\
-        -undef -$ %{!undef:%p %P} -D__ASSEMBLER__ \
+        -$ %{!undef:%p %P} -D__ASSEMBLER__ \
         %c %{Os:-D__OPTIMIZE_SIZE__} %{O*:%{!O0:-D__OPTIMIZE__}}\
+	%{ffast-math:-D__FAST_MATH__}\
         %{traditional} %{ftraditional:-traditional}\
         %{traditional-cpp:-traditional}\
+	%{fleading-underscore} %{fno-leading-underscore}\
 	%{g*} %{W*} %{w} %{pedantic*} %{H} %{d*} %C %{D*} %{U*} %{i*} %Z\
         %i %{!M:%{!MM:%{!E:%{!pipe:%g.s}}}}%{E:%W{o*}}%{M:%W{o*}}%{MM:%W{o*}} |\n",
     "%{!M:%{!MM:%{!E:%{!S:as %a %Y\
@@ -784,12 +742,12 @@ static int n_default_compilers
 #ifdef LINK_COMMAND_SPEC
 /* Provide option to override link_command_spec from machine specific
    configuration files.  */
-static char *link_command_spec = 
+static const char *link_command_spec = 
 	LINK_COMMAND_SPEC;
 #else
 #ifdef LINK_LIBGCC_SPECIAL
 /* Don't generate -L options.  */
-static char *link_command_spec = "\
+static const char *link_command_spec = "\
 %{!fsyntax-only: \
  %{!c:%{!M:%{!MM:%{!E:%{!S:%(linker) %l %X %{o*} %{A} %{d} %{e*} %{m} %{N} %{n} \
 			%{r} %{s} %{t} %{u*} %{x} %{z} %{Z}\
@@ -801,7 +759,7 @@ static char *link_command_spec = "\
 			\n }}}}}}";
 #else
 /* Use -L.  */
-static char *link_command_spec = "\
+static const char *link_command_spec = "\
 %{!fsyntax-only: \
  %{!c:%{!M:%{!MM:%{!E:%{!S:%(linker) %l %X %{o*} %{A} %{d} %{e*} %{m} %{N} %{n} \
 			%{r} %{s} %{t} %{u*} %{x} %{z} %{Z}\
@@ -838,15 +796,15 @@ static char **preprocessor_options;
 struct option_map
 {
   /* The long option's name.  */
-  char *name;
+  const char *name;
   /* The equivalent short option.  */
-  char *equivalent;
+  const char *equivalent;
   /* Argument info.  A string of flag chars; NULL equals no options.
      a => argument required.
      o => argument optional.
      j => join argument to equivalent, making one word.
      * => require other text after NAME as an argument.  */
-  char *arg_info;
+  const char *arg_info;
 };
 
 /* This is the table of mappings.  Mappings are tried sequentially
@@ -858,6 +816,8 @@ struct option_map option_map[] =
    {"--ansi", "-ansi", 0},
    {"--assemble", "-S", 0},
    {"--assert", "-A", "a"},
+   {"--classpath", "-fclasspath=", "aj"},
+   {"--CLASSPATH", "-fCLASSPATH=", "aj"},
    {"--comments", "-C", 0},
    {"--compile", "-c", 0},
    {"--debug", "-g", "oj"},
@@ -890,6 +850,7 @@ struct option_map option_map[] =
    {"--no-warnings", "-w", 0},
    {"--optimize", "-O", "oj"},
    {"--output", "-o", "a"},
+   {"--output-class-directory", "-foutput-class-dir=", "ja"},
    {"--pedantic", "-pedantic", 0},
    {"--pedantic-errors", "-pedantic-errors", 0},
    {"--pipe", "-pipe", 0},
@@ -910,6 +871,7 @@ struct option_map option_map[] =
    {"--silent", "-q", 0},
    {"--specs", "-specs=", "aj"},
    {"--static", "-static", 0},
+   {"--std", "-std=", "aj"},
    {"--symbolic", "-symbolic", 0},
    {"--target", "-b", "a"},
    {"--trace-includes", "-H", 0},
@@ -934,12 +896,13 @@ struct option_map option_map[] =
 static void
 translate_options (argcp, argvp)
      int *argcp;
-     char ***argvp;
+     const char ***argvp;
 {
-  int i, j, k;
+  int i;
   int argc = *argcp;
-  char **argv = *argvp;
-  char **newv = (char **) xmalloc ((argc + 2) * 2 * sizeof (char *));
+  const char **argv = *argvp;
+  const char **newv =
+    (const char **) xmalloc ((argc + 2) * 2 * sizeof (const char *));
   int newindex = 0;
 
   i = 0;
@@ -950,23 +913,25 @@ translate_options (argcp, argvp)
       /* Translate -- options.  */
       if (argv[i][0] == '-' && argv[i][1] == '-')
 	{
+	  size_t j;
 	  /* Find a mapping that applies to this option.  */
 	  for (j = 0; j < sizeof (option_map) / sizeof (option_map[0]); j++)
 	    {
 	      size_t optlen = strlen (option_map[j].name);
 	      size_t arglen = strlen (argv[i]);
 	      size_t complen = arglen > optlen ? optlen : arglen;
-	      char *arginfo = option_map[j].arg_info;
+	      const char *arginfo = option_map[j].arg_info;
 
 	      if (arginfo == 0)
 		arginfo = "";
 
 	      if (!strncmp (argv[i], option_map[j].name, complen))
 		{
-		  char *arg = 0;
+		  const char *arg = 0;
 
 		  if (arglen < optlen)
 		    {
+		      size_t k;
 		      for (k = j + 1;
 			   k < sizeof (option_map) / sizeof (option_map[0]);
 			   k++)
@@ -1051,7 +1016,7 @@ translate_options (argcp, argvp)
 	 with their arguments.  */
       else if (argv[i][0] == '-')
 	{
-	  char *p = argv[i] + 1;
+	  const char *p = argv[i] + 1;
 	  int c = *p;
 	  int nskip = 1;
 
@@ -1089,7 +1054,7 @@ translate_options (argcp, argvp)
 }
 
 char *
-my_strerror(e)
+xstrerror(e)
      int e;
 {
 #ifdef HAVE_STRERROR
@@ -1098,15 +1063,13 @@ my_strerror(e)
 
 #else
 
-  static char buffer[30];
   if (!e)
-    return "cannot access";
+    return "errno = 0";
 
   if (e > 0 && e < sys_nerr)
     return sys_errlist[e];
 
-  sprintf (buffer, "Unknown error %d", e);
-  return buffer;
+  return "errno = ?";
 #endif
 }
 
@@ -1181,7 +1144,16 @@ static struct spec_list static_specs[] = {
 };
 
 #ifdef EXTRA_SPECS		/* additional specs needed */
-static struct spec_list extra_specs[] = { EXTRA_SPECS };
+/* Structure to keep track of just the first two args of a spec_list.
+   That is all that the EXTRA_SPECS macro gives us. */
+struct spec_list_1
+{
+  char *name;
+  char *ptr;
+};
+
+static struct spec_list_1 extra_specs_1[] = { EXTRA_SPECS };
+static struct spec_list * extra_specs = (struct spec_list *)0;
 #endif
 
 /* List of dynamically allocates specs that have been defined so far.  */
@@ -1202,12 +1174,20 @@ init_spec ()
     return;			/* already initialized */
 
   if (verbose_flag)
-    fprintf (stderr, "Using builtin specs.\n");
+    notice ("Using builtin specs.\n");
 
 #ifdef EXTRA_SPECS
-  for (i = (sizeof (extra_specs) / sizeof (extra_specs[0])) - 1; i >= 0; i--)
+  extra_specs = (struct spec_list *)
+    xmalloc (sizeof(struct spec_list) *
+	     (sizeof(extra_specs_1)/sizeof(extra_specs_1[0])));
+  bzero ((PTR) extra_specs, sizeof(struct spec_list) *
+	 (sizeof(extra_specs_1)/sizeof(extra_specs_1[0])));
+  
+  for (i = (sizeof(extra_specs_1) / sizeof(extra_specs_1[0])) - 1; i >= 0; i--)
     {
       sl = &extra_specs[i];
+      sl->name = extra_specs_1[i].name;
+      sl->ptr = extra_specs_1[i].ptr;
       sl->next = next;
       sl->name_len = strlen (sl->name);
       sl->ptr_spec = &sl->ptr;
@@ -1232,8 +1212,8 @@ init_spec ()
 
 static void
 set_spec (name, spec)
-     char *name;
-     char *spec;
+     const char *name;
+     const char *spec;
 {
   struct spec_list *sl;
   char *old_spec;
@@ -1273,13 +1253,13 @@ set_spec (name, spec)
     }
 
   old_spec = *(sl->ptr_spec);
-  *(sl->ptr_spec) = ((spec[0] == '+' && ISSPACE (spec[1]))
+  *(sl->ptr_spec) = ((spec[0] == '+' && ISSPACE ((unsigned char)spec[1]))
 		     ? concat (old_spec, spec + 1, NULL_PTR)
 		     : save_string (spec, strlen (spec)));
 
 #ifdef DEBUG_SPECS
   if (verbose_flag)
-    fprintf (stderr, "Setting spec %s to '%s'\n\n", name, *(sl->ptr_spec));
+    notice ("Setting spec %s to '%s'\n\n", name, *(sl->ptr_spec));
 #endif
 
   /* Free the old spec */
@@ -1308,21 +1288,19 @@ static int argbuf_index;
 
 #ifdef MKTEMP_EACH_FILE
 
-extern char *make_temp_file PROTO((char *));
+extern char *make_temp_file PROTO((const char *));
 
 /* This is the list of suffixes and codes (%g/%u/%U) and the associated
    temp file.  */
 
 static struct temp_name {
-  char *suffix;		/* suffix associated with the code.  */
+  const char *suffix;	/* suffix associated with the code.  */
   int length;		/* strlen (suffix).  */
   int unique;		/* Indicates whether %g or %u/%U was used.  */
-  char *filename;	/* associated filename.  */
+  const char *filename;	/* associated filename.  */
   int filename_length;	/* strlen (filename).  */
   struct temp_name *next;
 } *temp_names;
-#else
-extern char *choose_temp_base PROTO((void));
 #endif
 
 
@@ -1336,7 +1314,7 @@ static int signal_count;
 
 /* Name with which this program was invoked.  */
 
-static char *programname;
+static const char *programname;
 
 /* Structures to keep track of prefixes to try when looking for files.  */
 
@@ -1353,7 +1331,7 @@ struct path_prefix
 {
   struct prefix_list *plist;  /* List of prefixes to try */
   int max_len;                /* Max length of a prefix in PLIST */
-  char *name;                 /* Name of this list (used in config stuff) */
+  const char *name;           /* Name of this list (used in config stuff) */
 };
 
 /* List of prefixes to try when looking for executables.  */
@@ -1371,16 +1349,16 @@ static struct path_prefix include_prefixes = { 0, 0, "include" };
 /* Suffix to attach to directories searched for commands.
    This looks like `MACHINE/VERSION/'.  */
 
-static char *machine_suffix = 0;
+static const char *machine_suffix = 0;
 
 /* Suffix to attach to directories searched for commands.
    This is just `MACHINE/'.  */
 
-static char *just_machine_suffix = 0;
+static const char *just_machine_suffix = 0;
 
 /* Adjusted value of GCC_EXEC_PREFIX envvar.  */
 
-static char *gcc_exec_prefix;
+static const char *gcc_exec_prefix;
 
 /* Default prefixes to attach to command names.  */
 
@@ -1394,10 +1372,10 @@ static char *gcc_exec_prefix;
 #define STANDARD_EXEC_PREFIX "/usr/local/lib/gcc-lib/"
 #endif /* !defined STANDARD_EXEC_PREFIX */
 
-static char *standard_exec_prefix = STANDARD_EXEC_PREFIX;
-static char *standard_exec_prefix_1 = "/usr/lib/gcc/";
+static const char *standard_exec_prefix = STANDARD_EXEC_PREFIX;
+static const char *standard_exec_prefix_1 = "/usr/lib/gcc/";
 #ifdef MD_EXEC_PREFIX
-static char *md_exec_prefix = MD_EXEC_PREFIX;
+static const char *md_exec_prefix = MD_EXEC_PREFIX;
 #endif
 
 #ifndef STANDARD_STARTFILE_PREFIX
@@ -1405,25 +1383,25 @@ static char *md_exec_prefix = MD_EXEC_PREFIX;
 #endif /* !defined STANDARD_STARTFILE_PREFIX */
 
 #ifdef MD_STARTFILE_PREFIX
-static char *md_startfile_prefix = MD_STARTFILE_PREFIX;
+static const char *md_startfile_prefix = MD_STARTFILE_PREFIX;
 #endif
 #ifdef MD_STARTFILE_PREFIX_1
-static char *md_startfile_prefix_1 = MD_STARTFILE_PREFIX_1;
+static const char *md_startfile_prefix_1 = MD_STARTFILE_PREFIX_1;
 #endif
-static char *standard_startfile_prefix = STANDARD_STARTFILE_PREFIX;
-static char *standard_startfile_prefix_1 = "/lib/";
-static char *standard_startfile_prefix_2 = "/usr/lib/";
+static const char *standard_startfile_prefix = STANDARD_STARTFILE_PREFIX;
+static const char *standard_startfile_prefix_1 = "/lib/";
+static const char *standard_startfile_prefix_2 = "/usr/lib/";
 
 #ifndef TOOLDIR_BASE_PREFIX
 #define TOOLDIR_BASE_PREFIX "/usr/local/"
 #endif
-static char *tooldir_base_prefix = TOOLDIR_BASE_PREFIX;
-static char *tooldir_prefix;
+static const char *tooldir_base_prefix = TOOLDIR_BASE_PREFIX;
+static const char *tooldir_prefix;
 
 /* Subdirectory to use for locating libraries.  Set by
    set_multilib_dir based on the compilation options.  */
 
-static char *multilib_dir;
+static const char *multilib_dir;
 
 /* Clear out the vector of arguments (after a command is executed).  */
 
@@ -1469,7 +1447,7 @@ store_arg (arg, delete_always, delete_failure)
 
 static void
 read_specs (filename, main_p)
-     char *filename;
+     const char *filename;
      int main_p;
 {
   int desc;
@@ -1479,7 +1457,7 @@ read_specs (filename, main_p)
   register char *p;
 
   if (verbose_flag)
-    fprintf (stderr, "Reading specs from %s\n", filename);
+    notice ("Reading specs from %s\n", filename);
 
   /* Open and stat the file.  */
   desc = open (filename, O_RDONLY, 0);
@@ -1531,8 +1509,8 @@ read_specs (filename, main_p)
 		p1++;
 
 	      if (*p1++ != '<' || p[-2] != '>')
-		fatal ("specs %%include syntax malformed after %d characters",
-		       p1 - buffer + 1);
+		fatal ("specs %%include syntax malformed after %ld characters",
+		       (long) (p1 - buffer + 1));
 
 	      p[-2] = '\0';
 	      new_filename = find_a_file (&startfile_prefixes, p1, R_OK);
@@ -1549,15 +1527,15 @@ read_specs (filename, main_p)
 	      while (*p1 == ' ' || *p1 == '\t') p1++;
 
 	      if (*p1++ != '<' || p[-2] != '>')
-		fatal ("specs %%include syntax malformed after %d characters",
-		       p1 - buffer + 1);
+		fatal ("specs %%include syntax malformed after %ld characters",
+		       (long) (p1 - buffer + 1));
 
 	      p[-2] = '\0';
 	      new_filename = find_a_file (&startfile_prefixes, p1, R_OK);
 	      if (new_filename)
 		read_specs (new_filename, FALSE);
 	      else if (verbose_flag)
-		fprintf (stderr, "Could not find specs file %s\n", p1);
+		notice ("Could not find specs file %s\n", p1);
 	      continue;
 	    }
 	  else if (!strncmp (p1, "%rename", sizeof "%rename" - 1)
@@ -1572,35 +1550,35 @@ read_specs (filename, main_p)
 	      while (*p1 == ' ' || *p1 == '\t')
 		p1++;
 
-	      if (! ISALPHA (*p1))
-		fatal ("specs %%rename syntax malformed after %d characters",
-		       p1 - buffer);
+	      if (! ISALPHA ((unsigned char)*p1))
+		fatal ("specs %%rename syntax malformed after %ld characters",
+		       (long) (p1 - buffer));
 
 	      p2 = p1;
-	      while (*p2 && !ISSPACE (*p2))
+	      while (*p2 && !ISSPACE ((unsigned char)*p2))
 		p2++;
 
 	      if (*p2 != ' ' && *p2 != '\t')
-		fatal ("specs %%rename syntax malformed after %d characters",
-		       p2 - buffer);
+		fatal ("specs %%rename syntax malformed after %ld characters",
+		       (long) (p2 - buffer));
 
 	      name_len = p2 - p1;
 	      *p2++ = '\0';
 	      while (*p2 == ' ' || *p2 == '\t')
 		p2++;
 
-	      if (! ISALPHA (*p2))
-		fatal ("specs %%rename syntax malformed after %d characters",
-		       p2 - buffer);
+	      if (! ISALPHA ((unsigned char)*p2))
+		fatal ("specs %%rename syntax malformed after %ld characters",
+		       (long) (p2 - buffer));
 
 	      /* Get new spec name */
 	      p3 = p2;
-	      while (*p3 && !ISSPACE (*p3))
+	      while (*p3 && !ISSPACE ((unsigned char)*p3))
 		p3++;
 
 	      if (p3 != p-1)
-		fatal ("specs %%rename syntax malformed after %d characters",
-		       p3 - buffer);
+		fatal ("specs %%rename syntax malformed after %ld characters",
+		       (long) (p3 - buffer));
 	      *p3 = '\0';
 
 	      for (sl = specs; sl; sl = sl->next)
@@ -1615,9 +1593,9 @@ read_specs (filename, main_p)
 
 	      if (verbose_flag)
 		{
-		  fprintf (stderr, "rename spec %s to %s\n", p1, p2);
+		  notice ("rename spec %s to %s\n", p1, p2);
 #ifdef DEBUG_SPECS
-		  fprintf (stderr, "spec is '%s'\n\n", *(sl->ptr_spec));
+		  notice ("spec is '%s'\n\n", *(sl->ptr_spec));
 #endif
 		}
 
@@ -1630,8 +1608,8 @@ read_specs (filename, main_p)
 	      continue;
 	    }
 	  else
-	    fatal ("specs unknown %% command after %d characters",
-		   p1 - buffer);
+	    fatal ("specs unknown %% command after %ld characters",
+		   (long) (p1 - buffer));
 	}
 
       /* Find the colon that should end the suffix.  */
@@ -1641,7 +1619,8 @@ read_specs (filename, main_p)
 
       /* The colon shouldn't be missing.  */
       if (*p1 != ':')
-	fatal ("specs file malformed after %d characters", p1 - buffer);
+	fatal ("specs file malformed after %ld characters",
+	       (long) (p1 - buffer));
 
       /* Skip back over trailing whitespace.  */
       p2 = p1;
@@ -1653,7 +1632,8 @@ read_specs (filename, main_p)
       /* Find the next line.  */
       p = skip_whitespace (p1 + 1);
       if (p[1] == 0)
-	fatal ("specs file malformed after %d characters", p - buffer);
+	fatal ("specs file malformed after %ld characters",
+	       (long) (p - buffer));
 
       p1 = p;
       /* Find next blank line or end of string.  */
@@ -1726,7 +1706,7 @@ read_specs (filename, main_p)
    otherwise, in /usr/tmp or /tmp;
    or finally the current directory if all else fails.  */
 
-static char *temp_filename;
+static const char *temp_filename;
 
 /* Length of the prefix.  */
 
@@ -1736,7 +1716,7 @@ static int temp_filename_length;
 
 struct temp_file
 {
-  char *name;
+  const char *name;
   struct temp_file *next;
 };
 
@@ -1753,7 +1733,7 @@ static struct temp_file *failure_delete_queue;
 
 static void
 record_temp_file (filename, always_delete, fail_delete)
-     char *filename;
+     const char *filename;
      int always_delete;
      int fail_delete;
 {
@@ -1796,7 +1776,7 @@ record_temp_file (filename, always_delete, fail_delete)
 
 static void
 delete_if_ordinary (name)
-     char *name;
+     const char *name;
 {
   struct stat st;
 #ifdef DEBUG
@@ -1890,7 +1870,7 @@ putenv (str)
   /* Add a new environment variable */
   environ = (char **) xmalloc (sizeof (char *) * (num_envs+2));
   *environ = str;
-  bcopy ((char *) old_environ, (char *) (environ + 1),
+  memcpy ((char *) (environ + 1), (char *) old_environ,
 	 sizeof (char *) * (num_envs+1));
 
 #endif	/* VMS */
@@ -1908,7 +1888,7 @@ putenv (str)
 static char *
 build_search_list (paths, prefix, check_dir_p)
      struct path_prefix *paths;
-     char *prefix;
+     const char *prefix;
      int check_dir_p;
 {
   int suffix_len = (machine_suffix) ? strlen (machine_suffix) : 0;
@@ -1969,7 +1949,7 @@ build_search_list (paths, prefix, check_dir_p)
 static void
 putenv_from_prefixes (paths, env_var)
      struct path_prefix *paths;
-     char *env_var;
+     const char *env_var;
 {
   putenv (build_search_list (paths, env_var, 1));
 }
@@ -1981,13 +1961,33 @@ putenv_from_prefixes (paths, env_var)
 static char *
 find_a_file (pprefix, name, mode)
      struct path_prefix *pprefix;
-     char *name;
+     const char *name;
      int mode;
 {
   char *temp;
-  char *file_suffix = ((mode & X_OK) != 0 ? EXECUTABLE_SUFFIX : "");
+  const char *file_suffix = ((mode & X_OK) != 0 ? EXECUTABLE_SUFFIX : "");
   struct prefix_list *pl;
   int len = pprefix->max_len + strlen (name) + strlen (file_suffix) + 1;
+
+#ifdef DEFAULT_ASSEMBLER
+  if (! strcmp(name, "as") && access (DEFAULT_ASSEMBLER, mode) == 0) {
+    name = DEFAULT_ASSEMBLER;
+    len = strlen(name)+1;
+    temp = xmalloc (len);
+    strcpy (temp, name);
+    return temp;
+  }
+#endif
+
+#ifdef DEFAULT_LINKER
+  if (! strcmp(name, "ld") && access (DEFAULT_LINKER, mode) == 0) {
+    name = DEFAULT_LINKER;
+    len = strlen(name)+1;
+    temp = xmalloc (len);
+    strcpy (temp, name);
+    return temp;
+  }
+#endif
 
   if (machine_suffix)
     len += strlen (machine_suffix);
@@ -1996,12 +1996,14 @@ find_a_file (pprefix, name, mode)
 
   /* Determine the filename to execute (special case for absolute paths).  */
 
-  if (*name == '/' || *name == DIR_SEPARATOR
+  if (IS_DIR_SEPARATOR (*name)
+#ifdef HAVE_DOS_BASED_FILESYSTEM
       /* Check for disk name on MS-DOS-based systems.  */
-      || (DIR_SEPARATOR == '\\' && name[1] == ':'
-	  && (name[2] == DIR_SEPARATOR || name[2] == '/')))
+      || (name[0] && name[1] == ':' && IS_DIR_SEPARATOR (name[2]))
+#endif
+      )
     {
-      if (access (name, mode))
+      if (access (name, mode) == 0)
 	{
 	  strcpy (temp, name);
 	  return temp;
@@ -2121,8 +2123,8 @@ find_a_file (pprefix, name, mode)
 static void
 add_prefix (pprefix, prefix, component, first, require_machine_suffix, warn)
      struct path_prefix *pprefix;
-     char *prefix;
-     char *component;
+     const char *prefix;
+     const char *component;
      int first;
      int require_machine_suffix;
      int *warn;
@@ -2201,8 +2203,8 @@ execute ()
   char *string;
   struct command
     {
-      char *prog;		/* program name.  */
-      char **argv;		/* vector of args.  */
+      const char *prog;		/* program name.  */
+      char **argv;	/* vector of args.  */
       int pid;			/* pid of process for this command.  */
     };
 
@@ -2231,7 +2233,7 @@ execute ()
   for (n_commands = 1, i = 0; i < argbuf_index; i++)
     if (strcmp (argbuf[i], "|") == 0)
       {				/* each command.  */
-#if defined (__MSDOS__) || (defined (_WIN32) && defined (__CYGWIN32_)) || defined (OS2) || defined (VMS)
+#if defined (__MSDOS__) || defined (OS2) || defined (VMS)
         fatal ("-pipe not supported");
 #endif
 	argbuf[i] = 0;	/* termination of command args.  */
@@ -2268,7 +2270,7 @@ execute ()
 	}
       fflush (stderr);
 #ifdef DEBUG
-      fprintf (stderr, "\nGo ahead? (y or n) ");
+      notice ("\nGo ahead? (y or n) ");
       fflush (stderr);
       i = getchar ();
       if (i != '\n')
@@ -2356,15 +2358,15 @@ execute ()
    is a null-terminated vector containing the following arguments.
    The `live_cond' field is 1 if the switch is true in a conditional spec,
    -1 if false (overridden by a later switch), and is initialized to zero.
-   The `valid' field is nonzero if any spec has looked at this switch;
+   The `validated' field is nonzero if any spec has looked at this switch;
    if it remains zero at the end of the run, it must be meaningless.  */
 
 struct switchstr
 {
-  char *part1;
+  const char *part1;
   char **args;
   int live_cond;
-  int valid;
+  int validated;
 };
 
 static struct switchstr *switches;
@@ -2373,8 +2375,8 @@ static int n_switches;
 
 struct infile
 {
-  char *name;
-  char *language;
+  const char *name;
+  const char *language;
 };
 
 /* Also a vector of input files specified.  */
@@ -2383,14 +2385,14 @@ static struct infile *infiles;
 
 static int n_infiles;
 
-/* This counts the number of libraries added by LANG_SPECIFIC_DRIVER, so that
+/* This counts the number of libraries added by lang_specific_driver, so that
    we can tell if there were any user supplied any files or libraries.  */
 
 static int added_libraries;
 
 /* And a vector of corresponding output files is made up later.  */
 
-static char **outfiles;
+static const char **outfiles;
 
 /* Used to track if none of the -B paths are used.  */
 static int warn_B;
@@ -2413,7 +2415,12 @@ convert_filename (name, do_exe)
      int do_exe;
 {
   int i;
-  int len = strlen (name);
+  int len;
+
+  if (name == NULL)
+    return NULL;
+  
+  len = strlen (name);
 
 #ifdef HAVE_OBJECT_SUFFIX
   /* Convert x.o to x.obj if OBJECT_SUFFIX is ".obj".  */
@@ -2434,7 +2441,7 @@ convert_filename (name, do_exe)
     return name;
 
   for (i = len - 1; i >= 0; i--)
-    if (name[i] == '/' || name[i] == DIR_SEPARATOR)
+    if (IS_DIR_SEPARATOR (name[i]))
       break;
 
   for (i++; i < len; i++)
@@ -2477,6 +2484,7 @@ display_help ()
   printf ("  -save-temps              Do not delete intermediate files\n");
   printf ("  -pipe                    Use pipes rather than intermediate files\n");
   printf ("  -specs=<file>            Override builtin specs with the contents of <file>\n");
+  printf ("  -std=<standard>          Assume that the input sources are for <standard>\n");
   printf ("  -B <directory>           Add <directory> to the compiler's search paths\n");
   printf ("  -b <machine>             Run gcc for target <machine>, if installed\n");
   printf ("  -V <version>             Run gcc version number <version>, if installed\n");
@@ -2501,58 +2509,58 @@ display_help ()
 
 static void 								
 add_preprocessor_option (option, len)					
-     char * option;							
-     int    len;							
+     const char * option;
+     int len;
 {									
-  n_preprocessor_options++;							
+  n_preprocessor_options++;
 									
-  if (! preprocessor_options)						
-    preprocessor_options							
-      = (char **) xmalloc (n_preprocessor_options * sizeof (char **));	
-  else									
-    preprocessor_options							
-      = (char **) xrealloc (preprocessor_options,				
-			    n_preprocessor_options * sizeof (char **));	
+  if (! preprocessor_options)
+    preprocessor_options
+      = (char **) xmalloc (n_preprocessor_options * sizeof (char *));
+  else
+    preprocessor_options
+      = (char **) xrealloc (preprocessor_options,
+			    n_preprocessor_options * sizeof (char *));
   									
-  preprocessor_options [n_preprocessor_options - 1] = save_string (option, len);  
+  preprocessor_options [n_preprocessor_options - 1] =
+    save_string (option, len);
 }
      
 static void 								
 add_assembler_option (option, len)					
-     char * option;							
-     int    len;							
-{									
-  n_assembler_options++;							
-									
-  if (! assembler_options)						
-    assembler_options							
-      = (char **) xmalloc (n_assembler_options * sizeof (char **));	
-  else									
-    assembler_options							
-      = (char **) xrealloc (assembler_options,				
-			    n_assembler_options * sizeof (char **));	
-  									
-  assembler_options [n_assembler_options - 1] = save_string (option, len);  
+     const char * option;
+     int len;
+{
+  n_assembler_options++;
+
+  if (! assembler_options)
+    assembler_options
+      = (char **) xmalloc (n_assembler_options * sizeof (char *));
+  else
+    assembler_options
+      = (char **) xrealloc (assembler_options,
+			    n_assembler_options * sizeof (char *));
+
+  assembler_options [n_assembler_options - 1] = save_string (option, len);
 }
      
 static void 								
 add_linker_option (option, len)					
-     char * option;							
-     int    len;							
-{									
-  n_linker_options++;							
-									
-  if (! linker_options)						
-    linker_options							
-      = (char **) xmalloc (n_linker_options * sizeof (char **));	
-  else									
-    linker_options							
-      = (char **) xrealloc (linker_options,				
-			    n_linker_options * sizeof (char **));	
-  									
-  linker_options [n_linker_options - 1] = save_string (option, len);  
+     const char * option;
+     int    len;
+{
+  n_linker_options++;
+
+  if (! linker_options)
+    linker_options
+      = (char **) xmalloc (n_linker_options * sizeof (char *));
+  else
+    linker_options
+      = (char **) xrealloc (linker_options,
+			    n_linker_options * sizeof (char *));
+
+  linker_options [n_linker_options - 1] = save_string (option, len);
 }
-     
 
 /* Create the vector `switches' and its contents.
    Store its length in `n_switches'.  */
@@ -2563,14 +2571,15 @@ process_command (argc, argv)
      char **argv;
 {
   register int i;
-  char *temp;
+  const char *temp;
+  char *temp1;
   char *spec_lang = 0;
   int last_language_n_infiles;
   int have_c = 0;
   int have_o = 0;
   int lang_n_infiles = 0;
 
-  GET_ENVIRONMENT (gcc_exec_prefix, "GCC_EXEC_PREFIX");
+  GET_ENV_PATH_LIST (gcc_exec_prefix, "GCC_EXEC_PREFIX");
 
   n_switches = 0;
   n_infiles = 0;
@@ -2578,12 +2587,13 @@ process_command (argc, argv)
 
   /* Figure compiler version from version string.  */
 
-  compiler_version = save_string (version_string, strlen (version_string));
-  for (temp = compiler_version; *temp; ++temp)
+  compiler_version = temp1 =
+    save_string (version_string, strlen (version_string));
+  for (; *temp1; ++temp1)
     {
-      if (*temp == ' ')
+      if (*temp1 == ' ')
 	{
-	  *temp = '\0';
+	  *temp1 = '\0';
 	  break;
 	}
     }
@@ -2593,14 +2603,13 @@ process_command (argc, argv)
   if (gcc_exec_prefix)
     {
       int len = strlen (gcc_exec_prefix);
-      if (len > sizeof ("/lib/gcc-lib/")-1
-	  && (gcc_exec_prefix[len-1] == '/'
-	      || gcc_exec_prefix[len-1] == DIR_SEPARATOR))
+      if (len > (int) sizeof ("/lib/gcc-lib/")-1
+	  && (IS_DIR_SEPARATOR (gcc_exec_prefix[len-1])))
 	{
 	  temp = gcc_exec_prefix + len - sizeof ("/lib/gcc-lib/") + 1;
-	  if ((*temp == '/' || *temp == DIR_SEPARATOR)
+	  if (IS_DIR_SEPARATOR (*temp)
 	      && strncmp (temp+1, "lib", 3) == 0
-	      && (temp[4] == '/' || temp[4] == DIR_SEPARATOR)
+	      && IS_DIR_SEPARATOR (temp[4])
 	      && strncmp (temp+5, "gcc-lib", 7) == 0)
 	    len -= sizeof ("/lib/gcc-lib/") - 1;
 	}
@@ -2613,10 +2622,10 @@ process_command (argc, argv)
   /* COMPILER_PATH and LIBRARY_PATH have values
      that are lists of directory names with colons.  */
 
-  GET_ENVIRONMENT (temp, "COMPILER_PATH");
+  GET_ENV_PATH_LIST (temp, "COMPILER_PATH");
   if (temp)
     {
-      char *startp, *endp;
+      const char *startp, *endp;
       char *nstore = (char *) alloca (strlen (temp) + 3);
 
       startp = endp = temp;
@@ -2627,7 +2636,7 @@ process_command (argc, argv)
 	      strncpy (nstore, startp, endp-startp);
 	      if (endp == startp)
 		strcpy (nstore, concat (".", dir_separator_str, NULL_PTR));
-	      else if (endp[-1] != '/' && endp[-1] != DIR_SEPARATOR)
+	      else if (!IS_DIR_SEPARATOR (endp[-1]))
 		{
 		  nstore[endp-startp] = DIR_SEPARATOR;
 		  nstore[endp-startp+1] = 0;
@@ -2647,10 +2656,10 @@ process_command (argc, argv)
 	}
     }
 
-  GET_ENVIRONMENT (temp, "LIBRARY_PATH");
+  GET_ENV_PATH_LIST (temp, "LIBRARY_PATH");
   if (temp && *cross_compile == '0')
     {
-      char *startp, *endp;
+      const char *startp, *endp;
       char *nstore = (char *) alloca (strlen (temp) + 3);
 
       startp = endp = temp;
@@ -2661,7 +2670,7 @@ process_command (argc, argv)
 	      strncpy (nstore, startp, endp-startp);
 	      if (endp == startp)
 		strcpy (nstore, concat (".", dir_separator_str, NULL_PTR));
-	      else if (endp[-1] != '/' && endp[-1] != DIR_SEPARATOR)
+	      else if (!IS_DIR_SEPARATOR (endp[-1]))
 		{
 		  nstore[endp-startp] = DIR_SEPARATOR;
 		  nstore[endp-startp+1] = 0;
@@ -2680,10 +2689,10 @@ process_command (argc, argv)
     }
 
   /* Use LPATH like LIBRARY_PATH (for the CMU build program).  */
-  GET_ENVIRONMENT (temp, "LPATH");
+  GET_ENV_PATH_LIST (temp, "LPATH");
   if (temp && *cross_compile == '0')
     {
-      char *startp, *endp;
+      const char *startp, *endp;
       char *nstore = (char *) alloca (strlen (temp) + 3);
 
       startp = endp = temp;
@@ -2694,7 +2703,7 @@ process_command (argc, argv)
 	      strncpy (nstore, startp, endp-startp);
 	      if (endp == startp)
 		strcpy (nstore, concat (".", dir_separator_str, NULL_PTR));
-	      else if (endp[-1] != '/' && endp[-1] != DIR_SEPARATOR)
+	      else if (!IS_DIR_SEPARATOR (endp[-1]))
 		{
 		  nstore[endp-startp] = DIR_SEPARATOR;
 		  nstore[endp-startp+1] = 0;
@@ -2715,10 +2724,8 @@ process_command (argc, argv)
   /* Convert new-style -- options to old-style.  */
   translate_options (&argc, &argv);
 
-#ifdef LANG_SPECIFIC_DRIVER
   /* Do language-specific adjustment/addition of flags.  */
   lang_specific_driver (fatal, &argc, &argv, &added_libraries);
-#endif
 
   /* Scan argv twice.  Here, the first time, just count how many switches
      there will be in their vector, and how many input files in theirs.
@@ -2732,6 +2739,8 @@ process_command (argc, argv)
 	  init_spec ();
 	  for (sl = specs; sl; sl = sl->next)
 	    printf ("*%s:\n%s\n\n", sl->name, *(sl->ptr_spec));
+          if (link_command_spec)
+            printf ("*link_command:\n%s\n\n", link_command_spec);
 	  exit (0);
 	}
       else if (! strcmp (argv[i], "-dumpversion"))
@@ -2899,12 +2908,10 @@ process_command (argc, argv)
 		  int len = strlen (value);
 		  if ((len == 7
 		       || (len > 7
-			   && (value[len - 8] == '/'
-			       || value[len - 8] == DIR_SEPARATOR)))
+			   && (IS_DIR_SEPARATOR (value[len - 8]))))
 		      && strncmp (value + len - 7, "stage", 5) == 0
 		      && ISDIGIT (value[len - 2])
-		      && (value[len - 1] == '/'
-			  || value[len - 1] == DIR_SEPARATOR))
+		      && (IS_DIR_SEPARATOR (value[len - 1])))
 		    {
 		      if (len == 7)
 			add_prefix (&include_prefixes, "include", NULL_PTR,
@@ -2949,7 +2956,7 @@ process_command (argc, argv)
 		 The format of the version string is
 		 ([^0-9]*-)?[0-9]+[.][0-9]+([.][0-9]+)?([- ].*)?  */
 	      {
-		char *v = compiler_version;
+		const char *v = compiler_version;
 
 		/* Ignore leading non-digits.  i.e. "foo-" in "foo-2.7.2".  */
 		while (! ISDIGIT (*v))
@@ -3071,7 +3078,7 @@ process_command (argc, argv)
      directories, so that we can search both the user specified directory
      and the standard place.  */
 
-  if (*tooldir_prefix != '/' && *tooldir_prefix != DIR_SEPARATOR)
+  if (!IS_DIR_SEPARATOR (*tooldir_prefix))
     {
       if (gcc_exec_prefix)
 	{
@@ -3151,7 +3158,7 @@ process_command (argc, argv)
 	      switches[n_switches].part1     = "--help";
 	      switches[n_switches].args      = 0;
 	      switches[n_switches].live_cond = 0;
-	      switches[n_switches].valid     = 0;
+	      switches[n_switches].validated     = 0;
 	      
 	      n_switches++;
 	    }
@@ -3166,7 +3173,7 @@ process_command (argc, argv)
 	  switches[n_switches].part1 = &argv[i][0];
 	  switches[n_switches].args = 0;
 	  switches[n_switches].live_cond = 0;
-	  switches[n_switches].valid = 0;
+	  switches[n_switches].validated = 0;
 	  n_switches++;
 	}
       else if (strncmp (argv[i], "-Wl,", 4) == 0)
@@ -3265,15 +3272,15 @@ process_command (argc, argv)
 	    switches[n_switches].args = 0;
 
 	  switches[n_switches].live_cond = 0;
-	  switches[n_switches].valid = 0;
+	  switches[n_switches].validated = 0;
 	  /* This is always valid, since gcc.c itself understands it.  */
 	  if (!strcmp (p, "save-temps"))
-	    switches[n_switches].valid = 1;
+	    switches[n_switches].validated = 1;
           else
             {
               char ch = switches[n_switches].part1[0];
               if (ch == 'V' || ch == 'b' || ch == 'B')
-                switches[n_switches].valid = 1;
+                switches[n_switches].validated = 1;
             }
 	  n_switches++;
 	}
@@ -3312,12 +3319,12 @@ process_command (argc, argv)
    sans all directory names, and basename_length is the number
    of characters starting there excluding the suffix .c or whatever.  */
 
-char *input_filename;
+const char *input_filename;
 static int input_file_number;
 size_t input_filename_length;
 static int basename_length;
-static char *input_basename;
-static char *input_suffix;
+static const char *input_basename;
+static const char *input_suffix;
 
 /* These are variables used within do_spec and do_spec_1.  */
 
@@ -3346,7 +3353,7 @@ static int input_from_pipe;
 
 int
 do_spec (spec)
-     char *spec;
+     const char *spec;
 {
   int value;
 
@@ -3387,14 +3394,14 @@ do_spec (spec)
 
 static int
 do_spec_1 (spec, inswitch, soft_matched_part)
-     char *spec;
+     const char *spec;
      int inswitch;
-     char *soft_matched_part;
+     const char *soft_matched_part;
 {
-  register char *p = spec;
+  register const char *p = spec;
   register int c;
   int i;
-  char *string;
+  const char *string;
   int value;
 
   while ((c = *p++))
@@ -3429,7 +3436,7 @@ do_spec_1 (spec, inswitch, soft_matched_part)
 	    if (i < n_switches)
 	      {
 		input_from_pipe = 1;
-		switches[i].valid = 1;
+		switches[i].validated = 1;
 		break;
 	      }
 	    else
@@ -3522,7 +3529,7 @@ do_spec_1 (spec, inswitch, soft_matched_part)
 		  /* Relative directories always come from -B,
 		     and it is better not to use them for searching
 		     at run time.  In particular, stage1 loses  */
-		  if (pl->prefix[0] != '/' && pl->prefix[0] != DIR_SEPARATOR)
+		  if (!IS_DIR_SEPARATOR (pl->prefix[0]))
 		    continue;
 #endif
 		  /* Try subdirectory if there is one.  */
@@ -3579,8 +3586,7 @@ do_spec_1 (spec, inswitch, soft_matched_part)
 			  buffer = (char *) xrealloc (buffer, bufsize);
 			  strcpy (buffer, machine_suffix);
 			  idx = strlen (buffer);
-			  if (buffer[idx - 1] == '/'
-			      || buffer[idx - 1] == DIR_SEPARATOR)
+			  if (IS_DIR_SEPARATOR (buffer[idx - 1]))
 			    buffer[idx - 1] = 0;
 			  do_spec_1 (buffer, 1, NULL_PTR);
 			  /* Make this a separate argument.  */
@@ -3601,8 +3607,7 @@ do_spec_1 (spec, inswitch, soft_matched_part)
 			  buffer = (char *) xrealloc (buffer, bufsize);
 			  strcpy (buffer, pl->prefix);
 			  idx = strlen (buffer);
-			  if (buffer[idx - 1] == '/'
-			      || buffer[idx - 1] == DIR_SEPARATOR)
+			  if (IS_DIR_SEPARATOR (buffer[idx - 1]))
 			    buffer[idx - 1] = 0;
 			  do_spec_1 (buffer, 1, NULL_PTR);
 			  /* Make this a separate argument.  */
@@ -3615,16 +3620,16 @@ do_spec_1 (spec, inswitch, soft_matched_part)
 	    break;
 
 	  case 'e':
-	    /* {...:%efoo} means report an error with `foo' as error message
+	    /* %efoo means report an error with `foo' as error message
 	       and don't execute any more commands for this file.  */
 	    {
-	      char *q = p;
+	      const char *q = p;
 	      char *buf;
 	      while (*p != 0 && *p != '\n') p++;
 	      buf = (char *) alloca (p - q + 1);
 	      strncpy (buf, q, p - q);
 	      buf[p - q] = 0;
-	      error ("%s", buf);
+	      error (buf);
 	      return -1;
 	    }
 	    break;
@@ -3646,20 +3651,20 @@ do_spec_1 (spec, inswitch, soft_matched_part)
 		   In 2.4, do something about that.  */
 		struct temp_name *t;
 		int suffix_length;
-		char *suffix = p;
+		const char *suffix = p;
 
 		if (p[0] == '%' && p[1] == 'O')
 		  {
 		    p += 2;
 		    /* We don't support extra suffix characters after %O.  */
-		    if (*p == '.' || ISALPHA (*p))
+		    if (*p == '.' || ISALPHA ((unsigned char)*p))
 		      abort ();
 		    suffix = OBJECT_SUFFIX;
 		    suffix_length = strlen (OBJECT_SUFFIX);
 		  }
 		else
 		  {
-		    while (*p == '.' || ISALPHA (*p))
+		    while (*p == '.' || ISALPHA ((unsigned char)*p))
 		      p++;
 		    suffix_length = p - suffix;
 		  }
@@ -3739,9 +3744,15 @@ do_spec_1 (spec, inswitch, soft_matched_part)
 	    break;
 
 	  case 'o':
-	    for (i = 0; i < n_infiles; i++)
-	      store_arg (outfiles[i], 0, 0);
-	    break;
+	    {
+	      int max = n_infiles;
+	      max += lang_specific_extra_outfiles;
+
+	      for (i = 0; i < max; i++)
+		if (outfiles[i])
+		  store_arg (outfiles[i], 0, 0);
+	      break;
+	    }
 
 	  case 'O':
 	    obstack_grow (&obstack, OBJECT_SUFFIX, strlen (OBJECT_SUFFIX));
@@ -3775,7 +3786,7 @@ do_spec_1 (spec, inswitch, soft_matched_part)
 	  /* %x{OPTION} records OPTION for %X to output.  */
 	  case 'x':
 	    {
-	      char *p1 = p;
+	      const char *p1 = p;
 	      char *string;
 
 	      /* Skip past the option value and make a copy.  */
@@ -3940,7 +3951,8 @@ do_spec_1 (spec, inswitch, soft_matched_part)
 		      *x++ = *y++;
 
 		      if (*y != '_'
-			  || (*(y+1) != '_' && ! ISUPPER (*(y+1))))
+			  || (*(y+1) != '_'
+			      && ! ISUPPER ((unsigned char)*(y+1))))
 		        {
 			  /* Stick __ at front of macro name.  */
 			  *x++ = '_';
@@ -3982,7 +3994,8 @@ do_spec_1 (spec, inswitch, soft_matched_part)
 		      y += 2;
 
 		      if (*y != '_'
-			  || (*(y+1) != '_' && ! ISUPPER (*(y+1))))
+			  || (*(y+1) != '_'
+			      && ! ISUPPER ((unsigned char)*(y+1))))
 		        {
 			  /* Stick -D__ at front of macro name.  */
 			  *x++ = '-';
@@ -4070,7 +4083,7 @@ do_spec_1 (spec, inswitch, soft_matched_part)
 	    error ("Warning: use of obsolete %%[ operator in specs");
 	  case '(':
 	    {
-	      char *name = p;
+	      const char *name = p;
 	      struct spec_list *sl;
 	      int len;
 
@@ -4085,8 +4098,8 @@ do_spec_1 (spec, inswitch, soft_matched_part)
 		  {
 		    name = *(sl->ptr_spec);
 #ifdef DEBUG_SPECS
-		    fprintf (stderr, "Processing spec %c%s%c, which is '%s'\n",
-			     c, sl->name, (c == '(') ? ')' : ']', name);
+		    notice ("Processing spec %c%s%c, which is '%s'\n",
+			    c, sl->name, (c == '(') ? ')' : ']', name);
 #endif
 		    break;
 		  }
@@ -4103,7 +4116,7 @@ do_spec_1 (spec, inswitch, soft_matched_part)
 		    {
 		      char *x = (char *) alloca (strlen (name) * 2 + 1);
 		      char *buf = x;
-		      char *y = name;
+		      const char *y = name;
 		      int flag = 0;
 
 		      /* Copy all of NAME into BUF, but put __ after
@@ -4211,11 +4224,11 @@ do_spec_1 (spec, inswitch, soft_matched_part)
 
 /* Return 0 if we call do_spec_1 and that returns -1.  */
 
-static char *
+static const char *
 handle_braces (p)
-     register char *p;
+     register const char *p;
 {
-  char *filter, *body = NULL, *endbody;
+  const char *filter, *body = NULL, *endbody = NULL;
   int pipe_p = 0;
   int negate;
   int suffix;
@@ -4260,7 +4273,7 @@ next_member:
       if (*p != '}')
         {
 	  register int count = 1;
-	  register char *q = p;
+	  register const char *q = p;
 
 	  while (*q++ != ':') continue;
 	  body = q;
@@ -4284,7 +4297,7 @@ next_member:
   if (suffix)
     {
       int found = (input_suffix != 0
-		   && strlen (input_suffix) == p - filter
+		   && (long) strlen (input_suffix) == (long)(p - filter)
 		   && strncmp (input_suffix, filter, p - filter) == 0);
 
       if (body[0] == '}')
@@ -4315,7 +4328,7 @@ next_member:
       if (p[-1] == '*' && !negate)
 	{
 	  int substitution;
-	  char *r = body;
+	  const char *r = body;
 
 	  /* First see whether we have %*.  */
 	  substitution = 0;
@@ -4426,7 +4439,7 @@ check_live_switch (switchnum, prefix_length)
      int switchnum;
      int prefix_length;
 {
-  char *name = switches[switchnum].part1;
+  const char *name = switches[switchnum].part1;
   int i;
 
   /* In the common case of {<at-most-one-letter>*}, a negating
@@ -4447,7 +4460,7 @@ check_live_switch (switchnum, prefix_length)
 	for (i = switchnum + 1; i < n_switches; i++)
 	  if (switches[i].part1[0] == 'O')
 	    {
-	      switches[switchnum].valid = 1;
+	      switches[switchnum].validated = 1;
 	      switches[switchnum].live_cond = -1;
 	      return 0;
 	    }
@@ -4461,7 +4474,7 @@ check_live_switch (switchnum, prefix_length)
 	    if (switches[i].part1[0] == name[0]
 		&& ! strcmp (&switches[i].part1[1], &name[4]))
 	    {
-	      switches[switchnum].valid = 1;
+	      switches[switchnum].validated = 1;
 	      switches[switchnum].live_cond = -1;
 	      return 0;
 	    }
@@ -4476,7 +4489,7 @@ check_live_switch (switchnum, prefix_length)
 		&& switches[i].part1[3] == '-'
 		&& !strcmp (&switches[i].part1[4], &name[1]))
 	    {
-	      switches[switchnum].valid = 1;
+	      switches[switchnum].validated = 1;
 	      switches[switchnum].live_cond = -1;
 	      return 0;
 	    }
@@ -4524,16 +4537,16 @@ give_switch (switchnum, omit_first_word, include_blanks)
     }
 
   do_spec_1 (" ", 0, NULL_PTR);
-  switches[switchnum].valid = 1;
+  switches[switchnum].validated = 1;
 }
 
 /* Search for a file named NAME trying various prefixes including the
    user's -B prefix and some standard ones.
    Return the absolute file name found.  If nothing is found, return NAME.  */
 
-static char *
+static const char *
 find_file (name)
-     char *name;
+     const char *name;
 {
   char *newname;
 
@@ -4566,8 +4579,8 @@ find_file (name)
 
 static int
 is_directory (path1, path2, linker)
-     char *path1;
-     char *path2;
+     const char *path1;
+     const char *path2;
      int linker;
 {
   int len1 = strlen (path1);
@@ -4584,10 +4597,10 @@ is_directory (path1, path2, linker)
   /* Construct the path from the two parts.  Ensure the string ends with "/.".
      The resulting path will be a directory even if the given path is a
      symbolic link.  */
-  bcopy (path1, path, len1);
-  bcopy (path2, path + len1, len2);
+  memcpy (path, path1, len1);
+  memcpy (path + len1, path2, len2);
   cp = path + len1 + len2;
-  if (cp[-1] != '/' && cp[-1] != DIR_SEPARATOR)
+  if (!IS_DIR_SEPARATOR (cp[-1]))
     *cp++ = DIR_SEPARATOR;
   *cp++ = '.';
   *cp = '\0';
@@ -4631,12 +4644,19 @@ main (argc, argv)
   int linker_was_run = 0;
   char *explicit_link_files;
   char *specs_file;
-  char *p;
+  const char *p;
   struct user_specs *uptr;
 
   p = argv[0] + strlen (argv[0]);
-  while (p != argv[0] && p[-1] != '/' && p[-1] != DIR_SEPARATOR) --p;
+  while (p != argv[0] && !IS_DIR_SEPARATOR (p[-1]))
+    --p;
   programname = p;
+
+#ifdef HAVE_LC_MESSAGES
+  setlocale (LC_MESSAGES, "");
+#endif
+  (void) bindtextdomain (PACKAGE, localedir);
+  (void) textdomain (PACKAGE);
 
   if (signal (SIGINT, SIG_IGN) != SIG_IGN)
     signal (SIGINT, fatal_error);
@@ -4728,10 +4748,10 @@ main (argc, argv)
 		  sizeof ("COLLECT_GCC_OPTIONS=")-1);
 
     first_time = TRUE;
-    for (i = 0; i < n_switches; i++)
+    for (i = 0; (int)i < n_switches; i++)
       {
 	char **args;
-	char *p, *q;
+	const char *p, *q;
 	if (!first_time)
 	  obstack_grow (&collect_obstack, " ", 1);
 
@@ -4798,18 +4818,7 @@ main (argc, argv)
   if (access (specs_file, R_OK) == 0)
     read_specs (specs_file, TRUE);
  
-  /* Process any user specified specs in the order given on the command
-     line.  */
-  for (uptr = user_specs_head; uptr; uptr = uptr->next)
-    {
-      char *filename = find_a_file (&startfile_prefixes, uptr->filename, R_OK);
-      read_specs (filename ? filename : uptr->filename, FALSE);
-    }
-
   /* If not cross-compiling, look for startfiles in the standard places.  */
-  /* The fact that these are done here, after reading the specs file,
-     means that it cannot be found in these directories.
-     But that's okay.  It should never be there anyway.  */
   if (*cross_compile == '0')
     {
 #ifdef MD_EXEC_PREFIX
@@ -4831,14 +4840,12 @@ main (argc, argv)
 	 standard_exec_prefix.  This lets us move the installed tree
 	 as a unit.  If GCC_EXEC_PREFIX is defined, base
 	 standard_startfile_prefix on that as well.  */
-      if (*standard_startfile_prefix == '/'
-	  || *standard_startfile_prefix == DIR_SEPARATOR
-	  || *standard_startfile_prefix == '$'
-#ifdef __MSDOS__
-	  /* Check for disk name on MS-DOS-based systems.  */
+      if (IS_DIR_SEPARATOR (*standard_startfile_prefix)
+	    || *standard_startfile_prefix == '$'
+#ifdef HAVE_DOS_BASED_FILESYSTEM
+  	    /* Check for disk name on MS-DOS-based systems.  */
           || (standard_startfile_prefix[1] == ':'
-	      && (standard_startfile_prefix[2] == DIR_SEPARATOR
-		  || standard_startfile_prefix[2] == '/'))
+	      && (IS_DIR_SEPARATOR (standard_startfile_prefix[2])))
 #endif
 	  )
 	add_prefix (&startfile_prefixes, standard_startfile_prefix, "BINUTILS",
@@ -4867,11 +4874,19 @@ main (argc, argv)
     }
   else
     {
-      if (*standard_startfile_prefix != DIR_SEPARATOR && gcc_exec_prefix)
+      if (!IS_DIR_SEPARATOR (*standard_startfile_prefix) && gcc_exec_prefix)
 	add_prefix (&startfile_prefixes,
 		    concat (gcc_exec_prefix, machine_suffix,
 			    standard_startfile_prefix, NULL_PTR),
 		    "BINUTILS", 0, 0, NULL_PTR);
+    }
+
+  /* Process any user specified specs in the order given on the command
+     line.  */
+  for (uptr = user_specs_head; uptr; uptr = uptr->next)
+    {
+      char *filename = find_a_file (&startfile_prefixes, uptr->filename, R_OK);
+      read_specs (filename ? filename : uptr->filename, FALSE);
     }
 
   /* If we have a GCC_EXEC_PREFIX envvar, modify it for cpp's sake.  */
@@ -4899,8 +4914,8 @@ main (argc, argv)
 
   /* Warn about any switches that no pass was interested in.  */
 
-  for (i = 0; i < n_switches; i++)
-    if (! switches[i].valid)
+  for (i = 0; (int)i < n_switches; i++)
+    if (! switches[i].validated)
       error ("unrecognized option `-%s'", switches[i].part1);
 
   /* Obey some of the options.  */
@@ -4947,8 +4962,8 @@ main (argc, argv)
 
       if (! verbose_flag)
 	{
-	  printf ("\nReport bugs to egcs-bugs@egcs.cygnus.com.\n");
-	  printf ("Please see the file BUGS (included with the sources) first.\n");
+	  printf ("\nFor bug reporting instructions, please see:\n");
+	  printf ("<URL:http://www.gnu.org/software/gcc/faq.html#bugreport>.\n");
 	  
 	  exit (0);
 	}
@@ -4971,10 +4986,10 @@ main (argc, argv)
 
       if (! strncmp (version_string, compiler_version, n)
 	  && compiler_version[n] == 0)
-	fprintf (stderr, "gcc version %s\n", version_string);
+	notice ("gcc version %s\n", version_string);
       else
-	fprintf (stderr, "gcc driver version %s executing gcc version %s\n",
-		 version_string, compiler_version);
+	notice ("gcc driver version %s executing gcc version %s\n",
+		version_string, compiler_version);
 
       if (n_infiles == 0)
 	exit (0);
@@ -4987,18 +5002,16 @@ main (argc, argv)
      that correspond to the input files.  */
 
   i = n_infiles;
-#ifdef LANG_SPECIFIC_DRIVER
   i += lang_specific_extra_outfiles;
-#endif
-  outfiles = (char **) xmalloc (i * sizeof (char *));
-  bzero ((char *) outfiles, n_infiles * sizeof (char *));
+  outfiles = (const char **) xmalloc (i * sizeof (char *));
+  bzero ((char *) outfiles, i * sizeof (char *));
 
   /* Record which files were specified explicitly as link input.  */
 
   explicit_link_files = xmalloc (n_infiles);
   bzero (explicit_link_files, n_infiles);
 
-  for (i = 0; i < n_infiles; i++)
+  for (i = 0; (int)i < n_infiles; i++)
     {
       register struct compiler *cp = 0;
       int this_file_error = 0;
@@ -5022,7 +5035,7 @@ main (argc, argv)
 	{
 	  /* Ok, we found an applicable compiler.  Run its spec.  */
 	  /* First say how much of input_filename to substitute for %b  */
-	  register char *p;
+	  register const char *p;
 	  int len;
 
 	  if (cp->spec[0][0] == '#')
@@ -5031,7 +5044,7 @@ main (argc, argv)
 
 	  input_basename = input_filename;
 	  for (p = input_filename; *p; p++)
-	    if (*p == '/' || *p == DIR_SEPARATOR)
+	    if (IS_DIR_SEPARATOR (*p))
 	      input_basename = p + 1;
 
 	  /* Find a suffix starting with the last period,
@@ -5052,18 +5065,20 @@ main (argc, argv)
 	    if (cp->spec[j])
 	      len += strlen (cp->spec[j]);
 
-	  p = (char *) xmalloc (len + 1);
-
-	  len = 0;
-	  for (j = 0; j < sizeof cp->spec / sizeof cp->spec[0]; j++)
-	    if (cp->spec[j])
-	      {
-		strcpy (p + len, cp->spec[j]);
-		len += strlen (cp->spec[j]);
-	      }
-
-	  value = do_spec (p);
-	  free (p);
+	  {
+	    char *p1 = (char *) xmalloc (len + 1);
+	    
+	    len = 0;
+	    for (j = 0; j < sizeof cp->spec / sizeof cp->spec[0]; j++)
+	      if (cp->spec[j])
+		{
+		  strcpy (p1 + len, cp->spec[j]);
+		  len += strlen (cp->spec[j]);
+		}
+	    
+	    value = do_spec (p1);
+	    free (p1);
+	  }
 	  if (value < 0)
 	    this_file_error = 1;
 	}
@@ -5086,11 +5101,14 @@ main (argc, argv)
       clear_failure_queue ();
     }
 
-#ifdef LANG_SPECIFIC_DRIVER
-  if (error_count == 0
-      && lang_specific_pre_link ())
-    error_count++;
-#endif
+  if (error_count == 0)
+    {
+      /* Make sure INPUT_FILE_NUMBER points to first available open
+	 slot.  */
+      input_file_number = n_infiles;
+      if (lang_specific_pre_link ())
+	error_count++;
+    }
 
   /* Run ld to link all the compiler output files.  */
 
@@ -5124,7 +5142,7 @@ main (argc, argv)
      complain about input files to be given to the linker.  */
 
   if (! linker_was_run && error_count == 0)
-    for (i = 0; i < n_infiles; i++)
+    for (i = 0; (int)i < n_infiles; i++)
       if (explicit_link_files[i])
 	error ("%s: linker input file unused since linking not done",
 	       outfiles[i]);
@@ -5137,8 +5155,8 @@ main (argc, argv)
 
   if (print_help_list)
     {
-      printf ("\nReport bugs to egcs-bugs@egcs.cygnus.com.\n");
-      printf ("Please see the file BUGS (included with the sources) first.\n");
+      printf ("\nFor bug reporting instructions, please see:\n");
+      printf ("<URL:http://www.gnu.org/software/gcc/faq.html#bugreport>\n");
     }
   
   exit (error_count > 0 ? (signal_count ? 2 : 1) : 0);
@@ -5152,9 +5170,9 @@ main (argc, argv)
 
 static struct compiler *
 lookup_compiler (name, length, language)
-     char *name;
+     const char *name;
      size_t length;
-     char *language;
+     const char *language;
 {
   struct compiler *cp;
 
@@ -5216,85 +5234,35 @@ lookup_compiler (name, length, language)
   return 0;
 }
 
-char *
+PTR
 xmalloc (size)
-     unsigned size;
+  size_t size;
 {
-  register char *value = (char *) malloc (size);
+  register PTR value = (PTR) malloc (size);
   if (value == 0)
     fatal ("virtual memory exhausted");
   return value;
 }
 
-char *
-xrealloc (ptr, size)
-     char *ptr;
-     unsigned size;
+PTR
+xrealloc (old, size)
+  PTR old;
+  size_t size;
 {
-  register char *value = (char *) realloc (ptr, size);
-  if (value == 0)
+  register PTR ptr;
+  if (old)
+    ptr = (PTR) realloc (old, size);
+  else
+    ptr = (PTR) malloc (size);
+  if (ptr == 0)
     fatal ("virtual memory exhausted");
-  return value;
-}
-
-/* This function is based on the one in libiberty.  */
-
-static char *
-concat VPROTO((char *first, ...))
-{
-  register int length;
-  register char *newstr;
-  register char *end;
-  register char *arg;
-  va_list args;
-#ifndef __STDC__
-  char *first;
-#endif
-
-  /* First compute the size of the result and get sufficient memory.  */
-
-  VA_START (args, first);
-#ifndef __STDC__
-  first = va_arg (args, char *);
-#endif
-
-  arg = first;
-  length = 0;
-
-  while (arg != 0)
-    {
-      length += strlen (arg);
-      arg = va_arg (args, char *);
-    }
-
-  newstr = (char *) xmalloc (length + 1);
-  va_end (args);
-
-  /* Now copy the individual pieces to the result string.  */
-
-  VA_START (args, first);
-#ifndef __STDC__
-  first = va_arg (args, char *);
-#endif
-
-  end = newstr;
-  arg = first;
-  while (arg != 0)
-    {
-      while (*arg)
-	*end++ = *arg++;
-      arg = va_arg (args, char *);
-    }
-  *end = '\000';
-  va_end (args);
-
-  return (newstr);
+  return ptr;
 }
 
 static char *
 save_string (s, len)
-     char *s;
-     int len;
+  const char *s;
+  int len;
 {
   register char *result = xmalloc (len + 1);
 
@@ -5305,34 +5273,38 @@ save_string (s, len)
 
 static void
 pfatal_with_name (name)
-     char *name;
+     const char *name;
 {
-  fatal ("%s: %s", name, my_strerror (errno));
+  perror_with_name (name);
+  delete_temp_files ();
+  exit (1);
 }
 
 static void
 perror_with_name (name)
-     char *name;
+     const char *name;
 {
-  error ("%s: %s", name, my_strerror (errno));
+  error ("%s: %s", name, xstrerror (errno));
 }
 
 static void
 pfatal_pexecute (errmsg_fmt, errmsg_arg)
-     char *errmsg_fmt;
-     char *errmsg_arg;
+     const char *errmsg_fmt;
+     const char *errmsg_arg;
 {
-  int save_errno = errno;
-
   if (errmsg_arg)
     {
+      int save_errno = errno;
+
       /* Space for trailing '\0' is in %s.  */
       char *msg = xmalloc (strlen (errmsg_fmt) + strlen (errmsg_arg));
       sprintf (msg, errmsg_fmt, errmsg_arg);
       errmsg_fmt = msg;
+
+      errno = save_errno;
     }
 
-  fatal ("%s: %s", errmsg_fmt, my_strerror (save_errno));
+  pfatal_with_name (errmsg_fmt);
 }
 
 /* More 'friendly' abort that prints the line and file.
@@ -5346,22 +5318,22 @@ fancy_abort ()
 
 /* Output an error message and exit */
 
-static void
-fatal VPROTO((char *format, ...))
+void
+fatal VPROTO((const char *msgid, ...))
 {
-#ifndef __STDC__
-  char *format;
+#ifndef ANSI_PROTOTYPES
+  const char *msgid;
 #endif
   va_list ap;
 
-  VA_START (ap, format);
+  VA_START (ap, msgid);
 
-#ifndef __STDC__
-  format = va_arg (ap, char *);
+#ifndef ANSI_PROTOTYPES
+  msgid = va_arg (ap, const char *);
 #endif
 
   fprintf (stderr, "%s: ", programname);
-  vfprintf (stderr, format, ap);
+  vfprintf (stderr, _(msgid), ap);
   va_end (ap);
   fprintf (stderr, "\n");
   delete_temp_files ();
@@ -5369,31 +5341,50 @@ fatal VPROTO((char *format, ...))
 }
 
 static void
-error VPROTO((char *format, ...))
+error VPROTO((const char *msgid, ...))
 {
-#ifndef __STDC__
-  char *format;
+#ifndef ANSI_PROTOTYPES
+  const char *msgid;
 #endif
   va_list ap;
 
-  VA_START (ap, format);
+  VA_START (ap, msgid);
 
-#ifndef __STDC__
-  format = va_arg (ap, char *);
+#ifndef ANSI_PROTOTYPES
+  msgid = va_arg (ap, const char *);
 #endif
 
   fprintf (stderr, "%s: ", programname);
-  vfprintf (stderr, format, ap);
+  vfprintf (stderr, _(msgid), ap);
   va_end (ap);
 
   fprintf (stderr, "\n");
 }
+
+static void
+notice VPROTO((const char *msgid, ...))
+{
+#ifndef ANSI_PROTOTYPES
+  const char *msgid;
+#endif
+  va_list ap;
+
+  VA_START (ap, msgid);
+
+#ifndef ANSI_PROTOTYPES
+  msgid = va_arg (ap, const char *);
+#endif
+
+  vfprintf (stderr, _(msgid), ap);
+  va_end (ap);
+}
+
 
 static void
 validate_all_switches ()
 {
   struct compiler *comp;
-  register char *p;
+  register const char *p;
   register char c;
   struct spec_list *spec;
 
@@ -5432,10 +5423,10 @@ validate_all_switches ()
 
 static void
 validate_switches (start)
-     char *start;
+     const char *start;
 {
-  register char *p = start;
-  char *filter;
+  register const char *p = start;
+  const char *filter;
   register int i;
   int suffix = 0;
 
@@ -5459,7 +5450,7 @@ validate_switches (start)
       --p;
       for (i = 0; i < n_switches; i++)
 	if (!strncmp (switches[i].part1, filter, p - filter))
-	  switches[i].valid = 1;
+	  switches[i].validated = 1;
     }
   else
     {
@@ -5468,7 +5459,7 @@ validate_switches (start)
 	{
 	  if (!strncmp (switches[i].part1, filter, p - filter)
 	      && switches[i].part1[p - filter] == 0)
-	    switches[i].valid = 1;
+	    switches[i].validated = 1;
 	}
     }
 }
@@ -5478,7 +5469,7 @@ validate_switches (start)
 
 static int
 used_arg (p, len)
-     char *p;
+     const char *p;
      int len;
 {
   struct mswitchstr {
@@ -5566,7 +5557,7 @@ used_arg (p, len)
 
 static int
 default_arg (p, len)
-     char *p;
+     const char *p;
      int len;
 {
   char *start, *end;
@@ -5681,9 +5672,10 @@ set_multilib_dir ()
 	  if (this_path_len != 1
 	      || this_path[0] != '.')
 	    {
-	      multilib_dir = xmalloc (this_path_len + 1);
-	      strncpy (multilib_dir, this_path, this_path_len);
-	      multilib_dir[this_path_len] = '\0';
+	      char * new_multilib_dir = xmalloc (this_path_len + 1);
+	      strncpy (new_multilib_dir, this_path, this_path_len);
+	      new_multilib_dir[this_path_len] = '\0';
+	      multilib_dir = new_multilib_dir;
 	    }
 	  break;
 	}

@@ -1,6 +1,6 @@
 /* Declarations for insn-output.c.  These functions are defined in recog.c,
    final.c, and varasm.c.
-   Copyright (C) 1987, 1991, 1994, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1991, 1994, 97-98, 1999 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -24,7 +24,7 @@ extern void init_final		PROTO((char *));
 
 /* Called at end of source file,
    to output the block-profiling table for this entire compilation.  */
-extern void end_final		PROTO((char *));
+extern void end_final		PROTO((const char *));
 
 /* Enable APP processing of subsequent output.
    Used before the output from an `asm' statement.  */
@@ -77,16 +77,20 @@ extern rtx alter_subreg PROTO((rtx));
 
 /* Report inconsistency between the assembler template and the operands.
    In an `asm', it's the user's fault; otherwise, the compiler's fault.  */
-extern void output_operand_lossage  PROTO((char *));
+extern void output_operand_lossage  PROTO((const char *));
 
 /* Output a string of assembler code, substituting insn operands.
    Defined in final.c.  */
-extern void output_asm_insn	PROTO((char *, rtx *));
+extern void output_asm_insn	PROTO((const char *, rtx *));
 
 /* Compute a worst-case reference address of a branch so that it
    can be safely used in the presence of aligned labels.
    Defined in final.c.  */
 extern int insn_current_reference_address	PROTO((rtx));
+
+/* Find the alignment associated with a CODE_LABEL.
+   Defined in final.c.  */
+extern int label_to_alignment	PROTO((rtx));
 
 /* Output a LABEL_REF, or a bare CODE_LABEL, as an assembler symbol.  */
 extern void output_asm_label	PROTO((rtx));
@@ -102,7 +106,7 @@ extern void output_addr_const PROTO((FILE *, rtx));
 
 /* Output a string of assembler code, substituting numbers, strings
    and fixed syntactic prefixes.  */
-extern void asm_fprintf		PROTO(PVPROTO((FILE *file, char *p, ...)));
+extern void asm_fprintf		PVPROTO((FILE *file, const char *p, ...));
 
 /* Split up a CONST_DOUBLE or integer constant rtx into two rtx's for single
    words.  */
@@ -127,7 +131,7 @@ extern void dump_flow_info		PROTO((FILE *));
 extern void find_basic_blocks         PROTO((rtx, int, FILE *, int));
 extern void free_basic_block_vars     PROTO((int));
 extern void set_block_num             PROTO((rtx, int));
-extern void life_analysis             PROTO((rtx, int, FILE *));
+extern void life_analysis             PROTO((rtx, int, FILE *, int));
 #endif
 
 /* Functions in varasm.c.  */
@@ -137,6 +141,9 @@ extern void text_section		PROTO((void));
 
 /* Tell assembler to switch to data section.  */
 extern void data_section		PROTO((void));
+
+/* Tell assembler to make sure its in the data section.  */
+extern void force_data_section		PROTO((void));
 
 /* Tell assembler to switch to read-only data section.  This is normally
    the text section.  */
@@ -154,7 +161,7 @@ extern void eh_frame_section		PROTO ((void));
    If DECL is NULL, just switch to section NAME.
    If NAME is NULL, get the name from DECL.
    If RELOC is 1, the initializer for DECL contains relocs.  */
-extern void named_section		PROTO((tree, char *, int));
+extern void named_section		PROTO((tree, const char *, int));
 
 /* Tell assembler to switch to the section for function DECL.  */
 extern void function_section		PROTO((tree));
@@ -181,7 +188,7 @@ extern void weak_finish			PROTO ((void));
    or -4 if ASMSPEC is `memory' and is not recognized.
    Accept an exact spelling or a decimal number.
    Prefixes such as % are optional.  */
-extern int decode_reg_name		PROTO((char *));
+extern int decode_reg_name		PROTO((const char *));
 
 #ifdef TREE_CODE
 /* Create the DECL_RTL for a declaration for a static or external variable
@@ -191,7 +198,7 @@ extern int decode_reg_name		PROTO((char *));
    TOP_LEVEL is nonzero if this is a file-scope variable.
 
    This is never called for PARM_DECL nodes.  */
-extern void make_decl_rtl		PROTO((tree, char *, int));
+extern void make_decl_rtl		PROTO((tree, const char *, int));
 
 /* Make the rtl for variable VAR be volatile.
    Use this only for static variables.  */
@@ -238,7 +245,7 @@ extern void assemble_zeros		PROTO((int));
 extern void assemble_align		PROTO((int));
 
 /* Assemble a string constant with the specified C string as contents.  */
-extern void assemble_string		PROTO((char *, int));
+extern void assemble_string		PROTO((const char *, int));
 /* Assemble everything that is needed for a variable or function declaration.
    Not used for automatic variables, and not used for function definitions.
    Should not be called for variables of incomplete structure type.
@@ -376,6 +383,29 @@ extern int current_function_has_nonlocal_label;
 
 extern int current_function_contains_functions;
 
+/* Nonzero if function being compiled doesn't contain any calls
+   (ignoring the prologue and epilogue).  This is set prior to
+   local register allocation and is valid for the remaining
+   compiler passes. */
+
+extern int current_function_is_leaf;
+
+/* Nonzero if function being compiled doesn't modify the stack pointer
+   (ignoring the prologue and epilogue).  This is only valid after
+   life_analysis has run. */
+
+extern int current_function_sp_is_unchanging;
+
+/* Nonzero if the function being compiled is a leaf function which only
+   uses leaf registers.  This is valid after reload (specifically after
+   sched2) and is useful only if the port defines LEAF_REGISTERS.  */
+
+extern int current_function_uses_only_leaf_regs;
+
+/* Nonzero if the function being compiled issues a computed jump.  */
+
+extern int current_function_has_computed_jump;
+
 /* Nonzero if the current function returns a pointer type */
 
 extern int current_function_returns_pointer;
@@ -456,6 +486,12 @@ extern int sdb_begin_function_line;
 extern FILE *asm_out_file;
 #endif
 
+/* Default file in which to dump debug output.  */
+
+#ifdef BUFSIZ
+extern FILE *rtl_dump_file;
+#endif
+
 /* Decide whether DECL needs to be in a writable section.  RELOC is the same
    as for SELECT_SECTION.  */
 
@@ -466,3 +502,14 @@ extern FILE *asm_out_file;
    && (DECL_INITIAL (DECL) == error_mark_node		\
        || TREE_CONSTANT (DECL_INITIAL (DECL)))		\
    && ! (RELOC && (flag_pic || DECL_ONE_ONLY (DECL))))
+
+/* User label prefix in effect for this compilation.  */
+extern const char *user_label_prefix;
+
+/* This macro gets just the user-specified name
+   out of the string in a SYMBOL_REF.  On most machines,
+   we discard the * if any and that's all.  */
+#ifndef STRIP_NAME_ENCODING
+#define STRIP_NAME_ENCODING(VAR,SYMBOL_NAME) \
+  (VAR) = ((SYMBOL_NAME) + ((SYMBOL_NAME)[0] == '*'))
+#endif

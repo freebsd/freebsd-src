@@ -1,5 +1,5 @@
 /* Part of CPP library.  (memory allocation - xmalloc etc)
-   Copyright (C) 1986, 87, 89, 92 - 95, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1986, 87, 89, 92, 93, 94, 1995, 1998 Free Software Foundation, Inc.
    Written by Per Bothner, 1994.
    Based on CCCP program by Paul Rubin, June 1986
    Adapted to ANSI C, Richard Stallman, Jan 1987
@@ -24,33 +24,58 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #include "config.h"
 #include "system.h"
-#include "gansidecl.h"
 #include "cpplib.h"
+
+static void memory_full PROTO ((void)) ATTRIBUTE_NORETURN;
 
 static void
 memory_full ()
 {
-  fprintf (stderr, "%s: Memory exhausted.\n", progname);
+  cpp_notice ("%s: Memory exhausted.\n", progname);
   exit (FATAL_EXIT_CODE);
 }
 
-char *
+PTR
 xmalloc (size)
-     unsigned size;
+  size_t size;
 {
-  register char *ptr = (char *) malloc (size);
+  register PTR ptr = (PTR) malloc (size);
+  if (ptr == 0)
+    memory_full ();
+  return ptr;
+}
+
+PTR
+xcalloc (number, size)
+  size_t number, size;
+{
+  register PTR ptr = (PTR) calloc (number, size);
+  if (ptr == 0)
+    memory_full ();
+  return ptr;
+}
+
+PTR
+xrealloc (old, size)
+  PTR old;
+  size_t size;
+{
+  register PTR ptr;
+  if (old)
+    ptr = (PTR) realloc (old, size);
+  else
+    ptr = (PTR) malloc (size);
   if (ptr == 0)
     memory_full ();
   return ptr;
 }
 
 char *
-xrealloc (old, size)
-     char *old;
-     unsigned size;
+xstrdup (input)
+  const char *input;
 {
-  register char *ptr = (char *) realloc (old, size);
-  if (ptr == 0)
-    memory_full ();
-  return ptr;
+  unsigned size = strlen (input);
+  char *output = xmalloc (size + 1);
+  strcpy (output, input);
+  return output;
 }

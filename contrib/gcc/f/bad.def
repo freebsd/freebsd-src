@@ -1,6 +1,6 @@
 /* bad.def -- Public #include File (module.h template V1.0)
    Copyright (C) 1995-1997 Free Software Foundation, Inc.
-   Contributed by James Craig Burley (burley@gnu.org).
+   Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
 
@@ -700,6 +700,10 @@ FFEBAD_MSGS1 (FFEBAD_ARRAY_LARGE, FATAL,
 "Array `%A' at %0 is too large to handle")
 FFEBAD_MSGS1 (FFEBAD_SFUNC_UNUSED, WARN,
 "Statement function `%A' defined at %0 is not used")
+FFEBAD_MSGS1 (FFEBAD_INTRINSIC_Y2KBAD, WARN,
+"Intrinsic `%A', invoked at %0, known to be non-Y2K-compliant [info -f g77 M Y2KBAD]")
+FFEBAD_MSGS1 (FFEBAD_NOCANDO, DISASTER,
+"Internal compiler error -- cannot perform operation")
 
 #undef INFORM
 #undef TRIVIAL

@@ -2,7 +2,6 @@
 
 #include "config.h"
 #include "system.h"
-#include <sys/stat.h>
 
 /* Virtually every UN*X system now in common use (except for pre-4.3-tahoe
    BSD systems) now provides getcwd as called for by POSIX.  Allow for
@@ -20,9 +19,7 @@
 #define GUESSPATHLEN 100
 #endif /* (defined (USG) || defined (VMS)) */
 
-char *xmalloc ();
-
-#if !(defined (VMS) || (defined(_WIN32) && !defined(__CYGWIN32__)))
+#if !(defined (VMS) || (defined(_WIN32) && !defined(__CYGWIN__)))
 
 /* Get the working directory.  Use the PWD environment variable if it's
    set correctly, since this is faster and gives more uniform answers
@@ -70,7 +67,7 @@ getpwd ()
   return p;
 }
 
-#else	/* VMS || _WIN32 && !__CYGWIN32__ */
+#else	/* VMS || _WIN32 && !__CYGWIN__ */
 
 #ifndef MAXPATHLEN
 #define MAXPATHLEN 255
@@ -90,4 +87,4 @@ getpwd ()
   return pwd;
 }
 
-#endif	/* VMS || _WIN32 && !__CYGWIN32__ */
+#endif	/* VMS || _WIN32 && !__CYGWIN__ */

@@ -1,5 +1,5 @@
 /* Utility to update paths from internal to external forms.
-   Copyright (C) 1997, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1997, 1998, 1999 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -64,37 +64,41 @@ Boston, MA 02111-1307, USA.  */
 
 
 #include "config.h"
-#ifdef __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 #include "system.h"
 #ifdef _WIN32
 #include <windows.h>
 #endif
+#include "prefix.h"
 
-#include "gansidecl.h"
+static const char *std_prefix = PREFIX;
 
-static char *std_prefix = PREFIX;
-
-static char *get_key_value	PROTO((char *));
-static char *translate_name	PROTO((char *));
-static char *concat		PVPROTO((char *, ...));
-static char *save_string	PROTO((char *, int));
+static const char *get_key_value	PROTO((char *));
+static const char *translate_name	PROTO((const char *));
+static char *save_string		PROTO((const char *, int));
 
 #ifdef _WIN32
 static char *lookup_key		PROTO((char *));
 static HKEY reg_key = (HKEY) INVALID_HANDLE_VALUE;
 #endif
 
+#ifndef DIR_SEPARATOR
+# define IS_DIR_SEPARATOR(ch) ((ch) == '/')
+#else /* DIR_SEPARATOR */
+# ifndef DIR_SEPARATOR_2
+#  define IS_DIR_SEPARATOR(ch) ((ch) == DIR_SEPARATOR)
+# else /* DIR_SEPARATOR && DIR_SEPARATOR_2 */
+#  define IS_DIR_SEPARATOR(ch) \
+	(((ch) == DIR_SEPARATOR) || ((ch) == DIR_SEPARATOR_2))
+# endif /* DIR_SEPARATOR && DIR_SEPARATOR_2 */
+#endif /* DIR_SEPARATOR */
+
 /* Given KEY, as above, return its value.  */
 
-static char *
+static const char *
 get_key_value (key)
      char *key;
 {
-  char *prefix = 0;
+  const char *prefix = 0;
   char *temp = 0;
 
 #ifdef _WIN32
@@ -117,23 +121,23 @@ get_key_value (key)
 
    This function is based on the one in libiberty.  */
 
-static char *
-concat VPROTO((char *first, ...))
+char *
+concat VPROTO((const char *first, ...))
 {
   register int length;
   register char *newstr;
   register char *end;
-  register char *arg;
+  register const char *arg;
   va_list args;
-#ifndef __STDC__
-  char *first;
+#ifndef ANSI_PROTOTYPES
+  const char *first;
 #endif
 
   /* First compute the size of the result and get sufficient memory.  */
 
   VA_START (args, first);
-#ifndef __STDC__
-  first = va_arg (args, char *);
+#ifndef ANSI_PROTOTYPES
+  first = va_arg (args, const char *);
 #endif
 
   arg = first;
@@ -142,7 +146,7 @@ concat VPROTO((char *first, ...))
   while (arg != 0)
     {
       length += strlen (arg);
-      arg = va_arg (args, char *);
+      arg = va_arg (args, const char *);
     }
 
   newstr = (char *) malloc (length + 1);
@@ -151,7 +155,7 @@ concat VPROTO((char *first, ...))
   /* Now copy the individual pieces to the result string.  */
 
   VA_START (args, first);
-#ifndef __STDC__
+#ifndef ANSI_PROTOTYPES
   first = va_arg (args, char *);
 #endif
 
@@ -161,7 +165,7 @@ concat VPROTO((char *first, ...))
     {
       while (*arg)
 	*end++ = *arg++;
-      arg = va_arg (args, char *);
+      arg = va_arg (args, const char *);
     }
   *end = '\000';
   va_end (args);
@@ -173,10 +177,10 @@ concat VPROTO((char *first, ...))
 
 static char *
 save_string (s, len)
-     char *s;
-     int len;
+  const char *s;
+  int len;
 {
-  register char *result = (char *) malloc (len + 1);
+  register char *result = xmalloc (len + 1);
 
   bcopy (s, result, len);
   result[len] = 0;
@@ -235,27 +239,24 @@ lookup_key (key)
 /* If NAME starts with a '@' or '$', apply the translation rules above
    and return a new name.  Otherwise, return the given name.  */
 
-static char *
+static const char *
 translate_name (name)
-     char *name;
+  const char *name;
 {
   char code = name[0];
-  char *key, *prefix = 0;
+  char *key;
+  const char *prefix = 0;
   int keylen;
 
   if (code != '@' && code != '$')
     return name;
 
   for (keylen = 0;
-       (name[keylen + 1] != 0 && name[keylen + 1] != '/'
-#ifdef DIR_SEPARATOR
-	&& name[keylen + 1] != DIR_SEPARATOR
-#endif
-	);
+       (name[keylen + 1] != 0 && !IS_DIR_SEPARATOR (name[keylen + 1]));
        keylen++)
     ;
 
-  key = alloca (keylen + 1);
+  key = (char *) alloca (keylen + 1);
   strncpy (key, &name[1], keylen);
   key[keylen] = 0;
 
@@ -274,14 +275,11 @@ translate_name (name)
     prefix = PREFIX;
 
   /* Remove any trailing directory separator from what we got.  */
-  if (prefix[strlen (prefix) - 1] == '/'
-#ifdef DIR_SEPARATOR
-      || prefix[strlen (prefix) - 1] == DIR_SEPARATOR
-#endif
-      )
+  if (IS_DIR_SEPARATOR (prefix[strlen (prefix) - 1]))
     {
-      prefix = save_string (prefix, strlen (prefix));
-      prefix[strlen (prefix) - 1] = 0;
+      char * temp = save_string (prefix, strlen (prefix));
+      temp[strlen (temp) - 1] = 0;
+      prefix = temp;
     }
 
   return concat (prefix, name, NULL_PTR);
@@ -289,10 +287,10 @@ translate_name (name)
 
 /* Update PATH using KEY if PATH starts with PREFIX.  */
 
-char *
+const char *
 update_path (path, key)
-     char *path;
-     char *key;
+  const char *path;
+  const char *key;
 {
   if (! strncmp (path, std_prefix, strlen (std_prefix)) && key != 0)
     {
@@ -304,17 +302,33 @@ update_path (path, key)
       while (path[0] == '@' || path[0] == '$')
 	path = translate_name (path);
     }
+
+#ifdef DIR_SEPARATOR_2
+  /* Convert DIR_SEPARATOR_2 to DIR_SEPARATOR. */
+  if (DIR_SEPARATOR != DIR_SEPARATOR_2)
+    {
+      int i;
+      int len = strlen (path);
+      char *new_path = save_string (path, len);
+      for (i = 0; i < len; i++)
+        if (new_path[i] == DIR_SEPARATOR_2)
+          new_path[i] = DIR_SEPARATOR;
+      path = new_path;
+    }
+#endif
       
-#ifdef DIR_SEPARATOR
+#if defined (DIR_SEPARATOR) && !defined (DIR_SEPARATOR_2)
   if (DIR_SEPARATOR != '/')
     {
       int i;
       int len = strlen (path);
+      char *new_path = save_string (path, len);
 
-      path = save_string (path, len);
       for (i = 0; i < len; i++)
-	if (path[i] == '/')
-	  path[i] = DIR_SEPARATOR;
+        if (new_path[i] == '/')
+          new_path[i] = DIR_SEPARATOR;
+
+      path = new_path;
     }
 #endif
 
@@ -324,8 +338,8 @@ update_path (path, key)
 /* Reset the standard prefix */
 void
 set_std_prefix (prefix, len)
-     char *prefix;
-     int len;
+  const char *prefix;
+  int len;
 {
   std_prefix = save_string (prefix, len);
 }

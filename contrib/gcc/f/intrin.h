@@ -1,6 +1,6 @@
 /* intrin.h -- Public interface for intrin.c
    Copyright (C) 1995-1997 Free Software Foundation, Inc.
-   Contributed by James Craig Burley (burley@gnu.org).
+   Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
 
@@ -51,11 +51,13 @@ typedef enum
 #define DEFGEN(CODE,NAME,SPEC1,SPEC2) FFEINTRIN_gen ## CODE,
 #define DEFSPEC(CODE,NAME,CALLABLE,FAMILY,IMP)
 #define DEFIMP(CODE,NAME,GFRTDIRECT,GFRTF2C,GFRTGNU,CONTROL)
+#define DEFIMPY(CODE,NAME,GFRTDIRECT,GFRTF2C,GFRTGNU,CONTROL,Y2KBAD)
 #include "intrin.def"
 #undef DEFNAME
 #undef DEFGEN
 #undef DEFSPEC
 #undef DEFIMP
+#undef DEFIMPY
     FFEINTRIN_gen
   } ffeintrinGen;
 
@@ -65,11 +67,13 @@ typedef enum
 #define DEFGEN(CODE,NAME,SPEC1,SPEC2)
 #define DEFSPEC(CODE,NAME,CALLABLE,FAMILY,IMP) FFEINTRIN_spec ## CODE,
 #define DEFIMP(CODE,NAME,GFRTDIRECT,GFRTF2C,GFRTGNU,CONTROL)
+#define DEFIMPY(CODE,NAME,GFRTDIRECT,GFRTF2C,GFRTGNU,CONTROL,Y2KBAD)
 #include "intrin.def"
 #undef DEFNAME
 #undef DEFGEN
 #undef DEFSPEC
 #undef DEFIMP
+#undef DEFIMPY
     FFEINTRIN_spec
   } ffeintrinSpec;
 
@@ -80,11 +84,14 @@ typedef enum
 #define DEFSPEC(CODE,NAME,CALLABLE,FAMILY,IMP)
 #define DEFIMP(CODE,NAME,GFRTDIRECT,GFRTF2C,GFRTGNU,CONTROL) \
     FFEINTRIN_imp ## CODE,
+#define DEFIMPY(CODE,NAME,GFRTDIRECT,GFRTF2C,GFRTGNU,CONTROL,Y2KBAD) \
+    FFEINTRIN_imp ## CODE,
 #include "intrin.def"
 #undef DEFNAME
 #undef DEFGEN
 #undef DEFSPEC
 #undef DEFIMP
+#undef DEFIMPY
     FFEINTRIN_imp
   } ffeintrinImp;
 
@@ -108,14 +115,14 @@ void ffeintrin_init_0 (void);
 #define ffeintrin_init_3()
 #define ffeintrin_init_4()
 bool ffeintrin_is_actualarg (ffeintrinSpec spec);
-bool ffeintrin_is_intrinsic (char *name, ffelexToken t, bool explicit,
+bool ffeintrin_is_intrinsic (const char *name, ffelexToken t, bool explicit,
 			     ffeintrinGen *gen, ffeintrinSpec *spec,
 			     ffeintrinImp *imp);
 bool ffeintrin_is_standard (ffeintrinGen gen, ffeintrinSpec spec);
 ffeinfoKindtype ffeintrin_kindtype (ffeintrinSpec spec);
-char *ffeintrin_name_generic (ffeintrinGen gen);
-char *ffeintrin_name_implementation (ffeintrinImp imp);
-char *ffeintrin_name_specific (ffeintrinSpec spec);
+const char *ffeintrin_name_generic (ffeintrinGen gen);
+const char *ffeintrin_name_implementation (ffeintrinImp imp);
+const char *ffeintrin_name_specific (ffeintrinSpec spec);
 ffeIntrinsicState ffeintrin_state_family (ffeintrinFamily family);
 #define ffeintrin_terminate_0()
 #define ffeintrin_terminate_1()

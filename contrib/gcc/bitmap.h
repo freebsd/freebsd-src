@@ -1,5 +1,5 @@
 /* Functions to support general ended bitmaps.
-   Copyright (C) 1997 Free Software Foundation, Inc.
+   Copyright (C) 1997, 1998, 1999 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -48,7 +48,7 @@ typedef struct bitmap_element_def
 typedef struct bitmap_head_def {
   bitmap_element *first;	/* First element in linked list. */
   bitmap_element *current;	/* Last element looked at. */
-  int indx;			/* Index of last element looked at. */
+  unsigned int indx;		/* Index of last element looked at. */
 } bitmap_head, *bitmap;
 
 /* Enumeration giving the various operations we support.  */
@@ -89,7 +89,7 @@ extern void bitmap_debug PROTO((bitmap));
 extern void bitmap_debug_file PROTO((FILE *, bitmap));
 
 /* Print a bitmap */
-extern void bitmap_print PROTO((FILE *, bitmap, char *, char *));
+extern void bitmap_print PROTO((FILE *, bitmap, const char *, const char *));
 
 /* Initialize a bitmap header.  */
 extern bitmap bitmap_initialize PROTO((bitmap));

@@ -1,5 +1,5 @@
 // RTTI support for -*- C++ -*-
-// Copyright (C) 1994, 1995, 1996 Free Software Foundation
+// Copyright (C) 1994, 95-97, 1998 Free Software Foundation
 
 #ifndef __TYPEINFO__
 #define __TYPEINFO__
@@ -10,9 +10,7 @@
 
 extern "C++" {
 
-#ifdef __HONOR_STD
 namespace std {
-#endif
 
 class type_info {
 private:
@@ -21,7 +19,7 @@ private:
   type_info (const type_info&);
 
 protected:
-  type_info (const char *n): _name (n) { }
+  explicit type_info (const char *n): _name (n) { }
 
   const char *_name;
 
@@ -54,9 +52,7 @@ class bad_typeid : public exception {
   virtual ~bad_typeid () { }
 };
 
-#ifdef __HONOR_STD
 } // namespace std
-#endif
 
 } // extern "C++"
 #endif

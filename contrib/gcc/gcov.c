@@ -1,6 +1,6 @@
 /* Gcov.c: prepend line execution counts and branch probabilities to a
    source file.
-   Copyright (C) 1990, 91, 92, 93, 94, 96, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1990, 91-94, 96, 97, 98, 1999 Free Software Foundation, Inc.
    Contributed by James E. Wilson of Cygnus Support.
    Mangled by Bob Manson of Cygnus Support.
 
@@ -16,7 +16,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with Gcov; see the file COPYING.  If not, write to
-the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+the Free Software Foundation, 59 Temple Place - Suite 330,
+Boston, MA 02111-1307, USA.  */
 
 /* ??? The code in final.c that produces the struct bb assumes that there is
    no padding between the fields.  This is not necessary true.  The current
@@ -43,8 +44,8 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include "config.h"
 #include "system.h"
-#include <sys/stat.h>
-#include "gansidecl.h"
+#include "intl.h"
+#undef abort
 
 #include "gcov-io.h"
 
@@ -218,14 +219,19 @@ static void open_files PROTO ((void));
 static void read_files PROTO ((void));
 static void scan_for_source_files PROTO ((void));
 static void output_data PROTO ((void));
-static void print_usage PROTO ((void));
-char * xmalloc ();
+static void print_usage PROTO ((void)) ATTRIBUTE_NORETURN;
 
 int
 main (argc, argv)
      int argc;
      char **argv;
 {
+#ifdef HAVE_LC_MESSAGES
+  setlocale (LC_MESSAGES, "");
+#endif
+  (void) bindtextdomain (PACKAGE, localedir);
+  (void) textdomain (PACKAGE);
+
   process_args (argc, argv);
 
   open_files ();
@@ -239,14 +245,36 @@ main (argc, argv)
   return 0;
 }
 
-char *
-xmalloc (size)
-     unsigned size;
+static void fnotice PVPROTO ((FILE *, const char *, ...)) ATTRIBUTE_PRINTF_2;
+static void
+fnotice VPROTO ((FILE *file, const char *msgid, ...))
 {
-  register char *value = (char *) malloc (size);
+#ifndef ANSI_PROTOTYPES
+  FILE *file;
+  const char *msgid;
+#endif
+  va_list ap;
+
+  VA_START (ap, msgid);
+
+#ifndef ANSI_PROTOTYPES
+  file = va_arg (ap, FILE *);
+  msgid = va_arg (ap, const char *);
+#endif
+
+  vfprintf (file, _(msgid), ap);
+  va_end (ap);
+}
+
+
+PTR
+xmalloc (size)
+  size_t size;
+{
+  register PTR value = (PTR) malloc (size);
   if (value == 0)
     {
-      fprintf (stderr, "error: virtual memory exhausted");
+      fnotice (stderr, "error: virtual memory exhausted");
       exit (FATAL_EXIT_CODE);
     }
   return value;
@@ -258,7 +286,7 @@ xmalloc (size)
 void
 fancy_abort ()
 {
-  fprintf (stderr, "Internal gcc abort.\n");
+  fnotice (stderr, "Internal gcc abort.\n");
   exit (FATAL_EXIT_CODE);
 }
 
@@ -267,7 +295,7 @@ fancy_abort ()
 static void
 print_usage ()
 {
-  fprintf (stderr, "gcov [-b] [-v] [-n] [-l] [-f] [-o OBJDIR] file\n");
+  fnotice (stderr, "gcov [-b] [-v] [-n] [-l] [-f] [-o OBJDIR] file\n");
   exit (FATAL_EXIT_CODE);
 }
 
@@ -385,7 +413,7 @@ open_files ()
   bb_file = fopen (bb_file_name, "r");
   if (bb_file == NULL)
     {
-      fprintf (stderr, "Could not open basic block file %s.\n", bb_file_name);
+      fnotice (stderr, "Could not open basic block file %s.\n", bb_file_name);
       exit (FATAL_EXIT_CODE);
     }
 
@@ -394,14 +422,14 @@ open_files ()
   da_file = fopen (da_file_name, "r");
   if (da_file == NULL)
     {
-      fprintf (stderr, "Could not open data file %s.\n", da_file_name);
-      fprintf (stderr, "Assuming that all execution counts are zero.\n");
+      fnotice (stderr, "Could not open data file %s.\n", da_file_name);
+      fnotice (stderr, "Assuming that all execution counts are zero.\n");
     }
     
   bbg_file = fopen (bbg_file_name, "r");
   if (bbg_file == NULL)
     {
-      fprintf (stderr, "Could not open program flow graph file %s.\n",
+      fnotice (stderr, "Could not open program flow graph file %s.\n",
 	       bbg_file_name);
       exit (FATAL_EXIT_CODE);
     }
@@ -412,7 +440,7 @@ open_files ()
   ungetc (getc (bbg_file), bbg_file);
   if (feof (bbg_file))
     {
-      fprintf (stderr, "No executable code associated with file %s.\n",
+      fnotice (stderr, "No executable code associated with file %s.\n",
 	       input_file_name);
       exit (FATAL_EXIT_CODE);
     }
@@ -713,10 +741,10 @@ read_files ()
   if (da_file)
     {
       if (feof (da_file))
-	fprintf (stderr, ".da file contents exhausted too early\n");
+	fnotice (stderr, ".da file contents exhausted too early\n");
       /* Should be at end of file now.  */
       if (__read_long (&total, da_file, 8) == 0)
-	fprintf (stderr, ".da file contents not exhausted\n");
+	fnotice (stderr, ".da file contents not exhausted\n");
     }
 
   /* Calculate all of the basic block execution counts and branch
@@ -897,33 +925,33 @@ static void
 function_summary ()
 {
   if (function_source_lines)
-    fprintf (stdout, "%6.2f%% of %d source lines executed in function %s\n",
+    fnotice (stdout, "%6.2f%% of %d source lines executed in function %s\n",
 	     (((double) function_source_lines_executed / function_source_lines)
 	      * 100), function_source_lines, function_name);
   else
-    fprintf (stdout, "No executable source lines in function %s\n",
+    fnotice (stdout, "No executable source lines in function %s\n",
 	     function_name);
 
   if (output_branch_probs)
     {
       if (function_branches)
 	{
-	  fprintf (stdout, "%6.2f%% of %d branches executed in function %s\n",
+	  fnotice (stdout, "%6.2f%% of %d branches executed in function %s\n",
 		   (((double) function_branches_executed / function_branches)
 		    * 100), function_branches, function_name);
-	  fprintf (stdout,
+	  fnotice (stdout,
 		"%6.2f%% of %d branches taken at least once in function %s\n",
 		   (((double) function_branches_taken / function_branches)
 		    * 100), function_branches, function_name);
 	}
       else
-	fprintf (stdout, "No branches in function %s\n", function_name);
+	fnotice (stdout, "No branches in function %s\n", function_name);
       if (function_calls)
-	fprintf (stdout, "%6.2f%% of %d calls executed in function %s\n",
+	fnotice (stdout, "%6.2f%% of %d calls executed in function %s\n",
 		 (((double) function_calls_executed / function_calls)
 		  * 100), function_calls, function_name);
       else
-	fprintf (stdout, "No calls in function %s\n", function_name);
+	fnotice (stdout, "No calls in function %s\n", function_name);
     }
 }
 
@@ -997,10 +1025,10 @@ output_data ()
       bzero (line_exists, s_ptr->maxlineno);
       if (output_branch_probs)
 	{
-	  branch_probs = (struct arcdata **) xmalloc (sizeof (struct arcdata **)
+	  branch_probs = (struct arcdata **) xmalloc (sizeof (struct arcdata *)
 						      * s_ptr->maxlineno);
 	  bzero ((char *) branch_probs, 
-		 sizeof (struct arcdata **) * s_ptr->maxlineno);
+		 sizeof (struct arcdata *) * s_ptr->maxlineno);
 	}
       
       /* There will be a zero at the beginning of the bb info, before the
@@ -1054,10 +1082,10 @@ output_data ()
 		      }
 		    else
 		      {
-			fprintf (stderr,
+			fnotice (stderr,
 				 "didn't use all bb entries of graph, function %s\n",
 				 function_name);
-			fprintf (stderr, "block_num = %ld, num_blocks = %d\n",
+			fnotice (stderr, "block_num = %ld, num_blocks = %d\n",
 				 block_num, current_graph->num_blocks);
 		      }
 
@@ -1095,7 +1123,7 @@ output_data ()
 
 		if (block_num >= current_graph->num_blocks)
 		  {
-		    fprintf (stderr, "ERROR: too many basic blocks in .bb file %s\n",
+		    fnotice (stderr, "ERROR: too many basic blocks in .bb file %s\n",
 			     function_name);
 		    abort ();
 		  }
@@ -1171,34 +1199,34 @@ output_data ()
 	}
 
       if (total_source_lines)
-	fprintf (stdout,
+	fnotice (stdout,
 		 "%6.2f%% of %d source lines executed in file %s\n",
 		 (((double) total_source_lines_executed / total_source_lines)
 		  * 100), total_source_lines, source_file_name);
       else
-	fprintf (stdout, "No executable source lines in file %s\n",
+	fnotice (stdout, "No executable source lines in file %s\n",
 		 source_file_name);
 
       if (output_branch_probs)
 	{
 	  if (total_branches)
 	    {
-	      fprintf (stdout, "%6.2f%% of %d branches executed in file %s\n",
+	      fnotice (stdout, "%6.2f%% of %d branches executed in file %s\n",
 		       (((double) total_branches_executed / total_branches)
 			* 100), total_branches, source_file_name);
-	      fprintf (stdout,
+	      fnotice (stdout,
 		    "%6.2f%% of %d branches taken at least once in file %s\n",
 		       (((double) total_branches_taken / total_branches)
 			* 100), total_branches, source_file_name);
 	    }
 	  else
-	    fprintf (stdout, "No branches in file %s\n", source_file_name);
+	    fnotice (stdout, "No branches in file %s\n", source_file_name);
 	  if (total_calls)
-	    fprintf (stdout, "%6.2f%% of %d calls executed in file %s\n",
+	    fnotice (stdout, "%6.2f%% of %d calls executed in file %s\n",
 		     (((double) total_calls_executed / total_calls)
 		      * 100), total_calls, source_file_name);
 	  else
-	    fprintf (stdout, "No calls in file %s\n", source_file_name);
+	    fnotice (stdout, "No calls in file %s\n", source_file_name);
 	}
 
       if (output_gcov_file)
@@ -1210,7 +1238,7 @@ output_data ()
 	  source_file = fopen (source_file_name, "r");
 	  if (source_file == NULL)
 	    {
-	      fprintf (stderr, "Could not open source file %s.\n",
+	      fnotice (stderr, "Could not open source file %s.\n",
 		       source_file_name);
 	      free (line_counts);
 	      free (line_exists);
@@ -1260,7 +1288,7 @@ output_data ()
 
 	  if (gcov_file == NULL)
 	    {
-	      fprintf (stderr, "Could not open output file %s.\n",
+	      fnotice (stderr, "Could not open output file %s.\n",
 		       gcov_file_name);
 	      fclose (source_file);
 	      free (line_counts);
@@ -1268,7 +1296,7 @@ output_data ()
 	      continue;
 	    }
 
-	  fprintf (stdout, "Creating %s.\n", gcov_file_name);
+	  fnotice (stdout, "Creating %s.\n", gcov_file_name);
 
 	  for (count = 1; count < s_ptr->maxlineno; count++)
 	    {
@@ -1312,19 +1340,19 @@ output_data ()
 		      if (a_ptr->call_insn)
 			{
 			  if (a_ptr->prob == -1)
-			    fprintf (gcov_file, "call %d never executed\n", i);
+			    fnotice (gcov_file, "call %d never executed\n", i);
 			  else
-			    fprintf (gcov_file,
+			    fnotice (gcov_file,
 				     "call %d returns = %d%%\n",
 				     i, 100 - a_ptr->prob);
 			}
 		      else
 			{
 			  if (a_ptr->prob == -1)
-			    fprintf (gcov_file, "branch %d never executed\n",
+			    fnotice (gcov_file, "branch %d never executed\n",
 				     i);
 			  else
-			    fprintf (gcov_file, "branch %d taken = %d%%\n", i,
+			    fnotice (gcov_file, "branch %d taken = %d%%\n", i,
 				     a_ptr->prob);
 			}
 		    }
@@ -1333,7 +1361,7 @@ output_data ()
 	      /* Gracefully handle errors while reading the source file.  */
 	      if (retval == NULL)
 		{
-		  fprintf (stderr,
+		  fnotice (stderr,
 			   "Unexpected EOF while reading source file %s.\n",
 			   source_file_name);
 		  break;

@@ -1,5 +1,5 @@
 /* Expand the basic unary and binary arithmetic operations, for GNU compiler.
-   Copyright (C) 1987, 88, 92-97, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1987, 88, 92-98, 1999 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -21,13 +21,17 @@ Boston, MA 02111-1307, USA.  */
 
 #include "config.h"
 #include "system.h"
+#include "toplev.h"
+
+/* Include insn-config.h before expr.h so that HAVE_conditional_move
+   is properly defined. */
+#include "insn-config.h"
 #include "rtl.h"
 #include "tree.h"
 #include "flags.h"
 #include "insn-flags.h"
 #include "insn-codes.h"
 #include "expr.h"
-#include "insn-config.h"
 #include "recog.h"
 #include "reload.h"
 
@@ -119,11 +123,13 @@ rtx memset_libfunc;
 rtx bzero_libfunc;
 
 rtx throw_libfunc;
+rtx rethrow_libfunc;
 rtx sjthrow_libfunc;
 rtx sjpopnthrow_libfunc;
 rtx terminate_libfunc;
 rtx setjmp_libfunc;
 rtx longjmp_libfunc;
+rtx eh_rtime_match_libfunc;
 
 rtx eqhf2_libfunc;
 rtx nehf2_libfunc;
@@ -214,6 +220,9 @@ rtx chkr_copy_bitmap_libfunc;
 rtx chkr_check_exec_libfunc;
 rtx chkr_check_str_libfunc;
 
+rtx profile_function_entry_libfunc;
+rtx profile_function_exit_libfunc;
+
 /* Indexed by the rtx-code for a conditional (eg. EQ, LT,...)
    gives the gen_function to make a branch to test that condition.  */
 
@@ -237,15 +246,23 @@ enum insn_code movcc_gen_code[NUM_MACHINE_MODES];
 static int add_equal_note	PROTO((rtx, rtx, enum rtx_code, rtx, rtx));
 static rtx widen_operand	PROTO((rtx, enum machine_mode,
 				       enum machine_mode, int, int));
+static int expand_cmplxdiv_straight PROTO((rtx, rtx, rtx, rtx,
+					   rtx, rtx, enum machine_mode,
+					   int, enum optab_methods,
+					   enum mode_class, optab));
+static int expand_cmplxdiv_wide PROTO((rtx, rtx, rtx, rtx,
+				       rtx, rtx, enum machine_mode,
+				       int, enum optab_methods,
+				       enum mode_class, optab));
 static enum insn_code can_fix_p	PROTO((enum machine_mode, enum machine_mode,
 				       int, int *));
 static enum insn_code can_float_p PROTO((enum machine_mode, enum machine_mode,
 					 int));
 static rtx ftruncify	PROTO((rtx));
 static optab init_optab	PROTO((enum rtx_code));
-static void init_libfuncs PROTO((optab, int, int, char *, int));
-static void init_integral_libfuncs PROTO((optab, char *, int));
-static void init_floating_libfuncs PROTO((optab, char *, int));
+static void init_libfuncs PROTO((optab, int, int, const char *, int));
+static void init_integral_libfuncs PROTO((optab, const char *, int));
+static void init_floating_libfuncs PROTO((optab, const char *, int));
 #ifdef HAVE_conditional_trap
 static void init_traps PROTO((void));
 #endif
@@ -297,9 +314,7 @@ add_equal_note (seq, target, code, op0, op1)
   else
     note = gen_rtx_fmt_ee (code, GET_MODE (target), copy_rtx (op0), copy_rtx (op1));
 
-  REG_NOTES (XVECEXP (seq, 0, XVECLEN (seq, 0) - 1))
-    = gen_rtx_EXPR_LIST (REG_EQUAL, note,
-			 REG_NOTES (XVECEXP (seq, 0, XVECLEN (seq, 0) - 1)));
+  set_unique_reg_note (XVECEXP (seq, 0, XVECLEN (seq, 0) - 1), REG_EQUAL, note);
 
   return 1;
 }
@@ -339,6 +354,379 @@ widen_operand (op, mode, oldmode, unsignedp, no_extend)
   emit_insn (gen_rtx_CLOBBER (VOIDmode, result));
   emit_move_insn (gen_lowpart (GET_MODE (op), result), op);
   return result;
+}
+
+/* Generate code to perform a straightforward complex divide.  */
+
+static int
+expand_cmplxdiv_straight (real0, real1, imag0, imag1, realr, imagr, submode,
+			  unsignedp, methods, class, binoptab)
+  rtx real0, real1, imag0, imag1, realr, imagr;
+  enum machine_mode submode;
+  int unsignedp;
+  enum optab_methods methods;
+  enum mode_class class;
+  optab binoptab;
+{
+  rtx divisor;
+  rtx real_t, imag_t;
+  rtx temp1, temp2;
+  rtx res;
+	      
+  /* Don't fetch these from memory more than once.  */
+  real0 = force_reg (submode, real0);
+  real1 = force_reg (submode, real1);
+
+  if (imag0 != 0)
+    imag0 = force_reg (submode, imag0);
+
+  imag1 = force_reg (submode, imag1);
+
+  /* Divisor: c*c + d*d.  */
+  temp1 = expand_binop (submode, smul_optab, real1, real1,
+			NULL_RTX, unsignedp, methods);
+
+  temp2 = expand_binop (submode, smul_optab, imag1, imag1,
+			NULL_RTX, unsignedp, methods);
+
+  if (temp1 == 0 || temp2 == 0)
+    return 0;
+
+  divisor = expand_binop (submode, add_optab, temp1, temp2,
+			  NULL_RTX, unsignedp, methods);
+  if (divisor == 0)
+    return 0;
+
+  if (imag0 == 0)
+    {
+      /* Mathematically, ((a)(c-id))/divisor.  */
+      /* Computationally, (a+i0) / (c+id) = (ac/(cc+dd)) + i(-ad/(cc+dd)).  */
+
+      /* Calculate the dividend.  */
+      real_t = expand_binop (submode, smul_optab, real0, real1,
+			     NULL_RTX, unsignedp, methods);
+		  
+      imag_t = expand_binop (submode, smul_optab, real0, imag1,
+			     NULL_RTX, unsignedp, methods);
+
+      if (real_t == 0 || imag_t == 0)
+	return 0;
+
+      imag_t = expand_unop (submode, neg_optab, imag_t,
+			    NULL_RTX, unsignedp);
+    }
+  else
+    {
+      /* Mathematically, ((a+ib)(c-id))/divider.  */
+      /* Calculate the dividend.  */
+      temp1 = expand_binop (submode, smul_optab, real0, real1,
+			    NULL_RTX, unsignedp, methods);
+
+      temp2 = expand_binop (submode, smul_optab, imag0, imag1,
+			    NULL_RTX, unsignedp, methods);
+
+      if (temp1 == 0 || temp2 == 0)
+	return 0;
+
+      real_t = expand_binop (submode, add_optab, temp1, temp2,
+			     NULL_RTX, unsignedp, methods);
+		  
+      temp1 = expand_binop (submode, smul_optab, imag0, real1,
+			    NULL_RTX, unsignedp, methods);
+
+      temp2 = expand_binop (submode, smul_optab, real0, imag1,
+			    NULL_RTX, unsignedp, methods);
+
+      if (temp1 == 0 || temp2 == 0)
+	return 0;
+
+      imag_t = expand_binop (submode, sub_optab, temp1, temp2,
+			     NULL_RTX, unsignedp, methods);
+
+      if (real_t == 0 || imag_t == 0)
+	return 0;
+    }
+
+  if (class == MODE_COMPLEX_FLOAT)
+    res = expand_binop (submode, binoptab, real_t, divisor,
+			realr, unsignedp, methods);
+  else
+    res = expand_divmod (0, TRUNC_DIV_EXPR, submode,
+			 real_t, divisor, realr, unsignedp);
+
+  if (res == 0)
+    return 0;
+
+  if (res != realr)
+    emit_move_insn (realr, res);
+
+  if (class == MODE_COMPLEX_FLOAT)
+    res = expand_binop (submode, binoptab, imag_t, divisor,
+			imagr, unsignedp, methods);
+  else
+    res = expand_divmod (0, TRUNC_DIV_EXPR, submode,
+			 imag_t, divisor, imagr, unsignedp);
+
+  if (res == 0)
+    return 0;
+
+  if (res != imagr)
+    emit_move_insn (imagr, res);
+
+  return 1;
+}
+
+/* Generate code to perform a wide-input-range-acceptable complex divide.  */
+
+static int
+expand_cmplxdiv_wide (real0, real1, imag0, imag1, realr, imagr, submode,
+		      unsignedp, methods, class, binoptab)
+  rtx real0, real1, imag0, imag1, realr, imagr;
+  enum machine_mode submode;
+  int unsignedp;
+  enum optab_methods methods;
+  enum mode_class class;
+  optab binoptab;
+{
+  rtx ratio, divisor;
+  rtx real_t, imag_t;
+  rtx temp1, temp2, lab1, lab2;
+  enum machine_mode mode;
+  int align;
+  rtx res;
+	      
+  /* Don't fetch these from memory more than once.  */
+  real0 = force_reg (submode, real0);
+  real1 = force_reg (submode, real1);
+
+  if (imag0 != 0)
+    imag0 = force_reg (submode, imag0);
+
+  imag1 = force_reg (submode, imag1);
+
+  /* XXX What's an "unsigned" complex number?  */
+  if (unsignedp)
+    {
+      temp1 = real1;
+      temp2 = imag1;
+    }
+  else
+    {
+      temp1 = expand_abs (submode, real1, NULL_RTX, 1);
+      temp2 = expand_abs (submode, imag1, NULL_RTX, 1);
+    }
+
+  if (temp1 == 0 || temp2 == 0)
+    return 0;
+
+  mode = GET_MODE (temp1);
+  align = GET_MODE_ALIGNMENT (mode);
+  lab1 = gen_label_rtx ();
+  emit_cmp_and_jump_insns (temp1, temp2, LT, NULL_RTX,
+			   mode, unsignedp, align, lab1);
+
+  /* |c| >= |d|; use ratio d/c to scale dividend and divisor.  */
+
+  if (class == MODE_COMPLEX_FLOAT)
+    ratio = expand_binop (submode, binoptab, imag1, real1,
+			  NULL_RTX, unsignedp, methods);
+  else
+    ratio = expand_divmod (0, TRUNC_DIV_EXPR, submode,
+			   imag1, real1, NULL_RTX, unsignedp);
+
+  if (ratio == 0)
+    return 0;
+
+  /* Calculate divisor.  */
+
+  temp1 = expand_binop (submode, smul_optab, imag1, ratio,
+			NULL_RTX, unsignedp, methods);
+
+  if (temp1 == 0)
+    return 0;
+
+  divisor = expand_binop (submode, add_optab, temp1, real1,
+			  NULL_RTX, unsignedp, methods);
+
+  if (divisor == 0)
+    return 0;
+
+  /* Calculate dividend.  */
+
+  if (imag0 == 0)
+    {
+      real_t = real0;
+
+      /* Compute a / (c+id) as a / (c+d(d/c)) + i (-a(d/c)) / (c+d(d/c)).  */
+
+      imag_t = expand_binop (submode, smul_optab, real0, ratio,
+			     NULL_RTX, unsignedp, methods);
+
+      if (imag_t == 0)
+	return 0;
+
+      imag_t = expand_unop (submode, neg_optab, imag_t,
+			    NULL_RTX, unsignedp);
+
+      if (real_t == 0 || imag_t == 0)
+	return 0;
+    }
+  else
+    {
+      /* Compute (a+ib)/(c+id) as
+	 (a+b(d/c))/(c+d(d/c) + i(b-a(d/c))/(c+d(d/c)).  */
+
+      temp1 = expand_binop (submode, smul_optab, imag0, ratio,
+			    NULL_RTX, unsignedp, methods);
+
+      if (temp1 == 0)
+	return 0;
+
+      real_t = expand_binop (submode, add_optab, temp1, real0,
+			     NULL_RTX, unsignedp, methods);
+
+      temp1 = expand_binop (submode, smul_optab, real0, ratio,
+			    NULL_RTX, unsignedp, methods);
+
+      if (temp1 == 0)
+	return 0;
+
+      imag_t = expand_binop (submode, sub_optab, imag0, temp1,
+			     NULL_RTX, unsignedp, methods);
+
+      if (real_t == 0 || imag_t == 0)
+	return 0;
+    }
+
+  if (class == MODE_COMPLEX_FLOAT)
+    res = expand_binop (submode, binoptab, real_t, divisor,
+			realr, unsignedp, methods);
+  else
+    res = expand_divmod (0, TRUNC_DIV_EXPR, submode,
+			 real_t, divisor, realr, unsignedp);
+
+  if (res == 0)
+    return 0;
+
+  if (res != realr)
+    emit_move_insn (realr, res);
+
+  if (class == MODE_COMPLEX_FLOAT)
+    res = expand_binop (submode, binoptab, imag_t, divisor,
+			imagr, unsignedp, methods);
+  else
+    res = expand_divmod (0, TRUNC_DIV_EXPR, submode,
+			 imag_t, divisor, imagr, unsignedp);
+
+  if (res == 0)
+    return 0;
+
+  if (res != imagr)
+    emit_move_insn (imagr, res);
+
+  lab2 = gen_label_rtx ();
+  emit_jump_insn (gen_jump (lab2));
+  emit_barrier ();
+
+  emit_label (lab1);
+
+  /* |d| > |c|; use ratio c/d to scale dividend and divisor.  */
+
+  if (class == MODE_COMPLEX_FLOAT)
+    ratio = expand_binop (submode, binoptab, real1, imag1,
+			  NULL_RTX, unsignedp, methods);
+  else
+    ratio = expand_divmod (0, TRUNC_DIV_EXPR, submode,
+			   real1, imag1, NULL_RTX, unsignedp);
+
+  if (ratio == 0)
+    return 0;
+
+  /* Calculate divisor.  */
+
+  temp1 = expand_binop (submode, smul_optab, real1, ratio,
+			NULL_RTX, unsignedp, methods);
+
+  if (temp1 == 0)
+    return 0;
+
+  divisor = expand_binop (submode, add_optab, temp1, imag1,
+			  NULL_RTX, unsignedp, methods);
+
+  if (divisor == 0)
+    return 0;
+
+  /* Calculate dividend.  */
+
+  if (imag0 == 0)
+    {
+      /* Compute a / (c+id) as a(c/d) / (c(c/d)+d) + i (-a) / (c(c/d)+d).  */
+
+      real_t = expand_binop (submode, smul_optab, real0, ratio,
+			     NULL_RTX, unsignedp, methods);
+
+      imag_t = expand_unop (submode, neg_optab, real0,
+			    NULL_RTX, unsignedp);
+
+      if (real_t == 0 || imag_t == 0)
+	return 0;
+    }
+  else
+    {
+      /* Compute (a+ib)/(c+id) as
+	 (a(c/d)+b)/(c(c/d)+d) + i (b(c/d)-a)/(c(c/d)+d).  */
+
+      temp1 = expand_binop (submode, smul_optab, real0, ratio,
+			    NULL_RTX, unsignedp, methods);
+
+      if (temp1 == 0)
+	return 0;
+
+      real_t = expand_binop (submode, add_optab, temp1, imag0,
+			     NULL_RTX, unsignedp, methods);
+
+      temp1 = expand_binop (submode, smul_optab, imag0, ratio,
+			    NULL_RTX, unsignedp, methods);
+
+      if (temp1 == 0)
+	return 0;
+
+      imag_t = expand_binop (submode, sub_optab, temp1, real0,
+			     NULL_RTX, unsignedp, methods);
+
+      if (real_t == 0 || imag_t == 0)
+	return 0;
+    }
+
+  if (class == MODE_COMPLEX_FLOAT)
+    res = expand_binop (submode, binoptab, real_t, divisor,
+			realr, unsignedp, methods);
+  else
+    res = expand_divmod (0, TRUNC_DIV_EXPR, submode,
+			 real_t, divisor, realr, unsignedp);
+
+  if (res == 0)
+    return 0;
+
+  if (res != realr)
+    emit_move_insn (realr, res);
+
+  if (class == MODE_COMPLEX_FLOAT)
+    res = expand_binop (submode, binoptab, imag_t, divisor,
+			imagr, unsignedp, methods);
+  else
+    res = expand_divmod (0, TRUNC_DIV_EXPR, submode,
+			 imag_t, divisor, imagr, unsignedp);
+
+  if (res == 0)
+    return 0;
+
+  if (res != imagr)
+    emit_move_insn (imagr, res);
+
+  emit_label (lab2);
+
+  return 1;
 }
 
 /* Generate code to perform an operation specified by BINOPTAB
@@ -891,7 +1279,7 @@ expand_binop (mode, binoptab, op0, op1, target, unsignedp, methods)
       rtx carry_tmp = gen_reg_rtx (word_mode);
       optab otheroptab = binoptab == add_optab ? sub_optab : add_optab;
       int nwords = GET_MODE_BITSIZE (mode) / BITS_PER_WORD;
-      rtx carry_in, carry_out;
+      rtx carry_in = NULL_RTX, carry_out = NULL_RTX;
       rtx xop0, xop1;
 
       /* We can handle either a 1 or -1 value for the carry.  If STORE_FLAG
@@ -982,12 +1370,11 @@ expand_binop (mode, binoptab, op0, op1, target, unsignedp, methods)
 	    {
 	      rtx temp = emit_move_insn (target, target);
 
-	      REG_NOTES (temp)
-		= gen_rtx_EXPR_LIST (REG_EQUAL,
-				     gen_rtx_fmt_ee (binoptab->code, mode,
-						     copy_rtx (xop0),
-						     copy_rtx (xop1)),
-				     REG_NOTES (temp));
+	      set_unique_reg_note (temp,
+	      			   REG_EQUAL,
+				   gen_rtx_fmt_ee (binoptab->code, mode,
+						   copy_rtx (xop0),
+						   copy_rtx (xop1)));
 	    }
 	  return target;
 	}
@@ -1062,8 +1449,8 @@ expand_binop (mode, binoptab, op0, op1, target, unsignedp, methods)
       rtx op1_high = operand_subword_force (op1, high, mode);
       rtx op1_low = operand_subword_force (op1, low, mode);
       rtx product = 0;
-      rtx op0_xhigh;
-      rtx op1_xhigh;
+      rtx op0_xhigh = NULL_RTX;
+      rtx op1_xhigh = NULL_RTX;
 
       /* If the target is the same as one of the inputs, don't use it.  This
 	 prevents problems with the REG_EQUAL note.  */
@@ -1165,12 +1552,11 @@ expand_binop (mode, binoptab, op0, op1, target, unsignedp, methods)
 	      if (mov_optab->handlers[(int) mode].insn_code != CODE_FOR_nothing)
 		{
 		  temp = emit_move_insn (product, product);
-		  REG_NOTES (temp)
-		    = gen_rtx_EXPR_LIST (REG_EQUAL,
-					 gen_rtx_fmt_ee (MULT, mode,
-							 copy_rtx (op0),
-							 copy_rtx (op1)),
-					 REG_NOTES (temp));
+		  set_unique_reg_note (temp,
+		  		       REG_EQUAL,
+				       gen_rtx_fmt_ee (MULT, mode,
+						       copy_rtx (op0),
+						       copy_rtx (op1)));
 		}
 	      return product;
 	    }
@@ -1214,12 +1600,12 @@ expand_binop (mode, binoptab, op0, op1, target, unsignedp, methods)
 
       start_sequence ();
 
-      realr = gen_realpart  (submode, target);
+      realr = gen_realpart (submode, target);
       imagr = gen_imagpart (submode, target);
 
       if (GET_MODE (op0) == mode)
 	{
-	  real0 = gen_realpart  (submode, op0);
+	  real0 = gen_realpart (submode, op0);
 	  imag0 = gen_imagpart (submode, op0);
 	}
       else
@@ -1227,7 +1613,7 @@ expand_binop (mode, binoptab, op0, op1, target, unsignedp, methods)
 
       if (GET_MODE (op1) == mode)
 	{
-	  real1 = gen_realpart  (submode, op1);
+	  real1 = gen_realpart (submode, op1);
 	  imag1 = gen_imagpart (submode, op1);
 	}
       else
@@ -1385,111 +1771,25 @@ expand_binop (mode, binoptab, op0, op1, target, unsignedp, methods)
 	    }
 	  else
 	    {
-	      /* Divisor is of complex type:
-		 X/(a+ib) */
-	      rtx divisor;
-	      rtx real_t, imag_t;
-	      rtx temp1, temp2;
-	      
-	      /* Don't fetch these from memory more than once.  */
-	      real0 = force_reg (submode, real0);
-	      real1 = force_reg (submode, real1);
-
-	      if (imag0 != 0)
-		imag0 = force_reg (submode, imag0);
-
-	      imag1 = force_reg (submode, imag1);
-
-	      /* Divisor: c*c + d*d */
-	      temp1 = expand_binop (submode, smul_optab, real1, real1,
-				    NULL_RTX, unsignedp, methods);
-
-	      temp2 = expand_binop (submode, smul_optab, imag1, imag1,
-				    NULL_RTX, unsignedp, methods);
-
-	      if (temp1 == 0 || temp2 == 0)
-		break;
-
-	      divisor = expand_binop (submode, add_optab, temp1, temp2,
-				      NULL_RTX, unsignedp, methods);
-	      if (divisor == 0)
-		break;
-
-	      if (imag0 == 0)
+	      switch (flag_complex_divide_method)
 		{
-		  /* ((a)(c-id))/divisor */
-		  /* (a+i0) / (c+id) = (ac/(cc+dd)) + i(-ad/(cc+dd)) */
+		case 0:
+		  ok = expand_cmplxdiv_straight (real0, real1, imag0, imag1,
+						 realr, imagr, submode,
+						 unsignedp, methods,
+						 class, binoptab);
+		  break;
 
-		  /* Calculate the dividend */
-		  real_t = expand_binop (submode, smul_optab, real0, real1,
-					 NULL_RTX, unsignedp, methods);
-		  
-		  imag_t = expand_binop (submode, smul_optab, real0, imag1,
-					 NULL_RTX, unsignedp, methods);
+		case 1:
+		  ok = expand_cmplxdiv_wide (real0, real1, imag0, imag1,
+					     realr, imagr, submode,
+					     unsignedp, methods,
+					     class, binoptab);
+		  break;
 
-		  if (real_t == 0 || imag_t == 0)
-		    break;
-
-		  imag_t = expand_unop (submode, neg_optab, imag_t,
-					NULL_RTX, unsignedp);
+		default:
+		  abort ();
 		}
-	      else
-		{
-		  /* ((a+ib)(c-id))/divider */
-		  /* Calculate the dividend */
-		  temp1 = expand_binop (submode, smul_optab, real0, real1,
-					NULL_RTX, unsignedp, methods);
-
-		  temp2 = expand_binop (submode, smul_optab, imag0, imag1,
-					NULL_RTX, unsignedp, methods);
-
-		  if (temp1 == 0 || temp2 == 0)
-		    break;
-
-		  real_t = expand_binop (submode, add_optab, temp1, temp2,
-					 NULL_RTX, unsignedp, methods);
-		  
-		  temp1 = expand_binop (submode, smul_optab, imag0, real1,
-					NULL_RTX, unsignedp, methods);
-
-		  temp2 = expand_binop (submode, smul_optab, real0, imag1,
-					NULL_RTX, unsignedp, methods);
-
-		  if (temp1 == 0 || temp2 == 0)
-		    break;
-
-		  imag_t = expand_binop (submode, sub_optab, temp1, temp2,
-					 NULL_RTX, unsignedp, methods);
-
-		  if (real_t == 0 || imag_t == 0)
-		    break;
-		}
-
-	      if (class == MODE_COMPLEX_FLOAT)
-		res = expand_binop (submode, binoptab, real_t, divisor,
-				    realr, unsignedp, methods);
-	      else
-		res = expand_divmod (0, TRUNC_DIV_EXPR, submode,
-				     real_t, divisor, realr, unsignedp);
-
-	      if (res == 0)
-		break;
-	      else if (res != realr)
-		emit_move_insn (realr, res);
-
-	      if (class == MODE_COMPLEX_FLOAT)
-		res = expand_binop (submode, binoptab, imag_t, divisor,
-				    imagr, unsignedp, methods);
-	      else
-		res = expand_divmod (0, TRUNC_DIV_EXPR, submode,
-				     imag_t, divisor, imagr, unsignedp);
-
-	      if (res == 0)
-		break;
-	      else if (res != imagr)
-		emit_move_insn (imagr, res);
-
-	      ok = 1;
 	    }
 	  break;
 	  
@@ -2101,14 +2401,13 @@ expand_unop (mode, unoptab, op0, target, unsignedp)
    MODE is the mode of the operand; the mode of the result is
    different but can be deduced from MODE.
 
-   UNSIGNEDP is relevant if extension is needed.  */
+ */
 
 rtx
-expand_abs (mode, op0, target, unsignedp, safe)
+expand_abs (mode, op0, target, safe)
      enum machine_mode mode;
      rtx op0;
      rtx target;
-     int unsignedp;
      int safe;
 {
   rtx temp, op1;
@@ -2538,8 +2837,7 @@ emit_no_conflict_block (insns, target, op0, op1, equiv)
     {
       last = emit_move_insn (target, target);
       if (equiv)
-	REG_NOTES (last)
-	  = gen_rtx_EXPR_LIST (REG_EQUAL, equiv, REG_NOTES (last));
+	set_unique_reg_note (last, REG_EQUAL, equiv);
     }
   else
     last = get_last_insn ();
@@ -2591,6 +2889,21 @@ emit_libcall_block (insns, target, result, equiv)
 {
   rtx prev, next, first, last, insn;
 
+  /* look for any CALL_INSNs in this sequence, and attach a REG_EH_REGION
+     reg note to indicate that this call cannot throw. (Unless there is
+     already a REG_EH_REGION note.) */
+
+  for (insn = insns; insn; insn = NEXT_INSN (insn))
+    {
+      if (GET_CODE (insn) == CALL_INSN)
+        {
+          rtx note = find_reg_note (insn, REG_EH_REGION, NULL_RTX);
+          if (note == NULL_RTX)
+            REG_NOTES (insn) = gen_rtx_EXPR_LIST (REG_EH_REGION, GEN_INT (-1),
+                                                  REG_NOTES (insn));
+        }
+    }
+
   /* First emit all insns that set pseudos.  Remove them from the list as
      we go.  Avoid insns that set pseudos which were referenced in previous
      insns.  These can be generated by move_by_pieces, for example,
@@ -2637,8 +2950,7 @@ emit_libcall_block (insns, target, result, equiv)
   last = emit_move_insn (target, result);
   if (mov_optab->handlers[(int) GET_MODE (target)].insn_code
       != CODE_FOR_nothing)
-    REG_NOTES (last) = gen_rtx_EXPR_LIST (REG_EQUAL, copy_rtx (equiv),
-					  REG_NOTES (last));
+    set_unique_reg_note (last, REG_EQUAL, copy_rtx (equiv));
 
   if (prev == 0)
     first = get_insns ();
@@ -2716,6 +3028,14 @@ emit_cmp_insn (x, y, comparison, size, mode, unsignedp, align)
 
   if (CONSTANT_P (y) && preserve_subexpressions_p () && rtx_cost (y, COMPARE) > 2)
     y = force_reg (mode, y);
+
+#ifdef HAVE_cc0
+  /* Abort if we have a non-canonical comparison.  The RTL documentation
+     states that canonical comparisons are required only for targets which
+     have cc0.  */
+  if (CONSTANT_P (x) && ! CONSTANT_P (y))
+    abort();
+#endif
 
   /* Don't let both operands fail to indicate the mode.  */
   if (GET_MODE (x) == VOIDmode && GET_MODE (y) == VOIDmode)
@@ -2907,6 +3227,66 @@ emit_cmp_insn (x, y, comparison, size, mode, unsignedp, align)
   else
     abort ();
 }
+
+/* Generate code to compare X with Y so that the condition codes are
+   set and to jump to LABEL if the condition is true.  If X is a
+   constant and Y is not a constant, then the comparison is swapped to
+   ensure that the comparison RTL has the canonical form.
+
+   UNSIGNEDP nonzero says that X and Y are unsigned; this matters if they
+   need to be widened by emit_cmp_insn.  UNSIGNEDP is also used to select
+   the proper branch condition code.
+
+   If X and Y have mode BLKmode, then SIZE specifies the size of both X and Y,
+   and ALIGN specifies the known shared alignment of X and Y. 
+
+   MODE is the mode of the inputs (in case they are const_int).
+
+   COMPARISON is the rtl operator to compare with (EQ, NE, GT, etc.).  It will
+   be passed unchanged to emit_cmp_insn, then potentially converted into an
+   unsigned variant based on UNSIGNEDP to select a proper jump instruction.  */
+
+void
+emit_cmp_and_jump_insns (x, y, comparison, size, mode, unsignedp, align, label)
+     rtx x, y;
+     enum rtx_code comparison;
+     rtx size;
+     enum machine_mode mode;
+     int unsignedp;
+     int align;
+     rtx label;
+{
+  rtx op0;
+  rtx op1;
+	  
+  if (CONSTANT_P (x))
+    {
+      /* Swap operands and condition to ensure canonical RTL.  */
+      op0 = y;
+      op1 = x;
+      comparison = swap_condition (comparison);
+    }
+  else
+    {
+      op0 = x;
+      op1 = y;
+    }
+
+#ifdef HAVE_cc0
+  /* If OP0 is still a constant, then both X and Y must be constants.  Force
+     X into a register to avoid aborting in emit_cmp_insn due to non-canonical
+     RTL.  */
+  if (CONSTANT_P (op0))
+    op0 = force_reg (mode, op0);
+#endif
+
+  emit_cmp_insn (op0, op1, comparison, size, mode, unsignedp, align);
+
+  if (unsignedp)
+    comparison = unsigned_condition (comparison);
+  emit_jump_insn ((*bcc_gen_fctn[(int) comparison]) (label));
+}
+
 
 /* Nonzero if a compare of mode MODE can be done straightforwardly
    (without splitting it into pieces).  */
@@ -3384,8 +3764,7 @@ gen_move_insn (x, y)
 	    {
 	      x = gen_rtx_MEM (tmode, XEXP (x1, 0));
 	      RTX_UNCHANGING_P (x) = RTX_UNCHANGING_P (x1);
-	      MEM_IN_STRUCT_P (x) = MEM_IN_STRUCT_P (x1);
-	      MEM_VOLATILE_P (x) = MEM_VOLATILE_P (x1);
+	      MEM_COPY_ATTRIBUTES (x, x1);
 	      copy_replacements (x1, x);
 	    }
 
@@ -3394,8 +3773,7 @@ gen_move_insn (x, y)
 	    {
 	      y = gen_rtx_MEM (tmode, XEXP (y1, 0));
 	      RTX_UNCHANGING_P (y) = RTX_UNCHANGING_P (y1);
-	      MEM_IN_STRUCT_P (y) = MEM_IN_STRUCT_P (y1);
-	      MEM_VOLATILE_P (y) = MEM_VOLATILE_P (y1);
+	      MEM_COPY_ATTRIBUTES (y, y1);
 	      copy_replacements (y1, y);
 	    }
 	}
@@ -3629,8 +4007,8 @@ expand_float (to, from, unsignedp)
 	 correct its value by 2**bitwidth.  */
 
       do_pending_stack_adjust ();
-      emit_cmp_insn (from, const0_rtx, GE, NULL_RTX, GET_MODE (from), 0, 0);
-      emit_jump_insn (gen_bge (label));
+      emit_cmp_and_jump_insns (from, const0_rtx, GE, NULL_RTX, GET_MODE (from),
+			        0, 0, label);
 
       /* On SCO 3.2.1, ldexp rejects values outside [0.5, 1).
 	 Rather than setting up a dconst_dot_5, let's hope SCO
@@ -3837,8 +4215,8 @@ expand_fix (to, from, unsignedp)
 
 	  /* See if we need to do the subtraction.  */
 	  do_pending_stack_adjust ();
-	  emit_cmp_insn (from, limit, GE, NULL_RTX, GET_MODE (from), 0, 0);
-	  emit_jump_insn (gen_bge (lab1));
+	  emit_cmp_and_jump_insns (from, limit, GE, NULL_RTX, GET_MODE (from),
+				   0, 0, lab1);
 
 	  /* If not, do the signed "fix" and branch around fixup code.  */
 	  expand_fix (to, from, 0);
@@ -3866,12 +4244,11 @@ expand_fix (to, from, unsignedp)
 	    {
 	      /* Make a place for a REG_NOTE and add it.  */
 	      insn = emit_move_insn (to, to);
-	      REG_NOTES (insn)
-		= gen_rtx_EXPR_LIST (REG_EQUAL,
-				     gen_rtx_fmt_e (UNSIGNED_FIX,
-						    GET_MODE (to),
-						    copy_rtx (from)),
-				     REG_NOTES (insn));
+	      set_unique_reg_note (insn,
+	                           REG_EQUAL,
+				   gen_rtx_fmt_e (UNSIGNED_FIX,
+						  GET_MODE (to),
+						  copy_rtx (from)));
 	    }
 	  return;
 	}
@@ -4008,7 +4385,7 @@ init_libfuncs (optable, first_mode, last_mode, opname, suffix)
     register optab optable;
     register int first_mode;
     register int last_mode;
-    register char *opname;
+    register const char *opname;
     register int suffix;
 {
   register int mode;
@@ -4022,7 +4399,7 @@ init_libfuncs (optable, first_mode, last_mode, opname, suffix)
       register char *libfunc_name
 	= (char *) xmalloc (2 + opname_len + mname_len + 1 + 1);
       register char *p;
-      register char *q;
+      register const char *q;
 
       p = libfunc_name;
       *p++ = '_';
@@ -4030,7 +4407,7 @@ init_libfuncs (optable, first_mode, last_mode, opname, suffix)
       for (q = opname; *q; )
 	*p++ = *q++;
       for (q = mname; *q; q++)
-	*p++ = tolower (*q);
+	*p++ = tolower ((unsigned char)*q);
       *p++ = suffix;
       *p++ = '\0';
       optable->handlers[(int) mode].libfunc
@@ -4046,7 +4423,7 @@ init_libfuncs (optable, first_mode, last_mode, opname, suffix)
 static void
 init_integral_libfuncs (optable, opname, suffix)
     register optab optable;
-    register char *opname;
+    register const char *opname;
     register int suffix;
 {
   init_libfuncs (optable, SImode, TImode, opname, suffix);
@@ -4060,7 +4437,7 @@ init_integral_libfuncs (optable, opname, suffix)
 static void
 init_floating_libfuncs (optable, opname, suffix)
     register optab optable;
-    register char *opname;
+    register const char *opname;
     register int suffix;
 {
   init_libfuncs (optable, SFmode, TFmode, opname, suffix);
@@ -4290,9 +4667,11 @@ init_optabs ()
   bzero_libfunc = gen_rtx_SYMBOL_REF (Pmode, "bzero");
 
   throw_libfunc = gen_rtx_SYMBOL_REF (Pmode, "__throw");
+  rethrow_libfunc = gen_rtx_SYMBOL_REF (Pmode, "__rethrow");
   sjthrow_libfunc = gen_rtx_SYMBOL_REF (Pmode, "__sjthrow");
   sjpopnthrow_libfunc = gen_rtx_SYMBOL_REF (Pmode, "__sjpopnthrow");
   terminate_libfunc = gen_rtx_SYMBOL_REF (Pmode, "__terminate");
+  eh_rtime_match_libfunc = gen_rtx_SYMBOL_REF (Pmode, "__eh_rtime_match");
 #ifndef DONT_USE_BUILTIN_SETJMP
   setjmp_libfunc = gen_rtx_SYMBOL_REF (Pmode, "__builtin_setjmp");
   longjmp_libfunc = gen_rtx_SYMBOL_REF (Pmode, "__builtin_longjmp");
@@ -4385,11 +4764,17 @@ init_optabs ()
   fixunstfti_libfunc = gen_rtx_SYMBOL_REF (Pmode, "__fixunstfti");
 
   /* For check-memory-usage.  */
-  chkr_check_addr_libfunc = gen_rtx_SYMBOL_REF (VOIDmode, "chkr_check_addr");
-  chkr_set_right_libfunc = gen_rtx_SYMBOL_REF (VOIDmode, "chkr_set_right");
-  chkr_copy_bitmap_libfunc = gen_rtx_SYMBOL_REF (VOIDmode, "chkr_copy_bitmap");
-  chkr_check_exec_libfunc = gen_rtx_SYMBOL_REF (VOIDmode, "chkr_check_exec");
-  chkr_check_str_libfunc = gen_rtx_SYMBOL_REF (VOIDmode, "chkr_check_str");
+  chkr_check_addr_libfunc = gen_rtx_SYMBOL_REF (Pmode, "chkr_check_addr");
+  chkr_set_right_libfunc = gen_rtx_SYMBOL_REF (Pmode, "chkr_set_right");
+  chkr_copy_bitmap_libfunc = gen_rtx_SYMBOL_REF (Pmode, "chkr_copy_bitmap");
+  chkr_check_exec_libfunc = gen_rtx_SYMBOL_REF (Pmode, "chkr_check_exec");
+  chkr_check_str_libfunc = gen_rtx_SYMBOL_REF (Pmode, "chkr_check_str");
+
+  /* For function entry/exit instrumentation.  */
+  profile_function_entry_libfunc
+    = gen_rtx_SYMBOL_REF (Pmode, "__cyg_profile_func_enter");
+  profile_function_exit_libfunc
+    = gen_rtx_SYMBOL_REF (Pmode, "__cyg_profile_func_exit");
 
 #ifdef HAVE_conditional_trap
   init_traps ();
@@ -4440,8 +4825,8 @@ init_traps ()
 
 rtx
 gen_cond_trap (code, op1, op2, tcode)
-     enum rtx_code code;
-     rtx op1, op2, tcode;
+  enum rtx_code code ATTRIBUTE_UNUSED;
+  rtx op1, op2 ATTRIBUTE_UNUSED, tcode ATTRIBUTE_UNUSED;
 {
   enum machine_mode mode = GET_MODE (op1);
 

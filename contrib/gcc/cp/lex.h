@@ -1,5 +1,5 @@
 /* Define constants and variables for communication with parse.y.
-   Copyright (C) 1987, 1992, 1993, 1994, 1995 Free Software Foundation, Inc.
+   Copyright (C) 1987, 92-97, 1998 Free Software Foundation, Inc.
    Hacked by Michael Tiemann (tiemann@cygnus.com)
    and by Brendan Kehoe (brendan@cygnus.com).
 
@@ -59,10 +59,12 @@ enum rid
   RID_FRIEND,
   RID_VIRTUAL,
   RID_EXPLICIT,
+  RID_EXPORT,
   RID_SIGNED,
   RID_AUTO,
   RID_MUTABLE,
   RID_COMPLEX,
+  RID_RESTRICT,
 
   /* This is where grokdeclarator ends its search when setting the
      specbits.  */

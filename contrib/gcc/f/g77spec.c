@@ -1,5 +1,5 @@
 /* Specific flags and argument handling of the Fortran front-end.
-   Copyright (C) 1997 Free Software Foundation, Inc.
+   Copyright (C) 1997, 1999 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -46,7 +46,6 @@ Boston, MA 02111-1307, USA.  */
 
 #include "config.h"
 #include "system.h"
-#include "gansidecl.h"
 #include <f/version.h>
 
 #ifndef MATH_LIBRARY
@@ -92,8 +91,6 @@ static void (*g77_fn)();
 /* The new argument list will be built here.  */
 static int g77_newargc;
 static char **g77_newargv;
-
-extern char *xmalloc PROTO((size_t));
 
 extern char *version_string;
 
@@ -289,6 +286,9 @@ lang_specific_driver (fn, in_argc, in_argv, in_added_libraries)
      2 => last two args were -l<library> -lm.  */
   int saw_library = 0;
 
+  /* By default, we throw on the math library if we have one.  */
+  int need_math = (MATH_LIBRARY[0] != '\0');
+
   /* The number of input and output files in the incoming arg list.  */
   int n_infiles = 0;
   int n_outfiles = 0;
@@ -427,7 +427,8 @@ code-generation methodology, and so on.\n\
 For more information on g77 and gcc, type the commands `info -f g77'\n\
 and `info -f gcc' to read the Info documentation.\n\
 \n\
-Report bugs to <egcs-bugs@cygnus.org>.\n");
+For bug reporting instructions, please see:\n\
+<URL:http://www.gnu.org/software/gcc/faq.html#bugreport>.\n");
 	  exit (0);
 	  break;
 #endif
@@ -469,7 +470,7 @@ Report bugs to <egcs-bugs@cygnus.org>.\n");
 	{
 	  /* Not a filename or library. */
 
-	  if (saw_library == 1)	/* -l<library>. */
+	 if (saw_library == 1 && need_math)    /* -l<library>. */
 	    append_arg (MATH_LIBRARY);
 
 	  saw_library = 0;
@@ -524,7 +525,7 @@ Report bugs to <egcs-bugs@cygnus.org>.\n");
 	    saw_library = 1;	/* -l<library>. */
 	  else
 	    {		/* Other library, or filename. */
-	      if (saw_library == 1)
+	     if (saw_library == 1 && need_math)
 		append_arg (MATH_LIBRARY);
 	      saw_library = 0;
 	    }
@@ -544,7 +545,8 @@ Report bugs to <egcs-bugs@cygnus.org>.\n");
 	case 0:
 	  append_arg (library);
 	case 1:
-	  append_arg (MATH_LIBRARY);
+	 if (need_math)
+	   append_arg (MATH_LIBRARY);
 	default:
 	  break;
 	}

@@ -1,6 +1,6 @@
 /* Convert language-specific tree expression to rtl instructions,
    for GNU compiler.
-   Copyright (C) 1988, 1992, 1993, 1994, 1995 Free Software Foundation, Inc.
+   Copyright (C) 1988, 92-97, 1998 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -35,6 +35,62 @@ static tree extract_scalar_init PROTO((tree, tree));
 #endif
 static rtx cplus_expand_expr PROTO((tree, rtx, enum machine_mode,
 				    enum expand_modifier));
+
+/* Hook used by output_constant to expand language-specific
+   constants.  */
+
+static tree
+cplus_expand_constant (cst)
+     tree cst;
+{
+  switch (TREE_CODE (cst))
+    {
+    case PTRMEM_CST:
+      {
+	tree type = TREE_TYPE (cst);
+	tree member;
+	tree offset;
+      
+	/* Find the member.  */
+	member = PTRMEM_CST_MEMBER (cst);
+
+	if (TREE_CODE (member) == FIELD_DECL) 
+	  {
+	    /* Find the offset for the field.  */
+	    offset = convert (sizetype,
+			      size_binop (EASY_DIV_EXPR,
+					  DECL_FIELD_BITPOS (member),
+					  size_int (BITS_PER_UNIT)));
+
+	    /* We offset all pointer to data members by 1 so that we
+	       can distinguish between a null pointer to data member
+	       and the first data member of a structure.  */
+	    offset = size_binop (PLUS_EXPR, offset, size_int (1));
+	
+	    cst = cp_convert (type, offset);
+	  }
+	else
+	  {
+	    tree delta;
+	    tree idx;
+	    tree pfn;
+	    tree delta2;
+
+	    expand_ptrmemfunc_cst (cst, &delta, &idx, &pfn, &delta2);
+
+	    cst = build_ptrmemfunc1 (type, delta, idx,
+				     pfn, delta2);
+	  }
+      }
+      break;
+
+    default:
+      /* There's nothing to do.  */
+      break;
+    }
+
+  return cst;
+}
 
 /* Hook used by expand_expr to expand language-specific tree codes.  */
 
@@ -148,7 +204,7 @@ cplus_expand_expr (exp, target, tmode, modifier)
 	    init = convert_from_reference (init);
 
 	    flag_access_control = 0;
-	    expand_aggr_init (slot, init, 0, LOOKUP_ONLYCONVERTING);
+	    expand_aggr_init (slot, init, LOOKUP_ONLYCONVERTING);
 	    flag_access_control = old_ac;
 
 	    if (TYPE_NEEDS_DESTRUCTOR (type))
@@ -162,19 +218,14 @@ cplus_expand_expr (exp, target, tmode, modifier)
 	return DECL_RTL (slot);
       }
 
+    case PTRMEM_CST:
+      return expand_expr (cplus_expand_constant (exp),
+			  target, tmode, modifier);
+
     case OFFSET_REF:
       {
-#if 1
 	return expand_expr (default_conversion (resolve_offset_ref (exp)),
 			    target, tmode, EXPAND_NORMAL);
-#else
-	/* This is old crusty code, and does not handle all that the
-	   resolve_offset_ref function does.  (mrs) */
-	tree base = build_unary_op (ADDR_EXPR, TREE_OPERAND (exp, 0), 0);
-	tree offset = build_unary_op (ADDR_EXPR, TREE_OPERAND (exp, 1), 0);
-	return expand_expr (build (PLUS_EXPR, TREE_TYPE (exp), base, offset),
-			    target, tmode, EXPAND_NORMAL);
-#endif
       }
 
     case THUNK_DECL:
@@ -189,7 +240,7 @@ cplus_expand_expr (exp, target, tmode, modifier)
 	(expand_vec_init
 	 (NULL_TREE, TREE_OPERAND (exp, 0),
 	  build_binary_op (MINUS_EXPR, TREE_OPERAND (exp, 2),
-			   integer_one_node, 1),
+			   integer_one_node),
 	  TREE_OPERAND (exp, 1), 0), target, tmode, modifier);
 
     case NEW_EXPR:
@@ -207,6 +258,7 @@ void
 init_cplus_expand ()
 {
   lang_expand_expr = cplus_expand_expr;
+  lang_expand_constant = cplus_expand_constant;
 }
 
 /* If DECL had its rtl moved from where callers expect it
@@ -304,7 +356,7 @@ extract_scalar_init (decl, init)
 
 int
 extract_init (decl, init)
-     tree decl, init;
+     tree decl ATTRIBUTE_UNUSED, init ATTRIBUTE_UNUSED;
 {
   return 0;
 
@@ -405,8 +457,5 @@ do_case (start, end)
 	    cp_error ("case label `%E' within scope of cleanup or variable array", start);
 	}
     }
-  if (start)
-    define_case_label (label);
-  else
-    define_case_label (NULL_TREE);
+  define_case_label ();
 }
