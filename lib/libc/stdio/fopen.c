@@ -69,8 +69,6 @@ fopen(file, mode)
 	}
 	fp->_file = f;
 	fp->_flags = flags;
-	fp->_flags |= __SOFF;
-	fp->_offset = 0;
 	fp->_cookie = fp;
 	fp->_read = __sread;
 	fp->_write = __swrite;
