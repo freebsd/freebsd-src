@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fsck.h	8.4 (Berkeley) 5/9/95
+ * $FreeBSD$
  */
 
 #include <unistd.h>
@@ -201,7 +202,6 @@ char	preen;			/* just fix normal inconsistencies */
 char	rerun;			/* rerun fsck. Only used in non-preen mode */
 int	returntosingle;		/* 1 => return to single user mode on exit */
 char	resolved;		/* cleared if unresolved changes => not clean */
-char	hotroot;		/* checking root device */
 char	havesb;			/* superblock has been read */
 int	fsmodified;		/* 1 => write done to file system */
 int	fsreadfd;		/* file descriptor for reading file system */
