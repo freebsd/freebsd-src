@@ -31,8 +31,8 @@
 
 #include <sys/param.h>
 #include <sys/kernel.h>
-
-#include <machine/console.h>
+#include <sys/consio.h>
+#include <sys/fbio.h>
 
 #include <dev/fb/fbreg.h>
 #include <dev/syscons/syscons.h>

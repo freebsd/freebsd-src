@@ -31,8 +31,9 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
+#include <sys/consio.h>
+#include <sys/fbio.h>
 
-#include <machine/console.h>
 #include <machine/md_var.h>
 
 #include <dev/fb/fbreg.h>
