@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: load_aout.c,v 1.11 1998/12/22 11:41:51 abial Exp $
+ *	$Id: load_aout.c,v 1.12 1999/01/22 21:33:52 rnordier Exp $
  */
 
 #include <sys/param.h>
@@ -254,105 +254,3 @@ aout_loadimage(struct loaded_module *mp, int fd, vm_offset_t loadaddr, struct ex
 }
 
 
-#if 0
-#define AOUT_RELOC(mp, off) ((mp)->m_addr + (vm_offset_t)(off))
-
-/*
- * The goal here is to find the one symbol in the loaded object
- * which fits the format "kld_identifier_<something>.  If there's
- * more than one, we fail.
- */
-static vm_offset_t
-aout_findkldident(struct loaded_module *mp, struct exec *ehdr)
-{
-    /* XXX much of this can go when we can address the load area directly */
-    vm_offset_t				sp, ep, cand, stringbase, result;
-    struct _dynamic			dynamic;
-    struct section_dispatch_table	sdt;
-    struct nzlist			nzl;
-    char				*np;
-    int					match;
-
-    /* Get the _DYNAMIC object, which we assume is first in the data segment */
-    archsw.arch_copyout(AOUT_RELOC(mp, ehdr->a_text), &dynamic, sizeof(dynamic));
-    archsw.arch_copyout(AOUT_RELOC(mp, dynamic.d_un.d_sdt), &sdt, sizeof(struct section_dispatch_table));
-    dynamic.d_un.d_sdt = &sdt;			/* fix up SDT pointer */
-    if (dynamic.d_version != LD_VERSION_BSD)
-	return(0);
-    stringbase = AOUT_RELOC(mp, LD_STRINGS(&dynamic));
-    
-    /* start pointer */
-    sp = AOUT_RELOC(mp, LD_SYMBOL(&dynamic));
-    /* end pointer */
-    ep = sp + LD_STABSZ(&dynamic);
-
-    /*
-     * Walk the entire table comparing names.
-     */
-    match = 0;
-    result = 0;
-    for (cand = sp; cand < ep; cand += sizeof(struct nzlist)) {
-	/* get the entry, check for a name */
-	archsw.arch_copyout(cand, &nzl, sizeof(struct nzlist));
-	/* is this symbol worth looking at? */
-	if ((nzl.nz_strx == 0)			||		/* no name */
-	    (nzl.nz_value == 0)			||		/* not a definition */
-	    ((nzl.nz_type == N_UNDF+N_EXT) && 
-	     (nzl.nz_value != 0)           && 
-	     (nzl.nz_other == AUX_FUNC)))			/* weak function */
-	    continue;
-
-	np = strdupout(stringbase + nzl.nz_strx);
-	match = (np[0] == '_') && !strncmp(KLD_IDENT_SYMNAME, np + 1, strlen(KLD_IDENT_SYMNAME));
-	free(np);
-	if (match) {
-	    /* duplicates? */
-	    if (result)
-		return(0);
-	    result = AOUT_RELOC(mp, nzl.nz_value);
-	}
-    }
-    return(result);
-}
-
-/*
- * Perform extra housekeeping associated with loading a KLD module.
- *
- * XXX if this returns an error, it seems the heap becomes corrupted.
- */
-static int
-aout_fixupkldmod(struct loaded_module *mp, struct exec *ehdr)
-{
-    struct kld_module_identifier	kident;
-    struct kld_module_dependancy	*kdeps;
-    vm_offset_t				vp;
-    size_t				dsize;
-
-    /* Find the KLD identifier */
-    if ((vp = aout_findkldident(mp, ehdr)) == 0) {
-	printf("bad a.out module format\n");
-	return(EFTYPE);
-    }
-    archsw.arch_copyout(vp, &kident, sizeof(struct kld_module_identifier));
-    
-    /* Name the module using the name from the KLD data */
-    if (mod_findmodule(kident.ki_name, NULL) != NULL) {
-	printf("module '%s' already loaded\n", kident.ki_name);
-	return(EPERM);
-    }
-    mp->m_name = strdup(kident.ki_name);
-
-    /* Save the module identifier */
-    mod_addmetadata(mp, MODINFOMD_KLDIDENT, sizeof(struct kld_module_identifier), &kident);
-    
-    /* Look for dependancy data, add to metadata list */
-    if (kident.ki_ndeps > 0) {
-	dsize = kident.ki_ndeps * kident.ki_depsize;
-	kdeps = malloc(dsize);
-	archsw.arch_copyout(AOUT_RELOC(mp, kident.ki_deps), kdeps, dsize);
-	mod_addmetadata(mp, MODINFOMD_KLDDEP, dsize, kdeps);
-	free(kdeps);
-    }
-    return(0);
-}
-#endif

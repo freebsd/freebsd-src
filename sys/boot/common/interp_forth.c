@@ -23,13 +23,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: interp_forth.c,v 1.8 1998/12/22 11:41:51 abial Exp $
+ *	$Id: interp_forth.c,v 1.9 1999/01/04 18:39:24 peter Exp $
  */
 
+#include <sys/param.h>		/* to pick up __FreeBSD_version */
 #include <string.h>
 #include <stand.h>
 #include "bootstrap.h"
 #include "ficl.h"
+
+extern char bootprog_rev[];
 
 /* #define BFORTH_DEBUG */
 
@@ -38,6 +41,13 @@
 #else
 # define DEBUG(fmt, args...)
 #endif
+
+/*
+ * Eventually, all builtin commands throw codes must be defined
+ * elsewhere, possibly bootstrap.h. For now, just this code, used
+ * just in this file, it is getting defined.
+ */
+#define BF_PARSE 100
 
 /*
  * BootForth   Interface to Ficl Forth interpreter.
@@ -73,7 +83,7 @@ bf_command(FICL_VM *vm)
     
     /* Get remainder of invocation */
     tail = vmGetInBuf(vm);
-    for (cp = tail, len = 0; *cp != 0 && *cp != '\n'; cp++, len++)
+    for (cp = tail, len = 0; cp != vm->tib.end && *cp != 0 && *cp != '\n'; cp++, len++)
 	;
     
     line = malloc(strlen(name) + len + 2);
@@ -90,17 +100,22 @@ bf_command(FICL_VM *vm)
     if (!parse(&argc, &argv, line)) {
 	result = (cmd)(argc, argv);
 	free(argv);
+	/* ** Let's deal with it elsewhere **
 	if(result != 0) {
 		vmTextOut(vm,argv[0],0);
 		vmTextOut(vm,": ",0);
 		vmTextOut(vm,command_errmsg,1);
 	}
+	*/
     } else {
+	/* ** Let's deal with it elsewhere **
 	vmTextOut(vm, "parse error\n", 1);
-	result=1;
+	*/
+	result=BF_PARSE;
     }
     free(line);
-    stackPushINT32(vm->pStack,!result);
+    /* This is going to be thrown!!! */
+    stackPushINT32(vm->pStack,result);
 }
 
 /*
@@ -110,14 +125,26 @@ void
 bf_init(void)
 {
     struct bootblk_command	**cmdp;
+    char create_buf[41];	/* 31 characters-long builtins */
     int fd;
    
     ficlInitSystem(4000);	/* Default dictionary ~4000 cells */
     bf_vm = ficlNewVM();
 
+    /* Builtin word "creator" */
+    ficlExec(bf_vm, ": builtin: >in @ ' swap >in ! create , does> @ execute throw ;", -1);
+
     /* make all commands appear as Forth words */
-    SET_FOREACH(cmdp, Xcommand_set)
+    SET_FOREACH(cmdp, Xcommand_set) {
 	ficlBuild((*cmdp)->c_name, bf_command, FW_DEFAULT);
+	sprintf(create_buf, "builtin: %s", (*cmdp)->c_name);
+	ficlExec(bf_vm, create_buf, -1);
+    }
+
+    /* Export some version numbers so that code can detect the loader/host version */
+    ficlSetEnv("FreeBSD_version", __FreeBSD_version);
+    ficlSetEnv("loader_version", 
+	       (bootprog_rev[0] - '0') * 10 + (bootprog_rev[2] - '0'));
 
     /* try to load and run init file if present */
     if ((fd = open("/boot/boot.4th", O_RDONLY)) != -1) {
@@ -134,9 +161,29 @@ bf_run(char *line)
 {
     int		result;
     
-    result = ficlExec(bf_vm, line);
+    result = ficlExec(bf_vm, line, -1);
     DEBUG("ficlExec '%s' = %d", line, result);
+    switch (result) {
+    case VM_OUTOFTEXT:
+    case VM_ABORTQ:
+    case VM_QUIT:
+    case VM_ERREXIT:
+	break;
+    case VM_USEREXIT:
+	printf("No where to leave to!\n");
+	break;
+    case VM_ABORT:
+	printf("Aborted!\n");
+	break;
+    case BF_PARSE:
+	printf("Parse error!\n");
+	break;
+    default:
+        /* Hopefully, all other codes filled this buffer */
+	printf("%s\n", command_errmsg);
+    }
     
     if (result == VM_USEREXIT)
 	panic("interpreter exit");
+    setenv("interpret", bf_vm->state ? "" : "ok", 1);
 }
