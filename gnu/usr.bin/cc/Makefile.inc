@@ -7,12 +7,7 @@
 GCCDIR=		${.CURDIR}/../../../../contrib/gcc.295
 
 TARGET_ARCH?=	${MACHINE_ARCH}
-
-.if ${TARGET_ARCH} == "mipsel" || ${TARGET_ARCH} == "mipseb"
-GCC_ARCH=	mips
-.else
 GCC_ARCH=	${TARGET_ARCH}
-.endif
 
 # Machine description.
 MD_FILE=	${GCCDIR}/config/${GCC_ARCH}/${GCC_ARCH}.md
