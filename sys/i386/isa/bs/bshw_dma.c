@@ -1,3 +1,4 @@
+/*	$NecBSD: bshw_dma.c,v 1.3 1997/07/26 06:03:16 honda Exp $	*/
 /*	$NetBSD$	*/
 /*
  * [NetBSD for NEC PC98 series]
@@ -56,7 +57,7 @@ bshw_dmaabort(bsc, ti)
 		struct targ_info *tmpti;
 
 		for (i = 0; i < NTARGETS; i++)
-			if (tmpti = bsc->sc_ti[i])
+			if ((tmpti = bsc->sc_ti[i]) != NULL)
 				tmpti->ti_scsp.seglen = 0;
 	}
 	else
@@ -175,15 +176,15 @@ static short dmapageport[4] = { 0x27, 0x21, 0x23, 0x25 };
 
 /* common dma settings */
 #undef	DMA1_SMSK
-#define DMA1_SMSK	(IO_DMA + 0x14)
+#define DMA1_SMSK	(0x15)
 #undef	DMA1_MODE
-#define DMA1_MODE	(IO_DMA + 0x16)
+#define DMA1_MODE	(0x17)
 #undef	DMA1_FFC
-#define DMA1_FFC	(IO_DMA + 0x18)
+#define DMA1_FFC	(0x19)
 #undef	DMA37SM_SET
 #define DMA37SM_SET	0x04
 #undef	DMA1_CHN
-#define DMA1_CHN(c)	(IO_DMA + ((c) << 2))
+#define DMA1_CHN(c)	(0x01 + ((c) << 2))
 
 static BS_INLINE void
 bshw_dmastart(bsc)
@@ -203,8 +204,10 @@ bshw_dmastart(bsc)
 	if (need_pre_dma_flush)
 		wbinvd();
 #else	/* NetBSD/pc98 */
-	if (cpuspec->cpuspec_cache_flush_before)
-		(*cpuspec->cpuspec_cache_flush_before)();
+	if (bsc->sc_dmadir & BSHW_READ)
+		cpu_cf_preRead(curcpu);
+	else
+		cpu_cf_preWrite(curcpu);
 #endif
 
 	if (bsc->sc_dmadir & BSHW_READ)
@@ -249,8 +252,10 @@ bshw_dmadone(bsc)
 	if (need_post_dma_flush)
 		invd();
 #else
-	if (cpuspec->cpuspec_cache_flush_after)
-		(*cpuspec->cpuspec_cache_flush_after)();
+	if (bsc->sc_dmadir & BSHW_READ)
+		cpu_cf_postRead(curcpu);
+	else
+		cpu_cf_postWrite(curcpu);
 #endif
 
 	bsc->sc_flags &= (~BSDMASTART);

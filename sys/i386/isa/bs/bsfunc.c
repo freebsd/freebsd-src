@@ -1,3 +1,4 @@
+/*	$NecBSD: bsfunc.c,v 1.2 1997/10/31 17:43:37 honda Exp $	*/
 /*	$NetBSD$	*/
 /*
  * [NetBSD for NEC PC98 series]
@@ -32,7 +33,7 @@
  */
 
 #ifdef	__NetBSD__
-#include <dev/isa/bs/bsif.h>
+#include <i386/Cbus/dev/bs/bsif.h>
 #endif
 #ifdef	__FreeBSD__
 #include <i386/isa/bs/bsif.h>
@@ -457,7 +458,6 @@ bs_scsibus_start(bsc)
 	struct bs_softc *bsc;
 {
 	struct targ_info *ti, *nextti = NULL;
-	struct ccb *cb;
 	int error = HASERROR;
 	u_int querm, bits, skip = 0;
 
@@ -547,7 +547,7 @@ bs_reset_nexus(bsc)
 
 		BS_SETUP_PHASE(UNDEF)
 		bs_hostque_delete(bsc, ti);
-		if (cb = ti->ti_ctab.tqh_first)
+		if ((cb = ti->ti_ctab.tqh_first) != NULL)
 		{
 			if (bsc->sc_hstate == BSC_TARG_CHECK)
 			{
@@ -700,7 +700,7 @@ bs_init_target_info(bsc, target)
 
 	ti->ti_bsc = bsc;
 	ti->ti_id = target;
-	ti->sm_vaddr = (u_int8_t *) MADDRUNK;
+	ti->sm_offset = 0;
 	ti->ti_cfgflags = BS_SCSI_NOPARITY | BS_SCSI_NOSAT;
 	ti->ti_mflags = ~(BSSAT | BSDISC | BSSMIT | BSLINK);
 	BS_SETUP_TARGSTATE(BS_TARG_CTRL);
@@ -776,10 +776,8 @@ bs_setup_ctrl(ti, quirks, flags)
 	    (ti->targ_support & SID_Linked) == 0)
 		flags &= ~BS_SCSI_LINK;
 
-	ti->sm_vaddr = (flags & BS_SCSI_NOSMIT) ?
-		       (u_int8_t *) MADDRUNK : bsc->sm_vaddr;
-
-	if (ti->sm_vaddr == (u_int8_t *) MADDRUNK)
+	ti->sm_offset = (flags & BS_SCSI_NOSMIT) ?  0 : bsc->sm_offset;
+	if (ti->sm_offset == 0)
 		flags |= BS_SCSI_NOSMIT;
 	else if (bsc->sc_cfgflags & BSC_SMITSAT_DISEN)
 		flags |= BS_SCSI_NOSAT;
@@ -902,8 +900,8 @@ bs_debug_print(bsc, ti)
 	struct ccb *cb;
 
 	/* host stat */
-	printf("%s <DEBUG INFO> nexus %x bs %x bus status %x \n",
-	       bsc->sc_dvname, ti, bsc->sc_nexus, (u_int) bsc->sc_busstat);
+	printf("%s <DEBUG INFO> nexus %lx bs %lx bus status %lx \n",
+	       bsc->sc_dvname, (u_long) ti, (u_long) bsc->sc_nexus, (u_long) bsc->sc_busstat);
 
 	/* target stat */
 	if (ti)
@@ -912,14 +910,15 @@ bs_debug_print(bsc, ti)
 
 		printf("%s(%d:%d) ph<%s> ", bsc->sc_dvname, ti->ti_id,
 		       ti->ti_lun, phase[(int) ti->ti_phase]);
-		printf("msgptr %x msg[0] %x status %x tqh %x fl %x\n",
+		printf("msgptr %x msg[0] %x status %x tqh %lx fl %x\n",
 		       (u_int) (ti->ti_msginptr), (u_int) (ti->ti_msgin[0]),
-		       ti->ti_status, cb = ti->ti_ctab.tqh_first, ti->ti_flags);
+		       ti->ti_status, (u_long) (cb = ti->ti_ctab.tqh_first),
+		       ti->ti_flags);
 		if (cb)
-			printf("cmdlen %x cmdaddr %x cmd[0] %x\n",
-			       cb->cmdlen, cb->cmd, (int) cb->cmd[0]);
-		printf("datalen %x dataaddr %x seglen %x ",
-		       sp->datalen, sp->data, sp->seglen);
+			printf("cmdlen %x cmdaddr %lx cmd[0] %x\n",
+			       cb->cmdlen, (u_long) cb->cmd, (int) cb->cmd[0]);
+		printf("datalen %x dataaddr %lx seglen %x ",
+		       sp->datalen, (u_long) sp->data, sp->seglen);
 		if (cb)
 			printf("odatalen %x flags %x\n",
 				cb->datalen, cb->flags);

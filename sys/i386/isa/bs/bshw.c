@@ -1,3 +1,4 @@
+/*	$NecBSD: bshw.c,v 1.1 1997/07/18 09:19:03 kmatsuda Exp $	*/
 /*	$NetBSD$	*/
 /*
  * [NetBSD for NEC PC98 series]
@@ -33,8 +34,8 @@
 
 #ifdef	__NetBSD__
 #include <dev/isa/isadmareg.h>
-#include <dev/isa/bs/bsif.h>
-#include <dev/isa/bs/bshw.lst>
+#include <i386/Cbus/dev/bs/bsif.h>
+#include <i386/Cbus/dev/bs/bshw.lst>
 #endif
 #ifdef	__FreeBSD__
 #include <i386/isa/ic/i8237.h>
@@ -241,7 +242,7 @@ bshw_bus_reset(bsc)
 
 	for (i = 0; i < NTARGETS; i++)
 	{
-		if (ti = bsc->sc_ti[i])
+		if ((ti = bsc->sc_ti[i]) != NULL)
 		{
 			ti->ti_sync = 0;
 			bshw_set_vsp(bsc, i, 0);
@@ -271,7 +272,7 @@ bshw_board_probe(bsc, drq, irq)
 		*drq = BUS_IOR(cmd_port) & 3;
 
 	bsc->sc_dmachan = *drq;
-	bsc->sc_irqmasks = (1 << (*irq));
+	bsc->sc_irq = (*irq);
 
 	bsc->sc_membank = read_wd33c93(bsc, wd3s_mbank);
 	bsc->sc_membank &= ~MBR_RST;
@@ -350,7 +351,6 @@ bshw_set_synchronous(bsc, ti)
 	struct bs_softc *bsc;
 	struct targ_info *ti;
 {
-	struct bshw *hw = bsc->sc_hw;
 	struct syncdata sd;
 	int i;
 
@@ -418,8 +418,8 @@ bshw_unlock(bsc)
  * DMA OPERATIONS
  **********************************************/
 #ifdef	__NetBSD__
-#include <dev/isa/bs/bshw_dma.c>
-#include <dev/isa/bs/bshw_pdma.c>
+#include <i386/Cbus/dev/bs/bshw_dma.c>
+#include <i386/Cbus/dev/bs/bshw_pdma.c>
 #endif
 #ifdef	__FreeBSD__
 #include <i386/isa/bs/bshw_dma.c>
