@@ -25,15 +25,16 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_dummy.c,v 1.3 1995/06/08 13:50:52 sos Exp $
+ *  $Id: linux_dummy.c,v 1.1 1995/06/25 17:32:33 sos Exp $
  */
 
 #include <sys/param.h>
+#include <sys/sysproto.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
-#include <sys/errno.h>
-#include <vm/vm.h>
+
+#include <i386/linux/sysproto.h>
 
 int
 linux_setup(struct proc *p, void *args, int *retval)

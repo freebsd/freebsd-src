@@ -25,11 +25,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: linux.h,v 1.3 1995/06/08 13:50:52 sos Exp $
+ *	$Id: linux.h,v 1.1 1995/06/25 17:32:32 sos Exp $
  */
 
-#ifndef LINUX_H
-#define LINUX_H
+#ifndef _I386_LINUX_LINUX_H_
+#define _I386_LINUX_LINUX_H_
 
 typedef unsigned short linux_uid_t;
 typedef unsigned short linux_gid_t;
@@ -403,4 +403,9 @@ extern int linux_to_bsd_signal[];
 #define LINUX_IP_TOS		1
 #define LINUX_IP_TTL		2
 
-#endif /* LINUX_H */
+#ifdef KERNEL
+caddr_t	ua_alloc_init __P((int len));
+caddr_t	ua_alloc __P((int len));
+#endif
+
+#endif /* !_I386_LINUX_LINUX_H_ */
