@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: file.c,v 1.18 1999/07/15 03:04:31 imp Exp $";
+	"$Id: file.c,v 1.19 1999/07/23 01:33:34 hosokawa Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -53,6 +53,7 @@ static char *keys[] = {
 	"insert",		/* 10 */
 	"remove",		/* 11 */
 	"iosize",		/* 12 */
+	"debuglevel",		/* 13 */
 	0
 };
 
@@ -68,6 +69,7 @@ static char *keys[] = {
 #define KWD_INSERT		10
 #define KWD_REMOVE		11
 #define KWD_IOSIZE		12
+#define KWD_DEBUGLEVEL		13
 
 struct flags {
 	char   *name;
@@ -81,6 +83,7 @@ static int     num_tok(void);
 static void    error(char *);
 static int     keyword(char *);
 static int     irq_tok(int);
+static int     debuglevel_tok(int);
 static struct allocblk *ioblk_tok(int);
 static struct allocblk *memblk_tok(int);
 static struct driver *new_driver(char *);
@@ -168,6 +171,11 @@ parsefile(void)
 		case KWD_CARD:
 			/* Card definition. */
 			parse_card();
+			break;
+		case KWD_DEBUGLEVEL:
+			i = debuglevel_tok(0);
+			if (i > 0)
+				debug_level = i;
 			break;
 		default:
 			error("syntax error");
@@ -393,6 +401,20 @@ irq_tok(int force)
 		return (i);
 	if (force)
 		error("illegal IRQ value");
+	return (-1);
+}
+
+/*
+ *	debuglevel token. Must be between 0 and 9.
+ */
+static int
+debuglevel_tok(int force)
+{
+	int     i;
+
+	i = num_tok();
+	if (i >= 0 && i <= 9)
+		return (i);
 	return (-1);
 }
 
