@@ -955,7 +955,7 @@ aac_bio_command(struct aac_softc *sc, struct aac_command **cmp)
 			br->Flags = 0;
 			fib->Header.Size += sizeof(struct aac_blockread64);
 			cm->cm_flags |= AAC_CMD_DATAOUT;
-			(struct aac_sg_table64 *)cm->cm_sgtable = &br->SgMap64;
+			cm->cm_sgtable = (struct aac_sg_table *)&br->SgMap64;
 		} else {
 			struct aac_blockwrite64 *bw;
 			bw = (struct aac_blockwrite64 *)&fib->data[0];
@@ -967,7 +967,7 @@ aac_bio_command(struct aac_softc *sc, struct aac_command **cmp)
 			bw->Flags = 0;
 			fib->Header.Size += sizeof(struct aac_blockwrite64);
 			cm->cm_flags |= AAC_CMD_DATAIN;
-			(struct aac_sg_table64 *)cm->cm_sgtable = &bw->SgMap64;
+			cm->cm_sgtable = (struct aac_sg_table *)&bw->SgMap64;
 		}
 	}
 
@@ -1503,7 +1503,8 @@ aac_init(struct aac_softc *sc)
 			aac_common_map, sc, 0);
 
 	if (sc->aac_common_busaddr < 8192) {
-		(uint8_t *)sc->aac_common += 8192;
+		sc->aac_common = (struct aac_common *)
+		    ((uint8_t *)sc->aac_common + 8192);
 		sc->aac_common_busaddr += 8192;
 	}
 	bzero(sc->aac_common, sizeof(*sc->aac_common));

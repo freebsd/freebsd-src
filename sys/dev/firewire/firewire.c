@@ -1760,7 +1760,7 @@ fw_rcv_copy(struct fw_rcv_buf *rb)
 	/* Copy header */ 
 	p = (u_char *)&rb->xfer->recv.hdr;
 	bcopy(rb->vec->iov_base, p, tinfo->hdr_len);
-	(u_char *)rb->vec->iov_base += tinfo->hdr_len;
+	rb->vec->iov_base = (u_char *)rb->vec->iov_base + tinfo->hdr_len;
 	rb->vec->iov_len -= tinfo->hdr_len;
 
 	/* Copy payload */

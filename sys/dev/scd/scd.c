@@ -1058,22 +1058,21 @@ get_tl(struct sony_toc *toc, int size)
 
 	if (tl->track != 0xb0)
 		return (tl);
-	(char *)tl += 9;
 	if (tl->track != 0xb1)
 		return (tl);
-	(char *)tl += 9;
+	tl = (struct sony_tracklist *)((char *)tl + 9);
 	if (tl->track != 0xb2)
 		return (tl);
-	(char *)tl += 9;
+	tl = (struct sony_tracklist *)((char *)tl + 9);
 	if (tl->track != 0xb3)
 		return (tl);
-	(char *)tl += 9;
+	tl = (struct sony_tracklist *)((char *)tl + 9);
 	if (tl->track != 0xb4)
 		return (tl);
-	(char *)tl += 9;
+	tl = (struct sony_tracklist *)((char *)tl + 9);
 	if (tl->track != 0xc0)
 		return (tl);
-	(char *)tl += 9;
+	tl = (struct sony_tracklist *)((char *)tl + 9);
 	return (tl);
 }
 
