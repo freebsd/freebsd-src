@@ -153,7 +153,7 @@ edit_disklabel(int disk)
 			return (-1);
 		}
 		sprintf(disk_list[disk].mounts[i].fs_spec,
-			     "/dev/%s%d%s", disk_list[disk].devconf->dc_name,
+			     "%s%d%s", disk_list[disk].devconf->dc_name,
 								disk_list[disk].devconf->dc_unit,
 								partname[i]);
 
