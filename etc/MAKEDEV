@@ -100,8 +100,9 @@
 #	isdn*	ISDN devices
 #	labpc*	National Instrument's Lab-PC and LAB-PC+
 #	perfmon	CPU performance-monitoring counters
+#	pci	PCI configuration-space access from user mode
 #
-#	$Id: MAKEDEV,v 1.123 1996/09/09 18:47:19 sos Exp $
+#	$Id: MAKEDEV,v 1.124 1996/10/13 01:12:01 davidg Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -185,7 +186,7 @@ all)
 	;;
 std)
 	rm -f console drum mem kmem null random urandom zero io tty klog
-	rm -f stdin stdout stderr lkm
+	rm -f stdin stdout stderr lkm pci
 	mknod console	c 0 0;	chmod 600 console;	chown root.wheel console
 	mknod drum	c 4 0;	chmod 640 drum;		chown root.kmem drum
 	mknod kmem	c 2 1;	chmod 640 kmem;		chown root.kmem kmem
@@ -201,6 +202,7 @@ std)
 	mknod stdout	c 22 1; chmod 666 stdout;	chown root.wheel stdout
 	mknod stderr	c 22 2; chmod 666 stderr;	chown root.wheel stderr
 	mknod lkm	c 32 0;	chmod 644 lkm;		chown root.wheel lkm
+	mknod pci	c 78 0; chmod 644 pci;		chown root.wheel pci
 	rm -f fd/*
 	mkdir fd > null 2>&1
 	(cd fd && eval `echo "" | awk ' BEGIN { \
