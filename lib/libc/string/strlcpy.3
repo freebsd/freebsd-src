@@ -59,8 +59,29 @@ and
 take the full size of the buffer (not just the length) and guarantee to
 NUL-terminate the result (as long as
 .Fa size
-is larger than 0).  Note that you should include a byte for the NUL in
+is larger than 0 or, in the case of
+.Fn strlcat ,
+as long as there is at least one byte free in
+.Fa dst ) .
+Note that you should include a byte for the NUL in
 .Fa size .
+Also note that
+.Fn strlcpy  
+and
+.Fn strlcat
+only operate on true
+.Dq C
+strings.
+This means that for
+.Fn strlcpy
+.Fa src
+must be NUL-terminated and for
+.Fn strlcat
+both
+.Fa src
+and
+.Fa dst
+must be NUL-terminated.
 .Pp
 The
 .Fn strlcpy
