@@ -598,7 +598,6 @@ static struct xpt_softc xsoftc;
 /* Queues for our software interrupt handler */
 typedef TAILQ_HEAD(cam_isrq, ccb_hdr) cam_isrq_t;
 static cam_isrq_t cam_bioq;
-static cam_isrq_t cam_netq;
 
 /* "Pool" of inactive ccbs managed by xpt_alloc_ccb and xpt_free_ccb */
 static SLIST_HEAD(,ccb_hdr) ccb_freeq;
@@ -658,7 +657,6 @@ u_int32_t cam_debug_delay;
 #endif
 
 /* Pointers to software interrupt handlers */
-static void *camnet_ih;
 static void *cambio_ih;
 
 #if defined(CAM_DEBUG_FLAGS) && !defined(CAMDEBUG)
@@ -1367,7 +1365,6 @@ xpt_init(dummy)
 
 	TAILQ_INIT(&xpt_busses);
 	TAILQ_INIT(&cam_bioq);
-	TAILQ_INIT(&cam_netq);
 	SLIST_INIT(&ccb_freeq);
 	STAILQ_INIT(&highpowerq);
 
@@ -1429,7 +1426,6 @@ xpt_init(dummy)
 	}
 
 	/* Install our software interrupt handlers */
-	swi_add(NULL, "camnet", camisr, &cam_netq, SWI_CAMNET, 0, &camnet_ih);
 	swi_add(NULL, "cambio", camisr, &cam_bioq, SWI_CAMBIO, 0, &cambio_ih);
 }
 
@@ -3610,7 +3606,6 @@ xpt_polled_action(union ccb *start_ccb)
 	   && (--timeout > 0)) {
 		DELAY(1000);
 		(*(sim->sim_poll))(sim);
-		camisr(&cam_netq);
 		camisr(&cam_bioq);
 	}
 	
@@ -3621,7 +3616,6 @@ xpt_polled_action(union ccb *start_ccb)
 		xpt_action(start_ccb);
 		while(--timeout > 0) {
 			(*(sim->sim_poll))(sim);
-			camisr(&cam_netq);
 			camisr(&cam_bioq);
 			if ((start_ccb->ccb_h.status  & CAM_STATUS_MASK)
 			    != CAM_REQ_INPROG)
@@ -4838,12 +4832,9 @@ xpt_done(union ccb *done_ccb)
 			done_ccb->ccb_h.pinfo.index = CAM_DONEQ_INDEX;
 			swi_sched(cambio_ih, 0);
 			break;
-		case CAM_PERIPH_NET:
-			TAILQ_INSERT_TAIL(&cam_netq, &done_ccb->ccb_h,
-					  sim_links.tqe);
-			done_ccb->ccb_h.pinfo.index = CAM_DONEQ_INDEX;
-			swi_sched(camnet_ih, 0);
-			break;
+		default:
+			panic("unknown periph type %d",
+			    done_ccb->ccb_h.path->periph->type);
 		}
 	}
 	splx(s);
