@@ -307,12 +307,12 @@ is non-zero the signal is only delivered to processes in the process group
 that have a controlling terminal.
 If
 .Va sigiop->sio_pgid
-is for a process (\> 0), the lock for
+is for a process (> 0), the lock for
 .Va sigiop->sio_proc
 is acquired and released.
 If
 .Va sigiop->sio_pgid
-is for a process group (\< 0), the process group lock for
+is for a process group (< 0), the process group lock for
 .Va sigiop->sio_pgrp
 is acquired and released.
 .Fa sigio_lock
