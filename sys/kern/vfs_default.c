@@ -636,9 +636,9 @@ vop_stddestroyvobject(ap)
 
 	GIANT_REQUIRED;
 
-	if (vp->v_object == NULL)
+	if (obj == NULL)
 		return (0);
-
+	VM_OBJECT_LOCK(obj);
 	if (obj->ref_count == 0) {
 		/*
 		 * vclean() may be called twice. The first time
@@ -650,7 +650,10 @@ vop_stddestroyvobject(ap)
 		 */
 		if ((obj->flags & OBJ_DEAD) == 0)
 			vm_object_terminate(obj);
+		else
+			VM_OBJECT_UNLOCK(obj);
 	} else {
+		VM_OBJECT_UNLOCK(obj);
 		/*
 		 * Woe to the process that tries to page now :-).
 		 */
