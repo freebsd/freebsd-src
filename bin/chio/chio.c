@@ -77,23 +77,23 @@ static	int do_voltag(char *, int, char **);
 
 /* Valid changer element types. */
 const struct element_type elements[] = {
-	{ "picker",		CHET_MT },
-	{ "slot",		CHET_ST },
-	{ "portal",		CHET_IE },
 	{ "drive",		CHET_DT },
+	{ "picker",		CHET_MT },
+	{ "portal",		CHET_IE },
+	{ "slot",		CHET_ST },
 	{ NULL,			0 },
 };
 
 /* Valid commands. */
 const struct changer_command commands[] = {
-	{ "move",		do_move },
 	{ "exchange",		do_exchange },
-	{ "position",		do_position },
-	{ "params",		do_params },
 	{ "getpicker",		do_getpicker },
+	{ "ielem", 		do_ielem },
+	{ "move",		do_move },
+	{ "params",		do_params },
+	{ "position",		do_position },
 	{ "setpicker",		do_setpicker },
 	{ "status",		do_status },
-	{ "ielem", 		do_ielem },
 	{ "voltag",		do_voltag },
 	{ NULL,			0 },
 };
@@ -147,6 +147,14 @@ main(int argc, char *argv[])
 	for (i = 0; commands[i].cc_name != NULL; ++i)
 		if (strcmp(*argv, commands[i].cc_name) == 0)
 			break;
+	if (commands[i].cc_name == NULL) {
+		/* look for abbreviation */
+		for (i = 0; commands[i].cc_name != NULL; ++i)
+			if (strncmp(*argv, commands[i].cc_name,
+			    strlen(*argv)) == 0)
+				break;
+	}    
+
 	if (commands[i].cc_name == NULL)
 		errx(1, "unknown command: %s", *argv);
 
@@ -881,7 +889,9 @@ bits_to_string(int v, const char *cp)
 			np++;
 		if ((v & (1 << (f - 1))) == 0)
 			continue;
-		bp += sprintf(bp, "%c%.*s", sep, (int)(long)(np - cp), cp);
+		(void) snprintf(bp, sizeof(buf) - (bp - &buf[0]),
+			       "%c%.*s", sep, (int)(long)(np - cp), cp);
+		bp += strlen(bp);
 		sep = ',';
 	}
 	if (sep != '<')
@@ -900,11 +910,12 @@ cleanup()
 static void
 usage()
 {
+	int i;
 
-	(void) fprintf(stderr, "usage: %s command arg1 arg2 ...\n", __progname);
-	(void) fprintf(stderr, "Examples:\n");
-	(void) fprintf(stderr, "\tchio -f /dev/ch0 move slot 1 drive 0\n");
-	(void) fprintf(stderr, "\tchio ielem\n");
-	(void) fprintf(stderr, "\tchio -f /dev/ch1 status\n");
+	(void) fprintf(stderr, "usage: %s [-f device] command [-<flags>] [args ...]\n", __progname);
+	(void) fprintf(stderr, "commands:");
+	for (i = 0; commands[i].cc_name; i++)
+	    (void) fprintf(stderr, " %s", commands[i].cc_name);
+	(void) fprintf(stderr, "\n");
 	exit(1);
 }
