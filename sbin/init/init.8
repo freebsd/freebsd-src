@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)init.8	8.3 (Berkeley) 4/18/94
-.\"	$Id: init.8,v 1.9 1997/04/01 20:41:04 mpp Exp $
+.\"	$Id: init.8,v 1.10 1997/08/02 00:22:48 davidn Exp $
 .\"
 .Dd April 18, 1994
 .Dt INIT 8
@@ -92,6 +92,7 @@ The security levels are:
 .Bl -tag -width flag
 .It Ic -1
 Permanently insecure mode \- always run the system in level 0 mode.
+This is the default initial value.
 .It Ic 0
 Insecure mode \- immutable and append-only flags may be turned off.
 All devices may be read or written subject to their permissions.
@@ -125,7 +126,10 @@ If level 2 mode is desired while running multiuser,
 it can be set while single user, e.g., in the startup script
 .Pa /etc/rc ,
 using
-.Xr sysctl 8 .
+.Xr sysctl 8 
+to set the 
+.Dq kern.securelevel
+variable to the required security level.  
 .Pp
 In multi-user operation, 
 .Nm init
@@ -241,7 +245,7 @@ signal, i.e.
 This is useful for shutting the machine down cleanly from inside the kernel
 or from X when the machine appears to be hung.
 .Pp
-When shuting down the machine,
+When shutting down the machine,
 .Nm init
 will try to run the
 .Pa /etc/rc.shutdown
@@ -302,13 +306,22 @@ System shutdown commands.
 .Xr halt 8 ,
 .Xr rc 8 ,
 .Xr reboot 8 ,
-.Xr shutdown 8
+.Xr shutdown 8 ,
+.Xr sysctl 8
 .Sh HISTORY
 A
 .Nm
 command appeared in
 .At v6 .
-.Sh BUGS
+.Sh CAVEATS
 Systems without
 .Xr sysctl
 behave as though they have security level \-1.
+.Pp
+Setting the security level to 2 too early in the boot sequence can 
+prevent 
+.Xr fsck 8 
+from repairing inconsistent filesystems.  The 
+preferred location to set the security level is at the end of 
+.Pa /etc/rc 
+after all multi-user startup actions are complete.
