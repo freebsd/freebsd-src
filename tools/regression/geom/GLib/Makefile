@@ -1,7 +1,8 @@
 # $FreeBSD$
 
 LIB=	G
-SRCS=   geom.c geom_aes.c geom_bsd.c geom_simdev.c geom_dump.c \
+SRCS=   geom.c \
+	geom_aes.c geom_apple.c geom_bsd.c geom_simdev.c geom_dump.c \
 	geom_event.c \
 	geom_io.c \
 	geom_kernsim.c geom_mbr.c geom_simdisk.c geom_enc.c \

@@ -154,6 +154,7 @@ void name##_init(void);				\
 	}
 
 void g_aes_init(void);
+void g_apple_init(void);
 void g_bsd_init(void);
 void g_mbr_init(void);
 void g_mbrext_init(void);
