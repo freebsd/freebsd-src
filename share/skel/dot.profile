@@ -1,10 +1,23 @@
-#	$Id: dot.profile,v 1.5 1996/05/11 19:15:17 wosch Exp $
+#	$Id$
 #
-PATH=/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/bin
-export PATH
-TERM=cons25
-export TERM
+# .profile - Bourne Shell startup script for login shells
+#
+# see also sh(1), environ(7).
+#
 
+# add /usr/games or /usr/X11R6/bin if you want
+PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin:$HOME/bin; export PATH
+
+# use cons25l1 for iso-* fonts
+TERM=cons25; 	export TERM
+
+BLOCKSIZE=K;	export BLOCKSIZE
+EDITOR=vi;   	export EDITOR
+PAGER=more;  	export PAGER
+
+# file permissions: rwxr-xr-x
+#
+# umask	022
 
 # Uncomment next line to enable the builtin emacs(1) command line editor
 # in sh(1), e.g. C-a -> beginning-of-line.
@@ -24,7 +37,7 @@ export TERM
 # alias rm='rm -i'
 
 
-# # 8-bit locale (English, USA)
+# # 8-bit locale (English, USA), to read umlauts in vi(1).
 # LANG=en_US.ISO_8859-1; export LANG
  
 
@@ -34,4 +47,3 @@ export TERM
 # 	0) PS1="${PS1}# ";;
 # 	*) PS1="${PS1}$ ";;
 # esac
-
