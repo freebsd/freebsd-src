@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsi_all.h,v 1.13 1995/05/30 08:13:25 rgrimes Exp $
+ *	$Id: scsi_all.h,v 1.1 1998/09/15 06:36:34 gibbs Exp $
  */
 
 /*
@@ -340,6 +340,54 @@ struct scsi_write_buffer
 	u_int8_t control;
 };
 
+struct scsi_rw_6
+{
+	u_int8_t opcode;
+	u_int8_t addr[3];
+/* only 5 bits are valid in the MSB address byte */
+#define	SRW_TOPADDR	0x1F
+	u_int8_t length;
+	u_int8_t control;
+};
+
+struct scsi_rw_10
+{
+	u_int8_t opcode;
+#define	SRW10_RELADDR	0x01
+#define SRW10_FUA	0x08
+#define	SRW10_DPO	0x10
+	u_int8_t byte2;
+	u_int8_t addr[4];
+	u_int8_t reserved;
+	u_int8_t length[2];
+	u_int8_t control;
+};
+
+struct scsi_rw_12
+{
+	u_int8_t opcode;
+#define	SRW12_RELADDR	0x01
+#define SRW12_FUA	0x08
+#define	SRW12_DPO	0x10
+	u_int8_t byte2;
+	u_int8_t addr[4];
+	u_int8_t reserved;
+	u_int8_t length[4];
+	u_int8_t control;
+};
+
+struct scsi_start_stop_unit
+{
+	u_int8_t opcode;
+	u_int8_t byte2;
+#define	SSS_IMMED		0x01
+	u_int8_t reserved[2];
+	u_int8_t how;
+#define	SSS_START		0x01
+#define	SSS_LOEJ		0x02
+	u_int8_t control;
+};
+
 #define SC_SCSI_1 0x01
 #define SC_SCSI_2 0x03
 
@@ -349,14 +397,19 @@ struct scsi_write_buffer
 
 #define	TEST_UNIT_READY		0x00
 #define REQUEST_SENSE		0x03
+#define	READ_6			0x08
+#define WRITE_6			0x0a
 #define INQUIRY			0x12
 #define MODE_SELECT_6		0x15
 #define MODE_SENSE_6		0x1a
+#define START_STOP_UNIT		0x1b
 #define START_STOP		0x1b
 #define RESERVE      		0x16
 #define RELEASE      		0x17
 #define PREVENT_ALLOW		0x1e
 #define	READ_CAPACITY		0x25
+#define	READ_10			0x28
+#define WRITE_10		0x2a
 #define POSITION_TO_ELEMENT	0x2b
 #define	SYNCHRONIZE_CACHE	0x35
 #define	WRITE_BUFFER            0x3b
@@ -365,6 +418,8 @@ struct scsi_write_buffer
 #define	MODE_SELECT_10		0x55
 #define	MODE_SENSE_10		0x5A
 #define MOVE_MEDIUM     	0xa5
+#define READ_12			0xa8
+#define WRITE_12		0xaa
 #define READ_ELEMENT_STATUS	0xb8
 
 
@@ -712,6 +767,19 @@ void		scsi_synchronize_cache(struct ccb_scsiio *csio,
 				       union ccb *), u_int8_t tag_action, 
 				       u_int32_t begin_lba, u_int16_t lb_count,
 				       u_int8_t sense_len, u_int32_t timeout);
+
+void scsi_read_write(struct ccb_scsiio *csio, u_int32_t retries,
+		     void (*cbfcnp)(struct cam_periph *, union ccb *),
+		     u_int8_t tag_action, int readop, u_int8_t byte2, 
+		     int minimum_cmd_size, u_int32_t lba,
+		     u_int32_t block_count, u_int8_t *data_ptr,
+		     u_int32_t dxfer_len, u_int8_t sense_len,
+		     u_int32_t timeout);
+
+void scsi_start_stop(struct ccb_scsiio *csio, u_int32_t retries,
+		     void (*cbfcnp)(struct cam_periph *, union ccb *),
+		     u_int8_t tag_action, int start, int load_eject,
+		     int immediate, u_int8_t sense_len, u_int32_t timeout);
 
 int		scsi_inquiry_match(caddr_t inqbuffer, caddr_t table_entry);
 int		scsi_static_inquiry_match(caddr_t inqbuffer,

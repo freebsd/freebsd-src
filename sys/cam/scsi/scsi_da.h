@@ -46,7 +46,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id$
+ *	$Id: scsi_da.h,v 1.1 1998/09/15 06:36:34 gibbs Exp $
  */
 
 #ifndef	_SCSI_SCSI_DA_H
@@ -68,54 +68,6 @@ struct scsi_reassign_blocks
 	u_int8_t opcode;
 	u_int8_t byte2;
 	u_int8_t unused[3];
-	u_int8_t control;
-};
-
-struct scsi_rw_6
-{
-	u_int8_t opcode;
-	u_int8_t addr[3];
-/* only 5 bits are valid in the MSB address byte */
-#define	SRW_TOPADDR	0x1F
-	u_int8_t length;
-	u_int8_t control;
-};
-
-struct scsi_rw_10
-{
-	u_int8_t opcode;
-#define	SRW10_RELADDR	0x01
-#define SRW10_FUA	0x08
-#define	SRW10_DPO	0x10
-	u_int8_t byte2;
-	u_int8_t addr[4];
-	u_int8_t reserved;
-	u_int8_t length[2];
-	u_int8_t control;
-};
-
-struct scsi_rw_12
-{
-	u_int8_t opcode;
-#define	SRW12_RELADDR	0x01
-#define SRW12_FUA	0x08
-#define	SRW12_DPO	0x10
-	u_int8_t byte2;
-	u_int8_t addr[4];
-	u_int8_t reserved;
-	u_int8_t length[4];
-	u_int8_t control;
-};
-
-struct scsi_start_stop_unit
-{
-	u_int8_t opcode;
-	u_int8_t byte2;
-#define	SSS_IMMED		0x01
-	u_int8_t reserved[2];
-	u_int8_t how;
-#define	SSS_START		0x01
-#define	SSS_LOEJ		0x02
 	u_int8_t control;
 };
 
@@ -177,16 +129,9 @@ struct scsi_read_defect_data_12
  */
 #define REZERO_UNIT		0x01
 #define	REASSIGN_BLOCKS		0x07
-#define	READ_6			0x08
-#define WRITE_6			0x0a
 #define MODE_SELECT		0x15
 #define MODE_SENSE		0x1a
-#define START_STOP_UNIT		0x1b
-#define	READ_10			0x28
-#define WRITE_10		0x2a
 #define READ_DEFECT_DATA_10	0x37
-#define READ_12			0xa8
-#define WRITE_12		0xaa
 #define READ_DEFECT_DATA_12	0xb7
 
 
@@ -372,20 +317,5 @@ struct scsi_da_rw_recovery_page {
 	u_int8_t reserved2;
 	u_int8_t recovery_time_limit[2];
 };
-
-__BEGIN_DECLS
-void scsi_read_write(struct ccb_scsiio *csio, u_int32_t retries,
-		     void (*cbfcnp)(struct cam_periph *, union ccb *),
-		     u_int8_t tag_action, int readop, u_int8_t byte2, 
-		     int minimum_cmd_size, u_int32_t lba,
-		     u_int32_t block_count, u_int8_t *data_ptr,
-		     u_int32_t dxfer_len, u_int8_t sense_len,
-		     u_int32_t timeout);
-
-void scsi_start_stop(struct ccb_scsiio *csio, u_int32_t retries,
-		     void (*cbfcnp)(struct cam_periph *, union ccb *),
-		     u_int8_t tag_action, int start, int load_eject,
-		     int immediate, u_int8_t sense_len, u_int32_t timeout);
-__END_DECLS
 
 #endif /* _SCSI_SCSI_DA_H */
