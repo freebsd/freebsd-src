@@ -13,8 +13,8 @@
 .\" Cronyx Id: cp.4,v 1.1.2.5 2004/06/21 17:47:40 rik Exp $
 .\" $FreeBSD$
 .\"
-.Dd June 21, 2004
-.Dt CP 4 PCI
+.Dd December 12, 2004
+.Dt CP 4 i386
 .Os
 .Sh NAME
 .Nm cp
@@ -26,7 +26,6 @@ Additional options:
 .Cd "device sppp"
 .Cd "options NETGRAPH"
 .Cd "options NETGRAPH_CRONYX"
-.Pp
 .Sh DESCRIPTION
 The
 .Nm
@@ -46,14 +45,25 @@ Otherwise, it will be compiled with
 .Xr sppp 4
 support.
 .Pp
+Refer to
+.Xr sconfig 8
+for information about the
+.Nm
+adapter configuration.
+.Sh HARDWARE
 The
 .Nm
 driver supports the following models of Tau-PCI WAN adapters:
-.Bl -tag -width 20n
+.Pp
+.Bl -tag -width 20n -compact
 .It Cronyx Tau-PCI
 V.35 and RS-232 interfaces
 .It Cronyx Tau-PCI/R
 RS-530(RS-449) and X.21 interfaces
+.It Cronyx Tau-PCI-L
+one V.35 and RS-232 interface, low profile
+.It Cronyx Tau-PCI-L/R
+one RS-530(RS-449) and X.21 interface, low profile
 .It Cronyx Tau-PCI-E1
 fractional E1 interfaces
 .It Cronyx Tau-PCI-G703
@@ -69,12 +79,6 @@ T3 interface
 .It Cronyx Tau-PCI-STS1
 STS-1 interface
 .El
-.Pp
-Refer to
-.Xr sconfig 8
-for information about the
-.Nm
-adapter configuration.
 .Sh SEE ALSO
 .Xr ctau 4 ,
 .Xr cx 4 ,
