@@ -153,7 +153,9 @@ thr_create(struct thread *td, struct thr_create_args *uap)
 	    (unsigned) RANGEOF(struct thread, td_startcopy, td_endcopy));
 
 	td0->td_proc = td->td_proc;
+	PROC_LOCK(td->td_proc);
 	td0->td_sigmask = td->td_sigmask;
+	PROC_UNLOCK(td->td_proc);
 	bcopy(td->td_frame, td0->td_frame, sizeof(struct trapframe));
 	td0->td_ucred = crhold(td->td_ucred);
 
