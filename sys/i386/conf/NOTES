@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.596 1999/05/09 22:26:10 peter Exp $
+#	$Id: LINT,v 1.597 1999/05/11 10:10:39 jb Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1199,6 +1199,7 @@ options		EXTRA_SIO=2		#number of extra sio ports to allocate
 # wi: Lucent WaveLAN/IEEE 802.11 PCMCIA adapters. Note: this supports both
 #     the PCMCIA and ISA cards: the ISA card is really a PCMCIA to ISA
 #     bridge with a PCMCIA adapter plugged into it.
+# xe: Xircom/Intel EtherExpress Pro100/16 PC Card ethernet controller.
 # ze: IBM/National Semiconductor PCMCIA ethernet controller.
 # zp: 3Com PCMCIA Etherlink III (It does not require shared memory for
 #     send/receive operation, but it needs 'iomem' to read/write the
@@ -1224,6 +1225,7 @@ device wi0 at isa? port? irq?
 options		WLCACHE		# enables the signal-strength cache
 options		WLDEBUG		# enables verbose debugging output
 device wl0 at isa? port 0x300 irq ?
+device xe0 at isa? port? irq ?
 # We can (bogusly) include both the dedicated PCCARD drivers and the generic
 # support when COMPILING_LINT.
 device ze0 at isa? port 0x300 irq 5 iomem 0xd8000
