@@ -208,7 +208,21 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 		FG_DARKGREY,  FG_LIGHTRED,     FG_LIGHTGREEN, FG_YELLOW,
 		FG_LIGHTBLUE, FG_LIGHTMAGENTA, FG_LIGHTCYAN,  FG_WHITE
 	};
+	static int cattrs[] = {
+		0,					/* block */
+		CONS_BLINK_CURSOR,			/* blinking block */
+		CONS_CHAR_CURSOR,			/* underline */
+		CONS_CHAR_CURSOR | CONS_BLINK_CURSOR,	/* blinking underline */
+		CONS_RESET_CURSOR,			/* reset to default */
+		CONS_HIDDEN_CURSOR,			/* hide cursor */
+	};
+	static int tcattrs[] = {
+		CONS_RESET_CURSOR | CONS_LOCAL_CURSOR,	/* normal */
+		CONS_HIDDEN_CURSOR | CONS_LOCAL_CURSOR,	/* invisible */
+		CONS_BLINK_CURSOR | CONS_LOCAL_CURSOR,	/* very visible */
+	};
 	sc_softc_t *sc;
+	int v0, v1, v2;
 	int i, n;
 
 	i = n = 0;
@@ -296,6 +310,8 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 				       = tcp->dflt_std_color;
 			tcp->rev_color = tcp->dflt_rev_color;
 			tcp->cur_attr = mask2attr(tcp);
+			sc_change_cursor_shape(scp,
+			    CONS_RESET_CURSOR | CONS_LOCAL_CURSOR, -1, -1);
 			sc_clear_screen(scp);
 			break;
 
@@ -633,33 +649,34 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 			}
 			break;
 
-		case 'C':   /* set cursor type & shape */
+		case 'C':   /* set global/parmanent cursor type & shape */
 			i = spltty();
-			if (!ISGRAPHSC(sc->cur_scp))
-				sc_remove_cursor_image(sc->cur_scp);
-			if (tcp->num_param == 1) {
-				if (tcp->param[0] & 0x01)
-					sc->flags |= SC_BLINK_CURSOR;
-				else
-					sc->flags &= ~SC_BLINK_CURSOR;
-				if (tcp->param[0] & 0x02) 
-					sc->flags |= SC_CHAR_CURSOR;
-				else
-					sc->flags &= ~SC_CHAR_CURSOR;
-			} else if (tcp->num_param == 2) {
-				sc->cursor_base = scp->font_size 
-						- (tcp->param[1] & 0x1F) - 1;
-				sc->cursor_height = (tcp->param[1] & 0x1F) 
-						- (tcp->param[0] & 0x1F) + 1;
-			}
-			/* 
-			 * The cursor shape is global property;
-			 * all virtual consoles are affected.
-			 * Update the cursor in the current console...
-			 */
-			if (!ISGRAPHSC(sc->cur_scp)) {
-				sc_set_cursor_image(sc->cur_scp);
-				sc_draw_cursor_image(sc->cur_scp);
+			n = tcp->num_param;
+			v0 = tcp->param[0];
+			v1 = tcp->param[1];
+			v2 = tcp->param[2];
+			switch (n) {
+			case 1:	/* flags only */
+				if (v0 < sizeof(cattrs)/sizeof(cattrs[0]))
+					v0 = cattrs[v0];
+				else	/* backward compatibility */
+					v0 = cattrs[v0 & 0x3];
+				sc_change_cursor_shape(scp, v0, -1, -1);
+				break;
+			case 2:
+				v2 = 0;
+				v0 &= 0x1f;	/* backward compatibility */
+				v1 &= 0x1f;
+				/* FALL THROUGH */
+			case 3:	/* base and height */
+				if (v2 == 0)	/* count from top */
+					sc_change_cursor_shape(scp, -1,
+					    scp->font_size - v1 - 1,
+					    v1 - v0 + 1);
+				else if (v2 == 1) /* count from bottom */
+					sc_change_cursor_shape(scp, -1,
+					    v0, v1 - v0 + 1);
+				break;
 			}
 			splx(i);
 			break;
@@ -694,6 +711,23 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 				tcp->rev_color.bg = tcp->param[0] & 0x0f;
 				tcp->cur_attr = mask2attr(tcp);
 			}
+			break;
+
+		case 'S':   /* set local/temporary cursor type & shape */
+			i = spltty();
+			n = tcp->num_param;
+			v0 = tcp->param[0];
+			switch (n) {
+			case 0:
+				v0 = 0;
+				/* FALL THROUGH */
+			case 1:
+				if (v0 < sizeof(tcattrs)/sizeof(tcattrs[0]))
+					sc_change_cursor_shape(scp,
+					    tcattrs[v0], -1, -1);
+				break;
+			}
+			splx(i);
 			break;
 		}
 #if notyet
