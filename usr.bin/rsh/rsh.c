@@ -38,12 +38,11 @@ static const char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-#if 0
-static char sccsid[] = "From: @(#)rsh.c	8.3 (Berkeley) 4/6/94";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
+static const char sccsid[] = "From: @(#)rsh.c	8.3 (Berkeley) 4/6/94";
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/signal.h>
@@ -86,6 +85,7 @@ extern char *krb_realmofhost();
 int	rfd2;
 
 int family = PF_UNSPEC;
+char rlogin[] = "rlogin";
 
 char   *copyargs(char **);
 void	sendsig(int);
@@ -93,9 +93,7 @@ void	talk(int, long, pid_t, int, int);
 void	usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char *argv[])
 {
 	struct passwd *pw;
 	struct servent *sp;
@@ -196,7 +194,7 @@ main(argc, argv)
 	/* if no further arguments, must have been called as rlogin. */
 	if (!argv[optind]) {
 		if (asrsh)
-			*argv = "rlogin";
+			*argv = rlogin;
 		execv(_PATH_RLOGIN, argv);
 		err(1, "can't exec %s", _PATH_RLOGIN);
 	}
@@ -336,11 +334,7 @@ try_connect:
 }
 
 void
-talk(nflag, omask, pid, rem, timeout)
-	int nflag;
-	long omask;
-	pid_t pid;
-	int rem;
+talk(int nflag, long omask, pid_t pid, int rem, int timeout)
 {
 	int cc, wc;
 	fd_set readfrom, ready, rembits;
@@ -449,8 +443,7 @@ done:
 }
 
 void
-sendsig(sig)
-	int sig;
+sendsig(int sig)
 {
 	char signo;
 
@@ -466,8 +459,7 @@ sendsig(sig)
 }
 
 char *
-copyargs(argv)
-	char **argv;
+copyargs(char **argv)
 {
 	int cc;
 	char **ap, *args, *p;
@@ -487,7 +479,7 @@ copyargs(argv)
 }
 
 void
-usage()
+usage(void)
 {
 
 	(void)fprintf(stderr,
