@@ -225,6 +225,7 @@ smb_maperror(int eclass, int eno)
 		    case ERRbadpath:
 		    case ERRremcd:
 		    case 66:		/* nt returns it when share not available */
+		    case 67:		/* observed from nt4sp6 when sharename wrong */
 			return ENOENT;
 		    case ERRnofids:
 			return EMFILE;
