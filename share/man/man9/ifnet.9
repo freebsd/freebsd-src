@@ -219,7 +219,7 @@ The fields of
 .Li "struct ifnet"
 are as follows:
 .Pp
-.Bl -tag -width "if_poll_slowq" -offset indent
+.Bl -tag -width "if_capabilities" -offset indent
 .It Li "if_softc"
 .Pq Li "void *"
 A pointer to the driver's private state block.  (Initialized by
@@ -280,6 +280,12 @@ decremented by generic watchdog code.)
 .Pq Li "short"
 Flags describing operational parameters of this interface (see below).
 (Manipulated by both driver and generic code.)
+.It Li "if_capabilities"
+.Pq Li "int"
+Flags describing the capabilities the interface supports (see below).
+.It Li "if_enable"
+.Pq Li "int"
+Flags describing the enabled capabilties of the interface (see below).
 .\" .It Li "if_ipending"
 .\" Interrupt-pending bits for polled operation:
 .\" .Dv IFI_XMIT
@@ -441,6 +447,33 @@ defines the bits which cannot be set by a user program using the
 command to
 .Xr ioctl 2 ;
 these are indicated by an asterisk in the listing above.
+.Ss Interface capabilities flags
+Interface capabilities are specialized features an interface may
+or may not support.
+These capabilities are very hardware-specific
+and allow, when enabled,
+to offload specific network processing to the interface.
+.Pp
+.Bl -tag -width "IFCAP_NETCONS" -offset indent
+.It Dv IFCAP_HWCSUM
+This interface can do checksum validation for the IP stack on both
+receiving and transmitting data.
+Some interfaces do not have sufficient buffer storage to store frames
+above a certain MTU-size completely.
+The driver for the interface might disable hardware checksum validation
+if the MTU is set above the hardcoded limit.
+.It Dv IFCAP_NETCONS
+This interface can be a network console.
+.It Dv IFCAP_RXCSUM
+This interface can do checksum validation for the IP stack on receiving data.
+Some interfaces do not have sufficient buffer storage to store frames
+above a certain MTU-size completely.
+The driver for the interface might disable hardware checksum validation
+if the MTU is set above the hardcoded limit.
+.It Dv IFCAP_TXCSUM
+This interface can do checksum calculation for the IP stack on transmitting
+data.
+.El
 .Ss The if_data structure
 In
 .Bx 4.4 ,
@@ -800,13 +833,17 @@ further interpretation.  The following commands are handled by
 .It Dv SIOCGIFCONF
 .It Dv OSIOCGIFCONF
 Get interface configuration.  (No call-down to driver.)
+.It Dv SIOCGIFCAP
 .It Dv SIOCGIFFLAGS
 .It Dv SIOCGIFMETRIC
 .It Dv SIOCGIFMTU
 .It Dv SIOCGIFPHYS
-Get interface flags, metric, MTU, medium selection.  (No call-down to
-driver.)
+Get interface capabilities, flags, metric, MTU, medium selection.
+(No call-down to driver.)
 .Pp
+.It Dv SIOCSIFCAP
+Enable interface capabilities.
+Caller must have appropriate privilege.
 .It Dv SIOCSIFFLAGS
 Change interface flags.  Caller must have appropriate privilege.  If
 requested a change to the IFF_UP flag is requested,
