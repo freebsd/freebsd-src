@@ -1,3 +1,35 @@
+2001-10-17  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* ld.1: Remove .TP macro from SYNOPSIS section - it prevents
+	successful translation to DocBook format.
+
+2001-09-30  Stephane Carrez  <Stephane.Carrez@worldnet.fr>
+
+	Report 2001-08-03  Stephane Carrez  <Stephane.Carrez@worldnet.fr>
+
+	* scripttempl/elfm68hc12.sc (FINISH_CODE, FINISH_RELOC): New to handle
+	.fini[0-4] sections used by _exit
+	(CTOR, DTOR): Export ctor/dtor symbols; move them to ROM.
+	(*.text,*.data,*.bss): Take into account .text.*, .data.*, .bss.*.
+	* scripttempl/elfm68hc11.sc: Likewise.
+
+2001-08-29  Joel Sherrill <joel@OARcorp.com>
+
+	* configure.tgt (i[3456]86-*-rtems*, m68*-*-rtems*): Change 
+	default from coff to elf.
+
+2001-08-13  Richard Henderson  <rth@redhat.com>
+
+	* emultempl/needrelax.em: New file.
+	* emulparams/elf64_ia64.sh (EXTRA_EM_FILE): Reference it.
+	* Makefile.am (eelf64_ia64.c): Depend on it.
+	* Makefile.in: Rebuild.
+
+2001-07-30  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* ld.texinfo (Simple Assignments): Fix computation in SECTIONS
+	example.
+
 2001-07-19  David O'Brien  <obrien@FreeBSD.org>
 
 	* emultempl/elf32.em: Do not assuming that contents of the buffer
@@ -137,15 +169,15 @@
 	* mpw-eppcmac.c: Likewise.
 
 	2001-04-28  Paul Sokolovsky  <Paul.Sokolovsky@technologist.com>
-        * ldlang.c (load_symbols): Give emulation a chance
-        to process unrecognized file before fatal error is
-        reported, not after.
+	* ldlang.c (load_symbols): Give emulation a chance
+	to process unrecognized file before fatal error is
+	reported, not after.
 
 	2001-02-26  H.J. Lu  <hjl@gnu.org>
 	* ldlang.c (open_input_bfds): Set the bfd error handler so
-        that problems can be caught whilst loading symbols.
-        (record_bfd_errors): New function: Report BFD errors and mark
-        the executable output as being invalid.
+	that problems can be caught whilst loading symbols.
+	(record_bfd_errors): New function: Report BFD errors and mark
+	the executable output as being invalid.
 
 2001-04-02  Alan Modra  <alan@linuxcare.com.au>
 

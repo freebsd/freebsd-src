@@ -1,3 +1,48 @@
+2001-10-16  Alan Modra  <amodra@bigpond.net.au>
+
+	From Andrew Pines <apines@cosmodog.com>
+	* config/tc-m68k.c (m68k_ip): Correct absolute jmp opcodes.
+
+2001-10-05  Alan Modra  <amodra@bigpond.net.au>
+
+	* config/tc-i386.c (parse_register): If not producing code for
+	x86_64, reject x86_64 register name matches.
+	(md_assemble): Remove now redundant check for x86_64 regs.
+
+2001-09-30  Stephane Carrez  <Stephane.Carrez@worldnet.fr>
+
+	* config/tc-m68hc11.c (cmp_opcode): Define prototype.
+	(print_opcode_format, skip_whites): Likewise.
+	(convert_branch, m68hc11_new_insn): Likewise.
+	(build_dbranch_insn, build_indexed_byte): Likewise.
+	(build_reg_mode, find, find_opcode): Likewise.
+	(print_insn_format): Fix call to print_opcode_format.
+	(md_assemble): Fix call to build_dbranch_insn.
+
+2001-09-19  Andreas Schwab  <schwab@suse.de>
+
+	* config/tc-m68k.c: Include "dwarf2dbg.h".
+
+2001-08-29  Joel Sherrill <joel@OARcorp.com>
+
+	* configure.in (i[3456]86-*-rtems*, m68*-*-rtems*): Change 
+	default from coff to elf.
+	* configure: Regenerate.
+
+2001-08-28  Philip Blundell  <philb@gnu.org>
+
+	* configure.in (sh-*-coff*, sh-*-rtems*): Set bfd_gas to yes.
+	Patch from Joel Sherril <joel.sherrill@OARcorp.com>
+	* configure: Regenerate.
+
+2001-07-21  Andreas Schwab  <schwab@suse.de>
+
+	* config/tc-m68k.c (md_pseudo_table) [OBJ_ELF]: Add .file and
+	.loc.
+	(md_assemble) [OBJ_ELF]: Call dwarf2_emit_insn before emitting
+	insn.
+	* config/tc-m68k.h (DWARF2_LINE_MIN_INSN_LENGTH): Define.
+
 2001-07-14  matthew green  <mrg@eterna.com.au>
 
 	* configure.in (i386-*-netbsdelf*): New target.

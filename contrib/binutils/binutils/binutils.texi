@@ -1446,11 +1446,11 @@ just use @samp{r} followed by the register number.
 
 There are also two variants on the APCS register naming scheme enabled
 by @samp{-M reg-names-atpcs} and @samp{-M reg-names-special-atpcs} which
-use the ARM/Thumb Procedure Call Standard naming conventions.  (Eiuther
-with the normal register name sor the special register names).
+use the ARM/Thumb Procedure Call Standard naming conventions.  (Either
+with the normal register names or the special register names).
 
 This option can also be used for ARM architectures to force the
-disassembler to interpret all instructions as THUMB instructions by
+disassembler to interpret all instructions as Thumb instructions by
 using the switch @samp{--disassembler-options=force-thumb}.  This can be
 useful when attempting to disassemble thumb code produced by other
 compilers.
@@ -2440,7 +2440,7 @@ Specifies the type of machine for which the library file should be
 built.  @code{dlltool} has a built in default type, depending upon how
 it was created, but this option can be used to override that.  This is
 normally only useful when creating DLLs for an ARM processor, when the
-contents of the DLL are actually encode using THUMB instructions.
+contents of the DLL are actually encode using Thumb instructions.
 
 @item -a
 @itemx --add-indirect
@@ -2483,7 +2483,7 @@ with certain operating systems.
 @itemx --interwork
 Specifies that @code{dlltool} should mark the objects in the library
 file and exports file that it produces as supporting interworking
-between ARM and THUMB code.
+between ARM and Thumb code.
 
 @item -n
 @itemx --nodelete
