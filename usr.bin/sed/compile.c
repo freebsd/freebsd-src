@@ -640,7 +640,7 @@ compile_tr(char *p, struct s_tr **py)
 	if (p == NULL)
 		errx(1, "%lu: %s: unterminated transform source string",
 				linenum, fname);
-	p = compile_delimited(--p, new);
+	p = compile_delimited(p - 1, new);
 	if (p == NULL)
 		errx(1, "%lu: %s: unterminated transform target string",
 				linenum, fname);
