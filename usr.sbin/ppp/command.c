@@ -2397,6 +2397,9 @@ AddCommand(struct cmdargs const *arg)
   struct ncpaddr gw;
   struct ncprange dest;
   struct in_addr host;
+#ifndef NOINET6
+  struct in6_addr host6;
+#endif
   int dest_default, gw_arg, addrs;
 
   if (arg->argc != arg->argn+3 && arg->argc != arg->argn+2)
@@ -2454,7 +2457,9 @@ AddCommand(struct cmdargs const *arg)
     addrs |= ROUTE_GWHISADDR;
 #ifndef NOINET6
   } else if (strcasecmp(arg->argv[arg->argn + gw_arg], "HISADDR6") == 0) {
-    ncpaddr_copy(&gw, &arg->bundle->ncp.ipv6cp.hisaddr);
+    if (!ncpaddr_getip6(&arg->bundle->ncp.ipv6cp.hisaddr, &host6))
+      memset(&host6, '\0', sizeof host6);
+    ncpaddr_setip6(&gw, &host6);
     addrs |= ROUTE_GWHISADDR6;
 #endif
   } else {
