@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: s_rint.c,v 1.1.1.1 1994/08/19 09:39:52 jkh Exp $";
+static char rcsid[] = "$Id: s_rint.c,v 1.2 1995/05/30 05:50:18 rgrimes Exp $";
 #endif
 
 /*
@@ -27,10 +27,17 @@ static char rcsid[] = "$Id: s_rint.c,v 1.1.1.1 1994/08/19 09:39:52 jkh Exp $";
 #include "math.h"
 #include "math_private.h"
 
+/*
+ * TWO23 is long double instead of double to avoid a bug in gcc.  Without
+ * this, gcc thinks that TWO23[sx]+x and w-TWO23[sx] already have double
+ * precision and doesn't clip them to double precision when they are
+ * assigned and returned.  Use long double even in the !__STDC__ case in
+ * case this is compiled with gcc -traditional.
+ */
 #ifdef __STDC__
-static const double
+static const long double
 #else
-static double
+static long double
 #endif
 TWO52[2]={
   4.50359962737049600000e+15, /* 0x43300000, 0x00000000 */
