@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.19 1995/12/14 08:31:41 phk Exp $
+ * $Id: subr_prf.c,v 1.20 1996/01/04 21:12:15 wollman Exp $
  */
 
 #include "opt_ddb.h"
@@ -73,7 +73,9 @@ struct	tty *constty;			/* pointer to console "window" tty */
 static void (*v_putc)(int) = cnputc;	/* routine to putc on virtual console */
 
 static void  logpri __P((int level));
-static void  putchar __P((int ch, int flags, struct tty *tp));
+static void  msglogchar(int c, void *dummyarg);
+struct putchar_arg {int flags; struct tty *tty; };
+static void  putchar __P((int ch, void *arg));
 static char *ksprintn __P((u_long num, int base, int *len));
 
 static int consintr = 1;		/* Ok to handle console interrupts? */
@@ -93,12 +95,7 @@ const char *panicstr;
 __dead			/* panic() does not return */
 #endif
 void
-#ifdef __STDC__
 panic(const char *fmt, ...)
-#else
-panic(fmt, va_alist)
-	char *fmt;
-#endif
 {
 	int bootopt;
 	va_list ap;
@@ -143,19 +140,17 @@ tablefull(tab)
  * the queue does not clear in a reasonable time.
  */
 void
-#ifdef __STDC__
 uprintf(const char *fmt, ...)
-#else
-uprintf(fmt, va_alist)
-	char *fmt;
-#endif
 {
-	register struct proc *p = curproc;
+	struct proc *p = curproc;
 	va_list ap;
+	struct putchar_arg pca;
 
 	if (p->p_flag & P_CONTROLT && p->p_session->s_ttyvp) {
 		va_start(ap, fmt);
-		kprintf(fmt, TOTTY, p->p_session->s_ttyp, ap);
+		pca.tty = p->p_session->s_ttyp;
+		pca.flags = TOTTY;
+		kvprintf(fmt, putchar, &pca, 10, ap);
 		va_end(ap);
 	}
 }
@@ -186,18 +181,13 @@ tprintf_close(sess)
  * with the given session.
  */
 void
-#ifdef __STDC__
 tprintf(tpr_t tpr, const char *fmt, ...)
-#else
-tprintf(tpr, fmt, va_alist)
-	tpr_t tpr;
-	char *fmt;
-#endif
 {
 	register struct session *sess = (struct session *)tpr;
 	struct tty *tp = NULL;
 	int flags = TOLOG;
 	va_list ap;
+	struct putchar_arg pca;
 
 	logpri(LOG_INFO);
 	if (sess && sess->s_ttyvp && ttycheckoutq(sess->s_ttyp, 0)) {
@@ -205,7 +195,9 @@ tprintf(tpr, fmt, va_alist)
 		tp = sess->s_ttyp;
 	}
 	va_start(ap, fmt);
-	kprintf(fmt, flags, tp, ap);
+	pca.tty = tp;
+	pca.flags = flags;
+	kvprintf(fmt, putchar, &pca, 10, ap);
 	va_end(ap);
 	logwakeup();
 }
@@ -216,18 +208,14 @@ tprintf(tpr, fmt, va_alist)
  * be revoke(2)'d away.  Other callers should use tprintf.
  */
 void
-#ifdef __STDC__
 ttyprintf(struct tty *tp, const char *fmt, ...)
-#else
-ttyprintf(tp, fmt, va_alist)
-	struct tty *tp;
-	char *fmt;
-#endif
 {
 	va_list ap;
-
+	struct putchar_arg pca;
 	va_start(ap, fmt);
-	kprintf(fmt, TOTTY, tp, ap);
+	pca.tty = tp;
+	pca.flags = TOTTY;
+	kvprintf(fmt, putchar, &pca, 10, ap);
 	va_end(ap);
 }
 
@@ -239,13 +227,7 @@ extern	int log_open;
  * log yet, it writes to the console also.
  */
 void
-#ifdef __STDC__
 log(int level, const char *fmt, ...)
-#else
-log(level, fmt, va_alist)
-	int level;
-	char *fmt;
-#endif
 {
 	register int s;
 	va_list ap;
@@ -253,12 +235,17 @@ log(level, fmt, va_alist)
 	s = splhigh();
 	logpri(level);
 	va_start(ap, fmt);
-	kprintf(fmt, TOLOG, NULL, ap);
-	splx(s);
+
+	kvprintf(fmt, msglogchar, NULL, 10, ap);
 	va_end(ap);
+
+	splx(s);
 	if (!log_open) {
+		struct putchar_arg pca;
 		va_start(ap, fmt);
-		kprintf(fmt, TOCONS, NULL, ap);
+		pca.tty = NULL;
+		pca.flags = TOCONS;
+		kvprintf(fmt, putchar, &pca, 10, ap);
 		va_end(ap);
 	}
 	logwakeup();
@@ -270,55 +257,130 @@ logpri(level)
 {
 	register char *p;
 
-	putchar('<', TOLOG, NULL);
+	msglogchar('<', NULL);
 	for (p = ksprintn((u_long)level, 10, NULL); *p;)
-		putchar(*p--, TOLOG, NULL);
-	putchar('>', TOLOG, NULL);
+		msglogchar(*p--, NULL);
+	msglogchar('>', NULL);
 }
 
 void
-#ifdef __STDC__
 addlog(const char *fmt, ...)
-#else
-addlog(fmt, va_alist)
-	char *fmt;
-#endif
 {
 	register int s;
 	va_list ap;
 
 	s = splhigh();
 	va_start(ap, fmt);
-	kprintf(fmt, TOLOG, NULL, ap);
+	kvprintf(fmt, msglogchar, NULL, 10, ap);
 	splx(s);
 	va_end(ap);
 	if (!log_open) {
+		struct putchar_arg pca;
 		va_start(ap, fmt);
-		kprintf(fmt, TOCONS, NULL, ap);
+		pca.tty = NULL;
+		pca.flags = TOCONS;
+		kvprintf(fmt, putchar, &pca, 10, ap);
 		va_end(ap);
 	}
 	logwakeup();
 }
 
 void
-#ifdef __STDC__
 printf(const char *fmt, ...)
-#else
-printf(fmt, va_alist)
-	char *fmt;
-#endif
 {
 	va_list ap;
 	register int savintr;
+	struct putchar_arg pca;
 
 	savintr = consintr;		/* disable interrupts */
 	consintr = 0;
 	va_start(ap, fmt);
-	kprintf(fmt, TOCONS | TOLOG, NULL, ap);
+	pca.tty = NULL;
+	pca.flags = TOCONS | TOLOG;
+	kvprintf(fmt, putchar, &pca, 10, ap);
 	va_end(ap);
 	if (!panicstr)
 		logwakeup();
 	consintr = savintr;		/* reenable interrupts */
+}
+
+void
+vprintf(const char *fmt, va_list ap)
+{
+	register int savintr;
+	struct putchar_arg pca;
+
+	savintr = consintr;		/* disable interrupts */
+	consintr = 0;
+	pca.tty = NULL;
+	pca.flags = TOCONS | TOLOG;
+	kvprintf(fmt, putchar, &pca, 10, ap);
+	if (!panicstr)
+		logwakeup();
+	consintr = savintr;		/* reenable interrupts */
+}
+
+/*
+ * Print a character on console or users terminal.  If destination is
+ * the console then the last MSGBUFS characters are saved in msgbuf for
+ * inspection later.
+ */
+static void
+putchar(int c, void *arg)
+{
+	struct putchar_arg *ap = (struct putchar_arg*) arg;
+	int flags = ap->flags;
+	struct tty *tp = ap->tty;
+	if (panicstr)
+		constty = NULL;
+	if ((flags & TOCONS) && tp == NULL && constty) {
+		tp = constty;
+		flags |= TOTTY;
+	}
+	if ((flags & TOTTY) && tp && tputchar(c, tp) < 0 &&
+	    (flags & TOCONS) && tp == constty)
+		constty = NULL;
+	if ((flags & TOLOG))
+		msglogchar(c, NULL);
+	if ((flags & TOCONS) && constty == NULL && c != '\0')
+		(*v_putc)(c);
+}
+
+/*
+ * Scaled down version of sprintf(3).
+ */
+int
+sprintf(char *buf, const char *cfmt, ...)
+{
+	int retval;
+	va_list ap;
+
+	va_start(ap, cfmt);
+	retval = kvprintf(cfmt, NULL, (void *)buf, 10, ap);
+	va_end(ap);
+	return retval;
+}
+
+/*
+ * Put a number (base <= 16) in a buffer in reverse order; return an
+ * optional length and a pointer to the NULL terminated (preceded?)
+ * buffer.
+ */
+static char *
+ksprintn(ul, base, lenp)
+	register u_long ul;
+	register int base, *lenp;
+{					/* A long in base 8, plus NULL. */
+	static char buf[sizeof(long) * NBBY / 3 + 2];
+	register char *p;
+
+	p = buf;
+	do {
+		*++p = hex2ascii(ul % base);
+	} while (ul /= base);
+	if (lenp)
+		*lenp = p - buf;
+	return (p);
 }
 
 /*
@@ -357,18 +419,21 @@ printf(fmt, va_alist)
  * Space or zero padding and a field width are supported for the numeric
  * formats only.
  */
-void
-kprintf(fmt, flags, tp, ap)
-	register const char *fmt;
-	int flags;
-	struct tty *tp;
-	va_list ap;
+int
+kvprintf(char const *fmt, void (*func)(int, void*), void *arg, int radix, va_list ap)
 {
-	register char *p, *q;
-	register int ch, n;
+#define PCHAR(c) {int cc=(c); if (func) (*func)(cc,arg); else *d++ = cc; retval++; }
+	char *p, *q, *d;
+	int ch, n;
 	u_long ul;
-	int base, lflag, tmp, width;
+	int base, lflag, tmp, width, ladjust, sharpflag, neg, sign;
 	char padc;
+	int retval = 0;
+
+	if (func == NULL)
+		d = (char *) arg;
+	else
+		d = 0;
 
 	if (fmt == NULL)
 		fmt = "(fmt null)\n";
@@ -377,11 +442,34 @@ kprintf(fmt, flags, tp, ap)
 		width = 0;
 		while ((ch = *(u_char *)fmt++) != '%') {
 			if (ch == '\0')
-				return;
-			putchar(ch, flags, tp);
+				return retval;
+			PCHAR(ch);
 		}
 		lflag = 0;
+		ladjust = 0;
+		sharpflag = 0;
+		neg = 0;
+		sign = 0;
 reswitch:	switch (ch = *(u_char *)fmt++) {
+		case '#':
+			sharpflag = 1;
+			goto reswitch;
+		case '+':
+			sign = 1;
+			goto reswitch;
+		case '-':
+			ladjust = 1;
+			goto reswitch;
+		case '%':
+			PCHAR(ch);
+			break;
+		case '*':
+			width = va_arg(ap, int);
+			if (width < 0) {
+				ladjust = !ladjust;
+				width = -width;
+			}
+			goto reswitch;
 		case '0':
 			padc = '0';
 			goto reswitch;
@@ -394,14 +482,11 @@ reswitch:	switch (ch = *(u_char *)fmt++) {
 					break;
 			}
 			goto reswitch;
-		case 'l':
-			lflag = 1;
-			goto reswitch;
 		case 'b':
 			ul = va_arg(ap, int);
 			p = va_arg(ap, char *);
 			for (q = ksprintn(ul, *p++, NULL); *q;)
-				putchar(*q--, flags, tp);
+				PCHAR(*q--);
 
 			if (!ul)
 				break;
@@ -409,38 +494,31 @@ reswitch:	switch (ch = *(u_char *)fmt++) {
 			for (tmp = 0; *p;) {
 				n = *p++;
 				if (ul & (1 << (n - 1))) {
-					putchar(tmp ? ',' : '<', flags, tp);
+					PCHAR(tmp ? ',' : '<');
 					for (; (n = *p) > ' '; ++p)
-						putchar(n, flags, tp);
+						PCHAR(n);
 					tmp = 1;
 				} else
 					for (; *p > ' '; ++p)
 						continue;
 			}
 			if (tmp)
-				putchar('>', flags, tp);
+				PCHAR('>');
 			break;
 		case 'c':
-			putchar(va_arg(ap, int), flags, tp);
-			break;
-		case 'r':
-			p = va_arg(ap, char *);
-			kprintf(p, flags, tp, va_arg(ap, va_list));
-			break;
-		case 's':
-			p = va_arg(ap, char *);
-			if (p == NULL)
-				p = "(null)";
-			while (*p)
-				putchar(*p++, flags, tp);
+			PCHAR(va_arg(ap, int));
 			break;
 		case 'd':
 			ul = lflag ? va_arg(ap, long) : va_arg(ap, int);
-			if ((long)ul < 0) {
-				putchar('-', flags, tp);
-				ul = -(long)ul;
-			}
+			sign = 1;
 			base = 10;
+			goto number;
+		case 'l':
+			lflag = 1;
+			goto reswitch;
+		case 'n':
+			ul = lflag ? va_arg(ap, u_long) : va_arg(ap, u_int);
+			base = radix;
 			goto number;
 		case 'o':
 			ul = lflag ? va_arg(ap, u_long) : va_arg(ap, u_int);
@@ -449,9 +527,30 @@ reswitch:	switch (ch = *(u_char *)fmt++) {
 		case 'p':
 			ul = (u_long)va_arg(ap, void *);
 			base = 16;
-			putchar('0', flags, tp);
-			putchar('x', flags, tp);
+			PCHAR('0');
+			PCHAR('x');
 			goto number;
+		case 'r':
+			p = va_arg(ap, char *);
+			n = kvprintf(p, func, arg, radix, ap);
+			if (!func)
+				d += n;
+			retval += n;
+			break;
+		case 's':
+			p = va_arg(ap, char *);
+			if (p == NULL)
+				p = "(null)";
+			width -= strlen (p);
+			if (!ladjust && width > 0)
+				while (width--)
+					PCHAR(padc);
+			while (*p)
+				PCHAR(*p++);
+			if (ladjust && width > 0)
+				while (width--)
+					PCHAR(padc);
+			break;
 		case 'u':
 			ul = lflag ? va_arg(ap, u_long) : va_arg(ap, u_int);
 			base = 10;
@@ -459,48 +558,62 @@ reswitch:	switch (ch = *(u_char *)fmt++) {
 		case 'x':
 			ul = lflag ? va_arg(ap, u_long) : va_arg(ap, u_int);
 			base = 16;
-number:			p = ksprintn(ul, base, &tmp);
-			if (width && (width -= tmp) > 0)
+number:			if (sign && (long)ul < 0L) {
+				neg = 1;
+				ul = -(long)ul;
+			}
+			p = ksprintn(ul, base, &tmp);
+			if (sharpflag && ul != 0) {
+				if (base == 8)
+					tmp++;
+				else if (base == 16)
+					tmp += 2;
+			}
+			if (neg)
+				tmp++;
+
+			if (!ladjust && width && (width -= tmp) > 0)
 				while (width--)
-					putchar(padc, flags, tp);
+					PCHAR(padc);
+			if (neg)
+				PCHAR('-');
+			if (sharpflag && ul != 0) {
+				if (base == 8) {
+					PCHAR('0');
+				} else if (base == 16) {
+					PCHAR('0');
+					PCHAR('x');
+				}
+			}
+
 			while (*p)
-				putchar(*p--, flags, tp);
+				PCHAR(*p--);
+
+			if (ladjust && width && (width -= tmp) > 0)
+				while (width--)
+					PCHAR(padc);
+
 			break;
 		default:
-			putchar('%', flags, tp);
+			PCHAR('%');
 			if (lflag)
-				putchar('l', flags, tp);
-			/* FALLTHROUGH */
-		case '%':
-			putchar(ch, flags, tp);
+				PCHAR('l');
+			PCHAR(ch);
+			break;
 		}
 	}
+#undef PCHAR
 }
 
 /*
- * Print a character on console or users terminal.  If destination is
- * the console then the last MSGBUFS characters are saved in msgbuf for
- * inspection later.
+ * Put character in log buffer.
  */
 static void
-putchar(c, flags, tp)
-	register int c;
-	int flags;
-	struct tty *tp;
+msglogchar(int c, void *dummyarg)
 {
-	register struct msgbuf *mbp;
+	struct msgbuf *mbp;
 
-	if (panicstr)
-		constty = NULL;
-	if ((flags & TOCONS) && tp == NULL && constty) {
-		tp = constty;
-		flags |= TOTTY;
-	}
-	if ((flags & TOTTY) && tp && tputchar(c, tp) < 0 &&
-	    (flags & TOCONS) && tp == constty)
-		constty = NULL;
-	if ((flags & TOLOG) &&
-	    c != '\0' && c != '\r' && c != 0177 && msgbufmapped) {
+	if (c != '\0' && c != '\r' && c != 0177 && msgbufmapped) {
 		mbp = msgbufp;
 		if (mbp->msg_magic != MSG_MAGIC ||
 		    mbp->msg_bufx >= MSG_BSIZE ||
@@ -517,109 +630,4 @@ putchar(c, flags, tp)
 				mbp->msg_bufr = 0;
 		}
 	}
-	if ((flags & TOCONS) && constty == NULL && c != '\0')
-		(*v_putc)(c);
-}
-
-/*
- * Scaled down version of sprintf(3).
- */
-#ifdef __STDC__
-int
-sprintf(char *buf, const char *cfmt, ...)
-#else
-int
-sprintf(buf, cfmt, va_alist)
-	char *buf, *cfmt;
-#endif
-{
-	register const char *fmt = cfmt;
-	register char *p, *bp;
-	register int ch, base;
-	u_long ul;
-	int lflag;
-	va_list ap;
-
-	va_start(ap, cfmt);
-	for (bp = buf; ; ) {
-		while ((ch = *(u_char *)fmt++) != '%')
-			if ((*bp++ = ch) == '\0')
-				return ((bp - buf) - 1);
-
-		lflag = 0;
-reswitch:	switch (ch = *(u_char *)fmt++) {
-		case 'l':
-			lflag = 1;
-			goto reswitch;
-		case 'c':
-			*bp++ = va_arg(ap, int);
-			break;
-		case 's':
-			p = va_arg(ap, char *);
-			while (*p)
-				*bp++ = *p++;
-			break;
-		case 'd':
-			ul = lflag ? va_arg(ap, long) : va_arg(ap, int);
-			if ((long)ul < 0) {
-				*bp++ = '-';
-				ul = -(long)ul;
-			}
-			base = 10;
-			goto number;
-			break;
-		case 'o':
-			ul = lflag ? va_arg(ap, u_long) : va_arg(ap, u_int);
-			base = 8;
-			goto number;
-			break;
-		case 'p':
-			ul = (u_long)va_arg(ap, void *);
-			base = 16;
-			*bp++ = '0';
-			*bp++ = 'x';
-			goto number;
-		case 'u':
-			ul = lflag ? va_arg(ap, u_long) : va_arg(ap, u_int);
-			base = 10;
-			goto number;
-			break;
-		case 'x':
-			ul = lflag ? va_arg(ap, u_long) : va_arg(ap, u_int);
-			base = 16;
-number:			for (p = ksprintn(ul, base, NULL); *p;)
-				*bp++ = *p--;
-			break;
-		default:
-			*bp++ = '%';
-			if (lflag)
-				*bp++ = 'l';
-			/* FALLTHROUGH */
-		case '%':
-			*bp++ = ch;
-		}
-	}
-	va_end(ap);
-}
-
-/*
- * Put a number (base <= 16) in a buffer in reverse order; return an
- * optional length and a pointer to the NULL terminated (preceded?)
- * buffer.
- */
-static char *
-ksprintn(ul, base, lenp)
-	register u_long ul;
-	register int base, *lenp;
-{					/* A long in base 8, plus NULL. */
-	static char buf[sizeof(long) * NBBY / 3 + 2];
-	register char *p;
-
-	p = buf;
-	do {
-		*++p = "0123456789abcdef"[ul % base];
-	} while (ul /= base);
-	if (lenp)
-		*lenp = p - buf;
-	return (p);
 }

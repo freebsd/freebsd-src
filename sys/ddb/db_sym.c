@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_sym.c,v 1.13 1995/12/10 13:32:41 phk Exp $
+ *	$Id: db_sym.c,v 1.14 1995/12/10 19:08:15 bde Exp $
  */
 
 /*
@@ -299,7 +299,7 @@ db_printsym(off, strategy)
 	}
 	db_printf("%s", name);
 	if (d)
-		db_printf("+%#r", d);
+		db_printf("+%+#n", d);
 	if (strategy == DB_STGY_PROC) {
 		if (db_line_at_pc(cursym, &filename, &linenum, off))
 			db_printf(" [%s:%d]", filename, linenum);
