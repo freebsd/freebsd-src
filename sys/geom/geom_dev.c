@@ -363,7 +363,7 @@ g_dev_done(struct bio *bp2)
 {
 	struct bio *bp;
 
-	bp = bp2->bio_linkage;
+	bp = bp2->bio_parent;
 	bp->bio_error = bp2->bio_error;
 	if (bp->bio_error != 0) {
 		g_trace(G_T_BIO, "g_dev_done(%p) had error %d",
