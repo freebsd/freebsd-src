@@ -1,3 +1,5 @@
+; $Id$
+
 ** To skip this preamble, search forward for the pattern `**'.
 
 This file contains a list of ideas that people have come up for "good
@@ -63,7 +65,7 @@ plip.asm (ftp::ftp.ftp.com) and the linux driver for reference. }
 EMAIL:	<phk>
 CATS:	kernel networking
 GRADE:	ADVANCED
-STATUS: OPEN
+STATUS: OPEN (*)
 
 TASKID:	940820003
 TASK:	Add laptop-feature to wd.c
@@ -105,7 +107,7 @@ existing ioctls to do it.  See RFC153[34] for information on DHCP. }
 EMAIL:	<phk>
 CATS:	kernel networking
 GRADE:	ADVANCED
-STATUS:	OPEN
+STATUS:	OPEN (*)
 
 TASKID:	940820007
 TASK:	Add bootp/DHCP capability to slip driver.
@@ -114,7 +116,7 @@ desirable. }
 EMAIL:	<phk>
 CATS:	kernel networking
 GRADE:	ADVANCED
-STATUS:	OPEN
+STATUS:	OPEN (*)
 
 TASKID:	940820008
 TASK:	Make the netboot.com program use all of the bootp-reply.
@@ -133,7 +135,7 @@ also be able to load the kernel from an optional MS-DOS file. }
 EMAIL:	<phk>
 CATS:	kernel DOS
 GRADE:	ADVANCED
-STATUS:	OPEN
+STATUS:	OPEN (*)
 
 TASKID:	940820010
 TASK:	Make iostat find the disks
@@ -151,4 +153,4 @@ actually, and it is good training in the C language.}
 EMAIL:	<phk>
 CATS:	kernel user
 GRADE:	INTERMEDIATE
-STATUS:	OPEN
+STATUS:	OPEN (*)
