@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.13 (Berkeley) 4/21/95
- * $Id: ffs_inode.c,v 1.35 1998/03/07 21:36:33 dyson Exp $
+ * $Id: ffs_inode.c,v 1.36 1998/03/08 09:58:55 julian Exp $
  */
 
 #include "opt_quota.h"
@@ -224,7 +224,7 @@ ffs_truncate(vp, length, flags, cred, p)
 			(void) chkdq(oip, -oip->i_blocks, NOCRED, 0);
 #endif
 			softdep_setup_freeblocks(oip, length);
-			(void) vinvalbuf(ovp, 0, cred, p, 0, 0);
+			(void) vtruncbuf(ovp, cred, p, length, fs->fs_bsize);
 			oip->i_flag |= IN_CHANGE | IN_UPDATE;
 			return (ffs_update(ovp, &tv, &tv, 0));
 		}
@@ -237,10 +237,6 @@ ffs_truncate(vp, length, flags, cred, p)
 	 */
 	if (osize < length) {
 		vnode_pager_setsize(ovp, length);
-#if 0
-		offset = blkoff(fs, length - 1);
-		lbn = lblkno(fs, length - 1);
-#endif
 		aflags = B_CLRBUF;
 		if (flags & IO_SYNC)
 			aflags |= B_SYNC;
@@ -277,9 +273,6 @@ ffs_truncate(vp, length, flags, cred, p)
 			aflags |= B_SYNC;
 		error = VOP_BALLOC(ovp, length - 1, 1, cred, aflags, &bp);
 		if (error) {
-#if 0	/* kirk's version had this */
-			vnode_pager_setsize(ovp, (u_long)osize);
-#endif
 			return (error);
 		}
 		oip->i_size = length;
@@ -333,9 +326,7 @@ ffs_truncate(vp, length, flags, cred, p)
 	bcopy((caddr_t)&oip->i_db[0], (caddr_t)newblks, sizeof newblks);
 	bcopy((caddr_t)oldblks, (caddr_t)&oip->i_db[0], sizeof oldblks);
 	oip->i_size = osize;
-	vflags = ((length > 0) ? V_SAVE : 0) | V_SAVEMETA;
-	allerror = vinvalbuf(ovp, vflags, cred, p, 0, 0);
-	vnode_pager_setsize(ovp, length);
+	allerror = vtruncbuf(ovp, cred, p, length, fs->fs_bsize);
 
 	/*
 	 * Indirect blocks first.
@@ -426,7 +417,6 @@ done:
 	if (oip->i_blocks < 0)			/* sanity */
 		oip->i_blocks = 0;
 	oip->i_flag |= IN_CHANGE;
-	vnode_pager_setsize(ovp, length);
 #ifdef QUOTA
 	(void) chkdq(oip, -blocksreleased, NOCRED, 0);
 #endif

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.46 1998/03/07 21:36:20 dyson Exp $
+ * $Id: buf.h,v 1.47 1998/03/08 09:58:22 julian Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -98,6 +98,7 @@ struct buf {
 	int	b_kvasize;		/* size of kva for buffer */
 	daddr_t	b_lblkno;		/* Logical block number. */
 	daddr_t	b_blkno;		/* Underlying physical block number. */
+	off_t	b_offset;		/* Offset into file */
 					/* Function to call upon completion. */
 	void	(*b_iodone) __P((struct buf *));
 					/* For nested b_iodone's. */

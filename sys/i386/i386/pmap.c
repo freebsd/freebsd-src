@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.188 1998/03/07 21:34:44 dyson Exp $
+ *	$Id: pmap.c,v 1.189 1998/03/09 22:09:13 eivind Exp $
  */
 
 /*
@@ -156,6 +156,8 @@ static vm_offset_t vm_first_phys;
 static int pgeflag;		/* PG_G or-in */
 static int pseflag;		/* PG_PS or-in */
 static int pv_npg;
+
+static vm_object_t kptobj;
 
 static int nkpt;
 vm_offset_t kernel_vm_end;
@@ -527,6 +529,10 @@ pmap_init(phys_start, phys_end)
 	pvinit = (struct pv_entry *) kmem_alloc(kernel_map,
 		initial_pvs * sizeof (struct pv_entry));
 	zbootinit(pvzone, "PV ENTRY", sizeof (struct pv_entry), pvinit, pv_npg);
+	/*
+	 * object for kernel page table pages
+	 */
+	kptobj = vm_object_allocate(OBJT_DEFAULT, NKPDE);
 
 	/*
 	 * Now it is safe to enable pv_table recording.
@@ -1156,7 +1162,7 @@ retry:
 
 	/* install self-referential address mapping entry */
 	*(unsigned *) (pmap->pm_pdir + PTDPTDI) =
-		VM_PAGE_TO_PHYS(ptdpg) | PG_V | PG_RW;
+		VM_PAGE_TO_PHYS(ptdpg) | PG_V | PG_RW | PG_A | PG_M;
 
 	pmap->pm_flags = 0;
 	pmap->pm_count = 1;
@@ -1256,7 +1262,7 @@ _pmap_allocpte(pmap, ptepindex)
 
 	ptepa = VM_PAGE_TO_PHYS(m);
 	pmap->pm_pdir[ptepindex] =
-		(pd_entry_t) (ptepa | PG_U | PG_RW | PG_V | PG_A);
+		(pd_entry_t) (ptepa | PG_U | PG_RW | PG_V | PG_A | PG_M);
 
 	/*
 	 * Set the page table hint
@@ -1390,13 +1396,12 @@ pmap_growkernel(vm_offset_t addr)
 	struct proc *p;
 	struct pmap *pmap;
 	int s;
-	vm_offset_t ptpkva, ptppaddr;
+	vm_offset_t ptppaddr;
 	vm_page_t nkpg;
 #ifdef SMP
 	int i;
 #endif
 	pd_entry_t newpdir;
-	vm_pindex_t ptpidx;
 
 	s = splhigh();
 	if (kernel_vm_end == 0) {
@@ -1413,23 +1418,22 @@ pmap_growkernel(vm_offset_t addr)
 			kernel_vm_end = (kernel_vm_end + PAGE_SIZE * NPTEPG) & ~(PAGE_SIZE * NPTEPG - 1);
 			continue;
 		}
-		nkpt++;
-		ptpkva = (vm_offset_t) vtopte(addr);
-		ptpidx = (ptpkva >> PAGE_SHIFT); 
+
 		/*
 		 * This index is bogus, but out of the way
 		 */
-		nkpg = vm_page_alloc(kernel_object, ptpidx, VM_ALLOC_SYSTEM);
+		nkpg = vm_page_alloc(kptobj, nkpt, VM_ALLOC_SYSTEM);
 #if !defined(MAX_PERF)
 		if (!nkpg)
 			panic("pmap_growkernel: no memory to grow kernel");
 #endif
 
+		nkpt++;
+
 		vm_page_wire(nkpg);
-		vm_page_remove(nkpg);
 		ptppaddr = VM_PAGE_TO_PHYS(nkpg);
 		pmap_zero_page(ptppaddr);
-		newpdir = (pd_entry_t) (ptppaddr | PG_V | PG_RW);
+		newpdir = (pd_entry_t) (ptppaddr | PG_V | PG_RW | PG_A | PG_M);
 		pdir_pde(PTD, kernel_vm_end) = newpdir;
 
 #ifdef SMP
@@ -2163,7 +2167,7 @@ validate:
 	 * to update the pte.
 	 */
 	if ((origpte & ~(PG_M|PG_A)) != newpte) {
-		*pte = newpte;
+		*pte = newpte | PG_A;
 		if (origpte)
 			invltlb_1pg(va);
 	}
@@ -3065,25 +3069,32 @@ pmap_ts_referenced(vm_offset_t pa)
 		pv;
 		pv = TAILQ_NEXT(pv, pv_list)) {
 
+		TAILQ_REMOVE(&ppv->pv_list, pv, pv_list);
 		/*
 		 * if the bit being tested is the modified bit, then
 		 * mark clean_map and ptes as never
 		 * modified.
 		 */
-		if (!pmap_track_modified(pv->pv_va))
+		if (!pmap_track_modified(pv->pv_va)) {
+			TAILQ_INSERT_TAIL(&ppv->pv_list, pv, pv_list);
 			continue;
+		}
 
 		pte = pmap_pte_quick(pv->pv_pmap, pv->pv_va);
 		if (pte == NULL) {
+			TAILQ_INSERT_TAIL(&ppv->pv_list, pv, pv_list);
 			continue;
 		}
 
 		if (*pte & PG_A) {
 			rtval++;
 			*pte &= ~PG_A;
-			if (rtval > 16)
+			if (rtval > 4) {
+				TAILQ_INSERT_TAIL(&ppv->pv_list, pv, pv_list);
 				break;
+			}
 		}
+		TAILQ_INSERT_TAIL(&ppv->pv_list, pv, pv_list);
 	}
 
 	splx(s);

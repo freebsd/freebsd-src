@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.89 1998/03/07 21:37:31 dyson Exp $
+ *	$Id: vnode_pager.c,v 1.90 1998/03/09 08:58:53 msmith Exp $
  */
 
 /*
@@ -926,6 +926,8 @@ vnode_pager_lock(object)
 
 		while (vget(object->handle,
 			LK_NOPAUSE | LK_SHARED | LK_RETRY | LK_CANRECURSE, p)) {
+			if ((object->flags & OBJ_DEAD) || (object->type != OBJT_VNODE))
+				return NULL;
 			printf("vnode_pager_lock: retrying\n");
 		}
 		return object->handle;

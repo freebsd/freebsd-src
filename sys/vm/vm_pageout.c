@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.118 1998/03/07 21:37:19 dyson Exp $
+ * $Id: vm_pageout.c,v 1.119 1998/03/08 18:19:17 dyson Exp $
  */
 
 /*
@@ -849,24 +849,9 @@ rescan0:
 	 */
 	page_shortage = (cnt.v_inactive_target + cnt.v_cache_min) -
 	    (cnt.v_free_count + cnt.v_inactive_count + cnt.v_cache_count);
+	page_shortage += addl_page_shortage;
 	if (page_shortage <= 0) {
-		if (pages_freed == 0) {
-			page_shortage = cnt.v_free_min - (cnt.v_free_count + cnt.v_cache_count);
-		} else {
-			page_shortage = 1;
-		}
-	}
-
-	/*
-	 * If the "inactive" loop finds that there is a shortage over and
-	 * above the page statistics variables, then we need to accomodate
-	 * that.  This avoids potential deadlocks due to pages being temporarily
-	 * busy for I/O or other types of temporary wiring.
-	 */
-	if (addl_page_shortage) {
-		if (page_shortage < 0)
-			page_shortage = 0;
-		page_shortage += addl_page_shortage;
+		page_shortage = 0;
 	}
 
 	pcount = cnt.v_active_count;
@@ -1070,6 +1055,12 @@ vm_pageout_page_stats()
 	vm_page_t m,next;
 	int pcount,tpcount;		/* Number of pages to check */
 	static int fullintervalcount = 0;
+	int page_shortage;
+
+	page_shortage = (cnt.v_inactive_target + cnt.v_cache_max + cnt.v_free_min) -
+	    (cnt.v_free_count + cnt.v_inactive_count + cnt.v_cache_count);
+	if (page_shortage <= 0)
+		return;
 
 	pcount = cnt.v_active_count;
 	fullintervalcount += vm_pageout_stats_interval;
@@ -1211,7 +1202,7 @@ vm_pageout()
 	 * Set interval in seconds for stats scan.
 	 */
 	if (vm_pageout_stats_interval == 0)
-		vm_pageout_stats_interval = 4;
+		vm_pageout_stats_interval = 5;
 	if (vm_pageout_full_stats_interval == 0)
 		vm_pageout_full_stats_interval = vm_pageout_stats_interval * 4;
 	
@@ -1220,7 +1211,7 @@ vm_pageout()
 	 * Set maximum free per pass
 	 */
 	if (vm_pageout_stats_free_max == 0)
-		vm_pageout_stats_free_max = 25;
+		vm_pageout_stats_free_max = 5;
 
 	max_page_launder = (cnt.v_page_count > 1800 ? 32 : 16);
 
