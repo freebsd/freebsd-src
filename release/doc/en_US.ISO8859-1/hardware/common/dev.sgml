@@ -1819,6 +1819,14 @@
 	</listitem>
       </itemizedlist>
     </para>
+
+    <para arch="i386">SMC COM90cx6 ARCNET network adapters (cm driver)
+      <itemizedlist>
+        <listitem>
+	  <para>SMC 90c26, 90c56, and 90c66 in 90c56 compatability mode</para>
+	</listitem>
+      </itemizedlist>
+    </para>
   </sect2>
 
   <sect2>
