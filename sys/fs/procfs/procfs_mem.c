@@ -45,6 +45,7 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/ptrace.h>
+#include <sys/systm.h>
 #include <sys/uio.h>
 
 #include <fs/pseudofs/pseudofs.h>
