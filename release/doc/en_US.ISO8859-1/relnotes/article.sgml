@@ -513,7 +513,8 @@
       the <quote>Don't Fragment</quote> bit on outgoing packets.</para>
 
     <para>&man.ping.8; now supports a <option>-M</option> option to use
-      ICMP mask request or timestamp request messages instead of ICMP echo requests.</para>
+      ICMP mask request or timestamp request messages instead of ICMP
+      echo requests.</para>
 
     <para>&man.ping.8; now supports a <option>-z</option> flag to set
       the Type of Service bits in outgoing packets.</para>
