@@ -104,8 +104,10 @@ main(argc, argv)
 		}
 		if (mkdir(*argv, oct ?
 		    omode : getmode(set, S_IRWXU | S_IRWXG | S_IRWXO)) < 0) {
-			warn("%s", *argv);
-			exitval = 1;
+			if (!pflag) {
+				warn("%s", *argv);
+				exitval = 1;
+			}
 		}
 	}
 	exit(exitval);
