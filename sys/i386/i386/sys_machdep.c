@@ -2,9 +2,6 @@
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
  *
- * This code is derived from software contributed to Berkeley by
- * William Jolitz.
- *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -34,84 +31,53 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
- *	$Id: sys_machdep.c,v 1.5 1994/08/13 03:49:46 wollman Exp $
+ *	$Id: sys_machdep.c,v 1.6 1994/10/30 20:23:23 bde Exp $
+ *
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/ioctl.h>
-#include <sys/file.h>
-#include <sys/time.h>
 #include <sys/proc.h>
-#include <sys/uio.h>
-#include <sys/kernel.h>
-#include <sys/mtio.h>
-#include <sys/buf.h>
-#include <sys/trace.h>
-
-#ifdef USER_LDT
 #include <sys/user.h>
+
 #include <machine/cpu.h>
 #include <machine/sysarch.h>
+
 #include <vm/vm_kern.h>		/* for kernel_map */
-#endif
 
-#ifdef TRACE
-int	nvualarm;
+void set_user_ldt	__P((struct pcb *pcb));
+int i386_get_ldt	__P((struct proc *, char *, int *));
+int i386_set_ldt	__P((struct proc *, char *, int *));
 
-struct vtrace_args {
-	int	request;
-	int	value;
+struct sysarch_args {
+	int op;
+	char *parms;
 };
 
-vtrace(p, uap, retval)
+int
+sysarch(p, uap, retval)
 	struct proc *p;
-	register struct vtrace_args *uap;
+	register struct sysarch_args *uap;
 	int *retval;
 {
-	int vdoualarm();
+	int error = 0;
 
-	switch (uap->request) {
-
-	case VTR_DISABLE:		/* disable a trace point */
-	case VTR_ENABLE:		/* enable a trace point */
-		if (uap->value < 0 || uap->value >= TR_NFLAGS)
-			return (EINVAL);
-		*retval = traceflags[uap->value];
-		traceflags[uap->value] = uap->request;
+	switch(uap->op) {
+#ifdef	USER_LDT
+	case I386_GET_LDT: 
+		error = i386_get_ldt(p, uap->parms, retval);
 		break;
 
-	case VTR_VALUE:		/* return a trace point setting */
-		if (uap->value < 0 || uap->value >= TR_NFLAGS)
-			return (EINVAL);
-		*retval = traceflags[uap->value];
+	case I386_SET_LDT: 
+		error = i386_set_ldt(p, uap->parms, retval);
 		break;
-
-	case VTR_UALARM:	/* set a real-time ualarm, less than 1 min */
-		if (uap->value <= 0 || uap->value > 60 * hz || nvualarm > 5)
-			return (EINVAL);
-		nvualarm++;
-		timeout(vdoualarm, (caddr_t)p->p_pid, uap->value);
-		break;
-
-	case VTR_STAMP:
-		trace(TR_STAMP, uap->value, p->p_pid);
+#endif
+	default:
+		error = EINVAL;
 		break;
 	}
-	return (0);
+	return(error);
 }
-
-vdoualarm(arg)
-	int arg;
-{
-	register struct proc *p;
-
-	p = pfind(arg);
-	if (p)
-		psignal(p, 16);
-	nvualarm--;
-}
-#endif
 
 #ifdef USER_LDT
 void
@@ -296,33 +262,3 @@ i386_set_ldt(p, args, retval)
 	return(error);
 }
 #endif	/* USER_LDT */
-
-struct sysarch_args {
-	int op;
-	char *parms;
-};
-
-int
-sysarch(p, uap, retval)
-	struct proc *p;
-	register struct sysarch_args *uap;
-	int *retval;
-{
-	int error = 0;
-
-	switch(uap->op) {
-#ifdef	USER_LDT
-	case I386_GET_LDT: 
-		error = i386_get_ldt(p, uap->parms, retval);
-		break;
-
-	case I386_SET_LDT: 
-		error = i386_set_ldt(p, uap->parms, retval);
-		break;
-#endif
-	default:
-		error = EINVAL;
-		break;
-	}
-	return(error);
-}
