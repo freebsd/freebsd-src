@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-#	$Id: populate,v 1.2 1998/09/03 10:16:03 abial Exp $
+#	$Id: populate,v 1.3 1998/09/04 08:08:05 abial Exp $
 #
 
 pwd=`pwd`
@@ -33,10 +33,16 @@ if [ "${TYPE}" = "dial" ]
 then
 	cp ../lang/login.${LANGUAGE} /mnt/stand/login
 	cp ../lang/dialup.${LANGUAGE} /mnt/stand/dialup
-	(cd ../../help; for i in `ls *.hlp.${LANGUAGE}`;\
+	(cd ../../help;\
+	rm -rf tmp_hlp;\
+	mkdir tmp_hlp;\
+	for i in `ls *.hlp.${LANGUAGE}`;\
 	do \
-		cp $i /mnt/help/`basename $i .${LANGUAGE}`;\
-		done)
+		cp $i tmp_hlp/`basename $i .hlp.${LANGUAGE}`;\
+	done;\
+	cd tmp_hlp;\
+	ar -cru help.a *;\
+	cp help.a /mnt/help.a)
 elif [ "${TYPE}" != "router" ]
 then
 	cp ../../build/kvm_kernel.db /mnt/var/db/kvm_kernel.db
