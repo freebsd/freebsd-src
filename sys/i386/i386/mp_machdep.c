@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.11 1997/05/24 18:48:53 fsmp Exp $
+ *	$Id: mp_machdep.c,v 1.5 1997/05/26 09:12:19 smp Exp smp $
  */
 
 #include "opt_smp.h"
@@ -44,7 +44,7 @@
 #include <machine/mpapic.h>
 #include <machine/cpufunc.h>
 #include <machine/segments.h>
-#include <machine/smptests.h>	/** TEST_DEFAULT_CONFIG */
+#include <machine/smptests.h>	/** TEST_DEFAULT_CONFIG, LATE_START */
 
 #include <i386/i386/cons.h>	/* cngetc() */
 
@@ -66,6 +66,84 @@
 #define CMOS_DATA	(0x71)
 #define BIOS_RESET	(0x0f)
 #define BIOS_WARM	(0x0a)
+
+#define PROCENTRY_FLAG_EN	0x01
+#define PROCENTRY_FLAG_BP	0x02
+#define IOAPICENTRY_FLAG_EN	0x01
+
+/* MP Floating Pointer Structure */
+typedef struct MPFPS {
+	char    signature[4];
+	void   *pap;
+	u_char  length;
+	u_char  spec_rev;
+	u_char  checksum;
+	u_char  mpfb1;
+	u_char  mpfb2;
+	u_char  mpfb3;
+	u_char  mpfb4;
+	u_char  mpfb5;
+}      *mpfps_t;
+
+/* MP Configuration Table Header */
+typedef struct MPCTH {
+	char    signature[4];
+	u_short base_table_length;
+	u_char  spec_rev;
+	u_char  checksum;
+	u_char  oem_id[8];
+	u_char  product_id[12];
+	void   *oem_table_pointer;
+	u_short oem_table_size;
+	u_short entry_count;
+	void   *apic_address;
+	u_short extended_table_length;
+	u_char  extended_table_checksum;
+	u_char  reserved;
+}      *mpcth_t;
+
+
+typedef struct PROCENTRY {
+	u_char  type;
+	u_char  apic_id;
+	u_char  apic_version;
+	u_char  cpu_flags;
+	u_long  cpu_signature;
+	u_long  feature_flags;
+	u_long  reserved1;
+	u_long  reserved2;
+}      *proc_entry_ptr;
+
+typedef struct BUSENTRY {
+	u_char  type;
+	u_char  bus_id;
+	char    bus_type[6];
+}      *bus_entry_ptr;
+
+typedef struct IOAPICENTRY {
+	u_char  type;
+	u_char  apic_id;
+	u_char  apic_version;
+	u_char  apic_flags;
+	void   *apic_address;
+}      *io_apic_entry_ptr;
+
+typedef struct INTENTRY {
+	u_char  type;
+	u_char  int_type;
+	u_short int_flags;
+	u_char  src_bus_id;
+	u_char  src_bus_irq;
+	u_char  dst_apic_id;
+	u_char  dst_apic_int;
+}      *int_entry_ptr;
+
+/* descriptions of MP basetable entries */
+typedef struct BASETABLE_ENTRY {
+	u_char  type;
+	u_char  length;
+	char    name[16];
+}       basetable_entry;
 
 /*
  * this code MUST be enabled here and in mpboot.s.
@@ -113,12 +191,11 @@ struct proc *SMPcurproc[NCPU];
 struct pcb *SMPcurpcb[NCPU];
 struct timeval SMPruntime[NCPU];
 
-int     mp_ncpus;		/* # of CPUs, including BSP */
-int     mp_naps;		/* # of Applications processors */
-int     mp_nbusses;		/* # of busses */
-int     mp_napics;		/* # of IO APICs */
-int     mpenabled;
-int     boot_cpu_id;		/* designated BSP */
+int	mp_ncpus;		/* # of CPUs, including BSP */
+int	mp_naps;		/* # of Applications processors */
+int	mp_nbusses;		/* # of busses */
+int	mp_napics;		/* # of IO APICs */
+int	boot_cpu_id;		/* designated BSP */
 vm_offset_t cpu_apic_address;
 vm_offset_t io_apic_address[NAPICID];	/* NAPICID is more than enough */
 
@@ -137,14 +214,21 @@ int     apic_id_to_logical[NAPICID];
  * look for MP compliant motherboard.
  */
 
-static u_int boot_address;
-static u_int base_memory;
+static int	mp_capable;
+static u_int	boot_address;
+static u_int	base_memory;
 
-static int picmode;		/* 0: virtual wire mode, 1: PIC mode */
-static u_int mpfps;
-static int search_for_sig(u_int32_t target, int count);
-static int mp_probe(u_int base_top);
-static void mp_enable(u_int boot_addr);
+static int	picmode;		/* 0: virtual wire mode, 1: PIC mode */
+static mpfps_t	mpfps;
+static int	search_for_sig(u_int32_t target, int count);
+static void	mp_enable(u_int boot_addr);
+
+static int	mptable_pass1(void);
+static int	mptable_pass2(void);
+static void	default_mp_table(int type);
+static int	start_all_aps(u_int boot_addr);
+static void	install_ap_tramp(u_int boot_addr);
+static int	start_ap(int logicalCpu, u_int boot_addr);
 
 
 /*
@@ -163,6 +247,53 @@ mp_bootaddress(u_int basemem)
 }
 
 
+int
+mp_probe(void)
+{
+	int     x;
+	u_long  segment;
+	u_int32_t target;
+
+	/* see if EBDA exists */
+	if (segment = (u_long) * (u_short *) (KERNBASE + 0x40e)) {
+		/* search first 1K of EBDA */
+		target = (u_int32_t) (segment << 4);
+		if ((x = search_for_sig(target, 1024 / 4)) >= 0)
+			goto found;
+	} else {
+		/* last 1K of base memory, effective 'top of base' passed in */
+		target = (u_int32_t) (base_memory - 0x400);
+		if ((x = search_for_sig(target, 1024 / 4)) >= 0)
+			goto found;
+	}
+
+	/* search the BIOS */
+	target = (u_int32_t) BIOS_BASE;
+	if ((x = search_for_sig(target, BIOS_COUNT)) >= 0)
+		goto found;
+
+	/* nothing found */
+	mpfps = (mpfps_t)0;
+	mp_capable = 0;
+	return 0;
+
+found:				/* please forgive the 'goto'! */
+	/* calculate needed resources */
+	mpfps = (mpfps_t)x;
+	if (mptable_pass1())
+		panic("you must reconfigure your kernel");
+
+#if defined(LATE_START)
+	/* create pages for (address common) cpu APIC and each IO APIC */
+	pmap_bootstrap_apics();
+#endif  /* LATE_START */
+
+	/* flag fact that we are running multiple processors */
+	mp_capable = 1;
+	return 1;
+}
+
+
 /*
  * startup the SMP processors
  */
@@ -170,19 +301,10 @@ void
 mp_start(void)
 {
 	/* look for MP capable motherboard */
-	if (mp_probe(base_memory))
-/*
- * XXX: mp_probe() now does a 1st pass of the motherboard's MP table, so
- *       by this point we know how many busses, INTs, etc. exist, as well as
- *       the addresses of the LOCAL and IO APICs.
- *      This means we have the info necessary for malloc()ing memory for
- *       boot-time MP structs, as well as pmapping the APICs to known addrs.
- *      So when we get private pages working we will probably want to move
- *       mp_enable() further down in the boot process.
- */
+	if (mp_capable)
 		mp_enable(boot_address);
 	else
-		panic("MP FPS not found, can't continue!");
+		panic("MP hardware not found!");
 
 	/* finish pmap initialization - turn off V==P mapping at zero */
 	pmap_bootstrap2();
@@ -263,51 +385,6 @@ configure_local_apic(void)
 /*******************************************************************
  * local functions and data
  */
-static int preparse_mp_table(void);
-static int parse_mp_table(void);
-static void default_mp_table(int type);
-static int start_all_aps(u_int boot_addr);
-
-static int
-mp_probe(u_int base_top)
-{
-	int     x;
-	u_long  segment;
-	u_int32_t target;
-
-	/* see if EBDA exists */
-	if (segment = (u_long) * (u_short *) (KERNBASE + 0x40e)) {
-		/* search first 1K of EBDA */
-		target = (u_int32_t) (segment << 4);
-		if ((x = search_for_sig(target, 1024 / 4)) >= 0)
-			goto found;
-	} else {
-		/*last 1K of base memory, effective 'top of base' is passed in*/
-		target = (u_int32_t) (base_top - 0x400);
-		if ((x = search_for_sig(target, 1024 / 4)) >= 0)
-			goto found;
-	}
-
-	/* search the BIOS */
-	target = (u_int32_t) BIOS_BASE;
-	if ((x = search_for_sig(target, BIOS_COUNT)) >= 0)
-		goto found;
-
-	/* nothing found */
-	mpfps = mpenabled = 0;
-	return 0;
-
-found:				/* please forgive the 'goto'! */
-	/* calculate needed resources */
-	mpfps = x;
-	if (preparse_mp_table())
-		panic("you must reconfigure your kernel");
-
-	/* flag fact that we are running multiple processors */
-	mpenabled = 1;
-	return 1;
-}
-
 
 /*
  * start the SMP system
@@ -322,10 +399,12 @@ mp_enable(u_int boot_addr)
 #endif	/* APIC_IO */
 
 	/* examine the MP table for needed info */
-	x = parse_mp_table();
+	x = mptable_pass2();
 
+#if !defined(LATE_START)
 	/* create pages for (address common) cpu APIC and each IO APIC */
 	pmap_bootstrap_apics();
+#endif  /* LATE_START */
 
 	/* can't process default configs till the CPU APIC is pmapped */
 	if (x)
@@ -374,82 +453,6 @@ search_for_sig(u_int32_t target, int count)
 	return -1;
 }
 
-
-#define PROCENTRY_FLAG_EN	0x01
-#define PROCENTRY_FLAG_BP	0x02
-#define IOAPICENTRY_FLAG_EN	0x01
-
-/* MP Floating Pointer Structure */
-typedef struct MPFPS {
-	char    signature[4];
-	void   *pap;
-	u_char  length;
-	u_char  spec_rev;
-	u_char  checksum;
-	u_char  mpfb1;
-	u_char  mpfb2;
-	u_char  mpfb3;
-	u_char  mpfb4;
-	u_char  mpfb5;
-}      *mpfps_t;
-/* MP Configuration Table Header */
-typedef struct MPCTH {
-	char    signature[4];
-	u_short base_table_length;
-	u_char  spec_rev;
-	u_char  checksum;
-	u_char  oem_id[8];
-	u_char  product_id[12];
-	void   *oem_table_pointer;
-	u_short oem_table_size;
-	u_short entry_count;
-	void   *apic_address;
-	u_short extended_table_length;
-	u_char  extended_table_checksum;
-	u_char  reserved;
-}      *mpcth_t;
-
-
-typedef struct PROCENTRY {
-	u_char  type;
-	u_char  apic_id;
-	u_char  apic_version;
-	u_char  cpu_flags;
-	u_long  cpu_signature;
-	u_long  feature_flags;
-	u_long  reserved1;
-	u_long  reserved2;
-}      *proc_entry_ptr;
-
-typedef struct BUSENTRY {
-	u_char  type;
-	u_char  bus_id;
-	char    bus_type[6];
-}      *bus_entry_ptr;
-
-typedef struct IOAPICENTRY {
-	u_char  type;
-	u_char  apic_id;
-	u_char  apic_version;
-	u_char  apic_flags;
-	void   *apic_address;
-}      *io_apic_entry_ptr;
-
-typedef struct INTENTRY {
-	u_char  type;
-	u_char  int_type;
-	u_short int_flags;
-	u_char  src_bus_id;
-	u_char  src_bus_irq;
-	u_char  dst_apic_id;
-	u_char  dst_apic_int;
-}      *int_entry_ptr;
-/* descriptions of MP basetable entries */
-typedef struct BASETABLE_ENTRY {
-	u_char  type;
-	u_char  length;
-	char    name[16];
-}       basetable_entry;
 
 static basetable_entry basetable_entry_types[] =
 {
@@ -532,13 +535,23 @@ static int lookup_bus_type	__P((char *name));
 
 
 /*
- * parse an Intel MP specification table
+ * 1st pass on motherboard's Intel MP specification table.
+ *
+ * initializes:
+ *	mp_ncpus = 1
+ *
+ * determines:
+ *	cpu_apic_address (common to all CPUs)
+ *	io_apic_address[N]
+ *	mp_naps
+ *	mp_nbusses
+ *	mp_napics
+ *	nintrs
  */
 static int
-preparse_mp_table(void)
+mptable_pass1(void)
 {
 	int	x;
-	mpfps_t	fps;
 	mpcth_t	cth;
 	int	totalSize;
 	void*	position;
@@ -548,24 +561,10 @@ preparse_mp_table(void)
 
 	mustpanic = 0;
 
-	/* clear physical APIC ID to logical CPU/IO table */
-	for (x = 0; x < NAPICID; ++x)
-		ID_TO_IO(x) = -1;
-
-	/* clear logical CPU to APIC ID table */
-	for (x = 0; x < NAPICID; ++x)
-		CPU_TO_ID(x) = -1;
-
-	/* clear logical IO to APIC ID table */
-	for (x = 0; x < NAPICID; ++x)
-		IO_TO_ID(x) = -1;
-
-	/* clear IO APIC address table */
-	for (x = 0; x < NAPICID; ++x)
-		io_apic_address[x] = ~0;
-
-	/* local pointer */
-	fps = (mpfps_t) mpfps;
+	/* clear various tables */
+	for (x = 0; x < NAPICID; ++x) {
+		io_apic_address[x] = ~0;	/* IO APIC address table */
+	}
 
 	/* init everything to empty */
 	mp_naps = 0;
@@ -574,21 +573,21 @@ preparse_mp_table(void)
 	nintrs = 0;
 
 	/* check for use of 'default' configuration */
-	if (fps->mpfb1 != 0) {
+	if (mpfps->mpfb1 != 0) {
 		/* use default addresses */
 		cpu_apic_address = DEFAULT_APIC_BASE;
 		io_apic_address[0] = DEFAULT_IO_APIC_BASE;
 
 		/* fill in with defaults */
 		mp_naps = 1;
-		mp_nbusses = default_data[fps->mpfb1 - 1][0];
+		mp_nbusses = default_data[mpfps->mpfb1 - 1][0];
 #if defined(APIC_IO)
 		mp_napics = 1;
 		nintrs = 16;
 #endif	/* APIC_IO */
 	}
 	else {
-		if ((cth = fps->pap) == 0)
+		if ((cth = mpfps->pap) == 0)
 			panic("MP Configuration Table Header MISSING!");
 
 		cpu_apic_address = (vm_offset_t) cth->apic_address;
@@ -664,19 +663,33 @@ preparse_mp_table(void)
 
 
 /*
- * parse an Intel MP specification table
+ * 2nd pass on motherboard's Intel MP specification table.
+ *
+ * sets:
+ *	boot_cpu_id
+ *	ID_TO_IO(N), phy APIC ID to log CPU/IO table
+ *	CPU_TO_ID(N), logical CPU to APIC ID table
+ *	IO_TO_ID(N), logical IO to APIC ID table
+ *	bus_data[N]
+ *	io_apic_ints[N]
  */
 static int
-parse_mp_table(void)
+mptable_pass2(void)
 {
 	int     x;
-	mpfps_t fps;
 	mpcth_t cth;
 	int     totalSize;
 	void*   position;
 	int     count;
 	int     type;
 	int     apic, bus, cpu, intr;
+
+	/* clear various tables */
+	for (x = 0; x < NAPICID; ++x) {
+		ID_TO_IO(x) = -1;	/* phy APIC ID to log CPU/IO table */
+		CPU_TO_ID(x) = -1;	/* logical CPU to APIC ID table */
+		IO_TO_ID(x) = -1;	/* logical IO to APIC ID table */
+	}
 
 	/* clear bus data table */
 	for (x = 0; x < NBUS; ++x)
@@ -689,21 +702,18 @@ parse_mp_table(void)
 	/* setup the cpu/apic mapping arrays */
 	boot_cpu_id = -1;
 
-	/* local pointer */
-	fps = (mpfps_t) mpfps;
-
 	/* record whether PIC or virtual-wire mode */
-	picmode = (fps->mpfb2 & 0x80) ? 1 : 0;
+	picmode = (mpfps->mpfb2 & 0x80) ? 1 : 0;
 
 	/* check for use of 'default' configuration */
 #if defined(TEST_DEFAULT_CONFIG)
 	return TEST_DEFAULT_CONFIG;
 #else
-	if (fps->mpfb1 != 0)
-		return fps->mpfb1;	/* return default configuration type */
+	if (mpfps->mpfb1 != 0)
+		return mpfps->mpfb1;	/* return default configuration type */
 #endif	/* TEST_DEFAULT_CONFIG */
 
-	if ((cth = fps->pap) == 0)
+	if ((cth = mpfps->pap) == 0)
 		panic("MP Configuration Table Header MISSING!");
 
 	/* walk the table, recording info of interest */
@@ -1331,9 +1341,6 @@ default_mp_table(int type)
 }
 
 
-static void install_ap_tramp(u_int boot_addr);
-static int start_ap(int logicalCpu, u_int boot_addr);
-
 /*
  * start each AP in our list
  */
@@ -1378,11 +1385,8 @@ start_all_aps(u_int boot_addr)
 		if (!start_ap(x, boot_addr)) {
 			printf("AP #%d (PHY# %d) failed!\n", x, CPU_TO_ID(x));
 			CHECK_PRINT("trace");	/* show checkpoints */
-			/*
-			 * better panic as the AP may be running loose
-			 * somewhere
-			 */
-			printf("panic y/n? [n] ");
+			/* better panic as the AP may be running loose */
+			printf("panic y/n? [y] ");
 			if (cngetc() != 'n')
 				panic("bye-bye");
 		}
