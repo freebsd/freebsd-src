@@ -124,7 +124,10 @@ Static struct cdevsw urio_cdevsw = {
 	urioopen,	urioclose,	urioread,	uriowrite,
  	urioioctl,	nopoll,		nommap,		nostrategy,
  	"urio",		URIO_CDEV_MAJOR,nodump,		nopsize,
- 	0,		-1
+ 	0,
+#if (__FreeBSD__ < 5)
+ 	-1
+#endif
 };
 #define RIO_UE_GET_DIR(p) ((UE_GET_DIR(p) == UE_DIR_IN) ? RIO_IN :\
 		 	  ((UE_GET_DIR(p) == UE_DIR_OUT) ? RIO_OUT :\
