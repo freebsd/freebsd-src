@@ -1,7 +1,7 @@
 /* xml.c -- xml output.
-   $Id: xml.c,v 1.18 2002/12/17 16:34:22 karl Exp $
+   $Id: xml.c,v 1.19 2003/05/13 16:37:54 karl Exp $
 
-   Copyright (C) 2001, 2002 Free Software Foundation, Inc.
+   Copyright (C) 2001, 2002, 2003 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -316,7 +316,7 @@ element docbook_element_list [] = {
   { "comment",             0, 0 },
   { "function",            0, 1 },
   { "legalnotice",         1, 0 },
-  
+
   { "para",                0, 0 } /* Must be last */
   /* name / contains para / contained in para */
 };
@@ -600,7 +600,7 @@ xml_insert_element_with_attribute (elt, arg, format, va_alist)
 
   if (docbook && !only_macro_expansion && (in_menu || in_detailmenu))
     return;
-    
+
   if (!xml_element_list[elt].name || !strlen (xml_element_list[elt].name))
     {
       /*printf ("Warning: Inserting empty element %d\n", elt);*/
@@ -634,7 +634,7 @@ xml_insert_element_with_attribute (elt, arg, format, va_alist)
   if (arg == START && !xml_in_para && !xml_element_list[elt].contained_in_para)
     xml_indent ();
 
-  if (docbook && xml_table_level && !xml_in_item[xml_table_level] && !in_table_title 
+  if (docbook && xml_table_level && !xml_in_item[xml_table_level] && !in_table_title
       && arg == START && elt != TABLEITEM && elt != TABLETERM
       && !in_indexterm && xml_current_element() == TABLE)
     {
@@ -879,8 +879,8 @@ xml_add_char (character)
       return;
   if (docbook && !only_macro_expansion && (in_menu || in_detailmenu))
     return;
-  
-  if (docbook && xml_table_level && !xml_in_item[xml_table_level] && !in_table_title 
+
+  if (docbook && xml_table_level && !xml_in_item[xml_table_level] && !in_table_title
       && !cr_or_whitespace (character) && !in_indexterm)
     {
       in_table_title = 1;
@@ -1229,6 +1229,7 @@ xml_asterisk ()
    to have real multilivel indexing support, not just string analysis.  */
 #define INDEX_SEP "@this string will never appear@" /* was , */
 
+void
 xml_insert_indexterm (indexterm, index)
     char *indexterm;
     char *index;

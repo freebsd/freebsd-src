@@ -1,7 +1,7 @@
 /* infodoc.c -- functions which build documentation nodes.
-   $Id: infodoc.c,v 1.5 2002/11/06 00:40:08 karl Exp $
+   $Id: infodoc.c,v 1.6 2003/05/13 16:22:11 karl Exp $
 
-   Copyright (C) 1993, 1997, 1998, 1999, 2001, 2002 Free Software
+   Copyright (C) 1993, 1997, 1998, 1999, 2001, 2002, 2003 Free Software
    Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
@@ -37,7 +37,7 @@ static NODE *internal_info_help_node = (NODE *)NULL;
 static char *internal_info_help_node_contents = (char *)NULL;
 
 /* The (more or less) static text which appears in the internal info
-   help node.  The actual key bindings are inserted.  Keep the 
+   help node.  The actual key bindings are inserted.  Keep the
    underlines (****, etc.) in the same N_ call as  the text lines they
    refer to, so translations can make the number of *'s or -'s match.  */
 #if defined(INFOKEY)
@@ -300,7 +300,7 @@ create_internal_info_help_node (help_is_only_window_p)
                       ? _(info_internal_help_text[i])
                       : info_internal_help_text[i];
           char *key = info_help_keys_text[i][vi_keys_p];
-          
+
           /* If we have only one window (because the window size was too
              small to split it), CTRL-x 0 doesn't work to `quit' help.  */
           if (STREQ (key, "CTRL-x 0") && help_is_only_window_p)
@@ -439,7 +439,7 @@ info_find_or_create_help_window ()
      to quit help), true if help will be one of several visible windows
      (so CTRL-x 0 must be used to quit help).  */
   help_is_only_window_p
-     = (help_window && !windows->next
+     = ((help_window && !windows->next)
         || !help_window && eligible->height < HELP_SPLIT_SIZE);
   create_internal_info_help_node (help_is_only_window_p);
 
@@ -1112,7 +1112,7 @@ where_is_internal (map, cmd)
      where_is_internal without setting where_is_rep_index to zero.  This
      was found by Mandrake and reported by Thierry Vignaud
      <tvignaud@mandrakesoft.com> around April 24, 2002.
-     
+
      I think the best fix is to make where_is_rep_index another
      parameter to this recursively-called function, instead of a static
      variable.  But this [!INFOKEY] branch of the code is not enabled
