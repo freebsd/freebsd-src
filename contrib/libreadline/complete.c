@@ -7,7 +7,7 @@
 
    The GNU Readline Library is free software; you can redistribute it
    and/or modify it under the terms of the GNU General Public License
-   as published by the Free Software Foundation; either version 1, or
+   as published by the Free Software Foundation; either version 2, or
    (at your option) any later version.
 
    The GNU Readline Library is distributed in the hope that it will be
@@ -18,7 +18,7 @@
    The GNU General Public License is often shipped with GNU software, and
    is generally kept in a file called COPYING or LICENSE.  If you do not
    have a copy of the license, write to the Free Software Foundation,
-   675 Mass Ave, Cambridge, MA 02139, USA. */
+   59 Temple Place, Suite 330, Boston, MA 02111 USA. */
 #define READLINE_LIBRARY
 
 #if defined (HAVE_CONFIG_H)
@@ -70,20 +70,14 @@ extern struct passwd *getpwent ();
 
 /* Some standard library routines. */
 #include "readline.h"
+#include "xmalloc.h"
+#include "rlprivate.h"
 
-extern char *tilde_expand ();
-extern char *rl_copy_text ();
-extern void _rl_abort_internal ();
-extern int _rl_qsort_string_compare ();
-extern void _rl_replace_text ();
-
-extern Function *rl_last_func;
-extern int rl_editing_mode;
-extern int screenwidth;
-
-extern void _rl_move_vert ();
-extern int _rl_vis_botlin;
-extern int rl_display_fixed;
+#ifdef __STDC__
+typedef int QSFUNC (const void *, const void *);
+#else
+typedef int QSFUNC ();
+#endif
 
 /* If non-zero, then this is the address of a function to call when
    completing a word would normally display the list of possible matches.
@@ -95,27 +89,25 @@ extern int rl_display_fixed;
 VFunction *rl_completion_display_matches_hook = (VFunction *)NULL;
 
 /* Forward declarations for functions defined and used in this file. */
-char *filename_completion_function ();
-char **completion_matches ();
+char *filename_completion_function __P((char *, int));
+char **completion_matches __P((char *, CPFunction *));
 
 #if defined (VISIBLE_STATS)
 #  if !defined (X_OK)
 #    define X_OK 1
 #  endif
-static int stat_char ();
+static int stat_char __P((char *));
 #endif
 
-static char *rl_quote_filename ();
-static char *rl_strpbrk ();
+static char *rl_quote_filename __P((char *, int, char *));
+static char *rl_strpbrk __P((char *, char *));
 
-static char **remove_duplicate_matches ();
-static void insert_match ();
-static int append_to_match ();
-static void insert_all_matches ();
-static void display_matches ();
-static int compute_lcd_of_matches ();
-
-extern char *xmalloc (), *xrealloc ();
+static char **remove_duplicate_matches __P((char **));
+static void insert_match __P((char *, int, int, char *));
+static int append_to_match __P((char *, int, int));
+static void insert_all_matches __P((char **, int, char *));
+static void display_matches __P((char **));
+static int compute_lcd_of_matches __P((char **, int, char *));
 
 /* **************************************************************** */
 /*								    */
@@ -136,7 +128,11 @@ int _rl_complete_mark_directories = 1;
 int _rl_print_completions_horizontally;
 
 /* Non-zero means that case is not significant in filename completion. */
+#if defined (__MSDOS__) && !defined (__DJGPP__)
+int _rl_completion_case_fold = 1;
+#else
 int _rl_completion_case_fold;
+#endif
 
 /* Global variables available to applications using readline. */
 
@@ -417,6 +413,10 @@ printable_part (pathname)
   char *temp;
 
   temp = rl_filename_completion_desired ? strrchr (pathname, '/') : (char *)NULL;
+#if defined (__MSDOS__)
+  if (rl_filename_completion_desired && temp == 0 && isalpha (pathname[0]) && pathname[1] == ':')
+    temp = pathname + 1;
+#endif
   return (temp ? ++temp : pathname);
 }
 
@@ -477,7 +477,12 @@ print_filename (to_print, full_pathname)
 	  c = to_print[-1];
 	  to_print[-1] = '\0';
 
-	  s = tilde_expand (full_pathname);
+	  /* If setting the last slash in full_pathname to a NUL results in
+	     full_pathname being the empty string, we are trying to complete
+	     files in the root directory.  If we pass a null string to the
+	     bash directory completion hook, for example, it will expand it
+	     to the current directory.  We just want the `/'. */
+	  s = tilde_expand (full_pathname && *full_pathname ? full_pathname : "/");
 	  if (rl_directory_completion_hook)
 	    (*rl_directory_completion_hook) (&s);
 
@@ -627,25 +632,31 @@ find_completion_word (fp, dp)
   /* If there is an application-specific function to say whether or not
      a character is quoted and we found a quote character, let that
      function decide whether or not a character is a word break, even
-     if it is found in rl_completer_word_break_characters. */
-  if (rl_char_is_quoted_p)
-    isbrk = (found_quote == 0 ||
- 		(*rl_char_is_quoted_p) (rl_line_buffer, rl_point) == 0) &&
-	      strchr (rl_completer_word_break_characters, scan) != 0;
-  else
-    isbrk = strchr (rl_completer_word_break_characters, scan) != 0;
-
-  if (isbrk)
+     if it is found in rl_completer_word_break_characters.  Don't bother
+     if we're at the end of the line, though. */
+  if (scan)
     {
-      /* If the character that caused the word break was a quoting
-	 character, then remember it as the delimiter. */
-      if (rl_basic_quote_characters && strchr (rl_basic_quote_characters, scan) && (end - rl_point) > 1)
-	delimiter = scan;
+      if (rl_char_is_quoted_p)
+	isbrk = (found_quote == 0 ||
+		(*rl_char_is_quoted_p) (rl_line_buffer, rl_point) == 0) &&
+		strchr (rl_completer_word_break_characters, scan) != 0;
+      else
+	isbrk = strchr (rl_completer_word_break_characters, scan) != 0;
 
-      /* If the character isn't needed to determine something special
-	 about what kind of completion to perform, then advance past it. */
-      if (rl_special_prefixes == 0 || strchr (rl_special_prefixes, scan) == 0)
-	rl_point++;
+      if (isbrk)
+	{
+	  /* If the character that caused the word break was a quoting
+	     character, then remember it as the delimiter. */
+	  if (rl_basic_quote_characters &&
+	      strchr (rl_basic_quote_characters, scan) &&
+	      (end - rl_point) > 1)
+	    delimiter = scan;
+
+	  /* If the character isn't needed to determine something special
+	     about what kind of completion to perform, then advance past it. */
+	  if (rl_special_prefixes == 0 || strchr (rl_special_prefixes, scan) == 0)
+	    rl_point++;
+	}
     }
 
   if (fp)
@@ -715,7 +726,7 @@ remove_duplicate_matches (matches)
   /* Sort the array without matches[0], since we need it to
      stay in place no matter what. */
   if (i)
-    qsort (matches+1, i-1, sizeof (char *), _rl_qsort_string_compare);
+    qsort (matches+1, i-1, sizeof (char *), (QSFUNC *)_rl_qsort_string_compare);
 
   /* Remember the lowest common denominator for it may be unique. */
   lowest_common = savestring (matches[0]);
@@ -908,7 +919,7 @@ rl_display_match_list (matches, len, max)
 
   /* Sort the items if they are not already sorted. */
   if (rl_ignore_completion_duplicates == 0)
-    qsort (matches + 1, len, sizeof (char *), _rl_qsort_string_compare);
+    qsort (matches + 1, len, sizeof (char *), (QSFUNC *)_rl_qsort_string_compare);
 
   crlf ();
 
@@ -1407,9 +1418,9 @@ username_completion_function (text, state)
      char *text;
      int state;
 {
-#if defined (__GO32__) || defined (__WIN32__) || defined (__OPENNT)
+#if defined (__WIN32__) || defined (__OPENNT)
   return (char *)NULL;
-#else /* !__GO32__ */
+#else /* !__WIN32__ && !__OPENNT) */
   static char *username = (char *)NULL;
   static struct passwd *entry;
   static int namelen, first_char, first_char_loc;
@@ -1452,7 +1463,7 @@ username_completion_function (text, state)
 
       return (value);
     }
-#endif /* !__GO32__ */
+#endif /* !__WIN32__ && !__OPENNT */
 }
 
 /* Okay, now we write the entry_function for filename completion.  In the
@@ -1494,11 +1505,25 @@ filename_completion_function (text, state)
 
       temp = strrchr (dirname, '/');
 
+#if defined (__MSDOS__)
+      /* special hack for //X/... */
+      if (dirname[0] == '/' && dirname[1] == '/' && isalpha (dirname[2]) && dirname[3] == '/')
+        temp = strrchr (dirname + 3, '/');
+#endif
+
       if (temp)
 	{
 	  strcpy (filename, ++temp);
 	  *temp = '\0';
 	}
+#if defined (__MSDOS__)
+      /* searches from current directory on the drive */
+      else if (isalpha (dirname[0]) && dirname[1] == ':')
+        {
+          strcpy (filename, dirname + 2);
+          dirname[2] = '\0';
+        }
+#endif
       else
 	{
 	  dirname[0] = '.';
@@ -1660,11 +1685,7 @@ rl_menu_complete (count, ignore)
       /* Clean up from previous call, if any. */
       FREE (orig_text);
       if (matches)
-	{
-	  for (match_list_index = 0; matches[match_list_index]; match_list_index++)
-	    free (matches[match_list_index]);
-	  free (matches);
-	}
+	free_match_list (matches);
 
       match_list_index = match_list_size = 0;
       matches = (char **)NULL;

@@ -6,7 +6,7 @@
 
    The Library is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 1, or (at your option)
+   the Free Software Foundation; either version 2, or (at your option)
    any later version.
 
    The Library is distributed in the hope that it will be useful, but
@@ -17,7 +17,7 @@
    The GNU General Public License is often shipped with GNU software, and
    is generally kept in a file called COPYING or LICENSE.  If you do not
    have a copy of the license, write to the Free Software Foundation,
-   675 Mass Ave, Cambridge, MA 02139, USA. */
+   59 Temple Place, Suite 330, Boston, MA 02111 USA. */
 
 #ifndef _HISTORY_H_
 #define _HISTORY_H_
@@ -119,7 +119,7 @@ extern int where_history __P((void));
   
 /* Return the history entry at the current position, as determined by
    history_offset.  If there is no entry there, return a NULL pointer. */
-HIST_ENTRY *current_history __P((void));
+extern HIST_ENTRY *current_history __P((void));
 
 /* Return the history entry which is logically at OFFSET in the history
    array.  OFFSET is relative to history_base. */
@@ -132,7 +132,7 @@ extern int history_total_bytes __P((void));
 /* Moving around the history list. */
 
 /* Set the position in the history list to POS. */
-int history_set_pos __P((int));
+extern int history_set_pos __P((int));
 
 /* Back up history_offset to the previous history entry, and return
    a pointer to that entry.  If there is no previous entry, return
@@ -187,7 +187,7 @@ extern int write_history __P((char *));
 
 /* Append NELEMENT entries to FILENAME.  The entries appended are from
    the end of the list minus NELEMENTs up to the end of the list. */
-int append_history __P((int, char *));
+extern int append_history __P((int, char *));
 
 /* Truncate the history file, leaving only the last NLINES lines. */
 extern int history_truncate_file __P((char *, int));

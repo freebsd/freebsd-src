@@ -4,20 +4,20 @@
 /*								    */
 /* **************************************************************** */
 
-/*
- * Remove the next line if you're compiling this against an installed
- * libreadline.a
- */
-#define READLINE_LIBRARY
-
 #if defined (HAVE_CONFIG_H)
 #include <config.h>
 #endif
 
 #include <stdio.h>
 #include <sys/types.h>
-#include "readline.h"
-#include "history.h"
+
+#ifdef READLINE_LIBRARY
+#  include "readline.h"
+#  include "history.h"
+#else
+#  include <readline/readline.h>
+#  include <readline/history.h>
+#endif
 
 extern HIST_ENTRY **history_list ();
 
