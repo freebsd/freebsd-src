@@ -110,7 +110,7 @@ static struct vnodeopv_entry_desc ext2_vnodeop_entries[] = {
 	{ &vop_readlink_desc, (vop_t *)ufs_readlink },	/* readlink */
 	{ &vop_abortop_desc, (vop_t *)ufs_abortop },	/* abortop */
 	{ &vop_inactive_desc, (vop_t *)ext2_inactive },	/* inactive */
-	{ &vop_reclaim_desc, (vop_t *)ffs_reclaim },	/* reclaim */
+	{ &vop_reclaim_desc, (vop_t *)ufs_reclaim },	/* reclaim */
 	{ &vop_lock_desc, (vop_t *)ufs_lock },		/* lock */
 	{ &vop_unlock_desc, (vop_t *)ufs_unlock },	/* unlock */
 	{ &vop_bmap_desc, (vop_t *)ufs_bmap },		/* bmap */
@@ -160,7 +160,7 @@ static struct vnodeopv_entry_desc ext2_specop_entries[] = {
 	{ &vop_readlink_desc, (vop_t *)spec_readlink },	/* readlink */
 	{ &vop_abortop_desc, (vop_t *)spec_abortop },	/* abortop */
 	{ &vop_inactive_desc, (vop_t *)ext2_inactive },	/* inactive */
-	{ &vop_reclaim_desc, (vop_t *)ffs_reclaim },	/* reclaim */
+	{ &vop_reclaim_desc, (vop_t *)ufs_reclaim },	/* reclaim */
 	{ &vop_lock_desc, (vop_t *)ufs_lock },		/* lock */
 	{ &vop_unlock_desc, (vop_t *)ufs_unlock },	/* unlock */
 	{ &vop_bmap_desc, (vop_t *)spec_bmap },		/* bmap */
@@ -210,7 +210,7 @@ static struct vnodeopv_entry_desc ext2_fifoop_entries[] = {
 	{ &vop_readlink_desc, (vop_t *)fifo_readlink },	/* readlink */
 	{ &vop_abortop_desc, (vop_t *)fifo_abortop },	/* abortop */
 	{ &vop_inactive_desc, (vop_t *)ext2_inactive },	/* inactive */
-	{ &vop_reclaim_desc, (vop_t *)ffs_reclaim },	/* reclaim */
+	{ &vop_reclaim_desc, (vop_t *)ufs_reclaim },	/* reclaim */
 	{ &vop_lock_desc, (vop_t *)ufs_lock },		/* lock */
 	{ &vop_unlock_desc, (vop_t *)ufs_unlock },	/* unlock */
 	{ &vop_bmap_desc, (vop_t *)fifo_bmap },		/* bmap */
