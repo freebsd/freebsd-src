@@ -170,7 +170,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 	 * the thread (recursion here might be bad).
 	 */
 	mtx_lock_spin(&sched_lock);
-	if (p->p_flag & P_THREADED || p->p_numthreads > 1) {
+	if (p->p_flag & P_SA || p->p_numthreads > 1) {
 		/*
 		 * Just don't bother if we are exiting
 		 * and not the exiting thread or thread was marked as
@@ -517,7 +517,7 @@ mi_switch(void)
 	CTR3(KTR_PROC, "mi_switch: old thread %p (pid %d, %s)", td, p->p_pid,
 	    p->p_comm);
 	sched_nest = sched_lock.mtx_recurse;
-	if (td->td_proc->p_flag & P_THREADED)
+	if (td->td_proc->p_flag & P_SA)
 		thread_switchout(td);
 	sched_switchout(td);
 

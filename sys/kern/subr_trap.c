@@ -109,7 +109,7 @@ userret(td, frame, oticks)
 	/*
 	 * Do special thread processing, e.g. upcall tweaking and such.
 	 */
-	if (p->p_flag & P_THREADED) {
+	if (p->p_flag & P_SA) {
 		thread_userret(td, frame);
 	}
 
@@ -254,7 +254,7 @@ ast(struct trapframe *framep)
 		}
 		mtx_unlock(&p->p_sigacts->ps_mtx);
 		PROC_UNLOCK(p);
-		if (p->p_flag & P_THREADED && sigs) {
+		if (p->p_flag & P_SA && sigs) {
 			struct kse_upcall *ku = td->td_upcall;
 			if ((void *)TRAPF_PC(framep) != ku->ku_func) {
 				mtx_lock_spin(&sched_lock);

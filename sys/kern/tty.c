@@ -2419,7 +2419,7 @@ ttyinfo(struct tty *tp)
 
 			td = FIRST_THREAD_IN_PROC(pick);
 			sprefix = "";
-			if (pick->p_flag & P_THREADED) {
+			if (pick->p_flag & P_SA) {
 				stmp = "KSE" ;  /* XXXKSE */
 			} else {
 				if (td) {
