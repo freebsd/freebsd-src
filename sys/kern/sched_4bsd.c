@@ -213,7 +213,7 @@ SYSCTL_PROC(_kern_sched, OID_AUTO, quantum, CTLTYPE_INT | CTLFLAG_RW,
 /* Enable forwarding of wakeups to all other cpus */
 SYSCTL_NODE(_kern_sched, OID_AUTO, ipiwakeup, CTLFLAG_RD, NULL, "Kernel SMP");
 
-static int forward_wakeup_enabled = 0;
+static int forward_wakeup_enabled = 1;
 SYSCTL_INT(_kern_sched_ipiwakeup, OID_AUTO, enabled, CTLFLAG_RW,
 	   &forward_wakeup_enabled, 0,
 	   "Forwarding of wakeup to idle CPUs");
@@ -228,7 +228,7 @@ SYSCTL_INT(_kern_sched_ipiwakeup, OID_AUTO, delivered, CTLFLAG_RD,
 	   &forward_wakeups_delivered, 0,
 	   "Completed Forwarding of wakeup to idle CPUs");
 
-static int forward_wakeup_use_mask = 0;
+static int forward_wakeup_use_mask = 1;
 SYSCTL_INT(_kern_sched_ipiwakeup, OID_AUTO, usemask, CTLFLAG_RW,
 	   &forward_wakeup_use_mask, 0,
 	   "Use the mask of idle cpus");
