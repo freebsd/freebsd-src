@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.network,v 1.24 1998/05/05 21:14:27 andreas Exp $
+#	$Id: rc.network,v 1.25 1998/05/06 17:36:16 andreas Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -65,8 +65,7 @@ network_pass1() {
     fi
 
     if [ $firewall_in_kernel = 0 -a "x$firewall_enable"  = "xYES" ] ; then
-	modload /lkm/ipfw_mod.o
-	if [ $? = 0 ]; then
+	if modload /lkm/ipfw_mod.o; then
 		firewall_in_kernel=1		# module loaded successfully
 		echo "Kernel firewall module loaded."
 	else
@@ -127,28 +126,34 @@ network_pass1() {
 	    sysctl -w net.inet.ip.accept_sourceroute=1 >/dev/null 2>&1
     fi
 
-    if [ "X$router_enable" = X"YES" ]; then
-	    echo -n " ${router}";	${router} ${router_flags}
-    fi
-    
     if [ "X$ipxgateway_enable" = X"YES" ]; then
 	    echo -n ' IPX gateway=YES'
 	    sysctl -w net.ipx.ipx.ipxforwarding=1 >/dev/null 2>&1
-    fi
-    
-    if [ "X$ipxrouted_enable" = X"YES" ]; then
-	    echo -n ' IPXrouted: '
-	    IPXrouted ${ipxrouted_flags} > /dev/null 2>&1
     fi
     
     if [ "X$arpproxy_all" = X"YES" ]; then
 	    echo -n ' enabling ARP_PROXY_ALL: '
 	    sysctl -w net.link.ether.inet.proxyall=1 2>&1
     fi
+    echo '.'
+
+    echo -n 'routing daemons:'
+    if [ "X$router_enable" = X"YES" ]; then
+	    echo -n " ${router}";	${router} ${router_flags}
+    fi
+    
+    if [ "X$ipxrouted_enable" = X"YES" ]; then
+	    echo -n ' IPXrouted'
+	    IPXrouted ${ipxrouted_flags} > /dev/null 2>&1
+    fi
+    
+    if [ "X${mrouted_enable}" = X"YES" ]; then
+	    echo -n ' mrouted'; mrouted ${mrouted_flags}
+    fi
+
     if [ "X$rarpd_enable" = X"YES" ]; then
 	    echo -n ' rarpd';     rarpd ${rarpd_flags}
     fi
-
     echo '.'
     network_pass1_done=YES	# Let future generations know we made it.
 }
@@ -220,7 +225,6 @@ network_pass3() {
 	    fi
 	    mountd ${mountd_flags}
 	    if [ "X${nfs_reserved_port_only}" = X"YES" ]; then
-		    echo -n ' nfsprivport=YES'
 		    sysctl -w vfs.nfs.nfs_privport=1 >/dev/null 2>&1
 	    fi
 	    echo -n ' nfsd';		nfsd ${nfs_server_flags}
@@ -264,11 +268,6 @@ network_pass3() {
 	    unset stash_flag
     fi
     
-    # IP multicast routing daemon
-    if [ "X${mrouted_enable}" = X"YES" ]; then
-	    echo -n ' mrouted'; mrouted ${mrouted_flags}
-    fi
-
     # Network Address Translation daemon
     if [ "X${natd_enable}" = X"YES" -a "X${natd_interface}" != X"" ]; then
 	    if [ -a "X${firewall_enable}" = X"YES" ]; then
