@@ -62,6 +62,13 @@ instead of the default
 Extract the name list from the specified system instead of the default
 .Pa /kernel .
 .El
+.Sh FILES
+.Bl -tag -width /var/run/dmesg.boot -compact
+.It Pa /var/run/dmesg.boot
+usually a snapshot of the buffer contents
+taken soon after filesystems are mounted
+at startup time
+.El
 .Sh SEE ALSO
 .Xr syslogd 8
 .Sh FILES
