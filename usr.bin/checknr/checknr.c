@@ -258,8 +258,10 @@ main(int argc, char **argv)
 			f = fopen(cfilename, "r");
 			if (f == NULL)
 				perror(cfilename);
-			else
+			else {
 				process(f);
+				fclose(f);
+			}
 		}
 	} else {
 		cfilename = "stdin";
