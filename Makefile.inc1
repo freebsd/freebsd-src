@@ -114,7 +114,7 @@ OBJTREE=	${MAKEOBJDIRPREFIX}
 OBJTREE=	${MAKEOBJDIRPREFIX}/${MACHINE_ARCH}
 .endif
 WORLDTMP=	${OBJTREE}${.CURDIR}/${BUILD_ARCH}
-# /usr/games added for fortune which depend on strfile and caesar.
+# /usr/games added for fortune which depend on strfile
 STRICTTMPPATH=	${WORLDTMP}/usr/sbin:${WORLDTMP}/usr/bin:${WORLDTMP}/usr/games
 TMPPATH=	${STRICTTMPPATH}:${PATH}
 
@@ -385,11 +385,11 @@ installmost:
 # bootstrap-tools: Build tools needed for compatibility
 #
 .if exists(${.CURDIR}/games) && !defined(NOGAMES)
-_games_tools=	games/caesar games/fortune/strfile
+_strfile=	games/fortune/strfile
 .endif
 
 bootstrap-tools:
-.for _tool in ${_games_tools} usr.bin/yacc usr.bin/colldef gnu/usr.bin/bison
+.for _tool in ${_strfile} usr.bin/yacc usr.bin/colldef gnu/usr.bin/bison
 	cd ${.CURDIR}/${_tool}; \
 		${MAKE} obj; \
 		${MAKE} depend; \
