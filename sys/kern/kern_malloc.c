@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.23 1996/05/18 22:33:13 dyson Exp $
+ * $Id: kern_malloc.c,v 1.24 1996/08/04 20:08:48 phk Exp $
  */
 
 #include <sys/param.h>
@@ -199,13 +199,6 @@ malloc(size, type, flags)
 	freep = (struct freelist *)va;
 	savedtype = (unsigned)freep->type < M_LAST ?
 		memname[freep->type] : "???";
-	if (kbp->kb_next &&
-	    !kernacc(kbp->kb_next, sizeof(struct freelist), 0)) {
-		printf("%s of object %p size %ld %s %s (invalid addr %p)\n",
-			"Data modified on freelist: word 2.5", va, size,
-			"previous type", savedtype, kbp->kb_next);
-		kbp->kb_next = NULL;
-	}
 #if BYTE_ORDER == BIG_ENDIAN
 	freep->type = WEIRD_ADDR >> 16;
 #endif
