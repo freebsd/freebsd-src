@@ -169,6 +169,7 @@ SUBDIR+=syscons
 SUBDIR+=3dfx \
 	agp \
 	aic \
+	amd \
 	aout \
 	apm \
 	ar \
