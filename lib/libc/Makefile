@@ -10,8 +10,8 @@
 # system call stubs.
 LIB=c
 SHLIB_MAJOR= 5
-AINC=	-I${.CURDIR}/${MACHINE_ARCH}
-CFLAGS+=-I${.CURDIR}/include -I${.CURDIR}/../../include ${AINC}
+CFLAGS+=-I${.CURDIR}/include -I${.CURDIR}/../../include
+CFLAGS+=-I${.CURDIR}/${MACHINE_ARCH}
 CLEANFILES+=tags
 INSTALL_PIC_ARCHIVE=	yes
 PRECIOUSLIB=	yes
