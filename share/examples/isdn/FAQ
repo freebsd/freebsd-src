@@ -3,7 +3,7 @@
                    ISDN4BSD Frequently Asked Questions
                    ===================================
 
-                last edit-date: [Mon Oct  9 17:46:13 2000]
+                last edit-date: [Wed Nov  1 15:06:22 2000]
 
  $FreeBSD$
 
@@ -40,6 +40,7 @@ Contents:
 	26. NetBSD: i see isic0 while booting but I cannot access my Fritz!Card
 	27. i4b_pci_attach: pci_map_port 1 failed! What does this mean ?
 	28. What is: i4b-L2 i4b_rxd_ack: ((N(R)-1)=35) != (UA=36) !!!
+	29. Why does isdnd take up 95% CPU time ?
 
 
 1. How do I get started with synchronous PPP (sPPP) ?
@@ -1046,4 +1047,32 @@ From: Joost Mulders <dhcp@j-mulders.demon.nl>
 A layer 2 error occured. These types of errors are automatically
 corrected by the layer 2 protocol.
 
+
+29. Why does isdnd take up 95% CPU time ?
+================================================================================
+
+Q: i just set up my isdn w/ user ppp, it works nice, but my isdn daemon takes
+   up 95% of my CPU time.
+
+   output of "top":
+   --snip--
+   Mem: 42M Active, 4616K Inact, 11M Wired, 2896K Cache, 14M Buf, 408K Free
+   Swap: 132M Total, 5128K Used, 127M Free, 3% Inuse
+
+     PID USERNAME PRI NICE  SIZE    RES STATE    TIME   WCPU    CPU COMMAND
+      63 root      58   0  1372K   752K RUN     38:05 93.75% 93.75% isdnd
+     207 gboehm     2   0 25196K 22044K select   1:15  2.20%  2.20% XF86_Mach64
+   --/snip--
+
+A: i just found out what i did wrong ...
+   i forgot to set these both lines in my /etc/rc.conf:
+
+   isdn_fsdev="NO"
+   isdn_flags=""
+
+   had to do that if i want to run isdnd as an daemon service, 'cause the 
+   defaults in /etc/defaults/rc.conf are:
+
+   isdn_fsdev="/dev/ttyv4"         # Output device for fullscreen mode (or NO for daemon mode).
+   isdn_flags="-dn -d0x1f9"        # Flags for isdnd
 
