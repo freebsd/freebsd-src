@@ -560,7 +560,7 @@ printcpuinfo(void)
 			"\012APIC"	/* SMP local APIC */
 			"\013oldMTRR"
 			"\014SEP"
-			"\015MTRR"
+			"\015MTRR"	/* Memory Type Range Registers */
 			"\016PGE"	/* PG_G (global bit) support */
 			"\017MCA"
 			"\020CMOV"	/* CMOV instruction */
@@ -573,7 +573,7 @@ printcpuinfo(void)
 			"\027<b22>"
 			"\030MMX"	/* MMX instructions */
 			"\031FXSR"	/* FXSAVE/FXRSTOR */
-			"\032XMM"	/* Katami SIMD/MMX2 instructions */
+			"\032XMM"	/* Katmai SIMD/MMX2 instructions */
 			"\033<b26>"
 			"\034<b27>"
 			"\035<b28>"
@@ -955,34 +955,38 @@ print_AMD_info(u_int amd_maxregs)
 static void
 print_AMD_features(u_int *regs)
 {
+	/*
+	 * Values taken from AMD Processor Recognition
+	 * http://www.amd.com/products/cpg/athlon/techdocs/pdf/20734.pdf
+	 */
 	do_cpuid(0x80000001, regs);
 	printf("\n  AMD Features=0x%b", regs[3] &~ cpu_feature,
 		"\020"		/* in hex */
-		"\001FPU"
-		"\002VME"
-		"\003DE"
-		"\004PSE"
-		"\005TSC"
-		"\006MSR"
-		"\007<b6>"
-		"\010MCE"
-		"\011CX8"
-		"\012<b9>"
+		"\001FPU"	/* Integral FPU */
+		"\002VME"	/* Extended VM86 mode support */
+		"\003DE"	/* Debug extensions */
+		"\004PSE"	/* 4MByte page tables */
+		"\005TSC"	/* Timestamp counter */
+		"\006MSR"	/* Machine specific registers */
+		"\007PAE"	/* Physical address extension */
+		"\010MCE"	/* Machine Check support */
+		"\011CX8"	/* CMPEXCH8 instruction */
+		"\012APIC"	/* SMP local APIC */
 		"\013<b10>"
-		"\014SYSCALL"
-		"\015<b12>"
-		"\016PGE"
-		"\017<b14>"
-		"\020ICMOV"
-		"\021FCMOV"
-		"\022<b17>"
+		"\014SYSCALL"	/* SYSENTER/SYSEXIT instructions */
+		"\015MTRR"	/* Memory Type Range Registers */
+		"\016PGE"	/* PG_G (global bit) support */
+		"\017MCA"	/* Machine Check Architecture */
+		"\020ICMOV"	/* CMOV instruction */
+		"\021PAT"	/* Page attributes table */
+		"\022PGE36"	/* 36 bit address space support */
 		"\023<b18>"
 		"\024<b19>"
 		"\025<b20>"
 		"\026<b21>"
 		"\027AMIE"	/* AMD MMX Instruction Extensions */
 		"\030MMX"
-		"\031<b24>"
+		"\031FXSAVE"	/* FXSAVE/FXRSTOR */
 		"\032<b25>"
 		"\033<b26>"
 		"\034<b27>"
