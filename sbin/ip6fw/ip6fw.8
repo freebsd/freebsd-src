@@ -248,13 +248,13 @@ or higher.
 .El
 .Pp
 If the kernel was compiled with
-.Dv IP6FIREWALL_VERBOSE ,
+.Dv IPV6FIREWALL_VERBOSE ,
 then when a packet matches a rule with the
 .Dq log
 keyword or a clear/resetlog is performed, a message will be logged to
 .Xr syslogd 8 ,
 or, if that fails, to the console.  If the kernel was compiled with the
-.Dv IP6FIREWALL_VERBOSE_LIMIT
+.Dv IPV6FIREWALL_VERBOSE_LIMIT
 option, then logging will cease after the number of packets
 specified by the option are received for that particular
 chain entry.
@@ -326,9 +326,9 @@ Service names (from
 may be used instead of numeric port values.
 A range may only be specified as the first value,
 and the length of the port list is limited to
-.Dv IP6_FW_MAX_PORTS
+.Dv IPV6_FW_MAX_PORTS
 (as defined in
-.Pa /usr/src/sys/netinet/ip6_fw.h )
+.Pa /usr/src/sys/netinet6/ip6_fw.h )
 ports.
 .Pp
 Fragmented packets which have a non-zero offset (i.e. not the first
