@@ -420,6 +420,15 @@
 
 #define XL_LAST_FRAG		0x80000000
 
+#define XL_MAXFRAGS		63
+#define XL_RX_LIST_CNT		128
+#define XL_TX_LIST_CNT		256
+#define XL_RX_LIST_SZ		XL_RX_LIST_CNT * sizeof(struct xl_list_onefrag)
+#define XL_TX_LIST_SZ		XL_TX_LIST_CNT * sizeof(struct xl_list)
+#define XL_MIN_FRAMELEN		60
+#define ETHER_ALIGN		2
+#define XL_INC(x, y)		(x) = (x + 1) % y
+
 /*
  * Boomerang/Cyclone TX/RX list structure.
  * For the TX lists, bits 0 to 12 of the status word indicate
@@ -434,7 +443,7 @@ struct xl_frag {
 struct xl_list {
 	u_int32_t		xl_next;	/* final entry has 0 nextptr */
 	u_int32_t		xl_status;
-	struct xl_frag		xl_frag[63];
+	struct xl_frag		xl_frag[XL_MAXFRAGS];
 };
 
 struct xl_list_onefrag {
@@ -443,17 +452,14 @@ struct xl_list_onefrag {
 	struct xl_frag		xl_frag;
 };
 
-#define XL_MAXFRAGS		63
-#define XL_RX_LIST_CNT		128
-#define XL_TX_LIST_CNT		256
-#define XL_MIN_FRAMELEN		60
-#define ETHER_ALIGN		2
-#define XL_INC(x, y)		(x) = (x + 1) % y
-
 struct xl_list_data {
-	struct xl_list_onefrag	xl_rx_list[XL_RX_LIST_CNT];
-	struct xl_list		xl_tx_list[XL_TX_LIST_CNT];
-	unsigned char		xl_pad[XL_MIN_FRAMELEN];
+	struct xl_list_onefrag	*xl_rx_list;
+	struct xl_list		*xl_tx_list;
+	u_int32_t		xl_rx_dmaaddr;
+	bus_dma_tag_t		xl_rx_tag;
+	bus_dmamap_t		xl_rx_dmamap;
+	bus_dma_tag_t		xl_tx_tag;
+	bus_dmamap_t		xl_tx_dmamap;
 };
 
 struct xl_chain {
@@ -462,12 +468,14 @@ struct xl_chain {
 	struct xl_chain		*xl_next;
 	struct xl_chain		*xl_prev;
 	u_int32_t		xl_phys;
+	bus_dmamap_t		xl_map;
 };
 
 struct xl_chain_onefrag {
 	struct xl_list_onefrag	*xl_ptr;
 	struct mbuf		*xl_mbuf;
 	struct xl_chain_onefrag	*xl_next;
+	bus_dmamap_t		xl_map;
 };
 
 struct xl_chain_data {
@@ -574,6 +582,7 @@ struct xl_softc {
 	struct resource		*xl_res;
 	device_t		xl_miibus;
 	struct xl_type		*xl_info;	/* 3Com adapter info */
+	bus_dma_tag_t		xl_mtag;
 	u_int8_t		xl_unit;	/* interface number */
 	u_int8_t		xl_type;
 	u_int32_t		xl_xcvr;
@@ -582,7 +591,7 @@ struct xl_softc {
 	u_int8_t		xl_stats_no_timeout;
 	u_int16_t		xl_tx_thresh;
 	int			xl_if_flags;
-	struct xl_list_data	*xl_ldata;
+	struct xl_list_data	xl_ldata;
 	struct xl_chain_data	xl_cdata;
 	struct callout_handle	xl_stat_ch;
 	int			xl_flags;
@@ -717,12 +726,6 @@ struct xl_stats {
 #define XL_PSTATE_D3		0x0003
 #define XL_PME_EN		0x0010
 #define XL_PME_STATUS		0x8000
-
-#ifdef __alpha__
-#undef vtophys
-#define vtophys(va)		alpha_XXX_dmamap((vm_offset_t)va)
-				
-#endif
 
 #ifndef IFM_10_FL
 #define IFM_10_FL	13		/* 10baseFL - Fiber */
