@@ -168,8 +168,12 @@ static int nexus_dmamap_load_uio(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
 static void nexus_dmamap_unload(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t);
 static void nexus_dmamap_sync(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
     bus_dmasync_op_t);
+static int nexus_dmamem_alloc_size(bus_dma_tag_t, bus_dma_tag_t, void **, int,
+    bus_dmamap_t *, u_long size);
 static int nexus_dmamem_alloc(bus_dma_tag_t, bus_dma_tag_t, void **, int,
     bus_dmamap_t *);
+static void nexus_dmamem_free_size(bus_dma_tag_t, bus_dma_tag_t, void *,
+    bus_dmamap_t, u_long size);
 static void nexus_dmamem_free(bus_dma_tag_t, bus_dma_tag_t, void *,
     bus_dmamap_t);
 
@@ -222,7 +226,9 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	newtag->dt_dmamap_load_uio = NULL;
 	newtag->dt_dmamap_unload = NULL;
 	newtag->dt_dmamap_sync = NULL;
+	newtag->dt_dmamem_alloc_size = NULL;
 	newtag->dt_dmamem_alloc = NULL;
+	newtag->dt_dmamem_free_size = NULL;
 	newtag->dt_dmamem_free = NULL;
 
 	/* Take into account any restrictions imposed by our parent tag */
@@ -604,12 +610,15 @@ sparc64_dmamem_free_map(bus_dma_tag_t dmat, bus_dmamap_t map)
  * by bus-specific DMA memory allocation functions.
  */
 static int
-nexus_dmamem_alloc(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, void **vaddr,
-    int flags, bus_dmamap_t *mapp)
+nexus_dmamem_alloc_size(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, void **vaddr,
+    int flags, bus_dmamap_t *mapp, bus_size_t size)
 {
 
-	if ((ddmat->dt_maxsize <= PAGE_SIZE)) {
-		*vaddr = malloc(ddmat->dt_maxsize, M_DEVBUF,
+	if (size > ddmat->dt_maxsize)
+		return (ENOMEM);
+
+	if ((size <= PAGE_SIZE)) {
+		*vaddr = malloc(size, M_DEVBUF,
 		    (flags & BUS_DMA_NOWAIT) ? M_NOWAIT : 0);
 	} else {
 		/*
@@ -617,7 +626,7 @@ nexus_dmamem_alloc(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, void **vaddr,
 		 * and handles multi-seg allocations.  Nobody is doing multi-seg
 		 * allocations yet though.
 		 */
-		*vaddr = contigmalloc(ddmat->dt_maxsize, M_DEVBUF,
+		*vaddr = contigmalloc(size, M_DEVBUF,
 		    (flags & BUS_DMA_NOWAIT) ? M_NOWAIT : 0,
 		    0ul, ddmat->dt_lowaddr,
 		    ddmat->dt_alignment ? ddmat->dt_alignment : 1UL,
@@ -630,20 +639,35 @@ nexus_dmamem_alloc(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, void **vaddr,
 	return (0);
 }
 
+static int
+nexus_dmamem_alloc(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, void **vaddr,
+    int flags, bus_dmamap_t *mapp)
+{
+	return (sparc64_dmamem_alloc_size(pdmat, ddmat, vaddr, flags, mapp,
+		ddmat->maxsize));
+}
+
 /*
  * Common function for freeing DMA-safe memory.  May be called by
  * bus-specific DMA memory free functions.
  */
 static void
-nexus_dmamem_free(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, void *vaddr,
-    bus_dmamap_t map)
+nexus_dmamem_free_size(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, void *vaddr,
+    bus_dmamap_t map, bus_size_t size)
 {
 
 	sparc64_dmamem_free_map(ddmat, map);
-	if ((ddmat->dt_maxsize <= PAGE_SIZE))
+	if ((size <= PAGE_SIZE))
 		free(vaddr, M_DEVBUF);
 	else
-		contigfree(vaddr, ddmat->dt_maxsize, M_DEVBUF);
+		contigfree(vaddr, size, M_DEVBUF);
+}
+
+static void
+nexus_dmamem_free(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, void *vaddr,
+    bus_dmamap_t map)
+{
+	sparc64_dmamem_free_size(pdmat, ddmat, vaddr, map, ddmat->dt_maxsize);
 }
 
 struct bus_dma_tag nexus_dmatag = {
@@ -669,7 +693,9 @@ struct bus_dma_tag nexus_dmatag = {
 	nexus_dmamap_unload,
 	nexus_dmamap_sync,
 
+	nexus_dmamem_alloc_size,
 	nexus_dmamem_alloc,
+	nexus_dmamem_free_size,
 	nexus_dmamem_free,
 };
 
