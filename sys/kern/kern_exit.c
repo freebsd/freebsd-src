@@ -620,7 +620,7 @@ loop:
 				mtx_lock_spin(&sched_lock);
 				curthread->td_ksegrp->kg_estcpu =
 				    ESTCPULIM(curthread->td_ksegrp->kg_estcpu +
-				    p->p_ksegrp.kg_estcpu);
+				    FIRST_KSEGRP_IN_PROC(p)->kg_estcpu);
 				mtx_unlock_spin(&sched_lock);
 			}
 
@@ -728,7 +728,7 @@ loop:
 					/* Free the KSE spare thread. */
 					if (ke->ke_tdspare != NULL) {
 						thread_free(ke->ke_tdspare);
-						p->p_kse.ke_tdspare = NULL;
+						ke->ke_tdspare = NULL;
 					}
 				}
 			}

@@ -87,9 +87,10 @@ getpriority(td, uap)
 	struct thread *td;
 	register struct getpriority_args *uap;
 {
-	register struct proc *p;
-	register int low = PRIO_MAX + 1;
+	struct proc *p;
+	int low = PRIO_MAX + 1;
 	int error = 0;
+	struct ksegrp *kg;
 
 	mtx_lock(&Giant);
 
@@ -101,8 +102,12 @@ getpriority(td, uap)
 			p = pfind(uap->who);
 			if (p == NULL)
 				break;
-			if (p_cansee(td, p) == 0)
-				low = p->p_ksegrp.kg_nice /* XXXKSE */ ;
+			if (p_cansee(td, p) == 0) {
+				FOREACH_KSEGRP_IN_PROC(p, kg) {
+					if (kg->kg_nice < low)
+						low = kg->kg_nice;
+				}
+			}
 			PROC_UNLOCK(p);
 		}
 		break;
@@ -124,8 +129,12 @@ getpriority(td, uap)
 		sx_sunlock(&proctree_lock);
 		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 			PROC_LOCK(p);
-			if (!p_cansee(td, p) && p->p_ksegrp.kg_nice /* XXXKSE */  < low)
-				low = p->p_ksegrp.kg_nice /* XXXKSE */ ;
+			if (!p_cansee(td, p)) {
+				FOREACH_KSEGRP_IN_PROC(p, kg) {
+					if (kg->kg_nice < low)
+						low = kg->kg_nice;
+				}
+			}
 			PROC_UNLOCK(p);
 		}
 		PGRP_UNLOCK(pg);
@@ -139,9 +148,12 @@ getpriority(td, uap)
 		LIST_FOREACH(p, &allproc, p_list) {
 			PROC_LOCK(p);
 			if (!p_cansee(td, p) &&
-			    p->p_ucred->cr_uid == uap->who &&
-			    p->p_ksegrp.kg_nice /* XXXKSE */  < low)
-				low = p->p_ksegrp.kg_nice /* XXXKSE */ ;
+			    p->p_ucred->cr_uid == uap->who) {
+				FOREACH_KSEGRP_IN_PROC(p, kg) {
+					if (kg->kg_nice < low)
+						low = kg->kg_nice;
+				}
+			}
 			PROC_UNLOCK(p);
 		}
 		sx_sunlock(&allproc_lock);
@@ -250,25 +262,41 @@ setpriority(td, uap)
 	return (error);
 }
 
+/* 
+ * Set "nice" for a process. Doesn't really understand threaded processes well
+ * but does try. Has the unfortunate side effect of making all the NICE
+ * values for a process's ksegrps the same.. This suggests that
+ * NICE valuse should be stored as a process nice and deltas for the ksegrps.
+ * (but not yet).
+ */
 static int
-donice(td, chgp, n)
-	struct thread *td;
-	register struct proc *chgp;
-	register int n;
+donice(struct thread *td, struct proc *p, int n)
 {
 	int	error;
+	int low = PRIO_MAX + 1;
+	struct ksegrp *kg;
 
-	PROC_LOCK_ASSERT(chgp, MA_OWNED);
-	if ((error = p_cansched(td, chgp)))
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	if ((error = p_cansched(td, p)))
 		return (error);
 	if (n > PRIO_MAX)
 		n = PRIO_MAX;
 	if (n < PRIO_MIN)
 		n = PRIO_MIN;
-	if (n < chgp->p_ksegrp.kg_nice /* XXXKSE */  && suser(td))
+	/* 
+	 * Only allow nicing if to more than the lowest nice.
+	 * e.g.  nices of 4,3,2  allow nice to 3 but not 1
+	 */
+	FOREACH_KSEGRP_IN_PROC(p, kg) {
+		if (kg->kg_nice < low)
+			low = kg->kg_nice;
+	}
+ 	if (n < low && suser(td))
 		return (EACCES);
-	chgp->p_ksegrp.kg_nice /* XXXKSE */  = n;
-	(void)resetpriority(&chgp->p_ksegrp); /* XXXKSE */
+	FOREACH_KSEGRP_IN_PROC(p, kg) {
+		kg->kg_nice = n;
+		(void)resetpriority(kg);
+	}
 	return (0);
 }
 
@@ -317,7 +345,7 @@ rtprio(td, uap)
 		if ((error = p_cansee(td, p)))
 			break;
 		mtx_lock_spin(&sched_lock);
-		pri_to_rtp(&p->p_ksegrp /* XXXKSE */ , &rtp);
+		pri_to_rtp(FIRST_KSEGRP_IN_PROC(p), &rtp);
 		mtx_unlock_spin(&sched_lock);
 		PROC_UNLOCK(p);
 		return (copyout(&rtp, uap->rtp, sizeof(struct rtprio)));
@@ -348,7 +376,7 @@ rtprio(td, uap)
 			}
 		}
 		mtx_lock_spin(&sched_lock);
-		error = rtp_to_pri(&rtp, &p->p_ksegrp);
+		error = rtp_to_pri(&rtp, FIRST_KSEGRP_IN_PROC(p));
 		mtx_unlock_spin(&sched_lock);
 		break;
 	default:
