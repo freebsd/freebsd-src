@@ -87,6 +87,8 @@ The bktr(4) driver has been updated to 2.17.  This fixes bugs in devfs
 when unloading and reloading, and syncs with some NetBSD
 changes.
 
+Default the PC Card Interface Controller(pcic) to polling mode(irq 0).
+
 
 1.2. SECURITY FIXES
 -------------------
