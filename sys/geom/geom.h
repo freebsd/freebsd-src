@@ -95,14 +95,16 @@ struct g_class {
 	LIST_ENTRY(g_class)	class;
 	LIST_HEAD(,g_geom)	geom;
 	struct g_event		*event;
+	u_int			protect;
 };
 
-#define G_CLASS_INITSTUFF { 0, 0 }, { 0 }, 0
+#define G_CLASS_INITSTUFF { 0, 0 }, { 0 }, 0, 0
 
 /*
  * The g_geom is an instance of a g_class.
  */
 struct g_geom {
+	u_int			protect;
 	char			*name;
 	struct g_class		*class;
 	LIST_ENTRY(g_geom)	geom;
@@ -139,6 +141,7 @@ struct g_bioq {
  */
 
 struct g_consumer {
+	u_int			protect;
 	struct g_geom		*geom;
 	LIST_ENTRY(g_consumer)	consumer;
 	struct g_provider	*provider;
@@ -154,6 +157,7 @@ struct g_consumer {
  * A g_provider is a "logical disk".
  */
 struct g_provider {
+	u_int			protect;
 	char			*name;
 	LIST_ENTRY(g_provider)	provider;
 	struct g_geom		*geom;
@@ -205,6 +209,7 @@ struct g_geom * g_insert_geom(char *class, struct g_consumer *cp);
 struct g_consumer * g_new_consumer(struct g_geom *gp);
 struct g_geom * g_new_geomf(struct g_class *mp, char *fmt, ...);
 struct g_provider * g_new_providerf(struct g_geom *gp, char *fmt, ...);
+void g_sanity(void *ptr);
 void g_spoil(struct g_provider *pp, struct g_consumer *cp);
 int g_std_access(struct g_provider *pp, int dr, int dw, int de);
 void g_std_done(struct bio *bp);
@@ -247,12 +252,16 @@ g_malloc(int size, int flags)
 	mtx_lock(&Giant);
 	p = malloc(size, M_GEOM, flags);
 	mtx_unlock(&Giant);
+	g_sanity(p);
+	/* printf("malloc(%d, %x) -> %p\n", size, flags, p); */
 	return (p);
 }
 
 static __inline void
 g_free(void *ptr)
 {
+	g_sanity(ptr);
+	/* printf("free(%p)\n", ptr); */
 	mtx_lock(&Giant);
 	free(ptr, M_GEOM);
 	mtx_unlock(&Giant);
@@ -260,8 +269,8 @@ g_free(void *ptr)
 
 extern struct sx topology_lock;
 #define g_topology_lock() do { mtx_assert(&Giant, MA_NOTOWNED); sx_xlock(&topology_lock); } while (0)
-#define g_topology_unlock() sx_xunlock(&topology_lock)
-#define g_topology_assert() sx_assert(&topology_lock, SX_XLOCKED)
+#define g_topology_unlock() do { g_sanity(NULL); sx_xunlock(&topology_lock); } while (0)
+#define g_topology_assert() do { g_sanity(NULL); sx_assert(&topology_lock, SX_XLOCKED); } while (0)
 
 #define DECLARE_GEOM_CLASS(class, name) 	\
 	static void				\
@@ -273,6 +282,6 @@ extern struct sx topology_lock;
 	}					\
 	SYSINIT(name, SI_SUB_PSEUDO, SI_ORDER_FIRST, name##init, NULL);
 
-#endif
+#endif /* _KERNEL */
 
 #endif /* _GEOM_GEOM_H_ */
