@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.177 1998/01/17 09:16:18 dyson Exp $
+ *	$Id: pmap.c,v 1.178 1998/01/22 17:29:30 dyson Exp $
  */
 
 /*
@@ -855,11 +855,11 @@ void
 pmap_new_proc(p)
 	struct proc *p;
 {
-	int i;
+	int i, updateneeded;
 	vm_object_t upobj;
 	vm_page_t m;
 	struct user *up;
-	unsigned *ptek;
+	unsigned *ptek, oldpte;
 
 	/*
 	 * allocate object for the upages
@@ -880,6 +880,7 @@ pmap_new_proc(p)
 
 	ptek = (unsigned *) vtopte((vm_offset_t) up);
 
+	updateneeded = 0;
 	for(i=0;i<UPAGES;i++) {
 		/*
 		 * Get a kernel stack page
@@ -895,15 +896,25 @@ pmap_new_proc(p)
 		m->wire_count++;
 		cnt.v_wire_count++;
 
+		oldpte = *(ptek + i);
 		/*
 		 * Enter the page into the kernel address space.
 		 */
 		*(ptek + i) = VM_PAGE_TO_PHYS(m) | PG_RW | PG_V | pgeflag;
+		if (oldpte) {
+			if ((oldpte & PG_G) || (cpu_class > CPUCLASS_386)) {
+				invlpg((vm_offset_t) up + i * PAGE_SIZE);
+			} else {
+				updateneeded = 1;
+			}
+		}
 
 		m->flags &= ~(PG_ZERO|PG_BUSY);
 		m->flags |= PG_MAPPED|PG_WRITEABLE;
 		m->valid = VM_PAGE_BITS_ALL;
 	}
+	if (updateneeded)
+		invltlb();
 }
 
 /*
@@ -917,18 +928,20 @@ pmap_dispose_proc(p)
 	int i;
 	vm_object_t upobj;
 	vm_page_t m;
-	unsigned *ptek;
-
+	unsigned *ptek, oldpte;
 
 	upobj = p->p_upages_obj;
 
 	ptek = (unsigned *) vtopte((vm_offset_t) p->p_addr);
 	for(i=0;i<UPAGES;i++) {
+
 		if ((m = vm_page_lookup(upobj, i)) == NULL)
 			panic("pmap_dispose_proc: upage already missing???");
+		m->flags |= PG_BUSY;
 
+		oldpte = *(ptek + i);
 		*(ptek + i) = 0;
-		if (cpu_class >= CPUCLASS_586)
+		if ((oldpte & PG_G) || (cpu_class > CPUCLASS_386))
 			invlpg((vm_offset_t) p->p_addr + i * PAGE_SIZE);
 		vm_page_unwire(m);
 		vm_page_free(m);
@@ -1062,6 +1075,7 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m) {
 				wakeup(m);
 			}
 
+			m->flags |= PG_BUSY;
 			vm_page_free_zero(m);
 			--cnt.v_wire_count;
 		}
@@ -1237,6 +1251,7 @@ pmap_release_free_page(pmap, p)
 	if (pmap->pm_ptphint && (pmap->pm_ptphint->pindex == p->pindex))
 		pmap->pm_ptphint = NULL;
 
+	p->flags |= PG_BUSY;
 	vm_page_free_zero(p);
 	splx(s);
 	return 1;
@@ -2335,7 +2350,6 @@ retry:
 			m[0] = p;
 
 			if (vm_pager_get_pages(object, m, 1, 0) != VM_PAGER_OK) {
-				PAGE_WAKEUP(p);
 				vm_page_free(p);
 				return;
 			}

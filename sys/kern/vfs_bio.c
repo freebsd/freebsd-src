@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.145 1998/01/24 02:01:20 dyson Exp $
+ * $Id: vfs_bio.c,v 1.146 1998/01/25 06:24:01 dyson Exp $
  */
 
 /*
@@ -796,8 +796,7 @@ vfs_vmio_release(bp)
 					else
 						vm_page_deactivate(m);
 				} else if (m->hold_count == 0) {
-					struct vnode *vp;
-					vp = bp->b_vp;
+					m->flags |= PG_BUSY;
 					vm_page_protect(m, VM_PROT_NONE);
 					vm_page_free(m);
 				}
@@ -2145,7 +2144,7 @@ vfs_page_set_valid(struct buf *bp, vm_ooffset_t off, int pageno, vm_page_t m)
 void
 vfs_busy_pages(struct buf * bp, int clear_modify)
 {
-	int i;
+	int i,s;
 
 	if (bp->b_flags & B_VMIO) {
 		struct vnode *vp = bp->b_vp;
@@ -2156,7 +2155,24 @@ vfs_busy_pages(struct buf * bp, int clear_modify)
 			foff = (vm_ooffset_t) DEV_BSIZE * bp->b_lblkno;
 		else
 			foff = (vm_ooffset_t) vp->v_mount->mnt_stat.f_iosize * bp->b_lblkno;
+
 		vfs_setdirty(bp);
+
+retry:
+		for (i = 0; i < bp->b_npages; i++) {
+			vm_page_t m = bp->b_pages[i];
+
+			if (m && (m->flags & PG_BUSY)) {
+				s = splvm();
+				while (m->flags & PG_BUSY) {
+					m->flags |= PG_WANTED;
+					tsleep(m, PVM, "vbpage", 0);
+				}
+				splx(s);
+				goto retry;
+			}
+		}
+
 		for (i = 0; i < bp->b_npages; i++, foff += PAGE_SIZE) {
 			vm_page_t m = bp->b_pages[i];
 
@@ -2164,6 +2180,7 @@ vfs_busy_pages(struct buf * bp, int clear_modify)
 				obj->paging_in_progress++;
 				m->busy++;
 			}
+
 			vm_page_protect(m, VM_PROT_NONE);
 			if (clear_modify)
 				vfs_page_set_valid(bp, foff, i, m);
@@ -2299,6 +2316,7 @@ vm_hold_free_pages(struct buf * bp, vm_offset_t from, vm_offset_t to)
 #endif
 			bp->b_pages[index] = NULL;
 			pmap_kremove(pg);
+			p->flags |= PG_BUSY;
 			vm_page_unwire(p);
 			vm_page_free(p);
 		}

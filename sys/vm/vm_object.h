@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.42 1998/01/17 09:16:56 dyson Exp $
+ * $Id: vm_object.h,v 1.43 1998/01/22 17:30:40 dyson Exp $
  */
 
 /*
@@ -97,6 +97,8 @@ struct vm_object {
 	u_short paging_in_progress;	/* Paging (in or out) so don't collapse or destroy */
 	u_short	behavior;		/* see below */
 	int resident_page_count;	/* number of resident pages */
+	int cache_count;			/* number of cached pages */
+	int	wire_count;			/* number of wired pages */
 	vm_ooffset_t paging_offset;	/* Offset into paging space */
 	struct vm_object *backing_object; /* object that I'm a shadow of */
 	vm_ooffset_t backing_object_offset;/* Offset in backing object */

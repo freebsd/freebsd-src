@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.81 1998/01/17 09:16:47 dyson Exp $
+ * $Id: swap_pager.c,v 1.82 1998/01/22 17:30:32 dyson Exp $
  */
 
 /*
@@ -849,7 +849,6 @@ static void
 swap_pager_freepage(m)
 	vm_page_t m;
 {
-	PAGE_WAKEUP(m);
 	vm_page_free(m);
 }
 
@@ -1489,8 +1488,7 @@ retryfree:
 				 * optimization, if a page has been read
 				 * during the pageout process, we activate it.
 				 */
-				if ((m[i]->queue != PQ_ACTIVE) &&
-				    ((m[i]->flags & (PG_WANTED|PG_REFERENCED)) ||
+				if (((m[i]->flags & (PG_WANTED|PG_REFERENCED)) ||
 				    pmap_ts_referenced(VM_PAGE_TO_PHYS(m[i])))) {
 					vm_page_activate(m[i]);
 				}
@@ -1597,8 +1595,7 @@ swap_pager_finish(spc)
 		for (i = 0; i < spc->spc_count; i++) {
 			pmap_clear_modify(VM_PAGE_TO_PHYS(spc->spc_m[i]));
 			spc->spc_m[i]->dirty = 0;
-			if ((spc->spc_m[i]->queue != PQ_ACTIVE) &&
-			    ((spc->spc_m[i]->flags & PG_WANTED) || pmap_ts_referenced(VM_PAGE_TO_PHYS(spc->spc_m[i]))))
+			if (((spc->spc_m[i]->flags & PG_WANTED) || pmap_ts_referenced(VM_PAGE_TO_PHYS(spc->spc_m[i]))))
 				vm_page_activate(spc->spc_m[i]);
 		}
 	}

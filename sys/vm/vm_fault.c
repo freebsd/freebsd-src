@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.75 1998/01/17 09:16:49 dyson Exp $
+ * $Id: vm_fault.c,v 1.76 1998/01/22 17:30:33 dyson Exp $
  */
 
 /*
@@ -146,16 +146,12 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type, int fault_flags)
  *	Recovery actions
  */
 #define	FREE_PAGE(m)	{				\
-	PAGE_WAKEUP(m);					\
 	vm_page_free(m);				\
 }
 
 #define	RELEASE_PAGE(m)	{				\
 	PAGE_WAKEUP(m);					\
-	if (m->queue != PQ_ACTIVE) { \
-		vm_page_activate(m);		\
-		m->act_count = 0; \
-	} \
+	vm_page_activate(m);		\
 }
 
 #define	UNLOCK_MAP	{				\
@@ -613,8 +609,7 @@ readrest:
 				 * get rid of the unnecessary page
 				 */
 				vm_page_protect(first_m, VM_PROT_NONE);
-				PAGE_WAKEUP(first_m);
-				vm_page_free(first_m);
+				FREE_PAGE(first_m);
 				/*
 				 * grab the page and put it into the process'es object
 				 */
@@ -630,10 +625,7 @@ readrest:
 			}
 
 			if (m) {
-				if (m->queue != PQ_ACTIVE) {
-					vm_page_activate(m);
-					m->act_count = 0;
-				}
+				vm_page_activate(m);
 
 			/*
 			 * We no longer need the old page or object.
@@ -757,8 +749,7 @@ readrest:
 		else
 			vm_page_unwire(m);
 	} else {
-		if (m->queue != PQ_ACTIVE)
-			vm_page_activate(m);
+		vm_page_activate(m);
 	}
 
 	if (curproc && (curproc->p_flag & P_INMEM) && curproc->p_stats) {

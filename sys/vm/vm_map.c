@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.107 1998/01/21 12:18:00 dyson Exp $
+ * $Id: vm_map.c,v 1.108 1998/01/22 17:30:37 dyson Exp $
  */
 
 /*
@@ -2678,7 +2678,8 @@ m_outretry:
 				while (m_out && (m_out->flags & PG_BUSY)) {
 					m_out->flags |= PG_WANTED;
 					tsleep(m_out, PVM, "pwtfrz", 0);
-					m_out = vm_page_lookup(robject, idx);
+					splx(s);
+					goto m_outretry;
 				}
 				splx(s);
 			}
@@ -2708,7 +2709,8 @@ m_inretry:
 					while (m_in && (m_in->busy || (m_in->flags & PG_BUSY))) {
 						m_in->flags |= PG_WANTED;
 						tsleep(m_in, PVM, "pwtfrz", 0);
-						m_in = vm_page_lookup(object, bo_pindex + idx);
+						splx(s);
+						goto m_inretry;
 					}
 					splx(s);
 					if (m_in == NULL) {
