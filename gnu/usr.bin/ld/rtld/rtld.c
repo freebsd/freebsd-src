@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.51 1997/12/05 02:06:37 jdp Exp $
+ *	$Id: rtld.c,v 1.52 1998/02/06 16:46:46 jdp Exp $
  */
 
 #include <sys/param.h>
@@ -1965,7 +1965,7 @@ __dlsym(fd, sym)
 {
 	if (fd == RTLD_NEXT) {
 		generror("RTLD_NEXT not supported by this version of"
-		    " /usr/lib/crt0.o");
+		    " crt0.o");
 		return NULL;
 	}
 	return __dlsym3(fd, sym, NULL);
