@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.42 1997/09/30 10:50:45 davidg Exp $
+ *	$Id: if_fxp.c,v 1.21.2.10 1997/09/30 12:43:26 davidg Exp $
  */
 
 /*
@@ -1052,7 +1052,6 @@ fxp_stats_update(arg)
 
 	ifp->if_opackets += sp->tx_good;
 	ifp->if_collisions += sp->tx_total_collisions;
-	ifp->if_ipackets += sp->rx_good;
 	if (sp->rx_good) {
 		ifp->if_ipackets += sp->rx_good;
 		sc->rx_idle_secs = 0;
