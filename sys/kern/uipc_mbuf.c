@@ -981,7 +981,7 @@ m_fragment(struct mbuf *m0, int how, int length)
 	if (m_final == NULL)
 		goto nospace;
 
-	if (m_dup_pkthdr(m_final, m0, how) == NULL)
+	if (m_dup_pkthdr(m_final, m0, how) == 0)
 		goto nospace;
 
 	m_new = m_final;
