@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)iso.h	8.2 (Berkeley) 1/23/94
+ *	@(#)iso.h	8.6 (Berkeley) 5/10/95
  */
 
 #define ISODCL(from, to) (to - from + 1)
@@ -94,37 +94,37 @@ struct iso_primary_descriptor {
 struct iso_directory_record {
 	char length			[ISODCL (1, 1)]; /* 711 */
 	char ext_attr_length		[ISODCL (2, 2)]; /* 711 */
-	unsigned char extent		[ISODCL (3, 10)]; /* 733 */
-	unsigned char size		[ISODCL (11, 18)]; /* 733 */
+	u_char extent			[ISODCL (3, 10)]; /* 733 */
+	u_char size			[ISODCL (11, 18)]; /* 733 */
 	char date			[ISODCL (19, 25)]; /* 7 by 711 */
 	char flags			[ISODCL (26, 26)];
 	char file_unit_size		[ISODCL (27, 27)]; /* 711 */
 	char interleave			[ISODCL (28, 28)]; /* 711 */
 	char volume_sequence_number	[ISODCL (29, 32)]; /* 723 */
 	char name_len			[ISODCL (33, 33)]; /* 711 */
-	char name			[0];
+	char name			[1];			/* XXX */
 };
 /* can't take sizeof(iso_directory_record), because of possible alignment
    of the last entry (34 instead of 33) */
 #define ISO_DIRECTORY_RECORD_SIZE	33
 
 struct iso_extended_attributes {
-	unsigned char owner		[ISODCL (1, 4)]; /* 723 */
-	unsigned char group		[ISODCL (5, 8)]; /* 723 */
-	unsigned char perm		[ISODCL (9, 10)]; /* 9.5.3 */
+	u_char owner			[ISODCL (1, 4)]; /* 723 */
+	u_char group			[ISODCL (5, 8)]; /* 723 */
+	u_char perm			[ISODCL (9, 10)]; /* 9.5.3 */
 	char ctime			[ISODCL (11, 27)]; /* 8.4.26.1 */
 	char mtime			[ISODCL (28, 44)]; /* 8.4.26.1 */
 	char xtime			[ISODCL (45, 61)]; /* 8.4.26.1 */
 	char ftime			[ISODCL (62, 78)]; /* 8.4.26.1 */
 	char recfmt			[ISODCL (79, 79)]; /* 711 */
 	char recattr			[ISODCL (80, 80)]; /* 711 */
-	unsigned char reclen		[ISODCL (81, 84)]; /* 723 */
+	u_char reclen			[ISODCL (81, 84)]; /* 723 */
 	char system_id			[ISODCL (85, 116)]; /* achars */
 	char system_use			[ISODCL (117, 180)];
 	char version			[ISODCL (181, 181)]; /* 711 */
 	char len_esc			[ISODCL (182, 182)]; /* 711 */
 	char reserved			[ISODCL (183, 246)];
-	unsigned char len_au		[ISODCL (247, 250)]; /* 723 */
+	u_char len_au			[ISODCL (247, 250)]; /* 723 */
 };
 
 /* CD-ROM Format type */
@@ -146,7 +146,6 @@ struct iso_mnt {
 	int im_bmask;
 	
 	int volume_space_size;
-	char im_fsmnt[50];
 	struct netexport im_export;
 	
 	char root[ISODCL (157, 190)];
@@ -160,10 +159,10 @@ struct iso_mnt {
 
 #define VFSTOISOFS(mp)	((struct iso_mnt *)((mp)->mnt_data))
 
-#define iso_blkoff(imp, loc) ((loc) & (imp)->im_bmask)
-#define iso_lblkno(imp, loc) ((loc) >> (imp)->im_bshift)
-#define iso_blksize(imp, ip, lbn) ((imp)->logical_block_size)
-#define iso_lblktosize(imp, blk) ((blk) << (imp)->im_bshift)
+#define blkoff(imp, loc)	((loc) & (imp)->im_bmask)
+#define lblktosize(imp, blk)	((blk) << (imp)->im_bshift)
+#define lblkno(imp, loc)	((loc) >> (imp)->im_bshift)
+#define blksize(imp, ip, lbn)	((imp)->logical_block_size)
 
 int cd9660_mount __P((struct mount *,
 	    char *, caddr_t, struct nameidata *, struct proc *));
@@ -177,78 +176,91 @@ int cd9660_vget __P((struct mount *, ino_t, struct vnode **));
 int cd9660_fhtovp __P((struct mount *, struct fid *, struct mbuf *,
 	    struct vnode **, int *, struct ucred **));
 int cd9660_vptofh __P((struct vnode *, struct fid *));
-int cd9660_init __P(());
+int cd9660_init __P((struct vfsconf *));
+#define cd9660_sysctl ((int (*) __P((int *, u_int, void *, size_t *, void *, \
+                                    size_t, struct proc *)))eopnotsupp)
 
-struct iso_node;
-int iso_blkatoff __P((struct iso_node *ip, long offset, struct buf **bpp)); 
-int iso_iget __P((struct iso_node *xp, ino_t ino, int relocated,
-		  struct iso_node **ipp, struct iso_directory_record *isodir));
-int iso_iput __P((struct iso_node *ip)); 
-int iso_ilock __P((struct iso_node *ip)); 
-int iso_iunlock __P((struct iso_node *ip)); 
 int cd9660_mountroot __P((void)); 
 
 extern int (**cd9660_vnodeop_p)();
+extern int (**cd9660_specop_p)();
+#ifdef FIFO
+extern int (**cd9660_fifoop_p)();
+#endif
 
-extern inline int
+static __inline int
 isonum_711(p)
-	unsigned char *p;
+	u_char *p;
 {
 	return *p;
 }
 
-extern inline int
+static __inline int
 isonum_712(p)
 	char *p;
 {
 	return *p;
 }
 
-extern inline int
-isonum_721(p)
-	unsigned char *p;
-{
-	return *p|((char)p[1] << 8);
-}
+#ifndef UNALIGNED_ACCESS
 
-extern inline int
-isonum_722(p)
-	unsigned char *p;
-{
-	return ((char)*p << 8)|p[1];
-}
-
-extern inline int
+static __inline int
 isonum_723(p)
-	unsigned char *p;
+	u_char *p;
 {
-	return isonum_721(p);
+	return *p|(p[1] << 8);
 }
 
-extern inline int
-isonum_731(p)
-	unsigned char *p;
+static __inline int
+isonum_733(p)
+	u_char *p;
 {
 	return *p|(p[1] << 8)|(p[2] << 16)|(p[3] << 24);
 }
 
-extern inline int
-isonum_732(p)
-	unsigned char *p;
+#else /* UNALIGNED_ACCESS */
+
+#if BYTE_ORDER == LITTLE_ENDIAN
+
+static __inline int
+isonum_723(p)
+	u_char *p
 {
-	return (*p << 24)|(p[1] << 16)|(p[2] << 8)|p[3];
+	return *(u_int16t *)p;
 }
 
-extern inline int
+static __inline int
 isonum_733(p)
-	unsigned char *p;
+	u_char *p;
 {
-	return isonum_731(p);
+	return *(u_int32t *)p;
 }
 
-int isofncmp __P((unsigned char *, int, unsigned char *, int));
-void isofntrans __P((unsigned char *, int, unsigned char *, unsigned short *,
-		     int, int));
+#endif
+
+#if BYTE_ORDER == BIG_ENDIAN
+
+static __inline int
+isonum_723(p)
+	u_char *p
+{
+	return *(u_int16t *)(p + 2);
+}
+
+static __inline int
+isonum_733(p)
+	u_char *p;
+{
+	return *(u_int32t *)(p + 4);
+}
+
+#endif
+
+#endif /* UNALIGNED_ACCESS */
+
+int isofncmp __P((u_char *, int, u_char *, int));
+void isofntrans __P((u_char *, int, u_char *, u_short *, int, int));
+ino_t isodirino __P((struct iso_directory_record *, struct iso_mnt *));
 
 /*
  * Associated files have a leading '='.

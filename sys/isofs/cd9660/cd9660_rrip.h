@@ -35,33 +35,27 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)cd9660_rrip.h	8.1 (Berkeley) 1/21/94
+ *	@(#)cd9660_rrip.h	8.2 (Berkeley) 12/5/94
  */
 
 typedef struct {
-	char 	      type		[ISODCL (  0,    1)];
-	unsigned char length		[ISODCL (  2,    2)]; /* 711 */
-	unsigned char version		[ISODCL (  3,    3)];
+	char   type			[ISODCL (  0,    1)];
+	u_char length			[ISODCL (  2,    2)]; /* 711 */
+	u_char version			[ISODCL (  3,    3)];
 } ISO_SUSP_HEADER;
 
 typedef struct {
 	ISO_SUSP_HEADER			h;
-	char mode_l			[ISODCL (  4,    7)]; /* 731 */
-	char mode_m			[ISODCL (  8,   11)]; /* 732 */
-	char links_l			[ISODCL ( 12,   15)]; /* 731 */
-	char links_m			[ISODCL ( 16,   19)]; /* 732 */
-	char uid_l			[ISODCL ( 20,   23)]; /* 731 */
-	char uid_m			[ISODCL ( 24,   27)]; /* 732 */
-	char gid_l			[ISODCL ( 28,   31)]; /* 731 */
-	char gid_m			[ISODCL ( 32,   35)]; /* 732 */
+	char mode			[ISODCL (  4,   11)]; /* 733 */
+	char links			[ISODCL ( 12,   19)]; /* 733 */
+	char uid			[ISODCL ( 20,   27)]; /* 733 */
+	char gid			[ISODCL ( 28,   35)]; /* 733 */
 } ISO_RRIP_ATTR;
 
 typedef struct {
 	ISO_SUSP_HEADER			h;
-	char dev_t_high_l		[ISODCL (  4,    7)]; /* 731 */
-	char dev_t_high_m		[ISODCL (  8,   11)]; /* 732 */
-	char dev_t_low_l		[ISODCL ( 12,   15)]; /* 731 */
-	char dev_t_low_m		[ISODCL ( 16,   19)]; /* 732 */
+	char dev_t_high			[ISODCL (  4,   11)]; /* 733 */
+	char dev_t_low			[ISODCL ( 12,   19)]; /* 733 */
 } ISO_RRIP_DEVICE;
 
 #define	ISO_SUSP_CFLAG_CONTINUE	0x01
@@ -74,7 +68,7 @@ typedef struct {
 typedef struct {
 	u_char cflag			[ISODCL (  1,    1)];
 	u_char clen			[ISODCL (  2,    2)];
-	u_char name			[0];
+	u_char name			[1];			/* XXX */
 } ISO_RRIP_SLINK_COMPONENT;
 #define	ISO_RRIP_SLSIZ	2
 
@@ -115,13 +109,13 @@ typedef struct {
 
 typedef struct {
 	ISO_SUSP_HEADER			h;
-	unsigned char flags		[ISODCL (  4,    4)];
-	unsigned char time		[ISODCL (  5,    5)];
+	u_char flags			[ISODCL (  4,    4)];
+	u_char time			[ISODCL (  5,    5)];
 } ISO_RRIP_TSTAMP;
 
 typedef struct {
 	ISO_SUSP_HEADER			h;
-	unsigned char flags		[ISODCL (  4,    4)];
+	u_char flags			[ISODCL (  4,    4)];
 } ISO_RRIP_IDFLAG;
 
 typedef struct {
