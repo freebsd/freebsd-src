@@ -1043,8 +1043,11 @@ printf("dvp %d:%d:%d\n", (int)mp, (int)dvp->v_flag & VROOT, (int)flags & ISDOTDO
 		fap = &fattr;
 		notfound = ncp_lookup(dvp, cnp->cn_namelen, cnp->cn_nameptr,
 			fap, p, cnp->cn_cred);
-		fid.f_parent = dnp->n_fid.f_id;
 		fid.f_id = fap->dirEntNum;
+		if (cnp->cn_namelen == 1 && cnp->cn_nameptr[0] == '.') {
+			fid.f_parent = dnp->n_fid.f_parent;
+		} else
+			fid.f_parent = dnp->n_fid.f_id;
 		NCPVNDEBUG("call to ncp_lookup returned=%d\n",notfound);
 	}
 	if (notfound && notfound < 0x80 )
