@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.15 1995/02/20 23:35:43 davidg Exp $
+ * $Id: vm_page.h,v 1.16 1995/03/01 23:30:01 davidg Exp $
  */
 
 /*
@@ -125,16 +125,13 @@ struct vm_page {
  */
 #define	PG_INACTIVE	0x0001		/* page is in inactive list (P) */
 #define	PG_ACTIVE	0x0002		/* page is in active list (P) */
-#define	PG_CLEAN	0x0008		/* page has not been modified */
 #define	PG_BUSY		0x0010		/* page is in transit (O) */
 #define	PG_WANTED	0x0020		/* someone is waiting for page (O) */
 #define	PG_TABLED	0x0040		/* page is in VP table (O) */
 #define	PG_COPYONWRITE	0x0080		/* must copy page before changing (O) */
 #define	PG_FICTITIOUS	0x0100		/* physical page doesn't exist (O) */
-#define	PG_WRITEABLE		0x0200		/* page is mapped writeable */
-#define PG_MAPPED		0x400		/* page is mapped */
-
-#define	PG_DIRTY	0x0800		/* client flag to set when dirty */
+#define	PG_WRITEABLE	0x0200		/* page is mapped writeable */
+#define PG_MAPPED	0x0400		/* page is mapped */
 #define PG_REFERENCED	0x1000		/* page has been referenced */
 #define	PG_CACHE	0x4000		/* On VMIO cache */
 #define	PG_FREE		0x8000		/* page is in free list */
