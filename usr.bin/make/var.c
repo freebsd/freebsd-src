@@ -217,10 +217,10 @@ VarCmp (v, name)
  *	Expand a variable name's embedded variables in the given context.
  *
  * Results:
- *	The string pointed to by `name' may change.
+ *	The contents of name, possibly expanded.
  *
  * Side Effects:
- *	None.
+ *	The caller must free the new contents or old contents of name.
  *-----------------------------------------------------------------------
  */
 static void
@@ -230,6 +230,8 @@ VarPossiblyExpand(name, ctxt)
 {
     if (strchr(*name, '$') != NULL)
         *name = Var_Subst(NULL, *name, ctxt, 0);
+    else
+        *name = estrdup(*name);
 }
 
 /*-
@@ -512,6 +514,7 @@ Var_Set (name, val, ctxt)
     if (ctxt == VAR_CMD) {
 	setenv(name, val, 1);
     }
+    free(name);
 }
 
 /*-
@@ -569,6 +572,7 @@ Var_Append (name, val, ctxt)
 	    Lst_AtFront(ctxt->context, (void *)v);
 	}
     }
+    free(name);
 }
 
 /*-
@@ -593,6 +597,7 @@ Var_Exists(name, ctxt)
 
     VarPossiblyExpand(&name, ctxt);
     v = VarFind(name, ctxt, FIND_CMD|FIND_GLOBAL|FIND_ENV);
+    free(name);
 
     if (v == (Var *)NULL) {
 	return(FALSE);
@@ -626,6 +631,7 @@ Var_Value (name, ctxt, frp)
 
     VarPossiblyExpand(&name, ctxt);
     v = VarFind (name, ctxt, FIND_ENV | FIND_GLOBAL | FIND_CMD);
+    free(name);
     *frp = NULL;
     if (v != (Var *) NULL) {
 	char *p = ((char *)Buf_GetAll(v->val, (int *)NULL));
