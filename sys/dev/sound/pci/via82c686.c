@@ -24,11 +24,6 @@
  * SUCH DAMAGE.
  */
 
-/*
- * Support for VT8233 added by Orion Hodson <oho@acm.org> and tested
- * by Russell Davies <rd@zip.com.au>.  
- */
-
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/ac97.h>
 
@@ -40,9 +35,7 @@
 
 SND_DECLARE_FILE("$FreeBSD$");
 
-#define VIA686A_PCI_ID 0x30581106
-#define VIA8233_PCI_ID 0x30591106
-
+#define VIA_PCI_ID 0x30581106
 #define	NSEGS		4	/* Number of segments in SGD table */
 
 #define SEGS_PER_CHAN	(NSEGS/2)
@@ -71,8 +64,7 @@ struct via_chinfo {
 	struct snd_dbuf *buffer;
 	struct via_dma_op *sgd_table;
 	int dir, blksz;
-
-	int rbase; /* base register for channel */
+	int base, count, mode, ctrl;
 };
 
 struct via_info {
@@ -107,6 +99,7 @@ static struct pcmchan_caps via_caps = {48000, 48000, via_fmt, 0};
 static u_int32_t
 via_rd(struct via_info *via, int regno, int size)
 {
+
 	switch (size) {
 	case 1:
 		return bus_space_read_1(via->st, via->sh, regno);
@@ -183,8 +176,7 @@ via_write_codec(kobj_t obj, void *addr, int reg, u_int32_t val)
 
 	if (via_waitready_codec(via)) return -1;
 
-	via_wr(via, VIA_CODEC_CTL, 
-	       VIA_CODEC_PRIVALID | VIA_CODEC_INDEX(reg) | val, 4);
+	via_wr(via, VIA_CODEC_CTL, VIA_CODEC_PRIVALID | VIA_CODEC_INDEX(reg) | val, 4);
 
 	return 0;
 }
@@ -245,8 +237,7 @@ via_buildsgdt(struct via_chinfo *ch)
 
 /* channel interface */
 static void *
-viachan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, 
-	     struct pcm_channel *c, int dir)
+viachan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c, int dir)
 {
 	struct via_info *via = devinfo;
 	struct via_chinfo *ch = (dir == PCMDIR_PLAY)? &via->pch : &via->rch;
@@ -257,9 +248,15 @@ viachan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 	ch->dir = dir;
 	ch->sgd_table = &via->sgd_table[(dir == PCMDIR_PLAY)? 0 : SEGS_PER_CHAN];
 	if (ch->dir == PCMDIR_PLAY) {
-		ch->rbase = VIA_PLAY_BASE;
+		ch->base = VIA_PLAY_DMAOPS_BASE;
+		ch->count = VIA_PLAY_DMAOPS_COUNT;
+		ch->ctrl = VIA_PLAY_CONTROL;
+		ch->mode = VIA_PLAY_MODE;
 	} else {
-		ch->rbase = VIA_REC_BASE;
+		ch->base = VIA_RECORD_DMAOPS_BASE;
+		ch->count = VIA_RECORD_DMAOPS_COUNT;
+		ch->ctrl = VIA_RECORD_CONTROL;
+		ch->mode = VIA_RECORD_MODE;
 	}
 
 	if (sndbuf_alloc(ch->buffer, via->parent_dmat, via->bufsz) == -1)
@@ -272,16 +269,19 @@ viachan_setformat(kobj_t obj, void *data, u_int32_t format)
 {
 	struct via_chinfo *ch = data;
 	struct via_info *via = ch->parent;
+	int mode, mode_set;
 
-	u_int32_t r = ch->rbase + VIA_RP_MODE;
-	u_int8_t  v = via_rd(via, r, 1);
-
-	v &= ~(VIA_RPMODE_STEREO | VIA_RPMODE_16BIT);
+	mode_set = 0;
 	if (format & AFMT_STEREO)
-		v |= VIA_RPMODE_STEREO;
+		mode_set |= VIA_RPMODE_STEREO;
 	if (format & AFMT_S16_LE)
-		v |= VIA_RPMODE_16BIT;
-	via_wr(via, r, v, 1);
+		mode_set |= VIA_RPMODE_16BIT;
+
+	DEB(printf("set format: dir = %d, format=%x\n", ch->dir, format));
+	mode = via_rd(via, ch->mode, 1);
+	mode &= ~(VIA_RPMODE_16BIT | VIA_RPMODE_STEREO);
+	mode |= mode_set;
+	via_wr(via, ch->mode, mode, 1);
 
 	return 0;
 }
@@ -325,20 +325,22 @@ viachan_trigger(kobj_t obj, void *data, int go)
 {
 	struct via_chinfo *ch = data;
 	struct via_info *via = ch->parent;
-	struct via_dma_op *ado = ch->sgd_table;
+	struct via_dma_op *ado;
 
-	switch(go) {
-	case PCMTRIG_START:
+	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
+		return 0;
+
+	ado = ch->sgd_table;
+	DEB(printf("ado located at va=%p pa=%x\n", ado, vtophys(ado)));
+
+	if (go == PCMTRIG_START) {
 		via_buildsgdt(ch);
-		via_wr(via, ch->rbase + VIA_RP_DMAOPS_BASE, vtophys(ado), 4);
-		via_wr(via, ch->rbase + VIA_RP_CONTROL, VIA_RPCTRL_START, 1);
-		break;
-	case PCMTRIG_STOP:
-	case PCMTRIG_ABORT:
-		via_wr(via, ch->rbase + VIA_RP_CONTROL, 
-		       VIA_RPCTRL_TERMINATE, 1);
-		break;
-	}
+		via_wr(via, ch->base, vtophys(ado), 4);
+		via_wr(via, ch->ctrl, VIA_RPCTRL_START, 1);
+	} else
+		via_wr(via, ch->ctrl, VIA_RPCTRL_TERMINATE, 1);
+
+	DEB(printf("viachan_trigger: go=%d\n", go));
 	return 0;
 }
 
@@ -351,11 +353,11 @@ viachan_getptr(kobj_t obj, void *data)
 	int ptr, base, base1, len, seg;
 
 	ado = ch->sgd_table;
-	base1 = via_rd(via, ch->rbase + VIA_RP_DMAOPS_BASE, 4);
-	len = via_rd(via, ch->rbase + VIA_RP_DMAOPS_COUNT, 4);
-	base = via_rd(via, ch->rbase + VIA_RP_DMAOPS_BASE, 4);
+	base1 = via_rd(via, ch->base, 4);
+	len = via_rd(via, ch->count, 4);
+	base = via_rd(via, ch->base, 4);
 	if (base != base1) 	/* Avoid race hazard */
-		len = via_rd(via, ch->rbase + VIA_RP_DMAOPS_COUNT, 4);
+		len = via_rd(via, ch->count, 4);
 
 	DEB(printf("viachan_getptr: len / base = %x / %x\n", len, base));
 
@@ -387,8 +389,6 @@ viachan_getcaps(kobj_t obj, void *data)
 	return (via->codec_caps & AC97_EXTCAP_VRA)? &via_vracaps : &via_caps;
 }
 
-/* ------------------------------------------------------------------------- */
-
 static kobj_method_t viachan_methods[] = {
     	KOBJMETHOD(channel_init,		viachan_init),
     	KOBJMETHOD(channel_setformat,		viachan_setformat),
@@ -401,114 +401,27 @@ static kobj_method_t viachan_methods[] = {
 };
 CHANNEL_DECLARE(viachan);
 
-/* ------------------------------------------------------------------------- */
-/* VT8233 Specific methods */
-
-static void*
-via8233chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
-		 struct pcm_channel *c, int dir)
-{
-	struct via_info *via = devinfo;
-	struct via_chinfo *ch = viachan_init(obj, devinfo, b, c, dir);
-
-	/* Fix dxs volume - only need to do once (hopefully) */
-	if (ch) {
-		via_wr(via, ch->rbase + VIA8233_RP_DXS_LVOL, 0, 1);
-		via_wr(via, ch->rbase + VIA8233_RP_DXS_RVOL, 0, 1);
-	}
-	return ch;
-}
-
-static int
-via8233chan_setspeed(kobj_t obj, void *data, u_int32_t speed)
-{
-	struct via_chinfo *ch = data;
-	struct via_info *via = ch->parent;
-
-	u_int32_t r = ch->rbase + VIA8233_RP_RATEFMT;
-	u_int32_t v = via_rd(via, r, 4) & ~VIA8233_RATEFMT_48K;
-
-	/* Careful to avoid overflow (divide by 16) */
-
-	v |= VIA8233_RATEFMT_48K * (speed / 16) / (48000 / 16);
-	via_wr(via, r, v, 4);
-	
-	/* Need to do ac97 thing like via686 */
-	return viachan_setspeed(obj, data, speed);
-}
-
-static int
-via8233chan_setformat(kobj_t obj, void *data, u_int32_t format)
-{
-	struct via_chinfo *ch = data;
-	struct via_info *via = ch->parent;
-
-	u_int32_t r = ch->rbase + VIA8233_RP_RATEFMT;
-	u_int32_t v = via_rd(via, r, 4);
-
-	v &= ~(VIA8233_RATEFMT_STEREO | VIA8233_RATEFMT_16BIT);
-	if (format & AFMT_STEREO)
-		v |= VIA8233_RATEFMT_STEREO;
-	if (format & AFMT_16BIT)  
-		v |= VIA8233_RATEFMT_16BIT;
-	via_wr(via, r, v, 4);
-
-	return 0;
-}
-
-static int
-via8233chan_trigger(kobj_t obj, void* data, int go)
-{
-	struct via_chinfo *ch = data;
-	struct via_info *via = ch->parent;
-	struct via_dma_op *ado = ch->sgd_table;
-
-	switch(go) {
-	case PCMTRIG_START:
-		via_buildsgdt(ch);
-		via_wr(via, ch->rbase + VIA_RP_DMAOPS_BASE, vtophys(ado), 4);
-		via_wr(via, ch->rbase + VIA_RP_CONTROL,
-		       VIA_RPCTRL_START | VIA_RPCTRL_AUTOSTART |
-		       VIA_RPCTRL_I_STOP | VIA_RPCTRL_I_EOL | 
-		       VIA_RPCTRL_I_FLAG, 1);
-		break;
-	case PCMTRIG_STOP:
-	case PCMTRIG_ABORT:
-		via_wr(via, ch->rbase + VIA_RP_CONTROL, 
-		       VIA_RPCTRL_TERMINATE, 1);
-		break;
-	}
-	return 0;
-}
-
-static kobj_method_t via8233chan_methods[] = {
-    	KOBJMETHOD(channel_init,		via8233chan_init),
-    	KOBJMETHOD(channel_setformat,		via8233chan_setformat),
-    	KOBJMETHOD(channel_setspeed,		via8233chan_setspeed),
-    	KOBJMETHOD(channel_setblocksize,	viachan_setblocksize),
-    	KOBJMETHOD(channel_trigger,		via8233chan_trigger),
-    	KOBJMETHOD(channel_getptr,		viachan_getptr),
-    	KOBJMETHOD(channel_getcaps,		viachan_getcaps),
-	{ 0, 0 }
-};
-CHANNEL_DECLARE(via8233chan);
-
 /* -------------------------------------------------------------------- */
 
 static void
 via_intr(void *p)
 {
 	struct via_info *via = p;
+	int		st;
 
-	if (via_rd(via, VIA_PLAY_BASE + VIA_RP_STAT, 1) & VIA_RPSTAT_INTR) {
-		via_wr(via, VIA_PLAY_BASE + VIA_RP_STAT, VIA_RPSTAT_INTR, 1);
+	/* DEB(printf("viachan_intr\n")); */
+	/* Read channel */
+	st = via_rd(via, VIA_PLAY_STAT, 1);
+	if (st & VIA_RPSTAT_INTR) {
+		via_wr(via, VIA_PLAY_STAT, VIA_RPSTAT_INTR, 1);
 		chn_intr(via->pch.channel);
-		DEB(printf("intr play\n"));
 	}
-	if (via_rd(via, VIA_REC_BASE + VIA_RP_STAT, 1) & VIA_RPSTAT_INTR) {
-		via_wr(via, VIA_REC_BASE + VIA_RP_STAT, VIA_RPSTAT_INTR, 1);
+
+	/* Write channel */
+	st = via_rd(via, VIA_RECORD_STAT, 1);
+	if (st & VIA_RPSTAT_INTR) {
+		via_wr(via, VIA_RECORD_STAT, VIA_RPSTAT_INTR, 1);
 		chn_intr(via->rch.channel);
-		DEB(printf("intr rec\n"));
 	}
 }
 
@@ -518,13 +431,9 @@ via_intr(void *p)
 static int
 via_probe(device_t dev)
 {
-	switch(pci_get_devid(dev)) {
-	case VIA686A_PCI_ID: 
-		device_set_desc(dev, "VIA VT82C686A");
-		return 0;
-	case VIA8233_PCI_ID:
-		device_set_desc(dev, "VIA VT8233");
-		return 0;
+	if (pci_get_devid(dev) == VIA_PCI_ID) {
+	    device_set_desc(dev, "VIA VT82C686A");
+	    return 0;
 	}
 	return ENXIO;
 }
@@ -534,6 +443,7 @@ static void
 dma_cb(void *p, bus_dma_segment_t *bds, int a, int b)
 {
 }
+
 
 static int
 via_attach(device_t dev)
@@ -554,12 +464,10 @@ via_attach(device_t dev)
 	data = pci_read_config(dev, PCIR_COMMAND, 2);
 
 	pci_write_config(dev, VIA_PCICONF_MISC,
-			 VIA_PCICONF_ACLINKENAB | VIA_PCICONF_ACSGD | 
-			 VIA_PCICONF_ACNOTRST | VIA_PCICONF_ACVSR, 1);
+		VIA_PCICONF_ACLINKENAB | VIA_PCICONF_ACSGD | VIA_PCICONF_ACNOTRST | VIA_PCICONF_ACVSR, 1);
 
 	via->regid = PCIR_MAPS;
-	via->reg = bus_alloc_resource(dev, SYS_RES_IOPORT, &via->regid, 0, ~0,
-				      1, RF_ACTIVE);
+	via->reg = bus_alloc_resource(dev, SYS_RES_IOPORT, &via->regid, 0, ~0, 1, RF_ACTIVE);
 	if (!via->reg) {
 		device_printf(dev, "cannot allocate bus resource.");
 		goto bad;
@@ -570,20 +478,14 @@ via_attach(device_t dev)
 	via->bufsz = pcm_getbuffersize(dev, 4096, VIA_DEFAULT_BUFSZ, 65536);
 
 	via->irqid = 0;
-	via->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &via->irqid, 0, ~0, 1,
-				      RF_ACTIVE | RF_SHAREABLE);
-	if (!via->irq || 
-	    snd_setup_intr(dev, via->irq, 0, via_intr, via, &via->ih)) {
+	via->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &via->irqid, 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+	if (!via->irq || snd_setup_intr(dev, via->irq, 0, via_intr, via, &via->ih)) {
 		device_printf(dev, "unable to map interrupt\n");
 		goto bad;
 	}
 
-	via_wr(via, VIA_PLAY_BASE + VIA_RP_MODE, 
-	       VIA_RPMODE_AUTOSTART|VIA_RPMODE_INTR_FLAG|VIA_RPMODE_INTR_EOL,
-	       1);
-	via_wr(via, VIA_REC_BASE + VIA_RP_MODE, 
-	       VIA_RPMODE_AUTOSTART|VIA_RPMODE_INTR_FLAG|VIA_RPMODE_INTR_EOL,
-	       1);
+	via_wr(via, VIA_PLAY_MODE, VIA_RPMODE_AUTOSTART | VIA_RPMODE_INTR_FLAG | VIA_RPMODE_INTR_EOL, 1);
+	via_wr(via, VIA_RECORD_MODE, VIA_RPMODE_AUTOSTART | VIA_RPMODE_INTR_FLAG | VIA_RPMODE_INTR_EOL, 1);
 
 	via->codec = AC97_CREATE(dev, via, via_ac97);
 	if (!via->codec)
@@ -631,22 +533,9 @@ via_attach(device_t dev)
 
 	/* Register */
 	if (pcm_register(dev, via, 1, 1)) goto bad;
-
-	switch (pci_get_devid(dev)) {
-	case VIA686A_PCI_ID:
-		pcm_addchan(dev, PCMDIR_PLAY, &viachan_class, via);
-		pcm_addchan(dev, PCMDIR_REC, &viachan_class, via);
-		break;
-	case VIA8233_PCI_ID:
-		pcm_addchan(dev, PCMDIR_PLAY, &via8233chan_class, via);
-		pcm_addchan(dev, PCMDIR_REC, &via8233chan_class, via);
-		break;
-	default:
-		goto bad;
-	}
-
+	pcm_addchan(dev, PCMDIR_PLAY, &viachan_class, via);
+	pcm_addchan(dev, PCMDIR_REC, &viachan_class, via);
 	pcm_setstatus(dev, status);
-
 	return 0;
 bad:
 	if (via->codec) ac97_destroy(via->codec);
