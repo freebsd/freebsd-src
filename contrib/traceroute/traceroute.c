@@ -24,7 +24,7 @@ static const char copyright[] =
     "@(#) Copyright (c) 1988, 1989, 1991, 1994, 1995, 1996\n\
 The Regents of the University of California.  All rights reserved.\n";
 static const char rcsid[] =
-    "@(#)$Header: /home/ncvs/src/contrib/traceroute/traceroute.c,v 1.1.1.1 1996/09/30 19:09:55 fenner Exp $ (LBL)";
+    "@(#)$Header: /home/ncvs/src/contrib/traceroute/traceroute.c,v 1.2 1996/09/30 19:39:25 fenner Exp $ (LBL)";
 #endif
 
 /*
@@ -603,9 +603,10 @@ main(int argc, char **argv)
 		u_int32_t lastaddr = 0;
 		int got_there = 0;
 		int unreachable = 0;
+		int loss;
 
 		Printf("%2d ", ttl);
-		for (probe = 0; probe < nprobes; ++probe) {
+		for (probe = 0, loss = 0; probe < nprobes; ++probe) {
 			register int cc;
 			struct timeval t1, t2;
 			struct timezone tz;
@@ -694,10 +695,13 @@ main(int argc, char **argv)
 				}
 				break;
 			}
-			if (cc == 0)
+			if (cc == 0) {
+				loss++;
 				Printf(" *");
+			}
 			(void)fflush(stdout);
 		}
+		Printf(" (%d%% loss)", (int)(((float)loss / nprobes) * 100));
 		putchar('\n');
 		if (got_there ||
 		    (unreachable > 0 && unreachable >= nprobes - 1))
