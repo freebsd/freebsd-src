@@ -427,8 +427,10 @@ update (argc, argv)
     if (date != NULL)
 	free (date);
 
-    return (err);
+    return err;
 }
+
+
 
 /*
  * Command line interface to update (used by checkout)
@@ -503,7 +505,7 @@ do_update (argc, argv, xoptions, xtag, xdate, xforce, local, xbuild, xaflag,
 			       argc, argv, local, which, aflag, CVS_LOCK_READ,
 			       preload_update_dir, 1, (char *) NULL);
 	if (err)
-	    return (err);
+	    return err;
 
 	/* FIXME-twp: at this point we should walk the hardlist
 	   and update the `links' field of each hardlink_info struct
@@ -530,7 +532,7 @@ do_update (argc, argv, xoptions, xtag, xdate, xforce, local, xbuild, xaflag,
 	sleep_past (last_register_time);
     }
 
-    return (err);
+    return err;
 }
 
 #ifdef PRESERVE_PERMISSIONS_SUPPORT
@@ -863,7 +865,7 @@ update_filesdone_proc (callerdat, err, repository, update_dir, entries)
 	    Create_Root ((char *) NULL, current_parsed_root->original);
     }
 
-    return (err);
+    return err;
 }
 
 
@@ -896,7 +898,7 @@ update_dirent_proc (callerdat, dir, repository, update_dir, entries)
     {
 	/* if we aren't building dirs, blow it off */
 	if (!update_build_dirs)
-	    return (R_SKIP_ALL);
+	    return R_SKIP_ALL;
 
 	/* Various CVS administrators are in the habit of removing
 	   the repository directory for things they don't want any
@@ -924,7 +926,7 @@ update_dirent_proc (callerdat, dir, repository, update_dir, entries)
 	{
 	    /* ignore the missing dir if -n is specified */
 	    error (0, 0, "New directory `%s' -- ignored", update_dir);
-	    return (R_SKIP_ALL);
+	    return R_SKIP_ALL;
 	}
 	else
 	{
@@ -1028,7 +1030,7 @@ update_dirent_proc (callerdat, dir, repository, update_dir, entries)
     if (!quiet)
 	error (0, 0, "Updating %s", update_dir);
 
-    return (R_PROCESS);
+    return R_PROCESS;
 }
 
 
@@ -1088,8 +1090,10 @@ update_dirleave_proc (callerdat, dir, err, update_dir, entries)
 	}
     }
 
-    return (err);
+    return err;
 }
+
+
 
 static int isremoved PROTO ((Node *, void *));
 
@@ -1105,6 +1109,8 @@ isremoved (node, closure)
        removed. */
     return (entdata->version && entdata->version[0] == '-') ? 1 : 0;
 }
+
+
 
 /* Returns 1 if the argument directory is completely empty, other than the
    existence of the CVS directory entry.  Zero otherwise.  If MIGHT_NOT_EXIST
@@ -1122,7 +1128,7 @@ isemptydir (dir, might_not_exist)
 	if (might_not_exist && existence_error (errno))
 	    return 0;
 	error (0, errno, "cannot open directory %s for empty check", dir);
-	return (0);
+	return 0;
     }
     errno = 0;
     while ((dp = CVS_READDIR (dirp)) != NULL)
@@ -1135,7 +1141,7 @@ isemptydir (dir, might_not_exist)
 		/* An entry other than the CVS directory.  The directory
 		   is certainly not empty. */
 		(void) CVS_CLOSEDIR (dirp);
-		return (0);
+		return 0;
 	    }
 	    else
 	    {
@@ -1166,7 +1172,7 @@ isemptydir (dir, might_not_exist)
 		    /* There are files that have been removed, but not
 		       committed!  Do not consider the directory empty. */
 		    (void) CVS_CLOSEDIR (dirp);
-		    return (0);
+		    return 0;
 		}
 	    }
 	}
@@ -1176,11 +1182,13 @@ isemptydir (dir, might_not_exist)
     {
 	error (0, errno, "cannot read directory %s", dir);
 	(void) CVS_CLOSEDIR (dirp);
-	return (0);
+	return 0;
     }
     (void) CVS_CLOSEDIR (dirp);
-    return (1);
+    return 1;
 }
+
+
 
 /*
  * scratch the Entries file entry associated with a file
@@ -1226,8 +1234,10 @@ scratch_file (finfo, vers)
 	    vers->ts_user = NULL;
 	}
     }
-    return (0);
+    return 0;
 }
+
+
 
 /*
  * Check out a file.
@@ -1516,8 +1526,10 @@ VERS: ", 0);
 
     if (revbuf != NULL)
 	buf_free (revbuf);
-    return (retval);
+    return retval;
 }
+
+
 
 #ifdef SERVER_SUPPORT
 
@@ -1860,8 +1872,10 @@ patch_file (finfo, vers_ts, docheckout, file_info, checksum)
     free (backup);
     free (file1);
     free (file2);
-    return (retval);
+    return retval;
 }
+
+
 
 /* Write data to a file.  Record whether the last byte written was a
    newline.  Optionally compute a checksum.  This is called by
@@ -3002,8 +3016,10 @@ special_file_mismatch (finfo, rev1, rev2)
 #endif
 }
 
+
+
 int
 joining ()
 {
-    return (join_rev1 != NULL);
+    return join_rev1 != NULL;
 }
