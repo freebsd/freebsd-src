@@ -174,6 +174,9 @@ dev/mlx/mlx.c		optional mlx
 dev/pccard/pccard.c	optional pccard
 dev/pccard/pccard_cis.c	optional pccard
 dev/pccard/pccard_cis_quirks.c optional pccard
+dev/pcic/i82365.c	optional pcic pccard
+dev/pcic/i82365_isa.c	optional pcic pccard
+dev/pcic/i82365_isasubr.c optional pcic pccard
 dev/pdq/pdq.c		optional fea
 dev/pdq/pdq_ifsubr.c	optional fea
 dev/pdq/pdq.c		optional fpa
@@ -305,7 +308,6 @@ i4b/layer4/i4b_i4bdrv.c	 optional i4b
 i4b/layer4/i4b_l4.c	 optional i4b
 i4b/layer4/i4b_l4mgmt.c	 optional i4b
 i4b/layer4/i4b_l4timer.c optional i4b
-isa/pcicx.c		optional pcicx pccard
 isofs/cd9660/cd9660_bmap.c	optional cd9660
 isofs/cd9660/cd9660_lookup.c	optional cd9660
 isofs/cd9660/cd9660_node.c	optional cd9660
