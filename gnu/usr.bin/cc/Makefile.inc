@@ -26,7 +26,6 @@ USE_EGCS_HAIFA=1
 version!=	sed -e 's/.*\"\([^ \"]*\)[ \"].*/\1/' < ${GCCDIR}/version.c
 #version!=	sed -e 's/.*\(egcs-[0-9\.]*\).*/\1/' < ${GCCDIR}/version.c 
 
-CFLAGS+=	-I${GCCDIR} -I${GCCDIR}/config
 CFLAGS+=	-DFREEBSD_NATIVE -DHAVE_CONFIG_H
 CFLAGS+=	-DDEFAULT_TARGET_VERSION=\"$(version)\"
 CFLAGS+=	-DDEFAULT_TARGET_MACHINE=\"$(target)\"
@@ -47,6 +46,7 @@ CFLAGS+=	-DCROSS_COMPILE
 CFLAGS+=	-I${.OBJDIR}/../cc_tools
 .endif
 CFLAGS+=	-I${.CURDIR}/../cc_tools
+CFLAGS+=	-I${GCCDIR} -I${GCCDIR}/config
 
 .if exists(${.OBJDIR}/../cc_int)
 LIBDESTDIR=	${.OBJDIR}/../cc_int
