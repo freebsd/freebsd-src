@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.2 (Berkeley) 11/15/93
- *	$Id: route.c,v 1.22 1995/04/25 19:12:07 wollman Exp $
+ *	$Id: route.c,v 1.23 1995/05/30 08:08:24 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -449,18 +449,27 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 			rt_maskedcopy(dst, ndst, netmask);
 		} else
 			Bcopy(dst, ndst, dst->sa_len);
+
+		/*
+		 * This moved from below so that rnh->rnh_addaddr() can
+		 * examine the ifa and ifp if it so desires.
+		 */
+		ifa->ifa_refcnt++;
+		rt->rt_ifa = ifa;
+		rt->rt_ifp = ifa->ifa_ifp;
+
 		rn = rnh->rnh_addaddr((caddr_t)ndst, (caddr_t)netmask,
 					rnh, rt->rt_nodes);
 		if (rn == 0) {
 			if (rt->rt_gwroute)
 				rtfree(rt->rt_gwroute);
+			if (rt->rt_ifa) {
+				IFAFREE(rt->rt_ifa);
+			}
 			Free(rt_key(rt));
 			Free(rt);
 			senderr(EEXIST);
 		}
-		ifa->ifa_refcnt++;
-		rt->rt_ifa = ifa;
-		rt->rt_ifp = ifa->ifa_ifp;
 		rt->rt_parent = 0;
 
 		if (req == RTM_RESOLVE) {
