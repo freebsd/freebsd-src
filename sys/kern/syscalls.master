@@ -128,7 +128,7 @@
 			    int arg); } getkerninfo getkerninfo_args int
 64	MCOMPAT	BSD	{ int getpagesize(void); } \
 			    getpagesize getpagesize_args int
-65	STD	BSD	{ int msync(void *addr, size_t len, int flags); }
+65	MSTD	BSD	{ int msync(void *addr, size_t len, int flags); }
 66	MSTD	BSD	{ int vfork(void); }
 67	OBSOL	NOHIDE	vread
 68	OBSOL	NOHIDE	vwrite
