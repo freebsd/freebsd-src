@@ -100,10 +100,11 @@ __setrunelocale(const char *encoding)
 	static size_t (*Cached__wcrtomb)(char * __restrict, wchar_t,
 	    mbstate_t * __restrict);
 	static int (*Cached__mbsinit)(const mbstate_t *);
-	static size_t (*Cached__mbsrtowcs)(wchar_t * __restrict,
-	    const char ** __restrict, size_t, mbstate_t * __restrict);
-	static size_t (*Cached__wcsrtombs)(char * __restrict,
-	    const wchar_t ** __restrict, size_t, mbstate_t * __restrict);
+	static size_t (*Cached__mbsnrtowcs)(wchar_t * __restrict,
+	    const char ** __restrict, size_t, size_t, mbstate_t * __restrict);
+	static size_t (*Cached__wcsnrtombs)(char * __restrict,
+	    const wchar_t ** __restrict, size_t, size_t,
+	    mbstate_t * __restrict);
 
 	/*
 	 * The "C" and "POSIX" locale are always here.
@@ -113,9 +114,9 @@ __setrunelocale(const char *encoding)
 		__mb_cur_max = 1;
 		__mbrtowc = _none_mbrtowc;
 		__mbsinit = _none_mbsinit;
-		__mbsrtowcs = _none_mbsrtowcs;
+		__mbsnrtowcs = _none_mbsnrtowcs;
 		__wcrtomb = _none_wcrtomb;
-		__wcsrtombs = _none_wcsrtombs;
+		__wcsnrtombs = _none_wcsnrtombs;
 		return (0);
 	}
 
@@ -128,9 +129,9 @@ __setrunelocale(const char *encoding)
 		__mb_cur_max = Cached__mb_cur_max;
 		__mbrtowc = Cached__mbrtowc;
 		__mbsinit = Cached__mbsinit;
-		__mbsrtowcs = Cached__mbsrtowcs;
+		__mbsnrtowcs = Cached__mbsnrtowcs;
 		__wcrtomb = Cached__wcrtomb;
-		__wcsrtombs = Cached__wcsrtombs;
+		__wcsnrtombs = Cached__wcsnrtombs;
 		return (0);
 	}
 
@@ -156,9 +157,9 @@ __setrunelocale(const char *encoding)
 
 	__mbrtowc = NULL;
 	__mbsinit = NULL;
-	__mbsrtowcs = __mbsrtowcs_std;
+	__mbsnrtowcs = __mbsnrtowcs_std;
 	__wcrtomb = NULL;
-	__wcsrtombs = __wcsrtombs_std;
+	__wcsnrtombs = __wcsnrtombs_std;
 	rl->__sputrune = __emulated_sputrune;
 	rl->__sgetrune = __emulated_sgetrune;
 	if (strcmp(rl->__encoding, "NONE") == 0)
@@ -192,9 +193,9 @@ __setrunelocale(const char *encoding)
 		Cached__mb_cur_max = __mb_cur_max;
 		Cached__mbrtowc = __mbrtowc;
 		Cached__mbsinit = __mbsinit;
-		Cached__mbsrtowcs = __mbsrtowcs;
+		Cached__mbsnrtowcs = __mbsnrtowcs;
 		Cached__wcrtomb = __wcrtomb;
-		Cached__wcsrtombs = __wcsrtombs;
+		Cached__wcsnrtombs = __wcsnrtombs;
 		(void)strcpy(ctype_encoding, encoding);
 	} else
 		free(rl);
