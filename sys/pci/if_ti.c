@@ -1828,6 +1828,8 @@ ti_chipinit(sc)
 	return (0);
 }
 
+#define	TI_RD_OFF(x)	offsetof(struct ti_ring_data, x)
+
 /*
  * Initialize the general information block and firmware, and
  * start the CPU(s) running.
@@ -1839,15 +1841,22 @@ ti_gibinit(sc)
 	struct ti_rcb		*rcb;
 	int			i;
 	struct ifnet		*ifp;
+	uint32_t		rdphys;
 
 	ifp = &sc->arpcom.ac_if;
+	rdphys = sc->ti_rdata_phys;
 
 	/* Disable interrupts for now. */
 	CSR_WRITE_4(sc, TI_MB_HOSTINTR, 1);
 
-	/* Tell the chip where to find the general information block. */
+	/*
+	 * Tell the chip where to find the general information block.
+	 * While this struct could go into >4GB memory, we allocate it in a
+	 * single slab with the other descriptors, and those don't seem to
+	 * support being located in a 64-bit region.
+	 */
 	CSR_WRITE_4(sc, TI_GCR_GENINFO_HI, 0);
-	CSR_WRITE_4(sc, TI_GCR_GENINFO_LO, vtophys(&sc->ti_rdata->ti_info));
+	CSR_WRITE_4(sc, TI_GCR_GENINFO_LO, rdphys + TI_RD_OFF(ti_info));
 
 	/* Load the firmware into SRAM. */
 	ti_loadfw(sc);
@@ -1857,10 +1866,10 @@ ti_gibinit(sc)
 	/* Set up the event ring and producer pointer. */
 	rcb = &sc->ti_rdata->ti_info.ti_ev_rcb;
 
-	TI_HOSTADDR(rcb->ti_hostaddr) = vtophys(&sc->ti_rdata->ti_event_ring);
+	TI_HOSTADDR(rcb->ti_hostaddr) = rdphys + TI_RD_OFF(ti_event_ring);
 	rcb->ti_flags = 0;
 	TI_HOSTADDR(sc->ti_rdata->ti_info.ti_ev_prodidx_ptr) =
-	    vtophys(&sc->ti_ev_prodidx);
+	    rdphys + TI_RD_OFF(ti_ev_prodidx_r);
 	sc->ti_ev_prodidx.ti_idx = 0;
 	CSR_WRITE_4(sc, TI_GCR_EVENTCONS_IDX, 0);
 	sc->ti_ev_saved_considx = 0;
@@ -1886,11 +1895,11 @@ ti_gibinit(sc)
 	 * conserve memory.
 	 */
 	TI_HOSTADDR(sc->ti_rdata->ti_info.ti_refresh_stats_ptr) =
-	    vtophys(&sc->ti_rdata->ti_info.ti_stats);
+	    rdphys + TI_RD_OFF(ti_info.ti_stats);
 
 	/* Set up the standard receive ring. */
 	rcb = &sc->ti_rdata->ti_info.ti_std_rx_rcb;
-	TI_HOSTADDR(rcb->ti_hostaddr) = vtophys(&sc->ti_rdata->ti_rx_std_ring);
+	TI_HOSTADDR(rcb->ti_hostaddr) = rdphys + TI_RD_OFF(ti_rx_std_ring);
 	rcb->ti_max_len = TI_FRAMELEN;
 	rcb->ti_flags = 0;
 	if (sc->arpcom.ac_if.if_hwassist)
@@ -1900,8 +1909,7 @@ ti_gibinit(sc)
 
 	/* Set up the jumbo receive ring. */
 	rcb = &sc->ti_rdata->ti_info.ti_jumbo_rx_rcb;
-	TI_HOSTADDR(rcb->ti_hostaddr) =
-	    vtophys(&sc->ti_rdata->ti_rx_jumbo_ring);
+	TI_HOSTADDR(rcb->ti_hostaddr) = rdphys + TI_RD_OFF(ti_rx_jumbo_ring);
 
 #ifdef TI_PRIVATE_JUMBOS
 	rcb->ti_max_len = TI_JUMBO_FRAMELEN;
@@ -1921,8 +1929,7 @@ ti_gibinit(sc)
 	 * still there on the Tigon 1.
 	 */
 	rcb = &sc->ti_rdata->ti_info.ti_mini_rx_rcb;
-	TI_HOSTADDR(rcb->ti_hostaddr) =
-	    vtophys(&sc->ti_rdata->ti_rx_mini_ring);
+	TI_HOSTADDR(rcb->ti_hostaddr) = rdphys + TI_RD_OFF(ti_rx_mini_ring);
 	rcb->ti_max_len = MHLEN - ETHER_ALIGN;
 	if (sc->ti_hwrev == TI_HWREV_TIGON)
 		rcb->ti_flags = TI_RCB_FLAG_RING_DISABLED;
@@ -1937,12 +1944,11 @@ ti_gibinit(sc)
 	 * Set up the receive return ring.
 	 */
 	rcb = &sc->ti_rdata->ti_info.ti_return_rcb;
-	TI_HOSTADDR(rcb->ti_hostaddr) =
-	    vtophys(&sc->ti_rdata->ti_rx_return_ring);
+	TI_HOSTADDR(rcb->ti_hostaddr) = rdphys + TI_RD_OFF(ti_rx_return_ring);
 	rcb->ti_flags = 0;
 	rcb->ti_max_len = TI_RETURN_RING_CNT;
 	TI_HOSTADDR(sc->ti_rdata->ti_info.ti_return_prodidx_ptr) =
-	    vtophys(&sc->ti_return_prodidx);
+	    rdphys + TI_RD_OFF(ti_return_prodidx_r);
 
 	/*
 	 * Set up the tx ring. Note: for the Tigon 2, we have the option
@@ -1973,10 +1979,9 @@ ti_gibinit(sc)
 	if (sc->ti_hwrev == TI_HWREV_TIGON)
 		TI_HOSTADDR(rcb->ti_hostaddr) = TI_TX_RING_BASE;
 	else
-		TI_HOSTADDR(rcb->ti_hostaddr) =
-		    vtophys(&sc->ti_rdata->ti_tx_ring);
+		TI_HOSTADDR(rcb->ti_hostaddr) = rdphys + TI_RD_OFF(ti_tx_ring);
 	TI_HOSTADDR(sc->ti_rdata->ti_info.ti_tx_considx_ptr) =
-	    vtophys(&sc->ti_tx_considx);
+	    rdphys + TI_RD_OFF(ti_tx_considx_r);
 
 	/* Set up tuneables */
 #if 0
@@ -2002,6 +2007,23 @@ ti_gibinit(sc)
 	return (0);
 }
 
+static void
+ti_rdata_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
+{
+	struct ti_softc *sc;
+
+	sc = arg;
+	if (error || nseg != 1)
+		return;
+
+	/*
+	 * All of the Tigon data structures need to live at <4GB.  This
+	 * cast is fine since busdma was told about this constraint.
+	 */
+	sc->ti_rdata_phys = (uint32_t)segs[0].ds_addr;
+	return;
+}
+	
 /*
  * Probe for a Tigon chip. Check the PCI vendor and device IDs
  * against our list and return its name if we find a match.
@@ -2108,12 +2130,50 @@ ti_attach(dev)
 	}
 
 	/* Allocate the general information block and ring buffers. */
-	sc->ti_rdata = contigmalloc(sizeof(struct ti_ring_data), M_DEVBUF,
-	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
+	if (bus_dma_tag_create(NULL,			/* parent */
+				1, 0,			/* algnmnt, boundary */
+				BUS_SPACE_MAXADDR,	/* lowaddr */
+				BUS_SPACE_MAXADDR,	/* highaddr */
+				NULL, NULL,		/* filter, filterarg */
+				BUS_SPACE_MAXSIZE_32BIT,/* maxsize */
+				0,			/* nsegments */
+				BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */
+				0,			/* flags */
+				NULL, NULL,		/* lockfunc, lockarg */
+				&sc->ti_parent_dmat) != 0) {
+		printf("ti%d: Failed to allocate parent dmat\n", sc->ti_unit);
+		error = ENOMEM;
+		goto fail;
+	}
 
-	if (sc->ti_rdata == NULL) {
-		printf("ti%d: no memory for list buffers!\n", sc->ti_unit);
-		error = ENXIO;
+	if (bus_dma_tag_create(sc->ti_parent_dmat,	/* parent */
+				PAGE_SIZE, 0,		/* algnmnt, boundary */
+				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
+				BUS_SPACE_MAXADDR,	/* highaddr */
+				NULL, NULL,		/* filter, filterarg */
+				sizeof(struct ti_ring_data),	/* maxsize */
+				1,			/* nsegments */
+				sizeof(struct ti_ring_data),	/* maxsegsize */
+				0,			/* flags */
+				NULL, NULL,		/* lockfunc, lockarg */
+				&sc->ti_rdata_dmat) != 0) {
+		printf("ti%d: Failed to allocate rdata dmat\n", sc->ti_unit);
+		error = ENOMEM;
+		goto fail;
+	}
+
+	if (bus_dmamem_alloc(sc->ti_rdata_dmat, (void**)&sc->ti_rdata,
+			     BUS_DMA_NOWAIT, &sc->ti_rdata_dmamap) != 0) {
+		printf("ti%d: Failed to allocate rdata memory\n", sc->ti_unit);
+		error = ENOMEM;
+		goto fail;
+	}
+
+	if (bus_dmamap_load(sc->ti_rdata_dmat, sc->ti_rdata_dmamap,
+			    sc->ti_rdata, sizeof(struct ti_ring_data),
+			    ti_rdata_cb, sc, BUS_DMA_NOWAIT) != 0) {
+		printf("ti%d: Failed to load rdata segments\n", sc->ti_unit);
+		error = ENOMEM;
 		goto fail;
 	}
 
@@ -2260,6 +2320,13 @@ ti_detach(dev)
 	}
 	ifmedia_removeall(&sc->ifmedia);
 
+	if (sc->ti_rdata)
+		bus_dmamem_free(sc->ti_rdata_dmat, sc->ti_rdata,
+				sc->ti_rdata_dmamap);
+	if (sc->ti_rdata_dmat)
+		bus_dma_tag_destroy(sc->ti_rdata_dmat);
+	if (sc->ti_parent_dmat)
+		bus_dma_tag_destroy(sc->ti_parent_dmat);
 	if (sc->ti_intrhand)
 		bus_teardown_intr(dev, sc->ti_irq, sc->ti_intrhand);
 	if (sc->ti_irq)
