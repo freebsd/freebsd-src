@@ -30,7 +30,7 @@ ioctl_includes=`
 
 echo "$ioctl_includes" |
 	gcc -E -I$1 -dM - |
-	awk -v ioctl_includes="$ioctl_includes" -v use_switch="$use_switch" '
+	awk -v ioctl_includes="`echo $ioctl_includes`" -v use_switch="$use_switch" '
 BEGIN {
 	print "/* XXX obnoxious prerequisites. */"
 	print "#define COMPAT_43"
