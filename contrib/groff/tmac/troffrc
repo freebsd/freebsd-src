@@ -28,7 +28,10 @@ troffrc!X100 troffrc!X100-12 troffrc!lj4 troff!lbp troffrc!html
 .
 .\" test whether we work under EBCDIC
 .do ie '\[char97]'a' \
-.	if !"\*[.T]"koi8-r" .do tr \[char160]\~
+.	ie '\*[.T]'koi8-r' \
+.		do tr \[char154]\~
+.	el \
+.		do tr \[char160]\~
 .el \
 .	do tr \[char65]\~
 .
@@ -38,13 +41,8 @@ troffrc!X100 troffrc!X100-12 troffrc!lj4 troff!lbp troffrc!html
 .\" Load hyphenation patterns and exceptions.
 .do hpf hyphen.us
 .do hpfa hyphenex.us
-.
-.if "\*[.T]"koi8-r" \{\
-.
-.\" Append hyphenation patterns from `hyphen.ru' (in the tmac directory).
-.do hpfa hyphen.ru
-.
-.\}
+.if '\*[.T]'koi8-r' \
+.	do hpfa hyphen.ru
 .
 .\" Load composite mappings.
 .do mso composite.tmac
