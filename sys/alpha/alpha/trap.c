@@ -1,4 +1,4 @@
-/* $Id: trap.c,v 1.14 1999/05/10 16:00:56 peter Exp $ */
+/* $Id: trap.c,v 1.15 1999/06/08 16:42:17 dt Exp $ */
 /* $NetBSD: trap.c,v 1.31 1998/03/26 02:21:46 thorpej Exp $ */
 
 /*
@@ -323,12 +323,9 @@ trap(a0, a1, a2, entry, framep)
 			}
 	
 			alpha_pal_wrfen(1);
-			if (fpcurproc) {
+			if (fpcurproc)
 				savefpstate(&fpcurproc->p_addr->u_pcb.pcb_fp);
-				PRELE(fpcurproc);
-			}
 			fpcurproc = p;
-			PHOLD(fpcurproc);
 			restorefpstate(&fpcurproc->p_addr->u_pcb.pcb_fp);
 			alpha_pal_wrfen(0);
 
@@ -747,7 +744,6 @@ const static int reg_to_framereg[32] = {
 		alpha_pal_wrfen(1);					\
 		savefpstate(&fpcurproc->p_addr->u_pcb.pcb_fp);		\
 		alpha_pal_wrfen(0);					\
-		PRELE(fpcurproc);					\
 		fpcurproc = NULL;					\
 	}
 
