@@ -245,7 +245,7 @@ isa_compat_attach(device_t dev)
 			printf("isa_compat_attach: failed to setup intr: %d\n",
 			       error);
 	}
-	device_printf(dev, "driver is using old-style compatability shims\n");
+	device_printf(dev, "driver is using old-style compatibility shims\n");
 	return 0;
 }
 
