@@ -1,0 +1,145 @@
+.\" Copyright (c) 1993 University of Utah.
+.\" Copyright (c) 1980, 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\" Copyright (c) 2000
+.\"	Poul-Henning Kamp  All rights reserved.
+.\"
+.\" This code is derived from software contributed to Berkeley by
+.\" the Systems Programming Group of the University of Utah Computer
+.\" Science Department.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)vnconfig.8	8.1 (Berkeley) 6/5/93
+.\" from: src/usr.sbin/vnconfig/vnconfig.8,v 1.19 2000/12/27 15:30:29
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 31, 2000
+.Dt MDCONFIG 8
+.Os FreeBSD 5
+.Sh NAME
+.Nm mdconfig
+.Nd configure and enable memory disks
+.Sh SYNOPSIS
+.Nm
+.Fl a
+.Fl t Ar type 
+.Op Fl o Ar [no]option
+.Op Fl s Ar size
+.Op Fl f Ar file
+.Op Fl u Ar unit
+.Nm
+.Fl d
+.Fl u Ar unit
+.Sh DESCRIPTION
+The
+.Nm
+command configures and enables 
+.Xr md(4)
+devices.
+.Pp
+Options indicate an action to be performed:
+.Bl -tag -width indent
+.It Fl a
+Attach a memory disk.  This will configure and attach a memory disk with the
+parameters specified and attach it to the system.
+.It Fl d
+Dettach a memory disk from the system and release all resources.
+.It Fl t
+Select the type of the memory disk.
+.Bl -tag -width indent
+.It Ar malloc
+Storage for this type of memory disk is allocated with
+.Xr malloc 9 .
+This limits the size to the malloc bucket limit in the kernel.
+.It Ar preload
+This type represents memory disks which were instantiated by objects loaded
+by the bootloader.  They can not be created on the fly.
+.It Ar vnode
+A file specified with 
+.Fl f Ar file
+becomes the backingstore for this memory disk.
+.It Ar swap
+swapspace is used to back this memory disk.
+.El
+.It Fl f Ar file
+Filename to use for the vnode type memory disk.
+.It Fl s Ar size
+Size of the memory disk.
+.Ar Size
+is the number of 512 bytes sectors unless suffixed with a 'k', 'm', or 'g' which
+denotes kilobyte, megabyte and gigabyte respectively.
+.It Fl o Ar [no]option
+Set or reset options.
+.Bl -tag -width indent
+.It Ar [no]reserve
+Allocate and reserve all needed storage from the start, rather than as needed.
+.It Ar [no]cluster
+Enable clustering on this disk.
+.It Ar [no]autounit
+Automatically allocate the next free unit number for this disk.
+The basename of the disk is printed on stdout.
+.It Ar [no]compress
+Enable/Disable compression features to reduce memory usage.
+.El
+.El
+.Sh EXAMPLES
+.Pp
+To create a 4 megabyte malloc(9) backed memory disk.
+The name of the allocated unit will be output on stdout like ``md3'':
+.Pp
+.Dl mdconfig -a -t malloc -s 4m
+.Pp
+To create a disk named
+.Pa /dev/md4
+with
+.Pa /tmp/boot.flp
+as backing:
+.Pp
+.Dl mdconfig -a -t vnode -f /tmp/boot.flp -u 4
+.Pp
+To dettach and free all resources used by
+.Pa /dev/md4 :
+.Pp
+.Dl mdconfig -d -u 4
+.Pp
+To create and mount a 128MByte swap backed filesystem on
+.Pa /tmp :
+.Pp
+.Dl mdconfig -a -t swap -s 128M -u 10
+.Dl disklabel -r -w md10 auto
+.Dl newfs -f 4096 /dev/md10c
+.Dl tunefs -n enable /dev/md10c
+.Dl mount /dev/md10c /tmp
+.Sh SEE ALSO
+.Xr md 4 ,
+.Xr disklabel 8 ,
+.Xr fdisk 8 ,
+.Xr malloc 9 .
