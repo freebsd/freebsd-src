@@ -699,7 +699,7 @@ syncache_socket(sc, lso, m)
 #ifdef TCP_SIGNATURE
 	if (sc->sc_flags & SCF_SIGNATURE)
 		tp->t_flags |= TF_SIGNATURE;
-#endif /* TCP_SIGNATURE */
+#endif
 
 	/*
 	 * Set up MSS and get cached values from tcp_hostcache.
@@ -985,7 +985,7 @@ syncache_add(inc, to, th, sop, m)
 	 */
 	if (to->to_flags & TOF_SIGNATURE)
 		sc->sc_flags = SCF_SIGNATURE;
-#endif /* TCP_SIGNATURE */
+#endif
 
 	/*
 	 * XXX
@@ -1100,9 +1100,9 @@ syncache_respond(sc, m)
 		    ((sc->sc_flags & SCF_TIMESTAMP) ? TCPOLEN_TSTAMP_APPA : 0) +
 		    ((sc->sc_flags & SCF_CC) ? TCPOLEN_CC_APPA * 2 : 0);
 #ifdef TCP_SIGNATURE
-		optlen += ((sc->sc_flags & SCF_SIGNATURE) ?
-		    (TCPOLEN_SIGNATURE + 2) : 0);
-#endif /* TCP_SIGNATURE */
+		optlen += (sc->sc_flags & SCF_SIGNATURE) ?
+		    (TCPOLEN_SIGNATURE + 2) : 0;
+#endif
 	}
 	tlen = hlen + sizeof(struct tcphdr) + optlen;
 
@@ -1233,7 +1233,7 @@ syncache_respond(sc, m)
 			*bp++ = TCPOLEN_SIGNATURE;
 			for (i = 0; i < TCP_SIGLEN; i++)
 				*bp++ = 0;
-			tcpsignature_compute(m, sizeof(struct ip), 0, optlen,
+			tcp_signature_compute(m, sizeof(struct ip), 0, optlen,
 			    optp + 2, IPSEC_DIR_OUTBOUND);
 			*bp++ = TCPOPT_NOP;
 			*bp++ = TCPOPT_EOL;

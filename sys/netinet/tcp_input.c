@@ -2537,7 +2537,7 @@ tcp_dooptions(to, cp, cnt, is_syn)
 				continue;
 			to->to_flags |= (TOF_SIGNATURE | TOF_SIGLEN);
 			break;
-#endif /* TCP_SIGNATURE */
+#endif
 		default:
 			continue;
 		}
