@@ -82,7 +82,7 @@ static spinlock_t thread_lock = _SPINLOCK_INITIALIZER;
 #define THREAD_UNLOCK()	if (__isthreaded) _SPINUNLOCK(&thread_lock)
 
 #if NOT_YET
-#define	SET_GLUE_PTR(ptr, val)	atomic_set_ptr(&(ptr), (uintptr_t)(val))
+#define	SET_GLUE_PTR(ptr, val)	atomic_set_rel_ptr(&(ptr), (uintptr_t)(val))
 #else
 #define	SET_GLUE_PTR(ptr, val)	ptr = val
 #endif
@@ -150,7 +150,7 @@ found:
 	fp->_ub._size = 0;
 	fp->_lb._base = NULL;	/* no line buffer */
 	fp->_lb._size = 0;
-	/* fp->_lock = NULL; */
+/*	fp->_lock = NULL; */	/* once set always set (reused) */
 	return (fp);
 }
 
@@ -203,7 +203,7 @@ _cleanup()
 void
 __sinit()
 {
-	/* make sure we clean up on exit */
+	/* Make sure we clean up on exit. */
 	__cleanup = _cleanup;		/* conservative */
 	__sdidinit = 1;
 }

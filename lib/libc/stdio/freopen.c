@@ -62,9 +62,9 @@ static const char rcsid[] =
 FILE *
 freopen(file, mode, fp)
 	const char *file, *mode;
-	register FILE *fp;
+	FILE *fp;
 {
-	register int f;
+	int f;
 	int flags, isopen, oflags, sverrno, wantfd;
 
 	if ((flags = __sflags(mode, &oflags)) == 0) {

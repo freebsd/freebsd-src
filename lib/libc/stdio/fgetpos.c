@@ -42,19 +42,16 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
-#include "namespace.h"
 #include <stdio.h>
-#include "un-namespace.h"
-#include "libc_private.h"
 
 int
-fgetpos(fp, pos)
-	FILE *fp;
-	fpos_t *pos;
+fgetpos(FILE *fp, fpos_t *pos)
 {
-	int retval;
-	FLOCKFILE(fp);
-	retval = (*pos = ftello(fp)) == (fpos_t)-1;
-	FUNLOCKFILE(fp);
-	return(retval);
+	/*
+	 * ftello is thread-safe; no need to lock fp.
+	 */
+	if ((*pos = ftello(fp)) == (fpos_t)-1)
+		return (-1);
+	else
+		return (0);
 }

@@ -45,13 +45,14 @@ static const char rcsid[] =
 #include <stdio.h>
 
 /*
- * A subroutine version of the macro fileno.
+ * fileno has traditionally been a macro in <stdio.h>.  That is
+ * no longer true because it needs to be thread-safe.
+ *
+ * #undef fileno
  */
-#undef fileno
-
 int
-fileno(fp)
-	FILE *fp;
+fileno(FILE *fp)
 {
+	/* ??? - Should probably use atomic_read. */
 	return (__sfileno(fp));
 }
