@@ -96,7 +96,7 @@ hal_writeport_ulong(port, val)
 	uint32_t		*port;
 	uint32_t		val;
 {
-	bus_space_write_4(I386_BUS_SPACE_IO, 0x0, (uint32_t)port, val);
+	bus_space_write_4(NDIS_BUS_SPACE_IO, 0x0, (bus_size_t)port, val);
 	return;
 }
 
@@ -105,7 +105,7 @@ hal_writeport_ushort(port, val)
 	uint16_t		*port;
 	uint16_t		val;
 {
-	bus_space_write_2(I386_BUS_SPACE_IO, 0x0, (uint32_t)port, val);
+	bus_space_write_2(NDIS_BUS_SPACE_IO, 0x0, (bus_size_t)port, val);
 	return;
 }
 
@@ -114,7 +114,7 @@ hal_writeport_uchar(port, val)
 	uint8_t			*port;
 	uint8_t			val;
 {
-	bus_space_write_1(I386_BUS_SPACE_IO, 0x0, (uint32_t)port, val);
+	bus_space_write_1(NDIS_BUS_SPACE_IO, 0x0, (bus_size_t)port, val);
 	return;
 }
 
@@ -124,7 +124,7 @@ hal_writeport_buf_ulong(port, val, cnt)
 	uint32_t		*val;
 	uint32_t		cnt;
 {
-	bus_space_write_multi_4(I386_BUS_SPACE_IO, 0x0,
+	bus_space_write_multi_4(NDIS_BUS_SPACE_IO, 0x0,
 	    (bus_size_t)port, val, cnt);
 	return;
 }
@@ -135,7 +135,7 @@ hal_writeport_buf_ushort(port, val, cnt)
 	uint16_t		*val;
 	uint32_t		cnt;
 {
-	bus_space_write_multi_2(I386_BUS_SPACE_IO, 0x0,
+	bus_space_write_multi_2(NDIS_BUS_SPACE_IO, 0x0,
 	    (bus_size_t)port, val, cnt);
 	return;
 }
@@ -146,7 +146,7 @@ hal_writeport_buf_uchar(port, val, cnt)
 	uint8_t			*val;
 	uint32_t		cnt;
 {
-	bus_space_write_multi_1(I386_BUS_SPACE_IO, 0x0,
+	bus_space_write_multi_1(NDIS_BUS_SPACE_IO, 0x0,
 	    (bus_size_t)port, val, cnt);
 	return;
 }
@@ -155,21 +155,21 @@ __stdcall static uint16_t
 hal_readport_ushort(port)
 	uint16_t		*port;
 {
-	return(bus_space_read_2(I386_BUS_SPACE_IO, 0x0, (uint32_t)port));
+	return(bus_space_read_2(NDIS_BUS_SPACE_IO, 0x0, (bus_size_t)port));
 }
 
 __stdcall static uint32_t
 hal_readport_ulong(port)
 	uint32_t		*port;
 {
-	return(bus_space_read_4(I386_BUS_SPACE_IO, 0x0, (uint32_t)port));
+	return(bus_space_read_4(NDIS_BUS_SPACE_IO, 0x0, (bus_size_t)port));
 }
 
 __stdcall static uint8_t
 hal_readport_uchar(port)
 	uint8_t			*port;
 {
-	return(bus_space_read_1(I386_BUS_SPACE_IO, 0x0, (uint32_t)port));
+	return(bus_space_read_1(NDIS_BUS_SPACE_IO, 0x0, (bus_size_t)port));
 }
 
 __stdcall static void
@@ -178,7 +178,7 @@ hal_readport_buf_ulong(port, val, cnt)
 	uint32_t		*val;
 	uint32_t		cnt;
 {
-	bus_space_read_multi_4(I386_BUS_SPACE_IO, 0x0,
+	bus_space_read_multi_4(NDIS_BUS_SPACE_IO, 0x0,
 	    (bus_size_t)port, val, cnt);
 	return;
 }
@@ -189,7 +189,7 @@ hal_readport_buf_ushort(port, val, cnt)
 	uint16_t		*val;
 	uint32_t		cnt;
 {
-	bus_space_read_multi_2(I386_BUS_SPACE_IO, 0x0,
+	bus_space_read_multi_2(NDIS_BUS_SPACE_IO, 0x0,
 	    (bus_size_t)port, val, cnt);
 	return;
 }
@@ -200,7 +200,7 @@ hal_readport_buf_uchar(port, val, cnt)
 	uint8_t			*val;
 	uint32_t		cnt;
 {
-	bus_space_read_multi_1(I386_BUS_SPACE_IO, 0x0,
+	bus_space_read_multi_1(NDIS_BUS_SPACE_IO, 0x0,
 	    (bus_size_t)port, val, cnt);
 	return;
 }
