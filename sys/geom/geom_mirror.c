@@ -110,16 +110,18 @@ g_mirror_start(struct bio *bp)
 	sc = gp->softc;
 	switch(bp->bio_cmd) {
 	case BIO_READ:
-		bp2 = g_clone_bio(bp);
-		bp2->bio_offset += sc->sectorsize;
-		bp2->bio_done = g_std_done;
-		g_io_request(bp2, LIST_FIRST(&gp->consumer));
-		return;
 	case BIO_WRITE:
 	case BIO_DELETE:
 		bp2 = g_clone_bio(bp);
+		if (bp2 == NULL) {
+			g_io_deliver(bp, ENOMEM);
+			return;
+		}
 		bp2->bio_offset += sc->sectorsize;
-		bp2->bio_done = g_mirror_done;
+		if (bp->bio_cmd == BIO_READ)
+			bp2->bio_done = g_std_done;
+		else
+			bp2->bio_done = g_mirror_done;
 		g_io_request(bp2, LIST_FIRST(&gp->consumer));
 		return;
 	default:
