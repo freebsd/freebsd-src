@@ -170,6 +170,19 @@ void i386_bus_space_handle_free(bus_space_tag_t t, bus_space_handle_t bsh,
 				size_t size);
 
 /*
+ *      int bus_space_map (bus_space_tag_t t, bus_addr_t addr,
+ *          bus_size_t size, int flag, bus_space_handle_t *bshp);
+ *
+ * Map a region of bus space.
+ */
+
+int i386_memio_map(bus_space_tag_t t, bus_addr_t addr, bus_size_t size,
+		   int flag, bus_space_handle_t *bshp);
+
+#define bus_space_map(t, a, s, f, hp)					\
+	i386_memio_map((t), (a), (s), (f), (hp))
+
+/*
  *      int bus_space_unmap (bus_space_tag_t t,
  *          bus_space_handle_t bsh, bus_size_t size);
  *
