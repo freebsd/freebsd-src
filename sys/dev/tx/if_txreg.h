@@ -1,6 +1,3 @@
-/*	$OpenBSD: if_txvar.h,v 1.7 1999/11/17 05:21:19 jason Exp $	*/
-/* $FreeBSD$ */
-
 /*-
  * Copyright (c) 1997 Semen Ustimenko
  * All rights reserved.
@@ -25,18 +22,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #define	EPIC_MAX_MTU		1600	/* This is experiment-derived value */
 
 /* PCI aux configuration registers */
-#if defined(__FreeBSD__)
 #define	PCIR_BASEIO	(PCIR_MAPS + 0x0)	/* Base IO Address */
 #define	PCIR_BASEMEM	(PCIR_MAPS + 0x4)	/* Base Memory Address */
-#else /* __OpenBSD__ */
-#define	PCI_BASEIO	(PCI_MAPS + 0x0)	/* Base IO Address */
-#define	PCI_BASEMEM	(PCI_MAPS + 0x4)	/* Base Memory Address */
-#endif /* __FreeBSD__ */
 
 /* PCI identification */
 #define SMC_VENDORID		0x10B8
@@ -174,6 +168,7 @@
  */
 #define TXCON_DEFAULT		(TXCON_SLOT_TIME | TXCON_EARLY_TRANSMIT_ENABLE)
 #define TRANSMIT_THRESHOLD	0x300
+#define TRANSMIT_THRESHOLD_MAX	0x600
 
 #define	RXCON_DEFAULT		(RXCON_RECEIVE_MULTICAST_FRAMES | \
 				 RXCON_RECEIVE_BROADCAST_FRAMES)
