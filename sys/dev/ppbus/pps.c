@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: pps.c,v 1.1 1998/02/13 12:59:56 phk Exp $
  *
  */
 
@@ -27,9 +27,9 @@
 #include <machine/lpt.h>
 
 #include <dev/ppbus/ppbconf.h>
-#include "ppps.h"
+#include "pps.h"
 
-#define PPPPS_NAME	"pps"		/* our official name */
+#define PPS_NAME	"pps"		/* our official name */
 
 static struct ppps_data {
 	int	ppps_unit;
@@ -39,7 +39,7 @@ static struct ppps_data {
 		u_int	serial;
 	} ev;
 	int	sawtooth;
-} *softc[NPPPPS];
+} *softc[NPPS];
 
 static int nppps;
 static int sawtooth;
@@ -54,7 +54,7 @@ static void			pppsintr(int unit);
 static void			ppps_drvinit(void *unused);
 
 static struct ppb_driver pppsdriver = {
-    pppsprobe, pppsattach, PPPPS_NAME
+    pppsprobe, pppsattach, PPS_NAME
 };
 
 DATA_SET(ppbdriver_set, pppsdriver);
@@ -68,7 +68,7 @@ static	d_write_t	pppswrite;
 static struct cdevsw ppps_cdevsw = 
 	{ pppsopen,	pppsclose,	pppsread,	pppswrite,
 	  noioctl,	nullstop,	nullreset,	nodevtotty,
-	  seltrue,	nommap,		nostrat,	PPPPS_NAME,
+	  seltrue,	nommap,		nostrat,	PPS_NAME,
 	  NULL,		-1 };
 
 static struct ppb_device *
@@ -79,7 +79,7 @@ pppsprobe(struct ppb_data *ppb)
 	sc = (struct ppps_data *) malloc(sizeof(struct ppps_data),
 							M_TEMP, M_NOWAIT);
 	if (!sc) {
-		printf(PPPPS_NAME ": cannot malloc!\n");
+		printf(PPS_NAME ": cannot malloc!\n");
 		return (0);
 	}
 	bzero(sc, sizeof(struct ppps_data));
@@ -101,16 +101,16 @@ pppsattach(struct ppb_device *dev)
 	/*
 	 * Report ourselves
 	 */
-	printf(PPPPS_NAME "%d: <Pulse per second Timing Interface> on ppbus %d\n",
+	printf(PPS_NAME "%d: <Pulse per second Timing Interface> on ppbus %d\n",
 	       dev->id_unit, dev->ppb->ppb_link->adapter_unit);
 
 #ifdef DEVFS
 	sc->devfs_token = devfs_add_devswf(&ppps_cdevsw,
 		dev->id_unit, DV_CHR,
-		UID_ROOT, GID_WHEEL, 0600, PPPPS_NAME "%d", dev->id_unit);
+		UID_ROOT, GID_WHEEL, 0600, PPS_NAME "%d", dev->id_unit);
 	sc->devfs_token_ctl = devfs_add_devswf(&ppps_cdevsw,
 		dev->id_unit | LP_BYPASS, DV_CHR,
-		UID_ROOT, GID_WHEEL, 0600, PPPPS_NAME "%d.ctl", dev->id_unit);
+		UID_ROOT, GID_WHEEL, 0600, PPS_NAME "%d.ctl", dev->id_unit);
 #endif
 
 	return (1);
