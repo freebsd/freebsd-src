@@ -51,6 +51,7 @@ static const char rcsid[] =
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <fcntl.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/param.h>
@@ -64,6 +65,7 @@ static const char rcsid[] =
 
 #define MAXVNDISK	16
 #define LINESIZE	1024
+#define ZBUFSIZE	32768
 
 struct vndisk {
 	char	*dev;
@@ -84,6 +86,8 @@ struct vndisk {
 #define VN_IGNORE	0x80
 #define VN_SET		0x100
 #define VN_RESET	0x200
+#define VN_TRUNCATE	0x400
+#define VN_ZERO		0x800
 
 int nvndisks;
 
@@ -111,9 +115,10 @@ main(argc, argv)
 	int flags = 0;
 	int size = 0;
 	char *autolabel = NULL;
+	char *s;
 
 	configfile = _PATH_VNTAB;
-	while ((i = getopt(argc, argv, "acdef:gr:s:S:L:uv")) != -1)
+	while ((i = getopt(argc, argv, "acdef:gr:s:S:TZL:uv")) != -1)
 		switch (i) {
 
 		/* all -- use config file */
@@ -151,15 +156,19 @@ main(argc, argv)
 
 		/* reset options */
 		case 'r':
-			if (what_opt(optarg,&resetopt))
-				errx(1, "invalid options '%s'", optarg);
+			for (s = strtok(optarg, ","); s; s = strtok(NULL, ",")) {
+				if (what_opt(s, &resetopt))
+					errx(1, "invalid options '%s'", s);
+			}
 			flags |= VN_RESET;
 			break;
 
 		/* set options */
 		case 's':
-			if (what_opt(optarg,&setopt))
-				errx(1, "invalid options '%s'", optarg);
+			for (s = strtok(optarg, ","); s; s = strtok(NULL, ",")) {
+				if (what_opt(s, &setopt))
+					errx(1, "invalid options '%s'", s);
+			}
 			flags |= VN_SET;
 			break;
 
@@ -178,6 +187,14 @@ main(argc, argv)
 			size = getsize(optarg);
 			break;
 
+		case 'T':
+			flags |= VN_TRUNCATE;
+			break;
+
+		case 'Z':
+			flags |= VN_ZERO;
+			break;
+
 		case 'L':
 			autolabel = optarg;
 			break;
@@ -192,13 +209,13 @@ main(argc, argv)
 
 	if (flags == 0)
 		flags = VN_CONFIG;
-	if (all)
+	if (all) {
 		readconfig(flags);
-	else {
+	} else {
 		if (argc < optind + 1)
 			usage();
 		vndisks[0].dev = argv[optind++];
-		vndisks[0].file = argv[optind++];
+		vndisks[0].file = argv[optind++];	/* may be NULL */
 		vndisks[0].flags = flags;
 		vndisks[0].size = size;
 		vndisks[0].autolabel = autolabel;
@@ -217,6 +234,7 @@ what_opt(str,p)
 	char *str;
 	u_long *p;
 {
+	if (!strcmp(str,"reserve")) { *p |= VN_RESERVE; return 0; }
 	if (!strcmp(str,"labels")) { *p |= VN_LABELS; return 0; }
 	if (!strcmp(str,"follow")) { *p |= VN_FOLLOW; return 0; }
 	if (!strcmp(str,"debug")) { *p |= VN_DEBUG; return 0; }
@@ -237,6 +255,7 @@ config(vnp)
 	char *rdev;
 	FILE *f;
 	u_long l;
+	int pgsize = getpagesize();
 
 	rv = 0;
 
@@ -253,6 +272,47 @@ config(vnp)
 
 	if (flags & VN_IGNORE)
 		return(0);
+
+	/*
+	 * When a regular file has been specified, do any requested setup
+	 * of the file.  Truncation (also creates the file if necessary),
+	 * sizing, and zeroing.
+	 */
+
+	if (file && vnp->size != 0 && (flags & VN_CONFIG)) {
+		int  fd;
+		struct stat st;
+
+		if (flags & VN_TRUNCATE)
+			fd = open(file, O_RDWR|O_CREAT|O_TRUNC);
+		else
+			fd = open(file, O_RDWR);
+		if (fd >= 0 && fstat(fd, &st) == 0 && S_ISREG(st.st_mode)) {
+			if (st.st_size < (off_t)vnp->size * pgsize)
+				ftruncate(fd, (off_t)vnp->size * pgsize);
+			if (vnp->size != 0)
+				st.st_size = (off_t)vnp->size * pgsize;
+
+			if (flags & VN_ZERO) {
+				char *buf = malloc(ZBUFSIZE);
+				bzero(buf, ZBUFSIZE);
+				while (st.st_size > 0) {
+					int n = (st.st_size > ZBUFSIZE) ?
+					    ZBUFSIZE : (int)st.st_size;
+					if (write(fd, buf, n) != n) {
+						ftruncate(fd, 0);
+						printf("Unable to ZERO file %s\n", file);
+						return(0);
+					}
+					st.st_size -= (off_t)n;
+				}
+			}
+			close(fd);
+		} else {
+			printf("Unable to open file %s\n", file);
+			return(0);
+		}
+	}
 
 	rdev = rawdevice(dev);
 	f = fopen(rdev, "rw");
@@ -292,6 +352,34 @@ config(vnp)
 				warn("VNIOCDETACH");
 		} else if (verbose)
 			printf("%s: cleared\n", dev);
+	}
+	/*
+	 * Set specified options
+	 */
+	if (flags & VN_SET) {
+		l = setopt;
+		if (global)
+			rv = ioctl(fileno(f), VNIOCGSET, &l);
+		else
+			rv = ioctl(fileno(f), VNIOCUSET, &l);
+		if (rv) {
+			warn("VNIO[GU]SET");
+		} else if (verbose)
+			printf("%s: flags now=%08x\n",dev,l);
+	}
+	/*
+	 * Reset specified options
+	 */
+	if (flags & VN_RESET) {
+		l = resetopt;
+		if (global)
+			rv = ioctl(fileno(f), VNIOCGCLEAR, &l);
+		else
+			rv = ioctl(fileno(f), VNIOCUCLEAR, &l);
+		if (rv) {
+			warn("VNIO[GU]CLEAR");
+		} else if (verbose)
+			printf("%s: flags now=%08x\n",dev,l);
 	}
 	/*
 	 * Configure the device

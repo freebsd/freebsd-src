@@ -46,8 +46,8 @@
 .Sh SYNOPSIS
 .Nm vnconfig
 .Op Fl cdeguv
-.Op Fl s Ar option
-.Op Fl r Ar option
+.Op Fl s Ar option[,option...]
+.Op Fl r Ar option[,option...]
 .Op Fl S Ar value
 .Ar special_file Ar [regular_file]
 .Op Ar feature
@@ -106,6 +106,15 @@ The list of allowed flags and their meanings are:
 .Bl -tag -width "follow"
 .It Ar labels 
 use disk/slice labels.
+.It Ar reserve 
+Pre-reserve the blocks underlying the file or swap backing store.  Currently only
+works for swap backing store.  This option also disables on-the-fly freeing of 
+the underlying backing store (for example, when you remove a large file). 
+Use this option if you wish to avoid long-term fragmentation of the backing
+store.  Also note that when this option is used, the initial contents of the
+backing store may contain garbage rather then zeros.  It may even be possible to
+recover the prior contents of a swap-backed VN across a reboot if the VN device
+is configured before any swap is allocated by the system.
 .It Ar follow 
 debug flow in the 
 .Xr vn 4
@@ -133,7 +142,18 @@ option.
 If no regular file is specified, VN will use swap for backing store.
 This option specifies the size of the device.  For example, '23m' for
 23 megabytes.  The VN device will round the size up to a machine page boundry.
-Filesystems up to 7.9 terrabytes are supported.
+Filesystems up to 7.9 terrabytes are supported.  When specified along with
+a regular file, this option overrides the regular file's size insofar as
+VN is concerned.
+.It Fl T
+When a regular file is specified, VN will ftruncate() the file to 0 first.
+Normally you should also specify the -S option to set the size of the file.
+This option also creates the file if it did not previously exist.
+This option is only meaningful if the -S option has been specified.
+.It Fl Z
+When a regular file is specified, VN will zero the contents of the file to
+ensure that all blocks have been allocated by the filesystem.  This option is
+only meaningful if the -S option has been specified.
 .It Fl u
 Disable and ``unconfigure'' the device.
 .It Fl v
