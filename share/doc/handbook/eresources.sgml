@@ -1,4 +1,4 @@
-<!-- $Id: eresources.sgml,v 1.8 1995/07/18 21:33:53 jfieber Exp $ -->
+<!-- $Id: eresources.sgml,v 1.9 1995/07/27 16:15:32 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt>
@@ -293,7 +293,7 @@ User Groups.
         <p>In addition to two FreeBSD specific newsgroups, there
           are many others in which FreeBSD is discussed or are
           otherwise relevant to FreeBSD users. <url
-          url="http://minnie.cs.adfa.oz.au/BSD-info/bsdnews_search.html"
+          url="http://minnie.cs.adfa.oz.au/BSD-info/bsdnews&lowbar;search.html"
           name="Keyword searchable archives"> are available for
           some of these newsgroups from courtesy of Warren Toomey
           <tt>&lt;wkt@cs.adfa.oz.au&gt;</tt>.

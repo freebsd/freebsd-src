@@ -1,4 +1,4 @@
-<!-- $Id: sup.sgml,v 1.4 1995/07/06 14:25:01 jfieber Exp $ -->
+<!-- $Id: sup.sgml,v 1.5 1995/07/07 22:25:54 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
@@ -30,12 +30,12 @@ the two collections; if you don't want ports, you can simply delete all the
 ports entries.  If you're inside the United States, you may also uncomment
 the `secure' collection line to grab the DES code.  If you're outside the
 U.S., you should NOT sup this code from FreeBSD.ORG as this will
-violate U.S. export restrictions.  Simply sup everything *but* the secure
-collection and then go look on "braae.ru.ac.za", where it's available for
+violate U.S. export restrictions.  Simply sup everything <em>but</em> the secure
+collection and then go look on braae.ru.ac.za, where it's available for
 anonymous ftp for those outside the U.S.
 
 Any other distributions you do not wish to receive can be commented out
-with a # at the begining of the distribution line.
+with a &num; at the begining of the distribution line.
 
 Once this is setup, you're ready to go.  To start sup type:
 <verb>
