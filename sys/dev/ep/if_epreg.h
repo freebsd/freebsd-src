@@ -156,6 +156,7 @@
  * Window 2 registers. Station Address Setup/Read
  */
 /* Read/Write */
+#define EP_W2_ALT_EEPROM	0x0a
 #define EP_W2_ADDR_5		0x05
 #define EP_W2_ADDR_4		0x04
 #define EP_W2_ADDR_3		0x03
