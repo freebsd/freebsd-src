@@ -71,7 +71,7 @@
 #	tw*	xten power controller
 #	snd*	various sound cards
 #
-#	$Id: MAKEDEV,v 1.22 1994/01/10 18:11:30 ache Exp $
+#	$Id: MAKEDEV,v 1.23 1994/01/24 20:57:16 davidg Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -396,6 +396,7 @@ pc*)
 	rm -f ${name} vga kbd kbdco vgaco ttyv[0-9][0-9]
 	mknod ${name} c ${chr} ${minor}
 	chown root.wheel $name
+	ln -s ${name} vga
 	;;
 
 # Use this to create virtual consoles for syscons, pcvt or codrv
