@@ -109,6 +109,14 @@ cpu_thread_clean(struct thread *td)
 void
 cpu_thread_setup(struct thread *td)
 {
+	intptr_t sp;
+
+	sp = td->td_kstack + KSTACK_PAGES * PAGE_SIZE;
+	sp -= sizeof(struct pcb);
+	td->td_pcb = (struct pcb *)sp;
+	sp -= sizeof(struct trapframe);
+	td->td_frame = (struct trapframe *)sp;
+	td->td_frame->tf_length = sizeof(struct trapframe);
 }
 
 void
