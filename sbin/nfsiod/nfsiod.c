@@ -108,7 +108,7 @@ main(argc, argv)
 			num_servers = atoi(optarg);
 			if (num_servers < 1 || num_servers > MAXNFSDCNT) {
 				warnx("nfsiod count %d; reset to %d",
-				    DEFNFSDCNT);
+				    num_servers, DEFNFSDCNT);
 				num_servers = DEFNFSDCNT;
 			}
 			break;
@@ -128,7 +128,8 @@ main(argc, argv)
 	if (argc == 1) {
 		num_servers = atoi(argv[0]);
 		if (num_servers < 1 || num_servers > MAXNFSDCNT) {
-			warnx("nfsiod count %d; reset to %d", DEFNFSDCNT);
+			warnx("nfsiod count %d; reset to %d", num_servers,
+			    DEFNFSDCNT);
 			num_servers = DEFNFSDCNT;
 		}
 	}
