@@ -26,7 +26,7 @@ editbuf.o: editbuf.cc \
  $(srcdir)/editbuf.h \
  $(srcdir)/fstream.h \
  $(srcdir)/iostream.h \
- $(srcdir)/streambuf.h 
+ $(srcdir)/streambuf.h
 filebuf.o: filebuf.cc \
  $(srcdir)/iostreamP.h \
  $(srcdir)/streambuf.h \
@@ -85,13 +85,13 @@ isscan.o: isscan.cc \
  $(srcdir)/iolibio.h \
  $(srcdir)/libio.h $(_G_CONFIG_H) \
  $(srcdir)/iostream.h \
- $(srcdir)/streambuf.h
+ $(srcdir)/streambuf.h 
 osform.o: osform.cc \
  $(srcdir)/libioP.h \
  $(srcdir)/iolibio.h \
  $(srcdir)/libio.h $(_G_CONFIG_H) \
  $(srcdir)/iostream.h \
- $(srcdir)/streambuf.h
+ $(srcdir)/streambuf.h 
 parsestream.o: parsestream.cc \
  $(srcdir)/libioP.h \
  $(srcdir)/iolibio.h \
@@ -117,7 +117,7 @@ sbform.o: sbform.cc \
  $(srcdir)/libioP.h \
  $(srcdir)/iolibio.h \
  $(srcdir)/libio.h $(_G_CONFIG_H) \
- $(srcdir)/streambuf.h
+ $(srcdir)/streambuf.h 
 sbgetline.o: sbgetline.cc \
  $(srcdir)/libioP.h \
  $(srcdir)/iolibio.h \
@@ -127,7 +127,7 @@ sbscan.o: sbscan.cc \
  $(srcdir)/libioP.h \
  $(srcdir)/iolibio.h \
  $(srcdir)/libio.h $(_G_CONFIG_H) \
- $(srcdir)/streambuf.h
+ $(srcdir)/streambuf.h 
 stdiostream.o: stdiostream.cc \
  $(srcdir)/stdiostream.h \
  $(srcdir)/iostream.h \
@@ -138,7 +138,10 @@ stdiostream.o: stdiostream.cc \
 stdstrbufs.o: stdstrbufs.cc \
  $(srcdir)/libioP.h \
  $(srcdir)/iolibio.h \
- $(srcdir)/libio.h $(_G_CONFIG_H) 
+ $(srcdir)/libio.h $(_G_CONFIG_H) \
+ $(srcdir)/stdiostream.h \
+ $(srcdir)/iostream.h \
+ $(srcdir)/streambuf.h
 stdstreams.o: stdstreams.cc \
  $(srcdir)/libioP.h \
  $(srcdir)/iolibio.h \
@@ -197,7 +200,19 @@ iofdopen.o: iofdopen.c \
  $(srcdir)/libioP.h \
  $(srcdir)/iolibio.h \
  $(srcdir)/libio.h $(_G_CONFIG_H) 
+iofeof.o: iofeof.c \
+ $(srcdir)/libioP.h \
+ $(srcdir)/iolibio.h \
+ $(srcdir)/libio.h $(_G_CONFIG_H) 
+ioferror.o: ioferror.c \
+ $(srcdir)/libioP.h \
+ $(srcdir)/iolibio.h \
+ $(srcdir)/libio.h $(_G_CONFIG_H) 
 iofflush.o: iofflush.c \
+ $(srcdir)/libioP.h \
+ $(srcdir)/iolibio.h \
+ $(srcdir)/libio.h $(_G_CONFIG_H) 
+iofflush_u.o: iofflush_u.c \
  $(srcdir)/libioP.h \
  $(srcdir)/iolibio.h \
  $(srcdir)/libio.h $(_G_CONFIG_H) 
@@ -241,6 +256,10 @@ iofwrite.o: iofwrite.c \
  $(srcdir)/libioP.h \
  $(srcdir)/iolibio.h \
  $(srcdir)/libio.h $(_G_CONFIG_H) 
+iogetc.o: iogetc.c \
+ $(srcdir)/libioP.h \
+ $(srcdir)/iolibio.h \
+ $(srcdir)/libio.h $(_G_CONFIG_H) 
 iogetdelim.o: iogetdelim.c \
  $(srcdir)/libioP.h \
  $(srcdir)/iolibio.h \
@@ -274,6 +293,10 @@ ioprims.o: ioprims.c \
  $(srcdir)/iolibio.h \
  $(srcdir)/libio.h $(_G_CONFIG_H) 
 ioprintf.o: ioprintf.c \
+ $(srcdir)/libioP.h \
+ $(srcdir)/iolibio.h \
+ $(srcdir)/libio.h $(_G_CONFIG_H) 
+ioputc.o: ioputc.c \
  $(srcdir)/libioP.h \
  $(srcdir)/iolibio.h \
  $(srcdir)/libio.h $(_G_CONFIG_H) 
@@ -338,6 +361,10 @@ iovsscanf.o: iovsscanf.c \
  $(srcdir)/libio.h $(_G_CONFIG_H) \
  $(srcdir)/strfile.h
 outfloat.o: outfloat.c \
+ $(srcdir)/libioP.h \
+ $(srcdir)/iolibio.h \
+ $(srcdir)/libio.h $(_G_CONFIG_H) 
+peekc.o: peekc.c \
  $(srcdir)/libioP.h \
  $(srcdir)/iolibio.h \
  $(srcdir)/libio.h $(_G_CONFIG_H) 
