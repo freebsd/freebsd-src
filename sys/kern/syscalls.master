@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.33 1997/02/22 09:39:21 peter Exp $
+	$Id: syscalls.master,v 1.34 1997/03/31 12:14:48 peter Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.
@@ -391,5 +391,5 @@
 250	STD	BSD	{ int minherit(caddr_t addr, size_t len, int inherit); }
 251	STD	BSD	{ int rfork(int flags); }
 252	UNIMPL	NOHIDE	poll (OpenBSD)
-253	UNIMPL	NOHIDE	issetugid (OpenBSD)
+253	STD	BSD	{ int issetugid(void); }
 254	STD	BSD	{ int lchown(char *path, int uid, int gid); }
