@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.220 1998/12/06 10:13:57 jkh Exp $
+ * $Id: install.c,v 1.221 1999/01/08 00:14:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -35,7 +35,6 @@
  */
 
 #include "sysinstall.h"
-#include "uc_main.h"
 #include <ctype.h>
 #include <sys/disklabel.h>
 #include <sys/errno.h>
@@ -54,9 +53,6 @@
 
 static void	create_termcap(void);
 static void	fixit_common(void);
-#ifdef SAVE_USERCONFIG
-static void	save_userconfig_to_kernel(char *);
-#endif
 
 #define TERMCAP_FILE	"/usr/share/misc/termcap"
 
@@ -762,10 +758,6 @@ installFixupBin(dialogMenuItem *self)
 		    msgConfirm("Unable to copy /kernel into place!");
 		    return DITEM_FAILURE;
 		}
-#ifdef SAVE_USERCONFIG
-		/* Snapshot any boot -c changes back to the new kernel */
-		save_userconfig_to_kernel("/kernel");
-#endif
 	    }
 	    else {
 		msgConfirm("Can't find a kernel image to link to on the root file system!\n"
@@ -1120,62 +1112,3 @@ create_termcap(void)
 	fclose(fp);
     }
 }
-
-#ifdef SAVE_USERCONFIG
-static void
-save_userconfig_to_kernel(char *kern)
-{
-    struct kernel *core, *boot;
-    struct list *c_isa, *b_isa, *c_dev, *b_dev;
-    int i, d;
-
-    if ((core = uc_open("-incore")) == NULL) {
-	msgDebug("save_userconf: Can't read in-core information for kernel.\n");
-	return;
-    }
-
-    if ((boot = uc_open(kern)) == NULL) {
-	msgDebug("save_userconf: Can't read device information for kernel image %s\n", kern);
-	return;
-    }
-
-    msgNotify("Saving any boot -c changes to new kernel...");
-    c_isa = uc_getdev(core, "-isa");
-    b_isa = uc_getdev(boot, "-isa");
-    if (isDebug())
-	msgDebug("save_userconf: got %d ISA device entries from core, %d from boot.\n", c_isa->ac, b_isa->ac);
-    for (d = 0; d < c_isa->ac; d++) {
-	if (isDebug())
-	    msgDebug("save_userconf: ISA device loop, c_isa->av[%d] = %s\n", d, c_isa->av[d]);
-	if (strcmp(c_isa->av[d], "npx0")) { /* special case npx0, which mucks with its id_irq member */
-	    c_dev = uc_getdev(core, c_isa->av[d]);
-	    b_dev = uc_getdev(boot, b_isa->av[d]);
-	    if (!c_dev || !b_dev) {
-		msgDebug("save_userconf: c_dev: %x b_dev: %x\n", c_dev, b_dev);
-		continue;
-	    }
-	    if (isDebug())
-		msgDebug("save_userconf: ISA device %s: %d config parameters (core), %d (boot)\n",
-			 c_isa->av[d], c_dev->ac, b_dev->ac);
-	    for (i = 0; i < c_dev->ac; i++) {
-		if (isDebug())
-		    msgDebug("save_userconf: c_dev->av[%d] = %s, b_dev->av[%d] = %s\n", i, c_dev->av[i], i, b_dev->av[i]);
-		if (strcmp(c_dev->av[i], b_dev->av[i])) {
-		    if (isDebug())
-			msgDebug("save_userconf: %s (boot) -> %s (core)\n",
-				 c_dev->av[i], b_dev->av[i]);
-		    isa_setdev(boot, c_dev);
-		}
-	    }
-	}
-	else {
-	    if (isDebug())
-		msgDebug("skipping npx0\n");
-	}
-    }
-    if (isDebug())
-	msgDebug("Closing kernels\n");
-    uc_close(core, 0);
-    uc_close(boot, 1);
-}
-#endif
