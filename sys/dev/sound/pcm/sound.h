@@ -47,6 +47,15 @@
 
 #include <sys/kernel.h> /* for DATA_SET */
 
+#if __FreeBSD_version < 500000
+#define MODULE_VERSION(mod, ver)
+#define MODULE_DEPEND(mod, dep, min, pref, max)
+
+#define ISADMA_WRITE B_WRITE
+#define ISADMA_READ B_READ
+#define ISADMA_RAW B_RAW
+#endif
+
 #include <sys/module.h>
 #include <sys/conf.h>
 #include <sys/file.h>
@@ -55,6 +64,9 @@
 #include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/bus.h>
+#if __FreeBSD_version > 500000
+#include <sys/bio.h>
+#endif
 #include <sys/buf.h>
 #include <machine/clock.h>	/* for DELAY */
 #include <machine/resource.h>
@@ -83,6 +95,12 @@ struct isa_device { int dummy; };
 #include <dev/sound/pcm/channel.h>
 #include <dev/sound/pcm/mixer.h>
 #include <dev/sound/pcm/dsp.h>
+
+#define PCM_MODVER	1
+
+#define PCM_MINVER	1
+#define PCM_PREFVER	PCM_MODVER
+#define PCM_MAXVER	1
 
 #define	MAGIC(unit) (0xa4d10de0 + unit)
 
