@@ -86,15 +86,16 @@ getpid(td, uap)
 	struct getpid_args *uap;
 {
 	struct proc *p = td->td_proc;
+	int s;
 
-	mtx_lock(&Giant);
+	s = mtx_lock_giant(kern_giant_proc);
 	td->td_retval[0] = p->p_pid;
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 	PROC_LOCK(p);
 	td->td_retval[1] = p->p_pptr->p_pid;
 	PROC_UNLOCK(p);
 #endif
-	mtx_unlock(&Giant);
+	mtx_unlock_giant(s);
 	return (0);
 }
 
@@ -117,12 +118,13 @@ getppid(td, uap)
 	struct getppid_args *uap;
 {
 	struct proc *p = td->td_proc;
+	int s;
 
-	mtx_lock(&Giant);
+	s = mtx_lock_giant(kern_giant_proc);
 	PROC_LOCK(p);
 	td->td_retval[0] = p->p_pptr->p_pid;
 	PROC_UNLOCK(p);
-	mtx_unlock(&Giant);
+	mtx_unlock_giant(s);
 	return (0);
 }
 
@@ -170,8 +172,9 @@ getpgid(td, uap)
 	struct proc *p = td->td_proc;
 	struct proc *pt;
 	int error = 0;
+	int s;
 
-	mtx_lock(&Giant);
+	s = mtx_lock_giant(kern_giant_proc);
 	if (uap->pid == 0)
 		td->td_retval[0] = p->p_pgrp->pg_id;
 	else if ((pt = pfind(uap->pid)) == NULL)
@@ -182,7 +185,7 @@ getpgid(td, uap)
 			td->td_retval[0] = pt->p_pgrp->pg_id;
 		PROC_UNLOCK(pt);
 	}
-	mtx_unlock(&Giant);
+	mtx_unlock_giant(s);
 	return (error);
 }
 

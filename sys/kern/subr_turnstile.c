@@ -720,3 +720,45 @@ mtx_destroy(struct mtx *m)
 
 	WITNESS_DESTROY(&m->mtx_object);
 }
+
+/*
+ * Encapsulated Giant mutex routines.  These routines provide encapsulation
+ * control for the Giant mutex, allowing sysctls to be used to turn on and
+ * off Giant around certain subsystems.  The default value for the sysctls
+ * are set to what developers believe is stable and working in regards to
+ * the Giant pushdown.  Developers should not turn off Giant via these
+ * sysctls unless they know what they are doing.
+ *
+ * Callers of mtx_lock_giant() are expected to pass the return value to an
+ * accompanying mtx_unlock_giant() later on.  If multiple subsystems are 
+ * effected by a Giant wrap, all related sysctl variables must be zero for
+ * the subsystem call to operate without Giant (as determined by the caller).
+ */
+
+SYSCTL_NODE(_kern, OID_AUTO, giant, CTLFLAG_RD, NULL, "Giant mutex manipulation");
+
+static int kern_giant_all = 0;
+SYSCTL_INT(_kern_giant, OID_AUTO, all, CTLFLAG_RW, &kern_giant_all, 0, "");
+
+int kern_giant_proc = 1;	/* Giant around PROC locks */
+int kern_giant_file = 1;	/* Giant around struct file & filedesc */
+SYSCTL_INT(_kern_giant, OID_AUTO, proc, CTLFLAG_RW, &kern_giant_proc, 0, "");
+SYSCTL_INT(_kern_giant, OID_AUTO, file, CTLFLAG_RW, &kern_giant_file, 0, "");
+
+int
+mtx_lock_giant(int sysctlvar)
+{
+	if (sysctlvar || kern_giant_all) {
+		mtx_lock(&Giant);
+		return(1);
+	}
+	return(0);
+}
+
+void
+mtx_unlock_giant(int s)
+{
+	if (s)
+		mtx_unlock(&Giant);
+}
+
