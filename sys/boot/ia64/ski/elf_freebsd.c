@@ -90,7 +90,6 @@
 #define _KERNEL
 
 static int	elf_exec(struct preloaded_file *amp);
-int		bi_load(struct bootinfo *, struct preloaded_file *);
 
 struct file_format ia64_elf = { elf_loadfile, elf_exec };
 
