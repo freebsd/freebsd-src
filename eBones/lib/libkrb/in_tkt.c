@@ -5,13 +5,13 @@
  * <Copyright.MIT>.
  *
  *	from: kt.c,v 4.9 89/10/25 19:03:35 qjb Exp $
- *	$Id: in_tkt.c,v 1.6 1995/07/18 16:38:49 mark Exp $
+ *	$Id: in_tkt.c,v 1.4 1995/09/07 21:38:04 markm Exp $
  */
 
 #if 0
 #ifndef lint
 static char rcsid[] =
-"$Id: in_tkt.c,v 1.6 1995/07/18 16:38:49 mark Exp $";
+"$Id: in_tkt.c,v 1.4 1995/09/07 21:38:04 markm Exp $";
 #endif /* lint */
 #endif
 
@@ -95,7 +95,7 @@ in_tkt(pname,pinst)
 	    return(KFAILURE);
 	} else
 	    if (krb_debug)
-		printf("swapped UID's %ld and %ld\n",metoo,me);
+		printf("swapped UID's %d and %d\n",metoo,me);
     }
     if ((tktfile = open(file,O_CREAT | O_TRUNC | O_WRONLY,0600)) < 0) {
 	if (krb_debug)
@@ -110,7 +110,7 @@ in_tkt(pname,pinst)
 	    return(KFAILURE);
 	} else
 	    if (krb_debug)
-		printf("swapped UID's %ld and %ld\n",me,metoo);
+		printf("swapped UID's %d and %d\n",me,metoo);
     }
     if (lstat(file,&buf) < 0) {
 	if (krb_debug)
