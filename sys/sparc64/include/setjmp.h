@@ -36,7 +36,13 @@
 #ifndef	_MACHINE_SETJMP_H_
 #define	_MACHINE_SETJMP_H_
 
-#define	_JBLEN	31
+#define	_JBLEN		5
+
+#define	_JB_FP		0
+#define	_JB_PC		1
+#define	_JB_SP		2
+#define	_JB_SIGMASK	3
+#define	_JB_SIGFLAG	5
 
 /*
  * jmp_buf and sigjmp_buf are encapsulated in different structs to force
