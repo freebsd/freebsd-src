@@ -562,9 +562,6 @@ spec_fsync(ap)
 	struct buf *nbp;
 	int s;
 
-	if (bdev_buffered == 0)
-		return (0);
-
 	if (!vn_isdisk(vp))
 		return (0);
 
