@@ -65,8 +65,6 @@ _hlt_vector:	.long	_default_halt	/* pointer to halt routine */
 
 	.globl	_panic
 
-	.globl	_want_resched
-_want_resched:	.long	0		/* we need to re-run the scheduler */
 #if defined(SWTCH_OPTIM_STATS)
 	.globl	_swtch_optim_stats, _tlb_flush_count
 _swtch_optim_stats:	.long	0		/* number of _swtch_optims */
@@ -129,6 +127,9 @@ _idle:
 	/*
 	 * XXX callers of cpu_switch() do a bogus splclock().  Locking should
 	 * be left to cpu_switch().
+	 *
+	 * NOTE: spl*() may only be called while we hold the MP lock (which 
+	 * we do).
 	 */
 	call	_spl0
 
@@ -159,14 +160,14 @@ idle_loop:
 	testl	%eax,%eax
 	jnz	3f
 
+	/*
+	 * Handle page-zeroing in the idle loop.  Called with interrupts
+	 * disabled and the MP lock released.  Inside vm_page_zero_idle
+	 * we enable interrupts and grab the mplock as required.
+	 */
 	cmpl	$0,_do_page_zero_idle
 	je	2f
 
-	/* XXX appears to cause panics */
-	/*
-	 * Inside zero_idle we enable interrupts and grab the mplock
-	 * as needed.  It needs to be careful about entry/exit mutexes.
-	 */
 	call	_vm_page_zero_idle		/* internal locking */
 	testl	%eax, %eax
 	jnz	idle_loop
@@ -178,9 +179,15 @@ idle_loop:
 	cli
 	jmp	idle_loop
 
+	/*
+	 * Note that interrupts must be enabled while obtaining the MP lock
+	 * in order to be able to take IPI's while blocked.
+	 */
 3:
 	movl	$LOPRIO_LEVEL, lapic_tpr	/* arbitrate for INTs */
+	sti
 	call	_get_mplock
+	cli
 	call	_procrunnable
 	testl	%eax,%eax
 	CROSSJUMP(jnz, sw1a, jz)
@@ -355,8 +362,8 @@ sw1a:
 	CROSSJUMP(je, _idle, jne)		/* if no proc, idle */
 	movl	%eax,%ecx
 
-	movl	$0,%eax
-	movl	%eax,_want_resched
+	xorl	%eax,%eax
+	andl	$~AST_RESCHED,_astpending
 
 #ifdef	DIAGNOSTIC
 	cmpl	%eax,P_WCHAN(%ecx)

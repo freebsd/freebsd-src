@@ -340,9 +340,18 @@ MALLOC_DECLARE(M_PARGS);
 		FREE(s, M_SESSION);					\
 }
 
+/*
+ * STOPEVENT is MP SAFE.
+ */
 extern void stopevent(struct proc*, unsigned int, unsigned int);
-#define	STOPEVENT(p,e,v)	do { \
-	if ((p)->p_stops & (e)) stopevent(p,e,v); } while (0)
+#define	STOPEVENT(p,e,v)			\
+	do {					\
+		if ((p)->p_stops & (e)) {	\
+			get_mplock();		\
+			stopevent(p,e,v);	\
+			rel_mplock(); 		\
+		}				\
+	} while (0)
 
 /* hold process U-area in memory, normally for ptrace/procfs work */
 #define PHOLD(p) {							\
@@ -365,6 +374,7 @@ extern u_long pgrphash;
 
 #ifndef curproc
 extern struct proc *curproc;		/* Current running proc. */
+extern u_int astpending;		/* software interrupt pending */
 extern int switchticks;			/* `ticks' at last context switch. */
 extern struct timeval switchtime;	/* Uptime at last context switch */
 #endif

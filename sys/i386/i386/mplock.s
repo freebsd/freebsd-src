@@ -18,7 +18,6 @@
  * The attempt to seize/release the semaphore and the increment/decrement
  * is done in one atomic operation.  This way we are safe from all kinds
  * of weird reentrancy situations.
- * 
  */
 
 #include <machine/asmacros.h>
@@ -51,12 +50,8 @@
  * Claim LOWest PRIOrity, ie. attempt to grab ALL INTerrupts.
  */
 
-/* location of saved TPR on stack */
-#define TPR_TARGET	8(%esp)
-
-/* after 1st acquire of lock we attempt to grab all hardware INTs */
-#define GRAB_HWI	movl	$ALLHWI_LEVEL, TPR_TARGET
-#define GRAB_HWI_2	movl	$ALLHWI_LEVEL, lapic_tpr /* CHEAP_TPR */
+/* after 1st acquire of lock we grab all hardware INTs */
+#define GRAB_HWI	movl	$ALLHWI_LEVEL, lapic_tpr
 
 /* after last release of lock give up LOW PRIO (ie, arbitrate INTerrupts) */
 #define ARB_HWI		movl	$LOPRIO_LEVEL, lapic_tpr /* CHEAP_TPR */
@@ -64,18 +59,21 @@
 #else /* GRAB_LOPRIO */
 
 #define GRAB_HWI	/* nop */
-#define GRAB_HWI_2	/* nop */
 #define ARB_HWI		/* nop */
 
 #endif /* GRAB_LOPRIO */
 
 
 	.text
+
+#ifdef SMP 
+
 /***********************************************************************
  *  void MPgetlock_edx(unsigned int *lock : %edx)
  *  ----------------------------------
  *  Destroys	%eax, %ecx.  %edx must hold lock argument.
- *  Note: TPR_TARGET (relative to the stack) is destroyed in GRAB_HWI
+ *
+ *  Grabs hardware interrupts on first aquire.
  *
  *  NOTE: Serialization is not required if we already hold the lock, since
  *  we already hold the lock, nor do we need a locked instruction if we 
@@ -131,7 +129,7 @@ NON_GPROF_ENTRY(MPtrylock)
 #ifdef GLPROFILE
 	incl	_tryhits2
 #endif /* GLPROFILE */
-	GRAB_HWI_2			/* 1st acquire, grab hw INTs */
+	GRAB_HWI			/* 1st acquire, grab hw INTs */
 	movl	$1, %eax
 	ret
 1:
@@ -208,38 +206,51 @@ NON_GPROF_ENTRY(MPrellock_edx)
  *
  *  Stack (after call to _MPgetlock):
  *	
- *	EFLAGS		 4(%esp)
- *	local APIC TPR	 8(%esp)	<-- note, TPR_TARGET
- *	edx		12(%esp)
- *	ecx		16(%esp)
- *	eax		20(%esp)
+ *	edx		 4(%esp)
+ *	ecx		 8(%esp)
+ *	eax		12(%esp)
+ *
+ * Requirements:  Interrupts should be enabled on call so we can take
+ *		  IPI's and FAST INTs while we are waiting for the lock
+ *		  (else the system may not be able to halt).
+ *
+ *		  XXX there are still places where get_mplock() is called
+ *		  with interrupts disabled, so we have to temporarily reenable
+ *		  interrupts.
+ *
+ * Side effects:  The current cpu will be given ownership of the
+ *		  hardware interrupts when it first aquires the lock.
+ *
+ * Costs:	  Initial aquisition requires the use of a costly locked
+ *		  instruction, but recursive aquisition is cheap.  Release
+ *		  is very cheap.
  */
 
 NON_GPROF_ENTRY(get_mplock)
 	pushl	%eax
 	pushl	%ecx
 	pushl	%edx
-
-	/* block all HW INTs via Task Priority Register */
-	pushl	lapic_tpr		/* save current TPR */
-	pushfl				/* save current EFLAGS */
-	testl	$(1<<9), (%esp)		/* test EI bit */
-	jnz	1f			/* INTs currently enabled */
-	sti				/* allow IPI and FAST INTs */
-1:
 	movl	$_mp_lock, %edx
+	pushfl	
+	testl   $(1<<9), (%esp)
+	jz     2f           
 	call	_MPgetlock_edx
-
-	popfl				/* restore original EFLAGS */
-	popl	lapic_tpr		/* restore TPR */
+	addl	$4,%esp
+1:
 	popl	%edx
 	popl	%ecx
 	popl	%eax
 	ret
+2:
+	sti
+	call	_MPgetlock_edx
+	popfl
+	jmp	1b
 
 /*
  * Special version of get_mplock that is used during bootstrap when we can't
- * yet enable interrupts of any sort since the APIC isn't online yet.
+ * yet enable interrupts of any sort since the APIC isn't online yet.  We
+ * do an endrun around MPgetlock_edx to avoid enabling interrupts.
  *
  * XXX FIXME.. - APIC should be online from the start to simplify IPI's.
  */
@@ -247,20 +258,19 @@ NON_GPROF_ENTRY(boot_get_mplock)
 	pushl	%eax
 	pushl	%ecx
 	pushl	%edx
-
 #ifdef GRAB_LOPRIO	
-	pushl	$0			/* dummy TPR (TPR_TARGET) */
 	pushfl
+	pushl	lapic_tpr
+	cli
 #endif
 	
 	movl	$_mp_lock, %edx
 	call	_MPgetlock_edx
 
 #ifdef GRAB_LOPRIO	
+	popl	lapic_tpr
 	popfl
-	addl	$4, %esp
 #endif
-
 	popl	%edx
 	popl	%ecx
 	popl	%eax
@@ -297,213 +307,7 @@ NON_GPROF_ENTRY(rel_mplock)
 	popl	%ecx
 	ret
 
-/***********************************************************************
- *  void get_isrlock()
- *  -----------------
- *  no registers preserved, assummed the calling ISR does!
- *
- *  Stack (after call to _MPgetlock):
- *	
- *	EFLAGS		 4(%esp)
- *	local APIC TPR	 8(%esp)
- */
-
-NON_GPROF_ENTRY(get_isrlock)
-
-	/* block all HW INTs via Task Priority Register */
-	pushl	lapic_tpr		/* save current TPR (TPR_TARGET) */
-	pushfl				/* save current EFLAGS */
-	sti				/* allow IPI and FAST INTs */
-
-	movl	$_mp_lock, %edx
-	call	_MPgetlock_edx
-
-	popfl				/* restore original EFLAGS */
-	popl	lapic_tpr		/* restore TPR */
-	ret
-
-
-/***********************************************************************
- *  void try_isrlock()
- *  -----------------
- *  no registers preserved, assummed the calling ISR does!
- *  reg %eax == 1 if success
- */
-
-NON_GPROF_ENTRY(try_isrlock)
-	pushl	$_mp_lock
-	call	_MPtrylock
-	add	$4, %esp
-	ret
-
-
-/***********************************************************************
- *  void rel_isrlock()
- *  -----------------
- *  no registers preserved, assummed the calling ISR does!
- */
-
-NON_GPROF_ENTRY(rel_isrlock)
-	movl	$_mp_lock,%edx
-	jmp	_MPrellock_edx
-
-
-/***********************************************************************
- * FPU locks
- */
-
-NON_GPROF_ENTRY(get_fpu_lock)
-	pushl	lapic_tpr		/* save current TPR (TPR_TARGET) */
-	pushfl
-	sti
-	movl	$_mp_lock, %edx
-	call	_MPgetlock_edx
-	popfl
-	popl	lapic_tpr
-	ret
-
-#ifdef notneeded
-NON_GPROF_ENTRY(try_fpu_lock)
-	pushl	$_mp_lock
-	call	_MPtrylock
-	add	$4, %esp
-	ret
-
-NON_GPROF_ENTRY(rel_fpu_lock)
-	movl	$_mp_lock,%edx
-	jmp	_MPrellock_edx
-#endif /* notneeded */
-
-
-/***********************************************************************
- * align locks
- */
-
-NON_GPROF_ENTRY(get_align_lock)
-	pushl	lapic_tpr		/* save current TPR (TPR_TARGET) */
-	pushfl
-	sti
-	movl	$_mp_lock, %edx
-	call	_MPgetlock_edx
-	popfl
-	popl	lapic_tpr
-	ret
-
-#ifdef notneeded
-NON_GPROF_ENTRY(try_align_lock)
-	pushl	$_mp_lock
-	call	_MPtrylock
-	add	$4, %esp
-	ret
-
-NON_GPROF_ENTRY(rel_align_lock)
-	movl	$_mp_lock,%edx
-	jmp	_MPrellock_edx
-#endif /* notneeded */
-
-
-/***********************************************************************
- * syscall locks
- */
-
-NON_GPROF_ENTRY(get_syscall_lock)
-	pushl	lapic_tpr		/* save current TPR (TPR_TARGET) */
-	pushfl
-	sti
-	movl	$_mp_lock, %edx
-	call	_MPgetlock_edx
-	popfl
-	popl	lapic_tpr
-	ret
-
-#ifdef notneeded
-NON_GPROF_ENTRY(try_syscall_lock)
-	pushl	$_mp_lock
-	call	_MPtrylock
-	add	$4, %esp
-	ret
-#endif /* notneeded */
-
-NON_GPROF_ENTRY(rel_syscall_lock)
-	movl	$_mp_lock,%edx
-	jmp	_MPrellock_edx
-
-
-/***********************************************************************
- * altsyscall locks
- */
-
-NON_GPROF_ENTRY(get_altsyscall_lock)
-	pushl	lapic_tpr		/* save current TPR (TPR_TARGET) */
-	pushfl
-	sti
-	movl	$_mp_lock, %edx
-	call	_MPgetlock_edx
-	popfl
-	popl	lapic_tpr
-	ret
-
-#ifdef notneeded
-NON_GPROF_ENTRY(try_altsyscall_lock)
-	pushl	$_mp_lock
-	call	_MPtrylock
-	add	$4, %esp
-	ret
-
-NON_GPROF_ENTRY(rel_altsyscall_lock)
-	movl	$_mp_lock,%edx
-	jmp	_MPrellock_edx
-#endif /* notneeded */
-
-
-#ifdef RECURSIVE_MPINTRLOCK
-/***********************************************************************
- *  void get_mpintrlock()
- *  -----------------
- *  All registers preserved
- */
-
-NON_GPROF_ENTRY(get_mpintrlock)
-	pushl	%eax
-	pushl	%ecx
-	pushl	%edx
-
-#ifdef GRAB_LOPRIO
-	pushl	lapic_tpr		/* save current TPR (TPR_TARGET) */
-	pushfl
 #endif
-
-	movl	$_mpintr_lock, %edx
-	call	_MPgetlock_edx
-
-#ifdef GRAB_LOPRIO	
-	popfl
-	popl	lapic_tpr
-#endif
-
-	popl	%edx
-	popl	%ecx
-	popl	%eax
-	ret
-
-/***********************************************************************
- *  void rel_mpintrlock()
- *  -----------------
- *  All registers preserved
- */
-
-NON_GPROF_ENTRY(rel_mpintrlock)
-	pushl	%ecx
-	pushl	%edx
-
-	movl	$_mpintr_lock,%edx
-	call	_MPrellock_edx
-
-	popl	%edx
-	popl	%ecx
-	ret
-#endif /* RECURSIVE_MPINTRLOCK */
-
 
 /***********************************************************************
  * 
@@ -511,17 +315,10 @@ NON_GPROF_ENTRY(rel_mpintrlock)
 	.data
 	.p2align 2			/* xx_lock aligned on int boundary */
 
+#ifdef SMP
+
 	.globl _mp_lock
 _mp_lock:	.long	0		
-
-	.globl _isr_lock
-_isr_lock:	.long	0		
-
-#ifdef RECURSIVE_MPINTRLOCK
-	.globl _mpintr_lock
-_mpintr_lock:	.long	0xffffffff
-#endif /* RECURSIVE_MPINTRLOCK */
-
 
 #ifdef GLPROFILE
 	.globl	_gethits
@@ -543,3 +340,4 @@ _tryhits3:
 msg:
 	.asciz	"lock hits: 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x\n"
 #endif /* GLPROFILE */
+#endif /* SMP */

@@ -63,65 +63,6 @@
 #define PUSHDOWN_LEVEL_3_NOT
 #define PUSHDOWN_LEVEL_4_NOT
 
-
-/*
- * XXX some temp debug control of cpl locks
- */
-#ifdef PUSHDOWN_LEVEL_2
-#define REAL_ECPL	/* exception.s:		SCPL_LOCK/SCPL_UNLOCK */
-#define REAL_ICPL	/* ipl.s:		CPL_LOCK/CPL_UNLOCK/FAST */
-#define REAL_AICPL	/* apic_ipl.s:		SCPL_LOCK/SCPL_UNLOCK */
-#define REAL_AVCPL	/* apic_vector.s:	CPL_LOCK/CPL_UNLOCK */
-#define REAL_IFCPL	/* ipl_funcs.c:		SCPL_LOCK/SCPL_UNLOCK */
-#endif /* PUSHDOWN_LEVEL_2 */
-
-/*
- * The xCPL_LOCK/xCPL_UNLOCK defines control the spinlocks
- * that protect cpl/cml/cil and the spl functions.
- */
-#ifdef REAL_ECPL
-#define ECPL_LOCK		SCPL_LOCK
-#define ECPL_UNLOCK		SCPL_UNLOCK
-#else
-#define ECPL_LOCK
-#define ECPL_UNLOCK
-#endif /* REAL_ECPL */
-
-#ifdef REAL_ICPL
-#define ICPL_LOCK		CPL_LOCK
-#define ICPL_UNLOCK		CPL_UNLOCK
-#define FAST_ICPL_UNLOCK	movl	$0, _cpl_lock
-#else
-#define ICPL_LOCK
-#define ICPL_UNLOCK
-#define FAST_ICPL_UNLOCK
-#endif /* REAL_ICPL */
-
-#ifdef REAL_AICPL
-#define AICPL_LOCK		SCPL_LOCK
-#define AICPL_UNLOCK		SCPL_UNLOCK
-#else
-#define AICPL_LOCK
-#define AICPL_UNLOCK
-#endif /* REAL_AICPL */
-
-#ifdef REAL_AVCPL
-#define AVCPL_LOCK		CPL_LOCK
-#define AVCPL_UNLOCK		CPL_UNLOCK
-#else
-#define AVCPL_LOCK
-#define AVCPL_UNLOCK
-#endif /* REAL_AVCPL */
-
-#ifdef REAL_IFCPL
-#define IFCPL_LOCK()		SCPL_LOCK()
-#define IFCPL_UNLOCK()		SCPL_UNLOCK()
-#else
-#define IFCPL_LOCK()
-#define IFCPL_UNLOCK()
-#endif /* REAL_IFCPL */
-
-
 /*
  * Debug version of simple_lock.  This will store the CPU id of the
  * holding CPU along with the lock.  When a CPU fails to get the lock
@@ -160,36 +101,40 @@
 
 
 /*
- * Regular INTerrupts without the giant lock, NOT READY YET!!!
+ * INTR_SIMPLELOCK has been removed, as the interrupt mechanism will likely
+ * not use this sort of optimization if we move to interrupt threads.
  */
 #ifdef PUSHDOWN_LEVEL_4
-#define INTR_SIMPLELOCK
 #endif
 
 
 /*
- * Separate the INTR() portion of cpl into another variable: cml.
+ * CPL_AND_CML has been removed.  Interrupt threads will eventually not
+ * use either mechanism so there is no point trying to optimize it.
  */
 #ifdef PUSHDOWN_LEVEL_3
-#define CPL_AND_CML
 #endif
 
 
 /*
- * Forces spl functions to spin while waiting for safe time to change cpl.
+ * SPL_DEBUG_POSTCODE/INTR_SPL/SPL_DEBUG - removed
  *
-#define SPL_DEBUG_POSTCODE	(slows the system down noticably)
+ * These functions were too expensive for the standard case but, more 
+ * importantly, we should be able to come up with a much cleaner way
+ * to handle the cpl.  Having to do any locking at all is a mistake
+ * for something that is modified as often as cpl is.
  */
-#ifdef PUSHDOWN_LEVEL_3
-#define INTR_SPL
-#define SPL_DEBUG
-#endif
-
 
 /*
+ * FAST_WITHOUTCPL - now made the default (define removed).  Text below 
+ * contains the current discussion.  I am confident we can find a solution
+ * that does not require us to process softints from a hard int, which can
+ * kill serial performance due to the lack of true hardware ipl's.
+ *
+ ****
+ *
  * Ignore the ipending bits when exiting FAST_INTR() routines.
  *
- ***
  * according to Bruce:
  *
  * setsoft*() may set ipending.  setsofttty() is actually used in the
@@ -209,21 +154,17 @@
  *  I finish making spl/cpl MP-safe.
  */
 #ifdef PUSHDOWN_LEVEL_1
-#define FAST_WITHOUTCPL
 #endif
 
 
 /*
- * Use a simplelock to serialize FAST_INTR()s.
- * sio.c, and probably other FAST_INTR() drivers, never expected several CPUs
- * to be inside them at once.  Things such as global vars prevent more
- * than 1 thread of execution from existing at once, so we serialize
- * the access of FAST_INTR()s via a simple lock.
- * One optimization on this would be a simple lock per DRIVER, but I'm
- * not sure how to organize that yet...
+ * FAST_SIMPLELOCK no longer exists, because it doesn't help us.  The cpu
+ * is likely to already hold the MP lock and recursive MP locks are now
+ * very cheap, so we do not need this optimization.  Eventually *ALL* 
+ * interrupts will run in their own thread, so there is no sense complicating
+ * matters now.
  */
 #ifdef PUSHDOWN_LEVEL_1
-#define FAST_SIMPLELOCK
 #endif
 
 

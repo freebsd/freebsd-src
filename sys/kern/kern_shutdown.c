@@ -63,9 +63,7 @@
 #include <machine/pcb.h>
 #include <machine/clock.h>
 #include <machine/md_var.h>
-#ifdef SMP
 #include <machine/smp.h>		/* smp_active, cpuid */
-#endif
 
 #include <sys/signalvar.h>
 

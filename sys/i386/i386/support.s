@@ -663,7 +663,9 @@ ENTRY(memcpy)
  * returns to *curpcb->onfault instead of the function.
  */
 
-/* copyout(from_kernel, to_user, len) */
+/*
+ * copyout(from_kernel, to_user, len)  - MP SAFE (if not I386_CPU)
+ */
 ENTRY(copyout)
 	MEXITCOUNT
 	jmp	*_copyout_vector
@@ -703,6 +705,10 @@ ENTRY(generic_copyout)
 	ja	copyout_fault
 
 #if defined(I386_CPU)
+
+#if defined(SMP)
+#error I386_CPU option not supported if SMP
+#endif
 
 #if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
 	cmpl	$CPUCLASS_386,_cpu_class
@@ -848,7 +854,9 @@ ENTRY(i586_copyout)
 	jmp	done_copyout
 #endif /* I586_CPU && NNPX > 0 */
 
-/* copyin(from_user, to_kernel, len) */
+/*
+ * copyin(from_user, to_kernel, len) - MP SAFE
+ */
 ENTRY(copyin)
 	MEXITCOUNT
 	jmp	*_copyin_vector
@@ -1129,7 +1137,9 @@ fastmove_tail_fault:
 #endif /* I586_CPU && NNPX > 0 */
 
 /*
- * fu{byte,sword,word} : fetch a byte (sword, word) from user memory
+ * fu{byte,sword,word} - MP SAFE
+ *
+ *	Fetch a byte (sword, word) from user memory
  */
 ENTRY(fuword)
 	movl	_curpcb,%ecx
@@ -1154,6 +1164,9 @@ ENTRY(fuswintr)
 	movl	$-1,%eax
 	ret
 
+/*
+ * fusword - MP SAFE
+ */
 ENTRY(fusword)
 	movl	_curpcb,%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)
@@ -1166,6 +1179,9 @@ ENTRY(fusword)
 	movl	$0,PCB_ONFAULT(%ecx)
 	ret
 
+/*
+ * fubyte - MP SAFE
+ */
 ENTRY(fubyte)
 	movl	_curpcb,%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)
@@ -1187,7 +1203,9 @@ fusufault:
 	ret
 
 /*
- * su{byte,sword,word}: write a byte (word, longword) to user memory
+ * su{byte,sword,word} - MP SAFE (if not I386_CPU)
+ *
+ *	Write a byte (word, longword) to user memory
  */
 ENTRY(suword)
 	movl	_curpcb,%ecx
@@ -1195,6 +1213,10 @@ ENTRY(suword)
 	movl	4(%esp),%edx
 
 #if defined(I386_CPU)
+
+#if defined(SMP)
+#error I386_CPU option not supported if SMP
+#endif
 
 #if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
 	cmpl	$CPUCLASS_386,_cpu_class
@@ -1238,12 +1260,19 @@ ENTRY(suword)
 	movl	%eax,PCB_ONFAULT(%ecx)
 	ret
 
+/*
+ * susword - MP SAFE (if not I386_CPU)
+ */
 ENTRY(susword)
 	movl	_curpcb,%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	4(%esp),%edx
 
 #if defined(I386_CPU)
+
+#if defined(SMP)
+#error I386_CPU option not supported if SMP
+#endif
 
 #if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
 	cmpl	$CPUCLASS_386,_cpu_class
@@ -1287,6 +1316,9 @@ ENTRY(susword)
 	movl	%eax,PCB_ONFAULT(%ecx)
 	ret
 
+/*
+ * su[i]byte - MP SAFE (if not I386_CPU)
+ */
 ALTENTRY(suibyte)
 ENTRY(subyte)
 	movl	_curpcb,%ecx
@@ -1294,6 +1326,10 @@ ENTRY(subyte)
 	movl	4(%esp),%edx
 
 #if defined(I386_CPU)
+
+#if defined(SMP)
+#error I386_CPU option not supported if SMP
+#endif
 
 #if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
 	cmpl	$CPUCLASS_386,_cpu_class
@@ -1337,7 +1373,8 @@ ENTRY(subyte)
 	ret
 
 /*
- * copyinstr(from, to, maxlen, int *lencopied)
+ * copyinstr(from, to, maxlen, int *lencopied) - MP SAFE
+ *
  *	copy a string from from to to, stop when a 0 character is reached.
  *	return ENAMETOOLONG if string is longer than maxlen, and
  *	EFAULT on protection violations. If lencopied is non-zero,
@@ -1409,7 +1446,7 @@ cpystrflt_x:
 
 
 /*
- * copystr(from, to, maxlen, int *lencopied)
+ * copystr(from, to, maxlen, int *lencopied) - MP SAFE
  */
 ENTRY(copystr)
 	pushl	%esi
