@@ -230,7 +230,7 @@ m_mballoc(nmb, how)
 	if (p == NULL)
 		return (0);
 
-	mbutltop += nbytes;
+	mbutltop = (struct mbuf *)((char *)mbutltop + nbytes);
 	nmb = nbytes / MSIZE;
 	for (i = 0; i < nmb; i++) {
 		((struct mbuf *)p)->m_next = mmbfree;
@@ -381,7 +381,7 @@ m_clalloc_fail:
 		return (0);
 	}
 
-	mbutltop += ctob(npg);
+	mbutltop = (struct mbuf *)((char *)mbutltop + ctob(npg));
 
 	for (i = 0; i < ncl; i++) {
 		((union mcluster *)p)->mcl_next = mclfree;
