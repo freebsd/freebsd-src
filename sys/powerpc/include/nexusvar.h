@@ -50,4 +50,9 @@ NEXUS_ACCESSOR(compatible,	COMPATIBLE,		char *)
 
 #undef NEXUS_ACCESSOR
 
+/*
+ * Install the interrupt controller device
+ */
+int  nexus_install_intcntlr(device_t);
+
 #endif /* _MACHINE_NEXUSVAR_H_ */
