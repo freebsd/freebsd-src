@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	Id: miidevs,v 1.3 1999/08/29 15:42:04 wpaul Exp 
+ *	FreeBSD: src/sys/dev/mii/miidevs,v 1.5 2000/04/22 01:54:55 wpaul Exp 
  */
 /*$NetBSD: miidevs,v 1.6 1999/05/14 11:37:30 drochner Exp $*/
 
@@ -67,17 +67,19 @@
 #define	MII_OUI_SEEQ	0x00a07d	/* Seeq */
 #define	MII_OUI_SIS	0x00e006	/* Silicon Integrated Systems */
 #define	MII_OUI_TI	0x080028	/* Texas Instruments */
-
+#define	MII_OUI_XAQTI	0x00e0ae	/* XaQti Corp. */
 
 /* in the 79c873, AMD uses another OUI (which matches Davicom!) */
 #define	MII_OUI_xxAMD	0x00606e	/* Advanced Micro Devices */
 
 /* some vendors have the bits swapped within bytes
 	(ie, ordered as on the wire) */
+#define	MII_OUI_xxBROADCOM	0x000818	/* Broadcom Corporation */
 #define	MII_OUI_xxICS	0x00057d	/* Integrated Circuit Systems */
 #define	MII_OUI_xxSEEQ	0x0005be	/* Seeq */
 #define	MII_OUI_xxSIS	0x000760	/* Silicon Integrated Systems */
 #define	MII_OUI_xxTI	0x100014	/* Texas Instruments */
+#define	MII_OUI_xxXAQTI	0x350700	/* XaQti Corp. */
 
 /* Level 1 is completely different - from right to left.
 	(Two bits get lost in the third OUI byte.) */
@@ -100,6 +102,8 @@
 /* Broadcom Corp. PHYs. */
 #define	MII_MODEL_BROADCOM_3c905Cphy	0x0017
 #define	MII_STR_BROADCOM_3c905Cphy	"3c905C 10/100 internal PHY"
+#define	MII_MODEL_xxBROADCOM_BCM5400	0x0004
+#define	MII_STR_xxBROADCOM_BCM5400	"Broadcom 1000baseTX PHY"
 
 /* Davicom Semiconductor PHYs */
 #define	MII_MODEL_xxDAVICOM_DM9101	0x0000
@@ -142,3 +146,7 @@
 #define	MII_STR_xxTI_TLAN10T	"ThunderLAN 10baseT media interface"
 #define	MII_MODEL_xxTI_100VGPMI	0x0002
 #define	MII_STR_xxTI_100VGPMI	"ThunderLAN 100VG-AnyLan media interface"
+
+/* XaQti Corp. PHYs. */
+#define	MII_MODEL_XAQTI_XMACII	0x0000
+#define	MII_STR_XAQTI_XMACII	"XaQti Corp. XMAC II gigabit interface"
