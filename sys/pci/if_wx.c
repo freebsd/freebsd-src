@@ -1699,9 +1699,9 @@ wx_hw_initialize(sc)
 		}
 		sc->ane_failed = 0;
 	} else {
-		printf("%s: swdpio1 did not clear- check for reversed cable\n",
-		    sc->wx_name);
-		return (-1);
+		printf("%s: swdpio1 did not clear- check for reversed or "
+		    "disconnected cable\n", sc->wx_name);
+		/* but return okay anyway */
 	}
 	sc->wx_ienable = WXIENABLE_DEFAULT;
 	return (0);
