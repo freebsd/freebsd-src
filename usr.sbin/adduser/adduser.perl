@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: adduser.perl,v 1.31 1997/05/01 23:34:25 ache Exp $
+# $Id: adduser.perl,v 1.32 1997/07/18 12:05:43 wosch Exp $
 
 
 # read variables
@@ -73,18 +73,6 @@ sub variables {
 
     # shell
     $shell = '';		# $shell{`basename sh`} = sh
-
-    # only for me (=Wolfram)
-    if ($test) {
-	$home = "/home/w/tmp/adduser/home";
-	$etc_shells = "./shells";
-	$etc_passwd = "./master.passwd";
-	$group = "./group";
-	$pwd_mkdb = "pwd_mkdb -p -d .";
-	$config = "adduser.conf";
-	$send_message = "./adduser.message";
-	$logfile = "./log.adduser";
-    }
 
     umask 022;			# don't give login group write access
 
