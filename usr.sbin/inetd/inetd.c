@@ -917,7 +917,10 @@ reapchild(void)
 		if (pid <= 0)
 			break;
 		if (debug)
-			warnx("%d reaped, status %#x", pid, status);
+			warnx("%d reaped, %s %u", pid,
+			    WIFEXITED(status) ? "status" : "signal",
+			    WIFEXITED(status) ? WEXITSTATUS(status)
+				: WTERMSIG(status));
 		for (sep = servtab; sep; sep = sep->se_next) {
 			for (k = 0; k < sep->se_numchild; k++)
 				if (sep->se_pids[k] == pid)
@@ -927,10 +930,13 @@ reapchild(void)
 			if (sep->se_numchild == sep->se_maxchild)
 				enable(sep);
 			sep->se_pids[k] = sep->se_pids[--sep->se_numchild];
-			if (status)
+			if (WIFSIGNALED(status) || WEXITSTATUS(status))
 				syslog(LOG_WARNING,
-				    "%s[%d]: exit status 0x%x",
-				    sep->se_server, pid, status);
+				    "%s[%d]: exited, %s %u",
+				    sep->se_server, pid,
+				    WIFEXITED(status) ? "status" : "signal",
+				    WIFEXITED(status) ? WEXITSTATUS(status)
+					: WTERMSIG(status));
 			break;
 		}
 		reapchild_conn(pid);
