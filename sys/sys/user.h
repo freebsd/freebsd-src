@@ -72,7 +72,11 @@
  * to initialize it in two places: kern/kern_proc.c in the function
  * fill_kinfo_proc and in lib/libkvm/kvm_proc.c in the function kvm_proclist.
  */
+#ifdef	__alpha__
+#define	KINFO_PROC_SIZE	904		/* the correct size for kinfo_proc */
+#else
 #define	KINFO_PROC_SIZE	640		/* the correct size for kinfo_proc */
+#endif
 #define	WMESGLEN	8		/* size of returned wchan message */
 #define	MTXNAMELEN	8		/* size of returned mutex name */
 
