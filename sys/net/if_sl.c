@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.44 1996/06/24 21:56:39 gpalmer Exp $
+ * $Id: if_sl.c,v 1.45 1996/10/11 18:40:48 wollman Exp $
  */
 
 /*
@@ -214,7 +214,6 @@ slattach(dummy)
 
 	for (sc = sl_softc; i < NSL; sc++) {
 		sc->sc_if.if_name = "sl";
-		sc->sc_if.if_next = NULL;
 		sc->sc_if.if_unit = i++;
 		sc->sc_if.if_mtu = SLMTU;
 		sc->sc_if.if_flags =
