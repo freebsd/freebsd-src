@@ -392,6 +392,7 @@ ${page:T:S/3x$/3/g}: ${page}
 	ln -s ${.ALLSRC} ${.TARGET}
 .endfor
 
+MLINKS+=ncurses.3 curses.3
 MLINKS+=curs_addch.3 addch.3 curs_addch.3 echochar.3 curs_addch.3 mvaddch.3 \
 	curs_addch.3 mvwaddch.3 curs_addch.3 waddch.3 curs_addch.3 wechochar.3
 MLINKS+=curs_addchstr.3 addchnstr.3 curs_addchstr.3 addchstr.3 \
