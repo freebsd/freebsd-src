@@ -321,7 +321,7 @@ labelkre()
 	mvprintw(GRAPHROW + 1, GRAPHCOL,
 		"|    |    |    |    |    |    |    |    |    |    |");
 
-	mvprintw(NAMEIROW, NAMEICOL, "Namei         Sys-cache     Proc-cache");
+	mvprintw(NAMEIROW, NAMEICOL, "Namei         Name-cache    Proc-cache");
 	mvprintw(NAMEIROW + 1, NAMEICOL,
 		"    Calls     hits    %%     hits     %%");
 	mvprintw(DISKROW, DISKCOL, "Discs");
@@ -407,7 +407,7 @@ showkre()
 	Z(ncs_goodhits); Z(ncs_badhits); Z(ncs_miss);
 	Z(ncs_long); Z(ncs_pass2); Z(ncs_2passes);
 	s.nchcount = nchtotal.ncs_goodhits + nchtotal.ncs_badhits +
-	    nchtotal.ncs_miss + nchtotal.ncs_long;
+	    nchtotal.ncs_miss + nchtotal.ncs_long + nchtotal.ncs_neghits;
 	if (state == TIME)
 		s1.nchcount = s.nchcount;
 
@@ -493,9 +493,11 @@ showkre()
 			dinfo(i, ++c);
 		}
 	putint(s.nchcount, NAMEIROW + 2, NAMEICOL, 9);
-	putint(nchtotal.ncs_goodhits, NAMEIROW + 2, NAMEICOL + 9, 9);
+	putint((nchtotal.ncs_goodhits + nchtotal.ncs_neghits),
+	   NAMEIROW + 2, NAMEICOL + 9, 9);
 #define nz(x)	((x) ? (x) : 1)
-	putfloat(nchtotal.ncs_goodhits * 100.0 / nz(s.nchcount),
+	putfloat((nchtotal.ncs_goodhits+nchtotal.ncs_neghits) * 
+	   100.0 / nz(s.nchcount),
 	   NAMEIROW + 2, NAMEICOL + 19, 4, 0, 1);
 	putint(nchtotal.ncs_pass2, NAMEIROW + 2, NAMEICOL + 23, 9);
 	putfloat(nchtotal.ncs_pass2 * 100.0 / nz(s.nchcount),
