@@ -219,26 +219,47 @@ url_get(origline, proxyenv)
       {
 	s = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 	if (s == -1) {
+		res = res->ai_next;
+		if (res)
+			continue;
 		warn("Can't create socket");
 		goto cleanup_url_get;
 	}
 
-	if (dobind && bind(s, (struct sockaddr *)&bindto,
-			((struct sockaddr *)&bindto)->sa_len) == -1) {
-		getnameinfo((struct sockaddr *)&bindto,
-			    ((struct sockaddr *)&bindto)->sa_len,
+	if (dobind) {
+		struct addrinfo *bindres;
+		int binderr = -1;
+
+		for (bindres = bindres0;
+		     bindres != NULL;
+		     bindres = bindres->ai_next)
+			if (bindres->ai_family == res->ai_family)
+				break;
+		if (bindres == NULL)
+			bindres = bindres0;
+		binderr = bind(s, bindres->ai_addr, bindres->ai_addrlen);
+		if (binderr == -1)
+	      {
+		res = res->ai_next;
+		if (res) {
+			(void)close(s);
+			continue;
+		}
+		getnameinfo(bindres->ai_addr, bindres->ai_addrlen,
 			    nameinfo, sizeof(nameinfo), NULL, 0,
 			    NI_NUMERICHOST|NI_WITHSCOPEID);
 		/* XXX check error? */
 		warn("Can't bind to %s", nameinfo);
 		goto cleanup_url_get;
+	      }
 	}
 
 	if (connect(s, res->ai_addr, res->ai_addrlen) < 0) {
-		close(s);
 		res = res->ai_next;
-		if (res)
+		if (res) {
+			(void)close(s);
 			continue;
+		}
 		warn("Can't connect to %s", host);
 		goto cleanup_url_get;
 	}
