@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.72 1997/08/21 16:18:07 brian Exp $
+ * $Id: command.c,v 1.73 1997/08/21 16:21:28 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -1184,11 +1184,15 @@ char **argv;
     DefHisAddress.width = 0;
   }
 
+  IpcpInfo.want_ipaddr.s_addr = DefMyAddress.ipaddr.s_addr;
+  IpcpInfo.his_ipaddr.s_addr = DefHisAddress.ipaddr.s_addr;
+
   if ((mode & MODE_AUTO) ||
 	((mode & MODE_DEDICATED) && dstsystem)) {
     if (OsSetIpaddress(DefMyAddress.ipaddr, DefHisAddress.ipaddr, ifnetmask) < 0)
        return 4;
   }
+
   return 0;
 }
 
