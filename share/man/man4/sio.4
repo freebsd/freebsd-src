@@ -34,7 +34,7 @@
 .\"
 .\"     from: @(#)dca.4	5.2 (Berkeley) 3/27/91
 .\"	from: com.4,v 1.1 1993/08/06 11:19:07 cgd Exp
-.\"	$Id: sio.4,v 1.7 1994/02/19 13:19:33 ache Exp $
+.\"	$Id: sio.4,v 1.8 1994/02/19 15:50:38 ache Exp $
 .\"
 .Dd February 9, 1994
 .Dt SIO 4 i386
@@ -80,28 +80,42 @@ Input and output for each line may set to one of following baud rates;
 19200, 38400, 57600, or 115200. Your hardware may limit your baud
 rate choices.
 .Pp
-For multiport cards the 
+The driver supports `multiport' cards. 
+Multiport cards are those that have one or more groups of ports
+that share a common IRQ and Interrupt Request register set per group.
+Frequently 4 ports share 1 IRQ, some 8 port cards have 2 groups of 4 ports,
+thus using 2 IRQs.
+Some cards allow the first 2 serial ports to have seperate IRQs per port
+(as per DOS PC standard).
+.sp
+The
 .Nm flags
-keyword in the kernel configuration file determines which port of 
-your multiport card is the master device, and whether the 
-port is part of a multiport card. The master device is the port which
-has register through which all interrupts of the card are funneled.
-All ports of a multiport card report pending interrupts using this
+keyword specifies for each 
+.Nm device sio
+line in the kernel configuration file, 
+whether the port is part of an IRQ sharing group, & if so,
+which port is the master device for
+the group (ie which port has the IRQ control registers).
+The master device is the port which
+has registers through which all interrupts of the port group are funneled.
+All ports of a port group report pending interrupts using this
 single register.
 .sp
-The master device is indicated 
-.Nm bitwise
-, so all sio entries in the kernel config file that are part of a 
+The master device is an integer embedded in the high byte of the
+.Nm flags
+bitfield, so all sio entries in the kernel config file that are part of a 
 multiport card must include the correct 
 .Nm flags
-specification. The bitwise assignment allows multiple multiport cards to
+specification. 
+The bitwise assignment allows multiple port groups to
 be configured in one system. It does 
 .Nm not
-imply that the hardware can share the same physical interrupt line!
+imply that more than one port group (or card) can share
+the same physical interrupt line!
 .Pp
 In the synopsis the 
 .Nm flags 0x401
-means that the 4th port (sio4) is the master
+means that the 5th port (sio4) is the master
 device (so the MSB of the flags), and that the ports are part of a 
 multiport card (the LSB of the flags, actually only the LS 
 .Nm bit
@@ -110,7 +124,10 @@ F.e. if you have only two standard ports in addition to multiport
 card, this
 .Nm flags
 will be
-.Nm 0x201 .
+.Nm 0x201 
+(assuming the control port is 
+.Nm sio2
+).
 .Pp
 Which port is the master device depends on the card type. Consult
 the hardware documentation of your card.
@@ -125,6 +142,19 @@ ports. The minor number of the dialout
 port is 128 higher than that of the corresponding dialin port. Use 
 .Xr stty 1
 to enable or disable modem control as required by your setup.
+.Pp
+While testing new cards & resolving card config DIP header &
+.Nm sio flags
+settings, to avoid coms. failure from lack of full modem DC level
+settings on ports,
+you are recommended to temporarily use syntax such as:
+.Nm stty -f /dev/tty03 clocal
+or open
+.Nm /dev/cua03
+if you have bidirectional mode active
+to force serial port to open without
+.Nm O_NONBLOCK
+flag.
 .Sh FILES
 .Bl -tag -width /dev/tty0? -compact
 .It Pa /dev/tty0?
