@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso_snpac.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: iso_snpac.c,v 1.2 1994/08/02 07:50:44 davidg Exp $
  */
 
 /***********************************************************
@@ -60,7 +60,7 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /home/ncvs/src/sys/netiso/iso_snpac.c,v 1.1.1.1 1994/05/24 10:07:07 rgrimes Exp $ */
+/* $Header: /home/ncvs/src/sys/netiso/iso_snpac.c,v 1.2 1994/08/02 07:50:44 davidg Exp $ */
 /* $Source: /home/ncvs/src/sys/netiso/iso_snpac.c,v $ */
 
 #ifdef ISO
@@ -395,7 +395,7 @@ int					nsellength;	/* nsaps may differ only in trailing bytes */
 			ifp, nsap, snpa, type, ht, nsellength);
 	ENDDEBUG
 	zap_isoaddr(dst, nsap);
-	rt = rtalloc1(S(dst), 0);
+	rt = rtalloc1(S(dst), 0, 0UL);
 	IFDEBUG(D_SNPA)
 		printf("snpac_add: rtalloc1 returns %x\n", rt);
 	ENDDEBUG
@@ -555,7 +555,7 @@ register struct rtentry *sc;
 	}
 	known_is = sc;
 	sc->rt_refcnt++;
-	rt = rtalloc1((struct sockaddr *)&zsi, 0);
+	rt = rtalloc1((struct sockaddr *)&zsi, 0, 0UL);
 	if (rt == 0)
 		rtrequest(RTM_ADD, S(zsi), rt_key(sc), S(zmk),
 						RTF_DYNAMIC|RTF_GATEWAY, 0);
