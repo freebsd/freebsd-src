@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.62 1997/04/07 07:16:04 peter Exp $
+ * $Id: vm_glue.c,v 1.63 1997/04/13 01:48:34 dyson Exp $
  */
 
 #include "opt_rlimit.h"
@@ -209,7 +209,6 @@ vm_fork(p1, p2, flags)
 	register struct user *up;
 	int i;
 	pmap_t pvp;
-	vm_object_t upobj;
 
 	if (flags & RFMEM) {
 		p2->p_vmspace = p1->p_vmspace;
