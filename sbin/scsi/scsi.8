@@ -39,7 +39,7 @@
 .\" SUCH DAMAGE.
 .\" 
 .\"
-.\"	$Id: scsi.8,v 1.3 1995/04/28 19:24:38 dufault Exp $
+.\"	$Id: scsi.8,v 1.4 1995/05/01 12:35:04 dufault Exp $
 .\"
 .Dd October 11, 1993
 .Dt SCSI 8
@@ -52,7 +52,7 @@
 Usage:
 scsi -f device -d debug_level                    # To set debug level
 scsi -f device [-v] -z seconds                   # To freeze bus
-scsi -f device -m page [-P pc]                   # To read mode pages
+scsi -f device -m page [-P pc] [-e]              # To read mode pages
 scsi -f device -p [-b bus] [-l lun]              # To probe all devices
 scsi -f device -r [-b bus] [-t targ] [-l lun]    # To reprobe a device
 scsi -f device [-v] [-s seconds] -c cmd_fmt [arg0 ... argn] # A command...
@@ -95,6 +95,8 @@ option is used to read a device mode page.  The file
 .Fr /usr/share/misc/scsi_modes
 is read to look at for how to interpret the mode data.  The environment
 variable SCSI_MODES can specify a different file to use.
+.Pp
+.in +.25i
 The
 .Fr -P
 option can be used to specify a page control field.  The page control
@@ -106,9 +108,14 @@ fields are
 3 Saved Values
 .Ed
 .Pp
-Eventually this will also support a
+The
 .Fr -e
-option to permit editing the fields.
+option permits you to edit the fields.  It will use the editor specified
+by your EDITOR environment variable.  To store changes permanently, 
+edit page control 3 using the
+.Fr -P
+flag.
+.in -.25i
 .Pp
 The
 .Fr -p
@@ -143,6 +150,7 @@ for full details of which minor devices permit the ioctl, and
 .Xr scsi 3
 for the full details on how to build up the commands and data phases
 using the format arguments.
+.in +.25i
 .Pp
 .Fr -v
 turns on more verbose information.
@@ -181,6 +189,7 @@ and displayed on the standard output.
 can be specified as a hyphen ("-") to indicate that the
 .Fr count
 bytes of data input should be written to the standard output.
+.in -.25i
 .Sh EXAMPLES
 To verify that the device type for the disk /dev/rsd0c is 0
 (direct access device):
@@ -193,6 +202,11 @@ To do an inquiry to /dev/rsd2c:
 .Bd -literal -offset
 root# scsi -f /dev/rsd2c -c "12 0 0 0 64 0" -i 64 "s8 z8 z16 z4"
 FUJITSU M2654S-512 010P
+.Pp
+To edit mode page 1 on /dev/rsd2c, and store it permanently on the
+drive:
+.Bd -literal -offset
+root# scsi -f /dev/rsd2c -m 1 -e -P 3
 .Ed
 .Pp
 .Sh ENVIRONMENT
@@ -206,6 +220,8 @@ it back to zero at program exit.
 .Pp
 The SU_DEBUG_TRUNCATE variable can be set to an integer to limit the
 amount of data phase output sent to the debugging file.
+.Pp
+The EDITOR variable determines the editor to use for the mode editor.
 .Sh SEE ALSO
 .Xr scsi 4 ,
 .Xr scsi 3
