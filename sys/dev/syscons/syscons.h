@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.37 1998/02/12 22:05:08 phk Exp $
+ *	$Id: syscons.h,v 1.38 1998/08/03 09:09:35 yokota Exp $
  */
 
 #ifndef _I386_ISA_SYSCONS_H_
@@ -174,8 +174,8 @@ typedef struct scr_stat {
 	u_short		bell_duration;
 	u_short		bell_pitch;
 	u_char		border;			/* border color */
-	u_char	 	initial_mode;		/* initial mode */
-	u_char	 	mode;			/* mode */
+	int	 	initial_mode;		/* initial mode */
+	int	 	mode;			/* mode */
 	pid_t 		pid;			/* pid of controlling proc */
 	struct proc 	*proc;			/* proc* of controlling proc */
 	struct vt_mode 	smode;			/* switch mode */
@@ -185,6 +185,9 @@ typedef struct scr_stat {
 	u_short		*history_save;		/* save area index */
 	int		history_size;		/* size of history buffer */
 	struct apmhook  r_hook;			/* reconfiguration support */
+#ifdef SC_SPLASH_SCREEN
+	u_char		splash_save_mode;	/* saved mode for splash screen */
+#endif
 } scr_stat;
 
 typedef struct default_attr {
@@ -199,5 +202,11 @@ void copy_font(int operation, int font_type, char* font_image);
 void load_palette(char *palette);
 int add_scrn_saver(void (*this)(int));
 int remove_scrn_saver(void (*this)(int));
+
+#ifdef SC_SPLASH_SCREEN
+void splash(int);
+int splash_load(void);
+int splash_unload(void);
+#endif
 
 #endif /* !_I386_ISA_SYSCONS_H_ */

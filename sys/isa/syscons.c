@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.270 1998/08/03 09:17:06 yokota Exp $
+ *  $Id: syscons.c,v 1.271 1998/08/03 09:18:58 yokota Exp $
  */
 
 #include "sc.h"
@@ -37,6 +37,7 @@
 #if NSC > 0
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/reboot.h>
 #include <sys/conf.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
@@ -47,6 +48,7 @@
 #include <sys/devfsext.h>
 #endif
 
+#include <machine/bootinfo.h>
 #include <machine/clock.h>
 #include <machine/cons.h>
 #include <machine/console.h>
@@ -94,9 +96,12 @@
 #define COLD 0
 #define WARM 1
 
+#define VESA_MODE(x)		((x) >= M_VESA_BASE)
+
 #define MODE_MAP_SIZE		(M_VGA_CG320 + 1)
 #define MODE_PARAM_SIZE		64
 
+#define DEFAULT_BLANKTIME	(5*60)		/* 5 minutes */
 #define MAX_BLANKTIME		(7*24*60*60)	/* 7 days!? */
 
 /* for backward compatibility */
@@ -162,11 +167,14 @@ static  const u_int     n_fkey_tab = sizeof(fkey_tab) / sizeof(*fkey_tab);
 static  int     	delayed_next_scr = FALSE;
 static  long        	scrn_blank_time = 0;    /* screen saver timeout value */
 	int     	scrn_blanked = 0;       /* screen saver active flag */
-static  struct timeval 	scrn_time_stamp;
+static  long		scrn_time_stamp;
+static	int		saver_mode = CONS_LKM_SAVER; /* LKM/user saver */
+static	int		run_scrn_saver = FALSE;	/* should run the saver? */
+static	int		scrn_idle = FALSE;	/* about to run the saver */
 	u_char      	scr_map[256];
 	u_char      	scr_rmap[256];
 	char        	*video_mode_ptr = NULL;
-static	int		vesa_mode;
+static	int		bios_video_mode;	/* video mode # set by BIOS */
 	int     	fonts_loaded = 0
 #ifdef STD8X16FONT
 	| FONT_16
@@ -206,8 +214,11 @@ static int		extra_history_size =
 
 static void    		none_saver(int blank) { }
 static void    		(*current_saver)(int blank) = none_saver;
+static void    		(*default_saver)(int blank) = none_saver;
 int  			(*sc_user_ioctl)(dev_t dev, int cmd, caddr_t data,
 					 int flag, struct proc *p) = NULL;
+
+static int		sticky_splash = FALSE;
 
 /* OS specific stuff */
 #ifdef not_yet_done
@@ -247,8 +258,8 @@ static void scmousestart(struct tty *tp);
 static void scinit(void);
 static void scshutdown(int howto, void *arg);
 static void map_mode_table(char *map[], char *table, int max);
-static u_char map_mode_num(u_char mode);
-static char *get_mode_param(scr_stat *scp, u_char mode);
+static int map_mode_num(int mode);
+static char *get_mode_param(scr_stat *scp, int mode);
 static u_int scgetc(u_int flags);
 #define SCGETC_CN	1
 #define SCGETC_NONBLOCK	2
@@ -256,7 +267,7 @@ static void sccnupdate(scr_stat *scp);
 static scr_stat *get_scr_stat(dev_t dev);
 static scr_stat *alloc_scp(void);
 static void init_scp(scr_stat *scp);
-static void sc_bcopy(u_short *p, int from, int to, int mark);
+static void sc_bcopy(scr_stat *scp, u_short *p, int from, int to, int mark);
 static int get_scr_num(void);
 static timeout_t scrn_timer;
 static void scrn_update(scr_stat *scp, int show_cursor);
@@ -306,7 +317,11 @@ static void save_palette(void);
 static void do_bell(scr_stat *scp, int pitch, int duration);
 static timeout_t blink_screen;
 #ifdef SC_SPLASH_SCREEN
-static void toggle_splash_screen(scr_stat *scp);
+static void scsplash_init(void);
+static void scsplash(int show);
+#define scsplash_stick(stick)		(sticky_splash = (stick))
+#else
+#define scsplash_stick(stick)
 #endif
 
 struct  isa_driver scdriver = {
@@ -336,8 +351,8 @@ draw_cursor_image(scr_stat *scp)
     u_short cursor_image, *ptr = Crtat + (scp->cursor_pos - scp->scr_buf);
     u_short prev_image;
 
-    if (vesa_mode) {
-	sc_bcopy(scp->scr_buf, scp->cursor_pos - scp->scr_buf, 
+    if (VESA_MODE(scp->mode)) {
+	sc_bcopy(scp, scp->scr_buf, scp->cursor_pos - scp->scr_buf, 
 	  scp->cursor_pos - scp->scr_buf, 1);
 	return;
     }
@@ -388,8 +403,8 @@ draw_cursor_image(scr_stat *scp)
 static void
 remove_cursor_image(scr_stat *scp)
 {
-    if (vesa_mode)
-	sc_bcopy(scp->scr_buf, scp->cursor_oldpos - scp->scr_buf, 
+    if (VESA_MODE(scp->mode))
+	sc_bcopy(scp, scp->scr_buf, scp->cursor_oldpos - scp->scr_buf, 
 	  scp->cursor_oldpos - scp->scr_buf, 0);
     else
 	*(Crtat + (scp->cursor_oldpos - scp->scr_buf)) = scp->cursor_saveunder;
@@ -455,10 +470,12 @@ scvidprobe(int unit, int flags)
     cp = (u_short *)CGA_BUF;
     was = *cp;
     *cp = (u_short) 0xA55A;
+    bios_video_mode = *(u_char *)pa_to_va(0x449);
     if (bootinfo.bi_vesa == 0x102) {
-	vesa_mode = bootinfo.bi_vesa;
+	bios_video_mode = bootinfo.bi_vesa;
 	Crtat  = (u_short *)pa_to_va(0xA0000);
-	crtc_type = KD_PIXEL;
+	crtc_addr = COLOR_BASE;
+	crtc_type = KD_VGA;
         bzero(Crtat, 800*600/8);
     } else if (*cp == 0xA55A) {
 	Crtat = (u_short *)CGA_BUF;
@@ -476,7 +493,7 @@ scvidprobe(int unit, int flags)
     }
     *cp = was;
 
-    if (crtc_type != KD_PIXEL) {
+    if (!VESA_MODE(bios_video_mode)) {
 	/* 
 	 * Check rtc and BIOS date area.
 	 * XXX: don't use BIOSDATA_EQUIPMENT, it is not a dead copy
@@ -717,12 +734,12 @@ scattach(struct isa_device *dev)
 
     scinit();
     flags = dev->id_flags;
-    if (!crtc_vga)
+    if (crtc_type != KD_VGA || VESA_MODE(bios_video_mode))
 	flags &= ~CHAR_CURSOR;
 
     scp = console[0];
 
-    if (crtc_vga) {
+    if (crtc_type == KD_VGA) {
 	cut_buffer_size = scp->xsize * scp->ysize + 1;
     	cut_buffer = (char *)malloc(cut_buffer_size, M_DEVBUF, M_NOWAIT);
 	if (cut_buffer != NULL)
@@ -754,13 +771,12 @@ scattach(struct isa_device *dev)
     	draw_cursor_image(scp);
 
     /* get screen update going */
-    scrn_timer(NULL);
+    scrn_timer((void *)TRUE);
 
     update_leds(scp->status);
 
     if ((crtc_type == KD_VGA) && bootverbose) {
-        printf("sc%d: BIOS video mode:%d\n", 
-	    dev->id_unit, *(u_char *)pa_to_va(0x449));
+        printf("sc%d: BIOS video mode:%d\n", dev->id_unit, bios_video_mode);
         printf("sc%d: VGA registers upon power-up\n", dev->id_unit);
         dump_vgaregs(vgaregs);
         printf("sc%d: video mode:%d\n", dev->id_unit, scp->mode);
@@ -775,14 +791,17 @@ scattach(struct isa_device *dev)
         }
         printf("sc%d: rows_offset:%d\n", dev->id_unit, rows_offset);
     }
-    if ((crtc_type == KD_VGA) && (video_mode_ptr == NULL))
+    if ((crtc_type == KD_VGA) && !VESA_MODE(bios_video_mode) 
+	&& (video_mode_ptr == NULL))
         printf("sc%d: WARNING: video mode switching is only partially supported\n",
 	        dev->id_unit); 
 
     printf("sc%d: ", dev->id_unit);
     switch(crtc_type) {
     case KD_VGA:
-	if (crtc_addr == MONO_BASE)
+	if (VESA_MODE(bios_video_mode))
+	    printf("Graphics display (VESA mode = 0x%x)", bios_video_mode);
+	else if (crtc_addr == MONO_BASE)
 	    printf("VGA mono");
 	else
 	    printf("VGA color");
@@ -795,9 +814,6 @@ scattach(struct isa_device *dev)
 	break;
     case KD_CGA:
 	printf("CGA");
-	break;
-    case KD_PIXEL:
-	printf("Graphics display (VESA mode = 0x%x)", vesa_mode);
 	break;
     case KD_MONO:
     case KD_HERCULES:
@@ -1053,9 +1069,10 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
     case CONS_BLANKTIME:    	/* set screen saver timeout (0 = no saver) */
 	if (*(int *)data < 0 || *(int *)data > MAX_BLANKTIME)
             return EINVAL;
+	s = spltty();
 	scrn_blank_time = *(int *)data;
-	if (scrn_blank_time == 0)
-	    getmicrouptime(&scrn_time_stamp);
+	run_scrn_saver = (scrn_blank_time != 0);
+	splx(s);
 	return 0;
 
     case CONS_CURSORTYPE:   	/* set cursor type blink/noblink */
@@ -1064,7 +1081,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	else
 	    flags &= ~BLINK_CURSOR;
 	if ((*(int*)data) & 0x02) {
-	    if (!crtc_vga)
+	    if (crtc_type != KD_VGA || VESA_MODE(bios_video_mode))
 		return ENXIO;
 	    flags |= CHAR_CURSOR;
 	} else
@@ -1154,7 +1171,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	mouse_info_t *mouse = (mouse_info_t*)data;
 	mouse_info_t buf;
 
-	if (!crtc_vga)
+	if (crtc_type != KD_VGA || VESA_MODE(bios_video_mode))
 	    return ENODEV;
 	
 	if (cmd == OLD_CONS_MOUSECTL) {
@@ -1200,13 +1217,14 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		scp->mouse_proc = NULL;
 		scp->mouse_pid = 0;
 	    }
-	    break;
+	    return 0;
 
 	case MOUSE_SHOW:
 	    if (!(scp->status & MOUSE_ENABLED)) {
 		scp->status |= (MOUSE_ENABLED | MOUSE_VISIBLE);
 		scp->mouse_oldpos = scp->mouse_pos;
 		mark_all(scp);
+		return 0;
 	    }
 	    else
 		return EINVAL;
@@ -1216,6 +1234,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	    if (scp->status & MOUSE_ENABLED) {
 		scp->status &= ~(MOUSE_ENABLED | MOUSE_VISIBLE);
 		mark_all(scp);
+		return 0;
 	    }
 	    else
 		return EINVAL;
@@ -1238,7 +1257,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	    mouse->u.data.y = scp->mouse_ypos;
 	    mouse->u.data.z = 0;
 	    mouse->u.data.buttons = scp->mouse_buttons;
-	    break;
+	    return 0;
 
 	case MOUSE_ACTION:
 	case MOUSE_MOTION_EVENT:
@@ -1254,6 +1273,8 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		((mouse->u.data.x || mouse->u.data.y || mouse->u.data.z) ? 
 		    MOUSE_POSCHANGED : 0)
 		| (mouse_status.obutton ^ mouse_status.button);
+	    if (mouse_status.flags == 0)
+		return 0;
 
 	    if (cur_console->status & MOUSE_ENABLED)
 	    	cur_console->status |= MOUSE_VISIBLE;
@@ -1334,6 +1355,8 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	        mouse_status.button &= ~mouse->u.event.id;
 	    }
 	    mouse_status.flags |= mouse_status.obutton ^ mouse_status.button;
+	    if (mouse_status.flags == 0)
+		return 0;
 
 	    if (cur_console->status & MOUSE_ENABLED)
 	    	cur_console->status |= MOUSE_VISIBLE;
@@ -1411,7 +1434,8 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	    return EINVAL;
 	}
 	/* make screensaver happy */
-	getmicrouptime(&scrn_time_stamp);
+	scsplash_stick(FALSE);
+	run_scrn_saver = FALSE;
 	return 0;
     }
 
@@ -1542,6 +1566,37 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	*(int*)data = 0x200;    /* version 2.0 */
 	return 0;
 
+    case CONS_IDLE:		/* see if the screen has been idle */
+	*(int *)data = (scrn_idle && !(cur_console->status & UNKNOWN_MODE));
+	return 0;
+
+    case CONS_SAVERMODE:	/* set saver mode */
+	switch(*(int *)data) {
+	case CONS_USR_SAVER:
+	    /* if a LKM screen saver is running, it will eventually stop... */
+	    saver_mode = *(int *)data;
+	    scsplash_stick(TRUE);
+	    break;
+	case CONS_LKM_SAVER:
+	    saver_mode = *(int *)data;
+	    break;
+	default:
+	    return EINVAL;
+	}
+	return 0;
+
+    case CONS_SAVERSTART:	/* immediately start/stop the screen saver */
+	/*
+	 * Note that this ioctl does not guarantee the screen saver 
+	 * actually starts or stops. It merely attempts to do so...
+	 */
+	s = spltty();
+	run_scrn_saver = (*(int *)data != 0);
+	if (run_scrn_saver)
+	    scrn_time_stamp -= scrn_blank_time;
+	splx(s);
+	return 0;
+
     /* VGA TEXT MODES */
     case SW_VGA_C40x25:
     case SW_VGA_C80x25: case SW_VGA_M80x25:
@@ -1555,7 +1610,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
     case SW_ENH_B80x43: case SW_ENH_C80x43:
     case SW_EGAMONO80x25:
 
-	if (!crtc_vga)
+	if (crtc_type != KD_VGA)
  	    return ENODEV;
  	mp = get_mode_param(scp, cmd & 0xff);
  	if (mp == NULL)
@@ -1693,7 +1748,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
     case SW_CG640x350: case SW_ENH_CG640:
     case SW_BG640x480: case SW_CG640x480: case SW_VGA_CG320:
 
-	if (!crtc_vga)
+	if (crtc_type != KD_VGA)
 	    return ENODEV;
 	mp = get_mode_param(scp, cmd & 0xff);
 	if (mp == NULL)
@@ -1730,7 +1785,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	return 0;
 
     case SW_VGA_MODEX:
-	if (!crtc_vga)
+	if (crtc_type != KD_VGA)
 	    return ENODEV;
 	mp = get_mode_param(scp, cmd & 0xff);
 	if (mp == NULL)
@@ -1869,19 +1924,21 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	switch (*data) {
 	case KD_TEXT:   	/* switch to TEXT (known) mode */
 	    /* restore fonts & palette ! */
-	    if (crtc_vga) {
+	    if (crtc_type == KD_VGA) {
+		if (!VESA_MODE(scp->mode)) {
 #if 0
-		/*
-		 * FONT KLUDGE
-		 * Don't load fonts for now... XXX
-		 */
-		if (fonts_loaded & FONT_8)
-		    copy_font(LOAD, FONT_8, font_8);
-		if (fonts_loaded & FONT_14)
-		    copy_font(LOAD, FONT_14, font_14);
-		if (fonts_loaded & FONT_16)
-		    copy_font(LOAD, FONT_16, font_16);
+		    /*
+		     * FONT KLUDGE
+		     * Don't load fonts for now... XXX
+		     */
+		    if (fonts_loaded & FONT_8)
+			copy_font(LOAD, FONT_8, font_8);
+		    if (fonts_loaded & FONT_14)
+			copy_font(LOAD, FONT_14, font_14);
+		    if (fonts_loaded & FONT_16)
+			copy_font(LOAD, FONT_16, font_16);
 #endif
+		}
 		load_palette(palette);
 	    }
 
@@ -1904,7 +1961,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	    scp->status |= UNKNOWN_MODE;
 	    splx(s);
 	    /* no restore fonts & palette */
-	    if (crtc_vga)
+	    if (crtc_type == KD_VGA)
 		set_mode(scp);
 	    scp->status &= ~UNKNOWN_MODE;
 	    clear_screen(scp);
@@ -2086,7 +2143,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	return 0;
 
     case PIO_FONT8x8:   	/* set 8x8 dot font */
-	if (!crtc_vga)
+	if (crtc_type != KD_VGA)
 	    return ENXIO;
 	bcopy(data, font_8, 8*256);
 	fonts_loaded |= FONT_8;
@@ -2095,7 +2152,8 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	 * Always use the font page #0. XXX
 	 * Don't load if the current font size is not 8x8.
 	 */
-	if (!(cur_console->status & UNKNOWN_MODE)
+	if (!VESA_MODE(cur_console->mode) 
+	    && !(cur_console->status & UNKNOWN_MODE)
 	    && (cur_console->font_size < 14)) {
 	    copy_font(LOAD, FONT_8, font_8);
 	    if (flags & CHAR_CURSOR)
@@ -2104,7 +2162,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	return 0;
 
     case GIO_FONT8x8:   	/* get 8x8 dot font */
-	if (!crtc_vga)
+	if (crtc_type != KD_VGA)
 	    return ENXIO;
 	if (fonts_loaded & FONT_8) {
 	    bcopy(font_8, data, 8*256);
@@ -2114,7 +2172,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	    return ENXIO;
 
     case PIO_FONT8x14:  	/* set 8x14 dot font */
-	if (!crtc_vga)
+	if (crtc_type != KD_VGA)
 	    return ENXIO;
 	bcopy(data, font_14, 14*256);
 	fonts_loaded |= FONT_14;
@@ -2123,7 +2181,8 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	 * Always use the font page #0. XXX
 	 * Don't load if the current font size is not 8x14.
 	 */
-	if (!(cur_console->status & UNKNOWN_MODE)
+	if (!VESA_MODE(cur_console->mode) 
+	    && !(cur_console->status & UNKNOWN_MODE)
 	    && (cur_console->font_size >= 14) && (cur_console->font_size < 16)) {
 	    copy_font(LOAD, FONT_14, font_14);
 	    if (flags & CHAR_CURSOR)
@@ -2132,7 +2191,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	return 0;
 
     case GIO_FONT8x14:  	/* get 8x14 dot font */
-	if (!crtc_vga)
+	if (crtc_type != KD_VGA)
 	    return ENXIO;
 	if (fonts_loaded & FONT_14) {
 	    bcopy(font_14, data, 14*256);
@@ -2142,7 +2201,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	    return ENXIO;
 
     case PIO_FONT8x16:  	/* set 8x16 dot font */
-	if (!crtc_vga && crtc_type != KD_PIXEL)
+	if (crtc_type != KD_VGA)
 	    return ENXIO;
 	bcopy(data, font_16, 16*256);
 	fonts_loaded |= FONT_16;
@@ -2151,7 +2210,8 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	 * Always use the font page #0. XXX
 	 * Don't load if the current font size is not 8x16.
 	 */
-	if (crtc_vga && !(cur_console->status & UNKNOWN_MODE)
+	if (!VESA_MODE(cur_console->mode) 
+	    && !(cur_console->status & UNKNOWN_MODE)
 	    && (cur_console->font_size >= 16)) {
 	    copy_font(LOAD, FONT_16, font_16);
 	    if (flags & CHAR_CURSOR)
@@ -2160,7 +2220,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	return 0;
 
     case GIO_FONT8x16:  	/* get 8x16 dot font */
-	if (!crtc_vga && crtc_type != KD_PIXEL)
+	if (crtc_type != KD_VGA)
 	    return ENXIO;
 	if (fonts_loaded & FONT_16) {
 	    bcopy(font_16, data, 16*256);
@@ -2292,6 +2352,8 @@ sccngetc(dev_t dev)
      * Stop the screen saver and update the screen if necessary.
      * What if we have been running in the screen saver code... XXX
      */
+    scsplash_stick(FALSE);
+    run_scrn_saver = FALSE;
     sccnupdate(cur_console);
 
     c = scgetc(SCGETC_CN);
@@ -2305,7 +2367,10 @@ sccncheckc(dev_t dev)
     int s = spltty();	/* block scintr and scrn_timer while we poll */
     int c;
 
+    scsplash_stick(FALSE);
+    run_scrn_saver = FALSE;
     sccnupdate(cur_console);
+
     c = scgetc(SCGETC_CN | SCGETC_NONBLOCK);
     splx(s);
     return(c == NOKEY ? -1 : c);	/* c == -1 can't happen */
@@ -2314,13 +2379,26 @@ sccncheckc(dev_t dev)
 static void
 sccnupdate(scr_stat *scp)
 {
-    if (scp == cur_console && !font_loading_in_progress) {
+    /* this is a cut-down version of scrn_timer()... */
+
+    if (font_loading_in_progress)
+	return;
+
+    if (panicstr) {
+	scsplash_stick(FALSE);
+	run_scrn_saver = FALSE;
+    }
+    if (!run_scrn_saver)
+	scrn_idle = FALSE;
+    if ((saver_mode != CONS_LKM_SAVER) || !scrn_idle)
 	if (scrn_blanked > 0)
             stop_scrn_saver(current_saver);
-	if (!(scp->status & UNKNOWN_MODE) && scrn_blanked <= 0 
-	    && !blink_in_progress && !switch_in_progress)
-	    scrn_update(scp, TRUE);
-    }
+
+    if (scp != cur_console || blink_in_progress || switch_in_progress)
+	return;
+
+    if ((scp->status & UNKNOWN_MODE) == 0 && scrn_blanked <= 0)
+	scrn_update(scp, TRUE);
 }
 
 static scr_stat
@@ -2349,12 +2427,13 @@ static void
 scrn_timer(void *arg)
 {
     struct timeval tv;
-    scr_stat *scp = cur_console;
+    scr_stat *scp;
     int s;
 
     /* don't do anything when we are touching font */
     if (font_loading_in_progress) {
-	timeout(scrn_timer, NULL, hz / 10);
+	if (arg)
+	    timeout(scrn_timer, (void *)TRUE, hz / 10);
 	return;
     }
     s = spltty();
@@ -2384,30 +2463,42 @@ scrn_timer(void *arg)
 
     /* should we stop the screen saver? */
     getmicrouptime(&tv);
-    if (panicstr || shutdown_in_progress)
-	scrn_time_stamp = tv;
-    if (tv.tv_sec <= scrn_time_stamp.tv_sec + scrn_blank_time)
+    if (panicstr || shutdown_in_progress) {
+	scsplash_stick(FALSE);
+	run_scrn_saver = FALSE;
+    }
+    if (run_scrn_saver) {
+	scrn_idle = (tv.tv_sec > scrn_time_stamp + scrn_blank_time);
+    } else {
+	scrn_time_stamp = tv.tv_sec;
+	scrn_idle = FALSE;
+	if (scrn_blank_time > 0)
+	    run_scrn_saver = TRUE;
+    }
+    if ((saver_mode != CONS_LKM_SAVER) || !scrn_idle)
 	if (scrn_blanked > 0)
             stop_scrn_saver(current_saver);
 
     /* should we just return ? */
-    if ((scp->status&UNKNOWN_MODE) || blink_in_progress || switch_in_progress) {
-	timeout(scrn_timer, NULL, hz / 10);
+    if (blink_in_progress || switch_in_progress) {
+	if (arg)
+	    timeout(scrn_timer, (void *)TRUE, hz / 10);
 	splx(s);
 	return;
     }
 
     /* Update the screen */
     scp = cur_console;
-    if (scrn_blanked <= 0)
+    if ((scp->status & UNKNOWN_MODE) == 0 && scrn_blanked <= 0)
 	scrn_update(scp, TRUE);
 
     /* should we activate the screen saver? */
-    if ((scrn_blank_time != 0) 
-	    && (tv.tv_sec > scrn_time_stamp.tv_sec + scrn_blank_time))
-	(*current_saver)(TRUE);
+    if ((saver_mode == CONS_LKM_SAVER) && scrn_idle)
+	if ((scp->status & UNKNOWN_MODE) == 0 || scrn_blanked > 0)
+	    (*current_saver)(TRUE);
 
-    timeout(scrn_timer, NULL, hz / 25);
+    if (arg)
+	timeout(scrn_timer, (void *)TRUE, hz / 25);
     splx(s);
 }
 
@@ -2416,7 +2507,7 @@ scrn_update(scr_stat *scp, int show_cursor)
 {
     /* update screen image */
     if (scp->start <= scp->end) 
-        sc_bcopy(scp->scr_buf, scp->start, scp->end, 0);
+        sc_bcopy(scp, scp->scr_buf, scp->start, scp->end, 0);
 
     /* we are not to show the cursor and the mouse pointer... */
     if (!show_cursor) {
@@ -2483,9 +2574,18 @@ scrn_update(scr_stat *scp, int show_cursor)
 int
 add_scrn_saver(void (*this_saver)(int))
 {
-    if (current_saver != none_saver)
+#ifdef SC_SPLASH_SCREEN
+    if (current_saver == scsplash) {
+	scsplash_stick(FALSE);
+        stop_scrn_saver(scsplash);
+    }
+#endif
+
+    if (current_saver != default_saver)
 	return EBUSY;
     current_saver = this_saver;
+    saver_mode = CONS_LKM_SAVER;
+    run_scrn_saver = (scrn_blank_time > 0);
     return 0;
 }
 
@@ -2505,6 +2605,10 @@ remove_scrn_saver(void (*this_saver)(int))
     if (scrn_blanked > 0)
         stop_scrn_saver(this_saver);
 
+    if (scrn_blanked > 0) 
+	return EBUSY;	/* XXX */
+
+    current_saver = default_saver;
     return 0;
 }
 
@@ -2512,8 +2616,14 @@ static void
 stop_scrn_saver(void (*saver)(int))
 {
     (*saver)(FALSE);
-    getmicrouptime(&scrn_time_stamp);
+    run_scrn_saver = FALSE;
+    /* the screen saver may have chosen not to stop after all... */
+    if (scrn_blanked > 0)
+	return;
+
     mark_all(cur_console);
+    if (delayed_next_scr)
+	switch_scr(cur_console, delayed_next_scr - 1);
     wakeup((caddr_t)&scrn_blanked);
 }
 
@@ -2522,10 +2632,10 @@ wait_scrn_saver_stop(void)
 {
     int error = 0;
 
-    getmicrouptime(&scrn_time_stamp);
+    run_scrn_saver = FALSE;
     while (scrn_blanked > 0) {
 	error = tsleep((caddr_t)&scrn_blanked, PZERO | PCATCH, "scrsav", 0);
-	getmicrouptime(&scrn_time_stamp);
+	run_scrn_saver = FALSE;
 	if (error != ERESTART)
 	    break;
     }
@@ -2546,6 +2656,14 @@ clear_screen(scr_stat *scp)
 static int
 switch_scr(scr_stat *scp, u_int next_scr)
 {
+    /* delay switch if actively updating screen */
+    if (scrn_blanked > 0 || write_in_progress || blink_in_progress) {
+	scsplash_stick(FALSE);
+	run_scrn_saver = FALSE;
+	delayed_next_scr = next_scr+1;
+	return 0;
+    }
+
     if (switch_in_progress && (cur_console->proc != pfind(cur_console->pid)))
 	switch_in_progress = FALSE;
 
@@ -2564,16 +2682,6 @@ switch_scr(scr_stat *scp, u_int next_scr)
 	    return EINVAL;
 	}
     }
-
-    /* delay switch if actively updating screen */
-    if (write_in_progress || blink_in_progress) {
-	delayed_next_scr = next_scr+1;
-	return 0;
-    }
-
-    /* Stop the screensaver */
-    if (scrn_blanked > 0)
-      stop_scrn_saver(current_saver);
 
     switch_in_progress = TRUE;
     old_scp = cur_console;
@@ -2614,13 +2722,13 @@ exchange_scr(void)
     move_crsr(old_scp, old_scp->xpos, old_scp->ypos);
     cur_console = new_scp;
     if (old_scp->mode != new_scp->mode || (old_scp->status & UNKNOWN_MODE)){
-	if (crtc_vga)
+	if (crtc_type == KD_VGA)
 	    set_mode(new_scp);
     }
     move_crsr(new_scp, new_scp->xpos, new_scp->ypos);
     if (!(new_scp->status & UNKNOWN_MODE) && (flags & CHAR_CURSOR))
 	set_destructive_cursor(new_scp);
-    if ((old_scp->status & UNKNOWN_MODE) && crtc_vga)
+    if ((old_scp->status & UNKNOWN_MODE) && crtc_type == KD_VGA)
 	load_palette(palette);
     if (old_scp->status & KBD_RAW_MODE || new_scp->status & KBD_RAW_MODE ||
         old_scp->status & KBD_CODE_MODE || new_scp->status & KBD_CODE_MODE)
@@ -2629,7 +2737,7 @@ exchange_scr(void)
     update_leds(new_scp->status);
     delayed_next_scr = FALSE;
     mark_all(new_scp);
-    if (vesa_mode == 0x102) {
+    if (new_scp->mode == 0x102) {
 	bzero(Crtat, 800*600/8);
     }
 }
@@ -3101,7 +3209,8 @@ scan_esc(scr_stat *scp, u_char c)
 		    flags |= BLINK_CURSOR;
 		else
 		    flags &= ~BLINK_CURSOR;
-		if ((scp->term.param[0] & 0x02) && crtc_vga)
+		if ((scp->term.param[0] & 0x02) && 
+		    crtc_type == KD_VGA && !VESA_MODE(bios_video_mode))
 		    flags |= CHAR_CURSOR;
 		else
 		    flags &= ~CHAR_CURSOR;
@@ -3116,7 +3225,7 @@ scan_esc(scr_stat *scp, u_char c)
 	     */
 	    if (!(cur_console->status & UNKNOWN_MODE)) {
 		remove_cursor_image(cur_console);
-		if (crtc_vga && (flags & CHAR_CURSOR))
+		if (crtc_type == KD_VGA && (flags & CHAR_CURSOR))
 	            set_destructive_cursor(cur_console);
 		draw_cursor_image(cur_console);
 	    }
@@ -3184,8 +3293,8 @@ ansi_put(scr_stat *scp, u_char *buf, int len)
     u_char *ptr = buf;
 
     /* make screensaver happy */
-    if (scp == cur_console)
-	getmicrouptime(&scrn_time_stamp);
+    if (!sticky_splash && scp == cur_console)
+	run_scrn_saver = FALSE;
 
     write_in_progress++;
 outloop:
@@ -3382,7 +3491,7 @@ scinit(void)
     }
 
     /* copy screen to temporary buffer */
-    if (crtc_type != KD_PIXEL)
+    if (!VESA_MODE(console[0]->mode))
 	    generic_bcopy(Crtat, sc_buffer,
 		   console[0]->xsize * console[0]->ysize * sizeof(u_short));
 
@@ -3407,30 +3516,35 @@ scinit(void)
     }
 
     /* Save font and palette if VGA */
-    if (crtc_vga) {
-	if (fonts_loaded & FONT_16) {
+    if (crtc_type == KD_VGA) {
+	if (!VESA_MODE(bios_video_mode)) {
+	    if (fonts_loaded & FONT_16) {
 		copy_font(LOAD, FONT_16, font_16);
-	} else {
+	    } else {
 		copy_font(SAVE, FONT_16, font_16);
 		fonts_loaded = FONT_16;
+	    }
+	    set_destructive_cursor(console[0]);
 	}
 	save_palette();
-	set_destructive_cursor(console[0]);
     }
 
 #ifdef SC_SPLASH_SCREEN
     /* 
-     * Now put up a graphics image, and maybe cycle a
-     * couble of palette entries for simple animation.
+     * If not booting verbosely, put up the splash.
+     * Note that the splash screen is not currently supported in 
+     * the VESA mode.
      */
-    toggle_splash_screen(cur_console);
+    if (!(boothowto & RB_VERBOSE) && !VESA_MODE(bios_video_mode))
+	scsplash_init();
 #endif
 }
 
 static void
 scshutdown(int howto, void *arg)
 {
-    getmicrouptime(&scrn_time_stamp);
+    scsplash_stick(FALSE);
+    run_scrn_saver = FALSE;
     if (!cold && cur_console->smode.mode == VT_AUTO 
 	&& console[0]->smode.mode == VT_AUTO)
 	switch_scr(cur_console, 0);
@@ -3448,12 +3562,12 @@ map_mode_table(char *map[], char *table, int max)
 	map[i] = NULL;
 }
 
-static u_char
-map_mode_num(u_char mode)
+static int
+map_mode_num(int mode)
 {
     static struct {
-        u_char from;
-        u_char to;
+        int from;
+        int to;
     } mode_map[] = {
         { M_ENH_B80x43, M_ENH_B80x25 },
         { M_ENH_C80x43, M_ENH_C80x25 },
@@ -3475,7 +3589,7 @@ map_mode_num(u_char mode)
 }
 
 static char 
-*get_mode_param(scr_stat *scp, u_char mode)
+*get_mode_param(scr_stat *scp, int mode)
 {
     if (mode >= MODE_MAP_SIZE)
 	mode = map_mode_num(mode);
@@ -3504,7 +3618,7 @@ static scr_stat
     bzero(scp->history_head, scp->history_size*sizeof(u_short));
     scp->history = scp->history_head;
 /* SOS
-    if (crtc_vga && video_mode_ptr)
+    if (crtc_type == KD_VGA && video_mode_ptr)
 	set_mode(scp);
 */
     clear_screen(scp);
@@ -3517,7 +3631,9 @@ init_scp(scr_stat *scp)
 {
     switch(crtc_type) {
     case KD_VGA:
-	if (crtc_addr == MONO_BASE)
+	if (VESA_MODE(bios_video_mode))
+	    scp->mode = bios_video_mode;
+	else if (crtc_addr == MONO_BASE)
 	    scp->mode = M_VGA_M80x25;
 	else
 	    scp->mode = M_VGA_C80x25;
@@ -3662,8 +3778,10 @@ next_code:
     scancode = (u_char)c;
 
     /* make screensaver happy */
-    if (!(scancode & 0x80))
-	getmicrouptime(&scrn_time_stamp);
+    if (!(scancode & 0x80)) {
+	scsplash_stick(FALSE);
+	run_scrn_saver = FALSE;
+    }
 
     if (!(flags & SCGETC_CN)) {
 	/* do the /dev/random device a favour */
@@ -3940,9 +4058,6 @@ next_code:
 	    switch (action) {
 	    /* LOCKING KEYS */
 	    case NLK:
-#ifdef SC_SPLASH_SCREEN
-		toggle_splash_screen(cur_console); /* SOS XXX */
-#endif
 		if (!nlkcnt) {
 		    nlkcnt++;
 		    if (cur_console->status & NLKED)
@@ -4009,9 +4124,28 @@ next_code:
 	    case NOP:
 		break;
 	    case SPSC:
-#ifdef SC_SPLASH_SCREEN
+		/* force activatation/deactivation of the screen saver */
 		accents = 0;
-		toggle_splash_screen(cur_console);
+		if (scrn_blanked <= 0) {
+		    run_scrn_saver = TRUE;
+		    scrn_time_stamp -= scrn_blank_time;
+		}
+#ifdef SC_SPLASH_SCREEN
+		if (cold) {
+		    /*
+		     * While devices are being probed, the screen saver need
+		     * to be invoked explictly. XXX
+		     */
+		    if (scrn_blanked > 0) {
+			scsplash_stick(FALSE);
+			stop_scrn_saver(current_saver);
+		    } else {
+			if ((cur_console->status & UNKNOWN_MODE) == 0) {
+			    scsplash_stick(TRUE);
+			    (*current_saver)(TRUE);
+			}
+		    }
+		}
 #endif
 		break;
 	    case RBT:
@@ -4037,6 +4171,12 @@ next_code:
 	    case DBG:
 #ifdef DDB          /* try to switch to console 0 */
 		accents = 0;
+		/*
+		 * TRY to make sure the screen saver is stopped, 
+		 * and the screen is updated before switching to 
+		 * the vty0.
+		 */
+		scrn_timer((void *)FALSE);
 		if (cur_console->smode.mode == VT_AUTO &&
 		    console[0]->smode.mode == VT_AUTO)
 		    switch_scr(cur_console, 0);
@@ -5193,11 +5333,11 @@ blink_screen(void *arg)
 }
 
 void 
-sc_bcopy(u_short *p, int from, int to, int mark)
+sc_bcopy(scr_stat *scp, u_short *p, int from, int to, int mark)
 {
-    if (!vesa_mode) {
+    if (!VESA_MODE(scp->mode)) {
 	generic_bcopy(p+from, Crtat+from, (to-from+1)*sizeof (u_short));
-    } else if (vesa_mode == 0x102) {
+    } else if (scp->mode == 0x102) {
 	u_char *d, *e;
 	int i,j;
 
@@ -5219,33 +5359,38 @@ sc_bcopy(u_short *p, int from, int to, int mark)
 }
 
 #ifdef SC_SPLASH_SCREEN
-static void
-toggle_splash_screen(scr_stat *scp)
-{
-    static int toggle = 0;
-    static u_char save_mode;
-    int s;
 
-    if (video_mode_ptr == NULL)
+static void
+scsplash_init(void)
+{
+    /* 
+     * We currently assume the splash screen always use
+     * VGA_CG320 mode and abort installation if this mode is not
+     * supported with this video card. XXX
+     */
+    if (crtc_type != KD_VGA || get_mode_param(cur_console, M_VGA_CG320) == NULL)
 	return;
 
-    s = splhigh();
-    if (toggle) {
-	scp->mode = save_mode;
-	scp->status &= ~UNKNOWN_MODE;
-	set_mode(scp);
-	load_palette(palette);
-	toggle = 0;
+    if (splash_load() == 0 && add_scrn_saver(scsplash) == 0) {
+	default_saver = scsplash;
+	scrn_blank_time = DEFAULT_BLANKTIME;
+	run_scrn_saver = TRUE;
+	if (!(boothowto & RB_CONFIG)) {
+	    scsplash_stick(TRUE);
+	    scsplash(TRUE);
+	}
     }
-    else {
-	save_mode = scp->mode;
-	scp->mode = M_VGA_CG320;
-	scp->status |= UNKNOWN_MODE;
-	set_mode(scp);
-	/* load image */
-	toggle = 1;
-    }
-    splx(s);
 }
-#endif
+
+static void
+scsplash(int show)
+{
+    if (show)
+	splash(TRUE);
+    else if (!sticky_splash)
+	splash(FALSE);
+}
+
+#endif /* SC_SPLASH_SCREEN */
+
 #endif /* NSC */
