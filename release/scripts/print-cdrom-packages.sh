@@ -93,6 +93,7 @@ CDROM_SET_1="${CDROM_SET_1} x11/kde2"
 # this list.
 CDROM_SET_1="${CDROM_SET_1} astro/xearth"
 CDROM_SET_1="${CDROM_SET_1} editors/emacs20"
+CDROM_SET_1="${CDROM_SET_1} editors/vim-lite"
 CDROM_SET_1="${CDROM_SET_1} editors/vim5"
 CDROM_SET_1="${CDROM_SET_1} emulators/mtools"
 CDROM_SET_1="${CDROM_SET_1} ftp/ncftp"
@@ -121,6 +122,7 @@ CDROM_SET_1="${CDROM_SET_1} www/lynx"
 CDROM_SET_1="${CDROM_SET_1} www/netscape-remote"
 CDROM_SET_1="${CDROM_SET_1} www/netscape-wrapper"
 CDROM_SET_1="${CDROM_SET_1} www/netscape47-communicator"
+CDROM_SET_1="${CDROM_SET_1} www/netscape47-navigator"
 CDROM_SET_1="${CDROM_SET_1} x11/rxvt"
 
 # VERY common build dependencies
