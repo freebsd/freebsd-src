@@ -68,8 +68,6 @@
 
 #include <fs/devfs/devfs.h>
 
-static int devfs_fops = 1;
-
 static fo_rdwr_t	devfs_read_f;
 static fo_rdwr_t	devfs_write_f;
 static fo_ioctl_t	devfs_ioctl_f;
@@ -94,15 +92,11 @@ static int	devfs_advlock(struct vop_advlock_args *ap);
 static int	devfs_close(struct vop_close_args *ap);
 static int	devfs_fsync(struct vop_fsync_args *ap);
 static int	devfs_getattr(struct vop_getattr_args *ap);
-static int	devfs_ioctl(struct vop_ioctl_args *ap);
-static int	devfs_kqfilter(struct vop_kqfilter_args *ap);
 static int	devfs_lookupx(struct vop_lookup_args *ap);
 static int	devfs_mknod(struct vop_mknod_args *ap);
 static int	devfs_open(struct vop_open_args *ap);
 static int	devfs_pathconf(struct vop_pathconf_args *ap);
-static int	devfs_poll(struct vop_poll_args *ap);
 static int	devfs_print(struct vop_print_args *ap);
-static int	devfs_read(struct vop_read_args *ap);
 static int	devfs_readdir(struct vop_readdir_args *ap);
 static int	devfs_readlink(struct vop_readlink_args *ap);
 static int	devfs_reclaim(struct vop_reclaim_args *ap);
@@ -115,7 +109,6 @@ static int	devfs_setattr(struct vop_setattr_args *ap);
 static int	devfs_setlabel(struct vop_setlabel_args *ap);
 #endif
 static int	devfs_symlink(struct vop_symlink_args *ap);
-static int	devfs_write(struct vop_write_args *ap);
 
 static vop_t **devfs_vnodeop_p;
 vop_t **devfs_specop_p;
@@ -452,41 +445,6 @@ devfs_getattr(ap)
  */
 /* ARGSUSED */
 static int
-devfs_ioctl(ap)
-	struct vop_ioctl_args /* {
-		struct vnode *a_vp;
-		u_long  a_command;
-		caddr_t  a_data;
-		int  a_fflag;
-		struct ucred *a_cred;
-		struct thread *a_td;
-	} */ *ap;
-{
-	struct cdev *dev;
-	int error;
-	struct cdevsw *dsw;
-
-	dev = ap->a_vp->v_rdev;
-	dsw = dev_refthread(dev);
-	if (dsw == NULL)
-		return (ENXIO);
-	KASSERT(dev->si_refcount > 0,
-	    ("devfs_ioctl() on un-referenced struct cdev *(%s)", devtoname(dev)));
-	if (!(dsw->d_flags & D_NEEDGIANT)) {
-		DROP_GIANT();
-		error = dsw->d_ioctl(dev, ap->a_command,
-		    ap->a_data, ap->a_fflag, ap->a_td);
-		PICKUP_GIANT();
-	} else 
-		error = dsw->d_ioctl(dev, ap->a_command,
-		    ap->a_data, ap->a_fflag, ap->a_td);
-	dev_relthread(dev);
-	if (error == ENOIOCTL)
-		error = ENOTTY;
-	return (error);
-}
-
-static int
 devfs_ioctl_f(struct file *fp, u_long com, void *data, struct ucred *cred, struct thread *td)
 {
 	struct cdev *dev;
@@ -542,33 +500,6 @@ devfs_ioctl_f(struct file *fp, u_long com, void *data, struct ucred *cred, struc
 
 
 /* ARGSUSED */
-static int
-devfs_kqfilter(ap)
-	struct vop_kqfilter_args /* {
-		struct vnode *a_vp;
-		struct knote *a_kn;
-	} */ *ap;
-{
-	struct cdev *dev;
-	struct cdevsw *dsw;
-	int error;
-
-	dev = ap->a_vp->v_rdev;
-	dsw = dev_refthread(dev);
-	if (dsw == NULL)
-		return(0);
-	KASSERT(dev->si_refcount > 0,
-	    ("devfs_kqfilter() on un-referenced struct cdev *(%s)", devtoname(dev)));
-	if (!(dsw->d_flags & D_NEEDGIANT)) {
-		DROP_GIANT();
-		error = dsw->d_kqfilter(dev, ap->a_kn);
-		PICKUP_GIANT();
-	} else
-		error = dsw->d_kqfilter(dev, ap->a_kn);
-	dev_relthread(dev);
-	return (error);
-}
-
 static int
 devfs_kqfilter_f(struct file *fp, struct knote *kn)
 {
@@ -822,14 +753,6 @@ devfs_open(ap)
 	struct file *fp;
 	int error;
 	struct cdevsw *dsw;
-	static int once;
-
-	if (!once) {
-		TUNABLE_INT_FETCH("vfs.devfs.fops", &devfs_fops);
-		if (devfs_fops)
-			printf("WARNING: DEVFS uses fops\n");
-		once = 1;
-	}
 
 	if (vp->v_type == VBLK)
 		return (ENXIO);
@@ -882,7 +805,7 @@ devfs_open(ap)
 	if (error)
 		return (error);
 
-	if (devfs_fops && ap->a_fdidx >= 0) {
+	if (ap->a_fdidx >= 0) {
 		/*
 		 * This is a pretty disgustingly long chain, but I am not
 		 * sure there is any better way.  Passing the fdidx into
@@ -937,35 +860,6 @@ devfs_pathconf(ap)
 
 /* ARGSUSED */
 static int
-devfs_poll(ap)
-	struct vop_poll_args /* {
-		struct vnode *a_vp;
-		int  a_events;
-		struct ucred *a_cred;
-		struct thread *a_td;
-	} */ *ap;
-{
-	struct cdev *dev;
-	struct cdevsw *dsw;
-	int error;
-
-	dev = ap->a_vp->v_rdev;
-	dsw = dev_refthread(dev);
-	if (dsw == NULL)
-		return(0);
-	KASSERT(dev->si_refcount > 0,
-	    ("devfs_poll() on un-referenced struct cdev *(%s)", devtoname(dev)));
-	if (!(dsw->d_flags & D_NEEDGIANT)) {
-		/* XXX: not yet DROP_GIANT(); */
-		error = dsw->d_poll(dev, ap->a_events, ap->a_td);
-		/* XXX: not yet PICKUP_GIANT(); */
-	} else
-		error = dsw->d_poll(dev, ap->a_events, ap->a_td);
-	dev_relthread(dev);
-	return(error);
-}
-
-static int
 devfs_poll_f(struct file *fp, int events, struct ucred *cred, struct thread *td)
 {
 	struct cdev *dev;
@@ -1002,50 +896,6 @@ devfs_print(ap)
  * Vnode op for read
  */
 /* ARGSUSED */
-static int
-devfs_read(ap)
-	struct vop_read_args /* {
-		struct vnode *a_vp;
-		struct uio *a_uio;
-		int a_ioflag;
-		struct ucred *a_cred;
-	} */ *ap;
-{
-	struct vnode *vp;
-	struct thread *td;
-	struct uio *uio;
-	struct cdev *dev;
-	int error, resid;
-	struct cdevsw *dsw;
-
-	vp = ap->a_vp;
-	dev = vp->v_rdev;
-	uio = ap->a_uio;
-	td = uio->uio_td;
-	resid = uio->uio_resid;
-
-	if (resid == 0)
-		return (0);
-
-	KASSERT(dev->si_refcount > 0,
-	    ("specread() on un-referenced struct cdev *(%s)", devtoname(dev)));
-	dsw = dev_refthread(dev);
-	if (dsw == NULL)
-		return (ENXIO);
-	VOP_UNLOCK(vp, 0, td);
-	if (!(dsw->d_flags & D_NEEDGIANT)) {
-		DROP_GIANT();
-		error = dsw->d_read(dev, uio, ap->a_ioflag);
-		PICKUP_GIANT();
-	} else
-		error = dsw->d_read(dev, uio, ap->a_ioflag);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-	dev_relthread(dev);
-	if (uio->uio_resid != resid || (error == 0 && resid != 0))
-		vfs_timestamp(&dev->si_atime);
-	return (error);
-}
-
 static int
 devfs_read_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, struct thread *td)
 {
@@ -1477,50 +1327,6 @@ devfs_symlink(ap)
  */
 /* ARGSUSED */
 static int
-devfs_write(ap)
-	struct vop_write_args /* {
-		struct vnode *a_vp;
-		struct uio *a_uio;
-		int a_ioflag;
-		struct ucred *a_cred;
-	} */ *ap;
-{
-	struct vnode *vp;
-	struct thread *td;
-	struct uio *uio;
-	struct cdev *dev;
-	int error, resid;
-	struct cdevsw *dsw;
-
-	vp = ap->a_vp;
-	dev = vp->v_rdev;
-	uio = ap->a_uio;
-	td = uio->uio_td;
-	resid = uio->uio_resid;
-
-	dsw = dev_refthread(dev);
-	if (dsw == NULL)
-		return (ENXIO);
-	VOP_UNLOCK(vp, 0, td);
-	KASSERT(dev->si_refcount > 0,
-	    ("devfs_write() on un-referenced struct cdev *(%s)",
-	    devtoname(dev)));
-	if (!(dsw->d_flags & D_NEEDGIANT)) {
-		DROP_GIANT();
-		error = dsw->d_write(dev, uio, ap->a_ioflag);
-		PICKUP_GIANT();
-	} else
-		error = dsw->d_write(dev, uio, ap->a_ioflag);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-	dev_relthread(dev);
-	if (uio->uio_resid != resid || (error == 0 && resid != 0)) {
-		vfs_timestamp(&dev->si_ctime);
-		dev->si_mtime = dev->si_ctime;
-	}
-	return (error);
-}
-
-static int
 devfs_write_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, struct thread *td)
 {
 	struct cdev *dev;
@@ -1599,17 +1405,13 @@ static struct vnodeopv_entry_desc devfs_specop_entries[] = {
 	{ &vop_create_desc,		(vop_t *) vop_panic },
 	{ &vop_fsync_desc,		(vop_t *) devfs_fsync },
 	{ &vop_getattr_desc,		(vop_t *) devfs_getattr },
-	{ &vop_ioctl_desc,		(vop_t *) devfs_ioctl },
-	{ &vop_kqfilter_desc,		(vop_t *) devfs_kqfilter },
 	{ &vop_lease_desc,		(vop_t *) vop_null },
 	{ &vop_link_desc,		(vop_t *) vop_panic },
 	{ &vop_mkdir_desc,		(vop_t *) vop_panic },
 	{ &vop_mknod_desc,		(vop_t *) vop_panic },
 	{ &vop_open_desc,		(vop_t *) devfs_open },
 	{ &vop_pathconf_desc,		(vop_t *) devfs_pathconf },
-	{ &vop_poll_desc,		(vop_t *) devfs_poll },
 	{ &vop_print_desc,		(vop_t *) devfs_print },
-	{ &vop_read_desc,		(vop_t *) devfs_read },
 	{ &vop_readdir_desc,		(vop_t *) vop_panic },
 	{ &vop_readlink_desc,		(vop_t *) vop_panic },
 	{ &vop_reallocblks_desc,	(vop_t *) vop_panic },
@@ -1624,7 +1426,6 @@ static struct vnodeopv_entry_desc devfs_specop_entries[] = {
 #endif
 	{ &vop_strategy_desc,		(vop_t *) vop_panic },
 	{ &vop_symlink_desc,		(vop_t *) vop_panic },
-	{ &vop_write_desc,		(vop_t *) devfs_write },
 	{ NULL, NULL }
 };
 
