@@ -17,7 +17,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *      This product includes software developed by the University of
  *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: sched.c,v 5.2.2.1 1992/02/09 15:09:02 jsp beta $
+ * $Id: sched.c,v 1.1.1.1 1998/11/05 02:04:49 ezk Exp $
  *
  */
 
@@ -127,7 +127,7 @@ run_task(task_fun tf, voidp ta, cb_fun cf, voidp ca)
   p->wchan = (voidp) p;
 
 #ifdef HAVE_SIGACTION
-  sigemptyset(&new);		/* initialise signal set we wish to block */
+  sigemptyset(&new);		/* initialize signal set we wish to block */
   sigaddset(&new, SIGCHLD);	/* only block on SIGCHLD */
   sigprocmask(SIG_BLOCK, &new, &mask);
 #else /* not HAVE_SIGACTION */
@@ -235,7 +235,7 @@ do_task_notify(void)
      * Do callback if it exists
      */
     if (p->cb_fun) {
-      /* these two trigraphs will ensure compatibity with strict POSIX.1 */
+      /* these two trigraphs will ensure compatibility with strict POSIX.1 */
       (*p->cb_fun) (WIFEXITED(p->w)   ? WEXITSTATUS(p->w) : 0,
 		    WIFSIGNALED(p->w) ? WTERMSIG(p->w)	  : 0,
 		    p->cb_closure);

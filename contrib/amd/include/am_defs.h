@@ -17,7 +17,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *      This product includes software developed by the University of
  *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: am_defs.h,v 1.1 1996/01/13 23:23:39 ezk Exp ezk $
+ * $Id: am_defs.h,v 1.2 1998/12/27 06:25:23 ezk Exp $
  *
  */
 
@@ -401,6 +401,10 @@ extern int errno;
  * Actions to take if <rpcsvc/yp_prot.h> exists.
  */
 #ifdef HAVE_RPCSVC_YP_PROT_H
+# ifdef HAVE_BAD_HEADERS
+/* avoid circular dependency in aix 4.3 with <rpcsvc/ypclnt.h> */
+struct ypall_callback;
+# endif /* HAVE_BAD_HEADERS */
 # include <rpcsvc/yp_prot.h>
 #endif /* HAVE_RPCSVC_YP_PROT_H */
 
@@ -642,6 +646,10 @@ extern int errno;
  * Actions to take if <arpa/inet.h> exists.
  */
 #ifdef HAVE_ARPA_INET_H
+# ifdef HAVE_BAD_HEADERS
+/* aix 4.3: avoid including <net/if_dl.h> */
+struct sockaddr_dl;
+# endif /* HAVE_BAD_HEADERS */
 # include <arpa/inet.h>
 #endif /* HAVE_ARPA_INET_H */
 
@@ -994,7 +1002,7 @@ extern char *nc_sperror(void);
  */
 #ifdef HAVE_TIUSER_H
 /*
- * Some systems like AIX have multiple definitions for T_NULL and othersd
+ * Some systems like AIX have multiple definitions for T_NULL and others
  * that are defined first in <arpa/nameser.h>.
  */
 # ifdef HAVE_ARPA_NAMESER_H
@@ -1055,7 +1063,7 @@ extern char *nc_sperror(void);
 #ifndef STAT_MACROS_BROKEN_notused
 /*
  * RedHat Linux 4.2 (alpha) has a problem in the headers that causes
- * dupicate definitions, and also some other nasty bugs.  Upgrade to Redhat
+ * duplicate definitions, and also some other nasty bugs.  Upgrade to Redhat
  * 5.0!
  */
 # ifdef HAVE_SYS_STAT_H
@@ -1239,6 +1247,10 @@ extern int getdtablesize(void);
 extern int gethostname(char *name, int namelen);
 #endif /* defined(HAVE_GETHOSTNAME) && !defined(HAVE_EXTERN_GETHOSTNAME) */
 
+#ifndef HAVE_EXTERN_GETLOGIN
+extern char *getlogin(void);
+#endif /* not HAVE_EXTERN_GETLOGIN */
+
 #if defined(HAVE_GETPAGESIZE) && !defined(HAVE_EXTERN_GETPAGESIZE)
 extern int getpagesize(void);
 #endif /* defined(HAVE_GETPAGESIZE) && !defined(HAVE_EXTERN_GETPAGESIZE) */
@@ -1258,6 +1270,10 @@ extern int mkstemp(char *);
 #ifndef HAVE_EXTERN_SBRK
 extern caddr_t sbrk(int incr);
 #endif /* not HAVE_EXTERN_SBRK */
+
+#if defined(HAVE_SETEUID) && !defined(HAVE_EXTERN_SETEUID)
+extern int seteuid(uid_t euid);
+#endif /* not defined(HAVE_SETEUID) && !defined(HAVE_EXTERN_SETEUID) */
 
 #ifndef HAVE_EXTERN_STRCASECMP
 /*
@@ -1292,12 +1308,9 @@ extern int wait3(int *statusp, int options, struct rusage *rusage);
 #endif /* defined(HAVE_WAIT3) && !defined(HAVE_EXTERN_WAIT3) */
 
 #ifndef HAVE_EXTERN_XDR_OPAQUE_AUTH
-extern bool_t xdr_opaque_auth(XDR *, struct opaque_auth *);
+extern bool_t xdr_opaque_auth(XDR *xdrs, struct opaque_auth *auth);
 #endif /* not HAVE_EXTERN_XDR_OPAQUE_AUTH */
 
-#ifndef HAVE_EXTERN_GETLOGIN
-extern char *getlogin(void);
-#endif /* not HAVE_EXTERN_GETLOGIN */
 
 /****************************************************************************/
 /*
@@ -1309,13 +1322,13 @@ extern char *getlogin(void);
 #include <am_utils.h>
 #include <amq_defs.h>
 #include <aux_conf.h>
-/* compatibilty with old amd, while autoconfistating it */
+/* compatibility with old amd, while autoconfiscating it */
 #include <am_compat.h>
 
 
 /****************************************************************************/
 /*
- * External defintions that depend on other macros available (or not)
+ * External definitions that depend on other macros available (or not)
  * and those are probably declared in any of the above headers.
  */
 

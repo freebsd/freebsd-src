@@ -17,7 +17,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *      This product includes software developed by the University of
  *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: misc_rpc.c,v 5.2.2.1 1992/02/09 15:08:40 jsp beta $
+ * $Id: misc_rpc.c,v 1.1.1.1 1998/11/05 02:04:45 ezk Exp $
  *
  */
 
@@ -65,7 +65,7 @@ void
 rpc_msg_init(struct rpc_msg *mp, u_long prog, u_long vers, u_long proc)
 {
   /*
-   * Initialise the message
+   * Initialize the message
    */
   memset((voidp) mp, 0, sizeof(*mp));
   mp->rm_xid = 0;
