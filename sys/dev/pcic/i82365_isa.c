@@ -97,16 +97,11 @@ pcic_isa_probe(device_t dev)
 	int val, found;
 	int rid;
 	struct resource *res;
-	u_long port, portlen;
 
 	/* Check isapnp ids */
 	if (ISA_PNP_PROBE(device_get_parent(dev), dev, pcic_ids) == ENXIO)
 		return (ENXIO);
 
-	if (bus_get_resource(dev, SYS_RES_IOPORT, 0, &port, &portlen)) {
-		bus_set_resource(dev, SYS_RES_IOPORT, 0, PCIC_INDEX0, 
-		    PCIC_IOSIZE);
-	}
 	rid = 0;
 	res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, PCIC_IOSIZE,
 	    RF_ACTIVE);
@@ -142,7 +137,7 @@ pcic_isa_probe(device_t dev)
 
 	bus_release_resource(dev, SYS_RES_IOPORT, rid, res);
 
-	/* XXX DO I NEED TO WORRY ABOUT IRQ? XXX */
+	/* XXX DO I NEED TO WORRY ABOUT the IRQ? XXX */
 
 	if (!found)
 		return (ENXIO);
@@ -153,45 +148,39 @@ pcic_isa_probe(device_t dev)
 int
 pcic_isa_attach(device_t dev)
 {
-#if 0
-	struct pcic_softc *sc = (void *) self;
-	struct isa_attach_args *ia = aux;
-	isa_chipset_tag_t ic = ia->ia_ic;
-	bus_space_tag_t iot = ia->ia_iot;
-	bus_space_tag_t memt = ia->ia_memt;
-	bus_space_handle_t ioh;
-	bus_space_handle_t memh;
+	struct pcic_softc *sc = (struct pcic_softc *) device_get_softc(dev);
 
-	/* Map i/o space. */
-	if (bus_space_map(iot, ia->ia_iobase, ia->ia_iosize, 0, &ioh)) {
-		printf(": can't map i/o space\n");
-		return;
+	sc->port_rid = 0;
+	sc->port_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->port_rid,
+	    0, ~0, PCIC_IOSIZE, RF_ACTIVE);
+	if (!sc->port_res) {
+		device_printf(dev, "Unable to allocate I/O ports\n");
+		goto error;
 	}
-
-	/* Map mem space. */
-#ifdef __FreeBSD__
-	if (bus_space_map(memt, kvtop(ia->ia_membase), ia->ia_memsize, 0, &memh)) {
-#else
-	if (bus_space_map(memt, ia->ia_maddr, ia->ia_msize, 0, &memh)) {
-#endif
-		printf(": can't map mem space\n");
-		return;
+	
+	sc->mem_rid = 0;
+	sc->mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->mem_rid,
+	    0, ~0, 1 << 13, RF_ACTIVE);
+	if (!sc->mem_res) {
+		device_printf(dev, "Unable to allocate memory range\n");
+		goto error;
 	}
-#ifdef __FreeBSD__
-	sc->membase = kvtop(ia->ia_membase);
-#else
-	sc->membase = ia->ia_maddr;
-#endif
-	sc->subregionmask = (1 << (ia->ia_msize / PCIC_MEM_PAGESIZE)) - 1;
+	
+	sc->subregionmask = (1 << 
+	    ((rman_get_end(sc->mem_res) - rman_get_start(sc->mem_res) + 1) / 
+		PCIC_MEM_PAGESIZE)) - 1;
 
-	sc->intr_est = ic;
 	sc->pct = (pccard_chipset_tag_t) & pcic_isa_functions;
 
-	sc->iot = iot;
-	sc->ioh = ioh;
-	sc->memt = memt;
-	sc->memh = memh;
-
+	sc->irq_rid = 0;
+	sc->irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irq_rid,
+	    0, ~0, 1, RF_ACTIVE);
+	if (!sc->irq_res) {
+		device_printf(dev, "Unable to allocate irq\n");
+		goto error;
+	}
+	
+#if 0
 	/*
 	 * allocate an irq.  it will be used by both controllers.  I could
 	 * use two different interrupts, but interrupts are relatively
@@ -208,20 +197,58 @@ pcic_isa_attach(device_t dev)
 		}
 		printf(": using irq %d", sc->irq);
 	}
-	printf("\n");
+#endif
+	sc->iot = rman_get_bustag(sc->port_res);
+	sc->ioh = rman_get_bushandle(sc->port_res);;
+	sc->memt = rman_get_bustag(sc->mem_res);
+	sc->memh = rman_get_bushandle(sc->mem_res);;
 
-	pcic_attach(sc);
+#if 0 /* Not yet */
+	pcic_attach(dev);
 
-	pcic_isa_bus_width_probe (sc, iot, ioh, ia->ia_iobase, ia->ia_iosize);
-
-	sc->ih = isa_intr_establish(ic, sc->irq, IST_EDGE, IPL_TTY,
-	    pcic_intr, sc);
-	if (sc->ih == NULL) {
-		printf("%s: can't establish interrupt\n", sc->dev.dv_xname);
-		return;
-	}
+	pcic_isa_bus_width_probe (dev, sc->iot, sc->ioh,
+	    rman_get_start(sc->port_res), 
+	    rman_get_end(sc->port_res) - rman_get_end(sc->port_res) + 1);
 
 	pcic_attach_sockets(sc);
 #endif
 	return 0;
+ error:
+	if (sc->port_res)
+		bus_release_resource(dev, SYS_RES_IOPORT, sc->port_rid, 
+		    sc->port_res);
+	if (sc->mem_res)
+		bus_release_resource(dev, SYS_RES_MEMORY, sc->mem_rid, 
+		    sc->mem_res);
+	if (sc->irq_res)
+		bus_release_resource(dev, SYS_RES_IRQ, sc->irq_rid, 
+		    sc->irq_res);
+	return ENOMEM;
 }
+
+static int
+pcic_isa_detach(device_t dev)
+{
+	return 0;
+}
+
+
+
+static device_method_t pcic_isa_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		pcic_isa_probe),
+	DEVMETHOD(device_attach,	pcic_isa_attach),
+	DEVMETHOD(device_detach,	pcic_isa_detach),
+
+	{ 0, 0 }
+};
+
+static driver_t pcic_driver = {
+	"pcic",
+	pcic_isa_methods,
+	sizeof(struct pcic_softc)
+};
+
+static devclass_t pcic_devclass;
+
+DRIVER_MODULE(pcic, isa, pcic_driver, pcic_devclass, 0, 0);
