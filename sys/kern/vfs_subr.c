@@ -109,12 +109,12 @@ static TAILQ_HEAD(freelst, vnode) vnode_free_list;
 static u_long wantfreevnodes = 25;
 SYSCTL_LONG(_debug, OID_AUTO, wantfreevnodes, CTLFLAG_RW, &wantfreevnodes, 0, "");
 /* Number of vnodes in the free list. */
-static u_long freevnodes = 0;
+static u_long freevnodes;
 SYSCTL_LONG(_debug, OID_AUTO, freevnodes, CTLFLAG_RD, &freevnodes, 0, "");
 
 #if 0
 /* Number of vnode allocation. */
-static u_long vnodeallocs = 0;
+static u_long vnodeallocs;
 SYSCTL_LONG(_debug, OID_AUTO, vnodeallocs, CTLFLAG_RD, &vnodeallocs, 0, "");
 /* Period of vnode recycle from namecache in vnode allocation times. */
 static u_long vnoderecycleperiod = 1000;
@@ -146,12 +146,12 @@ SYSCTL_INT(_vfs, OID_AUTO, reassignbufsortbad, CTLFLAG_RW, &reassignbufsortbad, 
 /* Set to 0 for old insertion-sort based reassignbuf, 1 for modern method. */
 static int reassignbufmethod = 1;
 SYSCTL_INT(_vfs, OID_AUTO, reassignbufmethod, CTLFLAG_RW, &reassignbufmethod, 0, "");
-static int nameileafonly = 0;
+static int nameileafonly;
 SYSCTL_INT(_vfs, OID_AUTO, nameileafonly, CTLFLAG_RW, &nameileafonly, 0, "");
 
 #ifdef ENABLE_VFS_IOOPT
 /* See NOTES for a description of this setting. */
-int vfs_ioopt = 0;
+int vfs_ioopt;
 SYSCTL_INT(_vfs, OID_AUTO, ioopt, CTLFLAG_RW, &vfs_ioopt, 0, "");
 #endif
 
@@ -189,7 +189,7 @@ struct nfs_public nfs_pub;
 static vm_zone_t vnode_zone;
 
 /* Set to 1 to print out reclaim of active vnodes */
-int	prtactive = 0;
+int	prtactive;
 
 /*
  * The workitem queue.
@@ -216,7 +216,7 @@ int	prtactive = 0;
  *	syncer_workitem_pending[(syncer_delayno + 15) & syncer_mask]
  *
  */
-static int syncer_delayno = 0;
+static int syncer_delayno;
 static long syncer_mask; 
 LIST_HEAD(synclist, vnode);
 static struct synclist *syncer_workitem_pending;
@@ -247,7 +247,7 @@ SYSCTL_INT(_kern, KERN_MAXVNODES, maxvnodes, CTLFLAG_RW,
 static int minvnodes; 
 SYSCTL_INT(_kern, OID_AUTO, minvnodes, CTLFLAG_RW,
     &minvnodes, 0, "Minimum number of vnodes");
-static int vnlru_nowhere = 0;
+static int vnlru_nowhere;
 SYSCTL_INT(_debug, OID_AUTO, vnlru_nowhere, CTLFLAG_RW, &vnlru_nowhere, 0,
     "Number of times the vnlru process ran without success");
 
