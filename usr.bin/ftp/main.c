@@ -1,5 +1,5 @@
-/*	$Id: main.c,v 1.14 1997/06/27 09:30:13 ache Exp $ */
-/*	$NetBSD: main.c,v 1.22 1997/06/10 07:04:43 lukem Exp $	*/
+/*	$Id$	*/
+/*	$NetBSD: main.c,v 1.26 1997/10/14 16:31:22 christos Exp $	*/
 
 /*
  * Copyright (c) 1985, 1989, 1993, 1994
@@ -34,17 +34,18 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
 #ifndef lint
-static char copyright[] =
-"@(#) Copyright (c) 1985, 1989, 1993, 1994\n\
-	The Regents of the University of California.  All rights reserved.\n";
+__COPYRIGHT("@(#) Copyright (c) 1985, 1989, 1993, 1994\n\
+	The Regents of the University of California.  All rights reserved.\n");
 #endif /* not lint */
 
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 10/9/94";
 #else
-static char rcsid[] = "$Id: main.c,v 1.14 1997/06/27 09:30:13 ache Exp $";
+__RCSID("$Id$");
+__RCSID_SOURCE("$NetBSD: main.c,v 1.26 1997/10/14 16:31:22 christos Exp $");
 #endif
 #endif /* not lint */
 
@@ -64,6 +65,9 @@ static char rcsid[] = "$Id: main.c,v 1.14 1997/06/27 09:30:13 ache Exp $";
 #include <unistd.h>
 
 #include "ftp_var.h"
+#include "pathnames.h"
+
+int main __P((int, char **));
 
 int
 main(argc, argv)
@@ -71,9 +75,10 @@ main(argc, argv)
 	char *argv[];
 {
 	struct servent *sp;
-	int ch, top, port, rval;
+	int ch, top, rval;
+	long port;
 	struct passwd *pw = NULL;
-	char *cp, homedir[MAXPATHLEN];
+	char *cp, *ep, homedir[MAXPATHLEN];
 	int dumbterm;
 
 	(void) setlocale(LC_ALL, "");
@@ -88,6 +93,23 @@ main(argc, argv)
 		httpport = htons(HTTP_PORT);	/* good fallback */
 	else
 		httpport = sp->s_port;
+	gateport = 0;
+	cp = getenv("FTPSERVERPORT");
+	if (cp != NULL) {
+		port = strtol(cp, &ep, 10);
+		if (port < 1 || port > 0xffff || *ep != '\0')
+			warnx("bad FTPSERVERPORT port number: %s (ignored)",
+			    cp);
+		else
+			gateport = htons(port);
+	}
+	if (gateport == 0) {
+		sp = getservbyname("ftpgate", "tcp");
+		if (sp == 0)
+			gateport = htons(GATE_PORT);
+		else
+			gateport = sp->s_port;
+	}
 	doglob = 1;
 	interactive = 1;
 	autologin = 1;
@@ -96,6 +118,7 @@ main(argc, argv)
 	preserve = 1;
 	verbose = 0;
 	progress = 0;
+	gatemode = 0;
 #ifndef SMALL
 	editing = 0;
 	el = NULL;
@@ -103,11 +126,26 @@ main(argc, argv)
 #endif
 	mark = HASHBYTES;
 	marg_sl = sl_init();
+	if ((tmpdir = getenv("TMPDIR")) == NULL)
+		tmpdir = _PATH_TMP;
 
 	cp = strrchr(argv[0], '/');
 	cp = (cp == NULL) ? argv[0] : cp + 1;
 	if (getenv("FTP_PASSIVE_MODE") || strcmp(cp, "pftp") == 0)
 		passivemode = 1;
+	else if (strcmp(cp, "gate-ftp") == 0)
+		gatemode = 1;
+
+	gateserver = getenv("FTPSERVER");
+	if (gateserver == NULL || *gateserver == '\0')
+		gateserver = GATE_SERVER;
+	if (gatemode) {
+		if (*gateserver == '\0') {
+			warnx(
+"Neither $FTPSERVER nor GATE_SERVER is defined; disabling gate-ftp");
+			gatemode = 0;
+		}
+	}
 
 	cp = getenv("TERM");
 	if (cp == NULL || strcmp(cp, "dumb") == 0)
@@ -159,8 +197,8 @@ main(argc, argv)
 			break;
 
 		case 'P':
-			port = atoi(optarg);
-			if (port <= 0)
+			port = strtol(optarg, &ep, 10);
+			if (port < 1 || port > 0xffff || *ep != '\0')
 				warnx("bad port number: %s (ignored)", optarg);
 			else
 				ftpport = htons(port);
@@ -209,6 +247,11 @@ main(argc, argv)
 
 	setttywidth(0);
 	(void)signal(SIGWINCH, setttywidth);
+
+#ifdef __GNUC__			/* XXX: to shut up gcc warnings */
+	(void)&argc;
+	(void)&argv;
+#endif
 
 	if (argc > 0) {
 		if (strchr(argv[0], ':') != NULL) {

@@ -1,5 +1,5 @@
-/*	$Id: cmds.c,v 1.10 1997/11/17 19:29:16 guido Exp $ */
-/*	$NetBSD: cmds.c,v 1.24 1997/05/17 19:44:36 pk Exp $	*/
+/*	$Id$	*/
+/*	$NetBSD: cmds.c,v 1.30.2.1 1997/11/18 00:58:26 mellon Exp $	*/
 
 /*
  * Copyright (c) 1985, 1989, 1993, 1994
@@ -34,11 +34,13 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)cmds.c	8.6 (Berkeley) 10/9/94";
 #else
-static char rcsid[] = "$Id: cmds.c,v 1.10 1997/11/17 19:29:16 guido Exp $";
+__RCSID("$Id$");
+__RCSID_SOURCE("$NetBSD: cmds.c,v 1.30.2.1 1997/11/18 00:58:26 mellon Exp $");
 #endif
 #endif /* not lint */
 
@@ -299,6 +301,8 @@ usage:
 	}
 	sendrequest(cmd, argv[1], argv[2],
 	    argv[1] != oldargv1 || argv[2] != oldargv2);
+	if (oldargv1 != argv[1])	/* free up after globulize() */
+		free(argv[1]);
 }
 
 /*
@@ -452,16 +456,12 @@ getit(argc, argv, restartit, mode)
 	const char *mode;
 {
 	int loc = 0;
-	char *oldargv1, *oldargv2;
+	int rval = 0;
+	char *oldargv1, *oldargv2, *globargv2;
 
 	if (argc == 2) {
 		argc++;
 		argv[2] = argv[1];
-		if (*argv[1] == '|' && !another(&argc, &argv,
-		    "(warning: remote file starts with '|') local-file")) {
-			code = -1;
-			return (0);
-		}
 		loc++;
 	}
 	if (argc < 2 && !another(&argc, &argv, "remote-file"))
@@ -478,6 +478,7 @@ usage:
 		code = -1;
 		return (0);
 	}
+	globargv2 = argv[2];
 	if (loc && mcase) {
 		char *tp = argv[1], *tp2, tmpbuf[MAXPATHLEN];
 
@@ -488,8 +489,9 @@ usage:
 			tp = argv[2];
 			tp2 = tmpbuf;
 			while ((*tp2 = *tp) != '\0') {
-				if (isupper((unsigned char)*tp2))
+				if (isupper((unsigned char)*tp2)) {
 					*tp2 = tolower((unsigned char)*tp2);
+				}
 				tp++;
 				tp2++;
 			}
@@ -508,7 +510,7 @@ usage:
 		if (restartit == 1) {
 			if (ret < 0) {
 				warn("local: %s", argv[2]);
-				return (0);
+				goto freegetit;
 			}
 			restart_point = stbuf.st_size;
 		} else {
@@ -517,17 +519,22 @@ usage:
 
 				mtime = remotemodtime(argv[1], 0);
 				if (mtime == -1)
-					return (0);
-				if (stbuf.st_mtime >= mtime)
-					return (1);
+					goto freegetit;
+				if (stbuf.st_mtime >= mtime) {
+					rval = 1;
+					goto freegetit;
+				}
 			}
 		}
 	}
 
 	recvrequest("RETR", argv[2], argv[1], mode,
-	    argv[1] != oldargv1 || argv[2] != oldargv2);
+	    argv[1] != oldargv1 || argv[2] != oldargv2, loc);
 	restart_point = 0;
-	return (0);
+freegetit:
+	if (oldargv2 != globargv2)	/* free up after globulize() */
+		free(globargv2);
+	return (rval);
 }
 
 /* ARGSUSED */
@@ -583,19 +590,13 @@ mget(argc, argv)
 			mflag = 0;
 			continue;
 		}
-		if (!interactive && *cp == '|') {
-			printf("skipping %s for security reasons\n", cp);
-			sleep(2);
-			continue;
-		}
-		if (*cp == '|')
-			printf(
-	    "note: next file starts with '|', which runs it through a pipe\n");
 		if (mflag && confirm(argv[0], cp)) {
 			tp = cp;
 			if (mcase) {
-				for (tp2 = tmpbuf; (ch = (unsigned char)*tp++) != 0; )
-					*tp2++ = isupper(ch) ? tolower(ch) : ch;
+				for (tp2 = tmpbuf; (ch = *tp++) != 0; )
+					*tp2++ = isupper((unsigned char)ch) ?
+						 tolower((unsigned char)ch) :
+						 ch;
 				*tp2 = '\0';
 				tp = tmpbuf;
 			}
@@ -606,7 +607,7 @@ mget(argc, argv)
 				tp = domap(tp);
 			}
 			recvrequest("RETR", tp, cp, "w",
-			    tp != cp || !interactive);
+			    tp != cp || !interactive, 1);
 			if (!mflag && fromatty) {
 				ointer = interactive;
 				interactive = 1;
@@ -656,6 +657,8 @@ status(argc, argv)
 		}
 		pswitch(0);
 	}
+	printf("Gate ftp: %s, server %s, port %d.\n", onoff(gatemode),
+	    *gateserver ? gateserver : "(none)", ntohs(gateport));
 	printf("Passive mode: %s.\n", onoff(passivemode));
 	printf("Mode: %s; Type: %s; Form: %s; Structure: %s.\n",
 		modename, typename, formname, structname);
@@ -780,9 +783,12 @@ sethash(argc, argv)
 	else if (strcasecmp(argv[1], "off") == 0)
 		hash = 0;
 	else {
-		int nmark = atol(argv[1]);
-		if (nmark < 1) {
-			printf("%s: bad bytecount value.\n", argv[1]);
+		int nmark;
+		char *ep;
+
+		nmark = strtol(argv[1], &ep, 10);
+		if (nmark < 1 || *ep != '\0') {
+			printf("mark: bad bytecount value `%s'.\n", argv[1]);
 			code = -1;
 			return;
 		}
@@ -836,8 +842,7 @@ setprogress(argc, argv)
 }
 
 /*
- * Turn on interactive prompting
- * during mget, mput, and mdelete.
+ * Turn on interactive prompting during mget, mput, and mdelete.
  */
 /*VARARGS*/
 void
@@ -850,8 +855,61 @@ setprompt(argc, argv)
 }
 
 /*
- * Toggle metacharacter interpretation
- * on local file names.
+ * Toggle gate-ftp mode, or set gate-ftp server
+ */
+/*VARARGS*/
+void
+setgate(argc, argv)
+	int argc;
+	char *argv[];
+{
+	static char gsbuf[MAXHOSTNAMELEN];
+
+	if (argc > 3) {
+		printf("usage: %s [ on | off | gateserver [ port ] ]\n",
+		    argv[0]);
+		code = -1;
+		return;
+	} else if (argc < 2) {
+		gatemode = !gatemode;
+	} else {
+		if (argc == 2 && strcasecmp(argv[1], "on") == 0)
+			gatemode = 1;
+		else if (argc == 2 && strcasecmp(argv[1], "off") == 0)
+			gatemode = 0;
+		else {
+			if (argc == 3) {
+				char *ep;
+				long port;
+
+				port = strtol(argv[2], &ep, 10);
+				if (port < 0 || port > 0xffff || *ep != '\0') {
+					printf("%s: bad gateport value.\n",
+					    argv[2]);
+					code = -1;
+					return;
+				}
+				gateport = htons(port);
+			}
+			strncpy(gsbuf, argv[1], sizeof(gsbuf) - 1);
+			gsbuf[sizeof(gsbuf) - 1] = '\0';
+			gateserver = gsbuf;
+			gatemode = 1;
+		}
+	}
+	if (gatemode && (gateserver == NULL || *gateserver == '\0')) {
+		printf(
+		    "Disabling gate-ftp mode - no gate-ftp server defined.\n");
+		gatemode = 0;
+	} else {
+		printf("Gate ftp: %s, server %s, port %d.\n", onoff(gatemode),
+		    *gateserver ? gateserver : "(none)", ntohs(gateport));
+	}
+	code = gatemode;
+}
+
+/*
+ * Toggle metacharacter interpretation on local file names.
  */
 /*VARARGS*/
 void
@@ -877,8 +935,7 @@ setpreserve(argc, argv)
 }
 
 /*
- * Set debugging mode on/off and/or
- * set level of debugging.
+ * Set debugging mode on/off and/or set level of debugging.
  */
 /*VARARGS*/
 void
@@ -886,8 +943,6 @@ setdebug(argc, argv)
 	int argc;
 	char *argv[];
 {
-	int val;
-
 	if (argc > 2) {
 		printf("usage: %s [ on | off | debuglevel ]\n", argv[0]);
 		code = -1;
@@ -898,13 +953,16 @@ setdebug(argc, argv)
 		else if (strcasecmp(argv[1], "off") == 0)
 			debug = 0;
 		else {
-			val = atoi(argv[1]);
-			if (val < 0) {
+			char *ep;
+			long val;
+
+			val = strtol(argv[1], &ep, 10);
+			if (val < 0 || val > INT_MAX || *ep != '\0') {
 				printf("%s: bad debugging value.\n", argv[1]);
 				code = -1;
 				return;
 			}
-			debug = val;
+			debug = (int)val;
 		}
 	} else
 		debug = !debug;
@@ -917,8 +975,7 @@ setdebug(argc, argv)
 }
 
 /*
- * Set current working directory
- * on remote machine.
+ * Set current working directory on remote machine.
  */
 void
 cd(argc, argv)
@@ -944,8 +1001,7 @@ cd(argc, argv)
 }
 
 /*
- * Set current working directory
- * on local machine.
+ * Set current working directory on local machine.
  */
 void
 lcd(argc, argv)
@@ -953,6 +1009,7 @@ lcd(argc, argv)
 	char *argv[];
 {
 	char buf[MAXPATHLEN];
+	char *oldargv1;
 
 	if (argc < 2)
 		argc++, argv[1] = home;
@@ -961,6 +1018,7 @@ lcd(argc, argv)
 		code = -1;
 		return;
 	}
+	oldargv1 = argv[1];
 	if (!globulize(&argv[1])) {
 		code = -1;
 		return;
@@ -968,13 +1026,15 @@ lcd(argc, argv)
 	if (chdir(argv[1]) < 0) {
 		warn("local: %s", argv[1]);
 		code = -1;
-		return;
+	} else {
+		if (getcwd(buf, sizeof(buf)) != NULL)
+			printf("Local directory now %s\n", buf);
+		else
+			warn("getcwd: %s", argv[1]);
+		code = 0;
 	}
-	if (getcwd(buf, sizeof(buf)) != NULL)
-		printf("Local directory now %s\n", buf);
-	else
-		warn("getcwd: %s", argv[1]);
-	code = 0;
+	if (oldargv1 != argv[1])	/* free up after globulize() */
+		free(argv[1]);
 }
 
 /*
@@ -1058,8 +1118,7 @@ usage:
 }
 
 /*
- * Get a directory listing
- * of remote files.
+ * Get a directory listing of remote files.
  */
 void
 ls(argc, argv)
@@ -1067,6 +1126,7 @@ ls(argc, argv)
 	char *argv[];
 {
 	const char *cmd;
+	char *oldargv2, *globargv2;
 
 	if (argc < 2)
 		argc++, argv[1] = NULL;
@@ -1078,25 +1138,31 @@ ls(argc, argv)
 		return;
 	}
 	cmd = strcmp(argv[0], "dir") == 0 ? "LIST" : "NLST";
+	oldargv2 = argv[2];
 	if (strcmp(argv[2], "-") && !globulize(&argv[2])) {
 		code = -1;
 		return;
 	}
+	globargv2 = argv[2];
 	if (strcmp(argv[2], "-") && *argv[2] != '|')
 		if (!globulize(&argv[2]) || !confirm("output to local-file:",
 		    argv[2])) {
 			code = -1;
-			return;
+			goto freels;
 	}
-	recvrequest(cmd, argv[2], argv[1], "w", 0);
+	recvrequest(cmd, argv[2], argv[1], "w", 0, 0);
 
 	/* flush results in case commands are coming from a pipe */
 	fflush(stdout);
+freels:
+	if (argv[2] != globargv2)		/* free up after globulize() */
+		free(argv[2]);
+	if (globargv2 != oldargv2)
+		free(globargv2);
 }
 
 /*
- * Get a directory listing
- * of multiple remote files.
+ * Get a directory listing of multiple remote files.
  */
 void
 mls(argc, argv)
@@ -1105,8 +1171,8 @@ mls(argc, argv)
 {
 	sig_t oldintr;
 	int ointer, i;
-	const char *cmd;
-	char mode[1], *dest;
+	int dolist;
+	char mode[1], *dest, *odest;
 
 	if (argc < 2 && !another(&argc, &argv, "remote-files"))
 		goto usage;
@@ -1116,7 +1182,7 @@ usage:
 		code = -1;
 		return;
 	}
-	dest = argv[argc - 1];
+	odest = dest = argv[argc - 1];
 	argv[argc - 1] = NULL;
 	if (strcmp(dest, "-") && *dest != '|')
 		if (!globulize(&dest) ||
@@ -1124,14 +1190,15 @@ usage:
 			code = -1;
 			return;
 	}
-	cmd = strcmp(argv[0], "mls") == 0 ? "NLST" : "LIST";
+	dolist = strcmp(argv[0], "mls");
 	mname = argv[0];
 	mflag = 1;
 	oldintr = signal(SIGINT, mabort);
 	(void)setjmp(jabort);
 	for (i = 1; mflag && i < argc-1; ++i) {
 		*mode = (i == 1) ? 'w' : 'a';
-		recvrequest(cmd, dest, argv[i], mode, 0);
+		recvrequest(dolist ? "LIST" : "NLST", dest, argv[i], mode,
+		    0, 0);
 		if (!mflag && fromatty) {
 			ointer = interactive;
 			interactive = 1;
@@ -1143,6 +1210,8 @@ usage:
 	}
 	(void)signal(SIGINT, oldintr);
 	mflag = 0;
+	if (dest != odest)			/* free up after globulize() */
+		free(dest);
 }
 
 /*
@@ -1157,7 +1226,7 @@ shell(argc, argv)
 	pid_t pid;
 	sig_t old1, old2;
 	char shellnam[MAXPATHLEN], *shell, *namep;
-	union wait status;
+	int wait_status;
 
 	old1 = signal (SIGINT, SIG_IGN);
 	old2 = signal (SIGQUIT, SIG_IGN);
@@ -1192,7 +1261,7 @@ shell(argc, argv)
 		exit(1);
 	}
 	if (pid > 0)
-		while (wait((int *)&status) != pid)
+		while (wait(&wait_status) != pid)
 			;
 	(void)signal(SIGINT, old1);
 	(void)signal(SIGQUIT, old2);
@@ -1765,7 +1834,8 @@ domap(name)
 				break;
 			case '[':
 LOOP:
-				if (*++cp2 == '$' && isdigit((unsigned char)*(cp2+1))) {
+				if (*++cp2 == '$' &&
+				    isdigit((unsigned char)*(cp2+1))) {
 					if (*++cp2 == '0') {
 						char *cp3 = name;
 
@@ -1790,7 +1860,7 @@ LOOP:
 							cp2++;
 						}
 						else if (*cp2 == '$' &&
-							isdigit((unsigned char)*(cp2+1))) {
+   						        isdigit((unsigned char)*(cp2+1))) {
 							if (*++cp2 == '0') {
 							   char *cp3 = name;
 
@@ -1921,23 +1991,40 @@ cdup(argc, argv)
 		dirchange = 1;
 }
 
-/* restart transfer at specific point */
+/*
+ * Restart transfer at specific point
+ */
 void
 restart(argc, argv)
 	int argc;
 	char *argv[];
 {
 
-	if (argc != 2)
-		puts("restart: offset not specified.");
-	else {
-		restart_point = atol(argv[1]);
-		printf("Restarting at %qd. Execute get, put or append to"
-			"initiate transfer\n", restart_point);
+	if (argc > 2) {
+		printf("usage: %s [restart_point]\n", argv[0]);
+		code = -1;
+		return;
 	}
+	if (argc == 2) {
+		quad_t	rp;
+		char *ep;
+
+		rp = strtoq(argv[1], &ep, 10);
+		if (rp < 0 || *ep != '\0')
+			printf("restart: Invalid offset `%s'\n", argv[1]);
+		else
+			restart_point = rp;
+	}
+	if (restart_point == 0)
+		puts("No restart point defined");
+	else
+		printf("Restarting at %qd for next get, put or append\n",
+		    (long long)restart_point);
 }
 
-/* show remote system type */
+/* 
+ * Show remote system type
+ */
 void
 syst(argc, argv)
 	int argc;
@@ -2021,7 +2108,7 @@ setrestrict(argc, argv)
 }
 
 /*
- * get size of file on remote machine
+ * Get size of file on remote machine
  */
 void
 sizecmd(argc, argv)
@@ -2037,12 +2124,12 @@ sizecmd(argc, argv)
 	}
 	size = remotesize(argv[1], 1);
 	if (size != -1)
-		printf("%s\t%qd\n", argv[1], size);
+		printf("%s\t%qd\n", argv[1], (long long)size);
 	code = size;
 }
 
 /*
- * get last modification time of file on remote machine
+ * Get last modification time of file on remote machine
  */
 void
 modtime(argc, argv)
@@ -2063,7 +2150,7 @@ modtime(argc, argv)
 }
 
 /*
- * show status on remote machine
+ * Show status on remote machine
  */
 void
 rmtstatus(argc, argv)
@@ -2075,7 +2162,7 @@ rmtstatus(argc, argv)
 }
 
 /*
- * get file if modtime is more recent than current file
+ * Get file if modtime is more recent than current file
  */
 void
 newer(argc, argv)
@@ -2096,14 +2183,15 @@ page(argc, argv)
 	int argc;
 	char *argv[];
 {
-	int orestart_point, ohash, overbose;
-	char *p, *pager;
+	int ohash, overbose;
+	char *p, *pager, *oldargv1;
 
 	if ((argc < 2 && !another(&argc, &argv, "filename")) || argc > 2) {
 		printf("usage: %s filename\n", argv[0]);
 		code = -1;
 		return;
 	}
+	oldargv1 = argv[1];
 	if (!globulize(&argv[1])) {
 		code = -1;
 		return;
@@ -2115,13 +2203,13 @@ page(argc, argv)
 		errx(1, "Can't allocate memory for $PAGER");
 	(void)sprintf(pager, "|%s", p);
 
-	orestart_point = restart_point;
 	ohash = hash;
 	overbose = verbose;
-	restart_point = hash = verbose = 0;
-	recvrequest("RETR", pager, argv[1], "r+w", 1);
+	hash = verbose = 0;
+	recvrequest("RETR", pager, argv[1], "r+w", 1, 0);
 	(void)free(pager);
-	restart_point = orestart_point;
 	hash = ohash;
 	verbose = overbose;
+	if (oldargv1 != argv[1])	/* free up after globulize() */
+		free(argv[1]);
 }

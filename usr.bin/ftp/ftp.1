@@ -1,4 +1,4 @@
-.\" 	$Id: ftp.1,v 1.5 1997/06/25 08:56:40 msmith Exp $
+.\" 	$Id: ftp.1,v 1.6 1997/12/08 22:09:44 roberto Exp $
 .\" 	$NetBSD: ftp.1,v 1.21 1997/06/10 21:59:58 lukem Exp $
 .\"
 .\" Copyright (c) 1985, 1989, 1990, 1993
@@ -34,11 +34,11 @@
 .\"
 .\"	@(#)ftp.1	8.3 (Berkeley) 10/9/94
 .\"
-.Dd February 23, 1997
+.Dd August 18, 1997
 .Dt FTP 1
 .Os BSD 4.2
 .Sh NAME
-.Nm ftp , pftp
+.Nm ftp , pftp , gate-ftp
 .Nd
 .Tn ARPANET
 file transfer program
@@ -333,6 +333,21 @@ The current settings for
 and
 .Ic structure
 are used while transferring the file.
+.It Ic gate Op Ar host Op Ar port 
+Toggle gate-ftp mode.
+This will not be permitted if the gate-ftp server hasn't been set
+(either explicitly by the user, or from the
+.Ev FTPSERVER 
+environment variable).
+If
+.Ar host
+is given,
+then gate-ftp mode will be enabled, and the gate-ftp server will be set to
+.Ar host .
+If
+.Ar port
+is also given, that will be used as the port to connect to on the
+gate-ftp server.
 .It Ic glob
 Toggle filename expansion for
 .Ic mdelete  ,
@@ -1332,7 +1347,21 @@ By default, this is bound to the TAB key.
 .Sh ENVIRONMENT
 .Nm
 utilizes the following environment variables.
-.Bl -tag -width "http_proxy"
+.Bl -tag -width "FTP_PASSIVE_MODE"
+.It Ev FTP_PASSIVE_MODE
+Use passive mode FTP by default.
+.It Ev FTPSERVER
+Host to use as gate-ftp server when
+.Ic gate
+is enabled.
+.It Ev FTPSERVERPORT
+Port to use when connecting to gate-ftp server when
+.Ic gate
+is enabled.
+Default is port returned by a
+.Fn getservbyname
+lookup of 
+.Dq ftpgate/tcp .
 .It Ev HOME
 For default location of a
 .Pa .netrc
@@ -1350,12 +1379,16 @@ URL of FTP proxy to use when making FTP URL requests
 URL of HTTP proxy to use when making HTTP URL requests.
 .El
 .Sh SEE ALSO
+.Xr getservbyname 3 ,
 .Xr editrc 5 ,
+.Xr services 5 ,
 .Xr ftpd 8
 .Sh NOTES
 The
 .Xr pftp 1
-command is only a link to
+and
+.Xr gate-ftp 1
+commands are links to
 .Nm ftp .
 .Sh HISTORY
 The

@@ -1,5 +1,5 @@
-/*	$Id$ */
-/*	$NetBSD: ftp.c,v 1.25 1997/04/14 09:09:22 lukem Exp $	*/
+/*	$Id$	*/
+/*	$NetBSD: ftp.c,v 1.29.2.1 1997/11/18 01:01:04 mellon Exp $	*/
 
 /*
  * Copyright (c) 1985, 1989, 1993, 1994
@@ -34,11 +34,13 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)ftp.c	8.6 (Berkeley) 10/27/94";
 #else
-static char rcsid[] = "$Id$";
+__RCSID("$Id$");
+__RCSID_SOURCE("$NetBSD: ftp.c,v 1.29.2.1 1997/11/18 01:01:04 mellon Exp $");
 #endif
 #endif /* not lint */
 
@@ -77,7 +79,6 @@ jmp_buf	ptabort;
 int	ptabflg;
 int	ptflag = 0;
 struct	sockaddr_in myctladdr;
-off_t	restart_point = 0;
 
 
 FILE	*cin, *cout;
@@ -87,7 +88,7 @@ hookup(host, port)
 	const char *host;
 	int port;
 {
-	struct hostent *hp = 0;
+	struct hostent *hp = NULL;
 	int s, len, tos;
 	static char hostnamebuf[MAXHOSTNAMELEN];
 
@@ -412,15 +413,26 @@ sendrequest(cmd, local, remote, printnames)
 {
 	struct stat st;
 	int c, d;
-	FILE *fin, *dout = 0;
+	FILE *fin, *dout;
 	int (*closefunc) __P((FILE *));
 	sig_t oldinti, oldintr, oldintp;
-	off_t hashbytes;
+	volatile off_t hashbytes;
 	char *lmode, buf[BUFSIZ], *bufp;
 	int oprogress;
 
+#ifdef __GNUC__			/* XXX: to shut up gcc warnings */
+	(void)&fin;
+	(void)&dout;
+	(void)&closefunc;
+	(void)&oldinti;
+	(void)&oldintr;
+	(void)&oldintp;
+	(void)&lmode;
+#endif
+
 	hashbytes = mark;
 	direction = "sent";
+	dout = NULL;
 	bytes = 0;
 	filesize = -1;
 	oprogress = progress;
@@ -455,9 +467,8 @@ sendrequest(cmd, local, remote, printnames)
 			(void)signal(SIGPIPE, oldintp);
 		if (oldinti)
 			(void)signal(SIGINFO, oldinti);
-		progress = oprogress;
 		code = -1;
-		return;
+		goto cleanupsend;
 	}
 	oldintr = signal(SIGINT, abortsend);
 	oldinti = signal(SIGINFO, psummary);
@@ -473,7 +484,7 @@ sendrequest(cmd, local, remote, printnames)
 			(void)signal(SIGPIPE, oldintp);
 			(void)signal(SIGINFO, oldinti);
 			code = -1;
-			return;
+			goto cleanupsend;
 		}
 		progress = 0;
 		closefunc = pclose;
@@ -484,17 +495,16 @@ sendrequest(cmd, local, remote, printnames)
 			(void)signal(SIGINT, oldintr);
 			(void)signal(SIGINFO, oldinti);
 			code = -1;
-			return;
+			goto cleanupsend;
 		}
 		closefunc = fclose;
-		if (fstat(fileno(fin), &st) < 0 ||
-		    (st.st_mode & S_IFMT) != S_IFREG) {
+		if (fstat(fileno(fin), &st) < 0 || !S_ISREG(st.st_mode)) {
 			printf("%s: not a plain file.\n", local);
 			(void)signal(SIGINT, oldintr);
 			(void)signal(SIGINFO, oldinti);
 			fclose(fin);
 			code = -1;
-			return;
+			goto cleanupsend;
 		}
 		filesize = st.st_size;
 	}
@@ -504,10 +514,9 @@ sendrequest(cmd, local, remote, printnames)
 		if (oldintp)
 			(void)signal(SIGPIPE, oldintp);
 		code = -1;
-		progress = oprogress;
 		if (closefunc != NULL)
 			(*closefunc)(fin);
-		return;
+		goto cleanupsend;
 	}
 	if (setjmp(sendabort))
 		goto abort;
@@ -528,44 +537,37 @@ sendrequest(cmd, local, remote, printnames)
 		}
 		if (rc < 0) {
 			warn("local: %s", local);
-			restart_point = 0;
-			progress = oprogress;
 			if (closefunc != NULL)
 				(*closefunc)(fin);
-			return;
+			goto cleanupsend;
 		}
-		if (command("REST %ld", (long) restart_point)
-			!= CONTINUE) {
-			restart_point = 0;
-			progress = oprogress;
+		if (command("REST %qd", (long long) restart_point) !=
+		    CONTINUE) {
 			if (closefunc != NULL)
 				(*closefunc)(fin);
-			return;
+			goto cleanupsend;
 		}
-		restart_point = 0;
 		lmode = "r+w";
 	}
 	if (remote) {
 		if (command("%s %s", cmd, remote) != PRELIM) {
 			(void)signal(SIGINT, oldintr);
 			(void)signal(SIGINFO, oldinti);
-			progress = oprogress;
 			if (oldintp)
 				(void)signal(SIGPIPE, oldintp);
 			if (closefunc != NULL)
 				(*closefunc)(fin);
-			return;
+			goto cleanupsend;
 		}
 	} else
 		if (command("%s", cmd) != PRELIM) {
 			(void)signal(SIGINT, oldintr);
 			(void)signal(SIGINFO, oldinti);
-			progress = oprogress;
 			if (oldintp)
 				(void)signal(SIGPIPE, oldintp);
 			if (closefunc != NULL)
 				(*closefunc)(fin);
-			return;
+			goto cleanupsend;
 		}
 	dout = dataconn(lmode);
 	if (dout == NULL)
@@ -644,7 +646,6 @@ sendrequest(cmd, local, remote, printnames)
 		break;
 	}
 	progressmeter(1);
-	progress = oprogress;
 	if (closefunc != NULL)
 		(*closefunc)(fin);
 	(void)fclose(dout);
@@ -655,11 +656,10 @@ sendrequest(cmd, local, remote, printnames)
 		(void)signal(SIGPIPE, oldintp);
 	if (bytes > 0)
 		ptransfer(0);
-	return;
+	goto cleanupsend;
 abort:
 	(void)signal(SIGINT, oldintr);
 	(void)signal(SIGINFO, oldinti);
-	progress = oprogress;
 	if (oldintp)
 		(void)signal(SIGPIPE, oldintp);
 	if (!cpend) {
@@ -678,6 +678,9 @@ abort:
 		(*closefunc)(fin);
 	if (bytes > 0)
 		ptransfer(0);
+cleanupsend:
+	progress = oprogress;
+	restart_point = 0;
 }
 
 jmp_buf	recvabort;
@@ -696,32 +699,47 @@ abortrecv(notused)
 }
 
 void
-recvrequest(cmd, local, remote, lmode, printnames)
+recvrequest(cmd, local, remote, lmode, printnames, ignorespecial)
 	const char *cmd, *local, *remote, *lmode;
-	int printnames;
+	int printnames, ignorespecial;
 {
-	FILE *fout, *din = 0;
+	FILE *fout, *din;
 	int (*closefunc) __P((FILE *));
 	sig_t oldinti, oldintr, oldintp;
-	int c, d, is_retr, tcrflag, bare_lfs = 0;
-	static int bufsize;
+	int c, d;
+	volatile int is_retr, tcrflag, bare_lfs;
+	static size_t bufsize;
 	static char *buf;
-	off_t hashbytes;
+	volatile off_t hashbytes;
 	struct stat st;
 	time_t mtime;
 	struct timeval tval[2];
 	int oprogress;
 	int opreserve;
 
+#ifdef __GNUC__			/* XXX: to shut up gcc warnings */
+	(void)&local;
+	(void)&fout;
+	(void)&din;
+	(void)&closefunc;
+	(void)&oldinti;
+	(void)&oldintr;
+	(void)&oldintp;
+#endif
+
+	fout = NULL;
+	din = NULL;
+	oldinti = NULL;
 	hashbytes = mark;
 	direction = "received";
 	bytes = 0;
+	bare_lfs = 0;
 	filesize = -1;
 	oprogress = progress;
 	opreserve = preserve;
-	is_retr = strcmp(cmd, "RETR") == 0;
+	is_retr = (strcmp(cmd, "RETR") == 0);
 	if (is_retr && verbose && printnames) {
-		if (local && *local != '-')
+		if (local && (ignorespecial || *local != '-'))
 			printf("local: %s ", local);
 		if (remote)
 			printf("remote: %s\n", remote);
@@ -753,8 +771,8 @@ recvrequest(cmd, local, remote, lmode, printnames)
 	}
 	oldintr = signal(SIGINT, abortrecv);
 	oldinti = signal(SIGINFO, psummary);
-	if (strcmp(local, "-") && *local != '|') {
-		if (access(local, 2) < 0) {
+	if (ignorespecial || (strcmp(local, "-") && *local != '|')) {
+		if (access(local, W_OK) < 0) {
 			char *dir = strrchr(local, '/');
 
 			if (errno != ENOENT && errno != EACCES) {
@@ -766,7 +784,7 @@ recvrequest(cmd, local, remote, lmode, printnames)
 			}
 			if (dir != NULL)
 				*dir = 0;
-			d = access(dir == local ? "/" : dir ? local : ".", 2);
+			d = access(dir == local ? "/" : dir ? local : ".", W_OK);
 			if (dir != NULL)
 				*dir = '/';
 			if (d < 0) {
@@ -816,7 +834,7 @@ recvrequest(cmd, local, remote, lmode, printnames)
 	if (setjmp(recvabort))
 		goto abort;
 	if (is_retr && restart_point &&
-	    command("REST %ld", (long) restart_point) != CONTINUE)
+	    command("REST %qd", (long long) restart_point) != CONTINUE)
 		return;
 	if (remote) {
 		if (command("%s %s", cmd, remote) != PRELIM) {
@@ -834,11 +852,11 @@ recvrequest(cmd, local, remote, lmode, printnames)
 	din = dataconn("r");
 	if (din == NULL)
 		goto abort;
-	if (strcmp(local, "-") == 0) {
+	if (!ignorespecial && strcmp(local, "-") == 0) {
 		fout = stdout;
 		progress = 0;
 		preserve = 0;
-	} else if (*local == '|') {
+	} else if (!ignorespecial && *local == '|') {
 		oldintp = signal(SIGPIPE, SIG_IGN);
 		fout = popen(local + 1, "w");
 		if (fout == NULL) {
@@ -869,7 +887,7 @@ recvrequest(cmd, local, remote, lmode, printnames)
 		}
 		bufsize = st.st_blksize;
 	}
-	if ((st.st_mode & S_IFMT) != S_IFREG) {
+	if (!S_ISREG(st.st_mode)) {
 		progress = 0;
 		preserve = 0;
 	}
@@ -878,7 +896,7 @@ recvrequest(cmd, local, remote, lmode, printnames)
 
 	case TYPE_I:
 	case TYPE_L:
-		if (restart_point &&
+		if (is_retr && restart_point &&
 		    lseek(fileno(fout), restart_point, SEEK_SET) < 0) {
 			warn("local: %s", local);
 			progress = oprogress;
@@ -920,12 +938,13 @@ recvrequest(cmd, local, remote, lmode, printnames)
 		break;
 
 	case TYPE_A:
-		if (restart_point) {
-			int i, n, ch;
+		if (is_retr && restart_point) {
+			int ch;
+			long i, n;
 
 			if (fseek(fout, 0L, SEEK_SET) < 0)
 				goto done;
-			n = restart_point;
+			n = (long)restart_point;
 			for (i = 0; i++ < n;) {
 				if ((ch = getc(fout)) == EOF)
 					goto done;
@@ -1063,8 +1082,8 @@ initconn()
 	char *p, *a;
 	int result, len, tmpno = 0;
 	int on = 1;
-	int tos, ports;
 	int a0, a1, a2, a3, p0, p1;
+	int ports;
 
 	if (passivemode) {
 		data = socket(AF_INET, SOCK_STREAM, 0);
@@ -1113,8 +1132,8 @@ initconn()
 			goto bad;
 		}
 #ifdef IP_TOS
-		tos = IPTOS_THROUGHPUT;
-		if (setsockopt(data, IPPROTO_IP, IP_TOS, (char *)&tos,
+		on = IPTOS_THROUGHPUT;
+		if (setsockopt(data, IPPROTO_IP, IP_TOS, (char *)&on,
 			       sizeof(int)) < 0)
 			warn("setsockopt TOS (ignored)");
 #endif
@@ -1349,10 +1368,18 @@ proxtrans(cmd, local, remote)
 	const char *cmd, *local, *remote;
 {
 	sig_t oldintr;
-	int secndflag = 0, prox_type, nfnd;
+	int prox_type, nfnd;
+	volatile int secndflag;
 	char *cmd2;
 	struct fd_set mask;
 
+#ifdef __GNUC__			/* XXX: to shut up gcc warnings */
+	(void)&oldintr;
+	(void)&cmd2;
+#endif
+
+	oldintr = NULL;
+	secndflag = 0;
 	if (strcmp(cmd, "RETR"))
 		cmd2 = "RETR";
 	else
@@ -1496,7 +1523,7 @@ gunique(local)
 
 	if (cp)
 		*cp = '\0';
-	d = access(cp == local ? "/" : cp ? local : ".", 2);
+	d = access(cp == local ? "/" : cp ? local : ".", W_OK);
 	if (cp)
 		*cp = '/';
 	if (d < 0) {
@@ -1517,7 +1544,7 @@ gunique(local)
 			ext = '0';
 		else
 			ext++;
-		if ((d = access(new, 0)) < 0)
+		if ((d = access(new, F_OK)) < 0)
 			break;
 		if (ext != '0')
 			cp--;

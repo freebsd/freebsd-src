@@ -1,5 +1,4 @@
-/*	$Id: fetch.c,v 1.1 1997/06/25 08:56:39 msmith Exp $ */
-/*	$NetBSD: fetch.c,v 1.10 1997/05/23 18:54:18 lukem Exp $	*/
+/*	$NetBSD: fetch.c,v 1.16.2.1 1997/11/18 01:00:22 mellon Exp $	*/
 
 /*-
  * Copyright (c) 1997 The NetBSD Foundation, Inc.
@@ -27,8 +26,8 @@
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
  * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+ * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
@@ -37,8 +36,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
 #ifndef lint
-static char rcsid[] = "$Id: fetch.c,v 1.1 1997/06/25 08:56:39 msmith Exp $";
+__RCSID("$Id$");
+__RCSID_SOURCE("$NetBSD: fetch.c,v 1.16.2.1 1997/11/18 01:00:22 mellon Exp $");
 #endif /* not lint */
 
 /*
@@ -66,6 +67,10 @@ static char rcsid[] = "$Id: fetch.c,v 1.1 1997/06/25 08:56:39 msmith Exp $";
 
 #include "ftp_var.h"
 
+static int	url_get __P((const char *, const char *));
+void    	aborthttp __P((int));
+
+
 #define	FTP_URL		"ftp://"	/* ftp URL prefix */
 #define	HTTP_URL	"http://"	/* http URL prefix */
 #define FTP_PROXY	"ftp_proxy"	/* env var with ftp proxy location */
@@ -81,40 +86,54 @@ jmp_buf	httpabort;
  * Modifies the string argument given.
  * Returns -1 on failure, 0 on success
  */
-int
+static int
 url_get(origline, proxyenv)
 	const char *origline;
 	const char *proxyenv;
 {
 	struct sockaddr_in sin;
-	int i, out, port, s;
-	size_t buflen, len;
-	char c, *cp, *cp2, *savefile, *portnum, *path, buf[4096];
+	int i, out, isftpurl;
+	u_int16_t port;
+	volatile int s;
+	size_t len;
+	char c, *cp, *ep, *portnum, *path, buf[4096];
+	const char *savefile;
 	char *line, *proxy, *host;
-	sig_t oldintr;
+	volatile sig_t oldintr;
 	off_t hashbytes;
 
 	s = -1;
 	proxy = NULL;
+	isftpurl = 0;
+
+#ifdef __GNUC__			/* XXX: to shut up gcc warnings */
+	(void)&savefile;
+	(void)&proxy;
+#endif
 
 	line = strdup(origline);
 	if (line == NULL)
 		errx(1, "Can't allocate memory to parse URL");
 	if (strncasecmp(line, HTTP_URL, sizeof(HTTP_URL) - 1) == 0)
 		host = line + sizeof(HTTP_URL) - 1;
-	else if (strncasecmp(line, FTP_URL, sizeof(FTP_URL) - 1) == 0)
+	else if (strncasecmp(line, FTP_URL, sizeof(FTP_URL) - 1) == 0) {
 		host = line + sizeof(FTP_URL) - 1;
-	else
+		isftpurl = 1;
+	} else
 		errx(1, "url_get: Invalid URL '%s'", line);
 
 	path = strchr(host, '/');		/* find path */
 	if (EMPTYSTRING(path)) {
-		warnx("Invalid URL: %s", origline);
+		if (isftpurl)
+			goto noftpautologin;
+		warnx("Invalid URL (no `/' after host): %s", origline);
 		goto cleanup_url_get;
 	}
 	*path++ = '\0';
 	if (EMPTYSTRING(path)) {
-		warnx("Invalid URL: %s", origline);
+		if (isftpurl)
+			goto noftpautologin;
+		warnx("Invalid URL (no file after host): %s", origline);
 		goto cleanup_url_get;
 	}
 
@@ -124,7 +143,9 @@ url_get(origline, proxyenv)
 	else
 		savefile = path;
 	if (EMPTYSTRING(savefile)) {
-		warnx("Invalid URL: %s", origline);
+		if (isftpurl)
+			goto noftpautologin;
+		warnx("Invalid URL (no file after directory): %s", origline);
 		goto cleanup_url_get;
 	}
 
@@ -162,7 +183,7 @@ url_get(origline, proxyenv)
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
 
-	if (isdigit((unsigned char)host[0])) {
+	if (isdigit(host[0])) {
 		if (inet_aton(host, &sin.sin_addr) == 0) {
 			warnx("Invalid IP address: %s", host);
 			goto cleanup_url_get;
@@ -183,12 +204,15 @@ url_get(origline, proxyenv)
 	}
 
 	if (! EMPTYSTRING(portnum)) {
-		port = atoi(portnum);
-		if (port < 1 || (port & 0xffff) != port) {
+		char *ep;
+		long nport;
+
+		nport = strtol(portnum, &ep, 10);
+		if (nport < 1 || nport > 0xffff || *ep != '\0') {
 			warnx("Invalid port: %s", portnum);
 			goto cleanup_url_get;
 		}
-		port = htons(port);
+		port = htons(nport);
 	} else
 		port = httpport;
 	sin.sin_port = port;
@@ -212,23 +236,23 @@ url_get(origline, proxyenv)
 		printf("Requesting %s\n", origline);
 	else
 		printf("Requesting %s (via %s)\n", origline, proxyenv);
-	snprintf(buf, sizeof(buf), "GET %s%s HTTP/1.0\n\n",
+	len = snprintf(buf, sizeof(buf), "GET %s%s HTTP/1.0\r\n\r\n",
 	    proxy ? "" : "/", path);
-	buflen = strlen(buf);
-	if (write(s, buf, buflen) < buflen) {
+	if (write(s, buf, len) < len) {
 		warn("Writing HTTP request");
 		goto cleanup_url_get;
 	}
 	memset(buf, 0, sizeof(buf));
-	for (i = 0, buflen = sizeof(buf), cp = buf; i < buflen; cp++, i++) {
+	for (cp = buf; cp < buf + sizeof(buf); ) {
 		if (read(s, cp, 1) != 1)
 			goto improper;
 		if (*cp == '\r')
 			continue;
 		if (*cp == '\n')
 			break;
+		cp++;
 	}
-	buf[buflen - 1] = '\0';		/* sanity */
+	buf[sizeof(buf) - 1] = '\0';		/* sanity */
 	cp = strchr(buf, ' ');
 	if (cp == NULL)
 		goto improper;
@@ -244,7 +268,7 @@ url_get(origline, proxyenv)
 	 */
 	memset(buf, 0, sizeof(buf));
 	c = '\0';
-	for (i = 0, buflen = sizeof(buf), cp = buf; i < buflen; cp++, i++) {
+	for (cp = buf; cp < buf + sizeof(buf); ) {
 		if (read(s, cp, 1) != 1)
 			goto improper;
 		if (*cp == '\r')
@@ -252,29 +276,31 @@ url_get(origline, proxyenv)
 		if (*cp == '\n' && c == '\n')
 			break;
 		c = *cp;
+		cp++;
 	}
-	buf[buflen - 1] = '\0';		/* sanity */
+	buf[sizeof(buf) - 1] = '\0';		/* sanity */
 
 	/*
 	 * Look for the "Content-length: " header.
 	 */
 #define CONTENTLEN "Content-Length: "
 	for (cp = buf; *cp != '\0'; cp++) {
-		if (tolower((unsigned char)*cp) == 'c' &&
+		if (tolower(*cp) == 'c' &&
 		    strncasecmp(cp, CONTENTLEN, sizeof(CONTENTLEN) - 1) == 0)
 			break;
 	}
-	if (*cp == '\0')
-		goto improper;
-	cp += sizeof(CONTENTLEN) - 1;
-	cp2 = strchr(cp, '\n');
-	if (cp2 == NULL)
-		goto improper;
-	else
-		*cp2 = '\0';
-	filesize = atoi(cp);
-	if (filesize < 1)
-		goto improper;
+	if (*cp != '\0') {
+		cp += sizeof(CONTENTLEN) - 1;
+		ep = strchr(cp, '\n');
+		if (ep == NULL)
+			goto improper;
+		else
+			*ep = '\0';
+		filesize = strtol(cp, &ep, 10);
+		if (filesize < 1 || *ep != '\0')
+			goto improper;
+	} else
+		filesize = -1;
 
 	/* Open the output file. */
 	out = open(savefile, O_CREAT | O_WRONLY | O_TRUNC, 0666);
@@ -338,8 +364,14 @@ url_get(origline, proxyenv)
 	free(line);
 	return (0);
 
+noftpautologin:
+	warnx(
+	    "Auto-login using ftp URLs isn't supported when using $ftp_proxy");
+	goto cleanup_url_get;
+
 improper:
 	warnx("Improper response from %s", host);
+
 cleanup_url_get:
 	if (s != -1)
 		close(s);
@@ -387,7 +419,8 @@ auto_fetch(argc, argv)
 	char *cp, *line, *host, *dir, *file, *portnum;
 	char *user, *pass;
 	char *ftpproxy, *httpproxy;
-	int rval, xargc, argpos;
+	int rval, xargc;
+	volatile int argpos;
 	int dirhasglob, filehasglob;
 	char rempath[MAXPATHLEN];
 
@@ -472,17 +505,17 @@ bad_ftp_url:
 			portnum = strchr(host, ':');
 			if (portnum != NULL)
 				*portnum++ = '\0';
-parsed_url:
 		} else {			/* classic style `host:file' */
 			dir = strchr(host, ':');
 		}
+parsed_url:
 		if (EMPTYSTRING(host)) {
 			rval = argpos + 1;
 			continue;
 		}
 
 		/*
-		 * If cp is NULL, the file wasn't specified
+		 * If dir is NULL, the file wasn't specified
 		 * (URL looked something like ftp://host)
 		 */
 		if (dir != NULL)
