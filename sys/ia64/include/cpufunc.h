@@ -54,6 +54,12 @@ ia64_port_address(u_int port)
 			     | (port & ((1 << 12) - 1)));
 }
 
+static __inline volatile void *
+ia64_memory_address(u_int addr)
+{
+    return (volatile void *) IA64_PHYS_TO_RR6(addr);;
+}
+
 static __inline u_int8_t
 inb(u_int port)
 {
@@ -162,37 +168,58 @@ outsl(u_int port, const void *addr, size_t count)
 static __inline u_int8_t
 readb(u_int addr)
 {
-	return 0;		/* TODO: implement this */
+	volatile u_int8_t *p = ia64_memory_address(addr);
+	u_int8_t v = *p;
+	ia64_mf_a();
+	ia64_mf();
+	return v;
 }
 
 static __inline u_int16_t
 readw(u_int addr)
 {
-	return 0;		/* TODO: implement this */
+	volatile u_int16_t *p = ia64_memory_address(addr);
+	u_int16_t v = *p;
+	ia64_mf_a();
+	ia64_mf();
+	return v;
 }
 
 static __inline u_int32_t
 readl(u_int addr)
 {
-	return 0;		/* TODO: implement this */
+	volatile u_int32_t *p = ia64_memory_address(addr);
+	u_int32_t v = *p;
+	ia64_mf_a();
+	ia64_mf();
+	return v;
 }
 
 static __inline void
 writeb(u_int addr, u_int8_t data)
 {
-	return;			/* TODO: implement this */
+	volatile u_int8_t *p = ia64_memory_address(addr);
+	*p = data;
+	ia64_mf_a();
+	ia64_mf();
 }
 
 static __inline void
 writew(u_int addr, u_int16_t data)
 {
-	return;			/* TODO: implement this */
+	volatile u_int16_t *p = ia64_memory_address(addr);
+	*p = data;
+	ia64_mf_a();
+	ia64_mf();
 }
 
 static __inline void
 writel(u_int addr, u_int32_t data)
 {
-	return;			/* TODO: implement this */
+	volatile u_int32_t *p = ia64_memory_address(addr);
+	*p = data;
+	ia64_mf_a();
+	ia64_mf();
 }
 
 static __inline void
