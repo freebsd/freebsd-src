@@ -9,13 +9,7 @@
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
-
-/* $CVSid: @(#)system.h 1.18 94/09/25 $ */
+   GNU General Public License for more details.  */
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -270,18 +264,20 @@ extern long timezone;
    check for struct utimbuf, but for now I'm checking NeXT here (so I don't
    have to debug the configure check across all the machines).  */
 #if defined (HAVE_UTIME_H) && !defined (NeXT)
-#include <utime.h>
-#elif defined (HAVE_SYS_UTIME_H)
-# include <sys/utime.h>
+#  include <utime.h>
 #else
-#ifndef ALTOS
+#  if defined (HAVE_SYS_UTIME_H)
+#    include <sys/utime.h>
+#  else
+#    ifndef ALTOS
 struct utimbuf
 {
   long actime;
   long modtime;
 };
-#endif
+#    endif
 int utime ();
+#  endif
 #endif
 
 #if STDC_HEADERS || HAVE_STRING_H
@@ -295,7 +291,9 @@ int utime ();
    /* memory.h and strings.h conflict on some systems. */
 #endif /* not STDC_HEADERS and not HAVE_STRING_H */
 
+#ifndef ERRNO_H_MISSING
 #include <errno.h>
+#endif
 
 /* Not all systems set the same error code on a non-existent-file
    error.  This tries to ask the question somewhat portably.
@@ -422,12 +420,53 @@ char *getwd ();
 #define	S_IWOTH		0000002		/* write permission, other */
 #endif
 
-/* Under MS-DOS and its derivatives (like Windows NT), mkdir takes only one
-   argument; permission is handled very differently on those systems than in
-   in Unix.  So we leave such systems a hook on which they can hang their
-   own definitions.  */
+/* Under non-UNIX operating systems (MS-DOS, WinNT, MacOS), many filesystem
+   calls take  only one argument; permission is handled very differently on
+   those systems than in Unix.  So we leave such systems a hook on which they
+   can hang their own definitions.  */
+
+#ifndef CVS_ACCESS
+#define CVS_ACCESS access
+#endif
+
+#ifndef CVS_CHDIR
+#define CVS_CHDIR chdir
+#endif
+
+#ifndef CVS_CREAT
+#define CVS_CREAT creat
+#endif
+
+#ifndef CVS_FOPEN
+#define CVS_FOPEN fopen
+#endif
+
 #ifndef CVS_MKDIR
 #define CVS_MKDIR mkdir
+#endif
+
+#ifndef CVS_OPEN
+#define CVS_OPEN open
+#endif
+
+#ifndef CVS_OPENDIR
+#define CVS_OPENDIR opendir
+#endif
+
+#ifndef CVS_RENAME
+#define CVS_RENAME rename
+#endif
+
+#ifndef CVS_RMDIR
+#define CVS_RMDIR rmdir
+#endif
+
+#ifndef CVS_STAT
+#define CVS_STAT stat
+#endif
+
+#ifndef CVS_UNLINK
+#define CVS_UNLINK unlink
 #endif
 
 /* Some file systems are case-insensitive.  If FOLD_FN_CHAR is

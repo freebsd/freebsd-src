@@ -51,9 +51,10 @@ are actually more appropriate for this list.
   CVS parses RCS files in order to determine if work needs to be done,
   and then RCS parses the files again when it is performing the work.
   This would be much faster if CVS could do whatever is necessary 
-  by itself.
+  by itself.  (see comment at start of rcscmds.c for a few notes on this).
 
 1. Improved testsuite/sanity check script
 
 * Need to use a code coverage tool to determine how much the sanity
   script tests, and fill in the holes.
+

@@ -1,3 +1,847 @@
+Sun May 11 11:38:03 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* README.VMS: Remove information about "direct TCP".  Noone has
+	been complaining about it being broken (the code bitrotted not long
+	after it was written), nor has anyone complained
+	that contrib/listener.c was omitted from the distribution (because
+	it wasn't mentioned in contrib/Makefile.in DISTFILES).  If there
+	is a desire to resurrect such a feature, it should use port 2401
+	as now discussed in doc/cvsclient.texi.
+
+Thu May  8 12:14:40 1997  Larry Jones  <larry.jones@sdrc.com>
+	and Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* INSTALL: Update MIPS/SGI Irix 6.2
+	* TESTS: Add note about TESTDIR and SGI Irix 6's XFS.
+
+Wed May  7 12:01:21 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* TODO: Fix keywords accidentally expanded in previous checkin.
+
+	* TODO: Add item #185, concerning keyword expansion and merges.
+
+Sun May  4 19:46:03 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* README: Replace section on reporting bugs with a reference to
+	the bug-reporting section in cvs.texinfo.
+
+Fri May  2 22:50:04 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* BUGS: Remove item about importing binary files; the bug is fixed.
+
+Sun Apr 27 19:54:34 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* INSTALL: Refer to doc/DIFFUTILS-2.7-BUG.
+
+	* INSTALL: Don't mention GREP; CVS no longer uses it.
+
+	* configure.in: Add comment about --bindir.
+
+Thu Apr 24 15:21:17 1997  Norbert Kiesel  <nk@cosa.de>
+
+	* configure.in (AC_CHECK_FUNCS): added tempnam and mktemp
+	* config.h.in, configure: Regenerated with autoconf 2.10.
+
+21 Apr 1997  Jim Kingdon
+
+	* cvsnt.mak: Visual C++, as usual, wants to fiddle with this.
+	This time it would appear to be chiefly the dependencies.
+
+Mon Apr 21 01:06:31 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* NEWS: Document that the client no longer needs an external patch
+	program.
+
+Thu Apr 17 14:28:20 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* TODO: Combine items 150 and 181 since they are basically the same.
+
+Tue Apr 15 12:32:26 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* FAQ: The URL of yahoo's Configuration Management category has
+	changed.  As it might change again, just cite their top-level page
+	rather than the entire URL.
+
+8 Apr 1997  Jim Kingdon
+
+	* cvsnt.mak: Add windows-NT/sockerror.c.
+
+Wed Mar 26 15:51:33 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* BUGS: Further note on import -kb bug.
+
+Tue Mar 25 17:51:32 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs-format.el: Add comment concerning c-label-offset.
+
+Wed Mar 19 14:06:40 1997  Jim Meyering  <meyering@totoro.cyclic.com>
+
+	* configure.in (test for shadow passwords): Use AC_MSG_RESULT
+ 	rather than echo, so configure obeys --quiet.
+	Use yes and no in message rather than yup and nope.
+
+19 Mar 1997  Jim Kingdon
+
+	* cvsnt.mak: Now Visual C++ wants to add a bunch of dependencies
+	for the Release configuration as well as the Debug one.  Why it
+	didn't do this before, I have no idea.
+
+13 Mar 1997  Jim Kingdon
+
+	* cvsnt.mak: Recent changes have added a number of getline.h
+	dependencies.
+
+Thu Mar 13 08:43:04 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* configure.in (AC_C_CROSS): Add comment about obsolescence
+	thereof.
+	* config.h.in, configure: Regenerated with autoconf 2.10.
+
+Thu Mar 13 05:50:29 1997  Philippe De Muyter  <phdm@info.ucl.ac.be>
+
+	Here are the fixes I needed to make to cvs-1.9 to get it to
+	compile and successfully pass 'make check' on m68k-motorola-sysv.
+	* lib/getwd.c (getwd): Added declaration for getcwd().
+	* lib/wait.h (WIFSTOPPED et al.): Macro defined if not defined.
+	* lib/waitpid.c (waitpid): Use wait, not wait3, if !HAVE_WAIT3.
+	* src/admin.c (admin): Added declaration for getgrnam().
+	* src/server.c (fcntl.h): Do not include file twice.  Already included
+	from system.h from cvs.h.
+	* src/sanity.sh (imported-f*): Renamed from imported-file*, that were
+	too long for sysv.
+	* configure.in (wait3): Added to AC_CHECK_FUNCS list.
+
+Wed Mar 12 14:32:50 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* BUGS: Add "failed assertion `rev == NULL || isdigit (*rev)'" bug.
+
+	* TODO: Remove item 135; this is solved by %v and %V in loginfo.
+
+	* configure.in (AC_CHECK_FUNCS): Don't check for setvbuf;
+	HAVE_SETVBUF is no longer used.
+	* config.h, configure: Regenerated with autoconf 2.10.
+
+	* TODO: Add item 184, concerning MD5-based password hash.
+	Remove item 14, concerning "pathname stripper".  I think that was
+	a reference to the late unlamented strip_path.
+
+Sat Mar  8 21:22:54 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* INSTALL: NT 4.0 is client and local (like other NT 3.51 & Win95).
+
+Fri Mar  7 16:51:13 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* INSTALL: Just talked to a NT 4.0 user; add it to the list.
+
+Sun Mar  2 22:01:23 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* NEWS: Add item about "cvs admin" vs. "cvs admin .".
+
+	* TODO: Remove item #169.  It doesn't really explain what an
+	"archive library" is or in general what the feature they discuss is
+	supposed to do--I mean, CVS _can_ be used to store .o's, if
+	that is what they are talking about.
+
+	* TODO: Add item #183, about greater documentation/visiblity for
+	Entries.Static and CVS/Tag.
+
+	* INSTALL (footnote 5): Add note about how /usr/tmp vs. /var/tmp
+	shouldn't be an issue anymore
+
+Thu Feb 20 13:53:19 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* INSTALL: Update Cray entry per mail from John Bowman
+	<bowman@ipp-garching.mpg.de>
+
+	* configure.in: Add comments about autoconf version.
+
+Mon Feb 17 09:55:35 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* configure: Regenerated.
+
+Sat Feb 15 15:37:39 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* configure.in (AC_OUTPUT): Add windows-NT/SCC/Makefile.
+
+Sun Dec 15 13:12:30 1996  Michael Douglass <mikedoug@texas.net>
+			  and Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* NEWS: Mention "cvs logout".
+
+1997-02-12  Jim Kingdon
+
+	* cvsnt.mak: Visual C++ seems to want to make some cosmetic
+	changes (reordering *.obj files), perhaps prodded by "Save
+	All".  I hope that putting in these changes will make it
+	happy...
+
+1997-02-11  Jim Kingdon  <kingdon@cyclic.com>
+
+	* cvsnt.mak: Replace with version from Visual C++ 4.0.  If someone
+	wants the 2.x one back, I suppose we can put them side by side,
+	but I won't be able to update the 2.x one any more as I won't be
+	having access to 2.x.
+
+Tue Feb 11 16:43:43 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* .cvsignore: Add cvsnt.mdp and cvsnt.ncb.  They seem to be files
+	created by Visual C++ 4.x which were not created by Visual C++ 2.x.
+
+Tue Feb  4 11:42:30 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* INSTALL: OS/2 port is client only.
+
+	* Rename devel-cvs (which had only been in the repository, not the
+	distribution) to DEVEL-CVS.  Add "Charter for the devel-cvs
+	mailing list:" heading, "CVS Development Policies" title, and
+	one-sentence introduction (editorial changes, not run by
+	devel-cvs).  Revise paragraph concerning membership in the list to
+	reflect policy change to make read-only membership different from
+	the ability to send to the list (the new wording was approved by
+	devel-cvs, as was the rename and including it in the
+	distribution).
+	* Makefile.in (DISTFILES): Add DEVEL-CVS.
+	* HACKING: Add "Mailing lists" section.
+
+Tue Jan 28 10:41:05 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* configure.in: Remove AC_CHECK_SIZEOF; no longer needed with
+	lib/md5.c changes.
+	* acconfig.h: Add HAVE_CONNECT.  This is needed so that autoheader
+	2.10 works; I think this has been broken since 2 Dec 1996.
+	* config.h.in: Regenerated with autoheader 2.10.
+	* configure: Regenerated with autoconf 2.10.
+
+	* HACKING: Revise criterion for whether something goes in NEWS
+	again (now "user-visible change worth mentioning"--the language
+	from the GNU coding standards).
+
+Mon Jan 27 23:05:24 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* HACKING: Criterion for whether something goes in NEWS is not
+	whether it is user-visible; it is whether it is a bugfix or a
+	feature.
+
+Tue Jan 21 10:21:53 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* INSTALL: Warn people against pre-5.x RCS; describe how to find
+	out what version of RCS you have.
+
+Wed Jan  8 14:50:47 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in, NEWS, README, TODO, configure.in: Remove CVSid; we
+	decided to get rid of these some time ago.
+
+Wed Jan  8 00:17:13 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* README (Credits): Refer to NEWS not ChangeLog; the ChangeLog in
+	question got renamed a bit but ended up as the bottom of the NEWS
+	file.  Eliminate use of first person in a few places where it is
+	unclear who it refers to.  Explicitly say that the lists
+	of contributors are not comprehensive.
+
+Thu Jan  2 12:59:45 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* README, Makefile.in: Remove paragraph about writing to the Free
+	Software Foundation at 675 Massachusetts Avenue.  (1) They are no
+	longer at that address; (2) the Free Software Foundation are not
+	the ones to write to concerning CVS licensing.  bug-cvs would be a
+	more appropriate choice; (3) there is probably little need for
+	this paragraph anyway.
+
+Thu Jan  2 09:46:37 1997  Karl Fogel  <kfogel@ynu38.ynu.edu.cn>
+
+        * NEWS: mention read-only repository access feature.
+
+Wed Jan  1 18:47:08 1997  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.spec: Don't include ChangeLog and ChangeLog.zoo in %doc.
+	There is no point in including them without src/ChangeLog,
+	src/ChangeLog-96, etc., but more to the point they really belong
+	in the source distribution rather than a binary distribution anyway.
+
+Mon Dec 30 16:55:54 1996  Abe Feldman  <feldman@harvey.cyclic.com>
+
+	* NEWS: Add entry for changes to checkout command (creating CVS
+	directory at top of working directory)
+
+Tue Dec 17 13:13:30 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* NEWS: Add entry for verifymsg.
+
+Tue Dec 10 19:22:20 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs-format.el: Revise comments to explain how to use it and
+	general minor tidying of comments.
+
+Mon Dec  2 13:05:44 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure.in: Don't call AC_CHECK_FUNCS(connect) a second time,
+	because the value will have been cached; instead, check whether
+	the library was found with connect defined.
+	* configure: Rebuild with autoconf 2.12.
+
+Sat Nov 30 23:04:52 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* BUGS: Add note about mysterious failure in test 187a3.
+
+Fri Nov 29 10:19:50 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* configure.in (AC_CHECK_FUNCS): Also check for readlink.
+	* config.h.in: Regenerated using autoheader 2.10.
+
+Fri Nov 22 16:30:27 1996  Brendan Kehoe  <brendan@cygnus.com>
+
+	* configure.in: Check for -lsocket, etc., before checking for
+	Kerberos libraries.
+	* configure: Rebuild.
+
+1996-11-19  Jim Kingdon
+
+	* cvsnt.mak: Remove strippath.c.
+
+Sun Nov  3 21:54:18 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* README: Move detailed information on compatibility to
+	the manual; simply point to it here.
+
+Thu Oct 31 07:20:45 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* BUGS: Add note about cvs import of binary files on non-unix.
+
+Tue Oct 29 13:59:14 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* BUGS: Add note about "dying gasps" message.
+
+Sat Oct 26 16:17:09 1996  Jim Blandy  <jimb@totoro.cyclic.com>
+
+	* configure.in (AC_CHECK_FUNCS): Check for tzset.
+
+Fri Oct 25 10:27:08 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* NEWS: Mention new loginfo features.
+
+Thu Oct 24 08:21:48 1996  Lars.Henriksen@netman.dk
+
+	* INSTALL: Update to "DEC Alpha running OSF/1 version 3.2 (1.9)"
+
+Tue Oct 22 10:34:21 1996  Noel Cragg  <noel@gargle.rain.org>
+
+	* configure.in: don't check for the existence of the /etc/security
+ 	directory, because it's possible to have PAM installed without
+ 	using shadow passwords.
+	* configure: regenerated.
+
+Sat Oct 19 18:34:29 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* README: Say that the remote protocol is not interoperable before
+	CVS 1.5.
+
+Sat Oct 19 13:06:53 1996  Mark H. Wilkinson  <mhw@minster.york.ac.uk>
+			  and Jim Kingdon  <kingdon@cyclic.com>
+
+	* configure.in, INSTALL: New options for configure to enable or
+	disable client and server code, overriding configure's defaults.
+	* confiugre: Regenerated.
+
+Sat Oct 19 13:06:53 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* INSTALL: Add note about what to do if you got a binary
+	distribution of CVS.  Add VAX/VMS entry.
+
+Thu Oct 17 15:38:03 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* NEWS, README: Reinstate 30 Sep 96 changes concerning US letter
+	vs. A4 paper.
+
+Wed Oct 16 16:59:57 1996  Jim Blandy  <jimb@totoro.cyclic.com>
+
+	* configure.in: Simplify code to check for crypt.  Check for
+	-lcrypt first, and then check for the crypt function.  The old
+	code did slightly funky things with cache variables, which JimK's
+	last change disturbed.  Let's just keep it simple.
+	* configure: Rebuilt.
+
+Wed Oct 16 15:01:59 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* configure.in: Don't call unset.  It isn't portable to Ultrix,
+	but perhaps more to the point, seems like we should be using the
+	cached values (there was no comment explaining why we should
+	ignore the cached values, and none of the CVS developers were
+	able to	provide an explanation when I asked).
+	* configure: Regenerated.
+
+	* NEWS: Add item regarding export and "cvs history".
+
+Tue Oct 15 07:40:42 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* TESTS: Mention the fact that expr is only for the tests, not for
+	CVS itself.  At least one person was unclear on this.
+
+Mon Oct 14 12:13:03 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* HACKING: Add "Submitting patches (strategy)" section and
+	sentence about test cases.  These changes have been run by
+	devel-cvs and there was no objection.
+
+Sat Oct 12 19:43:56 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* README.VMS: Add notes about some build problems on VAX/VMS.
+
+Thu Oct 10 09:20:25 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* BUGS: Remove item about & in modules file and client/server; the
+	bug is fixed.
+
+	* README.VMS: Rewrite sections about wildcard expansion and
+	calling editors to suggest technical approaches and to make it
+	clear that fixes will only happen if someone gets around to them.
+
+Sat Oct  5 15:01:22 1996  Jim Blandy  <jimb@totoro.cyclic.com>
+
+	* Version 1.9 released.
+
+Tue Oct  1 14:32:44 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* NEWS, README: Revert changes regarding -D, -g, and A4.  They
+	are for new features which are not appropriate at this stage of
+	the release process.
+
+Mon Sep 30 14:51:36 1996  Greg A. Woods  <woods@most.weird.com>
+
+	* INSTALL (sun3): 1.8.86+ builds and runs make check.
+
+	* NEWS: describe -D and -g; DIFFBIN and GREPBIN
+
+	* MINOR-BUGS: yet another couple of annoyances...
+
+Mon Sep 30 08:33:51 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* BUGS: Mention "cvs add -m" client/server bug.
+
+	* NEWS: Document change from A4 to US letter.  It may seem minor,
+	but it affects a *lot* of people.
+
+	* README: Revise discussion of US letter vs. A4 to reflect recent
+	change to cvs.texinfo.
+
+Sun Sep 29 16:32:47 1996  Greg A. Woods  <woods@most.weird.com>
+
+	* MINOR-BUGS: describe a minor annoyance or two
+
+	* BUGS: describe a couple of new bugs
+
+Sun Sep 29 14:09:49 1996  Noel Cragg  <noel@gargle.rain.org>
+
+	* configure.in: check for shadow password files as well as for
+ 	getspnam.  Some systems (like Linux) have getspnam in the C
+ 	library, but aren't necessarily using shadow passwords.
+	* configure, config.h.in: Regenerate.
+
+Fri Sep 27 16:49:53 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in (TSUBDIRS): Remove comment about order of
+	directories mattering.  That was only for an old set of hacks,
+	since gone, which tried to combine several tag files into one
+	(before emacs could use several tag files at once).
+
+Wed Sep 25 10:35:06 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* NEWS: Add note about "cvs log -d" date formats changing.  See
+	comment I added to cvs.texinfo for more whining about this situation.
+
+	* BUGS: Remove item about ~/.cvsignore on NT; it is fixed.
+
+Wed Sep 25 10:22:00 1996  Larry Jones  <larry.jones@sdrc.com>
+
+	* configure.in: Add hack for ISC crypt (the version in the posix C
+	library doesn't work -- why am I not surprised).  Add check for
+	libsec.a for shadow password functions.
+
+	* Makefile.in: Make zlib along with lib in the check targets.
+
+Wed Sep 25 08:34:01 1996  Jim Blandy  <jimb@floss.cyclic.com>
+
+	Fix from Mark A. Solinski <markso@mcs.com>:
+	* cvsnt.mak: The debug configuration adds the zlib directory to
+	the include path but it is missing from the release configuration.
+	Add it to the "ADD CPP" and "CPP_PROJ" lines.
+
+Tue Sep 24 11:32:20 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* INSTALL: Add VMS entry.  Clarify what "tested" means.
+
+	* README: Replace section about what CVS is with the blurb from
+	cvs.spec (which is also the paragraph we use in the release
+	announcements).
+	Change location of pcl-cvs from contrib/pcl-cvs to tools/pcl-cvs.
+
+	* BUGS: Remove item about version numbers; we now have version
+	numbers.  Remove item about server using /usr/tmp; this has been
+	changed.  Remove item about deadlocks between server and client
+	and file contents being interpreted as commands; I believe this
+	refers to the case which was fixed by Ian's 7 Aug 96 change to
+	receive_partial_file.  Remove item about server temp directory
+	becoming full; I'm not sure all bugs related to that have been
+	fixed, but I think the ones mentioned have been.  Remove item
+	about .# files; this is a documented behavior.  Refer to
+	platform-specific documentation.  Add bug with & in modules file
+	and client/server CVS.  Move bug about weird use of long file
+	names to end; the bug report is so long people won't want to read
+	past it.  Refer to README concerning reporting bugs.  Add
+	introduction.  Reword some bug descriptions.  Add bug concerning
+	~/.cvsignore on NT.
+	* MINOR-BUGS: Add introduction.  Reword some bug descriptions.
+	Remove item about "premature end of file"--we've improved that
+	error message as much as we can figure out how.  Remove item about
+	filenames getting truncated (with rcs2log?)--I think this is a fixed
+	bug although I couldn't quickly find a ChangeLog entry for the fix.
+
+Tue Sep 17 12:46:37 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* .cvsignore: Add cvs-*.spec.
+
+Mon Sep 16 17:42:30 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* TODO: In 180, mention issue of network being down.  Add item
+	182, about inclusiveness of "cvs log -r foo -r bar".
+
+	* HACKING: Also mention arbitrary limits and reentrancy.
+	User-visible changes should be documented in cvs.texinfo as well
+	as NEWS.
+
+Thu Sep 12 16:06:33 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* README.VMS: Put authorship info at end.  Add disclaimer.  Say
+	that patch is mandatory not optional.  Don't mention gzip; we
+	don't require it any more.  Remove section on filename case; the
+	bugs described there are fixed.  Miscellaneous tweaks and updates.
+
+Wed Sep 11 11:08:39 1996  Jim Blandy  <jimb@totoro.cyclic.com>
+
+	* configure.in (AC_OUTPUT): Don't forget to create vms/Makefile.
+
+Tue Sep 10 19:55:07 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in (DISTFILES): Add build.com and README.VMS.
+	(SUBDIRS): Add vms.
+	* build.com: Also recurse into zlib directory.
+
+	* NEWS: Mention Win95.
+
+Fri Sep  6 11:43:26 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure.in: Add AC_ARG_ENABLE for encryption.
+	* acconfig.h: Add ENCRYPTION.
+	* configure, config.h.in: Regenerate.
+	* NEWS: Modify the entry on encryption to mention that you must
+	configure with --enable-encryption.
+	* INSTALL: Mention the --with-krb4 and --enable-encryption
+	configure options.
+
+Thu Sep  5 11:30:45 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* NEWS: Revise access method item to mention both :ext: and
+	:server:.
+
+	* README.VMS: Change bug reporting address to bug-cvs.  In
+	discussing filenames, don't mention a hypothetical behavior
+	involving folding to lowercase (I'm not sure what is meant, and it
+	doesn't sound right to me) and do mention that things might be
+	different now (as a result of recent changes to case sensitivity
+	code).
+
+Wed Sep  4 1996  Jim Kingdon  <kingdon@cyclic.com>
+
+	* cvsnt.mak: Add windows-NT/ChangeLog.
+
+Wed Sep  4 13:55:11 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in (DISTFILES): Add cvs.spec.
+
+Mon Aug 26 15:30:13 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* TODO: Add item suggesting "cvs message" command.
+
+Tue Aug 20 12:22:53 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* configure.in (AC_C_INLINE): Removed; see src/ChangeLog.
+	* config.h.in, configure: Regenerated.
+	* os2/config.h, windows-NT/config.h: Remove #define of inline.
+
+	* configure.in (AC_C_CHAR_UNSIGNED): Removed; it is not used
+	anywhere.
+	* config.h.in, configure: Regenerated.
+	* os2/config.h, vms/config.h, windows-NT/config.h: Likewise,
+	remove __CHAR_UNSIGNED__.
+
+Fri Aug 16 13:37:19 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* cvs.spec (%description): Replace description with one that
+	resembles the release announcements we have been sending out.  The
+	previous one was out of date and not really focused on describing
+	what CVS does.
+	(%build): Don't define SERVER_FLOWCONTROL; if we are ready to make
+	this is the default it should be for all kinds of builds, not just
+	those via RPM.
+
+Fri Aug 16 16:09:59 1996  Norbert Kiesel  <nk@col.sw-ley.de>
+
+	* cvs.spec: new file.  This is a template for a RPM specification
+	file (which is used by 'make spec').
+
+	* Makefile.in (installdirs-local): new (empty) target
+	(all install uninstall installdirs): add installdirs to list of
+	targets which are done for all subdirs 
+	(spec): new target to create a rpm specification file (which can
+	be used to create RPM source and binary packages)
+	(dist): depend on spec (which now also creates .fname)
+
+Wed Aug 14 13:59:11 1996  Norbert Kiesel  <nk@col.sw-ley.de>
+
+	* configure.in (AC_REPLACE_FUNCS): add getspnam for reading shadow
+	password entries
+	* configure: regenerated
+	* config.h.in: regenerated
+
+Mon Aug 12 14:15:31 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in (config.status): When running config.status
+	--recheck, preserve the value of CFLAGS.
+
+Fri Aug  9 14:11:31 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* TESTS: Also mention dejagnu advantages.
+
+Thu Aug  8 16:00:55 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* TESTS (ABOUT STDOUT AND STDERR): New section.
+	(ABOUT TEST FRAMEWORKS): Add sed/cmp/diff (a la C News) as an option.
+
+	* NEWS: Change entry regarding "cvs log" not invoking "rlog" so
+	that it emphasizes user-visible behaviors.
+
+Tue Aug  6 17:01:23 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* TODO: Remove item #167 (cvs log doesn't understand symbolic
+	branch names).  It works now.
+
+	* NEWS: Mention that "cvs log" no longer invokes "rlog".
+
+Wed Jul 31 16:06:03 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* HACKING: Mention rule about _ vs - in file names.
+
+Wed Jul 24 19:10:38 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* NEWS: Mention that Kerberos encryption is now supported.
+
+Mon Jul 22 23:48:39 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* NEWS: Mention that the commit message has changed slightly when
+ 	committing changes on a branch.
+
+Fri Jul 19 16:10:04 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* TESTS: Say that GNU expr is part of sh-utils.
+
+Thu Jul 18 18:16:33 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* NEWS: Mention -k wrappers option.
+
+	* TESTS: In list of what we would like in a test framework, only
+	mention portable once, and other wording cleanups.
+
+Mon Jul 15 1996  Jim Kingdon  <kingdon@cyclic.com>
+
+	* cvsnt.mak: Add src/ChangeLog (lets us edit it from within
+	the integrated development environment).
+
+Sun Jul 14 1996  Jim Kingdon  <kingdon@cyclic.com>
+
+	* cvsnt.mak: Add src/zlib.c.  Add zlib group containing the .c
+	files in zlib.  Add /I "zlib" compiler options.
+
+Sun Jul 14 10:26:21 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* NEWS: Expand zlib item to emphasize user-visible (and
+	CVS-installer-visible) consequences.
+
+Sat Jul 13 21:11:50 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* NEWS: Mention that -z now uses zlib.
+
+Fri Jul 12 18:54:21 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.in (USOURCE_SUBDIRS): Add zlib.
+	* configure.in (AC_OUTPUT): Add zlib/Makefile.
+	* configure: Regenerate.
+
+	* zlib/*: Import zlib 1.0.3.  Remove zlib/Makefile.  Modify
+	zlib/Makefile.in for use with CVS.
+
+Fri Jul 12 1996  Jim Kingdon  <kingdon@cyclic.com>
+
+	* cvsnt.mak: Add src/buffer.c
+
+Wed Jul 10 18:44:58 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* NEWS: Say that rlog is deprecated.
+
+Tue Jul  9 14:37:41 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* PROJECTS: Refer to comment in rcscmds.c regarding RCS library.
+
+	* HACKING: Expand comments on portability.
+
+Sun Jul  7 23:21:02 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* configure.in (AC_REPLACE_FUNCS): Remove memmove; it was used by
+	a very old version of the CVS server for nefarious purposes and it
+	has been long gone.
+	* configure: Regenerated.
+
+Tue Jul  2 22:36:31 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* TESTS: Add discussion of test frameworks.
+
+Fri Jun 28 20:27:56 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* NEWS: Describe "cvs diff -q" removal and new diff options.
+
+Thu Jun 13 17:29:30 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* TODO: Remove item #67 about having cvs import create CVS
+	directories; I don't think it is wise to have cvs import mess with
+	the directory it is working in at all.  Remove item #69 about
+	having import edit modules--in many cases there is no need for an
+	entry in modules.  Remove item #76 about running on top of SCCS;
+	we are clearly not evolving in that direction.  Remove item #91
+	about documenting how to import sources from SCCS or RCS; this is
+	now documented in cvs.texinfo.  Remove item #129 about "U CFTS/";
+	without more information it is impossible to know what behavior is
+	being discussed.  Remove item #157 concerning module names in cvs
+	release; cvs release takes a directory name, not a module name.
+	Remove item #159 about checking access times; this is as likely to
+	be an annoyance as a help, and people who are into that can just
+	look at the result from "cvs update" (directly or with a script).
+	Remove item #164 concerning variables in *info files; it is done.
+	Remove item #35 (it just says "cvs admin" is cheesy, which isn't
+	specific enough to be useful).  Rewrite #39 to be specific about
+	what would be nice in having branches track each other.  Remove
+	item #46--I'm not sure what it means and if it means that one
+	should check in with "cci" or some such instead of "cvs ci" then
+	that is an installation hassle and a minimal convenience.  Add
+	item #180.
+
+	* config.h.in: Regenerated.
+
+Thu Jun 13 1996  Ian Lance Taylor  <ian@cygnus.com>
+		 and Jim Kingdon  <kingdon@cyclic.com>
+
+	* configure.in: Put -L${krb_libdir} in LDFLAGS temporarily when
+	looking for -ldes.
+	* configure: Regenerated.
+
+Mon Jun 10 13:13:35 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* NEWS: Mention NT local.
+
+Fri Jun  7 18:02:36 1996  Ian Lance Taylor  <ian@cygnus.com>
+			  and Jim Kingdon  <kingdon@cyclic.com>
+
+	* NEWS: Mention new annotate options.
+
+Thu Jun  6 14:08:31 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* lib/savecwd.c: Revert CVS_* patch.  The include files where
+	CVS_* is defined were not included, and the code in question was
+	inside HAVE_FCHDIR which isn't defined on the Mac anyway.
+
+	* src/filesubr.c: Revert CVS_* patch in this one file.  The mac
+	port should have its own copy of filesubr.c instead.
+
+Wed Jun 05 10:03:10 1996  Mike Ladwig  <mike@twinpeaks.prc.com>
+
+	* lib/{system.h,savecwd.c}, src/{add.c,checkout.c,client.c,
+	commit.c,create_adm.c,diff.c,edit.c,entries.c,fileattr.c,
+	filesubr.c,find_names.c,history.c,ignore.c,import.c,lock.c,
+	login.c,logmsg.c,mkmodules.c,modules.c,myndbm.c,no_diff.c,
+	parseinfo.c,patch.c,rcs.c,recurse.c,release.c,remove.c,root.c,
+	rtag.c,server.c,tag.c,update.c,vers_ts.c,wrapper.c}:
+	Under non-UNIX operating systems (MS-DOS, WinNT, MacOS), many
+	filesystem calls take only one argument; permission is handled
+	very differently on those systems than in UNIX.  On MacOS,
+	the naming scheme for volumes and subdirectories is quite
+	different.  This patch leaves hooks in the form of CVS_ACCESS,
+	CVS_CHDIR, CVS_CREAT, CVS_FOPEN, CVS_MKDIR, CVS_OPEN, CVS_OPENDIR,
+	CVS_RENAME, CVS_RMDIR, CVS_STAT, and CVS_UNLINK to accomodate
+	these differences.
+
+Thu Jun  6 11:11:53 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* NEWS: Say "changes from 1.7 to 1.8" not "changes since 1.7".
+
+Wed Jun  5 1996  Jim Kingdon  <kingdon@cyclic.com>
+
+	* cvsnt.mak: Visual C++ 2.1 seems to want to reformat the line
+	breaks.  No substantive changes, I think.
+
+Thu May 30 15:35:57 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* Makefile.in (DISTFILES): add TESTS.
+
+Tue May 28 13:10:42 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* src/server.c: Add comment regarding out-of-order bug.
+	* TESTS: Explain out-of-order bug.
+
+	* INSTALL: Remove $CVSId$.  More strongly encourage people to skip
+	the tests if they don't have the time to look at the results.
+	Move most of the discussion of tests to new file TESTS, and add
+	some information on interpreting check.log output.
+	* README: In brief summary of install, don't spell out details of
+	"make check" or "cvs init" steps.
+
+Sun May 26 17:59:46 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* NEWS: Change "up-to-date" to "not locally modified"; the file
+	need not match the head revision it only need match some revision.
+
+Sun May 26 17:02:49 1996  Norbert Kiesel  <nk@col.sw-ley.de>
+
+	* NEWS: document new option "-c" for tag
+
+Thu May 23 21:49:33 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* INSTALL: Remove footnote 10.  The only kind of change suitable
+	for listing here is fairly easy portability stuff.
+
+Fri May 17 11:49:11 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* NEWS: Refer to cvs.texinfo and say "filesystem" not "fs".
+
+Thu May 16 17:13:56 1996  Noel Cragg  <noel@gargle.rain.org>
+
+	* NEWS: Mention all access methods.
+
+Wed May 15 23:38:15 1996  Noel Cragg  <noel@gargle.rain.org>
+
+	* NEWS: add info about access methods and document behavior change
+ 	for "cvs login."
+
+Mon May 13 10:37:09 1996  Greg A. Woods  <woods@most.weird.com>
+
+	* INSTALL: updated for Sun-3 SunOS 4.1.1_U1 (1.8.2)
+
+Fri May 10 09:39:49 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* NEWS: Document that -d overrides CVS/Root.
+
+Mon May  6 06:00:10 1996  Benjamin J. Lee  <benjamin@cyclic.com>
+
+	* Version 1.8.1
+
 Sun May  5 17:38:21 1996  Benjamin J. Lee  <benjamin@cyclic.com>
 
 	Integrated changes submitted by Ian Taylor <ian@cygnus.com>
@@ -45,6 +889,15 @@ Thu May  2 01:40:55 1996  Benjamin J. Lee  <benjamin@cyclic.com>
 Wed May  1 15:38:56 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
 
 	* NEWS: Remove item about reserving all-uppercase tag names.
+
+Wed May 01 00:18:01 1996  noel  <noel@BOAT_ANCHOR>
+
+	* cvsnt.mak: remove all of those unnecessary libraries!  We only
+ 	need advapi32.lib and wsock32.lib.
+
+Wed Apr 24 16:48:35 1996  Jim Kingdon  <kingdon@harvey.cyclic.com>
+
+	* NEWS: Document that -d overrides CVS/Root.
 
 Fri Apr 19 11:22:35 1996  Benjamin J. Lee  <benjamin@cyclic.com>
 

@@ -1,38 +1,26 @@
-$CVSid: @(#)TODO 1.26 94/09/21 $
-
-14. Pathname stripper, for checkout, as well as for writing the
-    Repository file.
-    [[ I have a simple one, but need to make sure to call it at all the
-       appropriate points ]]
-    (I'm not sure what this means -kingdon, Jun 1995).
-
 22. Catch signals for cleanup when "add"ing files.
 
 24. Insist on a log message.
-    (This should be configurable via commitinfo or some new config file
-    -kingdon, Jun 1995).
+    (If done, this should be configurable via commitinfo or some new
+    config file -kingdon, Jun 1995).
 
 30. Add "patch" program option to the modules database.
 
 31. Think hard about ^C recovery.
 
-35. Add "admin" command as an interface to "rcs".
-    [[ a cheesy version is there, but it should be re-done ]]
-
 38. Think hard about using RCS state information to allow one to checkin
     a new vendor release without having it be accessed until it has been
     integrated into the local changes.
 
-39. Think about allowing parallel source trees that can easily track
-    each other.
-    [[ sort of solved with the automagic branch support, but I want more ]]
+39. Think about a version of "cvs update -j" which remembers what from
+    that other branch is already merged.  This has pitfalls--it could
+    easily lead to invisible state which could confuse users very
+    rapidly--but having to create a tag or some such mechanism to keep
+    track of what has been merged is a pain.
 
-45. Consider enhancing the "patch" and "tag" command support in the module
-    database -- they seem hard to use since these commands deal directly
-    with the RCS ,v files.
-
-46. Perhaps checkout/checkin/tag/patch commands should be imbedded in the
-    file system directly, using special known command names?
+45. Consider enhancing the "rdiff" and "tag" (rtag??) command support in
+    the module database -- they seem hard to use since these commands
+    deal directly with the RCS ,v files.
 
 49. cvs xxx commands should be able to deal with files in other
     directories.  I want to do a cvs add foo/bar.c.
@@ -63,21 +51,11 @@ $CVSid: @(#)TODO 1.26 94/09/21 $
 66. Length of the CVS temporary files must be limited to 14 characters for
     System-V stupid support.  As well as the length on the CVS.adm files.
 
-67. cvs import should populate the vendor sources with CVS.adm files so
-    that one could use the vendor sources directly without having the check
-    them out.
-
-69. Consider enhacing import to add a module automatically to the module
-    database.  Perhaps with a new option, or perhaps with an editor.
-
 72. Consider re-design of the module -o, -i, -t options to use the file
     system more intuitively.
 
 73. Consider an option (in .cvsrc?) to automatically add files that are new
     and specified to commit.
-
-76. Consider adding a layer of abstraction so that CVS can work with both
-    RCS and SCCS files.  Larry says this should be #ifdef'ed.
 
 79. Might be nice to have some sort of interface to TFS and tagged
     revisions.
@@ -90,9 +68,6 @@ $CVSid: @(#)TODO 1.26 94/09/21 $
 
 85. Add revision controlled symbolic links to CVS using one of the tag
     fields in the RCS file.
-
-91. Better document the format of the source repository and how one might
-    convert their current SCCS or RCS files into CVS format.
 
 92. Look into this:
 	After a bit of soul searching via dbx, I realized my sin was that I'd
@@ -156,10 +131,15 @@ $CVSid: @(#)TODO 1.26 94/09/21 $
      (why?  What is wrong with piping stdout to "tee"? -kingdon, Jun 1995)
 
 119. Consider an option to have import checkout the RCS or SCCS files
-     if necessary.
+     if necessary.  (this is if someone want to import something which is
+     in RCS or SCCS without preserving the history, but making sure they
+     do get the latest versions.  It isn't clear to me how useful that is
+     -kingdon, June 1996).
 
 122. If Name_Repository fails, it currently causes CVS to die completely.  It
-     should instead return NULL and have the caller do something reasonable.
+     should instead return NULL and have the caller do something reasonable
+     (???  -what is reasonable?  I'm not sure there is a real problem here.
+     -kingdon, June 1996).
 
 123. Add a flag to import to not build vendor branches for local code.
 
@@ -179,13 +159,6 @@ $CVSid: @(#)TODO 1.26 94/09/21 $
 
 128. When I tag a file, the message tells me that I'm tagging a directory.
 
-129. Something strange seems to have happened here.  When I check this out,
-     the update lines (U CFTS/...) seem to report a bogus leading CFTS
-     (e.g. U CFTS/Medusa_TS/...) when the later files are checked out.
-
-     The directory structure doesn't seem to be botched, just the
-     messages.  I don't recall seeing this before.
-
 130. cvs diff with no -r arguments does not need to look up the current RCS
      version number since it only cares about what's in the Entries file.
      This should make it much faster.
@@ -197,11 +170,8 @@ $CVSid: @(#)TODO 1.26 94/09/21 $
 
 134. Make a statement about using hard NFS mounts to your source
      repository.  Look into checking NULL fgets() returns with ferror() to
-     see if an error had occurred.
-
-135. The email CVS sends with each checkin, should include the version
-     number of each file it is checking in.
-     [[ Sort of solved by contrib/log.pl, which does a good job of this ]]
+     see if an error had occurred.  (we should be checking for errors, quite
+     aside from NFS issues -kingdon, June 1996).
 
 137. Some sites might want CVS to fsync() the RCS ,v file to protect
      against nasty hardware errors.  There is a slight performance hit with
@@ -252,6 +222,10 @@ $CVSid: @(#)TODO 1.26 94/09/21 $
      other than "rcsmerge" can be used, like Sun's filemerge or emacs's
      emerge.el.  (but be careful in making this work client/server--it means
      doing the interactive merging at the end after the server is done).
+     (probably best is to have CVS do the non-interactive part and
+     tell the user about where the files are (.#foo.c.working and
+     .#foo.c.1.5 or whatever), so they can do the interactive part at
+     that point -kingdon, June 1996).
 
 149. On Sun, 2 Feb 92 22:01:38 EST, rouilj@dl5000.bc.edu (John P. Rouillard)
      said:
@@ -271,15 +245,30 @@ $CVSid: @(#)TODO 1.26 94/09/21 $
 
      A new command seems appropriate for this.  The state can be saved in the
      CVS directory.  I.e.,
- 
-        % cvs msg foo.c
+
+        % cvs message foo.c
         Enter log message for foo.c
         >> fixed an uninitialized variable
         >> ^D
 
-     The text is saved as CVS/foo.c,m (or some such name) and commit is
-     modified to append (prepend?) the text (if found) to the log message
-     specified at commit time.  Easy enough.
+     The text is saved as CVS/foo.c,m (or some such name) and commit
+     is modified to append (prepend?) the text (if found) to the log
+     message specified at commit time.  Easy enough.  (having cvs
+     commit be non-interactive takes care of various issues like
+     whether to connect to the server before or after prompting for a
+     message (see comment in commit.c at call to start_server)
+     -kingdon, June 1996)
+
+     I'm not sure about the part above about having commit prompt
+     for an overall message--part of the point is having commit
+     non-interactive and somehow combining messages seems like (excess?)
+     hair.
+
+     Would be nice to do this so it allows users more flexibility in
+     specifying messages per-directory ("cvs message -l") or per-tree
+     ("cvs message") or per-file ("cvs message foo.c"), and fixes the
+     incompatibility between client/server (per-tree) and
+     non-client/server (per-directory).
 
 151. Also, is there a flag I am missing that allows replacing Ulrtx_Build
      by Ultrix_build?  I.E. I would like a tag replacement to be a one step
@@ -311,23 +300,12 @@ $CVSid: @(#)TODO 1.26 94/09/21 $
      the various flags that are now available, or if somebody has a lot of
      files to put into a module.
 
-157. The "cvs release" command does not understand about module names with
-     the same flexibility that the "checkout" and "rdiff" commands do.
-     It should, though, since it's confusing right now.
-
 158. If I do a recursive commit and find that the same RCS file is checked
      out (and modified!) in two different places within my checked-out
      files (but within the realm of a single "commit"), CVS will commit the
      first change, then overwrite that change with the second change.  We
      should catch this (typically unusual) case and issue an appropriate
      diagnostic and die.
-
-159. On "update", when a merge is done, CVS should remember that your file
-     was merged into and should keep reminding you of this fact until you
-     actually look at the file (change its access time).  Once you do this,
-     it should go back to being a normal, unmodified file.  This way, after
-     a big update, you can run update again to see which files just got
-     merged and may need attention.
 
 160. The checks that the commit command does should be extended to make
      sure that the revision that we will lock is not already locked by
@@ -343,11 +321,6 @@ $CVSid: @(#)TODO 1.26 94/09/21 $
      tag (like "Mon", "Tue", ...) all the time and still have it tag the
      real main-line code.
 
-164. The *info files should allow multiple ocurrences of $CVSROOT and/or
-     other cvs variables.  They probably should *not* expand environment
-     variables, as their behavior probably should not depend on who is 
-     running CVS.
-
 165. The "import" command will create RCS files automatically, but will
      screw-up when trying to create long file names on short file name
      file systems.  Perhaps import should be a bit more cautious.
@@ -358,22 +331,6 @@ $CVSid: @(#)TODO 1.26 94/09/21 $
 		- How one might setup their $CVSROOT
 		- What all the tags mean in an "import" command
 		- Tags are important; revision numbers are not
-
-167. "cvs log" doesn't understand about CVS magic branch numbers.  As such,
-     the command:
-
-		cvs log -r1.63.2
-		cvs log -rC2
-
-     where "C2" is a magic branch that resolves to 1.63.2 do not print the
-     same things.  Sigh.
-
-169. We are using CVS as the configuration control for a software reuse library.
-     What we do is do system calls passing the needed arguments. In the next
-     release, it would be nice to see an option to put cvs .o files into a
-     archive library with an API. This enhancement would go nicely with the
-     notion of being able to integrate tools into a large software engineering
-     environment.
 
 170. Is there an "info" file that can be invoked when a file is checked out, or
      updated ?  What I want to do is to advise users, particularly novices, of
@@ -421,3 +378,45 @@ $CVSid: @(#)TODO 1.26 94/09/21 $
 
 179. "cvs admin" does not log its actions with loginfo, nor does it check
      whether the action is allowed with commitinfo.  It should.
+
+180. "cvs edit" should show you who is already editing the files,
+     probably (that is, do "cvs editors" before executing, or some
+     similar result).  (But watch out for what happens if the network
+     is down!).
+
+182.  There should be a way to show log entries corresponding to
+changes from tag "foo" to tag "bar".  "cvs log -rfoo -rbar" doesn't
+cut it, because it is inclusive on the bar end.  I'm not sure that is
+ever a useful or logical behavior ("cvs diff -r foo -r bar" is not
+similarly inclusive), but is compatibility an issue?
+
+183.  "cvs status" should report on Entries.Static flag and CVS/Tag (how?
+maybe a "cvs status -d" to give directory status?).  There should also
+be more documentation of how these get set and how/when to re-set them.
+
+184.  Would be nice to implement the FreeBSD MD5-based password hash
+algorithm in pserver.  For more info see "6.1. DES, MD5, and Crypt" in
+the FreeBSD Handbook, and src/lib/libcrypt/crypt.c in the FreeBSD
+sources.  Certainly in the context of non-unix servers this algorithm
+makes more sense than the traditional unix crypt() algorithm, which
+suffers from export control problems.
+
+185.  A frequent complaint is that keyword expansion causes conflicts
+when merging from one branch to another.  The first step is
+documenting CVS's existing features in this area--what happens with
+various -k options in various places?  The second step is thinking
+about whether there should be some new feature and if so how it should
+be designed.  For example, here is one thought:
+
+    rcs' co command needs a new -k option.  The new option should expand
+    $Log entries without expanding $Revision entries.  This would
+    allow cvs to use rcsmerge in such a way that joining branches into
+    main lines would neither generate extra collisions on revisions nor
+    drop log lines.
+
+The details of this are out of date (CVS no longer invokes "co", and
+any changes in this area would be done by bypassing RCS rather than
+modifying it), but even as to the general idea, I don't have a clear
+idea about whether it would be good (see what I mean about the need
+for better documentation?  I work on CVS full-time, and even I don't
+understand the state of the art on this subject).

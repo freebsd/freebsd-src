@@ -1,45 +1,52 @@
-#ident	"$CVSid$"
-
 First, read the README file.  If you're still happy...
 
 CVS has been tested on the following platforms.  The most recent
 version of CVS reported to have been tested is indicated, but more
 recent versions of CVS probably will work too.  Please send updates to
 this list to bug-cvs@prep.ai.mit.edu (doing so in the form of a diff
-to this file is encouraged).
+to this file is encouraged).  "tested" means, at a minimum, that CVS
+compiles and appears to work on simple (manual) testing.  In many
+cases it also means "make check" and/or "make remotecheck" passes, but
+we don't try to list the platforms for which that is true.
 
 Alpha:
 	DEC Alpha running OSF/1 version 1.3 using cc (about 1.4A2)
-	DEC Alpha running OSF/1 version 2.0 (1.4.90)
+	DEC Alpha running OSF/1 version 2.0 (1.8)
 	DEC Alpha running OSF/1 version 2.1 (about 1.4A2)
 	DEC Alpha running OSF/1 version 3.0 (1.5.95) (footnote 7)
-	DEC Alpha running OSF/1 version 3.2 (1.7+obvious patch)
+	DEC Alpha running OSF/1 version 3.2 (1.9)
+	DEC Alpha running VMS 6.2 (1.8.85 client-only)
+Cray:
+	J90 (CVS 970215 snapshot)
+	T3E (CVS 970215 snapshot)
 HPPA:
 	HP 9000/710 running HP-UX 8.07A using gcc (about 1.4A2)
-	HP 9000/715 running HP-UX 9.01 (1.6)
+	HPPA running HP-UX 9 (1.8)
 	HPPA running HP-UX 10.01 (1.7)
         HPPA 1.1 running HP-UX A.09.03 (1.5.95) (footnote 8)
         HPPA 1.1 running HP-UX A.09.04 (1.7.1)
-	NextSTEP 3.3 (1.6.86)
+	HPPA 9000/735 running HP-UX A.09.05 (1.8.87)
+	NextSTEP 3.3 (1.7)
 i386 family:
 	Solaris 2.4 using gcc (about 1.4A2)
 	UnixWare v1.1.1 using gcc (about 1.4A2)
-	ISC 4.0.1 (1.5.94)
-	Linux (kernel 1.2.x) (1.7.1)
+	Unixware 2.1 (1.8.86)
+	ISC 4.0.1 (1.8.87)
+	Linux (kernel 1.2.x) (1.8.86)
 	BSDI 2.0 (1.4.93) (footnote 5)
-	FreeBSD 2.0.5, i486, gcc (1.5.95)
-	NextSTEP 3.3 (1.6.86)
-	NeXTSTEP 3.3 (1.7), (footnote 10)
-	SCO Unix 3.2.4.2 (1.4.93) (footnote 4)
-	SCO OpenServer 5.0.0, "CC='cc -b elf' configure"
+	FreeBSD 2.1.5-stable (1.8.87)
+	NextSTEP 3.3 (1.7)
+	SCO Unix 3.2.4.2, gcc 2.7.2 (1.8.87) (footnote 4)
+	SCO OpenServer 5 (1.8.86)
 	Lynx 2.3.0 080695 (1.6.86) (footnote 9)
-	Windows NT 3.51 (1.7.87 client-only)
+	Windows NT 3.51 (1.8.86 client; 1.8.3 local)
+	Windows NT 4.0 (1.9 client and local)
+	Windows 95 (1.8.86 client and local)
 	QNX 4 (1.7 + obvious patches)
-	OS/2 Version 3 using IBM C/C++ Tools 2.01 (1.7.86 with patches)
+	OS/2 Version 3 using IBM C/C++ Tools 2.01 (1.8.86 + patches, client)
 m68k:
-	Sun 3 running SunOS 4.1.1_U1 w/ bundled K&R /usr/5bin/cc (1.6)
-	NextSTEP 3.3 (1.6.86)
-	NeXTSTEP 3.3 (1.7), (footnote 10)
+	Sun 3 running SunOS 4.1.1_U1 w/ bundled K&R /usr/5bin/cc (1.8.86+)
+	NextSTEP 3.3p1 (1.8.87)
 	Lynx 2.3.0 062695 (1.6.86) (footnote 9)
 m88k:
 	Data General AViiON running dgux 5.4R2.10 (1.5)
@@ -47,23 +54,26 @@ m88k:
 	Harris Nighthawk 5800 running CX/UX 7.1 (1.5) (footnote 6)
 MIPS:
 	DECstation running Ultrix 4.2a (1.4.90)
-	DECstation running Ultrix 4.3 (1.6.86)
+	DECstation running Ultrix 4.3 (1.8.85)
 	SGI running Irix 4.0.5H using gcc and cc (about 1.4A2) (footnote 2)
-	SGI running Irix 5.3 (1.7)
-	SGI running Irix-6 (about 1.4.90) (footnote 3)
+	SGI running Irix 5.3 using gcc 2.7.2 (1.8.87)
+	SGI running Irix-6.2 (1.9.8)
 	Siemens-Nixdorf RM600 running SINIX-Y (1.6)
 PowerPC or RS/6000:
 	IBM RS/6000 running AIX 3.1 using gcc and cc (1.6.86)
-	IBM RS/6000 running AIX 3.2.5 (1.7.87)
+	IBM RS/6000 running AIX 3.2.5 (1.8)
 	IBM RS/6000 running AIX 4.1 using gcc and cc (about 1.4A2) (footnote 1)
 	Lynx 2.3.1 120495 (1.6.86) (footnote 9)
 SPARC:
-	Sun SPARC running SunOS 4.1.x (1.6.86)
+	Sun SPARC running SunOS 4.1.x (1.8.87)
 	Sun SPARCstation 10 running Solaris 2.3 using gcc and cc (about 1.4A2)
 	Sun SPARCstation running Solaris 2.4 using gcc and cc (about 1.5.91)
-	Sun SPARC running Solaris 2.5 (2.5 beta?) (1.6.4)
-	NextSTEP 3.3 (1.6.86)
-	NeXTSTEP 3.3 (1.7), (footnote 10)
+	Sun SPARC running Solaris 2.5 (1.8.87)
+	NextSTEP 3.3 (1.7)
+	Sun SparcClassing running Linux 2.0.17, gcc 2.7.2 (1.8.87)
+VAX:
+	VAX running VMS 6.2 (1.9+patches, client-only)
+	  (see README.VMS for information on necessary hacks).
 
 (footnote 1)
 	AIX 4.1 systems fail to run "configure" due to bugs in their
@@ -76,14 +86,13 @@ SPARC:
 	workaround this bug by linking with "-lmalloc" if necessary.
 	(about 1.4A2).
 
-(footnote 3)
-        There are some warnings about pointer casts which can safely be
-        ignored.  (about 1.4.90).
-
 (footnote 4) Comment out the include of sys/time.h in src/server.c. (1.4.93)
 	You also may have to make sure TIME_WITH_SYS_TIME is undef'ed.
 
 (footnote 5) Change /usr/tmp to /var/tmp in src/server.c (2 places) (1.4.93).
+	(This should no longer be needed; CVS doesn't have /usr/tmp in
+	src/server.c any more.  Has anyone tried a more recent version
+	on BSDI?  If so, please report it so we can update this file).
 
 (footnote 6) Build in ucb universe with COFF compiler tools.  Put
 	/usr/local/bin first in PATH while doing a configure, make
@@ -108,15 +117,11 @@ SPARC:
     So after running configure I had to undef HAVE_DIRENT_H and
     define HAVE_SYS_DIR_H.
 
-(footnote 10) Ralf E. Stranzenbach <ralf@reswi.ruhr.de>
-    I've made some modifications to "filesubr.c" to deal with NFS
-    mounted directories (and those funny .nfs* files). This patch
-    should be used whenever the programmers "sandbox" is located on
-    a NFS mounted device --- at least on NeXTSTEP.
-
 -------------------------------------------------------------------------------
 
-Installation under Unix:
+Installation under Unix (if you got a binary distribution from
+somewhere, install it according to procedure for that binary
+distribution, then skip to step 5):
 
 1)  Run "configure":
 
@@ -131,18 +136,35 @@ Installation under Unix:
     value is "/usr/local", with binaries in sub-directory "bin", manual
     pages in sub-directory "man", and libraries in sub-directory "lib".
 
+    A normal build of CVS will create an executable which supports
+    local, server, or client CVS (if you don't know the difference,
+    it is described in the Repository chapter of doc/cvs.texinfo).  If
+    you do not intend to use client or server CVS, you may want to
+    prevent these features from being included in the executable you
+    build. You can do this with the --disable-client and
+    --disable-server options:
+
+	$ ./configure --disable-client --disable-server
+
+    Typically this can reduce the size of the executable by around 30%.
+
     If you are using server or local CVS, RCS needs to be installed in
     the user's PATH (or a path you have configured in src/options.h,
     or a path specified with the -b option).  If you don't have RCS,
     you will need to get it from GNU as well.  It is best to get the
     version 5.7 (or later) version of RCS, available from
-    prep.ai.mit.edu in the file pub/gnu/rcs-5.7.tar.gz.
+    prep.ai.mit.edu in the file pub/gnu/rcs-5.7.tar.gz.  If you do not
+    have RCS version 5.x (for example, if you are using the old RCS
+    shipped with some versions of HPUX), CVS will probably fail to work
+    entirely.  To find out what version of RCS you have, invoke "co -V".
+    If it fails to print a version number, it is an old version.
 
     If you want version control of files with binary data, make sure
     that the RCS configure script finds GNU diff 1.15 or later and
     notices that diff supports the -a option.  CVS itself is much less
     picky about which version of diff it uses, and you shouldn't need
-    to worry about that.
+    to worry about that.  If you are using GNU diff 2.6 or 2.7, you may
+    want to know about a (subtle) bug described in doc/DIFFUTILS-2.7-BUG.
 
     NOTE: The configure program will cache the results of the previous
     configure execution.  If you need to re-run configure from scratch, you
@@ -151,6 +173,16 @@ Installation under Unix:
 
     If you are using gcc and are planning to modify CVS, you may want to
     configure with -Wall; see the file HACKING for details.
+
+    If you have Kerberos 4 installed, you can specify the location of
+    the header files and libraries using the --with-krb4=DIR option.
+    DIR should be a directory with subdirectories include and lib
+    holding the Kerberos 4 header files and libraries, respectively.
+    The default value is /usr/kerberos.
+
+    If you want to enable support for encryption over Kerberos, use
+    the --enable-encryption option.  This option is disabled by
+    default.
 
     Try './configure --help' for further information on its usage.
 
@@ -190,7 +222,7 @@ Installation under Unix:
     END OF NOTE FOR NDBM GUNK.
 
 2)  Edit src/options.h.  Appropriate things to look at may be the
-    invocation locations of programs like DIFF and GREP.
+    invocation locations of programs like DIFF.
     Also glance at the default values for the environment variables
     that CVS uses, in particular, the RCSBIN variable, which holds the
     path to where the RCS programs live on your system.
@@ -209,27 +241,14 @@ Installation under Unix:
 3a)  Run the regression tests (optional).
 
     You may also wish to validate the correctness of the new binary by
-    running the regression tests:
+    running the regression tests.  If they succeed, that is nice to
+    know.  However, if they fail, it doesn't tell you much.  Often it
+    will just be a problem with running the tests on your machine,
+    rather than a problem with CVS.  Unless you will have the time to
+    determine which of the two it is in case of failure, you might
+    want to save yourself the time and just not run the tests.
 
-	$ make check
-
-    Note that if your /bin/sh doesn't support shell functions, you'll
-    have to try something like this, where "/bin/sh5" is replaced by the
-    pathname of a shell which handles normal shell functions:
-
-	$ make SHELL=/bin/sh5 check
-
-    WARNING:  This test can take quite a while to run, esp. if your
-    disks are slow or over-loaded.
-
-    If you receive any un-expected output from the regression tests,
-    it may indicate a bug in CVS (or might just indicate a problem
-    running the tests).  If you choose to submit a bug report,
-    be aware that, as with all bug reports, you may or may not get a
-    response, and your odds might be better if you include enough information
-    to reproduce the bug, an analysis of what is going wrong (if you have
-    the time and ability to provide one), etc.  The check.log file is the
-    first place to look.
+    If you want to run the tests, see the file TESTS for more information.
 
 4)  Install the binaries/documentation:
 
