@@ -156,7 +156,7 @@ struct bus_info {
 #define	CSR_BUS_NAME_IEEE1394	0x31333934
 	u_int32_t bus_name;	
 #if BYTE_ORDER == BIG_ENDIAN
-	u_int32_t irmc:1;		/* iso. resource manager capable */
+	u_int32_t irmc:1,		/* iso. resource manager capable */
 		  cmc:1,		/* cycle master capable */
 		  isc:1,		/* iso. operation support */
 		  bmc:1,		/* bus manager capable */
