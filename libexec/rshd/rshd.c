@@ -399,9 +399,8 @@ doit(fromp)
 
 		if (errorstr ||
 		    (pwd->pw_expire && time(NULL) >= pwd->pw_expire) ||
-		    (pwd->pw_passwd != 0 && *pwd->pw_passwd != '\0' &&
-		     iruserok_sa(fromp, fromp->su_len, pwd->pw_uid == 0,
-				 remuser, locuser) < 0)) {
+		    iruserok_sa(fromp, fromp->su_len, pwd->pw_uid == 0,
+				 remuser, locuser) < 0) {
 			if (__rcmd_errstr)
 				syslog(LOG_INFO|LOG_AUTH,
 			    "%s@%s as %s: permission denied (%s). cmd='%.80s'",
