@@ -48,8 +48,10 @@ static const char rcsid[] =
 #include <net/if_var.h>
 #include <net/ethernet.h>
 
+#include <net/if_ieee80211.h>
 #include <dev/wi/if_wavelan_ieee.h>
 #include <dev/wi/wi_hostap.h>
+#include <dev/wi/if_wireg.h>
 
 #include <stdio.h>
 #include <string.h>
