@@ -1327,10 +1327,10 @@ bad:
 	l2so->so_upcall = NULL;
 	SOCKBUF_LOCK(&l2so->so_rcv);
 	l2so->so_rcv.sb_flags &= ~SB_UPCALL;
-	SOCKBUF_LOCK(&l2so->so_rcv);
+	SOCKBUF_UNLOCK(&l2so->so_rcv);
 	SOCKBUF_LOCK(&l2so->so_snd);
 	l2so->so_snd.sb_flags &= ~SB_UPCALL;
-	SOCKBUF_LOCK(&l2so->so_snd);
+	SOCKBUF_UNLOCK(&l2so->so_snd);
 	l2so->so_state &= ~SS_NBIO;
 
 	mtx_destroy(&s->session_mtx);
