@@ -13,6 +13,7 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: readconf.c,v 1.100 2002/06/19 00:27:55 deraadt Exp $");
+RCSID("$FreeBSD$");
 
 #include "ssh.h"
 #include "xmalloc.h"
@@ -114,6 +115,7 @@ typedef enum {
 	oDynamicForward, oPreferredAuthentications, oHostbasedAuthentication,
 	oHostKeyAlgorithms, oBindAddress, oSmartcardDevice,
 	oClearAllForwardings, oNoHostAuthenticationForLocalhost,
+	oVersionAddendum,
 	oDeprecated
 } OpCodes;
 
@@ -186,6 +188,7 @@ static struct {
 	{ "smartcarddevice", oSmartcardDevice },
 	{ "clearallforwardings", oClearAllForwardings },
 	{ "nohostauthenticationforlocalhost", oNoHostAuthenticationForLocalhost },
+	{ "versionaddendum", oVersionAddendum },
 	{ NULL, oBadOption }
 };
 
@@ -669,6 +672,13 @@ parse_int:
 			*intptr = value;
 		break;
 
+	case oVersionAddendum:
+		ssh_version_set_addendum(strtok(s, "\n"));
+		do {
+			arg = strdelim(&s);
+		} while (arg != NULL && *arg != '\0');
+		break;
+
 	case oDeprecated:
 		debug("%s line %d: Deprecated option \"%s\"",
 		    filename, linenum, keyword);
@@ -846,7 +856,7 @@ fill_default_options(Options * options)
 	if (options->batch_mode == -1)
 		options->batch_mode = 0;
 	if (options->check_host_ip == -1)
-		options->check_host_ip = 1;
+		options->check_host_ip = 0;
 	if (options->strict_host_key_checking == -1)
 		options->strict_host_key_checking = 2;	/* 2 is default */
 	if (options->compression == -1)
