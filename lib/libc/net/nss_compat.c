@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <pthread.h>
 #include <pthread_np.h>
 #include "un-namespace.h"
+#include "libc_private.h"
 
 
 struct group;
@@ -60,7 +61,7 @@ static pthread_once_t	 _term_once_##x = PTHREAD_ONCE_INIT
 
 #define SET_TERMINATOR(x, y)						\
 do {									\
-	if (_pthread_main_np())						\
+	if (!__isthreaded || _pthread_main_np())			\
 		_term_main_##x = (y);					\
 	else {								\
 		(void)_pthread_once(&_term_once_##x, _term_create_##x);	\
@@ -69,7 +70,7 @@ do {									\
 } while (0)
 
 #define CHECK_TERMINATOR(x)					\
-(_pthread_main_np() ?						\
+(!__isthreaded || _pthread_main_np() ?				\
     (_term_main_##x) :						\
     ((void)_pthread_once(&_term_once_##x, _term_create_##x),	\
     _pthread_getspecific(_term_key_##x)))
