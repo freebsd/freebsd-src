@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ix.c,v 1.6 1995/05/10 15:19:25 rgrimes Exp $
+ *	$Id: if_ix.c,v 1.9 1995/10/05 03:01:13 davidg Exp $
  */
 
 #include "ix.h"
@@ -148,7 +148,7 @@ int ixattach(struct isa_device *);
 void ixinit(int);
 void ixinit_rfa(int);
 void ixinit_tfa(int);
-int ixintr(int);
+inthand2_t ixintr;
 static inline void ixintr_cx(int);
 static inline void ixintr_cx_free(int, cb_t *);
 static inline void ixintr_fr(int);
@@ -318,6 +318,7 @@ ixprobe(struct isa_device *dvp) {
 	/* ZZZ irq_translate should really be unsigned, but until
 	 * isa_device.h and all uses are fixed we have to live with it */
 	short	irq_translate[] = {0, IRQ9, IRQ3, IRQ4, IRQ5, IRQ10, IRQ11, 0};
+	char	irq_encode[] = { 0, 0, 0, 2, 3, 4, 0, 0, 0, 1, 5, 6, 0, 0, 0, 0 };
 
 	DEBUGBEGIN(DEBUGPROBE)
 	DEBUGDO(printf ("ixprobe:");)
@@ -498,10 +499,20 @@ ixprobe(struct isa_device *dvp) {
 	 */
 	irq = ixeeprom_read(unit, eeprom_config1);
 	irq = (irq & IRQ) >> IRQ_SHIFT;
-	sc->irq_encoded = irq;
 	irq = irq_translate[irq];
-	if (irq != dvp->id_irq) {
-		printf("Warning board is configured for IRQ %d\n", irq);
+	if (dvp->id_irq > 0) {
+		if (irq != dvp->id_irq) {
+			printf("ix%d: WARNING: board is configured for IRQ %d, using %d\n",
+				unit, ffs(irq) - 1, ffs(dvp->id_irq) - 1);
+			irq = dvp->id_irq;
+		}
+	} else {
+		dvp->id_irq = irq;
+	}
+	sc->irq_encoded = irq_encode[ffs(irq) - 1];
+	if (sc->irq_encoded == 0) {
+		printf("ix%d: invalid irq (%d)\n", ffs(irq) - 1);
+		goto ixprobe_exit;
 	}
 
 	/*
@@ -1045,7 +1056,7 @@ ixinit_tfa(int unit) {
 	DEBUGEND
 }
 
-int
+void
 ixintr(int unit) {
 	ix_softc_t	*sc = &ix_softc[unit];
 	struct	ifnet	*ifp = &sc->arpcom.ac_if;
@@ -1114,7 +1125,6 @@ ixintr_exit:
 	DEBUGBEGIN(DEBUGINTR)
 	DEBUGDO(printf(" ixintr exited\n");)
 	DEBUGEND
-	return(0 /* XXX Should be ??? */);
 }
 
 static inline void
@@ -1517,13 +1527,16 @@ int
 ixioctl(struct ifnet *ifp, int cmd, caddr_t data) {
 	int	unit = ifp->if_unit;
 	int	status = 0;
+	int	s;
 	ix_softc_t	*sc = &ix_softc[unit];
 
 	DEBUGBEGIN(DEBUGIOCTL)
 	DEBUGDO(printf("ixioctl:");)
 	DEBUGEND
-	switch(cmd) {
 
+	s = splimp();
+
+	switch(cmd) {
 	case SIOCSIFADDR: {
 		struct ifaddr *ifa = (struct ifaddr *)data;
 
@@ -1575,6 +1588,7 @@ ixioctl(struct ifnet *ifp, int cmd, caddr_t data) {
 		break;
 	}
 	}
+	splx(s);
 
 	DEBUGBEGIN(DEBUGIOCTL)
 	DEBUGDO(printf("ixioctl exit\n");)
