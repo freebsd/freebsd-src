@@ -819,7 +819,7 @@ ffs_unmount(mp, mntflags, p)
 	}
 #ifdef FFS_EXTATTR
 	if ((error = ufs_extattr_stop(mp, p))) {
-		printf("ffs_unmonut: ufs_extattr_stop returned %d\n", error);
+		printf("ffs_unmount: ufs_extattr_stop returned %d\n", error);
 	}
 #endif
 	if (mp->mnt_flag & MNT_SOFTDEP) {
