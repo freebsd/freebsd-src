@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.13 1997/05/10 01:22:18 brian Exp $
+ * $Id: route.c,v 1.14 1997/06/09 03:27:36 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -73,8 +73,7 @@ struct in_addr mask;
   bzero(&rtmes, sizeof(rtmes));
   rtmes.m_rtm.rtm_version = RTM_VERSION;
   rtmes.m_rtm.rtm_type = cmd;
-  rtmes.m_rtm.rtm_addrs = RTA_DST | RTA_NETMASK;
-  if (cmd == RTM_ADD) rtmes.m_rtm.rtm_addrs |= RTA_GATEWAY;
+  rtmes.m_rtm.rtm_addrs = RTA_DST | RTA_NETMASK | RTA_GATEWAY;
   rtmes.m_rtm.rtm_seq = ++seqno;
   rtmes.m_rtm.rtm_pid = getpid();
   rtmes.m_rtm.rtm_flags = RTF_UP | RTF_GATEWAY | RTF_STATIC;
@@ -111,9 +110,24 @@ struct in_addr mask;
   rtmes.m_rtm.rtm_msglen = nb;
   wb = write(s, &rtmes, nb);
   if (wb < 0) {
-     LogPrintf(LogTCPIP, "Already set route addr dst=%x, gateway=%x\n"
-         ,dst.s_addr, gateway.s_addr);
+    LogPrintf(LogTCPIP, "OsSetRoute: Dst = %s\n", inet_ntoa(dst));
+    LogPrintf(LogTCPIP, "OsSetRoute:  Gateway = %s\n", inet_ntoa(gateway));
+    LogPrintf(LogTCPIP, "OsSetRoute:  Mask = %s\n", inet_ntoa(mask));
+    switch(rtmes.m_rtm.rtm_errno) {
+      case EEXIST:
+        LogPrintf(LogTCPIP, "Add route failed: Already exists\n");
+        break;
+      case ESRCH:
+        LogPrintf(LogTCPIP, "Del route failed: Non-existent\n");
+        break;
+      case ENOBUFS:
+      default:
+        LogPrintf(LogTCPIP, "Add/Del route failed: %s\n",
+                  strerror(rtmes.m_rtm.rtm_errno));
+        break;
+    }
   }
+
   LogPrintf(LogDEBUG, "wrote %d: dst = %x, gateway = %x\n", nb,
             dst.s_addr, gateway.s_addr);
   close(s);
