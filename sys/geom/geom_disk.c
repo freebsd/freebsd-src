@@ -61,11 +61,18 @@ static struct mtx g_disk_done_mtx;
 static g_access_t g_disk_access;
 static g_init_t g_disk_init;
 static g_fini_t g_disk_fini;
+static g_start_t g_disk_start;
+static g_ioctl_t g_disk_ioctl;
+static g_dumpconf_t g_disk_dumpconf;
 
 struct g_class g_disk_class = {
 	.name = "DISK",
 	.init = g_disk_init,
 	.fini = g_disk_fini,
+	.start = g_disk_start,
+	.access = g_disk_access,
+	.ioctl = g_disk_ioctl,
+	.dumpconf = g_disk_dumpconf,
 };
 
 static void
@@ -334,11 +341,7 @@ g_disk_create(void *arg, int flag)
 	g_topology_assert();
 	dp = arg;
 	gp = g_new_geomf(&g_disk_class, "%s%d", dp->d_name, dp->d_unit);
-	gp->start = g_disk_start;
-	gp->access = g_disk_access;
-	gp->ioctl = g_disk_ioctl;
 	gp->softc = dp;
-	gp->dumpconf = g_disk_dumpconf;
 	pp = g_new_providerf(gp, "%s", gp->name);
 	pp->mediasize = dp->d_mediasize;
 	pp->sectorsize = dp->d_sectorsize;

@@ -490,13 +490,6 @@ g_bsd_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	if (gp == NULL)
 		return (NULL);
 
-	/*
-	 * Fill in the optional details, in our case we have a dumpconf
-	 * routine which the "slice" code should call at the right time
-	 */
-	gp->dumpconf = g_bsd_dumpconf;
-	gp->ioctl = g_bsd_ioctl;
-
 	/* Get the geom_slicer softc from the geom. */
 	gsp = gp->softc;
 
@@ -671,6 +664,8 @@ static struct g_class g_bsd_class = {
 	.name = BSD_CLASS_NAME,
 	.taste = g_bsd_taste,
 	.ctlreq = g_bsd_config,
+	.dumpconf = g_bsd_dumpconf,
+	.ioctl = g_bsd_ioctl,
 };
 
 DECLARE_GEOM_CLASS(g_bsd_class, g_bsd);

@@ -130,10 +130,6 @@ g_bde_create_geom(struct gctl_req *req, struct g_class *mp, struct g_provider *p
 
 
 	gp = g_new_geomf(mp, "%s.bde", pp->name);
-	gp->start = g_bde_start;
-	gp->orphan = g_bde_orphan;
-	gp->access = g_bde_access;
-	gp->spoiled = g_std_spoiled;
 	cp = g_new_consumer(gp);
 	g_attach(cp, pp);
 	error = g_access(cp, 1, 1, 1);
@@ -278,6 +274,10 @@ static struct g_class g_bde_class	= {
 	.name = BDE_CLASS_NAME,
 	.destroy_geom = g_bde_destroy_geom,
 	.ctlreq = g_bde_ctlreq,
+	.start = g_bde_start,
+	.orphan = g_bde_orphan,
+	.access = g_bde_access,
+	.spoiled = g_std_spoiled,
 };
 
 DECLARE_GEOM_CLASS(g_bde_class, g_bde);
