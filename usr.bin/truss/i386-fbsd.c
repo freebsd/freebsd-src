@@ -208,10 +208,10 @@ i386_syscall_entry(struct trussinfo *trussinfo, int nargs) {
     for (i = 0; i < fsc.nargs; i++) {
 #if DEBUG
       fprintf(stderr, "0x%x%s",
-	     sc
-	     ? fsc.args[sc->args[i].offset]
-	     : fsc.args[i],
-	     i < (fsc.nargs -1) ? "," : "");
+	      sc
+	      ? fsc.args[sc->args[i].offset]
+	      : fsc.args[i],
+	      i < (fsc.nargs - 1) ? "," : "");
 #endif
       if (sc && !(sc->args[i].type & OUT)) {
 	fsc.s_args[i] = print_arg(Procfd, &sc->args[i], fsc.args);
@@ -241,12 +241,12 @@ i386_syscall_entry(struct trussinfo *trussinfo, int nargs) {
      */
     if (!strcmp(fsc.name, "execve")) {
         if ((trussinfo->flags & EXECVEARGS) == 0)
-	  if (fsc.s_args[1]) {
+          if (fsc.s_args[1]) {
             free(fsc.s_args[1]);
             fsc.s_args[1] = NULL;
           }
         if ((trussinfo->flags & EXECVEENVS) == 0)
-	  if (fsc.s_args[2]) {
+          if (fsc.s_args[2]) {
             free(fsc.s_args[2]);
             fsc.s_args[2] = NULL;
           }
