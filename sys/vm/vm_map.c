@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.160 1999/04/04 07:11:02 alc Exp $
+ * $Id: vm_map.c,v 1.161 1999/05/14 23:09:32 alc Exp $
  */
 
 /*
@@ -1231,9 +1231,8 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
  *	system call.
  */
 void
-vm_map_madvise(map, pmap, start, end, advise)
+vm_map_madvise(map, start, end, advise)
 	vm_map_t map;
-	pmap_t pmap;
 	vm_offset_t start, end;
 	int advise;
 {
@@ -1311,7 +1310,7 @@ vm_map_madvise(map, pmap, start, end, advise)
 				count = OFF_TO_IDX(size);
 				vm_object_madvise(current->object.vm_object,
 					pindex, count, advise);
-				pmap_object_init_pt(pmap, current->start,
+				pmap_object_init_pt(map->pmap, current->start,
 					current->object.vm_object, pindex,
 					(count << PAGE_SHIFT), 0);
 			}
@@ -2731,9 +2730,7 @@ vm_uiomove(mapa, srcobject, cp, cnta, uaddra, npages)
 				/*
 				 * Remove unneeded old pages
 				 */
-				if (first_object->resident_page_count) {
-					vm_object_page_remove (first_object, 0, 0, 0);
-				}
+				vm_object_page_remove(first_object, 0, 0, 0);
 
 				/*
 				 * Invalidate swap space

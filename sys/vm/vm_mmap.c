@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.96 1999/05/06 22:06:45 peter Exp $
+ * $Id: vm_mmap.c,v 1.97 1999/05/14 23:09:34 alc Exp $
  */
 
 /*
@@ -616,8 +616,6 @@ madvise(p, uap)
 	struct proc *p;
 	struct madvise_args *uap;
 {
-	vm_map_t map;
-	pmap_t pmap;
 	vm_offset_t start, end;
 	/*
 	 * Check for illegal addresses.  Watch out for address wrap... Note
@@ -640,10 +638,7 @@ madvise(p, uap)
 	start = trunc_page((vm_offset_t) uap->addr);
 	end = round_page((vm_offset_t) uap->addr + uap->len);
 	
-	map = &p->p_vmspace->vm_map;
-	pmap = vmspace_pmap(p->p_vmspace);
-
-	vm_map_madvise(map, pmap, start, end, uap->behav);
+	vm_map_madvise(&p->p_vmspace->vm_map, start, end, uap->behav);
 
 	return (0);
 }
