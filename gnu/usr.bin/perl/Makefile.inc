@@ -1,4 +1,4 @@
-#	$Id: Makefile.inc,v 1.5 1998/09/22 12:00:58 markm Exp $
+#	$Id: Makefile.inc,v 1.6 1998/10/11 18:13:41 markm Exp $
 
 PERL5SRC?= ${.CURDIR}/../../../../contrib/perl5
 
@@ -32,11 +32,9 @@ linkfarm: ${DEPEND_H}
 		do \
 			mkdir -p $${i} ;\
 		done ;\
-		for i in `cd ${PERL5SRC}; find $${d} -type f` ;\
+		for i in `cd ${PERL5SRC}; find $${d} -type f | grep -v CVS` ;\
 		do \
-			if [ -d `dirname $${i}` ] ; then \
-				ln -s ${PERL5SRC}/$${i} $${i} ;\
-			fi ;\
+			ln -s ${PERL5SRC}/$${i} $${i} ;\
 		done ;\
 	done
 	@mkdir lib/auto
