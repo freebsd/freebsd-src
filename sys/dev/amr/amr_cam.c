@@ -580,7 +580,7 @@ amr_cam_complete_extcdb(struct amr_command *ac)
 
     /* XXX note that we're ignoring ac->ac_status - good idea? */
 
-    debug(1, "status 0x%x  scsi_status 0x%x", ac->ac_status, ap->ap_scsi_status);
+    debug(1, "status 0x%x  scsi_status 0x%x", ac->ac_status, aep->ap_scsi_status);
 
     /*
      * Hide disks from CAM so that they're not picked up and treated as 'normal' disks.

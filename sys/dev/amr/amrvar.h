@@ -211,7 +211,8 @@ struct amr_softc
 #define AMR_IS_40LD(sc)		((sc)->amr_type & AMR_TYPE_40LD)
     int				(* amr_submit_command)(struct amr_softc *sc);
     int				(* amr_get_work)(struct amr_softc *sc, struct amr_mailbox *mbsave);
-    int 				support_ext_cdb;	/* greater than 10 byte cdb support */
+    int				(*amr_poll_command)(struct amr_command *ac);
+    int 			support_ext_cdb;	/* greater than 10 byte cdb support */
 
     /* misc glue */
     struct intr_config_hook	amr_ich;		/* wait-for-interrupts probe hook */
