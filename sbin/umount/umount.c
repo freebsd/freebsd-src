@@ -416,9 +416,8 @@ xdr_dir(xdrsp, dirp)
 void
 usage()
 {
-	(void)fprintf(stderr,
-	    "usage: %s\n       %s\n",
-	    "umount [-fv] [-t fstypelist] special | node",
-	    "umount -a[fv] [-h host] [-t fstypelist]");
+	(void)fprintf(stderr, "%s\n%s\n",
+	    "usage: umount [-fv] special | node",
+	    "       umount -a [-fv] [-h host] [-t ufs | lfs | external_type]");
 	exit(1);
 }
