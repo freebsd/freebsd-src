@@ -754,7 +754,8 @@ rtrequest1(req, info, ret_nrt)
 		 * it doesn't fire when we call it there because the node
 		 * hasn't been added to the tree yet.
 		 */
-		if (!(rt->rt_flags & RTF_HOST) && rt_mask(rt) != 0) {
+		if (req == RTM_ADD &&
+		    !(rt->rt_flags & RTF_HOST) && rt_mask(rt) != 0) {
 			struct rtfc_arg arg;
 			arg.rnh = rnh;
 			arg.rt0 = rt;
@@ -800,7 +801,8 @@ rt_fixdelete(rn, vp)
 	struct rtentry *rt = (struct rtentry *)rn;
 	struct rtentry *rt0 = vp;
 
-	if (rt->rt_parent == rt0 && !(rt->rt_flags & RTF_PINNED)) {
+	if (rt->rt_parent == rt0 &&
+	    !(rt->rt_flags & (RTF_PINNED | RTF_CLONING | RTF_PRCLONING))) {
 		return rtrequest(RTM_DELETE, rt_key(rt),
 				 (struct sockaddr *)0, rt_mask(rt),
 				 rt->rt_flags, (struct rtentry **)0);
@@ -842,9 +844,10 @@ rt_fixchange(rn, vp)
 		printf("rt_fixchange: rt %p, rt0 %p\n", rt, rt0);
 #endif
 
-	if (!rt->rt_parent || (rt->rt_flags & RTF_PINNED)) {
+	if (!rt->rt_parent ||
+	    (rt->rt_flags & (RTF_PINNED | RTF_CLONING | RTF_PRCLONING))) {
 #ifdef DEBUG
-		if(rtfcdebug) printf("no parent or pinned\n");
+		if(rtfcdebug) printf("no parent, pinned or cloning\n");
 #endif
 		return 0;
 	}
