@@ -5841,8 +5841,7 @@ xpt_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device,
 	}
 
 	qfrozen = FALSE;
-	if ((cts->valid & CCB_TRANS_TQ_VALID) != 0
-	 && (async_update == FALSE)) {
+	if ((cts->valid & CCB_TRANS_TQ_VALID) != 0) {
 		int device_tagenb;
 
 		/*
