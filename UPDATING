@@ -22,6 +22,11 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	integrity.  Re-enabling write caching can substantially improve
 	performance.
 
+20020701:
+	Now would be a bad time to upgrade.  Something in or near the
+	KSE commit totally broke programs using libc_r like KDE and
+	GNOME.
+
 20020511:
 	The k5su utility installed as part of Kerberos 5 is no longer
 	installed with the set-user-ID bit set by default.  Add
