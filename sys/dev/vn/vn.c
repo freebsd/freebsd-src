@@ -137,10 +137,10 @@ struct vn_softc {
 	struct ucred	*sc_cred;	/* credentials 			*/
 	int		 sc_maxactive;	/* max # of active requests 	*/
 	u_long		 sc_options;	/* options 			*/
-	SLIST_ENTRY(struct vn_softc) sc_list;
+	SLIST_ENTRY(vn_softc) sc_list;
 };
 
-static SLIST_HEAD(, struct vn_softc) vn_list;
+static SLIST_HEAD(, vn_softc) vn_list;
 
 /* sc_flags */
 #define VNF_INITED	0x01

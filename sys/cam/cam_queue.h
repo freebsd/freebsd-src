@@ -50,9 +50,9 @@ struct camq {
 	u_int32_t  qfrozen_cnt;
 };
 
-TAILQ_HEAD(ccb_hdr_tailq, struct ccb_hdr);
-LIST_HEAD(ccb_hdr_list, struct ccb_hdr);
-SLIST_HEAD(ccb_hdr_slist, struct ccb_hdr);
+TAILQ_HEAD(ccb_hdr_tailq, ccb_hdr);
+LIST_HEAD(ccb_hdr_list, ccb_hdr);
+SLIST_HEAD(ccb_hdr_slist, ccb_hdr);
 
 struct cam_ccbq {
 	struct	camq queue;

@@ -112,7 +112,7 @@ struct sysctl_req {
 	int		(*newfunc)(struct sysctl_req *, void *, size_t);
 };
 
-SLIST_HEAD(sysctl_oid_list, struct sysctl_oid);
+SLIST_HEAD(sysctl_oid_list, sysctl_oid);
 
 /*
  * This describes one "oid" in the MIB tree.  Potentially more nodes can
@@ -120,7 +120,7 @@ SLIST_HEAD(sysctl_oid_list, struct sysctl_oid);
  */
 struct sysctl_oid {
 	struct sysctl_oid_list *oid_parent;
-	SLIST_ENTRY(struct sysctl_oid) oid_link;
+	SLIST_ENTRY(sysctl_oid) oid_link;
 	int		oid_number;
 	int		oid_kind;
 	void		*oid_arg1;

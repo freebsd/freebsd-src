@@ -39,10 +39,10 @@
 
 MALLOC_DEFINE(M_MODULE, "module", "module data structures");
 
-typedef TAILQ_HEAD(, struct module) modulelist_t;
+typedef TAILQ_HEAD(, module) modulelist_t;
 struct module {
-    TAILQ_ENTRY(struct module)	link;		/* chain together all modules */
-    TAILQ_ENTRY(struct module)	flink;		/* all modules in a file */
+    TAILQ_ENTRY(module)	link;		/* chain together all modules */
+    TAILQ_ENTRY(module)	flink;		/* all modules in a file */
     struct linker_file*	file;		/* file which contains this module */
     int			refs;		/* reference count */
     int			id;		/* unique id number */

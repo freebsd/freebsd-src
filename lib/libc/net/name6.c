@@ -990,7 +990,7 @@ _nis_ghbyaddr(const void *addr, int addrlen, int af, int *errp)
 #endif
 
 struct __res_type_list {
-        SLIST_ENTRY(struct __res_type_list) rtl_entry;
+        SLIST_ENTRY(__res_type_list) rtl_entry;
         int     rtl_type;
 };
 

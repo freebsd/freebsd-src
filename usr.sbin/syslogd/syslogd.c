@@ -178,13 +178,13 @@ struct filed {
  * Queue of about-to-be dead processes we should watch out for.
  */
 
-TAILQ_HEAD(stailhead, struct deadq_entry) deadq_head;
+TAILQ_HEAD(stailhead, deadq_entry) deadq_head;
 struct stailhead *deadq_headp;
 
 struct deadq_entry {
 	pid_t				dq_pid;
 	int				dq_timeout;
-	TAILQ_ENTRY(struct deadq_entry)	dq_entries;
+	TAILQ_ENTRY(deadq_entry)	dq_entries;
 };
 
 /*

@@ -76,7 +76,7 @@ struct bio {
 	void	*bio_driver2;		/* Private use by the callee. */
 	void	*bio_caller1;		/* Private use by the caller. */
 	void	*bio_caller2;		/* Private use by the caller. */
-	TAILQ_ENTRY(struct bio) bio_queue;	/* Disksort queue. */
+	TAILQ_ENTRY(bio) bio_queue;	/* Disksort queue. */
 
 	/* XXX: these go away when bio chaining is introduced */
 	daddr_t	bio_pblkno;               /* physical block number */
@@ -104,7 +104,7 @@ biodone(struct bio *bp)
 }
 
 struct bio_queue_head {
-	TAILQ_HEAD(bio_queue, struct bio) queue;
+	TAILQ_HEAD(bio_queue, bio) queue;
 	daddr_t	last_pblkno;
 	struct	bio *insert_point;
 	struct	bio *switch_point;

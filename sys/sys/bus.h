@@ -81,7 +81,7 @@ typedef enum device_state {
 struct	resource;
 
 struct resource_list_entry {
-    SLIST_ENTRY(struct resource_list_entry) link;
+    SLIST_ENTRY(resource_list_entry) link;
     int			type;		/* type argument to alloc_resource */
     int			rid;		/* resource identifier */
     struct resource	*res;		/* the real resource when allocated */
@@ -89,7 +89,7 @@ struct resource_list_entry {
     u_long		end;		/* end of resource range */
     u_long		count;		/* count within range */
 };
-SLIST_HEAD(resource_list, struct resource_list_entry);
+SLIST_HEAD(resource_list, resource_list_entry);
 
 /*
  * Initialise a resource list.

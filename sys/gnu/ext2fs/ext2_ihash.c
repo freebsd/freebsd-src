@@ -50,7 +50,7 @@ static MALLOC_DEFINE(M_UFSIHASH, "UFS ihash", "UFS Inode hash tables");
 /*
  * Structures associated with inode cacheing.
  */
-static LIST_HEAD(ihashhead, struct inode) *ihashtbl;
+static LIST_HEAD(ihashhead, inode) *ihashtbl;
 static u_long	ihash;		/* size of hash table - 1 */
 #define	INOHASH(device, inum)	(&ihashtbl[(minor(device) + (inum)) & ihash])
 #ifndef NULL_SIMPLELOCKS

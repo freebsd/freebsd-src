@@ -293,10 +293,10 @@ badaddr_read(addr, size, rptr)
 
 #define HASHVEC(vector)	((vector) % 31)
 
-LIST_HEAD(alpha_intr_list, struct alpha_intr);
+LIST_HEAD(alpha_intr_list, alpha_intr);
 
 struct alpha_intr {
-    LIST_ENTRY(struct alpha_intr) list; /* chain handlers in this hash bucket */
+    LIST_ENTRY(alpha_intr) list; /* chain handlers in this hash bucket */
     int			vector;	/* vector to match */
     driver_intr_t	*intr;	/* handler function */
     void		*arg;	/* argument to handler */

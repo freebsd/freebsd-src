@@ -85,7 +85,7 @@ static int getsockname1 __P((struct proc *p, struct getsockname_args *uap,
 static int getpeername1 __P((struct proc *p, struct getpeername_args *uap,
 			     int compat));
 
-static SLIST_HEAD(, struct sf_buf) sf_freelist;
+static SLIST_HEAD(, sf_buf) sf_freelist;
 static vm_offset_t sf_base;
 static struct sf_buf *sf_bufs;
 static int sf_buf_alloc_want;

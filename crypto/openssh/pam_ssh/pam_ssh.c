@@ -86,11 +86,11 @@ ssh_cleanup(pam_handle_t *pamh, void *data, int error_status)
  * environ at an array of one element equal to NULL).
  */
 
-SLIST_HEAD(env_head, struct env_entry);
+SLIST_HEAD(env_head, env_entry);
 
 struct env_entry {
 	char			*ee_env;
-	SLIST_ENTRY(struct env_entry)	 ee_entries;
+	SLIST_ENTRY(env_entry)	 ee_entries;
 };
 
 typedef struct env {

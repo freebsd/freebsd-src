@@ -35,7 +35,7 @@
 #ifdef _KERNEL
 struct vlan_mc_entry {
 	struct ether_addr		mc_addr;
-	SLIST_ENTRY(struct vlan_mc_entry)	mc_entries;
+	SLIST_ENTRY(vlan_mc_entry)	mc_entries;
 };
 
 struct	ifvlan {
@@ -46,7 +46,7 @@ struct	ifvlan {
 		u_int16_t ifvm_proto; /* encapsulation ethertype */
 		u_int16_t ifvm_tag; /* tag to apply on packets leaving if */
 	}	ifv_mib;
-	SLIST_HEAD(__vlan_mchead, struct vlan_mc_entry)	vlan_mc_listhead;
+	SLIST_HEAD(__vlan_mchead, vlan_mc_entry)	vlan_mc_listhead;
 };
 #define	ifv_if	ifv_ac.ac_if
 #define	ifv_tag	ifv_mib.ifvm_tag

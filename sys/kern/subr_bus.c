@@ -1630,7 +1630,7 @@ resource_list_delete(struct resource_list *rl,
     struct resource_list_entry *rle = resource_list_find(rl, type, rid);
 
     if (rle) {
-	SLIST_REMOVE(rl, rle, struct resource_list_entry, link);
+	SLIST_REMOVE(rl, rle, resource_list_entry, link);
 	free(rle, M_BUS);
     }
 }

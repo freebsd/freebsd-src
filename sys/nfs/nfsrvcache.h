@@ -50,8 +50,8 @@
 #define	NFSRVCACHESIZ	64
 
 struct nfsrvcache {
-	TAILQ_ENTRY(struct nfsrvcache) rc_lru;	/* LRU chain */
-	LIST_ENTRY(struct nfsrvcache) rc_hash;	/* Hash chain */
+	TAILQ_ENTRY(nfsrvcache) rc_lru;		/* LRU chain */
+	LIST_ENTRY(nfsrvcache) rc_hash;		/* Hash chain */
 	u_int32_t rc_xid;			/* rpc id number */
 	union {
 		struct mbuf *ru_repmb;		/* Reply mbuf list OR */

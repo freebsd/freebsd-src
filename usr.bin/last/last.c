@@ -74,12 +74,12 @@ typedef struct arg {
 } ARG;
 ARG	*arglist;				/* head of linked list */
 
-LIST_HEAD(ttylisthead, struct ttytab) ttylist;
+LIST_HEAD(ttylisthead, ttytab) ttylist;
 
 struct ttytab {
 	time_t	logout;				/* log out time */
 	char	tty[UT_LINESIZE + 1];		/* terminal name */
-	LIST_ENTRY(struct ttytab) list;
+	LIST_ENTRY(ttytab) list;
 };
 
 static long	currentout,			/* current logout value */

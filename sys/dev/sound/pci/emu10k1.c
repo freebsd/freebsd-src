@@ -44,7 +44,7 @@
 #undef EMUDEBUG
 
 struct emu_memblk {
-	SLIST_ENTRY(struct emu_memblk) link;
+	SLIST_ENTRY(emu_memblk) link;
 	void *buf;
 	u_int32_t pte_start, pte_size;
 };
@@ -53,7 +53,7 @@ struct emu_mem {
 	u_int8_t bmap[MAXPAGES / 8];
 	u_int32_t *ptb_pages;
 	void *silent_page;
-       	SLIST_HEAD(, struct emu_memblk) blocks;
+       	SLIST_HEAD(, emu_memblk) blocks;
 };
 
 struct emu_voice {

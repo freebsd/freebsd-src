@@ -365,7 +365,7 @@ hashinit(elements, type, hashmask)
 	u_long *hashmask;
 {
 	long hashsize;
-	LIST_HEAD(generic, struct generic) *hashtbl;
+	LIST_HEAD(generic, generic) *hashtbl;
 	int i;
 
 	if (elements <= 0)
@@ -395,7 +395,7 @@ phashinit(elements, type, nentries)
 	u_long *nentries;
 {
 	long hashsize;
-	LIST_HEAD(generic, struct generic) *hashtbl;
+	LIST_HEAD(generic, generic) *hashtbl;
 	int i;
 
 	if (elements <= 0)

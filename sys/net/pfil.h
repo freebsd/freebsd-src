@@ -41,7 +41,7 @@ struct ifnet;
  * possibly intercept the packet.
  */
 struct packet_filter_hook {
-        TAILQ_ENTRY(struct packet_filter_hook) pfil_link;
+        TAILQ_ENTRY(packet_filter_hook) pfil_link;
         int	(*pfil_func) __P((void *, int, struct ifnet *, int,
 				  struct mbuf **));
 	int	pfil_flags;
@@ -52,7 +52,7 @@ struct packet_filter_hook {
 #define PFIL_WAITOK	0x00000004
 #define PFIL_ALL	(PFIL_IN|PFIL_OUT)
 
-typedef	TAILQ_HEAD(pfil_list, struct packet_filter_hook) pfil_list_t;
+typedef	TAILQ_HEAD(pfil_list, packet_filter_hook) pfil_list_t;
 
 struct pfil_head {
 	pfil_list_t	ph_in;

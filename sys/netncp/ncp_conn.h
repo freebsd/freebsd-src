@@ -144,7 +144,7 @@ struct ncp_conn_stat {
 struct socket;
 struct u_cred;
 
-SLIST_HEAD(ncp_conn_head, struct ncp_conn);
+SLIST_HEAD(ncp_conn_head,ncp_conn);
 
 struct ncp_rq;
 struct ncp_conn;
@@ -154,7 +154,7 @@ struct ncp_conn;
  * This gives us a freedom in maintance of underlying connections.
  */
 struct ncp_handle {
-	SLIST_ENTRY(struct ncp_handle)	nh_next;
+	SLIST_ENTRY(ncp_handle)	nh_next;
 	int		nh_id;		/* handle id */
 	struct ncp_conn*nh_conn;	/* which conn we are refernce */
 	struct proc *	nh_proc;	/* who owns the handle	*/
@@ -165,7 +165,7 @@ struct ncp_handle {
  * Describes any connection to server 
  */
 struct ncp_conn {
-	SLIST_ENTRY(struct ncp_conn) nc_next;
+	SLIST_ENTRY(ncp_conn) nc_next;
 	struct ncp_conn_args li;
 	struct ucred 	*nc_owner;
 	gid_t		nc_group;
@@ -176,7 +176,7 @@ struct ncp_conn {
 	struct socket	*msg_so;
 	struct socket 	*bc_so;
 	int 		ref_cnt;		/* how many handles leased */
-	SLIST_HEAD(ncp_ref_hd, struct ncp_ref) ref_list;/* list of handles */
+	SLIST_HEAD(ncp_ref_hd,ncp_ref) ref_list;/* list of handles */
 	struct lock	nc_lock;		/* excl locks */
 	int		nc_lwant;		/* number of wanted locks */
 	struct proc	*procp;			/* pid currently operates */

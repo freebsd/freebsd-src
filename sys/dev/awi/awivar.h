@@ -61,7 +61,7 @@ enum awi_status {
 
 struct awi_bss 
 {
-	TAILQ_ENTRY(struct awi_bss)	list;
+	TAILQ_ENTRY(awi_bss)	list;
 	u_int8_t	esrc[ETHER_ADDR_LEN];
 	u_int8_t	chanset;	/* channel set to use */
 	u_int8_t	pattern;	/* hop pattern to use */
@@ -116,7 +116,7 @@ struct awi_softc
 
 	int			sc_mgt_timer;
 
-	TAILQ_HEAD(, struct awi_bss)	sc_scan;
+	TAILQ_HEAD(, awi_bss)	sc_scan;
 	u_int8_t		sc_scan_cur;
 	u_int8_t		sc_scan_min;
 	u_int8_t		sc_scan_max;

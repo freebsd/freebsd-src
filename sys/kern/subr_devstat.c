@@ -41,7 +41,7 @@ static long devstat_generation;
 static int devstat_version = DEVSTAT_VERSION;
 static int devstat_current_devnumber;
 
-static STAILQ_HEAD(devstatlist, struct devstat) device_statq;
+static STAILQ_HEAD(devstatlist, devstat) device_statq;
 
 /*
  * Take a malloced and zeroed devstat structure given to us, fill it in 
@@ -149,7 +149,7 @@ devstat_remove_entry(struct devstat *ds)
 	devstat_head = &device_statq;
 
 	/* Remove this entry from the devstat queue */
-	STAILQ_REMOVE(devstat_head, ds, struct devstat, dev_links);
+	STAILQ_REMOVE(devstat_head, ds, devstat, dev_links);
 }
 
 /*

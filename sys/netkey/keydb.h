@@ -45,14 +45,14 @@ struct secasindex {
 
 /* Security Association Data Base */
 struct secashead {
-	LIST_ENTRY(struct secashead) chain;
+	LIST_ENTRY(secashead) chain;
 
 	struct	secasindex saidx;
 	struct	secpolicyindex *owner;	/* Indicate it who owned its SA. */
 					/* If NULL then it's shared SA */
 
 	u_int8_t	state;		/* MATURE or DEAD. */
-	LIST_HEAD(_satree, struct secasvar) savtree[SADB_SASTATE_MAX+1];
+	LIST_HEAD(_satree, secasvar) savtree[SADB_SASTATE_MAX+1];
 					/* SA chain */
 					/* The first of this list is newer SA */
 
@@ -61,7 +61,7 @@ struct secashead {
 
 /* Security Association */
 struct secasvar {
-	LIST_ENTRY(struct secasvar) chain;
+	LIST_ENTRY(secasvar) chain;
 
 	int	refcnt;			/* reference count */
 	u_int8_t	state;		/* Status of this Association */
@@ -102,7 +102,7 @@ struct secreplay {
 
 /* socket table due to send PF_KEY messages. */
 struct secreg {
-	LIST_ENTRY(struct secreg) chain;
+	LIST_ENTRY(secreg) chain;
 
 	struct	socket *so;
 };
@@ -110,7 +110,7 @@ struct secreg {
 #ifndef IPSEC_NONBLOCK_ACQUIRE
 /* acquiring list table. */
 struct secacq {
-	LIST_ENTRY(struct secacq) chain;
+	LIST_ENTRY(secacq) chain;
 
 	struct	secasindex saidx;
 

@@ -69,7 +69,7 @@ struct instruction {
 	union	ins_formats format;
 	u_int	srcline;
 	struct symbol *patch_label;
-	STAILQ_ENTRY(struct instruction) links;
+	STAILQ_ENTRY(instruction) links;
 };
 
 #define	AIC_OP_OR	0x0

@@ -82,12 +82,12 @@ struct efnet {
 };
 
 struct ef_link {
-	SLIST_ENTRY(struct ef_link) el_next;
+	SLIST_ENTRY(ef_link) el_next;
 	struct ifnet	*el_ifp;		/* raw device for this clones */
 	struct efnet	*el_units[EF_NFT];	/* our clones */
 };
 
-static SLIST_HEAD(ef_link_head, struct ef_link) efdev = {NULL};
+static SLIST_HEAD(ef_link_head, ef_link) efdev = {NULL};
 static int efcount;
 
 extern int (*ef_inputp)(struct ifnet*, struct ether_header *eh, struct mbuf *m);

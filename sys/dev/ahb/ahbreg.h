@@ -251,7 +251,7 @@ struct ecb {
 	struct ecb_status	 status;
 	struct scsi_sense_data	 sense;	
 	ahb_sg_t		 sg_list[AHB_NSEG];
-	SLIST_ENTRY(struct ecb)	 links;
+	SLIST_ENTRY(ecb)	 links;
 	ecb_state		 state;
 	union ccb		*ccb;
 	bus_dmamap_t		 dmamap;
@@ -262,8 +262,8 @@ struct ahb_softc {
 	bus_space_handle_t	 bsh;
 	struct	cam_sim		*sim;
 	struct	cam_path	*path;
-	SLIST_HEAD(, struct ecb)	 free_ecbs;
-	LIST_HEAD(, struct ccb_hdr)	 pending_ccbs;
+	SLIST_HEAD(,ecb)	 free_ecbs;
+	LIST_HEAD(,ccb_hdr)	 pending_ccbs;
 	struct ecb		*ecb_array;
 	u_int32_t		 ecb_physbase;
 	bus_dma_tag_t		 buffer_dmat;	/* dmat for buffer I/O */

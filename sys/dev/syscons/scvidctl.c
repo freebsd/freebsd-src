@@ -768,7 +768,7 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct proc *p)
     return ENOIOCTL;
 }
 
-static LIST_HEAD(, struct sc_renderer) sc_rndr_list = 
+static LIST_HEAD(, sc_renderer) sc_rndr_list = 
 	LIST_HEAD_INITIALIZER(sc_rndr_list);
 
 int

@@ -150,9 +150,9 @@ SYSCTL_INT(_vfs_aio, OID_AUTO, aiod_timeout,
 
 struct aioproclist {
 	int aioprocflags;			/* AIO proc flags */
-	TAILQ_ENTRY(struct aioproclist) list;	/* List of processes */
+	TAILQ_ENTRY(aioproclist) list;		/* List of processes */
 	struct proc *aioproc;			/* The AIO thread */
-	TAILQ_HEAD (,struct aiocblist) jobtorun; /* suggested job to run */
+	TAILQ_HEAD (,aiocblist) jobtorun;	/* suggested job to run */
 };
 
 /*
@@ -165,7 +165,7 @@ struct aio_liojob {
 	int	lioj_queue_count;
 	int	lioj_queue_finished_count;
 	struct	sigevent lioj_signal;	/* signal on all I/O done */
-	TAILQ_ENTRY	(struct aio_liojob) lioj_list;
+	TAILQ_ENTRY	(aio_liojob) lioj_list;
 	struct	kaioinfo *lioj_ki;
 };
 #define	LIOJ_SIGNAL		0x1	/* signal on all done (lio) */
@@ -185,21 +185,21 @@ struct kaioinfo {
 	int	kaio_buffer_count;	/* number of physio buffers */
 	int	kaio_buffer_finished_count; /* count of I/O done */
 	struct 	proc *kaio_p;		/* process that uses this kaio block */
-	TAILQ_HEAD (,struct aio_liojob) kaio_liojoblist; /* list of lio jobs */
-	TAILQ_HEAD (,struct aiocblist)	kaio_jobqueue;	/* job queue for process */
-	TAILQ_HEAD (,struct aiocblist)	kaio_jobdone;	/* done queue for process */
-	TAILQ_HEAD (,struct aiocblist)	kaio_bufqueue;	/* buffer job queue for process */
-	TAILQ_HEAD (,struct aiocblist)	kaio_bufdone;	/* buffer done queue for process */
-	TAILQ_HEAD (,struct aiocblist) kaio_sockqueue;	/* queue for aios waiting on sockets */
+	TAILQ_HEAD (,aio_liojob) kaio_liojoblist; /* list of lio jobs */
+	TAILQ_HEAD (,aiocblist)	kaio_jobqueue;	/* job queue for process */
+	TAILQ_HEAD (,aiocblist)	kaio_jobdone;	/* done queue for process */
+	TAILQ_HEAD (,aiocblist)	kaio_bufqueue;	/* buffer job queue for process */
+	TAILQ_HEAD (,aiocblist)	kaio_bufdone;	/* buffer done queue for process */
+	TAILQ_HEAD (,aiocblist) kaio_sockqueue; /* queue for aios waiting on sockets */
 };
 
 #define KAIO_RUNDOWN	0x1	/* process is being run down */
 #define KAIO_WAKEUP	0x2	/* wakeup process when there is a significant event */
 
-static TAILQ_HEAD(, struct aioproclist) aio_freeproc, aio_activeproc;
-static TAILQ_HEAD(, struct aiocblist) aio_jobs;		/* Async job list */
-static TAILQ_HEAD(, struct aiocblist) aio_bufjobs;	/* Phys I/O job list */
-static TAILQ_HEAD(, struct aiocblist) aio_freejobs;	/* Pool of free jobs */
+static TAILQ_HEAD(,aioproclist) aio_freeproc, aio_activeproc;
+static TAILQ_HEAD(,aiocblist) aio_jobs;			/* Async job list */
+static TAILQ_HEAD(,aiocblist) aio_bufjobs;		/* Phys I/O job list */
+static TAILQ_HEAD(,aiocblist) aio_freejobs;		/* Pool of free jobs */
 
 static void	aio_init_aioinfo(struct proc *p);
 static void	aio_onceonly(void *);
@@ -2352,7 +2352,7 @@ filt_aiodetach(struct knote *kn)
 	struct aiocblist *aiocbe = (struct aiocblist *)kn->kn_id;
 	int s = splhigh();	 /* XXX no clue, so overkill */
 
-	SLIST_REMOVE(&aiocbe->klist, kn, struct knote, kn_selnext);
+	SLIST_REMOVE(&aiocbe->klist, kn, knote, kn_selnext);
 	splx(s);
 }
 

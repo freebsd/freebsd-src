@@ -180,7 +180,7 @@ filt_kqdetach(struct knote *kn)
 {
 	struct kqueue *kq = (struct kqueue *)kn->kn_fp->f_data;
 
-	SLIST_REMOVE(&kq->kq_sel.si_note, kn, struct knote, kn_selnext);
+	SLIST_REMOVE(&kq->kq_sel.si_note, kn, knote, kn_selnext);
 }
 
 /*ARGSUSED*/
@@ -239,7 +239,7 @@ filt_procdetach(struct knote *kn)
 		return;
 
 	/* XXX locking?  this might modify another process. */
-	SLIST_REMOVE(&p->p_klist, kn, struct knote, kn_selnext);
+	SLIST_REMOVE(&p->p_klist, kn, knote, kn_selnext);
 }
 
 static int
@@ -855,7 +855,7 @@ knote_drop(struct knote *kn, struct proc *p)
 	else
 		list = &fdp->fd_knhash[KN_HASH(kn->kn_id, fdp->fd_knhashmask)];
 
-	SLIST_REMOVE(list, kn, struct knote, kn_link);
+	SLIST_REMOVE(list, kn, knote, kn_link);
 	if (kn->kn_status & KN_QUEUED)
 		knote_dequeue(kn);
 	if (kn->kn_fop->f_isfd)
