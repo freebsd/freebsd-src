@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_vr.c,v 1.4 1998/12/14 06:32:56 dillon Exp $
+ *	$Id: if_vr.c,v 1.5 1998/12/24 18:03:17 wpaul Exp $
  */
 
 /*
@@ -97,7 +97,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_vr.c,v 1.4 1998/12/14 06:32:56 dillon Exp $";
+	"$Id: if_vr.c,v 1.5 1998/12/24 18:03:17 wpaul Exp $";
 #endif
 
 /*
@@ -1303,8 +1303,7 @@ static void vr_rxeof(sc)
 		 */
 		if (vr_newbuf(sc, cur_rx) == ENOBUFS) {
 			ifp->if_ierrors++;
-			cur_rx->vr_ptr->vr_status =
-				VR_RXSTAT_FIRSTFRAG|VR_RXSTAT_LASTFRAG;
+			cur_rx->vr_ptr->vr_status = VR_RXSTAT;
 			cur_rx->vr_ptr->vr_ctl =
 			VR_RXCTL_CHAIN | (MCLBYTES - 1);
 			continue;
