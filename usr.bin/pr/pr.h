@@ -59,7 +59,8 @@
 #define	HDFMT		"%s %s Page %d\n\n\n"
 #define	HEADLEN		5
 #define	TAILLEN		5
-#define	TIMEFMT		"%Ef %H:%M %Y"
+#define	TIMEFMTD	"%e %b %H:%M %Y"
+#define	TIMEFMTM	"%b %e %H:%M %Y"
 #define	FNAME		""
 #define	LBUF		8192
 #define	HDBUF		512
