@@ -66,12 +66,13 @@ main(argc, argv)
 	FTS *fts;
 	FTSENT *p;
 	long blocksize;
+	char *oldbsize = NULL;
 	int ftsoptions, listdirs, listfiles;
-	int Hflag, Lflag, Pflag, aflag, ch, notused, rval, sflag;
+	int Hflag, Lflag, Pflag, aflag, ch, notused, rval, sflag, kflag;
 	char **save;
 
 	save = argv;
-	Hflag = Lflag = Pflag = aflag = sflag = 0;
+	Hflag = Lflag = Pflag = aflag = sflag = kflag = 0;
 	ftsoptions = FTS_PHYSICAL;
 	while ((ch = getopt(argc, argv, "HLPaksx")) != EOF)
 		switch (ch) {
@@ -91,7 +92,7 @@ main(argc, argv)
 			aflag = 1;
 			break;
 		case 'k':
-			putenv("BLOCKSIZE=1024");
+			kflag = 1;
 			break;
 		case 's':
 			sflag = 1;
@@ -142,7 +143,13 @@ main(argc, argv)
 		argv[1] = NULL;
 	}
 
+	if (kflag) {
+		oldbsize = getenv("BLOCKSIZE");
+		putenv("BLOCKSIZE=1k");
+	}
 	(void)getbsize(&notused, &blocksize);
+	if (oldbsize)
+		putenv(oldbsize);
 	blocksize /= 512;
 
 	if ((fts = fts_open(argv, ftsoptions, NULL)) == NULL)

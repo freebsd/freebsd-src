@@ -107,7 +107,7 @@ void	 prtstat __P((struct statfs *, int));
 void	 ufs_df __P((char *, int));
 void	 usage __P((void));
 
-int	iflag, nflag, tflag;
+int	iflag, nflag, tflag, kflag;
 struct	ufs_args mdev;
 
 int
@@ -121,13 +121,15 @@ main(argc, argv)
 	int ch, err, i, maxwidth, width;
 	char *mntpt;
 
+	iflag = nflag = tflag = kflag = 0;
+
 	while ((ch = getopt(argc, argv, "iknt:")) != EOF)
 		switch (ch) {
 		case 'i':
 			iflag = 1;
 			break;
 		case 'k':
-			putenv("BLOCKSIZE=1024");
+			kflag = 1;
 			break;
 		case 'n':
 			nflag = 1;
@@ -305,11 +307,18 @@ prtstat(sfsp, maxwidth)
 	static int headerlen, timesthrough;
 	static char *header;
 	long used, availblks, inodes;
+	char *oldbsize = NULL;
 
 	if (maxwidth < 11)
 		maxwidth = 11;
 	if (++timesthrough == 1) {
+		if (kflag) {
+			oldbsize = getenv("BLOCKSIZE");
+			putenv("BLOCKSIZE=1k");
+		}
 		header = getbsize(&headerlen, &blocksize);
+		if (oldbsize)
+			putenv(oldbsize);
 		(void)printf("%-*.*s %s     Used    Avail Capacity",
 		    maxwidth, maxwidth, "Filesystem", header);
 		if (iflag)
