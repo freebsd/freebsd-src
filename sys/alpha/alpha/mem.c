@@ -297,7 +297,15 @@ kmemphys:
 		default:
 			return (ENXIO);
 		}
+		if (error)
+			break;
+		iov->iov_base += c;
+		iov->iov_len -= c;
+		uio->uio_offset += c;
+		uio->uio_resid -= c;
 	}
+	if (buf)
+		free(buf, M_TEMP);
 	return (error);
 }
 
