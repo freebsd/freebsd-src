@@ -753,7 +753,7 @@ vnlru_proc(void)
 			mtx_unlock(&vnode_free_list_mtx);
 			vnlruproc_sig = 0;
 			wakeup(&vnlruproc_sig);
-			tsleep(vnlruproc, PVFS, "vlruwt", 0);
+			tsleep(vnlruproc, PVFS, "vlruwt", hz);
 			continue;
 		}
 		mtx_unlock(&vnode_free_list_mtx);
