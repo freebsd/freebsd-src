@@ -132,15 +132,6 @@
     <para arch="alpha">The console driver has gained support for TGA-based
     display adapters.</para>
 
-    <para arch="alpha">The machine dependent code has been corrected
-    to allow &os; to run on Alphaserver 2100 and 2100A based on EV5 
-    Alpha processors. Machines with EV4 Alpha processors were already 
-    supported.</para>
-
-    <para arch="alpha">Floppy access on Alphaserver DS10 and DS20 
-    is broken. Use results in corrupted floppies and/or machine 
-    crashes.</para>
-
 <!-- Above this line, kernel changes ordered by manpage/variable name -->
 
     <para arch="i386">The load addresses of kernels has been exported
@@ -171,7 +162,11 @@
     <sect3>
       <title>Processor/Motherboard Support</title>
 
-      <para></para>
+      <para arch="alpha">The machine dependent code has been corrected
+      to allow &os; to run on Alphaserver 2100 and 2100A based on EV5 
+      Alpha processors. Machines with EV4 Alpha processors were already 
+      supported.</para>
+
     </sect3>
 
     <sect3>
@@ -256,6 +251,10 @@
       Interface for SCSI-3 Support, has been added.  This driver
       supports the Compaq SmartRAID 5* family of RAID controllers
       (5300, 532, 5i).</para>
+
+      <para arch="alpha">Floppy access on Alphaserver DS10 and DS20 
+      is broken. Use results in corrupted floppies and/or machine 
+      crashes.</para>
 
       <para>The &man.isp.4; driver now supports the Qlogic 2300 and
       2312 Optical Fibre Channel PCI cards.</para>
