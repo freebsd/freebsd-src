@@ -30,7 +30,12 @@
  *	BSDI disktab.c,v 2.2 1996/04/08 19:32:27 bostic Exp
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /* XXX goaway (requires change to config.c) */
+
+#include "doscmd.h"
 
 static struct {
 	int	cylinders;

@@ -28,12 +28,14 @@
  * SUCH DAMAGE.
  *
  *	BSDI int2f.c,v 2.2 1996/04/08 19:32:53 bostic Exp
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "doscmd.h"
 #include "dispatch.h"
+#include "tty.h"
 
 /*
 ** Multiplex interrupt.
@@ -52,7 +54,7 @@ int2f_printer(regcontext_t *REGS)
 {
     debug (D_FILE_OPS, "Called printer function 0x%02x", R_AH);
     R_AL = FUNC_NUM_IVALID;
-	return(0);
+    return(0);
 }
 
 /*

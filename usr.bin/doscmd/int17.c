@@ -28,13 +28,18 @@
  * SUCH DAMAGE.
  *
  *	BSDI int17.c,v 2.2 1996/04/08 19:32:48 bostic Exp
- *
- * $FreeBSD$
  */
 
-#include "doscmd.h"
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+#include <sys/types.h>
+#include <sys/uio.h>
 #include <paths.h>
 #include <signal.h>
+#include <unistd.h>
+
+#include "doscmd.h"
 
 static int	lpt_fd[4] = { -1, -1, -1, -1, };
 static FILE	*lpt_file[4] = { 0, 0, 0, 0};
@@ -44,8 +49,6 @@ static int	timeout[4] = { 30, 30, 30, 30 };
 static int	last_poll[4] = { 0, 0, 0, 0};
 static int	last_count[4] = { 0, 0, 0, 0};
 static int	current_count[4] = { 0, 0, 0, 0};
-static int	alarm_active[4] = { 0, 0, 0, 0};
-static int	alarm_set = 0;
 
 static void open_printer(int printer);
 

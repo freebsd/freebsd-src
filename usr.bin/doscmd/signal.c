@@ -28,11 +28,13 @@
  * SUCH DAMAGE.
  *
  *	BSDI signal.c,v 2.2 1996/04/08 19:33:06 bostic Exp
- *
- * $FreeBSD$
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include "doscmd.h"
+#include "trap.h"
 
 static void	(*handler[NSIG])(struct sigframe *);
 static char	signal_stack[16 * 1024];
@@ -43,7 +45,7 @@ regcontext_t *saved_regcontext;
 int		saved_valid = 0; 
 
 static void
-sanity_check(struct sigframe *sf)
+sanity_check(struct sigframe *sf __unused)
 {
 #if 0
     static sigset_t oset;
@@ -83,12 +85,10 @@ generichandler(struct sigframe sf)
 #error BSD/OS sigframe/trapframe kernel interface not currently supported.
 #endif
 
-void
-setsignal(int s, void (*h)(struct sigframe *))
+void setsignal(int s, void (*h)(struct sigframe *))
 {
     static int first = 1;
     struct sigaction sa;
-    sigset_t set;
 
     if (first) {
 	struct sigaltstack sstack;
@@ -109,8 +109,5 @@ setsignal(int s, void (*h)(struct sigframe *))
 	sigaddset(&sa.sa_mask, SIGALRM);
 	sa.sa_flags = SA_ONSTACK;
 	sigaction(s, &sa, NULL);
-
-	sigaddset(&set, s);
-	sigprocmask(SIG_UNBLOCK, &set, 0);
     }
 }

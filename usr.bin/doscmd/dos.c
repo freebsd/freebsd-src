@@ -30,25 +30,27 @@
  * SUCH DAMAGE.
  *
  *	BSDI int21.c,v 2.2 1996/04/08 19:32:51 bostic Exp
- *
- * $FreeBSD$
  */
 
-#include "doscmd.h"
-#include <dirent.h>
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/ioctl.h>
 #include <sys/param.h>
 #include <sys/mount.h>
-#include <unistd.h>
-#include <time.h>
-#include <glob.h>
-#include <errno.h>
 #include <ctype.h>
+#include <dirent.h>
+#include <errno.h>
+#include <glob.h>
+#include <paths.h>
 #include <stddef.h>
+#include <time.h>
+#include <unistd.h>
 
+#include "doscmd.h"
+#include "cwd.h"
 #include "dispatch.h"
-
-static u_long upcase_vector;
+#include "tty.h"
 
 /* Country Info */
 struct {
@@ -91,17 +93,17 @@ struct fcb {
 }/* __attribute__((__packed__))*/;
 
 /* exports */
-void 		encode_dos_file_time (time_t, u_short *, u_short *);
 int		diskdrive = 2;	/* C: */
 char		*InDOS;
-unsigned long	disk_transfer_addr;
 
 /* locals */
+static void	fcb_to_string(struct fcb *, u_char *);
+
 static int	ctrl_c_flag = 0;
 static int	return_status = 0;
 static int	doserrno = 0;
 static int	memory_strategy = 0;	/* first fit (we ignore this) */
-
+static u_long	upcase_vector;
 
 static u_char upc_table[0x80] = {
 	0x80, 0x9a, 'E',  'A',  0x8e, 'A',  0x8f, 0x80,
@@ -142,7 +144,6 @@ upcase(u_char c)
 static void
 upcase_entry(regcontext_t *REGS)
 {
-
     R_AL = upcase(R_AL);
 }
 
@@ -215,7 +216,6 @@ pack_name(u_char *p, u_char *q)
 static void
 dosdir_to_dta(dosdir_t *dosdir, find_block_t *dta)
 {
-
     dta->attr = dosdir->attr;
     dta->time = dosdir->time;
     dta->date = dosdir->date;
@@ -265,7 +265,7 @@ translate_filename(u_char *dname, u_char *uname, int *drivep)
 
     if (!strcasecmp(dname, "con")) {
 	*drivep = -1;
-	strcpy(uname, "/dev/tty");
+	strcpy(uname, _PATH_TTY);
 	return (0);
     }
 
@@ -273,7 +273,7 @@ translate_filename(u_char *dname, u_char *uname, int *drivep)
     /* Really need a better way to handle devices */
     if (!strcasecmp(dname, "emmxxxx0")) {
 	*drivep = -1;
-	strcpy(uname, "/dev/null");
+	strcpy(uname, _PATH_DEVNULL);
 	return (0);
     }
 
@@ -310,9 +310,9 @@ static u_char magic[0x7e] = {
 	0x0f, 0x0f, 0x0f, 0x0f, 0x04, 0x0f,
 };
 
-#define	isvalid(x)	((magic[x] & 0x01) != 0)
-#define	issep(x)	((magic[x] & 0x02) == 0)
-#define	iswhite(x)	((magic[x] & 0x04) == 0)
+#define	isvalid(x)	((magic[(int)(x)] & 0x01) != 0)
+#define	issep(x)	((magic[(int)(x)] & 0x02) == 0)
+#define	iswhite(x)	((magic[(int)(x)] & 0x04) == 0)
 
 static char *
 skipwhite(char *p)
@@ -1535,7 +1535,7 @@ static int
 int21_44_9(regcontext_t *REGS)
 {
     R_DX = 0x1200;		/* disk is remote, direct I/O not allowed */
-    return(0);
+    return (0);
 }
 
 /*
@@ -1801,7 +1801,7 @@ int21_57_0(regcontext_t *REGS)
 ** set mtime for handle
 */
 static int
-int21_57_1(regcontext_t *REGS)
+int21_57_1(regcontext_t *REGS __unused)
 {
 #ifdef __NetBSD__	/* XXX need futimes() */
 	struct stat sb;
@@ -2049,9 +2049,11 @@ setfcb_rec(struct fcb *fcbp, int n)
 	fcbp->fcbRandomRecNo = total;
 	fcbp->fcbCurRecNo = total % 128;
 	fcbp->fcbCurBlockNo = total / 128;
+
+	return(0);
 }
 
-void
+static void
 fcb_to_string(fcbp, buf)
 	struct fcb *fcbp;
 	u_char *buf;
@@ -2428,7 +2430,7 @@ static struct intfunc_table int21_table [] = {
 
 static int int21_fastlookup[256];
 
-char *dos_return[] = {
+const char *dos_return[] = {
     "OK",
     "FUNC_NUM_IVALID",
     "FILE_NOT_FOUND",
@@ -2567,7 +2569,7 @@ dos_init(void)
 	sizeof(upcase_trampoline), upcase_trampoline);
     register_callback(upcase_vector, upcase_entry, "upcase");
 
-    /* build fastlookup idx into the monster table of interrupts */
+    /* build fastlookup index into the monster table of interrupts */
     intfunc_init(int21_table, int21_fastlookup);
 
     ems_init();

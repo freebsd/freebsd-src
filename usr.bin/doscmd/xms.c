@@ -24,9 +24,10 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * XMS memory manmagement 
@@ -89,17 +90,18 @@ static u_char xms_trampoline[] = {
 };
 
 /* Local prototypes */
-static void xms_entry(regcontext_t *REGS);
-static UMB_block *create_block(u_long addr, u_long size);
-static void add_block(UMB_block **listp, UMB_block *blk);
-static void merge_blocks();
+static void	add_block(UMB_block **listp, UMB_block *blk);
+static UMB_block	*create_block(u_long addr, u_long size);
+static void	disable_a20(void);
+static void	enable_a20(void);
+static int	get_free_handle(void);
+static void	merge_blocks(void);
+static void	xms_entry(regcontext_t *REGS);
 
 /* Init the entire module */
 void
 xms_init(void)
 {
-    int i;
-
     /* Initialize handle table: xms_handle.addr == 0 means free */
     bzero((void *)xms_hand, sizeof(XMS_handle) * NUM_HANDLES);	       
     xms_free_mem = xms_maxsize;
@@ -318,7 +320,6 @@ create_block(u_long addr, u_long size)
 
 void initHMA()
 {
-    caddr_t add;
     int mfd;
 
     /*
@@ -360,8 +361,8 @@ void initHMA()
 
     if (mmap((caddr_t)0x000000, 0x100000,
                    PROT_EXEC | PROT_READ | PROT_WRITE,
-                   MAP_ANON | MAP_FIXED | MAP_INHERIT | MAP_SHARED,
-                   -1, 0) < 0) {
+                   MAP_ANON | MAP_FIXED | MAP_SHARED,
+                   -1, 0) == MAP_FAILED) {
 	perror("Error mapping HMA, HMA disabled: ");
         HMA_a20 = -1;
 	close(HMA_fd_off);
@@ -370,8 +371,8 @@ void initHMA()
     }
     if (mmap((caddr_t)0x000000, 64 * 1024,
                    PROT_EXEC | PROT_READ | PROT_WRITE,
-                   MAP_FILE | MAP_FIXED | MAP_INHERIT | MAP_SHARED,
-                   HMA_fd_off, 0) < 0) {
+                   MAP_FILE | MAP_FIXED | MAP_SHARED,
+                   HMA_fd_off, 0) == MAP_FAILED) {
 	perror("Error mapping HMA, HMA disabled: ");
         HMA_a20 = -1;
 	close(HMA_fd_off);
@@ -380,8 +381,8 @@ void initHMA()
     }
     if (mmap((caddr_t)0x100000, 64 * 1024,
                    PROT_EXEC | PROT_READ | PROT_WRITE,
-                   MAP_FILE | MAP_FIXED | MAP_INHERIT | MAP_SHARED,
-                   HMA_fd_off, 0) < 0) {
+                   MAP_FILE | MAP_FIXED | MAP_SHARED,
+                   HMA_fd_off, 0) == MAP_FAILED) {
 	perror("Error mapping HMA, HMA disabled: ");
         HMA_a20 = -1;
 	close(HMA_fd_off);
@@ -411,8 +412,8 @@ static void enable_a20()
     /* Map memory for the HMA with fd = HMA_fd_on */
     if (mmap((caddr_t)0x100000, 64 * 1024,
 		PROT_EXEC | PROT_READ | PROT_WRITE,
-		MAP_FILE | MAP_FIXED | MAP_INHERIT | MAP_SHARED,
-		HMA_fd_on, 0) < 0) {
+		MAP_FILE | MAP_FIXED | MAP_SHARED,
+		HMA_fd_on, 0) == MAP_FAILED) {
 	fatal("HMA mapping error: %s\nCannot recover\n", strerror(errno));
     }
 }
@@ -431,8 +432,8 @@ static void disable_a20()
     /* Remap the wrap around area */
     if (mmap((caddr_t)0x100000, 64 * 1024,
                    PROT_EXEC | PROT_READ | PROT_WRITE,
-                   MAP_FILE | MAP_FIXED | MAP_INHERIT | MAP_SHARED,
-                   HMA_fd_off, 0) < 0) {
+                   MAP_FILE | MAP_FIXED | MAP_SHARED,
+                   HMA_fd_off, 0) == MAP_FAILED) {
 	fatal("HMA mapping error: %s\nCannot recover\n", strerror(errno));
     }
 }
@@ -813,7 +814,7 @@ xms_entry(regcontext_t *REGS)
 		}
 	    }
 	    memmove((void *)dstptr, (void *)srcptr, n);
-	    debug(D_XMS, "Moved from %08x to %08x, %04x bytes\n",
+	    debug(D_XMS, "Moved from %08lx to %08lx, %04x bytes\n",
 			srcptr, dstptr, n);
 	    R_AX = 0x1;
 	    R_BL = XMS_SUCCESS;

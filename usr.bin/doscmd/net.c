@@ -1,10 +1,12 @@
 /*
 ** No copyright!
 **
-** $FreeBSD$
-**
 ** NetBIOS etc. hooks.
 */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include "doscmd.h"
 
 static void

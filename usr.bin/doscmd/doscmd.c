@@ -28,15 +28,18 @@
  * SUCH DAMAGE.
  *
  *	BSDI doscmd.c,v 2.3 1996/04/08 19:32:30 bostic Exp
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/mman.h>
 #include <sys/time.h>
 
+#include <ctype.h>
+#include <err.h>
 #include <errno.h>
 #include <limits.h>
 #include <paths.h>
@@ -52,6 +55,10 @@
 #include <machine/vm86.h>
 
 #include "doscmd.h"
+#include "cwd.h"
+#include "trap.h"
+#include "tty.h"
+#include "video.h"
 
 /* exports */
 int		capture_fd = -1;
@@ -61,10 +68,7 @@ int		booting = 0;
 int		raw_kbd = 0;
 int		timer_disable = 0;
 struct timeval	boot_time;
-unsigned long *ivec = (unsigned long *)0;
-
-u_long	pending[256];			/* pending interrupts */
-int	n_pending;
+unsigned long	*ivec = (unsigned long *)0;
 
 #ifndef USE_VM86
 #define PRB_V86_FORMAT  0x4242
@@ -85,20 +89,18 @@ static FILE	*find_doscmdrc(void);
 static int	do_args(int argc, char *argv[]);
 static void	usage(void);
 static int	open_name(char *name, char *ext);
-static void	init_iomap(void);
 
 /* Local option flags &c. */
 static int	zflag = 0;
 
 /* DOS environment emulation */
-static int	ecnt = 0;
+static unsigned	ecnt = 0;
 static char 	*envs[256];
 
 /* Search path and command name */
 static char	*dos_path = 0;
 char		cmdname[256];	/* referenced from dos.c */
 
-static struct i386_vm86_args vm86;
 static struct vm86_init_args kargs;
 
 /* lobotomise */
@@ -114,10 +116,16 @@ main(int argc, char **argv)
     regcontext_t *REGS = (regcontext_t *)&uc.uc_mcontext;
     int fd;
     int i;    
-    char buffer[4096];
-    FILE *fp;
+    sigset_t sigset;
+    
+    sigemptyset(&sigset);
+    sigaddset(&sigset, SIGIO);
+    sigaddset(&sigset, SIGALRM);
+    sigprocmask(SIG_BLOCK, &sigset, 0);
 
+    init_ints();
 
+    debugf = stderr;
     /* XXX should only be for tty mode */
     fd = open (_PATH_DEVNULL, O_RDWR);
     if (fd != 3)
@@ -189,9 +197,6 @@ main(int argc, char **argv)
 	}
     }
 #endif
-    for (i = 0; i < 256; i++)
-        pending[i] = 0;
-    n_pending = 0;
 
     if (booting) {			/* are we booting? */
 	setup_boot(REGS);
@@ -200,16 +205,16 @@ main(int argc, char **argv)
     }
 
     /* install signal handlers */
-    setsignal (SIGFPE, sigfpe);		/* */
-    setsignal (SIGALRM, sigalrm);	/* */
-    setsignal (SIGILL, sigill);		/* */
-    setsignal (SIGTRAP, sigtrap);	/* */
-    setsignal (SIGUSR2, sigtrace);	/* */
-    setsignal (SIGINFO, sigtrace);	/* */
+    setsignal(SIGFPE, sigfpe);		/* */
+    setsignal(SIGALRM, sigalrm);	/* */
+    setsignal(SIGILL, sigill);		/* */
+    setsignal(SIGTRAP, sigtrap);	/* */
+    setsignal(SIGUSR2, sigtrace);	/* */
+    setsignal(SIGINFO, sigtrace);	/* */
 #ifdef USE_VM86
-    setsignal (SIGURG, sigurg);		/* entry from NetBSD vm86 */
+    setsignal(SIGURG, sigurg);		/* entry from NetBSD vm86 */
 #else
-    setsignal (SIGBUS, sigbus);		/* entry from FreeBSD, BSD/OS vm86 */
+    setsignal(SIGBUS, sigbus);		/* entry from FreeBSD, BSD/OS vm86 */
 #endif
 	
     /* Call init functions */
@@ -218,6 +223,8 @@ main(int argc, char **argv)
     init_io_port_handlers();
     bios_init();
     cpu_init();
+    kbd_init();
+    kbd_bios_init();
     video_init();
     if (xmode)
 	mouse_init();
@@ -270,9 +277,7 @@ main(int argc, char **argv)
     R_EAX = (booting || raw_kbd) ? (int)&vconnect_area : -1;
     R_EFLAGS |= PSL_VM | PSL_VIF;			/* request VM86 mode */
 
-    vm86.sub_op = VM86_INIT;
-    vm86.sub_args = (char *)&kargs;
-    i = sysarch(I386_VM86, &vm86);
+    i386_vm86(VM86_INIT, &kargs);
 
     sigreturn(&uc);
     debug(D_ALWAYS,"sigreturn failed : %s\n", strerror(errno));
@@ -285,6 +290,8 @@ main(int argc, char **argv)
     if (vflag) dump_regs(REGS);
     fatal ("vm86 returned (no kernel support?)\n");
 #undef	sc
+    /* quiet -Wall */
+    return 0;
 }
 
 /*
@@ -342,19 +349,19 @@ setup_boot(regcontext_t *REGS)
 ** try to read the boot sector from the specified disk
 */
 static int
-try_boot(int booting)
+try_boot(int bootdrv)
 {
     int fd;
 
-    fd = disk_fd(booting);
+    fd = disk_fd(bootdrv);
     if (fd < 0)	{			/* can we boot it? */
-	debug(D_DISK, "Cannot boot from %c\n", drntol(booting));
+	debug(D_DISK, "Cannot boot from %c\n", drntol(bootdrv));
 	return -1;
     }
     
     /* read bootblock */
     if (read(fd, (char *)0x7c00, 512) != 512) {
-        debug(D_DISK, "Short read on boot block from %c:\n", drntol(booting));
+        debug(D_DISK, "Short read on boot block from %c:\n", drntol(bootdrv));
 	return -1;
     }
     
@@ -371,10 +378,10 @@ setup_command(int argc, char *argv[], regcontext_t *REGS)
 {
     FILE	*fp;
     u_short	param[7] = {0, 0, 0, 0, 0, 0, 0};
-    char	*p;
+    const char	*p;
     char	prog[1024];
     char	buffer[PATH_MAX];
-    int		i;
+    unsigned	i;
     int		fd;
     
     fp = find_doscmdrc();		/* dig up a doscmdrc */
@@ -393,7 +400,7 @@ setup_command(int argc, char *argv[], regcontext_t *REGS)
 	p = getcwd(buffer, sizeof(buffer));
 	if (!p || !*p) p = getenv("PWD");
 	if (!p || !*p) p = "/";
-	init_path(drlton('C'), (u_char *)"/", (u_char *)p);
+	init_path(drlton('C'), "/", p);
 
 	/* look for PATH= already set, learn from it if possible */
 	for (i = 0; i < ecnt; ++i) {
@@ -445,7 +452,7 @@ setup_command(int argc, char *argv[], regcontext_t *REGS)
 
     /* XXX ??? */
     if (dos_getcwd(drlton('R')) == NULL)
-	init_path(drlton('R'), (u_char *)"/", 0);
+	init_path(drlton('R'), "/", 0);
 
     /* get program name */
     strncpy(prog, *argv++, sizeof(prog) -1);
@@ -472,7 +479,6 @@ find_doscmdrc(void)
 {
     FILE	*fp;
     char 	buffer[4096];
-    int		fd;
     
     if ((fp = fopen(".doscmdrc", "r")) == NULL) {
 	struct passwd *pwd = getpwuid(geteuid());
@@ -505,15 +511,8 @@ do_args(int argc, char *argv[])
     FILE	*fp;
     char 	*col;
 
-    while ((c = getopt (argc, argv, "234Oc:TkCIEMPRLAU:S:HDtzvVxXYfbri:o:p:d:")) != -1) {
+    while ((c = getopt(argc, argv, "234AbCc:Dd:EGHIi:kLMOo:Pp:RrS:TtU:vVxXYz")) != -1) {
 	switch (c) {
-	case 'd':
-	    if (fp = fopen(optarg, "w")) {
-		debugf = fp;
-		setbuf (fp, NULL);
-	    } else
-		perror(optarg);
-	    break;
 	case '2':
 	    debug_flags |= D_TRAPS2;
 	    break;
@@ -523,9 +522,16 @@ do_args(int argc, char *argv[])
 	case '4':
 	    debug_flags |= D_DEBUGIN;
 	    break;
-	case 'O':
-	    debugf = stdout;
-	    setbuf (stdout, NULL);
+	case 'A':
+	    debug_flags |= D_TRAPS | D_ITRAPS;
+	    for (c = 0; c < 256; ++c)
+		debug_set(c);
+	    break;
+	case 'b':
+	    booting = 1;
+	    break;
+	case 'C':
+	    debug_flags |= D_DOSCALL;
 	    break;
 	case 'c':
 	    if ((capture_fd = creat(optarg, 0666)) < 0) {
@@ -533,9 +539,33 @@ do_args(int argc, char *argv[])
 		quit(1);
 	    }
 	    break;
+	case 'D':
+	    debug_flags |= D_DISK | D_FILE_OPS;
+	    break;
+	case 'd':
+	    if ((fp = fopen(optarg, "w")) != 0) {
+		debugf = fp;
+		setbuf (fp, NULL);
+	    } else
+		perror(optarg);
+	    break;
+	case 'E':
+	    debug_flags |= D_EXEC;
+	    break;
+	case 'G':
+	    debug_flags |= D_VIDEO;
+	    break;
+	case 'H':
+	    debug_flags |= D_HALF;
+	    break;
+	case 'I':
+	    debug_flags |= D_ITRAPS;
+	    for (c = 0; c < 256; ++c)
+		debug_set(c);
+	    break;
 	case 'i':
 	    i = 1;
-	    if (col = strchr(optarg, ':')) {
+	    if ((col = strchr(optarg, ':')) != 0) {
 		*col++ = 0;
 		i = strtol(col, 0, 0);
 	    }
@@ -545,9 +575,22 @@ do_args(int argc, char *argv[])
 	    while (i-- > 0)
 		define_input_port_handler(p++, inb_traceport);
 	    break;
+	case 'k':
+            kargs.debug = 1;
+	    break;
+	case 'L':
+	    debug_flags |= D_PRINTER;
+	    break;
+	case 'M':
+	    debug_flags |= D_MEMORY;
+	    break;
+	case 'O':
+	    debugf = stdout;
+	    setbuf (stdout, NULL);
+	    break;
 	case 'o':
 	    i = 1;
-	    if (col = strchr(optarg, ':')) {
+	    if ((col = strchr(optarg, ':')) != 0) {
 		*col++ = 0;
 		i = strtol(col, 0, 0);
 	    }
@@ -557,9 +600,12 @@ do_args(int argc, char *argv[])
 	    while (i-- > 0)
 		define_output_port_handler(p++, outb_traceport);
 	    break;
+	case 'P':
+	    debug_flags |= D_PORT;
+	    break;
 	case 'p':
 	    i = 1;
-	    if (col = strchr(optarg, ':')) {
+	    if ((col = strchr(optarg, ':')) != 0) {
 		*col++ = 0;
 		i = strtol(col, 0, 0);
 	    }
@@ -571,59 +617,33 @@ do_args(int argc, char *argv[])
 		define_output_port_handler(p++, outb_port);
 	    }
 	    break;
-
+	case 'R':
+	    debug_flags |= D_REDIR;
+	    break;
 	case 'r':
 	    raw_kbd = 1;
 	    break;
-	case 'I':
-	    debug_flags |= D_ITRAPS;
-	    for (c = 0; c < 256; ++c)
-		debug_set(c);
-	    break;
-	case 'k':
-            kargs.debug = 1;
+	case 'S':
+	    debug_flags |= D_TRAPS | D_ITRAPS;
+	    debug_set(strtol(optarg, 0, 0));
 	    break;
 	case 'T':
 	    timer_disable = 1;
 	    break;
-	case 'E':
-	    debug_flags |= D_EXEC;
-	    break;
-	case 'C':
-	    debug_flags |= D_DOSCALL;
-	    break;
-	case 'M':
-	    debug_flags |= D_MEMORY;
-	    break;
-	case 'P':
-	    debug_flags |= D_PORT;
-	    break;
-	case 'R':
-	    debug_flags |= D_REDIR;
-	    break;
-	case 'X':
-	    debug_flags |= D_XMS;
-	    break;
-	case 'Y':
-	    debug_flags |= D_EMS;
-	    break;
-	case 'L':
-	    debug_flags |= D_PRINTER;
-	    break;
-	case 'A':
-	    debug_flags |= D_TRAPS|D_ITRAPS;
-	    for (c = 0; c < 256; ++c)
-		debug_set(c);
+	case 't':
+	    tmode = 1;
 	    break;
 	case 'U':
 	    debug_unset(strtol(optarg, 0, 0));
 	    break;
-	case 'S':
-	    debug_flags |= D_TRAPS|D_ITRAPS;
-	    debug_set(strtol(optarg, 0, 0));
+	case 'V':
+	    vflag = 1;
 	    break;
-	case 'H':
-	    debug_flags |= D_HALF;
+	case 'v':
+	    debug_flags |= D_TRAPS | D_ITRAPS | D_HALF | 0xff;
+	    break;
+	case 'X':
+	    debug_flags |= D_XMS;
 	    break;
 	case 'x':
 #ifdef NO_X
@@ -631,23 +651,11 @@ do_args(int argc, char *argv[])
 #endif
 	    xmode = 1;
 	    break;
-	case 't':
-	    tmode = 1;
+	case 'Y':
+	    debug_flags |= D_EMS;
 	    break;
 	case 'z':
 	    zflag = 1;
-	    break;
-	case 'D':
-	    debug_flags |= D_DISK | D_FILE_OPS;
-	    break;
-	case 'v':
-	    debug_flags |= D_TRAPS | D_ITRAPS | D_HALF | 0xff;
-	    break;
-	case 'V':
-	    vflag = 1;
-	    break;
-	case 'b':
-	    booting = 1;
 	    break;
 	default:
 	    usage ();
@@ -769,7 +777,7 @@ open_prog(char *name)
 ** append a value to the DOS environment
 */
 void
-put_dosenv(char *value)
+put_dosenv(const char *value)
 {
     if (ecnt < sizeof(envs)/sizeof(envs[0])) {
 	if ((envs[ecnt++] = strdup(value)) == NULL) {
@@ -812,11 +820,11 @@ squirrel_fd(int fd)
 ** XXX belongs somewhere else perhaps
 */
 void
-done (regcontext_t *REGS, int val)
+done(regcontext_t *REGS, int val)
 {
     if (curpsp < 2) {
 	if (xmode) {
-	    char *m;
+	    const char *m;
 
 	    tty_move(24, 0);
 	    for (m = "END OF PROGRAM"; *m; ++m)
@@ -835,7 +843,7 @@ done (regcontext_t *REGS, int val)
 }
 
 typedef struct COQ {
-    void	(*func)();
+    void	(*func)(void *);
     void	*arg;
     struct COQ	*next;
 } COQ;

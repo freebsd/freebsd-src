@@ -3,11 +3,11 @@
 **
 ** $FreeBSD$
 */
-typedef void		(*callback_t)(regcontext_t *REGS);
+typedef void		(*callback_t)(regcontext_t *);
 
-extern void		register_callback(u_long vec, callback_t func, char *name);
-extern callback_t	find_callback(u_long vec);
-extern u_long		insert_generic_trampoline(size_t len, u_char *p);
-extern u_long		insert_softint_trampoline(void);
-extern u_long		insert_hardint_trampoline(void);
-extern u_long		insert_null_trampoline(void);
+void		register_callback(u_long, callback_t, const char *);
+callback_t	find_callback(u_long);
+u_long		insert_generic_trampoline(size_t, u_char *);
+u_long		insert_softint_trampoline(void);
+u_long		insert_hardint_trampoline(void);
+u_long		insert_null_trampoline(void);

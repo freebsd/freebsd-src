@@ -28,12 +28,17 @@
  * SUCH DAMAGE.
  *
  *	BSDI trap.c,v 2.3 1996/04/08 19:33:08 bostic Exp
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+#include <machine/trap.h>
 
 #include "doscmd.h"
 #include "trap.h"
+#include "tty.h"
+#include "video.h"
 
 /* 
 ** When the emulator is very busy, it's often common for
@@ -56,11 +61,11 @@ fake_int(regcontext_t *REGS, int intnum)
     if (R_CS == 0xF000 || (ivec[intnum] >> 16) == 0xF000) {
 	if (R_CS != 0xF000)
 	    intnum = ((u_char *)VECPTR(ivec[intnum]))[1];
-	debug (D_ITRAPS|intnum, "int %02x:%02x %04x:%04x/%08x\n",
-	       intnum, R_AH, R_CS, R_IP, ivec[intnum]);
+	debug(D_ITRAPS | intnum, "INT %02x:%02x %04x:%04x/%08lx\n",
+	      intnum, R_AH, R_CS, R_IP, ivec[intnum]);
 	switch (intnum) {
 	case 0x2f: 			/* multiplex interrupt */
-	    int2f(&REGS->sc); 
+	    int2f((regcontext_t *)&REGS->sc); 
 	    break;
 	case 0xff: 			/* doscmd special */
 	    emuint(REGS); 
@@ -69,15 +74,14 @@ fake_int(regcontext_t *REGS, int intnum)
 	    if (vflag) dump_regs(REGS);
 	    fatal("no interrupt set up for 0x%02x\n", intnum);
 	}
-	debug (D_ITRAPS|intnum, "\n");
 	return;
     }
 
-user_int:
-    debug (D_TRAPS|intnum, 
-	   "INT %02x:%02x [%04x:%04x] %04x %04x %04x %04x from %04x:%04x\n",
-	   intnum, R_AH, ivec[intnum] >> 16, ivec[intnum] & 0xffff,
-	   R_AX, R_BX, R_CX, R_DX, R_CS, R_IP);
+    /* user_int: */
+    debug(D_TRAPS | intnum,
+	  "INT %02x:%02x [%04lx:%04lx] %04x %04x %04x %04x from %04x:%04x\n",
+	  intnum, R_AH, ivec[intnum] >> 16, ivec[intnum] & 0xffff,
+	  R_AX, R_BX, R_CX, R_DX, R_CS, R_IP);
 
 #if 0
     if ((intnum == 0x13) && (*(u_char *)VECPTR(ivec[intnum]) != 0xf4)) {
@@ -295,9 +299,21 @@ sigbus(struct sigframe *sf)
 	fatal("SIGBUS in the emulator\n");
 
     if ((int)sf->sf_siginfo != 0) {
-        fatal("SIGBUS code %d, trapno: %d, err: %d\n",
-	    (int)sf->sf_siginfo, sf->sf_uc.uc_mcontext.mc_trapno, 
-	    sf->sf_uc.uc_mcontext.mc_err);
+	switch (sf->sf_uc.uc_mcontext.mc_trapno) {
+	case T_PAGEFLT:
+	    debug(D_TRAPS2, "Page fault, trying to access 0x%x\n",
+		  sf->sf_addr);
+	    /* nothing but accesses to video memory can fault for now */
+	    if (vmem_pageflt(sf) == 0)
+		goto out;
+	    /* FALLTHROUGH */
+	default:
+	    dump_regs(REGS);
+	    fatal("SIGBUS code %d, trapno: %d, err: %d\n",
+		  (int)sf->sf_siginfo, sf->sf_uc.uc_mcontext.mc_trapno, 
+		  sf->sf_uc.uc_mcontext.mc_err);
+	    /* NOTREACHED */
+	}
     }
 
     addr = (u_char *)MAKEPTR(R_CS, R_IP);
@@ -306,13 +322,10 @@ sigbus(struct sigframe *sf)
 	resettrace(REGS);
 
     if ((R_EFLAGS & (PSL_VIP | PSL_VIF)) == (PSL_VIP | PSL_VIF)) {
-        if (n_pending < 1) {
-            fatal("Pending interrupts out of sync\n");
-            exit(1);
-        }
         resume_interrupt();
         goto out;
     }
+    
 /*    printf("%p\n", addr); fflush(stdout); */
     debug (D_TRAPS2, "%04x:%04x [%02x %02x %02x] ", R_CS, R_IP, 
         (int)addr[0], (int)addr[1], (int)addr[2]);
@@ -350,7 +363,7 @@ sigbus(struct sigframe *sf)
 	    break;
 	    
 	case PUSHF:
-	    debug (D_TRAPS2, "pushf <- 0x%x\n", R_EFLAGS);
+	    debug (D_TRAPS2, "pushf <- 0x%lx\n", R_EFLAGS);
 	    R_IP++;
             PUSH((R_FLAGS & ~PSL_I) | (R_EFLAGS & PSL_VIF ? PSL_I : 0), 
 		REGS);
@@ -379,7 +392,7 @@ sigbus(struct sigframe *sf)
 
 	    /* restore pseudo PSL_I flag */
 	    IntState = tempflags & PSL_I;
-	    debug(D_TRAPS2, "popf -> 0x%x\n", R_EFLAGS);
+	    debug(D_TRAPS2, "popf -> 0x%lx\n", R_EFLAGS);
 	    break;
 
 	case TRACETRAP:
@@ -501,7 +514,7 @@ sigbus(struct sigframe *sf)
 
 out:
     	if (tmode)
-	    tracetrap(REGS);
+	    tracetrap(REGS);	    
 }
 #endif /* USE_VM86 */
 
@@ -586,11 +599,9 @@ sigalrm(struct sigframe *sf)
     if (tmode)
 	resettrace(REGS);
 
-/*     debug(D_ALWAYS,"tick %d", update_counter); */
     update_counter = 0;			/* remember we've updated */
-    video_update(&REGS->sc);
-    hardint(0x08);
-/*    debug(D_ALWAYS,"\n"); */
+    video_update((regcontext_t *)&REGS->sc);
+    hardint(0x00);
 
     if (tmode)
 	tracetrap(REGS);
