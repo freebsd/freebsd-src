@@ -1,0 +1,21 @@
+.\" @(#)rstat_svc.8c	2.2 88/08/03 4.0 RPCSRC; from 1.10 87/09/09 SMI
+.TH RSTAT_SVC 8C "24 November 1987"
+.SH NAME
+rstat_svc \- kernel statistics server
+.SH SYNOPSIS
+.B /etc/rstat_svc
+.SH DESCRIPTION
+.LP
+.B rstat_svc
+is a server which returns performance statistics
+obtained from the kernel.
+These statistics are graphically displayed by the Sun Microsystems program,
+.BR perfmeter (1).
+The
+.B rstat_svc
+daemon is normally invoked at boot time through /etc/rc.local.
+.PP
+.B rstat_svc
+uses an RPC protocol defined in /usr/include/rpcsvc/rstat.x.
+.SH "SEE ALSO"
+.BR rstat (1),

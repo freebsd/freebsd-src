@@ -1,0 +1,799 @@
+.\" Copyright (c) 1992, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)fns.doc	8.2 (Berkeley) 6/1/94
+.\"
+.Ds
+.Fn addch "char ch" \(dg
+.De
+Add the character
+.Vn ch
+on the window
+at the current \*y.
+If the character is a newline
+(\'\en\')
+the line will be cleared to the end,
+and the current \*y will be changed to the
+beginning off the next line
+if newline mapping is on,
+or to the next line at the same x co-ordinate
+if it is off.
+A return
+(\'\er\')
+will move to the beginning of the line on the window.
+Tabs
+(\'\et\')
+will be expanded into spaces
+in the normal tabstop positions of
+every eight characters.
+\*(Es
+.Ds
+.Fn addstr "char *str" \(dg
+.De
+Add the string pointed to by
+.Vn str
+on the window at the current \*y.
+\*(Es
+In this case, it will put on as much as it can.
+.Ds
+.Fn baudrate "" \(dg
+.De
+Returns the output baud rate of the terminal.
+This is a system dependent constant
+(defined in
+.b <sys/tty.h>
+on BSD systems,
+which is included by
+.b <curses.h> ).
+.Ds
+.Fn box "WINDOW win" "char vert" "char hor"
+.De
+.Pp
+Draws a box around the window using
+.Vn vert
+as the character for drawing the vertical sides, and
+.Vn hor
+for drawing the horizontal lines.
+If scrolling is not allowed,
+and the window encompasses the lower right-hand corner of the terminal,
+the corners are left blank to avoid a scroll.
+.Ds
+.Fn cbreak "" \(dg
+.De
+Set or the terminal to cbreak mode.
+.Ds
+.Fn clear "" \(dg
+.De
+Resets the entire window to blanks.
+If
+.Vn win
+is a screen,
+this sets the clear flag,
+which will cause a clear-screen sequence to be sent
+on the next
+.Fn refresh
+call.
+This also moves the current \*y
+to (0\*,0).
+.Ds
+.Fn clearok "WINDOW *scr" "int boolf" \(dg
+.De
+Sets the clear flag for the screen
+.Vn scr .
+If
+.Vn boolf
+is non-zero,
+this will force a clear-screen to be printed on the next
+.Fn refresh ,
+or stop it from doing so if
+.Vn boolf
+is 0.
+This only works on screens,
+and,
+unlike
+.Fn clear ,
+does not alter the contents of the screen.
+If
+.Vn scr
+is
+.Vn curscr ,
+the next
+.Fn refresh
+call will cause a clear-screen,
+even if the window passed to
+.Fn refresh
+is not a screen.
+.Ds
+.Fn clrtobot "" \(dg
+.De
+Wipes the window clear from the current \*y to the bottom.
+This does not force a clear-screen sequence on the next refresh
+under any circumstances.
+\*(Nm
+.Ds
+.Fn clrtoeol "" \(dg
+.De
+Wipes the window clear from the current \*y to the end of the line.
+\*(Nm
+.Ds
+.Fn crmode "" \(dg
+.De
+Identical to 
+.Fn cbreak .
+The misnamed macro
+.Fn crmode
+and
+.Fn nocrmode
+is retained for backwards compatibility
+with ealier versions of the library.
+.Ds
+.Fn delch ""
+.De
+Delete the character at the current \*y.
+Each character after it on the line shifts to the left,
+and the last character becomes blank.
+.Ds
+.Fn deleteln ""
+.De
+Delete the current line.
+Every line below the current one will move up,
+and the bottom line will become blank.
+The current \*y will remain unchanged.
+.Ds
+.Fn delwin "WINDOW *win"
+.De
+Deletes the window from existence.
+All resources are freed for future use by
+.b calloc (3).
+If a window has a
+.Fn subwin
+allocated window inside of it,
+deleting the outer window
+the subwindow is not affected,
+even though this does invalidate it.
+Therefore,
+subwindows should be deleted before their
+outer windows are.
+.Ds
+.Fn echo "" \(dg
+.De
+Sets the terminal to echo characters.
+.Ds
+.Fn endwin ""
+.De
+Finish up window routines before exit.
+This restores the terminal to the state it was before
+.Fn initscr
+(or
+.Fn gettmode
+and
+.Fn setterm )
+was called.
+It should always be called before exiting and before the final calls to 
+.Fn delwin .
+It does not exit.
+This is especially useful for resetting tty stats
+when trapping rubouts via
+.b signal (2).
+.Ds
+.Fn erase "" \(dg
+.De
+Erases the window to blanks without setting the clear flag.
+This is analagous to
+.Fn clear ,
+except that it never causes a clear-screen sequence to be generated
+on a
+.Fn refresh .
+\*(Nm
+.Ds
+.Fn erasechar "" \(dg
+.De
+Returns the erase character
+for the terminal,
+.i i.e. ,
+the character used by the user to erase a single character from the input.
+.Ds
+.Fn flushok "WINDOW *win" "int boolf"
+.De
+Normally,
+.Fn refresh
+.Fn fflush 's
+.Vn stdout
+when it is finished.
+.Fn flushok
+allows you to control this.
+if
+.Vn boolf
+is non-zero
+(\c
+.i i.e. ,
+non-zero)
+it will do the
+.Fn fflush ,
+otherwise it will not.
+.Ds
+.Fn getch "" \(dg
+.De
+Gets a character from the terminal and (if necessary)
+echos it on the window.
+\*(Es
+Otherwise, the character gotten is returned.
+If
+.i noecho
+has been set, then the window is left unaltered.
+In order to retain control of the terminal,
+it is necessary to have one of
+.i noecho ,
+.i cbreak ,
+or
+.i rawmode
+set.
+If you do not set one,
+whatever routine you call to read characters will set
+.i cbreak
+for you,
+and then reset to the original mode when finished.
+.Ds
+.Fn getstr "char *str" \(dg
+.De
+Get a string through the window
+and put it in the location pointed to by
+.Vn str ,
+which is assumed to be large enough to handle it.
+It sets tty modes if necessary,
+and then calls
+.Fn getch
+(or
+.Fn wgetch )
+to get the characters needed to fill in the string
+until a newline or EOF is encountered.
+The newline stripped off the string.
+\*(Es
+.Ds
+.Fn gettmode ""
+.De
+Get the tty stats.
+This is normally called by
+.Fn initscr .
+.Ds
+.Fn getyx "WINDOW *win" "int y" "int x"
+.De
+Puts the current \*y of
+.Vn win
+in the variables
+.Vn y
+and
+.Vn x .
+Since it is a macro,
+not a function,
+you do not pass the address
+of
+.Vn y
+and
+.Vn x .
+.Ds
+.Fn idlok "WINDOW *win" "int boolf"
+.De
+Reserved for future use.
+This will eventually signal to
+.Fn refresh
+that it is all right to use the insert and delete line sequences
+when updating the window.
+.ne 1i
+.Ds
+.Fn inch "" \(dg
+.De
+Returns the character at the current position on the given window.
+This does not make any changes to the window.
+.Ds
+.Fn initscr ""
+.De
+Initialize the screen routines.
+This must be called before any of the screen routines are used.
+It initializes the terminal-type data and such,
+and without it none of the routines can operate.
+If standard input is not a tty,
+it sets the specifications to the terminal
+whose name is pointed to by
+.Vn Def\*_term
+(initially "dumb").
+If the boolean
+.Vn My\*_term
+is non-zero,
+.Vn Def\*_term
+is always used.
+If the system supports the
+.b TIOCGWINSZ
+.i ioctl(2)
+call,
+it is used to get the number of lines and columns for the terminal,
+otherwise it is taken from the
+.b termcap
+description.
+.Ds
+.Fn insch "char c"
+.De
+Insert
+.Vn c
+at the current \*y
+Each character after it shifts to the right,
+and the last character disappears.
+\*(Es
+.Ds
+.Fn insertln ""
+.De
+Insert a line above the current one.
+Every line below the current line
+will be shifted down,
+and the bottom line will disappear.
+The current line will become blank,
+and the current \*y will remain unchanged.
+.Ds
+.Fn killchar "" \(dg
+.De
+Returns the line kill character
+for the terminal,
+.i i.e. ,
+the character used by the user to erase an entire line from the input.
+.Ds
+.Fn leaveok "WINDOW *win" "int boolf" \(dg
+.De
+Sets the boolean flag for leaving the cursor after the last change.
+If
+.Vn boolf
+is non-zero,
+the cursor will be left after the last update on the terminal,
+and the current \*y for
+.Vn win
+will be changed accordingly.
+If 
+.Vn boolf
+ is 0 the cursor will be moved to the current \*y.
+This flag
+(initially 0)
+retains its value until changed by the user.
+.Ds
+.Fn move "int y" "int x"
+.De
+Change the current \*y of the window to
+.Vn y\*,x ). (
+\*(Es
+.Ds
+.Fn mvcur "int lasty" "int lastx" "int newy" "int newx"
+.De
+Moves the terminal's cursor from
+.Vn lasty\*,lastx ) (
+to
+.Vn newy\*,newx ) (
+in an approximation of optimal fashion.
+This routine uses the functions borrowed from
+.i ex
+version 2.6.
+It is possible to use this optimization
+without the benefit of the screen routines.
+With the screen routines, this should not be called by the user.
+.Fn move
+and
+.Fn refresh
+should be used to move the cursor position,
+so that the routines know what's going on.
+.Ds
+.Fn mvprintw "int y" "int x" "const char *fmt" "..."
+.De
+Equivalent to:
+.(l
+move(y, x);
+printw(fmt, ...);
+.)l
+.Ds 
+.Fn mvscanw "int y" "int x" "const char *fmt" "..."
+.De
+Equivalent to:
+.(l
+move(y, x);
+scanw(fmt, ...);
+.)l
+.Ds
+.Fn mvwin "WINDOW *win" "int y" "int x"
+.De
+Move the home position of the window
+.Vn win
+from its current starting coordinates
+to
+.Vn y\*,x ). (
+If that would put part or all of the window
+off the edge of the terminal screen,
+.Fn mvwin
+returns ERR and does not change anything.
+For subwindows,
+.Fn mvwin
+also returns ERR if you attempt to move it off its main window.
+If you move a main window,
+all subwindows are moved along with it.
+.Ds
+.Fn mvwprintw "WINDOW *win" "int y" "int x" "const char *fmt" "..."
+.De
+Equivalent to:
+.(l
+wmove(win, y, x);
+printw(fmt, ...);
+.)l
+.Ds
+.Fn mvwscanw "WINDOW *win" "int y" "int x" "const char *fmt" "..."
+.De
+Equivalent to:
+.(l
+wmove(win, y, x);
+scanw(fmt, ...);
+.)l
+.Ds
+.Ft "WINDOW *"
+.Fn newwin "int lines" "int cols" "int begin_y" "int begin_x" 
+.De
+Create a new window with
+.Vn lines
+lines and
+.Vn cols
+columns starting at position
+.Vn begin\*_y\*,begin\*_x ). (
+If either
+.Vn lines
+or
+.Vn cols
+is 0 (zero),
+that dimension will be set to
+.Vn "LINES \- begin\*_y" ) (
+or
+.Vn "COLS \- begin\*_x" ) (
+respectively.
+Thus, to get a new window of dimensions
+.Vn LINES
+\(mu
+.Vn COLS ,
+use
+.Fn newwin 0 0 0 0 .
+.Ds
+.Fn nl "" \(dg
+.De
+Set the terminal to nl mode,
+.i i.e. ,
+start/stop the system from mapping
+.b <RETURN>
+to
+.b <LINE-FEED> .
+If the mapping is not done,
+.Fn refresh
+can do more optimization,
+so it is recommended, but not required, to turn it off.
+.Ds
+.Fn nocbreak "" \(dg
+.De
+Unset the terminal from cbreak mode.
+.Ds
+.Fn nocrmode "" \(dg
+.De
+Identical to
+.Fn nocbreak .
+The misnamed macro
+.Fn nocrmode
+is retained for backwards compatibility
+with ealier versions of the library.
+.Ds
+.Fn noecho "" \(dg
+.De
+Turn echoing of characters off.
+.Ds
+.Fn nonl "" \(dg
+.De
+Unset the terminal to from nl mode.  See 
+.Fn nl .
+.ne 1i
+.Ds
+.Fn noraw "" \(dg
+.De
+Unset the terminal from raw mode.  See 
+.Fn raw .
+.Ds
+.Fn overlay "WINDOW *win1" "WINDOW *win2"
+.De
+Overlay
+.Vn win1
+on
+.Vn win2 .
+The contents of
+.Vn win1 ,
+insofar as they fit,
+are placed on
+.Vn win2
+at their starting \*y.
+This is done non-destructively,
+i.e., blanks on
+.Vn win1
+leave the contents of the space on
+.Vn win2
+untouched.  Note that all non-blank characters are overwritten 
+destructively in the overlay.
+.Ds
+.Fn overwrite "WINDOW *win1" "WINDOW *win2"
+.De
+Overwrite
+.Vn win1
+on
+.Vn win2 .
+The contents of
+.Vn win1 ,
+insofar as they fit,
+are placed on
+.Vn win2
+at their starting \*y.
+This is done destructively,
+.i i.e. ,
+blanks on
+.Vn win1
+become blank on
+.Vn win2 .
+.Ds
+.Fn printw "char *fmt" "..."
+.De
+Performs a
+.Fn printf
+on the window starting at the current \*y.
+It uses
+.Fn addstr
+to add the string on the window.
+It is often advisable to use the field width options of
+.Fn printf
+to avoid leaving things on the window from earlier calls.
+\*(Es
+.Ds
+.Fn raw "" \(dg
+.De
+Set the terminal to raw mode.
+On version 7
+.Un \**
+.(f
+\**
+.Un
+is a trademark of Unix System Laboratories.
+.)f
+this also turns off newline mapping
+(see
+.Fn nl ).
+.Ds
+.Fn refresh "" \(dg
+.De
+Synchronize the terminal screen with the desired window.
+If the window is not a screen,
+only that part covered by it is updated.
+\*(Es
+In this case, it will update whatever it can
+without causing the scroll.
+.sp
+As a special case,
+if
+.Fn wrefresh
+is called with the window
+.Vn curscr
+the screen is cleared
+and repainted as it is currently.
+This is very useful for allowing the redrawing of the screen
+when the user has garbage dumped on his terminal.
+.Ds
+.Fn resetty "" \(dg
+.De
+.Fn resetty
+restores them to what
+.Fn savetty
+stored.
+These functions are performed automatically by
+.Fn initscr
+and
+.Fn endwin .  
+This function should not be used by the user.
+.Ds
+.Fn savetty "" \(dg
+.De
+.Fn savetty
+saves the current tty characteristic flags. See
+.Fn resetty .
+This function should not be used by the user.
+.Ds
+.Fn scanw "char *fmt" "..."
+.De
+Perform a
+.Fn scanf
+through the window using
+.Vn fmt .
+It does this using consecutive calls to 
+.Fn getch
+(or
+.Fn wgetch ).
+\*(Es
+.ne 1i
+.Ds
+.Fn scroll "WINDOW *win"
+.De
+Scroll the window upward one line.
+This is normally not used by the user.
+.Ds
+.Fn scrollok "WINDOW *win" "int boolf" \(dg
+.De
+Set the scroll flag for the given window.
+If
+.Vn boolf
+is 0, scrolling is not allowed.
+This is its default setting.
+.Ds
+.Fn standend "" \(dg
+.De
+End standout mode initiated by
+.Fn standout .
+.Ds
+.Fn standout "" \(dg
+.De
+Causes any characters added to the window
+to be put in standout mode on the terminal
+(if it has that capability).
+.Ds
+.Ft "WINDOW *"
+.Fn subwin "WINDOW *win" "int lines" "int cols" "int begin_y" "int begin_x"
+.De
+Create a new window with
+.Vn lines
+lines and
+.Vn cols
+columns starting at position
+.Vn begin\*_y\*,begin\*_x ) (
+inside the window
+.i win .
+This means that any change made to either window
+in the area covered
+by the subwindow will be made on both windows.
+.Vn begin\*_y\*,begin\*_x
+are specified relative to the overall screen,
+not the relative (0\*,0) of
+.Vn win .
+If either
+.Vn lines
+or
+.Vn cols
+is 0 (zero),
+that dimension will be set to
+.Vn "LINES \- begin\*_y" ) (
+or
+.Vn "COLS \- begin\*_x" ) (
+respectively.
+.Ds
+.Fn touchline "WINDOW *win" "int y" "int startx" "int endx"
+.De
+This function performs a function similar to
+.Fn touchwin
+on a single line.
+It marks the first change for the given line
+to be
+.Vn startx ,
+if it is before the current first change mark,
+and
+the last change mark is set to be
+.Vn endx
+if it is currently less than
+.Vn endx .
+.Ds
+.Fn touchoverlap "WINDOW *win1" "WINDOW *win2"
+.De
+Touch the window
+.Vn win2
+in the area which overlaps with
+.Vn win1 .
+If they do not overlap,
+no changes are made.
+.Ds
+.Fn touchwin "WINDOW *win"
+.De
+Make it appear that the every location on the window
+has been changed.
+This is usually only needed for refreshes with overlapping windows.
+.Ds
+.Fn tstp
+.De
+This function
+will save the current tty state
+and then put the process to sleep.
+When the process gets restarted,
+it restores the saved tty state
+and then calls
+.Fn wrefresh "curscr"
+to redraw the screen.
+.Fn Initscr
+sets the signal
+SIGTSTP
+to trap to this routine.
+.Ds
+.Fn unctrl "char *ch" \(dg
+.De
+Returns a string which is an ASCII representation of
+.Vn ch .  
+Characters are 8 bits long.
+.Ds
+.Fn unctrllen "char *ch" \(dg
+.De
+Returns the length of the ASCII representation of 
+.Vn ch .
+.ne 1i
+.Ds
+.Fn vwprintw "WINDOW *win" "const char *fmt" "va_list ap"
+.De
+Identical to 
+.Fn printw 
+except that it takes both a window specification and a pointer to a variable
+length argument list.
+.Ds
+.Fn vwscanw "WINDOW *win" "const char *fmt" "va_list ap"
+.De
+Identical to 
+.Fn scanw
+except that it takes both a window specification and a pointer to a variable
+length argument list.
+.Ds
+.Fn waddbytes "WINDOW *win" "char *str" "int len"
+.De
+This function is the low level character output function.  
+.Vn Len
+characters of the string
+.Vn str
+are output to the current \*y position of the window specified by
+.Vn win.
+.sp 2
+.pp
+\fIThe following functions differ from the standard functions only in their 
+specification of a window, rather than the use of the default
+.Vn stdscr.\fP
+.Ds
+.Fn waddch "WINDOW *win" "char ch" 
+.Fn waddstr "WINDOW *win" "char *str" 
+.Fn wclear "WINDOW *win"  
+.Fn wclrtobot "WINDOW *win"  
+.Fn wclrtoeol "WINDOW *win"  
+.Fn wdelch "WINDOW *win"  
+.Fn wdeleteln "WINDOW *win" 
+.Fn werase "WINDOW *win" 
+.Fn wgetch "WINDOW *win" 
+.Fn wgetstr "WINDOW *win" "char *str" 
+.Fn winch "WINDOW *win" \(dg
+.Fn winsch "WINDOW *win" "char c" 
+.Fn winsertln "WINDOW *win" 
+.Fn wmove "WINDOW *win" "int y" int x" 
+.Fn wprintw "WINDOW *win" "char *fmt" "..." 
+.Fn wrefresh "WINDOW *win" 
+.Fn wscanw "WINDOW *win" "char *fmt" "..." 
+.Fn wstandend "WINDOW *win" 
+.Fn wstandout "WINDOW *win"
+.Dg
