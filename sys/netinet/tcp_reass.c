@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.51 1996/09/21 06:39:20 pst Exp $
+ *	$Id: tcp_input.c,v 1.52 1996/10/07 04:32:39 pst Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -357,18 +357,8 @@ tcp_input(m, iphlen)
 	 * Locate pcb for segment.
 	 */
 findpcb:
-	/*
-	 * First look for an exact match.
-	 */
 	inp = in_pcblookuphash(&tcbinfo, ti->ti_src, ti->ti_sport,
-	    ti->ti_dst, ti->ti_dport);
-	/*
-	 * ...and if that fails, do a wildcard search.
-	 */
-	if (inp == NULL) {
-		inp = in_pcblookup(&tcb, ti->ti_src, ti->ti_sport,
-		    ti->ti_dst, ti->ti_dport, INPLOOKUP_WILDCARD);
-	}
+	    ti->ti_dst, ti->ti_dport, 1);
 
 	/*
 	 * If the state is CLOSED (i.e., TCB does not exist) then
