@@ -46,16 +46,19 @@ AcpiOsPredefinedOverride (
     ACPI_STRING                 *NewVal)
 {
     if (InitVal == NULL || NewVal == NULL)
-        return(AE_BAD_PARAMETER);
+	return (AE_BAD_PARAMETER);
 
     *NewVal = NULL;
-    if (strncmp(InitVal->Name, "_OS_", 4) == 0 &&
-      getenv_string("hw.acpi.os_name", acpi_os_name, sizeof(acpi_os_name))) {
-        printf("ACPI: Overriding _OS definition with \"%s\"\n", acpi_os_name);
-        *NewVal = acpi_os_name;
+
+    /* Allow both _OS and _OS_ to be overridden. */
+    if (strncmp(InitVal->Name, "_OS", 3) == 0 &&
+	getenv_string("hw.acpi.os_name", acpi_os_name, sizeof(acpi_os_name))) {
+
+	printf("ACPI: Overriding _OS definition with \"%s\"\n", acpi_os_name);
+	*NewVal = acpi_os_name;
     }
 
-    return(AE_OK);
+    return (AE_OK);
 }
 
 ACPI_STATUS
@@ -93,4 +96,3 @@ AcpiOsTableOverride (
 
     return(AE_OK);
 }
-
