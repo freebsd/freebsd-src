@@ -380,6 +380,7 @@ vfs_buf_test_cache(struct buf *bp,
 {
 	GIANT_REQUIRED;
 
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	if (bp->b_flags & B_CACHE) {
 		int base = (foff + off) & PAGE_MASK;
 		if (vm_page_is_valid(m, base, size) == 0)
@@ -2235,10 +2236,9 @@ inmem(struct vnode * vp, daddr_t blkno)
 		size = vp->v_mount->mnt_stat.f_iosize;
 	off = (vm_ooffset_t)blkno * (vm_ooffset_t)vp->v_mount->mnt_stat.f_iosize;
 
+	VM_OBJECT_LOCK(obj);
 	for (toff = 0; toff < vp->v_mount->mnt_stat.f_iosize; toff += tinc) {
-		VM_OBJECT_LOCK(obj);
 		m = vm_page_lookup(obj, OFF_TO_IDX(off + toff));
-		VM_OBJECT_UNLOCK(obj);
 		if (!m)
 			goto notinmem;
 		tinc = size;
@@ -2248,9 +2248,11 @@ inmem(struct vnode * vp, daddr_t blkno)
 		    (vm_offset_t) ((toff + off) & PAGE_MASK), tinc) == 0)
 			goto notinmem;
 	}
+	VM_OBJECT_UNLOCK(obj);
 	return 1;
 
 notinmem:
+	VM_OBJECT_UNLOCK(obj);
 	return (0);
 }
 
@@ -2902,7 +2904,6 @@ allocbuf(struct buf *bp, int size)
 				bp->b_pages[bp->b_npages] = m;
 				++bp->b_npages;
 			}
-			VM_OBJECT_UNLOCK(obj);
 
 			/*
 			 * Step 2.  We've loaded the pages into the buffer,
@@ -2941,6 +2942,7 @@ allocbuf(struct buf *bp, int size)
 				toff += tinc;
 				tinc = PAGE_SIZE;
 			}
+			VM_OBJECT_UNLOCK(obj);
 
 			/*
 			 * Step 3, fixup the KVM pmap.  Remember that
