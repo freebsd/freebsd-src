@@ -348,7 +348,7 @@ more:
 	/*
 	 * we allow reads during pageouts...
 	 */
-	return (vm_pageout_flush(&mc[page_base], pageout_count, 0, TRUE));
+	return (vm_pageout_flush(&mc[page_base], pageout_count, 0));
 }
 
 /*
@@ -361,11 +361,7 @@ more:
  *	the ordering.
  */
 int
-vm_pageout_flush(mc, count, flags, is_object_locked)
-	vm_page_t *mc;
-	int count;
-	int flags;
-	int is_object_locked;
+vm_pageout_flush(vm_page_t *mc, int count, int flags)
 {
 	vm_object_t object;
 	int pageout_status[count];
@@ -384,14 +380,14 @@ vm_pageout_flush(mc, count, flags, is_object_locked)
 	 * edge case with file fragments.
 	 */
 	for (i = 0; i < count; i++) {
-		KASSERT(mc[i]->valid == VM_PAGE_BITS_ALL, ("vm_pageout_flush page %p index %d/%d: partially invalid page", mc[i], i, count));
+		KASSERT(mc[i]->valid == VM_PAGE_BITS_ALL,
+		    ("vm_pageout_flush: partially invalid page %p index %d/%d",
+			mc[i], i, count));
 		vm_page_io_start(mc[i]);
 		pmap_page_protect(mc[i], VM_PROT_READ);
 	}
 	object = mc[0]->object;
 	vm_page_unlock_queues();
-	if (!is_object_locked)
-		VM_OBJECT_LOCK(object);
 	vm_object_pip_add(object, count);
 	VM_OBJECT_UNLOCK(object);
 
@@ -444,8 +440,6 @@ vm_pageout_flush(mc, count, flags, is_object_locked)
 				pmap_page_protect(mt, VM_PROT_READ);
 		}
 	}
-	if (!is_object_locked)
-		VM_OBJECT_UNLOCK(object);
 	return numpagedout;
 }
 
