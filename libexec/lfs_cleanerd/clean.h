@@ -63,7 +63,7 @@
 #define	BUSY_LIM	0.50
 #define	IDLE_LIM	0.90
 
-#define	MIN_SEGS(lfsp)		(3)
+#define	MIN_SEGS(lfsp)		(5)
 #define	NUM_TO_CLEAN(fsp)	(1)
 
 #define MAXLOADS	3

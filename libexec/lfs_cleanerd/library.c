@@ -89,7 +89,7 @@ fs_getmntinfo(buf, name, type)
 	/* check to see if it's the one we want */
 	if (((*buf)->f_type != type) ||
 	    strncmp(name, (*buf)->f_mntonname, MNAMELEN)) {
-		/* "this is not the filesystem you're looking for */
+		/* "this is not the filesystem you're looking for" */
 		free(*buf);
 		return 0;
 	}
@@ -300,7 +300,7 @@ lfs_segmapv(fsp, seg, seg_buf, blocks, bcount)
 		timestamp = ((SEGSUM*)s)->ss_create;
 
 #ifdef DIAGNOSTIC
-		/* Verfiy size of summary block */
+		/* Verify size of summary block */
 		sumsize = sizeof(SEGSUM) +
 		    (sp->ss_ninos + INOPB(lfsp) - 1) / INOPB(lfsp);
 		for (fip = (FINFO *)(sp + 1); i < sp->ss_nfinfo; ++i) {
