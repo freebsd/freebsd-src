@@ -1,5 +1,5 @@
 #
-# Copyright (c) 1998,2004 Doug Rabson
+# Copyright (c) 1998-2004 Doug Rabson
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -135,18 +135,19 @@ METHOD int probe {
 };
 
 /**
- * @brief Called by a parent device to allow drivers to add new devices to the parent.
+ * @brief Allow a device driver to detect devices not otherwise enumerated.
  *
- * The DEVICE_IDENTIFY() method is used by some drivers (e.g. the ISA bus driver)
- * to help populate the bus device with a useful set of child devices, normally by
- * calling the BUS_ADD_CHILD() method of the parent device. For instance,
- * the ISA bus driver uses several special drivers, including the isahint driver and
- * the pnp driver to create child devices based on configuration hints and PnP bus
+ * The DEVICE_IDENTIFY() method is used by some drivers (e.g. the ISA
+ * bus driver) to help populate the bus device with a useful set of
+ * child devices, normally by calling the BUS_ADD_CHILD() method of
+ * the parent device. For instance, the ISA bus driver uses several
+ * special drivers, including the isahint driver and the pnp driver to
+ * create child devices based on configuration hints and PnP bus
  * probes respectively.
  *
- * Many bus drivers which support true plug-and-play do not need to use this method
- * at all since child devices can be discovered automatically without help from
- * child drivers.
+ * Many bus drivers which support true plug-and-play do not need to
+ * use this method at all since child devices can be discovered
+ * automatically without help from child drivers.
  *
  * To include this method in a device driver, use a line like this
  * in the driver's method list:
@@ -235,15 +236,15 @@ METHOD int shutdown {
 } DEFAULT null_shutdown;
 
 /**
- * @brief This is called by the power-management subsystem when a suspend has been
- * requested by the user or by some automatic mechanism.
+ * @brief This is called by the power-management subsystem when a
+ * suspend has been requested by the user or by some automatic
+ * mechanism.
  *
- * This gives
- * drivers a chance to veto the suspend or save their configuration before
- * power is removed.
+ * This gives drivers a chance to veto the suspend or save their
+ * configuration before power is removed.
  *
- * To include this method in a device driver, use a line like this
- * in the driver's method list:
+ * To include this method in a device driver, use a line like this in
+ * the driver's method list:
  *
  * @code
  * 	KOBJMETHOD(device_suspend, foo_suspend)
@@ -252,8 +253,8 @@ METHOD int shutdown {
  * @param dev		the device being suspended
  *
  * @retval 0		success
- * @retval non-zero	an error occurred while attempting to prepare the device
- * 			for suspension
+ * @retval non-zero	an error occurred while attempting to prepare the
+ *                      device for suspension
  *
  * @see DEVICE_RESUME()
  */
@@ -274,8 +275,8 @@ METHOD int suspend {
  * @param dev		the device being resumed
  *
  * @retval 0		success
- * @retval non-zero	an error occurred while attempting to restore the device
- * 			from suspension
+ * @retval non-zero	an error occurred while attempting to restore the
+ *                      device from suspension
  *
  * @see DEVICE_SUSPEND()
  */
