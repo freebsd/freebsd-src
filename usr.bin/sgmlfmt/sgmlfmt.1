@@ -23,13 +23,18 @@ declaration before any uncommented text:
 .Bd -literal -offset indent
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
 .Ed
-.Pp Options for
+.Pp
+Options for
 .Nm
 include the following:
 .Bl -tag -width Ds
 .It Fl f Ar format
 Determines the output format which can be one of the following:
 .Bl -tag -width Ds
+.It Ar ascii
+Generates a single output file with the extension 
+.Pa .ascii
+suitable for viewing on an ASCII terminal. 
 .It Ar html
 Generates a set of linked HTML files suitable for use with an
 HTML browser.  A top level file,
@@ -42,27 +47,35 @@ contains a complete table of contents.  A series of files named
 .Pa file2.html ...
 .Pa filen.html
 contain the actual text of the document.
+.It Ar koi8-r
+Generates a single output file with the extension 
+.Pa .koi8-r
+suitable for viewing on an terminal supporting the KOI8-R
+character encoding. 
 .It Ar latex
 Generates a single output file with the extension
-.Pa .tex
+.Pa .latex
 suitable for processing with LaTeX.  Note that the LaTeX style
 file
-.Pa /usr/share/sgml/FreeBSD/lib/linuxdoc.sty
+.Pa /usr/share/sgml/FreeBSD/linuxdoc.sty
 must be accessible to LaTeX for correct processing.
-.It Ar ascii
+.It Ar latin1
 Generates a single output file with the extension 
-.Pa .ascii
-suitable for viewing on an ASCII terminal. 
-.It Ar nroff
+.Pa .latin1
+suitable for viewing on an terminal supporting the ISO8859-1
+character encoding. 
+.It Ar roff
 Generates a single output file with the extension
-.Pa .nroff
+.Pa .roff
 suitable processing with
-.Xr nroff 1
-or
 .Xr groff 1 .
 This is actually an intermediate conversion used by the
-.Fl f Ar ascii
-format option.
+.Fl f Ar ascii ,
+.Fl f Ar latin1 ,
+.Fl f Ar koi8-r ,
+and
+.Fl f Ar ps
+format options.
 .El
 .It Fl i Ar name
 Pretend that
@@ -128,26 +141,26 @@ the extension may be omitted on the command line.
 In all cases, the output files are created in the current working
 directory.
 .Sh FILES
-.Pa /usr/share/sgml/FreeBSD/dtd/linuxdoc
+.Pa /usr/share/sgml/FreeBSD/linuxdoc.dtd
 - the linuxdoc DTD.
 .Pp
-.Pa /usr/share/sgml/FreeBSD/rep/
-- directory containing replacement files for
-.Xr sgmlsasp 1 .
+.Pa /usr/share/sgml/transpec
+- directory containing translation specification files for
+.Xr instant 1 .
 .Pp
-.Pa /usr/share/sgml/FreeBSD/lib/linuxdoc.sty
+.Pa /usr/share/sgml/FreeBSD/linuxdoc.sty
 - the LaTeX style used in documents produced with the
-.Fl latex
+.Fl f Ar latex
 format option.
 .Sh SEE ALSO
 .Xr sgmls 1 ,
-.Xr sgmlsasp 1 ,
+.Xr instant 1 ,
+.Xr transpec 5 ,
 .Xr groff 1
 .Sh HISTORY
 The
 .Nm
-command appeared in
-.Fx 2.0.5 .
+command appeared in Version 2.0.5 FreeBSD UNIX.
 .Sh AUTHORS
 The
 .Nm
@@ -157,30 +170,3 @@ The linuxdoc DTD was written by Matt Welsh
 .Aq mdw@cs.cornell.edu 
 and based on the Qwertz DTD written by Tom Gordon
 .Aq thomas.gordon@gmd.de .
-.Sh BUGS
-The ASCII output has many, many bugs including no meaningful
-cross references, and numerous formatting problems.
-.Pp
-A line in the SGML source file beginning with a period (.) will
-confuse
-.Xr groff 1
-which is used to generate ASCII output.  
-.Pp
-The division of the sources file into separate HTML files is
-currently fixed. 
-.Pp
-Although legal according to the DTD, it the ascii formatting gets botched if
-the 
-.Li <heading>
-.No ...
-.Li </heading>
-tags are omitted following a
-sectioning tag such as
-.Li <sect> . 
-.Pp
-Beginning and ending tags for the
-.Li <tag>
-element must occur on the same line for correct formatting with
-the
-.Fl ascii
-option.
