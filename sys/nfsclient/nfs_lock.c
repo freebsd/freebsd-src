@@ -156,7 +156,7 @@ nfs_dolock(struct vop_advlock_args *ap)
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, _PATH_LCKFIFO, td);
 
 	fmode = FFLAGS(O_WRONLY);
-	error = vn_open_cred(&nd, &fmode, 0, proc0.p_ucred);
+	error = vn_open_cred(&nd, &fmode, 0, thread0.td_ucred);
 	if (error != 0) {
 		return (error == ENOENT ? EOPNOTSUPP : error);
 	}
@@ -166,10 +166,10 @@ nfs_dolock(struct vop_advlock_args *ap)
 
 	ioflg = IO_UNIT;
 	for (;;) {
-		VOP_LEASE(wvp, td, proc0.p_ucred, LEASE_WRITE);
+		VOP_LEASE(wvp, td, thread0.td_ucred, LEASE_WRITE);
 
 		error = vn_rdwr(UIO_WRITE, wvp, (caddr_t)&msg, sizeof(msg), 0,
-		    UIO_SYSSPACE, ioflg, proc0.p_ucred, NULL, td);
+		    UIO_SYSSPACE, ioflg, thread0.td_ucred, NULL, td);
 
 		if (error && (((ioflg & IO_NDELAY) == 0) || error != EAGAIN)) {
 			break;
@@ -219,7 +219,7 @@ nfs_dolock(struct vop_advlock_args *ap)
 		break;
 	}
 
-	if ((error1 = vn_close(wvp, FWRITE, proc0.p_ucred, td)) && error == 0)
+	if ((error1 = vn_close(wvp, FWRITE, thread0.td_ucred, td)) && error == 0)
 		return (error1);
 
 	return (error);
