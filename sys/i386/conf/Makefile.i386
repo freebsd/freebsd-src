@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.54 1995/01/29 23:42:11 phk Exp $
+#	$Id: Makefile.i386,v 1.55 1995/02/26 05:05:53 bde Exp $
 #
 # Makefile for FreeBSD
 #
@@ -80,6 +80,8 @@ SYSTEM_LD_TAIL= @echo rearranging symbols; \
 
 %LOAD
 
+%CLEAN
+
 # This is slightly different from before in that if you define PROF
 # to anything, it will assume profiling.  Don't do "PROF=" to turn
 # profiling off!
@@ -104,7 +106,7 @@ ${LIBKERN}:
 
 clean:
 	rm -f eddep kernel tags *.o *.s errs linterrs makelinks genassym \
-	      symbols.exclude symbols.sort
+	      symbols.exclude symbols.sort ${CLEAN}
 
 #lint: /tmp param.c
 #	@lint -hbxn -DGENERIC -Dvolatile= ${COPTS} ${PARAM} \
