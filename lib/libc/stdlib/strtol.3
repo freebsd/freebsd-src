@@ -173,7 +173,8 @@ If no conversion could be performed, 0 is returned and
 the global variable
 .Va errno
 is set to
-.Er EINVAL .
+.Er EINVAL
+(the last feature is not portable across all platforms).
 If an overflow or underflow occurs,
 .Va errno
 is set to
@@ -193,7 +194,8 @@ to the following table.
 The value of
 .Fa base
 is not supported or
-no conversion could be performed.
+no conversion could be performed
+(the last feature is not portable across all platforms).
 .It Bq Er ERANGE
 The given string was out of range; the value converted has been clamped.
 .El
