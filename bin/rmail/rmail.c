@@ -29,16 +29,21 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	from: @(#)rmail.c	8.1 (Berkeley) 5/31/93
  */
 
 #ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
+#endif /* not lint */
+
+#ifndef lint
+#if 0
+static char sccsid[] = "@(#)rmail.c	8.1 (Berkeley) 5/31/93";
+#else
 static const char rcsid[] =
-	"$Id: rmail.c,v 1.12 1997/06/30 11:03:31 charnier Exp $";
+	"$Id: rmail.c,v 1.13 1997/08/07 15:41:51 steve Exp $";
+#endif
 #endif /* not lint */
 
 /*
