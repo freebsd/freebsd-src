@@ -785,7 +785,7 @@ vfs_domount(
 		TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
 		mtx_unlock(&mountlist_mtx);
 		vfs_event_signal(NULL, VQ_MOUNT, 0);
-		if (VFS_ROOT(mp, &newdp, td))
+		if (VFS_ROOT(mp, LK_EXCLUSIVE, &newdp, td))
 			panic("mount: lost mount");
 		mountcheckdirs(vp, newdp);
 		vput(newdp);
@@ -946,7 +946,8 @@ dounmount(mp, flags, td)
 	 * vnode to the covered vnode.  For non-forced unmounts we want
 	 * such references to cause an EBUSY error.
 	 */
-	if ((flags & MNT_FORCE) && VFS_ROOT(mp, &fsrootvp, td) == 0) {
+	if ((flags & MNT_FORCE) &&
+	    VFS_ROOT(mp, LK_EXCLUSIVE, &fsrootvp, td) == 0) {
 		if (mp->mnt_vnodecovered != NULL)
 			mountcheckdirs(fsrootvp, mp->mnt_vnodecovered);
 		if (fsrootvp == rootvnode) {
@@ -963,7 +964,8 @@ dounmount(mp, flags, td)
 	vn_finished_write(mp);
 	if (error) {
 		/* Undo cdir/rdir and rootvnode changes made above. */
-		if ((flags & MNT_FORCE) && VFS_ROOT(mp, &fsrootvp, td) == 0) {
+		if ((flags & MNT_FORCE) &&
+		    VFS_ROOT(mp, LK_EXCLUSIVE, &fsrootvp, td) == 0) {
 			if (mp->mnt_vnodecovered != NULL)
 				mountcheckdirs(mp->mnt_vnodecovered, fsrootvp);
 			if (rootvnode == NULL) {
@@ -1006,7 +1008,7 @@ set_rootvnode(struct thread *td)
 {
 	struct proc *p;
 
-	if (VFS_ROOT(TAILQ_FIRST(&mountlist), &rootvnode, td))
+	if (VFS_ROOT(TAILQ_FIRST(&mountlist), LK_EXCLUSIVE, &rootvnode, td))
 		panic("Cannot find root vnode");
 
 	p = td->td_proc;
@@ -1087,7 +1089,7 @@ devfs_fixup(struct thread *td)
 	mtx_unlock(&mountlist_mtx);
 	cache_purgevfs(mp);
 
-	VFS_ROOT(mp, &dvp, td);
+	VFS_ROOT(mp, LK_EXCLUSIVE, &dvp, td);
 	VI_LOCK(dvp);
 	dvp->v_iflag &= ~VI_MOUNT;
 	dvp->v_mountedhere = NULL;

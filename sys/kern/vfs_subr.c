@@ -2053,7 +2053,7 @@ vflush(mp, rootrefs, flags, td)
 		 * Get the filesystem root vnode. We can vput() it
 		 * immediately, since with rootrefs > 0, it won't go away.
 		 */
-		if ((error = VFS_ROOT(mp, &rootvp, td)) != 0)
+		if ((error = VFS_ROOT(mp, LK_EXCLUSIVE, &rootvp, td)) != 0)
 			return (error);
 		vput(rootvp);
 
