@@ -167,6 +167,9 @@ int miibus_attach(dev)
 	struct mii_data		*mii;
 
 	mii = device_get_softc(dev);
+	/*
+	 * Note that each NIC's softc must start with an ifnet structure.
+	 */
 	mii->mii_ifp = device_get_softc(device_get_parent(dev));
 	v = device_get_ivars(dev);
 	ifmedia_upd = v[0];
@@ -233,6 +236,9 @@ miibus_linkchg(dev)
 	MIIBUS_LINKCHG(parent);
 
 	mii = device_get_softc(dev);
+	/*
+	 * Note that each NIC's softc must start with an ifnet structure.
+	 */
 	ifp = device_get_softc(parent);
 	
 	if (mii->mii_media_status & IFM_AVALID) {
@@ -279,6 +285,9 @@ int mii_phy_probe(dev, child, ifmedia_upd, ifmedia_sts)
 	int			bmsr, i;
 
 	v = malloc(sizeof(vm_offset_t) * 2, M_DEVBUF, M_NOWAIT);
+	if (v == 0) {
+		return (ENOMEM);
+	}
 	v[0] = ifmedia_upd;
 	v[1] = ifmedia_sts;
 	*child = device_add_child(dev, "miibus", -1);
