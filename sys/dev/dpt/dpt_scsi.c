@@ -64,7 +64,7 @@
  *       3.  dpt_handle_timeouts   potentially inserts into the queue
  */
 
-#ident "$Id: dpt_scsi.c,v 1.4 1998/02/25 11:56:37 bde Exp $"
+#ident "$Id: dpt_scsi.c,v 1.5 1998/03/11 00:30:08 julian Exp $"
 #define _DPT_C_
 
 #include "opt_dpt.h"
@@ -2105,13 +2105,11 @@ dpt_scsi_cmd(struct scsi_xfer * xs)
 		/* This will setup the xs flags */
 		dpt_process_completion(dpt, ccb);
 
-		if (status & HA_SERROR) {
-			ospl = splsoftcam();
-			dpt_Qpush_free(dpt, ccb);
-			splx(ospl);
-			return (COMPLETE);
-		}
 		ospl = splsoftcam();
+		if ((status & HA_SERROR) || (ndx == xs->timeout)) {
+			xs->error = XS_DRIVER_STUFFUP;
+		}
+
 		dpt_Qpush_free(dpt, ccb);
 		splx(ospl);
 		return (COMPLETE);
