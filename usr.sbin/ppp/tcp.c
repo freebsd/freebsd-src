@@ -69,7 +69,7 @@ tcp_OpenConnection(const char *name, char *host, char *port)
   dest.sin_addr = GetIpAddr(host);
   if (dest.sin_addr.s_addr == INADDR_NONE) {
     log_Printf(LogWARN, "%s: %s: unknown host\n", name, host);
-    return -1;
+    return -2;
   }
   dest.sin_port = htons(atoi(port));
   if (dest.sin_port == 0) {
@@ -78,19 +78,19 @@ tcp_OpenConnection(const char *name, char *host, char *port)
       dest.sin_port = sp->s_port;
     else {
       log_Printf(LogWARN, "%s: %s: unknown service\n", name, port);
-      return -1;
+      return -2;
     }
   }
   log_Printf(LogPHASE, "%s: Connecting to %s:%s/tcp\n", name, host, port);
 
   sock = socket(PF_INET, SOCK_STREAM, 0);
   if (sock < 0)
-    return sock;
+    return -2;
 
   if (connect(sock, (struct sockaddr *)&dest, sizeof dest) < 0) {
     log_Printf(LogWARN, "%s: connect: %s\n", name, strerror(errno));
     close(sock);
-    return -1;
+    return -2;
   }
 
   return sock;

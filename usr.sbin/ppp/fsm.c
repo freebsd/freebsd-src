@@ -976,9 +976,16 @@ fsm_Input(struct fsm *fp, struct mbuf *bp)
   }
   bp = mbuf_Read(bp, &lh, sizeof lh);
 
-  if (ntohs(lh.length) != len)
+  if (ntohs(lh.length) != len) {
+    if (ntohs(lh.length) > len) {
+      log_Printf(LogWARN, "%s: Oops: Got %d bytes but %d byte payload "
+                 "- dropped\n", fp->link->name, len, (int)ntohs(lh.length));
+      m_freem(bp);
+      return;
+    }
     log_Printf(LogWARN, "%s: Oops: Got %d bytes but %d byte payload\n",
                fp->link->name, len, (int)ntohs(lh.length));
+  }
 
   if (lh.code < fp->min_code || lh.code > fp->max_code ||
       lh.code > sizeof FsmCodes / sizeof *FsmCodes) {
