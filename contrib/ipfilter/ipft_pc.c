@@ -3,7 +3,7 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
-#ifdef __sgi
+#if defined(__sgi) && (IRIX > 602)
 # include <sys/ptimers.h>
 #endif
 #include <stdio.h>
@@ -31,13 +31,15 @@
 #include <netinet/tcpip.h>
 #include "ipf.h"
 #include "pcap.h"
+#include "bpf.h"
 #include "ipt.h"
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ipft_pc.c,v 2.2.2.3 2002/02/22 15:32:54 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipft_pc.c,v 2.2.2.5 2002/12/06 11:40:25 darrenr Exp $";
 #endif
 
 struct	llc	{
+	int	lc_type;
 	int	lc_sz;	/* LLC header length */
 	int	lc_to;	/* LLC Type offset */
 	int	lc_tl;	/* LLC Type length */
@@ -47,23 +49,48 @@ struct	llc	{
  * While many of these maybe the same, some do have different header formats
  * which make this useful.
  */
-#define	DLT_MAX	14
 
-static	struct	llc	llcs[DLT_MAX+1] = {
-	{ 0, 0, 0 },	/* DLT_NULL */
-	{ 14, 12, 2 },	/* DLT_E10MB */
-	{ 0, 0, 0 },	/* DLT_EN3MB */
-	{ 0, 0, 0 },	/* DLT_AX25 */
-	{ 0, 0, 0 },	/* DLT_PRONET */
-	{ 0, 0, 0 },	/* DLT_CHAOS */
-	{ 0, 0, 0 },	/* DLT_IEEE802 */
-	{ 0, 0, 0 },	/* DLT_ARCNET */
-	{ 0, 0, 0 },	/* DLT_SLIP */
-	{ 0, 0, 0 },	/* DLT_PPP */
-	{ 0, 0, 0 },	/* DLT_FDDI */
-	{ 0, 0, 0 },	/* DLT_ATMRFC1483 */
-	{ 0, 0, 0 },	/* DLT_LOOP */
-	{ 0, 0, 0 }	/* DLT_ENC */
+static	struct	llc	llcs[] = {
+	{ DLT_NULL, 0, 0, 0 },
+	{ DLT_EN10MB, 14, 12, 2 },
+	{ DLT_EN3MB, 0, 0, 0 },
+	{ DLT_AX25, 0, 0, 0 },
+	{ DLT_PRONET, 0, 0, 0 },
+	{ DLT_CHAOS, 0, 0, 0 },
+	{ DLT_IEEE802, 0, 0, 0 },
+	{ DLT_ARCNET, 0, 0, 0 },
+	{ DLT_SLIP, 0, 0, 0 },
+	{ DLT_PPP, 0, 0, 0 },
+	{ DLT_FDDI, 0, 0, 0 },
+#ifdef DLT_ATMRFC1483
+	{ DLT_ATMRFC1483, 0, 0, 0 },
+#endif
+	{ DLT_RAW, 0, 0, 0 },
+#ifdef	DLT_ENC
+	{ DLT_ENC, 0, 0, 0 },
+#endif
+#ifdef	DLT_SLIP_BSDOS
+	{ DLT_SLIP_BSDOS, 0, 0, 0 },
+#endif
+#ifdef	DLT_PPP_BSDOS
+	{ DLT_PPP_BSDOS, 0, 0, 0 },
+#endif
+#ifdef	DLT_HIPPI
+	{ DLT_HIPPI, 0, 0, 0 },
+#endif
+#ifdef	DLT_HDLC
+	{ DLT_HDLC, 0, 0, 0 },
+#endif
+#ifdef	DLT_PPP_SERIAL
+	{ DLT_PPP_SERIAL, 4, 4, 0 },
+#endif
+#ifdef	DLT_PPP_ETHER
+	{ DLT_PPP_ETHER, 8, 8, 0 },
+#endif
+#ifdef	DLT_ECONET
+	{ DLT_ECONET, 0, 0, 0 },
+#endif
+	{ -1, -1, -1, -1 }
 };
 
 static	int	pcap_open __P((char *));
@@ -73,6 +100,7 @@ static	void	swap_hdr __P((pcaphdr_t *));
 static	int	pcap_read_rec __P((struct pcap_pkthdr *));
 
 static	int	pfd = -1, s_type = -1, swapped = 0;
+static	struct llc	*llcp = NULL;
 
 struct	ipread	pcap = { pcap_open, pcap_close, pcap_readip };
 
@@ -96,7 +124,7 @@ static	int	pcap_open(fname)
 char	*fname;
 {
 	pcaphdr_t ph;
-	int	fd;
+	int fd, i;
 
 	if (pfd != -1)
 		return pfd;
@@ -118,7 +146,18 @@ char	*fname;
 		swap_hdr(&ph);
 	}
 
-	if (ph.pc_v_maj != PCAP_VERSION_MAJ || ph.pc_type >= DLT_MAX) {
+	if (ph.pc_v_maj != PCAP_VERSION_MAJ) {
+		(void) close(fd);
+		return -2;
+	}
+
+	for (i = 0; llcs[i].lc_type != -1; i++)
+		if (llcs[i].lc_type == ph.pc_type) {
+			llcp = llcs + i;
+			break;
+		}
+
+	if (llcp == NULL) {
 		(void) close(fd);
 		return -2;
 	}
@@ -210,7 +249,9 @@ int	cnt, *dir;
 	char	*s, ty[4];
 	int	i, n;
 
-	do {
+	l = llcp;
+
+	/* do { */
 		if ((i = pcap_read_rec(&rec)) <= 0)
 			return i;
 
@@ -223,12 +264,11 @@ int	cnt, *dir;
 		if (read(pfd, s, i) != i)
 			return -2;
 
-		l = &llcs[s_type];
 		i -= l->lc_sz;
 		s += l->lc_to;
 		bcopy(s, ty, l->lc_tl);
 		s += l->lc_tl;
-	} while (ty[0] != 0x8 && ty[1] != 0);
+	/* } while (ty[0] != 0x8 && ty[1] != 0); */
 	n = MIN(i, cnt);
 	bcopy(s, buf, n);
 	return n;

@@ -8,7 +8,7 @@
  * returns 0 on success, -1 on error.
  */
 
-#ifdef __sgi
+#if defined(__sgi) && (IRIX > 602)
 # include <sys/ptimers.h>
 #endif
 #include <stdio.h>
@@ -46,7 +46,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)kmem.c	1.4 1/12/96 (C) 1992 Darren Reed";
-static const char rcsid[] = "@(#)$Id: kmem.c,v 2.2.2.15 2002/07/27 15:59:37 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: kmem.c,v 2.2.2.16 2002/12/06 11:40:27 darrenr Exp $";
 #endif
 
 #ifdef	__sgi

@@ -7,10 +7,10 @@ The format for files accepted by ipnat is described by the following grammar:
 .nf
 ipmap :: = mapblock | redir | map .
 
-map ::= mapit ifname ipmask "->" dstipmask [ mapport ] .
-map ::= mapit ifname fromto "->" dstipmask [ mapport ] .
-mapblock ::= "map-block" ifname ipmask "->" ipmask [ ports ] .
-redir ::= "rdr" ifname ipmask dport "->" ip [ "," ip ] rdrport options .
+map ::= mapit ifname ipmask "->" dstipmask [ mapport ] mapoptions.
+map ::= mapit ifname fromto "->" dstipmask [ mapport ] mapoptions.
+mapblock ::= "map-block" ifname ipmask "->" ipmask [ ports ] mapoptions.
+redir ::= "rdr" ifname ipmask dport "->" ip [ "," ip ] rdrport rdroptions .
 
 dport ::= "port" portnum [ "-" portnum ] .
 ports ::= "ports" numports | "auto" .
@@ -20,7 +20,8 @@ fromto ::= "from" object "to" object .
 ipmask ::= ip "/" bits | ip "/" mask | ip "netmask" mask .
 dstipmask ::= ipmask | "range" ip "-" ip .
 mapport ::= "portmap" tcpudp portspec .
-options ::= [ tcpudp ] [ rr ] .
+mapoptions ::= [ tcpudp ] [ "frag" ] [ age ] [ clamp ] .
+rdroptions ::= [ tcpudp ] [ rr ] [ "frag" ] [ age ] [ clamp ] .
 
 object  :: = addr [ port-comp | port-range ] .
 addr    :: = "any" | nummask | host-name [ "mask" ipaddr | "mask" hexnumber ] .
@@ -28,8 +29,12 @@ port-comp :: = "port" compare port-num .
 port-range :: = "port" port-num range port-num .
 
 rr ::= "round-robin" .
-nummask = host-name [ "/" decnumber ] .
-tcpudp ::= "tcp" | "udp" | "tcp/udp" .
+age ::= "age" decnumber [ "/" decnumber ] .
+clamp ::= "mssclamp" decnumber .
+tcpudp ::= "tcp/udp" | protocol .
+
+protocol ::= protocol-name | decnumber .
+nummask ::= host-name [ "/" decnumber ] .
 portspec ::= "auto" | portnumber ":" portnumber .
 portnumber ::= number { numbers } .
 ifname ::= 'A' - 'Z' { 'A' - 'Z' } numbers .
@@ -107,6 +112,26 @@ rule.  Such a rule might look like the following:
 .PP
 Only IP address and port numbers can be compared against.  This is available
 with all NAT rules.
+.SH COMMAND QUALIFIERS
+At the end of each rule, a number of qualifiers can be used to change how
+the rule works.  They are as follows:
+.TP
+protocol
+A specific protocol may be given either by its name (as found in
+/etc/protocols) or its number.  A special case for supporting both
+TCP and UDP is allowed with the name \fBtcp/udp\fP.
+.TP
+.B round-robin
+Once a rule with this term has been successfully used, it is put at the
+bottom of the list of those available so that each one will get used, in
+turn, in a list of matching left hand sides.
+.TP
+.B frag
+This qualifier is currently has no impact on NAT operation.
+.TP
+.B age
+If more refined timeouts are required than those available globally for
+NAT settings, this allows you to set them for \fBnon-TCP\fP use.
 .SH TRANSLATION
 .PP
 To the right of the "->" is the address and port specificaton which will be

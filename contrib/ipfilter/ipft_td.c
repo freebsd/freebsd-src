@@ -26,7 +26,7 @@ tcpdump -nqte
 8:0:20:f:65:f7 0:0:c:1:8a:c5 81: 128.250.133.13.23 > 128.250.20.20.2419: tcp 27
 
 */
-#ifdef __sgi
+#if defined(__sgi) && (IRIX > 602)
 # include <sys/ptimers.h>
 #endif
 #include <stdio.h>
@@ -61,7 +61,7 @@ tcpdump -nqte
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipft_td.c	1.8 2/4/96 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipft_td.c,v 2.2.2.3 2002/06/27 14:29:17 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipft_td.c,v 2.2.2.4 2002/12/06 11:40:26 darrenr Exp $";
 #endif
 
 static	int	tcpd_open __P((char *));

@@ -3,7 +3,7 @@
 #
 # See the IPFILTER.LICENCE file for details on licencing.
 #
-# $Id: Makefile,v 2.11.2.13 2002/03/06 09:43:15 darrenr Exp $
+# $Id: Makefile,v 2.11.2.15 2002/12/02 04:22:56 darrenr Exp $
 #
 BINDEST=/usr/local/bin
 SBINDEST=/sbin
@@ -91,7 +91,6 @@ all:
 	@echo "bsd	- compile for generic 4.4BSD systems"
 	@echo "bsdi	- compile for BSD/OS"
 	@echo "irix	- compile for SGI IRIX"
-	@echo "linux	- compile for Linux 2.0.31+"
 	@echo ""
 
 tests:
@@ -237,15 +236,15 @@ get:
 		fi \
 	done
 
-sunos4 solaris1:
+sunos4 solaris1: null
 	(cd SunOS4; make build TOP=.. "CC=$(CC)" $(DEST) $(MFLAGS); cd ..)
 	(cd SunOS4; make -f Makefile.ipsend "CC=$(CC)" TOP=.. $(DEST) $(MFLAGS); cd ..)
 
-sunos5 solaris2:
+sunos5 solaris2: null
 	(cd SunOS5/$(CPUDIR); make build TOP=../.. "CC=$(CC)" $(DEST) $(MFLAGS) "SOLARIS2=$(SOLARIS2)" "CPU=-Dsparc -D__sparc__"; cd ..)
 	(cd SunOS5/$(CPUDIR); make -f Makefile.ipsend TOP=../.. "CC=$(CC)" $(DEST) $(MFLAGS); cd ..)
 
-sunos5x86 solaris2x86:
+sunos5x86 solaris2x86: null
 	(cd SunOS5/$(CPUDIR); make build TOP=../.. "CC=$(CC)" $(DEST) $(MFLAGS) "SOLARIS2=$(SOLARIS2)" "CPU=-Di86pc -Di386 -D__i386__"; cd ..)
 	(cd SunOS5/$(CPUDIR); make -f Makefile.ipsend TOP=../.. "CC=$(CC)" $(DEST) $(MFLAGS); cd ..)
 
@@ -282,3 +281,10 @@ rcsget:
 do-cvs:
 	find . -type d -name CVS -print | xargs /bin/rm -rf
 	find . -type f -name .cvsignore -print | xargs /bin/rm -f
+
+null:
+	-@if [ "`$(MAKE) -v 2>&1 | sed -ne 's/GNU.*/GNU/p'`" = "GNU" ] ; then \
+		echo 'Do not use GNU make (gmake) to compile IPFilter'; \
+		exit 1; \
+	fi
+	-@echo make ok
