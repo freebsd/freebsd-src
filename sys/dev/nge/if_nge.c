@@ -1442,7 +1442,6 @@ static void nge_tick(xsc)
 	mii_tick(mii);
 
 	if (!sc->nge_link) {
-		mii_pollstat(mii);
 		if (mii->mii_media_status & IFM_ACTIVE &&
 		    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
 			sc->nge_link++;
