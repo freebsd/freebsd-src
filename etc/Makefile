@@ -179,7 +179,7 @@ etc-examples:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 defaults/make.conf \
 	    ${DESTDIR}/usr/share/examples/etc/defaults; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 defaults/pccard.conf \
-	    ${DESTDIR}/usr/share/examples/etc/defaults); \
+	    ${DESTDIR}/usr/share/examples/etc/defaults; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 defaults/periodic.conf \
 	    ${DESTDIR}/usr/share/examples/etc/defaults)
 
