@@ -40,7 +40,7 @@
 #include <err.h>
 #include <locale.h>
 #include <langinfo.h>
-#include <rune.h>		/* for _PATH_LOCALE */
+#include <paths.h>		/* for _PATH_LOCALE */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
