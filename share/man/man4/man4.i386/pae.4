@@ -58,8 +58,7 @@ window or otherwise.
 .Sh SEE ALSO
 .Xr smp 4 ,
 .Xr tuning 7 ,
-.Xr config 8 ,
-.Xr bus_dma 9
+.Xr config 8
 .Sh HISTORY
 The
 .Dv PAE
@@ -92,14 +91,6 @@ in a system with more than 4 gigabytes of memory when the
 .Dv PAE
 option is used,
 and may cause data corruption.
-The
-.Pa PAE
-kernel configuration file includes the
-.Dv PAE
-option, and explicitly excludes all device drivers which are known to not work
-or have not been tested in a system with the
-.Dv PAE
-option and more than 4 gigabytes of memory.
 .Pp
 Many parameters which determine how memory is used in the kernel are based on
 the amount of physical memory.
