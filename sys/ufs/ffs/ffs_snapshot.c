@@ -527,8 +527,9 @@ out1:
 	 * Write out the list of allocated blocks to the end of the snapshot.
 	 */
 	if (ip->i_snapblklist - listhd != ip->i_snaplistsize)
-		printf("Snaplist mismatch, got %d should be %jd\n",
-		    ip->i_snapblklist - listhd, (intmax_t)ip->i_snaplistsize);
+		printf("Snaplist mismatch, got %jd should be %jd\n",
+		    (intmax_t)(ip->i_snapblklist - listhd),
+		    (intmax_t)ip->i_snaplistsize);
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
 	aiov.iov_base = (void *)listhd;
