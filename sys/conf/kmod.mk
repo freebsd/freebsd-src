@@ -243,6 +243,17 @@ unload:
 	${KMODUNLOAD} -v ${KMOD}
 .endif
 
+.if defined(KERNBUILDDIR)
+.PATH: ${KERNBUILDDIR}
+CFLAGS += -I${KERNBUILDDIR}
+.for _src in ${SRCS:Mopt_*.h}
+CLEANFILES+=	${_src}
+.if !target(${_src})
+${_src}:
+	ln -s ${KERNBUILDDIR}/${_src} ${.TARGET}
+.endif
+.endfor
+.else
 .for _src in ${SRCS:Mopt_*.h}
 CLEANFILES+=	${_src}
 .if !target(${_src})
@@ -250,6 +261,7 @@ ${_src}:
 	touch ${.TARGET}
 .endif
 .endfor
+.endif
 
 MFILES?= kern/bus_if.m kern/device_if.m dev/iicbus/iicbb_if.m \
     dev/iicbus/iicbus_if.m isa/isa_if.m \
