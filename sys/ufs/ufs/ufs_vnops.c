@@ -219,12 +219,12 @@ ufs_mknod(ap)
 	/*
 	 * Remove inode, then reload it through VFS_VGET so it is
 	 * checked to see if it is an alias of an existing entry in
-	 * the inode cache.
+	 * the inode cache.  XXX I don't believe this is necessary now.
 	 */
-	vput(*vpp);
 	(*vpp)->v_type = VNON;
 	ino = ip->i_number;	/* Save this before vgone() invalidates ip. */
 	vgone(*vpp);
+	vput(*vpp);
 	error = VFS_VGET(ap->a_dvp->v_mount, ino, LK_EXCLUSIVE, vpp);
 	if (error) {
 		*vpp = NULL;
@@ -273,31 +273,11 @@ ufs_close(ap)
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
-	struct mount *mp;
 
 	VI_LOCK(vp);
-	if (vp->v_usecount > 1) {
+	if (vp->v_usecount > 1)
 		ufs_itimes(vp);
-		VI_UNLOCK(vp);
-	} else {
-		VI_UNLOCK(vp);
-		/*
-		 * If we are closing the last reference to an unlinked
-		 * file, then it will be freed by the inactive routine.
-		 * Because the freeing causes a the filesystem to be
-		 * modified, it must be held up during periods when the
-		 * filesystem is suspended.
-		 *
-		 * XXX - EAGAIN is returned to prevent vn_close from
-		 * repeating the vrele operation.
-		 */
-		if (vp->v_type == VREG && VTOI(vp)->i_effnlink == 0) {
-			(void) vn_start_write(vp, &mp, V_WAIT);
-			vrele(vp);
-			vn_finished_write(mp);
-			return (EAGAIN);
-		}
-	}
+	VI_UNLOCK(vp);
 	return (0);
 }
 
