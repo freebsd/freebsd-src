@@ -90,7 +90,6 @@ dev/aha/aha.c		optional aha device-driver
 dev/aic7xxx/aic7xxx.c	optional ahc device-driver		\
 	dependency	"aic7xxx_{reg,seq}.h"
 dev/aic7xxx/93cx6.c	optional ahc device-driver
-dev/aic6x60/aic.c	optional aic device-driver
 dev/buslogic/bt.c	optional bt  device-driver
 dev/ccd/ccd.c		optional ccd device-driver
 dev/isp/isp_freebsd.c	optional isp device-driver
