@@ -316,14 +316,6 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <option>link</option> family (<option>ether</option> is still
       accepted for backwards compatability).</para>
 
-    <para>By default, &man.inetd.8; is no longer run by &man.rc.8; at
-      boot-time, although &man.sysinstall.8; gives the option of
-      enabling it during binary installations.  &man.inetd.8; can also
-      be enabled by adding the following line to
-      <filename>/etc/rc.conf</filename>:</para>
-
-    <programlisting>inetd_enable="YES"</programlisting>
-
     <para>&man.ldd.1; can now be used on shared libraries, in addition
       to executables.</para>
 
