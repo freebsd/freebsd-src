@@ -4,7 +4,7 @@
 # $FreeBSD$
 #	from: @(#)protocols	5.1 (Berkeley) 4/17/89
 #
-# See also http://www.isi.edu/in-notes/iana/assignments/protocol-numbers
+# See also http://www.iana.org/assignments/protocol-numbers
 #
 ip	0	IP		# internet protocol, pseudo protocol number
 #hopopt	0	HOPOPT		# hop-by-hop options for ipv6
