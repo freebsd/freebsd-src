@@ -29,15 +29,15 @@ static char sccsid[] = "@(#)smrsh.c	8.11 (Berkeley) 5/19/98";
 **
 **	Leading pathnames are stripped from program names so that
 **	existing .forward files that reference things like
-**	"/usr/ucb/vacation" will continue to work.
+**	"/usr/bin/vacation" will continue to work.
 **
 **	The following characters are completely illegal:
 **		<  >  |  ^  ;  &  $  `  (  ) \n \r
 **	This is more restrictive than strictly necessary.
 **
 **	To use this, edit /etc/sendmail.cf, search for ^Mprog, and
-**	change P=/bin/sh to P=/usr/local/etc/smrsh, where this compiled
-**	binary is installed /usr/local/etc/smrsh.
+**	change P=/bin/sh to P=/usr/libexec/smrsh, where this compiled
+**	binary is installed /usr/libexec/smrsh.
 **
 **	This can be used on any version of sendmail.
 **
@@ -58,7 +58,7 @@ static char sccsid[] = "@(#)smrsh.c	8.11 (Berkeley) 5/19/98";
 
 /* directory in which all commands must reside */
 #ifndef CMDDIR
-# define CMDDIR		"/usr/adm/sm.bin"
+# define CMDDIR		"/usr/libexec/sm.bin"
 #endif
 
 /* characters disallowed in the shell "-c" argument */
@@ -66,7 +66,7 @@ static char sccsid[] = "@(#)smrsh.c	8.11 (Berkeley) 5/19/98";
 
 /* default search path */
 #ifndef PATH
-# define PATH		"/bin:/usr/bin:/usr/ucb"
+# define PATH		"/bin:/usr/bin"
 #endif
 
 int
