@@ -71,7 +71,7 @@ main(argc, argv)
 {
 	struct stat sb;
 	FILE *fp;
-	long off;
+	off_t off;
 	enum STYLE style;
 	int ch, first;
 	char *p;
@@ -91,7 +91,7 @@ main(argc, argv)
 #define	ARG(units, forward, backward) {					\
 	if (style)							\
 		usage();						\
-	off = strtol(optarg, &p, 10) * (units);				\
+	off = strtoll(optarg, &p, 10) * (units);                        \
 	if (*p)								\
 		errx(1, "illegal offset -- %s", optarg);		\
 	switch(optarg[0]) {						\

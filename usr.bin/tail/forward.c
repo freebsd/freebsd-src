@@ -58,7 +58,7 @@ static const char rcsid[] =
 #include <err.h>
 #include "extern.h"
 
-static void rlines __P((FILE *, long, struct stat *));
+static void rlines __P((FILE *, off_t, struct stat *));
 
 /* defines for inner loop actions */
 #define USE_SLEEP	0
@@ -91,7 +91,7 @@ void
 forward(fp, style, off, sbp)
 	FILE *fp;
 	enum STYLE style;
-	long off;
+	off_t off;
 	struct stat *sbp;
 {
 	int ch, kq = -1;
@@ -106,7 +106,7 @@ forward(fp, style, off, sbp)
 		if (S_ISREG(sbp->st_mode)) {
 			if (sbp->st_size < off)
 				off = sbp->st_size;
-			if (fseek(fp, off, SEEK_SET) == -1) {
+			if (fseeko(fp, off, SEEK_SET) == -1) {
 				ierr();
 				return;
 			}
@@ -137,7 +137,7 @@ forward(fp, style, off, sbp)
 	case RBYTES:
 		if (S_ISREG(sbp->st_mode)) {
 			if (sbp->st_size >= off &&
-			    fseek(fp, -off, SEEK_END) == -1) {
+			    fseeko(fp, -off, SEEK_END) == -1) {
 				ierr();
 				return;
 			}
@@ -154,7 +154,7 @@ forward(fp, style, off, sbp)
 	case RLINES:
 		if (S_ISREG(sbp->st_mode))
 			if (!off) {
-				if (fseek(fp, 0L, SEEK_END) == -1) {
+				if (fseeko(fp, (off_t)0, SEEK_END) == -1) {
 					ierr();
 					return;
 				}
@@ -226,7 +226,7 @@ forward(fp, style, off, sbp)
 				action = USE_SLEEP;
 			} else if (ev->data < 0) {
 				/* file shrank, reposition to end */
-				if (fseek(fp, 0L, SEEK_END) == -1) {
+				if (fseeko(fp, (off_t)0, SEEK_END) == -1) {
 					ierr();
 					return;
 				}
@@ -266,7 +266,7 @@ forward(fp, style, off, sbp)
 static void
 rlines(fp, off, sbp)
 	FILE *fp;
-	long off;
+	off_t off;
 	struct stat *sbp;
 {
 	struct mapinfo map;
