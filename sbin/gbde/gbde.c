@@ -67,7 +67,7 @@ usage(const char *reason)
 	fprintf(stderr, "Usage error: %s", reason);
 	fprintf(stderr, "Usage:\n");
 	fprintf(stderr, "\t%s attach dest -l filename\n", p);
-	fprintf(stderr, "\t%s dettach dest\n", p);
+	fprintf(stderr, "\t%s detach dest\n", p);
 	fprintf(stderr, "\t%s init dest [-i] [-f filename] -l filename\n", p);
 	fprintf(stderr, "\t%s setkey dest [-n key] -l filename\n", p);
 	fprintf(stderr, "\t%s destroy dest [-n key] -l filename\n", p);
@@ -219,7 +219,7 @@ cmd_attach(const struct g_bde_softc *sc, const char *dest, const char *lfile)
 }
 
 static void
-cmd_dettach(const char *dest)
+cmd_detach(const char *dest)
 {
 	int i, gfd;
 	struct geomconfiggeom gcg;
@@ -601,7 +601,7 @@ cmd_init(struct g_bde_key *gl, int dfd, const char *f_opt, int i_opt, const char
 
 static enum action {
 	ACT_HUH,
-	ACT_ATTACH, ACT_DETTACH,
+	ACT_ATTACH, ACT_DETACH,
 	ACT_INIT, ACT_SETKEY, ACT_DESTROY, ACT_NUKE
 } action;
 
@@ -626,8 +626,8 @@ main(int argc, char **argv)
 	if (!strcmp(argv[1], "attach")) {
 		action = ACT_ATTACH;
 		opts = "l:p:";
-	} else if (!strcmp(argv[1], "dettach")) {
-		action = ACT_DETTACH;
+	} else if (!strcmp(argv[1], "detach")) {
+		action = ACT_DETACH;
 		opts = "";
 	} else if (!strcmp(argv[1], "init")) {
 		action = ACT_INIT;
@@ -707,8 +707,8 @@ main(int argc, char **argv)
 		setup_passphrase(&sc, 0, p_opt);
 		cmd_attach(&sc, dest, l_opt);
 		break;
-	case ACT_DETTACH:
-		cmd_dettach(dest);
+	case ACT_DETACH:
+		cmd_detach(dest);
 		break;
 	case ACT_INIT:
 		cmd_init(gl, dfd, f_opt, i_opt, L_opt);
