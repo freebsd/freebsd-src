@@ -108,7 +108,7 @@ static struct isrstat isrstat;
 
 SYSCTL_NODE(_net, OID_AUTO, isr, CTLFLAG_RW, 0, "netisr counters");
 
-static int	netisr_enable = 0;
+static int	netisr_enable = 1;
 SYSCTL_INT(_net_isr, OID_AUTO, enable, CTLFLAG_RW, 
     &netisr_enable, 0, "enable direct dispatch");
 
