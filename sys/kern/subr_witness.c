@@ -1180,7 +1180,8 @@ enroll(const char *description, struct lock_class *lock_class)
 {
 	struct witness *w;
 
-	if (!witness_watch || witness_watch == 0 || panicstr != NULL)
+	KASSERT(!witness_cold, ("enroll called too early"));
+	if (witness_watch == 0 || panicstr != NULL)
 		return (NULL);
 	if ((lock_class->lc_flags & LC_SPINLOCK) && witness_skipspin)
 		return (NULL);
