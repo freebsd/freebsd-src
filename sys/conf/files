@@ -97,6 +97,7 @@ dev/buslogic/bt.c	optional bt  device-driver
 dev/ccd/ccd.c		optional ccd device-driver
 dev/isp/isp_freebsd.c	optional isp device-driver
 dev/isp/isp.c		optional isp device-driver
+dev/isp/isp_target.c	optional isp device-driver
 #dev/dpt/dpt_control.c	optional dpt device-driver
 dev/dpt/dpt_scsi.c	optional dpt device-driver
 dev/en/midway.c		optional en device-driver
