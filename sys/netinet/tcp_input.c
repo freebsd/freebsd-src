@@ -1917,6 +1917,7 @@ trimthenstep6:
 					u_long oldcwnd = tp->snd_cwnd;
 					tcp_seq oldsndmax = tp->snd_max;
 					u_int sent;
+
 					KASSERT(tp->t_dupacks == 1 ||
 					    tp->t_dupacks == 2,
 					    ("dupacks not 1 or 2"));
@@ -1929,8 +1930,10 @@ trimthenstep6:
 					(void) tcp_output(tp);
 					sent = tp->snd_max - oldsndmax;
 					if (sent > tp->t_maxseg) {
-						KASSERT(tp->snd_limited == 0 &&
-						    tp->t_dupacks == 2,
+						KASSERT((tp->t_dupacks == 2 &&
+						    tp->snd_limited == 0) ||
+						   (sent == tp->t_maxseg + 1 &&
+						    tp->t_flags & TF_SENTFIN),
 						    ("sent too much"));
 						tp->snd_limited = 2;
 					} else if (sent > 0)
