@@ -46,9 +46,9 @@
 
 
 #ifdef IDMAPVERBOSE
-#define IDMAP_DEBUG(X...) printf(X);
+#define IDMAP_DEBUG(...) printf(__VA_ARGS__);
 #else
-#define IDMAP_DEBUG(X...)
+#define IDMAP_DEBUG(...)
 #endif
 
 #define IDMAP_HASH_SIZE 37
@@ -401,7 +401,7 @@ idmap_gid_to_name(gid_t gid, char ** name, size_t * len)
 
 
 	if ((e = idmap_id_lookup(IDMAP_TYPE_GID, id)) == NULL) {
-	  	if ((error = idmap_upcall_id(IDMAP_TYPE_GID, (ident_t)id, &e))) {
+	  	if ((error = idmap_upcall_id(IDMAP_TYPE_GID, id, &e))) {
 			IDMAP_DEBUG("error in upcall\n");
 			return error;
 		}
