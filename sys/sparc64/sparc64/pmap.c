@@ -179,7 +179,13 @@ static long pmap_enter_nupdate;
 static long pmap_enter_nreplace;
 static long pmap_enter_nnew;
 static long pmap_ncache_enter;
+static long pmap_ncache_enter_c;
+static long pmap_ncache_enter_cc;
 static long pmap_ncache_enter_nc;
+static long pmap_ncache_remove;
+static long pmap_ncache_remove_c;
+static long pmap_ncache_remove_cc;
+static long pmap_ncache_remove_nc;
 static long pmap_niflush;
 
 SYSCTL_NODE(_debug, OID_AUTO, pmap_stats, CTLFLAG_RD, 0, "Statistics");
@@ -191,8 +197,20 @@ SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, pmap_enter_nnew, CTLFLAG_RD,
     &pmap_enter_nnew, 0, "Number of pmap_enter() additions");
 SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, pmap_ncache_enter, CTLFLAG_RD,
     &pmap_ncache_enter, 0, "Number of pmap_cache_enter() calls");
+SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, pmap_ncache_enter_c, CTLFLAG_RD,
+    &pmap_ncache_enter_c, 0, "Number of pmap_cache_enter() cacheable");
+SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, pmap_ncache_enter_cc, CTLFLAG_RD,
+    &pmap_ncache_enter_cc, 0, "Number of pmap_cache_enter() change color");
 SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, pmap_ncache_enter_nc, CTLFLAG_RD,
-    &pmap_ncache_enter_nc, 0, "Number of pmap_cache_enter() nc");
+    &pmap_ncache_enter_nc, 0, "Number of pmap_cache_enter() noncacheable");
+SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, pmap_ncache_remove, CTLFLAG_RD,
+    &pmap_ncache_remove, 0, "Number of pmap_cache_remove() calls");
+SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, pmap_ncache_remove_c, CTLFLAG_RD,
+    &pmap_ncache_remove_c, 0, "Number of pmap_cache_remove() cacheable");
+SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, pmap_ncache_remove_cc, CTLFLAG_RD,
+    &pmap_ncache_remove_cc, 0, "Number of pmap_cache_remove() change color");
+SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, pmap_ncache_remove_nc, CTLFLAG_RD,
+    &pmap_ncache_remove_nc, 0, "Number of pmap_cache_remove() noncacheable");
 SYSCTL_LONG(_debug_pmap_stats, OID_AUTO, pmap_niflush, CTLFLAG_RD,
     &pmap_niflush, 0, "Number of pmap I$ flushes");
 
@@ -585,32 +603,53 @@ pmap_cache_enter(vm_page_t m, vm_offset_t va)
 {
 	struct tte *tp;
 	int color;
-	int c, i;
 
-	CTR2(KTR_PMAP, "pmap_cache_enter: m=%p va=%#lx", m, va);
 	PMAP_STATS_INC(pmap_ncache_enter);
+
+	/*
+	 * Find the color for this virtual address and note the added mapping.
+	 */
 	color = DCACHE_COLOR(va);
 	m->md.colors[color]++;
+
+	/*
+	 * If all existing mappings have the same color, the mapping is
+	 * cacheable.
+	 */
 	if (m->md.color == color) {
-		CTR0(KTR_PMAP, "pmap_cache_enter: cacheable");
+		KASSERT(m->md.colors[DCACHE_OTHER_COLOR(color)] == 0,
+		    ("pmap_cache_enter: cacheable, mappings of other color"));
+		PMAP_STATS_INC(pmap_ncache_enter_c);
 		return (1);
 	}
-	for (c = 0, i = 0; i < DCACHE_COLORS; i++) {
-		if (m->md.colors[i] != 0)
-			c++;
-	}
-	if (c == 1) {
+
+	/*
+	 * If there are no mappings of the other color, and the page still has
+	 * the wrong color, this must be a new mapping.  Change the color to
+	 * match the new mapping, which is cacheable.  We must flush the page
+	 * from the cache now.
+	 */
+	if (m->md.colors[DCACHE_OTHER_COLOR(color)] == 0) {
+		KASSERT(m->md.colors[color] == 1,
+		    ("pmap_cache_enter: changing color, not new mapping"));
 		dcache_page_inval(VM_PAGE_TO_PHYS(m));
 		m->md.color = color;
-		CTR0(KTR_PMAP, "pmap_cache_enter: cacheable");
+		PMAP_STATS_INC(pmap_ncache_enter_cc);
 		return (1);
 	}
+
 	PMAP_STATS_INC(pmap_ncache_enter_nc);
-	if (m->md.color == -1) {
-		CTR0(KTR_PMAP, "pmap_cache_enter: already uncacheable");
+
+	/*
+	 * If the mapping is already non-cacheable, just return.
+	 */	
+	if (m->md.color == -1)
 		return (0);
-	}
-	CTR0(KTR_PMAP, "pmap_cache_enter: marking uncacheable");
+
+	/*
+	 * Mark all mappings as uncacheable, flush any lines with the other
+	 * color out of the dcache, and set the color to none (-1).
+	 */
 	STAILQ_FOREACH(tp, &m->md.tte_list, tte_link) {
 		tp->tte_data &= ~TD_CV;
 		tlb_page_demap(TTE_GET_PMAP(tp), TTE_GET_VA(tp));
@@ -625,28 +664,56 @@ pmap_cache_remove(vm_page_t m, vm_offset_t va)
 {
 	struct tte *tp;
 	int color;
-	int c, i;
 
 	CTR3(KTR_PMAP, "pmap_cache_remove: m=%p va=%#lx c=%d", m, va,
 	    m->md.colors[DCACHE_COLOR(va)]);
 	KASSERT(m->md.colors[DCACHE_COLOR(va)] > 0,
 	    ("pmap_cache_remove: no mappings %d <= 0",
 	    m->md.colors[DCACHE_COLOR(va)]));
+	PMAP_STATS_INC(pmap_ncache_remove);
+
+	/*
+	 * Find the color for this virtual address and note the removal of
+	 * the mapping.
+	 */
 	color = DCACHE_COLOR(va);
 	m->md.colors[color]--;
-	if (m->md.color != -1 || m->md.colors[color] != 0)
+
+	/*
+	 * If the page is cacheable, just return and keep the same color, even
+	 * if there are no longer any mappings.
+	 */
+	if (m->md.color != -1) {
+		PMAP_STATS_INC(pmap_ncache_remove_c);
 		return;
-	for (c = 0, i = 0; i < DCACHE_COLORS; i++) {
-		if (m->md.colors[i] != 0)
-			c++;
 	}
-	if (c == 0)
+
+	KASSERT(m->md.colors[DCACHE_OTHER_COLOR(color)] != 0,
+	    ("pmap_cache_remove: uncacheable, no mappings of other color"));
+
+	/*
+	 * If the page is not cacheable (color is -1), and the number of
+	 * mappings for this color is not zero, just return.  There are
+	 * mappings of the other color still, so remain non-cacheable.
+	 */
+	if (m->md.colors[color] != 0) {
+		PMAP_STATS_INC(pmap_ncache_remove_nc);
 		return;
+	}
+
+	PMAP_STATS_INC(pmap_ncache_remove_cc);
+
+	/*
+	 * The number of mappings for this color is now zero.  Recache the
+	 * other colored mappings, and change the page color to the other
+	 * color.  There should be no lines in the data cache for this page,
+	 * so flushing should not be needed.
+	 */
 	STAILQ_FOREACH(tp, &m->md.tte_list, tte_link) {
 		tp->tte_data |= TD_CV;
 		tlb_page_demap(TTE_GET_PMAP(tp), TTE_GET_VA(tp));
 	}
-	m->md.color = color;
+	m->md.color = DCACHE_OTHER_COLOR(color);
 }
 
 /*
@@ -782,11 +849,16 @@ pmap_map_direct(vm_page_t m)
 	vm_offset_t va;
 
 	pa = VM_PAGE_TO_PHYS(m);
-	if (m->md.color == -1)
+	if (m->md.color == -1) {
+		KASSERT(m->md.colors[0] != 0 && m->md.colors[1] != 0,
+		    ("pmap_map_direct: non-cacheable, only 1 color"));
 		va = TLB_DIRECT_MASK | pa | TLB_DIRECT_UNCACHEABLE;
-	else
+	} else {
+		KASSERT(m->md.colors[DCACHE_OTHER_COLOR(m->md.color)] == 0,
+		    ("pmap_map_direct: cacheable, mappings of other color"));
 		va = TLB_DIRECT_MASK | pa |
 		    (m->md.color << TLB_DIRECT_COLOR_SHIFT);
+	}
 	return (va << TLB_DIRECT_SHIFT);
 }
 
