@@ -441,14 +441,31 @@ nl|netherlands|Dutch mapping:\
 	:K104=,:S104=,:\
 	:l1#62:a0:
 
-# from codrv, untested
-no|norway|Norwegian mapping:\
-	:K1=|:\
-	:K13=\\:S13=`:A13=':p1#13:\
+# Norwegian keyboard map with national characters.
+# Anders Nordby, nickerne@nome.no
+no|norway|Norwegian 8bit mapping ISO 8859-1:\
+	:K1=\174:S1=\247:\
+	:K2=\61:S2=\41:\
+	:K3=\62:S3=\42:A3=\100:\
+	:K4=\63:S4=\43:A4=\243:\
+	:K5=\64:S5=\244:A5=\44:\
+	:K6=\65:S6=\45:\
+	:K7=\66:S7=\46:\
+	:K8=\67:S8=\57:A8=\173:\
+	:K9=\70:S9=\50:A9=\133:\
+	:K10=\71:S10=\51:A10=\135:\
+	:K11=\60:S11=\75:A11=\175:\
+	:K12=\53:S12=\77:\
+	:K13=\134:S13=\140:A13=\264:\
+	:K28=\250:S28=\136:A28=\176:\
+	:K29=\47:S29=\52:\
+	:K54=\56:S54=\72:\
+	:K53=\54:S53=\73:\
+	:K55=\55:S55=\137:\
 	:K41=\346:S41=\306:\
 	:K40=\370:S40=\330:\
-	:A45=:\
-	:tc=denmark:
+	:K27=\345:S27=\305:\
+	:l1#62:a0:
 
 # from codrv, untested
 pt|portugal|Portugesian mapping:\
