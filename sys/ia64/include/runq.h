@@ -36,7 +36,7 @@
 #define	RQB_BIT(pri)	(1UL << ((pri) & (RQB_BPW - 1)))
 #define	RQB_WORD(pri)	((pri) >> RQB_L2BPW)
 
-#define	RQB_FFS(word)	(ffs64(word))
+#define	RQB_FFS(word)	(ffs64(word) - 1)
 
 /*
  * Type of run queue status word.
