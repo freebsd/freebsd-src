@@ -31,7 +31,7 @@ To check for transmission errors, issue the command
 This assumes you have the xsum program whose source, xsum.c,
 is distributed as part of "all from f2c/src".  If you do not
 have xsum, you can obtain xsum.c by sending the following E-mail
-message to netlib@research.att.com
+message to netlib@netlib.bell-labs.com
 	send xsum.c from f2c/src
 
 The makefile assumes you have installed f2c.h in a standard
@@ -82,10 +82,11 @@ external Fortran routines.
 	cmd to the system's command processor (on systems where
 	this can be done).
 
-The makefile does not attempt to compile pow_qq.c, which is meant
-for use with INTEGER*8.  To use it, you must modify f2c.h to
-declare longint appropriately; then add pow_qq.o to the POW =
-line in the makefile.
+The makefile does not attempt to compile pow_qq.c, qbitbits.c,
+and qbitshft.c, which are meant for use with INTEGER*8.  To use
+INTEGER*8, you must modify f2c.h to declare longint and ulongint
+appropriately; then add pow_qq.o to the POW = line in the makefile,
+and add " qbitbits.o qbitshft.o" to the makefile's F90BIT = line.
 
 Following Fortran 90, s_cat.c and s_copy.c allow the target of a
 (character string) assignment to be appear on its right-hand, at
@@ -94,3 +95,14 @@ If you prefer the  extra efficiency that comes with the Fortran 77
 requirement that the left-hand side of a character assignment not
 be involved in the right-hand side, compile s_cat.c and s_copy.c
 with -DNO_OVERWRITE .
+
+If your system lacks a ranlib command, you don't need it.
+Either comment out the makefile's ranlib invocation, or install
+a harmless "ranlib" command somewhere in your PATH, such as the
+one-line shell script
+
+	exit 0
+
+or (on some systems)
+
+	exec /usr/bin/ar lts $1 >/dev/null

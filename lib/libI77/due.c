@@ -1,7 +1,6 @@
 #include "f2c.h"
 #include "fio.h"
 
-int
 #ifdef KR_headers
 c_due(a) cilist *a;
 #else
@@ -20,7 +19,9 @@ c_due(cilist *a)
 	if(f__curunit->ufmt) err(a->cierr,102,"cdue")
 	if(!f__curunit->useek) err(a->cierr,104,"cdue")
 	if(f__curunit->ufd==NULL) err(a->cierr,114,"cdue")
-	(void) fseek(f__cf,(long)(a->cirec-1)*f__curunit->url,SEEK_SET);
+	if(a->cirec <= 0)
+		err(a->cierr,130,"due")
+	fseek(f__cf,(long)(a->cirec-1)*f__curunit->url,SEEK_SET);
 	f__curunit->uend = 0;
 	return(0);
 }
@@ -31,8 +32,8 @@ integer s_rdue(cilist *a)
 #endif
 {
 	int n;
-	if( (n=c_due(a)) ) return(n);
 	f__reading=1;
+	if(n=c_due(a)) return(n);
 	if(f__curunit->uwrt && f__nowreading(f__curunit))
 		err(a->cierr,errno,"read start");
 	return(0);
@@ -44,8 +45,8 @@ integer s_wdue(cilist *a)
 #endif
 {
 	int n;
-	if( (n=c_due(a)) ) return(n);
 	f__reading=0;
+	if(n=c_due(a)) return(n);
 	if(f__curunit->uwrt != 1 && f__nowwriting(f__curunit))
 		err(a->cierr,errno,"write start");
 	return(0);
@@ -54,7 +55,7 @@ integer e_rdue(Void)
 {
 	if(f__curunit->url==1 || f__recpos==f__curunit->url)
 		return(0);
-	(void) fseek(f__cf,(long)(f__curunit->url-f__recpos),SEEK_CUR);
+	fseek(f__cf,(long)(f__curunit->url-f__recpos),SEEK_CUR);
 	if(ftell(f__cf)%f__curunit->url)
 		err(f__elist->cierr,200,"syserr");
 	return(0);

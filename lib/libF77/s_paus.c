@@ -12,7 +12,7 @@
 #undef min
 #undef max
 #include "stdlib.h"
-#include "signal.h"
+#include "signal1.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -74,7 +74,7 @@ s_paus(char *s, ftnlen n)
 		fprintf(stderr,
 		"To resume execution, execute a   kill -%d %d   command\n",
 			PAUSESIG, getpid() );
-		signal(PAUSESIG, waitpause);
+		signal1(PAUSESIG, waitpause);
 		fflush(stderr);
 		pause();
 #endif

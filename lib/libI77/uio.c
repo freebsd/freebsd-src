@@ -3,9 +3,9 @@
 uiolen f__reclen;
 
 #ifdef KR_headers
-int do_us(number,ptr,len) ftnint *number; char *ptr; ftnlen len;
+do_us(number,ptr,len) ftnint *number; char *ptr; ftnlen len;
 #else
-int do_us(ftnint *number, char *ptr, ftnlen len)
+do_us(ftnint *number, char *ptr, ftnlen len)
 #endif
 {
 	if(f__reading)
@@ -23,7 +23,6 @@ int do_us(ftnint *number, char *ptr, ftnlen len)
 		(void) fwrite(ptr,(int)len,(int)(*number),f__cf);
 		return(0);
 	}
-	return (0);
 }
 #ifdef KR_headers
 integer do_ud(number,ptr,len) ftnint *number; char *ptr; ftnlen len;

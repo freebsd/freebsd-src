@@ -150,7 +150,7 @@ extern integer s_wsni(icilist *);
 extern integer s_wsue(cilist *);
 extern void sig_die(char *, int);
 extern integer signal_(integer *, void (*)(int));
-extern int system_(char *, ftnlen);
+extern integer system_(char *, ftnlen);
 extern double z_abs(doublecomplex *);
 extern void z_cos(doublecomplex *, doublecomplex *);
 extern void z_div(doublecomplex *, doublecomplex *, doublecomplex *);
