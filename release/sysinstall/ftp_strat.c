@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.7.2.45 1996/05/24 06:08:37 jkh Exp $
+ * $Id: ftp_strat.c,v 1.7.2.46 1996/06/17 09:04:50 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -110,18 +110,12 @@ mediaInitFTP(Device *dev)
     int i, retries;
     char *cp, *rel, *hostname, *dir;
     char *user, *login_name, password[80];
-    Device *netDevice = (Device *)dev->private;
 
     if (ftpInitted)
 	return TRUE;
 
     if (isDebug())
-	msgDebug("Init routine for FTP called.  Net device is %x\n", netDevice);
-    if (!netDevice->init(netDevice)) {
-	if (isDebug())
-	    msgDebug("InitFTP: Net device init returns FALSE\n");
-	return FALSE;
-    }
+	msgDebug("Init routine for FTP called.\n");
 
     if (!ftp && (ftp = FtpInit()) == NULL) {
 	msgConfirm("FTP initialisation failed!");
@@ -143,12 +137,11 @@ mediaInitFTP(Device *dev)
 	login_name = user;
 	strcpy(password, variable_get(VAR_FTP_PASS) ? variable_get(VAR_FTP_PASS) : login_name);
     }
-    retries = 0;
     hostname = variable_get(VAR_FTP_HOST);
     dir = variable_get(VAR_FTP_DIR);
     if (!hostname || !dir)
 	msgFatal("Missing FTP host or directory specification - something's wrong!");
-
+    retries = 0;
 retry:
     msgNotify("Logging in as %s..", login_name);
     if (FtpOpen(ftp, hostname, login_name, password) != 0) {

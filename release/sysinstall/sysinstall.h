@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.42.2.56 1996/06/14 18:35:13 jkh Exp $
+ * $Id: sysinstall.h,v 1.42.2.57 1996/06/17 09:04:59 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -95,6 +95,7 @@
 #define VAR_FTP_ONERROR			"ftpOnError"
 #define VAR_FTP_PASS			"ftpPass"
 #define VAR_FTP_PATH			"ftp"
+#define VAR_FTP_PORT			"ftpPort"
 #define VAR_FTP_RETRIES			"ftpRetryCount"
 #define VAR_FTP_STATE			"ftpState"
 #define VAR_FTP_USER			"ftpUser"
@@ -520,6 +521,7 @@ extern Boolean	mediaVerify(void);
 extern Boolean	file_readable(char *fname);
 extern Boolean	file_executable(char *fname);
 extern Boolean	directory_exists(const char *dirname);
+extern char	*itoa(int value);
 extern char	*string_concat(char *p1, char *p2);
 extern char	*string_concat3(char *p1, char *p2, char *p3);
 extern char	*string_prune(char *str);
