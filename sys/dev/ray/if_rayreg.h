@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_rayreg.h,v 1.2 2000/02/20 14:56:17 dmlb Exp $
+ * $Id: if_rayreg.h,v 1.5 2000/03/05 22:04:09 dmlb Exp $
  *
  */
 
@@ -248,6 +248,21 @@ struct ray_ecf_startup_v5 {
 #define	RAY_ECMD_ROAM_START		0x82	/* romaining started */
 #define	RAY_ECMD_JAPAN_CALL_SIGNAL	0x83	/* japan test thing */
 
+
+/*
+ * Configure/status/control memory
+ */
+struct ray_csc {
+    u_int8_t	csc_mrxo_own;		/* 0 ECF writes, 1 host write */
+    u_int8_t	csc_mrxc_own;		/* 0 ECF writes, 1 host write */
+    u_int8_t	csc_rxhc_own;		/* 0 ECF writes, 1 host write */
+    u_int8_t	csc_resv;
+    u_int16_t	csc_mrx_overflow;	/* ECF incs on rx overflow */
+    u_int16_t	csc_mrx_cksum;		/* ECF incs on cksum error */
+    u_int16_t	csc_rx_hcksum;		/* ECF incs on header cksum error */
+    u_int8_t	csc_rx_noise;		/* average RSL measuremant */
+};
+
 /*
  * CCS area
  */
@@ -340,11 +355,8 @@ struct ray_cmd_net {
     u_int8_t	c_def_txrate;
     u_int8_t	c_encrypt;
 };
-
-/*
- * Parameters passed in HOST_TO_ECF section when c_upd_param is set in
- * ray_cmd_net.
- */
+/* Parameters passed in HOST_TO_ECF section when c_upd_param is set in
+ * ray_cmd_net. */
 struct ray_net_params {
     u_int8_t	p_net_type;
     u_int8_t	p_ssid[32];
@@ -374,7 +386,6 @@ struct ray_cmd_tx {
     u_int8_t	c_nretry;
     u_int8_t	c_antenna;
 };
-
 struct ray_cmd_tx_4 {
     u_int8_t	c_status;		/* ccs generic header */
     u_int8_t	c_cmd;			/* " */
