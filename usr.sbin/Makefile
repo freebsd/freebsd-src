@@ -25,6 +25,8 @@ SUBDIR=	IPXrouted \
 	fdcontrol \
 	fdformat \
 	fdwrite \
+	gifconfig \
+	ifmcstat \
 	inetd \
 	iostat \
 	ipftest \
@@ -45,6 +47,7 @@ SUBDIR=	IPXrouted \
 	mrouted \
 	mtest \
 	mtree \
+	ndp \
 	newsyslog \
 	ngctl \
 	ntp \
@@ -59,6 +62,7 @@ SUBDIR=	IPXrouted \
 	pppctl \
 	pppd \
 	pppstats \
+	prefix \
 	procctl \
 	pstat \
 	pw \
@@ -67,7 +71,9 @@ SUBDIR=	IPXrouted \
 	quotaon \
 	rarpd \
 	repquota \
+	rip6query \
 	rmt \
+	route6d \
 	rpc.lockd \
 	rpc.statd \
 	rpc.umntall \
@@ -75,6 +81,7 @@ SUBDIR=	IPXrouted \
 	rpc.ypupdated \
 	rpc.ypxfrd \
 	rtprio \
+	rtsold \
 	rwhod \
 	sa \
 	sliplogin \
@@ -86,6 +93,7 @@ SUBDIR=	IPXrouted \
 	tcpdump \
 	timed \
 	traceroute \
+	traceroute6 \
 	trpt \
 	tzsetup \
 	usbd \
