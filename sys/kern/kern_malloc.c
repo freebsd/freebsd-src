@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.32 1997/10/10 18:14:22 phk Exp $
+ * $Id: kern_malloc.c,v 1.33 1997/10/11 10:41:44 peter Exp $
  */
 
 #include <sys/param.h>
@@ -403,9 +403,6 @@ malloc_init(type)
 {
 	int npg;
 
-#if 0
-	printf("%p [%s]", type, type->ks_shortdesc);
-#endif
 	/*
 	 * Limit maximum memory for each type to 60% of malloc area size or
 	 * 60% of physical memory, whichever is smaller.
