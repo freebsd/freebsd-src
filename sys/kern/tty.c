@@ -38,7 +38,7 @@ static volatile int ttyverbose = 0;
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.101 1998/03/07 15:36:21 bde Exp $
+ * $Id: tty.c,v 1.102 1998/03/30 09:50:54 phk Exp $
  */
 
 /*-
@@ -1539,9 +1539,9 @@ loop:
 		 * of the target, so we round up.
 		 * The formula is ceiling(slp * hz/1000000).
 		 * 32-bit arithmetic is enough for hz < 169.
-		 * XXX see hzto() for how to avoid overflow if hz
+		 * XXX see tvtohz() for how to avoid overflow if hz
 		 * is large (divide by `tick' and/or arrange to
-		 * use hzto() if hz is large).
+		 * use tvtohz() if hz is large).
 		 */
 		slp = (long) (((u_long)slp * hz) + 999999) / 1000000;
 		goto sleep;
