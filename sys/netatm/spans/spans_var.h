@@ -254,6 +254,10 @@ extern struct sp_info		spans_vcpool;
 extern struct sp_info		spans_msgpool;
 extern struct t_atm_cause	spans_cause;
 
+#ifdef SYSCTL_DECL
+SYSCTL_DECL(_net_harp_spans);
+#endif
+
 #endif	/* ATM_KERNEL */
 
 #endif	/* _SPANS_SPANS_VAR_H */

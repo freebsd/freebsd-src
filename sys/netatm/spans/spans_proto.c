@@ -35,6 +35,10 @@
  *
  */
 
+#include <sys/param.h>
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
+
 #include <netatm/kern_include.h>
 
 #include "spans_xdr.h"
@@ -169,6 +173,7 @@ struct t_atm_cause spans_cause = {
 	{ 0, 0, 0, 0 }			/* diagnostics */
 };
 
+SYSCTL_NODE(_net_harp, OID_AUTO, spans, CTLFLAG_RW, 0, "spans");
 
 /*
  * Process a SPANS timeout
