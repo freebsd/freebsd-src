@@ -960,7 +960,7 @@ pcic_reset(void *chan)
 			printf("int is %x stat is %x\n",
 			    sp->getb(sp, PCIC_INT_GEN),
 			    sp->getb(sp, PCIC_STATUS));
-		if (!sp->getb(sp, PCIC_STATUS) & PCIC_READY) {
+		if ((sp->getb(sp, PCIC_STATUS) & PCIC_READY) == 0) {
 			timeout(pcic_reset, (void *)slt, hz/10);
 			return;
 		}
