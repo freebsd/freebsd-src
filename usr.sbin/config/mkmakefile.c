@@ -346,7 +346,7 @@ nextparam:
 		next_quoted_word(fp, wd);
 		if (wd == 0) {
 			printf("%s: %s missing compile command string.\n",
-			       fname);
+			       fname, this);
 			exit(1);
 		}
 		depends = ns(wd);
@@ -356,7 +356,7 @@ nextparam:
 		next_quoted_word(fp, wd);
 		if (wd == 0) {
 			printf("%s: %s missing clean file list.\n",
-			       fname);
+			       fname, this);
 			exit(1);
 		}
 		clean = ns(wd);
@@ -366,7 +366,7 @@ nextparam:
 		next_quoted_word(fp, wd);
 		if (wd == 0) {
 			printf("%s: %s missing compile command string.\n",
-			       fname);
+			       fname, this);
 			exit(1);
 		}
 		special = ns(wd);
