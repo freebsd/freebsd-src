@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.upgrade,v 1.9 1999/01/07 07:20:41 peter Exp $
+#	$Id: Makefile.upgrade,v 1.9.2.1 1999/01/25 01:50:17 peter Exp $
 #
 # This makefile contains rules for preforming upgrades that are outside
 # the scope of the normal build world process.
@@ -292,7 +292,7 @@ ${MAKEOBJDIRPREFIX}/do_install_kernel_reboot	:
 	@echo " Installing a new GENERICupgrade kernel"
 	@echo "--------------------------------------------------------------"
 	@cd ${.CURDIR}/sys/compile/GENERICupgrade; \
-		OBJFORMAT=aout make KERNFORMAT=aout depend
+		OBJFORMAT=aout make KERNFORMAT=aout install
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Rebooting......."
