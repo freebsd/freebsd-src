@@ -111,5 +111,5 @@ mtx_pool_unlock(void *ptr)
     mtx_unlock(_mtx_pool_find(ptr));
 }
 
-SYSINIT(mtxpooli, SI_SUB_MUTEX, SI_ORDER_FIRST, mtx_pool_setup, NULL)   
+SYSINIT(mtxpooli, SI_SUB_MTX_POOL, SI_ORDER_FIRST, mtx_pool_setup, NULL)   
 
