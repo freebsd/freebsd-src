@@ -215,6 +215,12 @@ ttyminor()
 	echo $m
 }
 
+# Convert a unit number to a minor number.
+unit2minor()
+{
+  echo $(((($1 >> 8) << 16) | ($1 % 256)))
+}
+
 # Raw partition for disks
 dkrawpart=2
 
@@ -623,7 +629,7 @@ pt[0-9]*)
 		unit=0
 	fi
 	unit=`expr $unit + 1 - 1`
-	mknod ${name}${unit} c $chr $unit
+	mknod ${name}${unit} c $chr `unit2minor $unit`
 	;;
 
 # SCSI SES/SAF-TE type driver
@@ -635,7 +641,7 @@ ses[0-9]*)
 		unit=0
 	fi
 	unit=`expr $unit + 1 - 1`
-	mknod ${name}${unit} c $chr $unit
+	mknod ${name}${unit} c $chr `unit2minor $unit`
 	;;
 # SCSI target mode sample driver
 targ[0-9]*)
@@ -646,7 +652,7 @@ targ[0-9]*)
 		unit=0
 	fi
 	unit=`expr $unit + 1 - 1`
-	mknod ${name}${unit} c $chr $unit
+	mknod ${name}${unit} c $chr `unit2minor $unit`
 	mknod ${name}.ctl c $chr 0xffff00ff
 	;;
 
@@ -663,7 +669,7 @@ xpt*)
 	while [ $i -lt $units ]; do
 		dname=$name$i
 		rm -rf $dname r$dname
-		mknod $dname c $chr $i root:operator
+		mknod $dname c $chr `unit2minor $i` root:operator
 		i=$(($i + 1))
 	done	
 	;;
@@ -681,7 +687,7 @@ pass*)
 	while [ $i -lt $units ]; do
 		dname=$name$i
 		rm -rf $dname r$dname
-		mknod $dname c $chr $i root:operator
+		mknod $dname c $chr `unit2minor $i` root:operator
 		i=$(($i + 1))
 	done	
 	;;
@@ -892,27 +898,27 @@ wst*)
 
 iic*)
 	unit=`expr $i : 'iic\(.*\)'`
-	mknod iic$unit c 105 $unit
+	mknod iic$unit c 105 `unit2minor $unit`
 	;;
 
 smb*)
 	unit=`expr $i : 'smb\(.*\)'`
-	mknod smb$unit c 106 $unit
+	mknod smb$unit c 106 `unit2minor $unit`
 	;;
 
 pcfclock*)
 	unit=`expr $i : 'pcfclock\(.*\)'`
-	mknod pcfclock$unit c 140 $unit
+	mknod pcfclock$unit c 140 `unit2minor $unit`
 	;;
 
 ppi*)
 	unit=`expr $i : 'ppi\(.*\)'`
-	mknod ppi$unit c 82 $unit
+	mknod ppi$unit c 82 `unit2minor $unit`
 	;;
 
 pps*)
 	unit=`expr $i : 'pps\(.*\)'`
-	mknod pps$unit c 89 $unit
+	mknod pps$unit c 89 `unit2minor $unit`
 	;;
 
 usb)
@@ -922,25 +928,25 @@ usb)
 
 usb*)
 	unit=`expr $i : 'usb\(.*\)'`
-	mknod usb$unit c 108 $unit root:operator
+	mknod usb$unit c 108 `unit2minor $unit` root:operator
 	chmod 0660 usb$unit
 	;;
 
 uhid*)
 	unit=`expr $i : 'uhid\(.*\)'`
-	mknod uhid$unit c 122 $unit
+	mknod uhid$unit c 122 `unit2minor $unit`
 	;;
 
 ums*)
 	unit=`expr $i : 'ums\(.*\)'`
-	mknod ums$unit c 111 $unit
+	mknod ums$unit c 111 `unit2minor $unit`
 	;;
 
 ulpt*)
 	unit=`expr $i : 'ulpt\(.*\)'`
-	minor=$unit
+	minor=`unit2minor $unit`
 	mknod ulpt$unit c 113 $minor
-	minor=`expr $unit + 64`
+	minor=`unit2minor \`expr $unit + 64\``
 	mknod unlpt$unit c 113 $minor		# and the 'no prime' version
 	;;
 
@@ -951,38 +957,39 @@ ugen*)
 		echo $i - Invalid unit number
 	fi
 	if [ -z "${endpoint}" ]; then		# ugen0 & ugen0.1 - ugen0.15
-		mknod ugen$unit c 114 $(($unit * 16))
+		mknod ugen$unit c 114 `unit2minor $(($unit * 16))`
 		i=1
 		while [ $i -lt 16 ]; do
-			mknod ugen$unit.$i c 114 $(($unit * 16 + $i))
+			mknod ugen$unit.$i c 114 \
+				`unit2minor $(($unit * 16 + $i))`
 			i=$(($i + 1))
 		done
 	else
-		minor=$(($unit * 16 + $endpoint))
+		minor=`minor2unit $(($unit * 16 + $endpoint))`
 		mknod ugen$unit.$endpoint c 114 $minor
 	fi
 	;;
 
 urio*)
 	unit=`expr $i : 'urio\(.*\)'`
-	mknod urio$unit c 143 $unit
+	mknod urio$unit c 143 `minor2unit $unit`
 	;;
 
 usio*)
 	unit=`expr $i : 'usio\(.*\)'`
-	minor=$(($minor + 128))
+	minor=`unit2minor $(($unit + 128))`
 	mknod usio$unit c 138 $minor
 	;;
 
 lpt*)
 	unit=`expr $i : 'lpt\(.*\)'`
-	mknod lpt$unit c 16 $unit
-	mknod lpctl$unit c 16 `expr $unit + 128`
+	mknod lpt$unit c 16 `unit2minor $unit`
+	mknod lpctl$unit c 16 `unit2minor \`expr $unit + 128\``
 	;;
 
 tw*)
 	unit=`expr $i : 'tw\(.*\)'`
-	mknod tw$unit c 19 $unit root:operator
+	mknod tw$unit c 19 `unit2minor $unit` root:operator
 	;;
 
 # Use this to create virtual consoles for syscons, pcvt or codrv
@@ -993,7 +1000,7 @@ vty*)
 	units=`expr $i : 'vty\(.*\)'`
 	i=0
 	while [ $i -lt $units ]; do
-		mknod ttyv$(printf %01x $i) c $chr $i
+		mknod ttyv$(printf %01x $i) c $chr `unit2minor $i`
 		i=$(($i + 1))
 	done
 	ln -fs ttyv0 vga	# XXX X still needs this pccons relic
@@ -1003,7 +1010,7 @@ bpf*)
 	nbpf=`expr $i : 'bpf\(.*\)$'`
 	unit=0
 	while [ $unit -le $nbpf ]; do
-		mknod bpf$unit c 23 $unit
+		mknod bpf$unit c 23 `unit2minor $unit`
 		unit=$(($unit + 1))
 	done
 	;;
@@ -1296,13 +1303,15 @@ cuaR?)
 mse*)
 	unit=`expr $i : 'mse\(.*\)'`
 	chr=27
-	mknod mse$unit c $chr `expr $unit '*' 2 + 1`	# non-blocking for X11
+	# non-blocking for X11
+	mknod mse$unit c $chr `unit2minor \`expr $unit '*' 2 + 1\``
 	;;
 
 psm*)
 	unit=`expr $i : 'psm\(.*\)'`
 	chr=21
-	mknod psm$unit c $chr `expr $unit '*' 2 + 1`	# non-blocking for X11
+	# non-blocking for X11
+	mknod psm$unit c $chr `unit2minor \`expr $unit '*' 2 + 1\``
 	;;
 
 mouse*)
@@ -1349,16 +1358,16 @@ snd*)
 	ln -fs music$unit music
 	ln -fs pss$unit pss
 
-	mknod mixer$unit	c $chr `expr $unit '*' 16 + 0`
-	mknod sequencer$unit	c $chr `expr $unit '*' 16 + 1`
-	mknod midi$unit		c $chr `expr $unit '*' 16 + 2`
-	mknod dsp$unit		c $chr `expr $unit '*' 16 + 3`
-	mknod audio$unit	c $chr `expr $unit '*' 16 + 4`
-	mknod dspW$unit		c $chr `expr $unit '*' 16 + 5`
+	mknod mixer$unit	c $chr `unit2minor \`expr $unit '*' 16 + 0\``
+	mknod sequencer$unit	c $chr `unit2minor \`expr $unit '*' 16 + 1\``
+	mknod midi$unit		c $chr `unit2minor \`expr $unit '*' 16 + 2\``
+	mknod dsp$unit		c $chr `unit2minor \`expr $unit '*' 16 + 3\``
+	mknod audio$unit	c $chr `unit2minor \`expr $unit '*' 16 + 4\``
+	mknod dspW$unit		c $chr `unit2minor \`expr $unit '*' 16 + 5\``
 	mknod sndstat		c $chr 6
 				# minor number 7 is unused
-	mknod music$unit	c $chr `expr $unit '*' 16 + 8`
-	mknod pss$unit		c $chr `expr $unit '*' 16 + 9`
+	mknod music$unit	c $chr `unit2minor \`expr $unit '*' 16 + 8\``
+	mknod pss$unit		c $chr `unit2minor \`expr $unit '*' 16 + 9\``
 				# minor number 10 is unused
 	mknod midistat		c $chr 11
 				# minor numbers 12-15 are unused
@@ -1372,10 +1381,10 @@ vat)
 
 gsc*)
 	unit=`expr $i : 'gsc\(.*\)'`
-	mknod gsc${unit} c 47 $unit
-	mknod gsc${unit}p c 47 $(($unit + 8))
-	mknod gsc${unit}d c 47 $(($unit + 32))
-	mknod gsc${unit}pd c 47 $(($unit + 40))
+	mknod gsc${unit} c 47 `unit2minor $unit`
+	mknod gsc${unit}p c 47 `unit2minor $(($unit + 8))`
+	mknod gsc${unit}d c 47 `unit2minor $(($unit + 32))`
+	mknod gsc${unit}pd c 47 `unit2minor $(($unit + 40))`
 	chmod 666 gsc${unit}*
 	;;
 
@@ -1392,7 +1401,7 @@ apmctl)
 card*)
 	unit=`expr $i : 'card\(.*\)'`
 	chr=50
-	mknod card$unit c $chr $unit
+	mknod card$unit c $chr `unit2minor $unit`
 	chmod 644 card$unit
 	;;
 
@@ -1427,21 +1436,21 @@ spigot)
 
 ctx?)
 	unit=`expr $i : 'ctx\(.*\)'`
-	mknod ctx$unit c 40 $unit
+	mknod ctx$unit c 40 `unit2minor $unit`
 	chmod 444 ctx$unit
 	;;
 
 meteor?)
 	unit=`expr $i : 'meteor\(.*\)'`
-	mknod meteor$unit c 67 $unit
+	mknod meteor$unit c 67 `unit2minor $unit`
 	chmod 444 meteor$unit
 	;;
 
 bktr?)
 	unit=`expr $i : 'bktr\(.*\)'`
-	mknod bktr$unit c 92 $unit
-	mknod tuner$unit c 92 $((16 + $unit ))
-	mknod vbi$unit c 92 $((32 + $unit ))
+	mknod bktr$unit c 92 `unit2minor $unit`
+	mknod tuner$unit c 92 `unit2minor $((16 + $unit ))`
+	mknod vbi$unit c 92 `unit2minor $((32 + $unit ))`
 	chmod 444 bktr$unit tuner$unit vbi$unit
 	;;
 
@@ -1449,7 +1458,7 @@ tun*)
 	ntun=`expr $i : 'tun\(.*\)$'`
 	unit=0
 	while [ $unit -le $ntun ]; do
-		mknod tun$unit c 52 $unit uucp:dialer
+		mknod tun$unit c 52 `unit2minor $unit` uucp:dialer
 		unit=$(($unit + 1))
 	done
 	;;
@@ -1458,7 +1467,7 @@ tap*)
 	ntap=`expr $i : 'tap\(.*\)$'`
 	unit=0
 	while [ $unit -le $ntap ]; do
-		mknod tap$unit c 149 $unit root:network
+		mknod tap$unit c 149 `unit2minor $unit` root:network
 		unit=$(($unit + 1))
 	done
 	;;
@@ -1470,7 +1479,7 @@ sysmouse)
 
 snp?)
 	unit=`expr $i : 'snp\(.*\)'`
-	mknod snp$unit c 53 $unit
+	mknod snp$unit c 53 `unit2minor $unit`
 	;;
 
 # dufault@hda.com: If I do much more work on other A-D boards
@@ -1533,7 +1542,7 @@ ipl)
 kbd*)
 	unit=`expr $i : 'kbd\(.*\)'`
 	chr=112
-	mknod kbd$unit c $chr $unit
+	mknod kbd$unit c $chr `unit2minor $unit`
 	;;
 
 i4b)
@@ -1546,33 +1555,33 @@ i4bctl)
 
 i4brbch*)
 	unit=`expr $i : 'i4brbch\(.*\)'`
-	mknod i4brbch$unit c 57 $unit
+	mknod i4brbch$unit c 57 `unit2minor $unit`
 	;;
 
 i4bteld*)
 	offset=64
 	unit=`expr $i : 'i4bteld\(.*\)'`
-	mknod i4bteld$unit c 56 `expr $offset + $unit `
+	mknod i4bteld$unit c 56 `unit2minor \`expr $offset + $unit\``
 	;;
 
 i4btel*)
 	unit=`expr $i : 'i4btel\(.*\)'`
-	mknod i4btel$unit c 56 $unit
+	mknod i4btel$unit c 56 `unit2minor $unit`
 	;;
 
 i4btrc*)
 	unit=`expr $i : 'i4btrc\(.*\)'`
-	mknod i4btrc$unit c 59 $unit
+	mknod i4btrc$unit c 59 `unit2minor $unit`
 	;;
 
 mlx*)
 	unit=`expr $i : 'mlx\(.*\)'`
-	mknod mlx$unit c 130 $unit
+	mknod mlx$unit c 130 `unit2minor $unit`
 	;;
 
 3dfx*)
 	unit=`expr $i : '3dfx\(.*\)'`
-	mknod 3dfx$unit c 107 $unit
+	mknod 3dfx$unit c 107 `unit2minor $unit`
 	ln -sf 3dfx$unit 3dfx
 	;;
 
@@ -1582,7 +1591,7 @@ agpgart)
 
 twe*)
 	unit=`expr $i : 'twe\(.*\)'`
-	mknod twe$unit c 146 $unit
+	mknod twe$unit c 146 `unit2minor $unit`
 	;;
 
 local)
