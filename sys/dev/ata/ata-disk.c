@@ -195,13 +195,30 @@ ad_attach(struct ata_device *atadev, int alreadylocked)
     }
 
     if (ata_suspend > 0) {
-         /* 
-	  * Attempt suspend mode. The drive uses increments of ten seconds.
-	  * For the parameters, see ata-all.c and 8.42.4 p. 210 of the 
-	  * ATAPI-5 interface spec at http://www.t13.org.
-	  */  
-         if (ata_command(atadev, ATA_C_STANDBY,
-                     0, ata_suspend / 10, 0, ATA_WAIT_INTR))
+        /* 
+	 * Attempt to set the standby timer.
+	 * The parameters are documented in sections 8.42.4 p. 210 and
+	 * 8.14.4 (table 23) p. 118 of the ATAPI-5 interface spec 
+	 * http://www.t13.org.
+	 */  
+	int value = ata_suspend;
+	if (atadev->param->stdby_ovlap) {
+	    /* 
+	     * The device supports the standard values.
+	     * Scale the seconds in value appropriately.
+	     */
+	    if (value <= 1200)
+		/* Values 1-240 specify 5 second increments. */
+		value /= 5;
+	    else if (value <= 18000)
+		/* Values 241-251 specify 30 minute increments. */
+		value = (value / 60 / 30) + 241;
+	    else
+		/* A period between 8 and 12 hours. */
+		value = 253;
+	} else
+		ata_prtdev(atadev, "timer value is vendor-specific\n");
+        if (ata_command(atadev, ATA_C_STANDBY, 0, value, 0, ATA_WAIT_INTR))
 	    ata_prtdev(atadev, "suspend mode failed\n");
     }
   
