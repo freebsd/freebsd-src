@@ -1050,6 +1050,10 @@ mdcreate_swap(struct md_ioctl *mdio, struct thread *td)
 	sc->secsize = DEV_BSIZE;
 	sc->npage = mdio->md_size / (PAGE_SIZE / DEV_BSIZE);
 	sc->nsect = sc->npage * (PAGE_SIZE / DEV_BSIZE);
+	if (mdio->md_fwsectors != 0)
+		sc->fwsectors = mdio->md_fwsectors;
+	if (mdio->md_fwheads != 0)
+		sc->fwheads = mdio->md_fwheads;
 	sc->object = vm_pager_allocate(OBJT_SWAP, NULL, PAGE_SIZE * 
 	    (vm_offset_t)sc->npage, VM_PROT_DEFAULT, 0);
 	sc->flags = mdio->md_options & MD_FORCE;
