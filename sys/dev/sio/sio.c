@@ -74,6 +74,7 @@
 
 #include <isa/isavar.h>
 
+#include <machine/limits.h>
 #include <machine/resource.h>
 
 #include <dev/sio/sioreg.h>
