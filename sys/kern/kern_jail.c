@@ -43,6 +43,8 @@ jail(p, uap)
 	error = copyin(uap->jail, &j, sizeof j);
 	if (error)
 		return (error);
+	if (j.version != 0)
+		return (EINVAL);
 	MALLOC(pr, struct prison *, sizeof *pr , M_PRISON, M_WAITOK);
 	bzero((caddr_t)pr, sizeof *pr);
 	error = copyinstr(j.hostname, &pr->pr_host, sizeof pr->pr_host, 0);
