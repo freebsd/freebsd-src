@@ -25,7 +25,7 @@ LDADD=		-L${KRB5OBJDIR} -lkrb5 -L${ROKENOBJDIR} -lroken \
 		-L${ASN1OBJDIR} -lasn1 -lcrypto -lmd -lcrypt -lcom_err
 DPADD=		${LIBKRB5} ${LIBROKEN} ${_krb4deps} \
 		${LIBASN1} ${LIBCRYPTO} ${LIBMD} ${LIBCRYPT} ${LIBCOM_ERR}
-MAN8=		kpasswdd.8
+MAN=		kpasswdd.8
 
 .include <bsd.prog.mk>
 
