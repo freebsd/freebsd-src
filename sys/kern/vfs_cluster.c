@@ -101,8 +101,6 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 	long origtotread;
 
 	error = 0;
-	if (vp->v_maxio == 0)
-		vp->v_maxio = DFLTPHYS;
 
 	/*
 	 * Try to limit the amount of read-ahead by a few
@@ -361,8 +359,6 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 	bp->b_bufsize = 0;
 	bp->b_npages = 0;
 
-	if (vp->v_maxio == 0)
-		vp->v_maxio = DFLTPHYS;
 	inc = btodb(size);
 	for (bn = blkno, i = 0; i < run; ++i, bn += inc) {
 		if (i != 0) {
@@ -544,8 +540,6 @@ cluster_write(bp, filesize)
 	int async;
 
 	vp = bp->b_vp;
-	if (vp->v_maxio == 0)
-		vp->v_maxio = DFLTPHYS;
 	if (vp->v_type == VREG) {
 		async = vp->v_mount->mnt_flag & MNT_ASYNC;
 		lblocksize = vp->v_mount->mnt_stat.f_iosize;
@@ -671,8 +665,6 @@ cluster_wbuild(vp, size, start_lbn, len)
 	int totalwritten = 0;
 	int dbsize = btodb(size);
 
-	if (vp->v_maxio == 0)
-		vp->v_maxio = DFLTPHYS;
 	while (len > 0) {
 		s = splbio();
 		if (((tbp = gbincore(vp, start_lbn)) == NULL) ||

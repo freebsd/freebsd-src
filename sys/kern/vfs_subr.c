@@ -573,7 +573,6 @@ getnewvnode(tag, mp, vops, vpp)
 		vp->v_clen = 0;
 		vp->v_socket = 0;
 		vp->v_writecount = 0;	/* XXX */
-		vp->v_maxio = 0;
 	} else {
 		simple_unlock(&vnode_free_list_slock);
 		vp = (struct vnode *) zalloc(vnode_zone);
@@ -595,6 +594,7 @@ getnewvnode(tag, mp, vops, vpp)
 	*vpp = vp;
 	vp->v_usecount = 1;
 	vp->v_data = 0;
+	vp->v_maxio = DFLTPHYS;
 	splx(s);
 
 	vfs_object_create(vp, p, p->p_ucred);
