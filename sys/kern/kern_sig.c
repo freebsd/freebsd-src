@@ -174,16 +174,10 @@ static int sigproptbl[NSIG] = {
 int
 CURSIG(struct proc *p)
 {
-	sigset_t tmpset;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	if (SIGISEMPTY(p->p_siglist))
-		return (0);
-	tmpset = p->p_siglist;
-	SIGSETNAND(tmpset, p->p_sigmask);
-	if (SIGISEMPTY(tmpset) && (p->p_flag & P_TRACED) == 0)
-		return (0);
-	return (issignal(p));
+	mtx_assert(&sched_lock, MA_NOTOWNED);
+	return (SIGPENDING(p) ? issignal(p) : 0);
 }
 
 static __inline int
