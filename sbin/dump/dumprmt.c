@@ -219,7 +219,7 @@ rmtopen(tape, mode)
 {
 	char buf[256];
 
-	(void)sprintf(buf, "O%s\n%d\n", tape, mode);
+	(void)snprintf(buf, sizeof (buf), "O%.226s\n%d\n", tape, mode);
 	rmtstate = TS_OPEN;
 	return (rmtcall(tape, buf));
 }
@@ -243,7 +243,7 @@ rmtread(buf, count)
 	int n, i, cc;
 	extern errno;
 
-	(void)sprintf(line, "R%d\n", count);
+	(void)snprintf(line, sizeof (line), "R%d\n", count);
 	n = rmtcall("read", line);
 	if (n < 0) {
 		errno = n;
@@ -265,7 +265,7 @@ rmtwrite(buf, count)
 {
 	char line[30];
 
-	(void)sprintf(line, "W%d\n", count);
+	(void)snprintf(line, sizeof (line), "W%d\n", count);
 	write(rmtape, line, strlen(line));
 	write(rmtape, buf, count);
 	return (rmtreply("write"));
@@ -277,7 +277,7 @@ rmtwrite0(count)
 {
 	char line[30];
 
-	(void)sprintf(line, "W%d\n", count);
+	(void)snprintf(line, sizeof (line), "W%d\n", count);
 	write(rmtape, line, strlen(line));
 }
 
@@ -303,7 +303,7 @@ rmtseek(offset, pos)
 {
 	char line[80];
 
-	(void)sprintf(line, "L%d\n%d\n", offset, pos);
+	(void)snprintf(line, sizeof (line), "L%d\n%d\n", offset, pos);
 	return (rmtcall("seek", line));
 }
 
@@ -331,7 +331,7 @@ rmtioctl(cmd, count)
 
 	if (count < 0)
 		return (-1);
-	(void)sprintf(buf, "I%d\n%d\n", cmd, count);
+	(void)snprintf(buf, sizeof (buf), "I%d\n%d\n", cmd, count);
 	return (rmtcall("ioctl", buf));
 }
 
