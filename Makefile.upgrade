@@ -57,7 +57,7 @@ aout-to-elf aout-to-elf-install :	/var/db/update.cfg	\
 # front-load all the information we're going to need.
 /var/db/update.cfg:
 	@if [ -f ${.CURDIR}/tools/tools/upgrade/doupgrade.sh ]; then \
-	    env MACHINE=${MACHINE} CURDIR=${.CURDIR} sh ${.CURDIR}/tools/tools/upgrade/doupgrade.sh 1 /var/db/update.cfg; \
+	    MACHINE=${MACHINE} CURDIR=${.CURDIR} sh ${.CURDIR}/tools/tools/upgrade/doupgrade.sh 1 /var/db/update.cfg; \
 	else \
 	    echo "Your source tree must not be fully populated; unable to find upgrade script"; echo "in ${.CURDIR}/tools/tools/upgrade/doupgrade.sh."; exit 1; \
 	fi
@@ -187,7 +187,7 @@ ${MAKEOBJDIRPREFIX}/do_aout_installworld :
 #
 ${MAKEOBJDIRPREFIX}/do_elf_kernel :
 	@if [ -f /var/db/update.cfg -a -f ${.CURDIR}/tools/tools/upgrade/doupgrade.sh ]; then \
-	     env MACHINE=${MACHINE} CURDIR=${.CURDIR} sh ${.CURDIR}/tools/tools/upgrade/doupgrade.sh 2 /var/db/update.cfg; \
+	     MACHINE=${MACHINE} CURDIR=${.CURDIR} sh ${.CURDIR}/tools/tools/upgrade/doupgrade.sh 2 /var/db/update.cfg; \
 	fi
 	@touch ${MAKEOBJDIRPREFIX}/do_elf_kernel
 	@rm -f /var/db/update.cfg
