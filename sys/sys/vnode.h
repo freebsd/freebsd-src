@@ -447,6 +447,9 @@ struct vop_generic_args {
  * is a pretty good test.
  */
 
+extern int vfs_badlock_panic;
+extern int vfs_badlock_print;
+
 /*
  * [dfr] Kludge until I get around to fixing all the vfs locking.
  */
@@ -462,8 +465,13 @@ struct vop_generic_args {
 do {									\
 	struct vnode *_vp = (vp);					\
 									\
-	if (_vp && IS_LOCKING_VFS(_vp) && !VOP_ISLOCKED(_vp, NULL))	\
-		panic("%s: %p is not locked but should be", str, _vp);	\
+	if (_vp && IS_LOCKING_VFS(_vp) && !VOP_ISLOCKED(_vp, NULL)) {	\
+		if (vfs_badlock_print)					\
+			printf("%s: %p is not locked but should be",	\
+			    str, _vp);					\
+		if (vfs_badlock_panic)					\
+			Debugger("Lock violation.\n");			\
+	}								\
 } while (0)
 
 #define ASSERT_VOP_UNLOCKED(vp, str)					\
@@ -473,9 +481,13 @@ do {									\
 									\
 	if (_vp && IS_LOCKING_VFS(_vp)) {				\
 		lockstate = VOP_ISLOCKED(_vp, curthread);		\
-		if (lockstate == LK_EXCLUSIVE)				\
-			panic("%s: %p is locked but should not be",	\
-			    str, _vp);					\
+		if (lockstate == LK_EXCLUSIVE) {			\
+			if (vfs_badlock_print)				\
+				printf("%s: %p is locked but should not be",	\
+				    str, _vp);				\
+			if (vfs_badlock_panic)				\
+				Debugger("Lock Violation.\n");		\
+		}							\
 	}								\
 } while (0)
 

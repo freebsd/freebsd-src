@@ -236,6 +236,13 @@ static int vnlru_nowhere;
 SYSCTL_INT(_debug, OID_AUTO, vnlru_nowhere, CTLFLAG_RW, &vnlru_nowhere, 0,
     "Number of times the vnlru process ran without success");
 
+#ifdef DEBUG_VFS_LOCKS
+/* Print lock violations */
+int vfs_badlock_print = 1;
+/* Panic on violation */
+int vfs_badlock_panic = 1;
+#endif
+
 void
 v_addpollinfo(struct vnode *vp)
 {
