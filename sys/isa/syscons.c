@@ -35,15 +35,12 @@
  *
  *	from: @(#)pccons.c	5.11 (Berkeley) 5/21/91
  *	from: @(#)syscons.c	1.1 931021
- *	$Id$
+ *	$Id: syscons.c,v 1.16 1993/10/28 06:15:14 rgrimes Exp $
  *
  * Heavily modified by Søren Schmidt (sos@login.dkuug.dk) to provide:
  *
  * 	virtual consoles, SYSV ioctl's, ANSI emulation ....
  */
-
-#define STAR_SAVER
-#define FAT_CURSOR
 
 #include "param.h"
 #include "conf.h"
@@ -74,7 +71,7 @@
 #if !defined(NetBSD)
 #include "ddb.h"
 #if NDDB > 0
-#define DDB
+#define DDB 1
 #endif
 #endif
 
