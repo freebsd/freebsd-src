@@ -90,11 +90,6 @@ METHOD int attach_card {
 #
 METHOD int detach_card {
 	device_t  dev;
-	int	  flags;
-}
-
-HEADER {
-	#define DETACH_FORCE 0x01
 }
 
 #

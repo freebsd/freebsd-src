@@ -843,11 +843,13 @@ cbb_driver_added(device_t brdev, driver_t *driver)
 			if (devlist[tmp] == NULL)
 				/* NOTHING */;
 			else if (strcmp(driver->name, "cardbus") == 0) {
+				printf("Adding cardbus\n");
 				sc->cbdev = devlist[tmp];
 				if (((sockstate & CBB_SOCKET_STAT_CD) == 0) &&
 				    (sockstate & CBB_SOCKET_STAT_CB))
 					wake++;
 			} else if (strcmp(driver->name, "pccard") == 0) {
+				printf("Adding pccard\n");
 				sc->pccarddev = devlist[tmp];
 				if (((sockstate & CBB_SOCKET_STAT_CD) == 0) &&
 				    (sockstate & CBB_SOCKET_STAT_16BIT))
@@ -991,9 +993,9 @@ static void
 cbb_removal(struct cbb_softc *sc)
 {
 	if (sc->flags & CBB_16BIT_CARD && sc->pccarddev != NULL)
-		CARD_DETACH_CARD(sc->pccarddev, DETACH_FORCE);
+		CARD_DETACH_CARD(sc->cbdev);
 	else if ((!(sc->flags & CBB_16BIT_CARD)) && sc->cbdev != NULL)
-		CARD_DETACH_CARD(sc->cbdev, DETACH_FORCE);
+		CARD_DETACH_CARD(sc->cbdev);
 	cbb_destroy_res(sc);
 }
 
@@ -1872,6 +1874,7 @@ cbb_suspend(device_t self)
 
 	cbb_setb(sc, CBB_SOCKET_MASK, 0);	/* Quiet hardware */
 	bus_teardown_intr(self, sc->irq_res, sc->intrhand);
+	sc->flags &= ~CBB_CARD_OK;		/* Card is bogus now */
 	error = bus_generic_suspend(self);
 	return (error);
 }
@@ -1917,8 +1920,10 @@ cbb_resume(device_t self)
 	/* CSC Interrupt: Card detect interrupt on */
 	cbb_setb(sc, CBB_SOCKET_MASK, CBB_SOCKET_MASK_CD);
 
-	/* Force us to go query the socket state */
-	cbb_setb(sc, CBB_SOCKET_FORCE, CBB_SOCKET_EVENT_CD);
+	/* Signal the thread to wakeup. */
+	mtx_lock(&sc->mtx);
+	cv_signal(&sc->cv);
+	mtx_unlock(&sc->mtx);
 
 	error = bus_generic_resume(self);
 
