@@ -4,7 +4,7 @@
 ## Makefile for OpenSSL
 ##
 
-VERSION=0.9.6d
+VERSION=0.9.6e
 MAJOR=0
 MINOR=9.6
 SHLIB_VERSION_NUMBER=0.9.6
@@ -64,7 +64,7 @@ EX_LIBS=
 EXE_EXT= 
 AR=ar r
 RANLIB= /usr/bin/ranlib
-PERL= /usr/local/bin/perl
+PERL= /usr/local/bin/perl5
 TAR= tar
 TARFLAGS= --no-recursion
 
@@ -422,6 +422,7 @@ do_hpux-shared:
 		-b -z -o lib$$i.sl.${SHLIB_MAJOR}.${SHLIB_MINOR} \
 		+h lib$$i.sl.${SHLIB_MAJOR}.${SHLIB_MINOR} \
 		-Fl lib$$i.a $$libs ${EX_LIBS} -lc ) || exit 1; \
+	chmod a=rx lib$$i.sl.${SHLIB_MAJOR}.${SHLIB_MINOR} ; \
 	libs="$$libs -L. -l$$i"; \
 	done
 
@@ -432,6 +433,7 @@ do_hpux64-shared:
 		-b -z -o lib$$i.sl.${SHLIB_MAJOR}.${SHLIB_MINOR} \
 		+h lib$$i.sl.${SHLIB_MAJOR}.${SHLIB_MINOR} \
 		+forceload lib$$i.a $$libs ${EX_LIBS} -lc ) || exit 1; \
+	chmod a=rx lib$$i.sl.${SHLIB_MAJOR}.${SHLIB_MINOR} ; \
 	libs="$$libs -L. -l$$i"; \
 	done
 
@@ -547,7 +549,7 @@ test:   tests
 
 tests: rehash
 	@(cd test && echo "testing..." && \
-	$(MAKE) CC='${CC}' CFLAG='${CFLAG}' INSTALLTOP='${INSTALLTOP}' PEX_LIBS='${PEX_LIBS}' EX_LIBS='${EX_LIBS}' BN_ASM='${BN_ASM}' DES_ENC='${DES_ENC}' BF_ENC='${BF_ENC}' CAST_ENC='${CAST_ENC}' RC4_ENC='${RC4_ENC}' RC5_ENC='${RC5_ENC}' SDIRS='${SDIRS}' SHA1_ASM_OBJ='${SHA1_ASM_OBJ}' MD5_ASM_OBJ='${MD5_ASM_OBJ}' RMD160_ASM_OBJ='${RMD160_ASM_OBJ}' AR='${AR}' PERL='${PERL}' EXE_EXT='${EXE_EXT}' tests );
+	$(MAKE) CC='${CC}' PLATFORM='${PLATFORM}' CFLAG='${CFLAG}' SDIRS='$(SDIRS)' INSTALLTOP='${INSTALLTOP}' PEX_LIBS='${PEX_LIBS}' EX_LIBS='${EX_LIBS}' BN_ASM='${BN_ASM}' DES_ENC='${DES_ENC}' BF_ENC='${BF_ENC}' CAST_ENC='${CAST_ENC}' RC4_ENC='${RC4_ENC}' RC5_ENC='${RC5_ENC}' SHA1_ASM_OBJ='${SHA1_ASM_OBJ}' MD5_ASM_OBJ='${MD5_ASM_OBJ}' RMD160_ASM_OBJ='${RMD160_ASM_OBJ}' AR='${AR}' PROCESSOR='${PROCESSOR}' PERL='${PERL}' RANLIB='${RANLIB}' TESTS='${TESTS}' EXE_EXT='${EXE_EXT}' SHARED_LIBS='${SHARED_LIBS}' SHLIB_EXT='${SHLIB_EXT}' SHLIB_TARGET='${SHLIB_TARGET}' OPENSSL_DEBUG_MEMORY=on tests );
 	@apps/openssl version -a
 
 report:
@@ -558,7 +560,7 @@ depend:
 	do \
 	if [ -d "$$i" ]; then \
 		(cd $$i && echo "making dependencies $$i..." && \
-		$(MAKE) SDIRS='${SDIRS}' DEPFLAG='${DEPFLAG}' depend ) || exit 1; \
+		$(MAKE) SDIRS='${SDIRS}' DEPFLAG='${DEPFLAG}' PERL='${PERL}' depend ) || exit 1; \
 	fi; \
 	done;
 
@@ -603,20 +605,26 @@ TABLE: Configure
 
 update: depend errors stacks util/libeay.num util/ssleay.num crypto/objects/obj_dat.h TABLE
 
+# Build distribution tar-file. As the list of files returned by "find" is
+# pretty long, on several platforms a "too many arguments" error or similar
+# would occur. Therefore the list of files is temporarily stored into a file
+# and read directly, requiring GNU-Tar. Call "make TAR=gtar dist" if the normal
+# tar does not support the --files-from option.
 tar:
-	@$(TAR) $(TARFLAGS) -cvf - \
-		`find * \! -path CVS/\* \! -path \*/CVS/\* \! -name CVS \! -name .cvsignore \! -name STATUS \! -name TABLE | sort` |\
+	find * \! -path CVS/\* \! -path \*/CVS/\* \! -name CVS \! -name .cvsignore \! -name STATUS \! -name TABLE | sort > ../$(TARFILE).list; \
+	$(TAR) $(TARFLAGS) --files-from ../$(TARFILE).list -cvf - | \
 	tardy --user_number=0  --user_name=openssl \
 	      --group_number=0 --group_name=openssl \
 	      --prefix=openssl-$(VERSION) - |\
 	gzip --best >../$(TARFILE).gz; \
+	rm -f ../$(TARFILE).list; \
 	ls -l ../$(TARFILE).gz
 
 dist:   
 	$(PERL) Configure dist
 	@$(MAKE) dist_pem_h
 	@$(MAKE) SDIRS='${SDIRS}' clean
-	@$(MAKE) tar
+	@$(MAKE) TAR='${TAR}' TARFLAGS='${TARFLAGS}' tar
 
 dist_pem_h:
 	(cd crypto/pem; $(MAKE) CC='${CC}' SDIRS='${SDIRS}' CFLAG='${CFLAG}' pem.h; $(MAKE) clean)
@@ -658,7 +666,7 @@ install: all install_docs
 			(       echo installing $$i; \
 				if [ "$(PLATFORM)" != "Cygwin" ]; then \
 					cp $$i $(INSTALL_PREFIX)$(INSTALLTOP)/lib; \
-					chmod 644 $(INSTALL_PREFIX)$(INSTALLTOP)/lib/$$i; \
+					chmod 555 $(INSTALL_PREFIX)$(INSTALLTOP)/lib/$$i; \
 				else \
 					c=`echo $$i | sed 's/^lib/cyg/'`; \
 					cp $$c $(INSTALL_PREFIX)$(INSTALLTOP)/bin/$$c; \
@@ -683,18 +691,20 @@ install_docs:
 		fn=`basename $$i .pod`; \
 		if [ "$$fn" = "config" ]; then sec=5; else sec=1; fi; \
 		echo "installing man$$sec/`basename $$i .pod`.$$sec"; \
-		(cd `dirname $$i`; \
-		$(PERL) ../../util/pod2man.pl --section=$$sec --center=OpenSSL \
-			 --release=$(VERSION) `basename $$i`) \
+		(cd `$(PERL) util/dirname.pl $$i`; \
+		sh -c "$(PERL) `cd ../../util; ./pod2mantest ignore` \
+			--section=$$sec --center=OpenSSL \
+			--release=$(VERSION) `basename $$i`") \
 			>  $(INSTALL_PREFIX)$(MANDIR)/man$$sec/`basename $$i .pod`.$$sec; \
 	done
 	@for i in doc/crypto/*.pod doc/ssl/*.pod; do \
 		fn=`basename $$i .pod`; \
 		if [ "$$fn" = "des_modes" ]; then sec=7; else sec=3; fi; \
 		echo "installing man$$sec/`basename $$i .pod`.$$sec"; \
-		(cd `dirname $$i`; \
-		$(PERL) ../../util/pod2man.pl --section=$$sec --center=OpenSSL \
-			--release=$(VERSION) `basename $$i`) \
+		(cd `$(PERL) util/dirname.pl $$i`; \
+		sh -c "$(PERL) `cd ../../util; ./pod2mantest ignore` \
+			--section=$$sec --center=OpenSSL \
+			--release=$(VERSION) `basename $$i`") \
 			>  $(INSTALL_PREFIX)$(MANDIR)/man$$sec/`basename $$i .pod`.$$sec; \
 	done
 
