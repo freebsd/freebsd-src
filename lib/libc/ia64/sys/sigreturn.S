@@ -36,4 +36,4 @@
  * (XXX PROFILING)
  */
 
-PRSYSCALL(sigreturn)
+RSYSCALL(sigreturn)

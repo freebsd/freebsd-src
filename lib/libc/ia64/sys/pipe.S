@@ -30,10 +30,10 @@
 
 #include "SYS.h"
 
-PSYSCALL(pipe)
+SYSCALL(pipe)
 	.regstk	1,0,0,0
 	st4	[in0]=ret0,4 ;;
 	st4	[in0]=ret1
 	mov	ret0=0
 	br.ret.sptk.few rp
-PEND(pipe)
+END(pipe)
