@@ -93,19 +93,20 @@ ata_dmaalloc(struct ata_channel *ch)
 {
     struct ata_dc_cb_args ccba;
 
-    if (bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
-			   BUS_SPACE_MAXADDR, NULL, NULL, MAXCTLDMASZ,
-			   ATA_DMA_ENTRIES, BUS_SPACE_MAXSIZE_32BIT, 0,
-			   NULL, NULL, &ch->dma->dmatag))
-	goto error;
-
-    if (bus_dma_tag_create(ch->dma->dmatag, 1, PAGE_SIZE,
+    if (bus_dma_tag_create(NULL, 1, 0,
 			   BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
-			   NULL, NULL, MAXTABSZ, 1, MAXTABSZ, BUS_DMA_ALLOCNOW,
-			   NULL, NULL, &ch->dma->cdmatag))
+			   NULL, NULL, MAXCTLDMASZ,
+			   ATA_DMA_ENTRIES, BUS_SPACE_MAXSIZE_32BIT,
+			   BUS_DMA_ALLOCNOW, NULL, NULL, &ch->dma->dmatag))
 	goto error;
 
-    if (bus_dma_tag_create(ch->dma->dmatag, ch->dma->alignment, 0,
+    if (bus_dma_tag_create(ch->dma->dmatag, PAGE_SIZE, PAGE_SIZE,
+			   BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
+			   NULL, NULL, MAXTABSZ, 1, MAXTABSZ,
+			   BUS_DMA_ALLOCNOW, NULL, NULL, &ch->dma->cdmatag))
+	goto error;
+
+    if (bus_dma_tag_create(ch->dma->dmatag, ch->dma->alignment, 64*1024,
 			   BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
 			   NULL, NULL, MAXPHYS, ATA_DMA_ENTRIES, MAXSEGSZ,
 			   BUS_DMA_ALLOCNOW, NULL, NULL, &ch->dma->ddmatag))
