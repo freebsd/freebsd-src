@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Tim J. Robbins.
+ * Copyright (c) 2002-2004 Tim J. Robbins.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,22 +32,39 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <wchar.h>
 #include "un-namespace.h"
+#include "fvwrite.h"
 #include "libc_private.h"
 #include "local.h"
+#include "mblocal.h"
 
 int
 fputws(const wchar_t * __restrict ws, FILE * __restrict fp)
 {
+	size_t nbytes;
+	char buf[BUFSIZ];
+	struct __suio uio;
+	struct __siov iov;
 
 	FLOCKFILE(fp);
 	ORIENT(fp, 1);
-	/* XXX Inefficient */
-	while (*ws != '\0')
-		if (__fputwc(*ws++, fp) == WEOF) {
-			FUNLOCKFILE(fp);
-			return (-1);
-		}
+	if (prepwrite(fp) != 0)
+		goto error;
+	uio.uio_iov = &iov;
+	uio.uio_iovcnt = 1;
+	iov.iov_base = buf;
+	do {
+		nbytes = __wcsrtombs(buf, &ws, sizeof(buf),
+		    &fp->_extra->mbstate);
+		if (nbytes == (size_t)-1)
+			goto error;
+		iov.iov_len = uio.uio_resid = nbytes;
+		if (__sfvwrite(fp, &uio) != 0)
+			goto error;
+	} while (ws != NULL);
 	FUNLOCKFILE(fp);
-
 	return (0);
+
+error:
+	FUNLOCKFILE(fp);
+	return (-1);
 }
