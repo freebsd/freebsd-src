@@ -117,3 +117,8 @@
 	- Ignored incoming packets are now dropped when
 	  deny_incoming option is set to yes.
 	- Packet aliasing library upgraded to 2.4.
+
+* Version 1.11
+
+	- Code cleanup work done in FreeBSD-current development merged.
+	- Port numbers are now unsigned as they should always have been.
