@@ -63,6 +63,11 @@
 #
 # Call units:
 #
+# SCSI devices (other than CD-ROM, tape and disk)
+#   uk*     "unknown" device (supports ioctl calls only)
+# worm*     WORM driver
+#   pt*     Processor Type (HP scanner, as one example)
+#
 # Special purpose devices:
 #	bpf*	packet filter
 #	speaker	pc speaker
@@ -76,8 +81,9 @@
 #	tun	Tunneling IP device
 #	spigot	Video Spigot video aquisition card
 #	isdn*	ISDN devices
+#   labpc*  National Instrument's Lab-PC and LAB-PC+
 #
-#	$Id: MAKEDEV,v 1.83 1995/04/23 12:02:21 ache Exp $
+#	$Id: MAKEDEV,v 1.84 1995/04/26 08:07:30 bde Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -856,6 +862,52 @@ isdn*)
 		echo "No such ISDN device subtype: $type"
 		;;
 	esac
+	;;
+
+# dufault@hda.com: If I do much more work on other A-D boards
+# then eventually we'll have a "ad" and "dio" interface and some of these
+# "labpcaio" ones will be gone.
+# labpcaio: D-A and A-D.
+# labpcdio: Digital in and Digital out.
+#
+labpc*)
+	umask 7
+	case $i in
+	labpcaio*)
+		name=labpcaio
+		unit=`expr $i : 'labpcaio\(.*\)'`
+		all="0 1 2 3 4 5 6 7"
+		offset=0
+		;;
+	labpcdio*)
+		name=labpcdio
+		unit=`expr $i : 'labpcdio\(.*\)'`
+		all="0 1 2 3"
+		offset=128
+		;;
+	*)
+		echo "Don't understand that labpc name"
+		exit
+		;;
+	esac
+	if [ "X${unit}" = "X" ]; then
+		unit=all
+	fi
+	case $unit in
+		0|1|2|3|4|5|6|7)
+				mknod $name$unit c 66 `expr $offset + $unit `
+		;;
+		all)
+			for i in $all
+			do
+				mknod $name$i c 66 `expr $offset + $i `
+			done
+			;;
+		*)
+			echo "No such LabPC unit: $unit"
+			;;
+	esac
+	umask 77
 	;;
 
 local)
