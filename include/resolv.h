@@ -53,7 +53,7 @@
  *
  *	@(#)resolv.h	8.1 (Berkeley) 6/2/93
  *	From Id: resolv.h,v 4.9.1.2 1993/05/17 09:59:01 vixie Exp
- *	$Id: resolv.h,v 1.3 1995/05/30 04:54:44 rgrimes Exp $
+ *	$Id: resolv.h,v 1.4 1995/08/20 19:59:15 peter Exp $
  */
 
 #ifndef _RESOLV_H_
@@ -72,7 +72,7 @@
  * is new enough to contain a certain feature.
  */
 
-#define	__RES	19950621
+#define	__RES	19951031
 
 /*
  * Resolver configuration file.
@@ -115,6 +115,7 @@ struct __res_state {
 		struct in_addr	addr;
 		u_int32_t	mask;
 	} sort_list[MAXRESOLVSORT];
+	char	pad[72];		/* On an i386 this means 512b total. */
 };
 
 /*
