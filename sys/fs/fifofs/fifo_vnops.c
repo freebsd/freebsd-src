@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fifo_vnops.c	8.10 (Berkeley) 5/27/95
- * $Id: fifo_vnops.c,v 1.38 1997/12/05 19:55:46 bde Exp $
+ * $Id: fifo_vnops.c,v 1.39 1997/12/13 12:58:09 bde Exp $
  */
 
 #include <sys/param.h>
@@ -189,8 +189,7 @@ fifo_open(ap)
 			return (error);
 		}
 		fip->fi_readers = fip->fi_writers = 0;
-		wso->so_state |= SS_CANTRCVMORE;
-		rso->so_state |= SS_CANTSENDMORE;
+		rso->so_state |= SS_CANTRCVMORE;
 	}
 	if (ap->a_mode & FREAD) {
 		fip->fi_readers++;
@@ -272,11 +271,6 @@ fifo_read(ap)
 	error = soreceive(rso, (struct sockaddr **)0, uio, (struct mbuf **)0,
 	    (struct mbuf **)0, (int *)0);
 	vn_lock(ap->a_vp, LK_EXCLUSIVE | LK_RETRY, p);
-	/*
-	 * Clear EOF indication after first such return.
-	 */
-	if (uio->uio_resid == startresid)
-		rso->so_state &= ~SS_CANTRCVMORE;
 	if (ap->a_ioflag & IO_NDELAY)
 		rso->so_state &= ~SS_NBIO;
 	return (error);
