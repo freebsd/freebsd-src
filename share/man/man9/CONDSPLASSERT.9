@@ -62,6 +62,22 @@ and "options INVARIANT_SUPPORT",
 the 
 .Fn CONDSPLASSERT
 macro is defined to be a no-op.  
+.Pp
+The behaviour of
+.Fn CONDSPLASSERT
+is tunable by means of the
+.Xr sysctl 8
+knob kern.splassertmode.
+When set to 0 the
+.Fn CONDSPLASSERT
+macro is defined to be a no-op.
+When set to 1 the
+.Fn CONDSPLASSERT
+macro is defined to log information to the console.
+When set to 2 the
+.Fn CONDSPLASSERT
+macro is defined to
+.Xr panic 9 .
 .Sh EXAMPLE
 The kernel function
 .Fn swp_pager_meta_build
