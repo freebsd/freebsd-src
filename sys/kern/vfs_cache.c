@@ -346,13 +346,15 @@ cache_enter(dvp, vp, cnp)
 /*
  * Name cache initialization, from vfs_init() when we are booting
  */
-void
-nchinit()
+static void
+nchinit(void *dummy __unused)
 {
 
 	TAILQ_INIT(&ncneg);
-	nchashtbl = hashinit(desiredvnodes*2, M_VFSCACHE, &nchash);
+	nchashtbl = hashinit(desiredvnodes * 2, M_VFSCACHE, &nchash);
 }
+SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_SECOND, nchinit, NULL)
+
 
 /*
  * Invalidate all entries to a particular vnode.

@@ -181,9 +181,7 @@ void	adjust_timeout_calltodo __P((struct timeval *time_change));
 /* Initialize the world */
 void	consinit __P((void));
 void	cpu_initclocks __P((void));
-void	nchinit __P((void));
 void	usrinfoinit __P((void));
-void	vntblinit __P((void));
 
 /* Finalize the world. */
 void	shutdown_nice __P((int));

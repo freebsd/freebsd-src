@@ -244,8 +244,8 @@ static int	vfs_hang_addrlist __P((struct mount *mp, struct netexport *nep,
 /*
  * Initialize the vnode management data structures.
  */
-void
-vntblinit()
+static void
+vntblinit(void *dummy __unused)
 {
 
 	desiredvnodes = maxproc + cnt.v_page_count / 4;
@@ -263,6 +263,8 @@ vntblinit()
 		&syncer_mask);
 	syncer_maxdelay = syncer_mask + 1;
 }
+SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_FIRST, vntblinit, NULL)
+
 
 /*
  * Mark a mount point as busy. Used to synchronize access and to delay
