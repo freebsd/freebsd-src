@@ -858,12 +858,12 @@ mdcreate_vnode(struct md_ioctl *mdio, struct thread *td)
 	else
 		sc->nsect = vattr.va_size / sc->secsize; /* XXX: round up ? */
 	if (sc->nsect == 0) {
-		(void) vn_close(nd.ni_vp, flags, td->td_ucred, td);
+		mddestroy(sc, td);
 		return (EINVAL);
 	}
 	error = mdsetcred(sc, td->td_ucred);
 	if (error) {
-		(void) vn_close(nd.ni_vp, flags, td->td_ucred, td);
+		mddestroy(sc, td);
 		return (error);
 	}
 	mdinit(sc);
