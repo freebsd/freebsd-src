@@ -48,41 +48,42 @@
 The
 .Fn fpclassify
 macro takes an argument of
-.Va x
+.Fa x
 and returns one of the following manifest constants.
 .Bl -tag -width ".Dv FP_SUBNORMAL"
 .It Dv FP_INFINITE
 Indicates that
-.Va x
+.Fa x
 is an infinite number.
 .It Dv FP_NAN
 Indicates that
-.Va x
+.Fa x
 is not a number (NaN).
 .It Dv FP_NORMAL
 Indicates that
-.Va x
+.Fa x
 is a normalized number.
 .It Dv FP_SUBNORMAL
 Indicates that
-.Va x
+.Fa x
 is a denormalized number.
 .It Dv FP_ZERO
 Indicates that
-.Va x
-is zero (0 or -0).
+.Fa x
+is zero (0 or \-0).
 .El
 .Pp
 The
 .Fn isfinite
 macro returns a non-zero value if and only if its argument has
-a finite (zero, subnormal, or normal) value.  The
+a finite (zero, subnormal, or normal) value.
+The
 .Fn isinf ,
 .Fn isnan ,
 and
 .Fn isnormal
 macros return non-zero if and only if
-.Va x
+.Fa x
 is an infinity, NaN,
 or a non-zero normalized number, respectively.
 .Pp
@@ -121,7 +122,7 @@ introduced
 and
 .Fn isnan
 functions, which accepted
-.Ft double
+.Vt double
 arguments; these have been superseded by the macros
 described above.
 .Sh BUGS

@@ -46,7 +46,7 @@
 .In stdlib.h
 .Ft int
 .Fn grantpt "int fildes"
-.Ft char *
+.Ft "char *"
 .Fn ptsname "int fildes"
 .Ft int
 .Fn unlockpt "int fildes"
@@ -71,19 +71,21 @@ The
 function is used to establish ownership and permissions
 of the slave device counterpart to the master device
 specified with
-.Va fildes .
+.Fa fildes .
 The slave device's ownership is set to the real user ID
 of the calling process, and the permissions are set to
 user readable-writable and group writable.
 The group owner of the slave device is also set to the
-group "tty" if it exists on the system; otherwise, it
+group
+.Dq Li tty
+if it exists on the system; otherwise, it
 is left untouched.
 .Pp
 The
 .Fn ptsname
 function returns the full pathname of the slave device
 counterpart to the master device specified with
-.Va fildes .
+.Fa fildes .
 This value can be used
 to subsequently open the appropriate slave after
 .Fn posix_openpt
@@ -95,15 +97,17 @@ The
 .Fn unlockpt
 function clears the lock held on the pseudo-terminal pair
 for the master device specified with
-.Va fildes .
+.Fa fildes .
 .Pp
 The
 .Fn posix_openpt
 function opens the first available master pseudo-terminal
 device and returns a descriptor to it.
-.Va mode
+The
+.Fa mode
+argument
 specifies the flags used for opening the device:
-.Bl -tag -width O_NOCTTY
+.Bl -tag -width ".Dv O_NOCTTY"
 .It Dv O_RDWR
 Open for reading and writing.
 .It Dv O_NOCTTY
@@ -111,19 +115,14 @@ If set, do not allow the terminal to become
 the controlling terminal for the calling process.
 .El
 .Sh RETURN VALUES
-The
-.Fn grantpt
-and
-.Fn unlockpt
-functions return 0 on success; otherwise -1 is returned and
-.Va errno
-is set to indicate the error.
+.Rv -std grantpt unlockpt
 .Pp
 The
 .Fn ptsname
 function returns a pointer to the name
-of the slave device on success;
-otherwise a NULL pointer is returned and
+of the slave device on success; otherwise a
+.Dv NULL
+pointer is returned and the global variable
 .Va errno
 is set to indicate the error.
 .Pp
@@ -131,7 +130,7 @@ The
 .Fn posix_openpt
 function returns a file descriptor to the first
 available master pseudo-terminal device on success;
-otherwise -1 is returned and
+otherwise \-1 is returned and the global variable
 .Va errno
 is set to indicate the error.
 .Sh ERRORS
@@ -144,8 +143,8 @@ functions may fail and set
 .Va errno
 to:
 .Bl -tag -width Er
-.It EINVAL
-.Va fildes
+.It Bq Er EINVAL
+.Fa fildes
 is not a master pseudo-terminal device.
 .El
 .Pp
@@ -155,7 +154,7 @@ function may set
 .Va errno
 to:
 .Bl -tag -width Er
-.It EACCES
+.It Bq Er EACCES
 The slave pseudo-terminal device could not be accessed.
 .El
 .Pp
@@ -165,10 +164,10 @@ function may fail and set
 .Va errno
 to:
 .Bl -tag -width Er
-.It EINVAL
-.Va mode
+.It Bq Er EINVAL
+.Fa mode
 consists an an invalid mode bit.
-.It EAGAIN
+.It Bq Er EAGAIN
 The system has no available pseudo-terminal devices.
 .El
 .Pp
@@ -179,15 +178,17 @@ and
 .Fn unlockpt
 functions may also fail and set
 .Va errno
-for any of the errors specified for the routine
-.Xr fstat 2 .
+for any of the errors specified for the
+.Xr fstat 2
+system call.
 .Pp
 The
 .Fn posix_openpt
 function may also fail and set
 .Va errno
-for any of the errors specified for the routine
-.Xr open 2 .
+for any of the errors specified for the
+.Xr open 2
+system call.
 .Sh SEE ALSO
 .Xr open 2 ,
 .Xr pty 4 ,
