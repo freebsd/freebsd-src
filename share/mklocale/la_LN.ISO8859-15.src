@@ -1,8 +1,10 @@
 /*
- * Standard LOCALE_CTYPE for the dis_8859_15 Locale
+ * Standard LOCALE_CTYPE for the ISO 8859-15 Locale
+ *
+ * $FreeBSD$
  */
 ENCODING	"NONE"
-VARIABLE        DIS 8859-15 Latin-9 character set
+VARIABLE        ISO 8859-15 Latin-9 character set
 
 #
 # This is a comment
@@ -18,9 +20,6 @@ UPPER		'A' - 'Z' 0xa6 0xb4 0xbc 0xc0 - 0xd6 0xd8 - 0xde
 XDIGIT		'0' - '9' 'a' - 'f' 'A' - 'F'
 BLANK		' ' '\t' 0xa0
 PRINT		0x20 - 0x7e 0xa0 - 0xff
-# IDEOGRAM
-# SPECIAL
-# PHONEGRAM
 
 MAPLOWER	<'A' - 'Z' : 'a'>
 MAPLOWER	<'a' - 'z' : 'a'>
@@ -32,6 +31,7 @@ MAPLOWER	<0xc0 - 0xd6 : 0xe0>
 MAPLOWER	<0xd8 - 0xde : 0xf8>
 MAPLOWER	<0xdf - 0xf6 : 0xdf>
 MAPLOWER	<0xf8 - 0xff : 0xf8>
+
 MAPUPPER	<'A' - 'Z' : 'A'>
 MAPUPPER	<'a' - 'z' : 'A'>
 MAPUPPER	<0xa8 - 0xa8 : 0xa6>
@@ -42,6 +42,7 @@ MAPUPPER	<0xd8 - 0xde : 0xd8>
 MAPUPPER	<0xe0 - 0xf6 : 0xc0>
 MAPUPPER	<0xf8 - 0xfe : 0xd8>
 MAPUPPER	<0xff - 0xff : 0xbe>
+
 TODIGIT		<'0' - '9' : 0>
 TODIGIT		<'A' - 'F' : 10>
 TODIGIT		<'a' - 'f' : 10>
