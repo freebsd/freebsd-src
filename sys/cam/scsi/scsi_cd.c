@@ -1369,7 +1369,8 @@ cdstart(struct cam_periph *periph, union ccb *start_ccb)
 					/* read */bp->bio_cmd == BIO_READ,
 					/* byte2 */ 0,
 					/* minimum_cmd_size */ 10,
-					/* lba */ bp->bio_blkno,
+					/* lba */ bp->bio_blkno /
+					  (softc->params.blksize / DEV_BSIZE),
 					bp->bio_bcount / softc->params.blksize,
 					/* data_ptr */ bp->bio_data,
 					/* dxfer_len */ bp->bio_bcount,
