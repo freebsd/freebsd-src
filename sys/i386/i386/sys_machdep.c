@@ -416,7 +416,7 @@ i386_set_ldt(td, args)
 	int error = 0, i;
 	int largest_ld;
 	struct mdproc *mdp = &td->td_proc->p_md;
-	struct proc_ldt *pldt = 0;
+	struct proc_ldt *pldt = NULL;
 	struct i386_ldt_args ua, *uap = &ua;
 	union descriptor *descs, *dp;
 	int descs_size;
@@ -435,7 +435,7 @@ i386_set_ldt(td, args)
 			/*
 			 * Treat this as a special case, so userland needn't
 			 * know magic number NLDT.
-		 	 */
+			 */
 			uap->start = NLDT;
 			uap->num = MAX_LD - NLDT;
 		}
@@ -555,7 +555,7 @@ i386_set_ldt(td, args)
 		/* Allocate a free slot */
 		pldt = mdp->md_ldt;
 		if (pldt == NULL) {
-			error = i386_ldt_grow(td, NLDT+1);
+			error = i386_ldt_grow(td, NLDT + 1);
 			if (error) {
 				kmem_free(kernel_map, (vm_offset_t)descs,
 				    descs_size);
@@ -630,8 +630,8 @@ i386_ldt_grow(struct thread *td, int len)
 
 	if (len > MAX_LD)
 		return (ENOMEM);
-	if (len < NLDT+1)
-		len = NLDT+1;
+	if (len < NLDT + 1)
+		len = NLDT + 1;
 	pldt = mdp->md_ldt;
 	/* allocate user ldt */
 	if (!pldt || len > pldt->ldt_len) {

@@ -242,9 +242,9 @@ cpu_fork(td1, p2, td2, flags)
 	 */
 	pcb2->pcb_ext = 0;
 
-        /* Copy the LDT, if necessary. */
+	/* Copy the LDT, if necessary. */
 	mtx_lock_spin(&sched_lock);
-        if (mdp2->md_ldt != 0) {
+	if (mdp2->md_ldt != NULL) {
 		if (flags & RFMEM) {
 			mdp2->md_ldt->ldt_refcnt++;
 		} else {
@@ -253,7 +253,7 @@ cpu_fork(td1, p2, td2, flags)
 			if (mdp2->md_ldt == NULL)
 				panic("could not copy LDT");
 		}
-        }
+	}
 	mtx_unlock_spin(&sched_lock);
 
 	/*
@@ -316,11 +316,11 @@ cpu_thread_exit(struct thread *td)
 	if (td == PCPU_GET(fpcurthread))
 		npxdrop();
 #endif
-        if (pcb->pcb_flags & PCB_DBREGS) {
+	if (pcb->pcb_flags & PCB_DBREGS) {
 		/* disable all hardware breakpoints */
-                reset_dbregs();
-                pcb->pcb_flags &= ~PCB_DBREGS;
-        }
+		reset_dbregs();
+		pcb->pcb_flags &= ~PCB_DBREGS;
+	}
 }
 
 void
