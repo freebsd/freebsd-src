@@ -78,7 +78,7 @@ static driver_t tlsbcpu_driver = {
 static int
 tlsbcpu_probe(device_t dev)
 {
-	u_int32_t vid;
+	u_int32_t vid, imsreg;
 	device_t child;
 	static int inst = 0;
 	struct tlsb_device *tdev = DEVTOTLSB(dev);
@@ -105,17 +105,25 @@ tlsbcpu_probe(device_t dev)
 	/*
 	 * Hook in the first CPU unit.
 	 */
-	tlsb_primary_cpu = tdev;
-	TLSB_PUT_NODEREG(tdev->td_node, TLCPUMASK, (1 << vid));
+	if (device_get_unit(dev) == 0) {
+		tlsb_primary_cpu = tdev;
+	}
+	/*
+	 * Make this CPU a candidate for receiving interrupts.
+	 */
+	TLSB_PUT_NODEREG(tdev->td_node, TLCPUMASK,
+	    TLSB_GET_NODEREG(tdev->td_node, TLCPUMASK) | (1 << vid));
 
 	/*
-	 * Attach gbus.
+	 * Attach gbus for first instance.
 	 */
-	child = device_add_child(dev, "gbus", inst++);
-	if (child == NULL) {
-		return (-1);
+	if (device_get_unit(dev) == 0) {
+		child = device_add_child(dev, "gbus", inst++);
+		if (child == NULL) {
+			return (-1);
+		}
+		device_set_ivars(child, tdev);
 	}
-	device_set_ivars(child, tdev);
 	return (0);
 }
 DRIVER_MODULE(tlsbcpu, tlsb, tlsbcpu_driver, tlsbcpu_devclass, 0, 0);
