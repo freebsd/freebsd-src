@@ -223,6 +223,8 @@ allocate_driver(struct slot *slt, struct dev_desc *desc)
 	bcopy(desc->misc, devi->misc, sizeof(desc->misc));
 	strcpy(devi->manufstr, desc->manufstr);
 	strcpy(devi->versstr, desc->versstr);
+	strcpy(devi->cis3str, desc->cis3str);
+	strcpy(devi->cis4str, desc->cis4str);
 	devi->manufacturer = desc->manufacturer;
 	devi->product = desc->product;
 	devi->prodext = desc->prodext;
@@ -476,6 +478,10 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, d_thread_t *td)
 	int		pwval;
 	int		s;
 	struct slot	*slt = PCCARD_DEV2SOFTC(dev);
+/*XXX*/#if __FreeBSD_version < 5000000		/* 4.x compatibility only. */
+	struct dev_desc d;
+	struct dev_desc_old *odp;
+/*XXX*/#endif
 
 	if (slt == 0 && cmd != PIOCRWMEM)
 		return (ENXIO);
@@ -606,6 +612,34 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, d_thread_t *td)
 		else
 			pccard_failure_beep();
 		return (err);
+/***/#if __FreeBSD_version < 5000000		/* 4.x compatibility only. */
+	case PIOCSDRVOLD:
+		if (suser(td))
+			return (EPERM);
+		odp = (struct dev_desc_old *) data;
+		strlcpy(d.name, odp->name, sizeof(d.name));
+		d.unit = odp->unit;
+		d.mem = odp->mem;
+		d.memsize = odp->memsize;
+		d.iobase = odp->iobase;
+		d.iosize = odp->iosize;
+		d.irqmask = odp->irqmask;
+		d.flags = odp->flags;
+		memcpy(d.misc, odp->misc, sizeof(odp->misc));
+		strlcpy(d.manufstr, odp->manufstr, sizeof(d.manufstr));
+		strlcpy(d.versstr, odp->versstr, sizeof(d.versstr));
+		*d.cis3str = '\0';
+		*d.cis4str = '\0';
+		d.manufacturer = odp->manufacturer;
+		d.product = odp->product;
+		d.prodext = odp->prodext;
+		err = allocate_driver(slt, &d);
+		if (!err)
+			pccard_success_beep();
+		else
+			pccard_failure_beep();
+		return (err);
+/***/#endif
 	/*
 	 * Virtual removal/insertion
 	 */
