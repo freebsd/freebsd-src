@@ -49,11 +49,7 @@
 #include <pci/pcireg.h>
 #include <dev/ata/ata-all.h>
 
-/* misc defines */
-#define IOMASK	0xfffffffc
-#define ATA_MASTERDEV(dev)		((pci_get_progif(dev) & 0x80) && \
-					 (pci_get_progif(dev) & 0x05) != 0x05)
-
+/* device structures */
 struct ata_pci_softc {
     struct resource *bmio;
     int bmaddr;
@@ -61,8 +57,16 @@ struct ata_pci_softc {
     int irqcnt;
 };
 
+/* prototypes */
+void ata_via686b(device_t);
+
+/* misc defines */
+#define IOMASK	0xfffffffc
+#define ATA_MASTERDEV(dev)		((pci_get_progif(dev) & 0x80) && \
+					 (pci_get_progif(dev) & 0x05) != 0x05)
+
 int
-ata_find_dev(device_t dev, u_int32_t type, u_int32_t revid)
+ata_find_dev(device_t dev, u_int32_t devid, u_int32_t revid)
 {
     device_t *children, child;
     int nchildren, i;
@@ -75,15 +79,37 @@ ata_find_dev(device_t dev, u_int32_t type, u_int32_t revid)
 
 	/* check that it's on the same silicon and the device we want */
 	if (pci_get_slot(dev) == pci_get_slot(child) &&
-	    pci_get_vendor(child) == (type & 0xffff) &&
-	    pci_get_device(child) == ((type & 0xffff0000) >> 16) &&
-	    pci_get_revid(child) >= revid) {
+	    pci_get_devid(child) == devid && pci_get_revid(child) >= revid) {
 	    free(children, M_TEMP);
 	    return 1;
 	}
     }
     free(children, M_TEMP);
     return 0;
+}
+
+void
+ata_via686b(device_t dev)
+{
+    device_t *children, child;
+    int nchildren, i;
+
+    if (device_get_children(device_get_parent(dev), &children, &nchildren))
+	return;
+
+    for (i = 0; i < nchildren; i++) {
+	child = children[i];
+
+	if (pci_get_devid(child) == 0x03051106 ||	/* VIA KT133 */
+	    pci_get_devid(child) == 0x03911106) {	/* VIA KX133 */
+	    pci_write_config(child, 0x75, 0x83, 1);
+	    pci_write_config(child, 0x76, 
+	    		     (pci_read_config(child, 0x76, 1) & 0xdf) | 0xd0,1);
+	    device_printf(dev, "VIA '686b southbridge fix applied\n");
+	    break;
+	}
+    }
+    free(children, M_TEMP);
 }
 
 static const char *
@@ -314,9 +340,21 @@ ata_pci_attach(device_t dev)
 	}
 	break;
 
-    case 0x05711106:
-    case 0x74091022:
-    case 0x74111022: /* VIA 82C586, '596, '686 & AMD 756, '766 default setup */
+    case 0x05711106: /* VIA 82C586, '596, '686 default setup */
+	/* prepare for ATA-66 on the 82C686a and rev 0x12 and newer 82C596's */
+	if ((ata_find_dev(dev, 0x06861106, 0) && 
+	     !ata_find_dev(dev, 0x06861106, 0x40)) || 
+	    ata_find_dev(dev, 0x05961106, 0x12))
+	    pci_write_config(dev, 0x50, 0x030b030b, 4);   
+
+	/* the '686b might need the data corruption fix */
+	if (ata_find_dev(dev, 0x06861106, 0x40))
+	    ata_via686b(dev);
+
+	/* FALLTHROUGH */
+
+    case 0x74091022: /* AMD 756 default setup */
+    case 0x74111022: /* AMD 766 default setup */
 
 	/* set prefetch, postwrite */
 	pci_write_config(dev, 0x41, pci_read_config(dev, 0x41, 1) | 0xf0, 1);
@@ -335,12 +373,6 @@ ata_pci_attach(device_t dev)
 	/* set sector size */
 	pci_write_config(dev, 0x60, DEV_BSIZE, 2);
 	pci_write_config(dev, 0x68, DEV_BSIZE, 2);
-
-	/* prepare for ATA-66 on the 82C686a and rev 0x12 and newer 82C596's */
-	if ((ata_find_dev(dev, 0x06861106, 0) && 
-	     !ata_find_dev(dev, 0x06861106, 0x40)) || 
-	    ata_find_dev(dev, 0x05961106, 0x12))
-	    pci_write_config(dev, 0x50, 0x030b030b, 4);   
 	break;
 
     case 0x10001042:   /* RZ 100? known bad, no DMA */
