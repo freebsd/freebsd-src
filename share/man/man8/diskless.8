@@ -221,6 +221,11 @@ Add myclient to the bootparams database
 myclient  root=server:/export/myclient/root
 .Ed
 .Pp
+Note: For the swap file to be mountable, you have to make sure that mountd is
+started with the
+.Fl r
+flag.
+
 .It 6.
 Build the swap file for myclient:
 .Bd -literal -offset indent -compact
