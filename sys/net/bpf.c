@@ -322,9 +322,6 @@ bpfopen(dev, flags, fmt, p)
 {
 	struct bpf_d *d;
 
-	if (p->p_prison)
-		return (EPERM);
-
 	mtx_lock(&bpf_mtx);
 	d = dev->si_drv1;
 	/*
