@@ -467,7 +467,7 @@ _ng_node_foreach_hook(node_p node, ng_fn_eachhook *fn, void *arg,
 
 #define NG_NODE_NAME(node)		_ng_node_name(node, _NN_)	
 #define NG_NODE_HAS_NAME(node)		_ng_node_has_name(node, _NN_)	
-#define NG_NODE_ID(node)		_ng_node_ID(node, _NN_)
+#define NG_NODE_ID(node)		_ng_node_id(node, _NN_)
 #define NG_NODE_REF(node)		_ng_node_ref(node, _NN_)
 #define	NG_NODE_UNREF(node)		_ng_node_unref(node, _NN_)
 #define	NG_NODE_SET_PRIVATE(node, val)	_ng_node_set_private(node, val, _NN_)
