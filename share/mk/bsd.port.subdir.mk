@@ -1,5 +1,5 @@
 #	from: @(#)bsd.subdir.mk	5.9 (Berkeley) 2/1/91
-#	$Id: bsd.port.subdir.mk,v 1.10 1995/03/03 23:30:32 gpalmer Exp $
+#	$Id: bsd.port.subdir.mk,v 1.11 1995/03/21 03:59:13 jkh Exp $
 
 .MAIN: all
 
@@ -7,9 +7,6 @@
 STRIP?=	-s
 .endif
 
-BINGRP?=	bin
-BINOWN?=	bin
-BINMODE?=	555
 
 ECHO_MSG?=	echo
 
