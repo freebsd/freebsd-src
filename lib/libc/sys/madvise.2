@@ -58,6 +58,8 @@ The known behaviors are given in
 #define	MADV_WILLNEED	3 /* will need these pages */
 #define	MADV_DONTNEED	4 /* don't need these pages */
 #define	MADV_FREE	5 /* data is now unimportant */
+#define MADV_NOSYNC	6 /* no explicit commit to physical backing store */
+#define MADV_AUTOSYNC	7 /* default commit method to physical backing store */
 .Ed
 .Pp
 .Bl -tag -width MADV_SEQUENTIAL 
@@ -96,6 +98,31 @@ call.
 References made to that address space range will not make the VM system
 page the information back in from backing store until the page is
 modified again.
+.It Dv MADV_NOSYNC
+Request that the system not flush the data associated with this map to 
+physical backing store unless it needs to.  Typically this prevents the
+filesystem update daemon from gratuitously writing pages dirtied
+by the VM system to physical disk.  Note that VM/filesystem coherency is 
+always maintained, this feature simply ensures that the mapped data is
+only flush when it needs to be, usually by the system pager.
+.Pp
+This feature is typically used when you want to use a file-backed shared
+memory area to communicate between processes (IPC) and do not particularly 
+need the data being stored in that area to be physically written to disk.
+With this feature you get the equivalent performance with mmap that you
+would expect to get with SysV shared memory calls, but in a more controllable
+and less restrictive manner.  However, note that this feature is not portable
+across UNIX platforms (though some may do the right thing by default).
+For more information see the MAP_NOSYNC section of
+.Xr mmap 2
+.It Dv MADV_AUTOSYNC
+Undoes the effects of MADV_NOSYNC for any future pages dirtied within the
+address range.  The effect on pages already dirtied is indeterminate - they
+may or may not be reverted.  You can guarentee reversion by using the
+.Xr msync 2
+or
+.Xr fsync 2
+system calls.
 .El
 .Sh RETURN VALUES
 Upon successful completion,

@@ -2460,7 +2460,7 @@ loop:
 			if (!vget(vp,
 				LK_INTERLOCK | LK_EXCLUSIVE | LK_RETRY | LK_NOOBJ, curproc)) {
 				if (vp->v_object) {
-					vm_object_page_clean(vp->v_object, 0, 0, flags == MNT_WAIT ? OBJPC_SYNC : 0);
+					vm_object_page_clean(vp->v_object, 0, 0, flags == MNT_WAIT ? OBJPC_SYNC : OBJPC_NOSYNC);
 					anyio = 1;
 				}
 				vput(vp);
