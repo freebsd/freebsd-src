@@ -99,6 +99,10 @@ is set to the standard name of the host
 and a connection is established to a server
 residing at the well-known Internet port
 .Fa inport .
+It is up to the caller to free the memory associated with
+.Fa *ahost
+using
+.Fn free .
 .Pp
 If the connection succeeds,
 a socket in the Internet domain of type
@@ -264,6 +268,7 @@ is overloaded to mean ``All network ports in use.''
 .Xr rlogin 1 ,
 .Xr rsh 1 ,
 .Xr intro 2 ,
+.Xr free 3 ,
 .Xr rexec 3 ,
 .Xr rexecd 8 ,
 .Xr rlogind 8 ,
