@@ -1,25 +1,25 @@
 # $FreeBSD$
 
-PROG=		boot0.5
-OBJS=		start.o boot.o boot0.5.o disk.o selector.o support.o \
-		syscons.o
-NOMAN=
-STRIP=
-BINDIR?=	/boot
-BINMODE=	444
+FILES=	${BOOT}
+CLEANFILES= ${BOOT} ${BOOT}.bin ${BOOT}.out ${OBJS}
 
-ORG=		0x000
+BOOT=	boot0.5
+
+SRCS=	start.s boot.s boot0.5.s disk.s selector.s support.s syscons.s
+OBJS=	${SRCS:N*.h:R:S/$/.o/g}
+
+# The base address that we the boot0 code to to run it.  Don't change this
+# unless you are glutton for punishment.
+BOOT_BOOT0_ORG?=	0x0000
 
 # The size of boot0.5 must be 7168 bytes
-boot0.5: boot0.5.bin
-	cat boot0.5.bin /dev/zero | dd of=boot0.5 bs=1 count=7168
+${BOOT}: ${BOOT}.bin
+	cat ${BOOT}.bin /dev/zero | dd of=${BOOT} bs=1 count=7168
 
-boot0.5.bin: boot0.5.out
-	objcopy -S -O binary boot0.5.out ${.TARGET}
+${BOOT}.bin: ${BOOT}.out
+	objcopy -S -O binary ${BOOT}.out ${.TARGET}
 
-boot0.5.out: ${OBJS}
-	${LD} -N -e start -Ttext ${ORG} -o ${.TARGET} ${OBJS}
-
-CLEANFILES+=	boot0.5.out boot0.5.bin
+${BOOT}.out: ${OBJS}
+	${LD} -N -e start -Ttext ${BOOT_BOOT0_ORG} -o ${.TARGET} ${.ALLSRC}
 
 .include <bsd.prog.mk>

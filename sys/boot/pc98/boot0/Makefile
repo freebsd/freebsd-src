@@ -1,20 +1,18 @@
 # $FreeBSD$
 
-PROG=		boot0
-OBJS=		boot0.o
-NOMAN=
-STRIP=
-BINDIR?=	/boot
-BINMODE=	444
+FILES=	${BOOT}
+CLEANFILES= ${BOOT} ${BOOT}.out ${BOOT}.o
 
-ORG=		0x0000
+BOOT=	boot0
 
-boot0: boot0.out
-	objcopy -S -O binary boot0.out ${.TARGET}
+# The base address that we the boot0 code to to run it.  Don't change this
+# unless you are glutton for punishment.
+BOOT_BOOT0_ORG?=	0x0000
 
-boot0.out: ${OBJS}
-	${LD} -N -e start -Ttext ${ORG} -o ${.TARGET} ${OBJS}
+${BOOT}: ${BOOT}.out
+	objcopy -S -O binary ${BOOT}.out ${.TARGET}
 
-CLEANFILES+= boot0.out
+${BOOT}.out: ${BOOT}.o
+	${LD} -N -e start -Ttext ${BOOT_BOOT0_ORG} -o ${.TARGET} ${BOOT}.o
 
 .include <bsd.prog.mk>
