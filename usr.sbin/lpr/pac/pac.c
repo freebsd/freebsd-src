@@ -98,7 +98,7 @@ static struct	hent *lookup __P((char []));
 static int	qucmp __P((const void *, const void *));
 static void	rewrite __P((void));
 
-void
+int
 main(argc, argv)
 	int argc;
 	char **argv;

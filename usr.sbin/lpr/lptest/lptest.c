@@ -48,7 +48,7 @@ static char sccsid[] = "@(#)lptest.c	8.1 (Berkeley) 6/6/93";
 /*
  * lptest -- line printer test program (and other devices).
  */
-void
+int
 main(argc, argv)
 	int argc;
 	char **argv;
