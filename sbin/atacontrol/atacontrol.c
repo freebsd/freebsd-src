@@ -387,13 +387,15 @@ main(int argc, char **argv)
 		printf("ar%d: ATA ", iocmd.channel);
 		switch (iocmd.u.raid_status.type) {
 		case AR_RAID0:
-			printf("RAID0");
+			printf("RAID0 stripesize=%d",
+				iocmd.u.raid_status.interleave);
 			break;
 		case AR_RAID1:
 			printf("RAID1");
 			break;
 		case AR_RAID0 | AR_RAID1:
-			printf("RAID0+1");
+			printf("RAID0+1 stripesize=%d",
+				iocmd.u.raid_status.interleave);
 			break;
 		case AR_SPAN:
 			printf("SPAN");
