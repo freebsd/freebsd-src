@@ -100,7 +100,7 @@ main(int argc, char *argv[])
 	struct stat to_stat, tmp_stat;
 	enum op type;
 	int Hflag, Lflag, Pflag, ch, fts_options, r, have_trailing_slash;
-	char *target, *s;
+	char *target;
 
 	Hflag = Lflag = Pflag = 0;
 	while ((ch = getopt(argc, argv, "HLPRfiprv")) != -1)
@@ -179,9 +179,9 @@ main(int argc, char *argv[])
 		*to.p_end++ = '.';
 		*to.p_end = 0;
 	}
-	have_trailing_slash =
-		((s = strrchr(to.p_path, '/')) != NULL && s[1] == '\0');
-        STRIP_TRAILING_SLASH(to);
+	have_trailing_slash = (to.p_end[-1] == '/');
+	if (have_trailing_slash)
+		STRIP_TRAILING_SLASH(to);
 	to.target_end = to.p_end;
 
 	/* Set end of argument list for fts(3). */
