@@ -240,7 +240,10 @@ fixup(struct asm_inst *i, mcontext_t *mc, uint64_t va)
 		postinc = (i->i_oper[3].o_type == ASM_OPER_IMM)
 		    ? i->i_oper[3].o_value : 0;
 	if (postinc != 0) {
-		reg = greg_ptr(mc, (int)i->i_oper[3].o_value);
+		if (i->i_oper[1].o_type == ASM_OPER_MEM)
+			reg = greg_ptr(mc, (int)i->i_oper[1].o_value);
+		else
+			reg = greg_ptr(mc, (int)i->i_oper[2].o_value);
 		if (reg == NULL)
 			return (EINVAL);
 		postinc += rdreg(reg);
