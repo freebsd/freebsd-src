@@ -129,9 +129,9 @@
 
 #ifndef LOCORE
 
+#include <sys/queue.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
-#include <sys/queue.h>
 
 typedef u_int64_t pd_entry_t;
 typedef u_int64_t pt_entry_t;
