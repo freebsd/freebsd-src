@@ -2584,4 +2584,8 @@ enum {
 
 #endif /* IAMSUID */
 
+#ifdef I_LIBUTIL
+#   include <libutil.h>		/* setproctitle() in some FreeBSDs */
+#endif
+
 #endif /* Include guard */
