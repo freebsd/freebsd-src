@@ -284,7 +284,7 @@ ia64_get_##name(void)						\
 static __inline void						\
 ia64_set_##name(u_int64_t v)					\
 {								\
-	__asm __volatile("mov ar." #name "=%0" :: "r" (v));	\
+	__asm __volatile("mov ar." #name "=%0;;" :: "r" (v));	\
 }
 
 IA64_AR(k0)
@@ -340,7 +340,7 @@ ia64_get_##name(void)						\
 static __inline void						\
 ia64_set_##name(u_int64_t v)					\
 {								\
-	__asm __volatile("mov cr." #name "=%0" :: "r" (v));	\
+	__asm __volatile("mov cr." #name "=%0;;" :: "r" (v));	\
 }
 
 IA64_CR(dcr)
