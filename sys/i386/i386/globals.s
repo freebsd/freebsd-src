@@ -23,8 +23,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: globals.s,v 1.1 1998/04/06 15:39:09 peter Exp $
  */
+
+#include "opt_vm86.h"
 
 #include <machine/asmacros.h>
 #include <machine/pmap.h>
@@ -72,9 +74,10 @@ globaldata:
 	.set	_common_tss,globaldata + GD_COMMON_TSS
 
 #ifdef VM86
-	.globl	_common_tssd,_private_tss
+	.globl	_common_tssd,_private_tss,_my_tr
 	.set	_common_tssd,globaldata + GD_COMMON_TSSD
 	.set	_private_tss,globaldata + GD_PRIVATE_TSS
+	.set	_my_tr,globaldata + GD_MY_TR
 #endif
 
 #ifdef SMP
@@ -95,10 +98,6 @@ globaldata:
 	.set	_prv_CMAP2,globaldata + GD_PRV_CMAP2
 	.set	_prv_CMAP3,globaldata + GD_PRV_CMAP3
 	.set	_inside_intr,globaldata + GD_INSIDE_INTR
-#ifdef VM86
-	.globl	_my_tr
-	.set	_my_tr,globaldata + GD_MY_TR
-#endif
 #endif
 
 #if defined(SMP) || defined(APIC_IO)

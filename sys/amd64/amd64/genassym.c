@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.52 1998/04/04 13:24:08 phk Exp $
+ *	$Id: genassym.c,v 1.53 1998/04/06 15:40:10 peter Exp $
  */
 
 #include "opt_vm86.h"
@@ -208,6 +208,7 @@ main()
 #ifdef VM86
 	printf("#define\tGD_COMMON_TSSD %d\n", &globaldata->common_tssd);
 	printf("#define\tGD_PRIVATE_TSS %d\n", &globaldata->private_tss);
+	printf("#define\tGD_MY_TR %d\n", &globaldata->my_tr);
 #endif
 #ifdef SMP
 	printf("#define\tGD_CPUID %d\n", &globaldata->cpuid);
@@ -219,9 +220,6 @@ main()
 	printf("#define\tGD_PRV_CMAP2 %d\n", &globaldata->prv_CMAP2);
 	printf("#define\tGD_PRV_CMAP3 %d\n", &globaldata->prv_CMAP3);
 	printf("#define\tGD_INSIDE_INTR %d\n", &globaldata->inside_intr);
-#ifdef VM86
-	printf("#define\tGD_MY_TR %d\n", &globaldata->my_tr);
-#endif
 	printf("#define\tPS_GLOBALDATA 0x%x\n", &privatespace->globaldata);
 	printf("#define\tPS_PRVPT 0x%x\n", &privatespace->prvpt);
 	printf("#define\tPS_LAPIC 0x%x\n", &privatespace->lapic);
