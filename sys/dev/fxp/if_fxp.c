@@ -412,7 +412,7 @@ fxp_attach(device_t dev)
 	int s, ipcbxmit_disable;
 
 	sc->dev = dev;
-	callout_handle_init(&sc->stat_ch);
+	callout_init(&sc->stat_ch, CALLOUT_MPSAFE);
 	sysctl_ctx_init(&sc->sysctl_ctx);
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
@@ -1883,7 +1883,7 @@ fxp_tick(void *xsc)
 	/*
 	 * Schedule another timeout one second from now.
 	 */
-	sc->stat_ch = timeout(fxp_tick, sc, hz);
+	callout_reset(&sc->stat_ch, hz, fxp_tick, sc);
 	FXP_UNLOCK(sc);
 	splx(s);
 }
@@ -1908,7 +1908,7 @@ fxp_stop(struct fxp_softc *sc)
 	/*
 	 * Cancel stats updater.
 	 */
-	untimeout(fxp_tick, sc, sc->stat_ch);
+	callout_stop(&sc->stat_ch);
 
 	/*
 	 * Issue software reset, which also unloads the microcode.
@@ -2239,7 +2239,7 @@ fxp_init_body(struct fxp_softc *sc)
 	/*
 	 * Start stats updater.
 	 */
-	sc->stat_ch = timeout(fxp_tick, sc, hz);
+	callout_reset(&sc->stat_ch, hz, fxp_tick, sc);
 	splx(s);
 }
 
