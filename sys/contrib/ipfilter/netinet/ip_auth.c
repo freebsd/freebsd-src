@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  */
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ip_auth.c,v 1.3 1998/03/21 13:37:42 peter Exp $";
+static const char rcsid[] = "@(#)$Id: ip_auth.c,v 1.4 1998/06/20 18:37:50 peter Exp $";
 #endif
 
 #if defined(KERNEL) && !defined(_KERNEL)
@@ -262,7 +262,7 @@ ip_t *ip;
 
 int fr_auth_ioctl(data, cmd, fr, frptr)
 caddr_t data;
-#if defined(__NetBSD__) || defined(__OpenBSD__)
+#if defined(__NetBSD__) || defined(__OpenBSD__) || (__FreeBSD_version >= 300003)
 u_long cmd;
 #else
 int cmd;
