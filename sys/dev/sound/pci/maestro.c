@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000 Taku YAMAMOTO <taku@cent.saitama-u.ac.jp>
+ * Copyright (c) 2000-2004 Taku YAMAMOTO <taku@tackymt.homeip.net>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -472,7 +472,7 @@ wp_wrapu(struct agg_info *ess, unsigned ch, u_int16_t reg, u_int16_t data)
 	}
 }
 
-static inline void
+static void
 apu_setparam(struct agg_info *ess, int apuch,
     u_int32_t wpwa, u_int16_t size, int16_t pan, u_int dv)
 {
