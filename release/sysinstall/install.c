@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.40 1995/10/19 18:37:44 jkh Exp $
+ * $Id: install.c,v 1.71.2.41 1995/10/20 07:02:36 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -495,12 +495,14 @@ installFilesystems(void)
     PartInfo *root;
     char dname[40];
     extern int MakeDevChunk(Chunk *c, char *n);
+    Boolean upgrade = FALSE;
 
     if (!checkLabels(&rootdev, &swapdev, &usrdev))
 	return RET_FAIL;
 
     root = (PartInfo *)rootdev->private;
     command_clear();
+    upgrade = !strcmp(variable_get(SYSTEM_INSTALLED), "upgrade") ? TRUE : FALSE;
 
     /* First, create and mount the root device */
     sprintf(dname, "/dev/%s", rootdev->name);
@@ -525,8 +527,9 @@ installFilesystems(void)
 	}
     }
     else {
-	msgConfirm("Warning:  Root device is selected read-only.  It will be assumed\n"
-		   "that you have the appropriate device entries already in /dev.\n");
+	if (!upgrade)
+	    msgConfirm("Warning:  Root device is selected read-only.  It will be assumed\n"
+		       "that you have the appropriate device entries already in /dev.\n");
 	msgNotify("Checking integrity of existing %s filesystem.", rootdev->name);
 	i = vsystem("fsck -y /dev/r%s", rootdev->name);
 	if (i)
@@ -549,7 +552,7 @@ installFilesystems(void)
 	    msgConfirm("No chunk list found for %s!", disk->name);
 	    return RET_FAIL;
 	}
-	if (root->newfs) {
+	if (root->newfs || upgrade) {
 	    Mkdir("/mnt/dev", NULL);
 	    MakeDevDisk(disk, "/mnt/dev");
 	}
@@ -560,7 +563,8 @@ installFilesystems(void)
 		    if (c2->type == part && c2->subtype != FS_SWAP && c2->private) {
 			PartInfo *tmp = (PartInfo *)c2->private;
 
-			if (!strcmp(tmp->mountpoint, "/"))
+			/* Already did root */
+			if (c2 == rootdev)
 			    continue;
 
 			if (tmp->newfs)
@@ -592,7 +596,7 @@ installFilesystems(void)
     }
 
     /* Copy the boot floppy's dev files */
-    if (root->newfs && vsystem("find -x /dev | cpio -pdmv /mnt")) {
+    if ((root->newfs || upgrade) && vsystem("find -x /dev | cpio -pdmv /mnt")) {
 	msgConfirm("Couldn't clone the /dev files!");
 	return RET_FAIL;
     }
