@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.13 (Berkeley) 3/27/94
- *	$Id: mount.h,v 1.20 1995/06/27 11:07:08 dfr Exp $
+ *	$Id: mount.h,v 1.21 1995/08/11 11:31:13 davidg Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -147,6 +147,7 @@ struct mount {
  */
 #define	MNT_RDONLY	0x00000001	/* read only filesystem */
 #define	MNT_SYNCHRONOUS	0x00000002	/* file system written synchronously */
+#define 	MNT_NOAUTO	0x00000003	/* don't mount with 'mount -a' */
 #define	MNT_NOEXEC	0x00000004	/* can't exec from filesystem */
 #define	MNT_NOSUID	0x00000008	/* don't honor setuid bits on fs */
 #define	MNT_NODEV	0x00000010	/* don't interpret special files */
