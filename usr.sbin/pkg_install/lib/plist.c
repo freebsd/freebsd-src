@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: plist.c,v 1.12 1995/04/22 07:41:02 jkh Exp $";
+static const char *rcsid = "$Id: plist.c,v 1.13 1995/05/30 03:50:07 rgrimes Exp $";
 #endif
 
 /*
@@ -359,7 +359,7 @@ delete_package(Boolean ign_err, Boolean nukedirs, Package *pkg)
 	if (p->type == PLIST_CWD) {
 	    Where = p->name;
 	    if (Verbose)
-		printf("Change working directory to %s\n", CMD_CHAR, Where);
+		printf("Change working directory to %s\n", Where);
 	}
 	else if (p->type == PLIST_UNEXEC) {
 	    char cmd[FILENAME_MAX];
