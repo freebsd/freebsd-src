@@ -16,8 +16,6 @@ gdb \- The GNU Debugger
 .I dir\c
 \|]
 .RB "[\|" \-f "\|]"
-.RB "[\|" \-k "\|]"
-.RB "[\|" \-wcore "\|]"
 .RB "[\|" "\-b\ "\c
 .IR bps "\|]"
 .RB "[\|" "\-tty="\c
@@ -331,18 +329,6 @@ Emacs-to-GDB interface program uses the two `\|\c
 .B \032\c
 \&\|' characters as
 a signal to display the source code for the frame.
-
-.TP
-.B \-kernel
-.TP
-.B \-k
-Use gdb in kernel debugging mode. The prompt is set to ``(kgdb)''.
-
-.TP
-.B \-wcore
-This option may only be used in kernel debugging mode while
-debugging a ``live'' kernel and makes the corefile (/dev/mem)
-writable.
 
 .TP
 .BI "\-b " "bps"\c
