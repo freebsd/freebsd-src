@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.4 1999/04/27 11:13:16 phk Exp $
+ *	$Id: cons.c,v 1.5 1999/04/27 12:20:52 phk Exp $
  */
 
 #include "opt_devfs.h"
@@ -168,7 +168,7 @@ cninit_finish()
 	/*
 	 * Hook the open and close functions.
 	 */
-	cdp = cdevsw[major(cn_tab->cn_dev)];
+	cdp = devsw(cn_tab->cn_dev);
 	cn_phys_close = cdp->d_close;
 	cdp->d_close = cnclose;
 	cn_phys_open = cdp->d_open;
@@ -188,7 +188,7 @@ cnuninit(void)
 	/*
 	 * Unhook the open and close functions.
 	 */
-	cdp = cdevsw[major(cn_tab->cn_dev)];
+	cdp = devsw(cn_tab->cn_dev);
 	cdp->d_close = cn_phys_close;
 	cn_phys_close = NULL;
 	cdp->d_open = cn_phys_open;
@@ -331,7 +331,7 @@ cnread(dev, uio, flag)
 	if ((cn_tab == NULL) || cn_mute)
 		return (0);
 	dev = cn_tab->cn_dev;
-	return ((*cdevsw[major(dev)]->d_read)(dev, uio, flag));
+	return ((*devsw(dev)->d_read)(dev, uio, flag));
 }
 
 static int
@@ -348,7 +348,7 @@ cnwrite(dev, uio, flag)
 		dev = constty->t_dev;
 	else
 		dev = cn_tab->cn_dev;
-	return ((*cdevsw[major(dev)]->d_write)(dev, uio, flag));
+	return ((*devsw(dev)->d_write)(dev, uio, flag));
 }
 
 static int
@@ -375,7 +375,7 @@ cnioctl(dev, cmd, data, flag, p)
 		return (0);
 	}
 	dev = cn_tab->cn_dev;
-	return ((*cdevsw[major(dev)]->d_ioctl)(dev, cmd, data, flag, p));
+	return ((*devsw(dev)->d_ioctl)(dev, cmd, data, flag, p));
 }
 
 static int
@@ -389,7 +389,7 @@ cnpoll(dev, events, p)
 
 	dev = cn_tab->cn_dev;
 
-	return ((*cdevsw[major(dev)]->d_poll)(dev, events, p));
+	return ((*devsw(dev)->d_poll)(dev, events, p));
 }
 
 int

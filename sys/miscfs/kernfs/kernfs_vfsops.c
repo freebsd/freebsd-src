@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vfsops.c	8.10 (Berkeley) 5/14/95
- * $Id: kernfs_vfsops.c,v 1.24 1998/12/07 21:58:31 archie Exp $
+ * $Id: kernfs_vfsops.c,v 1.25 1999/05/07 10:11:02 phk Exp $
  */
 
 /*
@@ -88,7 +88,7 @@ kernfs_get_rrootdev()
 	}
 	tried = 1;
 
-	if (!bdevsw(bmaj)) {
+	if (!bdevsw(rootdev)) {
 		panic("root dev has no bdevsw");
 	}
 	if (rootdev == NODEV)

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.31 1999/03/23 21:11:47 dfr Exp $
+ * $Id: kern_conf.c,v 1.32 1999/05/07 10:10:50 phk Exp $
  */
 
 #include <sys/param.h>
@@ -58,7 +58,7 @@ chrtoblk(dev_t dev)
 {
 	struct cdevsw *cd;
 
-	if((cd = cdevsw[major(dev)]) != NULL) {
+	if((cd = devsw(dev)) != NULL) {
           if (cd->d_bmaj != -1)
 	    return(makedev(cd->d_bmaj,minor(dev)));
 	}

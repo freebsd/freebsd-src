@@ -136,9 +136,9 @@ ext2_mountroot()
 	bzero((char *)mp, (u_long)sizeof(struct mount));
 	mp->mnt_op = &ext2fs_vfsops;
 	mp->mnt_flag = MNT_RDONLY;
-	if (bdevsw(major(rootdev))->d_flags & D_NOCLUSTERR)
+	if (bdevsw(rootdev)->d_flags & D_NOCLUSTERR)
 		mp->mnt_flag |= MNT_NOCLUSTERR;
-	if (bdevsw(major(rootdev))->d_flags & D_NOCLUSTERW)
+	if (bdevsw(rootdev)->d_flags & D_NOCLUSTERW)
 		mp->mnt_flag |= MNT_NOCLUSTERW;
 	if (error = ext2_mountfs(rootvp, mp, p)) {
 		bsd_free(mp, M_MOUNT);
@@ -201,9 +201,9 @@ ext2_mount(mp, path, data, ndp, p)
 		ump = VFSTOUFS(mp);
 		fs = ump->um_e2fs;
 		error = 0;
-		if (bdevsw(major(ump->um_dev))->d_flags & D_NOCLUSTERR)
+		if (bdevsw(ump->um_dev)->d_flags & D_NOCLUSTERR)
 			mp->mnt_flag |= MNT_NOCLUSTERR;
-		if (bdevsw(major(ump->um_dev))->d_flags & D_NOCLUSTERW)
+		if (bdevsw(ump->um_dev)->d_flags & D_NOCLUSTERW)
 			mp->mnt_flag |= MNT_NOCLUSTERW;
 		if (fs->s_rd_only == 0 && (mp->mnt_flag & MNT_RDONLY)) {
 			flags = WRITECLOSE;
@@ -277,7 +277,7 @@ ext2_mount(mp, path, data, ndp, p)
 		return (ENOTBLK);
 	}
 	if (major(devvp->v_rdev) >= nblkdev ||
-	    bdevsw(major(devvp->v_rdev)) == NULL) {
+	    bdevsw(devvp->v_rdev) == NULL) {
 		vrele(devvp);
 		return (ENXIO);
 	}
@@ -299,9 +299,9 @@ ext2_mount(mp, path, data, ndp, p)
 	}
 
 	if ((mp->mnt_flag & MNT_UPDATE) == 0) {
-		if (bdevsw(major(devvp->v_rdev))->d_flags & D_NOCLUSTERR)
+		if (bdevsw(devvp->v_rdev)->d_flags & D_NOCLUSTERR)
 			mp->mnt_flag |= MNT_NOCLUSTERR;
-		if (bdevsw(major(devvp->v_rdev))->d_flags & D_NOCLUSTERW)
+		if (bdevsw(devvp->v_rdev)->d_flags & D_NOCLUSTERW)
 			mp->mnt_flag |= MNT_NOCLUSTERW;
 		error = ext2_mountfs(devvp, mp, p);
 	} else {
