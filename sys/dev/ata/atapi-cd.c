@@ -1034,7 +1034,7 @@ acd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 	break;
 
     case DIOCGMEDIASIZE:
-	*(off_t *)addr = cdp->disk_size * cdp->block_size;
+	*(off_t *)addr = (off_t)cdp->disk_size * (off_t)cdp->block_size;
 	break;
 
     case DIOCGSECTORSIZE:
