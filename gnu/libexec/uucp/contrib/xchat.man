@@ -1,0 +1,614 @@
+.TH xchat 8
+.SH NAME
+xchat - Extended chat processor
+.SH SYNOPSIS
+.BI "xchat " "scriptfile"
+.RI " [ " parameter... " ] "
+.PP
+where
+.I scriptfile
+is the name of a file containing an 
+.I xchat
+script. If 
+.I scriptfile
+begins with ``/'', then it is assumed to be a full path name for the
+script file. If not, a configuration-dependent default directory path
+(usually
+.B "/usr/local/conf/uucp/"
+) is prepended to the script file name. Normally, the default path
+is the same as that for the Taylor UUCP configuration files.
+.SH DESCRIPTION
+.I Xchat
+is a general-purpose dialing and login program designed for use 
+with Taylor UUCP as a ``chat-program'', taking the place (or 
+augmenting) the built-in chat scripting facility. It provides the 
+ability to closely control timeouts, multiple simultaneous ``expect'' 
+strings with separate actions, extended terminal control, modem 
+command character pacing, and more.
+.PP
+When used in conjunction with Taylor UUCP's
+configuration features, 
+.I xchat
+can provide you the ability to manage the most intricate login, 
+dial and hangup needs. The scripts are written in a shell-like (well, 
+sort-of) style with labels, commands, and parameters, easing the task 
+of writing procedures for complex terminal communications situations.
+.PP
+Because 
+.I xchat
+assumes that it is connected to the terminal device via stdin/stdout, 
+you can easily debug scripts by invoking it from the shell and 
+responding to the script from the keyboard. A debug logging facility 
+is included, with the debug output going to a separate user-specified 
+file. This makes it easy to debug connection problems without wading 
+through large 
+.I uucico
+log and debug files.
+.PP
+Formally, a script describes a state machine; 
+.I xchat
+interprets the script and does what the state machine
+tells it to. This section will be much easier to understand 
+if you obtain listings of the script files supplied with
+.I xchat.
+.SH "SCRIPT FILE FORMAT"
+Script files are ordinary text files containing comments, labels,
+and statements. Blank lines are ignored. 
+Comments are denoted by leading ``#''
+characters. Some statements (those which do not end with an
+``extended string'' argument; see below) can also have trailing
+comments.
+.PP
+.I Labels 
+begin in column one and are ended by colons (:). A label
+specifies a state name. All lines between a pair of labels are
+the statements for a single state.
+.PP
+Processing always begins at the head of the script (no leading
+state name is necessary).
+.PP
+.I Statements 
+are divided into two categories, ``action'' and ``expect''.
+When a state is entered, all of its actions are performed in the
+order in which they appear in the file.
+.PP
+A 
+.I transition 
+to another state may occur for any of three reasons:
+.IP (1) 5
+One of the actions may cause a transition to
+another state, in which case the rest of the
+current state's actions are skipped.
+Processing resumes with the first action
+statement of the new state.
+.IP (2) 5
+If none of the actions cause a state
+transition, and there are no expects in the
+state, processing ``falls through'' to the next
+state in the file.
+.IP (3) 5
+If none of the actions cause a state
+transition, but there are expects in the
+state, the state machine pauses until one of
+the expects is ``satisfied''. It then transitions 
+to the state named in the expect
+statement.
+.PP
+Finally, there are two action statements which, when executed,
+cause the script to exit.
+.SH "SCRIPT FILE STATEMENTS"
+This section describes all of the statements that may appear in script
+files, except for a few special action statements. Those are described
+in a later section, ``Overriding Defaults''.
+.PP
+Some statements accept one or two arguments, referred to in the
+following descriptions as 
+.IR int ", " ns ", " str ", or "
+.IR xstr ", to"
+indicate whether the argument is an integer, a new state name, a
+string, or an ``extended string'' (described in a later section).
+.PP
+For all statements that accept two arguments, the first is the
+name of a new state, and the second specifies a condition or
+reason for changing to the new state.
+.SS "Termination And Informational Statements"
+These statements are used to place entries into the Taylor UUCP
+.I Log
+file, and to cause 
+.I xchat
+to exit with successful or failure status. It is also possible to open a 
+separate
+.I debug
+log file and control the level of tracing and error reporting that will go
+into that log file. This is very useful in debugging 
+.I xchat
+scripts.
+.br
+.ta 1.0i 1.5i 2.0i
+.TP 2.0i
+.B failed
+Exit script with ``failed'' status. This causes 
+.I xchat 
+to exit with status 0.
+.TP 2.0i
+.B success
+Exit script with ``success'' status. This causes
+.I xchat
+to exit with status 1.
+.TP 2.0i
+.BI "log	" xstr     
+Send informational message
+.I xstr 
+to standard error. When used with Taylor UUCP, this is the 
+.I Log
+file for the 
+.I uucico
+program.
+.TP 2.0i
+.BI "logerr	" xstr     
+Send message
+.I xstr 
+to standard error, with ``ERROR:'' indicator. When used 
+with Taylor UUCP, this is the 
+.I Log
+file for the 
+.I uucico
+program.
+.TP 2.0i
+.BI "dbgfile	" xstr
+Open script debugging file 
+.I xstr.
+If
+.I xstr
+begins with ``/'', it is assumed to be an absolute path name for the
+debugging file. If not, then a configuration-dependent default directory 
+path (usually
+.B "/usr/spool/uucp"
+) is prepended to
+.I xstr.
+Normally the default path is that of the directory where Taylor UUCP 
+puts its log files.
+The debugging file is used to capture a detailed log of the data sent
+and received, errors encountered, and a trace of script execution.
+The various types of logging are controlled by the
+.I "debug mask,"
+described next. 
+.B Note:
+A new log file is created each time 
+.I xchat
+runs. Use the 
+.B log
+and
+.B loge
+commands to log 
+continuous information onto standard out, which is connected
+to the Taylor UUCP
+.I Log
+file when 
+.I xchat
+is run by the Taylor
+.I uucico.
+.TP 2.0i
+.BI "dbgset	" int
+Set the bits specified in 
+.I int
+in the debugging mask. The value in
+.I int
+is ``or''ed into the mask. Set bit 0 (value \= 1) for error messages,
+bit 1 (value \= 2) for dial, login and init errors, bit 2 (value \= 4)
+for dial, login and init trace with character I/O, and bit 3 (value \= 8)
+for script processing internals. Normally, you will just turn it all on
+with a value of 15.
+.TP 2.0i
+.BI "dbgclr	" int
+Clear the bits specified in
+.I int
+from the debugging mask.
+.TP 2.0i
+.BI "debug	" xstr
+Write 
+.I
+xstr
+into the debug log. The entry will be enclosed in angle brackets.
+.TP 2.0i
+.BI "debuge	" xstr
+Write
+.I xstr
+into the debug log with ``ERROR: '' prepended. The entry will be enclosed
+in angle brackets. 
+.SS "Sending Data"
+These statements are used to transmit data to standard out (the tty or TCP
+port when used with Taylor UUCP).
+.I
+No implied carriage returns are sent.
+You must include a \\r if you want a carriage return in the string
+sent by the 
+.B send
+command. If you want a return sent after 
+.B dial
+or
+.B sendstr,
+you must send it with a separate
+.B send
+command.
+.TP 2.0i
+.B dial
+Send the string previously set by the 
+.B telno
+command to the serial port.
+.B W
+and
+.B P
+characters in the phone number are
+converted as described under 
+.B 
+Dial Strings,
+below. This statement also sets a default
+timeout value, as described under the 
+.B timeout
+statement.
+.TP 2.0i
+.BI "send	" xstr
+Send the string 
+.I xstr 
+to the serial port.
+.TP 2.0i
+.BI "sendstr	" int
+The argument of this statement is a digit from 0
+through 7. Send the corresponding string
+parameter as passed to 
+.I xchat
+following the script file name. The parameter is interpreted 
+as an extended string.
+.SS "Special Terminal Control Statements"
+These statements are used to cause the terminal port to perform some special action, or to change the mode of the port.
+.I 
+The modes of the port are restored to their original settings
+.I
+by xchat before it exits.
+.TP 2.0i
+.B flush
+Flush the terminal port's input buffer.
+.TP 2.0i
+.B break
+Send a break signal.
+.TP 2.0i
+.B hangup
+Momentarily drop Data Terminal Ready (DTR) on the
+serial port, causing the modem to hang up. (Not
+usually needed, since 
+.I uucico
+does this at the end of each call.)
+.TP 2.0i
+.B 7bit
+Change the port to strip incoming characters to 7 bits. 
+.I
+This is the default mode.
+This mode 
+is implied when the port has parity enabled, since parity characters
+are 7-bits wide.
+.TP 2.0i
+.B 8bit
+Change the port to allow incoming 8-bit characters to be passed 
+to the script processor. This mode has no effect if parity is 
+enabled, since parity characters are 7-bits wide.
+.TP 2.0i
+.B nopar
+Change the port to 8-bits, no parity. 
+.I
+This is the default mode.
+.TP 2.0i
+.B evenpar
+Change the port to 7-bits, even parity. 
+.I 
+Incoming characters with parity errors are discarded.
+.TP 2.0i
+.B oddpar
+Change the port to 7-bits, odd parity.
+.I 
+Incoming characters with parity errors are discarded.
+.SS "Counting, Branching, Timing and Testing Statements"
+These statements are used to control the flow of the 
+.I xchat
+script itself, including branching, delays, and counter manipulation.
+.TP 2.0i
+.BI "sleep	" int 
+Delay for 
+.I int
+milliseconds.
+.TP 2.0i
+.B zero
+Clear the counter.
+.TP 2.0i
+.B count
+Add one to the counter.
+.TP 2.0i
+.BI "ifgtr	" "ns	int"
+Go to state 
+.I ns
+if counter greater than 
+.I int.
+.TP 2.0i
+.BI "goto	" ns
+Go to state 
+.I ns 
+unconditionally.
+.TP 2.0i
+.BI "ifstr	" "ns	int"
+Go to state 
+.I ns
+if string parameter 
+.I int
+is nonempty.
+.TP 2.0i
+.BI "ifnstr	" "ns	int"
+Go to state
+.I ns
+if string parameter 
+.I int
+is empty.
+.TP 2.0i
+.BI "ifblind	" ns
+Change to state
+.I ns
+if the port is ``blind'' without carrier (CD) asserted.
+.I 
+This is not yet implemented, the test always fails.
+.TP 2.0i
+.BI "ifblgtr	" "ns	int"
+Change to state
+.I ns
+if the port is ``blind'' without carrier (CD) asserted, and counter
+is greater then
+.I int.
+.I 
+This is not yet implemented, the test always fails.
+.SS "Expect Statements"
+Expect statements are usually the last statements that appear in a
+given state, though in fact they can appear anywhere within the
+state. Even if they appear at the beginning, the script processor
+always does all of the action statements first. As a practical
+matter, the order of these statements is not significant; they are
+all interpreted ``in parallel''.
+.TP 2.0i
+.BI "expect	" "ns	xstr"
+Change to state 
+.I ns 
+if the string specified by
+.I xstr 
+is received from standard input (usually the serial port). 
+Case is significant, but high-order bits are not
+checked.
+.TP 2.0i
+.BI "ifcarr	" ns
+Change to state
+.I ns 
+if Carrier Detect (CD) is true.
+.I
+Not currently implemented. Always changes state.
+.TP 2.0i
+.BI "ifhang	" ns
+Change to state
+.I ns
+if a data set hangup occurs (SIGHUP signal received).
+.TP 2.0i
+.BI "timeout	" "ns	int"
+Change to state 
+.I ns 
+if the time (in milliseconds)
+given by 
+.I int
+has elapsed without satisfying any
+expects. If the time specified is 0, a default
+timeout value (calculated from the length and
+other characteristics of the most recent dial
+string) is used.
+.SH "SCRIPT PROCESSING DETAILS"
+.SS "Extended Strings"
+In the statements that accept string arguments, the strings are
+interpreted as 
+.I 
+extended strings. 
+Extended strings begin with
+the first nonblank character and continue, including all imbedded
+and trailing blanks and other whitespace, until (but not
+including) the end of the line in the script file. (There is no
+provision for line continuation.)  No trailing spaces should be
+present between the last ``desired'' character of the string and the
+end of the line, as they will be included in the stored string and
+sent or expected, just as they appear in the script file. And,
+obviously, no trailing comments are permitted!  They will just be
+stored as part of the string.
+.PP
+Within an extended string, the following ``escape sequences'' will
+be converted as indicated before being sent or expected:
+.br
+.nf
+.in +0.5i
+\fB\\d\fR	EOT character (control-D)
+\fB\\N\fR	null character
+\fB\\n\fR	line feed
+\fB\\r\fR	carriage return
+\fB\\s\fR	space
+\fB\\t\fR	tab
+\fB\\\-\fR	hyphen
+\fB\\\\\fR	backslash
+\fB\\ooo\fR	character with value ooo (in octal)
+.in -0.5i
+.fi
+.PP
+Since extended strings in scripts can include embedded spaces,
+tabs, etc., these escape sequences are only required in strings
+appearing in systems entries, though they may be used in script
+files to improve readability.
+.PP
+The octal-character specification (\\ooo) may have from one to
+three octal digits; it is terminated either after the third digit
+or when a non-octal character is encountered. But if you want to
+specify one of these followed by something that happens to be a
+valid octal character (for example, a control-A followed by a 7)
+make sure to include all three digits after the \\ . So \\0017
+would become a control-A followed by the Ascii character ``7'', but
+\\17 or \\017 would become a control-Y (decimal value 25). \\1S
+would convert to a control-A followed by an ``S''.
+.PP
+Extended strings are stored without a trailing carriage return
+unless one is explicitly present in the string (via \\r).
+.SS "String Parameters"
+The 
+.B sendstr 
+statement sends (after conversion from extended string
+format) one of the parameters given on the 
+.I xchat
+command line following the script file name. 
+The parameter is selected by the integer
+argument of the statement.
+.PP
+This allows ``generic'' script files to serve
+for many different systems; the string parameters 
+provide the phone number, username, password, etc. Character
+substitutions described under ``extended strings'' above are
+performed on these strings.
+.PP
+The ifstr and ifnstr statements allow further generality in script
+files, by testing whether a particular parameter is present in the
+systems entry. For example, a single script can be
+used both for those systems that require a password and
+those that do not. The password is specified as the last argument
+in the 
+.xchat
+command; the script can test for this
+parameter's existence and skip the password sequence if
+the parameter is empty.
+.SS "``Wait'' And ``Pause'' Characters In Dial Strings"
+An additional conversion is performed on dial strings. Dial strings
+are interpreted as extended strings. Then the characters
+.B W 
+and
+.B P
+within a dial string are interpreted as ``wait for dial
+tone'' and ``pause'', and may be converted to other characters. By
+default, 
+.B W
+is left alone, and
+.B P
+is converted to a comma (,);
+these are appropriate for Hayes-type modems. The script may
+specify other substitutions (see below).
+.PP
+.B NOTE: 
+The Taylor UUCP documentation states that the ``wait'' and ``pause''
+characters are ``='' and ``-'', respectively. These are actual characters
+understood by some modems. When using
+.I xchat
+you should put
+.B W
+and
+.B P
+in the dial strings you specify in the Taylor configuration files. 
+This way, the 
+.I xchat
+processor can make the substitution appropriate for the particular 
+modem in use. Make a separate 
+.I xchat
+script for each modem type, e.g.,
+.I "dial.hayes"
+and specify the translation there. This way, the phone number strings
+in the Taylor configuration files can be used with a variety of modems.
+.SS "Default Timeouts For Dial Strings"
+When a 
+.B dial 
+statement is executed, a default timeout value is set.
+This is the timeout value used by a subsequent timeout statement
+if the statement specifies a timeout value of 0.
+.PP
+The default timeout is given by:
+.br
+.nf
+.in +2
+\fIctime\fR + (\fIndigits\fR * \fIdgttime\fR) + (\fInwchar\fR * \fIwtime\fR) + (\fInpchar\fR * \fI ptime\fR) 
+.in -2
+.fi
+.PP
+where 
+.I 
+ndigits, nwchar, 
+and 
+.I npchar
+are the number of digits, wait characters, and pause characters in
+the dial string, and 
+.I ctime, dgttime, wtime, 
+and 
+.I ptime 
+are 45 seconds, 0.1 seconds, 10 seconds, and 2 seconds, 
+respectively.
+All of these times may be changed as specified below under
+``Overriding Defaults.''
+.SS "Trailing Carriage Returns Not Assumed"
+In the 
+.B dial
+and
+.B sendstr 
+statements, the dial string or
+parameter is sent with no trailing carriage return;
+if a carriage return must be sent after one of these, a separate
+send statement must provide it.
+.SH "OVERRIDING DEFAULTS"
+The script processor sets several default values. The following
+statements, which override these defaults, may be useful in
+certain circumstances.
+.TP 2.0i
+.BI "chrdly	" int
+Since many modems cannot accept dialing commands
+at full ``computer speed'', the script processor
+sends all strings with a brief inter-character
+delay. This statement specifies the delay time,
+in milliseconds. The default is 100 (0.1 second).
+.TP 2.0i
+.BI "pchar	" str
+Specifies the character to which 
+.BR P s 
+in the
+dial string should be converted. Default is
+``,'', for use with Hayes-type modems.
+.TP 2.0i
+.BI "ptime	" int
+Specifies the time, in milliseconds, to allow in
+the default timeout for each pause character in
+the dial string. Default is 2000 (2 seconds).
+.TP 2.0i
+.BI "wchar	" str
+Specifies the character to which 
+.BR W s 
+in the
+dial string should be converted. Default is
+``W'', for Hayes modems.
+.TP 2.0i
+.BI "wtime	" int
+Specifies the time, in milliseconds, to allow in
+the default timeout for each wait-for-dialtone
+character in the dial string. Default is 10000
+(10 seconds).
+.TP 2.0i
+.BI "dgttime	" int
+Specifies the time, in milliseconds, to allow in
+the default timeout for each digit character in
+the dial string. Default is 100 (0.1 second).
+.TP 2.0i
+.BI "ctime	" int
+Specifies the time, in milliseconds, to allow in
+the default timeout for carrier to appear after
+the dial string is sent. Default is 45000 (45
+seconds).
+.SH "SEE ALSO"
+uucico(8) for Taylor UUCP, and documentation for Taylor UUCP.
+.SH AUTHOR
+Robert B. Denny (denny@alisa.com)
+.SH HISTORY
+This program is an adaptation of the dial/login script processing 
+code that is a part of DECUS UUCP for VAX/VMS, written by Jamie 
+Hanrahan, et. al.
+.SH BUGS
+This version (1.1) does not support BSD terminal facilities. Anyone 
+volunteer to add this?
+
