@@ -44,6 +44,7 @@
 #define	NREFPARENT		0x0010	/* node holds parent from recycling */
 #define	NFLUSHWIRE		0x1000	/* pending flush request */
 #define	NOPEN			0x2000	/* file is open */
+#define	NGONE			0x4000	/* file has been removed/renamed */
 
 struct smbfs_fctx;
 
