@@ -29,6 +29,7 @@
 #define RTLD_H 1
 
 #include <sys/types.h>
+#include <sys/queue.h>
 
 #include <link.h>
 #include <elf.h>
@@ -49,6 +50,13 @@ typedef unsigned char bool;
 #define true	1
 
 struct Struct_Obj_Entry;
+
+typedef struct Struct_Objlist_Entry {
+    STAILQ_ENTRY(Struct_Objlist_Entry) link;
+    struct Struct_Obj_Entry *obj;
+} Objlist_Entry;
+
+typedef STAILQ_HEAD(Struct_Objlist, Struct_Objlist_Entry) Objlist;
 
 typedef struct Struct_Needed_Entry {
     struct Struct_Needed_Entry *next;
@@ -71,7 +79,10 @@ typedef struct Struct_Obj_Entry {
     Elf_Word version;		/* Version number of struct format */
 
     struct Struct_Obj_Entry *next;
+    Objlist dldags;		/* Object belongs to these dlopened DAGs (%) */
+    Objlist dagmembers;		/* DAG has these members (%) */
     char *path;			/* Pathname of underlying file (%) */
+    unsigned long mark;		/* Set to "curmark" to avoid repeat visits */
     int refcount;
     int dl_refcount;		/* Number of times loaded by dlopen */
 
@@ -135,9 +146,11 @@ extern Elf_Addr _GLOBAL_OFFSET_TABLE_[];
  */
 int do_copy_relocations(Obj_Entry *);
 unsigned long elf_hash(const char *);
-const Elf_Sym *find_symdef(unsigned long, const Obj_Entry *,
-  const Obj_Entry **, bool);
+const Elf_Sym *find_symdef(unsigned long, Obj_Entry *, const Obj_Entry **,
+  bool);
 void init_pltgot(Obj_Entry *);
+void obj_free(Obj_Entry *);
+Obj_Entry *obj_new(void);
 int reloc_non_plt(Obj_Entry *, Obj_Entry *);
 int reloc_plt(Obj_Entry *, bool);
 void _rtld_bind_start(void);

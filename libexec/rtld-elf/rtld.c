@@ -60,6 +60,10 @@
 #define msg(s)		(write(1, s, strlen(s)))
 #define trace()		msg("trace: " __XSTRING(__LINE__) "\n");
 
+#ifndef _PATH_RTLD
+#define _PATH_RTLD	"/usr/libexec/ld-elf.so.1"
+#endif
+
 #define END_SYM		"_end"
 
 /* Types. */
@@ -77,6 +81,8 @@ static Obj_Entry *digest_phdr(const Elf_Phdr *, int, caddr_t, const char *);
 static Obj_Entry *dlcheck(void *);
 static char *find_library(const char *, const Obj_Entry *);
 static const char *gethints(void);
+static void init_dag(Obj_Entry *);
+static void init_dag1(Obj_Entry *root, Obj_Entry *obj);
 static void init_rtld(caddr_t);
 static bool is_exported(const Elf_Sym *);
 static void linkmap_add(Obj_Entry *);
@@ -85,13 +91,18 @@ static int load_needed_objects(Obj_Entry *);
 static int load_preload_objects(void);
 static Obj_Entry *load_object(char *);
 static Obj_Entry *obj_from_addr(const void *);
+static void objlist_add(Objlist *, Obj_Entry *);
+static Objlist_Entry *objlist_find(Objlist *, const Obj_Entry *);
+static void objlist_remove(Objlist *, Obj_Entry *);
 static int relocate_objects(Obj_Entry *, bool);
 static void rtld_exit(void);
 static char *search_library_path(const char *, const char *);
 static void set_program_var(const char *, const void *);
+static const Elf_Sym *symlook_list(const char *, unsigned long,
+  Objlist *, const Obj_Entry **, bool in_plt);
 static void trace_loaded_objects(Obj_Entry *obj);
 static void unload_object(Obj_Entry *, bool do_fini_funcs);
-static void unref_object_dag(Obj_Entry *);
+static void unref_dag(Obj_Entry *);
 
 void r_debug_state(void);
 void xprintf(const char *, ...);
@@ -108,12 +119,16 @@ static char *ld_library_path;	/* Environment variable for search path */
 static char *ld_preload;	/* Environment variable for libraries to
 				   load first */
 static char *ld_tracing;	/* Called from ldd to print libs */
-static Obj_Entry **main_tail;	/* Value of obj_tail after loading main and
-				   its needed shared libraries */
 static Obj_Entry *obj_list;	/* Head of linked list of shared objects */
 static Obj_Entry **obj_tail;	/* Link field of last object in list */
 static Obj_Entry *obj_main;	/* The main program shared object */
 static Obj_Entry obj_rtld;	/* The dynamic linker shared object */
+static unsigned long curmark;	/* Current mark value */
+
+static Objlist list_global =	/* Objects dlopened with RTLD_GLOBAL */
+  STAILQ_HEAD_INITIALIZER(list_global);
+static Objlist list_main =	/* Objects loaded at program startup */
+  STAILQ_HEAD_INITIALIZER(list_main);
 
 static Elf_Sym sym_zero;	/* For resolving undefined weak refs. */
 
@@ -171,6 +186,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     Elf_Auxinfo *aux;
     Elf_Auxinfo *auxp;
     const char *argv0;
+    Obj_Entry *obj;
 
     /*
      * On entry, the dynamic linker itself has not been relocated yet.
@@ -273,7 +289,9 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     dbg("loading needed objects");
     if (load_needed_objects(obj_main) == -1)
 	die();
-    main_tail = obj_tail;
+
+    for (obj = obj_list;  obj != NULL;  obj = obj->next)
+	objlist_add(&list_main, obj);
 
     if (ld_tracing) {		/* We're done */
 	trace_loaded_objects(obj_main);
@@ -307,7 +325,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 }
 
 Elf_Addr
-_rtld_bind(const Obj_Entry *obj, Elf_Word reloff)
+_rtld_bind(Obj_Entry *obj, Elf_Word reloff)
 {
     const Elf_Rel *rel;
     const Elf_Sym *def;
@@ -548,11 +566,12 @@ digest_dynamic(Obj_Entry *obj)
 static Obj_Entry *
 digest_phdr(const Elf_Phdr *phdr, int phnum, caddr_t entry, const char *path)
 {
-    Obj_Entry *obj = CNEW(Obj_Entry);
+    Obj_Entry *obj;
     const Elf_Phdr *phlimit = phdr + phnum;
     const Elf_Phdr *ph;
     int nsegs = 0;
 
+    obj = obj_new();
     for (ph = phdr;  ph < phlimit;  ph++) {
 	switch (ph->p_type) {
 
@@ -681,7 +700,7 @@ find_library(const char *name, const Obj_Entry *refobj)
  * defining object via the reference parameter DEFOBJ_OUT.
  */
 const Elf_Sym *
-find_symdef(unsigned long symnum, const Obj_Entry *refobj,
+find_symdef(unsigned long symnum, Obj_Entry *refobj,
     const Obj_Entry **defobj_out, bool in_plt)
 {
     const Elf_Sym *ref;
@@ -689,6 +708,7 @@ find_symdef(unsigned long symnum, const Obj_Entry *refobj,
     const Elf_Sym *symp;
     const Obj_Entry *obj;
     const Obj_Entry *defobj;
+    const Objlist_Entry *elm;
     const char *name;
     unsigned long hash;
 
@@ -697,79 +717,77 @@ find_symdef(unsigned long symnum, const Obj_Entry *refobj,
     hash = elf_hash(name);
     def = NULL;
     defobj = NULL;
+    curmark++;
 
     if (refobj->symbolic) {	/* Look first in the referencing object */
-	if ((symp = symlook_obj(name, hash, refobj, in_plt)) != NULL) {
+	symp = symlook_obj(name, hash, refobj, in_plt);
+	refobj->mark = curmark;
+	if (symp != NULL) {
 	    def = symp;
 	    defobj = refobj;
-	    if (ELF_ST_BIND(def->st_info) != STB_WEAK) {
-		*defobj_out = defobj;
-		return def;
-	    }
+	}
+    }
+
+    /* Search all dlopened DAGs containing the referencing object. */
+    STAILQ_FOREACH(elm, &refobj->dldags, link) {
+	if (def != NULL && ELF_ST_BIND(def->st_info) != STB_WEAK)
+	    break;
+	symp = symlook_list(name, hash, &elm->obj->dagmembers, &obj, in_plt);
+	if (symp != NULL &&
+	  (def == NULL || ELF_ST_BIND(symp->st_info) != STB_WEAK)) {
+	    def = symp;
+	    defobj = obj;
+	}
+    }
+
+    /* Search all objects loaded at program start up. */
+    if (def == NULL || ELF_ST_BIND(def->st_info) == STB_WEAK) {
+	symp = symlook_list(name, hash, &list_main, &obj, in_plt);
+	if (symp != NULL &&
+	  (def == NULL || ELF_ST_BIND(symp->st_info) != STB_WEAK)) {
+	    def = symp;
+	    defobj = obj;
+	}
+    }
+
+    /* Search all RTLD_GLOBAL objects. */
+    if (def == NULL || ELF_ST_BIND(def->st_info) == STB_WEAK) {
+	symp = symlook_list(name, hash, &list_global, &obj, in_plt);
+	if (symp != NULL &&
+	  (def == NULL || ELF_ST_BIND(symp->st_info) != STB_WEAK)) {
+	    def = symp;
+	    defobj = obj;
 	}
     }
 
     /*
-     * Look in all loaded objects.  Skip the referencing object,
-     * if we have already searched it.  We remember the first weak
-     * definition we encounter, but we keep searching for a strong
-     * definition.  If we find a strong definition we stop searching,
-     * because there won't be anything better than that.
+     * Search the dynamic linker itself, and possibly resolve the
+     * symbol from there.  This is how the application links to
+     * dynamic linker services such as dlopen.  Only the values listed
+     * in the "exports" array can be resolved from the dynamic linker.
      */
-    for (obj = obj_list;  obj != NULL;  obj = obj->next) {
-	if (obj == refobj && refobj->symbolic)
-	    continue;
-	if ((symp = symlook_obj(name, hash, obj, in_plt)) != NULL) {
-	    if (def == NULL || ELF_ST_BIND(symp->st_info) != STB_WEAK) {
-		def = symp;
-		defobj = obj;
-		if (ELF_ST_BIND(def->st_info) != STB_WEAK) {
-		    *defobj_out = defobj;
-		    return def;
-		}
-	    }
-	}
-    }
-
-    /*
-     * We still don't have a strong definition.  Search the dynamic
-     * linker itself, and possibly resolve the symbol from there.
-     * This is how the application links to dynamic linker services
-     * such as dlopen.  Only the values listed in the "exports" array
-     * can be resolved from the dynamic linker.
-     */
-    if ((symp = symlook_obj(name, hash, &obj_rtld, in_plt)) != NULL &&
-      is_exported(symp)) {
-	if (def == NULL || ELF_ST_BIND(symp->st_info) != STB_WEAK) {
+    if (def == NULL || ELF_ST_BIND(def->st_info) == STB_WEAK) {
+	symp = symlook_obj(name, hash, &obj_rtld, in_plt);
+	if (symp != NULL && is_exported(symp)) {
 	    def = symp;
 	    defobj = &obj_rtld;
-	    if (ELF_ST_BIND(def->st_info) != STB_WEAK) {
-		*defobj_out = defobj;
-		return def;
-	    }
 	}
     }
 
     /*
-     * We didn't find a strong definition.  Accept a weak definition
-     * if we found one.
-     */
-    if (def != NULL) {
-	*defobj_out = defobj;
-	return def;
-    }
-
-    /*
-     * We found no definition.  If the reference is weak, treat the
+     * If we found no definition and the reference is weak, treat the
      * symbol as having the value zero.
      */
-    if (ELF_ST_BIND(ref->st_info) == STB_WEAK) {
-	*defobj_out = obj_main;
-	return &sym_zero;
+    if (def == NULL && ELF_ST_BIND(ref->st_info) == STB_WEAK) {
+	def = &sym_zero;
+	defobj = obj_main;
     }
 
-    _rtld_error("%s: Undefined symbol \"%s\"", refobj->path, name);
-    return NULL;
+    if (def != NULL)
+	*defobj_out = defobj;
+    else
+	_rtld_error("%s: Undefined symbol \"%s\"", refobj->path, name);
+    return def;
 }
 
 /*
@@ -811,6 +829,28 @@ gethints(void)
     return hints[0] != '\0' ? hints : NULL;
 }
 
+static void
+init_dag(Obj_Entry *root)
+{
+    curmark++;
+    init_dag1(root, root);
+}
+
+static void
+init_dag1(Obj_Entry *root, Obj_Entry *obj)
+{
+    const Needed_Entry *needed;
+
+    if (obj->mark == curmark)
+	return;
+    obj->mark = curmark;
+    objlist_add(&obj->dldags, root);
+    objlist_add(&root->dagmembers, obj);
+    for (needed = obj->needed;  needed != NULL;  needed = needed->next)
+	if (needed->obj != NULL)
+	    init_dag1(root, needed->obj);
+}
+
 /*
  * Initialize the dynamic linker.  The argument is the address at which
  * the dynamic linker has been mapped into memory.  The primary task of
@@ -826,7 +866,7 @@ init_rtld(caddr_t mapbase)
      * aren't yet initialized sufficiently to do that.  Below we will
      * replace the static version with a dynamically-allocated copy.
      */
-    obj_rtld.path = "/usr/libexec/ld-elf.so.1";
+    obj_rtld.path = _PATH_RTLD;
     obj_rtld.rtld = true;
     obj_rtld.mapbase = mapbase;
 #ifdef PIC
@@ -1001,6 +1041,38 @@ obj_from_addr(const void *addr)
     return NULL;
 }
 
+static void
+objlist_add(Objlist *list, Obj_Entry *obj)
+{
+    Objlist_Entry *elm;
+
+    elm = NEW(Objlist_Entry);
+    elm->obj = obj;
+    STAILQ_INSERT_TAIL(list, elm, link);
+}
+
+static Objlist_Entry *
+objlist_find(Objlist *list, const Obj_Entry *obj)
+{
+    Objlist_Entry *elm;
+
+    STAILQ_FOREACH(elm, list, link)
+	if (elm->obj == obj)
+	    return elm;
+    return NULL;
+}
+
+static void
+objlist_remove(Objlist *list, Obj_Entry *obj)
+{
+    Objlist_Entry *elm;
+
+    if ((elm = objlist_find(list, obj)) != NULL) {
+	STAILQ_REMOVE(list, elm, Struct_Objlist_Entry, link);
+	free(elm);
+    }
+}
+
 /*
  * Relocate newly-loaded shared objects.  The argument is a pointer to
  * the Obj_Entry for the first such object.  All objects from the first
@@ -1154,11 +1226,14 @@ dlopen(const char *name, int mode)
 
     if (obj) {
 	obj->dl_refcount++;
+	if (mode & RTLD_GLOBAL && objlist_find(&list_global, obj) == NULL)
+	    objlist_add(&list_global, obj);
+	mode &= RTLD_MODEMASK;
 	if (*old_obj_tail != NULL) {		/* We loaded something new. */
 	    assert(*old_obj_tail == obj);
 
 	    if (load_needed_objects(obj) == -1 ||
-	      relocate_objects(obj, mode == RTLD_NOW) == -1) {
+	      (init_dag(obj), relocate_objects(obj, mode == RTLD_NOW)) == -1) {
 		unload_object(obj, false);
 		obj->dl_refcount--;
 		obj = NULL;
@@ -1178,9 +1253,11 @@ dlsym(void *handle, const char *name)
     const Obj_Entry *obj;
     unsigned long hash;
     const Elf_Sym *def;
+    const Obj_Entry *defobj;
 
     hash = elf_hash(name);
     def = NULL;
+    defobj = NULL;
 
     if (handle == NULL || handle == RTLD_NEXT) {
 	void *retaddr;
@@ -1190,12 +1267,16 @@ dlsym(void *handle, const char *name)
 	    _rtld_error("Cannot determine caller's shared object");
 	    return NULL;
 	}
-	if (handle == NULL)	/* Just the caller's shared object. */
+	if (handle == NULL) {	/* Just the caller's shared object. */
 	    def = symlook_obj(name, hash, obj, true);
-	else {			/* All the shared objects after the caller's */
-	    while ((obj = obj->next) != NULL)
-		if ((def = symlook_obj(name, hash, obj, true)) != NULL)
+	    defobj = obj;
+	} else {		/* All the shared objects after the caller's */
+	    while ((obj = obj->next) != NULL) {
+		if ((def = symlook_obj(name, hash, obj, true)) != NULL) {
+		    defobj = obj;
 		    break;
+		}
+	    }
 	}
     } else {
 	if ((obj = dlcheck(handle)) == NULL)
@@ -1203,20 +1284,20 @@ dlsym(void *handle, const char *name)
 
 	if (obj->mainprog) {
 	    /* Search main program and all libraries loaded by it. */
-	    for ( ;  obj != *main_tail;  obj = obj->next)
-		if ((def = symlook_obj(name, hash, obj, true)) != NULL)
-		    break;
+	    curmark++;
+	    def = symlook_list(name, hash, &list_main, &defobj, true);
 	} else {
 	    /*
 	     * XXX - This isn't correct.  The search should include the whole
 	     * DAG rooted at the given object.
 	     */
 	    def = symlook_obj(name, hash, obj, true);
+	    defobj = obj;
 	}
     }
 
     if (def != NULL)
-	return obj->relocbase + def->st_value;
+	return defobj->relocbase + def->st_value;
 
     _rtld_error("Undefined symbol \"%s\"", name);
     return NULL;
@@ -1359,6 +1440,35 @@ set_program_var(const char *name, const void *value)
     }
 }
 
+static const Elf_Sym *
+symlook_list(const char *name, unsigned long hash, Objlist *objlist,
+  const Obj_Entry **defobj_out, bool in_plt)
+{
+    const Elf_Sym *symp;
+    const Elf_Sym *def;
+    const Obj_Entry *defobj;
+    const Objlist_Entry *elm;
+
+    def = NULL;
+    defobj = NULL;
+    STAILQ_FOREACH(elm, objlist, link) {
+	if (elm->obj->mark == curmark)
+	    continue;
+	elm->obj->mark = curmark;
+	if ((symp = symlook_obj(name, hash, elm->obj, in_plt)) != NULL) {
+	    if (def == NULL || ELF_ST_BIND(symp->st_info) != STB_WEAK) {
+		def = symp;
+		defobj = elm->obj;
+		if (ELF_ST_BIND(def->st_info) != STB_WEAK)
+		    break;
+	    }
+	}
+    }
+    if (def != NULL)
+	*defobj_out = defobj;
+    return def;
+}
+
 /*
  * Search the symbol table of a single shared object for a symbol of
  * the given name.  Returns a pointer to the symbol, or NULL if no
@@ -1484,13 +1594,17 @@ trace_loaded_objects(Obj_Entry *obj)
     }
 }
 
+/*
+ * Note, this is called only for objects loaded by dlopen().
+ */
 static void
 unload_object(Obj_Entry *root, bool do_fini_funcs)
 {
-    unref_object_dag(root);
+    unref_dag(root);
     if (root->refcount == 0) {	/* We are finished with some objects. */
 	Obj_Entry *obj;
 	Obj_Entry **linkp;
+	Objlist_Entry *elm;
 
 	/* Finalize objects that are about to be unmapped. */
 	if (do_fini_funcs)
@@ -1498,21 +1612,22 @@ unload_object(Obj_Entry *root, bool do_fini_funcs)
 		if (obj->refcount == 0 && obj->fini != NULL)
 		    (*obj->fini)();
 
+	/* Remove the DAG from all objects' DAG lists. */
+	STAILQ_FOREACH(elm, &root->dagmembers , link)
+	    objlist_remove(&elm->obj->dldags, root);
+
+	/* Remove the DAG from the RTLD_GLOBAL list. */
+	objlist_remove(&list_global, root);
+
 	/* Unmap all objects that are no longer referenced. */
 	linkp = &obj_list->next;
 	while ((obj = *linkp) != NULL) {
 	    if (obj->refcount == 0) {
 		dbg("unloading \"%s\"", obj->path);
 		munmap(obj->mapbase, obj->mapsize);
-		free(obj->path);
-		while (obj->needed != NULL) {
-		    Needed_Entry *needed = obj->needed;
-		    obj->needed = needed->next;
-		    free(needed);
-		}
 		linkmap_delete(obj);
 		*linkp = obj->next;
-		free(obj);
+		obj_free(obj);
 	    } else
 		linkp = &obj->next;
 	}
@@ -1521,7 +1636,7 @@ unload_object(Obj_Entry *root, bool do_fini_funcs)
 }
 
 static void
-unref_object_dag(Obj_Entry *root)
+unref_dag(Obj_Entry *root)
 {
     const Needed_Entry *needed;
 
@@ -1530,7 +1645,7 @@ unref_object_dag(Obj_Entry *root)
     if (root->refcount == 0)
 	for (needed = root->needed;  needed != NULL;  needed = needed->next)
 	    if (needed->obj != NULL)
-		unref_object_dag(needed->obj);
+		unref_dag(needed->obj);
 }
 
 /*
