@@ -14,12 +14,12 @@ ifinfo		Uses the interface MIB to print out all the information
 		an interface exports in an ugly form.
 kdrv		KernelDriver; add/list/remove third-party kernel driver
 		source to/in/from a kernel source tree.
-kernxref	Shellscript to cross reference symbols in the LINT kernel.
+kerncruft	Shellscript to find orphaned *.c files in /sys
 kerninclude	Shellscript to find unused #includes in the kernel.
+kernxref	Shellscript to cross reference symbols in the LINT kernel.
 mid	 	Create a Message-ID database for mailing lists.
 portsinfo 	Generate list of new ports for last two weeks.
 scsi-defects	Get at the primary or grown defect list of a SCSI disk.
-tcl_bmake	Generates a bmake Makefile for src/lib/libtcl.
 upgrade         Scripts used for upgrading an installed system.
 vop_table	Generates a HTML document that shows all the VOP's in
 		the kernel.
