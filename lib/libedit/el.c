@@ -34,9 +34,13 @@
  * SUCH DAMAGE.
  */
 
-#if !defined(lint) && !defined(SCCSID)
+#if !defined(lint)
+#if 0
 static char sccsid[] = "@(#)el.c	8.2 (Berkeley) 1/3/94";
-#endif /* not lint && not SCCSID */
+#endif
+static const char rcsid[] =
+  "$FreeBSD$"
+#endif /* not lint */
 
 /*
  * el.c: EditLine interface functions
@@ -45,6 +49,7 @@ static char sccsid[] = "@(#)el.c	8.2 (Berkeley) 1/3/94";
 
 #include <sys/types.h>
 #include <sys/param.h>
+#include <errno.h>
 #include <string.h>
 #include <stdlib.h>
 #if __STDC__
@@ -80,7 +85,6 @@ el_init(prog, fin, fout)
     if (issetugid() == 0 && (tty = getenv("DEBUGTTY")) != NULL) {
 	el->el_errfile = fopen(tty, "w");
 	if (el->el_errfile == NULL) {
-		extern errno;
 		(void) fprintf(stderr, "Cannot open %s (%s).\n",
 			       tty, strerror(errno));
 		return NULL;
@@ -290,13 +294,10 @@ el_source(el, fname)
     char *ptr, path[MAXPATHLEN];
 
     if (fname == NULL) {
-	fname = &elpath[1];
-	if ((fp = fopen(fname, "r")) == NULL) {
-	    if (issetugid() != 0 || (ptr = getenv("HOME")) == NULL)
-		return -1;
-	    (void)snprintf(path, sizeof(path), "%s%s", ptr, elpath);
-	    fname = path;
-	}
+	if (issetugid() != 0 || (ptr = getenv("HOME")) == NULL)
+	    return -1;
+	(void) snprintf(path, sizeof(path), "%s%s", ptr, elpath);
+	fname = path;
     }
 
     if ((fp = fopen(fname, "r")) == NULL)
