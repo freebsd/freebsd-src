@@ -1118,10 +1118,9 @@ cpu_setregs(void)
 	cr0 = rcr0();
 	cr0 |= CR0_NE;			/* Done by npxinit() */
 	cr0 |= CR0_MP | CR0_TS;		/* Done at every execve() too. */
-#ifdef I386_CPU
-	if (cpu_class != CPUCLASS_386)
+#ifndef I386_CPU
+	cr0 |= CR0_WP | CR0_AM;
 #endif
-		cr0 |= CR0_WP | CR0_AM;
 	load_cr0(cr0);
 	load_gs(_udatasel);
 }
