@@ -54,7 +54,7 @@
 
 #ifndef lint
 static const char sccsid[] = "@(#)getinfo.c	5.26 (Berkeley) 3/21/91";
-static const char rcsid[] = "$Id: getinfo.c,v 8.16 2000/07/11 04:36:26 vixie Exp $";
+static const char rcsid[] = "$Id: getinfo.c,v 8.17 2000/12/23 08:14:46 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -694,6 +694,7 @@ GetHostInfoByName(nsAddrPtr, queryClass, queryType, name, hostPtr, isServer)
  * Perform a query on the concatenation of name and domain,
  * removing a trailing dot from name if domain is NULL.
  */
+int
 GetHostDomain(nsAddrPtr, queryClass, queryType, name, domain, hostPtr, isServer)
     struct in_addr	*nsAddrPtr;
     int			queryClass;
