@@ -1,4 +1,4 @@
-/*	$Id: bootp_subr.c,v 1.5 1997/08/16 19:15:51 wollman Exp $	*/
+/*	$Id: bootp_subr.c,v 1.6 1997/10/28 15:59:02 bde Exp $	*/
 
 /*
  * Copyright (c) 1995 Gordon Ross, Adam Glass
@@ -41,6 +41,8 @@
  *      nfs/krpc_subr.c
  *	$NetBSD: krpc_subr.c,v 1.10 1995/08/08 20:43:43 gwr Exp $
  */
+
+#include "opt_bootp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -31,12 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.71 1997/11/05 20:17:21 joerg Exp $
+ * $Id: ip_input.c,v 1.72 1997/11/13 22:57:57 julian Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
 #define	_IP_VHL
 
+#include "opt_bootp.h"
 #include "opt_ipfw.h"
 #include "opt_ipdivert.h"
 

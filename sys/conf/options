@@ -1,4 +1,4 @@
-#	$Id: options,v 1.43 1998/01/08 23:40:23 eivind Exp $
+#	$Id: options,v 1.44 1998/01/09 00:51:51 eivind Exp $
 
 # Format:
 # Option name	filename
@@ -99,6 +99,10 @@ OPEN_MAX		opt_defunct.h
 
 # Net stuff.
 ARP_PROXYALL		opt_defunct.h
+BOOTP			opt_bootp.h
+BOOTP_COMPAT		opt_bootp.h
+BOOTP_NFSROOT		opt_bootp.h
+BOOTP_NFSV3		opt_bootp.h
 GATEWAY			opt_defunct.h
 MROUTING		opt_mrouting.h
 INET			opt_inet.h
