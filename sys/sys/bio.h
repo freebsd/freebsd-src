@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.49 1998/03/19 22:49:01 dyson Exp $
+ * $Id: buf.h,v 1.50 1998/03/28 10:33:21 bde Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -165,7 +165,7 @@ struct buf {
 #define	NOOFFSET	(-1LL)		/* No buffer offset calculated yet */
 
 typedef struct buf_queue_head {
-	TAILQ_HEAD(, buf) queue;
+	TAILQ_HEAD(buf_queue, buf) queue;
 	struct	buf *insert_point;
 	struct	buf *switch_point;
 } buf_queue_head, *buf_queue_head_t;
@@ -201,24 +201,13 @@ bufq_insert_tail(buf_queue_head *head, struct buf *bp)
 static __inline void
 bufq_remove(buf_queue_head *head, struct buf *bp)
 {
-	if (bp == TAILQ_FIRST(&head->queue)) {
-		if (bp == head->insert_point)
-			head->insert_point = NULL;
-		if (TAILQ_NEXT(bp, b_act) == head->switch_point)
+	if (bp == head->insert_point)
+		head->insert_point = TAILQ_PREV(bp, buf_queue, b_act);
+	if (bp == head->switch_point) {
+		if (bp == TAILQ_FIRST(&head->queue))  
 			head->switch_point = NULL;
 	} else {
-		if (bp == head->insert_point) {
-			/*
-			 * Not 100% correct (we really want the
-			 * previous bp), but it will ensure queue
-			 * ordering and is less expensive than
-			 * using a CIRCLEQ.
-			 */
-			head->insert_point = TAILQ_NEXT(bp, b_act);
-		}
-		if (bp == head->switch_point) {
-			head->switch_point = TAILQ_NEXT(bp, b_act);
-		}		
+		head->switch_point = TAILQ_NEXT(bp, b_act); 
 	}
 	TAILQ_REMOVE(&head->queue, bp, b_act);
 }
