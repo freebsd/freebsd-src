@@ -119,10 +119,12 @@ _thread_cleanupspecific(void)
 					destructor(data);
 			} else {
 				free(_thread_run->specific_data);
+				_thread_run->specific_data = NULL;
 				return;
 			}
 		}
 	}
+	_thread_run->specific_data = NULL;
 	free(_thread_run->specific_data);
 }
 
