@@ -78,6 +78,14 @@ fwohci_pci_probe( device_t dev )
 		device_set_desc(dev, "NEC uPD72871/2");
 		return 0;
 	}
+	if (id == (FW_VENDORID_NEC | FW_DEVICE_UPD72870)) {
+		device_set_desc(dev, "NEC uPD72870");
+		return 0;
+	}
+	if (id == (FW_VENDORID_NEC | FW_DEVICE_UPD72874)) {
+		device_set_desc(dev, "NEC uPD72874");
+		return 0;
+	}
 	if (id == (FW_VENDORID_TI | FW_DEVICE_TITSB22)) {
 		device_set_desc(dev, "Texas Instruments TSB12LV22");
 		return 0;
@@ -98,6 +106,10 @@ fwohci_pci_probe( device_t dev )
 		device_set_desc(dev, "Texas Instruments TSB43AB22/A");
 		return 0;
 	}
+	if (id == (FW_VENDORID_TI | FW_DEVICE_TITSB43AB23)) {
+		device_set_desc(dev, "Texas Instruments TSB43AB23");
+		return 0;
+	}
 	if (id == (FW_VENDORID_TI | FW_DEVICE_TIPCI4450)) {
 		device_set_desc(dev, "Texas Instruments PCI4450");
 		return 0;
@@ -106,12 +118,20 @@ fwohci_pci_probe( device_t dev )
 		device_set_desc(dev, "Texas Instruments PCI4410A");
 		return 0;
 	}
+	if (id == (FW_VENDORID_TI | FW_DEVICE_TIPCI4451)) {
+		device_set_desc(dev, "Texas Instruments PCI4451");
+		return 0;
+	}
 	if (id == (FW_VENDORID_SONY | FW_DEVICE_CX3022)) {
 		device_set_desc(dev, "Sony CX3022");
 		return 0;
 	}
 	if (id == (FW_VENDORID_VIA | FW_DEVICE_VT6306)) {
 		device_set_desc(dev, "VIA VT6306");
+		return 0;
+	}
+	if (id == (FW_VENDORID_RICOH | FW_DEVICE_R5C551)) {
+		device_set_desc(dev, "Ricoh R5C551");
 		return 0;
 	}
 	if (id == (FW_VENDORID_RICOH | FW_DEVICE_R5C552)) {
