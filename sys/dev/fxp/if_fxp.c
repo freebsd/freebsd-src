@@ -193,7 +193,9 @@ static void		fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp,
 static void 		fxp_init(void *xsc);
 static void 		fxp_init_body(struct fxp_softc *sc);
 static void 		fxp_tick(void *xsc);
+#ifndef BURN_BRIDGES
 static void		fxp_powerstate_d0(device_t dev);
+#endif
 static void 		fxp_start(struct ifnet *ifp);
 static void 		fxp_start_body(struct ifnet *ifp);
 static void		fxp_stop(struct fxp_softc *sc);
@@ -335,6 +337,7 @@ fxp_probe(device_t dev)
 	return (ENXIO);
 }
 
+#ifndef BURN_BRIDGES
 static void
 fxp_powerstate_d0(device_t dev)
 {
@@ -360,6 +363,7 @@ fxp_powerstate_d0(device_t dev)
 	}
 #endif
 }
+#endif
 
 static void
 fxp_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
@@ -401,9 +405,9 @@ fxp_attach(device_t dev)
 	 */
 	pci_enable_busmaster(dev);
 	val = pci_read_config(dev, PCIR_COMMAND, 2);
-
+#ifndef BURN_BRIDGES
 	fxp_powerstate_d0(dev);
-
+#endif
 	/*
 	 * Figure out which we should try first - memory mapping or i/o mapping?
 	 * We default to memory mapping. Then we accept an override from the
@@ -999,9 +1003,9 @@ fxp_resume(device_t dev)
 
 	FXP_LOCK(sc);
 	s = splimp();
-
+#ifndef BURN_BRIDGES
 	fxp_powerstate_d0(dev);
-
+#endif
 	/* better way to do this? */
 	for (i = 0; i < 5; i++)
 		pci_write_config(dev, PCIR_MAPS + i * 4, sc->saved_maps[i], 4);
