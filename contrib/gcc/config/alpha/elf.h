@@ -170,6 +170,16 @@ do {									\
   ASM_OUTPUT_SKIP((FILE), (SIZE));					\
 } while (0)
 
+/* This says how to output assembler code to declare an
+   uninitialized external linkage data object.  */
+
+#undef  ASM_OUTPUT_ALIGNED_BSS
+#define ASM_OUTPUT_ALIGNED_BSS(FILE, DECL, NAME, SIZE, ALIGN)		\
+do {									\
+  ASM_GLOBALIZE_LABEL (FILE, NAME);					\
+  ASM_OUTPUT_ALIGNED_LOCAL (FILE, NAME, SIZE, ALIGN);			\
+} while (0)
+
 /* Biggest alignment supported by the object file format of this
    machine.  Use this macro to limit the alignment which can be
    specified using the `__attribute__ ((aligned (N)))' construct.  If
@@ -475,11 +485,32 @@ do {									\
 /* This is how we tell the assembler that two symbols have the same value.  */
 
 #undef  ASM_OUTPUT_DEF
-#define ASM_OUTPUT_DEF(FILE, NAME1, NAME2) \
-  do { assemble_name(FILE, NAME1); 	 \
-       fputs(" = ", FILE);		 \
-       assemble_name(FILE, NAME2);	 \
-       fputc('\n', FILE); } while (0)
+#define ASM_OUTPUT_DEF(FILE, ALIAS, NAME)			\
+  do {								\
+    assemble_name(FILE, ALIAS);					\
+    fputs(" = ", FILE);						\
+    assemble_name(FILE, NAME);					\
+    fputc('\n', FILE);						\
+  } while (0)
+
+#undef  ASM_OUTPUT_DEF_FROM_DECLS
+#define ASM_OUTPUT_DEF_FROM_DECLS(FILE, DECL, TARGET)		\
+  do {								\
+    const char *alias = XSTR (XEXP (DECL_RTL (DECL), 0), 0);	\
+    const char *name = IDENTIFIER_POINTER (TARGET);		\
+    if (TREE_CODE (DECL) == FUNCTION_DECL)			\
+      {								\
+	fputc ('$', FILE);					\
+	assemble_name (FILE, alias);				\
+	fputs ("..ng = $", FILE);				\
+	assemble_name (FILE, name);				\
+	fputs ("..ng\n", FILE);					\
+      }								\
+    assemble_name(FILE, alias);					\
+    fputs(" = ", FILE);						\
+    assemble_name(FILE, name);					\
+    fputc('\n', FILE);						\
+  } while (0)
 
 /* The following macro defines the format used to output the second
    operand of the .type assembler directive.  Different svr4 assemblers
@@ -604,17 +635,14 @@ do {									\
 /* Provide a STARTFILE_SPEC appropriate for ELF.  Here we add the
    (even more) magical crtbegin.o file which provides part of the
    support for getting C++ file-scope static object constructed
-   before entering `main'. 
+   before entering `main'.   */
 
-   Don't bother seeing crtstuff.c -- there is absolutely no hope
-   of getting that file to understand multiple GPs.  We provide a
-   hand-coded assembly version.  */
-   
 #undef	STARTFILE_SPEC
 #define STARTFILE_SPEC \
   "%{!shared: \
      %{pg:gcrt1.o%s} %{!pg:%{p:gcrt1.o%s} %{!p:crt1.o%s}}}\
-   crti.o%s %{shared:crtbeginS.o%s}%{!shared:crtbegin.o%s}"
+   crti.o%s %{static:crtbeginT.o%s}\
+   %{!static:%{shared:crtbeginS.o%s}%{!shared:crtbegin.o%s}}"
 
 /* Provide a ENDFILE_SPEC appropriate for ELF.  Here we tack on the
    magical crtend.o file which provides part of the support for
