@@ -6,7 +6,7 @@
 #
 # Most make variables should not be defined in this file.  Instead, they
 # should be defined in the kern.pre.mk so that port makefiles can
-# oferride or augment them.
+# override or augment them.
 #
 # $FreeBSD$
 #
