@@ -72,6 +72,24 @@ char NULLUNIT[] = "";
 int unitcount;
 int prefixcount;
 
+char	*dupstr(const char *str);
+void	 readunits(const char *userfile);
+void	 initializeunit(struct unittype * theunit);
+int	 addsubunit(char *product[], char *toadd);
+void	 showunit(struct unittype * theunit);
+void	 zeroerror(void);
+int	 addunit(struct unittype * theunit, char *toadd, int flip);
+int	 compare(const void *item1, const void *item2);
+void	 sortunit(struct unittype * theunit);
+void	 cancelunit(struct unittype * theunit);
+char	*lookupunit(const char *unit);
+int	 reduceproduct(struct unittype * theunit, int flip);
+int	 reduceunit(struct unittype * theunit);
+int	 compareproducts(char **one, char **two);
+int	 compareunits(struct unittype * first, struct unittype * second);
+int	 completereduce(struct unittype * unit);
+void	 showanswer(struct unittype * have, struct unittype * want);
+void	 usage(void);
 
 char *
 dupstr(const char *str)
