@@ -103,8 +103,7 @@ main(int argc, char *argv[])
 
 	do {
 		if (argc > 0) {
-			close(0);
-			if (!(f = fopen(argv[0], "r"))) {
+			if (!(f = freopen(argv[0], "r", stdin))) {
 				fflush(stdout);
 				err(1, "%s", argv[0]);
 			}
