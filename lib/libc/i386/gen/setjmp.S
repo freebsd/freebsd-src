@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: setjmp.S,v 1.7 1997/02/22 14:58:41 peter Exp $
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id$"
+	.asciz "$Id: setjmp.S,v 1.7 1997/02/22 14:58:41 peter Exp $"
 #endif /* LIBC_RCS and not lint */
 
 /*
@@ -54,11 +54,7 @@
 #include "DEFS.h"
 #include "SYS.h"
 
-#ifdef _THREAD_SAFE
-ENTRY(_thread_sys_setjmp)
-#else
 ENTRY(setjmp)
-#endif
 	PIC_PROLOGUE
 	pushl	$0
 #ifdef _THREAD_SAFE
@@ -81,11 +77,7 @@ ENTRY(setjmp)
 	xorl	%eax,%eax
 	ret
 
-#ifdef _THREAD_SAFE
-ENTRY(_thread_sys_longjmp)
-#else
 ENTRY(longjmp)
-#endif
 	movl	4(%esp),%edx
 	PIC_PROLOGUE
 	pushl	24(%edx)

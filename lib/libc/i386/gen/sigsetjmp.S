@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: sigsetjmp.S,v 1.10 1997/02/22 14:58:43 peter Exp $
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id$"
+	.asciz "$Id: sigsetjmp.S,v 1.10 1997/02/22 14:58:43 peter Exp $"
 #endif /* LIBC_RCS and not lint */
 
 #include "DEFS.h"
@@ -59,11 +59,7 @@
  *	use sigreturn() if sigreturn() works.
  */
 
-#ifdef _THREAD_SAFE
-ENTRY(_thread_sys_sigsetjmp)
-#else
 ENTRY(sigsetjmp)
-#endif
 	movl	8(%esp),%eax
 	movl	4(%esp),%ecx 
 	movl	%eax,32(%ecx)
@@ -91,11 +87,7 @@ ENTRY(sigsetjmp)
 	xorl	%eax,%eax
 	ret
 
-#ifdef _THREAD_SAFE
-ENTRY(_thread_sys_siglongjmp)
-#else
 ENTRY(siglongjmp)
-#endif
 	movl	4(%esp),%edx
 	cmpl	$0,32(%edx)
 	jz	2f
