@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.41 1996/04/13 13:31:30 jkh Exp $
+ * $Id: dist.c,v 1.42 1996/04/23 01:29:17 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -161,18 +161,11 @@ int
 distReset(dialogMenuItem *self)
 {
     Dists = 0;
+    DESDists = 0;
     SrcDists = 0;
     XF86Dists = 0;
     XF86ServerDists = 0;
     XF86FontDists = 0;
-    return DITEM_SUCCESS | DITEM_REDRAW;
-}
-
-int
-distSrcReset(dialogMenuItem *self)
-{
-    Dists &= ~DIST_SRC;
-    SrcDists = 0;
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
@@ -254,11 +247,12 @@ distSetDES(dialogMenuItem *self)
 	    if (DESDists & DIST_DES_KERBEROS)
 		DESDists |= DIST_DES_DES;
 	    Dists |= DIST_DES;
+	    msgDebug("SetDES Masks: DES: %0x, Dists: %0x\n", DESDists, Dists);
 	}
     }
     else
 	i = DITEM_FAILURE;
-    return i | DITEM_RESTORE;
+    return i | DITEM_RECREATE | DITEM_RESTORE;
 }
 
 int
@@ -267,12 +261,14 @@ distSetSrc(dialogMenuItem *self)
     int i = DITEM_SUCCESS;
 
     if (dmenuOpenSimple(&MenuSrcDistributions)) {
-	if (SrcDists)
+	if (SrcDists) {
 	    Dists |= DIST_SRC;
+	    msgDebug("SetSrc Masks: Srcs: %0x, Dists: %0x\n", SrcDists, Dists);
+	}
     }
     else
 	i = DITEM_FAILURE;
-    return i | DITEM_RESTORE;
+    return i | DITEM_RECREATE | DITEM_RESTORE;
 }
 
 int
@@ -287,13 +283,12 @@ distSetXF86(dialogMenuItem *self)
 	    XF86Dists |= DIST_XF86_FONTS;
 	if (XF86Dists)
 	    Dists |= DIST_XF86;
-	if (isDebug())
-	    msgDebug("SetXF86 Masks: Server: %0x, Fonts: %0x, XDists: %0x, Dists: %0x\n",
-		     XF86ServerDists, XF86FontDists, XF86Dists, Dists);
+	msgDebug("SetXF86 Masks: Server: %0x, Fonts: %0x, XDists: %0x, Dists: %0x\n",
+		 XF86ServerDists, XF86FontDists, XF86Dists, Dists);
     }
     else
 	i = DITEM_FAILURE;
-    return i | DITEM_RESTORE;
+    return i | DITEM_RECREATE | DITEM_RESTORE;
 }
 
 static Boolean

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.50 1996/04/13 13:32:10 jkh Exp $
+ * $Id: system.c,v 1.51 1996/04/23 01:29:33 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -67,6 +67,7 @@ systemInitialize(int argc, char **argv)
 
     /* XXX - libdialog has particularly bad return value checking */
     init_dialog();
+
     /* If we haven't crashed I guess dialog is running ! */
     DialogActive = TRUE;
 

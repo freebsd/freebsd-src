@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.40 1996/04/13 13:31:28 jkh Exp $
+ * $Id: disks.c,v 1.41 1996/04/23 01:29:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -336,12 +336,11 @@ diskPartition(Device *dev, Disk *d)
 	    break;
 
 	case 'W':
-	    if (!msgYesNo("Are you SURE you want to write this now?  You do also\n"
-			  "have the option of not modifying the disk until *all*\n"
-			  "configuration information has been entered, at which\n"
-			  "point you can do it all at once.  If you're unsure, then\n"
-			  "PLEASE CHOOSE NO at this dialog!  This option is DANGEROUS\n"
-			  "if you do not know EXACTLY what you are doing!")) {
+	    if (!msgYesNo("WARNING:  This should only be used for modifying an\n"
+			  "EXISTING installation - DO NOT USE this option if you\n"
+			  "are installing FreeBSD for the first time!  This is not\n"
+			  "an option for use during the standard install.\n\n"
+			  "Are you absolutely sure you want to do this now?")) {
 		variable_set2(DISK_PARTITIONED, "yes");
 		clear();
 
@@ -469,6 +468,7 @@ diskPartitionEditor(dialogMenuItem *self)
 	    i = dmenuOpenSimple(menu) ? DITEM_SUCCESS : DITEM_FAILURE;
 	    free(menu);
 	}
+	i = i | DITEM_RESTORE | DITEM_RECREATE;
     }
     return i;
 }
