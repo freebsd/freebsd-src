@@ -25,7 +25,7 @@
 # $FreeBSD$
 
 LIB=		pam_rootok
-SHLIB_NAME=	pam_rootok.so
+SHLIB_NAME=	${LIB}.so.${SHLIB_MAJOR}
 SRCS=		pam_rootok.c
 MAN=		pam_rootok.8
 

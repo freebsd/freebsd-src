@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PAMDIR=		${.CURDIR}/../../../../contrib/libpam
+PAMDIR=		${.CURDIR}/../../../../contrib/openpam
 
 INTERNALLIB=	yes
 INTERNALSTATICLIB=yes

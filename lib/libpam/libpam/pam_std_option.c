@@ -27,11 +27,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <security/pam_modules.h>
 #include <stdio.h>
 #include <string.h>
 #include <syslog.h>
-#include "pam_mod_misc.h"
+
+#include <security/pam_appl.h>
+#include <security/pam_mod_misc.h>
 
 /* Everyone has to have these options. It is not an error to
  * specify them and then not use them.

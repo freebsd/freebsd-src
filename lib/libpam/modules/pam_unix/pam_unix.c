@@ -162,8 +162,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 			PAM_RETURN(PAM_SUCCESS);
 		}
 		else {
-			retval = pam_get_pass(pamh, &pass, password_prompt,
-			    &options);
+			retval = pam_get_authtok(pamh, &pass, password_prompt);
 			if (retval != PAM_SUCCESS)
 				PAM_RETURN(retval);
 			PAM_LOG("Got password");
@@ -186,8 +185,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 		 * User unknown.
 		 * Encrypt a dummy password so as to not give away too much.
 		 */
-		retval = pam_get_pass(pamh, &pass, password_prompt,
-		    &options);
+		retval = pam_get_authtok(pamh, &pass, password_prompt);
 		if (retval != PAM_SUCCESS)
 			PAM_RETURN(retval);
 		PAM_LOG("Got password");
@@ -232,7 +230,6 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused, int argc, const char **
 	int retval;
 	const char *rhost, *tty, *user;
 	char rhostip[MAXHOSTNAMELEN];
-	char buf[128];
 
 	pam_std_option(&options, other_options, argc, argv);
 
@@ -283,10 +280,8 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused, int argc, const char **
 			PAM_RETURN(PAM_ACCT_EXPIRED);
 		} else if (pwd->pw_expire - tp.tv_sec < warntime &&
 		    (flags & PAM_SILENT) == 0) {
-			snprintf(buf, sizeof(buf),
-			    "Warning: your account expires on %s",
+			pam_error(pamh, "Warning: your account expires on %s",
 			    ctime(&pwd->pw_expire));
-			pam_prompt(pamh, PAM_ERROR_MSG, buf, NULL);
 		}
 	}
 
@@ -298,10 +293,8 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused, int argc, const char **
 			retval = PAM_NEW_AUTHTOK_REQD;
 		} else if (pwd->pw_change - tp.tv_sec < warntime &&
 		    (flags & PAM_SILENT) == 0) {
-			snprintf(buf, sizeof(buf),
-			    "Warning: your password expires on %s",
+			pam_error(pamh, "Warning: your password expires on %s",
 			    ctime(&pwd->pw_change));
-			pam_prompt(pamh, PAM_ERROR_MSG, buf, NULL);
 		}
 	}
 
@@ -410,8 +403,8 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 			PAM_RETURN(PAM_SUCCESS);
 		}
 		else {
-			retval = pam_get_pass(pamh, &pass,
-			    PASSWORD_PROMPT_EXPIRED, &options);
+			retval = pam_get_authtok(pamh, &pass,
+			    PASSWORD_PROMPT_EXPIRED);
 			if (retval != PAM_SUCCESS)
 				PAM_RETURN(retval);
 			PAM_LOG("Got password: %s", pass);
@@ -456,7 +449,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 		while (retry++ < MAX_TRIES) {
 			new_pass = NULL;
 			retval = pam_prompt(pamh, PAM_PROMPT_ECHO_OFF,
-			    NEW_PASSWORD_PROMPT_1, &new_pass);
+			    &new_pass, "%s", NEW_PASSWORD_PROMPT_1);
 
 			if (new_pass == NULL)
 				new_pass = strdup("");
@@ -464,7 +457,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 			if (retval == PAM_SUCCESS) {
 				new_pass_ = NULL;
 				retval = pam_prompt(pamh, PAM_PROMPT_ECHO_OFF,
-				    NEW_PASSWORD_PROMPT_2, &new_pass_);
+				    &new_pass_, "%s", NEW_PASSWORD_PROMPT_2);
 
 				if (new_pass_ == NULL)
 					new_pass_ = strdup("");
@@ -605,13 +598,13 @@ local_passwd(const char *user, const char *pass)
  * Copyright (c) 1995 Bill Paul <wpaul@ctr.columbia.edu>
  */
 int
-yp_passwd(const char *user, const char *pass)
+yp_passwd(const char *user __unused, const char *pass)
 {
-	struct master_yppasswd master_yppasswd;
+	struct master_yppasswd master_yppwd;
 	struct passwd *pwd;
 	struct rpc_err err;
 	struct timeval tv;
-	struct yppasswd yppasswd;
+	struct yppasswd yppwd;
 	CLIENT *clnt;
 	login_cap_t *lc;
 	int    *status;
@@ -640,29 +633,29 @@ yp_passwd(const char *user, const char *pass)
 
 	/* Initialize password information */
 	if (suser_override) {
-		master_yppasswd.newpw.pw_passwd = strdup(pwd->pw_passwd);
-		master_yppasswd.newpw.pw_name = strdup(pwd->pw_name);
-		master_yppasswd.newpw.pw_uid = pwd->pw_uid;
-		master_yppasswd.newpw.pw_gid = pwd->pw_gid;
-		master_yppasswd.newpw.pw_expire = pwd->pw_expire;
-		master_yppasswd.newpw.pw_change = pwd->pw_change;
-		master_yppasswd.newpw.pw_fields = pwd->pw_fields;
-		master_yppasswd.newpw.pw_gecos = strdup(pwd->pw_gecos);
-		master_yppasswd.newpw.pw_dir = strdup(pwd->pw_dir);
-		master_yppasswd.newpw.pw_shell = strdup(pwd->pw_shell);
-		master_yppasswd.newpw.pw_class = pwd->pw_class != NULL ?
+		master_yppwd.newpw.pw_passwd = strdup(pwd->pw_passwd);
+		master_yppwd.newpw.pw_name = strdup(pwd->pw_name);
+		master_yppwd.newpw.pw_uid = pwd->pw_uid;
+		master_yppwd.newpw.pw_gid = pwd->pw_gid;
+		master_yppwd.newpw.pw_expire = pwd->pw_expire;
+		master_yppwd.newpw.pw_change = pwd->pw_change;
+		master_yppwd.newpw.pw_fields = pwd->pw_fields;
+		master_yppwd.newpw.pw_gecos = strdup(pwd->pw_gecos);
+		master_yppwd.newpw.pw_dir = strdup(pwd->pw_dir);
+		master_yppwd.newpw.pw_shell = strdup(pwd->pw_shell);
+		master_yppwd.newpw.pw_class = pwd->pw_class != NULL ?
 					strdup(pwd->pw_class) : strdup("");
-		master_yppasswd.oldpass = strdup("");
-		master_yppasswd.domain = yp_domain;
+		master_yppwd.oldpass = strdup("");
+		master_yppwd.domain = yp_domain;
 	} else {
-		yppasswd.newpw.pw_passwd = strdup(pwd->pw_passwd);
-		yppasswd.newpw.pw_name = strdup(pwd->pw_name);
-		yppasswd.newpw.pw_uid = pwd->pw_uid;
-		yppasswd.newpw.pw_gid = pwd->pw_gid;
-		yppasswd.newpw.pw_gecos = strdup(pwd->pw_gecos);
-		yppasswd.newpw.pw_dir = strdup(pwd->pw_dir);
-		yppasswd.newpw.pw_shell = strdup(pwd->pw_shell);
-		yppasswd.oldpass = strdup("");
+		yppwd.newpw.pw_passwd = strdup(pwd->pw_passwd);
+		yppwd.newpw.pw_name = strdup(pwd->pw_name);
+		yppwd.newpw.pw_uid = pwd->pw_uid;
+		yppwd.newpw.pw_gid = pwd->pw_gid;
+		yppwd.newpw.pw_gecos = strdup(pwd->pw_gecos);
+		yppwd.newpw.pw_dir = strdup(pwd->pw_dir);
+		yppwd.newpw.pw_shell = strdup(pwd->pw_shell);
+		yppwd.oldpass = strdup("");
 	}
 
 	if (login_setcryptfmt(lc, "md5", NULL) == NULL)
@@ -680,9 +673,9 @@ yp_passwd(const char *user, const char *pass)
 	salt[27] = '\0';
 
 	if (suser_override)
-		master_yppasswd.newpw.pw_passwd = crypt(pass, salt);
+		master_yppwd.newpw.pw_passwd = crypt(pass, salt);
 	else
-		yppasswd.newpw.pw_passwd = crypt(pass, salt);
+		yppwd.newpw.pw_passwd = crypt(pass, salt);
 
 	if (suser_override) {
 		if ((clnt = clnt_create(sockname, MASTER_YPPASSWDPROG,
@@ -711,9 +704,9 @@ yp_passwd(const char *user, const char *pass)
 	clnt->cl_auth = authunix_create_default();
 
 	if (suser_override)
-		status = yppasswdproc_update_master_1(&master_yppasswd, clnt);
+		status = yppasswdproc_update_master_1(&master_yppwd, clnt);
 	else
-		status = yppasswdproc_update_1(&yppasswd, clnt);
+		status = yppasswdproc_update_1(&yppwd, clnt);
 
 	clnt_geterr(clnt, &err);
 

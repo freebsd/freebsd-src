@@ -78,7 +78,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 	char challenge[OPIE_CHALLENGE_MAX];
 	char prompt[OPIE_CHALLENGE_MAX+22];
 	char resp[OPIE_SECRET_MAX];
-	const char *user;
+	char *user;
 	const char *response;
 
 	pam_std_option(&options, other_options, argc, argv);
@@ -124,7 +124,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char
 	
 	for (i = 0; i < 2; i++) {
 		snprintf(prompt, sizeof prompt, promptstr[i], challenge);
-		retval = pam_get_pass(pamh, &response, prompt, &options);
+		retval = pam_get_authtok(pamh, &response, prompt);
 		if (retval != PAM_SUCCESS) {
 			opieunlock();
 			PAM_RETURN(retval);
