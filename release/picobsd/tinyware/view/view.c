@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: view.c,v 1.1 1998/08/19 06:13:35 abial Exp $
+ * $Id: view.c,v 1.1.1.1 1998/08/27 17:38:45 abial Exp $
  */
 
 /*
@@ -472,7 +472,9 @@ main(int argc, char *argv[])
 
 	progname=argv[0];
 	screen_gamma=1.5;
+#ifdef DEBUG
 	log=fopen("/png/view.log","w");
+#endif
 	while((c=getopt(argc,argv,"r:g:"))!=-1) {
 		switch(c) {
 		case 'r':
@@ -503,7 +505,9 @@ main(int argc, char *argv[])
 		usage();
 		exit(-1);
 	}
+#ifdef DEBUG
 	fprintf(log,"VGL initialised\n");
+#endif
 	VGLSavePalette();
 	VGLMouseInit(VGL_MOUSEHIDE);
 	if(argc>optind) {
@@ -516,7 +520,9 @@ main(int argc, char *argv[])
 	if(res) {
 		/* Hmm... Script? */
 		fsc=fopen(argv[optind],"r");
+#ifdef DEBUG
 		fprintf(log,"Trying script %s\n",argv[optind]);
+#endif
 		fgets(buf,99,fsc);
 		if(strcmp("VIEW SCRIPT\n",buf)!=NULL) {
 			VGLEnd();
@@ -537,7 +543,9 @@ main(int argc, char *argv[])
 		}
 		fclose(fsc);
 		cur_img=0;
+#ifdef DEBUG
 		fprintf(log,"Script with %d entries\n",nimg);
+#endif
 		png_load(pres[cur_img]);
 	}
 	/* Prepare the keyboard */
@@ -561,23 +569,31 @@ main(int argc, char *argv[])
 	display(&pic,pal_red,pal_green,pal_blue,&a);
 	while(!quit) {
 		if(act) {
+#ifdef DEBUG
 			fprintf(log,"kbd_action(%c)\n",act);
+#endif
 			kbd_action(x,y,act);
 		}
 		if(quit) break;
 		if(changed) {
+#ifdef DEBUG
 			fprintf(log,"changed, redisplaying\n");
+#endif
 			display(&pic,pal_red,pal_green,pal_blue,&a);
 			changed=0;
 		}
 		pause();
 		VGLMouseStatus(&x,&y,&buttons);
 		if(buttons & MOUSE_BUTTON3DOWN) {
+#ifdef DEBUG
 			fprintf(log,"pop_up called\n");
+#endif
 			pop_up("View",x,y);
 		}
 	}
 	VGLEnd();
+#ifdef DEBUG
 	fclose(log);
+#endif
 	exit(0);
 }
