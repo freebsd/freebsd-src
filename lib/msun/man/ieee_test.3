@@ -76,12 +76,15 @@ a signed integer converted to double\-precision floating\-point.
 .Fn logb 0
 = -\*(If with a division by zero exception.
 .Pp
-.Fn scalbn x n
+.Fn scalb x n
 and
-.Fn scalbnf x n
+.Fn scalbf x n
 return
 .Fa x Ns \(**(2** Ns Fa n )
 computed by exponent manipulation.
+If
+.Fa n
+is not an integer, \*(Pm\*(If, or an \*(Na, the result is unspecified.
 .Pp
 .Fn significand x
 and
