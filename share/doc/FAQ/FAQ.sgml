@@ -7,7 +7,7 @@
 <author>Maintainer: Peter da Silva <tt><htmlurl url='mailto:pds@FreeBSD.ORG'
   name='&lt;pds@FreeBSD.ORG&gt;'></tt>
 
-<date>$Date: 1997/01/29 14:45:57 $
+<date>$Date: 1997/01/29 15:02:05 $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -107,7 +107,7 @@ Any entries with a &lt;XXX&gt; are under construction.
       <sect1>
 	<heading>What is FreeBSD-current?</heading>
 	<p>
-	  <url url=../handbook/current.html" name="FreeBSD-current"> is the
+	  <url url="../handbook/current.html" name="FreeBSD-current"> is the
 	  development version of the operating system, which will in due
 	  course become version 3.0.  As such, it is really only of interest
 	  to developers working on the system and die-hard hobbiests.
