@@ -99,6 +99,10 @@
     <application>bzip2</application>-compressed kernels and
     modules.</para>
 
+    <para arch="i386">The pmc driver, which supports the power
+    management controller of the NEC PC-98NOTE, has been
+    added.</para>
+
     <para arch="i386">The load addresses of kernels has been exported
     to the symbol table and various hard-coded constants removed so
     that utilities such as &man.ps.1; can work with kernels compiled
@@ -124,6 +128,12 @@
 
     <para arch="alpha">The console driver has gained support for TGA-based
     display adapters.</para>
+
+    <para>The kernel configuration parameters
+    <varname>MAXTSIZ</varname>, <varname>DFLDSIZ</varname>,
+    <varname>MAXDSIZ</varname>, <varname>DFLSSIZ</varname>,
+    <varname>MAXSSIZ</varname>, and <varname>SGROWSIZ</varname> are
+    all loader tunables.</para>
 
     <sect3>
       <title>Processor/Motherboard Support</title>
@@ -162,7 +172,9 @@
     <sect3>
       <title>Network Protocols</title>
 
-      <para></para>
+      <para>&man.bridge.4; and &man.dummynet.4; have received some
+      enhancements and bug fixes, and are now loadable
+      modules.</para>
     </sect3>
 
     <sect3>
@@ -243,6 +255,10 @@
     firewall rules unless the <option>-d</option> flag is passed to
     it.  The <option>-e</option> option lists expired dynamic
     rules.</para>
+
+    <para>&man.ipfw.8; has a new <literal>limit</literal> type of
+    firewall rule, which limits the number of sessions between address
+    pairs.</para>
 
     <para><filename>libstand</filename> now has support for
     filesystems containing <application>bzip2</application>-compressed
