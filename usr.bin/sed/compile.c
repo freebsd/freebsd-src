@@ -47,12 +47,14 @@ static const char sccsid[] = "@(#)compile.c	8.1 (Berkeley) 6/6/93";
 
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <regex.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <wchar.h>
 
 #include "defs.h"
 #include "extern.h"
@@ -73,7 +75,7 @@ static char	 *compile_flags(char *, struct s_subst *);
 static char	 *compile_re(char *, regex_t **);
 static char	 *compile_subst(char *, struct s_subst *);
 static char	 *compile_text(void);
-static char	 *compile_tr(char *, char **);
+static char	 *compile_tr(char *, struct s_tr **);
 static struct s_command
 		**compile_stream(struct s_command **);
 static char	 *duptoeol(char *, const char *);
@@ -337,7 +339,7 @@ nonsel:		/* Now parse the command */
 			break;
 		case TR:			/* y */
 			p++;
-			p = compile_tr(p, (char **)&cmd->u.y);
+			p = compile_tr(p, &cmd->u.y);
 			EATSPACE();
 			if (*p == ';') {
 				p++;
@@ -619,12 +621,20 @@ compile_flags(char *p, struct s_subst *s)
  * Compile a translation set of strings into a lookup table.
  */
 static char *
-compile_tr(char *p, char **transtab)
+compile_tr(char *p, struct s_tr **py)
 {
+	struct s_tr *y;
 	int i;
-	char *lt, *op, *np;
+	const char *op, *np;
 	char old[_POSIX2_LINE_MAX + 1];
 	char new[_POSIX2_LINE_MAX + 1];
+	size_t oclen, oldlen, nclen, newlen;
+	mbstate_t mbs1, mbs2;
+
+	if ((*py = y = malloc(sizeof(*y))) == NULL)
+		err(1, NULL);
+	y->multis = NULL;
+	y->nmultis = 0;
 
 	if (*p == '\0' || *p == '\\')
 		errx(1,
@@ -639,17 +649,63 @@ compile_tr(char *p, char **transtab)
 		errx(1, "%lu: %s: unterminated transform target string",
 				linenum, fname);
 	EATSPACE();
-	if (strlen(new) != strlen(old))
+	op = old;
+	oldlen = mbsrtowcs(NULL, &op, 0, NULL);
+	if (oldlen == (size_t)-1)
+		err(1, NULL);
+	np = new;
+	newlen = mbsrtowcs(NULL, &np, 0, NULL);
+	if (newlen == (size_t)-1)
+		err(1, NULL);
+	if (newlen != oldlen)
 		errx(1, "%lu: %s: transform strings are not the same length",
 				linenum, fname);
-	/* We assume characters are 8 bits */
-	if ((lt = malloc(UCHAR_MAX)) == NULL)
-		err(1, "malloc");
-	for (i = 0; i <= UCHAR_MAX; i++)
-		lt[i] = (char)i;
-	for (op = old, np = new; *op; op++, np++)
-		lt[(u_char)*op] = *np;
-	*transtab = lt;
+	if (MB_CUR_MAX == 1) {
+		/*
+		 * The single-byte encoding case is easy: generate a
+		 * lookup table.
+		 */
+		for (i = 0; i <= UCHAR_MAX; i++)
+			y->bytetab[i] = (char)i;
+		for (; *op; op++, np++)
+			y->bytetab[(u_char)*op] = *np;
+	} else {
+		/*
+		 * Multi-byte encoding case: generate a lookup table as
+		 * above, but only for single-byte characters. The first
+		 * bytes of multi-byte characters have their lookup table
+		 * entries set to 0, which causes do_tr() to search through
+		 * an auxiliary vector of multi-byte mappings.
+		 */
+		memset(&mbs1, 0, sizeof(mbs1));
+		memset(&mbs2, 0, sizeof(mbs2));
+		for (i = 0; i <= UCHAR_MAX; i++)
+			y->bytetab[i] = (btowc(i) != WEOF) ? i : 0;
+		while (*op != '\0') {
+			oclen = mbrlen(op, MB_LEN_MAX, &mbs1);
+			if (oclen == (size_t)-1 || oclen == (size_t)-2)
+				errc(1, EILSEQ, NULL);
+			nclen = mbrlen(np, MB_LEN_MAX, &mbs2);
+			if (nclen == (size_t)-1 || nclen == (size_t)-2)
+				errc(1, EILSEQ, NULL);
+			if (oclen == 1 && nclen == 1)
+				y->bytetab[(u_char)*op] = *np;
+			else {
+				y->bytetab[(u_char)*op] = 0;
+				y->multis = realloc(y->multis,
+				    (y->nmultis + 1) * sizeof(*y->multis));
+				if (y->multis == NULL)
+					err(1, NULL);
+				i = y->nmultis++;
+				y->multis[i].fromlen = oclen;
+				memcpy(y->multis[i].from, op, oclen);
+				y->multis[i].tolen = nclen;
+				memcpy(y->multis[i].to, np, nclen);
+			}
+			op += oclen;
+			np += nclen;
+		}
+	}
 	return (p);
 }
 
