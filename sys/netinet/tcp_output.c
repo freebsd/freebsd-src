@@ -31,10 +31,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_output.c	8.4 (Berkeley) 5/24/95
- *	$Id: tcp_output.c,v 1.21.2.2 1997/09/30 16:25:10 davidg Exp $
+ *	$Id: tcp_output.c,v 1.21.2.3 1997/10/08 05:10:07 fenner Exp $
  */
 
 #include "opt_tcpdebug.h"
+
+#include <stddef.h>
 
 #include <sys/param.h>
 #include <sys/queue.h>
@@ -82,7 +84,7 @@ tcp_output(tp)
 	register struct mbuf *m;
 	register struct tcpiphdr *ti;
 	u_char opt[TCP_MAXOLEN];
-	unsigned optlen, hdrlen;
+	unsigned ipoptlen, optlen, hdrlen;
 	int idle, sendalot;
 	struct rmxp_tao *taop;
 	struct rmxp_tao tao_noncached;
@@ -436,18 +438,25 @@ send:
 
  	hdrlen += optlen;
 
+	if (tp->t_inpcb->inp_options) {
+		ipoptlen = tp->t_inpcb->inp_options->m_len -
+				offsetof(struct ipoption, ipopt_list);
+	} else {
+		ipoptlen = 0;
+	}
+
 	/*
 	 * Adjust data length if insertion of options will
 	 * bump the packet length beyond the t_maxopd length.
 	 * Clear the FIN bit because we cut off the tail of
 	 * the segment.
 	 */
-	 if (len + optlen > tp->t_maxopd) {
+	if (len + optlen + ipoptlen > tp->t_maxopd) {
 		/*
 		 * If there is still more to send, don't close the connection.
 		 */
 		flags &= ~TH_FIN;
-		len = tp->t_maxopd - optlen;
+		len = tp->t_maxopd - optlen - ipoptlen;
 		sendalot = 1;
 	}
 
