@@ -168,7 +168,7 @@ SYSCTL_OPAQUE(_vfs_cache, OID_AUTO, nchstats, CTLFLAG_RD, &nchstats,
 
 
 
-static void cache_zap(struct namecache *ncp, int locked);
+static void cache_zap(struct namecache *ncp);
 
 static MALLOC_DEFINE(M_VFSCACHE, "vfscache", "VFS name cache entries");
 
@@ -263,15 +263,13 @@ SYSCTL_PROC(_debug_hashstat, OID_AUTO, nchash, CTLTYPE_INT|CTLFLAG_RD,
  *   pointer to a vnode or if it is just a negative cache entry.
  */
 static void
-cache_zap(ncp, locked)
+cache_zap(ncp)
 	struct namecache *ncp;
-	int locked;
 {
 	struct vnode *vp;
 
+	mtx_assert(&cache_lock, MA_OWNED);
 	vp = NULL;
-	if (!locked)
-		CACHE_LOCK();
 	LIST_REMOVE(ncp, nc_hash);
 	LIST_REMOVE(ncp, nc_src);
 	if (LIST_EMPTY(&ncp->nc_dvp->v_cache_src)) {
@@ -285,12 +283,9 @@ cache_zap(ncp, locked)
 		numneg--;
 	}
 	numcache--;
-	CACHE_UNLOCK();
 	cache_free(ncp);
 	if (vp)
 		vdrop(vp);
-	if (locked)
-		CACHE_LOCK();
 }
 
 /*
@@ -398,8 +393,8 @@ cache_lookup(dvp, vpp, cnp)
 	if ((cnp->cn_flags & MAKEENTRY) == 0) {
 		numposzaps++;
 		nchstats.ncs_badhits++;
+		cache_zap(ncp);
 		CACHE_UNLOCK();
-		cache_zap(ncp, 0);
 		return (0);
 	}
 
@@ -416,8 +411,8 @@ cache_lookup(dvp, vpp, cnp)
 	if (cnp->cn_nameiop == CREATE) {
 		numnegzaps++;
 		nchstats.ncs_badhits++;
+		cache_zap(ncp);
 		CACHE_UNLOCK();
-		cache_zap(ncp, 0);
 		return (0);
 	}
 
@@ -517,11 +512,11 @@ cache_enter(dvp, vp, cnp)
 		ncp = TAILQ_FIRST(&ncneg);
 		zap = 1;
 	}
-	CACHE_UNLOCK();
 	if (hold)
 		vhold(dvp);
 	if (zap)
-		cache_zap(ncp, 0);
+		cache_zap(ncp);
+	CACHE_UNLOCK();
 }
 
 /*
@@ -571,9 +566,9 @@ cache_purge(vp)
 
 	CACHE_LOCK();
 	while (!LIST_EMPTY(&vp->v_cache_src))
-		cache_zap(LIST_FIRST(&vp->v_cache_src), 1);
+		cache_zap(LIST_FIRST(&vp->v_cache_src));
 	while (!TAILQ_EMPTY(&vp->v_cache_dst))
-		cache_zap(TAILQ_FIRST(&vp->v_cache_dst), 1);
+		cache_zap(TAILQ_FIRST(&vp->v_cache_dst));
 
 	do
 		nextid++;
@@ -612,9 +607,9 @@ cache_purgevfs(mp)
 			}
 		}
 	}
-	CACHE_UNLOCK();
 	while (!LIST_EMPTY(&mplist))
-		cache_zap(LIST_FIRST(&mplist), 0);
+		cache_zap(LIST_FIRST(&mplist));
+	CACHE_UNLOCK();
 }
 
 /*
@@ -819,6 +814,7 @@ kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg, u_int buflen)
 		return (EINVAL);
 	if (buflen > MAXPATHLEN)
 		buflen = MAXPATHLEN;
+	mtx_lock(&Giant);
 	error = 0;
 	tmpbuf = bp = malloc(buflen, M_TEMP, M_WAITOK);
 	bp += buflen - 1;
@@ -829,71 +825,71 @@ kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg, u_int buflen)
 	for (vp = fdp->fd_cdir; vp != fdp->fd_rdir && vp != rootvnode;) {
 		if (vp->v_vflag & VV_ROOT) {
 			if (vp->v_mount == NULL) {	/* forced unmount */
-				FILEDESC_UNLOCK(fdp);
-				free(tmpbuf, M_TEMP);
-				return (EBADF);
+				error = EBADF;
+				goto out;
 			}
 			vp = vp->v_mount->mnt_vnodecovered;
 			continue;
 		}
 		if (vp->v_dd->v_id != vp->v_ddid) {
-			FILEDESC_UNLOCK(fdp);
 			numcwdfail1++;
-			free(tmpbuf, M_TEMP);
-			return (ENOTDIR);
+			error = ENOTDIR;
+			goto out;
 		}
 		CACHE_LOCK();
 		ncp = TAILQ_FIRST(&vp->v_cache_dst);
 		if (!ncp) {
 			numcwdfail2++;
 			CACHE_UNLOCK();
-			FILEDESC_UNLOCK(fdp);
-			free(tmpbuf, M_TEMP);
-			return (ENOENT);
+			error = ENOENT;
+			goto out;
 		}
 		if (ncp->nc_dvp != vp->v_dd) {
 			numcwdfail3++;
 			CACHE_UNLOCK();
-			FILEDESC_UNLOCK(fdp);
-			free(tmpbuf, M_TEMP);
-			return (EBADF);
+			error = EBADF;
+			goto out;
 		}
 		for (i = ncp->nc_nlen - 1; i >= 0; i--) {
 			if (bp == tmpbuf) {
 				numcwdfail4++;
 				CACHE_UNLOCK();
-				FILEDESC_UNLOCK(fdp);
-				free(tmpbuf, M_TEMP);
-				return (ENOMEM);
+				error = ENOMEM;
+				goto out;
 			}
 			*--bp = ncp->nc_name[i];
 		}
 		if (bp == tmpbuf) {
 			numcwdfail4++;
 			CACHE_UNLOCK();
-			FILEDESC_UNLOCK(fdp);
-			free(tmpbuf, M_TEMP);
-			return (ENOMEM);
+			error = ENOMEM;
+			goto out;
 		}
 		*--bp = '/';
 		slash_prefixed = 1;
 		vp = vp->v_dd;
 		CACHE_UNLOCK();
 	}
-	FILEDESC_UNLOCK(fdp);
 	if (!slash_prefixed) {
 		if (bp == tmpbuf) {
 			numcwdfail4++;
-			free(tmpbuf, M_TEMP);
-			return (ENOMEM);
+			error = ENOMEM;
+			goto out;
 		}
 		*--bp = '/';
 	}
+	FILEDESC_UNLOCK(fdp);
+	mtx_unlock(&Giant);
 	numcwdfound++;
 	if (bufseg == UIO_SYSSPACE)
 		bcopy(bp, buf, strlen(bp) + 1);
 	else
 		error = copyout(bp, buf, strlen(bp) + 1);
+	free(tmpbuf, M_TEMP);
+	return (error);
+out:
+	FILEDESC_UNLOCK(fdp);
+	mtx_unlock(&Giant);
 	free(tmpbuf, M_TEMP);
 	return (error);
 }
