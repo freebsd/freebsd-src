@@ -117,9 +117,6 @@ mount(p, uap)
 	struct vfsconf *vfsp;
 	int error, flag = 0, flag2 = 0;
 	struct vattr va;
-#ifdef COMPAT_43
-	u_long fstypenum;
-#endif
 	struct nameidata nd;
 	char fstypename[MFSNAMELEN];
 
@@ -210,24 +207,6 @@ mount(p, uap)
 		vput(vp);
 		return (ENOTDIR);
 	}
-#ifdef COMPAT_43
-	/*
-	 * Historically filesystem types were identified by number. If we
-	 * get an integer for the filesystem type instead of a string, we
-	 * check to see if it matches one of the historic filesystem types.
-	 */
-	fstypenum = (uintptr_t)SCARG(uap, type);
-	if (fstypenum < maxvfsconf) {
-		for (vfsp = vfsconf; vfsp; vfsp = vfsp->vfc_next)
-			if (vfsp->vfc_typenum == fstypenum)
-				break;
-		if (vfsp == NULL) {
-			vput(vp);
-			return (ENODEV);
-		}
-		strncpy(fstypename, vfsp->vfc_name, MFSNAMELEN);
-	} else
-#endif /* COMPAT_43 */
 	if ((error = copyinstr(SCARG(uap, type), fstypename, MFSNAMELEN, NULL)) != 0) {
 		vput(vp);
 		return (error);
