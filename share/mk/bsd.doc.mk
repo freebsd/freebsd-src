@@ -1,5 +1,5 @@
 #	from: @(#)bsd.doc.mk	5.3 (Berkeley) 1/2/91
-#	$Id: bsd.doc.mk,v 1.21 1995/07/27 15:03:25 wollman Exp $
+#	$Id: bsd.doc.mk,v 1.22 1995/10/15 16:14:42 jfieber Exp $
 
 PRINTER?=	ascii
 
@@ -16,6 +16,11 @@ ROFF?=          groff -mtty-char ${TRFLAGS} ${MACROS} -o${PAGES}
 ROFF?=		groff ${TRFLAGS} ${MACROS} -o${PAGES}
 .endif
 SOELIM?=	soelim
+SOELIMPP=	sed ${SOELIMPPARGS}
+SOELIMPPARGS0=	${SRCS} ${EXTRA}
+SOELIMPPARGS1=	${SOELIMPPARGS0:S/^/-e\\ \'s:\(\.so[\\ \\	][\\ \\	]*\)\(/}
+SOELIMPPARGS2=	${SOELIMPPARGS1:S/$/\)\$:\1${SRCDIR}\/\2:\'/}
+SOELIMPPARGS=	${SOELIMPPARGS2:S/\\'/'/g}
 TBL?=		tbl
 
 DOC?=		paper
@@ -128,8 +133,15 @@ BINMODE=        444
 SRCDIR?=	${.CURDIR}
 
 .if !target(${DFILE})
-${DFILE}:	${SRCS}
+${DFILE}::	${SRCS} ${EXTRA} ${OBJS}
+# XXX ${.ALLSRC} doesn't work unless there are a lot of .PATH.foo statements.
+ALLSRCS=	${SRCS:S;^;${SRCDIR}/;}
+${DFILE}::	${SRCS}
+.if defined(USE_SOELIMPP)
+	${SOELIMPP} ${ALLSRCS} | ${ROFF} | ${GZIPCMD} > ${.TARGET}
+.else
 	(cd ${SRCDIR}; ${ROFF} ${.ALLSRC}) | ${GZIPCMD} > ${.TARGET}
+.endif
 .else
 .if !defined(NODOCCOMPRESS)
 ${DFILE}:	${DOC}.${PRINTER}
