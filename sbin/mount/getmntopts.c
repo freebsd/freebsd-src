@@ -36,20 +36,16 @@
 static char sccsid[] = "@(#)getmntopts.c	8.3 (Berkeley) 3/29/95";
 #else
 static const char rcsid[] =
-	"$Id$";
+	"$Id: getmntopts.c,v 1.6 1997/08/24 21:02:47 steve Exp $";
 #endif
 #endif /* not lint */
 
 #include <sys/param.h>
-#include <sys/mount.h>
 
 #include <err.h>
-#include <errno.h>
-#include <fstab.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "extern.h"
 #include "mntopts.h"
 
 int getmnt_silent = 0;
@@ -96,7 +92,7 @@ getmntopts(options, m0, flagp, altflagp)
 				break;
 		}
 
-		/* Save flag, or fail if option is not recognised. */
+		/* Save flag, or fail if option is not recognized. */
 		if (m->m_option) {
 			thisflagp = m->m_altloc ? altflagp : flagp;
 			if (negative == m->m_inverse)
