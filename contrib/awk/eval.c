@@ -3,7 +3,7 @@
  */
 
 /* 
- * Copyright (C) 1986, 1988, 1989, 1991-1997 the Free Software Foundation, Inc.
+ * Copyright (C) 1986, 1988, 1989, 1991-1999 the Free Software Foundation, Inc.
  * 
  * This file is part of GAWK, the GNU implementation of the
  * AWK Programming Language.
@@ -21,11 +21,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA
+ *
+ * $FreeBSD$
  */
 
 #include "awk.h"
-
-#include <assert.h>
 
 extern double pow P((double x, double y));
 extern double modf P((double x, double *yp));
@@ -566,14 +566,26 @@ register NODE *volatile tree;
 		break;
 
 	case Node_K_next:
+		if (in_begin_rule)
+			fatal("`next' cannot be called from a BEGIN rule");
+		else if (in_end_rule)
+			fatal("`next' cannot be called from an END rule");
+
 		if (in_function())
 			pop_fcall_stack();
+
 		longjmp(rule_tag, TAG_CONTINUE);
 		break;
 
 	case Node_K_nextfile:
+		if (in_begin_rule)
+			fatal("`nextfile' cannot be called from a BEGIN rule");
+		else if (in_end_rule)
+			fatal("`nextfile' cannot be called from an END rule");
+
 		if (in_function())
 			pop_fcall_stack();
+
 		do_nextfile();
 		break;
 
@@ -759,7 +771,8 @@ int iscond;
 		register size_t len;
 		char *str;
 		register char *dest;
-		int count;
+		int alloc_count, str_count;
+		int i;
 
 		/*
 		 * This is an efficiency hack for multiple adjacent string
@@ -773,16 +786,16 @@ int iscond;
 		/*
 		 * But first, no arbitrary limits. Count the number of
 		 * nodes and malloc the treelist and strlist arrays.
-		 * There will be count + 1 items to concatenate. We
+		 * There will be alloc_count + 1 items to concatenate. We
 		 * also leave room for an extra pointer at the end to
-		 * use as a sentinel.  Thus, start count at 2.
+		 * use as a sentinel.  Thus, start alloc_count at 2.
 		 */
 		save_tree = tree;
-		for (count = 2; tree && tree->type == Node_concat; tree = tree->lnode)
-			count++;
+		for (alloc_count = 2; tree && tree->type == Node_concat; tree = tree->lnode)
+			alloc_count++;
 		tree = save_tree;
-		emalloc(treelist, NODE **, sizeof(NODE *) * count, "tree_eval");
-		emalloc(strlist, NODE **, sizeof(NODE *) * count, "tree_eval");
+		emalloc(treelist, NODE **, sizeof(NODE *) * alloc_count, "tree_eval");
+		emalloc(strlist, NODE **, sizeof(NODE *) * alloc_count, "tree_eval");
 
 		/* Now, here we go. */
 		treep = treelist;
@@ -795,15 +808,26 @@ int iscond;
 		 * Now, evaluate to strings in LIFO order, accumulating
 		 * the string length, so we can do a single malloc at the
 		 * end.
+		 *
+		 * Evaluate the expressions first, then get their
+		 * lengthes, in case one of the expressions has a
+		 * side effect that changes one of the others.
+		 * See test/nasty.awk.
 		 */
 		strp = strlist;
 		len = 0;
 		while (treep >= treelist) {
 			*strp = force_string(tree_eval(*treep--));
-			len += (*strp)->stlen;
 			strp++;
 		}
 		*strp = NULL;
+
+		str_count = strp - strlist;
+		strp = strlist;
+		for (i = 0; i < str_count; i++) {
+			len += (*strp)->stlen;
+			strp++;
+		}
 		emalloc(str, char *, len+2, "tree_eval");
 		str[len] = str[len+1] = '\0';	/* for good measure */
 		dest = str;
@@ -1397,6 +1421,11 @@ NODE *arg_list;		/* Node_expression_list of calling args. */
  * r_get_lhs:
  * This returns a POINTER to a node pointer. get_lhs(ptr) is the current
  * value of the var, or where to store the var's new value 
+ *
+ * For the special variables, don't unref their current value if it's
+ * the same as the internal copy; perhaps the current one is used in
+ * a concatenation or some other expression somewhere higher up in the
+ * call chain.  Ouch.
  */
 
 NODE **
@@ -1409,8 +1438,11 @@ Func_ptr *assign;
 
 	if (assign)
 		*assign = NULL;	/* for safety */
-	if (ptr->type == Node_param_list)
+	if (ptr->type == Node_param_list) {
+		if ((ptr->flags & FUNC) != 0)
+			fatal("can't use function name `%s' as variable or array", ptr->vname);
 		ptr = stack_ptr[ptr->param_cnt];
+	}
 
 	switch (ptr->type) {
 	case Node_var_array:
@@ -1444,26 +1476,32 @@ Func_ptr *assign;
 		break;
 
 	case Node_FNR:
-		unref(FNR_node->var_value);
-		FNR_node->var_value = make_number((AWKNUM) FNR);
+		if (FNR_node->var_value->numbr != FNR) {
+			unref(FNR_node->var_value);
+			FNR_node->var_value = make_number((AWKNUM) FNR);
+		}
 		aptr = &(FNR_node->var_value);
 		if (assign != NULL)
 			*assign = set_FNR;
 		break;
 
 	case Node_NR:
-		unref(NR_node->var_value);
-		NR_node->var_value = make_number((AWKNUM) NR);
+		if (NR_node->var_value->numbr != NR) {
+			unref(NR_node->var_value);
+			NR_node->var_value = make_number((AWKNUM) NR);
+		}
 		aptr = &(NR_node->var_value);
 		if (assign != NULL)
 			*assign = set_NR;
 		break;
 
 	case Node_NF:
-		if (NF == -1)
-			(void) get_field(HUGE-1, assign); /* parse record */
-		unref(NF_node->var_value);
-		NF_node->var_value = make_number((AWKNUM) NF);
+		if (NF == -1 || NF_node->var_value->numbr != NF) {
+			if (NF == -1)
+				(void) get_field(HUGE-1, assign); /* parse record */
+			unref(NF_node->var_value);
+			NF_node->var_value = make_number((AWKNUM) NF);
+		}
 		aptr = &(NF_node->var_value);
 		if (assign != NULL)
 			*assign = set_NF;

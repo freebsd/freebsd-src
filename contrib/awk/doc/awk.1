@@ -1,7 +1,8 @@
+.\" $FreeBSD$
 .ds PX \s-1POSIX\s+1
 .ds UX \s-1UNIX\s+1
 .ds AN \s-1ANSI\s+1
-.TH GAWK 1 "Dec 19 1996" "Free Software Foundation" "Utility Commands"
+.TH GAWK 1 "Apr 28 1999" "Free Software Foundation" "Utility Commands"
 .SH NAME
 gawk \- pattern scanning and processing language
 .SH SYNOPSIS
@@ -2150,6 +2151,12 @@ Functions may call each other and may be recursive.
 Function parameters used as local variables are initialized
 to the null string and the number zero upon function invocation.
 .PP
+Use
+.BI return " expr"
+to return a value from a function. The return value is undefined if no
+value is provided, or if the function returns by ``falling off'' the
+end.
+.PP
 If
 .B \-\^\-lint
 has been provided,
@@ -2535,7 +2542,7 @@ and the effort to do so really is not worth it.
 .SH VERSION INFORMATION
 This man page documents
 .IR gawk ,
-version 3.0.2.
+version 3.0.4.
 .SH AUTHORS
 The original version of \*(UX
 .I awk
@@ -2566,10 +2573,10 @@ help from Darrel Hankerson.  Fred Fish supplied support for the Amiga.
 If you find a bug in
 .IR gawk ,
 please send electronic mail to
-.BR bug-gnu-utils@prep.ai.mit.edu ,
+.BR bug-gnu-utils@gnu.org ,
 .I with
 a carbon copy to
-.BR arnold@gnu.ai.mit.edu .
+.BR arnold@gnu.org .
 Please include your operating system and its revision, the version of
 .IR gawk ,
 what C compiler you used to compile it, and a test program
@@ -2598,7 +2605,7 @@ Brian Kernighan of Bell Labs
 provided valuable assistance during testing and debugging.
 We thank him.
 .SH COPYING PERMISSIONS
-Copyright \(co\) 1996 Free Software Foundation, Inc.
+Copyright \(co) 1996,97,98,99 Free Software Foundation, Inc.
 .PP
 Permission is granted to make and distribute verbatim copies of
 this manual page provided the copyright notice and this permission
