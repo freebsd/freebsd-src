@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.12 1995/11/19 00:59:22 bde Exp $
+ * $Id: kern_time.c,v 1.13 1995/12/14 08:31:37 phk Exp $
  */
 
 #include <sys/param.h>
@@ -56,6 +56,8 @@ struct timezone tz;
  * and decrementing interval timers, optionally reloading the interval
  * timers when they expire.
  */
+
+static void	timevalfix __P((struct timeval *));
 
 #ifndef _SYS_SYSPROTO_H_
 struct gettimeofday_args {

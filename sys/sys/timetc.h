@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)time.h	8.1 (Berkeley) 6/2/93
- * $Id: time.h,v 1.4 1994/10/02 17:25:01 phk Exp $
+ * $Id: time.h,v 1.5 1994/10/10 00:58:36 phk Exp $
  */
 
 #ifndef _SYS_TIME_H_
@@ -112,7 +112,6 @@ int	itimerdecr __P((struct itimerval *itp,int usec));
 int	itimerfix __P((struct timeval *));
 void	microtime __P((struct timeval *));
 void	timevaladd __P((struct timeval *, struct timeval *));
-void	timevalfix __P((struct timeval *));
 void	timevalsub __P((struct timeval *, struct timeval *));
 
 #else /* not KERNEL */
