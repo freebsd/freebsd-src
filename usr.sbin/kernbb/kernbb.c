@@ -81,9 +81,9 @@ main()
 		kvm_read(kv,bb.addr,  addr,   bb.ncounts * sizeof addr[0]);
 		kvm_read(kv,bb.file,  file,   bb.ncounts * sizeof file[0]);
 		kvm_read(kv,bb.func,  func,   bb.ncounts * sizeof func[0]);
+		for (i=0; i < bb.ncounts; i++) {
 			if (!counts[i])
 				continue;
-		for (i=0; i < bb.ncounts; i++) {
 			if (!pn[i] && func[i]) {
 				kvm_read(kv,func[i], buf, sizeof buf);
 				buf[sizeof buf -1] = 0;
