@@ -383,44 +383,10 @@
     <para arch="i386">3ware Escalade ATA RAID controllers (&man.twe.4; driver)
     </para>
 
-    <para arch="i386,pc98,alpha,sparc64">LSI/SymBios (formerly NCR) 53C810, 53C810a, 53C815, 53C825,
-    53C825a, 53C860, 53C875, 53C875a, 53C876, 53C885, 53C895, 53C895a,
-    53C896, 53C1010-33, 53C1010-66, 53C1000, 53C1000R PCI
+    <para arch="i386,pc98,alpha,sparc64">LSI/Symbios (formerly NCR)
+    53C8<replaceable>XX</replaceable> and 53C10<replaceable>XX</replaceable> PCI
     SCSI controllers, either embedded on motherboard or on add-on
     boards (&man.ncr.4; and &man.sym.4; drivers)
-      <itemizedlist>
-        <listitem arch="i386,alpha,sparc64">
-	  <para>ASUS SC-200, SC-896</para>
-	</listitem>
-        <listitem arch="i386,alpha,sparc64">
-	  <para>Data Technology DTC3130 (all variants)</para>
-	</listitem>
-        <listitem arch="i386,alpha,sparc64">
-	  <para>DawiControl DC2976UW</para>
-	</listitem>
-        <listitem arch="i386,alpha,sparc64">
-	  <para>Diamond FirePort (all)</para>
-	</listitem>
-        <listitem arch="i386,alpha,sparc64">
-	  <para>NCR cards (all)</para>
-	</listitem>
-        <listitem arch="i386,alpha,sparc64">
-	  <para>Symbios cards (all)</para>
-	</listitem>
-        <listitem arch="i386,alpha,sparc64">
-	  <para>Tekram DC390W, 390U, 390F, 390U2B, 390U2W, 390U3D, and
-	  390U3W</para>
-	</listitem>
-        <listitem arch="i386,alpha,sparc64">
-	  <para>Tyan S1365</para>
-	</listitem>
-        <listitem arch="pc98">
-           <para>I-O DATA SC-98/PCI and SC-PCI (&man.ncr.4; driver)</para>
-        </listitem>
-        <listitem arch="pc98">
-           <para>I-O DATA SC-UPCI and Logitec LHA-521UA (&man.sym.4; driver)</para>
-        </listitem>
-      </itemizedlist>
     </para>      
         
     <para arch="i386,pc98">NCR 53C500 based PC-Card SCSI host adapters (ncv
