@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)csh.1	8.2 (Berkeley) 1/21/94
-.\"	$Id$
+.\"	$Id: csh.1,v 1.2 1994/09/24 02:53:49 davidg Exp $
 .\"
 .Dd January 21, 1994
 .Dt CSH 1
@@ -40,7 +40,7 @@
 .Nd a shell (command interpreter) with C-like syntax
 .Sh SYNOPSIS
 .Nm csh
-.Op Fl bcefinstvVxX
+.Op Fl bcefimnstvVxX
 .Op arg ...
 .Nm csh
 .Op Fl l
@@ -96,6 +96,14 @@ and outputs are terminals.
 The shell is a login shell (only applicable if
 .Fl l
 is the only flag specified).
+.It Fl m
+The shell loads
+.Pa .cshrc
+even if it does not belong to the effective user.
+.Xr su 1
+can pass
+.Fl m
+to the shell.
 .It Fl n
 Commands are parsed, but not executed.
 This aids in syntactic checking of shell scripts.
@@ -2107,6 +2115,7 @@ To detect looping, the shell restricts the number of
 substitutions on a single line to 20.
 .Sh SEE ALSO
 .Xr sh 1 ,
+.Xr su 1 ,
 .Xr access 2 ,
 .Xr execve 2 ,
 .Xr fork 2 ,
