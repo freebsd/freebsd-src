@@ -115,16 +115,16 @@ static u_short *qcam_rsblow_end  = &qcam_rsblow[STATBUFSIZE];
 	} while (((V) & 0x01) && --timeout); STATLOW(T) \
 }
 
-static int
-sendbyte (u_int port, int value)
+inline static int
+sendbyte (u_int port, int value, int delay)
 {
 	u_char s1, s2;
 
 	write_data(port, value);
-	DELAY(100);
-	write_data(port, value);
-	DELAY(100);
-	write_data(port, value);
+	if (delay) {
+	    DELAY(delay);
+	    write_data(port, value);
+	}
 
 	write_control(port, QC_CTL_HIGHNIB);
 	READ_STATUS_BYTE_HIGH(port, s1, QC_TIMEOUT_CMD);
@@ -138,13 +138,25 @@ sendbyte (u_int port, int value)
 static int
 send_command (struct qcam_softc *qs, int cmd, int value)
 {
-	if (sendbyte(qs->iobase, cmd) != cmd)
+	if (sendbyte(qs->iobase, cmd, qs->exposure) != cmd)
 		return 1;
 
-	if (sendbyte(qs->iobase, value) != value)
+	if (sendbyte(qs->iobase, value, qs->exposure) != value)
 		return 1;
 
 	return 0;			/* success */
+}
+
+static int
+send_xfermode (struct qcam_softc *qs, int value)
+{
+	if (sendbyte(qs->iobase, QC_XFERMODE, qs->exposure) != QC_XFERMODE)
+		return 1;
+
+	if (sendbyte(qs->iobase, value, qs->exposure) != value)
+		return 1;
+
+	return 0;
 }
 
 void
@@ -447,7 +459,7 @@ qcam_scan (struct qcam_softc *qs)
 	if (qs->init_req)
 		qcam_init(qs);
 
-	if (send_command(qs, QC_XFERMODE, qs->xferparms))
+	if (send_xfermode(qs, qs->xferparms))
 		return 1;
 
 	if (qcam_debug && (timeouts != qcam_timeouts))
@@ -481,6 +493,7 @@ qcam_default (struct qcam_softc *qs) {
 	qs->y_origin	 = QC_DEF_YORG;
 	qs->bpp		 = QC_DEF_BPP;
 	qs->zoom	 = QC_DEF_ZOOM;
+	qs->exposure	 = QC_DEF_EXPOSURE;
 }
 
 int

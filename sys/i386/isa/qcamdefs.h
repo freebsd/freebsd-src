@@ -56,6 +56,7 @@ struct qcam_softc {
 	int		y_origin;		/* ?? units */
 	int		zoom;			/* 0=none, 1=1.5x, 2=2x */
 	int		bpp;			/* 4 or 6 */
+	int		exposure;		/* time to open shutter */
 	u_char		xferparms;		/* calcualted transfer params */
 	u_char		contrast;
 	u_char		brightness;
@@ -103,6 +104,10 @@ struct qcam_softc {
 						   read of scan */
 #define	QC_TIMEOUT_CMD		5000		/* timeout for control cmds */
 #define	QC_TIMEOUT		400		/* timeout on scan reads */
+
+						/* This value could be OS
+						   dependant */
+#define	QC_DEF_EXPOSURE		200		/* default exposure */
 
 extern int  qcam_detect		__P((u_int  port));
 extern void qcam_reset		__P((struct qcam_softc *qs));
