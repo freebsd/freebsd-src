@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumioctl.c,v 1.8 1999/03/23 02:46:39 grog Exp grog $
+ * $Id: vinumioctl.c,v 1.6.2.3 1999/04/06 09:05:57 grog Exp $
  */
 
 #define STATIC						    /* nothing while we're testing XXX */
@@ -55,6 +55,8 @@ void attachobject(struct vinum_ioctl_msg *);
 void detachobject(struct vinum_ioctl_msg *);
 void renameobject(struct vinum_rename_msg *);
 void replaceobject(struct vinum_ioctl_msg *);
+
+jmp_buf command_fail;
 
 /* ioctl routine */
 int 
