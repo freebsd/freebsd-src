@@ -2,7 +2,7 @@
  *
  * Module Name: nseval - Object evaluation interfaces -- includes control
  *                       method lookup and execution.
- *              $Revision: 123 $
+ *              $Revision: 124 $
  *
  ******************************************************************************/
 
@@ -157,11 +157,11 @@ AcpiNsEvaluateRelative (
     ACPI_OPERAND_OBJECT     **Params,
     ACPI_OPERAND_OBJECT     **ReturnObject)
 {
-    ACPI_NAMESPACE_NODE     *PrefixNode;
     ACPI_STATUS             Status;
+    ACPI_NAMESPACE_NODE     *PrefixNode;
     ACPI_NAMESPACE_NODE     *Node = NULL;
+    ACPI_GENERIC_STATE      *ScopeInfo;
     char                    *InternalPath = NULL;
-    ACPI_GENERIC_STATE      ScopeInfo;
 
 
     ACPI_FUNCTION_TRACE ("NsEvaluateRelative");
@@ -183,6 +183,12 @@ AcpiNsEvaluateRelative (
         return_ACPI_STATUS (Status);
     }
 
+    ScopeInfo = AcpiUtCreateGenericState ();
+    if (!ScopeInfo)
+    {
+        goto Cleanup1;
+    }
+
     /* Get the prefix handle and Node */
 
     Status = AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
@@ -201,8 +207,8 @@ AcpiNsEvaluateRelative (
 
     /* Lookup the name in the namespace */
 
-    ScopeInfo.Scope.Node = PrefixNode;
-    Status = AcpiNsLookup (&ScopeInfo, InternalPath, ACPI_TYPE_ANY,
+    ScopeInfo->Scope.Node = PrefixNode;
+    Status = AcpiNsLookup (ScopeInfo, InternalPath, ACPI_TYPE_ANY,
                             ACPI_IMODE_EXECUTE, ACPI_NS_NO_UPSEARCH, NULL,
                             &Node);
 
@@ -228,7 +234,9 @@ AcpiNsEvaluateRelative (
         Pathname));
 
 Cleanup:
+    AcpiUtDeleteGenericState (ScopeInfo);
 
+Cleanup1:
     ACPI_MEM_FREE (InternalPath);
     return_ACPI_STATUS (Status);
 }

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psscope - Parser scope stack management routines
- *              $Revision: 37 $
+ *              $Revision: 38 $
  *
  *****************************************************************************/
 
@@ -242,7 +242,6 @@ AcpiPsPushScope (
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
-
     Scope->Common.DataType         = ACPI_DESC_TYPE_STATE_PSCOPE;
     Scope->ParseScope.Op           = Op;
     Scope->ParseScope.ArgList      = RemainingArgs;
@@ -253,14 +252,12 @@ AcpiPsPushScope (
 
     AcpiUtPushGenericState (&ParserState->Scope, Scope);
 
-
     if (ArgCount == ACPI_VAR_ARGS)
     {
         /* multiple arguments */
 
         Scope->ParseScope.ArgEnd = ParserState->PkgEnd;
     }
-
     else
     {
         /* single argument */
@@ -319,7 +316,6 @@ AcpiPsPopScope (
 
         AcpiUtDeleteGenericState (Scope);
     }
-
     else
     {
         /* empty parse stack, prepare to fetch next opcode */
@@ -328,7 +324,6 @@ AcpiPsPopScope (
         *ArgList                = 0;
         *ArgCount               = 0;
     }
-
 
     ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "Popped Op %p Args %X\n", *Op, *ArgCount));
     return_VOID;
@@ -354,14 +349,14 @@ AcpiPsCleanupScope (
 {
     ACPI_GENERIC_STATE      *Scope;
 
+
     ACPI_FUNCTION_TRACE_PTR ("PsCleanupScope", ParserState);
 
 
     if (!ParserState)
     {
-        return;
+        return_VOID;
     }
-
 
     /* Delete anything on the scope stack */
 

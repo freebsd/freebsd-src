@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: actbl2.h - ACPI Specification Revision 2.0 Tables
- *       $Revision: 35 $
+ *       $Revision: 36 $
  *
  *****************************************************************************/
 
@@ -171,7 +171,7 @@ typedef struct facs_descriptor_rev2
     UINT32                  HardwareSignature;      /* Hardware configuration signature */
     UINT32                  FirmwareWakingVector;   /* 32bit physical address of the Firmware Waking Vector. */
     UINT32                  GlobalLock;             /* Global Lock used to synchronize access to shared hardware resources */
-    UINT32                  S4Bios_f        : 1;    /* S4Bios_f - Indicates if S4BIOS support is present */
+    UINT32_BIT              S4Bios_f        : 1;    /* S4Bios_f - Indicates if S4BIOS support is present */
     UINT32_BIT              Reserved1       : 31;   /* Must be 0 */
     UINT64                  XFirmwareWakingVector;  /* 64bit physical address of the Firmware Waking Vector. */
     UINT8                   Version;                /* Version of this table */

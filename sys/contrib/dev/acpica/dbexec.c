@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbexec - debugger control method execution
- *              $Revision: 57 $
+ *              $Revision: 59 $
  *
  ******************************************************************************/
 
@@ -474,12 +474,14 @@ AcpiDbMethodThread (
 #endif
 
         Status = AcpiDbExecuteMethod (Info, &ReturnObj);
-
         if (ACPI_FAILURE (Status))
         {
             AcpiOsPrintf ("%s During execution of %s at iteration %X\n",
                 AcpiFormatException (Status), Info->Pathname, i);
-            break;
+            if (Status == AE_ABORT_METHOD)
+            {
+                break;
+            }
         }
 
         if ((i % 1000) == 0)
