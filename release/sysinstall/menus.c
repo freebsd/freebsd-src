@@ -1644,10 +1644,8 @@ DMenu MenuSecurityProfile = {
     "Select a canned security profile - F1 for help",
     "security",						/* help file */
     { { "X Exit",	"Exit this menu (returning to previous)", NULL, configSecurityModerate },
-      { "Low",		"Fairly wide-open (little) security.", NULL, configSecurityLiberal },
       { "Medium",	"Moderate security settings [DEFAULT].", NULL, configSecurityModerate },
-      { "High",		"Fairly safe security settings.", NULL, configSecurityHigh },
-      { "Extreme",	"Very restrictive security settings.", NULL, configSecurityFascist },
+      { "Extreme",	"Very restrictive security settings.", NULL, configSecurityExtreme },
       { NULL } },
 };
 

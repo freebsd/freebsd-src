@@ -449,10 +449,8 @@ extern int	configInetd(dialogMenuItem *self);
 extern int	configNFSServer(dialogMenuItem *self);
 extern int	configWriteRC_conf(dialogMenuItem *self);
 extern int	configSecurityProfile(dialogMenuItem *self);
-extern int	configSecurityFascist(dialogMenuItem *self);
-extern int	configSecurityHigh(dialogMenuItem *self);
+extern int	configSecurityExtreme(dialogMenuItem *self);
 extern int	configSecurityModerate(dialogMenuItem *self);
-extern int	configSecurityLiberal(dialogMenuItem *self);
 extern int	configEtcTtys(dialogMenuItem *self);
 
 /* crc.c */
