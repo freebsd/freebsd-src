@@ -516,7 +516,7 @@ main(argc, argv)
 
 	if (!oflag) {
 		if ((s = getenv("LIBDIR")) == NULL || strlen(s) == 0)
-			s = PATH_LINTLIB;
+			s = strdup(PATH_LINTLIB);
 		appcstrg(&libsrchpath, s);
 		findlibs(libs);
 		findlibs(deflibs);
