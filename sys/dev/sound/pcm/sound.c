@@ -101,9 +101,15 @@ pcm_addchan(device_t dev, int dir, pcm_channel *templ, void *devinfo)
     	snddev_info *d = device_get_softc(dev);
 	pcm_channel *ch;
 
-	ch = (dir == PCMDIR_PLAY)? &d->play[d->playcount++] : &d->rec[d->reccount++];
+	ch = (dir == PCMDIR_PLAY)? &d->play[d->playcount] : &d->rec[d->reccount];
 	*ch = *templ;
-	chn_init(ch, devinfo, dir);
+	if (chn_init(ch, devinfo, dir)) {
+		device_printf(dev, "chn_init() for %s:%d failed\n",
+		              (dir == PCMDIR_PLAY)? "play" : "record",
+			      (dir == PCMDIR_PLAY)? d->playcount : d->reccount);
+		return 1;
+	}
+	if (dir == PCMDIR_PLAY) d->playcount++; else d->reccount++;
 	make_dev(&snd_cdevsw, PCMMKMINOR(unit, SND_DEV_DSP, d->chancount),
 		 UID_ROOT, GID_WHEEL, 0666, "dsp%d.%d", unit, d->chancount);
 	make_dev(&snd_cdevsw, PCMMKMINOR(unit, SND_DEV_AUDIO, d->chancount),
