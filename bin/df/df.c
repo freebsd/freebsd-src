@@ -119,7 +119,7 @@ main(argc, argv)
 	struct statfs statfsbuf, *mntbuf;
 	long mntsize;
 	int ch, err, i, maxwidth, rv, width;
-	char *mntpt, *mntpath, **vfslist;
+	char *mntpt, **vfslist;
 
 	vfslist = NULL;
 	while ((ch = getopt(argc, argv, "abgHhikmnPt:")) != -1)
@@ -208,40 +208,6 @@ main(argc, argv)
 		} else if ((stbuf.st_mode & S_IFMT) == S_IFCHR) {
 			rv = ufs_df(*argv, maxwidth) || rv;
 			continue;
-		} else if ((stbuf.st_mode & S_IFMT) == S_IFBLK) {
-			if ((mntpt = getmntpt(*argv)) == 0) {
-				mdev.fspec = *argv;
-				mntpath = strdup("/tmp/df.XXXXXX");
-				if (mntpath == NULL) {
-					warn("strdup failed");
-					rv = 1;
-					continue;
-				}
-				mntpt = mkdtemp(mntpath);
-				if (mntpt == NULL) {
-					warn("mkdtemp(\"%s\") failed", mntpath);
-					rv = 1;
-					free(mntpath);
-					continue;
-				}
-				if (mount("ufs", mntpt, MNT_RDONLY,
-				    &mdev) != 0) {
-					rv = ufs_df(*argv, maxwidth) || rv;
-					(void)rmdir(mntpt);
-					free(mntpath);
-					continue;
-				} else if (statfs(mntpt, &statfsbuf) == 0) {
-					statfsbuf.f_mntonname[0] = '\0';
-					prtstat(&statfsbuf, maxwidth);
-				} else {
-					warn("%s", *argv);
-					rv = 1;
-				}
-				(void)unmount(mntpt, 0);
-				(void)rmdir(mntpt);
-				free(mntpath);
-				continue;
-			}
 		} else
 			mntpt = *argv;
 		/*
