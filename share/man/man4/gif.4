@@ -68,7 +68,8 @@ To use
 the administrator needs to configure the protocol and addresses used for the outer
 header.
 This can be done by using
-.Xr gifconfig 8 ,
+.Xr ifconfig 8
+.Cm tunnel ,
 or
 .Dv SIOCSIFPHYADDR
 ioctl.
@@ -174,7 +175,7 @@ to 1.
 .Sh SEE ALSO
 .Xr inet 4 ,
 .Xr inet6 4 ,
-.Xr gifconfig 8
+.Xr ifconfig 8
 .Rs
 .%A R. Gilligan
 .%A E. Nordmark
