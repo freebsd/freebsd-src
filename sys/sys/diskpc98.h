@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)disklabel.h	8.2 (Berkeley) 7/10/94
- * $Id: disklabel.h,v 1.32 1998/06/07 17:12:58 dfr Exp $
+ * $Id: disklabel.h,v 1.33 1998/07/07 04:19:25 bde Exp $
  */
 
 #ifndef	_SYS_DISKLABEL_H_
@@ -62,8 +62,8 @@
 #endif
 
 #ifdef __alpha__
-#define LABELSECTOR	1
-#define LABELOFFSET	0
+#define LABELSECTOR	0
+#define LABELOFFSET	64
 #endif
 
 #ifndef	LABELSECTOR
