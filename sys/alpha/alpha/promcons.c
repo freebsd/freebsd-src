@@ -255,8 +255,8 @@ promcnattach(int alpha_console)
 		promcons_dly_mkdev++;
 	else {
 		make_dev(&prom_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "promcons");
-		cnadd(&prom_consdev);
 	}
+	cnadd(&prom_consdev);
 	promcn_attached = 1;
 }
 
@@ -265,7 +265,6 @@ promcons_delayed_makedev(void)
 {
 	if (promcn_attached) {
 		make_dev(&prom_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "promcons");
-		cnadd(&prom_consdev);
 	}
 }
 
