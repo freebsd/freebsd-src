@@ -3,7 +3,7 @@
 PROG=	pkg_version
 SRCS=	main.c perform.c
 
-CFLAGS+= ${DEBUG} -I${.CURDIR}/../lib
+CFLAGS+= -I${.CURDIR}/../lib
 
 WARNS?=	6
 WFORMAT?=	1
