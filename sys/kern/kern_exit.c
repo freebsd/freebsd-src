@@ -137,9 +137,7 @@ exit1(struct thread *td, int rv)
 		 * First check if some other thread got here before us..
 		 * if so, act apropriatly, (exit or suspend);
 		 */
-		DROP_GIANT();
 		thread_suspend_check(0);
-		PICKUP_GIANT();
 
 		/*
 		 * Kill off the other threads. This requires
