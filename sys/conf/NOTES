@@ -1224,6 +1224,10 @@ options		ACPI_NO_OSDFUNC_INLINE
 #      ISP 12160 Ultra3 SCSI,
 #      Qlogic ISP 2100 and ISP 2200 Fibre Channel host adapters.
 # ncr: NCR 53C810, 53C825 self-contained SCSI host adapters.
+# sym: Symbios/Logic 53C8XX family of PCI-SCSI I/O processors:
+#      53C810, 53C810A, 53C815, 53C825,  53C825A, 53C860, 53C875, 
+#      53C876, 53C885,  53C895, 53C895A, 53C896,  53C897, 53C1510D, 
+#      53C1010-33, 53C1010-66.
 
 #
 # Note that the order is important in order for Buslogic ISA/EISA cards to be
