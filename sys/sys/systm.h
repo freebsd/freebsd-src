@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.65 1997/12/24 01:33:45 nate Exp $
+ * $Id: systm.h,v 1.66 1998/01/10 13:16:06 phk Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -132,7 +132,7 @@ void	realitexpire __P((void *));
 
 struct clockframe;
 void	hardclock __P((struct clockframe *frame));
-void	softclock __P((struct clockframe *frame));
+void	softclock __P((void));
 void	statclock __P((struct clockframe *frame));
 
 void	startprofclock __P((struct proc *));
