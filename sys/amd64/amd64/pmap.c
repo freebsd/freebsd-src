@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.147 1997/06/25 20:07:50 tegge Exp $
+ *	$Id: pmap.c,v 1.148 1997/07/17 04:33:38 dyson Exp $
  */
 
 /*
@@ -389,9 +389,10 @@ pmap_bootstrap(firstaddr, loadaddr)
 
 	pgeflag = 0;
 #if !defined(SMP)
-	if (cpu_feature & CPUID_PGE)
+	if (cpu_feature & CPUID_PGE) {
 		pgeflag = PG_G;
-#endif /* !SMP */
+	}
+#endif
 	
 /*
  * Initialize the 4MB page size flag
@@ -403,6 +404,7 @@ pmap_bootstrap(firstaddr, loadaddr)
  */
 	pdir4mb = 0;
 
+#if !defined(DISABLE_PSE)
 	if (cpu_feature & CPUID_PSE) {
 		unsigned ptditmp;
 		/*
@@ -429,9 +431,9 @@ pmap_bootstrap(firstaddr, loadaddr)
 		invltlb();
 #endif
 	}
+#endif
 }
 
-#if defined(SMP)
 /*
  * Set 4mb pdir for mp startup, and global flags
  */
@@ -446,7 +448,7 @@ pmap_set_opt(unsigned *pdir) {
 		}
 	}
 
-	if (cpu_feature & CPUID_PGE) {
+	if (pgeflag && (cpu_feature & CPUID_PGE)) {
 		load_cr4(rcr4() | CR4_PGE);
 		for(i = KPTDI; i < KPTDI + nkpt; i++) {
 			if (pdir[i]) {
@@ -465,7 +467,6 @@ pmap_set_opt_bsp(void) {
 	pmap_set_opt((unsigned *)PTD);
 	invltlb();
 }
-#endif
 
 /*
  *	Initialize the pmap module.
@@ -2323,6 +2324,7 @@ pmap_object_init_pt(pmap, addr, object, pindex, size, limit)
 	 */
 	if (pseflag &&
 		(object->type == OBJT_DEVICE) &&
+		((addr & (NBPDR - 1)) == 0) &&
 		((size & (NBPDR - 1)) == 0) ) {
 		int i;
 		int s;
@@ -2375,9 +2377,7 @@ retry:
 			ptepindex += 1;
 		}
 		p->flags |= PG_MAPPED;
-#if 0
 		invltlb();
-#endif
 		return;
 	}
 

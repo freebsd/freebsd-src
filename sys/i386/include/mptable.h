@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.14 1997/07/13 00:42:14 smp Exp smp $
+ *	$Id: mp_machdep.c,v 1.27 1997/07/13 01:22:43 fsmp Exp $
  */
 
 #include "opt_smp.h"
@@ -395,6 +395,8 @@ init_secondary(void)
 	load_cr0(0x8005003b);		/* XXX! */
 
 	PTD[0] = 0;
+	pmap_set_opt((unsigned *)PTD);
+
 	invltlb();
 }
 
@@ -1541,6 +1543,8 @@ start_all_aps(u_int boot_addr)
 	*(u_long *) WARMBOOT_OFF = mpbioswarmvec;
 	outb(CMOS_REG, BIOS_RESET);
 	outb(CMOS_DATA, mpbiosreason);
+
+	pmap_set_opt_bsp();
 
 	/* number of APs actually started */
 	return mp_ncpus - 1;
