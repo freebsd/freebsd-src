@@ -87,7 +87,7 @@
 #endif NETATALK
 
 int loioctl __P((struct ifnet *, u_long, caddr_t));
-static void lortrequest __P((int, struct rtentry *, struct sockaddr *));
+static void lortrequest __P((int, struct rtentry *, struct rt_addrinfo *));
 
 static void loopattach __P((void *));
 PSEUDO_SET(loopattach, if_loop);
@@ -317,10 +317,10 @@ if_simloop(ifp, m, af, hlen)
 
 /* ARGSUSED */
 static void
-lortrequest(cmd, rt, sa)
+lortrequest(cmd, rt, info)
 	int cmd;
 	struct rtentry *rt;
-	struct sockaddr *sa;
+	struct rt_addrinfo *info;
 {
 	if (rt) {
 		rt->rt_rmx.rmx_mtu = rt->rt_ifp->if_mtu; /* for ISO */

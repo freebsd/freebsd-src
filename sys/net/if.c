@@ -78,7 +78,7 @@ static int ifconf __P((u_long, caddr_t));
 static void ifinit __P((void *));
 static void if_qflush __P((struct ifqueue *));
 static void if_slowtimo __P((void *));
-static void link_rtrequest __P((int, struct rtentry *, struct sockaddr *));
+static void link_rtrequest __P((int, struct rtentry *, struct rt_addrinfo *));
 static int  if_rtdel __P((struct radix_node *, void *));
 
 SYSINIT(interfaces, SI_SUB_PROTO_IF, SI_ORDER_FIRST, ifinit, NULL)
@@ -726,10 +726,10 @@ ifaof_ifpforaddr(addr, ifp)
  * This should be moved to /sys/net/link.c eventually.
  */
 static void
-link_rtrequest(cmd, rt, sa)
+link_rtrequest(cmd, rt, info)
 	int cmd;
 	register struct rtentry *rt;
-	struct sockaddr *sa;
+	struct rt_addrinfo *info;
 {
 	register struct ifaddr *ifa;
 	struct sockaddr *dst;
@@ -744,7 +744,7 @@ link_rtrequest(cmd, rt, sa)
 		rt->rt_ifa = ifa;
 		ifa->ifa_refcnt++;
 		if (ifa->ifa_rtrequest && ifa->ifa_rtrequest != link_rtrequest)
-			ifa->ifa_rtrequest(cmd, rt, sa);
+			ifa->ifa_rtrequest(cmd, rt, info);
 	}
 }
 
