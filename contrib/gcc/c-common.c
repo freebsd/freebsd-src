@@ -713,6 +713,11 @@ typedef struct {
 } format_char_info;
 
 static format_char_info print_char_table[] = {
+/* FreeBSD kernel extensions.  */
+  { "D",	1,	T_C,	NULL,	NULL,	NULL,	NULL,	"-wp"		},
+  { "b",	1,	T_C,	NULL,	NULL,	NULL,	NULL,	"-wp"		},
+  { "rz",	0,	T_I,	T_I,	T_L,	NULL,	NULL,	"-wp0 +#"	},
+#define unextended_print_char_table	(print_char_table + 3)
   { "di",	0,	T_I,	T_I,	T_L,	T_LL,	T_LL,	"-wp0 +"	},
   { "oxX",	0,	T_UI,	T_UI,	T_UL,	T_ULL,	T_ULL,	"-wp0#"		},
   { "u",	0,	T_UI,	T_UI,	T_UL,	T_ULL,	T_ULL,	"-wp0"		},
@@ -1071,11 +1076,12 @@ check_format_info (info, params)
 		      cur_param = TREE_VALUE (params);
 		      params = TREE_CHAIN (params);
 		      ++arg_num;
+		      /* XXX should we allow unsigned ints here?  */
 		      if (TYPE_MAIN_VARIANT (TREE_TYPE (cur_param))
 			  != integer_type_node)
 		        {
 		          sprintf (message,
-				   "field width is not type int (arg %d)",
+				   "precision is not type int (arg %d)",
 				   arg_num);
 		          warning (message);
 		        }
@@ -1085,6 +1091,56 @@ check_format_info (info, params)
 		{
 		  while (isdigit (*format_chars))
 		    ++format_chars;
+		}
+	    }
+	}
+      if (*format_chars == 'b')
+	{
+	  /* There should be an int arg to control the string arg.  */
+	  if (params == 0)
+	    {
+	      warning (tfaff);
+	      return;
+	    }
+	    if (info->first_arg_num != 0)
+	    {
+	      cur_param = TREE_VALUE (params);
+	      params = TREE_CHAIN (params);
+	      ++arg_num;
+	      if ((TYPE_MAIN_VARIANT (TREE_TYPE (cur_param))
+		   != integer_type_node)
+		  &&
+		  (TYPE_MAIN_VARIANT (TREE_TYPE (cur_param))
+		   != unsigned_type_node))
+		{
+		  sprintf (message, "bitmap is not type int (arg %d)",
+			   arg_num);
+		  warning (message);
+		}
+	    }
+	}
+      if (*format_chars == 'D')
+	{
+	  /* There should be an unsigned char * arg before the string arg.  */
+	  if (params == 0)
+	    {
+	      warning (tfaff);
+	      return;
+	    }
+	    if (info->first_arg_num != 0)
+	    {
+	      cur_param = TREE_VALUE (params);
+	      params = TREE_CHAIN (params);
+	      ++arg_num;
+	      cur_type = TREE_TYPE (cur_param);
+	      if (TREE_CODE (cur_type) != POINTER_TYPE
+		  || TYPE_MAIN_VARIANT (TREE_TYPE (cur_type))
+		     != unsigned_char_type_node)
+		{
+		  sprintf (message,
+		      "ethernet address is not type unsigned char * (arg %d)",
+			   arg_num);
+		  warning (message);
 		}
 	    }
 	}
@@ -1115,7 +1171,9 @@ check_format_info (info, params)
 	  continue;
 	}
       format_chars++;
-      fci = info->is_scan ? scan_char_table : print_char_table;
+      fci = info->is_scan ? scan_char_table
+	    : flag_format_extensions ? print_char_table
+	    : unextended_print_char_table;
       while (fci->format_chars != 0
 	     && index (fci->format_chars, format_char) == 0)
 	  ++fci;
