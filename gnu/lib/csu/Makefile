@@ -16,11 +16,7 @@ SOBJS=		crtbegin.So crtend.So
 CFLAGS+=	-I${GCCDIR}/config -I. -DIN_GCC \
 		-finhibit-size-directive -fno-inline-functions \
 		-fno-exceptions -fno-omit-frame-pointer
-NOMAN=		true
-NOPIC=		true
-NOPROFILE=	true
 INTERNALLIB=	true
-CLEANFILES+=	tm.h
 
 CRTS_CFLAGS=	-DCRTSTUFFS_O ${PICFLAG}
 
@@ -35,7 +31,7 @@ crt${PART}.s:  crt${PART}.asm
 	ln -sf ${.ALLSRC} ${.TARGET}
 .endfor
 .else
-crtbegin.o crtbegin.So crtend.o crtend.So:	crtstuff.c tm.h
+crtbegin.o crtbegin.So crtend.o crtend.So: ${SRCS}
 .endif
 
 crtbegin.o:
@@ -54,6 +50,7 @@ crtend.So:
 	${CC} ${CFLAGS} -g0 -DCRT_END ${CRTS_CFLAGS} \
 		-c -o ${.TARGET} ${UGLYHACK} ${.ALLSRC:N*.h}
 
+CLEANFILES+=	tm.h
 #	KEEP THIS IN SYNC with src/gnu/usr.bin/cc/cc_tools/Makefile !!
 tm.h:
 	echo '#include "${MACHINE_ARCH}/${MACHINE_ARCH}.h"'	> ${.TARGET}
