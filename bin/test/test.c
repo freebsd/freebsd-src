@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: test.c,v 1.13 1996/03/11 11:01:03 joerg Exp $
+ *	$Id: test.c,v 1.14 1996/12/14 06:16:51 steve Exp $
  */
 
 #ifndef lint
@@ -157,7 +157,7 @@ main(argc, argv)
 			ret_val = posix_unary_op(&argv[1]);
 			if (ret_val >= 0)
 				return (!ret_val);
-		} else {
+		} else if (lookup_op(argv[2], andor_op) < 0) {
 			ret_val = posix_binary_op(&argv[1]);
 			if (ret_val >= 0)
 				return (ret_val);
