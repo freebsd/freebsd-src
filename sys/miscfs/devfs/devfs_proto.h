@@ -16,5 +16,6 @@ int devfs_vntodn(struct vnode *vn_p, dn_p *dn_pp) /*proto*/;
 int devfs_dntovn(dn_p dnp, struct vnode **vn_pp) /*proto*/;
 int dev_add_entry(char *name, dn_p parent, int type, union typeinfo *by, devnm_p *nm_pp) /*proto*/ ;
 int devfs_mount( struct mount *mp, char *path, caddr_t data, struct nameidata *ndp, struct proc *p) /*proto*/;
+void	devfs_dropvnode(dn_p dnp) /*proto*/;
 /* THIS FILE PRODUCED AUTOMATICALLY */
 /* DO NOT EDIT (see reproto.sh) */
