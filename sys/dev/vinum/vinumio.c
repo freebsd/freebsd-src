@@ -611,7 +611,7 @@ format_config(char *config, int len)
 void
 save_config(void)
 {
-    queue_daemon_request(daemonrq_saveconfig, (union daemoninfo) NULL);
+    queue_daemon_request(daemonrq_saveconfig, (union daemoninfo) 0);
 }
 
 /*

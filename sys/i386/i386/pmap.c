@@ -2508,7 +2508,7 @@ pmap_prefault(pmap, addra, entry)
 		if (addr < starta || addr >= entry->end)
 			continue;
 
-		if ((*pmap_pde(pmap, addr)) == NULL) 
+		if ((*pmap_pde(pmap, addr)) == 0) 
 			continue;
 
 		pte = vtopte(addr);

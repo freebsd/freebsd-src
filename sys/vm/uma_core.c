@@ -835,7 +835,7 @@ obj_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	vm_page_t p;
 	int pages;
 
-	retkva = NULL;
+	retkva = 0;
 	pages = zone->uz_pages;
 
 	/* 
@@ -848,7 +848,7 @@ obj_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 			return (NULL);
 
 		zkva = zone->uz_kva + pages * PAGE_SIZE;
-		if (retkva == NULL)
+		if (retkva == 0)
 			retkva = zkva;
 		pmap_qenter(zkva, &p, 1);
 		bytes -= PAGE_SIZE;
