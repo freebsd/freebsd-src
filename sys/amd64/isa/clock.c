@@ -829,7 +829,7 @@ i8254_get_timecount(struct timecounter *tc)
 	if (count < i8254_lastcount ||
 	    (!i8254_ticked && (clkintr_pending ||
 	    ((count < 20 || (!(rflags & PSL_I) && count < timer0_max_count / 2u)) &&
-	    i8254_intsrc != NULL && i8254_pending(i8254_intsrc))))) {
+	    i8254_pending != NULL && i8254_pending(i8254_intsrc))))) {
 		i8254_ticked = 1;
 		i8254_offset += timer0_max_count;
 	}
