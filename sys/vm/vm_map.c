@@ -486,7 +486,7 @@ _vm_map_init(vm_map_t map, vm_offset_t min, vm_offset_t max)
 	map->min_offset = min;
 	map->max_offset = max;
 	map->first_free = &map->header;
-	map->hint = &map->header;
+	map->root = NULL;
 	map->timestamp = 0;
 }
 
@@ -528,11 +528,73 @@ vm_map_entry_create(vm_map_t map)
 }
 
 /*
+ *	vm_map_entry_splay:
+ *
+ *	Implements Sleator and Tarjan's top-down splay algorithm.  Returns
+ *	the vm_map_entry containing the given address.  If, however, that
+ *	address is not found in the vm_map, returns a vm_map_entry that is
+ *	adjacent to the address, coming before or after it.
+ */
+static vm_map_entry_t
+vm_map_entry_splay(vm_offset_t address, vm_map_entry_t root)
+{
+	struct vm_map_entry dummy;
+	vm_map_entry_t lefttreemax, righttreemin, y;
+
+	if (root == NULL)
+		return (root);
+	dummy.left = dummy.right = NULL;
+	lefttreemax = righttreemin = &dummy;
+	for (;;) {
+		if (address < root->start) {
+			if (root->left == NULL)
+				break;
+			if (address < root->left->start) {
+				/* Rotate right. */
+				y = root->left;
+				root->left = y->right;
+				y->right = root;
+				root = y;
+				if (root->left == NULL)
+					break;
+			}
+			/* Link into the new root's right tree. */
+			righttreemin->left = root;
+			righttreemin = root;
+			root = root->left;
+		} else if (address >= root->end) {
+			if (root->right == NULL)
+				break;
+			if (address >= root->right->end) {
+				/* Rotate left. */
+				y = root->right;
+				root->right = y->left;
+				y->left = root;
+				root = y;
+				if (root->right == NULL)
+					break;
+			}
+			/* Link into the new root's left tree. */
+			lefttreemax->right = root;
+			lefttreemax = root;
+			root = root->right;
+		} else
+			break;
+	}
+	/* Assemble the new root. */
+	lefttreemax->right = root->left;
+	righttreemin->left = root->right;
+	root->left = dummy.right;
+	root->right = dummy.left;
+	return (root);
+}
+
+/*
  *	vm_map_entry_{un,}link:
  *
  *	Insert/remove entries from maps.
  */
-static __inline void
+static void
 vm_map_entry_link(vm_map_t map,
 		  vm_map_entry_t after_where,
 		  vm_map_entry_t entry)
@@ -546,30 +608,44 @@ vm_map_entry_link(vm_map_t map,
 	entry->next = after_where->next;
 	entry->next->prev = entry;
 	after_where->next = entry;
+
+	if (after_where != &map->header) {
+		if (after_where != map->root)
+			vm_map_entry_splay(after_where->start, map->root);
+		entry->right = after_where->right;
+		entry->left = after_where;
+		after_where->right = NULL;
+	} else {
+		entry->right = map->root;
+		entry->left = NULL;
+	}
+	map->root = entry;
 }
 
-static __inline void
+static void
 vm_map_entry_unlink(vm_map_t map,
 		    vm_map_entry_t entry)
 {
-	vm_map_entry_t prev = entry->prev;
-	vm_map_entry_t next = entry->next;
+	vm_map_entry_t next, prev, root;
 
+	if (entry != map->root)
+		vm_map_entry_splay(entry->start, map->root);
+	if (entry->left == NULL)
+		root = entry->right;
+	else {
+		root = vm_map_entry_splay(entry->start, entry->left);
+		root->right = entry->right;
+	}
+	map->root = root;
+
+	prev = entry->prev;
+	next = entry->next;
 	next->prev = prev;
 	prev->next = next;
 	map->nentries--;
 	CTR3(KTR_VM, "vm_map_entry_unlink: map %p, nentries %d, entry %p", map,
 	    map->nentries, entry);
 }
-
-/*
- *	SAVE_HINT:
- *
- *	Saves the specified entry as the hint for
- *	future lookups.
- */
-#define	SAVE_HINT(map,value) \
-		(map)->hint = (value);
 
 /*
  *	vm_map_lookup_entry:	[ internal use only ]
@@ -588,59 +664,20 @@ vm_map_lookup_entry(
 	vm_map_entry_t *entry)	/* OUT */
 {
 	vm_map_entry_t cur;
-	vm_map_entry_t last;
 
-	/*
-	 * Start looking either from the head of the list, or from the hint.
-	 */
-	cur = map->hint;
+	cur = vm_map_entry_splay(address, map->root);
+	if (cur == NULL)
+		*entry = &map->header;
+	else {
+		map->root = cur;
 
-	if (cur == &map->header)
-		cur = cur->next;
-
-	if (address >= cur->start) {
-		/*
-		 * Go from hint to end of list.
-		 *
-		 * But first, make a quick check to see if we are already looking
-		 * at the entry we want (which is usually the case). Note also
-		 * that we don't need to save the hint here... it is the same
-		 * hint (unless we are at the header, in which case the hint
-		 * didn't buy us anything anyway).
-		 */
-		last = &map->header;
-		if ((cur != last) && (cur->end > address)) {
+		if (address >= cur->start) {
 			*entry = cur;
-			return (TRUE);
-		}
-	} else {
-		/*
-		 * Go from start to hint, *inclusively*
-		 */
-		last = cur->next;
-		cur = map->header.next;
-	}
-
-	/*
-	 * Search linearly
-	 */
-	while (cur != last) {
-		if (cur->end > address) {
-			if (address >= cur->start) {
-				/*
-				 * Save this lookup for future hints, and
-				 * return
-				 */
-				*entry = cur;
-				SAVE_HINT(map, cur);
+			if (cur->end > address)
 				return (TRUE);
-			}
-			break;
-		}
-		cur = cur->next;
+		} else
+			*entry = cur->prev;
 	}
-	*entry = cur->prev;
-	SAVE_HINT(map, *entry);
 	return (FALSE);
 }
 
@@ -864,7 +901,6 @@ vm_map_findspace(
 		if (next == &map->header || next->start >= end)
 			break;
 	}
-	SAVE_HINT(map, entry);
 	*addr = start;
 	if (map == kernel_map) {
 		vm_offset_t ksize;
@@ -955,8 +991,6 @@ vm_map_simplify_entry(vm_map_t map, vm_map_entry_t entry)
 		     (prev->wired_count == entry->wired_count)) {
 			if (map->first_free == prev)
 				map->first_free = entry;
-			if (map->hint == prev)
-				map->hint = entry;
 			vm_map_entry_unlink(map, prev);
 			entry->start = prev->start;
 			entry->offset = prev->offset;
@@ -980,8 +1014,6 @@ vm_map_simplify_entry(vm_map_t map, vm_map_entry_t entry)
 		    (next->wired_count == entry->wired_count)) {
 			if (map->first_free == next)
 				map->first_free = entry;
-			if (map->hint == next)
-				map->hint = entry;
 			vm_map_entry_unlink(map, next);
 			entry->end = next->end;
 			if (next->object.vm_object)
@@ -2019,11 +2051,6 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 	else {
 		entry = first_entry;
 		vm_map_clip_start(map, entry, start);
-		/*
-		 * Fix the lookup hint now, rather than each time though the
-		 * loop.
-		 */
-		SAVE_HINT(map, entry->prev);
 	}
 
 	/*
@@ -2768,21 +2795,18 @@ RetryLookup:;
 	 * If the map has an interesting hint, try it before calling full
 	 * blown lookup routine.
 	 */
-	entry = map->hint;
+	entry = map->root;
 	*out_entry = entry;
-	if ((entry == &map->header) ||
+	if (entry == NULL ||
 	    (vaddr < entry->start) || (vaddr >= entry->end)) {
-		vm_map_entry_t tmp_entry;
-
 		/*
 		 * Entry was either not a valid hint, or the vaddr was not
 		 * contained in the entry, so do a full lookup.
 		 */
-		if (!vm_map_lookup_entry(map, vaddr, &tmp_entry))
+		if (!vm_map_lookup_entry(map, vaddr, out_entry))
 			RETURN(KERN_INVALID_ADDRESS);
 
-		entry = tmp_entry;
-		*out_entry = entry;
+		entry = *out_entry;
 	}
 	
 	/*
@@ -3111,7 +3135,6 @@ vm_uiomove(
 				map->first_free = entry->prev;
 			}
 
-			SAVE_HINT(map, entry->prev);
 			vm_map_entry_delete(map, entry);
 
 			object = srcobject;
