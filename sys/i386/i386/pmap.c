@@ -1902,8 +1902,15 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	origpte = *pte;
 	opa = origpte & PG_FRAME;
 
-	if (origpte & PG_PS)
+	if (origpte & PG_PS) {
+		/*
+		 * Yes, I know this will truncate upper address bits for PAE,
+		 * but I'm actually more interested in the lower bits
+		 */
+		printf("pmap_enter: va %p, pte %p, origpte %p\n",
+		    (void *)va, (void *)pte, (void *)(uintptr_t)origpte);
 		panic("pmap_enter: attempted pmap_enter on 4MB page");
+	}
 
 	/*
 	 * Mapping has not changed, must be protection or wiring change.
