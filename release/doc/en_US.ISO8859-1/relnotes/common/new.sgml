@@ -110,7 +110,7 @@
     modules.</para>
 
     <para arch="i386">The &os; boot loader now supports a
-    <option>-p</option> flag to force the kernel will pause after each
+    <option>-p</option> flag to force the kernel to pause after each
     line of output during the probing phase.</para>
 
     <para>Linux emulation now supports the kernel functionality
@@ -119,7 +119,7 @@
     port.</para>
 
     <para arch="alpha">A <varname>MAXMEM</varname> kernel option,
-    along with the <varname>hw.physmem</varname> environment, can be
+    along with the <varname>hw.physmem</varname> environment variable, can be
     used to artificially reduce the memory size of a machine for
     testing (or other purposes).</para>
 
@@ -127,7 +127,8 @@
     <varname>MAXTSIZ</varname>, <varname>DFLDSIZ</varname>,
     <varname>MAXDSIZ</varname>, <varname>DFLSSIZ</varname>,
     <varname>MAXSSIZ</varname>, and <varname>SGROWSIZ</varname> are
-    all loader tunables.</para>
+    all loader tunables (<varname>kern.maxtsiz</varname>,
+    <varname>kern.maxdfldsiz</varname>, etc.).</para>
 
     <para>Specifying a value of <literal>0</literal> for the
     <varname>maxusers</varname> kernel configuration parameter will
@@ -145,8 +146,8 @@
 
 <!-- Above this line, kernel changes ordered by manpage/variable name -->
 
-    <para arch="i386">The load addresses of kernels has been exported
-    to the symbol table and various hard-coded constants removed so
+    <para arch="i386">The load addresses of kernels are now exported
+    to the symbol table and various hard-coded constants have been removed so
     that utilities such as &man.ps.1; can work with kernels compiled
     at different addresses.</para>
 
@@ -185,7 +186,7 @@
       <title>Processor/Motherboard Support</title>
 
       <para arch="alpha">The machine dependent code has been corrected
-      to allow &os; to run on Alphaserver 2100 and 2100A based on EV5 
+      to allow &os; to run on Alphaserver 2100 and 2100A machines based on EV5 
       Alpha processors. Machines with EV4 Alpha processors were already 
       supported.</para>
 
@@ -207,7 +208,7 @@
       interrupt moderation.</para>
 
       <para>The &man.de.4; driver now performs round-robin arbitration
-      between transmit and receive unit of the 21143, instead of
+      between the transmit and receive units of the 21143, instead of
       giving priority to the receive unit.  This gives a 10&ndash;15%
       performance improvement in the forwarding rate under heavy
       load.</para>
@@ -237,7 +238,9 @@
 
       <para arch="i386">The sbni driver, for supporting the Granch
       SBNI12 series of ISA and PCI point-to-point communications
-      interfaces, has been added.</para>
+      interfaces, has been added.  The <port>sysutil/sbniconfig</port>
+      port in the &os; Ports Collection can be used for configuring
+      these devices.</para>
 
       <para>The &man.sis.4; driver now supports VLANs.</para>
 
@@ -246,15 +249,17 @@
 
       <para>The &man.wx.4; driver is now deprecated; it is now
       officially unmaintained.  Users with Intel Pro/1000 Gigabit
-      Ethernet interfaces should use either the &man.em.4; or
-      &man.gx.4; driver. (The &man.em.4; driver only works on the i386
-      architectures.)</para>
+      Ethernet interfaces should use either the &man.em.4; driver or the
+      &man.gx.4; driver. (The &man.em.4; driver is supported by Intel,
+      but only works on the i386
+      architecture.  The &man.gx.4; driver was developed by the &os;
+      Project, and is multi-platform.)</para>
 
       <para>The &man.xl.4; driver now supports send- and receive-side TCP/IP
       checksum offloading for NICs implementing this feature, such as
       the 3C905B, 3C905C, and 3C980C.</para>
 
-      <para>A bug in the &man.xl.4; driver, related to stats overflow
+      <para>A bug in the &man.xl.4; driver, related to statistics overflow
       interrupt handling, was causing slowdowns at medium to high
       packet rates; this has been fixed.</para>
 
@@ -314,18 +319,18 @@
     <sect3>
       <title>Disks and Storage</title>
 
-      <para>The &man.aac.4; driver has been updated from &os;
+      <para arch="i386">The &man.aac.4; driver has been updated from &os;
       -CURRENT.  This update includes proper handling of commands
       initiated by the adapter, addition/removal of disk devices,
       crashdump functionality, and &man.ioctl.2; command necessary for
       the management CLI.</para>
 
-      <para>The ciss driver, for devices utilizing the Common
+      <para arch="i386">The ciss driver, for devices utilizing the Common
       Interface for SCSI-3 Support, has been added.  This driver
       supports the Compaq SmartRAID 5* family of RAID controllers
       (5300, 532, 5i).</para>
 
-      <para arch="alpha">Floppy access on Alphaserver DS10 and DS20 
+      <para arch="alpha">Floppy access on the Alphaserver DS10 and DS20 
       is broken. Use results in corrupted floppies and/or machine 
       crashes.</para>
 
@@ -349,7 +354,7 @@
 
       <para>The virtual memory subsystem now backs UFS directory
       memory requirements by default (this behavior is controlled via
-      the <varname>vfs.vmiodirenable</varname> sysctl variable.</para>
+      the <varname>vfs.vmiodirenable</varname> sysctl variable).</para>
 
       <para>A bug that prevented the root filesystem from being
       mounted from a SCSI CDROM has been fixed (ATAPI CDROMs were
@@ -360,7 +365,7 @@
       the <filename>GENERIC</filename> kernel.</para>
 
       <para>A number of bugs in the filesystem code, discovered
-      through the use of a filesystem test tool, have been fixed.
+      through the use of the <application>fsx</application> filesystem test tool, have been fixed.
       Under certain circumstances (primarily related to use of NFS),
       these bugs could cause data corruption or kernel panics.</para>
     </sect3>
@@ -369,7 +374,7 @@
       <title>PCCARD Support</title>
 
       <para arch="i386">Various features have been merged from the
-      &os; CURRENT version of the &man.pcic.4; driver, including
+      &os; -CURRENT version of the &man.pcic.4; driver, including
       improved support for ToPIC-based laptops, 3.3V support for some
       controllers, and bugfixes.</para>
     </sect3>
@@ -378,7 +383,7 @@
       <title>Multimedia Support</title>
 
       <para>The &man.urio.4; driver, for the Diamond Rio series of MP3
-      players, has been added.  (For some reason, a manpage for this
+      players, has been added.  (For some reason, a manual page for this
       driver was committed to &os; 4.3-RELEASE.)</para>
     </sect3>
 
@@ -466,7 +471,7 @@
     script.</para>
 
     <para><filename>libfetch</filename> has been synchronized to the
-    version in &os; CURRENT; among other features, it now has support
+    version in &os; -CURRENT; among other features, it now has support
     for an authentication callback.</para>
 
     <para><filename>libstand</filename> now has support for
@@ -487,7 +492,7 @@
     <para>The default number of cylinders per group in &man.newfs.8;
     is now computed to be the maximum allowable given the current
     filesystem parameters.  It can be overridden with the
-    <option>-c</option>.  Formerly, the default was fixed at 16.  This
+    <option>-c</option> option.  Formerly, the default was fixed at 16.  This
     change leads to better &man.fsck.8; performance and reduced
     fragmentation.</para>
 
@@ -548,7 +553,7 @@
     filesystem.</para>
 
     <para>&man.syslogd.8; now has the ability to bind to a specific
-    address--as opposed to using every available one--via the
+    address (as opposed to using every available one) via the
     <option>-b</option> option.</para>
 
     <para>Previously, &man.vnconfig.8; was only capable of configuring
@@ -597,7 +602,7 @@
       userland utilities have been imported.  &man.smbutil.1; and
       &man.mount.smbfs.8; are now available in the base system,
       without the need to install the <port>net/smbfs</port> port.  Note that
-      &man.mount.smbfs.8; will automatically load the smbfs
+      &man.mount.smbfs.8; will automatically load the <filename>smbfs.ko</filename>
       module into the kernel, even if <literal>LIBMCHAIN</literal> and
       <literal>LIBICONV</literal> were not compiled into the kernel.</para>
 
