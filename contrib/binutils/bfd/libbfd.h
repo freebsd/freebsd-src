@@ -586,7 +586,7 @@ extern boolean _bfd_sh_align_load_span
 
 /* And more follows */
 
-void
+boolean
 bfd_write_bigendian_4byte_int PARAMS ((bfd *, unsigned int));
 
 unsigned int

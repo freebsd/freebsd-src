@@ -1,5 +1,5 @@
 /* atof_vax.c - turn a Flonum into a VAX floating point number
-   Copyright (C) 1987, 1992, 93, 95, 97, 98, 1999
+   Copyright 1987, 1992, 1993, 1995, 1997, 1999, 2000
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -27,20 +27,20 @@ static void make_invalid_floating_point_number PARAMS ((LITTLENUM_TYPE *));
 static int what_kind_of_float PARAMS ((int, int *, long *));
 static char *atof_vax PARAMS ((char *, int, LITTLENUM_TYPE *));
 
-/* Precision in LittleNums. */
+/* Precision in LittleNums.  */
 #define MAX_PRECISION (8)
 #define H_PRECISION (8)
 #define G_PRECISION (4)
 #define D_PRECISION (4)
 #define F_PRECISION (2)
 
-/* Length in LittleNums of guard bits. */
+/* Length in LittleNums of guard bits.  */
 #define GUARD (2)
 
 int flonum_gen2vax PARAMS ((int format_letter, FLONUM_TYPE * f,
 			    LITTLENUM_TYPE * words));
 
-/* Number of chars in flonum type 'letter'. */
+/* Number of chars in flonum type 'letter'.  */
 static int
 atof_vax_sizeof (letter)
      int letter;
@@ -154,13 +154,13 @@ make_invalid_floating_point_number (words)
   *words = 0x8000;		/* Floating Reserved Operand Code */
 }
 
-static int			/* 0 means letter is OK. */
+static int			/* 0 means letter is OK.  */
 what_kind_of_float (letter, precisionP, exponent_bitsP)
      int letter;		/* In: lowercase please. What kind of float? */
-     int *precisionP;		/* Number of 16-bit words in the float. */
-     long *exponent_bitsP;	/* Number of exponent bits. */
+     int *precisionP;		/* Number of 16-bit words in the float.  */
+     long *exponent_bitsP;	/* Number of exponent bits.  */
 {
-  int retval;			/* 0: OK. */
+  int retval;			/* 0: OK.  */
 
   retval = 0;
   switch (letter)
@@ -201,19 +201,19 @@ what_kind_of_float (letter, precisionP, exponent_bitsP)
  *									*
  \***********************************************************************/
 
-static char *				/* Return pointer past text consumed. */
+static char *				/* Return pointer past text consumed.  */
 atof_vax (str, what_kind, words)
-     char *str;			/* Text to convert to binary. */
+     char *str;			/* Text to convert to binary.  */
      int what_kind;		/* 'd', 'f', 'g', 'h' */
-     LITTLENUM_TYPE *words;	/* Build the binary here. */
+     LITTLENUM_TYPE *words;	/* Build the binary here.  */
 {
   FLONUM_TYPE f;
   LITTLENUM_TYPE bits[MAX_PRECISION + MAX_PRECISION + GUARD];
-  /* Extra bits for zeroed low-order bits. */
+  /* Extra bits for zeroed low-order bits.  */
   /* The 1st MAX_PRECISION are zeroed, */
-  /* the last contain flonum bits. */
+  /* the last contain flonum bits.  */
   char *return_value;
-  int precision;		/* Number of 16-bit words in the format. */
+  int precision;		/* Number of 16-bit words in the format.  */
   long exponent_bits;
 
   return_value = str;
@@ -225,7 +225,7 @@ atof_vax (str, what_kind, words)
 
   if (what_kind_of_float (what_kind, &precision, &exponent_bits))
     {
-      return_value = NULL;	/* We lost. */
+      return_value = NULL;	/* We lost.  */
       make_invalid_floating_point_number (words);
     }
 
@@ -235,7 +235,7 @@ atof_vax (str, what_kind, words)
 
       /* Use more LittleNums than seems */
       /* necessary: the highest flonum may have */
-      /* 15 leading 0 bits, so could be useless. */
+      /* 15 leading 0 bits, so could be useless.  */
       f.high = f.low + precision - 1 + GUARD;
 
       if (atof_generic (&return_value, ".", "eE", &f))
@@ -259,16 +259,16 @@ atof_vax (str, what_kind, words)
  * Out: a vax floating-point bit pattern.
  */
 
-int				/* 0: OK. */
+int				/* 0: OK.  */
 flonum_gen2vax (format_letter, f, words)
-     int format_letter;		/* One of 'd' 'f' 'g' 'h'. */
+     int format_letter;		/* One of 'd' 'f' 'g' 'h'.  */
      FLONUM_TYPE *f;
-     LITTLENUM_TYPE *words;	/* Deliver answer here. */
+     LITTLENUM_TYPE *words;	/* Deliver answer here.  */
 {
   LITTLENUM_TYPE *lp;
   int precision;
   long exponent_bits;
-  int return_value;		/* 0 == OK. */
+  int return_value;		/* 0 == OK.  */
 
   return_value = what_kind_of_float (format_letter, &precision, &exponent_bits);
 
@@ -280,7 +280,7 @@ flonum_gen2vax (format_letter, f, words)
     {
       if (f->low > f->leader)
 	{
-	  /* 0.0e0 seen. */
+	  /* 0.0e0 seen.  */
 	  memset (words, '\0', sizeof (LITTLENUM_TYPE) * precision);
 	}
       else
@@ -340,13 +340,13 @@ flonum_gen2vax (format_letter, f, words)
 	       exponent_skippage++);;
 
 	  exponent_1 = f->exponent + f->leader + 1 - f->low;
-	  /* Radix LITTLENUM_RADIX, point just higher than f->leader. */
+	  /* Radix LITTLENUM_RADIX, point just higher than f->leader.  */
 	  exponent_2 = exponent_1 * LITTLENUM_NUMBER_OF_BITS;
-	  /* Radix 2. */
+	  /* Radix 2.  */
 	  exponent_3 = exponent_2 - exponent_skippage;
-	  /* Forget leading zeros, forget 1st bit. */
+	  /* Forget leading zeros, forget 1st bit.  */
 	  exponent_4 = exponent_3 + (1 << (exponent_bits - 1));
-	  /* Offset exponent. */
+	  /* Offset exponent.  */
 
 	  if (exponent_4 & ~mask[exponent_bits])
 	    {
@@ -366,14 +366,14 @@ flonum_gen2vax (format_letter, f, words)
 	    {
 	      lp = words;
 
-	      /* Word 1. Sign, exponent and perhaps high bits. */
-	      /* Assume 2's complement integers. */
+	      /* Word 1. Sign, exponent and perhaps high bits.  */
+	      /* Assume 2's complement integers.  */
 	      word1 = (((exponent_4 & mask[exponent_bits]) << (15 - exponent_bits))
 		       | ((f->sign == '+') ? 0 : 0x8000)
 		       | next_bits (15 - exponent_bits));
 	      *lp++ = word1;
 
-	      /* The rest of the words are just mantissa bits. */
+	      /* The rest of the words are just mantissa bits.  */
 	      for (; lp < words + precision; lp++)
 		{
 		  *lp = next_bits (LITTLENUM_NUMBER_OF_BITS);
@@ -426,7 +426,6 @@ flonum_gen2vax (format_letter, f, words)
   return (return_value);
 }				/* flonum_gen2vax() */
 
-
 /* JF this used to be in vax.c but this looks like a better place for it */
 
 /*
@@ -446,7 +445,7 @@ flonum_gen2vax (format_letter, f, words)
  *	Number of chars we used for the literal.
  */
 
-#define MAXIMUM_NUMBER_OF_LITTLENUMS (8)	/* For .hfloats. */
+#define MAXIMUM_NUMBER_OF_LITTLENUMS (8)	/* For .hfloats.  */
 
 char *
 md_atof (what_statement_type, literalP, sizeP)

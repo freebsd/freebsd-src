@@ -804,6 +804,9 @@ _bfd_merge_sections (abfd, xsinfo, remove_hook)
       if (secinfo)
 	continue;
 
+      if (sinfo->htab->first == NULL)
+	continue;
+
       if (sinfo->htab->strings)
 	merge_strings (sinfo);
       else

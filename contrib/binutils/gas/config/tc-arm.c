@@ -6425,7 +6425,7 @@ vfp_sp_reg_required_here (str, pos)
 static int
 vfp_dp_reg_required_here (str, pos)
      char **str;
-     enum vfp_sp_reg_pos pos;
+     enum vfp_dp_reg_pos pos;
 {
   int   reg;
   char *start = *str;

@@ -1118,6 +1118,9 @@ elf64_x86_64_discard_copies (h, inf)
   struct elf64_x86_64_pcrel_relocs_copied *s;
   struct bfd_link_info *info = (struct bfd_link_info *) inf;
 
+  if (h->root.root.type == bfd_link_hash_warning)
+    h = (struct elf64_x86_64_link_hash_entry *) h->root.root.u.i.link;
+
   /* If a symbol has been forced local or we have found a regular
      definition for the symbolic link case, then we won't be needing
      any relocs.  */

@@ -524,7 +524,11 @@ parse_args (pargc, pargv)
 
 	case OPTION_VERSION:
 	  /* This output is intended to follow the GNU standards document.  */
+#ifdef BFD_ASSEMBLER
 	  printf (_("GNU assembler %s\n"), BFD_VERSION_STRING);
+#else
+	  printf (_("GNU assembler %s\n"), VERSION);
+#endif
 	  printf (_("Copyright 2002 Free Software Foundation, Inc.\n"));
 	  printf (_("\
 This program is free software; you may redistribute it under the terms of\n\

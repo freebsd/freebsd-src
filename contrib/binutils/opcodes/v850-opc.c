@@ -1,5 +1,5 @@
 /* Assemble V850 instructions.
-   Copyright 1996, 1997, 1998, 2000 Free Software Foundation, Inc.
+   Copyright 1996, 1997, 1998, 2000, 2001 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -34,6 +34,28 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 /* two-word opcodes */
 #define two(x,y)	((unsigned int) (x) | ((unsigned int) (y) << 16))
 
+static long unsigned insert_d9      PARAMS ((long unsigned, long, const char **));
+static long unsigned extract_d9     PARAMS ((long unsigned, int *));
+static long unsigned insert_d22     PARAMS ((long unsigned, long, const char **));
+static long unsigned extract_d22    PARAMS ((long unsigned, int *));
+static long unsigned insert_d16_15  PARAMS ((long unsigned, long, const char **));
+static long unsigned extract_d16_15 PARAMS ((long unsigned, int *));
+static long unsigned insert_d8_7    PARAMS ((long unsigned, long, const char **));
+static long unsigned extract_d8_7   PARAMS ((long unsigned, int *));
+static long unsigned insert_d8_6    PARAMS ((long unsigned, long, const char **));
+static long unsigned extract_d8_6   PARAMS ((long unsigned, int *));
+static long unsigned insert_d5_4    PARAMS ((long unsigned, long, const char **));
+static long unsigned extract_d5_4   PARAMS ((long unsigned, int *));
+static long unsigned insert_d16_16  PARAMS ((long unsigned, long, const char **));
+static long unsigned extract_d16_16 PARAMS ((long unsigned, int *));
+static long unsigned insert_i9      PARAMS ((long unsigned, long, const char **));
+static long unsigned extract_i9     PARAMS ((long unsigned, int *));
+static long unsigned insert_u9      PARAMS ((long unsigned, long, const char **));
+static long unsigned extract_u9     PARAMS ((long unsigned, int *));
+static long unsigned insert_spe     PARAMS ((long unsigned, long, const char **));
+static long unsigned extract_spe    PARAMS ((long unsigned, int *));
+static long unsigned insert_i5div   PARAMS ((long unsigned, long, const char **));
+static long unsigned extract_i5div  PARAMS ((long unsigned, int *));
 
 
 /* The functions used to insert and extract complicated operands.  */
@@ -71,7 +93,7 @@ insert_d9 (insn, value, errmsg)
 static unsigned long
 extract_d9 (insn, invalid)
      unsigned long insn;
-     int *         invalid;
+     int *         invalid ATTRIBUTE_UNUSED;
 {
   unsigned long ret = ((insn & 0xf800) >> 7) | ((insn & 0x0070) >> 3);
 
@@ -103,7 +125,7 @@ insert_d22 (insn, value, errmsg)
 static unsigned long
 extract_d22 (insn, invalid)
      unsigned long insn;
-     int *         invalid;
+     int *         invalid ATTRIBUTE_UNUSED;
 {
   signed long ret = ((insn & 0xfffe0000) >> 16) | ((insn & 0x3f) << 16);
 
@@ -132,7 +154,7 @@ insert_d16_15 (insn, value, errmsg)
 static unsigned long
 extract_d16_15 (insn, invalid)
      unsigned long insn;
-     int *         invalid;
+     int *         invalid ATTRIBUTE_UNUSED;
 {
   signed long ret = (insn & 0xfffe0000);
 
@@ -163,7 +185,7 @@ insert_d8_7 (insn, value, errmsg)
 static unsigned long
 extract_d8_7 (insn, invalid)
      unsigned long insn;
-     int *         invalid;
+     int *         invalid ATTRIBUTE_UNUSED;
 {
   unsigned long ret = (insn & 0x7f);
 
@@ -194,7 +216,7 @@ insert_d8_6 (insn, value, errmsg)
 static unsigned long
 extract_d8_6 (insn, invalid)
      unsigned long insn;
-     int *         invalid;
+     int *         invalid ATTRIBUTE_UNUSED;
 {
   unsigned long ret = (insn & 0x7e);
 
@@ -225,7 +247,7 @@ insert_d5_4 (insn, value, errmsg)
 static unsigned long
 extract_d5_4 (insn, invalid)
      unsigned long insn;
-     int *         invalid;
+     int *         invalid ATTRIBUTE_UNUSED;
 {
   unsigned long ret = (insn & 0x0f);
 
@@ -247,7 +269,7 @@ insert_d16_16 (insn, value, errmsg)
 static unsigned long
 extract_d16_16 (insn, invalid)
      unsigned long insn;
-     int *         invalid;
+     int *         invalid ATTRIBUTE_UNUSED;
 {
   signed long ret = insn & 0xfffe0000;
 
@@ -273,7 +295,7 @@ insert_i9 (insn, value, errmsg)
 static unsigned long
 extract_i9 (insn, invalid)
      unsigned long insn;
-     int *         invalid;
+     int *         invalid ATTRIBUTE_UNUSED;
 {
   signed long ret = insn & 0x003c0000;
 
@@ -286,11 +308,12 @@ extract_i9 (insn, invalid)
 }
 
 static unsigned long
-insert_u9 (insn, value, errmsg)
+insert_u9 (insn, v, errmsg)
      unsigned long insn;
-     unsigned long value;
+     long v;
      const char ** errmsg;
 {
+  unsigned long value = (unsigned long) v;
   if (value > 0x1ff)
     * errmsg = _(immediate_out_of_range);
 
@@ -300,7 +323,7 @@ insert_u9 (insn, value, errmsg)
 static unsigned long
 extract_u9 (insn, invalid)
      unsigned long insn;
-     int *         invalid;
+     int *         invalid ATTRIBUTE_UNUSED;
 {
   unsigned long ret = insn & 0x003c0000;
 
@@ -312,11 +335,13 @@ extract_u9 (insn, invalid)
 }
 
 static unsigned long
-insert_spe (insn, value, errmsg)
+insert_spe (insn, v, errmsg)
      unsigned long insn;
-     unsigned long value;
+     long v;
      const char ** errmsg;
 {
+  unsigned long value = (unsigned long) v;
+
   if (value != 3)
     * errmsg = _("invalid register for stack adjustment");
 
@@ -325,18 +350,20 @@ insert_spe (insn, value, errmsg)
 
 static unsigned long
 extract_spe (insn, invalid)
-     unsigned long insn;
-     int *         invalid;
+     unsigned long insn ATTRIBUTE_UNUSED;
+     int *         invalid ATTRIBUTE_UNUSED;
 {
   return 3;
 }
 
 static unsigned long
-insert_i5div (insn, value, errmsg)
+insert_i5div (insn, v, errmsg)
      unsigned long insn;
-     unsigned long value;
+     long v;
      const char ** errmsg;
 {
+  unsigned long value = (unsigned long) v;
+
   if (value > 0x1ff)
     {
       if (value & 1)
@@ -355,7 +382,7 @@ insert_i5div (insn, value, errmsg)
 static unsigned long
 extract_i5div (insn, invalid)
      unsigned long insn;
-     int *         invalid;
+     int *         invalid ATTRIBUTE_UNUSED;
 {
   unsigned long ret = insn & 0x3c0000;
 
@@ -369,7 +396,7 @@ extract_i5div (insn, invalid)
 
 /* Warning: code in gas/config/tc-v850.c examines the contents of this array.
    If you change any of the values here, be sure to look for side effects in
-   that code. */
+   that code.  */
 const struct v850_operand v850_operands[] =
 {
 #define UNUSED	0
