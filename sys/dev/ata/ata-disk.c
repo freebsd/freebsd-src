@@ -1,3 +1,4 @@
+#define ATA_FLUSHCACHE_ON 
 /*-
  * Copyright (c) 1998,1999,2000 Søren Schmidt
  * All rights reserved.
@@ -316,7 +317,17 @@ ad_start(struct ad_softc *adp)
     if (!bp)
 	return;
 
-    /* if tagged queueing enabled get free tag */
+#ifdef ATA_FLUSHCACHE_ON 
+    /*
+     * if BIO_ORDERED is set cache should be flushed, if there are
+     * any outstanding requests, hold off and wait for them to finish
+     */
+    if (adp->flags & AD_F_TAG_ENABLED &&
+	bp->bio_flags & BIO_ORDERED && adp->outstanding > 0)
+	return;
+#endif
+
+    /* if tagged queueing enabled get next free tag */
     if (adp->flags & AD_F_TAG_ENABLED) {
 	while (tag <= adp->num_tags && adp->tags[tag])
 	    tag++;
@@ -337,7 +348,8 @@ ad_start(struct ad_softc *adp)
     request->bytecount = bp->bio_bcount;
     request->data = bp->bio_data;
     request->tag = tag;
-    request->flags = (bp->bio_cmd == BIO_READ) ? ADR_F_READ : 0;
+    if (bp->bio_cmd == BIO_READ) 
+	request->flags |= ADR_F_READ;
     if (adp->controller->mode[ATA_DEV(adp->unit)] >= ATA_DMA) {
 	if (!(request->dmatab = ata_dmaalloc(adp->controller, adp->unit)))
 	    adp->controller->mode[ATA_DEV(adp->unit)] = ATA_PIO;
@@ -442,6 +454,8 @@ ad_transfer(struct ad_request *request)
 		}
 #if 0
 		/*
+		 * wait for data transfer phase
+		 *
 		 * well this should be here acording to specs, but
 		 * promise controllers doesn't like it, they lockup!
 		 * thats probably why tags doesn't work on the promise
@@ -453,12 +467,6 @@ ad_transfer(struct ad_request *request)
 		    goto transfer_failed;
 		}
 #endif
-	    }
-
-	    /* check for possible error from controller */
-	    if (adp->controller->status & ATA_S_ERROR) {
-		printf("ad%d: error executing transfer cmd\n", adp->lun);
-		goto transfer_failed;
 	    }
 
 	    /* start transfer, return and wait for interrupt */
@@ -533,6 +541,9 @@ ad_interrupt(struct ad_request *request)
 {
     struct ad_softc *adp = request->device;
     int dma_stat = 0;
+
+    if (request->flags & ADR_F_FLUSHCACHE)
+        goto finish;
 
     /* finish DMA transfer */
     if (request->flags & ADR_F_DMA_USED)
@@ -632,6 +643,18 @@ ad_interrupt(struct ad_request *request)
     untimeout((timeout_t *)ad_timeout, request, request->timeout_handle);
 
     request->bp->bio_resid = request->bytecount;
+
+#ifdef ATA_FLUSHCACHE_ON 
+    if (request->bp->bio_flags & BIO_ORDERED) {
+	request->flags |= ADR_F_FLUSHCACHE;
+	if (ata_command(adp->controller, adp->unit, ATA_C_FLUSHCACHE,
+			0, 0, 0, 0, 0, ATA_IMMEDIATE))
+	    printf("ad%d: flushing cache failed\n", adp->lun);
+	else
+	    return ATA_OP_CONTINUES;
+    }
+#endif
+finish:
     devstat_end_transaction_bio(&adp->stats, request->bp);
     biodone(request->bp);
     ad_free(request);
@@ -670,10 +693,11 @@ ad_service(struct ad_softc *adp, int change)
 	    DELAY(1);
 	}
     }
-    adp->controller->status = inb(adp->controller->altioaddr + ATA_ALTSTAT);
+    adp->controller->status = inb(adp->controller->altioaddr);
  
     /* do we have a SERVICE request from the drive ? */
     if (adp->flags & AD_F_TAG_ENABLED &&
+	adp->outstanding > 0 &&
 	adp->controller->status & ATA_S_SERVICE) {
 	struct ad_request *request;
 	int tag;

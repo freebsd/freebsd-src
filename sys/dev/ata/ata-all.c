@@ -124,7 +124,7 @@ ata_isa_probe(device_t dev)
     /* alloctate the altport range */
     if (bus_get_resource(dev, SYS_RES_IOPORT, 1, &tmp, &tmp)) {
 	bus_set_resource(dev, SYS_RES_IOPORT, 1,
-			 rman_get_start(port) + ATA_ALTPORT,
+			 rman_get_start(port) + ATA_ALTOFFSET,
 			 ATA_ALTIOSIZE);
     }
     bus_release_resource(dev, SYS_RES_IOPORT, 0, port);
@@ -172,7 +172,7 @@ ata_pccard_probe(device_t dev)
      */
     if (len <= ATA_IOSIZE) {
 	bus_set_resource(dev, SYS_RES_IOPORT, ATA_ALTADDR_RID, 
-			 rman_get_start(port) + ATA_ALTPORT, ATA_ALTIOSIZE);
+			 rman_get_start(port) + ATA_ALTOFFSET, ATA_ALTIOSIZE);
     }
     bus_release_resource(dev, SYS_RES_IOPORT, 0, port);
     scp->unit = device_get_unit(dev);
@@ -538,7 +538,7 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	case ATA_ALTADDR_RID:
 	    if (masterdev) {
 		myrid = 0;
-		start = (unit == 0 ? IO_WD1 : IO_WD2) + ATA_ALTPORT;
+		start = (unit == 0 ? IO_WD1 : IO_WD2) + ATA_ALTOFFSET;
 		end = start + ATA_ALTIOSIZE - 1;
 		count = ATA_ALTIOSIZE;
 	    }
@@ -787,10 +787,14 @@ ata_probe(device_t dev)
     rid = ATA_ALTADDR_RID;
     altio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
 			       ATA_ALTIOSIZE, RF_ACTIVE);
-    if (altio)
-	altioaddr = rman_get_start(altio);
+    if (altio) {
+	if (pci_get_progif(device_get_parent(dev)) & PCIP_STORAGE_IDE_MASTERDEV)
+	    altioaddr = rman_get_start(altio);
+	else
+	    altioaddr = rman_get_start(altio) + 0x02;
+    }
     else
-	altioaddr = ioaddr + ATA_IOSIZE - 2; /* pccard ?? XXX */
+	altioaddr = ioaddr + ATA_IOSIZE;
 
     rid = ATA_BMADDR_RID;
     bmio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1, RF_ACTIVE);
@@ -969,7 +973,7 @@ ata_getparam(struct ata_softc *scp, int device, u_int8_t command)
     DELAY(1);
 
     /* enable interrupt */
-    outb(scp->altioaddr + ATA_ALTCTRL, ATA_A_4BIT);
+    outb(scp->altioaddr, ATA_A_4BIT);
     DELAY(1);
 
     /* apparently some devices needs this repeated */
@@ -1107,7 +1111,7 @@ ata_intr(void *data)
     DELAY(1);
 
     /* if drive is busy it didn't interrupt */
-    if (inb(scp->altioaddr + ATA_ALTSTAT) & ATA_S_BUSY)
+    if (inb(scp->altioaddr) & ATA_S_BUSY)
 	return;
 
     /* clear interrupt and get status */
@@ -1226,9 +1230,9 @@ ata_reset(struct ata_softc *scp, int *mask)
     outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
     DELAY(1);
     inb(scp->ioaddr + ATA_STATUS);
-    outb(scp->altioaddr + ATA_ALTCTRL, ATA_A_IDS | ATA_A_RESET);
+    outb(scp->altioaddr, ATA_A_IDS | ATA_A_RESET);
     DELAY(10000); 
-    outb(scp->altioaddr + ATA_ALTCTRL, ATA_A_IDS);
+    outb(scp->altioaddr, ATA_A_IDS);
     DELAY(10000);
     inb(scp->ioaddr + ATA_ERROR);
     DELAY(3000);
@@ -1269,7 +1273,7 @@ ata_reset(struct ata_softc *scp, int *mask)
 	DELAY(100);
     }	
     DELAY(1);
-    outb(scp->altioaddr + ATA_ALTCTRL, ATA_A_4BIT);
+    outb(scp->altioaddr, ATA_A_4BIT);
     if (status0 & ATA_S_BUSY)
 	*mask &= ~0x01;
     if (status1 & ATA_S_BUSY)
@@ -1368,17 +1372,18 @@ int
 ata_wait(struct ata_softc *scp, int device, u_int8_t mask)
 {
     int timeout = 0;
+    int statio = scp->ioaddr + ATA_STATUS;
     
     DELAY(1);
     while (timeout < 5000000) {	/* timeout 5 secs */
-	scp->status = inb(scp->altioaddr + ATA_ALTSTAT);
+	scp->status = inb(statio);
 
 	/* if drive fails status, reselect the drive just to be sure */
 	if (scp->status == 0xff) {
 	    ata_printf(scp, device, "no status, reselecting device\n");
 	    outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | device);
 	    DELAY(1);
-	    scp->status = inb(scp->altioaddr + ATA_ALTSTAT);
+	    scp->status = inb(statio);
 	}
 
 	/* are we done ? */
@@ -1404,7 +1409,7 @@ ata_wait(struct ata_softc *scp, int device, u_int8_t mask)
     /* Wait 50 msec for bits wanted. */	   
     timeout = 5000;
     while (timeout--) {	  
-	scp->status = inb(scp->altioaddr + ATA_ALTSTAT);
+	scp->status = inb(statio);
 	if ((scp->status & mask) == mask) {
 	    if (scp->status & ATA_S_ERROR)
 		scp->error = inb(scp->ioaddr + ATA_ERROR);
@@ -1430,7 +1435,7 @@ ata_command(struct ata_softc *scp, int device, u_int8_t command,
 
     /* disable interrupt from device */
     if (scp->flags & ATA_QUEUED)
-	outb(scp->altioaddr + ATA_ALTCTRL, ATA_A_IDS | ATA_A_4BIT);
+	outb(scp->altioaddr, ATA_A_IDS | ATA_A_4BIT);
 
     /* select device */
     outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | device);
@@ -1461,7 +1466,7 @@ ata_command(struct ata_softc *scp, int device, u_int8_t command,
 
 	/* enable interrupt */
 	if (scp->flags & ATA_QUEUED)
-	    outb(scp->altioaddr + ATA_ALTCTRL, ATA_A_4BIT);
+	    outb(scp->altioaddr, ATA_A_4BIT);
 
 	if (await(PRIBIO, 10 * hz)) {
 	    ata_printf(scp, device, "ata_command: timeout waiting for intr\n");
@@ -1497,7 +1502,7 @@ ata_command(struct ata_softc *scp, int device, u_int8_t command,
     }
     /* enable interrupt */
     if (scp->flags & ATA_QUEUED)
-	outb(scp->altioaddr + ATA_ALTCTRL, ATA_A_4BIT);
+	outb(scp->altioaddr, ATA_A_4BIT);
     return error;
 }
 

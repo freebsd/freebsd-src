@@ -524,7 +524,7 @@ via_82c586:
 	    (device == ATA_SLAVE && scp->devices & ATA_ATAPI_SLAVE))
 	    break;
 
-	if (udmamode >=5 &&
+	if (udmamode >= 5 &&
 	    (scp->chiptype == 0x4d30105a || scp->chiptype == 0x0d30105a) &&
 	    !(pci_read_config(parent, 0x50, 2)&(scp->unit ? 1<<11 : 1<<10))) {
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
@@ -539,7 +539,7 @@ via_82c586:
 		return;
 	    }
 	}
-	if (udmamode >=4 && (scp->chiptype == 0x4d38105a || 
+	if (udmamode >= 4 && (scp->chiptype == 0x4d38105a || 
 	    scp->chiptype == 0x4d30105a || scp->chiptype == 0x0d30105a) &&
 	    !(pci_read_config(parent, 0x50, 2)&(scp->unit ? 1<<11 : 1<<10))) {
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
