@@ -303,6 +303,20 @@ getvalue(arg, value, whine)
 	return 0;				/* success */
 }
 
+static sa_family_t
+whichaf(struct request_info *req)
+{
+	struct sockaddr *sa;
+
+	sa = (struct sockaddr *)req->client->sin;
+	if (sa == NULL)
+		return AF_UNSPEC;
+	if (sa->sa_family == AF_INET6 &&
+	    IN6_IS_ADDR_V4MAPPED(&((struct sockaddr_in6 *)sa)->sin6_addr))
+		return AF_INET;
+	return sa->sa_family;
+}
+
 int
 main(argc, argv)
 	int argc;
@@ -724,7 +738,7 @@ main(argc, argv)
 				    syslog(deny_severity,
 				        "refused connection from %.500s, service %s (%s%s)",
 				        eval_client(&req), service, sep->se_proto,
-					(((struct sockaddr *)req.client->sin)->sa_family == AF_INET6 && !IN6_IS_ADDR_V4MAPPED(&((struct sockaddr_in6 *)req.client->sin)->sin6_addr)) ? "6" : "");
+					(whichaf(&req) == AF_INET6) ? "6" : "");
 				    if (sep->se_socktype != SOCK_STREAM)
 					recv(ctrl, buf, sizeof (buf), 0);
 				    if (dofork) {
@@ -736,7 +750,7 @@ main(argc, argv)
 				    syslog(allow_severity,
 				        "connection from %.500s, service %s (%s%s)",
 					eval_client(&req), service, sep->se_proto,
-					(((struct sockaddr *)req.client->sin)->sa_family == AF_INET6 && !IN6_IS_ADDR_V4MAPPED(&((struct sockaddr_in6 *)req.client->sin)->sin6_addr)) ? "6" : "");
+					(whichaf(&req) == AF_INET6) ? "6" : "");
 				}
 			    }
 			    if (sep->se_bi) {
