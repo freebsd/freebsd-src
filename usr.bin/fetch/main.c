@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: main.c,v 1.1.1.1 1996/06/19 09:32:11 asami Exp $ */
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -137,6 +137,7 @@ main (int argc, char **argv)
 	signal (SIGHUP, die);
 	signal (SIGINT, die);
 	signal (SIGQUIT, die);
+	signal (SIGTERM, die);
 
 	if (http)
 	    httpget ();
@@ -186,12 +187,11 @@ ftpget ()
 	if (size < 0)
 	    ftperr (ftp, "%s: ", file_to_get);
 
-	if (restart) {
-		modtime = ftpGetModtime (ftp, file_to_get);
-		if (modtime < -1)
-		    err (1, "Unrecoverable error (ftpGetModtime)");
-	} else
+	modtime = ftpGetModtime (ftp, file_to_get);
+	if (modtime < -1) {
+	    warnx ("Couldn't get file time for %s - using current time", file_to_get);
 	    modtime = (time_t) -1;
+	}
 
 	if (!strcmp (outputfile, "-"))
 	    restart = 0;
@@ -403,7 +403,7 @@ ftperr (FILE* ftp, char *fmt, ...)
 void
 httpget ()
 {
-	char str[1000];
+	char *cp, str[1000];
 	struct timeval tout;
 	fd_set fdset;
 	int i, s;
@@ -418,7 +418,10 @@ httpget ()
 
 	FD_ZERO (&fdset);
 	FD_SET (s, &fdset);
-	tout.tv_sec = HTTP_TIMEOUT;
+	if ((cp = getenv("HTTP_TIMEOUT")) != NULL)
+	    tout.tv_sec = atoi(cp);
+	else
+	    tout.tv_sec = HTTP_TIMEOUT;
 	tout.tv_usec = 0;
 
 	if (strcmp (outputfile, "-")) {
