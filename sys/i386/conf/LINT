@@ -2131,6 +2131,8 @@ pseudo-device	"i4bisppp"	4
 # ppc	ISA-bus parallel port interfaces.
 #
 
+options		PPC_PROBE_CHIPSET # Enable chipset specific detection
+				  # (see flags in ppc(4))
 options 	DEBUG_1284	# IEEE1284 signaling protocol debug
 options 	PERIPH_1284	# Makes your computer act as a IEEE1284
 				# compliant peripheral

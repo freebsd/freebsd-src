@@ -18,11 +18,18 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/module.h>
+#include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/timepps.h>
 #include <sys/malloc.h>
+#include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/rman.h>
 
 #include <dev/ppbus/ppbconf.h>
+#include "ppbus_if.h"
+#include <dev/ppbus/ppbio.h>
 #include "pps.h"
 
 #define PPS_NAME	"pps"		/* our official name */
@@ -31,23 +38,37 @@ struct pps_data {
 	int	pps_open;
 	struct	ppb_device pps_dev;	
 	struct	pps_state pps;
+
+	struct resource *intr_resource;	/* interrupt resource */
+	void *intr_cookie;		/* interrupt registration cookie */
 };
 
-static int npps;
+static int	ppsprobe(device_t dev);
+static int	ppsattach(device_t dev);
+static void	ppsintr(void *arg);
 
-/*
- * Make ourselves visible as a ppbus driver
- */
+#define DEVTOSOFTC(dev) \
+	((struct pps_data *)device_get_softc(dev))
+#define UNITOSOFTC(unit) \
+	((struct pps_data *)devclass_get_softc(pps_devclass, (unit)))
+#define UNITODEVICE(unit) \
+	(devclass_get_device(pps_devclass, (unit)))
 
-static struct ppb_device	*ppsprobe(struct ppb_data *ppb);
-static int			ppsattach(struct ppb_device *dev);
-static void			ppsintr(struct ppb_device *ppd);
+static devclass_t pps_devclass;
 
-static struct ppb_driver ppsdriver = {
-    ppsprobe, ppsattach, PPS_NAME
+static device_method_t pps_methods[] = {
+	/* device interface */
+	DEVMETHOD(device_probe,		ppsprobe),
+	DEVMETHOD(device_attach,	ppsattach),
+
+	{ 0, 0 }
 };
 
-DATA_SET(ppbdriver_set, ppsdriver);
+static driver_t pps_driver = {
+	PPS_NAME,
+	pps_methods,
+	sizeof(struct pps_data),
+};
 
 static	d_open_t	ppsopen;
 static	d_close_t	ppsclose;
@@ -71,71 +92,76 @@ static struct cdevsw pps_cdevsw = {
 	/* bmaj */	-1
 };
 
-
-static struct ppb_device *
-ppsprobe(struct ppb_data *ppb)
+static int
+ppsprobe(device_t ppsdev)
 {
 	struct pps_data *sc;
 	static int once;
 	dev_t dev;
+	int unit;
 
 	if (!once++)
 		cdevsw_add(&pps_cdevsw);
 
-	sc = (struct pps_data *) malloc(sizeof(struct pps_data),
-							M_TEMP, M_NOWAIT);
-	if (!sc) {
-		printf(PPS_NAME ": cannot malloc!\n");
-		return (0);
-	}
+	sc = DEVTOSOFTC(ppsdev);
 	bzero(sc, sizeof(struct pps_data));
 
-	dev = make_dev(&pps_cdevsw, npps,
-	    UID_ROOT, GID_WHEEL, 0644, PPS_NAME "%d", npps);
+	unit = device_get_unit(ppsdev);
+	dev = make_dev(&pps_cdevsw, unit,
+	    UID_ROOT, GID_WHEEL, 0644, PPS_NAME "%d", unit);
 
-	dev->si_drv1 = sc;
-
-	sc->pps_dev.id_unit = npps++;
-	sc->pps_dev.ppb = ppb;
-	sc->pps_dev.name = ppsdriver.name;
-	sc->pps_dev.bintr = ppsintr;
-	sc->pps_dev.drv1 = sc;
+	device_set_desc(ppsdev, "Pulse per second Timing Interface");
 
 	sc->pps.ppscap = PPS_CAPTUREASSERT | PPS_ECHOASSERT;
 	pps_init(&sc->pps);
-	return (&sc->pps_dev);
+	return (0);
 }
 
 static int
-ppsattach(struct ppb_device *dev)
+ppsattach(device_t dev)
 {
+	struct pps_data *sc = DEVTOSOFTC(dev);
+	device_t ppbus = device_get_parent(dev);
+	int irq, zero = 0;
 
-	/*
-	 * Report ourselves
-	 */
-	printf(PPS_NAME "%d: <Pulse per second Timing Interface> on ppbus %d\n",
-	       dev->id_unit, dev->ppb->ppb_link->adapter_unit);
+	/* retrieve the ppbus irq */
+	BUS_READ_IVAR(ppbus, dev, PPBUS_IVAR_IRQ, &irq);
 
-	return (1);
+	if (irq > 0) {
+		/* declare our interrupt handler */
+		sc->intr_resource = bus_alloc_resource(dev, SYS_RES_IRQ,
+				       &zero, irq, irq, 1, RF_SHAREABLE);
+	}
+	/* interrupts seem mandatory */
+	if (sc->intr_resource == 0)
+		return (ENXIO);
+
+	return (0);
 }
 
 static	int
 ppsopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
-	struct pps_data *sc;
 	u_int unit = minor(dev);
-
-	if ((unit >= npps))
-		return (ENXIO);
-
-	sc = dev->si_drv1;
+	struct pps_data *sc = UNITOSOFTC(unit);
+	device_t ppsdev = UNITODEVICE(unit);
+	device_t ppbus = device_get_parent(ppsdev);
+	int error;
 
 	if (!sc->pps_open) {
-		if (ppb_request_bus(&sc->pps_dev, PPB_WAIT|PPB_INTR))
+		if (ppb_request_bus(ppbus, ppsdev, PPB_WAIT|PPB_INTR))
 			return (EINTR);
 
-		ppb_wctr(&sc->pps_dev, 0);
-		ppb_wctr(&sc->pps_dev, IRQENABLE);
+		/* attach the interrupt handler */
+		if ((error = BUS_SETUP_INTR(ppbus, ppsdev, sc->intr_resource,
+			       INTR_TYPE_TTY, ppsintr, ppsdev,
+			       &sc->intr_cookie))) {
+			ppb_release_bus(ppbus, ppsdev);
+			return (error);
+		}
+
+		ppb_wctr(ppbus, 0);
+		ppb_wctr(ppbus, IRQENABLE);
 		sc->pps_open = 1;
 	}
 
@@ -145,41 +171,49 @@ ppsopen(dev_t dev, int flags, int fmt, struct proc *p)
 static	int
 ppsclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
-	struct pps_data *sc = dev->si_drv1;
+	u_int unit = minor(dev);
+	struct pps_data *sc = UNITOSOFTC(unit);
+	device_t ppsdev = UNITODEVICE(unit);
+	device_t ppbus = device_get_parent(ppsdev);
 
 	sc->pps.ppsparam.mode = 0;	/* PHK ??? */
 
-	ppb_wdtr(&sc->pps_dev, 0);
-	ppb_wctr(&sc->pps_dev, 0);
+	ppb_wdtr(ppbus, 0);
+	ppb_wctr(ppbus, 0);
 
-	ppb_release_bus(&sc->pps_dev);
+	/* Note: the interrupt handler is automatically detached */
+	ppb_release_bus(ppbus, ppsdev);
 	sc->pps_open = 0;
 	return(0);
 }
 
 static void
-ppsintr(struct ppb_device *ppd)
+ppsintr(void *arg)
 {
-	struct pps_data *sc = ppd->drv1;
+	device_t ppsdev = (device_t)arg;
+	device_t ppbus = device_get_parent(ppsdev);
+	struct pps_data *sc = DEVTOSOFTC(ppsdev);
 	struct timecounter *tc;
 	unsigned count;
 
 	tc = timecounter;
 	count = timecounter->tc_get_timecount(tc);
-	if (!(ppb_rstr(&sc->pps_dev) & nACK))
+	if (!(ppb_rstr(ppbus) & nACK))
 		return;
 	if (sc->pps.ppsparam.mode & PPS_ECHOASSERT) 
-		ppb_wctr(&sc->pps_dev, IRQENABLE | AUTOFEED);
+		ppb_wctr(ppbus, IRQENABLE | AUTOFEED);
 	pps_event(&sc->pps, tc, count, PPS_CAPTUREASSERT);
 	if (sc->pps.ppsparam.mode & PPS_ECHOASSERT) 
-		ppb_wctr(&sc->pps_dev, IRQENABLE);
+		ppb_wctr(ppbus, IRQENABLE);
 }
 
 static int
 ppsioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 {
-	struct pps_data *sc = dev->si_drv1;
+	u_int unit = minor(dev);
+	struct pps_data *sc = UNITOSOFTC(unit);
 
 	return (pps_ioctl(cmd, data, &sc->pps));
 }
 
+DRIVER_MODULE(pps, ppbus, pps_driver, pps_devclass, 0, 0);

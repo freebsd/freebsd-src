@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1997, 1998 Nicolas Souchu
+ * Copyright (c) 1997, 1998, 1999 Nicolas Souchu
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,49 +29,29 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
+#include <sys/bus.h>
+
 #include <machine/clock.h>
 
 #include <dev/ppbus/ppbconf.h>
+  
+#include "ppbus_if.h"
 
+#include <dev/ppbus/ppbio.h>
+  
+#define DEVTOSOFTC(dev) ((struct ppb_data *)device_get_softc(dev))
+ 
 /*
- * ppb_intr()
+ * ppb_poll_bus()
  *
- * Function called by ppcintr() when an intr occurs.
- */
-void
-ppb_intr(struct ppb_link *pl)
-{
-	struct ppb_data *ppb = pl->ppbus;
-
-	/*
-	 * Call chipset dependent code.
-	 * Should be filled at chipset initialisation if needed.
-	 */
-	if (pl->adapter->intr_handler)
-		(*pl->adapter->intr_handler)(pl->adapter_unit);
-
-	/*
-	 * Call upper handler iff the bus is owned by a device and
-	 * this device has specified an interrupt handler.
-	 */
-	if (ppb->ppb_owner && ppb->ppb_owner->intr)
-		(*ppb->ppb_owner->intr)(ppb->ppb_owner->id_unit);
-	if (ppb->ppb_owner && ppb->ppb_owner->bintr)
-		(*ppb->ppb_owner->bintr)(ppb->ppb_owner);
-
-	return;
-}
-
-/*
- * ppb_poll_device()
- *
- * Polls the device
+ * Polls the bus
  *
  * max is a delay in 10-milliseconds
  */
 int
-ppb_poll_device(struct ppb_device *dev, int max,
-		char mask, char status, int how)
+ppb_poll_bus(device_t bus, int max,
+	     char mask, char status, int how)
 {
 	int i, j, error;
 	char r;
@@ -79,7 +59,7 @@ ppb_poll_device(struct ppb_device *dev, int max,
 	/* try at least up to 10ms */
 	for (j = 0; j < ((how & PPB_POLL) ? max : 1); j++) {
 		for (i = 0; i < 10000; i++) {
-			r = ppb_rstr(dev);
+			r = ppb_rstr(bus);
 			DELAY(1);
 			if ((r & mask) == status)
 				return (0);
@@ -88,19 +68,19 @@ ppb_poll_device(struct ppb_device *dev, int max,
 
 	if (!(how & PPB_POLL)) {
 	   for (i = 0; max == PPB_FOREVER || i < max-1; i++) {
-		if ((ppb_rstr(dev) & mask) == status)
+		if ((ppb_rstr(bus) & mask) == status)
 			return (0);
 
 		switch (how) {
 		case PPB_NOINTR:
 			/* wait 10 ms */
-			tsleep((caddr_t)dev, PPBPRI, "ppbpoll", hz/100);
+			tsleep((caddr_t)bus, PPBPRI, "ppbpoll", hz/100);
 			break;
 
 		case PPB_INTR:
 		default:
 			/* wait 10 ms */
-			if (((error = tsleep((caddr_t)dev, PPBPRI | PCATCH,
+			if (((error = tsleep((caddr_t)bus, PPBPRI | PCATCH,
 			    "ppbpoll", hz/100)) != EWOULDBLOCK) != 0) {
 				return (error);
 			}
@@ -113,22 +93,48 @@ ppb_poll_device(struct ppb_device *dev, int max,
 }
 
 /*
- * ppb_set_mode()
+ * ppb_get_epp_protocol()
  *
- * Set the operating mode of the chipset
+ * Return the chipset EPP protocol
  */
 int
-ppb_set_mode(struct ppb_device *dev, int mode)
+ppb_get_epp_protocol(device_t bus)
 {
-	struct ppb_data *ppb = dev->ppb;
-	int old_mode = ppb_get_mode(dev);
+	uintptr_t protocol;
 
-	if ((*ppb->ppb_link->adapter->setmode)(
-			ppb->ppb_link->adapter_unit, mode))
-		return (-1);
+	BUS_READ_IVAR(device_get_parent(bus), bus, PPC_IVAR_EPP_PROTO, &protocol);
+
+	return (protocol);
+}
+
+/*
+ * ppb_get_mode()
+ *
+ */
+int
+ppb_get_mode(device_t bus)
+{
+	struct ppb_data *ppb = DEVTOSOFTC(bus);
 
 	/* XXX yet device mode = ppbus mode = chipset mode */
-	dev->mode = ppb->mode = (mode & PPB_MASK);
+	return (ppb->mode);
+}
+
+/*
+ * ppb_set_mode()
+ *
+ * Set the operating mode of the chipset, return the previous mode
+ */
+int
+ppb_set_mode(device_t bus, int mode)
+{
+	struct ppb_data *ppb = DEVTOSOFTC(bus);
+	int old_mode = ppb_get_mode(bus);
+
+	if (!PPBUS_SETMODE(device_get_parent(bus), mode)) {
+		/* XXX yet device mode = ppbus mode = chipset mode */
+		ppb->mode = (mode & PPB_MASK);
+	}
 
 	return (old_mode);
 }
@@ -139,12 +145,9 @@ ppb_set_mode(struct ppb_device *dev, int mode)
  * Write charaters to the port
  */
 int
-ppb_write(struct ppb_device *dev, char *buf, int len, int how)
+ppb_write(device_t bus, char *buf, int len, int how)
 {
-	struct ppb_data *ppb = dev->ppb;
-
-	return (ppb->ppb_link->adapter->write(ppb->ppb_link->adapter_unit,
-						buf, len, how));
+	return (PPBUS_WRITE(device_get_parent(bus), buf, len, how));
 }
 
 /*
@@ -153,16 +156,9 @@ ppb_write(struct ppb_device *dev, char *buf, int len, int how)
  * Reset the EPP timeout bit in the status register
  */
 int
-ppb_reset_epp_timeout(struct ppb_device *dev)
+ppb_reset_epp_timeout(device_t bus)
 {
-	struct ppb_data *ppb = dev->ppb;
-
-	if (ppb->ppb_owner != dev)
-		return (EACCES);
-
-	(*ppb->ppb_link->adapter->reset_epp_timeout)(ppb->ppb_link->adapter_unit);
-
-	return (0);
+	return(PPBUS_RESET_EPP(device_get_parent(bus)));
 }
 
 /*
@@ -171,16 +167,9 @@ ppb_reset_epp_timeout(struct ppb_device *dev)
  * Wait for the ECP FIFO to be empty
  */
 int
-ppb_ecp_sync(struct ppb_device *dev)
+ppb_ecp_sync(device_t bus)
 {
-	struct ppb_data *ppb = dev->ppb;
-
-	if (ppb->ppb_owner != dev)
-		return (EACCES);
-
-	(*ppb->ppb_link->adapter->ecp_sync)(ppb->ppb_link->adapter_unit);
-
-	return (0);
+	return (PPBUS_ECP_SYNC(device_get_parent(bus)));
 }
 
 /*
@@ -189,15 +178,11 @@ ppb_ecp_sync(struct ppb_device *dev)
  * Read the status register and update the status info
  */
 int
-ppb_get_status(struct ppb_device *dev, struct ppb_status *status)
+ppb_get_status(device_t bus, struct ppb_status *status)
 {
-	struct ppb_data *ppb = dev->ppb;
 	register char r;
 
-	if (ppb->ppb_owner != dev)
-		return (EACCES);
-
-	r = status->status = ppb_rstr(dev);
+	r = status->status = ppb_rstr(bus);
 
 	status->timeout	= r & TIMEOUT;
 	status->error	= !(r & nFAULT);

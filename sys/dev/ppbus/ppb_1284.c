@@ -35,11 +35,18 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 
 #include <machine/clock.h>
 
 #include <dev/ppbus/ppbconf.h>
 #include <dev/ppbus/ppb_1284.h>
+
+#include "ppbus_if.h"
+
+#include <dev/ppbus/ppbio.h>
+
+#define DEVTOSOFTC(dev) ((struct ppb_data *)device_get_softc(dev))
 
 /*
  * do_1284_wait()
@@ -47,15 +54,15 @@
  * Wait for the peripherial up to 40ms
  */
 static int
-do_1284_wait(struct ppb_device *dev, char mask, char status)
+do_1284_wait(device_t bus, char mask, char status)
 {
-	return (ppb_poll_device(dev, 4, mask, status, PPB_NOINTR | PPB_POLL));
+	return (ppb_poll_bus(bus, 4, mask, status, PPB_NOINTR | PPB_POLL));
 }
 
 static int
-do_peripheral_wait(struct ppb_device *dev, char mask, char status)
+do_peripheral_wait(device_t bus, char mask, char status)
 {
-	return (ppb_poll_device(dev, 100, mask, status, PPB_NOINTR | PPB_POLL));
+	return (ppb_poll_bus(bus, 100, mask, status, PPB_NOINTR | PPB_POLL));
 }
 
 #define nibble2char(s) (((s & ~nACK) >> 3) | (~s & nBUSY) >> 4)
@@ -66,10 +73,12 @@ do_peripheral_wait(struct ppb_device *dev, char mask, char status)
  * Unconditionaly reset the error field
  */
 static int
-ppb_1284_reset_error(struct ppb_device *dev, int state)
+ppb_1284_reset_error(device_t bus, int state)
 {
-	dev->ppb->error = PPB_NO_ERROR;
-	dev->ppb->state = state;
+	struct ppb_data *ppb = DEVTOSOFTC(bus);
+
+	ppb->error = PPB_NO_ERROR;
+	ppb->state = state;
 
 	return (0);
 }
@@ -80,9 +89,9 @@ ppb_1284_reset_error(struct ppb_device *dev, int state)
  * Get IEEE1284 state
  */
 static int
-ppb_1284_get_state(struct ppb_device *dev)
+ppb_1284_get_state(device_t bus)
 {
-        return (dev->ppb->state);
+        return (DEVTOSOFTC(bus)->state);
 }
 
 /*
@@ -91,32 +100,36 @@ ppb_1284_get_state(struct ppb_device *dev)
  * Change IEEE1284 state if no error occured
  */
 static int
-ppb_1284_set_state(struct ppb_device *dev, int state)
+ppb_1284_set_state(device_t bus, int state)
 {
+	struct ppb_data *ppb = DEVTOSOFTC(bus);
+
 	/* call ppb_1284_reset_error() if you absolutly want to change
 	 * the state from PPB_ERROR to another */
-	if ((dev->ppb->state != PPB_ERROR) &&
-			(dev->ppb->error == PPB_NO_ERROR)) {
-		dev->ppb->state = state;
-		dev->ppb->error = PPB_NO_ERROR;
+	if ((ppb->state != PPB_ERROR) &&
+			(ppb->error == PPB_NO_ERROR)) {
+		ppb->state = state;
+		ppb->error = PPB_NO_ERROR;
 	}
 
 	return (0);
 }
 
 static int
-ppb_1284_set_error(struct ppb_device *dev, int error, int event)
+ppb_1284_set_error(device_t bus, int error, int event)
 {
+	struct ppb_data *ppb = DEVTOSOFTC(bus);
+
 	/* do not accumulate errors */
-	if ((dev->ppb->error == PPB_NO_ERROR) &&
-			(dev->ppb->state != PPB_ERROR)) {
-		dev->ppb->error = error;
-		dev->ppb->state = PPB_ERROR;
+	if ((ppb->error == PPB_NO_ERROR) &&
+			(ppb->state != PPB_ERROR)) {
+		ppb->error = error;
+		ppb->state = PPB_ERROR;
 	}
 
 #ifdef DEBUG_1284
 	printf("ppb1284: error=%d status=0x%x event=%d\n", error,
-		ppb_rstr(dev) & 0xff, event);
+		ppb_rstr(bus) & 0xff, event);
 #endif
 
 	return (0);
@@ -174,54 +187,54 @@ ppb_request_mode(int mode, int options)
  * Negociate the peripheral side
  */
 int
-ppb_peripheral_negociate(struct ppb_device *dev, int mode, int options)
+ppb_peripheral_negociate(device_t bus, int mode, int options)
 {
 	int spin, request_mode, error = 0;
 	char r;
 
-	ppb_set_mode(dev, PPB_COMPATIBLE);
-	ppb_1284_set_state(dev, PPB_PERIPHERAL_NEGOCIATION);
+	ppb_set_mode(bus, PPB_COMPATIBLE);
+	ppb_1284_set_state(bus, PPB_PERIPHERAL_NEGOCIATION);
 
 	/* compute ext. value */
 	request_mode = ppb_request_mode(mode, options);
 
 	/* wait host */
 	spin = 10;
-	while (spin-- && (ppb_rstr(dev) & nBUSY))
+	while (spin-- && (ppb_rstr(bus) & nBUSY))
 		DELAY(1);
 
 	/* check termination */
-	if (!(ppb_rstr(dev) & SELECT) || !spin) {
+	if (!(ppb_rstr(bus) & SELECT) || !spin) {
 		error = ENODEV;
 		goto error;
 	}
 
 	/* Event 4 - read ext. value */
-	r = ppb_rdtr(dev);
+	r = ppb_rdtr(bus);
 
 	/* nibble mode is not supported */
 	if ((r == (char)request_mode) ||
 			(r == NIBBLE_1284_NORMAL)) {
 
 		/* Event 5 - restore direction bit, no data avail */
-		ppb_wctr(dev, (STROBE | nINIT) & ~(SELECTIN));
+		ppb_wctr(bus, (STROBE | nINIT) & ~(SELECTIN));
 		DELAY(1);
 
 		/* Event 6 */
-		ppb_wctr(dev, (nINIT) & ~(SELECTIN | STROBE));
+		ppb_wctr(bus, (nINIT) & ~(SELECTIN | STROBE));
 
 		if (r == NIBBLE_1284_NORMAL) {
 #ifdef DEBUG_1284
 			printf("R");
 #endif
-			ppb_1284_set_error(dev, PPB_MODE_UNSUPPORTED, 4);
+			ppb_1284_set_error(bus, PPB_MODE_UNSUPPORTED, 4);
 			error = EINVAL;
 			goto error;
 		} else {
-			ppb_1284_set_state(dev, PPB_PERIPHERAL_IDLE);
+			ppb_1284_set_state(bus, PPB_PERIPHERAL_IDLE);
 			switch (r) {
 			case BYTE_1284_NORMAL:
-				ppb_set_mode(dev, PPB_BYTE);
+				ppb_set_mode(bus, PPB_BYTE);
 				break;
 			default:
 				break;
@@ -233,12 +246,12 @@ ppb_peripheral_negociate(struct ppb_device *dev, int mode, int options)
 		}
 	} else {
 		/* Event 5 - mode not supported */
-		ppb_wctr(dev, SELECTIN);
+		ppb_wctr(bus, SELECTIN);
 		DELAY(1);
 
 		/* Event 6 */
-		ppb_wctr(dev, (SELECTIN) & ~(STROBE | nINIT));
-		ppb_1284_set_error(dev, PPB_MODE_UNSUPPORTED, 4);
+		ppb_wctr(bus, (SELECTIN) & ~(STROBE | nINIT));
+		ppb_1284_set_error(bus, PPB_MODE_UNSUPPORTED, 4);
 
 #ifdef DEBUG_1284
 		printf("r");
@@ -250,7 +263,7 @@ ppb_peripheral_negociate(struct ppb_device *dev, int mode, int options)
 	return (0);
 
 error:
-	ppb_peripheral_terminate(dev, PPB_WAIT);
+	ppb_peripheral_terminate(bus, PPB_WAIT);
 	return (error);
 }
 
@@ -262,7 +275,7 @@ error:
  * Always return 0 in compatible mode
  */
 int
-ppb_peripheral_terminate(struct ppb_device *dev, int how)
+ppb_peripheral_terminate(device_t bus, int how)
 {
 	int error = 0;
 
@@ -270,38 +283,38 @@ ppb_peripheral_terminate(struct ppb_device *dev, int how)
 	printf("t");
 #endif
 
-	ppb_1284_set_state(dev, PPB_PERIPHERAL_TERMINATION);
+	ppb_1284_set_state(bus, PPB_PERIPHERAL_TERMINATION);
 
 	/* Event 22 - wait up to host response time (1s) */
-	if ((error = do_peripheral_wait(dev, SELECT | nBUSY, 0))) {
-		ppb_1284_set_error(dev, PPB_TIMEOUT, 22);
+	if ((error = do_peripheral_wait(bus, SELECT | nBUSY, 0))) {
+		ppb_1284_set_error(bus, PPB_TIMEOUT, 22);
 		goto error;
 	}
 
 	/* Event 24 */
-        ppb_wctr(dev, (nINIT | STROBE) & ~(AUTOFEED | SELECTIN));
+        ppb_wctr(bus, (nINIT | STROBE) & ~(AUTOFEED | SELECTIN));
 
 	/* Event 25 - wait up to host response time (1s) */
-	if ((error = do_peripheral_wait(dev, nBUSY, nBUSY))) {
-		ppb_1284_set_error(dev, PPB_TIMEOUT, 25);
+	if ((error = do_peripheral_wait(bus, nBUSY, nBUSY))) {
+		ppb_1284_set_error(bus, PPB_TIMEOUT, 25);
 		goto error;
 	}
 
 	/* Event 26 */
-        ppb_wctr(dev, (SELECTIN | nINIT | STROBE) & ~(AUTOFEED));
+        ppb_wctr(bus, (SELECTIN | nINIT | STROBE) & ~(AUTOFEED));
 	DELAY(1);
 	/* Event 27 */
-        ppb_wctr(dev, (SELECTIN | nINIT) & ~(STROBE | AUTOFEED));
+        ppb_wctr(bus, (SELECTIN | nINIT) & ~(STROBE | AUTOFEED));
 
 	/* Event 28 - wait up to host response time (1s) */
-	if ((error = do_peripheral_wait(dev, nBUSY, 0))) {
-		ppb_1284_set_error(dev, PPB_TIMEOUT, 28);
+	if ((error = do_peripheral_wait(bus, nBUSY, 0))) {
+		ppb_1284_set_error(bus, PPB_TIMEOUT, 28);
 		goto error;
 	}
 	
 error:
-	ppb_set_mode(dev, PPB_COMPATIBLE);
-	ppb_1284_set_state(dev, PPB_FORWARD_IDLE);
+	ppb_set_mode(bus, PPB_COMPATIBLE);
+	ppb_1284_set_state(bus, PPB_FORWARD_IDLE);
 
 	return (0);
 }
@@ -312,19 +325,19 @@ error:
  * Write 1 byte in BYTE mode
  */
 static int
-byte_peripheral_outbyte(struct ppb_device *dev, char *buffer, int last)
+byte_peripheral_outbyte(device_t bus, char *buffer, int last)
 {
 	int error = 0;
 
 	/* Event 7 */
-	if ((error = do_1284_wait(dev, nBUSY, nBUSY))) {
-		ppb_1284_set_error(dev, PPB_TIMEOUT, 7);
+	if ((error = do_1284_wait(bus, nBUSY, nBUSY))) {
+		ppb_1284_set_error(bus, PPB_TIMEOUT, 7);
 		goto error;
 	}
 
 	/* check termination */
-	if (!(ppb_rstr(dev) & SELECT)) {
-		ppb_peripheral_terminate(dev, PPB_WAIT);
+	if (!(ppb_rstr(bus) & SELECT)) {
+		ppb_peripheral_terminate(bus, PPB_WAIT);
 		goto error;
 	}
 
@@ -332,35 +345,35 @@ byte_peripheral_outbyte(struct ppb_device *dev, char *buffer, int last)
 #ifdef DEBUG_1284
 	printf("B");
 #endif
-	ppb_wdtr(dev, *buffer);
+	ppb_wdtr(bus, *buffer);
 
 	/* Event 9 */
-	ppb_wctr(dev, (AUTOFEED | STROBE) & ~(nINIT | SELECTIN));
+	ppb_wctr(bus, (AUTOFEED | STROBE) & ~(nINIT | SELECTIN));
 
 	/* Event 10 - wait data read */
-	if ((error = do_peripheral_wait(dev, nBUSY, 0))) {
-		ppb_1284_set_error(dev, PPB_TIMEOUT, 16);
+	if ((error = do_peripheral_wait(bus, nBUSY, 0))) {
+		ppb_1284_set_error(bus, PPB_TIMEOUT, 16);
 		goto error;
 	}
 
 	/* Event 11 */
 	if (!last) {
-		ppb_wctr(dev, (AUTOFEED) & ~(nINIT | STROBE | SELECTIN));
+		ppb_wctr(bus, (AUTOFEED) & ~(nINIT | STROBE | SELECTIN));
 	} else {
-		ppb_wctr(dev, (nINIT) & ~(STROBE | SELECTIN | AUTOFEED));
+		ppb_wctr(bus, (nINIT) & ~(STROBE | SELECTIN | AUTOFEED));
 	}
 
 #if 0
 	/* Event 16 - wait strobe */
-	if ((error = do_peripheral_wait(dev, nACK | nBUSY, 0))) {
-		ppb_1284_set_error(dev, PPB_TIMEOUT, 16);
+	if ((error = do_peripheral_wait(bus, nACK | nBUSY, 0))) {
+		ppb_1284_set_error(bus, PPB_TIMEOUT, 16);
 		goto error;
 	}
 #endif
 
 	/* check termination */
-	if (!(ppb_rstr(dev) & SELECT)) {
-		ppb_peripheral_terminate(dev, PPB_WAIT);
+	if (!(ppb_rstr(bus) & SELECT)) {
+		ppb_peripheral_terminate(bus, PPB_WAIT);
 		goto error;
 	}
 
@@ -374,12 +387,12 @@ error:
  * Write n bytes in BYTE mode
  */
 int
-byte_peripheral_write(struct ppb_device *dev, char *buffer, int len, int *sent)
+byte_peripheral_write(device_t bus, char *buffer, int len, int *sent)
 {
 	int error = 0, i;
 	char r;
 
-	ppb_1284_set_state(dev, PPB_PERIPHERAL_TRANSFER);
+	ppb_1284_set_state(bus, PPB_PERIPHERAL_TRANSFER);
 
 	/* wait forever, the remote host is master and should initiate
 	 * termination
@@ -388,14 +401,14 @@ byte_peripheral_write(struct ppb_device *dev, char *buffer, int len, int *sent)
 		/* force remote nFAULT low to release the remote waiting
 		 * process, if any
 		 */
-		r = ppb_rctr(dev);
-		ppb_wctr(dev, r & ~nINIT);
+		r = ppb_rctr(bus);
+		ppb_wctr(bus, r & ~nINIT);
 
 #ifdef DEBUG_1284
 		printf("y");
 #endif
 		/* Event 7 */
-		error = ppb_poll_device(dev, PPB_FOREVER, nBUSY, nBUSY,
+		error = ppb_poll_bus(bus, PPB_FOREVER, nBUSY, nBUSY,
 					PPB_INTR);
 
 		if (error && error != EWOULDBLOCK)
@@ -404,12 +417,12 @@ byte_peripheral_write(struct ppb_device *dev, char *buffer, int len, int *sent)
 #ifdef DEBUG_1284
 		printf("b");
 #endif
-		if ((error = byte_peripheral_outbyte(dev, buffer+i, (i == len-1))))
+		if ((error = byte_peripheral_outbyte(bus, buffer+i, (i == len-1))))
 			goto error;
 	}
 error:
 	if (!error)
-		ppb_1284_set_state(dev, PPB_PERIPHERAL_IDLE);
+		ppb_1284_set_state(bus, PPB_PERIPHERAL_IDLE);
 
 	*sent = i;
 	return (error);
@@ -421,35 +434,35 @@ error:
  * Read 1 byte in BYTE mode
  */
 int
-byte_1284_inbyte(struct ppb_device *dev, char *buffer)
+byte_1284_inbyte(device_t bus, char *buffer)
 {
 	int error = 0;
 
 	/* Event 7 - ready to take data (nAUTO low) */
-	ppb_wctr(dev, (PCD | nINIT | AUTOFEED) & ~(STROBE | SELECTIN));
+	ppb_wctr(bus, (PCD | nINIT | AUTOFEED) & ~(STROBE | SELECTIN));
 
 	/* Event 9 - peripheral set nAck low */
-	if ((error = do_1284_wait(dev, nACK, 0))) {
-		ppb_1284_set_error(dev, PPB_TIMEOUT, 9);
+	if ((error = do_1284_wait(bus, nACK, 0))) {
+		ppb_1284_set_error(bus, PPB_TIMEOUT, 9);
 		goto error;
 	}
 
 	/* read the byte */
-	*buffer = ppb_rdtr(dev);
+	*buffer = ppb_rdtr(bus);
 
 	/* Event 10 - data received, can't accept more */
-	ppb_wctr(dev, (nINIT) & ~(AUTOFEED | STROBE | SELECTIN));
+	ppb_wctr(bus, (nINIT) & ~(AUTOFEED | STROBE | SELECTIN));
 
 	/* Event 11 - peripheral ack */
-	if ((error = do_1284_wait(dev, nACK, nACK))) {
-		ppb_1284_set_error(dev, PPB_TIMEOUT, 11);
+	if ((error = do_1284_wait(bus, nACK, nACK))) {
+		ppb_1284_set_error(bus, PPB_TIMEOUT, 11);
 		goto error;
 	}
 
 	/* Event 16 - strobe */
-	ppb_wctr(dev, (nINIT | STROBE) & ~(AUTOFEED | SELECTIN));
+	ppb_wctr(bus, (nINIT | STROBE) & ~(AUTOFEED | SELECTIN));
 	DELAY(3);
-	ppb_wctr(dev, (nINIT) & ~(AUTOFEED | STROBE | SELECTIN));
+	ppb_wctr(bus, (nINIT) & ~(AUTOFEED | STROBE | SELECTIN));
 
 error:
 	return (error);
@@ -461,7 +474,7 @@ error:
  * Read 1 byte in NIBBLE mode
  */
 int
-nibble_1284_inbyte(struct ppb_device *dev, char *buffer)
+nibble_1284_inbyte(device_t bus, char *buffer)
 {
 	char nibble[2];
 	int i, error;
@@ -469,25 +482,25 @@ nibble_1284_inbyte(struct ppb_device *dev, char *buffer)
 	for (i = 0; i < 2; i++) {
 
 		/* Event 7 - ready to take data (nAUTO low) */
-		ppb_wctr(dev, (nINIT | AUTOFEED) & ~(STROBE | SELECTIN));
+		ppb_wctr(bus, (nINIT | AUTOFEED) & ~(STROBE | SELECTIN));
 
 		/* Event 8 - peripheral writes the first nibble */
 
 		/* Event 9 - peripheral set nAck low */
-		if ((error = do_1284_wait(dev, nACK, 0))) {
-			ppb_1284_set_error(dev, PPB_TIMEOUT, 9);
+		if ((error = do_1284_wait(bus, nACK, 0))) {
+			ppb_1284_set_error(bus, PPB_TIMEOUT, 9);
 			goto error;
 		}
 
 		/* read nibble */
-		nibble[i] = ppb_rstr(dev);
+		nibble[i] = ppb_rstr(bus);
 
 		/* Event 10 - ack, nibble received */
-		ppb_wctr(dev, nINIT & ~(AUTOFEED | STROBE | SELECTIN));
+		ppb_wctr(bus, nINIT & ~(AUTOFEED | STROBE | SELECTIN));
 
 		/* Event 11 - wait ack from peripherial */
-		if ((error = do_1284_wait(dev, nACK, nACK))) {
-			ppb_1284_set_error(dev, PPB_TIMEOUT, 11);
+		if ((error = do_1284_wait(bus, nACK, nACK))) {
+			ppb_1284_set_error(bus, PPB_TIMEOUT, 11);
 			goto error;
 		}
 	}
@@ -505,7 +518,7 @@ error:
  * Read in IEEE1284 NIBBLE/BYTE mode
  */
 int
-spp_1284_read(struct ppb_device *dev, int mode, char *buffer, int max, int *read)
+spp_1284_read(device_t bus, int mode, char *buffer, int max, int *read)
 {
 	int error = 0, len = 0;
 	int terminate_after_transfer = 1;
@@ -513,11 +526,11 @@ spp_1284_read(struct ppb_device *dev, int mode, char *buffer, int max, int *read
 
 	*read = len = 0;
 
-	state = ppb_1284_get_state(dev);
+	state = ppb_1284_get_state(bus);
 
 	switch (state) {
 	case PPB_FORWARD_IDLE:
-		if ((error = ppb_1284_negociate(dev, mode, 0)))
+		if ((error = ppb_1284_negociate(bus, mode, 0)))
 			return (error);
 		break;
 
@@ -526,15 +539,15 @@ spp_1284_read(struct ppb_device *dev, int mode, char *buffer, int max, int *read
 		break;
 		
 	default:
-		ppb_1284_terminate(dev);
-		if ((error = ppb_1284_negociate(dev, mode, 0)))
+		ppb_1284_terminate(bus);
+		if ((error = ppb_1284_negociate(bus, mode, 0)))
 			return (error);
 		break;
 	}
 
-	while ((len < max) && !(ppb_rstr(dev) & (nFAULT))) {
+	while ((len < max) && !(ppb_rstr(bus) & (nFAULT))) {
 
-		ppb_1284_set_state(dev, PPB_REVERSE_TRANSFER);
+		ppb_1284_set_state(bus, PPB_REVERSE_TRANSFER);
 
 #ifdef DEBUG_1284
 		printf("B");
@@ -543,11 +556,11 @@ spp_1284_read(struct ppb_device *dev, int mode, char *buffer, int max, int *read
 		switch (mode) {
 		case PPB_NIBBLE:
 			/* read a byte, error means no more data */
-			if (nibble_1284_inbyte(dev, buffer+len))
+			if (nibble_1284_inbyte(bus, buffer+len))
 				goto end_while;
 			break;
 		case PPB_BYTE:
-			if (byte_1284_inbyte(dev, buffer+len))
+			if (byte_1284_inbyte(bus, buffer+len))
 				goto end_while;
 			break;
 		default:
@@ -559,12 +572,12 @@ spp_1284_read(struct ppb_device *dev, int mode, char *buffer, int max, int *read
 end_while:
 
 	if (!error)
-		ppb_1284_set_state(dev, PPB_REVERSE_IDLE);
+		ppb_1284_set_state(bus, PPB_REVERSE_IDLE);
 
 	*read = len;
 
 	if (terminate_after_transfer || error)
-		ppb_1284_terminate(dev);
+		ppb_1284_terminate(bus);
 
 	return (error);
 }
@@ -574,7 +587,7 @@ end_while:
  *
  */
 int
-ppb_1284_read_id(struct ppb_device *dev, int mode, char *buffer,
+ppb_1284_read_id(device_t bus, int mode, char *buffer,
 		int max, int *read)
 {
 	int error = 0;
@@ -585,20 +598,20 @@ ppb_1284_read_id(struct ppb_device *dev, int mode, char *buffer,
 	switch (mode) {
 	case PPB_NIBBLE:
 	case PPB_ECP:
-		if ((error = ppb_1284_negociate(dev, PPB_NIBBLE, PPB_REQUEST_ID)))
+		if ((error = ppb_1284_negociate(bus, PPB_NIBBLE, PPB_REQUEST_ID)))
 			return (error);
-		error = spp_1284_read(dev, PPB_NIBBLE, buffer, max, read);
+		error = spp_1284_read(bus, PPB_NIBBLE, buffer, max, read);
 		break;
 	case PPB_BYTE:
-		if ((error = ppb_1284_negociate(dev, PPB_BYTE, PPB_REQUEST_ID)))
+		if ((error = ppb_1284_negociate(bus, PPB_BYTE, PPB_REQUEST_ID)))
 			return (error);
-		error = spp_1284_read(dev, PPB_BYTE, buffer, max, read);
+		error = spp_1284_read(bus, PPB_BYTE, buffer, max, read);
 		break;
 	default:
 		panic("%s: unsupported mode %d\n", __FUNCTION__, mode);
 	}
 
-	ppb_1284_terminate(dev);
+	ppb_1284_terminate(bus);
 	return (error);
 }
 
@@ -608,7 +621,7 @@ ppb_1284_read_id(struct ppb_device *dev, int mode, char *buffer,
  * IEEE1284 read
  */
 int
-ppb_1284_read(struct ppb_device *dev, int mode, char *buffer,
+ppb_1284_read(device_t bus, int mode, char *buffer,
 		int max, int *read)
 {
 	int error = 0;
@@ -616,7 +629,7 @@ ppb_1284_read(struct ppb_device *dev, int mode, char *buffer,
 	switch (mode) {
 	case PPB_NIBBLE:
 	case PPB_BYTE:
-		error = spp_1284_read(dev, mode, buffer, max, read);
+		error = spp_1284_read(bus, mode, buffer, max, read);
 		break;
 	default:
 		return (EINVAL);
@@ -635,7 +648,7 @@ ppb_1284_read(struct ppb_device *dev, int mode, char *buffer,
  * After negociation, nFAULT is low if data is available
  */
 int
-ppb_1284_negociate(struct ppb_device *dev, int mode, int options)
+ppb_1284_negociate(device_t bus, int mode, int options)
 {
 	int error;
 	int request_mode;
@@ -644,77 +657,77 @@ ppb_1284_negociate(struct ppb_device *dev, int mode, int options)
 	printf("n");
 #endif
 
-	if (ppb_1284_get_state(dev) >= PPB_PERIPHERAL_NEGOCIATION)
-		ppb_peripheral_terminate(dev, PPB_WAIT);
+	if (ppb_1284_get_state(bus) >= PPB_PERIPHERAL_NEGOCIATION)
+		ppb_peripheral_terminate(bus, PPB_WAIT);
 
-	if (ppb_1284_get_state(dev) != PPB_FORWARD_IDLE)
-		ppb_1284_terminate(dev);
+	if (ppb_1284_get_state(bus) != PPB_FORWARD_IDLE)
+		ppb_1284_terminate(bus);
 
 #ifdef DEBUG_1284
 	printf("%d", mode);
 #endif
 
 	/* ensure the host is in compatible mode */
-	ppb_set_mode(dev, PPB_COMPATIBLE);
+	ppb_set_mode(bus, PPB_COMPATIBLE);
 
 	/* reset error to catch the actual negociation error */
-	ppb_1284_reset_error(dev, PPB_FORWARD_IDLE);
+	ppb_1284_reset_error(bus, PPB_FORWARD_IDLE);
 
 	/* calculate ext. value */
 	request_mode = ppb_request_mode(mode, options);
 
 	/* default state */
-	ppb_wctr(dev, (nINIT | SELECTIN) & ~(STROBE | AUTOFEED));
+	ppb_wctr(bus, (nINIT | SELECTIN) & ~(STROBE | AUTOFEED));
 	DELAY(1);
 
 	/* enter negociation phase */
-	ppb_1284_set_state(dev, PPB_NEGOCIATION);
+	ppb_1284_set_state(bus, PPB_NEGOCIATION);
 
 	/* Event 0 - put the exten. value on the data lines */
-	ppb_wdtr(dev, request_mode);
+	ppb_wdtr(bus, request_mode);
 
 #ifdef PERIPH_1284
 	/* request remote host attention */
-        ppb_wctr(dev, (nINIT | STROBE) & ~(AUTOFEED | SELECTIN));
+        ppb_wctr(bus, (nINIT | STROBE) & ~(AUTOFEED | SELECTIN));
         DELAY(1);
-        ppb_wctr(dev, (nINIT) & ~(STROBE | AUTOFEED | SELECTIN));
+        ppb_wctr(bus, (nINIT) & ~(STROBE | AUTOFEED | SELECTIN));
 #else
 	DELAY(1);
 
 #endif /* !PERIPH_1284 */
 
 	/* Event 1 - enter IEEE1284 mode */
-	ppb_wctr(dev, (nINIT | AUTOFEED) & ~(STROBE | SELECTIN));
+	ppb_wctr(bus, (nINIT | AUTOFEED) & ~(STROBE | SELECTIN));
 
 #ifdef PERIPH_1284
 	/* ignore the PError line, wait a bit more, remote host's 
 	 * interrupts don't respond fast enough */
-	if (ppb_poll_device(dev, 40, nACK | SELECT | nFAULT,
+	if (ppb_poll_bus(bus, 40, nACK | SELECT | nFAULT,
 				SELECT | nFAULT, PPB_NOINTR | PPB_POLL)) {
-                ppb_1284_set_error(dev, PPB_NOT_IEEE1284, 2);
+                ppb_1284_set_error(bus, PPB_NOT_IEEE1284, 2);
                 error = ENODEV;
                 goto error;
         }
 #else
 	/* Event 2 - trying IEEE1284 dialog */
-	if (do_1284_wait(dev, nACK | PERROR | SELECT | nFAULT,
+	if (do_1284_wait(bus, nACK | PERROR | SELECT | nFAULT,
 			PERROR  | SELECT | nFAULT)) {
-		ppb_1284_set_error(dev, PPB_NOT_IEEE1284, 2);
+		ppb_1284_set_error(bus, PPB_NOT_IEEE1284, 2);
 		error = ENODEV;
 		goto error;
 	}
 #endif /* !PERIPH_1284 */
 
 	/* Event 3 - latch the ext. value to the peripheral */
-	ppb_wctr(dev, (nINIT | STROBE | AUTOFEED) & ~SELECTIN);
+	ppb_wctr(bus, (nINIT | STROBE | AUTOFEED) & ~SELECTIN);
 	DELAY(1);
 
 	/* Event 4 - IEEE1284 device recognized */
-	ppb_wctr(dev, nINIT & ~(SELECTIN | AUTOFEED | STROBE));
+	ppb_wctr(bus, nINIT & ~(SELECTIN | AUTOFEED | STROBE));
 
 	/* Event 6 - waiting for status lines */
-	if (do_1284_wait(dev, nACK, nACK)) {
-		ppb_1284_set_error(dev, PPB_TIMEOUT, 6);
+	if (do_1284_wait(bus, nACK, nACK)) {
+		ppb_1284_set_error(bus, PPB_TIMEOUT, 6);
 		error = EBUSY;
 		goto error;
 	}
@@ -724,19 +737,19 @@ ppb_1284_negociate(struct ppb_device *dev, int mode, int options)
 	if (options & PPB_EXTENSIBILITY_LINK) {
 
 		/* XXX not fully supported yet */
-		ppb_1284_terminate(dev);
+		ppb_1284_terminate(bus);
 		return (0);
 
 	}
 	if (request_mode == NIBBLE_1284_NORMAL) {
-		if (do_1284_wait(dev, nACK | SELECT, nACK)) {
-			ppb_1284_set_error(dev, PPB_MODE_UNSUPPORTED, 7);
+		if (do_1284_wait(bus, nACK | SELECT, nACK)) {
+			ppb_1284_set_error(bus, PPB_MODE_UNSUPPORTED, 7);
 			error = ENODEV;
 			goto error;
 		}
 	} else {
-		if (do_1284_wait(dev, nACK | SELECT, SELECT | nACK)) {
-			ppb_1284_set_error(dev, PPB_MODE_UNSUPPORTED, 7);
+		if (do_1284_wait(bus, nACK | SELECT, SELECT | nACK)) {
+			ppb_1284_set_error(bus, PPB_MODE_UNSUPPORTED, 7);
 			error = ENODEV;
 			goto error;
 		}
@@ -746,46 +759,46 @@ ppb_1284_negociate(struct ppb_device *dev, int mode, int options)
 	case PPB_NIBBLE:
 	case PPB_PS2:
 		/* enter reverse idle phase */
-		ppb_1284_set_state(dev, PPB_REVERSE_IDLE);
+		ppb_1284_set_state(bus, PPB_REVERSE_IDLE);
 		break;
 	case PPB_ECP:
 		/* negociation ok, now setup the communication */
-		ppb_1284_set_state(dev, PPB_SETUP);
-		ppb_wctr(dev, (nINIT | AUTOFEED) & ~(SELECTIN | STROBE));
+		ppb_1284_set_state(bus, PPB_SETUP);
+		ppb_wctr(bus, (nINIT | AUTOFEED) & ~(SELECTIN | STROBE));
 
 #ifdef PERIPH_1284
 		/* ignore PError line */
-		if (do_1284_wait(dev, nACK | SELECT | nBUSY,
+		if (do_1284_wait(bus, nACK | SELECT | nBUSY,
                                         nACK | SELECT | nBUSY)) {
-                        ppb_1284_set_error(dev, PPB_TIMEOUT, 30);
+                        ppb_1284_set_error(bus, PPB_TIMEOUT, 30);
                         error = ENODEV;
                         goto error;
                 }
 #else
-		if (do_1284_wait(dev, nACK | SELECT | PERROR | nBUSY,
+		if (do_1284_wait(bus, nACK | SELECT | PERROR | nBUSY,
 					nACK | SELECT | PERROR | nBUSY)) {
-			ppb_1284_set_error(dev, PPB_TIMEOUT, 30);
+			ppb_1284_set_error(bus, PPB_TIMEOUT, 30);
 			error = ENODEV;
 			goto error;
 		}
 #endif /* !PERIPH_1284 */
 
 		/* ok, the host enters the ForwardIdle state */
-		ppb_1284_set_state(dev, PPB_ECP_FORWARD_IDLE);
+		ppb_1284_set_state(bus, PPB_ECP_FORWARD_IDLE);
 		break;
 	case PPB_EPP:
-		ppb_1284_set_state(dev, PPB_EPP_IDLE);
+		ppb_1284_set_state(bus, PPB_EPP_IDLE);
 		break;
 
 	default:
 		panic("%s: unknown mode (%d)!", __FUNCTION__, mode);
 	}
-	ppb_set_mode(dev, mode);
+	ppb_set_mode(bus, mode);
 
 	return (0);
 
 error:
-	ppb_1284_terminate(dev);
+	ppb_1284_terminate(bus);
 
 	return (error);
 }
@@ -797,7 +810,7 @@ error:
  * is _always_ in compatible mode after ppb_1284_terminate()
  */
 int
-ppb_1284_terminate(struct ppb_device *dev)
+ppb_1284_terminate(device_t bus)
 {
 
 #ifdef DEBUG_1284
@@ -806,40 +819,40 @@ ppb_1284_terminate(struct ppb_device *dev)
 
 	/* do not reset error here to keep the error that
 	 * may occured before the ppb_1284_terminate() call */
-	ppb_1284_set_state(dev, PPB_TERMINATION);
+	ppb_1284_set_state(bus, PPB_TERMINATION);
 
 #ifdef PERIPH_1284
 	/* request remote host attention */
-        ppb_wctr(dev, (nINIT | STROBE | SELECTIN) & ~(AUTOFEED));
+        ppb_wctr(bus, (nINIT | STROBE | SELECTIN) & ~(AUTOFEED));
         DELAY(1);
 #endif /* PERIPH_1284 */
 
 	/* Event 22 - set nSelectin low and nAutoFeed high */
-	ppb_wctr(dev, (nINIT | SELECTIN) & ~(STROBE | AUTOFEED));
+	ppb_wctr(bus, (nINIT | SELECTIN) & ~(STROBE | AUTOFEED));
 
 	/* Event 24 - waiting for peripheral, Xflag ignored */
-	if (do_1284_wait(dev, nACK | nBUSY | nFAULT, nFAULT)) {
-		ppb_1284_set_error(dev, PPB_TIMEOUT, 24);
+	if (do_1284_wait(bus, nACK | nBUSY | nFAULT, nFAULT)) {
+		ppb_1284_set_error(bus, PPB_TIMEOUT, 24);
 		goto error;
 	}
 
 	/* Event 25 - set nAutoFd low */
-	ppb_wctr(dev, (nINIT | SELECTIN | AUTOFEED) & ~STROBE);
+	ppb_wctr(bus, (nINIT | SELECTIN | AUTOFEED) & ~STROBE);
 
 	/* Event 26 - compatible mode status is set */
 
 	/* Event 27 - peripheral set nAck high */
-	if (do_1284_wait(dev, nACK, nACK)) {
-		ppb_1284_set_error(dev, PPB_TIMEOUT, 27);
+	if (do_1284_wait(bus, nACK, nACK)) {
+		ppb_1284_set_error(bus, PPB_TIMEOUT, 27);
 	}
 
 	/* Event 28 - end termination, return to idle phase */
-	ppb_wctr(dev, (nINIT | SELECTIN) & ~(STROBE | AUTOFEED));
+	ppb_wctr(bus, (nINIT | SELECTIN) & ~(STROBE | AUTOFEED));
 
 error:
 	/* return to compatible mode */
-	ppb_set_mode(dev, PPB_COMPATIBLE);
-	ppb_1284_set_state(dev, PPB_FORWARD_IDLE);
+	ppb_set_mode(bus, PPB_COMPATIBLE);
+	ppb_1284_set_state(bus, PPB_FORWARD_IDLE);
 
 	return (0);
 }

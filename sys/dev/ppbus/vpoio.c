@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 Nicolas Souchu
+ * Copyright (c) 1998, 1999 Nicolas Souchu
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,6 +30,8 @@
 #ifdef _KERNEL
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/module.h>
+#include <sys/bus.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
 
@@ -43,9 +45,12 @@
 
 #include "opt_vpo.h"
 
+#include <dev/ppbus/ppbio.h>
 #include <dev/ppbus/ppbconf.h>
 #include <dev/ppbus/ppb_msq.h>
 #include <dev/ppbus/vpoio.h>
+
+#include "ppbus_if.h"
 
 /*
  * The driver pools the drive. We may add a timeout queue to avoid
@@ -271,10 +276,11 @@ static struct ppb_microseq in_disk_mode[] = {
 static int
 vpoio_disconnect(struct vpoio_data *vpo)
 {
+	device_t ppbus = device_get_parent(vpo->vpo_dev);
 	int ret;
 
-	ppb_MS_microseq(&vpo->vpo_dev, disconnect_microseq, &ret);
-	return (ppb_release_bus(&vpo->vpo_dev));
+	ppb_MS_microseq(ppbus, vpo->vpo_dev, disconnect_microseq, &ret);
+	return (ppb_release_bus(ppbus, vpo->vpo_dev));
 }
 
 /*
@@ -283,10 +289,11 @@ vpoio_disconnect(struct vpoio_data *vpo)
 static int
 vpoio_connect(struct vpoio_data *vpo, int how)
 {
+	device_t ppbus = device_get_parent(vpo->vpo_dev);
 	int error;
 	int ret;
 
-	if ((error = ppb_request_bus(&vpo->vpo_dev, how))) {
+	if ((error = ppb_request_bus(ppbus, vpo->vpo_dev, how))) {
 
 #ifdef VP0_DEBUG
 		printf("%s: can't request bus!\n", __FUNCTION__);
@@ -294,10 +301,10 @@ vpoio_connect(struct vpoio_data *vpo, int how)
 		return error;
 	}
 
-	if (PPB_IN_EPP_MODE(&vpo->vpo_dev))
-		ppb_MS_microseq(&vpo->vpo_dev, connect_epp_microseq, &ret);
+	if (PPB_IN_EPP_MODE(ppbus))
+		ppb_MS_microseq(ppbus, vpo->vpo_dev, connect_epp_microseq, &ret);
 	else
-		ppb_MS_microseq(&vpo->vpo_dev, connect_spp_microseq, &ret);
+		ppb_MS_microseq(ppbus, vpo->vpo_dev, connect_spp_microseq, &ret);
 
 	return (0);
 }
@@ -310,6 +317,7 @@ vpoio_connect(struct vpoio_data *vpo, int how)
 static void
 vpoio_reset (struct vpoio_data *vpo)
 {
+	device_t ppbus = device_get_parent(vpo->vpo_dev);
 	int ret;
 
 	struct ppb_microseq reset_microseq[] = {
@@ -324,7 +332,7 @@ vpoio_reset (struct vpoio_data *vpo)
 	};
 
 	ppb_MS_init_msq(reset_microseq, 1, INITIATOR, 1 << VP0_INITIATOR);
-	ppb_MS_microseq(&vpo->vpo_dev, reset_microseq, &ret);
+	ppb_MS_microseq(ppbus, vpo->vpo_dev, reset_microseq, &ret);
 
 	return;
 }
@@ -335,9 +343,10 @@ vpoio_reset (struct vpoio_data *vpo)
 static int
 vpoio_in_disk_mode(struct vpoio_data *vpo)
 {
+	device_t ppbus = device_get_parent(vpo->vpo_dev);
 	int ret;
 
-	ppb_MS_microseq(&vpo->vpo_dev, in_disk_mode, &ret);
+	ppb_MS_microseq(ppbus, vpo->vpo_dev, in_disk_mode, &ret);
 
 	return (ret);
 }
@@ -350,37 +359,38 @@ vpoio_in_disk_mode(struct vpoio_data *vpo)
 static int
 vpoio_detect(struct vpoio_data *vpo)
 {
+	device_t ppbus = device_get_parent(vpo->vpo_dev);
 	int error, ret;
 
 	/* allocate the bus, then apply microsequences */
-	if ((error = ppb_request_bus(&vpo->vpo_dev, PPB_DONTWAIT)))
+	if ((error = ppb_request_bus(ppbus, vpo->vpo_dev, PPB_DONTWAIT)))
                 return (error);
 
-	ppb_MS_microseq(&vpo->vpo_dev, disconnect_microseq, &ret);
+	ppb_MS_microseq(ppbus, vpo->vpo_dev, disconnect_microseq, &ret);
 
-	if (PPB_IN_EPP_MODE(&vpo->vpo_dev))
-		ppb_MS_microseq(&vpo->vpo_dev, connect_epp_microseq, &ret);
+	if (PPB_IN_EPP_MODE(ppbus))
+		ppb_MS_microseq(ppbus, vpo->vpo_dev, connect_epp_microseq, &ret);
 	else
-		ppb_MS_microseq(&vpo->vpo_dev, connect_spp_microseq, &ret);
+		ppb_MS_microseq(ppbus, vpo->vpo_dev, connect_spp_microseq, &ret);
 
-	ppb_MS_microseq(&vpo->vpo_dev, in_disk_mode, &ret);
+	ppb_MS_microseq(ppbus, vpo->vpo_dev, in_disk_mode, &ret);
 	if (!ret) {
 
 		/* try spp mode (maybe twice or because previous mode was PS2)
 		 * NIBBLE mode will be restored on next transfers if detection
 		 * succeed
 		 */
-		ppb_set_mode(&vpo->vpo_dev, PPB_NIBBLE);
-		ppb_MS_microseq(&vpo->vpo_dev, connect_spp_microseq, &ret);
+		ppb_set_mode(ppbus, PPB_NIBBLE);
+		ppb_MS_microseq(ppbus, vpo->vpo_dev, connect_spp_microseq, &ret);
 
-		ppb_MS_microseq(&vpo->vpo_dev, in_disk_mode, &ret);
+		ppb_MS_microseq(ppbus, vpo->vpo_dev, in_disk_mode, &ret);
 		if (!ret) {
 			if (bootverbose)
 				printf("vpo%d: can't connect to the drive\n",
 					vpo->vpo_unit);
 
 			/* disconnect and release the bus */
-			ppb_MS_microseq(&vpo->vpo_dev, disconnect_microseq,
+			ppb_MS_microseq(ppbus, vpo->vpo_dev, disconnect_microseq,
 					&ret);
 			goto error;
 		}
@@ -389,12 +399,12 @@ vpoio_detect(struct vpoio_data *vpo)
 	/* send SCSI reset signal */
 	vpoio_reset(vpo);
 
-	ppb_MS_microseq(&vpo->vpo_dev, disconnect_microseq, &ret);
+	ppb_MS_microseq(ppbus, vpo->vpo_dev, disconnect_microseq, &ret);
 
 	/* ensure we are disconnected or daisy chained peripheral 
 	 * may cause serious problem to the disk */
 
-	ppb_MS_microseq(&vpo->vpo_dev, in_disk_mode, &ret);
+	ppb_MS_microseq(ppbus, vpo->vpo_dev, in_disk_mode, &ret);
 	if (ret) {
 		if (bootverbose)
 			printf("vpo%d: can't disconnect from the drive\n",
@@ -402,11 +412,11 @@ vpoio_detect(struct vpoio_data *vpo)
 		goto error;
 	}
 
-	ppb_release_bus(&vpo->vpo_dev);
+	ppb_release_bus(ppbus, vpo->vpo_dev);
 	return (0);
 
 error:
-	ppb_release_bus(&vpo->vpo_dev);
+	ppb_release_bus(ppbus, vpo->vpo_dev);
 	return (VP0_EINITFAILED);
 }
 
@@ -416,37 +426,35 @@ error:
 static int
 vpoio_outstr(struct vpoio_data *vpo, char *buffer, int size)
 {
-
+	device_t ppbus = device_get_parent(vpo->vpo_dev);
 	int error = 0;
 
-	ppb_MS_exec(&vpo->vpo_dev, MS_OP_PUT, (union ppb_insarg)buffer,
+	ppb_MS_exec(ppbus, vpo->vpo_dev, MS_OP_PUT, (union ppb_insarg)buffer,
 		(union ppb_insarg)size, (union ppb_insarg)MS_UNKNOWN, &error);
 
 #if 0
 		/* XXX EPP 1.9 not implemented with microsequences */
 		else {
 
-			ppb_reset_epp_timeout(&vpo->vpo_dev);
-			ppb_wctr(&vpo->vpo_dev,
-				H_AUTO | H_SELIN | H_INIT | H_STROBE);
+			ppb_reset_epp_timeout(ppbus);
+			ppb_wctr(ppbus, H_AUTO | H_SELIN | H_INIT | H_STROBE);
 
 			if (((long) buffer | size) & 0x03)
-				ppb_outsb_epp(&vpo->vpo_dev,
+				ppb_outsb_epp(ppbus,
 						buffer, size);
 			else
-				ppb_outsl_epp(&vpo->vpo_dev,
+				ppb_outsl_epp(ppbus,
 						buffer, size/4);
 
-			if ((ppb_rstr(&vpo->vpo_dev) & TIMEOUT)) {
+			if ((ppb_rstr(ppbus) & TIMEOUT)) {
 				error = VP0_EPPDATA_TIMEOUT;
 				goto error;
 			}
 
-			ppb_wctr(&vpo->vpo_dev,
-				H_AUTO | H_nSELIN | H_INIT | H_STROBE);
+			ppb_wctr(ppbus, H_AUTO | H_nSELIN | H_INIT | H_STROBE);
 		}
 #endif
-	ppb_ecp_sync(&vpo->vpo_dev);
+	ppb_ecp_sync(ppbus);
 
 	return (error);
 }
@@ -457,36 +465,37 @@ vpoio_outstr(struct vpoio_data *vpo, char *buffer, int size)
 static int
 vpoio_instr(struct vpoio_data *vpo, char *buffer, int size)
 {
+	device_t ppbus = device_get_parent(vpo->vpo_dev);
 	int error = 0;
 
-	ppb_MS_exec(&vpo->vpo_dev, MS_OP_GET, (union ppb_insarg)buffer,
+	ppb_MS_exec(ppbus, vpo->vpo_dev, MS_OP_GET, (union ppb_insarg)buffer,
 		(union ppb_insarg)size, (union ppb_insarg)MS_UNKNOWN, &error);
 
 #if 0
 		/* XXX EPP 1.9 not implemented with microsequences */
 		else {
 
-			ppb_reset_epp_timeout(&vpo->vpo_dev);
-			ppb_wctr(&vpo->vpo_dev, PCD |
+			ppb_reset_epp_timeout(ppbus);
+			ppb_wctr(ppbus, PCD |
 				H_AUTO | H_SELIN | H_INIT | H_STROBE);
 
 			if (((long) buffer | size) & 0x03)
-				ppb_insb_epp(&vpo->vpo_dev,
+				ppb_insb_epp(ppbus,
 						buffer, size);
 			else
-				ppb_insl_epp(&vpo->vpo_dev,
+				ppb_insl_epp(ppbus,
 						buffer, size/4);
 
-			if ((ppb_rstr(&vpo->vpo_dev) & TIMEOUT)) {
+			if ((ppb_rstr(ppbus) & TIMEOUT)) {
 				error = VP0_EPPDATA_TIMEOUT;
 				goto error;
 			}
 
-			ppb_wctr(&vpo->vpo_dev, PCD |
+			ppb_wctr(ppbus, PCD |
 				H_AUTO | H_nSELIN | H_INIT | H_STROBE);
 		}
 #endif
-	ppb_ecp_sync(&vpo->vpo_dev);
+	ppb_ecp_sync(ppbus);
 
 	return (error);
 }
@@ -494,6 +503,7 @@ vpoio_instr(struct vpoio_data *vpo, char *buffer, int size)
 static char
 vpoio_select(struct vpoio_data *vpo, int initiator, int target)
 {
+	device_t ppbus = device_get_parent(vpo->vpo_dev);
 	int ret;
 
 	struct ppb_microseq select_microseq[] = {
@@ -523,7 +533,7 @@ vpoio_select(struct vpoio_data *vpo, int initiator, int target)
 			SELECT_TARGET, 1 << target,
 			SELECT_INITIATOR, 1 << initiator);
 				
-	ppb_MS_microseq(&vpo->vpo_dev, select_microseq, &ret);
+	ppb_MS_microseq(ppbus, vpo->vpo_dev, select_microseq, &ret);
 
 	if (ret)
 		return (VP0_ESELECT_TIMEOUT);
@@ -541,20 +551,20 @@ vpoio_select(struct vpoio_data *vpo, int initiator, int target)
 static char
 vpoio_wait(struct vpoio_data *vpo, int tmo)
 {
-
+	device_t ppbus = device_get_parent(vpo->vpo_dev);
 	register int	k;
 	register char	r;
 
 #if 0	/* broken */
-	if (ppb_poll_device(&vpo->vpo_dev, 150, nBUSY, nBUSY, PPB_INTR))
+	if (ppb_poll_device(ppbus, 150, nBUSY, nBUSY, PPB_INTR))
 		return (0);
 
-	return (ppb_rstr(&vpo->vpo_dev) & 0xf0);
+	return (ppb_rstr(ppbus) & 0xf0);
 #endif
 
 	/* XXX should be ported to microseq */
 	k = 0;
-	while (!((r = ppb_rstr(&vpo->vpo_dev)) & nBUSY) && (k++ < tmo))
+	while (!((r = ppb_rstr(ppbus)) & nBUSY) && (k++ < tmo))
 		;
 
 	/*
@@ -576,14 +586,13 @@ vpoio_wait(struct vpoio_data *vpo, int tmo)
  * Low level probe of vpo device
  *
  */
-struct ppb_device *
-vpoio_probe(struct ppb_data *ppb, struct vpoio_data *vpo)
+int
+vpoio_probe(device_t dev, struct vpoio_data *vpo)
 {
+	int error;
 
 	/* ppbus dependent initialisation */
-	vpo->vpo_dev.id_unit = vpo->vpo_unit;
-	vpo->vpo_dev.name = "vpo";
-	vpo->vpo_dev.ppb = ppb;
+	vpo->vpo_dev = dev;
 
 	/*
 	 * Initialize microsequence code
@@ -591,11 +600,11 @@ vpoio_probe(struct ppb_data *ppb, struct vpoio_data *vpo)
 	INIT_TRIG_MICROSEQ;
 
 	/* now, try to initialise the drive */
-	if (vpoio_detect(vpo)) {
-		return (NULL);
+	if ((error = vpoio_detect(vpo))) {
+		return (error);
 	}
 
-	return (&vpo->vpo_dev);
+	return (0);
 }
 
 /*
@@ -607,19 +616,14 @@ vpoio_probe(struct ppb_data *ppb, struct vpoio_data *vpo)
 int
 vpoio_attach(struct vpoio_data *vpo)
 {
+	device_t ppbus = device_get_parent(vpo->vpo_dev);
 	int epp;
-
-	/*
-	 * Report ourselves
-	 */
-	printf("vpo%d: <Iomega VPI0 Parallel to SCSI interface> on ppbus %d\n",
-		vpo->vpo_dev.id_unit, vpo->vpo_dev.ppb->ppb_link->adapter_unit);
 
 	vpo->vpo_nibble_inbyte_msq = (struct ppb_microseq *)malloc(
 		sizeof(nibble_inbyte_submicroseq), M_DEVBUF, M_NOWAIT);
 
 	if (!vpo->vpo_nibble_inbyte_msq)
-		return (0);
+		return (ENXIO);
 
 	bcopy((void *)nibble_inbyte_submicroseq,
 		(void *)vpo->vpo_nibble_inbyte_msq,
@@ -630,36 +634,36 @@ vpoio_attach(struct vpoio_data *vpo)
 	/*
 	 * Initialize mode dependent in/out microsequences
 	 */
-	ppb_request_bus(&vpo->vpo_dev, PPB_WAIT);
+	ppb_request_bus(ppbus, vpo->vpo_dev, PPB_WAIT);
 
 	/* enter NIBBLE mode to configure submsq */
-	if (ppb_set_mode(&vpo->vpo_dev, PPB_NIBBLE) != -1) {
+	if (ppb_set_mode(ppbus, PPB_NIBBLE) != -1) {
 
-		ppb_MS_GET_init(&vpo->vpo_dev, vpo->vpo_nibble_inbyte_msq);
+		ppb_MS_GET_init(ppbus, vpo->vpo_dev, vpo->vpo_nibble_inbyte_msq);
 
-		ppb_MS_PUT_init(&vpo->vpo_dev, spp_outbyte_submicroseq);
+		ppb_MS_PUT_init(ppbus, vpo->vpo_dev, spp_outbyte_submicroseq);
 	}
 
 	/* enter PS2 mode to configure submsq */
-	if (ppb_set_mode(&vpo->vpo_dev, PPB_PS2) != -1) {
+	if (ppb_set_mode(ppbus, PPB_PS2) != -1) {
 
-		ppb_MS_GET_init(&vpo->vpo_dev, ps2_inbyte_submicroseq);
+		ppb_MS_GET_init(ppbus, vpo->vpo_dev, ps2_inbyte_submicroseq);
 
-		ppb_MS_PUT_init(&vpo->vpo_dev, spp_outbyte_submicroseq);
+		ppb_MS_PUT_init(ppbus, vpo->vpo_dev, spp_outbyte_submicroseq);
 	}
 
-	epp = ppb_get_epp_protocol(&vpo->vpo_dev);
+	epp = ppb_get_epp_protocol(ppbus);
 
 	/* enter EPP mode to configure submsq */
-	if (ppb_set_mode(&vpo->vpo_dev, PPB_EPP) != -1) {
+	if (ppb_set_mode(ppbus, PPB_EPP) != -1) {
 
 		switch (epp) {
 		case EPP_1_9:
 			/* XXX EPP 1.9 support should be improved */
 		case EPP_1_7:
-			ppb_MS_GET_init(&vpo->vpo_dev, epp17_instr_body);
+			ppb_MS_GET_init(ppbus, vpo->vpo_dev, epp17_instr_body);
 
-			ppb_MS_PUT_init(&vpo->vpo_dev, epp17_outstr_body);
+			ppb_MS_PUT_init(ppbus, vpo->vpo_dev, epp17_outstr_body);
 			break;
 		default:
 			panic("%s: unknown EPP protocol (0x%x)", __FUNCTION__,
@@ -668,7 +672,7 @@ vpoio_attach(struct vpoio_data *vpo)
 	}
 
 	/* try to enter EPP or PS/2 mode, NIBBLE otherwise */
-	if (ppb_set_mode(&vpo->vpo_dev, PPB_EPP) != -1) {
+	if (ppb_set_mode(ppbus, PPB_EPP) != -1) {
 		switch (epp) {
 		case EPP_1_9:
 			printf("vpo%d: EPP 1.9 mode\n", vpo->vpo_unit);
@@ -680,25 +684,25 @@ vpoio_attach(struct vpoio_data *vpo)
 			panic("%s: unknown EPP protocol (0x%x)", __FUNCTION__,
 				epp);
 		}
-	} else if (ppb_set_mode(&vpo->vpo_dev, PPB_PS2) != -1)
+	} else if (ppb_set_mode(ppbus, PPB_PS2) != -1)
 		printf("vpo%d: PS2 mode\n", vpo->vpo_unit);
 
-	else if (ppb_set_mode(&vpo->vpo_dev, PPB_NIBBLE) != -1)
+	else if (ppb_set_mode(ppbus, PPB_NIBBLE) != -1)
 		printf("vpo%d: NIBBLE mode\n", vpo->vpo_unit);
 
 	else {
 		printf("vpo%d: can't enter NIBBLE, PS2 or EPP mode\n",
 			vpo->vpo_unit);
 
-		ppb_release_bus(&vpo->vpo_dev);
+		ppb_release_bus(ppbus, vpo->vpo_dev);
 
 		free(vpo->vpo_nibble_inbyte_msq, M_DEVBUF);
-		return (0);
+		return (ENXIO);
 	}
 
-	ppb_release_bus(&vpo->vpo_dev);
+	ppb_release_bus(ppbus, vpo->vpo_dev);
 
-	return (1);
+	return (0);
 }
 
 /*
@@ -739,7 +743,7 @@ vpoio_do_scsi(struct vpoio_data *vpo, int host, int target, char *command,
 		int clen, char *buffer, int blen, int *result, int *count,
 		int *ret)
 {
-
+	device_t ppbus = device_get_parent(vpo->vpo_dev);
 	register char r;
 	char l, h = 0;
 	int len, error = 0;
@@ -768,7 +772,7 @@ vpoio_do_scsi(struct vpoio_data *vpo, int host, int target, char *command,
 	 *
 	 * set H_SELIN low for vpoio_wait().
 	 */
-	ppb_wctr(&vpo->vpo_dev, H_AUTO | H_nSELIN | H_INIT | H_STROBE);
+	ppb_wctr(ppbus, H_AUTO | H_nSELIN | H_INIT | H_STROBE);
 
 	for (k = 0; k < clen; k++) {
 		if (vpoio_wait(vpo, VP0_FAST_SPINTMO) != (char)0xe0) {
@@ -804,7 +808,7 @@ vpoio_do_scsi(struct vpoio_data *vpo, int host, int target, char *command,
 		/* if in EPP mode or writing bytes, try to transfer a sector
 		 * otherwise, just send one byte
 		 */
-		if (PPB_IN_EPP_MODE(&vpo->vpo_dev) || r == (char)0xc0)
+		if (PPB_IN_EPP_MODE(ppbus) || r == (char)0xc0)
 			len = (((blen - *count) >= VP0_SECTOR_SIZE)) ?
 				VP0_SECTOR_SIZE : 1;
 		else

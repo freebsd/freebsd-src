@@ -158,12 +158,13 @@
  * Function abstraction level
  */
 
-#define ppb_MS_GET_init(dev,body) ppb_MS_init(dev, body, MS_OP_GET)
+#define ppb_MS_GET_init(bus,dev,body) ppb_MS_init(bus, dev, body, MS_OP_GET)
 
-#define ppb_MS_PUT_init(dev,body) ppb_MS_init(dev, body, MS_OP_PUT)
+#define ppb_MS_PUT_init(bus,dev,body) ppb_MS_init(bus, dev, body, MS_OP_PUT)
 
 extern int ppb_MS_init(
-		struct ppb_device *,		/* ppbus device */
+		device_t,			/* ppbus bus */
+		device_t,			/* ppbus device */
 		struct ppb_microseq *,		/* loop msq to assign */
 		int opcode			/* MS_OP_GET, MS_OP_PUT */
 		);
@@ -175,7 +176,8 @@ extern int ppb_MS_init_msq(
 		);
 
 extern int ppb_MS_exec(
-		struct ppb_device *,		/* ppbus device */
+		device_t,			/* ppbus bus */
+		device_t,			/* ppbus device */
 		int,				/* microseq opcode */
 		union ppb_insarg,		/* param1 */
 		union ppb_insarg,		/* param2 */
@@ -184,7 +186,8 @@ extern int ppb_MS_exec(
 		);
 
 extern int ppb_MS_loop(
-		struct ppb_device *,		/* ppbus device */
+		device_t,			/* ppbus bus */
+		device_t,			/* ppbus device */
 		struct ppb_microseq *,		/* prologue msq of loop */
 		struct ppb_microseq *,		/* body msq of loop */
 		struct ppb_microseq *,		/* epilogue msq of loop */
@@ -193,7 +196,8 @@ extern int ppb_MS_loop(
 		);
 
 extern int ppb_MS_microseq(
-		struct ppb_device *,		/* ppbus device */
+		device_t,			/* ppbus bus */
+		device_t,			/* ppbus device */
 		struct ppb_microseq *,		/* msq to execute */
 		int *				/* returned value */
 		);
