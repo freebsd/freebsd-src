@@ -328,6 +328,12 @@ over Ethernet to
 using the
 .Ar iface
 network interface.
+.Pp
+On systems that do not support
+.Xr netgraph 4 ,
+an external program such as
+.Xr pppoe 8
+may be used.
 .It "Supports IETF draft Predictor-1 (rfc 1978) and DEFLATE (rfc 1979) compression."
 .Nm
 supports not only VJ-compression but also Predictor-1 and DEFLATE compression.
@@ -4300,7 +4306,9 @@ be of the format
 .No PPPoE: Ns Ar iface Ns Xo
 .Op \&: Ns Ar provider Ns
 .Xc
-or be of the format
+(on
+.Xr netgraph 4
+enabled systems), or be of the format
 .Sm off
 .Ar host : port Op /tcp|udp .
 .Sm on
@@ -4328,7 +4336,7 @@ If
 .Xr netgraph 4
 is not available,
 .Nm
-will attempt to loaded it using
+will attempt to load it using
 .Xr kldload 2 .
 If this fails, an external program must be used such as the
 .Xr pppoe 8
