@@ -69,7 +69,7 @@ static struct
 int
 md_getboothowto(char *kargs)
 {
-    char	buf[32];
+    char	buf[32], buf2[32];
     phandle_t	options;
     char	*cp;
     int		howto;
@@ -131,9 +131,21 @@ md_getboothowto(char *kargs)
 	if (getenv(howto_names[i].ev) != NULL)
 	    howto |= howto_names[i].mask;
     options = OF_finddevice("/options");
-    OF_getprop(options, "output-device", buf, sizeof(buf));
-    if (strcmp(buf, "ttya") == 0 || strcmp(buf, "ttyb") == 0)
+    OF_getprop(options, "input-device", buf, sizeof(buf));
+    OF_getprop(options, "output-device", buf2, sizeof(buf2));
+    if (strncmp(buf, "tty", sizeof("tty") - 1) == 0 && strncmp(buf2, "tty",
+      sizeof("tty") - 1) == 0)
+	howto |= RB_SERIAL;
+    else if (strcmp(buf, "keyboard") == 0 && strcmp(buf2, "screen") == 0) {
+	phandle_t	chosen;
+	ihandle_t	stdin, stdout;
+
+	chosen = OF_finddevice("/chosen");
+	OF_getprop(chosen, "stdin", &stdin, sizeof(stdin));
+	OF_getprop(chosen, "stdout", &stdout, sizeof(stdout));
+	if (OF_instance_to_package(stdin) == OF_instance_to_package(stdout))
 	    howto |= RB_SERIAL;
+    }
     return(howto);
 }
 
