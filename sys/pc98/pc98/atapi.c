@@ -104,9 +104,6 @@
 #include "wdc.h"
 
 #include "wcd.h"
-#include "wfd.h"
-#include "wst.h"
-/* #include "wmd.h" -- add your driver here */
 
 #if NWDC > 0
 
@@ -251,14 +248,6 @@ int atapi_attach (int ctlr, int unit, int port)
 		break;
 
 	case AT_TYPE_DIRECT:            /* direct-access */
-#if NWFD > 0
-		/* ATAPI Floppy(LS-120) */
-		if (wfdattach (ata, unit, ap, ata->debug) >= 0) {
-			/* Device attached successfully. */
-			ata->attached[unit] = 1;
-			return (1);
-		}
-#endif
 #if NWCD > 0
 		/* FALLTHROUGH */
 #else
@@ -278,16 +267,7 @@ int atapi_attach (int ctlr, int unit, int port)
 #endif
 
 	case AT_TYPE_TAPE:              /* streaming tape */
-#if NWST > 0
-		/* ATAPI Streaming Tape */
-		if (wstattach (ata, unit, ap, ata->debug) < 0)
-			break;
-		/* Device attached successfully. */
-		ata->attached[unit] = 1;
-		return (1);
-#else
 		printf ("wdc%d: ATAPI streaming tapes not configured\n", ctlr);
-#endif
 		break;
 
 	case AT_TYPE_OPTICAL:           /* optical disk */

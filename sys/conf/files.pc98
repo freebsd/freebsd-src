@@ -385,7 +385,5 @@ pc98/pc98/syscons.c		optional	sc
 pc98/pc98/syscons_pc98.c	optional	sc
 pc98/pc98/wd.c			count		wdc
 pc98/pc98/wd_cd.c		count		wcd wdc
-pc98/pc98/wfd.c			count		wfd wdc
-pc98/pc98/wst.c			count		wst wdc
 pccard/mecia.c			optional	mecia card
 pci/cy_pci.c			optional	cy pci
