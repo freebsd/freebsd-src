@@ -246,9 +246,9 @@ enum {
 };
 
 struct ng_pppoe_mode_t {
-        u_int8_t        		id;
+	u_int8_t        		id;
 	const struct ether_header	*eh_prototype;
-        const char      		*name;
+	const char      		*name;
 };
 
 static const struct ether_header eh_standard =
@@ -283,10 +283,10 @@ struct PPPOE {
 typedef struct PPPOE *priv_p;
 
 /* Deprecated sysctl, leaved here to keep compatibility for some time */
-#define PPPOE_KEEPSTANDARD	-1
-#define PPPOE_STANDARD		0
-#define PPPOE_NONSTANDARD	1
-static int pppoe_mode = PPPOE_KEEPSTANDARD;
+#define PPPOE_SYSCTL_KEEPSTANDARD	-1
+#define PPPOE_SYSCTL_STANDARD		0
+#define PPPOE_SYSCTL_NONSTANDARD	1
+static int pppoe_mode = PPPOE_SYSCTL_KEEPSTANDARD;
 static const struct ng_pppoe_mode_t *sysctl_mode = ng_pppoe_modes;
 
 static int
@@ -300,11 +300,11 @@ ngpppoe_set_ethertype(SYSCTL_HANDLER_ARGS)
 	if (error != 0 || req->newptr == NULL)
 		return (error);
 	switch (val) {
-	case PPPOE_NONSTANDARD:
+	case PPPOE_SYSCTL_NONSTANDARD:
 		sysctl_mode = ng_pppoe_modes + 1;
 		break;
-	case PPPOE_STANDARD:
-	case PPPOE_KEEPSTANDARD:
+	case PPPOE_SYSCTL_STANDARD:
+	case PPPOE_SYSCTL_KEEPSTANDARD:
 		sysctl_mode = ng_pppoe_modes;
 		break;
 	default:
