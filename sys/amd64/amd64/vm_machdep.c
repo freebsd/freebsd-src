@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.98 1998/02/04 22:32:13 eivind Exp $
+ *	$Id: vm_machdep.c,v 1.99 1998/02/06 12:13:11 eivind Exp $
  */
 
 #include "npx.h"
@@ -579,9 +579,11 @@ cpu_fork(p1, p2)
 {
 	struct pcb *pcb2 = &p2->p_addr->u_pcb;
 
+#if NNPX > 0
 	/* Ensure that p1's pcb is up to date. */
 	if (npxproc == p1)
 		npxsave(&p1->p_addr->u_pcb.pcb_savefpu);
+#endif
 
 	/* Copy p1's pcb. */
 	p2->p_addr->u_pcb = p1->p_addr->u_pcb;
