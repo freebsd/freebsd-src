@@ -6,7 +6,7 @@ FILES=	DAEMON LOGIN NETWORKING SERVERS \
 	apm apmd archdep atm1 atm2 atm3 \
 	bgfsck bootparams \
 	ccd cleanvar cleartmp cron \
-	devd devfs dhclient diskless \
+	devd devfs dhclient \
 	dmesg dumpon \
 	early.sh \
 	fsck \
@@ -27,14 +27,14 @@ FILES=	DAEMON LOGIN NETWORKING SERVERS \
 	othermta \
 	pccard pcvt power_profile ppp-user pppoed pwcheck \
 	quota \
-	random rarpd rcconf.sh root \
+	random rarpd rcconf.sh resolv root \
 	route6d routed routing rpcbind rtadvd rwho \
 	savecore securelevel sendmail \
 	serial sppp sshd swap1 \
 	syscons sysctl syslogd \
-	timed \
+	timed tmp \
 	usbd \
-	vinum virecover \
+	var vinum virecover \
 	watchdogd \
 	ypbind yppasswdd ypserv \
 	ypset ypupdated ypxfrd
