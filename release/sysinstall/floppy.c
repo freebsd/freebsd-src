@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.7.2.8 1995/10/22 17:39:07 jkh Exp $
+ * $Id: floppy.c,v 1.8 1995/12/07 10:33:46 peter Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -165,7 +165,7 @@ mediaInitFloppy(Device *dev)
 }
 
 int
-mediaGetFloppy(Device *dev, char *file, Boolean tentative)
+mediaGetFloppy(Device *dev, char *file, Boolean probe)
 {
     char		buf[PATH_MAX];
     int			fd;
@@ -173,9 +173,9 @@ mediaGetFloppy(Device *dev, char *file, Boolean tentative)
 
     snprintf(buf, PATH_MAX, "/dist/%s", file);
 
-    msgDebug("Request for %s from floppy on /dist, tentative is %d.\n", buf, tentative);
+    msgDebug("Request for %s from floppy on /dist, probe is %d.\n", buf, probe);
     if (!file_readable(buf)) {
-	if (tentative)
+	if (probe)
 	    return -1;
 	else {
 	    while (!file_readable(buf)) {
