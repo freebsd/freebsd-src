@@ -329,7 +329,7 @@ ngt_rcvdata(hook_p hook, item_p item)
 	}
 
 	/* Duplicate packet and meta info if requried */
-	if (dup != NULL) {
+	if (dup && dup->hook) {
 		struct mbuf *m2;
 		meta_p meta2;
 
