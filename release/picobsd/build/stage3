@@ -1,14 +1,14 @@
 #! /bin/sh -
 
 #
-#	$Id: stage3,v 1.2 1998/08/31 13:35:06 abial Exp $
+#	$Id: stage3,v 1.3 1998/09/26 17:27:18 abial Exp $
 #
 set -e
 
 . ../Version
 
-if [ ! -f kernel.kz ]; then
-	echo "-> ERROR: you must build kernel.kz first"
+if [ ! -f kernel.gz ]; then
+	echo "-> ERROR: you must build kernel.gz first"
 	exit 1
 fi
 
@@ -86,15 +86,23 @@ then
 fi
 
 cd ${pwd}
-cp kernel.kz /mnt/kernel
+cp kernel.gz /mnt/kernel.gz
 if [ "X$?" != "X0" ]
 then
-	echo "-> ERROR while transferring kernel.kz to /mnt..."
+	echo "-> ERROR while transferring kernel.gz to /mnt..."
 	echo "-> Aborting $0"
 	exit 10
 fi
+mkdir /mnt/boot
+cp /boot/loader .
+kzip -v loader
+mv loader.kz /mnt/boot/loader
+rm -f loader loader.o
+echo "/boot/loader" >/mnt/boot.config
+echo "load /kernel">/mnt/boot/loader.rc
+echo "load -t userconfig_script /kernel.config">>/mnt/boot/loader.rc
 (echo "-> Fixing permissions"; cd /mnt; chown -R root *)
-rm kernel.kz
+rm kernel.gz
 
 df -ik /mnt
 
