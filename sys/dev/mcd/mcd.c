@@ -39,7 +39,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.19 1994/08/27 13:15:25 ache Exp $
+ *	$Id: mcd.c,v 1.20 1994/08/27 15:28:34 ache Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -61,8 +61,6 @@ static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/mcdreg.h>
-
-#define MIN_DELAY 10
 
 /* user definable options */
 /*#define MCD_TO_WARNING_ON*/	/* define to get timeout messages */
@@ -204,9 +202,7 @@ struct	isa_driver	mcddriver = { mcd_probe, mcd_attach, "mcd" };
 #define RDELAY_WAITMODE	300
 #define RDELAY_WAITREAD	800
 
-#define DELAY_STATUS	10000l		/* 10000 * 1us */
 #define DELAY_GETREPLY	200000l		/* 200000 * 2us */
-#define DELAY_SEEKREAD	20000l		/* 20000 * 1us */
 
 int mcd_attach(struct isa_device *dev)
 {
@@ -639,10 +635,12 @@ mcd_waitrdy(int port,int dly)
 	int i;
 
 	/* wait until xfer port senses data ready */
-	for (i=0; i<dly; i+=MIN_DELAY) {
-		if ((inb(port+mcd_xfer) & MCD_ST_BUSY)==0)
+	for (i=0; i<dly; i++) {
+		if ((inb(port+mcd_xfer) & MCD_ST_BUSY)==0) {
+			DELAY(10);
 			return 0;
-		DELAY(MIN_DELAY);
+		}
+		DELAY(1);
 	}
 	return -1;
 }
