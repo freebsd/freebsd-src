@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tc.os.c,v 3.53 2002/03/08 17:36:47 christos Exp $ */
+/* $Header: /src/pub/tcsh/tc.os.c,v 3.55 2004/02/21 20:34:25 christos Exp $ */
 /*
  * tc.os.c: OS Dependent builtin functions
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tc.os.c,v 3.53 2002/03/08 17:36:47 christos Exp $")
+RCSID("$Id: tc.os.c,v 3.55 2004/02/21 20:34:25 christos Exp $")
 
 #include "tw.h"
 #include "ed.h"
@@ -697,6 +697,214 @@ douniverse(v, c)
 }
 #endif /* masscomp || _CX_UX */
 
+/***
+ *** BS2000/OSD POSIX (Fujitsu Siemens Computers)
+ ***/
+#if defined(_OSD_POSIX)
+static int
+bs2upcase(char *str)
+{
+    enum { outside = ' ', singlequote='\'', doublequote='"'} string = outside;
+
+    char *white;
+
+    for (white = str + strlen(str) - 1; isspace(*white) && white > str; --white)
+        *white = '\0';
+
+    for (; *str != '\0'; ++str)
+    {
+        if (string == outside)
+        {
+            *str = toupper (*str);
+        }
+        if (*str == '\'')
+        {
+            if (string == outside)
+                string = singlequote;
+            else if (string != doublequote)
+                string = outside;
+        }
+        else if (*str == '"')
+        {
+            if (string == outside)
+                string = doublequote;
+            else if (string != singlequote)
+                string = outside;
+        }
+    }
+    if (string != outside)
+    {
+        stderror(ERR_NAME | ERR_UNMATCHED, (Char) string);
+        return 1;
+    }
+    return 0;
+}
+static int
+bs2cmdlist(char *str)
+{
+    char *str_beg = NULL;
+    int ret = 0;
+
+    enum { outside = ' ', singlequote='\'', doublequote='"'} string = outside;
+
+    while (*str != '\0')
+    {
+        while (isspace(*str))
+            ++str;
+
+        if (*str == '\0')
+            break;
+
+        str_beg = str;
+        
+        for (; *str != '\0'; ++str)
+        {
+            if (string == outside && *str == ';') /* End of command */
+            {
+                *str++ = '\0';
+                break;    /* continue with next command */
+            }
+            if (*str == '\'')
+            {
+                if (string == outside)
+                    string = singlequote;
+                else if (string != doublequote)
+                    string = outside;
+            }
+            else if (*str == '"')
+            {
+                if (string == outside)
+                    string = doublequote;
+                else if (string != singlequote)
+                    string = outside;
+            }
+        }
+        if (strlen(str_beg) != 0)
+        {
+            ret = bs2system(str_beg);
+	    flush();
+            if (ret != 0 /*&& !option.err_ignore*/)
+                break; /* do not continue after errors */
+        }
+    }
+
+    if (string != outside)
+    {
+        stderror(ERR_NAME | ERR_UNMATCHED, (Char) string);
+        return -1;
+    }
+
+    return ret;
+}
+/*ARGSUSED*/
+void
+dobs2cmd(v, c)
+    register Char **v;
+    struct command *c;
+{
+    register Char *cp;
+    register int  i = 0, len = 0;
+    char *cmd = NULL;
+    int     pvec[2];
+    struct command faket;
+    Char   *fakecom[2];
+    char    tibuf[BUFSIZE];
+    int     icnt;
+    static const Char STRbs2cmd[] = { 'b','s','2','c','m','d','\0' };
+
+    if (setintr)
+#ifdef BSDSIGS
+	(void) sigsetmask(sigblock((sigmask_t) 0) & ~sigmask(SIGINT));
+#else /* !BSDSIGS */
+	(void) sigrelse (SIGINT);
+#endif /* BSDSIGS */
+    v++;
+    gflag = 0, tglob(v);
+    if (gflag) {
+	v = globall(v);
+	if (v == 0)
+	    stderror(ERR_NAME | ERR_NOMATCH);
+    }
+    else {
+	v = gargv = saveblk(v);
+	trim(v);
+    }
+
+    /* First round: count the string lengths */
+    for (i=0; v[i]; ++i) {
+	len += s_strlen(v[i]) + (v[i+1] != NULL);
+    }
+
+    cmd = xmalloc(len+1); /* 1 for the final '\0' */
+
+    /* 2nd round: fill cmd buffer */
+    i = 0;
+    while ((cp = *v++) != 0) {
+	register int c;
+	while (c = *cp++)
+	    cmd[i++] = (char)c;
+        if (*v)
+	    cmd[i++] = ' ';
+    }
+    cmd[i] = '\0';
+
+    /* Make upper case */
+    bs2upcase(cmd);
+
+    faket.t_dtyp = NODE_COMMAND;
+    faket.t_dflg = F_BACKQ|F_STDERR;
+    faket.t_dlef = 0;
+    faket.t_drit = 0;
+    faket.t_dspr = 0;
+    faket.t_dcom = fakecom;
+    fakecom[0] = STRbs2cmd;
+    fakecom[1] = 0;
+
+    mypipe(pvec);
+    if (pfork(&faket, -1) == 0) {
+        /* child */
+        (void) close(pvec[0]);
+        (void) dmove(pvec[1], 1);
+        (void) dmove(SHDIAG,  2);
+        initdesc();
+/*        closem();*/
+#ifdef SIGTSTP
+        (void) sigignore(SIGTSTP);
+#endif
+#ifdef SIGTTIN
+        (void) sigignore(SIGTTIN);
+#endif
+#ifdef SIGTTOU
+        (void) sigignore(SIGTTOU);
+#endif
+        xexit(bs2cmdlist(cmd));
+    }
+    (void) close(pvec[1]);
+    for(;;) {
+        do
+            icnt = read(pvec[0], tibuf, BUFSIZE);
+        while (icnt == -1 && errno == EINTR);
+        if (icnt <= 0)
+            break;
+        for (i = 0; i < icnt; i++)
+            xputchar((unsigned char) tibuf[i]);
+    }
+    (void) close(pvec[0]);
+    pwait();
+
+    flush();
+
+    if (setintr)
+#ifdef BSDSIGS
+	(void) sigblock(sigmask(SIGINT));
+#else /* !BSDSIGS */
+	(void) sighold(SIGINT);
+#endif /* BSDSIGS */
+    if (gargv)
+	blkfree(gargv), gargv = 0;
+}
+#endif /* _OSD_POSIX */
+
 #if defined(_CX_UX)
 /*ARGSUSED*/
 void
@@ -935,7 +1143,7 @@ fix_strcoll_bug()
     static char *root = "/";
 
     if (!didfds)
-	fd = open(root, O_RDONLY);
+	fd = open(root, O_RDONLY|O_LARGEFILE);
 
     (void) strcoll(root, root);
 

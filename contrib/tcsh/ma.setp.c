@@ -82,7 +82,7 @@
  **********************************************************************
  */
 #include "sh.h"
-RCSID("$Id: ma.setp.c,v 1.12 1996/04/26 19:18:36 christos Exp $")
+RCSID("$Id: ma.setp.c,v 1.13 2003/05/26 07:11:06 christos Exp $")
 
 #ifdef MACH
 
@@ -442,8 +442,8 @@ char *inpath, *path;
 	if (n >= 0)
 	    insert(pe, n, path);
 	else
-	    xprintf(CGETS(10, 4, "setpath: %s not found in %s\n",
-		    inpath, pe->pname));
+	    xprintf(CGETS(10, 4, "setpath: %s not found in %s\n"),
+		    inpath, pe->pname);
     }
 }
 

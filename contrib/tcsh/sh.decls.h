@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.decls.h,v 3.38 2002/05/16 13:51:25 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.decls.h,v 3.39 2004/03/21 16:48:14 christos Exp $ */
 /*
  * sh.decls.h	 External declarations from sh*.c
  */
@@ -179,6 +179,7 @@ extern	void		  trim		__P((Char **));
 extern	int		  sortscmp	__P((Char **, Char **));
 #endif
 extern	void		  nlsinit	__P((void));
+extern  int	  	  t_pmatch	__P((Char *, Char *, Char **, int));
 
 /*
  * sh.hist.c

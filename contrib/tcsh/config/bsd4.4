@@ -125,6 +125,13 @@
 #define BSD_STYLE_COLORLS
 #endif
 
+#if defined(__NetBSD__)
+#include <sys/param.h>
+#if __NetBSD_Version__  >= 106030000       /* NetBSD 1.6C */
+#define HAVEUTMPX
+#endif
+#endif
+
 #if defined(__bsdi__)
 /*
  * _PATH_TCSHELL      if you've change the installation location (vix)

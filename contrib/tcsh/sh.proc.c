@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.proc.c,v 3.76 2002/03/08 17:36:46 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.proc.c,v 3.81 2003/11/09 03:02:46 christos Exp $ */
 /*
  * sh.proc.c: Job manipulations
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.proc.c,v 3.76 2002/03/08 17:36:46 christos Exp $")
+RCSID("$Id: sh.proc.c,v 3.81 2003/11/09 03:02:46 christos Exp $")
 
 #include "ed.h"
 #include "tc.h"
@@ -603,7 +603,7 @@ pjwait(pp)
 	if ((jobflags & PRUNNING) == 0)
 	    break;
 #ifdef JOBDEBUG
-	xprintf("%d starting to sigpause for  SIGCHLD on %d\n",
+	xprintf("%d starting to sigpause for SIGCHLD on %d\n",
 		getpid(), fp->p_procid);
 #endif /* JOBDEBUG */
 #ifdef BSDSIGS
@@ -1566,8 +1566,9 @@ dokill(v, c)
  	    }
  	}
  	if (Isdigit(*sigptr)) {
- 	    signum = atoi(short2str(sigptr));
-	    if (signum < 0 || signum > (MAXSIG-1))
+	    char *ep;
+ 	    signum = strtoul(short2str(sigptr), &ep, 0);
+	    if (*ep || signum < 0 || signum > (MAXSIG-1))
 		stderror(ERR_NAME | ERR_BADSIG);
 	}
 	else {
@@ -1677,12 +1678,15 @@ pkill(v, signum)
 	else if (!(Isdigit(*cp) || *cp == '-'))
 	    stderror(ERR_NAME | ERR_JOBARGS);
 	else {
+	    char *ep;
 #ifndef WINNT_NATIVE
-	    pid = atoi(short2str(cp));
+	    pid = strtol(short2str(cp), &ep, 10);
 #else
-		pid = strtoul(short2str(cp),NULL,0);
+	    pid = strtoul(short2str(cp), &ep, 0);
 #endif /* WINNT_NATIVE */
-	    if (kill(pid, signum) < 0) {
+	    if (*ep)
+		stderror(ERR_NAME | ERR_JOBARGS);
+	    else if (kill(pid, signum) < 0) {
 		xprintf("%d: %s\n", pid, strerror(errno));
 		err1++;
 		goto cont;
