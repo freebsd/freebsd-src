@@ -1239,7 +1239,7 @@ dovend_rfc1048(bp, hp, bootsize)
 	int bytesleft, len;
 	byte *vp;
 
-	static char noroom[] = "%s: No room for \"%s\" option";
+	static const char noroom[] = "%s: No room for \"%s\" option";
 
 	vp = bp->bp_vend;
 
