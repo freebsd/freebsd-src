@@ -2207,8 +2207,8 @@ cpu	EV5	#dependent on CPU model installed</programlisting>
       <para>Features:</para>
         <itemizedlist>
 	  <listitem>
-	    <para>21164 EV5 CPUs at 266, 300 MHz or 21164A EV56 
-	    CPUs at 400, 466, 533, 600 and 666 Mhz</para>
+	    <para>21164 EV5 CPUs at 266, 300, 333 MHz or 21164A EV56 
+	    CPUs at 400, 466, 533, 600 Mhz</para>
 	  </listitem>
 	  <listitem>
             <para>cache: 4 Mbytes per CPU. EV5 300 MHz was also 
