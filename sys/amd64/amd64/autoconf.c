@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.64 1997/02/22 09:32:08 peter Exp $
+ *	$Id: autoconf.c,v 1.65 1997/04/26 11:45:02 peter Exp $
  */
 
 /*
@@ -61,11 +61,10 @@
 #include <machine/bootinfo.h>
 #include <machine/cons.h>
 #include <machine/md_var.h>
-#include <i386/isa/icu.h> /* For interrupts */
-
 #if defined(APIC_IO)
 #include <machine/smp.h>
 #endif /* APIC_IO */
+#include <i386/isa/icu.h> /* For interrupts */
 
 #include "isa.h"
 #if NISA > 0
@@ -166,16 +165,11 @@ configure(dummy)
 	/* Allow all routines to decide for themselves if they want intrs */
 #if defined(APIC_IO)
 	configure_local_apic();
-        enable_intr();
-#else
-        enable_intr();
-        INTREN(IRQ_SLAVE);
 #endif /* APIC_IO */
-
-#if NCRD > 0
-	/* Before isa_configure to avoid ISA drivers finding our cards */
-	pccard_configure();
-#endif
+	enable_intr();
+#if !defined(APIC_IO)
+	INTREN(IRQ_SLAVE);
+#endif /* !APIC_IO */
 
 #if NEISA > 0
 	eisa_configure();
