@@ -92,6 +92,10 @@
         ..
     ..
     netgraph
+        bluetooth
+            include
+            ..
+        ..
     ..
     netinet
     ..
