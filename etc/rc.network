@@ -101,10 +101,20 @@ network_pass1() {
 		esac
 		case "${ipfilter_enable}" in
 		[Yy][Ee][Ss])
-			if [ -r "${ipfilter_rules}" ]; then
+			if [ -r "${ipfilter_rules}" -o \
+			     -r "${ipv6_ipfilter_rules}" ]; then
 				echo -n ' ipfilter'
-				${ipfilter_program:-/sbin/ipf} -Fa -f \
-				    "${ipfilter_rules}" ${ipfilter_flags}
+				${ipfilter_program:-/sbin/ipf} -Fa
+				if [ -r "${ipfilter_rules}" ]; then
+					${ipfilter_program:-/sbin/ipf} \
+					    -f "${ipfilter_rules}" \
+					    ${ipfilter_flags}
+				fi
+				if [ -r "${ipv6_ipfilter_rules}" ]; then
+					${ipfilter_program:-/sbin/ipf} -6 \
+					    -f "${ipv6_ipfilter_rules}" \
+					    ${ipfilter_flags}
+				fi
 			else
 				ipfilter_enable="NO"
 				echo -n ' NO IPF RULES'
