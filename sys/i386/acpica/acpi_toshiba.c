@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 
 #define METHOD_HCI		"GHCI"
 #define METHOD_HCI_ENABLE	"ENAB"
+#define METHOD_VIDEO		"DSSX"
 
 /* Operations */
 #define HCI_SET				0xFF00
@@ -120,6 +121,7 @@ __FBSDID("$FreeBSD$");
 struct acpi_toshiba_softc {
 	device_t	dev;
 	ACPI_HANDLE	handle;
+	ACPI_HANDLE	video_handle;
 	struct		sysctl_ctx_list sysctl_ctx;
 	struct		sysctl_oid *sysctl_tree;
 };
@@ -137,9 +139,12 @@ static hci_fn_t	hci_lcd_brightness;
 static hci_fn_t	hci_lcd_backlight;
 static hci_fn_t	hci_cpu_speed;
 static int	hci_call(ACPI_HANDLE h, int op, int function, UINT32 *arg);
-static void	hci_key_action(ACPI_HANDLE h, UINT32 key);
+static void	hci_key_action(struct acpi_toshiba_softc *sc, ACPI_HANDLE h,
+		    UINT32 key);
 static void	acpi_toshiba_notify(ACPI_HANDLE h, UINT32 notify,
-				    void *context);
+		    void *context);
+static int	acpi_toshiba_video_probe(device_t dev);
+static int	acpi_toshiba_video_attach(device_t dev);
 
 /* Table of sysctl names and HCI functions to call. */
 static struct {
@@ -171,8 +176,26 @@ static driver_t acpi_toshiba_driver = {
 
 static devclass_t acpi_toshiba_devclass;
 DRIVER_MODULE(acpi_toshiba, acpi, acpi_toshiba_driver, acpi_toshiba_devclass,
-	      0, 0);
+    0, 0);
 MODULE_DEPEND(acpi_toshiba, acpi, 1, 1, 1);
+
+static device_method_t acpi_toshiba_video_methods[] = {
+	DEVMETHOD(device_probe,		acpi_toshiba_video_probe),
+	DEVMETHOD(device_attach,	acpi_toshiba_video_attach),
+
+	{0, 0}
+};
+
+static driver_t acpi_toshiba_video_driver = {
+	"acpi_toshiba_video",
+	acpi_toshiba_video_methods,
+	0,
+};
+
+static devclass_t acpi_toshiba_video_devclass;
+DRIVER_MODULE(acpi_toshiba_video, acpi, acpi_toshiba_video_driver,
+    acpi_toshiba_video_devclass, 0, 0);
+MODULE_DEPEND(acpi_toshiba_video, acpi, 1, 1, 1);
 
 static int	enable_fn_keys = 1;
 TUNABLE_INT("hw.acpi.toshiba.enable_fn_keys", &enable_fn_keys);
@@ -306,15 +329,25 @@ static int
 hci_video_output(ACPI_HANDLE h, int op, UINT32 *video_output)
 {
 	int		ret;
+	ACPI_STATUS	status;
 
 	if (op == HCI_SET) {
 		if (*video_output < 1 || *video_output > 7)
 			return (EINVAL);
+		if (h == NULL)
+			return (ENXIO);
 		*video_output |= HCI_VIDEO_OUTPUT_FLAG;
+		status = acpi_SetInteger(h, "DSSX", *video_output);
+		if (ACPI_SUCCESS(status))
+			ret = 0;
+		else
+			ret = ENXIO;
+	} else {
+		ret = hci_call(h, op, HCI_REG_VIDEO_OUTPUT, video_output);
+		if (ret == 0)
+			*video_output &= 0xff;
 	}
-	ret = hci_call(h, op, HCI_REG_VIDEO_OUTPUT, video_output);
-	if (ret == 0 && op == HCI_GET)
-		*video_output &= 0xff;
+
 	return (ret);
 }
 
@@ -419,7 +452,7 @@ end:
  * functionality by reading the keystrokes we send to devd(8).
  */
 static void
-hci_key_action(ACPI_HANDLE h, UINT32 key)
+hci_key_action(struct acpi_toshiba_softc *sc, ACPI_HANDLE h, UINT32 key)
 {
 	UINT32		arg;
 
@@ -444,7 +477,7 @@ hci_key_action(ACPI_HANDLE h, UINT32 key)
 		/* Cycle through video outputs. */
 		hci_video_output(h, HCI_GET, &arg);
 		arg = (arg + 1) % 7;
-		hci_video_output(h, HCI_SET, &arg);
+		hci_video_output(sc->video_handle, HCI_SET, &arg);
 		break;
 	case FN_F8_RELEASE:
 		/* Toggle LCD backlight. */
@@ -471,10 +504,45 @@ acpi_toshiba_notify(ACPI_HANDLE h, UINT32 notify, void *context)
 
 	if (notify == 0x80) {
 		while (hci_call(h, HCI_GET, HCI_REG_SYSTEM_EVENT, &key) == 0) {
-			hci_key_action(h, key);
+			hci_key_action(sc, h, key);
 			acpi_UserNotify("TOSHIBA", h, (uint8_t)key);
 		}
-	} else {
+	} else
 		device_printf(sc->dev, "unknown notify: 0x%x\n", notify);
+}
+
+/*
+ * Toshiba video pseudo-device to provide the DSSX method.
+ *
+ * HID      Model
+ * -------------------------------------
+ * TOS6201  Libretto L Series
+ */
+static int
+acpi_toshiba_video_probe(device_t dev)
+{
+	int ret = ENXIO;
+
+	if (!acpi_disabled("toshiba") &&
+	    acpi_get_type(dev) == ACPI_TYPE_DEVICE &&
+	    device_get_unit(dev) == 0 &&
+	     acpi_MatchHid(dev, "TOS6201")) {
+		device_quiet(dev);
+		device_set_desc(dev, "Toshiba Video");
+		ret = 0;
 	}
+
+	return (ret);
+}
+
+static int
+acpi_toshiba_video_attach(device_t dev)
+{
+	struct		acpi_toshiba_softc *sc;
+
+	sc = devclass_get_softc(acpi_toshiba_devclass, 0);
+	if (sc == NULL)
+		return (ENXIO);
+	sc->video_handle = acpi_get_handle(dev);
+	return (0);
 }
