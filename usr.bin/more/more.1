@@ -168,20 +168,36 @@ If N is more than the screen size, only the final screenful is displayed.
 .It Ic b No or Ic \&^B
 Scroll backward N lines, default one window (see option -z below).
 If N is more than the screen size, only the final screenful is displayed.
-.It Ic j No or Ic RETURN
+.It Xo
+.Ic j
+.No or
+.Ic RETURN
+.No or
+.Ic DOWN-ARROW
+.Xc
 Scroll forward N lines, default 1.
 The entire N lines are displayed, even if N is more than the screen size.
-.It Ic k
+.It Ic k No or Ic UP-ARROW
 Scroll backward N lines, default 1.
 The entire N lines are displayed, even if N is more than the screen size.
+.It Ic LEFT-ARROW
+Scroll leftwards N columns, default 1, or turn on line-wrapping if the
+screen is cannot be scrolled leftwards.
+.It Ic RIGHT-ARROW
+Turn off line-wrapping or scroll rightwards N columns, default 1,
+if line wrapping is already off.
+.It Ic HOME
+Toggle horizontal scrolling and associated line-wrapping on and off.
 .It Ic d No or Ic \&^D
 Scroll forward N lines, default one half of the screen size.
 If N is specified, it becomes the new default for
 subsequent d and u commands.
+The entire N lines are displayed, even if N is more than the screen size.
 .It Ic u No or Ic \&^U
 Scroll backward N lines, default one half of the screen size.
 If N is specified, it becomes the new default for
 subsequent d and u commands.
+The entire N lines are displayed, even if N is more than the screen size.
 .It Ic g
 Go to line N in the file, default 1 (beginning of file).
 .It Ic G
@@ -301,6 +317,17 @@ characteristics necessary to manipulate the screen.
 Reading files with long lines is slow.
 .Pp
 CRLF-terminated 80 character lines are proceeded by an extraneous blank line.
+.Pp
+Sometimes line numbers for no particular reason when a search is performed.
+.Pp
+Immediate transitions from bold text to underlined text cause the
+underlining to be not existing.
+.Pp
+Sometimes searches match lines that do not contain the pattern being
+searched for.
+.Pp
+The HOME and ARROW keys will only work if you use the correct vt100
+escape sequences for them.
 .Sh AUTHORS
 This software is derived from software contributed to Berkeley
 by
