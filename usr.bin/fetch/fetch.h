@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: fetch.h,v 1.2 1997/01/31 19:55:49 wollman Exp $
+ *	$Id: fetch.h,v 1.3 1997/02/05 19:59:10 wollman Exp $
  */
 
 #ifndef fetch_h
@@ -49,6 +49,7 @@ struct fetch_state {
 	int fs_linkfile;	/* -l option */
 	int fs_precious;	/* -R option */
 	int fs_auto_retry;	/* -a option */
+	int fs_linux_bug;	/* -b option */
 	time_t fs_modtime;
 	void *fs_proto;
 	int (*fs_retrieve)(struct fetch_state *);
