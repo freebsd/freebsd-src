@@ -222,7 +222,6 @@ ufs_extattr_enable(struct ufsmount *ump, char *attrname,
 	    sizeof(struct ufs_extattr_fileheader));
 	
 	attribute->uele_backing_vnode = backing_vnode;
-	backing_vnode->v_flag |= VSYSTEM;
 
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
@@ -249,6 +248,20 @@ ufs_extattr_enable(struct ufsmount *ump, char *attrname,
 		goto free_exit;
 	}
 
+	if (attribute->uele_fileheader.uef_magic != UFS_EXTATTR_MAGIC) {
+		printf("ufs_extattr_enable: invalid attribute header magic\n");
+		error = EINVAL;
+		goto free_exit;
+	}
+
+	if (attribute->uele_fileheader.uef_version != UFS_EXTATTR_VERSION) {
+		printf("ufs_extattr_enable: incorrect attribute header "
+		    "version\n");
+		error = EINVAL;
+		goto free_exit;
+	}
+
+	backing_vnode->v_flag |= VSYSTEM;
 	LIST_INSERT_HEAD(&ump->um_extattr.uepm_list, attribute, uele_entries);
 
 	return (0);
