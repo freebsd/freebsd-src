@@ -1,4 +1,4 @@
-<!-- $Id$ -->
+<!-- $Id: install.sgml,v 1.51 1997/02/22 12:58:39 peter Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -45,29 +45,22 @@
 	  name="installation boot disk image"> file to your hard
 	  drive, and be sure to tell your browser to
 	  <em>save</em> rather than <em>display</em>.
-	  <bf>Note:</bf> This disk image can be used for
-	  <em>both</em> 1.44 megabyte 3.5 inch floppy disks and
-	  1.2 megabyte 5.25 inch floppy disks.</item>
+	  <bf>Note:</bf> This disk image can only be used with
+	  1.44 megabyte 3.5 inch floppy disks.</item>
 
       <item>Make the installation boot disk from the image file:
 	<itemize>
 	  <item>If you are using MS-DOS download 
 	    <url 
-url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/tools/rawrite.exe"
-	      name="rawrite.exe">, then run it:
+url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/tools/fdimage.exe"
+	      name="fdimage.exe">, then run it like so:
 <tscreen><verb>
-C:\> rawrite
+E:\> tools\fdimage floppies\boot.flp a:
 </verb></tscreen> The
-	    program will prompt you for the floppy drive
-	    containing the disk you want to write to (A: or
-	    B:) and the name of the file to put on disk (boot.flp).
-
-            <p><bf>Note:</bf>  It has been widely reported that Windows95
-	    will only successfully support rawrite.exe in DOS mode
-	    and that Windows NT prevents it from working at all.  You
-	    will have to make your floppy images on a different machine
-	    if you are running Windows NT and boot first into DOS mode if
-	    you are running Windows95.</p></item>
+	    program will format the A: drive and then copy the
+            boot.flp image onto it (assuming that you're at the top
+            level of a FreeBSD distribution and the floppy images
+            live in the floppies subdirectory).
 
 	  <item>If you are using a UNIX system:
 <tscreen>
