@@ -35,7 +35,7 @@ mountd_precmd()
 		fi
 
 		if ! checkyesno portmap_enable  && \
-		   [ -z "`check_process ${portmap_program}`" ]
+		    ! /etc/rc.d/rpcbind forcestatus 1>/dev/null 2>&1
                 then
 			force_depend rpcbind || return 1
 		fi
