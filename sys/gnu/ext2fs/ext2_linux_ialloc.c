@@ -37,6 +37,7 @@
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
 #include <ufs/ufs/ufsmount.h>
+#include <gnu/ext2fs/ext2_extern.h>
 #include <gnu/ext2fs/ext2_fs.h>
 #include <gnu/ext2fs/ext2_fs_sb.h>
 #include <gnu/ext2fs/fs.h>
@@ -448,7 +449,7 @@ repeat:
 	return j;
 }
 
-unsigned long ext2_count_free_inodes (struct mount * mp)
+static unsigned long ext2_count_free_inodes (struct mount * mp)
 {
 #ifdef EXT2FS_DEBUG
         struct ext2_sb_info *sb = VFSTOUFS(mp)->um_e2fs;
@@ -517,4 +518,3 @@ void ext2_check_inodes_bitmap (struct mount * mp)
 	unlock_super (sb);
 }
 #endif
-

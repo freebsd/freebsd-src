@@ -24,10 +24,12 @@
 /*
  * routines to convert on disk ext2 inodes in dinodes and back
  */
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/time.h>
+#include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/proc.h>
+#include <sys/stat.h>
+#include <sys/vnode.h>
+
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
 
