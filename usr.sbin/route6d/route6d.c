@@ -3009,11 +3009,11 @@ filterconfig()
 			iflp = ap;
 			goto ifonly;
 		}
-		if ((p = index(ap, ',')) != NULL) {
+		if ((p = strchr(ap, ',')) != NULL) {
 			*p++ = '\0';
 			iflp = p;
 		}
-		if ((p = index(ap, '/')) == NULL) {
+		if ((p = strchr(ap, '/')) == NULL) {
 			fatal("no prefixlen specified for '%s'", ap);
 			/*NOTREACHED*/
 		}
@@ -3034,7 +3034,7 @@ ifonly:
 		/* parse the interface listing portion */
 		while (iflp) {
 			ifname = iflp;
-			if ((iflp = index(iflp, ',')) != NULL)
+			if ((iflp = strchr(iflp, ',')) != NULL)
 				*iflp++ = '\0';
 			ifcp = ifc_find(ifname);
 			if (ifcp == NULL) {
