@@ -325,6 +325,10 @@ uart_bus_attach(device_t dev)
 	if (sc->sc_rres == NULL)
 		return (ENXIO);
 
+	sc->sc_bas.iobase = rman_get_start(sc->sc_rres);
+	sc->sc_bas.bsh = rman_get_bushandle(sc->sc_rres);
+	sc->sc_bas.bst = rman_get_bustag(sc->sc_rres);
+
 	sc->sc_irid = 0;
 	sc->sc_ires = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->sc_irid,
 	    0, ~0, 1, RF_ACTIVE);
