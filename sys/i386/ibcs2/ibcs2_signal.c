@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: ibcs2_signal.c,v 1.4 1995/10/19 19:20:17 swallace Exp $
+ * $Id: ibcs2_signal.c,v 1.5 1995/10/21 05:01:57 swallace Exp $
  */
 
 #include <sys/param.h>
@@ -190,7 +190,7 @@ bsd_to_ibcs2_sigaction(bsa, isa)
 	bsd_to_ibcs2_sigset(&bsa->sa_mask, &isa->sa_mask);
 	isa->sa_flags = 0;
 	if ((bsa->sa_flags & SA_NOCLDSTOP) != 0)
-		isa->sa_flags |= SA_NOCLDSTOP;
+		isa->sa_flags |= IBCS2_SA_NOCLDSTOP;
 }
 
 int
