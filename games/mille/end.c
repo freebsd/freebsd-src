@@ -46,8 +46,8 @@ static const char rcsid[] =
  */
 
 #ifndef EXTRAP
-void extrapolate __P((PLAY *));
-void undoex __P((void));
+void extrapolate(PLAY *);
+void undoex(void);
 #endif
 
 /*

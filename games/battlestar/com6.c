@@ -43,7 +43,7 @@ static const char rcsid[] =
 #include "externs.h"
 #include "pathnames.h"
 
-static void post __P((unsigned int ch));
+static void post(unsigned int ch);
 
 int
 launch()

@@ -61,7 +61,7 @@ main(argc, argv)
 	char *argv[];
 {
 	char	**filename;	/* for pointing to file names */
-	register int	fd;		/* file descriptor */
+	int	fd;		/* file descriptor */
 	FILE	*fp;			/* for opening files */
 	struct stat	fbuf;		/* for getting files statistics */
 	int ch;

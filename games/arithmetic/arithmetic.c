@@ -94,13 +94,13 @@ int nright, nwrong;
 time_t qtime;
 #define	NQUESTS	20
 
-static void usage __P((void));
-int getrandom __P((int, int, int));
-void intr __P((int));
-int opnum __P((int));
-void penalise __P((int, int, int));
-int problem __P((void));
-void showstats __P((void));
+static void usage(void);
+int getrandom(int, int, int);
+void intr(int);
+int opnum(int);
+void penalise(int, int, int);
+int problem(void);
+void showstats(void);
 
 /*
  * Select keys from +-x/ to be asked addition, subtraction, multiplication,

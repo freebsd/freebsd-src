@@ -41,9 +41,9 @@ static const char rcsid[] =
 
 #include "externs.h"
 
-static int 	 hash  __P((const char *));
-static void 	 install __P((struct wlist *));
-struct wlist 	*lookup __P((const char *));
+static int 	 hash (const char *);
+static void 	 install(struct wlist *);
+struct wlist 	*lookup(const char *);
 
 void
 wordinit()

@@ -232,37 +232,37 @@ extern WINDOW	*Board, *Miles, *Score;
  * functions
  */
 
-void	account __P((CARD));
-void	calcmove __P((void));
-bool	canplay __P((PLAY *, PLAY *, CARD));
-bool	check_ext __P((bool));
-void	check_more __P((void));
-void	die __P((int));
-void	domove __P((void));
-bool	error __P((char *, ...));
+void	account(CARD);
+void	calcmove(void);
+bool	canplay(PLAY *, PLAY *, CARD);
+bool	check_ext(bool);
+void	check_more(void);
+void	die(int);
+void	domove(void);
+bool	error(char *, ...);
 #ifdef EXTRAP
-void	extrapolate __P((PLAY *));
+void	extrapolate(PLAY *);
 #endif
-void	finalscore __P((PLAY *));
-CARD	getcard __P((void));
-bool	getyn __P((int));
-void	init __P((void));
-int	isrepair __P((CARD));
-void	newboard __P((void));
-void	newscore __P((void));
-bool	onecard __P((PLAY *));
-void	prboard __P((void));
-void	prompt __P((int));
-void	prscore __P((bool));
-char	readch __P((void));
-bool	rest_f __P((char *));
-int	roll __P((int, int));
-void	rub __P((int));
-CARD	safety __P((CARD));
-bool	save __P((void));
-void	shuffle __P((void));
-void	sort __P((CARD *));
-void	varpush __P((int, int (*)()));
+void	finalscore(PLAY *);
+CARD	getcard(void);
+bool	getyn(int);
+void	init(void);
+int	isrepair(CARD);
+void	newboard(void);
+void	newscore(void);
+bool	onecard(PLAY *);
+void	prboard(void);
+void	prompt(int);
+void	prscore(bool);
+char	readch(void);
+bool	rest_f(char *);
+int	roll(int, int);
+void	rub(int);
+CARD	safety(CARD);
+bool	save(void);
+void	shuffle(void);
+void	sort(CARD *);
+void	varpush(int, int (*)());
 #ifdef EXTRAP
-void	undoex __P((void));
+void	undoex(void);
 #endif

@@ -44,9 +44,9 @@ static const char rcsid[] =
 #include <string.h>
 #include "externs.h"
 
-static int	 checkout __P((const char *));
-static void	 getutmp __P((char *));
-static int	 wizard __P((const char *));
+static int	 checkout(const char *);
+static void	 getutmp(char *);
+static int	 wizard(const char *);
 
 void
 initialize(startup)
