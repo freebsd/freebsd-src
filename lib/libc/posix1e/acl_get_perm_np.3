@@ -30,7 +30,7 @@
 .Os
 .Sh NAME
 .Nm acl_get_perm_np
-.Nd check if a permission is set in a permission set
+.Nd "check if a permission is set in a permission set"
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -48,16 +48,16 @@ If the permission in
 is set in the permission set
 .Fa permset_d ,
 a value of
-.Va 1
+1
 is returned, otherwise a value of
-.Va 0
+0
 is returned.
 .Sh ERRORS
 If any of the following conditions occur, the
 .Fn acl_get_perm_np
 function will return a value of
-.Va -1
-and set
+\-1
+and set global variable
 .Va errno
 to the corresponding value:
 .Bl -tag -width Er
