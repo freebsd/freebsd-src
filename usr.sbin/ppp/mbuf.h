@@ -98,6 +98,7 @@ extern struct mbuf *m_prepend(struct mbuf *, const void *, size_t, size_t);
 extern struct mbuf *m_adj(struct mbuf *, ssize_t);
 extern struct mbuf *m_pullup(struct mbuf *);
 extern void m_settype(struct mbuf *, int);
+extern struct mbuf *m_append(struct mbuf *, const void *, size_t);
 
 extern int mbuf_Show(struct cmdargs const *);
 
