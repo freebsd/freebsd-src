@@ -30,8 +30,40 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.25 1994/09/25 19:33:22 phk Exp $
+ *
+ * Portions:
+ * Copyright (c) 1993 Charles Hannum.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *      This product includes software developed by Charles Hannum.
+ * 4. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ *
+ *	$Id: cpufunc.h,v 1.26 1994/09/25 20:03:41 davidg Exp $
  */
+
 
 /*
  * Functions to provide access to special i386 instructions.
@@ -47,6 +79,48 @@
 #include <machine/spl.h>
 
 #ifdef	__GNUC__
+
+static __inline void
+insb(u_short port, void *addr, int cnt)
+{
+	__asm __volatile("cld;repne;insb" :
+			 : "d" (port), "D" (addr), "c" (cnt) : "%edi", "%ecx", "memory");
+}
+
+static __inline void
+insw(u_short port, void *addr, int cnt)
+{
+	__asm __volatile("cld;repne;insw" :
+			 : "d" (port), "D" (addr), "c" (cnt) : "%edi", "%ecx", "memory");
+}
+
+static __inline void
+insl(u_short port, void *addr, int cnt)
+{
+	__asm __volatile("cld;repne;insl" :
+			 : "d" (port), "D" (addr), "c" (cnt) : "%edi", "%ecx", "memory");
+}
+
+static __inline void
+outsb(u_short port, void *addr, int cnt)
+{
+	__asm __volatile("cld;repne;outsb" :
+			 : "d" (port), "S" (addr), "c" (cnt) : "%esi", "%ecx");
+}
+
+static __inline void
+outsw(u_short port, void *addr, int cnt)
+{
+	__asm __volatile("cld;repne;outsw" :
+			 : "d" (port), "S" (addr), "c" (cnt) : "%esi", "%ecx");
+}
+
+static __inline void
+outsl(u_short port, void *addr, int cnt)
+{
+	__asm __volatile("cld;repne;outsl" :
+			 : "d" (port), "S" (addr), "c" (cnt) : "%esi", "%ecx");
+}
 
 static inline u_char
 inb(u_short port)
@@ -188,12 +262,6 @@ extern void DELAY(int);
 
 void	setidt	__P((int, void (*)(), int, int));
 extern u_long kvtop(void *);
-extern void outsb(int /*u_short*/, void *, size_t);
-extern void outsw(int /*u_short*/, void *, size_t);
-extern void outsl(int /*u_short*/, void *, size_t);
-extern void insb(int /*u_short*/, void *, size_t);
-extern void insw(int /*u_short*/, void *, size_t);
-extern void insl(int /*u_short*/, void *, size_t);
 extern void fillw(int /*u_short*/, void *, size_t);
 extern void filli(int, void *, size_t);
 
