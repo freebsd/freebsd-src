@@ -6,7 +6,9 @@ PROG=	ls
 SRCS=	cmp.c setflags.c ls.c print.c util.c
 .PATH:	${.CURDIR}/../../lib/libc/gen
 
+.if !defined(RELEASE_BUILD_FIXIT)
 CFLAGS+= -DCOLORLS
 LDADD=  -lncurses
+.endif
 
 .include <bsd.prog.mk>
