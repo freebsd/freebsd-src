@@ -1214,7 +1214,7 @@
 
     &hwlist.ohci;
 
-    <para arch="i386,pc98,alpha,ia64,amd64">UHCI 1.1-compliant host controllers (&man.uhci.4; driver)</para>
+    &hwlist.uhci;
 
     <para arch="i386,ia64,pc98,amd64">USB 2.0 controllers using the EHCI
       interface (&man.ehci.4; driver)</para>
