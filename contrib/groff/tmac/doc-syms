@@ -426,6 +426,16 @@
 .			as b1 (``\\*(tNXPG4\\*(aa'')
 .		\}
 .       \}
+.       if "\\*(A\\n(aP"-xpg4.2" \{\
+.		ie \\n(sT==1 \{\
+.			ds b1 \&\\*(tNX/Open Portability Guide Issue 4.2\\*(aa\\*(sV
+.			as b1 (``\\*(tNXPG4.2\\*(aa'')
+.		\}
+.		el \{\
+.			ds b1 \&\\*(tNX/Open Portability Guide Issue 4.2\\*(aa\\*(sV
+.			as b1 (``\\*(tNXPG4.2\\*(aa'')
+.		\}
+.       \}
 .	ie \\n(aC>\\n(aP \{\
 .		nr aP \\n(aP+1
 .		nR
