@@ -81,6 +81,7 @@ typedef struct _For {
     Buffer	  buf;			/* Unexpanded buffer	*/
     char*	  var;			/* Index name		*/
     Lst  	  lst;			/* List of variables	*/
+    int  	  lineno;		/* Line #		*/
 } For;
 
 static int ForExec(void *, void *);
@@ -254,7 +255,7 @@ ForExec(void *namep, void *argp)
     Var_Set(arg->var, name, VAR_GLOBAL);
     DEBUGF(FOR, ("--- %s = %s\n", arg->var, name));
     Parse_FromString(Var_Subst(arg->var, (char *) Buf_GetAll(arg->buf, &len),
-			       VAR_GLOBAL, FALSE));
+			       VAR_GLOBAL, FALSE), arg->lineno);
     Var_Delete(arg->var, VAR_GLOBAL);
 
     return 0;
@@ -275,7 +276,7 @@ ForExec(void *namep, void *argp)
  *-----------------------------------------------------------------------
  */
 void
-For_Run(void)
+For_Run(int lineno)
 {
     For arg;
 
@@ -284,6 +285,7 @@ For_Run(void)
     arg.var = forVar;
     arg.buf = forBuf;
     arg.lst = forLst;
+    arg.lineno = lineno;
     forVar = NULL;
     forBuf = NULL;
     forLst = NULL;
