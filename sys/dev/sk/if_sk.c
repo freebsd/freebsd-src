@@ -1113,6 +1113,7 @@ static int sk_attach_xmac(dev)
 	default:
 		printf("skc%d: unsupported PHY type: %d\n",
 		    sc->sk_unit, sc_if->sk_phytype);
+		SK_UNLOCK(sc);
 		return(ENODEV);
 	}
 
