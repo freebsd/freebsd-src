@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_ch.c,v 1.1 1998/09/15 06:36:34 gibbs Exp $
+ *      $Id: scsi_ch.c,v 1.2 1998/10/02 05:25:49 ken Exp $
  */
 /*
  * Derived from the NetBSD SCSI changer driver.
@@ -740,7 +740,7 @@ chioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 	error = 0;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, 
-		  ("trying to do ioctl %#x\n", cmd));
+		  ("trying to do ioctl %#lx\n", cmd));
 
 	/*
 	 * If this command can change the device's state, we must
