@@ -2,11 +2,8 @@
 # $FreeBSD$
 
 PROG=	fish
+FILES=	fish.instr
 MAN=	fish.6
 HIDEGAME=hidegame
-
-beforeinstall:
-	${INSTALL} -c -o ${SHAREOWN} -g ${SHAREGRP} -m ${SHAREMODE} \
-	  ${.CURDIR}/fish.instr ${DESTDIR}${SHAREDIR}/games/fish.instr
 
 .include <bsd.prog.mk>
