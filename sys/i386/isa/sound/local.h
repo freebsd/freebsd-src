@@ -5,7 +5,7 @@
 #undef  EXCLUDE_SB
 #undef  EXCLUDE_ADLIB
 #undef  EXCLUDE_GUS
-#define	EXCLUDE_MPU401	/* Not ready yet */
+#undef	EXCLUDE_MPU401
 #undef  EXCLUDE_SBPRO
 #undef  EXCLUDE_AUDIO
 #undef  EXCLUDE_MIDI
