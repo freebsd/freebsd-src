@@ -1,4 +1,4 @@
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
-MATH_EMULATE		math_emulate.h
-GPL_MATH_EMULATE	math_emulate.h
+MATH_EMULATE		opt_math_emulate.h
+GPL_MATH_EMULATE	opt_math_emulate.h
