@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)print.c	8.6 (Berkeley) 4/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: print.c,v 1.28 1998/05/31 12:09:50 bde Exp $";
+	"$Id: print.c,v 1.29 1998/06/28 18:19:13 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
