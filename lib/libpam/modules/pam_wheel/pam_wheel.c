@@ -66,23 +66,24 @@ PAM_EXTERN int
 pam_sm_authenticate(pam_handle_t * pamh, int flags, int argc, const char **argv)
 {
 	struct options options;
-	struct passwd *pwd, *temppwd;
+	struct passwd *pwd;
 	struct group *grp;
 	int retval;
 	const char *user;
-	char *fromsu, *use_group;
+	char *use_group;
 
 	pam_std_option(&options, other_options, argc, argv);
 
 	PAM_LOG("Options processed");
 
-	retval = pam_get_user(pamh, &user, NULL);
-	if (retval != PAM_SUCCESS)
-		PAM_RETURN(retval);
-
-	pwd = getpwnam(user);
-	if (!pwd)
-		PAM_RETURN(PAM_USER_UNKNOWN);
+	if (pam_test_option(&options, PAM_OPT_AUTH_AS_SELF, NULL))
+		pwd = getpwnam(getlogin());
+	else {
+		retval = pam_get_user(pamh, &user, NULL);
+		if (retval != PAM_SUCCESS)
+			PAM_RETURN(retval);
+		pwd = getpwnam(user);
+	}
 
 	PAM_LOG("Got user: %s", user);
 
@@ -91,20 +92,6 @@ pam_sm_authenticate(pam_handle_t * pamh, int flags, int argc, const char **argv)
 		PAM_RETURN(PAM_IGNORE);
 
 	PAM_LOG("Not superuser");
-
-	if (pam_test_option(&options, PAM_OPT_AUTH_AS_SELF, NULL)) {
-		temppwd = getpwnam(getlogin());
-		if (temppwd == NULL)
-			PAM_RETURN(PAM_SERVICE_ERR);
-		fromsu = temppwd->pw_name;
-	}
-	else {
-		fromsu = getlogin();
-		if (!fromsu)
-			PAM_RETURN(PAM_SERVICE_ERR);
-	}
-
-	PAM_LOG("Got fromsu: %s", fromsu);
 
 	if (!pam_test_option(&options, PAM_OPT_GROUP, &use_group)) {
 		if ((grp = getgrnam("wheel")) == NULL)
@@ -122,7 +109,7 @@ pam_sm_authenticate(pam_handle_t * pamh, int flags, int argc, const char **argv)
 
 	PAM_LOG("Got group: %s", grp->gr_name);
 
-	if (in_list(grp->gr_mem, fromsu)) {
+	if (pwd->pw_gid == grp->gr_gid || in_list(grp->gr_mem, pwd->pw_name)) {
 		if (pam_test_option(&options, PAM_OPT_DENY, NULL))
 			PAM_RETURN(PAM_PERM_DENIED);
 		if (pam_test_option(&options, PAM_OPT_TRUST, NULL))
