@@ -41,15 +41,19 @@
 .Os
 .Sh NAME
 .Nm strtoul , strtoull , strtouq
-.Nd "convert a string to an unsigned long, unsigned long long, or uquad_t integer"
+.Nd "convert a string to an"
+.Vt "unsigned long" , "unsigned long long" ,
+or
+.Vt u_quad_t
+integer
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
 .In stdlib.h
 .In limits.h
-.Ft unsigned long
+.Ft "unsigned long"
 .Fn strtoul "const char *nptr" "char **endptr" "int base"
-.Ft unsigned long long
+.Ft "unsigned long long"
 .Fn strtoull "const char *nptr" "char **endptr" "int base"
 .In sys/types.h
 .In stdlib.h
@@ -63,7 +67,7 @@ function
 converts the string in
 .Fa nptr
 to an
-.Em unsigned long
+.Vt "unsigned long"
 value.
 The
 .Fn strtoull
@@ -71,7 +75,7 @@ function
 converts the string in
 .Fa nptr
 to an
-.Em unsigned long long
+.Vt "unsigned long long"
 value.
 The
 .Fn strtouq
@@ -79,7 +83,7 @@ function
 converts the string in
 .Fa nptr
 to a
-.Em u_quad_t
+.Vt u_quad_t
 value.
 The conversion is done according to the given
 .Fa base ,
@@ -98,7 +102,7 @@ If
 .Fa base
 is zero or 16,
 the string may then include a
-.Ql 0x
+.Dq Li 0x
 prefix,
 and the number will be read in base 16; otherwise, a zero
 .Fa base
@@ -107,7 +111,7 @@ is taken as 10 (decimal) unless the next character is
 in which case it is taken as 8 (octal).
 .Pp
 The remainder of the string is converted to an
-.Em unsigned long
+.Vt "unsigned long"
 value in the obvious manner,
 stopping at the end of the string
 or at the first character that does not produce a valid digit
@@ -123,7 +127,8 @@ representing 35.)
 .Pp
 If
 .Fa endptr
-is non nil,
+is not
+.Dv NULL ,
 .Fn strtoul
 stores the address of the first invalid character in
 .Fa *endptr .
@@ -189,7 +194,7 @@ conforms to
 .St -isoC-99 .
 The
 .Bx
-.Fn strtoq
+.Fn strtouq
 function is deprecated.
 .Sh BUGS
 Ignores the current locale.
