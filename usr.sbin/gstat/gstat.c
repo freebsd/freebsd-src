@@ -47,7 +47,7 @@
 #include <devstat.h>
 #include <sys/devicestat.h>
 
-static int flag_c, flag_d;
+static int flag_a, flag_c, flag_d;
 static int flag_I = 500000;
 
 static void usage(void);
@@ -69,8 +69,11 @@ main(int argc, char **argv)
 	long double ld[11];
 	uint64_t u64;
 
-	while ((i = getopt(argc, argv, "dcI:")) != -1) {
+	while ((i = getopt(argc, argv, "adcI:")) != -1) {
 		switch (i) {
+		case 'a':
+			flag_a = 1;
+			break;
 		case 'c':
 			flag_c = 1;
 			break;
@@ -186,6 +189,11 @@ main(int argc, char **argv)
 			    DSM_MB_PER_SECOND_FREE, &ld[9],
 			    DSM_MS_PER_TRANSACTION_FREE, &ld[10],
 			    DSM_NONE);
+
+			if (flag_a && ld[7] < 0.1) {
+				*gsq = *gsp;
+				continue;
+			}
 
 			printw(" %4ju", (uintmax_t)u64);
 			printw(" %6.0f", (double)ld[0]);
