@@ -46,6 +46,7 @@ static char sccsid[] = "@(#)last.c	8.2 (Berkeley) 4/2/94";
 
 #include <err.h>
 #include <fcntl.h>
+#include <locale.h>
 #include <paths.h>
 #include <signal.h>
 #include <stdio.h>
@@ -99,6 +100,8 @@ main(argc, argv)
 	extern char *optarg;
 	int ch;
 	char *p;
+
+	(void) setlocale(LC_TIME, "");
 
 	maxrec = -1;
 	while ((ch = getopt(argc, argv, "0123456789f:h:t:")) != EOF)
@@ -163,7 +166,9 @@ wtmp()
 	struct stat	stb;			/* stat of file for size */
 	long	bl, delta;			/* time difference */
 	int	bytes, wfd;
-	char	*ct, *crmsg;
+	char    *crmsg;
+	char ct[80];
+	struct tm *tm;
 
 	LIST_INIT(&ttylist);
 
@@ -194,7 +199,8 @@ wtmp()
 				crmsg = strncmp(bp->ut_name, "shutdown",
 				    UT_NAMESIZE) ? "crash" : "shutdown";
 				if (want(bp)) {
-					ct = ctime(&bp->ut_time);
+					tm = localtime(&bp->ut_time);
+					(void) strftime(ct, sizeof(ct), "%c", tm);
 					printf("%-*.*s  %-*.*s %-*.*s %10.10s %5.5s \n",
 					    UT_NAMESIZE, UT_NAMESIZE,
 					    bp->ut_name, UT_LINESIZE,
@@ -213,7 +219,8 @@ wtmp()
 			if ((bp->ut_line[0] == '{' || bp->ut_line[0] == '|')
 			    && !bp->ut_line[1]) {
 				if (want(bp)) {
-					ct = ctime(&bp->ut_time);
+					tm = localtime(&bp->ut_time);
+					(void) strftime(ct, sizeof(ct), "%c", tm);
 					printf("%-*.*s  %-*.*s %-*.*s %10.10s %5.5s \n",
 					    UT_NAMESIZE, UT_NAMESIZE, bp->ut_name,
 					    UT_LINESIZE, UT_LINESIZE, bp->ut_line,
@@ -250,7 +257,8 @@ wtmp()
 						bp->ut_line[3] = '\0';
 					else if (!strncmp(bp->ut_line, "uucp", sizeof("uucp") - 1))
 						bp->ut_line[4] = '\0';
-					ct = ctime(&bp->ut_time);
+					tm = localtime(&bp->ut_time);
+					(void) strftime(ct, sizeof(ct), "%c", tm);
 					printf("%-*.*s  %-*.*s %-*.*s %10.10s %5.5s ",
 					    UT_NAMESIZE, UT_NAMESIZE, bp->ut_name,
 					    UT_LINESIZE, UT_LINESIZE, bp->ut_line,
@@ -263,17 +271,19 @@ wtmp()
 							tt->logout = -tt->logout;
 							printf("- %s", crmsg);
 						}
-						else
-							printf("- %5.5s",
-							    ctime(&tt->logout)+11);
+						else {
+							tm = localtime(&tt->logout);
+							(void) strftime(ct, sizeof(ct), "%c", tm);
+							printf("- %5.5s", ct + 11);
+						}
 						delta = tt->logout - bp->ut_time;
+						tm = gmtime(&delta);
+						(void) strftime(ct, sizeof(ct), "%c", tm);
 						if (delta < 86400)
-							printf("  (%5.5s)\n",
-							    asctime(gmtime(&delta))+11);
+							printf("  (%5.5s)\n", ct + 11);
 						else
 							printf(" (%ld+%5.5s)\n",
-							    delta / 86400,
-							    asctime(gmtime(&delta))+11);
+							    delta / 86400, ct + 11);
 					}
 					LIST_REMOVE(tt, list);
 					free(tt);
@@ -285,7 +295,8 @@ wtmp()
 			}
 		}
 	}
-	ct = ctime(&buf[0].ut_time);
+	tm = localtime(&buf[0].ut_time);
+	(void) strftime(ct, sizeof(ct), "%c", tm);
 	printf("\nwtmp begins %10.10s %5.5s \n", ct, ct + 11);
 }
 
@@ -404,9 +415,11 @@ void
 onintr(signo)
 	int signo;
 {
-	char *ct;
+	char ct[80];
+	struct tm *tm;
 
-	ct = ctime(&buf[0].ut_time);
+	tm = localtime(&buf[0].ut_time);
+	(void) strftime(ct, sizeof(ct), "%c", tm);
 	printf("\ninterrupted %10.10s %5.5s \n", ct, ct + 11);
 	if (signo == SIGINT)
 		exit(1);
