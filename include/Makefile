@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.13 1994/09/15 20:07:18 bde Exp $
+#	$Id: Makefile,v 1.15 1994/09/29 21:29:22 pst Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -22,7 +22,7 @@ FILES=	a.out.h ar.h assert.h bitstring.h ctype.h db.h dirent.h disktab.h \
 FILES+=	math.h
 .endif
 
-MFILES=	float.h floatingpoint.h frame.h stdarg.h varargs.h
+MFILES=	float.h floatingpoint.h stdarg.h varargs.h
 LFILES=	errno.h fcntl.h syslog.h termios.h
 
 DIRS=	arpa protocols rpc
