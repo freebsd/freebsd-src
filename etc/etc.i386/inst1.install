@@ -385,6 +385,8 @@ fi
 
 }
 
+echo
+echo
 echo	"Welcome to ${OPSYSTEM}."
 echo
 echo	"This program is designed to help put ${OPSYSTEM} on a hard disk with"
@@ -482,7 +484,7 @@ echo
 echo	"Disk is of device type $drivetype."
 if [ ! "$partition" ]; then
 	echo
-	echo	"Please wait.  Examining device /dev/r${drivename}d..."
+	echo	"Examining device /dev/r${drivename}d..."
 	get_fdisk_data
 	if [ $? -gt 1 ]; then
 		echo "Hm  - we can't seem to read that drive."
@@ -861,6 +863,7 @@ echo y |
 echo	" done."
 
 # XXX - Do it again, incase we disklabeled sector 0!
+# XXX - this is not working for some reason, need to look at it closer!
 put_fdisk_data
 
 if [ "$sect_fwd" = "sf:" ]; then
@@ -917,19 +920,15 @@ if [ "$hname" != "" ]; then
 fi
 
 echo
-echo "Please wait.  Copying to disk..."
+echo -n "Copying to disk... "
 cd /
-# cat filelist | cpio -pdamu${cpioverbose} /mnt
-OIFS=$IFS
-IFS='
-'
-while read data; do 
-	echo $data
-done <filelist | cpio -pdamu${cpioverbose} /mnt
-IFS=$OIFS
-
+cpio -pdamu${cpioverbose} /mnt <filelist
+echo -n "Copying more to disk... "
 cd /mnt
-echo "proc	/proc	procfs	rw 0 0" >etc/fstab
+gzcat < /inst1.cpio.gz | cpio -idmu
+
+echo -n "Building /etc/fstab... "
+echo "proc		/proc	procfs	rw 0 0" >etc/fstab
 echo "/dev/${drivename}b	none	swap	sw 0 0" >>etc/fstab
 echo "/dev/${drivename}a	/	ufs	rw 1 1" >>etc/fstab
 if [ "$ename" != "" ]; then
@@ -945,7 +944,7 @@ if [ "$hname" != "" ]; then
 	if [ ! "$have_dos_part" ]; then
 		echo "/dev/${drivename}h	/$hname	ufs	rw 1 5" >>etc/fstab
 	else
-		echo "/dev/${drivename}h	/$hname	pcfs	rw 0 0" >>etc/fstab
+		echo "/dev/${drivename}h	/$hname	pcfs	ro 0 0" >>etc/fstab
 	fi
 fi
 
@@ -957,16 +956,18 @@ while read data; do
 	echo $data
 done </etc/disktab >etc/disktab.install
 IFS=$OIFS
+echo "done."
 
-# cat << EOF >.profile
+echo -n "Building /etc/rc... "
 (
-echo "PATH=/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/bin:/usr/distbin:.:"
+echo "PATH=/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/bin:/usr/distbin:"
 echo "export PATH"
 echo "HOME=/root"
 echo "export HOME"
 echo "TERM=pc3"
 echo "export TERM"
 echo "mount -at ufs"
+echo "echo" 
 echo "echo" 
 echo "echo	\"Insert cpio installation floppy in drive and\""
 echo "echo -n	\"enter that drive's number (0 or 1): [0] \""
@@ -1003,7 +1004,9 @@ echo "echo"
 echo "echo	\"Enter 'halt' now at the prompt to halt the machine.\""
 echo "echo	\"After the machine has halted, remove the floppy from the disk\""
 echo "echo	\"drive, and hit any key to reboot from the hard disk.\""
-) >.profile
+echo "exit 1"
+) >etc/rc
+echo "done."
 
 sync
 
@@ -1019,6 +1022,9 @@ echo	"floppy this time, just hit RETURN without changing floppies."
 echo
 echo	"If all goes well, you can enter the command \`copy' at the prompt to"
 echo	"copy the kernel to the hard disk.  When asked for which partition to"
-echo	"copy to, enter  to \`${drivename}a' (without the quotes)."
+echo	"copy to, enter \`${drivename}a' (without the quotes)."
 echo
 echo	"Okay, that's all for now.  I'm waiting for you to enter \`halt'..."
+
+sync;sync;sync;sync
+
