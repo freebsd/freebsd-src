@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.54 1996/09/06 23:08:58 phk Exp $
+**  $Id: pci.c,v 1.55 1996/09/10 23:30:59 bde Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -1051,7 +1051,9 @@ int pci_map_mem (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 	**	check the type
 	*/
 
-	if ((data & PCI_MAP_MEMORY_TYPE_MASK) != PCI_MAP_MEMORY_TYPE_32BIT) {
+	if (!((data & PCI_MAP_MEMORY_TYPE_MASK) == PCI_MAP_MEMORY_TYPE_32BIT_1M
+	      && (paddr & ~0xfffff) == 0)
+	    && (data & PCI_MAP_MEMORY_TYPE_MASK) != PCI_MAP_MEMORY_TYPE_32BIT){
 		printf ("pci_map_mem failed: bad memory type=0x%x\n",
 			(unsigned) data);
 		return (0);
