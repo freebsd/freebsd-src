@@ -265,7 +265,7 @@ pipe(td, uap)
 	td->td_retval[1] = fd;
 	rpipe->pipe_peer = wpipe;
 	wpipe->pipe_peer = rpipe;
-	mtx_init(pmtx, "pipe mutex", MTX_DEF);
+	mtx_init(pmtx, "pipe mutex", MTX_DEF | MTX_RECURSE);
 	rpipe->pipe_mtxp = wpipe->pipe_mtxp = pmtx;
 	fdrop(rf, td);
 
