@@ -123,6 +123,7 @@ main(argc, argv)
 			execvp(argv[2], &argv[2]);
 			err(1, "%s", argv[2]);
 		}
+		exit(0);
 	}
 	exit (1);
 }
