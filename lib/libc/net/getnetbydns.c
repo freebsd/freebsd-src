@@ -173,9 +173,7 @@ static	char *net_aliases[MAXALIASES], netbuf[PACKETSZ];
 			}
 			cp += n; 
 			*ap++ = bp;
-			n = strlen(bp) + 1;
-			bp += n;
-			buflen -= n;
+			bp += strlen(bp) + 1;
 			net_entry.n_addrtype =
 				(class == C_IN) ? AF_INET : AF_UNSPEC;
 			haveanswer++;
