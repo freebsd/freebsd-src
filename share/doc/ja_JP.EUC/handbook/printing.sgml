@@ -1,6 +1,6 @@
-<!-- $Id: printing.sgml,v 1.3 1996/12/28 22:37:25 max Exp $ -->
+<!-- $Id: printing.sgml,v 1.4 1997/01/02 17:55:03 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.14 -->
+<!-- Original revision: 1.15 -->
 <!-- This is an SGML document in the linuxdoc DTD describing
      Printing with FreeBSD.  By Sean Kelly, 1995.
 
@@ -3261,7 +3261,7 @@ done
 [ "$login" ] || fail "No login name"
 [ "$host" ] || fail "No host name"
 
-( /u/kelly/freebsd/printing/filters/make-ps-header $login $host "DVI File"
+( /usr/local/libexec/make-ps-header $login $host "DVI File"
   /usr/local/bin/dvips -f ) | eval /usr/local/libexec/lprps $orig_args
 </code>
 	このフィルタがユーザ名やホスト名を決定するために引数リストをど
