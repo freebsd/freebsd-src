@@ -56,4 +56,19 @@ fi
 
 echo 'Doing stage one network startup:'
 network_pass1
+
+case ${ipv6_enable} in
+[Yy][Ee][Ss])
+	if [ -r /etc/rc.network6 ]; then
+		. /etc/rc.network6
+	else
+		echo 'Sorry, I cannot find /etc/rc.network6 - aborting'
+		exit 1
+	fi
+
+	echo 'Doing stage one network6 startup:'
+	network6_pass1
+	;;
+esac
+
 exit 0
