@@ -114,7 +114,7 @@ int
 main(int argc, char *argv[])
 {
 	char	*endptr;
-	char	*iplpath = "/boot/boot0", *menupath = "/boot/boot0.5";
+	const	char *iplpath = "/boot/boot0", *menupath = "/boot/boot0.5";
 	char	*iplbakpath = NULL, *menubakpath = NULL;
 	char	*disk;
 	int	B_flag = 0;
