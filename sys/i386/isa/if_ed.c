@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.89 1995/12/05 13:01:33 davidg Exp $
+ *	$Id: if_ed.c,v 1.73.4.4 1996/01/03 17:51:32 davidg Exp $
  */
 
 /*
@@ -919,7 +919,7 @@ ed_probe_3Com(isa_dev)
 		outb(sc->asic_addr + ED_3COM_IDCFR, ED_3COM_IDCFR_IRQ5);
 		break;
 	default:
-		printf("ed%d: Invalid irq configuration (%d) must be 2-5 for 3c503\n",
+		printf("ed%d: Invalid irq configuration (%d) must be 3-5,9 for 3c503\n",
 		       isa_dev->id_unit, ffs(isa_dev->id_irq) - 1);
 		return (0);
 	}
