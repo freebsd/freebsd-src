@@ -16,22 +16,20 @@ MLINKS+=	groff_ms.7 ms.7
 MLINKS+=	groff_me.7 me.7
 MLINKS+=	groff_msafer.7 msafer.7
 MLINKS+=	groff_markup.7 markup.7
-LINKS=          ${TMACDIR}/tmac.andoc ${TMACDIR}/tmac.an
 
 CLEANFILES=	${MAN5} ${MAN7} ${MDOCFILES} ${STRIPFILES} ${SPECIALFILES}
-CLEANFILES+=	tmac.groff_an
 
 FILES=          tmac.mandoc tmac.andoc tmac.pic tmac.ps tmac.psnew tmac.psold \
 		tmac.pspic tmac.psatk tmac.dvi tmac.tty tmac.tty-char \
 		tmac.X tmac.Xps tmac.latin1 tmac.lj4 eqnrc troffrc troffrc-end \
 		tmac.safer tmac.html tmac.markup tmac.arkup tmac.a4 \
 		tmac.trace tmac.me tmac.mdoc tmac.s tmac.lbp
-STRIPFILES=     tmac.e tmac.doc
+STRIPFILES=     tmac.an tmac.e tmac.doc
 SPECIALFILES=	tmac.man tmac.ms
 MDOCFILES=	doc-common doc-ditroff doc-nroff doc-syms
 LOCALEFILES=    locale-list koi8-r
 
-all: ${MDOCFILES} ${STRIPFILES} ${SPECIALFILES} tmac.groff_an
+all: ${MDOCFILES} ${STRIPFILES} ${SPECIALFILES}
 
 .for f in ${MDOCFILES} ${STRIPFILES}
 $f: ${DIST_DIR}/$f
@@ -45,14 +43,11 @@ $f: ${DIST_DIR}/$f
 		${.ALLSRC} > ${.TARGET}
 .endfor
 
-tmac.groff_an: tmac.an
-	sed -f ${DIST_DIR}/strip.sed ${.ALLSRC} > ${.TARGET}
-
 beforeinstall:
 	${INSTALL} ${COPY} -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
 	    ${MDOCFILES} ${DESTDIR}${MDOCDIR}
 	${INSTALL} ${COPY} -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
-	    ${STRIPFILES} ${SPECIALFILES} tmac.groff_an ${DESTDIR}${TMACDIR}
+	    ${STRIPFILES} ${SPECIALFILES} ${DESTDIR}${TMACDIR}
 	cd ${DIST_DIR}; \
 	    ${INSTALL} -c -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
 	    ${FILES} ${DESTDIR}${TMACDIR}
