@@ -228,10 +228,9 @@ NON_GPROF_ENTRY(btext)
 	movb	$1,R(_bdb_exists)
 1:
 #endif
-#endif	/* PC98 */
-
 /* Tell the bios to warmboot next time */
 	movw	$0x1234,0x472
+#endif	/* PC98 */
 
 /* Set up a real frame in case the double return in newboot is executed. */
 	pushl	%ebp
