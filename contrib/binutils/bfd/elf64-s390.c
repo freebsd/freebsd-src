@@ -40,12 +40,13 @@ static boolean create_got_section
 static boolean elf_s390_create_dynamic_sections
   PARAMS((bfd *, struct bfd_link_info *));
 static void elf_s390_copy_indirect_symbol
-  PARAMS ((struct elf_link_hash_entry *, struct elf_link_hash_entry *));
+  PARAMS ((struct elf_backend_data *, struct elf_link_hash_entry *,
+	   struct elf_link_hash_entry *));
 static boolean elf_s390_check_relocs
   PARAMS ((bfd *, struct bfd_link_info *, asection *,
 	   const Elf_Internal_Rela *));
 static asection *elf_s390_gc_mark_hook
-  PARAMS ((bfd *, struct bfd_link_info *, Elf_Internal_Rela *,
+  PARAMS ((asection *, struct bfd_link_info *, Elf_Internal_Rela *,
 	   struct elf_link_hash_entry *, Elf_Internal_Sym *));
 static boolean elf_s390_gc_sweep_hook
   PARAMS ((bfd *, struct bfd_link_info *, asection *,
@@ -424,13 +425,13 @@ elf_s390_link_hash_table_create (abfd)
   struct elf_s390_link_hash_table *ret;
   bfd_size_type amt = sizeof (struct elf_s390_link_hash_table);
 
-  ret = (struct elf_s390_link_hash_table *) bfd_alloc (abfd, amt);
+  ret = (struct elf_s390_link_hash_table *) bfd_malloc (amt);
   if (ret == NULL)
     return NULL;
 
   if (! _bfd_elf_link_hash_table_init (&ret->elf, abfd, link_hash_newfunc))
     {
-      bfd_release (abfd, ret);
+      free (ret);
       return NULL;
     }
 
@@ -471,7 +472,7 @@ create_got_section (dynobj, info)
 				  (SEC_ALLOC | SEC_LOAD | SEC_HAS_CONTENTS
 				   | SEC_IN_MEMORY | SEC_LINKER_CREATED
 				   | SEC_READONLY))
-      || ! bfd_set_section_alignment (dynobj, htab->srelgot, 2))
+      || ! bfd_set_section_alignment (dynobj, htab->srelgot, 3))
     return false;
   return true;
 }
@@ -510,7 +511,8 @@ elf_s390_create_dynamic_sections (dynobj, info)
 /* Copy the extra info we tack onto an elf_link_hash_entry.  */
 
 static void
-elf_s390_copy_indirect_symbol (dir, ind)
+elf_s390_copy_indirect_symbol (bed, dir, ind)
+     struct elf_backend_data *bed;
      struct elf_link_hash_entry *dir, *ind;
 {
   struct elf_s390_link_hash_entry *edir, *eind;
@@ -552,7 +554,7 @@ elf_s390_copy_indirect_symbol (dir, ind)
       eind->dyn_relocs = NULL;
     }
 
-  _bfd_elf_link_hash_copy_indirect (dir, ind);
+  _bfd_elf_link_hash_copy_indirect (bed, dir, ind);
 }
 
 /* Look through the relocs for a section during the first phase, and
@@ -776,7 +778,7 @@ elf_s390_check_relocs (abfd, info, sec, relocs)
 			flags |= SEC_ALLOC | SEC_LOAD;
 		      if (sreloc == NULL
 			  || ! bfd_set_section_flags (dynobj, sreloc, flags)
-			  || ! bfd_set_section_alignment (dynobj, sreloc, 2))
+			  || ! bfd_set_section_alignment (dynobj, sreloc, 3))
 			return false;
 		    }
 		  elf_section_data (sec)->sreloc = sreloc;
@@ -855,8 +857,8 @@ elf_s390_check_relocs (abfd, info, sec, relocs)
    relocation.  */
 
 static asection *
-elf_s390_gc_mark_hook (abfd, info, rel, h, sym)
-     bfd *abfd;
+elf_s390_gc_mark_hook (sec, info, rel, h, sym)
+     asection *sec;
      struct bfd_link_info *info ATTRIBUTE_UNUSED;
      Elf_Internal_Rela *rel;
      struct elf_link_hash_entry *h;
@@ -886,9 +888,7 @@ elf_s390_gc_mark_hook (abfd, info, rel, h, sym)
 	}
     }
   else
-    {
-      return bfd_section_from_elf_index (abfd, sym->st_shndx);
-    }
+    return bfd_section_from_elf_index (sec->owner, sym->st_shndx);
 
   return NULL;
 }
@@ -1019,7 +1019,7 @@ elf_s390_adjust_dynamic_symbol (info, h)
 
   /* If this is a function, put it in the procedure linkage table.  We
      will fill in the contents of the procedure linkage table later
-     (although we could actually do it here). */
+     (although we could actually do it here).  */
   if (h->type == STT_FUNC
       || (h->elf_link_hash_flags & ELF_LINK_HASH_NEEDS_PLT) != 0)
     {
@@ -1937,9 +1937,11 @@ elf_s390_relocate_section (output_bfd, info, input_bfd, input_section,
           break;
         }
 
+      /* Dynamic relocs are not propagated for SEC_DEBUGGING sections
+	 because such sections are not SEC_ALLOC and thus ld.so will
+	 not process them.  */
       if (unresolved_reloc
-	  && !(info->shared
-	       && (input_section->flags & SEC_DEBUGGING) != 0
+	  && !((input_section->flags & SEC_DEBUGGING) != 0
 	       && (h->elf_link_hash_flags & ELF_LINK_HASH_DEF_DYNAMIC) != 0))
 	(*_bfd_error_handler)
 	  (_("%s(%s+0x%lx): unresolvable relocation against symbol `%s'"),
@@ -2339,6 +2341,7 @@ const struct elf_size_info s390_elf64_size_info =
   bfd_elf64_write_out_phdrs,
   bfd_elf64_write_shdrs_and_ehdr,
   bfd_elf64_write_relocs,
+  bfd_elf64_swap_symbol_in,
   bfd_elf64_swap_symbol_out,
   bfd_elf64_slurp_reloc_table,
   bfd_elf64_slurp_symbol_table,

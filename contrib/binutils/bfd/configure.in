@@ -7,7 +7,7 @@ AC_INIT(libbfd.c)
 AC_CANONICAL_SYSTEM
 AC_ISC_POSIX
 
-AM_INIT_AUTOMAKE(bfd, 2.13)
+AM_INIT_AUTOMAKE(bfd, 2.13.1)
 # Uncomment the next line to remove the date from the reported bfd version
 # is_release=y
 
@@ -577,7 +577,6 @@ do
     bfd_elf32_i370_vec)		tb="$tb elf32-i370.lo elf32.lo $elf" ;;
     bfd_elf32_i386_freebsd_vec)	tb="$tb elf32-i386-fbsd.lo elf32.lo $elf" ;;
     bfd_elf32_i386_vec)		tb="$tb elf32-i386.lo elf32.lo $elf" ;;
-    bfd_elf32_i386qnx_vec)	tb="$tb elf32-i386qnx.lo elf32.lo $elf" ;;
     bfd_elf32_i860_little_vec)	tb="$tb elf32-i860.lo elf32.lo $elf" ;;
     bfd_elf32_i860_vec)		tb="$tb elf32-i860.lo elf32.lo $elf" ;;
     bfd_elf32_i960_vec)		tb="$tb elf32-i960.lo elf32.lo $elf" ;;

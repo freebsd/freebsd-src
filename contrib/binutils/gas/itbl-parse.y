@@ -321,6 +321,7 @@ entry:
 	    insn=itbl_add_insn ($1, $3, $4, sbit, ebit, $6);
 	  }
 	fieldspecs NL
+	  {}
 	| NL
 	| error NL
 	;

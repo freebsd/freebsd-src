@@ -181,7 +181,7 @@ unsigned int Chunk = DEFAULT_CHUNK;
 /* The type of srec output (free or forced to S3).
    This variable can be modified by objcopy's --srec-forceS3
    parameter.  */
-boolean S3Forced = 0;
+boolean S3Forced = false;
 
 /* When writing an S-record file, the S-records can not be output as
    they are seen.  This structure is used to hold them in memory.  */
@@ -1203,7 +1203,7 @@ srec_get_symtab (abfd, alocation)
 
       csymbols = (asymbol *) bfd_alloc (abfd, symcount * sizeof (asymbol));
       if (csymbols == NULL && symcount != 0)
-	return false;
+	return (long) false;
       abfd->tdata.srec_data->csymbols = csymbols;
 
       for (s = abfd->tdata.srec_data->symbols, c = csymbols;

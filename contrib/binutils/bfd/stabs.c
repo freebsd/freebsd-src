@@ -331,7 +331,7 @@ _bfd_link_section_stabs (abfd, psinfo, stabsec, stabstrsec, psecinfo)
 	 symbol, ignoring nesting, adding up all the characters in the
 	 symbol names, not including the file numbers in types (the
 	 first number after an open parenthesis).  */
-      if (type == N_BINCL)
+      if (type == (int) N_BINCL)
 	{
 	  bfd_vma val;
 	  int nest;
@@ -351,13 +351,13 @@ _bfd_link_section_stabs (abfd, psinfo, stabsec, stabstrsec, psecinfo)
 	      incl_type = incl_sym[TYPEOFF];
 	      if (incl_type == 0)
 		break;
-	      else if (incl_type == N_EINCL)
+	      else if (incl_type == (int) N_EINCL)
 		{
 		  if (nest == 0)
 		    break;
 		  --nest;
 		}
-	      else if (incl_type == N_BINCL)
+	      else if (incl_type == (int) N_BINCL)
 		++nest;
 	      else if (nest == 0)
 		{
@@ -400,7 +400,7 @@ _bfd_link_section_stabs (abfd, psinfo, stabsec, stabstrsec, psecinfo)
 	    goto error_return;
 	  ne->offset = sym - stabbuf;
 	  ne->val = val;
-	  ne->type = N_BINCL;
+	  ne->type = (int) N_BINCL;
 	  ne->next = secinfo->excls;
 	  secinfo->excls = ne;
 
@@ -422,7 +422,7 @@ _bfd_link_section_stabs (abfd, psinfo, stabsec, stabstrsec, psecinfo)
 
 	      /* We have seen this header file before.  Tell the final
 		 pass to change the type to N_EXCL.  */
-	      ne->type = N_EXCL;
+	      ne->type = (int) N_EXCL;
 
 	      /* Mark the skipped symbols.  */
 
@@ -435,7 +435,7 @@ _bfd_link_section_stabs (abfd, psinfo, stabsec, stabstrsec, psecinfo)
 
 		  incl_type = incl_sym[TYPEOFF];
 
-		  if (incl_type == N_EINCL)
+		  if (incl_type == (int) N_EINCL)
 		    {
 		      if (nest == 0)
 			{
@@ -445,7 +445,7 @@ _bfd_link_section_stabs (abfd, psinfo, stabsec, stabstrsec, psecinfo)
 			}
 		      --nest;
 		    }
-		  else if (incl_type == N_BINCL)
+		  else if (incl_type == (int) N_BINCL)
 		    ++nest;
 		  else if (nest == 0)
 		    {
@@ -597,7 +597,7 @@ _bfd_discard_section_stabs (abfd, stabsec, psecinfo,
 
       type = sym[TYPEOFF];
 
-      if (type == N_FUN)
+      if (type == (int) N_FUN)
 	{
 	  int strx = bfd_get_32 (abfd, sym + STRDXOFF);
 
@@ -624,7 +624,7 @@ _bfd_discard_section_stabs (abfd, stabsec, psecinfo,
       else if (deleting == -1)
 	{
 	  /* Outside of a function.  Check for deleted variables.  */
-	  if (type == N_STSYM || type == N_LCSYM)
+	  if (type == (int) N_STSYM || type == (int) N_LCSYM)
 	    if ((*reloc_symbol_deleted_p) (sym + VALOFF - stabbuf, cookie))
 	      {
 		*pstridx = -1;
@@ -674,7 +674,7 @@ _bfd_discard_section_stabs (abfd, stabsec, psecinfo,
       BFD_ASSERT (offset != 0);
     }
 
-  return (skip > 0);
+  return (boolean) (skip > 0);
 
  error_return:
   if (stabbuf != NULL)

@@ -353,7 +353,7 @@ sec_merge_emit (abfd, entry)
   if (alignment_power)
     free (pad);
 
-  return entry == NULL || entry->secinfo != secinfo;
+  return (boolean) (entry == NULL || entry->secinfo != secinfo);
 }
 
 /* This function is called for each input file from the add_symbols
@@ -667,7 +667,7 @@ merge_strings (sinfo)
 	break;
       if (e->len > 4 * e->u.entsize)
 	{
-	  s = e->root.string + e->len - e->u.entsize;
+	  s = (const unsigned char *) (e->root.string + e->len - e->u.entsize);
 	  hash = 0;
 	  for (i = 0; i < 4 * e->u.entsize; i++)
 	    {
@@ -690,7 +690,7 @@ merge_strings (sinfo)
 	  else
 	    *p = (PTR) e;
 	}
-      s = e->root.string + e->len - e->u.entsize;
+      s = (const unsigned char *) (e->root.string + e->len - e->u.entsize);
       hash = 0;
       for (i = 0; i < e->u.entsize; i++)
 	{

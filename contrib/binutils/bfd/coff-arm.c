@@ -1881,6 +1881,7 @@ record_arm_to_thumb_glue (info, h)
   register asection *               s;
   char *                            tmp_name;
   struct coff_link_hash_entry *     myh;
+  struct bfd_link_hash_entry *      bh;
   struct coff_arm_link_hash_table * globals;
   bfd_vma val;
   bfd_size_type amt;
@@ -1915,10 +1916,10 @@ record_arm_to_thumb_glue (info, h)
      though the section isn't allocated yet, this is where we will be putting
      it.  */
 
+  bh = NULL;
   val = globals->arm_glue_size + 1;
   bfd_coff_link_add_one_symbol (info, globals->bfd_of_glue_owner, tmp_name,
-				BSF_GLOBAL, s, val, NULL, true, false,
-				(struct bfd_link_hash_entry **) & myh);
+				BSF_GLOBAL, s, val, NULL, true, false, &bh);
 
   free (tmp_name);
 
@@ -1937,6 +1938,7 @@ record_thumb_to_arm_glue (info, h)
   register asection *                s;
   char *                             tmp_name;
   struct coff_link_hash_entry *      myh;
+  struct bfd_link_hash_entry *       bh;
   struct coff_arm_link_hash_table *  globals;
   bfd_vma val;
   bfd_size_type amt;
@@ -1967,12 +1969,13 @@ record_thumb_to_arm_glue (info, h)
       return; /* we've already seen this guy */
     }
 
+  bh = NULL;
   val = globals->thumb_glue_size + 1;
   bfd_coff_link_add_one_symbol (info, globals->bfd_of_glue_owner, tmp_name,
-				BSF_GLOBAL, s, val, NULL, true, false,
-				(struct bfd_link_hash_entry **) &myh);
+				BSF_GLOBAL, s, val, NULL, true, false, &bh);
 
   /* If we mark it 'thumb', the disassembler will do a better job.  */
+  myh = (struct coff_link_hash_entry *) bh;
   myh->class = C_THUMBEXTFUNC;
 
   free (tmp_name);
@@ -1989,11 +1992,10 @@ record_thumb_to_arm_glue (info, h)
 
   sprintf (tmp_name, globals->support_old_code ? BACK_FROM_ARM : CHANGE_TO_ARM, name);
 
-  myh = NULL;
+  bh = NULL;
   val = globals->thumb_glue_size + (globals->support_old_code ? 8 : 4);
   bfd_coff_link_add_one_symbol (info, globals->bfd_of_glue_owner, tmp_name,
-				BSF_LOCAL, s, val, NULL, true, false,
-				(struct bfd_link_hash_entry **) & myh);
+				BSF_LOCAL, s, val, NULL, true, false, &bh);
 
   free (tmp_name);
 

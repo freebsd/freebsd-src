@@ -134,6 +134,7 @@ elf32-h8300.c
 elf32-hppa.c
 elf32-hppa.h
 elf32-i370.c
+elf32-i386-fbsd.c
 elf32-i386.c
 elf32-i386qnx.c
 elf32-i860.c
@@ -161,6 +162,7 @@ elf32-v850.c
 elf32-vax.c
 elf32-xstormy16.c
 elf32.c
+elf64-alpha-fbsd.c
 elf64-alpha.c
 elf64-gen.c
 elf64-hppa.c

@@ -770,22 +770,6 @@ struct elf_backend_data
   boolean (*elf_backend_write_section)
     PARAMS ((bfd *, asection *, bfd_byte *));
 
-  /* This function, if defined, sets  up the file positions for non PT_LOAD
-     segments, especially for segments containing non-allocated sections.  */
-  void (*set_nonloadable_filepos)
-    PARAMS ((bfd *, Elf_Internal_Phdr *));
-
-  /* This function, if defined, returns true if the section is contained
-     within the segment.  File positions are compared.  */
-  boolean (*is_contained_by_filepos)
-    PARAMS ((asection *, Elf_Internal_Phdr *));
-
-  /* This function, if defined, returns true if copy_private_bfd_data
-     should be called.  It provides a way of overriding default
-     test conditions in _bfd_elf_copy_private_section_data.  */
-  boolean (*copy_private_bfd_data_p)
-    PARAMS ((bfd *, asection *, bfd *, asection *));
-
   /* The level of IRIX compatibility we're striving for.
      MIPS ELF specific function.  */
   irix_compat_t (*elf_backend_mips_irix_compat)
