@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)lseek.2	8.3 (Berkeley) 4/19/94
-.\"	$Id$
+.\"	$Id: lseek.2,v 1.6 1997/02/22 15:04:01 peter Exp $
 .\"
 .Dd April 19, 1994
 .Dt LSEEK 2
@@ -120,7 +120,7 @@ is not an open file descriptor.
 is associated with a pipe, socket, or FIFO.
 .It Bq Er EINVAL
 .Fa Whence
-is not a proper value.
+is not a proper value, or the resulting offset is negative.
 .El
 .Sh SEE ALSO
 .Xr dup 2 ,
