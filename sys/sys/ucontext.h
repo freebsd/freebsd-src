@@ -51,10 +51,16 @@ typedef struct __ucontext {
 } ucontext_t;
 
 #ifndef _KERNEL
+
+__BEGIN_DECLS
+
 int	getcontext(ucontext_t *);
 int	setcontext(const ucontext_t *);
 void	makecontext(ucontext_t *, void (*)(void), int, ...);
 int	swapcontext(ucontext_t *, const ucontext_t *);
+
+__END_DECLS
+
 #endif /* !_KERNEL */
 
 #endif /* !_SYS_UCONTEXT_H_ */
