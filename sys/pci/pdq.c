@@ -21,9 +21,14 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pdq.c,v 1.8 1995/03/14 01:52:52 thomas Exp $
+ * $Id: pdq.c,v 1.1 1995/03/14 09:16:06 davidg Exp $
  *
  * $Log: pdq.c,v $
+ * Revision 1.1  1995/03/14  09:16:06  davidg
+ * Added support for generic FDDI and the DEC DEFEA and DEFPA FDDI adapters.
+ *
+ * Submitted by:	Matt Thomas
+ *
  * Revision 1.8  1995/03/14  01:52:52  thomas
  * Update for new FreeBSD PCI Interrupt interface
  *
@@ -171,6 +176,8 @@ const char * const pdq_descriptions[] = {
     "DEFPA PCI",
     "DEFEA EISA",
 };
+
+extern printf (), bzero(), DELAY();
 
 void
 pdq_print_fddi_chars(
@@ -577,6 +584,8 @@ pdq_queue_commands(
 		pdq_os_addr_fill(pdq, addr, 61);
 		break;
 	    }
+	    default:
+		break;
 	}
 	/*
 	 * At this point the command is done.  All that needs to be done is to
@@ -1246,6 +1255,9 @@ pdq_run(
 	}
 	case PDQS_RING_MEMBER: {
 	}
+	    break;
+	default:
+	    break;
     }
 }
 
@@ -1444,6 +1456,8 @@ pdq_initialize(
 #ifdef PDQ_DO_EISA
 	case PDQ_DEFEA: pdq_init_esia_csrs(&pdq->pdq_eisa_csrs, csr_va, 1); break;
 #endif
+	default:
+	    break;
     }
 
     PDQ_PRINTF(("PDQ CSRs:\n"));
