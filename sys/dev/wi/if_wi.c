@@ -224,8 +224,6 @@ static const struct pccard_product wi_pccard_products[] = {
 	  PCCARD_CIS_LUCENT_WAVELAN_IEEE },
 };
 
-static char wi_device_desc[] = "WaveLAN/IEEE 802.11";
-
 static int wi_pccard_match(dev)
 	device_t	dev;
 {
@@ -374,8 +372,6 @@ wi_pci_attach(device_t dev)
 	error = wi_alloc(dev, WI_PCI_IORES);
 	if (error)
 		return (error);
-
-	device_set_desc(dev, wi_device_desc);
 
 	/* Make sure interrupts are disabled. */
 	CSR_WRITE_2(sc, WI_INT_EN, 0);
