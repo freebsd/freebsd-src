@@ -491,7 +491,14 @@ vm_object_deallocate(vm_object_t object)
 					tsleep(&proc0, PVM, "vmo_de", 1);
 					continue;
 				}
-				if ((robject->handle == NULL) &&
+				/*
+				 * Collapse object into its shadow unless its
+				 * shadow is dead.  In that case, object will
+				 * be deallocated by the thread that is
+				 * deallocating its shadow.
+				 */
+				if ((robject->flags & OBJ_DEAD) == 0 &&
+				    (robject->handle == NULL) &&
 				    (robject->type == OBJT_DEFAULT ||
 				     robject->type == OBJT_SWAP)) {
 
