@@ -153,6 +153,7 @@ pccard_attach_card(device_t dev)
 	struct pccard_function *pf;
 	struct pccard_ivar *ivar;
 	device_t child;
+	int i;
 
 	/*
 	 * this is here so that when socket_enable calls gettype, trt happens
@@ -174,11 +175,11 @@ pccard_attach_card(device_t dev)
 	 */
 
 	if (sc->card.error) {
-		device_printf (dev, "CARD ERROR!\n");
+		device_printf(dev, "CARD ERROR!\n");
 		return (1);
 	}
 	if (STAILQ_EMPTY(&sc->card.pf_head)) {
-		device_printf (dev, "Card has no functions!\n");
+		device_printf(dev, "Card has no functions!\n");
 		return (1);
 	}
 
@@ -186,14 +187,20 @@ pccard_attach_card(device_t dev)
 		pccard_print_cis(dev);
 
 	DEVPRINTF((dev, "functions scanning\n"));
+	i = -1;
 	STAILQ_FOREACH(pf, &sc->card.pf_head, pf_list) {
-		if (STAILQ_EMPTY(&pf->cfe_head))
+		i++;
+		if (STAILQ_EMPTY(&pf->cfe_head)) {
+			device_printf(dev,
+			    "Function %d has no config entries.!\n", i);
 			continue;
-
+		}
 		pf->sc = sc;
 		pf->cfe = NULL;
 		pf->dev = NULL;
 	}
+	DEVPRINTF((dev, "Card has %d functions. pccard_mfc is %d\n", i,
+	    pccard_mfc(sc)));
 
 	STAILQ_FOREACH(pf, &sc->card.pf_head, pf_list) {
 		if (STAILQ_EMPTY(&pf->cfe_head))
@@ -586,13 +593,11 @@ pccard_function_enable(struct pccard_function *pf)
 
 	reg = (pf->cfe->number & PCCARD_CCR_OPTION_CFINDEX);
 	reg |= PCCARD_CCR_OPTION_LEVIREQ;
-#ifdef COOKIE_FOR_WARNER
 	if (pccard_mfc(pf->sc)) {
 		reg |= (PCCARD_CCR_OPTION_FUNC_ENABLE |
 			PCCARD_CCR_OPTION_ADDR_DECODE);
 		/* PCCARD_CCR_OPTION_IRQ_ENABLE set elsewhere as needed */
 	}
-#endif
 	pccard_ccr_write(pf, PCCARD_CCR_OPTION, reg);
 
 	reg = 0;
@@ -759,11 +764,9 @@ pccard_io_map(struct pccard_function *pf, int width, bus_addr_t offset,
 
 		pccard_ccr_write(pf, PCCARD_CCR_IOSIZE, iosize);
 
-#ifdef COOKIE_FOR_WARNER
 		reg = pccard_ccr_read(pf, PCCARD_CCR_OPTION);
 		reg |= PCCARD_CCR_OPTION_ADDR_DECODE;
 		pccard_ccr_write(pf, PCCARD_CCR_OPTION, reg);
-#endif
 	}
 	return (0);
 }
@@ -1192,6 +1195,7 @@ static int
 pccard_setup_intr(device_t dev, device_t child, struct resource *irq,
     int flags, driver_intr_t *intr, void *arg, void **cookiep)
 {
+	struct pccard_softc *sc = PCCARD_SOFTC(dev);
 	struct pccard_ivar *ivar = PCCARD_IVAR(child);
 	struct pccard_function *func = ivar->fcn;
 	int err;
@@ -1205,12 +1209,11 @@ pccard_setup_intr(device_t dev, device_t child, struct resource *irq,
 	func->intr_handler = intr;
 	func->intr_handler_arg = arg;
 	func->intr_handler_cookie = *cookiep;
-#ifdef COOKIE_FOR_WARNER
-	/* XXX Not sure this is right to write to ccr */
-	pccard_ccr_write(func, PCCARD_CCR_OPTION,
-	    pccard_ccr_read(func, PCCARD_CCR_OPTION) |
-	    PCCARD_CCR_OPTION_IREQ_ENABLE);
-#endif
+	if (pccard_mfc(sc)) {
+		pccard_ccr_write(func, PCCARD_CCR_OPTION,
+		    pccard_ccr_read(func, PCCARD_CCR_OPTION) |
+		    PCCARD_CCR_OPTION_IREQ_ENABLE);
+	}
 	return (0);
 }
 
@@ -1218,16 +1221,16 @@ static int
 pccard_teardown_intr(device_t dev, device_t child, struct resource *r,
     void *cookie)
 {
+	struct pccard_softc *sc = PCCARD_SOFTC(dev);
 	struct pccard_ivar *ivar = PCCARD_IVAR(child);
 	struct pccard_function *func = ivar->fcn;
 	int ret;
 
-#ifdef COOKIE_FOR_WARNER
-	/* XXX Not sure this is right to write to ccr */
-	pccard_ccr_write(func, PCCARD_CCR_OPTION,
-	    pccard_ccr_read(func, PCCARD_CCR_OPTION) &
-	    ~PCCARD_CCR_OPTION_IREQ_ENABLE);
-#endif
+	if (pccard_mfc(sc)) {
+		pccard_ccr_write(func, PCCARD_CCR_OPTION,
+		    pccard_ccr_read(func, PCCARD_CCR_OPTION) &
+		    ~PCCARD_CCR_OPTION_IREQ_ENABLE);
+	}
 	ret = bus_generic_teardown_intr(dev, child, r, cookie);
 	if (ret == 0) {
 		func->intr_handler = NULL;
