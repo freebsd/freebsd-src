@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.50 1997/11/29 03:32:47 jdp Exp $
+ *	$Id: rtld.c,v 1.51 1997/12/05 02:06:37 jdp Exp $
  */
 
 #include <sys/param.h>
@@ -174,6 +174,8 @@ struct somap_private {
 #define RELOC_PCREL_P(s) ((s)->r_pcrel)
 #endif
 
+#define END_SYM		"_end"
+
 static char		__main_progname[] = "main";
 static char		*main_progname = __main_progname;
 static char		us[] = "/usr/libexec/ld.so";
@@ -205,9 +207,10 @@ static void		*__dlsym __P((void *, const char *));
 static const char	*__dlerror __P((void));
 static void		__dlexit __P((void));
 static void		*__dlsym3 __P((void *, const char *, void *));
+static int		__dladdr __P((const void *, Dl_info *));
 
 static struct ld_entry	ld_entry = {
-	__dlopen, __dlclose, __dlsym, __dlerror, __dlexit, __dlsym3
+	__dlopen, __dlclose, __dlsym, __dlerror, __dlexit, __dlsym3, __dladdr
 };
 
        void		xprintf __P((char *, ...));
@@ -302,11 +305,13 @@ struct _dynamic		*dp;
 	struct so_map		*main_map;
 	struct so_map		*smp;
 	char			*add_paths;
+	char			*main_path;
 
 	/* Check version */
 	if (version != CRT_VERSION_BSD_2 &&
 	    version != CRT_VERSION_BSD_3 &&
 	    version != CRT_VERSION_BSD_4 &&
+	    version != CRT_VERSION_BSD_5 &&
 	    version != CRT_VERSION_SUN)
 		return -1;
 
@@ -335,6 +340,8 @@ struct _dynamic		*dp;
 		__progname = crtp->crt_ldso;
 	if (version >= CRT_VERSION_BSD_3)
 		main_progname = crtp->crt_prog;
+	main_path = version >= CRT_VERSION_BSD_5 ? crtp->crt_argv[0] :
+	    main_progname;
 
 	/* Some buggy versions of crt0.o have crt_ldso filled in as NULL. */
 	if (__progname == NULL)
@@ -363,7 +370,7 @@ struct _dynamic		*dp;
 	anon_open();
 
 	/* Make a link map entry for the main program */
-	main_map = alloc_link_map(main_progname,
+	main_map = alloc_link_map(main_path,
 			     (struct sod *) NULL, (struct so_map *) NULL,
 			     (caddr_t) 0, crtp->crt_dp);
 	LM_PRIVATE(main_map)->spd_refcount++;
@@ -453,7 +460,7 @@ struct _dynamic		*dp;
 	(void)close(crtp->crt_ldfd);
 	anon_close();
 
-	return LDSO_VERSION_HAS_DLSYM3;
+	return LDSO_VERSION_HAS_DLADDR;
 }
 
 void
@@ -2022,6 +2029,89 @@ resolvesym(fd, sym, retaddr)
 		addr += (long)src_map->som_addr;
 
 	return (void *)addr;
+}
+
+static int
+__dladdr(addr, dlip)
+	const void	*addr;
+	Dl_info		*dlip;
+{
+	struct _dynamic	*dp;
+	struct so_map	*smp;
+	char		*stringbase;
+	long		 numsyms;
+	int		 symsize;
+	int		 i;
+
+	/* Find the shared object that contains the address. */
+	for (smp = link_map_head;  smp != NULL;  smp = smp->som_next) {
+		struct so_map		*src_map;
+		struct somap_private	*smpp;
+		struct nzlist		*np;
+
+		smpp = LM_PRIVATE(smp);
+		if (smpp->spd_flags & RTLD_RTLD)
+			continue;
+
+		if ((void *)smp->som_addr > addr)
+			continue;
+
+		src_map = smp;
+		if ((np = lookup(END_SYM, &src_map, 1)) == NULL)
+			continue;	/* No "_end" symbol?! */
+		if (addr < (void *)(smp->som_addr + np->nz_value))
+			break;
+	}
+	if (smp == NULL) {
+		generror("No shared object contains address");
+		return 0;
+	}
+	dlip->dli_fname = smp->som_path;
+	dlip->dli_fbase = smp->som_addr;
+	dlip->dli_saddr = (void *) 0;
+	dlip->dli_sname = NULL;
+
+	dp = smp->som_dynamic;
+	symsize	= LD_VERSION_NZLIST_P(dp->d_version) ?
+	    sizeof(struct nzlist) : sizeof(struct nlist);
+	numsyms = LD_STABSZ(dp) / symsize;
+	stringbase = LM_STRINGS(smp);
+
+	for (i = 0;  i < numsyms;  i++) {
+		struct nzlist	*symp = LM_SYMBOL(smp, i);
+		unsigned long	 value;
+
+		/* Reject all except definitions. */
+		if (symp->nz_type != N_EXT + N_ABS &&
+		    symp->nz_type != N_EXT + N_TEXT &&
+		    symp->nz_type != N_EXT + N_DATA &&
+		    symp->nz_type != N_EXT + N_BSS)
+			continue;
+
+		/*
+		 * If the symbol is greater than the specified address, or
+		 * if it is further away from addr than the current nearest
+		 * symbol, then reject it.
+		 */
+		value = (unsigned long) (smp->som_addr + symp->nz_value);
+		if (value > (unsigned long) addr ||
+		    value < (unsigned long) dlip->dli_saddr)
+			continue;
+
+		/* Update our idea of the nearest symbol. */
+		dlip->dli_sname = stringbase + symp->nz_strx;
+		dlip->dli_saddr = (void *) value;
+
+		if (dlip->dli_saddr == addr)	/* Can't get any closer. */
+		    break;
+	}
+	/*
+	 * Remove any leading underscore from the symbol name, to hide
+	 * our a.out-ness.
+	 */
+	if (dlip->dli_sname != NULL && dlip->dli_sname[0] == '_')
+		dlip->dli_sname++;
+	return 1;
 }
 
 static void *

@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: crt0.c,v 1.30 1997/08/02 04:56:33 jdp Exp $
+ *	$Id: crt0.c,v 1.31 1997/11/22 03:34:45 brian Exp $
  */
 
 #include <sys/param.h>
@@ -85,7 +85,7 @@ static int		_strncmp();
 
 extern struct _dynamic	_DYNAMIC;
 static struct ld_entry	*ld_entry;
-static void		__do_dynamic_link ();
+static void		__do_dynamic_link(char **argv);
 #endif /* DYNAMIC */
 
 int			_callmain();
@@ -174,7 +174,7 @@ start()
 	/* sometimes GCC is too smart/stupid for its own good */
 	x = (caddr_t)&_DYNAMIC;
 	if (x)
-		__do_dynamic_link();
+		__do_dynamic_link(argv);
 #endif /* DYNAMIC */
 
 asm("eprol:");
@@ -190,7 +190,8 @@ asm ("__callmain:");		/* Defined for the benefit of debuggers */
 
 #ifdef DYNAMIC
 static void
-__do_dynamic_link ()
+__do_dynamic_link(argv)
+	char	**argv;
 {
 	struct crt_ldso	crt;
 	struct exec	hdr;
@@ -253,14 +254,20 @@ __do_dynamic_link ()
 	crt.crt_prog = __progname;
 	crt.crt_ldso = ldso;
 	crt.crt_ldentry = NULL;
+	crt.crt_argv = argv;
 
 	entry = (int (*)())(crt.crt_ba + sizeof hdr);
-	ldso_version = (*entry)(CRT_VERSION_BSD_4, &crt);
+	ldso_version = (*entry)(CRT_VERSION_BSD_5, &crt);
 	ld_entry = crt.crt_ldentry;
 	if (ldso_version == -1 && ld_entry == NULL) {
-		/* if version 4 not recognised, try version 3 */
-		ldso_version = (*entry)(CRT_VERSION_BSD_3, &crt);
-		ld_entry = _DYNAMIC.d_entry;
+		/* If version 5 not recognised, try version 4 */
+		ldso_version = (*entry)(CRT_VERSION_BSD_4, &crt);
+		ld_entry = crt.crt_ldentry;
+		if (ldso_version == -1 && ld_entry == NULL) {
+			/* if version 4 not recognised, try version 3 */
+			ldso_version = (*entry)(CRT_VERSION_BSD_3, &crt);
+			ld_entry = _DYNAMIC.d_entry;
+		}
 	}
 	if (ldso_version == -1) {
 		_PUTMSG("ld.so failed");
@@ -332,6 +339,16 @@ dlerror()
 		return "Service unavailable";
 
 	return (ld_entry->dlerror)();
+}
+
+int
+dladdr(addr, dlip)
+	const void	*addr;
+	Dl_info		*dlip;
+{
+	if (ld_entry == NULL || ldso_version < LDSO_VERSION_HAS_DLADDR)
+		return 0;
+	return (ld_entry->dladdr)(addr, dlip);
 }
 
 
@@ -419,11 +436,18 @@ const char *name;
 	return NULL;
 }
 
-
 const char *
 dlerror()
 {
 	return "Service unavailable";
+}
+
+int
+dladdr(addr, dlip)
+	const void	*addr;
+	Dl_info		*dlip;
+{
+	return 0;
 }
 #endif /* DYNAMIC */
 
