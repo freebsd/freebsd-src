@@ -591,8 +591,15 @@ pscomp(const void *a, const void *b)
 static char *
 kludge_oldps_options(char *s)
 {
+	int have_fmt;
 	size_t len;
 	char *newopts, *ns, *cp;
+
+	/*
+	 * If we have an 'o' option, then note it, since we don't want to do
+	 * some types of munging.
+	 */
+	have_fmt = index(s, 'o') != NULL;
 
 	len = strlen(s);
 	if ((newopts = ns = malloc(len + 2)) == NULL)
@@ -634,7 +641,7 @@ kludge_oldps_options(char *s)
 	 */
 	if (isdigit(*cp) &&
 	    (cp == s || (cp[-1] != 't' && cp[-1] != 'p')) &&
-	    (cp - 1 == s || cp[-2] != 't'))
+	    (cp - 1 == s || cp[-2] != 't') && !have_fmt)
 		*ns++ = 'p';
 	(void)strcpy(ns, cp);		/* and append the number */
 
