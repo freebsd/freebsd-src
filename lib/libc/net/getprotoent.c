@@ -87,9 +87,8 @@ again:
 	if (*p == '#')
 		goto again;
 	cp = strpbrk(p, "#\n");
-	if (cp == NULL)
-		goto again;
-	*cp = '\0';
+	if (cp != NULL)
+		*cp = '\0';
 	proto.p_name = p;
 	cp = strpbrk(p, " \t");
 	if (cp == NULL)

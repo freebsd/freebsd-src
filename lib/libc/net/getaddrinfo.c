@@ -2090,9 +2090,9 @@ again:
 		return (NULL);
 	if (*p == '#')
 		goto again;
-	if (!(cp = strpbrk(p, "#\n")))
-		goto again;
-	*cp = '\0';
+	cp = strpbrk(p, "#\n");
+	if (cp != NULL)
+		*cp = '\0';
 	if (!(cp = strpbrk(p, " \t")))
 		goto again;
 	*cp++ = '\0';
