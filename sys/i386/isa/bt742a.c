@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt742a.c,v 1.11 1993/11/25 01:31:27 wollman Exp $
+ *      $Id: bt742a.c,v 1.12 1993/12/19 00:50:29 wollman Exp $
  */
 
 /*
@@ -818,7 +818,8 @@ bt_get_ccb(unit, flags)
 			goto gottit;
 		} else {
 			if (!(flags & SCSI_NOSLEEP)) {
-				sleep(&bt->bt_ccb_free, PRIBIO);
+				tsleep((caddr_t)&bt->bt_ccb_free, PRIBIO,
+				       "btccb", 0);
 			}
 		}
 	}
