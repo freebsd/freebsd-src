@@ -11,8 +11,14 @@ PPP control program
 .Op Fl v
 .Op Fl t Ar n
 .Op Fl p Ar passwd
-.Ar [host:]Port | LocalSocket
-.Op command[;command]...
+.Xo Oo Ar host : Oc Ns
+.Ar Port | LocalSocket
+.Xc
+.Oo
+.Sm off
+.Ar command Oo ; Ar command Oc Ar ...
+.Sm on
+.Oc
 .Sh DESCRIPTION
 This program provides command line control of the
 .Xr ppp 8
@@ -30,7 +36,7 @@ for details.  If the socket contains a leading '/', it
 is taken as an
 .Dv AF_LOCAL
 socket.  If it contains a colon, it is treated as a
-.Ar host:port
+.Ar host : Ns Ar port
 pair, otherwise it is treated as a TCP port specification on the
 local machine (127.0.0.1).  Both the
 .Ar host
@@ -41,7 +47,7 @@ or don't have an entry for the given port in
 .Pa /etc/services .
 .Pp
 All remaining arguments are concatenated to form the
-.Ar command(s)
+.Ar command Ns (s)
 that will be sent to the
 .Nm ppp
 daemon.  If any semi-colon characters are found, they are treated as

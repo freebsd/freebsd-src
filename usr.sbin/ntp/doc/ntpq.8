@@ -139,9 +139,9 @@ than this manual page.
 .It Ic clearvars
 The data carried by NTP mode 6 messages consists of a list of items of
 the form
-.Xo Aq variable_name Ns
-.Pf = Aq value
-.Xc
+.Sm off
+.Ao variable_name Ac = Aq value
+.Sm on
 where the
 .Qq = Ns Aq value
 is ignored, and can be omitted, in requests
@@ -376,16 +376,16 @@ cached by the most recent
 .Ic associations
 command.
 .It Xo Ic mreadvar
-.Ar assocID assocID [
+.Ar assocID assocID Oo
 .Aq variable_name Ns
 .Op = Ns Aq value Ns
-.Op ,...]
+.Op ,... Oc
 .Xc
 .It Xo Ic mrv
-.Ar assocID assocID [
+.Ar assocID assocID Oo
 .Aq variable_name Ns
 .Op = Ns Aq value Ns
-.Op ,...]
+.Op ,... Oc
 .Xc
 Like the
 .Ic readvar

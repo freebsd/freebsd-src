@@ -124,13 +124,13 @@ Parse command line options.
 .El
 .Sh OPTIONS
 .Bl -tag -width Ds
-.It Sy -check_only
+.It Fl check_only
 Check /etc/passwd, /etc/group, /etc/shells and exit.
-.It Sy -class Ar login_class
+.It Fl class Ar login_class
 Set default login class.
-.It Sy -config_create
+.It Fl config_create
 Create new configuration and message file and exit. 
-.It Sy -dotdir Ar directory
+.It Fl dotdir Ar directory
 Copy files from 
 .Ar directory 
 into the
@@ -154,15 +154,15 @@ to read/execute/write
 .Pa prv , 
 .Pa iscreen , 
 .Pa term .
-.It Sy -group Ar login_group
+.It Fl group Ar login_group
 Login group. 
 .Ar USER
 means that the username is to be used as login group.
-.It Sy -help,-h,-?
+.It Fl help , h , \&?
 Print a summary of options and exit.
-.It Sy -home Ar partition
+.It Fl home Ar partition
 Default home partition where all users located.
-.It Sy -message Ar file
+.It Fl message Ar file
 Send new users a welcome message from
 .Ar file .
 Specifying a value of
@@ -170,17 +170,17 @@ Specifying a value of
 for
 .Ar file 
 causes no message to be sent to new users.
-.It Sy -noconfig
+.It Fl noconfig
 Do not read the default configuration file.
-.It Sy -shell Ar shell 
+.It Fl shell Ar shell 
 Default shell for new users.
-.It Sy -silent,-s,-quiet,-q
+.It Fl silent , s , quiet , q
 Few warnings, questions, bug reports. 
-.It Sy -uid Ar uid
+.It Fl uid Ar uid
 Use uid's from 
 .Ar uid
 on up.
-.It Sy -verbose,-v
+.It Fl verbose , v
 Many warnings, questions.
 Recommended for novice users.
 .El

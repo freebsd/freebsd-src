@@ -15,17 +15,11 @@
 .Dt LPTCONTROL 8
 .Os FreeBSD
 .Sh NAME
-.Nm \&lptcontrol 
+.Nm lptcontrol
 .Nd a utility for manipulating the lpt printer driver
 .Sh SYNOPSIS
 .Nm
-.Cm -i
-|
-.Cm -p
-|
-.Cm -e
-|
-.Cm -s
+.Fl i | p | e | s
 .Op Fl d Ar device
 .Sh DESCRIPTION
 The
@@ -33,7 +27,8 @@ The
 command is used to set either the interrupt-driven, extended or polling mode
 of individual 
 .Xr lpt 4
-devices.  When a printer is switched from
+devices.
+When a printer is switched from
 a mode to another, this change will only take effect
 the next time the device is opened.
 .Pp
@@ -51,23 +46,20 @@ Turn on polled mode.
 Turn on extended mode.
 .It Fl s
 Turn on standard mode, i.e. turn off extended mode.
-.It Fl d Ar dev
+.It Fl d Ar device
 Set the mode of the printer device specified by
-.Ar dev .
+.Ar device .
 The default value for 
-.Ar dev
+.Ar device
 is
 .Pa /dev/lpt0 .
 .El
 .Pp
 One of 
-.Fl i
-,
-.Fl p
+.Fl i , p
 or
 .Fl e
 must be specified.
-.Pp
 .Sh FILES
 .Bl -tag -width /sys/i386/conf/GENERIC -compact
 .It Pa /dev/lpt?
@@ -79,11 +71,13 @@ kernel configuration file
 .El
 .Sh BUGS
 Sure to be some.
-.Sh "SEE ALSO"
+.Sh SEE ALSO
 .Xr lpt 4 
 .Sh AUTHORS
 .An Geoffrey M. Rehmet
 .Sh HISTORY
-.Nm Lptcontrol
+The
+.Nm
+command
 first appeared in
 .Fx 1.1.5

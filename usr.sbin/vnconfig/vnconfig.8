@@ -47,11 +47,11 @@
 .Nm
 .Op Fl cdeguv
 .Oo Fl s Ar option Ns
-.Op , Ns Ar option Ns Ar ...\& Oc
+.Op , Ns Ar option Ns Ar ... Oc
 .Oo Fl r Ar option Ns
-.Op , Ns Ar option Ns Ar ...\& Oc
+.Op , Ns Ar option Ns Ar ... Oc
 .Op Fl S Ar value
-.Ar special_file Ar [regular_file]
+.Ar special_file Op Ar regular_file
 .Op Ar feature
 .Nm
 .Fl a 
@@ -140,7 +140,13 @@ Set
 The list of allowed flags and their meanings are the same as for the
 .Fl r
 option.
-.It Fl S Ar value{k,m,g,t}
+.It Fl S Xo
+.Sm off
+.Ar value
+.Es \&{ \&}
+.En Cm k , m , g , t
+.Sm on
+.Xc
 If no regular file is specified, VN will use swap for backing store.
 This option specifies the size of the device.  For example, '23m' for
 23 megabytes.  The VN device will round the size up to a machine page boundary.
@@ -176,17 +182,17 @@ option:
 Swapping is enabled on the special file.
 See
 .Xr swapon 2 .
-.It Dv Pf mountro= Pa mount_point
+.It Dv mountro Ns = Ns Pa mount_point
 The special file is mounted read-only on
 .Ar mount_point .
 See
 .Xr mount 2 .
-.It Dv Pf mountrw= Pa mount_point
+.It Dv mountrw Ns = Ns Pa mount_point
 The special file is mounted read-write on
 .Ar mount_point .
 See
 .Xr mount 2 .
-.It Dv Pf mount= Pa mount_point
+.It Dv mount Ns = Ns Pa mount_point
 Same as ``mountrw=''.
 .El
 .Pp

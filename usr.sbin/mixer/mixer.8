@@ -38,12 +38,17 @@
 .Op Fl f Ar device
 .Op Fl s
 .Oo
-.Oo Ns
-.Ar dev Op Ar lvol Ns Op Ar :rvol
-.Li | recsrc |
-.Ar {^|+|-|=}rec rdev
+.Oo Ar dev
+.Op Ar lvol Ns Op : Ns Ar rvol
+.Cm | recsrc |
+.Sm off
+.Eo \&{
+.Cm ^ | + | - | =
+.Sm on
+.Ec \&} Ns Cm rec
+.Ar rdev
 .Oc
-.Ar ... \&
+.Ar ...
 .Oc
 .Sh DESCRIPTION
 The
@@ -73,7 +78,7 @@ device will be displayed.
 To modify the mixer value
 .Ar dev ,
 the optional left and right channel settings of
-.Ar lvol Ns Op Ar :rvol
+.Ar lvol Ns Op : Ns Ar rvol
 may be specified.  The
 .Ar lvol
 and 
@@ -89,19 +94,19 @@ for use as the command-line arguments to a future invocation of
 .Pp
 To change the recording device you use one of:
 .Bl -tag -width =rec -offset indent
-.It ^rec
+.It Cm ^rec
 toggles
 .Ar rdev
 of possible recording devices
-.It +rec
+.It Cm +rec
 adds
 .Ar rdev
 to possible recording devices
-.It -rec
+.It Cm -rec
 removes
 .Ar rdev
 from possible recording devices
-.It =rec
+.It Cm =rec
 sets the recording device to
 .Ar rdev
 .El

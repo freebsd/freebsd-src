@@ -93,9 +93,9 @@ format
 .It "lf	str" Ta Pa /dev/console Ta No "error logging file name"
 .It "lo	str" Ta Pa lock Ta No "name of lock file"
 .It "lp	str" Ta Pa /dev/lp Ta No "device name to open for output"
-.It "ms	str" Ta Dv NULL Ta No "if lp is a tty, a comma-separated, "
-.Xr stty 1
--like list describing the tty modes
+.It "ms	str" Ta Dv NULL Ta No "if lp is a tty, a comma-separated,"
+.Xr stty 1 Ns -like
+list describing the tty modes
 .It "mx	num	1000	maximum file size (in"
 .Dv BUFSIZ
 blocks), zero = unlimited
@@ -199,7 +199,7 @@ v	vf	raster image
 The
 .Sy if
 filter is invoked with arguments:
-.Bd -filled -offset indent
+.Bd -ragged -offset indent
 .Cm if
 .Op Fl c
 .Fl w Ns Ar width
@@ -264,7 +264,7 @@ and
 flags.
 .Pp
 All other filters are called as:
-.Bd -filled -offset indent
+.Bd -ragged -offset indent
 .Nm filter
 .Fl x Ns Ar width
 .Fl y Ns Ar length

@@ -38,7 +38,12 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl c Ar configfile
-.Op Fl d Op debug_level Op ,debug_level
+.Oo
+.Fl d
+.Sm off
+.Op Ar debug_level Op , Ar ...
+.Sm on
+.Oc
 .Sh DESCRIPTION
 .Nm Pim6dd
 is an IPv6 multicast routing daemon, which supports
@@ -61,11 +66,14 @@ all debug messages will be printed out.
 A subset of the messages to be printed out can be specified
 as arguments of the option.
 Valid debug levels are
-.Ic timeout, packets, interfaces, kernel, mfc, pim_detail, pim_hello,
-.Ic kernel, mfc, pim_detail, pim_hello, pim_jp, pim_graft, pim_asserts,
-.Ic pim_routes, pim_timers, rpf, pim, routes, routers, timers,
+.Ic timeout , packets , interfaces , kernel ,
+.Ic mfc , pim_detail , pim_hello , kernel ,
+.Ic mfc , pim_detail , pim_hello , pim_jp ,
+.Ic pim_graft , pim_asserts , pim_routes , pim_timers ,
+.Ic rpf , pim , routes , routers ,
+.Ic timers ,
 and
-.Ic asserts.
+.Ic asserts .
 .El
 .Pp
 .Nm Pim6dd 

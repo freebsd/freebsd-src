@@ -43,7 +43,12 @@
 .Op Fl ypsetme
 .Op Fl s
 .Op Fl m
-.Op Fl S Ar domainname,server1,server2,...
+.Oo
+.Fl S
+.Sm off
+.Ar domainname , server1 , server2 , ...
+.Sm on
+.Oc
 .Sh DESCRIPTION
 .Nm Ypbind
 is the process that maintains NIS binding information.
@@ -108,7 +113,11 @@ Cause
 to run in secure mode: it will refuse to bind to any NIS server
 that is not running as root (i.e. that is not using privileged
 TCP ports).
-.It Fl S Ar domainname,server1,server2,server3,...
+.It Fl S Xo
+.Sm off
+.Ar domainname , server1 , server2 , server3 , ...
+.Sm on
+.Xc
 Allow the system administrator to lock
 .Nm
 to a particular

@@ -233,7 +233,7 @@ PPPDISC.
 Print the active vnodes.  Each group of vnodes corresponding
 to a particular filesystem is preceded by a two line header.  The
 first line consists of the following:
-.Bd -filled -offset indent
+.Bd -ragged -offset indent
 .No *** MOUNT Em fstype from 
 on
 .Em on fsflags
@@ -290,7 +290,7 @@ A list of letters representing vnode flags:
 .Dv VDOOMED
 .It F
 .Dv VFREE
-.iT b
+.It b
 .Dv VTBFREE
 .It O
 .Dv VONWORKLST
