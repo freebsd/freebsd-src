@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: pps.c,v 1.11 1998/08/24 16:31:27 phk Exp $
+ * $Id: pps.c,v 1.12 1998/12/07 21:58:16 archie Exp $
  *
  * This driver implements a draft-mogul-pps-api-02.txt PPS source.
  *
@@ -16,6 +16,7 @@
  */
 
 #include "opt_devfs.h"
+#include "opt_ntp.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -133,6 +134,7 @@ ppsopen(dev_t dev, int flags, int fmt, struct proc *p)
 	if (ppb_request_bus(&sc->pps_dev, PPB_WAIT|PPB_INTR))
 		return (EINTR);
 
+	ppb_wctr(&sc->pps_dev, 0);
 	ppb_wctr(&sc->pps_dev, IRQENABLE);
 
 	return(0);
@@ -144,6 +146,10 @@ ppsclose(dev_t dev, int flags, int fmt, struct proc *p)
 	struct pps_data *sc = softc[minor(dev)];
 
 	sc->ppsparam.mode = 0;
+
+	ppb_wdtr(&sc->pps_dev, 0);
+	ppb_wctr(&sc->pps_dev, 0);
+
 	ppb_release_bus(&sc->pps_dev);
 	return(0);
 }
