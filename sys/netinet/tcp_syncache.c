@@ -259,7 +259,7 @@ syncache_init(void)
 	 * older one.
 	 */
 	tcp_syncache.zone = uma_zcreate("syncache", sizeof(struct syncache),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	uma_zone_set_max(tcp_syncache.zone, tcp_syncache.cache_limit);
 	tcp_syncache.cache_limit -= 1;
 }
