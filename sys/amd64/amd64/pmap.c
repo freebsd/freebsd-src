@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.23 1994/04/14 07:49:38 davidg Exp $
+ *	$Id: pmap.c,v 1.24 1994/04/20 07:06:14 davidg Exp $
  */
 
 /*
@@ -91,6 +91,7 @@
 #include "malloc.h"
 #include "user.h"
 #include "i386/include/cpufunc.h"
+#include "i386/include/cputypes.h"
 
 #include "vm/vm.h"
 #include "vm/vm_kern.h"
@@ -154,6 +155,7 @@ void				pmap_alloc_pv_entry();
 void				pmap_clear_modify();
 void				i386_protection_init();
 extern vm_offset_t pager_sva, pager_eva;
+extern int cpu_class;
 
 #if BSDVM_COMPAT
 #include "msgbuf.h"
@@ -284,7 +286,6 @@ pmap_use_pt(pmap, va)
 		return; 
 
 	pt = (vm_offset_t) vtopte(va);
-	/* vm_page_wire( pmap_pte_vm_page(pmap, pt)); */
 	vm_page_hold( pmap_pte_vm_page(pmap, pt));
 }
 
@@ -302,7 +303,6 @@ pmap_unuse_pt(pmap, va)
 		return; 
 
 	pt = (vm_offset_t) vtopte(va);
-/*	vm_page_unwire( pmap_pte_vm_page(pmap, pt)); */
 	vm_page_unhold( pmap_pte_vm_page(pmap, pt));
 }
 
@@ -722,7 +722,7 @@ pmap_alloc_pv_entry()
 /*
  * init the pv_entry allocation system
  */
-#define PVSPERPAGE 16
+#define PVSPERPAGE 64
 void
 init_pv_entries(npg)
 	int npg;
@@ -817,7 +817,6 @@ pmap_remove(pmap, sva, eva)
 	vm_offset_t va;
 	vm_page_t m;
 	pt_entry_t oldpte;
-	int reqactivate = 0;
 
 	if (pmap == NULL)
 		return;
@@ -862,14 +861,7 @@ pmap_remove(pmap, sva, eva)
 			pmap_remove_entry(pmap, pv, sva);
 			pmap_unuse_pt(pmap, sva); 
 		}
-		/*
-		 * Pageout daemon is the process that calls pmap_remove
-		 * most often when the page is not owned by the current
-		 * process. there are slightly more accurate checks, but
-		 * they are not nearly as fast.
-		 */
-		if( (curproc != pageproc) || (pmap == kernel_pmap))
-			tlbflush();
+		tlbflush();
 		return;
 	}
 	
@@ -935,6 +927,8 @@ pmap_remove(pmap, sva, eva)
 		 */
 		*ptq = 0;
 
+		va = i386_ptob(sva);
+
 		/*
 		 * Remove from the PV table (raise IPL since we
 		 * may be called at interrupt time).
@@ -944,8 +938,6 @@ pmap_remove(pmap, sva, eva)
 			++sva;
 			continue;
 		}
-
-		va = i386_ptob(sva);
 
 		if ((((int) oldpte & PG_M) && (va < USRSTACK || va > UPT_MAX_ADDRESS))
 			|| (va >= USRSTACK && va < USRSTACK+(UPAGES*NBPG))) {
@@ -959,16 +951,8 @@ pmap_remove(pmap, sva, eva)
 		pmap_remove_entry(pmap, pv, va);
 		pmap_unuse_pt(pmap, va); 
 		++sva;
-		reqactivate = 1;
 	}
-endofloop:
-	/*
-	 * only call tlbflush if the pmap has changed and the tlb
-	 * *really* needs to be updated.
-	 */
-	if( reqactivate &&
-		(curproc != pageproc) || (pmap == kernel_pmap))
-		tlbflush();
+	tlbflush();
 }
 
 /*
@@ -993,7 +977,6 @@ pmap_remove_all(pa)
 	struct pmap *pmap;
 	struct map *map;
 	vm_page_t m;
-	int rqactivate = 0;
 	int s;
 
 	/*
@@ -1038,13 +1021,9 @@ pmap_remove_all(pa)
 		} else {
 			pv->pv_pmap = NULL;
 		}
-		if( (curproc != pageproc) || (pmap == kernel_pmap))
-			rqactivate = 1;
 	}
 	splx(s);
-
-	if( rqactivate)
-		tlbflush();
+	tlbflush();
 }
 
 
@@ -1062,7 +1041,6 @@ pmap_protect(pmap, sva, eva, prot)
 	register vm_offset_t va;
 	int i386prot;
 	register pt_entry_t *ptp;
-	int reqactivate = 0;
 	int evap = i386_btop(eva);
 	int s;
 
@@ -1130,18 +1108,10 @@ nextpde:
 			if( va >= UPT_MIN_ADDRESS)
 				i386prot |= PG_RW;
 		}
-		if (i386prot != ( (int) *pte & PG_PROT)) {
-			reqactivate = 1;
-			pmap_pte_set_prot(pte, i386prot);
-		}
+		pmap_pte_set_prot(pte, i386prot);
 		va += PAGE_SIZE;
 	}
-endofloop:
-	/*
-	 * only if pte changed
-	 */
-	if( reqactivate)
-		tlbflush();
+	tlbflush();
 }
 
 /*
@@ -1293,10 +1263,7 @@ validate:
 	else if (va < UPT_MAX_ADDRESS)
 		(int) npte |= PG_u | PG_RW;
 
-	/*
-	 * only if pte changed
-	 */
-	if ((int) npte != (int) *pte) {
+	if( *pte != npte) {
 		*pte = npte;
 		tlbflush();
 	}
@@ -1775,7 +1742,6 @@ pmap_changebit(pa, bit, setem)
 	register pt_entry_t *pte, npte;
 	vm_offset_t va;
 	int s;
-	int reqactivate = 0;
 
 	if (!pmap_is_managed(pa))
 		return;
@@ -1804,18 +1770,11 @@ pmap_changebit(pa, bit, setem)
 				(int) npte = (int) *pte | bit;
 			else
 				(int) npte = (int) *pte & ~bit;
-			if (*pte != npte) {
-				*pte = npte;
-				reqactivate = 1;
-			}
+			*pte = npte;
 		}
 	}
 	splx(s);
-	/*
-	 * tlbflush only if we need to
-	 */
-	if( reqactivate && (curproc != pageproc))
-		tlbflush();
+	tlbflush();
 }
 
 /*
