@@ -1,8 +1,10 @@
 #
-# $Id: rc.devfs,v 1.2 1998/09/20 18:49:04 sos Exp $
+# $Id: rc.devfs,v 1.3 1998/10/13 08:25:09 jkh Exp $
 #
 # If there is a global system configuration file, suck it in.
-if [ -f /etc/rc.conf ]; then
+if [ -f /etc/defaults/rc.conf ]; then
+	. /etc/defaults/rc.conf
+elif [ -f /etc/rc.conf ]; then
 	. /etc/rc.conf
 fi
 

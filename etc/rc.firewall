@@ -1,8 +1,11 @@
 ############
 # Setup system for firewall service.
-# $Id: rc.firewall,v 1.18 1998/04/18 10:27:05 brian Exp $
+# $Id: rc.firewall,v 1.19 1998/04/25 00:40:55 alex Exp $
 
-if [ -f /etc/rc.conf ]; then
+# Suck in the configuration variables.
+if [ -f /etc/defaults/rc.conf ]; then
+	. /etc/defaults/rc.conf
+elif [ -f /etc/rc.conf ]; then
 	. /etc/rc.conf
 fi
 
