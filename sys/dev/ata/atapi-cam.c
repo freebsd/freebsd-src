@@ -556,7 +556,7 @@ atapi_cb(struct ata_request *request)
     csio = &hcb->ccb->csio;
 
 #ifdef CAMDEBUG
-# define err (request->error)
+# define err (request->u.atapi.sense_key)
     if (CAM_DEBUGGED(csio->ccb_h.path, CAM_DEBUG_CDB)) {
 	printf("atapi_cb: hcb@%p error = %02x: (sk = %02x%s%s%s)\n",
 	       hcb, err, err >> 4,
@@ -579,6 +579,7 @@ atapi_cb(struct ata_request *request)
 	csio->scsi_status = SCSI_STATUS_CHECK_COND;
 
 	if ((csio->ccb_h.flags & CAM_DIS_AUTOSENSE) == 0) {
+#if 0
 	    static const int8_t ccb[16] = { ATAPI_REQUEST_SENSE, 0, 0, 0,
 		sizeof(struct atapi_sense), 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0 };
@@ -595,6 +596,14 @@ atapi_cb(struct ata_request *request)
 	    mtx_unlock (&Giant);
 	    ata_queue_request(request);
 	    return;
+#else
+	    /* The ATA driver has already requested sense for us. */
+	    if (request->error == 0) {
+		/* The ATA autosense suceeded. */
+		bcopy (&request->u.atapi.sense_data, &csio->sense_data, sizeof(struct atapi_sense));
+		csio->ccb_h.status |= CAM_AUTOSNS_VALID;
+	    }
+#endif
 	}
     } else {
 	rc = CAM_REQ_CMP;
