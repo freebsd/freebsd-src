@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 24, 1996
+.Dd January 7, 2004
 .Os
 .Dt VFS_VGET 9
 .Sh NAME
@@ -41,7 +41,9 @@
 .Ft int
 .Fn VFS_VGET "struct mount *mp" "ino_t ino" "int flags" "struct vnode **vpp"
 .Sh DESCRIPTION
-This converts an inode number into a locked vnode.
+The
+.Fn VFS_VGET
+macro converts an inode number into a locked vnode.
 .Pp
 Its arguments are:
 .Bl -tag -width ".Fa flags"
