@@ -10,20 +10,12 @@ SRCS+=	ldcref.c ldctor.c ldemul.c ldemul-list.h ldexp.c ldfile.c \
 	ldgram.y ldlang.c ldlex.l ldmain.c ldmisc.c \
 	ldver.c ldwrite.c lexsup.c mri.c
 
-.if defined(BOOTSTRAPPING) && !exists(/usr/include/elf-hints.h)
-SRCS+=	elf-hints.h
-CLEANFILES+=	elf-hints.h
-
-elf-hints.h:
-	ln -sf ${.CURDIR}/../../../../include/${.TARGET} .
-.endif
-
 WARNS=	1
 CFLAGS+= -DSCRIPTDIR=\"${TOOLS_PREFIX}/usr/libdata\"
 CFLAGS+= -DBFD_VERSION_STRING=\"${VERSION}\"
 CFLAGS+= -I${SRCDIR}/ld -I${SRCDIR}/bfd
 NOSHARED?= yes
-DPADD=	${RELTOP}/libbfd/libbfd.a
+DPADD+=	${RELTOP}/libbfd/libbfd.a
 DPADD+=	${RELTOP}/libiberty/libiberty.a
 LDADD=	${DPADD}
 CLEANDIRS+=	ldscripts

@@ -52,10 +52,3 @@ CFLAGS		+=	-Werror
 
 # Allow user-specified additional warning flags
 CFLAGS		+=	${CWARNFLAGS}
-
-# FreeBSD didn't always have the __FBSDID() macro in <sys/cdefs.h>.
-.if defined(BOOTSTRAPPING) && \
-    ( ${BOOTSTRAPPING} < 440001 || \
-    ( ${BOOTSTRAPPING} >= 500000 && ${BOOTSTRAPPING} < 500024 ))
-CFLAGS+=	-D__FBSDID=__RCSID
-.endif
