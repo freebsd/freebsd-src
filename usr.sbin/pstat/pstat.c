@@ -147,11 +147,14 @@ static char	*usagestr;
 	}
 
 static void	filemode(void);
-static int	getfiles(char **, int *);
+static int	getfiles(char **, size_t *);
 static void	swapmode(void);
 static void	ttymode(void);
-static void	ttyprt(struct tty *, int);
+static void	ttyprt(struct xtty *);
+#if 0
+/* XXX */
 static void	ttytype(struct tty *, char *, int, int, int);
+#endif
 static void	usage(void);
 
 int
@@ -248,28 +251,35 @@ usage(void)
 
 static const char hdr[] =
 "  LINE RAW CAN OUT IHIWT ILOWT OHWT LWT     COL STATE  SESS      PGID DISC\n";
+#if 0
+/* XXX */
 static int ttyspace = 128;
+#endif
 
 static void
 ttymode(void)
 {
-	struct tty *tty;
-	struct tty ttyb[1000];
-	int error;
-	size_t len, i;
+	struct xtty *xt, *end;
+	void *xttys;
+	size_t len;
 
 	(void)printf("%s", hdr);
-	len = sizeof(ttyb);
-	error = sysctlbyname("kern.ttys", &ttyb, &len, 0, 0);
-	if (!error) {
-		len /= sizeof(ttyb[0]);
-		for (i = 0; i < len; i++) {
-			ttyprt(&ttyb[i], 0);
-		}
+	if ((xttys = malloc(len = sizeof *xt)) == NULL)
+		err(1, "malloc()");
+	while (sysctlbyname("kern.ttys", xttys, &len, 0, 0) == -1) {
+		if (errno != ENOMEM)
+			err(1, "sysctlbyname()");
+		len *= 2;
+		if ((xttys = realloc(xttys, len)) == NULL)
+			err(1, "realloc()");
 	}
+	if (len > 0) {
+		end = (struct xtty *)((char *)xttys + len);
+		for (xt = xttys; xt < end; xt++)
+			ttyprt(xt);
+	}
+#if 0
 	/* XXX */
-	if (kd == NULL)
-		return;
 	if ((tty = malloc(ttyspace * sizeof(*tty))) == NULL)
 		errx(1, "malloc");
 	if (nl[SCONS].n_type != 0) {
@@ -318,6 +328,7 @@ ttytype(struct tty *tty, char *name, int type, int number, int indir)
 	(void)printf("%s", hdr);
 	for (tp = tty; tp < &tty[ntty]; tp++)
 		ttyprt(tp, tp - tty);
+#endif
 }
 
 static struct {
@@ -375,33 +386,33 @@ static struct {
 };
 
 static void
-ttyprt(struct tty *tp, int line)
+ttyprt(struct xtty *xt)
 {
 	int i, j;
 	pid_t pgid;
 	char *name, state[20];
 
-	if (usenumflag || tp->t_dev == 0 ||
-	   (name = devname(tp->t_dev, S_IFCHR)) == NULL)
-		(void)printf("   %2d,%-2d", major(tp->t_dev), minor(tp->t_dev));
+	if (xt->xt_size != sizeof *xt)
+		errx(1, "struct xtty size mismatch");
+	if (usenumflag || xt->xt_dev == 0 ||
+	   (name = devname(xt->xt_dev, S_IFCHR)) == NULL)
+		(void)printf("   %2d,%-2d", major(xt->xt_dev), minor(xt->xt_dev));
 	else
 		(void)printf("%7s ", name);
-	(void)printf("%2d %3d ", tp->t_rawq.c_cc, tp->t_canq.c_cc);
-	(void)printf("%3d %5d %5d %4d %3d %7d ", tp->t_outq.c_cc,
-		tp->t_ihiwat, tp->t_ilowat, tp->t_ohiwat, tp->t_olowat,
-		tp->t_column);
+	(void)printf("%2ld %3ld ", xt->xt_rawcc, xt->xt_cancc);
+	(void)printf("%3ld %5d %5d %4d %3d %7d ", xt->xt_outcc,
+		xt->xt_ihiwat, xt->xt_ilowat, xt->xt_ohiwat, xt->xt_olowat,
+		xt->xt_column);
 	for (i = j = 0; ttystates[i].flag; i++)
-		if (tp->t_state & ttystates[i].flag)
+		if (xt->xt_state & ttystates[i].flag)
 			state[j++] = ttystates[i].val;
 	if (j == 0)
 		state[j++] = '-';
 	state[j] = '\0';
-	(void)printf("%-6s %8lx", state, (u_long)(void *)tp->t_session);
+	(void)printf("%-6s %8d", state, xt->xt_sid);
 	pgid = 0;
-	if (kd != NULL /* XXX */ && tp->t_pgrp != NULL)
-		KGET2(&tp->t_pgrp->pg_id, &pgid, sizeof(pid_t), "pgid");
-	(void)printf("%6d ", pgid);
-	switch (tp->t_line) {
+	(void)printf("%6d ", xt->xt_pgid);
+	switch (xt->xt_line) {
 	case TTYDISC:
 		(void)printf("term\n");
 		break;
@@ -415,7 +426,7 @@ ttyprt(struct tty *tp, int line)
 		(void)printf("ppp\n");
 		break;
 	default:
-		(void)printf("%d\n", tp->t_line);
+		(void)printf("%d\n", xt->xt_line);
 		break;
 	}
 }
@@ -477,16 +488,13 @@ filemode(void)
 		(void)printf("%6s  %3d", flagbuf, fp->f_count);
 		(void)printf("  %3d", fp->f_msgcount);
 		(void)printf("  %8lx", (u_long)(void *)fp->f_data);
-		if (fp->f_offset < 0)
-			(void)printf("  %qx\n", fp->f_offset);
-		else
-			(void)printf("  %qd\n", fp->f_offset);
+		(void)printf("  %jx\n", (uintmax_t)fp->f_offset);
 	}
 	free(buf);
 }
 
 static int
-getfiles(char **abuf, int *alen)
+getfiles(char **abuf, size_t *alen)
 {
 	size_t len;
 	int mib[2];
