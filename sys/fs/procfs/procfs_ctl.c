@@ -125,13 +125,21 @@ procfs_control(curp, p, op)
 	 * by the calling process.
 	 */
 	if (op == PROCFS_CTL_ATTACH) {
+		PROCTREE_LOCK(PT_EXCLUSIVE);
+		PROC_LOCK(p);
 		/* check whether already being traced */
-		if (p->p_flag & P_TRACED)
+		if (p->p_flag & P_TRACED) {
+			PROC_UNLOCK(p);
+			PROCTREE_LOCK(PT_RELEASE);
 			return (EBUSY);
+		}
 
 		/* can't trace yourself! */
-		if (p->p_pid == curp->p_pid)
+		if (p->p_pid == curp->p_pid) {
+			PROC_UNLOCK(p);
+			PROCTREE_LOCK(PT_RELEASE);
 			return (EINVAL);
+		}
 
 		/*
 		 * Go ahead and set the trace flag.
@@ -144,13 +152,13 @@ procfs_control(curp, p, op)
 		p->p_flag |= P_TRACED;
 		faultin(p);
 		p->p_xstat = 0;		/* XXX ? */
-		PROCTREE_LOCK(PT_EXCLUSIVE);
 		if (p->p_pptr != curp) {
 			p->p_oppid = p->p_pptr->p_pid;
 			proc_reparent(p, curp);
 		}
-		PROCTREE_LOCK(PT_RELEASE);
 		psignal(p, SIGSTOP);
+		PROC_UNLOCK(p);
+		PROCTREE_LOCK(PT_RELEASE);
 		return (0);
 	}
 
@@ -166,15 +174,15 @@ procfs_control(curp, p, op)
 		break;
 
 	default:
-		PROCTREE_LOCK(PT_SHARED);
+		PROC_LOCK(p);
 		mtx_lock_spin(&sched_lock);
 		if (!TRACE_WAIT_P(curp, p)) {
 			mtx_unlock_spin(&sched_lock);
-			PROCTREE_LOCK(PT_RELEASE);
+			PROC_UNLOCK(p);
 			return (EBUSY);
 		}
 		mtx_unlock_spin(&sched_lock);
-		PROCTREE_LOCK(PT_RELEASE);
+		PROC_UNLOCK(p);
 	}
 
 
@@ -190,6 +198,7 @@ procfs_control(curp, p, op)
 	 * To continue with a signal, just send
 	 * the signal name to the ctl file
 	 */
+	PROC_LOCK(p);
 	p->p_xstat = 0;
 
 	switch (op) {
@@ -199,14 +208,17 @@ procfs_control(curp, p, op)
 	 */
 	case PROCFS_CTL_DETACH:
 		/* if not being traced, then this is a painless no-op */
-		if ((p->p_flag & P_TRACED) == 0)
+		if ((p->p_flag & P_TRACED) == 0) {
+			PROC_UNLOCK(p);
 			return (0);
+		}
 
 		/* not being traced any more */
 		p->p_flag &= ~P_TRACED;
 
 		/* remove pending SIGTRAP, else the process will die */
 		SIGDELSET(p->p_siglist, SIGTRAP);
+		PROC_UNLOCK(p);
 
 		/* give process back to original parent */
 		PROCTREE_LOCK(PT_EXCLUSIVE);
@@ -214,13 +226,16 @@ procfs_control(curp, p, op)
 			struct proc *pp;
 
 			pp = pfind(p->p_oppid);
+			PROC_LOCK(p);
 			if (pp)
 				proc_reparent(p, pp);
-		}
-		PROCTREE_LOCK(PT_RELEASE);
-
+		} else
+			PROC_LOCK(p);
 		p->p_oppid = 0;
 		p->p_flag &= ~P_WAITED;	/* XXX ? */
+		PROC_UNLOCK(p);
+		PROCTREE_LOCK(PT_RELEASE);
+
 		wakeup((caddr_t) curp);	/* XXX for CTL_WAIT below ? */
 
 		break;
@@ -229,7 +244,8 @@ procfs_control(curp, p, op)
 	 * Step.  Let the target process execute a single instruction.
 	 */
 	case PROCFS_CTL_STEP:
-		PHOLD(p);
+		_PHOLD(p);
+		PROC_UNLOCK(p);
 		error = procfs_sstep(p);
 		PRELE(p);
 		if (error)
@@ -241,6 +257,7 @@ procfs_control(curp, p, op)
 	 * or some other trap.
 	 */
 	case PROCFS_CTL_RUN:
+		PROC_UNLOCK(p);
 		break;
 
 	/*
@@ -251,24 +268,22 @@ procfs_control(curp, p, op)
 	case PROCFS_CTL_WAIT:
 		error = 0;
 		if (p->p_flag & P_TRACED) {
-			PROCTREE_LOCK(PT_SHARED);
 			mtx_lock_spin(&sched_lock);
 			while (error == 0 &&
 					(p->p_stat != SSTOP) &&
 					(p->p_flag & P_TRACED) &&
 					(p->p_pptr == curp)) {
 				mtx_unlock_spin(&sched_lock);
-				PROCTREE_LOCK(PT_RELEASE);
-				error = tsleep((caddr_t) p,
+				error = msleep((caddr_t) p, &p->p_mtx,
 						PWAIT|PCATCH, "procfsx", 0);
-				PROCTREE_LOCK(PT_SHARED);
 				mtx_lock_spin(&sched_lock);
 			}
 			if (error == 0 && !TRACE_WAIT_P(curp, p))
 				error = EBUSY;
 			mtx_unlock_spin(&sched_lock);
-			PROCTREE_LOCK(PT_RELEASE);
+			PROC_UNLOCK(p);
 		} else {
+			PROC_UNLOCK(p);
 			mtx_lock_spin(&sched_lock);
 			while (error == 0 && p->p_stat != SSTOP) {
 				mtx_unlock_spin(&sched_lock);
@@ -328,7 +343,7 @@ procfs_doctl(curp, p, pfs, uio)
 	} else {
 		nm = vfs_findname(signames, msg, xlen);
 		if (nm) {
-			PROCTREE_LOCK(PT_SHARED);
+			PROC_LOCK(p);
 			mtx_lock_spin(&sched_lock);
 			if (TRACE_WAIT_P(curp, p)) {
 				p->p_xstat = nm->nm_val;
@@ -337,12 +352,11 @@ procfs_doctl(curp, p, pfs, uio)
 #endif
 				setrunnable(p);
 				mtx_unlock_spin(&sched_lock);
-				PROCTREE_LOCK(PT_RELEASE);
 			} else {
 				mtx_unlock_spin(&sched_lock);
-				PROCTREE_LOCK(PT_RELEASE);
 				psignal(p, nm->nm_val);
 			}
+			PROC_UNLOCK(p);
 			error = 0;
 		}
 	}
