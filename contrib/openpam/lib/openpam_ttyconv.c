@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_ttyconv.c#23 $
+ * $P4: //depot/projects/openpam/lib/openpam_ttyconv.c#24 $
  */
 
 #include <sys/types.h>
@@ -119,7 +119,7 @@ prompt(const char *msg)
 	}
 	/* trim trailing whitespace */
 	for (len = strlen(buf); len > 0; --len)
-		if (!isspace(buf[len - 1]))
+		if (buf[len - 1] != '\r' && buf[len - 1] != '\n')
 			break;
 	buf[len] = '\0';
 	retval = strdup(buf);
@@ -166,26 +166,27 @@ openpam_ttyconv(int n,
 	 struct pam_response **resp,
 	 void *data)
 {
+	struct pam_response *aresp;
 	int i;
 
 	ENTER();
 	(void)data;
 	if (n <= 0 || n > PAM_MAX_NUM_MSG)
 		RETURNC(PAM_CONV_ERR);
-	if ((*resp = calloc(n, sizeof **resp)) == NULL)
+	if ((aresp = calloc(n, sizeof *aresp)) == NULL)
 		RETURNC(PAM_BUF_ERR);
 	for (i = 0; i < n; ++i) {
-		resp[i]->resp_retcode = 0;
-		resp[i]->resp = NULL;
+		aresp[i].resp_retcode = 0;
+		aresp[i].resp = NULL;
 		switch (msg[i]->msg_style) {
 		case PAM_PROMPT_ECHO_OFF:
-			(*resp[i]).resp = prompt_echo_off(msg[i]->msg);
-			if ((*resp[i]).resp == NULL)
+			aresp[i].resp = prompt_echo_off(msg[i]->msg);
+			if (aresp[i].resp == NULL)
 				goto fail;
 			break;
 		case PAM_PROMPT_ECHO_ON:
-			(*resp[i]).resp = prompt(msg[i]->msg);
-			if ((*resp[i]).resp == NULL)
+			aresp[i].resp = prompt(msg[i]->msg);
+			if (aresp[i].resp == NULL)
 				goto fail;
 			break;
 		case PAM_ERROR_MSG:
@@ -204,16 +205,18 @@ openpam_ttyconv(int n,
 			goto fail;
 		}
 	}
+	*resp = aresp;
 	RETURNC(PAM_SUCCESS);
  fail:
 	for (i = 0; i < n; ++i) {
-		if ((*resp[i]).resp != NULL) {
-			memset((*resp[i]).resp, 0, strlen((*resp[i]).resp));
-			FREE((*resp[i]).resp);
+		if (aresp[i].resp != NULL) {
+			memset(aresp[i].resp, 0, strlen(aresp[i].resp));
+			FREE(aresp[i].resp);
 		}
 	}
-	memset(*resp, 0, n * sizeof **resp);
-	FREE(*resp);
+	memset(aresp, 0, n * sizeof *aresp);
+	FREE(aresp);
+	*resp = NULL;
 	RETURNC(PAM_CONV_ERR);
 }
 
