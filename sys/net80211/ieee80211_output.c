@@ -165,13 +165,24 @@ ieee80211_encap(struct ifnet *ifp, struct mbuf *m, struct ieee80211_node **pni)
 		ni = ieee80211_find_node(ic, eh.ether_dhost);
 		if (ni == NULL) {
 			/*
-			 * When not in station mode the
-			 * destination address should always be
-			 * in the node table unless this is a
-			 * multicast/broadcast frame.
+			 * When not in station mode the destination
+			 * address should always be in the node table
+			 * if the device sends management frames to us;
+			 * unless this is a multicast/broadcast frame.
+			 * For devices that don't send management frames
+			 * to the host we have to cheat; use the bss
+			 * node instead; the card will/should clobber
+			 * the bssid address as necessary.
+			 *
+			 * XXX this handles AHDEMO because all devices
+			 *     that support it don't send mgmt frames;
+			 *     but it might be better to test explicitly
 			 */
-			if (!IEEE80211_IS_MULTICAST(eh.ether_dhost)) {
-				/* ic->ic_stats.st_tx_nonode++; XXX statistic */
+			if (!IEEE80211_IS_MULTICAST(eh.ether_dhost) &&
+			    (ic->ic_caps & IEEE80211_C_RCVMGT)) {
+				IEEE80211_DPRINTF(("%s: no node for dst %s, "
+					"discard frame\n", __func__,
+					ether_sprintf(eh.ether_dhost)));
 				goto bad;
 			}
 			ni = ic->ic_bss;
