@@ -45,7 +45,6 @@ extern void ID0logout(const char *, int);
 extern int ID0bind_un(int, const struct sockaddr_un *);
 extern int ID0connect_un(int, const struct sockaddr_un *);
 extern int ID0kill(pid_t, int);
-extern void ID0setproctitle(const char *);
 #if defined(__FreeBSD__) && !defined(NOKLDLOAD)
 extern int ID0kldload(const char *);
 #endif
