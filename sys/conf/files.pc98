@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.92 1999/05/06 09:13:56 kato Exp $
+#	$Id: files.pc98,v 1.93 1999/05/09 04:27:30 kato Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -93,7 +93,6 @@ i386/i386/pmap.c		standard
 i386/i386/procfs_machdep.c	standard
 i386/i386/simplelock.s		optional	smp
 i386/i386/support.s		standard
-i386/i386/swapgeneric.c		standard
 i386/i386/swtch.s		standard
 i386/i386/sys_machdep.c		standard
 i386/i386/trap.c		standard
