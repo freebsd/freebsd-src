@@ -230,9 +230,9 @@ static int		sysctl_int_range(SYSCTL_HANDLER_ARGS,
 			    int low, int high);
 static int		sysctl_hw_fxp_bundle_max(SYSCTL_HANDLER_ARGS);
 static int		sysctl_hw_fxp_int_delay(SYSCTL_HANDLER_ARGS);
-static __inline void 	fxp_scb_wait(struct fxp_softc *sc);
-static __inline void	fxp_scb_cmd(struct fxp_softc *sc, int cmd);
-static __inline void	fxp_dma_wait(struct fxp_softc *sc,
+static void 		fxp_scb_wait(struct fxp_softc *sc);
+static void		fxp_scb_cmd(struct fxp_softc *sc, int cmd);
+static void		fxp_dma_wait(struct fxp_softc *sc,
     			    volatile u_int16_t *status, bus_dma_tag_t dmat,
 			    bus_dmamap_t map);
 
@@ -275,7 +275,7 @@ TUNABLE_INT("hw.fxp_noflow", &fxp_noflow);
  * Wait for the previous command to be accepted (but not necessarily
  * completed).
  */
-static __inline void
+static void
 fxp_scb_wait(struct fxp_softc *sc)
 {
 	int i = 10000;
@@ -290,7 +290,7 @@ fxp_scb_wait(struct fxp_softc *sc)
 		    CSR_READ_2(sc, FXP_CSR_FLOWCONTROL));
 }
 
-static __inline void
+static void
 fxp_scb_cmd(struct fxp_softc *sc, int cmd)
 {
 
@@ -301,7 +301,7 @@ fxp_scb_cmd(struct fxp_softc *sc, int cmd)
 	CSR_WRITE_1(sc, FXP_CSR_SCB_COMMAND, cmd);
 }
 
-static __inline void
+static void
 fxp_dma_wait(struct fxp_softc *sc, volatile u_int16_t *status,
     bus_dma_tag_t dmat, bus_dmamap_t map)
 {
@@ -317,7 +317,7 @@ fxp_dma_wait(struct fxp_softc *sc, volatile u_int16_t *status,
 }
 
 /*
- * Return identification string if this is device is ours.
+ * Return identification string if this device is ours.
  */
 static int
 fxp_probe(device_t dev)
@@ -2307,16 +2307,16 @@ fxp_add_rfabuf(struct fxp_softc *sc, struct fxp_rx *rxp)
 	m->m_data += sc->rfa_size;
 	rfa->size = htole16(MCLBYTES - sc->rfa_size - RFA_ALIGNMENT_FUDGE);
 
-	/*
-	 * Initialize the rest of the RFA.  Note that since the RFA
-	 * is misaligned, we cannot store values directly.  Instead,
-	 * we use an optimized, inline copy.
-	 */
-
 	rfa->rfa_status = 0;
 	rfa->rfa_control = htole16(FXP_RFA_CONTROL_EL);
 	rfa->actual_size = 0;
 
+	/*
+	 * Initialize the rest of the RFA.  Note that since the RFA
+	 * is misaligned, we cannot store values directly.  We're thus
+	 * using the le32enc() function which handles endianness and
+	 * is also alignment-safe.
+	 */
 	le32enc(&rfa->link_addr, 0xffffffff);
 	le32enc(&rfa->rbd_addr, 0xffffffff);
 
