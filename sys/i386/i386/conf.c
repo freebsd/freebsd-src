@@ -41,7 +41,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.35 1994/09/29 08:59:33 sos Exp $
+ *	$Id: conf.c,v 1.36 1994/10/01 02:55:59 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -544,6 +544,21 @@ d_ioctl_t apmioctl;
 #define	apmioctl	(d_ioctl_t *)enxio
 #endif
 
+#include "ctx.h"
+#if NCTX > 0
+d_open_t ctxopen;
+d_close_t ctxclose;
+d_rdwr_t ctxread;
+d_rdwr_t ctxwrite;
+d_ioctl_t ctxioctl;
+#else
+#define ctxopen		(d_open_t *)enxio
+#define ctxclose	(d_close_t *)enxio
+#define ctxread		(d_rdwr_t *)enxio
+#define ctxwrite	(d_rdwr_t *)enxio
+#define ctxioctl	(d_ioctl_t *)enxio
+#endif
+
 #define noopen		(d_open_t *)enodev
 #define noclose		(d_close_t *)enodev
 #define noread		(d_rdwr_t *)enodev
@@ -685,8 +700,11 @@ struct cdevsw	cdevsw[] =
 	{ apmopen,	apmclose,	noread,		nowrite,	/*39*/
 	  apmioctl,	nostop,		nullreset,	NULL,	/* laptop APM */
 	  seltrue,	nommap,		NULL },
-	/* character device 40 is reserved for local use */
-	{ (d_open_t *)enxio,	(d_close_t *)enxio,	(d_rdwr_t *)enxio, /*40*/
+	{ ctxopen,	ctxclose,	ctxread,	ctxwrite,	/*40*/
+	  ctxioctl,	nostop,		nullreset,	NULL,	/* cortex framegrabber */
+	  seltrue,	nommap,		NULL },
+	/* character device 41 is reserved for local use */
+	{ (d_open_t *)enxio,	(d_close_t *)enxio,	(d_rdwr_t *)enxio, /*41*/
 	  (d_rdwr_t *)enxio,	(d_ioctl_t *)enxio,	(d_stop_t *)enxio,
 	  (d_reset_t *)enxio,	NULL,			(d_select_t *)enxio,
 	  (d_mmap_t *)enxio,	NULL }
