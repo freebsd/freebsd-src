@@ -105,56 +105,16 @@ ENTRY(savectx, 1)
 
 ENTRY(restorectx, 1)
 
-	add	r3=PCB_UNAT,in0		// point at NaT for r4..r7
-	mov	ar.rsc=0 ;;		// switch off the RSE
-	ld8	r16=[r3]		// load NaT for r4..r7
-	;;
-	mov	ar.unat=r16
-	;;
-	ld8.fill r4=[in0],8 ;;		// restore r4
-	ld8.fill r5=[in0],8 ;;		// restore r5
-	ld8.fill r6=[in0],8 ;;		// restore r6
-	ld8.fill r7=[in0],8 ;;		// restore r7
+	mov	r15=in0
+	br.cond.sptk.many 4f
+	
+END(restorectx)	
 
-	ldf.fill f2=[in0],16 ;;		// restore f2
-	ldf.fill f3=[in0],16 ;;		// restore f3
-	ldf.fill f4=[in0],16 ;;		// restore f4
-	ldf.fill f5=[in0],16 ;;		// restore f5
+ENTRY(cpu_throw, 0)
+	
+	br.sptk.few 2f
 
-	ld8	r16=[in0],8 ;;		// restore b0
-	ld8	r17=[in0],8 ;;		// restore b1
-	ld8	r18=[in0],8 ;;		// restore b2
-	ld8	r19=[in0],8 ;;		// restore b3
-	ld8	r20=[in0],8 ;;		// restore b4
-	ld8	r21=[in0],8 ;;		// restore b5
-
-	mov	b0=r16
-	mov	b1=r17
-	mov	b2=r18
-	mov	b3=r19
-	mov	b4=r20
-	mov	b5=r21
-
-	ld8	r16=[in0],8 ;;		// caller's ar.unat
-	ld8	sp=[in0],8 ;;		// stack pointer
-	ld8	r17=[in0],8 ;;		// ar.pfs
-	ld8	r18=[in0],16 ;;		// ar.bspstore, skip ar.unat
-	ld8	r19=[in0],8 ;;		// ar.rnat
-	ld8	r20=[in0],8 ;;		// pr
-
-	mov	ar.unat=r16
-	mov	ar.pfs=r17
-	mov	ar.bspstore=r18 ;;
-	mov	ar.rnat=r19
-	mov	pr=r20,0x1ffff
-	mov	ret0=r18		// non-zero return
-	;;
-	loadrs
-	mov	ar.rsc=3		// restart RSE
-	invala
-	;;
-	br.ret.sptk.few rp
-	END(restorectx)	
+END(cpu_throw)
 
 ENTRY(cpu_switch, 0)
 
@@ -225,35 +185,29 @@ ENTRY(cpu_switch, 0)
 	add	r16 = PC_IDLETHREAD, r13
 	;;
 	ld8	ret0 = [r16]
-	br.sptk	2f
+	br.sptk	3f
 1:
 #endif
+	
+2:	
+	srlz.i
+	mf
+	;; 
 	br.call.sptk.few rp=choosethread
 
-2:
+3:	
 	add	r14=PC_CURTHREAD,r13 ;;
 
-#if 0
-	ld8	r15 = [r14]
-	;;
-	cmp.ne	p6,p0=r15,ret0		// chooseproc() == curthread ?
-(p6)	br.dptk.few 1f
-	;;
-	add	r17=TD_PCB,r15 ;;	// restore b0
-	ld8	r17=[r17] ;;
-	add	r17=PCB_B0,r17 ;;
-	ld8	r17=[r17] ;;
-	mov	b0=r17
-
-	br.sptk.few 9f			// don't bother to restore
-#endif
-
-1:
 	st8	[r14]=ret0		// set r13->pc_curthread
 	mov	ar.k7=ret0
 	mov	r4=ret0			// save from call
 	;; 
 	alloc	r15=ar.pfs,0,0,1,0	// create temporary output frame
+#ifdef SMP
+	;;
+	mov	out0=1			// clear fpcurthread
+	br.call.sptk.few rp=ia64_fpstate_save
+#endif
 	;;
 	mov	out0=r4
 	br.call.sptk.few rp=pmap_activate // install RIDs etc.
@@ -264,6 +218,7 @@ ENTRY(cpu_switch, 0)
 	ld8	r16=[r16] ;;
 	mov	ar.k5=r16
 
+4:	
 	add	r3=PCB_UNAT,r15		// point at NaT for r4..r7
 	mov	ar.rsc=0 ;;		// switch off the RSE
 	ld8	r16=[r3]		// load NaT for r4..r7
@@ -301,14 +256,14 @@ ENTRY(cpu_switch, 0)
 	ld8	r19=[r15],8 ;;		// ar.rnat
 	ld8	r20=[r15] ;;		// pr
 
+	loadrs				// invalidate register stack
+	;;
 	mov	ar.unat=r16
 	mov	ar.pfs=r17
 	mov	ar.bspstore=r18 ;;
 	mov	ar.rnat=r19
 	mov	pr=r20,0x1ffff
-	alloc	r14=ar.pfs,0,0,0,0	// lose current frame
 	;;
-	loadrs
 	mov	ar.rsc=3		// restart RSE
 	invala
 	;;
