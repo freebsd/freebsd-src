@@ -1,9 +1,12 @@
-#	$Id: options.alpha,v 1.2 1998/07/12 16:28:09 dfr Exp $
+#	$Id: options.alpha,v 1.3 1998/07/22 08:24:39 dfr Exp $
 
 EV5			opt_global.h
 DEC_KN8AE		opt_cpu.h
 DEC_EB164		opt_cpu.h
 DEC_KN20AA		opt_cpu.h
+DEC_2100_A50		opt_cpu.h
+DEC_ST550		opt_cpu.h
+DEC_AXPPCI_33		opt_cpu.h
 
 ATAPI			opt_atapi.h
 ATAPI_STATIC		opt_atapi.h

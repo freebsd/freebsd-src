@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: dwlpx.c,v 1.3 1998/07/12 16:23:13 dfr Exp $
+ *	$Id: dwlpx.c,v 1.4 1998/07/16 13:38:35 dfr Exp $
  */
 
 #include "opt_simos.h"
@@ -272,7 +272,7 @@ dwlpx_attach(device_t dev)
 	dwlpx0 = dev;
 
 	chipset = dwlpx_chipset;
-	chipset.bridge = dev;
+	chipset.intrdev = dev;
 
 	regs = KV(DWLPX_BASE(kft_get_node(dev), kft_get_hosenum(dev)));
 	sc->dmem_base	= regs + (0L << 32);

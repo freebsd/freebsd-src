@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcibus.c,v 1.2 1998/07/12 16:16:20 dfr Exp $
+ * $Id: pcibus.c,v 1.3 1998/07/22 08:33:30 dfr Exp $
  *
  */
 
@@ -98,10 +98,9 @@ struct intrec *
 intr_create(void *dev_instance, int irq, inthand2_t handler, void *arg,
 	    intrmask_t *maskptr, int flags)
 {
-	device_t pcib = chipset.bridge;
+	device_t pcib = chipset.intrdev;
 	if (pcib)
-		return BUS_CREATE_INTR(pcib, pcib,
-				       0x900 + (irq << 4),
+		return BUS_CREATE_INTR(pcib, pcib, irq,
 				       (driver_intr_t*) handler, arg);
 	else
 		return 0;
@@ -110,7 +109,7 @@ intr_create(void *dev_instance, int irq, inthand2_t handler, void *arg,
 int
 intr_connect(struct intrec *idesc)
 {
-	device_t pcib = chipset.bridge;
+	device_t pcib = chipset.intrdev;
 	if (pcib)
 		return BUS_CONNECT_INTR(pcib, idesc);
 	else
