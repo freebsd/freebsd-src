@@ -303,7 +303,7 @@ Buslogic 445S/445c VLB SCSI controller
 Buslogic 742A, 747S, 747c EISA SCSI controller.
 Buslogic 946c PCI SCSI controller
 
-NCR 53C810 PCI SCSI controller.
+NCR 53C810 and 53C825 PCI SCSI controller.
 
 DTC 3290 EISA SCSI controller in 1542 emulation mode.
 
@@ -352,7 +352,9 @@ Novell NE1000, NE2000, and NE2100 ethernet interface.
 
 3Com 3C503 Etherlink II
 
-3Com 3C509 Ethernet cards
+3Com 3C507 Etherlink 16TP
+
+3Com 3C509 and 3C579 Etherlink III
 
 Toshiba ethernet cards
 
@@ -541,4 +543,4 @@ hope you enjoy this release of FreeBSD!
 
 			The FreeBSD Core Team
 
-$Id: RELNOTES.FreeBSD,v 1.16 1994/11/18 13:02:23 jkh Exp $
+$Id: RELNOTES.FreeBSD,v 1.17 1994/11/18 14:26:07 jkh Exp $
