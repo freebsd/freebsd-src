@@ -9,7 +9,7 @@
 # Kerberos services are for Kerberos v4, and are unofficial.  Sites running
 # v5 should uncomment v5 entries and comment v4 entries.
 #
-#	$Id: services,v 1.26 1996/08/22 21:37:19 pst Exp $
+#	$Id: services,v 1.27 1996/09/13 01:52:49 pst Exp $
 #	From: @(#)services	5.8 (Berkeley) 5/9/91
 #
 # WELL KNOWN PORT NUMBERS
@@ -274,8 +274,8 @@ emfis-cntl	141/tcp	   #EMFIS Control Service
 emfis-cntl	141/udp	   #EMFIS Control Service
 bl-idm		142/tcp	   #Britton-Lee IDM	      
 bl-idm		142/udp	   #Britton-Lee IDM	      
-imap2		143/tcp	   #Interim Mail Access Protocol v2
-imap2		143/udp	   #Interim Mail Access Protocol v2
+imap		143/tcp	   imap2 imap4 #Interim Mail Access Protocol v2
+imap		143/udp	   imap2 imap4 #Interim Mail Access Protocol v2
 NeWS		144/tcp	   # Window System
 NeWS		144/udp	   # Window System
 uaac		145/tcp	   #UAAC Protocol	      
