@@ -1052,7 +1052,7 @@ amr_setup_ccbmap(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
     struct amr_softc            *sc = ac->ac_sc;
     struct amr_sgentry          *sg;
     struct amr_passthrough      *ap = (struct amr_passthrough *)ac->ac_data;
-    struct amr_ext_passthrough	*aep = (struct amr_passthrough *)ac->ac_data;
+    struct amr_ext_passthrough	*aep = (struct amr_ext_passthrough *)ac->ac_data;
     int                         i;
 
     /* get base address of s/g table */
