@@ -43,7 +43,40 @@
 
 start:		jmp main			# Start recognizably
 
-		.org 0x4,0x90
+# This is the start of a standard BIOS Parameter Block (BPB). Most bootable
+# FAT disks have this at the start of their MBR. While normal BIOS's will
+# work fine without this section, IBM's El Torito emulation "fixes" up the
+# BPB by writing into the memory copy of the MBR. Rather than have data
+# written into our xread routine, we'll define a BPB to work around it.
+# The data marked with (T) indicates a field required for a ThinkPad to
+# recognize the disk and (W) indicates fields written from IBM BIOS code.
+# The use of the BPB is based on what OpenBSD and NetBSD implemented in
+# their boot code but the required fields were determined by trial and error.
+#
+# Note: If additional space is needed in boot1, one solution would be to
+# move the "prompt" message data (below) to replace the OEM ID.
+
+		.org 0x03, 0x00
+oemid:		.space 0x08, 0x00	# OEM ID
+
+		.org 0x0b, 0x00
+bpb:		.word   512		# sector size (T)
+		.byte	0		# sectors/clustor
+		.word	0		# reserved sectors
+		.byte	0		# number of FATs
+		.word	0		# root entries
+		.word	0		# small sectors
+		.byte	0		# media type (W)
+		.word	0		# sectors/fat
+		.word	18		# sectors per track (T)
+		.word	2		# number of heads (T)
+		.long	0		# hidden sectors (W)
+		.long	0		# large sectors
+
+		.org 0x24, 0x00
+ebpb:		.byte	0		# BIOS physical drive number (W)
+
+		.org 0x25,0x90
 # 
 # Trampoline used by boot2 to call read to read data from the disk via
 # the BIOS.  Call with:
