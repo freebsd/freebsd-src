@@ -34,7 +34,7 @@
  * $FreeBSD$
  */
 
-#ifndef	_SYS_SOCKIO_H_
+#ifndef _SYS_SOCKIO_H_
 #define	_SYS_SOCKIO_H_
 
 #include <sys/ioccom.h>
@@ -96,18 +96,18 @@
 #define	SIOCGIFSTATUS	_IOWR('i', 59, struct ifstat)	/* get IF status */
 #define	SIOCSIFLLADDR	 _IOW('i', 60, struct ifreq)	/* set linklevel addr */
 
-#define	SIOCSIFPHYADDR   _IOW('i', 70, struct ifaliasreq) /* set gif addres */
+#define	SIOCSIFPHYADDR	 _IOW('i', 70, struct ifaliasreq) /* set gif addres */
 #define	SIOCGIFPSRCADDR	_IOWR('i', 71, struct ifreq)	/* get gif psrc addr */
 #define	SIOCGIFPDSTADDR	_IOWR('i', 72, struct ifreq)	/* get gif pdst addr */
 #define	SIOCDIFPHYADDR	 _IOW('i', 73, struct ifreq)	/* delete gif addrs */
 #define	SIOCSLIFPHYADDR	 _IOW('i', 74, struct if_laddrreq) /* set gif addrs */
 #define	SIOCGLIFPHYADDR	_IOWR('i', 75, struct if_laddrreq) /* get gif addrs */
 
-#define SIOCGPRIVATE_0  _IOWR('i', 80, struct ifreq)    /* device private 0 */
-#define SIOCGPRIVATE_1  _IOWR('i', 81, struct ifreq)    /* device private 1 */
+#define	SIOCGPRIVATE_0	_IOWR('i', 80, struct ifreq)	/* device private 0 */
+#define	SIOCGPRIVATE_1	_IOWR('i', 81, struct ifreq)	/* device private 1 */
 
-#define SIOCIFCREATE	_IOWR('i', 122, struct ifreq)	/* create clone if */
-#define SIOCIFDESTROY	 _IOW('i', 121, struct ifreq)	/* destroy clone if */
-#define SIOCIFGCLONERS	_IOWR('i', 120, struct if_clonereq) /* get cloners */
+#define	SIOCIFCREATE	_IOWR('i', 122, struct ifreq)	/* create clone if */
+#define	SIOCIFDESTROY	 _IOW('i', 121, struct ifreq)	/* destroy clone if */
+#define	SIOCIFGCLONERS	_IOWR('i', 120, struct if_clonereq) /* get cloners */
 
 #endif /* !_SYS_SOCKIO_H_ */
