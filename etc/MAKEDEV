@@ -48,6 +48,7 @@
 #	vn*	"vnode disks"
 #	od*	"optical disks"
 #	fla*	"M-Systems DiskOnChip"
+#	ida*	"Compaq Smart-2 RAID"
 #
 # Console ports:
 #	vty*	virtual console devices for syscons/pcvt/codrv
@@ -127,7 +128,7 @@
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #	kbd	keyboard devices
 #
-#	$Id: MAKEDEV,v 1.199 1999/05/29 19:36:55 phk Exp $
+#	$Id: MAKEDEV,v 1.200 1999/07/05 08:39:00 jkh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -297,11 +298,12 @@ wt*)
 	;;
 
 # Individual slices.
-ad*s*|od*s*|sd*s*|da*s*|vn*s*|wd*s*|afd*s*|wfd*s*|fla*s*)
+ad*s*|od*s*|sd*s*|da*s*|vn*s*|wd*s*|afd*s*|wfd*s*|fla*s*|ida*s*)
 	umask $disk_umask
 	case $i in
 	ad*s*) name=ad; blk=30; chr=116;;
 	afd*s*) name=afd; blk=32; chr=118;;
+	ida*s*) name=ida; blk=29; chr=109;;
 	fla*s*) name=fla; blk=28; chr=102;;
 	od*s*) name=od; blk=4;  chr=13;;
 	sd*s*) name=sd; blk=4;  chr=13;;
@@ -311,7 +313,7 @@ ad*s*|od*s*|sd*s*|da*s*|vn*s*|wd*s*|afd*s*|wfd*s*|fla*s*)
 	wfd*s*) name=wfd; blk=1; chr=87;;
 	esac
 	case $i in
-	afd*s*|fla*s*|wfd*s*)
+	afd*s*|ida*s*|fla*s*|wfd*s*)
 		unit=`expr $i : '...\([0-9]*\)s'`
 		slice=`expr $i : '...[0-9]*s\([0-9]*\)'`
 		part=`expr $i : '...[0-9]*s[0-9]*\(.*\)'`
@@ -470,11 +472,12 @@ ft*)
 	umask 77
 	;;
 
-ad*|sd*|od*|da*|vn*|wd*|afd*|wfd*|fla*)
+ad*|sd*|od*|da*|vn*|wd*|afd*|wfd*|fla*|ida*)
 	umask $disk_umask
 	case $i in
 	ad*) name=ad; blk=30; chr=116;;
 	afd*) name=afd; blk=32; chr=118;;
+	ida*) name=ida; blk=29; chr=109;;
 	fla*) name=fla; blk=28; chr=102;;
 	sd*) name=sd; blk=4; chr=13;;
 	od*) name=od; blk=4; chr=13;;
@@ -484,7 +487,7 @@ ad*|sd*|od*|da*|vn*|wd*|afd*|wfd*|fla*)
 	wfd*) name=wfd; blk=1; chr=87;;
 	esac
 	case $i in
-	afd*|fla*|wfd*)
+	afd*|ida*|fla*|wfd*)
 		unit=`expr $i : '...\(.*\)'`
 		;;
 	*)
