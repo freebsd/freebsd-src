@@ -2,7 +2,7 @@
 
 .PATH:	${.CURDIR}/../../miscfs/nullfs
 KMOD=	null
-SRCS=	vnode_if.h \
+SRCS=	vnode_if.h opt_ddb.h \
 	null_subr.c null_vfsops.c null_vnops.c
 NOMAN=
 
