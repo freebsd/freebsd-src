@@ -725,8 +725,6 @@ pcib_match(device_t dev)
 	/* Others */
 	case 0x00221014:
 		return ("IBM 82351 PCI-PCI bridge");
-	case 0x00011011:
-		return ("DEC 21050 PCI-PCI bridge");
 	/* UMC United Microelectronics 0x1060 */
 	case 0x88811060:
 		return ("UMC UM8881 HB4 486 PCI Chipset");
@@ -1231,6 +1229,10 @@ chip_match(device_t dev)
 		return ("NeoMagic MagicMedia 256AX Audio controller");
 	case 0x800610c8:
 		return ("NeoMagic MagicMedia 256ZX Audio controller");
+
+	/* Toshiba -- vendor 0x1179 */
+	case 0x07011179:
+		return ("Toshiba Fast Infra Red controller");
 
 	/* NEC -- vendor 0x1033 */
 
