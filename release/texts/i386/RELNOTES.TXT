@@ -114,6 +114,16 @@ regex(3), rather than that of perl(1).
 boot98cfg(8), a PC-98 boot manager installation and configuration
 utility, has been added.
 
+Binutils have been upgraded to 2.10.0.
+
+libreadline has been upgraded to 4.1.
+
+The ifconfig(8) command can set the link-layer address of an interface. 
+
+bktr(4) driver update to 2.1.5.  New tuner types have been added, 
+and improvememts to the KLD module and to memory allocation have been
+made.
+
 
 2. Supported Configurations
 ---------------------------
