@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.55 1999/02/08 00:37:35 dillon Exp $
+ * $Id: vm_page.h,v 1.56 1999/02/15 06:52:14 dillon Exp $
  */
 
 /*
@@ -71,7 +71,9 @@
 #ifndef	_VM_PAGE_
 #define	_VM_PAGE_
 
+#if !defined(KLD_MODULE)
 #include "opt_vmpage.h"
+#endif
 
 #include <vm/pmap.h>
 #include <machine/atomic.h>
@@ -136,6 +138,8 @@ struct vm_page {
 #define SWAPBLK_MASK	((daddr_t)((u_daddr_t)-1 >> 1))		/* mask */
 #define SWAPBLK_NONE	((daddr_t)((u_daddr_t)SWAPBLK_MASK + 1))/* flag */
 
+#if !defined(KLD_MODULE)
+
 /*
  * Page coloring parameters
  */
@@ -198,6 +202,8 @@ extern struct vpgqueues {
 	int	*lcnt;
 } vm_page_queues[PQ_COUNT];
 
+#endif
+
 /*
  * These are the flags defined for vm_page.
  *
@@ -252,10 +258,14 @@ extern struct vpgqueues {
  *
  */
 
+#if !defined(KLD_MODULE)
+
 extern struct pglist vm_page_queue_free[PQ_L2_SIZE];/* memory free queue */
 extern struct pglist vm_page_queue_active;	/* active memory queue */
 extern struct pglist vm_page_queue_inactive;	/* inactive memory queue */
 extern struct pglist vm_page_queue_cache[PQ_L2_SIZE];/* cache memory queue */
+
+#endif
 
 extern int vm_page_zero_count;
 
@@ -557,6 +567,8 @@ vm_page_dirty(vm_page_t m)
 	m->dirty = VM_PAGE_BITS_ALL;
 }
 
+#if !defined(KLD_MODULE)
+
 static __inline vm_page_t
 vm_page_list_find(int basequeue, int index, boolean_t prefer_zero)
 {
@@ -579,6 +591,8 @@ vm_page_list_find(int basequeue, int index, boolean_t prefer_zero)
 #endif
 	return(m);
 }
+
+#endif
 
 #endif				/* KERNEL */
 #endif				/* !_VM_PAGE_ */
