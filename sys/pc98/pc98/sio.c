@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.76 1999/01/19 00:21:53 peter Exp $
+ *	$Id: sio.c,v 1.77 1999/01/27 08:26:16 kato Exp $
  */
 
 #include "opt_comconsole.h"
@@ -1781,8 +1781,8 @@ sioattach(isdp)
 	outb(iobase + (com_fifo << port_shift), 0);
 #else
 	outb(iobase + com_fifo, 0);
-#endif
 determined_type: ;
+#endif
 
 #ifdef COM_MULTIPORT
 	if (COM_ISMULTIPORT(isdp)) {
@@ -3122,8 +3122,6 @@ comparam(tp, t)
 	int		s;
 	int		unit;
 #ifdef PC98
-	Port_t		tmp_port;
-	int		tmp_flg;
 	int		port_shift = 0;
 	u_char		param = 0;
 #endif
