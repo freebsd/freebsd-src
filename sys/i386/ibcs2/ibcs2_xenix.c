@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2_xenix.c,v 1.10 1997/03/24 11:37:49 bde Exp $
+ *	$Id: ibcs2_xenix.c,v 1.11 1997/05/07 20:05:45 peter Exp $
  */
 
 #include <sys/param.h>
@@ -119,7 +119,12 @@ xenix_ftime(p, uap, retval)
 	int *retval;
 {
 	struct timeval tv;
-	struct timeb itb;
+	struct ibcs2_timeb {
+		unsigned long time __attribute__((packed));
+		unsigned short millitm;
+		short timezone;
+		short dstflag;
+	} itb;
 
 	DPRINTF(("IBCS2: 'xenix ftime'\n"));
 	microtime(&tv);
@@ -129,7 +134,7 @@ xenix_ftime(p, uap, retval)
 	itb.dstflag = tz.tz_dsttime != DST_NONE;
 
 	return copyout((caddr_t)&itb, (caddr_t)SCARG(uap, tp),
-		       sizeof(struct timeb));
+		       sizeof(struct ibcs2_timeb));
 }
 
 int
