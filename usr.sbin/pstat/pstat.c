@@ -559,7 +559,7 @@ print_swap(struct kvm_swap *ksw)
 	swtot.ksw_used += ksw->ksw_used;
 	++nswdev;
 	if (totalflag == 0) {
-		(void)printf("/dev/%-10s %*d ",
+		(void)printf("%-10s %*d ",
 		    ksw->ksw_devname, hlen,
 		    CONVERT(ksw->ksw_total));
 		(void)printf("%8d %8d %5.0f%%    %s\n",
