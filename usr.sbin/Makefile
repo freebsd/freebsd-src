@@ -40,6 +40,7 @@ SUBDIR=	IPXrouted \
 	fwcontrol \
 	getfmac \
 	getpmac \
+	gstat \
 	ifmcstat \
 	inetd \
 	iostat \
