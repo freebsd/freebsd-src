@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: options.c,v 1.12 1997/02/22 13:58:40 peter Exp $
  */
 
 #ifndef lint
@@ -110,7 +110,7 @@ procargs(argc, argv)
 		setinputfile(commandname, 0);
 	}
 	/* POSIX 1003.2: first arg after -c cmd is $0, remainder $1... */
-	if (argptr && minusc)
+	if (argptr && minusc && *argptr)
 		arg0 = *argptr++;
 
 	shellparam.p = argptr;
@@ -143,7 +143,7 @@ STATIC void
 options(cmdline)
 	int cmdline;
 {
-	register char *p;
+	char *p;
 	int val;
 	int c;
 
@@ -286,7 +286,6 @@ setparam(argv)
 	shellparam.nparam = nparam;
 	shellparam.p = newparam;
 	shellparam.optnext = NULL;
-	shellparam.reset = 1;
 }
 
 
@@ -412,7 +411,7 @@ getopts(optstr, optvar, optfirst, optnext, optptr)
 	char ***optnext;
 	char **optptr;
 {
-	register char *p, *q;
+	char *p, *q;
 	char c = '?';
 	int done = 0;
 	int ind = 0;
@@ -517,7 +516,7 @@ int
 nextopt(optstring)
 	char *optstring;
 	{
-	register char *p, *q;
+	char *p, *q;
 	char c;
 
 	if ((p = optptr) == NULL || *p == '\0') {
