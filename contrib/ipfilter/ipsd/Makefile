@@ -1,9 +1,9 @@
 #
-# (C)opyright 1993-1996 by Darren Reed.
+# Copyright (C) 1993-1997 by Darren Reed.
 #
-# This code may be freely distributed as long as it retains this notice
-# and is not changed in any way.  The author accepts no responsibility
-# for the use of this software.  I hate legaleese, don't you ?
+# Redistribution and use in source and binary forms are permitted
+# provided that this notice is preserved and due credit is given
+# to the original author and the contributors.
 #
 OBJS=ipsd.o
 BINDEST=/usr/local/bin
@@ -17,7 +17,7 @@ LINUX=slinux.o
 SUNOS5=dlcommon.o sdlpi.o
 
 CC=gcc
-CFLAGS=-g -I..
+CFLAGS=-g -I.. -I../ipsend
 
 all:
 	@echo "Use one of these targets:"

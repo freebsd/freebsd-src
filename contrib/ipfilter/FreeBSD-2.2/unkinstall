@@ -8,7 +8,9 @@ set confdir="$archdir/conf"
 
 if ( $dir =~ */FreeBSD* ) cd ..
 echo -n "Uninstalling "
-foreach i (ip_fil.[ch] ip_nat.[ch] ip_frag.[ch] ip_state.[ch] fil.c ip_compat.h)
+foreach i (ip_fil.[ch] ip_nat.[ch] ip_frag.[ch] ip_state.[ch] fil.c \
+	   ip_auth.[ch] ip_proxy.[ch] ip_ftp_pxy.c ip_compat.h ip_log.c \
+	    mlf_ipl.c ipl.h)
 	echo -n "$i ";
 	/bin/rm -f /sys/netinet/$i
 end

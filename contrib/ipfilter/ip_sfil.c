@@ -1,5 +1,5 @@
 /*
- * (C)opyright 1993,1994,1995 by Darren Reed.
+ * Copyright (C) 1993-1997 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
@@ -7,9 +7,9 @@
  *
  * I hate legaleese, don't you ?
  */
-#if !defined(lint) && defined(LIBC_SCCS)
-static	char	sccsid[] = "%W% %G% (C) 1993-1995 Darren Reed";
-static	char	rcsid[] = "$Id: ip_sfil.c,v 2.0.2.8 1997/05/24 07:42:56 darrenr Exp $";
+#if !defined(lint)
+static const char sccsid[] = "%W% %G% (C) 1993-1995 Darren Reed";
+static const char rcsid[] = "@(#)$Id: ip_sfil.c,v 2.0.2.25.2.3 1997/11/12 10:54:35 darrenr Exp $";
 #endif
 
 #include <sys/types.h>
@@ -46,6 +46,7 @@ static	char	rcsid[] = "$Id: ip_sfil.c,v 2.0.2.8 1997/05/24 07:42:56 darrenr Exp 
 #include "ip_state.h"
 #include "ip_nat.h"
 #include "ip_frag.h"
+#include "ip_auth.h"
 #include <inet/ip_ire.h>
 #ifndef	MIN
 #define	MIN(a,b)	(((a)<(b))?(a):(b))
@@ -55,33 +56,32 @@ extern	fr_flags, fr_active;
 
 int	ipfr_timer_id = 0;
 int	ipl_unreach = ICMP_UNREACH_HOST;
-int	send_reset __P((struct tcpiphdr *, qif_t *, queue_t *));
-u_short	ipf_cksum __P((u_short *, int));
+u_long	ipl_frouteok[2] = {0, 0};
 static	void	frzerostats __P((caddr_t));
 
-#ifdef	IPFILTER_LOG
-int	ipllog __P((u_int, int, ip_t *, fr_info_t *, mblk_t *));
-static	void	frflush __P((caddr_t));
-char	iplbuf[3][IPLLOGSIZE];
-caddr_t	iplh[3], iplt[3];
-int	iplused[3] = {0, 0, 0};
-#endif /* IPFILTER_LOG */
-static	int	frrequest __P((int, caddr_t, int));
+static	int	frrequest __P((int, int, caddr_t, int));
 kmutex_t	ipl_mutex, ipf_mutex, ipfs_mutex;
-kmutex_t	ipf_frag, ipf_state, ipf_nat, ipf_natfrag;
-kcondvar_t	iplwait;
+kmutex_t	ipf_frag, ipf_state, ipf_nat, ipf_natfrag, ipf_auth;
+kcondvar_t	iplwait, ipfauthwait;
 
 
 int ipldetach()
 {
-	int	i = FR_INQUE|FR_OUTQUE;
+	int	i;
 
+#ifdef	IPFDEBUG
+	cmn_err(CE_CONT, "ipldetach()\n");
+#endif
+	for (i = IPL_LOGMAX; i >= 0; i--)
+		ipflog_clear(i);
 	untimeout(ipfr_timer_id);
-	frflush((caddr_t)&i);
+	i = FR_INQUE|FR_OUTQUE;
+	frflush(IPL_LOGIPF, (caddr_t)&i);
 	ipfr_unload();
 	fr_stateunload();
 	ip_natunload();
 	cv_destroy(&iplwait);
+	cv_destroy(&ipfauthwait);
 	mutex_destroy(&ipl_mutex);
 	mutex_destroy(&ipf_mutex);
 	mutex_destroy(&ipfs_mutex);
@@ -89,6 +89,7 @@ int ipldetach()
 	mutex_destroy(&ipf_state);
 	mutex_destroy(&ipf_natfrag);
 	mutex_destroy(&ipf_nat);
+	mutex_destroy(&ipf_auth);
 	return 0;
 }
 
@@ -97,12 +98,11 @@ int iplattach __P((void))
 {
 	int	i;
 
-	for (i = 0; i <= 2; i++) {
-		iplt[i] = iplbuf[i];
-		iplh[i] = iplbuf[i];
-	}
-
-	bzero((char *)nat_table, sizeof(nat_t *) * NAT_SIZE * 2);
+#ifdef	IPFDEBUG
+	cmn_err(CE_CONT, "iplattach()\n");
+#endif
+	bzero((char *)nat_table, sizeof(nat_table));
+	bzero((char *)frcache, sizeof(frcache));
 	mutex_init(&ipl_mutex, "ipf log mutex", MUTEX_DRIVER, NULL);
 	mutex_init(&ipf_mutex, "ipf filter mutex", MUTEX_DRIVER, NULL);
 	mutex_init(&ipfs_mutex, "ipf solaris mutex", MUTEX_DRIVER, NULL);
@@ -110,8 +110,11 @@ int iplattach __P((void))
 	mutex_init(&ipf_state, "ipf IP state mutex", MUTEX_DRIVER, NULL);
 	mutex_init(&ipf_nat, "ipf IP NAT mutex", MUTEX_DRIVER, NULL);
 	mutex_init(&ipf_natfrag, "ipf IP NAT-Frag mutex", MUTEX_DRIVER, NULL);
+	mutex_init(&ipf_auth, "ipf IP User-Auth mutex", MUTEX_DRIVER, NULL);
 	cv_init(&iplwait, "ipl condvar", CV_DRIVER, NULL);
+	cv_init(&ipfauthwait, "ipf auth condvar", CV_DRIVER, NULL);
 	ipfr_timer_id = timeout(ipfr_slowtimer, NULL, drv_usectohz(500000));
+	ipflog_init();
 	return 0;
 }
 
@@ -132,51 +135,11 @@ caddr_t	data;
 	fio.f_acctout[0] = ipacct[1][0];
 	fio.f_acctout[1] = ipacct[1][1];
 	fio.f_active = fr_active;
+	fio.f_froute[0] = ipl_frouteok[0];
+	fio.f_froute[1] = ipl_frouteok[1];
 	IWCOPY((caddr_t)&fio, data, sizeof(fio));
 	bzero((char *)frstats, sizeof(*frstats) * 2);
 }
-
-
-#ifdef	IPFILTER_LOG
-static void frflush(data)
-caddr_t data;
-{
-	struct frentry *f, **fp;
-	int flags, flushed = 0, set = fr_active;
-
-	IRCOPY(data, (caddr_t)&flags, sizeof(flags));
-	bzero((char *)frcache, sizeof(frcache[0]) * 2);
-
-	if (flags & FR_INACTIVE)
-		set = 1 - set;
-	if (flags & FR_OUTQUE) {
-		for (fp = &ipfilter[1][set]; (f = *fp); ) {
-			*fp = f->fr_next;
-			KFREE(f);
-			flushed++;
-		}
-		for (fp = &ipacct[1][set]; (f = *fp); ) {
-			*fp = f->fr_next;
-			KFREE(f);
-			flushed++;
-		}
-	}
-	if (flags & FR_INQUE) {
-		for (fp = &ipfilter[0][set]; (f = *fp); ) {
-			*fp = f->fr_next;
-			KFREE(f);
-			flushed++;
-		}
-		for (fp = &ipacct[0][set]; (f = *fp); ) {
-			*fp = f->fr_next;
-			KFREE(f);
-			flushed++;
-		}
-	}
-
-	IWCOPY((caddr_t)&flushed, data, sizeof(flushed));
-}
-#endif /* IPFILTER_LOG */
 
 
 /*
@@ -190,11 +153,15 @@ int mode;
 cred_t *cp;
 int *rp;
 {
-	int error = 0, unit;
+	int error = 0, unit, tmp;
 
+#ifdef	IPFDEBUG
+	cmn_err(CE_CONT, "iplioctl(%x,%x,%x,%d,%x,%d)\n",
+		dev, cmd, data, mode, cp, rp);
+#endif
 	unit = getminor(dev);
-        if ((2 < unit) || (unit < 0))
-                return ENXIO;
+	if ((IPL_LOGMAX < unit) || (unit < 0))
+		return ENXIO;
 
 	if (unit == IPL_LOGNAT) {
 		error = nat_ioctl((caddr_t)data, cmd, mode);
@@ -232,7 +199,7 @@ int *rp;
 		if (!(mode & FWRITE))
 			return EPERM;
 		mutex_enter(&ipf_mutex);
-		error = frrequest(cmd, (caddr_t)data, fr_active);
+		error = frrequest(unit, cmd, (caddr_t)data, fr_active);
 		mutex_exit(&ipf_mutex);
 		break;
 	case SIOCINIFR :
@@ -241,7 +208,7 @@ int *rp;
 		if (!(mode & FWRITE))
 			return EPERM;
 		mutex_enter(&ipf_mutex);
-		error = frrequest(cmd, (caddr_t)data, 1 - fr_active);
+		error = frrequest(unit, cmd, (caddr_t)data, 1 - fr_active);
 		mutex_exit(&ipf_mutex);
 		break;
 	case SIOCSWAPA :
@@ -269,6 +236,8 @@ int *rp;
 		fio.f_acctout[0] = ipacct[1][0];
 		fio.f_acctout[1] = ipacct[1][1];
 		fio.f_active = fr_active;
+		fio.f_froute[0] = ipl_frouteok[0];
+		fio.f_froute[1] = ipl_frouteok[1];
 		mutex_exit(&ipf_mutex);
 		IWCOPY((caddr_t)&fio, (caddr_t)data, sizeof(fio));
 		break;
@@ -278,23 +247,19 @@ int *rp;
 			return EPERM;
 		frzerostats((caddr_t)data);
 		break;
-#ifdef	IPFILTER_LOG
 	case	SIOCIPFFL :
 		if (!(mode & FWRITE))
 			return EPERM;
 		mutex_enter(&ipf_mutex);
-		frflush((caddr_t)data);
+		frflush(unit, (caddr_t)data);
 		mutex_exit(&ipf_mutex);
 		break;
+#ifdef	IPFILTER_LOG
 	case	SIOCIPFFB :
 		if (!(mode & FWRITE))
 			return EPERM;
-		mutex_enter(&ipl_mutex);
-		IWCOPY((caddr_t)&iplused[unit], (caddr_t)data,
-		       sizeof(iplused[unit]));
-		iplh[unit] = iplt[unit] = iplbuf[unit];
-		iplused[unit] = 0;
-		mutex_exit(&ipl_mutex);
+		tmp = ipflog_clear(unit);
+		IWCOPY((caddr_t)&tmp, (caddr_t)data, sizeof(tmp));
 		break;
 #endif /* IPFILTER_LOG */
 	case SIOCFRSYN :
@@ -302,26 +267,22 @@ int *rp;
 			return EPERM;
 		error = ipfsync();
 		break;
-	case SIOCADNAT :
-	case SIOCRMNAT :
-	case SIOCGNATS :
-	case SIOCGNATL :
-	case SIOCFLNAT :
-	case SIOCCNATL :
-		error = nat_ioctl((caddr_t)data, cmd, mode);
-		break;
 	case SIOCGFRST :
 		IWCOPY((caddr_t)ipfr_fragstats(), (caddr_t)data,
 		       sizeof(ipfrstat_t));
 		break;
-	case SIOCGIPST :   
-		IWCOPY((caddr_t)fr_statetstats(), (caddr_t)data,
-		       sizeof(ips_stat_t));
-		break;
 	case FIONREAD :
 #ifdef	IPFILTER_LOG
-		*(int *)data = iplused[IPL_LOGIPF];
+		IWCOPY((caddr_t)&iplused[IPL_LOGIPF], (caddr_t)data,
+		       sizeof(iplused[IPL_LOGIPF]));
 #endif
+		break;
+	case SIOCAUTHW :
+	case SIOCAUTHR :
+		if (!(mode & FWRITE))
+			return EPERM;
+	case SIOCATHST :
+		error = fr_auth_ioctl((caddr_t)data, cmd, NULL, NULL);
 		break;
 	default :
 		error = EINVAL;
@@ -345,7 +306,27 @@ char	*name;
 }
 
 
-static int frrequest(req, data, set)
+static void fixskip(listp, rp, addremove)
+frentry_t **listp, *rp;
+int addremove;
+{
+	frentry_t *fp;
+	int rules = 0, rn = 0;
+
+	for (fp = *listp; fp && (fp != rp); fp = fp->fr_next, rules++)
+		;
+
+	if (!fp)
+		return;
+
+	for (fp = *listp; fp && (fp != rp); fp = fp->fr_next, rn++)
+		if (fp->fr_skip && (rn + fp->fr_skip >= rules))
+			fp->fr_skip += addremove;
+}
+
+
+static int frrequest(unit, req, data, set)
+int unit;
 int req, set;
 caddr_t data;
 {
@@ -353,7 +334,8 @@ caddr_t data;
 	register frentry_t **ftail;
 	frentry_t fr;
 	frdest_t *fdp;
-	int error = 0, in;
+	frgroup_t *fg = NULL;
+	int error = 0, in, group;
 	ill_t *ill;
 	ipif_t *ipif;
 	ire_t *ire;
@@ -361,18 +343,38 @@ caddr_t data;
 	fp = &fr;
 	IRCOPY(data, (caddr_t)fp, sizeof(*fp));
 
-	bzero((char *)frcache, sizeof(frcache[0]) * 2);
+	/*
+	 * Check that the group number does exist and that if a head group
+	 * has been specified, doesn't exist.
+	 */
+	if (fp->fr_grhead &&
+	    fr_findgroup(fp->fr_grhead, fp->fr_flags, unit, set, NULL))
+		return EEXIST;
+	if (fp->fr_group &&
+	    !fr_findgroup(fp->fr_group, fp->fr_flags, unit, set, NULL))
+		return ESRCH;
 
 	in = (fp->fr_flags & FR_INQUE) ? 0 : 1;
-	if (fp->fr_flags & FR_ACCOUNT)
+
+	if (unit == IPL_LOGAUTH)
+		ftail = fprev = &ipauth;
+	else if (fp->fr_flags & FR_ACCOUNT)
 		ftail = fprev = &ipacct[in][set];
 	else if (fp->fr_flags & (FR_OUTQUE|FR_INQUE))
 		ftail = fprev = &ipfilter[in][set];
 	else
 		return ESRCH;
 
+	if ((group = fp->fr_group)) {
+		if (!(fg = fr_findgroup(group, fp->fr_flags, unit, set, NULL)))
+			return ESRCH;
+		ftail = fprev = fg->fg_start;
+	}
+
+	bzero((char *)frcache, sizeof(frcache[0]) * 2);
+
 	if (*fp->fr_ifname) {
-		fp->fr_ifa = (struct ifnet *)get_unit((char *)fp->fr_ifname);
+		fp->fr_ifa = (void *)get_unit((char *)fp->fr_ifname);
 		if (!fp->fr_ifa)
 			fp->fr_ifa = (struct ifnet *)-1;
 	}
@@ -385,7 +387,9 @@ caddr_t data;
 			ire = (ire_t *)-1;
 		else if ((ipif = ill->ill_ipif)) {
 #if SOLARIS2 > 5
-			ire = ipif_to_ire(ipif);
+			ire = ire_ctable_lookup(ipif->ipif_local_addr, 0,
+						IRE_LOCAL, NULL, NULL,
+						MATCH_IRE_TYPE);
 #else
 			ire = ire_lookup_myaddr(ipif->ipif_local_addr);
 #endif
@@ -404,7 +408,9 @@ caddr_t data;
 			ire = (ire_t *)-1;
 		else if ((ipif = ill->ill_ipif)) {
 #if SOLARIS2 > 5
-			ire = ipif_to_ire(ipif);
+			ire = ire_ctable_lookup(ipif->ipif_local_addr, 0,
+						IRE_LOCAL, NULL, NULL,
+						MATCH_IRE_TYPE);
 #else
 			ire = ire_lookup_myaddr(ipif->ipif_local_addr);
 #endif
@@ -450,6 +456,16 @@ caddr_t data;
 		if (!f)
 			error = ESRCH;
 		else {
+			if (f->fr_ref > 1)
+				return EBUSY;
+			if (fg && fg->fg_head)
+				fg->fg_head->fr_ref--;
+			if (unit == IPL_LOGAUTH)
+				return fr_auth_ioctl(data, req, f, ftail);
+			if (f->fr_grhead)
+				fr_delgroup(f->fr_grhead, fp->fr_flags, unit,
+					    set);
+			fixskip(fprev, f, -1);
 			*ftail = f->fr_next;
 			KFREE(f);
 		}
@@ -457,12 +473,22 @@ caddr_t data;
 		if (f)
 			error = EEXIST;
 		else {
+			if (unit == IPL_LOGAUTH)
+				return fr_auth_ioctl(data, req, f, ftail);
 			KMALLOC(f, frentry_t *, sizeof(*f));
 			if (f != NULL) {
+				if (fg && fg->fg_head)
+					fg->fg_head->fr_ref++;
 				bcopy((char *)fp, (char *)f, sizeof(*f));
+				f->fr_ref = 1;
 				f->fr_hits = 0;
 				f->fr_next = *ftail;
 				*ftail = f;
+				if (req == SIOCINIFR || req == SIOCINAFR)
+					fixskip(fprev, f, 1);
+				f->fr_grp = NULL;
+				if ((group = f->fr_grhead))
+					fg = fr_addgroup(group, f, unit, set);
 			} else
 				error = ENOMEM;
 		}
@@ -481,6 +507,9 @@ cred_t *cred;
 {
 	u_int min = getminor(*devp);
 
+#ifdef	IPFDEBUG
+	cmn_err(CE_CONT, "iplopen(%x,%x,%x,%x)\n", devp, flags, otype, cred);
+#endif
 	if (!(otype & OTYP_CHR))
 		return ENXIO;
 	min = (2 < min || min < 0) ? ENXIO : 0;
@@ -495,6 +524,9 @@ cred_t *cred;
 {
 	u_int	min = getminor(dev);
 
+#ifdef	IPFDEBUG
+	cmn_err(CE_CONT, "iplclose(%x,%x,%x,%x)\n", dev, flags, otype, cred);
+#endif
 	min = (2 < min || min < 0) ? ENXIO : 0;
 	return min;
 }
@@ -511,147 +543,10 @@ dev_t dev;
 register struct uio *uio;
 cred_t *cp;
 {
-	register int ret;
-	register size_t sz, sx;
-	char *h, *t;
-	int error, used, usedo, copied, unit;
-
-	unit = getminor(dev);
-
-	if (!uio->uio_resid)
-		return 0;
-	if ((uio->uio_resid < 0) || (uio->uio_resid > IPLLOGSIZE))
-		return EINVAL;
-
-	/*
-	 * Lock the log so we can snapshot the variables.  Wait for a signal
-	 * if the log is empty.
-	 */
-	mutex_enter(&ipl_mutex);
-	while (!iplused[unit]) {
-		error = cv_wait_sig(&iplwait, &ipl_mutex);
-		if (!error) {
-			mutex_exit(&ipl_mutex);
-			return EINTR;
-		}
-	}
-	h = iplh[unit];
-	t = iplt[unit];
-	used = iplused[unit];
-	mutex_exit(&ipl_mutex);
-	usedo = used;
-
-	/*
-	 * Given up the mutex, the log can grow more, but we can't hold the
-	 * mutex across the uiomove's.
-	 */
-	sx = sz = MIN(uio->uio_resid, used);
-	if (h <= t)
-		sz = MIN(sz, IPLLOGSIZE + iplbuf[unit] - t);
-
-	if (!(ret = uiomove(t, sz, UIO_READ, uio))) {
-		t += sz;
-		sx -= sz;
-		used -= sz;
-		if ((h < t) && (t >= iplbuf[unit] + IPLLOGSIZE))
-			t = iplbuf[unit];
-
-		if (sx && !(ret = uiomove(t, sx, UIO_READ, uio)))
-			used -= sx;
-	}
-
-	/*
-	 * copied all the data, now adjust variables to match this.
-	 */
-	mutex_enter(&ipl_mutex);
-	copied = usedo - used;
-	iplused[unit] -= copied;
-
-	if (!iplused[unit])	/* minimise wrapping around the end */
-		iplh[unit] = iplt[unit] = iplbuf[unit];
-	else {
-		iplt[unit] += copied;
-		if (iplt[unit] >= iplbuf[unit] + IPLLOGSIZE)
-			iplt[unit] -= IPLLOGSIZE;
-		if (iplt[unit] == iplbuf[unit] + IPLLOGSIZE)
-			iplt[unit] = iplbuf[unit];
-	}
-	mutex_exit(&ipl_mutex);
-	return ret;
-}
-
-
-int ipllog(flags, dev, ip, fin, m)
-u_int flags;
-int dev;
-ip_t *ip;
-fr_info_t *fin;
-mblk_t *m;
-{
-	struct ipl_ci iplci;
-	register int len, mlen, hlen;
-	register u_char *s = (u_char *)ip;
-	ill_t *il = fin->fin_ifp;
-
-	hlen = fin->fin_hlen;
-	if (ip->ip_p == IPPROTO_TCP || ip->ip_p == IPPROTO_UDP)
-		hlen += MIN(sizeof(tcphdr_t), fin->fin_dlen);
-	else if (ip->ip_p == IPPROTO_ICMP) {
-		struct	icmp	*icmp = (struct icmp *)(s + hlen);
-
-		switch (icmp->icmp_type) {
-		case ICMP_UNREACH :
-		case ICMP_SOURCEQUENCH :
-		case ICMP_REDIRECT :
-		case ICMP_TIMXCEED :
-		case ICMP_PARAMPROB :
-			hlen += MIN(sizeof(struct icmp) + 8, fin->fin_dlen);
-			break;
-		default :
-			hlen += MIN(sizeof(struct icmp), fin->fin_dlen);
-			break;
-		}
-	}
-
-	mlen = (flags & FR_LOGBODY) ? MIN(msgdsize(m) - hlen, 128) : 0;
-	len = hlen + sizeof(iplci) + mlen;
-	mutex_enter(&ipl_mutex);
-	if ((iplused[dev] + len) > IPLLOGSIZE) {
-		mutex_exit(&ipl_mutex);
-		return 0;
-	}
-	iplused[dev] += len;
-
-	uniqtime((struct timeval *)&iplci);
-	iplci.flags = flags;
-	iplci.hlen = (u_char)hlen;
-	iplci.plen = (u_char)mlen;
-	iplci.rule = fin->fin_rule;
-	iplci.unit = (u_char)il->ill_ppa;
-	bcopy(il->ill_name, (char *)iplci.ifname, MIN(il->ill_name_length, 4));
-
-	/*
-	 * Gauranteed to succeed from above
-	 */
-	(void) fr_copytolog(dev, (char *)&iplci, sizeof(iplci));
-	len -= sizeof(iplci);
-
-	if (len && m) {
-		s = m->b_rptr;
-		do {
-			if ((hlen = MIN(m->b_wptr - s, len))) {
-				if (fr_copytolog(dev, s, hlen))
-					break;
-				len -= hlen;
-			}
-			if ((m = m->b_cont))
-				s = m->b_rptr;
-		} while (m && len);
-	}
-
-	cv_signal(&iplwait);
-	mutex_exit(&ipl_mutex);
-	return 1;
+#ifdef	IPFDEBUG
+	cmn_err(CE_CONT, "iplread(%x,%x,%x)\n", dev, uio, cp);
+#endif
+	return ipflog_read(getminor(dev), uio);
 }
 #endif /* IPFILTER_LOG */
 
@@ -660,13 +555,14 @@ mblk_t *m;
  * send_reset - this could conceivably be a call to tcp_respond(), but that
  * requires a large amount of setting up and isn't any more efficient.
  */
-int send_reset(ti, qif, q)
-struct tcpiphdr *ti;
+int send_reset(iphdr, qif)
+ip_t *iphdr;
 qif_t *qif;
-queue_t *q;
 {
+	struct tcpiphdr *ti = (struct tcpiphdr *)iphdr;
 	struct ip *ip;
 	struct tcphdr *tcp;
+	queue_t *q = qif->qf_q;
 	mblk_t *m;
 	int tlen = 0;
 
@@ -708,17 +604,17 @@ queue_t *q;
 }
 
 
-int	icmp_error(q, ip, type, code, qif, src)
-queue_t	*q;
+int	icmp_error(ip, type, code, qif, src)
 ip_t	*ip;
 int	type, code;
 qif_t	*qif;
 struct	in_addr	src;
 {
-	mblk_t	*mb;
-	struct	icmp	*icmp;
-	ip_t	*nip;
-	int	sz = sizeof(*nip) + sizeof(*icmp) + 8;
+	queue_t *q = qif->qf_q;
+	mblk_t *mb;
+	struct icmp *icmp;
+	ip_t *nip;
+	int sz = sizeof(*nip) + sizeof(*icmp) + 8;
 
 	if ((mb = (mblk_t *)allocb(sz, BPRI_HI)) == NULL)
 		return -1;

@@ -1,14 +1,13 @@
 /*
- * larp.c (C) 1995 Darren Reed
+ * larp.c (C) 1995-1997 Darren Reed
  *
- * The author provides this program as-is, with no gaurantee for its
- * suitability for any specific purpose.  The author takes no responsibility
- * for the misuse/abuse of this program and provides it for the sole purpose
- * of testing packet filter policies.  This file maybe distributed freely
- * providing it is not modified and that this notice remains in tact.
+ * Redistribution and use in source and binary forms are permitted
+ * provided that this notice is preserved and due credit is given
+ * to the original author and the contributors.
  */
-#if !defined(lint) && defined(LIBC_SCCS)
-static	char	sccsid[] = "@(#)larp.c	1.1 8/19/95 (C)1995 Darren Reed";
+#if !defined(lint)
+static const char sccsid[] = "@(#)larp.c	1.1 8/19/95 (C)1995 Darren Reed";
+static const char rcsid[] = "@(#)$Id: larp.c,v 2.0.2.3 1997/09/28 07:13:31 darrenr Exp $";
 #endif
 #include <stdio.h>
 #include <errno.h>

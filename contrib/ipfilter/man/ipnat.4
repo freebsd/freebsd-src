@@ -2,7 +2,10 @@
 .SH NAME
 ipnat \- Network Address Translation kernel interface
 .SH SYNOPSIS
-#include <sys/ip_fil.h>
+#include <netinet/ip_compat.h>
+#include <netinet/ip_fil.h>
+#include <netinet/ip_proxy.h>
+#include <netinet/ip_nat.h>
 .SH IOCTLS
 .PP
 To add and delete rules to the NAT list, two 'basic' ioctls are provided

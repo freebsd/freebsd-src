@@ -1,12 +1,12 @@
 /*
- * (C)opyright 1995-1997 by Darren Reed.
+ * Copyright (C) 1995-1997 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
  *
  * @(#)ip_state.h	1.3 1/12/96 (C) 1995 Darren Reed
- * $Id: ip_state.h,v 2.0.2.9 1997/05/24 07:35:11 darrenr Exp $
+ * $Id: ip_state.h,v 2.0.2.14.2.1 1997/11/06 21:23:15 darrenr Exp $
  */
 #ifndef	__IP_STATE_H__
 #define	__IP_STATE_H__
@@ -73,7 +73,6 @@ typedef struct ipstate {
 
 
 typedef	struct	ipslog	{
-	struct	timeval	isl_tv;
 	U_QUAD_T	isl_pkts;
 	U_QUAD_T	isl_bytes;
 	struct	in_addr	isl_src;
@@ -94,6 +93,7 @@ typedef	struct	ipslog	{
 
 #define	ISL_NEW		0
 #define	ISL_EXPIRE	0xffff
+#define	ISL_FLUSH	0xfffe
 
 
 typedef	struct	ips_stat {
@@ -113,21 +113,26 @@ typedef	struct	ips_stat {
 } ips_stat_t;
 
 
-extern u_long fr_tcpidletimeout;
-extern u_long fr_tcpclosewait;
-extern u_long fr_tcplastack;
-extern u_long fr_tcptimeout;
-extern u_long fr_tcpclosed;
-extern u_long fr_udptimeout;
-extern u_long fr_icmptimeout;
-extern int fr_tcpstate __P((ipstate_t *, fr_info_t *, ip_t *,
+extern	u_long	fr_tcpidletimeout;
+extern	u_long	fr_tcpclosewait;
+extern	u_long	fr_tcplastack;
+extern	u_long	fr_tcptimeout;
+extern	u_long	fr_tcpclosed;
+extern	u_long	fr_udptimeout;
+extern	u_long	fr_icmptimeout;
+extern	int	fr_tcpstate __P((ipstate_t *, fr_info_t *, ip_t *,
 			    tcphdr_t *, u_short));
-extern ips_stat_t *fr_statetstats __P((void));
-extern int fr_addstate __P((ip_t *, fr_info_t *, u_int));
-extern int fr_checkstate __P((ip_t *, fr_info_t *));
-extern void fr_timeoutstate __P((void));
-extern void fr_tcp_age __P((u_long *, u_char *, ip_t *, fr_info_t *, int));
-extern void fr_stateunload __P((void));
-extern void ipstate_log __P((struct ipstate *, u_short));
-extern int fr_state_ioctl __P((caddr_t, int, int));
+extern	ips_stat_t	*fr_statetstats __P((void));
+extern	int	fr_addstate __P((ip_t *, fr_info_t *, u_int));
+extern	int	fr_checkstate __P((ip_t *, fr_info_t *));
+extern	void	fr_timeoutstate __P((void));
+extern	void	fr_tcp_age __P((u_long *, u_char *, ip_t *, fr_info_t *, int));
+extern	int	fr_state_flush __P((int));
+extern	void	fr_stateunload __P((void));
+extern	void	ipstate_log __P((struct ipstate *, u_short));
+#if defined(__NetBSD__) || defined(__OpenBSD__)
+extern	int	fr_state_ioctl __P((caddr_t, u_long, int));
+#else
+extern	int	fr_state_ioctl __P((caddr_t, int, int));
+#endif
 #endif /* __IP_STATE_H__ */

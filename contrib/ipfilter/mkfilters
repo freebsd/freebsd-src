@@ -46,19 +46,27 @@ print "#\n";
 print "block in log quick from any to any with ipopts\n";
 print "block in log quick proto tcp from any to any with short\n";
 
+$grpi = 0;
+
 foreach $i (keys %ifaces) {
 	if (!defined($inet{$i})) {
 		next;
 	}
+
+	$grpi += 100;
+	$grpo = $grpi + 50;
+
 	if ($i !~ /lo/) {
-		print "block in on $i from 127.0.0.0/8 to any\n";
-		print "block out on $i from 127.0.0.0/8 to any\n";
-		print "block out on $i from any to 127.0.0.0/8\n";
-		print "block in on $i from $inet{$i}/32 to any\n";
-		print "block out on $i from any to $inet{$i}/32\n";
+		print "pass out on $i all head $grpo\n";
+		print "block out from 127.0.0.0/8 to any group $grpo\n";
+		print "block out from any to 127.0.0.0/8 group $grpo\n";
+		print "block out from any to $inet{$i}/32 group $grpo\n";
+		print "pass in on $i all head $grpi\n";
+		print "block in from 127.0.0.0/8 to any group $grpi\n";
+		print "block in from $inet{$i}/32 to any group $grpi\n";
 		foreach $j (keys %ifaces) {
 			if ($i ne $j && $j !~ /^lo/ && defined($net{$j})) {
-				print "block in on $i from $net{$j} to any\n";
+				print "block in from $net{$j} to any group $grpi\n";
 			}
 		}
 	}

@@ -1,5 +1,5 @@
 /*
- * (C)opyright 1993,1994,1995 by Darren Reed.
+ * Copyright (C) 1993-1997 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
@@ -8,12 +8,12 @@
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
+#include <sys/types.h>
 #if !defined(__SVR4) && !defined(__svr4__)
 #include <strings.h>
 #else
 #include <sys/byteorder.h>
 #endif
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/time.h>
 #include <stdlib.h>
@@ -24,31 +24,33 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netinet/in_systm.h>
+#ifndef	linux
 #include <netinet/ip_var.h>
+#endif
 #include <netinet/ip.h>
 #include <netinet/udp.h>
 #include <netinet/tcp.h>
 #include <netinet/ip_icmp.h>
-#include <netinet/tcpip.h>
 #include <net/if.h>
 #include <netdb.h>
 #include <arpa/nameser.h>
 #include <resolv.h>
 #include "ip_compat.h"
+#include <netinet/tcpip.h>
 #include "ip_fil.h"
 #include "ipf.h"
 #include "ipt.h"
 
-#if !defined(lint) && defined(LIBC_SCCS)
-static	char	sccsid[] = "@(#)misc.c	1.3 2/4/96 (C) 1995 Darren Reed";
-static	char	rcsid[] = "$Id: misc.c,v 2.0.2.6 1997/04/30 13:54:24 darrenr Exp $";
+#if !defined(lint)
+static const char sccsid[] = "@(#)misc.c	1.3 2/4/96 (C) 1995 Darren Reed";
+static const char rcsid[] = "@(#)$Id: misc.c,v 2.0.2.8.2.1 1997/11/12 10:58:26 darrenr Exp $";
 #endif
 
 extern	int	opts;
 
 
 void	printpacket(ip)
-struct	ip	*ip;
+ip_t	*ip;
 {
 	struct	tcphdr	*tcp;
 
