@@ -75,5 +75,5 @@ getchr()
 			quit();
 		}
 	} while (result != 1);
-	return (c & 0177);
+	return (c & 0xff);
 }
