@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: create_chunk.c,v 1.11 1995/05/08 00:44:46 phk Exp $
+ * $Id: create_chunk.c,v 1.12 1995/05/08 01:26:47 phk Exp $
  *
  */
 
@@ -163,4 +163,36 @@ Create_Chunk(struct disk *d, u_long offset, u_long size, chunk_e type, int subty
 	i = Add_Chunk(d,offset,size,"X",type,subtype,flags);
 	Fixup_Names(d);
 	return i;
+}
+
+struct chunk *
+Create_Chunk_DWIM(struct disk *d, struct chunk *parent , u_long size, chunk_e type, int subtype, u_long flags)
+{
+	int i;
+	struct chunk *c1;
+	u_long offset;
+
+	if (!parent)
+		parent = d->chunks;
+	if (type == freebsd)
+		subtype = 0xa5;
+	for (c1=parent->part; c1 ; c1 = c1->next) {
+		if (c1->type != unused) continue;
+		if (c1->size < size) continue;
+		offset = c1->offset;
+		goto found;
+	}
+	warn("Not enough unused space");
+	return 0;
+    found:
+	i = Add_Chunk(d,offset,size,"X",type,subtype,flags);
+	if (i) {
+		warn("Didn't cut it");
+		return 0;
+	}
+	Fixup_Names(d);
+	for (c1=parent->part; c1 ; c1 = c1->next)
+		if (c1->offset == offset) 
+			return c1;
+	err(1,"Serious internal trouble");
 }
