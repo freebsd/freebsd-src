@@ -22,13 +22,13 @@ ASM=	accept.o access.o acct.o adjtime.o bind.o chdir.o chflags.o chmod.o \
 	getuid.o ioctl.o kill.o ktrace.o lfs_bmapv.o lfs_markv.o \
 	lfs_segclean.o lfs_segwait.o link.o listen.o lstat.o \
 	madvise.o mincore.o mkdir.o mkfifo.o mknod.o mlock.o mount.o \
-	mprotect.o msync.o munlock.o munmap.o nfssvc.o \
+	mprotect.o msgsys.o msync.o munlock.o munmap.o nfssvc.o \
 	ntp_adjtime.o ntp_gettime.o open.o \
 	pathconf.o profil.o quotactl.o read.o \
 	readlink.o readv.o recvfrom.o recvmsg.o rename.o revoke.o rmdir.o \
-	rtprio.o select.o sendmsg.o sendto.o setegid.o seteuid.o setgid.o \
+	rtprio.o select.o semsys.o sendmsg.o sendto.o setegid.o seteuid.o setgid.o \
 	setgroups.o setitimer.o setpgid.o setpriority.o setrlimit.o \
-	setsid.o setsockopt.o settimeofday.o setuid.o shutdown.o \
+	setsid.o setsockopt.o settimeofday.o setuid.o shmsys.o shutdown.o \
 	sigaction.o sigaltstack.o socket.o socketpair.o stat.o statfs.o \
 	swapon.o symlink.o sync.o umask.o unlink.o unmount.o \
 	utimes.o vadvise.o wait4.o write.o writev.o __syscall.o __sysctl.o
