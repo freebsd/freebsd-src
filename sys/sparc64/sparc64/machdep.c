@@ -170,8 +170,8 @@ cpu_startup(void *arg)
 	tick_tc.tc_name = "tick";
 	tc_init(&tick_tc);
 
-	cpu_identify(rdpr(ver), tick_freq, PCPU_GET(cpuid));
-	printf("Model: %s\n", sparc64_model);
+	printf("real memory  = %lu (%lu MB)\n", physmem * PAGE_SIZE,
+	    physmem / ((1024 * 1024) / PAGE_SIZE));
 
 	vm_ksubmap_init(&kmi);
 
@@ -180,6 +180,14 @@ cpu_startup(void *arg)
 
 	EVENTHANDLER_REGISTER(shutdown_final, sparc64_shutdown_final, NULL,
 	    SHUTDOWN_PRI_LAST);
+
+	printf("avail memory = %lu (%lu MB)\n", cnt.v_free_count * PAGE_SIZE,
+	    cnt.v_free_count / ((1024 * 1024) / PAGE_SIZE));
+
+	if (bootverbose)
+		printf("machine: %s\n", sparc64_model);
+
+	cpu_identify(rdpr(ver), tick_freq, PCPU_GET(cpuid));
 }
 
 void
