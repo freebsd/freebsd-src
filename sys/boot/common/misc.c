@@ -93,6 +93,74 @@ strdupout(vm_offset_t str)
     return(result);
 }
 
+/* Zero a region in kernel space. */
+void
+kern_bzero(vm_offset_t dest, size_t len)
+{
+	char buf[256];
+	size_t chunk, resid;
+
+	bzero(buf, sizeof(buf));
+	resid = len;
+	while (resid > 0) {
+		chunk = min(sizeof(buf), resid);
+		archsw.arch_copyin(buf, dest, chunk);
+		resid -= chunk;
+		dest += chunk;
+	}
+}
+
+/*
+ * Read the specified part of a file to kernel space.  Unlike regular
+ * pread, the file pointer is advanced to the end of the read data,
+ * and it just returns 0 if successful.
+ */
+int
+kern_pread(int fd, vm_offset_t dest, size_t len, off_t off)
+{
+	ssize_t nread;
+
+	if (lseek(fd, off, SEEK_SET) == -1) {
+		printf("\nlseek failed\n");
+		return (-1);
+	}
+	nread = archsw.arch_readin(fd, dest, len);
+	if (nread != len) {
+		printf("\nreadin failed\n");
+		return (-1);
+	}
+	return (0);
+}
+
+/*
+ * Read the specified part of a file to a malloced buffer.  The file
+ * pointer is advanced to the end of the read data.
+ */
+void *
+alloc_pread(int fd, off_t off, size_t len)
+{
+	void *buf;
+	ssize_t nread;
+
+	buf = malloc(len);
+	if (buf == NULL) {
+		printf("\nmalloc(%d) failed\n", (int)len);
+		return (NULL);
+	}
+	if (lseek(fd, off, SEEK_SET) == -1) {
+		printf("\nlseek failed\n");
+		free(buf);
+		return (NULL);
+	}
+	nread = read(fd, buf, len);
+	if (nread != len) {
+		printf("\nread failed\n");
+		free(buf);
+		return (NULL);
+	}
+	return (buf);
+}
+
 /*
  * Display a region in traditional hexdump format.
  */
