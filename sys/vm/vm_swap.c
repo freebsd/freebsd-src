@@ -377,5 +377,7 @@ sysctl_vm_swap_info(SYSCTL_HANDLER_ARGS)
 	return (ENOENT);
 }
 
+SYSCTL_INT(_vm, OID_AUTO, nswapdev, CTLFLAG_RD, &nswdev, 0,
+    "Number of swap devices");
 SYSCTL_NODE(_vm, OID_AUTO, swap_info, CTLFLAG_RD, sysctl_vm_swap_info,
     "Swap statistics by device");
