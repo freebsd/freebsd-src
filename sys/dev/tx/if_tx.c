@@ -63,46 +63,29 @@
  *	fixed media control code
  */
 
+#include "pci.h"
+#if NPCI > 0
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
-#include <sys/protosw.h>
 #include <sys/socket.h>
-#include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #include <sys/sockio.h>
-#else
-#include <sys/ioctl.h>
-#endif
-#include <machine/clock.h>
 #include <net/if.h>
-#include <net/if_dl.h>
 #include <net/if_mib.h>
-#include <net/if_types.h>
-#include <net/route.h>
-#include <net/netisr.h>
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/in_var.h>
-#include <netinet/ip.h>
 #include <netinet/if_ether.h>
 #include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/vm_kern.h>
 #include <vm/pmap.h>
 
-#include "pci.h"
-#if NPCI > 0
 #include <pci/pcivar.h>
 #include <pci/smc83c170.h>
-#endif
 
 #include "bpfilter.h"
 #if NBPFILTER > 0
 #include <net/bpf.h>
-#include <net/bpfdesc.h>
 #endif
 
 /*
@@ -1104,3 +1087,5 @@ static void epic_write_phy_register(u_int16_t iobase, u_int16_t loc,u_int16_t va
 
 	return;
 }
+
+#endif /* NPCI > 0 */
