@@ -597,7 +597,7 @@ mkdir -m 1777 /tmp/.X11-unix
 # Load LOMAC(4) security if wanted.
 case ${lomac_enable} in
 [Yy][Ee][Ss])
-	kldload lomac >/dev/null 2>&1
+	kldload mac_lomac >/dev/null 2>&1
 	;;
 esac
 
