@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.16 1995/07/27 22:04:57 se Exp $
+**  $Id: pcisupport.c,v 1.17 1995/07/27 22:14:25 se Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -276,6 +276,11 @@ static const struct condmsg conf82434lx[] =
     { 0x54, 0x01, 0x00, M_NE, "ON" },
     { 0x54, 0x01, 0x00, M_EQ, "OFF" },
 
+    { 0x57, 0x01, 0x01, M_EQ, "\n\tRefresh:" },
+    { 0x57, 0x03, 0x03, M_EQ, " CAS#/RAS#(Hidden)" },
+    { 0x57, 0x03, 0x01, M_EQ, " RAS#Only" },
+    { 0x57, 0x05, 0x05, M_EQ, " BurstOf4" },
+
     { 0x00, 0x00, 0x00, TRUE, "\n" },
 
 /* end marker */
@@ -284,8 +289,13 @@ static const struct condmsg conf82434lx[] =
 
 static const struct condmsg conf82378[] =
 {
-    { 0x4d, 0x20, 0x20, M_EQ, "\tCoprocessor errors enabled" },
-    { 0x4d, 0x10, 0x10, M_EQ, "\tMouse function enabled" },
+    { 0x00, 0x00, 0x00, TRUE, "\tBus Modes:" },
+    { 0x41, 0x04, 0x04, M_EQ, " Bus Park," },
+    { 0x41, 0x02, 0x02, M_EQ, " Bus Lock," },
+    { 0x41, 0x02, 0x00, M_EQ, " Resource Lock," },
+    { 0x41, 0x01, 0x01, M_EQ, " GAT" },
+    { 0x4d, 0x20, 0x20, M_EQ, "\n\tCoprocessor errors enabled" },
+    { 0x4d, 0x10, 0x10, M_EQ, "\n\tMouse function enabled" },
 
     { 0x4e, 0x30, 0x10, M_EQ, "\n\tIDE controller: Primary (1F0h-1F7h,3F6h,3F7h)" },
     { 0x4e, 0x30, 0x30, M_EQ, "\n\tIDE controller: Secondary (170h-177h,376h,377h)" },
