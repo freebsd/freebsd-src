@@ -41,42 +41,26 @@ __FBSDID("$FreeBSD$");
  * PCI/Cardbus front-end for the Atheros Wireless LAN controller driver.
  */
 
-#include "opt_inet.h"
-
 #include <sys/param.h>
 #include <sys/systm.h> 
-#include <sys/mbuf.h>   
-#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/socket.h>
-#include <sys/sockio.h>
 #include <sys/errno.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/bus.h>
 #include <sys/rman.h>
+
+#include <sys/socket.h>
  
 #include <net/if.h>
-#include <net/if_dl.h>
 #include <net/if_media.h>
-#include <net/ethernet.h>
-#include <net/if_llc.h>
 #include <net/if_arp.h>
 
-#include <net80211/ieee80211.h>
-#include <net80211/ieee80211_crypto.h>
-#include <net80211/ieee80211_node.h>
-#include <net80211/ieee80211_proto.h>
 #include <net80211/ieee80211_var.h>
-
-#ifdef INET
-#include <netinet/in.h> 
-#include <netinet/if_ether.h>
-#endif
 
 #include <dev/ath/if_athvar.h>
 #include <contrib/dev/ath/ah.h>
@@ -92,7 +76,7 @@ struct ath_pci_softc {
 	struct ath_softc	sc_sc;
 	struct resource		*sc_sr;		/* memory resource */
 	struct resource		*sc_irq;	/* irq resource */
-	void			*sc_ih;		/* intererupt handler */
+	void			*sc_ih;		/* interrupt handler */
 	u_int8_t		sc_saved_intline;
 	u_int8_t		sc_saved_cachelinesz;
 	u_int8_t		sc_saved_lattimer;
@@ -106,7 +90,7 @@ ath_pci_probe(device_t dev)
 	const char* devname;
 
 	devname = ath_hal_probe(pci_get_vendor(dev), pci_get_device(dev));
-	if (devname) {
+	if (devname != NULL) {
 		device_set_desc(dev, devname);
 		return 0;
 	}
@@ -185,7 +169,7 @@ ath_pci_attach(device_t dev)
 			       NULL, NULL,		/* filter, filterarg */
 			       0x3ffff,			/* maxsize XXX */
 			       ATH_MAX_SCATTER,		/* nsegments */
-			       0xffff,			/* maxsegsize XXX */
+			       BUS_SPACE_MAXADDR,	/* maxsegsize */
 			       BUS_DMA_ALLOCNOW,	/* flags */
 			       NULL,			/* lockfunc */
 			       NULL,			/* lockarg */
@@ -300,3 +284,4 @@ DRIVER_MODULE(if_ath, cardbus, ath_pci_driver, ath_devclass, 0, 0);
 MODULE_VERSION(if_ath, 1);
 MODULE_DEPEND(if_ath, ath_hal, 1, 1, 1);	/* Atheros HAL */
 MODULE_DEPEND(if_ath, wlan, 1, 1, 1);		/* 802.11 media layer */
+MODULE_DEPEND(if_ath, ath_rate, 1, 1, 1);	/* rate control algorithm */
