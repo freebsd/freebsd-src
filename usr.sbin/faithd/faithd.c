@@ -300,7 +300,7 @@ play_service(int s_wld)
 	 * Wait, accept, fork, faith....
 	 */
 again:
-	setproctitle(procname);
+	setproctitle("%s", procname);
 
 	FD_ZERO(&rfds);
 	FD_SET(s_wld, &rfds);
