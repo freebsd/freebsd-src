@@ -705,9 +705,12 @@ void
 panicifcpuunsupported(void)
 {
 
+#if !defined(lint)
 #if !defined(I386_CPU) && !defined(I486_CPU) && !defined(I586_CPU) && !defined(I686_CPU)
 #error This kernel is not configured for one of the supported CPUs
 #endif
+#else /* lint */
+#endif /* lint */
 #if defined(I386_CPU) && (defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU))
 #error I386_CPU is mutually exclusive with the other cpu types.
 #endif
@@ -746,6 +749,7 @@ static	volatile u_int trap_by_rdmsr;
  * be advanced.
  */
 inthand_t	bluetrap6;
+#ifdef __GNUC__
 __asm
 ("									\
 	.text;								\
@@ -757,12 +761,14 @@ __asm
 	addl	$2, (%esp);	/* rdmsr is a 2-byte instruction */	\
 	iret								\
 ");
+#endif
 
 /*
  * Special exception 13 handler.
  * Accessing non-existent MSR generates general protection fault.
  */
 inthand_t	bluetrap13;
+#ifdef __GNUC__
 __asm
 ("									\
 	.text;								\
@@ -775,6 +781,7 @@ __asm
 	addl	$2, (%esp);	/* rdmsr is a 2-bytes instruction. */	\
 	iret;								\
 ");
+#endif
 
 /*
  * Distinguish IBM Blue Lightning CPU from Cyrix CPUs that does not
@@ -1100,7 +1107,7 @@ union msrinfo {
 	u_int32_t	regs[2];
 };
 
-u_int32_t longrun_modes[LONGRUN_MODE_MAX][3] = {
+static u_int32_t longrun_modes[LONGRUN_MODE_MAX][3] = {
 	/*  MSR low, MSR high, flags bit0 */
 	{	  0,	  0,		0},	/* LONGRUN_MODE_MINFREQUENCY */
 	{	  0,	100,		0},	/* LONGRUN_MODE_ECONOMY */
