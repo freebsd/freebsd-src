@@ -155,15 +155,13 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	new_thread->flags = 0;
 
 	/*
-	 * Protect the scheduling queues.
-	 */
-	GIANT_LOCK(curthread);
-
-	/*
 	 * Initialise the unique id which GDB uses to
 	 * track threads.
 	 */
 	new_thread->uniqueid = next_uniqueid++;
+
+	THREAD_LIST_LOCK;
+	_thread_critical_enter(new_thread);
 
 	/*
 	 * Check if the garbage collector thread
@@ -173,6 +171,8 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 
 	/* Add the thread to the linked list of all threads: */
 	TAILQ_INSERT_HEAD(&_thread_list, new_thread, tle);
+
+	THREAD_LIST_UNLOCK;
 
 	/*
 	 * Create the thread.
@@ -190,10 +190,10 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 		PANIC("thr_create");
 	}
 
-	GIANT_UNLOCK(curthread);
-
 	/* Return a pointer to the thread structure: */
 	(*thread) = new_thread;
+
+	_thread_critical_exit(new_thread);
 
 	/*
 	 * Start a garbage collector thread
