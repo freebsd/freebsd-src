@@ -587,12 +587,13 @@ startpr(pp, enable)
 	printf("%s:\n", pp->printer);
 
 	/*
-	 * Turn off the owner execute bit of the lock file to enable printing.
+	 * For enable==1 ('start'), turn off the LFM_PRINT_DIS bit of the
+	 * lock file to re-enable printing.  For enable==2 ('up'), also
+	 * turn off the LFM_QUEUE_DIS bit to re-enable queueing.
 	 */
 	seteuid(euid);
 	if (enable && stat(lf, &stbuf) >= 0) {
-		mode_t bits = (enable == 2 ? 0
-			       : (LFM_PRINT_DIS | LFM_QUEUE_DIS));
+		mode_t bits = (enable == 2 ? 0 : LFM_QUEUE_DIS);
 		if (chmod(lf, stbuf.st_mode & (LOCK_FILE_MODE | bits)) < 0)
 			printf("\tcannot enable printing\n");
 		else
