@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ps.c,v 1.19 1997/04/29 05:26:05 jkh Exp $
+ *	$Id: ps.c,v 1.20 1997/06/06 06:40:06 charnier Exp $
  */
 
 #ifndef lint
@@ -67,10 +67,6 @@ static char const sccsid[] = "@(#)ps.c	8.4 (Berkeley) 4/2/94";
 #include <pwd.h>
 
 #include "ps.h"
-
-#ifdef P_PPWAIT
-#define NEWVM
-#endif
 
 KINFO *kinfo;
 struct varent *vhead, *vtail;
@@ -476,12 +472,8 @@ pscomp(a, b)
 	const void *a, *b;
 {
 	int i;
-#ifdef NEWVM
 #define VSIZE(k) (KI_EPROC(k)->e_vm.vm_dsize + KI_EPROC(k)->e_vm.vm_ssize + \
 		  KI_EPROC(k)->e_vm.vm_tsize)
-#else
-#define VSIZE(k) ((k)->ki_p->p_dsize + (k)->ki_p->p_ssize + (k)->ki_e->e_xsize)
-#endif
 
 	if (sortby == SORTCPU)
 		return (getpcpu((KINFO *)b) - getpcpu((KINFO *)a));
