@@ -1613,8 +1613,8 @@ pmap_remove(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 			pmap_pvo_remove(pvo, pteidx);
 		}
 	}
-	vm_page_unlock_queues();
 	PMAP_UNLOCK(pm);
+	vm_page_unlock_queues();
 }
 
 /*
