@@ -70,7 +70,7 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count, char *m
 		c_db_sym_t	sym;
 		u_int64_t	ar_pfs;
 		u_int64_t	newpc;
-		int		newsof, newsol, i;
+		int		newsof, newsol, nargs, i;
 
 		/*
 		 * XXX this assumes the simplistic stack frames used
@@ -86,7 +86,10 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count, char *m
 
 		db_printf("%s(", name);
 
-		for (i = 0; i < newsof - newsol; i++) {
+		nargs = newsof - newsol;
+		if (nargs > 8)
+			nargs = 8;
+		for (i = 0; i < nargs; i++) {
 			if (i > 0)
 				db_printf(", ");
 			db_printf("0x%lx",
