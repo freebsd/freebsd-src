@@ -93,13 +93,13 @@ umap_bypass(ap)
 	if (umap_bug_bypass)
 		printf ("umap_bypass: %s\n", descp->vdesc_name);
 
-#ifdef SAFETY
+#ifdef DIAGNOSTIC
 	/*
 	 * We require at least one vp.
 	 */
 	if (descp->vdesc_vp_offsets == NULL ||
 	    descp->vdesc_vp_offsets[0] == VDESC_NO_OFFSET)
-		panic ("umap_bypass: no vp's in map.");
+		panic ("umap_bypass: no vp's in map");
 #endif
 
 	/*
