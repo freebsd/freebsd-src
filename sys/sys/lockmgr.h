@@ -101,54 +101,52 @@ struct lock {
  *
  * These are flags that are passed to the lockmgr routine.
  */
-#define LK_TYPE_MASK	0x0000000f	/* type of lock sought */
-#define LK_SHARED	0x00000001	/* shared lock */
-#define LK_EXCLUSIVE	0x00000002	/* exclusive lock */
-#define LK_UPGRADE	0x00000003	/* shared-to-exclusive upgrade */
-#define LK_EXCLUPGRADE	0x00000004	/* first shared-to-exclusive upgrade */
-#define LK_DOWNGRADE	0x00000005	/* exclusive-to-shared downgrade */
-#define LK_RELEASE	0x00000006	/* release any type of lock */
-#define LK_DRAIN	0x00000007	/* wait for all lock activity to end */
-#define LK_EXCLOTHER	0x00000008	/* other process holds lock */
+#define	LK_TYPE_MASK	0x0000000f	/* type of lock sought */
+#define	LK_SHARED	0x00000001	/* shared lock */
+#define	LK_EXCLUSIVE	0x00000002	/* exclusive lock */
+#define	LK_UPGRADE	0x00000003	/* shared-to-exclusive upgrade */
+#define	LK_EXCLUPGRADE	0x00000004	/* first shared-to-exclusive upgrade */
+#define	LK_DOWNGRADE	0x00000005	/* exclusive-to-shared downgrade */
+#define	LK_RELEASE	0x00000006	/* release any type of lock */
+#define	LK_DRAIN	0x00000007	/* wait for all lock activity to end */
+#define	LK_EXCLOTHER	0x00000008	/* other process holds lock */
 /*
  * External lock flags.
  *
- * The first three flags may be set in lock_init to set their mode permanently,
+ * These may be set in lock_init to set their mode permanently,
  * or passed in as arguments to the lock manager.
  */
-#define LK_EXTFLG_MASK	0x03010070	/* mask of external flags */
-#define LK_NOWAIT	0x00000010	/* do not sleep to await lock */
-#define LK_SLEEPFAIL	0x00000020	/* sleep, then return failure */
-#define LK_CANRECURSE	0x00000040	/* allow recursive exclusive lock */
-#define	LK_NOPAUSE	0x01000000	/* no spinloop */
-#define LK_TIMELOCK	0x02000000	/* use lk_timo, else no timeout */
+#define	LK_EXTFLG_MASK	0x00000ff0	/* mask of external flags */
+#define	LK_NOWAIT	0x00000010	/* do not sleep to await lock */
+#define	LK_SLEEPFAIL	0x00000020	/* sleep, then return failure */
+#define	LK_CANRECURSE	0x00000040	/* allow recursive exclusive lock */
+#define	LK_NOPAUSE	0x00000080	/* no spinloop */
+#define	LK_TIMELOCK	0x00000100	/* use lk_timo, else no timeout */
+/*
+ * Nonpersistent external flags.
+ */
+#define	LK_RETRY	0x00001000 /* vn_lock: retry until locked */
+#define	LK_INTERLOCK	0x00002000 /*
+				    * unlock passed mutex after getting
+				    * lk_interlock
+				    */
 /*
  * Internal lock flags.
  *
  * These flags are used internally to the lock manager.
  */
-#define LK_WANT_UPGRADE	0x00000100	/* waiting for share-to-excl upgrade */
-#define LK_WANT_EXCL	0x00000200	/* exclusive lock sought */
-#define LK_HAVE_EXCL	0x00000400	/* exclusive lock obtained */
-#define LK_WAITDRAIN	0x00000800	/* process waiting for lock to drain */
-#define LK_DRAINING	0x00004000	/* lock is being drained */
-/*
- * Control flags
- *
- * Non-persistent external flags.
- */
-#define LK_INTERLOCK	0x00010000 /*
-				    * unlock passed mutex after getting
-				    * lk_interlock
-				    */
-#define LK_RETRY	0x00020000 /* vn_lock: retry until locked */
-#define	LK_INTERNAL	0x00080000/* The internal lock is already held */
-
+#define	LK_WANT_UPGRADE	0x00010000	/* waiting for share-to-excl upgrade */
+#define	LK_WANT_EXCL	0x00020000	/* exclusive lock sought */
+#define	LK_HAVE_EXCL	0x00040000	/* exclusive lock obtained */
+#define	LK_WAITDRAIN	0x00080000	/* process waiting for lock to drain */
+#define	LK_DRAINING	0x00100000	/* lock is being drained */
+#define	LK_INTERNAL	0x00200000/* The internal lock is already held */
 /*
  * Internal state flags corresponding to lk_sharecount, and lk_waitcount
  */
-#define	LK_SHARE_NONZERO 0x00100000
-#define	LK_WAIT_NONZERO  0x00200000
+#define	LK_SHARE_NONZERO 0x01000000
+#define	LK_WAIT_NONZERO  0x02000000
+
 
 /*
  * Lock return status.
