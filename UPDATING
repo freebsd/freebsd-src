@@ -19,6 +19,9 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20020712:	p8	FreeBSD-SA-02:29.tcpdump
+	A buffer overflow in tcpdump has been corrected.
+
 20020711:	p8	FreeBSD-SA-02:30.ktrace
 	Prevent users from tracing previously privileged processes.
 
