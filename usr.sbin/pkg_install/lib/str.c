@@ -61,6 +61,20 @@ get_dash_string(char **str)
     return *str;
 }
 
+/* Do a strlcpy and test for overflow */
+int
+s_strlcpy(char *dst, const char *src, size_t size)
+{
+	return (strlcpy(dst, src, size) >= size);
+}
+
+/* Do a strlcat and test for overflow */
+int
+s_strlcat(char *dst, const char *src, size_t size)
+{
+	return (strlcat(dst, src, size) >= size);
+}
+
 /* Rather Obvious */
 char *
 copy_string(char *str)
@@ -109,3 +123,22 @@ str_lowercase(char *str)
 	++str;
     }
 }
+
+char *
+get_string(char *str, int max, FILE *fp)
+{
+    int len;
+
+    if (!str)
+	return NULL;
+    str[0] = '\0';
+    while (fgets(str, max, fp)) {
+	len = strlen(str);
+	while (len && isspace(str[len - 1]))
+	    str[--len] = '\0';
+	if (len)
+	   return str;
+    }
+    return NULL;
+}
+

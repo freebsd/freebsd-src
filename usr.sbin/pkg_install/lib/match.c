@@ -24,7 +24,6 @@ static const char rcsid[] =
  */
 
 #include "lib.h"
-
 #include <err.h>
 #include <fnmatch.h>
 #include <fts.h>
@@ -97,14 +96,18 @@ matchinstalled(match_t MatchType, char **patterns, int *retval)
     }
 
     /* Count number of patterns */
-    for (len = 0; patterns[len]; len++) {}
-    lmatched = alloca(sizeof(*lmatched) * len);
-    if (lmatched == NULL) {
-	warnx("%s(): alloca() failed", __FUNCTION__);
-	if (retval != NULL)
-	    *retval = 1;
-	return NULL;
-    }
+    if (patterns != NULL) {
+	for (len = 0; patterns[len]; len++) {}
+	lmatched = alloca(sizeof(*lmatched) * len);
+	if (lmatched == NULL) {
+	    warnx("%s(): alloca() failed", __FUNCTION__);
+	    if (retval != NULL)
+		*retval = 1;
+	    return NULL;
+    	} 
+    } else
+	len = 0;
+    
     for (i = 0; i < len; i++)
 	lmatched[i] = FALSE;
 

@@ -23,6 +23,8 @@
 #ifndef _INST_INFO_H_INCLUDE
 #define _INST_INFO_H_INCLUDE
 
+#include <sys/queue.h>
+
 #ifndef MAXINDEXSIZE
 #define MAXINDEXSIZE 59
 #endif
@@ -47,12 +49,21 @@
 #define SHOW_ORIGIN	0x2000
 #define SHOW_CKSUM	0x4000
 
+struct which_entry {
+    TAILQ_ENTRY(which_entry) next;
+    char file[PATH_MAX];
+    char package[PATH_MAX];
+    Boolean skip;
+};
+TAILQ_HEAD(which_head, which_entry);
+
 extern int Flags;
 extern Boolean Quiet;
 extern char *InfoPrefix;
 extern char PlayPen[];
 extern char *CheckPkg;
 extern match_t MatchType;
+extern struct which_head *whead;
 
 extern void	show_file(char *, char *);
 extern void	show_plist(char *, Package *, plist_t);

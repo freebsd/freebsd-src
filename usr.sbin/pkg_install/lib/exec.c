@@ -23,8 +23,8 @@ static const char rcsid[] =
  *
  */
 
-#include <err.h>
 #include "lib.h"
+#include <err.h>
 
 /*
  * Unusual system() substitute.  Accepts format string and args,
@@ -58,5 +58,52 @@ printf("Executing %s\n", cmd);
     va_end(args);
     free(cmd);
     return ret;
+}
+
+char *
+vpipe(const char *fmt, ...)
+{
+   FILE *fp;
+   char *cmd, *rp;
+   int maxargs;
+   va_list args;
+
+    rp = malloc(MAXPATHLEN);
+    if (!rp) {
+        warnx("vpipe can't alloc buffer space");
+        return NULL;
+    }
+    maxargs = sysconf(_SC_ARG_MAX);
+    maxargs -= 32;			    /* some slop for the sh -c */
+    cmd = alloca(maxargs);
+    if (!cmd) {
+	warnx("vpipe can't alloc arg space");
+	return NULL;
+    }
+
+    va_start(args, fmt);
+    if (vsnprintf(cmd, maxargs, fmt, args) > maxargs) {
+	warnx("vsystem args are too long");
+	return NULL;
+    }
+#ifdef DEBUG
+    fprintf(stderr, "Executing %s\n", cmd);
+#endif
+    fflush(NULL);
+    fp = popen(cmd, "r");
+    if (fp == NULL) {
+	warnx("popen() failed");
+	return NULL;
+    }
+    get_string(rp, MAXPATHLEN, fp);
+#ifdef DEBUG
+    fprintf(stderr, "Returned %s\n", rp);
+#endif
+    va_end(args);
+    if (pclose(fp) || (strlen(rp) == 0)) {
+	free(rp);
+	return NULL;
+    }
+    return rp;
 }
 

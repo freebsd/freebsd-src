@@ -25,12 +25,12 @@ static const char rcsid[] =
 
 #include "lib.h"
 #include "info.h"
-
-#include <sys/types.h>
 #include <err.h>
 #include <signal.h>
 
 static int pkg_do(char *);
+static int find_pkg(char *, struct which_head *);
+static int cmp_path(const char *, const char *, const char *);
 
 int
 pkg_perform(char **pkgs)
@@ -42,16 +42,19 @@ pkg_perform(char **pkgs)
 
     signal(SIGINT, cleanup);
 
+    tmp = getenv(PKG_DBDIR);
+    if (!tmp)
+	tmp = DEF_LOG_DIR;
+
     /* Overriding action? */
     if (CheckPkg) {
 	char buf[FILENAME_MAX];
 
-	tmp = getenv(PKG_DBDIR);
-	if (!tmp)
-	    tmp = DEF_LOG_DIR;
 	snprintf(buf, FILENAME_MAX, "%s/%s", tmp, CheckPkg);
 	return abs(access(buf, R_OK));
 	/* Not reached */
+    } else if (!TAILQ_EMPTY(whead)) {
+	return find_pkg(tmp, whead);
     }
 
     if (MatchType != MATCH_EXACT) {
@@ -239,3 +242,177 @@ cleanup(int sig)
 	exit(1);
 }
 
+/*
+ * Return an absolute path, additionally removing all .'s, ..'s, and extraneous
+ * /'s, as realpath() would, but without resolving symlinks, because that can
+ * potentially screw up our comparisons later.
+ */
+char *
+abspath(const char *pathname)
+{
+    char *tmp, *tmp1, *resolved_path;
+    char *cwd = NULL;
+    int len;
+
+    if (pathname[0] != '/') {
+	cwd = getcwd(NULL, MAXPATHLEN);
+	asprintf(&resolved_path, "%s/%s/", cwd, pathname);
+    } else
+	asprintf(&resolved_path, "%s/", pathname);
+
+    if (resolved_path == NULL)
+	errx(2, NULL);
+
+    if (cwd != NULL)
+	free(cwd);    
+
+    while ((tmp = strstr(resolved_path, "//")) != NULL)
+	strcpy(tmp, tmp + 1);
+ 
+    while ((tmp = strstr(resolved_path, "/./")) != NULL)
+	strcpy(tmp, tmp + 2);
+ 
+    while ((tmp = strstr(resolved_path, "/../")) != NULL) {
+	*tmp = '\0';
+	if ((tmp1 = strrchr(resolved_path, '/')) == NULL)
+	   tmp1 = resolved_path;
+	strcpy(tmp1, tmp + 3);
+    }
+
+    len = strlen(resolved_path);
+    if (len > 1 && resolved_path[len - 1] == '/')
+	resolved_path[len - 1] = '\0';
+
+    return resolved_path;
+}
+
+/*
+ * Comparison to see if the path we're on matches the
+ * one we are looking for.
+ */
+static int
+cmp_path(const char *target, const char *current, const char *cwd) 
+{
+    char *resolved, *temp;
+    int rval;
+
+    asprintf(&temp, "%s/%s", cwd, current);
+    if (temp == NULL)
+        errx(2, NULL);
+
+    /*
+     * Make sure there's no multiple /'s or other weird things in the PLIST,
+     * since some plists seem to have them and it could screw up our strncmp.
+     */
+    resolved = abspath(temp);
+
+    if (strcmp(target, resolved) == 0)
+	rval = 1;
+    else
+	rval = 0;
+
+    free(temp);
+    free(resolved);
+    return rval;
+}
+
+/* 
+ * Look through package dbs in db_dir and find which
+ * packages installed the files in which_list.
+ */
+static int 
+find_pkg(char *db_dir, struct which_head *which_list)
+{
+    char **installed;
+    int errcode, i;
+    struct which_entry *wp;
+
+    TAILQ_FOREACH(wp, which_list, next) {
+	char *msg = "file cannot be found";
+	char *tmp;
+
+	wp->skip = TRUE;
+	/* If it's not a file, we'll see if it's an executable. */
+	if (isfile(wp->file) == FALSE) {
+	    if (strchr(wp->file, '/') == NULL) {
+		tmp = vpipe("/usr/bin/which %s", wp->file);
+		if (tmp != NULL) {
+		    strlcpy(wp->file, tmp, PATH_MAX);
+		    wp->skip = FALSE;
+		    free(tmp);
+		} else
+		    msg = "file is not in PATH";
+	    }
+	} else {
+	    tmp = abspath(wp->file);
+	    if (isfile(tmp)) {
+	    	strlcpy(wp->file, tmp, PATH_MAX);
+	    	wp->skip = FALSE;
+	    }
+	    free(tmp);
+	}
+	if (wp->skip == TRUE)
+	    warnx("%s: %s", wp->file, msg);
+    }
+
+    installed = matchinstalled(MATCH_ALL, NULL, &errcode);
+    if (installed == NULL)
+        return errcode;
+ 
+    for (i = 0; installed[i] != NULL; i++) {
+     	FILE *fp;
+     	Package pkg;
+     	PackingList itr;
+     	char *cwd = NULL;
+     	char tmp[PATH_MAX];
+
+	snprintf(tmp, PATH_MAX, "%s/%s/%s", db_dir, installed[i],
+		 CONTENTS_FNAME);
+	fp = fopen(tmp, "r");
+	if (fp == NULL) {
+	    warn("%s", tmp);
+	    return 1;
+	}
+
+	pkg.head = pkg.tail = NULL;
+	read_plist(&pkg, fp);
+	fclose(fp);
+	for (itr = pkg.head; itr != pkg.tail; itr = itr->next) {
+	    if (itr->type == PLIST_CWD) {
+		cwd = itr->name;
+	    } else if (itr->type == PLIST_FILE) {
+		TAILQ_FOREACH(wp, which_list, next) {
+		    if (wp->skip == TRUE)
+			continue;
+		    if (!cmp_path(wp->file, itr->name, cwd))
+			continue;
+		    if (wp->package[0] != '\0') {
+			warnx("both %s and %s claim to have installed %s\n",
+			      wp->package, installed[i], wp->file);
+		    } else {
+			strlcpy(wp->package, installed[i], PATH_MAX);
+		    }
+		}
+	    }
+	}
+	free_plist(&pkg);
+    }
+
+    TAILQ_FOREACH(wp, which_list, next) {
+	if (wp->package[0] != '\0') {
+	    if (Quiet)
+		puts(wp->package);
+	    else
+		printf("%s was installed by package %s\n", \
+		       wp->file, wp->package);
+	}
+    }
+    while (!TAILQ_EMPTY(which_list)) {
+	wp = TAILQ_FIRST(which_list);
+	TAILQ_REMOVE(which_list, wp, next);
+	free(wp);
+    }
+
+    free(which_list);
+    return 0;
+}
