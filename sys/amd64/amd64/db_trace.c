@@ -30,6 +30,7 @@
 #include <sys/systm.h>
 #include <sys/linker_set.h>
 #include <sys/proc.h>
+#include <sys/sysent.h>
 #include <sys/user.h>
 
 #include <machine/cpu.h>
@@ -84,9 +85,10 @@ struct i386_frame {
 #define	INTERRUPT	2
 #define	SYSCALL		3
 
-static void db_nextframe __P((struct i386_frame **, db_addr_t *));
+static void db_nextframe __P((struct i386_frame **, db_addr_t *, struct proc *));
 static int db_numargs __P((struct i386_frame *));
 static void db_print_stack_entry __P((const char *, int, char **, int *, db_addr_t));
+static void decode_syscall __P((int, struct proc *));
 
 /*
  * Figure out how many arguments were passed into the frame at "fp".
@@ -141,13 +143,36 @@ db_print_stack_entry(name, narg, argnp, argp, callpc)
 	db_printf("\n");
 }
 
+static void
+decode_syscall(number, p)
+	int number;
+	struct proc *p;
+{
+	c_db_sym_t sym;
+	db_expr_t diff;
+	sy_call_t *f;
+	const char *symname;
+
+	db_printf(" (%d", number);
+	if (p != NULL && 0 <= number && number < p->p_sysent->sv_size) {
+		f = p->p_sysent->sv_table[number].sy_call;
+		sym = db_search_symbol((db_addr_t)f, DB_STGY_ANY, &diff);
+		if (sym != DB_SYM_NULL && diff == 0) {
+			db_symbol_values(sym, &symname, NULL);
+			db_printf(", %s, %s", p->p_sysent->sv_name, symname);
+		}
+	}
+	db_printf(")");	
+}
+
 /*
  * Figure out the next frame up in the call stack.
  */
 static void
-db_nextframe(fp, ip)
+db_nextframe(fp, ip, p)
 	struct i386_frame **fp;		/* in/out */
 	db_addr_t	*ip;		/* out */
+	struct proc	*p;		/* in */
 {
 	struct trapframe *tf;
 	int frame_type;
@@ -171,8 +196,7 @@ db_nextframe(fp, ip)
 			frame_type = TRAP;
 		} else if (!strncmp(name, "Xresume", 7)) {
 			frame_type = INTERRUPT;
-		} else if (!strcmp(name, "Xlcall_syscall") ||
-			   !strcmp(name, "Xint0x80_syscall")) {
+		} else if (!strcmp(name, "syscall_with_err_pushed")) {
 			frame_type = SYSCALL;
 		}
 	}
@@ -192,40 +216,33 @@ db_nextframe(fp, ip)
 	 * Point to base of trapframe which is just above the
 	 * current frame.
 	 */
-	tf = (struct trapframe *) ((int)*fp + 8);
-
-	esp = (ISPL(tf->tf_cs) == SEL_UPL) ?  tf->tf_esp : (int)&tf->tf_esp;
-	switch (frame_type) {
-	case TRAP:
-		if (INKERNEL((int) tf)) {
-			eip = tf->tf_eip;
-			ebp = tf->tf_ebp;
-			db_printf(
-		    "--- trap %#r, eip = %#r, esp = %#r, ebp = %#r ---\n",
-			    tf->tf_trapno, eip, esp, ebp);
-		}
-		break;
-	case SYSCALL:
-		if (INKERNEL((int) tf)) {
-			eip = tf->tf_eip;
-			ebp = tf->tf_ebp;
-			db_printf(
-		    "--- syscall %#r, eip = %#r, esp = %#r, ebp = %#r ---\n",
-			    tf->tf_eax, eip, esp, ebp);
-		}
-		break;
-	case INTERRUPT:
+	if (frame_type == INTERRUPT)
 		tf = (struct trapframe *)((int)*fp + 12);
-		if (INKERNEL((int) tf)) {
-			eip = tf->tf_eip;
-			ebp = tf->tf_ebp;
-			db_printf(
-		    "--- interrupt, eip = %#r, esp = %#r, ebp = %#r ---\n",
-			    eip, esp, ebp);
+	else
+		tf = (struct trapframe *)((int)*fp + 8);
+
+	if (INKERNEL((int) tf)) {
+		esp = (ISPL(tf->tf_cs) == SEL_UPL) ?
+		    tf->tf_esp : (int)&tf->tf_esp;
+		eip = tf->tf_eip;
+		ebp = tf->tf_ebp;
+	       
+		switch (frame_type) {
+		case TRAP:
+			db_printf("--- trap %#r", tf->tf_trapno);
+			break;
+		case SYSCALL:
+			db_printf("--- syscall");
+			decode_syscall(tf->tf_eax, p);
+			break;
+		case INTERRUPT:
+			db_printf("--- interrupt");
+			break;
+		default:
+			panic("The moon has moved again.");
 		}
-		break;
-	default:
-		break;
+		db_printf(", eip = %#r, esp = %#r, ebp = %#r ---\n", eip,
+		    esp, ebp);
 	}
 
 	*ip = (db_addr_t) eip;
@@ -251,6 +268,7 @@ db_stack_trace_cmd(addr, have_addr, count, modif)
 		count = 1024;
 
 	if (!have_addr) {
+		p = curproc;
 		frame = (struct i386_frame *)ddb_regs.tf_ebp;
 		if (frame == NULL)
 			frame = (struct i386_frame *)(ddb_regs.tf_esp - 4);
@@ -264,6 +282,7 @@ db_stack_trace_cmd(addr, have_addr, count, modif)
 		 * so fall back to the default case.
 		 */
 		if (pid == curproc->p_pid) {
+			p = curproc;
 			frame = (struct i386_frame *)ddb_regs.tf_ebp;
 			if (frame == NULL)
 				frame = (struct i386_frame *)
@@ -281,6 +300,10 @@ db_stack_trace_cmd(addr, have_addr, count, modif)
 				db_printf("pid %d not found\n", pid);
 				return;
 			}
+			if ((p->p_sflag & PS_INMEM) == 0) {
+				db_printf("pid %d swapped out\n", pid);
+				return;
+			}
 			pcb = &p->p_addr->u_pcb;
 			frame = (struct i386_frame *)pcb->pcb_ebp;
 			if (frame == NULL)
@@ -289,6 +312,7 @@ db_stack_trace_cmd(addr, have_addr, count, modif)
 			callpc = (db_addr_t)pcb->pcb_eip;
 		}
 	} else {
+		p = NULL;
 		frame = (struct i386_frame *)addr;
 		callpc = (db_addr_t)db_get_value((int)&frame->f_retaddr, 4, FALSE);
 	}
@@ -372,7 +396,7 @@ db_stack_trace_cmd(addr, have_addr, count, modif)
 			continue;
 		}
 
-		db_nextframe(&frame, &callpc);
+		db_nextframe(&frame, &callpc, p);
 
 		if (INKERNEL((int) callpc) && !INKERNEL((int) frame)) {
 			sym = db_search_symbol(callpc, DB_STGY_ANY, &offset);
