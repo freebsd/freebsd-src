@@ -7,7 +7,8 @@ PROG=	sshd
 SRCS=	sshd.c auth-rhosts.c auth-passwd.c auth-rsa.c auth-rh-rsa.c \
 	sshpty.c sshlogin.c servconf.c serverloop.c \
 	auth.c auth1.c auth2.c auth-options.c session.c \
-	auth-chall.c auth2-chall.c auth-pam.c login_access.c groupaccess.c
+	auth-chall.c auth2-chall.c auth-skey.c auth-pam.c login_access.c \
+	groupaccess.c
 MAN=	sshd.8
 
 CFLAGS+= -DLIBWRAP -DHAVE_LOGIN_CAP -DLOGIN_ACCESS -I${LOGINSRC} -DUSE_PAM -DHAVE_PAM_GETENVLIST
