@@ -108,7 +108,7 @@ __END_DECLS
 #define	EPROTONOSUPPORT	43		/* Protocol not supported */
 #define	ESOCKTNOSUPPORT	44		/* Socket type not supported */
 #define	EOPNOTSUPP	45		/* Operation not supported */
-#define ENOTSUP		EOPNOTSUPP	/* Operation not supported */
+#define	ENOTSUP		EOPNOTSUPP	/* Operation not supported */
 #define	EPFNOSUPPORT	46		/* Protocol family not supported */
 #define	EAFNOSUPPORT	47		/* Address family not supported by protocol family */
 #define	EADDRINUSE	48		/* Address already in use */
