@@ -412,7 +412,7 @@ print_syscall(struct trussinfo *trussinfo, const char *name, int nargs, char **s
   if (trussinfo->flags & FOLLOWFORKS)
     len += fprintf(trussinfo->outfile, "%5d: ", trussinfo->pid);
 
-  if (!strcmp(name, "execve") || !strcmp(name, "exit")) {
+  if (name != NULL && (!strcmp(name, "execve") || !strcmp(name, "exit"))) {
     clock_gettime(CLOCK_REALTIME, &trussinfo->after);
   }
 
