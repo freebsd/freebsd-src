@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)profile.h	8.1 (Berkeley) 6/11/93
- * $Id: profile.h,v 1.15 1998/07/10 02:27:15 bde Exp $
+ * $Id: profile.h,v 1.16 1998/07/10 09:26:41 bde Exp $
  */
 
 #ifndef _MACHINE_PROFILE_H_
@@ -60,7 +60,7 @@
 #define	MCOUNT_DECL(s)
 #define	MCOUNT_ENTER(s)
 #define	MCOUNT_EXIT(s)
-#define	PC_TO_I(p, pc)	((fptrint_t)(pc) - (fptrint_t)(p)->lowpc)
+#define	PC_TO_I(p, pc)	((uintfptr_t)(pc) - (uintfptr_t)(p)->lowpc)
 #else
 #define	MCOUNT_DECL(s)	u_long s;
 #ifdef SMP
@@ -84,7 +84,7 @@
 void \
 mcount() \
 { \
-	fptrint_t selfpc, frompc; \
+	uintfptr_t selfpc, frompc; \
 	/* \
 	 * Find the return address for mcount, \
 	 * and the return address for mcount's caller. \
@@ -99,12 +99,11 @@ mcount() \
 	 * caller's frame following the caller's caller's frame pointer. \
 	 */ \
 	asm("movl (%%ebp),%0" : "=r" (frompc)); \
-	frompc = ((fptrint_t *)frompc)[1]; \
+	frompc = ((uintfptr_t *)frompc)[1]; \
 	_mcount(frompc, selfpc); \
 }
 
-/* An unsigned integral type that can hold function pointers. */
-typedef	u_int32_t	fptrint_t;
+typedef	unsigned int	uintfptr_t;
 
 #endif /* KERNEL */
 
@@ -116,7 +115,7 @@ typedef	u_int	fptrdiff_t;
 
 #ifdef KERNEL
 
-void	mcount __P((fptrint_t frompc, fptrint_t selfpc));
+void	mcount __P((uintfptr_t frompc, uintfptr_t selfpc));
 
 #ifdef GUPROF
 struct gmonparam;
@@ -138,7 +137,7 @@ __BEGIN_DECLS
 #ifdef __GNUC__
 void	mcount __P((void)) __asm("mcount");
 #endif
-static void	_mcount __P((fptrint_t frompc, fptrint_t selfpc));
+static void	_mcount __P((uintfptr_t frompc, uintfptr_t selfpc));
 __END_DECLS
 
 #endif /* KERNEL */
@@ -150,7 +149,7 @@ extern int	cputime_bias;
 __BEGIN_DECLS
 int	cputime __P((void));
 void	empty_loop __P((void));
-void	mexitcount __P((fptrint_t selfpc));
+void	mexitcount __P((uintfptr_t selfpc));
 void	nullfunc __P((void));
 void	nullfunc_loop __P((void));
 __END_DECLS

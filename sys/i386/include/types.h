@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)types.h	8.3 (Berkeley) 1/5/94
- * $Id: types.h,v 1.13 1998/06/18 15:32:05 bde Exp $
+ * $Id: types.h,v 1.14 1998/07/10 02:27:15 bde Exp $
  */
 
 #ifndef _MACHINE_TYPES_H_
@@ -70,13 +70,11 @@ typedef	int32_t			register_t;
 typedef int32_t			ufs_daddr_t;
 
 #ifdef KERNEL
-/* An unsigned integral type that can hold object pointers. */
-typedef	u_int32_t		ptrint_t;
-
-/* An unsigned integral type that can hold function pointers. */
-typedef	u_int32_t		fptrint_t;
-
-typedef	__uint64_t		uoff_t;		/* unsigned file offset */
+typedef	int		intfptr_t;
+typedef	unsigned int	uintfptr_t;
+typedef	int		intptr_t;
+typedef	unsigned int	uintptr_t;
+typedef	__uint64_t	uoff_t;
 #endif
 
 /* Interrupt mask (spl, xxx_imask, etc) */
