@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: netstart,v 1.50 1997/05/18 14:10:06 jkh Exp $
+#	$Id: netstart,v 1.51 1997/05/18 20:11:44 jkh Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # This file is NOT called by any of the other scripts - it has been
@@ -23,6 +23,4 @@ fi
 
 echo 'Doing stage one network startup:'
 network_pass1
-echo 'Doing stage two network startup:'
-network_pass2
 exit 0
