@@ -50,7 +50,7 @@ struct intsrc;
  */
 struct pic {
 	void (*pic_enable_source)(struct intsrc *);
-	void (*pic_disable_source)(struct intsrc *);
+	void (*pic_disable_source)(struct intsrc *, int);
 	void (*pic_eoi_source)(struct intsrc *);
 	void (*pic_enable_intr)(struct intsrc *);
 	int (*pic_vector)(struct intsrc *);
@@ -59,6 +59,12 @@ struct pic {
 	void (*pic_resume)(struct intsrc *);
 	int (*pic_config_intr)(struct intsrc *, enum intr_trigger,
 	    enum intr_polarity);
+};
+
+/* Flags for pic_disable_source() */
+enum {
+	PIC_EOI,
+	PIC_NO_EOI,
 };
 
 /*
