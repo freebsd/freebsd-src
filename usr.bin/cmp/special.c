@@ -77,7 +77,11 @@ c_special(int fd1, const char *file1, off_t skip1,
 		if (ch1 == EOF || ch2 == EOF)
 			break;
 		if (ch1 != ch2) {
-			if (lflag) {
+			if (xflag) {
+				dfound = 1;
+				(void)printf("%08llx %02x %02x\n",
+				    (long long)byte - 1, ch1, ch2);
+			} else if (lflag) {
 				dfound = 1;
 				(void)printf("%6lld %3o %3o\n",
 				    (long long)byte, ch1, ch2);
