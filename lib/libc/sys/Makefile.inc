@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.3 (Berkeley) 10/24/94
-#	$Id: Makefile.inc,v 1.43 1997/10/15 16:29:14 bde Exp $
+#	$Id: Makefile.inc,v 1.44 1997/10/21 08:41:15 bde Exp $
 
 # sys sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/sys ${.CURDIR}/../libc/sys
@@ -28,8 +28,7 @@ ASM=	__getcwd.o __syscall.o __sysctl.o \
 	getuid.o issetugid.o kill.o \
 	kldfind.o kldfirstmod.o kldload.o kldnext.o kldstat.o kldunload.o \
 	ktrace.o lchown.o \
-	lfs_bmapv.o lfs_markv.o \
-	lfs_segclean.o lfs_segwait.o link.o lio_listio.o lstat.o \
+	link.o lio_listio.o lstat.o \
 	madvise.o mincore.o minherit.o mkdir.o mlock.o \
 	modfind.o modfnext.o modnext.o modstat.o \
 	mount.o \
