@@ -286,9 +286,9 @@ if [ "$RUN_FDISK" = "overwrite" ]; then
 		echo y
 		echo y
 	) >>fdisk.script
-	fdisk -u <fdisk.script >/dev/null 2>&1
+	fdisk -u /dev/r${drivename}d <fdisk.script >/dev/null 2>&1
 elif [ "$RUN_FDISK" ]; then
-	$RUN_FDISK -${opsys_part:-${unused_last_part:-3}} <<-EOF >/dev/null 2>&1
+	$RUN_FDISK -${opsys_part:-${unused_last_part:-3}} /dev/r${drivename}d <<-EOF >/dev/null 2>&1
 	y
 	$cyls_per_disk
 	$tracks_per_cyl
