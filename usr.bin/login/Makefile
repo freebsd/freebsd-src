@@ -18,7 +18,7 @@ CFLAGS+=-DKLOGIN_PARANOID
 DPADD=	${LIBUTIL} ${LIBSKEY} ${LIBMD} ${LIBCRYPT}
 LDADD=	-lutil -lskey -lmd -lcrypt
 
-.if exists(${DESTDIR}/usr/lib/libkrb.a) && defined(MAKE_KERBEROS4) && !defined(LC_AUTH)
+.if exists(${DESTDIR}${LIBDIR}/libkrb.a) && defined(MAKE_KERBEROS4) && !defined(LC_AUTH)
 CFLAGS+=-DKERBEROS
 SRCS+=	klogin.c
 DPADD+=	${LIBKRB} ${LIBDES}

@@ -1,4 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
+#	$Id$
 
 PROG=	restore
 LINKS=	${BINDIR}/restore ${BINDIR}/rrestore
@@ -12,7 +13,7 @@ MAN8=	restore.8
 MLINKS+=restore.8 rrestore.8
 .PATH:	${.CURDIR}/../dump
 
-.if exists(${DESTDIR}/usr/lib/libkrb.a) && defined(MAKE_KERBEROS4)
+.if exists(${DESTDIR}${LIBDIR}/libkrb.a) && defined(MAKE_KERBEROS4)
 .PATH:	${.CURDIR}/../../crypto/kerberosIV/appl/bsd
 SRCS+=	krcmd.c kcmd.c rcmd_util.c
 LDADD+=	-lkrb -ldes

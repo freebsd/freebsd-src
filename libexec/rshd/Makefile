@@ -1,11 +1,11 @@
 # From:	@(#)Makefile	8.1 (Berkeley) 6/4/93
-# $Id: Makefile,v 1.7 1997/04/23 03:06:47 davidn Exp $
+# $Id$
 
 PROG=	rshd
 SRCS=	rshd.c
 MAN8=	rshd.8
 
-.if exists(${DESTDIR}/usr/lib/libkrb.a) && defined(MAKE_KERBEROS4)
+.if exists(${DESTDIR}${LIBDIR}/libkrb.a) && defined(MAKE_KERBEROS4)
 CFLAGS+=-DKERBEROS -DCRYPT
 DPADD=	${LIBKRB} ${LIBDES}
 LDADD=	-lkrb -ldes
