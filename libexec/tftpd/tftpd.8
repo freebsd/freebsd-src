@@ -105,7 +105,10 @@ The options are:
 .Bl -tag -width Ds
 .It Fl l
 Log all requests using
-.Xr syslog 3 .
+.Xr syslog 3 
+with the facility of LOG_FTP.  Note: Logging of LOG_FTP messages
+will also need to be enabled in the syslog configuration file 
+.Xr syslog.conf 5 .
 .It Fl n
 Suppress negative acknowledgement of requests for nonexistent
 relative filenames.
@@ -127,7 +130,8 @@ as root unless you are using
 .El
 .Sh SEE ALSO
 .Xr tftp 1 ,
-.Xr inetd 8
+.Xr inetd 8 ,
+.Xr syslogd 8
 .Sh HISTORY
 The
 .Nm
