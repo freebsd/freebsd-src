@@ -112,14 +112,6 @@ vm_fault_quick(v, prot)
 	return(r);
 }
 
-struct ia64_fdesc {
-	u_int64_t	func;
-	u_int64_t	gp;
-};
-
-#define FDESC_FUNC(fn)	(((struct ia64_fdesc *) fn)->func)
-#define FDESC_GP(fn)	(((struct ia64_fdesc *) fn)->gp)
-
 /*
  * Finish a fork operation, with process p2 nearly set up.
  * Copy and update the pcb, set up the stack so that the child
