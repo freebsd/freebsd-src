@@ -861,7 +861,7 @@ rp_attachcommon(CONTROLLER_T *ctlp, int num_aiops, int num_ports)
 	for(aiop=0; aiop < num_aiops; aiop++) {
 		num_chan = sGetAiopNumChan(ctlp, aiop);
 		for(chan=0; chan < num_chan; chan++, port++, rp++) {
-			rp->rp_tty = ttymalloc(NULL);
+			rp->rp_tty = ttyalloc();
 			rp->rp_port = port;
 			rp->rp_ctlp = ctlp;
 			rp->rp_unit = unit;

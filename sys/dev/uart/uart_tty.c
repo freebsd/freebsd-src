@@ -340,7 +340,7 @@ uart_tty_attach(struct uart_softc *sc)
 {
 	struct tty *tp;
 
-	tp = ttymalloc(NULL);
+	tp = ttyalloc();
 	sc->sc_u.u_tty.tp = tp;
 
 	sc->sc_u.u_tty.si[0] = make_dev(&uart_cdevsw,

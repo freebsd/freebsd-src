@@ -262,7 +262,7 @@ zstty_attach(device_t dev)
 	sc->sc_iput = sc->sc_iget = sc->sc_ibuf;
 	sc->sc_oget = sc->sc_obuf;
 
-	tp = ttymalloc(NULL);
+	tp = ttyalloc();
 	sc->sc_si = make_dev(&zstty_cdevsw, device_get_unit(dev),
 	    UID_ROOT, GID_WHEEL, 0600, "%s", device_get_desc(dev));
 	sc->sc_si->si_drv1 = sc;

@@ -967,7 +967,7 @@ sioattach(dev, xrid, rclk)
 	com->line_status_port = iobase + com_lsr;
 	com->modem_status_port = iobase + com_msr;
 
-	tp = com->tp = ttymalloc(NULL);
+	tp = com->tp = ttyalloc();
 	tp->t_oproc = comstart;
 	tp->t_param = comparam;
 	tp->t_stop = comstop;
