@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_usrreq.c	8.2 (Berkeley) 1/3/94
- *	$Id: tcp_usrreq.c,v 1.40.2.1 1999/04/30 19:55:04 ache Exp $
+ * $FreeBSD$
  */
 
 #include "opt_tcpdebug.h"

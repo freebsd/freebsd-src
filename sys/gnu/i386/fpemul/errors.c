@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *    $Id: errors.c,v 1.8 1997/06/14 15:11:03 bde Exp $
+ * $FreeBSD$
  *
  */
 

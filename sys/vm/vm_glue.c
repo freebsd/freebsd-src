@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.80.2.1 1999/01/27 20:51:43 julian Exp $
+ * $FreeBSD$
  */
 
 #include "opt_rlimit.h"

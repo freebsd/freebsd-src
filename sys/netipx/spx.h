@@ -33,7 +33,7 @@
  *
  *	@(#)spx.h
  *
- * $Id: spx.h,v 1.13 1997/06/26 19:36:00 jhay Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NETIPX_SPX_H_

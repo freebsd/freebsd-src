@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.71.2.2 1999/02/18 22:06:17 ken Exp $
+ * $FreeBSD$
  */
 
 /* TODO:

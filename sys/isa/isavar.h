@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isavar.h,v 1.1 1998/08/06 08:49:09 dfr Exp $
+ * $FreeBSD$
  */
 
 #define	ISA_NPORT_IVARS	2

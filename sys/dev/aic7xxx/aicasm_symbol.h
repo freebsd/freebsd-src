@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aicasm_symbol.h,v 1.3 1997/09/27 19:37:30 gibbs Exp $
+ * $FreeBSD$
  */
 
 #include <sys/queue.h>

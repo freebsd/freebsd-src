@@ -27,7 +27,7 @@
  *	i4b_tel.c - device driver for ISDN telephony
  *	--------------------------------------------
  *
- *	$Id: i4b_tel.c,v 1.18 1998/12/14 10:31:53 hm Exp $
+ * $FreeBSD$
  *
  *	last edit-date: [Mon Dec 14 11:32:06 1998]
  *

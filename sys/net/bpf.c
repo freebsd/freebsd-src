@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.45 1998/11/11 10:04:09 truckman Exp $
+ * $FreeBSD$
  */
 
 #include "bpfilter.h"

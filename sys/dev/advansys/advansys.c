@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: advansys.c,v 1.7.2.2 1999/04/19 21:37:28 gibbs Exp $
+ * $FreeBSD$
  */
 /*
  * Ported from:

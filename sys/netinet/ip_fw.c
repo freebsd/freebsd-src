@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.103.2.7 1999/08/16 19:16:25 luigi Exp $
+ * $FreeBSD$
  */
 
 /*

@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumvar.h,v 1.24 1999/08/15 02:29:14 grog Exp $
+ * $FreeBSD$
  */
 
 #include <sys/time.h>

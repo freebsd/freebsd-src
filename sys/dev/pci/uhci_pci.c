@@ -1,4 +1,4 @@
-/*	FreeBSD $Id: uhci_pci.c,v 1.8.2.1 1999/05/08 23:05:14 n_hibma Exp $ */
+/*	FreeBSD $FreeBSD$ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.6 1998/02/06 23:54:22 eivind Exp $
+# $FreeBSD$
 
 .PATH:	${.CURDIR}/../../msdosfs
 KMOD=	msdos

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bcache.c,v 1.5 1999/02/04 13:16:21 dcs Exp $
+ * $FreeBSD$
  */
 
 /*

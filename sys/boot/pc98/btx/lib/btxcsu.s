@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id:$
+# $FreeBSD$
 
 #
 # BTX C startup code (ELF).

@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/coda/coda_pioctl.h,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $ 
- *  $Id: coda_pioctl.h,v 1.3 1998/09/11 18:50:17 rvb Exp $
+ * $FreeBSD$
  * 
  */
 
@@ -43,6 +43,9 @@
 /*
  * HISTORY
  * $Log: coda_pioctl.h,v $
+ * Revision 1.4  1998/09/13 13:57:59  rvb
+ * Finish conversion of cfs -> coda
+ *
  * Revision 1.3  1998/09/11 18:50:17  rvb
  * All the references to cfs, in symbols, structs, and strings
  * have been changed to coda.  (Same for CFS.)

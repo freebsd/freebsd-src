@@ -1,4 +1,4 @@
-/*	$Id: sysv_sem.c,v 1.21 1998/03/30 09:50:41 phk Exp $ */
+/* $FreeBSD$ */
 
 /*
  * Implementation of SVID semaphores

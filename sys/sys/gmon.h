@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)gmon.h	8.2 (Berkeley) 1/4/94
- * $Id: gmon.h,v 1.13 1997/07/13 16:38:31 bde Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_GMON_H_

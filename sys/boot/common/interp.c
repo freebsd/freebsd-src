@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: interp.c,v 1.12.2.4 1999/04/20 12:08:48 joerg Exp $
+ * $FreeBSD$
  */
 /*
  * Simple commandline interpreter, toplevel and misc.

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.6 1998/02/06 23:54:26 eivind Exp $
+# $FreeBSD$
 
 .PATH:	${.CURDIR}/../../miscfs/nullfs
 KMOD=	null

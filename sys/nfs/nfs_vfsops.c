@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id: nfs_vfsops.c,v 1.78 1998/10/31 15:31:26 peter Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.59 1998/11/10 09:12:40 peter Exp $
+ * $FreeBSD$
  */
 
 #include "opt_devfs.h"

@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_util.c	8.3 (Berkeley) 12/5/94
- * $Id: cd9660_util.c,v 1.10.4.1 1999/04/24 17:53:58 dcs Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.29 1998/11/14 21:58:51 wollman Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

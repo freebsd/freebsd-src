@@ -14,7 +14,7 @@
  */
 
 /*
- *	$Id$
+ * $FreeBSD$
  */
 
 #ifndef _BTXV86_H_

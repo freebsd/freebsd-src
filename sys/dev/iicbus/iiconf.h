@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iiconf.h,v 1.3.2.1 1999/01/26 23:21:01 roger Exp $
+ * $FreeBSD$
  */
 #ifndef __IICONF_H
 #define __IICONF_H

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: srmdisk.c,v 1.3 1998/11/02 23:28:10 msmith Exp $
+ * $FreeBSD$
  */
 
 /*

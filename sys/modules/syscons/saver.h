@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: saver.h,v 1.17 1999/04/12 13:34:57 des Exp $
+ * $FreeBSD$
  */
 #include <machine/apm_bios.h>
 #include <machine/console.h>

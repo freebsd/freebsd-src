@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_shell.c,v 1.16 1997/08/02 14:31:23 bde Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $FreeBSD$
  * From	$NetBSD: OSFpal.c,v 1.5 1998/06/24 01:33:19 ross Exp $ 
  */
 

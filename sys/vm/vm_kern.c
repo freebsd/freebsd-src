@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.50.2.1 1999/01/22 05:51:41 dillon Exp $
+ * $FreeBSD$
  */
 
 /*

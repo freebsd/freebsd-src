@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_xxx.c	8.2 (Berkeley) 11/14/93
- * $Id: kern_xxx.c,v 1.27 1997/12/16 17:40:21 eivind Exp $
+ * $FreeBSD$
  */
 
 #include "opt_compat.h"

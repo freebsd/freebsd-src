@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: biosdisk.c,v 1.20.2.5 1999/07/02 21:40:04 rnordier Exp $
+ * $FreeBSD$
  */
 
 /*

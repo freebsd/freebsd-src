@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_node.c	8.6 (Berkeley) 5/22/95
- * $Id: nfs_node.c,v 1.28.2.2 1999/06/15 23:26:09 mjacob Exp $
+ * $FreeBSD$
  */
 
 

@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_mib.c,v 1.5 1997/08/02 14:32:38 bde Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

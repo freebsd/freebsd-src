@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.48 1998/10/28 13:37:02 dg Exp $
+ * $FreeBSD$
  */
 
 /*

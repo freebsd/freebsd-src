@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id$
+# $FreeBSD$
 
 #
 # BTX V86 interface.

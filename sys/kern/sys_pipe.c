@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.46.2.2 1999/05/05 22:53:04 dt Exp $
+ * $FreeBSD$
  */
 
 /*

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: simos.c,v 1.3 1998/12/14 06:32:57 dillon Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: btxldr.s,v 1.4 1998/10/30 00:11:35 msmith Exp $
+# $FreeBSD$
 
 #
 # Prototype BTX loader program, written in a couple of hours.  The

@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: kern_physio.c,v 1.28 1998/08/19 10:50:32 sos Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

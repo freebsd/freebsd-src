@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/coda/coda_namecache.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_namecache.c,v 1.7 1998/09/28 20:52:58 rvb Exp $
+ * $FreeBSD$
  * 
  */
 
@@ -47,6 +47,12 @@
 /*
  * HISTORY
  * $Log: coda_namecache.c,v $
+ * Revision 1.8  1998/10/28 19:33:50  rvb
+ * Venus must be passed O_CREAT flag on VOP_OPEN iff this is
+ * a creat so that we can will allow a mode 444 file to be
+ * written into.  Sync with the latest coda.h and deal with
+ * collateral damage.
+ *
  * Revision 1.7  1998/09/28 20:52:58  rvb
  * Cleanup and fix THE bug
  *

@@ -1,7 +1,7 @@
 /*
  * 16 Feb 93	Julian Elischer	(julian@dialix.oz.au)
  *
- *	$Id: cdio.h,v 1.18 1998/06/08 09:47:47 bde Exp $
+ * $FreeBSD$
  */
 
 /*

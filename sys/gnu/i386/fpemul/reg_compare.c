@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: reg_compare.c,v 1.9 1997/06/14 15:11:05 bde Exp $
+ * $FreeBSD$
  *
  */
 

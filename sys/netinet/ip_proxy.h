@@ -5,7 +5,7 @@
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
  *
- * $Id: ip_proxy.h,v 2.0.2.10.2.1 1997/11/27 09:33:27 darrenr Exp $
+ * $FreeBSD$
  */
 
 #ifndef	__IP_PROXY_H__

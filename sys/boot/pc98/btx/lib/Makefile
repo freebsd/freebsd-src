@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 
 OBJS=		btxcsu.o btxsys.o btxv86.o
 AFLAGS+=	-elf

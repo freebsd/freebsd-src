@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_watch.c,v 1.16 1998/02/13 02:19:29 bde Exp $
+ * $FreeBSD$
  */
 
 /*

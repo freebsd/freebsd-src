@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.54.2.2 1999/03/02 00:42:08 julian Exp $
+ * $FreeBSD$
  */
 
 #include "opt_ktrace.h"

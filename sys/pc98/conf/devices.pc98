@@ -1,6 +1,6 @@
 # This file tells what major numbers the various possible swap devices have.
 #
-#	$Id: devices.pc98,v 1.6 1998/09/15 14:10:55 kato Exp $
+# $FreeBSD$
 #
 wd	0
 wfd	1

@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $FreeBSD$
  * From: $NetBSD: common.h,v 1.2 1998/01/05 07:02:48 perry Exp $	
  */
 

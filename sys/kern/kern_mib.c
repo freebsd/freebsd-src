@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_mib.c,v 1.15 1998/03/28 11:49:52 dufault Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

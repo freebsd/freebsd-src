@@ -1,4 +1,4 @@
-#	$Id$
+# $FreeBSD$
 #
 LIB=			pc98
 NOPIC=

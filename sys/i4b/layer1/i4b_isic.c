@@ -27,7 +27,7 @@
  *	i4b_isic.c - global isic stuff
  *	==============================
  *
- *	$Id: i4b_isic.c,v 1.44 1998/12/20 11:07:59 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Fri Dec 18 12:14:07 1998]
  *

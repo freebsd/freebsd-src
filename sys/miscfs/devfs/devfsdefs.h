@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- * $Id: devfsdefs.h,v 1.17 1998/09/30 20:33:46 sos Exp $
+ * $FreeBSD$
  */
 #ifdef DEVFS_DEBUG
 #define DBPRINT(A) printf(A)

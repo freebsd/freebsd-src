@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)radix.c	8.4 (Berkeley) 11/2/94
- *	$Id: radix.c,v 1.15 1998/07/11 10:51:01 bde Exp $
+ * $FreeBSD$
  */
 
 /*

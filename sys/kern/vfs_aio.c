@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.36 1998/12/15 17:38:33 des Exp $
+ * $FreeBSD$
  */
 
 /*

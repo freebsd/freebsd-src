@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.8 1999/02/04 17:13:30 dcs Exp $
+# $FreeBSD$
 #
 LIB=			ficl
 NOPROFILE=		yes

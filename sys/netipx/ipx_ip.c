@@ -33,7 +33,7 @@
  * 
  *	@(#)ipx_ip.c
  *
- * $Id: ipx_ip.c,v 1.21 1998/06/07 17:12:19 dfr Exp $
+ * $FreeBSD$
  */
 
 /*

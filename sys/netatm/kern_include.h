@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: kern_include.h,v 1.7 1998/07/23 21:44:40 root Exp $
+ *	@(#) $FreeBSD$
  *
  */
 

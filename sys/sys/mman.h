@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mman.h	8.2 (Berkeley) 1/9/95
- * $Id: mman.h,v 1.24 1999/01/06 23:05:40 julian Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_MMAN_H_

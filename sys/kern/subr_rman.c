@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_rman.c,v 1.3 1998/12/07 21:58:29 archie Exp $
+ * $FreeBSD$
  */
 
 /*

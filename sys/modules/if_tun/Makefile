@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.7 1998/10/16 04:30:45 peter Exp $
+# $FreeBSD$
 
 .PATH:  ${.CURDIR}/../../net
 KMOD=   if_tun

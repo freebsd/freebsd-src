@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: hostcache.c,v 1.4 1998/02/04 22:33:02 eivind Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

@@ -1,4 +1,4 @@
-/* $Id: isp_freebsd.c,v 1.10.2.5 1999/07/05 20:43:12 mjacob Exp $ */
+/* $FreeBSD$ */
 /*
  * Platform (FreeBSD) dependent common attachment code for Qlogic adapters.
  *

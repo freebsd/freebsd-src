@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: sscop_misc.h,v 1.4 1998/08/26 23:29:19 mks Exp $
+ *	@(#) $FreeBSD$
  *
  */
 

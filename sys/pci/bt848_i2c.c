@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bt848_i2c.c,v 1.2.2.1 1999/05/15 12:25:33 roger Exp $
+ * $FreeBSD$
  *
  */
 

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.7 1998/10/14 20:40:56 rnordier Exp $
+# $FreeBSD$
 
 SUBDIR=		mbr boot0 kgzldr btx boot2 libi386 loader
 

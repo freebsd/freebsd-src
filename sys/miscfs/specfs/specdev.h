@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)specdev.h	8.6 (Berkeley) 5/21/95
- * $Id: specdev.h,v 1.14 1998/03/08 09:57:40 julian Exp $
+ * $FreeBSD$
  */
 
 /*

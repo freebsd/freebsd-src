@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lock.h	8.12 (Berkeley) 5/19/95
- * $Id: lock.h,v 1.12 1999/01/02 11:34:56 bde Exp $
+ * $FreeBSD$
  */
 
 #ifndef	_LOCK_H_

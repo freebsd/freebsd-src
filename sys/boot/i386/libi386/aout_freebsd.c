@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aout_freebsd.c,v 1.10 1998/10/09 07:11:19 msmith Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: $
+ * $FreeBSD$
  * from kbdio.c,v 1.13 1998/09/25 11:55:46 yokota Exp
  */
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppi.h,v 1.1 1997/08/14 13:57:43 msmith Exp $
+ * $FreeBSD$
  *
  */
 #ifndef __PPI_H

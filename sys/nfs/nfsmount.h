@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsmount.h	8.3 (Berkeley) 3/30/95
- * $Id: nfsmount.h,v 1.14 1998/05/19 07:11:27 peter Exp $
+ * $FreeBSD$
  */
 
 

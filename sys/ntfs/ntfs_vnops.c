@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ntfs_vnops.c,v 1.5 1999/05/12 09:43:06 semenu Exp $
+ * $FreeBSD$
  *
  */
 

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.h,v 1.22 1998/01/12 01:44:46 dyson Exp $
+ * $FreeBSD$
  */
 
 #ifndef _VM_VM_PAGEOUT_H_

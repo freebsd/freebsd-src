@@ -70,7 +70,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: ppp_tty.c,v 1.37 1998/06/20 16:39:35 peter Exp $ */
+/* $FreeBSD$ */
 
 #include "ppp.h"
 #if NPPP > 0

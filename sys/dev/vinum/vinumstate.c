@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumstate.c,v 1.23 1999/08/15 02:29:13 grog Exp $
+ * $FreeBSD$
  */
 
 #include <dev/vinum/vinumhdr.h>

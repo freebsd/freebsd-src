@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_sa.h,v 1.3.2.1 1999/02/05 08:38:21 mjacob Exp $
+ * $FreeBSD$
  */
 
 #ifndef	_SCSI_SCSI_SA_H

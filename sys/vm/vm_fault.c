@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.93.2.2 1999/02/18 02:04:01 dillon Exp $
+ * $FreeBSD$
  */
 
 /*

@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.16.2.10 1999/05/22 22:59:11 gibbs Exp $
+ * $FreeBSD$
  */
 /*
  * A few notes on features of the driver.

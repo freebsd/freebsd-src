@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dead_vnops.c	8.1 (Berkeley) 6/10/93
- * $Id: dead_vnops.c,v 1.24 1998/08/23 11:43:29 bde Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

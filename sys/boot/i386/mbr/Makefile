@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1.1.1 1999/05/24 22:36:23 rnordier Exp $
+# $FreeBSD$
 
 PROG=		mbr
 NOMAN=

@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumstate.h,v 1.8 1999/08/15 02:29:14 grog Exp $
+ * $FreeBSD$
  */
 
 /*

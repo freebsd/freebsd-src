@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: advlib.h,v 1.3 1997/02/22 09:28:47 peter Exp $
+ * $FreeBSD$
  */
 /*
  * Ported from:

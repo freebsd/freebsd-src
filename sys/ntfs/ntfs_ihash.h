@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ntfs_ihash.h,v 1.3 1999/05/12 09:42:59 semenu Exp $
+ * $FreeBSD$
  */
 
 void ntfs_nthashinit __P((void));

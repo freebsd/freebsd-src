@@ -38,7 +38,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumraid5.c,v 1.3 1999/08/14 06:29:25 grog Exp $
+ * $FreeBSD$
  */
 #include <dev/vinum/vinumhdr.h>
 #include <dev/vinum/request.h>

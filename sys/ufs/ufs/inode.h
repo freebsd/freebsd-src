@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)inode.h	8.9 (Berkeley) 5/14/95
- * $Id: inode.h,v 1.23 1998/07/03 22:17:01 bde Exp $
+ * $FreeBSD$
  */
 
 #ifndef _UFS_UFS_INODE_H_

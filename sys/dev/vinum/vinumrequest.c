@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumrequest.c,v 1.33 1999/08/14 11:40:38 phk Exp $
+ * $FreeBSD$
  */
 
 #include <dev/vinum/vinumhdr.h>

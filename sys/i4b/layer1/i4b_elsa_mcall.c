@@ -33,7 +33,7 @@
  *	ELSA MicroLink MC/all card specific routines
  *	--------------------------------------------
  *
- *	$Id: i4b_elsa_mcall.c,v 1.1 1998/12/02 06:44:27 hm Exp $
+ * $FreeBSD$
  *
  *      last edit-date: [Tue Dec  1 07:45:53 1998]
  *
