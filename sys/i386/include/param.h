@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
- *	$Id: param.h,v 1.15 1994/05/25 08:56:14 rgrimes Exp $
+ *	$Id: param.h,v 1.16 1994/09/18 22:05:22 bde Exp $
  */
 
 #ifndef _MACHINE_PARAM_H_
@@ -103,7 +103,7 @@
 #endif	/* MSIZE */
 
 #ifndef	MCLSHIFT
-#define MCLSHIFT	12		/* convert bytes to m_buf clusters */
+#define MCLSHIFT	11		/* convert bytes to m_buf clusters */
 #endif	/* MCLSHIFT */
 #define MCLBYTES	(1 << MCLSHIFT)	/* size of an m_buf cluster */
 #define MCLOFSET	(MCLBYTES - 1)	/* offset within an m_buf cluster */
