@@ -148,7 +148,7 @@ typedef struct ng_hci_unit {
 
 	ng_hci_unit_buff_t		buffer;         /* buffer info */
 
-	struct callout_handle		cmd_timo;       /* command timeout */
+	struct callout			cmd_timo;       /* command timeout */
 	ng_bt_mbufq_t			cmdq;           /* command queue */
 #define NG_HCI_CMD_QUEUE_LEN		12		/* max. size of cmd q */
 
@@ -183,7 +183,7 @@ typedef struct ng_hci_unit_con {
 	u_int8_t			mode;            /* ACTIVE, HOLD ... */
 	u_int8_t			role;            /* MASTER/SLAVE */
 
-	struct callout_handle		con_timo;        /* con. timeout */
+	struct callout			con_timo;        /* con. timeout */
 
 	int				pending;         /* # of data pkts */
 	ng_bt_itemq_t			conq;            /* con. queue */
