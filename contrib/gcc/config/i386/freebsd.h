@@ -98,15 +98,6 @@ Boston, MA 02111-1307, USA.  */
     %{!shared:crtend.o%s} \
     %{shared:crtendS.o%s} crtn.o%s}"
 
-/* FreeBSD conditionalizes the use of ".section rodata" depending on
-   ELF mode - otherwise .text.  */
-#undef  USE_CONST_SECTION
-#define USE_CONST_SECTION	TARGET_ELF
-
-/* ".string" doesn't work for the aout case. */
-#undef  STRING_ASM_OP
-#define STRING_ASM_OP	(TARGET_AOUT ? "\t.asciz\t" : "\t.string\t")
-
 
 /************************[  Target stuff  ]***********************************/
 
@@ -210,6 +201,17 @@ Boston, MA 02111-1307, USA.  */
 #define ASM_APP_ON	"#APP\n"
 #undef  ASM_APP_OFF
 #define ASM_APP_OFF	"#NO_APP\n"
+
+/* Override the default string pseudo-op of "\t.string\t" from ../elfos.h.
+   ".string" doesn't work for the aout case.  */
+#undef  STRING_ASM_OP
+#define STRING_ASM_OP	(TARGET_AOUT ? "\t.asciz\t" : "\t.string\t")
+
+/* Override the use of "\t.section\t.rodata" from ../elfos.h.  Neither
+   ".section" nor "rodata" works for the aout case.  This forces a fallback
+   to ".text".  */
+#undef  USE_CONST_SECTION
+#define USE_CONST_SECTION	TARGET_ELF
 
 /* This is how to store into the string BUF
    the symbol_ref name of an internal numbered label where
