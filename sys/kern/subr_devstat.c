@@ -397,7 +397,7 @@ devstat_alloc(void)
 
 	if (!once) {
 		make_dev(&devstat_cdevsw, 0,
-		    UID_ROOT, GID_WHEEL, 0400, "devstat");
+		    UID_ROOT, GID_WHEEL, 0400, DEVSTAT_DEVICE_NAME);
 		once++;
 	}
 	TAILQ_FOREACH(spp, &pagelist, list) {
