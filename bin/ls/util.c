@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)util.c	8.3 (Berkeley) 4/2/94";
 #else
 static const char rcsid[] =
-	"$Id: util.c,v 1.10 1997/08/07 15:33:50 steve Exp $";
+	"$Id: util.c,v 1.11 1997/08/07 22:28:25 steve Exp $";
 #endif
 #endif /* not lint */
 
@@ -47,6 +47,7 @@ static const char rcsid[] =
 #include <sys/stat.h>
 
 #include <ctype.h>
+#include <err.h>
 #include <fts.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -66,6 +67,44 @@ prcopy(src, dest, len)
 		ch = *src++;
 		*dest++ = isprint(ch) ? ch : '?';
 	}
+}
+
+/*
+ * The fts system makes it difficult to replace fts_name with a different-
+ * sized string, so we just calculate the real length here and do the
+ * conversion in prn_octal()
+ */
+int
+len_octal(s, len)
+        char *s;
+	int len;
+{
+        int r;
+
+	while (len--)
+	    if (isprint(*s++)) r++; else r += 4;
+	return r;
+}
+
+int
+prn_octal(s)
+        char *s;
+{
+        unsigned char ch;
+	int len = 0;
+	
+        while ((ch = *s++))
+	{
+	    if (isprint(ch)) putchar(ch), len++;
+	    else {
+		    putchar('\\');
+		    putchar('0' + (ch >> 6));
+		    putchar('0' + ((ch >> 3) & 3));
+		    putchar('0' + (ch & 3));
+		    len += 4;
+	    }
+	}
+	return len;
 }
 
 void
