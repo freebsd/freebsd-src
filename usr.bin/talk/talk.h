@@ -91,5 +91,7 @@ extern	void	re_invite(int);
 extern	void	send_delete(void);
 extern	void	set_edit_chars(void);
 extern	void	sig_sent(int);
+extern	void	sig_winch(int);
 extern	void	start_msgs(void);
 extern	void	talk(void);
+extern	void	resize_display(void);
