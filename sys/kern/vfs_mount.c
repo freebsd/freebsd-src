@@ -1465,6 +1465,8 @@ vfs_mountroot(void)
 	panic("Root mount failed, startup aborted.");
 }
 
+void g_waitidle(void);
+
 /*
  * Mount (mountfrom) as the root filesystem.
  */
@@ -1482,6 +1484,8 @@ vfs_mountroot_try(char *mountfrom)
 	path    = NULL;
 	mp      = NULL;
 	error   = EINVAL;
+
+	g_waitidle();
 
 	if (mountfrom == NULL)
 		return(error);		/* don't complain */
