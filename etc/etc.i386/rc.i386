@@ -31,8 +31,17 @@ esac
 #
 case ${ibcs2_enable} in
 [Yy][Ee][Ss])
-	echo -n ' ibcs2';	ibcs2 > /dev/null 2>&1
-	;;
+	echo -n ' ibcs2'
+	kldload ibcs2 > /dev/null 2>&1
+	case ${ibcs2_loaders} in
+	[Nn][Oo])
+		;;
+	*)
+		for i in ${ibcs2_loaders}; do
+			kldload ibcs2_$i > /dev/null 2>&1
+		done
+		;;
+	esac
 esac
 
 case ${xtend_enable} in
