@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.400 1998/01/31 19:41:27 julian Exp $
+#	$Id: LINT,v 1.401 1998/02/04 04:41:35 eivind Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1451,7 +1451,6 @@ options		SHMMNI=33
 options		SHMSEG=9
 options		SI_DEBUG
 options		SIMPLELOCK_DEBUG
-#options		SUIDDIR
 options		SPX_HACK
 
 # The 'dpt' driver provides hardware RAID-{0,1,5} support, multi-initiator I/O
