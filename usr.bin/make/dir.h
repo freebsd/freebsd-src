@@ -47,11 +47,11 @@
 #define	_DIR
 
 typedef struct Path {
-    char         *name;	    	/* Name of directory */
-    int	    	  refCount; 	/* Number of paths with this directory */
-    int		  hits;	    	/* the number of times a file in this
-				 * directory has been found */
-    Hash_Table    files;    	/* Hash table of files in directory */
+	char	*name;	    	/* Name of directory */
+	int	refCount;	/* Number of paths with this directory */
+	int	hits;		/* Number of times a file in this dirextory has
+				 * been found  */
+	Hash_Table files;    	/* Hash table of files in directory */
 } Path;
 
 void Dir_Init(void);
