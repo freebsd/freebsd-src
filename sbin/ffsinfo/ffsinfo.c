@@ -63,6 +63,7 @@ static const char rcsid[] =
 
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <libufs.h>
 #include <paths.h>
@@ -148,19 +149,25 @@ main(int argc, char **argv)
 	while ((ch=getopt(argc, argv, "g:i:l:o:")) != -1) {
 		switch(ch) {
 		case 'g':
-			cfg_cg=atol(optarg);
+			cfg_cg=strtol(optarg, NULL, 0);
+			if(errno == EINVAL||errno == ERANGE)
+				err(1, "%s", optarg);
 			if(cfg_cg < -1) {
 				usage();
 			}
 			break;
 		case 'i':
-			cfg_in=atol(optarg);
+			cfg_in=strtol(optarg, NULL, 0);
+			if(errno == EINVAL||errno == ERANGE)
+				err(1, "%s", optarg);
 			if(cfg_in < 0) {
 				usage();
 			}
 			break; 
 		case 'l':
-			cfg_lv=atol(optarg);
+			cfg_lv=strtol(optarg, NULL, 0);
+			if(errno == EINVAL||errno == ERANGE)
+				err(1, "%s", optarg);
 			if(cfg_lv < 0x1||cfg_lv > 0x3ff) {
 				usage();
 			}
