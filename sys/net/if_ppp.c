@@ -94,6 +94,7 @@
 #include <sys/kernel.h>
 #include <sys/time.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -133,9 +134,6 @@ struct ppp_softc ppp_softc[NPPP];
 
 /* XXX layering violation */
 extern void	pppasyncattach __P((void *));
-
-static void	pppattach __P((void *));
-PSEUDO_SET(pppattach, if_ppp);
 
 static int	pppsioctl __P((struct ifnet *ifp, u_long cmd, caddr_t data));
 static void	pppintr __P((void));
@@ -192,8 +190,7 @@ static struct compressor *ppp_compressors[8] = {
  * Called from boot code to establish ppp interfaces.
  */
 static void
-pppattach(dummy)
-    void *dummy;
+pppattach(void)
 {
     register struct ppp_softc *sc;
     register int i = 0;
@@ -222,8 +219,30 @@ pppattach(dummy)
      * XXX layering violation - if_ppp can work over any lower level
      * transport that cares to attach to it.
      */
-    pppasyncattach(dummy);
+    pppasyncattach(NULL);
 }
+
+static int
+ppp_modevent(module_t mod, int type, void *data) 
+{ 
+	switch (type) { 
+	case MOD_LOAD: 
+		pppattach();
+		break; 
+	case MOD_UNLOAD: 
+		printf("if_ppp module unload - not possible for this module type\n"); 
+		return EINVAL; 
+	} 
+	return 0; 
+} 
+
+static moduledata_t ppp_mod = { 
+	"if_ppp", 
+	ppp_modevent, 
+	0
+}; 
+
+DECLARE_MODULE(if_ppp, ppp_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 
 /*
  * Allocate a ppp interface unit and initialize it.

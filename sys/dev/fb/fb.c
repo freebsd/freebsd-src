@@ -36,6 +36,7 @@
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/uio.h>
 #include <sys/fbio.h>
 
@@ -374,18 +375,29 @@ static struct cdevsw fb_cdevsw = {
 	/* bmaj */	-1
 };
 
-static void
-vfbattach(void *arg)
-{
-	static int fb_devsw_installed = FALSE;
 
-	if (!fb_devsw_installed) {
+static int
+fb_modevent(module_t mod, int type, void *data) 
+{ 
+
+	switch (type) { 
+	case MOD_LOAD: 
 		cdevsw_add(&fb_cdevsw);
-		fb_devsw_installed = TRUE;
-	}
-}
+		break; 
+	case MOD_UNLOAD: 
+		printf("fb module unload - not possible for this module type\n"); 
+		return EINVAL; 
+	} 
+	return 0; 
+} 
 
-PSEUDO_SET(vfbattach, fb);
+static moduledata_t fb_mod = { 
+	"fb", 
+	fb_modevent, 
+	NULL
+}; 
+
+DECLARE_MODULE(fb, fb_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 
 int
 fb_attach(dev_t dev, video_adapter_t *adp, struct cdevsw *cdevsw)

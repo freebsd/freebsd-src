@@ -48,6 +48,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
@@ -88,9 +89,6 @@
 
 int loioctl __P((struct ifnet *, u_long, caddr_t));
 static void lortrequest __P((int, struct rtentry *, struct sockaddr *));
-
-static void loopattach __P((void *));
-PSEUDO_SET(loopattach, if_loop);
 
 int looutput __P((struct ifnet *ifp,
 		struct mbuf *m, struct sockaddr *dst, struct rtentry *rt));
@@ -174,19 +172,33 @@ sysctl_net_nloop(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_net, OID_AUTO, nloop, CTLTYPE_INT | CTLFLAG_RW,
 	    0, 0, sysctl_net_nloop, "I", "");
 
-/* ARGSUSED */
-static void
-loopattach(dummy)
-	void *dummy;
-{
+static int
+loop_modevent(module_t mod, int type, void *data) 
+{ 
 	int i;
 
-	TUNABLE_INT_FETCH("net.nloop", 1, nloop);
-	if (nloop < 1)			/* sanity check */
-		nloop = 1;
-	for (i = 0; i < nloop; i++)
-		locreate(i);
-}
+	switch (type) { 
+	case MOD_LOAD: 
+		TUNABLE_INT_FETCH("net.nloop", 1, nloop);
+		if (nloop < 1)			/* sanity check */
+			nloop = 1;
+		for (i = 0; i < nloop; i++)
+			locreate(i);
+		break; 
+	case MOD_UNLOAD: 
+		printf("loop module unload - not possible for this module type\n"); 
+		return EINVAL; 
+	} 
+	return 0; 
+} 
+
+static moduledata_t loop_mod = { 
+	"loop", 
+	loop_modevent, 
+	0
+}; 
+
+DECLARE_MODULE(loop, loop_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 
 int
 looutput(ifp, m, dst, rt)
