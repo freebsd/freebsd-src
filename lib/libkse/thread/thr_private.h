@@ -54,6 +54,7 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sched.h>
+#include <spinlock.h>
 
 /*
  * Kernel fatal error handler macro.
@@ -105,7 +106,7 @@ struct pthread_mutex {
 	/*
 	 * Lock for accesses to this structure.
 	 */
-	long			access_lock;
+	spinlock_t			lock;
 };
 
 /*
@@ -144,7 +145,7 @@ struct pthread_cond {
 	/*
 	 * Lock for accesses to this structure.
 	 */
-	long			access_lock;
+	spinlock_t		lock;
 };
 
 struct pthread_cond_attr {
@@ -217,8 +218,9 @@ struct pthread_attr {
 #define TIMESLICE_USEC				100000
 
 struct pthread_key {
-	volatile long	access_lock;
+	spinlock_t	lock;
 	volatile int	allocated;
+	volatile int	count;
 	void            (*destructor) ();
 };
 
@@ -263,7 +265,7 @@ struct fd_table_entry {
 	 * access to this structure. It does *not* represent the
 	 * state of the lock on the file descriptor.
 	 */
-	long			access_lock;
+	spinlock_t		lock;
 	struct pthread_queue	r_queue;	/* Read queue.                        */
 	struct pthread_queue	w_queue;	/* Write queue.                       */
 	struct pthread		*r_owner;	/* Ptr to thread owning read lock.    */
@@ -311,7 +313,7 @@ struct pthread {
 	/*
 	 * Lock for accesses to this thread structure.
 	 */
-	long			access_lock;
+	spinlock_t		lock;
 
 	/*
 	 * Pointer to the next thread in the thread linked list.
@@ -428,6 +430,7 @@ struct pthread {
 
 	/* Miscellaneous data. */
 	char		flags;
+#define PTHREAD_EXITING		0x0100
 	char		pthread_priority;
 	void		*ret;
 	const void	**specific_data;
@@ -584,6 +587,16 @@ struct  sigaction _thread_sigact[NSIG];
 /* Undefine the storage class specifier: */
 #undef  SCLASS
 
+#ifdef	_LOCK_DEBUG
+#define	_FD_LOCK(_fd,_type,_ts)		_thread_fd_lock_debug(_fd, _type, \
+						_ts, __FILE__, __LINE__)
+#define _FD_UNLOCK(_fd,_type)		_thread_fd_unlock_debug(_fd, _type, \
+						__FILE__, __LINE__)
+#else
+#define	_FD_LOCK(_fd,_type,_ts)		_thread_fd_lock(_fd, _type, _ts)
+#define _FD_UNLOCK(_fd,_type)		_thread_fd_unlock(_fd, _type)
+#endif
+
 /*
  * Function prototype definitions.
  */
@@ -594,7 +607,8 @@ char    *ttyname_r(int, char *, size_t);
 int     _find_dead_thread(pthread_t);
 int     _find_thread(pthread_t);
 int     _thread_create(pthread_t *,const pthread_attr_t *,void *(*start_routine)(void *),void *,pthread_t);
-int     _thread_fd_lock(int, int, struct timespec *,char *fname,int lineno);
+int     _thread_fd_lock(int, int, struct timespec *);
+int     _thread_fd_lock_debug(int, int, struct timespec *,char *fname,int lineno);
 void    _dispatch_signals(void);
 void    _thread_signal(pthread_t, int);
 void    _lock_dead_thread_list(void);
@@ -605,6 +619,7 @@ void    _unlock_thread(void);
 void    _unlock_thread_list(void);
 void    _thread_exit(char *, int, char *);
 void    _thread_fd_unlock(int, int);
+void    _thread_fd_unlock_debug(int, int, char *, int);
 void    *_thread_cleanup(pthread_t);
 void    _thread_cleanupspecific(void);
 void    _thread_dump_info(void);
