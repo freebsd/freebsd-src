@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: file2c.c,v 1.3 1997/02/22 19:55:01 peter Exp $
  *
  */
 
@@ -16,7 +16,6 @@ int
 main(int argc, char **argv)
 {
     int i,j,k;
-    char s[10];
 
     if (argc > 1)
         printf("%s\n",argv[1]);
