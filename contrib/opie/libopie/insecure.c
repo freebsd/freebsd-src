@@ -25,6 +25,9 @@ License Agreement applies to this software.
              found. Use uname().
         Created at NRL for OPIE 2.2 from opiesubr.c. Fixed pointer
              assignment that should have been a comparison.
+
+$FreeBSD$
+
 */
 #include "opie_cfg.h"
 
@@ -64,6 +67,8 @@ int opieinsecure FUNCTION_NOARGS
   if (result != -1)
     return result;
 
+  if (getenv("SSH_CLIENT") != NULL)
+	return (result = 0);
   display_name = (char *) getenv("DISPLAY");
   term_name = (char *) getenv("TERM");
 
