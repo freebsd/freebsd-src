@@ -22,6 +22,8 @@
 
 #include <sys/ioccom.h>
 
+#define PPS_API_VERS_1	1
+
 typedef int pps_handle_t;	
 
 typedef unsigned pps_seq_t;
@@ -34,7 +36,7 @@ typedef struct ntp_fp {
 typedef union pps_timeu {
 	struct timespec	tspec;
 	ntp_fp_t	ntpfp;
-	unsigned long	longpair[2];
+	unsigned long	longpad[3];
 } pps_timeu_t;
 
 typedef struct {
@@ -52,6 +54,7 @@ typedef struct {
 #define clear_timestamp_ntpfp   clear_tu.ntpfp
 
 typedef struct {
+	int api_version;			/* API version # */
 	int mode;				/* mode bits */
 	pps_timeu_t assert_off_tu;
 	pps_timeu_t clear_off_tu;
@@ -71,20 +74,29 @@ typedef struct {
 #define PPS_OFFSETASSERT	0x10
 #define PPS_OFFSETCLEAR		0x20
 
-#define PPS_HARDPPSONASSERT	0x04
-#define PPS_HARDPPSONCLEAR	0x08
-
 #define PPS_ECHOASSERT		0x40
 #define PPS_ECHOCLEAR		0x80
 
 #define PPS_CANWAIT		0x100
+#define PPS_CANPOLL		0x200
 
 #define PPS_TSFMT_TSPEC		0x1000
 #define PPS_TSFMT_NTPFP		0x2000
 
-struct pps_wait_args {
-	struct timespec	timeout;
+#define PPS_KC_HARDPPS		0
+#define PPS_KC_HARDPPS_PLL	1
+#define PPS_KC_HARDPPS_FLL	2
+
+struct pps_fetch_args {
+	int tsformat;
 	pps_info_t	pps_info_buf;
+	struct timespec	timeout;
+};
+
+struct pps_kcbind_args {
+	int kernel_consumer;
+	int edge;
+	int tsformat;
 };
 
 #define PPS_IOC_CREATE		_IO('1', 1)
@@ -92,13 +104,14 @@ struct pps_wait_args {
 #define PPS_IOC_SETPARAMS	_IOW('1', 3, pps_params_t)
 #define PPS_IOC_GETPARAMS	_IOR('1', 4, pps_params_t)
 #define PPS_IOC_GETCAP		_IOR('1', 5, int)
-#define PPS_IOC_FETCH		_IOWR('1', 6, pps_info_t)
-#define PPS_IOC_WAIT		_IOWR('1', 6, struct pps_wait_args)
+#define PPS_IOC_FETCH		_IOWR('1', 6, struct pps_fetch_args)
+#define PPS_IOC_KCBIND		_IOW('1', 7, struct pps_kcbind_args)
 
 #ifdef KERNEL
 struct pps_state {
 	pps_params_t	ppsparam;
 	pps_info_t	ppsinfo;
+	int		kcmode;
 	int		ppscap;
 	struct timecounter *ppstc;
 	unsigned	ppscount[3];
@@ -149,22 +162,33 @@ time_pps_getcap(pps_handle_t handle, int *mode)
 }
 
 static __inline int
-time_pps_fetch(pps_handle_t handle, pps_info_t *ppsinfobuf)
+time_pps_fetch(pps_handle_t handle, const int tsformat,
+	pps_info_t *ppsinfobuf, const struct timespec *timeout)
 {
-	return (ioctl(handle, PPS_IOC_FETCH, ppsinfobuf));
+	int error;
+	struct pps_fetch_args arg;
+
+	arg.tsformat = tsformat;
+	if (timeout == NULL) {
+		arg.timeout.tv_sec = -1;
+		arg.timeout.tv_nsec = -1;
+	} else
+		arg.timeout = *timeout;
+	error = ioctl(handle, PPS_IOC_FETCH, &arg);
+	*ppsinfobuf = arg.pps_info_buf;
+	return (error);
 }
 
 static __inline int
-time_pps_wait(pps_handle_t handle, const struct timespec *timeout,
-        pps_info_t *ppsinfobuf)
+time_pps_kcbind(pps_handle_t handle, const int kernel_consumer,
+	const int edge, const int tsformat)
 {
-	int error;
-	struct pps_wait_args arg;
+	struct pps_kcbind_args arg;
 
-	arg.timeout = *timeout;
-	error = ioctl(handle, PPS_IOC_WAIT, &arg);
-	*ppsinfobuf = arg.pps_info_buf;
-	return (error);
+	arg.kernel_consumer = kernel_consumer;
+	arg.edge = edge;
+	arg.tsformat = tsformat;
+	return (ioctl(handle, PPS_IOC_KCBIND, &arg));
 }
 
 #endif /* !KERNEL */
