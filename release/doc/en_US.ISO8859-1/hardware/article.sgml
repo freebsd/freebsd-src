@@ -200,8 +200,7 @@
 	supported due to SRM limitations.</para>
       </note>
 
-    <para arch="i386,alpha,amd64">Mylex DAC-family RAID controllers with 2.x, 3.x, 4.x
-    and 5.x firmware (&man.mlx.4; driver)
+    &hwlist.mlx;
 
       <note>
 	<para arch="i386,amd64">Booting from these controllers is supported. EISA adapters
@@ -214,11 +213,8 @@
         Note that these cards used 2.x firmware. SRM bootability of newer
         firmware is unknown.</para>
       </note>
-    </para>
 
-    <para arch="i386,amd64">Mylex AcceleRAID/eXtremeRAID family PCI to SCSI RAID controllers with 6.x firmware
-    (&man.mly.4; driver)
-    </para>
+    &hwlist.mly;
 
     &hwlist.twe;
 
@@ -230,9 +226,8 @@
     boards (&man.ncr.4; and &man.sym.4; drivers)
     </para>      
         
-    <para arch="i386,pc98">NCR 53C500 based PC-Card SCSI host adapters (&man.ncv.4;
-    driver)
-    </para>
+
+    &hwlist.ncv;
 
     &hwlist.stg;
 
