@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: stage2.c,v 1.5 1994/10/21 05:36:43 phk Exp $
+ * $Id: stage2.c,v 1.7 1994/10/26 05:41:00 phk Exp $
  *
  */
 
@@ -116,5 +116,5 @@ stage2()
 		/* Don't do error-check, we reboot anyway... */
 		unmount(dbuf, 0);
 	}
-	dialog_msgbox(TITLE,"Remove the floppydisk from the drive, and hit return to reboot from the harddisk",6, 75, 1);
+	dialog_msgbox(TITLE,"Remove the floppy from the drive, and hit return to reboot from the hard disk",6, 75, 1);
 }
