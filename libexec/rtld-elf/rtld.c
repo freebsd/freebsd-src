@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: rtld.c,v 1.8 1998/09/05 03:31:00 jdp Exp $
+ *      $Id: rtld.c,v 1.9 1998/09/15 21:07:52 jdp Exp $
  */
 
 /*
@@ -1240,11 +1240,21 @@ linkmap_add(Obj_Entry *obj)
 	return;
     }
     
-    for (prev = r_debug.r_map; prev->l_next != NULL; prev = prev->l_next)
+    /*
+     * Scan to the end of the list, but not past the entry for the
+     * dynamic linker, which we want to keep at the very end.
+     */
+    for (prev = r_debug.r_map;
+      prev->l_next != NULL && prev->l_next != &obj_rtld.linkmap;
+      prev = prev->l_next)
 	;
+
+    /* Link in the new entry. */
     l->l_prev = prev;
+    l->l_next = prev->l_next;
+    if (l->l_next != NULL)
+	l->l_next->l_prev = l;
     prev->l_next = l;
-    l->l_next = NULL;
 }
 
 static void
