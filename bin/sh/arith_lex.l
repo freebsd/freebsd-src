@@ -34,11 +34,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: arith_lex.l,v 1.5 1996/09/01 10:19:41 peter Exp $
+ *	$Id: arith_lex.l,v 1.5.2.1 1997/08/25 09:09:34 jkh Exp $
  */
 
 #ifndef lint
+#if 0
 static char const sccsid[] = "@(#)arith_lex.l	8.3 (Berkeley) 5/4/95";
+#endif
+static const char rcsid[] =                                          
+	"$Id$";                                                        
 #endif /* not lint */
 
 #include <unistd.h>

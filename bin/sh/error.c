@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: error.c,v 1.5 1996/09/03 14:15:46 peter Exp $
+ *	$Id: error.c,v 1.5.2.1 1997/08/25 09:09:38 jkh Exp $
  */
 
 #ifndef lint
@@ -50,6 +50,7 @@ static char const sccsid[] = "@(#)error.c	8.2 (Berkeley) 5/4/95";
 #include "output.h"
 #include "error.h"
 #include "show.h"
+#include "trap.h"
 #include <signal.h>
 #include <unistd.h>
 #include <errno.h>
@@ -60,9 +61,9 @@ static char const sccsid[] = "@(#)error.c	8.2 (Berkeley) 5/4/95";
  */
 
 struct jmploc *handler;
-int exception;
-volatile int suppressint;
-volatile int intpending;
+volatile sig_atomic_t exception;
+int suppressint;
+volatile sig_atomic_t intpending;
 char *commandname;
 
 
@@ -89,28 +90,43 @@ exraise(e)
  * Called from trap.c when a SIGINT is received.  (If the user specifies
  * that SIGINT is to be trapped or ignored using the trap builtin, then
  * this routine is not called.)  Suppressint is nonzero when interrupts
- * are held using the INTOFF macro.  The call to _exit is necessary because
- * there is a short period after a fork before the signal handlers are
- * set to the appropriate value for the child.  (The test for iflag is
- * just defensive programming.)
+ * are held using the INTOFF macro.  If SIGINTs are not suppressed and
+ * the shell is not a root shell, then we want to be terminated if we
+ * get here, as if we were terminated directly by a SIGINT.  Arrange for
+ * this here.
  */
 
 void
 onint() {
 	sigset_t sigset;
 
-	if (suppressint) {
+	/*
+	 * The !in_dotrap here is safe.  The only way we can arrive here
+	 * with in_dotrap set is that a trap handler set SIGINT to SIG_DFL
+	 * and killed itself.
+	 */
+
+	if (suppressint && !in_dotrap) {
 		intpending++;
 		return;
 	}
 	intpending = 0;
 	sigemptyset(&sigset);
 	sigprocmask(SIG_SETMASK, &sigset, NULL);
-	out2str("\n");
+
+	/*
+	 * This doesn't seem to be needed, since main() emits a newline.
+	 */
+#if 0
+	if (tcgetpgrp(0) == getpid())	
+		write(STDERR_FILENO, "\n", 1);
+#endif
 	if (rootshell && iflag)
 		exraise(EXINT);
-	else
-		_exit(128 + SIGINT);
+	else {
+		signal(SIGINT, SIG_DFL);
+		kill(getpid(), SIGINT);
+	}
 }
 
 
