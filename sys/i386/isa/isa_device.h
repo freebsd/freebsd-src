@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id$
+ *	$Id: isa_device.h,v 1.2 1993/10/16 13:45:59 rgrimes Exp $
  */
+
+#ifndef _I386_ISA_ISA_DEVICE_H_
+#define _I386_ISA_ISA_DEVICE_H_ 1
 
 /*
  * ISA Bus Autoconfiguration
@@ -72,3 +75,4 @@ extern struct isa_device isa_devtab_bio[], isa_devtab_tty[], isa_devtab_net[],
 		isa_devtab_null[];
 
 extern struct isa_device *find_isadev(/* table, driver, unit*/);
+#endif /* _I386_ISA_ISA_DEVICE_H_ */

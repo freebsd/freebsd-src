@@ -34,8 +34,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)rtc.h	7.1 (Berkeley) 5/12/91
- *	$Id$
+ *	$Id: rtc.h,v 1.2 1993/10/16 13:46:16 rgrimes Exp $
  */
+
+#ifndef _I386_ISA_RTC_H_
+#define _I386_ISA_RTC_H_ 1
 
 /*
  * RTC Register locations
@@ -84,3 +87,4 @@
 #define RTC_EXTHI	0x18	/* low byte of extended mem size */
 
 #define RTC_CENTURY	0x32	/* current century - please increment in Dec99*/
+#endif /* _I386_ISA_RTC_H_ */
