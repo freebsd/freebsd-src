@@ -1,8 +1,9 @@
 # Makefile for uuchk
-# $Id: Makefile,v 1.2 1993/08/05 16:15:02 jtc Exp $
+# $Id: Makefile,v 1.1 1993/08/05 18:27:05 conklin Exp $
 
 BINDIR=		$(sbindir)
 BINOWN=		$(owner)
+BINMODE=        550
 
 PROG=		uuchk
 SRCS=		uuchk.c
