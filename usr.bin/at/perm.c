@@ -42,8 +42,9 @@ static const char rcsid[] =
 
 /* Local headers */
 
-#include "privs.h"
 #include "at.h"
+#include "perm.h"
+#include "privs.h"
 
 /* Macros */
 
@@ -81,7 +82,7 @@ static int check_for_user(FILE *fp,const char *name)
     return found;
 }
 /* Global functions */
-int check_permission()
+int check_permission(void)
 {
     FILE *fp;
     uid_t uid = geteuid();

@@ -98,7 +98,7 @@ enum { ATQ, ATRM, AT, BATCH, CAT };	/* what program we want to run */
 
 /* File scope variables */
 
-char *no_export[] =
+const char *no_export[] =
 {
     "TERM", "TERMCAP", "DISPLAY", "_"
 } ;
@@ -122,10 +122,11 @@ static void alarmc(int signo);
 static char *cwdname(void);
 static void writefile(time_t runtimer, char queue);
 static void list_jobs(void);
+static long nextjob(void);
 
 /* Signal catching functions */
 
-static void sigc(int signo)
+static void sigc(int signo __unused)
 {
 /* If the user presses ^C, remove the spool file and exit 
  */
@@ -139,7 +140,7 @@ static void sigc(int signo)
     _exit(EXIT_FAILURE);
 }
 
-static void alarmc(int signo)
+static void alarmc(int signo __unused)
 {
     char buf[1024];
 
@@ -360,7 +361,7 @@ writefile(time_t runtimer, char queue)
 	    eqp = *atenv;
 	else
 	{
-	    int i;
+	    size_t i;
 	    for (i=0; i<sizeof(no_export)/sizeof(no_export[0]); i++)
 	    {
 		export = export
@@ -496,7 +497,7 @@ list_jobs()
 
 	runtimer = 60*(time_t) ctm;
 	runtime = *localtime(&runtimer);
-	strftime(timestr, TIMESIZE, "%X %x", &runtime);
+	strftime(timestr, TIMESIZE, "%+", &runtime);
 	if (first) {
 	    printf("Date\t\t\tOwner\tQueue\tJob#\n");
 	    first=0;
@@ -601,9 +602,8 @@ main(int argc, char **argv)
     char queue_set = 0;
     char *pgm;
 
-    enum { ATQ, ATRM, AT, BATCH, CAT };	/* what program we want to run */
     int program = AT;			/* our default program */
-    char *options = "q:f:mvldbVc";	/* default options for at */
+    const char *options = "q:f:mvldbVc";/* default options for at */
     int disp_version = 0;
     time_t timer;
 
