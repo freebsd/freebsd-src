@@ -16,7 +16,7 @@
 +=====================================================================+
 
 Author:         Jordan K. Hubbard
-Last updated:   Wed May 12 01:13:56 PDT 1999
+Last updated:   Wed Jun 14 11:12:25 PDT 2000
 
 0.0     Quick Start
 ---     -----------
@@ -25,7 +25,7 @@ This manual documents the process of making a new installation of
 FreeBSD on your machine.  If you are upgrading from a previous
 release of FreeBSD, please see the file UPGRADE.TXT for important
 information on upgrading.  If you are not familiar with configuring
-PC hardware for FreeBSD, you should also read the HARDWARE.TXT file -
+hardware for FreeBSD, you should also read the HARDWARE.TXT file -
 it contains important information which may save you a lot of grief.
 
 If you're new to FreeBSD then you should also read EVERYTHING listed
@@ -49,38 +49,37 @@ YOUR ENTIRE DISK with this installation!  Please do not proceed to the
 final FreeBSD installation menu unless you've adequately backed up any
 important data first!  We really mean it!
 
-FreeBSD/alpha supports the following alpha platforms:
-
-	UDB, Multia, AXPpci33, Noname
-	EB164, PC164, PC164LX, PC164SX
-	EB64+, Aspen Alpine, etc.
-	AlphaStation 200, 250, 255, 400
-	AlphaStation 500, 600
-	AlphaServer 1000, 1000A
-	Digital Personal Workstation 433, 500, 600
-	Compaq Professional Workstation XP900, XP1000, AlphaServer DS10
-	AlphaServer DS20 (single CPU only)
-	DEC3000/300 family (netboot only)
-	DEC3000/[4-9]00 family (netboot only)
+FreeBSD/alpha supports the alpha platforms described in HARDWARE.TXT
 
 You will need a dedicated disk for FreeBSD/alpha. It is not possible
 to share a disk with another operating system at this time. This disk
 will need to be attached to a SCSI controller which is supported by
-the SRM firmware (currently NCR or SYMBIOS and Qlogic ISP are supported).
+the SRM firmware or an IDE disk assuming the SRM in your machine
+supports booting from IDE disks.
 
 You will need the SRM console firmware for your platform. In some
 cases, it is possible to switch between AlphaBIOS (or ARC) firmware
 and SRM. In others it will be necessary to download new firmware from
+the vendor's Website.
 
-	ftp.digital.com/pub/DEC/Alpha/firmware
-
+Caveat: if you find yourself staring a the following error after
+booting the installation: "can't find my init, going nowhere CPU panic"
+please make sure there are no other diskdrives attached to the system
+with a valid BSD disklabel on them (can be Linux, Tru64, OpenBSD etc). 
+This is a bug (alpha/17642) in need of a fix.
 
 0.1     Installing FreeBSD from CDROM or the Internet
 ---     ---------------------------------------------
 
 The easiest type of installation is from CD.  If you have a supported
 CDROM drive and a FreeBSD installation CD from Walnut Creek CDROM, you 
-can start the installation by building a set of FreeBSD boot floppy
+can boot FreeBSD directly from the CDROM. Insert the CDROM into the
+drive and type the following command to start the installation:
+
+	>>>boot dka0 (or whatever device your CDROM drive is)
+
+Alternatively you can boot the installation from floppy disk. You
+should start the installation by building a set of FreeBSD boot floppy
 from the files floppies/kern.flp and floppies/mfsroot.flp using the
 instructions found in floppies/README.TXT. From the SRM console prompt 
 (>>>), just insert the kern.flp floppy and type the following command
@@ -234,7 +233,7 @@ commands illustrates:
 
         fdformat -f 1440 fd0.1440
         disklabel -w -r fd0.1440 floppy3
-        newfs -t 2 -u 18 -l 1 -i 65536 /dev/rfd0
+        newfs -t 2 -u 18 -l 1 -i 65536 /dev/fd0
 
 After you've formatted the floppies for DOS or UFS, you'll need to
 copy the files onto them.  The distribution files are split into
@@ -338,7 +337,7 @@ the TCP/IP setup screen's ``extra options for ifconfig'' field.
 Ethernet
 --------
 
-FreeBSD supports most common PC Ethernet cards, a table of supported
+FreeBSD supports most common Ethernet cards, a table of supported
 cards (and their required settings) being provided as part of the
 FreeBSD Hardware Guide (see the Documentation menu on the boot floppy
 or the top level directory of the CDROM).  If you are using one of the
