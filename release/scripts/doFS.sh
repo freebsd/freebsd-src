@@ -23,6 +23,7 @@ FSLABEL=$1 ; shift
 deadlock=20
 
 u=`expr $VNDEVICE : 'vn\([0-9]*\)' || true`
+rm -f /dev/*vnn*
 mknod /dev/vnn${u} b 15 `expr 65538 + $u '*' 8`
 mknod /dev/rvnn${u} c 43 `expr 65538 + $u '*' 8`
 mknod /dev/vnn${u}c b 15 `expr 2 + $u '*' 8`
