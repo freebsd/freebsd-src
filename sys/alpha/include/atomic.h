@@ -32,18 +32,6 @@
 #include <machine/alpha_cpu.h>
 
 /*
- * Quick and dirty workaround for compiling LINT. The kernel is too
- * large to jump between sections without linker stubs/trampolines.
- */
-#ifdef COMPILING_LINT
-#define	__COLD_SECTION	"br 3f\n"
-#define	__HOT_SECTION	"3:\n"
-#else
-#define	__COLD_SECTION	".section .text3,\"ax\"\n"
-#define	__HOT_SECTION	".previous\n"
-#endif
-
-/*
  * Various simple arithmetic on memory which is atomic in the presence
  * of interrupts and SMP safe.
  */
@@ -67,10 +55,7 @@ static __inline void atomic_set_32(volatile u_int32_t *p, u_int32_t v)
 		"1:\tldl_l %0, %2\n\t"		/* load old value */
 		"bis %0, %3, %0\n\t"		/* calculate new value */
 		"stl_c %0, %1\n\t"		/* attempt to store */
-		"beq %0, 2f\n\t"		/* spin if failed */
-		__COLD_SECTION			/* improve branch prediction */
-		"2:\tbr 1b\n"			/* try again */
-		__HOT_SECTION
+		"beq %0, 1b\n"			/* spin if failed */
 		: "=&r" (temp), "=m" (*p)
 		: "m" (*p), "r" (v)
 		: "memory");
@@ -86,10 +71,7 @@ static __inline void atomic_clear_32(volatile u_int32_t *p, u_int32_t v)
 		"1:\tldl_l %0, %1\n\t"		/* load old value */
 		"bic %0, %2, %0\n\t"		/* calculate new value */
 		"stl_c %0, %1\n\t"		/* attempt to store */
-		"beq %0, 2f\n\t"		/* spin if failed */
-		__COLD_SECTION			/* improve branch prediction */
-		"2:\tbr 1b\n"			/* try again */
-		__HOT_SECTION
+		"beq %0, 1b\n"			/* spin if failed */
 		: "=&r" (temp), "+m" (*p)
 		: "r" (v)
 		: "memory");
@@ -105,10 +87,7 @@ static __inline void atomic_add_32(volatile u_int32_t *p, u_int32_t v)
 		"1:\tldl_l %0, %1\n\t"		/* load old value */
 		"addl %0, %2, %0\n\t"		/* calculate new value */
 		"stl_c %0, %1\n\t"		/* attempt to store */
-		"beq %0, 2f\n\t"		/* spin if failed */
-		__COLD_SECTION			/* improve branch prediction */
-		"2:\tbr 1b\n"			/* try again */
-		__HOT_SECTION
+		"beq %0, 1b\n"			/* spin if failed */
 		: "=&r" (temp), "+m" (*p)
 		: "r" (v)
 		: "memory");
@@ -124,10 +103,7 @@ static __inline void atomic_subtract_32(volatile u_int32_t *p, u_int32_t v)
 		"1:\tldl_l %0, %1\n\t"		/* load old value */
 		"subl %0, %2, %0\n\t"		/* calculate new value */
 		"stl_c %0, %1\n\t"		/* attempt to store */
-		"beq %0, 2f\n\t"		/* spin if failed */
-		__COLD_SECTION			/* improve branch prediction */
-		"2:\tbr 1b\n"			/* try again */
-		__HOT_SECTION
+		"beq %0, 1b\n"			/* spin if failed */
 		: "=&r" (temp), "+m" (*p)
 		: "r" (v)
 		: "memory");
@@ -144,10 +120,7 @@ static __inline u_int32_t atomic_readandclear_32(volatile u_int32_t *addr)
 		"1:\tldl_l %0,%2\n\t"	/* load current value, asserting lock */
 		"ldiq %1,0\n\t"		/* value to store */
 		"stl_c %1,%2\n\t"	/* attempt to store */
-		"beq %1,2f\n\t"		/* if the store failed, spin */
-		"br 3f\n"		/* it worked, exit */
-		"2:\tbr 1b\n"		/* *addr not updated, loop */
-		"3:\n"			/* it worked */
+		"beq %1,1b\n"		/* if the store failed, spin */
 		: "=&r"(result), "=&r"(temp), "+m" (*addr)
 		:
 		: "memory");
@@ -165,10 +138,7 @@ static __inline void atomic_set_64(volatile u_int64_t *p, u_int64_t v)
 		"1:\tldq_l %0, %1\n\t"		/* load old value */
 		"bis %0, %2, %0\n\t"		/* calculate new value */
 		"stq_c %0, %1\n\t"		/* attempt to store */
-		"beq %0, 2f\n\t"		/* spin if failed */
-		__COLD_SECTION			/* improve branch prediction */
-		"2:\tbr 1b\n"			/* try again */
-		__HOT_SECTION
+		"beq %0, 1b\n"			/* spin if failed */
 		: "=&r" (temp), "+m" (*p)
 		: "r" (v)
 		: "memory");
@@ -184,10 +154,7 @@ static __inline void atomic_clear_64(volatile u_int64_t *p, u_int64_t v)
 		"1:\tldq_l %0, %1\n\t"		/* load old value */
 		"bic %0, %2, %0\n\t"		/* calculate new value */
 		"stq_c %0, %1\n\t"		/* attempt to store */
-		"beq %0, 2f\n\t"		/* spin if failed */
-		__COLD_SECTION			/* improve branch prediction */
-		"2:\tbr 1b\n"			/* try again */
-		__HOT_SECTION
+		"beq %0, 1b\n"			/* spin if failed */
 		: "=&r" (temp), "+m" (*p)
 		: "r" (v)
 		: "memory");
@@ -203,10 +170,7 @@ static __inline void atomic_add_64(volatile u_int64_t *p, u_int64_t v)
 		"1:\tldq_l %0, %1\n\t"		/* load old value */
 		"addq %0, %2, %0\n\t"		/* calculate new value */
 		"stq_c %0, %1\n\t"		/* attempt to store */
-		"beq %0, 2f\n\t"		/* spin if failed */
-		__COLD_SECTION			/* improve branch prediction */
-		"2:\tbr 1b\n"			/* try again */
-		__HOT_SECTION
+		"beq %0, 1b\n"			/* spin if failed */
 		: "=&r" (temp), "+m" (*p)
 		: "r" (v)
 		: "memory");
@@ -222,10 +186,7 @@ static __inline void atomic_subtract_64(volatile u_int64_t *p, u_int64_t v)
 		"1:\tldq_l %0, %1\n\t"		/* load old value */
 		"subq %0, %2, %0\n\t"		/* calculate new value */
 		"stq_c %0, %1\n\t"		/* attempt to store */
-		"beq %0, 2f\n\t"		/* spin if failed */
-		__COLD_SECTION			/* improve branch prediction */
-		"2:\tbr 1b\n"			/* try again */
-		__HOT_SECTION
+		"beq %0, 1b\n"			/* spin if failed */
 		: "=&r" (temp), "+m" (*p)
 		: "r" (v)
 		: "memory");
@@ -242,10 +203,7 @@ static __inline u_int64_t atomic_readandclear_64(volatile u_int64_t *addr)
 		"1:\tldq_l %0,%2\n\t"	/* load current value, asserting lock */
 		"ldiq %1,0\n\t"		/* value to store */
 		"stq_c %1,%2\n\t"	/* attempt to store */
-		"beq %1,2f\n\t"		/* if the store failed, spin */
-		"br 3f\n"		/* it worked, exit */
-		"2:\tbr 1b\n"		/* *addr not updated, loop */
-		"3:\n"			/* it worked */
+		"beq %1,1b\n"		/* if the store failed, spin */
 		: "=&r"(result), "=&r"(temp), "+m" (*addr)
 		:
 		: "memory");
@@ -385,11 +343,8 @@ atomic_cmpset_32(volatile u_int32_t* p, u_int32_t cmpval, u_int32_t newval)
 		"beq %0, 2f\n\t"		/* exit if not equal */
 		"mov %3, %0\n\t"		/* value to store */
 		"stl_c %0, %1\n\t"		/* attempt to store */
-		"beq %0, 3f\n\t"		/* if it failed, spin */
-		"2:\n"				/* done */
-		__COLD_SECTION			/* improve branch prediction */
-		"3:\tbr 1b\n"			/* try again */
-		__HOT_SECTION
+		"beq %0, 1b\n\t"		/* if it failed, spin */
+		"2:\n"
 		: "=&r" (ret), "+m" (*p)
 		: "r" ((long)(int)cmpval), "r" (newval)
 		: "memory");
@@ -415,11 +370,8 @@ atomic_cmpset_64(volatile u_int64_t* p, u_int64_t cmpval, u_int64_t newval)
 		"beq %0, 2f\n\t"		/* exit if not equal */
 		"mov %3, %0\n\t"		/* value to store */
 		"stq_c %0, %1\n\t"		/* attempt to store */
-		"beq %0, 3f\n\t"		/* if it failed, spin */
-		"2:\n"				/* done */
-		__COLD_SECTION			/* improve branch prediction */
-		"3:\tbr 1b\n"			/* try again */
-		__HOT_SECTION
+		"beq %0, 1b\n\t"		/* if it failed, spin */
+		"2:\n"
 		: "=&r" (ret), "+m" (*p)
 		: "r" (cmpval), "r" (newval)
 		: "memory");
