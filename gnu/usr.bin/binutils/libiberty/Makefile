@@ -5,12 +5,15 @@
 .PATH: ${SRCDIR}/libiberty
 
 LIB=	iberty
-SRCS=	argv.c choose-temp.c concat.c cp-demangle.c cplus-dem.c \
-	cp-demint.c lrealpath.c make-relative-prefix.c \
-	dyn-string.c getpwd.c getruntime.c \
-	hex.c floatformat.c hashtab.c lbasename.c make-temp-file.c \
-	objalloc.c obstack.c safe-ctype.c xatexit.c xexit.c xmalloc.c \
-	xstrdup.c xstrerror.c
+SRCS=	argv.c concat.c choose-temp.c cp-demangle.c cp-demint.c		\
+	cplus-dem.c dyn-string.c getpwd.c getruntime.c floatformat.c	\
+	hashtab.c hex.c lbasename.c lrealpath.c make-relative-prefix.c	\
+	make-temp-file.c objalloc.c obstack.c safe-ctype.c xatexit.c	\
+	xexit.c xmalloc.c xstrdup.c xstrerror.c
+
+# The following files are needed by gdb(1)
+SRCS+=	regex.c splay-tree.c
+
 WARNS?=	1
 CFLAGS+=	-DHAVE_CONFIG_H
 INTERNALLIB=	true
