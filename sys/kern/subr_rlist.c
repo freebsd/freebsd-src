@@ -54,7 +54,7 @@
  * functioning of this software, nor does the author assume any responsibility
  * for damages incurred with its use.
  *
- *	$Id: subr_rlist.c,v 1.25 1998/02/06 12:13:26 eivind Exp $
+ *	$Id: subr_rlist.c,v 1.26 1998/04/15 17:46:25 bde Exp $
  */
 
 #include <sys/param.h>
@@ -118,7 +118,7 @@ rlist_free(rlh, start, end)
 	u_int start, end;
 {
 	struct rlist **rlp = &rlh->rlh_list;
-	struct rlist *prev_rlp = NULL, *cur_rlp = *rlp, *next_rlp = NULL;
+	struct rlist *prev_rlp = NULL, *cur_rlp, *next_rlp = NULL;
 	int s;
 
 	s = splhigh();
@@ -133,6 +133,7 @@ rlist_free(rlh, start, end)
 	 * Traverse the list looking for an entry after the one we want
 	 * to insert.
 	 */
+	cur_rlp = *rlp;
 	while (cur_rlp != NULL) {
 		if (start < cur_rlp->rl_start)
 			break;
