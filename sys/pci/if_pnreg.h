@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_pnreg.h,v 1.15 1998/12/31 16:51:01 wpaul Exp $
+ *	$Id: if_pnreg.h,v 1.16 1999/01/05 00:47:25 wpaul Exp $
  */
 
 /*
@@ -442,6 +442,7 @@ struct pn_softc {
 	u_int8_t		pn_autoneg;
 	caddr_t			pn_ldata_ptr;
 #ifdef PN_PROMISC_BUG_WAR
+#define PN_169_REV	32
 #define PN_169B_REV	33
 	u_int8_t		pn_promisc_war;
 	struct pn_chain_onefrag	*pn_promisc_bug_save;
