@@ -296,6 +296,15 @@ pccard_product_lookup(device_t dev, const struct pccard_product *tab,
 	for (ent = tab; ent->pp_name != NULL; ent =
 	    (const struct pccard_product *) ((const char *) ent + ent_size)) {
 		matches = 1;
+		if (ent->pp_vendor == PCCARD_VENDOR_ANY &&
+		    ent->pp_product == PCCARD_VENDOR_ANY &&
+		    ent->pp_cis[0] == NULL &&
+		    ent->pp_cis[1] == NULL) {
+			device_printf(dev,
+			    "Total wildcard entry ignored for %s\n",
+			    ent->pp_name);
+			continue;
+		}
 		if (matches && ent->pp_vendor != PCCARD_VENDOR_ANY &&
 		    vendor != ent->pp_vendor)
 			matches = 0;
