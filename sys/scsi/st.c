@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.37 1995/07/09 08:14:24 joerg Exp $
+ * $Id: st.c,v 1.38 1995/07/16 09:13:14 gibbs Exp $
  */
 
 /*
@@ -904,6 +904,7 @@ st_strategy(struct buf *bp, struct scsi_link *sc_link)
 	unsigned char unit;	/* XXX Everywhere else unit is "u_int32". Please int? */
 	u_int32 opri;
 	struct scsi_data *st;
+	int	len;
 
 	ststrats++;
 	unit = STUNIT((bp->b_dev));
@@ -911,9 +912,13 @@ st_strategy(struct buf *bp, struct scsi_link *sc_link)
 	/*
 	 * If it's a null transfer, return immediatly
 	 */
-	if (bp->b_bcount == 0) {
+	if ((len = bp->b_bcount) == 0) {
 		goto done;
 	}
+	/*
+	 * Check the adapter can do it
+	 */
+	scsi_minphys(bp,&st_switch);
 	/*
 	 * Odd sized request on fixed drives are verboten
 	 */
@@ -927,12 +932,21 @@ st_strategy(struct buf *bp, struct scsi_link *sc_link)
 	}
 	/*
 	 * as are out-of-range requests on variable drives.
+	 * (or if we got chopped by minphys)
 	 */
-	else if (bp->b_bcount < st->blkmin || bp->b_bcount > st->blkmax) {
-		printf("st%d: bad request, must be between %ld and %ld\n",
-		    unit, st->blkmin, st->blkmax);
-		bp->b_error = EIO;
-		goto bad;
+	else {
+		if ((bp->b_bcount < st->blkmin || bp->b_bcount > st->blkmax)) {
+			printf("st%d: bad request, must be between %ld and %ld\n",
+		    		unit, st->blkmin, st->blkmax);
+			bp->b_error = EIO;
+			goto bad;
+		}
+		if (len != bp->b_bcount) {
+			printf("st%d: bad request, must be less than %ld bytes\n",
+				unit, bp->b_bcount + 1
+			bp->b_error = EIO;
+			goto bad;
+		}
 	}
 	opri = splbio();
 
