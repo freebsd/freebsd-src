@@ -18,8 +18,8 @@ SRCS=	rrenumd.c  parser.y lexer.l
 YFLAGS+=	-d
 
 CFLAGS+= -DINET6 -DIPSEC -I${.OBJDIR}
-LDADD+=	-lipsec -lcompat -ll -ly
-DPADD+=	${LIBIPSEC} ${LIBCOMPAT} ${LIBL} ${LIBY}
+LDADD=	-lipsec -lcompat -ll -ly
+DPADD=	${LIBIPSEC} ${LIBCOMPAT} ${LIBL} ${LIBY}
 
 MAN5=	rrenumd.conf.5
 MAN8=	rrenumd.8
