@@ -23,13 +23,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci.c,v 1.113 1999/07/28 07:57:47 dfr Exp $
+ * $Id: pci.c,v 1.114 1999/07/29 01:03:03 mdodd Exp $
  *
  */
 
 #include "opt_bus.h"
 
-#include "opt_devfs.h"
 #include "opt_simos.h"
 
 #include <sys/param.h>
@@ -42,9 +41,6 @@
 #include <sys/queue.h>
 #include <sys/types.h>
 #include <sys/buf.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /* DEVFS */
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -916,22 +912,6 @@ static struct cdevsw pcicdev = {
 	/* bmaj */	-1
 };
 
-#ifdef DEVFS
-static void *pci_devfs_token;
-#endif
-
-static void
-pci_cdevinit(void *dummy)
-{
-	cdevsw_add(&pcicdev);
-#ifdef	DEVFS
-	pci_devfs_token = devfs_add_devswf(&pcicdev, 0, DV_CHR,
-					   UID_ROOT, GID_WHEEL, 0644, "pci");
-#endif
-}
-
-SYSINIT(pcidev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE+PCI_CDEV, pci_cdevinit, NULL);
-
 #include "pci_if.h"
 
 /*
@@ -1109,9 +1089,14 @@ pci_add_children(device_t dev, int busno)
 static int
 pci_new_probe(device_t dev)
 {
-	device_set_desc(dev, "PCI bus");
+	static int once;
 
+	device_set_desc(dev, "PCI bus");
 	pci_add_children(dev, device_get_unit(dev));
+	if (!once) {
+		make_dev(&pcicdev, 0, UID_ROOT, GID_WHEEL, 0644, "pci");
+		once++;
+	}
 
 	return 0;
 }

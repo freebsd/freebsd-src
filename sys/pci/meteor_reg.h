@@ -238,9 +238,6 @@ typedef struct meteor_softc {
     u_char	pcf_i2c[NUM_PCF8574_I2C_REGS];	/* PCF8574 register values */
     u_char	bt254_reg[NUM_BT254_REGS];	/* BT254 register values */
     u_short	fps;		/* frames per second */
-#ifdef DEVFS
-    void	*devfs_token;
-#endif
 #ifdef METEOR_TEST_VIDEO
     struct meteor_video video;
 #endif

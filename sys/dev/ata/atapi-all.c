@@ -25,14 +25,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-all.c,v 1.10 1999/06/25 09:03:01 sos Exp $
+ *	$Id: atapi-all.c,v 1.11 1999/08/10 21:59:58 sos Exp $
  */
 
 #include "ata.h"
 #include "atapicd.h"
 #include "atapist.h"
 #include "atapifd.h" 
-#include "opt_devfs.h"
 
 #if NATA > 0 
 

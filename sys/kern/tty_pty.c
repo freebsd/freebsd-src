@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.4 (Berkeley) 2/20/95
- * $Id: tty_pty.c,v 1.64 1999/08/17 23:08:51 julian Exp $
+ * $Id: tty_pty.c,v 1.65 1999/08/20 20:25:00 julian Exp $
  */
 
 /*
@@ -40,8 +40,6 @@
  */
 #include "pty.h"		/* XXX */
 #include "opt_compat.h"
-#include "opt_devfs.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
@@ -185,10 +183,9 @@ ptsopen(dev, flag, devtype, p)
 	dev_t nextdev;
 
 	/*
+	 * XXX: Gross hack for DEVFS:
 	 * If we openned this device, ensure we have the
-	 * next ready in the DEVFS (up to 256 of them).
-	 * XXX probably a more efficient way of know if the next one has
-	 * been made already would be to just keep track..
+	 * next one too, so people can open it.
 	 */
 	minr = lminor(dev);
 	if (minr < 255) {
@@ -837,14 +834,10 @@ static void
 ptc_drvinit(unused)
 	void *unused;
 {
-	static int ptc_devsw_installed;
-
-	if( ! ptc_devsw_installed ) {
-		cdevsw_add(&pts_cdevsw);
-		cdevsw_add(&ptc_cdevsw);
-		ptc_devsw_installed = 1;
-    	}
-	ptyinit(0); /* Add the first pty into the system.. prime the pump */
+	cdevsw_add(&pts_cdevsw);
+	cdevsw_add(&ptc_cdevsw);
+	/* XXX: Gross hack for DEVFS */
+	ptyinit(0);
 }
 
 SYSINIT(ptcdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR_C,ptc_drvinit,NULL)

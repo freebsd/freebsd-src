@@ -25,13 +25,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: wst.c,v 1.22 1999/05/30 16:52:30 phk Exp $
+ *	$Id: wst.c,v 1.23 1999/05/31 11:26:39 phk Exp $
  */
 
 #include "wdc.h"
 #include "wst.h"
 #include "opt_ddb.h"
-#include "opt_devfs.h"
 
 #if NWST > 0 && NWDC > 0
 
@@ -42,9 +41,6 @@
 #include <sys/malloc.h>
 #include <sys/buf.h>
 #include <sys/mtio.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif
 #include <machine/clock.h>
 #include <i386/isa/atapi.h>
 
@@ -198,10 +194,6 @@ struct wst {
     struct atapi_params *param;     	/* Drive parameters table */
     struct wst_header header;       	/* MODE SENSE param header */
     struct wst_cappage cap;         	/* Capabilities page info */
-#ifdef  DEVFS
-    void    *cdevs;
-    void    *bdevs;
-#endif
 };
 
 static struct wst *wsttab[NUNIT];       /* Drive info by unit number */
@@ -274,10 +266,7 @@ wstattach(struct atapi *ata, int unit, struct atapi_params *ap, int debug)
     wst_describe(t);
     wstnlun++;
 
-#ifdef DEVFS
-    t->cdevs = devfs_add_devswf(&wst_cdevsw, 0, DV_CHR, UID_ROOT, GID_OPERATOR,
-				0640, "rwst%d", t->lun);
-#endif /* DEVFS */
+    make_dev(&wst_cdevsw, 0, UID_ROOT, GID_OPERATOR, 0640, "rwst%d", t->lun);
     return(1);
 }
 

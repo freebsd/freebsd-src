@@ -4,14 +4,12 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- *    $Id: spkr.c,v 1.38 1999/08/17 20:25:49 billf Exp $
+ *    $Id: spkr.c,v 1.39 1999/08/23 20:35:17 bde Exp $
  */
 
 #include "speaker.h"
 
 #if NSPEAKER > 0
-
-#include "opt_devfs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -23,11 +21,6 @@
 #include <i386/isa/timerreg.h>
 #include <machine/clock.h>
 #include <machine/speaker.h>
-
-#ifdef	DEVFS
-#include <sys/devfsext.h>
-static void	*devfs_token;
-#endif
 
 static	d_open_t	spkropen;
 static	d_close_t	spkrclose;
@@ -604,11 +597,7 @@ spkrioctl(dev, cmd, cmdarg, flags, p)
 static void
 spkr_drvinit(void *unused)
 {
-	cdevsw_add(&spkr_cdevsw);
-#ifdef DEVFS
-	devfs_token = devfs_add_devswf(&spkr_cdevsw, 0, DV_CHR,
-				       UID_ROOT, GID_WHEEL, 0600, "speaker");
-#endif
+	make_dev(&spkr_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "speaker");
 }
 
 SYSINIT(spkrdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,spkr_drvinit,NULL)

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rp.c,v 1.27 1999/05/30 16:52:22 phk Exp $
+ *	$Id: rp.c,v 1.28 1999/05/31 11:26:24 phk Exp $
  */
 
 /* 
@@ -1178,13 +1178,6 @@ rp_pciattach(pcici_t tag, int unit)
 			rp->rp_cts = (ChanStatus & CTS_ACT) != 0;
 			line = (unit << 5) | (aiop << 3) | chan;
 			rp_table(line) = rp;
-/*			devfs_add_devswf(&rp_cdevsw,
-				port, DV_CHR, UID_ROOT, GID_WHEEL, 0600,
-				"ttyR%r", port);
-			devfs_add_devswf(&rp_cdevsw,
-				port | CONTROL_INIT_STATE, DV_CHR, UID_ROOT,
-				GID_WHEEL, 0600, "ttyRi%r", port);
-*/
 		}
 	}
 }

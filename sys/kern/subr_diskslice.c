@@ -43,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.65 1999/06/21 03:48:16 grog Exp $
+ *	$Id: subr_diskslice.c,v 1.66 1999/08/14 11:40:43 phk Exp $
  */
 
 #include "opt_devfs.h"
@@ -714,6 +714,10 @@ dsopen(dname, dev, mode, flags, sspp, lp)
 	struct diskslice *sp;
 	struct diskslices *ssp;
 	int	unit;
+
+	dev->si_bsize_phys = DEV_BSIZE;
+	dev->si_bsize_best = BLKDEV_IOSIZE;
+	dev->si_bsize_max = MAXBSIZE;
 
 	unit = dkunit(dev);
 	if (lp->d_secsize % DEV_BSIZE) {

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-fd.h,v 1.1 1999/03/03 21:10:29 sos Exp $
+ *	$Id: atapi-fd.h,v 1.2 1999/05/20 09:12:06 sos Exp $
  */
 
 /* MODE SENSE parameter header */ 
@@ -82,9 +82,5 @@ struct afd_softc {
 	struct afd_cappage 	cap;		/* capabilities page info */
 	struct diskslices 	*slices;	/* virtual drives */
 	struct devstat		stats;
-#ifdef	DEVFS
-	void			*cdevs_token;
-	void			*bdevs_token;
-#endif
 };
 

@@ -34,18 +34,12 @@
 
 #include "gsc.h"
 #if NGSC > 0
-
-#include "opt_devfs.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/buf.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
 #include <sys/uio.h>
 
 #include <machine/gsc.h>
@@ -159,12 +153,6 @@ struct gsc_unit {
   int     height;         /* height, for pnm modes */
   size_t  bcount;         /* bytes to read, for pnm modes */
   struct  _sbuf hbuf;     /* buffer for pnm header data */
-#ifdef DEVFS
-  void *devfs_gsc;	  /* storage for devfs tokens (handles) */
-  void *devfs_gscp;
-  void *devfs_gscd;
-  void *devfs_gscpd;
-#endif
 };
 
 static struct gsc_unit unittab[NGSC];
@@ -546,23 +534,15 @@ gscattach(struct isa_device *isdp)
   scu->flags |= ATTACHED;
   lprintf(("gsc%d.attach: ok\n", unit));
   scu->flags &= ~FLAG_DEBUG;
-#ifdef DEVFS
 #define GSC_UID 0
 #define GSC_GID 13
-    scu->devfs_gsc = 
-		devfs_add_devswf(&gsc_cdevsw, unit<<6, DV_CHR, GSC_UID, GSC_GID,
-				 0666, "gsc%d", unit);
-    scu->devfs_gscp = 
-		devfs_add_devswf(&gsc_cdevsw, ((unit<<6) + FRMT_PBM), DV_CHR, 
-				 GSC_UID,  GSC_GID, 0666, "gsc%dp", unit);
-    scu->devfs_gscd = 
-		devfs_add_devswf(&gsc_cdevsw, ((unit<<6) + DBUG_MASK), DV_CHR, 
-				 GSC_UID,  GSC_GID, 0666, "gsc%dd", unit);
-    scu->devfs_gscpd = 
-		devfs_add_devswf(&gsc_cdevsw, ((unit<<6) + DBUG_MASK+FRMT_PBM),
-				 DV_CHR, GSC_UID,  GSC_GID, 0666, "gsc%dpd", 
-				 unit);
-#endif /*DEVFS*/
+  make_dev(&gsc_cdevsw, unit<<6, GSC_UID, GSC_GID, 0666, "gsc%d", unit);
+  make_dev(&gsc_cdevsw, ((unit<<6) + FRMT_PBM),
+     GSC_UID,  GSC_GID, 0666, "gsc%dp", unit);
+  make_dev(&gsc_cdevsw, ((unit<<6) + DBUG_MASK),
+     GSC_UID,  GSC_GID, 0666, "gsc%dd", unit);
+  make_dev(&gsc_cdevsw, ((unit<<6) + DBUG_MASK+FRMT_PBM),
+     GSC_UID,  GSC_GID, 0666, "gsc%dpd", unit);
 
   return ATTACH_SUCCESS;
 }

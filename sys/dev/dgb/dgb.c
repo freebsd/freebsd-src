@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.49 1999/05/30 16:51:56 phk Exp $
+ *  dgb.c $Id: dgb.c,v 1.50 1999/05/31 11:25:31 phk Exp $
  *
  *  Digiboard driver.
  *
@@ -28,7 +28,6 @@
  */
 
 #include "opt_compat.h"
-#include "opt_devfs.h"
 #include "opt_dgb.h"
 
 #include "dgb.h"
@@ -55,9 +54,6 @@
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
 
 #include <machine/clock.h>
 
@@ -148,16 +144,6 @@ struct dgb_p {
 	u_char draining; /* port is being drained now */
 	u_char used;	/* port is being used now */
 	u_char mustdrain; /* data must be waited to drain in dgbparam() */
-#ifdef	DEVFS
-	struct	{
-		void	*tty;
-		void	*ttyi;
-		void	*ttyl;
-		void	*cua;
-		void	*cuai;
-		void	*cual;
-	} devfs_token;
-#endif
 };
 
 /* Digiboard per-board structure */
@@ -546,9 +532,7 @@ dgbattach(dev)
 	ushort *pstat;
 	int lowwater;
 	static int nports=0;
-#ifdef DEVFS
 	char suffix;
-#endif
 
 	if(sc->status!=ENABLED) {
 		DPRINT2(DB_EXCEPT,"dbg%d: try to attach a disabled card\n",unit);
@@ -917,39 +901,25 @@ load_fep:
 		termioschars(&port->it_in);
 		port->it_in.c_ispeed = port->it_in.c_ospeed = dgbdefaultrate;
 		port->it_out = port->it_in;
-#ifdef	DEVFS
 		/* MAX_DGB_PORTS is 32 => [0-9a-v] */
 		suffix = i < 10 ? '0' + i : 'a' + i - 10;
-		port->devfs_token.tty = 
-			devfs_add_devswf(&dgb_cdevsw, (unit*32)+i,
-					 DV_CHR, UID_ROOT, GID_WHEEL, 0600,
-					 "ttyD%d%c", unit, suffix);
+		make_dev(&dgb_cdevsw, (unit*32)+i,
+		    UID_ROOT, GID_WHEEL, 0600, "ttyD%d%c", unit, suffix);
 
-		port->devfs_token.ttyi = 
-			devfs_add_devswf(&dgb_cdevsw, (unit*32)+i+32,
-					 DV_CHR, UID_ROOT, GID_WHEEL, 0600,
-					 "ttyiD%d%c", unit, suffix);
+		make_dev(&dgb_cdevsw, (unit*32)+i+32,
+		    UID_ROOT, GID_WHEEL, 0600, "ttyiD%d%c", unit, suffix);
 
-		port->devfs_token.ttyl = 
-			devfs_add_devswf(&dgb_cdevsw, (unit*32)+i+64,
-					 DV_CHR, UID_ROOT, GID_WHEEL, 0600,
-					 "ttylD%d%c", unit, suffix);
+		make_dev(&dgb_cdevsw, (unit*32)+i+64,
+		    UID_ROOT, GID_WHEEL, 0600, "ttylD%d%c", unit, suffix);
 
-		port->devfs_token.cua = 
-			devfs_add_devswf(&dgb_cdevsw, (unit*32)+i+128,
-					 DV_CHR, UID_UUCP, GID_DIALER, 0660,
-					 "cuaD%d%c", unit, suffix);
+		make_dev(&dgb_cdevsw, (unit*32)+i+128,
+		    UID_UUCP, GID_DIALER, 0660, "cuaD%d%c", unit, suffix);
 
-		port->devfs_token.cuai = 
-			devfs_add_devswf(&dgb_cdevsw, (unit*32)+i+160,
-					 DV_CHR, UID_UUCP, GID_DIALER, 0660,
-					 "cuaiD%d%c", unit, suffix);
+		make_dev(&dgb_cdevsw, (unit*32)+i+160,
+		    UID_UUCP, GID_DIALER, 0660, "cuaiD%d%c", unit, suffix);
 
-		port->devfs_token.cual = 
-			devfs_add_devswf(&dgb_cdevsw, (unit*32)+i+192,
-					 DV_CHR, UID_UUCP, GID_DIALER, 0660,
-					 "cualD%d%c", unit, suffix);
-#endif
+		make_dev(&dgb_cdevsw, (unit*32)+i+192,
+		    UID_UUCP, GID_DIALER, 0660, "cualD%d%c", unit, suffix);
 	}
 
 	hidewin(sc);

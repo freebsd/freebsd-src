@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: wfd.c,v 1.26 1999/06/24 03:09:11 msmith Exp $
+ *      $Id: wfd.c,v 1.27 1999/08/14 11:40:41 phk Exp $
  */
 
 /*
@@ -46,9 +46,6 @@
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
 #include <sys/cdio.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
 
 #include <i386/isa/atapi.h>
 
@@ -146,10 +143,6 @@ struct wfd {
 	struct atapi_params *param;     /* Drive parameters table */
 	struct cappage cap;             /* Capabilities page info */
 	char description[80];           /* Device description */
-#ifdef	DEVFS
-	void	*cdevs;
-	void	*bdevs;
-#endif
 	struct diskslices *dk_slices;	/* virtual drives */
 
 	struct devstat device_stats;
@@ -188,9 +181,6 @@ wfdattach (struct atapi *ata, int unit, struct atapi_params *ap, int debug)
 	struct atapires result;
 	int lun, i;
 
-#ifdef DEVFS
-	int	mynor;
-#endif
 	if (wfdnlun >= NUNIT) {
 		printf ("wfd: too many units\n");
 		return (0);
@@ -262,15 +252,8 @@ wfdattach (struct atapi *ata, int unit, struct atapi_params *ap, int debug)
 	
 	
 
-#ifdef DEVFS
-	mynor = dkmakeminor(t->lun, WHOLE_DISK_SLICE, RAW_PART);
-	t->bdevs = devfs_add_devswf(&wfd_cdevsw, mynor, 
-				    DV_BLK, UID_ROOT, GID_OPERATOR, 0640,
-				    "wfd%d", t->lun);
-	t->cdevs = devfs_add_devswf(&wfd_cdevsw, mynor, 
-				    DV_CHR, UID_ROOT, GID_OPERATOR, 0640,
-				    "rwfd%d", t->lun);
-#endif /* DEVFS */
+	make_dev(&wfd_cdevsw, dkmakeminor(t->lun, WHOLE_DISK_SLICE, RAW_PART),
+	    UID_ROOT, GID_OPERATOR, 0640, "rwfd%d", t->lun);
 
 	/*
 	 * Export the drive to the devstat interface.

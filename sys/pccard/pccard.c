@@ -28,10 +28,9 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pccard.c,v 1.80 1999/05/31 11:28:48 phk Exp $
+ *	$Id: pccard.c,v 1.81 1999/08/01 18:12:50 imp Exp $
  */
 
-#include "opt_devfs.h"
 #include "opt_pcic.h"
 
 #include <sys/param.h>
@@ -42,9 +41,6 @@
 #include <sys/select.h>
 #include <sys/sysctl.h>
 #include <sys/conf.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
 #include <sys/uio.h>
 #include <sys/poll.h>
 #include <sys/interrupt.h>
@@ -477,10 +473,7 @@ pccard_alloc_slot(struct slot_ctrl *ctrl)
 
 	MALLOC(slt, struct slot *, sizeof(*slt), M_DEVBUF, M_WAITOK);
 	bzero(slt, sizeof(*slt));
-#ifdef DEVFS
-	slt->devfs_token = devfs_add_devswf(&crd_cdevsw, 
-		slotno, DV_CHR, 0, 0, 0600, "card%d", slotno);
-#endif
+	make_dev(&crd_cdevsw, slotno, 0, 0, 0600, "card%d", slotno);
 	if (ctrl->extra) {
 		MALLOC(slt->cdata, void *, ctrl->extra, M_DEVBUF, M_WAITOK);
 		bzero(slt->cdata, ctrl->extra);

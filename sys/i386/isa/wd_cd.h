@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-cd.h,v 1.2 1998/10/15 08:11:55 sos Exp $
+ *	$Id: atapi-cd.h,v 1.3 1999/01/31 21:51:03 sos Exp $
  */
 
 /*
@@ -346,12 +346,6 @@ struct acd {
 	u_char speed;			/* Select drive speed */
 	u_int next_writeable_lba;	/* Next writable position */
 	struct wormio_prepare_track preptrack;	/* Scratch region */
-#ifdef	DEVFS
-	void *ra_devfs_token;
-	void *rc_devfs_token;
-	void *a_devfs_token;
-	void *c_devfs_token;
-#endif
 };
 
 #define CDRIOCBLANK     	_IO('c',100)    /* Blank a CDRW disc */

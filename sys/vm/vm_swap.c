@@ -31,19 +31,15 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.80 1999/08/08 18:43:05 phk Exp $
+ * $Id: vm_swap.c,v 1.81 1999/08/13 10:29:38 phk Exp $
  */
 
-#include "opt_devfs.h"
 #include "opt_swap.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/buf.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif
 #include <sys/proc.h>
 #include <sys/namei.h>
 #include <sys/dmap.h>		/* XXX */
@@ -206,7 +202,12 @@ swapon(p, uap)
 	dev_t dev;
 	struct nameidata nd;
 	int error;
+	static int once;
 
+	if (!once) {
+		make_dev(&sw_cdevsw, 0, UID_ROOT, GID_KMEM, 0640, "drum");
+		once++;
+	}
 	error = suser(p);
 	if (error)
 		return (error);
@@ -356,31 +357,3 @@ swaponvp(p, vp, dev, nblks)
 	}
 	return (0);
 }
-
-static int sw_devsw_installed;
-#ifdef DEVFS
-static void *drum_devfs_token;
-#endif
-
-static void 	sw_drvinit(void *unused)
-{
-
-	if( ! sw_devsw_installed ) {
-		cdevsw_add(&sw_cdevsw);
-		/*
-		 * XXX: This is pretty gross, but it will disappear with
-		 * the blockdevices RSN.
-		 */
-		sw_cdevsw.d_open = nullopen;
-		sw_cdevsw.d_close = nullclose;
-		sw_devsw_installed = 1;
-#ifdef DEVFS
-		drum_devfs_token = devfs_add_devswf(&sw_cdevsw, 0, DV_CHR,
-						    UID_ROOT, GID_KMEM, 0640,
-						    "drum");
-#endif
-    	}
-}
-
-SYSINIT(swdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,sw_drvinit,NULL)
-

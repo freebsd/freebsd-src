@@ -23,13 +23,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: atkbd.c,v 1.13 1999/08/15 06:06:14 yokota Exp $
+ * $Id: atkbd.c,v 1.14 1999/08/22 09:52:32 yokota Exp $
  */
 
 #include "atkbd.h"
 #include "opt_kbd.h"
 #include "opt_atkbd.h"
-#include "opt_devfs.h"
 
 #if NATKBD > 0
 

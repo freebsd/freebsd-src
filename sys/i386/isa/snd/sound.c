@@ -50,12 +50,7 @@
  *
  */
 
-#include "opt_devfs.h"
-
 #include <i386/isa/snd/sound.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /* DEVFS */
 
 
 #if NPCM > 0	/* from "pcm.h" via disgusting #include in snd/sound.h */
@@ -337,10 +332,6 @@ pcmattach(struct isa_device * dev)
 int
 pcminit(snddev_info *d, int unit)
 {
-#ifdef DEVFS
-    void *cookie;
-#endif
-
     cdevsw_add(&snd_cdevsw);
 
     /*
@@ -354,7 +345,6 @@ pcminit(snddev_info *d, int unit)
     d->play_blocksize = d->rec_blocksize = 2048 ;
     d->play_fmt = d->rec_fmt = AFMT_MU_LAW ;
 
-#ifdef DEVFS
 #ifndef GID_GAMES
 #define GID_SND UID_ROOT
 #else
@@ -363,42 +353,20 @@ pcminit(snddev_info *d, int unit)
 #define UID_SND UID_ROOT
 #define PERM_SND 0660
     /*
-     * XXX remember to store the returned tokens if you want to
-     * be able to remove the device later
-     *
      * Make links to first successfully probed unit.
      * Attempts by later devices to make these links will fail.
      */
-    cookie = devfs_add_devswf(&snd_cdevsw, (unit << 4) | SND_DEV_DSP,
-	DV_CHR, UID_SND, GID_SND, PERM_SND, "dsp%r", unit);
-    if (cookie) devfs_makelink(cookie, "dsp");
+    make_dev(&snd_cdevsw, (unit << 4) | SND_DEV_DSP,
+	UID_SND, GID_SND, PERM_SND, "dsp%r", unit);
+    make_dev(&snd_cdevsw, (unit << 4) | SND_DEV_DSP16,
+	UID_SND, GID_SND, PERM_SND, "dspW%r", unit);
+    make_dev(&snd_cdevsw, (unit << 4) | SND_DEV_AUDIO,
+	UID_SND, GID_SND, PERM_SND, "audio%r", unit);
+    make_dev(&snd_cdevsw, (unit << 4) | SND_DEV_CTL,
+	UID_SND, GID_SND, PERM_SND, "mixer%r", unit);
+    make_dev(&snd_cdevsw, (unit << 4) | SND_DEV_STATUS,
+	UID_SND, GID_SND, PERM_SND, "sndstat%r", unit);
 
-    cookie = devfs_add_devswf(&snd_cdevsw, (unit << 4) | SND_DEV_DSP16,
-	DV_CHR, UID_SND, GID_SND, PERM_SND, "dspW%r", unit);
-    if (cookie) devfs_makelink(cookie, "dspW");
-
-    cookie = devfs_add_devswf(&snd_cdevsw, (unit << 4) | SND_DEV_AUDIO,
-	DV_CHR, UID_SND, GID_SND, PERM_SND, "audio%r", unit);
-    if (cookie) devfs_makelink(cookie, "audio");
-
-    cookie = devfs_add_devswf(&snd_cdevsw, (unit << 4) | SND_DEV_CTL,
-	DV_CHR, UID_SND, GID_SND, PERM_SND, "mixer%r", unit);
-    if (cookie) devfs_makelink(cookie, "mixer");
-
-    cookie = devfs_add_devswf(&snd_cdevsw, (unit << 4) | SND_DEV_STATUS,
-	DV_CHR, UID_SND, GID_SND, PERM_SND, "sndstat%r", unit);
-    if (cookie) devfs_makelink(cookie, "sndstat");
-
-#if 0 /* these two are still unsupported... */
-    cookie = devfs_add_devswf(&snd_cdevsw, (unit << 4) | SND_DEV_MIDIN,
-	DV_CHR, UID_SND, GID_SND, PERM_SND, "midi%r", unit);
-    if (cookie) devfs_makelink(cookie, "midi");
-
-    cookie = devfs_add_devswf(&snd_cdevsw, (unit << 4) | SND_DEV_SYNTH,
-	DV_CHR, UID_SND, GID_SND, PERM_SND, "sequencer%r", unit);
-    if (cookie) devfs_makelink(cookie, "sequencer");
-#endif
-#endif /* DEVFS */
 #if NAPM > 0
     init_sound_apm(unit);
 #endif

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_pass.c,v 1.11 1999/05/30 16:51:03 phk Exp $
+ *      $Id: scsi_pass.c,v 1.12 1999/05/31 11:24:05 phk Exp $
  */
 
 #include <sys/param.h>
@@ -82,10 +82,6 @@ struct pass_softc {
 	struct		buf_queue_head buf_queue;
 	union ccb	saved_ccb;
 	struct devstat	device_stats;
-#ifdef DEVFS
-	void		*pass_devfs_token;
-	void		*ctl_devfs_token;
-#endif
 };
 
 #ifndef MIN
