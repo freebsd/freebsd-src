@@ -72,12 +72,11 @@
 #define	TD_VA_LOW_SHIFT	TD_SOFT2_SHIFT
 #define	TD_VA_LOW_MASK	TD_SOFT2_MASK
 
-#define	TS_EXEC		(1L << 5)
-#define	TS_INIT		(1L << 4)
-#define	TS_MNG		(1L << 3)
-#define	TS_MOD		(1L << 2)
+#define	TS_EXEC		(1L << 4)
+#define	TS_INIT		(1L << 3)
+#define	TS_MNG		(1L << 2)
 #define	TS_REF		(1L << 1)
-#define	TS_TSB		(1L << 0)
+#define	TS_W		(1L << 0)
 
 #define	TD_V		(1L << 63)
 #define	TD_8K		(0L << TD_SIZE_SHIFT)
@@ -92,9 +91,8 @@
 #define	TD_EXEC		(TS_EXEC << TD_SOFT_SHIFT)
 #define	TD_INIT		(TS_INIT << TD_SOFT_SHIFT)
 #define	TD_MNG		(TS_MNG << TD_SOFT_SHIFT)
-#define	TD_MOD		(TS_MOD << TD_SOFT_SHIFT)
 #define	TD_REF		(TS_REF << TD_SOFT_SHIFT)
-#define	TD_TSB		(TS_TSB << TD_SOFT_SHIFT)
+#define	TD_SW		(TS_W << TD_SOFT_SHIFT)
 #define	TD_L		(1L << 6)
 #define	TD_CP		(1L << 5)
 #define	TD_CV		(1L << 4)

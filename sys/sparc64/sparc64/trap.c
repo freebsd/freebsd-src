@@ -41,8 +41,10 @@
  */
 
 #include "opt_ddb.h"
+#include "opt_ktr.h"
 
 #include <sys/param.h>
+#include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/systm.h>
@@ -77,6 +79,10 @@ void trap(struct trapframe *tf);
 int trap_mmu_fault(struct proc *p, struct trapframe *tf);
 void syscall(struct proc *p, struct trapframe *tf, u_int sticks);
 
+u_long trap_mask = 0xffffffffffffffffL & ~(1 << T_INTR);
+
+extern char *syscallnames[];
+
 const char *trap_msg[] = {
 	"reserved",
 	"power on reset",
@@ -106,11 +112,12 @@ const char *trap_msg[] = {
 	"fast instruction access mmu miss",
 	"fast data access mmu miss",
 	"fast data access protection",
-	"clock",
-	"bad spill",
-	"bad fill",
+	"spill",
+	"fill",
+	"fill",
 	"breakpoint",
 	"syscall",
+	"trap instruction",
 };
 
 void
@@ -127,44 +134,114 @@ trap(struct trapframe *tf)
 	KASSERT(PCPU_GET(curproc) != NULL, ("trap: curproc NULL"));
 	KASSERT(PCPU_GET(curpcb) != NULL, ("trap: curpcb NULL"));
 
+	error = 0;
 	p = PCPU_GET(curproc);
-	type = T_TYPE(tf->tf_type);
+	type = tf->tf_type;
 	ucode = type;	/* XXX */
+	sticks = 0;
 
-	if ((type & T_KERNEL) == 0)
+#if KTR_COMPILE & KTR_TRAP
+	if (trap_mask & (1 << (type & ~T_KERNEL))) {
+		CTR5(KTR_TRAP, "trap: %s type=%s (%s) ws=%#lx ow=%#lx",
+		    p->p_comm, trap_msg[type & ~T_KERNEL],
+		    ((type & T_KERNEL) ? "kernel" : "user"),
+		    rdpr(wstate), rdpr(otherwin));
+	}
+#endif
+
+	if (type == T_SYSCALL)
+		cnt.v_syscall++;
+	else if ((type & ~T_KERNEL) == T_INTR)
+		cnt.v_intr++;
+	else
+		cnt.v_trap++;
+
+	if ((type & T_KERNEL) == 0) {
 		sticks = p->p_sticks;
+		p->p_frame = tf;
+	}
 
 	switch (type) {
+	case T_ALIGN:
+	case T_ALIGN_LDDF:
+	case T_ALIGN_STDF:
+		sig = SIGBUS;
+		goto trapsig;
+	case T_BREAKPOINT:
+		sig = SIGTRAP;
+		goto trapsig;
+	case T_DIVIDE:
+		sig = SIGFPE;
+		goto trapsig;
 	case T_FP_DISABLED:
 		if (fp_enable_proc(p))
 			goto user;
-		else {
-			sig = SIGFPE;
-			goto trapsig;
-		}
-		break;
-	case T_IMMU_MISS:
+		/* Fallthrough. */
+	case T_FP_IEEE:
+	case T_FP_OTHER:
+		sig = SIGFPE;
+		goto trapsig;
+	case T_DATA_ERROR:
+	case T_DATA_EXCPTN:
+	case T_INSN_ERROR:
+	case T_INSN_EXCPTN:
+		sig = SIGILL;	/* XXX */
+		goto trapsig;
 	case T_DMMU_MISS:
 	case T_DMMU_PROT:
-		mtx_lock(&Giant);
+	case T_IMMU_MISS:
 		error = trap_mmu_fault(p, tf);
-		mtx_unlock(&Giant);
 		if (error == 0)
 			goto user;
-		break;
+		sig = error;
+		goto trapsig;
+	case T_FILL:
+		if (rwindow_load(p, tf, 2))
+			sigexit(p, SIGILL);
+		goto out;
+	case T_FILL_RET:
+		if (rwindow_load(p, tf, 1))
+			sigexit(p, SIGILL);
+		goto out;
+	case T_INSN_ILLEGAL:
+		sig = SIGILL;
+		goto trapsig;
 	case T_INTR:
-		intr_dispatch(T_LEVEL(tf->tf_type), tf);
-		goto user;
+		intr_dispatch(tf->tf_arg, tf);
+		goto out;
+	case T_PRIV_ACTION:
+	case T_PRIV_OPCODE:
+		sig = SIGBUS;
+		goto trapsig;
+	case T_SOFT:
+		sig = SIGILL;
+		goto trapsig;
+	case T_SPILL:
+		if (rwindow_save(p))
+			sigexit(p, SIGILL);
+		goto out;
 	case T_SYSCALL:
 		/* syscall() calls userret(), so we need goto out; */
 		syscall(p, tf, sticks);
 		goto out;
+	case T_TAG_OVFLW:
+		sig = SIGEMT;
+		goto trapsig;
 #ifdef DDB
 	case T_BREAKPOINT | T_KERNEL:
 		if (kdb_trap(tf) != 0)
 			goto out;
 		break;
 #endif
+	case T_DMMU_MISS | T_KERNEL:
+	case T_DMMU_PROT | T_KERNEL:
+		error = trap_mmu_fault(p, tf);
+		if (error == 0)
+			goto out;
+		break;
+	case T_INTR | T_KERNEL:
+		intr_dispatch(tf->tf_arg, tf);
+		goto out;
 	case T_WATCH_VIRT | T_KERNEL:
 		/*
 		 * At the moment, just print the information from the trap,
@@ -204,17 +281,6 @@ trap(struct trapframe *tf)
 		*(u_int *)tf->tf_tpc = PCPU_GET(wp_insn);
 		flush(tf->tf_tpc);
 		goto out;
-	case T_DMMU_MISS | T_KERNEL:
-	case T_DMMU_PROT | T_KERNEL:
-		mtx_lock(&Giant);
-		error = trap_mmu_fault(p, tf);
-		mtx_unlock(&Giant);
-		if (error == 0)
-			goto out;
-		break;
-	case T_INTR | T_KERNEL:
-		intr_dispatch(T_LEVEL(tf->tf_type), tf);
-		goto out;
 	default:
 		break;
 	}
@@ -227,9 +293,12 @@ trapsig:
 	trapsignal(p, sig, ucode);
 user:
 	userret(p, tf, sticks);
-	if (mtx_owned(&Giant))
-		mtx_unlock(&Giant);
 out:
+#if KTR_COMPILE & KTR_TRAP
+	if (trap_mask & (1 << (type & ~T_KERNEL))) {
+		CTR1(KTR_TRAP, "trap: p=%p return", p);
+	}
+#endif
 	return;
 }
 
@@ -238,116 +307,107 @@ trap_mmu_fault(struct proc *p, struct trapframe *tf)
 {
 	struct mmuframe *mf;
 	struct vmspace *vm;
+	struct stte *stp;
+	struct pcb *pcb;
+	struct tte tte;
 	vm_offset_t va;
-	vm_prot_t type;
+	vm_prot_t prot;
+	u_long ctx;
+	pmap_t pm;
+	int flags;
+	int type;
 	int rv;
 
 	KASSERT(p->p_vmspace != NULL, ("trap_dmmu_miss: vmspace NULL"));
 
-	type = 0;
-	rv = KERN_FAILURE;
-	mf = tf->tf_arg;
+	rv = KERN_SUCCESS;
+	mf = (struct mmuframe *)tf->tf_arg;
+	ctx = TLB_TAR_CTX(mf->mf_tar);
+	pcb = PCPU_GET(curpcb);
+	type = tf->tf_type & ~T_KERNEL;
 	va = TLB_TAR_VA(mf->mf_tar);
-	switch (tf->tf_type) {
-	case T_DMMU_MISS | T_KERNEL:
-		/*
-		 * If the context is nucleus this is a soft fault on kernel
-		 * memory, just fault in the pages.
-		 */
-		if (TLB_TAR_CTX(mf->mf_tar) == TLB_CTX_KERNEL) {
-			rv = vm_fault(kernel_map, va, VM_PROT_READ,
-			    VM_FAULT_NORMAL);
-			break;
-		}
 
-		/*
-		 * Don't allow kernel mode faults on user memory unless
-		 * pcb_onfault is set.
-		 */
-		if (PCPU_GET(curpcb)->pcb_onfault == NULL)
-			break;
-		/* Fallthrough. */
-	case T_IMMU_MISS:
-	case T_DMMU_MISS:
-		/*
-		 * First try the tsb.  The primary tsb was already searched.
-		 */
-		vm = p->p_vmspace;
-		if (tsb_miss(&vm->vm_pmap, tf->tf_type, mf) == 0) {
-			rv = KERN_SUCCESS;
-			break;
-		}
+	CTR4(KTR_TRAP, "trap_mmu_fault: p=%p pm_ctx=%#lx va=%#lx ctx=%#lx",
+	    p, p->p_vmspace->vm_pmap.pm_context, va, ctx);
 
-		/*
-		 * Not found, call the vm system.
-		 */
-
-		if (tf->tf_type == T_IMMU_MISS)
-			type = VM_PROT_EXECUTE | VM_PROT_READ;
+	if (type == T_DMMU_PROT) {
+		prot = VM_PROT_WRITE;
+		flags = VM_FAULT_DIRTY;
+	} else {
+		if (type == T_DMMU_MISS)
+			prot = VM_PROT_READ;
 		else
-			type = VM_PROT_READ;
-
-		/*
-		 * Keep the process from being swapped out at this critical
-		 * time.
-		 */
-		PROC_LOCK(p);
-		++p->p_lock;
-		PROC_UNLOCK(p);
-
-		/*
-		 * Grow the stack if necessary.  vm_map_growstack only fails
-		 * if the va falls into a growable stack region and the stack
-		 * growth fails.  If it succeeds, or the va was not within a
-		 * growable stack region, fault in the user page.
-		 */
-		if (vm_map_growstack(p, va) != KERN_SUCCESS)
-			rv = KERN_FAILURE;
-		else
-			rv = vm_fault(&vm->vm_map, va, type, VM_FAULT_NORMAL);
-
-		/*
-		 * Now the process can be swapped again.
-		 */
-		PROC_LOCK(p);
-		--p->p_lock;
-		PROC_UNLOCK(p);
-		break;
-	case T_DMMU_PROT | T_KERNEL:
-		/*
-		 * Protection faults should not happen on kernel memory.
-		 */
-		if (TLB_TAR_CTX(mf->mf_tar) == TLB_CTX_KERNEL)
-			break;
-
-		/*
-		 * Don't allow kernel mode faults on user memory unless
-		 * pcb_onfault is set.
-		 */
-		if (PCPU_GET(curpcb)->pcb_onfault == NULL)
-			break;
-		/* Fallthrough. */
-	case T_DMMU_PROT:
-		/*
-		 * Only look in the tsb.  Write access to an unmapped page
-		 * causes a miss first, so the page must have already been
-		 * brought in by vm_fault, we just need to find the tte and
-		 * update the write bit.  XXX How do we tell them vm system
-		 * that we are now writing?
-		 */
-		vm = p->p_vmspace;
-		if (tsb_miss(&vm->vm_pmap, tf->tf_type, mf) == 0)
-			rv = KERN_SUCCESS;
-		break;
-	default:
-		break;
+			prot = VM_PROT_READ | VM_PROT_EXECUTE;
+		flags = VM_FAULT_NORMAL;
 	}
+
+	if (ctx == TLB_CTX_KERNEL) {
+		mtx_lock(&Giant);
+		rv = vm_fault(kernel_map, va, prot, VM_FAULT_NORMAL);
+		mtx_unlock(&Giant);
+		if (rv == KERN_SUCCESS) {
+			stp = tsb_kvtostte(va);
+			tte = stp->st_tte;
+			if (type == T_IMMU_MISS)
+				tlb_store(TLB_DTLB | TLB_ITLB, va, ctx, tte);
+			else
+				tlb_store(TLB_DTLB, va, ctx, tte);
+		}
+	} else if (tf->tf_type & T_KERNEL &&
+		   (p->p_intr_nesting_level != 0 || pcb->pcb_onfault == NULL)) {
+		rv = KERN_FAILURE;
+	} else {
+		mtx_lock(&Giant);
+		vm = p->p_vmspace;
+		pm = &vm->vm_pmap;
+		stp = tsb_stte_lookup(pm, va);
+		if (stp == NULL || type == T_DMMU_PROT) {
+			/*
+			 * Keep the process from being swapped out at this
+			 * critical time.
+			 */
+			PROC_LOCK(p);
+			++p->p_lock;
+			PROC_UNLOCK(p);
+		
+			/*
+			 * Grow the stack if necessary.  vm_map_growstack only
+			 * fails if the va falls into a growable stack region
+			 * and the stack growth fails.  If it succeeds, or the
+			 * va was not within a growable stack region, fault in
+			 * the user page.
+			 */
+			if (vm_map_growstack(p, va) != KERN_SUCCESS)
+				rv = KERN_FAILURE;
+			else
+				rv = vm_fault(&vm->vm_map, va, prot, flags);
+		
+			/*
+			 * Now the process can be swapped again.
+			 */
+			PROC_LOCK(p);
+			--p->p_lock;
+			PROC_UNLOCK(p);
+		} else if (type == T_IMMU_MISS) {
+			if ((stp->st_tte.tte_data & TD_EXEC) == 0)
+				rv = KERN_FAILURE;
+			else
+				tlb_store(TLB_DTLB | TLB_ITLB, va, ctx,
+				    stp->st_tte);
+		} else if (type == T_DMMU_PROT &&
+			   (stp->st_tte.tte_data & TD_SW) == 0) {
+			rv = KERN_FAILURE;
+		} else {
+			tlb_store(TLB_DTLB, va, ctx, stp->st_tte);
+		}
+		mtx_unlock(&Giant);
+	}
+	CTR3(KTR_TRAP, "trap_mmu_fault: return p=%p va=%#lx rv=%d", p, va, rv);
 	if (rv == KERN_SUCCESS)
 		return (0);
 	if (tf->tf_type & T_KERNEL) {
-		if (PCPU_GET(curpcb)->pcb_onfault != NULL &&
-		    TLB_TAR_CTX(mf->mf_tar) != TLB_CTX_KERNEL) {
-			tf->tf_tpc = (u_long)PCPU_GET(curpcb)->pcb_onfault;
+		if (pcb->pcb_onfault != NULL && ctx != TLB_CTX_KERNEL) {
+			tf->tf_tpc = (u_long)pcb->pcb_onfault;
 			tf->tf_tnpc = tf->tf_tpc + 4;
 			return (0);
 		}
@@ -374,14 +434,13 @@ syscall(struct proc *p, struct trapframe *tf, u_int sticks)
 	int narg;
 	int error;
 	register_t args[8];
-	void *argp;
+	register_t *argp;
 
 	narg = 0;
 	error = 0;
 	reg = 0;
 	regcnt = REG_MAXARGS;
 	code = tf->tf_global[1];
-	atomic_add_int(&cnt.v_syscall, 1);
 	/*
 	 * For syscalls, we don't want to retry the faulting instruction
 	 * (usually), instead we need to advance one instruction.
@@ -426,6 +485,9 @@ syscall(struct proc *p, struct trapframe *tf, u_int sticks)
 			goto bad;
 	}
 
+	CTR5(KTR_SYSC, "syscall: p=%p %s(%#lx, %#lx, %#lx)", p,
+	    syscallnames[code], argp[0], argp[1], argp[2]);
+
 	/*
 	 * Try to run the syscall without the MP lock if the syscall
 	 * is MP safe.
@@ -448,6 +510,9 @@ syscall(struct proc *p, struct trapframe *tf, u_int sticks)
 	STOPEVENT(p, S_SCE, narg);	/* MP aware */
 
 	error = (*callp->sy_call)(p, argp);
+
+	CTR5(KTR_SYSC, "syscall: p=%p error=%d %s return %#lx %#lx ", p,
+	    error, syscallnames[code], p->p_retval[0], p->p_retval[1]);
 	
 	/*
 	 * MP SAFE (we may or may not have the MP lock at this point)
