@@ -25,6 +25,12 @@
  * DAMAGE.
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -89,7 +95,7 @@ main(int argc, char **argv)
 
   if((fd = open(argv[0], 0)) < 0)
     {
-      perror("open(floppy)");
+      warn("open(floppy)");
       return 1;
     }
 
@@ -97,7 +103,7 @@ main(int argc, char **argv)
     {
       if(ioctl(fd, FD_DEBUG, &debug) < 0)
 	{
-	  perror("ioctl(FD_DEBUG)");
+	  warn("ioctl(FD_DEBUG)");
 	  return 1;
 	}
       return 0;
@@ -107,7 +113,7 @@ main(int argc, char **argv)
     {
       if(ioctl(fd, FD_GTYPE, &ft) < 0)
 	{
-	  perror("ioctl(FD_GTYPE)");
+	  warn("ioctl(FD_GTYPE)");
 	  return 1;
 	}
 
@@ -125,13 +131,11 @@ main(int argc, char **argv)
 
       if(ioctl(fd, FD_STYPE, &ft) < 0)
 	{
-	  perror("ioctl(FD_STYPE)");
+	  warn("ioctl(FD_STYPE)");
 	  return 1;
 	}
       return 0;
     }
 
+  return 0;
 }
-
-
-
