@@ -30,6 +30,7 @@
  * SUCH DAMAGE.
  *
  * $Id: kiconv.c,v 1.3 2001/08/22 03:31:36 bp Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>
@@ -48,7 +49,7 @@ kiconv_add_xlat_table(const char *to, const char *from, const u_char *table)
 {
 	struct iconv_add_in din;
 	struct iconv_add_out dout;
-	int olen;
+	size_t olen;
 
 	if (strlen(from) > ICONV_CSNMAXLEN || strlen(to) > ICONV_CSNMAXLEN)
 		return EINVAL;
