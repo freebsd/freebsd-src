@@ -80,9 +80,8 @@ awi_pccard_probe(device_t dev)
 	if (!psc->sc_port_res)
 		return ENOMEM;
 
-	sc->sc_chip.sc_iot = I386_BUS_SPACE_IO;
-	sc->sc_chip.sc_ioh =
-	    (bus_space_handle_t)rman_get_start(psc->sc_port_res);
+	sc->sc_chip.sc_iot = rman_get_bustag(psc->sc_port_res);
+	sc->sc_chip.sc_ioh = rman_get_bushandle(psc->sc_port_res);
 	am79c930_chip_init(&sc->sc_chip, 0);
 	DELAY(1000); 
 
@@ -129,9 +128,8 @@ awi_pccard_attach(device_t dev)
 		device_printf(dev, "awi_pccard_attach: port alloc failed\n");
 		goto fail;
 	}
-	sc->sc_chip.sc_iot = I386_BUS_SPACE_IO;
-	sc->sc_chip.sc_ioh =
-	    (bus_space_handle_t)rman_get_start(psc->sc_port_res);
+	sc->sc_chip.sc_iot = rman_get_bustag(psc->sc_port_res);
+	sc->sc_chip.sc_ioh = rman_get_bushandle(psc->sc_port_res);
 
 	psc->sc_irq_rid = 0;
 	psc->sc_irq_res = bus_alloc_resource(dev, SYS_RES_IRQ,
@@ -145,9 +143,8 @@ awi_pccard_attach(device_t dev)
 	psc->sc_mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY,
 	    &psc->sc_mem_rid, 0, ~0, 0x8000, RF_ACTIVE);
 	if (psc->sc_mem_res) {
-		sc->sc_chip.sc_memt = I386_BUS_SPACE_MEM;
-		sc->sc_chip.sc_memh =
-		    (bus_space_handle_t)rman_get_virtual(psc->sc_mem_res);
+		sc->sc_chip.sc_memt = rman_get_bustag(psc->sc_mem_res);
+		sc->sc_chip.sc_memh = rman_get_bushandle(psc->sc_mem_res);
 		am79c930_chip_init(&sc->sc_chip, 1);
 	} else
 		am79c930_chip_init(&sc->sc_chip, 0);
