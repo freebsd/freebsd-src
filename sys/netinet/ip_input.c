@@ -390,7 +390,7 @@ iphack:
 		ip = mtod(m = m1, struct ip *);
 	}
 #endif
-	if (ip_fw_chk_ptr) {
+	if (fw_enable && ip_fw_chk_ptr) {
 #ifdef IPFIREWALL_FORWARD
 		/*
 		 * If we've been forwarded from the output side, then
