@@ -52,7 +52,7 @@ sx_pci_probe(
 
 	switch (pci_get_devid(dev)) {
 		case 0x200011cb:
-			if (pci_get_subdevice(dev) == (ushort)0xb008) {
+			if (pci_get_subdevice(dev) == (uint16_t)0xb008) {
 				desc = "Specialix I/O8+ Multiport Serial Card";
 			}
 			break;
