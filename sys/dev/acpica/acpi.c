@@ -600,7 +600,6 @@ acpi_attach(device_t dev)
 static int
 acpi_suspend(device_t dev)
 {
-    struct acpi_softc *sc;
     device_t child, *devlist;
     int error, i, numdevs, pstate;
 
@@ -616,7 +615,6 @@ acpi_suspend(device_t dev)
      * device has an _SxD method for the next sleep state, use that power
      * state instead.
      */
-    sc = device_get_softc(dev);
     device_get_children(dev, &devlist, &numdevs);
     for (i = 0; i < numdevs; i++) {
 	/* If the device is not attached, we've powered it down elsewhere. */
