@@ -442,13 +442,13 @@ ksym_maxuseraddr (void)
 enum frametype { tf_normal, tf_trap, tf_interrupt, tf_syscall };
 
 CORE_ADDR
-fbsd_kern_frame_saved_pc (struct frame_info *fr)
+fbsd_kern_frame_saved_pc (struct frame_info *fi)
 {
   struct minimal_symbol *sym;
   CORE_ADDR this_saved_pc;
   enum frametype frametype;
 
-  this_saved_pc = read_memory_integer (fr->frame + 4, 4);
+  this_saved_pc = read_memory_integer (fi->frame + 4, 4);
   sym = lookup_minimal_symbol_by_pc (this_saved_pc);
   frametype = tf_normal;
   if (sym != NULL)
@@ -473,13 +473,13 @@ fbsd_kern_frame_saved_pc (struct frame_info *fr)
 #define oEIP   offsetof (struct trapframe, tf_eip)
 
       case tf_trap:
-	return (read_memory_integer (fr->frame + 8 + oEIP, 4));
+	return (read_memory_integer (fi->frame + 8 + oEIP, 4));
 
       case tf_interrupt:
-	return (read_memory_integer (fr->frame + 12 + oEIP, 4));
+	return (read_memory_integer (fi->frame + 12 + oEIP, 4));
 
       case tf_syscall:
-	return (read_memory_integer (fr->frame + 8 + oEIP, 4));
+	return (read_memory_integer (fi->frame + 8 + oEIP, 4));
 #undef oEIP
     }
 }
