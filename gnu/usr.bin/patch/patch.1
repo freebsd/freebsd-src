@@ -116,6 +116,12 @@ option; if that file already exists, it is backed up first.
 If
 .I patchfile
 is omitted, or is a hyphen, the patch will be read from standard input.
+If a
+\fB\-i\fP
+argument is specified, the filename following it will be used, instead of
+standard input. You may specify only one
+\fB\-i\fP
+directive.
 .PP
 Upon startup, patch will attempt to determine the type of the diff listing,
 unless over-ruled by a
@@ -320,6 +326,11 @@ Note that a larger fuzz factor increases the odds of a faulty patch.
 The default fuzz factor is 2, and it may not be set to more than
 the number of lines of context in the context diff, ordinarily 3.
 .TP 5
+.B "\-i patchfile"
+tells
+.I patch
+to apply \fBpatchfile\fP instead of stdin.
+.TP 5
 .B "\-I, \-\-index-first"
 forces
 .I patch
@@ -453,7 +464,7 @@ causes
 .I patch
 to print out its revision header and patch level.
 .TP 5
-.B "\-V method, \-\-version\-\-control=method"
+.B "\-V method, \-\-version\-control=method"
 causes
 .B method
 to be interpreted as a method for creating
