@@ -185,5 +185,14 @@
       &man.sem.close.3; to crash calling programs.  This bug has been
       fixed in 5.0-CURRENT.</para>
 
+    <para>&os; 5.0-RELEASE has a minor bug in how the permissions of
+      <filename>/dev/tty</filename> are handled.  This can be
+      triggered by logging in as a non-<username>root</username>,
+      non-<groupname>tty</groupname> group user, and using &man.su.1;
+      to switch to a second non-<username>root</username>,
+      non-<groupname>tty</groupname> group user.  &man.ssh.1; will
+      fail because it cannot open <filename>/dev/tty</filename>.  This
+      bug has been fixed in 5.0-CURRENT.</para>
+
   </sect1>
 </article>
