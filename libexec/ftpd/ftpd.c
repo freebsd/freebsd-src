@@ -129,6 +129,7 @@ int	paranoid = 1;	  /* be extra careful about security */
 int	anon_only = 0;    /* Only anonymous ftp allowed */
 int	guest;
 int	dochroot;
+char	*chrootdir;
 int	dowtmp = 1;
 int	stats;
 int	statfd = -1;
@@ -215,25 +216,9 @@ char	*LastArgv = NULL;	/* end of argv */
 char	proctitle[LINE_MAX];	/* initial part of title */
 #endif /* SETPROCTITLE */
 
-#define LOGCMD(cmd, file) \
-	if (logging > 1) \
-	    syslog(LOG_INFO,"%s %s%s", cmd, \
-		*(file) == '/' ? "" : curdir(), file);
-#define LOGCMD2(cmd, file1, file2) \
-	 if (logging > 1) \
-	    syslog(LOG_INFO,"%s %s%s %s%s", cmd, \
-		*(file1) == '/' ? "" : curdir(), file1, \
-		*(file2) == '/' ? "" : curdir(), file2);
-#define LOGBYTES(cmd, file, cnt) \
-	if (logging > 1) { \
-		if (cnt == -1) \
-		    syslog(LOG_INFO,"%s %s%s", cmd, \
-			*(file) == '/' ? "" : curdir(), file); \
-		else \
-		    syslog(LOG_INFO, "%s %s%s = %jd bytes", \
-			cmd, (*(file) == '/') ? "" : curdir(), file, \
-			(intmax_t)cnt); \
-	}
+#define LOGCMD(cmd, file)		logcmd((cmd), (file), NULL, -1)
+#define LOGCMD2(cmd, file1, file2)	logcmd((cmd), (file1), (file2), -1)
+#define LOGBYTES(cmd, file, cnt)	logcmd((cmd), (file), NULL, (cnt))
 
 #ifdef VIRTUAL_HOSTING
 static void	 inithosts(void);
@@ -245,7 +230,6 @@ static void	 myoob(void);
 static int	 checkuser(char *, char *, int, char **);
 static FILE	*dataconn(char *, off_t, char *);
 static void	 dolog(struct sockaddr *);
-static char	*curdir(void);
 static void	 end_login(void);
 static FILE	*getdatasock(char *);
 static int	 guniquefd(char *, char **);
@@ -257,22 +241,11 @@ static struct passwd *
 		 sgetpwnam(char *);
 static char	*sgetsave(char *);
 static void	 reapchild(int);
+static void	 appendf(char **, char *, ...);
+static void	 logcmd(char *, char *, char *, off_t);
 static void      logxfer(char *, off_t, time_t);
 static char	*doublequote(char *);
 static int	*socksetup(int, char *, const char *);
-
-static char *
-curdir(void)
-{
-	static char path[MAXPATHLEN+1+1];	/* path + '/' + '\0' */
-
-	if (getcwd(path, sizeof(path)-2) == NULL)
-		return ("");
-	if (path[1] != '\0')		/* special case for root dir. */
-		strcat(path, "/");
-	/* For guest account, skip / since it's chrooted */
-	return (guest ? path+1 : path);
-}
 
 int
 main(int argc, char *argv[], char **envp)
@@ -1352,7 +1325,6 @@ pass(char *passwd)
 #ifdef USE_PAM
 	int e;
 #endif
-	char *chrootdir;
 	char *residue = NULL;
 	char *xpasswd;
 
@@ -1492,7 +1464,7 @@ skip:
 		if (chrootdir[0] != '/')
 			asprintf(&chrootdir, "%s/%s", pw->pw_dir, chrootdir);
 		else
-			chrootdir = strdup(chrootdir); /* so it can be freed */
+			chrootdir = strdup(chrootdir); /* make it permanent */
 		if (chrootdir == NULL)
 			fatalerror("Ran out of memory.");
 	}
@@ -1511,9 +1483,6 @@ skip:
 		if ((homedir = strstr(chrootdir, "/./")) != NULL) {
 			*(homedir++) = '\0';	/* wipe '/' */
 			homedir++;		/* skip '.' */
-			/* so chrootdir can be freed later */
-			if ((homedir = strdup(homedir)) == NULL)
-				fatalerror("Ran out of memory.");
 		} else {
 			/*
 			 * We MUST do a chdir() after the chroot. Otherwise
@@ -1614,11 +1583,11 @@ skip:
 			syslog(LOG_INFO, "FTP LOGIN FROM %s as %s",
 			    remotehost, pw->pw_name);
 	}
+	if (guest || dochroot)
+		syslog(LOG_INFO, "session root changed to %s", chrootdir);
 #ifdef	LOGIN_CAP
 	login_close(lc);
 #endif
-	if (chrootdir)
-		free(chrootdir);
 	if (residue)
 		free(residue);
 	return;
@@ -1627,8 +1596,6 @@ bad:
 #ifdef	LOGIN_CAP
 	login_close(lc);
 #endif
-	if (chrootdir)
-		free(chrootdir);
 	if (residue)
 		free(residue);
 	end_login();
@@ -3165,6 +3132,55 @@ setproctitle(const char *fmt, ...)
 		*p++ = ' ';
 }
 #endif /* OLD_SETPROCTITLE */
+
+static void
+appendf(char **strp, char *fmt, ...)
+{
+	va_list ap;
+	char *ostr, *p;
+
+	va_start(ap, fmt);
+	vasprintf(&p, fmt, ap);
+	va_end(ap);
+	if (p == NULL)
+		fatalerror("Ran out of memory.");
+	if (*strp == NULL)
+		*strp = p;
+	else {
+		ostr = *strp;
+		asprintf(strp, "%s%s", ostr, p);
+		if (*strp == NULL)
+			fatalerror("Ran out of memory.");
+		free(ostr);
+	}
+}
+
+static void
+logcmd(char *cmd, char *file1, char *file2, off_t cnt)
+{
+	char *msg = NULL;
+	char wd[MAXPATHLEN + 1];
+
+	if (logging <= 1)
+		return;
+
+	if (getcwd(wd, sizeof(wd) - 1) == NULL)
+		strcpy(wd, strerror(errno));
+
+	appendf(&msg, "%s", cmd);
+	if (file1)
+		appendf(&msg, " %s", file1);
+	if (file2)
+		appendf(&msg, " %s", file2);
+	if (cnt >= 0)
+		appendf(&msg, " = %jd bytes", (intmax_t)cnt);
+	appendf(&msg, " (wd: %s", wd);
+	if (guest || dochroot)
+		appendf(&msg, "; chrooted");
+	appendf(&msg, ")");
+	syslog(LOG_INFO, "%s", msg);
+	free(msg);
+}
 
 static void
 logxfer(char *name, off_t size, time_t start)
