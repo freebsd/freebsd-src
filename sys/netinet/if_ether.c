@@ -211,7 +211,7 @@ arp_rtrequest(req, rt, info)
 			log(LOG_DEBUG, "arp_rtrequest: bad gateway %s%s\n",
 			    inet_ntoa(SIN(rt_key(rt))->sin_addr),
 			    (gate->sa_family != AF_LINK) ?
-			    " (sa_family != AF_LINK)": "");
+			    " (!AF_LINK)": "");
 			break;
 		}
 		SDL(gate)->sdl_type = rt->rt_ifp->if_type;
