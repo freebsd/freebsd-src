@@ -69,22 +69,11 @@ headers()
 			if (!(dp->d_type & DEVDONE))
 				printf("Warning: pseudo-device \"%s\" is unknown\n",
 				       dp->d_name);
-			else
-				dp->d_type &= TYPEMASK;
 		}
 		if ((dp->d_type & TYPEMASK) == DEVICE) {
 			if (!(dp->d_type & DEVDONE))
 				printf("Warning: device \"%s\" is unknown\n",
 				       dp->d_name);
-			else
-				dp->d_type &= TYPEMASK;
-		}
-		if ((dp->d_type & TYPEMASK) == CONTROLLER) {
-			if (!(dp->d_type & DEVDONE))
-				printf("Warning: controller \"%s\" is unknown\n",
-				       dp->d_name);
-			else
-				dp->d_type &= TYPEMASK;
 		}
 	}
 }
@@ -98,23 +87,24 @@ do_count(dev, hname, search)
 	register char *dev, *hname;
 	int search;
 {
-	register struct device *dp, *mp;
+	register struct device *dp;
 	register int count, hicount;
+	char *mp;
 
 	/*
 	 * After this loop, "count" will be the actual number of units,
 	 * and "hicount" will be the highest unit declared.  do_header()
 	 * must use this higher of these values.
 	 */
-	for (hicount = count = 0, dp = dtab; dp != 0; dp = dp->d_next) {
+	for (dp = dtab; dp != 0; dp = dp->d_next) {
 		if (eq(dp->d_name, dev)) {
 			if ((dp->d_type & TYPEMASK) == PSEUDO_DEVICE)
 				dp->d_type |= DEVDONE;
 			else if ((dp->d_type & TYPEMASK) == DEVICE)
 				dp->d_type |= DEVDONE;
-			else if ((dp->d_type & TYPEMASK) == CONTROLLER)
-				dp->d_type |= DEVDONE;
 		}
+	}
+	for (hicount = count = 0, dp = dtab; dp != 0; dp = dp->d_next) {
 		if (dp->d_unit != -1 && eq(dp->d_name, dev)) {
 			if ((dp->d_type & TYPEMASK) == PSEUDO_DEVICE) {
 				count =
@@ -131,9 +121,12 @@ do_count(dev, hname, search)
 				hicount = dp->d_unit + 1;
 			if (search) {
 				mp = dp->d_conn;
-				if (mp != 0 && mp != TO_NEXUS &&
-				    mp->d_conn != 0 && mp->d_conn != TO_NEXUS) {
-					do_count(mp->d_name, hname, 0);
+				if (mp != 0 && dp->d_connunit < 0)
+					mp = 0;
+				if (mp != 0 && eq(mp, "nexus"))
+					mp = 0;
+				if (mp != 0) {
+					do_count(mp, hname, 0);
 					search = 0;
 				}
 			}
