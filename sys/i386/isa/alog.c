@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 Jamil J. Weatherbee
+ * Copyright (c) 1998 Scottibox 
  * All rights reserved.
  *
  * 
@@ -29,11 +29,12 @@
  * Industrial Computer Source model AIO8-P
  * 8 channel, moderate speed analog to digital converter board with
  * 128 channel MUX capability via daisy chained AT-16P units
- * alog.c, character device driver, last revised December 9 1997
- * See http://www.indcompsrc.com/products/data/html/aio8g-p.html
+ * alog.c, character device driver, last revised January 6 1998
+ * See http://www.scottibox.com
+ *     http://www.indcompsrc.com/products/data/html/aio8g-p.html
  *     http://www.indcompsrc.com/products/data/html/at16-p.html
  *
- * Written by: Jamil J. Weatherbee <jamil@freebsd.org>
+ * Written by: Jamil J. Weatherbee <jamil@scottibox.com>
  *
  */
 
