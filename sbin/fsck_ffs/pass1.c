@@ -41,6 +41,7 @@ static const char rcsid[] =
 
 #include <sys/param.h>
 #include <sys/stat.h>
+#include <sys/sysctl.h>
 
 #include <ufs/ufs/dinode.h>
 #include <ufs/ufs/dir.h>
@@ -265,7 +266,7 @@ checkinode(inumber, idesc)
 		 * Fake ndb value so direct/indirect block checks below
 		 * will detect any garbage after symlink string.
 		 */
-		if (dp->di_size < sblock.fs_maxsymlinklen) {
+		if (dp->di_size < (u_int64_t)sblock.fs_maxsymlinklen) {
 			ndb = howmany(dp->di_size, sizeof(ufs_daddr_t));
 			if (ndb > NDADDR) {
 				j = ndb - NDADDR;
@@ -343,9 +344,20 @@ checkinode(inumber, idesc)
 			printf(" (CORRECTED)\n");
 		else if (reply("CORRECT") == 0)
 			return;
-		dp = ginode(inumber);
-		dp->di_blocks = idesc->id_entryno;
-		inodirty();
+		if (bkgrdflag == 0) {
+			dp = ginode(inumber);
+			dp->di_blocks = idesc->id_entryno;
+			inodirty();
+		} else {
+			cmd.value = idesc->id_number;
+			cmd.size = idesc->id_entryno - dp->di_blocks;
+			if (debug)
+				printf("adjblkcnt ino %d amount %d\n",
+				    (long)cmd.value, cmd.size);
+			if (sysctl(adjblkcnt, MIBSIZE, 0, 0,
+			    &cmd, sizeof cmd) == -1)
+				rwerror("ADJUST INODE BLOCK COUNT", cmd.value);
+		}
 	}
 	return;
 unknown:

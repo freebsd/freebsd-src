@@ -44,6 +44,7 @@ static const char rcsid[] =
 #include <sys/wait.h>
 
 #include <ufs/ufs/dinode.h>
+#include <ufs/ffs/fs.h>
 
 #include <ctype.h>
 #include <errno.h>

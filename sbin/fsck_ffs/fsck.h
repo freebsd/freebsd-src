@@ -102,14 +102,18 @@ struct bufarea cgblk;		/* cylinder group blocks */
 struct bufarea *pdirbp;		/* current directory contents */
 struct bufarea *pbp;		/* current inode block */
 
-#define	dirty(bp)	(bp)->b_dirty = 1
+#define	dirty(bp) \
+	if (fswritefd < 0) \
+		pfatal("SETTING DIRTY FLAG IN READ_ONLY MODE\n"); \
+	else \
+		(bp)->b_dirty = 1
 #define	initbarea(bp) \
 	(bp)->b_dirty = 0; \
 	(bp)->b_bno = (ufs_daddr_t)-1; \
 	(bp)->b_flags = 0;
 
-#define	sbdirty()	sblk.b_dirty = 1
-#define	cgdirty()	cgblk.b_dirty = 1
+#define	sbdirty()	dirty(&sblk)
+#define	cgdirty()	dirty(&cgblk)
 #define	sblock		(*sblk.b_un.b_fs)
 #define	cgrp		(*cgblk.b_un.b_cg)
 
@@ -188,12 +192,21 @@ struct inoinfo {
 long numdirs, dirhash, listmax, inplast;
 long countdirs;			/* number of directories we actually found */
 
+#define MIBSIZE	3		/* size of fsck sysctl MIBs */
+int	adjrefcnt[MIBSIZE];	/* MIB command to adjust inode reference cnt */
+int	adjblkcnt[MIBSIZE];	/* MIB command to adjust inode block count */
+int	freefiles[MIBSIZE];	/* MIB command to free a set of files */
+int	freedirs[MIBSIZE];	/* MIB command to free a set of directories */
+int	freeblks[MIBSIZE];	/* MIB command to free a set of data blocks */
+struct	fsck_cmd cmd;		/* sysctl filesystem update commands */
+char	snapname[BUFSIZ];	/* when doing snapshots, the name of the file */
 char	*cdevname;		/* name of device being checked */
 long	dev_bsize;		/* computed value of DEV_BSIZE */
 long	secsize;		/* actual disk sector size */
 char	fflag;			/* force check, ignore clean flag */
 char	nflag;			/* assume a no response */
 char	yflag;			/* assume a yes response */
+int	bkgrdflag;		/* use a snapshot to run on an active system */
 int	bflag;			/* location of alternate super block */
 int	debug;			/* output debugging info */
 int	cvtlevel;		/* convert to newer file system format */
@@ -205,7 +218,6 @@ char	preen;			/* just fix normal inconsistencies */
 char	rerun;			/* rerun fsck. Only used in non-preen mode */
 int	returntosingle;		/* 1 => return to single user mode on exit */
 char	resolved;		/* cleared if unresolved changes => not clean */
-int	markclean;		/* mark file system clean when done */
 char	havesb;			/* superblock has been read */
 char	skipclean;		/* skip clean file systems if preening */
 int	fsmodified;		/* 1 => write done to file system */
@@ -302,6 +314,7 @@ void		pinode __P((ino_t ino));
 void		propagate __P((void));
 void		pwarn __P((const char *fmt, ...));
 int		reply __P((char *question));
+void		rwerror __P((char *mesg, ufs_daddr_t blk));
 void		setinodebuf __P((ino_t));
 int		setup __P((char *dev));
 void		voidquit __P((int));

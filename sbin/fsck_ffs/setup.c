@@ -86,25 +86,73 @@ setup(dev)
 	skipclean = fflag ? 0 : preen;
 	if (stat(dev, &statb) < 0) {
 		printf("Can't stat %s: %s\n", dev, strerror(errno));
+		if (bkgrdflag) {
+			unlink(snapname);
+			bkgrdflag = 0;
+		}
 		return (0);
 	}
 	if ((statb.st_mode & S_IFMT) != S_IFCHR &&
 	    (statb.st_mode & S_IFMT) != S_IFBLK) {
-		if ((statb.st_flags & SF_SNAPSHOT) != 0) {
+		if (bkgrdflag != 0 && (statb.st_flags & SF_SNAPSHOT) == 0) {
+			unlink(snapname);
+			printf("background fsck lacks a snapshot\n");
+			exit(EEXIT);
+		}
+		if ((statb.st_flags & SF_SNAPSHOT) != 0 && cvtlevel == 0) {
 			cursnapshot = statb.st_ino;
 		} else {
-			pfatal("%s is not a disk device", dev);
-			if (reply("CONTINUE") == 0)
-				return (0);
+			if (cvtlevel == 0 ||
+			    (statb.st_flags & SF_SNAPSHOT) == 0) {
+				if (preen && bkgrdflag) {
+					unlink(snapname);
+					bkgrdflag = 0;
+				}
+				pfatal("%s is not a disk device", dev);
+				if (reply("CONTINUE") == 0) {
+					if (bkgrdflag) {
+						unlink(snapname);
+						bkgrdflag = 0;
+					}
+					return (0);
+				}
+			} else {
+				if (bkgrdflag) {
+					unlink(snapname);
+					bkgrdflag = 0;
+				}
+				pfatal("cannot convert a snapshot");
+				exit(EEXIT);
+			}
 		}
 	}
 	if ((fsreadfd = open(dev, O_RDONLY)) < 0) {
+		if (bkgrdflag) {
+			unlink(snapname);
+			bkgrdflag = 0;
+		}
 		printf("Can't open %s: %s\n", dev, strerror(errno));
 		return (0);
 	}
+	if (bkgrdflag) {
+		unlink(snapname);
+		size = MIBSIZE;
+		if (sysctlnametomib("vfs.ffs.adjrefcnt", adjrefcnt, &size) < 0||
+		    sysctlnametomib("vfs.ffs.adjblkcnt", adjblkcnt, &size) < 0||
+		    sysctlnametomib("vfs.ffs.freefiles", freefiles, &size) < 0||
+		    sysctlnametomib("vfs.ffs.freedirs", freedirs, &size) < 0 ||
+		    sysctlnametomib("vfs.ffs.freeblks", freeblks, &size) < 0) {
+			pfatal("kernel lacks background fsck support\n");
+			exit(EEXIT);
+		}
+		cmd.version = FFS_CMD_VERSION;
+		cmd.handle = fsreadfd;
+		fswritefd = -1;
+	}
 	if (preen == 0)
 		printf("** %s", dev);
-	if (nflag || (fswritefd = open(dev, O_WRONLY)) < 0) {
+	if (bkgrdflag == 0 &&
+	    (nflag || (fswritefd = open(dev, O_WRONLY)) < 0)) {
 		fswritefd = -1;
 		if (preen)
 			pfatal("NO WRITE ACCESS");
@@ -178,7 +226,7 @@ setup(dev)
 	}
 	if (sblock.fs_interleave < 1 ||
 	    sblock.fs_interleave > sblock.fs_nsect) {
-		pwarn("IMPOSSIBLE INTERLEAVE=%d IN SUPERBLOCK",
+		pfatal("IMPOSSIBLE INTERLEAVE=%d IN SUPERBLOCK",
 			sblock.fs_interleave);
 		sblock.fs_interleave = 1;
 		if (preen)
@@ -190,7 +238,7 @@ setup(dev)
 	}
 	if (sblock.fs_npsect < sblock.fs_nsect ||
 	    sblock.fs_npsect > sblock.fs_nsect*2) {
-		pwarn("IMPOSSIBLE NPSECT=%d IN SUPERBLOCK",
+		pfatal("IMPOSSIBLE NPSECT=%d IN SUPERBLOCK",
 			sblock.fs_npsect);
 		sblock.fs_npsect = sblock.fs_nsect;
 		if (preen)

@@ -83,13 +83,16 @@ main(argc, argv)
 
 	sync();
 	skipclean = 1;
-	markclean = 1;
-	while ((ch = getopt(argc, argv, "b:c:dfm:npy")) != -1) {
+	while ((ch = getopt(argc, argv, "b:Bc:dfm:npy")) != -1) {
 		switch (ch) {
 		case 'b':
 			skipclean = 0;
 			bflag = argtoi('b', "number", optarg, 10);
 			printf("Alternate super block location: %d\n", bflag);
+			break;
+
+		case 'B':
+			bkgrdflag = 1;
 			break;
 
 		case 'c':
@@ -183,9 +186,12 @@ checkfilesys(filesys, mntpt, auxdata, child)
 	int child;
 {
 	ufs_daddr_t n_ffree, n_bfree;
+	struct ufs_args args;
 	struct dups *dp;
-	struct statfs *mntbuf;
+	struct statfs *mntp;
 	struct zlncnt *zlnp;
+	ufs_daddr_t blks;
+	ufs_daddr_t files;
 	int cylno;
 
 	if (preen && child)
@@ -193,6 +199,44 @@ checkfilesys(filesys, mntpt, auxdata, child)
 	cdevname = filesys;
 	if (debug && preen)
 		pwarn("starting\n");
+
+	/*
+	 * If we are to do a background check:
+	 *	Get the mount point information of the filesystem
+	 *	create snapshot file
+	 *	return created snapshot file
+	 *	if not found, clear bkgrdflag and proceed with normal fsck
+	 */
+	mntp = getmntpt(filesys);
+	if (bkgrdflag) {
+		if (mntp == NULL) {
+			bkgrdflag = 0;
+			pwarn("NOT MOUNTED, CANNOT RUN IN BACKGROUND\n");
+		} else if ((mntp->f_flags & MNT_SOFTDEP) == 0) {
+			bkgrdflag = 0;
+			pwarn("NOT USING SOFT UPDATES, CANNOT RUN IN BACKGROUND\n");
+		} else if ((mntp->f_flags & MNT_RDONLY) != 0) {
+			bkgrdflag = 0;
+			pwarn("MOUNTED READ-ONLY, CANNOT RUN IN BACKGROUND\n");
+		} else {
+			snprintf(snapname, sizeof snapname, "%s/.fsck_snapshot",
+			    mntp->f_mntonname);
+			args.fspec = snapname;
+			while (mount("ffs", mntp->f_mntonname,
+			    mntp->f_flags | MNT_UPDATE | MNT_SNAPSHOT,
+			    &args) < 0) {
+				if (errno == EEXIST && unlink(snapname) == 0)
+					continue;
+				bkgrdflag = 0;
+				pwarn("CANNOT CREATE SNAPSHOT %s: %s\n",
+				    snapname, strerror(errno));
+				break;
+			}
+			if (bkgrdflag != 0)
+				filesys = snapname;
+		}
+	}
+
 	switch (setup(filesys)) {
 	case 0:
 		if (preen)
@@ -206,12 +250,6 @@ checkfilesys(filesys, mntpt, auxdata, child)
 		    sblock.fs_cstotal.cs_nffree * 100.0 / sblock.fs_dsize);
 		return (0);
 	}
-
-	/*
-	 * Get the mount point information of the filesystem, if
-	 * it is available.
-	 */
-	mntbuf = getmntpt(filesys);
 	
 	/*
 	 * Cleared if any questions answered no. Used to decide if
@@ -223,7 +261,7 @@ checkfilesys(filesys, mntpt, auxdata, child)
 	 */
 	if (preen == 0) {
 		printf("** Last Mounted on %s\n", sblock.fs_fsmnt);
-		if (mntbuf != NULL && mntbuf->f_flags & MNT_ROOTFS)
+		if (mntp != NULL && mntp->f_flags & MNT_ROOTFS)
 			printf("** Root file system\n");
 		printf("** Phase 1 - Check Blocks and Sizes\n");
 	}
@@ -272,20 +310,26 @@ checkfilesys(filesys, mntpt, auxdata, child)
 	 */
 	n_ffree = sblock.fs_cstotal.cs_nffree;
 	n_bfree = sblock.fs_cstotal.cs_nbfree;
+	files = maxino - ROOTINO - sblock.fs_cstotal.cs_nifree - n_files;
+	blks = n_blks +
+	    sblock.fs_ncg * (cgdmin(&sblock, 0) - cgsblock(&sblock, 0));
+	blks += cgsblock(&sblock, 0) - cgbase(&sblock, 0);
+	blks += howmany(sblock.fs_cssize, sblock.fs_fsize);
+	blks = maxfsblock - (n_ffree + sblock.fs_frag * n_bfree) - blks;
+	if (bkgrdflag && (files > 0 || blks > 0)) {
+		countdirs = sblock.fs_cstotal.cs_ndir - countdirs;
+		pwarn("Reclaimed: %d directories, %d files, %d fragments\n",
+		    countdirs, files - countdirs, blks);
+	}
 	pwarn("%ld files, %ld used, %ld free ",
 	    n_files, n_blks, n_ffree + sblock.fs_frag * n_bfree);
 	printf("(%d frags, %d blocks, %.1f%% fragmentation)\n",
 	    n_ffree, n_bfree, n_ffree * 100.0 / sblock.fs_dsize);
-	if (debug &&
-	    (n_files -= maxino - ROOTINO - sblock.fs_cstotal.cs_nifree))
-		printf("%d files missing\n", n_files);
 	if (debug) {
-		n_blks += sblock.fs_ncg *
-			(cgdmin(&sblock, 0) - cgsblock(&sblock, 0));
-		n_blks += cgsblock(&sblock, 0) - cgbase(&sblock, 0);
-		n_blks += howmany(sblock.fs_cssize, sblock.fs_fsize);
-		if (n_blks -= maxfsblock - (n_ffree + sblock.fs_frag * n_bfree))
-			printf("%d blocks missing\n", n_blks);
+		if (files < 0)
+			printf("%d inodes missing\n", -files);
+		if (blks < 0)
+			printf("%d blocks missing\n", -blks);
 		if (duplist != NULL) {
 			printf("The following duplicate blocks remain:");
 			for (dp = duplist; dp; dp = dp->next)
@@ -321,7 +365,7 @@ checkfilesys(filesys, mntpt, auxdata, child)
 	/*
 	 * Check to see if the filesystem is mounted read-write.
 	 */
-	if (mntbuf != NULL && (mntbuf->f_flags & MNT_RDONLY) == 0)
+	if (bkgrdflag == 0 && mntp != NULL && (mntp->f_flags & MNT_RDONLY) == 0)
 		resolved = 0;
 	ckfini(resolved);
 
@@ -334,7 +378,7 @@ checkfilesys(filesys, mntpt, auxdata, child)
 		printf("\n***** FILE SYSTEM WAS MODIFIED *****\n");
 	if (rerun)
 		printf("\n***** PLEASE RERUN FSCK *****\n");
-	if (mntbuf != NULL) {
+	if (mntp != NULL) {
 		struct ufs_args args;
 		int ret;
 		/*
@@ -342,16 +386,16 @@ checkfilesys(filesys, mntpt, auxdata, child)
 		 * it unless it is read-write, so we can continue using it
 		 * as safely as possible.
 		 */
-		if (mntbuf->f_flags & MNT_RDONLY) {
+		if (mntp->f_flags & MNT_RDONLY) {
 			args.fspec = 0;
 			args.export.ex_flags = 0;
 			args.export.ex_root = 0;
-			ret = mount("ufs", mntbuf->f_mntonname,
-			    mntbuf->f_flags | MNT_UPDATE | MNT_RELOAD, &args);
+			ret = mount("ufs", mntp->f_mntonname,
+			    mntp->f_flags | MNT_UPDATE | MNT_RELOAD, &args);
 			if (ret == 0)
 				return (0);
 			pwarn("mount reload of '%s' failed: %s\n\n",
-			    mntbuf->f_mntonname, strerror(errno));
+			    mntp->f_mntonname, strerror(errno));
 		}
 		if (!fsmodified)
 			return (0);
