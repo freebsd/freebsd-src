@@ -239,7 +239,7 @@ pipe(td, uap)
 	FILE_LOCK(rf);
 	rf->f_flag = FREAD | FWRITE;
 	rf->f_type = DTYPE_PIPE;
-	rf->f_data = (caddr_t)rpipe;
+	rf->f_data = rpipe;
 	rf->f_ops = &pipeops;
 	FILE_UNLOCK(rf);
 	error = falloc(td, &wf, &fd);
@@ -260,7 +260,7 @@ pipe(td, uap)
 	FILE_LOCK(wf);
 	wf->f_flag = FREAD | FWRITE;
 	wf->f_type = DTYPE_PIPE;
-	wf->f_data = (caddr_t)wpipe;
+	wf->f_data = wpipe;
 	wf->f_ops = &pipeops;
 	FILE_UNLOCK(wf);
 	td->td_retval[1] = fd;
@@ -729,7 +729,7 @@ pipe_clone_write_buffer(wpipe)
 
 	PIPE_GET_GIANT(wpipe);
 	bcopy((caddr_t) wpipe->pipe_map.kva + pos,
-	    (caddr_t) wpipe->pipe_buffer.buffer, size);
+	    wpipe->pipe_buffer.buffer, size);
 	pipe_destroy_write_buffer(wpipe);
 	PIPE_DROP_GIANT(wpipe);
 }
@@ -1235,7 +1235,7 @@ pipe_stat(fp, ub, td)
 {
 	struct pipe *pipe = (struct pipe *)fp->f_data;
 
-	bzero((caddr_t)ub, sizeof(*ub));
+	bzero(ub, sizeof(*ub));
 	ub->st_mode = S_IFIFO;
 	ub->st_blksize = pipe->pipe_buffer.size;
 	ub->st_size = pipe->pipe_buffer.cnt;
@@ -1376,7 +1376,7 @@ pipe_kqfilter(struct file *fp, struct knote *kn)
 	default:
 		return (1);
 	}
-	kn->kn_hook = (caddr_t)cpipe;
+	kn->kn_hook = cpipe;
 
 	PIPE_LOCK(cpipe);
 	SLIST_INSERT_HEAD(&cpipe->pipe_sel.si_note, kn, kn_selnext);
