@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.124 1995/05/11 00:16:36 wollman Exp $
+ *	$Id: machdep.c,v 1.125 1995/05/11 19:26:08 rgrimes Exp $
  */
 
 #include "npx.h"
@@ -905,11 +905,8 @@ die:
 unsigned long	dumpmag = 0x8fca0101UL;	/* magic number for savecore */
 int		dumpsize = 0;		/* also for savecore */
 
-#ifdef DODUMP
 int		dodump = 1;
-#else
-int		dodump = 0;
-#endif
+
 /*
  * Doadump comes here after turning off memory management and
  * getting on the dump stack, either when called above, or by

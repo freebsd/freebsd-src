@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.3 (Berkeley) 1/21/94
- * $Id: conf.h,v 1.11 1995/03/21 11:24:05 dufault Exp $
+ * $Id: conf.h,v 1.12 1995/04/23 09:36:59 bde Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -139,6 +139,7 @@ struct swdevt {
 
 #ifdef KERNEL
 extern struct swdevt swdevt[];
+extern int setdumpdev __P((dev_t));
 
 dev_t	chrtoblk __P((dev_t dev));
 int	isdisk __P((dev_t dev, int type));
