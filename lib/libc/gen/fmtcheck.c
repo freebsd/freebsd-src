@@ -49,10 +49,14 @@ enum __e_fmtcheck_types {
 	FMTCHECK_INT,
 	FMTCHECK_LONG,
 	FMTCHECK_QUAD,
+	FMTCHECK_PTRDIFFT,
+	FMTCHECK_SIZET,
 	FMTCHECK_SHORTPOINTER,
 	FMTCHECK_INTPOINTER,
 	FMTCHECK_LONGPOINTER,
 	FMTCHECK_QUADPOINTER,
+	FMTCHECK_PTRDIFFTPOINTER,
+	FMTCHECK_SIZETPOINTER,
 	FMTCHECK_DOUBLE,
 	FMTCHECK_LONGDOUBLE,
 	FMTCHECK_STRING,
@@ -71,10 +75,10 @@ typedef enum __e_fmtcheck_types EFT;
 static EFT
 get_next_format_from_precision(const char **pf)
 {
-	int		sh, lg, quad, longdouble;
+	int		sh, lg, quad, longdouble, ptrdifft, sizet;
 	const char	*f;
 
-	sh = lg = quad = longdouble = 0;
+	sh = lg = quad = longdouble = ptrdifft = sizet = 0;
 
 	f = *pf;
 	switch (*f) {
@@ -96,6 +100,14 @@ get_next_format_from_precision(const char **pf)
 		f++;
 		quad = 1;
 		break;
+	case 't':
+		f++;
+		ptrdifft = 1;
+		break;
+	case 'z':
+		f++;
+		sizet = 1;
+		break;
 	case 'L':
 		f++;
 		longdouble = 1;
@@ -111,6 +123,10 @@ get_next_format_from_precision(const char **pf)
 			RETURN(pf,f,FMTCHECK_LONG);
 		if (quad)
 			RETURN(pf,f,FMTCHECK_QUAD);
+		if (ptrdifft)
+			RETURN(pf,f,FMTCHECK_PTRDIFFT);
+		if (sizet)
+			RETURN(pf,f,FMTCHECK_SIZET);
 		RETURN(pf,f,FMTCHECK_INT);
 	}
 	if (*f == 'n') {
@@ -122,32 +138,36 @@ get_next_format_from_precision(const char **pf)
 			RETURN(pf,f,FMTCHECK_LONGPOINTER);
 		if (quad)
 			RETURN(pf,f,FMTCHECK_QUADPOINTER);
+		if (ptrdifft)
+			RETURN(pf,f,FMTCHECK_PTRDIFFTPOINTER);
+		if (sizet)
+			RETURN(pf,f,FMTCHECK_SIZETPOINTER);
 		RETURN(pf,f,FMTCHECK_INTPOINTER);
 	}
 	if (strchr("DOU", *f)) {
-		if (sh + lg + quad + longdouble)
+		if (sh + lg + quad + longdouble + ptrdifft + sizet)
 			RETURN(pf,f,FMTCHECK_UNKNOWN);
 		RETURN(pf,f,FMTCHECK_LONG);
 	}
-	if (strchr("eEfg", *f)) {
+	if (strchr("aAeEfFgG", *f)) {
 		if (longdouble)
 			RETURN(pf,f,FMTCHECK_LONGDOUBLE);
-		if (sh + lg + quad)
+		if (sh + lg + quad + ptrdifft + sizet)
 			RETURN(pf,f,FMTCHECK_UNKNOWN);
 		RETURN(pf,f,FMTCHECK_DOUBLE);
 	}
 	if (*f == 'c') {
-		if (sh + lg + quad + longdouble)
+		if (sh + lg + quad + longdouble + ptrdifft + sizet)
 			RETURN(pf,f,FMTCHECK_UNKNOWN);
 		RETURN(pf,f,FMTCHECK_INT);
 	}
 	if (*f == 's') {
-		if (sh + lg + quad + longdouble)
+		if (sh + lg + quad + longdouble + ptrdifft + sizet)
 			RETURN(pf,f,FMTCHECK_UNKNOWN);
 		RETURN(pf,f,FMTCHECK_STRING);
 	}
 	if (*f == 'p') {
-		if (sh + lg + quad + longdouble)
+		if (sh + lg + quad + longdouble + ptrdifft + sizet)
 			RETURN(pf,f,FMTCHECK_UNKNOWN);
 		RETURN(pf,f,FMTCHECK_LONG);
 	}
