@@ -559,36 +559,36 @@ find ${TEMPROOT}/usr/obj -type f -delete 2>/dev/null
 
 # Get ready to start comparing files
 
-# Check umask if we are not doing an autorun
+# Check umask if not specified on the command line,
+# and we are not doing an autorun
 #
-case "${AUTO_RUN}" in
-'')
-  case "${NEW_UMASK}" in
-  '')
-    USER_UMASK=`umask`
-    ;;
-  *)
-    USER_UMASK="${NEW_UMASK}"
-    ;;
-  esac
-
+if [ -z "${NEW_UMASK}" -a -z "${AUTO_RUN}" ]; then
+  USER_UMASK=`umask`
   case "${USER_UMASK}" in
   0022|022) ;;
   *)
     echo ''
-    echo " *** Your umask is currently set to ${USER_UMASK}.  This script installs"
-    echo '     all files with the same user, group, and modes that they'
-    echo "     are created with by ${SOURCEDIR}/Makefile."
+    echo " *** Your umask is currently set to ${USER_UMASK}.  By default, this script"
+    echo "     installs all files with the same user, group and modes that"
+    echo "     they are created with by ${SOURCEDIR}/Makefile, compared to"
+    echo "     a umask of 022.  This umask allows world read permission when"
+    echo "     the file's default permissions have it."
     echo ''
-    echo '     If you would like different permissions for the files or'
-    echo '     directories, you will have to set them after installation.'
+    echo "     No world permissions can sometimes cause problems.  A umask of"
+    echo "     022 will restore the default behavior, but is not mandatory."
+    echo "     /etc/master.passwd is a special case.  Its file permissions"
+    echo "     will be 600 (rw-------) if installed."
     echo ''
-    press_to_continue
+    echo -n "What umask should I use? [${USER_UMASK}] "
+    read NEW_UMASK
+
+    NEW_UMASK="${NEW_UMASK:-$USER_UMASK}"
     ;;
   esac
   echo ''
-  ;;
-esac
+fi
+
+CONFIRMED_UMASK=${NEW_UMASK:-0022}
 
 # Warn users who still have ${DESTDIR}/etc/sysconfig
 #
@@ -622,12 +622,20 @@ if [ -e "${DESTDIR}/etc/sysconfig" ]; then
   esac
 fi
 
-# Use the mode information to install the files
+# Use the umask/mode information to install the files
 # Create directories as needed
 #
 do_install_and_rm () {
   install -m "${1}" "${2}" "${3}" &&
   rm -f "${2}"
+}
+
+# 4095 = "obase=10;ibase=8;07777" | bc
+find_mode () {
+  local OCTAL
+  OCTAL=$(( ~$(echo "obase=10; ibase=8; ${CONFIRMED_UMASK}" | bc) & 4095 &
+    $(echo "obase=10; ibase=8; $(stat -f "%OMp%OLp" ${1})" | bc) )) 
+  printf "%04o\n" ${OCTAL}
 }
 
 mm_install () {
@@ -642,11 +650,11 @@ mm_install () {
   esac
 
   if [ -n "${DESTDIR}${INSTALL_DIR}" -a ! -d "${DESTDIR}${INSTALL_DIR}" ]; then
-    DIR_MODE=`stat -f "%OMp%OLp" "${TEMPROOT}/${INSTALL_DIR}"`
+    DIR_MODE=`find_mode "${TEMPROOT}/${INSTALL_DIR}"`
     install -d -o root -g wheel -m "${DIR_MODE}" "${DESTDIR}${INSTALL_DIR}"
   fi
 
-  FILE_MODE=`stat -f "%OMp%OLp" "${1}"`
+  FILE_MODE=`find_mode "${1}"`
 
   if [ ! -x "${1}" ]; then
     case "${1#.}" in
