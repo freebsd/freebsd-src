@@ -78,9 +78,9 @@ procfs_dostatus(curp, p, pfs, uio)
 		return (EOPNOTSUPP);
 
 	pid = p->p_pid;
-	PROCTREE_LOCK(PT_SHARED);
+	PROC_LOCK(p);
 	ppid = p->p_pptr ? p->p_pptr->p_pid : 0;
-	PROCTREE_LOCK(PT_RELEASE);
+	PROC_UNLOCK(p);
 	pgid = p->p_pgrp->pg_id;
 	sess = p->p_pgrp->pg_session;
 	sid = sess->s_leader ? sess->s_leader->p_pid : 0;
