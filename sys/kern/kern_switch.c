@@ -104,8 +104,8 @@ setrunqueue(struct proc *p)
 	 * collapse the first three classes into a single contiguous
 	 * queue.  XXX FIXME.
 	 */
-	CTR4(KTR_PROC, "setrunqueue: proc %p (pid %d, %s), schedlock %x",
-		p, p->p_pid, p->p_comm, sched_lock.mtx_lock);
+	CTR4(KTR_PROC, "setrunqueue: proc %p (pid %d, %s), schedlock %lx",
+		p, p->p_pid, p->p_comm, (long)sched_lock.mtx_lock);
 	if (p->p_rtprio.type == RTP_PRIO_ITHREAD) {	/* interrupt thread */
 		pri = p->p_rtprio.prio;
 		q = &itqueues[pri];
@@ -142,8 +142,8 @@ remrunqueue(struct proc *p)
 	u_int32_t *which;
 	u_int8_t pri;
 
-	CTR4(KTR_PROC, "remrunqueue: proc %p (pid %d, %s), schedlock %x",
-		p, p->p_pid, p->p_comm, sched_lock.mtx_lock);
+	CTR4(KTR_PROC, "remrunqueue: proc %p (pid %d, %s), schedlock %lx",
+		p, p->p_pid, p->p_comm, (long)sched_lock.mtx_lock);
 	mtx_assert(&sched_lock, MA_OWNED);
 	pri = p->p_rqindex;
 	if (p->p_rtprio.type == RTP_PRIO_ITHREAD) {
@@ -231,8 +231,8 @@ chooseproc(void)
 		q = &idqueues[pri];
 		which = &idqueuebits;
 	} else {
-		CTR1(KTR_PROC, "chooseproc: idleproc, schedlock %x",
-			sched_lock.mtx_lock);
+		CTR1(KTR_PROC, "chooseproc: idleproc, schedlock %lx",
+			(long)sched_lock.mtx_lock);
 		idleproc->p_stat = SRUN;
 		return idleproc;
 	}
@@ -248,8 +248,8 @@ chooseproc(void)
 		}
 	}
 #endif
-	CTR4(KTR_PROC, "chooseproc: proc %p (pid %d, %s), schedlock %x",
-		p, p->p_pid, p->p_comm, sched_lock.mtx_lock);
+	CTR4(KTR_PROC, "chooseproc: proc %p (pid %d, %s), schedlock %lx",
+		p, p->p_pid, p->p_comm, (long)sched_lock.mtx_lock);
 	KASSERT(p, ("chooseproc: no proc on busy queue"));
 	TAILQ_REMOVE(q, p, p_procq);
 	if (TAILQ_EMPTY(q))
