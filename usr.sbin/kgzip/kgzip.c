@@ -47,11 +47,9 @@ static const char rcsid[] =
 #define SFX_KGZ 	".kgz"	/* Filename suffix: executable */
 #define SFX_MAX 	5	/* Size of larger filename suffix */
 
-#define TMP_PREFIX	"kgz"	/* Temporary file prefix */
-
 const char *loader = "/usr/lib/kgzldr.o";  /* Default loader */
 
-static const char *tname;	/* Name of temporary file */
+char *tname;			/* Name of temporary file */
 
 static void cleanup(void);
 static void mk_fn(int, const char *, const char *, char *[]);
@@ -67,6 +65,12 @@ main(int argc, char *argv[])
     struct kgz_hdr kh;
     const char *output;
     int cflag, vflag, c;
+
+    if (getenv("TMPDIR") == NULL)
+	tname = strdup("/tmp/kgzXXXXXXXXXX");
+    else
+	if (asprintf(&tname, "%s/kgzXXXXXXXXXX", getenv("TMPDIR")) == -1)
+	    errx(1, "Out of memory");
 
     output = NULL;
     cflag = vflag = 0;
@@ -122,7 +126,7 @@ mk_fn(int cflag, const char *f1, const char *f2, char *fn[])
 {
     const char *p, *s;
     size_t n;
-    int i;
+    int i, fd;
 
     i = 0;
     s = strrchr(f1, 0);
@@ -133,8 +137,9 @@ mk_fn(int cflag, const char *f1, const char *f2, char *fn[])
     }
     fn[i++] = (char *)f1;
     if (i == FN_OBJ && !cflag) {
-	if (!(tname = tempnam(NULL, TMP_PREFIX)))
+	if ((fd = mkstemp(tname)) == -1)
 	    err(1, NULL);
+	close(fd);
 	fn[i++] = (char *)tname;
     }
     if (!(fn[i] = (char *)f2)) {
