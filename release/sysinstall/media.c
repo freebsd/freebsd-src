@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.24.2.7 1995/06/04 07:06:46 jkh Exp $
+ * $Id: media.c,v 1.24.2.8 1995/06/04 22:24:46 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -82,38 +82,26 @@ mediaSetCDROM(char *str)
     Device **devs;
     int cnt;
 
-    if (OnCDROM == TRUE) {
-	static Device bootCD;
-
-	/* This may need to be extended a little, but the basic idea is sound */
-	strcpy(bootCD.name, "bootCD");
-	bootCD.type = DEVICE_TYPE_CDROM;
-	bootCD.get = mediaGetCDROM;
-	mediaDevice = &bootCD;
-	return 1;
+    devs = deviceFind(NULL, DEVICE_TYPE_CDROM);
+    cnt = deviceCount(devs);
+    if (!cnt) {
+	msgConfirm("No CDROM devices found!  Please check that your system's\nconfiguration is correct and that the CDROM drive is of a supported\ntype.  For more information, consult the hardware guide\nin the Doc menu.");
+	return 0;
     }
-    else {
-	devs = deviceFind(NULL, DEVICE_TYPE_CDROM);
-	cnt = deviceCount(devs);
-	if (!cnt) {
-	    msgConfirm("No CDROM devices found!  Please check that your system's\nconfiguration is correct and that the CDROM drive is of a supported\ntype.  For more information, consult the hardware guide\nin the Doc menu.");
+    else if (cnt > 1) {
+	DMenu *menu;
+	int status;
+	
+	menu = deviceCreateMenu(&MenuMediaCDROM, DEVICE_TYPE_CDROM, cdromHook);
+	if (!menu)
+	    msgFatal("Unable to create CDROM menu!  Something is seriously wrong.");
+	status = dmenuOpenSimple(menu);
+	free(menu);
+	if (!status)
 	    return 0;
-        }
-	else if (cnt > 1) {
-	    DMenu *menu;
-	    int status;
-
-	    menu = deviceCreateMenu(&MenuMediaCDROM, DEVICE_TYPE_CDROM, cdromHook);
-	    if (!menu)
-		msgFatal("Unable to create CDROM menu!  Something is seriously wrong.");
-	    status = dmenuOpenSimple(menu);
-	    free(menu);
-	    if (!status)
-		return 0;
-	}
-	else
-	    mediaDevice = devs[0];
     }
+    else
+	mediaDevice = devs[0];
     return mediaDevice ? 1 : 0;
 }
 
@@ -292,7 +280,10 @@ mediaSetUFS(char *str)
 	return 0;
     strcpy(ufsDevice.name, "ufs");
     ufsDevice.type = DEVICE_TYPE_UFS;
+    ufsDevice.init = dummyInit;
     ufsDevice.get = mediaGetUFS;
+    ufsDevice.close = dummyClose;
+    ufsDevice.shutdown = dummyShutdown;
     ufsDevice.private = strdup(val);
     mediaDevice = &ufsDevice;
     return 1;
@@ -313,6 +304,7 @@ mediaSetNFS(char *str)
     nfsDevice.type = DEVICE_TYPE_NFS;
     nfsDevice.init = mediaInitNFS;
     nfsDevice.get = mediaGetNFS;
+    nfsDevice.close = dummyClose;
     nfsDevice.shutdown = mediaShutdownNFS;
     nfsDevice.private = mediaDevice;
     mediaDevice = &nfsDevice;

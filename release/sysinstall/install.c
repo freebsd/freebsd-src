@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.70.2.24 1995/06/04 22:46:45 jkh Exp $
+ * $Id: install.c,v 1.70.2.25 1995/06/05 00:53:13 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -429,17 +429,6 @@ root_extract(void)
     if (alreadyExtracted)
 	return TRUE;
 
-    if (OnCDROM) {
-	fd = open("/floppies/root.flp", O_RDONLY);
-	if (fd != -1) {
-	    msgNotify("Extracting root image from CDROM..");
-	    alreadyExtracted = mediaExtractDist("/", fd);
-	    close(fd);
-	    return TRUE;
-	}
-	else /* Must not be a FreeBSD CDROM */
-	    OnCDROM = FALSE;
-    }
     if (mediaDevice) {
 	if (isDebug())
 	    msgDebug("Attempting to extract root image from %s device\n", mediaDevice->description);

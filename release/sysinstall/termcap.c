@@ -29,7 +29,7 @@ set_termcap(void)
     char           *term;
     int		   stat;
 
-    OnVTY = OnSerial = RunningAsInit = FALSE;
+    OnVTY = RunningAsInit = FALSE;
 
     term = getenv("TERM");
     stat = ioctl(STDERR_FILENO, GIO_COLOR, &ColorDisplay);
@@ -48,7 +48,6 @@ set_termcap(void)
 	}
 	if (DebugFD == -1)
 	    DebugFD = dup(1);
-	OnSerial = TRUE;
     }
     else {
 	int i, on;

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.43.2.7 1995/06/01 09:26:15 jkh Exp $
+ * $Id: system.c,v 1.43.2.8 1995/06/02 00:45:18 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -48,18 +48,9 @@ systemInitialize(int argc, char **argv)
     /* Are we running as init? */
     if (getpid() == 1) {
 	setsid();
-	if (argc > 1 && strchr(argv[1],'C')) {
-	    /* Kernel told us that we are on a CDROM root */
-	    close(0); open("/bootcd/dev/console", O_RDWR);
-	    close(1); dup(0);
-	    close(2); dup(0);
-	    OnCDROM = TRUE;
-	    chroot("/bootcd");
-	} else {
-	    close(0); open("/dev/ttyv0", O_RDWR);
-	    close(1); dup(0);
-	    close(2); dup(0);
-	}
+	close(0); open("/dev/ttyv0", O_RDWR);
+	close(1); dup(0);
+	close(2); dup(0);
 	printf("%s running as init\n", argv[0]);
 
 	i = ioctl(0, TIOCSCTTY, (char *)NULL);
