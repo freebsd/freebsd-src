@@ -62,9 +62,7 @@ int
 _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	       void *(*start_routine) (void *), void *arg)
 {
-	int		f_gc = 0;
 	int             ret = 0;
-	pthread_t       gc_thread;
 	pthread_t       new_thread;
 	pthread_attr_t	pattr;
 	int		flags;
@@ -148,12 +146,6 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 
 	THREAD_LIST_LOCK;
 
-	/*
-	 * Check if the garbage collector thread
-	 * needs to be started.
-	 */
-	f_gc = (TAILQ_FIRST(&_thread_list) == _thread_initial);
-
 	/* Add the thread to the linked list of all threads: */
 	TAILQ_INSERT_HEAD(&_thread_list, new_thread, tle);
 
@@ -179,13 +171,6 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 
 	/* Return a pointer to the thread structure: */
 	(*thread) = new_thread;
-
-	/*
-	 * Start a garbage collector thread
-	 * if necessary.
-	 */
-	if (f_gc && pthread_create(&gc_thread,NULL, _thread_gc,NULL) != 0)
-		PANIC("Can't create gc thread");
 
 	return (0);
 }

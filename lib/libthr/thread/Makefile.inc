@@ -19,7 +19,6 @@ SRCS+= \
 	thr_equal.c \
 	thr_exit.c \
 	thr_find_thread.c \
-	thr_gc.c \
 	thr_getprio.c \
 	thr_info.c \
 	thr_init.c \
