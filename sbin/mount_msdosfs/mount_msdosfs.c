@@ -85,9 +85,7 @@ static void	usage(void) __dead2;
 static int	set_charset(struct msdosfs_args *);
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	struct msdosfs_args args;
 	struct stat sb;
