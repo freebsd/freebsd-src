@@ -249,6 +249,7 @@ compress(in, out, bits)
 		if (!force && sb.st_size >= isb.st_size) {
 			if (verbose)
 		(void)printf("%s: file would grow; left unmodified\n", in);
+			eval = 2;
 			if (unlink(out))
 				cwarn("%s", out);
 			goto err;
