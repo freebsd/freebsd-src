@@ -1,0 +1,10 @@
+./"index"16t"captain"nD20C
++/"points"8t"loadL"8t"loadR"8t"readyL"8t"readyL"ndbbbb2+36+36+
++/"struck"8t"capture"8t"pcrew"8t"movebuf"nb3+pd10C
++/"drift"8t"nfoul"8t"ngrap"nb1+dd
++/"foul:"8t"count"8t"turn"16t"count"8t"turn"
++,5/8tdd16tddn
++/"grap:"8t"count"8t"turn"16t"count"8t"turn"
++,5/8tdd16tddn
++/"RH"8t"RG"8t"RR"8t"FS"8t"explode"8t"sink"n6b
++/"dir"8t"col"8t"row"8t"loadwit"8t"stern"nb+2d2b
