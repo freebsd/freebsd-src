@@ -306,7 +306,9 @@ struct sockaddr_in {
 	char	sin_zero[8];
 };
 
+#ifndef INET_ADDRSTRLEN
 #define	INET_ADDRSTRLEN                 16
+#endif
 
 /*
  * Options for use with [gs]etsockopt at the IP level.
