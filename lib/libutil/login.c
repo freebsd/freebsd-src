@@ -44,19 +44,25 @@ static char sccsid[] = "@(#)login.c	8.1 (Berkeley) 6/4/93";
 #include <sys/types.h>
 
 #include <fcntl.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <utmp.h>
 #include <libutil.h>
+#include <stdlib.h>
+#include <ttyent.h>
+#include <unistd.h>
+#include <utmp.h>
 
 void
 login(ut)
 	struct utmp *ut;
 {
+	struct ttyent *ty;
 	int fd;
 	int tty;
 
-	tty = ttyslot();
+	setttyent();
+	for (tty = 1; (ty = getttyent()) != NULL; ++tty)
+		if (strcmp(ty->ty_name, ut->ut_line) == 0)
+			break;
+	endttyent();
 	if (tty > 0 && (fd = open(_PATH_UTMP, O_WRONLY|O_CREAT, 0644)) >= 0) {
 		(void)lseek(fd, (off_t)(tty * sizeof(struct utmp)), L_SET);
 		(void)write(fd, ut, sizeof(struct utmp));
