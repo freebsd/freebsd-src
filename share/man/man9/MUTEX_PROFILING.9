@@ -87,12 +87,18 @@ of monitoring.
 Since it would not be possible to call
 .Xr malloc 9
 from within the mutex profiling code, this is a static limit.
+The number of records can be changed with the
+.Dv MPROF_BUFFERS
+kernel option.
 .It Va debug.mutex.prof.rejected
 The number of acquisition points that were ignored after the table
 filled up.
 .It Va debug.mutex.prof.hashsize
 The size of the hash table used to map acquisition points to
 statistics records.
+The hash size can be changed with the
+.Dv MPROF_HASH_SIZE
+kernel option.
 .It Va debug.mutex.prof.collisions
 The number of hash collisions in the acquisition point hash table.
 .It Va debug.mutex.prof.stats
