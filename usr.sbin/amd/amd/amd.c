@@ -37,7 +37,7 @@
  *
  *	@(#)amd.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: amd.c,v 1.2 1995/08/24 10:22:06 dfr Exp $
+ * $Id: amd.c,v 1.3 1996/08/13 09:21:28 peter Exp $
  *
  */
 
@@ -59,7 +59,6 @@ static char copyright[] =
 #include <setjmp.h>
 
 char pid_fsname[16 + MAXHOSTNAMELEN];	/* "kiska.southseas.nz:(pid%d)" */
-char *progname;				/* "amd" */
 #ifdef HAS_HOST
 #ifdef HOST_EXEC
 char *host_helper;
@@ -207,20 +206,6 @@ char *argv[];
 	 * Set processing status.
 	 */
 	amd_state = Start;
-
-	/*
-	 * Determine program name
-	 */
-	if (argv[0]) {
-		progname = strrchr(argv[0], '/');
-		if (progname && progname[1])
-			progname++;
-		else
-			progname = argv[0];
-	}
-
-	if (!progname)
-		progname = "amd";
 
 	/*
 	 * Initialise process id.  This is kept

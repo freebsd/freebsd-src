@@ -34,25 +34,26 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	@(#)get_args.c	8.1 (Berkeley) 6/6/93
- *
- * $Id: get_args.c,v 1.1.1.1 1994/05/26 05:22:01 rgrimes Exp $
- *
  */
+
+#ifndef lint
+#if 0
+static char sccsid[] = "@(#)get_args.c  8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 /*
  * Argument decode
  */
 
+#include <stdlib.h>
 #include "am.h"
 #ifdef HAS_SYSLOG
 #include <syslog.h>
 #endif /* HAS_SYSLOG */
 #include <sys/stat.h>
-
-extern int optind;
-extern char *optarg;
 
 #if defined(DEBUG) && defined(PARANOID)
 char **gargv;
@@ -104,23 +105,22 @@ char *opt;
 }
 #endif /* DEBUG */
 
+static void usage __P((void));
+
 void get_args(c, v)
 int c;
 char *v[];
 {
 	int opt_ch;
-	int usage = 0;
+	int usageflg = 0;
 	char *logfile = 0;
 	char *sub_domain = 0;
 
 	while ((opt_ch = getopt(c, v, "mnprva:c:d:h:k:l:t:w:x:y:C:D:")) !=  -1)
 	switch (opt_ch) {
 	case 'a':
-		if (*optarg != '/') {
-			fprintf(stderr, "%s: -a option must begin with a '/'\n",
-					progname);
-			exit(1);
-		}
+		if (*optarg != '/')
+			errx(1, "-a option must begin with a '/'");
 		auto_dir = optarg;
 		break;
 
@@ -199,7 +199,7 @@ char *v[];
 		break;
 
 	case 'x':
-		usage += switch_option(optarg);
+		usageflg += switch_option(optarg);
 		break;
 
 	case 'y':
@@ -216,30 +216,30 @@ char *v[];
 
 	case 'D':
 #ifdef DEBUG
-		usage += debug_option(optarg);
+		usageflg += debug_option(optarg);
 #else
-		fprintf(stderr, "%s: not compiled with DEBUG option -- sorry.\n", progname);
+		warnx("not compiled with DEBUG option -- sorry");
 #endif /* DEBUG */
 		break;
 
 	default:
-		usage = 1;
+		usageflg = 1;
 		break;
 	}
 
 	if (xlog_level_init == ~0) {
 		(void) switch_option("");
 #ifdef DEBUG
-		usage += switch_option("debug");
+		usageflg += switch_option("debug");
 #endif /* DEBUG */
 	} else {
 #ifdef DEBUG
-		usage += switch_option("debug");
+		usageflg += switch_option("debug");
 #endif /* DEBUG */
 	}
 
-	if (usage)
-		goto show_usage;
+	if (usageflg)
+		usage();
 
 	while (optind <= c-2) {
 		char *dir = v[optind++];
@@ -310,15 +310,20 @@ char *v[];
 			afs_retrans = 3;	/* XXX */
 		return;
 	}
+	usage();
+}
 
-show_usage:
-	fprintf(stderr,
-"Usage: %s [-mnprv] [-a mnt_point] [-c cache_time] [-d domain]\n\
-\t[-k kernel_arch] [-l logfile|\"syslog\"] [-t afs_timeout]\n\
-\t[-w wait_timeout] [-C cluster_name]", progname);
+
+static void
+usage()
+{
+	fprintf(stderr, "%s\n%s\n%s",
+	"usage: amd [-mnprv] [-a mnt_point] [-c cache_time] [-d domain]", 
+	"           [-k kernel_arch] [-l logfile|\"syslog\"] [-t afs_timeout]",
+	"           [-w wait_timeout] [-C cluster_name]");
 
 #if defined(HAS_HOST) && defined(HOST_EXEC)
-	fputs(" [-h host_helper]\n", stderr);
+	fputs(" [-h host_helper]", stderr);
 #endif /* defined(HAS_HOST) && defined(HOST_EXEC) */
 
 #ifdef HAS_NIS_MAPS
@@ -331,6 +336,6 @@ show_usage:
 #ifdef DEBUG
 	show_opts('D', dbg_opt);
 #endif /* DEBUG */
-	fprintf(stderr, "\t{directory mapname [-map_options]} ...\n");
+	fprintf(stderr, "           {directory mapname [-map_options]} ...\n");
 	exit(1);
 }
