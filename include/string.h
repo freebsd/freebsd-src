@@ -73,7 +73,7 @@ char	*strtok __P((char *, const char *));
 size_t	 strxfrm __P((char *, const char *, size_t));
 
 /* Nonstandard routines */
-#ifndef _ANSI_SOURCE
+#if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
 int	 bcmp __P((const void *, const void *, size_t));
 void	 bcopy __P((const void *, void *, size_t));
 void	 bzero __P((void *, size_t));
