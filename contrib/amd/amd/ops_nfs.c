@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Erez Zadok
+ * Copyright (c) 1997-2001 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: ops_nfs.c,v 1.5 1999/03/13 17:03:28 ezk Exp $
+ * $Id: ops_nfs.c,v 1.6.2.3 2001/04/14 21:08:22 ezk Exp $
  *
  */
 
@@ -167,7 +167,7 @@ find_nfs_fhandle_cache(voidp idv, int done)
  * Called when a filehandle appears
  */
 static void
-got_nfs_fh(voidp pkt, int len, struct sockaddr_in * sa, struct sockaddr_in * ia, voidp idv, int done)
+got_nfs_fh(voidp pkt, int len, struct sockaddr_in *sa, struct sockaddr_in *ia, voidp idv, int done)
 {
   fh_cache *fp;
 
@@ -397,14 +397,14 @@ make_nfs_auth(void)
 
 #ifdef HAVE_TRANSPORT_TYPE_TLI
   if (gopt.flags & CFM_FULLY_QUALIFIED_HOSTS) {
-    plog(XLOG_INFO, "Using NFS auth for fqhn \"%s\"", hostd);
+    plog(XLOG_INFO, "Using NFS auth for FQHN \"%s\"", hostd);
     nfs_auth = authsys_create(hostd, 0, 0, 1, &group_wheel);
   } else {
     nfs_auth = authsys_create_default();
   }
 #else /* not HAVE_TRANSPORT_TYPE_TLI */
   if (gopt.flags & CFM_FULLY_QUALIFIED_HOSTS) {
-    plog(XLOG_INFO, "Using NFS auth for fqhn \"%s\"", hostd);
+    plog(XLOG_INFO, "Using NFS auth for FQHN \"%s\"", hostd);
     nfs_auth = authunix_create(hostd, 0, 0, 1, &group_wheel);
   } else {
     nfs_auth = authunix_create_default();
@@ -664,7 +664,7 @@ mount_nfs_fh(am_nfs_handle_t *fhp, char *dir, char *fs_name, char *opts, mntfs *
 #ifdef DEBUG
   amuDebug(D_TRACE) {
     print_nfs_args(&nfs_args, nfs_version);
-    plog(XLOG_DEBUG, "Generic mount flags 0x%x", genflags);
+    plog(XLOG_DEBUG, "Generic mount flags 0x%x used for NFS mount", genflags);
   }
 #endif /* DEBUG */
   error = mount_fs(&mnt, genflags, (caddr_t) &nfs_args, retry, type,

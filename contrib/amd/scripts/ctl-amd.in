@@ -1,13 +1,13 @@
 #!/bin/sh
 # control starting, stopping, or restarting amd.
-# usage: ctl-amd [start | stop | restart]
+# usage: ctl-amd [start|stop|status|restart|condrestart|reload]
 #
 # Package:	am-utils-6.0
 # Author:	Erez Zadok <ezk@cs.columbia.edu>
 #
 # chkconfig: - 72 28
 # description: Runs the automount daemon that mounts devices and NFS hosts \
-#              on demand.
+#	       on demand.
 # processname: amd
 # config: /etc/amd.conf
 #
@@ -85,9 +85,7 @@ fi
 
 case "$1" in
 'start')
-	#
 	# Start the amd automounter.
-	#
 	if [ -x @sbindir@/amd ]
 	then
 		# do not specify full path of amd so killproc() works
@@ -115,7 +113,37 @@ case "$1" in
 	fi
 	;;
 
+'condrestart')
+     if [ -f /var/lock/subsys/amd ]; then
+	    ctl-amd stop
+	    ctl-amd start
+	fi
+     ;;
+
+'reload')
+	amq -f
+	;;
+
+'status')
+	# run amq -v to produce status
+	pid=`amq -p 2>/dev/null`
+	if [ $? = 0 ]
+	then
+		echo "amd (pid $pid) is running..."
+	else
+		echo "amd is stopped"
+	fi
+	;;
+
+# start_msg and stop_msg are for HPUX
+'start_msg')
+	echo "Start am-utils 6.0 automounter"
+	;;
+'stop_msg')
+	echo "Stop am-utils 6.0 automounter"
+	;;
+
 *)
-	echo "Usage: @sbindir@/ctl-amd [ start | stop | restart ]"
+	echo "Usage: @sbindir@/ctl-amd [start|stop|status|restart|condrestart|reload]"
 	;;
 esac

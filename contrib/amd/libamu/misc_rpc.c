@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Erez Zadok
+ * Copyright (c) 1997-2001 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: misc_rpc.c,v 1.2 1999/01/10 21:54:37 ezk Exp $
+ * $Id: misc_rpc.c,v 1.4.2.1 2001/01/10 03:23:39 ezk Exp $
  *
  */
 
@@ -165,4 +165,40 @@ make_rpc_packet(char *buf, int buflen, u_long proc, struct rpc_msg *mp, voidp ar
   xdr_destroy(&msg_xdr);
 
   return len;
+}
+
+
+/* get uid/gid from RPC credentials */
+int
+getcreds(struct svc_req *rp, uid_t *u, gid_t *g, SVCXPRT *nfsxprt)
+{
+  struct authunix_parms *aup = (struct authunix_parms *) NULL;
+#ifdef HAVE_RPC_AUTH_DES_H
+  struct authdes_cred *adp;
+#endif /* HAVE_RPC_AUTH_DES_H */
+
+  switch (rp->rq_cred.oa_flavor) {
+
+  case AUTH_UNIX:
+    aup = (struct authunix_parms *) rp->rq_clntcred;
+    *u = aup->aup_uid;
+    *g = aup->aup_gid;
+    break;
+
+#ifdef HAVE_RPC_AUTH_DES_H
+  case AUTH_DES:
+    adp = (struct authdes_cred *) rp->rq_clntcred;
+    *g = INVALIDID;		/* some unknown group id */
+    if (sscanf(adp->adc_fullname.name, "unix.%lu@", (u_long *) u) == 1)
+        break;
+    /* fall through */
+#endif /* HAVE_RPC_AUTH_DES_H */
+
+  default:
+    *u = *g = INVALIDID;	/* just in case */
+    svcerr_weakauth(nfsxprt);
+    return -1;
+  }
+
+  return 0;			/* everything is ok */
 }
