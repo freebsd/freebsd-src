@@ -281,6 +281,8 @@ MBR or
 .Ar none
 to indicate that no change to the boot manager is desired.
 Default: none.
+.It diskInteractive
+If set, bring up the interactive disk partition editor.
 .El
 .Pp
 Note: Nothing is actually written to disk by this function, a explicit call to
@@ -356,6 +358,12 @@ and not to attempt to newfs it (not that
 would attempt this for a DOS partition in any case, but it could just
 as easily be an existing UFS partition being named here and the 2nd
 field is non-optional).
+.Pp
+You can also set the
+.Ar diskInteractive
+variable to request that the disk label editor use an interactive dialog
+to partition the disk instead of using variables to explicitly layout the
+disk as described above.
 .Pp
 Note:  No file system data is actually written to disk until an
 explicit call to
@@ -896,6 +904,15 @@ from a boot floppy, very minimal expectations should
 be made as to what's available until/unless a relatively
 full system installation has just been done.
 .El
+.It tcpMenuSelect
+Configure a network device.
+.Pp
+.Sy Variables :
+Same as for
+.Ar mediaSetFTP
+except that
+.Ar _ftpPath
+is not used.
 .El
 .Sh FILES
 This utility may edit the contents of
