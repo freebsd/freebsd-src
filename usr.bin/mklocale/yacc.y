@@ -36,9 +36,15 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)yacc.y	8.1 (Berkeley) 6/6/93";
-static char rcsid[] = "$FreeBSD$";
+#endif /* 0 */
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+#include <arpa/inet.h>
 
 #include <ctype.h>
 #include <rune.h>
@@ -46,20 +52,30 @@ static char rcsid[] = "$FreeBSD$";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "ldef.h"
+#include "extern.h"
 
-char	*locale_file = "<stdout>";
+static void *xmalloc(unsigned int sz);
+static unsigned long *xlalloc(unsigned int sz);
+void yyerror(const char *s);
+static unsigned long *xrelalloc(unsigned long *old, unsigned int sz);
+static void dump_tables(void);
+static void cleanout(void);
 
-rune_map	maplower = { 0, };
-rune_map	mapupper = { 0, };
-rune_map	types = { 0, };
+const char	*locale_file = "<stdout>";
 
-_RuneLocale	new_locale = { 0, };
+rune_map	maplower = { { 0 }, NULL };
+rune_map	mapupper = { { 0 }, NULL };
+rune_map	types = { { 0 }, NULL };
 
-void set_map __P((rune_map *, rune_list *, unsigned long));
-void set_digitmap __P((rune_map *, rune_list *));
-void add_map __P((rune_map *, rune_list *, unsigned long));
+_RuneLocale	new_locale = { "", "", NULL, NULL, 0, {}, {}, {},
+	{0, NULL}, {0, NULL}, {0, NULL}, NULL, 0 };
+
+void set_map(rune_map *, rune_list *, unsigned long);
+void set_digitmap(rune_map *, rune_list *);
+void add_map(rune_map *, rune_list *, unsigned long);
 %}
 
 %union	{
@@ -182,17 +198,24 @@ map	:	LBRK RUNE RUNE RBRK
 	;
 %%
 
-int debug = 0;
-FILE *fp = stdout;
+int debug;
+FILE *fp;
 
-main(ac, av)
-	int ac;
-	char *av[];
+static void
+cleanout(void)
+{
+    if (fp != NULL)
+	unlink(locale_file);
+}
+
+int
+main(int ac, char *av[])
 {
     int x;
 
     extern char *optarg;
     extern int optind;
+    fp = stdout;
 
     while ((x = getopt(ac, av, "do:")) != EOF) {
 	switch(x) {
@@ -205,10 +228,11 @@ main(ac, av)
 		perror(locale_file);
 		exit(1);
 	    }
+	    atexit(cleanout);
 	    break;
 	default:
 	usage:
-	    fprintf(stderr, "Usage: mklocale [-d] [-o output] [source]\n");
+	    fprintf(stderr, "usage: mklocale [-d] [-o output] [source]\n");
 	    exit(1);
 	}
     }
@@ -233,39 +257,42 @@ main(ac, av)
     memcpy(new_locale.magic, _RUNE_MAGIC_1, sizeof(new_locale.magic));
 
     yyparse();
+
+    return(0);
 }
 
+void
 yyerror(s)
-	char *s;
+	const char *s;
 {
     fprintf(stderr, "%s\n", s);
 }
 
-void *
+static void *
 xmalloc(sz)
 	unsigned int sz;
 {
     void *r = malloc(sz);
     if (!r) {
 	perror("xmalloc");
-	abort();
+	exit(1);
     }
     return(r);
 }
 
-unsigned long *
+static unsigned long *
 xlalloc(sz)
 	unsigned int sz;
 {
     unsigned long *r = (unsigned long *)malloc(sz * sizeof(unsigned long));
     if (!r) {
 	perror("xlalloc");
-	abort();
+	exit(1);
     }
     return(r);
 }
 
-unsigned long *
+static unsigned long *
 xrelalloc(old, sz)
 	unsigned long *old;
 	unsigned int sz;
@@ -274,7 +301,7 @@ xrelalloc(old, sz)
 						sz * sizeof(unsigned long));
     if (!r) {
 	perror("xrelalloc");
-	abort();
+	exit(1);
     }
     return(r);
 }
@@ -523,10 +550,10 @@ add_map(map, list, flag)
     }
 }
 
-void
+static void
 dump_tables()
 {
-    int x;
+    int x, first_d, curr_d;
     rune_list *list;
 
     /*
@@ -535,11 +562,40 @@ dump_tables()
     for(list = types.root; list; list = list->next) {
 	list->map = list->types[0];
 	for (x = 1; x < list->max - list->min + 1; ++x) {
-	    if (list->types[x] != list->map) {
+	    if ((rune_t)list->types[x] != list->map) {
 		list->map = 0;
 		break;
 	    }
 	}
+    }
+
+    first_d = -1;
+    for (x = 0; x < _CACHED_RUNES; ++x) {
+	unsigned long r = types.map[x];
+
+	if (r & _CTYPE_D) {
+		if (first_d < 0)
+			first_d = curr_d = x;
+		else if (x != curr_d + 1) {
+			fprintf(stderr, "Error: DIGIT range is not contiguous\n");
+			exit(1);
+		} else if (x - first_d > 9) {
+			fprintf(stderr, "Error: DIGIT range is too big\n");
+			exit(1);
+		} else
+			curr_d++;
+		if (!(r & _CTYPE_X)) {
+			fprintf(stderr, "Error: DIGIT range is not a subset of XDIGIT range\n");
+			exit(1);
+		}
+	}
+    }
+    if (first_d < 0) {
+	fprintf(stderr, "Error: no DIGIT range defined in the single byte area\n");
+	exit(1);
+    } else if (curr_d - first_d < 9) {
+	fprintf(stderr, "Error: DIGIT range is too small in the single byte area\n");
+	exit(1);
     }
 
     new_locale.invalid_rune = htonl(new_locale.invalid_rune);
@@ -680,7 +736,11 @@ dump_tables()
 	perror(locale_file);
 	exit(1);
     }
-    fclose(fp);
+    if (fclose(fp) != 0) {
+	perror(locale_file);
+	exit(1);
+    }
+    fp = NULL;
 
     if (!debug)
 	return;
