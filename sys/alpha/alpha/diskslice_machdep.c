@@ -35,8 +35,8 @@
  *
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	from: i386/isa Id: diskslice_machdep.c,v 1.30 1998/07/25 16:35:06 bde Exp
- *	$Id: diskslice_machdep.c,v 1.1 1998/06/10 10:52:32 dfr Exp $
+ *	from: i386/isa Id: diskslice_machdep.c,v 1.31 1998/08/10 07:22:14 phk Exp
+ *	$Id: diskslice_machdep.c,v 1.2 1998/07/31 09:13:25 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -44,6 +44,7 @@
 #include <sys/conf.h>
 #include <sys/disklabel.h>
 #define	DOSPTYP_EXTENDED	5
+#define	DOSPTYP_EXTENDEDX	15
 #define	DOSPTYP_ONTRACK		84
 #include <sys/diskslice.h>
 #include <sys/malloc.h>
@@ -326,7 +327,8 @@ reread_mbr:
 	/* Handle extended partitions. */
 	sp -= NDOSPART;
 	for (dospart = 0; dospart < NDOSPART; dospart++, sp++)
-		if (sp->ds_type == DOSPTYP_EXTENDED)
+		if (sp->ds_type == DOSPTYP_EXTENDED || 
+                    sp->ds_type == DOSPTYP_EXTENDEDX)
 			extended(dname, bp->b_dev, strat, lp, ssp,
 				 sp->ds_offset, sp->ds_size, sp->ds_offset,
 				 max_nsectors, max_ntracks, mbr_offset);
@@ -398,7 +400,8 @@ extended(dname, dev, strat, lp, ssp, ext_offset, ext_size, base_ext_offset,
 		if (dp->dp_scyl == 0 && dp->dp_shd == 0 && dp->dp_ssect == 0
 		    && dp->dp_start == 0 && dp->dp_size == 0)
 			continue;
-		if (dp->dp_typ == DOSPTYP_EXTENDED) {
+		if (dp->dp_typ == DOSPTYP_EXTENDED || 
+                    dp->dp_typ == DOSPTYP_EXTENDEDX) {
 			char buf[32];
 
 			sname = dsname(dname, dkunit(dev), WHOLE_DISK_SLICE,
