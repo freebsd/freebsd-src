@@ -44,7 +44,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: adv_isa.c,v 1.3 1997/02/22 09:35:51 peter Exp $
+ *      $Id: adv_isa.c,v 1.4 1998/09/15 07:03:39 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -149,6 +149,13 @@ advisaprobe(struct isa_device *id)
 		if (port_addr == 0)
 			/* Already been attached */
 			continue;
+		/*
+		 * Make sure that we do not conflict with another device's
+		 * I/O address.
+		 */
+		if (haveseen_isadev(id, CC_IOADDR))
+			continue;
+
 		if (adv_find_signature(I386_BUS_SPACE_IO, port_addr)) {
 			/*
 			 * Got one.  Now allocate our softc
@@ -263,6 +270,18 @@ advisaprobe(struct isa_device *id)
 
 			adv->overrun_physbase = overrun_physbase;
 			
+			/*
+			 * OK, check to make sure that we're not stepping on
+			 * someone else's IRQ or DRQ
+			 */
+			if (haveseen_isadev(id, CC_DRQ)) {
+				printf("advisaprobe: Aha card at I/O 0x%x's "
+					"drq %d conflicts, ignoring card.\n", 
+					id->id_iobase, id->id_drq);
+				adv_free(adv);
+				return 0;
+			}
+
 			if (adv_init(adv) != 0) {
 				adv_free(adv);
 				return (0);
@@ -295,6 +314,7 @@ advisaprobe(struct isa_device *id)
 				id->id_irq = 1 << adv_get_chip_irq(adv);
 			else
 				adv_set_chip_irq(adv, ffs(id->id_irq) - 1);
+
 			id->id_intr = adv_isa_intr;
 			
 			/* Mark as probed */
