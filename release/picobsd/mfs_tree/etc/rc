@@ -6,8 +6,8 @@ trap : 3
 
 HOME=/; export HOME
 PATH=/bin; export PATH
-dev=`sysctl -n kern.bootdevname`
-[ -z ${dev} ] && dev="/dev/fd0"
+dev=`sysctl -n machdep.guessed_bootdev`
+[ -c "${dev}" ] || dev="/dev/fd0"
 
 trap "echo 'Reboot interrupted'; exit 1" 3
 echo "Loading /etc from MFS:/fd ..."
