@@ -215,6 +215,9 @@
 	SuperTrak ATA RAID controllers, has been
 	added.</para>
 
+      <para arch="alpha">The floppy disk drive on the AlphaStation /
+        AlphaServer DS10 does not work with &os; due to unfound bugs.</para>
+
     </sect3>
 
     <sect3>
