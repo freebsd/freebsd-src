@@ -101,6 +101,7 @@ struct bundle {
     unsigned opt;             /* Uses OPT_ bits from above */
     char label[50];           /* last thing `load'ed */
     u_short mtu;              /* Interface mtu */
+    u_short ifqueue;          /* Interface queue size */
 
     struct {
       int timeout;            /* How long to leave the output queue choked */

@@ -4248,6 +4248,26 @@ In all cases, if the interface is already configured,
 .Nm
 will try to maintain the interface IP numbers so that any existing
 bound sockets will remain valid.
+.It set ifqueue Ar packets
+Set the maximum number of packets that
+.Nm
+will read from the tunnel interface while data cannot be sent to any of
+the available links.  This queue limit is necessary to flow control outgoing
+data as the tunnel interface is likely to be far faster than the combined
+links available to
+.Nm ppp .
+.Pp
+If
+.Ar packets
+is set to a value less than the number of links,
+.Nm
+will read up to that value regardless.
+This prevents any possible latency problems.
+.Pp
+The default value for
+.Ar packets
+is
+.Dq 30 .
 .It set ccpretry|ccpretries Oo Ar timeout
 .Op Ar reqtries Op Ar trmtries
 .Oc
