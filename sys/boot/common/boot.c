@@ -249,6 +249,8 @@ getbootfile(int try)
 
     while ((try > 0) && (spec != NULL)) {
 	spec = strchr(spec, ';');
+	if (spec)
+	    spec++;	/* skip over the leading ';' */
 	try--;
     }
     if (spec != NULL) {
