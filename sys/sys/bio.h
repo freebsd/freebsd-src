@@ -480,11 +480,9 @@ int	cluster_read __P((struct vnode *, u_quad_t, daddr_t, long,
 	    struct ucred *, long, int, struct buf **));
 int	cluster_wbuild __P((struct vnode *, long, daddr_t, int));
 void	cluster_write __P((struct buf *, u_quad_t));
-int	physio __P((struct buf *, dev_t, int, u_int (*)(struct buf *),
-	    struct uio *));
-int	physread __P((dev_t dev, struct uio *uio, int ioflag));
-int	physwrite __P((dev_t dev, struct uio *uio, int ioflag));
-u_int	minphys __P((struct buf *));
+int	physio __P((dev_t dev, struct uio *uio, int ioflag));
+#define physread physio
+#define physwrite physio
 void	vfs_bio_set_validclean __P((struct buf *, int base, int size));
 void	vfs_bio_clrbuf __P((struct buf *));
 void	vfs_busy_pages __P((struct buf *, int clear_modify));
