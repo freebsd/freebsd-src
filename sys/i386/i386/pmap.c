@@ -110,6 +110,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mman.h>
 #include <sys/msgbuf.h>
 #include <sys/mutex.h>
@@ -256,9 +257,9 @@ static int pmap_remove_entry(struct pmap *pmap, vm_page_t m,
 					vm_offset_t va);
 static void pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t m);
 
-static vm_page_t pmap_allocpte(pmap_t pmap, vm_offset_t va);
+static vm_page_t pmap_allocpte(pmap_t pmap, vm_offset_t va, int flags);
 
-static vm_page_t _pmap_allocpte(pmap_t pmap, unsigned ptepindex);
+static vm_page_t _pmap_allocpte(pmap_t pmap, unsigned ptepindex, int flags);
 static int _pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m);
 static pt_entry_t *pmap_pte_quick(pmap_t pmap, vm_offset_t va);
 static void pmap_pte_release(pt_entry_t *pte);
@@ -1161,23 +1162,27 @@ pmap_pinit(pmap)
  * mapped correctly.
  */
 static vm_page_t
-_pmap_allocpte(pmap, ptepindex)
-	pmap_t	pmap;
-	unsigned ptepindex;
+_pmap_allocpte(pmap_t pmap, unsigned ptepindex, int flags)
 {
 	vm_paddr_t ptepa;
 	vm_page_t m;
+
+	KASSERT((flags & (M_NOWAIT | M_WAITOK)) == M_NOWAIT ||
+	    (flags & (M_NOWAIT | M_WAITOK)) == M_WAITOK,
+	    ("_pmap_allocpte: flags is neither M_NOWAIT nor M_WAITOK"));
 
 	/*
 	 * Allocate a page table page.
 	 */
 	if ((m = vm_page_alloc(NULL, ptepindex, VM_ALLOC_NOOBJ |
 	    VM_ALLOC_WIRED | VM_ALLOC_ZERO)) == NULL) {
-		PMAP_UNLOCK(pmap);
-		vm_page_unlock_queues();
-		VM_WAIT;
-		vm_page_lock_queues();
-		PMAP_LOCK(pmap);
+		if (flags & M_WAITOK) {
+			PMAP_UNLOCK(pmap);
+			vm_page_unlock_queues();
+			VM_WAIT;
+			vm_page_lock_queues();
+			PMAP_LOCK(pmap);
+		}
 
 		/*
 		 * Indicate the need to retry.  While waiting, the page table
@@ -1203,11 +1208,15 @@ _pmap_allocpte(pmap, ptepindex)
 }
 
 static vm_page_t
-pmap_allocpte(pmap_t pmap, vm_offset_t va)
+pmap_allocpte(pmap_t pmap, vm_offset_t va, int flags)
 {
 	unsigned ptepindex;
 	pd_entry_t ptepa;
 	vm_page_t m;
+
+	KASSERT((flags & (M_NOWAIT | M_WAITOK)) == M_NOWAIT ||
+	    (flags & (M_NOWAIT | M_WAITOK)) == M_WAITOK,
+	    ("pmap_allocpte: flags is neither M_NOWAIT nor M_WAITOK"));
 
 	/*
 	 * Calculate pagetable page index
@@ -1241,8 +1250,8 @@ retry:
 		 * Here if the pte page isn't mapped, or if it has
 		 * been deallocated. 
 		 */
-		m = _pmap_allocpte(pmap, ptepindex);
-		if (m == NULL)
+		m = _pmap_allocpte(pmap, ptepindex, flags);
+		if (m == NULL && (flags & M_WAITOK))
 			goto retry;
 	}
 	return (m);
@@ -1906,7 +1915,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	 * resident, we are creating it here.
 	 */
 	if (va < VM_MAXUSER_ADDRESS) {
-		mpte = pmap_allocpte(pmap, va);
+		mpte = pmap_allocpte(pmap, va, M_WAITOK);
 	}
 #if 0 && defined(PMAP_DIAGNOSTIC)
 	else {
@@ -2095,7 +2104,8 @@ retry:
 				mpte = PHYS_TO_VM_PAGE(ptepa);
 				mpte->wire_count++;
 			} else {
-				mpte = _pmap_allocpte(pmap, ptepindex);
+				mpte = _pmap_allocpte(pmap, ptepindex,
+				    M_WAITOK);
 				if (mpte == NULL)
 					goto retry;
 			}
@@ -2297,7 +2307,13 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 		return;
 
 	vm_page_lock_queues();
-	PMAP_LOCK(dst_pmap);
+	if (dst_pmap < src_pmap) {
+		PMAP_LOCK(dst_pmap);
+		PMAP_LOCK(src_pmap);
+	} else {
+		PMAP_LOCK(src_pmap);
+		PMAP_LOCK(dst_pmap);
+	}
 	sched_pin();
 	for (addr = src_addr; addr < end_addr; addr = pdnxt) {
 		pt_entry_t *src_pte, *dst_pte;
@@ -2353,9 +2369,12 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 				 * pte still being around...  allocpte can
 				 * block.
 				 */
-				dstmpte = pmap_allocpte(dst_pmap, addr);
+				dstmpte = pmap_allocpte(dst_pmap, addr,
+				    M_NOWAIT);
+				if (dstmpte == NULL)
+					break;
 				dst_pte = pmap_pte_quick(dst_pmap, addr);
-				if ((*dst_pte == 0) && (ptetemp = *src_pte)) {
+				if (*dst_pte == 0) {
 					/*
 					 * Clear the modified and
 					 * accessed (referenced) bits
@@ -2376,6 +2395,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 	}
 	sched_unpin();
 	vm_page_unlock_queues();
+	PMAP_UNLOCK(src_pmap);
 	PMAP_UNLOCK(dst_pmap);
 }	
 
