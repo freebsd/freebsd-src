@@ -35,7 +35,7 @@
 .\" $FreeBSD$
 .\" $Whistle: ng_iface.8,v 1.5 1999/01/25 23:46:26 archie Exp $
 .\"
-.Dd January 19, 1999
+.Dd February 3, 2005
 .Dt NG_IFACE 4
 .Os
 .Sh NAME
@@ -104,13 +104,11 @@ Transmission and reception of NS packets.
 This node type supports the generic control messages, plus the following:
 .Bl -tag -width foo
 .It Dv NGM_IFACE_GET_IFNAME
-Returns the name of the interface corresponding to this node in a
-.Dv "struct ng_iface_ifname" :
-.Bd -literal -offset 4n
-struct ng_iface_ifname {
-  char  ngif_name[NG_IFACE_IFACE_NAME_MAX + 1];
-};
-.Ed
+Returns the name of the associated interface as a
+.Dv NUL Ns -terminated
+.Tn ASCII
+string.
+Normally this is the same as the name of the node.
 .It Dv NGM_IFACE_POINT2POINT
 Set the interface to point-to-point mode.
 The interface must not currently be up.
