@@ -137,7 +137,9 @@ exec_Create(struct physical *p)
           close(pidpipe[0]);
           close(fids[0]);
           timer_TermService();
+#ifndef NOSUID
           setuid(ID0realuid());
+#endif
 
           child_status = 0;
           switch ((pid = vfork())) {
