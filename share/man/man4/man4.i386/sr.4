@@ -35,8 +35,7 @@
 .Os
 .Sh NAME
 .Nm sr
-.Nd
-synchronous RISCom/N2 device driver.
+.Nd synchronous RISCom/N2 device driver.
 .Sh SYNOPSYS
 .Cd "device sr0 at isa? port 0x300 net irq 10 iomem 0xd0000 vector arintr"
 .Cd "device sr1 at isa? port 0x310 net irq 11 flags 0x1 iomem 0xd0000 vector arintr"
@@ -54,12 +53,12 @@ bandwidth is usable with 486DX processors.
 The standard FreeBSD sppp code is used for the link level layer. The
 default protocol used is PPP. The Cisco HDLC protocol can be used by
 adding
-.Nm link2
+.Em link2
 to
-.Nm ifconfig.
+.Xr ifconfig 8 .
 .Pp
 The
-.Nm flags
+.Em flags
 field is optional. If it isn't specified, the driver will
 assume the following:
 .Pp
@@ -70,7 +69,7 @@ the same clock as the receiver.
 .El
 .Pp
 The
-.Nm flags
+.Em flags
 are a bit field and can be used to force a different
 behaviour than the default.
 .Pp
