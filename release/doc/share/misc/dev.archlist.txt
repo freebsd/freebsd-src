@@ -60,7 +60,10 @@ ida	i386
 iir	i386,amd64
 ips	i386,amd64
 isp	i386,pc98,alpha,ia64,sparc64,amd64
+mlx	i386,alpha,amd64
+mly	i386,amd64
 my	i386,pc98
+ncv	i386,pc98
 nsp	i386,pc98
 ohci	i386,pc98,alpha,ia64,amd64
 stg	i386,pc98
