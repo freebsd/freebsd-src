@@ -46,17 +46,19 @@
 #define RBX_SERIAL	0xc	/* -h */
 #define RBX_CDROM	0xd	/* -C */
 #define RBX_GDB 	0xf	/* -g */
+#define RBX_MUTE	0x10	/* -m */
+#define RBX_PAUSE	0x12	/* -p */
 #define RBX_DUAL	0x1d	/* -D */
 #define RBX_PROBEKBD	0x1e	/* -P */
 
-#define RBX_MASK	0x2000ffff
+#define RBX_MASK	0x2005ffff
 
 #define PATH_CONFIG	"/boot.config"
 #define PATH_BOOT3	"/boot/loader"
 #define PATH_KERNEL	"/kernel"
 
 #define ARGS		0x900
-#define NOPT		11
+#define NOPT		13
 #define NDEV		5
 #define MEM_BASE	0x12
 #define MEM_EXT 	0x15
@@ -98,7 +100,7 @@ static struct dmadat {
 
 extern uint32_t _end;
 
-static const char optstr[NOPT] = "DhaCcdgPrsv";
+static const char optstr[NOPT] = "DhaCcdgmPprsv";
 static const unsigned char flags[NOPT] = {
     RBX_DUAL,
     RBX_SERIAL,
@@ -107,7 +109,9 @@ static const unsigned char flags[NOPT] = {
     RBX_CONFIG,
     RBX_KDB,
     RBX_GDB,
+    RBX_MUTE,
     RBX_PROBEKBD,
+    RBX_PAUSE,
     RBX_DFLTROOT,
     RBX_SINGLE,
     RBX_VERBOSE

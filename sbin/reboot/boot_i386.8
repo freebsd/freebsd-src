@@ -115,7 +115,7 @@ the listing will be of the relevant subdirectory.)
 .Ar bios_drive : Ns Ar interface Ns Po
 .Ar unit , Ns Ar part Pc
 .Ar filename
-.Op Fl aCcDdghPprsv
+.Op Fl aCcDdghmPprsv
 .Xc
 Specify boot file and flags.
 .Bl -tag -width indent
@@ -161,7 +161,7 @@ The pathname of the file to boot (relative to the root directory
 on the specified partition).  Defaults to
 .Pa /kernel .
 Symbolic links are not supported (hard links are).
-.It Fl acCdDghPrsv
+.It Fl aCcDdghmPprsv
 Boot flags:
 .Pp
 .Bl -tag -width "-CXX" -compact
@@ -217,6 +217,8 @@ regardless of the
 option described here.  See the man page for
 .Xr sio 4
 for more details.
+.It Fl m
+mute the console.
 .It Fl P
 probe the keyboard.  If no keyboard is found, the
 .Fl D
