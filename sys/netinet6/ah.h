@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: ah.h,v 1.16 2001/09/04 08:43:19 itojun Exp $	*/
+/*	$KAME: ah.h,v 1.20 2003/08/05 12:21:15 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -77,6 +77,7 @@ struct ah_algorithm {
 	void (*result) __P((struct ah_algorithm_state *, u_int8_t *, size_t));
 };
 
+#define	AH_MAXSUMSIZE	(512 / 8)
 #define	AH_MAXSUMSIZE	16
 
 extern const struct ah_algorithm *ah_algorithm_lookup __P((int));
