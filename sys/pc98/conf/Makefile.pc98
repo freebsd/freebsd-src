@@ -3,7 +3,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.pc98,v 1.44 1998/11/06 08:06:32 kato Exp $
+#	$Id: Makefile.pc98,v 1.45 1998/11/16 08:09:16 kato Exp $
 #
 # Makefile for FreeBSD
 #
@@ -119,6 +119,10 @@ SYSTEM_DEP+= $S/i386/conf/kernel.script
 %LOAD
 
 %CLEAN
+
+.if !exists(.depend)
+${SYSTEM_OBJS}: ${BEFORE_DEPEND:M*.h}
+.endif
 
 clean:
 	rm -f *.o *.so *.ko *.s eddep errs genassym gensetdefs kernel linterrs \
