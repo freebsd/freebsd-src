@@ -130,6 +130,7 @@
 .nr z, 3
 .nr z: 3
 .nr z; 3
+.nr z? 3
 .nr z( 4
 .nr z) 3
 .nr z[ 4
