@@ -71,9 +71,6 @@ static const u_char atmulticastaddr[ 6 ] = {
     0x09, 0x00, 0x07, 0xff, 0xff, 0xff,
 };
 
-/*
- * Not used?
- */
 u_char	at_org_code[ 3 ] = {
     0x08, 0x00, 0x07,
 };
