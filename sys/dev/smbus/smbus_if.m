@@ -23,10 +23,10 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$Id: smbus_if.m,v 1.2 1998/10/31 11:39:54 nsouch Exp $
+#	$Id: smbus_if.m,v 1.3 1998/11/07 14:56:04 nsouch Exp $
 #
 
-INTERFACE smbus
+INTERFACE smbus;
 
 #
 # Interpret interrupt

@@ -23,10 +23,10 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$Id$
+#	$Id: device_if.m,v 1.1 1998/06/14 13:53:10 dfr Exp $
 #
 
-INTERFACE device
+INTERFACE device;
 
 #
 # Probe to see if the device is present.  Return 0 if the device exists,
