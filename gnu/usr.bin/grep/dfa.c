@@ -588,7 +588,7 @@ parse_bracket_exp_mb ()
 		      work_mbc->coll_elems[work_mbc->ncoll_elems++] = elem;
 		    }
  		}
-	      wc = WEOF;
+	      wc1 = wc = WEOF;
 	    }
 	  else
 	    /* We treat '[' as a normal character here.  */
