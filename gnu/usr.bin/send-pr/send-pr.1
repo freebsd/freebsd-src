@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .nh
-.TH SEND-PR 1 3.2 "February 1993"
+.TH SEND-PR 1 3.113 "February 1993"
 .SH NAME
 send-pr \- send problem report (PR) to a central support site
 .SH SYNOPSIS
@@ -49,14 +49,19 @@ send-pr \- send problem report (PR) to a central support site
 .B \-L
 ]
 [
-.B \-\-request-id
+.B \-s
+.I severity
 ]
 [
 .B \-V
 ]
 .br
 [
-.B --version
+.B \-\-version
+]
+[
+.B \-c
+.I address
 ]
 .SH DESCRIPTION
 .B send-pr
@@ -108,6 +113,10 @@ then
 .B send-pr
 reads from standard input.
 .TP
+.BI \-s " severity"
+Give the problem report the severity
+.IR severity .
+.TP
 .BI \-t " mail-address"
 Change mail address at the support site for problem reports.  The
 default 
@@ -118,6 +127,13 @@ Use the
 .I site
 argument rather than this option in nearly all cases.
 .TP
+.BI \-c " address"
+Put
+.I address
+in the 
+.B Cc:
+header of the message.
+.TP
 .B \-P
 print the form specified by the environment variable 
 .B PR_FORM 
@@ -127,19 +143,6 @@ is not set, print the standard blank PR template.  No mail is sent.
 .TP
 .B \-L
 print the list of available categories.  No mail is sent.
-.TP
-.B \-\-request\-id
-sends mail to the default support site, or
-.I site
-if specified, with a request for your 
-.IR submitter-id . 
-If you are
-not affiliated with 
-.IR site ,
-use a
-.I submitter-id
-of
-.BR net \|'.
 .TP
 .B \-V
 Display the 
