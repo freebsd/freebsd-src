@@ -147,7 +147,7 @@ raw_append(struct inpcb *last, struct ip *ip, struct mbuf *n)
 
 #ifdef IPSEC
 	/* check AH/ESP integrity. */
-	if (ipsec4_in_reject_so(n, last->inp_socket)) {
+	if (ipsec4_in_reject(n, last)) {
 		policyfail = 1;
 		ipsecstat.in_polvio++;
 		/* do not inject data to pcb */

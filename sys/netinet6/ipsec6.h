@@ -51,6 +51,8 @@ extern int ip6_ipsec_ecn;
 extern int ip6_esp_randpad;
 
 struct inpcb;
+extern struct secpolicy *ipsec6_getpolicybypcb
+	__P((struct mbuf *, u_int, struct inpcb *, int *));
 extern struct secpolicy *ipsec6_getpolicybysock
 	__P((struct mbuf *, u_int, struct socket *, int *));
 extern struct secpolicy *ipsec6_getpolicybyaddr
