@@ -1,4 +1,4 @@
-<!-- $Id: cvsup.sgml,v 1.8 1997/02/22 12:58:17 peter Exp $ -->
+<!-- $Id: cvsup.sgml,v 1.9 1997/02/22 21:05:17 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>CVSup<label id="cvsup"></heading>
@@ -418,59 +418,109 @@ cryptography code.
   The FreeBSD ports collection.
     <p>
     <descrip>
-    <tag><tt>ports-archivers release=cvs</tt></tag><p>
-    <tag><tt>ports-astro release=cvs</tt></tag><p>
-    <tag><tt>ports-audio release=cvs</tt></tag><p>
-    <tag><tt>ports-base release=cvs</tt></tag><p>
-    <tag><tt>ports-benchmarks release=cvs</tt></tag><p>
-    <tag><tt>ports-cad release=cvs</tt></tag><p>
-    <tag><tt>ports-chinese release=cvs</tt></tag><p>
-    <tag><tt>ports-comms release=cvs</tt></tag><p>
-    <tag><tt>ports-databases release=cvs</tt></tag><p>
-    <tag><tt>ports-devel release=cvs</tt></tag><p>
-    <tag><tt>ports-editors release=cvs</tt></tag><p>
-    <tag><tt>ports-emulators release=cvs</tt></tag><p>
-    <tag><tt>ports-games release=cvs</tt></tag><p>
-    <tag><tt>ports-graphics release=cvs</tt></tag><p>
-    <tag><tt>ports-japanese release=cvs</tt></tag><p>
-    <tag><tt>ports-lang release=cvs</tt></tag><p>
-    <tag><tt>ports-mail release=cvs</tt></tag><p>
-    <tag><tt>ports-math release=cvs</tt></tag><p>
-    <tag><tt>ports-mbone release=cvs</tt></tag><p>
-    <tag><tt>ports-misc release=cvs</tt></tag><p>
-    <tag><tt>ports-net release=cvs</tt></tag><p>
-    <tag><tt>ports-news release=cvs</tt></tag><p>
-    <tag><tt>ports-plan9 release=cvs</tt></tag><p>
-    <tag><tt>ports-print release=cvs</tt></tag><p>
-    <tag><tt>ports-russian release=cvs</tt></tag><p>
-    <tag><tt>ports-security release=cvs</tt></tag><p>
-    <tag><tt>ports-shells release=cvs</tt></tag><p>
-    <tag><tt>ports-sysutils release=cvs</tt></tag><p>
-    <tag><tt>ports-vietnamese release=cvs</tt></tag><p>
-    <tag><tt>ports-www release=cvs</tt></tag><p>
-    <tag><tt>ports-x11 release=cvs</tt></tag><p>
+    <tag><tt>ports-archivers release=cvs</tt></tag>
+    Archiving tools.
+    <tag><tt>ports-astro release=cvs</tt></tag>
+    Astronomical ports.
+    <tag><tt>ports-audio release=cvs</tt></tag>
+    Sound support.
+    <tag><tt>ports-base release=cvs</tt></tag>
+    Miscellaneous files at the top of /usr/ports.
+    <tag><tt>ports-benchmarks release=cvs</tt></tag>
+    Benchmarks.
+    <tag><tt>ports-cad release=cvs</tt></tag>
+    Computer aided design tools.
+    <tag><tt>ports-chinese release=cvs</tt></tag>
+    Chinese language support.
+    <tag><tt>ports-comms release=cvs</tt></tag>
+    Communication software.
+    <tag><tt>ports-databases release=cvs</tt></tag>
+    Databases.
+    <tag><tt>ports-devel release=cvs</tt></tag>
+    Development utilities.
+    <tag><tt>ports-editors release=cvs</tt></tag>
+    Editors.
+    <tag><tt>ports-emulators release=cvs</tt></tag>
+    Emulators for other operating systems.
+    <tag><tt>ports-games release=cvs</tt></tag>
+    Games.
+    <tag><tt>ports-graphics release=cvs</tt></tag>
+    Graphics utilities.
+    <tag><tt>ports-japanese release=cvs</tt></tag>
+    Japanese language support.
+    <tag><tt>ports-lang release=cvs</tt></tag>
+    Programming languages.
+    <tag><tt>ports-mail release=cvs</tt></tag>
+    Mail software.
+    <tag><tt>ports-math release=cvs</tt></tag>
+    Numerical computation software.
+    <tag><tt>ports-mbone release=cvs</tt></tag>
+    MBone applications.
+    <tag><tt>ports-misc release=cvs</tt></tag>
+    Miscellaneous utilities.
+    <tag><tt>ports-net release=cvs</tt></tag>
+    Networking software.
+    <tag><tt>ports-news release=cvs</tt></tag>
+    USENET news software.
+    <tag><tt>ports-plan9 release=cvs</tt></tag>
+    Various programs from Plan9.
+    <tag><tt>ports-print release=cvs</tt></tag>
+    Printing software.
+    <tag><tt>ports-russian release=cvs</tt></tag>
+    Russian language support.
+    <tag><tt>ports-security release=cvs</tt></tag>
+    Security utilities.
+    <tag><tt>ports-shells release=cvs</tt></tag>
+    Command line shells.
+    <tag><tt>ports-sysutils release=cvs</tt></tag>
+    System utilities.
+    <tag><tt>ports-vietnamese release=cvs</tt></tag>
+    Vietnamese language support.
+    <tag><tt>ports-www release=cvs</tt></tag>
+    Software related to the World Wide Web.
+    <tag><tt>ports-x11 release=cvs</tt></tag>
+    X11 software.
     </descrip>
   <tag><tt>src-all release=cvs</tt></tag>
   The main FreeBSD sources, excluding the export-restricted cryptography
   code.
     <p>
     <descrip>
-    <tag><tt>src-base/cvs</tt></tag><p>
-    <tag><tt>src-bin/cvs</tt></tag><p>
-    <tag><tt>src-contrib/cvs</tt></tag><p>
-    <tag><tt>src-etc/cvs</tt></tag><p>
-    <tag><tt>src-games/cvs</tt></tag><p>
-    <tag><tt>src-gnu/cvs</tt></tag><p>
-    <tag><tt>src-include/cvs</tt></tag><p>
-    <tag><tt>src-lib/cvs</tt></tag><p>
-    <tag><tt>src-libexec/cvs</tt></tag><p>
-    <tag><tt>src-release/cvs</tt></tag><p>
-    <tag><tt>src-sbin/cvs</tt></tag><p>
-    <tag><tt>src-share/cvs</tt></tag><p>
-    <tag><tt>src-sys/cvs</tt></tag><p>
-    <tag><tt>src-tools/cvs</tt></tag><p>
-    <tag><tt>src-usrbin/cvs</tt></tag><p>
-    <tag><tt>src-usrsbin/cvs</tt></tag><p>
+    <tag><tt>src-base release=cvs</tt></tag>
+    Miscellaneous files at the top of <tt>/usr/src</tt>.
+    <tag><tt>src-bin release=cvs</tt></tag>
+    User utilities that may be needed in single-user mode
+    (<tt>/usr/src/bin</tt>).
+    <tag><tt>src-contrib release=cvs</tt></tag>
+    Utilities and libraries from other outside the FreeBSD project, used
+    relatively unmodified (<tt>/usr/src/contrib</tt>).
+    <tag><tt>src-etc release=cvs</tt></tag>
+    System configuration files (<tt>/usr/src/etc</tt>).
+    <tag><tt>src-games release=cvs</tt></tag>
+    Games (<tt>/usr/src/games</tt>).
+    <tag><tt>src-gnu release=cvs</tt></tag>
+    Utilities covered by the GNU Public License (<tt>/usr/src/gnu</tt>).
+    <tag><tt>src-include release=cvs</tt></tag>
+    Header files (<tt>/usr/src/include</tt>).
+    <tag><tt>src-lib release=cvs</tt></tag>
+    Libraries (<tt>/usr/src/lib</tt>).
+    <tag><tt>src-libexec release=cvs</tt></tag>
+    System programs normally executed by other programs
+    (<tt>/usr/src/libexec</tt>).
+    <tag><tt>src-release release=cvs</tt></tag>
+    Files required to produce a FreeBSD release (<tt>/usr/src/release</tt>).
+    <tag><tt>src-sbin release=cvs</tt></tag>
+    System utilities for single-user mode (<tt>/usr/src/sbin</tt>).
+    <tag><tt>src-share release=cvs</tt></tag>
+    Files that can be shared across multiple systems (<tt>/usr/src/share</tt>).
+    <tag><tt>src-sys release=cvs</tt></tag>
+    The kernel (<tt>/usr/src/sys</tt>).
+    <tag><tt>src-tools release=cvs</tt></tag>
+    Various tools for the maintenance of FreeBSD (<tt>/usr/src/tools</tt>).
+    <tag><tt>src-usrbin release=cvs</tt></tag>
+    User utilities (<tt>/usr/src/usr.bin</tt>).
+    <tag><tt>src-usrsbin release=cvs</tt></tag>
+    System utilities (<tt>/usr/src/usr.sbin</tt>).
     </descrip>
   <tag><tt>www release=cvs</tt></tag>
   The sources for the World Wide Web data.
@@ -479,11 +529,13 @@ cryptography code.
 The export-restricted cryptography code.
 <p>
   <descrip>
-  <tag><tt>src-eBones release=cvs</tt></tag><p>
-  <tag><tt>src-secure release=cvs</tt></tag><p>
+  <tag><tt>src-eBones release=cvs</tt></tag>
+  Kerberos and DES (<tt>/usr/src/eBones</tt>).
+  <tag><tt>src-secure release=cvs</tt></tag>
+  DES (<tt>/usr/src/secure</tt>).
   </descrip>
 <tag><tt>distrib release=self</tt></tag>
-The CVSup server's own configuration files.
+The CVSup server's own configuration files.  Used by CVSup mirror sites.
 <tag><tt>gnats release=current</tt></tag>
 The GNATS bug-tracking database.
 <tag><tt>src-sys release=lite2</tt></tag>
@@ -491,7 +543,7 @@ The CVS repository for the lite2 kernel merge.
 <tag><tt>src-sys release=smp</tt></tag>
 The CVS repository for the SMP project.
 <tag><tt>www release=current</tt></tag>
-The installed World Wide Web data.
+The installed World Wide Web data.  Used by WWW mirror sites.
 </descrip>
 
 <sect1><heading>Announcements, Questions, and Bug Reports</heading>
