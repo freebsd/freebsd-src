@@ -327,12 +327,10 @@ again1:
 static void
 vm_page_release_contigl(vm_page_t m, vm_pindex_t count)
 {
-	mtx_lock_spin(&vm_page_queue_free_mtx);
 	while (count--) {
 		vm_page_free_toq(m);
 		m++;
 	}
-	mtx_unlock_spin(&vm_page_queue_free_mtx);
 }
 
 void
