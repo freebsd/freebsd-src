@@ -60,6 +60,7 @@
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
+#include <vm/vm_param.h>
 
 #include <machine/cache.h>
 #include <machine/cpu.h>
@@ -95,7 +96,11 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	struct md_utrap *ut;
 	struct trapframe *tf;
 	struct frame *fp;
-	struct pcb *pcb;
+	struct pcb *pcb1;
+	struct pcb *pcb2;
+	vm_offset_t sp;
+	int error;
+	int i;
 
 	KASSERT(td1 == curthread || td1 == &thread0,
 	    ("cpu_fork: p1 not curproc and not proc0"));
@@ -108,29 +113,56 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	p2->p_md.md_utrap = ut;
 
 	/* The pcb must be aligned on a 64-byte boundary. */
-	pcb = (struct pcb *)((td2->td_kstack + KSTACK_PAGES * PAGE_SIZE -
+	pcb1 = td1->td_pcb;
+	pcb2 = (struct pcb *)((td2->td_kstack + KSTACK_PAGES * PAGE_SIZE -
 	    sizeof(struct pcb)) & ~0x3fUL);
-	td2->td_pcb = pcb;
+	td2->td_pcb = pcb2;
 
 	/*
 	 * Ensure that p1's pcb is up to date.
 	 */
 	if ((td1->td_frame->tf_fprs & FPRS_FEF) != 0) {
 		mtx_lock_spin(&sched_lock);
-		savefpctx(&td1->td_pcb->pcb_fpstate);
+		savefpctx(&pcb1->pcb_fpstate);
 		mtx_unlock_spin(&sched_lock);
 	}
 	/* Make sure the copied windows are spilled. */
 	flushw();
 	/* Copy the pcb (this will copy the windows saved in the pcb, too). */
-	bcopy(td1->td_pcb, pcb, sizeof(*pcb));
+	bcopy(pcb1, pcb2, sizeof(*pcb1));
+
+	/*
+	 * If we're creating a new user process and we're sharing the address
+	 * space, the parent's top most frame must be saved in the pcb.  The
+	 * child will pop the frame when it returns to user mode, and may
+	 * overwrite it with its own data causing much suffering for the
+	 * parent.  We check if its already in the pcb, and if not copy it
+	 * in.  Its unlikely that the copyin will fail, but if so there's not
+	 * much we can do.  The parent will likely crash soon anyway in that
+	 * case.
+	 */
+	if ((flags & RFMEM) != 0 && td1 != &thread0) {
+		sp = td1->td_frame->tf_sp;
+		for (i = 0; i < pcb1->pcb_nsaved; i++) {
+			if (pcb1->pcb_rwsp[i] == sp)
+				break;
+		}
+		if (i == pcb1->pcb_nsaved) {
+			error = copyin((caddr_t)sp + SPOFF, &pcb1->pcb_rw[i],
+			    sizeof(struct rwindow));
+			if (error == 0) {
+				pcb1->pcb_rwsp[i] = sp;
+				pcb1->pcb_nsaved++;
+			}
+		}
+	}
 
 	/*
 	 * Create a new fresh stack for the new process.
 	 * Copy the trap frame for the return to user mode as if from a
 	 * syscall.  This copies most of the user mode register values.
 	 */
-	tf = (struct trapframe *)pcb - 1;
+	tf = (struct trapframe *)pcb2 - 1;
 	bcopy(td1->td_frame, tf, sizeof(*tf));
 
 	tf->tf_out[0] = 0;			/* Child returns zero */
@@ -143,8 +175,8 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	fp->f_local[0] = (u_long)fork_return;
 	fp->f_local[1] = (u_long)td2;
 	fp->f_local[2] = (u_long)tf;
-	pcb->pcb_fp = (u_long)fp - SPOFF;
-	pcb->pcb_pc = (u_long)fork_trampoline - 8;
+	pcb2->pcb_fp = (u_long)fp - SPOFF;
+	pcb2->pcb_pc = (u_long)fork_trampoline - 8;
 
 	/*
 	 * Now, cpu_switch() can schedule the new process.
