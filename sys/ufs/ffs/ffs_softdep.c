@@ -3433,8 +3433,8 @@ softdep_disk_prewrite(struct vnode *vp, struct buf *bp)
 		buf_start(bp);
 	mp_fixme("This should require the vnode lock.");
 	if ((vp->v_vflag & VV_COPYONWRITE) &&
-	    vp->v_rdev->si_copyonwrite &&
-	    (error = (*vp->v_rdev->si_copyonwrite)(vp, bp)) != 0 &&
+	    vp->v_rdev->si_snapdata != NULL &&
+	    (error = (ffs_copyonwrite)(vp, bp)) != 0 &&
 	    error != EOPNOTSUPP) {
 		bp->b_error = error;
 		bp->b_ioflags |= BIO_ERROR;
