@@ -535,7 +535,7 @@ atm_dev_alloc(size, align, flags)
  */
 void
 atm_dev_free(uaddr)
-	void		*uaddr;
+	volatile void		*uaddr;
 {
 	Mem_blk		*mbp;
 	Mem_ent		*mep;
