@@ -71,11 +71,11 @@ options 	WITNESS			# Enable checks to detect deadlocks and cycles
 options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 
 # Make an SMP-capable kernel by default
-options 	SMP		# Symmetric MultiProcessor Kernel
+options 	SMP			# Symmetric MultiProcessor Kernel
 
 # Workarounds for some known-to-be-broken chipsets (nVidia nForce3-Pro150)
-device		atpic		# 8259A compatability
-options 	NO_MIXED_MODE	# Don't penalize working chipsets
+device		atpic			# 8259A compatability
+options 	NO_MIXED_MODE		# Don't penalize working chipsets
 
 # Bus support.  Do not remove isa, even if you have no isa slots
 device		acpi
@@ -253,7 +253,7 @@ device		umass		# Disks/Mass storage - Requires scbus and da
 device		ums		# Mouse
 device		urio		# Diamond Rio 500 MP3 player
 device		uscanner	# Scanners
-# USB Ethernet, requires mii
+# USB Ethernet, requires miibus
 device		aue		# ADMtek USB Ethernet
 device		axe		# ASIX Electronics USB Ethernet
 device		cue		# CATC USB Ethernet
