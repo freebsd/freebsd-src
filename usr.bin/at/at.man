@@ -1,7 +1,7 @@
 .\" $FreeBSD$
 .Dd April 12, 1995
 .Dt "AT" 1
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm at ,
 .Nm batch ,
