@@ -203,7 +203,8 @@ cis_info(struct cis *cp, unsigned char *p, int len)
 	}
 	if (len > 1 && *p != 0xff) {
 		cp->manuf = strdup(p);
-		while (*p++ && --len > 0);
+		len -= strlen(p) + 1;
+		p += strlen(p) + 1;
 	}
 	if (cp->vers) {
 		free(cp->vers);
@@ -211,9 +212,10 @@ cis_info(struct cis *cp, unsigned char *p, int len)
 	}
 	if (len > 1 && *p != 0xff) {
 		cp->vers = strdup(p);
-		while (*p++ && --len > 0);
+		len -= strlen(p) + 1;
+		p += strlen(p) + 1;
 	} else {
-		cp->vers = strdup("?");
+		cp->vers = strdup("[none]");
 	}
 	if (cp->add_info1) {
 		free(cp->add_info1);
@@ -221,7 +223,10 @@ cis_info(struct cis *cp, unsigned char *p, int len)
 	}
 	if (len > 1 && *p != 0xff) {
 		cp->add_info1 = strdup(p);
-		while (*p++ && --len > 0);
+		len -= strlen(p) + 1;
+		p += strlen(p) + 1;
+	} else {
+		cp->add_info1 = strdup("[none]");
 	}
 	if (cp->add_info2) {
 		free(cp->add_info2);
@@ -229,6 +234,8 @@ cis_info(struct cis *cp, unsigned char *p, int len)
 	}
 	if (len > 1 && *p != 0xff)
 		cp->add_info2 = strdup(p);
+	else
+		cp->add_info2 = strdup("[none]");
 }
 
 /*
