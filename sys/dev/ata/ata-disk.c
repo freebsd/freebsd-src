@@ -392,10 +392,11 @@ ad_print(struct ad_softc *adp)
 		   ata_mode2str(adp->device->mode));
     }
     else {
-	ata_prtdev(adp->device,"%lluMB <%.40s> [%lld/%d/%d] at ata%d-%s %s",
+	ata_prtdev(adp->device,
+		   "%lluMB <%.40s/%.8s> [%lld/%d/%d] at ata%d-%s %s",
 		   (unsigned long long)(adp->total_secs /
 					((1024L * 1024L) / DEV_BSIZE)),
-		   adp->device->param->model,
+		   adp->device->param->model, adp->device->param->revision,
 		   (unsigned long long)(adp->total_secs /
 					(adp->heads * adp->sectors)),
 		   adp->heads, adp->sectors,
