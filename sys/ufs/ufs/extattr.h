@@ -77,7 +77,7 @@ LIST_HEAD(ufs_extattr_list_head, ufs_extattr_list_entry);
 struct ufs_extattr_list_entry {
 	LIST_ENTRY(ufs_extattr_list_entry)	uele_entries;
 	struct ufs_extattr_fileheader		uele_fileheader;
-	int	uele_namespace;
+	int	uele_attrnamespace;
 	char	uele_attrname[UFS_EXTATTR_MAXEXTATTRNAME];
 	struct vnode	*uele_backing_vnode;
 };
@@ -97,7 +97,7 @@ int	ufs_extattr_start(struct mount *mp, struct proc *p);
 int	ufs_extattr_autostart(struct mount *mp, struct proc *p);
 int	ufs_extattr_stop(struct mount *mp, struct proc *p);
 int	ufs_extattrctl(struct mount *mp, int cmd, struct vnode *filename,
-	    int namespace, const char *attrname, struct proc *p);
+	    int attrnamespace, const char *attrname, struct proc *p);
 int	ufs_vop_getextattr(struct vop_getextattr_args *ap);
 int	ufs_vop_setextattr(struct vop_setextattr_args *ap);
 void	ufs_extattr_vnode_inactive(struct vnode *vp, struct proc *p);
