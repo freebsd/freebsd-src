@@ -899,16 +899,19 @@ void
 pmap_qenter(vm_offset_t sva, vm_page_t *m, int count)
 {
 	vm_offset_t va;
+	int locked;
 
 	PMAP_STATS_INC(pmap_nqenter);
 	va = sva;
-	vm_page_lock_queues();
+	if (!(locked = mtx_owned(&vm_page_queue_mtx)))
+		vm_page_lock_queues();
 	while (count-- > 0) {
 		pmap_kenter(va, *m);
 		va += PAGE_SIZE;
 		m++;
 	}
-	vm_page_unlock_queues();
+	if (!locked)
+		vm_page_unlock_queues();
 	tlb_range_demap(kernel_pmap, sva, va);
 }
 
@@ -920,15 +923,18 @@ void
 pmap_qremove(vm_offset_t sva, int count)
 {
 	vm_offset_t va;
+	int locked;
 
 	PMAP_STATS_INC(pmap_nqremove);
 	va = sva;
-	vm_page_lock_queues();
+	if (!(locked = mtx_owned(&vm_page_queue_mtx)))
+		vm_page_lock_queues();
 	while (count-- > 0) {
 		pmap_kremove(va);
 		va += PAGE_SIZE;
 	}
-	vm_page_unlock_queues();
+	if (!locked)
+		vm_page_unlock_queues();
 	tlb_range_demap(kernel_pmap, sva, va);
 }
 
