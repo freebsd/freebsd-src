@@ -60,8 +60,8 @@
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
 
-#include <gem/if_gemreg.h>
-#include <gem/if_gemvar.h>
+#include <dev/gem/if_gemreg.h>
+#include <dev/gem/if_gemvar.h>
 
 #define TRIES	10000
 
