@@ -87,6 +87,7 @@ struct ex_types {
 #ifdef __i386__
   { "FreeBSD a.out", i386_syscall_entry, i386_syscall_exit },
   { "FreeBSD ELF", i386_syscall_entry, i386_syscall_exit },
+  { "FreeBSD ELF32", i386_syscall_entry, i386_syscall_exit },
   { "Linux ELF", i386_linux_syscall_entry, i386_linux_syscall_exit },
 #endif
   { 0, 0, 0 },
