@@ -48,6 +48,7 @@ typedef struct {
 } linux_fsid_t;
 typedef int linux_pid_t;
 typedef int linux_key_t;
+typedef unsigned int linux_size_t;
 
 /*
  * Signal stuff...
@@ -73,6 +74,13 @@ typedef struct {
 	void		(*lsa_restorer)(void);
 	linux_sigset_t	lsa_mask;
 } linux_sigaction_t;
+
+typedef struct 
+{
+	void *ss_sp;
+	int ss_flags;
+	linux_size_t ss_size;
+} linux_stack_t;
 
 /*
  * The Linux sigcontext, pretty much a standard 386 trapframe.
