@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.68 1997/09/11 15:27:34 peter Exp $
+ * $Id: if_de.c,v 1.69 1997/09/18 08:28:23 peter Exp $
  *
  */
 
@@ -5057,8 +5057,8 @@ tulip_pci_attach(
     if (sc->tulip_rxdescs == NULL || sc->tulip_txdescs == NULL) {
 	if (sc->tulip_rxdescs)
 	    free((caddr_t) sc->tulip_rxdescs, M_DEVBUF);
-	if (sc->tulip_rxdescs)
-	    free((caddr_t) sc->tulip_rxdescs, M_DEVBUF);
+	if (sc->tulip_txdescs)
+	    free((caddr_t) sc->tulip_txdescs, M_DEVBUF);
 	free((caddr_t) sc, M_DEVBUF);
 	return;
     }
@@ -5126,7 +5126,7 @@ tulip_pci_attach(
 #endif
     if (!retval) {
 	free((caddr_t) sc->tulip_rxdescs, M_DEVBUF);
-	free((caddr_t) sc->tulip_rxdescs, M_DEVBUF);
+	free((caddr_t) sc->tulip_txdescs, M_DEVBUF);
 	free((caddr_t) sc, M_DEVBUF);
 	return;
     }
