@@ -1752,10 +1752,18 @@ fwohci_intr_body(struct fwohci_softc *sc, u_int32_t stat, int count)
 		irstat = OREAD(sc, OHCI_IR_STAT);
 		OWRITE(sc, OHCI_IR_STATCLR, irstat);
 		for(i = 0; i < fc->nisodma ; i++){
+			struct fwohci_dbch *dbch;
+
 			if((irstat & (1 << i)) != 0){
-				if(sc->ir[i].xferq.flag & FWXFERQ_PACKET){
-					fwohci_ircv(sc, &sc->ir[i], count);
-				}else{
+				dbch = &sc->ir[i];
+				if ((dbch->xferq.flag & FWXFERQ_OPEN) == 0) {
+					device_printf(sc->fc.dev,
+						"dma(%d) not active\n", i);
+					continue;
+				}
+				if (dbch->xferq.flag & FWXFERQ_PACKET) {
+					fwohci_ircv(sc, dbch, count);
+				} else {
 					fwohci_rbuf_update(sc, i);
 				}
 			}
