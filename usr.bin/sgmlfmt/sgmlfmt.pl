@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# $Id: sgmlfmt.pl,v 1.4 1995/08/25 23:26:49 jfieber Exp $
+# $Id: sgmlfmt.pl,v 1.5 1995/08/29 01:02:12 jfieber Exp $
 
 # Format an sgml document tagged according to the linuxdoc DTD.
 # by John Fieber <jfieber@freebsd.org> for the FreeBSD documentation
@@ -36,6 +36,8 @@
 # Look in a couple places for the SGML DTD and replacement files
 #
 
+require 'newgetopt.pl';
+
 if (-d "$ENV{'HOME'}/lib/sgml/FreeBSD") {
     $sgmldir = "$ENV{'HOME'}/lib/sgml";
 }
@@ -67,6 +69,11 @@ if (! $ENV{"SGML_PATH"}) {
     $ENV{"SGML_PATH"} = "$sgmldir/%O/%C/%T";
 }
 
+sub usage {
+    print "Usage:\n";
+    print "sgmlfmt -f <format> [-i <namea> [-i <nameb> ...]] [-links] filename[.sgml]\n";
+    print "where <format> is one of: html, latex, ascii, nroff\n";
+}
 #
 # Look for the file specified on the command line
 #
@@ -106,8 +113,12 @@ sub getfile {
 
 sub sgmlparse {
     local($fhandle, $replacement) = @_;
+    $defines = join(" -i ", @opt_i);
+    if ($defines ne "") {
+	$defines = "-i $defines";
+    }
     $ENV{'SGML_PATH'} = "$replbase/$replacement.%N:$ENV{'SGML_PATH'}";
-    open($fhandle, "sgmls $decl $file | sgmlsasp $replbase/$replacement.mapping |");
+    open($fhandle, "sgmls $defines $decl $file | sgmlsasp $replbase/$replacement.mapping |");
 }
 
 #
@@ -295,7 +306,7 @@ sub gen_html {
 	    s/^<@@label>//;
 	    if ($references{$_} eq "") {
 		$references{$_} = "$filecount";
-		if ($genlinks) {
+		if ($opt_links) {
 		    &extlink($_, "${fileroot}${filecount}.html");
 		}
 	    }
@@ -644,43 +655,57 @@ sub extlink {
 
 # Now, read the command line and take appropriate action
 
-$fcount = 0;
-for (@ARGV) {
-    if (/^-.*/) {
-	s/^-//;
-	$gen{$_} = 1;
+sub main {
+    # Check arguments
+    if (!&NGetOpt('f=s', 'links', 'i:s@')) {
+	&usage;
+	exit 1;
+    }
+    if (@ARGV == 0) {
+	print "An input file must be specified.\n";
+	&usage;
+	exit 1;
+    }
+    if (&getfile($ARGV[0]) == 0) {
+	print "Cannot locate specified file: $ARGV[0]\n";
+	&usage;
+	exit 1;
+    }
+
+    # Generate output
+    if ($opt_f eq 'html') {
+	print "generating $fileroot.html";
+	if ($opt_links == 1) {
+	    print " with external links";
+	}
+	print "...\n"; &gen_html(); 
+    }
+    elsif ($opt_f eq 'tex' || $opt_f eq 'latex') {
+	print "generating $fileroot.tex...\n"; &gen_latex(); 
+    }
+    elsif ($opt_f eq 'nroff') { 
+	print "generating $fileroot.nroff...\n"; &gen_nroff();
+    }
+    elsif ($opt_f eq 'ascii') {
+	print "generating $fileroot.ascii...\n"; &gen_ascii(); 
+    }
+    elsif ($opt_f eq 'ps') { 
+	print "generating $fileroot.ps...\n"; &gen_ps(); 
     }
     else {
-	@infiles[$fcount] = $_;
-	$fcount++;
+	if ($opt_f eq "") {
+	    print "An output format must be specified with the -f option.\n";
+	}
+	else {
+	    print "\"$opt_f\" is an unknown output format.\n";
+	}
+	&usage;
+	exit 1;
     }
+
 }
 
-for ($i = 0; $i < $fcount; $i++) {
-    if (&getfile($infiles[$i])) {
-	if ($gen{'html'}) { 
-	    print "generating $fileroot.html";
-	    if ($gen{'links'}) {
-		$genlinks = 1;
-		print " with external links";
-	    }
-	    else {
-		$genlinks = 0;
-	    }
-	    print "...\n"; &gen_html(); }
-	if ($gen{'tex'} || $gen{'latex'}) { 
-	    print "generating $fileroot.tex...\n"; &gen_latex(); }
-	if ($gen{'nroff'}) { 
-	    print "generating $fileroot.nroff...\n"; &gen_nroff(); }
-	if ($gen{'txt'} || $gen{'ascii'}) { 
-	    print "generating $fileroot.ascii...\n"; &gen_ascii(); }
-	if ($gen{'ps'}) { 
-	    print "generating $fileroot.ps...\n"; &gen_ps(); }
-    }
-    else {
-	print "Input file $infiles[$i] not found\n";
-    }
-}
+&main;
 
 exit 0;
 
