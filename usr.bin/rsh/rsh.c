@@ -87,6 +87,7 @@ int	rfd2;
 
 int family = PF_UNSPEC;
 
+void	connect_timeout __P((int));
 char   *copyargs __P((char **));
 void	sendsig __P((int));
 void	talk __P((int, long, pid_t, int, int));
@@ -283,8 +284,16 @@ try_connect:
 			      &rfd2, family);
 	}
 #else
+	if (timeout) {
+		signal(SIGALRM, connect_timeout);
+		alarm(timeout);
+	}
 	rem = rcmd_af(&host, sp->s_port, pw->pw_name, user, args, &rfd2,
 		      family);
+	if (timeout) {
+		signal(SIGALRM, SIG_DFL);
+		alarm(0);
+	}
 #endif
 
 	if (rem < 0)
@@ -446,6 +455,15 @@ done:
 				(void)write(1, buf, cc);
 		}
 	} while (FD_ISSET(rfd2, &readfrom) || FD_ISSET(rem, &readfrom));
+}
+
+void
+connect_timeout(int sig)
+{
+	char message[] = "timeout reached before connection completed.\n";
+
+	write(STDERR_FILENO, message, sizeof(message) - 1);
+	_exit(1);
 }
 
 void
