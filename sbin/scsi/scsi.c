@@ -4,8 +4,8 @@
  * Permission is granted to use or redistribute this file in any way as long
  * as this notice remains. Julian Elischer does not guarantee that this file
  * is totally correct for any given task and users of this file must
- * accept responsibility for any damage that occurs from the application of this
- * file.
+ * accept responsibility for any damage that occurs from the application
+ * of this file.
  *
  * (julian@tfs.com julian@dialix.oz.au)
  *
@@ -42,7 +42,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: scsi.c,v 1.17 1998/01/12 07:57:57 charnier Exp $";
+	"$Id: scsi.c,v 1.18 1998/06/28 20:31:48 bde Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -91,8 +91,6 @@ void procargs(int *argc_p, char ***argv_p)
 {
 	int argc = *argc_p;
 	char **argv = *argv_p;
-	extern char        *optarg;
-	extern int          optind;
 	int		    fflag,
 	                    ch;
 
@@ -227,6 +225,8 @@ void arg_put(void *hook, int letter, void *arg, int count, char *name)
 		case 'z':
 		{
 			char *p = malloc(count + 1);
+			if (p == NULL)
+				errx(1, "malloc failed");
 			p[count] = 0;
 			strncpy(p, (char *)arg, count);
 			if (letter == 'z')
@@ -317,6 +317,8 @@ do_cmd(int fd, char *fmt, int argc, char **argv)
 			data_fmt = cget(&h, 0);
 
 			scsireq->databuf = malloc(count);
+			if (scsireq->databuf == NULL)
+				errx(1, "malloc failed");
 
 			if (data_phase == out)
 			{
@@ -696,6 +698,8 @@ edit_edit(void)
 	fclose(edit_file);
 
 	system_line = malloc(strlen(editor) + strlen(edit_name) + 6);
+	if (system_line == NULL)
+		errx(1, "malloc failed");
 	sprintf(system_line, "%s %s", editor, edit_name);
 	system(system_line);
 	free(system_line);
@@ -835,9 +839,12 @@ void do_probe_all(void)
 
 	char vendor_id[8 + 1], product_id[16 + 1], revision[4 + 1];
 	int id;
-	u_char *inq_buf = malloc(96);
+	u_char *inq_buf;
 	struct scsi_addr addr;
 
+	inq_buf = malloc(96);
+	if (inq_buf == NULL)
+		errx(1, "malloc failed");
 	scsireq = scsireq_build(scsireq_new(),
 	96, inq_buf, SCCMD_READ,
 	"12 0 0 0 v 0", 96);
