@@ -605,7 +605,7 @@ vinum_info(int argc, char *argv[], char *argv0[])
 	perror("Can't get vinum config");
 	return;
     }
-    printf("Flags: 0x%x\t%d opens\n", vinum_conf.flags, vinum_conf.opencount);
+    printf("Flags: 0x%x\n", vinum_conf.flags);
     if (ioctl(superdev, VINUM_MEMINFO, &meminfo) < 0) {
 	perror("Can't get information");
 	return;
