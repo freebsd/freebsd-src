@@ -113,26 +113,7 @@ static dev_t	status_dev = 0;
 
 #define CDEV_MAJOR	95
 
-static d_strategy_t mdstrategy;
-static d_open_t mdopen;
-static d_close_t mdclose;
-static d_ioctl_t mdioctl, mdctlioctl;
-
-static struct cdevsw md_cdevsw = {
-        /* open */      mdopen,
-        /* close */     mdclose,
-        /* read */      physread,
-        /* write */     physwrite,
-        /* ioctl */     mdioctl,
-        /* poll */      nopoll,
-        /* mmap */      nommap,
-        /* strategy */  mdstrategy,
-        /* name */      MD_NAME,
-        /* maj */       CDEV_MAJOR,
-        /* dump */      nodump,
-        /* psize */     nopsize,
-        /* flags */     D_DISK | D_CANFREE | D_MEMDISK,
-};
+static d_ioctl_t mdctlioctl;
 
 static struct cdevsw mdctl_cdevsw = {
         /* open */      nullopen,
@@ -147,7 +128,6 @@ static struct cdevsw mdctl_cdevsw = {
         /* maj */       CDEV_MAJOR
 };
 
-static struct cdevsw mddisk_cdevsw;
 
 static LIST_HEAD(, md_s) md_softc_list = LIST_HEAD_INITIALIZER(&md_softc_list);
 
@@ -356,6 +336,30 @@ s_write(struct indir *ip, off_t offset, uintptr_t ptr)
 	return (0);
 }
 
+
+static d_strategy_t mdstrategy;
+static d_open_t mdopen;
+static d_close_t mdclose;
+static d_ioctl_t mdioctl;
+
+static struct cdevsw md_cdevsw = {
+        /* open */      mdopen,
+        /* close */     mdclose,
+        /* read */      physread,
+        /* write */     physwrite,
+        /* ioctl */     mdioctl,
+        /* poll */      nopoll,
+        /* mmap */      nommap,
+        /* strategy */  mdstrategy,
+        /* name */      MD_NAME,
+        /* maj */       CDEV_MAJOR,
+        /* dump */      nodump,
+        /* psize */     nopsize,
+        /* flags */     D_DISK | D_CANFREE | D_MEMDISK,
+};
+
+static struct cdevsw mddisk_cdevsw;
+
 static int
 mdopen(dev_t dev, int flag, int fmt, struct thread *td)
 {
@@ -394,6 +398,29 @@ mdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 
 	return (ENOIOCTL);
 }
+
+static void
+mdstrategy(struct bio *bp)
+{
+	struct md_s *sc;
+
+	if (md_debug > 1)
+		printf("mdstrategy(%p) %s %x, %jd, %jd %ld, %p)\n",
+		    (void *)bp, devtoname(bp->bio_dev), bp->bio_flags,
+		    (intmax_t)bp->bio_blkno,
+		    (intmax_t)bp->bio_pblkno,
+		    bp->bio_bcount / DEV_BSIZE,
+		    (void *)bp->bio_data);
+
+	sc = bp->bio_dev->si_drv1;
+
+	/* XXX: LOCK(sc->lock) */
+	bioqdisksort(&sc->bio_queue, bp);
+	/* XXX: UNLOCK(sc->lock) */
+
+	wakeup(sc);
+}
+
 
 static int
 mdstart_malloc(struct md_s *sc, struct bio *bp)
@@ -535,28 +562,6 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 	else
 		vm_pager_strategy(sc->object, bp);
 	return (-1);
-}
-
-static void
-mdstrategy(struct bio *bp)
-{
-	struct md_s *sc;
-
-	if (md_debug > 1)
-		printf("mdstrategy(%p) %s %x, %jd, %jd %ld, %p)\n",
-		    (void *)bp, devtoname(bp->bio_dev), bp->bio_flags,
-		    (intmax_t)bp->bio_blkno,
-		    (intmax_t)bp->bio_pblkno,
-		    bp->bio_bcount / DEV_BSIZE,
-		    (void *)bp->bio_data);
-
-	sc = bp->bio_dev->si_drv1;
-
-	/* XXX: LOCK(sc->lock) */
-	bioqdisksort(&sc->bio_queue, bp);
-	/* XXX: UNLOCK(sc->lock) */
-
-	wakeup(sc);
 }
 
 static void
