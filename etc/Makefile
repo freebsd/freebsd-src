@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.117.4.4 1996/03/25 07:32:05 peter Exp $
+#	$Id: Makefile,v 1.117.4.5 1996/03/27 22:42:05 torstenb Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -449,7 +449,7 @@ distrib-dirs:
 	cd ${DESTDIR}/; rm -f ${DESTDIR}/sys; ln -s usr/src/sys sys
 	cd ${DESTDIR}/usr/share/locale; \
 	for l in ${LATIN1LINKS} ; do \
-		rm -f $$l.ISO_8859-1; \
+		rm -rf $$l.ISO_8859-1; \
 		ln -s lt_LN.ISO_8859-1 $$l.ISO_8859-1; \
 	done
 
