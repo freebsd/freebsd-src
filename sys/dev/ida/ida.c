@@ -72,6 +72,7 @@ static void ida_alloc_qcb(struct ida_softc *ida);
 static void ida_construct_qcb(struct ida_softc *ida);
 static void ida_start(struct ida_softc *ida);
 static void ida_done(struct ida_softc *ida, struct ida_qcb *qcb);
+static void ida_wait(struct ida_softc *ida, struct ida_qcb *qcb, int delay);
 
 void
 ida_free(struct ida_softc *ida)
@@ -416,6 +417,7 @@ ida_start(struct ida_softc *ida)
 	}
 }
 
+static
 void
 ida_wait(struct ida_softc *ida, struct ida_qcb *qcb, int delay)
 {

@@ -1137,7 +1137,7 @@ STATIC int stlistop(struct tty *tp, int rw)
 STATIC struct tty *stlidevtotty(dev_t dev)
 {
 #if DEBUG
-	printf("stlidevtotty(dev=%x)\n", dev);
+	printf("stlidevtotty(dev=%s)\n", devtoname(dev));
 #endif
 	return((struct tty *) stli_dev2port(dev));
 }

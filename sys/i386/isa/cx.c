@@ -978,7 +978,6 @@ void cxtimeout (void *a)
 
 
 #if defined(__FreeBSD__) && (__FreeBSD__ > 1 )
-static int cx_devsw_installed;
 static void 	cx_drvinit(void *unused)
 {
 
