@@ -160,6 +160,7 @@ svr4_sendit(p, s, mp, flags)
 	struct socket *so;
 #ifdef KTRACE
 	struct iovec *ktriov = NULL;
+	struct uio ktruio;
 #endif
 
 	error = getsock(p->p_fd, s, &fp);
@@ -200,6 +201,7 @@ svr4_sendit(p, s, mp, flags)
 
 		MALLOC(ktriov, struct iovec *, iovlen, M_TEMP, M_WAITOK);
 		bcopy((caddr_t)auio.uio_iov, (caddr_t)ktriov, iovlen);
+		ktruio = auio;
 	}
 #endif
 	len = auio.uio_resid;
@@ -217,9 +219,11 @@ svr4_sendit(p, s, mp, flags)
 		p->p_retval[0] = len - auio.uio_resid;
 #ifdef KTRACE
 	if (ktriov != NULL) {
-		if (error == 0)
-			ktrgenio(p->p_tracep, s, UIO_WRITE,
-				ktriov, p->p_retval[0], error);
+		if (error == 0) {
+			ktruio.uio_iov = ktriov;
+			ktruio.uio_resid = p->p_retval[0];
+			ktrgenio(p->p_tracep, s, UIO_WRITE, &ktruio, error);
+		}
 		FREE(ktriov, M_TEMP);
 	}
 #endif
@@ -247,6 +251,7 @@ svr4_recvit(p, s, mp, namelenp)
 	struct sockaddr *fromsa = 0;
 #ifdef KTRACE
 	struct iovec *ktriov = NULL;
+	struct uio ktruio;
 #endif
 
 	error = getsock(p->p_fd, s, &fp);
@@ -270,6 +275,7 @@ svr4_recvit(p, s, mp, namelenp)
 
 		MALLOC(ktriov, struct iovec *, iovlen, M_TEMP, M_WAITOK);
 		bcopy((caddr_t)auio.uio_iov, (caddr_t)ktriov, iovlen);
+		ktruio = auio;
 	}
 #endif
 	len = auio.uio_resid;
@@ -284,9 +290,11 @@ svr4_recvit(p, s, mp, namelenp)
 	}
 #ifdef KTRACE
 	if (ktriov != NULL) {
-		if (error == 0)
-			ktrgenio(p->p_tracep, s, UIO_READ,
-				ktriov, len - auio.uio_resid, error);
+		if (error == 0) {
+			ktruio.uio_iov = ktriov;
+			ktruio.uio_resid = len - auio.uio_resid;
+			ktrgenio(p->p_tracep, s, UIO_READ, &ktruio, error);
+		}
 		FREE(ktriov, M_TEMP);
 	}
 #endif
