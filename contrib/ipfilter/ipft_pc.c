@@ -1,9 +1,7 @@
 /*
- * Copyright (C) 1993-2000 by Darren Reed.
+ * Copyright (C) 1993-2001 by Darren Reed.
  *
- * Redistribution and use in source and binary forms are permitted
- * provided that this notice is preserved and due credit is given
- * to the original author and the contributors.
+ * See the IPFILTER.LICENCE file for details on licencing.
  */
 #include <stdio.h>
 #include <string.h>
@@ -33,7 +31,7 @@
 #include "ipt.h"
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ipft_pc.c,v 2.2 2000/03/13 22:10:24 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipft_pc.c,v 2.2.2.2 2001/06/26 10:43:18 darrenr Exp $";
 #endif
 
 struct	llc	{
@@ -46,7 +44,7 @@ struct	llc	{
  * While many of these maybe the same, some do have different header formats
  * which make this useful.
  */
-#define	DLT_MAX	10
+#define	DLT_MAX	14
 
 static	struct	llc	llcs[DLT_MAX+1] = {
 	{ 0, 0, 0 },	/* DLT_NULL */
@@ -59,7 +57,10 @@ static	struct	llc	llcs[DLT_MAX+1] = {
 	{ 0, 0, 0 },	/* DLT_ARCNET */
 	{ 0, 0, 0 },	/* DLT_SLIP */
 	{ 0, 0, 0 },	/* DLT_PPP */
-	{ 0, 0, 0 }	/* DLT_FDDI */
+	{ 0, 0, 0 },	/* DLT_FDDI */
+	{ 0, 0, 0 },	/* DLT_ATMRFC1483 */
+	{ 0, 0, 0 },	/* DLT_LOOP */
+	{ 0, 0, 0 }	/* DLT_ENC */
 };
 
 static	int	pcap_open __P((char *));
@@ -114,7 +115,7 @@ char	*fname;
 		swap_hdr(&ph);
 	}
 
-	if (ph.pc_v_maj != PCAP_VERSION_MAJ || ph.pc_type > DLT_MAX) {
+	if (ph.pc_v_maj != PCAP_VERSION_MAJ || ph.pc_type >= DLT_MAX) {
 		(void) close(fd);
 		return -2;
 	}

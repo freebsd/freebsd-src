@@ -1,9 +1,7 @@
 /*
- * Copyright (C) 1993-2000 by Darren Reed.
+ * Copyright (C) 1993-2001 by Darren Reed.
  *
- * Redistribution and use in source and binary forms are permitted
- * provided that this notice is preserved and due credit is given
- * to the original author and the contributors.
+ * See the IPFILTER.LICENCE file for details on licencing.
  */
 #include <stdio.h>
 #include <string.h>
@@ -54,7 +52,7 @@ extern	char	*sys_errlist[];
 
 #if !defined(lint)
 static const char sccsid[] ="@(#)ipnat.c	1.9 6/5/96 (C) 1993 Darren Reed";
-static const char rcsid[] = "@(#)$Id: natparse.c,v 1.17.2.6 2000/07/08 02:14:40 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: natparse.c,v 1.17.2.11 2001/07/17 14:33:09 darrenr Exp $";
 #endif
 
 
@@ -160,6 +158,8 @@ void *ptr;
 			printf(" udp");
 		if (np->in_flags & IPN_ROUNDR)
 			printf(" round-robin");
+		if (np->in_flags & IPN_FRAG)
+			printf(" frag");
 		printf("\n");
 		if (opts & OPT_DEBUG)
 			printf("\t%p %lu %#x %u %p %d\n", np->in_ifp,
@@ -231,6 +231,8 @@ void *ptr;
 				       ntohs(np->in_pmax));
 			}
 		}
+		if (np->in_flags & IPN_FRAG)
+			printf(" frag");
 		printf("\n");
 		if (opts & OPT_DEBUG) {
 			printf("\tifp %p space %lu nextip %s pnext %d",
@@ -277,6 +279,7 @@ int linenum;
 	char *s, *t, *cps[31], **cpp;
 	int i, cnt;
 
+	proto = NULL;
 
 	if ((s = strchr(line, '\n')))
 		*s = '\0';
@@ -553,7 +556,7 @@ int linenum;
 		} else
 			ipn.in_pmin = 0;
 	} else if ((ipn.in_redir & NAT_BIMAP) == NAT_REDIRECT) {
-		if (strrchr(*cpp, '/') != NULL) {
+		if (!*cpp || strrchr(*cpp, '/') != NULL) {
 			fprintf(stderr, "%d: No netmask supported in %s\n",
 				linenum, "destination host for redirect");
 			return NULL;
@@ -623,6 +626,11 @@ int linenum;
 				ipn.in_flags |= IPN_ROUNDR;
 			}
 
+			if (*cpp && !strcasecmp(*cpp, "frag")) {
+				cpp++;
+				ipn.in_flags |= IPN_FRAG;
+			}
+
 			if (*cpp) {
 				fprintf(stderr,
 				"%d: extra junk at the end of rdr: %s\n",
@@ -640,6 +648,11 @@ int linenum;
 
 	if ((ipn.in_redir & NAT_MAPBLK) != 0)
 		nat_setgroupmap(&ipn);
+
+	if (*cpp && !strcasecmp(*cpp, "frag")) {
+		cpp++;
+		ipn.in_flags |= IPN_FRAG;
+	}
 
 	if (!*cpp)
 		return &ipn;
