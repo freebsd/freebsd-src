@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$Id$
  */
 
 #ifndef lint
@@ -173,7 +175,7 @@ verify(pw)
 	char *p;
 	struct stat sb;
 	FILE *fp;
-	int len;
+	int len, line;
 	static char buf[LINE_MAX];
 
 	if (!(fp = fopen(tempname, "r")))
@@ -184,17 +186,19 @@ verify(pw)
 		warnx("corrupted temporary file");
 		goto bad;
 	}
+	line = 0;
 	while (fgets(buf, sizeof(buf), fp)) {
+		line++;
 		if (!buf[0] || buf[0] == '#')
 			continue;
 		if (!(p = strchr(buf, '\n'))) {
-			warnx("line too long");
+			warnx("line %d too long", line);
 			goto bad;
 		}
 		*p = '\0';
 		for (ep = list;; ++ep) {
 			if (!ep->prompt) {
-				warnx("unrecognized field");
+				warnx("unrecognized field on line %d", line);
 				goto bad;
 			}
 			if (!strncasecmp(buf, ep->prompt, ep->len)) {
@@ -205,7 +209,7 @@ verify(pw)
 					goto bad;
 				}
 				if (!(p = strchr(buf, ':'))) {
-					warnx("line corrupted");
+					warnx("line %d corrupted", line);
 					goto bad;
 				}
 				while (isspace(*++p));
@@ -242,7 +246,9 @@ bad:					(void)fclose(fp);
 	    pw->pw_change, pw->pw_expire, pw->pw_gecos, pw->pw_dir,
 	    pw->pw_shell) >= sizeof(buf)) {
 		warnx("entries too long");
+		free(p);
 		return (0);
 	}
+	free(p);
 	return (pw_scan(buf, pw));
 }
