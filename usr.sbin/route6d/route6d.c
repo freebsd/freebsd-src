@@ -2078,8 +2078,10 @@ rt_entry(rtm, again)
 	s = rtm->rtm_index;
 	if (s < nindex2ifc && index2ifc[s])
 		ifname = index2ifc[s]->ifc_name;
-	else
-		fatal("Unknown interface %d", s);
+	else {
+		trace(1, " not configured\n");
+		return;
+	}
 	trace(1, " if %s sock %d\n", ifname, s);
 	rrt->rrt_index = s;
 
