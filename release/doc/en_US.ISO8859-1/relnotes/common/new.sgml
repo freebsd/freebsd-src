@@ -466,6 +466,10 @@
       <para>Softupdates for FFS have received some bug fixes and
       enhancements.</para>
 
+      <para>When running with softupdates, &man.statfs.2; and
+      &man.df.1; will track the number of blocks and files that are
+      committed to being freed.</para>
+
       <para>A bug in FFS that could cause superblock corruption on very large
       filesystems has been corrected. &merged;</para>
 
@@ -789,8 +793,11 @@
     <filename>librsaUSA</filename> are no longer required for USA
     residents. &merged;</para>
 
-    <para>The &man.ifconfig.8; command can set the link-layer address
+    <para>&man.ifconfig.8; command can set the link-layer address
     of an interface. &merged;</para>
+
+    <para>&man.ifconfig.8; can now accept addresses in slash/CIDR
+    notation.</para>
 
     <para>&man.setproctitle.3; has been moved from
     <filename>libutil</filename> to
@@ -809,7 +816,7 @@
 
     <para>&man.ln.1; now takes a <option>-h</option> flag to avoid
     following a target that is a link, with a <option>-n</option> flag
-    for compatability with other implementations.</para>
+    for compatability with other implementations. &merged;</para>
 
     <para>Userland &man.ppp.8; has received a number of updates and
     bug fixes. &merged;</para>
@@ -1051,7 +1058,7 @@
     <para>&man.find.1; now has the <option>-anewer</option>,
     <option>-cnewer</option>, <option>-mnewer</option>,
     <option>-okdir</option>, and <option>-newer[acm][acmt]</option>
-    primaries for comparisons of file timestamps.</para>
+    primaries for comparisons of file timestamps. &merged;</para>
 
     <para>&man.tftpd.8; now takes the <option>-c</option> and
     <option>-C</option> options, which allow the server to
@@ -1164,6 +1171,10 @@
     <para>&man.rc.8; now has an framework for handling dependencies between
     &man.rc.conf.5; variables. &merged;</para>
 
+    <para>&man.rc.8; now deletes all non-directory files in
+    <filename>/var/run</filename> and
+    <filename>/var/spool/lock</filename> at boot time.</para>
+
     <para>The &man.setfacl.1; and &man.getfacl.1; commands have been
     added to manage file system Access Control Lists.</para>
 
@@ -1193,6 +1204,18 @@
     format string arguments, has been added.</para>
 
     <para>&man.nl.1;, a line numbering filter program, has been added.</para>
+
+    <para>&man.c89.1; has been converted from a shell script to a
+    binary executable, fixing some minor bugs.</para>
+
+    <para>&man.pax.1; has received a number of enhancements, including
+    &man.cpio.1; functionality, &man.tar.1; compatability
+    enhancements, <option>-z</option> and <option>-Z</option> flags
+    for &man.gzip.1; and &man.compress.1; functionality, and a number
+    of bug fixes.</para>
+
+    <para>Ukranian language support has been added to the &os;
+    console.</para>
 
     <sect3>
       <title>Contributed Software</title>

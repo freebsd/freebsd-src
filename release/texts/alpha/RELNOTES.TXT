@@ -82,6 +82,9 @@ Due to a licensing change, softupdates have been integrated into the
 main portion of the kernel source tree.  As a consequence, softupdates
 are now available with the GENERIC kernel. [MERGED]
 
+When running with softupdates, statfs(2) and df(1) will track the
+number of blocks and files that are committed to being freed.
+
 ipfilter has been updated to 3.4.16. [MERGED]
 
 The tap driver, a virtual Ethernet device driver for bridged
@@ -652,6 +655,8 @@ libreadline has been upgraded to 4.2.
 The ifconfig(8) command can set the link-layer address of an interface.
 [MERGED]
 
+ifconfig(8) can now accept addresses in slash/CIDR notation.
+
 setproctitle(3) has been moved from libutil to libc. [MERGED]
 
 chio(1) now has the ability to specify elements by volume tag instead
@@ -665,7 +670,7 @@ ln(1) now takes an -i option to request user confirmation before
 overwriting an existing file. [MERGED]
 
 ln(1) now takes a -h option to avoid following a target that is a
-link, with a -n option for compatability with other implementations.
+link, with a -n option for compatability with other implementations. [MERGED]
 
 Version numbers of installed packages have a new (backward-compatible)
 syntax, which supports the "PORTREVISION" and "PORTEPOCH" variables in
@@ -923,7 +928,7 @@ matches.  The -E flag now enables extended regular
 expressions. [MERGED]
 
 find(1) now has the -anewer, -cnewer, -mnewer, -okdir, and
--newer[acm][acmt] primaries for comparisons of file timestamps.
+-newer[acm][acmt] primaries for comparisons of file timestamps. [MERGED]
 
 tftpd(8) now takes the -c and -C options, which allow the server to
 chroot(2) based on the IP address of the connecting client.  tftp(1)
@@ -1042,6 +1047,9 @@ lockd has been imported from NetBSD.
 rc(8) now has an framework for handling dependencies between
 rc.conf(5) variables. [MERGED]
 
+rc(8) now deletes all non-directory files in /var/run and
+/var/spool/lock at boot time.
+
 The setfacl(1) and getfacl(1) commands have been added to manage
 file system Access Control Lists.
 
@@ -1080,6 +1088,15 @@ fmtcheck(3), a function for checking consistency of format string
 arguments, has been added.
 
 nl(1), a line numbering filter program, has been added.
+
+c89(1) has been converted from a shell script to a binary executable,
+fixing some minor bugs.
+
+pax(1) has received a number of enhancements, including cpio(1)
+functionality, tar compatability enhancements, and a number of bug
+fixes.
+
+Ukranian language support has been added to the FreeBSD console.
 
 
 2. Supported Configurations
