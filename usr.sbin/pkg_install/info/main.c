@@ -227,9 +227,11 @@ main(int argc, char **argv)
 static void
 usage()
 {
-    fprintf(stderr, "%s\n%s\n%s\n",
+    fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
 	"usage: pkg_info [-cdDfGiIkLmopqrRsvVx] [-e package] [-l prefix]",
-	"                [-t template] [-W filename] [pkg-name ...]",
+	"                [-t template] [pkg-name ...]",
+	"       pkg_info [-q] -W filename",
+	"       pkg_info [-q] -O origin",
 	"       pkg_info -a [flags]");
     exit(1);
 }
