@@ -309,10 +309,9 @@ settables(gflags)
 			Rascii[i] = 255 - i + 1;
 		else
 			Rascii[i] = 255 - i;
-		if (islower(i)) {
-			Ftable[i] = Ftable[toupper(i)];
-			RFtable[i] = RFtable[toupper(i)];
-		} else if (REC_D >= 'A' && REC_D <= 'Z' && i < 'a' && i > REC_D) {
+		if (islower(i))
+			;
+		else if (REC_D >= 'A' && REC_D <= 'Z' && i < 'a' && i > REC_D) {
 			Ftable[i] = i + 1;
 			RFtable[i] = Rascii[i] - 1;
 		} else {
@@ -334,6 +333,12 @@ settables(gflags)
 			dtable[i] = 1;
 		else
 			dtable[i] = 0;
+	}
+	for (i = 0; i < NBINS; i++) {
+		if (islower(i)) {
+			Ftable[i] = Ftable[toupper(i)];
+			RFtable[i] = RFtable[toupper(i)];
+		}
 	}
 
 	Rascii[REC_D] = RFtable[REC_D] = REC_D;
