@@ -112,7 +112,7 @@ static void ndis_stop		(struct ndis_softc *);
 static void ndis_watchdog	(struct ifnet *);
 static int ndis_ifmedia_upd	(struct ifnet *);
 static void ndis_ifmedia_sts	(struct ifnet *, struct ifmediareq *);
-static int ndis_get_assoc	(struct ndis_softc *, ndis_wlan_bssid_ex *);
+static int ndis_get_assoc	(struct ndis_softc *, ndis_wlan_bssid_ex **);
 static int ndis_probe_offload	(struct ndis_softc *);
 static int ndis_set_offload	(struct ndis_softc *);
 static void ndis_getstate_80211	(struct ndis_softc *);
@@ -1713,7 +1713,7 @@ ndis_media_status(struct ifnet *ifp, struct ifmediareq *imr)
 static int
 ndis_get_assoc(sc, assoc)
 	struct ndis_softc	*sc;
-	ndis_wlan_bssid_ex	*assoc;
+	ndis_wlan_bssid_ex	**assoc;
 {
 	ndis_80211_bssid_list_ex	*bl;
 	ndis_wlan_bssid_ex	*bs;
@@ -1747,7 +1747,12 @@ ndis_get_assoc(sc, assoc)
 	bs = (ndis_wlan_bssid_ex *)&bl->nblx_bssid[0];
 	for (i = 0; i < bl->nblx_items; i++) {
 		if (bcmp(bs->nwbx_macaddr, bssid, sizeof(bssid)) == 0) {
-			bcopy((char *)bs, (char *)assoc, bs->nwbx_len);
+			*assoc = malloc(bs->nwbx_len, M_TEMP, M_NOWAIT);
+			if (*assoc == NULL) {
+				free(bl, M_TEMP);
+				return(ENOMEM);
+			}
+			bcopy((char *)bs, (char *)*assoc, bs->nwbx_len);
 			free(bl, M_TEMP);
 			return(0);
 		}	
@@ -1765,7 +1770,7 @@ ndis_getstate_80211(sc)
 	struct ieee80211com	*ic;
 	ndis_80211_ssid		ssid;
 	ndis_80211_config	config;
-	ndis_wlan_bssid_ex	bs;
+	ndis_wlan_bssid_ex	*bs;
 	int			rval, len, i = 0;
 	uint32_t		arg;
 	struct ifnet		*ifp;
@@ -1786,7 +1791,7 @@ ndis_getstate_80211(sc)
 	 * If we're associated, retrieve info on the current bssid.
 	 */
 	if ((rval = ndis_get_assoc(sc, &bs)) == 0) {
-		switch(bs.nwbx_nettype) {
+		switch(bs->nwbx_nettype) {
 		case NDIS_80211_NETTYPE_11FH:
 		case NDIS_80211_NETTYPE_11DS:
 			ic->ic_curmode = IEEE80211_MODE_11B;
@@ -1802,6 +1807,7 @@ ndis_getstate_80211(sc)
 			    "unknown nettype %d\n", arg);
 			break;
 		}
+		free(bs, M_TEMP);
 	} else
 		return;
 
