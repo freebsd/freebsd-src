@@ -304,8 +304,12 @@ void
 pthread_set_name_np(pthread_t thread, char *name)
 {
 	/* Check if the caller has specified a valid thread: */
-	if (thread != NULL && thread->magic == PTHREAD_MAGIC)
+	if (thread != NULL && thread->magic == PTHREAD_MAGIC) {
+		if (thread->name != NULL) {
+			/* Free space for previous name. */
+			free(thread->name);
+		}
 		thread->name = strdup(name);
-	return;
+	}
 }
 #endif
