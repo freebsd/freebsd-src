@@ -41,35 +41,35 @@
  */
 
 #ifndef _NET_ISO88025_H_
-#define _NET_ISO88025_H_
+#define	_NET_ISO88025_H_
 
 /*
  * General ISO 802.5 definitions
  */
 #define	ISO88025_ADDR_LEN	6
-#define ISO88025_HDR_LEN	(ISO88025_CF_LEN + (ISO88025_ADDR_LEN * 2))
-#define ISO88025_CF_LEN		2
-#define RCF_LEN			2
-#define RIF_MAX_RD		14
-#define RIF_MAX_LEN		16
+#define	ISO88025_CF_LEN		2
+#define	ISO88025_HDR_LEN	(ISO88025_CF_LEN + (ISO88025_ADDR_LEN * 2))
+#define	RCF_LEN			2
+#define	RIF_MAX_RD		14
+#define	RIF_MAX_LEN		16
 
-#define TR_AC			0x10
-#define TR_LLC_FRAME		0x40
+#define	TR_AC			0x10
+#define	TR_LLC_FRAME		0x40
 
-#define TR_4MBPS		4000000
-#define TR_16MBPS		16000000
-#define TR_100MBPS		100000000
+#define	TR_4MBPS		4000000
+#define	TR_16MBPS		16000000
+#define	TR_100MBPS		100000000
 
 /*
  * Source routing 
  */
 #define	TR_RII			0x80
-#define TR_RCF_BCST_MASK	0xe000
-#define TR_RCF_LEN_MASK		0x1f00
-#define TR_RCF_DIR		0x0080
-#define TR_RCF_LF_MASK		0x0070
+#define	TR_RCF_BCST_MASK	0xe000
+#define	TR_RCF_LEN_MASK		0x1f00
+#define	TR_RCF_DIR		0x0080
+#define	TR_RCF_LF_MASK		0x0070
 
-#define TR_RCF_RIFLEN(x)	((ntohs(x) & TR_RCF_LEN_MASK) >> 8)
+#define	TR_RCF_RIFLEN(x)	((ntohs(x) & TR_RCF_LEN_MASK) >> 8)
 
 /*
  * Minimum and maximum packet payload lengths.
@@ -114,8 +114,8 @@ struct iso88025_sockaddr_dl_data {
 	u_short	*trld_route[RIF_MAX_LEN];
 };
 
-#define ISO88025_MAX(a, b)	(((a)>(b))?(a):(b))
-#define SDL_ISO88025(s)		((struct iso88025_sockaddr_dl_data *)	\
+#define	ISO88025_MAX(a, b)	(((a)>(b))?(a):(b))
+#define	SDL_ISO88025(s)		((struct iso88025_sockaddr_dl_data *)	\
 				 ((s)->sdl_data + \
 				  ISO88025_MAX((s)->sdl_nlen + (s)->sdl_alen + \
 					       (s)->sdl_slen, 12)))
@@ -128,8 +128,8 @@ struct	iso88025_addr {
 	u_char octet[ISO88025_ADDR_LEN];
 };
 
-#define ISO88025_MAX_MTU	18000
-#define ISO88025_DEFAULT_MTU	1500
+#define	ISO88025_MAX_MTU		18000
+#define	ISO88025_DEFAULT_MTU		1500
 
 #define	ISO88025_BPF_UNSUPPORTED	0
 #define	ISO88025_BPF_SUPPORTED		1
