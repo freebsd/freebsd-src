@@ -51,7 +51,6 @@
 #include "pcib_if.h"
 
 static int		pcib_probe(device_t dev);
-static int		pcib_route_interrupt(device_t pcib, device_t dev, int pin);
 
 static device_method_t pcib_methods[] = {
     /* Device interface */
@@ -478,7 +477,7 @@ pcib_write_config(device_t dev, int b, int s, int f, int reg, u_int32_t val, int
 /*
  * Route an interrupt across a PCI bridge.
  */
-static int
+int
 pcib_route_interrupt(device_t pcib, device_t dev, int pin)
 {
     device_t	bus;
