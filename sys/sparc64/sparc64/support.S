@@ -604,3 +604,27 @@ ENTRY(openfirmware)
 	ret
 	 restore %o0, %g0, %o0
 END(openfirmware)
+
+/*
+ * void ofw_exit(cell_t args[])
+ */
+ENTRY(openfirmware_exit)
+	save	%sp, -CCFSZ, %sp
+	flushw
+	wrpr	%g0, PIL_TICK, %pil
+	setx	ofw_tba, %l7, %l5
+	ldx	[%l5], %l5
+	wrpr	%l5, 0, %tba			! restore the ofw trap table
+	setx	ofw_vec, %l7, %l6
+	ldx	[%l6], %l6
+	setx	kstack0 + KSTACK_PAGES * PAGE_SIZE - PCB_SIZEOF, %l7, %l0
+	sub	%l0, SPOFF, %fp			! setup a stack in a locked page
+	sub	%l0, SPOFF + CCFSZ, %sp
+	mov     AA_DMMU_PCXR, %l3		! set context 0
+	stxa    %g0, [%l3] ASI_DMMU
+	membar  #Sync
+	wrpr	%g0, 0, %tl			! force trap level 0
+	call	%l6
+	 mov	%i0, %o0
+	! never to return
+END(openfirmware_exit)

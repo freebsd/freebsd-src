@@ -61,6 +61,7 @@
 #include <machine/cpu.h>
 #include <machine/frame.h>
 #include <machine/md_var.h>
+#include <machine/ofw_machdep.h>
 #include <machine/tstate.h>
 
 void
@@ -88,7 +89,9 @@ cpu_fork(struct thread *td1, struct proc *p2, int flags)
 		return;
 
 	td2 = &p2->p_thread;
-	pcb = (struct pcb *)(td2->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
+	/* The pcb must be aligned on a 64-byte boundary. */
+	pcb = (struct pcb *)((td2->td_kstack + KSTACK_PAGES * PAGE_SIZE -
+	    sizeof(struct pcb)) & ~0x3fUL);
 	td2->td_pcb = pcb;
 
 	/*
@@ -136,7 +139,26 @@ cpu_fork(struct thread *td1, struct proc *p2, int flags)
 void
 cpu_reset(void)
 {
-	OF_exit();
+	static char bspec[64] = "";
+	phandle_t chosen;
+	static struct {
+		cell_t	name;
+		cell_t	nargs;
+		cell_t	nreturns;
+		cell_t	bootspec;
+	} args = {
+		(cell_t)"boot",
+		1,
+		0,
+		(cell_t)bspec
+	};
+	if ((chosen = OF_finddevice("/chosen")) != 0) {
+		if (OF_getprop(chosen, "bootpath", bspec, sizeof(bspec)) == -1)
+			bspec[0] = '\0';
+		bspec[sizeof(bspec) - 1] = '\0';
+	}
+		
+	openfirmware_exit(&args);
 }
 
 /*
