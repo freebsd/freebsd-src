@@ -140,6 +140,10 @@ time_t time32_to_time __P((__int32_t t32));
 __int32_t time_to_time32 __P((time_t t));
 time_t time64_to_time __P((__int64_t t64));
 __int64_t time_to_time64 __P((time_t t));
+long time_to_long __P((time_t t));
+time_t long_to_time __P((long tlong));
+int time_to_int __P((time_t t));
+time_t int_to_time __P((int tint));
 #endif /* not ANSI */
 
 #ifndef _ANSI_SOURCE
