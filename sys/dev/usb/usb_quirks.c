@@ -1,4 +1,4 @@
-/*	$NetBSD: usb_quirks.c,v 1.14 1999/09/15 13:57:09 augustss Exp $	*/
+/*	$NetBSD: usb_quirks.c,v 1.18 1999/11/16 12:08:38 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -64,6 +64,7 @@ static struct usbd_quirk_entry {
  { USB_VENDOR_PERACOM, USB_PRODUCT_PERACOM_SERIAL1, 0x101, { UQ_NO_STRINGS }},
  { USB_VENDOR_DALLAS, USB_PRODUCT_DALLAS_J6502,	    0x0a2, { UQ_BAD_ADC }},
  { USB_VENDOR_LOGITECH, USB_PRODUCT_LOGITECH_N48,   0x110, { UQ_MS_REVZ }},
+ { USB_VENDOR_ALTEC, USB_PRODUCT_ALTEC_ASC495,      0x000, { UQ_BAD_AUDIO }},
  { USB_VENDOR_QTRONIX, USB_PRODUCT_QTRONIX_980N,    0x110, { UQ_SPUR_BUT_UP }},
  { 0, 0, 0, { 0 } }
 };
