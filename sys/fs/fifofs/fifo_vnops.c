@@ -63,7 +63,6 @@ struct fifoinfo {
 };
 
 static int	fifo_print(struct vop_print_args *);
-static int	fifo_lookup(struct vop_lookup_args *);
 static int	fifo_open(struct vop_open_args *);
 static int	fifo_close(struct vop_close_args *);
 static int	fifo_read(struct vop_read_args *);
@@ -96,7 +95,6 @@ static struct vnodeopv_entry_desc fifo_vnodeop_entries[] = {
 	{ &vop_kqfilter_desc,		(vop_t *) fifo_kqfilter },
 	{ &vop_lease_desc,		(vop_t *) vop_null },
 	{ &vop_link_desc,		(vop_t *) vop_panic },
-	{ &vop_lookup_desc,		(vop_t *) fifo_lookup },
 	{ &vop_mkdir_desc,		(vop_t *) vop_panic },
 	{ &vop_mknod_desc,		(vop_t *) vop_panic },
 	{ &vop_open_desc,		(vop_t *) fifo_open },
@@ -132,23 +130,6 @@ fifo_vnoperate(ap)
 	} */ *ap;
 {
 	return (VOCALL(fifo_vnodeop_p, ap->a_desc->vdesc_offset, ap));
-}
-
-/*
- * Trivial lookup routine that always fails.
- */
-/* ARGSUSED */
-static int
-fifo_lookup(ap)
-	struct vop_lookup_args /* {
-		struct vnode * a_dvp;
-		struct vnode ** a_vpp;
-		struct componentname * a_cnp;
-	} */ *ap;
-{
-
-	*ap->a_vpp = NULL;
-	return (ENOTDIR);
 }
 
 /*
