@@ -31,15 +31,19 @@
 #ifndef _SYS_SBUF_H_
 #define _SYS_SBUF_H_
 
+#include <machine/ansi.h>
+
 /*
  * Structure definition
  */
 struct sbuf {
 	char		*s_buf;		/* storage buffer */
-	struct sbuf	*s_next;        /* next in chain */
+	void		*s_unused;	/* binary compatibility. */
 	int		 s_size;	/* size of storage buffer */
 	int		 s_len;		/* current length of string */
+#define SBUF_FIXEDLEN	0x00000000	/* fixed length buffer (default) */
 #define SBUF_AUTOEXTEND	0x00000001	/* automatically extend buffer */
+#define SBUF_USRFLAGMSK	0x0000ffff	/* mask of flags the user may specify */
 #define SBUF_DYNAMIC	0x00010000	/* s_buf must be freed */
 #define SBUF_FINISHED	0x00020000	/* set by sbuf_finish() */
 #define SBUF_OVERFLOWED	0x00040000	/* sbuf overflowed */
@@ -51,24 +55,28 @@ __BEGIN_DECLS
 /*
  * API functions
  */
-struct sbuf	*sbuf_new(struct sbuf *s, char *buf, int length, int flags);
-void		 sbuf_clear(struct sbuf *s);
-int		 sbuf_setpos(struct sbuf *s, int pos);
-int		 sbuf_bcat(struct sbuf *s, const char *str, size_t len);
-int		 sbuf_bcpy(struct sbuf *s, const char *str, size_t len);
-int		 sbuf_cat(struct sbuf *s, const char *str);
-int		 sbuf_cpy(struct sbuf *s, const char *str);
-int		 sbuf_printf(struct sbuf *s, const char *fmt, ...) __printflike(2, 3);
-int		 sbuf_putc(struct sbuf *s, int c);
-int		 sbuf_overflowed(struct sbuf *s);
-void		 sbuf_finish(struct sbuf *s);
-char		*sbuf_data(struct sbuf *s);
-int		 sbuf_len(struct sbuf *s);
-void		 sbuf_delete(struct sbuf *s);
+struct sbuf	*sbuf_new(struct sbuf *, char *, int, int);
+void		 sbuf_clear(struct sbuf *);
+int		 sbuf_setpos(struct sbuf *, int);
+int		 sbuf_bcat(struct sbuf *, const char *, size_t);
+int		 sbuf_bcpy(struct sbuf *, const char *, size_t);
+int		 sbuf_cat(struct sbuf *, const char *);
+int		 sbuf_cpy(struct sbuf *, const char *);
+int		 sbuf_printf(struct sbuf *, const char *, ...) __printflike(2, 3);
+int		 sbuf_vprintf(struct sbuf *, const char *, _BSD_VA_LIST_) __printflike(2, 0);
+int		 sbuf_putc(struct sbuf *, int);
+int		 sbuf_trim(struct sbuf *);
+int		 sbuf_overflowed(struct sbuf *);
+void		 sbuf_finish(struct sbuf *);
+char		*sbuf_data(struct sbuf *);
+int		 sbuf_len(struct sbuf *);
+void		 sbuf_delete(struct sbuf *);
 
 #ifdef _KERNEL
-int		 sbuf_bcopyin(struct sbuf *s, const void *uaddr, size_t len);
-int		 sbuf_copyin(struct sbuf *s, const void *uaddr, size_t len);
+struct uio;
+struct sbuf	*sbuf_uionew(struct sbuf *, struct uio *, int *);
+int		 sbuf_bcopyin(struct sbuf *, const void *, size_t);
+int		 sbuf_copyin(struct sbuf *, const void *, size_t);
 #endif
 __END_DECLS
 
