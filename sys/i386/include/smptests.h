@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smptests.h,v 1.1 1997/05/26 09:11:25 smp Exp smp $
+ *	$Id: smptests.h,v 1.1 1997/06/26 18:02:47 smp Exp smp $
  */
 
 #ifndef _MACHINE_SMPTESTS_H_
@@ -33,10 +33,15 @@
  * various 'tests in progress'
  */
 
+/* address of POST hardware port */
+#define POST_ADDR		0x80
+
+
 /*
- * attempt to delay MP startup till after malloc & vm is active.
+ * IPI for stop/restart of other CPUs
+#define TEST_CPUSTOP
+#define DEBUG_CPUSTOP
  */
-#define LATE_START
 
 
 /*

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: smp.h,v 1.3 1997/06/25 20:43:48 smp Exp smp $
+ * $Id: smp.h,v 1.12 1997/06/25 20:59:15 fsmp Exp $
  *
  */
 
@@ -17,13 +17,18 @@
 
 #if defined(SMP) && !defined(APIC_IO)
 # error APIC_IO required for SMP, add "options APIC_IO" to your config file.
-#endif /* SMP && NCPU */
+#endif /* SMP && !APIC_IO */
 
 #if defined(SMP) && !defined(NCPU)
 # define NCPU			2
 #endif /* SMP && NCPU */
 
 #if defined(SMP) || defined(APIC_IO)
+
+/*
+ * For sending values to POST displays.
+ */
+#define POSTCODE(X)		outb(0x80, (X))
 
 #include <machine/apic.h>
 
@@ -41,13 +46,16 @@ void	get_mplock		__P((void));
 void	rel_mplock		__P((void));
 void	try_mplock		__P((void));
 
+/* global data in apic_vector.s */
+extern volatile u_int		stopped_cpus;
+extern volatile u_int		started_cpus;
+
 /* global data in mp_machdep.c */
 extern int			mp_ncpus;
 extern int			mp_naps;
 extern int			mp_nbusses;
 extern int			mp_napics;
 extern int			mp_picmode;
-extern int			mpenabled;
 extern int			boot_cpu_id;
 extern vm_offset_t		cpu_apic_address;
 extern vm_offset_t		io_apic_address[];
@@ -56,6 +64,7 @@ extern u_int32_t		io_apic_versions[];
 extern int			cpu_num_to_apic_id[];
 extern int			io_num_to_apic_id[];
 extern int			apic_id_to_logical[];
+extern u_int			all_cpus;
 extern u_int			SMP_prvpt[];
 extern u_char			SMP_ioapic[];
 
@@ -78,6 +87,8 @@ int	apic_polarity		__P((int, int));
 void	configure_local_apic	__P((void));
 void	init_secondary		__P((void));
 void	smp_invltlb		__P((void));
+int	stop_cpus		__P((u_int));
+int	restart_cpus		__P((u_int));
 
 /* global data in mpapic.c */
 extern volatile lapic_t		lapic;
@@ -109,8 +120,10 @@ void	u_sleep			__P((int));
 extern int			smp_active;
 extern int			invltlb_ok;
 
+/* 'private' global data in locore.s */
 extern volatile u_int		cpuid;
 extern volatile u_int		cpu_lockid;
+extern volatile u_int		other_cpus;
 
 #endif /* SMP || APIC_IO */
 #endif /* KERNEL */
