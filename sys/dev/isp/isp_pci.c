@@ -3,7 +3,7 @@
  * PCI specific probe and attach routines for Qlogic ISP SCSI adapters.
  * FreeBSD Version.
  *
- * Copyright (c) 1997, 1998, 1999, 2000 by Matthew Jacob
+ * Copyright (c) 1997, 1998, 1999, 2000, 2001 by Matthew Jacob
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -1033,7 +1033,8 @@ tdma_mk(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	bus_dmamap_t *dp;
 	u_int8_t scsi_status;
 	ct_entry_t *cto;
-	u_int32_t handle, totxfr, sflags;
+	u_int16_t handle;
+	u_int32_t totxfr, sflags;
 	int nctios, send_status;
 	int32_t resid;
 
@@ -1054,9 +1055,10 @@ tdma_mk(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		cto->ct_header.rqs_seqno = 1;
 		ISP_TDQE(mp->isp, "tdma_mk[no data]", *mp->iptrp, cto);
 		isp_prt(mp->isp, ISP_LOGTDEBUG1,
-		    "CTIO lun %d->iid%d flgs 0x%x sts 0x%x ssts 0x%x res %d",
-		    csio->ccb_h.target_lun, cto->ct_iid, cto->ct_flags,
-		    cto->ct_status, cto->ct_scsi_status, cto->ct_resid);
+		    "CTIO[%x] lun%d->iid%d flgs 0x%x sts 0x%x ssts 0x%x res %d",
+		    cto->ct_fwhandle, csio->ccb_h.target_lun, cto->ct_iid,
+		    cto->ct_flags, cto->ct_status, cto->ct_scsi_status,
+		    cto->ct_resid);
 		ISP_SWIZ_CTIO(mp->isp, cto, cto);
 		return;
 	}
@@ -1067,11 +1069,11 @@ tdma_mk(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	}
 
 	/*
-	 * Save handle, and potentially any SCSI status, which we'll reinsert
-	 * on the last CTIO we're going to send.
+	 * Save syshandle, and potentially any SCSI status, which we'll
+	 * reinsert on the last CTIO we're going to send.
 	 */
-	handle = cto->ct_reserved;
-	cto->ct_reserved = 0;
+	handle = cto->ct_syshandle;
+	cto->ct_syshandle = 0;
 	cto->ct_header.rqs_seqno = 0;
 	send_status = (cto->ct_flags & CT_SENDSTATUS) != 0;
 
@@ -1162,7 +1164,7 @@ tdma_mk(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			 * and do whatever else we need to do to finish the
 			 * rest of the command.
 			 */
-			cto->ct_reserved = handle;
+			cto->ct_syshandle = handle;
 			cto->ct_header.rqs_seqno = 1;
 
 			if (send_status) {
@@ -1172,15 +1174,15 @@ tdma_mk(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			}
 			if (send_status) {
 				isp_prt(mp->isp, ISP_LOGTDEBUG1,
-				    "CTIO lun%d for ID %d ct_flags 0x%x scsi "
-				    "status %x resid %d",
-				    csio->ccb_h.target_lun,
+				    "CTIO[%x] lun%d for ID %d ct_flags 0x%x "
+				    "scsi status %x resid %d",
+				    cto->ct_fwhandle, csio->ccb_h.target_lun,
 				    cto->ct_iid, cto->ct_flags,
 				    cto->ct_scsi_status, cto->ct_resid);
 			} else {
 				isp_prt(mp->isp, ISP_LOGTDEBUG1,
-				    "CTIO lun%d for ID%d ct_flags 0x%x",
-				    csio->ccb_h.target_lun,
+				    "CTIO[%x] lun%d for ID%d ct_flags 0x%x",
+				    cto->ct_fwhandle, csio->ccb_h.target_lun,
 				    cto->ct_iid, cto->ct_flags);
 			}
 			ISP_TDQE(mp->isp, "last tdma_mk", *mp->iptrp, cto);
@@ -1189,14 +1191,15 @@ tdma_mk(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			ct_entry_t     *octo = cto;
 
 			/*
-			 * Make sure handle fields are clean
+			 * Make sure syshandle fields are clean
 			 */
-			cto->ct_reserved = 0;
+			cto->ct_syshandle = 0;
 			cto->ct_header.rqs_seqno = 0;
 
 			isp_prt(mp->isp, ISP_LOGTDEBUG1,
-			    "CTIO lun%d for ID%d ct_flags 0x%x",
-			    csio->ccb_h.target_lun, cto->ct_iid, cto->ct_flags);
+			    "CTIO[%x] lun%d for ID%d ct_flags 0x%x",
+			    cto->ct_fwhandle, csio->ccb_h.target_lun,
+			    cto->ct_iid, cto->ct_flags);
 			ISP_TDQE(mp->isp, "tdma_mk", *mp->iptrp, cto);
 
 			/*
@@ -1207,7 +1210,7 @@ tdma_mk(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			*mp->iptrp = 
 			    ISP_NXT_QENTRY(*mp->iptrp, RQUEST_QUEUE_LEN(isp));
 			if (*mp->iptrp == mp->optr) {
-				isp_prt(mp->isp, ISP_LOGWARN,
+				isp_prt(mp->isp, ISP_LOGTDEBUG0,
 				    "Queue Overflow in tdma_mk");
 				mp->error = MUSHERR_NOQENTRIES;
 				return;
@@ -1217,6 +1220,7 @@ tdma_mk(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			 */
 			cto->ct_header.rqs_entry_type = RQSTYPE_CTIO;
 			cto->ct_header.rqs_entry_count = 1;
+			cto->ct_fwhandle = octo->ct_fwhandle;
 			cto->ct_header.rqs_flags = 0;
 			cto->ct_lun = octo->ct_lun;
 			cto->ct_iid = octo->ct_iid;
@@ -1249,8 +1253,8 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	struct isp_pcisoftc *pci;
 	bus_dmamap_t *dp;
 	ct2_entry_t *cto;
-	u_int16_t scsi_status, send_status, send_sense;
-	u_int32_t handle, totxfr, datalen;
+	u_int16_t scsi_status, send_status, send_sense, handle;
+	u_int32_t totxfr, datalen;
 	u_int8_t sense[QLTM_SENSELEN];
 	int nctios;
 
@@ -1273,7 +1277,7 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		}
 	 	cto->ct_header.rqs_entry_count = 1;
 		cto->ct_header.rqs_seqno = 1;
-		/* ct_reserved contains the handle set by caller */
+		/* ct_syshandle contains the handle set by caller */
 		/*
 		 * We preserve ct_lun, ct_iid, ct_rxid. We set the data
 		 * flags to NO DATA and clear relative offset flags.
@@ -1288,7 +1292,7 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		cto->ct_reloff = 0;
 		ISP_TDQE(mp->isp, "dma2_tgt_fc[no data]", *mp->iptrp, cto);
 		isp_prt(mp->isp, ISP_LOGTDEBUG1,
-		    "CTIO2 RX_ID 0x%x lun %d->iid%d flgs 0x%x sts 0x%x ssts "
+		    "CTIO2[%x] lun %d->iid%d flgs 0x%x sts 0x%x ssts "
 		    "0x%x res %d", cto->ct_rxid, csio->ccb_h.target_lun,
 		    cto->ct_iid, cto->ct_flags, cto->ct_status,
 		    cto->rsp.m1.ct_scsi_status, cto->ct_resid);
@@ -1321,8 +1325,8 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	 * of order).
 	 */
 
-	handle = cto->ct_reserved;
-	cto->ct_reserved = 0;
+	handle = cto->ct_syshandle;
+	cto->ct_syshandle = 0;
 
 	if ((send_status = (cto->ct_flags & CT2_SENDSTATUS)) != 0) {
 		cto->ct_flags &= ~CT2_SENDSTATUS;
@@ -1424,7 +1428,7 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			 * of the command.
 			 */
 
-			cto->ct_reserved = handle;
+			cto->ct_syshandle = handle;
 			cto->ct_header.rqs_seqno = 1;
 
 			if (send_status) {
@@ -1456,7 +1460,7 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			}
 			ISP_TDQE(mp->isp, "last dma2_tgt_fc", *mp->iptrp, cto);
 			isp_prt(mp->isp, ISP_LOGTDEBUG1,
-			    "CTIO2 RX_ID 0x%x lun %d->iid%d flgs 0x%x sts 0x%x"
+			    "CTIO2[%x] lun %d->iid%d flgs 0x%x sts 0x%x"
 			    " ssts 0x%x res %d", cto->ct_rxid,
 			    csio->ccb_h.target_lun, (int) cto->ct_iid,
 			    cto->ct_flags, cto->ct_status,
@@ -1468,12 +1472,12 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			/*
 			 * Make sure handle fields are clean
 			 */
-			cto->ct_reserved = 0;
+			cto->ct_syshandle = 0;
 			cto->ct_header.rqs_seqno = 0;
 
 			ISP_TDQE(mp->isp, "dma2_tgt_fc", *mp->iptrp, cto);
 			isp_prt(mp->isp, ISP_LOGTDEBUG1,
-			    "CTIO2 RX_ID 0x%x lun %d->iid%d flgs 0x%x",
+			    "CTIO2[%x] lun %d->iid%d flgs 0x%x",
 			    cto->ct_rxid, csio->ccb_h.target_lun,
 			    (int) cto->ct_iid, cto->ct_flags);
 			/*
@@ -1496,7 +1500,8 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			cto->ct_header.rqs_entry_type = RQSTYPE_CTIO2;
 			cto->ct_header.rqs_entry_count = 1;
 			cto->ct_header.rqs_flags = 0;
-			/* ct_header.rqs_seqno && ct_reserved done later */
+			/* ct_header.rqs_seqno && ct_syshandle done later */
+			cto->ct_fwhandle = octo->ct_fwhandle;
 			cto->ct_lun = octo->ct_lun;
 			cto->ct_iid = octo->ct_iid;
 			cto->ct_rxid = octo->ct_rxid;

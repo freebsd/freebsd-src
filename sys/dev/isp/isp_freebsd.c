@@ -2,7 +2,7 @@
 /*
  * Platform (FreeBSD) dependent common attachment code for Qlogic adapters.
  *
- * Copyright (c) 1997, 1998, 1999, 2000 by Matthew Jacob
+ * Copyright (c) 1997, 1998, 1999, 2000, 2001 by Matthew Jacob
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -401,6 +401,12 @@ isp_en_lun(struct ispsoftc *isp, union ccb *ccb)
 
 
 	bus = XS_CHANNEL(ccb);
+	if (bus != 0) {
+		isp_prt(isp, ISP_LOGERR,
+		    "second channel target mode not supported");
+		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+		return;
+	}
 	tgt = ccb->ccb_h.target_id;
 	lun = ccb->ccb_h.target_lun;
 
@@ -735,7 +741,7 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 {
 	void *qe;
 	struct ccb_scsiio *cso = &ccb->csio;
-	u_int32_t *hp, save_handle;
+	u_int16_t *hp, save_handle;
 	u_int16_t iptr, optr;
 
 
@@ -773,8 +779,8 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 		}
 
 		/*
-		 * We always have to use the tag_id- it has the RX_ID
-		 * for this exchage.
+		 * We always have to use the tag_id- it has the responder
+		 * exchange id in it.
 		 */
 		cto->ct_rxid = cso->tag_id;
 		if (cso->dxfer_len == 0) {
@@ -808,24 +814,29 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 		}
 		if (cto->ct_flags & CAM_SEND_STATUS) {
 			isp_prt(isp, ISP_LOGTDEBUG2,
-			    "CTIO2 RX_ID 0x%x SCSI STATUS 0x%x datalength %u",
+			    "CTIO2[%x] SCSI STATUS 0x%x datalength %u",
 			    cto->ct_rxid, cso->scsi_status, cto->ct_resid);
 		}
-		hp = &cto->ct_reserved;
+		hp = &cto->ct_syshandle;
 	} else {
 		ct_entry_t *cto = qe;
 
+		/*
+		 * We always have to use the tag_id- it has the handle
+		 * for this command.
+		 */
 		cto->ct_header.rqs_entry_type = RQSTYPE_CTIO;
 		cto->ct_header.rqs_entry_count = 1;
 		cto->ct_iid = cso->init_id;
 		cto->ct_tgt = ccb->ccb_h.target_id;
 		cto->ct_lun = ccb->ccb_h.target_lun;
+		cto->ct_fwhandle = cso->tag_id >> 8;
 		if (cso->tag_id && cso->tag_action) {
 			/*
 			 * We don't specify a tag type for regular SCSI.
 			 * Just the tag value and set the flag.
 			 */
-			cto->ct_tag_val = cso->tag_id;
+			cto->ct_tag_val = cso->tag_id & 0xff;
 			cto->ct_flags |= CT_TQAE;
 		}
 		if (ccb->ccb_h.flags & CAM_DIS_DISCONNECT) {
@@ -848,7 +859,7 @@ isp_target_start_ctio(struct ispsoftc *isp, union ccb *ccb)
 			    "CTIO SCSI STATUS 0x%x resid %d",
 			    cso->scsi_status, cso->resid);
 		}
-		hp = &cto->ct_reserved;
+		hp = &cto->ct_syshandle;
 		ccb->ccb_h.flags &= ~CAM_SEND_SENSE;
 	}
 
@@ -922,7 +933,8 @@ isp_target_putback_atio(struct ispsoftc *isp, union ccb *ccb)
 		if (atiop->ccb_h.status & CAM_TAG_ACTION_VALID) {
 			at->at_tag_type = atiop->tag_action;
 		}
-		at->at_tag_val = atiop->tag_id;
+		at->at_tag_val = atiop->tag_id & 0xff;
+		at->at_handle = atiop->tag_id >> 8;
 		ISP_SWIZ_ATIO(isp, qe, qe);
 	}
 	ISP_TDQE(isp, "isp_target_putback_atio", (int) optr, qe);
@@ -1048,14 +1060,14 @@ isp_handle_platform_atio(struct ispsoftc *isp, at_entry_t *aep)
 	atiop->cdb_len = aep->at_cdblen;
 	MEMCPY(atiop->cdb_io.cdb_bytes, aep->at_cdb, aep->at_cdblen);
 	atiop->ccb_h.status = CAM_CDB_RECVD;
-	atiop->tag_id = aep->at_tag_val;
+	atiop->tag_id = aep->at_tag_val | (aep->at_handle << 8);
 	if ((atiop->tag_action = aep->at_tag_type) != 0) {
 		atiop->ccb_h.status |= CAM_TAG_ACTION_VALID;
 	}
 	xpt_done((union ccb*)atiop);
 	isp_prt(isp, ISP_LOGTDEBUG2,
-	    "ATIO CDB=0x%x iid%d->lun%d tag 0x%x ttype 0x%x %s",
-	    aep->at_cdb[0] & 0xff, aep->at_iid, aep->at_lun,
+	    "ATIO[%x] CDB=0x%x iid%d->lun%d tag 0x%x ttype 0x%x %s",
+	    aep->at_handle, aep->at_cdb[0] & 0xff, aep->at_iid, aep->at_lun,
 	    aep->at_tag_val & 0xff, aep->at_tag_type,
 	    (aep->at_flags & AT_NODISC)? "nondisc" : "disconnecting");
 	rls_lun_statep(isp, tptr);
@@ -1196,8 +1208,8 @@ isp_handle_platform_atio2(struct ispsoftc *isp, at2_entry_t *aep)
 
 	xpt_done((union ccb*)atiop);
 	isp_prt(isp, ISP_LOGTDEBUG2,
-	    "ATIO2 RX_ID 0x%x CDB=0x%x iid%d->lun%d tattr 0x%x datalen %u",
-	    aep->at_rxid & 0xffff, aep->at_cdb[0] & 0xff, aep->at_iid,
+	    "ATIO2[%x] CDB=0x%x iid%d->lun%d tattr 0x%x datalen %u",
+	    aep->at_rxid, aep->at_cdb[0] & 0xff, aep->at_iid,
 	    lun, aep->at_taskflags, aep->at_datalen);
 	rls_lun_statep(isp, tptr);
 	return (0);
@@ -1213,9 +1225,9 @@ isp_handle_platform_ctio(struct ispsoftc *isp, void *arg)
 	 * CTIO and CTIO2 are close enough....
 	 */
 
-	ccb = (union ccb *) isp_find_xs(isp, ((ct_entry_t *)arg)->ct_reserved);
+	ccb = (union ccb *) isp_find_xs(isp, ((ct_entry_t *)arg)->ct_syshandle);
 	KASSERT((ccb != NULL), ("null ccb in isp_handle_platform_ctio"));
-	isp_destroy_handle(isp, ((ct_entry_t *)arg)->ct_reserved);
+	isp_destroy_handle(isp, ((ct_entry_t *)arg)->ct_syshandle);
 
 	if (IS_FC(isp)) {
 		ct2_entry_t *ct = arg;
@@ -1225,7 +1237,7 @@ isp_handle_platform_ctio(struct ispsoftc *isp, void *arg)
 			ccb->ccb_h.status |= CAM_SENT_SENSE;
 		}
 		isp_prt(isp, ISP_LOGTDEBUG2,
-		    "CTIO2 RX_ID 0x%x sts 0x%x flg 0x%x sns %d FIN",
+		    "CTIO2[%x] sts 0x%x flg 0x%x sns %d FIN",
 		    ct->ct_rxid, ct->ct_status, ct->ct_flags,
 		    (ccb->ccb_h.status & CAM_SENT_SENSE) != 0);
 		notify_cam = ct->ct_header.rqs_seqno;
@@ -1885,7 +1897,12 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 
 		cpi->version_num = 1;
 #ifdef	ISP_TARGET_MODE
-		cpi->target_sprt = PIT_PROCESSOR | PIT_DISCONNECT | PIT_TERM_IO;
+		/* XXX: we don't support 2nd bus target mode yet */
+		if (cam_sim_bus(sim) == 0)
+			cpi->target_sprt =
+			    PIT_PROCESSOR | PIT_DISCONNECT | PIT_TERM_IO;
+		else
+			cpi->target_sprt = 0;
 #else
 		cpi->target_sprt = 0;
 #endif
