@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
  */
 
 #define NSMAX 16
-#define	MAXPACKET 65536
 
 struct ns1 {
 	char nsname[MAXDNAME];
@@ -72,7 +71,7 @@ struct zonegrp {
 int
 res_update(ns_updrec *rrecp_in) {
 	ns_updrec *rrecp, *tmprrecp;
-	u_char buf[PACKETSZ], answer[MAXPACKET], packet[2*PACKETSZ];
+	u_char buf[PACKETSZ], answer[PACKETSZ], packet[2*PACKETSZ];
 	char name[MAXDNAME], zname[MAXDNAME], primary[MAXDNAME],
 	     mailaddr[MAXDNAME];
 	u_char soardata[2*MAXCDNAME+5*INT32SZ];
