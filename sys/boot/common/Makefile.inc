@@ -19,9 +19,9 @@ SRCS+=	pnp.c
 # Forth interpreter
 .if BOOT_FORTH
 SRCS+=	interp_forth.c
-MAN5+=		../forth/loader.conf.5
-MAN8+=          ../forth/loader.4th.8
+MAN+=	../forth/loader.conf.5
+MAN+=	../forth/loader.4th.8
 .endif
 
-MAN8+=          loader.8
+MAN+=	loader.8
 
