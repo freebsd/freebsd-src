@@ -38,11 +38,9 @@
 .Nm date
 .Nd display or set date and time
 .Sh SYNOPSIS
-.Nm
-.Op Fl jnu
-.Op Fl d Ar dst
+.Nm 
+.Op Fl ju
 .Op Fl r Ar seconds
-.Op Fl t Ar minutes_west
 .Oo
 .Fl v
 .Sm off
@@ -51,15 +49,21 @@
 .Sm on
 .Oc
 .Ar ...
-.Oo
-.Fl f
-.Ar fmt date |
+.Op Cm + Ns Ar output_fmt
+.Nm
+.Op Fl jnu
 .Sm off
 .Op Oo Oo Oo Oo Ar cc Oc Ar yy Oc Ar mm Oc Ar dd Oc Ar HH
 .Ar MM Op Ar .ss
 .Sm on
-.Oc
-.Op Cm + Ns Ar format
+.Nm
+.Op Fl jnu
+.Fl f
+.Ar input_fmt new_date
+.Op Cm + Ns Ar output_fmt
+.Nm
+.Op Fl d Ar dst
+.Op Fl t Ar minutes_west
 .Sh DESCRIPTION
 When invoked without arguments, the
 .Nm
