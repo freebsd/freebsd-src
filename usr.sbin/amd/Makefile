@@ -1,5 +1,11 @@
-#       @(#)Makefile	8.1 (Berkeley) 6/6/93
+# ex:ts=8
+#
+# Makefile for amd
+# 	This file is under a "BSD" copyright (c) by David O'Brien 1998
+#
+# $Id$
+#
 
-SUBDIR= amd amq doc fsinfo mk-amd-map
+SUBDIR= libamu amd amq fixmount fsinfo hlfsd mk-amd-map pawd wire-test
 
 .include <bsd.subdir.mk>
