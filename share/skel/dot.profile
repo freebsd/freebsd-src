@@ -1,4 +1,4 @@
-#	$Id: dot.profile,v 1.16 1998/06/06 15:01:46 kuriyama Exp $
+#	$Id: dot.profile,v 1.17 1998/08/14 13:49:57 thepish Exp $
 #
 # .profile - Bourne Shell startup script for login shells
 #
@@ -17,10 +17,6 @@ PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/games:/usr/local/bin:/usr/X11R6/bin:$HOM
 BLOCKSIZE=K;	export BLOCKSIZE
 EDITOR=vi;   	export EDITOR
 PAGER=more;  	export PAGER
-# make mail(1) happy:
-#crt=24;		export crt
-#set crt='' to have mail(1) use the setting from stty(1) by default
-crt='';		export crt
 
 # set ENV to a file invoked each time sh is started for interactive use.
 ENV=$HOME/.shrc; export ENV
