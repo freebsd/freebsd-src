@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/cfs/cfs_namecache.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: $
+ *  $Id: cfs_namecache.c,v 1.2 1998/09/02 19:09:53 rvb Exp $
  * 
  */
 
@@ -47,6 +47,9 @@
 /*
  * HISTORY
  * $Log: cfs_namecache.c,v $
+ * Revision 1.2  1998/09/02 19:09:53  rvb
+ * Pass2 complete
+ *
  * Revision 1.1.1.1  1998/08/29 21:14:52  rvb
  * Very Preliminary Coda
  *
@@ -224,6 +227,10 @@
 #include <cfs/coda.h>
 #include <cfs/cnode.h>
 #include <cfs/cfsnc.h>
+#ifdef	DEBUG
+/* for printcred */
+#include <cfs/cfs_vnodeops.h>
+#endif
 
 /* 
  * Declaration of the name cache data structure.
@@ -861,8 +868,6 @@ cfsnc_resize(hashsize, heapsize, dcstat)
     return(0);
 }
 
-#define DEBUG
-#ifdef	DEBUG
 char cfsnc_name_buf[CFS_MAXNAMLEN+1];
 
 void
@@ -889,4 +894,3 @@ cfsnc_name(struct cnode *cp)
 		}
 	}
 }
-#endif
