@@ -103,6 +103,7 @@ ${TGTS}: upgrade_checks
 # Set a reasonable default
 .MAIN:	all
 
+STARTTIME!= LC_TIME=C date
 #
 # world
 #
@@ -111,7 +112,7 @@ ${TGTS}: upgrade_checks
 #
 world: upgrade_checks
 	@echo "--------------------------------------------------------------"
-	@echo ">>> ${OBJFORMAT} make world started on `LC_TIME=C date`"
+	@echo ">>> ${OBJFORMAT} make world started on ${STARTTIME}"
 	@echo "--------------------------------------------------------------"
 .if target(pre-world)
 	@echo
@@ -131,7 +132,7 @@ world: upgrade_checks
 .endif
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> ${OBJFORMAT} make world completed on `LC_TIME=C date`"
+	@printf ">>> ${OBJFORMAT} make world completed on `LC_TIME=C date`\n                       (started ${STARTTIME})\n"
 	@echo "--------------------------------------------------------------"
 
 #
