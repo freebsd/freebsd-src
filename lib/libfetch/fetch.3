@@ -379,12 +379,30 @@ Invalid URL
 The accompanying error message includes a protocol-specific error code
 and message, e.g. "File is not available (404 Not Found)"
 .Sh ENVIRONMENT
-The FTP and HTTP related functions use the
-.Ev HTTP_PROXY
-and
-.Ev FTP_PROXY
-environment variables, respectively, as the address of a proxy server
-to use for transferring files.
+.Bl -tag -width HTTP_PROXY_AUTH
+.It Ev FTP_PROXY
+host name of the FTP proxy to use, optionally followed by a port
+number separated from the host name by a colon.
+.It Ev HTTP_AUTH
+Specifies HTTP authorization parameters, used only if the server
+requires authorization and no user name or password was specified in
+the URL.
+The first and second item are the authorization scheme and realm
+respectively; further items are scheme-dependent.
+Currently, only basic authorization is supported.
+Basic authorization requires two parameters: the user name and
+password, in that order.
+.It Ev HTTP_PROXY
+host name of the HTTP proxy to use, optionally followed by a port
+number separated from the host name by a colon.
+If no port number is specified, the default is 3128.
+.It Ev HTTP_PROXY_AUTH
+Specifies authorization parameters for the HTTP proxy in the same
+format as
+.Ev HTTP_AUTH .
+The value of this variable is used if and only if connected to an HTTP
+proxy.
+.El
 .Sh SEE ALSO
 .Xr fetch 1 ,
 .Xr ftpio 3 ,
@@ -451,21 +469,13 @@ There's no way to select a proxy at run-time other than setting the
 or
 .Ev FTP_PROXY
 environment variables as appropriate.
-There is also no way to stop the
-FTP and HTTP functions from trying to use a proxy if these variables
-are set.
 .Pp
-HTTP authentication doesn't work.
-I'm not sure that's a bug in my
-code; as far as I can determine,
-.Nm libfetch
-handles HTTP/1.1 basic authentication correctly as outlined in
-RFC2068, but I haven't been able to find an HTTP server that honors
-the Authentication: header field.
-Also,
 .Nm libfetch
 does not attempt to interpret and respond to authentication requests
-from the HTTP server.
+from the HTTP server or proxy (code 401 and 407 respectively).
+.Pp
+.Nm libfetch
+does not understand or obey 305 (Use Proxy) replies.
 .Pp
 No attempt is made to encode spaces etc. within URLs.
 Spaces in the
