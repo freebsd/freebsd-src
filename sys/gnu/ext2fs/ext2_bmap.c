@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_bmap.c	8.7 (Berkeley) 3/21/95
- * $Id: ufs_bmap.c,v 1.20 1998/02/06 12:14:17 eivind Exp $
+ * $Id: ufs_bmap.c,v 1.21 1998/07/04 20:45:39 julian Exp $
  */
 
 #include <sys/param.h>
@@ -163,7 +163,7 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp, runb)
 			maxrun -= 1;
 		}
 
-		if (maxrun == 0) {
+		if (maxrun <= 0) {
 			vp->v_maxio = DFLTPHYS;
 			maxrun = DFLTPHYS / blksize;
 			maxrun -= 1;
