@@ -113,6 +113,7 @@ static const struct ac97_vendorid ac97vendorid[] = {
 	{ 0x56494100, "VIA Technologies" },
 	{ 0x574d4c00, "Wolfson" },
 	{ 0x594d4800, "Yamaha" },
+	{ 0x01408300, "Creative" },
 	{ 0x00000000, NULL }
 };
 
@@ -188,6 +189,7 @@ static struct ac97_codecid ac97codecid[] = {
 	{ 0x594d4800, 0x00, 0, "YMF743",	0 },
 	{ 0x594d4802, 0x00, 0, "YMF752",	0 },
 	{ 0x594d4803, 0x00, 0, "YMF753",	0 },
+	{ 0x01408384, 0x00, 0, "EV1938",	0 },
 	{ 0, 0, 0, NULL, 0 }
 };
 
