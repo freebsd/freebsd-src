@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_bus.c,v 1.20 1999/05/08 21:59:35 dfr Exp $
+ *	$Id: subr_bus.c,v 1.21 1999/05/10 17:06:14 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -93,6 +93,7 @@ static void device_unregister_oids(device_t dev);
 /*
  * Method table handling
  */
+static int error_method(void);
 static int next_method_offset = 1;
 
 LIST_HEAD(methodlist, method) methods;
@@ -113,6 +114,12 @@ register_method(struct device_op_desc *desc)
 	desc->method->refs++;
 	return;
     }
+
+    /*
+     * Make sure that desc->deflt is always valid to simplify dispatch.
+     */
+    if (!desc->deflt)
+	desc->deflt = error_method;
 
     for (m = LIST_FIRST(&methods); m; m = LIST_NEXT(m, link)) {
 	if (!strcmp(m->name, desc->name)) {
