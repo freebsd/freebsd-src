@@ -44,14 +44,10 @@ Table of contents:
 1.1. KERNEL CHANGES
 -------------------
 
-Linux mode has undergone significant bug fixes and improvements.
-
 The Berkeley Packet Filter (bpf) is enabled by default.  This is to allow
 DHCP supported installs.
 
-Alpha timecounter code has been improved.
-
-The al and rl drivers have been ported to the Alpha.
+Linux mode has undergone significant bug fixes and improvements.
 
 The i386 bootstrap has been enhanced for some problematic systems.
 
@@ -66,18 +62,6 @@ on the ADMtek Inc. AL981 Comet chipset.
 Driver support has been added for PCI fast ethernet cards based
 on the LC82C115 'PNIC II' chipset.
 
-Driver support has been added for the Compaq Smart Raid family of
-RAID controllers.
-
-USB support has been improved.
-
-Major updates to the Vinum volume manager have been incorporated.
-
-Driver support for a number of Realtek and Avance Asound audio cards
-has been added.
-
-A number of NFS problems have been fixed.
-
 Driver support has been added for SysKonnect SK-984x PCI gigabit
 ethernet adapters.
 
@@ -87,6 +71,21 @@ based on the Adaptec AIC-6915 fast ethernet controller.
 Driver support for M-systems DiskOnChip products integrated.
 
 Driver support has been added for the 3Com 3c905C-TX.
+
+Driver support has been added for the 3Com 3x574-TX 16-bit FastEtherlink
+PC-card support.
+
+Driver support has been added for the Compaq Smart Raid family of
+RAID controllers.
+
+Driver support for a number of Realtek and Avance Asound audio cards
+has been added.
+
+USB support has been improved.
+
+Major updates to the Vinum volume manager have been incorporated.
+
+A number of NFS problems have been fixed.
 
 APM support has been improved.  A kernel panic problem with an
 older APM BIOSes has been fixed.  Also, the suspend/standby
@@ -107,6 +106,9 @@ A problem with file systems flags has been corrected.
 
 A problem with profil(2) remaining inactive after an exec call.
 
+A remotely exploitable root hole in amd (the automount daemon) has been
+fixed.
+
 The wu-ftpd port has been updated with the latest patches to prevent
 possible remote root explots.
 
@@ -116,14 +118,13 @@ possible remote root explots.
 The samba port has been updated with the latest patches to prevent
 possible remote root explots.
 
-amd has been updated to correct a remotely exploitable root hole.
-
-inn has been updated to a new version that corrects some buffer
+The inn port has been updated to a new version that corrects some buffer
 overflows.
 
 Since FreeBSD 3.0 RELEASE, many minor problems with the network stack
 have been corrected which could have been exploited for denial of
 service attacks.
+
 
 1.3. USERLAND CHANGES
 ---------------------
@@ -143,9 +144,6 @@ run without command-line options will do no wrapping.
 ISC's DHCP client has been upgraded to version 2.0.
 
 Bison, the GNU parser generator, has been upgraded to version 1.28.
-
-A Gcc optimiser bug has been fixed that prevented compiling the XFree86
-client libraries on the Alpha.
 
 The Advanced Power Management monitor daemon, apmd(8), has been added.
 This allows the user to select the APM events to be handled from
