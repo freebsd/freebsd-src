@@ -1484,73 +1484,9 @@
       linkend="bluetooth">Bluetooth</link> section.</para>
     </note>
 
-    <para arch="i386,pc98,alpha,ia64,amd64">Host Controllers (&man.ohci.4; and &man.uhci.4; drivers)
-      <itemizedlist>
-        <listitem arch="i386,alpha">
-	  <para>ALi Aladdin-V</para>
-	</listitem>
-        <listitem arch="i386,alpha">
-	  <para>AMD-756</para>
-	</listitem>
-        <listitem arch="i386,alpha,amd64">
-	  <para>Belkin USB 2.0 High Speed Host Controller
-	    (&man.ehci.4; driver)</para>
-	</listitem>
-        <listitem arch="i386,alpha,amd64">
-	  <para>CMD Tech 670 & 673</para>
-	</listitem>
-        <listitem arch="i386,alpha">
-	  <para>Intel 82371SB (PIIX3)</para>
-	</listitem>
-        <listitem arch="i386,alpha">
-	  <para>Intel 82371AB and EB (PIIX4)</para>
-	</listitem>
-        <listitem arch="i386,alpha">
-	  <para>Intel 82801AA (ICH)</para>
-	</listitem>
-        <listitem arch="i386,alpha">
-	  <para>Intel 82801AB (ICH0)</para>
-	</listitem>
-        <listitem arch="i386,alpha">
-	  <para>Intel 82801BA/BAM (ICH2)</para>
-	</listitem>
-        <listitem arch="i386,alpha">
-	  <para>Intel 82443MX</para>
-	</listitem>
-        <listitem arch="i386,alpha,amd64">
-	  <para>NEC uPD 9210 (&man.ehci.4; driver)</para>
-	</listitem>
-        <listitem arch="i386,alpha,amd64">
-	  <para>OPTi 82C861 (FireLink)</para>
-	</listitem>
-        <listitem arch="i386,alpha">
-	  <para>SiS 5571</para>
-	</listitem>
-        <listitem arch="i386,alpha">
-	  <para>VIA 83C572 USB</para>
-	</listitem>
-        <listitem arch="i386,alpha,ia64,amd64">
-	  <para>UHCI or OHCI compliant motherboard chipsets (no
-	  exceptions known)</para>
-	</listitem>
-        <listitem arch="pc98">
-          <para>NEC PC-9821V200 etc (&man.ohci.4; driver)</para>
-        </listitem>
-      </itemizedlist>
-    </para>
-    <para arch="i386,pc98,amd64">USB host controllers (PCI)
-      <itemizedlist>
-        <listitem arch="i386,amd64">
-	  <para>ADS Electronics PCI plug-in card (2 ports)</para>
-	</listitem>
-        <listitem arch="i386,amd64">
-	  <para>Entrega PCI plug-in card (4 ports)</para>
-	</listitem>
-        <listitem arch="pc98">
-          <para>TRY CORPORATION JUS-02 (&man.uhci.4; driver)</para>
-        </listitem>
-      </itemizedlist>
-    </para>
+    <para arch="i386,pc98,alpha,ia64,amd64">OHCI 1.0-compliant host controllers (&man.ohci.4; driver)</para>
+
+    <para arch="i386,pc98,alpha,ia64,amd64">UHCI 1.1-compliant host controllers (&man.uhci.4; driver)</para>
 
     <para arch="i386,ia64,pc98,amd64">USB 2.0 controllers using the EHCI
       interface (&man.ehci.4; driver)</para>
@@ -1624,36 +1560,8 @@
 	</listitem>
       </itemizedlist>
     </para>
-    <para arch="i386,pc98,amd64">Serial devices
-      <itemizedlist>
-        <listitem>
-	  <para>Belkin F5U103 and F5U120 (&man.ubsa.4; driver)</para>
-        </listitem>
-        <listitem>
-	  <para>e-Tek Labs Kwik232 (&man.ubsa.4; driver)</para>
-        </listitem>
-        <listitem>
-	  <para>GoHubs GoCOM232 (&man.ubsa.4; driver)</para>
-        </listitem>
-        <listitem>
-	  <para>HP USB-Serial adapter (&man.uftdi.4; driver)</para>
-        </listitem>
-        <listitem>
-	  <para>Inland UAS111 (&man.uftdi.4; driver)</para>
-        </listitem>
-        <listitem>
-	  <para>Peracom single port serial adapter (&man.ubsa.4; driver)</para>
-        </listitem>
-        <listitem>
-	  <para>Prolific PL-2303 serial adapter (&man.uplcom.4; driver)</para>
-        </listitem>
-        <listitem>
-	  <para>QVS USC-1000 (&man.uftdi.4; driver)</para>
-        </listitem>
-        <listitem>
-	  <para>SUNTAC Slipper U VS-10U (&man.uvscom.4; driver)</para>
-        </listitem>
-      </itemizedlist>
+    <para arch="i386,pc98,amd64">Serial devices (&man.ubsa.4;,
+      &man.uftdi.4; and &man.uplcom.4; drivers)
     </para>
     <para arch="i386,pc98,amd64">Scanners (through <application>SANE</application>) (&man.uscanner.4; driver)
     </para>
@@ -1782,39 +1690,10 @@
 
     <para arch="i386,sparc64,amd64">Host Controllers (&man.fwohci.4;
       driver)
-
-      <itemizedlist>
-        <listitem>
-	  <para>Ricoh R5C552 chipset</para>
-        </listitem>
-        <listitem>
-	  <para>Sony CX3022 chipset</para>
-        </listitem>
-        <listitem>
-	  <para>TI TSB12LV22, LV23, 26 and TSB43AA22 chipsets</para>
-        </listitem>
-        <listitem>
-	  <para>uPD72861 chipset</para>
-        </listitem>
-        <listitem>
-	  <para>VIA VT6306 chipset</para>
-        </listitem>
-      </itemizedlist>
-
       </para>
 
-    <para arch="i386,sparc64,amd64">Storage (&man.sbp.4; driver)
-
-      <itemizedlist>
-	<listitem>
-          <para>Apple iPod</para>
-	</listitem>
-	<listitem>
-          <para>Apple Macintosh G4 (target mode)</para>
-	</listitem>
-      </itemizedlist>
-
-      </para>
+    <para arch="i386,sparc64,amd64">Serial Bus Protocol 2 (SBP-2)
+      storage devices (&man.sbp.4; driver)</para>
 
   </sect2>
 
