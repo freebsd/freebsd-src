@@ -58,6 +58,7 @@ static struct chunk *chunk_info[16];
 static int current_chunk;
 
 static void	diskPartitionNonInteractive(Device *dev);
+static u_char *	bootalloc(char *name, size_t *size);
 
 static void
 record_chunks(Disk *d)
@@ -168,10 +169,10 @@ static void
 getBootMgr(char *dname, u_char **bootipl, size_t *bootipl_size,
 	   u_char **bootmenu, size_t *bootmenu_size)
 {
-    extern u_char boot0[];
-    extern size_t boot0_size;
-    extern u_char boot05[];
-    extern size_t boot05_size;
+    static u_char *boot0;
+    static size_t boot0_size;
+    static u_char *boot05;
+    static size_t boot05_size;
 
     char str[80];
     char *cp;
@@ -192,8 +193,10 @@ getBootMgr(char *dname, u_char **bootipl, size_t *bootipl_size,
     if (cp || i) {
 	switch (BootMgr) {
 	case 0:
+	    if (!boot0) boot0 = bootalloc("boot0", &boot0_size);
 	    *bootipl = boot0;
 	    *bootipl_size = boot0_size;
+	    if (!boot05) boot05 = bootalloc("boot0.5", &boot05_size);
 	    *bootmenu = boot05;
 	    *bootmenu_size = boot05_size;
 	    return;
@@ -212,8 +215,8 @@ static void
 getBootMgr(char *dname, u_char **bootCode, size_t *bootCodeSize)
 {
 #ifndef __alpha__	/* only meaningful on x86 */
-    extern u_char mbr[], boot0[];
-    extern size_t mbr_size, boot0_size;
+    static u_char *mbr, *boot0;
+    static size_t mbr_size, boot0_size;
     char str[80];
     char *cp;
     int i = 0;
@@ -236,10 +239,12 @@ getBootMgr(char *dname, u_char **bootCode, size_t *bootCodeSize)
     if (cp || i) {
 	switch (BootMgr) {
 	case 0:
+	    if (!boot0) boot0 = bootalloc("boot0", &boot0_size);
 	    *bootCode = boot0;
 	    *bootCodeSize = boot0_size;
 	    return;
 	case 1:
+	    if (!mbr) mbr = bootalloc("mbr", &mbr_size);
 	    *bootCode = mbr;
 	    *bootCodeSize = mbr_size;
 	    return;
@@ -671,7 +676,7 @@ diskPartition(Device *dev)
 }
 
 static u_char *
-bootalloc(char *name)
+bootalloc(char *name, size_t *size)
 {
     char buf[FILENAME_MAX];
     struct stat sb;
@@ -692,6 +697,8 @@ bootalloc(char *name)
 		return NULL;
 	    }
 	    close(fd);
+	    if (size != NULL)
+		*size = sb.st_size;
 	    return cp;
 	}
 	msgDebug("bootalloc: couldn't open %s\n", buf);
@@ -815,11 +822,11 @@ diskPartitionWrite(dialogMenuItem *self)
 	    continue;
 
 #ifdef __alpha__
-	if (!boot1) boot1 = bootalloc("boot1");
+	if (!boot1) boot1 = bootalloc("boot1", NULL);
 	Set_Boot_Blocks(d, boot1, NULL);
 #else
-	if (!boot1) boot1 = bootalloc("boot1");
-	if (!boot2) boot2 = bootalloc("boot2");
+	if (!boot1) boot1 = bootalloc("boot1", NULL);
+	if (!boot2) boot2 = bootalloc("boot2", NULL);
 	Set_Boot_Blocks(d, boot1, boot2);
 #endif
 

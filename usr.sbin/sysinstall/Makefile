@@ -54,46 +54,6 @@ makedevs.c:	Makefile rtermcap
 		file2c 'const char termcap_xterm[] = {' ',0};' \
 		>> makedevs.c
 
-.if ${MACHINE_ARCH} == i386
-# XXX boot images aren't yet ready when "make depend" is run
-.if !make(depend)
-SRCS+=	makeboot.c
-.endif
-CLEANFILES+= makeboot.c
-.if exists(${.OBJDIR}/../../sys/boot/${MACHINE}/boot0/boot0)
-BOOT0=	${.OBJDIR}/../../sys/boot/${MACHINE}/boot0/boot0
-.else
-BOOT0=	/boot/boot0
-.endif
-makeboot.c: ${BOOT0}
-.if ${MACHINE} == "i386"
-.if exists(${.OBJDIR}/../../sys/boot/i386/mbr/mbr)
-MBR=	${.OBJDIR}/../../sys/boot/i386/mbr/mbr
-.else
-MBR=	/boot/mbr
-.endif
-makeboot.c: ${MBR}
-.elif ${MACHINE} == "pc98"
-.if exists(${.OBJDIR}/../../sys/boot/pc98/boot0.5/boot0.5)
-BOOT05=	${.OBJDIR}/../../sys/boot/pc98/boot0.5/boot0.5
-.else
-BOOT05=	/boot/boot0.5
-.endif
-makeboot.c: ${BOOT05}
-.endif
-makeboot.c: Makefile
-	echo '#include <sys/types.h>' > makeboot.c
-	file2c 'u_char boot0[] = {' '};' < ${BOOT0} >> makeboot.c
-	echo "size_t boot0_size = sizeof(boot0);" >> makeboot.c
-.if ${MACHINE} == i386
-	file2c 'u_char mbr[] = {' '};' < ${MBR} >> makeboot.c
-	echo "size_t mbr_size = sizeof(mbr);" >> makeboot.c
-.elif ${MACHINE} == "pc98"
-	file2c 'u_char boot05[] = {' '};' < ${BOOT05} >> makeboot.c
-	echo "size_t boot05_size = sizeof(boot05);" >> makeboot.c
-.endif
-.endif
-
 build-tools:	rtermcap
 
 rtermcap:	rtermcap.c
