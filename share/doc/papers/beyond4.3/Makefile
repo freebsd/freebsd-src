@@ -5,6 +5,6 @@ DOC=	beyond43
 MACROS=	-ms
 
 paper.ps: ${SRCS}
-	${TBL} ${SRCS} | ${ROFF} > ${.TARGET}
+	${TBL} ${.CURDIR}/${SRCS} | ${ROFF} > ${.TARGET}
 
 .include <bsd.doc.mk>
