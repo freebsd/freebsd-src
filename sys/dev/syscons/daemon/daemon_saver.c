@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: daemon_saver.c,v 1.2 1997/05/24 01:44:39 yokota Exp $
+ *	$Id: daemon_saver.c,v 1.4 1997/05/26 01:02:41 yokota Exp $
  */
 
 #include <sys/param.h>
@@ -35,6 +35,9 @@
 #include <sys/sysent.h>
 #include <sys/lkm.h>
 #include <sys/errno.h>
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
+#include <sys/malloc.h>
 
 #include <machine/md_var.h>
 
@@ -150,6 +153,9 @@ draw_daemon(int xpos, int ypos, int dxdir)
 }
 
 #ifndef DAEMON_ONLY
+static char *message;
+static int messagelen;
+
 static void
 draw_string(int xpos, int ypos, char *s, int len)
 {
@@ -165,7 +171,6 @@ static void
 daemon_saver(int blank)
 {
 #ifndef DAEMON_ONLY
-	static const char message[] = {"FreeBSD 3.0 CURRENT"};
 	static int txpos = 10, typos = 10;
 	static int txdir = -1, tydir = -1;
 #endif
@@ -201,7 +206,7 @@ daemon_saver(int blank)
 
 #ifndef DAEMON_ONLY
 		if (txdir > 0) {
-			if (txpos == scp->xsize - sizeof(message)-1)
+			if (txpos == scp->xsize - messagelen)
 				txdir = -1;
 		} else {
 			if (txpos == 0) txdir = 1;
@@ -217,7 +222,7 @@ daemon_saver(int blank)
 
  		draw_daemon(dxpos, dypos, dxdir);
 #ifndef DAEMON_ONLY
-		draw_string(txpos, typos, (char *)message, sizeof(message)-1);
+		draw_string(txpos, typos, (char *)message, messagelen);
 #endif
 	} else {
 		if (scrn_blanked) {
@@ -232,9 +237,25 @@ daemon_saver(int blank)
 static int
 daemon_saver_load(struct lkm_table *lkmtp, int cmd)
 {
+#ifdef SHOW_HOSTNAME
+	static const char *freebsd = " - FreeBSD ";
+#else
+	static const char *freebsd = "FreeBSD ";
+#endif /* SHOW_HOSTNAME */
+
 	(*current_saver)(0);
 	old_saver = current_saver;
 	current_saver = daemon_saver;
+
+#ifdef SHOW_HOSTNAME
+	messagelen = strlen(hostname) + strlen(freebsd) + strlen(osrelease);
+	message = malloc(messagelen + 1, M_DEVBUF, M_NOWAIT);
+	sprintf(message, "%s%s%s", hostname, freebsd, osrelease);
+#else
+	messagelen = strlen(freebsd) + strlen(osrelease);
+	message = malloc(messagelen + 1, M_DEVBUF, M_NOWAIT);
+	sprintf(message, "%s%s", freebsd, osrelease);
+#endif /* SHOW_HOSTNAME */
 	return 0;
 }
 
@@ -243,6 +264,8 @@ daemon_saver_unload(struct lkm_table *lkmtp, int cmd)
 {
 	(*current_saver)(0);
 	current_saver = old_saver;
+
+	free(message, M_DEVBUF);
 	return 0;
 }
 
