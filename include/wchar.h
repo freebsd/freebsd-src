@@ -93,11 +93,6 @@ typedef	__wchar_t	wchar_t;
 #endif
 #endif
 
-#ifndef _WCTYPE_T
-typedef	unsigned long	wctype_t;
-#define	_WCTYPE_T
-#endif
-
 #ifndef _WINT_T_DECLARED
 typedef	__wint_t	wint_t;
 #define	_WINT_T_DECLARED
