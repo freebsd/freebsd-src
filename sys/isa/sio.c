@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.107 1995/07/29 08:33:13 bde Exp $
+ *	$Id: sio.c,v 1.108 1995/07/31 18:29:51 bde Exp $
  */
 
 #include "sio.h"
@@ -1688,7 +1688,8 @@ retry:
 	enable_intr();
 	while ((inb(com->line_status_port) & (LSR_TSRE | LSR_TXRDY))
 	       != (LSR_TSRE | LSR_TXRDY)) {
-		error = ttysleep(tp, TSA_OLOWAT(tp), TTIPRI | PCATCH,
+		tp->t_state |= TS_SO_OCOMPLETE;
+		error = ttysleep(tp, TSA_OCOMPLETE(tp), TTIPRI | PCATCH,
 				 "siotx", hz / 100);
 		if (   txtimeout != 0
 		    && (!error || error	== EAGAIN)
