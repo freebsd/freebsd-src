@@ -666,6 +666,7 @@ struct xl_stats {
 #define TC_DEVICEID_HURRICANE_575A		0x5057
 #define TC_DEVICEID_HURRICANE_575B		0x5157
 #define TC_DEVICEID_HURRICANE_575C		0x5257
+#define TC_DEVICEID_HURRICANE_656C		0x6564
 
 /*
  * PCI low memory base and low I/O base register, and
