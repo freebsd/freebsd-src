@@ -99,10 +99,10 @@ _map_v4v6_address(src, dst)
 }
 
 void
-_map_v4v6_hostent(hp, bpp, lenp)
+_map_v4v6_hostent(hp, bpp, epp)
 	struct hostent *hp;
 	char **bpp;
-	int *lenp;
+	char **epp;
 {
 	char **ap;
 
@@ -113,16 +113,14 @@ _map_v4v6_hostent(hp, bpp, lenp)
 	for (ap = hp->h_addr_list; *ap; ap++) {
 		int i = sizeof(align) - ((u_long)*bpp % sizeof(align));
 
-		if (*lenp < (i + IN6ADDRSZ)) {
+		if (*epp - *bpp < (i + IN6ADDRSZ)) {
 			/* Out of memory.  Truncate address list here.  XXX */
 			*ap = NULL;
 			return;
 		}
 		*bpp += i;
-		*lenp -= i;
 		_map_v4v6_address(*ap, *bpp);
 		*ap = *bpp;
 		*bpp += IN6ADDRSZ;
-		*lenp -= IN6ADDRSZ;
 	}
 }
