@@ -7,6 +7,7 @@
  * program to initialize the database,  reports error if database file
  * already exists. 
  */
+/* $FreeBSD$ */
 
 #include "adm_locl.h"
 
@@ -43,7 +44,7 @@ add_principal(char *name, char *instance, enum ap_op aap_op, int maxlife)
         memset(new_key, 0, sizeof(des_cblock));
 	new_key[0] = 127;
 #else
-	des_new_random_key(&new_key);
+	des_random_key(new_key);
 #endif
 	kdb_encrypt_key (&new_key, &new_key, &master_key, master_key_schedule,
 			 DES_ENCRYPT);
@@ -141,9 +142,6 @@ main(int argc, char **argv)
 	err (1, "Error writing master key");
     fprintf(stderr, "Wrote master key to %s\n", MKEYFILE);
 #endif
-
-    /* Initialize non shared random sequence */
-    des_init_random_number_generator(&master_key);
 
     /* Maximum lifetime for changepw.kerberos (kadmin) tickets, 10 minutes */
 #define ADMLIFE (1 + (CLOCK_SKEW/(5*60)))
