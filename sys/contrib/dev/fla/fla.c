@@ -58,7 +58,7 @@ static struct cdevsw fla_cdevsw = {
         /* maj */       CDEV_MAJOR,
         /* dump */      nodump,
         /* psize */     nopsize,
-        /* flags */     D_DISK | D_CANFREE,
+        /* flags */     D_DISK,
 };
 static struct cdevsw fladisk_cdevsw;
 
@@ -320,6 +320,7 @@ flaattach (device_t dev)
 		DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_OTHER,
 		DEVSTAT_PRIORITY_DISK);
 
+	sc->disk.d_flags |= DISKFLAG_CANDELETE;
 	sc->dev = disk_create(unit, &sc->disk, 0, &fla_cdevsw, &fladisk_cdevsw);
 	sc->dev->si_drv1 = sc;
 	sc->unit = unit;
