@@ -503,7 +503,7 @@ aha_init(struct aha_softc* aha)
 
 	/*
 	 * Create our DMA tags.  These tags define the kinds of device
-	 * accessable memory allocations and memory mappings we will 
+	 * accessible memory allocations and memory mappings we will 
 	 * need to perform during normal operation.
 	 *
 	 * Unless we need to further restrict the allocation, we rely
