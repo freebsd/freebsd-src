@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.33 1995/03/14 08:21:53 davidg Exp $
+ *	$Id: boot.c,v 1.34 1995/04/14 01:35:59 wpaul Exp $
  */
 
 
@@ -59,25 +59,31 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 #define	ouraddr	(BOOTSEG << 4)		/* XXX */
 
+#define NAMEBUF_LEN	100
+
+char namebuf[NAMEBUF_LEN];
 struct exec head;
 struct bootinfo bootinfo;
-
-extern void init_serial(void);
-extern int probe_keyboard(void);
 int loadflags;
 
-extern int end;
-boot(drive)
-int drive;
+/* NORETURN */
+void
+boot(int drive)
 {
 	int ret;
 	char *t;
 
+#ifndef FORCE_COMCONSOLE
 	if (probe_keyboard()) {
 		init_serial();
 		loadflags |= RB_SERIAL;
 		printf("\nNo keyboard found.\n");
 	}
+#else
+	init_serial();
+	loadflags |= RB_SERIAL;
+	printf("\nSerial console forced.\n");
+#endif
 
 	/* Pick up the story from the Bios on geometry of disks */
 
@@ -88,12 +94,10 @@ int drive;
 	bootinfo.bi_extmem = memsize(1);
 	bootinfo.bi_memsizes_valid = 1;
 
-	/* This is ugly, but why use 4 printf()s when 1 will do? */
-	printf("\n\
->> FreeBSD BOOT @ 0x%x: %d/%d k of memory\n\
-Use hd(1,a)/kernel to boot sd0 when wd0 is also installed.\n\
-Usage: [[%s(%d,a)]%s][-abcdhrsv]\n\
-Use ? for file list or press Enter for defaults\n\n",
+	printf("\n>> FreeBSD BOOT @ 0x%x: %d/%d k of memory\n"
+	       "Use hd(1,a)/kernel to boot sd0 when wd0 is also installed.\n"
+	       "Usage: [[%s(%d,a)]%s][-abcdhrsv]\n"
+	       "Use ? for file list or press Enter for defaults\n\n",
 	       ouraddr, bootinfo.bi_basemem, bootinfo.bi_extmem,
 	       devs[drive & 0x80 ? 0 : 2], drive & 0x7f, name);
 
@@ -129,8 +133,8 @@ loadstart:
 	goto loadstart;
 }
 
-loadprog(howto)
-	int		howto;
+void
+loadprog(int howto)
 {
 	long int startaddr;
 	long int addr;	/* physical address.. not directly useable */
@@ -141,7 +145,7 @@ loadprog(howto)
 	unsigned char	tmpbuf[4096]; /* we need to load the first 4k here */
 #endif
 
-	read(&head, sizeof(head));
+	read((void *)&head, sizeof(head));
 	if ( N_BADMAG(head)) {
 		printf("Invalid format!\n");
 		return;
@@ -196,7 +200,7 @@ loadprog(howto)
 	addr += head.a_text - 4096;
 #else
 	/* Assume we're loading high, so that the BIOS isn't in the way. */
-	xread(addr, head.a_text);
+	xread((void *)addr, head.a_text);
 	addr += head.a_text;
 #endif
 
@@ -207,7 +211,7 @@ loadprog(howto)
                 *(char *)addr++ = 0;
 
 	printf("data=0x%x ", head.a_data);
-	xread(addr, head.a_data);
+	xread((void *)addr, head.a_data);
 	addr += head.a_data;
 
 	/********************************************************/
@@ -232,7 +236,7 @@ loadprog(howto)
 		pbzero(addr,head.a_bss);
 	}
 #else
-	pbzero(addr,head.a_bss);
+	pbzero((void *)addr,head.a_bss);
 #endif
 	addr += head.a_bss;
 
@@ -247,7 +251,7 @@ loadprog(howto)
 	/********************************************************/
 	/* Copy the symbol table size				*/
 	/********************************************************/
-	pcpy(&head.a_syms, addr, sizeof(head.a_syms));
+	pcpy((void *)&head.a_syms, (void *)addr, sizeof(head.a_syms));
 	addr += sizeof(head.a_syms);
 
 	/********************************************************/
@@ -255,14 +259,14 @@ loadprog(howto)
 	/********************************************************/
 	printf("symbols=[+0x%x+0x%x+0x%x", pad, sizeof(head.a_syms),
 	       head.a_syms);
-	xread(addr, head.a_syms);
+	xread((void *)addr, head.a_syms);
 	addr += head.a_syms;
 
 	/********************************************************/
 	/* Load the string table size				*/
 	/********************************************************/
-	read(&i, sizeof(int));
-	pcpy(&i, addr, sizeof(int));
+	read((void *)&i, sizeof(int));
+	pcpy((void *)&i, (void *)addr, sizeof(int));
 	i -= sizeof(int);
 	addr += sizeof(int);
 
@@ -270,7 +274,7 @@ loadprog(howto)
 	/* Load the string table				*/
 	/********************************************************/
 	printf("+0x%x+0x%x] ", sizeof(int), i);
-	xread(addr, i);
+	xread((void *)addr, i);
 	addr += i;
 
 	bootinfo.bi_esymtab = addr;
@@ -299,11 +303,8 @@ loadprog(howto)
 		  (int)&bootinfo + ouraddr);
 }
 
-#define NAMEBUF_LEN	100
-
-char namebuf[NAMEBUF_LEN];
-getbootdev(howto)
-     int *howto;
+void
+getbootdev(int *howto)
 {
 	char c, *ptr = namebuf;
 	if (gets(namebuf)) {

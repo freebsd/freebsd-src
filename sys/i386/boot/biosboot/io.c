@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:57  rpd
- *	$Id: io.c,v 1.11 1995/01/20 07:48:21 wpaul Exp $
+ *	$Id: io.c,v 1.12 1995/01/25 21:37:45 bde Exp $
  */
 
 #include "boot.h"
@@ -45,12 +45,12 @@
 					   enable data line
 					   enable clock line */
 
-extern int loadflags;
 
 /*
  * Gate A20 for high memory
  */
-gateA20()
+void
+gateA20(void)
 {
 #ifdef	IBM_L40
 	outb(0x92, 0x2);
@@ -68,13 +68,12 @@ gateA20()
 
 /* printf - only handles %d as decimal, %c as char, %s as string */
 
-printf(format,data)
-     char *format;
-     int data;
+printf(const char *format, ...)
 {
-	int *dataptr = &data;
+	int *dataptr = (int *)&format;
 	char c;
 
+	dataptr++;
 	while (c = *format++)
 		if (c != '%')
 			putchar(c);
@@ -96,7 +95,7 @@ printf(format,data)
 				      break;
 			      }
 			      case 'x': {
-				      int num = *dataptr++, dig;
+				      unsigned int num = *dataptr++, dig;
 				      char buf[8], *ptr = buf;
 				      do
 					      *ptr++ = (dig=(num&0xf)) > 9?
@@ -118,7 +117,8 @@ printf(format,data)
 			}
 }
 
-putchar(c)
+void
+putchar(int c)
 {
 	if (c == '\n') {
 		if (loadflags & RB_SERIAL)
@@ -132,13 +132,13 @@ putchar(c)
 		putc(c);
 }
 
-getchar(in_buf)
-	int in_buf;
+int
+getchar(int in_buf)
 {
 	int c;
 
 loop:
-	if ((c = ((loadflags & RB_SERIAL) ? serial_getc(c) : getc(c))) == '\r')
+	if ((c = ((loadflags & RB_SERIAL) ? serial_getc() : getc())) == '\r')
 		c = '\n';
 	if (c == '\b') {
 		if (in_buf != 0) {
@@ -152,7 +152,6 @@ loop:
 	return(c);
 }
 
-#if BOOTWAIT
 /*
  * This routine uses an inb to an unused port, the time to execute that
  * inb is approximately 1.25uS.  This value is pretty constant across
@@ -164,16 +163,16 @@ loop:
  * XXX we need to use BIOS timer calls or something more reliable to
  * produce timeouts in the boot code.
  */
-delay1ms()
+void
+delay1ms(void)
 {
 	int i = 800;
 	while (--i >= 0)
 		(void)inb(0x84);
 }
-#endif
 
-gets(buf)
-char *buf;
+int
+gets(char *buf)
 {
 	int	i;
 	char *ptr=buf;
@@ -197,8 +196,8 @@ char *buf;
 	return 0;
 }
 
-strcmp(s1, s2)
-char *s1, *s2;
+int
+strcmp(const char *s1, const char *s2)
 {
 	while (*s1 == *s2) {
 		if (!*s1++)
@@ -208,9 +207,8 @@ char *s1, *s2;
 	return 1;
 }
 
-bcopy(from, to, len)
-char *from, *to;
-int len;
+void
+bcopy(const char *from, char *to, int len)
 {
 	while (len-- > 0)
 		*to++ = *from++;
@@ -218,7 +216,8 @@ int len;
 
 /* To quote Ken: "You are not expected to understand this." :) */
 
-twiddle()
+void
+twiddle(void)
 {
 	putchar((char)tw_chars);
 	tw_chars = (tw_chars >> 8) | ((tw_chars & (unsigned long)0xFF) << 24);
