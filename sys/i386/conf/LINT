@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.214 1995/11/21 02:50:08 peter Exp $
+#	$Id: LINT,v 1.215 1995/11/29 01:06:59 jkh Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -436,6 +436,13 @@ options		HARDFONTS
 #
 options         "MAXCONS=16"
 
+#
+# This device is mandatory.
+#
+# The Numeric Processing eXtension is used to either enable the
+# coprocessor or enable math emulation.  If your machine doesn't contain
+# a math co-processor, you must *also* add the option "MATH_EMULATE".
+#
 device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
 
 #
