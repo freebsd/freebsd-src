@@ -6,7 +6,7 @@ LINKS= ${BINDIR}/suidperl ${BINDIR}/sperl4.036
 
 SRCS+= array.c cmd.c cons.c consarg.c
 SRCS+= doarg.c doio.c dolist.c dump.c
-SRCS+= eval.c form.c hash.c malloc.c
+SRCS+= eval.c form.c hash.c
 SRCS+= perl.c perly.c regcomp.c regexec.c
 SRCS+= stab.c str.c toke.c util.c
 SRCS+= usersub.c
