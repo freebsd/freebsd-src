@@ -39,6 +39,24 @@
 /* Define if lex declares yytext as a char * by default, not a char[].  */
 #undef YYTEXT_POINTER
 
+/* Define if you have the MD4Init function.  */
+#undef HAVE_MD4INIT
+
+/* Define if you have the MD4_Init function.  */
+#undef HAVE_MD4_INIT
+
+/* Define if you have the MD5Init function.  */
+#undef HAVE_MD5INIT
+
+/* Define if you have the MD5_Init function.  */
+#undef HAVE_MD5_INIT
+
+/* Define if you have the SHA1Init function.  */
+#undef HAVE_SHA1INIT
+
+/* Define if you have the SHA1_Init function.  */
+#undef HAVE_SHA1_INIT
+
 /* Define if you have the XauFileName function.  */
 #undef HAVE_XAUFILENAME
 
@@ -83,6 +101,9 @@
 
 /* Define if you have the dbopen function.  */
 #undef HAVE_DBOPEN
+
+/* Define if you have the des_cbc_encrypt function.  */
+#undef HAVE_DES_CBC_ENCRYPT
 
 /* Define if you have the dlopen function.  */
 #undef HAVE_DLOPEN
@@ -224,6 +245,9 @@
 
 /* Define if you have the logwtmp function.  */
 #undef HAVE_LOGWTMP
+
+/* Define if you have the long_long function.  */
+#undef HAVE_LONG_LONG
 
 /* Define if you have the lstat function.  */
 #undef HAVE_LSTAT
@@ -750,8 +774,14 @@
 /* Define if you have the crypt library (-lcrypt).  */
 #undef HAVE_LIBCRYPT
 
+/* Define if you have the crypto library (-lcrypto).  */
+#undef HAVE_LIBCRYPTO
+
 /* Define if you have the curses library (-lcurses).  */
 #undef HAVE_LIBCURSES
+
+/* Define if you have the des library (-ldes).  */
+#undef HAVE_LIBDES
 
 /* Define if you have the dl library (-ldl).  */
 #undef HAVE_LIBDL

@@ -172,12 +172,8 @@ clients do send the password, so it's possible to to password quality
 checks). Because of this you can only create principals with des keys,
 and you can't set any flags or do any other fancy stuff.
 
-To get this to work, you have to create a @samp{changepw/kerberos}
-principal (if you are converting a version 4 data you should have this
-principal), and add it to the keytab the @samp{kadmind} is using. You
-then have to add another entry to inetd (since version 4 uses port 751,
-not 749).
+To get this to work, you have to add another entry to inetd (since
+version 4 uses port 751, not 749).
 
 @emph{And then there are a many more things you can do; more on this in
 a later version of this manual. Until then, UTSL.}
-

@@ -1,6 +1,6 @@
 -*- indented-text -*-
 
-$Id: TODO,v 1.39 1999/12/05 01:08:19 assar Exp $
+$Id: TODO,v 1.40 2000/01/28 04:10:56 assar Exp $
 
 * configure
 
@@ -81,6 +81,10 @@ add policies?
 fix to use rpc?
 
 ** lib/krb5
+
+rewrite the lookup of KDCs to handle kerberos-<n> and not do any DNS
+requests if the information can be found locally.  this requires stop
+using krb5_get_krbhst.
 
 the replay cache is, in its current state, not very useful
 

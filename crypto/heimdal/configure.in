@@ -1,9 +1,9 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_REVISION($Revision: 1.215 $)
+AC_REVISION($Revision: 1.216 $)
 AC_INIT(lib/krb5/send_to_kdc.c)
 AM_CONFIG_HEADER(include/config.h)
 
-AM_INIT_AUTOMAKE(heimdal,0.2m)
+AM_INIT_AUTOMAKE(heimdal,0.2n)
 
 AC_PREFIX_DEFAULT(/usr/heimdal)
 
@@ -235,6 +235,7 @@ AC_TYPE_PID_T
 AC_TYPE_UID_T
 AC_CHECK_TYPE_EXTRA(mode_t, unsigned short, [])
 AC_CHECK_TYPE_EXTRA(sig_atomic_t, int, [#include <signal.h>])
+AC_HAVE_TYPE([long long])
 AC_HEADER_TIME
 AC_STRUCT_TM
 
@@ -758,6 +759,18 @@ AC_HAVE_STRUCT_FIELD(struct sockaddr, sa_len, [#include <sys/types.h>
 
 AC_GROK_TYPES(int8_t int16_t int32_t int64_t)
 AC_GROK_TYPES(u_int8_t u_int16_t u_int32_t u_int64_t)
+
+dnl
+dnl crypto functions tests
+dnl
+
+AC_FIND_FUNC_NO_LIBS(MD4Init, crypto)
+AC_FIND_FUNC_NO_LIBS(MD4_Init, crypto)
+AC_FIND_FUNC_NO_LIBS(MD5Init, crypto)
+AC_FIND_FUNC_NO_LIBS(MD5_Init, crypto)
+AC_FIND_FUNC_NO_LIBS(SHA1Init, crypto)
+AC_FIND_FUNC_NO_LIBS(SHA1_Init, crypto)
+AC_FIND_FUNC_NO_LIBS(des_cbc_encrypt, crypto des)
 
 dnl
 dnl Tests for editline

@@ -1,10 +1,10 @@
-# $Id: Makefile.am,v 1.32 2000/01/06 21:53:30 assar Exp $
+# $Id: Makefile.am,v 1.33 2000/02/07 03:37:27 assar Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
 lib_LTLIBRARIES = libkadm5srv.la libkadm5clnt.la
 libkadm5srv_la_LDFLAGS = -version-info 5:1:0
-libkadm5clnt_la_LDFLAGS = -version-info 4:1:0
+libkadm5clnt_la_LDFLAGS = -version-info 4:2:0
 sbin_PROGRAMS = dump_log replay_log
 
 libexec_PROGRAMS = ipropd-master ipropd-slave

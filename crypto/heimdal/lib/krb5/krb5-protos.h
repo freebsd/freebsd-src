@@ -966,6 +966,13 @@ krb5_expand_hostname __P((
 	const char *orig_hostname,
 	char **new_hostname));
 
+krb5_error_code
+krb5_expand_hostname_realms __P((
+	krb5_context context,
+	const char *orig_hostname,
+	char **new_hostname,
+	char ***realms));
+
 PA_DATA *
 krb5_find_padata __P((
 	PA_DATA *val,
@@ -1617,8 +1624,8 @@ krb5_mk_req __P((
 	krb5_context context,
 	krb5_auth_context *auth_context,
 	const krb5_flags ap_req_options,
-	char *service,
-	char *hostname,
+	const char *service,
+	const char *hostname,
 	krb5_data *in_data,
 	krb5_ccache ccache,
 	krb5_data *outbuf));
@@ -2157,7 +2164,7 @@ krb5_string_to_salttype __P((
 krb5_error_code
 krb5_timeofday __P((
 	krb5_context context,
-	int32_t *timeret));
+	krb5_timestamp *timeret));
 
 krb5_error_code
 krb5_unparse_name __P((

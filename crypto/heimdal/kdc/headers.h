@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,7 +32,7 @@
  */
 
 /* 
- * $Id: headers.h,v 1.5 1999/12/02 17:04:59 joda Exp $ 
+ * $Id: headers.h,v 1.6 2000/02/06 06:04:36 assar Exp $ 
  */
 
 #ifndef __HEADERS_H__
@@ -79,6 +79,7 @@
 #include <getarg.h>
 #include <base64.h>
 #include <parse_units.h>
+#include <des.h>
 #include <krb5.h>
 #include <hdb.h>
 #include <hdb_err.h>

@@ -1,3 +1,8 @@
+2000-01-25  Assar Westerlund  <assar@sics.se>
+
+	* load.c: checking all parsing for errors and all memory
+	allocations also
+
 2000-01-02  Assar Westerlund  <assar@sics.se>
 
 	* server.c: check initial flag in ticket and allow users to change

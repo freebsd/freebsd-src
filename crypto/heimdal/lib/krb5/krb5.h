@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: krb5.h,v 1.162 2000/01/02 00:19:24 assar Exp $ */
+/* $Id: krb5.h,v 1.164 2000/02/06 07:40:57 assar Exp $ */
 
 #ifndef __KRB5_H__
 #define __KRB5_H__
@@ -39,7 +39,6 @@
 #include <time.h>
 #include <krb5-types.h>
 
-#include <des.h>
 #include <asn1_err.h>
 #include <krb5_err.h>
 #include <heim_err.h>
@@ -83,7 +82,8 @@ typedef enum krb5_cksumtype {
 /*  CKSUMTYPE_SHA1		= 10,*/
   CKSUMTYPE_HMAC_SHA1_DES3	= 12,
   CKSUMTYPE_SHA1		= 1000, /* correct value? */
-  CKSUMTYPE_HMAC_MD5		= -138 /* unofficial microsoft number */
+  CKSUMTYPE_HMAC_MD5		= -138, /* unofficial microsoft number */
+  CKSUMTYPE_HMAC_MD5_ENC	= -1138 /* even more unofficial */
 } krb5_cksumtype;
 
 
@@ -236,6 +236,10 @@ typedef struct krb5_context_data *krb5_context;
 
 typedef Realm krb5_realm;
 typedef const char *krb5_const_realm; /* stupid language */
+
+#define krb5_realm_length(r) strlen(r)
+#define krb5_realm_data(r) (r)
+
 typedef Principal krb5_principal_data;
 typedef struct Principal *krb5_principal;
 typedef const struct Principal *krb5_const_principal;
