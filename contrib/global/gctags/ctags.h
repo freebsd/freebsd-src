@@ -114,5 +114,6 @@ void	c_entries __P((void));
 void	skip_comment __P((void));
 #ifdef GLOBAL
 void	asm_entries __P((void));
+void	compact_print __P((char *, int, char *));
 int	portable_getc __P((FILE *));
 #endif

@@ -34,9 +34,14 @@
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+
+#include <unistd.h>
 #include <stdlib.h>
+
 #include "die.h"
+#include "getdbpath.h"
 #include "locatestring.h"
+#include "test.h"
 
 static char	*makeobjdirprefix;	/* obj partition		*/
 static char	*makeobjdir;		/* obj directory		*/
@@ -105,18 +110,18 @@ char	*dbpath;
 		die("It's root directory! What are you doing?");
 
 	if (getenv("OSTYPE") && locatestring(getenv("OSTYPE"), "BSD", 0)) {
-		if (p = getenv("MAKEOBJDIRPREFIX"))
+		if ((p = getenv("MAKEOBJDIRPREFIX")) != NULL)
 			makeobjdirprefix = p;
 		else
 			makeobjdirprefix = "/usr/obj";
-		if (p = getenv("MAKEOBJDIR"))
+		if ((p = getenv("MAKEOBJDIR")) != NULL)
 			makeobjdir = p;
 		else
 			makeobjdir = "obj";
 		bsd = 1;
 	}
 
-	if (p = getenv("GTAGSROOT")) {
+	if ((p = getenv("GTAGSROOT")) != NULL) {
 		if (*p != '/')
 			die("GTAGSROOT must be an absolute path.");
 		if (stat(p, &sb) || !S_ISDIR(sb.st_mode))
@@ -125,7 +130,7 @@ char	*dbpath;
 		/*
 		 * GTAGSDBPATH is meaningful only when GTAGSROOT exist.
 		 */
-		if (p = getenv("GTAGSDBPATH")) {
+		if ((p = getenv("GTAGSDBPATH")) != NULL) {
 			if (*p != '/')
 				die("GTAGSDBPATH must be an absolute path.");
 			if (stat(p, &sb) || !S_ISDIR(sb.st_mode))

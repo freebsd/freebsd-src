@@ -31,8 +31,12 @@
  *	strop.c					20-Oct-97
  *
  */
-#include "strop.h"
+#include <stdlib.h>
+#include <string.h>
+
 #include "die.h"
+#include "strop.h"
+
 /*
  * usage: string buffer
  *
@@ -49,7 +53,7 @@ static int	sbufsize;
 static int	opened;
 
 void
-stropen()
+stropen(void)
 {
 	if (opened)
 		die("nested call to stropen.");
@@ -107,7 +111,7 @@ int	c;
 	*curp = 0;
 }
 char	*
-strclose()
+strclose(void)
 {
 	opened = 0;
 	/*

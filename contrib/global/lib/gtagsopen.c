@@ -32,12 +32,17 @@
  *
  */
 #include <sys/param.h>
-#include <fcntl.h>
+
+#include <ctype.h>
 #include <db.h>
+#include <fcntl.h>
+#include <stdlib.h>
+
 #include "dbio.h"
-#include "die.h"
-#include "makepath.h"
 #include "dbname.h"
+#include "die.h"
+#include "gtagsopen.h"
+#include "makepath.h"
 
 #define	VERSIONKEY	" __.VERSION"
 static int	support_version = 1;	/* accept this format version	*/
@@ -82,7 +87,7 @@ int	mode;
 		 * if 'format version record' is not found, it's assumed
 		 * version 1.
 		 */
-		if (p = db_get(dbio, VERSIONKEY)) {
+		if ((p = db_get(dbio, VERSIONKEY)) != NULL) {
 			for (p += strlen(VERSIONKEY); *p && isspace(*p); p++)
 				;
 			version_number = atoi(p);
