@@ -1721,6 +1721,10 @@ netview-aix-11	1671/tcp
 netview-aix-11	1671/udp
 netview-aix-12	1672/tcp
 netview-aix-12	1672/udp
+l2f		1701/tcp   #l2f
+l2f		1701/udp   #l2f
+l2tp		1701/tcp   #Layer 2 Tunnelling Protocol
+l2tp		1701/udp   #Layer 2 Tunnelling Protocol
 pptp		1723/tcp   #Point-to-point tunnelling protocol
 # IMPORTANT NOTE: See comments for ports 1645/1646 when using older equipment
 radius		1812/udp   #RADIUS authentication protocol (IANA sanctioned)
