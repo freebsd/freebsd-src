@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)stdio.h	8.5 (Berkeley) 4/29/95
- *	$Id: stdio.h,v 1.16 1998/04/12 20:29:24 jb Exp $
+ *	$Id: stdio.h,v 1.17 1998/05/05 21:59:19 jb Exp $
  */
 
 #ifndef	_STDIO_H_
@@ -52,24 +52,7 @@ typedef	_BSD_SIZE_T_	size_t;
 #define	NULL	0
 #endif
 
-/*
- * This is fairly grotesque, but pure ANSI code must not inspect the
- * innards of an fpos_t anyway.  The library internally uses off_t,
- * which we assume is exactly as big as eight chars.  (When we switch
- * to gcc 2.4 we will use __attribute__ here.)
- *
- * WARNING: the alignment constraints on an off_t and the struct below
- * differ on (e.g.) the SPARC.  Hence, the placement of an fpos_t object
- * in a structure will change if fpos_t's are not aligned on 8-byte
- * boundaries.  THIS IS A CROCK, but for now there is no way around it.
- */
-#if !defined(_ANSI_SOURCE) && !defined(__STRICT_ANSI__)
 typedef	_BSD_OFF_T_	fpos_t;
-#else
-typedef struct __sfpos {
-	char	_pos[8];
-} fpos_t;
-#endif
 
 #define	_FSTDIO			/* Define for new stdio with functions. */
 
