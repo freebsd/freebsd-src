@@ -122,7 +122,7 @@ main(argc, argv)
 		if (lstat(name, &devstat) < 0)
 			err(4, "%s", name);
 		if (stbuf.st_dev == devstat.st_rdev &&
-		    (devstat.st_mode & IFMT) == IFBLK)
+		    (devstat.st_mode & IFMT) == IFCHR)
 			break;
 	}
 	closedir(dirp);
@@ -131,12 +131,6 @@ main(argc, argv)
 		    (u_long)stbuf.st_rdev, argv[1]);
 		exit(5);
 	}
-	/*
-	 * Opening of a mounted on device is not allowed.
-	 * Attempt to open the raw device instead.
-	 */
-	memcpy(name_dir_end + 1, name_dir_end, strlen(name_dir_end) + 1);
-	*name_dir_end = 'r';
 	if ((fsi = open(name, O_RDONLY)) < 0)
 		err(6, "%s", name);
 	fs = &sblock;
