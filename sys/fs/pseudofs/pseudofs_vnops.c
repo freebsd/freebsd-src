@@ -780,14 +780,6 @@ pfs_write(struct vop_read_args *va)
 }
 
 /*
- * Dummy operations */
-static int pfs_badop(void *va)		{ return (EOPNOTSUPP); }
-#if 0
-static int pfs_erofs(void *va)		{ return (EROFS); }
-static int pfs_null(void *va)		{ return (0); }
-#endif
-
-/*
  * Vnode operations
  */
 vop_t **pfs_vnodeop_p;
@@ -795,26 +787,26 @@ static struct vnodeopv_entry_desc pfs_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *)vop_defaultop	},
 	{ &vop_access_desc,		(vop_t *)pfs_access	},
 	{ &vop_close_desc,		(vop_t *)pfs_close	},
-	{ &vop_create_desc,		(vop_t *)pfs_badop	},
+	{ &vop_create_desc,		(vop_t *)vop_eopnotsupp	},
 	{ &vop_getattr_desc,		(vop_t *)pfs_getattr	},
 	{ &vop_getextattr_desc,		(vop_t *)pfs_getextattr	},
 	{ &vop_ioctl_desc,		(vop_t *)pfs_ioctl	},
-	{ &vop_link_desc,		(vop_t *)pfs_badop	},
+	{ &vop_link_desc,		(vop_t *)vop_eopnotsupp	},
 	{ &vop_lookup_desc,		(vop_t *)pfs_lookup	},
-	{ &vop_mkdir_desc,		(vop_t *)pfs_badop	},
-	{ &vop_mknod_desc,		(vop_t *)pfs_badop	},
+	{ &vop_mkdir_desc,		(vop_t *)vop_eopnotsupp	},
+	{ &vop_mknod_desc,		(vop_t *)vop_eopnotsupp	},
 	{ &vop_open_desc,		(vop_t *)pfs_open	},
 	{ &vop_read_desc,		(vop_t *)pfs_read	},
 	{ &vop_readdir_desc,		(vop_t *)pfs_readdir	},
 	{ &vop_readlink_desc,		(vop_t *)pfs_readlink	},
 	{ &vop_reclaim_desc,		(vop_t *)pfs_reclaim	},
-	{ &vop_remove_desc,		(vop_t *)pfs_badop	},
-	{ &vop_rename_desc,		(vop_t *)pfs_badop	},
-	{ &vop_rmdir_desc,		(vop_t *)pfs_badop	},
+	{ &vop_remove_desc,		(vop_t *)vop_eopnotsupp	},
+	{ &vop_rename_desc,		(vop_t *)vop_eopnotsupp	},
+	{ &vop_rmdir_desc,		(vop_t *)vop_eopnotsupp	},
 	{ &vop_setattr_desc,		(vop_t *)pfs_setattr	},
-	{ &vop_symlink_desc,		(vop_t *)pfs_badop	},
+	{ &vop_symlink_desc,		(vop_t *)vop_eopnotsupp	},
 	{ &vop_write_desc,		(vop_t *)pfs_write	},
-	/* XXX I've probably forgotten a few that need pfs_badop */
+	/* XXX I've probably forgotten a few that need vop_eopnotsupp */
 	{ NULL,				(vop_t *)NULL		}
 };
 
