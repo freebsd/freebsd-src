@@ -327,7 +327,24 @@ received confirmation of this.
 ----    ----------------
 
 IDE
-ATA
+ATA:
+	Acerlabs Aladdin
+	AMD 756
+	CMD 646
+	Cypress 82C693
+	HighPoint HPT366
+	Intel PIIX
+	Intel PIIX3
+	Intel PIIX4
+	Intel ICH
+	Promise Fasttrak-33
+	Promise Fasttrak-66
+	Promise Ultra-33
+	Promise Ultra-66
+	SiS 5591
+	VIA 82C586
+	VIA 82C686
+
 WD1003 (any generic MFM/RLL - obsolete)
 WD1007 (any generic ESDI - obsolete)
 * Note: now that the wd driver has been replaced by the ata driver framework
