@@ -1,29 +1,51 @@
 /*
- *
- * channels.c
- *
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
- *
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
- *
- * Created: Fri Mar 24 16:35:24 1995 ylo
- *
  * This file contains functions for generic socket connection forwarding.
  * There is also code for initiating connection forwarding for X11 connections,
  * arbitrary tcp/ip connections, and the authentication agent connection.
  *
+ * As far as I am concerned, the code I have written for this software
+ * can be used freely for any purpose.  Any derived versions of this
+ * software must be clearly marked as such, and if the derived work is
+ * incompatible with the protocol description in the RFC file, it must be
+ * called by a name other than "ssh" or "Secure Shell".
+ *
+ *
  * SSH2 support added by Markus Friedl.
+ * Copyright (c) 1999,2000 Markus Friedl.  All rights reserved.
+ * Copyright (c) 1999 Dug Song.  All rights reserved.
+ * Copyright (c) 1999 Theo de Raadt.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include "includes.h"
-RCSID("$Id: channels.c,v 1.59 2000/05/30 17:23:36 markus Exp $");
+RCSID("$OpenBSD: channels.c,v 1.68 2000/09/07 20:40:29 markus Exp $");
 
 #include "ssh.h"
 #include "packet.h"
 #include "xmalloc.h"
 #include "buffer.h"
-#include "authfd.h"
 #include "uidswap.h"
 #include "readconf.h"
 #include "servconf.h"
@@ -34,17 +56,16 @@ RCSID("$Id: channels.c,v 1.59 2000/05/30 17:23:36 markus Exp $");
 
 #include "ssh2.h"
 
+#include <openssl/rsa.h>
+#include <openssl/dsa.h>
+#include "key.h"
+#include "authfd.h"
+
 /* Maximum number of fake X11 displays to try. */
 #define MAX_DISPLAYS  1000
 
 /* Max len of agent socket */
 #define MAX_SOCKET_NAME 100
-
-/* default window/packet sizes for tcp/x11-fwd-channel */
-#define CHAN_TCP_WINDOW_DEFAULT	(8*1024)
-#define CHAN_TCP_PACKET_DEFAULT	(CHAN_TCP_WINDOW_DEFAULT/2)
-#define CHAN_X11_WINDOW_DEFAULT	(4*1024)
-#define CHAN_X11_PACKET_DEFAULT	(CHAN_X11_WINDOW_DEFAULT/2)
 
 /*
  * Pointer to an array containing all allocated channels.  The array is
@@ -135,7 +156,7 @@ Channel *
 channel_lookup(int id)
 {
 	Channel *c;
-	if (id < 0 && id > channels_alloc) {
+	if (id < 0 || id > channels_alloc) {
 		log("channel_lookup: %d: bad id", id);
 		return NULL;
 	}
@@ -240,6 +261,7 @@ channel_new(char *ctype, int type, int rfd, int wfd, int efd,
 	c->cb_arg = NULL;
 	c->cb_event = 0;
 	c->dettach_user = NULL;
+	c->input_filter = NULL;
 	debug("channel %d: new [%s]", found, remote_name);
 	return found;
 }
@@ -661,7 +683,14 @@ channel_handle_rfd(Channel *c, fd_set * readset, fd_set * writeset)
 			}
 			return -1;
 		}
-		buffer_append(&c->input, buf, len);
+		if(c->input_filter != NULL) {
+			if (c->input_filter(c, buf, len) == -1) {
+				debug("filter stops channel %d", c->self);
+				chan_read_failed(c);
+			}
+		} else {
+			buffer_append(&c->input, buf, len);
+		}
 	}
 	return 1;
 }
@@ -932,7 +961,6 @@ channel_output_poll()
 				packet_send();
 				buffer_consume(&c->input, len);
 				c->remote_window -= len;
-				debug("channel %d: send data len %d", c->self, len);
 			}
 		} else if (c->istate == CHAN_INPUT_WAIT_DRAIN) {
 			if (compat13)
@@ -2250,6 +2278,16 @@ channel_cancel_cleanup(int id)
 	}
 	c->dettach_user = NULL;
 }
+void   
+channel_register_filter(int id, channel_filter_fn *fn)
+{
+	Channel *c = channel_lookup(id);
+	if (c == NULL) {
+		log("channel_register_filter: %d: bad id", id);
+		return;
+	}
+	c->input_filter = fn;
+}
 
 void
 channel_set_fds(int id, int rfd, int wfd, int efd, int extusage)
@@ -2261,7 +2299,7 @@ channel_set_fds(int id, int rfd, int wfd, int efd, int extusage)
 	channel_register_fds(c, rfd, wfd, efd, extusage);
 	c->type = SSH_CHANNEL_OPEN;
 	/* XXX window size? */
-	c->local_window = c->local_window_max = c->local_maxpacket/2;
+	c->local_window = c->local_window_max = c->local_maxpacket * 2;
 	packet_start(SSH2_MSG_CHANNEL_WINDOW_ADJUST);
 	packet_put_int(c->remote_id);
 	packet_put_int(c->local_window);
