@@ -850,8 +850,6 @@ trunc:
 }
 
 
-#define T2CHECK(p, l) if ((u_char *)(p) > ((u_char *)snapend) - l) return(NULL)
-
 static const u_int32_t *
 parsestatus(const u_int32_t *dp, int *er)
 {
@@ -877,29 +875,27 @@ parsefattr(const u_int32_t *dp, int verbose, int v3)
 {
 	const struct nfs_fattr *fap;
 
-	T2CHECK(dp,  5 * sizeof(*dp));
-
 	fap = (const struct nfs_fattr *)dp;
+	TCHECK(fap->fa_gid);
 	if (verbose) {
 		printf(" %s %lo ids %ld/%ld",
 		    tok2str(type2str, "unk-ft %d ", ntohl(fap->fa_type)),
 		       ntohl(fap->fa_mode), ntohl(fap->fa_uid),
 		       ntohl(fap->fa_gid));
 		if (v3) {
-			T2CHECK(dp,  7 * sizeof(*dp));
+			TCHECK(fap->fa3_size);
 			printf(" sz ");
 			print_int64((u_int32_t *)&fap->fa3_size, UNSIGNED);
 			putchar(' ');
-		}
-		else {
-			T2CHECK(dp,  6 * sizeof(*dp));
+		} else {
+			TCHECK(fap->fa2_size);
 			printf(" sz %ld ", ntohl(fap->fa2_size));
 		}
 	}
 	/* print lots more stuff */
 	if (verbose > 1) {
 		if (v3) {
-			T2CHECK(dp, 64);
+			TCHECK(fap->fa3_ctime);
 			printf("nlink %ld rdev %ld/%ld ",
 			       ntohl(fap->fa_nlink),
 			       ntohl(fap->fa3_rdev.specdata1),
@@ -918,7 +914,7 @@ parsefattr(const u_int32_t *dp, int verbose, int v3)
 			       ntohl(fap->fa3_ctime.nfsv3_sec),
 			       ntohl(fap->fa3_ctime.nfsv3_nsec));
 		} else {
-			T2CHECK(dp, 48);
+			TCHECK(fap->fa2_ctime);
 			printf("nlink %ld rdev %lx fsid %lx nodeid %lx a/m/ctime ",
 			       ntohl(fap->fa_nlink), ntohl(fap->fa2_rdev),
 			       ntohl(fap->fa2_fsid), ntohl(fap->fa2_fileid));
@@ -935,6 +931,8 @@ parsefattr(const u_int32_t *dp, int verbose, int v3)
 	}
 	return ((const u_int32_t *)((unsigned char *)dp +
 		(v3 ? NFSX_V3FATTR : NFSX_V2FATTR)));
+trunc:
+	return (NULL);
 }
 
 static int
@@ -1001,7 +999,7 @@ parsestatfs(const u_int32_t *dp, int v3)
 			return (0);
 	}
 
-	T2CHECK(dp, (v3 ? NFSX_V3STATFS : NFSX_V2STATFS));
+	TCHECK2(dp, (v3 ? NFSX_V3STATFS : NFSX_V2STATFS));
 
 	sfsp = (const struct nfs_statfs *)dp;
 
@@ -1029,6 +1027,8 @@ parsestatfs(const u_int32_t *dp, int v3)
 	}
 
 	return (1);
+trunc:
+	return (0);
 }
 
 static int
@@ -1042,12 +1042,14 @@ parserddires(const u_int32_t *dp)
 	if (qflag)
 		return (1);
 
-	T2CHECK(dp, 12);
+	TCHECK(dp[2]);
 	printf(" offset %lx size %ld ", ntohl(dp[0]), ntohl(dp[1]));
 	if (dp[2] != 0)
 		printf("eof");
 
 	return (1);
+trunc:
+	return (0);
 }
 
 static const u_int32_t *
@@ -1066,17 +1068,19 @@ parse_wcc_attr(const u_int32_t *dp)
 static const u_int32_t *
 parse_pre_op_attr(const u_int32_t *dp, int verbose)
 {
-	T2CHECK(dp, 4);
+	TCHECK(dp[0]);
 	if (!ntohl(dp[0]))
 		return (dp + 1);
 	dp++;
-	T2CHECK(dp, 24);
+	TCHECK2(dp, 24);
 	if (verbose > 1) {
 		return parse_wcc_attr(dp);
 	} else {
 		/* If not verbose enough, just skip over wcc_attr */
 		return (dp + 6);
 	}
+trunc:
+	return (NULL);
 }
 
 /*
@@ -1085,7 +1089,7 @@ parse_pre_op_attr(const u_int32_t *dp, int verbose)
 static const u_int32_t *
 parse_post_op_attr(const u_int32_t *dp, int verbose)
 {
-	T2CHECK(dp, 4);
+	TCHECK(dp[0]);
 	if (!ntohl(dp[0]))
 		return (dp + 1);
 	dp++;
@@ -1093,6 +1097,8 @@ parse_post_op_attr(const u_int32_t *dp, int verbose)
 		return parsefattr(dp, verbose, 1);
 	} else
 		return (dp + (NFSX_V3FATTR / sizeof (u_int32_t)));
+trunc:
+	return (NULL);
 }
 
 static const u_int32_t *
@@ -1118,7 +1124,7 @@ parsecreateopres(const u_int32_t *dp, int verbose)
 	if (er)
 		dp = parse_wcc_data(dp, verbose);
 	else {
-		T2CHECK(dp, 4);
+		TCHECK(dp[0]);
 		if (!ntohl(dp[0]))
 			return (dp + 1);
 		dp++;
@@ -1134,6 +1140,8 @@ parsecreateopres(const u_int32_t *dp, int verbose)
 		}
 	}
 	return (dp);
+trunc:
+	return (NULL);
 }
 
 static int
@@ -1160,11 +1168,13 @@ parsev3rddirres(const u_int32_t *dp, int verbose)
 	if (er)
 		return dp;
 	if (vflag) {
-		T2CHECK(dp, 8);
+		TCHECK(dp[1]);
 		printf(" verf %08x%08x", dp[0], dp[1]);
 		dp += 2;
 	}
 	return dp;
+trunc:
+	return (NULL);
 }
 
 static int
@@ -1182,9 +1192,8 @@ parsefsinfo(const u_int32_t *dp)
 	if (er)
 		return (1);
 
-	T2CHECK(dp, sizeof (struct nfsv3_fsinfo));
-
 	sfp = (struct nfsv3_fsinfo *)dp;
+	TCHECK(*sfp);
 	printf(" rtmax %lu rtpref %lu wtmax %lu wtpref %lu dtpref %lu",
 	       ntohl(sfp->fs_rtmax), ntohl(sfp->fs_rtpref),
 	       ntohl(sfp->fs_wtmax), ntohl(sfp->fs_wtpref),
@@ -1197,6 +1206,8 @@ parsefsinfo(const u_int32_t *dp)
 		       ntohl(sfp->fs_timedelta.nfsv3_nsec));
 	}
 	return (1);
+trunc:
+	return (0);
 }
 
 static int
@@ -1214,9 +1225,8 @@ parsepathconf(const u_int32_t *dp)
 	if (er)
 		return (1);
 
-	T2CHECK(dp, sizeof (struct nfsv3_pathconf));
-
 	spp = (struct nfsv3_pathconf *)dp;
+	TCHECK(*spp);
 
 	printf(" linkmax %lu namemax %lu %s %s %s %s",
 	       ntohl(spp->pc_linkmax),
@@ -1225,6 +1235,8 @@ parsepathconf(const u_int32_t *dp)
 	       ntohl(spp->pc_chownrestricted) ? "chownres" : "",
 	       ntohl(spp->pc_caseinsensitive) ? "igncase" : "",
 	       ntohl(spp->pc_casepreserving) ? "keepcase" : "");
+	return (1);
+trunc:
 	return (0);
 }
 				
