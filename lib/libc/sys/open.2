@@ -245,6 +245,9 @@ operation was interrupted by a signal.
 or
 .Dv O_EXLOCK
 is specified but the underlying filesystem does not support locking.
+.It Bq Er EOPNOTSUPP
+The named file is a special file mounted through a filesystem that
+does not support access to it (e.g. NFS).
 .It Bq Er EWOULDBLOCK
 .Dv O_NONBLOCK
 and one of
