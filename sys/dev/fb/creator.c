@@ -29,14 +29,10 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/kernel.h>
-#include <sys/conf.h>
-#include <sys/cons.h>
-#include <sys/proc.h>
-#include <sys/fcntl.h>
-#include <sys/malloc.h>
 #include <sys/fbio.h>
 #include <sys/consio.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
 
 #include <machine/bus.h>
 #include <machine/ofw_upa.h>
