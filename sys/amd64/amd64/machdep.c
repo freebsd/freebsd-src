@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.261 1997/09/02 20:05:28 bde Exp $
+ *	$Id: machdep.c,v 1.262 1997/09/04 15:14:48 davidg Exp $
  */
 
 #include "apm.h"
@@ -1071,7 +1071,7 @@ init386(first)
 	int pagesinbase, pagesinext;
 	int target_page, pa_indx;
 	int off;
-	int speculative_mtest;
+	int speculative_mprobe;
 
 	proc0.p_addr = proc0paddr;
 
@@ -1299,23 +1299,23 @@ init386(first)
 	 * pages) - which is the largest amount that the BIOS/bootblocks can
 	 * currently report. If a specific amount of memory is indicated via
 	 * the MAXMEM option or the npx0 "msize", then don't do the speculative
-	 * memory test.
+	 * memory probe.
 	 */
 	if (Maxmem == 0x4000)
-		speculative_mtest = TRUE;
+		speculative_mprobe = TRUE;
 	else
-		speculative_mtest = FALSE;
+		speculative_mprobe = FALSE;
 
 #ifdef MAXMEM
 	Maxmem = MAXMEM/4;
-	speculative_mtest = FALSE;
+	speculative_mprobe = FALSE;
 #endif
 
 #if NNPX > 0
 	idp = find_isadev(isa_devtab_null, &npxdriver, 0);
 	if (idp != NULL && idp->id_msize != 0) {
 		Maxmem = idp->id_msize / 4;
-		speculative_mtest = FALSE;
+		speculative_mprobe = FALSE;
 	}
 #endif
 
@@ -1410,7 +1410,7 @@ init386(first)
 			 */
 			if (phys_avail[pa_indx] == target_page) {
 				phys_avail[pa_indx] += PAGE_SIZE;
-				if (speculative_mtest == TRUE &&
+				if (speculative_mprobe == TRUE &&
 				    phys_avail[pa_indx] >= (64*1024*1024))
 					Maxmem++;
 			} else {
