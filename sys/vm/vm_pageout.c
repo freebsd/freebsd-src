@@ -538,12 +538,14 @@ vm_pageout_map_deactivate_pages(map, desired)
 {
 	vm_map_entry_t tmpe;
 	vm_object_t obj, bigobj;
+	int nothingwired;
 
 	if (lockmgr(&map->lock, LK_EXCLUSIVE | LK_NOWAIT, (void *)0, curproc)) {
 		return;
 	}
 
 	bigobj = NULL;
+	nothingwired = TRUE;
 
 	/*
 	 * first, search out the biggest object, and try to free pages from
@@ -559,6 +561,8 @@ vm_pageout_map_deactivate_pages(map, desired)
 				bigobj = obj;
 			}
 		}
+		if (tmpe->wired_count > 0)
+			nothingwired = FALSE;
 		tmpe = tmpe->next;
 	}
 
@@ -585,7 +589,7 @@ vm_pageout_map_deactivate_pages(map, desired)
 	 * Remove all mappings if a process is swapped out, this will free page
 	 * table pages.
 	 */
-	if (desired == 0)
+	if (desired == 0 && nothingwired)
 		pmap_remove(vm_map_pmap(map),
 			VM_MIN_ADDRESS, VM_MAXUSER_ADDRESS);
 	vm_map_unlock(map);
