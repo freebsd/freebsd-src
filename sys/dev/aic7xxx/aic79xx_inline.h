@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx_inline.h#51 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx_inline.h#55 $
  *
  * $FreeBSD$
  */
@@ -250,15 +250,15 @@ ahd_sg_setup(struct ahd_softc *ahd, struct scb *scb,
 		struct ahd_dma64_seg *sg;
 
 		sg = (struct ahd_dma64_seg *)sgptr;
-		sg->addr = ahd_htole64(addr);
-		sg->len = ahd_htole32(len | (last ? AHD_DMA_LAST_SEG : 0));
+		sg->addr = aic_htole64(addr);
+		sg->len = aic_htole32(len | (last ? AHD_DMA_LAST_SEG : 0));
 		return (sg + 1);
 	} else {
 		struct ahd_dma_seg *sg;
 
 		sg = (struct ahd_dma_seg *)sgptr;
-		sg->addr = ahd_htole32(addr & 0xFFFFFFFF);
-		sg->len = ahd_htole32(len | ((addr >> 8) & 0x7F000000)
+		sg->addr = aic_htole32(addr & 0xFFFFFFFF);
+		sg->len = aic_htole32(len | ((addr >> 8) & 0x7F000000)
 				    | (last ? AHD_DMA_LAST_SEG : 0));
 		return (sg + 1);
 	}
@@ -273,7 +273,7 @@ ahd_setup_scb_common(struct ahd_softc *ahd, struct scb *scb)
 		/* XXX what about ACA??  It is type 4, but TAG_TYPE == 0x3. */
 		scb->hscb->task_attribute = scb->hscb->control & SCB_TAG_TYPE;
 	} else {
-		if (ahd_get_transfer_length(scb) & 0x01)
+		if (aic_get_transfer_length(scb) & 0x01)
 			scb->hscb->task_attribute = SCB_XFERLEN_ODD;
 		else
 			scb->hscb->task_attribute = 0;
@@ -282,7 +282,7 @@ ahd_setup_scb_common(struct ahd_softc *ahd, struct scb *scb)
 	if (scb->hscb->cdb_len <= MAX_CDB_LEN_WITH_SENSE_ADDR
 	 || (scb->hscb->cdb_len & SCB_CDB_LEN_PTR) != 0)
 		scb->hscb->shared_data.idata.cdb_plus_saddr.sense_addr =
-		    ahd_htole32(scb->sense_busaddr);
+		    aic_htole32(scb->sense_busaddr);
 }
 
 static __inline void
@@ -308,8 +308,8 @@ ahd_setup_data_scb(struct ahd_softc *ahd, struct scb *scb)
 		if ((ahd->flags & AHD_39BIT_ADDRESSING) != 0) {
 			uint64_t high_addr;
 
-			high_addr = ahd_le32toh(sg->len) & 0x7F000000;
-			scb->hscb->dataptr |= ahd_htole64(high_addr << 8);
+			high_addr = aic_le32toh(sg->len) & 0x7F000000;
+			scb->hscb->dataptr |= aic_htole64(high_addr << 8);
 		}
 		scb->hscb->datacnt = sg->len;
 	}
@@ -319,13 +319,13 @@ ahd_setup_data_scb(struct ahd_softc *ahd, struct scb *scb)
 	 * sequencer will clear as soon as a data transfer
 	 * occurs.
 	 */
-	scb->hscb->sgptr = ahd_htole32(scb->sg_list_busaddr|SG_FULL_RESID);
+	scb->hscb->sgptr = aic_htole32(scb->sg_list_busaddr|SG_FULL_RESID);
 }
 
 static __inline void
 ahd_setup_noxfer_scb(struct ahd_softc *ahd, struct scb *scb)
 {
-	scb->hscb->sgptr = ahd_htole32(SG_LIST_NULL);
+	scb->hscb->sgptr = aic_htole32(SG_LIST_NULL);
 	scb->hscb->dataptr = 0;
 	scb->hscb->datacnt = 0;
 }
@@ -383,7 +383,7 @@ ahd_sg_virt_to_bus(struct ahd_softc *ahd, struct scb *scb, void *sg)
 static __inline void
 ahd_sync_scb(struct ahd_softc *ahd, struct scb *scb, int op)
 {
-	ahd_dmamap_sync(ahd, ahd->scb_data.hscb_dmat,
+	aic_dmamap_sync(ahd, ahd->scb_data.hscb_dmat,
 			scb->hscb_map->dmamap,
 			/*offset*/(uint8_t*)scb->hscb - scb->hscb_map->vaddr,
 			/*len*/sizeof(*scb->hscb), op);
@@ -395,7 +395,7 @@ ahd_sync_sglist(struct ahd_softc *ahd, struct scb *scb, int op)
 	if (scb->sg_count == 0)
 		return;
 
-	ahd_dmamap_sync(ahd, ahd->scb_data.sg_dmat,
+	aic_dmamap_sync(ahd, ahd->scb_data.sg_dmat,
 			scb->sg_map->dmamap,
 			/*offset*/scb->sg_list_busaddr - ahd_sg_size(ahd),
 			/*len*/ahd_sg_size(ahd) * scb->sg_count, op);
@@ -404,7 +404,7 @@ ahd_sync_sglist(struct ahd_softc *ahd, struct scb *scb, int op)
 static __inline void
 ahd_sync_sense(struct ahd_softc *ahd, struct scb *scb, int op)
 {
-	ahd_dmamap_sync(ahd, ahd->scb_data.sense_dmat,
+	aic_dmamap_sync(ahd, ahd->scb_data.sense_dmat,
 			scb->sense_map->dmamap,
 			/*offset*/scb->sense_busaddr,
 			/*len*/AHD_SENSE_BUFSIZE, op);
@@ -472,7 +472,7 @@ ahd_complete_scb(struct ahd_softc *ahd, struct scb *scb)
 {
 	uint32_t sgptr;
 
-	sgptr = ahd_le32toh(scb->hscb->sgptr);
+	sgptr = aic_le32toh(scb->hscb->sgptr);
 	if ((sgptr & SG_STATUS_VALID) != 0)
 		ahd_handle_scb_status(ahd, scb);
 	else
@@ -488,7 +488,7 @@ ahd_update_residual(struct ahd_softc *ahd, struct scb *scb)
 {
 	uint32_t sgptr;
 
-	sgptr = ahd_le32toh(scb->hscb->sgptr);
+	sgptr = aic_le32toh(scb->hscb->sgptr);
 	if ((sgptr & SG_STATUS_VALID) != 0)
 		ahd_calc_residual(ahd, scb);
 }
@@ -522,12 +522,21 @@ do {								\
 static __inline uint16_t
 ahd_inw(struct ahd_softc *ahd, u_int port)
 {
+	/*
+	 * Read high byte first as some registers increment
+	 * or have other side effects when the low byte is
+	 * read.
+	 */
 	return ((ahd_inb(ahd, port+1) << 8) | ahd_inb(ahd, port));
 }
 
 static __inline void
 ahd_outw(struct ahd_softc *ahd, u_int port, u_int value)
 {
+	/*
+	 * Write low byte first to accomodate registers
+	 * such as PRGMCNT where the order maters.
+	 */
 	ahd_outb(ahd, port, value & 0xFF);
 	ahd_outb(ahd, port+1, (value >> 8) & 0xFF);
 }
@@ -727,7 +736,8 @@ ahd_lookup_scb(struct ahd_softc *ahd, u_int tag)
 static __inline void
 ahd_swap_with_next_hscb(struct ahd_softc *ahd, struct scb *scb)
 {
-	struct hardware_scb *q_hscb;
+	struct	 hardware_scb *q_hscb;
+	struct	 map_node *q_hscb_map;
 	uint32_t saved_hscb_busaddr;
 
 	/*
@@ -743,6 +753,7 @@ ahd_swap_with_next_hscb(struct ahd_softc *ahd, struct scb *scb)
 	 * locate the correct SCB by SCB_TAG.
 	 */
 	q_hscb = ahd->next_queued_hscb;
+	q_hscb_map = ahd->next_queued_hscb_map;
 	saved_hscb_busaddr = q_hscb->hscb_busaddr;
 	memcpy(q_hscb, scb->hscb, sizeof(*scb->hscb));
 	q_hscb->hscb_busaddr = saved_hscb_busaddr;
@@ -750,7 +761,9 @@ ahd_swap_with_next_hscb(struct ahd_softc *ahd, struct scb *scb)
 
 	/* Now swap HSCB pointers. */
 	ahd->next_queued_hscb = scb->hscb;
+	ahd->next_queued_hscb_map = scb->hscb_map;
 	scb->hscb = q_hscb;
+	scb->hscb_map = q_hscb_map;
 
 	/* Now define the mapping from tag to SCB in the scbindex */
 	ahd->scb_data.scbindex[SCB_GET_TAG(scb)] = scb;
@@ -790,13 +803,13 @@ ahd_queue_scb(struct ahd_softc *ahd, struct scb *scb)
 	if ((ahd_debug & AHD_SHOW_QUEUE) != 0) {
 		uint64_t host_dataptr;
 
-		host_dataptr = ahd_le64toh(scb->hscb->dataptr);
+		host_dataptr = aic_le64toh(scb->hscb->dataptr);
 		printf("%s: Queueing SCB 0x%x bus addr 0x%x - 0x%x%x/0x%x\n",
 		       ahd_name(ahd),
-		       SCB_GET_TAG(scb), ahd_le32toh(scb->hscb->hscb_busaddr),
+		       SCB_GET_TAG(scb), aic_le32toh(scb->hscb->hscb_busaddr),
 		       (u_int)((host_dataptr >> 32) & 0xFFFFFFFF),
 		       (u_int)(host_dataptr & 0xFFFFFFFF),
-		       ahd_le32toh(scb->hscb->datacnt));
+		       aic_le32toh(scb->hscb->datacnt));
 	}
 #endif
 	/* Tell the adapter about the newly queued SCB */
@@ -824,8 +837,8 @@ static __inline int	ahd_intr(struct ahd_softc *ahd);
 static __inline void
 ahd_sync_qoutfifo(struct ahd_softc *ahd, int op)
 {
-	ahd_dmamap_sync(ahd, ahd->shared_data_dmat, ahd->shared_data_dmamap,
-			/*offset*/0, /*len*/AHC_SCB_MAX * sizeof(uint16_t), op);
+	aic_dmamap_sync(ahd, ahd->shared_data_dmat, ahd->shared_data_map.dmamap,
+			/*offset*/0, /*len*/AHD_SCB_MAX * sizeof(uint16_t), op);
 }
 
 static __inline void
@@ -833,8 +846,8 @@ ahd_sync_tqinfifo(struct ahd_softc *ahd, int op)
 {
 #ifdef AHD_TARGET_MODE
 	if ((ahd->flags & AHD_TARGETROLE) != 0) {
-		ahd_dmamap_sync(ahd, ahd->shared_data_dmat,
-				ahd->shared_data_dmamap,
+		aic_dmamap_sync(ahd, ahd->shared_data_dmat,
+				ahd->shared_data_map.dmamap,
 				ahd_targetcmd_offset(ahd, 0),
 				sizeof(struct target_cmd) * AHD_TMODE_CMDS,
 				op);
@@ -854,7 +867,7 @@ ahd_check_cmdcmpltqueues(struct ahd_softc *ahd)
 	u_int retval;
 
 	retval = 0;
-	ahd_dmamap_sync(ahd, ahd->shared_data_dmat, ahd->shared_data_dmamap,
+	aic_dmamap_sync(ahd, ahd->shared_data_dmat, ahd->shared_data_map.dmamap,
 			/*offset*/ahd->qoutfifonext, /*len*/2,
 			BUS_DMASYNC_POSTREAD);
 	if ((ahd->qoutfifo[ahd->qoutfifonext]
@@ -863,8 +876,8 @@ ahd_check_cmdcmpltqueues(struct ahd_softc *ahd)
 #ifdef AHD_TARGET_MODE
 	if ((ahd->flags & AHD_TARGETROLE) != 0
 	 && (ahd->flags & AHD_TQINFIFO_BLOCKED) == 0) {
-		ahd_dmamap_sync(ahd, ahd->shared_data_dmat,
-				ahd->shared_data_dmamap,
+		aic_dmamap_sync(ahd, ahd->shared_data_dmat,
+				ahd->shared_data_map.dmamap,
 				ahd_targetcmd_offset(ahd, ahd->tqinfifofnext),
 				/*len*/sizeof(struct target_cmd),
 				BUS_DMASYNC_POSTREAD);
