@@ -51,6 +51,7 @@
 #include <sys/pciio.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
+#include <dev/pci/pci_private.h>
 
 #include <dev/cardbus/cardbusreg.h>
 #include <dev/cardbus/cardbusvar.h>
@@ -88,8 +89,6 @@ static int	cardbus_child_location_str(device_t cbdev, device_t child,
 		    char *, size_t len);
 static int	cardbus_child_pnpinfo_str(device_t cbdev, device_t child,
 		    char *, size_t len);
-static __inline void cardbus_clear_command_bit(device_t cbdev, device_t child,
-		    uint16_t bit);
 static void	cardbus_delete_resource(device_t cbdev, device_t child,
 		    int type, int rid);
 static void	cardbus_delete_resource_method(device_t cbdev, device_t child,
@@ -98,42 +97,18 @@ static int	cardbus_detach(device_t cbdev);
 static int	cardbus_detach_card(device_t cbdev);
 static void	cardbus_device_setup_regs(device_t brdev, int b, int s, int f,
 		    pcicfgregs *cfg);
-static void	cardbus_disable_busmaster_method(device_t cbdev, device_t child);
-static void	cardbus_disable_io_method(device_t cbdev, device_t child,
-		    int space);
 static void	cardbus_driver_added(device_t cbdev, driver_t *driver);
-static void	cardbus_enable_busmaster_method(device_t cbdev, device_t child);
-static void	cardbus_enable_io_method(device_t cbdev, device_t child,
-		    int space);
-static int	cardbus_freecfg(struct cardbus_devinfo *dinfo);
-static int	cardbus_get_powerstate_method(device_t cbdev, device_t child);
 static int	cardbus_get_resource(device_t cbdev, device_t child, int type,
 		    int rid, u_long *startp, u_long *countp);
 static int	cardbus_get_resource_method(device_t cbdev, device_t child,
 		    int type, int rid, u_long *startp, u_long *countp);
-static void	cardbus_hdrtypedata(device_t brdev, int b, int s, int f,
-		    pcicfgregs *cfg);
-static int	cardbus_print_child(device_t cbdev, device_t child);
-static int	cardbus_print_resources(struct resource_list *rl,
-		    const char *name, int type, const char *format);
-static void	cardbus_print_verbose(struct cardbus_devinfo *dinfo);
 static int	cardbus_probe(device_t cbdev);
-static void	cardbus_probe_nomatch(device_t cbdev, device_t child);
-static struct cardbus_devinfo	*cardbus_read_device(device_t brdev, int b,
-		    int s, int f);
-static void	cardbus_read_extcap(device_t cbdev, pcicfgregs *cfg);
-static uint32_t cardbus_read_config_method(device_t cbdev,
-		    device_t child, int reg, int width);
 static int	cardbus_read_ivar(device_t cbdev, device_t child, int which,
-		    u_long *result);
+		    uintptr_t *result);
 static void	cardbus_release_all_resources(device_t cbdev,
 		    struct cardbus_devinfo *dinfo);
 static int	cardbus_release_resource(device_t cbdev, device_t child,
 		    int type, int rid, struct resource *r);
-static __inline void cardbus_set_command_bit(device_t cbdev, device_t child,
-		    uint16_t bit);
-static int	cardbus_set_powerstate_method(device_t cbdev, device_t child,
-		    int state);
 static int	cardbus_set_resource(device_t cbdev, device_t child, int type,
 		    int rid, u_long start, u_long count, struct resource *res);
 static int	cardbus_set_resource_method(device_t cbdev, device_t child,
@@ -143,8 +118,6 @@ static int	cardbus_setup_intr(device_t cbdev, device_t child,
 		    void *arg, void **cookiep);
 static int	cardbus_teardown_intr(device_t cbdev, device_t child,
 		    struct resource *irq, void *cookie);
-static void	cardbus_write_config_method(device_t cbdev, device_t child,
-		    int reg, uint32_t val, int width);
 static int	cardbus_write_ivar(device_t cbdev, device_t child, int which,
 		    uintptr_t value);
 
@@ -237,9 +210,11 @@ cardbus_attach_card(device_t cbdev)
 	for (slot = 0; slot <= CARDBUS_SLOTMAX; slot++) {
 		int cardbusfunchigh = 0;
 		for (func = 0; func <= cardbusfunchigh; func++) {
-			struct cardbus_devinfo *dinfo =
-			    cardbus_read_device(brdev, bus, slot, func);
+			struct cardbus_devinfo *dinfo;
 
+			dinfo = (struct cardbus_devinfo *)
+			    pci_read_device(brdev, bus, slot, func,
+				sizeof(struct cardbus_devinfo));
 			if (dinfo == NULL)
 				continue;
 			if (dinfo->pci.cfg.mfdev)
@@ -247,11 +222,11 @@ cardbus_attach_card(device_t cbdev)
 
 			cardbus_device_setup_regs(brdev, bus, slot, func,
 			    &dinfo->pci.cfg);
-			cardbus_print_verbose(dinfo);
+			pci_print_verbose(&dinfo->pci);
 			dinfo->pci.cfg.dev = device_add_child(cbdev, NULL, -1);
 			if (!dinfo->pci.cfg.dev) {
 				DEVPRINTF((cbdev, "Cannot add child!\n"));
-				cardbus_freecfg(dinfo);
+				pci_freecfg((struct pci_devinfo *)dinfo);
 				continue;
 			}
 			resource_list_init(&dinfo->pci.resources);
@@ -295,7 +270,7 @@ cardbus_detach_card(device_t cbdev)
 			device_detach(devlist[tmp]);
 		cardbus_release_all_resources(cbdev, dinfo);
 		device_delete_child(cbdev, devlist[tmp]);
-		cardbus_freecfg(dinfo);
+		pci_freecfg((struct pci_devinfo *)dinfo);
 	}
 	POWER_DISABLE_SOCKET(device_get_parent(cbdev), cbdev);
 	free(devlist, M_TEMP);
@@ -329,193 +304,13 @@ cardbus_driver_added(device_t cbdev, driver_t *driver)
 		if (device_get_state(dev) != DS_NOTPRESENT)
 			continue;
 		dinfo = device_get_ivars(dev);
-		cardbus_print_verbose(dinfo);
+		pci_print_verbose(&dinfo->pci);
 		resource_list_init(&dinfo->pci.resources);
 		cardbus_do_cis(cbdev, dev);
 		if (device_probe_and_attach(dev) != 0)
 			cardbus_release_all_resources(cbdev, dinfo);
 	}
 	free(devlist, M_TEMP);
-}
-
-/************************************************************************/
-/* PCI-Like config reading (copied from pci.c				*/
-/************************************************************************/
-
-/* read configuration header into pcicfgrect structure */
-
-static void
-cardbus_read_extcap(device_t cbdev, pcicfgregs *cfg)
-{
-#define	REG(n, w) PCIB_READ_CONFIG(cbdev, cfg->bus, cfg->slot, cfg->func, n, w)
-	int ptr, nextptr, ptrptr;
-
-	switch (cfg->hdrtype) {
-	case 0:
-		ptrptr = 0x34;
-		break;
-	case 2:
-		ptrptr = 0x14;
-		break;
-	default:
-		return;		/* no extended capabilities support */
-	}
-	nextptr = REG(ptrptr, 1);	/* sanity check? */
-
-	/*
-	 * Read capability entries.
-	 */
-	while (nextptr != 0) {
-		/* Sanity check */
-		if (nextptr > 255) {
-			printf("illegal PCI extended capability offset %d\n",
-			    nextptr);
-			return;
-		}
-		/* Find the next entry */
-		ptr = nextptr;
-		nextptr = REG(ptr + 1, 1);
-
-		/* Process this entry */
-		switch (REG(ptr, 1)) {
-		case 0x01:		/* PCI power management */
-			if (cfg->pp_cap == 0) {
-				cfg->pp_cap = REG(ptr + PCIR_POWER_CAP, 2);
-				cfg->pp_status = ptr + PCIR_POWER_STATUS;
-				cfg->pp_pmcsr = ptr + PCIR_POWER_PMCSR;
-				if ((nextptr - ptr) > PCIR_POWER_DATA)
-					cfg->pp_data = ptr + PCIR_POWER_DATA;
-			}
-			break;
-		default:
-			break;
-		}
-	}
-#undef	REG
-}
-
-/* extract header type specific config data */
-
-static void
-cardbus_hdrtypedata(device_t brdev, int b, int s, int f, pcicfgregs *cfg)
-{
-#define	REG(n, w)	PCIB_READ_CONFIG(brdev, b, s, f, n, w)
-	switch (cfg->hdrtype) {
-	case 0:
-		cfg->subvendor	= REG(PCIR_SUBVEND_0, 2);
-		cfg->subdevice	= REG(PCIR_SUBDEV_0, 2);
-		cfg->nummaps	= PCI_MAXMAPS_0;
-		break;
-	case 1:
-		cfg->subvendor	= REG(PCIR_SUBVEND_1, 2);
-		cfg->subdevice	= REG(PCIR_SUBDEV_1, 2);
-		cfg->nummaps	= PCI_MAXMAPS_1;
-		break;
-	case 2:
-		cfg->subvendor	= REG(PCIR_SUBVEND_2, 2);
-		cfg->subdevice	= REG(PCIR_SUBDEV_2, 2);
-		cfg->nummaps	= PCI_MAXMAPS_2;
-		break;
-	}
-#undef	REG
-}
-
-static struct cardbus_devinfo *
-cardbus_read_device(device_t brdev, int b, int s, int f)
-{
-#define	REG(n, w)	PCIB_READ_CONFIG(brdev, b, s, f, n, w)
-	pcicfgregs *cfg = NULL;
-	struct cardbus_devinfo *devlist_entry = NULL;
-
-	if (REG(PCIR_DEVVENDOR, 4) != 0xffffffff) {
-		devlist_entry = malloc(sizeof(struct cardbus_devinfo),
-		    M_DEVBUF, M_ZERO);
-		if (devlist_entry == NULL)
-			return (NULL);
-
-		cfg = &devlist_entry->pci.cfg;
-
-		cfg->bus		= b;
-		cfg->slot		= s;
-		cfg->func		= f;
-		cfg->vendor		= REG(PCIR_VENDOR, 2);
-		cfg->device		= REG(PCIR_DEVICE, 2);
-		cfg->cmdreg		= REG(PCIR_COMMAND, 2);
-		cfg->statreg		= REG(PCIR_STATUS, 2);
-		cfg->baseclass		= REG(PCIR_CLASS, 1);
-		cfg->subclass		= REG(PCIR_SUBCLASS, 1);
-		cfg->progif		= REG(PCIR_PROGIF, 1);
-		cfg->revid		= REG(PCIR_REVID, 1);
-		cfg->hdrtype		= REG(PCIR_HEADERTYPE, 1);
-		cfg->cachelnsz		= REG(PCIR_CACHELNSZ, 1);
-		cfg->lattimer		= REG(PCIR_LATTIMER, 1);
-		cfg->intpin		= REG(PCIR_INTPIN, 1);
-		cfg->intline		= REG(PCIR_INTLINE, 1);
-
-		cfg->mingnt		= REG(PCIR_MINGNT, 1);
-		cfg->maxlat		= REG(PCIR_MAXLAT, 1);
-
-		cfg->mfdev		= (cfg->hdrtype & PCIM_MFDEV) != 0;
-		cfg->hdrtype		&= ~PCIM_MFDEV;
-
-		cardbus_hdrtypedata(brdev, b, s, f, cfg);
-
-		if (REG(PCIR_STATUS, 2) & PCIM_STATUS_CAPPRESENT)
-			cardbus_read_extcap(brdev, cfg);
-
-		devlist_entry->pci.conf.pc_sel.pc_bus = cfg->bus;
-		devlist_entry->pci.conf.pc_sel.pc_dev = cfg->slot;
-		devlist_entry->pci.conf.pc_sel.pc_func = cfg->func;
-		devlist_entry->pci.conf.pc_hdr = cfg->hdrtype;
-
-		devlist_entry->pci.conf.pc_subvendor = cfg->subvendor;
-		devlist_entry->pci.conf.pc_subdevice = cfg->subdevice;
-		devlist_entry->pci.conf.pc_vendor = cfg->vendor;
-		devlist_entry->pci.conf.pc_device = cfg->device;
-
-		devlist_entry->pci.conf.pc_class = cfg->baseclass;
-		devlist_entry->pci.conf.pc_subclass = cfg->subclass;
-		devlist_entry->pci.conf.pc_progif = cfg->progif;
-		devlist_entry->pci.conf.pc_revid = cfg->revid;
-	}
-	return (devlist_entry);
-#undef	REG
-}
-
-/* free pcicfgregs structure and all depending data structures */
-
-static int
-cardbus_freecfg(struct cardbus_devinfo *dinfo)
-{
-	free(dinfo, M_DEVBUF);
-
-	return (0);
-}
-
-static void
-cardbus_print_verbose(struct cardbus_devinfo *dinfo)
-{
-	if (bootverbose || cardbus_debug > 0)
-	{
-		pcicfgregs *cfg = &dinfo->pci.cfg;
-
-		printf("found->\tvendor=0x%04x, dev=0x%04x, revid=0x%02x\n",
-		    cfg->vendor, cfg->device, cfg->revid);
-		printf("\tclass=%02x-%02x-%02x, hdrtype=0x%02x, mfdev=%d\n",
-		    cfg->baseclass, cfg->subclass, cfg->progif,
-		    cfg->hdrtype, cfg->mfdev);
-		printf("\tcmdreg=0x%04x, statreg=0x%04x, "
-		    "cachelnsz=%d (dwords)\n",
-		    cfg->cmdreg, cfg->statreg, cfg->cachelnsz);
-		printf("\tlattimer=0x%02x (%d ns), mingnt=0x%02x (%d ns), "
-		    "maxlat=0x%02x (%d ns)\n",
-		    cfg->lattimer, cfg->lattimer * 30,
-		    cfg->mingnt, cfg->mingnt * 250, cfg->maxlat,
-		    cfg->maxlat * 250);
-		if (cfg->intpin > 0)
-			printf("\tintpin=%c, irq=%d\n",
-			    cfg->intpin + 'a' - 1, cfg->intline);
-	}
 }
 
 /************************************************************************/
@@ -836,81 +631,6 @@ cardbus_teardown_intr(device_t cbdev, device_t child, struct resource *irq,
 /************************************************************************/
 
 static int
-cardbus_print_resources(struct resource_list *rl, const char *name,
-    int type, const char *format)
-{
-	struct resource_list_entry *rle;
-	int printed, retval;
-
-	printed = 0;
-	retval = 0;
-	/* Yes, this is kinda cheating */
-	SLIST_FOREACH(rle, rl, link) {
-		if (rle->type == type) {
-			if (printed == 0)
-				retval += printf(" %s ", name);
-			else if (printed > 0)
-				retval += printf(",");
-			printed++;
-			retval += printf(format, rle->start);
-			if (rle->count > 1) {
-				retval += printf("-");
-				retval += printf(format, rle->start +
-				    rle->count - 1);
-			}
-		}
-	}
-	return retval;
-}
-
-static int
-cardbus_print_child(device_t cbdev, device_t child)
-{
-	struct cardbus_devinfo *dinfo;
-	struct resource_list *rl;
-	pcicfgregs *cfg;
-	int retval = 0;
-
-	dinfo = device_get_ivars(child);
-	cfg = &dinfo->pci.cfg;
-	rl = &dinfo->pci.resources;
-
-	retval += bus_print_child_header(cbdev, child);
-
-	retval += cardbus_print_resources(rl, "port", SYS_RES_IOPORT, "%#lx");
-	retval += cardbus_print_resources(rl, "mem", SYS_RES_MEMORY, "%#lx");
-	retval += cardbus_print_resources(rl, "irq", SYS_RES_IRQ, "%ld");
-	if (device_get_flags(cbdev))
-		retval += printf(" flags %#x", device_get_flags(cbdev));
-
-	retval += printf(" at device %d.%d", pci_get_slot(child),
-	    pci_get_function(child));
-
-	retval += bus_print_child_footer(cbdev, child);
-
-	return (retval);
-}
-
-static void
-cardbus_probe_nomatch(device_t cbdev, device_t child)
-{
-	struct cardbus_devinfo *dinfo;
-	pcicfgregs *cfg;
-
-	dinfo = device_get_ivars(child);
-	cfg = &dinfo->pci.cfg;
-	device_printf(cbdev, "<unknown card>");
-	printf(" (vendor=0x%04x, dev=0x%04x)", cfg->vendor, cfg->device);
-	printf(" at %d.%d", pci_get_slot(child), pci_get_function(child));
-	if (cfg->intpin > 0 && cfg->intline != 255) {
-		printf(" irq %d", cfg->intline);
-	}
-	printf("\n");
-
-	return;
-}
-
-static int
 cardbus_child_location_str(device_t cbdev, device_t child, char *buf,
     size_t buflen)
 {
@@ -940,7 +660,7 @@ cardbus_child_pnpinfo_str(device_t cbdev, device_t child, char *buf,
 }
 
 static int
-cardbus_read_ivar(device_t cbdev, device_t child, int which, u_long *result)
+cardbus_read_ivar(device_t cbdev, device_t child, int which, uintptr_t *result)
 {
 	struct cardbus_devinfo *dinfo;
 	pcicfgregs *cfg;
@@ -960,50 +680,8 @@ cardbus_read_ivar(device_t cbdev, device_t child, int which, u_long *result)
 		}
 		*((uint8_t **) result) = dinfo->funce.lan.nid;
 		break;
-	case PCI_IVAR_SUBVENDOR:
-		*result = cfg->subvendor;
-		break;
-	case PCI_IVAR_SUBDEVICE:
-		*result = cfg->subdevice;
-		break;
-	case PCI_IVAR_VENDOR:
-		*result = cfg->vendor;
-		break;
-	case PCI_IVAR_DEVICE:
-		*result = cfg->device;
-		break;
-	case PCI_IVAR_DEVID:
-		*result = (cfg->device << 16) | cfg->vendor;
-		break;
-	case PCI_IVAR_CLASS:
-		*result = cfg->baseclass;
-		break;
-	case PCI_IVAR_SUBCLASS:
-		*result = cfg->subclass;
-		break;
-	case PCI_IVAR_PROGIF:
-		*result = cfg->progif;
-		break;
-	case PCI_IVAR_REVID:
-		*result = cfg->revid;
-		break;
-	case PCI_IVAR_INTPIN:
-		*result = cfg->intpin;
-		break;
-	case PCI_IVAR_IRQ:
-		*result = cfg->intline;
-		break;
-	case PCI_IVAR_BUS:
-		*result = cfg->bus;
-		break;
-	case PCI_IVAR_SLOT:
-		*result = cfg->slot;
-		break;
-	case PCI_IVAR_FUNCTION:
-		*result = cfg->func;
-		break;
 	default:
-		return ENOENT;
+		return (pci_read_ivar(cbdev, child, which, result));
 	}
 	return 0;
 }
@@ -1011,199 +689,12 @@ cardbus_read_ivar(device_t cbdev, device_t child, int which, u_long *result)
 static int
 cardbus_write_ivar(device_t cbdev, device_t child, int which, uintptr_t value)
 {
-	struct cardbus_devinfo *dinfo;
-	pcicfgregs *cfg;
-
-	dinfo = device_get_ivars(child);
-	cfg = &dinfo->pci.cfg;
-
-	switch (which) {
-	case PCI_IVAR_ETHADDR:
-	case PCI_IVAR_SUBVENDOR:
-	case PCI_IVAR_SUBDEVICE:
-	case PCI_IVAR_VENDOR:
-	case PCI_IVAR_DEVICE:
-	case PCI_IVAR_DEVID:
-	case PCI_IVAR_CLASS:
-	case PCI_IVAR_SUBCLASS:
-	case PCI_IVAR_PROGIF:
-	case PCI_IVAR_REVID:
-	case PCI_IVAR_INTPIN:
-	case PCI_IVAR_IRQ:
-	case PCI_IVAR_BUS:
-	case PCI_IVAR_SLOT:
-	case PCI_IVAR_FUNCTION:
-		return EINVAL;	/* disallow for now */
-	default:
-		return ENOENT;
-	}
-	return 0;
+	return(pci_write_ivar(cbdev, child, which, value));
 }
 
 /************************************************************************/
 /* Compatibility with PCI bus (XXX: Do we need this?)			*/
 /************************************************************************/
-
-/*
- * PCI power manangement
- */
-static int
-cardbus_set_powerstate_method(device_t cbdev, device_t child, int state)
-{
-	struct cardbus_devinfo *dinfo = device_get_ivars(child);
-	pcicfgregs *cfg = &dinfo->pci.cfg;
-	uint16_t status;
-	int result;
-
-	if (cfg->pp_cap != 0) {
-		status = PCI_READ_CONFIG(cbdev, child, cfg->pp_status, 2)
-		    & ~PCIM_PSTAT_DMASK;
-		result = 0;
-		switch (state) {
-		case PCI_POWERSTATE_D0:
-			status |= PCIM_PSTAT_D0;
-			break;
-		case PCI_POWERSTATE_D1:
-			if (cfg->pp_cap & PCIM_PCAP_D1SUPP) {
-				status |= PCIM_PSTAT_D1;
-			} else {
-				result = EOPNOTSUPP;
-			}
-			break;
-		case PCI_POWERSTATE_D2:
-			if (cfg->pp_cap & PCIM_PCAP_D2SUPP) {
-				status |= PCIM_PSTAT_D2;
-			} else {
-				result = EOPNOTSUPP;
-			}
-			break;
-		case PCI_POWERSTATE_D3:
-			status |= PCIM_PSTAT_D3;
-			break;
-		default:
-			result = EINVAL;
-		}
-		if (result == 0)
-			PCI_WRITE_CONFIG(cbdev, child, cfg->pp_status,
-			    status, 2);
-	} else {
-		result = ENXIO;
-	}
-	return (result);
-}
-
-static int
-cardbus_get_powerstate_method(device_t cbdev, device_t child)
-{
-	struct cardbus_devinfo *dinfo = device_get_ivars(child);
-	pcicfgregs *cfg = &dinfo->pci.cfg;
-	uint16_t status;
-	int result;
-
-	if (cfg->pp_cap != 0) {
-		status = PCI_READ_CONFIG(cbdev, child, cfg->pp_status, 2);
-		switch (status & PCIM_PSTAT_DMASK) {
-		case PCIM_PSTAT_D0:
-			result = PCI_POWERSTATE_D0;
-			break;
-		case PCIM_PSTAT_D1:
-			result = PCI_POWERSTATE_D1;
-			break;
-		case PCIM_PSTAT_D2:
-			result = PCI_POWERSTATE_D2;
-			break;
-		case PCIM_PSTAT_D3:
-			result = PCI_POWERSTATE_D3;
-			break;
-		default:
-			result = PCI_POWERSTATE_UNKNOWN;
-			break;
-		}
-	} else {
-		/* No support, device is always at D0 */
-		result = PCI_POWERSTATE_D0;
-	}
-	return (result);
-}
-
-static uint32_t
-cardbus_read_config_method(device_t cbdev, device_t child, int reg, int width)
-{
-	struct cardbus_devinfo *dinfo = device_get_ivars(child);
-	pcicfgregs *cfg = &dinfo->pci.cfg;
-
-	return PCIB_READ_CONFIG(device_get_parent(cbdev),
-	    cfg->bus, cfg->slot, cfg->func, reg, width);
-}
-
-static void
-cardbus_write_config_method(device_t cbdev, device_t child, int reg,
-    uint32_t val, int width)
-{
-	struct cardbus_devinfo *dinfo = device_get_ivars(child);
-	pcicfgregs *cfg = &dinfo->pci.cfg;
-
-	PCIB_WRITE_CONFIG(device_get_parent(cbdev),
-	    cfg->bus, cfg->slot, cfg->func, reg, val, width);
-}
-
-static __inline void
-cardbus_set_command_bit(device_t cbdev, device_t child, uint16_t bit)
-{
-	uint16_t command;
-
-	command = PCI_READ_CONFIG(cbdev, child, PCIR_COMMAND, 2);
-	command |= bit;
-	PCI_WRITE_CONFIG(cbdev, child, PCIR_COMMAND, command, 2);
-}
-
-static __inline void
-cardbus_clear_command_bit(device_t cbdev, device_t child, uint16_t bit)
-{
-	uint16_t command;
-
-	command = PCI_READ_CONFIG(cbdev, child, PCIR_COMMAND, 2);
-	command &= ~bit;
-	PCI_WRITE_CONFIG(cbdev, child, PCIR_COMMAND, command, 2);
-}
-
-static void
-cardbus_enable_busmaster_method(device_t cbdev, device_t child)
-{
-	cardbus_set_command_bit(cbdev, child, PCIM_CMD_BUSMASTEREN);
-}
-
-static void
-cardbus_disable_busmaster_method(device_t cbdev, device_t child)
-{
-	cardbus_clear_command_bit(cbdev, child, PCIM_CMD_BUSMASTEREN);
-}
-
-static void
-cardbus_enable_io_method(device_t cbdev, device_t child, int space)
-{
-	switch (space) {
-	case SYS_RES_IOPORT:
-		cardbus_set_command_bit(cbdev, child, PCIM_CMD_PORTEN);
-		break;
-	case SYS_RES_MEMORY:
-		cardbus_set_command_bit(cbdev, child, PCIM_CMD_MEMEN);
-		break;
-	}
-}
-
-static void
-cardbus_disable_io_method(device_t cbdev, device_t child, int space)
-{
-	switch (space) {
-	case SYS_RES_IOPORT:
-		cardbus_clear_command_bit(cbdev, child, PCIM_CMD_PORTEN);
-		break;
-	case SYS_RES_MEMORY:
-		cardbus_clear_command_bit(cbdev, child, PCIM_CMD_MEMEN);
-		break;
-	}
-}
 
 static device_method_t cardbus_methods[] = {
 	/* Device interface */
@@ -1215,8 +706,8 @@ static device_method_t cardbus_methods[] = {
 	DEVMETHOD(device_resume,	cardbus_resume),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,	cardbus_print_child),
-	DEVMETHOD(bus_probe_nomatch,	cardbus_probe_nomatch),
+	DEVMETHOD(bus_print_child,	pci_print_child),
+	DEVMETHOD(bus_probe_nomatch,	pci_probe_nomatch),
 	DEVMETHOD(bus_read_ivar,	cardbus_read_ivar),
 	DEVMETHOD(bus_write_ivar,	cardbus_write_ivar),
 	DEVMETHOD(bus_driver_added,	cardbus_driver_added),
@@ -1240,14 +731,14 @@ static device_method_t cardbus_methods[] = {
 	DEVMETHOD(card_cis_free,	cardbus_cis_free),
 
 	/* Cardbus/PCI interface */
-	DEVMETHOD(pci_read_config,	cardbus_read_config_method),
-	DEVMETHOD(pci_write_config,	cardbus_write_config_method),
-	DEVMETHOD(pci_enable_busmaster,	cardbus_enable_busmaster_method),
-	DEVMETHOD(pci_disable_busmaster, cardbus_disable_busmaster_method),
-	DEVMETHOD(pci_enable_io,	cardbus_enable_io_method),
-	DEVMETHOD(pci_disable_io,	cardbus_disable_io_method),
-	DEVMETHOD(pci_get_powerstate,	cardbus_get_powerstate_method),
-	DEVMETHOD(pci_set_powerstate,	cardbus_set_powerstate_method),
+	DEVMETHOD(pci_read_config,	pci_read_config_method),
+	DEVMETHOD(pci_write_config,	pci_write_config_method),
+	DEVMETHOD(pci_enable_busmaster,	pci_enable_busmaster_method),
+	DEVMETHOD(pci_disable_busmaster, pci_disable_busmaster_method),
+	DEVMETHOD(pci_enable_io,	pci_enable_io_method),
+	DEVMETHOD(pci_disable_io,	pci_disable_io_method),
+	DEVMETHOD(pci_get_powerstate,	pci_get_powerstate_method),
+	DEVMETHOD(pci_set_powerstate,	pci_set_powerstate_method),
 
 	{0,0}
 };
