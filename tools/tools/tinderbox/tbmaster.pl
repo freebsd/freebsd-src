@@ -63,7 +63,6 @@ my %CONFIGS	= (
     },
     # Test setup
     '9ball' => {
-	'OPTIONS'	=> [ '--verbose' ],
 	'BRANCHES'	=> [ 'CURRENT' ],
 	'TARGETS'	=> [ 'world', 'generic' ],
 	'ARCHES'	=> {
