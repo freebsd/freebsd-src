@@ -29,7 +29,7 @@
 .\" THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.\"	$OpenBSD: wi.4tbl,v 1.9 2002/04/11 20:34:06 millert Exp $
+.\"	$OpenBSD: wi.4tbl,v 1.14 2002/04/29 19:53:50 jsyn Exp $
 .\"
 .Dd March 29, 2002
 .Dt WI 4
@@ -71,7 +71,9 @@ The WaveLAN Gold as well as newer Intersil and Symbol cards support
 The Lucent WaveLAN/IEEE Bronze cards do not support WEP at all.
 To enable encryption, use the
 .Xr wicontrol 8
-utility to set your keys.
+utility to set your keys, or use
+.Xr ifconfig 8
+as shown below.
 .Pp
 By default, the
 .Nm
@@ -89,7 +91,7 @@ One mode, referred to as
 .Dq ad-hoc demo mode ,
 predates the IEEE 802.11 specification and so may not interoperate
 with cards from other vendors.
-The standardized ad-hoc mode, also know as IBSS mode, is not
+The standardized ad-hoc mode, also known as IBSS mode, is not
 supported by cards with very old firmware revisions.
 .Pp
 Cards based on the Intersil PRISM-II and PRISM-2.5 chips also
@@ -118,7 +120,7 @@ device and will not require any PCMCIA support.
 Cards in this type of adapter should only be removed when the
 machine is powered down.
 .Pp
-The following cards are among those supported to by
+The following cards are among those supported by the
 .Nm
 driver:
 .Pp
@@ -144,6 +146,8 @@ Corega PCC-11:Prism-II:PCMCIA
 Corega PCCA-11:Prism-II:PCMCIA
 Corega PCCB-11:Prism-II:PCMCIA
 Corega CGWLPCIA11:Prism-II:PCI
+Dlink DWL520:Prism-2.5:PCI
+Dlink DWL650:Prism-2.5:PCMCIA
 ELSA XI300:Prism-II:PCMCIA
 ELSA XI800:Prism-II:CF
 EMTAC A2424i:Prism-II:PCMCIA
@@ -151,7 +155,7 @@ Ericsson Wireless LAN CARD C11:Spectrum24:PCMCIA
 Gemtek WL-311:Prism-2.5:PCMCIA
 Hawking Technology WE110P:Prism-2.5:PCMCIA
 I-O DATA WN-B11/PCM:Prism-II:PCMCIA
-Intel PRO/Wireless 2011:Prism-II:PCMCIA
+Intel PRO/Wireless 2011:Spectrum24:PCMCIA
 Intersil Prism II:Prism-II:PCMCIA
 Intersil Mini-PCI:Prism-2.5:PCI
 Linksys Instant Wireless WPC11:Prism-II:PCMCIA
