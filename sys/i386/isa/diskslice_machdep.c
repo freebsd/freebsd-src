@@ -35,7 +35,7 @@
  *
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: diskslice_machdep.c,v 1.6 1995/02/22 22:46:36 bde Exp $
+ *	$Id: diskslice_machdep.c,v 1.7 1995/03/04 11:44:05 bde Exp $
  */
 
 #include <stddef.h>
@@ -306,7 +306,7 @@ extended(dname, dev, strat, lp, ssp, ext_offset, ext_size, base_ext_offset,
 		diskerr(bp, dname, "error reading extended partition table",
 			LOG_PRINTF, 0, lp);
 		printf("\n");
-		return;
+		goto done;
 	}
 
 	/* Weakly verify it. */
@@ -315,7 +315,7 @@ extended(dname, dev, strat, lp, ssp, ext_offset, ext_size, base_ext_offset,
 		diskerr(bp, dname, "invalid extended partition table",
 			LOG_PRINTF, 0, lp);
 		printf("\n");
-		return;
+		goto done;
 	}
 
 	for (dospart = 0,
@@ -362,4 +362,8 @@ extended(dname, dev, strat, lp, ssp, ext_offset, ext_size, base_ext_offset,
 			extended(dname, dev, strat, lp, ssp,
 				 ext_offsets[dospart], ext_sizes[dospart],
 				 base_ext_offset, nsectors, ntracks);
+
+done:
+	bp->b_flags = B_INVAL | B_AGE;
+	brelse(bp);
 }
