@@ -57,28 +57,28 @@ extern nfstype nfsv3_type[];
 
 int	nfs_adv(struct mbuf **, caddr_t *, int, int);
 void	*nfsm_build_xx(int s, struct mbuf **mb, caddr_t *bpos);
-int	nfsm_dissect_xx(void **a, int s, struct mbuf **md, caddr_t *dpos);
+void	*nfsm_dissect_xx(int s, struct mbuf **md, caddr_t *dpos);
 int	nfsm_strsiz_xx(int *s, int m, u_int32_t **tl, struct mbuf **mb,
 	    caddr_t *bpos);
 int	nfsm_adv_xx(int s, u_int32_t **tl, struct mbuf **md, caddr_t *dpos);
 u_quad_t nfs_curusec(void);
-int	nfsm_disct(struct mbuf **, caddr_t *, int, int, caddr_t *);
+void	*nfsm_disct(struct mbuf **, caddr_t *, int, int);
 
 #define	nfsm_build(c, s) \
-	(c)nfsm_build_xx((s), &mb, &bpos); \
+	(c)nfsm_build_xx((s), &mb, &bpos)
 
-/* XXX 'c' arg (type) is not used */
-#define	nfsm_dissect(a, c, s) \
-do { \
-	int t1; \
-	t1 = nfsm_dissect_xx((void **)&(a), (s), &md, &dpos); \
-	if (t1) { \
-		error = t1; \
+#define	nfsm_dissect(c, s) \
+({ \
+	void *ret; \
+	ret = nfsm_dissect_xx((s), &md, &dpos); \
+	if (ret == NULL) { \
+		error = EBADRPC; \
 		m_freem(mrep); \
 		mrep = NULL; \
 		goto nfsmout; \
 	} \
-} while (0)
+	(c)ret; \
+})
 
 #define	nfsm_strsiz(s,m) \
 do { \

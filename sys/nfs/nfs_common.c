@@ -164,29 +164,30 @@ nfsm_mbuftouio(struct mbuf **mrep, struct uio *uiop, int siz, caddr_t *dpos)
 /*
  * Help break down an mbuf chain by setting the first siz bytes contiguous
  * pointed to by returned val.
- * This is used by the macros nfsm_dissect and nfsm_dissecton for tough
+ * This is used by the macros nfsm_dissect for tough
  * cases. (The macros use the vars. dpos and dpos2)
  */
-int
-nfsm_disct(struct mbuf **mdp, caddr_t *dposp, int siz, int left, caddr_t *cp2)
+void *
+nfsm_disct(struct mbuf **mdp, caddr_t *dposp, int siz, int left)
 {
 	struct mbuf *mp, *mp2;
 	int siz2, xfer;
 	caddr_t ptr;
+	void *ret;
 
 	mp = *mdp;
 	while (left == 0) {
 		*mdp = mp = mp->m_next;
 		if (mp == NULL)
-			return (EBADRPC);
+			return NULL;
 		left = mp->m_len;
 		*dposp = mtod(mp, caddr_t);
 	}
 	if (left >= siz) {
-		*cp2 = *dposp;
+		ret = *dposp;
 		*dposp += siz;
 	} else if (mp->m_next == NULL) {
-		return (EBADRPC);
+		return NULL;
 	} else if (siz > MHLEN) {
 		panic("nfs S too big");
 	} else {
@@ -195,7 +196,8 @@ nfsm_disct(struct mbuf **mdp, caddr_t *dposp, int siz, int left, caddr_t *cp2)
 		mp->m_next = mp2;
 		mp->m_len -= left;
 		mp = mp2;
-		*cp2 = ptr = mtod(mp, caddr_t);
+		ptr = mtod(mp, caddr_t);
+		ret = ptr;
 		bcopy(*dposp, ptr, left);		/* Copy what was left */
 		siz2 = siz-left;
 		ptr += left;
@@ -203,7 +205,7 @@ nfsm_disct(struct mbuf **mdp, caddr_t *dposp, int siz, int left, caddr_t *cp2)
 		/* Loop around copying up the siz2 bytes */
 		while (siz2 > 0) {
 			if (mp2 == NULL)
-				return (EBADRPC);
+				return NULL;
 			xfer = (siz2 > mp2->m_len) ? mp2->m_len : siz2;
 			if (xfer > 0) {
 				bcopy(mtod(mp2, caddr_t), ptr, xfer);
@@ -219,7 +221,7 @@ nfsm_disct(struct mbuf **mdp, caddr_t *dposp, int siz, int left, caddr_t *cp2)
 		*mdp = mp2;
 		*dposp = mtod(mp2, caddr_t);
 	}
-	return (0);
+	return ret;
 }
 
 /*
@@ -266,33 +268,30 @@ nfsm_build_xx(int s, struct mbuf **mb, caddr_t *bpos)
 	return ret;
 }
 
-int
-nfsm_dissect_xx(void **a, int s, struct mbuf **md, caddr_t *dpos)
+void *
+nfsm_dissect_xx(int s, struct mbuf **md, caddr_t *dpos)
 {
 	int t1;
 	char *cp2;
+	void *ret;
 
 	t1 = mtod(*md, caddr_t) + (*md)->m_len - *dpos;
 	if (t1 >= s) {
-		*a = *dpos;
+		ret = *dpos;
 		*dpos += s;
-		return 0;
+		return ret;
 	}
-	t1 = nfsm_disct(md, dpos, s, t1, &cp2); 
-	if (t1 != 0)
-		return t1;
-	*a = cp2;
-	return 0;
+	cp2 = nfsm_disct(md, dpos, s, t1); 
+	return cp2;
 }
 
 int
 nfsm_strsiz_xx(int *s, int m, u_int32_t **tl, struct mbuf **mb, caddr_t *bpos)
 {
-	int ret;
 
-	ret = nfsm_dissect_xx((void **)tl, NFSX_UNSIGNED, mb, bpos);
-	if (ret)
-		return ret;
+	*tl = nfsm_dissect_xx(NFSX_UNSIGNED, mb, bpos);
+	if (*tl == NULL)
+		return EBADRPC;
 	*s = fxdr_unsigned(int32_t, **tl);
 	if (*s > m)
 		return EBADRPC;

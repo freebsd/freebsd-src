@@ -283,7 +283,7 @@ nfs3_access_otw(struct vnode *vp, int wmode, struct thread *td,
 	nfsm_request(vp, NFSPROC_ACCESS, td, cred);
 	nfsm_postop_attr(vp, attrflag);
 	if (!error) {
-		nfsm_dissect(tl, u_int32_t *, NFSX_UNSIGNED);
+		tl = nfsm_dissect(u_int32_t *, NFSX_UNSIGNED);
 		rmode = fxdr_unsigned(u_int32_t, *tl);
 		np->n_mode = rmode;
 		np->n_modeuid = cred->cr_uid;
@@ -1040,7 +1040,7 @@ nfs_readrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 				m_freem(mrep);
 				goto nfsmout;
 			}
-			nfsm_dissect(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
+			tl = nfsm_dissect(u_int32_t *, 2 * NFSX_UNSIGNED);
 			eof = fxdr_unsigned(int, *(tl + 1));
 		} else
 			nfsm_loadattr(vp, (struct vattr *)0);
@@ -1114,7 +1114,7 @@ nfs_writerpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
 			wccflag = NFSV3_WCCCHK;
 			nfsm_wcc_data(vp, wccflag);
 			if (!error) {
-				nfsm_dissect(tl, u_int32_t *, 2 * NFSX_UNSIGNED
+				tl = nfsm_dissect(u_int32_t *, 2 * NFSX_UNSIGNED
 					+ NFSX_V3WRITEVERF);
 				rlen = fxdr_unsigned(int, *tl++);
 				if (rlen == 0) {
@@ -1985,7 +1985,7 @@ nfs_readdirrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 		if (v3) {
 			nfsm_postop_attr(vp, attrflag);
 			if (!error) {
-				nfsm_dissect(tl, u_int32_t *,
+				tl = nfsm_dissect(u_int32_t *,
 				    2 * NFSX_UNSIGNED);
 				dnp->n_cookieverf.nfsuquad[0] = *tl++;
 				dnp->n_cookieverf.nfsuquad[1] = *tl;
@@ -1994,18 +1994,18 @@ nfs_readdirrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 				goto nfsmout;
 			}
 		}
-		nfsm_dissect(tl, u_int32_t *, NFSX_UNSIGNED);
+		tl = nfsm_dissect(u_int32_t *, NFSX_UNSIGNED);
 		more_dirs = fxdr_unsigned(int, *tl);
 
 		/* loop thru the dir entries, doctoring them to 4bsd form */
 		while (more_dirs && bigenough) {
 			if (v3) {
-				nfsm_dissect(tl, u_int32_t *,
+				tl = nfsm_dissect(u_int32_t *,
 				    3 * NFSX_UNSIGNED);
 				fileno = fxdr_hyper(tl);
 				len = fxdr_unsigned(int, *(tl + 2));
 			} else {
-				nfsm_dissect(tl, u_int32_t *,
+				tl = nfsm_dissect(u_int32_t *,
 				    2 * NFSX_UNSIGNED);
 				fileno = fxdr_unsigned(u_quad_t, *tl++);
 				len = fxdr_unsigned(int, *tl);
@@ -2053,10 +2053,10 @@ nfs_readdirrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 			} else
 				nfsm_adv(nfsm_rndup(len));
 			if (v3) {
-				nfsm_dissect(tl, u_int32_t *,
+				tl = nfsm_dissect(u_int32_t *,
 				    3 * NFSX_UNSIGNED);
 			} else {
-				nfsm_dissect(tl, u_int32_t *,
+				tl = nfsm_dissect(u_int32_t *,
 				    2 * NFSX_UNSIGNED);
 			}
 			if (bigenough) {
@@ -2073,7 +2073,7 @@ nfs_readdirrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 		 * If at end of rpc data, get the eof boolean
 		 */
 		if (!more_dirs) {
-			nfsm_dissect(tl, u_int32_t *, NFSX_UNSIGNED);
+			tl = nfsm_dissect(u_int32_t *, NFSX_UNSIGNED);
 			more_dirs = (fxdr_unsigned(int, *tl) == 0);
 		}
 		m_freem(mrep);
@@ -2175,14 +2175,14 @@ nfs_readdirplusrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 			m_freem(mrep);
 			goto nfsmout;
 		}
-		nfsm_dissect(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
+		tl = nfsm_dissect(u_int32_t *, 3 * NFSX_UNSIGNED);
 		dnp->n_cookieverf.nfsuquad[0] = *tl++;
 		dnp->n_cookieverf.nfsuquad[1] = *tl++;
 		more_dirs = fxdr_unsigned(int, *tl);
 
 		/* loop thru the dir entries, doctoring them to 4bsd form */
 		while (more_dirs && bigenough) {
-			nfsm_dissect(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
+			tl = nfsm_dissect(u_int32_t *, 3 * NFSX_UNSIGNED);
 			fileno = fxdr_hyper(tl);
 			len = fxdr_unsigned(int, *(tl + 2));
 			if (len <= 0 || len > NFS_MAXNAMLEN) {
@@ -2229,7 +2229,7 @@ nfs_readdirplusrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 				uiop->uio_resid -= tlen;
 			} else
 				nfsm_adv(nfsm_rndup(len));
-			nfsm_dissect(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
+			tl = nfsm_dissect(u_int32_t *, 3 * NFSX_UNSIGNED);
 			if (bigenough) {
 				cookie.nfsuquad[0] = *tl++;
 				cookie.nfsuquad[1] = *tl++;
@@ -2246,7 +2246,7 @@ nfs_readdirplusrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 			    dpossav1 = dpos;
 			    mdsav1 = md;
 			    nfsm_adv(NFSX_V3FATTR);
-			    nfsm_dissect(tl, u_int32_t *, NFSX_UNSIGNED);
+			    tl = nfsm_dissect(u_int32_t *, NFSX_UNSIGNED);
 			    doit = fxdr_unsigned(int, *tl);
 			    if (doit) {
 				nfsm_getfh(fhp, fhsize, 1);
@@ -2278,7 +2278,7 @@ nfs_readdirplusrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 			    }
 			} else {
 			    /* Just skip over the file handle */
-			    nfsm_dissect(tl, u_int32_t *, NFSX_UNSIGNED);
+			    tl = nfsm_dissect(u_int32_t *, NFSX_UNSIGNED);
 			    i = fxdr_unsigned(int, *tl);
 			    nfsm_adv(nfsm_rndup(i));
 			}
@@ -2289,14 +2289,14 @@ nfs_readdirplusrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 				vput(newvp);
 			    newvp = NULLVP;
 			}
-			nfsm_dissect(tl, u_int32_t *, NFSX_UNSIGNED);
+			tl = nfsm_dissect(u_int32_t *, NFSX_UNSIGNED);
 			more_dirs = fxdr_unsigned(int, *tl);
 		}
 		/*
 		 * If at end of rpc data, get the eof boolean
 		 */
 		if (!more_dirs) {
-			nfsm_dissect(tl, u_int32_t *, NFSX_UNSIGNED);
+			tl = nfsm_dissect(u_int32_t *, NFSX_UNSIGNED);
 			more_dirs = (fxdr_unsigned(int, *tl) == 0);
 		}
 		m_freem(mrep);
@@ -2500,7 +2500,7 @@ nfs_commit(struct vnode *vp, u_quad_t offset, int cnt, struct ucred *cred,
 	nfsm_request(vp, NFSPROC_COMMIT, td, cred);
 	nfsm_wcc_data(vp, wccflag);
 	if (!error) {
-		nfsm_dissect(tl, u_int32_t *, NFSX_V3WRITEVERF);
+		tl = nfsm_dissect(u_int32_t *, NFSX_V3WRITEVERF);
 		if (bcmp((caddr_t)nmp->nm_verf, (caddr_t)tl,
 			NFSX_V3WRITEVERF)) {
 			bcopy((caddr_t)tl, (caddr_t)nmp->nm_verf,

@@ -745,7 +745,7 @@ nfs_reply(struct nfsreq *myrep)
 		 */
 		md = mrep;
 		dpos = mtod(md, caddr_t);
-		nfsm_dissect(tl, u_int32_t *, 2*NFSX_UNSIGNED);
+		tl = nfsm_dissect(u_int32_t *, 2 * NFSX_UNSIGNED);
 		rxid = *tl++;
 		if (*tl != rpc_reply) {
 			nfsstats.rpcinvalid++;
@@ -979,7 +979,7 @@ tryagain:
 	/*
 	 * break down the rpc header and check if ok
 	 */
-	nfsm_dissect(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
+	tl = nfsm_dissect(u_int32_t *, 3 * NFSX_UNSIGNED);
 	if (*tl++ == rpc_msgdenied) {
 		if (*tl == rpc_mismatch)
 			error = EOPNOTSUPP;
@@ -998,10 +998,10 @@ tryagain:
 	i = fxdr_unsigned(int32_t, *tl);	/* len */
 	if (i > 0)
 		nfsm_adv(nfsm_rndup(i));
-	nfsm_dissect(tl, u_int32_t *, NFSX_UNSIGNED);
+	tl = nfsm_dissect(u_int32_t *, NFSX_UNSIGNED);
 	/* 0 == ok */
 	if (*tl == 0) {
-		nfsm_dissect(tl, u_int32_t *, NFSX_UNSIGNED);
+		tl = nfsm_dissect(u_int32_t *, NFSX_UNSIGNED);
 		if (*tl != 0) {
 			error = fxdr_unsigned(int, *tl);
 			if ((nmp->nm_flag & NFSMNT_NFSV3) &&
