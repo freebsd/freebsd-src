@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.619 1999/07/25 13:15:58 cracauer Exp $
+#	$Id: LINT,v 1.620 1999/07/26 05:47:17 cracauer Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1541,7 +1541,7 @@ options EISA_SLOTS=12
 # PCI Fast Ethernet adapters.
 #
 # The `mx' device provides support for various fast ethernet adapters
-# based on the Macronix 98713, 987615 ans 98725 series chips.
+# based on the Macronix 98713, 987615 and 98725 series chips.
 #
 # The `pn' device provides support for various fast ethernet adapters
 # based on the Lite-On 82c168 and 82c169 PNIC chips, including the
