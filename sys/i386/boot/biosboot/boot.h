@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:03  rpd
- *	$Id: boot.h,v 1.12 1996/09/10 21:18:38 phk Exp $
+ *	$Id: boot.h,v 1.13 1996/09/14 07:38:14 bde Exp $
  */
 
 #include <sys/param.h>
@@ -71,7 +71,6 @@ void boot2(void);
 int devopen(void);
 void devread(char *iodest, int sector, int cnt);
 char * Bread(int dosdev, int sector);
-int badsect(int dosdev, int sector);
 
 /* io.c */
 void gateA20(void);
