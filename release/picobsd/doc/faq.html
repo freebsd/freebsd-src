@@ -1,5 +1,5 @@
 <HTML>
-<! $Id: faq.html,v 1.1.1.1 1998/08/27 17:38:42 abial Exp $ >
+<! $Id: faq.html,v 1.2 1998/08/31 12:28:39 abial Exp $ >
 <HEAD>
    <META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
    <META NAME="Author" CONTENT="Dinesh Nair">
@@ -17,7 +17,7 @@ The PicoBSD FAQ
 
 <CENTER>
 <HR WIDTH="100%"></CENTER>
-<B>What is PicoBSD ?</B>
+<p><B>What is PicoBSD ?</B></p>
 
 <P>PicoBSD is a floppy sized version of popular operating system FreeBSD.
 It fits within a single bootable 1.44MB floppy and runs on a minimum i386
@@ -26,7 +26,7 @@ isp. For a description of how each of the flavours differ, take a look
 at the <B><A HREF="http://www.freebsd.org/~picobsd/picobsd.html">PicoBSD
 home page</A></B>.
 
-<P><B>What version of FreeBSD is PicoBSD based on ?</B>
+<P><B>What version of FreeBSD is PicoBSD based on ?</B></p>
 
 <P>PicoBSD has versions based on both FreeBSD 3.0-current and FreeBSD 2.2.5-RELEASE.
 <A HREF="mailto:abial@nask.pl">Andrzej Bialecki</A> maintains the <A HREF="http://www.freebsd.org/~picobsd/picobsd.html">FreeBSD
@@ -47,7 +47,7 @@ it sometimes has a little more functionality than the 3.0-current version</LI>
 As far as possible, both versions will be kept functionally similar, but
 occasionaly divergence may occur.
 
-<P><B>What can PicoBSD do?</B>
+<P><B>What can PicoBSD do?</B></p>
 
 <P>With the TCP/IP capabilities of FreeBSD included in and based on the
 strong 4.4BSD TCP/IP stack, PicoBSD can be used as a low cost Network Computer.
@@ -60,7 +60,7 @@ i386es as a low cost router or dialin PPP server. With SNMP and firewall
 support built-in, PicoBSD provides the functionality of dedicated routers
 and dialin terminal servers.
 
-<P><B>What are PicoBSD's minimum requirements?</B>
+<P><B>What are PicoBSD's minimum requirements?</B></p>
 
 <P>PicoBSD runs on a minimum i386 with 8MB RAM for the dialup flavour and
 10MB RAM for the net and isp flavours. Diskspace requirements are a single
@@ -68,8 +68,11 @@ and dialin terminal servers.
 external or internal.
 For LAN access, an Ethernet NIC (support for 3Com, NE2000 etc available)
 would also be required.
+<p>In case of "router" flavor, its requirements are even smaller: it can
+run in only 4MB of RAM, on a 386SX CPU.</p>
 
-<P><B>Where do I get PicoBSD?</B> PicoBSD is available at the following
+<P><B>Where do I get PicoBSD?</B></p>
+ PicoBSD is available at the following
 locations:
 <UL TYPE=CIRCLE>
 <LI>
@@ -85,7 +88,7 @@ you're interested in mirroring the PicoBSD distribution, please get in
 touch with <A HREF="mailto:dinesh@alphaque.com">Dinesh Nair</A> or
 <A HREF="mailto:abial@nask.pl">Andrzej Bialecki</A>.
 
-<P><B>How do I copy it to the floppy?</B>
+<P><B>How do I copy it to the floppy?</B></p>
 
 <P>The binary images provided as part of the PicoBSD distribution are 1.44MB
 sized floppy images. They cannot be copied to a floppy using the <I>MSDOS
@@ -101,14 +104,14 @@ under MSDOS and <B>dd</B> under Unix.
 while under Unix you would use something like:
 <UL><B>dd if=picobsd.flp of=/dev/rfd0</B></UL>
 
-<B>How do I configure dialup PPP access on the Dialup flavour?</B>
+<p><B>How do I configure dialup PPP access on the Dialup flavour?</B></p>
 
 <P>There is an auto-configuration script to configure PPP dialup access.
 Run <I>/stand/dialup</I> after booting up from the floppy and make the
 relevant menu selections. Once you've tested it to work, you should make
 your changes permanent by committing them to the floppy using <I>/stand/update</I>.
 
-<P><B>How do I set my DNS server ?</B>
+<P><B>How do I set my DNS server ?</B></p>
 
 <P>Use the provided <I>/stand/ee</I> editor and edit <I>/etc/resolv.conf</I>.
 Replace the <U>domain</U> with your domain and change the <U>nameserver</U>
@@ -118,7 +121,17 @@ to commit your changes to the floppy.
 <p>NOTE: starting with version 0.4, the <i>dialup</i> scripts asks you to
 set your nameserver as well as default domain name.</p>
 
-<P><B>How do I set my hostname ?</B>
+<p><b>I can't execute the <i>/stand/update</i> on the "router" floppy.</b></p>
+<p>The "router" floppy doesn't contain any real shell, so some commands work
+differently (and some don't work at all). In order to use this script you
+have to source it in, i.e.:
+<pre>
+	(48)/# pwd
+	/
+	(48)/# . /stand/update
+</pre>
+
+<P><B>How do I set my hostname ?</B></p>
 
 <P>Edit /<I>etc/rc.conf</I> and change the value of the <U>hostname</U>
 variable.
@@ -158,7 +171,12 @@ and you should simply ignore the warning.</p>
 <p>None. Either build your own version of PicoBSD, or just install normal
 FreeBSD distribution.</p>
 
-<P><B>How do I connect using PPP ?</B>
+<p><b>Using version 0.4 I get many  strange messages on my console...</b></p>
+<p>This is related in large part to DEVFS subsystem - it is still somewhat
+experimental, and its author left some diagnostics turned on.. They are
+harmless.</p>
+
+<P><B>How do I connect using PPP ?</B></p>
 
 <P>Just run the PPP process, <I>/stand/ppp</I>. at the <B>ppp on pico></B>
 prompt, type <U>dial</U> and sit back and wait for the modem to sing it's
@@ -170,7 +188,7 @@ connection if you want to continue to access the Internet.&nbsp; Type <U>help</U
 at the <B>ppp on pico></B> prompt for a list of PPP commands.
 
 <P><B>The PPP process is running on my screen. How do I use the browser
-or telnet to a host ?</B>
+or telnet to a host ?</B></p>
 
 <P>PicoBSD has many virtual terminals, 10 on the dialup flavour. You have
 run PPP on the first virtual terminal. You can switch to the others and
@@ -193,7 +211,7 @@ run /<I>stand/update</I> to commit this to the floppy when you change the
 configuration. In effect, anything you change in /etc can be committed
 by running /<I>stand/update</I>.
 
-<P><B>How come there are no manual pages ?</B>
+<P><B>How come there are no manual pages ?</B></p>
 
 <P>Well, this is a floppy-sized OS, so there's not enough space for full
 manpages. Instead, short help descriptions are given with the <I>/stand/help</I>
