@@ -258,7 +258,7 @@ vmspace_alloc(min, max)
 	vm->vm_map.pmap = vmspace_pmap(vm);		/* XXX */
 	vm->vm_refcnt = 1;
 	vm->vm_shm = NULL;
-	vm->vm_freer = NULL;
+	vm->vm_exitingcnt = 0;
 	return (vm);
 }
 
@@ -304,7 +304,7 @@ vmspace_free(struct vmspace *vm)
 	if (vm->vm_refcnt == 0)
 		panic("vmspace_free: attempt to free already freed vmspace");
 
-	if (--vm->vm_refcnt == 0)
+	if (--vm->vm_refcnt == 0 && vm->vm_exitingcnt == 0)
 		vmspace_dofree(vm);
 }
 
@@ -314,11 +314,22 @@ vmspace_exitfree(struct proc *p)
 	struct vmspace *vm;
 
 	GIANT_REQUIRED;
-	if (p == p->p_vmspace->vm_freer) {
-		vm = p->p_vmspace;
-		p->p_vmspace = NULL;
+	vm = p->p_vmspace;
+	p->p_vmspace = NULL;
+
+	/*
+	 * cleanup by parent process wait()ing on exiting child.  vm_refcnt
+	 * may not be 0 (e.g. fork() and child exits without exec()ing).
+	 * exitingcnt may increment above 0 and drop back down to zero
+	 * several times while vm_refcnt is held non-zero.  vm_refcnt
+	 * may also increment above 0 and drop back down to zero several 
+	 * times while vm_exitingcnt is held non-zero.
+	 * 
+	 * The last wait on the exiting child's vmspace will clean up 
+	 * the remainder of the vmspace.
+	 */
+	if (--vm->vm_exitingcnt == 0 && vm->vm_refcnt == 0)
 		vmspace_dofree(vm);
-	}
 }
 
 /*

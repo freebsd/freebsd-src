@@ -287,7 +287,15 @@ exit1(td, rv)
 	 * Need to do this early enough that we can still sleep.
 	 * Can't free the entire vmspace as the kernel stack
 	 * may be mapped within that space also.
+	 *
+	 * Processes sharing the same vmspace may exit in one order, and
+	 * get cleaned up by vmspace_exit() in a different order.  The
+	 * last exiting process to reach this point releases as much of
+	 * the environment as it can, and the last process cleaned up
+	 * by vmspace_exit() (which decrements exitingcnt) cleans up the
+	 * remainder.
 	 */
+	++vm->vm_exitingcnt;
 	if (--vm->vm_refcnt == 0) {
 		if (vm->vm_shm)
 			shmexit(p);
@@ -297,7 +305,6 @@ exit1(td, rv)
 		vm_page_unlock_queues();
 		(void) vm_map_remove(&vm->vm_map, vm_map_min(&vm->vm_map),
 		    vm_map_max(&vm->vm_map));
-		vm->vm_freer = p;
 	}
 
 	sx_xlock(&proctree_lock);
