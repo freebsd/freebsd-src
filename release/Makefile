@@ -407,10 +407,6 @@ rerelease release:
 	echo "	${CROSSMAKE} ${WORLD_FLAGS} -DNOCLEAN buildworld && \\" >> ${CHROOTDIR}/mk
 	echo "	touch /tmp/.world_done"		>> ${CHROOTDIR}/mk
 	echo "fi"				>> ${CHROOTDIR}/mk
-	echo "if [ -d /usr/src/release/sysinstall ]; then" >> ${CHROOTDIR}/mk
-	echo "	cd /usr/src/release/sysinstall"	>> ${CHROOTDIR}/mk
-	echo "	make obj"			>> ${CHROOTDIR}/mk
-	echo "fi"				>> ${CHROOTDIR}/mk
 	echo "cd /usr/src/release"		>> ${CHROOTDIR}/mk
 	echo "make obj"				>> ${CHROOTDIR}/mk
 	echo "make \$${_RELTARGET}"		>> ${CHROOTDIR}/mk
@@ -490,8 +486,6 @@ release.4:
 # Make and install the three crunched binaries which live on the floppies.
 # You are not supposed to like this :-)
 release.5:
-	@mkdir -p /stand
-	cd ${.CURDIR}/sysinstall && make obj depend all install
 	rm -rf ${RD}/crunch
 	mkdir -p ${RD}/crunch
 .for j in ${CRUNCH_TARGETS}
