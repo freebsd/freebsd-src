@@ -296,6 +296,8 @@ MPPEInput(void *v, struct ccp *ccp, u_short *proto, struct mbuf *mp)
        * The spec says that we shouldn't be though....
        */
       log_Printf(LogDEBUG, "MPPE: Not flushed - discarded\n");
+      fsm_Output(&ccp->fsm, CODE_RESETREQ, ccp->fsm.reqid++, NULL, 0,
+                 MB_CCPOUT);
       m_freem(mp);
       return NULL;
     }
