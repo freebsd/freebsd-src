@@ -46,8 +46,8 @@
 #
 # On the server:
 # enable NFS server and set /etc/exports as
-#	${DEST}	-maproot=0 -alldirs <list of diskless clients>
-#	/usr -alldirs
+#	${DEST}	-ro -maproot=0 -alldirs <list of diskless clients>
+#	/usr -ro -alldirs
 #
 # enable bootpd by uncommenting the bootps line in /etc/inetd.conf
 # and putting at least the following entries in /etc/bootptab:
@@ -100,6 +100,8 @@ update_conf_and_pw() {
 	echo "+++ Copying files in /conf and password files"
 	(cd ${DEST} ; rm -rf conf )
 	(cd / ; tar clf - conf ) | (cd ${DEST}; tar xvf - )
+	mkdir -p ${DEST}/conf/base	# original copy of /etc
+	(cd / ; tar clf - etc ) | (cd ${DEST}/conf/base && tar xvf - )
 	mkdir -p ${DEST}/conf/etc	# used to mount things
 	(cd /etc ; tar cvf - ${PWFILES} ) | (cd ${DEST}/etc ; tar xf - )
 }
