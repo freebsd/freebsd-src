@@ -256,7 +256,7 @@ procfs_domem(curp, p, pfs, uio)
  	 * All in all, quite yucky.
  	 */
  
- 	if (p_trespass(curp, p) &&
+ 	if ((!CHECKIO(curp, p) || p_trespass(curp, p)) &&
 	    !(uio->uio_rw == UIO_READ &&
 	      procfs_kmemaccess(curp)))
  		return EPERM;
