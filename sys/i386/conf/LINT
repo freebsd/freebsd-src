@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.207 1995/10/26 20:29:07 julian Exp $
+#	$Id: LINT,v 1.208 1995/10/31 07:42:49 julian Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -313,6 +313,7 @@ device		ch0	#SCSI media changers
 device		sd0	#SCSI disks
 device		st0	#SCSI tapes
 device		cd0	#SCSI CD-ROMs
+device		od0	#SCSI optical disk
 
 # The previous devices (ch, sd, st, cd) are recognized by config.
 # config doesn't (and shouldn't) know about these newer ones,
