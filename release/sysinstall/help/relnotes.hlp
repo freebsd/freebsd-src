@@ -20,6 +20,23 @@ files.
 Lots of installation bugs fixed, more pc98 changes syncronized, geeze,
 what else?
 
+gdb 4.16 has been merged from -current, most of the third-party source
+now lives under /usr/src/contrib.
+
+Updated support for the DEC DEFPA/DEFEA FDDI hardware.
+
+The old ``HAVE_FPU'' Makefile option is now finally gone, the selection
+between the math library using the floating point emulator, and the
+version using the co-processor is now fully automatic.  This will speed
+up floating-point using programs on sites that didn't like to recompile
+their `libm' previously.
+
+Javier Martin Rueda's `ex' driver has been merged, bringing support
+for the Intel EtherExpress Pro/10 network cards.
+
+The `de' driver now recognizes cards using the DE21140A chip, like the
+popular SMC9332BDT (10/100 Mbit/s) one.
+
 
 1.1 What's new since 2.1.6-RELEASE
 ----------------------------------
@@ -36,7 +53,7 @@ Updated support for ethernet adaptors which use the DEC DC21X4X chipset.
 Support for HP PC Lan+ cards (model numbers: 27247B and 27252A)
 
 The 3COM 3c590 / 3c595 drivers have improved considerably, and also
-includes support for EISA and 3c90x devices now.
+include support for EISA and 3c90x devices now.
 
 You need only change your kernel settings *once* now, on initial startup
 from the floppy.  They will be preserved on the subsequently installed
@@ -58,6 +75,9 @@ Support for SNMP-style interface MIBs, including full RFC
 drivers.
 
 /stand/sysinstall moved even more towards a system management tool.
+
+The fixit floppy is now in much better shape, and sysinstall also
+offers to use the second (``live'') CD-ROM as a fixit medium.
 
 The syscons and psm drivers now have a new underlying shared keyboard
 driver, eliminating many of the previously existing problems with
@@ -98,11 +118,37 @@ uration for the respective PCI ethernet cards, including many NE2000
 clones and the AMD PCnet chips.  The SDL RISCom N2 support is new, as
 well as the PCI version of the Cyclades driver.
 
+The Linux emulation is now fully functional, including ELF support.
+To make its use easier, there are even ports for the required shared
+libraries, and for the Slackware development environment.
+
+In the same line, the SysV COFF emulation (aka. SCO emulation) is
+reported to be working well now.
+
+FreeBSD also supports native ELF binaries, although it hasn't been
+decided yet whether, when, and how we might use this as the default
+binary format some day.
+
+A `brandelf' utility has been added to allow `branding' of non-shared
+linked ELF binaries where the kernel cannot guess which image activator
+(FreeBSD, Linux, maybe SysV some day) should be used.  This works around
+one major flaw in the ELF object format, the missing field to mark the
+ABI it belongs to.
+
 Support for APM BIOSes is now in a much better shape.
 
 The manual section 9 has been started, describing `official' kernel
 programming interfaces.  We are still seeking volunteers to document
 interfaces here!
+
+The kernel configuration option handling has been largely moved away
+from the old -D Makefile kludges, towards a system of "opt_foo.h"
+kernel include files, allowing Makefile dependencies to work again.
+We expect the old hack that blows the entire compile directory away
+on each run of config(8) to go away anytime soon.  Unless you're changing
+weird options, you might now consider using the -n option to config(8),
+or setting the env variable NO_CONFIG_CLOBBER, if CPU time is costly for
+you.  See also the comments in the handbook about how it works.
 
 
 2. Supported Configurations
@@ -214,6 +260,7 @@ Fujitsu MB86960A/MB86965A
 HP PC Lan+ cards (model numbers: 27247B and 27252A).
 
 Intel EtherExpress (not recommended due to driver instability)
+Intel EtherExpress Pro/10
 Intel EtherExpress Pro/100B PCI Fast Ethernet
 
 Isolan AT 4141-0 (16 bit)
