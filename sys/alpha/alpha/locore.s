@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: locore.s,v 1.4 1998/11/09 10:47:19 dima Exp $
+ *	$Id: locore.s,v 1.5 1998/11/15 00:50:59 dima Exp $
  */
 /*
  * Copyright (c) 1994, 1995, 1996 Carnegie-Mellon University.
@@ -55,6 +55,11 @@
 #include <machine/asm.h>
 #include <sys/syscall.h>
 #include <assym.s>
+
+#ifndef EVCNT_COUNTERS
+#define _LOCORE
+#include <machine/intrcnt.h>
+#endif
 
 /*
  * PTmap is recursive pagemap at top of virtual address space.
@@ -296,10 +301,17 @@ LEAF(restorefpstate, 1)
 /* XXX: make systat/vmstat happy */
 	.data
 EXPORT(intrnames)
-	ASCIZ	"foobar"
+	.asciz	"clock"
+intr_n = 0
+.rept INTRCNT_COUNT
+	.ascii "intr "
+	.byte intr_n / 10 + '0, intr_n % 10 + '0
+	.asciz "     "		# space for platform-specific rewrite
+	intr_n = intr_n + 1
+.endr
 EXPORT(eintrnames)
-	.align	3
+	.align 3
 EXPORT(intrcnt)
-	.quad	0
+	.fill INTRCNT_COUNT + 1, 8, 0
 EXPORT(eintrcnt)
 	.text

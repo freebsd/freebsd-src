@@ -23,14 +23,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: intr.h,v 1.3 1998/08/10 07:53:58 dfr Exp $
+ *	$Id: intr.h,v 1.4 1998/11/15 18:25:16 dfr Exp $
  */
 
 #ifndef _MACHINE_INTR_H_
 #define _MACHINE_INTR_H_
 
 int alpha_setup_intr(int vector, driver_intr_t *intr, void *arg,
-		     void **cookiep);
+		     void **cookiep, volatile long *cntp);
 int alpha_teardown_intr(void *cookie);
 void alpha_dispatch_intr(void *frame, unsigned long vector);
 
