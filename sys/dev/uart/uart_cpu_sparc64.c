@@ -71,13 +71,14 @@ uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
 /*
  * Get the address of the UART that is selected as the console, if the
  * console is an UART of course. Note that we enforce that both stdin and
- * stdout are selected. For weird configurations, use ofw_console(4).
+ * stdout are selected.
  * Note that the currently active console (i.e. /chosen/stdout and
  * /chosen/stdin) may not be the same as the device selected in the
  * environment (ie /options/output-device and /options/input-device) because
- * the user may have changed the environment. In that case I would assume
- * that the user expects that FreeBSD uses the new console setting. There's
- * no choice, really.
+ * keyboard and screen were selected but the keyboard was unplugged or the
+ * user has changed the environment. In the latter case I would assume that
+ * the user expects that FreeBSD uses the new console setting.
+ * For weirder configurations, use ofw_console(4).
  */
 static phandle_t
 uart_cpu_getdev_console(phandle_t options, char *dev, size_t devsz)
@@ -89,13 +90,28 @@ uart_cpu_getdev_console(phandle_t options, char *dev, size_t devsz)
 		return (-1);
 	if ((input = OF_finddevice(dev)) == -1)
 		return (-1);
+	if (OF_getprop(options, "output-device", buf, sizeof(buf)) == -1)
+		return (-1);
+	if (!strcmp(dev, "keyboard") && !strcmp(buf, "screen")) {
+		phandle_t chosen;
+		ihandle_t stdin, stdout;
+
+		if ((chosen = OF_finddevice("/chosen")) == -1)
+			return (-1);
+		if (OF_getprop(chosen, "stdin", &stdin, sizeof(stdin)) == -1)
+			return (-1);
+		if ((input = OF_instance_to_package(stdin)) == -1)
+			return (-1);
+		if (OF_getprop(chosen, "stdout", &stdout, sizeof(stdout)) == -1)
+			return (-1);
+		if (OF_instance_to_package(stdout) != input)
+			return (-1);
+		snprintf(dev, devsz, "ttya");
+	} else if (OF_finddevice(buf) != input)
+		return (-1);
 	if (OF_getprop(input, "device_type", buf, sizeof(buf)) == -1)
 		return (-1);
 	if (strcmp(buf, "serial") != 0)
-		return (-1);
-	if (OF_getprop(options, "output-device", buf, sizeof(buf)) == -1)
-		return (-1);
-	if (OF_finddevice(buf) != input)
 		return (-1);
 	return (input);
 }
