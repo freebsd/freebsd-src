@@ -242,7 +242,7 @@ configFstab(dialogMenuItem *self)
 	if (Mkdir(cdname))
 	    msgConfirm("Unable to make mount point for: %s", cdname);
 	else
-	    fprintf(fstab, "/dev/%s\t\t%s\tcd9660\tro,noauto\t0\t0\n", devs[i]->name, cdname);
+	    fprintf(fstab, "/dev/%s\t\t%s\t\tcd9660\tro,noauto\t0\t0\n", devs[i]->name, cdname);
     }
     
     /* And finally, a /proc. */
