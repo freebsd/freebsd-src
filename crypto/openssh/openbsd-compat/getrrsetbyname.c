@@ -53,6 +53,10 @@
 
 #define ANSWER_BUFFER_SIZE 1024*64
 
+#if defined(HAVE_DECL_H_ERRNO) && !HAVE_DECL_H_ERRNO
+extern int h_errno;
+#endif
+
 struct dns_query {
 	char			*name;
 	u_int16_t		type;

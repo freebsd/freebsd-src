@@ -40,7 +40,6 @@ these programs.
   Multiple Precision Integer Library
 
     - Uses the SSLeay BIGNUM sublibrary.
-    - Some auxiliary functions for mp-int manipulation are in mpaux.c.
 
   Random Numbers
 

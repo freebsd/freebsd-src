@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $Id: xmmap.c,v 1.3 2003/06/02 02:25:27 tim Exp $ */
+/* $Id: xmmap.c,v 1.5 2004/08/14 13:55:38 dtucker Exp $ */
 
 #include "includes.h"
 
@@ -40,25 +40,28 @@ void *xmmap(size_t size)
 #ifdef HAVE_MMAP
 # ifdef MAP_ANON
 	address = mmap(NULL, size, PROT_WRITE|PROT_READ, MAP_ANON|MAP_SHARED,
-	    -1, 0);
+	    -1, (off_t)0);
 # else
 	address = mmap(NULL, size, PROT_WRITE|PROT_READ, MAP_SHARED,
-	    open("/dev/zero", O_RDWR), 0);
+	    open("/dev/zero", O_RDWR), (off_t)0);
 # endif
 
 #define MM_SWAP_TEMPLATE "/var/run/sshd.mm.XXXXXXXX"
 	if (address == MAP_FAILED) {
 		char tmpname[sizeof(MM_SWAP_TEMPLATE)] = MM_SWAP_TEMPLATE;
 		int tmpfd;
+		mode_t old_umask;
 
+		old_umask = umask(0177);
 		tmpfd = mkstemp(tmpname);
+		umask(old_umask);
 		if (tmpfd == -1)
 			fatal("mkstemp(\"%s\"): %s",
 			    MM_SWAP_TEMPLATE, strerror(errno));
 		unlink(tmpname);
 		ftruncate(tmpfd, size);
 		address = mmap(NULL, size, PROT_WRITE|PROT_READ, MAP_SHARED,
-		    tmpfd, 0);
+		    tmpfd, (off_t)0);
 		close(tmpfd);
 	}
 

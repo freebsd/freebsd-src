@@ -1,4 +1,4 @@
-/* $Id: openbsd-compat.h,v 1.25 2004/01/21 06:07:23 djm Exp $ */
+/* $Id: openbsd-compat.h,v 1.26 2004/08/15 08:41:00 djm Exp $ */
 
 /*
  * Copyright (c) 1999-2003 Damien Miller.  All rights reserved.
@@ -46,6 +46,10 @@ char *basename(const char *path);
 
 #ifndef HAVE_BINDRESVPORT_SA
 int bindresvport_sa(int sd, struct sockaddr *sa);
+#endif
+
+#ifndef HAVE_CLOSEFROM
+void closefrom(int);
 #endif
 
 #ifndef HAVE_GETCWD

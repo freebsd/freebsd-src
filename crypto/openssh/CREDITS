@@ -31,6 +31,7 @@ David Agraz <dagraz@jahoopa.com> - Build fixes
 David Del Piero <David.DelPiero@qed.qld.gov.au> - bug fixes
 David Hesprich <darkgrue@gue-tech.org> - Configure fixes
 David Rankin <drankin@bohemians.lexington.ky.us> - libwrap, AIX, NetBSD fixes
+Dag-Erling Smørgrav <des at freebsd.org> - Challenge-Response PAM code.
 Ed Eden <ede370@stl.rural.usda.gov> - configure fixes
 Garrick James <garrick@james.net> - configure fixes
 Gary E. Miller <gem@rellim.com> - SCO support
@@ -43,7 +44,7 @@ Holger Trapp <Holger.Trapp@Informatik.TU-Chemnitz.DE> - KRB4/AFS config patch
 IWAMURO Motonori <iwa@mmp.fujitsu.co.jp> - bugfixes
 Jani Hakala <jahakala@cc.jyu.fi> - Patches
 Jarno Huuskonen <jhuuskon@hytti.uku.fi> - Bugfixes
-Jim Knoble <jmknoble@jmknoble.cx> - Many patches
+Jim Knoble <jmknoble@pobox.com> - Many patches
 Jonchen (email unknown) - the original author of PAM support of SSH
 Juergen Keil <jk@tools.de> - scp bugfixing
 KAMAHARA Junzo <kamahara@cc.kshosen.ac.jp> - Configure fixes
@@ -61,6 +62,7 @@ Martin Johansson <fatbob@acc.umu.se> - Linux fixes
 Mark D. Roth <roth+openssh@feep.net> - Features, bug fixes
 Mark Miller <markm@swoon.net> - Bugfixes
 Matt Richards <v2matt@btv.ibm.com> - AIX patches
+Michael Steffens <michael_steffens at hp.com> - HP-UX fixes
 Michael Stone <mstone@cs.loyola.edu> - Irix enhancements
 Nakaji Hiroyuki <nakaji@tutrp.tut.ac.jp> - Sony News-OS patch
 Nalin Dahyabhai <nalin.dahyabhai@pobox.com> - PAM environment patch
@@ -76,6 +78,7 @@ Phil Karn <karn@ka9q.ampr.org> - Autoconf fixes
 Philippe WILLEM <Philippe.WILLEM@urssaf.fr> - Bugfixes
 Phill Camp <P.S.S.Camp@ukc.ac.uk> - login code fix
 Rip Loomis <loomisg@cist.saic.com> - Solaris package support, fixes
+Robert Dahlem <Robert.Dahlem at siemens.com> - Reliant Unix fixes
 Roumen Petrov <openssh@roumenpetrov.info> - Compile & configure fixes
 SAKAI Kiyotaka <ksakai@kso.netwk.ntt-at.co.jp> - Multiple bugfixes
 Simon Wilkinson <sxw@dcs.ed.ac.uk> - PAM fixes, Compat with MIT KrbV
@@ -95,5 +98,5 @@ Apologies to anyone I have missed.
 
 Damien Miller <djm@mindrot.org>
 
-$Id: CREDITS,v 1.77 2004/01/30 04:00:50 dtucker Exp $
+$Id: CREDITS,v 1.79 2004/05/26 23:59:31 dtucker Exp $
 
