@@ -3,7 +3,7 @@
 
 KMOD=		ng_iface
 SRCS= 		ng_iface.c
-MAN8=		ng_iface.8
+MAN4=		ng_iface.4
 KMODDEPS=	netgraph
 
 .include <bsd.kmod.mk>
