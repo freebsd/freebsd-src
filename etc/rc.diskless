@@ -1,0 +1,117 @@
+#
+# /etc/rc.diskless - general BOOTP startup
+#
+#	BOOTP has mounted / for us.  Assume a read-only mount.  We must then
+#	- figure out where the NFS mount is coming from
+#	- mount /usr via nfs
+#	- figure out our IP by querying the interface
+#	- setup the configuration script directory
+#	- setup the configuration function
+#
+# SEE SAMPLE FILES IN /usr/share/examples/diskless.  If you have nothing 
+# better to do, try:
+#
+#	ln -s /usr/share/examples/diskless /conf
+#
+# but at least read the README.
+
+# chkerr:
+#
+# Routine to check for error
+#
+#	checks error code and drops into shell on failure.
+#	if shell exits, terminates script as well as /etc/rc.
+
+chkerr() {
+	if [ $1 != 0 ]; then
+		echo "$2 failed: dropping into /bin/sh"
+		/bin/sh
+		# RESUME
+	fi
+}
+
+# DEBUGGING
+#
+set -v
+
+#  Figure out where the root mount is coming from, synthesize a mount
+#  for /usr and mount it.  Also mount /var
+#
+#  e.g. nfs_root might wind up as "A.B.C.D:/"
+#
+set `/bin/df /`
+nfs_root=$8
+mount_nfs -o ro ${nfs_root}/usr /usr
+mount_nfs -o ro ${nfs_root}/var /var
+
+chkerr $? "mount of /usr"
+
+#  Figure out our interface and IP.
+#
+
+bootp_ifc=`route -n get default | fgrep interface | awk '{ print $2; }'`
+bootp_ipa=`ifconfig $bootp_ifc | fgrep inet | head -1 | awk '{ print $2; }'`
+
+echo "Interface $bootp_ifc IP-Address $bootp_ipa"
+
+# retarget the configuration directory, where rc.conf.local and rc.local
+# are found.  We set the directory to /conf/$bootp_ipa.
+#
+
+conf_dir=/conf/$bootp_ipa
+sysctl -w kern.conf_dir=$conf_dir
+sysctl -w kern.bootfile=$conf_dir/kernel
+
+if [ ! -f $conf_dir/rc.conf.local ]; then
+	chkerr 1 "access to $conf_dir"
+fi
+
+#  Tell /etc/rc to skip normal disk configuration
+#
+
+skip_diskconf=YES
+diskless_mount_func=diskless_mount_system
+
+#  Default mounting pass procedure
+#
+#	We have to create the filesystems that are expected
+#	to be writeable.
+
+diskless_mount_system() {
+	sysctl -w net.inet.ip.portrange.first=4000
+
+	mount_mfs -s 2048 -T qp120at dummy /var/run
+	mount_mfs -s 16384 -T qp120at dummy /var/db
+	mount_mfs -s 65536 -T qp120at dummy /var/tmp
+	mount_mfs -s 65536 -T qp120at dummy /var/spool
+	chmod 755 /var/run
+	chmod 755 /var/db
+	chmod 755 /var/spool
+	chmod 1777 /var/tmp
+	#
+	# XXX /tmp should be a softlink to /var/tmp
+
+	mkdir /var/spool/mqueue
+	mkdir /var/spool/ljet4
+	mkdir /var/spool/lpd
+	mkdir /var/spool/output
+	mkdir /var/spool/output/lpd
+	chown daemon /var/spool/ljet4
+	chown -R root.daemon /var/spool/output
+	chgrp daemon /var/spool/lpd
+
+	# /proc may be necessary
+	#
+	mount_procfs proc /proc
+
+	# We need a R+W /dev !  Use cpio to copy /dev from the 
+	# server to an MFS mount.
+
+	mkdir /tmp/root
+	mount ${nfs_root} /tmp/root
+	mount_mfs -s 4096 -i 512 -T qp120at dummy /dev
+	( cd /tmp/root ; find -x dev | cpio -o -H newc ) | \
+		( cd / ; cpio -i -H newc -d )
+	umount /tmp/root
+}
+
