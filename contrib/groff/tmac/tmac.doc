@@ -381,7 +381,7 @@
 .	el .as b1 \&\f\\n(cF\s\\n(cZ\\*(A\\n(aP\fP\s0
 .	ie \\n(aC==\\n(aP \{\
 .		if \\n(jM==4 .as b1 \&\|\-
-.		as b1 \&\fP\s0
+.		as b1 \fP\s0
 .		aZ
 .	\}
 .	el \{\
