@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)unidialer.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -46,6 +50,7 @@ static char sccsid[] = "@(#)unidialer.c	8.1 (Berkeley) 6/6/93";
 
 #include <sys/times.h>
 #include <assert.h>
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -184,13 +189,13 @@ static int getmodemparms (const char *modem)
 	if ((stat = cgetent (&bp, db_array, (char *)modem)) < 0) {
 		switch (stat) {
 		case -1:
-			fprintf (stderr, "tip: unknown modem %s\n", modem);
+			warnx ("unknown modem %s", modem);
 			break;
 		case -2:
-			fprintf (stderr, "tip: can't open modem description file\n");
+			warnx ("can't open modem description file");
 			break;
 		case -3:
-			fprintf (stderr, "tip: possible reference loop in modem description file\n");
+			warnx ("possible reference loop in modem description file");
 			break;
 		}
 		return 0;
