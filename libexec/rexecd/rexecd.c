@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rexecd.c,v 1.9 1996/11/19 18:03:16 pst Exp $
+ *	$Id: rexecd.c,v 1.8 1996/09/22 21:54:45 wosch Exp $
  */
 
 #ifndef lint
@@ -153,6 +153,18 @@ doit(f, fromp)
 		port = port * 10 + c - '0';
 	}
 	(void) alarm(0);
+	if (port != 0) {
+		s = socket(AF_INET, SOCK_STREAM, 0);
+		if (s < 0)
+			exit(1);
+		if (bind(s, (struct sockaddr *)&asin, sizeof (asin)) < 0)
+			exit(1);
+		(void) alarm(60);
+		fromp->sin_port = htons(port);
+		if (connect(s, (struct sockaddr *)fromp, sizeof (*fromp)) < 0)
+			exit(1);
+		(void) alarm(0);
+	}
 	getstr(user, sizeof(user), "username");
 	getstr(pass, sizeof(pass), "password");
 	getstr(cmdbuf, sizeof(cmdbuf), "command");
@@ -205,30 +217,8 @@ doit(f, fromp)
 		error("No remote directory.\n");
 		exit(1);
 	}
-
-	if (port != 0) {
-		if (port < IPPORT_RESERVED) {
-			syslog(LOG_ERR, "%s CONNECTION REFUSED to %s:%d "
-					"client requested privileged port",
-					user, remote, port);
-			error("Privileged port requested for stderr info.\n");
-			exit(1);
-		}
-		s = socket(AF_INET, SOCK_STREAM, 0);
-		if (s < 0)
-			exit(1);
-		if (bind(s, (struct sockaddr *)&asin, sizeof (asin)) < 0)
-			exit(1);
-		(void) alarm(60);
-		fromp->sin_port = htons(port);
-		if (connect(s, (struct sockaddr *)fromp, sizeof (*fromp)) < 0)
-			exit(1);
-		(void) alarm(0);
-	}
-
 	(void) write(2, "\0", 1);
-
-	if (port != 0) {
+	if (port) {
 		(void) pipe(pv);
 		pid = fork();
 		if (pid == -1)  {
