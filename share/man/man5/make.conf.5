@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 19, 2004
+.Dd December 14, 2004
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -458,6 +458,11 @@ compilers, debuggers etc.
 .Pq Vt bool
 Set to not build
 programs and libraries related to IPv6 networking.
+.It Va NOALIAS
+.Pq Vt bool
+Build
+.Xr ppp 8
+without support for network address translation (NAT).
 .It Va NOATM
 .Pq Vt bool
 Set to not build
@@ -570,6 +575,13 @@ Set to avoid compiling profiled libraries.
 Set to not build in the
 .Pa share
 subdir.
+.It Va NOSHARED
+.Pq Vt bool
+Set to not build
+.Pa /bin
+and
+.Pa /sbin
+dynamically linked, this can be bad.
 .It Va NO_BIND
 .Pq Vt bool
 Setting this variable will prevent any part of BIND from being built,
@@ -621,6 +633,22 @@ and
 .It Va WITH_BIND_LIBS
 .Pq Vt bool
 Set to install BIND libraries and include files.
+.It Va NONAT
+.It Vt bool
+This is an alias for
+.Va NONAT
+and can break when building
+.Xr ppp 8 .
+.It Va NONETGRAPH
+.Pq Vt bool
+Set to build
+.Xr ppp 8
+without support for netgraph.
+.It Va NORADIUS
+.Pq Va bool
+Set to build
+.Xr ppp 8
+without support for radius.
 .It Va PPP_NOSUID
 .Pq Vt bool
 Set to disable the installation of
