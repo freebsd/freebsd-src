@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.42 1997/06/25 19:30:03 brian Exp $
+.\" $Id: ppp.8,v 1.43 1997/06/30 03:03:35 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1267,7 +1267,7 @@ using
 deals with the following signals:
 
 .Bl -tag -width 20
-.It HUP
+.It INT
 Receipt of this signal causes the termination of the current connection
 (if any).  This will cause
 .Nm
@@ -1275,25 +1275,9 @@ to exit unless it is in
 .Fl auto
 or
 .Fl ddial
-mode.  It should be noted that unless in
-.Fl direct
-mode,
-.Nm
-does not have a controlling terminal and therefore doesn't receive
-this signal on loss of carrier.  Instead, it monitors the line
-directly for loss of carrier.
+mode.
 
-.It INT
-This signal will normally terminate
-.Nm ppp .
-If, however,
-.Nm
-is in interactive mode this signal will be ignored except when dialing.
-When dialing, the signal causes
-.Nm
-to abort dialing and return to the command prompt.
-
-.It TERM & QUIT
+.It HUP, TERM & QUIT
 These signals tell
 .Nm
 to exit.
