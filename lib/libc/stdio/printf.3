@@ -36,7 +36,7 @@
 .\"     @(#)printf.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd December 20, 2002
+.Dd January 4, 2003
 .Dt PRINTF 3
 .Os
 .Sh NAME
@@ -872,3 +872,9 @@ modifier for floating point formats simply round the
 argument to
 .Vt double ,
 providing no additional precision.
+.Pp
+The
+.Nm
+family of functions do not correctly handle multibyte characters in the
+.Fa format
+argument.
