@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: startslip.c,v 1.10 1995/09/15 20:06:50 ache Exp $
  */
 
 #ifndef lint
@@ -223,30 +223,8 @@ restart:
 		*/
 			down(3);
 	}
-	if (diali > 0)
-		dialerstring = dials[dialc++ % diali];
-
-	/*
-	 * We may get a HUP below, when the parent (session leader/
-	 * controlling process) exits; ignore HUP until into new session.
-	 */
 	signal(SIGHUP, SIG_IGN);
 	hup = 0;
-	if (fork() > 0) {
-		if (first)
-			printd("parent exit\n");
-		exit(0);
-	}
-	if (setsid() < 0) {
-		syslog(LOG_ERR, "setsid: %m");
-		down(2);
-	}
-	pid = getpid();
-	printd("restart: pid %ld: ", pid);
-	if ((pfd = fopen(pidfile, "w")) != NULL) {
-		fprintf(pfd, "%ld\n", pid);
-		fclose(pfd);
-	}
 	if (wfd) {
 		printd("fclose, ");
 		fclose(wfd);
@@ -264,11 +242,31 @@ restart:
 		fd = -1;
 		sleep(5);
 	}
+	if (terminate)
+		goto restart;
+	if (diali > 0)
+		dialerstring = dials[dialc++ % diali];
+
+	if (fork() > 0) {
+		if (first)
+			printd("parent exit\n");
+		exit(0);
+	}
+	if (setsid() < 0) {
+		syslog(LOG_ERR, "setsid: %m");
+		down(2);
+	}
+	pid = getpid();
+	printd("restart: pid %ld: ", pid);
+	if ((pfd = fopen(pidfile, "w")) != NULL) {
+		fprintf(pfd, "%ld\n", pid);
+		fclose(pfd);
+	}
 	if (tries > 1) {
 		syslog(LOG_INFO, "sleeping %d seconds (%d tries)",
-			wait_time * (tries - 1), tries - 1);
+			wait_time * (tries - 1), tries);
 		sleep(wait_time * (tries - 1));
-		if (hup || terminate)
+		if (terminate)
 			goto restart;
 	}
 	printd("open");
@@ -310,7 +308,7 @@ restart:
 		syslog(LOG_ERR, "tcsetpgrp failed: %m");
 		down(2);
 	}
-	printd(", ioctl");
+	printd(", ioctl\n");
 	if (tcgetattr(fd, &t) < 0) {
 		syslog(LOG_ERR, "%s: tcgetattr: %m\n", devicename);
 		down(2);
@@ -345,10 +343,10 @@ restart:
 	}
 	setbuf(wfd, (char *)0);
 	if (dialerstring) {
-		printd(", send dialstring: %s\\r", dialerstring);
+		printd("send dialstring: %s\\r", dialerstring);
 		fprintf(wfd, "%s\r", dialerstring);
 	} else {
-		printd(", send \\r");
+		printd("send \\r");
 		putc('\r', wfd);
 	}
 	printd("\n");
