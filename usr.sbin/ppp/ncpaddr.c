@@ -418,13 +418,15 @@ ncpaddr_aton(struct ncpaddr *addr, struct ncp *ncp, const char *data)
   if (!ncprange_aton(&range, ncp, data))
     return 0;
 
-  if (range.ncprange_family == AF_INET && range.ncprange_ip4width != 32) {
+  if (range.ncprange_family == AF_INET && range.ncprange_ip4width != 32 &&
+      range.ncprange_ip4addr.s_addr != INADDR_ANY) {
     log_Printf(LogWARN, "ncpaddr_aton: %s: Only 32 bits allowed\n", data);
     return 0;
   }
 
 #ifndef NOINET6
-  if (range.ncprange_family == AF_INET6 && range.ncprange_ip6width != 128) {
+  if (range.ncprange_family == AF_INET6 && range.ncprange_ip6width != 128 &&
+      !IN6_IS_ADDR_UNSPECIFIED(&range.ncprange_ip6addr)) {
     log_Printf(LogWARN, "ncpaddr_aton: %s: Only 128 bits allowed\n", data);
     return 0;
   }
