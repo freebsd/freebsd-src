@@ -262,7 +262,7 @@ in_gif_input(m, va_alist)
 #ifdef MROUTING
 		/* for backward compatibility */
 		if (proto == IPPROTO_IPV4) {
-			ipip_input(m, off, proto);
+			ipip_input(m, off);
 			return;
 		}
 #endif /*MROUTING*/
