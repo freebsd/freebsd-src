@@ -47,7 +47,6 @@ ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS}
 # Select the correct set of tools. Can't set OBJFORMAT here because it
 # doesn't get exported into the environment, and if it were exported
 # then it might break building of utilities.
-FMT?=		-elf
 CFLAGS+=	${FMT}
 
 DEFINED_PROF=	${PROF}
