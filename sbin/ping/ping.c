@@ -146,7 +146,15 @@ int options;
 int mx_dup_ck = MAX_DUP_CHK;
 char rcvd_tbl[MAX_DUP_CHK / 8];
 
-struct sockaddr whereto;	/* who to ping */
+/*
+ * Use a union to coerce alignment to at least sockaddr_in's alignment.
+ * This avoids unaligned access faults on alpha.
+ */
+union {
+	struct sockaddr 	_w2;	/* who to ping */
+	struct sockaddr_in 	_w2_in;	/* who to ping */
+} ww;
+#define	whereto	ww._w2
 int datalen = DEFDATALEN;
 int s;				/* socket file descriptor */
 u_char outpack[MAXPACKET];
