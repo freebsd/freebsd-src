@@ -158,16 +158,12 @@ mac_ifoff_check_socket_deliver(struct socket *so, struct label *socketlabel,
 	return (0);
 }
 
-static struct mac_policy_op_entry mac_ifoff_ops[] =
+static struct mac_policy_ops mac_ifoff_ops =
 {
-	{ MAC_CHECK_BPFDESC_RECEIVE,
-	    (macop_t)mac_ifoff_check_bpfdesc_receive },
-	{ MAC_CHECK_IFNET_TRANSMIT,
-	    (macop_t)mac_ifoff_check_ifnet_transmit },
-	{ MAC_CHECK_SOCKET_DELIVER,
-	    (macop_t)mac_ifoff_check_socket_deliver },
-	{ MAC_OP_LAST, NULL }
+	.mpo_check_bpfdesc_receive = mac_ifoff_check_bpfdesc_receive,
+	.mpo_check_ifnet_transmit = mac_ifoff_check_ifnet_transmit,
+	.mpo_check_socket_deliver = mac_ifoff_check_socket_deliver,
 };
 
-MAC_POLICY_SET(mac_ifoff_ops, trustedbsd_mac_ifoff, "TrustedBSD MAC/ifoff",
+MAC_POLICY_SET(&mac_ifoff_ops, trustedbsd_mac_ifoff, "TrustedBSD MAC/ifoff",
     MPC_LOADTIME_FLAG_UNLOADOK, NULL);
