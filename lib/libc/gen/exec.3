@@ -47,7 +47,7 @@
 .Lb libc
 .Sh SYNOPSIS
 .Fd #include <unistd.h>
-.Vt extern char **environ;
+.Vt extern char **environ ;
 .Ft int
 .Fn execl "const char *path" "const char *arg" ...
 .Ft int
@@ -155,7 +155,7 @@ errors except
 .Er ENOEXEC
 as being ambiguous here, although only the critical error
 .Er EACCES
-is really ambiguous), 
+is really ambiguous),
 then these functions will act as if they stat the file to determine
 whether the file exists and has suitable execute permissions.
 If it does, they will return immediately with the global variable
@@ -225,7 +225,7 @@ for any of the errors specified for the library function
 .Xr fork 2 ,
 .Xr ktrace 2 ,
 .Xr ptrace 2 ,
-.Xr environ 7 .
+.Xr environ 7
 .Sh COMPATIBILITY
 Historically, the default path for the
 .Fn execlp
@@ -260,7 +260,7 @@ upon which they returned.
 They now return for
 .Er ETXTBSY ,
 and determine existence and executability more carefully.
-In particular, 
+In particular,
 .Er EACCES
 for inaccessible directories in the path prefix is no longer
 confused with

@@ -43,9 +43,9 @@
 .Fn bios32 "caddr_t entry" "struct bios32_args *args"
 .Fn BIOS_PADDRTOVADDR "addr"
 .Fn BIOS_VADDRTOPADDR "addr"
-.Ft extern struct bios32_SDentry PCIbios;
-.Ft extern struct SMBIOS_table SMBIOStable;
-.Ft extern struct DMI_table DMItable;
+.Vt extern struct bios32_SDentry PCIbios ;
+.Vt extern struct SMBIOS_table SMBIOStable ;
+.Vt extern struct DMI_table DMItable ;
 .Sh DESCRIPTION
 These functions provide a general-purpose interface for dealing with
 the BIOS functions and data encountered on x86 PC-architecture systems.
