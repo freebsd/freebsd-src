@@ -29,6 +29,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $Id$
+ *
  */
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -48,6 +50,6 @@ socketpair(int af, int type, int protocol, int pair[2])
 			_thread_sys_close(pair[1]);
 			ret = -1;
 		}
-	return (-1);
+	return (ret);
 }
 #endif
