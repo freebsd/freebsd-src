@@ -98,6 +98,7 @@ chkdepend() {
 }
 
 chkdepend amd amd_enable        portmap portmap_enable
+chkdepend amd amd_enable        NFS nfs_client_enable
 chkdepend NFS nfs_server_enable portmap portmap_enable
 chkdepend NIS nis_server_enable portmap portmap_enable
 chkdepend NIS nis_client_enable portmap portmap_enable

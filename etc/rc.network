@@ -694,11 +694,39 @@ network_pass3() {
 
 	case ${nfs_client_enable} in
 	[Yy][Ee][Ss])
-		echo -n ' nfsiod';	nfsiod ${nfs_client_flags}
-		if [ -n "${nfs_access_cache}" ]; then
-		echo -n " NFS access cache time=${nfs_access_cache}"
-		sysctl vfs.nfs.access_cache_timeout=${nfs_access_cache} \
-			>/dev/null
+		nfs_in_kernel=0
+		# Handle absent nfs client support
+		if sysctl vfs.nfs >/dev/null 2>&1; then
+			nfs_in_kernel=1
+		else
+			kldload nfs && nfs_in_kernel=1
+		fi
+		if [ ${nfs_in_kernel} -eq 1 ]
+		then
+			echo -n ' nfsiod';	nfsiod ${nfs_client_flags}
+			if [ -n "${nfs_access_cache}" ]; then
+				echo -n " NFS access cache time=${nfs_access_cache}"
+				sysctl vfs.nfs.access_cache_timeout=${nfs_access_cache} >/dev/null
+			fi
+
+			case ${amd_enable} in
+			[Yy][Ee][Ss])
+				echo -n ' amd'
+				case ${amd_map_program} in
+				[Nn][Oo] | '')
+					;;
+				*)
+					amd_flags="${amd_flags} `eval ${amd_map_program}`"
+					;;
+				esac
+		
+				if [ -n "${amd_flags}" ]; then
+					amd -p ${amd_flags} > /var/run/amd.pid 2> /dev/null
+				else
+					amd 2> /dev/null
+				fi
+				;;
+			esac
 		fi
 		;;
 	esac
@@ -709,25 +737,6 @@ network_pass3() {
 	if [ -f /var/db/mounttab ]; then
 		rpc.umntall -k
 	fi
-
-	case ${amd_enable} in
-	[Yy][Ee][Ss])
-		echo -n ' amd'
-		case ${amd_map_program} in
-		[Nn][Oo] | '')
-			;;
-		*)
-			amd_flags="${amd_flags} `eval ${amd_map_program}`"
-			;;
-		esac
-
-		if [ -n "${amd_flags}" ]; then
-			amd -p ${amd_flags} > /var/run/amd.pid 2> /dev/null
-		else
-			amd 2> /dev/null
-		fi
-		;;
-	esac
 
 	case ${rwhod_enable} in
 	[Yy][Ee][Ss])
