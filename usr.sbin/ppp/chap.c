@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.49 1999/04/21 08:03:51 brian Exp $
+ * $Id: chap.c,v 1.50 1999/05/08 11:06:15 brian Exp $
  *
  *	TODO:
  */
@@ -93,7 +93,7 @@ ChapOutput(struct physical *physical, u_int code, u_int id,
   lh.code = code;
   lh.id = id;
   lh.length = htons(plen);
-  bp = mbuf_Alloc(plen, MB_FSM);
+  bp = mbuf_Alloc(plen, MB_CHAPOUT);
   memcpy(MBUF_CTOP(bp), &lh, sizeof(struct fsmheader));
   if (count)
     memcpy(MBUF_CTOP(bp) + sizeof(struct fsmheader), ptr, count);
@@ -559,6 +559,7 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
     return NULL;
   }
 
+  mbuf_SetType(bp, MB_CHAPIN);
   if ((bp = auth_ReadHeader(&chap->auth, bp)) == NULL &&
       ntohs(chap->auth.in.hdr.length) == 0)
     log_Printf(LogWARN, "Chap Input: Truncated header !\n");

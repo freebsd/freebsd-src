@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.43 1999/05/09 20:02:18 brian Exp $
+ * $Id: fsm.c,v 1.44 1999/05/14 09:36:04 brian Exp $
  *
  *  TODO:
  */
@@ -175,7 +175,8 @@ NewState(struct fsm *fp, int new)
 }
 
 void
-fsm_Output(struct fsm *fp, u_int code, u_int id, u_char *ptr, int count)
+fsm_Output(struct fsm *fp, u_int code, u_int id, u_char *ptr, int count,
+           int mtype)
 {
   int plen;
   struct fsmheader lh;
@@ -200,7 +201,7 @@ fsm_Output(struct fsm *fp, u_int code, u_int id, u_char *ptr, int count)
   lh.code = code;
   lh.id = id;
   lh.length = htons(plen);
-  bp = mbuf_Alloc(plen, MB_FSM);
+  bp = mbuf_Alloc(plen, mtype);
   memcpy(MBUF_CTOP(bp), &lh, sizeof(struct fsmheader));
   if (count)
     memcpy(MBUF_CTOP(bp) + sizeof(struct fsmheader), ptr, count);
@@ -379,7 +380,7 @@ FsmSendConfigReq(struct fsm *fp)
 static void
 FsmSendTerminateReq(struct fsm *fp)
 {
-  fsm_Output(fp, CODE_TERMREQ, fp->reqid, NULL, 0);
+  fsm_Output(fp, CODE_TERMREQ, fp->reqid, NULL, 0, MB_UNKNOWN);
   (*fp->fn->SentTerminateReq)(fp);
   timer_Start(&fp->FsmTimer);	/* Start restart timer */
   fp->restart--;		/* Decrement restart counter */
@@ -520,11 +521,14 @@ FsmRecvConfigReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
   }
 
   if (dec.rejend != dec.rej)
-    fsm_Output(fp, CODE_CONFIGREJ, lhp->id, dec.rej, dec.rejend - dec.rej);
+    fsm_Output(fp, CODE_CONFIGREJ, lhp->id, dec.rej, dec.rejend - dec.rej,
+               MB_UNKNOWN);
   if (dec.nakend != dec.nak)
-    fsm_Output(fp, CODE_CONFIGNAK, lhp->id, dec.nak, dec.nakend - dec.nak);
+    fsm_Output(fp, CODE_CONFIGNAK, lhp->id, dec.nak, dec.nakend - dec.nak,
+               MB_UNKNOWN);
   if (ackaction)
-    fsm_Output(fp, CODE_CONFIGACK, lhp->id, dec.ack, dec.ackend - dec.ack);
+    fsm_Output(fp, CODE_CONFIGACK, lhp->id, dec.ack, dec.ackend - dec.ack,
+               MB_UNKNOWN);
 
   switch (fp->state) {
   case ST_STOPPED:
@@ -881,6 +885,7 @@ FsmRecvEchoReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
   u_char *cp;
   u_int32_t magic;
 
+  mbuf_SetType(bp, MB_ECHOIN);
   if (lcp && mbuf_Length(bp) >= 4) {
     cp = MBUF_CTOP(bp);
     ua_ntohl(cp, &magic);
@@ -891,7 +896,7 @@ FsmRecvEchoReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
     }
     if (fp->state == ST_OPENED) {
       ua_htonl(&lcp->want_magic, cp);		/* local magic */
-      fsm_Output(fp, CODE_ECHOREP, lhp->id, cp, mbuf_Length(bp));
+      fsm_Output(fp, CODE_ECHOREP, lhp->id, cp, mbuf_Length(bp), MB_ECHOOUT);
     }
   }
   mbuf_Free(bp);
@@ -934,7 +939,7 @@ FsmRecvResetReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
    * at the peer before our ResetAck.
    */
   link_SequenceQueue(fp->link);
-  fsm_Output(fp, CODE_RESETACK, lhp->id, NULL, 0);
+  fsm_Output(fp, CODE_RESETACK, lhp->id, NULL, 0, MB_CCPOUT);
   mbuf_Free(bp);
 }
 
@@ -968,7 +973,7 @@ fsm_Input(struct fsm *fp, struct mbuf *bp)
 
     bp = mbuf_Prepend(bp, &lh, sizeof lh, 0);
     bp = mbuf_Contiguous(bp);
-    fsm_Output(fp, CODE_CODEREJ, id++, MBUF_CTOP(bp), bp->cnt);
+    fsm_Output(fp, CODE_CODEREJ, id++, MBUF_CTOP(bp), bp->cnt, MB_UNKNOWN);
     mbuf_Free(bp);
     return;
   }
@@ -984,17 +989,11 @@ fsm_Input(struct fsm *fp, struct mbuf *bp)
   log_Printf(fp->LogLevel, "%s: Recv%s(%d) state = %s\n",
 	    fp->link->name, codep->name, lh.id, State2Nam(fp->state));
 
-  if (log_IsKept(LogDEBUG))
-    mbuf_Log();
-
   if (codep->inc_reqid && (lh.id == fp->reqid ||
       (!Enabled(fp->bundle, OPT_IDCHECK) && codep->check_reqid)))
     fp->reqid++;	/* That's the end of that ``exchange''.... */
 
   (*codep->recv)(fp, &lh, bp);
-
-  if (log_IsKept(LogDEBUG))
-    mbuf_Log();
 }
 
 void

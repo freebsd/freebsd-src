@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.34 1999/05/09 20:02:23 brian Exp $
+ * $Id: lqr.c,v 1.35 1999/05/14 09:36:06 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -75,7 +75,7 @@ SendEchoReq(struct lcp *lcp)
   echo.signature = htonl(SIGNATURE);
   echo.sequence = htonl(hdlc->lqm.echo.seq_sent);
   fsm_Output(&lcp->fsm, CODE_ECHOREQ, hdlc->lqm.echo.seq_sent++,
-            (u_char *)&echo, sizeof echo);
+            (u_char *)&echo, sizeof echo, MB_ECHOOUT);
 }
 
 struct mbuf *
@@ -132,8 +132,13 @@ static void
 SendLqrData(struct lcp *lcp)
 {
   struct mbuf *bp;
+  int extra;
 
-  bp = mbuf_Alloc(sizeof(struct lqrdata), MB_LQR);
+  extra = proto_WrapperOctets(lcp, PROTO_LQR) +
+          acf_WrapperOctets(lcp, PROTO_LQR);
+  bp = mbuf_Alloc(sizeof(struct lqrdata) + extra, MB_LQROUT);
+  bp->cnt -= extra;
+  bp->offset += extra;
   link_PushPacket(lcp->fsm.link, bp, lcp->fsm.bundle, PRI_LINK, PROTO_LQR);
 }
 
@@ -383,7 +388,7 @@ lqr_LayerPush(struct bundle *b, struct link *l, struct mbuf *bp,
   p->hdlc.lqm.OutPackets++;
 
   if (*proto == PROTO_LQR) {
-    /* Overwrite the entire packet */
+    /* Overwrite the entire packet (created in SendLqrData()) */
     struct lqrdata lqr;
 
     lqr.MagicNumber = p->link.lcp.want_magic;
@@ -414,9 +419,21 @@ lqr_LayerPush(struct bundle *b, struct link *l, struct mbuf *bp,
   return bp;
 }
 
+static struct mbuf *
+lqr_LayerPull(struct bundle *b, struct link *l, struct mbuf *bp, u_short *proto)
+{
+  /*
+   * We mark the packet as ours but don't do anything 'till it's dispatched
+   * to lqr_Input()
+   */
+  if (*proto == PROTO_LQR)
+    mbuf_SetType(bp, MB_LQRIN);
+  return bp;
+}
+
 /*
  * Statistics for pulled packets are recorded either in hdlc_PullPacket()
  * or sync_PullPacket()
  */
 
-struct layer lqrlayer = { LAYER_LQR, "lqr", lqr_LayerPush, NULL };
+struct layer lqrlayer = { LAYER_LQR, "lqr", lqr_LayerPush, lqr_LayerPull };

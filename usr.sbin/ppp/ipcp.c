@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.77 1999/05/09 20:02:19 brian Exp $
+ * $Id: ipcp.c,v 1.78 1999/05/31 23:57:40 brian Exp $
  *
  *	TODO:
  *		o Support IPADDRS properly
@@ -640,7 +640,8 @@ IpcpSendConfigReq(struct fsm *fp)
     INC_LCP_OPT(TY_SECONDARY_DNS, 6, o);
   }
 
-  fsm_Output(fp, CODE_CONFIGREQ, fp->reqid, buff, (u_char *)o - buff);
+  fsm_Output(fp, CODE_CONFIGREQ, fp->reqid, buff, (u_char *)o - buff,
+             MB_IPCPOUT);
 }
 
 static void
@@ -653,7 +654,7 @@ static void
 IpcpSendTerminateAck(struct fsm *fp, u_char id)
 {
   /* Send Term ACK please */
-  fsm_Output(fp, CODE_TERMACK, id, NULL, 0);
+  fsm_Output(fp, CODE_TERMACK, id, NULL, 0, MB_IPCPOUT);
 }
 
 static void
@@ -1144,6 +1145,7 @@ extern struct mbuf *
 ipcp_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
 {
   /* Got PROTO_IPCP from link */
+  mbuf_SetType(bp, MB_IPCPIN);
   if (bundle_Phase(bundle) == PHASE_NETWORK)
     fsm_Input(&bundle->ncp.ipcp.fsm, bp);
   else {
