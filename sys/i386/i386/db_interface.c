@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_interface.c,v 1.35 1997/07/20 08:37:17 bde Exp $
+ *	$Id: db_interface.c,v 1.36 1997/08/07 05:15:46 dyson Exp $
  */
 
 /*
@@ -34,8 +34,7 @@
 #include <sys/reboot.h>
 
 #include <machine/cons.h>
-#include <machine/md_var.h>
-#include <machine/segments.h>
+#include <machine/cpu.h>
 #ifdef SMP
 #include <machine/smp.h>
 #include <machine/smptests.h>	/** CPUSTOP_ON_DDBBREAK */
