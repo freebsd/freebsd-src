@@ -32,7 +32,6 @@ CFLAGS=		-DYP -Dyp_error=warnx \
 		-I${.CURDIR}/../../../../libexec/ypxfr \
 		-I${.CURDIR}/../../../../usr.sbin/vipw \
 		-I${.CURDIR}/../../../../usr.bin/chpass
-NO_WERROR=	yes
 DPADD=		${LIBUTIL} ${LIBCRYPT} ${LIBRPCSVC}
 LDADD=		-lutil -lcrypt -lrpcsvc
 MAN=		pam_unix.8
