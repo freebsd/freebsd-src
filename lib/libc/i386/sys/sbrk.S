@@ -43,6 +43,7 @@
 
 #include "SYS.h"
 
+	.globl	CNAME(end)
 	.globl	CNAME(_end)
 	.globl	HIDENAME(minbrk)
 	.globl	HIDENAME(curbrk)
