@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_serv.c,v 1.34.2.3 1998/03/01 22:33:27 steve Exp $
+ * $Id: nfs_serv.c,v 1.34.2.4 1998/05/20 11:36:37 peter Exp $
  */
 
 /*
@@ -603,7 +603,7 @@ nfsrv_read(nfsd, slp, procp, mrq)
 	if (off >= vap->va_size)
 		cnt = 0;
 	else if ((off + reqlen) > vap->va_size)
-		cnt = nfsm_rndup(vap->va_size - off);
+		cnt = vap->va_size - off;
 	else
 		cnt = reqlen;
 	nfsm_reply(NFSX_POSTOPORFATTR(v3) + 3 * NFSX_UNSIGNED+nfsm_rndup(cnt));
@@ -617,7 +617,7 @@ nfsrv_read(nfsd, slp, procp, mrq)
 		fp = (struct nfs_fattr *)tl;
 		tl += (NFSX_V2FATTR / sizeof (u_long));
 	}
-	len = left = cnt;
+	len = left = nfsm_rndup(cnt);
 	if (cnt > 0) {
 		/*
 		 * Generate the mbuf list with the uio_iov ref. to it.
@@ -642,7 +642,7 @@ nfsrv_read(nfsd, slp, procp, mrq)
 		       M_TEMP, M_WAITOK);
 		uiop->uio_iov = iv2 = iv;
 		m = mb;
-		left = cnt;
+		left = len;
 		i = 0;
 		while (left > 0) {
 			if (m == NULL)
@@ -660,7 +660,7 @@ nfsrv_read(nfsd, slp, procp, mrq)
 		}
 		uiop->uio_iovcnt = i;
 		uiop->uio_offset = off;
-		uiop->uio_resid = cnt;
+		uiop->uio_resid = len;
 		uiop->uio_rw = UIO_READ;
 		uiop->uio_segflg = UIO_SYSSPACE;
 		error = VOP_READ(vp, uiop, IO_NODELOCKED, cred);
@@ -679,18 +679,19 @@ nfsrv_read(nfsd, slp, procp, mrq)
 		uiop->uio_resid = 0;
 	vput(vp);
 	nfsm_srvfillattr(vap, fp);
-	len -= uiop->uio_resid;
-	tlen = nfsm_rndup(len);
-	if (cnt != tlen || tlen != len)
-		nfsm_adj(mb, cnt - tlen, tlen - len);
+	tlen = len - uiop->uio_resid;
+	cnt = cnt < tlen ? cnt : tlen;
+	tlen = nfsm_rndup(cnt);
+	if (len != tlen || tlen != cnt)
+		nfsm_adj(mb, len - tlen, tlen - cnt);
 	if (v3) {
-		*tl++ = txdr_unsigned(len);
+		*tl++ = txdr_unsigned(cnt);
 		if (len < reqlen)
 			*tl++ = nfs_true;
 		else
 			*tl++ = nfs_false;
 	}
-	*tl = txdr_unsigned(len);
+	*tl = txdr_unsigned(cnt);
 	nfsm_srvdone;
 }
 
