@@ -31,11 +31,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_timer.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_timer.c,v 1.12 1995/11/14 20:34:43 phk Exp $
+ *	$Id: tcp_timer.c,v 1.13 1996/01/04 21:34:21 olah Exp $
  */
 
 #ifndef TUBA_INCLUDE
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
@@ -45,7 +46,6 @@
 #include <sys/socketvar.h>
 #include <sys/protosw.h>
 #include <sys/errno.h>
-#include <sys/queue.h>
 
 #include <machine/cpu.h>	/* before tcp_seq.h, for tcp_random18() */
 

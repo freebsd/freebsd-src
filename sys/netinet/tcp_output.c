@@ -31,10 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_output.c	8.4 (Berkeley) 5/24/95
- *	$Id: tcp_output.c,v 1.17 1995/12/05 17:46:35 wollman Exp $
+ *	$Id: tcp_output.c,v 1.18 1996/01/17 09:35:23 olah Exp $
  */
 
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -42,7 +43,6 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/errno.h>
-#include <sys/queue.h>
 
 #include <net/route.h>
 

@@ -31,10 +31,11 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
- *	$Id: uipc_usrreq.c,v 1.14 1996/02/25 07:02:14 hsu Exp $
+ *	$Id: uipc_usrreq.c,v 1.14 1996/03/11 02:17:11 hsu Exp $
  */
 
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/filedesc.h>

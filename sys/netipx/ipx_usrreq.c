@@ -33,10 +33,11 @@
  *
  *	@(#)ipx_usrreq.c
  *
- * $Id: ipx_usrreq.c,v 1.3 1995/10/31 23:36:39 julian Exp $
+ * $Id: ipx_usrreq.c,v 1.4 1995/11/04 09:03:24 julian Exp $
  */
 
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
