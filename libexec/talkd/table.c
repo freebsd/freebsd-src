@@ -29,12 +29,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id$
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)table.c	8.1 (Berkeley) 6/4/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -49,11 +51,11 @@ static char sccsid[] = "@(#)table.c	8.1 (Berkeley) 6/4/93";
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <protocols/talkd.h>
-#include <syslog.h>
-#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <syslog.h>
+#include <unistd.h>
 
 #define MAX_ID 16000	/* << 2^15 so I don't have sign troubles */
 
@@ -73,8 +75,12 @@ struct table_entry {
 };
 
 TABLE_ENTRY *table = NIL;
+
+void delete __P((TABLE_ENTRY *));
 CTL_MSG *find_request();
 CTL_MSG *find_match();
+int new_id __P((void));
+void print_request __P((char *, CTL_MSG *));
 
 /*
  * Look in the table for an invitation that matches the current
@@ -152,6 +158,7 @@ find_request(request)
 	return ((CTL_MSG *)0);
 }
 
+void
 insert_table(request, response)
 	CTL_MSG *request;
 	CTL_RESPONSE *response;
@@ -181,6 +188,7 @@ insert_table(request, response)
 /*
  * Generate a unique non-zero sequence number
  */
+int
 new_id()
 {
 	static int current_id = 0;
@@ -195,6 +203,7 @@ new_id()
 /*
  * Delete the invitation with id 'id_num'
  */
+int
 delete_invite(id_num)
 	int id_num;
 {
@@ -219,6 +228,7 @@ delete_invite(id_num)
 /*
  * Classic delete from a double-linked list
  */
+void
 delete(ptr)
 	register TABLE_ENTRY *ptr;
 {
