@@ -2,8 +2,6 @@
  * Copyright (c) 1997 Robert Nordier
  * All rights reserved.
  *
- * $Id: ckdist.c,v 1.6 1997/01/20 16:47:06 rnordier Exp $
- *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -27,18 +25,22 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <fts.h>
 #include <err.h>
-#include <md5.h>
-
 #include <errno.h>
+#include <fcntl.h>
+#include <fts.h>
+#include <md5.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
+#include <unistd.h>
 
 extern int crc(int fd, u_long * cval, u_long * clen);
 
@@ -131,7 +133,7 @@ main(int argc, char *argv[])
 	if (stat(opt_dir, &sb))
 	    err(2, opt_dir);
 	if (!S_ISDIR(sb.st_mode))
-	    errx(2, "%s: Not a directory", opt_dir);
+	    errx(2, "%s: not a directory", opt_dir);
     }
     rval = 0;
     do {
@@ -433,7 +435,6 @@ static void
 usage(void)
 {
     fprintf(stderr,
-	    "usage: ckdist [-airsx] [-d dir] [-n name] [-t type] file"
-	    " ...\n");
+	    "usage: ckdist [-airsx] [-d dir] [-n name] [-t type] file ...\n");
     exit(2);
 }
