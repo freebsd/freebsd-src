@@ -501,6 +501,9 @@ nexus_pcib_is_host_bridge(pcicfgregs *cfg,
 		break;
 
 		/* OPTi -- vendor 0x1045 */
+	case 0xc7011045:
+		s = "OPTi 82C700 host to PCI bridge";
+		break;
 	case 0xc8221045:
 		s = "OPTi 82C822 host to PCI Bridge";
 		break;

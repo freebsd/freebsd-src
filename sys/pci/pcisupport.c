@@ -881,6 +881,10 @@ isab_match(device_t dev)
 	case 0x01001078:
 		return ("Cyrix Cx5530 PCI-ISA bridge");
 
+	/* OPTi -- vendor 0x1045 */
+	case 0xc7001045:
+		return ("OPTi 82C700 (FireStar) PCI-ISA bridge");
+
 	/* NEC -- vendor 0x1033 */
 	/* The "C-bus" is 16-bits bus on PC98. */
 	case 0x00011033:
@@ -1084,6 +1088,10 @@ pci_ata_match(device_t dev)
 	/* Highpoint tech -- vendor 0x1103 */
 	case 0x00041103:
 		return ("HighPoint HPT366 ATA controller");
+
+	/* OPTi -- vendor 0x1045 */
+	case 0xd5681045:
+		return ("OPTi 82C700 (FireStar) ATA controller(generic mode):");
 	}
 
 	if (pci_get_class(dev) == PCIC_STORAGE &&
@@ -1242,6 +1250,8 @@ chip_match(device_t dev)
 		return ("AcerLabs M15x3 Power Management Unit");
 
 	/* OPTi -- vendor 0x1045 */
+	case 0xc7011045:
+		return ("OPTi 82C700 host to PCI bridge");
 	case 0xc8221045:
 		return ("OPTi 82C822 host to PCI Bridge");
 
