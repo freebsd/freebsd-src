@@ -211,6 +211,7 @@ int flushinp()
  *
  */
 
+#ifndef TERMIOS
 struct speed {
 	speed_t s;
 	int sp;
@@ -253,25 +254,28 @@ static struct speed speeds[] = {
 	,{B115200, 115200}
 #endif
 };
+#endif
 
 int
 baudrate()
 {
+#ifndef TERMIOS
 int i, ret;
+#endif
 
 	T(("baudrate() called"));
 
 #ifdef TERMIOS
-	ret = cfgetospeed(&cur_term->Nttyb);
+	return cfgetospeed(&cur_term->Nttyb);
 #else
 	ret = cur_term->Nttyb.sg_ospeed;
-#endif
 	if(ret < 0 || ret > MAX_BAUD)
 		return ERR;
 	for (i = 0; i < (sizeof(speeds) / sizeof(struct speed)); i++)
 		if (speeds[i].s == ret)
 			return speeds[i].sp;
 	return ERR;
+#endif
 }
 
 
