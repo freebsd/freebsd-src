@@ -32,6 +32,7 @@
 
 		.globl start
 		.globl xread
+		.code16
 
 start:		jmp main			# Start recognizably
 
@@ -39,75 +40,75 @@ start:		jmp main			# Start recognizably
 
 # External read from disk
 
-xread:		pushl %ss			# Address
-		popl %ds			#  data
-xread.1:	o16				# Starting
-		pushb $0x0			#  absolute
-		pushl %ecx			#  block
-		pushl %eax			#  number
-		pushl %es			# Address of
-		pushl %ebx			#  transfer buffer
-		xorl %eax,%eax			# Number of
+xread:		push %ss			# Address
+		pop %ds				#  data
+xread.1:					# Starting
+		pushl $0x0			#  absolute
+		push %cx			#  block
+		push %ax			#  number
+		push %es			# Address of
+		push %bx			#  transfer buffer
+		xor %ax,%ax			# Number of
 		movb %dh,%al			#  blocks to
-		pushl %eax			#  transfer
-		pushb $0x10			# Size of packet
-		movl %esp,%ebp			# Packet pointer
-		callwi(read)			# Read from disk
-		leaw1r(0x10,_bp_,_sp)		# Clear stack
+		push %ax			#  transfer
+		push $0x10			# Size of packet
+		mov %sp,%bp			# Packet pointer
+		callw read			# Read from disk
+		lea 0x10(%bp),%sp		# Clear stack
 		lret				# To far caller
 
 # Bootstrap
 
 main:		cld				# String ops inc
-		xorl %ecx,%ecx			# Zero
-		movl %cx,%es			# Address
-		movl %cx,%ds			#  data
-		movl %cx,%ss			# Set up
-		movwir(start,_sp)		#  stack
-		movl %esp,%esi			# Source
-		movwir(MEM_REL,_di)		# Destination
+		xor %cx,%cx			# Zero
+		mov %cx,%es			# Address
+		mov %cx,%ds			#  data
+		mov %cx,%ss			# Set up
+		mov $start,%sp			#  stack
+		mov %sp,%si			# Source
+		mov $MEM_REL,%di		# Destination
 		incb %ch			# Word count
 		rep				# Copy
-		movsl				#  code
-		movwir(part4,_si)		# Partition
+		movsw				#  code
+		mov $part4,%si			# Partition
 		cmpb $0x80,%dl			# Hard drive?
 		jb main.4			# No
 		movb $0x1,%dh			# Block count
-		callwi(nread)			# Read MBR
-		movwir(0x1,_cx) 		# Two passes
-main.1: 	movwir(MEM_BUF+PRT_OFF,_si)	# Partition table
+		callw nread			# Read MBR
+		mov $0x1,%cx	 		# Two passes
+main.1: 	mov $MEM_BUF+PRT_OFF,%si	# Partition table
 		movb $0x1,%dh			# Partition
-main.2: 	cmpbi1(PRT_BSD,0x4,_si_)	# Our partition type?
+main.2: 	cmpb $PRT_BSD,0x4(%si)		# Our partition type?
 		jne main.3			# No
-		jecxz main.5			# If second pass
-		tstbi0(0x80,_si_)		# Active?
+		jcxz main.5			# If second pass
+		testb $0x80,(%si)		# Active?
 		jnz main.5			# Yes
-main.3: 	addl $0x10,%esi 		# Next entry
+main.3: 	add $0x10,%si	 		# Next entry
 		incb %dh			# Partition
 		cmpb $0x1+PRT_NUM,%dh		# In table?
 		jb main.2			# Yes
-		decl %ecx			# Do two
-		jecxz main.1			#  passes
-		movwir(msg_part,_si)		# Message
+		dec %cx				# Do two
+		jcxz main.1			#  passes
+		mov $msg_part,%si		# Message
 		jmp error			# Error
-main.4: 	xorl %edx,%edx			# Partition:drive
-main.5: 	movwrm(_dx,MEM_ARG)		# Save args
+main.4: 	xor %dx,%dx			# Partition:drive
+main.5: 	mov %dx,MEM_ARG			# Save args
 		movb $0x10,%dh			# Sector count
-		callwi(nread)			# Read disk
-		movwir(MEM_BTX,_bx)		# BTX
-		movw1r(0xa,_bx_,_si)		# Point past
-		addl %ebx,%esi			#  it
-		movwir(MEM_USR+SIZ_PAG,_di)	# Client page 1
-		movwir(MEM_BTX+0xe*SIZ_SEC,_cx) # Byte
-		subl %esi,%ecx			#  count
+		callw nread			# Read disk
+		mov $MEM_BTX,%bx		# BTX
+		mov 0xa(%bx),%si		# Point past
+		add %bx,%si			#  it
+		mov $MEM_USR+SIZ_PAG,%di	# Client page 1
+		mov $MEM_BTX+0xe*SIZ_SEC,%cx	# Byte
+		sub %si,%cx			#  count
 		rep				# Relocate
 		movsb				#  client
-		subl %edi,%ecx			# Byte count
+		sub %di,%cx			# Byte count
 		xorb %al,%al			# Zero
 		rep				#  assumed
 		stosb				#  bss
-		callwi(seta20)			# Enable A20
-		jmpnwi(start+MEM_JMP-MEM_ORG)	# Start BTX
+		callw seta20			# Enable A20
+		jmp start+MEM_JMP-MEM_ORG	# Start BTX
 
 # Enable A20
 
@@ -123,30 +124,30 @@ seta20.2:	inb $0x64,%al			# Get status
 		movb $0xdf,%al			# Enable
 		outb %al,$0x60			#  A20
 		sti				# Enable interrupts
-		ret				# To caller
+		retw				# To caller
 
 # Local read from disk
 
-nread:		movwir(MEM_BUF,_bx)		# Transfer buffer
-		movw1r(0x8,_si_,_ax)		# Get
-		movw1r(0xa,_si_,_cx)		#  LBA
-		pushl %cs			# Read from
-		callwi(xread.1) 		#  disk
+nread:		mov $MEM_BUF,%bx		# Transfer buffer
+		mov 0x8(%si),%ax		# Get
+		mov 0xa(%si),%cx		#  LBA
+		push %cs			# Read from
+		callw xread.1	 		#  disk
 		jnc return			# If success
-		movwir(msg_read,_si)		# Message
+		mov $msg_read,%si		# Message
 
 # Error exit
 
-error:		callwi(putstr)			# Display message
-		movwir(prompt,_si)		# Display
-		callwi(putstr)			#  prompt
+error:		callw putstr			# Display message
+		mov $prompt,%si			# Display
+		callw putstr			#  prompt
 		xorb %ah,%ah			# BIOS: Get
 		int $0x16			#  keypress
 		int $0x19			# BIOS: Reboot
 
 # Display string
 
-putstr.0:	movwir(0x7,_bx) 		# Page:attribute
+putstr.0:	mov $0x7,%bx	 		# Page:attribute
 		movb $0xe,%ah			# BIOS: Display
 		int $0x10			#  character
 putstr: 	lodsb				# Get char
@@ -155,87 +156,84 @@ putstr: 	lodsb				# Get char
 
 ereturn:	movb $0x1,%ah			# Invalid
 		stc				#  argument
-return: 	ret				# To caller
+return: 	retw				# To caller
 
 # Read from disk
 
-read:		cs_				# LBA support
-		tstbim(0x80,MEM_REL+flags-start)#  enabled?
+read:		testb $0x80,%cs:MEM_REL+flags-start # LBA support enabled?
 		jz read.1			# No
-		movwir(0x55aa,_bx)		# Magic
-		pushl %edx			# Save
+		mov $0x55aa,%bx			# Magic
+		push %dx			# Save
 		movb $0x41,%ah			# BIOS: Check
 		int $0x13			#  extensions present
-		popl %edx			# Restore
+		pop %dx				# Restore
 		jc read.1			# If error
-		cmpwir(0xaa55,_bx)		# Magic?
+		cmp $0xaa55,%bx			# Magic?
 		jne read.1			# No
 		testb $0x1,%cl			# Packet interface?
 		jz read.1			# No
-		movl %ebp,%esi			# Disk packet
+		mov %bp,%si			# Disk packet
 		movb $0x42,%ah			# BIOS: Extended
 		int $0x13			#  read
-		ret				# To caller
+		retw				# To caller
 
-read.1: 	pushl %edx			# Save
+read.1: 	push %dx			# Save
 		movb $0x8,%ah			# BIOS: Get drive
 		int $0x13			#  parameters
 		movb %dh,%ch			# Max head number
-		popl %edx			# Restore
+		pop %dx				# Restore
 		jc return			# If error
 		andb $0x3f,%cl			# Sectors per track
 		jz ereturn			# If zero
 		cli				# Disable interrupts
-		o16				# Get
-		movw1r(0x8,_bp_,_ax)		#  LBA
-		pushl %edx			# Save
-		movzbw %cl,%bx			# Divide by
-		xorw %dx,%dx			#  sectors
-		divw %bx,%ax			#  per track
+		mov 0x8(%bp),%eax		# Get LBA
+		push %dx			# Save
+		movzbl %cl,%ebx			# Divide by
+		xor %edx,%edx			#  sectors
+		div %ebx			#  per track
 		movb %ch,%bl			# Max head number
 		movb %dl,%ch			# Sector number
-		incl %ebx			# Divide by
+		inc %bx				# Divide by
 		xorb %dl,%dl			#  number
-		divw %bx,%ax			#  of heads
+		div %ebx			#  of heads
 		movb %dl,%bh			# Head number
-		popl %edx			# Restore
-		o16				# Cylinder number
-		cmpl $0x3ff,%eax		#  supportable?
+		pop %dx				# Restore
+		cmpl $0x3ff,%eax		# Cylinder number supportable?
 		sti				# Enable interrupts
 		ja ereturn			# No
 		xchgb %al,%ah			# Set up cylinder
 		rorb $0x2,%al			#  number
 		orb %ch,%al			# Merge
-		incl %eax			#  sector
-		xchgl %eax,%ecx 		#  number
+		inc %ax				#  sector
+		xchg %ax,%cx	 		#  number
 		movb %bh,%dh			# Head number
 		subb %ah,%al			# Sectors this track
-		movb1r(0x2,_bp_,_ah)		# Blocks to read
+		mov 0x2(%bp),%ah		# Blocks to read
 		cmpb %ah,%al			# To read
 		jb read.2			#  this
 		movb %ah,%al			#  track
-read.2: 	movwir(0x5,_di) 		# Try count
-read.3: 	lesw1r(0x4,_bp_,_bx)		# Transfer buffer
-		pushl %eax			# Save
+read.2: 	mov $0x5,%di	 		# Try count
+read.3: 	les 0x4(%bp),%bx		# Transfer buffer
+		push %ax			# Save
 		movb $0x2,%ah			# BIOS: Read
 		int $0x13			#  from disk
-		popl %ebx			# Restore
+		pop %bx				# Restore
 		jnc read.4			# If success
-		decl %edi			# Retry?
+		dec %di				# Retry?
 		jz read.6			# No
 		xorb %ah,%ah			# BIOS: Reset
 		int $0x13			#  disk system
-		xchgl %ebx,%eax 		# Block count
+		xchg %bx,%ax	 		# Block count
 		jmp read.3			# Continue
-read.4: 	movzbl %bl,%eax 		# Sectors read
-		addwr1(_ax,0x8,_bp_)		# Adjust
+read.4: 	movzbw %bl,%ax	 		# Sectors read
+		add %ax,0x8(%bp)		# Adjust
 		jnc read.5			#  LBA,
-		incw1(0xa,_bp_) 		#  transfer
+		incw 0xa(%bp)	 		#  transfer
 read.5: 	shlb %bl			#  buffer
-		addbr1(_bl,0x5,_bp_)		#  pointer,
-		subbr1(_al,0x2,_bp_)		#  block count
+		add %bl,0x5(%bp)		#  pointer,
+		sub %al,0x2(%bp)		#  block count
 		ja read.1			# If not done
-read.6: 	ret				# To caller
+read.6: 	retw				# To caller
 
 # Messages
 

@@ -9,8 +9,6 @@ CLEANFILES+=	boot1 boot1.out boot1.o \
 		boot2.ldr boot2.bin boot2.ld boot2.out boot2.o \
 		sio.o
 
-M4?=	m4
-
 # A value of 0x80 enables LBA support.
 B1FLAGS=	0
 
@@ -45,9 +43,8 @@ boot1: boot1.out
 boot1.out: boot1.o
 	${LD} ${LDFLAGS} -e start -Ttext ${ORG1} -o ${.TARGET} boot1.o
 
-boot1.o: boot1.m4 boot1.s
-	(cd ${.CURDIR}; ${M4} -DFLAGS=${B1FLAGS} boot1.m4 boot1.s) | \
-		${AS} ${AFLAGS} -o ${.TARGET}
+boot1.o: boot1.s
+	${AS} ${AFLAGS} --defsym FLAGS=${B1FLAGS} ${.IMPSRC} -o ${.TARGET}
 
 boot2: boot2.ldr boot2.bin ${BTX}/btx/btx
 	btxld -v -E ${ORG2} -f bin -b ${BTX}/btx/btx -l boot2.ldr \
@@ -67,10 +64,10 @@ boot2.out: boot2.o sio.o
 		${BTX}/lib/crt0.o boot2.o sio.o
 
 sio.o: sio.s
-	(cd ${.CURDIR}; ${M4} -DSIOPRT=${BOOT_COMCONSOLE_PORT} \
-		-DSIOFMT=${B2SIOFMT} \
-		-DSIOSPD=${BOOT_COMCONSOLE_SPEED} sio.s) | \
-		${AS} ${AFLAGS} -o ${.TARGET}
+	${AS} ${AFLAGS} --defsym SIOPRT=${BOOT_COMCONSOLE_PORT} \
+		--defsym SIOFMT=${B2SIOFMT} \
+		--defsym SIOSPD=${BOOT_COMCONSOLE_SPEED} \
+		${.IMPSRC} -o ${.TARGET}
 
 install:
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
