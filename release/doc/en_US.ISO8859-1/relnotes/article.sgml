@@ -552,7 +552,7 @@
       <title>Contributed Software</title>
 
       <para><application>awk</application> from Bell Labs has been
-	updated to a 13 December 2002 snapshot.</para>
+	updated to a 14 March 2003 snapshot.</para>
 
       <para><application>BIND</application> has been updated to
         version 8.3.4. &merged;</para>
@@ -566,7 +566,7 @@
 	1.11.5. &merged;</para>
 
       <para><application>FILE</application> has been updated to
-	3.41.</para>
+	3.41. &merged;</para>
 
       <para><application>GCC</application> has been updated to 
 	3.2.2 (release version).</para>
