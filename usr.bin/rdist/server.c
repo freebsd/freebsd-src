@@ -90,7 +90,7 @@ server()
 
 	rem = 0;
 	oumask = umask(0);
-	(void) sprintf(buf, "V%d\n", VERSION);
+	(void) snprintf(buf, sizeof(buf), "V%d\n", VERSION);
 	(void) write(rem, buf, strlen(buf));
 
 	for (;;) {
@@ -275,7 +275,7 @@ install(src, dest, destdir, opts)
 	/*
 	 * Pass the destination file/directory name to remote.
 	 */
-	(void) sprintf(buf, "%c%s\n", destdir ? 'T' : 't', dest);
+	(void) snprintf(buf, sizeof(buf), "%c%s\n", destdir ? 'T' : 't', dest);
 	if (debug)
 		printf("buf = %s", buf);
 	(void) write(rem, buf, strlen(buf));
@@ -331,14 +331,14 @@ sendf(rname, opts)
 			log(lfp, "%s: no password entry for uid %d \n",
 				target, stb.st_uid);
 			pw = NULL;
-			(void)sprintf(user, ":%lu", stb.st_uid);
+			(void)snprintf(user, sizeof(user), ":%lu", stb.st_uid);
 		}
 	if (gr == NULL || gr->gr_gid != stb.st_gid)
 		if ((gr = getgrgid(stb.st_gid)) == NULL) {
 			log(lfp, "%s: no name for group %d\n",
 				target, stb.st_gid);
 			gr = NULL;
-			(void)sprintf(group, ":%lu", stb.st_gid);
+			(void)snprintf(group, sizeof(group), ":%lu", stb.st_gid);
 		}
 	if (u == 1) {
 		if (opts & VERIFY) {
@@ -355,8 +355,9 @@ sendf(rname, opts)
 			error("%s: %s\n", target, strerror(errno));
 			return;
 		}
-		(void) sprintf(buf, "D%o %04o 0 0 %s %s %s\n", opts,
-			stb.st_mode & 07777, protoname(), protogroup(), rname);
+		(void) snprintf(buf, sizeof(buf), "D%o %04o 0 0 %s %s %s\n",
+		    opts, stb.st_mode & 07777, protoname(), protogroup(),
+		    rname);
 		if (debug)
 			printf("buf = %s", buf);
 		(void) write(rem, buf, strlen(buf));
@@ -403,11 +404,12 @@ sendf(rname, opts)
 			if ((lp = savelink(&stb)) != NULL) {
 				/* install link */
 				if (*lp->target == 0)
-				(void) sprintf(buf, "k%o %s %s\n", opts,
-					lp->pathname, rname);
+				(void) snprintf(buf, sizeof(buf), "k%o %s %s\n",
+				    opts, lp->pathname, rname);
 				else
-				(void) sprintf(buf, "k%o %s/%s %s\n", opts,
-					lp->target, lp->pathname, rname);
+				(void) snprintf(buf, sizeof(buf),
+				    "k%o %s/%s %s\n", opts, lp->target,
+				    lp->pathname, rname);
 				if (debug)
 					printf("buf = %s", buf);
 				(void) write(rem, buf, strlen(buf));
@@ -415,7 +417,8 @@ sendf(rname, opts)
 				return;
 			}
 		}
-		(void) sprintf(buf, "K%o %o %qd %ld %s %s %s\n", opts,
+		(void) snprintf(buf, sizeof(buf),
+			"K%o %o %qd %ld %s %s %s\n", opts,
 			stb.st_mode & 07777, stb.st_size, stb.st_mtime,
 			protoname(), protogroup(), rname);
 		if (debug)
@@ -451,11 +454,11 @@ sendf(rname, opts)
 		if ((lp = savelink(&stb)) != NULL) {
 			/* install link */
 			if (*lp->target == 0)
-			(void) sprintf(buf, "k%o %s %s\n", opts,
+			(void) snprintf(buf, sizeof(buf), "k%o %s %s\n", opts,
 				lp->pathname, rname);
 			else
-			(void) sprintf(buf, "k%o %s/%s %s\n", opts,
-				lp->target, lp->pathname, rname);
+			(void) snprintf(buf, sizeof(buf), "k%o %s/%s %s\n",
+			    opts, lp->target, lp->pathname, rname);
 			if (debug)
 				printf("buf = %s", buf);
 			(void) write(rem, buf, strlen(buf));
@@ -468,7 +471,7 @@ sendf(rname, opts)
 		error("%s: %s\n", target, strerror(errno));
 		return;
 	}
-	(void) sprintf(buf, "R%o %o %qd %ld %s %s %s\n", opts,
+	(void) snprintf(buf, sizeof(buf), "R%o %o %qd %ld %s %s %s\n", opts,
 		stb.st_mode & 07777, stb.st_size, stb.st_mtime,
 		protoname(), protogroup(), rname);
 	if (debug)
@@ -506,7 +509,8 @@ dospecial:
 		log(lfp, "special \"%s\"\n", sc->sc_name);
 		if (opts & VERIFY)
 			continue;
-		(void) sprintf(buf, "SFILE=%s;%s\n", target, sc->sc_name);
+		(void) snprintf(buf, sizeof(buf), "SFILE=%s;%s\n", target,
+		    sc->sc_name);
 		if (debug)
 			printf("buf = %s", buf);
 		(void) write(rem, buf, strlen(buf));
@@ -565,7 +569,7 @@ update(rname, opts, stp)
 	/*
 	 * Check to see if the file exists on the remote machine.
 	 */
-	(void) sprintf(buf, "Q%s\n", rname);
+	(void) snprintf(buf, sizeof(buf), "Q%s\n", rname);
 	if (debug)
 		printf("buf = %s", buf);
 	(void) write(rem, buf, strlen(buf));
@@ -656,7 +660,8 @@ query(name)
 	struct stat stb;
 
 	if (catname)
-		(void) sprintf(tp, "/%s", name);
+		(void) snprintf(tp, sizeof(target) - (tp - target), "/%s",
+		    name);
 
 	if (lstat(target, &stb) < 0) {
 		if (errno == ENOENT)
@@ -669,7 +674,8 @@ query(name)
 
 	switch (stb.st_mode & S_IFMT) {
 	case S_IFREG:
-		(void) sprintf(buf, "Y%qd %ld\n", stb.st_size, stb.st_mtime);
+		(void) snprintf(buf, sizeof(buf), "Y%qd %ld\n", stb.st_size,
+		    stb.st_mtime);
 		(void) write(rem, buf, strlen(buf));
 		break;
 
@@ -770,7 +776,7 @@ recvf(cmd, type)
 					return;
 				}
 				buf[0] = '\0';
-				(void) sprintf(buf + 1,
+				(void) snprintf(buf + 1, sizeof(buf) - 1, 
 					"%s: Warning: remote mode %o != local mode %o\n",
 					target, stb.st_mode & 07777, mode);
 				(void) write(rem, buf, strlen(buf + 1) + 1);
@@ -790,15 +796,15 @@ recvf(cmd, type)
 	}
 
 	if (catname)
-		(void) sprintf(tp, "/%s", cp);
+		(void) snprintf(tp, sizeof(target) - (tp - target), "/%s", cp);
 	cp = rindex(target, '/');
 	if (cp == NULL)
 		strcpy(new, tempname);
 	else if (cp == target)
-		(void) sprintf(new, "/%s", tempname);
+		(void) snprintf(new, sizeof(new), "/%s", tempname);
 	else {
 		*cp = '\0';
-		(void) sprintf(new, "%s/%s", target, tempname);
+		(void) snprintf(new, sizeof(new), "%s/%s", target, tempname);
 		*cp = '/';
 	}
 
@@ -898,7 +904,8 @@ badnew1:		error("%s:%s: %s\n", host, new, strerror(errno));
 		(void) fclose(f2);
 		if (opts & VERIFY) {
 differ:			buf[0] = '\0';
-			(void) sprintf(buf + 1, "need to update: %s\n",target);
+			(void) snprintf(buf + 1, sizeof(buf) - 1, 
+			    "need to update: %s\n",target);
 			(void) write(rem, buf, strlen(buf + 1) + 1);
 			goto badnew2;
 		}
@@ -929,7 +936,8 @@ badtarget:	error("%s:%s: %s\n", host, target, strerror(errno));
 
 	if (opts & COMPARE) {
 		buf[0] = '\0';
-		(void) sprintf(buf + 1, "updated %s\n", target);
+		(void) snprintf(buf + 1, sizeof(buf) - 1,
+		    "updated %s\n", target);
 		(void) write(rem, buf, strlen(buf + 1) + 1);
 	} else
 		ack();
@@ -965,7 +973,7 @@ hardlink(cmd)
 	*cp++ = '\0';
 
 	if (catname) {
-		(void) sprintf(tp, "/%s", cp);
+		(void) snprintf(tp, sizeof(target) - (tp - target), "/%s", cp);
 	}
 	if (lstat(target, &stb) == 0) {
 		int mode = stb.st_mode & S_IFMT;
@@ -1101,7 +1109,7 @@ rmchk(opts)
 	/*
 	 * Tell the remote to clean the files from the last directory sent.
 	 */
-	(void) sprintf(buf, "C%o\n", opts & VERIFY);
+	(void) snprintf(buf, sizeof(buf), "C%o\n", opts & VERIFY);
 	if (debug)
 		printf("buf = %s", buf);
 	(void) write(rem, buf, strlen(buf));
@@ -1122,7 +1130,8 @@ rmchk(opts)
 			 * Y\n -- file doesn't exist - REMOVE.
 			 */
 			*--cp = '\0';
-			(void) sprintf(tp, "/%s", s);
+			(void) snprintf(tp, sizeof(target) - (tp - target), 
+			    "/%s", s);
 			if (debug)
 				printf("check %s\n", target);
 			if (except(target))
@@ -1213,7 +1222,7 @@ clean(cp)
 			error("%s:%s: %s\n", host, target, strerror(errno));
 			continue;
 		}
-		(void) sprintf(buf, "Q%s\n", dp->d_name);
+		(void) snprintf(buf, sizeof(buf), "Q%s\n", dp->d_name);
 		(void) write(rem, buf, strlen(buf));
 		cp = buf;
 		do {
@@ -1227,7 +1236,8 @@ clean(cp)
 		if (opts & VERIFY) {
 			cp = buf;
 			*cp++ = '\0';
-			(void) sprintf(cp, "need to remove: %s\n", target);
+			(void) snprintf(cp, sizeof(buf) - 1,
+			    "need to remove: %s\n", target);
 			(void) write(rem, buf, strlen(cp) + 1);
 		} else
 			removeit(&stb);
@@ -1305,7 +1315,7 @@ bad:
 removed:
 	cp = buf;
 	*cp++ = '\0';
-	(void) sprintf(cp, "removed %s\n", target);
+	(void) snprintf(cp, sizeof(buf) - 1, "removed %s\n", target);
 	(void) write(rem, buf, strlen(cp) + 1);
 }
 
