@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mman.h	8.1 (Berkeley) 6/2/93
- * $Id: mman.h,v 1.8 1995/07/13 08:48:02 davidg Exp $
+ * $Id: mman.h,v 1.9 1995/11/30 20:59:08 se Exp $
  */
 
 #ifndef _SYS_MMAN_H_
@@ -91,12 +91,14 @@
 __BEGIN_DECLS
 /* Some of these int's should probably be size_t's */
 caddr_t	mmap __P((caddr_t, size_t, int, int, int, off_t));
-int	madvise __P((caddr_t, int, int));
+int	madvise __P((caddr_t, size_t, int));
 int	mprotect __P((caddr_t, size_t, int));
 int	munmap __P((caddr_t, size_t));
 int	msync __P((caddr_t, size_t, int));
 int	mlock __P((caddr_t, size_t));
 int	munlock __P((caddr_t, size_t));
+int	mincore __P((caddr_t, size_t, char *));
+int	minherit __P((caddr_t, size_t, int));
 __END_DECLS
 
 #endif /* !KERNEL */
