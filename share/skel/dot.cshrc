@@ -5,21 +5,32 @@ alias j		jobs -l
 alias la	ls -a
 alias lf	ls -FA
 alias ll	ls -lA
-alias su	su -m
 
 setenv	EDITOR	vi
-setenv	EXINIT	'set autoindent'
 setenv	PAGER	more
-
-set path = (~/bin /bin /usr/{bin,games} /usr/local/bin /usr/X11R6/bin)
+setenv	BLOCKSIZE	K
 
 if ($?prompt) then
 	# An interactive shell -- set some stuff up
+	
+	set noglob; eval `tset -s`; unset noglob
+	stty -istrip
+	
 	set filec
-	set history = 1000
-	set ignoreeof
+	set history = 100
+	set savehist = 100
 	set mail = (/var/mail/$USER)
-	set mch = `hostname -s`
-	set prompt = "${mch:q}: {\!} "
-	umask 2
+
+	# customize prompt - works with tcsh only
+	set machine = `hostname -s`
+	if ("$TERM" == xterm) then
+		alias cwdcmd 'echo -n "]0;${USER}@${machine}: `dirs`"'
+		set prompt = "> "
+	else
+		alias cwdcmd 'set prompt = "${USER}@${machine}:${cwd}> "'
+	endif
+	cwdcmd
+
+	# fix broken prompt after su
+	alias su 'su \!* ; cwdcmd'
 endif
