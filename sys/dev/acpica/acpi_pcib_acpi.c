@@ -39,6 +39,12 @@
 #include <pci/pcivar.h>
 #include "pcib_if.h"
 
+/*
+ * Hooks for the ACPI CA debugging infrastructure
+ */
+#define _COMPONENT	BUS_MANAGER
+MODULE_NAME("PCIB")
+
 struct acpi_pcib_softc {
     device_t		ap_dev;
     ACPI_HANDLE		ap_handle;
@@ -99,6 +105,7 @@ acpi_pcib_probe(device_t dev)
 {
 
     if ((acpi_get_type(dev) == ACPI_TYPE_DEVICE) &&
+	!acpi_disabled("pci") &&
 	acpi_MatchHid(dev, "PNP0A03")) {
 
 	/*
@@ -116,6 +123,9 @@ acpi_pcib_attach(device_t dev)
     struct acpi_pcib_softc	*sc;
     device_t			child;
     ACPI_STATUS			status;
+    int				result;
+
+    FUNCTION_TRACE(__FUNCTION__);
 
     sc = device_get_softc(dev);
     sc->ap_dev = dev;
@@ -128,7 +138,7 @@ acpi_pcib_attach(device_t dev)
      * on a hot-plug docking station, etc.
      */
     if (!acpi_DeviceIsPresent(dev))
-	return(ENXIO);
+	return_VALUE(ENXIO);
 
     /*
      * Get our segment number by evaluating _SEG
@@ -137,7 +147,7 @@ acpi_pcib_attach(device_t dev)
     if ((status = acpi_EvaluateNumber(sc->ap_handle, "_SEG", &sc->ap_segment)) != AE_OK) {
 	if (status != AE_NOT_FOUND) {
 	    device_printf(dev, "could not evaluate _SEG - %s\n", acpi_strerror(status));
-	    return(ENXIO);
+	    return_VALUE(ENXIO);
 	}
 	/* if it's not found, assume 0 */
 	sc->ap_segment = 0;
@@ -159,7 +169,7 @@ acpi_pcib_attach(device_t dev)
     if ((status = acpi_EvaluateNumber(sc->ap_handle, "_BBN", &sc->ap_bus)) != AE_OK) {
 	if (status != AE_NOT_FOUND) {
 	    device_printf(dev, "could not evaluate _BBN - %s\n", acpi_strerror(status));
-	    return(ENXIO);
+	    return_VALUE(ENXIO);
 	}
 	/* if it's not found, assume 0 */
 	sc->ap_bus = 0;
@@ -170,14 +180,14 @@ acpi_pcib_attach(device_t dev)
      * (should we complain here?).
      */
     if (devclass_get_device(devclass_find("pci"), sc->ap_bus) != NULL)
-	return(0);
+	return_VALUE(0);
 
     /*
      * Attach the PCI bus proper.
      */
     if ((child = device_add_child(dev, "pci", sc->ap_bus)) == NULL) {
 	device_printf(device_get_parent(dev), "couldn't attach pci bus");
-	return(ENXIO);
+	return_VALUE(ENXIO);
     }
 
     /*
@@ -186,7 +196,8 @@ acpi_pcib_attach(device_t dev)
      * XXX It would be nice to defer this and count on the nexus getting it
      * after the first pass, but this does not seem to be reliable.
      */
-    return(bus_generic_attach(dev));
+    result = bus_generic_attach(dev);
+    return_VALUE(result);
 }
 
 static int

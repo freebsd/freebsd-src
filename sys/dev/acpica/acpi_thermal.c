@@ -36,6 +36,12 @@
 
 #include <dev/acpica/acpivar.h>
 
+/*
+ * Hooks for the ACPI CA debugging infrastructure
+ */
+#define _COMPONENT	THERMAL_CONTROL
+MODULE_NAME("THERMAL")
+
 #define TZ_KELVTOC(x)	(((x) - 2732) / 10), (((x) - 2732) % 10)
 
 struct acpi_tz_softc {
@@ -66,11 +72,15 @@ DRIVER_MODULE(acpi_tz, acpi, acpi_tz_driver, acpi_tz_devclass, 0, 0);
 static int
 acpi_tz_probe(device_t dev)
 {
-    if (acpi_get_type(dev) == ACPI_TYPE_THERMAL) {
+
+    FUNCTION_TRACE(__FUNCTION__);
+
+    if ((acpi_get_type(dev) == ACPI_TYPE_THERMAL) &&
+	!acpi_disabled("thermal")) {
 	device_set_desc(dev, "thermal zone");
-	return(0);
+	return_VALUE(0);
     }
-    return(ENXIO);
+    return_VALUE(ENXIO);
 }
 
 static int
@@ -81,6 +91,8 @@ acpi_tz_attach(device_t dev)
     ACPI_BUFFER			buf;
     ACPI_STATUS			status;
 
+    FUNCTION_TRACE(__FUNCTION__);
+
     sc = device_get_softc(dev);
     sc->tz_dev = dev;
     sc->tz_handle = acpi_get_handle(dev);
@@ -89,14 +101,14 @@ acpi_tz_attach(device_t dev)
     buf.Length = sizeof(param);
     if ((status = AcpiEvaluateObject(sc->tz_handle, "_TMP", NULL, &buf)) != AE_OK) {
 	device_printf(sc->tz_dev, "can't fetch temperature - %s\n", acpi_strerror(status));
-	return(ENXIO);
+	return_VALUE(ENXIO);
     }
     if (param[0] != ACPI_TYPE_NUMBER) {
 	device_printf(sc->tz_dev, "%s._TMP does not evaluate to ACPI_TYPE_NUMBER\n", 
 		      acpi_name(sc->tz_handle));
-	return(ENXIO);
+	return_VALUE(ENXIO);
     }
     device_printf(sc->tz_dev, "current temperature %d.%dC\n", TZ_KELVTOC(param[1]));
     
-    return(0);
+    return_VALUE(0);
 }

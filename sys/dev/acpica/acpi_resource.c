@@ -39,6 +39,12 @@
 #include <dev/acpica/acpivar.h>
 
 /*
+ * Hooks for the ACPI CA debugging infrastructure
+ */
+#define _COMPONENT	BUS_MANAGER
+MODULE_NAME("RESOURCE")
+
+/*
  * Fetch a device's resources and associate them with the device.
  *
  * Note that it might be nice to also locate ACPI-specific resource items, such
@@ -54,18 +60,17 @@ acpi_parse_resources(device_t dev, ACPI_HANDLE handle, struct acpi_parse_resourc
     int			i;
     void		*context;
 
+    FUNCTION_TRACE(__FUNCTION__);
+
     /*
      * Fetch the device resources
      */
     if (((status = acpi_GetIntoBuffer(handle, AcpiGetPossibleResources, &buf)) != AE_OK) &&
 	((status = acpi_GetIntoBuffer(handle, AcpiGetCurrentResources, &buf)) != AE_OK)) {
 	device_printf(dev, "can't fetch ACPI resources - %s\n", acpi_strerror(status));
-	return(status);
+	return_ACPI_STATUS(status);
     }
-
-#ifdef ACPI_RES_DEBUG
-    device_printf(dev, "got %d bytes of resources\n", buf.Length);
-#endif
+    DEBUG_PRINT(TRACE_RESOURCES, ("got %d bytes of resources\n", buf.Length));
     set->set_init(dev, &context);
 
     /*
@@ -82,56 +87,42 @@ acpi_parse_resources(device_t dev, ACPI_HANDLE handle, struct acpi_parse_resourc
 	 */
 	switch(res->Id) {
 	case EndTag:
-#ifdef ACPI_RES_DEBUG
-	    device_printf(dev, "EndTag\n");
-#endif
+	    DEBUG_PRINT(TRACE_RESOURCES, ("EndTag\n"));
 	    curr = last;
 	    break;
 
 	case FixedIo:
-#ifdef ACPI_RES_DEBUG
-	    device_printf(dev, "FixedIo 0x%x/%d\n", res->Data.FixedIo.BaseAddress, res->Data.FixedIo.RangeLength);
-#endif
+	    DEBUG_PRINT(TRACE_RESOURCES, ("FixedIo 0x%x/%d\n", res->Data.FixedIo.BaseAddress, res->Data.FixedIo.RangeLength));
 	    set->set_ioport(dev, context, res->Data.FixedIo.BaseAddress, res->Data.FixedIo.RangeLength);
 	    break;
 
 	case Io:
 	    if (res->Data.Io.MinBaseAddress == res->Data.Io.MaxBaseAddress) {
-#ifdef ACPI_RES_DEBUG
-		device_printf(dev, "Io 0x%x/%d\n", res->Data.Io.MinBaseAddress, res->Data.Io.RangeLength);
-#endif
+		DEBUG_PRINT(TRACE_RESOURCES, ("Io 0x%x/%d\n", res->Data.Io.MinBaseAddress, res->Data.Io.RangeLength));
 		set->set_ioport(dev, context, res->Data.Io.MinBaseAddress, res->Data.Io.RangeLength);
 	    } else {
-#ifdef ACPI_RES_DEBUG
-		device_printf(dev, "Io 0x%x-0x%x/%d\n", res->Data.Io.MinBaseAddress, res->Data.Io.MaxBaseAddress, 
-				 res->Data.Io.RangeLength);
-#endif
+		DEBUG_PRINT(TRACE_RESOURCES, ("Io 0x%x-0x%x/%d\n", res->Data.Io.MinBaseAddress, res->Data.Io.MaxBaseAddress, 
+					      res->Data.Io.RangeLength));
 		set->set_iorange(dev, context, res->Data.Io.MinBaseAddress, res->Data.Io.MaxBaseAddress, 
 				 res->Data.Io.RangeLength, res->Data.Io.Alignment);
 	    }
 	    break;
 
 	case FixedMemory32:
-#ifdef ACPI_RES_DEBUG
-	    device_printf(dev, "FixedMemory32 0x%x/%d\n", res->Data.FixedMemory32.RangeBaseAddress, 
-			    res->Data.FixedMemory32.RangeLength);
-#endif
+	    DEBUG_PRINT(TRACE_RESOURCES, ("FixedMemory32 0x%x/%d\n", res->Data.FixedMemory32.RangeBaseAddress, 
+					  res->Data.FixedMemory32.RangeLength));
 	    set->set_memory(dev, context, res->Data.FixedMemory32.RangeBaseAddress, 
 			    res->Data.FixedMemory32.RangeLength);
 	    break;
 
 	case Memory32:
 	    if (res->Data.Memory32.MinBaseAddress == res->Data.Memory32.MaxBaseAddress) {
-#ifdef ACPI_RES_DEBUG
-		device_printf(dev, "Memory32 0x%x/%d\n", res->Data.Memory32.MinBaseAddress, 
-			      res->Data.Memory32.RangeLength);
-#endif
+		DEBUG_PRINT(TRACE_RESOURCES, ("Memory32 0x%x/%d\n", res->Data.Memory32.MinBaseAddress, 
+					      res->Data.Memory32.RangeLength));
 		set->set_memory(dev, context, res->Data.Memory32.MinBaseAddress, res->Data.Memory32.RangeLength);
 	    } else {
-#ifdef ACPI_RES_DEBUG
-		device_printf(dev, "Memory32 0x%x-0x%x/%d\n", res->Data.Memory32.MinBaseAddress, 
-			      res->Data.Memory32.MaxBaseAddress, res->Data.Memory32.RangeLength);
-#endif
+		DEBUG_PRINT(TRACE_RESOURCES, ("Memory32 0x%x-0x%x/%d\n", res->Data.Memory32.MinBaseAddress, 
+					      res->Data.Memory32.MaxBaseAddress, res->Data.Memory32.RangeLength));
 		set->set_memoryrange(dev, context, res->Data.Memory32.MinBaseAddress, res->Data.Memory32.MaxBaseAddress,
 				     res->Data.Memory32.RangeLength, res->Data.Memory32.Alignment);
 	    }
@@ -139,16 +130,12 @@ acpi_parse_resources(device_t dev, ACPI_HANDLE handle, struct acpi_parse_resourc
 
 	case Memory24:
 	    if (res->Data.Memory24.MinBaseAddress == res->Data.Memory24.MaxBaseAddress) {
-#ifdef ACPI_RES_DEBUG
-		device_printf(dev, "Memory24 0x%x/%d\n", res->Data.Memory24.MinBaseAddress, 
-			      res->Data.Memory24.RangeLength);
-#endif
+		DEBUG_PRINT(TRACE_RESOURCES, ("Memory24 0x%x/%d\n", res->Data.Memory24.MinBaseAddress, 
+					      res->Data.Memory24.RangeLength));
 		set->set_memory(dev, context, res->Data.Memory24.MinBaseAddress, res->Data.Memory24.RangeLength);
 	    } else {
-#ifdef ACPI_RES_DEBUG
-		device_printf(dev, "Memory24 0x%x-0x%x/%d\n", res->Data.Memory24.MinBaseAddress, 
-			      res->Data.Memory24.MaxBaseAddress, res->Data.Memory24.RangeLength);
-#endif
+		DEBUG_PRINT(TRACE_RESOURCES, ("Memory24 0x%x-0x%x/%d\n", res->Data.Memory24.MinBaseAddress, 
+					      res->Data.Memory24.MaxBaseAddress, res->Data.Memory24.RangeLength));
 		set->set_memoryrange(dev, context, res->Data.Memory24.MinBaseAddress, res->Data.Memory24.MaxBaseAddress,
 				     res->Data.Memory24.RangeLength, res->Data.Memory24.Alignment);
 	    }
@@ -156,50 +143,42 @@ acpi_parse_resources(device_t dev, ACPI_HANDLE handle, struct acpi_parse_resourc
 
 	case Irq:
 	    for (i = 0; i < res->Data.Irq.NumberOfInterrupts; i++) {
-#ifdef ACPI_RES_DEBUG
-		device_printf(dev, "Irq %d\n", res->Data.Irq.Interrupts[i]);
-#endif
+		DEBUG_PRINT(TRACE_RESOURCES, ("Irq %d\n", res->Data.Irq.Interrupts[i]));
 		set->set_irq(dev, context, res->Data.Irq.Interrupts[i]);
 	    }
 	    break;
 	    
 	case Dma:
 	    for (i = 0; i < res->Data.Dma.NumberOfChannels; i++) {
-#ifdef ACPI_RES_DEBUG
-		device_printf(dev, "Drq %d\n", res->Data.Dma.Channels[i]);
-#endif
+		DEBUG_PRINT(TRACE_RESOURCES, ("Drq %d\n", res->Data.Dma.Channels[i]));
 		set->set_drq(dev, context, res->Data.Dma.Channels[i]);
 	    }
 	    break;
 
 	case StartDependentFunctions:
-#ifdef ACPI_RES_DEBUG
-	    device_printf(dev, "start dependant functions");
-#endif
+	    DEBUG_PRINT(TRACE_RESOURCES, ("start dependant functions"));
 	    set->set_start_dependant(dev, context, res->Data.StartDependentFunctions.CompatibilityPriority);
 	    break;
 
 	case EndDependentFunctions:
-#ifdef ACPI_RES_DEBUG
-	    device_printf(dev, "end dependant functions");
-#endif
+	    DEBUG_PRINT(TRACE_RESOURCES, ("end dependant functions"));
 	    set->set_end_dependant(dev, context);
 	    break;
 
 	case Address32:
-	    device_printf(dev, "unimplemented Address32 resource\n");
+	    DEBUG_PRINT(TRACE_RESOURCES, ("unimplemented Address32 resource\n"));
 	    break;
 
 	case Address16:
-	    device_printf(dev, "unimplemented Address16 resource\n");
+	    DEBUG_PRINT(TRACE_RESOURCES, ("unimplemented Address16 resource\n"));
 	    break;
 
 	case ExtendedIrq:
-	    device_printf(dev, "unimplemented ExtendedIrq resource\n");
+	    DEBUG_PRINT(TRACE_RESOURCES, ("unimplemented ExtendedIrq resource\n"));
 	    break;
 
 	case VendorSpecific:
-	    device_printf(dev, "unimplemented VendorSpecific resource\n");
+	    DEBUG_PRINT(TRACE_RESOURCES, ("unimplemented VendorSpecific resource\n"));
 	    break;
 	default:
 	    break;
@@ -207,7 +186,7 @@ acpi_parse_resources(device_t dev, ACPI_HANDLE handle, struct acpi_parse_resourc
     }    
     AcpiOsFree(buf.Pointer);
     set->set_done(dev, context);
-    return(AE_OK);
+    return_ACPI_STATUS(AE_OK);
 }
 
 static void	acpi_res_set_init(device_t dev, void **context);
