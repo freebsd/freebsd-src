@@ -20,11 +20,9 @@
 %token	DISK
 %token	DRIVE
 %token	DRQ
-%token	DST
 %token	DUMPS
 %token	EQUALS
 %token	FLAGS
-%token	HZ
 %token	IDENT
 %token	INTERLEAVE
 %token	IOMEM
@@ -51,7 +49,6 @@
 %token	SLAVE
 %token	SWAP
 %token	TARGET
-%token	TIMEZONE
 %token	TTY
 %token	TRACE
 %token	UNIT
@@ -198,32 +195,6 @@ Config_spec:
 	      = { ident = ns($2); } |
 	System_spec
 		|
-	HZ NUMBER
-	      = { yyerror("HZ specification obsolete; delete"); } |
-	TIMEZONE NUMBER
-	      = { zone = 60 * $2; check_tz(); } |
-	TIMEZONE NUMBER DST NUMBER
-	      = { zone = 60 * $2; dst = $4; check_tz(); } |
-	TIMEZONE NUMBER DST
-	      = { zone = 60 * $2; dst = 1; check_tz(); } |
-	TIMEZONE FPNUMBER
-	      = { zone = $2; check_tz(); } |
-	TIMEZONE FPNUMBER DST NUMBER
-	      = { zone = $2; dst = $4; check_tz(); } |
-	TIMEZONE FPNUMBER DST
-	      = { zone = $2; dst = 1; check_tz(); } |
-	TIMEZONE MINUS NUMBER
-	      = { zone = -60 * $3; check_tz(); } |
-	TIMEZONE MINUS NUMBER DST NUMBER
-	      = { zone = -60 * $3; dst = $5; check_tz(); } |
-	TIMEZONE MINUS NUMBER DST
-	      = { zone = -60 * $3; dst = 1; check_tz(); } |
-	TIMEZONE MINUS FPNUMBER
-	      = { zone = -$3; check_tz(); } |
-	TIMEZONE MINUS FPNUMBER DST NUMBER
-	      = { zone = -$3; dst = $5; check_tz(); } |
-	TIMEZONE MINUS FPNUMBER DST
-	      = { zone = -$3; dst = 1; check_tz(); } |
 	MAXUSERS NUMBER
 	      = { maxusers = $2; };
 
@@ -966,18 +937,6 @@ check_nexus(dev, num)
 			yyerror("only iop's, hb's and vme's should be connected to the nexus");
 		break;
 	}
-}
-
-/*
- * Check the timezone to make certain it is sensible
- */
-
-check_tz()
-{
-	if (zone != 0 || dst != 0)
-		yyerror("timezone specification is no longer permitted");
-	else
-		hadtz = 1;
 }
 
 /*
