@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ah.c,v 1.5 1999/12/15 08:10:17 fenner Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ah.c,v 1.14 2000/12/12 09:58:40 itojun Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -35,38 +35,11 @@ static const char rcsid[] =
 #include <sys/types.h>
 #include <sys/socket.h>
 
-#include <net/route.h>
-#include <net/if.h>
-
 #include <netinet/in.h>
-#include <netinet/if_ether.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/ip_icmp.h>
-#include <netinet/ip_var.h>
-#include <netinet/udp.h>
-#include <netinet/udp_var.h>
-#include <netinet/tcp.h>
 
 #include <stdio.h>
 
-/* there's no standard definition so we are on our own */
-struct ah {
-	u_int8_t	ah_nxt;		/* Next Header */
-	u_int8_t	ah_len;		/* Length of data, in 32bit */
-	u_int16_t	ah_reserve;	/* Reserved for future use */
-	u_int32_t	ah_spi;		/* Security parameter index */
-	/* variable size, 32bit bound*/	/* Authentication data */
-};
-
-struct newah {
-	u_int8_t	ah_nxt;		/* Next Header */
-	u_int8_t	ah_len;		/* Length of data + 1, in 32bit */
-	u_int16_t	ah_reserve;	/* Reserved for future use */
-	u_int32_t	ah_spi;		/* Security parameter index */
-	u_int32_t	ah_seq;		/* Sequence number field */
-	/* variable size, 32bit bound*/	/* Authentication data */
-};
+#include "ah.h"
 
 #include "interface.h"
 #include "addrtoname.h"
@@ -80,7 +53,7 @@ ah_print(register const u_char *bp, register const u_char *bp2)
 	u_int32_t spi;
 
 	ah = (struct ah *)bp;
-	ep = snapend;		/* 'ep' points to the end of avaible data. */
+	ep = snapend;		/* 'ep' points to the end of available data. */
 
 	if ((u_char *)(ah + 1) >= ep - sizeof(struct ah))
 		goto trunc;
@@ -88,7 +61,7 @@ ah_print(register const u_char *bp, register const u_char *bp2)
 	sumlen = ah->ah_len << 2;
 	spi = (u_int32_t)ntohl(ah->ah_spi);
 
-	printf("AH(spi=%u", spi);
+	printf("AH(spi=0x%08x", spi);
 	if (vflag)
 		printf(",sumlen=%d", sumlen);
 	printf(",seq=0x%x", (u_int32_t)ntohl(*(u_int32_t *)(ah + 1)));

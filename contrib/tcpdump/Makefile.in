@@ -17,7 +17,7 @@
 #  WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 #  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-# @(#) $Header: /tcpdump/master/tcpdump/Makefile.in,v 1.219 1999/12/22 15:44:09 itojun Exp $ (LBL)
+# @(#) $Header: /tcpdump/master/tcpdump/Makefile.in,v 1.244 2000/12/21 10:43:20 guy Exp $ (LBL)
 
 #
 # Various configurable paths (remember to edit Makefile.in, not Makefile)
@@ -27,9 +27,9 @@
 prefix = @prefix@
 exec_prefix = @exec_prefix@
 # Pathname of directory to install the binary
-BINDEST = @sbindir@
+sbindir = @sbindir@
 # Pathname of directory to install the man page
-MANDEST = @mandir@
+mandir = @mandir@
 
 # VPATH
 srcdir = @srcdir@
@@ -55,6 +55,8 @@ LDFLAGS = @LDFLAGS@
 LIBS = @LIBS@
 
 INSTALL = @INSTALL@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
+INSTALL_DATA = @INSTALL_DATA@
 
 # Explicitly define compilation rule since SunOS 4's make doesn't like gcc.
 # Also, gcc does not remove the .o before forking 'as', which can be a
@@ -66,17 +68,20 @@ INSTALL = @INSTALL@
 CSRC =	tcpdump.c \
 	print-arp.c print-atalk.c print-atm.c print-bootp.c \
 	print-decnet.c print-domain.c print-dvmrp.c print-egp.c \
-	print-ether.c print-fddi.c print-gre.c print-icmp.c \
+	print-ether.c print-fddi.c print-gre.c print-icmp.c print-igmp.c \
 	print-igrp.c print-ip.c print-ipx.c print-isoclns.c print-krb.c \
 	print-llc.c print-nfs.c print-ntp.c print-null.c print-ospf.c \
 	print-pim.c print-ppp.c print-raw.c print-rip.c print-sl.c \
-	print-snmp.c print-sunrpc.c print-tcp.c print-tftp.c print-udp.c \
-	print-wb.c addrtoname.c bpf_dump.c gmt2local.c machdep.c \
+	print-snmp.c print-stp.c print-sunrpc.c print-tcp.c print-tftp.c \
+	print-udp.c print-wb.c addrtoname.c gmt2local.c machdep.c \
 	parsenfsfh.c util.c savestr.c setsignal.c \
 	print-esp.c print-ah.c print-vjc.c print-isakmp.c print-chdlc.c \
 	print-ipcomp.c print-mobile.c print-l2tp.c print-bgp.c print-rx.c \
 	print-lane.c print-cip.c print-pppoe.c print-lcp.c \
-	print-smb.c smbutil.c print-ascii.c print-telnet.c
+	print-smb.c smbutil.c print-ascii.c print-telnet.c print-cnfp.c \
+	print-vrrp.c print-cdp.c print-token.c print-bxxp.c print-timed.c \
+	print-radius.c print-sll.c
+
 LOCALSRC = @LOCALSRC@
 GENSRC = version.c
 LIBOBJS = @LIBOBJS@
@@ -85,13 +90,13 @@ SRC =	$(CSRC) $(GENSRC) $(LOCALSRC)
 
 # We would like to say "OBJ = $(SRC:.c=.o)" but Ultrix's make cannot
 # hack the extra indirection
-OBJ =	$(CSRC:.c=.o) $(GENSRC:.c=.o) $(LOCALSRC:.c=.o) @LIBOBJS@
+OBJ =	$(CSRC:.c=.o) $(GENSRC:.c=.o) $(LOCALSRC:.c=.o) $(LIBOBJS)
 HDR =   addrtoname.h appletalk.h bootp.h decnet.h \
 	ethertype.h extract.h fddi.h gmt2local.h igrp.h interface.h \
 	ipx.h llc.h machdep.h mib.h nfsfh.h nfsv2.h ntp.h ospf.h \
 	savestr.c setsignal.h \
-	gnuc.h ipsec_doi.h isakmp.h l2tp.h netbios.h oakley.h ospf6.h ppp.h \
-	route6d.h
+	gnuc.h ipsec_doi.h isakmp.h l2tp.h nameser.h \
+	netbios.h oakley.h ospf6.h ppp.h route6d.h
 
 TAGHDR = \
 	/usr/include/arpa/tftp.h \
@@ -124,6 +129,12 @@ inet_ntop.o: $(srcdir)/missing/inet_ntop.c
 	$(CC) $(CFLAGS) -o $@ -c $(srcdir)/missing/inet_ntop.c
 inet_aton.o: $(srcdir)/missing/inet_aton.c
 	$(CC) $(CFLAGS) -o $@ -c $(srcdir)/missing/inet_aton.c
+snprintf.o: $(srcdir)/missing/snprintf.c
+	$(CC) $(CFLAGS) -o $@ -c $(srcdir)/missing/snprintf.c
+strlcat.o: $(srcdir)/missing/strlcat.c
+	$(CC) $(CFLAGS) -o $@ -c $(srcdir)/missing/strlcat.c
+strlcpy.o: $(srcdir)/missing/strlcpy.c
+	$(CC) $(CFLAGS) -o $@ -c $(srcdir)/missing/strlcpy.c
 
 version.o: version.c
 	$(CC) $(CFLAGS) -c version.c
@@ -132,17 +143,19 @@ version.c: $(srcdir)/VERSION
 	@rm -f $@
 	sed -e 's/.*/char version[] = "&";/' $(srcdir)/VERSION > $@
 
-install: force
-	[ -d $(DESTDIR)$(BINDEST) ] || mkdir -p $(DESTDIR)$(BINDEST)
-	$(INSTALL) -m 550 -o bin -g @V_GROUP@ $(PROG) \
-	    $(DESTDIR)$(BINDEST)/$(PROG)
+install:
+	[ -d $(DESTDIR)$(sbindir) ] || \
+	    (mkdir -p $(DESTDIR)$(sbindir); chmod 755 $(DESTDIR)$(sbindir))
+	$(INSTALL_PROGRAM) $(PROG) $(DESTDIR)$(sbindir)/$(PROG)
+	[ -d $(DESTDIR)$(mandir)/man1 ] || \
+	    (mkdir -p $(DESTDIR)$(mandir)/man1; chmod 755 $(DESTDIR)$(mandir)/man1)
+	$(INSTALL_DATA) $(srcdir)/$(PROG).1 $(DESTDIR)$(mandir)/man1/$(PROG).1
 
-install-man: force
-	[ -d $(DESTDIR)$(MANDEST)/man1 ] || mkdir -p $(DESTDIR)$(MANDEST)/man1
-	$(INSTALL) -m 444 -o bin -g bin $(srcdir)/$(PROG).1 \
-	    $(DESTDIR)$(MANDEST)/man1/$(PROG).1
+uninstall:
+	rm -f $(DESTDIR)$(sbindir)/$(PROG)
+	rm -f $(DESTDIR)$(mandir)/man1/$(PROG).1
 
-lint: $(GENSRC) force
+lint: $(GENSRC)
 	lint -hbxn $(SRC) | \
 	    grep -v 'struct/union .* never defined' | \
 	    grep -v 'possible pointer alignment problem'
@@ -152,14 +165,14 @@ clean:
 
 distclean:
 	rm -f $(CLEANFILES) Makefile config.cache config.log config.status \
-	    config.h gnuc.h os-proto.h
+	    config.h gnuc.h os-proto.h stamp-h stamp-h.in
 
 tags: $(TAGFILES)
 	ctags -wtd $(TAGFILES)
 
-tar: force
+tar:
 	@cwd=`pwd` ; dir=`basename $$cwd` ; name=$(PROG)-`cat VERSION` ; \
-	    list="" ; tar="tar chFFf" ; \
+	    list="" ; tar="tar chf" ; \
 	    for i in `cat FILES` ; do list="$$list $$name/$$i" ; done; \
 	    echo \
 	    "rm -f ../$$name; ln -s $$dir ../$$name" ; \
@@ -171,6 +184,5 @@ tar: force
 	    "rm -f ../$$name" ; \
 	     rm -f ../$$name
 
-force: /tmp
-depend: $(GENSRC) force
-	./mkdep -c $(CC) $(DEFS) $(INCLS) $(SRC)
+depend: $(GENSRC)
+	${srcdir}/mkdep -c $(CC) $(DEFS) $(INCLS) $(SRC)

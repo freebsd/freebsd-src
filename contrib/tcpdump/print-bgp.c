@@ -33,7 +33,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-     "@(#) $Header: /tcpdump/master/tcpdump/print-bgp.c,v 1.9.2.2 2000/01/25 18:32:53 itojun Exp $";
+     "@(#) $Header: /tcpdump/master/tcpdump/print-bgp.c,v 1.21 2000/12/05 05:48:35 guy Exp $";
 #endif
 
 #include <sys/param.h>
@@ -42,18 +42,15 @@ static const char rcsid[] =
 #include <sys/socket.h>
 
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/ip_var.h>
-#include <netinet/udp.h>
-#include <netinet/udp_var.h>
 
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
+#include <netdb.h>
 
 #include "interface.h"
 #include "addrtoname.h"
+#include "extract.h"
 
 struct bgp {
 	u_int8_t bgp_marker[16];
@@ -240,7 +237,7 @@ num_or_str(const char **table, size_t siz, int value)
 {
 	static char buf[20];
 	if (value < 0 || siz <= value || table[value] == NULL) {
-		sprintf(buf, "#%d", value);
+		snprintf(buf, sizeof(buf), "#%d", value);
 		return buf;
 	} else
 		return table[value];
@@ -266,7 +263,7 @@ bgp_notify_minor(int major, int minor)
 	} else
 		p = NULL;
 	if (p == NULL) {
-		sprintf(buf, "#%d", minor);
+		snprintf(buf, sizeof(buf), "#%d", minor);
 		return buf;
 	} else
 		return p;
@@ -288,7 +285,7 @@ decode_prefix4(const u_char *pd, char *buf, int buflen)
 		((u_char *)&addr)[(plen + 7) / 8 - 1] &=
 			((0xff00 >> (plen % 8)) & 0xff);
 	}
-	sprintf(buf, "%s/%d", getname((char *)&addr), plen);
+	snprintf(buf, buflen, "%s/%d", getname((u_char *)&addr), plen);
 	return 1 + (plen + 7) / 8;
 }
 
@@ -309,7 +306,7 @@ decode_prefix6(const u_char *pd, char *buf, int buflen)
 		addr.s6_addr[(plen + 7) / 8 - 1] &=
 			((0xff00 >> (plen % 8)) & 0xff);
 	}
-	sprintf(buf, "%s/%d", getname6((char *)&addr), plen);
+	snprintf(buf, buflen, "%s/%d", getname6((char *)&addr), plen);
 	return 1 + (plen + 7) / 8;
 }
 #endif
@@ -323,7 +320,7 @@ bgp_attr_print(const struct bgp_attr *attr, const u_char *dat, int len)
 	int advance;
 	int tlen;
 	const u_char *p;
-	char buf[256];
+	char buf[MAXHOSTNAMELEN + 100];
 
 	p = dat;
 
@@ -430,20 +427,24 @@ bgp_attr_print(const struct bgp_attr *attr, const u_char *dat, int len)
 		tlen = p[0];
 		if (tlen) {
 			printf(" nexthop");
-			if (af == AFNUM_INET)
-				advance = 4;
-#ifdef INET6
-			else if (af == AFNUM_INET6)
-				advance = 16;
-#endif
-
-			for (i = 0; i < tlen; i += advance) {
-				if (af == AFNUM_INET)
+			i = 0;
+			while (i < tlen) {
+				switch (af) {
+				case AFNUM_INET:
 					printf(" %s", getname(p + 1 + i));
+					i += sizeof(struct in_addr);
+					break;
 #ifdef INET6
-				else if (af == AFNUM_INET6)
+				case AFNUM_INET6:
 					printf(" %s", getname6(p + 1 + i));
+					i += sizeof(struct in6_addr);
+					break;
 #endif
+				default:
+					printf(" (unknown af)");
+					i = tlen;	/*exit loop*/
+					break;
+				}
 			}
 			printf(",");
 		}
@@ -462,13 +463,23 @@ bgp_attr_print(const struct bgp_attr *attr, const u_char *dat, int len)
 
 		printf(" NLRI");
 		while (len - (p - dat) > 0) {
-			if (af == AFNUM_INET)
+			switch (af) {
+			case AFNUM_INET:
 				advance = decode_prefix4(p, buf, sizeof(buf));
+				printf(" %s", buf);
+				break;
 #ifdef INET6
-			else if (af == AFNUM_INET6)
+			case AFNUM_INET6:
 				advance = decode_prefix6(p, buf, sizeof(buf));
+				printf(" %s", buf);
+				break;
 #endif
-			printf(" %s", buf);
+			default:
+				printf(" (unknown af)");
+				advance = 0;
+				p = dat + len;
+				break;
+			}
 
 			p += advance;
 		}
@@ -488,13 +499,23 @@ bgp_attr_print(const struct bgp_attr *attr, const u_char *dat, int len)
 
 		printf(" Withdraw");
 		while (len - (p - dat) > 0) {
-			if (af == AFNUM_INET)
+			switch (af) {
+			case AFNUM_INET:
 				advance = decode_prefix4(p, buf, sizeof(buf));
+				printf(" %s", buf);
+				break;
 #ifdef INET6
-			else if (af == AFNUM_INET6)
+			case AFNUM_INET6:
 				advance = decode_prefix6(p, buf, sizeof(buf));
+				printf(" %s", buf);
+				break;
 #endif
-			printf(" %s", buf);
+			default:
+				printf(" (unknown af)");
+				advance = 0;
+				p = dat + len;
+				break;
+			}
 
 			p += advance;
 		}
@@ -513,13 +534,14 @@ bgp_open_print(const u_char *dat, int length)
 	const u_char *opt;
 	int i;
 
+	TCHECK2(dat[0], sizeof(bgpo));
 	memcpy(&bgpo, dat, sizeof(bgpo));
 	hlen = ntohs(bgpo.bgpo_len);
 
 	printf(": Version %d,", bgpo.bgpo_version);
 	printf(" AS #%u,", ntohs(bgpo.bgpo_myas));
 	printf(" Holdtime %u,", ntohs(bgpo.bgpo_holdtime));
-	printf(" ID %s,", getname((char *)&bgpo.bgpo_id));
+	printf(" ID %s,", getname((u_char *)&bgpo.bgpo_id));
 	printf(" Option length %u", bgpo.bgpo_optlen);
 
 	/* ugly! */
@@ -537,6 +559,9 @@ bgp_open_print(const u_char *dat, int length)
 			bgpopt.bgpopt_len);
 		i += sizeof(bgpopt) + bgpopt.bgpopt_len;
 	}
+	return;
+trunc:
+	printf("[|BGP]");
 }
 
 static void
@@ -550,19 +575,40 @@ bgp_update_print(const u_char *dat, int length)
 	int i;
 	int newline;
 
+	TCHECK2(dat[0], sizeof(bgp));
 	memcpy(&bgp, dat, sizeof(bgp));
 	hlen = ntohs(bgp.bgp_len);
 	p = dat + BGP_SIZE;	/*XXX*/
 	printf(":");
 
 	/* Unfeasible routes */
-	len = ntohs(*(u_int16_t *)p);
+	len = EXTRACT_16BITS(p);
 	if (len) {
+		/*  Without keeping state from the original NLRI message,
+		 *  it's not possible to tell if this a v4 or v6 route,
+		 *  so only try to decode it if we're not v6 enabled.
+	         */
+#ifdef INET6
 		printf(" (Withdrawn routes: %d bytes)", len);
+#else	
+		char buf[MAXHOSTNAMELEN + 100];
+
+		TCHECK2(p[2], len);
+ 		i = 2;
+
+		printf(" (Withdrawn routes:");
+			
+		while(i < 2 + len) {
+			i += decode_prefix4(&p[i], buf, sizeof(buf));
+			printf(" %s", buf);
+		}
+		printf(")\n");
+#endif
 	}
 	p += 2 + len;
 
-	len = ntohs(*(u_int16_t *)p);
+	TCHECK2(p[0], 2);
+	len = EXTRACT_16BITS(p);
 	if (len) {
 		/* do something more useful!*/
 		i = 2;
@@ -571,6 +617,7 @@ bgp_update_print(const u_char *dat, int length)
 		while (i < 2 + len) {
 			int alen, aoff;
 
+			TCHECK2(p[i], sizeof(bgpa));
 			memcpy(&bgpa, &p[i], sizeof(bgpa));
 			alen = bgp_attr_len(&bgpa);
 			aoff = bgp_attr_off(&bgpa);
@@ -582,11 +629,14 @@ bgp_update_print(const u_char *dat, int length)
 			printf("(");		/* ) */
 			printf("%s", bgp_attr_type(bgpa.bgpa_type));
 			if (bgpa.bgpa_flags) {
-				printf("[%s%s%s%s]",
+				printf("[%s%s%s%s",
 					bgpa.bgpa_flags & 0x80 ? "O" : "",
 					bgpa.bgpa_flags & 0x40 ? "T" : "",
 					bgpa.bgpa_flags & 0x20 ? "P" : "",
-					bgpa.bgpa_flags & 0x00 ? "E" : "");
+					bgpa.bgpa_flags & 0x10 ? "E" : "");
+				if (bgpa.bgpa_flags & 0xf)
+					printf("+%x", bgpa.bgpa_flags & 0xf);
+				printf("]");
 			}
 
 			bgp_attr_print(&bgpa, &p[i + aoff], alen);
@@ -608,7 +658,7 @@ bgp_update_print(const u_char *dat, int length)
 	if (dat + length > p) {
 		printf("(NLRI:");	/* ) */
 		while (dat + length > p) {
-			char buf[256];
+			char buf[MAXHOSTNAMELEN + 100];
 			i = decode_prefix4(p, buf, sizeof(buf));
 			printf(" %s", buf);
 			if (i < 0)
@@ -619,6 +669,9 @@ bgp_update_print(const u_char *dat, int length)
 		/* ( */
 		printf(")");
 	}
+	return;
+trunc:
+	printf("[|BGP]");
 }
 
 static void
@@ -627,12 +680,16 @@ bgp_notification_print(const u_char *dat, int length)
 	struct bgp_notification bgpn;
 	int hlen;
 
+	TCHECK2(dat[0], sizeof(bgpn));
 	memcpy(&bgpn, dat, sizeof(bgpn));
 	hlen = ntohs(bgpn.bgpn_len);
 
 	printf(": error %s,", bgp_notify_major(bgpn.bgpn_major));
 	printf(" subcode %s",
 		bgp_notify_minor(bgpn.bgpn_major, bgpn.bgpn_minor));
+	return;
+trunc:
+	printf("[|BGP]");
 }
 
 static void
@@ -640,6 +697,7 @@ bgp_header_print(const u_char *dat, int length)
 {
 	struct bgp bgp;
 
+	TCHECK2(dat[0], sizeof(bgp));
 	memcpy(&bgp, dat, sizeof(bgp));
 	printf("(%s", bgp_type(bgp.bgp_type));		/* ) */
 
@@ -657,6 +715,9 @@ bgp_header_print(const u_char *dat, int length)
 
 	/* ( */
 	printf(")");
+	return;
+trunc:
+	printf("[|BGP]");
 }
 
 void
@@ -698,7 +759,7 @@ bgp_print(const u_char *dat, int length)
 		}
 
 		/* found BGP header */
-		TCHECK2(p[0], BGP_SIZE);	/*XXX*/
+		TCHECK2(p[0], sizeof(bgp));	/*XXX*/
 		memcpy(&bgp, p, sizeof(bgp));
 
 		if (start != p)
