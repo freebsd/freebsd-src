@@ -61,7 +61,7 @@ struct socket {
 	short	so_type;		/* (a) generic type, see socket.h */
 	short	so_options;		/* from socket call, see socket.h */
 	short	so_linger;		/* time to linger while closing */
-	short	so_state;		/* internal state flags SS_* */
+	short	so_state;		/* (b) internal state flags SS_* */
 	int	so_qstate;		/* (e) internal state flags SQ_* */
 	void	*so_pcb;		/* protocol control block */
 	struct	protosw *so_proto;	/* (a) protocol handle */
@@ -111,6 +111,9 @@ struct socket {
 		short	sb_flags;	/* (c/d) flags, see below */
 		short	sb_state;	/* (c/d) socket state on sockbuf */
 	} so_rcv, so_snd;
+/*
+ * Constants for sb_flags field of struct sockbuf.
+ */
 #define	SB_MAX		(256*1024)	/* default for max chars in sockbuf */
 #define	SB_LOCK		0x01		/* lock on data queue */
 #define	SB_WANT		0x02		/* someone is waiting to lock */
