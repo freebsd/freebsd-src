@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7770.c#4 $
+ * $Id: //depot/src/aic7xxx/aic7770.c#8 $
  *
  * $FreeBSD$
  */
@@ -101,6 +101,8 @@ aic7770_config(struct ahc_softc *ahc, struct aic7770_identity *entry)
 	struct	ahc_probe_config probe_config;
 	int	error;
 	u_int	hostconf;
+	u_int   irq;
+	u_int	intdef;
 
 	ahc_init_probe_config(&probe_config);
 	error = entry->setup(ahc->dev_softc, &probe_config);
@@ -114,11 +116,30 @@ aic7770_config(struct ahc_softc *ahc, struct aic7770_identity *entry)
 	probe_config.description = entry->name;
 	error = ahc_softc_init(ahc, &probe_config);
 
-	error = aic7770_map_int(ahc);
+	error = ahc_reset(ahc);
 	if (error != 0)
 		return (error);
 
-	error = ahc_reset(ahc);
+	/* Make sure we have a valid interrupt vector */
+	intdef = ahc_inb(ahc, INTDEF);
+	irq = intdef & VECTOR;
+	switch (irq) {
+	case 9:
+	case 10:
+	case 11:
+	case 12:
+	case 14:
+	case 15:
+		break;
+	default:
+		printf("aic7770_config: illegal irq setting %d\n", intdef);
+		return (ENXIO);
+	}
+
+	if ((intdef & EDGE_TRIG) != 0)
+		ahc->flags |= AHC_EDGE_INTERRUPT;
+
+	error = aic7770_map_int(ahc, irq);
 	if (error != 0)
 		return (error);
 
@@ -135,7 +156,7 @@ aic7770_config(struct ahc_softc *ahc, struct aic7770_identity *entry)
 
 		/* Get the primary channel information */
 		if ((biosctrl & CHANNEL_B_PRIMARY) != 0)
-			ahc->flags |= AHC_CHANNEL_B_PRIMARY;
+			ahc->flags |= 1;
 
 		if ((biosctrl & BIOSMODE) == BIOSDISABLED) {
 			ahc->flags |= AHC_USEDEFAULTS;

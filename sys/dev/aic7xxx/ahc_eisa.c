@@ -180,7 +180,7 @@ aic7770_map_registers(struct ahc_softc *ahc)
 }
 
 int
-aic7770_map_int(struct ahc_softc *ahc)
+aic7770_map_int(struct ahc_softc *ahc, int irq)
 {
 	int zero;
 

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx.seq#20 $
+ * $Id: //depot/src/aic7xxx/aic7xxx.seq#23 $
  *
  * $FreeBSD$
  */
@@ -88,7 +88,6 @@ BEGIN_CRITICAL
 		cmp	KERNEL_QINPOS, A je poll_for_work_loop;
 	}
 	mov	ARG_1, NEXT_QUEUED_SCB;
-END_CRITICAL
 
 	/*
 	 * We have at least one queued SCB now and we don't have any 
@@ -101,6 +100,8 @@ END_CRITICAL
 		/* In the non-paging case, the SCBID == hardware SCB index */
 		mov	SCBPTR, ARG_1;
 	}
+	or	SEQ_FLAGS2, SCB_DMA;
+END_CRITICAL
 dma_queued_scb:
 	/*
 	 * DMA the SCB from host ram into the current SCB location.
@@ -128,6 +129,7 @@ BEGIN_CRITICAL
 	} else {
 		inc	QINPOS;
 	}
+	and	SEQ_FLAGS2, ~SCB_DMA;
 END_CRITICAL
 start_waiting:
 	/*
@@ -692,69 +694,75 @@ sg_advance:
 	adc	SCB_RESIDUAL_SGPTR[2],A;
 	adc	SCB_RESIDUAL_SGPTR[3],A ret;
 
+if ((ahc->features & AHC_CMD_CHAN) != 0) {
+disable_ccsgen:
+	test	CCSGCTL, CCSGEN jz return;
+	test	CCSGCTL, CCSGDONE jz .;
+disable_ccsgen_fetch_done:
+	clr	CCSGCTL;
+	test	CCSGCTL, CCSGEN jnz .;
+	ret;
 idle_loop:
-	if ((ahc->features & AHC_CMD_CHAN) != 0) {
-		/* Did we just finish fetching segs? */
-		cmp	CCSGCTL, CCSGEN|CCSGDONE je idle_sgfetch_complete;
+	/* Did we just finish fetching segs? */
+	cmp	CCSGCTL, CCSGEN|CCSGDONE je idle_sgfetch_complete;
 
-		/* Are we actively fetching segments? */
-		test	CCSGCTL, CCSGEN jnz return;
+	/* Are we actively fetching segments? */
+	test	CCSGCTL, CCSGEN jnz return;
 
-		/*
-		 * Do we need any more segments?
-		 */
-		test	SCB_RESIDUAL_DATACNT[3], SG_LAST_SEG jnz return;
+	/*
+	 * Do we need any more segments?
+	 */
+	test	SCB_RESIDUAL_DATACNT[3], SG_LAST_SEG jnz return;
 
-		/*
-		 * Do we have any prefetch left???
-		 */
-		cmp	CCSGADDR, SG_PREFETCH_CNT jne idle_sg_avail;
+	/*
+	 * Do we have any prefetch left???
+	 */
+	cmp	CCSGADDR, SG_PREFETCH_CNT jne idle_sg_avail;
 
-		/*
-		 * Need to fetch segments, but we can only do that
-		 * if the command channel is completely idle.  Make
-		 * sure we don't have an SCB prefetch going on.
-		 */
-		test	CCSCBCTL, CCSCBEN jnz return;
+	/*
+	 * Need to fetch segments, but we can only do that
+	 * if the command channel is completely idle.  Make
+	 * sure we don't have an SCB prefetch going on.
+	 */
+	test	CCSCBCTL, CCSCBEN jnz return;
 
-		/*
-		 * We fetch a "cacheline aligned" and sized amount of data
-		 * so we don't end up referencing a non-existant page.
-		 * Cacheline aligned is in quotes because the kernel will
-		 * set the prefetch amount to a reasonable level if the
-		 * cacheline size is unknown.
-		 */
-		mvi	CCHCNT, SG_PREFETCH_CNT;
-		and	CCHADDR[0], SG_PREFETCH_ALIGN_MASK, SCB_RESIDUAL_SGPTR;
-		bmov	CCHADDR[1], SCB_RESIDUAL_SGPTR[1], 3;
-		mvi	CCSGCTL, CCSGEN|CCSGRESET ret;
+	/*
+	 * We fetch a "cacheline aligned" and sized amount of data
+	 * so we don't end up referencing a non-existant page.
+	 * Cacheline aligned is in quotes because the kernel will
+	 * set the prefetch amount to a reasonable level if the
+	 * cacheline size is unknown.
+	 */
+	mvi	CCHCNT, SG_PREFETCH_CNT;
+	and	CCHADDR[0], SG_PREFETCH_ALIGN_MASK, SCB_RESIDUAL_SGPTR;
+	bmov	CCHADDR[1], SCB_RESIDUAL_SGPTR[1], 3;
+	mvi	CCSGCTL, CCSGEN|CCSGRESET ret;
 idle_sgfetch_complete:
-		clr	CCSGCTL;
-		test	CCSGCTL, CCSGEN jnz .;
-		and	CCSGADDR, SG_PREFETCH_ADDR_MASK, SCB_RESIDUAL_SGPTR;
+	call	disable_ccsgen_fetch_done;
+	and	CCSGADDR, SG_PREFETCH_ADDR_MASK, SCB_RESIDUAL_SGPTR;
 idle_sg_avail:
-		if ((ahc->features & AHC_ULTRA2) != 0) {
-			/* Does the hardware have space for another SG entry? */
-			test	DFSTATUS, PRELOAD_AVAIL jz return;
-			bmov 	HADDR, CCSGRAM, 4;
-			bmov	SINDEX, CCSGRAM, 1;
-			test	SINDEX, 0x1 jz . + 2;
-			xor	DATA_COUNT_ODD, 0x1;
-			bmov	HCNT[0], SINDEX, 1;
-			bmov	HCNT[1], CCSGRAM, 2;
-			bmov	SCB_RESIDUAL_DATACNT[3], CCSGRAM, 1;
-			call	sg_advance;
-			mov	SINDEX, SCB_RESIDUAL_SGPTR[0];
-			test	DATA_COUNT_ODD, 0x1 jz . + 2;
-			or	SINDEX, ODD_SEG;
-			test	SCB_RESIDUAL_DATACNT[3], SG_LAST_SEG jz . + 2;
-			or	SINDEX, LAST_SEG;
-			mov	SG_CACHE_PRE, SINDEX;
-			/* Load the segment by writing DFCNTRL again */
-			mov	DFCNTRL, DMAPARAMS;
-		}
-		ret;
+	if ((ahc->features & AHC_ULTRA2) != 0) {
+		/* Does the hardware have space for another SG entry? */
+		test	DFSTATUS, PRELOAD_AVAIL jz return;
+		bmov 	HADDR, CCSGRAM, 4;
+		bmov	SINDEX, CCSGRAM, 1;
+		test	SINDEX, 0x1 jz . + 2;
+		xor	DATA_COUNT_ODD, 0x1;
+		bmov	HCNT[0], SINDEX, 1;
+		bmov	HCNT[1], CCSGRAM, 2;
+		bmov	SCB_RESIDUAL_DATACNT[3], CCSGRAM, 1;
+		call	sg_advance;
+		mov	SINDEX, SCB_RESIDUAL_SGPTR[0];
+		test	DATA_COUNT_ODD, 0x1 jz . + 2;
+		or	SINDEX, ODD_SEG;
+		test	SCB_RESIDUAL_DATACNT[3], SG_LAST_SEG jz . + 2;
+		or	SINDEX, LAST_SEG;
+		mov	SG_CACHE_PRE, SINDEX;
+		/* Load the segment by writing DFCNTRL again */
+		mov	DFCNTRL, DMAPARAMS;
 	}
+	ret;
+}
 
 if ((ahc->bugs & AHC_PCI_MWI_BUG) != 0 && ahc->pci_cachesize != 0) {
 /*
@@ -1149,12 +1157,6 @@ data_phase_finish:
 	if ((ahc->flags & AHC_INITIATORROLE) != 0) {
 		test	SSTAT1, REQINIT jz .;
 		test	SSTAT1,PHASEMIS	jz data_phase_loop;
-	
-		if ((ahc->features & AHC_CMD_CHAN) != 0) {
-			/* Kill off any pending prefetch */
-			clr	CCSGCTL;
-			test	CCSGCTL, CCSGEN jnz .;
-		}
 	}
 
 data_phase_done:
@@ -1166,8 +1168,7 @@ data_phase_done:
 	 */
 	if ((ahc->features & AHC_CMD_CHAN) != 0) {
 		/* Kill off any pending prefetch */
-		clr	CCSGCTL;
-		test	CCSGCTL, CCSGEN jnz .;
+		call	disable_ccsgen;
 	}
 
 	if ((ahc->bugs & AHC_PCI_MWI_BUG) != 0
@@ -1648,12 +1649,27 @@ mesgin_identify:
 	if ((ahc->flags & AHC_PAGESCBS) != 0) {
 		mov	ARG_1 call findSCB;
 	} else {
-		mov	SCBPTR, RETURN_1;
+		mov	SCBPTR, ARG_1;
 	}
 	if ((ahc->flags & AHC_SCB_BTT) != 0) {
 		jmp setup_SCB_id_lun_okay;
 	} else {
-		jmp	setup_SCB_id_okay;
+		/*
+		 * We only allow one untagged command per-target
+		 * at a time.  So, if the lun doesn't match, look
+		 * for a tag message.
+		 */
+		mov	A, SCB_LUN;
+		cmp	SAVED_LUN, A	je setup_SCB_id_lun_okay;
+		if ((ahc->flags & AHC_PAGESCBS) != 0) {
+			/*
+			 * findSCB removes the SCB from the
+			 * disconnected list, so we must replace
+			 * it there should this SCB be for another
+			 * lun.
+			 */
+			call	cleanup_scb;
+		}
 	}
 
 /*
@@ -1710,10 +1726,14 @@ setup_SCB_id_lun_okay:
 	test	SCB_CONTROL,DISCONNECTED jz not_found_cleanup_scb;
 	and	SCB_CONTROL,~DISCONNECTED;
 	test	SCB_CONTROL, TAG_ENB	jnz setup_SCB_tagged;
-	mov	A, SCBPTR;
+	if ((ahc->flags & AHC_SCB_BTT) != 0) {
+		mov	A, SCBPTR;
+	}
 	mvi	ARG_1, SCB_LIST_NULL;
 	mov	SAVED_SCSIID	call	set_busy_target;
-	mov	SCBPTR, A;
+	if ((ahc->flags & AHC_SCB_BTT) != 0) {
+		mov	SCBPTR, A;
+	}
 setup_SCB_tagged:
 	mvi	SEQ_FLAGS,IDENTIFY_SEEN;	/* make note of IDENTIFY */
 	call	set_transfer_settings;
@@ -1724,7 +1744,7 @@ setup_SCB_tagged:
 
 not_found_cleanup_scb:
 	if ((ahc->flags & AHC_PAGESCBS) != 0) {
-		call	add_scb_to_free_list;
+		call	cleanup_scb;
 	}
 not_found:
 	mvi	NO_MATCH call set_seqint;
@@ -2056,6 +2076,7 @@ dma_scb_hang_wait:
 			test	DFSTATUS, HDONE	jnz dma_scb_hang_dma_done;
 			test	DFSTATUS, HDONE	jnz dma_scb_hang_dma_done;
 			test	DFSTATUS, HDONE	jnz dma_scb_hang_dma_done;
+			test	DFSTATUS, HDONE	jnz dma_scb_hang_dma_done;
 			/*
 			 * The PCI module no longer intends to perform
 			 * a PCI transaction and HDONE has not come true.
@@ -2131,6 +2152,16 @@ dma_finish:
 	test	DFCNTRL, HDMAEN jnz .;
 	ret;
 
+/*
+ * Restore an SCB that failed to match an incoming reselection
+ * to the correct/safe state.  If the SCB is for a disconnected
+ * transaction, it must be returned to the disconnected list.
+ * If it is not in the disconnected state, it must be free.
+ */
+cleanup_scb:
+	if ((ahc->flags & AHC_PAGESCBS) != 0) {
+		test	SCB_CONTROL,DISCONNECTED jnz add_scb_to_disc_list;
+	}
 add_scb_to_free_list:
 	if ((ahc->flags & AHC_PAGESCBS) != 0) {
 BEGIN_CRITICAL
