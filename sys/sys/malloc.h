@@ -86,7 +86,7 @@ MALLOC_DECLARE(M_IP6NDP); /* for INET6 */
  * Deprecated macro versions of not-quite-malloc() and free().
  */
 #define	MALLOC(space, cast, size, type, flags) \
-	(space) = (cast)malloc((u_long)(size), (type), (flags))
+	((space) = (cast)malloc((u_long)(size), (type), (flags)))
 #define	FREE(addr, type) free((addr), (type))
 
 /*
