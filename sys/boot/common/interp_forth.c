@@ -235,15 +235,21 @@ bf_init(void)
     ficlInitSystem(10000);	/* Default dictionary ~4000 cells */
     bf_vm = ficlNewVM();
 
+    /* Put all private definitions in a "builtins" vocabulary */
+    ficlExec(bf_vm, "vocabulary builtins also builtins definitions");
+
     /* Builtin constructor word  */
     ficlExec(bf_vm, BUILTIN_CONSTRUCTOR);
 
     /* make all commands appear as Forth words */
     SET_FOREACH(cmdp, Xcommand_set) {
 	ficlBuild((*cmdp)->c_name, bf_command, FW_DEFAULT);
+	ficlExec(bf_vm, "also forth definitions");
 	sprintf(create_buf, "builtin: %s", (*cmdp)->c_name);
 	ficlExec(bf_vm, create_buf);
+	ficlExec(bf_vm, "previous definitions");
     }
+    ficlExec(bf_vm, "only forth definitions");
 
     /* Export some version numbers so that code can detect the loader/host version */
     ficlSetEnv("FreeBSD_version", __FreeBSD_version);
