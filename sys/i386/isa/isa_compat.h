@@ -38,7 +38,6 @@
 #include "rdp.h"
 #include "sr.h"
 #include "wl.h"
-#include "oltr.h"
 #include "pcm.h"
 #include "pas.h"
 #include "sb.h"
@@ -92,7 +91,6 @@ extern struct isa_driver lncdriver;
 extern struct isa_driver rdpdriver;
 extern struct isa_driver  srdriver;
 extern struct isa_driver  wldriver;
-extern struct isa_driver oltrdriver;
 extern struct isa_driver pasdriver;
 extern struct isa_driver  sbdriver;
 extern struct isa_driver sbxvidriver;
@@ -249,9 +247,6 @@ static struct old_isa_driver old_drivers[] = {
 
 /* MISC */
 
-#if NOLTR > 0
-	{ INTR_TYPE_MISC, &oltrdriver },
-#endif
 #if NPAS > 0
 	{ INTR_TYPE_MISC, &pasdriver },
 #endif
