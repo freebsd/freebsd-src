@@ -30,16 +30,16 @@ CFLAGS+=	-DLOADER_DISK_SUPPORT
 CFLAGS+=	-DLOADER_NET_SUPPORT
 .endif
 
-.if !defined(NOFORTH)
-# Enable BootForth
-BOOT_FORTH=	yes
-CFLAGS+=	-DBOOT_FORTH -I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/powerpc
-.if exists(${.OBJDIR}/../../ficl/libficl.a)
-LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
-.else
-LIBFICL=	${.CURDIR}/../../ficl/libficl.a
-.endif
-.endif
+###.if !defined(NOFORTH)
+#### Enable BootForth
+###BOOT_FORTH=	yes
+###CFLAGS+=	-DBOOT_FORTH -I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/powerpc
+###.if exists(${.OBJDIR}/../../ficl/libficl.a)
+###LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
+###.else
+###LIBFICL=	${.CURDIR}/../../ficl/libficl.a
+###.endif
+###.endif
 
 # Always add MI sources 
 .PATH:		${.CURDIR}/../../common
