@@ -1,4 +1,4 @@
-# @(#)asia	7.57
+# @(#)asia	7.65
 
 # $FreeBSD$
 
@@ -12,7 +12,7 @@
 # Thomas G. Shanks, The International Atlas (5th edition),
 # San Diego: ACS Publications, Inc. (1999).
 #
-# Gwillim Law <Gwil_Law@bridge-point.com> writes that a good source
+# Gwillim Law writes that a good source
 # for recent time zone data is the International Air Transport
 # Association's Standard Schedules Information Manual (IATA SSIM),
 # published semiannually.  Law sent in several helpful summaries
@@ -39,8 +39,11 @@
 #	4:00	GST	Gulf*
 #	5:30	IST	India
 #	7:00	ICT	Indochina*
+#	7:00	WIT	west Indonesia
+#	8:00	CIT	central Indonesia
 #	8:00	CST	China
 #	9:00	CJT	Central Japanese Time (1896/1937)*
+#	9:00	EIT	east Indonesia
 #	9:00	JST	Japan
 #	9:00	KST	Korea
 #	9:30	CST	(Australian) Central Standard Time
@@ -94,7 +97,7 @@ Zone	Asia/Yerevan	2:58:00 -	LMT	1924 May  2
 			3:00	1:00	YERST	1991 Sep 23 # independence
 			3:00 RussiaAsia	AM%sT	1995 Sep 24 2:00s
 			4:00	-	AMT	1997
-			4:00 RussiaAsia	AM%sT			
+			4:00 RussiaAsia	AM%sT
 
 # Azerbaijan
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -118,7 +121,7 @@ Zone	Asia/Bahrain	3:22:20 -	LMT	1920		# Al Manamah
 
 # Bangladesh
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Asia/Dacca	6:01:40 -	LMT	1890
+Zone	Asia/Dhaka	6:01:40 -	LMT	1890
 			5:53:20	-	HMT	1941 Oct    # Howrah Mean Time?
 			6:30	-	BURT	1942 May 15 # Burma Time
 			5:30	-	IST	1942 Sep
@@ -133,9 +136,11 @@ Zone	Asia/Thimphu	5:58:36 -	LMT	1947 Aug 15 # or Thimbu
 			6:00	-	BTT	# Bhutan Time
 
 # British Indian Ocean Territory
-# From Whitman:
+# Whitman and the 1995 CIA time zone map say 5:00, but the
+# 1997 and later maps say 6:00.  Assume the switch occurred in 1996.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Indian/Chagos	5:00	-	IOT	# BIOT Time
+Zone	Indian/Chagos	5:00	-	IOT	1996 # BIOT Time
+			6:00	-	IOT
 
 # Brunei
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -207,7 +212,7 @@ Zone	Asia/Harbin	8:26:44	-	LMT	1928 # or Haerbin
 Zone	Asia/Shanghai	8:05:52	-	LMT	1928
 			8:00	Shang	C%sT	1949
 			8:00	PRC	C%sT
-Zone	Asia/Chungking	7:06:20	-	LMT	1928 # or Chongqing
+Zone	Asia/Chongqing	7:06:20	-	LMT	1928 # or Chungking
 			7:00	-	CHUT	1980 May # Chungking Time
 			8:00	PRC	C%sT
 Zone	Asia/Urumqi	5:50:20	-	LMT	1928 # or Urumchi
@@ -260,7 +265,7 @@ Rule	Taiwan	1974	1975	-	Oct	1	0:00	0	S
 Rule	Taiwan	1980	only	-	Jun	30	0:00	1:00	D
 Rule	Taiwan	1980	only	-	Sep	30	0:00	0	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Asia/Taipei	8:06:00 -	LMT	1896
+Zone	Asia/Taipei	8:06:00 -	LMT	1896 # or Taibei or T'ai-pei
 			8:00	Taiwan	C%sT
 
 # Macao (Macau, Aomen)
@@ -332,12 +337,35 @@ Zone	Asia/Tbilisi	2:59:16 -	LMT	1880
 			4:00 E-EurAsia	GE%sT
 
 # East Timor
+
+# From Joao Carrascalao, brother of the former governor of East Timor, in
+# <a href="http://etan.org/et99c/december/26-31/30ETMAY.htm">
+# East Timor may be late for its millennium
+# </a> (1999-12-26/31):
+# Portugal tried to change the time forward in 1974 because the sun
+# rises too early but the suggestion raised a lot of problems with the
+# Timorese and I still don't think it would work today because it
+# conflicts with their way of life.
+
+# From Paul Eggert (2000-12-04):
+# We don't have any record of the above attempt.
+# Most likely our records are incomplete, but we have no better data.
+
+# <a href="http://www.hri.org/news/world/undh/last/00-08-16.undh.html">
+# From Manoel de Almeida e Silva, Deputy Spokesman for the UN Secretary-General
+# (2000-08-16)</a>:
+# The Cabinet of the East Timor Transition Administration decided
+# today to advance East Timor's time by one hour.  The time change,
+# which will be permanent, with no seasonal adjustment, will happen at
+# midnight on Saturday, September 16.
+
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Dili	8:22:20 -	LMT	1912
-			8:00	-	TPT	1942 Feb 21 23:00
+			8:00	-	TPT	1942 Feb 21 23:00 # E Timor Time
 			9:00	-	JST	1945 Aug
 			9:00	-	TPT	1976 May  3
-			8:00	-	TPT	# East Timor Time
+			8:00	-	CIT	2000 Sep 17 00:00
+			9:00	-	TPT
 
 # India
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -353,27 +381,43 @@ Zone	Asia/Calcutta	5:53:28 -	LMT	1880
 #	Nicobar Is
 
 # Indonesia
+#
+# From Gwillim Law (2001-05-28), overriding Shanks:
+# <http://www.sumatera-inc.com/go_to_invest/about_indonesia.asp#standtime>
+# says that Indonesia's time zones changed on 1988-01-01.  Looking at some
+# time zone maps, I think that must refer to Western Borneo (Kalimantan Barat
+# and Kalimantan Tengah) switching from UTC+8 to UTC+7.
+#
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Asia/Jakarta	7:07:12 -	LMT	1867 Aug 10
 # Shanks says the next transition was at 1924 Jan 1 0:13,
 # but this must be a typo.
 			7:07:12	-	JMT	1923 Dec 31 23:47:12 # Jakarta
 			7:20	-	JAVT	1932 Nov	 # Java Time
-			7:30	-	JAVT	1942 Mar 23
+			7:30	-	WIT	1942 Mar 23
 			9:00	-	JST	1945 Aug
-			7:30	-	JAVT	1948 May
-			8:00	-	JAVT	1950 May
-			7:30	-	JAVT	1964
-			7:00	-	JAVT
+			7:30	-	WIT	1948 May
+			8:00	-	WIT	1950 May
+			7:30	-	WIT	1964
+			7:00	-	WIT
+Zone Asia/Pontianak	7:17:20	-	LMT	1908 May
+			7:17:20	-	PMT	1932 Nov    # Pontianak MT
+			7:30	-	WIT	1942 Jan 29
+			9:00	-	JST	1945 Aug
+			7:30	-	WIT	1948 May
+			8:00	-	WIT	1950 May
+			7:30	-	WIT	1964
+			8:00	-	CIT	1988 Jan  1
+			7:00	-	WIT
 Zone Asia/Ujung_Pandang 7:57:36 -	LMT	1920
 			7:57:36	-	MMT	1932 Nov    # Macassar MT
-			8:00	-	BORT	1942 Feb  9 # Borneo Time
+			8:00	-	CIT	1942 Feb  9
 			9:00	-	JST	1945 Aug
-			8:00	-	BORT
+			8:00	-	CIT
 Zone Asia/Jayapura	9:22:48 -	LMT	1932 Nov
-			9:00	-	JAYT	1944	    # Jayapura Time
+			9:00	-	EIT	1944
 			9:30	-	CST	1964
-			9:00	-	JAYT
+			9:00	-	EIT
 
 # Iran
 # From Paul Eggert (2000-06-12), following up a suggestion by Rich Wales:
@@ -467,7 +511,7 @@ Zone	Asia/Tehran	3:25:44	-	LMT	1916
 #
 # From Jonathan Lennox <lennox@cs.columbia.edu> (2000-06-12):
 # An article in this week's Economist ("Inside the Saddam-free zone", p. 50 in
-# the U.S. edition) on the Iraqi Kurds contains a paragraph: 
+# the U.S. edition) on the Iraqi Kurds contains a paragraph:
 # "The three northern provinces ... switched their clocks this spring and
 # are an hour ahead of Baghdad."
 #
@@ -501,9 +545,25 @@ Zone	Asia/Baghdad	2:57:40	-	LMT	1890
 
 # Israel
 
-# From U. S. Naval Observatory (1989-01-19):
-# ISRAEL              2 H  AHEAD OF UTC
-# ISRAEL              3 H  AHEAD OF UTC  APR 10 - SEP 3
+# From Ephraim Silverberg (2001-01-11):
+#
+# I coined "IST/IDT" circa 1988.  Until then there were three
+# different abbreviations in use:
+#
+# JST  Jerusalem Standard Time [Danny Braniss, Hebrew University]
+# IZT  Israel Zonal (sic) Time [Prof. Haim Papo, Technion]
+# EEST Eastern Europe Standard Time [used by almost everyone else]
+#
+# Since timezones should be called by country and not capital cities,
+# I ruled out JST.  As Israel is in Asia Minor and not Eastern Europe,
+# EEST was equally unacceptable.  Since "zonal" was not compatible with
+# any other timezone abbreviation, I felt that 'IST' was the way to go
+# and, indeed, it has received almost universal acceptance in timezone
+# settings in Israeli computers.
+#
+# In any case, I am happy to share timezone abbreviations with India,
+# high on my favorite-country list (and not only because my wife's
+# family is from India).
 
 # From Shanks:
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -590,7 +650,7 @@ Rule	Zion	1993	only	-	Sep	 5	0:00	0	S
 # Ministry of Interior, Jerusalem, Israel.  The spokeswoman can be reached by
 # calling the office directly at 972-2-6701447 or 972-2-6701448.
 
-# Rule  NAME    FROM    TO      TYPE    IN      ON      AT      SAVE    LETTER/S
+# Rule	NAME    FROM    TO      TYPE    IN      ON      AT      SAVE    LETTER/S
 Rule	Zion	1994	only	-	Apr	 1	0:00	1:00	D
 Rule	Zion	1994	only	-	Aug	28	0:00	0	S
 Rule	Zion	1995	only	-	Mar	31	0:00	1:00	D
@@ -648,7 +708,7 @@ Rule	Zion	2004	only	-	Sep	22	1:00	0	S
 # From Paul Eggert (2000-07-25):
 # Here are guesses for rules after 2004.
 # They are probably wrong, but they are more likely than no DST at all.
-# Rule  NAME    FROM    TO      TYPE    IN      ON      AT      SAVE    LETTER/S
+# Rule	NAME    FROM    TO      TYPE    IN      ON      AT      SAVE    LETTER/S
 Rule	Zion	2005	max	-	Apr	 1	1:00	1:00	D
 Rule	Zion	2005	max	-	Oct	 1	1:00	0	S
 
@@ -724,26 +784,26 @@ Zone	Asia/Tokyo	9:18:59	-	LMT	1887 Dec 31 15:00u
 # government's departments from six to seven hours.
 #
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule    Jordan	1973	only	-	Jun	6	0:00	1:00	S
-Rule    Jordan	1973	1975	-	Oct	1	0:00	0	-
-Rule    Jordan	1974	1977	-	May	1	0:00	1:00	S
-Rule    Jordan	1976	only	-	Nov	1	0:00	0	-
-Rule    Jordan	1977	only	-	Oct	1	0:00	0	-
-Rule    Jordan	1978	only	-	Apr	30	0:00	1:00	S
-Rule    Jordan	1978	only	-	Sep	30	0:00	0	-
-Rule    Jordan	1985	only	-	Apr	1	0:00	1:00	S
-Rule    Jordan	1985	only	-	Oct	1	0:00	0	-
-Rule    Jordan	1986	1988	-	Apr	Fri>=1	0:00	1:00	S
-Rule    Jordan	1986	1990	-	Oct	Fri>=1	0:00	0	-
-Rule    Jordan	1989	only	-	May	8	0:00	1:00	S
-Rule    Jordan	1990	only	-	Apr	27	0:00	1:00	S
-Rule    Jordan	1991	only	-	Apr	17	0:00	1:00	S
-Rule    Jordan	1991	only	-	Sep	27	0:00	0	-
-Rule    Jordan	1992	only	-	Apr	10	0:00	1:00	S
-Rule    Jordan	1992	1993	-	Oct	Fri>=1	0:00	0	-
-Rule    Jordan	1993	1998	-	Apr	Fri>=1	0:00	1:00	S
-Rule    Jordan	1994	only	-	Sep	Fri>=15	0:00	0	-
-Rule    Jordan	1995	1998	-	Sep	Fri>=15	0:00s	0	-
+Rule	Jordan	1973	only	-	Jun	6	0:00	1:00	S
+Rule	Jordan	1973	1975	-	Oct	1	0:00	0	-
+Rule	Jordan	1974	1977	-	May	1	0:00	1:00	S
+Rule	Jordan	1976	only	-	Nov	1	0:00	0	-
+Rule	Jordan	1977	only	-	Oct	1	0:00	0	-
+Rule	Jordan	1978	only	-	Apr	30	0:00	1:00	S
+Rule	Jordan	1978	only	-	Sep	30	0:00	0	-
+Rule	Jordan	1985	only	-	Apr	1	0:00	1:00	S
+Rule	Jordan	1985	only	-	Oct	1	0:00	0	-
+Rule	Jordan	1986	1988	-	Apr	Fri>=1	0:00	1:00	S
+Rule	Jordan	1986	1990	-	Oct	Fri>=1	0:00	0	-
+Rule	Jordan	1989	only	-	May	8	0:00	1:00	S
+Rule	Jordan	1990	only	-	Apr	27	0:00	1:00	S
+Rule	Jordan	1991	only	-	Apr	17	0:00	1:00	S
+Rule	Jordan	1991	only	-	Sep	27	0:00	0	-
+Rule	Jordan	1992	only	-	Apr	10	0:00	1:00	S
+Rule	Jordan	1992	1993	-	Oct	Fri>=1	0:00	0	-
+Rule	Jordan	1993	1998	-	Apr	Fri>=1	0:00	1:00	S
+Rule	Jordan	1994	only	-	Sep	Fri>=15	0:00	0	-
+Rule	Jordan	1995	1998	-	Sep	Fri>=15	0:00s	0	-
 Rule	Jordan	1999	only	-	Jul	 1	0:00s	1:00	S
 Rule	Jordan	1999	max	-	Sep	lastThu	0:00s	0	-
 Rule	Jordan	2000	max	-	Mar	lastThu	0:00s	1:00	S
@@ -874,9 +934,11 @@ Zone	Asia/Beirut	2:22:00 -	LMT	1880
 
 # Malaysia
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	NBorneo	1935	1941	-	Sep	14	0:00	0:20	TS
+Rule	NBorneo	1935	1941	-	Sep	14	0:00	0:20	TS # one-Third Summer
 Rule	NBorneo	1935	1941	-	Dec	14	0:00	0	-
+#
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# peninsular Malaysia
 Zone Asia/Kuala_Lumpur	6:46:48 -	LMT	1880
 			6:55:24	-	SMT	1905 Jun # Singapore Mean Time
 			7:00	-	MALT	1933	 # Malaya Time
@@ -885,6 +947,7 @@ Zone Asia/Kuala_Lumpur	6:46:48 -	LMT	1880
 			7:20	-	MALT	1950
 			7:30	-	MALT	1982 May
 			8:00	-	MYT	# Malaysia Time
+# Sabah & Sarawak
 Zone Asia/Kuching	7:21:20	-	LMT	1926 Mar
 			7:30	-	BORT	1933	# Borneo Time
 			8:00	NBorneo	BOR%sT	1942
@@ -923,38 +986,51 @@ Zone	Indian/Maldives	4:54:00 -	LMT	1880	# Male
 # Suhbaatar, and possibly Khentij.
 
 # From Paul Eggert (1999-12-15):
-# For now, we'll comment out the east zone (Choybalsan)
-# and use Shanks's and the IATA's data for the daylight-saving rules.
 # Naming and spelling is tricky in Mongolia.
 # We'll use Hovd (also spelled Chovd and Khovd) to represent the west zone;
 # the capital of the Hovd province is sometimes called Hovd, sometimes Dund-Us,
 # and sometimes Jirgalanta (with variant spellings), but the name Hovd
 # is good enough for our purposes.
 
+# From Rives McDow (2001-05-13):
+# In addition to Mongolia starting daylight savings as reported earlier
+# (adopted DST on 2001-04-27 02:00 local time, ending 2001-09-28),
+# there are three time zones.
+#
+# Provinces [at 7:00]: Bayan-ulgii, Uvs, Khovd, Zavkhan, Govi-Altai
+# Provinces [at 8:00]: Khovsgol, Bulgan, Arkhangai, Khentii, Tov,
+#	Bayankhongor, Ovorkhangai, Dundgovi, Dornogovi, Omnogovi
+# Provinces [at 9:00]: Dornod, Sukhbaatar
+#
+# [The province of Selenge is omitted from the above lists.]
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Mongol	1981	1984	-	Apr	1	0:00	1:00	S
-Rule	Mongol	1981	1984	-	Oct	1	0:00	0	-
-Rule	Mongol	1985	1990	-	Mar	lastSun	2:00	1:00	S
-Rule	Mongol	1985	1990	-	Sep	lastSun	3:00	0	-
-Rule	Mongol	1991	1998	-	Mar	lastSun	0:00	1:00	S
-Rule	Mongol	1991	1995	-	Sep	lastSun	0:00	0	-
-# IATA SSIM (1996-09) says 1996-10-25; go with Shanks.
-Rule	Mongol	1996	only	-	Oct	lastSun	0:00	0	-
-Rule	Mongol	1997	1998	-	Sep	lastSun	0:00	0	-
+Rule	Mongol	1983	1984	-	Apr	1	0:00	1:00	S
+Rule	Mongol	1983	only	-	Oct	1	0:00	0	-
+# IATA SSIM says 1990s switches occurred at 00:00, but Shanks (1995) lists
+# them at 02:00s, and McDow says the 2001 switches also occurred at 02:00.
+# Also, IATA SSIM (1996-09) says 1996-10-25.  Go with Shanks through 1998.
+Rule	Mongol	1985	1998	-	Mar	lastSun	2:00s	1:00	S
+Rule	Mongol	1984	1998	-	Sep	lastSun	2:00s	0	-
 # IATA SSIM (1999-09) says Mongolia no longer observes DST.
+Rule	Mongol	2001	only	-	Apr	27	2:00s	1:00	S
+Rule	Mongol	2001	only	-	Sep	28	2:00s	0	-
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Hovd, a.k.a. Chovd, Dund-Us, Dzhargalant, Khovd, Jirgalanta
 Zone	Asia/Hovd	6:06:36 -	LMT	1905 Aug
 			6:00	-	HOVT	1978	# Hovd Time
 			7:00	Mongol	HOV%sT
+# Ulaanbaatar, a.k.a. Ulan Bataar, Ulan Bator, Urga
 Zone	Asia/Ulaanbaatar 7:07:32 -	LMT	1905 Aug
 			7:00	-	ULAT	1978	# Ulaanbaatar Time
 			8:00	Mongol	ULA%sT
-# We're not sure about this entry yet, so we'll omit it for now.
-#Zone Asia/Choybalsan	7:38:00 -	LMT	1905 Aug
-#			8:00	-	CHOT	1978	# Choybalsan Time
-#			9:00	Mongol	CHO%sT	19??
-#			8:00	Mongol	ULA%sT
+# Choibalsan, a.k.a. Bajan Tuemen, Bajan Tumen, Chojbalsan,
+# Choybalsan, Sanbejse, Tchoibalsan
+Zone	Asia/Choibalsan	7:38:00 -	LMT	1905 Aug
+			7:00	-	ULAT	1978
+			8:00	-	ULAT	1983 Apr
+			9:00	Mongol	CHO%sT	# Choibalsan Time
 
 # Nepal
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -1074,7 +1150,10 @@ Zone	Asia/Gaza	2:17:52	-	LMT	1900 Oct
 # no information
 
 # Philippines
-# Howse writes (p 153) that until 1844 the Philippines kept American date.
+# On 1844-08-16, Narciso Claveria, governor-general of the
+# Philippines, issued a proclamation announcing that 1844-12-30 was to
+# be immediately followed by 1845-01-01.  Robert H. van Gent has a
+# transcript of the decree in <http://www.phys.uu.nl/~vgent/idl/idl.htm>.
 # The rest of this data is from Shanks.
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Phil	1936	only	-	Nov	1	0:00	1:00	S
@@ -1084,7 +1163,7 @@ Rule	Phil	1954	only	-	Jul	1	0:00	0	-
 Rule	Phil	1978	only	-	Mar	22	0:00	1:00	S
 Rule	Phil	1978	only	-	Sep	21	0:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Asia/Manila	-15:56:00 -	LMT	1844
+Zone	Asia/Manila	-15:56:00 -	LMT	1844 Dec 31
 			8:04:00 -	LMT	1899 May 11
 			8:00	Phil	PH%sT	1942 May
 			9:00	-	JST	1944 Nov

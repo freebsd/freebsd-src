@@ -1,4 +1,4 @@
-# @(#)backward	7.18
+# @(#)backward	7.21
 
 # $FreeBSD$
 
@@ -9,8 +9,11 @@ Link	America/Adak		America/Atka
 Link	America/Tijuana		America/Ensenada
 Link	America/Indianapolis	America/Fort_Wayne
 Link	America/Indiana/Knox	America/Knox_IN
+Link	America/Rio_Branco	America/Porto_Acre
 Link	America/St_Thomas	America/Virgin
 Link	Asia/Ashgabat		Asia/Ashkhabad
+Link	Asia/Chongqing		Asia/Chungking
+Link	Asia/Dhaka		Asia/Dacca
 Link	Asia/Jerusalem		Asia/Tel_Aviv
 Link	Asia/Thimphu		Asia/Thimbu
 Link	Asia/Ulaanbaatar	Asia/Ulan_Bator
@@ -43,6 +46,7 @@ Link	Pacific/Easter		Chile/EasterIsland
 Link	America/Havana		Cuba
 Link	Africa/Cairo		Egypt
 Link	Europe/Dublin		Eire
+Link	Europe/Chisinau		Europe/Tiraspol
 Link	Europe/London		GB
 Link	Europe/London		GB-Eire
 Link	Etc/GMT+0		GMT+0
@@ -64,9 +68,9 @@ Link	America/Denver		Navajo
 Link	Pacific/Auckland	NZ
 Link	Pacific/Chatham		NZ-CHAT
 Link	Pacific/Pago_Pago	Pacific/Samoa
-Link	Asia/Shanghai		PRC
 Link	Europe/Warsaw		Poland
 Link	Europe/Lisbon		Portugal
+Link	Asia/Shanghai		PRC
 Link	Asia/Taipei		ROC
 Link	Asia/Seoul		ROK
 Link	Asia/Singapore		Singapore
