@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)stat.2	8.4 (Berkeley) 5/1/95
-.\"	$Id: stat.2,v 1.13 1998/01/02 19:22:49 alex Exp $
+.\"	$Id: stat.2,v 1.14 1998/10/21 09:48:35 dima Exp $
 .\"
 .Dd May 1, 1995
 .Dt STAT 2
@@ -68,14 +68,6 @@ returns information about the link,
 while
 .Fn stat
 returns information about the file the link references.
-Unlike other filesystem objects,
-symbolic links do not have an owner, group, access mode, times, etc.
-Instead, these attributes are taken from the directory that
-contains the link.
-The only attributes returned from an
-.Fn lstat
-that refer to the symbolic link itself are the file type (S_IFLNK),
-size, blocks, and link count (always 1).
 .Pp
 The
 .Fn fstat
