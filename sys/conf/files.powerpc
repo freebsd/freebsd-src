@@ -58,6 +58,7 @@ powerpc/powerpc/syncicache.c	standard
 powerpc/powerpc/sys_machdep.c	standard
 powerpc/powerpc/swtch.S		standard
 powerpc/powerpc/trap.c		standard
+powerpc/powerpc/uio_machdep.c	standard
 powerpc/powerpc/uma_machdep.c	standard
 powerpc/powerpc/vm_machdep.c	standard
 
