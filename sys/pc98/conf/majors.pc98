@@ -1,4 +1,4 @@
-$Id: majors.pc98,v 1.54 1999/05/09 04:28:23 kato Exp $
+$Id: majors.pc98,v 1.55 1999/05/10 09:02:23 kato Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -174,5 +174,6 @@ chrdev	name		comments
 122	uhid		USB HID devices <hibma@skylink.it>
 123	fb		frame buffer
 124	ucdc		USB Communication Class Driver <hibma@skylink.it>
+125     digio           Advantech PCI-1750 IO card jen@vulture.dmem.strath.ac.uk
 200	??		entries from 200-255 are reserved for local use
 255	??		entries from 200-255 are reserved for local use
