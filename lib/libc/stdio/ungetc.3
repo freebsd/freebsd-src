@@ -73,6 +73,11 @@ an effectively infinite amount of pushback is allowed.
 .Pp
 If a character is successfully pushed-back,
 the end-of-file indicator for the stream is cleared.
+The file-position indicator is decremented
+by each successful call to
+.Fn ungetc ;
+if its value was 0 before a call, its value is unspecified after
+the call.
 .Sh RETURN VALUES
 The
 .Fn ungetc
