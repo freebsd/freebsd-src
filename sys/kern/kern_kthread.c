@@ -119,11 +119,12 @@ kthread_create(void (*func)(void *), void *arg,
 void
 kthread_exit(int ecode)
 {
+	struct proc *p = curproc;
 
 	sx_xlock(&proctree_lock);
-	PROC_LOCK(curproc);
-	proc_reparent(curproc, initproc);
-	PROC_UNLOCK(curproc);
+	PROC_LOCK(p);
+	proc_reparent(p, initproc);
+	PROC_UNLOCK(p);
 	sx_xunlock(&proctree_lock);
 	exit1(curthread, W_EXITCODE(ecode, 0));
 }
