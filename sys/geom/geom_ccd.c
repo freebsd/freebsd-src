@@ -85,6 +85,9 @@
  *	Moffett Field, CA 94035
  */
 
+#include "ccd.h"
+#if NCCD > 0
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
@@ -96,29 +99,34 @@
 #include <sys/conf.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
-#include <sys/disklabel.h>
+#include <sys/disklabel.h> 
+#include <ufs/ffs/fs.h> 
+#include <sys/devconf.h> 
 #include <sys/device.h>
-#include <sys/disk.h>
+#include <sys/disk.h> 
 #include <sys/syslog.h>
 #include <sys/fcntl.h>
 #include <sys/vnode.h>
+#include <sys/dkbad.h>
 
-#include <dev/ccdvar.h>
+#include <sys/ccdvar.h>
 
 #if defined(CCDDEBUG) && !defined(DEBUG)
 #define DEBUG
 #endif
 
 #ifdef DEBUG
-int ccddebug = 0x00;
 #define CCDB_FOLLOW	0x01
 #define CCDB_INIT	0x02
 #define CCDB_IO		0x04
 #define CCDB_LABEL	0x08
 #define CCDB_VNODE	0x10
+int ccddebug = CCDB_FOLLOW | CCDB_INIT | CCDB_IO | CCDB_LABEL | CCDB_VNODE;
+#undef DEBUG
 #endif
 
-#define	ccdunit(x)	DISKUNIT(x)
+#define	ccdunit(x)	dkunit(x)
+#define ccdpart(x)	dkpart(x)
 
 struct ccdbuf {
 	struct buf	cb_buf;		/* new I/O buf */
@@ -133,18 +141,20 @@ struct ccdbuf {
 	free((caddr_t)(cbp), M_DEVBUF)
 
 #define CCDLABELDEV(dev)	\
-	(MAKEDISKDEV(major((dev)), ccdunit((dev)), RAW_PART))
+	(makedev(major((dev)), dkmakeminor(ccdunit((dev)), 0, RAW_PART)))
 
 /* {b,c}devsw[] function prototypes */
-dev_type_open(ccdopen);
-dev_type_close(ccdclose);
-dev_type_strategy(ccdstrategy);
-dev_type_ioctl(ccdioctl);
-dev_type_read(ccdread);
-dev_type_write(ccdwrite);
+d_open_t ccdopen ;
+d_close_t ccdclose ;
+d_strategy_t ccdstrategy ;
+d_ioctl_t ccdioctl ;
+d_read_t ccdread ;
+d_write_t ccdwrite ;
+
 
 /* called by main() at boot time */
-void	ccdattach __P((int));
+int	ccdattach __P((struct isa_device *dp));
+int	ccdprobe __P((struct isa_device *dp));
 
 /* called by biodone() at interrupt time */
 void	ccdiodone __P((struct ccdbuf *cbp));
@@ -161,6 +171,8 @@ static	void ccdmakedisklabel __P((struct ccd_softc *));
 static	int ccdlock __P((struct ccd_softc *));
 static	void ccdunlock __P((struct ccd_softc *));
 
+static	void loopdelay __P((void));
+
 #ifdef DEBUG
 static	void printiinfo __P((struct ccdiinfo *));
 #endif
@@ -170,23 +182,57 @@ struct	ccd_softc *ccd_softc;
 struct	ccddevice *ccddevs;
 int	numccd = 0;
 
+static struct kern_devconf kdc_ccd[NCCD] = { {
+        0, 0, 0,                /* filled in by dev_attach */
+        "ccd", 0, { MDDT_DISK, 0, "tty" },
+        0, 0, 0, DISK_EXTERNALLEN,
+        0,                      /* parent */
+        0,                      /* parentdata */
+        DC_UNKNOWN,             /* not supported */
+        "Concatenated disk driver"
+} };
+
+struct isa_driver ccddriver = {
+        ccdprobe, ccdattach, "ccd",
+};
+
+int
+ccdprobe(dp)
+	struct isa_device *dp;
+{
+	return -1;
+}
+
 /*
  * Called by main() during pseudo-device attachment.  All we need
  * to do is allocate enough space for devices to be configured later.
  */
-void
-ccdattach(num)
-	int num;
+int
+ccdattach(dp)
+	struct isa_device *dp;
 {
 	int i;
+	int num = dp->id_unit;
 
-	if (num <= 0) {
+	if (num < 0) {
 #ifdef DIAGNOSTIC
 		panic("ccdattach: count <= 0");
 #endif
-		return;
+		return 0;
 	}
 
+	if (num == NCCD-1) {
+		if (num)
+			printf("ccd0-%d: Concatenated disk drivers\n", num);
+		else
+			printf("ccd0: Concatenated disk driver\n", num);
+	}
+
+	if (num > 0) {
+		/* only do initialization first time around */
+		return 0;
+	}
+	num = NCCD;
 	ccd_softc = (struct ccd_softc *)malloc(num * sizeof(struct ccd_softc),
 	    M_DEVBUF, M_NOWAIT);
 	ccddevs = (struct ccddevice *)malloc(num * sizeof(struct ccddevice),
@@ -197,7 +243,7 @@ ccdattach(num)
 			free(ccd_softc, M_DEVBUF);
 		if (ccddevs != NULL)
 			free(ccddevs, M_DEVBUF);
-		return;
+		return 0;
 	}
 	numccd = num;
 	bzero(ccd_softc, num * sizeof(struct ccd_softc));
@@ -206,6 +252,9 @@ ccdattach(num)
 	/* XXX: is this necessary? */
 	for (i = 0; i < numccd; ++i)
 		ccddevs[i].ccd_dk = -1;
+
+	dev_attach(&kdc_ccd[dp->id_unit]);
+	return 1;
 }
 
 static int
@@ -525,7 +574,7 @@ ccdopen(dev, flags, fmt, p)
 
 	lp = &cs->sc_dkdev.dk_label;
 
-	part = DISKPART(dev);
+	part = ccdpart(dev);
 	pmask = (1 << part);
 
 	/*
@@ -584,7 +633,7 @@ ccdclose(dev, flags, fmt, p)
 	if (error = ccdlock(cs))
 		return (error);
 
-	part = DISKPART(dev);
+	part = ccdpart(dev);
 
 	/* ...that much closer to allowing unconfiguration... */
 	switch (fmt) {
@@ -635,7 +684,7 @@ ccdstrategy(bp)
 	 * error, the bounds check will flag that for us.
 	 */
 	wlabel = cs->sc_flags & (CCDF_WLABEL|CCDF_LABELLING);
-	if (DISKPART(bp->b_dev) != RAW_PART)
+	if (ccdpart(bp->b_dev) != RAW_PART)
 		if (bounds_check_with_label(bp, lp, wlabel) <= 0)
 			goto done;
 
@@ -684,8 +733,8 @@ ccdstart(cs, bp)
 	 * Translate the partition-relative block number to an absolute.
 	 */
 	bn = bp->b_blkno;
-	if (DISKPART(bp->b_dev) != RAW_PART) {
-		pp = &cs->sc_dkdev.dk_label.d_partitions[DISKPART(bp->b_dev)];
+	if (ccdpart(bp->b_dev) != RAW_PART) {
+		pp = &cs->sc_dkdev.dk_label.d_partitions[ccdpart(bp->b_dev)];
 		bn += pp->p_offset;
 	}
 
@@ -935,10 +984,22 @@ ccdwrite(dev, uio, flags)
 	return (physio(ccdstrategy, NULL, dev, B_WRITE, minphys, uio));
 }
 
+static void
+loopdelay()
+{
+	int i, j, k, l;
+	printf("I'm now gonna wait for fifteen seconds\n");
+	printf("Press Ctl-Alt-Esc NOW!\n");
+	for (i = 0; i < 1000; i++)
+		for (j = 0; j < 1000; j++)
+			for (k = 0; k < 100; k++)
+				l = i * j * k;
+}
+
 int
 ccdioctl(dev, cmd, data, flag, p)
 	dev_t dev;
-	u_long cmd;
+	int cmd;
 	caddr_t data;
 	int flag;
 	struct proc *p;
@@ -1081,7 +1142,7 @@ ccdioctl(dev, cmd, data, flag, p)
 		 * or if both the character and block flavors of this
 		 * partition are open.
 		 */
-		part = DISKPART(dev);
+		part = ccdpart(dev);
 		pmask = (1 << part);
 		if ((cs->sc_dkdev.dk_openmask & ~pmask) ||
 		    ((cs->sc_dkdev.dk_bopenmask & pmask) &&
@@ -1149,7 +1210,7 @@ ccdioctl(dev, cmd, data, flag, p)
 
 		((struct partinfo *)data)->disklab = &cs->sc_dkdev.dk_label;
 		((struct partinfo *)data)->part =
-		    &cs->sc_dkdev.dk_label.d_partitions[DISKPART(dev)];
+		    &cs->sc_dkdev.dk_label.d_partitions[ccdpart(dev)];
 		break;
 
 	case DIOCWDINFO:
@@ -1166,12 +1227,14 @@ ccdioctl(dev, cmd, data, flag, p)
 		cs->sc_flags |= CCDF_LABELLING;
 
 		error = setdisklabel(&cs->sc_dkdev.dk_label,
-		    (struct disklabel *)data, 0, &cs->sc_dkdev.dk_cpulabel);
+		    (struct disklabel *)data, 0);
+				/*, &cs->sc_dkdev.dk_cpulabel); */
 		if (error == 0) {
 			if (cmd == DIOCWDINFO)
-				error = writedisklabel(CCDLABELDEV(dev),
-				    ccdstrategy, &cs->sc_dkdev.dk_label,
-				    &cs->sc_dkdev.dk_cpulabel);
+				error = correct_writedisklabel(CCDLABELDEV(dev),
+				    ccdstrategy, &cs->sc_dkdev.dk_label);
+				/*
+				    &cs->sc_dkdev.dk_cpulabel); */
 		}
 
 		cs->sc_flags &= ~CCDF_LABELLING;
@@ -1212,7 +1275,7 @@ ccdsize(dev)
 		return (-1);
 
 	cs = &ccd_softc[ccdunit(dev)];
-	part = DISKPART(dev);
+	part = ccdpart(dev);
 
 	if ((cs->sc_flags & CCDF_INITED) == 0)
 		return (-1);
@@ -1311,11 +1374,14 @@ ccdgetdisklabel(dev)
 	struct ccd_softc *cs = &ccd_softc[unit];
 	char *errstring;
 	struct disklabel *lp = &cs->sc_dkdev.dk_label;
-	struct cpu_disklabel *clp = &cs->sc_dkdev.dk_cpulabel;
+/*	struct cpu_disklabel *clp = &cs->sc_dkdev.dk_cpulabel; */
 	struct ccdgeom *ccg = &cs->sc_geom;
 
+	struct dos_partition dos_partdummy;
+	struct dkbad dkbaddummy;
+
 	bzero(lp, sizeof(*lp));
-	bzero(clp, sizeof(*clp));
+/*	bzero(clp, sizeof(*clp)); */
 
 	lp->d_secperunit = cs->sc_size;
 	lp->d_secsize = ccg->ccg_secsize;
@@ -1336,6 +1402,9 @@ ccdgetdisklabel(dev)
 	lp->d_partitions[RAW_PART].p_fstype = FS_UNUSED;
 	lp->d_npartitions = RAW_PART + 1;
 
+	lp->d_bbsize = BBSIZE;				/* XXX */
+	lp->d_sbsize = SBSIZE;				/* XXX */
+
 	lp->d_magic = DISKMAGIC;
 	lp->d_magic2 = DISKMAGIC;
 	lp->d_checksum = dkcksum(&cs->sc_dkdev.dk_label);
@@ -1343,8 +1412,9 @@ ccdgetdisklabel(dev)
 	/*
 	 * Call the generic disklabel extraction routine.
 	 */
-	if (errstring = readdisklabel(CCDLABELDEV(dev), ccdstrategy,
-	    &cs->sc_dkdev.dk_label, &cs->sc_dkdev.dk_cpulabel))
+	if (errstring = correct_readdisklabel(CCDLABELDEV(dev), ccdstrategy,
+	    &cs->sc_dkdev.dk_label/*, &dos_partdummy, &dkbaddummy*/)) 
+		/*, &cs->sc_dkdev.dk_cpulabel)) */
 		ccdmakedisklabel(cs);
 
 #ifdef DEBUG
@@ -1426,3 +1496,10 @@ printiinfo(ii)
 	}
 }
 #endif
+
+#endif /* NCCD > 0 */
+
+/* Local Variables: */
+/* c-argdecl-indent: 8 */
+/* c-indent-level: 8 */
+/* End: */
