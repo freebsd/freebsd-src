@@ -1013,6 +1013,9 @@ zone_ctor(void *mem, int size, void *udata)
 	if (arg->flags & UMA_ZONE_NOFREE)
 		zone->uz_flags |= UMA_ZFLAG_NOFREE;
 
+	if (arg->flags & UMA_ZONE_VM)
+		zone->uz_flags |= UMA_ZFLAG_BUCKETCACHE;
+
 	if (zone->uz_size > UMA_SLAB_SIZE)
 		zone_large_init(zone);
 	else
@@ -1417,9 +1420,16 @@ zalloc_start:
 	/* Now we no longer need the zone lock. */
 	ZONE_UNLOCK(zone);
 
-	if (bucket == NULL)
+	if (bucket == NULL) {
+		int bflags;
+
+		bflags = flags;
+		if (zone->uz_flags & UMA_ZFLAG_BUCKETCACHE)
+			bflags |= M_NOVM;
+
 		bucket = uma_zalloc_internal(bucketzone,
-		    NULL, flags, NULL);
+		    NULL, bflags, NULL);
+	}
 
 	if (bucket != NULL) {
 #ifdef INVARIANTS
@@ -1524,7 +1534,8 @@ new_slab:
 		 * and cause the vm to allocate vm_map_entries.  If we need new
 		 * buckets there too we will recurse in kmem_alloc and bad 
 		 * things happen.  So instead we return a NULL bucket, and make
-		 * the code that allocates buckets smart enough to deal with it			 */ 
+		 * the code that allocates buckets smart enough to deal with it
+		 */ 
 		if (zone == bucketzone && zone->uz_recurse != 0) {
 			ZONE_UNLOCK(zone);
 			return (NULL);
@@ -1540,6 +1551,9 @@ new_slab:
 
 			goto new_slab;
 		}
+
+		if (flags & M_NOVM)
+			goto alloc_fail;
 
 		zone->uz_recurse++;
 		slab = slab_zalloc(zone, flags);
