@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:03  rpd
- *	$Id: boot.h,v 1.6 1995/01/25 21:37:39 bde Exp $
+ *	$Id: boot.h,v 1.7 1995/04/14 21:26:49 joerg Exp $
  */
 
 #include <sys/types.h>
@@ -40,67 +40,63 @@ extern struct inode inode;
 extern int dosdev, unit, slice, part, maj, boff, poff, bnum, cnt;
 extern unsigned long tw_chars;
 extern int loadflags;
-extern int end;
 extern struct disklabel disklabel;
 
 /* asm.S */
 #if ASM_ONLY
-extern void real_to_prot(void);
-extern void prot_to_real(void);
+void real_to_prot(void);
+void prot_to_real(void);
 #endif
-extern void startprog(unsigned int physaddr, int howto, int bootdev,
-		      /* struct bootinfo * */ unsigned int bootinfo);
-extern void pbzero(unsigned char *dst, unsigned int count);
-extern void pcpy(const unsigned char *src, unsigned char *dst,
-		 unsigned int count);
+void startprog(unsigned int physaddr, int howto, int bootdev,
+	       /* XXX struct bootinfo * */ unsigned int bootinfo);
+void pbzero(void *dst, size_t count);
+void pcpy(const void *src, void *dst, size_t count);
 
 /* bios.S */
-extern int biosread(unsigned char dev, unsigned short cyl, unsigned char head,
-		    unsigned char sec, unsigned char nsec,
-		    unsigned char *offset);
-extern void putc(char c);
-extern int getc(void);
-extern int ischar(void);
-extern int get_diskinfo(int drive);
-extern int memsize(int extended);
+int biosread(int dev, int cyl, int head, int sec, int nsec, void *offset);
+void putc(int c);
+int getc(void);
+int ischar(void);
+int get_diskinfo(int drive);
+int memsize(int extended);
 
 /* boot.c */
-extern void boot(int drive);
-extern void loadprog(int howto);
-extern void getbootdev(int *howto);
+void boot(int drive);
+void loadprog(int howto);
+void getbootdev(int *howto);
 
 /* boot2.S */
-extern void boot2(void);
+void boot2(void);
 
 /* disk.c */
-extern int devopen(void);
-extern void devread(void);
-extern void Bread(int dosdev, int sector);
-extern int badsect(int dosdev, int sector);
+int devopen(void);
+void devread(void);
+void Bread(int dosdev, int sector);
+int badsect(int dosdev, int sector);
 
 /* io.c */
-extern void gateA20(void);
-extern printf(const char *format, ...);
-extern void putchar(int c);
-extern int getchar(int in_buf);
-extern void delay1ms(void);
-extern int gets(char *buf);
-extern int strcmp(const char *s1, const char *s2);
-extern void bcopy(const char *from, char *to, int len);
-extern void twiddle(void);
+void gateA20(void);
+int printf(const char *format, ...);
+void putchar(int c);
+int getchar(int in_buf);
+void delay1ms(void);
+int gets(char *buf);
+int strcmp(const char *s1, const char *s2);
+void bcopy(const char *from, char *to, int len);
+void twiddle(void);
 
 /* probe_keyboard.c */
-extern int probe_keyboard(void);
+int probe_keyboard(void);
 
 /* serial.S */
-extern void serial_putc(char ch);
-extern int serial_getc(void);
-extern int serial_ischar(void);
-extern void init_serial(void);
+void serial_putc(int ch);
+int serial_getc(void);
+int serial_ischar(void);
+void init_serial(void);
 
 /* sys.c */
-extern int xread(char *addr, int size);
-extern void read(char *buffer, int count);
-extern int find(char *path);
-extern int block_map(int file_block);
-extern int openrd(void);
+int xread(char *addr, int size);
+void read(char *buffer, int count);
+int find(char *path);
+int block_map(int file_block);
+int openrd(void);
