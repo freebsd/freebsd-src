@@ -4,7 +4,7 @@
  * <Copyright.MIT>.
  *
  *	from: send_to_kdc.c,v 4.20 90/01/02 13:40:37 jtkohl Exp $
- *	$Id: send_to_kdc.c,v 1.3 1995/07/18 16:39:42 mark Exp $
+ *	$Id: send_to_kdc.c,v 1.5 1995/08/25 22:52:05 markm Exp $
  */
 
 #if 0
@@ -60,6 +60,7 @@ static int send_recv(KTEXT pkt, KTEXT rpkt, int f, struct sockaddr_in *_to,
     struct sockaddr_in from;
     int sin_size;
     int numsent;
+    int addr_count;
 
     if (krb_debug) {
         if (_to->sin_family == AF_INET)
@@ -106,23 +107,43 @@ static int send_recv(KTEXT pkt, KTEXT rpkt, int f, struct sockaddr_in *_to,
         printf("received packet from %s\n", inet_ntoa(from.sin_addr));
         fflush(stdout);
     }
+/* At least Sun OS version 3.2 (or worse) and Ultrix version 2.2
+   (or worse) only return one address ... */
+#if (defined(ULTRIX022) || (defined(SunOS) && SunOS < 40))
     for (hp = addrs; hp->h_name != (char *)NULL; hp++) {
-        if (!bcmp(hp->h_addr, (char *)&from.sin_addr.s_addr,
-                  hp->h_length)) {
-            if (krb_debug) {
-                printf("Received it\n");
-                (void) fflush(stdout);
-            }
-            return 1;
-        }
-        if (krb_debug)
-            fprintf(stderr,
-                    "packet not from %lx\n",
-                    (unsigned long)hp->h_addr);
+	if (!bcmp(hp->h_addr, (char *)&from.sin_addr.s_addr,
+		  hp->h_length)) {
+	    if (krb_debug) {
+		printf("Received it\n");
+		(void) fflush(stdout);
+	    }
+	    return 1;
+	}
+	if (krb_debug)
+	    fprintf(stderr, "packet not from %s\n",
+		    inet_ntoa(*(struct in_addr *)hp->h_addr));
+	}
     }
+#else /* !(ULTRIX022 || (SunOS < 40)) */
+    for (hp = addrs; hp->h_name != (char *)NULL; hp++) {
+	for (addr_count = 0; hp->h_addr_list[addr_count]; addr_count++) {
+	    if (!bcmp(hp->h_addr_list[addr_count],
+		(char *)&from.sin_addr.s_addr, hp->h_length)) {
+		if (krb_debug) {
+		    printf("Received it\n");
+		    (void) fflush(stdout);
+		}
+		return 1;
+	    }
+	    if (krb_debug)
+		fprintf(stderr, "packet not from %s\n",
+		     inet_ntoa(*(struct in_addr *)hp->h_addr_list[addr_count]));
+	}
+    }
+#endif /* !(ULTRIX022 || (SunOS < 40)) */
     if (krb_debug)
-        fprintf(stderr, "%s: received packet from wrong host! (%lx)\n",
-                "send_to_kdc(send_rcv)", (unsigned long)from.sin_addr.s_addr);
+        fprintf(stderr, "%s: received packet from wrong host! (%s)\n",
+                "send_to_kdc(send_rcv)", inet_ntoa(from.sin_addr));
     return 0;
 }
 
@@ -160,9 +181,9 @@ int send_to_kdc(KTEXT pkt, KTEXT rpkt, char *realm)
     int retry;
     int n_hosts;
     int retval;
+    int addr_count;
     struct sockaddr_in to;
     struct hostent *host, *hostlist;
-    char *cp;
     char krbhst[MAX_HSTNM];
     char lrealm[REALM_SZ];
 
@@ -221,35 +242,70 @@ int send_to_kdc(KTEXT pkt, KTEXT rpkt, char *realm)
             continue;
         no_host = 0;    /* found at least one */
         n_hosts++;
-        /* preserve host network address to check later
-         * (would be better to preserve *all* addresses,
-         * take care of that later)
-         */
+	/*
+	 * Preserve host network addresses to check against later
+	 */
         hostlist = (struct hostent *)
             realloc((char *)hostlist,
                     (unsigned)
                     sizeof(struct hostent)*(n_hosts+1));
-        if (!hostlist)
-            return /*errno */SKDC_CANT;
-        bcopy((char *)host, (char *)&hostlist[n_hosts-1],
-              sizeof(struct hostent));
-        host = &hostlist[n_hosts-1];
-        cp = malloc((unsigned)host->h_length);
-        if (!cp) {
-            retval = /*errno */SKDC_CANT;
-            goto rtn;
-        }
-        bcopy((char *)host->h_addr, cp, host->h_length);
+	if (!hostlist) {
+	    fprintf(stderr, "Could not grow hostlist\n");
+	    return /*errno */SKDC_CANT;
+	}
+	bcopy((char *)host, (char *)&hostlist[n_hosts-1],
+	      sizeof(struct hostent));
+	host = &hostlist[n_hosts-1];
 /* At least Sun OS version 3.2 (or worse) and Ultrix version 2.2
-   (or worse) only return one name ... */
-#if !(defined(ULTRIX022) || (defined(SunOS) && SunOS < 40))
-        host->h_addr_list = (char **)malloc(sizeof(char *));
-        if (!host->h_addr_list) {
-            retval = /*errno */SKDC_CANT;
-            goto rtn;
-        }
-#endif /* ULTRIX022 || SunOS */
-        host->h_addr = cp;
+   (or worse) only return one address ... */
+#if (defined(ULTRIX022) || (defined(SunOS) && SunOS < 40))
+	{
+	    char *cp = malloc((unsigned)host->h_length);
+	    if (!cp) {
+		retval = /*errno */SKDC_CANT;
+		goto rtn;
+	    }
+	    bcopy((char *)host->h_addr, cp, host->h_length);
+	    host->h_addr = cp;
+	}
+#else /* !(ULTRIX022 || (SunOS < 40)) */
+	/*
+	 * Make a copy of the entire h_addr_list.
+	 */
+	{
+	    char *addr;
+	    char **old_addr_list;
+	    addr_count = 0;
+	    old_addr_list = host->h_addr_list;
+	    while(old_addr_list[addr_count++])
+		;
+	    host->h_addr_list = (char **)malloc(addr_count+1 * sizeof(char *));
+	    if (host->h_addr_list == NULL) {
+		fprintf(stderr, "Could not allocate host->h_addr_list\n");
+		retval = SKDC_CANT;
+		goto rtn;
+	    }
+	    if (krb_debug) {
+		printf("h_length = %d\n", host->h_length);
+		printf("Number of addresses = %d\n", addr_count);
+	    }
+	    for (addr_count = 0; old_addr_list[addr_count]; addr_count++) {
+		if (krb_debug)
+		    printf ("addr[%d] = %s\n", addr_count,
+		       inet_ntoa(*(struct in_addr *)old_addr_list[addr_count]));
+		addr = (char *)malloc(host->h_length);
+		if (addr == NULL) {
+		    fprintf(stderr, "Could not allocate address\n");
+		    retval = SKDC_CANT;
+		    goto rtn;
+		}
+		bcopy(old_addr_list[addr_count], addr, host->h_length);
+		host->h_addr_list[addr_count] = addr;
+	    }
+	    host->h_addr_list[addr_count] = NULL;
+	}
+#endif /* !(ULTRIX022 || (SunOS < 40)) */
+
         bzero((char *)&hostlist[n_hosts],
               sizeof(struct hostent));
         to.sin_family = host->h_addrtype;
@@ -267,22 +323,36 @@ int send_to_kdc(KTEXT pkt, KTEXT rpkt, char *realm)
     }
     if (no_host) {
 	if (krb_debug)
-	    fprintf(stderr, "%s: can't find any Kerberos host.\n",
-		    prog);
+	    fprintf(stderr, "%s: can't find any Kerberos host.\n", prog);
         retval = SKDC_CANT;
         goto rtn;
     }
-    /* retry each host in sequence */
+    /* 
+     * retry each host in sequence.  Some addresses may be unreachable
+     * from where we are, so loop through them as well.
+     */
     for (retry = 0; retry < CLIENT_KRB_RETRY; ++retry) {
         for (host = hostlist; host->h_name != (char *)NULL; host++) {
-            to.sin_family = host->h_addrtype;
-            bcopy(host->h_addr, (char *)&to.sin_addr,
-                  host->h_length);
-            if (send_recv(pkt, rpkt, f, &to, hostlist)) {
-                retval = KSUCCESS;
-                goto rtn;
-            }
-        }
+#if (defined(ULTRIX022) || (defined(SunOS) && SunOS < 40))
+	    to.sin_family = host->h_addrtype;
+	    bcopy(host->h_addr_list[addr_count], (char *)&to.sin_addr,
+		  host->h_length);
+	    if (send_recv(pkt, rpkt, f, &to, hostlist)) {
+		retval = KSUCCESS;
+		goto rtn;
+	    }
+#else /* !(ULTRIX022 || (SunOS < 40)) */
+	    for (addr_count = 0; host->h_addr_list[addr_count]; addr_count++) {
+		to.sin_family = host->h_addrtype;
+		bcopy(host->h_addr_list[addr_count], (char *)&to.sin_addr,
+		      host->h_length);
+		if (send_recv(pkt, rpkt, f, &to, hostlist)) {
+		    retval = KSUCCESS;
+		    goto rtn;
+		}
+	    }
+#endif /* !(ULTRIX022 || (SunOS < 40)) */
+	}
     }
     retval = SKDC_RETRY;
 rtn:
