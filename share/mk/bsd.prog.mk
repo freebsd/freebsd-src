@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.76 1998/08/08 07:02:08 peter Exp $
+#	$Id: bsd.prog.mk,v 1.77 1998/08/30 20:33:27 jb Exp $
 
 .if !target(__initialized__)
 __initialized__:
@@ -61,7 +61,8 @@ ${PROG}: ${OBJS}
 
 .if	!defined(MAN1) && !defined(MAN2) && !defined(MAN3) && \
 	!defined(MAN4) && !defined(MAN5) && !defined(MAN6) && \
-	!defined(MAN7) && !defined(MAN8) && !defined(NOMAN)
+	!defined(MAN7) && !defined(MAN8) && !defined(NOMAN) && \
+	!defined(MAN1aout)
 MAN1=	${PROG}.1
 .endif
 .endif
