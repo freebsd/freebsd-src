@@ -293,18 +293,18 @@ nfs_statfs(mp, sbp, p)
 		for (bsize = NFS_FABLKSIZE; ; bsize *= 2) {
 			sbp->f_bsize = bsize;
 			tquad = fxdr_hyper(&sfp->sf_tbytes);
-			if (((long)(tquad / bsize) > LONG_MAX) ||
-			    ((long)(tquad / bsize) < LONG_MIN))
+			if (((quad_t)(tquad / bsize) > LONG_MAX) ||
+			    ((quad_t)(tquad / bsize) < LONG_MIN))
 				continue;
 			sbp->f_blocks = tquad / bsize;
 			tquad = fxdr_hyper(&sfp->sf_fbytes);
-			if (((long)(tquad / bsize) > LONG_MAX) ||
-			    ((long)(tquad / bsize) < LONG_MIN))
+			if (((quad_t)(tquad / bsize) > LONG_MAX) ||
+			    ((quad_t)(tquad / bsize) < LONG_MIN))
 				continue;
 			sbp->f_bfree = tquad / bsize;
 			tquad = fxdr_hyper(&sfp->sf_abytes);
-			if (((long)(tquad / bsize) > LONG_MAX) ||
-			    ((long)(tquad / bsize) < LONG_MIN))
+			if (((quad_t)(tquad / bsize) > LONG_MAX) ||
+			    ((quad_t)(tquad / bsize) < LONG_MIN))
 				continue;
 			sbp->f_bavail = tquad / bsize;
 			sbp->f_files = (fxdr_unsigned(int32_t,
