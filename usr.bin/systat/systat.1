@@ -224,16 +224,7 @@ needed if all processes had all of their pages.
 Finally the last column shows the number of physical pages
 on the free list.
 .Pp
-Below the memory display is the disk usage display.
-It reports the number of seeks, transfers, and number
-of kilobyte blocks transferred per second averaged over the
-refresh period of the display (by default, five seconds).
-For some disks it also reports the average milliseconds per seek.
-Note that the system only keeps statistics on at most eight disks
-(this is controlled by the constant DK_NDRIVE in /sys/dkstat.h as
-a kernel compile-time constant).
-.Pp
-Below the disk display is a list of the
+Below the memory display is a list of the
 average number of processes (over the last refresh interval)
 that are runnable (`r'), in page wait (`p'),
 in disk wait other than paging (`d'),
@@ -243,12 +234,21 @@ a bar graph showing the amount of
 system (shown as `='), interrupt (shown as `+'), user (shown as `>'),
 nice (shown as `-'), and idle time (shown as ` ').
 .Pp
-At the bottom left are statistics on name translations.
+Below the process display are statistics on name translations.
 It lists the number of names translated in the previous interval,
 the number and percentage of the translations that were
 handled by the system wide name translation cache, and
 the number and percentage of the translations that were
 handled by the per process name translation cache.
+.Pp
+At the bottom left is the disk usage display.
+It reports the number of seeks, transfers, and number
+of kilobyte blocks transferred per second averaged over the
+refresh period of the display (by default, five seconds).
+For some disks it also reports the average milliseconds per seek.
+Note that the system only keeps statistics on at most eight disks
+(this is controlled by the constant DK_NDRIVE in /sys/dkstat.h as
+a kernel compile-time constant).
 .Pp
 Under the date in the upper right hand quadrant are statistics
 on paging and swapping activity.
