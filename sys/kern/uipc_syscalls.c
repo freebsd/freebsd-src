@@ -358,9 +358,8 @@ accept1(td, uap, compat)
 	 * reference count.  Otherwise, if the protocol calls sofree(),
 	 * the socket will be released due to a zero refcount.
 	 */
-	SOCK_LOCK(so);
+	SOCK_LOCK(so);			/* soref() and so_state update */
 	soref(so);			/* file descriptor reference */
-	SOCK_UNLOCK(so);
 
 	TAILQ_REMOVE(&head->so_comp, so, so_list);
 	head->so_qlen--;
@@ -368,6 +367,7 @@ accept1(td, uap, compat)
 	so->so_qstate &= ~SQ_COMP;
 	so->so_head = NULL;
 
+	SOCK_UNLOCK(so);
 	ACCEPT_UNLOCK();
 
 	/* An extra reference on `nfp' has been held for us by falloc(). */
