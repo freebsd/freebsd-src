@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.143.2.5 1999/03/29 17:59:38 ken Exp $
+#	$Id: GENERIC,v 1.143.2.6 1999/04/16 16:30:24 n_hibma Exp $
 
 machine		"i386"
 cpu		"I386_CPU"
@@ -196,6 +196,7 @@ options		KTRACE		#kernel tracing
 #
 options		SYSVSHM
 options		SYSVMSG
+options		SYSVSEM
 
 #  The `bpfilter' pseudo-device enables the Berkeley Packet Filter.  Be
 #  aware of the legal and administrative consequences of enabling this
