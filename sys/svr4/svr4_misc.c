@@ -1281,7 +1281,8 @@ loop:
 			 * to free anything that cpu_exit couldn't
 			 * release while still running in process context.
 			 */
-			cpu_wait(q);
+			vm_waitproc(q);
+			/* XXX what about process 'q' itself?  zfree? */
 #if defined(__NetBSD__)
 			pool_put(&proc_pool, q);
 #endif

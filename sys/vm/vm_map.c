@@ -179,6 +179,7 @@ vmspace_alloc(min, max)
 	vm->vm_map.pmap = vmspace_pmap(vm);		/* XXX */
 	vm->vm_refcnt = 1;
 	vm->vm_shm = NULL;
+	vm->vm_exitingcnt = 0;
 	return (vm);
 }
 
@@ -195,29 +196,54 @@ vm_init2(void) {
 	vm_object_init2();
 }
 
-void
-vmspace_free(vm)
-	struct vmspace *vm;
+static __inline void
+vmspace_dofree(struct vmspace *vm)
 {
+	/*
+	 * Lock the map, to wait out all other references to it.
+	 * Delete all of the mappings and pages they hold, then call
+	 * the pmap module to reclaim anything left.
+	 */
+	vm_map_lock(&vm->vm_map);
+	(void) vm_map_delete(&vm->vm_map, vm->vm_map.min_offset,
+	    vm->vm_map.max_offset);
+	vm_map_unlock(&vm->vm_map);
 
+	pmap_release(vmspace_pmap(vm));
+	zfree(vmspace_zone, vm);
+}
+
+void
+vmspace_free(struct vmspace *vm)
+{
 	if (vm->vm_refcnt == 0)
 		panic("vmspace_free: attempt to free already freed vmspace");
 
-	if (--vm->vm_refcnt == 0) {
+	if (--vm->vm_refcnt == 0 && vm->vm_exitingcnt == 0)
+		vmspace_dofree(vm);
+}
 
-		/*
-		 * Lock the map, to wait out all other references to it.
-		 * Delete all of the mappings and pages they hold, then call
-		 * the pmap module to reclaim anything left.
-		 */
-		vm_map_lock(&vm->vm_map);
-		(void) vm_map_delete(&vm->vm_map, vm->vm_map.min_offset,
-		    vm->vm_map.max_offset);
-		vm_map_unlock(&vm->vm_map);
+void
+vmspace_exitfree(struct proc *p)
+{
+	struct vmspace *vm;
 
-		pmap_release(vmspace_pmap(vm));
-		zfree(vmspace_zone, vm);
-	}
+	vm = p->p_vmspace;
+	p->p_vmspace = NULL;
+
+	/*
+	 * cleanup by parent process wait()ing on exiting child.  vm_refcnt
+	 * may not be 0 (e.g. fork() and child exits without exec()ing).
+	 * exitingcnt may increment above 0 and drop back down to zero
+	 * several times while vm_refcnt is held non-zero.  vm_refcnt
+	 * may also increment above 0 and drop back down to zero several
+	 * times while vm_exitingcnt is held non-zero.
+	 *
+	 * The last wait on the exiting child's vmspace will clean up
+	 * the remainder of the vmspace.
+	 */
+	if (--vm->vm_exitingcnt == 0 && vm->vm_refcnt == 0)
+		vmspace_dofree(vm);
 }
 
 /*

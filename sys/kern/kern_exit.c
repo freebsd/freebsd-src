@@ -68,6 +68,7 @@
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_zone.h>
+#include <vm/vm_extern.h>
 #include <sys/user.h>
 
 /* Required to be non-static for SysVR4 emulator */
@@ -208,8 +209,16 @@ exit1(p, rv)
 	 * Need to do this early enough that we can still sleep.
 	 * Can't free the entire vmspace as the kernel stack
 	 * may be mapped within that space also.
+	 *
+	 * Processes sharing the same vmspace may exit in one order, and
+	 * get cleaned up by vmspace_exit() in a different order.  The
+	 * last exiting process to reach this point releases as much of
+	 * the environment as it can, and the last process cleaned up
+	 * by vmspace_exit() (which decrements exitingcnt) cleans up the
+	 * remainder.
 	 */
-	if (vm->vm_refcnt == 1) {
+	++vm->vm_exitingcnt;
+	if (--vm->vm_refcnt == 0) {
 		if (vm->vm_shm)
 			shmexit(p);
 		pmap_remove_pages(vmspace_pmap(vm), VM_MIN_ADDRESS,
@@ -530,7 +539,7 @@ loop:
 			 * to free anything that cpu_exit couldn't
 			 * release while still running in process context.
 			 */
-			cpu_wait(p);
+			vm_waitproc(p);
 			zfree(proc_zone, p);
 			nprocs--;
 			return (0);
