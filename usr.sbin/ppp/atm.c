@@ -79,7 +79,7 @@ atm_Sendto(struct physical *p, const void *v, size_t n)
 {
   ssize_t ret = write(p->fd, v, n);
   if (ret < 0) {
-    log_Printf(LogDEBUG, "atm_Sendto(%d): %s\n", n, strerror(errno));
+    log_Printf(LogDEBUG, "atm_Sendto(%ld): %s\n", (long)n, strerror(errno));
     return ret;
   }
   return ret;
@@ -90,7 +90,7 @@ atm_Recvfrom(struct physical *p, void *v, size_t n)
 {
     ssize_t ret = read(p->fd, (char*)v, n);
     if (ret < 0) {
-      log_Printf(LogDEBUG, "atm_Recvfrom(%d): %s\n", n, strerror(errno));
+      log_Printf(LogDEBUG, "atm_Recvfrom(%ld): %s\n", (long)n, strerror(errno));
       return ret;
     }
     return ret;
