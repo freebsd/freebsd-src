@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)pstat.8	8.5 (Berkeley) 5/13/94
-.\"	$Id: pstat.8,v 1.13 1997/03/11 13:00:38 peter Exp $
+.\"	$Id: pstat.8,v 1.14 1997/08/30 20:18:48 peter Exp $
 .\"
 .Dd May 13, 1994
 .Dt PSTAT 8
@@ -47,6 +47,8 @@
 .Pp
 .Nm swapinfo
 .Op Fl k
+.Op Fl M Ar core
+.Op Fl N Ar system
 .Sh DESCRIPTION
 .Nm Pstat
 displays open file entry, swap space utilization,
@@ -55,7 +57,7 @@ If
 .Ar corefile
 is given, the information is sought there, otherwise
 in
-.Pa /dev/kmem .
+.Pa /dev/mem .
 The required namelist is taken from
 .Pa /kernel
 unless 
@@ -70,7 +72,7 @@ option is implied, and only the
 .Fl k
 option is legal.
 .Pp
-Options are
+The following options are available:
 .Bl -tag -width indent
 .It Fl n
 Print devices out by major/minor instead of name.
@@ -78,7 +80,7 @@ Print devices out by major/minor instead of name.
 Print sizes in kilobytes, regardless of the setting of the BLOCKSIZE
 environment variable.
 .It Fl T
-Prints the number of used and free slots in the several system tables
+Print the number of used and free slots in the several system tables
 and is useful for checking to see how large system tables have become
 if the system is under heavy load.
 .It Fl f
@@ -358,10 +360,10 @@ Same as
 present for backwards-compatibility.
 .El
 .Sh FILES
-.Bl -tag -width /dev/kmemxxx -compact
+.Bl -tag -width /dev/memxxx -compact
 .It Pa /kernel
 namelist
-.It Pa /dev/kmem
+.It Pa /dev/mem
 default source of tables
 .El
 .Sh SEE ALSO
