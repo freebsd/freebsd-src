@@ -1,5 +1,5 @@
 .\"
-.\"	$Id: meteor.4,v 1.6 1997/03/21 20:13:50 mpp Exp $
+.\"	$Id: meteor.4,v 1.8 1999/05/04 21:03:22 ghelmer Exp $
 .\"
 .Dd August 15, 1995
 .br
@@ -113,7 +113,7 @@ main()
 	int i,o,c;
 
 	if ((i = open("/dev/meteor0", O_RDONLY)) < 0) {
-		printf("open failed: %d\n", errno);
+		printf("open failed: %d\\n", errno);
 		exit(1);
 	}
 				/* set up the capture type and size */
@@ -123,39 +123,39 @@ main()
         geo.oformat = METEOR_GEO_RGB24 ;
 
         if (ioctl(i, METEORSETGEO, &geo) < 0) {
-		printf("ioctl failed: %d\n", errno);
+		printf("ioctl failed: %d\\n", errno);
 		exit(1);
 	}
 
 	c = METEOR_FMT_NTSC;
 
         if (ioctl(i, METEORSFMT, &c) < 0) {
-		printf("ioctl failed: %d\n", errno);
+		printf("ioctl failed: %d\\n", errno);
 		exit(1);
 	}
 
 	c = METEOR_INPUT_DEV0;
 
         if (ioctl(i, METEORSINPUT, &c) < 0) {
-		printf("ioctl failed: %d\n", errno);
+		printf("ioctl failed: %d\\n", errno);
 		exit(1);
 	}
 
 	if ((c=read(i, &buf[0], SIZE)) < SIZE) {
-		printf("read failed %d %d %d\n", c, i, errno);
+		printf("read failed %d %d %d\\n", c, i, errno);
 		close(i);
 		exit(1);
 	}
 	close(i);
 
 	if ((o = open("rgb24.ppm", O_WRONLY | O_CREAT, 0644)) < 0) {
-		printf("ppm open failed: %d\n", errno);
+		printf("ppm open failed: %d\\n", errno);
 		exit(1);
 	}
 
 		/* make PPM header and save to file */
 	strcpy(&header[0], "P6 400 300 255 ");
-	header[2] = header[6]  = header[10] = header[14] = '\n';
+	header[2] = header[6]  = header[10] = header[14] = '\\n';
 	write (o, &header[0], 15);
 		/* save the RGB data to PPM file */
 	for (p = &buf[0]; p < &buf[SIZE]; ) {
@@ -209,7 +209,7 @@ main()
 	int i,c;
 
 	if ((i = open("/dev/meteor0", O_RDONLY)) < 0) {
-		printf("open failed\n");
+		printf("open failed\\n");
 		exit(1);
 	}
 
@@ -219,21 +219,21 @@ main()
         geo.oformat = METEOR_GEO_RGB16 ;
 
         if (ioctl(i, METEORSETGEO, &geo) < 0) {
-		printf("ioctl failed: %d\n", errno);
+		printf("ioctl failed: %d\\n", errno);
 		exit(1);
 	}
 
 	c = METEOR_FMT_NTSC;
 
         if (ioctl(i, METEORSFMT, &c) < 0) {
-		printf("ioctl failed: %d\n", errno);
+		printf("ioctl failed: %d\\n", errno);
 		exit(1);
 	}
 
 	c = METEOR_INPUT_DEV0;
 
         if (ioctl(i, METEORSINPUT, &c) < 0) {
-		printf("ioctl failed: %d\n", errno);
+		printf("ioctl failed: %d\\n", errno);
 		exit(1);
 	}
 
@@ -361,7 +361,7 @@ usr2_catcher()
 		capframe.command=METEOR_CAP_STOP_FRAMES;
 
 		if (ioctl(i, METEORCAPFRM, &capframe) < 0) {
-			printf("METEORCAPFRM failed %d\n", errno);
+			printf("METEORCAPFRM failed %d\\n", errno);
 			exit(1);
 		}
 	}
@@ -375,10 +375,10 @@ main()
 	struct meteor_capframe capframe;
 
 	if ((i = open("/dev/meteor0", O_RDONLY)) < 0) {
-		printf("open failed\n");
+		printf("open failed\\n");
 		exit(1);
 	}
-	printf("test %d %d\n", errno, i);
+	printf("test %d %d\\n", errno, i);
 
         height = geo.rows = 120;
         width= geo.columns = 320;
@@ -389,21 +389,21 @@ main()
         geo.oformat = METEOR_GEO_RGB16;
 
         if (ioctl(i, METEORSETGEO, &geo) < 0) {
-		printf("METEORSETGEO failed %d\n", errno);
+		printf("METEORSETGEO failed %d\\n", errno);
 		exit(1);
 	}
 
 	c = METEOR_FMT_NTSC;
 
         if (ioctl(i, METEORSFMT, &c) < 0) {
-		printf("ioctl failed: %d\n", errno);
+		printf("ioctl failed: %d\\n", errno);
 		exit(1);
 	}
 
 	c = METEOR_INPUT_DEV0;
 
         if (ioctl(i, METEORSINPUT, &c) < 0) {
-		printf("ioctl failed: %d\n", errno);
+		printf("ioctl failed: %d\\n", errno);
 		exit(1);
 	}
 
@@ -426,7 +426,7 @@ main()
 
 					/* start the sync capture */
         if (ioctl(i, METEORCAPFRM, &capframe) < 0) {
-		printf("METEORCAPFRM failed %d\n", errno);
+		printf("METEORCAPFRM failed %d\\n", errno);
 		exit(1);
 	}
 
@@ -437,7 +437,7 @@ main()
 	capframe.command=METEOR_CAP_STOP_FRAMES;
 
         if (ioctl(i, METEORCAPFRM, &capframe) < 0) {
-		printf("METEORCAPFRM failed %d\n", errno);
+		printf("METEORCAPFRM failed %d\\n", errno);
 		exit(1);
 	}
 }
