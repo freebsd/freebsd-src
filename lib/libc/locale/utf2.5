@@ -62,7 +62,7 @@ encoding is represented by the following table:
 [0x0080 - 0x03ff] [00000bbb.bbbbbbbb] -> 110bbbbb, 10bbbbbb
 [0x0400 - 0xffff] [bbbbbbbb.bbbbbbbb] -> 1110bbbb, 10bbbbbb, 10bbbbbb
 .Ed
-.sp
+.Pp
 If more than a single representation of a value exists (for example,
 0x00; 0xC0 0x80; 0xE0 0x80 0x80) the shortest representation is always
 used (but the longer ones will be correctly decoded).
@@ -78,7 +78,7 @@ The final three encodings provided by X-Open:
 [0bbbbbbb.bbbbbbbb.bbbbbbbb.bbbbbbbb] ->
 	1111110b, 10bbbbbb, 10bbbbbb, 10bbbbbb, 10bbbbbb, 10bbbbbb
 .Ed
-.sp
+.Pp
 which provides for the entire proposed ISO-10646 31 bit standard are currently
 not implemented.
 .Sh "SEE ALSO"
