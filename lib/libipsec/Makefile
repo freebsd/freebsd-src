@@ -30,7 +30,10 @@ LIB=	ipsec
 SHLIB_MAJOR= 0
 SHLIB_MINOR= 0
 CFLAGS+=-I${.OBJDIR}
-CFLAGS+=-DIPSEC_DEBUG -DIPSEC -DINET6
+CFLAGS+=-DIPSEC_DEBUG -DIPSEC
+.if !defined(NOINET6)
+CFLAGS+=-DINET6
+.endif
 
 .PATH:	${.CURDIR}/../../sys/netkey
 SRCS=	pfkey.c pfkey_dump.c
