@@ -64,8 +64,6 @@ It is equivalent to:
 strtod(nptr, (char **)NULL);
 .Ed
 .Pp
-except the handling of errors.
-.Pp
 The decimal point
 character is defined in the program's locale (category
 .Dv LC_NUMERIC ) .
@@ -80,9 +78,9 @@ function has been deprecated by
 .Fn strtod
 and should not be used in new code.
 .Sh ERRORS
-The
+The function
 .Fn atof
-function does not detect errors.
+need not affect the value of errno on an error.
 .Sh SEE ALSO
 .Xr atoi 3 ,
 .Xr atol 3 ,
