@@ -218,7 +218,7 @@ isp_attach(struct ispsoftc *isp)
 
 }
 
-static __inline void
+static INLINE void
 isp_freeze_loopdown(struct ispsoftc *isp, char *msg)
 {
 	if (isp->isp_osinfo.simqfrozen == 0) {
@@ -504,15 +504,15 @@ isp_intr_enable(void *arg)
 
 #ifdef	ISP_TARGET_MODE
 
-static __inline int is_lun_enabled(struct ispsoftc *, int, lun_id_t);
-static __inline int are_any_luns_enabled(struct ispsoftc *, int);
-static __inline tstate_t *get_lun_statep(struct ispsoftc *, int, lun_id_t);
-static __inline void rls_lun_statep(struct ispsoftc *, tstate_t *);
-static __inline int isp_psema_sig_rqe(struct ispsoftc *, int);
-static __inline int isp_cv_wait_timed_rqe(struct ispsoftc *, int, int);
-static __inline void isp_cv_signal_rqe(struct ispsoftc *, int, int);
-static __inline void isp_vsema_rqe(struct ispsoftc *, int);
-static __inline atio_private_data_t *isp_get_atpd(struct ispsoftc *, int);
+static INLINE int is_lun_enabled(struct ispsoftc *, int, lun_id_t);
+static INLINE int are_any_luns_enabled(struct ispsoftc *, int);
+static INLINE tstate_t *get_lun_statep(struct ispsoftc *, int, lun_id_t);
+static INLINE void rls_lun_statep(struct ispsoftc *, tstate_t *);
+static INLINE int isp_psema_sig_rqe(struct ispsoftc *, int);
+static INLINE int isp_cv_wait_timed_rqe(struct ispsoftc *, int, int);
+static INLINE void isp_cv_signal_rqe(struct ispsoftc *, int, int);
+static INLINE void isp_vsema_rqe(struct ispsoftc *, int);
+static INLINE atio_private_data_t *isp_get_atpd(struct ispsoftc *, int);
 static cam_status
 create_lun_state(struct ispsoftc *, int, struct cam_path *, tstate_t **);
 static void destroy_lun_state(struct ispsoftc *, tstate_t *);
@@ -528,7 +528,7 @@ static int isp_handle_platform_ctio(struct ispsoftc *, void *);
 static int isp_handle_platform_notify_scsi(struct ispsoftc *, in_entry_t *);
 static int isp_handle_platform_notify_fc(struct ispsoftc *, in_fcentry_t *);
 
-static __inline int
+static INLINE int
 is_lun_enabled(struct ispsoftc *isp, int bus, lun_id_t lun)
 {
 	tstate_t *tptr;
@@ -544,7 +544,7 @@ is_lun_enabled(struct ispsoftc *isp, int bus, lun_id_t lun)
 	return (0);
 }
 
-static __inline int
+static INLINE int
 are_any_luns_enabled(struct ispsoftc *isp, int port)
 {
 	int lo, hi;
@@ -563,7 +563,7 @@ are_any_luns_enabled(struct ispsoftc *isp, int port)
 	return (0);
 }
 
-static __inline tstate_t *
+static INLINE tstate_t *
 get_lun_statep(struct ispsoftc *isp, int bus, lun_id_t lun)
 {
 	tstate_t *tptr = NULL;
@@ -695,7 +695,7 @@ create_lun_state(struct ispsoftc *isp, int bus,
 	return (CAM_REQ_CMP);
 }
 
-static __inline void
+static INLINE void
 destroy_lun_state(struct ispsoftc *isp, tstate_t *tptr)
 {
 	int hfx;
@@ -1792,24 +1792,27 @@ isp_cam_async(void *cbarg, u_int32_t code, struct cam_path *path, void *arg)
 			int tgt;
 
 			tgt = xpt_path_target_id(path);
-			ISP_LOCK(isp);
-			sdp += cam_sim_bus(sim);
-			nflags = sdp->isp_devparam[tgt].nvrm_flags;
+			if (tgt >= 0) {
+				sdp += cam_sim_bus(sim);
+				ISP_LOCK(isp);
+				nflags = sdp->isp_devparam[tgt].nvrm_flags;
 #ifndef	ISP_TARGET_MODE
-			nflags &= DPARM_SAFE_DFLT;
-			if (isp->isp_loaded_fw) {
-				nflags |= DPARM_NARROW | DPARM_ASYNC;
-			}
+				nflags &= DPARM_SAFE_DFLT;
+				if (isp->isp_loaded_fw) {
+					nflags |= DPARM_NARROW | DPARM_ASYNC;
+				}
 #else
-			nflags = DPARM_DEFAULT;
+				nflags = DPARM_DEFAULT;
 #endif
-			oflags = sdp->isp_devparam[tgt].goal_flags;
-			sdp->isp_devparam[tgt].goal_flags = nflags;
-			sdp->isp_devparam[tgt].dev_update = 1;
-			isp->isp_update |= (1 << cam_sim_bus(sim));
-			(void) isp_control(isp, ISPCTL_UPDATE_PARAMS, NULL);
-			sdp->isp_devparam[tgt].goal_flags = oflags;
-			ISP_UNLOCK(isp);
+				oflags = sdp->isp_devparam[tgt].goal_flags;
+				sdp->isp_devparam[tgt].goal_flags = nflags;
+				sdp->isp_devparam[tgt].dev_update = 1;
+				isp->isp_update |= (1 << cam_sim_bus(sim));
+				(void) isp_control(isp,
+				    ISPCTL_UPDATE_PARAMS, NULL);
+				sdp->isp_devparam[tgt].goal_flags = oflags;
+				ISP_UNLOCK(isp);
+			}
 		}
 		break;
 	default:
