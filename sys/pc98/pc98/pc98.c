@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: pc98.c,v 1.22 1997/04/11 12:29:51 kato Exp $
+ *	$Id: pc98.c,v 1.23 1997/04/27 13:22:08 kato Exp $
  */
 
 /*
@@ -54,7 +54,6 @@
 
 #include "opt_auto_eoi.h"
 #include "opt_smp.h"
-#include "opt_ddb.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
