@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#! xPERL_PATHx
 #
 # Support for importing a source collection into CVS.
 # Tries to prevent the user from the most common pitfalls (like creating
@@ -8,7 +8,7 @@
 #
 # Written by Jörg Wunsch, 95/03/07, and placed in the public domain.
 #
-# $Id$
+# $Id: easy-import.pl,v 1.3 1995/07/23 17:34:00 joerg Exp $
 
 require "complete.pl";
 require "getopts.pl";
@@ -22,7 +22,7 @@ sub scan_opts
 
     $dont_do_it = "-n" if $opt_n;
     if($opt_v) {
-	print STDERR '$Source$ $Revision$' . "\n"; # 'emacs kludge
+	print STDERR '$Source: /home/ncvs/src/gnu/usr.bin/cvs/contrib/easy-import.pl,v $ $Revision: 1.3 $' . "\n"; # 'emacs kludge
 	exit 0;
     }
     die "usage: $0 [-v] [-n] [moduledir]\n" .
