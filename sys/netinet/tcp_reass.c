@@ -1514,8 +1514,9 @@ trimthenstep6:
 	 *      RFC 1337.
 	 */
 	if (thflags & TH_RST) {
-		if (SEQ_GEQ(th->th_seq, tp->last_ack_sent) &&
-		    SEQ_LT(th->th_seq, tp->last_ack_sent + tp->rcv_wnd)) {
+		if ((SEQ_GEQ(th->th_seq, tp->last_ack_sent) &&
+		    SEQ_LT(th->th_seq, tp->last_ack_sent + tp->rcv_wnd)) ||
+		    (tp->rcv_wnd == 0 && tp->last_ack_sent == th->th_seq)) {
 			switch (tp->t_state) {
 
 			case TCPS_SYN_RECEIVED:
