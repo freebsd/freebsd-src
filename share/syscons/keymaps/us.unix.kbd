@@ -85,7 +85,7 @@
   080   fkey58 '2'    '2'    '2'    '2'    '2'    '2'    '2'     N
   081   fkey59 '3'    '3'    '3'    '3'    '3'    '3'    '3'     N
   082   fkey60 '0'    '0'    '0'    '0'    '0'    '0'    '0'     N
-  083   bs    '.'    '.'    '.'    '.'    '.'    boot   boot    N
+  083   bs     '.'    '.'    '.'    '.'    '.'    boot   boot    N
   084   ns     ns     ns     ns     ns     ns     ns     ns      O
   085   nop    nop    nop    nop    nop    nop    nop    nop     O
   086   nop    nop    nop    nop    nop    nop    nop    nop     O
@@ -105,7 +105,7 @@
   100   fkey58 fkey58 fkey58 fkey58 fkey58 fkey58 fkey58 fkey58  O
   101   fkey59 fkey59 fkey59 fkey59 fkey59 fkey59 fkey59 fkey59  O
   102   fkey60 fkey60 fkey60 fkey60 fkey60 fkey60 fkey60 fkey60  O
-  103	fkey61 fkey61 fkey61 fkey61 fkey61 fkey61 boot   fkey61  O
+  103	bs     bs     fkey61 fkey61 bs     bs     boot   boot    O
   104   slock  slock  slock  slock  slock  slock  slock  slock   O
   105	fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62  O
   106	fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63  O
