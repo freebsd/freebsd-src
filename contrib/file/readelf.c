@@ -11,7 +11,7 @@
 #include "readelf.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$Id: readelf.c,v 1.23 2003/02/08 18:33:53 christos Exp $")
+FILE_RCSID("@(#)$Id: readelf.c,v 1.26 2003/02/25 15:30:00 christos Exp $")
 #endif
 
 #ifdef	ELFCORE
@@ -92,12 +92,18 @@ getu64(int swap, uint64_t value)
 #define sh_addr		(class == ELFCLASS32		\
 			 ? (void *) &sh32		\
 			 : (void *) &sh64)
+#define sh_size		(class == ELFCLASS32		\
+			 ? sizeof sh32			\
+			 : sizeof sh64)
 #define shs_type	(class == ELFCLASS32		\
 			 ? getu32(swap, sh32.sh_type)	\
 			 : getu32(swap, sh64.sh_type))
 #define ph_addr		(class == ELFCLASS32		\
 			 ? (void *) &ph32		\
 			 : (void *) &ph64)
+#define ph_size		(class == ELFCLASS32		\
+			 ? sizeof ph32			\
+			 : sizeof ph64)
 #define ph_type		(class == ELFCLASS32		\
 			 ? getu32(swap, ph32.p_type)	\
 			 : getu32(swap, ph64.p_type))
@@ -129,11 +135,14 @@ doshn(int class, int swap, int fd, off_t off, int num, size_t size)
 	Elf32_Shdr sh32;
 	Elf64_Shdr sh64;
 
+	if (size != sh_size)
+		error("corrupted section header size.\n");
+
 	if (lseek(fd, off, SEEK_SET) == -1)
 		error("lseek failed (%s).\n", strerror(errno));
 
 	for ( ; num; num--) {
-		if (read(fd, sh_addr, size) == -1)
+		if (read(fd, sh_addr, sh_size) == -1)
 			error("read failed (%s).\n", strerror(errno));
 		if (shs_type == SHT_SYMTAB /* || shs_type == SHT_DYNSYM */) {
 			(void) printf (", not stripped");
@@ -162,11 +171,13 @@ dophn_exec(int class, int swap, int fd, off_t off, int num, size_t size)
 	size_t offset, nameoffset;
 	off_t savedoffset;
 
+	if (size != ph_size)
+		error("corrupted program header size.\n");
 	if (lseek(fd, off, SEEK_SET) == -1)
 		error("lseek failed (%s).\n", strerror(errno));
 
   	for ( ; num; num--) {
-  		if (read(fd, ph_addr, size) == -1)
+  		if (read(fd, ph_addr, ph_size) == -1)
   			error("read failed (%s).\n", strerror(errno));
 		if ((savedoffset = lseek(fd, 0, SEEK_CUR)) == -1)
   			error("lseek failed (%s).\n", strerror(errno));
@@ -360,13 +371,15 @@ dophn_core(int class, int swap, int fd, off_t off, int num, size_t size)
 	int bufsize;
 	int os_style = -1;
 
+	if (size != ph_size)
+		error("corrupted program header size.\n");
 	/*
 	 * Loop through all the program headers.
 	 */
 	for ( ; num; num--) {
 		if (lseek(fd, off, SEEK_SET) == -1)
 			error("lseek failed (%s).\n", strerror(errno));
-		if (read(fd, ph_addr, size) == -1)
+		if (read(fd, ph_addr, ph_size) == -1)
 			error("read failed (%s).\n", strerror(errno));
 		off += size;
 		if (ph_type != PT_NOTE)
