@@ -79,21 +79,18 @@ static MALLOC_DEFINE(M_SMBFSHASH, "SMBFS hash", "SMBFS hash table");
 
 static int smbfs_mount(struct mount *, char *, caddr_t,
 			struct nameidata *, struct thread *);
-static int smbfs_quotactl(struct mount *, int, uid_t, caddr_t, struct thread *);
 static int smbfs_root(struct mount *, struct vnode **);
-static int smbfs_start(struct mount *, int, struct thread *);
 static int smbfs_statfs(struct mount *, struct statfs *, struct thread *);
 static int smbfs_sync(struct mount *, int, struct ucred *, struct thread *);
 static int smbfs_unmount(struct mount *, int, struct thread *);
 static int smbfs_init(struct vfsconf *vfsp);
-static int smbfs_uninit(struct vfsconf *vfsp);
 
 static struct vfsops smbfs_vfsops = {
 	smbfs_mount,
-	smbfs_start,
+	vfs_stdstart,
 	smbfs_unmount,
 	smbfs_root,
-	smbfs_quotactl,
+	vfs_stdquotactl,
 	smbfs_statfs,
 	smbfs_sync,
 	vfs_stdvget,
@@ -101,7 +98,7 @@ static struct vfsops smbfs_vfsops = {
 	vfs_stdcheckexp,
 	vfs_stdvptofh,		/* shouldn't happen */
 	smbfs_init,
-	smbfs_uninit,
+	vfs_stduninit,
 	vfs_stdextattrctl
 };
 
@@ -312,36 +309,6 @@ smbfs_root(struct mount *mp, struct vnode **vpp)
 	return 0;
 }
 
-/*
- * Vfs start routine, a no-op.
- */
-/* ARGSUSED */
-static int
-smbfs_start(mp, flags, td)
-	struct mount *mp;
-	int flags;
-	struct thread *td;
-{
-	SMBVDEBUG("flags=%04x\n", flags);
-	return 0;
-}
-
-/*
- * Do operations associated with quotas, not supported
- */
-/* ARGSUSED */
-static int
-smbfs_quotactl(mp, cmd, uid, arg, td)
-	struct mount *mp;
-	int cmd;
-	uid_t uid;
-	caddr_t arg;
-	struct thread *td;
-{
-	SMBVDEBUG("return EOPNOTSUPP\n");
-	return EOPNOTSUPP;
-}
-
 /*ARGSUSED*/
 int
 smbfs_init(struct vfsconf *vfsp)
@@ -361,15 +328,6 @@ smbfs_init(struct vfsconf *vfsp)
 	smbfsmount_zone = zinit("SMBFSMOUNT", sizeof(struct smbmount), 0, 0, 1);
 #endif
 	smbfs_pbuf_freecnt = nswbuf / 2 + 1;
-	SMBVDEBUG("done.\n");
-	return 0;
-}
-
-/*ARGSUSED*/
-int
-smbfs_uninit(struct vfsconf *vfsp)
-{
-
 	SMBVDEBUG("done.\n");
 	return 0;
 }
