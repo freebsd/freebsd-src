@@ -35,6 +35,12 @@
 #define	NLIST_ECOFF
 #define	NLIST_ELF64
 #else
+#ifdef arch_ia64
+#define	NLIST_ELF64
+#else
+#ifdef arch_sparc64
+#define	NLIST_ELF64
+#else
 #ifdef arch_mips
 #define NLIST_ELF32
 #else
@@ -45,6 +51,8 @@
 /* #define	NLIST_ECOFF */
 #define	NLIST_ELF32
 /* #define	NLIST_ELF64 */
+#endif
+#endif
 #endif
 #endif
 #endif
