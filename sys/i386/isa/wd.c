@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.132 1997/07/20 14:10:17 bde Exp $
+ *	$Id: wd.c,v 1.133 1997/07/29 12:57:24 sos Exp $
  */
 
 /* TODO:
@@ -1037,6 +1037,9 @@ wdintr(int unit)
 
 	/* finish off DMA. ignore errors if we're not using it. */
 	if (du->dk_flags & (DKFL_DMA|DKFL_USEDMA)) {
+		if ((wddma.wdd_dmastatus(du->dk_dmacookie) & WDDS_INTERRUPT) == 0)
+			return;
+
 		if ((wddma.wdd_dmadone(du->dk_dmacookie) != WDDS_INTERRUPT) &&
 		    !(du->dk_flags & DKFL_USEDMA)) {
 			wderror(bp, du, "wdintr: DMA failure");
