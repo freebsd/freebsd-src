@@ -6,10 +6,13 @@ CLEANFILES=	makedevs.c rtermcap
 
 SRCS =	globals.c	main.c		dmenu.c		menus.c	\
 	misc.c		msg.c		system.c	install.c \
-	termcap.c	makedevs.c	media.c
+	termcap.c	makedevs.c	media.c		variable.c \
+	devices.c
 
-CFLAGS += -Wall -g -static
-LDADD =  -ldialog -lncurses -lmytinfo
+CFLAGS += -Wall -g -I${.CURDIR}/../libdisk
+
+LDADD =  -ldialog -lncurses -lmytinfo -L${.CURDIR}/../libdisk -ldisk
+
 DPADD = ${LIBDIALOG} ${LIBNCURSES} ${LIBMYTINFO}
 
 .if exists(${.CURDIR}/../../sys/i386/boot/biosboot/obj)

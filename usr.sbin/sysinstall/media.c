@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.1 1995/04/27 18:05:10 jkh Exp $
+ * $Id: media.c,v 1.2 1995/04/29 19:33:02 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -46,7 +46,7 @@
  * be a CD.
  */
 int
-mediaSetCDROM(void)
+mediaSetCDROM(char *str)
 {
     return 0;
 }
@@ -56,7 +56,7 @@ mediaSetCDROM(void)
  * be a floppy
  */
 int
-mediaSetFloppy(void)
+mediaSetFloppy(char *str)
 {
     return 0;
 }
@@ -66,7 +66,7 @@ mediaSetFloppy(void)
  * be a DOS partition.
  */
 int
-mediaSetDOS(void)
+mediaSetDOS(char *str)
 {
     return 0;
 }
@@ -76,7 +76,7 @@ mediaSetDOS(void)
  * be a tape drive.
  */
 int
-mediaSetTape(void)
+mediaSetTape(char *str)
 {
     return 0;
 }
@@ -86,7 +86,7 @@ mediaSetTape(void)
  * be an ftp server
  */
 int
-mediaSetFTP(void)
+mediaSetFTP(char *str)
 {
     return 0;
 }
@@ -96,7 +96,7 @@ mediaSetFTP(void)
  * be some sort of mounted filesystem (it's also mounted at this point)
  */
 int
-mediaSetFS(void)
+mediaSetFS(char *str)
 {
     return 0;
 }

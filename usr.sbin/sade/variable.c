@@ -1,10 +1,10 @@
 /*
  * The new sysinstall program.
  *
- * This is probably the last attempt in the `sysinstall' line, the next
- * generation being slated to essentially a complete rewrite.
+ * This is probably the last program in the `sysinstall' line - the next
+ * generation being essentially a complete rewrite.
  *
- * $Id: media.c,v 1.2 1995/04/29 19:33:02 jkh Exp $
+ * $Id: install.c,v 1.2 1995/04/27 18:03:53 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -41,62 +41,40 @@
  *
  */
 
-/*
- * Return 0 if we successfully found and set the installation type to
- * be a CD.
- */
-int
-mediaSetCDROM(char *str)
+#include "sysinstall.h"
+
+/* Routines for dealing with variable lists */
+
+void
+variable_set(char *var)
 {
-    return 0;
+    char tmp[VAR_NAME_MAX + VAR_VALUE_MAX], *cp;
+    Variable *newvar;
+
+    newvar = (Variable *)safe_malloc(sizeof(Variable));
+    strncpy(tmp, var, VAR_NAME_MAX + VAR_VALUE_MAX);
+    if ((cp = index(tmp, '=')) == NULL)
+	msgFatal("Invalid variable format: %s", var);
+    *cp = '\0';
+    strncpy(newvar->name, tmp, VAR_NAME_MAX);
+    strncpy(newvar->value, cp + 1, VAR_VALUE_MAX);
+    newvar->next = VarHead;
+    VarHead = newvar;
+    setenv(newvar->name, newvar->value, 1);
 }
 
-/*
- * Return 0 if we successfully found and set the installation type to
- * be a floppy
- */
-int
-mediaSetFloppy(char *str)
+void
+variable_set2(char *var, char *value)
 {
-    return 0;
-}
+    Variable *newvar;
 
-/*
- * Return 0 if we successfully found and set the installation type to
- * be a DOS partition.
- */
-int
-mediaSetDOS(char *str)
-{
-    return 0;
-}
-
-/*
- * Return 0 if we successfully found and set the installation type to
- * be a tape drive.
- */
-int
-mediaSetTape(char *str)
-{
-    return 0;
-}
-
-/*
- * Return 0 if we successfully found and set the installation type to
- * be an ftp server
- */
-int
-mediaSetFTP(char *str)
-{
-    return 0;
-}
-
-/*
- * Return 0 if we successfully found and set the installation type to
- * be some sort of mounted filesystem (it's also mounted at this point)
- */
-int
-mediaSetFS(char *str)
-{
-    return 0;
+    if (!var || !value)
+	msgFatal("Null name or value passed to set_variable2!");
+    setenv(var, value, 1);
+    newvar = (Variable *)safe_malloc(sizeof(Variable));
+    strncpy(newvar->name, var, VAR_NAME_MAX);
+    strncpy(newvar->value, value, VAR_VALUE_MAX);
+    newvar->next = VarHead;
+    VarHead = newvar;
+    setenv(newvar->name, newvar->value, 1);
 }

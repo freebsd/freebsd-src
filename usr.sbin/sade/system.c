@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.1.1.1 1995/04/27 12:50:34 jkh Exp $
+ * $Id: system.c,v 1.2 1995/04/29 19:33:06 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -128,7 +128,7 @@ systemShellEscape(void)
     dialog_update();
     move(0, 0);
     standout();
-    addstr("Type `exit' to leave this shell and continue installallation");
+    addstr("Type `exit' to leave this shell and continue installation");
     standend();
     refresh();
     end_dialog();
@@ -146,30 +146,56 @@ systemShellEscape(void)
 int
 systemDisplayFile(char *file)
 {
-    char buf[FILENAME_MAX], *cp, *fname = NULL;
+    char *fname = NULL;
+    char buf[FILENAME_MAX];
 
-    if (file_readable(file))
-	fname = file;
-    else if ((cp = getenv("LANG")) != NULL) {
-	snprintf(buf, FILENAME_MAX, "%s/%s", cp, file);
-	if (file_readable(buf))
-	    fname = buf;
-    }
-    else {
-	snprintf(buf, FILENAME_MAX, "english/%s", file);
-	if (file_readable(buf))
-	    fname = buf;
-    }
+    fname = systemHelpFile(file, buf);
     if (!fname) {
 	snprintf(buf, FILENAME_MAX, "The %s file is not provided on this particular floppy image.", file);
-	dialog_msgbox("Sorry!", buf, -1, -1, 1);
+	use_helpfile(NULL);
+	use_helpline(NULL);
+	dialog_mesgbox("Sorry!", buf, -1, -1);
 	dialog_clear_norefresh();
 	return 1;
     }
     else {
 	dialog_clear_norefresh();
+	use_helpfile(NULL);
+	use_helpline(NULL);
 	dialog_textbox(file, fname, LINES, COLS);
 	dialog_clear_norefresh();
     }
     return 0;
+}
+
+char *
+systemHelpFile(char *file, char *buf)
+{
+    char *cp, *fname = NULL;
+
+    if (!file)
+	return NULL;
+
+    if ((cp = getenv("LANG")) != NULL) {
+	snprintf(buf, FILENAME_MAX, "help/%s/%s", cp, file);
+	if (file_readable(buf))
+	    fname = buf;
+	else {
+	    snprintf(buf, FILENAME_MAX, "/stand/help/%s/%s", cp, file);
+	    if (file_readable(buf))
+		fname = buf;
+	}
+    }
+    else {
+	snprintf(buf, FILENAME_MAX, "help/en_US.ISO8859-1/%s", file);
+	if (file_readable(buf))
+	    fname = buf;
+	else {
+	    snprintf(buf, FILENAME_MAX, "/stand/help/en_US.ISO8859-1/%s",
+		     file);
+	    if (file_readable(buf))
+		fname = buf;
+	}
+    }
+    return fname;
 }
