@@ -414,6 +414,7 @@ ata_dmainit(struct ata_softc *scp, int device,
 
     case 0x05711106:	/* VIA 82C571, 82C586, 82C596, 82C686 */
 	if (ata_find_dev(parent, 0x06861106, 0x40) ||
+	    ata_find_dev(parent, 0x82311106, 0) ||
 	    ata_find_dev(parent, 0x30741106, 0)) {		/* 82C686b */
 	    if (udmamode >= 5) {
 		error = ata_command(scp, device, ATA_C_SETFEATURES, 0,
