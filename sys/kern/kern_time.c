@@ -36,7 +36,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/buf.h>
 #include <sys/sysproto.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
