@@ -258,6 +258,7 @@ DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE)
 
 int	cdevsw_add __P((struct cdevsw *new));
 int	cdevsw_remove __P((struct cdevsw *old));
+int	count_dev __P((dev_t dev));
 void	destroy_dev __P((dev_t dev));
 struct cdevsw *devsw __P((dev_t dev));
 const char *devtoname __P((dev_t dev));

@@ -147,11 +147,10 @@ struct ast_softc {
     struct atapi_softc		*atp;		/* controller structure */
     int32_t			lun;		/* logical device unit */
     int32_t			flags;		/* device state flags */
-#define 	F_OPEN			0x0001	/* the device is opened */
-#define		F_CTL_WARN		0x0002	/* warned about CTL wrong? */
-#define 	F_WRITEPROTECT		0x0004	/* media is writeprotected */
-#define 	F_DATA_WRITTEN		0x0010	/* data has been written */
-#define 	F_FM_WRITTEN		0x0020	/* filemark has been written */
+#define		F_CTL_WARN		0x0001	/* warned about CTL wrong? */
+#define 	F_WRITEPROTECT		0x0002	/* media is writeprotected */
+#define 	F_DATA_WRITTEN		0x0004	/* data has been written */
+#define 	F_FM_WRITTEN		0x0008	/* filemark has been written */
 #define 	F_ONSTREAM		0x0100	/* OnStream ADR device */
 
     int32_t			blksize;	/* block size (512 | 1024) */

@@ -317,7 +317,6 @@ struct acd_softc {
 #define 	F_DISK_OPEN		0x0008	/* disk open for writing */
 #define 	F_TRACK_OPEN		0x0010	/* track open for writing */
 
-    int32_t			refcnt;		/* the number of raw opens */
     struct buf_queue_head	buf_queue;	/* Queue of i/o requests */
     struct toc			toc;		/* table of disc contents */
     struct {

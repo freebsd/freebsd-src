@@ -215,7 +215,7 @@ afdopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 
     atapi_test_ready(fdp->atp);
 
-    if (!fdp->refcnt++)
+    if (count_dev(dev) == 1)
 	afd_prevent_allow(fdp, 1);
 
     if (afd_sense(fdp))
@@ -238,7 +238,7 @@ afdclose(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 {
     struct afd_softc *fdp = dev->si_drv1;
 
-    if (!--fdp->refcnt)
+    if (count_dev(dev) == 1)
 	afd_prevent_allow(fdp, 0); 
     return 0;
 }
@@ -250,12 +250,12 @@ afdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 
     switch (cmd) {
     case CDIOCEJECT:
-	if (fdp->refcnt > 1)
+	if (count_dev(dev) > 1)
 	    return EBUSY;
 	return afd_eject(fdp, 0);
 
     case CDIOCCLOSE:
-	if (fdp->refcnt > 1)
+	if (count_dev(dev) > 1)
 	    return 0;
 	return afd_eject(fdp, 1);
 
@@ -305,7 +305,7 @@ afd_start(struct afd_softc *fdp)
     }
 
     lba = bp->b_pblkno / (fdp->cap.sector_size / DEV_BSIZE);
-    count = (bp->b_bcount + (fdp->cap.sector_size - 1)) / fdp->cap.sector_size;
+    count = bp->b_bcount;
     data_ptr = bp->b_data;
     bp->b_resid = 0; 
 
