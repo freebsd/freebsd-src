@@ -1769,7 +1769,7 @@ pr_ip6opt(void *extbuf)
 	struct ip6_hbh *ext;
 	int currentlen;
 	u_int8_t type;
-	size_t extlen, len;
+	socklen_t extlen, len;
 	void *databuf;
 	size_t offset;
 	u_int16_t value2;
