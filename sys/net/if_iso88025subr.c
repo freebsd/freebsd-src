@@ -116,18 +116,25 @@ iso88025_ifdetach(ifp, bpf)
         struct ifnet *ifp;
         int bpf;
 {
+
 	if (bpf)
                 bpfdetach(ifp);
-	if_detach(ifp);
-}
 
+	if_detach(ifp);
+
+	return;
+}
 
 int
 iso88025_ioctl(struct ifnet *ifp, int command, caddr_t data)
 {
-        struct ifaddr *ifa = (struct ifaddr *) data;
-        struct ifreq *ifr = (struct ifreq *) data;
-        int error = 0;
+        struct ifaddr *ifa;
+        struct ifreq *ifr;
+        int error;
+
+	ifa = (struct ifaddr *) data;
+	ifr = (struct ifreq *) data;
+	error = 0;
 
         switch (command) {
         case SIOCSIFADDR:
@@ -150,9 +157,7 @@ iso88025_ioctl(struct ifnet *ifp, int command, caddr_t data)
                         struct arpcom *ac = IFP2AC(ifp);
 
                         if (ipx_nullhost(*ina))
-                                ina->x_host =
-                                    *(union ipx_host *)
-                                    ac->ac_enaddr;
+                                ina->x_host = *(union ipx_host *)ac->ac_enaddr;
                         else {
                                 bcopy((caddr_t) ina->x_host.c_host,
                                       (caddr_t) ac->ac_enaddr,
@@ -192,7 +197,11 @@ iso88025_ioctl(struct ifnet *ifp, int command, caddr_t data)
                         ifp->if_mtu = ifr->ifr_mtu;
                 }
                 break;
+	default:
+		error = EINVAL;			/* XXX netbsd has ENOTTY??? */
+		break;
         }
+
         return (error);
 }
 
@@ -220,9 +229,8 @@ iso88025_output(ifp, m, dst, rt0)
 	getmicrotime(&ifp->if_lastchange);
 
 	error = rt_check(&rt, &rt0, dst);
-	if (error) {
+	if (error)
 		goto bad;
-	}
 
 	/* Calculate routing info length based on arp table entry */
 	if (rt && (sdl = (struct sockaddr_dl *)rt->rt_gateway))
@@ -313,19 +321,25 @@ iso88025_output(ifp, m, dst, rt0)
 		break;
 	}
 
+	/*
+	 * Add LLC header.
+	 */
 	if (snap_type != 0) {
         	struct llc *l;
 		M_PREPEND(m, LLC_SNAPFRAMELEN, M_DONTWAIT);
 		if (m == 0)
 			senderr(ENOBUFS);
 		l = mtod(m, struct llc *);
-		l->llc_snap.ether_type = htons(snap_type);
-		l->llc_dsap = l->llc_ssap = LLC_SNAP_LSAP;
 		l->llc_snap.control = LLC_UI;
+		l->llc_dsap = l->llc_ssap = LLC_SNAP_LSAP;
 		l->llc_snap.org_code[0] =
 			l->llc_snap.org_code[1] =
 			l->llc_snap.org_code[2] = 0;
+		l->llc_snap.ether_type = htons(snap_type);
 	}
+
+	(void)memcpy((caddr_t)&gen_th.iso88025_dhost, (caddr_t)edst,
+		     sizeof(edst));
 
 	/*
 	 * Add local net header.  If no space in first mbuf,
@@ -334,12 +348,9 @@ iso88025_output(ifp, m, dst, rt0)
 	M_PREPEND(m, ISO88025_HDR_LEN + rif_len, M_DONTWAIT);
 	if (m == 0)
 		senderr(ENOBUFS);
-
-	(void)memcpy((caddr_t)&gen_th.iso88025_dhost, (caddr_t)edst,
-		     sizeof(edst));
+	th = mtod(m, struct iso88025_header *);
 
 	/* Copy as much of the generic header as is needed into the mbuf */
-	th = mtod(m, struct iso88025_header *);
 	memcpy(th, &gen_th, ISO88025_HDR_LEN + rif_len);
 
         /*
@@ -406,7 +417,7 @@ iso88025_input(ifp, th, m)
 		else
 			m->m_flags |= M_MCAST;
 		ifp->if_imcasts++;
-	} 
+	}
 
 	l = mtod(m, struct llc *);
 
@@ -532,7 +543,9 @@ iso88025_input(ifp, th, m)
 		m_freem(m);
 		return;
 	}
+
 	netisr_dispatch(isr, m);
+	return;
 }
 
 static int
