@@ -79,7 +79,7 @@ t2_pcib_cvt_dense(device_t dev, vm_offset_t addr)
 static int
 t2_pcib_maxslots(device_t dev)
 {
-	return 31;
+	return 9;
 }
 
 #define T2_CFGOFF(b, s, f, r)					\
