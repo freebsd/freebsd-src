@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
@@ -617,7 +618,7 @@ pfs_readdir(struct vop_readdir_args *va)
 	struct proc *p;
 	off_t offset;
 	int error, i, resid;
-	struct sbuf sb;
+	char *buf, *ent;
 
 	PFS_TRACE((pd->pn_name));
 
@@ -632,11 +633,11 @@ pfs_readdir(struct vop_readdir_args *va)
 	/* only allow reading entire entries */
 	offset = uio->uio_offset;
 	resid = uio->uio_resid;
-	if (offset < 0 || offset % PFS_DELEN != 0 || resid < PFS_DELEN)
+	if (offset < 0 || offset % PFS_DELEN != 0 ||
+	    (resid && resid < PFS_DELEN))
 		PFS_RETURN (EINVAL);
-
-	if (sbuf_new(&sb, NULL, resid, SBUF_FIXEDLEN) == NULL)
-		PFS_RETURN (ENOMEM);
+	if (resid == 0)
+		PFS_RETURN (0);
 
 	/* skip unwanted entries */
 	sx_slock(&allproc_lock);
@@ -644,13 +645,14 @@ pfs_readdir(struct vop_readdir_args *va)
 		if (pfs_iterate(curthread, pid, pd, &pn, &p) == -1) {
 			/* nothing left... */
 			sx_sunlock(&allproc_lock);
-			sbuf_delete(&sb);
 			PFS_RETURN (0);
 		}
 
 	/* fill in entries */
+	ent = buf = malloc(resid, M_IOV, M_WAITOK);
 	entry.d_reclen = PFS_DELEN;
-	while (pfs_iterate(curthread, pid, pd, &pn, &p) != -1 && resid > 0) {
+	while (pfs_iterate(curthread, pid, pd, &pn, &p) != -1 &&
+	    resid >= PFS_DELEN) {
 		if (!pn->pn_parent)
 			pn->pn_parent = pd;
 		if (!pn->pn_fileno)
@@ -688,14 +690,14 @@ pfs_readdir(struct vop_readdir_args *va)
 			panic("%s has unexpected node type: %d", pn->pn_name, pn->pn_type);
 		}
 		PFS_TRACE((entry.d_name));
-		sbuf_bcat(&sb, &entry, PFS_DELEN);
+		bcopy(&entry, ent, PFS_DELEN); /* XXX waste of cycles */
 		offset += PFS_DELEN;
 		resid -= PFS_DELEN;
+		ent += PFS_DELEN;
 	}
 	sx_sunlock(&allproc_lock);
-	sbuf_finish(&sb);
-	error = uiomove(sbuf_data(&sb), sbuf_len(&sb), uio);
-	sbuf_delete(&sb);
+	error = uiomove(buf, ent - buf, uio);
+	free(buf, M_IOV);
 	PFS_RETURN (error);
 }
 
