@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.93 1999/07/19 10:06:18 jkh Exp $
+ * $Id: system.c,v 1.94 1999/07/20 07:39:22 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -71,7 +71,9 @@ expand(char *fname)
 void
 systemInitialize(int argc, char **argv)
 {
+#ifdef __alpha__
     int i;
+#endif
 
     signal(SIGINT, SIG_IGN);
     globalsInit();
