@@ -73,8 +73,8 @@ __FBSDID("$FreeBSD$");
 
 #include <compat/ndis/pe_var.h>
 #include <compat/ndis/resource_var.h>
-#include <compat/ndis/hal_var.h>
 #include <compat/ndis/ntoskrnl_var.h>
+#include <compat/ndis/hal_var.h>
 #include <compat/ndis/ndis_var.h>
 #include <compat/ndis/cfg_var.h>
 #include <dev/if_ndis/if_ndisvar.h>
@@ -387,6 +387,15 @@ ndis_attach(dev)
 	if (error) {
 		device_printf(dev, "couldn't set up irq\n");
 		goto fail;
+	}
+
+	if (sc->ndis_iftype == PCMCIABus) {
+		error = ndis_alloc_amem(sc);
+		if (error) {
+			device_printf(dev, "failed to allocate "
+			    "attribute memory\n");
+			goto fail;
+		}
 	}
 
 	sc->ndis_regvals = ndis_regvals;
@@ -737,6 +746,9 @@ ndis_detach(dev)
 		bus_release_resource(dev, SYS_RES_MEMORY,
 		    sc->ndis_altmem_rid, sc->ndis_res_altmem);
 
+	if (sc->ndis_iftype == PCMCIABus)
+		ndis_free_amem(sc);
+
 	if (sc->ndis_sc)
 		ndis_destroy_dma(sc);
 
@@ -957,8 +969,11 @@ ndis_linksts_done(adapter)
 	ifp = block->nmb_ifp;
 	sc = ifp->if_softc;
 
-	if (!NDIS_INITIALIZED(sc))
+	NDIS_LOCK(sc);
+	if (!NDIS_INITIALIZED(sc)) {
+		NDIS_UNLOCK(sc);
 		return;
+	}
 
 	switch (block->nmb_getstat) {
 	case NDIS_STATUS_MEDIA_CONNECT:
@@ -973,6 +988,7 @@ ndis_linksts_done(adapter)
 		break;
 	}
 
+	NDIS_UNLOCK(sc);
 	return;
 }
 
