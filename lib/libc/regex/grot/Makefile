@@ -48,11 +48,13 @@ re:	$(OBJS)
 
 o:	$(OBJPRODN)
 
-REGEXHSRC = regex2.h reg*.c
+REGEXHSRC = ../regex2.h ../reg*.c
 h:	$(REGEXHSRC)
 	sh mkh $(MKHFLAGS) -i _REGEX_H_ $(REGEXHSRC) >regex.tmp
 	cmp -s regex.tmp regex.h 2>/dev/null || cp regex.tmp regex.h
 	rm -f regex.tmp
+
+regex.h: h
 
 regcomp.o regexec.o regfree.o debug.o:	utils.h regex.h regex2.h
 regcomp.o:	cname.h regcomp.ih
