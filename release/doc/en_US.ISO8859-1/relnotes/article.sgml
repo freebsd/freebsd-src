@@ -2501,8 +2501,8 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para><application>BIND</application> has been updated to
       8.3.1-REL. &merged;</para>
 
-      <para><application>Binutils</application> have been updated to
-      a 27 January 2002 snapshot from the FSF 2.12 branch.</para>
+      <para><application>Binutils</application> has been updated to
+      a 21 February 2002 snapshot from the FSF 2.12 branch.</para>
 
       <para><application>bzip2</application> 1.0.2 has been imported; this
       brings the &man.bzip2.1; program and the <filename>libbz2</filename>
