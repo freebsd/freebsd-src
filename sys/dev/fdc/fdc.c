@@ -63,6 +63,7 @@
 #include "i386/isa/isa.h"
 #include "i386/isa/isa_device.h"
 #include "i386/isa/fdreg.h"
+#include "i386/isa/fdc.h"
 #include "i386/isa/icu.h"
 #include "i386/isa/rtc.h"
 
