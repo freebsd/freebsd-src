@@ -42,12 +42,12 @@
 #include <sys/rtprio.h>
 
 #include <machine/asmacros.h>
+#include <machine/ipl.h>
 
 #ifdef SMP
 #include <machine/pmap.h>
 #include <machine/apic.h>
 #include <machine/smptests.h>		/** GRAB_LOPRIO */
-#include <machine/ipl.h>
 #include <machine/lock.h>
 #endif /* SMP */
 
