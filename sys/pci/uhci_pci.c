@@ -181,18 +181,7 @@ uhci_pci_attach(device_t self)
 {
 	uhci_softc_t *sc = device_get_softc(self);
 	int rid;
-	int intr;
 	int err;
-
-	/* For the moment, put in a message stating what is wrong */
-	intr = pci_read_config(self, PCIR_INTLINE, 1);
-	if (intr == 0 || intr == 255) {
-		device_printf(self, "Invalid irq %d\n", intr);
-#ifdef __i386__
-		device_printf(self, "Please switch on USB support and switch PNP-OS to 'No' in BIOS\n");
-#endif
-		return ENXIO;
-	}
 
 	rid = PCI_UHCI_BASE_REG;
 	sc->io_res = bus_alloc_resource(self, SYS_RES_IOPORT, &rid,
