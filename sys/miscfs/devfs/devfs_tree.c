@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.16 1996/01/25 07:17:31 phk Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.17 1996/01/28 10:07:55 phk Exp $
  */
 
 #include "param.h"
@@ -496,7 +496,7 @@ int devfs_add_fronts(devnm_p parent,devnm_p child) /*proto*/
 				continue;
 			}
 		}
-		if ( error = dev_add_name(child->name,parent->dnp
+		if ( error = dev_add_name(child->name,falias->dnp
 						,child, dnp,&newnmp)) {
 			if( type == DEV_DIR) {
 				devfs_dn_free(dnp); /* 1->0 */
@@ -896,6 +896,8 @@ int dev_add_entry(char *name, dn_p parent, int type, union typeinfo *by, devnm_p
 * Add the named device entry into the given directory, and make it 	*
 * The appropriate type... (called (sometimes indirectly) by drivers..)	*
 * this function is exported.. see sys/devfsext.h			*
+* Has the capacity to take  printf type arguments to format the device 	*
+* names									*
 \***********************************************************************/
 void *devfs_add_devswf(
 		void *devsw,
@@ -937,6 +939,7 @@ void *devfs_add_devswf(
 * Add the named device entry into the given directory, and make it 	*
 * The appropriate type... (called (sometimes indirectly) by drivers..)	*
 * this function is exported.. see sys/devfsext.h			*
+* Possibly this should be 'unexported' in the future..			*
 \***********************************************************************/
 void *devfs_add_devsw(char *path,
 		char *name,
