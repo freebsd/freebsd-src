@@ -64,10 +64,13 @@ main(int argc, char *argv[])
 	int ch;
 	char *dir, *p;
 	int status;
+	FILE *spec1, *spec2;
 
 	dir = NULL;
 	keys = KEYDEFAULT;
 	init_excludes();
+	spec1 = stdin;
+	spec2 = NULL;
 
 	while ((ch = getopt(argc, argv, "cdef:iK:k:LnPp:qrs:UuxX:")) != -1)
 		switch((char)ch) {
@@ -81,8 +84,16 @@ main(int argc, char *argv[])
 			eflag = 1;
 			break;
 		case 'f':
-			if (!(freopen(optarg, "r", stdin)))
-				err(1, "%s", optarg);
+			if (spec1 == stdin) {
+				spec1 = fopen(optarg, "r");
+				if (spec1 == NULL)
+					err(1, "%s", optarg);
+			} else if (spec2 == NULL) {
+				spec2 = fopen(optarg, "r");
+				if (spec2 == NULL)
+					err(1, "%s", optarg);
+			} else
+				usage();
 			break;
 		case 'i':
 			iflag = 1;
@@ -157,7 +168,10 @@ main(int argc, char *argv[])
 		cwalk();
 		exit(0);
 	}
-	status = mtree_verifyspec(stdin);
+	if (spec2 != NULL)
+		status = mtree_specspec(spec1, spec2);
+	else
+		status = mtree_verifyspec(spec1);
 	if (Uflag & (status == MISMATCHEXIT))
 		status = 0;
 	exit(status);
@@ -167,7 +181,7 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-"usage: mtree [-LPUcdeinqrux] [-f spec] [-K key] [-k key] [-p path] [-s seed]\n"
+"usage: mtree [-LPUcdeinqrux] [-f spec] [-f spec] [-K key] [-k key] [-p path] [-s seed]\n"
 "\t[-X excludes]\n");
 	exit(1);
 }

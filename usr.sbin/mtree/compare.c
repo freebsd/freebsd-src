@@ -64,8 +64,6 @@ __FBSDID("$FreeBSD$");
 extern int uflag;
 extern int lineno;
 
-static const char *ftype(u_int);
-
 #define	INDENTNAMELEN	8
 #define	LABEL \
 	if (!label++) { \
@@ -333,7 +331,7 @@ inotype(u_int type)
 	/* NOTREACHED */
 }
 
-static const char *
+const char *
 ftype(u_int type)
 {
 	switch(type) {
