@@ -13,7 +13,7 @@ CFLAGS		+=	-W -Wall -Wstrict-prototypes -Wmissing-prototypes -Wpointer-arith
 # XXX Delete -Wuninitialized by default for now -- the compiler doesn't
 # XXX always get it right.
 CFLAGS		+=	-Wno-uninitialized
-.   if defined(WARNS_WERROR)
+.   if defined(WARNS_WERROR) && !defined(NO_WERROR)
 CFLAGS		+=	-Werror
 .   endif
 .  endif
@@ -28,7 +28,7 @@ WFORMAT		=	1
 . if defined(WFORMAT)
 .  if ${WFORMAT} > 0
 CFLAGS		+=	-Wnon-const-format -Wno-format-extra-args
-.   if defined(WARNS_WERROR)
+.   if defined(WARNS_WERROR) && !defined(NO_WERROR)
 CFLAGS		+=	-Werror
 .   endif
 .  endif
