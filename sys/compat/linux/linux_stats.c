@@ -206,6 +206,55 @@ struct linux_statfs_buf {
 	long fspare[6];
 };
 
+#ifndef VT_NWFS
+#define	VT_NWFS	VT_TFS	/* XXX - bug compatibility with sys/nwfs/nwfs_node.h */
+#endif
+
+#define	LINUX_CODA_SUPER_MAGIC	0x73757245L
+#define	LINUX_EXT2_SUPER_MAGIC	0xEF53L
+#define	LINUX_HPFS_SUPER_MAGIC	0xf995e849L
+#define	LINUX_ISOFS_SUPER_MAGIC	0x9660L
+#define	LINUX_MSDOS_SUPER_MAGIC	0x4d44L
+#define	LINUX_NCP_SUPER_MAGIC	0x564cL
+#define	LINUX_NFS_SUPER_MAGIC	0x6969L
+#define	LINUX_NTFS_SUPER_MAGIC	0x5346544EL
+#define	LINUX_PROC_SUPER_MAGIC	0x9fa0L
+#define	LINUX_UFS_SUPER_MAGIC	0x00011954L	/* XXX - UFS_MAGIC in Linux */
+
+/*
+ * ext2fs uses the VT_UFS tag. A mounted ext2 filesystem will therefore
+ * be seen as an ufs/mfs filesystem.
+ */
+static long
+bsd_to_linux_ftype(int tag)
+{
+
+	switch (tag) {
+	case VT_CODA:
+		return (LINUX_CODA_SUPER_MAGIC);
+	case VT_HPFS:
+		return (LINUX_HPFS_SUPER_MAGIC);
+	case VT_ISOFS:
+		return (LINUX_ISOFS_SUPER_MAGIC);
+	case VT_MFS:
+		return (LINUX_UFS_SUPER_MAGIC);
+	case VT_MSDOSFS:
+		return (LINUX_MSDOS_SUPER_MAGIC);
+	case VT_NFS:
+		return (LINUX_NFS_SUPER_MAGIC);
+	case VT_NTFS:
+		return (LINUX_NTFS_SUPER_MAGIC);
+	case VT_NWFS:
+		return (LINUX_NCP_SUPER_MAGIC);
+	case VT_PROCFS:
+		return (LINUX_PROC_SUPER_MAGIC);
+	case VT_UFS:
+		return (LINUX_UFS_SUPER_MAGIC);
+	}
+
+	return (0L);
+}
+
 int
 linux_statfs(struct proc *p, struct linux_statfs_args *args)
 {
@@ -236,7 +285,7 @@ linux_statfs(struct proc *p, struct linux_statfs_args *args)
 	if (error)
 		return error;
 	bsd_statfs->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-	linux_statfs_buf.ftype = bsd_statfs->f_type;
+	linux_statfs_buf.ftype = bsd_to_linux_ftype(bsd_statfs->f_type);
 	linux_statfs_buf.fbsize = bsd_statfs->f_bsize;
 	linux_statfs_buf.fblocks = bsd_statfs->f_blocks;
 	linux_statfs_buf.fbfree = bsd_statfs->f_bfree;
@@ -271,7 +320,7 @@ linux_fstatfs(struct proc *p, struct linux_fstatfs_args *args)
 	if (error)
 		return error;
 	bsd_statfs->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-	linux_statfs_buf.ftype = bsd_statfs->f_type;
+	linux_statfs_buf.ftype = bsd_to_linux_ftype(bsd_statfs->f_type);
 	linux_statfs_buf.fbsize = bsd_statfs->f_bsize;
 	linux_statfs_buf.fblocks = bsd_statfs->f_blocks;
 	linux_statfs_buf.fbfree = bsd_statfs->f_bfree;
