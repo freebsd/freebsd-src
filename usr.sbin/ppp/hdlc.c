@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.4 1995/07/08 17:46:49 amurai Exp $
+ * $Id: hdlc.c,v 1.5 1995/07/30 15:18:29 gpalmer Exp $
  *
  *	TODO:
  */
@@ -196,6 +196,7 @@ HdlcOutput(int pri, u_short proto, struct mbuf *bp)
     AsyncOutput(pri, mhp, proto);
 }
 
+void
 DecodePacket(proto, bp)
 u_short proto;
 struct mbuf *bp;

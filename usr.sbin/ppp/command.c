@@ -17,11 +17,14 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.9 1995/09/02 17:20:50 amurai Exp $
+ * $Id: command.c,v 1.10 1995/10/08 14:57:27 amurai Exp $
  *
  */
+#include <sys/types.h>
 #include <ctype.h>
 #include <termios.h>
+#include <wait.h>
+#include <time.h>
 #include "fsm.h"
 #include "phase.h"
 #include "lcp.h"
@@ -756,7 +759,6 @@ struct cmdtab *list;
 int argc;
 char **argv;
 {
-  int width;
 
   DefMyAddress.ipaddr.s_addr = DefHisAddress.ipaddr.s_addr = 0L;
   if (argc > 0) {

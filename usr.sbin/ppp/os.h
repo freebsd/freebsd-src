@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: os.h,v 1.1.1.1 1995/01/31 06:29:56 amurai Exp $
+ * $Id: os.h,v 1.2 1995/02/26 12:17:49 amurai Exp $
  *
  *	TODO:
  */
@@ -32,4 +32,6 @@ void OsCloseLink __P((int flag));
 void OsLinkup __P((void)), OsLinkdown __P((void));
 void OsSetRoute __P((int, struct in_addr, struct in_addr, struct in_addr));
 void DeleteIfRoutes __P((int));
+void OsAddInOctets __P((int cnt));
+void OsAddOutOctets __P((int cnt));
 #endif
