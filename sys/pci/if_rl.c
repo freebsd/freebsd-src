@@ -1232,6 +1232,14 @@ rl_txeof(struct rl_softc *sc)
 		bus_dmamap_destroy(sc->rl_tag, RL_LAST_DMAMAP(sc));
 		m_freem(RL_LAST_TXMBUF(sc));
 		RL_LAST_TXMBUF(sc) = NULL;
+		/*
+		 * If there was a transmit underrun, bump the TX threshold.
+		 * Make sure not to overflow the 63 * 32byte we can address
+		 * with the 6 available bit.
+		 */
+		if ((txstat & RL_TXSTAT_TX_UNDERRUN) &&
+		    (sc->rl_txthresh < 2016))
+			sc->rl_txthresh += 32;
 		if (txstat & RL_TXSTAT_TX_OK)
 			ifp->if_opackets++;
 		else {
@@ -1244,12 +1252,8 @@ rl_txeof(struct rl_softc *sc)
 			/* error recovery */
 			rl_reset(sc);
 			rl_init_locked(sc);
-			/*
-			 * If there was a transmit underrun,
-			 * bump the TX threshold.
-			 */
-			if (txstat & RL_TXSTAT_TX_UNDERRUN)
-				sc->rl_txthresh = oldthresh + 32;
+			/* restore original threshold */
+			sc->rl_txthresh = oldthresh;
 			return;
 		}
 		RL_INC(sc->rl_cdata.last_tx);
