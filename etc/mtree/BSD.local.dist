@@ -1,4 +1,4 @@
-#	$Id: BSD.local.dist,v 1.7 1994/09/19 01:40:35 rgrimes Exp $
+#	$Id: BSD.local.dist,v 1.8 1995/02/15 19:12:21 ache Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -52,6 +52,8 @@
         ..
         skel           
         ..
+    ..
+    share
     ..
     sbin
     ..
