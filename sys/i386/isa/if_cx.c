@@ -20,11 +20,11 @@
 
 #include "cx.h"
 #if NCX > 0
-#include <bpfilter.h>
+#include "bpfilter.h"
 
 #include <sys/param.h>
-#include <systm.h>
-#include <kernel.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/mbuf.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -42,9 +42,8 @@
 #ifdef __FreeBSD__
 #   include <i386/isa/isa_device.h>
 #   if __FreeBSD__ < 2
-#      include <i386/include/pio.h>
+#      include <machine/pio.h>
 #   else
-#      include <i386/include/cpufunc.h>
 #      include <sys/devconf.h>
 #   endif
 #   define init_func_t     void(*)(int)
@@ -61,7 +60,7 @@
 #   include <sys/device.h>
 #   include <i386/isa/isavar.h>
 #   include <i386/isa/icu.h>
-#   include <i386/include/inline.h>
+#   include <machine/inline.h>
 #   include <net/if_slvar.h>
 #   include <net/if_p2p.h>
 #   define timeout_func_t  void(*)()
@@ -76,7 +75,7 @@ struct cxsoftc {
 #endif
 
 #include <net/if_sppp.h>
-#include <sys/cronyx.h>
+#include <machine/cronyx.h>
 #include <i386/isa/cxreg.h>
 
 #ifdef DEBUG
