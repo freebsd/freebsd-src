@@ -58,7 +58,7 @@ des_locl.h	- Internal libdes.a header file.
 podd.h		- Odd parity tables - used in des_set_key().
 sk.h		- Lookup tables used in des_set_key().
 spr.h		- What is left of the S tables - used in ecb_encrypt().
-version.h	- header file for the external definition of the
+des_ver.h	- header file for the external definition of the
 		  version string.
 des.doc		- SSLeay documentation for the library.
 

@@ -1,5 +1,5 @@
-/* lib/des/rpc_des.h */
-/* Copyright (C) 1995 Eric Young (eay@mincom.oz.au)
+/* crypto/des/rpc_des.h */
+/* Copyright (C) 1995-1996 Eric Young (eay@mincom.oz.au)
  * All rights reserved.
  * 
  * This file is part of an SSL implementation written
@@ -82,6 +82,11 @@
 
 #define DES_MAXLEN 	65536	/* maximum # of bytes to encrypt  */
 #define DES_QUICKLEN	16	/* maximum # of bytes to encrypt quickly */
+
+#ifdef HEADER_DES_H
+#undef ENCRYPT
+#undef DECRYPT
+#endif
 
 enum desdir { ENCRYPT, DECRYPT };
 enum desmode { CBC, ECB };

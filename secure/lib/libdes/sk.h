@@ -1,5 +1,5 @@
-/* lib/des/sk.h */
-/* Copyright (C) 1995 Eric Young (eay@mincom.oz.au)
+/* crypto/des/sk.h */
+/* Copyright (C) 1995-1996 Eric Young (eay@mincom.oz.au)
  * All rights reserved.
  * 
  * This file is part of an SSL implementation written
@@ -45,7 +45,7 @@
  * [including the GNU Public Licence.]
  */
 
-static const unsigned long des_skb[8][64]={
+static const DES_LONG des_skb[8][64]={
 {
 /* for C bits (numbered as per FIPS 46) 1 2 3 4 5 6 */
 0x00000000L,0x00000010L,0x20000000L,0x20000010L,
