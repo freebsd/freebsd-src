@@ -44,14 +44,14 @@ struct fetcherr {
 
 void		 _fetch_seterr(struct fetcherr *p, int e);
 void		 _fetch_syserr(void);
-void		 _fetch_info(char *fmt, ...);
-int		 _fetch_default_port(char *);
-int		 _fetch_default_proxy_port(char *);
-int		 _fetch_connect(char *host, int port, int af, int verbose);
+void		 _fetch_info(const char *fmt, ...);
+int		 _fetch_default_port(const char *);
+int		 _fetch_default_proxy_port(const char *);
+int		 _fetch_connect(const char *host, int port, int af, int verbose);
 int		 _fetch_getln(int fd, char **buf, size_t *size, size_t *len);
-int		 _fetch_putln(int fd, char *str, size_t len);
+int		 _fetch_putln(int fd, const char *str, size_t len);
 int		 _fetch_add_entry(struct url_ent **p, int *size, int *len,
-				  char *name, struct url_stat *stat);
+				  const char *name, struct url_stat *stat);
 
 #define _ftp_seterr(n)	 _fetch_seterr(_ftp_errlist, n)
 #define _http_seterr(n)	 _fetch_seterr(_http_errlist, n)
@@ -72,8 +72,9 @@ int		 _fetch_add_entry(struct url_ent **p, int *size, int *len,
  * Note that _http_request() frees purl, which is way ugly but saves us a
  * whole lot of trouble.
  */
-FILE		*_http_request(struct url *URL, char *op, struct url_stat *us,
-			       struct url *purl, char *flags);
+FILE		*_http_request(struct url *URL, const char *op,
+				struct url_stat *us, struct url *purl,
+				const char *flags);
 
 /*
  * Check whether a particular flag is set

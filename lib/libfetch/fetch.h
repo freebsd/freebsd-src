@@ -87,41 +87,42 @@ struct url_ent {
 #define	FETCH_VERBOSE	19
 
 /* FILE-specific functions */
-FILE		*fetchXGetFile(struct url *, struct url_stat *, char *);
-FILE		*fetchGetFile(struct url *, char *);
-FILE		*fetchPutFile(struct url *, char *);
-int		 fetchStatFile(struct url *, struct url_stat *, char *);
-struct url_ent	*fetchListFile(struct url *, char *);
+FILE		*fetchXGetFile(struct url *, struct url_stat *, const char *);
+FILE		*fetchGetFile(struct url *, const char *);
+FILE		*fetchPutFile(struct url *, const char *);
+int		 fetchStatFile(struct url *, struct url_stat *, const char *);
+struct url_ent	*fetchListFile(struct url *, const char *);
 
 /* HTTP-specific functions */
-FILE		*fetchXGetHTTP(struct url *, struct url_stat *, char *);
-FILE		*fetchGetHTTP(struct url *, char *);
-FILE		*fetchPutHTTP(struct url *, char *);
-int		 fetchStatHTTP(struct url *, struct url_stat *, char *);
-struct url_ent	*fetchListHTTP(struct url *, char *);
+FILE		*fetchXGetHTTP(struct url *, struct url_stat *, const char *);
+FILE		*fetchGetHTTP(struct url *, const char *);
+FILE		*fetchPutHTTP(struct url *, const char *);
+int		 fetchStatHTTP(struct url *, struct url_stat *, const char *);
+struct url_ent	*fetchListHTTP(struct url *, const char *);
 
 /* FTP-specific functions */
-FILE		*fetchXGetFTP(struct url *, struct url_stat *, char *);
-FILE		*fetchGetFTP(struct url *, char *);
-FILE		*fetchPutFTP(struct url *, char *);
-int		 fetchStatFTP(struct url *, struct url_stat *, char *);
-struct url_ent	*fetchListFTP(struct url *, char *);
+FILE		*fetchXGetFTP(struct url *, struct url_stat *, const char *);
+FILE		*fetchGetFTP(struct url *, const char *);
+FILE		*fetchPutFTP(struct url *, const char *);
+int		 fetchStatFTP(struct url *, struct url_stat *, const char *);
+struct url_ent	*fetchListFTP(struct url *, const char *);
 
 /* Generic functions */
-FILE		*fetchXGetURL(char *, struct url_stat *, char *);
-FILE		*fetchGetURL(char *, char *);
-FILE		*fetchPutURL(char *, char *);
-int		 fetchStatURL(char *, struct url_stat *, char *);
-struct url_ent	*fetchListURL(char *, char *);
-FILE		*fetchXGet(struct url *, struct url_stat *, char *);
-FILE		*fetchGet(struct url *, char *);
-FILE		*fetchPut(struct url *, char *);
-int		 fetchStat(struct url *, struct url_stat *, char *);
-struct url_ent	*fetchList(struct url *, char *);
+FILE		*fetchXGetURL(const char *, struct url_stat *, const char *);
+FILE		*fetchGetURL(const char *, const char *);
+FILE		*fetchPutURL(const char *, const char *);
+int		 fetchStatURL(const char *, struct url_stat *, const char *);
+struct url_ent	*fetchListURL(const char *, const char *);
+FILE		*fetchXGet(struct url *, struct url_stat *, const char *);
+FILE		*fetchGet(struct url *, const char *);
+FILE		*fetchPut(struct url *, const char *);
+int		 fetchStat(struct url *, struct url_stat *, const char *);
+struct url_ent	*fetchList(struct url *, const char *);
 
 /* URL parsing */
-struct url	*fetchMakeURL(char *, char *, int, char *, char *, char *);
-struct url	*fetchParseURL(char *);
+struct url	*fetchMakeURL(const char *, const char *, int,
+			const char *, const char *, const char *);
+struct url	*fetchParseURL(const char *);
 void		 fetchFreeURL(struct url *);
 
 /* Last error code */

@@ -39,7 +39,7 @@
 #include "common.h"
 
 FILE *
-fetchXGetFile(struct url *u, struct url_stat *us, char *flags)
+fetchXGetFile(struct url *u, struct url_stat *us, const char *flags)
 {
     FILE *f;
     
@@ -60,13 +60,13 @@ fetchXGetFile(struct url *u, struct url_stat *us, char *flags)
 }
 
 FILE *
-fetchGetFile(struct url *u, char *flags)
+fetchGetFile(struct url *u, const char *flags)
 {
     return fetchXGetFile(u, NULL, flags);    
 }
 
 FILE *
-fetchPutFile(struct url *u, char *flags)
+fetchPutFile(struct url *u, const char *flags)
 {
     FILE *f;
     
@@ -87,7 +87,7 @@ fetchPutFile(struct url *u, char *flags)
 }
 
 static int
-_fetch_stat_file(char *fn, struct url_stat *us)
+_fetch_stat_file(const char *fn, struct url_stat *us)
 {
     struct stat sb;
 
@@ -104,13 +104,13 @@ _fetch_stat_file(char *fn, struct url_stat *us)
 }
 
 int
-fetchStatFile(struct url *u, struct url_stat *us, char *flags)
+fetchStatFile(struct url *u, struct url_stat *us, const char *flags)
 {
     return _fetch_stat_file(u->doc, us);
 }
 
 struct url_ent *
-fetchListFile(struct url *u, char *flags)
+fetchListFile(struct url *u, const char *flags)
 {
     DIR *dir;
     struct dirent *de;
