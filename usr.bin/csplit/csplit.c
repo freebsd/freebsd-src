@@ -235,10 +235,8 @@ newfile(void)
 	FILE *fp;
 
 	if ((size_t)snprintf(currfile, sizeof(currfile), "%s%0*ld", prefix,
-	    (int)sufflen, nfiles) >= sizeof(currfile)) {
-		errno = ENAMETOOLONG;
-		err(1, NULL);
-	}
+	    (int)sufflen, nfiles) >= sizeof(currfile))
+		errc(1, ENAMETOOLONG, NULL);
 	if ((fp = fopen(currfile, "w+")) == NULL)
 		err(1, "%s", currfile);
 	nfiles++;
