@@ -1586,10 +1586,10 @@ r_protocol(u_char rBuf, mousestatus_t *act)
 
         /*
 	 * [KY-97/08/03]
-	 * Receive the fourth byte only when preceeding three bytes have
+	 * Receive the fourth byte only when preceding three bytes have
 	 * been detected (pBufP >= cur_proto[4]).  In the previous
 	 * versions, the test was pBufP == 0; thus, we may have mistakingly
-	 * received a byte even if we didn't see anything preceeding 
+	 * received a byte even if we didn't see anything preceding 
 	 * the byte.
 	 */
 
@@ -2826,9 +2826,8 @@ kidspad(u_char rxc, mousestatus_t *act)
     static int buflen = 0, b_prev = 0 , x_prev = -1, y_prev = -1 ;
     static k_status status = S_IDLE ;
     static struct timeval old, now ;
-    static int x_idle = -1, y_idle = -1 ;
 
-    int deltat, x, y ;
+    int x, y ;
 
     if (buflen > 0 && (rxc & 0x80) ) {
 	fprintf(stderr, "invalid code %d 0x%x\n", buflen, rxc);
