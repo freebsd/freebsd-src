@@ -13,24 +13,26 @@ excellent book.
 Usage
 -----
 
-	ns [-r] [-s [-p ip|tcp|udp|icmp]]
+	ns [-rsi] [-p proto] [-w wait]
 
 where
 
 	-r	print routing table (default)
 	-s	print protocol statistics
-		Options:
-		-p proto	display only statistics related to this
-				protocol, where 'proto' is one of:
-				- ip
-				- tcp
-				- udp
-				- icmp
+	-i	print interface statistics
+	-p proto	display only statistics related to this
+			protocol, where 'proto' is one of:
+			- ip
+			- tcp
+			- udp
+			- icmp
+			- bdg - bridging stats, if 'ns' was compiled with
+			   bridging support (flag BRIDGING in Makefile)
+	-w wait	continuous display, repeat every 'wait' seconds.
 
 Bugs
 ----
 
-* The link layer information is still missing.
 * 'ns' doesn't resolve IP adresses to names
 * well, real netstat provides _much_ more information... but this one needs
   to be small, right? :-)
@@ -38,4 +40,4 @@ Bugs
 Andrzej Bialecki
 <abial@nask.pl>
 
-$Id: README,v 1.1 1998/08/19 17:21:50 abial Exp $
+$Id: README,v 1.1.1.1 1998/08/27 17:38:45 abial Exp $
