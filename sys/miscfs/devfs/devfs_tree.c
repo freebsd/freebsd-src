@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.34 1997/02/12 16:19:04 mpp Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.35 1997/04/10 14:35:18 bde Exp $
  */
 
 #include "opt_devfs.h"
@@ -496,6 +496,12 @@ devfs_dn_free(dn_p dnp)
 	if(--dnp->links <= 0 ) /* can be -1 for initial free, on error */
 	{
 		/*probably need to do other cleanups XXX */
+		if (dnp->nextsibling != dnp) {
+			dn_p* prevp = dnp->prevsiblingp;
+			*prevp = dnp->nextsibling;
+			dnp->nextsibling->prevsiblingp = prevp;
+			
+		}
 		if(dnp->type == DEV_SLNK) {
 			free(dnp->by.Slnk.name,M_DEVFSNODE);
 		}
