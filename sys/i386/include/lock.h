@@ -55,9 +55,8 @@
 	add	$4, %esp
 
 #define ISR_RELLOCK							\
-	pushl	$_mp_lock ;			/* GIANT_LOCK */	\
-	call	_MPrellock ;						\
-	add	$4, %esp
+	movl	$_mp_lock,%edx ;		/* GIANT_LOCK */	\
+	call	_MPrellock_edx
 
 /*
  * Protects the IO APIC and apic_imen as a critical region.
