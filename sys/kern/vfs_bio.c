@@ -2947,12 +2947,12 @@ bufdone(struct buf *bp)
 				    (int) m->pindex, (int)(foff >> 32),
 						(int) foff & 0xffffffff, resid, i);
 				if (!vn_isdisk(vp, NULL))
-					printf(" iosize: %ld, lblkno: %lld, flags: 0x%lx, npages: %d\n",
+					printf(" iosize: %ld, lblkno: %jd, flags: 0x%lx, npages: %d\n",
 					    bp->b_vp->v_mount->mnt_stat.f_iosize,
 					    (intmax_t) bp->b_lblkno,
 					    bp->b_flags, bp->b_npages);
 				else
-					printf(" VDEV, lblkno: %lld, flags: 0x%lx, npages: %d\n",
+					printf(" VDEV, lblkno: %jd, flags: 0x%lx, npages: %d\n",
 					    (intmax_t) bp->b_lblkno,
 					    bp->b_flags, bp->b_npages);
 				printf(" valid: 0x%x, dirty: 0x%x, wired: %d\n",
@@ -3341,7 +3341,7 @@ vm_hold_free_pages(struct buf * bp, vm_offset_t from, vm_offset_t to)
 		if (p && (index < bp->b_npages)) {
 			if (p->busy) {
 				printf(
-			    "vm_hold_free_pages: blkno: %lld, lblkno: %lld\n",
+			    "vm_hold_free_pages: blkno: %jd, lblkno: %jd\n",
 				    (intmax_t)bp->b_blkno,
 				    (intmax_t)bp->b_lblkno);
 			}
@@ -3374,7 +3374,7 @@ DB_SHOW_COMMAND(buffer, db_show_buffer)
 	db_printf("b_flags = 0x%b\n", (u_int)bp->b_flags, PRINT_BUF_FLAGS);
 	db_printf(
 	    "b_error = %d, b_bufsize = %ld, b_bcount = %ld, b_resid = %ld\n"
-	    "b_dev = (%d,%d), b_data = %p, b_blkno = %lld, b_pblkno = %lld\n",
+	    "b_dev = (%d,%d), b_data = %p, b_blkno = %jd, b_pblkno = %jd\n",
 	    bp->b_error, bp->b_bufsize, bp->b_bcount, bp->b_resid,
 	    major(bp->b_dev), minor(bp->b_dev), bp->b_data,
 	    (intmax_t)bp->b_blkno, (intmax_t)bp->b_pblkno);
