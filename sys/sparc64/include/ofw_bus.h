@@ -28,7 +28,9 @@
 #ifndef	_MACHINE_OFW_BUS_H_
 #define	_MACHINE_OFW_BUS_H_
 
-u_int32_t ofw_bus_route_intr(int intr, void *regs, int regsz, int physz,
-    int nregs, void *imap, int nimap, void *imapmsk, char *regm);
+#define	ORIP_NOINT	-1
+#define	ORIR_NOTFOUND	0xffffffff
+
+u_int32_t ofw_bus_route_intr(phandle_t, int);
 
 #endif /* !_MACHINE_OFW_BUS_H_ */

@@ -46,7 +46,12 @@
 #include <sys/malloc.h>
 #include <sys/bus.h>
 
+#include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_pci.h>
+
 #include <machine/resource.h>
+
+#include <sparc64/pci/ofw_pci.h>
 
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
@@ -343,12 +348,27 @@ apb_write_config(device_t dev, int b, int s, int f, int reg, u_int32_t val,
 }
 
 /*
- * Route an interrupt across a PCI bridge - the APB does not route interrupts,
- * and routing of interrupts that are not preinitialized is not supported yet.
+ * Route an interrupt across a PCI bridge - we need to rely on the firmware
+ * here.
  */
 static int
 apb_route_interrupt(device_t pcib, device_t dev, int pin)
 {
 
-	panic("apb_route_interrupt");
+	/*
+	 * XXX: ugly loathsome hack:
+	 * We can't use ofw_pci_route_intr() here; the device passed may be
+	 * the one of a bridge, so the original device can't be recovered.
+	 *
+	 * We need to use the firmware to route interrupts, however it has
+	 * no interface which could be used to interpret intpins; instead,
+	 * all assignments are done by device.
+	 *
+	 * The MI pci code will try to reroute interrupts of 0, although they
+	 * are correct; all other interrupts are preinitialized, so if we
+	 * get here, the intline is either 0 (so return 0), or we hit a
+	 * device which was not preinitialized (e.g. hotplugged stuff), in
+	 * which case we are lost.
+	 */
+	return (0);
 }

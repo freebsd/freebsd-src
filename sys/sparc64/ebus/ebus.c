@@ -54,12 +54,12 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 
+#include <ofw/openfirm.h>
+#include <ofw/ofw_pci.h>
+
 #include <machine/bus.h>
 #include <machine/ofw_bus.h>
 #include <machine/resource.h>
-
-#include <ofw/openfirm.h>
-#include <ofw/ofw_pci.h>
 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
@@ -99,18 +99,7 @@ struct ebus_softc {
 
 	struct isa_ranges	*sc_range;
 
-	struct ofw_pci_register	*sc_reg;
-
-	int			sc_imap_type;
-
-	struct isa_imap		*sc_ebus_imap;
-	struct isa_imap_msk	sc_ebus_imapmsk;
-
-	struct ofw_pci_imap	*sc_pci_imap;
-	struct ofw_pci_imap_msk	sc_pci_imapmsk;
-
 	int			sc_nrange;
-	int			sc_nreg;
 	int			sc_nimap;
 };
 
@@ -127,7 +116,6 @@ static struct ebus_devinfo *ebus_setup_dinfo(struct ebus_softc *,
     phandle_t, char *);
 static void ebus_destroy_dinfo(struct ebus_devinfo *);
 static int ebus_print_res(struct ebus_devinfo *);
-static int ebus_map_intr(struct ebus_softc *, int, struct isa_regs *, int);
 
 static device_method_t ebus_methods[] = {
 	/* Device interface */
@@ -199,42 +187,10 @@ ebus_probe(device_t dev)
 	sc = device_get_softc(dev);
 	sc->sc_node = node;
 
-	/*
-	 * Fill in our softc with information from the prom.
-	 * There are two possible cases how interrupt mapping needs to be
-	 * handled:
-	 * - if the ebus node has an interrupt-map properties, the interrut
-	 *   numbers in child nodes can be mapped using lookups in this map,
-	 *   using the registers of the child node in question to find the
-	 *   map entry
-	 * - if it does not have such a properties, the interrupts are mapped
-	 *   in the next higher interrupt map (PCI in our case), using the
-	 *   interrupt number of the child, but the registers of the ebus
-	 *   node, to find the mapping.
-	 */
-	sc->sc_imap_type = EBUS_IT_EBUS;
-	sc->sc_nimap = OF_getprop_alloc(node, "interrupt-map",
-	    sizeof(*sc->sc_ebus_imap), (void **)&sc->sc_ebus_imap);
-	if (sc->sc_nimap == -1) {
-		sc->sc_nimap = ofw_pci_find_imap(node, &sc->sc_pci_imap,
-		    &sc->sc_pci_imapmsk);
-		if (sc->sc_nimap == -1)
-			panic("ebus_probe: no interrupt map found");
-		sc->sc_imap_type = EBUS_IT_PCI;
-	} else {
-		if (OF_getprop(node, "interrupt-map-mask",
-		    &sc->sc_ebus_imapmsk, sizeof(sc->sc_ebus_imapmsk)) == -1) {
-			panic("ebus_probe: could not get ebus "
-			    "interrupt-map-mask");
-		}
-	}
-
 	sc->sc_nrange = OF_getprop_alloc(node, "ranges",
 	    sizeof(*sc->sc_range), (void **)&sc->sc_range);
-	sc->sc_nreg = OF_getprop_alloc(node, "reg",
-	    sizeof(*sc->sc_reg), (void **)&sc->sc_reg);
-	if (sc->sc_nrange == -1 || sc->sc_nreg == -1)
-		panic("ebus_attach: could not get ranges/reg property");
+	if (sc->sc_nrange == -1)
+		panic("ebus_attach: could not get ranges property");
 
 	/*
 	 * now attach all our children
@@ -411,9 +367,9 @@ ebus_setup_dinfo(struct ebus_softc *sc, phandle_t node, char *name)
 {
 	struct ebus_devinfo *edi;
 	struct isa_regs *reg;
-	u_int32_t *intrs;
+	u_int32_t *intrs, intr;
 	u_int64_t start;
-	int nreg, nintr, i, intr;
+	int nreg, nintr, i;
 
 	edi = malloc(sizeof(*edi), M_DEVBUF, M_ZERO | M_WAITOK);
 	if (edi == NULL)
@@ -442,10 +398,11 @@ ebus_setup_dinfo(struct ebus_softc *sc, phandle_t node, char *name)
 	nintr = OF_getprop_alloc(node, "interrupts",  sizeof(*intrs),
 	    (void **)&intrs);
 	for (i = 0; i < nintr; i++) {
-		intr = ebus_map_intr(sc, intrs[i], reg, nreg);
-		if (intr == -1)
+		intr = ofw_bus_route_intr(node, intrs[i]);
+		if (intr == ORIR_NOTFOUND) {
 			panic("ebus_setup_dinfo: could not map ebus "
 			    "interrupt %d", intrs[i]);
+		}
 		resource_list_add(&edi->edi_rl, SYS_RES_IRQ, i,
 		    intr, intr, 1);
 	}
@@ -478,21 +435,4 @@ ebus_print_res(struct ebus_devinfo *edi)
 	retval += resource_list_print_type(&edi->edi_rl, "irq", SYS_RES_IRQ,
 	    "%ld");
 	return (retval);
-}
-
-static int
-ebus_map_intr(struct ebus_softc *sc, int intr, struct isa_regs *regs,
-    int nregs)
-{
-	int rv;
-
-	if (sc->sc_imap_type == EBUS_IT_PCI) {
-		rv = ofw_pci_route_intr2(intr, sc->sc_reg, sc->sc_pci_imap,
-		    sc->sc_nimap, &sc->sc_pci_imapmsk);
-		if (rv == 255)
-			return (-1);
-		return (rv);
-	}
-	return (ofw_isa_map_intr(sc->sc_ebus_imap, sc->sc_nimap,
-	    &sc->sc_ebus_imapmsk, intr, regs, nregs));
 }

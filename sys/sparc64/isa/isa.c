@@ -51,6 +51,7 @@
 #include <ofw/openfirm.h>
 
 #include <machine/intr_machdep.h>
+#include <machine/ofw_bus.h>
 #include <machine/resource.h>
 
 #include <sparc64/pci/ofw_pci.h>
@@ -71,11 +72,8 @@ u_int64_t isa_mem_limit;
 
 device_t isa_bus_device;
 
-static struct ofw_pci_register isab_reg;
-static struct ofw_pci_imap *isab_imap;
-static int isab_nimap;
-static struct ofw_pci_imap_msk isab_imap_msk;
 static phandle_t isab_node;
+static u_int32_t isa_ino[8];
 
 /*
  * XXX: This is really partly partly PCI-specific, but unfortunately is
@@ -92,8 +90,6 @@ static phandle_t isab_node;
 
 static int isa_route_intr_res(device_t, u_long, u_long);
 
-static int isa_ino[8];
-
 intrmask_t
 isa_irq_pending(void)
 {
@@ -103,7 +99,7 @@ isa_irq_pending(void)
 	/* XXX: Is this correct? */
 	for (i = 7, pending = 0; i >= 0; i--) {
 		pending <<= 1; 
-		if (isa_ino[i] != 255) {
+		if (isa_ino[i] != ORIR_NOTFOUND) {
 			pending |= (SPARCBUS_INTR_PENDING(isa_bus_device,
 			    isa_ino[i]) == 0) ? 0 : 1;
 		}
@@ -116,27 +112,29 @@ isa_init(device_t dev)
 {
 	device_t bridge;
 	phandle_t node;
+	u_int32_t ino;
 	struct isa_ranges *br;
 	int nbr, i;
 
 	/* The parent of the bus must be a PCI-ISA bridge. */
 	bridge = device_get_parent(dev);
-	isab_node = ofw_pci_find_node(pci_get_bus(bridge), pci_get_slot(bridge),
-	    pci_get_function(bridge));
-	if (OF_getprop(isab_node, "reg", &isab_reg, sizeof(isab_reg)) < 0)
-		panic("isa_init: cannot get bridge reg property");
+	isab_node = ofw_pci_node(bridge);
 	nbr = OF_getprop_alloc(isab_node, "ranges", sizeof(*br), (void **)&br);
 	if (nbr <= 0)
 		panic("isa_init: cannot get bridge range property");
-	node = isab_node;
-	isab_nimap = ofw_pci_find_imap(node, &isab_imap, &isab_imap_msk);
-	if (isab_nimap == -1)
-		panic("isa_init: could not find interrupt-map");
-	for (i = 0; i < 8; i++) {
-		isa_ino[i] = ofw_pci_route_intr2(i, &isab_reg, isab_imap,
-		    isab_nimap, &isab_imap_msk);
+	/*
+	 * This is really a bad kluge; however, it is needed to provide
+	 * isa_irq_pending().
+	 */
+	for (i = 0; i < 8; i++)
+		isa_ino[i] = ORIR_NOTFOUND;
+	for (node = OF_child(isab_node); node != 0; node = OF_peer(node)) {
+		if (OF_getprop(node, "interrupts", &ino, sizeof(ino)) == -1)
+			continue;
+		if (ino > 7)
+			panic("isa_init: XXX: ino too large");
+		isa_ino[ino] = ofw_bus_route_intr(node, ino);
 	}
-
 
 	for (nbr -= 1; nbr >= 0; nbr--) {
 		switch(ISAB_RANGE_SPACE(br + nbr)) {
@@ -168,8 +166,9 @@ isa_route_intr_res(device_t bus, u_long start, u_long end)
 		panic("isa_route_intr_res: allocation of interrupt range not "
 		    "supported (0x%lx - 0x%lx)", start, end);
 	}
-	res = ofw_pci_route_intr2(start, &isab_reg, isab_imap, isab_nimap,
-	    &isab_imap_msk);
+	if (start > 7)
+		panic("isa_route_intr_res: start out of isa range");
+	res = isa_ino[start];
 	if (res == 255)
 		device_printf(bus, "could not map interrupt %d\n", res);
 	return (res);
