@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.127 1998/05/28 23:17:48 brian Exp $
+ * $Id: main.c,v 1.128 1998/05/29 18:32:11 brian Exp $
  *
  *	TODO:
  */
@@ -260,9 +260,7 @@ main(int argc, char **argv)
   name = strrchr(argv[0], '/');
   log_Open(name ? name + 1 : argv[0]);
 
-  argc--;
-  argv++;
-  label = ProcessArgs(argc, argv, &mode);
+  label = ProcessArgs(argc - 1, argv + 1, &mode);
 
 #ifdef __FreeBSD__
   /*
@@ -316,7 +314,7 @@ main(int argc, char **argv)
     return 1;
   }
 
-  if ((bundle = bundle_Create(TUN_PREFIX, mode)) == NULL) {
+  if ((bundle = bundle_Create(TUN_PREFIX, mode, (const char **)argv)) == NULL) {
     log_Printf(LogWARN, "bundle_Create: %s\n", strerror(errno));
     return EX_START;
   }

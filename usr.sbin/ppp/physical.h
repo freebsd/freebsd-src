@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.h,v 1.1.2.26 1998/05/15 23:58:26 brian Exp $
+ *  $Id: physical.h,v 1.2 1998/05/21 21:47:40 brian Exp $
  *
  */
 
@@ -45,6 +45,7 @@ struct physical {
   } name;
 
   unsigned Utmp : 1;           /* Are we in utmp ? */
+  pid_t session_owner;         /* HUP this when closing the link */
 
   /* XXX-ML Most of the below is device specific, and probably do not
       belong in the generic physical struct. It comes from modem.c. */
