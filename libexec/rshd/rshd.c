@@ -498,7 +498,7 @@ doit(struct sockaddr *fromp)
 		    syslog(LOG_INFO|LOG_AUTH, "%s@%s as %s: cmd='%.80s'",
 			ruser, rhost, luser, cmdbuf);
 	}
-	execl(pwd->pw_shell, cp, "-c", cmdbuf, NULL);
+	execl(pwd->pw_shell, cp, "-c", cmdbuf, (char *)NULL);
 	err(1, "%s", pwd->pw_shell);
 	exit(1);
 }
