@@ -238,11 +238,11 @@ tco_setscales(struct timecounter *tc)
 	/* 
 	 * We get nanoseconds with 32 bit binary fraction and want
 	 * 64 bit binary fraction: x = a * 2^32 / 10^9 = a * 4.294967296
-	 * The range is +/- 500PPM so we can only multiply by about 8500
-	 * without overflowing. The best suitable fraction is 4398/1024.
-	 * Divide by 2 times 1024 to match the temporary lower precision.
+	 * The range is +/- 5000PPM so we can only multiply by about 850
+	 * without overflowing.  The best suitable fraction is 2199/512.
+	 * Divide by 2 times 512 to match the temporary lower precision.
 	 */
-	scale += (tc->tc_adjustment * 4398) / 2048;
+	scale += (tc->tc_adjustment / 1024) * 2199;
 	scale /= tc->tc_tweak->tc_frequency;
 	tc->tc_scale = scale * 2;
 }
@@ -338,7 +338,6 @@ tc_windup(void)
 {
 	struct timecounter *tc, *tco;
 	struct bintime bt;
-	struct timeval tvt;
 	unsigned ogen, delta;
 	int i;
 
@@ -362,20 +361,6 @@ tc_windup(void)
 	 */
 	if (tco->tc_poll_pps) 
 		tco->tc_poll_pps(tco);
-	if (timedelta != 0) {
-		tvt = boottime;
-		tvt.tv_usec += tickdelta;
-		if (tvt.tv_usec >= 1000000) {
-			tvt.tv_sec++;
-			tvt.tv_usec -= 1000000;
-		} else if (tvt.tv_usec < 0) {
-			tvt.tv_sec--;
-			tvt.tv_usec += 1000000;
-		}
-		boottime = tvt;
-		timeval2bintime(&boottime, &boottimebin);
-		timedelta -= tickdelta;
-	}
 	for (i = tc->tc_offset.sec - tco->tc_offset.sec; i > 0; i--) {
 		ntp_update_second(tc);	/* XXX only needed if xntpd runs */
 		tco_setscales(tc);
