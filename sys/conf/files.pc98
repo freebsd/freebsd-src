@@ -75,7 +75,7 @@ dev/fb/splash.c			count		splash
 dev/kbd/kbd.c			optional	kbd
 dev/kbd/kbd.c			optional	sc
 dev/kbd/kbd.c			optional	ukbd
-dev/kbd/kbd.c			optional	pckbd
+dev/kbd/kbd.c			count		pckbd
 dev/syscons/schistory.c		count		sc
 dev/syscons/scmouse.c		optional	sc
 dev/syscons/scterm.c		optional	sc
@@ -179,7 +179,7 @@ i386/ibcs2/imgact_coff.c	optional	ibcs2
 i386/isa/bs/bs.c		optional	bs
 i386/isa/bs/bsfunc.c		optional	bs
 i386/isa/bs/bshw.c		optional	bs
-i386/isa/bs/bsif.c		optional	bs
+i386/isa/bs/bsif.c		count		bs
 i386/isa/asc.c			count		asc
 i386/isa/cronyx.c		optional	cx
 i386/isa/ctx.c			count		ctx
@@ -336,7 +336,7 @@ i4b/layer1/i4b_tel_s0163.c	optional	isic
 i4b/layer1/i4b_tel_s08.c	optional	isic
 i4b/layer1/i4b_usr_sti.c	optional	isic
 isa/psm.c			optional	psm
-kern/subr_diskmbr.c		optional	compat_atdisk
+kern/subr_diskmbr.c		count		compat_atdisk
 libkern/divdi3.c		standard
 libkern/moddi3.c		standard
 libkern/qdivrem.c		standard
@@ -352,7 +352,7 @@ pc98/pc98/if_ed.c		optional	ed
 pc98/pc98/isa_dma.c		optional	isa
 pc98/pc98/mse.c			optional	mse
 pc98/pc98/npx.c			mandatory	npx
-pc98/pc98/olpt.c		optional	olpt
+pc98/pc98/olpt.c		count		olpt
 pc98/pc98/pc98gdc.c		optional	gdc
 pc98/pc98/pc98kbd.c		optional	pckbd
 pc98/pc98/pc98_machdep.c	standard
@@ -366,9 +366,9 @@ pc98/pc98/spkr.c		optional	speaker
 pc98/pc98/syscons.c		optional	sc
 pc98/pc98/syscons_pc98.c	optional	sc
 pc98/pc98/wd.c			count		wdc
-pc98/pc98/wd_cd.c		optional	wcd wdc
-pc98/pc98/wfd.c			optional	wfd wdc
-pc98/pc98/wst.c			optional	wst wdc
+pc98/pc98/wd_cd.c		count		wcd wdc
+pc98/pc98/wfd.c			count		wfd wdc
+pc98/pc98/wst.c			count		wst wdc
 svr4/imgact_svr4.c		optional	compat_svr4
 svr4/svr4_fcntl.c		optional	compat_svr4
 svr4/svr4_filio.c		optional	compat_svr4
