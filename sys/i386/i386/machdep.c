@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.221 1996/12/17 04:19:41 davidg Exp $
+ *	$Id: machdep.c,v 1.222 1996/12/18 15:03:10 bde Exp $
  */
 
 #include "npx.h"
@@ -565,7 +565,7 @@ sigreturn(p, uap, retval)
 	fp = (struct sigframe *)
 	     ((caddr_t)scp - offsetof(struct sigframe, sf_sc));
 
-	if (useracc((caddr_t)fp, sizeof (*fp), 0) == 0)
+	if (useracc((caddr_t)fp, sizeof (*fp), B_WRITE) == 0)
 		return(EINVAL);
 
 	/*
@@ -617,7 +617,7 @@ sigreturn(p, uap, retval)
 	regs[tSS] = scp->sc_ss;
 	regs[tISP] = scp->sc_isp;
 
-	if (useracc((caddr_t)scp, sizeof (*scp), 0) == 0)
+	if (useracc((caddr_t)scp, sizeof (*scp), B_WRITE) == 0)
 		return(EINVAL);
 
 	if (scp->sc_onstack & 01)
