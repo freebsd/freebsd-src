@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.2 1994/09/24 02:57:48 davidg Exp $
+ *	$Id: main.c,v 1.3 1995/05/30 00:07:18 rgrimes Exp $
  */
 
 #ifndef lint
@@ -48,6 +48,8 @@ static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 5/31/93";
 
 #include <signal.h>
 #include <fcntl.h>
+#include <locale.h>
+
 #include "shell.h"
 #include "main.h"
 #include "mail.h"
@@ -103,6 +105,7 @@ main(argc, argv)  char **argv; {
 #if PROFILE
 	monitor(4, etext, profile_buf, sizeof profile_buf, 50);
 #endif
+	(void) setlocale(LC_ALL, "");
 	state = 0;
 	if (setjmp(jmploc.loc)) {
 		/*
