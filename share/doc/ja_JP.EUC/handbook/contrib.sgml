@@ -1,6 +1,6 @@
-<!-- $Id: contrib.sgml,v 1.51 1997/05/13 23:01:10 max Exp $ -->
+<!-- $Id: contrib.sgml,v 1.52 1997/05/15 03:56:34 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.242 -->
+<!-- Original revision: 1.243 -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
      in sync with the list of FreeBSD Developers -->
@@ -209,6 +209,7 @@
 	  <item>Brent J. Nordquist &lt;bjn@visi.com&gt;
 	  <item>Brian Clapper &lt;bmc@willscreek.com&gt;
 	  <item>Brian Tao &lt;taob@risc.org&gt;
+	  <item>Carey Jones &lt;mcj@acquiesce.org&gt;
 	  <item>Charles Hannum &lt;mycroft@ai.mit.edu&gt;
 	  <item>Charles Mott &lt;cmott@srv.net&gt;
 	  <item>Chet Ramey &lt;chet@odin.INS.CWRU.Edu&gt;
