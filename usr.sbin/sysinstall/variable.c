@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: variable.c,v 1.4 1995/05/27 10:47:44 jkh Exp $
+ * $Id: variable.c,v 1.5.2.2 1995/06/01 21:04:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -50,6 +50,14 @@ make_variable(char *var, char *value)
 {
     Variable *newvar;
 
+    /* First search to see if it's already there */
+    for (newvar = VarHead; newvar; newvar = newvar->next) {
+	if (!strcmp(newvar->name, var)) {
+	    strncpy(newvar->value, value, VAR_VALUE_MAX);
+	    setenv(var, value, 1);
+	    return;
+	}
+    }
     setenv(var, value, 1);
     newvar = (Variable *)safe_malloc(sizeof(Variable));
     strncpy(newvar->name, var, VAR_NAME_MAX);
@@ -57,7 +65,8 @@ make_variable(char *var, char *value)
     newvar->next = VarHead;
     VarHead = newvar;
     setenv(newvar->name, newvar->value, 1);
-    msgInfo("Set %s to %s", newvar->name, newvar->value);
+    if (isDebug())
+	msgDebug("Setting variable %s to %s\n", newvar->name, newvar->value);
 }
 
 void

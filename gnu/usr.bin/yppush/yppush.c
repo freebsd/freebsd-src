@@ -18,7 +18,7 @@
 
     Modified for use with FreeBSD 2.x by Bill Paul (wpaul@ctr.columbia.edu)
 
-	$Id: yppush.c,v 1.5 1995/04/02 20:01:50 wpaul Exp $
+	$Id: yppush.c,v 1.6.2.1 1995/06/04 17:15:49 davidg Exp $
 */
 
 #include <stdio.h>
@@ -203,7 +203,7 @@ _svc_run( void)
 			perror("svc_run: - select failed");
 			return;
 		case 0:
-			fprintf(stderr, "%sh: callback timed out\n, progname");
+			fprintf(stderr, "%s: callback timed out\n", progname);
 			exit(0);
 		default:
 			svc_getreqset(&readfds);
@@ -421,16 +421,16 @@ main(int argc, char **argv)
 
 	if (DomainName==NULL) {
 		if (yp_get_default_domain(&DomainName)!=0) {
-			fprintf(stderr, "%s: cannot get default domain\n,
-								progname");
+			fprintf(stderr, "%s: cannot get default domain\n",
+								progname);
 			exit(1);
 		}
 	}
 
 	ThisHost=getHostName();
 	if (ThisHost==NULL) {
-		fprintf(stderr, "%s: cannot determine local hostname\n,
-								progname");
+		fprintf(stderr, "%s: cannot determine local hostname\n",
+								progname);
 		exit(1);
 	}
 

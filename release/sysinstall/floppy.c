@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.5 1995/05/29 11:01:13 jkh Exp $
+ * $Id: floppy.c,v 1.6.2.17 1995/06/10 09:14:51 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -61,6 +61,8 @@
 static Device *floppyDev;
 static Boolean floppyMounted;
 
+static char *distWanted;
+
 /* For finding floppies */
 static int
 floppyChoiceHook(char *str)
@@ -90,22 +92,27 @@ getRootFloppy(void)
 
 	devs = deviceFind(NULL, DEVICE_TYPE_FLOPPY);
 	cnt = deviceCount(devs);
-	if (cnt == 1)
+	if (!cnt) {
+	    msgConfirm("No floppy devices found!  Something is seriously wrong!");
+	    return -1;
+	}
+	else if (cnt == 1) {
 	    floppyDev = devs[0];
-	else if (cnt > 1) {
+	    msgConfirm("Please insert the ROOT floppy in %s and press [ENTER]", floppyDev->description);
+	}
+	else  {
 	    DMenu *menu;
 
 	    menu = deviceCreateMenu(&MenuMediaFloppy, DEVICE_TYPE_FLOPPY, floppyChoiceHook);
 	    menu->title = "Please insert the ROOT floppy";
-	    dmenuOpenSimple(menu);
-	}
-	else {
-	    msgConfirm("No floppy devices found!  Something is seriously wrong!");
-	    return -1;
+	    if (!dmenuOpenSimple(menu))
+		return -1;
 	}
 	if (!floppyDev)
 	    continue;
 	fd = open(floppyDev->devname, O_RDONLY);
+	if (isDebug())
+	    msgDebug("getRootFloppy on %s yields fd of %d\n", floppyDev->devname, fd);
     }
     return fd;
 }
@@ -114,42 +121,104 @@ Boolean
 mediaInitFloppy(Device *dev)
 {
     struct msdosfs_args dosargs;
-    char mountpoint[FILENAME_MAX];
 
     if (floppyMounted)
 	return TRUE;
-    memset(&dosargs, 0, sizeof dosargs);
 
     if (Mkdir("/mnt", NULL)) {
-	msgConfirm("Unable to make directory mountpoint for %s!", mountpoint);
+	msgConfirm("Unable to make directory mountpoint for %s!", dev->devname);
 	return FALSE;
     }
-    msgConfirm("Please insert media into %s and press return", dev->description);
-    msgDebug("initFloppy:  mount floppy %s on /mnt\n", dev->devname);
+    if (!distWanted)
+    	msgConfirm("Please insert next floppy into %s", dev->description);
+    else {
+	msgConfirm("Please insert floppy containing %s into %s", distWanted, dev->description);
+	distWanted = NULL;
+    }
+    memset(&dosargs, 0, sizeof dosargs);
     dosargs.fspec = dev->devname;
+    dosargs.uid = dosargs.gid = 0;
+    dosargs.mask = 0777;
     if (mount(MOUNT_MSDOS, "/mnt", 0, (caddr_t)&dosargs) == -1) {
-	msgConfirm("Error mounting floppy %s (%s) on /mnt : %s\n", dev->name,
-		   dev->devname, mountpoint, strerror(errno));
+	msgConfirm("Error mounting floppy %s (%s) on /mnt : %s", dev->name, dev->devname, strerror(errno));
 	return FALSE;
     }
+    if (isDebug())
+	msgDebug("initFloppy: mounted floppy %s successfully on /mnt\n", dev->devname);
     floppyMounted = TRUE;
     return TRUE;
 }
 
 int
-mediaGetFloppy(char *file)
+mediaGetFloppy(Device *dev, char *file, Attribs *dist_attrs)
 {
     char		buf[PATH_MAX];
+#ifdef DO_CRC_CHECK
+    char		*extn, *var;
+    const char 		*val;
+    char		attrib[10];
+    u_long		cval1, clen1, cval2, clen2;
+#endif
+    int			fd;
+    int			nretries = 5;
 
     snprintf(buf, PATH_MAX, "/mnt/%s", file);
-    return open(buf, O_RDONLY);
+
+    if (access(buf, R_OK)) {
+	if (dev->flags & OPT_EXPLORATORY_GET)
+	    return -1;
+	else {
+	    while (access(buf, R_OK) != 0) {
+		if (!--nretries) {
+		    msgConfirm("GetFloppy: Failed to get %s after retries;\ngiving up.", file);
+		    return -1;
+		}
+		distWanted = buf;
+		(*dev->shutdown)(dev);
+		if (!(dev->init)(dev))
+		    return -1;
+	    }
+	}
+    }
+
+    fd = open(buf, O_RDONLY);
+#ifdef DO_CRC_CHECK
+    if (dist_attrs != NULL && fd != -1) {
+	extn = rindex(buf, '.');
+	snprintf(attrib, 10, "cksum%s", extn);
+	val = attr_match(dist_attrs, attrib);
+	if (val != NULL) {
+	    if (isDebug())
+		msgDebug("attr_match(%s,%s) returned `%s'\n", dist_attrs, attrib, val);
+	    var = strdup(val);
+	    
+	    cval1 = strtol(var, &extn, 10);
+	    clen1 = strtol(extn, NULL, 10);
+
+	    if (crc(fd, &cval2, &clen2) != 0) {
+		msgConfirm("crc() of file `%s' failed!", file);
+		close(fd);
+		return -1;
+	    }
+	    if ((cval1 != cval2) || (clen1 != clen2)) {
+		msgConfirm("Invalid file `%s' (checksum `%u %u' should be %s)", file, cval2, clen2, var);
+		close(fd);
+		return -1;
+	    }
+	    lseek(fd, 0, 0);
+	}
+	else
+	    msgNotify("No checksum information for file %s..", file);
+    }
+#endif
+    return fd;
 }
 
 void
 mediaShutdownFloppy(Device *dev)
 {
     if (floppyMounted) {
-	if (unmount("/mnt", 0) != 0)
+	if (unmount("/mnt", MNT_FORCE) != 0)
 	    msgDebug("Umount of floppy on /mnt failed: %s (%d)\n", strerror(errno), errno);
 	else {
 	    floppyMounted = FALSE;

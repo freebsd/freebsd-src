@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.34 1995/05/29 11:01:08 jkh Exp $
+ * $Id: devices.c,v 1.35.2.9 1995/06/05 12:03:46 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -88,14 +88,15 @@ static struct {
     { DEVICE_TYPE_TAPE, 	"wt0",		"Wangtek tape drive"					},
     { DEVICE_TYPE_DISK, 	"sd",		"SCSI disk device"					},
     { DEVICE_TYPE_DISK, 	"wd",		"IDE/ESDI/MFM/ST506 disk device"			},
-    { DEVICE_TYPE_FLOPPY,	"rfd0",		"floppy drive unit A"					},
-    { DEVICE_TYPE_FLOPPY,	"rfd1",		"floppy drive unit B"					},
+    { DEVICE_TYPE_FLOPPY,	"fd0",		"floppy drive unit A"					},
+    { DEVICE_TYPE_FLOPPY,	"fd1",		"floppy drive unit B"					},
     { DEVICE_TYPE_NETWORK,	"cuaa0",	"Serial port (COM1) - possible PPP/SLIP device"		},
     { DEVICE_TYPE_NETWORK,	"cuaa1",	"Serial port (COM2) - possible PPP/SLIP device"		},
     { DEVICE_TYPE_NETWORK,	"lp0",		"Parallel Port IP (PLIP) using laplink cable"		},
     { DEVICE_TYPE_NETWORK,	"lo",		"Loop-back (local) network interface"			},
     { DEVICE_TYPE_NETWORK,	"sl",		"Serial-line IP (SLIP) interface"			},
     { DEVICE_TYPE_NETWORK,	"ppp",		"Point-to-Point Protocol (PPP) interface"		},
+    { DEVICE_TYPE_NETWORK,	"de",		"DEC DE435 PCI NIC or other DC21040-AA based card"	},
     { DEVICE_TYPE_NETWORK,	"ed",		"WD/SMC 80xx; Novell NE1000/2000; 3Com 3C503 cards"	},
     { DEVICE_TYPE_NETWORK,	"ep",		"3Com 3C509 ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"el",		"3Com 3C501 ethernet card"				},
@@ -115,11 +116,37 @@ new_device(char *name)
     Device *dev;
 
     dev = safe_malloc(sizeof(Device));
+    bzero(dev, sizeof(Device));
     if (name)
 	strcpy(dev->name, name);
-    else
-	dev->name[0] = '\0';
     return dev;
+}
+
+/* Stubs for unimplemented strategy routines */
+Boolean
+dummyInit(Device *dev)
+{
+    return TRUE;
+}
+
+int
+dummyGet(Device *dev, char *dist, Attribs *dist_attrs)
+{
+    return -1;
+}
+
+Boolean
+dummyClose(Device *dev, int fd)
+{
+    if (!close(fd))
+	return TRUE;
+    return FALSE;
+}
+
+void
+dummyShutdown(Device *dev)
+{
+    return;
 }
 
 static int
@@ -136,17 +163,11 @@ deviceTry(char *name, char *try)
     return fd;
 }
 
-static void
-deviceDiskFree(Device *dev)
-{
-    Free_Disk(dev->private);
-}
-
 /* Register a new device in the devices array */
 Device *
 deviceRegister(char *name, char *desc, char *devname, DeviceType type, Boolean enabled,
-	       Boolean (*init)(Device *), int (*get)(char *), Boolean (*close)(Device *, int),
-	       void (*shutdown)(Device *), void *private)
+	       Boolean (*init)(Device *), int (*get)(Device *, char *, Attribs *),
+	       Boolean (*close)(Device *, int), void (*shutdown)(Device *), void *private)
 {
     Device *newdev;
 
@@ -157,10 +178,10 @@ deviceRegister(char *name, char *desc, char *devname, DeviceType type, Boolean e
     newdev->devname = devname;
     newdev->type = type;
     newdev->enabled = enabled;
-    newdev->init = init;
-    newdev->get = get;
-    newdev->close = close;
-    newdev->shutdown = shutdown;
+    newdev->init = init ? init : dummyInit;
+    newdev->get = get ? get : dummyGet;
+    newdev->close = close ? close : dummyClose;
+    newdev->shutdown = shutdown ? shutdown : dummyShutdown;
     newdev->private = private;
     Devices[numDevs] = newdev;
     Devices[++numDevs] = NULL;
@@ -197,9 +218,11 @@ deviceGetAll(void)
 	    for (c1 = d->chunks->part; c1; c1 = c1->next) {
 		if (c1->type == fat) {
 		    Device *dev;
+		    char devname[80];
 
 		    /* Got one! */
-		    dev = deviceRegister(c1->name, c1->name, c1->name, DEVICE_TYPE_DOS, TRUE,
+		    sprintf(devname, "/dev/%s", c1->name);
+		    dev = deviceRegister(c1->name, c1->name, strdup(devname), DEVICE_TYPE_DOS, TRUE,
 					 mediaInitDOS, mediaGetDOS, NULL, mediaShutdownDOS, NULL);
 		    dev->private = c1;
 		    msgDebug("Found a DOS partition %s on drive %s\n", c1->name, d->name);
@@ -355,8 +378,7 @@ deviceCreateMenu(DMenu *menu, DeviceType type, int (*hook)())
     for (i = 0; devs[i]; i++) {
 	tmp->items[i].title = devs[i]->name;
 	for (j = 0; device_names[j].name; j++) {
-	    if (!strncmp(devs[i]->name, device_names[j].name,
-			 strlen(device_names[j].name))) {
+	    if (!strncmp(devs[i]->name, device_names[j].name, strlen(device_names[j].name))) {
 		tmp->items[i].prompt = device_names[j].description;
 		break;
 	    }
@@ -366,6 +388,7 @@ deviceCreateMenu(DMenu *menu, DeviceType type, int (*hook)())
 	tmp->items[i].type = DMENU_CALL;
 	tmp->items[i].ptr = hook;
 	tmp->items[i].disabled = FALSE;
+	tmp->items[i].check = NULL;
     }
     tmp->items[i].type = DMENU_NOP;
     tmp->items[i].title = NULL;

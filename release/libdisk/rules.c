@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: rules.c,v 1.9 1995/05/08 01:34:31 phk Exp $
+ * $Id: rules.c,v 1.10.2.1 1995/06/03 08:40:33 jkh Exp $
  *
  */
 
@@ -179,22 +179,44 @@ Rule_003(struct disk *d, struct chunk *c, char *msg)
 /*
  * Rule#4:
  *	Max seven 'part' as children of 'freebsd'
- *	Max one FS_SWAP child per 'freebsd'
  *	Max one CHUNK_IS_ROOT child per 'freebsd'
+ *	If Bad144, space for table must exist.
+ *	If Bad144 & root, bad144 table must be inside 1024
  */
 void
 Rule_004(struct disk *d, struct chunk *c, char *msg)
 {
-	int i=0,j=0,k=0;
+	int i=0,k=0;
 	struct chunk *c1;
+	u_long l;
 
 	if (c->type != freebsd)
 		return;
+
+	if (c->flags & CHUNK_BAD144) {
+		l = c->end - 127 - d->bios_sect + 1;
+		for (c1=c->part; c1; c1=c1->next) {
+			if (c1->end < l || c1->type == unused)
+				continue;
+			sprintf(msg+strlen(msg),
+    "Blocks %lu to %lu are needed for bad144 information, but isn't unused.\n",
+	l, c->end);
+			break;
+		}
+		if (c->flags & CHUNK_PAST_1024) {
+			for (c1=c->part; c1; c1=c1->next) {
+				if (c1->flags & CHUNK_IS_ROOT) {
+					sprintf(msg+strlen(msg),
+    "You have assigned root to a slice which uses bad144, and\n  extends past the first 1023 cylinders, and thus cannot be booted from.\n");
+					break;
+				}
+			}
+		}
+	}
+
 	for (c1=c->part; c1; c1=c1->next) {
 		if (c1->type != part)
 			continue;
-		if (c1->subtype == FS_SWAP)
-			j++;
 		if (c1->flags & CHUNK_IS_ROOT) {
 			k++;
 			if (c1->flags & CHUNK_PAST_1024)
@@ -205,15 +227,11 @@ Rule_004(struct disk *d, struct chunk *c, char *msg)
 	}
 	if (i > 7) {
 		sprintf(msg+strlen(msg),
-		    "Max seven 'part' per 'freebsd' chunk\n");
-	}
-	if (j > 1) {
-		sprintf(msg+strlen(msg),
-		    "Max one subtype=FS_SWAP child per 'freebsd' chunk\n");
+		    "Max seven partitions per freebsd slice\n");
 	}
 	if (k > 1) {
 		sprintf(msg+strlen(msg),
-		    "Max one CHUNK_IS_ROOT child per 'freebsd' chunk\n");
+		    "Max one root partition child per freebsd slice\n");
 	}
 }
 
@@ -246,4 +264,53 @@ CheckRules(struct disk *d)
 	if (*msg)
 		return strdup(msg);
 	return 0;
+}
+
+char *
+ChunkCanBeRoot(struct chunk *c)
+{
+	struct chunk *c1;
+	struct disk *d = c->disk;
+	char msg[BUFSIZ];
+
+	*msg = '\0';
+	if (c->flags & CHUNK_PAST_1024) {
+		strcat(msg,
+"The root partition must end before cylinder 1024 seen from\n");
+		strcat(msg,
+"the BIOS' point of view, or it cannot be booted from.\n");
+		return strdup(msg);
+	}
+	for (c1=d->chunks->part;;) {
+		for (; c1; c1=c1->next)
+			if (c1->offset <= c->offset && c1->end >= c->end)
+				break;
+		if (!c1) {
+			strcat(msg,
+"Internal trouble, cannot find this chunk in the chunk-tree\n");
+			return strdup(msg);
+		}
+		if (c1->type == freebsd)
+			break;
+		c1 = c1->part;
+	}
+
+	if (c1->type != freebsd) {
+		strcat(msg,
+"The root partition must be in a FreeBSD slice, otherwise\n");
+		strcat(msg,
+"the kernel cannot be booted from it\n");
+		return strdup(msg);
+	}
+
+	if ((c1->flags & CHUNK_BAD144) && (c1->flags & CHUNK_PAST_1024)) {
+		strcat(msg,
+"This partition is unsuitable for root, because the FreeBSD slice\n");
+		strcat(msg,
+"it is inside has bad144 enabled, but the badblock data lives past\n");
+		strcat(msg,
+"the 1024th cylinder, and the bootblocks cannot get to it there.\n");
+		return strdup(msg);
+	}
+	return NULL;
 }

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.5 1995/05/29 11:01:19 jkh Exp $
+ * $Id: ftp_strat.c,v 1.6.2.25 1995/06/07 09:53:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -54,86 +54,195 @@
 
 Boolean ftpInitted;
 static FTP_t ftp;
+extern int FtpPort;
+
+int
+mediaSetFtpUserPass(char *str)
+{
+    char *user, *pass;
+
+    dialog_clear();
+    if ((user = msgGetInput(getenv(FTP_USER), "Please enter the username you wish to login as")) != NULL)
+	variable_set2(FTP_USER, user);
+    if ((pass = msgGetInput(getenv(FTP_PASS), "Please enter the password for this user.\nWARNING: This password will echo on the screen!")) != NULL)
+	variable_set2(FTP_PASS, pass);
+    dialog_clear();
+    return 0;
+}
+
+static Boolean
+get_new_host(Device *dev)
+{
+    Boolean i;
+    char *oldTitle = MenuMediaFTP.title;
+    Device *netDev = dev->private;
+
+    MenuMediaFTP.title = "Connection timed out - please select another site";
+    i = mediaSetFTP(NULL);
+    MenuMediaFTP.title = oldTitle;
+    if (i) {
+	char *cp = getenv(FTP_USER);
+
+	if (cp && *cp)
+	    (void)mediaSetFtpUserPass(NULL);
+	netDev->flags |= OPT_LEAVE_NETWORK_UP;
+	(*dev->shutdown)(dev);
+	i = (*dev->init)(dev);
+	netDev->flags &= ~OPT_LEAVE_NETWORK_UP;
+    }
+    return i;
+}
+
+static Boolean HasDistsDir;
 
 Boolean
 mediaInitFTP(Device *dev)
 {
-    int i;
+    int i, retries, max_retries = MAX_FTP_RETRIES;
     char *cp, *hostname, *dir;
-    char *my_name, email[BUFSIZ], url[BUFSIZ];
+    char *user, *login_name, password[80], url[BUFSIZ];
     Device *netDevice = (Device *)dev->private;
 
     if (ftpInitted)
 	return TRUE;
 
-    if (netDevice->init)
-	if (!(*netDevice->init)(netDevice))
-	    return FALSE;
+    if (!(*netDevice->init)(netDevice))
+	return FALSE;
 
     if ((ftp = FtpInit()) == NULL) {
 	msgConfirm("FTP initialisation failed!");
-	return FALSE;
+	goto punt;
     }
+    if (isDebug())
+	msgDebug("Initialized FTP library.\n");
 
     cp = getenv("ftp");
     if (!cp)
-	return FALSE;
-    my_name = getenv(VAR_HOSTNAME);
+	goto punt;
+    if (isDebug())
+	msgDebug("Attempting to open connection for: %s\n", cp);
+    hostname = getenv(VAR_HOSTNAME);
     if (strncmp("ftp://", cp, 6) != NULL) {
-	msgConfirm("Invalid URL (`%s') passed to FTP routines!\n(must start with `ftp://')", url);
-	return FALSE;
+	msgConfirm("Invalid URL: %s\n(A URL must start with `ftp://' here)", cp);
+	goto punt;
     }
     strncpy(url, cp, BUFSIZ);
     if (isDebug())
 	msgDebug("Using URL `%s'\n", url);
     hostname = url + 6;
-    if ((dir = index(hostname, '/')) != NULL)
+    if ((cp = index(hostname, ':')) != NULL) {
+	*(cp++) = '\0';
+	FtpPort = strtol(cp, 0, 0);
+    }
+    else
+	FtpPort = 21;
+    if ((dir = index(cp ? cp : hostname, '/')) != NULL)
 	*(dir++) = '\0';
-    strcpy(dev->name, hostname);
     if (isDebug()) {
 	msgDebug("hostname = `%s'\n", hostname);
 	msgDebug("dir = `%s'\n", dir ? dir : "/");
+	msgDebug("port # = `%d'\n", FtpPort);
     }
     msgNotify("Looking up host %s..", hostname);
     if ((gethostbyname(hostname) == NULL) && (inet_addr(hostname) == INADDR_NONE)) {
-	msgConfirm("Cannot resolve hostname `%s'!  Are you sure your name server\nand/or gateway values are set properly?", hostname);
-	return FALSE;
+	msgConfirm("Cannot resolve hostname `%s'!  Are you sure that your\nname server, gateway and network interface are configured?", hostname);
+	goto punt;
+    }
+    user = getenv(FTP_USER);
+    if (!user || !*user) {
+	snprintf(password, BUFSIZ, "installer@%s", hostname);
+	login_name = "anonymous";
+    }
+    else {
+	login_name = user;
+	strcpy(password, getenv(FTP_PASS) ? getenv(FTP_PASS) : login_name);
+    }
+    retries = i = 0;
+    if (OptFlags & (OPT_FTP_RESELECT + OPT_FTP_ABORT))
+	max_retries = 0;
+retry:
+    if (i && ++retries > max_retries) {
+	if ((OptFlags & OPT_FTP_ABORT) || !get_new_host(dev))
+	    return FALSE;
+	retries = 0;
+    }
+    msgNotify("Logging in as %s..", login_name);
+    if ((i = FtpOpen(ftp, hostname, login_name, password)) != 0) {
+	if (OptFlags & OPT_NO_CONFIRM)
+	    msgNotify("Couldn't open FTP connection to %s\n", hostname);
+	else
+	    msgConfirm("Couldn't open FTP connection to %s\n", hostname);
+	goto retry;
     }
 
-    snprintf(email, BUFSIZ, "installer@%s", my_name);
-    if (isDebug())
-	msgDebug("Using fake e-mail `%s'\n", email);
-
-    msgNotify("Logging in as anonymous.");
-    if ((i = FtpOpen(ftp, hostname, "anonymous", email)) != 0) {
-	msgConfirm("Couldn't open FTP connection to %s: %s (%u)\n", hostname, strerror(i), i);
-	return FALSE;
-    }
-
-    if (getenv("ftpPassive"))
-	FtpPassive(ftp, 1);
+    FtpPassive(ftp, (OptFlags & OPT_FTP_PASSIVE) ? 1 : 0);
     FtpBinary(ftp, 1);
     if (dir && *dir != '\0') {
 	msgNotify("CD to distribution in ~ftp/%s", dir);
-	FtpChdir(ftp, dir);
+	if ((i = FtpChdir(ftp, dir)) == -2)
+	    goto retry;
     }
+    if (!FtpChdir(ftp, "dists")) {
+	HasDistsDir = TRUE;
+	FtpChdir(ftp, ".."); /* Hope this works! :-( */
+    }
+    else
+	HasDistsDir = FALSE;
     if (isDebug())
 	msgDebug("leaving mediaInitFTP!\n");
     ftpInitted = TRUE;
     return TRUE;
+
+punt:
+    FtpClose(ftp);
+    ftp = NULL;
+    (*netDevice->shutdown)(netDevice);
+    return FALSE;
 }
 
 int
-mediaGetFTP(char *file)
+mediaGetFTP(Device *dev, char *file, Attribs *dist_attrs)
 {
-    return(FtpGet(ftp, file));
+    int fd;
+    int nretries = 0, max_retries = MAX_FTP_RETRIES;
+    Boolean inDists = FALSE;
+
+    if (OptFlags & (OPT_FTP_RESELECT + OPT_FTP_ABORT) || dev->flags & OPT_EXPLORATORY_GET)
+	max_retries = 1;
+
+    while ((fd = FtpGet(ftp, file)) < 0) {
+	/* If a hard fail, try to "bounce" the ftp server to clear it */
+	if (fd == -2 || ++nretries > max_retries) {
+	    if ((OptFlags & OPT_FTP_ABORT) || (dev->flags & OPT_EXPLORATORY_GET))
+		return -1;
+	    else if (!get_new_host(dev))
+		return -2;
+	    nretries = 0;
+	    continue;
+	}
+	if (HasDistsDir) {
+	    if (!inDists) {
+		FtpChdir(ftp, "dists");
+		inDists = TRUE;
+	    }
+	    else {
+		FtpChdir(ftp, "..");
+		inDists = FALSE;
+	    }
+	}
+    }
+    if (inDists)
+	FtpChdir(ftp, "..");
+    return fd;
 }
 
 Boolean
 mediaCloseFTP(Device *dev, int fd)
 {
     FtpEOF(ftp);
-    return (TRUE);
+    if (!close(fd))
+	return (TRUE);
+    return FALSE;
 }
 
 void
@@ -148,7 +257,6 @@ mediaShutdownFTP(Device *dev)
 	FtpClose(ftp);
 	ftp = NULL;
     }
-    if (netdev->shutdown)
-	(*netdev->shutdown)(netdev);
+    (*netdev->shutdown)(netdev);
     ftpInitted = FALSE;
 }

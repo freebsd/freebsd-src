@@ -1,7 +1,7 @@
                           Mirror Sites
                     For FreeBSD 2.0 and later
 
-$Id: MIRROR.SITES,v 1.7 1995/05/17 01:48:50 asami Exp $
+$Id: MIRROR.SITES,v 1.8.2.4 1995/06/03 23:58:35 jkh Exp $
 
 The latest versions of FreeBSD (2.0 or later) are being mirrored at the
 following locations:
@@ -10,6 +10,9 @@ Country		Site and Maintainer
 =======		=========================================================
 Australia	ftp://ftp.physics.usyd.edu.au/FreeBSD
 		<dawes@xfree86.org>
+
+Australia	ftp://minnie.cs.adfa.oz.au/FreeBSD
+		<wkt@dolphin.cs.adfa.oz.au>
 
 Finland		ftp://nic.funet.fi/pub/unix/FreeBSD
 		<ftp@nic.funet.fi>
@@ -25,6 +28,9 @@ Germany		ftp://gil.physik.rwth-aachen.de/pub/FreeBSD
 
 Germany		ftp://ftp.uni-paderborn.de/freebsd
 		<ftp@uni-paderborn.de>
+
+Germany         ftp://ftp.leo.org/pub/comp/os/bsd/FreeBSD
+                <bsd@leo.org>
 
 Israel		ftp://orgchem.weizmann.ac.il/pub/FreeBSD
 		<serg@klara.weizmann.ac.il>
@@ -43,6 +49,9 @@ Russia		ftp://ftp.kiae.su/FreeBSD
 
 Sweden		ftp://ftp.luth.se/pub/FreeBSD
 		<ragge@ludd.luth.se>
+
+Taiwan          ftp://NCTUCCCA.edu.tw/Operating-Systems/FreeBSD
+                <freebsd@NCTUCCCA.edu.tw>
 
 Taiwan		ftp://netbsd.csie.nctu.edu.tw/pub/FreeBSD
 		<ftp@netbsd.csie.nctu.edu.tw>
@@ -64,6 +73,9 @@ USA		ftp://kryten.atinc.com/pub/FreeBSD
 
 USA             ftp://ftp.dataplex.net/pub/FreeBSD
                 <rkw@dataplex.net>
+
+USA             ftp://ftp.cps.cmich.edu/pub/FreeBSD
+                <ftpadmin@cps.cmich.edu>
 
 Japan		ftp://ftp.tokyonet.ad.jp/pub/FreeBSD
 		<ftpadmin@TokyoNet.AD.JP>

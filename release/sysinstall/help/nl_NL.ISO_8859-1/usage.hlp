@@ -10,8 +10,6 @@ PIJL RECHTS     Ga naar het volgende item of groep (hetzelfde als TAB)
 SHIFT-TAB       Ga naar het vorige item of groep
 PIJL LINKS      Ga naar het vorige item of groep (hetzelfde als SHIFT-TAB)
 RETURN          Selecteer item
-ESC             Start een sub-shell voor diagnostische doeleinden. 
-                Beeindig de shell om terug te gaan.
 PAGE UP         Ga een pagina omhoog in tekst vensters
 PAGE DOWN       Ga een pagina omlaag in tekst vensters
 SPATIEBALK      Selecteer/deselecteer het huidige item in "radio" of
@@ -45,7 +43,7 @@ bovenkant van het scherm zijn gerold. Deze 'terug-blader-modus'
 kan geaktiveerd worden door op de "Scroll Lock" toets te drukken.
 Nu kun je m.b.v. PIJL OMHOOG/OMLAAG of Page Up/Page Down door de
 bewaarde regels bladeren. Druk nogmaals op "Scroll Lock" om deze 
-modus te be‰indigen. Deze mogelijkheid is erg handig als je in een
+modus te beëindigen. Deze mogelijkheid is erg handig als je in een
 sub-shell zit of andere expert-modes gebruikt die geen menus
 hebben.
 

@@ -10,7 +10,6 @@ RIGHT ARROW     Move to next item or group (same as TAB).
 SHIFT-TAB       Move to previous item or group.
 LEFT ARROW      Move to previous item or group (same as SHIFT-TAB).
 RETURN          Select item.
-ESC             Spawn a sub-shell for diagnostic purposes.  Exit returns.
 PAGE UP         In text boxes, scrolls up one page.
 PAGE DOWN       In text boxes, scrolls down one page.
 SPACE           In "radio" or multiple choice menus, toggle the current item.
@@ -35,7 +34,7 @@ SPECIAL FEATURES:
 =================
 
 It is also possible to select a menu item by typing the first
-character of its name, if unique.  Such "accellerator" characters will
+character of its name, if unique.  Such "accelerator" characters will
 be specially highlighted in the item name.
 
 The console driver also contains a scroll-back buffer for reviewing
@@ -51,5 +50,5 @@ also find that you have multiple "virtual consoles" and can use them to
 have several active sessions at once.  Use ALT-F<n> to switch between
 them, where `F<n>' is the function key corresponding to the screen you
 wish to see.  By default, the system comes with 3 virtual consoles enabled.
-You can create more by editing the /etc/ttys file once the system is up, up
-to a maximum of 12.
+You can create more by editing the /etc/ttys file, once the system is up,
+for a maximum of 12.

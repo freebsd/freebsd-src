@@ -63,6 +63,7 @@ static const char sccsid[] = "@(#)bad144.c	8.1 (Berkeley) 6/6/93";
 #include <ufs/ffs/fs.h>
 
 #include <errno.h>
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -78,11 +79,9 @@ int	badfile = -1;		/* copy of badsector table to use, -1 if any */
 struct	dkbad curbad, oldbad;
 #define	DKBAD_MAGIC	0x4321
 
-char	*buf;
-char	label[BBSIZE];
 daddr_t	size;
 struct	disklabel *dp;
-char	name[BUFSIZ];
+char	*name;
 
 u_short	dkcksum __P((struct disklabel *lp));
 
@@ -109,12 +108,15 @@ bad_scan(argc, argv, dp, f, bstart, bend)
 	int ss = dp->d_secsize;
 	int trk = dp->d_nsectors;
 	int i;
-	static char *nargv[DKBAD_MAXBAD];
-	static int nargc;
+	char **nargv,*buf;
+	int nargc;
 
 	setbuf(stdout, NULL);
 	setbuf(stderr, NULL);
 
+	nargv = (char **)malloc(sizeof *nargv *  DKBAD_MAXBAD);
+	if (!nargv)
+		err(20,"Out of memory, malloc failed\n");
 	i = 1;
 	n = ioctl(f,DIOCSBADSCAN,&i);
 	if (n < 0)
@@ -122,13 +124,9 @@ bad_scan(argc, argv, dp, f, bstart, bend)
 	nargc = *argc;
 	memcpy(nargv,*argv,nargc * sizeof nargv[0]);
 
-	if (buf == (char *)NULL) {
-		buf = malloc((unsigned)(trk*ss));
-		if (buf == (char *)NULL) {
-			fprintf(stderr, "Out of memory\n");
-			exit(20);
-		}
-	}
+	buf = alloca((unsigned)(trk*ss));
+	if (buf == (char *)NULL)
+		err(20,"Out of memory, alloca failed");
 
 	/* scan the entire disk a sector at a time.  Because of all the
 	 * clustering in the kernel, we cannot scan a track at a time,
@@ -154,6 +152,11 @@ bad_scan(argc, argv, dp, f, bstart, bend)
 					curr_sec);
 			sprintf(buf,"%d",curr_sec);
 			nargv[nargc++] = strdup(buf);
+			if (nargc >= DKBAD_MAXBAD) {
+				fprintf(stderr,
+	"Too many bad sectors, can only handle %d per slice.\n",DKBAD_MAXBAD);
+					exit(1);
+			}
 		}
 	}
 	fprintf(stderr, "\n");
@@ -175,6 +178,7 @@ main(argc, argv)
 	daddr_t	sn, bn[DKBAD_MAXBAD];
 	int i, f, nbad, new, bad, errs;
 	daddr_t bstart, bend;
+	char	label[BBSIZE];
 
 	argc--, argv++;
 	while (argc > 0 && **argv == '-') {
@@ -231,10 +235,11 @@ usage:
 		exit(1);
 	}
 	if (argv[0][0] != '/')
-		(void)sprintf(name, "%sr%s%c", _PATH_DEV, argv[0],
+		(void)sprintf(label, "%sr%s%c", _PATH_DEV, argv[0],
 			      'a' + RAW_PART);
 	else
-		strcpy(name, argv[0]);
+		strcpy(label, argv[0]);
+	name = strdup(label);
 	f = open(name, !sflag && argc == 1? O_RDONLY : O_RDWR);
 	if (f < 0)
 		Perror(name);
@@ -558,14 +563,12 @@ blkcopy(f, s1, s2)
 	daddr_t s1, s2;
 {
 	register tries, n;
+	char *buf;
 
-	if (buf == (char *)NULL) {
-		buf = malloc((unsigned)dp->d_secsize);
-		if (buf == (char *)NULL) {
-			fprintf(stderr, "Out of memory\n");
-			exit(20);
-		}
-	}
+	buf = alloca((unsigned)dp->d_secsize);
+	if (buf == (char *)NULL)
+		err(20, "Out of memory, alloca failed\n");
+
 	for (tries = 0; tries < RETRIES; tries++) {
 		if (lseek(f, (off_t)dp->d_secsize * s1, SEEK_SET) < 0)
 			Perror("lseek");
@@ -591,21 +594,20 @@ blkcopy(f, s1, s2)
 	return(1);
 }
 
-char *zbuf;
 
 void
 blkzero(f, sn)
 	int f;
 	daddr_t sn;
 {
+	char *zbuf;
 
-	if (zbuf == (char *)NULL) {
-		zbuf = malloc((unsigned)dp->d_secsize);
-		if (zbuf == (char *)NULL) {
-			fprintf(stderr, "Out of memory\n");
-			exit(20);
-		}
-	}
+	zbuf = alloca((unsigned)dp->d_secsize);
+	if (zbuf == (char *)NULL)
+		err(20, "Out of memory, alloca failed\n");
+
+	memset(zbuf, 0, dp->d_secsize);
+
 	if (lseek(f, (off_t)dp->d_secsize * sn, SEEK_SET) < 0)
 		Perror("lseek");
 	if (verbose)

@@ -4,12 +4,10 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.5 1995/05/29 11:01:34 jkh Exp $
+ * $Id: network.c,v 1.6.2.14 1995/06/07 09:26:29 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
- * Copyright (c) 1995
- * 	Gary J Palmer. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -47,10 +45,12 @@
 
 #include "sysinstall.h"
 #include <sys/fcntl.h>
+#include <signal.h>
 #include <sys/stat.h>
 
-static Boolean networkInitialized;
-static Boolean startPPP(Device *devp);
+static Boolean	networkInitialized;
+static pid_t	pppPid;
+static pid_t	startPPP(Device *devp);
 
 Boolean
 mediaInitNetwork(Device *dev)
@@ -58,16 +58,18 @@ mediaInitNetwork(Device *dev)
     int i;
     char *rp;
 
-    if (networkInitialized)
+    if (networkInitialized || (dev->flags & OPT_LEAVE_NETWORK_UP))
 	return TRUE;
 
     configResolv();
     if (!strncmp("cuaa", dev->name, 4)) {
 	if (!msgYesNo("You have selected a serial-line network interface.\nDo you want to use PPP with it?")) {
-	    if (!startPPP(dev)) {
+	    if (!(dev->private = (void *)startPPP(dev))) {
 		msgConfirm("Unable to start PPP!  This installation method\ncannot be used.");
 		return FALSE;
 	    }
+	    networkInitialized = TRUE;
+	    return TRUE;
 	}
 	else {
 	    char *val;
@@ -78,8 +80,12 @@ mediaInitNetwork(Device *dev)
 	    val = msgGetInput(attach, "Warning:  SLIP is rather poorly supported in this revision\nof the installation due to the lack of a dialing utility.\nIf you can use PPP for this instead then you're much better\noff doing so, otherwise SLIP works fairly well for *hardwired*\nlinks.  Please edit the following slattach command for\ncorrectness (default here is VJ compression, Hardware flow-control,\nignore carrier and 9600 baud data rate) and hit return to execute it.");
 	    if (!val)
 		return FALSE;
-	    else if (!vsystem(attach))
+	    else
+		strcpy(attach, val);
+	    if (!vsystem(attach)) {
+		dev->private = NULL;
 		return TRUE;
+	    }
 	    else {
 		msgConfirm("slattach returned a bad status!  Please verify that\nthe command is correct and try again.");
 		return FALSE;
@@ -103,9 +109,8 @@ mediaInitNetwork(Device *dev)
     }
 
     rp = getenv(VAR_GATEWAY);
-    if (!rp)
-	msgConfirm("No gateway has been set. You will not be able to access hosts\n
-not on the local network\n");
+    if (!rp || *rp == '0')
+	msgConfirm("No gateway has been set. You may be unable to access hosts\nnot on your local network\n");
     else
 	vsystem("route add default %s", rp);
     networkInitialized = TRUE;
@@ -117,10 +122,9 @@ mediaShutdownNetwork(Device *dev)
 {
     char *cp;
 
-    if (!networkInitialized)
+    if (!networkInitialized || (dev->flags & OPT_LEAVE_NETWORK_UP))
 	return;
 
-    /* If we're running PPP or SLIP, it's too much trouble to shut down so forget it */
     if (strncmp("cuaa", dev->name, 4)) {
 	int i;
 	char ifconfig[64];
@@ -137,38 +141,53 @@ mediaShutdownNetwork(Device *dev)
 	    vsystem("route delete default");
 	networkInitialized = FALSE;
     }
-}
-
-int
-configRoutedFlags(char *str)
-{
-    char *val;
-
-    val = msgGetInput("-q", "Specify the flags for routed; -q is the default, -s is\na good choice for gateway machines.");
-    if (val)
-	variable_set2("routedflags", val);
-    return 0;
+    else if (pppPid != 0) {
+	kill(pppPid, SIGTERM);
+	pppPid = 0;
+    }
 }
 
 /* Start PPP on the 3rd screen */
-static Boolean
+static pid_t
 startPPP(Device *devp)
 {
-    int fd, fd2;
+    int vfd, fd2;
     FILE *fp;
     char *val;
-    char myaddr[16], provider[16];
+    pid_t pid;
+    char myaddr[16], provider[16], speed[16];
 
-    fd = open("/dev/ttyv2", O_RDWR);
-    if (fd == -1)
-	return FALSE;
+    /* We're going over to VTY2 */
+    vfd = open("/dev/ttyv2", O_RDWR);
+    if (vfd == -1)
+	return 0;
+
+    /* These are needed to make ppp work */
     Mkdir("/var/log", NULL);
     Mkdir("/var/spool/lock", NULL);
     Mkdir("/etc/ppp", NULL);
-    fd2 = open("/etc/ppp/ppp.linkup", O_CREAT);
-    if (fd2 != -1) {
-	fchmod(fd2, 0755);
-	close(fd2);
+
+    /* Get any important user values */
+    val = msgGetInput("115200",
+"Enter the baud rate for your modem - this can be higher than the actual\nmaximum data rate since most modems can talk at one speed to the\ncomputer and at another speed to the remote end.\n\nIf you're not sure what to put here, just select the default.");
+    strcpy(speed, val ? val : "115200");
+
+    strcpy(provider, getenv(VAR_GATEWAY) ? getenv(VAR_GATEWAY) : "0");
+    val = msgGetInput(provider, "Enter the IP address of your service provider or 0 if you\ndon't know it and would prefer to negotiate it dynamically.");
+    strcpy(provider, val ? val : "0");
+
+    if (devp->private && ((DevInfo *)devp->private)->ipaddr[0])
+	strcpy(myaddr, ((DevInfo *)devp->private)->ipaddr);
+    else
+	strcpy(myaddr, "0");
+
+    fp = fopen("/etc/ppp/ppp.linkup", "w");
+    if (fp != NULL) {
+	fprintf(fp, "MYADDR:\n");
+	fprintf(fp, " delete ALL\n");
+        fprintf(fp, " add 0 0 HISADDR\n");
+	fchmod(fileno(fp), 0755);
+	fclose(fp);
     }
     fd2 = open("/etc/ppp/ppp.secret", O_CREAT);
     if (fd2 != -1) {
@@ -178,35 +197,27 @@ startPPP(Device *devp)
     fp = fopen("/etc/ppp/ppp.conf", "w");
     if (!fp) {
 	msgConfirm("Couldn't open /etc/ppp/ppp.conf file!  This isn't going to work");
-	return FALSE;
+	return 0;
     }
     fprintf(fp, "default:\n");
+    fprintf(fp, " set speed %s\n", speed);
     fprintf(fp, " set device %s\n", devp->devname);
-    val = msgGetInput("115200",
-"Enter the baud rate for your modem - this can be higher than the actual\nmaximum data rate since most modems can talk at one speed to the\ncomputer and at another speed to the remote end.\n\nIf you're not sure what to put here, just select the default.");
-    if (!val)
-	val = "115200";
-    fprintf(fp, " set speed %s\n", val);
-    if (getenv(VAR_GATEWAY))
-	strcpy(provider, getenv(VAR_GATEWAY));
-    else
-	strcpy(provider, "0");
-    val = msgGetInput(provider, "Enter the IP address of your service provider or 0 if you\ndon't know it and would prefer to negotiate it dynamically.");
-    if (!val)
-	val = "0";
-    if (devp->private && ((DevInfo *)devp->private)->ipaddr[0])
-	strcpy(myaddr, ((DevInfo *)devp->private)->ipaddr);
-    else
-	strcpy(myaddr, "0");
-    fprintf(fp, " set ifaddr %s %s\n", myaddr, val);
+    fprintf(fp, " set ifaddr %s %s\n", myaddr, provider);
     fclose(fp);
-    if (!fork()) {
-	dup2(fd, 0);
-	dup2(fd, 1);
-	dup2(fd, 2);
+
+    if (isDebug())
+	msgDebug("Creating /dev/tun0 device.\n");
+    if (!file_readable("/dev/tun0") && mknod("/dev/tun0", 0600 | S_IFCHR, makedev(52, 0))) {
+	msgConfirm("Warning:  No /dev/tun0 device.  PPP will not work!");
+	return 0;
+    }
+    if (!(pid = fork())) {
+	dup2(vfd, 0);
+	dup2(vfd, 1);
+	dup2(vfd, 2);
 	execl("/stand/ppp", "/stand/ppp", (char *)NULL);
 	exit(1);
     }
     msgConfirm("The PPP command is now started on screen 3 (type ALT-F3 to\ninteract with it, ALT-F1 to switch back here). The only command\nyou'll probably want or need to use is the \"term\" command\nwhich starts a terminal emulator you can use to talk to your\nmodem and dial the service provider.  Once you're connected,\ncome back to this screen and press return.  DO NOT PRESS RETURN\nHERE UNTIL THE CONNECTION IS FULLY ESTABLISHED!");
-    return TRUE;
+    return pid;
 }

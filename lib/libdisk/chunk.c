@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: chunk.c,v 1.13 1995/05/25 06:14:47 phk Exp $
+ * $Id: chunk.c,v 1.14.2.2 1995/06/05 02:24:25 jkh Exp $
  *
  */
 
@@ -261,6 +261,22 @@ Add_Chunk(struct disk *d, long offset, u_long size, char *name, chunk_e type,
 	return __LINE__;
 }
 
+char *
+ShowChunkFlags(struct chunk *c)
+{
+	static char ret[10];
+
+	int i=0;
+	if (c->flags & CHUNK_BSD_COMPAT)	ret[i++] = 'C';
+	if (c->flags & CHUNK_ACTIVE)		ret[i++] = 'A';
+	if (c->flags & CHUNK_ALIGN)		ret[i++] = '=';
+	if (c->flags & CHUNK_PAST_1024)		ret[i++] = '>';
+	if (c->flags & CHUNK_IS_ROOT)		ret[i++] = 'R';
+	if (c->flags & CHUNK_BAD144)		ret[i++] = 'B';
+	ret[i++] = '\0';
+	return ret;
+}
+
 void
 Print_Chunk(struct chunk *c1,int offset)
 {
@@ -270,14 +286,10 @@ Print_Chunk(struct chunk *c1,int offset)
 	for(;i<offset;i++) putchar('-');
 	putchar('>');
 	for(;i<10;i++) putchar(' ');
-	printf("%p %8ld %8lu %8lu %-8s %-8s 0x%02x ",
+	printf("%p %8ld %8lu %8lu %-8s %-8s 0x%02x %s",
 		c1, c1->offset, c1->size, c1->end, c1->name,
-		chunk_n[c1->type],c1->subtype);
-	if (c1->flags & CHUNK_ALIGN) putchar('=');
-	if (c1->flags & CHUNK_PAST_1024) putchar('>');
-	if (c1->flags & CHUNK_IS_ROOT) putchar('R');
-	if (c1->flags & CHUNK_BAD144) putchar('B');
-	if (c1->flags & CHUNK_BSD_COMPAT) putchar('C');
+		chunk_n[c1->type],c1->subtype,
+		ShowChunkFlags(c1));
 	putchar('\n');
 	Print_Chunk(c1->part,offset + 2);
 	Print_Chunk(c1->next,offset);
@@ -354,6 +366,7 @@ Delete_Chunk(struct disk *d, struct chunk *c)
 	return 0;
 }
 
+#if 0
 int
 Collapse_Chunk(struct disk *d, struct chunk *c1)
 {
@@ -417,3 +430,4 @@ Collapse_Chunk(struct disk *d, struct chunk *c1)
 
 	return 0;
 }
+#endif

@@ -20,7 +20,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7xxx.h,v 1.8 1995/05/17 07:06:02 davidg Exp $
+ *	$Id: aic7xxx.h,v 1.9.2.1 1995/06/04 09:15:29 davidg Exp $
  */
 
 #ifndef _AIC7XXX_H_
@@ -45,14 +45,18 @@ struct ahc_dma_seg {
             long len;
 };
 
-typedef u_char ahc_type;
-#define	AHC_NONE	0x00
-#define	AHC_WIDE	0x02	/* Wide Channel */
-#define AHC_TWIN	0x08	/* Twin Channel */
-#define	AHC_274		0x10	/* EISA Based Controller */
-#define	AHC_284		0x20	/* VL/ISA Based Controller */
-#define	AHC_AIC7870	0x40	/* PCI Based Controller */
-#define	AHC_294		0xc0	/* PCI Based Controller */
+typedef enum {
+	AHC_NONE	= 0x000,
+	AHC_WIDE  	= 0x002,	/* Wide Channel */
+	AHC_TWIN	= 0x008,	/* Twin Channel */
+	AHC_AIC7770	= 0x010,
+	AHC_AIC7850	= 0x020,
+	AHC_AIC7870	= 0x040,
+	AHC_AIC78X0	= 0x060,	/* PCI Based Controller */
+	AHC_274		= 0x110,	/* EISA Based Controller */
+	AHC_284		= 0x210,	/* VL/ISA Based Controller */
+	AHC_294		= 0x440		/* PCI Based Controller */
+}ahc_type;
 
 /*
  * The driver keeps up to MAX_SCB scb structures per card in memory.  Only the

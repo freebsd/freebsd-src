@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_vfsops.c,v 1.13 1995/05/14 03:00:01 davidg Exp $
+ * $Id: nfs_vfsops.c,v 1.14.2.1 1995/06/02 11:13:15 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -260,6 +260,10 @@ nfs_mountroot()
 	}
 
 	if (nd->swap_nblks) {
+
+		/* Convert to DEV_BSIZE instead of Kilobyte */
+		nd->swap_nblks *= 2;
+
 		/*
 		 * Create a fake mount point just for the swap vnode so that the
 		 * swap file can be on a different server from the rootfs.
@@ -273,6 +277,9 @@ nfs_mountroot()
 		(void) nfs_mountdiskless(buf, "/swap", 0,
 		    &nd->swap_saddr, &nd->swap_args, &vp);
 
+		VTONFS(vp)->n_size = VTONFS(vp)->n_vattr.va_size = 
+				nd->swap_nblks * DEV_BSIZE ;
+		
 		/*
 		 * Since the swap file is not the root dir of a file system,
 		 * hack it to a regular file.
@@ -280,7 +287,7 @@ nfs_mountroot()
 		vp->v_type = VREG;
 		vp->v_flag = 0;
 		VREF(vp);
-		swaponvp(p, vp, NODEV, nd->swap_nblks * 2);
+		swaponvp(p, vp, NODEV, nd->swap_nblks);
 	}
 
 	/*
