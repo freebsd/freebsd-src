@@ -55,7 +55,7 @@ SRCS+=	multilib.h choose-temp.c obstack.c prefix.c pexecute.c version.c mbchar.c
 #	cc1plus seems to be able to tolerate these here,
 #	BUT only if the right .o's are specified in cc1plus/Makefile
 SRCS+=	c-typeck.c \
-		c-errors.c c-pragma.c c-convert.c c-aux-info.c c-common.c c-format.c c-semantics.c c-objc-common.c
+	c-errors.c c-convert.c c-aux-info.c c-objc-common.c
 
 #	libbackend
 SRCS+=	builtins.c diagnostic.c doloop.c dominance.c et-forest.c \
