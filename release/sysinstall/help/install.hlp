@@ -620,10 +620,11 @@ experience *is* required to use the fixit option!
 3.2     Upgrading from earlier releases of FreeBSD.
 ---     -------------------------------------------
 
-It must first be said that this upgrade DOES NOT take a particularly
-sophisticated approach to the upgrade problem, it being more a
-question of providing what seemed "good enough" at the time.  A truly
-polished upgrade that deals properly with the broad spectrum of
+It must first be said that the system installation boot floppy's
+"Upgrade" option DOES NOT take a particularly sophisticated approach to
+the problem of upgrading, it being more of an attempt to provide the very
+minimum in what is necessary to upgrade from one release to the next.
+A more polished upgrade that dealt properly with the broad spectrum of
 installed 2.1 systems would be nice to have, but until that gets
 written what you get is this - the brute-force approach!
 
