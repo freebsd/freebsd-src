@@ -77,7 +77,5 @@ sprintf(str, fmt, va_alist)
 	ret = __vfprintf(&f, fmt, ap);
 	va_end(ap);
 	*f._p = 0;
-	if (str == NULL)
-		free(f._bf._base);
 	return (ret);
 }
