@@ -4,7 +4,7 @@
 PROG=	login
 MAN1=	login.1
 MAN5=	login.access.5
-SRCS=	login.c login_access.c login_skey.c
+SRCS=	login.c login_access.c login_skey.c login_fbtab.c
 #klogin.c
 DPADD=	${LIBUTIL} ${LIBSKEY}
 #${LIBKRB} ${LIBDES}
