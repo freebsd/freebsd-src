@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.70 1996/10/09 19:47:31 bde Exp $
+ *	$Id: clock.c,v 1.71 1996/10/25 13:46:21 bde Exp $
  */
 
 /*
@@ -812,10 +812,8 @@ cpu_initclocks()
 	/*
 	 * Finish setting up anti-jitter measures.
 	 */
-	if (i586_ctr_freq != 0) {
-		i586_last_tick = rdtsc();
-		i586_ctr_bias = i586_last_tick;
-	}
+	if (i586_ctr_freq != 0)
+		i586_ctr_bias = rdtsc();
 #endif
 
 	/* Initialize RTC. */
