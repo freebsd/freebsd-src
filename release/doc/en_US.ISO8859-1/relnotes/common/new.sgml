@@ -188,7 +188,7 @@
       compatibility), and also reduces the possibility of running out
       of device major numbers.</para>
 
-    <sect3>
+    <sect3 id="proc">
       <title>Processor/Motherboard Support</title>
 
       <para arch="i386">&os; now has rudimentary support for
@@ -209,7 +209,7 @@
 
     </sect3>
 
-    <sect3>
+    <sect3 id="boot">
       <title>Bootloader Changes</title>
 
       <para arch="alpha">The alpha boot loader
@@ -242,7 +242,7 @@
 
     </sect3>
 
-    <sect3>
+    <sect3 id="net-if">
       <title>Network Interface Support</title>
 
       <para>The cm driver now supports IPX. &merged;</para>
@@ -257,7 +257,7 @@
 
     </sect3>
 
-    <sect3>
+    <sect3 id="net-proto">
       <title>Network Protocols</title>
 
       <para>&man.ipfw.4; <literal>skipto</literal> rules can once
@@ -321,7 +321,7 @@
 
     </sect3>
 
-    <sect3>
+    <sect3 id="disks">
       <title>Disks and Storage</title>
 
       <para>The &man.aac.4; driver now runs free of the Giant kernel
@@ -360,7 +360,7 @@
 
     </sect3>
 
-    <sect3>
+    <sect3 id="fs">
       <title>Filesystems</title>
 
       <para>NETNCP and Netware Filesystem Support (nwfs) are once
@@ -371,13 +371,13 @@
 
     </sect3>
 
-    <sect3>
+    <sect3 id="pccard">
       <title>PCCARD Support</title>
 
       <para></para>
     </sect3>
 
-    <sect3>
+    <sect3 id="mm">
       <title>Multimedia Support</title>
 
       <para></para>
@@ -609,7 +609,7 @@
 
   </sect2>
 
-    <sect2>
+    <sect2 id="contrib">
       <title>Contributed Software</title>
 
       <para><application>awk</application> from Bell Labs has been
@@ -675,7 +675,7 @@
 
     </sect2>
 
-    <sect2>
+    <sect2 id="ports">
       <title>Ports/Packages Collection Infrastructure</title>
 
       <para>The one-line <filename>pkg-comment</filename> files have
@@ -686,7 +686,7 @@
 
     </sect2>
 
-  <sect2>
+  <sect2 id="releng">
     <title>Release Engineering and Integration</title>
 
     <para>The supported release of <application>GNOME</application>
@@ -705,7 +705,7 @@
 
   </sect2>
 
-  <sect2>
+  <sect2 id="doc">
     <title>Documentation</title>
 
     <para></para>
