@@ -189,7 +189,7 @@ typedef struct _drv_t {
 	cx_chan_t *chan;
 	cx_board_t *board;
 	cx_buf_t buf;
-	struct tty tty;
+	struct tty *tty;
 	struct callout_handle dcd_timeout_handle;
 	unsigned dtrwait;
 	unsigned dtroff;
@@ -349,9 +349,9 @@ static void cx_timeout (void *arg)
 		if (! d)
 			continue;
 		s = splhigh ();
-		if (d->atimeout == 1 && d->tty.t_state & TS_BUSY) {
-			d->tty.t_state &= ~TS_BUSY;
-			if (d->tty.t_dev) {
+		if (d->atimeout == 1 && d->tty && d->tty->t_state & TS_BUSY) {
+			d->tty->t_state &= ~TS_BUSY;
+			if (d->tty->t_dev) {
 				d->intr_action |= CX_WRITE;
 				MY_SOFT_INTR = 1;
 #if __FreeBSD_version >= 500000
@@ -874,11 +874,6 @@ static int cx_attach (device_t dev)
 		sprintf (d->name, "cx%d.%d", b->num, c->num);
 		d->board = b;
 		d->chan = c;
-		d->tty.t_oproc = cx_oproc;
-		d->tty.t_param = cx_param;
-#if __FreeBSD_version >= 400000
-		d->tty.t_stop  = cx_stop;
-#endif
 		d->dtrwait = 3 * hz;	/* Default DTR off timeout is 3 seconds. */
 		d->open_dev = 0;
 		c->sys = d;
@@ -998,7 +993,7 @@ static int cx_detach (device_t dev)
 			splx (s);
 			return EBUSY;
 		}
-		if (c->mode == M_ASYNC && (d->tty.t_state & TS_ISOPEN) &&
+		if (c->mode == M_ASYNC && d->tty && (d->tty->t_state & TS_ISOPEN) &&
 		    (d->open_dev|0x2)) {
 			splx (s);
 			return EBUSY;
@@ -1320,10 +1315,10 @@ static void cx_transmit (cx_chan_t *c, void *attachment, int len)
 	if (!d)
 		return;
 		
-	if (c->mode == M_ASYNC) {
-		d->tty.t_state &= ~(TS_BUSY | TS_FLUSH);
+	if (c->mode == M_ASYNC && d->tty) {
+		d->tty->t_state &= ~(TS_BUSY | TS_FLUSH);
 		d->atimeout = 0;
-		if (d->tty.t_dev) {
+		if (d->tty->t_dev) {
 			d->intr_action |= CX_WRITE;
 			MY_SOFT_INTR = 1;
 #if __FreeBSD_version >= 500000
@@ -1359,8 +1354,8 @@ static void cx_receive (cx_chan_t *c, char *data, int len)
 	if (!d)
 		return;
 		
-	if (c->mode == M_ASYNC) {
-		if (d->tty.t_state & TS_ISOPEN) {
+	if (c->mode == M_ASYNC && d->tty) {
+		if (d->tty->t_state & TS_ISOPEN) {
 			async_q *q = &d->aqueue;
 			int size = BF_SZ - 1 - AQ_GSZ (q);
 
@@ -1425,12 +1420,21 @@ static void cx_receive (cx_chan_t *c, char *data, int len)
 #endif
 }
 
+#if __FreeBSD_version < 502113
+#define CONDITION(t,tp) (!(t->c_iflag & (ICRNL | IGNCR | IMAXBEL | INLCR | ISTRIP | IXON))\
+	    && (!(tp->t_iflag & BRKINT) || (tp->t_iflag & IGNBRK))\
+	    && (!(tp->t_iflag & PARMRK)\
+		|| (tp->t_iflag & (IGNPAR | IGNBRK)) == (IGNPAR | IGNBRK))\
+	    && !(t->c_lflag & (ECHO | ICANON | IEXTEN | ISIG | PENDIN))\
+	    && linesw[tp->t_line].l_rint == ttyinput)
+#else
 #define CONDITION(t,tp) (!(t->c_iflag & (ICRNL | IGNCR | IMAXBEL | INLCR | ISTRIP | IXON))\
 	    && (!(tp->t_iflag & BRKINT) || (tp->t_iflag & IGNBRK))\
 	    && (!(tp->t_iflag & PARMRK)\
 		|| (tp->t_iflag & (IGNPAR | IGNBRK)) == (IGNPAR | IGNBRK))\
 	    && !(t->c_lflag & (ECHO | ICANON | IEXTEN | ISIG | PENDIN))\
 	    && linesw[tp->t_line]->l_rint == ttyinput)
+#endif
 
 /*
  * Error callback function.
@@ -1448,10 +1452,10 @@ static void cx_error (cx_chan_t *c, int data)
 	switch (data) {
 	case CX_FRAME:
 		CX_DEBUG (d, ("frame error\n"));
-		if (c->mode == M_ASYNC && (d->tty.t_state & TS_ISOPEN)
+		if (c->mode == M_ASYNC && d->tty && (d->tty->t_state & TS_ISOPEN)
 			&& (AQ_GSZ (q) < BF_SZ - 1)
-			&& (!CONDITION((&d->tty.t_termios), (&d->tty))
-			|| !(d->tty.t_iflag & (IGNPAR | PARMRK)))) {
+			&& (!CONDITION((&d->tty->t_termios), (d->tty))
+			|| !(d->tty->t_iflag & (IGNPAR | PARMRK)))) {
 			AQ_PUSH (q, TTY_FE);
 			d->intr_action |= CX_READ;
 			MY_SOFT_INTR = 1;
@@ -1468,11 +1472,11 @@ static void cx_error (cx_chan_t *c, int data)
 		break;
 	case CX_CRC:
 		CX_DEBUG (d, ("crc error\n"));
-		if (c->mode == M_ASYNC && (d->tty.t_state & TS_ISOPEN)
+		if (c->mode == M_ASYNC && d->tty && (d->tty->t_state & TS_ISOPEN)
 			&& (AQ_GSZ (q) < BF_SZ - 1)
-			&& (!CONDITION((&d->tty.t_termios), (&d->tty))
-			|| !(d->tty.t_iflag & INPCK)
-			|| !(d->tty.t_iflag & (IGNPAR | PARMRK)))) {
+			&& (!CONDITION((&d->tty->t_termios), (d->tty))
+			|| !(d->tty->t_iflag & INPCK)
+			|| !(d->tty->t_iflag & (IGNPAR | PARMRK)))) {
 			AQ_PUSH (q, TTY_PE);
 			d->intr_action |= CX_READ;
 			MY_SOFT_INTR = 1;
@@ -1490,9 +1494,9 @@ static void cx_error (cx_chan_t *c, int data)
 	case CX_OVERRUN:
 		CX_DEBUG (d, ("overrun error\n"));
 #ifdef TTY_OE
-		if (c->mode == M_ASYNC && (d->tty.t_state & TS_ISOPEN)
+		if (c->mode == M_ASYNC && d->tty && (d->tty->t_state & TS_ISOPEN)
 			&& (AQ_GSZ (q) < BF_SZ - 1)
-			&& (!CONDITION((&d->tty.t_termios), (&d->tty)))) {
+			&& (!CONDITION((&d->tty->t_termios), (d->tty)))) {
 			AQ_PUSH (q, TTY_OE);
 			d->intr_action |= CX_READ;
 			MY_SOFT_INTR = 1;
@@ -1532,10 +1536,10 @@ static void cx_error (cx_chan_t *c, int data)
 		break;
 	case CX_BREAK:
 		CX_DEBUG (d, ("break error\n"));
-		if (c->mode == M_ASYNC && (d->tty.t_state & TS_ISOPEN)
+		if (c->mode == M_ASYNC && d->tty && (d->tty->t_state & TS_ISOPEN)
 			&& (AQ_GSZ (q) < BF_SZ - 1)
-			&& (!CONDITION((&d->tty.t_termios), (&d->tty))
-			|| !(d->tty.t_iflag & (IGNBRK | BRKINT | PARMRK)))) {
+			&& (!CONDITION((&d->tty->t_termios), (d->tty))
+			|| !(d->tty->t_iflag & (IGNBRK | BRKINT | PARMRK)))) {
 			AQ_PUSH (q, TTY_BI);
 			d->intr_action |= CX_READ;
 			MY_SOFT_INTR = 1;
@@ -1574,10 +1578,18 @@ static int cx_open (dev_t dev, int flag, int mode, struct thread *td)
 		d->open_dev |= 0x1;
 		return 0;
 	}
+	if (!d->tty) {
+		d->tty = ttymalloc (d->tty);
+		d->tty->t_oproc = cx_oproc;
+		d->tty->t_param = cx_param;
 #if __FreeBSD_version >= 400000
-	dev->si_tty = &d->tty;
+		d->tty->t_stop  = cx_stop;
 #endif
-	d->tty.t_dev = dev;
+	}
+#if __FreeBSD_version >= 400000
+	dev->si_tty = d->tty;
+#endif
+	d->tty->t_dev = dev;
 again:
 	if (d->dtroff) {
 		error = tsleep (&d->dtrwait, TTIPRI | PCATCH, "cxdtr", 0);
@@ -1586,7 +1598,7 @@ again:
 		goto again;
 	}
 
-	if ((d->tty.t_state & TS_ISOPEN) && (d->tty.t_state & TS_XCLUDE) &&
+	if ((d->tty->t_state & TS_ISOPEN) && (d->tty->t_state & TS_XCLUDE) &&
 #if __FreeBSD_version >= 500000
 		suser (td))
 #else
@@ -1594,7 +1606,7 @@ again:
 #endif
 		return EBUSY;
 
-	if (d->tty.t_state & TS_ISOPEN) {
+	if (d->tty->t_state & TS_ISOPEN) {
 		/*
 		 * Cannot open /dev/cua if /dev/tty already opened.
 		 */
@@ -1620,39 +1632,39 @@ again:
 		 */
 		return EBUSY;
 	else {
-		ttychars (&d->tty);
-		if (d->tty.t_ispeed == 0) {
-			d->tty.t_iflag = 0;
-			d->tty.t_oflag = 0;
-			d->tty.t_lflag = 0;
-			d->tty.t_cflag = CREAD | CS8 | HUPCL;
-			d->tty.t_ispeed = d->chan->rxbaud;
-			d->tty.t_ospeed = d->chan->txbaud;
+		ttychars (d->tty);
+		if (d->tty->t_ispeed == 0) {
+			d->tty->t_iflag = 0;
+			d->tty->t_oflag = 0;
+			d->tty->t_lflag = 0;
+			d->tty->t_cflag = CREAD | CS8 | HUPCL;
+			d->tty->t_ispeed = d->chan->rxbaud;
+			d->tty->t_ospeed = d->chan->txbaud;
 		}
 		if (CALLOUT (dev))
-			d->tty.t_cflag |= CLOCAL;
+			d->tty->t_cflag |= CLOCAL;
 		else
-			d->tty.t_cflag &= ~CLOCAL;
-		cx_param (&d->tty, &d->tty.t_termios);
-		ttsetwater (&d->tty);
+			d->tty->t_cflag &= ~CLOCAL;
+		cx_param (d->tty, &d->tty->t_termios);
+		ttsetwater (d->tty);
 	}
 
 	splhigh ();
-	if (! (d->tty.t_state & TS_ISOPEN)) {
+	if (! (d->tty->t_state & TS_ISOPEN)) {
 		cx_start_chan (d->chan, 0, 0);
 		cx_set_dtr (d->chan, 1);
 		cx_set_rts (d->chan, 1);
 		d->cd = cx_get_cd (d->chan);
 		if (CALLOUT (dev) || cx_get_cd (d->chan))
-			ttyld_modem(&d->tty, 1);
+			ttyld_modem(d->tty, 1);
 	}
 
-	if (! (flag & O_NONBLOCK) && ! (d->tty.t_cflag & CLOCAL) &&
-	    ! (d->tty.t_state & TS_CARR_ON)) {
+	if (! (flag & O_NONBLOCK) && ! (d->tty->t_cflag & CLOCAL) &&
+	    ! (d->tty->t_state & TS_CARR_ON)) {
 		/* Lock the channel against cxconfig while we are
 		 * waiting for carrier. */
 		d->lock++;
-		error = tsleep (&d->tty.t_rawq, TTIPRI | PCATCH, "cxdcd", 0);
+		error = tsleep (&d->tty->t_rawq, TTIPRI | PCATCH, "cxdcd", 0);
 		/* Unlock the channel. */
 		d->lock--;
 		spl0 ();
@@ -1661,11 +1673,11 @@ again:
 		goto again;
 	}
 
-	error = ttyld_open (&d->tty, dev);
-	ttyldoptim (&d->tty);
+	error = ttyld_open (d->tty, dev);
+	ttyldoptim (d->tty);
 	spl0 ();
 	if (error) {
-failed:         if (! (d->tty.t_state & TS_ISOPEN)) {
+failed:         if (! (d->tty->t_state & TS_ISOPEN)) {
 			splhigh ();
 			cx_set_dtr (d->chan, 0);
 			cx_set_rts (d->chan, 0);
@@ -1679,7 +1691,7 @@ failed:         if (! (d->tty.t_state & TS_ISOPEN)) {
 		return error;
 	}
 
-	if (d->tty.t_state & TS_ISOPEN)
+	if (d->tty->t_state & TS_ISOPEN)
 		d->callout = CALLOUT (dev) ? 1 : 0;
 
 	d->open_dev |= 0x2;
@@ -1702,15 +1714,15 @@ static int cx_close (dev_t dev, int flag, int mode, struct thread *td)
 		return 0;
 	}
 	s = splhigh ();
-	ttyld_close(&d->tty, flag);
-	ttyldoptim (&d->tty);
+	ttyld_close(d->tty, flag);
+	ttyldoptim (d->tty);
 
 	/* Disable receiver.
 	 * Transmitter continues sending the queued data. */
 	cx_enable_receive (d->chan, 0);
 
 	/* Clear DTR and RTS. */
-	if ((d->tty.t_cflag & HUPCL) || ! (d->tty.t_state & TS_ISOPEN)) {
+	if ((d->tty->t_cflag & HUPCL) || ! (d->tty->t_state & TS_ISOPEN)) {
 		cx_set_dtr (d->chan, 0);
 		cx_set_rts (d->chan, 0);
 		if (d->dtrwait) {
@@ -1719,7 +1731,7 @@ static int cx_close (dev_t dev, int flag, int mode, struct thread *td)
 			d->dtroff = 1;
 		}
 	}
-	ttyclose (&d->tty);
+	ttyclose (d->tty);
 	splx (s);
 	d->callout = 0;
 
@@ -1735,10 +1747,10 @@ static int cx_read (dev_t dev, struct uio *uio, int flag)
 	drv_t *d = channel [UNIT (dev)];
 
 	if (d)	CX_DEBUG2 (d, ("cx_read\n"));
-	if (!d || d->chan->mode != M_ASYNC || IF_CUNIT(dev))
+	if (!d || d->chan->mode != M_ASYNC || IF_CUNIT(dev) || !d->tty)
 		return EBADF;
 
-	return ttyld_read (&d->tty, uio, flag);
+	return ttyld_read (d->tty, uio, flag);
 }
 
 static int cx_write (dev_t dev, struct uio *uio, int flag)
@@ -1746,17 +1758,17 @@ static int cx_write (dev_t dev, struct uio *uio, int flag)
 	drv_t *d = channel [UNIT (dev)];
 
 	if (d) CX_DEBUG2 (d, ("cx_write\n"));
-	if (!d || d->chan->mode != M_ASYNC || IF_CUNIT(dev))
+	if (!d || d->chan->mode != M_ASYNC || IF_CUNIT(dev) || !d->tty)
 		return EBADF;
 
-	return ttyld_write (&d->tty, uio, flag);
+	return ttyld_write (d->tty, uio, flag);
 }
 
 static int cx_modem_status (drv_t *d)
 {
 	int status = 0, s = splhigh ();
 	/* Already opened by someone or network interface is up? */
-	if ((d->chan->mode == M_ASYNC && (d->tty.t_state & TS_ISOPEN) &&
+	if ((d->chan->mode == M_ASYNC && d->tty && (d->tty->t_state & TS_ISOPEN) &&
 	    (d->open_dev|0x2)) || (d->chan->mode != M_ASYNC && d->running))
 		status = TIOCM_LE;      /* always enabled while open */
 
@@ -1922,7 +1934,7 @@ static int cx_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct threa
 	        if (d->lock)
 	                return EBUSY;
 	        /* /dev/ttyXX is already opened by someone? */
-	        if (c->mode == M_ASYNC && (d->tty.t_state & TS_ISOPEN) &&
+	        if (c->mode == M_ASYNC && d->tty && (d->tty->t_state & TS_ISOPEN) &&
 		    (d->open_dev|0x2))
 	                return EBUSY;
 	        /* Network interface is up?
@@ -2128,10 +2140,10 @@ static int cx_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct threa
 	        return 0;
 	}
 
-	if (c->mode == M_ASYNC) {
+	if (c->mode == M_ASYNC && d->tty) {
 #if __FreeBSD_version >= 502113
 		error = ttyioctl (dev, cmd, data, flag, td);
-		ttyldoptim (&d->tty);
+		ttyldoptim (d->tty);
 		if (error != ENOTTY) {
 			if (error)
 			CX_DEBUG2 (d, ("ttioctl: 0x%lx, error %d\n", cmd, error));
@@ -2139,18 +2151,18 @@ static int cx_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct threa
 		}
 #else
 #if __FreeBSD_version >= 500000
-		error = (*linesw[d->tty.t_line].l_ioctl) (&d->tty, cmd, data, flag, td);
+		error = (*linesw[d->tty->t_line].l_ioctl) (d->tty, cmd, data, flag, td);
 #else
-		error = (*linesw[d->tty.t_line].l_ioctl) (&d->tty, cmd, data, flag, p);
+		error = (*linesw[d->tty->t_line].l_ioctl) (d->tty, cmd, data, flag, p);
 #endif
-		ttyldoptim (&d->tty);
+		ttyldoptim (d->tty);
 		if (error != ENOIOCTL) {
 			if (error)
 			CX_DEBUG2 (d, ("l_ioctl: 0x%lx, error %d\n", cmd, error));
 			return error;
 		}
-		error = ttioctl (&d->tty, cmd, data, flag);
-		ttyldoptim (&d->tty);
+		error = ttioctl (d->tty, cmd, data, flag);
+		ttyldoptim (d->tty);
 		if (error != ENOIOCTL) {
 			if (error)
 			CX_DEBUG2 (d, ("ttioctl: 0x%lx, error %d\n", cmd, error));
@@ -2287,41 +2299,42 @@ void cx_softintr ()
 		for (i=0; i<NCX*NCHAN; ++i) {
 			d = channel [i];
 			if (!d || !d->chan || d->chan->type == T_NONE
-			    || d->chan->mode != M_ASYNC || !d->tty.t_dev)
+			    || d->chan->mode != M_ASYNC || !d->tty
+			    || !d->tty->t_dev)
 				continue;
 			s = splhigh ();
 			if (d->intr_action & CX_READ) {
 				q = &(d->aqueue);
-				if (d->tty.t_state & TS_CAN_BYPASS_L_RINT) {
+				if (d->tty->t_state & TS_CAN_BYPASS_L_RINT) {
 					k = AQ_GSZ(q);
-					if (d->tty.t_rawq.c_cc + k >
-						d->tty.t_ihiwat
-					    && (d->tty.t_cflag & CRTS_IFLOW
-						|| d->tty.t_iflag & IXOFF)
-					    && !(d->tty.t_state & TS_TBLOCK))
-						ttyblock(&d->tty);
-					d->tty.t_rawcc += k;
+					if (d->tty->t_rawq.c_cc + k >
+						d->tty->t_ihiwat
+					    && (d->tty->t_cflag & CRTS_IFLOW
+						|| d->tty->t_iflag & IXOFF)
+					    && !(d->tty->t_state & TS_TBLOCK))
+						ttyblock(d->tty);
+					d->tty->t_rawcc += k;
 					while (k>0) {
 						k--;
 						AQ_POP (q, ic);
 						splx (s);
-						putc (ic, &d->tty.t_rawq);
+						putc (ic, &d->tty->t_rawq);
 						s = splhigh ();
 					}
-					ttwakeup(&d->tty);
-					if (d->tty.t_state & TS_TTSTOP
-					    && (d->tty.t_iflag & IXANY
-						|| d->tty.t_cc[VSTART] ==
-						d->tty.t_cc[VSTOP])) {
-						d->tty.t_state &= ~TS_TTSTOP;
-						d->tty.t_lflag &= ~FLUSHO;
+					ttwakeup(d->tty);
+					if (d->tty->t_state & TS_TTSTOP
+					    && (d->tty->t_iflag & IXANY
+						|| d->tty->t_cc[VSTART] ==
+						d->tty->t_cc[VSTOP])) {
+						d->tty->t_state &= ~TS_TTSTOP;
+						d->tty->t_lflag &= ~FLUSHO;
 						d->intr_action |= CX_WRITE;
 					}
 				} else {
 					while (q->end != q->beg) {
 						AQ_POP (q, ic);
 						splx (s);
-						ttyld_rint (&d->tty, ic);
+						ttyld_rint (d->tty, ic);
 						s = splhigh ();
 					}
 				}
@@ -2331,10 +2344,10 @@ void cx_softintr ()
 
 			s = splhigh ();
 			if (d->intr_action & CX_WRITE) {
-				if (d->tty.t_line)
-					ttyld_start (&d->tty);
+				if (d->tty->t_line)
+					ttyld_start (d->tty);
 				else
-					cx_oproc (&d->tty);
+					cx_oproc (d->tty);
 				d->intr_action &= ~CX_WRITE;
 			}
 			splx (s);
@@ -2458,7 +2471,7 @@ static int cx_param (struct tty *tp, struct termios *t)
 	if (! d->chan->dtr)
 		cx_set_dtr (d->chan, 1);
 
-	ttyldoptim (&d->tty);
+	ttyldoptim (tp);
 	cx_set_async_param (d->chan, t->c_ospeed, bits, parity, (t->c_cflag & CSTOPB),
 		!(t->c_cflag & PARENB), (t->c_cflag & CRTSCTS),
 		(t->c_iflag & IXON), (t->c_iflag & IXANY),
@@ -2474,7 +2487,7 @@ static struct tty *cx_devtotty (dev_t dev)
 
 	if (unit == UNIT_CTL || unit >= NCX*NCHAN || ! channel[unit])
 		return 0;
-	return &channel[unit]->tty;
+	return channel[unit]->tty;
 }
 #endif
 
@@ -2515,12 +2528,14 @@ static void cx_carrier (void *arg)
 			CX_DEBUG (d, ("carrier on\n"));
 			d->cd = 1;
 			splx (s);
-			ttyld_modem(&d->tty, 1);
+			if (d->tty)
+				ttyld_modem(d->tty, 1);
 		} else {
 			CX_DEBUG (d, ("carrier loss\n"));
 			d->cd = 0;
 			splx (s);
-			ttyld_modem(&d->tty, 0);
+			if (d->tty)
+				ttyld_modem(d->tty, 0);
 		}
 	}
 }
@@ -2977,7 +2992,7 @@ static int cx_unload (void)
 			continue;
 		if (d->lock)
 			return EBUSY;
-		if (c->mode == M_ASYNC && (d->tty.t_state & TS_ISOPEN) &&
+		if (c->mode == M_ASYNC && d->tty && (d->tty->t_state & TS_ISOPEN) &&
 			(d->open_dev|0x2))
 				return EBUSY;
 		if (d->running)
