@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	dev_mkdb
+WARNS?=	2
 MAN=	dev_mkdb.8
 
 .include <bsd.prog.mk>

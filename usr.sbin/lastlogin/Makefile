@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	lastlogin
+WARNS?=	2
 MAN=	lastlogin.8
-CFLAGS+=-Wall
 
 .include <bsd.prog.mk>
