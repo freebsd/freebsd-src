@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.7.2.14 1998/01/25 15:40:28 kato Exp $
+ *	$Id: identcpu.c,v 1.7.2.15 1998/02/04 14:35:55 kato Exp $
  */
 
 #include "opt_cpu.h"
@@ -533,12 +533,12 @@ panicifcpuunsupported(void)
 }
 
 
-static	volatile u_int trap_by_wrmsr;
+static	volatile u_int trap_by_rdmsr;
 
 /*
  * Special exception 6 handler.
- * The wrmsr instruction generates invalid opcodes fault on 486-class
- * Cyrix CPU.  Stacked eip register points the wrmsr instruction in the
+ * The rdmsr instruction generates invalid opcodes fault on 486-class
+ * Cyrix CPU.  Stacked eip register points the rdmsr instruction in the
  * function identblue() when this handler is called.  Stacked eip should
  * be advanced.
  */
@@ -549,8 +549,8 @@ asm
 	.p2align 2,0x90
 " __XSTRING(CNAME(bluetrap6)) ":
 	ss
-	movl	$0xa8c1d," __XSTRING(CNAME(trap_by_wrmsr)) "
-	addl	$2, (%esp)		  # I know wrmsr is a 2-bytes instruction.
+	movl	$0xa8c1d," __XSTRING(CNAME(trap_by_rdmsr)) "
+	addl	$2, (%esp)		  # I know rdmsr is a 2-bytes instruction.
 	iret
 ");
 
@@ -565,9 +565,9 @@ asm
 	.p2align 2,0x90
 " __XSTRING(CNAME(bluetrap13)) ":
 	ss
-	movl	$0xa89c4," __XSTRING(CNAME(trap_by_wrmsr)) "
+	movl	$0xa89c4," __XSTRING(CNAME(trap_by_rdmsr)) "
 	popl	%eax				# discard errorcode.
-	addl	$2, (%esp)			# I know wrmsr is a 2-bytes instruction.
+	addl	$2, (%esp)			# I know rdmsr is a 2-bytes instruction.
 	iret
 ");
 
@@ -583,28 +583,28 @@ static int
 identblue(void)
 {
 
-	trap_by_wrmsr = 0;
+	trap_by_rdmsr = 0;
 
 	/* 
-	 * Cyrix 486-class CPU does not support wrmsr instruction.
-	 * The wrmsr instruction generates invalid opcode fault, and exception
+	 * Cyrix 486-class CPU does not support rdmsr instruction.
+	 * The rdmsr instruction generates invalid opcode fault, and exception
 	 * will be trapped by bluetrap6() on Cyrix 486-class CPU.  The
-	 * bluetrap6() set the magic number to trap_by_wrmsr.
+	 * bluetrap6() set the magic number to trap_by_rdmsr.
 	 */
 	setidt(6, bluetrap6, SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 
 	/*
 	 * Certain BIOS disables cpuid instructnion of Cyrix 6x86MX CPU.
-	 * In this case, wrmsr generates general protection fault, and
+	 * In this case, rdmsr generates general protection fault, and
 	 * exception will be trapped by bluetrap13().
 	 */
 	setidt(13, bluetrap13, SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 
-	wrmsr(0x1002, 0x03000000LL);	/* Cyrix CPU generates fault. */
+	rdmsr(0x1002);		/* Cyrix CPU generates fault. */
 
-	if (trap_by_wrmsr == 0xa8c1d)
+	if (trap_by_rdmsr == 0xa8c1d)
 		return IDENTBLUE_CYRIX486;
-	else if (trap_by_wrmsr == 0xa89c4)
+	else if (trap_by_rdmsr == 0xa89c4)
 		return IDENTBLUE_CYRIXM2;
 	return IDENTBLUE_IBMCPU;
 }
