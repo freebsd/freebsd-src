@@ -909,7 +909,7 @@ nextblock:
 		hsg2msf(blknum,rbuf.start_msf);
 retry_read:
 		/* send the read command */
-		disable_intr();
+		critical_enter();
 		MCD_WRITE(sc, MCD_REG_COMMAND, sc->data.read_command);
 		MCD_WRITE(sc, MCD_REG_COMMAND, rbuf.start_msf[0]);
 		MCD_WRITE(sc, MCD_REG_COMMAND, rbuf.start_msf[1]);
@@ -917,7 +917,7 @@ retry_read:
 		MCD_WRITE(sc, MCD_REG_COMMAND, 0);
 		MCD_WRITE(sc, MCD_REG_COMMAND, 0);
 		MCD_WRITE(sc, MCD_REG_COMMAND, 1);
-		enable_intr();
+		critical_exit();
 
 		/* Spin briefly (<= 2ms) to avoid missing next block */
 		for (i = 0; i < 20; i++) {
@@ -1547,7 +1547,7 @@ mcd_play(struct mcd_softc *sc, struct mcd_read2 *pb)
 	sc->data.lastpb = *pb;
 	for(retry=0; retry<MCD_RETRYS; retry++) {
 
-		disable_intr();
+		critical_enter();
 		MCD_WRITE(sc, MCD_REG_COMMAND, MCD_CMDSINGLESPEEDREAD);
 		MCD_WRITE(sc, MCD_REG_COMMAND, pb->start_msf[0]);
 		MCD_WRITE(sc, MCD_REG_COMMAND, pb->start_msf[1]);
@@ -1555,7 +1555,7 @@ mcd_play(struct mcd_softc *sc, struct mcd_read2 *pb)
 		MCD_WRITE(sc, MCD_REG_COMMAND, pb->end_msf[0]);
 		MCD_WRITE(sc, MCD_REG_COMMAND, pb->end_msf[1]);
 		MCD_WRITE(sc, MCD_REG_COMMAND, pb->end_msf[2]);
-		enable_intr();
+		critical_exit();
 
 		status=mcd_getstat(sc, 0);
 		if (status == -1)
