@@ -1091,7 +1091,48 @@ options HZ=1000 # pas obligatoire, mais fortemment recommandé</programlisting>
     <sect3>
       <title>Support Multimédia</title>
 
-      <para></para>
+      <para arch="i386">Le gestionnaire de périphériques &man.pcm.4;
+      supporte maintenant les cartes sons ESS Solo 1,
+      Maestro-1, Maestro-2, et Maestro-2e; Forte Media fm801, ESS
+      Maestro-2e, et VIA Technologies VT82C686A, et a reçu
+      de nombreuses modifications. Des gestionnaires séparés pour
+      les cartes SoundBlaster 8 et SoundBlaster 16 remplacent l'ancien
+      gestionnaire unifié. Un gestionnaire pour les cartes CMedia
+      CMI8338/CMI8738 a été ajouté. Un gestionnaire pour les cartes
+      a base de S3 SonicVibes a été ajouté.&merged;</para>
+
+      <para arch="i386">Un gestionnaire de périphériques pour les
+      cartes Avance Logic ALS4000 a été ajouté.. &merged;</para>
+
+      <para arch="i386">Un gestionnaire de périphériques pour les cartes 
+      ESS Maestro-3/Allegro a été ajouté, mais suite a des restrrictions
+      sur la license, il ne peut etre compilé dans le noyau. &merged;
+      Pour utiliser ce gestionnaire, ajoutez la ligne suivante au fichier 
+      <filename>/boot/loader.conf</filename>:</para>
+
+      <programlisting>snd_maestro3_load="YES"</programlisting>
+
+      <para>Le gestionnaire de périphériques &man.bktr.4; a été mis
+      à jour en version 2.18. Cette mise à jour fournit de nombreuses
+      nouvelles fonctionnalités. De nouveaux types de tuner ont été
+      joutés et des améliorations dans les modules KLD et l'allocation
+      mémoire ont été effectués. Des bogues dans &man.devfs.5;
+      lors du chargement et déchargement ont été corrigés. Le support
+      pour les nouvelles cartes Hauppauge Model 44xxx WinTV a été 
+      ajouté. &merged;</para>
+
+      <para>Lorsque les modules sons sont compilés, un seul suffit
+      a charger tous les gestionnaires et l'infrastructure
+      par la commande  <command>kldload snd</command>. &merged;</para>
+
+      <para>Une nouvelle API a été ajoutée pour les cartes sons
+      ayant un controleur de volume matériel.</para>
+
+      <para arch="i386">Un gestionnaire de périphériques pour
+      les cartes sons intégrées Intel 443MX, 810, 815, et 815E
+      a été ajouté.</para>
+
+
     </sect3>
 
     <sect3>
