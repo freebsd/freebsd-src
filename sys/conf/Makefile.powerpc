@@ -267,7 +267,7 @@ modules-install modules-install.debug:
 		cp -p ${DESTDIR}/modules/* ${DESTDIR}/modules.old; \
 	fi;
 .endif
-	-mkdir ${DESTDIR}/modules
+	-mkdir -p ${DESTDIR}/modules
 	cd $S/modules && env MAKEOBJDIRPREFIX=${.OBJDIR}/modules ${MAKE} install
 
 modules-reinstall modules-reinstall.debug:
