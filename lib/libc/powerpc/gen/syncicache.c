@@ -51,6 +51,8 @@ static const char rcsid[] =
 #error "Must know the size of a cache line"
 #endif
 #else
+#include <stdlib.h>
+
 static void getcachelinesize(void);
 
 static int _cachelinesize;
