@@ -759,7 +759,7 @@ btrim(int8_t *buf, int len)
     int8_t *ptr;
 
     for (ptr = buf; ptr < buf+len; ++ptr)
-	if (!*ptr)
+	if (!*ptr || *ptr == '_')
 	    *ptr = ' ';
     for (ptr = buf + len - 1; ptr >= buf && *ptr == ' '; --ptr)
 	*ptr = 0;
