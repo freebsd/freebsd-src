@@ -186,7 +186,7 @@ ext2_mount(mp, path, data, ndp, p)
 	struct ufs_args args;
 	struct ufsmount *ump = 0;
 	register struct ext2_sb_info *fs;
-	u_int size;
+	size_t size;
 	int error, flags;
 	mode_t accessmode;
 
