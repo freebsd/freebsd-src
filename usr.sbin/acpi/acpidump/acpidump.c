@@ -70,8 +70,8 @@ static void
 usage(const char *progname)
 {
 
-	printf("usage:\t%s [-o dsdt_file_for_output]\n", progname);
-	printf("\t%s [-f dsdt_file_for_input]\n", progname);
+	printf("usage:\t%s [-r] [-o dsdt_file_for_output]\n", progname);
+	printf("\t%s [-r] [-f dsdt_file_for_input]\n", progname);
 	printf("\t%s [-h]\n", progname);
 	exit(1);
 }
@@ -82,7 +82,7 @@ main(int argc, char *argv[])
 	char	c, *progname;
 
 	progname = argv[0];
-	while ((c = getopt(argc, argv, "f:o:h")) != -1) {
+	while ((c = getopt(argc, argv, "f:o:hr")) != -1) {
 		switch (c) {
 		case 'f':
 			asl_dump_from_file(optarg);
@@ -92,6 +92,9 @@ main(int argc, char *argv[])
 			break;
 		case 'h':
 			usage(progname);
+			break;
+		case 'r':
+			rflag++;
 			break;
 		default:
 			argc -= optind;
