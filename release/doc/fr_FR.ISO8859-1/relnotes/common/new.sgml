@@ -1139,6 +1139,18 @@ options HZ=1000 # pas obligatoire, mais fortemment recommandé</programlisting>
       <title>Logiciels externes</title>
       <para></para>
 
+      <para>Le language de commande inspiré sur Forth
+      (<application>FICL</application>) du gestionnaire de 
+      démarrage a été mis à jour en version 2.05.</para>
+
+      <para>Le supporte pour la configuration avancée de gestion
+      d'énergie  (ACPI), un standard multi-constructeurs sur 
+      la gestion d'énergie, a été ajouté. Cette fonctionnalité
+      est fournié par le projet <application>Intel ACPI Component
+      Architecture</application>, depuis le snapshot ACPI CA
+      20020214. Une certaine compatibilité pour les applications
+      utilisant l'ancien standard APM est fourni.</para>
+
       <sect4>
         <title>IPFilter</title>
 
@@ -1149,7 +1161,91 @@ options HZ=1000 # pas obligatoire, mais fortemment recommandé</programlisting>
 	IPv6. &merged;</para>
 
       </sect4>
-    </sect3>
+
+      <sect4 arch="i386">
+        <title>isdn4bsd</title>
+
+	<para><application>isdn4bsd</application> a été mis à jour 
+	en version 1.0.1. Ceci <emphasis>oblige</emphasis> les
+	 utilisateurs du gestionnaire de périphériques 
+	 &man.i4bisppp.4; (PPP noyau sur ISDN) à utiliser 
+	 &man.ispppcontrol.8; au lieu de &man.spppcontrol.8; pour
+	 configurer et controler leurs interfaces réseaux. &merged;</para>
+
+	<para>Le gestionnaire de périphériques &man.ifpi.4; permettant
+	le support des cartes AVM Fritz!Card PCI version 2 a été
+	ajouté.</para>
+
+	<para>Le gestionnaire de périphériques &man.ihfc.4; permettant
+	la gestion des périphériques Cologne Chip Designs HFC sous 
+	<application>isdn4bsd</application> a été ajouté. &merged;</para>
+
+        <para>Le gestionnaire de périphériques &man.itjc.4; permettant
+	la gestion des périphériques NETjet-S / Teles PCI-TJ sous 
+	<application>isdn4bsd</application> a été ajouté. &merged;</para>
+
+        <para>Le support expérimental des cartes Eicon.Diehl DIVA 2.0 et
+	 2.02 ISA PnP ISDN a été ajouté au via le gestionnaire
+	 de périphériques &man.isic.4; de 
+	 <application>isdn4bsd</application> . &merged;</para>
+
+
+	<para>Le gestionnaire de périphériques &man.isic.4; supporte
+	les cartes Compaq Microcom 610 ISDN ISA PnP. &merged;</para>
+
+	<para>Les cartes ISDN basées sur Active CAPI fabriquées par
+	 AVM sont maintenant supportées par les gestionnaires
+	 de périphériques &man.i4bcapi.4; et &man.iavc.4;. Les cartes
+	 supportées sont les cartes AVM B1 PCI et AVM B1 ISA Basic Rate
+	 et AVM T1 Primary Rate.&merged;</para>
+
+	<para>Un nouveau mot clef,<literal>maxconnecttime</literal>, est
+	accepté dans le fichier &man.isdnd.rc.5; et permet de
+	limiter le temps maximum ou une connexion peut rester 
+	ouverte. &merged;</para>
+
+	<para>&man.isdnphone.8; supporte maintenant l'option
+	 <option>-k</option> pour envoyer des messages via le clavier
+	 numérique d'un PABX &merged;</para>
+      </sect4>
+
+      <sect4 id="kame-kernel">
+        <title>KAME</title>
+
+        <para>La couche IPv6 est maintenant basée sur la snapshot
+	du projet KAME IPv6 en date du 28 Mai 2001. La plupart
+	des ajouts de cette section résultent de cet import. La 
+	<xref linkend="kame-userland"> liste les modifications
+	dans les programmes utilisateurs de la couche 
+	KAME IPv6 . &merged;</para>
+
+        <para>&man.gif.4; est maintenant basé sur le RFC 2893 et non plus 
+	sur le RFC 1933. Le drapeau d'interface <literal>IFF_LINK2</literal>
+	permet de controler le fitrage.&merged;</para>
+
+	<para><application>IPSec</application> a reçu de nombreuses
+	améliorations, comme la capacité d'utiliser les algorithmes
+	SHA2 et Rijndael. Le support de IPSec RC5 a été retiré du
+	a des problèmes de license. &merged;</para>
+
+	<para>&man.stf.4; est maintenant conforme au RFC 3056; le 
+	drapeau d'interface <literal>IFF_LINK2</literal> 
+	permet de controler le fitrage.&merged;</para>
+
+	<para>IPv6 vérifie mieux les adresses illégales (comme
+	l'adresse de bouclage) sur les réseaux physique. &merged;</para>
+
+	<para>L'option socket <varname>IPV6_V6ONLY</varname> est 
+	maintenant completement supporté. La façon dont le noyau
+	respecte cette option est controler par la variable
+	sysctl <varname>net.inet6.ip6.v6only</varname>. &merged;</para>
+
+	<para>Le RFC 3041 (Privacy Extensions for Stateless Address
+	Autoconfiguration) est supporté. Il peut etre activé par la 
+	variable sysctl <varname>net.inet6.ip6.use_tempaddr</varname>.
+	 &merged;</para>
+
+   </sect3>
   </sect2>
   <sect2 id="security">
     <title>Changements liés a la sécurité</title>
@@ -1160,12 +1256,14 @@ options HZ=1000 # pas obligatoire, mais fortemment recommandé</programlisting>
   </sect2>
   <sect2 id="userland">
     <title>Changements dans les programmes utilisateurs</title>
-
-
     <sect3>
       <title>Logiciels externes</title>
 
+      <sect4 id="kame-userland">
+        <title>KAME</title>
       <para></para>
+      </sect4>
+      
     </sect3>
 
     <sect3>
