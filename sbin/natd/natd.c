@@ -8,9 +8,10 @@
  * You may copy, modify and distribute this software (natd.c) freely.
  *
  * Ari Suutari <suutari@iki.fi>
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #define SYSLOG_NAMES
 
@@ -473,7 +474,7 @@ static void DoAliasing (int fd, int direction)
 		return;
 	}
 /*
- * This is a IP packet.
+ * This is an IP packet.
  */
 	ip = (struct ip*) buf;
 	if (direction == DONT_KNOW) {
@@ -1601,7 +1602,7 @@ u_short StrToPort (const char* str, const char* proto)
 
 	sp = getservbyname (str, proto);
 	if (!sp)
-		errx (1, "unknown service %s/%s", str, proto);
+		errx (1, "%s/%s: unknown service", str, proto);
 
 	return sp->s_port;
 }
@@ -1633,7 +1634,7 @@ int StrToPortRange (const char* str, const char* proto, port_range *portRange)
 		}
 
 		/* Error in port range field. */
-		errx (1, "unknown service %s/%s", str, proto);
+		errx (1, "%s/%s: unknown service", str, proto);
 	}
 
 	/* Port range, get the values and sanity check. */

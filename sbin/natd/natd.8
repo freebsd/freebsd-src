@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.Dd June 27, 2000
+.Dd February 28, 2003
 .Dt NATD 8
 .Os
 .Sh NAME
@@ -41,11 +41,16 @@ with
 .Xr divert 4
 sockets under
 .Fx .
-It is intended for use with NICs - if you want to do NAT on a PPP link,
-use the
+.Pp
+(If you need NAT on a PPP link,
+.Xr ppp 8
+provides the
 .Fl nat
-switch to
-.Xr ppp 8 .
+option that gives most of the
+.Nm
+functionality, and uses the same
+.Xr libalias 3
+library.)
 .Pp
 The
 .Nm
@@ -581,6 +586,7 @@ Running the script in the background should be enough to prevent this
 disaster.
 .El
 .Sh SEE ALSO
+.Xr libalias 3 ,
 .Xr divert 4 ,
 .Xr protocols 5 ,
 .Xr rc.conf 5 ,
@@ -594,7 +600,7 @@ times:
 .Pp
 .An Archie Cobbs Aq archie@FreeBSD.org
 (divert sockets)
-.An Charles Mott Aq cmott@scientech.com
+.An Charles Mott Aq cm@linktel.net
 (packet aliasing)
 .An Eivind Eklund Aq perhaps@yes.no
 (IRC support & misc additions)
