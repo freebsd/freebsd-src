@@ -44,7 +44,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	   been renamed to WITNESS_KDB, KDB_TRACE and KDB_UNATTENDED
 	   respectively. This is in line with the first bullet.
 	o  The remote GDB support has been untangled from DDB and needs
-	   to be enabled seperately now. Use the GDB option for this.
+	   to be enabled separately now. Use the GDB option for this.
 	o  The GDB_REMOTE_CHAT option has been removed. Support for this
 	   homegrown feature is discontinued. The GDB remote protocol
 	   supports console output and it makes sense to use that. 
@@ -58,9 +58,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 
 20040702:
 	The native preemption has been added to the kernel scheduler.
-	There is some report that ULE scheduler was broken in some
-	machines and we encourage users using ULE scheduler either
-	stick with an known good kernel, or temporary switch to 4BSD
+	There is some report that the ULE scheduler was broken in some
+	machines and we encourage users using the ULE scheduler either
+	stick with a known good kernel, or temporarily switch to the 4BSD
 	scheduler as a workaround.
 
 20040630:
@@ -77,14 +77,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 
 20040630:
 	ACPI has been updated to disable known-bad BIOS revisions.  A message
-	will be printed on console indicating that ACPI has been disabled
+	will be printed on the console indicating that ACPI has been disabled
 	automatically and that the user should use a newer BIOS, if possible.
 	If you think ACPI does work on your system and want to override
 	this (i.e., for testing), set hint.acpi.0.disabled="0" at the
 	loader prompt.
 
 20040623:
-	pf was updated to OpenBSD-stable 3.5 and pflogd(8) is priviledge
+	pf was updated to OpenBSD-stable 3.5 and pflogd(8) is privilege
 	separated now. It uses the newly created "_pflogd" user/group
 	combination. If you plan to use pflogd(8) make sure to run
 	mergemaster -p or install the "_pflogd" user and group manually.
@@ -225,7 +225,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 
 20040224:
 	The tcpcb structure has changed and makes a recompile of libkvm
-	and related userland network utilities neccessary.
+	and related userland network utilities necessary.
 
 20040222:
 	The cdevsw structure has changed in two externally visible ways.
@@ -335,7 +335,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 20030928:
 	Changes to the cdevsw default functions have been made to remove
 	the need to specify nullopen() and nullclose() explicitly.
-	__FreeBSD_version bumpted to 501110.
+	__FreeBSD_version bumped to 501110.
 
 20030926:
 	kiconv(3) has been added. mount_msdosfs(8), mount_ntfs(8) and
@@ -686,7 +686,7 @@ http://www.freebsd.org/cgi/mid.cgi?db=mid&id=<9744.1009655556@axl.seasidesoftwar
 	sys/i4b/driver/i4b_ispppsubr.c has been retired.  This file
 	started out its life in the ISDN4BSD project as an offspring
 	from sys/net/if_spppsubr.c, which eventually got a life of its
-	own.  All the accumulated features and bugfixes of the i4b
+	own.  All the accumulated features and bug fixes of the i4b
 	version have now been merged back into the base system's
 	version now.  The only user-visible change resulting from this
 	is that i4b's sppp(4) interfaces are to be managed with
