@@ -140,6 +140,50 @@ static void	acpi_system_eventhandler_wakeup(void *arg, int state);
 static int	acpi_supported_sleep_state_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_sleep_state_sysctl(SYSCTL_HANDLER_ARGS);
 static int	acpi_pm_func(u_long cmd, void *arg, ...);
+static int	acpi_child_location_str_method(device_t acdev, device_t child,
+					       char *buf, size_t buflen);
+static int	acpi_child_pnpinfo_str_method(device_t acdev, device_t child,
+					      char *buf, size_t buflen);
+
+int
+acpi_child_location_str_method(device_t cbdev, device_t child, char *buf,
+    size_t buflen)
+{
+	struct acpi_device *dinfo= device_get_ivars(child);
+	
+	dinfo = device_get_ivars(child);
+	if(dinfo->ad_handle)
+		snprintf(buf, buflen, "path=%s", acpi_name(dinfo->ad_handle));
+	else
+		snprintf(buf, buflen, "magic=unknown");
+	return (0);
+}
+
+int
+acpi_child_pnpinfo_str_method(device_t cbdev, device_t child, char *buf,
+    size_t buflen)
+{
+	struct acpi_device *dinfo = device_get_ivars(child);
+	ACPI_DEVICE_INFO adinfo;
+	ACPI_BUFFER adbuf = {sizeof(adinfo), &adinfo}; 
+	char * end;
+	int error;
+
+	dinfo = device_get_ivars(child);
+	error = AcpiGetObjectInfo(dinfo->ad_handle, &adbuf);
+
+	if(error)
+		snprintf(buf, buflen, "Unknown");
+	else
+		snprintf(buf, buflen, "_HID=%s _UID=%u", 
+			 (adinfo.Valid & ACPI_VALID_HID)?
+			 adinfo.HardwareId.Value : "UNKNOWN",
+			 (unsigned int)((adinfo.Valid & ACPI_VALID_UID)?
+			strtoul(adinfo.UniqueId.Value, &end, 10):0 ));
+
+	return (0);
+}
+
 
 static device_method_t acpi_methods[] = {
     /* Device interface */
@@ -160,6 +204,8 @@ static device_method_t acpi_methods[] = {
     DEVMETHOD(bus_get_resource,		acpi_get_resource),
     DEVMETHOD(bus_alloc_resource,	acpi_alloc_resource),
     DEVMETHOD(bus_release_resource,	acpi_release_resource),
+    DEVMETHOD(bus_child_pnpinfo_str,    acpi_child_pnpinfo_str_method),
+    DEVMETHOD(bus_child_location_str,    acpi_child_location_str_method),
     DEVMETHOD(bus_driver_added,		bus_generic_driver_added),
     DEVMETHOD(bus_activate_resource,	bus_generic_activate_resource),
     DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
