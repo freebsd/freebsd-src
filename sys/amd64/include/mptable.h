@@ -2507,13 +2507,11 @@ forwarded_statclock(int id, int pscnt, int *astmap)
 		if (pscnt > 1)
 			return;
 
-		if (p == SMP_prvspace[id].globaldata.gd_idleproc) {
-			p->p_sticks++;
+		p->p_sticks++;
+		if (p == SMP_prvspace[id].globaldata.gd_idleproc)
 			cp_time[CP_IDLE]++;
-		} else {
-			p->p_sticks++;
+		else
 			cp_time[CP_SYS]++;
-		}
 		break;
 	case CHECKSTATE_INTR:
 	default:
@@ -2536,20 +2534,18 @@ forwarded_statclock(int id, int pscnt, int *astmap)
 			p->p_iticks++;
 		cp_time[CP_INTR]++;
 	}
-	if (p != SMP_prvspace[id].globaldata.gd_idleproc) {
-		schedclock(p);
+	schedclock(p);
 		
-		/* Update resource usage integrals and maximums. */
-		if ((pstats = p->p_stats) != NULL &&
-		    (ru = &pstats->p_ru) != NULL &&
-		    (vm = p->p_vmspace) != NULL) {
-			ru->ru_ixrss += pgtok(vm->vm_tsize);
-			ru->ru_idrss += pgtok(vm->vm_dsize);
-			ru->ru_isrss += pgtok(vm->vm_ssize);
-			rss = pgtok(vmspace_resident_count(vm));
-			if (ru->ru_maxrss < rss)
-				ru->ru_maxrss = rss;
-        	}
+	/* Update resource usage integrals and maximums. */
+	if ((pstats = p->p_stats) != NULL &&
+	    (ru = &pstats->p_ru) != NULL &&
+	    (vm = p->p_vmspace) != NULL) {
+		ru->ru_ixrss += pgtok(vm->vm_tsize);
+		ru->ru_idrss += pgtok(vm->vm_dsize);
+		ru->ru_isrss += pgtok(vm->vm_ssize);
+		rss = pgtok(vmspace_resident_count(vm));
+		if (ru->ru_maxrss < rss)
+			ru->ru_maxrss = rss;
 	}
 }
 
