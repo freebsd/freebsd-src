@@ -31,9 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.41 1997/12/20 00:07:02 bde Exp $
+ * $Id: if_ethersubr.c,v 1.42 1998/01/08 23:41:23 eivind Exp $
  */
 
+#include "opt_atalk.h"
 #include "opt_inet.h"
 #include "opt_ipx.h"
 
