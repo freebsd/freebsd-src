@@ -617,6 +617,8 @@
             ..
             pt_PT.ISO8859-15
             ..
+            ro_RO.ISO8859-2
+            ..
             ru_RU.CP866
             ..
             ru_RU.ISO8859-5
@@ -932,6 +934,8 @@
             pt_PT.ISO8859-1
             ..
             pt_PT.ISO8859-15
+            ..
+            ro_RO.ISO8859-2
             ..
             ru_RU.CP866
             ..
