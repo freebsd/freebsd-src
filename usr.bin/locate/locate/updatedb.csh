@@ -34,13 +34,13 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	@(#)updatedb.csh	8.3 (Berkeley) 3/19/94
+#	@(#)updatedb.csh	8.4 (Berkeley) 10/27/94
 #
 
 set SRCHPATHS = "/"			# directories to be put in the database
 set LIBDIR = /usr/libexec		# for subprograms
 					# for temp files
-if (! $?TMPDIR) setenv TMPDIR = /var/tmp
+if (! $?TMPDIR) setenv TMPDIR /var/tmp
 set FCODES = /var/db/locate.database	# the database
 
 set path = ( /bin /usr/bin )

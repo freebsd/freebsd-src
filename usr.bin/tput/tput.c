@@ -38,7 +38,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)tput.c	8.2 (Berkeley) 3/19/94";
+static char sccsid[] = "@(#)tput.c	8.3 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 #include <sys/termios.h>
@@ -183,11 +183,11 @@ process(cap, str, argv)
 	case 2:
 		if (*++argv == NULL || *argv[0] == '\0')
 			errx(2, errfew, 2, cap);
-		arg_cols = atoi(*argv);
+		arg_rows = atoi(*argv);
 
 		if (*++argv == NULL || *argv[0] == '\0')
 			errx(2, errfew, 2, cap);
-		arg_rows = atoi(*argv);
+		arg_cols = atoi(*argv);
 
 		(void) tputs(tgoto(str, arg_cols, arg_rows), arg_rows, outc);
 		break;

@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)login.1	8.1 (Berkeley) 6/9/93
+.\"	@(#)login.1	8.2 (Berkeley) 5/5/94
 .\"
-.Dd June 9, 1993
+.Dd May 5, 1994
 .Dt LOGIN 1
 .Os BSD 4
 .Sh NAME
@@ -125,6 +125,8 @@ message-of-the-day
 disallows logins
 .It Pa /var/run/utmp
 current logins
+.It Pa /var/log/lastlog
+last login account records
 .It Pa /var/log/wtmp
 login account records
 .It Pa /var/mail/user

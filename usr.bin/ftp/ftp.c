@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)ftp.c	8.4 (Berkeley) 4/6/94";
+static char sccsid[] = "@(#)ftp.c	8.6 (Berkeley) 10/27/94";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -646,10 +646,10 @@ sendrequest(cmd, local, remote, printnames)
 		}
 		break;
 	}
-	(void) gettimeofday(&stop, (struct timezone *)0);
 	if (closefunc != NULL)
 		(*closefunc)(fin);
 	(void) fclose(dout);
+	(void) gettimeofday(&stop, (struct timezone *)0);
 	(void) getreply(0);
 	(void) signal(SIGINT, oldintr);
 	if (oldintp)
@@ -658,7 +658,6 @@ sendrequest(cmd, local, remote, printnames)
 		ptransfer("sent", bytes, &start, &stop);
 	return;
 abort:
-	(void) gettimeofday(&stop, (struct timezone *)0);
 	(void) signal(SIGINT, oldintr);
 	if (oldintp)
 		(void) signal(SIGPIPE, oldintp);
@@ -676,6 +675,7 @@ abort:
 	code = -1;
 	if (closefunc != NULL && fin != NULL)
 		(*closefunc)(fin);
+	(void) gettimeofday(&stop, (struct timezone *)0);
 	if (bytes > 0)
 		ptransfer("sent", bytes, &start, &stop);
 }
@@ -955,8 +955,8 @@ break2:
 	(void) signal(SIGINT, oldintr);
 	if (oldintp)
 		(void) signal(SIGPIPE, oldintp);
-	(void) gettimeofday(&stop, (struct timezone *)0);
 	(void) fclose(din);
+	(void) gettimeofday(&stop, (struct timezone *)0);
 	(void) getreply(0);
 	if (bytes > 0 && is_retr)
 		ptransfer("received", bytes, &start, &stop);
@@ -965,7 +965,6 @@ abort:
 
 /* abort using RFC959 recommended IP,SYNC sequence  */
 
-	(void) gettimeofday(&stop, (struct timezone *)0);
 	if (oldintp)
 		(void) signal(SIGPIPE, oldintr);
 	(void) signal(SIGINT, SIG_IGN);
@@ -985,6 +984,7 @@ abort:
 		(*closefunc)(fout);
 	if (din)
 		(void) fclose(din);
+	(void) gettimeofday(&stop, (struct timezone *)0);
 	if (bytes > 0)
 		ptransfer("received", bytes, &start, &stop);
 	(void) signal(SIGINT, oldintr);
@@ -1000,6 +1000,62 @@ initconn()
 	char *p, *a;
 	int result, len, tmpno = 0;
 	int on = 1;
+	int a0, a1, a2, a3, p0, p1;
+
+	if (passivemode) {
+		data = socket(AF_INET, SOCK_STREAM, 0);
+		if (data < 0) {
+			perror("ftp: socket");
+			return(1);
+		}
+		if ((options & SO_DEBUG) &&
+		    setsockopt(data, SOL_SOCKET, SO_DEBUG, (char *)&on,
+			       sizeof (on)) < 0)
+			perror("ftp: setsockopt (ignored)");
+		if (command("PASV") != COMPLETE) {
+			printf("Passive mode refused.\n");
+			goto bad;
+		}
+
+		/*
+		 * What we've got at this point is a string of comma
+		 * separated one-byte unsigned integer values.
+		 * The first four are the an IP address. The fifth is
+		 * the MSB of the port number, the sixth is the LSB.
+		 * From that we'll prepare a sockaddr_in.
+		 */
+
+		if (sscanf(pasv,"%d,%d,%d,%d,%d,%d",
+			   &a0, &a1, &a2, &a3, &p0, &p1) != 6) {
+			printf("Passive mode address scan failure. "
+			       "Shouldn't happen!\n");
+			goto bad;
+		}
+
+		bzero(&data_addr, sizeof(data_addr));
+		data_addr.sin_family = AF_INET;
+		a = (char *)&data_addr.sin_addr.s_addr;
+		a[0] = a0 & 0xff;
+		a[1] = a1 & 0xff;
+		a[2] = a2 & 0xff;
+		a[3] = a3 & 0xff;
+		p = (char *)&data_addr.sin_port;
+		p[0] = p0 & 0xff;
+		p[1] = p1 & 0xff;
+
+		if (connect(data, (struct sockaddr *)&data_addr,
+			    sizeof(data_addr)) < 0) {
+			perror("ftp: connect");
+			goto bad;
+		}
+#ifdef IP_TOS
+		on = IPTOS_THROUGHPUT;
+		if (setsockopt(data, IPPROTO_IP, IP_TOS, (char *)&on,
+			       sizeof(int)) < 0)
+			perror("ftp: setsockopt TOS (ignored)");
+#endif
+		return(0);
+	}
 
 noport:
 	data_addr = myctladdr;
@@ -1070,6 +1126,9 @@ dataconn(lmode)
 	struct sockaddr_in from;
 	int s, fromlen = sizeof (from), tos;
 
+	if (passivemode)
+		return (fdopen(data, lmode));
+
 	s = accept(data, (struct sockaddr *) &from, &fromlen);
 	if (s < 0) {
 		warn("accept");
@@ -1093,15 +1152,16 @@ ptransfer(direction, bytes, t0, t1)
 	struct timeval *t0, *t1;
 {
 	struct timeval td;
-	float s, bs;
+	float s;
+	long bs;
 
 	if (verbose) {
 		tvsub(&td, t1, t0);
 		s = td.tv_sec + (td.tv_usec / 1000000.);
 #define	nz(x)	((x) == 0 ? 1 : (x))
 		bs = bytes / nz(s);
-		printf("%ld bytes %s in %.2g seconds (%.2g Kbytes/s)\n",
-		    bytes, direction, s, bs / 1024.);
+		printf("%ld bytes %s in %.3g seconds (%ld bytes/s)\n",
+		    bytes, direction, s, bs);
 	}
 }
 

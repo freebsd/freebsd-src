@@ -38,33 +38,31 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)strip.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)strip.c	8.3 (Berkeley) 5/16/95";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 
-#include <limits.h>
-#include <fcntl.h>
-#include <errno.h>
 #include <a.out.h>
-#include <unistd.h>
+#include <err.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 typedef struct exec EXEC;
 typedef struct nlist NLIST;
 
 #define	strx	n_un.n_strx
 
-void err __P((int, const char *fmt, ...));
 void s_stab __P((const char *, int, EXEC *));
 void s_sym __P((const char *, int, EXEC *));
 void usage __P((void));
-
-int eval;
 
 int
 main(argc, argv)
@@ -74,7 +72,7 @@ main(argc, argv)
 	register int fd, nb;
 	EXEC head;
 	void (*sfcn)__P((const char *, int, EXEC *));
-	int ch;
+	int ch, eval;
 	char *fn;
 
 	sfcn = s_sym;
@@ -90,19 +88,29 @@ main(argc, argv)
 	argc -= optind;
 	argv += optind;
 
-	while (fn = *argv++) {
-		if ((fd = open(fn, O_RDWR)) < 0 ||
-		    (nb = read(fd, &head, sizeof(EXEC))) == -1) {
-			err(0, "%s: %s", fn, strerror(errno));
+	for (eval = 0; (fn = *argv++) != NULL;) {
+		if ((fd = open(fn, O_RDWR)) < 0) {
+			warn("%s", fn);
+			eval = 1;
+			continue;
+		}
+		if ((nb = read(fd, &head, sizeof(EXEC))) == -1) {
+			warn("%s", fn);
+			(void)close(fd);
+			eval = 1;
 			continue;
 		}
 		if (nb != sizeof(EXEC) || N_BADMAG(head)) {
-			err(0, "%s: %s", fn, strerror(EFTYPE));
+			warnx("%s: %s", fn, strerror(EFTYPE));
+			(void)close(fd);
+			eval = 1;
 			continue;
 		}
 		sfcn(fn, fd, &head);
-		if (close(fd))
-			err(0, "%s: %s", fn, strerror(errno));
+		if (close(fd)) {
+			warn("%s", fn);
+			eval = 1;
+		}
 	}
 	exit(eval);
 }
@@ -225,35 +233,4 @@ usage()
 {
 	(void)fprintf(stderr, "usage: strip [-d] file ...\n");
 	exit(1);
-}
-
-#if __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
-
-void
-#if __STDC__
-err(int fatal, const char *fmt, ...)
-#else
-err(fatal, fmt, va_alist)
-	int fatal;
-	char *fmt;
-        va_dcl
-#endif
-{
-	va_list ap;
-#if __STDC__
-	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
-	(void)fprintf(stderr, "strip: ");
-	(void)vfprintf(stderr, fmt, ap);
-	va_end(ap);
-	(void)fprintf(stderr, "\n");
-	if (fatal)
-		exit(1);
-	eval = 1;
 }

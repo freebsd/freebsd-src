@@ -32,9 +32,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)showmount.8	8.2 (Berkeley) 12/11/93
+.\"     @(#)showmount.8	8.3 (Berkeley) 3/29/95
 .\"
-.Dd December 11, 1993
+.Dd March 29, 1995
 .Dt SHOWMOUNT 8
 .Os BSD 4
 .Sh NAME
@@ -42,7 +42,7 @@
 .Nd show remote nfs mounts on host
 .Sh SYNOPSIS
 .Nm showmount
-.Op Fl ade
+.Op Fl ade3
 .Op Ar host
 .Sh DESCRIPTION
 .Nm Showmount
@@ -56,7 +56,10 @@ file systems mounted
 on the host. See
 .%T "NFS: Network File System Protocol Specification" ,
 RFC 1094,
-Appendix A ,
+Appendix A,
+and
+.%T "NFS: Network File System Version 3 Protocol Specification" ,
+Appendix I,
 for a detailed description of the protocol.
 .Bl -tag -width Ds
 .It Fl a
@@ -70,6 +73,8 @@ List directory paths of mount points instead of hosts
 Show the
 .Ar host Ns 's
 exports list
+.It Fl 3
+Use mount protocol Version 3, compatible with NFS Version 3.
 .El
 .Sh SEE ALSO
 .Xr mount 1 ,

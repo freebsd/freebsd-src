@@ -40,7 +40,7 @@ static char copyright[] =
 #endif
 
 #ifndef lint
-static char sccsid[] = "@(#)printf.c	8.1 (Berkeley) 7/20/93";
+static char sccsid[] = "@(#)printf.c	8.2 (Berkeley) 3/22/95";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -258,7 +258,7 @@ escape(fmt)
 	register char *store;
 	register int value, c;
 
-	for (store = fmt; c = *fmt; ++fmt, ++store) {
+	for (store = fmt; (c = *fmt) != '\0'; ++fmt, ++store) {
 		if (c != '\\') {
 			*store = c;
 			continue;

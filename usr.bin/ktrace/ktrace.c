@@ -38,7 +38,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)ktrace.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)ktrace.c	8.2 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -48,15 +48,20 @@ static char sccsid[] = "@(#)ktrace.c	8.1 (Berkeley) 6/6/93";
 #include <sys/errno.h>
 #include <sys/uio.h>
 #include <sys/ktrace.h>
+
+#include <err.h>
 #include <stdio.h>
+#include <unistd.h>
+
 #include "ktrace.h"
+
+void no_ktrace __P((int));
+void usage __P((void));
 
 main(argc, argv)
 	int argc;
 	char **argv;
 {
-	extern int optind;
-	extern char *optarg;
 	enum { NOTSET, CLEAR, CLEARALL } clear;
 	int append, ch, fd, inherit, ops, pid, pidset, trpoints;
 	char *tracefile;
@@ -97,8 +102,7 @@ main(argc, argv)
 		case 't':
 			trpoints = getpoints(optarg);
 			if (trpoints < 0) {
-				(void)fprintf(stderr, 
-				    "ktrace: unknown facility in %s\n", optarg);
+				warnx("unknown facility in %s", optarg);
 				usage();
 			}
 			break;
@@ -114,6 +118,7 @@ main(argc, argv)
 	if (inherit)
 		trpoints |= KTRFAC_INHERIT;
 
+	(void)signal(SIGSYS, no_ktrace);
 	if (clear != NOTSET) {
 		if (clear == CLEARALL) {
 			ops = KTROP_CLEAR | KTRFLAG_DESCEND;
@@ -123,24 +128,23 @@ main(argc, argv)
 			ops |= pid ? KTROP_CLEAR : KTROP_CLEARFILE;
 
 		if (ktrace(tracefile, ops, trpoints, pid) < 0)
-			error(tracefile);
+			err(1, tracefile);
 		exit(0);
 	}
 
 	if ((fd = open(tracefile, O_CREAT | O_WRONLY | (append ? 0 : O_TRUNC),
 	    DEFFILEMODE)) < 0)
-		error(tracefile);
+		err(1, tracefile);
 	(void)close(fd);
 
 	if (*argv) { 
 		if (ktrace(tracefile, ops, trpoints, getpid()) < 0)
-			error();
+			err(1, tracefile);
 		execvp(argv[0], &argv[0]);
-		error(argv[0]);
-		exit(1);
+		err(1, "exec of '%s' failed", argv[0]);
 	}
 	else if (ktrace(tracefile, ops, trpoints, pid) < 0)
-		error(tracefile);
+		err(1, tracefile);
 	exit(0);
 }
 
@@ -150,27 +154,29 @@ rpid(p)
 	static int first;
 
 	if (first++) {
-		(void)fprintf(stderr,
-		    "ktrace: only one -g or -p flag is permitted.\n");
+		warnx("only one -g or -p flag is permitted.");
 		usage();
 	}
 	if (!*p) {
-		(void)fprintf(stderr, "ktrace: illegal process id.\n");
+		warnx("illegal process id.");
 		usage();
 	}
 	return(atoi(p));
 }
 
-error(name)
-	char *name;
-{
-	(void)fprintf(stderr, "ktrace: %s: %s.\n", name, strerror(errno));
-	exit(1);
-}
-
+void
 usage()
 {
 	(void)fprintf(stderr,
 "usage:\tktrace [-aCcid] [-f trfile] [-g pgid] [-p pid] [-t [acgn]\n\tktrace [-aCcid] [-f trfile] [-t [acgn] command\n");
 	exit(1);
+}
+
+void
+no_ktrace(sig)
+        int sig;
+{
+        (void)fprintf(stderr,
+"error:\tktrace() system call not supported in the running kernel\n\tre-compile kernel with 'options KTRACE'\n");
+        exit(1);
 }

@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)acucntrl.8	8.2 (Berkeley) 12/11/93
+.\"	@(#)acucntrl.8	8.3 (Berkeley) 6/1/94
 .\"
-.TH ACUCNTRL 8 "December 11, 1993"
+.TH ACUCNTRL 8 "June 1, 1994"
 .UC 6
 .SH NAME
 acucntrl \- turn around tty line between dialin and dialout
@@ -123,6 +123,7 @@ condition line: clear exclusive use and set hangup on close modes
 turn on modem control
 .IP 7)
 edit /etc/ttys,  changing the first character of the appropriate line to 1
+.ne 1i
 .IP 8)
 send a hangup to process 1 to poke init to enable getty
 .IP 9)

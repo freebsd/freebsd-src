@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1985, 1987, 1993
+ * Copyright (c) 1985, 1987, 1993, 1995
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)tcopy.c	8.2 (Berkeley) 4/17/94";
+static char sccsid[] = "@(#)tcopy.c	8.3 (Berkeley) 1/23/95";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -46,6 +46,7 @@ static char sccsid[] = "@(#)tcopy.c	8.2 (Berkeley) 4/17/94";
 #include <sys/ioctl.h>
 #include <sys/mtio.h>
 
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -60,7 +61,8 @@ static char sccsid[] = "@(#)tcopy.c	8.2 (Berkeley) 4/17/94";
 #define	NOCOUNT	(-2)
 
 int	filen, guesslen, maxblk = MAXREC;
-long	lastrec, record, size, tsize;
+long	lastrec, record;
+off_t	size, tsize;
 FILE	*msg = stdout;
 
 void	*getspace __P((int));
@@ -74,10 +76,10 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	register int lastnread, nread, nw, inp, outp;
+	int ch, needeof, nw, inp, outp;
+	ssize_t lastnread, nread;
 	enum {READ, VERIFY, COPY, COPYVERIFY} op = READ;
 	sig_t oldsig;
-	int ch, needeof;
 	char *buff, *inf;
 
 	guesslen = 1;
@@ -89,7 +91,7 @@ main(argc, argv)
 		case 's':
 			maxblk = atoi(optarg);
 			if (maxblk <= 0) {
-				fprintf(stderr, "tcopy: illegal block size\n");
+				warnx("illegal block size");
 				usage();
 			}
 			guesslen = 0;
@@ -124,18 +126,15 @@ main(argc, argv)
 		inf = argv[0];
 		if ((outp = open(argv[1], op == VERIFY ? O_RDONLY :
 		    op == COPY ? O_WRONLY : O_RDWR, DEFFILEMODE)) < 0) {
-			perror(argv[1]);
-			exit(3);
+			err(3, argv[1]);
 		}
 		break;
 	default:
 		usage();
 	}
 
-	if ((inp = open(inf, O_RDONLY, 0)) < 0) {
-		perror(inf);
-		exit(1);
-	}
+	if ((inp = open(inf, O_RDONLY, 0)) < 0)
+		err(1, inf);
 
 	buff = getspace(maxblk);
 
@@ -155,10 +154,8 @@ main(argc, argv)
 				if (nread >= 0)
 					goto r1;
 			}
-			fprintf(stderr, "read error, file %d, record %ld: ",
+			err(1, "read error, file %d, record %ld",
 			    filen, record);
-			perror("");
-			exit(1);
 		} else if (nread != lastnread) {
 			if (lastnread != 0 && lastnread != NOCOUNT) {
 				if (lastrec == 0 && nread == 0)
@@ -184,11 +181,13 @@ r1:		guesslen = 0;
 				}
 				nw = write(outp, buff, nread);
 				if (nw != nread) {
+				    int error = errno;
 				    fprintf(stderr,
 					"write error, file %d, record %ld: ",
 					filen, record);
 				    if (nw == -1)
-					perror("");
+					fprintf(stderr,
+						": %s", strerror(error));
 				    else
 					fprintf(stderr,
 					    "write (%d) != read (%d)\n",
@@ -205,7 +204,7 @@ r1:		guesslen = 0;
 				break;
 			}
 			fprintf(msg,
-			    "file %d: eof after %ld records: %ld bytes\n",
+			    "file %d: eof after %ld records: %qd bytes\n",
 			    filen, record, size);
 			needeof = 1;
 			filen++;
@@ -215,7 +214,7 @@ r1:		guesslen = 0;
 		}
 		lastnread = nread;
 	}
-	fprintf(msg, "total length: %ld bytes\n", tsize);
+	fprintf(msg, "total length: %qd bytes\n", tsize);
 	(void)signal(SIGINT, oldsig);
 	if (op == COPY || op == COPYVERIFY) {
 		writeop(outp, MTWEOF);
@@ -231,11 +230,11 @@ r1:		guesslen = 0;
 
 void
 verify(inp, outp, outb)
-	register int inp, outp;
-	register char *outb;
+	int inp, outp;
+	char *outb;
 {
-	register int eot, inmaxblk, inn, outmaxblk, outn;
-	register char *inb;
+	int eot, inmaxblk, inn, outmaxblk, outn;
+	char *inb;
 
 	inb = getspace(maxblk);
 	inmaxblk = outmaxblk = maxblk;
@@ -247,7 +246,7 @@ verify(inp, outp, outb)
 					if (inn >= 0)
 						goto r1;
 				}
-			perror("tcopy: read error");
+			warn("read error");
 			break;
 		}
 r1:		if ((outn = read(outp, outb, outmaxblk)) == -1) {
@@ -257,7 +256,7 @@ r1:		if ((outn = read(outp, outb, outmaxblk)) == -1) {
 					if (outn >= 0)
 						goto r2;
 				}
-			perror("tcopy: read error");
+			warn("read error");
 			break;
 		}
 r2:		if (inn != outn) {
@@ -268,13 +267,15 @@ r2:		if (inn != outn) {
 		}
 		if (!inn) {
 			if (eot++) {
-				fprintf(msg, "tcopy: tapes are identical.\n");
+				fprintf(msg, "%s: tapes are identical.\n",
+					"tcopy");
 				return;
 			}
 		} else {
 			if (bcmp(inb, outb, inn)) {
 				fprintf(msg,
-				    "tcopy: tapes have different data.\n");
+				    "%s: tapes have different data.\n",
+					"tcopy");
 				break;
 			}
 			eot = 0;
@@ -293,7 +294,7 @@ intr(signo)
 		else
 			fprintf(msg, "record %ld\n", lastrec);
 	fprintf(msg, "interrupt at file %d: record %ld\n", filen, record);
-	fprintf(msg, "total length: %ld bytes\n", tsize + size);
+	fprintf(msg, "total length: %qd bytes\n", tsize + size);
 	exit(1);
 }
 
@@ -303,10 +304,9 @@ getspace(blk)
 {
 	void *bp;
 
-	if ((bp = malloc((size_t)blk)) == NULL) {
-		fprintf(stderr, "tcopy: no memory\n");
-		exit(11);
-	}
+	if ((bp = malloc((size_t)blk)) == NULL)
+		errx(11, "no memory");
+
 	return (bp);
 }
 
@@ -318,15 +318,14 @@ writeop(fd, type)
 
 	op.mt_op = type;
 	op.mt_count = (daddr_t)1;
-	if (ioctl(fd, MTIOCTOP, (char *)&op) < 0) {
-		perror("tcopy: tape op");
-		exit(6);
-	}
+	if (ioctl(fd, MTIOCTOP, (char *)&op) < 0)
+		err(6, "tape op");
 }
 
 void
 usage()
 {
+
 	fprintf(stderr, "usage: tcopy [-cvx] [-s maxblk] src [dest]\n");
 	exit(1);
 }

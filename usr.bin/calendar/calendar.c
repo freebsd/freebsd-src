@@ -38,7 +38,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)calendar.c	8.3 (Berkeley) 3/25/94";
+static char sccsid[] = "@(#)calendar.c	8.4 (Berkeley) 1/7/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -301,7 +301,7 @@ opencal()
 			(void)close(pdes[1]);
 		}
 		(void)close(pdes[0]);
-		execl(_PATH_CPP, "cpp", "-I.", _PATH_INCLUDE, NULL);
+		execl(_PATH_CPP, "cpp", "-P", "-I.", _PATH_INCLUDE, NULL);
 		(void)fprintf(stderr,
 		    "calendar: execl: %s: %s.\n", _PATH_CPP, strerror(errno));
 		_exit(1);
