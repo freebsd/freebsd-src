@@ -34,10 +34,11 @@ static const char rcsid[] =
 #include <err.h>
 #include <ctype.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
 
-void
+static void
 usage(void)
 {
     fprintf(stderr, "usage: chkgrp [groupfile]\n");
@@ -47,9 +48,10 @@ usage(void)
 int
 main(int argc, char *argv[])
 {
-    unsigned int len;
-    int n = 0, i, k, e = 0;
-    char *gfn, *line, *f[4], *p;
+    unsigned int i, len;
+    int n = 0, k, e = 0;
+    char *line, *f[4], *p;
+    const char *gfn;
     FILE *gf;
 
     /* check arguments */
