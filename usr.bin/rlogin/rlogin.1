@@ -51,11 +51,7 @@ The
 utility starts a terminal session on a remote host
 .Ar host .
 .Pp
-The
-.Nm
-utility
-first attempts to use the Kerberos authorization mechanism, described below.
-If the remote host does not support Kerberos the standard Berkeley
+The standard Berkeley
 .Pa rhosts
 authorization mechanism is used.
 .Pp
@@ -125,35 +121,6 @@ the
 is transparent.
 Flow control via ^S/^Q and flushing of input and output on interrupts
 are handled properly.
-.Sh KERBEROS AUTHENTICATION
-Each user may have a private authorization list in the file
-.Pa .klogin
-in their home directory.
-Each line in this file should contain a Kerberos principal name of the
-form
-.Ar principal.instance@realm .
-If the originating user is authenticated to one of the principals named
-in
-.Pa .klogin ,
-access is granted to the account.
-The principal
-.Ar accountname.@localrealm
-is granted access if
-there is no
-.Pa .klogin
-file.
-Otherwise a login and password will be prompted for on the remote machine
-as in
-.Xr login 1 .
-To avoid certain security problems, the
-.Pa .klogin
-file must be owned by
-the remote user.
-.Pp
-If Kerberos authentication fails, a warning message is printed and the
-standard Berkeley
-.Nm
-is used instead.
 .Sh ENVIRONMENT
 The following environment variable is utilized by
 .Nm :
@@ -167,16 +134,12 @@ Determines the user's terminal type.
 .It Pa /etc/hosts.equiv
 .It Pa /etc/auth.conf
 .It Ev $HOME Ns Pa /.rhosts
-.It Ev $HOME Ns Pa /.klogin
 .El
 .Sh SEE ALSO
 .Xr login 1 ,
 .Xr rsh 1 ,
 .Xr telnet 1 ,
 .Xr setsockopt 2 ,
-.Xr kerberos 3 ,
-.Xr krb_realmofhost 3 ,
-.Xr krb_sendauth 3 ,
 .Xr ruserok 3 ,
 .Xr tty 4 ,
 .Xr auth.conf 5 ,
