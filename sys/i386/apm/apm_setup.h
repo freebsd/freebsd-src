@@ -10,7 +10,7 @@
  *
  * Sep., 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id$
+ *	$Id: apm_setup.h,v 1.7 1997/02/22 09:29:49 peter Exp $
  */
 
 extern u_long	apm_version;
@@ -22,3 +22,5 @@ extern u_short	apm_cs_limit;
 extern u_short	apm_ds_limit;
 extern u_short	apm_flags;
 extern u_short	kernelbase;
+
+int apm_bios_call __P((struct apm_bios_arg *));

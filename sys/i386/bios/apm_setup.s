@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 1994 by HOSOKAWA, Tatsumi <hosokawa@jp.FreeBSD.org>
+ * Copyright (C) 1997 by Poul-Henning Kamp <phk@FreeBSD.org>
  *
  * This software may be used, modified, copied, distributed, and sold,
  * in both source and binary form provided that the above copyright and
@@ -10,7 +11,7 @@
  *
  * Sep., 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id$
+ *	$Id: apm_setup.s,v 1.10 1997/02/22 09:29:50 peter Exp $
  */
 
 #include "apm.h"
@@ -173,5 +174,39 @@ _apm_setup:
 	movw	%si, PADDR(_apm_ds_limit)
 	movw	%di, PADDR(_apm_flags)
 
+	ret
+
+.text
+	.align 2
+	.globl	_apm_bios_call
+_apm_bios_call:
+	pushl	%ebp
+	movl	8(%esp),%ebp
+	pushl	%esi
+	pushl	%edi
+	pushl	%ebx
+	movl	20(%ebp),%edi
+	movl	16(%ebp),%esi
+	movl	12(%ebp),%edx
+	movl	8(%ebp),%ecx
+	movl	4(%ebp),%ebx
+	movl	0(%ebp),%eax
+	pushl	%ebp
+	lcall	_apm_addr
+	popl	%ebp
+	movl	%eax,0(%ebp)
+	jc	1f
+	xorl	%eax,%eax
+	jz	2f
+1:	movl	$1, %eax
+2:	movl	%ebx,4(%ebp)
+	movl	%ecx,8(%ebp)
+	movl	%edx,12(%ebp)
+	movl	%esi,16(%ebp)
+	movl	%edi,20(%ebp)
+	popl	%ebx
+	popl	%edi
+	popl	%esi
+	popl	%ebp
 	ret
 #endif NAPM > 0
