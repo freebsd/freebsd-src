@@ -38,8 +38,6 @@
  * $FreeBSD$
  */
 
-#include "opt_ddb.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
@@ -298,7 +296,7 @@ umap_node_create(mp, targetvp, newvpp)
 	return (0);
 }
 
-#ifdef DDB
+#ifdef DIAGNOSTIC
 int umap_checkvp_barrier = 1;
 struct vnode *
 umap_checkvp(vp, fil, lno)
@@ -347,7 +345,7 @@ umap_checkvp(vp, fil, lno)
 #endif
 	return (a->umap_lowervp);
 }
-#endif /* DDB */
+#endif /* DIAGNOSTIC */
 
 /* umap_mapids maps all of the ids in a credential, both user and group. */
 
