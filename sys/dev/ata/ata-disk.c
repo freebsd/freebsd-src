@@ -487,7 +487,8 @@ ad_transfer(struct ad_request *request)
 	    }
 
 	    /* start transfer, return and wait for interrupt */
-	    ata_dmastart(adp->device, request->flags & ADR_F_READ);
+	    ata_dmastart(adp->device, request->data, request->bytecount,
+			 request->flags & ADR_F_READ);
 	    return ATA_OP_CONTINUES;
 	}
 
@@ -749,7 +750,8 @@ ad_service(struct ad_softc *adp, int change)
 	    ad_invalidatequeue(adp, NULL);
 	    return ATA_OP_FINISHED;
 	}
-	ata_dmastart(adp->device, request->flags & ADR_F_READ);
+	ata_dmastart(adp->device, request->data, request->bytecount,
+		     request->flags & ADR_F_READ);
 	return ATA_OP_CONTINUES;
     }
     return ATA_OP_FINISHED;
