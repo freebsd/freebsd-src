@@ -29,8 +29,7 @@ MINIMALDOCPORTS= \
 	ports/devel/gmake \
 	ports/devel/libtool13 \
 	ports/devel/pkgconfig \
-	ports/graphics/gd2 \
-	ports/graphics/gd-nox11 \
+	ports/graphics/gd \
 	ports/graphics/jbigkit \
 	ports/graphics/jpeg \
 	ports/graphics/netpbm \
