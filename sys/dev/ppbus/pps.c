@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: pps.c,v 1.18 1999/05/30 16:51:36 phk Exp $
+ * $Id: pps.c,v 1.19 1999/05/31 11:25:00 phk Exp $
  *
  * This driver implements a draft-mogul-pps-api-02.txt PPS source.
  *
@@ -15,29 +15,23 @@
  *
  */
 
-#include "opt_devfs.h"
-
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/timepps.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif
 #include <sys/malloc.h>
 
 #include <dev/ppbus/ppbconf.h>
 #include "pps.h"
 
-#define PPS_NAME	"lppps"		/* our official name */
+#define PPS_NAME	"pps"		/* our official name */
 
-static struct pps_data {
-	int	pps_unit;
+struct pps_data {
 	int	pps_open;
 	struct	ppb_device pps_dev;	
 	struct	pps_state pps;
-} *softc[NPPS];
+};
 
 static int npps;
 
@@ -47,7 +41,7 @@ static int npps;
 
 static struct ppb_device	*ppsprobe(struct ppb_data *ppb);
 static int			ppsattach(struct ppb_device *dev);
-static void			ppsintr(int unit);
+static void			ppsintr(struct ppb_device *ppd);
 
 static struct ppb_driver ppsdriver = {
     ppsprobe, ppsattach, PPS_NAME
@@ -88,6 +82,7 @@ ppsprobe(struct ppb_data *ppb)
 {
 	struct pps_data *sc;
 	static int once;
+	dev_t dev;
 
 	if (!once++)
 		cdevsw_add(&pps_cdevsw);
@@ -100,14 +95,16 @@ ppsprobe(struct ppb_data *ppb)
 	}
 	bzero(sc, sizeof(struct pps_data));
 
-	softc[npps] = sc;
+	dev = make_dev(&pps_cdevsw, npps,
+	    UID_ROOT, GID_WHEEL, 0644, PPS_NAME "%d", npps);
 
-	sc->pps_unit = npps++;
+	dev->si_drv1 = sc;
 
-	sc->pps_dev.id_unit = sc->pps_unit;
+	sc->pps_dev.id_unit = npps++;
 	sc->pps_dev.ppb = ppb;
 	sc->pps_dev.name = ppsdriver.name;
-	sc->pps_dev.intr = ppsintr;
+	sc->pps_dev.bintr = ppsintr;
+	sc->pps_dev.drv1 = sc;
 
 	sc->pps.ppscap = PPS_CAPTUREASSERT | PPS_ECHOASSERT;
 	pps_init(&sc->pps);
@@ -124,11 +121,6 @@ ppsattach(struct ppb_device *dev)
 	printf(PPS_NAME "%d: <Pulse per second Timing Interface> on ppbus %d\n",
 	       dev->id_unit, dev->ppb->ppb_link->adapter_unit);
 
-#ifdef DEVFS
-	devfs_add_devswf(&pps_cdevsw,
-		dev->id_unit, DV_CHR,
-		UID_ROOT, GID_WHEEL, 0600, PPS_NAME "%d", dev->id_unit);
-#endif
 	return (1);
 }
 
@@ -141,7 +133,7 @@ ppsopen(dev_t dev, int flags, int fmt, struct proc *p)
 	if ((unit >= npps))
 		return (ENXIO);
 
-	sc = softc[unit];
+	sc = dev->si_drv1;
 
 	if (!sc->pps_open) {
 		if (ppb_request_bus(&sc->pps_dev, PPB_WAIT|PPB_INTR))
@@ -158,7 +150,7 @@ ppsopen(dev_t dev, int flags, int fmt, struct proc *p)
 static	int
 ppsclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
-	struct pps_data *sc = softc[minor(dev)];
+	struct pps_data *sc = dev->si_drv1;
 
 	sc->pps.ppsparam.mode = 0;	/* PHK ??? */
 
@@ -171,9 +163,9 @@ ppsclose(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 static void
-ppsintr(int unit)
+ppsintr(struct ppb_device *ppd)
 {
-	struct pps_data *sc = softc[unit];
+	struct pps_data *sc = ppd->drv1;
 	struct timecounter *tc;
 	unsigned count;
 
@@ -191,7 +183,7 @@ ppsintr(int unit)
 static int
 ppsioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 {
-	struct pps_data *sc = softc[minor(dev)];
+	struct pps_data *sc = dev->si_drv1;
 
 	return (pps_ioctl(cmd, data, &sc->pps));
 }
