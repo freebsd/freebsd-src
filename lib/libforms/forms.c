@@ -1,4 +1,4 @@
-/*-
+/*
  * Copyright (c) 1995
  *	Paul Richards.  All rights reserved.
  *
@@ -32,48 +32,72 @@
  *
  */
 
-#include <string.h>
+#include <stdio.h>
 #include <stdlib.h>
-#include <ctype.h>
 #include <forms.h>
+#include <err.h>
 #include <ncurses.h>
 
 #include "internal.h"
 
+extern FILE *yyin;
+
+struct Tuple *fbind_first;
+struct Tuple *fbind_last;
+
 unsigned int f_keymap[] = {
-	KEY_UP,			/* F_UP */
-	KEY_DOWN,		/* F_DOWN */
-	9,			/* F_RIGHT */
-	8,			/* F_LEFT */
-	10,			/* F_NEXT */
-	KEY_LEFT,		/* F_CLEFT */
-	KEY_RIGHT,		/* F_CRIGHT */
-	KEY_HOME,		/* F_CHOME */
-	KEY_END,		/* F_CEND */
-	263,			/* F_CBS */
-	330,			/* F_CDEL */
-	10			/* F_ACCEPT */
+	KEY_UP,         /* F_UP */
+	KEY_DOWN,       /* F_DOWN */
+	9,          /* F_RIGHT */
+	8,          /* F_LEFT */
+	10,         /* F_NEXT */
+	KEY_LEFT,       /* F_CLEFT */
+	KEY_RIGHT,      /* F_CRIGHT */
+	KEY_HOME,       /* F_CHOME */
+	KEY_END,        /* F_CEND */
+	263,            /* F_CBS */
+	330,            /* F_CDEL */
+	10          /* F_ACCEPT */
 };
 
-int done=0;
-	
 int
-initfrm(struct form *form)
+form_load(const char *filename)
 {
+	FILE *fd;
 
-	struct field *field = &form->field[0];
-	int i;
-
-	if (has_colors()) {
-		start_color();
-		if (form->color_table)
-			for (i=0; form->color_table[i].f != -1; i++) {
-				init_pair(i+1, form->color_table[i].f, form->color_table[i].b);
-			}
+	if (!(fd = fopen(filename, "r"))) {
+		warn("Couldn't open forms file %s", filename);
+		return (FS_ERROR);
 	}
-	cbreak();
-	noecho();
 
+	yyin = fd;
+	yyparse();
+
+	if (fclose(fd)) {
+		warn("Couldn't close forms file %s", filename);
+		return (FS_ERROR);
+	}
+
+	return (FS_OK);
+}
+
+struct Form *
+form_start(const char *formname)
+{
+	struct Tuple *tuple;
+	struct Form *form;
+	struct Field *field;
+
+	tuple = form_get_tuple(formname, FT_FORM);
+
+	if (!tuple) {
+		warnx("No such form");
+		return (0);
+	}
+
+	form = tuple->addr;
+
+	/* Initialise form */
 	if (!form->height)
 		form->height = LINES;
 	if (!form->width)
@@ -81,422 +105,190 @@ initfrm(struct form *form)
 
 	form->window = newwin(form->height, form->width, form->y, form->x);
 	if (!form->window) {
-		print_status("Couldn't open window, closing form");
-		return (ERR);
+		warnx("Couldn't open window, closing form");
+		return (0);
 	}
-	form->no_fields = 0;
 
-	keypad(form->window, TRUE);
+	tuple = form_get_tuple(form->startfield, FT_FIELD_INST);
 
+	if (!tuple) {
+		warnx("No start field specified");
+		/* XXX should search for better default start */
+		form->current_field = form->fieldlist;
+	} else	
+		form->current_field = (struct Field *)tuple->addr;
 
-	while (field->type != F_END) {
-		if (field->type == F_INPUT) {
-			field->field.input->input = malloc(field->field.input->limit);
-			if (!field->field.input->input){
-				print_status("Couldn't allocate memory, closing form");
-				endfrm(form);
-				return (ERR);
-			}
-			/*
-			 * If it's a label then clear the input string
-			 * otherwise copy the default string to the input string.
-			 */
-			if (field->field.input->lbl_flag)
-				field->field.input->input[0] = '\0';
-			else if (field->field.input->label) {
-				strncpy(field->field.input->input,
-				        field->field.input->label,
-				        field->field.input->limit);
-				field->field.input->input[field->field.input->limit] = 0;
-			}
-		} else if ((field->type != F_TEXT) && (field->type != F_MENU) &&
-		   (field->type != F_ACTION)) {
-			print_status("Unknown field type, closing form");
-			endfrm(form);
-			return (ERR);
-		}
-		form->no_fields++;
-		field = &form->field[form->no_fields];
+	form->prev_field = form->current_field;
+
+	/* Initialise the field instances */
+
+	for (field = form->fieldlist; field; field = field->next) {
+		init_field(field);
 	}
-	form->current_field = form->start_field;
-	show_form(form);
-	return (OK);
-}
 
-void
-endfrm(struct form *form)
-{
+	form->status = FS_RUNNING;
 
-	struct field *field = &form->field[0];
-	int i;
-
-	delwin(form->window);
-
-	for (i=0; i < form->no_fields; i++) {
-		if (field->type == F_INPUT)
-			free(field->field.input->input);
-		field = &form->field[i];
-	}
+	return (form);
 }
 
 int
-update_form(struct form *form)
+form_bind_tuple(char *name, TupleType type, void *addr)
 {
-	show_form(form);
+	struct Tuple *tuple;
 
-	if (form->current_field == -1)
-		return (F_CANCEL);
-
-	wattrset(form->window, form->field[form->current_field].selattr);
-	switch (form->field[form->current_field].type) {
-		case F_MENU:
-			field_menu(form);
-			break;
-		case F_INPUT:
-			field_input(form);
-			break;
-		case F_ACTION:
-			field_action(form);
-			break;
-		case F_TEXT:
-		default:
-			print_status("Error, current field is invalid");
-			return (F_CANCEL);
+	tuple = malloc(sizeof (struct Tuple));
+	if (!tuple) {
+		warn("Couldn't allocate memory for new tuple");
+		return (FS_ERROR);
 	}
-	wattrset(form->window, 0);
 
-	return (done);
+	tuple->name = name;
+	tuple->type = type;
+	tuple->addr = addr;
+	tuple->next = 0;
+
+
+	if (!fbind_first) {
+		fbind_first = tuple;
+		fbind_last = tuple;
+	} else {
+		/* Check there isn't already a tuple of this type with this name */
+		if (form_get_tuple(name, type)) {
+			warn("Duplicate tuple name, %s, skipping", name);
+			return (FS_ERROR);
+		}
+		fbind_last->next = tuple;
+		fbind_last = tuple;
+	}
+
+	return (0);
 }
 
-static void
-show_form(struct form *form)
+struct Tuple *
+form_get_tuple(const char *name, TupleType type)
 {
-	int i;
-	int y, x;
+	return (form_next_tuple(name, type, fbind_first));
+}
 
+struct Tuple *
+form_next_tuple(const char *name, TupleType type, struct Tuple *tuple)
+{
+	for (; tuple; tuple = tuple->next) {
+		if (type != FT_ANY)
+			if (tuple->type != type)
+				continue;
+		if (name)
+			if (strcmp(name, tuple->name))
+				continue;
+		return (tuple);
+	}
+
+	return (0);
+}
+
+int
+form_show(const char *formname)
+{
+	struct Tuple *tuple;
+	struct Form *form;
+	struct Field *field;
+	int x, y;
+
+	tuple = form_get_tuple(formname, FT_FORM);
+	if (!tuple)
+		return (FS_NOBIND);
+
+	form = tuple->addr;
+
+	/* Clear form */
 	wattrset(form->window, form->attr);
-	for (y = 0; y < form->height; y++)
-		for (x = 0; x < form->width; x++)
+	for (y=0; y < form->height; y++)
+		for (x=0; x < form->width; x++)
 			mvwaddch(form->window, y, x, ' ');
 
-	for (i=0; i < form->no_fields; i++) {
-		wattrset(form->window, form->field[i].attr);
-		wmove(form->window, form->field[i].y, form->field[i].x);
-		switch (form->field[i].type) {
-			case F_TEXT:
-				disp_text(form, i);
-				break;
-			case F_MENU:
-				disp_menu(form, i);
-				break;
-			case F_INPUT:
-				disp_input(form,i);
-				break;
-			case F_ACTION:
-				disp_action(form,i);
-				break;
-			case F_END:
-			default:
-				break;
-		}
+	for (field = form->fieldlist; field; field = field->next) {
+		display_field(form->window, field);
 	}
-	wattrset(form->window, 0);
-	wrefresh(form->window);
+
+	return (FS_OK);
 }
 
-static void
-disp_text(struct form *form, int index)
+unsigned int
+do_key_bind(struct Form *form, unsigned int ch)
 {
+	struct Field *field = form->current_field;
+	struct Tuple *tuple=0;
 
-	struct field *field = &form->field[index];
+	/* XXX -- check for keymappings here --- not yet done */
 
-	if (print_string(form->window, field->y, field->x, field->height,
-	             field->width, field->field.text->text) == ERR)
-		print_status("Illegal scroll in print_string");
-}
-
-static void
-disp_input(struct form *form, int index)
-{
-
-	struct field *field = &form->field[index];
-
-	if (field->field.input->lbl_flag) {
-		if (print_string(form->window, field->y, field->x, field->height,
-						 field->width, field->field.input->label) == ERR)
-			print_status("Illegal scroll in print_string");
-	} else 
-		if (print_string(form->window, field->y, field->x, field->height,
-						 field->width, field->field.input->input) == ERR)
-			print_status("Illegal scroll in print_string");
-}
-
-static void
-disp_menu(struct form *form, int index)
-{
-	struct field *field = &form->field[index];
-
-	if (print_string(form->window, field->y, field->x, field->height,
-			field->width,
-			field->field.menu->options[field->field.menu->selected]) == ERR)
-		print_status("Illegal scroll in print_string");
-}
-
-static void
-disp_action(struct form *form, int index)
-{
-	struct field *field = &form->field[index];
-
-	if (print_string(form->window, field->y, field->x, field->height,
-				field->width,
-				field->field.action->text) == ERR)
-		print_status("Illegal scroll in print_string");
-}
-
-static void
-field_action(struct form *form)
-{
-
-	struct field *field = &form->field[form->current_field];
-	int ch;
-
-	for (;;) {
-		disp_action(form, form->current_field);
-		wmove(form->window, field->y, field->x);
-		ch = wgetch(form->window);
-		if (ch == F_ACCEPT) {
-			(*field->field.action->fn)();
-			return;
-		} else if (!next_field(form, ch))
-			beep();
-		else
-			return;
-	}
-}
-
-static void
-field_menu(struct form *form)
-{
-	struct field *field = &form->field[form->current_field];
-	int ch;
-
-	for (;;) {
-		disp_menu(form, form->current_field);
-		wmove(form->window, field->y, field->x);
-		switch (ch = wgetch(form->window)) {
-			case ' ':
-				print_status("");
-				field->field.menu->selected++;
-				if (field->field.menu->selected >= field->field.menu->no_options)
-					field->field.menu->selected = 0;
-				break;
-			default:
-				if (!next_field(form, ch)) {
-					print_status("Hit the space bar to toggle through options");
-					beep();
-				} else
-					return;
-		}
-	}
-}
-
-static int
-next_field(struct form *form, int ch)
-{
-
-	struct field *field = &form->field[form->current_field];
-
-	if (ch == F_UP) {
-		if (field->up == -1) {
-			print_status("Can't go up from here");
-			return (0);
+	if (ch == FK_UP) {
+		if (field->fup) {
+			tuple = form_get_tuple(field->fup, FT_FIELD_INST);
+			if (!tuple)
+				print_status("Field to move up to does not exist");
 		} else
-			form->current_field = field->up;
-	} else if (ch == F_DOWN) {
-		if (field->down == -1) {
-			print_status("Can't go down from here");
-			return (0);
+			print_status("Can't move up from this field");
+	} else if (ch == FK_DOWN) {
+		if (field->fdown) {
+			tuple = form_get_tuple(field->fdown, FT_FIELD_INST);
+			if (!tuple)
+				print_status("Field to move down to does not exist");
 		} else
-			form->current_field = field->down;
-	} else if (ch == F_NEXT) {
-		if (field->next == -1) {
-			print_status("Can't go to next from here");
-			return (0);
+			print_status("Can't move down from this field");
+	} else if (ch == FK_LEFT) {
+		if (field->fleft) {
+			tuple = form_get_tuple(field->fleft, FT_FIELD_INST);
+			if (!tuple)
+				print_status("Field to move left to does not exist");
 		} else
-			form->current_field = field->next;
-	} else if (ch == F_RIGHT) {
-		if (field->right == -1) {
-			print_status("Can't go right from here");
-			return (0);
+			print_status("Can't move left from this field");
+	} else if (ch == FK_RIGHT) {
+		if (field->fright) {
+			tuple = form_get_tuple(field->fright, FT_FIELD_INST);
+			if (!tuple)
+				print_status("Field to move right to does not exist");
 		} else
-			form->current_field = field->right;
-	} else if (ch == F_LEFT) {
-		if (field->left == -1) {
-			print_status("Can't go left from here");
-			return (0);
+			print_status("Can't move right from this field");
+	} else if (ch == FK_NEXT) {
+		if (field->fnext) {
+			tuple = form_get_tuple(field->fnext, FT_FIELD_INST);
+			if (!tuple)
+				print_status("Field to move to next does not exist");
 		} else
-			form->current_field = field->left;
+			print_status("Can't move next from this field");
 	} else
-		return (0);
+		/* No motion keys pressed */
+		return (ch);
 
-	print_status("");
-	return (1);
-}
-
-static int
-print_string(WINDOW *window, int y, int x,
-             int height, int fwidth, char *string)
-{
-	int len;
-	int width;
-
-	if (!string)
-		len = -1;
-
-	len = strlen(string);
-
-	if (wmove(window, y, x) == ERR)
-		return (ERR);
-	while (height--) {
-		width = fwidth;
-		while (width--) {
-			if (len-- > 0) {
-				if (waddch(window, *string++) == ERR)
-					return (ERR);
-			} else
-				if (waddch(window, ' ') == ERR)
-					return (ERR);
-		}
-		if (wmove(window, ++y, x) == ERR)
-			return (ERR);
-
+	if (tuple) {
+		form->prev_field = form->current_field;
+		form->current_field = tuple->addr;
+		return (FS_OK);
+	} else {
+		beep();
+		return (FS_ERROR);
 	}
-	return (OK);
-}	
-
-void
-print_status(char *msg)
-{
-	if (wmove(stdscr, LINES-1, 0) == ERR) {
-		endwin();
-		exit(1);
-	}
-
-	wclrtoeol(stdscr);
-
-	wstandout(stdscr);
-	if (wprintw(stdscr, "%s",
-				msg) == ERR) {
-		endwin();
-		exit(1);
-	}
-	wstandend(stdscr);
-	wrefresh(stdscr);
-}
-
-
-void
-field_input(struct form *form)
-{
-	struct field *field = &form->field[form->current_field];
-	int len;
-	int ch;
-	int disp_off=0, abspos=0, cursor = 0;
-
-#define DISPOFF ((len < field->width) ? 0 : len - field->width)
-#define CURSPOS ((len < field->width) ? len : field->width)
-
-	len = strlen(field->field.input->input);
-	disp_input(form, form->current_field);
-
-	cursor = CURSPOS;
-	abspos = cursor;
-
-	for(;;) {
-
-		wmove(form->window, field->y, field->x+cursor);
-		wrefresh(form->window);
-
-		ch = wgetch(form->window);
-		if (next_field(form, ch)) {
-			print_string(form->window, field->y, field->x,
-						field->height, field->width,
-						field->field.input->input+DISPOFF);
-			return;
-		}
-		if (field->field.input->lbl_flag) {
-			field->field.input->lbl_flag = 0;
-		}
-		if ((ch == F_CHOME) || (ch == '')) {
-				disp_off = 0;
-				cursor = 0;
-				abspos = 0;
-		} else if ((ch == F_CEND) || (ch == '')) {
-				disp_off = DISPOFF;
-				abspos = len;
-				cursor = CURSPOS;
-		} else if (ch == F_CDEL) {
-			if (!(len-abspos))
-				beep();
-			else {
-				bcopy(field->field.input->input+abspos+1,
-						field->field.input->input+abspos,
-						len - abspos);
-				--len;
-			}
-		} else if ((ch == F_CLEFT) || (ch == F_CBS) || (ch == '')) {
-			if (!abspos)
-				beep();
-			else {
-				if (ch == F_CBS) {
-					bcopy(field->field.input->input+abspos,
-							field->field.input->input+abspos-1,
-							len-abspos+1);
-					--len;
-				}
-				--abspos;
-				--cursor;
-				if ((disp_off) && (cursor < 0)) {
-					--disp_off;
-					++cursor;
-				}
-			}
-		} else if ((ch == F_CRIGHT) || (ch == '')) {
-			if (abspos == len)
-				beep();
-			else {
-				++abspos;
-				if (++cursor == field->width) {
-					++disp_off;
-					--cursor;
-				}
-			}
-		} else if ((isprint(ch)) && (len < field->field.input->limit)){ 
-			bcopy(field->field.input->input+abspos,
-					 field->field.input->input+abspos+1, len-abspos+1);
-			field->field.input->input[abspos++] = ch;
-			len++;
-			if (++cursor > field->width) {
-				++disp_off;
-				--cursor;
-			}
-		} else {
-				beep();
-		}
-		print_string(form->window, field->y, field->x, field->height,
-					 field->width, field->field.input->input+disp_off);
-	}
-	/* Not Reached */
 }
 
 void
-exit_form(void)
+debug_dump_bindings()
 {
-	done = F_DONE;
+	struct Tuple *binds;
+
+	binds = form_get_tuple(0, FT_ANY);
+	while (binds) {
+		printf("%s, %d, %x\n", binds->name, binds->type, (int)binds->addr);
+		binds = form_next_tuple(0, FT_ANY, binds->next);
+	}
 }
 
-void
-cancel_form(void)
+void debug_dump_form(struct Form *form)
 {
-	done = F_CANCEL;
+	struct Field *field;
+
+	field = form->fieldlist;
+
+	for ( ; field; field = field->next) {
+		printf("%s, %x, next = %x\n", field->defname, (int)field, (int)field->next);
+	}
 }

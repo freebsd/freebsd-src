@@ -32,44 +32,27 @@
  *
  */
 
-#define FK_UP		f_keymap[0]
-#define FK_DOWN		f_keymap[1]
-#define FK_RIGHT	f_keymap[2]
-#define FK_LEFT		f_keymap[3]
-#define FK_NEXT		f_keymap[4]
-#define FK_CLEFT	f_keymap[5]
-#define FK_CRIGHT	f_keymap[6]
-#define FK_CHOME	f_keymap[7]
-#define FK_CEND		f_keymap[8]
-#define FK_CBS		f_keymap[9]
-#define FK_CDEL		f_keymap[10]
-#define FK_ACCEPT	f_keymap[11]
+#include <forms.h>
+#include <stdlib.h>
+#include <string.h>
 
-extern unsigned int f_keymap[];
+int
+add_menu_option(struct MenuField *menu, char *option)
+{
+	char **tmp;
+	int len;
 
-/* Private function declarations */
-void display_field(WINDOW *, struct Field *);
-void display_text(WINDOW *, struct Field *);
-void display_input(WINDOW *, struct Field *);
-void display_menu(WINDOW *, struct Field *);
-void display_action(WINDOW *, struct Field *);
-int print_string(WINDOW *, int, int, int, int, char *);
-unsigned int do_key_bind(struct Form *, unsigned int);
-int do_action(struct Form *);
-int do_menu(struct Form *);
-int do_input(struct Form *);
-int init_field(struct Field *);
+	tmp = (char **)realloc(menu->options, (menu->no_options + 1) * sizeof(char**));
+	if (!tmp)
+		return (0);
+	else
+		menu->options = tmp;
 
+	len = strlen(option) + 1;
+	menu->options[menu->no_options] = (char *)malloc(len);
+	if (!menu->options[menu->no_options])
+		return (0);
+	strncpy(menu->options[menu->no_options], option, len);
 
-#ifdef not
-static void show_form(struct form *);
-static void disp_text(struct form *);
-static void disp_menu(struct form *);
-static void disp_action(struct form *);
-static void disp_input(struct form *);
-static void field_menu(struct form *);
-static void field_input(struct form *);
-static void field_action(struct form *);
-static int print_string(WINDOW *, int, int, int, int, char *);
-static int next_field(struct form *form, int);
-#endif
+	return (++menu->no_options);
+}

@@ -1,4 +1,4 @@
-/*-
+/*
  * Copyright (c) 1995
  *	Paul Richards.  All rights reserved.
  *
@@ -33,36 +33,62 @@
  */
 #include <stdio.h>
 #include "../forms.h"
-#include "frm.tab.h"
 
 main()
 {
+	struct Tuple *tuple;
+	struct Form *form;
 	int res;
 
 	initscr();
 
-	initfrm(&example);
-	if (!example.window) {
-		fprintf(stderr, "\nUnable to initialize forms library.\n");
-		endwin();
-		exit(1);
+	form_bind_tuple("exit_form", FT_FUNC, &exit_form);
+	form_bind_tuple("cancel_form", FT_FUNC, &cancel_form);
+
+	if (form_load("example.frm") == FS_ERROR)
+		exit(0);;
+
+	form = form_start("example");
+
+	if (!form) {
+		err(-1, "No form returned");
+		exit(0);
 	}
-	keypad(example.window, TRUE);
+
+	keypad(form->window, TRUE);
+	cbreak();
+	noecho();
+
+	tuple = form_get_tuple("example", FT_FORM);
+	if (!tuple)
+		err(0, "No such form");
+	else
+		form = (struct Form *)tuple->addr;
 
 	print_status("This is the status line");
-	while (!(res = update_form(&example)));
 
-	wclear(example.window);
-	wrefresh(example.window);
+	res = form_show("example");
 
-	if  (res == F_DONE) {
+	while (form->status == FS_RUNNING) {
+		do_field(form);
+		wrefresh(form->window);
+	}
+
+	wclear(form->window);
+	wrefresh(form->window);
+
+	if  (form->status == FS_EXIT) {
 		printf("You're entries were:\n\n");
-		printf("%s\n",input1.input);
-		printf("%s\n",input2.input);
-		printf("%s\n",menu1.options[example_fields[7].field.menu->selected]);
-	} else if (res == F_CANCEL)
+		tuple = form_get_tuple("input1", FT_FIELD_INST);
+		printf("Input 1 = %s\n", ((struct Field *)tuple->addr)->field.input->input);
+		tuple = form_get_tuple("input2", FT_FIELD_INST);
+		printf("Input 2 = %s\n", ((struct Field *)tuple->addr)->field.input->input);
+		tuple = form_get_tuple("menu1", FT_FIELD_INST);
+		res = ((struct Field *)tuple->addr)->field.menu->selected;
+		printf("Menu selected = %d, %s\n", res,
+			 ((struct Field *)tuple->addr)->field.menu->options[res]);
+	} else if (form->status == FS_CANCEL)
 		printf("You cancelled the form\n");
 
-	endfrm(&example);
 	endwin();
 }
