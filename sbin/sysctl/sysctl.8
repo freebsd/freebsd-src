@@ -93,6 +93,13 @@ use the following code:
 listsysctls () { set -A reply $(sysctl -AN ${1%.*}) }
 compctl -K listsysctls sysctl
 .Ed
+.Pp
+To enable completion of variable names in
+.Xr tcsh 1 ,
+use:
+.Bd -literal -offset indent
+complete sysctl 'n/*/`sysctl -Na`/'
+.Ed
 .It Fl n
 Show only variable values, not their names.
 This option is useful for setting shell variables.
