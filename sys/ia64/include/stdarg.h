@@ -43,7 +43,7 @@
 
 typedef _BSD_VA_LIST_	va_list;
 
-#define va_start(list, parmN)	__builtin_stdarg_start(&(list), parmN)
+#define va_start(list, parmN)	__builtin_stdarg_start(list, parmN)
 #define va_end			__builtin_va_end
 #define va_arg			__builtin_va_arg
 
