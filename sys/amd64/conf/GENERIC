@@ -1,7 +1,7 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: GENERIC,v 1.68 1996/04/29 20:03:41 jkh Exp $
+#	$Id: GENERIC,v 1.69 1996/05/01 03:26:58 bde Exp $
 #
 
 machine		"i386"
@@ -98,6 +98,10 @@ device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
 #
 device		apm0    at isa?	disable	# Advanced Power Management
 options		APM_BROKEN_STATCLOCK	# Workaround some buggy APM BIOS
+# PCCARD (PCMCIA) support
+#controller	crd0
+#device		pcic0	at crd?
+#device		pcic1	at crd?
 
 device		sio0	at isa? port "IO_COM1" tty irq 4 vector siointr
 device		sio1	at isa? port "IO_COM2" tty irq 3 vector siointr
