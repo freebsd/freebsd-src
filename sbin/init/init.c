@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)init.c	8.1 (Berkeley) 7/15/93";
 #endif
 static const char rcsid[] =
-	"$Id: init.c,v 1.31 1998/07/22 05:45:11 phk Exp $";
+	"$Id: init.c,v 1.32 1999/06/16 20:01:19 ru Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -204,9 +204,42 @@ main(argc, argv)
 		errx(1, "%s", strerror(EPERM));
 
 	/* System V users like to reexec init. */
-	if (getpid() != 1)
-		errx(1, "already running");
+	if (getpid() != 1) {
+#ifdef COMPAT_SYSV_INIT
+		/* So give them what they want */
+		if (argc > 1) {
+			if (strlen(argv[1]) == 1) {
+				register char runlevel = *argv[1];
+				register int sig;
 
+				switch (runlevel) {
+					case '0': /* halt + poweroff */
+						sig = SIGUSR2;
+						break;
+					case '1': /* single-user */
+						sig = SIGTERM;
+						break;
+					case '6': /* reboot */
+						sig = SIGINT;
+						break;
+					case 'c': /* block further logins */
+						sig = SIGTSTP;
+						break;
+					case 'q': /* rescan /etc/ttys */
+						sig = SIGHUP;
+						break;
+					default:
+						goto invalid;
+				}
+				kill(1, sig);
+				_exit(0);
+			} else
+invalid:
+				errx(1, "invalid run-level ``%s''", argv[1]);
+		} else
+#endif
+			errx(1, "already running");
+	}
 	/*
 	 * Note that this does NOT open a file...
 	 * Does 'init' deserve its own facility number?
