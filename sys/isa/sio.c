@@ -87,13 +87,15 @@
 #endif
 #include <isa/ic/ns16550.h>
 
-#include "card.h"
 #if 0
+#include "card.h"
 #if NCARD > 0
 #include <sys/module.h>
 #include <pccard/cardinfo.h>
 #include <pccard/slot.h>
 #endif
+#else
+#define NCARD 0
 #endif
 
 #ifndef __i386__
