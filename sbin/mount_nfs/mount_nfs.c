@@ -662,6 +662,7 @@ getnfsargs(spec, nfsargsp)
 	char *cp;
 #endif
 	u_short tport;
+	size_t len;
 	static struct nfhret nfhret;
 	static char nam[MNAMELEN + 1];
 
@@ -685,21 +686,22 @@ getnfsargs(spec, nfsargsp)
 	 * that some mountd implementations fail to remove the mount
 	 * entries from their mountlist while unmounting.
 	 */
-	speclen = strlen(spec);
-	while (speclen > 1 && spec[speclen - 1] == '/') {
+	for (speclen = strlen(spec); 
+		speclen > 1 && spec[speclen - 1] == '/';
+		speclen--)
 		spec[speclen - 1] = '\0';
-		speclen--;
-	}
 	if (strlen(hostp) + strlen(spec) + 1 > MNAMELEN) {
 		warnx("%s:%s: %s", hostp, spec, strerror(ENAMETOOLONG));
 		return (0);
 	}
-
 	/* Make both '@' and ':' notations equal */
-	strcat(nam, hostp);
-	strcat(nam, ":");
-	strcat(nam, spec);
-
+	if (*hostp != '\0') {
+		len = strlen(hostp);
+		memmove(nam, hostp, len);
+		nam[len] = ':';
+		memmove(nam + len + 1, spec, speclen);
+		nam[len + speclen + 1] = '\0';
+	}
 	/*
 	 * DUMB!! Until the mount protocol works on iso transport, we must
 	 * supply both an iso and an inet address for the host.
