@@ -1,4 +1,4 @@
-/*	$NetBSD: usb_subr.c,v 1.95 2001/11/20 16:09:01 augustss Exp $	*/
+/*	$NetBSD: usb_subr.c,v 1.96 2001/11/22 21:59:33 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -184,7 +184,7 @@ usbd_get_string(usbd_device_handle dev, int si, char *buf)
 		/* Set up default language */
 		err = usbd_get_string_desc(dev, USB_LANGUAGE_TABLE, 0, &us);
 		if (err || us.bLength < 4) {
-			dev->langid = 0; /* Well, just pick English then */
+			dev->langid = 0; /* Well, just pick something then */
 		} else {
 			/* Pick the first language as the default. */
 			dev->langid = UGETW(us.bString[0]);
