@@ -318,7 +318,7 @@ rerelease release:
 	echo "set -ex"				>> ${CHROOTDIR}/mk
 	echo "_RELTARGET=\$${1:-doRELEASE}"	>> ${CHROOTDIR}/mk
 	echo "export CFLAGS='-O -pipe'"	>> ${CHROOTDIR}/mk
-	echo "export NO_X=YES"			>> ${CHROOTDIR}/mk
+	echo "export WITHOUT_X11=YES"		>> ${CHROOTDIR}/mk
 	echo "export DISTRIBUTIONS=\"${DISTRIBUTIONS}\"" >> ${CHROOTDIR}/mk
 	echo "export BUILDNAME=${BUILDNAME}"	>> ${CHROOTDIR}/mk
 	echo "export OBJFORMAT=${OBJFORMAT}"	>> ${CHROOTDIR}/mk
