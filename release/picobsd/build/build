@@ -1,7 +1,7 @@
 #!/bin/sh -
 
 #
-#	$Id: build,v 1.6 1998/09/15 11:12:13 abial Exp $
+#	$Id: build,v 1.7 1998/09/19 21:44:42 abial Exp $
 #
 
 # You can set the SRC variable which points to your source tree. It's
@@ -22,7 +22,7 @@ ISP_DFLT_SIZE=2200
 
 # SET THIS if you're not using DEVFS
 #
-# NO_DEVFS=yes
+NO_DEVFS=yes
 
 # Path to srcdirs of special program for init(8) (standard if empty)
 INIT=
