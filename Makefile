@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.57.4.8 1995/11/10 03:06:55 jkh Exp $
+#	$Id: Makefile,v 1.57.4.9 1996/02/22 20:31:49 peter Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib
@@ -7,6 +7,7 @@
 #	-DMAKE_EBONES to build eBones (KerberosIV)
 #
 #	-DNOCLEANDIR run ${MAKE} clean, instead of ${MAKE} cleandir
+#	-DNOCLEAN to not clean anything at all
 #	-DNOCRYPT will prevent building of crypt versions
 #	-DNOLKM do not build loadable kernel modules
 #	-DNOOBJDIR do not run ``${MAKE} obj''
@@ -85,13 +86,20 @@ OBJDIR=
 .else
 OBJDIR=		obj
 .endif
+
+.if defined(NOCLEAN)
+CLEANDIR=
+WORLD_CLEANDIST=obj
+.else
+WORLD_CLEANDIST=cleandist
 .if defined(NOCLEANDIR)
 CLEANDIR=	clean
 .else
 CLEANDIR=	cleandir
 .endif
+.endif
 
-world:	hierarchy mk cleandist includes lib-tools libraries tools
+world:	hierarchy mk $(WORLD_CLEANDIST) include-tools includes lib-tools libraries build-tools
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding ${DESTDIR} The whole thing"
 	@echo "--------------------------------------------------------------"
@@ -240,6 +248,8 @@ lib-tools:
 	@echo " Rebuilding tools needed to build the libraries"
 	@echo "--------------------------------------------------------------"
 	@echo
+	cd ${.CURDIR}/usr.bin/xinstall && \
+		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/gnu/usr.bin/ld && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/ar && \
@@ -306,7 +316,15 @@ libraries:
 		 ${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 .endif
 
-tools:
+include-tools:
+	@echo "--------------------------------------------------------------"
+	@echo " Rebuilding tools needed to build the includes"
+	@echo "--------------------------------------------------------------"
+	@echo
+	cd ${.CURDIR}/usr.bin/xinstall && \
+		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+
+build-tools:
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding ${DESTDIR} C compiler, make, sgmlfmt, and zic(8)"
 	@echo "--------------------------------------------------------------"
