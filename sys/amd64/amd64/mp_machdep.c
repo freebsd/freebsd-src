@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.92 1999/02/26 03:42:50 tegge Exp $
+ *	$Id: mp_machdep.c,v 1.93 1999/03/05 16:38:10 bde Exp $
  */
 
 #include "opt_smp.h"
@@ -496,8 +496,10 @@ init_secondary(void)
 	PTD[0] = 0;
 	pmap_set_opt((unsigned *)PTD);
 
+#if 0
 	putmtrr();
 	pmap_setvidram();
+#endif
 
 	invltlb();
 }
@@ -556,8 +558,10 @@ mp_enable(u_int boot_addr)
 	u_int   ux;
 #endif	/* APIC_IO */
 
+#if 0
 	getmtrr();
 	pmap_setvidram();
+#endif
 
 	POSTCODE(MP_ENABLE_POST);
 
@@ -2243,7 +2247,9 @@ ap_init()
 		panic("cpuid mismatch! boom!!");
 	}
 
+#if 0
 	getmtrr();
+#endif
 
 	/* Init local apic for irq's */
 	apic_initialize();
