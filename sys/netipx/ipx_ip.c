@@ -241,7 +241,7 @@ ipxip_input(m, hlen)
 static int
 ipxipoutput(ifp, m, dst, rt)
 	struct ifnet *ifp;
-	register struct mbuf *m;
+	struct mbuf *m;
 	struct sockaddr *dst;
 	struct rtentry *rt;
 {
