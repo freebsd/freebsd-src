@@ -1,8 +1,9 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.1.2.10 1995/11/04 08:48:00 jkh Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.2 1995/12/07 10:34:47 peter Exp $
+
+Contents last changed:  April 26th, 1996
 
 Table of Contents
 -----------------
-
 0.  Document Conventions
 1.  Default Configuration (GENERIC kernel)
 2.  Using UserConfig to change FreeBSD kernel settings
@@ -62,9 +63,9 @@ ncr0    n/a     n/a     n/a     n/a     NCR PCI SCSI controller
 ahc0    n/a     n/a     n/a     n/a     Adaptec 294x PCI SCSI controller
 bt0     330     dyn     dyn     dyn     Buslogic SCSI controller
 uha0    330     dyn     6       dyn     Ultrastore 14f
-ahc1    dyn     dyn     dyn     dyn     Adaptec 274x/284x SCSI controller
-ahb0    dyn     dyn     dyn     dyn     Adaptec 174x SCSI controller
 aha0    330     dyn     5       dyn     Adaptec 154x SCSI controller
+ahb0    dyn     dyn     dyn     dyn     Adaptec 174x SCSI controller
+ahc0    dyn     dyn     dyn     dyn     Adaptec 274x/284x/294x SCSI controller
 aic0    340     11      dyn     dyn     Adaptec 152x/AIC-6360 SCSI
                                         controller
 nca0    1f88    10      dyn     dyn     ProAudioSpectrum cards
@@ -73,17 +74,17 @@ sea0    dyn     5       dyn     c8000   Seagate ST01/02 8 bit controller
 
 wt0     300     5       1       dyn     Wangtek and Archive QIC-02/QIC-36
 
+mse0    23c     5       n/a     n/a     Microsoft Bus Mouse
+psm0    60      12      n/a     n/a     PS/2 Mouse (disabled by default)
+
 mcd0    300     10      n/a     n/a     Mitsumi CD-ROM
 mcd1    340     11      n/a     n/a     Mitsumi CD-ROM
-
 matcd0  230     n/a     n/a     n/a     Matsushita/Panasonic CD-ROM
-
 scd0    230     n/a     n/a     n/a     Sony CD-ROM
 
 sio0    3f8     4       n/a     n/a     Serial Port 0 (COM1)
 sio1    2f8     3       n/a     n/a     Serial Port 1 (COM2)
 sio2    3e8     5       n/a     n/a     Serial Port 2 (COM3)
-sio3    2e8     9       n/a     n/a     Serial Port 3 (COM4)
 
 lpt0    dyn     7       n/a     n/a     Printer Port 0
 lpt1    dyn     dyn     n/a     n/a     Printer Port 1
@@ -96,6 +97,8 @@ ed0     280     5       dyn     d8000   WD & SMC 80xx; Novell NE1000 &
 ed1     300     5       dyn     d8000   Same as ed0
 eg0     310     5       dyn     dyn     3Com 3C505
 ep0     300     10      dyn     dyn     3Com 3C509
+fe0     300     dyn     n/a     n/a     Fujitsu MB86960A/MB86965A cards
+fxp0    dyn     dyn     n/a     dyn     Intel EtherExpress Pro/100B
 ie0     360     7       dyn     d0000   AT&T StarLAN 10 and EN100;
                                         3Com 3C507; NI5210
 ix0     300     10      dyn     d0000   Intel EtherExpress cards
@@ -104,6 +107,7 @@ le0     300     5       dyn     d0000   Digital Equipment EtherWorks
 lnc0    280     10      n/a     dyn     Lance/PCnet cards
                                         (Isolan, Novell NE2100, NE32-VL)
 lnc1    300     10      n/a     dyn     See lnc0
+vx0     dyn     dyn     n/a     dyn
 ze0     300     5       dyn     d8000   IBM/National Semiconductor
                                         PCMCIA Ethernet Controller
 zp0     300     10      dyn     d8000   3Com PCMCIA Etherlink III
