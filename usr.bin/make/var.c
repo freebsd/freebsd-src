@@ -229,14 +229,10 @@ static char *
 VarPossiblyExpand(const char *name, GNode *ctxt)
 {
 	Buffer	*buf;
-	char	*str;
 
 	if (strchr(name, '$') != NULL) {
 		buf = Var_Subst(NULL, name, ctxt, 0);
-		str = Buf_GetAll(buf, NULL);
-		Buf_Destroy(buf, FALSE);
-
-		return (str);
+		return (Buf_Peel(buf));
 	} else {
 		return estrdup(name);
 	}
@@ -500,8 +496,7 @@ Var_Append(const char *name, const char *val, GNode *ctxt)
 		Buf_AddByte(v->val, (Byte)' ');
 		Buf_Append(v->val, val);
 
-		DEBUGF(VAR, ("%s:%s = %s\n", ctxt->name, n,
-		    (char *)Buf_GetAll(v->val, (size_t *)NULL)));
+		DEBUGF(VAR, ("%s:%s = %s\n", ctxt->name, n, Buf_Data(v->val)));
 
 		if (v->flags & VAR_FROM_ENV) {
 			/*
@@ -572,7 +567,7 @@ Var_Value(const char *name, GNode *ctxt, char **frp)
 	free(n);
 	*frp = NULL;
 	if (v != NULL) {
-		char   *p = (char *)Buf_GetAll(v->val, (size_t *)NULL);
+		char   *p = Buf_Data(v->val);
 
 		if (v->flags & VAR_FROM_ENV) {
 			VarDestroy(v, FALSE);
@@ -608,7 +603,6 @@ VarModify(const char *str, VarModifyProc *modProc, void *datum)
 	Boolean	addSpace;	/* TRUE if need to add a space to the buffer
 				 * before adding the trimmed word */
 	int	i;
-	char	*result;
 
 	av = brk_string(str, &ac, FALSE);
 
@@ -618,9 +612,7 @@ VarModify(const char *str, VarModifyProc *modProc, void *datum)
 	for (i = 1; i < ac; i++)
 		addSpace = (*modProc)(av[i], addSpace, buf, datum);
 
-	result = (char *)Buf_GetAll(buf, (size_t *)NULL);
-	Buf_Destroy(buf, FALSE);
-	return (result);
+	return (Buf_Peel(buf));
 }
 
 /*-
@@ -648,7 +640,6 @@ VarSortWords(const char *str, int (*cmp)(const void *, const void *))
 	int	ac;
 	Buffer	*buf;
 	int	i;
-	char	*result;
 
 	av = brk_string(str, &ac, FALSE);
 	qsort(av + 1, ac - 1, sizeof(char *), cmp);
@@ -659,9 +650,7 @@ VarSortWords(const char *str, int (*cmp)(const void *, const void *))
 		Buf_AddByte(buf, (Byte)((i < ac - 1) ? ' ' : '\0'));
 	}
 
-	result = (char *)Buf_GetAll(buf, (size_t *)NULL);
-	Buf_Destroy(buf, FALSE);
-	return (result);
+	return (Buf_Peel(buf));
 }
 
 static int
@@ -788,7 +777,6 @@ Var_Quote(const char *str)
 	Buffer *buf;
 	/* This should cover most shells :-( */
 	static char meta[] = "\n \t'`\";&<>()|*?{}[]\\$!#^~";
-	char   *ret;
 
 	buf = Buf_Init(MAKE_BSIZE);
 	for (; *str; str++) {
@@ -796,10 +784,8 @@ Var_Quote(const char *str)
 			Buf_AddByte(buf, (Byte)'\\');
 		Buf_AddByte(buf, (Byte)*str);
 	}
-	Buf_AddByte(buf, (Byte)'\0');
-	ret = Buf_GetAll(buf, NULL);
-	Buf_Destroy(buf, FALSE);
-	return (ret);
+
+	return (Buf_Peel(buf));
 }
 
 /*-
@@ -854,15 +840,14 @@ VarExpand(Var *v, VarParser *vp)
 	 * dynamically-allocated, so it will need freeing when we
 	 * return.
 	 */
-	value = (char *)Buf_GetAll(v->val, (size_t *)NULL);
+	value = Buf_Data(v->val);
 	if (strchr(value, '$') == NULL) {
 		result = strdup(value);
 	} else {
 		Buffer	*buf;
 
 		buf = Var_Subst(NULL, value, vp->ctxt, vp->err);
-		result = Buf_GetAll(buf, NULL);
-		Buf_Destroy(buf, FALSE);
+		result = Buf_Peel(buf);
 	}
 
 	v->flags &= ~VAR_IN_USE;
@@ -1212,8 +1197,7 @@ ParseModifier(VarParser *vp, char startc, Var *v, Boolean *freeResult)
 					Buffer		*buf;
 
 					buf = Cmd_Exec(value, &error);
-					newStr = Buf_GetAll(buf, NULL);
-					Buf_Destroy(buf, FALSE);
+					newStr = Buf_Peel(buf);
 
 					if (error)
 						Error(error, value);
@@ -1235,8 +1219,7 @@ ParseModifier(VarParser *vp, char startc, Var *v, Boolean *freeResult)
 				for (cp = value; *cp; cp++)
 					Buf_AddByte(buf, (Byte)tolower(*cp));
 
-				newStr = (char *)Buf_GetAll(buf, NULL);
-				Buf_Destroy(buf, FALSE);
+				newStr = Buf_Peel(buf);
 
 				vp->ptr++;
 				break;
@@ -1261,8 +1244,7 @@ ParseModifier(VarParser *vp, char startc, Var *v, Boolean *freeResult)
 				for (cp = value; *cp; cp++)
 					Buf_AddByte(buf, (Byte)toupper(*cp));
 
-				newStr = (char *)Buf_GetAll(buf, NULL);
-				Buf_Destroy(buf, FALSE);
+				newStr = Buf_Peel(buf);
 
 				vp->ptr++;
 				break;
@@ -1479,7 +1461,7 @@ ParseRestEnd(VarParser *vp, Buffer *buf, Boolean *freeResult)
 				 * things and we sure don't put nested
 				 * invocations in them...
 				 */
-				val = (char *)Buf_GetAll(v->val, NULL);
+				val = Buf_Data(v->val);
 
 				if (vname[1] == 'D') {
 					val = VarModify(val, VarHead, NULL);
@@ -1943,7 +1925,6 @@ Var_Dump(const GNode *ctxt)
 
 	LST_FOREACH(ln, &ctxt->context) {
 		v = Lst_Datum(ln);
-		printf("%-16s = %s\n", v->name,
-		    (const char *)Buf_GetAll(v->val, NULL));
+		printf("%-16s = %s\n", v->name, Buf_Data(v->val));
 	}
 }
