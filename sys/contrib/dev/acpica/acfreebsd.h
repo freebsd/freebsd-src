@@ -128,13 +128,15 @@
 #include "acgcc.h"
 #include <machine/acpica_machdep.h>
 
+#ifdef _KERNEL
+#include "opt_acpi.h"
+#endif
+
 #ifdef ACPI_DEBUG
 #define ACPI_DEBUG_OUTPUT	/* for backward compatibility */
 #endif
 
 #ifdef _KERNEL
-#include "opt_acpi.h"
-
 #include <sys/ctype.h>
 #include <sys/param.h>
 #include <sys/systm.h>
