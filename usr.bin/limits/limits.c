@@ -77,16 +77,16 @@ static struct {
     { "", "infinity", "Resource limits%s%s:\n", "-max", "-cur", "",
       {
 	  { "  cputime%-4s      %8s", " secs\n",  1    },
-	  { "  filesize%-4s     %8s", " kb\n",    1024 },
-	  { "  datasize%-4s     %8s", " kb\n",    1024 },
-	  { "  stacksize%-4s    %8s", " kb\n",    1024 },
-	  { "  coredumpsize%-4s %8s", " kb\n",    1024 },
-	  { "  memoryuse%-4s    %8s", " kb\n",    1024 },
-	  { "  memorylocked%-4s %8s", " kb\n",    1024 },
+	  { "  filesize%-4s     %8s", " kB\n",    1024 },
+	  { "  datasize%-4s     %8s", " kB\n",    1024 },
+	  { "  stacksize%-4s    %8s", " kB\n",    1024 },
+	  { "  coredumpsize%-4s %8s", " kB\n",    1024 },
+	  { "  memoryuse%-4s    %8s", " kB\n",    1024 },
+	  { "  memorylocked%-4s %8s", " kB\n",    1024 },
 	  { "  maxprocesses%-4s %8s", "\n",       1    },
 	  { "  openfiles%-4s    %8s", "\n",       1    },
 	  { "  sbsize%-4s       %8s", " bytes\n", 1    },
-	  { "  vmemoryuse%-4s   %8s", " kb\n",    1024 }
+	  { "  vmemoryuse%-4s   %8s", " kB\n",    1024 }
       }
     },
     { "sh", "unlimited", "", " -H", " -S", "",
