@@ -365,7 +365,7 @@ mchgdate(msg)
 {
 	char tname[MAXHOSTNAMELEN];
 	char olddate[32];
-	struct timeval otime, ntime;
+	struct timeval otime, ntime, tmptv;
 
 	(void)strcpy(tname, msg->tsp_name);
 
@@ -377,7 +377,9 @@ mchgdate(msg)
 	(void)gettimeofday(&otime, 0);
 	adj_msg_time(msg,&otime);
 
-	timevalsub(&ntime, &msg->tsp_time, &otime);
+ 	tmptv.tv_sec = msg->tsp_time.tv_sec;
+ 	tmptv.tv_usec = msg->tsp_time.tv_usec;
+	timevalsub(&ntime, &tmptv, &otime);
 	if (ntime.tv_sec < MAXADJ && ntime.tv_sec > -MAXADJ) {
 		/*
 		 * do not change the clock if we can adjust it
@@ -392,7 +394,7 @@ mchgdate(msg)
 		logwtmp(&otime, &msg->tsp_time);
 #else
 		logwtmp("|", "date", "");
-		(void)settimeofday(&msg->tsp_time, 0);
+ 		(void)settimeofday(&tmptv, 0);
 		logwtmp("{", "date", "");
 #endif /* sgi */
 		spreadtime();
@@ -499,6 +501,7 @@ spreadtime()
 	struct hosttbl *htp;
 	struct tsp to;
 	struct tsp *answer;
+	struct timeval tmptv;
 
 /* Do not listen to the consensus after forcing the time.  This is because
  *	the consensus takes a while to reach the time we are dictating.
@@ -507,7 +510,9 @@ spreadtime()
 	for (htp = self.l_fwd; htp != &self; htp = htp->l_fwd) {
 		to.tsp_type = TSP_SETTIME;
 		(void)strcpy(to.tsp_name, hostname);
-		(void)gettimeofday(&to.tsp_time, 0);
+		(void)gettimeofday(&tmptv, 0);
+		to.tsp_time.tv_sec = tmptv.tv_sec;
+		to.tsp_time.tv_usec = tmptv.tv_usec;
 		answer = acksend(&to, &htp->addr, htp->name,
 				 TSP_ACK, 0, htp->noanswer);
 		if (answer == 0) {
@@ -772,7 +777,7 @@ newslave(msg)
 {
 	struct hosttbl *htp;
 	struct tsp *answer, to;
-	struct timeval now;
+	struct timeval now, tmptv;
 
 	if (!fromnet || fromnet->status != MASTER)
 		return;
@@ -791,7 +796,9 @@ newslave(msg)
 	    || now.tv_sec < fromnet->slvwait.tv_sec) {
 		to.tsp_type = TSP_SETTIME;
 		(void)strcpy(to.tsp_name, hostname);
-		(void)gettimeofday(&to.tsp_time, 0);
+		(void)gettimeofday(&tmptv, 0);
+		to.tsp_time.tv_sec = tmptv.tv_sec;
+		to.tsp_time.tv_usec = tmptv.tv_usec;
 		answer = acksend(&to, &htp->addr,
 				 htp->name, TSP_ACK,
 				 0, htp->noanswer);
