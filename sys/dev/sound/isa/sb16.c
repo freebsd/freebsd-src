@@ -40,6 +40,7 @@
 #include  <dev/sound/chip.h>
 
 #define ESS_BUFFSIZE (65536 - 256)
+#define PLAIN_SB16(x) ((((x)->bd_flags) & (BD_F_SB16|BD_F_SB16X)) == BD_F_SB16)
 
 /* channel interface */
 static void *sbchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
@@ -136,7 +137,6 @@ static pcm_channel ess_chantemplate = {
 	esschan_getptr,
 	esschan_getcaps,
 };
-#define PLAIN_SB16(x) ((((x)->bd_flags) & (BD_F_SB16|BD_F_SB16X)) == BD_F_SB16)
 
 struct sb_info;
 
@@ -145,7 +145,7 @@ struct sb_chinfo {
 	pcm_channel *channel;
 	snd_dbuf *buffer;
 	int dir;
-	u_int32_t fmt;
+	u_int32_t fmt, spd;
 	int ess_dma_started;
 };
 
@@ -154,7 +154,7 @@ struct sb_info {
     	struct resource *irq;
    	struct resource *drq1;
     	struct resource *drq2;
-    	bus_dma_tag_t    parent_dmat;
+    	bus_dma_tag_t parent_dmat;
 
     	int bd_id;
     	u_long bd_flags;       /* board-specific flags */
@@ -173,8 +173,7 @@ static int sb_getmixer(struct sb_info *sb, u_int port);
 static int sb_reset_dsp(struct sb_info *sb);
 
 static void sb_intr(void *arg);
-static int sb_format(struct sb_chinfo *ch, u_int32_t format);
-static int sb_speed(struct sb_chinfo *ch, int speed);
+static int sb_speed(struct sb_chinfo *ch);
 static int sb_start(struct sb_chinfo *ch);
 static int sb_stop(struct sb_chinfo *ch);
 
@@ -364,7 +363,8 @@ sb_reset_dsp(struct sb_info *sb)
 			   rman_get_start(d->io_base)));
 		return ENXIO;	/* Sorry */
     	}
-    	if (sb->bd_flags & BD_F_ESS) sb_cmd(sb, 0xc6);
+    	if (sb->bd_flags & BD_F_ESS)
+		sb_cmd(sb, 0xc6);
     	return 0;
 }
 
@@ -443,9 +443,13 @@ sb16_swap(void *v, int dir)
 	int swp = 0;
 
 	if (!pb && !rb) {
-		if (dir == PCMDIR_PLAY && pc < 4) swp = 1;
-		else if (dir == PCMDIR_REC && rc < 4) swp = 1;
-		if (sb->bd_flags & BD_F_SB16X) swp = !swp;
+		if (dir == PCMDIR_PLAY && pc < 4)
+			swp = 1;
+		else
+			if (dir == PCMDIR_REC && rc < 4)
+				swp = 1;
+		if (sb->bd_flags & BD_F_SB16X)
+			swp = !swp;
 		if (swp) {
 			int t;
 
@@ -466,8 +470,10 @@ sb_doattach(device_t dev, struct sb_info *sb)
     	char status[SND_STATUSLEN];
 	int bs = (sb->bd_flags & BD_F_ESS)? ESS_BUFFSIZE : DSP_BUFFSIZE;
 
-    	if (sb_alloc_resources(sb, dev)) goto no;
-    	if (sb_reset_dsp(sb)) goto no;
+    	if (sb_alloc_resources(sb, dev))
+		goto no;
+    	if (sb_reset_dsp(sb))
+		goto no;
     	mixer_init(d, &sb_mixer, sb);
 
 	if (sb->bd_flags & BD_F_ESS)
@@ -493,10 +499,12 @@ sb_doattach(device_t dev, struct sb_info *sb)
     	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld drq %ld",
     	     	rman_get_start(sb->io_base), rman_get_start(sb->irq),
 		rman_get_start(sb->drq1));
-    	if (sb->drq2) snprintf(status + strlen(status),	SND_STATUSLEN - strlen(status),
-		":%ld", rman_get_start(sb->drq2));
+    	if (sb->drq2)
+		snprintf(status + strlen(status), SND_STATUSLEN - strlen(status),
+			":%ld", rman_get_start(sb->drq2));
 
-    	if (pcm_register(dev, sb, 1, 1)) goto no;
+    	if (pcm_register(dev, sb, 1, 1))
+		goto no;
 	if (sb->bd_flags & BD_F_ESS) {
 		pcm_addchan(dev, PCMDIR_REC, &ess_chantemplate, sb);
 		pcm_addchan(dev, PCMDIR_PLAY, &ess_chantemplate, sb);
@@ -533,12 +541,16 @@ sb_intr(void *arg)
      		*/
     		reason = 0;
     		if (c & 1) { /* 8-bit dma */
-			if (sb->pch.fmt & AFMT_U8) reason |= 1;
-			if (sb->rch.fmt & AFMT_U8) reason |= 2;
+			if (sb->pch.fmt & AFMT_U8)
+				reason |= 1;
+			if (sb->rch.fmt & AFMT_U8)
+				reason |= 2;
     		}
     		if (c & 2) { /* 16-bit dma */
-			if (sb->pch.fmt & AFMT_S16_LE) reason |= 1;
-			if (sb->rch.fmt & AFMT_S16_LE) reason |= 2;
+			if (sb->pch.fmt & AFMT_S16_LE)
+				reason |= 1;
+			if (sb->rch.fmt & AFMT_S16_LE)
+				reason |= 2;
     		}
     	} else c = 1;
 #if 0
@@ -548,49 +560,46 @@ sb_intr(void *arg)
 		chn_intr(sb->pch.channel);
     	if ((reason & 2) && (sb->rch.buffer->dl > 0))
 		chn_intr(sb->rch.channel);
-    	if (c & 1) sb_rd(sb, DSP_DATA_AVAIL); /* 8-bit int ack */
-    	if (c & 2) sb_rd(sb, DSP_DATA_AVL16); /* 16-bit int ack */
+    	if (c & 1)
+		sb_rd(sb, DSP_DATA_AVAIL); /* 8-bit int ack */
+    	if (c & 2)
+		sb_rd(sb, DSP_DATA_AVL16); /* 16-bit int ack */
 }
 
 static void
 ess_intr(void *arg)
 {
-    struct sb_info *sb = (struct sb_info *)arg;
-    sb_rd(sb, DSP_DATA_AVAIL); /* int ack */
+    	struct sb_info *sb = (struct sb_info *)arg;
+
+    	sb_rd(sb, DSP_DATA_AVAIL); /* int ack */
 #ifdef notyet
-    /*
-     * XXX
-     * for full-duplex mode:
-     * should read port 0x6 to identify where interrupt came from.
-     */
+    	/*
+     	* XXX
+     	* for full-duplex mode:
+     	* should read port 0x6 to identify where interrupt came from.
+     	*/
 #endif
-    /*
-     * We are transferring data in DSP normal mode,
-     * so clear the dl to indicate the DMA is stopped.
-     */
-    if (sb->pch.buffer->dl > 0) {
-	sb->pch.buffer->dl = -1;
-	chn_intr(sb->pch.channel);
-    }
-    if (sb->rch.buffer->dl > 0) {
-	sb->rch.buffer->dl = -1;
-	chn_intr(sb->rch.channel);
-    }
+    	/*
+     	* We are transferring data in DSP normal mode,
+     	* so clear the dl to indicate the DMA is stopped.
+     	*/
+    	if (sb->pch.buffer->dl > 0) {
+		sb->pch.buffer->dl = -1;
+		chn_intr(sb->pch.channel);
+    	}
+    	if (sb->rch.buffer->dl > 0) {
+		sb->rch.buffer->dl = -1;
+		chn_intr(sb->rch.channel);
+    	}
 }
 
 static int
-sb_format(struct sb_chinfo *ch, u_int32_t format)
-{
-	ch->fmt = format;
-	return 0;
-}
-
-static int
-sb_speed(struct sb_chinfo *ch, int speed)
+sb_speed(struct sb_chinfo *ch)
 {
     	struct sb_info *sb = ch->parent;
     	int play = (ch->dir == PCMDIR_PLAY)? 1 : 0;
     	int stereo = (ch->fmt & AFMT_STEREO)? 1 : 0;
+	int speed = ch->spd;
 
     	if (sb->bd_flags & BD_F_SB16) {
 		RANGE(speed, 5000, 45000);
@@ -603,7 +612,8 @@ sb_speed(struct sb_chinfo *ch, int speed)
         	u_long flags;
 
     		/* here enforce speed limitations - max 22050 on sb 1.x*/
-    		if (sb->bd_id <= 0x200) max_speed = 22050;
+    		if (sb->bd_id <= 0x200)
+			max_speed = 22050;
 
     		/*
      	 	* SB models earlier than SB Pro have low limit for the
@@ -611,11 +621,15 @@ sb_speed(struct sb_chinfo *ch, int speed)
      	 	* we do not support separate values for rec & play....
      	 	*/
 		if (!play) {
-    			if (sb->bd_id <= 0x200) max_speed = 13000;
-    			else if (sb->bd_id < 0x300) max_speed = 15000;
+    			if (sb->bd_id <= 0x200)
+				max_speed = 13000;
+    			else
+				if (sb->bd_id < 0x300)
+					max_speed = 15000;
 		}
     		RANGE(speed, 4000, max_speed);
-    		if (stereo) speed <<= 1;
+    		if (stereo)
+			speed <<= 1;
 
     		/*
      	 	* Now the speed should be valid. Compute the value to be
@@ -637,8 +651,10 @@ sb_speed(struct sb_chinfo *ch, int speed)
 		flags = spltty();
 		sb_cmd1(sb, 0x40, tconst); /* set time constant */
 		splx(flags);
-    		if (stereo) speed >>= 1;
+    		if (stereo)
+			speed >>= 1;
     	}
+	ch->spd = speed;
     	return speed;
 }
 
@@ -653,24 +669,28 @@ sb_start(struct sb_chinfo *ch)
 	int dh = ch->buffer->chan > 3;
 	u_char i1, i2;
 
-	if (b16 || dh) l >>= 1;
+	if (b16 || dh)
+		l >>= 1;
 	l--;
-	if (play) sb_cmd(sb, DSP_CMD_SPKON);
+
+	if (play)
+		sb_cmd(sb, DSP_CMD_SPKON);
+
 	if (sb->bd_flags & BD_F_SB16) {
-	    i1 = DSP_F16_AUTO | DSP_F16_FIFO_ON |
-	         (play? DSP_F16_DAC : DSP_F16_ADC);
-	    i1 |= (b16 || dh)? DSP_DMA16 : DSP_DMA8;
-	    i2 = (stereo? DSP_F16_STEREO : 0) | (b16? DSP_F16_SIGNED : 0);
-	    sb_cmd(sb, i1);
-	    sb_cmd2(sb, i2, l);
+	    	i1 = DSP_F16_AUTO | DSP_F16_FIFO_ON;
+	        i1 |= play? DSP_F16_DAC : DSP_F16_ADC;
+	    	i1 |= (b16 || dh)? DSP_DMA16 : DSP_DMA8;
+	    	i2 = (stereo? DSP_F16_STEREO : 0) | (b16? DSP_F16_SIGNED : 0);
+	    	sb_cmd(sb, i1);
+	    	sb_cmd2(sb, i2, l);
 	} else {
-	    if (sb->bd_flags & BD_F_HISPEED) i1 = play? 0x90 : 0x98;
-	    else i1 = play? 0x1c : 0x2c;
-	    sb_setmixer(sb, 0x0e, stereo? 2 : 0);
-	    /* an ESS extension -- they can do 16 bits */
-	    if (b16) i1 |= 1;
-	    sb_cmd2(sb, 0x48, l);
-	    sb_cmd(sb, i1);
+	    	if (sb->bd_flags & BD_F_HISPEED)
+			i1 = play? 0x90 : 0x98;
+	    	else
+			i1 = play? 0x1c : 0x2c;
+	    	sb_setmixer(sb, 0x0e, stereo? 2 : 0);
+	    	sb_cmd2(sb, 0x48, l);
+       	    	sb_cmd(sb, i1);
 	}
 	sb->bd_flags |= BD_F_DMARUN << b16;
 	return 0;
@@ -683,7 +703,8 @@ sb_stop(struct sb_chinfo *ch)
     	int play = (ch->dir == PCMDIR_PLAY)? 1 : 0;
     	int b16 = (ch->fmt & AFMT_S16_LE)? 1 : 0;
 
-    	if (sb->bd_flags & BD_F_HISPEED) sb_reset_dsp(sb);
+    	if (sb->bd_flags & BD_F_HISPEED)
+		sb_reset_dsp(sb);
 	else {
 		sb_cmd(sb, b16? DSP_CMD_DMAPAUSE_16 : DSP_CMD_DMAPAUSE_8);
 	       /*
@@ -694,9 +715,106 @@ sb_stop(struct sb_chinfo *ch)
 		if (sb->bd_flags & (BD_F_DMARUN << (1 - b16)))
 			sb_cmd(sb, b16? 0xd4 : 0xd6 );
 	}
-	if (play) sb_cmd(sb, DSP_CMD_SPKOFF); /* speaker off */
+	if (play)
+		sb_cmd(sb, DSP_CMD_SPKOFF); /* speaker off */
 	sb->bd_flags &= ~(BD_F_DMARUN << b16);
 	return 0;
+}
+
+/* channel interface */
+static void *
+sbchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+{
+	struct sb_info *sb = devinfo;
+	struct sb_chinfo *ch = (dir == PCMDIR_PLAY)? &sb->pch : &sb->rch;
+	int dch, dl, dh;
+
+	ch->parent = sb;
+	ch->channel = c;
+	ch->buffer = b;
+	ch->buffer->bufsize = DSP_BUFFSIZE;
+	if (chn_allocbuf(ch->buffer, sb->parent_dmat) == -1)
+		return NULL;
+	dch = (dir == PCMDIR_PLAY)? 1 : 0;
+	if (sb->bd_flags & BD_F_SB16X)
+		dch = !dch;
+	dl = rman_get_start(sb->drq1);
+	dh = sb->drq2? rman_get_start(sb->drq2) : dl;
+	ch->buffer->chan = dch? dh : dl;
+	return ch;
+}
+
+static int
+sbchan_setdir(void *data, int dir)
+{
+	struct sb_chinfo *ch = data;
+
+	ch->dir = dir;
+	return 0;
+}
+
+static int
+sbchan_setformat(void *data, u_int32_t format)
+{
+	struct sb_chinfo *ch = data;
+
+	ch->fmt = format;
+	return 0;
+}
+
+static int
+sbchan_setspeed(void *data, u_int32_t speed)
+{
+	struct sb_chinfo *ch = data;
+
+	ch->spd = speed;
+	return sb_speed(ch);
+}
+
+static int
+sbchan_setblocksize(void *data, u_int32_t blocksize)
+{
+	return blocksize;
+}
+
+static int
+sbchan_trigger(void *data, int go)
+{
+	struct sb_chinfo *ch = data;
+
+	if (go == PCMTRIG_EMLDMAWR)
+		return 0;
+
+	buf_isadma(ch->buffer, go);
+	if (go == PCMTRIG_START)
+		sb_start(ch);
+	else
+		sb_stop(ch);
+	return 0;
+}
+
+static int
+sbchan_getptr(void *data)
+{
+	struct sb_chinfo *ch = data;
+
+	return buf_isadmaptr(ch->buffer);
+}
+
+static pcmchan_caps *
+sbchan_getcaps(void *data)
+{
+	struct sb_chinfo *ch = data;
+	int p = (ch->dir == PCMDIR_PLAY)? 1 : 0;
+
+	if (ch->parent->bd_id < 0x300)
+		return p? &sb_playcaps : &sb_reccaps;
+	else if (ch->parent->bd_id < 0x400)
+		return p? &sbpro_playcaps : &sbpro_reccaps;
+	else if (ch->parent->bd_flags & BD_F_SB16X)
+		return &sb16x_caps;
+	else
+		return (ch->buffer->chan >= 4)? &sb16_hcaps : &sb16_lcaps;
 }
 
 /* utility functions for ESS */
@@ -708,18 +826,21 @@ ess_format(struct sb_chinfo *ch, u_int32_t format)
 	int b16 = (format & AFMT_S16_LE)? 1 : 0;
 	int stereo = (format & AFMT_STEREO)? 1 : 0;
 	u_char c;
+
 	ch->fmt = format;
 	sb_reset_dsp(sb);
 	/* auto-init DMA mode */
 	ess_write(sb, 0xb8, play ? 0x04 : 0x0e);
 	/* mono/stereo */
 	c = (ess_read(sb, 0xa8) & ~0x03) | 1;
-	if (!stereo) c++;
+	if (!stereo)
+		c++;
 	ess_write(sb, 0xa8, c);
 	/* demand mode, 4 bytes/xfer */
 	ess_write(sb, 0xb9, 2);
 	/* setup dac/adc */
-	if (play) ess_write(sb, 0xb6, b16? 0x00 : 0x80);
+	if (play)
+		ess_write(sb, 0xb6, b16? 0x00 : 0x80);
 	ess_write(sb, 0xb7, 0x51 | (b16? 0x20 : 0x00));
 	ess_write(sb, 0xb7, 0x98 + (b16? 0x24 : 0x00) + (stereo? 0x00 : 0x38));
 	/* irq/drq control */
@@ -733,6 +854,7 @@ ess_speed(struct sb_chinfo *ch, int speed)
 {
 	struct sb_info *sb = ch->parent;
 	int t;
+
 	RANGE (speed, 5000, 49000);
 	if (speed > 22000) {
 		t = (795500 + speed / 2) / speed;
@@ -760,6 +882,7 @@ ess_start(struct sb_chinfo *ch)
     	int play = (ch->dir == PCMDIR_PLAY)? 1 : 0;
 	short c = - ch->buffer->dl;
 	u_char c1;
+
 	/*
 	 * clear bit 0 of register B8h
 	 */
@@ -802,94 +925,15 @@ ess_abort(struct sb_chinfo *ch)
 {
 	struct sb_info *sb = ch->parent;
     	int play = (ch->dir == PCMDIR_PLAY)? 1 : 0;
-	if (play) sb_cmd(sb, DSP_CMD_SPKOFF); /* speaker off */
+
+	if (play)
+		sb_cmd(sb, DSP_CMD_SPKOFF); /* speaker off */
 	sb_reset_dsp(sb);
 	ess_format(ch, ch->fmt);
 	ess_speed(ch, ch->channel->speed);
 	return 0;
 }
 
-/* channel interface */
-static void *
-sbchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
-{
-	struct sb_info *sb = devinfo;
-	struct sb_chinfo *ch = (dir == PCMDIR_PLAY)? &sb->pch : &sb->rch;
-	int dch, dl, dh;
-
-	ch->parent = sb;
-	ch->channel = c;
-	ch->buffer = b;
-	ch->buffer->bufsize = DSP_BUFFSIZE;
-	if (chn_allocbuf(ch->buffer, sb->parent_dmat) == -1) return NULL;
-	dch = (dir == PCMDIR_PLAY)? 1 : 0;
-	if (sb->bd_flags & BD_F_SB16X) dch = !dch;
-	dl = rman_get_start(sb->drq1);
-	if (sb->drq2) dh = rman_get_start(sb->drq2); else dh = dl;
-	ch->buffer->chan = dch? dh : dl;
-	return ch;
-}
-
-static int
-sbchan_setdir(void *data, int dir)
-{
-	struct sb_chinfo *ch = data;
-	ch->dir = dir;
-	return 0;
-}
-
-static int
-sbchan_setformat(void *data, u_int32_t format)
-{
-	struct sb_chinfo *ch = data;
-	sb_format(ch, format);
-	return 0;
-}
-
-static int
-sbchan_setspeed(void *data, u_int32_t speed)
-{
-	struct sb_chinfo *ch = data;
-	return sb_speed(ch, speed);
-}
-
-static int
-sbchan_setblocksize(void *data, u_int32_t blocksize)
-{
-	return blocksize;
-}
-
-static int
-sbchan_trigger(void *data, int go)
-{
-	struct sb_chinfo *ch = data;
-	if (go == PCMTRIG_EMLDMAWR) return 0;
-	buf_isadma(ch->buffer, go);
-	if (go == PCMTRIG_START) sb_start(ch); else sb_stop(ch);
-	return 0;
-}
-
-static int
-sbchan_getptr(void *data)
-{
-	struct sb_chinfo *ch = data;
-	return buf_isadmaptr(ch->buffer);
-}
-
-static pcmchan_caps *
-sbchan_getcaps(void *data)
-{
-	struct sb_chinfo *ch = data;
-	int p = (ch->dir == PCMDIR_PLAY)? 1 : 0;
-	if (ch->parent->bd_id < 0x300)
-		return p? &sb_playcaps : &sb_reccaps;
-	else if (ch->parent->bd_id < 0x400)
-		return p? &sbpro_playcaps : &sbpro_reccaps;
-	else if (ch->parent->bd_flags & BD_F_SB16X)
-		return &sb16x_caps;
-	else
-		return (ch->buffer->chan >= 4)? &sb16_hcaps : &sb16_lcaps;
-}
 /* channel interface for ESS18xx */
 static void *
 esschan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
@@ -901,7 +945,8 @@ esschan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	ch->channel = c;
 	ch->buffer = b;
 	ch->buffer->bufsize = ESS_BUFFSIZE;
-	if (chn_allocbuf(ch->buffer, sb->parent_dmat) == -1) return NULL;
+	if (chn_allocbuf(ch->buffer, sb->parent_dmat) == -1)
+		return NULL;
 	ch->buffer->chan = rman_get_start(sb->drq1);
 	return ch;
 }
@@ -910,6 +955,7 @@ static int
 esschan_setdir(void *data, int dir)
 {
 	struct sb_chinfo *ch = data;
+
 	ch->dir = dir;
 	return 0;
 }
@@ -918,6 +964,7 @@ static int
 esschan_setformat(void *data, u_int32_t format)
 {
 	struct sb_chinfo *ch = data;
+
 	ess_format(ch, format);
 	return 0;
 }
@@ -926,6 +973,7 @@ static int
 esschan_setspeed(void *data, u_int32_t speed)
 {
 	struct sb_chinfo *ch = data;
+
 	return ess_speed(ch, speed);
 }
 
@@ -939,7 +987,9 @@ static int
 esschan_trigger(void *data, int go)
 {
 	struct sb_chinfo *ch = data;
-	if (go == PCMTRIG_EMLDMAWR) return 0;
+
+	if (go == PCMTRIG_EMLDMAWR)
+		return 0;
 	switch (go) {
 	case PCMTRIG_START:
 		if (!ch->ess_dma_started)
@@ -968,6 +1018,7 @@ static int
 esschan_getptr(void *data)
 {
 	struct sb_chinfo *ch = data;
+
 	return buf_isadmaptr(ch->buffer);
 }
 
@@ -975,6 +1026,7 @@ static pcmchan_caps *
 esschan_getcaps(void *data)
 {
 	struct sb_chinfo *ch = data;
+
 	return (ch->dir == PCMDIR_PLAY)? &ess_playcaps : &ess_reccaps;
 }
 
@@ -1058,8 +1110,10 @@ sbmix_setrecsrc(snd_mixer *m, u_int32_t src)
 
     	switch (sb->bd_flags & BD_F_MIX_MASK) {
     	case BD_F_MIX_CT1345:
-		if      (src == SOUND_MASK_LINE) 	recdev = 0x06;
-		else if (src == SOUND_MASK_CD) 		recdev = 0x02;
+		if      (src == SOUND_MASK_LINE)
+			recdev = 0x06;
+		else if (src == SOUND_MASK_CD)
+			recdev = 0x02;
 		else { /* default: mic */
 	    		src = SOUND_MASK_MIC;
 	    		recdev = 0;
@@ -1070,10 +1124,14 @@ sbmix_setrecsrc(snd_mixer *m, u_int32_t src)
 
     	case BD_F_MIX_CT1745: /* sb16 */
 		recdev = 0;
-		if (src & SOUND_MASK_MIC)   recdev |= 0x01; /* mono mic */
-		if (src & SOUND_MASK_CD)    recdev |= 0x06; /* l+r cd */
-		if (src & SOUND_MASK_LINE)  recdev |= 0x18; /* l+r line */
-		if (src & SOUND_MASK_SYNTH) recdev |= 0x60; /* l+r midi */
+		if (src & SOUND_MASK_MIC)
+			recdev |= 0x01; /* mono mic */
+		if (src & SOUND_MASK_CD)
+			recdev |= 0x06; /* l+r cd */
+		if (src & SOUND_MASK_LINE)
+			recdev |= 0x18; /* l+r line */
+		if (src & SOUND_MASK_SYNTH)
+			recdev |= 0x60; /* l+r midi */
 		sb_setmixer(sb, SB16_IMASK_L, recdev);
 		sb_setmixer(sb, SB16_IMASK_R, recdev);
 		/*
@@ -1119,7 +1177,8 @@ sbsbc_attach(device_t dev)
 	uintptr_t ver;
 
     	sb = (struct sb_info *)malloc(sizeof *sb, M_DEVBUF, M_NOWAIT);
-    	if (!sb) return ENXIO;
+    	if (!sb)
+		return ENXIO;
     	bzero(sb, sizeof *sb);
 
 	BUS_READ_IVAR(device_get_parent(dev), dev, 1, &ver);
