@@ -51,6 +51,8 @@ infrastructure in FreeBSD:
 	etc/mtree/BSD.include.dist
 	etc/mtree/BSD.usr.dist
 	etc/mtree/BSD.var.dist
+	etc/periodic/daily/440.status-mailq
+	etc/periodic/daily/500.queuerun
 	etc/rc
 	etc/sendmail/Makefile
 	etc/sendmail/freebsd.mc
