@@ -211,6 +211,17 @@ A potential security hole caused by an off-by-one-error in
 gethostbyname(3) has been fixed (see security advisory
 FreeBSD-SA-00:63).  [MERGED]
 
+A potential buffer overflow in the ncurses(3X) library, which could
+cause arbitrary code to be run from within systat(1), has been corrected
+(see security advisory FreeBSD-SA-00:68).  [MERGED]
+
+A vulnerability in telnetd(8) that could cause it to consume large
+amounts of server resources has been fixed (see security advisory
+FreeBSD-SA-00:69).  [MERGED]
+
+The "nat deny_incoming" command in ppp(8) now works correctly (see
+security advisory FreeBSD-SA-00:70).  [MERGED]
+
 
 1.3. USERLAND CHANGES
 ---------------------
