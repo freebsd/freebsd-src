@@ -2,7 +2,7 @@
  ** Copyright (c) 1995
  **      Michael Smith, msmith@atrad.adelaide.edu.au.  All rights reserved.
  **
- ** This code replaces a module marked :
+ ** This code contains a module marked :
 
  * Copyright (c) 1991 Regents of the University of California.
  * All rights reserved.
@@ -17,8 +17,8 @@
  * University of California Berkeley, Jordan K. Hubbard,
  * David Greenman and Bruce Evans.
 
- ** As such, it may contain code subject to the above copyrights.
- **
+ ** As such, it contains code subject to the above copyrights.
+ ** The module and its copyright can be found below.
  ** 
  ** Redistribution and use in source and binary forms, with or without
  ** modification, are permitted provided that the following conditions
@@ -46,13 +46,23 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.31 1995/09/06 03:36:36 jkh Exp $
+ **      $Id$
  **/
 
 /**
- ** USERCONF2
+ ** USERCONFIG
  **
- ** Fullscreen kernel boot-time configuration manipulation tool for FreeBSD.
+ ** Kernel boot-time configuration manipulation tool for FreeBSD.
+ **
+ ** Two modes of operation are supported : the default is the line-editor mode,
+ ** the command "visual" invokes the fullscreen mode.
+ **
+ ** The line-editor mode is the old favorite from FreeBSD 2.0/20.05 &c., the 
+ ** fullscreen mode requires syscons or a minimal-ansi serial console.
+ **/
+
+/**
+ ** USERCONFIG, visual mode.
  **
  **   msmith@atrad.adelaide.edu.au
  **
@@ -82,18 +92,19 @@
  **
  ** XXX - TODO:
  ** 
+ ** - FIX OPERATION WITH PCVT!
+ ** 
  ** - Display _what_ a device conflicts with.
+ ** - Implement page up/down (as what?)
+ ** - Wizard mode (no restrictions)
  ** - Find out how to put syscons back into low-intensity mode so that the
  **   !b escape is useful on the console.
  ** - The min and max values used for editing parameters are probably 
  **   very bogus - fix?
  **
- ** - ?? Smarter redraw() to reduce screen flicker whenever something is
- **   edited.
- **
+ ** - Only display headings with devices under them. (difficult)
  **/
 
-#ifdef KERNEL
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -106,18 +117,12 @@
 
 static struct isa_device *devtabs[] = { isa_devtab_bio, isa_devtab_tty, isa_devtab_net,
 				     isa_devtab_null, NULL };
+
+struct isa_device	*isa_devlist = NULL;	/* list read by dset to extract changes */
+
 #define putchar(x)	cnputc(x)
 #define getchar()	cngetc()
 
-#else
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <termios.h>
-#include <string.h>
-
-static void fakedevs(void);			    
-#endif
 
 #ifndef FALSE
 #define FALSE	(0)
@@ -158,12 +163,12 @@ typedef struct
 } DEVCLASS_INFO;
 
 static DEVCLASS_INFO devclass_names[] = {
-{	"======= Storage ======",	CLS_STORAGE},
-{	"======= Network ======",	CLS_NETWORK},
-{	"=== Communications ===",	CLS_COMMS},
-{	"======== Input =======",	CLS_INPUT},
-{	"===== Multimedia =====",	CLS_MMEDIA},
-{	"==== Miscellaneous ===",	CLS_MISC},
+{	"Storage :        ",	CLS_STORAGE},
+{	"Network :        ",	CLS_NETWORK},
+{	"Communications : ",	CLS_COMMS},
+{	"Input :          ",	CLS_INPUT},
+{	"Multimedia :     ",	CLS_MMEDIA},
+{	"Miscellaneous :  ",	CLS_MISC},
 {	"",0}};
 
 
@@ -186,7 +191,7 @@ static DEV_INFO device_info[] = {
 {"ahc",         "Adaptec 274x/284x/294x SCSI controller",	0,	CLS_STORAGE},
 {"ahb",         "Adaptec 174x SCSI controller",		0,		CLS_STORAGE},
 {"aha",         "Adaptec 154x SCSI controller",		0,		CLS_STORAGE},
-{"uha",         "Ultrastor 14F/34F SCSI controller",	0,		CLS_STORAGE},
+{"uha",         "Ultrastor 14F/24F/34F SCSI controller",0,		CLS_STORAGE},
 {"aic",         "Adaptec 152x SCSI and compatible sound cards",	0,      CLS_STORAGE},
 {"nca",         "ProAudio Spectrum SCSI and comaptibles",	0,	CLS_STORAGE},
 {"sea",         "Seagate ST01/ST02 SCSI and compatibles",	0,	CLS_STORAGE},
@@ -216,7 +221,7 @@ static DEV_INFO device_info[] = {
 {"sio",         "8250/16450/16550 Serial port",		0,		CLS_COMMS},
 {"cx",          "Cronyx/Sigma multiport sync/async adapter",0,		CLS_COMMS},
 {"rc",          "RISCom/8 multiport async adapter",	0,		CLS_COMMS},
-{"cy",          "Cyclades high-speed multiport async adapter",	0,	CLS_COMMS},
+{"cy",          "Cyclades multiport async adapter",	0,		CLS_COMMS},
 {"lpt",         "Parallel printer port",		0,		CLS_COMMS},
 {"nic",         "ISDN driver",				0,		CLS_COMMS},
 {"nnic",        "ISDN driver",				0,		CLS_COMMS},
@@ -225,8 +230,8 @@ static DEV_INFO device_info[] = {
 {"mse",         "Microsoft Bus Mouse",			0,		CLS_INPUT},
 {"psm",         "PS/2 Mouse",				0,		CLS_INPUT},
 {"joy",         "Joystick",				FLG_FIXED,	CLS_INPUT},
-{"vt",          "PCVT console driver",			FLG_INVISIBLE,	CLS_INPUT},
-{"sc",          "Syscons console driver",		FLG_INVISIBLE,	CLS_INPUT},
+{"vt",          "PCVT console driver",			FLG_FIXED,	CLS_INPUT},
+{"sc",          "Syscons console driver",		FLG_FIXED,	CLS_INPUT},
 
 {"sb",          "Soundblaster PCM (SB, SBPro, SB16, ProAudio Spectrum)",0,CLS_MMEDIA},
 {"sbxvi",       "Soundblaster 16",			0,		CLS_MMEDIA},
@@ -287,6 +292,9 @@ typedef struct _devlist_struct
 #define KEY_RIGHT	8
 #define KEY_NULL	9	/* this allows us to spin & redraw */
 
+#define KEY_ZOOM	10	/* these for zoom all/collapse all */
+#define KEY_UNZOOM	11
+
 static void redraw(void);
 static void insdev(DEV_LIST *dev, DEV_LIST *list);
 static int  devinfo(DEV_LIST *dev);
@@ -301,7 +309,6 @@ static char lines[] = "---------------------------------------------------------
 static char spaces[] = "                                                                                     ";
 
 
-#ifdef KERNEL
 /**
  ** Device manipulation stuff : find, describe, configure.
  **/
@@ -330,7 +337,6 @@ setdev(DEV_LIST *dev, int enabled)
  ** getdevs
  **
  ** Walk the kernel device tables and build the active and inactive lists
- **
  **/
 static void 
 getdevs(void)
@@ -385,7 +391,7 @@ getdevs(void)
 	    }
 	}
     }
-#endif
+#endif	/* NPCI > 0 */
 }
 
 
@@ -397,7 +403,6 @@ getdevs(void)
  **
  ** If the device is marked "invisible", return nonzero; the caller should
  ** not insert any such device into either list.
- **
  **/
 static int
 devinfo(DEV_LIST *dev)
@@ -422,8 +427,6 @@ devinfo(DEV_LIST *dev)
     return(0);
 }
     
-#endif
-
 
 /**
  ** List manipulation stuff : add, move, initialise, free, traverse
@@ -445,11 +448,7 @@ addev(DEV_LIST *dev, DEV_LIST **list)
 
     DEV_LIST	*lp,*ap;
 
-#ifdef KERNEL
     lp = (DEV_LIST *)malloc(sizeof(DEV_LIST),M_DEVL,M_WAITOK);
-#else
-    lp = (DEV_LIST *)malloc(sizeof(DEV_LIST));
-#endif
     bcopy(dev,lp,sizeof(DEV_LIST));			/* create copied record */
 
     if (*list)						/* list exists */
@@ -546,11 +545,7 @@ insdev(DEV_LIST *dev, DEV_LIST *list)
 {
     DEV_LIST	*lp,*ap;
 
-#ifdef KERNEL
     lp = (DEV_LIST *)malloc(sizeof(DEV_LIST),M_DEVL,M_WAITOK);
-#else
-    lp = (DEV_LIST *)malloc(sizeof(DEV_LIST));
-#endif
     bcopy(dev,lp,sizeof(DEV_LIST));			/* create copied record */
 
     ap = findspot(lp,list);				/* find appropriate spot */
@@ -590,7 +585,6 @@ movedev(DEV_LIST *dev, DEV_LIST *list)
  ** Initlist
  **
  ** Initialises (*list) with the basic headings
- **
  **/
 static void 
 initlist(DEV_LIST **list)
@@ -614,16 +608,40 @@ initlist(DEV_LIST **list)
  ** Walks (list) and saves the settings of any entry marked as changed.
  **
  ** The device's active field is set according to (active).
+ **
+ ** Builds the isa_devlist used by dset to extract the changed device information.
+ ** The code for this was taken almost verbatim from the original module.
  **/
 static void
 savelist(DEV_LIST *list, int active)
 {
+    struct isa_device	*id_p,*id_pn;
+
     while (list)
     {
-#ifdef KERNEL
 	if ((list->comment == DEV_DEVICE) && list->changed)
-	    setdev(list,active);
-#endif
+	{
+	    setdev(list,active);			/* set the device itself */
+
+	    id_pn = NULL;
+	    for (id_p=isa_devlist; id_p; id_p=id_p->id_next) 
+	    {						/* look on the list for it */
+		if (id_p->id_id == list->device->id_id) 
+		{
+		    id_pn = id_p->id_next;
+		    bcopy(list->device,id_p,sizeof(struct isa_device));
+		    id_p->id_next = id_pn;
+		    break;
+		}
+	    }
+	    if (!id_pn)					/* not already on the list */
+	    {
+		id_pn = malloc(sizeof(struct isa_device),M_DEVL,M_WAITOK);
+		bcopy(list->device,id_pn,sizeof(struct isa_device));
+		id_pn->id_next = isa_devlist;
+		isa_devlist = id_pn;			/* park at top of list */
+	    }
+	}
 	list = list->next;
     }
 }
@@ -648,11 +666,7 @@ nukelist(DEV_LIST *list)
     {
 	dp = list;
 	list = list->next;
-#ifdef KERNEL
 	free(dp,M_DEVL);
-#else
-	free(dp);
-#endif
     }
 }
 
@@ -663,7 +677,6 @@ nukelist(DEV_LIST *list)
  ** Returns the previous entry in (list), skipping zoomed regions.  Returns NULL
  ** if there is no previous entry. (Only possible if list->prev == NULL given the
  ** premise that there is always a comment at the head of the list)
- **
  **/
 static DEV_LIST *
 prevent(DEV_LIST *list)
@@ -736,6 +749,7 @@ static int
 findconflict(DEV_LIST *list)
 {
     int		count = 0;			/* number of conflicts found */
+    int		ic;
     DEV_LIST	*dp,*sp;
 
     for (dp = list; dp; dp = dp->next)		/* over the whole list */
@@ -755,23 +769,57 @@ findconflict(DEV_LIST *list)
 
 	    if ((dp->iobase > 0) &&		/* iobase conflict? */
 		(dp->iobase == sp->iobase))
-		dp->conflicts++;
+		dp->conflicts = 1;
 	    if ((dp->irq > 0) &&		/* irq conflict? */
 		(dp->irq == sp->irq))
-		dp->conflicts++;
+		dp->conflicts = 1;
 	    if ((dp->drq > 0) &&		/* drq conflict? */
 		(dp->drq == sp->drq))
-		dp->conflicts++;
+		dp->conflicts = 1;
 	    if ((dp->maddr > 0) &&		/* maddr conflict? */
 		(dp->maddr == sp->maddr))
-		dp->conflicts++;
+		dp->conflicts = 1;
 	    if ((dp->msize > 0) &&		/* msize conflict? */
 		(dp->msize == sp->msize))
-		dp->conflicts++;
+		dp->conflicts = 1;
 	}
 	count += dp->conflicts;			/* count conflicts */
     }
     return(count);
+}
+
+
+/**
+ ** expandlist
+ **
+ ** Unzooms all headings in (list)
+ **/
+static void
+expandlist(DEV_LIST *list)
+{
+    while(list)
+    {
+	if (list->comment == DEV_COMMENT)
+	    list->comment = DEV_ZOOMED;
+	list = list->next;
+    }
+}
+
+
+/**
+ ** collapselist
+ **
+ ** Zooms all headings in (list)
+ **/
+static void
+collapselist(DEV_LIST *list)
+{
+    while(list)
+    {
+	if (list->comment == DEV_ZOOMED)
+	    list->comment = DEV_COMMENT;
+	list = list->next;
+    }
 }
 
 
@@ -783,7 +831,7 @@ findconflict(DEV_LIST *list)
  **     0    5   10   15   20   25   30   35   40   45   50   55   60   67   70   75
  **     |....|....|....|....|....|....|....|....|....|....|....|....|....|....|....|....
  **    +--------------------------------------------------------------------------------+
- ** 0 -|---Active Drivers----------------------------------------------Dev---IRQ--Port--|
+ ** 0 -|---Active Drivers----------------------------xx Conflicts------Dev---IRQ--Port--|
  ** 1 -| ........................                                    .......  ..  0x....|
  ** 2 -| ........................                                    .......  ..  0x....|
  ** 3 -| ........................                                    .......  ..  0x....|
@@ -791,7 +839,7 @@ findconflict(DEV_LIST *list)
  ** 5 -| ........................                                    .......  ..  0x....|
  ** 6 -| ........................                                    .......  ..  0x....|
  ** 7 -| ........................                                    .......  ..  0x....|
- ** 8 -|------------------------------------------------------UP-DOWN-------------------|
+ ** 8 -| ........................                                    .......  ..  0x....|
  ** 9 -|---Inactive Drivers--------------------------------------------Dev--------------|
  ** 10-| ........................                                    .......            |
  ** 11-| ........................                                    .......            |
@@ -805,11 +853,43 @@ findconflict(DEV_LIST *list)
  ** 19-|                                                                                |
  ** 20-|                                                                                |
  ** 21-|--------------------------------------------------------------------------------|
- ** 22-| [Enter] edit device parameters  [DEL] disable device                           |
- ** 23-| [TAB]   change fields           [Q] save and exit                              |
+ ** 22-| Help texts go here                                                             |
+ ** 23-|                                                                                |
  **    +--------------------------------------------------------------------------------+
  **
+ ** Help texts
+ **
+ ** On a collapsed comment :
+ **
+ ** [Enter] Expand device list      [z]   Expand all lists
+ ** [TAB]   Change fields           [Q]   Save and Exit
+ **
+ ** On an expanded comment :
+ ** 
+ ** [Enter] Collapse device list    [Z]   Collapse all lists
+ ** [TAB]   Change fields           [Q]   Save and Exit
+ **
+ ** On a comment with no followers
+ **
+ ** 
+ ** [TAB]   Change fields           [Q]   Save and Exit
+ **
+ ** On a device in the active list
+ **
+ ** [Enter] Edit device parameters  [DEL] Disable device
+ ** [TAB]   Change fields           [Q]   Save and Exit
+ **
+ ** On a device in the inactive list
+ **
+ ** [Enter] Enable device
+ ** [TAB]   Change fields           [Q]   Save and Exit
+ **
+ ** While editing parameters
+ **
+ ** <parameter-specific help here>
+ ** [TAB]   Change fields           [Q]   Save device parameters
  **/
+
 
 
 /**
@@ -890,8 +970,6 @@ move(int x, int y)
  ** !i - inverse mode.
  ** !b - bold mode.
  ** !n - normal mode.
- **
- **
  **/
 static void 
 putxyl(int x, int y, char *str, int len)
@@ -956,8 +1034,6 @@ erase(int x, int y, int w, int h)
  **
  ** Writes (str) into the region (x,y,w,h), supports embedded formatting using
  ** putxy.  Lines are not wrapped, newlines must be forced with \n.
- **
- **
  **/
 static void 
 txtbox(int x, int y, int w, int h, char *str)
@@ -987,16 +1063,12 @@ txtbox(int x, int y, int w, int h, char *str)
  ** putmsg
  **
  ** writes (msg) in the helptext area
- **
  **/
 static void 
 putmsg(char *msg)
 {
     erase(0,18,80,3);				/* clear area */
     txtbox(0,18,80,3,msg);
-#ifndef KERNEL
-    fflush(stdout);
-#endif
 }
 
 
@@ -1014,10 +1086,22 @@ puthelp(char *msg)
 
 
 /**
+ ** masterhelp
+ **
+ ** Draws the help message at the bottom of the screen
+ **/
+static void
+masterhelp(char *msg)
+{
+    erase(0,23,80,1);
+    putxy(0,23,msg);
+}
+
+
+/**
  ** pad 
  **
  ** space-pads a (str) to (len) characters
- ** 
  **/
 static void 
 pad(char *str, int len)
@@ -1042,18 +1126,23 @@ pad(char *str, int len)
  **
  ** The text (dhelp) is displayed if the item is a normal device, otherwise
  ** help is shown for normal or zoomed comments
- **
  **/
 static void 
 drawline(int row, int detail, DEV_LIST *list, int inverse, char *dhelp)
 {
     char	lbuf[90],nb[70],db[20],ib[16],pb[16];
     
-    strncpy(nb,list->name,58);
+    if (list->comment == DEV_DEVICE)
+    {
+	nb[0] = ' ';
+	strncpy(nb+1,list->name,57);
+    }else{
+	strncpy(nb,list->name,58);
+	if ((list->comment == DEV_ZOOMED) && (list->next))
+	    if (list->next->comment == DEV_DEVICE)	/* only mention if there's something hidden */
+		strcat(nb,"  (Collapsed)");
+    }
     nb[58] = '\0';
-    if ((list->comment == DEV_ZOOMED) && (list->next))
-	if (list->next->comment == DEV_DEVICE)	/* only mention if there's something hidden */
-	    strcat(nb,"  (Collapsed)");
     pad(nb,60);
     if (list->conflicts)			/* device in conflict? */
 	if (inverse)
@@ -1088,20 +1177,29 @@ drawline(int row, int detail, DEV_LIST *list, int inverse, char *dhelp)
     sprintf(lbuf,"  %s%s%s%s%s",inverse?"!i":"",nb,db,ib,pb);
 
     putxyl(0,row,lbuf,80);
-    switch(list->comment)
+    if (dhelp)
     {
-    case DEV_DEVICE:			/* ordinary device */
-	puthelp(dhelp);
-	break;
-    case DEV_COMMENT:
-	puthelp("  [!bEnter!n] Collapse device list");
-	break;
-    case DEV_ZOOMED:
-	puthelp("  [!bEnter!n] Expand device list");
-	break;
-    default:
-	puthelp("  WARNING: This list entry corrupted!");
-	break;
+	switch(list->comment)
+	{
+	case DEV_DEVICE:	/* ordinary device */
+	    puthelp(dhelp);
+	    break;
+	case DEV_COMMENT:
+	    puthelp("");
+	    if (list->next)
+		if (list->next->comment == DEV_DEVICE)
+		    puthelp("  [!bEnter!n] Collapse device list    [!bC!n]    Collapse all lists");
+	    break;
+	case DEV_ZOOMED:	
+	    puthelp("");
+	    if (list->next)
+		if (list->next->comment == DEV_DEVICE)
+		    puthelp("  [!bEnter!n] Expand device list      [!bX!n]    Expand all lists");
+	    break;
+	default:
+	    puthelp("  WARNING: This list entry corrupted!");
+	    break;
+	}
     }
     move(0,row);				/* put the cursor somewhere relevant */
 }
@@ -1122,11 +1220,46 @@ drawlist(int row, int num, int detail, DEV_LIST *list)
 
     for(ofs = 0; ofs < num; ofs++)
     {
-	drawline(row+ofs,detail,list,0,"");
-	list = nextent(list);			/* move down visible list */
-	if (!list)
-	    return;				/* nothing more to draw */
+	if (list)
+	{
+	    drawline(row+ofs,detail,list,0,"");
+	    list = nextent(list);			/* move down visible list */
+	}else{
+	    erase(0,row+ofs,80,1);
+	}
     }
+}
+
+
+/**
+ ** redrawactive
+ **
+ ** Redraws the active list 
+ **/
+static void
+redrawactive(void)
+{
+    char	cbuf[16];
+
+    if (conflicts)
+    {
+	sprintf(cbuf,"!i%d conflict%s",conflicts,(conflicts>1)?"s":"");
+	putxy(45,0,cbuf);
+    }else{
+	putxyl(45,0,lines,16);
+    }
+    drawlist(1,8,1,alist);			/* draw device lists */
+}
+
+/**
+ ** redrawinactive
+ **
+ ** Redraws the inactive list 
+ **/
+static void
+redrawinactive(void)
+{
+    drawlist(10,7,0,ilist);			/* draw device lists */
 }
 
 
@@ -1134,32 +1267,23 @@ drawlist(int row, int num, int detail, DEV_LIST *list)
  ** redraw
  **
  ** Clear the screen and redraw the entire layout
- **
  **/
 static void 
 redraw(void)
 {
-    char	cbuf[16];
-
     clear();
     putxy(0,0,lines);
     putxy(3,0,"!bActive!n-!bDrivers");
     putxy(63,0,"!bDev!n---!bIRQ!n--!bPort");
-    putxy(0,8,lines);
-    if (conflicts)
-    {
-	sprintf(cbuf,"!i%d conflict%s",conflicts/2,(conflicts>2)?"s":"");
-	putxy(25,8,cbuf);
-    }
     putxy(0,9,lines);
     putxy(3,9,"!bInactive!n-!bDrivers");
     putxy(63,9,"!bDev");
     putxy(0,17,lines);
     putxy(0,21,lines);
-    putxy(2,23,"[!bTAB!n]   change fields           [!bQ!n]   save and exit");
+    masterhelp("  [!bTAB!n]   Change fields           [!bQ!n]   Save and Exit");
 
-    drawlist(1,7,1,alist);			/* draw device lists */
-    drawlist(10,7,0,ilist);
+    redrawactive();
+    redrawinactive();
 }
 
 
@@ -1168,7 +1292,6 @@ redraw(void)
  **
  ** Put (str) in the message area, and return 1 if the user hits 'y' or 'Y',
  ** 2 if they hit 'c' or 'C',  or 0 for 'n' or 'N'.
- **
  **/
 static int
 yesnocancel(char *str)
@@ -1639,9 +1762,7 @@ editparams(DEV_LIST *dev)
 	}
     }
     ep_exit:
-#ifdef KERNEL
     dev->changed = 1;					/* mark as changed */
-#endif
 }
 
 
@@ -1663,7 +1784,6 @@ editparams(DEV_LIST *dev)
  ** position of the highlight within the region.  All routines below
  ** this take only a device and an absolute row : use ofsent() to find the 
  ** device, and add (*ofs) to (row) to find the absolute row.
- **
  **/
 static int 
 dolist(int row, int num, int detail, int *ofs, DEV_LIST **list, char *dhelp)
@@ -1677,10 +1797,9 @@ dolist(int row, int num, int detail, int *ofs, DEV_LIST **list, char *dhelp)
     {
 	if (delta)
 	{
-	    putxy(54,row+num,prevent(*list)?"UP":"--");			/* go up? */
-	    putxy(57,row+num,ofsent(num,*list)?"DOWN":"----");		/* go down? */
 	    showparams(ofsent(*ofs,*list));				/* show device parameters */
 	    drawline(row+*ofs,detail,ofsent(*ofs,*list),1,dhelp);	/* highlight current line */
+	    delta = 0;
 	}
 
 	c = getchar();				/* get a character */
@@ -1748,6 +1867,14 @@ dolist(int row, int num, int detail, int *ofs, DEV_LIST **list, char *dhelp)
 	    case 599:
 		return(KEY_DEL);		/* "delete" response */
 
+	    case 'X':
+	    case 'x':
+		return(KEY_UNZOOM);		/* expand everything */
+		
+	    case 'C':
+	    case 'c':
+		return(KEY_ZOOM);		/* collapse everything */
+
 	    case '\t':
 		drawline(row+*ofs,detail,ofsent(*ofs,*list),0,dhelp);	/* unhighlight current line */
 		return(KEY_TAB);				/* "move" response */
@@ -1761,12 +1888,12 @@ dolist(int row, int num, int detail, int *ofs, DEV_LIST **list, char *dhelp)
 
 
 /**
- ** userconfig
+ ** visuserconfig
  ** 
- ** Do the config thang
+ ** Do the fullscreen config thang
  **/
-void 
-userconfig(void)
+int
+visuserconfig(void)
 {
     int	actofs = 0, inactofs = 0, mode = 0, ret = -1, i;
     DEV_LIST	*dp;
@@ -1776,11 +1903,7 @@ userconfig(void)
     alist = active;
     ilist = inactive;
 
-#ifndef KERNEL
-    fakedevs();
-#else
     getdevs();
-#endif
 
     conflicts = findconflict(active);		/* find conflicts in the active list only */
 
@@ -1791,8 +1914,8 @@ userconfig(void)
 	switch(mode)
 	{
 	case 0:					/* active devices */
-	    ret = dolist(1,7,1,&actofs,&alist,
-			 "  [!bEnter!n] edit device parameters  [!bDEL!n] disable device");
+	    ret = dolist(1,8,1,&actofs,&alist,
+			 "  [!bEnter!n] Edit device parameters  [!bDEL!n] Disable device");
 	    switch(ret)
 	    {
 	    case KEY_TAB:
@@ -1803,8 +1926,21 @@ userconfig(void)
 		redraw();
 		break;
 
-	    case KEY_DEL:
+	    case KEY_ZOOM:
+		alist = active;
+		actofs = 0;
+		expandlist(active);
+		redrawactive();
+		break;
 
+	    case KEY_UNZOOM:
+		alist = active;
+		actofs = 0;
+		collapselist(active);
+		redrawactive();
+		break;
+
+	    case KEY_DEL:
 		dp = ofsent(actofs,alist);	/* get current device */
 		if (dp)				/* paranoia... */
 		{
@@ -1825,10 +1961,9 @@ userconfig(void)
 		    dp->conflicts = 0;		/* no conflicts on the inactive list */
 		    movedev(dp,inactive);	/* shift to inactive list */
 		    conflicts = findconflict(active);	/* update conflict tags */
-#ifdef KERNEL
 		    dp->changed = 1;
-#endif
-		    redraw();			/* redraw */
+		    redrawactive();			/* redraw */
+		    redrawinactive();
 		}
 		break;
 		
@@ -1838,7 +1973,9 @@ userconfig(void)
 		{
 		    if (dp->comment == DEV_DEVICE)	/* can't edit comments, zoom? */
 		    {
+			masterhelp("  [!bTAB!n]   Change fields           [!bQ!n]   Save device parameters");
 			editparams(dp);
+			masterhelp("  [!bTAB!n]   Change fields           [!bQ!n]   Save and Exit");
 			conflicts = findconflict(active);	/* update conflict tags */
 
 		    }else{				/* DO on comment = zoom */
@@ -1850,16 +1987,10 @@ userconfig(void)
 
 			case DEV_ZOOMED:
 			    dp->comment = DEV_COMMENT;
-			    if (dp->next)
-				if (dp->next->comment == DEV_DEVICE)
-				{
-				    actofs = 0;		/* put at top of region */
-				    alist = dp;
-				}
 			    break;
 			}
 		    }
-		    redraw();
+		    redrawactive();
 		}
 		break;
 	    }
@@ -1867,7 +1998,7 @@ userconfig(void)
 
 	case 1:					/* inactive devices */
 	    ret = dolist(10,7,0,&inactofs,&ilist,
-			 "  [!bEnter!n] enable device                                   ");
+			 "  [!bEnter!n] Enable device                                   ");
 	    switch(ret)
 	    {
 	    case KEY_TAB:
@@ -1876,6 +2007,20 @@ userconfig(void)
 
 	    case KEY_REDRAW:
 		redraw();
+		break;
+
+	    case KEY_ZOOM:
+		ilist = inactive;
+		inactofs = 0;
+		expandlist(inactive);
+		redrawinactive();
+		break;
+
+	    case KEY_UNZOOM:
+		ilist = inactive;
+		inactofs = 0;
+		collapselist(inactive);
+		redrawinactive();
 		break;
 
 	    case KEY_DO:
@@ -1899,9 +2044,7 @@ userconfig(void)
 
 			movedev(dp,active);		/* shift to active list */
 			conflicts = findconflict(active);	/* update conflict tags */
-#ifdef KERNEL
 			dp->changed = 1;
-#endif
 			alist = dp;			/* put at top and current */
 			actofs = 0;
 			while(dp->comment == DEV_DEVICE)
@@ -1918,16 +2061,11 @@ userconfig(void)
 
 			case DEV_ZOOMED:
 			    dp->comment = DEV_COMMENT;
-			    if (dp->next)
-				if (dp->next->comment == DEV_DEVICE)
-				{
-				    inactofs = 0;		/* put at top of region */
-				    ilist = dp;
-				}
 			    break;
 			}
 		    }
-		    redraw();			/* redraw */
+		    redrawactive();			/* redraw */
+		    redrawinactive();
 		}
 		break;
 
@@ -1956,115 +2094,673 @@ userconfig(void)
 		nukelist(inactive);
 		normal();
 		clear();
-		return;
+		return(1);
 	    }
 	}
     }
 }
 
+/*
+ * Copyright (c) 1991 Regents of the University of California.
+ * All rights reserved.
+ * Copyright (c) 1994 Jordan K. Hubbard
+ * All rights reserved.
+ * Copyright (c) 1994 David Greenman
+ * All rights reserved.
+ *
+ * Many additional changes by Bruce Evans
+ *
+ * This code is derived from software contributed by the
+ * University of California Berkeley, Jordan K. Hubbard,
+ * David Greenman and Bruce Evans.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *      This product includes software developed by the University of
+ *      California, Berkeley and its contributors.
+ * 4. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ *      $Id: userconfig.c,v 1.28.4.1 1995/08/23 09:37:28 davidg Exp $
+ */
 
-/** All code below is for testing as a usermode program.  XXX This should go away. **/
 
-#ifndef KERNEL
-void 
-main(int argc, char *argv[])
-{
-    struct termios t,u;
+#include <scsi/scsiconf.h>
+#include "scbus.h"
 
-    tcgetattr(fileno(stdin),&t);
-    cfmakeraw(&u);
-    tcsetattr(fileno(stdin),TCSANOW,&u);
-    userconfig();
-    tcsetattr(fileno(stdin),TCSANOW,&t);
-}
+#define PARM_DEVSPEC	0x1
+#define PARM_INT	0x2
+#define PARM_ADDR	0x3
 
-void 
-fakedevs(void)
-{
-    strcpy(scratch.name,"Half-phase blurglecruncheon detector");
-    strcpy(scratch.dev,"bcd0");
-    scratch.class = CLS_STORAGE;
-    scratch.iobase = 0x100;
-    scratch.irq = ffs(4);
-    scratch.maddr = 0x1000;
-    scratch.msize = 0x400;
-    scratch.unit = 0;
-    scratch.flags = 0;
-    scratch.conflict_ok = 0;
-    scratch.comment = 0;
-    scratch.attrib = FLG_MANDATORY;
-    insdev(&scratch,active);
+typedef struct _cmdparm {
+    int type;
+    union {
+	struct isa_device *dparm;
+	int iparm;
+	void *aparm;
+    } parm;
+} CmdParm;
 
-    strcpy(scratch.name,"Half-phase blurglecruncheon detector");
-    strcpy(scratch.dev,"bcd1");
-    scratch.class = CLS_NETWORK;
-    scratch.iobase = 0x100;
-    scratch.irq = ffs(8);
-    scratch.maddr = 0x1000;
-    scratch.msize = 0x400;
-    scratch.unit = 1;
-    scratch.flags = 0;
-    scratch.conflict_ok = 0;
-    scratch.comment = 0;
-    scratch.attrib = 0;
-    insdev(&scratch,active);
+typedef int (*CmdFunc)(CmdParm *);
 
-    strcpy(scratch.name,"Half-phase blurglecruncheon detector");
-    strcpy(scratch.dev,"bcd2");
-    scratch.class = CLS_COMMS;
-    scratch.iobase = 0x100;
-    scratch.irq = ffs(16);
-    scratch.maddr = 0x1000;
-    scratch.msize = 0x400;
-    scratch.unit = 2;
-    scratch.flags = 0;
-    scratch.conflict_ok = 0;
-    scratch.comment = 0;
-    scratch.attrib = FLG_IMMUTABLE;
-    insdev(&scratch,active);
+typedef struct _cmd {
+    char *name;
+    CmdFunc handler;
+    CmdParm *parms;
+} Cmd;
 
-    strcpy(scratch.name,"Half-phase blurglecruncheon detector");
-    strcpy(scratch.dev,"bcd3");
-    scratch.class = CLS_INPUT;
-    scratch.iobase = 0x100;
-    scratch.irq = ffs(32);
-    scratch.maddr = 0x1000;
-    scratch.msize = 0x400;
-    scratch.unit = 3;
-    scratch.flags = 0;
-    scratch.conflict_ok = 0;
-    scratch.comment = 0;
-    scratch.attrib = FLG_FIXED;
-    insdev(&scratch,active);
 
-    strcpy(scratch.name,"Half-phase blurglecruncheon detector");
-    strcpy(scratch.dev,"bcd4");
-    scratch.class = CLS_MMEDIA;
-    scratch.iobase = 0x100;
-    scratch.irq = ffs(64);
-    scratch.maddr = 0x1000;
-    scratch.msize = 0x400;
-    scratch.unit = 4;
-    scratch.flags = 0;
-    scratch.conflict_ok = 0;
-    scratch.comment = 0;
-    scratch.attrib = 0;
-    insdev(&scratch,active);
-
-    strcpy(scratch.name,"Half-phase blurglecruncheon detector");
-    strcpy(scratch.dev,"bcd5");
-    scratch.class = CLS_MISC;
-    scratch.iobase = 0x100;
-    scratch.irq = ffs(128);
-    scratch.maddr = 0x1000;
-    scratch.msize = 0x400;
-    scratch.unit = 5;
-    scratch.flags = 0;
-    scratch.conflict_ok = 0;
-    scratch.comment = 0;
-    scratch.attrib = 0;
-    insdev(&scratch,active);
-}
-
+#if NSCBUS > 0
+static void lsscsi(void);
+static int list_scsi(CmdParm *);
 #endif
+
+static void lsdevtab(struct isa_device *);
+static struct isa_device *find_device(char *, int);
+static struct isa_device *search_devtable(struct isa_device *, char *, int);
+static void cngets(char *, int);
+static Cmd *parse_cmd(char *);
+static int parse_args(char *, CmdParm *);
+unsigned long strtoul(const char *, char **, int);
+static int save_dev(struct isa_device *);
+
+static int list_devices(CmdParm *);
+static int set_device_ioaddr(CmdParm *);
+static int set_device_irq(CmdParm *);
+static int set_device_drq(CmdParm *);
+static int set_device_iosize(CmdParm *);
+static int set_device_mem(CmdParm *);
+static int set_device_flags(CmdParm *);
+static int set_device_enable(CmdParm *);
+static int set_device_disable(CmdParm *);
+static int quitfunc(CmdParm *);
+static int helpfunc(CmdParm *);
+
+static int lineno;
+
+static CmdParm addr_parms[] = {
+    { PARM_DEVSPEC, {} },
+    { PARM_ADDR, {} },
+    { -1, {} },
+};
+
+static CmdParm int_parms[] = {
+    { PARM_DEVSPEC, {} },
+    { PARM_INT, {} },
+    { -1, {} },
+};
+
+static CmdParm dev_parms[] = {
+    { PARM_DEVSPEC, {} },
+    { -1, {} },
+};
+
+static Cmd CmdList[] = {
+    { "?", 	helpfunc, 		NULL },		/* ? (help)	*/
+    { "di",	set_device_disable,	dev_parms },	/* disable dev	*/
+    { "dr",	set_device_drq,		int_parms },	/* drq dev #	*/
+    { "en",	set_device_enable,	dev_parms },	/* enable dev	*/
+    { "ex", 	quitfunc, 		NULL },		/* exit (quit)	*/
+    { "f",	set_device_flags,	int_parms },	/* flags dev mask */
+    { "h", 	helpfunc, 		NULL },		/* help		*/
+    { "iom",	set_device_mem,		addr_parms },	/* iomem dev addr */
+    { "ios",	set_device_iosize,	int_parms },	/* iosize dev size */
+    { "ir",	set_device_irq,		int_parms },	/* irq dev #	*/
+    { "l",	list_devices,		NULL },		/* ls, list	*/
+    { "po",	set_device_ioaddr,	int_parms },	/* port dev addr */
+    { "res",	(CmdFunc)cpu_reset,	NULL },		/* reset CPU	*/
+    { "q", 	quitfunc, 		NULL },		/* quit		*/
+#if NSCBUS > 0
+    { "s",	list_scsi,		NULL },		/* scsi */
+#endif
+    { "v",	(CmdFunc)visuserconfig,	NULL },		/* visual mode */
+    { NULL,	NULL,			NULL },
+};
+
+void
+userconfig(void)
+{
+    char command[80];
+    char input[80];
+    int rval;
+    struct isa_device *dt;
+    Cmd *cmd;
+
+    printf("\nFreeBSD Kernel Configuration Utility - Version 1.0\n"
+	   " Type \"help\" for help or \"visual\" to go to the visual\n"
+	   " configuration interface (requires MGA/VGA display or\n"
+	   " serial terminal capable of displaying ANSI graphics).\n");
+
+
+    while (1) {
+	printf("config> ");
+	cngets(input, 80);
+	if (input[0] == '\0')
+	    continue;
+	cmd = parse_cmd(input);
+	if (!cmd) {
+	    printf("Invalid command or syntax.  Type `?' for help.\n");
+	    continue;
+	}
+	rval = (*cmd->handler)(cmd->parms);
+	if (rval)
+	    return;
+    }
+}
+
+static Cmd *
+parse_cmd(char *cmd)
+{
+    Cmd *cp;
+
+    for (cp = CmdList; cp->name; cp++) {
+	int len = strlen(cp->name);
+
+	if (!strncmp(cp->name, cmd, len)) {
+	    while (*cmd && *cmd != ' ' && *cmd != '\t')
+		++cmd;
+	    if (parse_args(cmd, cp->parms))
+		return NULL;
+	    else
+		return cp;
+	}
+    }
+    return NULL;
+}
+
+static int
+parse_args(char *cmd, CmdParm *parms)
+{
+    while (1) {
+	char *ptr;
+
+	if (*cmd == ' ' || *cmd == '\t') {
+	    ++cmd;
+	    continue;
+	}
+	if (parms == NULL || parms->type == -1) {
+		if (*cmd == '\0')
+			return 0;
+		printf("Extra arg(s): %s\n", cmd);
+		return 1;
+	}
+	if (parms->type == PARM_DEVSPEC) {
+	    int i = 0;
+	    char devname[64];
+	    int unit = 0;
+
+	    while (*cmd && !(*cmd == ' ' || *cmd == '\t' ||
+	      (*cmd >= '0' && *cmd <= '9')))
+		devname[i++] = *(cmd++);
+	    devname[i] = '\0';
+	    if (*cmd >= '0' && *cmd <= '9') {
+		unit = strtoul(cmd, &ptr, 10);
+		if (cmd == ptr) {
+		    printf("Invalid device number\n");
+		    /* XXX should print invalid token here and elsewhere. */
+		    return 1;
+		}
+		/* XXX else should require end of token. */
+		cmd = ptr;
+	    }
+	    if ((parms->parm.dparm = find_device(devname, unit)) == NULL) {
+	        printf("No such device: %s%d\n", devname, unit);
+		return 1;
+	    }
+	    ++parms;
+	    continue;
+	}
+	if (parms->type == PARM_INT) {
+	    parms->parm.iparm = strtoul(cmd, &ptr, 0);
+	    if (cmd == ptr) {
+	        printf("Invalid numeric argument\n");
+		return 1;
+	    }
+	    cmd = ptr;
+	    ++parms;
+	    continue;
+	}
+	if (parms->type == PARM_ADDR) {
+	    parms->parm.aparm = (void *)strtoul(cmd, &ptr, 0);
+	    if (cmd == ptr) {
+	        printf("Invalid address argument\n");
+	        return 1;
+	    }
+	    cmd = ptr;
+	    ++parms;
+	    continue;
+	}
+    }
+    return 0;
+}
+
+static int
+list_devices(CmdParm *parms)
+{
+    lineno = 0;
+    lsdevtab(&isa_devtab_bio[0]);
+    lsdevtab(&isa_devtab_tty[0]);
+    lsdevtab(&isa_devtab_net[0]);
+    lsdevtab(&isa_devtab_null[0]);
+    return 0;
+}
+
+static int
+set_device_ioaddr(CmdParm *parms)
+{
+    parms[0].parm.dparm->id_iobase = parms[1].parm.iparm;
+    save_dev(parms[0].parm.dparm);
+    return 0;
+}
+
+static int
+set_device_irq(CmdParm *parms)
+{
+    unsigned irq;
+
+    irq = parms[1].parm.iparm;
+    if (irq == 2) {
+	printf("Warning: Remapping IRQ 2 to IRQ 9 - see config(8)\n");
+	irq = 9;
+    }
+    else if (irq != -1 && irq > 15) {
+	printf("An IRQ > 15 would be invalid.\n");
+	return 0;
+    }
+    parms[0].parm.dparm->id_irq = (irq < 16 ? 1 << irq : 0);
+    save_dev(parms[0].parm.dparm);
+    return 0;
+}
+
+static int
+set_device_drq(CmdParm *parms)
+{
+    unsigned drq;
+
+    /*
+     * The bounds checking is just to ensure that the value can be printed
+     * in 5 characters.  32768 gets converted to -32768 and doesn't fit.
+     */
+    drq = parms[1].parm.iparm;
+    parms[0].parm.dparm->id_drq = (drq < 32768 ? drq : -1);
+    save_dev(parms[0].parm.dparm);
+    return 0;
+}
+
+static int
+set_device_iosize(CmdParm *parms)
+{
+    parms[0].parm.dparm->id_msize = parms[1].parm.iparm;
+    save_dev(parms[0].parm.dparm);
+    return 0;
+}
+
+static int
+set_device_mem(CmdParm *parms)
+{
+    parms[0].parm.dparm->id_maddr = parms[1].parm.aparm;
+    save_dev(parms[0].parm.dparm);
+    return 0;
+}
+
+static int
+set_device_flags(CmdParm *parms)
+{
+    parms[0].parm.dparm->id_flags = parms[1].parm.iparm;
+    save_dev(parms[0].parm.dparm);
+    return 0;
+}
+
+static int
+set_device_enable(CmdParm *parms)
+{
+    parms[0].parm.dparm->id_enabled = TRUE;
+    save_dev(parms[0].parm.dparm);
+    return 0;
+}
+
+static int
+set_device_disable(CmdParm *parms)
+{
+    parms[0].parm.dparm->id_enabled = FALSE;
+    save_dev(parms[0].parm.dparm);
+    return 0;
+}
+
+static int
+quitfunc(CmdParm *parms)
+{
+    return 1;
+}
+
+static int
+helpfunc(CmdParm *parms)
+{
+    printf("Command\t\t\tDescription\n");
+    printf("-------\t\t\t-----------\n");
+    printf("ls\t\t\tList currently configured devices\n");
+    printf("port <devname> <addr>\tSet device port (i/o address)\n");
+    printf("irq <devname> <number>\tSet device irq\n");
+    printf("drq <devname> <number>\tSet device drq\n");
+    printf("iomem <devname> <addr>\tSet device maddr (memory address)\n");
+    printf("iosize <devname> <size>\tSet device memory size\n");
+    printf("flags <devname> <mask>\tSet device flags\n");
+    printf("enable <devname>\tEnable device\n");
+    printf("disable <devname>\tDisable device (will not be probed)\n");
+    printf("quit\t\t\tExit this configuration utility\n");
+    printf("reset\t\t\tReset CPU\n");
+    printf("help\t\t\tThis message\n\n");
+    printf("Commands may be abbreviated to a unique prefix\n");
+    return 0;
+}
+
+static void
+lsdevtab(struct isa_device *dt)
+{
+    for (; dt->id_id != 0; dt++) {
+	int i;
+	char line[80];
+
+	if (lineno >= 23) {
+		printf("<More> ");
+		(void)cngetc();
+		printf("\n");
+		lineno = 0;
+	}
+	if (lineno == 0) {
+		printf(
+"Device   port       irq   drq   iomem   iosize   unit  flags      enabled\n");
+		++lineno;
+	}
+	/*
+	 * printf() doesn't support %#, %- or even field widths for strings,
+	 * so formatting is not straightforward.
+	 */
+	bzero(line, sizeof line);
+	sprintf(line, "%s%d", dt->id_driver->name, dt->id_unit);
+	/* Missing: id_id (don't need it). */
+	/* Missing: id_driver (useful if we could show it by name). */
+	sprintf(line + 9, "0x%x", dt->id_iobase);
+	sprintf(line + 20, "%d", ffs(dt->id_irq) - 1);
+	sprintf(line + 26, "%d", dt->id_drq);
+	sprintf(line + 32, "0x%x", dt->id_maddr);
+	sprintf(line + 40, "%d", dt->id_msize);
+	/* Missing: id_msize (0 at start, useful if we can get here later). */
+	/* Missing: id_intr (useful if we could show it by name). */
+	/* Display only: id_unit. */
+	sprintf(line + 49, "%d", dt->id_unit);
+	sprintf(line + 55, "0x%x", dt->id_flags);
+	/* Missing: id_scsiid, id_alive, id_ri_flags, id_reconfig (0 now...) */
+	sprintf(line + 66, "%s", dt->id_enabled ? "Yes" : "No");
+	for (i = 0; i < 66; ++i)
+		if (line[i] == '\0')
+			line[i] = ' ';
+	printf("%s\n", line);
+	++lineno;
+    }
+}
+
+static struct isa_device *
+find_device(char *devname, int unit)
+{
+    struct isa_device *ret;
+
+    if ((ret = search_devtable(&isa_devtab_bio[0], devname, unit)) != NULL)
+        return ret;
+    if ((ret = search_devtable(&isa_devtab_tty[0], devname, unit)) != NULL)
+        return ret;
+    if ((ret = search_devtable(&isa_devtab_net[0], devname, unit)) != NULL)
+        return ret;
+    if ((ret = search_devtable(&isa_devtab_null[0], devname, unit)) != NULL)
+        return ret;
+    return NULL;
+}
+
+static struct isa_device *
+search_devtable(struct isa_device *dt, char *devname, int unit)
+{
+    int i;
+
+    for (i = 0; dt->id_id != 0; dt++)
+        if (!strcmp(dt->id_driver->name, devname) && dt->id_unit == unit)
+	    return dt;
+    return NULL;
+}
+
+void
+cngets(char *input, int maxin)
+{
+    int c, nchars = 0;
+
+    while (1) {
+	c = cngetc();
+	/* Treat ^H or ^? as backspace */
+	if ((c == '\010' || c == '\177')) {
+	    	if (nchars) {
+			printf("\010 \010");
+			*--input = '\0', --nchars;
+		}
+		continue;
+	}
+	/* Treat ^U or ^X as kill line */
+	else if ((c == '\025' || c == '\030')) {
+		while (nchars) {
+			printf("\010 \010");
+			*--input = '\0', --nchars;
+		}
+		continue;
+	}
+	printf("%c", c);
+	if ((++nchars == maxin) || (c == '\n') || (c == '\r')) {
+	    *input = '\0';
+	    break;
+	}
+	*input++ = (u_char)c;
+    }
+}
+
+
+/*
+ * Kludges to get the library sources of strtoul.c to work in our
+ * environment.  isdigit() and isspace() could be used above too.
+ */
+#define	isalpha(c)	(((c) >= 'A' && (c) <= 'Z') \
+			 || ((c) >= 'a' && (c) <= 'z'))		/* unsafe */
+#define	isdigit(c)	((unsigned)((c) - '0') <= '9' - '0')
+#define	isspace(c)	((c) == ' ' || (c) == '\t')		/* unsafe */
+#define	isupper(c)	((unsigned)((c) - 'A') <= 'Z' - 'A')
+
+static int errno;
+
+/*
+ * The following should be identical with the library sources for strtoul.c.
+ */
+
+/*
+ * Convert a string to an unsigned long integer.
+ *
+ * Ignores `locale' stuff.  Assumes that the upper and lower case
+ * alphabets and digits are each contiguous.
+ */
+unsigned long
+strtoul(nptr, endptr, base)
+	const char *nptr;
+	char **endptr;
+	register int base;
+{
+	register const char *s = nptr;
+	register unsigned long acc;
+	register int c;
+	register unsigned long cutoff;
+	register int neg = 0, any, cutlim;
+
+	/*
+	 * See strtol for comments as to the logic used.
+	 */
+	do {
+		c = *s++;
+	} while (isspace(c));
+	if (c == '-') {
+		neg = 1;
+		c = *s++;
+	} else if (c == '+')
+		c = *s++;
+	if ((base == 0 || base == 16) &&
+	    c == '0' && (*s == 'x' || *s == 'X')) {
+		c = s[1];
+		s += 2;
+		base = 16;
+	}
+	if (base == 0)
+		base = c == '0' ? 8 : 10;
+	cutoff = (unsigned long)ULONG_MAX / (unsigned long)base;
+	cutlim = (unsigned long)ULONG_MAX % (unsigned long)base;
+	for (acc = 0, any = 0;; c = *s++) {
+		if (isdigit(c))
+			c -= '0';
+		else if (isalpha(c))
+			c -= isupper(c) ? 'A' - 10 : 'a' - 10;
+		else
+			break;
+		if (c >= base)
+			break;
+		if (any < 0 || acc > cutoff || acc == cutoff && c > cutlim)
+			any = -1;
+		else {
+			any = 1;
+			acc *= base;
+			acc += c;
+		}
+	}
+	if (any < 0) {
+		acc = ULONG_MAX;
+		errno = ERANGE;
+	} else if (neg)
+		acc = -acc;
+	if (endptr != 0)
+		*endptr = (char *)(any ? s - 1 : nptr);
+	return (acc);
+}
+
+#if NSCBUS > 0
+/* scsi: Support for displaying configured SCSI devices.
+ * There is no way to edit them, and this is inconsistent
+ * with the ISA method.  This is here as a basis for further work.
+ */
+static char *
+type_text(char *name)	/* XXX: This is bogus */
+{
+	if (strcmp(name, "sd") == 0)
+		return "disk";
+
+	if (strcmp(name, "st") == 0)
+		return "tape";
+
+	return "device";
+}
+
+static void
+id_put(char *desc, int id)
+{
+    if (id != SCCONF_UNSPEC)
+    {
+    	if (desc)
+	    printf("%s", desc);
+
+    	if (id == SCCONF_ANY)
+	    printf("?");
+        else
+	    printf("%d", id);
+    }
+}
+
+static void
+lsscsi(void)
+{
+    int i;
+
+    printf("scsi: (can't be edited):\n");
+
+    for (i = 0; scsi_cinit[i].driver; i++)
+    {
+	id_put("controller scbus", scsi_cinit[i].bus);
+
+	if (scsi_cinit[i].unit != -1)
+	{
+	    printf(" at ");
+	    id_put(scsi_cinit[i].driver, scsi_cinit[i].unit);
+	}
+
+	printf("\n");
+    }
+
+    for (i = 0; scsi_dinit[i].name; i++)
+    {
+		printf("%s ", type_text(scsi_dinit[i].name));
+
+		id_put(scsi_dinit[i].name, scsi_dinit[i].unit);
+		id_put(" at scbus", scsi_dinit[i].cunit);
+		id_put(" target ", scsi_dinit[i].target);
+		id_put(" lun ", scsi_dinit[i].lun);
+
+		if (scsi_dinit[i].flags)
+	    	printf("flags 0x%x\n", scsi_dinit[i].flags);
+
+		printf("\n");
+    }
+}
+
+static int
+list_scsi(CmdParm *parms)
+{
+    lineno = 0;
+    lsscsi();
+    return 0;
+}
+#endif
+
+static int
+save_dev(idev)
+struct isa_device 	*idev;
+{
+	struct isa_device	*id_p,*id_pn;
+
+	for (id_p=isa_devlist;
+	id_p;
+	id_p=id_p->id_next) {
+		if (id_p->id_id == idev->id_id) {
+			id_pn = id_p->id_next;
+			bcopy(idev,id_p,sizeof(struct isa_device));
+			id_p->id_next = id_pn;
+			return 1;
+		}
+	}
+	id_pn = malloc(sizeof(struct isa_device),M_DEVL,M_WAITOK);
+	bcopy(idev,id_pn,sizeof(struct isa_device));
+	id_pn->id_next = isa_devlist;
+	isa_devlist = id_pn;
+	return 0;
+}
+
 
