@@ -390,6 +390,12 @@ struct bktr_i2c_softc {
 
 typedef struct bktr_clip bktr_clip_t;
 
+/*
+ * NetBSD >= 1.3H uses vaddr_t instead of vm_offset_t
+ */
+#if defined(__NetBSD__) && __NetBSD_Version__ >= 103080000
+typedef vaddr_t	vm_offset_t;
+#endif
 
 /*
  * BrookTree 848  info structure, one per bt848 card installed.
@@ -405,6 +411,7 @@ struct bktr_softc {
 
 #if defined(__NetBSD__)
     struct device bktr_dev;     /* base device */
+    bus_dma_tag_t	dmat;   /* DMA tag */
     bus_space_tag_t	memt;
     bus_space_handle_t	memh;
     bus_size_t		obmemsz;        /* size of en card (bytes) */
@@ -414,7 +421,11 @@ struct bktr_softc {
     bus_dmamap_t	dm_mem;
     bus_dmamap_t	dm_vbidata;
     bus_dmamap_t	dm_vbibuffer;
+#if __NetBSD_Version__ >= 103080000
+    paddr_t		phys_base;	/* Bt848 register physical address */
+#else
     vm_offset_t		phys_base;	/* Bt848 register physical address */
+#endif
 #endif
 
 #if defined(__OpenBSD__)
