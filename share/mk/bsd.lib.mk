@@ -188,7 +188,7 @@ _EXTRADEPEND:
 .if !target(install)
 
 .if defined(PRECIOUSLIB)
-.if !defined(NOFSCHG)
+.if !defined(NO_FSCHG)
 SHLINSTALLFLAGS+= -fschg
 .endif
 SHLINSTALLFLAGS+= -S
