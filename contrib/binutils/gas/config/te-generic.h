@@ -6,7 +6,7 @@
  * compile, and copying as an aid for testing and porting.  xoxorich.
  */
 
-/* Added these, because if we don't know what we're targetting we may
+/* Added these, because if we don't know what we're targeting we may
    need an assembler version of libgcc, and that will use local
    labels.  */
 #define LOCAL_LABELS_DOLLAR 1

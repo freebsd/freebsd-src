@@ -1,20 +1,20 @@
 /* Disassemble SH instructions.
-   Copyright 1993, 1994, 1995, 1997, 1998, 2000, 2001
+   Copyright 1993, 1994, 1995, 1997, 1998, 2000, 2001, 2002, 2003
    Free Software Foundation, Inc.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include <stdio.h>
 #include "sysdep.h"
@@ -24,15 +24,19 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "sh-opc.h"
 #include "dis-asm.h"
 
+#ifdef ARCH_all
+#define INCLUDE_SHMEDIA
+#endif
+
 static void print_movxy
-  PARAMS ((sh_opcode_info *, int, int, fprintf_ftype, void *));
+  PARAMS ((const sh_opcode_info *, int, int, fprintf_ftype, void *));
 static void print_insn_ddt PARAMS ((int, struct disassemble_info *));
 static void print_dsp_reg PARAMS ((int, fprintf_ftype, void *));
 static void print_insn_ppi PARAMS ((int, struct disassemble_info *));
 
 static void
 print_movxy (op, rn, rm, fprintf_fn, stream)
-     sh_opcode_info *op;
+     const sh_opcode_info *op;
      int rn, rm;
      fprintf_ftype fprintf_fn;
      void *stream;
@@ -45,18 +49,28 @@ print_movxy (op, rn, rm, fprintf_fn, stream)
       switch (op->arg[n])
 	{
 	case A_IND_N:
+	case AX_IND_N:
+	case AXY_IND_N:
+	case AY_IND_N:
+	case AYX_IND_N:
 	  fprintf_fn (stream, "@r%d", rn);
 	  break;
 	case A_INC_N:
+	case AX_INC_N:
+	case AXY_INC_N:
+	case AY_INC_N:
+	case AYX_INC_N:
 	  fprintf_fn (stream, "@r%d+", rn);
 	  break;
-	case A_PMOD_N:
+	case AX_PMOD_N:
+	case AXY_PMOD_N:
 	  fprintf_fn (stream, "@r%d+r8", rn);
 	  break;
-	case A_PMODY_N:
+	case AY_PMOD_N:
+	case AYX_PMOD_N:
 	  fprintf_fn (stream, "@r%d+r9", rn);
 	  break;
-	case DSP_REG_M:
+	case DSP_REG_A_M:
 	  fprintf_fn (stream, "a%c", '0' + rm);
 	  break;
 	case DSP_REG_X:
@@ -64,6 +78,26 @@ print_movxy (op, rn, rm, fprintf_fn, stream)
 	  break;
 	case DSP_REG_Y:
 	  fprintf_fn (stream, "y%c", '0' + rm);
+	  break;
+	case DSP_REG_AX:
+	  fprintf_fn (stream, "%c%c",
+		      (rm & 1) ? 'x' : 'a',
+		      (rm & 2) ? '1' : '0');
+	  break;
+	case DSP_REG_XY:
+	  fprintf_fn (stream, "%c%c",
+		      (rm & 1) ? 'y' : 'x',
+		      (rm & 2) ? '1' : '0');
+	  break;
+	case DSP_REG_AY:
+	  fprintf_fn (stream, "%c%c",
+		      (rm & 2) ? 'y' : 'a',
+		      (rm & 1) ? '1' : '0');
+	  break;
+	case DSP_REG_YX:
+	  fprintf_fn (stream, "%c%c",
+		      (rm & 2) ? 'x' : 'y',
+		      (rm & 1) ? '1' : '0');
 	  break;
 	default:
 	  abort ();
@@ -98,11 +132,45 @@ print_insn_ddt (insn, info)
   /* Check if either the x or y part is invalid.  */
   if (((insn & 0xc) == 0 && (insn & 0x2a0))
       || ((insn & 3) == 0 && (insn & 0x150)))
-    fprintf_fn (stream, ".word 0x%x", insn);
+    if (info->mach != bfd_mach_sh_dsp
+        && info->mach != bfd_mach_sh3_dsp)
+      {
+	static const sh_opcode_info *first_movx, *first_movy;
+	const sh_opcode_info *op;
+	int is_movy;
+
+	if (! first_movx)
+	  {
+	    for (first_movx = sh_table; first_movx->nibbles[1] != MOVX_NOPY;)
+	      first_movx++;
+	    for (first_movy = first_movx; first_movy->nibbles[1] != MOVY_NOPX;)
+	      first_movy++;
+	  }
+
+	is_movy = ((insn & 3) != 0);
+
+	if (is_movy)
+	  op = first_movy;
+	else
+	  op = first_movx;
+
+	while (op->nibbles[2] != (unsigned) ((insn >> 4) & 3)
+	       || op->nibbles[3] != (unsigned) (insn & 0xf))
+	  op++;
+	
+	print_movxy (op,
+		     (4 * ((insn & (is_movy ? 0x200 : 0x100)) == 0)
+		      + 2 * is_movy
+		      + 1 * ((insn & (is_movy ? 0x100 : 0x200)) != 0)),
+		     (insn >> 6) & 3,
+		     fprintf_fn, stream);
+      }
+    else
+      fprintf_fn (stream, ".word 0x%x", insn);
   else
     {
-      static sh_opcode_info *first_movx, *first_movy;
-      sh_opcode_info *opx, *opy;
+      static const sh_opcode_info *first_movx, *first_movy;
+      const sh_opcode_info *opx, *opy;
       unsigned int insn_x, insn_y;
 
       if (! first_movx)
@@ -187,8 +255,9 @@ print_insn_ppi (field_b, info)
   fprintf_ftype fprintf_fn = info->fprintf_func;
   void *stream = info->stream;
   unsigned int nib1, nib2, nib3;
+  unsigned int altnib1, nib4;
   char *dc = NULL;
-  sh_opcode_info *op;
+  const sh_opcode_info *op;
 
   if ((field_b & 0xe800) == 0)
     {
@@ -213,6 +282,16 @@ print_insn_ppi (field_b, info)
 		      sy_tab[(field_b >> 4) & 3],
 		      du_tab[(field_b >> 0) & 3]);
 	}
+      else if ((field_b & 0xf0) == 0x10
+	       && info->mach != bfd_mach_sh_dsp
+	       && info->mach != bfd_mach_sh3_dsp)
+	{
+	  fprintf_fn (stream, "pclr %s \t", du_tab[(field_b >> 0) & 3]);
+	}
+      else if ((field_b & 0xf3) != 0)
+	{
+	  fprintf_fn (stream, ".word 0x%x\t", field_b);
+	}
       fprintf_fn (stream, "pmuls%c%s,%s,%s",
 		  field_b & 0x2000 ? ' ' : '\t',
 		  se_tab[(field_b >> 10) & 3],
@@ -224,6 +303,7 @@ print_insn_ppi (field_b, info)
   nib1 = PPIC;
   nib2 = field_b >> 12 & 0xf;
   nib3 = field_b >> 8 & 0xf;
+  nib4 = field_b >> 4 & 0xf;
   switch (nib3 & 0x3)
     {
     case 0:
@@ -242,14 +322,41 @@ print_insn_ppi (field_b, info)
       nib3 -= 2;
       break;
     }
+  if (nib1 == PPI3)
+    altnib1 = PPI3NC;
+  else
+    altnib1 = nib1;
   for (op = sh_table; op->name; op++)
     {
-      if (op->nibbles[1] == nib1
+      if ((op->nibbles[1] == nib1 || op->nibbles[1] == altnib1)
 	  && op->nibbles[2] == nib2
 	  && op->nibbles[3] == nib3)
 	{
 	  int n;
 
+	  switch (op->nibbles[4])
+	    {
+	    case HEX_0:
+	      break;
+	    case HEX_XX00:
+	      if ((nib4 & 3) != 0)
+		continue;
+	      break;
+	    case HEX_1:
+	      if ((nib4 & 3) != 1)
+		continue;
+	      break;
+	    case HEX_00YY:
+	      if ((nib4 & 0xc) != 0)
+		continue;
+	      break;
+	    case HEX_4:
+	      if ((nib4 & 0xc) != 4)
+		continue;
+	      break;
+	    default:
+	      abort ();
+	    }
 	  fprintf_fn (stream, "%s%s\t", dc, op->name);
 	  for (n = 0; n < 3 && op->arg[n] != A_END; n++)
 	    {
@@ -290,11 +397,11 @@ print_insn_sh (memaddr, info)
 {
   fprintf_ftype fprintf_fn = info->fprintf_func;
   void *stream = info->stream;
-  unsigned char insn[2];
+  unsigned char insn[4];
   unsigned char nibs[4];
   int status;
   bfd_vma relmask = ~(bfd_vma) 0;
-  sh_opcode_info *op;
+  const sh_opcode_info *op;
   int target_arch;
 
   switch (info->mach)
@@ -311,6 +418,9 @@ print_insn_sh (memaddr, info)
     case bfd_mach_sh2:
       target_arch = arch_sh2;
       break;
+    case bfd_mach_sh2e:
+      target_arch = arch_sh2e;
+      break;
     case bfd_mach_sh_dsp:
       target_arch = arch_sh_dsp;
       break;
@@ -324,7 +434,15 @@ print_insn_sh (memaddr, info)
       target_arch = arch_sh3e;
       break;
     case bfd_mach_sh4:
+    case bfd_mach_sh4_nofpu:
       target_arch = arch_sh4;
+      break;
+    case bfd_mach_sh4a:
+    case bfd_mach_sh4a_nofpu:
+      target_arch = arch_sh4a;
+      break;
+    case bfd_mach_sh4al_dsp:
+      target_arch = arch_sh4al_dsp;
       break;
     case bfd_mach_sh5:
 #ifdef INCLUDE_SHMEDIA
@@ -459,11 +577,20 @@ print_insn_sh (memaddr, info)
 	    case IMM1_8BY4:
 	      imm = ((nibs[2] << 4) | nibs[3]) << 2;
 	      goto ok;
+	    case REG_N_D:
+	      if ((nibs[n] & 1) != 0)
+		goto fail;
+	      /* fall through */
 	    case REG_N:
 	      rn = nibs[n];
 	      break;
 	    case REG_M:
 	      rm = nibs[n];
+	      break;
+	    case REG_N_B01:
+	      if ((nibs[n] & 0x3) != 1 /* binary 01 */)
+		goto fail;
+	      rn = (nibs[n] & 0xc) >> 2;
 	      break;
 	    case REG_NM:
 	      rn = (nibs[n] & 0xc) >> 2;
@@ -507,18 +634,21 @@ print_insn_sh (memaddr, info)
 	      fprintf_fn (stream, "r%d", rn);
 	      break;
 	    case A_INC_N:
+	    case AS_INC_N:
 	      fprintf_fn (stream, "@r%d+", rn);
 	      break;
 	    case A_DEC_N:
+	    case AS_DEC_N:
 	      fprintf_fn (stream, "@-r%d", rn);
 	      break;
 	    case A_IND_N:
+	    case AS_IND_N:
 	      fprintf_fn (stream, "@r%d", rn);
 	      break;
 	    case A_DISP_REG_N:
 	      fprintf_fn (stream, "@(%d,r%d)", imm, rn);
 	      break;
-	    case A_PMOD_N:
+	    case AS_PMOD_N:
 	      fprintf_fn (stream, "@r%d+r8", rn);
 	      break;
 	    case A_REG_M:

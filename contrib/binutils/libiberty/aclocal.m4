@@ -1,3 +1,7 @@
+sinclude(../config/accross.m4)
+sinclude(../config/acx.m4)
+sinclude(../config/no-executables.m4)
+
 dnl See whether strncmp reads past the end of its string parameters.
 dnl On some versions of SunOS4 at least, strncmp reads a word at a time
 dnl but erroneously reads past the end of strings.  This can cause
@@ -69,7 +73,7 @@ main ()
   ac_cv_func_strncmp_works=no)
 rm -f core core.* *.core])
 if test $ac_cv_func_strncmp_works = no ; then
-  LIBOBJS="$LIBOBJS strncmp.o"
+  AC_LIBOBJ([strncmp])
 fi
 ])
 
@@ -87,47 +91,34 @@ then AC_DEFINE(NEED_DECLARATION_ERRNO, 1,
 fi
 ])
 
-# FIXME: We temporarily define our own version of AC_PROG_CC.  This is
-# copied from autoconf 2.12, but does not call AC_PROG_CC_WORKS.  We
-# are probably using a cross compiler, which will not be able to fully
-# link an executable.  This should really be fixed in autoconf
-# itself.
-
-AC_DEFUN(LIB_AC_PROG_CC,
-[AC_BEFORE([$0], [AC_PROG_CPP])dnl
-AC_PROVIDE([AC_PROG_CC])
-AC_CHECK_PROG(CC, gcc, gcc)
-if test -z "$CC"; then
-  AC_CHECK_PROG(CC, cc, cc, , , /usr/ucb/cc)
-  test -z "$CC" && AC_MSG_ERROR([no acceptable cc found in \$PATH])
+dnl See whether we need a declaration for a function.
+AC_DEFUN(libiberty_NEED_DECLARATION,
+[AC_MSG_CHECKING([whether $1 must be declared])
+AC_CACHE_VAL(libiberty_cv_decl_needed_$1,
+[AC_TRY_COMPILE([
+#include "confdefs.h"
+#include <stdio.h>
+#ifdef HAVE_STRING_H
+#include <string.h>
+#else
+#ifdef HAVE_STRINGS_H
+#include <strings.h>
+#endif
+#endif
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif],
+[char *(*pfn) = (char *(*)) $1],
+libiberty_cv_decl_needed_$1=no, libiberty_cv_decl_needed_$1=yes)])
+AC_MSG_RESULT($libiberty_cv_decl_needed_$1)
+if test $libiberty_cv_decl_needed_$1 = yes; then
+  AC_DEFINE([NEED_DECLARATION_]translit($1, [a-z], [A-Z]), 1,
+            [Define if $1 is not declared in system header files.])
 fi
-
-AC_PROG_CC_GNU
-
-if test $ac_cv_prog_gcc = yes; then
-  GCC=yes
-  ac_libiberty_warn_cflags='-W -Wall -Wtraditional -pedantic'
-dnl Check whether -g works, even if CFLAGS is set, in case the package
-dnl plays around with CFLAGS (such as to build both debugging and
-dnl normal versions of a library), tasteless as that idea is.
-  ac_test_CFLAGS="${CFLAGS+set}"
-  ac_save_CFLAGS="$CFLAGS"
-  CFLAGS=
-  AC_PROG_CC_G
-  if test "$ac_test_CFLAGS" = set; then
-    CFLAGS="$ac_save_CFLAGS"
-  elif test $ac_cv_prog_cc_g = yes; then
-    CFLAGS="-g -O2"
-  else
-    CFLAGS="-O2"
-  fi
-else
-  GCC=
-  ac_libiberty_warn_cflags=
-  test "${CFLAGS+set}" = set || CFLAGS="-g"
-fi
-AC_SUBST(ac_libiberty_warn_cflags)
-])
+])dnl
 
 # Work around a bug in autoheader.  This can go away when we switch to
 # autoconf >2.50.  The use of define instead of AC_DEFUN is
@@ -189,3 +180,52 @@ AC_DEFINE_UNQUOTED(STACK_DIRECTION, $ac_cv_c_stack_direction,
         STACK_DIRECTION < 0 => grows toward lower addresses
         STACK_DIRECTION = 0 => direction of growth unknown])
 ])
+
+# AC_LANG_FUNC_LINK_TRY(C)(FUNCTION)
+# ----------------------------------
+# Don't include <ctype.h> because on OSF/1 3.0 it includes
+# <sys/types.h> which includes <sys/select.h> which contains a
+# prototype for select.  Similarly for bzero.
+#
+# This test used to merely assign f=$1 in main(), but that was
+# optimized away by HP unbundled cc A.05.36 for ia64 under +O3,
+# presumably on the basis that there's no need to do that store if the
+# program is about to exit.  Conversely, the AIX linker optimizes an
+# unused external declaration that initializes f=$1.  So this test
+# program has both an external initialization of f, and a use of f in
+# main that affects the exit status.
+#
+m4_define([AC_LANG_FUNC_LINK_TRY(C)],
+[AC_LANG_PROGRAM(
+[/* System header to define __stub macros and hopefully few prototypes,
+    which can conflict with char $1 (); below.
+    Prefer <limits.h> to <assert.h> if __STDC__ is defined, since
+    <limits.h> exists even on freestanding compilers.  Under hpux,
+    including <limits.h> includes <sys/time.h> and causes problems
+    checking for functions defined therein.  */
+#if defined (__STDC__) && !defined (_HPUX_SOURCE)
+# include <limits.h>
+#else
+# include <assert.h>
+#endif
+/* Override any gcc2 internal prototype to avoid an error.  */
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+/* We use char because int might match the return type of a gcc2
+   builtin and then its argument prototype would still apply.  */
+char $1 ();
+/* The GNU C library defines this for functions which it implements
+    to always fail with ENOSYS.  Some functions are actually named
+    something starting with __ and the normal name is an alias.  */
+#if defined (__stub_$1) || defined (__stub___$1)
+choke me
+#else
+char (*f) () = $1;
+#endif
+#ifdef __cplusplus
+}
+#endif
+], [return f != $1;])])
+

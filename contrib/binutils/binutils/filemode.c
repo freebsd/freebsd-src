@@ -1,5 +1,5 @@
 /* filemode.c -- make a string describing file modes
-   Copyright 1985, 1990, 1991, 1994, 1995, 1997
+   Copyright 1985, 1990, 1991, 1994, 1995, 1997, 2003
    Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
@@ -20,8 +20,8 @@
 #include "bfd.h"
 #include "bucomm.h"
 
-static char ftypelet PARAMS ((unsigned long));
-static void setst PARAMS ((unsigned long, char *));
+static char ftypelet (unsigned long);
+static void setst (unsigned long, char *);
 
 /* filemodestring - fill in string STR with an ls-style ASCII
    representation of the st_mode field of file stats block STATP.
@@ -64,9 +64,7 @@ static void setst PARAMS ((unsigned long, char *));
 /* This is not used; only mode_string is used.  */
 
 void
-filemodestring (statp, str)
-     struct stat *statp;
-     char *str;
+filemodestring (struct stat *statp, char *str)
 {
   mode_string ((unsigned long) statp->st_mode, str);
 }
@@ -118,9 +116,7 @@ filemodestring (statp, str)
    is given as an argument.  */
 
 void
-mode_string (mode, str)
-     unsigned long mode;
-     char *str;
+mode_string (unsigned long mode, char *str)
 {
   str[0] = ftypelet ((unsigned long) mode);
   str[1] = (mode & S_IRUSR) != 0 ? 'r' : '-';
@@ -140,7 +136,7 @@ mode_string (mode, str)
    'd' for directories
    'b' for block special files
    'c' for character special files
-   'm' for multiplexor files
+   'm' for multiplexer files
    'l' for symbolic links
    's' for sockets
    'p' for fifos
@@ -195,8 +191,7 @@ mode_string (mode, str)
 #endif /* ! defined (S_ISLNK) */
 
 static char
-ftypelet (bits)
-     unsigned long bits;
+ftypelet (unsigned long bits)
 {
   if (S_ISDIR (bits))
     return 'd';
@@ -230,9 +225,7 @@ ftypelet (bits)
    according to the file mode BITS.  */
 
 static void
-setst (bits, chars)
-     unsigned long bits ATTRIBUTE_UNUSED;
-     char *chars ATTRIBUTE_UNUSED;
+setst (unsigned long bits ATTRIBUTE_UNUSED, char *chars ATTRIBUTE_UNUSED)
 {
 #ifdef S_ISUID
   if (bits & S_ISUID)

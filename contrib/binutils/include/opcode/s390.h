@@ -24,10 +24,18 @@
 
 /* List of instruction sets variations. */
 
-enum s390_opcode_arch_val
+enum s390_opcode_mode_val
   {
     S390_OPCODE_ESA = 0,
-    S390_OPCODE_ESAME
+    S390_OPCODE_ZARCH
+  };
+
+enum s390_opcode_cpu_val
+  {
+    S390_OPCODE_G5 = 0,
+    S390_OPCODE_G6,
+    S390_OPCODE_Z900,
+    S390_OPCODE_Z990
   };
 
 /* The opcode table is an array of struct s390_opcode.  */
@@ -55,8 +63,11 @@ struct s390_opcode
        appear in assembly code, and are terminated by a zero.  */
     unsigned char operands[6];
 
-    /* Bitmask of architectures this opcode is available for.  */
-    unsigned int architecture;
+    /* Bitmask of execution modes this opcode is available for.  */
+    unsigned int modes;
+
+    /* First cpu this opcode is available for.  */
+    enum s390_opcode_cpu_val min_cpu;
   };
 
 /* The table itself is sorted by major opcode number, and is otherwise

@@ -106,8 +106,8 @@ struct frag {
    however, included in frchain_now.  The fr_fix field is bogus;
    instead, use frag_now_fix ().  */
 COMMON fragS *frag_now;
-extern addressT frag_now_fix PARAMS ((void));
-extern addressT frag_now_fix_octets PARAMS ((void));
+extern addressT frag_now_fix (void);
+extern addressT frag_now_fix_octets (void);
 
 /* For foreign-segment symbol fixups.  */
 COMMON fragS zero_address_frag;
@@ -116,7 +116,7 @@ COMMON fragS bss_address_frag;
 
 #if 0
 /* A macro to speed up appending exactly 1 char to current frag.  */
-/* JF changed < 1 to <= 1 to avoid a race conditon.  */
+/* JF changed < 1 to <= 1 to avoid a race condition.  */
 #define FRAG_APPEND_1_CHAR(datum)			\
 {							\
   if (obstack_room (&frags) <= 1)			\
@@ -127,37 +127,36 @@ COMMON fragS bss_address_frag;
   obstack_1grow (&frags, datum);			\
 }
 #else
-extern void frag_append_1_char PARAMS ((int));
+extern void frag_append_1_char (int);
 #define FRAG_APPEND_1_CHAR(X) frag_append_1_char (X)
 #endif
 
-void frag_init PARAMS ((void));
-fragS *frag_alloc PARAMS ((struct obstack *));
-void frag_grow PARAMS ((unsigned int nchars));
-char *frag_more PARAMS ((int nchars));
-void frag_align PARAMS ((int alignment, int fill_character, int max));
-void frag_align_pattern PARAMS ((int alignment,
-				 const char *fill_pattern,
-				 int n_fill,
-				 int max));
-void frag_align_code PARAMS ((int alignment, int max));
-void frag_new PARAMS ((int old_frags_var_max_size));
-void frag_wane PARAMS ((fragS * fragP));
+void frag_init (void);
+fragS *frag_alloc (struct obstack *);
+void frag_grow (unsigned int nchars);
+char *frag_more (int nchars);
+void frag_align (int alignment, int fill_character, int max);
+void frag_align_pattern (int alignment, const char *fill_pattern,
+			 int n_fill, int max);
+void frag_align_code (int alignment, int max);
+void frag_new (int old_frags_var_max_size);
+void frag_wane (fragS * fragP);
+int frag_room (void);
 
-char *frag_variant PARAMS ((relax_stateT type,
-			    int max_chars,
-			    int var,
-			    relax_substateT subtype,
-			    symbolS * symbol,
-			    offsetT offset,
-			    char *opcode));
+char *frag_variant (relax_stateT type,
+		    int max_chars,
+		    int var,
+		    relax_substateT subtype,
+		    symbolS * symbol,
+		    offsetT offset,
+		    char *opcode);
 
-char *frag_var PARAMS ((relax_stateT type,
-			int max_chars,
-			int var,
-			relax_substateT subtype,
-			symbolS * symbol,
-			offsetT offset,
-			char *opcode));
+char *frag_var (relax_stateT type,
+		int max_chars,
+		int var,
+		relax_substateT subtype,
+		symbolS * symbol,
+		offsetT offset,
+		char *opcode);
 
 #endif /* FRAGS_H */

@@ -1,23 +1,23 @@
 %{ /* deffilep.y - parser for .def files */
 
-/*   Copyright 1995, 1997, 1998, 1999, 2000, 2001
+/*   Copyright 1995, 1997, 1998, 1999, 2000, 2001, 2002, 2003
      Free Software Foundation, Inc.
 
-This file is part of GNU Binutils.
+     This file is part of GNU Binutils.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+     This program is free software; you can redistribute it and/or modify
+     it under the terms of the GNU General Public License as published by
+     the Free Software Foundation; either version 2 of the License, or
+     (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+     This program is distributed in the hope that it will be useful,
+     but WITHOUT ANY WARRANTY; without even the implied warranty of
+     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+     GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+     You should have received a copy of the GNU General Public License
+     along with this program; if not, write to the Free Software
+     Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include <stdio.h>
 #include "libiberty.h"
@@ -37,7 +37,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
    yacc generated parsers in ld.  Note that these are only the variables
    produced by yacc.  If other parser generators (bison, byacc, etc) produce
    additional global names that conflict at link time, then those parser
-   generators need to be fixed instead of adding those names to this list. */
+   generators need to be fixed instead of adding those names to this list.  */
 
 #define	yymaxdepth def_maxdepth
 #define	yyparse	def_parse
@@ -66,8 +66,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define	yy_yyv	def_yyv
 #define	yyval	def_val
 #define	yylloc	def_lloc
-#define yyreds	def_reds		/* With YYDEBUG defined */
-#define yytoks	def_toks		/* With YYDEBUG defined */
+#define yyreds	def_reds		/* With YYDEBUG defined.  */
+#define yytoks	def_toks		/* With YYDEBUG defined.  */
 #define yylhs	def_yylhs
 #define yylen	def_yylen
 #define yydefred def_yydefred
@@ -78,25 +78,21 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define yytable	 def_yytable
 #define yycheck	 def_yycheck
 
-static void def_description PARAMS ((const char *));
-static void def_exports PARAMS ((const char *, const char *, int, int));
-static void def_heapsize PARAMS ((int, int));
-static void def_import
-  PARAMS ((const char *, const char *, const char *, const char *, int));
-static void def_library PARAMS ((const char *, int));
-static def_file_module *def_stash_module PARAMS ((def_file *, const char *));
-static void def_name PARAMS ((const char *, int));
-static void def_section PARAMS ((const char *, int));
-static void def_section_alt PARAMS ((const char *, const char *));
-static void def_stacksize PARAMS ((int, int));
-static void def_version PARAMS ((int, int));
-static void def_directive PARAMS ((char *));
-static int def_parse PARAMS ((void));
-static int def_error PARAMS ((const char *));
-static void put_buf PARAMS ((char));
-static int def_getc PARAMS ((void));
-static int def_ungetc PARAMS ((int));
-static int def_lex PARAMS ((void));
+static void def_description (const char *);
+static void def_exports (const char *, const char *, int, int);
+static void def_heapsize (int, int);
+static void def_import (const char *, const char *, const char *, const char *,
+			int);
+static void def_library (const char *, int);
+static void def_name (const char *, int);
+static void def_section (const char *, int);
+static void def_section_alt (const char *, const char *);
+static void def_stacksize (int, int);
+static void def_version (int, int);
+static void def_directive (char *);
+static int def_parse (void);
+static int def_error (const char *);
+static int def_lex (void);
 
 static int lex_forced_token = 0;
 static const char *lex_parse_string = 0;
@@ -109,15 +105,15 @@ static const char *lex_parse_string_end = 0;
   int number;
 };
 
-%token NAME, LIBRARY, DESCRIPTION, STACKSIZE, HEAPSIZE, CODE, DATAU, DATAL
-%token SECTIONS, EXPORTS, IMPORTS, VERSIONK, BASE, CONSTANTU, CONSTANTL
-%token PRIVATEU, PRIVATEL
+%token NAME LIBRARY DESCRIPTION STACKSIZE HEAPSIZE CODE DATAU DATAL
+%token SECTIONS EXPORTS IMPORTS VERSIONK BASE CONSTANTU CONSTANTL
+%token PRIVATEU PRIVATEL
 %token READ WRITE EXECUTE SHARED NONAMEU NONAMEL DIRECTIVE
 %token <id> ID
 %token <number> NUMBER
 %type  <number> opt_base opt_ordinal
 %type  <number> attr attr_list opt_number exp_opt_list exp_opt
-%type  <id> opt_name opt_equal_name 
+%type  <id> opt_name opt_equal_name dot_name 
 
 %%
 
@@ -152,7 +148,7 @@ expline:
 		/* The opt_comma is necessary to support both the usual
 		  DEF file syntax as well as .drectve syntax which
 		  mandates <expsym>,<expoptlist>.  */
-		ID opt_equal_name opt_ordinal opt_comma exp_opt_list
+		dot_name opt_equal_name opt_ordinal opt_comma exp_opt_list
 			{ def_exports ($1, $2, $3, $5); }
 	;
 exp_opt_list:
@@ -219,7 +215,7 @@ attr:
 opt_name: ID		{ $$ = $1; }
 	| ID '.' ID	
 	  { 
-	    char * name = xmalloc (strlen ($1) + 1 + strlen ($3) + 1);
+	    char *name = xmalloc (strlen ($1) + 1 + strlen ($3) + 1);
 	    sprintf (name, "%s.%s", $1, $3);
 	    $$ = name;
 	  }
@@ -232,14 +228,22 @@ opt_ordinal:
 	;
 
 opt_equal_name:
-          '=' ID	{ $$ = $2; }
+          '=' dot_name	{ $$ = $2; }
         | 		{ $$ =  0; }			 
 	;
 
 opt_base: BASE	'=' NUMBER	{ $$ = $3;}
-	|	{ $$ = 0;}
+	|	{ $$ = -1;}
 	;
 
+dot_name: ID		{ $$ = $1; }
+	| dot_name '.' ID	
+	  { 
+	    char *name = xmalloc (strlen ($1) + 1 + strlen ($3) + 1);
+	    sprintf (name, "%s.%s", $1, $3);
+	    $$ = name;
+	  }
+	;
 	
 
 %%
@@ -264,12 +268,12 @@ struct directive
 static struct directive *directives = 0;
 
 def_file *
-def_file_empty ()
+def_file_empty (void)
 {
-  def_file *rv = (def_file *) xmalloc (sizeof (def_file));
+  def_file *rv = xmalloc (sizeof (def_file));
   memset (rv, 0, sizeof (def_file));
   rv->is_dll = -1;
-  rv->base_address = (bfd_vma) (-1);
+  rv->base_address = (bfd_vma) -1;
   rv->stack_reserve = rv->stack_commit = -1;
   rv->heap_reserve = rv->heap_commit = -1;
   rv->version_major = rv->version_minor = -1;
@@ -277,9 +281,7 @@ def_file_empty ()
 }
 
 def_file *
-def_file_parse (filename, add_to)
-     const char *filename;
-     def_file *add_to;
+def_file_parse (const char *filename, def_file *add_to)
 {
   struct directive *d;
 
@@ -322,10 +324,10 @@ def_file_parse (filename, add_to)
 }
 
 void
-def_file_free (def)
-     def_file *def;
+def_file_free (def_file *def)
 {
   int i;
+
   if (!def)
     return;
   if (def->name)
@@ -383,17 +385,16 @@ def_file_free (def)
 
 #ifdef DEF_FILE_PRINT
 void
-def_file_print (file, def)
-     FILE *file;
-     def_file *def;
+def_file_print (FILE *file, def_file *def)
 {
   int i;
+
   fprintf (file, ">>>> def_file at 0x%08x\n", def);
   if (def->name)
     fprintf (file, "  name: %s\n", def->name ? def->name : "(unspecified)");
   if (def->is_dll != -1)
     fprintf (file, "  is dll: %s\n", def->is_dll ? "yes" : "no");
-  if (def->base_address != (bfd_vma) (-1))
+  if (def->base_address != (bfd_vma) -1)
     fprintf (file, "  base address: 0x%08x\n", def->base_address);
   if (def->description)
     fprintf (file, "  description: `%s'\n", def->description);
@@ -409,6 +410,7 @@ def_file_print (file, def)
   if (def->num_section_defs > 0)
     {
       fprintf (file, "  section defs:\n");
+
       for (i = 0; i < def->num_section_defs; i++)
 	{
 	  fprintf (file, "    name: `%s', class: `%s', flags:",
@@ -428,6 +430,7 @@ def_file_print (file, def)
   if (def->num_exports > 0)
     {
       fprintf (file, "  exports:\n");
+
       for (i = 0; i < def->num_exports; i++)
 	{
 	  fprintf (file, "    name: `%s', int: `%s', ordinal: %d, flags:",
@@ -448,6 +451,7 @@ def_file_print (file, def)
   if (def->num_imports > 0)
     {
       fprintf (file, "  imports:\n");
+
       for (i = 0; i < def->num_imports; i++)
 	{
 	  fprintf (file, "    int: %s, from: `%s', name: `%s', ordinal: %d\n",
@@ -457,28 +461,31 @@ def_file_print (file, def)
 		   def->imports[i].ordinal);
 	}
     }
+
   if (def->version_major != -1)
     fprintf (file, "  version: %d.%d\n", def->version_major, def->version_minor);
+
   fprintf (file, "<<<< def_file at 0x%08x\n", def);
 }
 #endif
 
 def_file_export *
-def_file_add_export (def, external_name, internal_name, ordinal)
-     def_file *def;
-     const char *external_name;
-     const char *internal_name;
-     int ordinal;
+def_file_add_export (def_file *def,
+		     const char *external_name,
+		     const char *internal_name,
+		     int ordinal)
 {
   def_file_export *e;
   int max_exports = ROUND_UP(def->num_exports, 32);
+
   if (def->num_exports >= max_exports)
     {
-      max_exports = ROUND_UP(def->num_exports+1, 32);
+      max_exports = ROUND_UP(def->num_exports + 1, 32);
       if (def->exports)
-	def->exports = (def_file_export *) xrealloc (def->exports, max_exports * sizeof (def_file_export));
+	def->exports = xrealloc (def->exports,
+				 max_exports * sizeof (def_file_export));
       else
-	def->exports = (def_file_export *) xmalloc (max_exports * sizeof (def_file_export));
+	def->exports = xmalloc (max_exports * sizeof (def_file_export));
     }
   e = def->exports + def->num_exports;
   memset (e, 0, sizeof (def_file_export));
@@ -493,16 +500,26 @@ def_file_add_export (def, external_name, internal_name, ordinal)
   return e;
 }
 
-static def_file_module *
-def_stash_module (def, name)
-     def_file *def;
-     const char *name;
+def_file_module *
+def_get_module (def_file *def, const char *name)
 {
   def_file_module *s;
-  for (s=def->modules; s; s=s->next)
+
+  for (s = def->modules; s; s = s->next)
     if (strcmp (s->name, name) == 0)
       return s;
-  s = (def_file_module *) xmalloc (sizeof (def_file_module) + strlen (name));
+
+  return NULL;
+}
+
+static def_file_module *
+def_stash_module (def_file *def, const char *name)
+{
+  def_file_module *s;
+
+  if ((s = def_get_module (def, name)) != NULL)
+      return s;
+  s = xmalloc (sizeof (def_file_module) + strlen (name));
   s->next = def->modules;
   def->modules = s;
   s->user_data = 0;
@@ -511,22 +528,24 @@ def_stash_module (def, name)
 }
 
 def_file_import *
-def_file_add_import (def, name, module, ordinal, internal_name)
-     def_file *def;
-     const char *name;
-     const char *module;
-     int ordinal;
-     const char *internal_name;
+def_file_add_import (def_file *def,
+		     const char *name,
+		     const char *module,
+		     int ordinal,
+		     const char *internal_name)
 {
   def_file_import *i;
-  int max_imports = ROUND_UP(def->num_imports, 16);
+  int max_imports = ROUND_UP (def->num_imports, 16);
+
   if (def->num_imports >= max_imports)
     {
-      max_imports = ROUND_UP(def->num_imports+1, 16);
+      max_imports = ROUND_UP (def->num_imports+1, 16);
+
       if (def->imports)
-	def->imports = (def_file_import *) xrealloc (def->imports, max_imports * sizeof (def_file_import));
+	def->imports = xrealloc (def->imports,
+				 max_imports * sizeof (def_file_import));
       else
-	def->imports = (def_file_import *) xmalloc (max_imports * sizeof (def_file_import));
+	def->imports = xmalloc (max_imports * sizeof (def_file_import));
     }
   i = def->imports + def->num_imports;
   memset (i, 0, sizeof (def_file_import));
@@ -540,6 +559,7 @@ def_file_add_import (def, name, module, ordinal, internal_name)
   else
     i->internal_name = i->name;
   def->num_imports++;
+
   return i;
 }
 
@@ -558,29 +578,40 @@ diropts[] =
 };
 
 void
-def_file_add_directive (my_def, param, len)
-     def_file *my_def;
-     const char *param;
-     int len;
+def_file_add_directive (def_file *my_def, const char *param, int len)
 {
   def_file *save_def = def;
   const char *pend = param + len;
-  const char *tend = param;
+  char * tend = (char *) param;
   int i;
 
   def = my_def;
 
   while (param < pend)
     {
-      while (param < pend && ISSPACE (*param))
+      while (param < pend
+	     && (ISSPACE (*param) || *param == '\n' || *param == 0))
 	param++;
-      for (tend = param + 1;
-	   tend < pend && !(ISSPACE (tend[-1]) && *tend == '-');
-	   tend++);
+
+      if (param == pend)
+	break;
+
+      /* Scan forward until we encounter any of:
+          - the end of the buffer
+	  - the start of a new option
+	  - a newline seperating options
+          - a NUL seperating options.  */
+      for (tend = (char *) (param + 1);
+	   (tend < pend
+	    && !(ISSPACE (tend[-1]) && *tend == '-')
+	    && *tend != '\n' && *tend != 0);
+	   tend++)
+	;
 
       for (i = 0; diropts[i].param; i++)
 	{
 	  int len = strlen (diropts[i].param);
+
 	  if (tend - param >= len
 	      && strncmp (param, diropts[i].param, len) == 0
 	      && (param[len] == ':' || param[len] == ' '))
@@ -589,17 +620,23 @@ def_file_add_directive (my_def, param, len)
 	      lex_parse_string = param + len + 1;
 	      lex_forced_token = diropts[i].token;
 	      saw_newline = 0;
-	      def_parse ();
+	      if (def_parse ())
+		continue;
 	      break;
 	    }
 	}
 
       if (!diropts[i].param)
 	{
+	  char saved;
+
+	  saved = * tend;
+	  * tend = 0;
 	  /* xgettext:c-format */
-	  einfo (_("Warning: .drectve `%.*s' unrecognized\n"),
-		 tend - param, param);
+	  einfo (_("Warning: .drectve `%s' unrecognized\n"), param);
+	  * tend = saved;
 	}
+
       lex_parse_string = 0;
       param = tend;
     }
@@ -607,14 +644,10 @@ def_file_add_directive (my_def, param, len)
   def = save_def;
 }
 
-/*****************************************************************************
- Parser Callbacks
- *****************************************************************************/
+/* Parser Callbacks.  */
 
 static void
-def_name (name, base)
-     const char *name;
-     int base;
+def_name (const char *name, int base)
 {
   if (def->name)
     free (def->name);
@@ -624,9 +657,7 @@ def_name (name, base)
 }
 
 static void
-def_library (name, base)
-     const char *name;
-     int base;
+def_library (const char *name, int base)
 {
   if (def->name)
     free (def->name);
@@ -636,55 +667,52 @@ def_library (name, base)
 }
 
 static void
-def_description (text)
-     const char *text;
+def_description (const char *text)
 {
   int len = def->description ? strlen (def->description) : 0;
+
   len += strlen (text) + 1;
   if (def->description)
     {
-      def->description = (char *) xrealloc (def->description, len);
+      def->description = xrealloc (def->description, len);
       strcat (def->description, text);
     }
   else
     {
-      def->description = (char *) xmalloc (len);
+      def->description = xmalloc (len);
       strcpy (def->description, text);
     }
 }
 
 static void
-def_stacksize (reserve, commit)
-     int reserve;
-     int commit;
+def_stacksize (int reserve, int commit)
 {
   def->stack_reserve = reserve;
   def->stack_commit = commit;
 }
 
 static void
-def_heapsize (reserve, commit)
-     int reserve;
-     int commit;
+def_heapsize (int reserve, int commit)
 {
   def->heap_reserve = reserve;
   def->heap_commit = commit;
 }
 
 static void
-def_section (name, attr)
-     const char *name;
-     int attr;
+def_section (const char *name, int attr)
 {
   def_file_section *s;
-  int max_sections = ROUND_UP(def->num_section_defs, 4);
+  int max_sections = ROUND_UP (def->num_section_defs, 4);
+
   if (def->num_section_defs >= max_sections)
     {
-      max_sections = ROUND_UP(def->num_section_defs+1, 4);
+      max_sections = ROUND_UP (def->num_section_defs+1, 4);
+
       if (def->section_defs)
-	def->section_defs = (def_file_section *) xrealloc (def->section_defs, max_sections * sizeof (def_file_import));
+	def->section_defs = xrealloc (def->section_defs,
+				      max_sections * sizeof (def_file_import));
       else
-	def->section_defs = (def_file_section *) xmalloc (max_sections * sizeof (def_file_import));
+	def->section_defs = xmalloc (max_sections * sizeof (def_file_import));
     }
   s = def->section_defs + def->num_section_defs;
   memset (s, 0, sizeof (def_file_section));
@@ -702,11 +730,10 @@ def_section (name, attr)
 }
 
 static void
-def_section_alt (name, attr)
-     const char *name;
-     const char *attr;
+def_section_alt (const char *name, const char *attr)
 {
   int aval = 0;
+
   for (; *attr; attr++)
     {
       switch (*attr)
@@ -733,11 +760,10 @@ def_section_alt (name, attr)
 }
 
 static void
-def_exports (external_name, internal_name, ordinal, flags)
-     const char *external_name;
-     const char *internal_name;
-     int ordinal;
-     int flags;
+def_exports (const char *external_name,
+	     const char *internal_name,
+	     int ordinal,
+	     int flags)
 {
   def_file_export *dfe;
 
@@ -759,21 +785,18 @@ def_exports (external_name, internal_name, ordinal, flags)
 }
 
 static void
-def_import (internal_name, module, dllext, name, ordinal)
-     const char *internal_name;
-     const char *module;
-     const char *dllext;
-     const char *name;
-     int ordinal;
+def_import (const char *internal_name,
+	    const char *module,
+	    const char *dllext,
+	    const char *name,
+	    int ordinal)
 {
   char *buf = 0;
-
-  if (dllext != NULL)
-    {
-      buf = (char *) xmalloc (strlen (module) + strlen (dllext) + 2);
-      sprintf (buf, "%s.%s", module, dllext);
-      module = buf;
-    }
+  const char *ext = dllext ? dllext : "dll";    
+   
+  buf = xmalloc (strlen (module) + strlen (ext) + 2);
+  sprintf (buf, "%s.%s", module, ext);
+  module = buf;
 
   def_file_add_import (def, name, module, ordinal, internal_name);
   if (buf)
@@ -781,19 +804,17 @@ def_import (internal_name, module, dllext, name, ordinal)
 }
 
 static void
-def_version (major, minor)
-     int major;
-     int minor;
+def_version (int major, int minor)
 {
   def->version_major = major;
   def->version_minor = minor;
 }
 
 static void
-def_directive (str)
-     char *str;
+def_directive (char *str)
 {
-  struct directive *d = (struct directive *) xmalloc (sizeof (struct directive));
+  struct directive *d = xmalloc (sizeof (struct directive));
+
   d->next = directives;
   directives = d;
   d->name = xstrdup (str);
@@ -801,41 +822,37 @@ def_directive (str)
 }
 
 static int
-def_error (err)
-     const char *err;
+def_error (const char *err)
 {
-  einfo ("%P: %s:%d: %s\n", def_filename, linenumber, err);
-
+  einfo ("%P: %s:%d: %s\n",
+	 def_filename ? def_filename : "<unknown-file>", linenumber, err);
   return 0;
 }
 
 
-/*****************************************************************************
- Lexical Scanner
- *****************************************************************************/
+/* Lexical Scanner.  */
 
 #undef TRACE
 #define TRACE 0
 
-/* Never freed, but always reused as needed, so no real leak */
+/* Never freed, but always reused as needed, so no real leak.  */
 static char *buffer = 0;
 static int buflen = 0;
 static int bufptr = 0;
 
 static void
-put_buf (c)
-     char c;
+put_buf (char c)
 {
   if (bufptr == buflen)
     {
-      buflen += 50;		/* overly reasonable, eh? */
+      buflen += 50;		/* overly reasonable, eh?  */
       if (buffer)
-	buffer = (char *) xrealloc (buffer, buflen + 1);
+	buffer = xrealloc (buffer, buflen + 1);
       else
-	buffer = (char *) xmalloc (buflen + 1);
+	buffer = xmalloc (buflen + 1);
     }
   buffer[bufptr++] = c;
-  buffer[bufptr] = 0;		/* not optimal, but very convenient */
+  buffer[bufptr] = 0;		/* not optimal, but very convenient.  */
 }
 
 static struct
@@ -874,9 +891,10 @@ tokens[] =
 };
 
 static int
-def_getc ()
+def_getc (void)
 {
   int rv;
+
   if (lex_parse_string)
     {
       if (lex_parse_string >= lex_parse_string_end)
@@ -894,8 +912,7 @@ def_getc ()
 }
 
 static int
-def_ungetc (c)
-     int c;
+def_ungetc (int c)
 {
   if (lex_parse_string)
     {
@@ -907,7 +924,7 @@ def_ungetc (c)
 }
 
 static int
-def_lex ()
+def_lex (void)
 {
   int c, i, q;
 
@@ -923,7 +940,7 @@ def_lex ()
 
   c = def_getc ();
 
-  /* trim leading whitespace */
+  /* Trim leading whitespace.  */
   while (c != EOF && (c == ' ' || c == '\t') && saw_newline)
     c = def_getc ();
 
@@ -946,7 +963,8 @@ def_lex ()
 	return def_lex ();
       return 0;
     }
-  /* must be something else */
+
+  /* Must be something else.  */
   saw_newline = 0;
 
   if (ISDIGIT (c))
@@ -966,9 +984,27 @@ def_lex ()
       return NUMBER;
     }
 
-  if (ISALPHA (c) || strchr ("$:-_?", c))
+  if (ISALPHA (c) || strchr ("$:-_?@", c))
     {
       bufptr = 0;
+      q = c;
+      put_buf (c);
+      c = def_getc ();
+
+      if (q == '@')
+	{
+          if (ISBLANK (c) ) /* '@' followed by whitespace.  */
+	    return (q);
+          else if (ISDIGIT (c)) /* '@' followed by digit.  */
+            {
+	      def_ungetc (c);
+              return (q);
+	    }
+#if TRACE
+	  printf ("lex: @ returns itself\n");
+#endif
+	}
+
       while (c != EOF && (ISALNUM (c) || strchr ("$:-_?/@", c)))
 	{
 	  put_buf (c);
@@ -976,14 +1012,17 @@ def_lex ()
 	}
       if (c != EOF)
 	def_ungetc (c);
-      for (i = 0; tokens[i].name; i++)
-	if (strcmp (tokens[i].name, buffer) == 0)
-	  {
+      if (ISALPHA (q)) /* Check for tokens.  */
+	{
+          for (i = 0; tokens[i].name; i++)
+	    if (strcmp (tokens[i].name, buffer) == 0)
+	      {
 #if TRACE
-	    printf ("lex: `%s' is a string token\n", buffer);
+	        printf ("lex: `%s' is a string token\n", buffer);
 #endif
-	    return tokens[i].token;
-	  }
+	        return tokens[i].token;
+	      }
+	}
 #if TRACE
       printf ("lex: `%s' returns ID\n", buffer);
 #endif
@@ -996,6 +1035,7 @@ def_lex ()
       q = c;
       c = def_getc ();
       bufptr = 0;
+
       while (c != EOF && c != q)
 	{
 	  put_buf (c);
@@ -1008,7 +1048,7 @@ def_lex ()
       return ID;
     }
 
-  if (c == '=' || c == '.' || c == '@' || c == ',')
+  if (c == '=' || c == '.' || c == ',')
     {
 #if TRACE
       printf ("lex: `%c' returns itself\n", c);

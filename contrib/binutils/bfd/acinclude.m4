@@ -1,5 +1,7 @@
+sinclude(../config/accross.m4)
+
 dnl See whether we need to use fopen-bin.h rather than fopen-same.h.
-AC_DEFUN(BFD_BINARY_FOPEN,
+AC_DEFUN([BFD_BINARY_FOPEN],
 [AC_REQUIRE([AC_CANONICAL_SYSTEM])
 case "${host}" in
 changequote(,)dnl
@@ -9,7 +11,7 @@ changequote([,])dnl
 esac])dnl
 
 dnl Get a default for CC_FOR_BUILD to put into Makefile.
-AC_DEFUN(BFD_CC_FOR_BUILD,
+AC_DEFUN([BFD_CC_FOR_BUILD],
 [# Put a plausible default for CC_FOR_BUILD in Makefile.
 if test -z "$CC_FOR_BUILD"; then
   if test "x$cross_compiling" = "xno"; then
@@ -42,7 +44,7 @@ fi
 AC_SUBST(EXEEXT_FOR_BUILD)])dnl
 
 dnl See whether we need a declaration for a function.
-AC_DEFUN(BFD_NEED_DECLARATION,
+AC_DEFUN([BFD_NEED_DECLARATION],
 [AC_MSG_CHECKING([whether $1 must be declared])
 AC_CACHE_VAL(bfd_cv_decl_needed_$1,
 [AC_TRY_COMPILE([
@@ -71,7 +73,7 @@ fi
 
 dnl Check for existence of a type $1 in sys/procfs.h
 
-AC_DEFUN(BFD_HAVE_SYS_PROCFS_TYPE,
+AC_DEFUN([BFD_HAVE_SYS_PROCFS_TYPE],
 [AC_MSG_CHECKING([for $1 in sys/procfs.h])
  AC_CACHE_VAL(bfd_cv_have_sys_procfs_type_$1,
    [AC_TRY_COMPILE([
@@ -91,7 +93,7 @@ AC_DEFUN(BFD_HAVE_SYS_PROCFS_TYPE,
 
 dnl Check for existence of member $2 in type $1 in sys/procfs.h
 
-AC_DEFUN(BFD_HAVE_SYS_PROCFS_TYPE_MEMBER,
+AC_DEFUN([BFD_HAVE_SYS_PROCFS_TYPE_MEMBER],
 [AC_MSG_CHECKING([for $1.$2 in sys/procfs.h])
  AC_CACHE_VAL(bfd_cv_have_sys_procfs_type_member_$1_$2,
    [AC_TRY_COMPILE([
@@ -127,9 +129,9 @@ AC_SUBST(INTLLIBS)
 AC_DEFUN([AM_INSTALL_LIBBFD],
 [AC_MSG_CHECKING([whether to install libbfd])
   AC_ARG_ENABLE(install-libbfd,
-[  --install-libbfd controls installation of libbfd and related headers],
+[  --enable-install-libbfd controls installation of libbfd and related headers],
       install_libbfd_p=$enableval,
-      if test "${host}" = "${target}" -o "$enable_shared" = "yes"; then
+      if test "${host}" = "${target}" || test "$enable_shared" = "yes"; then
         install_libbfd_p=yes
       else
         install_libbfd_p=no

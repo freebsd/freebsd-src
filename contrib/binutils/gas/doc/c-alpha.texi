@@ -139,12 +139,12 @@ OpenVMS syntax, with a few differences for ELF.
 @cindex Alpha registers
 @cindex register names, Alpha
 
-The 32 integer registers are refered to as @samp{$@var{n}} or
+The 32 integer registers are referred to as @samp{$@var{n}} or
 @samp{$r@var{n}}.  In addition, registers 15, 28, 29, and 30 may
-be refered to by the symbols @samp{$fp}, @samp{$at}, @samp{$gp},
+be referred to by the symbols @samp{$fp}, @samp{$at}, @samp{$gp},
 and @samp{$sp} respectively.
 
-The 32 floating-point registers are refered to as @samp{$f@var{n}}.
+The 32 floating-point registers are referred to as @samp{$f@var{n}}.
 
 @node Alpha-Relocs
 @subsection Relocations
@@ -153,7 +153,7 @@ The 32 floating-point registers are refered to as @samp{$f@var{n}}.
 
 Some of these relocations are available for ECOFF, but mostly
 only for ELF.  They are modeled after the relocation format 
-introduced in Digial Unix 4.0, but there are additions.
+introduced in Digital Unix 4.0, but there are additions.
 
 The format is @samp{!@var{tag}} or @samp{!@var{tag}!@var{number}}
 where @var{tag} is the name of the relocation.  In some cases
@@ -379,6 +379,18 @@ to perform a load of the GP register; 2 indicates that @code{$27} is
 used in some non-standard way and so the linker cannot elide the load of
 the procedure vector during relaxation.
 
+@item .usepv @var{function}, @var{which}
+Used to indicate the use of the @code{$27} register, similar to 
+@code{.prologue}, but without the other semantics of needing to 
+be inside an open @code{.ent}/@code{.end} block.
+
+The @var{which} argument should be either @code{no}, indicating that
+@code{$27} is not used, or @code{std}, indicating that the first two
+instructions of the function perform a GP load.
+
+One might use this directive instead of @code{.prologue} if you are
+also using dwarf2 CFI directives.
+
 @item .gprel32 @var{expression}
 Computes the difference between the address in @var{expression} and the
 GP for the current object file, and stores it in 4 bytes.  In addition
@@ -413,7 +425,7 @@ is in effect.  When @code{at} is in effect, a warning will be generated
 if @code{$at} is used by the programmer.
 
 @item macro
-Enables the expasion of macro instructions.  Note that variants of real
+Enables the expansion of macro instructions.  Note that variants of real
 instructions, such as @code{br label} vs @code{br $31,label} are
 considered alternate forms and not macros.
 

@@ -1,5 +1,5 @@
 /* ppc.h -- Header file for PowerPC opcode table
-   Copyright 1994, 1995, 1999, 2000, 2001, 2002
+   Copyright 1994, 1995, 1999, 2000, 2001, 2002, 2003, 2004
    Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support
 
@@ -59,53 +59,80 @@ extern const int powerpc_num_opcodes;
 /* Values defined for the flags field of a struct powerpc_opcode.  */
 
 /* Opcode is defined for the PowerPC architecture.  */
-#define PPC_OPCODE_PPC (01)
+#define PPC_OPCODE_PPC			 1
 
 /* Opcode is defined for the POWER (RS/6000) architecture.  */
-#define PPC_OPCODE_POWER (02)
+#define PPC_OPCODE_POWER		 2
 
 /* Opcode is defined for the POWER2 (Rios 2) architecture.  */
-#define PPC_OPCODE_POWER2 (04)
+#define PPC_OPCODE_POWER2		 4
 
 /* Opcode is only defined on 32 bit architectures.  */
-#define PPC_OPCODE_32 (010)
+#define PPC_OPCODE_32			 8
 
 /* Opcode is only defined on 64 bit architectures.  */
-#define PPC_OPCODE_64 (020)
+#define PPC_OPCODE_64		      0x10
 
 /* Opcode is supported by the Motorola PowerPC 601 processor.  The 601
    is assumed to support all PowerPC (PPC_OPCODE_PPC) instructions,
    but it also supports many additional POWER instructions.  */
-#define PPC_OPCODE_601 (040)
+#define PPC_OPCODE_601		      0x20
 
 /* Opcode is supported in both the Power and PowerPC architectures
    (ie, compiler's -mcpu=common or assembler's -mcom).  */
-#define PPC_OPCODE_COMMON (0100)
+#define PPC_OPCODE_COMMON	      0x40
 
 /* Opcode is supported for any Power or PowerPC platform (this is
    for the assembler's -many option, and it eliminates duplicates).  */
-#define PPC_OPCODE_ANY (0200)
+#define PPC_OPCODE_ANY		      0x80
 
 /* Opcode is supported as part of the 64-bit bridge.  */
-#define PPC_OPCODE_64_BRIDGE (0400)
+#define PPC_OPCODE_64_BRIDGE	     0x100
 
 /* Opcode is supported by Altivec Vector Unit */
-#define PPC_OPCODE_ALTIVEC (01000)
+#define PPC_OPCODE_ALTIVEC	     0x200
 
 /* Opcode is supported by PowerPC 403 processor.  */
-#define PPC_OPCODE_403 (02000)
+#define PPC_OPCODE_403		     0x400
 
 /* Opcode is supported by PowerPC BookE processor.  */
-#define PPC_OPCODE_BOOKE (04000)
+#define PPC_OPCODE_BOOKE	     0x800
 
 /* Opcode is only supported by 64-bit PowerPC BookE processor.  */
-#define PPC_OPCODE_BOOKE64 (010000)
+#define PPC_OPCODE_BOOKE64	    0x1000
+
+/* Opcode is supported by PowerPC 440 processor.  */
+#define PPC_OPCODE_440		    0x2000
 
 /* Opcode is only supported by Power4 architecture.  */
-#define PPC_OPCODE_POWER4 (020000)
+#define PPC_OPCODE_POWER4	    0x4000
 
 /* Opcode isn't supported by Power4 architecture.  */
-#define PPC_OPCODE_NOPOWER4 (040000)
+#define PPC_OPCODE_NOPOWER4	    0x8000
+
+/* Opcode is only supported by POWERPC Classic architecture.  */
+#define PPC_OPCODE_CLASSIC	   0x10000
+
+/* Opcode is only supported by e500x2 Core.  */
+#define PPC_OPCODE_SPE		   0x20000
+
+/* Opcode is supported by e500x2 Integer select APU.  */
+#define PPC_OPCODE_ISEL		   0x40000
+
+/* Opcode is an e500 SPE floating point instruction.  */
+#define PPC_OPCODE_EFS		   0x80000
+
+/* Opcode is supported by branch locking APU.  */
+#define PPC_OPCODE_BRLOCK	  0x100000
+
+/* Opcode is supported by performance monitor APU.  */
+#define PPC_OPCODE_PMR		  0x200000
+
+/* Opcode is supported by cache locking APU.  */
+#define PPC_OPCODE_CACHELCK	  0x400000
+
+/* Opcode is supported by machine check APU.  */
+#define PPC_OPCODE_RFMCI	  0x800000
 
 /* A macro to extract the major opcode from an instruction.  */
 #define PPC_OP(i) (((i) >> 26) & 0x3f)
@@ -124,7 +151,7 @@ struct powerpc_operand
      operand value into an instruction, check this field.
 
      If it is NULL, execute
-         i |= (op & ((1 << o->bits) - 1)) << o->shift;
+	 i |= (op & ((1 << o->bits) - 1)) << o->shift;
      (i is the instruction which we are filling in, o is a pointer to
      this structure, and op is the opcode value; this assumes twos
      complement arithmetic).
@@ -136,15 +163,14 @@ struct powerpc_operand
      string (the operand will be inserted in any case).  If the
      operand value is legal, *ERRMSG will be unchanged (most operands
      can accept any value).  */
-  unsigned long (*insert) PARAMS ((unsigned long instruction, long op,
-				   int dialect,
-				   const char **errmsg));
+  unsigned long (*insert)
+    (unsigned long instruction, long op, int dialect, const char **errmsg);
 
   /* Extraction function.  This is used by the disassembler.  To
      extract this operand type from an instruction, check this field.
 
      If it is NULL, compute
-         op = ((i) >> o->shift) & ((1 << o->bits) - 1);
+	 op = ((i) >> o->shift) & ((1 << o->bits) - 1);
 	 if ((o->flags & PPC_OPERAND_SIGNED) != 0
 	     && (op & (1 << (o->bits - 1))) != 0)
 	   op -= 1 << o->bits;
@@ -157,8 +183,7 @@ struct powerpc_operand
      non-zero if this operand type can not actually be extracted from
      this operand (i.e., the instruction does not match).  If the
      operand is valid, *INVALID will not be changed.  */
-  long (*extract) PARAMS ((unsigned long instruction, int dialect,
-			   int *invalid));
+  long (*extract) (unsigned long instruction, int dialect, int *invalid);
 
   /* One bit syntax flags.  */
   unsigned long flags;
@@ -208,17 +233,20 @@ extern const struct powerpc_operand powerpc_operands[];
    register names with a leading 'r'.  */
 #define PPC_OPERAND_GPR (040)
 
+/* Like PPC_OPERAND_GPR, but don't print a leading 'r' for r0.  */
+#define PPC_OPERAND_GPR_0 (0100)
+
 /* This operand names a floating point register.  The disassembler
    prints these with a leading 'f'.  */
-#define PPC_OPERAND_FPR (0100)
+#define PPC_OPERAND_FPR (0200)
 
 /* This operand is a relative branch displacement.  The disassembler
    prints these symbolically if possible.  */
-#define PPC_OPERAND_RELATIVE (0200)
+#define PPC_OPERAND_RELATIVE (0400)
 
 /* This operand is an absolute branch address.  The disassembler
    prints these symbolically if possible.  */
-#define PPC_OPERAND_ABSOLUTE (0400)
+#define PPC_OPERAND_ABSOLUTE (01000)
 
 /* This operand is optional, and is zero if omitted.  This is used for
    the optional BF and L fields in the comparison instructions.  The
@@ -226,7 +254,7 @@ extern const struct powerpc_operand powerpc_operands[];
    and the number of operands remaining for the opcode, and decide
    whether this operand is present or not.  The disassembler should
    print this operand out only if it is not zero.  */
-#define PPC_OPERAND_OPTIONAL (01000)
+#define PPC_OPERAND_OPTIONAL (02000)
 
 /* This flag is only used with PPC_OPERAND_OPTIONAL.  If this operand
    is omitted, then for the next operand use this operand value plus
@@ -234,21 +262,24 @@ extern const struct powerpc_operand powerpc_operands[];
    hack is needed because the Power rotate instructions can take
    either 4 or 5 operands.  The disassembler should print this operand
    out regardless of the PPC_OPERAND_OPTIONAL field.  */
-#define PPC_OPERAND_NEXT (02000)
+#define PPC_OPERAND_NEXT (04000)
 
 /* This operand should be regarded as a negative number for the
    purposes of overflow checking (i.e., the normal most negative
    number is disallowed and one more than the normal most positive
    number is allowed).  This flag will only be set for a signed
    operand.  */
-#define PPC_OPERAND_NEGATIVE (04000)
+#define PPC_OPERAND_NEGATIVE (010000)
 
 /* This operand names a vector unit register.  The disassembler
    prints these with a leading 'v'.  */
-#define PPC_OPERAND_VR (010000)
+#define PPC_OPERAND_VR (020000)
 
 /* This operand is for the DS field in a DS form instruction.  */
-#define PPC_OPERAND_DS (020000)
+#define PPC_OPERAND_DS (040000)
+
+/* This operand is for the DQ field in a DQ form instruction.  */
+#define PPC_OPERAND_DQ (0100000)
 
 /* The POWER and PowerPC assemblers use a few macros.  We keep them
    with the operands table for simplicity.  The macro table is an

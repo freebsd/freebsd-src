@@ -9003,7 +9003,7 @@ Thu Oct 14 16:51:00 1993  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
 	* app.c (do_scrub_next_char): Always accept 'x' and 'X' as escape
 	characters in state 6.
 	* read.c (next_char_of_string): Accept \Xh* and \xh* where h* are
-	hexidecimal digits.
+	hexadecimal digits.
 
 	* config/tc-i386.c (md_apply_fix_1): Make cross segment calls work
 	for ELF by hacking around bizarre bfd_perform_relocation behaviour
@@ -10401,7 +10401,7 @@ Thu Jul  8 14:15:05 1993  Ken Raeburn  (raeburn@cambridge.cygnus.com)
 
 Thu Jul  8 07:25:25 1993  Doug Evans  (dje@canuck.cygnus.com)
 
-	* config/tc-h8300.h (TC_CONS_RELOC): Use R_RELLONG if h8/300h.
+	* config/tc-h8300.h (TC_CONS_RELOC): Use R_RELLONG if H8/300H.
 
 Wed Jul  7 18:11:07 1993  david d `zoo' zuhn  (zoo at rtl.cygnus.com)
 
@@ -13007,7 +13007,7 @@ Sat Feb 22 12:26:28 1992  Steve Chamberlain  (sac at rtl.cygnus.com)
 	* app.c: MRI compatibility - allow single quote to start a string.
 	* as.c: fix typo recently introduced.
 	* as.h : Don't include aout/reloc.h - it's not right for COFF!
-	* expr.c: Much rewriting, to accomodate MRI syntax for
+	* expr.c: Much rewriting, to accommodate MRI syntax for
 	expressions. Also easier to read now.
 	* listing.c: Put back defuns
 	* read.c: modified to accept MRI syntax, put back listing pseudo

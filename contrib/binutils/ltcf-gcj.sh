@@ -2,7 +2,7 @@
 
 # ltcf-gcj.sh - Create a GCJ compiler specific configuration
 #
-# Copyright (C) 1996-1999, 2000, 2001 Free Software Foundation, Inc.
+# Copyright (C) 1996-1999, 2000, 2001, 2003 Free Software Foundation, Inc.
 # Originally by Gordon Matzigkeit <gord@gnu.ai.mit.edu>, 1996
 #
 # Original GCJ support by:
@@ -111,7 +111,7 @@ EOF
     extract_expsyms_cmds='test -f $output_objdir/impgen.c || \
       sed -e "/^# \/\* impgen\.c starts here \*\//,/^# \/\* impgen.c ends here \*\// { s/^# //; p; }" -e d < $0 > $output_objdir/impgen.c~
       test -f $output_objdir/impgen.exe || (cd $output_objdir && \
-      if test "x$HOST_CC" != "x" ; then $HOST_CC -o impgen impgen.c ; \
+      if test "x$BUILD_CC" != "x" ; then $BUILD_CC -o impgen impgen.c ; \
       else $CC -o impgen impgen.c ; fi)~
       $output_objdir/impgen $dir/$soroot > $output_objdir/$soname-def'
 
@@ -492,9 +492,9 @@ else
 
   solaris*)
     no_undefined_flag=' ${wl}-z ${wl}defs'
-    archive_cmds='$CC -shared -nostdlib $LDFLAGS $predep_objects $libobjs $deplibs $postdep_objects $linker_flags ${wl}-h $wl$soname -o $lib'
+    archive_cmds='$CC -shared -nostdlib $LDFLAGS $predep_objects $libobjs $deplibs $postdep_objects $compiler_flags ${wl}-h $wl$soname -o $lib'
     archive_expsym_cmds='$echo "{ global:" > $lib.exp~cat $export_symbols | sed -e "s/\(.*\)/\1;/" >> $lib.exp~$echo "local: *; };" >> $lib.exp~
-      $CC -shared -nostdlib ${wl}-M $wl$lib.exp -o $lib $predep_objects $libobjs $deplibs $postdep_objects $linker_flags~$rm $lib.exp'
+      $CC -shared -nostdlib ${wl}-M $wl$lib.exp -o $lib $predep_objects $libobjs $deplibs $postdep_objects $compiler_flags~$rm $lib.exp'
 
     # Commands to make compiler produce verbose output that lists
     # what "hidden" libraries, object files and flags are used when

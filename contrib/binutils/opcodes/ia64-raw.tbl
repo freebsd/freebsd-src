@@ -2,8 +2,14 @@ Resource Name;	Writers;	Readers;	Semantics of Dependency
 ALAT;	chk.a.clr, IC:mem-readers-alat, IC:mem-writers, IC:invala-all;	IC:mem-readers-alat, IC:mem-writers, IC:chk-a, invala.e;	none
 AR[BSP];	br.call, brl.call, br.ret, cover, IC:mov-to-AR-BSPSTORE, rfi;	br.call, brl.call, br.ia, br.ret, cover, flushrs, loadrs, IC:mov-from-AR-BSP, rfi;	impliedF
 AR[BSPSTORE];	alloc, loadrs, flushrs, IC:mov-to-AR-BSPSTORE;	alloc, br.ia, flushrs, IC:mov-from-AR-BSPSTORE;	impliedF
+AR[CFLG];	IC:mov-to-AR-CFLG;	br.ia, IC:mov-from-AR-CFLG;	impliedF
 AR[CCV];	IC:mov-to-AR-CCV;	br.ia, IC:cmpxchg, IC:mov-from-AR-CCV;	impliedF
+AR[CSD];	ld16, IC:mov-to-AR-CSD;	br.ia, cmp8xchg16, IC:mov-from-AR-CSD, st16;	impliedF
 AR[EC];	IC:mod-sched-brs, br.ret, IC:mov-to-AR-EC;	br.call, brl.call, br.ia, IC:mod-sched-brs, IC:mov-from-AR-EC;	impliedF
+AR[EFLAG];	IC:mov-to-AR-EFLAG;	br.ia, IC:mov-from-AR-EFLAG;	impliedF
+AR[FCR];	IC:mov-to-AR-FCR;	br.ia, IC:mov-from-AR-FCR;	impliedF
+AR[FDR];	IC:mov-to-AR-FDR;	br.ia, IC:mov-from-AR-FDR;	impliedF
+AR[FIR];	IC:mov-to-AR-FIR;	br.ia, IC:mov-from-AR-FIR;	impliedF
 AR[FPSR].sf0.controls;	IC:mov-to-AR-FPSR, fsetc.s0;	br.ia, IC:fp-arith-s0, IC:fcmp-s0, IC:fpcmp-s0, fsetc, IC:mov-from-AR-FPSR;	impliedF
 AR[FPSR].sf1.controls;	IC:mov-to-AR-FPSR, fsetc.s1;	br.ia, IC:fp-arith-s1, IC:fcmp-s1, IC:fpcmp-s1, IC:mov-from-AR-FPSR;	impliedF
 AR[FPSR].sf2.controls;	IC:mov-to-AR-FPSR, fsetc.s2;	br.ia, IC:fp-arith-s2, IC:fcmp-s2, IC:fpcmp-s2, IC:mov-from-AR-FPSR;	impliedF
@@ -14,6 +20,7 @@ AR[FPSR].sf2.flags;	IC:fp-arith-s2, fclrf.s2, IC:fcmp-s2, IC:fpcmp-s2, IC:mov-to
 AR[FPSR].sf3.flags;	IC:fp-arith-s3, fclrf.s3, IC:fcmp-s3, IC:fpcmp-s3, IC:mov-to-AR-FPSR;	br.ia, fchkf.s3, IC:mov-from-AR-FPSR;	impliedF
 AR[FPSR].traps;	IC:mov-to-AR-FPSR;	br.ia, IC:fp-arith, fchkf, fcmp, fpcmp, IC:mov-from-AR-FPSR;	impliedF
 AR[FPSR].rv;	IC:mov-to-AR-FPSR;	br.ia, IC:fp-arith, fchkf, fcmp, fpcmp, IC:mov-from-AR-FPSR;	impliedF
+AR[FSR];	IC:mov-to-AR-FSR;	br.ia, IC:mov-from-AR-FSR;	impliedF
 AR[ITC];	IC:mov-to-AR-ITC;	br.ia, IC:mov-from-AR-ITC;	impliedF
 AR[K%], % in 0 - 7;	IC:mov-to-AR-K+1;	br.ia, IC:mov-from-AR-K+1;	impliedF
 AR[LC];	IC:mod-sched-brs-counted, IC:mov-to-AR-LC;	br.ia, IC:mod-sched-brs-counted, IC:mov-from-AR-LC;	impliedF
@@ -22,6 +29,7 @@ AR[PFS];	IC:mov-to-AR-PFS;	alloc, br.ia, epc, IC:mov-from-AR-PFS;	impliedF
 AR[PFS];	IC:mov-to-AR-PFS;	br.ret;	none
 AR[RNAT];	alloc, flushrs, loadrs, IC:mov-to-AR-RNAT, IC:mov-to-AR-BSPSTORE;	alloc, br.ia, flushrs, loadrs, IC:mov-from-AR-RNAT;	impliedF
 AR[RSC];	IC:mov-to-AR-RSC;	alloc, br.ia, flushrs, loadrs, IC:mov-from-AR-RSC, IC:mov-from-AR-BSPSTORE, IC:mov-to-AR-RNAT, IC:mov-from-AR-RNAT, IC:mov-to-AR-BSPSTORE;	impliedF
+AR[SSD];	IC:mov-to-AR-SSD;	br.ia, IC:mov-from-AR-SSD;	impliedF
 AR[UNAT]{%}, % in 0 - 63;	IC:mov-to-AR-UNAT, st8.spill;	br.ia, ld8.fill, IC:mov-from-AR-UNAT;	impliedF
 AR%, % in 8-15, 20, 22-23, 31, 33-35, 37-39, 41-43, 45-47, 67-111;	IC:none;	br.ia, IC:mov-from-AR-rv+1;	none
 AR%, % in 48-63, 112-127;	IC:mov-to-AR-ig+1;	br.ia, IC:mov-from-AR-ig+1;	impliedF

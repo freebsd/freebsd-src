@@ -1,7 +1,6 @@
 /* BFD backend for SunOS binaries.
    Copyright 1990, 1991, 1992, 1994, 1995, 1996, 1997, 1998, 2000, 2001,
-   2002
-   Free Software Foundation, Inc.
+   2002, 2003 Free Software Foundation, Inc.
    Written by Cygnus Support.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -33,9 +32,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 /* Static routines defined in this file.  */
 
-static boolean sunos_read_dynamic_info PARAMS ((bfd *));
+static bfd_boolean sunos_read_dynamic_info PARAMS ((bfd *));
 static long sunos_get_dynamic_symtab_upper_bound PARAMS ((bfd *));
-static boolean sunos_slurp_dynamic_symtab PARAMS ((bfd *));
+static bfd_boolean sunos_slurp_dynamic_symtab PARAMS ((bfd *));
 static long sunos_canonicalize_dynamic_symtab PARAMS ((bfd *, asymbol **));
 static long sunos_get_dynamic_reloc_upper_bound PARAMS ((bfd *));
 static long sunos_canonicalize_dynamic_reloc
@@ -44,32 +43,32 @@ static struct bfd_hash_entry *sunos_link_hash_newfunc
   PARAMS ((struct bfd_hash_entry *, struct bfd_hash_table *, const char *));
 static struct bfd_link_hash_table *sunos_link_hash_table_create
   PARAMS ((bfd *));
-static boolean sunos_create_dynamic_sections
-  PARAMS ((bfd *, struct bfd_link_info *, boolean));
-static boolean sunos_add_dynamic_symbols
+static bfd_boolean sunos_create_dynamic_sections
+  PARAMS ((bfd *, struct bfd_link_info *, bfd_boolean));
+static bfd_boolean sunos_add_dynamic_symbols
   PARAMS ((bfd *, struct bfd_link_info *, struct external_nlist **,
 	   bfd_size_type *, char **));
-static boolean sunos_add_one_symbol
+static bfd_boolean sunos_add_one_symbol
   PARAMS ((struct bfd_link_info *, bfd *, const char *, flagword, asection *,
-	   bfd_vma, const char *, boolean, boolean,
+	   bfd_vma, const char *, bfd_boolean, bfd_boolean,
 	   struct bfd_link_hash_entry **));
-static boolean sunos_scan_relocs
+static bfd_boolean sunos_scan_relocs
   PARAMS ((struct bfd_link_info *, bfd *, asection *, bfd_size_type));
-static boolean sunos_scan_std_relocs
+static bfd_boolean sunos_scan_std_relocs
   PARAMS ((struct bfd_link_info *, bfd *, asection *,
 	   const struct reloc_std_external *, bfd_size_type));
-static boolean sunos_scan_ext_relocs
+static bfd_boolean sunos_scan_ext_relocs
   PARAMS ((struct bfd_link_info *, bfd *, asection *,
 	   const struct reloc_ext_external *, bfd_size_type));
-static boolean sunos_link_dynamic_object
+static bfd_boolean sunos_link_dynamic_object
   PARAMS ((struct bfd_link_info *, bfd *));
-static boolean sunos_write_dynamic_symbol
+static bfd_boolean sunos_write_dynamic_symbol
   PARAMS ((bfd *, struct bfd_link_info *, struct aout_link_hash_entry *));
-static boolean sunos_check_dynamic_reloc
+static bfd_boolean sunos_check_dynamic_reloc
   PARAMS ((struct bfd_link_info *, bfd *, asection *,
-	   struct aout_link_hash_entry *, PTR, bfd_byte *, boolean *,
+	   struct aout_link_hash_entry *, PTR, bfd_byte *, bfd_boolean *,
 	   bfd_vma *));
-static boolean sunos_finish_dynamic_link
+static bfd_boolean sunos_finish_dynamic_link
   PARAMS ((bfd *, struct bfd_link_info *));
 
 #define MY_get_dynamic_symtab_upper_bound sunos_get_dynamic_symtab_upper_bound
@@ -106,7 +105,7 @@ static boolean sunos_finish_dynamic_link
 struct sunos_dynamic_info
 {
   /* Whether we found any dynamic information.  */
-  boolean valid;
+  bfd_boolean valid;
   /* Dynamic information.  */
   struct internal_sun4_dynamic_link dyninfo;
   /* Number of dynamic symbols.  */
@@ -135,9 +134,9 @@ struct sunos_dynamic_info
    structure and uses it to find the dynamic_link structure.  It
    creates and saves a sunos_dynamic_info structure.  If it can't find
    __DYNAMIC, it sets the valid field of the sunos_dynamic_info
-   structure to false to avoid doing this work again.  */
+   structure to FALSE to avoid doing this work again.  */
 
-static boolean
+static bfd_boolean
 sunos_read_dynamic_info (abfd)
      bfd *abfd;
 {
@@ -150,19 +149,19 @@ sunos_read_dynamic_info (abfd)
   bfd_size_type amt;
 
   if (obj_aout_dynamic_info (abfd) != (PTR) NULL)
-    return true;
+    return TRUE;
 
   if ((abfd->flags & DYNAMIC) == 0)
     {
       bfd_set_error (bfd_error_invalid_operation);
-      return false;
+      return FALSE;
     }
 
   amt = sizeof (struct sunos_dynamic_info);
   info = (struct sunos_dynamic_info *) bfd_zalloc (abfd, amt);
   if (!info)
-    return false;
-  info->valid = false;
+    return FALSE;
+  info->valid = FALSE;
   info->dynsym = NULL;
   info->dynstr = NULL;
   info->canonical_dynsym = NULL;
@@ -178,15 +177,15 @@ sunos_read_dynamic_info (abfd)
      We could verify this assumption later by looking through the dynamic
      symbols for the __DYNAMIC symbol.  */
   if ((abfd->flags & DYNAMIC) == 0)
-    return true;
+    return TRUE;
   if (! bfd_get_section_contents (abfd, obj_datasec (abfd), (PTR) &dyninfo,
 				  (file_ptr) 0,
 				  (bfd_size_type) sizeof dyninfo))
-    return true;
+    return TRUE;
 
   dynver = GET_WORD (abfd, dyninfo.ld_version);
   if (dynver != 2 && dynver != 3)
-    return true;
+    return TRUE;
 
   dynoff = GET_WORD (abfd, dyninfo.ld);
 
@@ -198,14 +197,14 @@ sunos_read_dynamic_info (abfd)
     dynsec = obj_datasec (abfd);
   dynoff -= bfd_get_section_vma (abfd, dynsec);
   if (dynoff > bfd_section_size (abfd, dynsec))
-    return true;
+    return TRUE;
 
   /* This executable appears to be dynamically linked in a way that we
      can understand.  */
   if (! bfd_get_section_contents (abfd, dynsec, (PTR) &linkinfo,
 				  (file_ptr) dynoff,
 				  (bfd_size_type) sizeof linkinfo))
-    return true;
+    return TRUE;
 
   /* Swap in the dynamic link information.  */
   info->dyninfo.ld_loaded = GET_WORD (abfd, linkinfo.ld_loaded);
@@ -252,9 +251,9 @@ sunos_read_dynamic_info (abfd)
 	      == (unsigned long) (info->dyninfo.ld_hash
 				  - info->dyninfo.ld_rel));
 
-  info->valid = true;
+  info->valid = TRUE;
 
-  return true;
+  return TRUE;
 }
 
 /* Return the amount of memory required for the dynamic symbols.  */
@@ -280,7 +279,7 @@ sunos_get_dynamic_symtab_upper_bound (abfd)
 
 /* Read the external dynamic symbols.  */
 
-static boolean
+static bfd_boolean
 sunos_slurp_dynamic_symtab (abfd)
      bfd *abfd;
 {
@@ -291,14 +290,14 @@ sunos_slurp_dynamic_symtab (abfd)
   if (obj_aout_dynamic_info (abfd) == NULL)
     {
       if (! sunos_read_dynamic_info (abfd))
-	  return false;
+	  return FALSE;
     }
 
   info = (struct sunos_dynamic_info *) obj_aout_dynamic_info (abfd);
   if (! info->valid)
     {
       bfd_set_error (bfd_error_no_symbols);
-      return false;
+      return FALSE;
     }
 
   /* Get the dynamic nlist structures.  */
@@ -307,7 +306,7 @@ sunos_slurp_dynamic_symtab (abfd)
       amt = (bfd_size_type) info->dynsym_count * EXTERNAL_NLIST_SIZE;
       info->dynsym = (struct external_nlist *) bfd_alloc (abfd, amt);
       if (info->dynsym == NULL && info->dynsym_count != 0)
-	return false;
+	return FALSE;
       if (bfd_seek (abfd, (file_ptr) info->dyninfo.ld_stab, SEEK_SET) != 0
 	  || bfd_bread ((PTR) info->dynsym, amt, abfd) != amt)
 	{
@@ -316,7 +315,7 @@ sunos_slurp_dynamic_symtab (abfd)
 	      bfd_release (abfd, info->dynsym);
 	      info->dynsym = NULL;
 	    }
-	  return false;
+	  return FALSE;
 	}
     }
 
@@ -326,7 +325,7 @@ sunos_slurp_dynamic_symtab (abfd)
       amt = info->dyninfo.ld_symb_size;
       info->dynstr = (char *) bfd_alloc (abfd, amt);
       if (info->dynstr == NULL && info->dyninfo.ld_symb_size != 0)
-	return false;
+	return FALSE;
       if (bfd_seek (abfd, (file_ptr) info->dyninfo.ld_symbols, SEEK_SET) != 0
 	  || bfd_bread ((PTR) info->dynstr, amt, abfd) != amt)
 	{
@@ -335,11 +334,11 @@ sunos_slurp_dynamic_symtab (abfd)
 	      bfd_release (abfd, info->dynstr);
 	      info->dynstr = NULL;
 	    }
-	  return false;
+	  return FALSE;
 	}
     }
 
-  return true;
+  return TRUE;
 }
 
 /* Read in the dynamic symbols.  */
@@ -413,7 +412,7 @@ sunos_canonicalize_dynamic_symtab (abfd, storage)
       if (! aout_32_translate_symbol_table (abfd, info->canonical_dynsym,
 					    info->dynsym,
 					    (bfd_size_type) info->dynsym_count,
-					    info->dynstr, strsize, true))
+					    info->dynstr, strsize, TRUE))
 	{
 	  if (info->canonical_dynsym != NULL)
 	    {
@@ -651,13 +650,13 @@ struct sunos_link_hash_table
   bfd *dynobj;
 
   /* Whether we have created the dynamic sections.  */
-  boolean dynamic_sections_created;
+  bfd_boolean dynamic_sections_created;
 
   /* Whether we need the dynamic sections.  */
-  boolean dynamic_sections_needed;
+  bfd_boolean dynamic_sections_needed;
 
   /* Whether we need the .got table.  */
-  boolean got_needed;
+  bfd_boolean got_needed;
 
   /* The number of dynamic symbols.  */
   size_t dynsymcount;
@@ -728,9 +727,9 @@ sunos_link_hash_table_create (abfd)
     }
 
   ret->dynobj = NULL;
-  ret->dynamic_sections_created = false;
-  ret->dynamic_sections_needed = false;
-  ret->got_needed = false;
+  ret->dynamic_sections_created = FALSE;
+  ret->dynamic_sections_needed = FALSE;
+  ret->got_needed = FALSE;
   ret->dynsymcount = 0;
   ret->bucketcount = 0;
   ret->needed = NULL;
@@ -751,7 +750,7 @@ sunos_link_hash_table_create (abfd)
 #define sunos_link_hash_traverse(table, func, info)			\
   (aout_link_hash_traverse						\
    (&(table)->root,							\
-    (boolean (*) PARAMS ((struct aout_link_hash_entry *, PTR))) (func),	\
+    (bfd_boolean (*) PARAMS ((struct aout_link_hash_entry *, PTR))) (func), \
     (info)))
 
 /* Get the SunOS link hash table from the info structure.  This is
@@ -759,7 +758,7 @@ sunos_link_hash_table_create (abfd)
 
 #define sunos_hash_table(p) ((struct sunos_link_hash_table *) ((p)->hash))
 
-static boolean sunos_scan_dynamic_symbol
+static bfd_boolean sunos_scan_dynamic_symbol
   PARAMS ((struct sunos_link_hash_entry *, PTR));
 
 /* Create the dynamic sections needed if we are linking against a
@@ -769,11 +768,11 @@ static boolean sunos_scan_dynamic_symbol
    place in the output file.  See include/aout/sun4.h for more details
    of the dynamic linking information.  */
 
-static boolean
+static bfd_boolean
 sunos_create_dynamic_sections (abfd, info, needed)
      bfd *abfd;
      struct bfd_link_info *info;
-     boolean needed;
+     bfd_boolean needed;
 {
   asection *s;
 
@@ -793,7 +792,7 @@ sunos_create_dynamic_sections (abfd, info, needed)
       if (s == NULL
 	  || ! bfd_set_section_flags (abfd, s, flags)
 	  || ! bfd_set_section_alignment (abfd, s, 2))
-	return false;
+	return FALSE;
 
       /* The .got section holds the global offset table.  The address
 	 is put in the ld_got field.  */
@@ -801,7 +800,7 @@ sunos_create_dynamic_sections (abfd, info, needed)
       if (s == NULL
 	  || ! bfd_set_section_flags (abfd, s, flags)
 	  || ! bfd_set_section_alignment (abfd, s, 2))
-	return false;
+	return FALSE;
 
       /* The .plt section holds the procedure linkage table.  The
 	 address is put in the ld_plt field.  */
@@ -809,7 +808,7 @@ sunos_create_dynamic_sections (abfd, info, needed)
       if (s == NULL
 	  || ! bfd_set_section_flags (abfd, s, flags | SEC_CODE)
 	  || ! bfd_set_section_alignment (abfd, s, 2))
-	return false;
+	return FALSE;
 
       /* The .dynrel section holds the dynamic relocs.  The address is
 	 put in the ld_rel field.  */
@@ -817,7 +816,7 @@ sunos_create_dynamic_sections (abfd, info, needed)
       if (s == NULL
 	  || ! bfd_set_section_flags (abfd, s, flags | SEC_READONLY)
 	  || ! bfd_set_section_alignment (abfd, s, 2))
-	return false;
+	return FALSE;
 
       /* The .hash section holds the dynamic hash table.  The address
 	 is put in the ld_hash field.  */
@@ -825,7 +824,7 @@ sunos_create_dynamic_sections (abfd, info, needed)
       if (s == NULL
 	  || ! bfd_set_section_flags (abfd, s, flags | SEC_READONLY)
 	  || ! bfd_set_section_alignment (abfd, s, 2))
-	return false;
+	return FALSE;
 
       /* The .dynsym section holds the dynamic symbols.  The address
 	 is put in the ld_stab field.  */
@@ -833,7 +832,7 @@ sunos_create_dynamic_sections (abfd, info, needed)
       if (s == NULL
 	  || ! bfd_set_section_flags (abfd, s, flags | SEC_READONLY)
 	  || ! bfd_set_section_alignment (abfd, s, 2))
-	return false;
+	return FALSE;
 
       /* The .dynstr section holds the dynamic symbol string table.
 	 The address is put in the ld_symbols field.  */
@@ -841,9 +840,9 @@ sunos_create_dynamic_sections (abfd, info, needed)
       if (s == NULL
 	  || ! bfd_set_section_flags (abfd, s, flags | SEC_READONLY)
 	  || ! bfd_set_section_alignment (abfd, s, 2))
-	return false;
+	return FALSE;
 
-      sunos_hash_table (info)->dynamic_sections_created = true;
+      sunos_hash_table (info)->dynamic_sections_created = TRUE;
     }
 
   if ((needed && ! sunos_hash_table (info)->dynamic_sections_needed)
@@ -857,17 +856,17 @@ sunos_create_dynamic_sections (abfd, info, needed)
       if (s->_raw_size == 0)
 	s->_raw_size = BYTES_IN_WORD;
 
-      sunos_hash_table (info)->dynamic_sections_needed = true;
-      sunos_hash_table (info)->got_needed = true;
+      sunos_hash_table (info)->dynamic_sections_needed = TRUE;
+      sunos_hash_table (info)->got_needed = TRUE;
     }
 
-  return true;
+  return TRUE;
 }
 
 /* Add dynamic symbols during a link.  This is called by the a.out
    backend linker for each object it encounters.  */
 
-static boolean
+static bfd_boolean
 sunos_add_dynamic_symbols (abfd, info, symsp, sym_countp, stringsp)
      bfd *abfd;
      struct bfd_link_info *info;
@@ -884,16 +883,14 @@ sunos_add_dynamic_symbols (abfd, info, symsp, sym_countp, stringsp)
   if (info->hash->creator == abfd->xvec)
     {
       if (! sunos_create_dynamic_sections (abfd, info,
-					   (((abfd->flags & DYNAMIC) != 0
-					     && ! info->relocateable)
-					    ? true
-					    : false)))
-	return false;
+					   ((abfd->flags & DYNAMIC) != 0
+					    && !info->relocatable)))
+	return FALSE;
     }
 
   /* There is nothing else to do for a normal object.  */
   if ((abfd->flags & DYNAMIC) == 0)
-    return true;
+    return TRUE;
 
   dynobj = sunos_hash_table (info)->dynobj;
 
@@ -914,15 +911,15 @@ sunos_add_dynamic_symbols (abfd, info, symsp, sym_countp, stringsp)
 
   /* The native linker seems to just ignore dynamic objects when -r is
      used.  */
-  if (info->relocateable)
-    return true;
+  if (info->relocatable)
+    return TRUE;
 
   /* There's no hope of using a dynamic object which does not exactly
      match the format of the output file.  */
   if (info->hash->creator != abfd->xvec)
     {
       bfd_set_error (bfd_error_invalid_operation);
-      return false;
+      return FALSE;
     }
 
   /* Make sure we have a .need and a .rules sections.  These are only
@@ -942,7 +939,7 @@ sunos_add_dynamic_symbols (abfd, info, symsp, sym_countp, stringsp)
 				       | SEC_IN_MEMORY
 				       | SEC_READONLY))
 	  || ! bfd_set_section_alignment (dynobj, s, 2))
-	return false;
+	return FALSE;
     }
 
   if (bfd_get_section_by_name (dynobj, ".rules") == NULL)
@@ -959,12 +956,12 @@ sunos_add_dynamic_symbols (abfd, info, symsp, sym_countp, stringsp)
 				       | SEC_IN_MEMORY
 				       | SEC_READONLY))
 	  || ! bfd_set_section_alignment (dynobj, s, 2))
-	return false;
+	return FALSE;
     }
 
   /* Pick up the dynamic symbols and return them to the caller.  */
   if (! sunos_slurp_dynamic_symtab (abfd))
-    return false;
+    return FALSE;
 
   dinfo = (struct sunos_dynamic_info *) obj_aout_dynamic_info (abfd);
   *symsp = dinfo->dynsym;
@@ -986,10 +983,10 @@ sunos_add_dynamic_symbols (abfd, info, symsp, sym_countp, stringsp)
 
       if (bfd_seek (abfd, (file_ptr) need, SEEK_SET) != 0
 	  || bfd_bread (buf, (bfd_size_type) 16, abfd) != 16)
-	return false;
+	return FALSE;
 
       /* For the format of an ld_need entry, see aout/sun4.h.  We
-         should probably define structs for this manipulation.  */
+	 should probably define structs for this manipulation.  */
 
       name = bfd_get_32 (abfd, buf);
       flags = bfd_get_32 (abfd, buf + 4);
@@ -1000,14 +997,14 @@ sunos_add_dynamic_symbols (abfd, info, symsp, sym_countp, stringsp)
       alc = sizeof (struct bfd_link_needed_list);
       needed = (struct bfd_link_needed_list *) bfd_alloc (abfd, alc);
       if (needed == NULL)
-	return false;
+	return FALSE;
       needed->by = abfd;
 
       /* We return the name as [-l]name[.maj][.min].  */
       alc = 30;
       namebuf = (char *) bfd_malloc (alc + 1);
       if (namebuf == NULL)
-	return false;
+	return FALSE;
       p = namebuf;
 
       if ((flags & 0x80000000) != 0)
@@ -1018,7 +1015,7 @@ sunos_add_dynamic_symbols (abfd, info, symsp, sym_countp, stringsp)
       if (bfd_seek (abfd, (file_ptr) name, SEEK_SET) != 0)
 	{
 	  free (namebuf);
-	  return false;
+	  return FALSE;
 	}
 
       do
@@ -1026,7 +1023,7 @@ sunos_add_dynamic_symbols (abfd, info, symsp, sym_countp, stringsp)
 	  if (bfd_bread (&b, (bfd_size_type) 1, abfd) != 1)
 	    {
 	      free (namebuf);
-	      return false;
+	      return FALSE;
 	    }
 
 	  if ((bfd_size_type) (p - namebuf) >= alc)
@@ -1038,7 +1035,7 @@ sunos_add_dynamic_symbols (abfd, info, symsp, sym_countp, stringsp)
 	      if (n == NULL)
 		{
 		  free (namebuf);
-		  return false;
+		  return FALSE;
 		}
 	      p = n + (p - namebuf);
 	      namebuf = n;
@@ -1070,7 +1067,7 @@ sunos_add_dynamic_symbols (abfd, info, symsp, sym_countp, stringsp)
 	      if (n == NULL)
 		{
 		  free (namebuf);
-		  return false;
+		  return FALSE;
 		}
 	      p = n + (p - namebuf);
 	      namebuf = n;
@@ -1084,7 +1081,7 @@ sunos_add_dynamic_symbols (abfd, info, symsp, sym_countp, stringsp)
       if (namecopy == NULL)
 	{
 	  free (namebuf);
-	  return false;
+	  return FALSE;
 	}
       strcpy (namecopy, namebuf);
       free (namebuf);
@@ -1099,14 +1096,14 @@ sunos_add_dynamic_symbols (abfd, info, symsp, sym_countp, stringsp)
       *pp = needed;
     }
 
-  return true;
+  return TRUE;
 }
 
 /* Function to add a single symbol to the linker hash table.  This is
    a wrapper around _bfd_generic_link_add_one_symbol which handles the
    tweaking needed for dynamic linking support.  */
 
-static boolean
+static bfd_boolean
 sunos_add_one_symbol (info, abfd, name, flags, section, value, string,
 		      copy, collect, hashp)
      struct bfd_link_info *info;
@@ -1116,8 +1113,8 @@ sunos_add_one_symbol (info, abfd, name, flags, section, value, string,
      asection *section;
      bfd_vma value;
      const char *string;
-     boolean copy;
-     boolean collect;
+     bfd_boolean copy;
+     bfd_boolean collect;
      struct bfd_link_hash_entry **hashp;
 {
   struct sunos_link_hash_entry *h;
@@ -1125,13 +1122,13 @@ sunos_add_one_symbol (info, abfd, name, flags, section, value, string,
 
   if ((flags & (BSF_INDIRECT | BSF_WARNING | BSF_CONSTRUCTOR)) != 0
       || ! bfd_is_und_section (section))
-    h = sunos_link_hash_lookup (sunos_hash_table (info), name, true, copy,
-				false);
+    h = sunos_link_hash_lookup (sunos_hash_table (info), name, TRUE, copy,
+				FALSE);
   else
     h = ((struct sunos_link_hash_entry *)
-	 bfd_wrapped_link_hash_lookup (abfd, info, name, true, copy, false));
+	 bfd_wrapped_link_hash_lookup (abfd, info, name, TRUE, copy, FALSE));
   if (h == NULL)
-    return false;
+    return FALSE;
 
   if (hashp != NULL)
     *hashp = (struct bfd_link_hash_entry *) h;
@@ -1185,10 +1182,10 @@ sunos_add_one_symbol (info, abfd, name, flags, section, value, string,
       && (h->flags & SUNOS_CONSTRUCTOR) != 0)
     {
       /* The existing symbol is a constructor symbol, and this symbol
-         is from a dynamic object.  A constructor symbol is actually a
-         definition, although the type will be bfd_link_hash_undefined
-         at this point.  We want to ignore the definition from the
-         dynamic object.  */
+	 is from a dynamic object.  A constructor symbol is actually a
+	 definition, although the type will be bfd_link_hash_undefined
+	 at this point.  We want to ignore the definition from the
+	 dynamic object.  */
       section = bfd_und_section_ptr;
     }
   else if ((flags & BSF_CONSTRUCTOR) != 0
@@ -1198,8 +1195,8 @@ sunos_add_one_symbol (info, abfd, name, flags, section, value, string,
 	   && (h->root.root.u.def.section->owner->flags & DYNAMIC) != 0)
     {
       /* The existing symbol is defined by a dynamic object, and this
-         is a constructor symbol.  As above, we want to force the use
-         of the constructor symbol from the regular object.  */
+	 is a constructor symbol.  As above, we want to force the use
+	 of the constructor symbol from the regular object.  */
       h->root.root.type = bfd_link_hash_new;
     }
 
@@ -1207,7 +1204,7 @@ sunos_add_one_symbol (info, abfd, name, flags, section, value, string,
   if (! _bfd_generic_link_add_one_symbol (info, abfd, name, flags, section,
 					  value, string, copy, collect,
 					  hashp))
-    return false;
+    return FALSE;
 
   if (abfd->xvec == info->hash->creator)
     {
@@ -1244,12 +1241,11 @@ sunos_add_one_symbol (info, abfd, name, flags, section, value, string,
 	h->flags |= SUNOS_CONSTRUCTOR;
     }
 
-  return true;
+  return TRUE;
 }
 
 /* Return the list of objects needed by BFD.  */
 
-/*ARGSUSED*/
 struct bfd_link_needed_list *
 bfd_sunos_get_needed_list (abfd, info)
      bfd *abfd ATTRIBUTE_UNUSED;
@@ -1263,7 +1259,7 @@ bfd_sunos_get_needed_list (abfd, info)
 /* Record an assignment made to a symbol by a linker script.  We need
    this in case some dynamic object refers to this symbol.  */
 
-boolean
+bfd_boolean
 bfd_sunos_record_link_assignment (output_bfd, info, name)
      bfd *output_bfd;
      struct bfd_link_info *info;
@@ -1272,15 +1268,15 @@ bfd_sunos_record_link_assignment (output_bfd, info, name)
   struct sunos_link_hash_entry *h;
 
   if (output_bfd->xvec != &MY(vec))
-    return true;
+    return TRUE;
 
   /* This is called after we have examined all the input objects.  If
      the symbol does not exist, it merely means that no object refers
      to it, and we can just ignore it at this point.  */
   h = sunos_link_hash_lookup (sunos_hash_table (info), name,
-			      false, false, false);
+			      FALSE, FALSE, FALSE);
   if (h == NULL)
-    return true;
+    return TRUE;
 
   /* In a shared library, the __DYNAMIC symbol does not appear in the
      dynamic symbol table.  */
@@ -1295,7 +1291,7 @@ bfd_sunos_record_link_assignment (output_bfd, info, name)
 	}
     }
 
-  return true;
+  return TRUE;
 }
 
 /* Set up the sizes and contents of the dynamic sections created in
@@ -1304,10 +1300,10 @@ bfd_sunos_record_link_assignment (output_bfd, info, name)
    sections before the linker sets the addresses of the various
    sections.  This unfortunately requires reading all the relocs so
    that we can work out which ones need to become dynamic relocs.  If
-   info->keep_memory is true, we keep the relocs in memory; otherwise,
+   info->keep_memory is TRUE, we keep the relocs in memory; otherwise,
    we discard them, and will read them again later.  */
 
-boolean
+bfd_boolean
 bfd_sunos_size_dynamic_sections (output_bfd, info, sdynptr, sneedptr,
 				 srulesptr)
      bfd *output_bfd;
@@ -1329,11 +1325,11 @@ bfd_sunos_size_dynamic_sections (output_bfd, info, sdynptr, sneedptr,
   *sneedptr = NULL;
   *srulesptr = NULL;
 
-  if (info->relocateable)
-    return true;
+  if (info->relocatable)
+    return TRUE;
 
   if (output_bfd->xvec != &MY(vec))
-    return true;
+    return TRUE;
 
   /* Look through all the input BFD's and read their relocs.  It would
      be better if we didn't have to do this, but there is no other way
@@ -1349,7 +1345,7 @@ bfd_sunos_size_dynamic_sections (output_bfd, info, sdynptr, sneedptr,
 				   exec_hdr (sub)->a_trsize)
 	      || ! sunos_scan_relocs (info, sub, obj_datasec (sub),
 				      exec_hdr (sub)->a_drsize))
-	    return false;
+	    return FALSE;
 	}
     }
 
@@ -1360,11 +1356,11 @@ bfd_sunos_size_dynamic_sections (output_bfd, info, sdynptr, sneedptr,
      to build a global offset table, there is nothing to do here.  */
   if (! sunos_hash_table (info)->dynamic_sections_needed
       && ! sunos_hash_table (info)->got_needed)
-    return true;
+    return TRUE;
 
   /* If __GLOBAL_OFFSET_TABLE_ was mentioned, define it.  */
   h = sunos_link_hash_lookup (sunos_hash_table (info),
-			      "__GLOBAL_OFFSET_TABLE_", false, false, false);
+			      "__GLOBAL_OFFSET_TABLE_", FALSE, FALSE, FALSE);
   if (h != NULL && (h->flags & SUNOS_REF_REGULAR) != 0)
     {
       h->flags |= SUNOS_DEF_REGULAR;
@@ -1377,8 +1373,8 @@ bfd_sunos_size_dynamic_sections (output_bfd, info, sdynptr, sneedptr,
       h->root.root.u.def.section = bfd_get_section_by_name (dynobj, ".got");
 
       /* If the .got section is more than 0x1000 bytes, we set
-         __GLOBAL_OFFSET_TABLE_ to be 0x1000 bytes into the section,
-         so that 13 bit relocations have a greater chance of working.  */
+	 __GLOBAL_OFFSET_TABLE_ to be 0x1000 bytes into the section,
+	 so that 13 bit relocations have a greater chance of working.  */
       s = bfd_get_section_by_name (dynobj, ".got");
       BFD_ASSERT (s != NULL);
       if (s->_raw_size >= 0x1000)
@@ -1415,7 +1411,7 @@ bfd_sunos_size_dynamic_sections (output_bfd, info, sdynptr, sneedptr,
       s->_raw_size = dynsymcount * sizeof (struct external_nlist);
       s->contents = (bfd_byte *) bfd_alloc (output_bfd, s->_raw_size);
       if (s->contents == NULL && s->_raw_size != 0)
-	return false;
+	return FALSE;
 
       /* The number of buckets is just the number of symbols divided
 	 by four.  To compute the final size of the hash table, we
@@ -1436,7 +1432,7 @@ bfd_sunos_size_dynamic_sections (output_bfd, info, sdynptr, sneedptr,
       hashalloc = (dynsymcount + bucketcount - 1) * HASH_ENTRY_SIZE;
       s->contents = (bfd_byte *) bfd_zalloc (dynobj, hashalloc);
       if (s->contents == NULL && dynsymcount > 0)
-	return false;
+	return FALSE;
       for (i = 0; i < bucketcount; i++)
 	PUT_WORD (output_bfd, (bfd_vma) -1, s->contents + i * HASH_ENTRY_SIZE);
       s->_raw_size = bucketcount * HASH_ENTRY_SIZE;
@@ -1466,7 +1462,7 @@ bfd_sunos_size_dynamic_sections (output_bfd, info, sdynptr, sneedptr,
 	  contents = (bfd_byte *) bfd_realloc (s->contents,
 					       s->_raw_size + add);
 	  if (contents == NULL)
-	    return false;
+	    return FALSE;
 	  memset (contents + s->_raw_size, 0, (size_t) add);
 	  s->contents = contents;
 	  s->_raw_size += add;
@@ -1481,7 +1477,7 @@ bfd_sunos_size_dynamic_sections (output_bfd, info, sdynptr, sneedptr,
     {
       s->contents = (bfd_byte *) bfd_alloc (dynobj, s->_raw_size);
       if (s->contents == NULL)
-	return false;
+	return FALSE;
 
       /* Fill in the first entry in the table.  */
       switch (bfd_get_arch (dynobj))
@@ -1504,7 +1500,7 @@ bfd_sunos_size_dynamic_sections (output_bfd, info, sdynptr, sneedptr,
     {
       s->contents = (bfd_byte *) bfd_alloc (dynobj, s->_raw_size);
       if (s->contents == NULL)
-	return false;
+	return FALSE;
     }
   /* We use the reloc_count field to keep track of how many of the
      relocs we have output so far.  */
@@ -1514,17 +1510,17 @@ bfd_sunos_size_dynamic_sections (output_bfd, info, sdynptr, sneedptr,
   s = bfd_get_section_by_name (dynobj, ".got");
   s->contents = (bfd_byte *) bfd_alloc (dynobj, s->_raw_size);
   if (s->contents == NULL)
-    return false;
+    return FALSE;
 
   *sneedptr = bfd_get_section_by_name (dynobj, ".need");
   *srulesptr = bfd_get_section_by_name (dynobj, ".rules");
 
-  return true;
+  return TRUE;
 }
 
 /* Scan the relocs for an input section.  */
 
-static boolean
+static bfd_boolean
 sunos_scan_relocs (info, abfd, sec, rel_size)
      struct bfd_link_info *info;
      bfd *abfd;
@@ -1535,7 +1531,7 @@ sunos_scan_relocs (info, abfd, sec, rel_size)
   PTR free_relocs = NULL;
 
   if (rel_size == 0)
-    return true;
+    return TRUE;
 
   if (! info->keep_memory)
     relocs = free_relocs = bfd_malloc (rel_size);
@@ -1555,7 +1551,7 @@ sunos_scan_relocs (info, abfd, sec, rel_size)
 	}
     }
   if (relocs == NULL)
-    return false;
+    return FALSE;
 
   if (bfd_seek (abfd, sec->rel_filepos, SEEK_SET) != 0
       || bfd_bread (relocs, rel_size, abfd) != rel_size)
@@ -1579,12 +1575,12 @@ sunos_scan_relocs (info, abfd, sec, rel_size)
   if (free_relocs != NULL)
     free (free_relocs);
 
-  return true;
+  return TRUE;
 
  error_return:
   if (free_relocs != NULL)
     free (free_relocs);
-  return false;
+  return FALSE;
 }
 
 /* Scan the relocs for an input section using standard relocs.  We
@@ -1597,7 +1593,7 @@ sunos_scan_relocs (info, abfd, sec, rel_size)
    reloc.  FIXME: We should also handle the PIC relocs here by
    building global offset table entries.  */
 
-static boolean
+static bfd_boolean
 sunos_scan_std_relocs (info, abfd, sec, relocs, rel_size)
      struct bfd_link_info *info;
      bfd *abfd;
@@ -1615,7 +1611,7 @@ sunos_scan_std_relocs (info, abfd, sec, relocs, rel_size)
   if (bfd_get_arch (abfd) != bfd_arch_m68k)
     {
       bfd_set_error (bfd_error_invalid_target);
-      return false;
+      return FALSE;
     }
 
   dynobj = NULL;
@@ -1677,8 +1673,8 @@ sunos_scan_std_relocs (info, abfd, sec, relocs, rel_size)
 	{
 	  asection *sgot;
 
-	  if (! sunos_create_dynamic_sections (abfd, info, false))
-	    return false;
+	  if (! sunos_create_dynamic_sections (abfd, info, FALSE))
+	    return FALSE;
 	  dynobj = sunos_hash_table (info)->dynobj;
 	  splt = bfd_get_section_by_name (dynobj, ".plt");
 	  srel = bfd_get_section_by_name (dynobj, ".dynrel");
@@ -1688,7 +1684,7 @@ sunos_scan_std_relocs (info, abfd, sec, relocs, rel_size)
 	  BFD_ASSERT (sgot != NULL);
 	  if (sgot->_raw_size == 0)
 	    sgot->_raw_size = BYTES_IN_WORD;
-	  sunos_hash_table (info)->got_needed = true;
+	  sunos_hash_table (info)->got_needed = TRUE;
 	}
 
       BFD_ASSERT ((h->flags & SUNOS_REF_REGULAR) != 0);
@@ -1748,7 +1744,7 @@ sunos_scan_std_relocs (info, abfd, sec, relocs, rel_size)
 	}
     }
 
-  return true;
+  return TRUE;
 }
 
 /* Scan the relocs for an input section using extended relocs.  We
@@ -1757,7 +1753,7 @@ sunos_scan_std_relocs (info, abfd, sec, relocs, rel_size)
    section, an entry is made in the procedure linkage table.
    Otherwise, we must preserve the reloc as a dynamic reloc.  */
 
-static boolean
+static bfd_boolean
 sunos_scan_ext_relocs (info, abfd, sec, relocs, rel_size)
      struct bfd_link_info *info;
      bfd *abfd;
@@ -1777,7 +1773,7 @@ sunos_scan_ext_relocs (info, abfd, sec, relocs, rel_size)
   if (bfd_get_arch (abfd) != bfd_arch_sparc)
     {
       bfd_set_error (bfd_error_invalid_target);
-      return false;
+      return FALSE;
     }
 
   dynobj = NULL;
@@ -1824,15 +1820,15 @@ sunos_scan_ext_relocs (info, abfd, sec, relocs, rel_size)
 	}
 
       /* If this is a base relative reloc, we need to make an entry in
-         the .got section.  */
+	 the .got section.  */
       if (r_type == RELOC_BASE10
 	  || r_type == RELOC_BASE13
 	  || r_type == RELOC_BASE22)
 	{
 	  if (dynobj == NULL)
 	    {
-	      if (! sunos_create_dynamic_sections (abfd, info, false))
-		return false;
+	      if (! sunos_create_dynamic_sections (abfd, info, FALSE))
+		return FALSE;
 	      dynobj = sunos_hash_table (info)->dynobj;
 	      splt = bfd_get_section_by_name (dynobj, ".plt");
 	      sgot = bfd_get_section_by_name (dynobj, ".got");
@@ -1842,7 +1838,7 @@ sunos_scan_ext_relocs (info, abfd, sec, relocs, rel_size)
 	      /* Make sure we have an initial entry in the .got table.  */
 	      if (sgot->_raw_size == 0)
 		sgot->_raw_size = BYTES_IN_WORD;
-	      sunos_hash_table (info)->got_needed = true;
+	      sunos_hash_table (info)->got_needed = TRUE;
 	    }
 
 	  if (r_extern)
@@ -1868,7 +1864,7 @@ sunos_scan_ext_relocs (info, abfd, sec, relocs, rel_size)
 		  adata (abfd).local_got_offsets =
 		    (bfd_vma *) bfd_zalloc (abfd, amt);
 		  if (adata (abfd).local_got_offsets == NULL)
-		    return false;
+		    return FALSE;
 		}
 
 	      if (adata (abfd).local_got_offsets[r_index] != 0)
@@ -1892,18 +1888,18 @@ sunos_scan_ext_relocs (info, abfd, sec, relocs, rel_size)
 	}
 
       /* Otherwise, we are only interested in relocs against symbols
-         defined in dynamic objects but not in regular objects.  We
-         only need to consider relocs against external symbols.  */
+	 defined in dynamic objects but not in regular objects.  We
+	 only need to consider relocs against external symbols.  */
       if (! r_extern)
 	{
 	  /* But, if we are creating a shared library, we need to
-             generate an absolute reloc.  */
+	     generate an absolute reloc.  */
 	  if (info->shared)
 	    {
 	      if (dynobj == NULL)
 		{
-		  if (! sunos_create_dynamic_sections (abfd, info, true))
-		    return false;
+		  if (! sunos_create_dynamic_sections (abfd, info, TRUE))
+		    return FALSE;
 		  dynobj = sunos_hash_table (info)->dynobj;
 		  splt = bfd_get_section_by_name (dynobj, ".plt");
 		  sgot = bfd_get_section_by_name (dynobj, ".got");
@@ -1939,8 +1935,8 @@ sunos_scan_ext_relocs (info, abfd, sec, relocs, rel_size)
 	  && (h->flags & SUNOS_DEF_REGULAR) == 0)
 	{
 	  /* This symbol is apparently undefined.  Don't do anything
-             here; just let the relocation routine report an undefined
-             symbol.  */
+	     here; just let the relocation routine report an undefined
+	     symbol.  */
 	  continue;
 	}
 
@@ -1949,8 +1945,8 @@ sunos_scan_ext_relocs (info, abfd, sec, relocs, rel_size)
 
       if (dynobj == NULL)
 	{
-	  if (! sunos_create_dynamic_sections (abfd, info, false))
-	    return false;
+	  if (! sunos_create_dynamic_sections (abfd, info, FALSE))
+	    return FALSE;
 	  dynobj = sunos_hash_table (info)->dynobj;
 	  splt = bfd_get_section_by_name (dynobj, ".plt");
 	  sgot = bfd_get_section_by_name (dynobj, ".got");
@@ -1960,7 +1956,7 @@ sunos_scan_ext_relocs (info, abfd, sec, relocs, rel_size)
 	  /* Make sure we have an initial entry in the .got table.  */
 	  if (sgot->_raw_size == 0)
 	    sgot->_raw_size = BYTES_IN_WORD;
-	  sunos_hash_table (info)->got_needed = true;
+	  sunos_hash_table (info)->got_needed = TRUE;
 	}
 
       BFD_ASSERT (r_type == RELOC_JMP_TBL
@@ -2025,26 +2021,26 @@ sunos_scan_ext_relocs (info, abfd, sec, relocs, rel_size)
 	      splt->_raw_size += SPARC_PLT_ENTRY_SIZE;
 
 	      /* We will also need a dynamic reloc entry, unless this
-                 is a JMP_TBL reloc produced by linking PIC compiled
-                 code, and we are not making a shared library.  */
+		 is a JMP_TBL reloc produced by linking PIC compiled
+		 code, and we are not making a shared library.  */
 	      if (info->shared || (h->flags & SUNOS_DEF_REGULAR) == 0)
 		srel->_raw_size += RELOC_EXT_SIZE;
 	    }
 
 	  /* If we are creating a shared library, we need to copy over
-             any reloc other than a jump table reloc.  */
+	     any reloc other than a jump table reloc.  */
 	  if (info->shared && r_type != RELOC_JMP_TBL)
 	    srel->_raw_size += RELOC_EXT_SIZE;
 	}
     }
 
-  return true;
+  return TRUE;
 }
 
 /* Build the hash table of dynamic symbols, and to mark as written all
    symbols from dynamic objects which we do not plan to write out.  */
 
-static boolean
+static bfd_boolean
 sunos_scan_dynamic_symbol (h, data)
      struct sunos_link_hash_entry *h;
      PTR data;
@@ -2066,7 +2062,7 @@ sunos_scan_dynamic_symbol (h, data)
   if ((h->flags & SUNOS_DEF_REGULAR) == 0
       && (h->flags & SUNOS_DEF_DYNAMIC) != 0
       && strcmp (h->root.root.root.string, "__DYNAMIC") != 0)
-    h->root.written = true;
+    h->root.written = TRUE;
 
   /* If this symbol is defined by a dynamic object and referenced by a
      regular object, see whether we gave it a reasonable value while
@@ -2125,7 +2121,7 @@ sunos_scan_dynamic_symbol (h, data)
       contents = (bfd_byte *) bfd_realloc (s->contents,
 					   s->_raw_size + len + 1);
       if (contents == NULL)
-	return false;
+	return FALSE;
       s->contents = contents;
 
       h->dynstr_index = s->_raw_size;
@@ -2161,26 +2157,25 @@ sunos_scan_dynamic_symbol (h, data)
 	}
     }
 
-  return true;
+  return TRUE;
 }
 
 /* Link a dynamic object.  We actually don't have anything to do at
    this point.  This entry point exists to prevent the regular linker
    code from doing anything with the object.  */
 
-/*ARGSUSED*/
-static boolean
+static bfd_boolean
 sunos_link_dynamic_object (info, abfd)
      struct bfd_link_info *info ATTRIBUTE_UNUSED;
      bfd *abfd ATTRIBUTE_UNUSED;
 {
-  return true;
+  return TRUE;
 }
 
 /* Write out a dynamic symbol.  This is called by the final traversal
    over the symbol table.  */
 
-static boolean
+static bfd_boolean
 sunos_write_dynamic_symbol (output_bfd, info, harg)
      bfd *output_bfd;
      struct bfd_link_info *info;
@@ -2254,7 +2249,7 @@ sunos_write_dynamic_symbol (output_bfd, info, harg)
 	}
 
       /* We also need to add a jump table reloc, unless this is the
-         result of a JMP_TBL reloc from PIC compiled code.  */
+	 result of a JMP_TBL reloc from PIC compiled code.  */
       if (info->shared || (h->flags & SUNOS_DEF_REGULAR) == 0)
 	{
 	  BFD_ASSERT (h->dynindx >= 0);
@@ -2320,7 +2315,7 @@ sunos_write_dynamic_symbol (output_bfd, info, harg)
      we can have a PLT entry for a nondynamic symbol when linking PIC
      compiled code from a regular object.  */
   if (h->dynindx < 0)
-    return true;
+    return TRUE;
 
   switch (h->root.root.type)
     {
@@ -2328,7 +2323,7 @@ sunos_write_dynamic_symbol (output_bfd, info, harg)
     case bfd_link_hash_new:
       abort ();
       /* Avoid variable not initialized warnings.  */
-      return true;
+      return TRUE;
     case bfd_link_hash_undefined:
       type = N_UNDF | N_EXT;
       val = 0;
@@ -2386,7 +2381,7 @@ sunos_write_dynamic_symbol (output_bfd, info, harg)
     case bfd_link_hash_warning:
       /* FIXME: Ignore these for now.  The circumstances under which
 	 they should be written out are not clear to me.  */
-      return true;
+      return TRUE;
     }
 
   s = bfd_get_section_by_name (sunos_hash_table (info)->dynobj, ".dynsym");
@@ -2405,7 +2400,7 @@ sunos_write_dynamic_symbol (output_bfd, info, harg)
   PUT_WORD (output_bfd, h->dynstr_index, outsym->e_strx);
   PUT_WORD (output_bfd, val, outsym->e_value);
 
-  return true;
+  return TRUE;
 }
 
 /* This is called for each reloc against an external symbol.  If this
@@ -2413,8 +2408,7 @@ sunos_write_dynamic_symbol (output_bfd, info, harg)
    copy it over, and tell the caller to not bother processing this
    reloc.  */
 
-/*ARGSUSED*/
-static boolean
+static bfd_boolean
 sunos_check_dynamic_reloc (info, input_bfd, input_section, harg, reloc,
 			   contents, skip, relocationp)
      struct bfd_link_info *info;
@@ -2423,19 +2417,19 @@ sunos_check_dynamic_reloc (info, input_bfd, input_section, harg, reloc,
      struct aout_link_hash_entry *harg;
      PTR reloc;
      bfd_byte *contents ATTRIBUTE_UNUSED;
-     boolean *skip;
+     bfd_boolean *skip;
      bfd_vma *relocationp;
 {
   struct sunos_link_hash_entry *h = (struct sunos_link_hash_entry *) harg;
   bfd *dynobj;
-  boolean baserel;
-  boolean jmptbl;
-  boolean pcrel;
+  bfd_boolean baserel;
+  bfd_boolean jmptbl;
+  bfd_boolean pcrel;
   asection *s;
   bfd_byte *p;
   long indx;
 
-  *skip = false;
+  *skip = FALSE;
 
   dynobj = sunos_hash_table (info)->dynobj;
 
@@ -2493,7 +2487,7 @@ sunos_check_dynamic_reloc (info, input_bfd, input_section, harg, reloc,
 	       || r_type == RELOC_WDISP30
 	       || r_type == RELOC_WDISP22);
       /* We don't consider the PC10 and PC22 types to be PC relative,
-         because they are pcrel_offset.  */
+	 because they are pcrel_offset.  */
     }
 
   if (baserel)
@@ -2562,7 +2556,7 @@ sunos_check_dynamic_reloc (info, input_bfd, input_section, harg, reloc,
 		  && (h->flags & SUNOS_DEF_REGULAR) == 0))
 	    {
 	      /* We need to create a GLOB_DAT or 32 reloc to tell the
-                 dynamic linker to fill in this entry in the table.  */
+		 dynamic linker to fill in this entry in the table.  */
 
 	      s = bfd_get_section_by_name (dynobj, ".dynrel");
 	      BFD_ASSERT (s != NULL);
@@ -2667,11 +2661,11 @@ sunos_check_dynamic_reloc (info, input_bfd, input_section, harg, reloc,
 		      - sunos_hash_table (info)->got_base);
 
       /* There is nothing else to do for a base relative reloc.  */
-      return true;
+      return TRUE;
     }
 
   if (! sunos_hash_table (info)->dynamic_sections_needed)
-    return true;
+    return TRUE;
   if (! info->shared)
     {
       if (h == NULL
@@ -2680,7 +2674,7 @@ sunos_check_dynamic_reloc (info, input_bfd, input_section, harg, reloc,
 	  || (h->flags & SUNOS_DEF_REGULAR) != 0
 	  || (h->flags & SUNOS_DEF_DYNAMIC) == 0
 	  || (h->root.root.u.undef.abfd->flags & DYNAMIC) == 0)
-	return true;
+	return TRUE;
     }
   else
     {
@@ -2689,7 +2683,7 @@ sunos_check_dynamic_reloc (info, input_bfd, input_section, harg, reloc,
 	      || jmptbl
 	      || strcmp (h->root.root.root.string,
 			 "__GLOBAL_OFFSET_TABLE_") == 0))
-	return true;
+	return TRUE;
     }
 
   /* It looks like this is a reloc we are supposed to copy.  */
@@ -2732,7 +2726,7 @@ sunos_check_dynamic_reloc (info, input_bfd, input_section, harg, reloc,
 	  srel->r_index[0] = (bfd_byte)indx;
 	}
       /* FIXME: We may have to change the addend for a PC relative
-         reloc.  */
+	 reloc.  */
     }
   else
     {
@@ -2771,14 +2765,14 @@ sunos_check_dynamic_reloc (info, input_bfd, input_section, harg, reloc,
   ++s->reloc_count;
 
   if (h != NULL)
-    *skip = true;
+    *skip = TRUE;
 
-  return true;
+  return TRUE;
 }
 
 /* Finish up the dynamic linking information.  */
 
-static boolean
+static bfd_boolean
 sunos_finish_dynamic_link (abfd, info)
      bfd *abfd;
      struct bfd_link_info *info;
@@ -2790,7 +2784,7 @@ sunos_finish_dynamic_link (abfd, info)
 
   if (! sunos_hash_table (info)->dynamic_sections_needed
       && ! sunos_hash_table (info)->got_needed)
-    return true;
+    return TRUE;
 
   dynobj = sunos_hash_table (info)->dynobj;
 
@@ -2843,7 +2837,7 @@ sunos_finish_dynamic_link (abfd, info)
 					  o->contents,
 					  (file_ptr) o->output_offset,
 					  o->_raw_size))
-	    return false;
+	    return FALSE;
 	}
     }
 
@@ -2868,7 +2862,7 @@ sunos_finish_dynamic_link (abfd, info)
       if (! bfd_set_section_contents (abfd, sdyn->output_section, &esd,
 				      (file_ptr) sdyn->output_offset,
 				      (bfd_size_type) sizeof esd))
-	return false;
+	return FALSE;
 
       PUT_WORD (dynobj, (bfd_vma) 0, esdl.ld_loaded);
 
@@ -2936,10 +2930,10 @@ sunos_finish_dynamic_link (abfd, info)
       pos += sizeof esd + EXTERNAL_SUN4_DYNAMIC_DEBUGGER_SIZE;
       if (! bfd_set_section_contents (abfd, sdyn->output_section, &esdl,
 				      pos, (bfd_size_type) sizeof esdl))
-	return false;
+	return FALSE;
 
       abfd->flags |= DYNAMIC;
     }
 
-  return true;
+  return TRUE;
 }

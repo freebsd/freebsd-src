@@ -1,20 +1,20 @@
 /* Table of DBX symbol codes for the GNU system.
-   Copyright 1988, 1991, 1992, 1993, 1994, 1996, 1998
+   Copyright 1988, 1991, 1992, 1993, 1994, 1996, 1998, 2004
    Free Software Foundation, Inc.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or
+   modify it under the terms of the GNU General Public License as
+   published by the Free Software Foundation; either version 2 of the
+   License, or (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 /* New stab from Solaris 2.  This uses an n_type of 0, which in a.out files
    overlaps the N_UNDF used for ordinary symbols.  In ELF files, the
@@ -181,6 +181,9 @@ __define_stab (N_EXCL, 0xc2, "EXCL")
 /* Modula-2 scope information.  Can someone say what info it contains?  */
 __define_stab (N_SCOPE, 0xc4, "SCOPE")
 
+/* Solaris2: Patch Run Time Checker.  */
+__define_stab (N_PATCH, 0xd0, "PATCH")
+
 /* End of a lexical block.  Desc matches the N_LBRAC's desc.
    The value is the address of the end of the text for the block.
    On Solaris2, the value is relative to the start of the current function.  */
@@ -256,7 +259,7 @@ __define_stab (N_LENG, 0xfe, "LENG")
 	| B8	    | BA	| BC	    | BE	|
 	| C0 LBRAC  | C2 EXCL	| C4 SCOPE  | C6	|
 	| C8	    | CA	| CC	    | CE	|
-	| D0	    | D2	| D4	    | D6	|
+	| D0 PATCH  | D2	| D4	    | D6	|
 	| D8	    | DA	| DC	    | DE	|
 	| E0 RBRAC  | E2 BCOMM	| E4 ECOMM  | E6	|
 	| E8 ECOML  | EA WITH	| EC	    | EE	|

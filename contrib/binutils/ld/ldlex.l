@@ -1,7 +1,7 @@
 %{
 
 /* Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002  Free Software Foundation, Inc.
+   2000, 2001, 2002, 2003  Free Software Foundation, Inc.
 
 This file is part of GLD, the Gnu Linker.
 
@@ -26,7 +26,6 @@ This was written by steve chamberlain
 */
 
 
-#include "ansidecl.h"
 #include <stdio.h>
 
 #ifdef MPW
@@ -69,7 +68,7 @@ const char *lex_string = NULL;
    Otherwise, stack elements 0 through `include_stack_ptr - 1' are valid.  */
 
 #undef YY_INPUT
-#define YY_INPUT(buf,result,max_size) yy_input(buf, &result, max_size)
+#define YY_INPUT(buf,result,max_size) yy_input (buf, &result, max_size)
 
 #define MAX_INCLUDE_DEPTH 10
 static YY_BUFFER_STATE include_stack[MAX_INCLUDE_DEPTH];
@@ -78,14 +77,11 @@ static unsigned int lineno_stack[MAX_INCLUDE_DEPTH];
 static unsigned int include_stack_ptr = 0;
 static int vers_node_nesting = 0;
 
-static YY_BUFFER_STATE yy_create_string_buffer PARAMS ((const char *string,
-							size_t size));
-static void yy_input PARAMS ((char *, int *result, int max_size));
+static void yy_input (char *, int *, int);
+static void comment (void);
+static void lex_warn_invalid (char *where, char *what);
 
-static void comment PARAMS ((void));
-static void lex_warn_invalid PARAMS ((char *where, char *what));
-
-/* STATES 
+/* STATES
 	EXPRESSION	definitely in an expression
 	SCRIPT		definitely in a script
 	BOTH		either EXPRESSION or SCRIPT
@@ -99,7 +95,7 @@ static void lex_warn_invalid PARAMS ((char *where, char *what));
 
 /* Some versions of flex want this.  */
 #ifndef yywrap
-int yywrap () { return 1; }
+int yywrap (void) { return 1; }
 #endif
 %}
 
@@ -112,12 +108,12 @@ FILENAMECHAR1	[_a-zA-Z\/\.\\\$\_\~]
 SYMBOLCHARN     [_a-zA-Z\/\.\\\$\_\~0-9]
 FILENAMECHAR	[_a-zA-Z0-9\/\.\-\_\+\=\$\:\[\]\\\,\~]
 WILDCHAR	[_a-zA-Z0-9\/\.\-\_\+\=\$\:\[\]\\\,\~\?\*]
-WHITE		[ \t\n\r]+ 
+WHITE		[ \t\n\r]+
 
 NOCFILENAMECHAR	[_a-zA-Z0-9\/\.\-\_\+\$\:\[\]\\\~]
 
 V_TAG [.$_a-zA-Z][._a-zA-Z0-9]*
-V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^]([*?.$_a-zA-Z0-9\[\]\-\!\^]|::)*
+V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^\\]([*?.$_a-zA-Z0-9\[\]\-\!\^\\]|::)*
 
 %s SCRIPT
 %s EXPRESSION
@@ -144,24 +140,24 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^]([*?.$_a-zA-Z0-9\[\]\-\!\^]|::)*
 	}
     }
 
-<BOTH,SCRIPT,EXPRESSION>"/*"	{ comment(); }
+<BOTH,SCRIPT,EXPRESSION,VERS_START,VERS_NODE,VERS_SCRIPT>"/*"	{ comment (); }
 
 
 <DEFSYMEXP>"-"                  { RTOKEN('-');}
 <DEFSYMEXP>"+"                  { RTOKEN('+');}
-<DEFSYMEXP>{FILENAMECHAR1}{SYMBOLCHARN}*   { yylval.name = xstrdup(yytext); return NAME; }
+<DEFSYMEXP>{FILENAMECHAR1}{SYMBOLCHARN}*   { yylval.name = xstrdup (yytext); return NAME; }
 <DEFSYMEXP>"="                  { RTOKEN('='); }
 
 <MRI,EXPRESSION>"$"([0-9A-Fa-f])+ {
-  				yylval.integer = bfd_scan_vma (yytext+1, 0,16);
-				yylval.bigint.str = (char *) 0;
+  				yylval.integer = bfd_scan_vma (yytext + 1, 0, 16);
+				yylval.bigint.str = NULL;
 				return INT;
 			}
 
 <MRI,EXPRESSION>([0-9A-Fa-f])+(H|h|X|x|B|b|O|o|D|d) {
 				   int ibase ;
-				   switch (yytext[yyleng-1]) {
-				    case 'X': 
+				   switch (yytext[yyleng - 1]) {
+				    case 'X':
 				    case 'x':
 				    case 'H':
 				    case 'h':
@@ -180,7 +176,7 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^]([*?.$_a-zA-Z0-9\[\]\-\!\^]|::)*
 				   }
 				   yylval.integer = bfd_scan_vma (yytext, 0,
 								  ibase);
-				   yylval.bigint.str = (char *) 0;
+				   yylval.bigint.str = NULL;
 				   return INT;
 				 }
 <SCRIPT,DEFSYMEXP,MRI,BOTH,EXPRESSION>((("$"|0[xX])([0-9A-Fa-f])+)|(([0-9])+))(M|K|m|k)? {
@@ -193,14 +189,14 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^]([*?.$_a-zA-Z0-9\[\]\-\!\^]|::)*
 				      ibase = 16;
 				    }
 				  yylval.integer = bfd_scan_vma (s, 0, ibase);
-				  yylval.bigint.str = (char *) 0;
-				  if (yytext[yyleng-1] == 'M'
-				      || yytext[yyleng-1] == 'm')
+				  yylval.bigint.str = NULL;
+				  if (yytext[yyleng - 1] == 'M'
+				      || yytext[yyleng - 1] == 'm')
 				    {
 				      yylval.integer *= 1024 * 1024;
 				    }
-				  else if (yytext[yyleng-1] == 'K' 
-				      || yytext[yyleng-1]=='k')
+				  else if (yytext[yyleng - 1] == 'K'
+				      || yytext[yyleng - 1]=='k')
 				    {
 				      yylval.integer *= 1024;
 				    }
@@ -310,6 +306,7 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^]([*?.$_a-zA-Z0-9\[\]\-\!\^]|::)*
 <BOTH,SCRIPT>"INCLUDE"			{ RTOKEN(INCLUDE);}
 <BOTH,SCRIPT>"PHDRS"			{ RTOKEN (PHDRS); }
 <EXPRESSION,BOTH,SCRIPT>"AT"			{ RTOKEN(AT);}
+<EXPRESSION,BOTH,SCRIPT>"SUBALIGN"		{ RTOKEN(SUBALIGN);}
 <EXPRESSION,BOTH,SCRIPT>"PROVIDE"		{ RTOKEN(PROVIDE); }
 <EXPRESSION,BOTH,SCRIPT>"KEEP"		{ RTOKEN(KEEP); }
 <EXPRESSION,BOTH,SCRIPT>"EXCLUDE_FILE"        { RTOKEN(EXCLUDE_FILE); }
@@ -355,13 +352,13 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^]([*?.$_a-zA-Z0-9\[\]\-\!\^]|::)*
 
 <MRI>{FILENAMECHAR1}{NOCFILENAMECHAR}*	{
 /* Filename without commas, needed to parse mri stuff */
-				 yylval.name = xstrdup(yytext); 
+				 yylval.name = xstrdup (yytext);
 				  return NAME;
 				}
 
 
 <BOTH,EXPRESSION>{FILENAMECHAR1}{FILENAMECHAR}*	{
-				 yylval.name = xstrdup(yytext); 
+				 yylval.name = xstrdup (yytext);
 				  return NAME;
 				}
 <BOTH,EXPRESSION>"-l"{FILENAMECHAR}+ {
@@ -375,12 +372,12 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^]([*?.$_a-zA-Z0-9\[\]\-\!\^]|::)*
 		   try again.  */
 		if (yytext[0] == '/' && yytext[1] == '*')
 		  {
-		    yyless(2);
+		    yyless (2);
 		    comment ();
 		  }
 		else
 		  {
-		    yylval.name = xstrdup(yytext);
+		    yylval.name = xstrdup (yytext);
 		    return NAME;
 		  }
 	}
@@ -388,8 +385,8 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^]([*?.$_a-zA-Z0-9\[\]\-\!\^]|::)*
 <EXPRESSION,BOTH,SCRIPT,VERS_NODE>"\""[^\"]*"\"" {
 					/* No matter the state, quotes
 					   give what's inside */
-					yylval.name = xstrdup(yytext+1);
-					yylval.name[yyleng-2] = 0;
+					yylval.name = xstrdup (yytext + 1);
+					yylval.name[yyleng - 2] = 0;
 					return NAME;
 				}
 <BOTH,SCRIPT,EXPRESSION>"\n"		{ lineno++;}
@@ -411,7 +408,7 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^]([*?.$_a-zA-Z0-9\[\]\-\!\^]|::)*
 
 <VERS_START>"{"			{ BEGIN(VERS_SCRIPT); return *yytext; }
 
-<VERS_SCRIPT>"{"		{ BEGIN(VERS_NODE); 
+<VERS_SCRIPT>"{"		{ BEGIN(VERS_NODE);
 				  vers_node_nesting = 0;
 				  return *yytext;
 				}
@@ -430,14 +427,14 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^]([*?.$_a-zA-Z0-9\[\]\-\!\^]|::)*
 
 <<EOF>> {
   include_stack_ptr--;
-    
-  if (include_stack_ptr == 0) 
+
+  if (include_stack_ptr == 0)
   {
-    yyterminate();
+    yyterminate ();
   }
-  else 
+  else
   {
-    yy_switch_to_buffer(include_stack[include_stack_ptr]);
+    yy_switch_to_buffer (include_stack[include_stack_ptr]);
   }
 
   ldfile_input_filename = file_name_stack[include_stack_ptr - 1];
@@ -446,9 +443,9 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^]([*?.$_a-zA-Z0-9\[\]\-\!\^]|::)*
   return END;
 }
 
-<SCRIPT,MRI,VERS_START,VERS_SCRIPT,VERS_NODE>.	lex_warn_invalid(" in script", yytext);
-<EXPRESSION,DEFSYMEXP,BOTH>.	lex_warn_invalid(" in expression", yytext);
-    
+<SCRIPT,MRI,VERS_START,VERS_SCRIPT,VERS_NODE>.	lex_warn_invalid (" in script", yytext);
+<EXPRESSION,DEFSYMEXP,BOTH>.	lex_warn_invalid (" in expression", yytext);
+
 %%
 
 
@@ -456,13 +453,11 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^]([*?.$_a-zA-Z0-9\[\]\-\!\^]|::)*
    saving the current input info on the include stack.  */
 
 void
-lex_push_file (file, name)
-     FILE *file;
-     const char *name;
+lex_push_file (FILE *file, const char *name)
 {
-  if (include_stack_ptr >= MAX_INCLUDE_DEPTH) 
+  if (include_stack_ptr >= MAX_INCLUDE_DEPTH)
     {
-      einfo("%F:includes nested too deeply\n");
+      einfo ("%F:includes nested too deeply\n");
     }
   file_name_stack[include_stack_ptr] = name;
   lineno_stack[include_stack_ptr] = lineno;
@@ -471,27 +466,25 @@ lex_push_file (file, name)
   include_stack_ptr++;
   lineno = 1;
   yyin = file;
-  yy_switch_to_buffer(yy_create_buffer(yyin, YY_BUF_SIZE));
+  yy_switch_to_buffer (yy_create_buffer (yyin, YY_BUF_SIZE));
 }
 
 /* Return a newly created flex input buffer containing STRING,
    which is SIZE bytes long.  */
 
-static YY_BUFFER_STATE 
-yy_create_string_buffer (string, size)
-     const char *string;
-     size_t size;
+static YY_BUFFER_STATE
+yy_create_string_buffer (const char *string, size_t size)
 {
   YY_BUFFER_STATE b;
 
   /* Calls to m-alloc get turned by sed into xm-alloc.  */
-  b = (YY_BUFFER_STATE) malloc (sizeof (struct yy_buffer_state));
+  b = malloc (sizeof (struct yy_buffer_state));
   b->yy_input_file = 0;
   b->yy_buf_size = size;
 
   /* yy_ch_buf has to be 2 characters longer than the size given because
      we need to put in 2 end-of-buffer characters.  */
-  b->yy_ch_buf = (char *) malloc ((unsigned) (b->yy_buf_size + 3));
+  b->yy_ch_buf = malloc ((unsigned) (b->yy_buf_size + 3));
 
   b->yy_ch_buf[0] = '\n';
   strcpy (b->yy_ch_buf+1, string);
@@ -520,13 +513,12 @@ yy_create_string_buffer (string, size)
    on the include stack.  */
 
 void
-lex_redirect (string)
-     const char *string;
+lex_redirect (const char *string)
 {
   YY_BUFFER_STATE tmp;
 
   yy_init = 0;
-  if (include_stack_ptr >= MAX_INCLUDE_DEPTH) 
+  if (include_stack_ptr >= MAX_INCLUDE_DEPTH)
     {
       einfo("%F: macros nested too deeply\n");
     }
@@ -546,56 +538,56 @@ static int state_stack[MAX_INCLUDE_DEPTH * 2];
 static int *state_stack_p = state_stack;
 
 void
-ldlex_script ()
+ldlex_script (void)
 {
   *(state_stack_p)++ = yy_start;
   BEGIN (SCRIPT);
 }
 
 void
-ldlex_mri_script ()
+ldlex_mri_script (void)
 {
   *(state_stack_p)++ = yy_start;
   BEGIN (MRI);
 }
 
 void
-ldlex_version_script ()
+ldlex_version_script (void)
 {
   *(state_stack_p)++ = yy_start;
   BEGIN (VERS_START);
 }
 
 void
-ldlex_version_file ()
+ldlex_version_file (void)
 {
   *(state_stack_p)++ = yy_start;
   BEGIN (VERS_SCRIPT);
 }
 
 void
-ldlex_defsym ()
+ldlex_defsym (void)
 {
   *(state_stack_p)++ = yy_start;
   BEGIN (DEFSYMEXP);
 }
-	   
+
 void
-ldlex_expression ()
+ldlex_expression (void)
 {
   *(state_stack_p)++ = yy_start;
   BEGIN (EXPRESSION);
 }
 
 void
-ldlex_both ()
+ldlex_both (void)
 {
   *(state_stack_p)++ = yy_start;
   BEGIN (BOTH);
 }
 
 void
-ldlex_popstate ()
+ldlex_popstate (void)
 {
   yy_start = *(--state_stack_p);
 }
@@ -605,18 +597,15 @@ ldlex_popstate ()
    either the number of characters read, or 0 to indicate EOF.  */
 
 static void
-yy_input (buf, result, max_size)
-     char *buf;
-     int *result;
-     int max_size;
+yy_input (char *buf, int *result, int max_size)
 {
-  *result = 0; 
-  if (yy_current_buffer->yy_input_file)
+  *result = 0;
+  if (YY_CURRENT_BUFFER->yy_input_file)
     {
       if (yyin)
 	{
-	  *result = fread ((char *) buf, 1, max_size, yyin);
-	  if (*result < max_size && ferror (yyin)) 
+	  *result = fread (buf, 1, max_size, yyin);
+	  if (*result < max_size && ferror (yyin))
 	    einfo ("%F%P: read in flex scanner failed\n");
 	}
     }
@@ -625,14 +614,14 @@ yy_input (buf, result, max_size)
 /* Eat the rest of a C-style comment.  */
 
 static void
-comment ()
+comment (void)
 {
   int c;
 
   while (1)
   {
     c = input();
-    while (c != '*' && c != EOF) 
+    while (c != '*' && c != EOF)
     {
       if (c == '\n')
 	lineno++;
@@ -663,8 +652,7 @@ comment ()
    in context WHERE.  */
 
 static void
-lex_warn_invalid (where, what)
-     char *where, *what;
+lex_warn_invalid (char *where, char *what)
 {
   char buf[5];
 

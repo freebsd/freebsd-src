@@ -1,5 +1,5 @@
 /* Binutils emulation layer.
-   Copyright (C) 2002 Free Software Foundation, Inc.
+   Copyright 2002, 2003 Free Software Foundation, Inc.
    Written by Tom Rix, Redhat.
 
    This file is part of GNU Binutils.
@@ -24,16 +24,16 @@
 #include "bfd.h"
 #include "bucomm.h"
 
-extern void ar_emul_usage                PARAMS ((FILE *));
-extern void ar_emul_default_usage        PARAMS ((FILE *));
-extern boolean ar_emul_append            PARAMS ((bfd **, char *, boolean));
-extern boolean ar_emul_default_append    PARAMS ((bfd **, char *, boolean));
-extern boolean ar_emul_replace           PARAMS ((bfd **, char *, boolean));
-extern boolean ar_emul_default_replace   PARAMS ((bfd **, char *, boolean));
-extern boolean ar_emul_create            PARAMS ((bfd **, char *, char *));
-extern boolean ar_emul_default_create    PARAMS ((bfd **, char *, char *));
-extern boolean ar_emul_parse_arg         PARAMS ((char *));
-extern boolean ar_emul_default_parse_arg PARAMS ((char *));
+extern void ar_emul_usage (FILE *);
+extern void ar_emul_default_usage (FILE *);
+extern bfd_boolean ar_emul_append (bfd **, char *, bfd_boolean);
+extern bfd_boolean ar_emul_default_append (bfd **, char *, bfd_boolean);
+extern bfd_boolean ar_emul_replace (bfd **, char *, bfd_boolean);
+extern bfd_boolean ar_emul_default_replace (bfd **, char *, bfd_boolean);
+extern bfd_boolean ar_emul_create (bfd **, char *, char *);
+extern bfd_boolean ar_emul_default_create (bfd **, char *, char *);
+extern bfd_boolean ar_emul_parse_arg (char *);
+extern bfd_boolean ar_emul_default_parse_arg (char *);
 
 /* Macros for common output.  */
 
@@ -53,11 +53,11 @@ extern boolean ar_emul_default_parse_arg PARAMS ((char *));
 typedef struct bin_emulation_xfer_struct
 {
   /* Print out the extra options.  */
-  void    (* ar_usage)     PARAMS ((FILE *fp));
-  boolean (* ar_append)    PARAMS ((bfd **, char *, boolean));
-  boolean (* ar_replace)   PARAMS ((bfd **, char *, boolean));
-  boolean (* ar_create)    PARAMS ((bfd **, char *, char *));
-  boolean (* ar_parse_arg) PARAMS ((char *));
+  void (* ar_usage) (FILE *fp);
+  bfd_boolean (* ar_append) (bfd **, char *, bfd_boolean);
+  bfd_boolean (* ar_replace) (bfd **, char *, bfd_boolean);
+  bfd_boolean (* ar_create) (bfd **, char *, char *);
+  bfd_boolean (* ar_parse_arg) (char *);
 }
 bin_emulation_xfer_type;
 

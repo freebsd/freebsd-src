@@ -1,5 +1,6 @@
 /* BFD back-end for rs6000 support
-   Copyright 1990, 1991, 1993, 1995, 2000 Free Software Foundation, Inc.
+   Copyright 1990, 1991, 1993, 1995, 2000, 2002, 2003
+   Free Software Foundation, Inc.
    FIXME: Can someone provide a transliteration of this name into ASCII?
    Using the following chars caused a compiler warning on HIUX (so I replaced
    them with octal escapes), and isn't useful without an understanding of what
@@ -46,7 +47,7 @@ rs6000_compatible (a,b)
     case bfd_arch_rs6000:
       return bfd_default_compatible (a, b);
     case bfd_arch_powerpc:
-      if (b->mach == 0)
+      if (a->mach == bfd_mach_rs6k)
 	return b;
       return NULL;
     }
@@ -64,7 +65,7 @@ static const bfd_arch_info_type arch_info_struct[] =
     "rs6000",
     "rs6000:rs1",
     3,
-    false, /* not the default */
+    FALSE, /* not the default */
     rs6000_compatible,
     bfd_default_scan,
     &arch_info_struct[1]
@@ -78,7 +79,7 @@ static const bfd_arch_info_type arch_info_struct[] =
     "rs6000",
     "rs6000:rsc",
     3,
-    false, /* not the default */
+    FALSE, /* not the default */
     rs6000_compatible,
     bfd_default_scan,
     &arch_info_struct[2]
@@ -92,7 +93,7 @@ static const bfd_arch_info_type arch_info_struct[] =
     "rs6000",
     "rs6000:rs2",
     3,
-    false, /* not the default */
+    FALSE, /* not the default */
     rs6000_compatible,
     bfd_default_scan,
     0
@@ -109,7 +110,7 @@ const bfd_arch_info_type bfd_rs6000_arch =
     "rs6000",
     "rs6000:6000",
     3,
-    true, /* the default */
+    TRUE, /* the default */
     rs6000_compatible,
     bfd_default_scan,
     &arch_info_struct[0]

@@ -4,12 +4,12 @@ Please do not make ChangeLog entries.
 COPYING, COPYING.LIB, README
 	http://gnu.org.
 
-Makefile.in; configure; configure.in
+Makefile.in; configure; configure.in; src-release
 	Please notify the following of any committed patches.
 		binutils@sources.redhat.com
 		gdb-patches@sources.redhat.com
 
-bfd/; binutils/; gas/; gprof/; ld/; opcodes/; BFD's part of include/
+bfd/; binutils/; gas/; gprof/; ld/; opcodes/; cpu/; BFD's part of include/
 	binutils: http://sources.redhat.com/binutils/
 	Patches to binutils@sources.redhat.com.
 	Please notify the following of any interface changes:
@@ -21,24 +21,25 @@ cgen/; cgen parts of opcodes/, sim/ & include/
 	May need separate opcodes/ or sim/ approval for
 		commits of regenerated files there.
 
-config.guess; config.sub; dejagnu/config.guess;
+config.guess; config.sub; dejagnu/config.guess; dejagnu/config.sub;
 readline/support/config.sub; readline/support/config.guess
 	config: http://savannah.gnu.org/projects/config
 	Patches to config-patches@gnu.org.
 	Changes need to be done in tandem with the official CONFIG
 	sources or submitted to the master file maintainer and brought
-	in via a merge.
+	in via a merge.  When updating any of these files, please be
+	sure to update all of them.
 	Please notify the following of any committed patches:
 		binutils@sources.redhat.com
 		gdb-patches@sources.redhat.com
 
 dejagnu/
-	Send all patches to:
-	http://www.gnu.org/software/dejagnu/
-	mail:bug-dejagnu@gnu.org
-	For changes to the local repostory, send them to
-	gdb-patches@sources.redhat.com when generic; and sid@,
-	binutils@, gcc@, etc. for sub-components.
+	dejagnu: http://www.gnu.org/software/dejagnu/
+	Patches to bug-dejagnu@gnu.org
+	Avoid making changes to the local repository; please send
+	patches upstream.  Important and approved patches can be
+	checked into the src repository, otheriwse patches will be
+	imported from the next release.
 
 gdb/; mmalloc/; readline/; sim/; GDB's part of include/ & dejagnu/
 	gdb: http://sources.redhat.com/gdb/
@@ -99,8 +100,7 @@ winsup/
 	General discussion cygwin@sources.redhat.com.
 	See also winsup/MAINTAINERS.
 
-expect/; config-ml.in; mpw-README; mpw-build.in; mpw-config.in;
-mpw-configure; mpw-install; setup.com; missing; makefile.vms; utils/;
+expect/; config-ml.in; setup.com; missing; makefile.vms; utils/;
 config/; config.if; makefile.vms; missing; ylwrap; mkdep; etc/;
 install-sh; intl/
 	Ask DJ Delorie <dj@redhat.com> after reading the libiberty entry.

@@ -1,4 +1,41 @@
 -*- text -*-
+
+* The linker script operator DEFINED() will now yield 1 only for a symbol that
+  is defined before the statement where DEFINED is used.
+
+* The MIPS --embedded-relocs (used to embed relocations into binaries for
+  Embedded-PIC code) is deprecated and will be removed in a future release.
+
+* m32r Linux (ELF) support added by Renesas.
+
+* Improved linker's handling of unresolved symbols.  The switch
+  --unresolved-symbols=<method> has been added to tell the linker when it
+  should report them and the switch --warn-unresolved-symbols has been added to
+  make reports be issued as warning messages rather than errors.
+
+Changes in 2.14:
+
+* Added support for Xtensa architecture.
+
+* Added --with-sysroot configure switch to specify a target system root, for
+  linking against a target filesystem image.
+
+* Added --accept-unknown-linker-format to restore old linker behaviour (pre
+  2.14) of silently accepting and linking in any files in an unknown binary
+  file format.
+
+* Added --no-omagic to undo the effects of the -N option.
+
+* Support for Texas Instruments TMS320C4x and TMS320C3x series of
+  DSP's contributed by Michael Hayes and Svein E. Seldal.
+  
+* Added --with-lib-path configure switch to specify default value for
+  LIB_PATH.
+
+* ARM port to QNX operating system added by Graeme Peterson.
+
+* IP2K support added by Denis Chertykov.
+
 Changes in 2.13:
 
 * Support for the Fujitsu FRV architecture added by Red Hat. Models for FR400
@@ -52,6 +89,8 @@ Changes in version 2.11:
 
 * Support for CRIS (Axis Communications ETRAX series).
 
+* Support for PDP-11 and 2.11BSD a.out format, by Lars Brinkhoff.
+
 Changes in version 2.10:
 
 * Added AT> to the linker script language to allow load-time allocation of 
@@ -75,7 +114,7 @@ Changes in version 2.10:
   wildcard file names.
 
 * Added -O option to optimize linker output (as of this writing, this only
-affects ELF shared library generation).
+  affects ELF shared library generation).
 
 * The -e option now accepts a number as well as a symbol name.
 
@@ -146,7 +185,7 @@ not copied into the output file.  This is used by glibc.
 * When an ELF section named .gnu.warning.SYMBOL is encountered in an input
 file, and the symbol SYMBOL is referenced by some object file, the contents of
 the section are displayed as an error message.  The section is not copied into
-the output file, unless doing a relocateable or shared link.  This is used by
+the output file, unless doing a relocatable or shared link.  This is used by
 glibc.
 
 * New options -split-by-reloc and -split-by-file.
@@ -169,7 +208,7 @@ Changes in version 2.5:
 
 * The linker now supports linking against SunOS shared libraries.  It still can
 not link SunOS PIC (Position Independent Code) files, so it can not be used to
-generate shared libaries.
+generate shared libraries.
 
 * The linker now supports linking against ELF shared libraries for the i386
 (UnixWare) and SPARC (Solaris).  It can also link ELF PIC files, and can be

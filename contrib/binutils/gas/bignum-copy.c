@@ -33,11 +33,10 @@
 
 /* void */
 int
-bignum_copy (in, in_length, out, out_length)
-     register LITTLENUM_TYPE *in;
-     register int in_length;	/* in sizeof(littlenum)s */
-     register LITTLENUM_TYPE *out;
-     register int out_length;	/* in sizeof(littlenum)s */
+bignum_copy (register LITTLENUM_TYPE *in,
+	     register int in_length,	/* in sizeof(littlenum)s */
+	     register LITTLENUM_TYPE *out,
+	     register int out_length	/* in sizeof(littlenum)s */)
 {
   int significant_littlenums_dropped;
 

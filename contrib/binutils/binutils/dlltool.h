@@ -1,5 +1,5 @@
 /* dlltool.h -- header file for dlltool
-   Copyright 1997, 1998 Free Software Foundation, Inc.
+   Copyright 1997, 1998, 2003, 2004 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -21,22 +21,22 @@
 #include "ansidecl.h"
 #include <stdio.h>
 
-extern void def_code PARAMS ((int));
-extern void def_data PARAMS ((int));
-extern void def_description PARAMS ((const char *));
-extern void def_exports
-  PARAMS ((const char *, const char *, int, int, int, int));
-extern void def_heapsize PARAMS ((int, int));
+extern void def_code (int);
+extern void def_data (int);
+extern void def_description (const char *);
+extern void def_exports (const char *, const char *, int, int, int, int, int);
+extern void def_heapsize (int, int);
 extern void def_import
-  PARAMS ((const char *, const char *, const char *, const char *, int));
-extern void def_library PARAMS ((const char *, int));
-extern void def_name PARAMS ((const char *, int));
-extern void def_section PARAMS ((const char *, int));
-extern void def_stacksize PARAMS ((int, int));
-extern void def_version PARAMS ((int, int));
-extern int yyparse PARAMS ((void));
-extern int yyerror PARAMS ((const char *));
+  (const char *, const char *, const char *, const char *, int);
+extern void def_library (const char *, int);
+extern void def_name (const char *, int);
+extern void def_section (const char *, int);
+extern void def_stacksize (int, int);
+extern void def_version (int, int);
+extern int  yyparse (void);
+extern int  yyerror (const char *);
+extern int  yylex (void);
+
 extern int yydebug;
-extern int yylex PARAMS ((void));
 extern FILE *yyin;
 extern int linenumber;
