@@ -231,9 +231,6 @@ int  file_addmodule(struct preloaded_file *fp, char *modname, int version,
 
 
 /* MI module loaders */
-int		aout_loadfile(char *filename, vm_offset_t dest, struct preloaded_file **result);
-vm_offset_t	aout_findsym(char *name, struct preloaded_file *fp);
-
 int	elf_loadfile(char *filename, vm_offset_t dest, struct preloaded_file **result);
 
 /*
