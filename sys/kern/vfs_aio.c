@@ -998,8 +998,8 @@ aio_daemon(void *uproc)
 		 * If daemon is inactive for a long time, allow it to exit,
 		 * thereby freeing resources.
 		 */
-		if (((aiop->aiothreadflags & AIOP_SCHED) == 0) && tsleep(mycp,
-		    PRIBIO, "aiordy", aiod_lifetime)) {
+		if ((aiop->aiothreadflags & AIOP_SCHED) == 0 &&
+		    tsleep(aiop->aiothread, PRIBIO, "aiordy", aiod_lifetime)) {
 			s = splnet();
 			if ((TAILQ_FIRST(&aio_jobs) == NULL) &&
 			    (TAILQ_FIRST(&aiop->jobtorun) == NULL)) {
