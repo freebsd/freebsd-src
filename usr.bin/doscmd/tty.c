@@ -254,7 +254,7 @@ console_init()
     }
     addr = mmap((caddr_t)0xA0000, 5 * 64 * 1024,
 		PROT_EXEC | PROT_READ | PROT_WRITE,
-		MAP_FILE | MAP_FIXED | MAP_INHERIT | MAP_SHARED,
+		MAP_FILE | MAP_FIXED | MAP_SHARED,
 		fd, 0);
     if (addr != (caddr_t)0xA0000) {
 	perror("mmap");
@@ -264,7 +264,7 @@ console_init()
 #if 0
     addr = mmap((caddr_t)0x100000 - 0x1000, 0x1000,
 		PROT_EXEC | PROT_READ | PROT_WRITE,
-		MAP_FILE | MAP_FIXED | MAP_INHERIT | MAP_SHARED,
+		MAP_FILE | MAP_FIXED | MAP_SHARED,
 		fd, 0);
     if (addr != (caddr_t)(0x100000 - 0x1000)) {
 	perror("mmap");
