@@ -1,7 +1,7 @@
 /*
  * Bus independent FreeBSD shim for the aic79xx based Adaptec SCSI controllers
  *
- * Copyright (c) 1994-2002 Justin T. Gibbs.
+ * Copyright (c) 1994-2002, 2004 Justin T. Gibbs.
  * Copyright (c) 2001-2002 Adaptec Inc.
  * All rights reserved.
  *
@@ -1555,7 +1555,7 @@ static moduledata_t ahd_mod = {
 static struct ahd_softc *ahd_ddb_softc;
 static int ahd_ddb_paused;
 static int ahd_ddb_paused_on_entry;
-DB_COMMAND(ahd_set_unit, ahd_ddb_set_unit)
+DB_COMMAND(ahd_sunit, ahd_ddb_sunit)
 {
 	struct ahd_softc *list_ahd;
 
@@ -1571,7 +1571,7 @@ DB_COMMAND(ahd_set_unit, ahd_ddb_set_unit)
 DB_COMMAND(ahd_pause, ahd_ddb_pause)
 {
 	if (ahd_ddb_softc == NULL) {
-		db_error("Must set unit with ahd_set_unit first!\n");
+		db_error("Must set unit with ahd_sunit first!\n");
 		return;
 	}
 	if (ahd_ddb_paused == 0) {
@@ -1587,7 +1587,7 @@ DB_COMMAND(ahd_pause, ahd_ddb_pause)
 DB_COMMAND(ahd_unpause, ahd_ddb_unpause)
 {
 	if (ahd_ddb_softc == NULL) {
-		db_error("Must set unit with ahd_set_unit first!\n");
+		db_error("Must set unit with ahd_sunit first!\n");
 		return;
 	}
 	if (ahd_ddb_paused != 0) {
@@ -1608,7 +1608,7 @@ DB_COMMAND(ahd_in, ahd_ddb_in)
 	int size;
  
 	if (ahd_ddb_softc == NULL) {
-		db_error("Must set unit with ahd_set_unit first!\n");
+		db_error("Must set unit with ahd_sunit first!\n");
 		return;
 	}
 	if (have_addr == 0)
@@ -1655,7 +1655,7 @@ DB_SET(ahd_out, ahd_ddb_out, db_cmd_set, CS_MORE, NULL)
 	int	  size;
  
 	if (ahd_ddb_softc == NULL) {
-		db_error("Must set unit with ahd_set_unit first!\n");
+		db_error("Must set unit with ahd_sunit first!\n");
 		return;
 	}
 
@@ -1697,6 +1697,15 @@ DB_SET(ahd_out, ahd_ddb_out, db_cmd_set, CS_MORE, NULL)
 		addr += size;
 	}
 	db_skip_to_eol();
+}
+
+DB_COMMAND(ahd_dump, ahd_ddb_dump)
+{
+	if (ahd_ddb_softc == NULL) {
+		db_error("Must set unit with ahd_sunit first!\n");
+		return;
+	}
+	ahd_dump_card_state(ahd_ddb_softc);
 }
 
 #endif
