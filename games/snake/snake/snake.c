@@ -108,7 +108,7 @@ char **argv;
 {
 	extern char *optarg;
 	extern int optind;
-	int ch, i, j, k;
+	int ch, i;
 	void stop();
 
 	rawscores = open(_PATH_RAWSCORES, O_RDWR|O_CREAT, 0664);
@@ -174,6 +174,7 @@ char **argv;
 	signal (SIGINT, stop);
 	putpad(TI); /*	String to begin programs that use cm */
 	putpad(KS); /*	Put terminal in keypad transmit mode */
+	putpad(VI); /*  Hide cursor */
 
 	snrand(&finish);
 	snrand(&you);
@@ -368,8 +369,6 @@ mainloop()
 
 			if (same(&you,&money))
 			{
-				char xp[20];
-				struct point z;
 				loot += 25;
 				if(k < repeat)
 					pchar(&you,' ');
@@ -633,10 +632,10 @@ int w;{
 	setup();
 	winnings(cashvalue);
 }
+
 snap()
 {
 	struct point p;
-	int i;
 
 	if(you.line < 3){
 		pchar(point(&p,you.col,0),'-');
@@ -669,6 +668,7 @@ snap()
 	}
 	fflush(stdout);
 }
+
 stretch(ps)
 struct point *ps;{
 	struct point p;
@@ -712,7 +712,7 @@ struct point *ps;{
 surround(ps)
 struct point *ps;{
 	struct point x;
-	int i,j;
+	int j;
 
 	if(ps->col == 0)ps->col++;
 	if(ps->line == 0)ps->line++;
@@ -733,6 +733,7 @@ struct point *ps;{
 	}
 	apr(point(&x,ps->col-1,ps->line-1),"   \ro.o\r\\_/");
 }
+
 win(ps)
 struct point *ps;
 {
@@ -873,8 +874,6 @@ stop(){
 
 suspend()
 {
-	char *sh;
-
 	ll();
 	cook();
 	kill(getpid(), SIGTSTP);
