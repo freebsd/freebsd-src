@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/filedesc.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
+#include <sys/sleepqueue.h>
 #include <sys/sx.h>
 #include <sys/tty.h>
 #include <sys/turnstile.h>
@@ -188,6 +189,7 @@ thread_init(void *mem, int size)
 	td = (struct thread *)mem;
 	vm_thread_new(td, 0);
 	cpu_thread_setup(td);
+	td->td_sleepqueue = sleepq_alloc();
 	td->td_turnstile = turnstile_alloc();
 	td->td_sched = (struct td_sched *)&td[1];
 }
@@ -202,6 +204,7 @@ thread_fini(void *mem, int size)
 
 	td = (struct thread *)mem;
 	turnstile_free(td->td_turnstile);
+	sleepq_free(td->td_sleepqueue);
 	vm_thread_dispose(td);
 }
 
@@ -456,12 +459,8 @@ kse_thr_interrupt(struct thread *td, struct kse_thr_interrupt_args *uap)
 				td2->td_intrval = EINTR;
 			else
 				td2->td_intrval = ERESTART;
-			if (TD_ON_SLEEPQ(td2) && (td2->td_flags & TDF_SINTR)) {
-				if (td2->td_flags & TDF_CVWAITQ)
-					cv_abort(td2);
-				else
-					abortsleep(td2);
-			}
+			if (TD_ON_SLEEPQ(td2) && (td2->td_flags & TDF_SINTR))
+				sleepq_abort(td2);
 			mtx_unlock_spin(&sched_lock);
 		}
 		PROC_UNLOCK(p);
@@ -648,7 +647,7 @@ kse_wakeup(struct thread *td, struct kse_wakeup_args *uap)
 		           ((td2->td_wchan == &kg->kg_completed) ||
 			    (td2->td_wchan == &p->p_siglist &&
 			     (ku->ku_mflags & KMF_WAITSIGEVENT)))) {
-			abortsleep(td2);
+			sleepq_abort(td2);
 		} else {
 			ku->ku_flags |= KUF_DOUPCALL;
 		}
@@ -1907,10 +1906,7 @@ thread_single(int force_exit)
 					}
 					if (TD_ON_SLEEPQ(td2) &&
 					    (td2->td_flags & TDF_SINTR)) {
-						if (td2->td_flags & TDF_CVWAITQ)
-							cv_abort(td2);
-						else
-							abortsleep(td2);
+						sleepq_abort(td2);
 					}
 				} else {
 					if (TD_IS_SUSPENDED(td2))

@@ -1219,12 +1219,12 @@ sched_nice(struct ksegrp *kg, int nice)
 }
 
 void
-sched_sleep(struct thread *td, u_char prio)
+sched_sleep(struct thread *td)
 {
 	mtx_assert(&sched_lock, MA_OWNED);
 
 	td->td_slptime = ticks;
-	td->td_priority = prio;
+	td->td_base_pri = td->td_priority;
 
 	CTR2(KTR_ULE, "sleep kse %p (tick: %d)",
 	    td->td_kse, td->td_slptime);

@@ -157,6 +157,7 @@ struct ke_sched;
 struct kg_sched;
 struct nlminfo;
 struct p_sched;
+struct sleepqueue;
 struct td_sched;
 struct trapframe;
 struct turnstile;
@@ -265,6 +266,7 @@ struct thread {
 	TAILQ_ENTRY(thread) td_runq;	/* (j/z) Run queue(s). XXXKSE */
 
 	TAILQ_HEAD(, selinfo) td_selq;	/* (p) List of selinfos. */
+	struct sleepqueue *td_sleepqueue; /* (k) Associated sleep queue. */
 	struct turnstile *td_turnstile;	/* (k) Associated turnstile. */
 
 /* Cleared during fork1() or thread_sched_upcall(). */
@@ -344,9 +346,7 @@ struct thread {
 #define	TDF_TIMEOUT	0x000010 /* Timing out during sleep. */
 #define	TDF_IDLETD	0x000020 /* This is one of the per-CPU idle threads. */
 #define	TDF_SELECT	0x000040 /* Selecting; wakeup/waiting danger. */
-#define	TDF_CVWAITQ	0x000080 /* Thread is on a cv_waitq (not slpq). */
 #define	TDF_TSNOBLOCK	0x000100 /* Don't block on a turnstile due to race. */
-#define	TDF_ONSLEEPQ	0x000200 /* On the sleep queue. */
 #define	TDF_ASTPENDING	0x000800 /* Thread has some asynchronous events. */
 #define	TDF_TIMOFAIL	0x001000 /* Timeout from sleep after we were awake. */
 #define	TDF_INTERRUPT	0x002000 /* Thread is marked as interrupted. */
@@ -414,11 +414,6 @@ struct thread {
 #define	TD_SET_RUNNING(td)	(td)->td_state = TDS_RUNNING
 #define	TD_SET_RUNQ(td)		(td)->td_state = TDS_RUNQ
 #define	TD_SET_CAN_RUN(td)	(td)->td_state = TDS_CAN_RUN
-#define	TD_SET_ON_SLEEPQ(td)	do {(td)->td_flags |= TDF_ONSLEEPQ; } while (0)
-#define	TD_CLR_ON_SLEEPQ(td)	do {			\
-		(td)->td_flags &= ~TDF_ONSLEEPQ;	\
-		(td)->td_wchan = NULL;			\
-} while (0)
 
 /*
  * The schedulable entity that can be given a context to run.
