@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.44 1997/03/25 19:03:04 se Exp $
+**  $Id: pcisupport.c,v 1.45 1997/03/28 18:40:24 phk Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -50,8 +50,6 @@
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
 
-static void config_orion (pcici_t tag);
-
 /*---------------------------------------------------------
 **
 **	Intel chipsets for 486 / Pentium processor
@@ -80,9 +78,6 @@ struct condmsg {
     char		flags;
     const char		*text;
 };
-
-/* make sure formats expand to at least as many chars !!! */
-#define PPB_DESCR "generic PCI bridge (vendor=%04x device=%04x subclass=%1.2d)"
 
 static char*
 generic_pci_bridge (pcici_t tag)
@@ -113,7 +108,6 @@ generic_pci_bridge (pcici_t tag)
     }
     return 0;
 }
-
 
 static char*
 chipset_probe (pcici_t tag, pcidi_t type)
@@ -163,6 +157,8 @@ chipset_probe (pcici_t tag, pcidi_t type)
 	case 0x12378086:
 		return ("Intel 82440FX (Natoma) PCI and memory controller");
 	case 0x84c48086:
+		tag->secondarybus = 
+		    tag->subordinatebus = pci_cfgread(tag, 0x4a, 1);
 		return ("Intel 82450KX (Orion) PCI memory controller");
 	case 0x84c58086:
 		return ("Intel 82454GX (Orion) host to PCI bridge");
@@ -672,27 +668,9 @@ dumpconfigspace (pcici_t tag)
 
 #endif /* PCI_QUIET */
 
-extern unsigned pciroots;
-
-static void
-config_orion (pcici_t tag)
-{
-    unsigned busno = (pci_conf_read (tag, 0x48) >> 16) & 0xff;
-
-    if (busno > 0) {
-	pciroots++;
-    }
-}
-
 static void
 chipset_attach (pcici_t config_id, int unit)
 {
-	switch (pci_conf_read (config_id, PCI_ID_REG)) {
-
-	case 0x84c48086: /* Intel Orion */
-		config_orion (config_id);
-		break;
-	}
 #ifndef PCI_QUIET
 	if (!bootverbose)
 		return;
