@@ -31,14 +31,14 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)proc.h	7.1 (Berkeley) 5/15/91
- *	$Id: proc.h,v 1.2 1993/10/16 14:39:24 rgrimes Exp $
+ *	$Id: proc.h,v 1.4 1994/05/25 08:56:29 rgrimes Exp $
  */
 
 #ifndef _MACHINE_PROC_H_
 #define _MACHINE_PROC_H_ 1
 
 /*
- * Machine-dependent part of the proc structure for hp300.
+ * Machine-dependent part of the proc structure for i386.
  */
 struct mdproc {
 	int	md_flags;		/* machine-dependent flags */
