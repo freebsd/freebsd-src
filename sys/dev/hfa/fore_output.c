@@ -196,7 +196,7 @@ fore_output(cup, cvp, m)
 	xdp = hxp->hxq_descr;
 	xdp->xd_cell_hdr = ATM_HDR_SET(vcp->vc_vpi, vcp->vc_vci, 0, 0);
 	xdp->xd_spec = XDS_SET_SPEC(0, fvp->fv_aal, nsegs, pdulen);
-	xdp->xd_rate = FORE_DEF_RATE;
+	xdp->xd_rate = fvp->rate;
 
 	/*
 	 * Everything is ready to go, so officially claim the host queue
