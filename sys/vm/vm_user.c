@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_user.c,v 1.4 1994/10/15 10:28:47 davidg Exp $
+ * $Id: vm_user.c,v 1.5 1995/01/09 16:06:00 davidg Exp $
  */
 
 /*
@@ -100,12 +100,12 @@ svm_allocate(p, uap, retval)
 
 	uap->map = p->p_map;	/* XXX */
 
-	if (copyin((caddr_t) uap->addr, (caddr_t) & addr, sizeof(addr)))
+	if (copyin((caddr_t) uap->addr, (caddr_t) &addr, sizeof(addr)))
 		rv = KERN_INVALID_ARGUMENT;
 	else
 		rv = vm_allocate(uap->map, &addr, uap->size, uap->anywhere);
 	if (rv == KERN_SUCCESS) {
-		if (copyout((caddr_t) & addr, (caddr_t) uap->addr, sizeof(addr)))
+		if (copyout((caddr_t) &addr, (caddr_t) uap->addr, sizeof(addr)))
 			rv = KERN_INVALID_ARGUMENT;
 	}
 	return ((int) rv);
