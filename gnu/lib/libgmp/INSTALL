@@ -1,0 +1,34 @@
+Here is how to compile GNU MP.
+
+You probably want to use the GNU C compiler to build this library.
+With other compilers the speed of the library will be 3-10 times
+slower for many CPU:s.  The reason for this is that the GNU C compiler
+will use inline assembler for some important operations, while other C
+compilers will have to stick to plain C code.
+
+This is how to build the library:
+
+  Type "make" to build libgmp.a and libmp.a.  The former is the main
+  GNU MP library.  The latter is the Berkeley MP compatible library.
+
+  If you don't have GCC, type "make CC=cc".  The compilation should, at
+  least with GCC, proceed without any kind of warnings from the compiler
+  programs.  On the DEC Alpha, you have to use GCC because of bugs in DEC's
+  own compiler.  GCC 2.3.3 for x86, Alpha, and HP-PA has bugs that make
+  several functions be mis-optimized.  Later version of GCC does not have
+  this problem.
+
+  To build and run the tests, do "make check".
+
+The documentation is an a texinfo file, gmp.texi.
+
+To create the documentation from the texinfo source, type "make doc".
+This requires the "tex" and "makeinfo" commands to be available in
+your search path.  If you have only one of them, you can create the
+dvi file (for the paper manual) with "make gmp.dvi", and the info file
+(for the GNU online manual facility) with "make gmp.info".
+
+You need version 2.06 or later of texinfo in order to build the
+documentation.
+
+Please report problems to tege@gnu.ai.mit.edu.

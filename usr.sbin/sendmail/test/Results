@@ -1,0 +1,70 @@
+The following are results of running t_setreuid on various architectures.
+
+OPSYS	VERSION	STATUS	DATE	  TESTER/NOTES
+=====	=======	======	====	  ============
+
+SunOS	4.1	OK	93.07.19  eric
+SunOS	4.1.2	OK	93.07.19  eric
+SunOS	4.1.3	OK	93.09.25  Robert Elz
+
+BSD	4.4	OK	93.07.19  eric	(wierd results, but functional)
+BSD	4.3Utah	OK	93.07.19  eric
+
+Ultrix	4.2A	OK	93.07.19  eric
+Ultrix	4.3A	OK	93.07.19  Allan Johannesen
+
+HP-UX	8.07	OK	93.07.19  eric (on 7xx series)
+HP-UX	8.02	OK	93.07.19  Michael Corrigan (on 8xx series)
+HP-UX	8.00	OK	93.07.21  Michael Corrigan (on 3xx/4xx series)
+HP-UX	9.01	OK	93.11.19  Cassidy (on 7xx series)
+
+Solaris	2.1
+Solaris	2.2	FAIL	93.07.19  Bill Wisner
+Solaris	2.3	FAIL	95.11.22  Scott J. Kramer <sjk@lux.com>
+
+OSF/1	T1.3-4	OK	93.07.19  eric (on DEC Alpha)
+OSF/1	1.3	OK	94.12.10  Jeff A. Earickson (on Intel Paragon)
+
+CxOS	11.0	OK	93.01.21  Eric Schnoebelen (CxOS 11.0 beta 1)
+CxOS	10.x	OK	93.01.21  Eric Schnoebelen
+
+AIX	3.1.5	FAIL	93.08.07  David J. N. Begley
+AIX	3.2.3e	FAIL	93.07.26  Steve Bauer <sbauer@silver.sdsmt.edu>
+AIX	3.2.4	FAIL	93.10.07  David J. N. Begley
+AIX	3.2.5	FAIL	94.05.17  Steve Bauer <sbauer@hpcmmib.hpc.sdsmt.edu>
+
+IRIX	4.0.4	OK	93.09.25  Robert Elz
+IRIX	5.2	OK	94.12.06  Mark Andrews <mandrews@alias.com>
+IRIX	5.3	OK	94.12.06  Mark Andrews <mandrews@alias.com>
+
+SCO	3.2v4.0	OK	93.10.02  Peter Wemm (with -lsocket from 3.2v4 devsys)
+
+NeXT	2.1	OK	93.07.28  eric
+NeXT	3.0	OK	34.05.05  Kevin John Wang <kwang@lore.acs.calpoly.edu>
+
+Linux	0.99p10	OK	93.08.08  Karl London
+Linux	0.99p13	OK	93.09.27  Christian Kuhtz
+Linux	0.99p14	OK	93.11.30  Christian Kuhtz <chk@data-hh.Hanse.DE>
+Linux	1.0	OK	94.03.19  Shayne Smith <snsmith@rastus.brisnet.org.au>
+Linux	1.2.13	OK	95.11.02  Sven Neuhaus <sven@ping.de>
+
+BSD/386	1.0	OK	93.11.13  Tony Sanders
+
+DELL	2.2	OK	93.11.15  Peter Wemm (using -DSETEUID)
+
+Pyramid	5.0d	OK	95.01.14  David Miller <davem@nadzieja.rutgers.edu>
+
+
+
+The following are results of running t_seteuid on various architectures.
+
+OPSYS	VERSION	STATUS	DATE	  TESTER/NOTES
+=====	=======	======	====	  ============
+
+Solaris	2.3	OK	95.11.22  Scott J. Kramer <sjk@lux.com>
+Solaris	2.4	OK	95.09.22  Thomas 'Mike' Michlmayr <mike@cosy.sbg.ac.at>
+
+Linux	1.2.13	FAIL	95.11.02  Sven Neuhaus <sven@ping.de>
+
+IRIX	5.2	OK	95.12.01  Mark Andrews <mandrews@aw.sgi.com>
+IRIX	5.3	OK	95.12.01  Mark Andrews <mandrews@aw.sgi.com>

@@ -1,0 +1,19 @@
+order \
+# controls
+	\x01;...;\x1f;\x7f;...;\x9f;\
+# spaces
+	\ ;\xa0;\
+# puncts
+	.;:;\;;\,;!;?;\xa1;\xbf;\
+# digits
+	0;...;9;\
+# alphas
+	a;\xe0;...;\xe5;A;\xc0;...;\xc5;b;B;c;\xe7;C;\xc7;d;D;e;\xe8;...;\xeb;\
+	E;\xc8;...;\xcb;f;F;g;G;h;H;i;\xec;...;\xef;I;\xcc;...;\xcf;j;J;k;K;\
+	l;L;m;M;n;\xf1;N;\xd1;o;\xf2;...;\xf6;\xf8;O;\xd2;...;\xd6;\xd8;\
+	p;P;q;Q;r;R;s;S;t;T;u;\xf9;...;\xfc;U;\xd9;...;\xdc;v;V;w;W;x;X;y;\
+	\xfd;Y;\xdd;z;Z;\xf0;\xd0;\xfe;\xde;\xe6;\xc6;\xdf;\xff;\
+# remains
+	\";...;&;\
+	\(;...;+;/;\<;...;\>;@;[;...;`;\{;...;~;\xa2;...;\xbe;\
+	\xd7;\xf7
