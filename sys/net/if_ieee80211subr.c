@@ -2721,28 +2721,28 @@ ieee80211_rate2media(int rate, enum ieee80211_phytype phytype)
 			mword = IFM_AUTO;
 			break;
 		case 12:
-			mword = IFM_IEEE80211_ODFM6;
+			mword = IFM_IEEE80211_OFDM6;
 			break;
 		case 18:
-			mword = IFM_IEEE80211_ODFM9;
+			mword = IFM_IEEE80211_OFDM9;
 			break;
 		case 24:
-			mword = IFM_IEEE80211_ODFM12;
+			mword = IFM_IEEE80211_OFDM12;
 			break;
 		case 36:
-			mword = IFM_IEEE80211_ODFM18;
+			mword = IFM_IEEE80211_OFDM18;
 			break;
 		case 48:
-			mword = IFM_IEEE80211_ODFM24;
+			mword = IFM_IEEE80211_OFDM24;
 			break;
 		case 72:
-			mword = IFM_IEEE80211_ODFM36;
+			mword = IFM_IEEE80211_OFDM36;
 			break;
 		case 108:
-			mword = IFM_IEEE80211_ODFM54;
+			mword = IFM_IEEE80211_OFDM54;
 			break;
 		case 144:
-			mword = IFM_IEEE80211_ODFM72;
+			mword = IFM_IEEE80211_OFDM72;
 			break;
 		default:
 			mword = IFM_NONE;
