@@ -101,16 +101,13 @@ struct pcic_softc {
 	bus_space_tag_t iot;
 	bus_space_handle_t ioh;
 
-	struct resource *port_res;
-	int port_rid;
-	struct resource *mem_res;
-	int mem_rid;
+	void		*intrhand;
 	struct resource *irq_res;
-	int irq_rid;
-	
-
-	/* XXX isa_chipset_tag_t, pci_chipset_tag_t, etc. */
-	void *intr_est;
+	int		irq_rid;
+	struct resource *mem_res;
+	int		mem_rid;
+	struct resource	*port_res;
+	int		port_rid;
 
 	/* this needs to be large enough to hold PCIC_MEM_PAGES bits */
 	int	subregionmask;
@@ -140,8 +137,7 @@ int	pcic_ident_ok(int);
 int	pcic_vendor(struct pcic_handle *);
 char	*pcic_vendor_to_string(int);
 
-void	pcic_attach(device_t dev);
-int	pcic_intr(void *arg);
+int	pcic_attach(device_t dev);
 
 #if 0
 
@@ -193,3 +189,5 @@ int pcic_setup_intr(device_t dev, device_t child, struct resource *irq,
     int flags, driver_intr_t intr, void *arg, void **cookiep);
 int pcic_teardown_intr(device_t dev, device_t child, struct resource *irq,
     void *cookiep);
+int pcic_suspend(device_t dev);
+int pcic_resume(device_t dev);
