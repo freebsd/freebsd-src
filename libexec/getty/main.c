@@ -133,6 +133,7 @@ char partab[] = {
 #define	puts	Gputs
 
 static void	dingdong(int);
+static void	dogettytab(const char *);
 static int	getname(void);
 static void	interrupt(int);
 static void	oflush(void);
@@ -143,8 +144,8 @@ static void	putpad(const char *);
 static void	puts(const char *);
 static void	timeoverrun(int);
 static char	*getline(int);
-static void	setttymode(const char *, int);
-static void	setdefttymode(const char *);
+static void	setttymode(int);
+static void	setdefttymode(void);
 static int	opentty(const char *, int);
 
 jmp_buf timeout;
@@ -204,8 +205,10 @@ main(int argc, char *argv[])
 	gettable("default", defent);
 	gendefaults();
 	tname = "default";
-	if (argc > 1)
+	if (argc > 1) {
 		tname = argv[1];
+		dogettytab(tname);
+	}
 
 	/*
 	 * The following is a work around for vhangup interactions
@@ -224,14 +227,12 @@ main(int argc, char *argv[])
 		chmod(ttyn, 0600);
 		revoke(ttyn);
 
-		gettable(tname, tabent);
-
 		/* Init modem sequence has been specified
 		 */
 		if (IC) {
 			if (!opentty(ttyn, O_RDWR|O_NONBLOCK))
 				exit(1);
-			setdefttymode(tname);
+			setdefttymode();
 			if (getty_chat(IC, CT, DC) > 0) {
 				syslog(LOG_ERR, "modem init problem on %s", ttyn);
 				(void)tcsetattr(STDIN_FILENO, TCSANOW, &tmode);
@@ -245,7 +246,7 @@ main(int argc, char *argv[])
 
 			if (!opentty(ttyn, O_RDWR|O_NONBLOCK))
 				exit(1);
-        		setdefttymode(tname);
+        		setdefttymode();
         		rfds = 1 << 0;	/* FD_SET */
         		to.tv_sec = RT;
         		to.tv_usec = 0;
@@ -303,13 +304,15 @@ main(int argc, char *argv[])
 		}
 		first_sleep = 0;
 
-		setttymode(tname, 0);
+		setttymode(0);
 		if (AB) {
 			tname = autobaud();
+			dogettytab(tname);
 			continue;
 		}
 		if (PS) {
 			tname = portselector();
+			dogettytab(tname);
 			continue;
 		}
 		if (CL && *CL)
@@ -421,8 +424,10 @@ main(int argc, char *argv[])
 		alarm(0);
 		signal(SIGALRM, SIG_DFL);
 		signal(SIGINT, SIG_IGN);
-		if (NX && *NX)
+		if (NX && *NX) {
 			tname = NX;
+			dogettytab(tname);
+		}
 	}
 }
 
@@ -463,7 +468,7 @@ opentty(const char *tty, int flags)
 }
 
 static void
-setdefttymode(const char *tname)
+setdefttymode(void)
 {
 	if (tcgetattr(STDIN_FILENO, &tmode) < 0) {
 		syslog(LOG_ERR, "tcgetattr %s: %m", ttyn);
@@ -474,18 +479,14 @@ setdefttymode(const char *tname)
         tmode.c_lflag = TTYDEF_LFLAG;
         tmode.c_cflag = TTYDEF_CFLAG;
         omode = tmode;
-	setttymode(tname, 1);
+	setttymode(1);
 }
 
 static void
-setttymode(const char *tname, int raw)
+setttymode(int raw)
 {
 	int off = 0;
 
-	gettable(tname, tabent);
-	if (OPset || EPset || APset)
-		APset = OPset = EPset = 1;
-	setdefaults();
 	(void)tcflush(STDIN_FILENO, TCIOFLUSH);	/* clear out the crap */
 	ioctl(STDIN_FILENO, FIONBIO, &off);	/* turn off non-blocking mode */
 	ioctl(STDIN_FILENO, FIOASYNC, &off);	/* ditto for async mode */
@@ -792,4 +793,26 @@ putf(const char *cp)
 		}
 		cp++;
 	}
+}
+
+/*
+ * Read a gettytab database entry and perform necessary quirks.
+ */
+static void
+dogettytab(const char *tname)
+{
+	
+	/* Read the database entry */
+	gettable(tname, tabent);
+
+	/*
+	 * Avoid inheriting the parity values from the default entry
+	 * if any of them is set in the current entry.
+	 * Mixing different parity settings is unreasonable.
+	 */
+	if (OPset || EPset || APset || NPset)
+		OPset = EPset = APset = NPset = 1;
+
+	/* Fill in default values for unset capabilities */
+	setdefaults();
 }
