@@ -49,7 +49,7 @@ struct file_metadata*		metadata_next(struct file_metadata *base_mp, int type);
 /* load address should be tweaked by first module loaded (kernel) */
 static vm_offset_t	loadaddr = 0;
 
-static const char	*default_searchpath ="/;/boot;/modules";
+static const char	*default_searchpath ="/boot/modules;/modules;/boot/kernel";
 
 struct preloaded_file *preloaded_files = NULL;
 

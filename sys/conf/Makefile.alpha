@@ -20,7 +20,9 @@
 %VERSREQ=	500003
 
 # Can be overridden by makeoptions or /etc/make.conf
+KERNEL_KO?=	kernel.ko
 KERNEL?=	kernel
+KODIR?=		/boot/${KERNEL}
 STD8X16FONT?=	iso
 
 .if !defined(S)
@@ -107,7 +109,7 @@ SYSTEM_DEP+= $S/conf/ldscript.$M
 %CLEAN
 
 .PHONY:	all modules
-all: ${KERNEL}
+all: ${KERNEL_KO}
 
 depend: kernel-depend
 clean:  kernel-clean
@@ -117,11 +119,11 @@ install install.debug: kernel-install
 reinstall reinstall.debug: kernel-reinstall
 
 .if !defined(DEBUG)
-FULLKERNEL=	${KERNEL}
+FULLKERNEL=	${KERNEL_KO}
 .else
-FULLKERNEL=	${KERNEL}.debug
-${KERNEL}: ${FULLKERNEL}
-	${OBJCOPY} --strip-debug ${FULLKERNEL} ${KERNEL}
+FULLKERNEL=	${KERNEL_KO}.debug
+${KERNEL_KO}: ${FULLKERNEL}
+	${OBJCOPY} --strip-debug ${FULLKERNEL} ${KERNEL_KO}
 .endif
 
 ${FULLKERNEL}: ${SYSTEM_DEP} vers.o
@@ -141,7 +143,7 @@ ${mfile:T:S/.m$/.h/}: ${mfile}
 
 kernel-clean:
 	rm -f *.o *.so *.So *.ko *.s eddep errs \
-	      ${FULLKERNEL} ${KERNEL} linterrs makelinks param.c \
+	      ${FULLKERNEL} ${KERNEL_KO} linterrs makelinks param.c \
 	      setdef[01].c setdefs.h tags \
 	      vers.c vnode_if.c vnode_if.h \
 	      ${MFILES:T:S/.m$/.c/} ${MFILES:T:S/.m$/.h/} \
@@ -267,20 +269,30 @@ kernel-install kernel-install.debug:
 		echo "You must activate /boot/device.hints in loader.conf." ; \
 		exit 1 ; \
 	fi
-	@if [ ! -f ${KERNEL}${.TARGET:S/kernel-install//} ] ; then \
+	@if [ ! -f ${KERNEL_KO}${.TARGET:S/kernel-install//} ] ; then \
 		echo "You must build a kernel first." ; \
 		exit 1 ; \
 	fi
-.if exists(${DESTDIR}/${KERNEL})
-	-chflags noschg ${DESTDIR}/${KERNEL}
-	mv ${DESTDIR}/${KERNEL} ${DESTDIR}/${KERNEL}.old
+.if exists(${DESTDIR}/${KODIR})
+.if exists(${DESTDIR}/${KODIR}.old)
+	@-chflags -R noschg ${DESTDIR}/${KODIR}.old
+	-rm -rf ${DESTDIR}/${KODIR}.old
 .endif
+	mv ${DESTDIR}/${KODIR} ${DESTDIR}/${KODIR}.old
+.endif
+	mkdir -p ${KODIR}
+	@if [ -f ${DESTDIR}/${KODIR}/${KERNEL_KO} ] ; then \
+	    chflags noschg ${DESTDIR}/${KODIR}/${KERNEL_KO} ; \
+	fi
 	install -c -m 555 -o root -g wheel -fschg \
-		${KERNEL}${.TARGET:S/kernel-install//} ${DESTDIR}/${KERNEL}
+		${KERNEL_KO}${.TARGET:S/kernel-install//} ${DESTDIR}/${KODIR}
 
 kernel-reinstall kernel-reinstall.debug:
+	@if [ -f ${DESTDIR}/${KODIR}/${KERNEL_KO} ] ; then \
+	    chflags noschg ${DESTDIR}/${KODIR}/${KERNEL_KO} ; \
+	fi
 	install -c -m 555 -o root -g wheel -fschg \
-		${KERNEL}${.TARGET:S/kernel-reinstall//} ${DESTDIR}/${KERNEL}
+		${KERNEL_KO}${.TARGET:S/kernel-reinstall//} ${DESTDIR}/${KODIR}
 
 .if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists($S/modules)
 all:	modules
@@ -292,35 +304,33 @@ install install.debug: modules-install
 reinstall reinstall.debug: modules-reinstall
 .endif
 
+MKMODULESENV=	MAKEOBJDIRPREFIX=${.OBJDIR}/modules KMODDIR=${DESTDIR}/${KODIR}
+
 modules:
 	@mkdir -p ${.OBJDIR}/modules
-	cd $S/modules && env MAKEOBJDIRPREFIX=${.OBJDIR}/modules ${MAKE} obj all
+	cd $S/modules && env ${MKMODULESENV} ${MAKE} obj all
 
 modules-depend:
 	@mkdir -p ${.OBJDIR}/modules
-	cd $S/modules && env MAKEOBJDIRPREFIX=${.OBJDIR}/modules ${MAKE} obj depend
+	cd $S/modules && env ${MKMODULESENV} ${MAKE} obj depend
 
 modules-clean:
-	cd $S/modules && env MAKEOBJDIRPREFIX=${.OBJDIR}/modules ${MAKE} clean
+	cd $S/modules && env ${MKMODULESENV} ${MAKE} clean
 
 modules-cleandepend:
-	cd $S/modules && env MAKEOBJDIRPREFIX=${.OBJDIR}/modules ${MAKE} cleandepend
+	cd $S/modules && env ${MKMODULESENV} ${MAKE} cleandepend
+
+modules-cleandir:
+	cd $S/modules && env ${MKMODULESENV} ${MAKE} cleandir
 
 modules-tags:
-	cd $S/modules && env MAKEOBJDIRPREFIX=${.OBJDIR}/modules ${MAKE} tags
+	cd $S/modules && env ${MKMODULESENV} ${MAKE} tags
 
 modules-install modules-install.debug:
-.if !defined(NO_MODULES_OLD)
-	if [ -d ${DESTDIR}/modules -a -n "`ls ${DESTDIR}/modules`" ]; then \
-		mkdir -p ${DESTDIR}/modules.old ; \
-		cp -p ${DESTDIR}/modules/* ${DESTDIR}/modules.old ; \
-	fi;
-.endif
-	mkdir -p ${DESTDIR}/modules
-	cd $S/modules && env MAKEOBJDIRPREFIX=${.OBJDIR}/modules ${MAKE} install
+	cd $S/modules && env ${MKMODULESENV} ${MAKE} install
 
 modules-reinstall modules-reinstall.debug:
-	cd $S/modules && env MAKEOBJDIRPREFIX=${.OBJDIR}/modules ${MAKE} install
+	cd $S/modules && env ${MKMODULESENV} ${MAKE} install
 
 config.o:
 	${NORMAL_C}

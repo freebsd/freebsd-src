@@ -13,7 +13,7 @@
 #
 # KMOD          The name of the kernel module to build.
 #
-# KMODDIR	Base path for kernel modules (see kld(4)). [/modules]
+# KMODDIR	Base path for kernel modules (see kld(4)). [/boot/kernel]
 #
 # KMODOWN	KLD owner. [${BINOWN}]
 #
