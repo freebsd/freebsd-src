@@ -377,8 +377,9 @@ pr_header(nowp, nusers)
 	 * SCCS forces the string manipulation below, as it replaces
 	 * %, M, and % in a character string with the file name.
 	 */
-	(void)strftime(buf, sizeof(buf),
+	(void)strftime(buf, sizeof(buf) - 1,
 	    __CONCAT("%l:%","M%p"), localtime(nowp));
+	buf[sizeof(buf) - 1] = '\0';
 	(void)printf("%s ", buf);
 
 	/*
