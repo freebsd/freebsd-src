@@ -28,12 +28,13 @@
  */
 
 #include <sys/param.h>
-#include <sys/acpi.h>
 
 #include <assert.h>
 #include <err.h>
 #include <stdio.h>
 #include <unistd.h>
+
+#include <dev/acpi/acpireg.h>
 
 #include "acpidump.h"
 

@@ -29,7 +29,6 @@
  */
 
 #include <sys/param.h>
-#include <sys/acpi.h>
 
 #include <dev/acpi/aml/aml_name.h>
 #include <dev/acpi/aml/aml_amlmem.h>
