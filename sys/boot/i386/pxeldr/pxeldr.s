@@ -21,8 +21,8 @@
 # copies the loader to the address boot2 normally loads it, emulates the
 # boot[12] environment (protected mode, a bootinfo struct, etc.), and then jumps
 # to the start of btxldr to start the boot process.  This method allows a stock
-# /boot/loader to be used w/o having to fully rewrite boot[12] to handle the
-# cd9660 file system.
+# /boot/loader to be booted over the network via PXE w/o having to write a
+# seperate PXE-aware client just to load the loader.
 #
 
 #
@@ -49,8 +49,8 @@
 #
 # Flags for kargs->bootflags
 #
-		.set KARGS_FLAGS_CD,0x1		# flag to indicate booting from
-						#  CD loader
+		.set KARGS_FLAGS_PXE,0x2	# flag to indicate booting from
+						#  PXE loader
 #
 # Segment selectors.
 #
@@ -70,16 +70,20 @@
 		.globl start
 		.org 0x0, 0x0
 #
-# BTX program loader for CD booting
+# BTX program loader for PXE network booting
 #
 start:		cld				# string ops inc
 		xorw %ax, %ax			# zero %ax
 		movw %ax, %ss			# setup the
 		movw $start, %sp		#  stack
-		pushw %dx			# save the BIOS boot device in
-						#  %dl for later
+		movw %es, %cx			# save PXENV+ segment
 		movw %ax, %ds			# setup the
 		movw %ax, %es			#  data segments
+		andl $0xffff, %ecx		# clear upper words
+		andl $0xffff, %ebx		#  of %ebx and %ecx
+		shll $4, %ecx			# calculate the offset of
+		addl %ebx, %ecx			#  the PXENV+ struct and
+		pushl %ecx			#  save it on the stack
 		movw $welcome_msg, %si		# %ds:(%si) -> welcome message
 		call putstr			# display the welcome message
 #
@@ -94,10 +98,9 @@ start:		cld				# string ops inc
 						#  dwords
 		rep				# Clear the arguments
 		stosl				#  to zero
-		popw %dx			# restore BIOS boot device
-		movb %dl, 0x4(%ebx)		# set kargs->bootdev
-		orb $KARGS_FLAGS_CD, 0x8(%ebx)	# kargs->bootflags |=
-						#  KARGS_FLAGS_CD
+		orb $KARGS_FLAGS_PXE, 0x8(%ebx)	# kargs->bootflags |=
+						#  KARGS_FLAGS_PXE
+		popl 0xc(%ebx)			# kargs->pxeinfo = *PXENV+
 #
 # Turn on the A20 address line
 #
@@ -256,7 +259,7 @@ gdt.1:
 gdtdesc:	.word gdt.1-gdt-1		# Limit
 		.long gdt			# Base
 		
-welcome_msg:	.asciz	"CD Loader 1.00\r\n\n"
+welcome_msg:	.asciz	"PXE Loader 1.00\r\n\n"
 bootinfo_msg:	.asciz	"Building the boot loader arguments\r\n"
 relocate_msg:	.asciz	"Relocating the loader and the BTX\r\n"
 jump_message:	.asciz	"Starting the BTX loader\r\n"

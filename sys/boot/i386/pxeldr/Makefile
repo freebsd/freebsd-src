@@ -4,8 +4,8 @@ MAINTAINER=jhb@FreeBSD.org
 
 ORG=		0x7c00
 
-LDR=		cdldr
-BOOT=		cdboot
+LDR=		pxeldr
+BOOT=		pxeboot
 PROG=		${BOOT}
 NOMAN=
 STRIP=
