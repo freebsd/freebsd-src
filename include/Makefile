@@ -33,9 +33,9 @@ RPCFILES=	auth.h auth_unix.h clnt.h pmap_clnt.h pmap_prot.h pmap_rmt.h \
 MFILES=	float.h floatingpoint.h stdarg.h varargs.h
 
 # posix4/aio.h conflicts with dysons and isn't installed:
-PFILES=	mqueue.h sched.h semaphore.h \
-		# aio.h
+PFILES=	mqueue.h sched.h semaphore.h # aio.h
 
+# Only for default SHARED=copies case
 SFILES=	soundcard.h
 
 LFILES=	aio.h errno.h fcntl.h inttypes.h linker_set.h poll.h syslog.h termios.h
@@ -90,9 +90,6 @@ beforeinstall: ${SHARED}
 .for i in ${PFILES}
 	ln -sf posix4/$i ${DESTDIR}/usr/include/$i
 .endfor
-.for i in ${SFILES}
-	ln -sf ../sys/$i ${DESTDIR}/usr/include/machine/$i
-.endfor
 
 copies:
 .for i in ${LDIRS} ${LNOHEADERDIRS} machine
@@ -112,6 +109,9 @@ copies:
 		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 		${DESTDIR}/usr/include/machine
 .endif
+.for i in ${SFILES}
+	ln -sf ../sys/$i ${DESTDIR}/usr/include/machine/$i
+.endfor
 
 symlinks:
 	@${ECHO} "Setting up symlinks to kernel source tree..."
