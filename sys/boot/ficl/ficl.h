@@ -695,6 +695,14 @@ void       ficlTermSystem(void);
 int        ficlExec(FICL_VM *pVM, char *pText);
 
 /*
+** ficlExecFD(FICL_VM *pVM, int fd);
+ * Evaluates text from file passed in via fd.
+ * Execution returns when all of file has been executed or an
+ * error occurs.
+ */
+int        ficlExecFD(FICL_VM *pVM, int fd);
+
+/*
 ** Create a new VM from the heap, and link it into the system VM list.
 ** Initializes the VM and binds default sized stacks to it. Returns the
 ** address of the VM, or NULL if an error occurs.
