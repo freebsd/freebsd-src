@@ -101,26 +101,31 @@ Boston, MA 02111-1307, USA.  */
   %{!ansi:%{!std=c89:%{!std=iso9899.1990:%{!std=iso9899.199409:-D_LONGLONG}}}} \
   %{posix:-D_POSIX_SOURCE}"
 
-/* Provide a STARTFILE_SPEC appropriate for FreeBSD.  Here we add
-   the magical crtbegin.o file (see crtstuff.c) which provides part 
-	of the support for getting C++ file-scope static object constructed 
-	before entering `main'.  */
+/* Provide a STARTFILE_SPEC appropriate for FreeBSD.  Here we add the magical
+   crtbegin.o file (see crtstuff.c) which provides part of the support for
+   getting C++ file-scope static object constructed before entering `main'.  */
    
-#define FBSD_STARTFILE_SPEC \
-  "%{!shared: \
-     %{pg:gcrt1.o%s} %{!pg:%{p:gcrt1.o%s} \
-		       %{!p:%{profile:gcrt1.o%s} \
-			 %{!profile:crt1.o%s}}}} \
-   crti.o%s %{!shared:crtbegin.o%s} %{shared:crtbeginS.o%s}"
+#define FBSD_STARTFILE_SPEC "\
+  %{!shared: \
+    %{pg:gcrt1.o%s} \
+    %{!pg: \
+      %{p:gcrt1.o%s} \
+      %{!p: \
+	%{profile:gcrt1.o%s} \
+	%{!profile:crt1.o%s}}}} \
+  crti.o%s \
+  %{!shared:crtbegin.o%s} \
+  %{shared:crtbeginS.o%s}"
 
-/* Provide a ENDFILE_SPEC appropriate for FreeBSD.  Here we tack on
-   the magical crtend.o file (see crtstuff.c) which provides part of 
-	the support for getting C++ file-scope static object constructed 
-	before entering `main', followed by a normal "finalizer" file, 
-	`crtn.o'.  */
+/* Provide an ENDFILE_SPEC appropriate for FreeBSD/i386.  Here we tack on
+   our own magical crtend.o file (see crtstuff.c) which provides part of
+   the support for getting C++ file-scope static object constructed before
+   entering `main', followed by the normal "finalizer" file, `crtn.o'.  */
 
-#define FBSD_ENDFILE_SPEC \
-  " %{!shared:crtend.o%s} %{shared:crtendS.o%s} crtn.o%s "
+#define FBSD_ENDFILE_SPEC "\
+  %{!shared:crtend.o%s} \
+  %{shared:crtendS.o%s} \
+  crtn.o%s "
 
 /* Provide a LIB_SPEC appropriate for FreeBSD as configured and as
    required by the user-land thread model.  Before __FreeBSD_version
