@@ -85,7 +85,6 @@ splitfs_open(const char *fname, struct open_file *f)
     struct split_file *sf;
     struct stat sb;
 
-    printf("%s\n", fname);
     /* Have to be in "just read it" mode */
     if (f->f_flags != F_READ)
 	return(EPERM);
