@@ -64,12 +64,6 @@ typedef struct {
 	uByte		bLength;
 	uByte		bDescriptorType;
 	uByte		bDescriptorSubtype;
-} usb_cdc_generic_descriptor_t;
-
-typedef struct {
-	uByte		bLength;
-	uByte		bDescriptorType;
-	uByte		bDescriptorSubtype;
 	uWord		bcdCDC;
 } usb_cdc_header_descriptor_t;
 
@@ -79,7 +73,7 @@ typedef struct {
 	uByte		bDescriptorSubtype;
 	uByte		bmCapabilities;
 #define USB_CDC_CM_DOES_CM		0x01
-#define USB_CDC_CM_CM_OVER_DATA		0x02
+#define USB_CDC_CM_OVER_DATA		0x02
 	uByte		bDataInterface;
 } usb_cdc_cm_descriptor_t;
 
