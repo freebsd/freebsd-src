@@ -56,6 +56,7 @@
 #include <netatm/atm_stack.h>
 #include <netatm/atm_pcb.h>
 #include <netatm/atm_var.h>
+#include <vm/uma.h>
 
 #ifndef lint
 __RCSID("@(#) $FreeBSD$");
@@ -488,6 +489,15 @@ atm_release_pool(sip)
 	return;
 }
 
+/*
+ * Zero fill constructor for our uma_zone's.
+ */
+void
+atm_uma_ctor(void *mem, int size)
+{
+
+	bzero(mem, size);
+}
 
 /*
  * Handle timer tick expiration
