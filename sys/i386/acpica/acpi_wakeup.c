@@ -259,7 +259,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 			acpi_printcpu();
 		}
 
-		wbinvd(); 
+		ACPI_FLUSH_CPU_CACHE(); 
 
 		if (state == ACPI_STATE_S4 && sc->acpi_s4bios) {
 			status = AcpiEnterSleepStateS4Bios();
