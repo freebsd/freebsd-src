@@ -82,7 +82,7 @@ Do not display idle processes.
 By default, top displays both active and idle processes.
 .TP
 .B \-n
-Use \*(lqnon-interactive\*(rq mode.  This is indentical to \*(lqbatch\*(rq
+Use \*(lqnon-interactive\*(rq mode.  This is identical to \*(lqbatch\*(rq
 mode.
 .TP
 .B \-q
