@@ -363,9 +363,14 @@ csa_detach(device_t dev)
 static int
 csa_resume(device_t dev)
 {
+#if 0
+	/*
+	 * XXX: this cannot possibly work
+	 * needs to be properly implemented
+	 */
 	csa_detach(dev);
 	csa_attach(dev);
-
+#endif
 	return 0;
 }
 
