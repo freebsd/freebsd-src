@@ -138,7 +138,7 @@ main(int argc, char *argv[])
 	/*
 	 * Must be root to attempt an update
 	 */
-	if (getuid() != 0 && mode != M_PRINT && mode != M_NEXT && getarg(&arglist, 'N')==NULL)
+	if (geteuid() != 0 && mode != M_PRINT && mode != M_NEXT && getarg(&arglist, 'N')==NULL)
 		cmderr(EX_NOPERM, "you must be root to run this program\n");
 
 	/*
