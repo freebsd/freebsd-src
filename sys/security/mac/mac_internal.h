@@ -144,6 +144,10 @@ SYSCTL_INT(_security_mac, OID_AUTO, enforce_socket, CTLFLAG_RW,
     &mac_enforce_socket, 0, "Enforce MAC policy on socket operations");
 TUNABLE_INT("security.mac.enforce_socket", &mac_enforce_socket);
 
+static int     mac_enforce_vm = 1;
+SYSCTL_INT(_security_mac, OID_AUTO, enforce_vm, CTLFLAG_RW,
+    &mac_enforce_vm, 0, "Enforce MAC policy on vm operations");
+
 static int	mac_label_size = sizeof(struct mac);
 SYSCTL_INT(_security_mac, OID_AUTO, label_size, CTLFLAG_RD,
     &mac_label_size, 0, "Pre-compiled MAC label size");
@@ -1778,6 +1782,9 @@ vm_prot_t
 mac_check_vnode_mmap_prot(struct ucred *cred, struct vnode *vp, int newmapping)
 {
 	vm_prot_t result = VM_PROT_ALL;
+
+	if (!mac_enforce_vm)
+		return (result);
 
 	/*
 	 * This should be some sort of MAC_BITWISE, maybe :)
