@@ -73,6 +73,13 @@ __FBSDID("$FreeBSD$");
 MALLOC_DEFINE(M_MEMDESC, "memdesc", "memory range descriptors");
 struct mem_range_softc mem_range_softc;
 
+void
+mem_range_AP_init(void)
+{
+	if (mem_range_softc.mr_op && mem_range_softc.mr_op->initAP)
+		mem_range_softc.mr_op->initAP(&mem_range_softc);
+}
+
 /* ARGSUSED */
 int
 memrw(struct cdev *dev, struct uio *uio, int flags)
@@ -143,8 +150,10 @@ kmemphys:
  * allow user processes to MMAP some memory sections
  * instead of going through read/write
  */
+/* ARGSUSED */
 int
-memmmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int prot)
+memmmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr,
+    int prot __unused)
 {
 	if (minor(dev) == CDEV_MINOR_MEM)
 		*paddr = offset;
@@ -160,8 +169,9 @@ memmmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int prot)
  * This is basically just an ioctl shim for mem_range_attr_get
  * and mem_range_attr_set.
  */
+/* ARGSUSED */
 int 
-memioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
+memioctl(struct cdev *dev __unused, u_long cmd, caddr_t data, int flags,
     struct thread *td)
 {
 	int nd, error = 0;
@@ -241,15 +251,6 @@ mem_range_attr_set(struct mem_range_desc *mrd, int *arg)
 
 	return (mem_range_softc.mr_op->set(&mem_range_softc, mrd, arg));
 }
-
-#ifdef SMP
-void
-mem_range_AP_init(void)
-{
-	if (mem_range_softc.mr_op && mem_range_softc.mr_op->initAP)
-		(mem_range_softc.mr_op->initAP(&mem_range_softc));
-}
-#endif
 
 void
 dev_mem_md_init(void)
