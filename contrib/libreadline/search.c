@@ -51,7 +51,7 @@
 #endif
 #define abs(x)		(((x) >= 0) ? (x) : -(x))
 
-extern HIST_ENTRY *saved_line_for_history;
+extern HIST_ENTRY *_rl_saved_line_for_history;
 
 /* Functions imported from the rest of the library. */
 extern int _rl_free_history_entry __P((HIST_ENTRY *));
@@ -83,9 +83,9 @@ make_history_line_current (entry)
   rl_undo_list = (UNDO_LIST *)entry->data;
   rl_end = line_len;
 
-  if (saved_line_for_history)
-    _rl_free_history_entry (saved_line_for_history);
-  saved_line_for_history = (HIST_ENTRY *)NULL;
+  if (_rl_saved_line_for_history)
+    _rl_free_history_entry (_rl_saved_line_for_history);
+  _rl_saved_line_for_history = (HIST_ENTRY *)NULL;
 }
 
 /* Search the history list for STRING starting at absolute history position
@@ -100,13 +100,19 @@ noninc_search_from_pos (string, pos, dir)
 {
   int ret, old;
 
-  old = where_history ();
-  history_set_pos (pos);
+  if (pos < 0)
+    return -1;
 
+  old = where_history ();
+  if (history_set_pos (pos) == 0)
+    return -1;
+
+  RL_SETSTATE(RL_STATE_SEARCH);
   if (*string == '^')
     ret = history_search_prefix (string + 1, dir);
   else
     ret = history_search (string, dir);
+  RL_UNSETSTATE(RL_STATE_SEARCH);
 
   if (ret != -1)
     ret = where_history ();
@@ -128,7 +134,7 @@ noninc_dosearch (string, dir)
 
   if (string == 0 || *string == '\0' || noninc_history_pos < 0)
     {
-      ding ();
+      rl_ding ();
       return;
     }
 
@@ -136,10 +142,10 @@ noninc_dosearch (string, dir)
   if (pos == -1)
     {
       /* Search failed, current history position unchanged. */
-      maybe_unsave_line ();
+      rl_maybe_unsave_line ();
       rl_clear_message ();
       rl_point = 0;
-      ding ();
+      rl_ding ();
       return;
     }
 
@@ -172,7 +178,7 @@ noninc_search (dir, pchar)
   int saved_point, c;
   char *p;
 
-  maybe_save_line ();
+  rl_maybe_save_line ();
   saved_point = rl_point;
 
   /* Use the line buffer to read the search string. */
@@ -183,18 +189,26 @@ noninc_search (dir, pchar)
   rl_message (p, 0, 0);
   free (p);
 
-#define SEARCH_RETURN rl_restore_prompt (); return
+#define SEARCH_RETURN rl_restore_prompt (); RL_UNSETSTATE(RL_STATE_NSEARCH); return
 
+  RL_SETSTATE(RL_STATE_NSEARCH);
   /* Read the search string. */
-  while (c = rl_read_key ())
+  while (1)
     {
+      RL_SETSTATE(RL_STATE_MOREINPUT);
+      c = rl_read_key ();
+      RL_UNSETSTATE(RL_STATE_MOREINPUT);
+
+      if (c == 0)
+	break;
+
       switch (c)
 	{
 	case CTRL('H'):
 	case RUBOUT:
 	  if (rl_point == 0)
 	    {
-	      maybe_unsave_line ();
+	      rl_maybe_unsave_line ();
 	      rl_clear_message ();
 	      rl_point = saved_point;
 	      SEARCH_RETURN;
@@ -218,10 +232,10 @@ noninc_search (dir, pchar)
 
 	case CTRL('C'):
 	case CTRL('G'):
-	  maybe_unsave_line ();
+	  rl_maybe_unsave_line ();
 	  rl_clear_message ();
 	  rl_point = saved_point;
-	  ding ();
+	  rl_ding ();
 	  SEARCH_RETURN;
 
 	default:
@@ -239,7 +253,7 @@ noninc_search (dir, pchar)
     {
       if (!noninc_search_string)
 	{
-	  ding ();
+	  rl_ding ();
 	  SEARCH_RETURN;
 	}
     }
@@ -253,6 +267,7 @@ noninc_search (dir, pchar)
 
   rl_restore_prompt ();
   noninc_dosearch (noninc_search_string, dir);
+  RL_UNSETSTATE(RL_STATE_NSEARCH);
 }
 
 /* Search forward through the history list for a string.  If the vi-mode
@@ -283,7 +298,7 @@ rl_noninc_forward_search_again (count, key)
 {
   if (!noninc_search_string)
     {
-      ding ();
+      rl_ding ();
       return (-1);
     }
   noninc_dosearch (noninc_search_string, 1);
@@ -298,7 +313,7 @@ rl_noninc_reverse_search_again (count, key)
 {
   if (!noninc_search_string)
     {
-      ding ();
+      rl_ding ();
       return (-1);
     }
   noninc_dosearch (noninc_search_string, -1);
@@ -312,7 +327,7 @@ rl_history_search_internal (count, dir)
   HIST_ENTRY *temp;
   int ret, oldpos;
 
-  maybe_save_line ();
+  rl_maybe_save_line ();
   temp = (HIST_ENTRY *)NULL;
 
   /* Search COUNT times through the history for a line whose prefix
@@ -341,8 +356,8 @@ rl_history_search_internal (count, dir)
   /* If we didn't find anything at all, return. */
   if (temp == 0)
     {
-      maybe_unsave_line ();
-      ding ();
+      rl_maybe_unsave_line ();
+      rl_ding ();
       /* If you don't want the saved history line (last match) to show up
          in the line buffer after the search fails, change the #if 0 to
          #if 1 */
@@ -353,7 +368,7 @@ rl_history_search_internal (count, dir)
           rl_line_buffer[rl_end] = '\0';
         }
 #else
-      rl_point = rl_history_search_len;	/* maybe_unsave_line changes it */
+      rl_point = rl_history_search_len;	/* rl_maybe_unsave_line changes it */
 #endif
       return 1;
     }
@@ -382,6 +397,7 @@ rl_history_search_reinit ()
       strncpy (history_search_string + 1, rl_line_buffer, rl_point);
       history_search_string[rl_point + 1] = '\0';
     }
+  _rl_free_saved_history_line ();
 }
 
 /* Search forward in the history for the string of characters

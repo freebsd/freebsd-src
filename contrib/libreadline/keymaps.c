@@ -61,7 +61,7 @@ rl_make_bare_keymap ()
   for (i = 0; i < KEYMAP_SIZE; i++)
     {
       keymap[i].type = ISFUNC;
-      keymap[i].function = (Function *)NULL;
+      keymap[i].function = (rl_command_func_t *)NULL;
     }
 
   for (i = 'A'; i < ('Z' + 1); i++)
