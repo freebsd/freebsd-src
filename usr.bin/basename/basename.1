@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)basename.1	8.2 (Berkeley) 4/18/94
-.\"	$Id$
+.\"	$Id: basename.1,v 1.4 1997/02/22 19:54:11 peter Exp $
 .\"
 .Dd April 18, 1994
 .Dt BASENAME 1
@@ -52,19 +52,16 @@
 deletes any prefix ending with the last slash
 .Ql \&/
 character present in
-.Ar string ,
+.Ar string
+(after first stripping trailing slashes),
 and a
 .Ar suffix ,
 if given.
-The resulting filename is written to the standard output.
-If
-.Ar string
-ends in the slash character,
-.Ql / ,
-or is the same as the
+The
 .Ar suffix
-argument,
-a newline is output.
+is not stripped if it is identical to the remaining characters in
+.Ar string .
+The resulting filename is written to the standard output.
 A non-existent suffix is ignored.
 .Pp
 .Nm Dirname
@@ -72,7 +69,8 @@ deletes the filename portion, beginning
 with the last slash
 .Ql \&/
 character to the end of
-.Ar string , 
+.Ar string
+(after first stripping trailing slashes), 
 and writes the result to the standard output.
 .Sh EXAMPLES 
 The following line sets the shell variable
