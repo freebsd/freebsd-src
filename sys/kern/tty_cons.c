@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.67 1999/05/31 11:25:41 phk Exp $
+ *	$Id: cons.c,v 1.68 1999/06/22 14:12:54 yokota Exp $
  */
 
 #include "opt_devfs.h"
@@ -114,14 +114,13 @@ CONS_DRIVER(cons, NULL, NULL, NULL, NULL, NULL, NULL);
 void
 cninit()
 {
-	struct consdev *best_cp, *cp;
-	const struct consdev **list;
+	struct consdev **list, *best_cp, *cp;
 
 	/*
 	 * Find the first console with the highest priority.
 	 */
 	best_cp = NULL;
-	list = (const struct consdev **)cons_set.ls_items;
+	list = (struct consdev **)cons_set.ls_items;
 	while ((cp = *list++) != NULL) {
 		if (cp->cn_probe == NULL)
 			continue;
