@@ -22,7 +22,7 @@ PATH=/bin:/usr/bin:$PATH
 db=whatis	# name of whatis data base
 grepopt=''
 
-# man -k complain if exit_nomatch=1 and no keyword matched
+# man -k complains if exit_nomatch=1 and no keyword matched
 : ${exit_nomatch=0}	
 exit_error=2
 
@@ -41,7 +41,7 @@ esac
 # test manpath
 manpath=`%bindir%/manpath -q | tr : '\040'`
 case X"$manpath" in X) 
-	echo "`basename $0`: manpath is null, use \"/usr/share/man\"" >&2
+	echo "`basename $0`: manpath is null, using \"/usr/share/man\"" >&2
 	manpath=/usr/share/man
 	;;
 esac
