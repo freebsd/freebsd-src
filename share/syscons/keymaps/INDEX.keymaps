@@ -1,4 +1,4 @@
-# $Id: INDEX.keymaps,v 1.15 1998/02/12 17:06:44 yokota Exp $
+# $Id: INDEX.keymaps,v 1.16 1998/02/15 18:22:40 yokota Exp $
 #
 # database for kbdmap(8) 
 #
@@ -176,3 +176,8 @@ us.dvorakx.kbd:en:United States of America dvorakx
 us.dvorakx.kbd:de:US-amerikanisch dvorakx
 us.dvorakx.kbd:fr:États Unis  d'Amérique dvorakx
 us.dvorakx.kbd:pt:Estados Unidos da América dvorakx
+
+us.unix.kbd:en:United States of America Traditional Unix Workstation
+us.unix.kbd:de:US-amerikanisch unix
+us.unix.kbd:fr:États Unis  d'Amérique unix
+us.unix.kbd:pt:Estados Unidos da América unix
