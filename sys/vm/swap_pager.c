@@ -1002,7 +1002,6 @@ swap_pager_getpages(object, m, count, reqpage)
 	int i;
 	int j;
 	daddr_t blk;
-	vm_offset_t kva;
 	vm_pindex_t lastpindex;
 
 	GIANT_REQUIRED;
@@ -1077,20 +1076,18 @@ swap_pager_getpages(object, m, count, reqpage)
 	 * Get a swap buffer header to perform the IO
 	 */
 	bp = getpbuf(&nsw_rcount);
-	kva = (vm_offset_t) bp->b_data;
 
 	/*
 	 * map our page(s) into kva for input
 	 *
 	 * NOTE: B_PAGING is set by pbgetvp()
 	 */
-	pmap_qenter(kva, m + i, j - i);
+	pmap_qenter((vm_offset_t)bp->b_data, m + i, j - i);
 
 	bp->b_iocmd = BIO_READ;
 	bp->b_iodone = swp_pager_async_iodone;
 	bp->b_rcred = crhold(thread0.td_ucred);
 	bp->b_wcred = crhold(thread0.td_ucred);
-	bp->b_data = (caddr_t) kva;
 	bp->b_blkno = blk - (reqpage - i);
 	bp->b_bcount = PAGE_SIZE * (j - i);
 	bp->b_bufsize = PAGE_SIZE * (j - i);
@@ -1117,7 +1114,9 @@ swap_pager_getpages(object, m, count, reqpage)
 	 * We still hold the lock on mreq, and our automatic completion routine
 	 * does not remove it.
 	 */
+	VM_OBJECT_LOCK(mreq->object);
 	vm_object_pip_add(mreq->object, bp->b_npages);
+	VM_OBJECT_UNLOCK(mreq->object);
 	lastpindex = m[j-1]->pindex;
 
 	/*
