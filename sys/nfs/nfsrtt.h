@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsrtt.h	8.2 (Berkeley) 3/30/95
- * $Id: nfsrtt.h,v 1.8 1997/06/03 17:22:47 dfr Exp $
+ * $FreeBSD$
  */
 
 

@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$Id: clock_if.m,v 1.2 1998/11/08 18:35:51 nsouch Exp $
+# $FreeBSD$
 #
 
 #include <machine/clockvar.h>

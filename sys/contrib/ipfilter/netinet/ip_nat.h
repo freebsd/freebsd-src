@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  *
  * @(#)ip_nat.h	1.5 2/4/96
- * $Id: ip_nat.h,v 1.1.1.5 1998/06/20 18:17:53 peter Exp $
+ * $FreeBSD$
  */
 
 #ifndef	__IP_NAT_H__

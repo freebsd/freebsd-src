@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_trap.c,v 1.12 1997/03/28 12:39:43 bde Exp $
+ * $FreeBSD$
  */
 
 /*

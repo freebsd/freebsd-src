@@ -60,7 +60,7 @@
  *
  *	This code can be compiled stand-alone for debugging.
  *
- *	$Id$
+ * $FreeBSD$
  */
 
 #ifdef KERNEL

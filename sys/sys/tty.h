@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.6 (Berkeley) 1/21/94
- * $Id: tty.h,v 1.46 1999/08/08 20:24:48 phk Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_TTY_H_

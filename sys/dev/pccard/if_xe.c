@@ -23,8 +23,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_xe.c,v 1.20 1999/06/13 19:17:40 scott Exp $
- *	$FreeBSD$
+ * $FreeBSD$
+ * $FreeBSD$
  */
 
 /*

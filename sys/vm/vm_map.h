@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.h,v 1.47 1999/08/23 18:08:34 alc Exp $
+ * $FreeBSD$
  */
 
 /*

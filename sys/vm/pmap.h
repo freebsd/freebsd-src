@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: pmap.h,v 1.30 1999/04/23 20:29:57 dt Exp $
+ * $FreeBSD$
  */
 
 /*

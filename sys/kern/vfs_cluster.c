@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.86 1999/07/04 00:31:17 mckusick Exp $
+ * $FreeBSD$
  */
 
 #include "opt_debug_cluster.h"

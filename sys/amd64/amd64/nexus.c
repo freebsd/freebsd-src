@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: nexus.c,v 1.15 1999/08/23 19:23:33 peter Exp $
+ * $FreeBSD$
  */
 
 /*

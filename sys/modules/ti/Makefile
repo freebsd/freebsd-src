@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1999/07/23 05:47:58 wpaul Exp $
+# $FreeBSD$
 
 S	= ${.CURDIR}/../..
 .PATH:	$S/pci

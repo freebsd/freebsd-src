@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_timer.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_timer.c,v 1.28 1998/04/24 09:25:35 dg Exp $
+ * $FreeBSD$
  */
 
 #include "opt_compat.h"

@@ -59,7 +59,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id$";
+  "$FreeBSD$";
 #endif
 
 /*

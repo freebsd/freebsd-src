@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: get_iface.c,v 1.5 1998/01/14 07:21:03 charnier Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <errno.h>

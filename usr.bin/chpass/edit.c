@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: edit.c,v 1.13 1999/02/23 02:41:26 ghelmer Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

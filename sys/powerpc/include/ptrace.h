@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ptrace.h	8.1 (Berkeley) 6/11/93
- * $Id: ptrace.h,v 1.6 1998/05/19 00:00:12 tegge Exp $
+ * $FreeBSD$
  */
 
 #ifndef _MACHINE_PTRACE_H_

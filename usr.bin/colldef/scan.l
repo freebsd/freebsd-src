@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: scan.l,v 1.8 1999/02/12 20:39:06 ache Exp $
+ * $FreeBSD$
  */
 
 #include <ctype.h>

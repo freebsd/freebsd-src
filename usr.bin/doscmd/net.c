@@ -1,7 +1,7 @@
 /*
 ** No copyright!
 **
-** $Id: net.c,v 1.3 1996/09/22 15:42:58 miff Exp $
+** $FreeBSD$
 **
 ** NetBIOS etc. hooks.
 */

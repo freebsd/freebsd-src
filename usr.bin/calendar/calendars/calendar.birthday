@@ -1,7 +1,7 @@
 /*
  * Birthday
  *
- * $Id: calendar.birthday,v 1.9 1998/10/22 07:56:22 torstenb Exp $
+ * $FreeBSD$
  */
 
 #ifndef _calendar_birthday_

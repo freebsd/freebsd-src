@@ -47,7 +47,7 @@
  *		EXPERIMENTAL !!!!
  *		=================
  *
- *	$Id: i4b_sws.c,v 1.13 1999/02/14 09:44:59 hm Exp $
+ * $FreeBSD$
  *
  *	last edit-date: [Sun Feb 14 10:28:31 1999]
  *

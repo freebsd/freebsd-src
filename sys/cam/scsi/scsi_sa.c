@@ -1,5 +1,5 @@
 /*
- * $Id: scsi_sa.c,v 1.29 1999/06/24 15:21:10 mjacob Exp $
+ * $FreeBSD$
  *
  * Implementation of SCSI Sequential Access Peripheral driver for CAM.
  *

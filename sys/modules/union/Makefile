@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1997/02/22 12:49:27 peter Exp $
+# $FreeBSD$
 
 .PATH:	${.CURDIR}/../../miscfs/union
 KMOD=	union

@@ -1,4 +1,4 @@
-/*	$Id: pathnames.h,v 1.2 1997/06/25 08:56:43 msmith Exp $	*/
+/* $FreeBSD$	*/
 /*	$NetBSD: pathnames.h,v 1.7 1997/01/09 20:19:40 tls Exp $	*/
 
 /*

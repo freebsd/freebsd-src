@@ -1,4 +1,4 @@
-/* $Id: libalpha.h,v 1.3 1998/09/20 21:46:19 dfr Exp $ */
+/* $FreeBSD$ */
 
 /*
  * Copyright (c) 1996

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.9 1998/10/16 04:30:46 peter Exp $
+# $FreeBSD$
 
 .PATH:	${.CURDIR}/../../netinet
 KMOD=	ipfw

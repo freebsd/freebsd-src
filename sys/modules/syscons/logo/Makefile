@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1998/12/28 14:22:57 des Exp $
+# $FreeBSD$
 
 KMOD=	logo_saver
 SRCS= 	logo_saver.c

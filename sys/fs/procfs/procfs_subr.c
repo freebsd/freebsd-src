@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_subr.c	8.6 (Berkeley) 5/14/95
  *
- *	$Id: procfs_subr.c,v 1.24 1999/04/30 13:04:21 phk Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

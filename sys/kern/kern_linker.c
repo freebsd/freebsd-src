@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_linker.c,v 1.35 1999/08/20 00:18:07 grog Exp $
+ * $FreeBSD$
  */
 
 #include "opt_ddb.h"

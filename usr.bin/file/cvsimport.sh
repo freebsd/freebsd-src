@@ -3,7 +3,7 @@
 # This shell script can be used in order to handle future imports
 # of newer versions of file(1)
 #
-# $Id: cvsimport.sh,v 1.3 1997/02/22 19:29:10 peter Exp $
+# $FreeBSD$
 if [ $# -ne 2 ] ; then 
 	echo "usage: $0 <major> <minor>" 1>&2
 	exit 1

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_break.h,v 1.10 1998/06/07 17:09:36 dfr Exp $
+ * $FreeBSD$
  */
 
 /*

@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:43  rpd
- *	$Id: table.c,v 1.1 1999/02/03 08:39:08 kato Exp $
+ * $FreeBSD$
  */
 
 /*

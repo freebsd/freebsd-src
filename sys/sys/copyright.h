@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * 	$Id: copyright.h,v 1.6 1999/02/10 13:09:09 kato Exp $
+ * $FreeBSD$
  */
 
 

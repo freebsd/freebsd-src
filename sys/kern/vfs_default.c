@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *
- *	$Id$
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

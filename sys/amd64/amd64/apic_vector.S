@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: apic_vector.s,v 1.43 1999/07/20 06:52:35 msmith Exp $
+ * $FreeBSD$
  */
 
 

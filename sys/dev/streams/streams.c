@@ -30,7 +30,7 @@
  * skeleton produced from /usr/share/examples/drivers/make_pseudo_driver.sh
  * in 3.0-980524-SNAP then hacked a bit (but probably not enough :-).
  *
- * $Id: streams.c,v 1.9 1999/08/04 18:53:37 green Exp $
+ * $FreeBSD$
  */
 
 #include "streams.h"		/* generated file.. defines NSTREAMS */

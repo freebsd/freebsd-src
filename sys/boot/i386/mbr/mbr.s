@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: mbr.s,v 1.1.1.1 1999/05/24 22:36:24 rnordier Exp $
+# $FreeBSD$
 
 # Master boot record
 

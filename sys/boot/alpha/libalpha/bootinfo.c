@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootinfo.c,v 1.6 1999/03/20 14:13:09 dcs Exp $
+ * $FreeBSD$
  */
 
 #include <stand.h>

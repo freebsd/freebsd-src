@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: intpm.c,v 1.12 1999/07/24 19:13:54 nsouch Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

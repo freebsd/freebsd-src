@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_lnc.c,v 1.64 1999/08/18 22:14:23 mdodd Exp $
+ * $FreeBSD$
  */
 
 /*

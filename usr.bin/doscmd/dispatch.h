@@ -23,7 +23,7 @@
 ** OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 ** SUCH DAMAGE.
 **
-** $Id: dispatch.h,v 1.3 1996/09/22 05:52:56 miff Exp $
+** $FreeBSD$
 */
 
 /*

@@ -33,7 +33,7 @@
  *
  *	@(#)spx_usrreq.h
  *
- * $Id: spx_usrreq.c,v 1.24 1999/01/28 00:57:51 dillon Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

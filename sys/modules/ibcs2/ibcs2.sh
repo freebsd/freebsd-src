@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$Id: ibcs2,v 1.7 1997/02/22 12:47:59 peter Exp $
+# $FreeBSD$
 
 
 PATH=/bin:/sbin:/usr/bin:/usr/sbin; export PATH

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_ihash.c	8.7 (Berkeley) 5/17/95
- * $Id: ufs_ihash.c,v 1.18 1999/01/02 11:34:56 bde Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

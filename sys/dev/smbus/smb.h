@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smb.h,v 1.1 1998/09/03 21:00:08 nsouch Exp $
+ * $FreeBSD$
  *
  */
 #ifndef __SMB_H

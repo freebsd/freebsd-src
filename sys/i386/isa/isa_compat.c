@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa_compat.c,v 1.12 1999/05/30 11:04:31 dfr Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

@@ -1,7 +1,7 @@
 /*
  * IBM PC display definitions
  *
- *	$Id$
+ * $FreeBSD$
  *	from: i386/include/pc display.h,v 1.4
  */
 

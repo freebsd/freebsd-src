@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.7  92/02/29  15:33:41  rpd
- *	$Id: asm.h,v 1.3 1997/02/22 09:43:04 peter Exp $
+ * $FreeBSD$
  */
 
 #define S_ARG0	 4(%esp)

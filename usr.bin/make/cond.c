@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cond.c,v 1.9 1999/08/12 13:30:08 hoek Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

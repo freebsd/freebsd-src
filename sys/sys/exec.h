@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)exec.h	8.3 (Berkeley) 1/21/94
- * $Id: exec.h,v 1.23 1999/01/29 08:36:45 dillon Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_EXEC_H_

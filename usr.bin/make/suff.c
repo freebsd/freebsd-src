@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: suff.c,v 1.9 1998/04/26 09:44:48 phk Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

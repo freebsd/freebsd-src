@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.62 1999/06/27 21:31:43 alc Exp $
+ * $FreeBSD$
  */
 
 #include "npx.h"

@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: boot1.s,v 1.8 1999/01/13 23:30:07 rnordier Exp $
+# $FreeBSD$
 
 		.set MEM_REL,0x700		# Relocation address
 		.set MEM_ARG,0x900		# Arguments

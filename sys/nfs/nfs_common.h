@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsm_subs.h	8.2 (Berkeley) 3/30/95
- * $Id: nfsm_subs.h,v 1.25 1999/08/04 14:41:39 peter Exp $
+ * $FreeBSD$
  */
 
 

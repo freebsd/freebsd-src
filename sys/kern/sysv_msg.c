@@ -1,4 +1,4 @@
-/*	$Id: sysv_msg.c,v 1.21 1999/04/27 11:16:16 phk Exp $ */
+/* $FreeBSD$ */
 
 /*
  * Implementation of SVID messages

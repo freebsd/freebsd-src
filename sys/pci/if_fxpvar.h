@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxpvar.h,v 1.6 1998/08/02 00:29:15 dg Exp $
+ * $FreeBSD$
  */
 
 /*

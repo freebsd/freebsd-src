@@ -1,4 +1,4 @@
-# $Id$
+# $FreeBSD$
 
 SUBDIR=		libalpha
 SUBDIR+=	boot1 boot2 netboot

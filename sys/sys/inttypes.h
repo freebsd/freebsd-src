@@ -1,6 +1,6 @@
 /*
  * This file is in the public domain.
- * $Id$
+ * $FreeBSD$
  */
 
 #ifndef _SYS_INTTYPES_H_

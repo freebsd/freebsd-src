@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bt_pci.c,v 1.8 1999/07/03 20:17:01 peter Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

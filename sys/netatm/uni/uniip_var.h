@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: uniip_var.h,v 1.9 1998/07/13 00:00:39 mks Exp $
+ *	@(#) $FreeBSD$
  *
  */
 

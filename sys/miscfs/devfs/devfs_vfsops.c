@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_vfsops.c,v 1.35 1998/12/07 21:58:30 archie Exp $
+ * $FreeBSD$
  *
  */
 

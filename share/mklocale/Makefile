@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.18 1999/06/05 03:04:00 julian Exp $
+# $FreeBSD$
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}

@@ -1,4 +1,4 @@
-/* $Id: pte.h,v 1.1.1.1 1998/03/09 05:43:16 jb Exp $ */
+/* $FreeBSD$ */
 /* From: NetBSD: pte.h,v 1.10 1997/09/02 19:07:22 thorpej Exp */
 
 /*

@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vfsops.c	8.11 (Berkeley) 5/14/95
  *
- * $Id: portal_vfsops.c,v 1.21 1998/05/06 05:29:35 msmith Exp $
+ * $FreeBSD$
  */
 
 /*

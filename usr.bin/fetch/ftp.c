@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftp.c,v 1.13 1999/02/05 01:01:17 fenner Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>

@@ -4,7 +4,7 @@
 #
 # httpd-error - check for Web files which does not exists on your host
 #
-# $Id$
+# $FreeBSD$
 
 mode=${1}
 

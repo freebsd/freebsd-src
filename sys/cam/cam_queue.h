@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_queue.h,v 1.3 1999/04/07 22:57:48 gibbs Exp $
+ * $FreeBSD$
  */
 
 #ifndef _CAM_CAM_QUEUE_H

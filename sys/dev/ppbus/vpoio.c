@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vpoio.c,v 1.6 1999/01/30 15:35:39 nsouch Exp $
+ * $FreeBSD$
  *
  */
 

@@ -1,4 +1,4 @@
-#	$Id: Makefile.inc,v 1.3 1998/12/30 10:05:56 bde Exp $
+# $FreeBSD$
 
 BINDIR?=	/usr/mdec
 CFLAGS+=	-aout

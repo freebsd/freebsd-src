@@ -27,7 +27,7 @@
  *	i4b_iframe.c - i frame handling routines
  *	------------------------------------------
  *
- *	$Id: i4b_iframe.c,v 1.20 1999/05/28 15:03:32 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Fri May 28 15:52:41 1999]
  *

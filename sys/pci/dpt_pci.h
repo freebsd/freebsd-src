@@ -28,7 +28,7 @@
  *
  */
 
-#ident "$Id: dpt_pci.h,v 1.3 1997/10/02 04:25:30 ShimonR Exp $"
+#ident "$FreeBSD$"
 
 #define DPT_VENDOR_ID             0x00001044
 #define DPT_DEVICE_ID             0x0000a400

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)nonints.h	8.3 (Berkeley) 3/19/94
- *	$Id: nonints.h,v 1.6 1997/02/22 19:27:17 peter Exp $
+ * $FreeBSD$
  */
 
 /* arch.c */

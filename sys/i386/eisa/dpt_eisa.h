@@ -32,7 +32,7 @@
  */
 
 /*
- * $Id: dpt_eisa.h,v 1.2 1998/09/15 08:33:35 gibbs Exp $
+ * $FreeBSD$
  */
 
 #define DPT_EISA_SLOT_OFFSET		0xc00

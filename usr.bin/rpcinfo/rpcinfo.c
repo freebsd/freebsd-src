@@ -2,7 +2,7 @@
 /*static char sccsid[] = "from: @(#)rpcinfo.c 1.22 87/08/12 SMI";*/
 /*static char sccsid[] = "from: @(#)rpcinfo.c	2.2 88/08/11 4.0 RPCSRC";*/
 static char rcsid[] =
-	"$Id: rpcinfo.c,v 1.7 1998/06/09 04:30:56 imp Exp $";
+  "$FreeBSD$";
 #endif
 
 /*

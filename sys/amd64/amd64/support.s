@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.62 1999/03/30 09:00:40 phk Exp $
+ * $FreeBSD$
  */
 
 #include "opt_smp.h"

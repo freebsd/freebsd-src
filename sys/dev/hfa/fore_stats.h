@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: fore_stats.h,v 1.3 1997/05/06 22:10:21 mks Exp $
+ *	@(#) $FreeBSD$
  *
  */
 

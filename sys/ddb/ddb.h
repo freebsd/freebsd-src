@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ddb.h,v 1.21 1999/01/27 19:00:49 dillon Exp $
+ * $FreeBSD$
  */
 
 /*

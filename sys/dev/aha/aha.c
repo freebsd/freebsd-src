@@ -55,7 +55,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aha.c,v 1.26 1999/05/25 20:15:19 gibbs Exp $
+ * $FreeBSD$
  */
 
 #include "pnp.h"

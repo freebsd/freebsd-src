@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_sr_p.c,v 1.9 1999/05/09 17:06:59 peter Exp $
+ * $FreeBSD$
  */
 
 #include "sr.h"

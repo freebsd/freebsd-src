@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_input.c
  *
- * $Id: ipx_input.c,v 1.17 1998/04/06 09:30:42 phk Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: intr.h,v 1.4 1998/11/15 18:25:16 dfr Exp $
+ * $FreeBSD$
  */
 
 #ifndef _MACHINE_INTR_H_

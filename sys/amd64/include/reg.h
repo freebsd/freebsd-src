@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)reg.h	5.5 (Berkeley) 1/18/91
- *	$Id: reg.h,v 1.18 1999/04/28 01:04:06 luoqi Exp $
+ * $FreeBSD$
  */
 
 #ifndef _MACHINE_REG_H_

@@ -1,4 +1,4 @@
-/*	$Id: fat.h,v 1.6 1997/02/22 09:40:45 peter Exp $ */
+/* $FreeBSD$ */
 /*	$NetBSD: fat.h,v 1.12 1997/11/17 15:36:36 ws Exp $	*/
 
 /*-

@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.119 1999/08/06 14:01:55 hm Exp $
+# $FreeBSD$
 
 DISABLE_PSE
 IDE_DELAY

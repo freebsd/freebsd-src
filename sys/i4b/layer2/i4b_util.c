@@ -27,7 +27,7 @@
  *	i4b_util.c - layer 2 utility routines
  *	-------------------------------------
  *
- *	$Id: i4b_util.c,v 1.20 1999/04/15 09:53:55 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Thu Apr 15 10:47:52 1999]
  *

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_module.c,v 1.3 1998/10/12 09:03:48 peter Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)fil.c	1.36 6/5/96 (C) 1993-1996 Darren Reed";
-static const char rcsid[] = "@(#)$Id: fil.c,v 1.3 1998/06/20 18:37:49 peter Exp $";
+static const char rcsid[] = "@(#)$FreeBSD$";
 #endif
 
 #include "opt_ipfilter.h"
@@ -1098,7 +1098,7 @@ nodata:
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $Id: fil.c,v 1.3 1998/06/20 18:37:49 peter Exp $
+ * $FreeBSD$
  */
 /*
  * Copy data from an mbuf chain starting "off" bytes from the beginning,

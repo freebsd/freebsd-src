@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa_common.h,v 1.1 1999/05/22 15:18:25 dfr Exp $
+ * $FreeBSD$
  */
 
 /*

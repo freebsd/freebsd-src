@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_trace.c,v 1.33 1999/01/28 01:59:50 dillon Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

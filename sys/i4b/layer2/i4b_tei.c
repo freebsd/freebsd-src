@@ -27,7 +27,7 @@
  *	i4b_tei.c - tei handling procedures
  *	-----------------------------------
  *
- *	$Id: i4b_tei.c,v 1.15 1999/05/28 15:03:32 hm Exp $ 
+ * $FreeBSD$ 
  *
  *      last edit-date: [Fri May 28 16:14:14 1999]
  *

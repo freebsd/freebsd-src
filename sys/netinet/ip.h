@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip.h	8.2 (Berkeley) 6/1/94
- *	$Id: ip.h,v 1.14 1998/02/26 08:31:52 dima Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NETINET_IP_H_

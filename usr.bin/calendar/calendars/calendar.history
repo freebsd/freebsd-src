@@ -1,7 +1,7 @@
 /*
  * History
  *
- * $Id: calendar.history,v 1.7 1997/02/25 01:20:25 mpp Exp $
+ * $FreeBSD$
  */
 
 #ifndef _calendar_history_

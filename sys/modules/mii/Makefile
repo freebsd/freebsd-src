@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1999/08/21 17:40:39 wpaul Exp $
+# $FreeBSD$
 
 S	= ${.CURDIR}/../..
 .PATH:	$S/dev/mii

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_pcb.h,v 1.2 1998/07/30 22:30:51 mks Exp $
+ *	@(#) $FreeBSD$
  *
  */
 

@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.23 1998/09/05 12:25:54 asami Exp $
+# $FreeBSD$
 #
 # This has most of the glue needed to compile tknvi and the perl hooks,
 # but not all.

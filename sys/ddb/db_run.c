@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_run.c,v 1.16 1998/07/05 10:12:18 dfr Exp $
+ * $FreeBSD$
  */
 
 /*

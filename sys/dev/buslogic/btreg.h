@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: btreg.h,v 1.7 1999/04/23 23:28:20 gibbs Exp $
+ * $FreeBSD$
  */
 
 #ifndef _BTREG_H_

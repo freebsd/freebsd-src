@@ -35,7 +35,7 @@
  *	Fritz!Card PCI specific routines for isic driver
  *	------------------------------------------------
  *
- *	$Id: i4b_avm_fritz_pci.c,v 1.3 1999/08/06 14:02:12 hm Exp $
+ * $FreeBSD$
  *
  *      last edit-date: [Tue Jun  1 14:08:01 1999]
  *

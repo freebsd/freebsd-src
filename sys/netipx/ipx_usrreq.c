@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_usrreq.c
  *
- * $Id: ipx_usrreq.c,v 1.22 1999/02/06 10:48:11 jhay Exp $
+ * $FreeBSD$
  */
 
 #include "opt_ipx.h"

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: adwcam.c,v 1.3 1999/05/06 20:16:12 ken Exp $
+ * $FreeBSD$
  */
 /*
  * Ported from:

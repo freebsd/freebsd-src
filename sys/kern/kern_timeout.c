@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- *	$Id: kern_timeout.c,v 1.56 1999/03/06 04:46:19 wollman Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

@@ -1,4 +1,4 @@
-/* $Id: am7990.c,v 1.3 1999/05/10 15:48:01 peter Exp $ */
+/* $FreeBSD$ */
 /*	$NetBSD: am7990.c,v 1.43 1998/03/29 22:36:42 mycroft Exp $	*/
 
 /*-

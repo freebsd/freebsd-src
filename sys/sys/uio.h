@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uio.h	8.5 (Berkeley) 2/22/94
- * $Id: uio.h,v 1.8 1997/12/19 10:03:31 bde Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_UIO_H_

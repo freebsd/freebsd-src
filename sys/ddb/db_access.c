@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_access.c,v 1.13 1997/02/22 09:28:18 peter Exp $
+ * $FreeBSD$
  */
 
 /*

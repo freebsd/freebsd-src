@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: olpt.c,v 1.2 1999/07/06 19:23:20 des Exp $
+ * $FreeBSD$
  */
 
 /*

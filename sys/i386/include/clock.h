@@ -3,7 +3,7 @@
  * Garrett Wollman, September 1994.
  * This file is in the public domain.
  *
- *	$Id: clock.h,v 1.34 1998/03/05 21:45:42 tegge Exp $
+ * $FreeBSD$
  */
 
 #ifndef _MACHINE_CLOCK_H_

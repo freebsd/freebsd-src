@@ -1,5 +1,5 @@
 /* 
- * $Id: start.S,v 1.2 1998/10/31 17:12:32 dfr Exp $ 
+ * $FreeBSD$ 
  * From: $NetBSD: start.S,v 1.4 1998/03/28 00:54:15 cgd Exp $ 
  */
 

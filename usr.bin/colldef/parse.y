@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: parse.y,v 1.13 1999/02/12 20:56:49 ache Exp $
+ * $FreeBSD$
  */
 
 #include <err.h>

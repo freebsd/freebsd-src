@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: day.c,v 1.11 1997/10/26 12:51:30 wosch Exp $
+ * $FreeBSD$
  */
 
 

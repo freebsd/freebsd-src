@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: job.c,v 1.13 1999/08/17 00:39:19 hoek Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: boot1.m4,v 1.3 1998/11/08 15:36:35 rnordier Exp $
+# $FreeBSD$
 
 define(_al,0x0)dnl
 define(_cl,0x1)dnl

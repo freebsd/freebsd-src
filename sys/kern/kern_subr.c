@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_subr.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_subr.c,v 1.28 1999/03/12 03:09:29 julian Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

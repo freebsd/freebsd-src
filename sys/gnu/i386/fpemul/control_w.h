@@ -54,7 +54,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *        $Id$
+ * $FreeBSD$
  *
  */
 

@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- *	$Id: procfs_vnops.c,v 1.70 1999/07/09 04:16:00 jlemon Exp $
+ * $FreeBSD$
  */
 
 /*
