@@ -60,6 +60,7 @@
 #define BSD_CLASS_NAME "BSD-class"
 
 struct g_bsd_softc {
+	off_t	labeloffset;
 	struct disklabel ondisk;
 	struct disklabel inram;
 };
@@ -226,11 +227,13 @@ g_bsd_lesum(struct disklabel *dl, u_char *p)
 }
 
 static int
-g_bsd_i386(struct g_slicer *gsp, struct g_consumer *cp, int secsize, struct disklabel *dl)
+g_bsd_i386(struct g_slicer *gsp, struct g_consumer *cp, int secsize, struct g_bsd_softc *ms)
 {
 	int error;
 	u_char *buf;
+	struct disklabel *dl;
 
+	dl = &ms->ondisk;
 	buf = g_read_data(cp, secsize * 1, secsize, &error);
 	if (buf == NULL || error != 0)
 		return(ENOENT);
@@ -242,16 +245,21 @@ g_bsd_i386(struct g_slicer *gsp, struct g_consumer *cp, int secsize, struct disk
 	else
 		error = ENOENT;
 	g_free(buf);
-	gsp->frontstuff = 16 * secsize;
+	if (error == 0) {
+		gsp->frontstuff = 16 * secsize;
+		ms->labeloffset = secsize * 1;
+	}
 	return(error);
 }
 
 static int
-g_bsd_alpha(struct g_slicer *gsp, struct g_consumer *cp, int secsize, struct disklabel *dl)
+g_bsd_alpha(struct g_slicer *gsp, struct g_consumer *cp, int secsize, struct g_bsd_softc *ms)
 {
 	int error;
 	u_char *buf;
+	struct disklabel *dl;
 
+	dl = &ms->ondisk;
 	buf = g_read_data(cp, 0, secsize, &error);
 	if (buf == NULL || error != 0)
 		return(ENOENT);
@@ -263,7 +271,10 @@ g_bsd_alpha(struct g_slicer *gsp, struct g_consumer *cp, int secsize, struct dis
 	else
 		error = ENOENT;
 	g_free(buf);
-	gsp->frontstuff = 16 * secsize;
+	if (error == 0) {
+		gsp->frontstuff = 16 * secsize;
+		ms->labeloffset = 64;
+	}
 	return(error);
 }
 
@@ -295,17 +306,15 @@ g_bsd_start(struct bio *bp)
 static void
 g_bsd_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp, struct g_consumer *cp __unused, struct g_provider *pp)
 {
-#if 0
-	struct g_mbr_softc *ms;
+	struct g_bsd_softc *ms;
 	struct g_slicer *gsp;
 
 	gsp = gp->softc;
 	ms = gsp->softc;
-	if (pp != NULL) {
-		sbuf_printf(sb, "%s<type>%d</type>\n",
-		    indent, ms->type[pp->index]);
+	if (pp == NULL && cp == NULL) {
+		sbuf_printf(sb, "%s<labeloffset>%lld</labeloffset>\n",
+		    indent, ms->labeloffset);
 	}
-#endif
 	g_slice_dumpconf(sb, indent, gp, cp, pp);
 }
 
@@ -352,9 +361,9 @@ g_bsd_taste(struct g_class *mp, struct g_provider *pp, int flags)
 			printf("g_error %d Mediasize is %lld bytes\n",
 			    error, (long long)mediasize);
 		}
-		error = g_bsd_i386(gsp, cp, secsize, &ms->ondisk);
+		error = g_bsd_i386(gsp, cp, secsize, ms);
 		if (error)
-			error = g_bsd_alpha(gsp, cp, secsize, &ms->ondisk);
+			error = g_bsd_alpha(gsp, cp, secsize, ms);
 		if (error)
 			break;
 		dl = &ms->ondisk;

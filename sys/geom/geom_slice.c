@@ -203,7 +203,7 @@ g_slice_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp, struct g_cons
 
 	gsp = gp->softc;
 	mp = gsp->softc;
-	if (gp != NULL) {
+	if (gp != NULL && (pp == NULL && cp == NULL)) {
 		sbuf_printf(sb, "%s<frontstuff>%llu</frontstuff>\n",
 		    indent, (unsigned long long)gsp->frontstuff);
 	}
