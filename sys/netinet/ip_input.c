@@ -213,7 +213,9 @@ int fw_one_pass = 1;
 ip_dn_io_t *ip_dn_io_ptr;
 
 /*
- * One deep route cache for ip forwarding.
+ * One deep route cache for ip forwarding.  This is done
+ * very inefficiently.  We don't care as it's about to be
+ * replaced by something better.
  */
 static struct rtcache {
 	struct route	rc_ro;		/* most recently used route */
@@ -223,28 +225,37 @@ static struct rtcache {
 #define	RTCACHE_LOCK()		mtx_lock(&ip_fwdcache.rc_mtx)
 #define	RTCACHE_UNLOCK()	mtx_unlock(&ip_fwdcache.rc_mtx)
 #define	RTCACHE_LOCK_INIT() \
-	mtx_init(&ip_fwdcache.rc_mtx, "route cache", NULL, MTX_DEF);
+	mtx_init(&ip_fwdcache.rc_mtx, "route cache", NULL, MTX_DEF)
 #define	RTCACHE_LOCK_ASSERT()	mtx_assert(&ip_fwdcache.rc_mtx, MA_OWNED)
 
 /*
- * Get the current route cache contents.
+ * Get a copy of the current route cache contents.
  */
 #define	RTCACHE_GET(_ro) do {					\
+	struct rtentry *rt;					\
 	RTCACHE_LOCK();						\
 	*(_ro) = ip_fwdcache.rc_ro;				\
+	if ((rt = (_ro)->ro_rt) != NULL) {			\
+		RT_LOCK(rt);					\
+		rt->rt_refcnt++;				\
+		RT_UNLOCK(rt);					\
+	}							\
 	RTCACHE_UNLOCK();					\
 } while (0)
 
 /*
- * Update the cache contents.  We optimize this using
- * the routing table reference. XXX is this safe?
+ * Update the cache contents.
  */
 #define	RTCACHE_UPDATE(_ro) do {				\
-	if ((_ro)->ro_rt != ip_fwdcache.rc_ro.ro_rt) {		\
-		RTCACHE_LOCK();					\
+	struct rtentry *rt;					\
+	RTCACHE_LOCK();						\
+	rt = ip_fwdcache.rc_ro.ro_rt;				\
+	if ((_ro)->ro_rt != rt) {				\
 		ip_fwdcache.rc_ro = *(_ro);			\
-		RTCACHE_UNLOCK();				\
+		if (rt)						\
+			RTFREE(rt);				\
 	}							\
+	RTCACHE_UNLOCK();					\
 } while (0)
 
 /*
@@ -332,15 +343,14 @@ ip_init()
 void
 ip_forward_cacheinval(void)
 {
-	struct rtentry *rt = NULL;
+	struct rtentry *rt;
 
 	RTCACHE_LOCK();
 	rt = ip_fwdcache.rc_ro.ro_rt;
 	ip_fwdcache.rc_ro.ro_rt = 0;
-	RTCACHE_UNLOCK();
-
 	if (rt != NULL)
 		RTFREE(rt);
+	RTCACHE_UNLOCK();
 }
 
 /*
