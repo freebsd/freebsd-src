@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcaudio.c,v 1.7 1994/09/16 13:33:47 davidg Exp $ 
+ *	$Id: pcaudio.c,v 1.8 1994/09/29 08:24:43 sos Exp $ 
  */
 
 #include "pca.h"
@@ -63,8 +63,7 @@ static struct pca_status {
 	char		current;	/* current buffer */
 	unsigned char	oldval;		/* old timer port value */
 	char		timer_on;	/* is playback running */
-	char		coll;		/* select collision */
-	pid_t		wsel;		/* pid of select'ing proc */
+	struct selinfo	wsel;		/* select status */
 } pca_status;
 
 static char buffer1[BUF_SIZE];
@@ -393,10 +392,10 @@ pcaintr(int regs)
 			wakeup((caddr_t)&pca_sleep);
 			pca_sleep = 0;
 		}
-		if (pca_status.wsel) {
-			selwakeup(pca_status.wsel, pca_status.coll);
-			pca_status.wsel = 0;
-			pca_status.coll = 0;
+		if (pca_status.wsel.si_pid) {
+			selwakeup((struct selinfo *)&pca_status.wsel.si_pid);
+			pca_status.wsel.si_pid = 0;
+			pca_status.wsel.si_flags = 0;
 		}
 	}
 }
@@ -415,11 +414,11 @@ pcaselect(dev_t dev, int rw, struct proc *p)
  			splx(s);
  			return(1);
  		}
- 		if (pca_status.wsel && (p1 = pfind(pca_status.wsel))
+ 		if (pca_status.wsel.si_pid && (p1=pfind(pca_status.wsel.si_pid))
 		    && p1->p_wchan == (caddr_t)&selwait)
- 			pca_status.coll = 1;
+ 			pca_status.wsel.si_flags = SI_COLL;
  		else
- 			pca_status.wsel = p->p_pid;
+ 			pca_status.wsel.si_pid = p->p_pid;
  		splx(s);
  		return 0;
 	default:
