@@ -44,7 +44,7 @@ case "$mode" in
     -user)
 	grep 'File does not exist$' |
 	    awk '{print $8}' | 
-	    sort | uniq -c | sort +1
+	    sort | uniq -c | sort -k 2
 	;;
     -userhits)
 	grep 'File does not exist$' |
