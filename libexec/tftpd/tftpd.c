@@ -265,6 +265,7 @@ main(argc, argv)
 		}
 		chdir( "/" );
 		setuid(nobody->pw_uid);
+		setgroups(1, &nobody->pw_gid);
 	}
 
 	from.sin_family = AF_INET;
