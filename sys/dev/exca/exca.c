@@ -205,12 +205,12 @@ exca_do_mem_map(struct exca_softc *sc, int win)
 	exca_putb(sc, map->cardmem_msb,
 	    ((mem->cardaddr >> (EXCA_CARDMEM_ADDRX_SHIFT + 8)) &
 	    EXCA_CARDMEM_ADDRX_MSB_ADDR_MASK) |
-	    ((mem->kind == PCCARD_MEM_ATTR) ?
+	    ((mem->kind == PCCARD_A_MEM_ATTR) ?
 	    EXCA_CARDMEM_ADDRX_MSB_REGACTIVE_ATTR : 0));
 
 	exca_setb(sc, EXCA_ADDRWIN_ENABLE, map->memenable);
 #ifdef EXCA_DEBUG
-	if (mem->kind == PCCARD_MEM_ATTR)
+	if (mem->kind == PCCARD_A_MEM_ATTR)
 		printf("attribtue memory\n");
 	else
 		printf("common memory\n");
@@ -791,10 +791,10 @@ exca_activate_resource(struct exca_softc *exca, device_t child, int type,
 	if (!(rman_get_flags(res) & RF_ACTIVE)) { /* not already activated */
 		switch (type) {
 		case SYS_RES_IOPORT:
-			err = exca_io_map(exca, 0, res);
+			err = exca_io_map(exca, PCCARD_WIDTH_AUTO, res);
 			break;
 		case SYS_RES_MEMORY:
-			err = exca_mem_map(exca, 0, res);
+			err = exca_mem_map(exca, PCCARD_A_MEM_COM, res);
 			break;
 		default:
 			err = 0;
