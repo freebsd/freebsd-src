@@ -103,6 +103,10 @@ filtering that breaks the Path MTU Discovery mechanism.
 .Pp
 The NICs that support oversized frames are as follows:
 .Bl -tag -width ".Xr fxp 4 " -offset indent
+.It Xr dc 4
+supports long frames for the
+.Nm
+natively.
 .It Xr de 4
 requires defining
 .Dv BIG_PACKET
