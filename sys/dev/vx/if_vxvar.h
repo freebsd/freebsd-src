@@ -35,24 +35,24 @@
  * Ethernet software status per interface.
  */
 struct vx_softc {
-    struct arpcom arpcom;	/* Ethernet common part		*/
-    int unit;			/* unit number */
-    bus_space_tag_t		bst;
-    bus_space_handle_t		bsh;
-    void			*vx_intrhand;
-    struct resource		*vx_irq;
-    struct resource		*vx_res;
-#define MAX_MBS  8		/* # of mbufs we keep around	*/
-    struct mbuf *mb[MAX_MBS];	/* spare mbuf storage.		*/
-    int next_mb;		/* Which mbuf to use next. 	*/
-    int last_mb;		/* Last mbuf.			*/
-    char vx_connectors;		/* Connectors on this card.	*/
-    char vx_connector;		/* Connector to use.		*/
-    short tx_start_thresh;	/* Current TX_start_thresh.	*/
-    int	tx_succ_ok;		/* # packets sent in sequence	*/
-				/* w/o underrun			*/
-    struct callout_handle ch;	/* Callout handle for timeouts  */
-    int	buffill_pending;
+	struct arpcom arpcom;		/* Ethernet common part		 */
+	int unit;			/* unit number                   */
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
+	void *vx_intrhand;
+	struct resource *vx_irq;
+	struct resource *vx_res;
+#define MAX_MBS  8			/* # of mbufs we keep around	 */
+	struct mbuf *mb[MAX_MBS];	/* spare mbuf storage.		 */
+	int next_mb;			/* Which mbuf to use next. 	 */
+	int last_mb;			/* Last mbuf.			 */
+	char vx_connectors;		/* Connectors on this card.	 */
+	char vx_connector;		/* Connector to use.		 */
+	short tx_start_thresh;		/* Current TX_start_thresh.	 */
+	int tx_succ_ok;			/* # packets sent in sequence	 */
+					/* w/o underrun			 */
+	struct callout_handle ch;	/* Callout handle for timeouts  */
+	int buffill_pending;
 };
 
 #define CSR_WRITE_4(sc, reg, val)	\

@@ -57,11 +57,11 @@ static int vx_pci_attach(device_t);
 
 static device_method_t vx_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		vx_pci_probe),
-	DEVMETHOD(device_attach,	vx_pci_attach),
-	DEVMETHOD(device_shutdown,	vx_pci_shutdown),
+	DEVMETHOD(device_probe, vx_pci_probe),
+	DEVMETHOD(device_attach, vx_pci_attach),
+	DEVMETHOD(device_shutdown, vx_pci_shutdown),
 
-	{ 0, 0 }
+	{0, 0}
 };
 
 static driver_t vx_driver = {
@@ -77,106 +77,100 @@ MODULE_DEPEND(vx, pci, 1, 1, 1);
 MODULE_DEPEND(vx, ether, 1, 1, 1);
 
 static void
-vx_pci_shutdown(
-	device_t dev)
+vx_pci_shutdown(device_t dev)
 {
-   struct vx_softc	*sc;
+	struct vx_softc *sc;
 
-   sc = device_get_softc(dev);
-   vxstop(sc); 
-   return;
+	sc = device_get_softc(dev);
+	vxstop(sc);
 }
 
 static int
-vx_pci_probe(
-	device_t dev)
+vx_pci_probe(device_t dev)
 {
-   u_int32_t		device_id;
+	u_int32_t device_id;
 
-   device_id = pci_read_config(dev, PCIR_DEVVENDOR, 4);
+	device_id = pci_read_config(dev, PCIR_DEVVENDOR, 4);
 
-   if(device_id == 0x590010b7ul) {
-      device_set_desc(dev, "3COM 3C590 Etherlink III PCI");
-      return(0);
-   }
-   if(device_id == 0x595010b7ul || device_id == 0x595110b7ul ||
-	device_id == 0x595210b7ul) {
-      device_set_desc(dev, "3COM 3C595 Etherlink III PCI");
-      return(0);
-   }
+	if (device_id == 0x590010b7ul) {
+		device_set_desc(dev, "3COM 3C590 Etherlink III PCI");
+		return (0);
+	}
+	if (device_id == 0x595010b7ul || device_id == 0x595110b7ul ||
+	    device_id == 0x595210b7ul) {
+		device_set_desc(dev, "3COM 3C595 Etherlink III PCI");
+		return (0);
+	}
 	/*
 	 * The (Fast) Etherlink XL adapters are now supported by
 	 * the xl driver, which uses bus master DMA and is much
 	 * faster. (And which also supports the 3c905B.
 	 */
 #ifdef VORTEX_ETHERLINK_XL
-   if(device_id == 0x900010b7ul || device_id == 0x900110b7ul) {
-      device_set_desc(dev, "3COM 3C900 Etherlink XL PCI");
-      return(0);
-   }
-   if(device_id == 0x905010b7ul || device_id == 0x905110b7ul) {
-      device_set_desc(dev, "3COM 3C905 Etherlink XL PCI");
-      return(0);
-   }
+	if (device_id == 0x900010b7ul || device_id == 0x900110b7ul) {
+		device_set_desc(dev, "3COM 3C900 Etherlink XL PCI");
+		return (0);
+	}
+	if (device_id == 0x905010b7ul || device_id == 0x905110b7ul) {
+		device_set_desc(dev, "3COM 3C905 Etherlink XL PCI");
+		return (0);
+	}
 #endif
-   return (ENXIO);
+	return (ENXIO);
 }
 
-static int 
-vx_pci_attach(
-	device_t dev)
+static int
+vx_pci_attach(device_t dev)
 {
-    struct vx_softc *sc;
-    int rid;
+	struct vx_softc *sc;
+	int rid;
 
-    sc = device_get_softc(dev);
+	sc = device_get_softc(dev);
 
-    rid = PCIR_BAR(0);
-    sc->vx_res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, RF_ACTIVE);
+	rid = PCIR_BAR(0);
+	sc->vx_res =
+	    bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, RF_ACTIVE);
 
-    if (sc->vx_res == NULL)
-	goto bad;
+	if (sc->vx_res == NULL)
+		goto bad;
 
-    sc->bst = rman_get_bustag(sc->vx_res);
-    sc->bsh = rman_get_bushandle(sc->vx_res);
+	sc->bst = rman_get_bustag(sc->vx_res);
+	sc->bsh = rman_get_bushandle(sc->vx_res);
 
-    rid = 0;
-    sc->vx_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	RF_SHAREABLE | RF_ACTIVE);
+	rid = 0;
+	sc->vx_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+	    RF_SHAREABLE | RF_ACTIVE);
 
-    if (sc->vx_irq == NULL)
-	goto bad;
+	if (sc->vx_irq == NULL)
+		goto bad;
 
-    if (bus_setup_intr(dev, sc->vx_irq, INTR_TYPE_NET,
-	vxintr, sc, &sc->vx_intrhand))
-	goto bad;
+	if (bus_setup_intr(dev, sc->vx_irq, INTR_TYPE_NET,
+	    vxintr, sc, &sc->vx_intrhand))
+		goto bad;
 
-    if (vxattach(dev) == 0) {
-	goto bad;
-    }
+	if (vxattach(dev) == 0)
+		goto bad;
 
-    /* defect check for 3C590 */
-    if ((pci_read_config(dev, PCIR_DEVVENDOR, 4) >> 16) == 0x5900) {
-	GO_WINDOW(0);
-	if (vxbusyeeprom(sc))
-	    goto bad;
-	CSR_WRITE_2(sc, VX_W0_EEPROM_COMMAND,
-	    EEPROM_CMD_RD | EEPROM_SOFTINFO2);
-	if (vxbusyeeprom(sc))
-	    goto bad;
-	if (!(CSR_READ_2(sc, VX_W0_EEPROM_DATA) & NO_RX_OVN_ANOMALY)) {
-	    printf("Warning! Defective early revision adapter!\n");
+	/* defect check for 3C590 */
+	if ((pci_read_config(dev, PCIR_DEVVENDOR, 4) >> 16) == 0x5900) {
+		GO_WINDOW(0);
+		if (vxbusyeeprom(sc))
+			goto bad;
+		CSR_WRITE_2(sc, VX_W0_EEPROM_COMMAND,
+		    EEPROM_CMD_RD | EEPROM_SOFTINFO2);
+		if (vxbusyeeprom(sc))
+			goto bad;
+		if (!(CSR_READ_2(sc, VX_W0_EEPROM_DATA) & NO_RX_OVN_ANOMALY))
+			printf("Warning! Defective early revision adapter!\n");
 	}
-    }
-
-    return(0);
+	return (0);
 
 bad:
-    if (sc->vx_intrhand != NULL)
-	bus_teardown_intr(dev, sc->vx_irq, sc->vx_intrhand);
-    if (sc->vx_res != NULL)
-	bus_release_resource(dev, SYS_RES_IOPORT, 0, sc->vx_res);
-    if (sc->vx_irq != NULL)
-	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->vx_irq);
-    return(ENXIO);
+	if (sc->vx_intrhand != NULL)
+		bus_teardown_intr(dev, sc->vx_irq, sc->vx_intrhand);
+	if (sc->vx_res != NULL)
+		bus_release_resource(dev, SYS_RES_IOPORT, 0, sc->vx_res);
+	if (sc->vx_irq != NULL)
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->vx_irq);
+	return (ENXIO);
 }

@@ -63,121 +63,117 @@ __FBSDID("$FreeBSD$");
 
 static const char *vx_match(eisa_id_t type);
 
-static const char*
+static const char *
 vx_match(eisa_id_t type)
 {
-    switch (type) {
-      case EISA_DEVICE_ID_3COM_3C592:
-	return "3Com 3C592 Network Adapter";
-      case EISA_DEVICE_ID_3COM_3C597_TX:
-	return "3Com 3C597-TX Network Adapter";
-      case EISA_DEVICE_ID_3COM_3C597_T4:
-	return "3Com 3C597-T4 Network Adapter";
-      case EISA_DEVICE_ID_3COM_3C597_MII:
-	return "3Com 3C597-MII Network Adapter";
-      default:
-	break;
-    }
-    return (NULL);
+	switch (type) {
+	case EISA_DEVICE_ID_3COM_3C592:
+		return "3Com 3C592 Network Adapter";
+	case EISA_DEVICE_ID_3COM_3C597_TX:
+		return "3Com 3C597-TX Network Adapter";
+	case EISA_DEVICE_ID_3COM_3C597_T4:
+		return "3Com 3C597-T4 Network Adapter";
+	case EISA_DEVICE_ID_3COM_3C597_MII:
+		return "3Com 3C597-MII Network Adapter";
+	default:
+		break;
+	}
+	return (NULL);
 }
 
 static int
 vx_eisa_probe(device_t dev)
 {
-    const char	   *desc;
-    u_long          iobase;
-    u_long          port;
+	const char *desc;
+	u_long iobase;
+	u_long port;
 
-    desc = vx_match(eisa_get_id(dev));
-    if (!desc)
-	return (ENXIO);
-    device_set_desc(dev, desc);
+	desc = vx_match(eisa_get_id(dev));
+	if (!desc)
+		return (ENXIO);
+	device_set_desc(dev, desc);
 
-    port = eisa_get_slot(dev) * EISA_SLOT_SIZE;
-    iobase = port + VX_EISA_SLOT_OFFSET;
+	port = eisa_get_slot(dev) * EISA_SLOT_SIZE;
+	iobase = port + VX_EISA_SLOT_OFFSET;
 
-    eisa_add_iospace(dev, iobase, VX_EISA_IOSIZE, RESVADDR_NONE);
-    eisa_add_iospace(dev, port, VX_IOSIZE, RESVADDR_NONE);
+	eisa_add_iospace(dev, iobase, VX_EISA_IOSIZE, RESVADDR_NONE);
+	eisa_add_iospace(dev, port, VX_IOSIZE, RESVADDR_NONE);
 
-    /* Set irq */
-    eisa_add_intr(dev, inw(iobase + VX_RESOURCE_CONFIG) >> 12,
-		  EISA_TRIGGER_EDGE);
+	/* Set irq */
+	eisa_add_intr(dev, inw(iobase + VX_RESOURCE_CONFIG) >> 12,
+	    EISA_TRIGGER_EDGE);
 
-    return (0);
+	return (0);
 }
 
 static int
 vx_eisa_attach(device_t dev)
 {
-    struct vx_softc *sc;
-    struct resource *io = 0;
-    struct resource *eisa_io = 0;
-    struct resource *irq = 0;
-    int		    rid;
-    void	    *ih;
+	struct vx_softc *sc;
+	struct resource *io = 0;
+	struct resource *eisa_io = 0;
+	struct resource *irq = 0;
+	int rid;
+	void *ih;
 
-    /*
-     * The addresses are sorted in increasing order
-     * so we know the port to pass to the core ep
-     * driver comes first.
-     */
-    rid = 0;
-    io = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, RF_ACTIVE);
-    if (!io) {
-	device_printf(dev, "No I/O space?!\n");
-	goto bad;
-    }
+	/*
+         * The addresses are sorted in increasing order
+         * so we know the port to pass to the core ep
+         * driver comes first.
+         */
+	rid = 0;
+	io = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, RF_ACTIVE);
+	if (!io) {
+		device_printf(dev, "No I/O space?!\n");
+		goto bad;
+	}
+	rid = 1;
+	eisa_io = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, RF_ACTIVE);
+	if (!eisa_io) {
+		device_printf(dev, "No I/O space?!\n");
+		goto bad;
+	}
+	sc = device_get_softc(dev);
 
-    rid = 1;
-    eisa_io = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, RF_ACTIVE);
-    if (!eisa_io) {
-	device_printf(dev, "No I/O space?!\n");
-	goto bad;
-    }
+	sc->vx_res = io;
+	sc->bst = rman_get_bustag(io);
+	sc->bsh = rman_get_bushandle(io);
 
-    sc = device_get_softc(dev);
+	rid = 0;
+	irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
+	if (!irq) {
+		device_printf(dev, "No irq?!\n");
+		goto bad;
+	}
+	sc->vx_irq = irq;
 
-    sc->vx_res = io;
-    sc->bst = rman_get_bustag(io);
-    sc->bsh = rman_get_bushandle(io);
+	/* Now the registers are availible through the lower ioport */
 
-    rid = 0;
-    irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
-    if (!irq) {
-	device_printf(dev, "No irq?!\n");
-	goto bad;
-    }
+	vxattach(dev);
 
-    sc->vx_irq = irq;
+	if (bus_setup_intr(dev, irq, INTR_TYPE_NET, vxintr, sc, &ih))
+		goto bad;
 
-    /* Now the registers are availible through the lower ioport */
+	sc->vx_intrhand = ih;
 
-    vxattach(dev);
+	return 0;
 
-    if (bus_setup_intr(dev, irq, INTR_TYPE_NET, vxintr, sc, &ih)) {
-	goto bad;
-    }
-
-    sc->vx_intrhand = ih;
-
-    return 0;
-
- bad:
-    if (io)
-	bus_release_resource(dev, SYS_RES_IOPORT, 0, io);
-    if (eisa_io)
-	bus_release_resource(dev, SYS_RES_IOPORT, 0, eisa_io);
-    if (irq)
-	bus_release_resource(dev, SYS_RES_IRQ, 0, irq);
-    return -1;
+bad:
+	if (io)
+		bus_release_resource(dev, SYS_RES_IOPORT, 0, io);
+	if (eisa_io)
+		bus_release_resource(dev, SYS_RES_IOPORT, 0, eisa_io);
+	if (irq)
+		bus_release_resource(dev, SYS_RES_IRQ, 0, irq);
+	return -1;
 }
 
 static device_method_t vx_eisa_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		vx_eisa_probe),
-	DEVMETHOD(device_attach,	vx_eisa_attach),
+	DEVMETHOD(device_probe, vx_eisa_probe),
+	DEVMETHOD(device_attach, vx_eisa_attach),
 
-	{ 0, 0 }
+	{0, 0}
 };
 
 static driver_t vx_eisa_driver = {
