@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.3 1994/09/27 20:42:56 phk Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.4 1994/09/28 16:45:14 dfr Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -1714,7 +1714,7 @@ msdosfs_lock(ap)
 		if (dep->de_lockholder == curproc->p_pid)
 			panic("msdosfs_lock: locking against myself");
 		dep->de_lockwaiter = curproc->p_pid;
-		(void) sleep((caddr_t) dep, PINOD);
+		(void) tsleep((caddr_t) dep, PINOD, "msdlck", 0);
 	}
 	dep->de_lockwaiter = 0;
 	dep->de_lockholder = curproc->p_pid;

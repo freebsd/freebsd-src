@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_lookup.c	8.4 (Berkeley) 2/16/94
- * $Id: vfs_lookup.c,v 1.4 1994/08/20 03:48:49 davidg Exp $
+ * $Id: vfs_lookup.c,v 1.5 1994/09/27 20:33:30 phk Exp $
  */
 
 #include <sys/param.h>
@@ -450,7 +450,7 @@ unionlookup:
 	       (cnp->cn_flags & NOCROSSMOUNT) == 0) {
 		if (mp->mnt_flag & MNT_MLOCK) {
 			mp->mnt_flag |= MNT_MWAIT;
-			sleep((caddr_t)mp, PVFS);
+			(void) tsleep((caddr_t)mp, PVFS, "lookup", 0);
 			continue;
 		}
 		error = VFS_ROOT(dp->v_mountedhere, &tdp);

@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_subr.c	8.4 (Berkeley) 1/27/94
  *
- *	$Id: procfs_subr.c,v 1.1.1.1 1994/05/24 10:05:08 rgrimes Exp $
+ *	$Id: procfs_subr.c,v 1.2 1994/08/02 07:45:21 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -106,7 +106,7 @@ loop:
 	 */ 
 	if (pfsvplock & PROCFS_LOCKED) {
 		pfsvplock |= PROCFS_WANT;
-		sleep((caddr_t) &pfsvplock, PINOD);
+		(void) tsleep((caddr_t) &pfsvplock, PINOD, "pfsavp", 0);
 		goto loop;
 	}
 	pfsvplock |= PROCFS_LOCKED;

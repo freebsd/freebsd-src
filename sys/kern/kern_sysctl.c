@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.15 1994/09/23 19:07:17 wollman Exp $
+ * $Id: kern_sysctl.c,v 1.16 1994/10/02 17:35:19 phk Exp $
  */
 
 /*
@@ -144,7 +144,7 @@ __sysctl(p, uap, retval)
 			return (EFAULT);
 		while (memlock.sl_lock) {
 			memlock.sl_want = 1;
-			sleep((caddr_t)&memlock, PRIBIO+1);
+			(void) tsleep((caddr_t)&memlock, PRIBIO+1, "sysctl", 0);
 			memlock.sl_locked++;
 		}
 		memlock.sl_lock = 1;

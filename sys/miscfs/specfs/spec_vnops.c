@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.6 (Berkeley) 4/9/94
- * $Id: spec_vnops.c,v 1.4 1994/08/08 09:11:36 davidg Exp $
+ * $Id: spec_vnops.c,v 1.5 1994/09/21 03:47:09 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -465,7 +465,7 @@ loop:
 	if (ap->a_waitfor == MNT_WAIT) {
 		while (vp->v_numoutput) {
 			vp->v_flag |= VBWAIT;
-			sleep((caddr_t)&vp->v_numoutput, PRIBIO + 1);
+			(void) tsleep((caddr_t)&vp->v_numoutput, PRIBIO + 1, "spfsyn", 0);
 		}
 #ifdef DIAGNOSTIC
 		if (vp->v_dirtyblkhd.lh_first) {
