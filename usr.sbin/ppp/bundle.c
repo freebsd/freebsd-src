@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.84 1998/05/15 23:58:14 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.85 1998/05/16 23:47:20 brian Exp $
  */
 
 #include <sys/types.h>
@@ -405,6 +405,9 @@ bundle_IsSet(struct descriptor *d, const fd_set *fdset)
   for (desc = bundle->desc.next; desc; desc = desc->next)
     if (descriptor_IsSet(desc, fdset))
       return 1;
+
+  if (descriptor_IsSet(&bundle->ncp.mp.server.desc, fdset))
+    return 1;
 
   return FD_ISSET(bundle->dev.fd, fdset);
 }
