@@ -4,7 +4,7 @@ PROG =	rpc.rstatd
 SRCS =	rstatd.c rstat_proc.c
 MAN =	rpc.rstatd.8
 
-DPADD=	${LIBRPCSVC} ${LIBUTIL} ${LIBKVM} ${LIBDEVSTAT}
-LDADD=	-lrpcsvc -lutil -lkvm -ldevstat
+DPADD=	${LIBRPCSVC} ${LIBUTIL} ${LIBDEVSTAT} ${LIBKVM}
+LDADD=	-lrpcsvc -lutil -ldevstat -lkvm
 
 .include <bsd.prog.mk>
