@@ -4,36 +4,35 @@
 .PATH: ${.CURDIR}/thread
 
 SRCS+= \
-	thr_atfork.c \
 	thr_attr.c \
-	thr_autoinit.c \
 	thr_barrier.c \
 	thr_barrierattr.c \
 	thr_cancel.c \
 	thr_clean.c \
 	thr_concurrency.c \
 	thr_cond.c \
-	thr_condattr_destroy.c \
-	thr_condattr_init.c \
+	thr_condattr.c \
 	thr_create.c \
 	thr_detach.c \
 	thr_equal.c \
 	thr_exit.c \
-	thr_find_thread.c \
+	thr_fork.c \
 	thr_getprio.c \
+	thr_getschedparam.c \
 	thr_init.c \
 	thr_join.c \
+	thr_list.c \
 	thr_kern.c \
+	thr_kill.c \
 	thr_main_np.c \
-	thr_mattr_init.c \
-	thr_mattr_kind_np.c \
 	thr_multi_np.c \
 	thr_mutex.c \
+	thr_mutexattr.c \
 	thr_mutex_prioceiling.c \
 	thr_mutex_protocol.c \
-	thr_mutexattr_destroy.c \
 	thr_once.c \
 	thr_printf.c \
+	thr_pspinlock.c \
 	thr_resume_np.c \
 	thr_rwlock.c \
 	thr_rwlockattr.c \
@@ -43,10 +42,13 @@ SRCS+= \
 	thr_setprio.c \
 	thr_setschedparam.c \
 	thr_sig.c \
+	thr_single_np.c \
 	thr_spec.c \
 	thr_spinlock.c \
 	thr_stack.c \
-	thr_subr.c \
-	thr_suspend_np.c \
 	thr_syscalls.c \
+	thr_suspend_np.c \
+	thr_switch_np.c \
+	thr_symbols.c \
+	thr_umtx.c \
 	thr_yield.c

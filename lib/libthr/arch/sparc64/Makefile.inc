@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/sys ${.CURDIR}/arch/${MACHINE_ARCH}/${MACHINE_ARCH}
+.PATH:	${.CURDIR}/arch/${MACHINE_ARCH}/${MACHINE_ARCH}
 
-SRCS+=	_setcurthread.c
+SRCS+=	pthread_md.c

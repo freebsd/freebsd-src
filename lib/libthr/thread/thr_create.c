@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2003 Daniel M. Eischen <deischen@gdeb.com>
  * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>
  * All rights reserved.
  *
@@ -31,27 +32,20 @@
  *
  * $FreeBSD$
  */
+
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#include <fcntl.h>
-#include <unistd.h>
 #include <stddef.h>
-#include <sys/time.h>
-#include <machine/reg.h>
 #include <pthread.h>
+#include <sys/signalvar.h>
+
 #include "thr_private.h"
-#include "libc_private.h"
 
-#define OFF(f)	offsetof(struct pthread, f)
-int _thread_thr_id_offset		= OFF(thr_id);
-int _thread_next_offset			= OFF(tle.tqe_next);
-int _thread_name_offset			= OFF(name);
-int _thread_ctx_offset			= OFF(ctx);
-#undef OFF
-
-int _thread_PS_RUNNING_value		= PS_RUNNING;
-int _thread_PS_DEAD_value		= PS_DEAD;
+static void free_thread(struct pthread *curthread, struct pthread *thread);
+static int  create_stack(struct pthread_attr *pattr);
+static void free_stack(struct pthread *curthread, struct pthread_attr *pattr);
+static void thread_start(struct pthread *curthread);
 
 __weak_reference(_pthread_create, pthread_create);
 
@@ -59,73 +53,80 @@ int
 _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	       void *(*start_routine) (void *), void *arg)
 {
-	int             ret = 0;
-	pthread_t       new_thread;
-	pthread_attr_t	pattr;
-	int		flags;
-	void           *stack;
+	ucontext_t uc;
+	sigset_t sigmask, oldsigmask;
+	struct pthread *curthread, *new_thread;
+	int ret = 0;
+
+	_thr_check_init();
 
 	/*
-	 * Locking functions in libc are required when there are
-	 * threads other than the initial thread.
+	 * Tell libc and others now they need lock to protect their data.
 	 */
-	__isthreaded = 1;
-
-	/* Allocate memory for the thread structure: */
-	if ((new_thread = (pthread_t) malloc(sizeof(struct pthread))) == NULL)
+	if (_thr_isthreaded() == 0 && _thr_setthreaded(1))
 		return (EAGAIN);
 
-	/* Check if default thread attributes are required: */
-	if (attr == NULL || *attr == NULL) 
-		pattr = &pthread_attr_default;
-	else 
-		pattr = *attr;
-	
-	/* Check if a stack was specified in the thread attributes: */
-	if ((stack = pattr->stackaddr_attr) == NULL) {
-		stack = _thread_stack_alloc(pattr->stacksize_attr,
-		    pattr->guardsize_attr);
-		if (stack == NULL) {
-			free(new_thread);
-			return (EAGAIN);
-		}
+	curthread = _get_curthread();
+	if ((new_thread = _thr_alloc(curthread)) == NULL)
+		return (EAGAIN);
+
+	if (attr == NULL || *attr == NULL)
+		/* Use the default thread attributes: */
+		new_thread->attr = _pthread_attr_default;
+	else
+		new_thread->attr = *(*attr);
+	if (new_thread->attr.sched_inherit == PTHREAD_INHERIT_SCHED) {
+		/* inherit scheduling contention scope */
+		if (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM)
+			new_thread->attr.flags |= PTHREAD_SCOPE_SYSTEM;
+		else
+			new_thread->attr.flags &= ~PTHREAD_SCOPE_SYSTEM;
+		/*
+		 * scheduling policy and scheduling parameters will be
+		 * inherited in following code.
+		 */
 	}
 
-	/* Initialise the thread structure: */
-	init_td_common(new_thread, pattr, 0);
-	new_thread->stack = stack;
+	if (_thr_scope_system > 0)
+		new_thread->attr.flags |= PTHREAD_SCOPE_SYSTEM;
+	else if (_thr_scope_system < 0)
+		new_thread->attr.flags &= ~PTHREAD_SCOPE_SYSTEM;
+
+	if (create_stack(&new_thread->attr) != 0) {
+		/* Insufficient memory to create a stack: */
+		new_thread->terminated = 1;
+		_thr_free(curthread, new_thread);
+		return (EAGAIN);
+	}
+	/*
+	 * Write a magic value to the thread structure
+	 * to help identify valid ones:
+	 */
+	new_thread->magic = THR_MAGIC;
 	new_thread->start_routine = start_routine;
 	new_thread->arg = arg;
-
-	/* Initialise the machine context: */
-	getcontext(&new_thread->ctx);
-	new_thread->savedsig = new_thread->ctx.uc_sigmask;
-	new_thread->ctx.uc_stack.ss_sp = new_thread->stack;
-	new_thread->ctx.uc_stack.ss_size = pattr->stacksize_attr;
-	makecontext(&new_thread->ctx, (void (*)(void))_thread_start, 1, new_thread);
-	new_thread->arch_id = _set_curthread(&new_thread->ctx, new_thread, &ret);
-	if (ret != 0) {
-		if (pattr->stackaddr_attr == NULL) {
-			STACK_LOCK;
-			_thread_stack_free(new_thread->stack,
-			    pattr->stacksize_attr, pattr->guardsize_attr);
-			STACK_UNLOCK;
-		}
-		free(new_thread);
-		return (ret);
-	}
+	new_thread->cancelflags = PTHREAD_CANCEL_ENABLE |
+	    PTHREAD_CANCEL_DEFERRED;
+	getcontext(&uc);
+	SIGFILLSET(uc.uc_sigmask);
+	uc.uc_stack.ss_sp = new_thread->attr.stackaddr_attr;
+	uc.uc_stack.ss_size = new_thread->attr.stacksize_attr;
+	makecontext(&uc, (void (*)(void))thread_start, 1, new_thread);
 
 	/*
 	 * Check if this thread is to inherit the scheduling
 	 * attributes from its parent:
 	 */
-	if (new_thread->attr.flags & PTHREAD_INHERIT_SCHED) {
-		/* Copy the scheduling attributes: */
-		new_thread->base_priority = curthread->base_priority &
-		    ~PTHREAD_SIGNAL_PRIORITY;
-		new_thread->attr.prio = curthread->base_priority &
-		    ~PTHREAD_SIGNAL_PRIORITY;
+	if (new_thread->attr.sched_inherit == PTHREAD_INHERIT_SCHED) {
+		/*
+		 * Copy the scheduling attributes. Lock the scheduling
+		 * lock to get consistent scheduling parameters.
+		 */
+		THR_LOCK(curthread);
+		new_thread->base_priority = curthread->base_priority;
+		new_thread->attr.prio = curthread->base_priority;
 		new_thread->attr.sched_policy = curthread->attr.sched_policy;
+		THR_UNLOCK(curthread);
 	} else {
 		/*
 		 * Use just the thread priority, leaving the
@@ -136,53 +137,87 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	}
 	new_thread->active_priority = new_thread->base_priority;
 
-	THREAD_LIST_LOCK;
+	/* Initialize the mutex queue: */
+	TAILQ_INIT(&new_thread->mutexq);
+	TAILQ_INIT(&new_thread->pri_mutexq);
 
-	/* Add the thread to the linked list of all threads: */
-	TAILQ_INSERT_HEAD(&_thread_list, new_thread, tle);
-
+	/* Initialise hooks in the thread structure: */
+	if (new_thread->attr.suspend == THR_CREATE_SUSPENDED)
+		new_thread->flags = THR_FLAGS_SUSPENDED;
+	new_thread->state = PS_RUNNING;
 	/*
-	 * Create the thread.
+	 * Thread created by thr_create() inherits currrent thread
+	 * sigmask, however, before new thread setup itself correctly,
+	 * it can not handle signal, so we should masks all signals here.
 	 */
-	if (pattr->suspend == PTHREAD_CREATE_SUSPENDED)
-		new_thread->flags |= PTHREAD_FLAGS_SUSPENDED;
-	/* new thread inherits signal mask in kernel */
-	_thread_sigblock();
-	ret = thr_create(&new_thread->ctx, &new_thread->thr_id, flags);
-	/* restore my signal mask */
-	_thread_sigunblock();
-	if (ret != 0) {
-		_thread_printf(STDERR_FILENO, "thr_create() == %d\n", ret);
-		PANIC("thr_create");
-	}
-
-	THREAD_LIST_UNLOCK;
-
-	/* Return a pointer to the thread structure: */
+	SIGFILLSET(sigmask);
+	__sys_sigprocmask(SIG_SETMASK, &sigmask, &oldsigmask);
+	new_thread->sigmask = oldsigmask;
+	/* Add the new thread. */
+	_thr_link(curthread, new_thread);
+	/* Return thread pointer eariler so that new thread can use it. */
 	(*thread) = new_thread;
-
-	return (0);
+	/* Schedule the new thread. */
+	ret = thr_create(&uc, &new_thread->tid, 0);
+	__sys_sigprocmask(SIG_SETMASK, &oldsigmask, NULL);
+	if (ret != 0) {
+		_thr_unlink(curthread, new_thread);
+		free_thread(curthread, new_thread);
+		(*thread) = 0;
+		ret = EAGAIN;
+	}
+	return (ret);
 }
 
-void
-_thread_start(pthread_t td)
+static void
+free_thread(struct pthread *curthread, struct pthread *thread)
+{
+	free_stack(curthread, &thread->attr);
+	curthread->terminated = 1;
+	_thr_free(curthread, thread);
+}
+
+static int
+create_stack(struct pthread_attr *pattr)
 {
 	int ret;
 
-	/*
-	 * for AMD64, we need to set fsbase by thread itself, before
-	 * fsbase is set, we can not run any other code, for example
-	 * signal code.
-	 */
-	_set_curthread(NULL, td, &ret);
+	/* Check if a stack was specified in the thread attributes: */
+	if ((pattr->stackaddr_attr) != NULL) {
+		pattr->guardsize_attr = 0;
+		pattr->flags |= THR_STACK_USER;
+		ret = 0;
+	}
+	else
+		ret = _thr_stack_alloc(pattr);
+	return (ret);
+}
 
-	/* restore signal mask inherited before */
-	__sys_sigprocmask(SIG_SETMASK, &td->savedsig, NULL);
+static void
+free_stack(struct pthread *curthread, struct pthread_attr *pattr)
+{
+	if ((pattr->flags & THR_STACK_USER) == 0) {
+		THREAD_LIST_LOCK(curthread);
+		/* Stack routines don't use malloc/free. */
+		_thr_stack_free(pattr);
+		THREAD_LIST_UNLOCK(curthread);
+	}
+}
 
-	if ((curthread->flags & PTHREAD_FLAGS_SUSPENDED) != 0)
-		_thread_suspend(curthread, NULL);
+static void
+thread_start(struct pthread *curthread)
+{
+	_tcb_set(curthread->tcb);
 
+	/* Thread was created with all signals blocked, unblock them. */
+	__sys_sigprocmask(SIG_SETMASK, &curthread->sigmask, NULL);
+
+	if (curthread->flags & THR_FLAGS_NEED_SUSPEND)
+		_thr_suspend_check(curthread);
+
+	/* Run the current thread's start routine with argument: */
 	pthread_exit(curthread->start_routine(curthread->arg));
+
 	/* This point should never be reached. */
 	PANIC("Thread has resumed after exit");
 }

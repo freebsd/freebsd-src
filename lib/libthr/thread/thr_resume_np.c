@@ -31,30 +31,31 @@
  *
  * $FreeBSD$
  */
+
 #include <errno.h>
 #include <pthread.h>
-#include <stdlib.h>
-#include "thr_private.h"
 
-static void	resume_common(struct pthread *);
+#include "thr_private.h"
 
 __weak_reference(_pthread_resume_np, pthread_resume_np);
 __weak_reference(_pthread_resume_all_np, pthread_resume_all_np);
+
+static void resume_common(struct pthread *thread);
 
 /* Resume a thread: */
 int
 _pthread_resume_np(pthread_t thread)
 {
+	struct pthread *curthread = _get_curthread();
 	int ret;
 
-	/* Find the thread in the list of active threads: */
-	if ((ret = _find_thread(thread)) == 0) {
-		PTHREAD_LOCK(thread);
-
-		if ((thread->flags & PTHREAD_FLAGS_SUSPENDED) != 0)
-			resume_common(thread);
-
-		PTHREAD_UNLOCK(thread);
+	/* Add a reference to the thread: */
+	if ((ret = _thr_ref_add(curthread, thread, /*include dead*/0)) == 0) {
+		/* Lock the threads scheduling queue: */
+		THR_THREAD_LOCK(curthread, thread);
+		resume_common(thread);
+		THR_THREAD_UNLOCK(curthread, thread);
+		_thr_ref_delete(curthread, thread);
 	}
 	return (ret);
 }
@@ -62,28 +63,30 @@ _pthread_resume_np(pthread_t thread)
 void
 _pthread_resume_all_np(void)
 {
-	struct pthread	*thread;
+	struct pthread *curthread = _get_curthread();
+	struct pthread *thread;
 
-	_thread_sigblock();
-	THREAD_LIST_LOCK;
+	/* Take the thread list lock: */
+	THREAD_LIST_LOCK(curthread);
+
 	TAILQ_FOREACH(thread, &_thread_list, tle) {
-		PTHREAD_LOCK(thread);
-		if ((thread != curthread) &&
-		    ((thread->flags & PTHREAD_FLAGS_SUSPENDED) != 0))
+		if (thread != curthread) {
+			THR_THREAD_LOCK(curthread, thread);
 			resume_common(thread);
-		PTHREAD_UNLOCK(thread);
+			THR_THREAD_UNLOCK(curthread, thread);
+		}
 	}
-	THREAD_LIST_UNLOCK;
-	_thread_sigunblock();
+
+	/* Release the thread list lock: */
+	THREAD_LIST_UNLOCK(curthread);
 }
 
-/*
- * The caller is required to have locked the thread before
- * calling this function.
- */
 static void
 resume_common(struct pthread *thread)
 {
-	thread->flags &= ~PTHREAD_FLAGS_SUSPENDED;
-	thr_wake(thread->thr_id);
+	/* Clear the suspend flag: */
+	thread->flags &= ~THR_FLAGS_NEED_SUSPEND;
+	thread->cycle++;
+	_thr_umtx_wake(&thread->cycle, 1);
+	_thr_send_sig(thread, SIGCANCEL);
 }

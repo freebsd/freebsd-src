@@ -31,6 +31,7 @@
  *
  * $FreeBSD$
  */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
@@ -38,6 +39,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <errno.h>
+
 #include "thr_private.h"
 
 #ifndef NELEMENTS
@@ -57,10 +59,8 @@ struct s_thread_info {
 static const struct s_thread_info thread_info[] = {
 	{PS_RUNNING	, "Running"},
 	{PS_MUTEX_WAIT	, "Waiting on a mutex"},
-	{PS_COND_WAIT	, "Waiting on a condition variable"},
-	{PS_SLEEP_WAIT	, "Sleeping"},
-	{PS_WAIT_WAIT	, "Waiting process"},
 	{PS_JOIN	, "Waiting to join"},
+	{PS_SUSPENDED	, "Suspended"},
 	{PS_DEAD	, "Dead"},
 	{PS_DEADLOCK	, "Deadlocked"},
 	{PS_STATE_MAX	, "Not a real state!"}
@@ -69,14 +69,12 @@ static const struct s_thread_info thread_info[] = {
 void
 _thread_dump_info(void)
 {
-	char            s[512];
-	int             fd;
-	int             i;
-	pthread_t       pthread;
-	char		tmpfile[128];
+	char s[512], tmpfile[128];
+	pthread_t pthread;
+	int fd, i;
 
 	for (i = 0; i < 100000; i++) {
-		snprintf(tmpfile, sizeof(tmpfile), "/tmp/uthread.dump.%u.%i",
+		snprintf(tmpfile, sizeof(tmpfile), "/tmp/pthread.dump.%u.%i",
 			getpid(), i);
 		/* Open the dump file for append and create it if necessary: */
 		if ((fd = __sys_open(tmpfile, O_RDWR | O_CREAT | O_EXCL,
@@ -99,37 +97,34 @@ _thread_dump_info(void)
 		/* all 100000 possibilities are in use :( */
 		return;
 	} else {
-		/* Output a header for active threads: */
-		strcpy(s, "\n\n=============\nACTIVE THREADS\n\n");
+		/* Dump the active threads. */
+		strcpy(s, "\n\n========\nACTIVE THREADS\n\n");
 		__sys_write(fd, s, strlen(s));
 
 		/* Enter a loop to report each thread in the global list: */
 		TAILQ_FOREACH(pthread, &_thread_list, tle) {
-			dump_thread(fd, pthread, /*long_verson*/ 1);
+			if (pthread->state != PS_DEAD)
+				dump_thread(fd, pthread, /*long_verson*/ 1);
 		}
 
-		/* Check if there are no dead threads: */
-		DEAD_LIST_LOCK;
-		if (TAILQ_FIRST(&_dead_list) == NULL) {
-			/* Output a record: */
-			strcpy(s, "\n\nTHERE ARE NO DEAD THREADS\n");
-			__sys_write(fd, s, strlen(s));
-		} else {
-			/* Output a header for dead threads: */
-			strcpy(s, "\n\nDEAD THREADS\n\n");
-			__sys_write(fd, s, strlen(s));
+		/*
+		 * Dump the ready threads.
+		 * XXX - We can't easily do this because the run queues
+		 *       are per-KSEG.
+		 */
+		strcpy(s, "\n\n========\nREADY THREADS - unimplemented\n\n");
+		__sys_write(fd, s, strlen(s));
 
-			/*
-			 * Enter a loop to report each thread in the global
-			 * dead thread list:
-			 */
-			TAILQ_FOREACH(pthread, &_dead_list, dle) {
-				dump_thread(fd, pthread, /*long_version*/ 0);
-			}
-		}
-		DEAD_LIST_UNLOCK;
 
-		/* Close the dump file: */
+		/*
+		 * Dump the waiting threads.
+		 * XXX - We can't easily do this because the wait queues
+		 *       are per-KSEG.
+		 */
+		strcpy(s, "\n\n========\nWAITING THREADS - unimplemented\n\n");
+		__sys_write(fd, s, strlen(s));
+
+		/* Close the dump file. */
 		__sys_close(fd);
 	}
 }
@@ -137,8 +132,9 @@ _thread_dump_info(void)
 static void
 dump_thread(int fd, pthread_t pthread, int long_version)
 {
-	char		s[512];
-	int		i;
+	struct pthread *curthread = _get_curthread();
+	char s[512];
+	int i;
 
 	/* Find the state: */
 	for (i = 0; i < NELEMENTS(thread_info) - 1; i++)
@@ -147,10 +143,12 @@ dump_thread(int fd, pthread_t pthread, int long_version)
 
 	/* Output a record for the thread: */
 	snprintf(s, sizeof(s),
-	    "--------------------\nThread %p (%s) prio %3d state %s [%s:%d]\n",
+	    "--------------------\n"
+	    "Thread %p (%s), scope %s, prio %3d, state %s [%s:%d]\n",
 	    pthread, (pthread->name == NULL) ? "" : pthread->name,
-	    pthread->active_priority, thread_info[i].name, pthread->fname,
-	    pthread->lineno);
+	    pthread->attr.flags & PTHREAD_SCOPE_SYSTEM ? "system" : "process",
+	    pthread->active_priority,
+	    thread_info[i].name, pthread->fname, pthread->lineno);
 	__sys_write(fd, s, strlen(s));
 
 	if (long_version != 0) {
@@ -161,11 +159,12 @@ dump_thread(int fd, pthread_t pthread, int long_version)
 			__sys_write(fd, s, strlen(s));
 		}
 		/* Check if this is the initial thread: */
-		if (pthread == _thread_initial) {
+		if (pthread == _thr_initial) {
 			/* Output a record for the initial thread: */
 			strcpy(s, "This is the initial thread\n");
 			__sys_write(fd, s, strlen(s));
 		}
+	
 		/* Process according to thread state: */
 		switch (pthread->state) {
 		/*
@@ -173,7 +172,15 @@ dump_thread(int fd, pthread_t pthread, int long_version)
 		 * coded to dump information:
 		 */
 		default:
-			/* Nothing to do here. */
+			snprintf(s, sizeof(s), "sigmask (hi) ");
+			__sys_write(fd, s, strlen(s));
+			for (i = _SIG_WORDS - 1; i >= 0; i--) {
+				snprintf(s, sizeof(s), "%08x ",
+				    pthread->sigmask.__bits[i]);
+				__sys_write(fd, s, strlen(s));
+			}
+			snprintf(s, sizeof(s), "(lo)\n");
+			__sys_write(fd, s, strlen(s));
 			break;
 		}
 	}
@@ -181,10 +188,10 @@ dump_thread(int fd, pthread_t pthread, int long_version)
 
 /* Set the thread name for debug: */
 void
-_pthread_set_name_np(pthread_t thread, const char *name)
+_pthread_set_name_np(pthread_t thread, char *name)
 {
 	/* Check if the caller has specified a valid thread: */
-	if (thread != NULL && thread->magic == PTHREAD_MAGIC) {
+	if (thread != NULL && thread->magic == THR_MAGIC) {
 		if (thread->name != NULL) {
 			/* Free space for previous name. */
 			free(thread->name);

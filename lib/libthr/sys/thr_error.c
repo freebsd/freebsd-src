@@ -35,25 +35,20 @@
  */
 
 #include <pthread.h>
+
+#include "libc_private.h"
 #include "thr_private.h"
 
 #undef errno
 extern	int	errno;
 
-__weak_reference(___error, __error);
-
 int *
-___error()
+__error(void)
 {
-	struct pthread *pthread;
+	struct pthread *curthread = _get_curthread();
 
-	if (_thread_initial == NULL)
+	if (curthread != NULL && curthread != _thr_initial)
+		return (&curthread->error);
+	else
 		return (&errno);
-
-	pthread = _get_curthread();
-
-	if (pthread == _thread_initial)
-		return (&errno);
-
-	return (&pthread->error);
 }
