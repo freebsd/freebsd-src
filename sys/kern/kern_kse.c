@@ -1623,7 +1623,7 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		td->td_flags &= ~TDF_CAN_UNBIND;
 		mtx_unlock_spin(&sched_lock);
 		ku = td->td_upcall;
-		if ((p->p_flag & PS_NEEDSIGCHK) == 0 &&
+		if ((p->p_sflag & PS_NEEDSIGCHK) == 0 &&
 		    (kg->kg_completed == NULL) &&
 		    (ku->ku_flags & KUF_DOUPCALL) == 0 &&
 		    (kg->kg_upquantum && ticks >= kg->kg_nextupcall)) {
