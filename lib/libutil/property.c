@@ -46,11 +46,25 @@ property_alloc(char *name, char *value)
 {
     properties n;
 
-    n = (properties)malloc(sizeof(struct _property));
+    if ((n = (properties)malloc(sizeof(struct _property))) == NULL)
+	return (NULL);
     n->next = NULL;
-    n->name = name ? strdup(name) : NULL;
-    n->value = value ? strdup(value) : NULL;
-    return n;
+    if (name != NULL) {
+	if ((n->name = strdup(name)) == NULL) {
+	    free(n);
+	    return (NULL);
+	}
+    } else
+	n->name = NULL;
+    if (value != NULL) {
+	if ((n->value = strdup(value)) == NULL) {
+	    free(n->name);
+	    free(n);
+	    return (NULL);
+	}
+    } else
+	n->value = NULL;
+    return (n);
 }
 
 properties
@@ -88,14 +102,14 @@ properties_read(int fd)
 	    /* FALLTHROUGH deliberately since we already have a character and state == LOOK */
 
 	case LOOK:
-	    if (isspace(ch))
+	    if (isspace((unsigned char)ch))
 		continue;
 	    /* Allow shell or lisp style comments */
 	    else if (ch == '#' || ch == ';') {
 		state = COMMENT;
 		continue;
 	    }
-	    else if (isalnum(ch) || ch == '_') {
+	    else if (isalnum((unsigned char)ch) || ch == '_') {
 		if (n >= PROPERTY_MAX_NAME) {
 		    n = 0;
 		    state = COMMENT;
@@ -121,7 +135,7 @@ properties_read(int fd)
 		v = n = 0;
 		state = COMMIT;
 	    }
-	    else if (isspace(ch))
+	    else if (isspace((unsigned char)ch))
 		continue;
 	    else if (ch == '=') {
 		hold_n[n] = '\0';
@@ -138,7 +152,7 @@ properties_read(int fd)
 	        v = n = 0;
 	        state = COMMIT;
 	    } 
-	    else if (v == 0 && isspace(ch))
+	    else if (v == 0 && isspace((unsigned char)ch))
 		continue;
 	    else if (ch == '{') {
 		state = MVALUE;
@@ -180,10 +194,14 @@ properties_read(int fd)
 	    break;
 
 	case COMMIT:
-	    if (!head)
-		head = ptr = property_alloc(hold_n, hold_v);
-	    else {
-		ptr->next = property_alloc(hold_n, hold_v);
+	    if (head == NULL) {
+		if ((head = ptr = property_alloc(hold_n, hold_v)) == NULL)
+		    return (NULL);
+	    } else {
+		if ((ptr->next = property_alloc(hold_n, hold_v)) == NULL) {
+		    properties_free(head);
+		    return (NULL);
+		}
 		ptr = ptr->next;
 	    }
 	    state = LOOK;
@@ -195,7 +213,7 @@ properties_read(int fd)
 	    break;
 	}
     }
-    return head;
+    return (head);
 }
 
 char *
