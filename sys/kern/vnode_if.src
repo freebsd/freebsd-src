@@ -365,7 +365,7 @@ vop_lock {
 };
 
 #
-#% unlock	vp	L U L
+#% unlock	vp	L ? L
 #
 vop_unlock {
 	IN struct vnode *vp;
