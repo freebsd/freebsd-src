@@ -25,8 +25,10 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.51.2.2 1999/03/02 00:42:08 julian Exp $
+ *  $Id: linux_misc.c,v 1.51.2.3 1999/07/17 16:42:44 marcel Exp $
  */
+
+#include "opt_compat.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -59,6 +61,12 @@
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
 #include <i386/linux/linux_util.h>
+
+static unsigned int linux_to_bsd_resource[LINUX_RLIM_NLIMITS] = {
+	RLIMIT_CPU, RLIMIT_FSIZE, RLIMIT_DATA, RLIMIT_STACK,
+	RLIMIT_CORE, RLIMIT_RSS, RLIMIT_NPROC, RLIMIT_NOFILE,
+	RLIMIT_MEMLOCK, -1
+};
 
 int
 linux_alarm(struct proc *p, struct linux_alarm_args *args)
@@ -1208,4 +1216,52 @@ linux_getgroups(p, uap)
 
   p->p_retval[0] = ngrp;
   return (0);
+}
+
+int
+linux_setrlimit(p, uap)
+	struct proc *p;
+	struct linux_setrlimit_args *uap;
+{
+	struct osetrlimit_args bsd;
+
+#ifdef DEBUG
+	printf("Linux-emul(%ld): setrlimit(%d, %p)\n", (long)p->p_pid,
+	       uap->resource, (void *)uap->rlim);
+#endif
+
+	if (uap->resource >= LINUX_RLIM_NLIMITS)
+		return EINVAL;
+
+	bsd.which = linux_to_bsd_resource[uap->resource];
+
+	if (bsd.which == -1)
+		return EINVAL;
+
+	bsd.rlp = uap->rlim;
+	return osetrlimit(p, &bsd);
+}
+
+int
+linux_getrlimit(p, uap)
+	struct proc *p;
+	struct linux_getrlimit_args *uap;
+{
+	struct ogetrlimit_args bsd;
+
+#ifdef DEBUG
+	printf("Linux-emul(%ld): getrlimit(%d, %p)\n", (long)p->p_pid,
+	       uap->resource, (void *)uap->rlim);
+#endif
+
+	if (uap->resource >= LINUX_RLIM_NLIMITS)
+		return EINVAL;
+
+	bsd.which = linux_to_bsd_resource[uap->resource];
+
+	if (bsd.which == -1)
+		return EINVAL;
+
+	bsd.rlp = uap->rlim;
+	return ogetrlimit(p, &bsd);
 }
