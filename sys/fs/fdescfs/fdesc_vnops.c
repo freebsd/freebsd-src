@@ -307,9 +307,9 @@ fdesc_getattr(ap)
 				 * so turn off the 'r' and 'x' bits to avoid
 				 * trouble.
 				 */
-#define VRXEC (VREAD|VEXEC)
-				vap->va_mode &= ~((VRXEC)|(VRXEC>>3)|(VRXEC>>6));
-#undef VRXEC
+#define FDRX (VREAD|VEXEC)
+				vap->va_mode &= ~((FDRX)|(FDRX>>3)|(FDRX>>6));
+#undef FDRX
 			}
 			/*
 			 * Make sure these nodes reflect data as it pertains
