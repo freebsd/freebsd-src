@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.72 1995/03/28 05:39:53 ache Exp $
+ *	$Id: sio.c,v 1.73 1995/03/28 06:15:44 ache Exp $
  */
 
 #include "sio.h"
@@ -1121,9 +1121,20 @@ siointr1(com)
 if (com->iptr - com->ibuf == 8)
 	setsofttty();
 #endif
-				ioptr[0] = recv_data;
-				ioptr[CE_INPUT_OFFSET] = line_status;
-				com->iptr = ++ioptr;
+			      /*
+				Don't store PE if IGNPAR and BI if IGNBRK,
+				this hack allows "raw" tty optimization
+				works even if IGN* is set.
+				Assume TTY_OE mapped to TTY_PE
+			      */
+				if (   (!(line_status & (LSR_PE|LSR_OE))
+				    ||  !(com->tp->t_iflag & IGNPAR))
+				    && (!(line_status & LSR_BI)
+				    ||  !(com->tp->t_iflag & IGNBRK))) {
+					ioptr[0] = recv_data;
+					ioptr[CE_INPUT_OFFSET] = line_status;
+					com->iptr = ++ioptr;
+				}
 				if (ioptr == com->ihighwater
 				    && com->state & CS_RTS_IFLOW)
 					outb(com->modem_ctl_port,
@@ -1550,11 +1561,27 @@ repeat:
 		 * call overhead).
 		 */
 		if (!(tp->t_iflag & (ICRNL | IGNCR | IMAXBEL | INLCR | ISTRIP
-				   | IXOFF | IXON | IGNBRK | BRKINT | PARMRK))
+				   | IXOFF | IXON))
+		    && (!(tp->t_iflag & BRKINT) || (tp->t_iflag & IGNBRK))
+		    && (!(tp->t_iflag & PARMRK) ||
+			(tp->t_iflag & (IGNPAR|IGNBRK)) == (IGNPAR|IGNBRK))
 		    && !(tp->t_lflag & (ECHO | ECHONL | ICANON | IEXTEN | ISIG
 				   | PENDIN))
 		    && !(tp->t_state & (TS_CNTTB | TS_LNCH))
 		    && linesw[tp->t_line].l_rint == ttyinput) {
+			u_char *scan = buf;
+			int cnt = incc;
+
+			/* Zero PE & FE chars per POSIX spec. and 4.4 ttyinput() */
+			while (cnt--) {
+				if (   (scan[CE_INPUT_OFFSET] & LSR_FE)
+				       /* Assume TTY_OE mapped to TTY_PE */
+				    || (scan[CE_INPUT_OFFSET] & (LSR_PE|LSR_OE))
+				    && (tp->t_iflag & INPCK))
+					scan[0] = 0;
+				scan++;
+			}
+
 			tk_nin += incc;
 			tk_rawcc += incc;
 			tp->t_rawcc += incc;
