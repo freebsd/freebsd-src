@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.24.2.6 1997/05/09 23:36:27 brian Exp $
+ * $Id: command.c,v 1.24.2.7 1997/05/10 01:24:33 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -1017,6 +1017,8 @@ int param;
     case VAR_DEVICE:
       strncpy(VarDevice, *argv, sizeof(VarDevice)-1);
       VarDevice[sizeof(VarDevice)-1] = '\0';
+      VarBaseDevice = rindex(VarDevice, '/');
+      VarBaseDevice = VarBaseDevice ? VarBaseDevice + 1 : "";
       break;
     case VAR_ACCMAP:
       sscanf(*argv, "%lx", &map);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.22.2.8 1997/05/09 17:36:21 brian Exp $
+ * $Id: main.c,v 1.22.2.9 1997/05/10 01:24:37 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -76,7 +76,8 @@ int TermMode;
 static int server;
 static pid_t BGPid = 0;
 struct sockaddr_in ifsin;
-char pid_filename[128];
+static char pid_filename[MAXPATHLEN];
+static char if_filename[MAXPATHLEN];
 int tunno;
 
 static void
@@ -170,6 +171,7 @@ int excode;
   if (mode & (MODE_AUTO | MODE_BACKGROUND)) {
     DeleteIfRoutes(1);
     unlink(pid_filename);
+    unlink(if_filename);
   }
   OsInterfaceDown(1);
   if (mode & MODE_BACKGROUND && BGFiledes[1] != -1) {
@@ -430,8 +432,7 @@ char **argv;
 
     DupLog();
     if (!(mode & MODE_DIRECT)) {
-      int fd;
-      char pid[32];
+      FILE *lockfile;
       pid_t bgpid;
 
       bgpid = fork ();
@@ -458,15 +459,24 @@ char **argv;
       } else if (mode & MODE_BACKGROUND)
           close(BGFiledes[0]);
 
-      snprintf(pid_filename, sizeof (pid_filename), "%s/ppp.tun%d.pid",
+      snprintf(pid_filename, sizeof (pid_filename), "%s/tun%d.pid",
 		  _PATH_VARRUN, tunno);
       unlink(pid_filename);
-      snprintf(pid, sizeof(pid), "%d\n", (int)getpid());
 
-      if ((fd = open(pid_filename, O_RDWR|O_CREAT, 0666)) != -1)
+      if ((lockfile = fopen(pid_filename, "w")) != NULL)
       {
-	  write(fd, pid, strlen(pid));
-	  close(fd);
+          fprintf(lockfile, "%d\n", (int)getpid());
+	  fclose(lockfile);
+      }
+
+      snprintf(if_filename, sizeof if_filename, "%s%s.if",
+               _PATH_VARRUN, VarBaseDevice);
+      unlink(if_filename);
+
+      if ((lockfile = fopen(if_filename, "w")) != NULL)
+      {
+          fprintf(lockfile, "tun%d\n", tunno);
+	  fclose(lockfile);
       }
     }
     if (server >= 0)
