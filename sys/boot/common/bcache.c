@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: bcache.c,v 1.3 1998/11/04 00:29:01 msmith Exp $
  */
 
 /*
@@ -98,8 +98,10 @@ bcache_init(int nblks, size_t bsize)
     }
 
     /* Invalidate the cache */
-    for (i = 0; i < bcache_nblks; i++)
+    for (i = 0; i < bcache_nblks; i++) {
 	bcache_ctl[i].bc_count = -1;
+	bcache_ctl[i].bc_blkno = -1;
+    }
 
     return(0);
 }
