@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uucplock.c,v 1.6 1997/05/12 10:36:14 brian Exp $
+ * $Id: uucplock.c,v 1.7 1997/08/05 12:58:02 ache Exp $
  *
  */
 
@@ -50,7 +50,13 @@ static const char sccsid[] = "@(#)uucplock.c	8.1 (Berkeley) 6/6/93";
 #include <string.h>
 #include "libutil.h"
 
+#define MAXTRIES 5
+
+#define LOCKTMP "LCKTMP..%d"
 #define LOCKFMT "LCK..%s"
+
+#define GORET(level, val) { err = errno; uuerr = (val); \
+			    goto __CONCAT(ret, level); }
 
 /* Forward declarations */
 static int put_pid (int fd, pid_t pid);
@@ -58,64 +64,67 @@ static pid_t get_pid (int fd,int *err);
 
 /*
  * uucp style locking routines
- * return: 0 - success
- * 	  -1 - failure
  */
 
 int uu_lock (const char *ttyname)
 {
-	int fd;
+	int fd, tmpfd, i;
 	pid_t pid;
-	char tbuf[sizeof(_PATH_UUCPLOCK) + MAXNAMLEN];
-	int err;
+	char lckname[sizeof(_PATH_UUCPLOCK) + MAXNAMLEN],
+	     lcktmpname[sizeof(_PATH_UUCPLOCK) + MAXNAMLEN];
+	int err, uuerr;
 
-	(void)snprintf(tbuf, sizeof(tbuf), _PATH_UUCPLOCK LOCKFMT, ttyname);
-	fd = open(tbuf, O_RDWR|O_CREAT|O_EXCL|O_EXLOCK, 0660);
-	if (fd < 0) {
-		/*
-		 * file is already locked
-		 * check to see if the process holding the lock still exists
-		 */
-		fd = open(tbuf, O_RDWR|O_SHLOCK);
-		if (fd < 0)
-			return UU_LOCK_OPEN_ERR;
-
-		if ((pid = get_pid (fd, &err)) == -1) {
-			(void)close(fd);
-			errno = err;
-			return UU_LOCK_READ_ERR;
-		}
-
-		if (kill(pid, 0) == 0 || errno != ESRCH) {
-			(void)close(fd);	/* process is still running */
-			return UU_LOCK_INUSE;
-		}
-		/*
-		 * The process that locked the file isn't running, so
-		 * we'll lock it ourselves
-		 */
-		if (lseek(fd, (off_t) 0, L_SET) < 0) {
-			err = errno;
-			(void)close(fd);
-			errno = err;
-			return UU_LOCK_SEEK_ERR;
-		}
-		if (flock(fd, LOCK_EX|LOCK_NB) < 0) {
-			(void)close(fd);
-			return UU_LOCK_INUSE;
-		}
-		/* fall out and finish the locking process */
-	}
 	pid = getpid();
-	if (!put_pid (fd, pid)) {
-		err = errno;
-		(void)unlink(tbuf);
-		(void)close(fd);
-		errno = err;
-		return UU_LOCK_WRITE_ERR;
+	(void)snprintf(lcktmpname, sizeof(lcktmpname), _PATH_UUCPLOCK LOCKTMP,
+			pid);
+	(void)snprintf(lckname, sizeof(lckname), _PATH_UUCPLOCK LOCKFMT,
+			ttyname);
+	if ((tmpfd = creat(lcktmpname, 0664)) < 0)
+		GORET(0, UU_LOCK_CREAT_ERR);
+
+	for (i = 0; i < MAXTRIES; i++) {
+		if (link (lcktmpname, lckname) < 0) {
+			if (errno != EEXIST)
+				GORET(1, UU_LOCK_LINK_ERR);
+			/*
+			 * file is already locked
+			 * check to see if the process holding the lock
+			 * still exists
+			 */
+			if ((fd = open(lckname, O_RDONLY)) < 0)
+				GORET(1, UU_LOCK_OPEN_ERR);
+
+			if ((pid = get_pid (fd, &err)) == -1)
+				GORET(2, UU_LOCK_READ_ERR);
+
+			close(fd);
+
+			if (kill(pid, 0) == 0 || errno != ESRCH)
+				GORET(1, UU_LOCK_INUSE);
+			/*
+			 * The process that locked the file isn't running, so
+			 * we'll lock it ourselves
+			 */
+			(void)unlink(lckname);
+		} else {
+			if (!put_pid (tmpfd, pid))
+				GORET(3, UU_LOCK_WRITE_ERR);
+			break;
+		}
 	}
+	GORET(1, (i >= MAXTRIES) ? UU_LOCK_TRY_ERR : UU_LOCK_OK);
+
+ret3:
+	(void)unlink(lckname);
+	goto ret1;
+ret2:
 	(void)close(fd);
-	return UU_LOCK_OK;
+ret1:
+	(void)close(tmpfd);
+	(void)unlink(lcktmpname);
+ret0:
+	errno = err;
+	return uuerr;
 }
 
 int uu_unlock (const char *ttyname)
@@ -142,11 +151,17 @@ const char *uu_lockerr (int uu_lockresult)
 		case UU_LOCK_READ_ERR:
 			fmt = "read error: %s";
 			break;
-		case UU_LOCK_SEEK_ERR:
-			fmt = "seek error: %s";
+		case UU_LOCK_CREAT_ERR:
+			fmt = "creat error: %s";
 			break;
 		case UU_LOCK_WRITE_ERR:
 			fmt = "write error: %s";
+			break;
+		case UU_LOCK_LINK_ERR:
+			fmt = "link error: %s";
+			break;
+		case UU_LOCK_TRY_ERR:
+			fmt = "too many tries: %s";
 			break;
 		default:
 			fmt = "undefined error: %s";
@@ -166,7 +181,7 @@ static int put_pid (int fd, pid_t pid)
 	return write (fd, buf, len) == len;
 }
 
-static pid_t get_pid (int fd,int *err)
+static pid_t get_pid (int fd, int *err)
 {
 	int bytes_read;
 	char buf[32];

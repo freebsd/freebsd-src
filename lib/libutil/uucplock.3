@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\" 
-.\" $Id: uucplock.3,v 1.6 1997/05/11 08:50:33 davidn Exp $
+.\" $Id: uucplock.3,v 1.7 1997/05/12 10:36:14 brian Exp $
 .\" "
 .Dd March 30, 1997
 .Os
@@ -99,16 +99,20 @@ The lock file could not be opened via
 The lock file could not be read via
 .Xr read 2 .
 .Pp
-.Dv UU_LOCK_SEEK_ERR:
-The lock file was
-.Dq stale ,
-but the call to
-.Xr lseek 2
-necessary to write the current process id failed.
+.Dv UU_LOCK_CREAT_ERR:
+Can't create temporary lock file via
+.Xr creat 2 .
 .Pp
 .Dv UU_LOCK_WRITE_ERR:
 The current process id could not be written to the lock file via a call to
 .Xr write 2 .
+.Pp
+.Dv UU_LOCK_LINK_ERR:
+Can't link temporary lock file via
+.Xr link 2 .
+.Pp
+.Dv UU_LOCK_TRY_ERR:
+Locking attempts are failed after 5 tries.
 .Pp
 If a value of
 .Dv UU_LOCK_OK
