@@ -67,6 +67,7 @@ static char sccsid[] = "@(#)pstat.c	8.9 (Berkeley) 2/16/94";
 #include <sys/sysctl.h>
 
 #include <err.h>
+#include <fcntl.h>
 #include <kvm.h>
 #include <limits.h>
 #include <nlist.h>
