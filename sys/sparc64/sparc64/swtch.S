@@ -190,27 +190,11 @@ ENTRY(cpu_switch)
 	stw	%o3, [%o2 + VM_PMAP + PM_ACTIVE]
 
 	/*
-	 * Load the address of the user tsb and the tte data that maps it into
-	 * kernel space and set the lock bit.
+	 * Switch to mmu globals and install the preloaded tsb pointer.
 	 */
 	ldx	[%o2 + VM_PMAP + PM_TSB], %o3
-	ldx	[%o2 + VM_PMAP + PM_TSB_TTE], %o4
-	ldx	[%o4 + TTE_DATA], %o4
-	or	%o4, TD_L, %o4
-
-	/*
-	 * Switch to mmu globals, install the preloaded tsb pointer and map
-	 * the new tsb.  We also disable interrupts so that this is as atomic
-	 * as can be.
-	 */
 	wrpr	%g0, PSTATE_MMU, %pstate
 	mov	%o3, TSB_REG
-	or	%o3, TLB_DEMAP_NUCLEUS | TLB_DEMAP_PAGE, %o5
-	stxa	%g0, [%o5] ASI_DMMU_DEMAP
-	mov	AA_DMMU_TAR, %o5
-	stxa	%o3, [%o5] ASI_DMMU
-	stxa	%o4, [%g0] ASI_DTLB_DATA_IN_REG
-	membar	#Sync
 	wrpr	%g0, PSTATE_KERNEL, %pstate
 
 	/*

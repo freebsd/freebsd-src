@@ -68,7 +68,6 @@ struct md_page {
 struct pmap {
 	TAILQ_HEAD(,pv_entry) pm_pvlist;
 	struct	tte *pm_tsb;
-	struct	tte *pm_tsb_tte;
 	vm_object_t pm_tsb_obj;
 	u_int	pm_active;
 	u_int	pm_context;
