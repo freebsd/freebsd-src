@@ -699,12 +699,12 @@ uaudio_mixer_add_ctl(struct uaudio_softc *sc, struct mixerctl *mc)
 		for (i = 1; i < mc->nchan; i++)
 			DPRINTF((",%04x", mc->wValue[i]));
 #if defined(__FreeBSD__)
-		DPRINTF((" wIndex=%04x type=%d name='%s' unit='%s' "
+		DPRINTF((" wIndex=%04x type=%d ctl='%d' "
 			 "min=%d max=%d\n",
 			 mc->wIndex, mc->type, mc->ctl,
 			 mc->minval, mc->maxval));
 #else
-		DPRINTF((" wIndex=%04x type=%d ctl='%d' "
+		DPRINTF((" wIndex=%04x type=%d name='%s' unit='%s' "
 			 "min=%d max=%d\n",
 			 mc->wIndex, mc->type, mc->ctlname, mc->ctlunit,
 			 mc->minval, mc->maxval));
