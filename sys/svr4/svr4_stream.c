@@ -1703,8 +1703,9 @@ svr4_sys_putmsg(p, uap)
 	caddr_t sg;
 
 	retval = p->p_retval;
-	if ((u_int)SCARG(uap, fd) >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[SCARG(uap, fd)]) == NULL) {
+	fp = fdp->fd_ofiles[SCARG(uap, fd)];
+
+	if (((u_int)SCARG(uap, fd) >= fdp->fd_nfiles) || (fp == NULL)) {
 #ifdef DEBUG_SVR4
 	        uprintf("putmsg: bad fp\n");
 #endif
@@ -1716,8 +1717,7 @@ svr4_sys_putmsg(p, uap)
 		 SCARG(uap, dat), SCARG(uap, flags));
 #endif /* DEBUG_SVR4 */
 
-	if ((u_int)SCARG(uap, fd) >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[SCARG(uap, fd)]) == NULL) {
+	if (((u_int)SCARG(uap, fd) >= fdp->fd_nfiles) || (fp == NULL)) {
 #ifdef DEBUG_SVR4
 	        uprintf("putmsg: bad fp(2)\n");
 #endif
@@ -1891,8 +1891,9 @@ svr4_sys_getmsg(p, uap)
 	caddr_t sg;
 
 	retval = p->p_retval;
-	if ((u_int)SCARG(uap, fd) >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[SCARG(uap, fd)]) == NULL)
+	fp = fdp->fd_ofiles[SCARG(uap, fd)];
+
+	if (((u_int)SCARG(uap, fd) >= fdp->fd_nfiles) || (fp == NULL))
 		return EBADF;
 
 	memset(&sc, 0, sizeof(sc));
@@ -1902,8 +1903,7 @@ svr4_sys_getmsg(p, uap)
 		 SCARG(uap, dat), 0);
 #endif /* DEBUG_SVR4 */
 			
-	if ((u_int)SCARG(uap, fd) >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[SCARG(uap, fd)]) == NULL)
+	if (((u_int)SCARG(uap, fd) >= fdp->fd_nfiles) || (fp == NULL))
 		return EBADF;
 
 	if (SCARG(uap, ctl) != NULL) {
