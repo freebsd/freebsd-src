@@ -52,8 +52,7 @@ static const char sccsid[] = "@(#)pr_time.c	8.2 (Berkeley) 4/4/94";
  *	Print the time since the user logged in.
  */
 void
-pr_attime(started, now)
-	time_t *started, *now;
+pr_attime(time_t *started, time_t *now)
 {
 	static char buf[256];
 	struct tm tp, tm;
@@ -92,8 +91,7 @@ pr_attime(started, now)
  *	Returns number of excess characters that were used for long idle time.
  */
 int
-pr_idle(idle)
-	time_t idle;
+pr_idle(time_t idle)
 {
 	/* If idle more than 36 hours, print as a number of days. */
 	if (idle >= 36 * 3600) {
