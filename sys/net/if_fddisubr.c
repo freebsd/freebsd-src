@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	from: if_ethersubr.c,v 1.5 1994/12/13 22:31:45 wollman Exp
- * $Id: if_fddisubr.c,v 1.20 1997/08/02 14:32:36 bde Exp $
+ * $Id: if_fddisubr.c,v 1.21 1997/10/29 07:59:27 julian Exp $
  */
 
 #include <sys/param.h>
@@ -145,7 +145,7 @@ fddi_output(ifp, m0, dst, rt0)
 
 	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING))
 		senderr(ENETDOWN);
-	ifp->if_lastchange = time;
+	gettime(&ifp->if_lastchange);
 #if !defined(__bsdi__) || _BSDI_VERSION >= 199401
 	if (rt = rt0) {
 		if ((rt->rt_flags & RTF_UP) == 0) {
@@ -470,7 +470,7 @@ fddi_input(ifp, fh, m)
 		m_freem(m);
 		return;
 	}
-	ifp->if_lastchange = time;
+	gettime(&ifp->if_lastchange);
 	ifp->if_ibytes += m->m_pkthdr.len + sizeof (*fh);
 	if (fh->fddi_dhost[0] & 1) {
 		if (bcmp((caddr_t)fddibroadcastaddr, (caddr_t)fh->fddi_dhost,
