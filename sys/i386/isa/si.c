@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.26 1995/12/10 15:54:47 bde Exp $
+ *	$Id: si.c,v 1.27 1995/12/10 20:34:30 bde Exp $
  */
 
 #ifndef lint
@@ -124,7 +124,7 @@ static	d_devtotty_t	sidevtotty;
 #define CDEV_MAJOR 68
 static struct cdevsw si_cdevsw = 
 	{ siopen,	siclose,	siread,		siwrite,	/*68*/
-	  siioctl,	sistop,		nxreset,	sidevtotty,/* si */
+	  siioctl,	sistop,		noreset,	sidevtotty,/* si */
 	  ttselect,	nommap,		NULL,	"si",	NULL,	-1 };
 
 

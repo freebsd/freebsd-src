@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.11 1995/12/08 23:19:28 phk Exp $
+ *  dgb.c $Id: dgb.c,v 1.12 1995/12/10 15:54:01 bde Exp $
  *
  *  Digiboard driver.
  *
@@ -206,7 +206,7 @@ static	d_devtotty_t	dgbdevtotty;
 #define CDEV_MAJOR 58
 static struct cdevsw dgb_cdevsw = 
 	{ dgbopen,	dgbclose,	dgbread,	dgbwrite,	/*58*/
-	  dgbioctl,	dgbstop,	nxreset,	dgbdevtotty, /* dgb */
+	  dgbioctl,	dgbstop,	noreset,	dgbdevtotty, /* dgb */
 	  ttselect,	nommap,		NULL,	"dgb",	NULL,	-1 };
 
 static	speed_t	dgbdefaultrate = TTYDEF_SPEED;
