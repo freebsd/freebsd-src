@@ -253,7 +253,7 @@ rtprio(curp, uap)
 		if (p_trespass(curp, p) != 0)
 		        return (EPERM);
 		/* disallow setting rtprio in most cases if not superuser */
-		if (suser_xxx(NULL, curp, PRISON_ROOT) != 0) {
+		if (suser(curp) != 0) {
 			/* can't set someone else's */
 			if (uap->pid)
 				return (EPERM);
