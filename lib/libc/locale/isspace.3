@@ -51,7 +51,16 @@
 .Sh DESCRIPTION
 The
 .Fn isspace
-function tests for the standard white-space characters.
+function tests for the white-space characters.
+For any locale, this includes the following standard characters:
+.Pp
+.Bl -column \&`\et''___ \&``\et''___ \&``\et''___ \&``\et''___ \&``\et''___ \&``\et''___
+.It "\&``\et''\t``\en''\t``\ev''\t``\ef''\t``\er''\t`` ''"
+.El
+.Pp
+In the "C" locale
+.Fn isspace
+successful test is limited to this characters only.
 For single C
 .Va char Ns s
 locales (see
@@ -61,13 +70,6 @@ representable as an
 .Li unsigned char
 or the value of
 .Dv EOF .
-In the ASCII character set, this includes the following characters
-(with their numeric values shown in octal):
-.Pp
-.Bl -column \&000_``0''__ \&000_``0''__ \&000_``0''__ \&000_``0''__ \&000_``0''__
-.It "\&011\ ht \t012\ nl \t013\ vt \t014\ np \t015\ cr"
-.It "\&040\ sp"
-.El
 .Sh RETURN VALUES
 The
 .Fn isspace
