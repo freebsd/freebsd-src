@@ -81,6 +81,7 @@ main(argc, argv)
 	if (!strcmp(p, "sum")) {
 		cfncn = csum1;
 		pfncn = psum1;
+		++argv;
 	} else {
 		cfncn = crc;
 		pfncn = pcrc;
