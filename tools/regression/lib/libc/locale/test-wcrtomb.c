@@ -57,12 +57,12 @@ main(int argc, char *argv[])
 
 	assert(MB_CUR_MAX == 1);
 
-	/* Null wide character, internal state, internal buffer. */
+	/*
+	 * If the buffer argument is NULL, wc is implicitly L'\0',
+	 * wcrtomb() resets its internal state.
+	 */
 	assert(wcrtomb(NULL, L'\0', NULL) == 1);
-
-	/* Null wide character, internal buffer. */
-	memset(&s, 0, sizeof(s));
-	assert(wcrtomb(NULL, L'\0', &s) == 1);
+	assert(wcrtomb(NULL, UCHAR_MAX + 1, NULL) == 1);
 
 	/* Null wide character. */
 	memset(&s, 0, sizeof(s));
@@ -71,12 +71,9 @@ main(int argc, char *argv[])
 	assert(len == 1);
 	assert((unsigned char)buf[0] == 0 && (unsigned char)buf[1] == 0xcc);
 
-	/* Latin letter A, internal state, internal buffer. */
+	/* Latin letter A, internal state. */
+	assert(wcrtomb(NULL, L'\0', NULL) == 1);
 	assert(wcrtomb(NULL, L'A', NULL) == 1);
-
-	/* Latin letter A, internal buffer. */
-	memset(&s, 0, sizeof(s));
-	assert(wcrtomb(NULL, L'A', &s) == 1);
 
 	/* Latin letter A. */
 	memset(&s, 0, sizeof(s));
@@ -86,7 +83,7 @@ main(int argc, char *argv[])
 	assert((unsigned char)buf[0] == 'A' && (unsigned char)buf[1] == 0xcc);
 
 	/* Invalid code. */
-	assert(wcrtomb(NULL, UCHAR_MAX + 1, NULL) == (size_t)-1);
+	assert(wcrtomb(buf, UCHAR_MAX + 1, NULL) == (size_t)-1);
 	assert(errno == EILSEQ);
 
 	/*
@@ -96,9 +93,11 @@ main(int argc, char *argv[])
 	assert(strcmp(setlocale(LC_CTYPE, "ja_JP.eucJP"), "ja_JP.eucJP") == 0);
 	assert(MB_CUR_MAX == 3);
 
-	/* Null wide character, internal buffer. */
-	memset(&s, 0, sizeof(s));
-	assert(wcrtomb(NULL, L'\0', &s) == 1);
+	/*
+	 * If the buffer argument is NULL, wc is implicitly L'\0',
+	 * wcrtomb() resets its internal state.
+	 */
+	assert(wcrtomb(NULL, L'\0', NULL) == 1);
 
 	/* Null wide character. */
 	memset(&s, 0, sizeof(s));
@@ -107,12 +106,9 @@ main(int argc, char *argv[])
 	assert(len == 1);
 	assert((unsigned char)buf[0] == 0 && (unsigned char)buf[1] == 0xcc);
 
-	/* Latin letter A, internal state, internal buffer. */
+	/* Latin letter A, internal state. */
+	assert(wcrtomb(NULL, L'\0', NULL) == 1);
 	assert(wcrtomb(NULL, L'A', NULL) == 1);
-
-	/* Latin letter A, internal buffer. */
-	memset(&s, 0, sizeof(s));
-	assert(wcrtomb(NULL, L'A', &s) == 1);
 
 	/* Latin letter A. */
 	memset(&s, 0, sizeof(s));
