@@ -31,10 +31,8 @@
  * Copyright (C) 1986, Sun Microsystems, Inc.
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * unset the secret key on local machine

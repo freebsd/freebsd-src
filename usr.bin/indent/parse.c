@@ -35,10 +35,10 @@
 #if 0
 #ifndef lint
 static char sccsid[] = "@(#)parse.c	8.1 (Berkeley) 6/6/93";
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
 #endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include "indent_globs.h"

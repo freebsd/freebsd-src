@@ -19,10 +19,7 @@
 
 
 #include <sys/cdefs.h>
-#ifndef lint
-static const char rcsid[] = 
-  "$FreeBSD$";
-#endif /* not lint */
+__FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <errno.h>

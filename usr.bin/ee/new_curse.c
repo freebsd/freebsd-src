@@ -44,10 +44,8 @@
 char *copyright_message[] = { "Copyright (c) 1986, 1987, 1988, 1991, 1992, 1993, 1994, 1995 Hugh Mahon",
 				"All rights are reserved."};
 
-#ifndef lint
-statis const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "new_curse.h"
 #include <signal.h>
