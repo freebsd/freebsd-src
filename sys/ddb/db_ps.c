@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: db_ps.c,v 1.14 1997/02/22 09:28:28 peter Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -74,7 +74,7 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 			 */
 			switch (c) {
 			case '\n':		/* just one line */
-				nl = 19;
+				nl = 20;
 				break;
 			case ' ':
 				nl = 0;		/* another screenfull */
