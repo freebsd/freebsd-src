@@ -90,7 +90,10 @@
   <sect2 id="security">
     <title>Security Advisories</title>
 
-    <para></para>
+    <para>A potential denial of service in
+      <application>BIND</application> has been fixed.  For more
+      information, see security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:19.bind.asc">FreeBSD-SA-03:19</ulink>.</para>
 
   </sect2>
 
@@ -182,7 +185,12 @@
   <sect2 id="contrib">
     <title>Contributed Software</title>
 
-    <para><application>sendmail</application> has been updated to
+    <para><application>BIND</application> has been updated from 8.3.4
+      to 8.3.7.</para>
+
+    <para><application>sendmail</application> has been updated
+      from version 8.12.9
+      to
       version 8.12.10.</para>
 
   </sect2>
