@@ -117,7 +117,6 @@ struct	ptsc {
 
 #define	PF_PKT		0x08		/* packet mode */
 #define	PF_STOPPED	0x10		/* user told stopped */
-#define	PF_REMOTE	0x20		/* remote and flow controlled input */
 #define	PF_NOSTOP	0x40
 #define PF_UCNTL	0x80		/* user control mode */
 
@@ -223,49 +222,8 @@ ptsread(struct cdev *dev, struct uio *uio, int flag)
 	int error = 0;
 
 again:
-	if (pt->pt_flags & PF_REMOTE) {
-		while (isbackground(p, tp)) {
-			sx_slock(&proctree_lock);
-			PROC_LOCK(p);
-			if (SIGISMEMBER(p->p_sigacts->ps_sigignore, SIGTTIN) ||
-			    SIGISMEMBER(td->td_sigmask, SIGTTIN) ||
-			    p->p_pgrp->pg_jobc == 0 || p->p_flag & P_PPWAIT) {
-				PROC_UNLOCK(p);
-				sx_sunlock(&proctree_lock);
-				return (EIO);
-			}
-			pg = p->p_pgrp;
-			PROC_UNLOCK(p);
-			PGRP_LOCK(pg);
-			sx_sunlock(&proctree_lock);
-			pgsignal(pg, SIGTTIN, 1);
-			PGRP_UNLOCK(pg);
-			error = ttysleep(tp, &lbolt, TTIPRI | PCATCH, "ptsbg",
-					 0);
-			if (error)
-				return (error);
-		}
-		if (tp->t_canq.c_cc == 0) {
-			if (flag & IO_NDELAY)
-				return (EWOULDBLOCK);
-			error = ttysleep(tp, TSA_PTS_READ(tp), TTIPRI | PCATCH,
-					 "ptsin", 0);
-			if (error)
-				return (error);
-			goto again;
-		}
-		while (tp->t_canq.c_cc > 1 && uio->uio_resid > 0)
-			if (ureadc(getc(&tp->t_canq), uio) < 0) {
-				error = EFAULT;
-				break;
-			}
-		if (tp->t_canq.c_cc == 1)
-			(void) getc(&tp->t_canq);
-		if (tp->t_canq.c_cc)
-			return (error);
-	} else
-		if (tp->t_oproc)
-			error = ttyld_read(tp, uio, flag);
+	if (tp->t_oproc)
+		error = ttyld_read(tp, uio, flag);
 	ptcwakeup(tp, FWRITE);
 	return (error);
 }
@@ -477,9 +435,7 @@ ptcpoll(struct cdev *dev, int events, struct thread *td)
 
 	if (events & (POLLOUT | POLLWRNORM))
 		if (tp->t_state & TS_ISOPEN &&
-		    ((pt->pt_flags & PF_REMOTE) ?
-		     (tp->t_canq.c_cc == 0) :
-		     ((tp->t_rawq.c_cc + tp->t_canq.c_cc < TTYHOG - 2) ||
+		    (((tp->t_rawq.c_cc + tp->t_canq.c_cc < TTYHOG - 2) ||
 		      (tp->t_canq.c_cc == 0 && (tp->t_lflag & ICANON)))))
 			revents |= events & (POLLOUT | POLLWRNORM);
 
@@ -513,46 +469,6 @@ ptcwrite(struct cdev *dev, struct uio *uio, int flag)
 again:
 	if ((tp->t_state&TS_ISOPEN) == 0)
 		goto block;
-	if (pt->pt_flags & PF_REMOTE) {
-		if (tp->t_canq.c_cc)
-			goto block;
-		while ((uio->uio_resid > 0 || cc > 0) &&
-		       tp->t_canq.c_cc < TTYHOG - 1) {
-			if (cc == 0) {
-				cc = min(uio->uio_resid, BUFSIZ);
-				cc = min(cc, TTYHOG - 1 - tp->t_canq.c_cc);
-				cp = locbuf;
-				error = uiomove(cp, cc, uio);
-				if (error)
-					return (error);
-				/* check again for safety */
-				if ((tp->t_state & TS_ISOPEN) == 0) {
-					/* adjust as usual */
-					uio->uio_resid += cc;
-					return (EIO);
-				}
-			}
-			if (cc > 0) {
-				cc = b_to_q((char *)cp, cc, &tp->t_canq);
-				/*
-				 * XXX we don't guarantee that the canq size
-				 * is >= TTYHOG, so the above b_to_q() may
-				 * leave some bytes uncopied.  However, space
-				 * is guaranteed for the null terminator if
-				 * we don't fail here since (TTYHOG - 1) is
-				 * not a multiple of CBSIZE.
-				 */
-				if (cc > 0)
-					break;
-			}
-		}
-		/* adjust for data copied in but not written */
-		uio->uio_resid += cc;
-		(void) putc(0, &tp->t_canq);
-		ttwakeup(tp);
-		wakeup(TSA_PTS_READ(tp));
-		return (0);
-	}
 	while (uio->uio_resid > 0 || cc > 0) {
 		if (cc == 0) {
 			cc = min(uio->uio_resid, BUFSIZ);
@@ -642,14 +558,6 @@ ptyioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 				pt->pt_flags |= PF_UCNTL;
 			} else
 				pt->pt_flags &= ~PF_UCNTL;
-			return (0);
-
-		case TIOCREMOTE:
-			if (*(int *)data)
-				pt->pt_flags |= PF_REMOTE;
-			else
-				pt->pt_flags &= ~PF_REMOTE;
-			ttyflush(tp, FREAD|FWRITE);
 			return (0);
 		}
 

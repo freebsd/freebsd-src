@@ -112,7 +112,6 @@ struct winsize {
 #define		TIOCM_CD	TIOCM_DCD
 #define		TIOCM_CAR	TIOCM_DCD
 #define		TIOCM_RNG	TIOCM_RI
-#define	TIOCREMOTE	_IOW('t', 105, int)	/* remote input editing */
 #define	TIOCGWINSZ	_IOR('t', 104, struct winsize)	/* get window size */
 #define	TIOCSWINSZ	_IOW('t', 103, struct winsize)	/* set window size */
 #define	TIOCUCNTL	_IOW('t', 102, int)	/* pty: set/clr usr cntl mode */
