@@ -445,8 +445,8 @@ msleep(ident, mtx, priority, wmesg, timo)
 		return (0);
 	}
 
-	KASSERT(p != NULL, ("tsleep1"));
-	KASSERT(ident != NULL && p->p_stat == SRUN, ("tsleep"));
+	KASSERT(p != NULL, ("msleep1"));
+	KASSERT(ident != NULL && p->p_stat == SRUN, ("msleep"));
 	/*
 	 * Process may be sitting on a slpque if asleep() was called, remove
 	 * it before re-adding.
@@ -459,7 +459,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 	p->p_slptime = 0;
 	p->p_priority = priority & PRIMASK;
 	p->p_nativepri = p->p_priority;
-	CTR4(KTR_PROC, "tsleep: proc %p (pid %d, %s), schedlock %p",
+	CTR4(KTR_PROC, "msleep: proc %p (pid %d, %s), schedlock %p",
 		p, p->p_pid, p->p_comm, (void *) sched_lock.mtx_lock);
 	TAILQ_INSERT_TAIL(&slpque[LOOKUP(ident)], p, p_procq);
 	if (timo)
@@ -475,7 +475,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 	 */
 	if (catch) {
 		CTR4(KTR_PROC,
-		        "tsleep caught: proc %p (pid %d, %s), schedlock %p",
+		        "msleep caught: proc %p (pid %d, %s), schedlock %p",
 			p, p->p_pid, p->p_comm, (void *) sched_lock.mtx_lock);
 		p->p_flag |= P_SINTR;
 		if ((sig = CURSIG(p))) {
@@ -494,7 +494,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 	p->p_stats->p_ru.ru_nvcsw++;
 	mi_switch();
 	CTR4(KTR_PROC,
-	        "tsleep resume: proc %p (pid %d, %s), schedlock %p",
+	        "msleep resume: proc %p (pid %d, %s), schedlock %p",
 		p, p->p_pid, p->p_comm, (void *) sched_lock.mtx_lock);
 resume:
 	curpriority = p->p_usrpri;
@@ -543,7 +543,7 @@ out:
  * on one.
  *
  * Only the most recent sleep condition is effective when making successive
- * calls to asleep() or when calling tsleep().
+ * calls to asleep() or when calling msleep().
  *
  * The timeout, if any, is not initiated until await() is called.  The sleep
  * priority, signal, and timeout is specified in the asleep() call but may be
@@ -589,7 +589,7 @@ asleep(void *ident, int priority, const char *wmesg, int timo)
 /*
  * await() - wait for async condition to occur.   The process blocks until
  * wakeup() is called on the most recent asleep() address.  If wakeup is called
- * priority to await(), await() winds up being a NOP.
+ * prior to await(), await() winds up being a NOP.
  *
  * If await() is called more then once (without an intervening asleep() call),
  * await() is still effectively a NOP but it calls mi_switch() to give other
@@ -710,7 +710,7 @@ out:
 }
 
 /*
- * Implement timeout for tsleep or asleep()/await()
+ * Implement timeout for msleep or asleep()/await()
  *
  * If process hasn't been awakened (wchan non-zero),
  * set timeout flag and undo the sleep.  If proc
@@ -869,7 +869,7 @@ mi_switch()
 	 * main offender).  It is partly to work around a bug in the i386
 	 * cpu_switch() (the ipl is not preserved).  We ran for years
 	 * without it.  I think there was only a interrupt latency problem.
-	 * The main caller, tsleep(), does an splx() a couple of instructions
+	 * The main caller, msleep(), does an splx() a couple of instructions
 	 * after calling here.  The buggy caller, issignal(), usually calls
 	 * here at spl0() and sometimes returns at splhigh().  The process
 	 * then runs for a little too long at splhigh().  The ipl gets fixed
