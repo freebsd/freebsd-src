@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: wfd.c,v 1.9 1998/03/20 23:14:52 msmith Exp $
+ *      $Id: wfd.c,v 1.10 1998/06/07 17:11:06 dfr Exp $
  */
 
 /*
@@ -62,7 +62,7 @@ static	d_strategy_t	wfdstrategy;
 static struct cdevsw wfd_cdevsw;
 static struct bdevsw wfd_bdevsw = 
 	{ wfdbopen,	wfdbclose,	wfdstrategy,	wfdioctl,
-	  nodump,	nopsize,	0,	"wfd",	&wfd_cdevsw,	-1 };
+	  nodump,	nopsize,	D_DISK,	"wfd",	&wfd_cdevsw,	-1 };
 
 #ifndef ATAPI_STATIC
 static
