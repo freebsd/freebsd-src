@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.118 1999/02/08 02:42:12 dillon Exp $
+ *	$Id: vm_machdep.c,v 1.119 1999/02/16 10:49:48 dfr Exp $
  */
 
 #include "npx.h"
@@ -144,7 +144,7 @@ cpu_fork(p1, p2)
 	 * Set registers for trampoline to user mode.  Leave space for the
 	 * return address on stack.  These are the kernel mode register values.
 	 */
-	pcb2->pcb_cr3 = vtophys(p2->p_vmspace->vm_pmap.pm_pdir);
+	pcb2->pcb_cr3 = vtophys(vmspace_pmap(p2->p_vmspace)->pm_pdir);
 	pcb2->pcb_edi = p2->p_md.md_regs->tf_edi;
 	pcb2->pcb_esi = (int)fork_return;
 	pcb2->pcb_ebp = p2->p_md.md_regs->tf_ebp;

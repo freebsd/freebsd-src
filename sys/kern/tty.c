@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.112 1999/01/28 17:32:00 dillon Exp $
+ * $Id: tty.c,v 1.113 1999/01/30 12:17:36 phk Exp $
  */
 
 /*-
@@ -2275,12 +2275,7 @@ ttyinfo(tp)
 		ttyprintf(tp, "%d%% %ldk\n",
 		    tmp / 100,
 		    pick->p_stat == SIDL || pick->p_stat == SZOMB ? 0 :
-#ifdef pmap_resident_count
-		    (long)pgtok(pmap_resident_count(&pick->p_vmspace->vm_pmap))
-#else
-		    (long)pgtok(pick->p_vmspace->vm_rssize)
-#endif
-		    );
+		    (long)pgtok(vmspace_resident_count(pick->p_vmspace)));
 	}
 	tp->t_rocount = 0;	/* so pending input will be retyped if BS */
 }

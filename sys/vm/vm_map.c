@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.149 1999/02/12 09:51:42 dillon Exp $
+ * $Id: vm_map.c,v 1.150 1999/02/19 03:11:37 dillon Exp $
  */
 
 /*
@@ -200,8 +200,8 @@ vmspace_alloc(min, max)
 	vm = zalloc(vmspace_zone);
 	bzero(&vm->vm_map, sizeof vm->vm_map);
 	vm_map_init(&vm->vm_map, min, max);
-	pmap_pinit(&vm->vm_pmap);
-	vm->vm_map.pmap = &vm->vm_pmap;		/* XXX */
+	pmap_pinit(vmspace_pmap(vm));
+	vm->vm_map.pmap = vmspace_pmap(vm);		/* XXX */
 	vm->vm_refcnt = 1;
 	vm->vm_shm = NULL;
 	return (vm);
@@ -240,7 +240,7 @@ vmspace_free(vm)
 		    vm->vm_map.max_offset);
 		vm_map_unlock(&vm->vm_map);
 
-		pmap_release(&vm->vm_pmap);
+		pmap_release(vmspace_pmap(vm));
 		zfree(vmspace_zone, vm);
 	}
 }
@@ -2290,7 +2290,7 @@ vmspace_fork(vm1)
 	vm2 = vmspace_alloc(old_map->min_offset, old_map->max_offset);
 	bcopy(&vm1->vm_startcopy, &vm2->vm_startcopy,
 	    (caddr_t) (vm1 + 1) - (caddr_t) &vm1->vm_startcopy);
-	new_pmap = &vm2->vm_pmap;	/* XXX */
+	new_pmap = vmspace_pmap(vm2);	/* XXX */
 	new_map = &vm2->vm_map;	/* XXX */
 	new_map->timestamp = 1;
 
@@ -3039,7 +3039,7 @@ DB_SHOW_COMMAND(procvm, procvm)
 
 	db_printf("p = %p, vmspace = %p, map = %p, pmap = %p\n",
 	    (void *)p, (void *)p->p_vmspace, (void *)&p->p_vmspace->vm_map,
-	    (void *)&p->p_vmspace->vm_pmap);
+	    (void *)vmspace_pmap(p->p_vmspace));
 
 	vm_map_print((db_expr_t)(intptr_t)&p->p_vmspace->vm_map, 1, 0, NULL);
 }
