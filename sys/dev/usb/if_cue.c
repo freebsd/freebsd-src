@@ -85,51 +85,51 @@ static const char rcsid[] =
 /*
  * Various supported device vendors/products.
  */
-static struct cue_type cue_devs[] = {
+Static struct cue_type cue_devs[] = {
 	{ USB_VENDOR_CATC, USB_PRODUCT_CATC_NETMATE },
 	{ USB_VENDOR_CATC, USB_PRODUCT_CATC_NETMATE2 },
 	{ 0, 0 }
 };
 
-static struct usb_qdat cue_qdat;
+Static struct usb_qdat cue_qdat;
 
-static int cue_match		__P((device_t));
-static int cue_attach		__P((device_t));
-static int cue_detach		__P((device_t));
+Static int cue_match		__P((device_t));
+Static int cue_attach		__P((device_t));
+Static int cue_detach		__P((device_t));
 
-static int cue_tx_list_init	__P((struct cue_softc *));
-static int cue_rx_list_init	__P((struct cue_softc *));
-static int cue_newbuf		__P((struct cue_softc *, struct cue_chain *,
+Static int cue_tx_list_init	__P((struct cue_softc *));
+Static int cue_rx_list_init	__P((struct cue_softc *));
+Static int cue_newbuf		__P((struct cue_softc *, struct cue_chain *,
 				    struct mbuf *));
-static int cue_encap		__P((struct cue_softc *, struct mbuf *, int));
-static void cue_rxeof		__P((usbd_xfer_handle,
+Static int cue_encap		__P((struct cue_softc *, struct mbuf *, int));
+Static void cue_rxeof		__P((usbd_xfer_handle,
 				    usbd_private_handle, usbd_status));
-static void cue_txeof		__P((usbd_xfer_handle,
+Static void cue_txeof		__P((usbd_xfer_handle,
 				    usbd_private_handle, usbd_status));
-static void cue_tick		__P((void *));
-static void cue_rxstart		__P((struct ifnet *));
-static void cue_start		__P((struct ifnet *));
-static int cue_ioctl		__P((struct ifnet *, u_long, caddr_t));
-static void cue_init		__P((void *));
-static void cue_stop		__P((struct cue_softc *));
-static void cue_watchdog		__P((struct ifnet *));
-static void cue_shutdown		__P((device_t));
+Static void cue_tick		__P((void *));
+Static void cue_rxstart		__P((struct ifnet *));
+Static void cue_start		__P((struct ifnet *));
+Static int cue_ioctl		__P((struct ifnet *, u_long, caddr_t));
+Static void cue_init		__P((void *));
+Static void cue_stop		__P((struct cue_softc *));
+Static void cue_watchdog		__P((struct ifnet *));
+Static void cue_shutdown		__P((device_t));
 
-static void cue_setmulti	__P((struct cue_softc *));
-static u_int32_t cue_crc	__P((caddr_t));
-static void cue_reset		__P((struct cue_softc *));
+Static void cue_setmulti	__P((struct cue_softc *));
+Static u_int32_t cue_crc	__P((caddr_t));
+Static void cue_reset		__P((struct cue_softc *));
 
-static int csr_read_1		__P((struct cue_softc *, int));
-static int csr_write_1		__P((struct cue_softc *, int, int));
-static int csr_read_2		__P((struct cue_softc *, int));
+Static int csr_read_1		__P((struct cue_softc *, int));
+Static int csr_write_1		__P((struct cue_softc *, int, int));
+Static int csr_read_2		__P((struct cue_softc *, int));
 #ifdef notdef
-static int csr_write_2		__P((struct cue_softc *, int, int));
+Static int csr_write_2		__P((struct cue_softc *, int, int));
 #endif
-static int cue_mem		__P((struct cue_softc *, int,
+Static int cue_mem		__P((struct cue_softc *, int,
 				    int, void *, int));
-static int cue_getmac		__P((struct cue_softc *, void *));
+Static int cue_getmac		__P((struct cue_softc *, void *));
 
-static device_method_t cue_methods[] = {
+Static device_method_t cue_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		cue_match),
 	DEVMETHOD(device_attach,	cue_attach),
@@ -139,13 +139,13 @@ static device_method_t cue_methods[] = {
 	{ 0, 0 }
 };
 
-static driver_t cue_driver = {
+Static driver_t cue_driver = {
 	"cue",
 	cue_methods,
 	sizeof(struct cue_softc)
 };
 
-static devclass_t cue_devclass;
+Static devclass_t cue_devclass;
 
 DRIVER_MODULE(if_cue, uhub, cue_driver, cue_devclass, usbd_driver_load, 0);
 
@@ -155,7 +155,7 @@ DRIVER_MODULE(if_cue, uhub, cue_driver, cue_devclass, usbd_driver_load, 0);
 #define CUE_CLRBIT(sc, reg, x)				\
 	csr_write_1(sc, reg, csr_read_1(sc, reg) & ~(x))
 
-static int csr_read_1(sc, reg)
+Static int csr_read_1(sc, reg)
 	struct cue_softc	*sc;
 	int			reg;
 {
@@ -186,7 +186,7 @@ static int csr_read_1(sc, reg)
 	return(val);
 }
 
-static int csr_read_2(sc, reg)
+Static int csr_read_2(sc, reg)
 	struct cue_softc	*sc;
 	int			reg;
 {
@@ -217,7 +217,7 @@ static int csr_read_2(sc, reg)
 	return(val);
 }
 
-static int csr_write_1(sc, reg, val)
+Static int csr_write_1(sc, reg, val)
 	struct cue_softc	*sc;
 	int			reg, val;
 {
@@ -248,7 +248,7 @@ static int csr_write_1(sc, reg, val)
 }
 
 #ifdef notdef
-static int csr_write_2(sc, reg, val)
+Static int csr_write_2(sc, reg, val)
 	struct cue_softc	*sc;
 	int			reg, val;
 {
@@ -279,7 +279,7 @@ static int csr_write_2(sc, reg, val)
 }
 #endif
 
-static int cue_mem(sc, cmd, addr, buf, len)
+Static int cue_mem(sc, cmd, addr, buf, len)
 	struct cue_softc	*sc;
 	int			cmd;
 	int			addr;
@@ -315,7 +315,7 @@ static int cue_mem(sc, cmd, addr, buf, len)
 	return(0);
 }
 
-static int cue_getmac(sc, buf)
+Static int cue_getmac(sc, buf)
 	struct cue_softc	*sc;
 	void			*buf;
 {
@@ -350,7 +350,7 @@ static int cue_getmac(sc, buf)
 #define CUE_POLY	0xEDB88320
 #define CUE_BITS	9
 
-static u_int32_t cue_crc(addr)
+Static u_int32_t cue_crc(addr)
 	caddr_t			addr;
 {
 	u_int32_t		idx, bit, data, crc;
@@ -366,7 +366,7 @@ static u_int32_t cue_crc(addr)
 	return (crc & ((1 << CUE_BITS) - 1));
 }
 
-static void cue_setmulti(sc)
+Static void cue_setmulti(sc)
 	struct cue_softc	*sc;
 {
 	struct ifnet		*ifp;
@@ -411,7 +411,7 @@ static void cue_setmulti(sc)
 	return;
 }
 
-static void cue_reset(sc)
+Static void cue_reset(sc)
 	struct cue_softc	*sc;
 {
 	usb_device_request_t	req;
@@ -567,7 +567,7 @@ USB_ATTACH(cue)
 	USB_ATTACH_SUCCESS_RETURN;
 }
 
-static int cue_detach(dev)
+Static int cue_detach(dev)
 	device_t		dev;
 {
 	struct cue_softc	*sc;
@@ -598,7 +598,7 @@ static int cue_detach(dev)
 /*
  * Initialize an RX descriptor and attach an MBUF cluster.
  */
-static int cue_newbuf(sc, c, m)
+Static int cue_newbuf(sc, c, m)
 	struct cue_softc	*sc;
 	struct cue_chain	*c;
 	struct mbuf		*m;
@@ -633,7 +633,7 @@ static int cue_newbuf(sc, c, m)
 	return(0);
 }
 
-static int cue_rx_list_init(sc)
+Static int cue_rx_list_init(sc)
 	struct cue_softc	*sc;
 {
 	struct cue_cdata	*cd;
@@ -657,7 +657,7 @@ static int cue_rx_list_init(sc)
 	return(0);
 }
 
-static int cue_tx_list_init(sc)
+Static int cue_tx_list_init(sc)
 	struct cue_softc	*sc;
 {
 	struct cue_cdata	*cd;
@@ -683,7 +683,7 @@ static int cue_tx_list_init(sc)
 	return(0);
 }
 
-static void cue_rxstart(ifp)
+Static void cue_rxstart(ifp)
 	struct ifnet		*ifp;
 {
 	struct cue_softc	*sc;
@@ -710,7 +710,7 @@ static void cue_rxstart(ifp)
  * A frame has been uploaded: pass the resulting mbuf chain up to
  * the higher level protocols.
  */
-static void cue_rxeof(xfer, priv, status)
+Static void cue_rxeof(xfer, priv, status)
 	usbd_xfer_handle	xfer;
 	usbd_private_handle	priv;
 	usbd_status		status;
@@ -776,7 +776,7 @@ done:
  * the list buffers.
  */
 
-static void cue_txeof(xfer, priv, status)
+Static void cue_txeof(xfer, priv, status)
 	usbd_xfer_handle	xfer;
 	usbd_private_handle	priv;
 	usbd_status		status;
@@ -824,7 +824,7 @@ static void cue_txeof(xfer, priv, status)
 	return;
 }
 
-static void cue_tick(xsc)
+Static void cue_tick(xsc)
 	void			*xsc;
 {
 	struct cue_softc	*sc;
@@ -856,7 +856,7 @@ static void cue_tick(xsc)
 	return;
 }
 
-static int cue_encap(sc, m, idx)
+Static int cue_encap(sc, m, idx)
 	struct cue_softc	*sc;
 	struct mbuf		*m;
 	int			idx;
@@ -895,7 +895,7 @@ static int cue_encap(sc, m, idx)
 	return(0);
 }
 
-static void cue_start(ifp)
+Static void cue_start(ifp)
 	struct ifnet		*ifp;
 {
 	struct cue_softc	*sc;
@@ -933,7 +933,7 @@ static void cue_start(ifp)
 	return;
 }
 
-static void cue_init(xsc)
+Static void cue_init(xsc)
 	void			*xsc;
 {
 	struct cue_softc	*sc = xsc;
@@ -1036,7 +1036,7 @@ static void cue_init(xsc)
 	return;
 }
 
-static int cue_ioctl(ifp, command, data)
+Static int cue_ioctl(ifp, command, data)
 	struct ifnet		*ifp;
 	u_long			command;
 	caddr_t			data;
@@ -1088,7 +1088,7 @@ static int cue_ioctl(ifp, command, data)
 	return(error);
 }
 
-static void cue_watchdog(ifp)
+Static void cue_watchdog(ifp)
 	struct ifnet		*ifp;
 {
 	struct cue_softc	*sc;
@@ -1110,7 +1110,7 @@ static void cue_watchdog(ifp)
  * Stop the adapter and free any mbufs allocated to the
  * RX and TX lists.
  */
-static void cue_stop(sc)
+Static void cue_stop(sc)
 	struct cue_softc	*sc;
 {
 	usbd_status		err;
@@ -1208,7 +1208,7 @@ static void cue_stop(sc)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void cue_shutdown(dev)
+Static void cue_shutdown(dev)
 	device_t		dev;
 {
 	struct cue_softc	*sc;

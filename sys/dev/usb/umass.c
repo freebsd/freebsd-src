@@ -425,88 +425,88 @@ struct cam_path *umass_path;	/*   and its path */
 
 /* USB device probe/attach/detach functions */
 USB_DECLARE_DRIVER(umass);
-static int umass_match_proto	__P((struct umass_softc *sc,
+Static int umass_match_proto	__P((struct umass_softc *sc,
 				usbd_interface_handle iface));
 
 /* generic transfer functions */
-static usbd_status umass_setup_transfer	__P((struct umass_softc *sc,
+Static usbd_status umass_setup_transfer	__P((struct umass_softc *sc,
 				usbd_pipe_handle pipe,
 				void *buffer, int buflen, int flags,
 				usbd_xfer_handle xfer));
-static usbd_status umass_setup_ctrl_transfer	__P((struct umass_softc *sc,
+Static usbd_status umass_setup_ctrl_transfer	__P((struct umass_softc *sc,
 				usbd_device_handle dev,
 				usb_device_request_t *req,
 				void *buffer, int buflen, int flags, 
 				usbd_xfer_handle xfer));
-static void umass_clear_endpoint_stall	__P((struct umass_softc *sc,
+Static void umass_clear_endpoint_stall	__P((struct umass_softc *sc,
 				u_int8_t endpt, usbd_pipe_handle pipe,
 				int state, usbd_xfer_handle xfer));
-static void umass_reset		__P((struct umass_softc *sc,
+Static void umass_reset		__P((struct umass_softc *sc,
 				transfer_cb_f cb, void *priv));
 
 /* Bulk-Only related functions */
-static void umass_bbb_reset	__P((struct umass_softc *sc, int status));
-static void umass_bbb_transfer	__P((struct umass_softc *sc, int lun,
+Static void umass_bbb_reset	__P((struct umass_softc *sc, int status));
+Static void umass_bbb_transfer	__P((struct umass_softc *sc, int lun,
 				void *cmd, int cmdlen,
 		    		void *data, int datalen, int dir,
 				transfer_cb_f cb, void *priv));
-static void umass_bbb_state	__P((usbd_xfer_handle xfer,
+Static void umass_bbb_state	__P((usbd_xfer_handle xfer,
 				usbd_private_handle priv,
 				usbd_status err));
 
 /* CBI related functions */
-static int umass_cbi_adsc	__P((struct umass_softc *sc, char *buffer,int buflen,
+Static int umass_cbi_adsc	__P((struct umass_softc *sc, char *buffer,int buflen,
 				usbd_xfer_handle xfer));
-static void umass_cbi_reset	__P((struct umass_softc *sc, int status));
-static void umass_cbi_transfer	__P((struct umass_softc *sc, int lun,
+Static void umass_cbi_reset	__P((struct umass_softc *sc, int status));
+Static void umass_cbi_transfer	__P((struct umass_softc *sc, int lun,
 				void *cmd, int cmdlen,
 		    		void *data, int datalen, int dir,
 				transfer_cb_f cb, void *priv));
-static void umass_cbi_state	__P((usbd_xfer_handle xfer,
+Static void umass_cbi_state	__P((usbd_xfer_handle xfer,
 				usbd_private_handle priv, usbd_status err));
 
 /* CAM related functions */
-static void umass_cam_action	__P((struct cam_sim *sim, union ccb *ccb));
-static void umass_cam_poll	__P((struct cam_sim *sim));
+Static void umass_cam_action	__P((struct cam_sim *sim, union ccb *ccb));
+Static void umass_cam_poll	__P((struct cam_sim *sim));
 
-static void umass_cam_cb	__P((struct umass_softc *sc, void *priv,
+Static void umass_cam_cb	__P((struct umass_softc *sc, void *priv,
 				int residue, int status));
-static void umass_cam_sense_cb	__P((struct umass_softc *sc, void *priv,
+Static void umass_cam_sense_cb	__P((struct umass_softc *sc, void *priv,
 				int residue, int status));
 
 #ifdef UMASS_DO_CAM_RESCAN
-static void umass_cam_rescan	__P((struct umass_softc *sc));
+Static void umass_cam_rescan	__P((struct umass_softc *sc));
 #endif
 
-static int umass_cam_attach_sim	__P((void));
-static int umass_cam_attach	__P((struct umass_softc *sc));
-static int umass_cam_detach_sim	__P((void));
-static int umass_cam_detach	__P((struct umass_softc *sc));
+Static int umass_cam_attach_sim	__P((void));
+Static int umass_cam_attach	__P((struct umass_softc *sc));
+Static int umass_cam_detach_sim	__P((void));
+Static int umass_cam_detach	__P((struct umass_softc *sc));
 
 
 /* SCSI specific functions */
-static int umass_scsi_transform	__P((struct umass_softc *sc,
+Static int umass_scsi_transform	__P((struct umass_softc *sc,
 				unsigned char *cmd, int cmdlen,
 		     		unsigned char **rcmd, int *rcmdlen));
 
 /* UFI specific functions */
-static int umass_ufi_transform	__P((struct umass_softc *sc,
+Static int umass_ufi_transform	__P((struct umass_softc *sc,
 				unsigned char *cmd, int cmdlen,
 		    		unsigned char **rcmd, int *rcmdlen));
 
 /* 8070 specific functions */
-static int umass_8070_transform	__P((struct umass_softc *sc,
+Static int umass_8070_transform	__P((struct umass_softc *sc,
 				unsigned char *cmd, int cmdlen,
 		     		unsigned char **rcmd, int *rcmdlen));
 
 
 #ifdef UMASS_DEBUG
 /* General debugging functions */
-static void umass_bbb_dump_cbw	__P((struct umass_softc *sc,
+Static void umass_bbb_dump_cbw	__P((struct umass_softc *sc,
 				umass_bbb_cbw_t *cbw));
-static void umass_bbb_dump_csw	__P((struct umass_softc *sc,
+Static void umass_bbb_dump_csw	__P((struct umass_softc *sc,
 				umass_bbb_csw_t *csw));
-static void umass_dump_buffer	__P((struct umass_softc *sc, u_int8_t *buffer,
+Static void umass_dump_buffer	__P((struct umass_softc *sc, u_int8_t *buffer,
 				int buflen, int printlen));
 #endif
 
@@ -521,7 +521,7 @@ static void umass_dump_buffer	__P((struct umass_softc *sc, u_int8_t *buffer,
  * This function is called from both probe and attach.
  */
 
-static int
+Static int
 umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface)
 {
 	usbd_device_handle dev;
@@ -896,7 +896,7 @@ USB_DETACH(umass)
  * Generic functions to handle transfers
  */
 
-static usbd_status
+Static usbd_status
 umass_setup_transfer(struct umass_softc *sc, usbd_pipe_handle pipe,
 			void *buffer, int buflen, int flags,
 			usbd_xfer_handle xfer)
@@ -919,7 +919,7 @@ umass_setup_transfer(struct umass_softc *sc, usbd_pipe_handle pipe,
 }
 
 
-static usbd_status
+Static usbd_status
 umass_setup_ctrl_transfer(struct umass_softc *sc, usbd_device_handle dev,
 	 usb_device_request_t *req,
 	 void *buffer, int buflen, int flags,
@@ -944,7 +944,7 @@ umass_setup_ctrl_transfer(struct umass_softc *sc, usbd_device_handle dev,
 	return (USBD_NORMAL_COMPLETION);
 }
 
-static void
+Static void
 umass_clear_endpoint_stall(struct umass_softc *sc,
 				u_int8_t endpt, usbd_pipe_handle pipe,
 				int state, usbd_xfer_handle xfer)
@@ -968,7 +968,7 @@ umass_clear_endpoint_stall(struct umass_softc *sc,
 	umass_setup_ctrl_transfer(sc, dev, &sc->request, NULL, 0, 0, xfer);
 }
 
-static void
+Static void
 umass_reset(struct umass_softc *sc, transfer_cb_f cb, void *priv)
 {
 	sc->transfer_cb = cb;
@@ -982,7 +982,7 @@ umass_reset(struct umass_softc *sc, transfer_cb_f cb, void *priv)
  * Bulk protocol specific functions
  */
 
-static void
+Static void
 umass_bbb_reset(struct umass_softc *sc, int status)
 {
 	usbd_device_handle dev;
@@ -1024,7 +1024,7 @@ umass_bbb_reset(struct umass_softc *sc, int status)
 				  sc->transfer_xfer[XFER_BBB_RESET1]);
 }
 
-static void
+Static void
 umass_bbb_transfer(struct umass_softc *sc, int lun, void *cmd, int cmdlen,
 		    void *data, int datalen, int dir,
 		    transfer_cb_f cb, void *priv)
@@ -1130,7 +1130,7 @@ umass_bbb_transfer(struct umass_softc *sc, int lun, void *cmd, int cmdlen,
 }
 
 
-static void
+Static void
 umass_bbb_state(usbd_xfer_handle xfer, usbd_private_handle priv,
 		usbd_status err)
 {
@@ -1427,7 +1427,7 @@ umass_bbb_state(usbd_xfer_handle xfer, usbd_private_handle priv,
  * Command/Bulk/Interrupt (CBI) specific functions
  */
 
-static int
+Static int
 umass_cbi_adsc(struct umass_softc *sc, char *buffer, int buflen,
 	       usbd_xfer_handle xfer)
 {
@@ -1448,7 +1448,7 @@ umass_cbi_adsc(struct umass_softc *sc, char *buffer, int buflen,
 }
 
 
-static void
+Static void
 umass_cbi_reset(struct umass_softc *sc, int status)
 {
 	int i;
@@ -1496,7 +1496,7 @@ umass_cbi_reset(struct umass_softc *sc, int status)
 	/* XXX if the command fails we should reset the port on the bub */
 }
 
-static void
+Static void
 umass_cbi_transfer(struct umass_softc *sc, int lun,
 		void *cmd, int cmdlen, void *data, int datalen, int dir,
 		transfer_cb_f cb, void *priv)
@@ -1546,7 +1546,7 @@ umass_cbi_transfer(struct umass_softc *sc, int lun,
 		umass_cbi_reset(sc, STATUS_WIRE_FAILED);
 }
 
-static void
+Static void
 umass_cbi_state(usbd_xfer_handle xfer, usbd_private_handle priv,
 		usbd_status err)
 {
@@ -1818,7 +1818,7 @@ umass_cbi_state(usbd_xfer_handle xfer, usbd_private_handle priv,
  * CAM specific functions (used by SCSI, UFI, 8070)
  */
 
-static int
+Static int
 umass_cam_attach_sim()
 {
 	struct cam_devq	*devq;		/* Per device Queue */
@@ -1860,9 +1860,9 @@ umass_cam_attach_sim()
 /* this function is only used from umass_cam_rescan, so mention
  * prototype down here.
  */
-static void umass_cam_rescan_callback(struct cam_periph *periph,union ccb *ccb);
+Static void umass_cam_rescan_callback(struct cam_periph *periph,union ccb *ccb);
 
-static void
+Static void
 umass_cam_rescan_callback(struct cam_periph *periph, union ccb *ccb)
 {
 #ifdef UMASS_DEBUG
@@ -1885,7 +1885,7 @@ umass_cam_rescan_callback(struct cam_periph *periph, union ccb *ccb)
 	free(ccb, M_USBDEV);
 }
 
-static void
+Static void
 umass_cam_rescan(struct umass_softc *sc)
 {
 	struct cam_path *path;
@@ -1913,7 +1913,7 @@ umass_cam_rescan(struct umass_softc *sc)
 }
 #endif
 
-static int
+Static int
 umass_cam_attach(struct umass_softc *sc)
 {
 	/* SIM already attached at module load. The device is a target on the
@@ -1949,7 +1949,7 @@ umass_cam_attach(struct umass_softc *sc)
  *	detach from the CAM layer
  */
 
-static int
+Static int
 umass_cam_detach_sim()
 {
 	if (umass_sim)
@@ -1975,7 +1975,7 @@ umass_cam_detach_sim()
 	return(0);
 }
 
-static int
+Static int
 umass_cam_detach(struct umass_softc *sc)
 {
 	struct cam_path *path;
@@ -2000,7 +2000,7 @@ umass_cam_detach(struct umass_softc *sc)
  * 	CAM requests for action come through here
  */
 
-static void
+Static void
 umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 {
 	struct umass_softc *sc = devclass_get_softc(umass_devclass,
@@ -2260,7 +2260,7 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
  *	all requests are handled through umass_cam_action, requests
  *	are never pending. So, nothing to do here.
  */
-static void
+Static void
 umass_cam_poll(struct cam_sim *sim)
 {
 #ifdef UMASS_DEBUG
@@ -2278,7 +2278,7 @@ umass_cam_poll(struct cam_sim *sim)
  *	finalise a completed CAM command
  */
 
-static void
+Static void
 umass_cam_cb(struct umass_softc *sc, void *priv, int residue, int status)
 {
 	union ccb *ccb = (union ccb *) priv;
@@ -2352,7 +2352,7 @@ umass_cam_cb(struct umass_softc *sc, void *priv, int residue, int status)
 
 /* Finalise a completed autosense operation
  */
-static void
+Static void
 umass_cam_sense_cb(struct umass_softc *sc, void *priv, int residue, int status)
 {
 	union ccb *ccb = (union ccb *) priv;
@@ -2398,7 +2398,7 @@ umass_cam_sense_cb(struct umass_softc *sc, void *priv, int residue, int status)
 }
 
 
-static int
+Static int
 umass_driver_load(module_t mod, int what, void *arg)
 {
 	int err;
@@ -2424,7 +2424,7 @@ umass_driver_load(module_t mod, int what, void *arg)
  * SCSI specific functions
  */
 
-static int
+Static int
 umass_scsi_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 		     unsigned char **rcmd, int *rcmdlen)
 {
@@ -2438,7 +2438,7 @@ umass_scsi_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
  * UFI specific functions
  */
 
-static int
+Static int
 umass_ufi_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 		    unsigned char **rcmd, int *rcmdlen)
 {
@@ -2483,7 +2483,7 @@ umass_ufi_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 /*
  * 8070 specific functions
  */
-static int
+Static int
 umass_8070_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 		     unsigned char **rcmd, int *rcmdlen)
 {
@@ -2498,7 +2498,7 @@ DRIVER_MODULE(umass, uhub, umass_driver, umass_devclass, umass_driver_load, 0);
 
 
 #ifdef UMASS_DEBUG
-static void
+Static void
 umass_bbb_dump_cbw(struct umass_softc *sc, umass_bbb_cbw_t *cbw)
 {
 	int clen = cbw->bCDBLength;
@@ -2516,7 +2516,7 @@ umass_bbb_dump_cbw(struct umass_softc *sc, umass_bbb_cbw_t *cbw)
 		       (flags == CBWFLAGS_OUT? "out":"<invalid>"))));
 }
 
-static void
+Static void
 umass_bbb_dump_csw(struct umass_softc *sc, umass_bbb_csw_t *csw)
 {
 	int sig = UGETDW(csw->dCSWSignature);
@@ -2533,7 +2533,7 @@ umass_bbb_dump_csw(struct umass_softc *sc, umass_bbb_csw_t *csw)
 			  (status == CSWSTATUS_PHASE? "phase":"<invalid>")))));
 }
 
-static void
+Static void
 umass_dump_buffer(struct umass_softc *sc, u_int8_t *buffer, int buflen,
 		  int printlen)
 {

@@ -60,6 +60,8 @@
 #define UAUDIO_DEBUG 1
 #endif
 
+#define Static static
+
 typedef struct device *device_ptr_t;
 #define USBBASEDEVICE struct device
 #define USBDEV(bdev) (&(bdev))
@@ -158,6 +160,8 @@ __CONCAT(dname,_detach)(self, flags) \
 #define UHUB_DEBUG 1
 #define ULPT_DEBUG 1
 #endif
+
+#define Static static
 
 #define	memcpy(d, s, l)		bcopy((s),(d),(l))
 #define	memset(d, v, l)		bzero((d),(l))
@@ -268,6 +272,8 @@ __CONCAT(dname,_detach)(self, flags) \
 
 #define USBVERBOSE
 
+#define Static static
+
 #define device_ptr_t device_t
 #define USBBASEDEVICE device_t
 #define USBDEV(bdev) (bdev)
@@ -297,13 +303,13 @@ __CONCAT(dname,_detach)(self, flags) \
 #define PWR_RESUME 0
 
 #define USB_DECLARE_DRIVER_INIT(dname, init...) \
-static device_probe_t __CONCAT(dname,_match); \
-static device_attach_t __CONCAT(dname,_attach); \
-static device_detach_t __CONCAT(dname,_detach); \
+Static device_probe_t __CONCAT(dname,_match); \
+Static device_attach_t __CONCAT(dname,_attach); \
+Static device_detach_t __CONCAT(dname,_detach); \
 \
-static devclass_t __CONCAT(dname,_devclass); \
+Static devclass_t __CONCAT(dname,_devclass); \
 \
-static device_method_t __CONCAT(dname,_methods)[] = { \
+Static device_method_t __CONCAT(dname,_methods)[] = { \
         DEVMETHOD(device_probe, __CONCAT(dname,_match)), \
         DEVMETHOD(device_attach, __CONCAT(dname,_attach)), \
         DEVMETHOD(device_detach, __CONCAT(dname,_detach)), \
@@ -311,7 +317,7 @@ static device_method_t __CONCAT(dname,_methods)[] = { \
         {0,0} \
 }; \
 \
-static driver_t __CONCAT(dname,_driver) = { \
+Static driver_t __CONCAT(dname,_driver) = { \
         #dname, \
         __CONCAT(dname,_methods), \
         sizeof(struct __CONCAT(dname,_softc)) \
@@ -319,16 +325,15 @@ static driver_t __CONCAT(dname,_driver) = { \
 #define METHODS_NONE			{0,0}
 #define USB_DECLARE_DRIVER(dname)	USB_DECLARE_DRIVER_INIT(dname, METHODS_NONE)
 
-
 #define USB_MATCH(dname) \
-static int \
+Static int \
 __CONCAT(dname,_match)(device_t self)
 
 #define USB_MATCH_START(dname, uaa) \
         struct usb_attach_arg *uaa = device_get_ivars(self)
 
 #define USB_ATTACH(dname) \
-static int \
+Static int \
 __CONCAT(dname,_attach)(device_t self)
 
 #define USB_ATTACH_START(dname, sc, uaa) \
@@ -344,7 +349,7 @@ __CONCAT(dname,_attach)(device_t self)
 	device_set_desc_copy(self, devinfo)
 
 #define USB_DETACH(dname) \
-static int \
+Static int \
 __CONCAT(dname,_detach)(device_t self)
 
 #define USB_DETACH_START(dname, sc) \

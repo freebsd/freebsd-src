@@ -79,12 +79,12 @@ struct uhub_softc {
 	u_char			sc_running;
 };
 
-static usbd_status uhub_init_port __P((struct usbd_port *));
-static usbd_status uhub_explore __P((usbd_device_handle hub));
-static void uhub_intr __P((usbd_xfer_handle, usbd_private_handle,usbd_status));
+Static usbd_status uhub_init_port __P((struct usbd_port *));
+Static usbd_status uhub_explore __P((usbd_device_handle hub));
+Static void uhub_intr __P((usbd_xfer_handle, usbd_private_handle,usbd_status));
 
 #if defined(__FreeBSD__)
-static bus_child_detached_t uhub_child_detached;
+Static bus_child_detached_t uhub_child_detached;
 #endif
 
 
@@ -113,7 +113,7 @@ USB_DECLARE_DRIVER_INIT(uhub,
 /* Create the driver instance for the hub connected to usb case. */
 devclass_t uhubroot_devclass;
 
-static device_method_t uhubroot_methods[] = {
+Static device_method_t uhubroot_methods[] = {
 	DEVMETHOD(device_probe, uhub_match),
 	DEVMETHOD(device_attach, uhub_attach),
 	/* detach is not allowed for a root hub */
@@ -123,7 +123,7 @@ static device_method_t uhubroot_methods[] = {
 	{0,0}
 };
 
-static	driver_t uhubroot_driver = {
+Static	driver_t uhubroot_driver = {
 	"uhub",
 	uhubroot_methods,
 	sizeof(struct uhub_softc)
@@ -537,7 +537,7 @@ USB_DETACH(uhub)
 
 #if defined(__FreeBSD__)
 /* Called when a device has been detached from it */
-static void
+Static void
 uhub_child_detached(self, child)
        device_t self;
        device_t child;

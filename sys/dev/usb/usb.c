@@ -147,10 +147,10 @@ struct cdevsw usb_cdevsw = {
 };
 #endif
 
-static usbd_status usb_discover __P((struct usb_softc *));
+Static usbd_status usb_discover __P((struct usb_softc *));
 #if defined(__NetBSD__) || defined(__OpenBSD__)
-static void	usb_create_event_thread __P((void *));
-static void	usb_event_thread __P((void *));
+Static void	usb_create_event_thread __P((void *));
+Static void	usb_event_thread __P((void *));
 #endif
 
 #define USB_MAX_EVENTS 50
@@ -158,21 +158,21 @@ struct usb_event_q {
 	struct usb_event ue;
 	SIMPLEQ_ENTRY(usb_event_q) next;
 };
-static SIMPLEQ_HEAD(, usb_event_q) usb_events =
+Static SIMPLEQ_HEAD(, usb_event_q) usb_events =
 	SIMPLEQ_HEAD_INITIALIZER(usb_events);
-static int usb_nevents = 0;
-static struct selinfo usb_selevent;
-static struct proc *usb_async_proc;  /* process who wants USB SIGIO */
-static int usb_dev_open = 0;
+Static int usb_nevents = 0;
+Static struct selinfo usb_selevent;
+Static struct proc *usb_async_proc;  /* process who wants USB SIGIO */
+Static int usb_dev_open = 0;
 
-static int usb_get_next_event __P((struct usb_event *));
+Static int usb_get_next_event __P((struct usb_event *));
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 /* Flag to see if we are in the cold boot process. */
 extern int cold;
 #endif
 
-static const char *usbrev_str[] = USBREV_STR;
+Static const char *usbrev_str[] = USBREV_STR;
 
 USB_DECLARE_DRIVER_INIT(usb,
 			DEVMETHOD(device_suspend, bus_generic_suspend),
