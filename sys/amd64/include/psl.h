@@ -83,6 +83,6 @@
  * 386's.
  */
 #define	PSL_USERCHANGE (PSL_C | PSL_PF | PSL_AF | PSL_Z | PSL_N | PSL_T \
-			| PSL_D | PSL_V | PSL_NT | PSL_AC)
+			| PSL_D | PSL_V | PSL_NT | PSL_AC | PSL_ID)
 
 #endif /* !_MACHINE_PSL_H_ */
