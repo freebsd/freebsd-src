@@ -5,7 +5,7 @@
 # Compare files created by /usr/src/etc/Makefile (or the directory
 # the user specifies) with the currently installed copies.
 
-# Copyright 1998, 1999 Douglas Barton
+# Copyright 1998-2000 Douglas Barton
 # Doug@gorean.org
 
 # $FreeBSD$
@@ -38,7 +38,7 @@ display_help () {
   echo "* To specify a directory other than /var/tmp/temproot for the"
   echo "  temporary root environment, use -t /path/to/temp/root"
   echo "* The -w option takes a number as an argument for the column width"
-  echo "  of the screen. The default is 80."
+  echo "  of the screen.  The default is 80."
   echo "* The -a option causes mergemaster to run without prompting"
 }
 
@@ -67,7 +67,8 @@ merge_loop () {
       echo "  Use 'v' to view the merged file"
       echo "  Default is to leave the temporary file to deal with by hand"
       echo ''
-      read -p "    *** How should I deal with the merged file? [Leave it for later] " INSTALL_MERGED
+      echo -n "    *** How should I deal with the merged file? [Leave it for later] "
+      read INSTALL_MERGED
 
       case "${INSTALL_MERGED}" in
       [iI])
@@ -75,14 +76,14 @@ merge_loop () {
         echo ''
         if mm_install "${COMPFILE}"; then
           echo "     *** Merged version of ${COMPFILE} installed successfully"
-        else 
+        else
           echo "     *** Problem installing ${COMPFILE}, it will remain to merge by hand later"
-        fi 
+        fi
         unset MERGE_AGAIN
         ;;
       [rR])
         rm "${COMPFILE}.merged"
-        ;; 
+        ;;
       [vV])
         ${PAGER} "${COMPFILE}.merged"
         ;;
@@ -119,7 +120,7 @@ diff_loop () {
       echo "  *** There is no installed version of ${COMPFILE}"
       NO_INSTALLED=yes
     fi
-  
+
     echo "  Use 'd' to delete the temporary ${COMPFILE}"
     echo "  Use 'i' to install the temporary ${COMPFILE}"
     case "${NO_INSTALLED}" in
@@ -131,7 +132,9 @@ diff_loop () {
     echo ''
     echo "  Default is to leave the temporary file to deal with by hand"
     echo ''
-    read -p "How should I deal with this? [Leave it for later] " HANDLE_COMPFILE
+    echo -n "How should I deal with this? [Leave it for later] "
+    read HANDLE_COMPFILE
+
     case "${HANDLE_COMPFILE}" in
     [dD])
       rm "${COMPFILE}"
@@ -175,7 +178,7 @@ diff_loop () {
       continue
       ;;
     esac  # End of "How to handle files that are different"
-  done  
+  done
   echo ''
   unset NO_INSTALLED
   echo ''
@@ -255,7 +258,7 @@ case "${DONT_CHECK_PAGER}" in
   while ! type "${PAGER%% *}" >/dev/null && [ -n "${PAGER}" ]; do
     echo " *** Your PAGER environment variable specifies '${PAGER}', but"
     echo "     due to the limited PATH that I use for security reasons,"
-    echo "     I cannot execute it. So, what would you like to do?"
+    echo "     I cannot execute it.  So, what would you like to do?"
     echo ''
     echo "  Use 'e' to exit mergemaster and fix your PAGER variable"
     if [ -x /usr/bin/less -o -x /usr/local/bin/less ]; then
@@ -265,7 +268,9 @@ case "${DONT_CHECK_PAGER}" in
     echo ''
     echo "  Default is to use plain old 'more' "
     echo ''
-    read -p "What should I do? [Use 'more'] " FIXPAGER
+    echo -n "What should I do? [Use 'more'] "
+    read FIXPAGER
+
     case "${FIXPAGER}" in
     [eE])
        exit 0
@@ -323,7 +328,7 @@ case "${RERUN}" in
   while [ "${TEST_TEMP_ROOT}" = "yes" ]; do
     if [ -d "${TEMPROOT}" ]; then
       echo "*** The directory specified for the temporary root environment,"
-      echo "    ${TEMPROOT}, exists. This can be a security risk if untrusted"
+      echo "    ${TEMPROOT}, exists.  This can be a security risk if untrusted"
       echo "    users have access to the system."
       echo ''
       case "${AUTO_RUN}" in
@@ -334,35 +339,37 @@ case "${RERUN}" in
         echo ''
         echo "  Default is to use ${TEMPROOT} as is"
         echo ''
-        read -p "How should I deal with this? [Use the existing ${TEMPROOT}] " DELORNOT
-          case "${DELORNOT}" in
-          [dD])
-            echo ''
-            echo "   *** Deleting the old ${TEMPROOT}"
-            echo ''
-            rm -rf "${TEMPROOT}"
-            unset TEST_TEMP_ROOT
-            ;;
-          [tT])
-            echo "   *** Enter new directory name for temporary root environment"
-            read TEMPROOT
-            ;;
-          [eE])
-            exit 0
-            ;;
-          '')
-            echo ''
-            echo "   *** Leaving ${TEMPROOT} intact"
-            echo ''
-            unset TEST_TEMP_ROOT
-            ;;
-          *)
-            echo ''
-            echo "invalid choice: ${DELORNOT}"
-            echo ''
-            ;;
-          esac
+        echo -n "How should I deal with this? [Use the existing ${TEMPROOT}] "
+        read DELORNOT
+
+        case "${DELORNOT}" in
+        [dD])
+          echo ''
+          echo "   *** Deleting the old ${TEMPROOT}"
+          echo ''
+          rm -rf "${TEMPROOT}"
+          unset TEST_TEMP_ROOT
           ;;
+        [tT])
+          echo "   *** Enter new directory name for temporary root environment"
+          read TEMPROOT
+          ;;
+        [eE])
+          exit 0
+          ;;
+        '')
+          echo ''
+          echo "   *** Leaving ${TEMPROOT} intact"
+          echo ''
+          unset TEST_TEMP_ROOT
+          ;;
+        *)
+          echo ''
+          echo "invalid choice: ${DELORNOT}"
+          echo ''
+          ;;
+        esac
+        ;;
       *)
         # If this is an auto-run, try a hopefully safe alternative then re-test anyway
         TEMPROOT=/var/tmp/temproot.`date +%m%d.%H.%M.%S`
@@ -423,7 +430,7 @@ case "${RERUN}" in
   esac
 
   # Avoid trying to update MAKEDEV if /dev is on a devfs
-  if mount | grep -q "devfs on /dev "; then
+  if sysctl vfs.devfs.generation > /dev/null 2>&1 ; then
     rm ${TEMPROOT}/dev/MAKEDEV ${TEMPROOT}/dev/MAKEDEV.local
   fi
 
@@ -437,7 +444,7 @@ case "${VERBOSE}" in
 *)
   echo ''
   echo " *** The following files exist only in the installed version"
-  echo "     of /etc. In the far majority of cases these files are"
+  echo "     of /etc.  In the far majority of cases these files are"
   echo "     necessary parts of the system and should not be deleted,"
   echo "     however because these files are not updated by this process"
   echo "     you might want to verify their status before rebooting your system."
@@ -462,17 +469,19 @@ if [ -z "${NEW_UMASK}" -a -z "${AUTO_RUN}" ]; then
   0022) ;;
   *)
     echo ''
-    echo " *** Your umask is currently set to ${USER_UMASK}. By default, this script"
+    echo " *** Your umask is currently set to ${USER_UMASK}.  By default, this script"
     echo "     installs all files with the same user, group and modes that"
     echo "     they are created with by ${SOURCEDIR}/Makefile, compared to"
-    echo "     a umask of 022. This umask allows world read permission when"
+    echo "     a umask of 022.  This umask allows world read permission when"
     echo "     the file's default permissions have it."
-    echo "     No world permissions can sometimes cause problems. A umask of"
+    echo "     No world permissions can sometimes cause problems.  A umask of"
     echo "     022 will restore the default behavior, but is not mandatory."
-    echo "     /etc/master.passwd is a special case. Its file permissions"
+    echo "     /etc/master.passwd is a special case.  Its file permissions"
     echo "     will be 600 (rw-------) if installed."
     echo ''
-    read -p "What umask should I use? [${USER_UMASK}] " NEW_UMASK
+    echo -n "What umask should I use? [${USER_UMASK}] "
+    read NEW_UMASK
+
     NEW_UMASK="${NEW_UMASK:-$USER_UMASK}"
     ;;
   esac
@@ -484,16 +493,18 @@ CONFIRMED_UMASK=${NEW_UMASK:-0022}
 # Warn users who have an /etc/sysconfig file
 #
 if [ -f /etc/sysconfig ]; then
-  echo " *** There is an /etc/sysconfig file on this system. Starting with"
+  echo " *** There is an /etc/sysconfig file on this system.  Starting with"
   echo "     FreeBSD version 2.2.2 those settings have moved from /etc/sysconfig"
-  echo "     to /etc/rc.conf. If you are upgrading an older system make sure"
+  echo "     to /etc/rc.conf.  If you are upgrading an older system make sure"
   echo "     that you transfer your settings by hand from sysconfig to rc.conf and"
-  echo "     install the rc.conf file. If you have already made this transition,"
+  echo "     install the rc.conf file.  If you have already made this transition,"
   echo "     you should consider renaming or deleting the /etc/sysconfig file."
   echo ''
   case "${AUTO_RUN}" in
   '')
-    read -p "Continue with the merge process? [yes] " CONT_OR_NOT
+    echo -n "Continue with the merge process? [yes] "
+    read CONT_OR_NOT
+
     case "${CONT_OR_NOT}" in
     [nN]*)
       exit 0
@@ -553,10 +564,11 @@ mm_install () {
     /.cshrc | /.profile)
       case "${LINK_EXPLAINED}" in
       '')
-        echo "   *** Historically FreeBSD has had a hard link from"
-        echo "       /.cshrc and /.profile to their namesakes in"
-        echo "       /root. Please indicate your preference below"
-        echo "       for bringing your installed files up to date."
+        echo "   *** Historically BSD derived systems have had a"
+        echo "       hard link from /.cshrc and /.profile to"
+        echo "       their namesakes in /root.  Please indicate"
+        echo "       your preference below for bringing your"
+        echo "       installed files up to date."
         echo ''
         LINK_EXPLAINED=yes
         ;;
@@ -567,7 +579,9 @@ mm_install () {
       echo ''
       echo "   Default is to leave the temporary file to deal with by hand"
       echo ''
-      read -p "  How should I handle ${COMPFILE}? [Leave it to install later] " HANDLE_LINK
+      echo -n "  How should I handle ${COMPFILE}? [Leave it to install later] "
+      read HANDLE_LINK
+
       case "${HANDLE_LINK}" in
       [dD]*)
         rm "${COMPFILE}"
@@ -661,9 +675,9 @@ for COMPFILE in `find . -type f -size +0`; do
       echo " *** Temp ${COMPFILE} and installed are the same, deleting"
       rm "${COMPFILE}"
     else
-      # Ok, the files are different, so show the user where they differ. Use user's
-      # choice of diff methods; and user's pager if they have one. Use more if not.
-      # Use unified diffs by default. Context diffs give me a headache. :)
+      # Ok, the files are different, so show the user where they differ.  Use user's
+      # choice of diff methods; and user's pager if they have one.  Use more if not.
+      # Use unified diffs by default.  Context diffs give me a headache. :)
       #
       case "${AUTO_RUN}" in
       '')
@@ -692,7 +706,9 @@ fi
 case "${AUTO_RUN}" in
 '')
   echo ''
-  read -p "Do you wish to delete what is left of ${TEMPROOT}? [no] " DEL_TEMPROOT
+  echo -n "Do you wish to delete what is left of ${TEMPROOT}? [no] "
+  read DEL_TEMPROOT
+
   case "${DEL_TEMPROOT}" in
   [yY]*)
     if rm -rf "${TEMPROOT}"; then
