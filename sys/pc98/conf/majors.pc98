@@ -1,4 +1,4 @@
-$Id: majors.pc98,v 1.15 1997/10/27 10:57:58 kato Exp $
+$Id: majors.pc98,v 1.16 1997/11/10 13:46:38 kato Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -123,3 +123,4 @@ chrdev	name		comments
 82	ppi		Generic Parallel I/O <Nicolas.Souchu@prism.uvsq.fr>
 83	can		CAN16-2 CAN-PC Interface
 84	ttxt		Unitext teletext decoder (arg@arg1.demon.co.uk)
+85	vesa		VESA support device (j_mini@efn.org)
