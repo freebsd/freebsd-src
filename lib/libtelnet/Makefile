@@ -3,10 +3,8 @@
 
 LIB=	telnet
 SRCS=	genget.c getent.c misc.c
-#SRCS+=	auth.c encrypt.c
-#SRCS+=	kerberos.c enc_des.c
-#SRCS+=	kerberos5.c
 CFLAGS+= -DHAS_CGETENT
+NOPIC=	true
 
 .include <bsd.lib.mk>
 
