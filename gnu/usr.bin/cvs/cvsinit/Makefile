@@ -1,9 +1,9 @@
-#	$Id: Makefile,v 1.3 1995/12/10 23:06:37 peter Exp $
+#	$Id: Makefile,v 1.4 1995/12/11 01:58:53 peter Exp $
 
 MAN8=	cvsinit.8
 
 EXAMPDIR=	/usr/share/examples/cvs
-CLEANFILES+=	cvsinit
+CLEANFILES+=	cvsinit ver
 
 .SUFFIXES: .sh
 
