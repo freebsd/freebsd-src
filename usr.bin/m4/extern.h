@@ -34,6 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.1 (Berkeley) 6/6/93
+ * $FreeBSD$
  */
 
 char	*basename __P((char *));
@@ -41,6 +42,7 @@ char	*xalloc __P((unsigned long));
 int	expr __P((char *));
 ndptr	addent __P((char *));
 void	chrsave __P((int));
+void	cleanup __P((int));
 void	dochc __P((char *[], int));
 void	dochq __P((char *[], int));
 void	dodefine __P((char *, char *));
@@ -87,6 +89,7 @@ extern char *endest;		/* end of string space */
 extern unsigned char *endpbb;   /* end of push-back buffer */
 extern char *ep;		/* first free char in strspace */
 extern char lquote;		/* left quote character (`) */
+extern char *m4dir;		/* directory for temporary files */
 extern char *m4temp;		/* filename for diversions */
 extern char *m4wraps;		/* m4wrap string default. */
 extern char *null;		/* as it says.. just a null. */
