@@ -351,12 +351,6 @@ ntp_adjtime(struct thread *td, struct ntp_adjtime_args *uap)
 		time_status |= STA_CLK;
 	if (modes & MOD_CLKA)
 		time_status &= ~STA_CLK;
-	if (modes & MOD_OFFSET) {
-		if (time_status & STA_NANO)
-			hardupdate(ntv.offset);
-		else
-			hardupdate(ntv.offset * 1000);
-	}
 	if (modes & MOD_FREQUENCY) {
 		freq = (ntv.freq * 1000LL) >> 16;
 		if (freq > MAXFREQ)
@@ -368,6 +362,12 @@ ntp_adjtime(struct thread *td, struct ntp_adjtime_args *uap)
 #ifdef PPS_SYNC
 		pps_freq = time_freq;
 #endif /* PPS_SYNC */
+	}
+	if (modes & MOD_OFFSET) {
+		if (time_status & STA_NANO)
+			hardupdate(ntv.offset);
+		else
+			hardupdate(ntv.offset * 1000);
 	}
 
 	/*
