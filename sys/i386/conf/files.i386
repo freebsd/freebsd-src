@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.228 1999/03/10 10:36:29 yokota Exp $
+#	$Id: files.i386,v 1.229 1999/03/16 13:34:02 sos Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -35,6 +35,7 @@ ukbdmap.h			optional	ukbd_dflt_keymap	\
 	clean		"ukbdmap.h"
 #
 dev/ata/ata-all.c		optional	ata	device-driver
+dev/ata/ata-dma.c		optional	ata	device-driver
 dev/ata/atapi-all.c		optional	ata	device-driver
 dev/ata/ata-disk.c		optional	atadisk	device-driver
 dev/ata/atapi-cd.c		optional	atapicd	device-driver
