@@ -897,6 +897,11 @@ restart:
 			return (error);
 		goto restart;
 	}
+#ifdef MAC
+	if (error == 0 && !whiteout)
+		error = mac_check_vnode_create(td->td_ucred, nd.ni_dvp,
+		    &nd.ni_cnd, &vattr);
+#endif
 	if (!error) {
 		VOP_LEASE(nd.ni_dvp, td, td->td_ucred, LEASE_WRITE);
 		if (whiteout)
@@ -969,10 +974,19 @@ restart:
 	FILEDESC_LOCK(td->td_proc->p_fd);
 	vattr.va_mode = (mode & ALLPERMS) & ~td->td_proc->p_fd->fd_cmask;
 	FILEDESC_UNLOCK(td->td_proc->p_fd);
+#ifdef MAC
+	error = mac_check_vnode_create(td->td_ucred, nd.ni_dvp, &nd.ni_cnd,
+	    &vattr);
+	if (error)
+		goto out;
+#endif
 	VOP_LEASE(nd.ni_dvp, td, td->td_ucred, LEASE_WRITE);
 	error = VOP_MKNOD(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr);
 	if (error == 0)
 		vput(nd.ni_vp);
+#ifdef MAC
+out:
+#endif
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(nd.ni_dvp);
 	vn_finished_write(mp);
@@ -1111,11 +1125,21 @@ restart:
 	FILEDESC_LOCK(td->td_proc->p_fd);
 	vattr.va_mode = ACCESSPERMS &~ td->td_proc->p_fd->fd_cmask;
 	FILEDESC_UNLOCK(td->td_proc->p_fd);
+#ifdef MAC
+	vattr.va_type = VLNK;
+	error = mac_check_vnode_create(td->td_ucred, nd.ni_dvp, &nd.ni_cnd,
+	    &vattr);
+	if (error)
+		goto out2;
+#endif
 	VOP_LEASE(nd.ni_dvp, td, td->td_ucred, LEASE_WRITE);
 	error = VOP_SYMLINK(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr, syspath);
-	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (error == 0)
 		vput(nd.ni_vp);
+#ifdef MAC
+out2:
+#endif
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(nd.ni_dvp);
 	vn_finished_write(mp);
 	ASSERT_VOP_UNLOCKED(nd.ni_dvp, "symlink");
@@ -1231,8 +1255,17 @@ restart:
 				return (error);
 			goto restart;
 		}
+#ifdef MAC
+		error = mac_check_vnode_delete(td->td_ucred, nd.ni_dvp, vp,
+		    &nd.ni_cnd);
+		if (error)
+			goto out;
+#endif
 		VOP_LEASE(nd.ni_dvp, td, td->td_ucred, LEASE_WRITE);
 		error = VOP_REMOVE(nd.ni_dvp, vp, &nd.ni_cnd);
+#ifdef MAC
+out:
+#endif
 		vn_finished_write(mp);
 	}
 	NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -2715,11 +2748,24 @@ kern_rename(struct thread *td, char *from, char *to, enum uio_seg pathseg)
 	int error;
 
 	bwillwrite();
+#ifdef MAC
+	NDINIT(&fromnd, DELETE, LOCKPARENT | LOCKLEAF | SAVESTART, pathseg,
+	    from, td);
+#else
 	NDINIT(&fromnd, DELETE, WANTPARENT | SAVESTART, pathseg, from, td);
+#endif
 	if ((error = namei(&fromnd)) != 0)
 		return (error);
+#ifdef MAC
+	error = mac_check_vnode_rename_from(td->td_ucred, fromnd.ni_dvp,
+	    fromnd.ni_vp, &fromnd.ni_cnd);
+	VOP_UNLOCK(fromnd.ni_dvp, 0, td);
+	VOP_UNLOCK(fromnd.ni_vp, 0, td);
+#endif
 	fvp = fromnd.ni_vp;
-	if ((error = vn_start_write(fvp, &mp, V_WAIT | PCATCH)) != 0) {
+	if (error == 0)
+		error = vn_start_write(fvp, &mp, V_WAIT | PCATCH);
+	if (error != 0) {
 		NDFREE(&fromnd, NDF_ONLY_PNBUF);
 		vrele(fromnd.ni_dvp);
 		vrele(fvp);
@@ -2757,6 +2803,11 @@ kern_rename(struct thread *td, char *from, char *to, enum uio_seg pathseg)
 	 */
 	if (fvp == tvp)
 		error = -1;
+#ifdef MAC
+	else
+		error = mac_check_vnode_rename_to(td->td_ucred, tdvp,
+		    tond.ni_vp, fromnd.ni_dvp == tdvp, &tond.ni_cnd);
+#endif
 out:
 	if (!error) {
 		VOP_LEASE(tdvp, td, td->td_ucred, LEASE_WRITE);
@@ -2860,8 +2911,17 @@ restart:
 	FILEDESC_LOCK(td->td_proc->p_fd);
 	vattr.va_mode = (mode & ACCESSPERMS) &~ td->td_proc->p_fd->fd_cmask;
 	FILEDESC_UNLOCK(td->td_proc->p_fd);
+#ifdef MAC
+	error = mac_check_vnode_create(td->td_ucred, nd.ni_dvp, &nd.ni_cnd,
+	    &vattr);
+	if (error)
+		goto out;
+#endif
 	VOP_LEASE(nd.ni_dvp, td, td->td_ucred, LEASE_WRITE);
 	error = VOP_MKDIR(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr);
+#ifdef MAC
+out:
+#endif
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(nd.ni_dvp);
 	if (!error)
@@ -2924,6 +2984,12 @@ restart:
 		error = EBUSY;
 		goto out;
 	}
+#ifdef MAC
+	error = mac_check_vnode_delete(td->td_ucred, nd.ni_dvp, vp,
+	    &nd.ni_cnd);
+	if (error)
+		goto out;
+#endif
 	if (vn_start_write(nd.ni_dvp, &mp, V_NOWAIT) != 0) {
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 		if (nd.ni_dvp == vp)
