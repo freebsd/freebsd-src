@@ -929,6 +929,28 @@ again:
 	return (n);
 }
 
+const char *
+witness_file(struct lock_object *lock)
+{
+	struct witness *w;
+
+	if (witness_cold || witness_dead || lock->lo_witness == NULL)
+		return ("?");
+	w = lock->lo_witness;
+	return (w->w_file);
+}
+
+int
+witness_line(struct lock_object *lock)
+{
+	struct witness *w;
+
+	if (witness_cold || witness_dead || lock->lo_witness == NULL)
+		return (0);
+	w = lock->lo_witness;
+	return (w->w_line);
+}
+
 static struct witness *
 enroll(const char *description, struct lock_class *lock_class)
 {
