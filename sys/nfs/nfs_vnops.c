@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.53 1997/06/03 13:56:55 dfr Exp $
+ * $Id: nfs_vnops.c,v 1.54 1997/06/16 00:23:40 dyson Exp $
  */
 
 
@@ -876,8 +876,10 @@ nfs_lookup(ap)
 		struct vattr vattr;
 		int vpid;
 
-		if (error = VOP_ACCESS(dvp, VEXEC, cnp->cn_cred, p))
+		if (error = VOP_ACCESS(dvp, VEXEC, cnp->cn_cred, p)) {
+			*vpp = NULLVP;
 			return (error);
+		}
 
 		newvp = *vpp;
 		vpid = newvp->v_id;
@@ -915,9 +917,9 @@ nfs_lookup(ap)
 				VOP_UNLOCK(dvp, 0, p);
 		}
 		error = vn_lock(dvp, LK_EXCLUSIVE, p);
+		*vpp = NULLVP;
 		if (error)
 			return (error);
-		*vpp = NULLVP;
 	}
 	error = 0;
 	newvp = NULLVP;
@@ -1002,8 +1004,10 @@ nfs_lookup(ap)
 	*vpp = newvp;
 	nfsm_reqdone;
 	if (error) {
-		if (newvp != NULLVP)
+		if (newvp != NULLVP) {
 			vrele(newvp);
+			*vpp = NULLVP;
+		}
 		if ((cnp->cn_nameiop == CREATE || cnp->cn_nameiop == RENAME) &&
 		    (flags & ISLASTCN) && error == ENOENT) {
 			if (!lockparent)
