@@ -114,6 +114,8 @@
 #define SIS_CFG_OUTOFWIN_TIMER	0x00000020
 #define SIS_CFG_SINGLE_BACKOFF	0x00000040
 #define SIS_CFG_PCIREQ_ALG	0x00000080
+#define SIS_CFG_FAIR_BACKOFF	0x00000200 /* 635 & 900B Specific */
+#define SIS_CFG_RND_CNT	0x00000400 /* 635 & 900B Specific */
 #define SIS_CFG_EDB_MASTER_EN	0x00002000
 
 #define SIS_EECTL_DIN		0x00000001
@@ -395,6 +397,8 @@ struct sis_ring_data {
 /*
  * SiS 900 PCI revision codes.
  */
+#define SIS_REV_900B		0x0003
+#define SIS_REV_630A		0x0080
 #define SIS_REV_630E		0x0081
 #define SIS_REV_630S		0x0082
 #define SIS_REV_630EA1		0x0083
