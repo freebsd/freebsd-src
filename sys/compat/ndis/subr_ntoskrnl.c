@@ -1640,7 +1640,11 @@ ntoskrnl_timercall(arg)
 	ktimer			*timer;
 	struct timeval		tv;
 
-        timer = arg;
+	mtx_unlock(&Giant);
+
+	timer = arg;
+
+	timer->k_header.dh_inserted = FALSE;
 
 	/*
 	 * If this is a periodic timer, re-arm it
@@ -1654,6 +1658,7 @@ ntoskrnl_timercall(arg)
 	if (timer->k_period) {
 		tv.tv_sec = 0;
 		tv.tv_usec = timer->k_period * 1000;
+		timer->k_header.dh_inserted = TRUE;
 		timer->k_handle =
 		    timeout(ntoskrnl_timercall, timer, tvtohz(&tv));
 	}
@@ -1662,6 +1667,8 @@ ntoskrnl_timercall(arg)
 		ntoskrnl_queue_dpc(timer->k_dpc, NULL, NULL);
 
 	ntoskrnl_wakeup(&timer->k_header);
+
+	mtx_lock(&Giant);
 
 	return;
 }
@@ -1673,11 +1680,7 @@ ntoskrnl_init_timer(timer)
 	if (timer == NULL)
 		return;
 
-	INIT_LIST_HEAD((&timer->k_header.dh_waitlisthead));
-	timer->k_header.dh_sigstate = FALSE;
-	timer->k_header.dh_type = EVENT_TYPE_NOTIFY;
-	timer->k_header.dh_size = OTYPE_TIMER;
-	callout_handle_init(&timer->k_handle);
+	ntoskrnl_init_timer_ex(timer,  EVENT_TYPE_NOTIFY);
 
 	return;
 }
@@ -1692,6 +1695,7 @@ ntoskrnl_init_timer_ex(timer, type)
 
 	INIT_LIST_HEAD((&timer->k_header.dh_waitlisthead));
 	timer->k_header.dh_sigstate = FALSE;
+	timer->k_header.dh_inserted = FALSE;
 	timer->k_header.dh_type = type;
 	timer->k_header.dh_size = OTYPE_TIMER;
 	callout_handle_init(&timer->k_handle);
@@ -1775,9 +1779,9 @@ ntoskrnl_set_timer_ex(timer, duetime, period, dpc)
 	if (timer == NULL)
 		return(FALSE);
 
-	if (timer->k_handle.callout != NULL &&
-	    callout_pending(timer->k_handle.callout)) {
+	if (timer->k_header.dh_inserted == TRUE) {
 		untimeout(ntoskrnl_timercall, timer, timer->k_handle);
+		timer->k_header.dh_inserted = FALSE;
 		pending = TRUE;
 	} else
 		pending = FALSE;
@@ -1802,6 +1806,7 @@ ntoskrnl_set_timer_ex(timer, duetime, period, dpc)
 		}
 	}
 
+	timer->k_header.dh_inserted = TRUE;
 	timer->k_handle = timeout(ntoskrnl_timercall, timer, tvtohz(&tv));
 
 	return(pending);
@@ -1825,13 +1830,14 @@ ntoskrnl_cancel_timer(timer)
 	if (timer == NULL)
 		return(FALSE);
 
-	if (timer->k_handle.callout != NULL &&
-	    callout_pending(timer->k_handle.callout))
+	if (timer->k_header.dh_inserted == TRUE) {
+		untimeout(ntoskrnl_timercall, timer, timer->k_handle);
+		if (timer->k_dpc != NULL)
+			ntoskrnl_dequeue_dpc(timer->k_dpc);
 		pending = TRUE;
-	else
+	} else
 		pending = FALSE;
 
-	untimeout(ntoskrnl_timercall, timer, timer->k_handle);
 
 	return(pending);
 }
@@ -1840,18 +1846,7 @@ __stdcall uint8_t
 ntoskrnl_read_timer(timer)
 	ktimer			*timer;
 {
-	uint8_t			pending;
-
-	if (timer == NULL)
-		return(FALSE);
-
-	if (timer->k_handle.callout != NULL &&
-	    callout_pending(timer->k_handle.callout))
-		pending = TRUE;
-	else
-		pending = FALSE;
-
-	return(pending);
+	return(timer->k_header.dh_sigstate);
 }
 
 __stdcall static void
