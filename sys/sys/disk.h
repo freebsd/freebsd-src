@@ -47,10 +47,37 @@ void disk_invalidate(struct disk *disk);
 
 #endif
 
-#define DIOCGSECTORSIZE	_IOR('d', 128, u_int)	/* Get sector size in bytes */
-#define DIOCGMEDIASIZE	_IOR('d', 129, off_t)	/* Get media size in bytes */
-#define DIOCGFWSECTORS	_IOR('d', 130, u_int)	/* Get firmware sectorcount */
-#define DIOCGFWHEADS	_IOR('d', 131, u_int)	/* Get firmware headcount */
-#define DIOCSKERNELDUMP _IOW('d', 133, u_int)	/* Set/Clear kernel dumps */
+#define DIOCGSECTORSIZE	_IOR('d', 128, u_int)
+	/*-
+	 * Get the sectorsize of the device in bytes.  The sectorsize is the
+	 * smallest unit of data which can be transfered from this device.
+	 * Usually this is a power of two but it may not be. (ie: CDROM audio)
+	 */
 
+#define DIOCGMEDIASIZE	_IOR('d', 129, off_t)	/* Get media size in bytes */
+	/*-
+	 * Get the size of the entire device in bytes.  This should be a
+	 * multiple of the sectorsize.
+	 */
+
+#define DIOCGFWSECTORS	_IOR('d', 130, u_int)	/* Get firmware sectorcount */
+	/*-
+	 * Get the firmwares notion of number of sectors per track.  This
+	 * value is mostly used for compatibility with various ill designed
+	 * disk label formats.  Don't use it unless you have to.
+	 */
+
+#define DIOCGFWHEADS	_IOR('d', 131, u_int)	/* Get firmware headcount */
+	/*-
+	 * Get the firmwares notion of number of heads per cylinder.  This
+	 * value is mostly used for compatibility with various ill designed
+	 * disk label formats.  Don't use it unless you have to.
+	 */
+
+#define DIOCSKERNELDUMP _IOW('d', 133, u_int)	/* Set/Clear kernel dumps */
+	/*-
+	 * Enable/Disable (the argument is boolean) the device for kernel
+	 * core dumps.
+	 */
+	
 #endif /* _SYS_DISK_H_ */
