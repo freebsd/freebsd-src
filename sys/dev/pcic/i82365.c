@@ -64,12 +64,14 @@
 
 #ifdef PCICDEBUG
 int	pcic_debug = 1;
-#define	DPRINTF(arg) if (pcic_debug) printf arg;
-#define DEVPRINTF(arg) if (pcic_debug) device_printf arg;
+#define	DPRINTF(arg) if (pcic_debug) printf arg; else ;
+#define DEVPRINTF(arg) if (pcic_debug) device_printf arg; else ;
 #else
 #define	DPRINTF(arg)
 #define	DEVPRINTF(arg)
 #endif
+
+#define VERBOSE(arg) if (bootverbose) printf arg; else ;
 
 #define DETACH_FORCE	0x1
 
@@ -90,7 +92,6 @@ static void	pcic_init_socket(struct pcic_handle *);
 
 static void	pcic_intr_socket(struct pcic_handle *);
 
-static void	pcic_deactivate(device_t dev);
 static int	pcic_activate(device_t dev);
 static void	pcic_intr(void *arg);
 
@@ -206,27 +207,23 @@ pcic_activate(device_t dev)
 	sc->port_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->port_rid,
 	    0, ~0, PCIC_IOSIZE, RF_ACTIVE);
 	if (!sc->port_res) {
-#ifdef PCIC_DEBUG
 		device_printf(dev, "Cannot allocate ioport\n");
-#endif		
 		return ENOMEM;
 	}
 
 	sc->irq_rid = 0;
 	sc->irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irq_rid, 
 	    0, ~0, 1, RF_ACTIVE);
-	if (!sc->irq_res) {
-#ifdef PCIC_DEBUG
-		device_printf(dev, "Cannot allocate irq\n");
-#endif
-		pcic_deactivate(dev);
-		return ENOMEM;
-	}
-	sc->irq = rman_get_start(sc->irq_res);
-	if ((err = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET, pcic_intr,
-	    sc, &sc->intrhand)) != 0) {
-		pcic_deactivate(dev);
-		return err;
+	if (sc->irq_res) {
+		sc->irq = rman_get_start(sc->irq_res);
+		if ((err = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET, 
+		    pcic_intr, sc, &sc->intrhand)) != 0) {
+			pcic_deactivate(dev);
+			return err;
+		}
+	} else {
+		/* XXX Do polling */
+		return (ENXIO);
 	}
 
 	/* XXX This might not be needed in future, get it directly from
@@ -234,10 +231,8 @@ pcic_activate(device_t dev)
 	sc->mem_rid = 0;
 	sc->mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->mem_rid, 
 	    0, ~0, 1 << 13, RF_ACTIVE);
-	if (!sc->mem_res) {
-#ifdef PCIC_DEBUG
+	if (sc->mem_res == NULL) {
 		device_printf(dev, "Cannot allocate mem\n");
-#endif
 		pcic_deactivate(dev);
 		return ENOMEM;
 	}
@@ -250,7 +245,7 @@ pcic_activate(device_t dev)
 	return (0);
 }
 
-static void
+void
 pcic_deactivate(device_t dev)
 {
 	struct pcic_softc *sc = device_get_softc(dev);
@@ -291,12 +286,13 @@ pcic_attach(device_t dev)
 
 	/*
 	 * this could be done with a loop, but it would violate the
-	 * abstraction...  so? --imp
+	 * abstraction...  --- unknown
+	 * so? I don't see the abstraction... --imp
 	 */
 
 	count = 0;
 
-	DPRINTF(("pcic ident regs:"));
+	VERBOSE(("pcic ident regs:"));
 
 	sc->handle[0].sc = sc;
 	sc->handle[0].sock = C0SA;
@@ -313,7 +309,7 @@ pcic_attach(device_t dev)
 	}
 	sc->handle[0].laststate = PCIC_LASTSTATE_EMPTY;
 
-	DPRINTF((" 0x%02x", reg));
+	VERBOSE((" 0x%02x", reg));
 
 	sc->handle[1].sc = sc;
 	sc->handle[1].sock = C0SB;
@@ -330,7 +326,7 @@ pcic_attach(device_t dev)
 	}
 	sc->handle[1].laststate = PCIC_LASTSTATE_EMPTY;
 
-	DPRINTF((" 0x%02x", reg));
+	VERBOSE((" 0x%02x", reg));
 
 	/*
 	 * The CL-PD6729 has only one controller and always returns 0
@@ -355,7 +351,7 @@ pcic_attach(device_t dev)
 		}
 		sc->handle[2].laststate = PCIC_LASTSTATE_EMPTY;
 
-		DPRINTF((" 0x%02x", reg));
+		VERBOSE((" 0x%02x", reg));
 
 		sc->handle[3].sc = sc;
  		sc->handle[3].sock = C1SB;
@@ -373,7 +369,7 @@ pcic_attach(device_t dev)
 		}
 		sc->handle[3].laststate = PCIC_LASTSTATE_EMPTY;
 
-		DPRINTF((" 0x%02x\n", reg));
+		VERBOSE((" 0x%02x\n", reg));
 	} else {
 		sc->handle[2].flags = 0;
 		sc->handle[3].flags = 0;
@@ -674,9 +670,7 @@ pcic_intr_socket(struct pcic_handle *h)
 				/* Deactivate the card now. */
 				DEVPRINTF((h->dev, "detaching card\n"));
 				pcic_detach_card(h, DETACH_FORCE);
-
-				DEVPRINTF((h->dev, 
-				    "enqueing REMOVAL event\n"));
+				DEVPRINTF((h->dev,"enqueing REMOVAL event\n"));
 				pcic_queue_event(h, PCIC_EVENT_REMOVAL);
 			}
 			h->laststate = ((statreg & PCIC_IF_STATUS_CARDDETECT_MASK) == 0)
@@ -720,7 +714,6 @@ pcic_attach_card(struct pcic_handle *h)
 	if (!(h->flags & PCIC_FLAG_CARDP)) {
 		/* call the MI attach function */
 		CARD_ATTACH_CARD(h->dev);
-
 		h->flags |= PCIC_FLAG_CARDP;
 	} else {
 		DPRINTF(("pcic_attach_card: already attached"));
