@@ -1703,9 +1703,11 @@ pci_cfg_restore(device_t dev, struct pci_devinfo *dinfo)
 	 */
 	if (dinfo->cfg.hdrtype != 0)
 		return;
-	printf("pci%d:%d:%d: setting power state D0\n", dinfo->cfg.bus,
-	    dinfo->cfg.slot, dinfo->cfg.func);
-	pci_set_powerstate(dev, PCI_POWERSTATE_D0);
+	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
+		printf("pci%d:%d:%d: setting power state D0\n", dinfo->cfg.bus,
+		    dinfo->cfg.slot, dinfo->cfg.func);
+		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
+	}
 	for (i = 0; i < dinfo->cfg.nummaps; i++)
 		pci_write_config(dev, PCIR_MAPS + i * 4, dinfo->cfg.bar[i], 4);
 	pci_write_config(dev, PCIR_BIOS, dinfo->cfg.bios, 4);
@@ -1768,8 +1770,10 @@ pci_cfg_save(device_t dev, struct pci_devinfo *dinfo, int setstate)
 	 */
 	cls = pci_get_class(dev);
 	if (setstate && cls != PCIC_DISPLAY && cls != PCIC_MEMORY) {
-		pci_set_powerstate(dev, PCI_POWERSTATE_D3);
-		printf("pci%d:%d:%d: setting power state D3\n", dinfo->cfg.bus,
-		    dinfo->cfg.slot, dinfo->cfg.func);
+		if (pci_get_powerstate(dev) != PCI_POWERSTATE_D3) {
+			printf("pci%d:%d:%d: setting power state D3\n", dinfo->cfg.bus,
+			    dinfo->cfg.slot, dinfo->cfg.func);
+			pci_set_powerstate(dev, PCI_POWERSTATE_D3);
+		}
 	}
 }
