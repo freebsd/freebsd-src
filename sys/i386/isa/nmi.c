@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: intr_machdep.c,v 1.10 1998/05/17 21:15:18 tegge Exp $
+ *	$Id: intr_machdep.c,v 1.11 1998/05/31 10:53:52 bde Exp $
  */
 
 #include "opt_auto_eoi.h"
@@ -87,7 +87,7 @@ u_long	*intr_countp[ICU_LEN];
 inthand2_t *intr_handler[ICU_LEN];
 u_int	intr_mask[ICU_LEN];
 static u_int*	intr_mptr[ICU_LEN];
-int	intr_unit[ICU_LEN];
+void	*intr_unit[ICU_LEN];
 
 static inthand_t *fastintr[ICU_LEN] = {
 	&IDTVEC(fastintr0), &IDTVEC(fastintr1),
@@ -117,7 +117,7 @@ static inthand_t *slowintr[ICU_LEN] = {
 #endif /* APIC_IO */
 };
 
-static inthand2_t isa_strayintr;
+static ointhand2_t isa_strayintr;
 
 #ifdef PC98
 #define NMI_PARITY 0x04
@@ -404,7 +404,7 @@ icu_setup(int intr, inthand2_t *handler, void *arg, u_int *maskptr, int flags)
 	intr_handler[intr] = handler;
 	intr_mptr[intr] = maskptr;
 	intr_mask[intr] = mask | (1 << intr);
-	intr_unit[intr] = (int) arg;
+	intr_unit[intr] = arg;
 #ifdef FAST_HI
 	if (flags & INTR_FAST) {
 		vector = TPR_FAST_INTS + intr;

@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: kern_intr.c,v 1.15 1998/06/07 17:11:34 dfr Exp $
+ * $Id: kern_intr.c,v 1.16 1998/06/11 07:23:59 dfr Exp $
  *
  */
 
@@ -84,8 +84,7 @@ intr_mux(void *arg)
 
 	while (p != NULL) {
 		int oldspl = splq(p->mask);
-		/* inthand2_t should take (void*) argument */
-		p->handler((long)p->argument);
+		p->handler(p->argument);
 		splx(oldspl);
 		p = p->next;
 	}
