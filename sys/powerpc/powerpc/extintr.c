@@ -72,22 +72,22 @@ static const char rcsid[] =
 #define	HWIRQ_MAX	(NIRQ - 4 - 1)
 #define	HWIRQ_MASK	0x0fffffff
 
-void	intr_calculatemasks __P((void));
-char	*intr_typename __P((int));
-int	fakeintr __P((void *));
+void	intr_calculatemasks(void);
+char	*intr_typename(int);
+int	fakeintr(void *);
 
-static __inline int	cntlzw __P((int));
-static __inline int	read_irq __P((void));
-static __inline int	mapirq __P((int));
-static void		enable_irq __P((int));
+static __inline int	cntlzw(int);
+static __inline int	read_irq(void);
+static __inline int	mapirq(int);
+static void		enable_irq(int);
 
-static __inline u_int	openpic_read __P((int));
-static __inline void	openpic_write __P((int, u_int));
-void			openpic_enable_irq __P((int));
-void			openpic_disable_irq __P((int));
-void			openpic_set_priority __P((int, int));
-static __inline int	openpic_read_irq __P((int));
-static __inline void	openpic_eoi __P((int));
+static __inline u_int	openpic_read(int);
+static __inline void	openpic_write(int, u_int);
+void			openpic_enable_irq(int);
+void			openpic_disable_irq(int);
+void			openpic_set_priority(int, int);
+static __inline int	openpic_read_irq(int);
+static __inline void	openpic_eoi(int);
 
 unsigned int	imen = 0xffffffff;
 u_int		cpl, ipending, tickspending;

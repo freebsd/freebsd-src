@@ -91,8 +91,8 @@ extern db_regs_t	ddb_regs;	/* register state */
 
 #ifdef _KERNEL
 
-void	kdb_kintr __P((void *));
-int	kdb_trap __P((int, void *));
+void	kdb_kintr(void *);
+int	kdb_trap(int, void *);
 
 #endif /* _KERNEL */
 

@@ -58,7 +58,7 @@ static const char rcsid[] =
 #include <cam/cam_xpt_sim.h>
 #include <cam/cam_debug.h>
 
-static void	configure __P((void *));
+static void	configure(void *);
 SYSINIT(configure, SI_SUB_CONFIGURE, SI_ORDER_THIRD, configure, NULL)
 
 dev_t	rootdev = NODEV;
