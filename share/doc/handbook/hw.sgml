@@ -1,0 +1,45 @@
+<!-- $Id:$ -->
+<!-- The FreeBSD Documentation Project -->
+
+<chapt><heading>* PC Hardware compatibility<label id="hw:"></heading>
+
+<sect><heading>* Core/Processing<label id="hw:core"></heading>
+
+<sect1><heading>* Motherboards</heading>
+  <sect2><heading>* ISA</heading>
+  <sect2><heading>* EISA</heading>
+  <sect2><heading>* VLB</heading>
+  <sect2><heading>* PCI</heading>
+<sect1><heading>* CPUs/FPUs</heading>
+<sect1><heading>* Memory</heading>
+<sect1><heading>* BIOS</heading>
+
+<sect><heading>* Input/Output Devices<label id="hw:io"></heading>
+
+<sect1><heading>* Video cards</heading>
+<sect1><heading>* Sound cards</heading>
+<sect1><heading>* Serial ports (including multiport cards)</heading>
+<sect1><heading>* Parallel ports</heading>
+<sect1><heading>* Modems</heading>
+<sect1><heading>* Network cards</heading>
+<sect1><heading>* Keyboards</heading>
+<sect1><heading>* Mice</heading>
+<sect1><heading>* Other</heading>
+
+<sect><heading>* Storage Devices<label id="hw:storage"></heading>
+
+<sect1><heading>* Disk/tape controllers</heading>
+  <sect2><heading>* SCSI</heading>
+  <sect2><heading>* IDE</heading>
+  <sect2><heading>* Floppy</heading>
+<sect1><heading>* Hard drives</heading>
+<sect1><heading>* Tape drives</heading>
+<sect1><heading>* CD-ROM drives</heading>
+<sect1><heading>* Other</heading>
+
+<sect><heading>* Other<label id="hw:other"></heading>
+
+<sect1><heading>* PCMCIA</heading>
+	  
+
+
