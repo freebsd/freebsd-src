@@ -95,7 +95,6 @@ g_dev_clone(void *arg __unused, char *name, int namelen __unused, dev_t *dev)
 	if (*dev != NODEV)
 		return;
 
-	g_trace(G_T_TOPOLOGY, "g_dev_clone(%s)", name);
 	g_waitidle();
 
 	/* XXX: can I drop Giant here ??? */
