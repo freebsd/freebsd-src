@@ -13,7 +13,7 @@ divert(-1)
 #
 divert(0)
 
-VERSIONID(`$Id: proto.m4,v 8.649.2.13 2002/12/04 00:12:18 ca Exp $')
+VERSIONID(`$Id: proto.m4,v 8.649.2.14 2002/12/30 15:46:02 ca Exp $')
 
 # level CF_LEVEL config file format
 V`'CF_LEVEL/ifdef(`VENDOR_NAME', `VENDOR_NAME', `Berkeley')
@@ -205,13 +205,13 @@ ifdef(`_CERT_REGEX_SUBJECT_', `dnl
 KCERTSubject regex _CERT_REGEX_SUBJECT_', `dnl')
 
 ifdef(`LOCAL_RELAY', `dnl
-# who I send unqualified names to if FEATURE(stickyhost) is used
+# who I send unqualified names to if `FEATURE(stickyhost)' is used
 # (null means deliver locally)
 DR`'LOCAL_RELAY')
 
 ifdef(`MAIL_HUB', `dnl
 # who gets all local email traffic
-# ($R has precedence for unqualified names if FEATURE(stickyhost) is used)
+# ($R has precedence for unqualified names if `FEATURE(stickyhost)' is used)
 DH`'MAIL_HUB')
 
 # dequoting map
