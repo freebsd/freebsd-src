@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pred.c,v 1.20.2.9 1998/04/16 00:26:17 brian Exp $
+ *	$Id: pred.c,v 1.20.2.10 1998/04/24 19:15:26 brian Exp $
  */
 
 #include <sys/types.h>
@@ -40,7 +40,6 @@
 #include "fsm.h"
 #include "lqr.h"
 #include "hdlc.h"
-#include "lcpproto.h"
 #include "lcp.h"
 #include "ccp.h"
 #include "pred.h"

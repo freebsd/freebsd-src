@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: deflate.c,v 1.6.4.11 1998/04/16 00:25:57 brian Exp $
+ *	$Id: deflate.c,v 1.6.4.12 1998/04/24 19:15:24 brian Exp $
  */
 
 #include <sys/types.h>
@@ -40,7 +40,6 @@
 #include "fsm.h"
 #include "lcp.h"
 #include "ccp.h"
-#include "lcpproto.h"
 #include "deflate.h"
 
 /* Our state */

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.45 1998/04/23 18:56:09 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.46 1998/04/24 19:16:02 brian Exp $
  */
 
 #include <sys/types.h>
@@ -466,8 +466,10 @@ datalink_AuthOk(struct datalink *dl)
     LogPrintf(LogPHASE, "%s: Already in NETWORK phase\n", dl->name);
     datalink_AuthNotOk(dl);
     return;
-  } else
+  } else {
+    dl->bundle->ncp.mp.peer = dl->peer;
     ipcp_SetLink(&dl->bundle->ncp.ipcp, &dl->physical->link);
+  }
 
   AuthSelect(dl->bundle, dl->peer.authname, dl->physical);
   FsmUp(&dl->physical->link.ccp.fsm);

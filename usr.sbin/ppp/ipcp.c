@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.43 1998/04/23 18:56:14 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.44 1998/04/24 19:15:39 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -265,9 +265,19 @@ ReportIpcpStatus(struct cmdargs const *arg)
   }
 
   prompt_Printf(arg->prompt, "\nDefaults:\n");
-  prompt_Printf(arg->prompt, " My Address:      %s/%d\n",
+  prompt_Printf(arg->prompt, " My Address:      %s/%d",
 	        inet_ntoa(arg->bundle->ncp.ipcp.cfg.my_range.ipaddr),
                 arg->bundle->ncp.ipcp.cfg.my_range.width);
+
+  if (arg->bundle->ncp.ipcp.cfg.HaveTriggerAddress)
+    prompt_Printf(arg->prompt, " (trigger with %s)",
+                  inet_ntoa(arg->bundle->ncp.ipcp.cfg.TriggerAddress));
+  prompt_Printf(arg->prompt, "\n VJ compression:  %s (%d slots %s slot "
+                "compression)\n",
+                command_ShowNegval(arg->bundle->ncp.ipcp.cfg.vj.neg),
+                arg->bundle->ncp.ipcp.cfg.vj.slots,
+                arg->bundle->ncp.ipcp.cfg.vj.slotcomp ? "with" : "without");
+
   if (iplist_isvalid(&arg->bundle->ncp.ipcp.cfg.peer_list))
     prompt_Printf(arg->prompt, " His Address:     %s\n",
                   arg->bundle->ncp.ipcp.cfg.peer_list.src);
@@ -275,29 +285,16 @@ ReportIpcpStatus(struct cmdargs const *arg)
     prompt_Printf(arg->prompt, " His Address:     %s/%d\n",
 	          inet_ntoa(arg->bundle->ncp.ipcp.cfg.peer_range.ipaddr),
                   arg->bundle->ncp.ipcp.cfg.peer_range.width);
+
   prompt_Printf(arg->prompt, " DNS:             %s, ",
                 inet_ntoa(arg->bundle->ncp.ipcp.cfg.ns.dns[0]));
-  prompt_Printf(arg->prompt, "%s\n",
-                inet_ntoa(arg->bundle->ncp.ipcp.cfg.ns.dns[1]));
+  prompt_Printf(arg->prompt, "%s, %s\n",
+                inet_ntoa(arg->bundle->ncp.ipcp.cfg.ns.dns[1]),
+                command_ShowNegval(arg->bundle->ncp.ipcp.cfg.ns.dns_neg));
   prompt_Printf(arg->prompt, " NetBIOS NS:      %s, ",
 	        inet_ntoa(arg->bundle->ncp.ipcp.cfg.ns.nbns[0]));
   prompt_Printf(arg->prompt, "%s\n",
                 inet_ntoa(arg->bundle->ncp.ipcp.cfg.ns.nbns[1]));
-
-  prompt_Printf(arg->prompt, "\nNegotiation:\n");
-  if (arg->bundle->ncp.ipcp.cfg.HaveTriggerAddress)
-    prompt_Printf(arg->prompt, " Trigger Address: %s\n",
-            inet_ntoa(arg->bundle->ncp.ipcp.cfg.TriggerAddress));
-  else
-    prompt_Printf(arg->prompt, " Trigger Address: MYADDR\n");
-
-  prompt_Printf(arg->prompt, " DNS:             %s\n",
-                command_ShowNegval(arg->bundle->ncp.ipcp.cfg.ns.dns_neg));
-  prompt_Printf(arg->prompt, " VJ compression:  %s (%d slots %s slot "
-                "compression)\n",
-                command_ShowNegval(arg->bundle->ncp.ipcp.cfg.vj.neg),
-                arg->bundle->ncp.ipcp.cfg.vj.slots,
-                arg->bundle->ncp.ipcp.cfg.vj.slotcomp ? "with" : "without");
 
   prompt_Printf(arg->prompt, "\n");
   throughput_disp(&arg->bundle->ncp.ipcp.throughput, arg->prompt);
