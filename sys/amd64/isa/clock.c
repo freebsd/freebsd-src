@@ -183,9 +183,6 @@ static struct timecounter tsc_timecounter = {
 	 "TSC"			/* name */
 };
 
-SYSCTL_OPAQUE(_debug, OID_AUTO, tsc_timecounter, CTLFLAG_RD, 
-	&tsc_timecounter, sizeof(tsc_timecounter), "S,timecounter", "");
-
 static struct timecounter i8254_timecounter = {
 	i8254_get_timecount,	/* get_timecount */
 	0,			/* no poll_pps */
@@ -193,9 +190,6 @@ static struct timecounter i8254_timecounter = {
 	0,			/* frequency */
 	"i8254"			/* name */
 };
-
-SYSCTL_OPAQUE(_debug, OID_AUTO, i8254_timecounter, CTLFLAG_RD, 
-	&i8254_timecounter, sizeof(i8254_timecounter), "S,timecounter", "");
 
 static void
 clkintr(struct clockframe frame)

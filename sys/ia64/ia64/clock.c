@@ -93,8 +93,6 @@ static struct timecounter ia64_timecounter = {
 	"IA64 ITC"		/* name */
 };
 
-SYSCTL_OPAQUE(_debug, OID_AUTO, ia64_timecounter, CTLFLAG_RD, 
-	&ia64_timecounter, sizeof(ia64_timecounter), "S,timecounter", "");
 #endif
 
 /* Values for timerX_state: */

@@ -108,9 +108,6 @@ static struct timecounter	powerpc_timecounter = {
 	"powerpc"		/* name */
 };
 
-SYSCTL_OPAQUE(_debug, OID_AUTO, powerpc_timecounter, CTLFLAG_RD, 
-	&powerpc_timecounter, sizeof(powerpc_timecounter), "S,timecounter", "");
-
 void
 inittodr(time_t base)
 {

@@ -102,8 +102,6 @@ static struct timecounter acpi_timer_timecounter = {
     "ACPI"
 };
 
-SYSCTL_OPAQUE(_debug, OID_AUTO, acpi_timecounter, CTLFLAG_RD,
-	      &acpi_timer_timecounter, sizeof(acpi_timer_timecounter), "S,timecounter", "");
 static int test_counter(void);
 
 #define N 2000

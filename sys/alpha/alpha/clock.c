@@ -124,9 +124,6 @@ static struct timecounter alpha_timecounter = {
 	"alpha"			/* name */
 };
 
-SYSCTL_OPAQUE(_debug, OID_AUTO, alpha_timecounter, CTLFLAG_RD, 
-	&alpha_timecounter, sizeof(alpha_timecounter), "S,timecounter", "");
-
 static struct timecounter i8254_timecounter = {
 	i8254_get_timecount,	/* get_timecount */
 	0,			/* no poll_pps */
@@ -134,9 +131,6 @@ static struct timecounter i8254_timecounter = {
 	0,			/* frequency */
 	"i8254"			/* name */
 };
-
-SYSCTL_OPAQUE(_debug, OID_AUTO, i8254_timecounter, CTLFLAG_RD, 
-	&i8254_timecounter, sizeof(i8254_timecounter), "S,timecounter", "");
 
 /* Values for timerX_state: */
 #define	RELEASED	0
