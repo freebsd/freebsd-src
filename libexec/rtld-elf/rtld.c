@@ -815,7 +815,8 @@ find_library(const char *xname, const Obj_Entry *refobj)
     }
 
 #ifdef WITH_LIBMAP
-    if (libmap_disable || (name = lm_find(refobj->path, xname)) == NULL)
+    if (libmap_disable || (refobj == NULL) ||
+	(name = lm_find(refobj->path, xname)) == NULL)
 #endif
 	name = (char *)xname;
 
