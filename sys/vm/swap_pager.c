@@ -472,6 +472,9 @@ swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		 vm_ooffset_t offset)
 {
 	vm_object_t object;
+	vm_pindex_t pindex;
+
+	pindex = OFF_TO_IDX(offset + PAGE_MASK + size);
 
 	if (handle) {
 		mtx_lock(&Giant);
@@ -487,8 +490,7 @@ swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		if (object != NULL) {
 			vm_object_reference(object);
 		} else {
-			object = vm_object_allocate(OBJT_DEFAULT,
-				OFF_TO_IDX(offset + PAGE_MASK + size));
+			object = vm_object_allocate(OBJT_DEFAULT, pindex);
 			object->handle = handle;
 
 			VM_OBJECT_LOCK(object);
@@ -498,8 +500,7 @@ swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		sx_xunlock(&sw_alloc_sx);
 		mtx_unlock(&Giant);
 	} else {
-		object = vm_object_allocate(OBJT_DEFAULT,
-			OFF_TO_IDX(offset + PAGE_MASK + size));
+		object = vm_object_allocate(OBJT_DEFAULT, pindex);
 
 		VM_OBJECT_LOCK(object);
 		swp_pager_meta_build(object, 0, SWAPBLK_NONE);
