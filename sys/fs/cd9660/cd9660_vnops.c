@@ -428,9 +428,6 @@ cd9660_read(ap)
 		}
 
 		error = uiomove(bp->b_data + on, (int)n, uio);
-		if (n + on == imp->logical_block_size ||
-		    uio->uio_offset == (off_t)ip->i_size)
-			bp->b_flags |= B_AGE;
 		brelse(bp);
 	} while (error == 0 && uio->uio_resid > 0 && n != 0);
 	return (error);
@@ -1195,7 +1192,6 @@ static struct vnodeopv_desc cd9660_specop_opv_desc =
 	{ &cd9660_specop_p, cd9660_specop_entries };
 VNODEOP_SET(cd9660_specop_opv_desc);
 
-#ifdef FIFO
 vop_t **cd9660_fifoop_p;
 struct vnodeopv_entry_desc cd9660_fifoop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
@@ -1247,4 +1243,3 @@ static struct vnodeopv_desc cd9660_fifoop_opv_desc =
 	{ &cd9660_fifoop_p, cd9660_fifoop_entries };
 
 VNODEOP_SET(cd9660_fifoop_opv_desc);
-#endif /* FIFO */
