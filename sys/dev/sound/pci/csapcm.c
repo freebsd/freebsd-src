@@ -49,6 +49,7 @@ struct csa_chinfo {
 	snd_dbuf *buffer;
 	int dir;
 	u_int32_t fmt;
+	int dma;
 };
 
 struct csa_info {
@@ -408,11 +409,14 @@ csa_startplaydma(struct csa_info *csa)
 	csa_res *resp;
 	u_long ul;
 
-	resp = &csa->res;
-	ul = csa_readmem(resp, BA1_PCTL);
-	ul &= 0x0000ffff;
-	csa_writemem(resp, BA1_PCTL, ul | csa->pctl);
-	csa_writemem(resp, BA1_PVOL, 0x80008000);
+	if (!csa->pch.dma) {
+		resp = &csa->res;
+		ul = csa_readmem(resp, BA1_PCTL);
+		ul &= 0x0000ffff;
+		csa_writemem(resp, BA1_PCTL, ul | csa->pctl);
+		csa_writemem(resp, BA1_PVOL, 0x80008000);
+		csa->pch.dma = 1;
+	}
 }
 
 static void
@@ -421,11 +425,14 @@ csa_startcapturedma(struct csa_info *csa)
 	csa_res *resp;
 	u_long ul;
 
-	resp = &csa->res;
-	ul = csa_readmem(resp, BA1_CCTL);
-	ul &= 0xffff0000;
-	csa_writemem(resp, BA1_CCTL, ul | csa->cctl);
-	csa_writemem(resp, BA1_CVOL, 0x80008000);
+	if (!csa->rch.dma) {
+		resp = &csa->res;
+		ul = csa_readmem(resp, BA1_CCTL);
+		ul &= 0xffff0000;
+		csa_writemem(resp, BA1_CCTL, ul | csa->cctl);
+		csa_writemem(resp, BA1_CVOL, 0x80008000);
+		csa->rch.dma = 1;
+	}
 }
 
 static void
@@ -434,14 +441,17 @@ csa_stopplaydma(struct csa_info *csa)
 	csa_res *resp;
 	u_long ul;
 
-	resp = &csa->res;
-	ul = csa_readmem(resp, BA1_PCTL);
-	csa->pctl = ul & 0xffff0000;
-	csa_writemem(resp, BA1_PCTL, ul & 0x0000ffff);
-	csa_writemem(resp, BA1_PVOL, 0xffffffff);
+	if (csa->pch.dma) {
+		resp = &csa->res;
+		ul = csa_readmem(resp, BA1_PCTL);
+		csa->pctl = ul & 0xffff0000;
+		csa_writemem(resp, BA1_PCTL, ul & 0x0000ffff);
+		csa_writemem(resp, BA1_PVOL, 0xffffffff);
 
-	/* Clear the serial fifos. */
-	csa_clearserialfifos(resp);
+		/* Clear the serial fifos. */
+		csa_clearserialfifos(resp);
+		csa->pch.dma = 0;
+	}
 }
 
 static void
@@ -450,11 +460,14 @@ csa_stopcapturedma(struct csa_info *csa)
 	csa_res *resp;
 	u_long ul;
 
-	resp = &csa->res;
-	ul = csa_readmem(resp, BA1_CCTL);
-	csa->cctl = ul & 0x0000ffff;
-	csa_writemem(resp, BA1_CCTL, ul & 0xffff0000);
-	csa_writemem(resp, BA1_CVOL, 0xffffffff);
+	if (csa->rch.dma) {
+		resp = &csa->res;
+		ul = csa_readmem(resp, BA1_CCTL);
+		csa->cctl = ul & 0x0000ffff;
+		csa_writemem(resp, BA1_CCTL, ul & 0xffff0000);
+		csa_writemem(resp, BA1_CVOL, 0xffffffff);
+		csa->rch.dma = 0;
+	}
 }
 
 static void
@@ -754,6 +767,12 @@ pcmcsa_attach(device_t dev)
 	unit = device_get_unit(dev);
 	func = device_get_ivars(dev);
 	csa->binfo = func->varinfo;
+	/*
+	 * Fake the status of DMA so that the initial value of
+	 * PCTL and CCTL can be stored into csa->pctl and csa->cctl,
+	 * respectively.
+	 */
+	csa->pch.dma = csa->rch.dma = 1;
 
 	/* Allocate the resources. */
 	resp = &csa->res;
