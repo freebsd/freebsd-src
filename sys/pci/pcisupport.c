@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.117 1999/06/04 02:38:18 mharo Exp $
+**  $Id: pcisupport.c,v 1.118 1999/06/09 11:46:43 ache Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -694,29 +694,29 @@ ide_pci_match(device_t dev)
 	 pci_get_subclass(dev) == PCIS_STORAGE_RAID)) {
 	switch (pci_get_devid(dev)) {
 	case 0x12308086:
-	    return "Intel PIIX IDE controller";
+	    return ("Intel PIIX IDE controller");
 	case 0x70108086:
-	    return "Intel PIIX3 IDE controller";
+	    return ("Intel PIIX3 IDE controller");
 	case 0x71118086:
-	    return "Intel PIIX4 IDE controller";
+	    return ("Intel PIIX4 IDE controller");
 	case 0x4d33105a:
-	    return "Promise Ultra/33 IDE controller";
+	    return ("Promise Ultra/33 IDE controller");
 	case 0x522910b9:
-	    return "AcerLabs Aladdin IDE controller";
+	    return ("AcerLabs Aladdin IDE controller");
 	case 0x05711106:
-	    return "VIA Apollo IDE controller";
+	    return ("VIA Apollo IDE controller");
 	case 0x06401095:
-	    return "CMD 640 IDE controller";
+	    return ("CMD 640 IDE controller");
 	case 0x06461095:
-	    return "CMD 646 IDE controller";
+	    return ("CMD 646 IDE controller");
 	case 0xc6931080:
-	    return "Cypress 82C693 IDE controller";
+	    return ("Cypress 82C693 IDE controller");
 	case 0x01021078:
-	    return "Cyrix 5530 IDE controller";
+	    return ("Cyrix 5530 IDE controller");
 	case 0x55131039:
-	    return ("SiS 5591 IDE Controller");
+	    return ("SiS 5591 IDE controller");
 	default:
-	    return "Unknown PCI IDE controller";
+	    return ("Unknown PCI IDE controller");
 	}
     }
     return NULL;
@@ -818,15 +818,15 @@ pcib_match(device_t dev)
 
 	/* VIA Technologies -- vendor 0x1106 */
 	case 0x85981106:
-		return("VIA 82C598MVP (Apollo MVP3) PCI-PCI (AGP) bridge");
+		return ("VIA 82C598MVP (Apollo MVP3) PCI-PCI (AGP) bridge");
 
 	/* AcerLabs -- vendor 0x10b9 */
 	/* Funny : The datasheet told me vendor id is "10b8",sub-vendor */
 	/* id is '10b9" but the register always shows "10b9". -Foxfair  */
 	case 0x524710b9:
-		return("AcerLabs M5247 PCI-PCI(AGP Supported) bridge");
+		return ("AcerLabs M5247 PCI-PCI(AGP Supported) bridge");
 	case 0x524310b9:/* 5243 seems like 5247, need more info to divide*/
-		return("AcerLabs M5243 PCI-PCI bridge");
+		return ("AcerLabs M5243 PCI-PCI bridge");
 
 	/* Others */
 	case 0x00221014:
@@ -955,15 +955,15 @@ isab_match(device_t dev)
 	 * does not seem to have any docs on their website for it, and I do
 	 * not have a Master board in my posession. -LC */
 	case 0x05861106: /* south bridge section -- IDE is covered in ide_pci.c */
-		return("VIA 82C586 PCI-ISA bridge");
+		return ("VIA 82C586 PCI-ISA bridge");
 
 	/* AcerLabs -- vendor 0x10b9 */
 	/* Funny : The datasheet told me vendor id is "10b8",sub-vendor */
 	/* id is '10b9" but the register always shows "10b9". -Foxfair  */
 	case 0x153310b9:
-		return("AcerLabs M1533 portable PCI-ISA bridge");
+		return ("AcerLabs M1533 portable PCI-ISA bridge");
 	case 0x154310b9:
-		return("AcerLabs M1543 desktop PCI-ISA bridge");
+		return ("AcerLabs M1543 desktop PCI-ISA bridge");
 
 	/* SiS -- vendor 0x1039 */
 	case 0x00081039:
@@ -1101,7 +1101,7 @@ chip_match(device_t dev)
 		return ("Intel 82454KX/GX (Orion) host to PCI bridge");
 	case 0x84ca8086:
 		fixbushigh_450nx(dev);
-		return ("Intel 82451NX Memory and I/O Controller");
+		return ("Intel 82451NX Memory and I/O controller");
 	case 0x04868086:
 		return ("Intel 82425EX PCI system controller");
 	case 0x04838086:
@@ -1122,14 +1122,21 @@ chip_match(device_t dev)
 	case 0x70308086:
 		return ("Intel 82437VX PCI cache memory controller");
 	case 0x71008086:
-		return ("Intel 82439TX System Controller (MTXC)");
+		return ("Intel 82439TX System controller (MTXC)");
 	case 0x71138086:
 		return ("Intel 82371AB Power management controller");
 	case 0x12378086:
 		fixwsc_natoma(dev);
 		return ("Intel 82440FX (Natoma) PCI and memory controller");
+	case 0x70208086:
+		return ("Intel 82371SB (PIIX3) USB controller");
+#ifdef NWH
+	case 0x71128086:
+		return ("Intel 82371AB/EB (PIIX4) USB controller");
+#endif
 	case 0x84c58086:
 		return ("Intel 82453KX/GX (Orion) PCI memory controller");
+
 	/* SiS -- vendor 0x1039 */
 	case 0x04961039:
 		return ("SiS 85c496");
@@ -1146,11 +1153,11 @@ chip_match(device_t dev)
 	case 0x00051004:
 		return ("VLSI 82C592 Host to PCI bridge");
 	case 0x01011004:
-		return ("VLSI 82C532 Eagle II Peripheral Controller");
+		return ("VLSI 82C532 Eagle II Peripheral controller");
 	case 0x01041004:
-		return ("VLSI 82C535 Eagle II System Controller");
+		return ("VLSI 82C535 Eagle II System controller");
 	case 0x01051004:
-		return ("VLSI 82C147 IrDA Controller");
+		return ("VLSI 82C147 IrDA controller");
 
 	/* VIA Technologies -- vendor 0x1106 
 	 * Note that the old Apollo Master chipset is not in here, as VIA
@@ -1158,23 +1165,23 @@ chip_match(device_t dev)
 	 * not have a Master board in my posession. -LC */
 
 	case 0x05851106:
-		return("VIA 82C585 (Apollo VP1/VPX) system controller");
+		return ("VIA 82C585 (Apollo VP1/VPX) system controller");
 	case 0x05951106:
 	case 0x15951106:
-		return("VIA 82C595 (Apollo VP2) system controller");
+		return ("VIA 82C595 (Apollo VP2) system controller");
 	case 0x05971106:
-		return("VIA 82C597 (Apollo VP3) system controller");
+		return ("VIA 82C597 (Apollo VP3) system controller");
 	/* XXX Here is MVP3, I got the datasheet but NO M/B to test it  */
 	/* totally. Please let me know if anything wrong.            -F */
 	/* XXX need info on the MVP3 -- any takers? */
 	case 0x05981106:
-		return("VIA 82C598MVP (Apollo MVP3) host bridge");
+		return ("VIA 82C598MVP (Apollo MVP3) host bridge");
 	case 0x30401106:
-		return("VIA 82C586B ACPI interface");
+		return ("VIA 82C586B ACPI interface");
         case 0x05711106:
-		return("VIA 82C586B IDE controller");
+		return ("VIA 82C586B IDE controller");
 	case 0x30381106:
-		return("VIA 82C586B USB controller");
+		return ("VIA 83C572 USB controller");
 
 	/* NEC -- vendor 0x1033 */
 	case 0x00021033:
@@ -1186,13 +1193,19 @@ chip_match(device_t dev)
 	/* Funny : The datasheet told me vendor id is "10b8",sub-vendor */
 	/* id is '10b9" but the register always shows "10b9". -Foxfair  */
 	case 0x154110b9:
-		return("AcerLabs M1541 (Aladdin-V) PCI host bridge");
+		return ("AcerLabs M1541 (Aladdin-V) PCI host bridge");
+	case 0x523710b9:
+		return ("AcerLabs M5237 (Aladdin-V) USB controller");
 	case 0x710110b9:
 		return ("AcerLabs M15x3 Power Management Unit");
 
 	/* OPTi -- vendor 0x1045 */
 	case 0xc8221045:
 		return ("OPTi 82C822 host to PCI Bridge");
+#ifdef NWH
+	case 0xc8611045:
+		return ("OPTi 82C861 (FireLink) USB controller");
+#endif
 
 	/* Ross (?) -- vendor 0x1166 */
 	case 0x00051166:
@@ -1212,6 +1225,14 @@ chip_match(device_t dev)
 	case 0x002c1033:
 	case 0x003b1033:
 		return NULL;
+	case 0x00351033:
+		return ("NEC uPD 9210 USB controller");
+
+	/* CMD Tech -- vendor 0x1095 */
+	case 0x06701095:
+		return ("CMD Tech 670 (USB0670) USB controller");
+	case 0x06731095:
+		return ("CMD Tech 673 (USB0673) USB controller");
 	};
 
 	if (pci_get_class(dev) == PCIC_BRIDGE
@@ -1219,6 +1240,17 @@ chip_match(device_t dev)
 	    && pci_get_subclass(dev) != PCIS_BRIDGE_ISA
 	    && pci_get_subclass(dev) != PCIS_BRIDGE_EISA)
 		return pci_bridge_type(dev);
+
+	if (pci_get_class(dev) == PCIC_SERIALBUS
+	    && pci_get_subclass(dev) == PCIS_SERIALBUS_USB) {
+		if (pci_get_progif(dev) == 0x00 /* UHCI */ ) {
+			return ("UHCI USB controller");
+		} else if (pci_get_progif(dev) == 0x10 /* OHCI */ ) {
+			return ("OHCI USB controller");
+		} else {
+			return ("USB controller");
+		}
+	}
 
 	return NULL;
 }
