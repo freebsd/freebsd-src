@@ -400,6 +400,9 @@ sltioctl(tp, cmd, data, flag, p)
 					sc->sc_flags &= ~SC_STATIC;
 					sc->sc_flags |= (nc->sc_flags & SC_STATIC);
 					tp->t_sc = sc = nc;
+					clist_alloc_cblocks(&tp->t_outq,
+					    SLIP_HIWAT + 2 * sc->sc_if.if_mtu + 1,
+					    SLIP_HIWAT + 2 * sc->sc_if.if_mtu + 1);
 					goto slfound;
 				}
 			}
