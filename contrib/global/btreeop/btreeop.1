@@ -1,0 +1,182 @@
+.\"
+.\" Copyright (c) 1996, 1997 Shigio Yamaguchi. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Shigio Yamaguchi.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd Nov 26, 1997
+.Dt BTREEOP 1
+.Os BSD 4
+.Sh NAME
+.Nm btreeop
+.Nd btree database maintenance tool
+.Sh SYNOPSIS
+.Nm btreeop
+.Op Fl A
+.Op Fl C
+.Op Fl D[keyno] Ar key
+.Op Fl K[keyno] Ar key
+.Op Fl L
+.Op Fl k Ar prefix
+.Op Ar dbname
+.Sh DESCRIPTION
+.Nm Btreeop
+execute simple operations for
+.Xr btree 3
+database.
+.Nm Btreeop
+can create database, write record, read record (sequential or indexed) and
+delete record from it.
+Duplicate entries are allowed.
+Multi-key is available but only primary key can use index of
+.Xr btree 3 .
+.Sh OPTIONS
+A capital letter means a command. If no command specified
+then it assume sequential read operation.
+.Bl -tag -width Ds
+.It Fl A
+append records. If database doesn't exist, btreeop creates it.
+.It Fl C
+create database and write records to it.
+.It Fl D[keyno] Ar key
+delete records by the key. By default, keyno is 0 (primary key).
+.It Fl K[keyno] Ar key
+search records by the key. By default, keyno is 0 (primary key).
+.It Fl L
+list all primary keys.
+Following two command lines are identical except that the latter is much faster.
+
+	btreeop | awk '{print $1}' | uniq
+
+	btreeop -L
+.It Fl k Ar prefix
+scan records which have the prefix as a primary key.
+This option is valid only with sequential read operation (-L command or non command).
+Following two command lines are identical except that the latter is much faster.
+
+	btreeop | awk '$1 ~ /^fo/ {print }'
+
+	btreeop -k fo
+.It Ar dbname
+database name. default is 'btree'.
+.Sh DATA FORMAT
+To creat (or append) database,
+.Nm btreeop
+read data from stdin.
+The format of the data is the following.
+
+  Primary-key  Secondary-key-1  Secondary-key-2  Data
+  (keyno = 0)  (keyno = 1)      (keyno = 2)
+  --------------------------------------------------------------
+  main         246              main.c           main (){\\n
+  func         120              library.c        func(a1, a2)\\n
+  .
+  .
+  .
+
+.El
+
+.Bl -enum -offset indent
+.It
+All key and data are separated by blank('\\t' or ' '). 
+.It
+Key cannot include blank.
+.It
+Data can include blank.
+.It
+Null data not allowed.
+.It
+Additionally, META record is available. META record has a key that start with
+a blank. You can read this record only by indexed read operation (-K option).
+Usage is unlimited by btreeop.
+.El
+.Sh EXAMPLES
+Create database.
+
+  % btreeop -C
+  key1	data1
+  key2	data2
+  key3	data3
+  ^D
+  %
+
+Append records.
+
+  % btreeop -A
+   __.VERSION 2
+  key2	data2-2
+  ^D
+  %
+
+Sequential read.
+
+  % btreeop
+  key1  data1
+  key2  data2-2
+  key2  data2
+  key3  data3
+  %
+
+Indexed read.
+
+  % btreeop -K key2
+  key2  data2-2
+  key2  data2
+  % btreeop -K ' __.VERSION'
+   __.VERSION 2
+  %
+
+List primary keys.
+
+  % btreeop -L
+  key1
+  key2
+  key3
+  %
+
+Delete record.
+
+  % btreeop -D ' __.VERSION'
+  % btreeop -K ' __.VERSION'
+  %
+
+.Sh FILES
+.Bl -tag -width tags -compact
+.It Pa btree
+default database name.
+.El
+.Sh DIAGNOSTICS
+.Nm Btreeop
+exits with a non 0 value if an error occurred, 0 otherwise.
+.Sh SEE ALSO
+.Xr btree 3
+.Sh AUTHOR
+Shigio Yamaguchi (shigio@wafu.netgate.net)
+.Sh HISTORY
+The
+.Nm
+command appeared in FreeBSD 2.2.2.
