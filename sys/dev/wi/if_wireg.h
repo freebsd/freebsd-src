@@ -35,12 +35,12 @@
 #define WI_DELAY	5
 #define WI_TIMEOUT	(500000/WI_DELAY)	/* 500 ms */
 
-#define WI_PORT0	0
-#define WI_PORT1	1
-#define WI_PORT2	2
-#define WI_PORT3	3
-#define WI_PORT4	4
-#define WI_PORT5	5
+#define WI_PORT0	(0 << 8)
+#define WI_PORT1	(1 << 8)
+#define WI_PORT2	(2 << 8)
+#define WI_PORT3	(3 << 8)
+#define WI_PORT4	(4 << 8)
+#define WI_PORT5	(5 << 8)
 
 #define WI_PCI_LMEMRES	0x10	/* PCI Memory (native PCI implementations) */
 #define WI_PCI_LOCALRES	0x14	/* The PLX chip's local registers */
@@ -54,10 +54,7 @@
 #define WI_HFA384X_PCICOR_OFF		0x26
 
 /* Default port: 0 (only 0 exists on stations) */
-#define WI_DEFAULT_PORT	(WI_PORT0 << 8)
-
-/* Default TX rate: 2Mbps, auto fallback */
-#define WI_DEFAULT_TX_RATE	3
+#define WI_DEFAULT_PORT	WI_PORT0
 
 /* Default network name: ANY */
 /*
@@ -96,8 +93,6 @@
 #define WI_DEFAULT_NODENAME	OS_STRING_NAME " WaveLAN/IEEE node"
 
 #define WI_DEFAULT_IBSS		OS_STRING_NAME " IBSS"
-
-#define WI_DEFAULT_CHAN		3
 
 #define WI_BUS_PCCARD		0	/* pccard device */
 #define WI_BUS_PCI_PLX		1	/* PCI card w/ PLX PCI/PCMICA bridge */
@@ -302,9 +297,6 @@
 #define WI_EV_TX		0x0002	/* async xmit completed succesfully */
 #define WI_EV_RX		0x0001	/* async rx completed */
 
-#define WI_INTRS	\
-	(WI_EV_RX|WI_EV_TX|WI_EV_TX_EXC|WI_EV_ALLOC|WI_EV_INFO|WI_EV_INFO_DROP)
-
 /* Host software registers */
 #define WI_SW0			0x28
 #define WI_SW1			0x2A
@@ -347,48 +339,16 @@
  * and type are 16 bits and are in native byte order. The value is in
  * multiples of 16 bits and is in little endian byte order.
  */
-struct wi_ltv_gen {
+struct wi_lt_hdr {
 	u_int16_t		wi_len;
 	u_int16_t		wi_type;
-	u_int16_t		wi_val;
+	/* value is vary depends on resource id */
 };
-
-struct wi_ltv_str {
-	u_int16_t		wi_len;
-	u_int16_t		wi_type;
-	u_int16_t		wi_str[17];
-};
-
-#define WI_SETVAL(recno, val)			\
-	do {					\
-		struct wi_ltv_gen	g;	\
-						\
-		g.wi_len = 2;			\
-		g.wi_type = recno;		\
-		g.wi_val = htole16(val);	\
-		wi_write_record(sc, &g);	\
-	} while (0)
-
-#define WI_SETSTR(recno, str)					\
-	do {							\
-		struct wi_ltv_str	s;			\
-		int			l;			\
-								\
-		l = (strlen(str) + 1) & ~0x1;			\
-		bzero((char *)&s, sizeof(s));			\
-		s.wi_len = (l / 2) + 2;				\
-		s.wi_type = recno;				\
-		s.wi_str[0] = htole16(strlen(str));		\
-		bcopy(str, (char *)&s.wi_str[1], strlen(str));	\
-		wi_write_record(sc, (struct wi_ltv_gen *)&s);	\
-	} while (0)
 
 /*
  * Download buffer location and length (0xFD01).
  */
-struct wi_ltv_dnld_buf {
-	u_int16_t		wi_len;
-	u_int16_t		wi_type;
+struct wi_dnld_buf {
 	u_int16_t		wi_buf_pg; /* page addr of intermediate dl buf*/
 	u_int16_t		wi_buf_off; /* offset of idb */
 	u_int16_t		wi_buf_len; /* len of idb */
@@ -397,9 +357,7 @@ struct wi_ltv_dnld_buf {
 /*
  * Mem sizes (0xFD02).
  */
-struct wi_ltv_memsz {
-	u_int16_t		wi_len;
-	u_int16_t		wi_type;
+struct wi_memsz {
 	u_int16_t		wi_mem_ram;
 	u_int16_t		wi_mem_nvram;
 };
@@ -407,9 +365,7 @@ struct wi_ltv_memsz {
 /*
  * NIC Identification (0xFD0B, 0xFD20)
  */
-struct wi_ltv_ver {
-	u_int16_t		wi_len;
-	u_int16_t		wi_type;
+struct wi_ver {
 	u_int16_t		wi_ver[4];
 };
 
@@ -493,18 +449,14 @@ struct wi_ltv_domains {
 /*
  * CIS struct (0xFD13).
  */
-struct wi_ltv_cis {
-	u_int16_t		wi_len;
-	u_int16_t		wi_type;
+struct wi_cis {
 	u_int16_t		wi_cis[240];
 };
 
 /*
  * Communications quality (0xFD43).
  */
-struct wi_ltv_commqual {
-	u_int16_t		wi_len;
-	u_int16_t		wi_type;
+struct wi_commqual {
 	u_int16_t		wi_coms_qual;
 	u_int16_t		wi_sig_lvl;
 	u_int16_t		wi_noise_lvl;
@@ -513,9 +465,7 @@ struct wi_ltv_commqual {
 /*
  * Actual system scale thresholds (0xFC06, 0xFD46).
  */
-struct wi_ltv_scalethresh {
-	u_int16_t		wi_len;
-	u_int16_t		wi_type;
+struct wi_scalethresh {
 	u_int16_t		wi_energy_detect;
 	u_int16_t		wi_carrier_detect;
 	u_int16_t		wi_defer;
@@ -527,14 +477,10 @@ struct wi_ltv_scalethresh {
 /*
  * PCF info struct (0xFD87).
  */
-struct wi_ltv_pcf {
-	u_int16_t		wi_len;
-	u_int16_t		wi_type;
-	u_int16_t		wi_energy_detect;
-	u_int16_t		wi_carrier_detect;
-	u_int16_t		wi_defer;
-	u_int16_t		wi_cell_search;
-	u_int16_t		wi_range;
+struct wi_pcf {
+	u_int16_t		wi_medium_occupancy_limit;
+	u_int16_t		wi_cfp_period;
+	u_int16_t		wi_cfp_max_duration;
 };
 
 /*
@@ -546,47 +492,49 @@ struct wi_ltv_pcf {
  *	(Only PRISM2; not 802.11 compliant mode, testing use only)
  * 6 == HOST AP (Only PRISM2)
  */
+#define	WI_PORTTYPE_IBSS	0x0
 #define WI_PORTTYPE_BSS		0x1
 #define WI_PORTTYPE_WDS		0x2
 #define WI_PORTTYPE_ADHOC	0x3
-#define WI_PORTTYPE_IBSS	0x4
-#define WI_PORTTYPE_HOSTAP	0x6
+#define	WI_PORTTYPE_HOSTAP	0x6
 
 /*
  * Mac addresses. (0xFC01, 0xFC08)
  */
-struct wi_ltv_macaddr {
-	u_int16_t		wi_len;
-	u_int16_t		wi_type;
-	u_int16_t		wi_mac_addr[3];
+struct wi_macaddr {
+	u_int8_t		wi_mac_addr[6];
 };
 
 /*
  * Station set identification (SSID). (0xFC02, 0xFC04)
  */
-struct wi_ltv_ssid {
+struct wi_ssid {
 	u_int16_t		wi_len;
-	u_int16_t		wi_type;
-	u_int16_t		wi_id[17];
+	u_int8_t		wi_ssid[32];
 };
 
 /*
  * Set our station name. (0xFC0E)
  */
-struct wi_ltv_nodename {
-	u_int16_t		wi_len;
-	u_int16_t		wi_type;
-	u_int16_t		wi_nodename[17];
+struct wi_nodename {
+	u_int16_t		wi_nodelen;
+	u_int8_t		wi_nodename[32];
 };
 
 /*
  * Multicast addresses to be put in filter. We're
  * allowed up to 16 addresses in the filter. (0xFC80)
  */
-struct wi_ltv_mcast {
-	u_int16_t		wi_len;
-	u_int16_t		wi_type;
+struct wi_mcast {
 	struct ether_addr	wi_mcast[16];
+};
+
+/*
+ * Join request. (0xFCE2)
+ */
+struct wi_joinreq {
+	struct ether_addr	wi_bssid;
+	u_int16_t		wi_chan;
 };
 
 /*
@@ -604,78 +552,127 @@ struct wi_ltv_mcast {
 #define WI_INFO_NOTIFY		0xF000	/* Handover address */
 #define WI_INFO_COUNTERS	0xF100	/* Statistics counters */
 #define WI_INFO_SCAN_RESULTS	0xF101	/* Scan results */
+#define WI_INFO_HOST_SCAN_RESULTS	0xF104	/* Scan results */
 #define WI_INFO_LINK_STAT	0xF200	/* Link status */
+#define	WI_INFO_LINK_STAT_CONNECTED	1
+#define	WI_INFO_LINK_STAT_DISCONNECTED	2
+#define	WI_INFO_LINK_STAT_AP_CHG	3	/* AP Change */
+#define	WI_INFO_LINK_STAT_AP_OOR	4	/* AP Out Of Range */
+#define	WI_INFO_LINK_STAT_AP_INR	5	/* AP In Range */
+#define	WI_INFO_LINK_STAT_ASSOC_FAILED	6
 #define WI_INFO_ASSOC_STAT	0xF201	/* Association status */
+#define	WI_INFO_AUTH_REQUEST	0xF202	/* Authentication Request (AP) */
+#define	WI_INFO_POWERSAVE_COUNT	0xF203	/* PowerSave User Count (AP) */
+
+struct wi_assoc {
+	u_int16_t		wi_assoc_stat;	/* Association Status */
+#define	ASSOC		1
+#define	REASSOC		2
+#define	DISASSOC	3	
+#define	ASSOCFAIL	4
+#define	AUTHFAIL	5
+	u_int8_t		wi_assoc_sta[6];	/* Station Address */
+	u_int8_t		wi_assoc_osta[6];	/* OLD Station Address */
+	u_int16_t		wi_assoc_reason;	/* Reason */
+	u_int16_t		wi_assoc_reserve;	/* Reserved */
+};
 
 /*
- * Hermes transmit/receive frame structure
+ * Scan Results of Prism2 chip
+ */
+
+struct wi_scan_header {
+	u_int16_t		wi_reserve;	/* future use */
+	u_int16_t		wi_reason;	/* The reason this scan was initiated
+						   1: Host initiated
+						   2: Firmware initiated
+						   3: Inquiry request from host */
+};
+
+struct wi_scan_data_p2 {
+	u_int16_t		wi_chid;	/* BSS Channel ID from Probe Res.(PR)*/
+	u_int16_t		wi_noise;	/* Average Noise Level of the PR */
+	u_int16_t		wi_signal;	/* Signal Level on the PR */
+	u_int8_t		wi_bssid[6];	/* MACaddress of BSS responder from PR */
+	u_int16_t		wi_interval;	/* BSS beacon interval */
+	u_int16_t		wi_capinfo;	/* BSS Capability Information
+						   IEEE Std 802.11(1997) ,see 7.3.1.4 */
+	u_int16_t		wi_namelen;	/* Length of SSID strings */
+	u_int8_t		wi_name[32];	/* SSID strings */
+	u_int16_t		wi_suprate[5];	/* Supported Rates element from the PR
+						   IEEE Std 802.11(1997) ,see 7.3.2.2 */
+	u_int16_t		wi_rate;	/* Data rate of the PR */
+#define	WI_APRATE_1		0x0A		/* 1 Mbps */
+#define	WI_APRATE_2		0x14		/* 2 Mbps */
+#define	WI_APRATE_5		0x37		/* 5.5 Mbps */
+#define	WI_APRATE_11		0x6E		/* 11 Mbps */
+};
+
+/*
+ * Scan Results of Lucent chip
+ */
+struct wi_scan_data {
+	u_int16_t		wi_chid;	/* BSS Channel ID from PR */
+	u_int16_t		wi_noise;	/* Average Noise Level of the PR */
+	u_int16_t		wi_signal;	/* Signal Level on the PR */
+	u_int8_t		wi_bssid[6];	/* MACaddress of BSS responder from PR */
+	u_int16_t		wi_interval;	/* BSS beacon interval */
+	u_int16_t		wi_capinfo;	/* BSS Capability Information
+						   IEEE Std 802.11(1997) ,see 7.3.1.4 */
+	u_int16_t		wi_namelen;	/* Length of SSID strings */
+	u_int8_t		wi_name[32];	/* SSID strings */
+};
+
+/*
+ * transmit/receive frame structure
  */
 struct wi_frame {
 	u_int16_t		wi_status;	/* 0x00 */
-	u_int16_t		wi_rsvd0;	/* 0x02 */
-	u_int16_t		wi_rsvd1;	/* 0x04 */
-	u_int16_t		wi_q_info;	/* 0x06 */
-	u_int16_t		wi_rsvd2;	/* 0x08 */
-	u_int8_t		wi_tx_rtry;	/* 0x0A */
-	u_int8_t		wi_tx_rate;	/* 0x0B */
-	u_int16_t		wi_tx_ctl;	/* 0x0C */
-	u_int16_t		wi_frame_ctl;	/* 0x0E */
-	u_int16_t		wi_id;		/* 0x10 */
-	u_int8_t		wi_addr1[6];	/* 0x12 */
-	u_int8_t		wi_addr2[6];	/* 0x18 */
-	u_int8_t		wi_addr3[6];	/* 0x1E */
-	u_int16_t		wi_seq_ctl;	/* 0x24 */
-	u_int8_t		wi_addr4[6];	/* 0x26 */
-	u_int16_t		wi_dat_len;	/* 0x2C */
-	u_int8_t		wi_dst_addr[6];	/* 0x2E */
-	u_int8_t		wi_src_addr[6];	/* 0x34 */
-	u_int16_t		wi_len;		/* 0x3A */
-	u_int16_t		wi_dat[3];	/* 0x3C */ /* SNAP header */
-	u_int16_t		wi_type;	/* 0x42 */
-};
+	u_int16_t		wi_rx_tstamp1;	/* 0x02 */
+	u_int16_t		wi_rx_tstamp0;	/* 0x04 */
+	u_int8_t		wi_rx_silence;	/* 0x06 */
+	u_int8_t		wi_rx_signal;	/* 0x07 */
+	u_int8_t		wi_rx_rate;	/* 0x08 */
+	u_int8_t		wi_rx_flow;	/* 0x09 */
+	u_int8_t		wi_tx_rtry;	/* 0x0a */ /* Prism2 AP Only */
+	u_int8_t		wi_tx_rate;	/* 0x0b */ /* Prism2 AP Only */
+	u_int16_t		wi_tx_ctl;	/* 0x0c */
+	struct ieee80211_frame_addr4 wi_whdr;	/* 0x0e */
+	u_int16_t		wi_dat_len;	/* 0x2c */
+	struct ether_header	wi_ehdr;	/* 0x2e */
+} __attribute__((__packed__));
 
-#define WI_802_3_OFFSET		0x2E
-#define WI_802_11_OFFSET	0x44
-#define WI_802_11_OFFSET_RAW	0x3C
-#define WI_802_11_OFFSET_HDR    0x0E
+/* Tx Status Field */
+#define	WI_TXSTAT_RET_ERR	0x0001
+#define	WI_TXSTAT_AGED_ERR	0x0002
+#define	WI_TXSTAT_DISCONNECT	0x0004
+#define	WI_TXSTAT_FORM_ERR	0x0008
 
+/* Rx Status Field */
 #define WI_STAT_BADCRC		0x0001
 #define WI_STAT_UNDECRYPTABLE	0x0002
 #define WI_STAT_ERRSTAT		0x0003
 #define WI_STAT_MAC_PORT	0x0700
-#define WI_STAT_1042		0x2000	/* RFC1042 encoded */
-#define WI_STAT_TUNNEL		0x4000	/* Bridge-tunnel encoded */
-#define WI_STAT_WMP_MSG		0x6000	/* WaveLAN-II management protocol */
-#define WI_STAT_MGMT		0x8000	/* 802.11b management frames */
+#define	WI_STAT_PCF		0x1000
 #define WI_RXSTAT_MSG_TYPE	0xE000
+#define  WI_STAT_1042		0x2000	/* RFC1042 encoded */
+#define  WI_STAT_TUNNEL		0x4000	/* Bridge-tunnel encoded */
+#define  WI_STAT_WMP_MSG	0x6000	/* WaveLAN-II management protocol */
+#define	 WI_STAT_MGMT		0x8000	/* 802.11b management frames */
 
-#define WI_ENC_TX_802_3		0x00
-#define WI_ENC_TX_802_11	0x11
-#define WI_ENC_TX_MGMT		0x08
 #define WI_ENC_TX_E_II		0x0E
 
 #define WI_ENC_TX_1042		0x00
 #define WI_ENC_TX_TUNNEL	0xF8
 
-#define WI_TXCNTL_MACPORT	0x00FF
-#define WI_TXCNTL_STRUCTTYPE	0xFF00
-#define WI_TXCNTL_TX_EX		0x0004
-#define WI_TXCNTL_TX_OK		0x0002
-#define WI_TXCNTL_NOCRYPT	0x0080
-
-/*
- * SNAP (sub-network access protocol) constants for transmission
- * of IP datagrams over IEEE 802 networks, taken from RFC1042.
- * We need these for the LLC/SNAP header fields in the TX/RX frame
- * structure.
- */
-#define WI_SNAP_K1		0xaa	/* assigned global SAP for SNAP */
-#define WI_SNAP_K2		0x00
-#define WI_SNAP_CONTROL		0x03	/* unnumbered information format */
-#define WI_SNAP_WORD0		(WI_SNAP_K1 | (WI_SNAP_K1 << 8))
-#define WI_SNAP_WORD1		(WI_SNAP_K2 | (WI_SNAP_CONTROL << 8))
-#define WI_SNAPHDR_LEN		0x6
-#define WI_FCS_LEN		0x4
+/* TxControl Field (enhanced) */
+#define	WI_TXCNTL_TX_OK		0x0002
+#define	WI_TXCNTL_TX_EX		0x0004
+#define	WI_TXCNTL_STRUCT_TYPE	0x0018
+#define	 WI_ENC_TX_802_3	0x00
+#define	 WI_ENC_TX_802_11	0x08
+#define	WI_TXCNTL_ALTRTRY	0x0020
+#define	WI_TXCNTL_NOCRYPT	0x0080
 
 /*
  * HFA3861/3863 (BBP) Control Registers

@@ -34,32 +34,10 @@
  * $FreeBSD$
  */
 
+#if 0
 #define WICACHE			/* turn on signal strength cache code */  
 #define	MAXWICACHE	10
-
-struct wi_counters {
-	u_int32_t		wi_tx_unicast_frames;
-	u_int32_t		wi_tx_multicast_frames;
-	u_int32_t		wi_tx_fragments;
-	u_int32_t		wi_tx_unicast_octets;
-	u_int32_t		wi_tx_multicast_octets;
-	u_int32_t		wi_tx_deferred_xmits;
-	u_int32_t		wi_tx_single_retries;
-	u_int32_t		wi_tx_multi_retries;
-	u_int32_t		wi_tx_retry_limit;
-	u_int32_t		wi_tx_discards;
-	u_int32_t		wi_rx_unicast_frames;
-	u_int32_t		wi_rx_multicast_frames;
-	u_int32_t		wi_rx_fragments;
-	u_int32_t		wi_rx_unicast_octets;
-	u_int32_t		wi_rx_multicast_octets;
-	u_int32_t		wi_rx_fcs_errors;
-	u_int32_t		wi_rx_discards_nobuf;
-	u_int32_t		wi_tx_discards_wrong_sa;
-	u_int32_t		wi_rx_WEP_cant_decrypt;
-	u_int32_t		wi_rx_msg_in_msg_frags;
-	u_int32_t		wi_rx_msg_in_bad_msg_frags;
-};
+#endif
 
 /*
  * Encryption controls. We can enable or disable encryption as
@@ -80,38 +58,16 @@ struct wi_counters {
 #define WI_RID_P2_ENCRYPTION	0xFC28
 #define WI_RID_ROAMING_MODE	0xFC2D
 #define WI_RID_CUR_TX_RATE	0xFD44 /* current TX rate */
-struct wi_key {
-	u_int16_t		wi_keylen;
-	u_int8_t		wi_keydat[14];
-};
-
-#define WI_NLTV_KEYS 4
-struct wi_ltv_keys {
-	u_int16_t		wi_len;
-	u_int16_t		wi_type;
-	struct wi_key		wi_keys[WI_NLTV_KEYS];
-};
 
 struct wi_softc	{
-	struct arpcom		arpcom;
-	struct ifmedia		ifmedia;
-	device_t		dev;
-	int			wi_unit;
-	struct resource *	local;
-	int					local_rid;
-	struct resource *	iobase;
-	int					iobase_rid;
-	struct resource *	irq;
-	int					irq_rid;
-	struct resource *	mem;
-	int					mem_rid;
-	bus_space_handle_t	wi_localhandle;
-	bus_space_tag_t		wi_localtag;
-	bus_space_handle_t	wi_bhandle;
-	bus_space_tag_t		wi_btag;
-	bus_space_handle_t	wi_bmemhandle;
-	bus_space_tag_t		wi_bmemtag;
-	void *			wi_intrhand;
+	struct ieee80211com	sc_ic;
+	device_t		sc_dev;
+#if __FreeBSD_version >= 500000
+	struct mtx		sc_mtx;
+#endif
+	int			sc_unit;
+	int			wi_gone;
+	int			sc_enabled;
 	int			sc_firmware_type;
 #define WI_NOTYPE	0
 #define	WI_LUCENT	1
@@ -119,64 +75,68 @@ struct wi_softc	{
 #define	WI_SYMBOL	3
 	int			sc_pri_firmware_ver;	/* Primary firmware */
 	int			sc_sta_firmware_ver;	/* Station firmware */
-	int			sc_enabled;
-	int			wi_io_addr;
-	int			wi_tx_data_id;
-	int			wi_tx_mgmt_id;
-	int			wi_gone;
-	int			wi_flags;
-#define WI_FLAGS_ATTACHED		0x01
-#define WI_FLAGS_INITIALIZED		0x02
-#define WI_FLAGS_HAS_WEP		0x04
-#define WI_FLAGS_HAS_IBSS		0x08
-#define WI_FLAGS_HAS_CREATE_IBSS	0x10
-#define WI_FLAGS_HAS_MOR		0x20
-#define WI_FLAGS_HAS_ROAMING		0x30
-#define WI_FLAGS_HAS_DIVERSITY		0x40
-#define WI_FLAGS_HAS_HOSTAP		0x80
-	int			wi_if_flags;
-	u_int16_t		wi_procframe;
-	u_int16_t		wi_ptype;
-	u_int16_t		wi_portnum;
-	u_int16_t		wi_max_data_len;
-	u_int16_t		wi_rts_thresh;
-	u_int16_t		wi_ap_density;
-	u_int16_t		wi_tx_rate;
-	u_int16_t		wi_create_ibss;
-	u_int16_t		wi_channel;
-	u_int16_t		wi_pm_enabled;
-	u_int16_t		wi_mor_enabled;
-	u_int16_t		wi_max_sleep;
-	u_int16_t		wi_supprates;
-	u_int16_t		wi_authtype;
-	u_int16_t		wi_roaming;
-	char			wi_node_name[32];
-	char			wi_net_name[32];
-	char			wi_ibss_name[32];
-	u_int8_t		wi_txbuf[1596];
-	u_int8_t		wi_scanbuf[1596];
-	int			wi_scanbuf_len;
-	struct wi_counters	wi_stats;
-	int			wi_has_wep;
-	int			wi_use_wep;
-	int			wi_authmode;
-	int			wi_tx_key;
-	struct wi_ltv_keys	wi_keys;
-#ifdef WICACHE
-	int			wi_sigitems;
-	struct wi_sigcache	wi_sigcache[MAXWICACHE];
-	int			wi_nextitem;
-#endif
-	struct wihap_info	wi_hostap_info;
-	u_int32_t		wi_icv;
-	int			wi_icv_flag;
-	int			wi_ibss_port;
-	struct callout_handle	wi_stat_ch;
-#if __FreeBSD_version >= 500000
-	struct mtx		wi_mtx;
-#endif
-	int			wi_nic_type;
+
 	int			wi_bus_type;	/* Bus attachment type */
+	struct resource *	local;
+	int			local_rid;
+	struct resource *	iobase;
+	int			iobase_rid;
+	struct resource *	irq;
+	int			irq_rid;
+	struct resource *	mem;
+	int			mem_rid;
+	bus_space_handle_t	wi_localhandle;
+	bus_space_tag_t		wi_localtag;
+	bus_space_handle_t	wi_bhandle;
+	bus_space_tag_t		wi_btag;
+	bus_space_handle_t	wi_bmemhandle;
+	bus_space_tag_t		wi_bmemtag;
+	void *			wi_intrhand;
+	int			wi_io_addr;
+
+	struct ifmedia		sc_media;
+	struct bpf_if		*sc_drvbpf;
+	int			sc_flags;
+	int			sc_if_flags;
+	int			sc_bap_id;
+	int			sc_bap_off;
+
+	u_int16_t		sc_procframe;
+	u_int16_t		sc_portnum;
+
+	u_int16_t		sc_dbm_adjust;
+	u_int16_t		sc_max_datalen;
+	u_int16_t		sc_frag_thresh;
+	u_int16_t		sc_rts_thresh;
+	u_int16_t		sc_system_scale;
+	u_int16_t		sc_cnfauthmode;
+	u_int16_t		sc_roaming_mode;
+	u_int16_t		sc_microwave_oven;
+	u_int16_t		sc_authtype;
+
+	int			sc_nodelen;
+	char			sc_nodename[IEEE80211_NWID_LEN];
+	char			sc_net_name[IEEE80211_NWID_LEN];
+
+	int			sc_buflen;		/* TX buffer size */
+#define	WI_NTXBUF	3
+	struct {
+		int		d_fid;
+		int		d_len;
+	}			sc_txd[WI_NTXBUF];	/* TX buffers */
+	int			sc_txnext;		/* index of next TX */
+	int			sc_txcur;		/* index of current TX*/
+	int			sc_tx_timer;
+	int			sc_scan_timer;
+	int			sc_syn_timer;
+
+	struct wi_counters	sc_stats;
+	u_int16_t		sc_ibss_port;
+
+#define WI_MAXAPINFO		30
+	struct wi_apinfo	sc_aps[WI_MAXAPINFO];
+	int			sc_naps;
+
 	struct {
 		u_int16_t               wi_sleep;
 		u_int16_t               wi_delaysupp;
@@ -194,7 +154,28 @@ struct wi_softc	{
 		u_int16_t               wi_confbits_param0;
 	} wi_debug;
 
+	int			sc_false_syns;
+
+	u_int16_t		sc_txbuf[IEEE80211_MAX_LEN/2];
 };
+#define	sc_if			sc_ic.ic_if
+
+/* maximum consecutive false change-of-BSSID indications */
+#define	WI_MAX_FALSE_SYNS		10	
+
+#define	WI_SCAN_INQWAIT			3	/* wait sec before inquire */
+#define	WI_SCAN_WAIT			5	/* maximum scan wait */
+
+#define	WI_FLAGS_ATTACHED		0x0001
+#define	WI_FLAGS_INITIALIZED		0x0002
+#define	WI_FLAGS_OUTRANGE		0x0004
+#define	WI_FLAGS_HAS_MOR		0x0010
+#define	WI_FLAGS_HAS_ROAMING		0x0020
+#define	WI_FLAGS_HAS_DIVERSITY		0x0040
+#define	WI_FLAGS_HAS_SYSSCALE		0x0080
+#define	WI_FLAGS_BUG_AUTOINC		0x0100
+#define	WI_FLAGS_HAS_FRAGTHR		0x0200
+#define	WI_FLAGS_HAS_DBMADJUST		0x0400
 
 struct wi_card_ident {
 	u_int16_t	card_id;
@@ -209,19 +190,23 @@ struct wi_card_ident {
 #define le16toh(x) (x)
 #define htole16(x) (x)
 #define ifaddr_byindex(idx) ifnet_addrs[(idx) - 1];
-#define	WI_LOCK(_sc, _s)	s = splimp()
-#define	WI_UNLOCK(_sc, _s)	splx(s)
+#define	WI_LOCK_DECL()		int s
+#define	WI_LOCK(_sc)		s = splimp()
+#define	WI_UNLOCK(_sc)		splx(s)
 #else
-#define	WI_LOCK(_sc, _s) _s = 1
-#define	WI_UNLOCK(_sc, _s)
+#define	WI_LOCK_DECL()
+#define	WI_LOCK(_sc) 		mtx_lock(&(_sc)->sc_mtx)
+#define	WI_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
 #endif
 
-int wi_generic_attach(device_t);
-int wi_generic_detach(device_t);
-void wi_shutdown(device_t);
-int wi_alloc(device_t, int);
-void wi_free(device_t);
-void wi_stop(struct wi_softc *);
+int	wi_attach(device_t);
+int	wi_detach(device_t);
+void	wi_shutdown(device_t);
+int	wi_alloc(device_t, int);
+void	wi_free(device_t);
 extern devclass_t wi_devclass;
-int wi_mgmt_xmit(struct wi_softc *, caddr_t, int);
-int wi_symbol_load_firm(struct wi_softc *, const void *, int, const void *, int);
+void	wi_init(void *);
+void	wi_intr(void *);
+int	wi_mgmt_xmit(struct wi_softc *, caddr_t, int);
+void	wi_stop(struct ifnet *, int);
+int	wi_symbol_load_firm(struct wi_softc *, const void *, int, const void *, int);

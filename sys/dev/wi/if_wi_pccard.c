@@ -65,7 +65,6 @@
 #endif
 
 #include <dev/wi/if_wavelan_ieee.h>
-#include <dev/wi/wi_hostap.h>
 #include <dev/wi/if_wivar.h>
 #include <dev/wi/if_wireg.h>
 #ifdef WI_SYMBOL_FIRMWARE
@@ -87,7 +86,7 @@ static device_method_t wi_pccard_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		wi_pccard_probe),
 	DEVMETHOD(device_attach,	wi_pccard_attach),
-	DEVMETHOD(device_detach,	wi_generic_detach),
+	DEVMETHOD(device_detach,	wi_detach),
 	DEVMETHOD(device_shutdown,	wi_shutdown),
 
 	{ 0, 0 }
@@ -100,7 +99,7 @@ static device_method_t wi_pccard_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pccard_compat_probe),
 	DEVMETHOD(device_attach,	pccard_compat_attach),
-	DEVMETHOD(device_detach,	wi_generic_detach),
+	DEVMETHOD(device_detach,	wi_detach),
 	DEVMETHOD(device_shutdown,	wi_shutdown),
 
 	/* Card interface */
@@ -120,6 +119,7 @@ static driver_t wi_pccard_driver = {
 };
 
 DRIVER_MODULE(if_wi, pccard, wi_pccard_driver, wi_devclass, 0, 0);
+MODULE_DEPEND(if_wi, wlan, 1, 1, 1);
 
 #if __FreeBSD_version >= 500000
 static const struct pccard_product wi_pccard_products[] = {
@@ -245,5 +245,5 @@ wi_pccard_attach(device_t dev)
 	}
 #endif
 
-	return (wi_generic_attach(dev));
+	return (wi_attach(dev));
 }

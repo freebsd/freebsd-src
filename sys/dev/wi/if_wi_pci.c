@@ -63,7 +63,6 @@
 #include <net/if_ieee80211.h>
 
 #include <dev/wi/if_wavelan_ieee.h>
-#include <dev/wi/wi_hostap.h>
 #include <dev/wi/if_wivar.h>
 #include <dev/wi/if_wireg.h>
 
@@ -76,7 +75,7 @@ static device_method_t wi_pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		wi_pci_probe),
 	DEVMETHOD(device_attach,	wi_pci_attach),
-	DEVMETHOD(device_detach,	wi_generic_detach),
+	DEVMETHOD(device_detach,	wi_detach),
 	DEVMETHOD(device_shutdown,	wi_shutdown),
 	DEVMETHOD(device_suspend,	wi_pci_suspend),
 	DEVMETHOD(device_resume,	wi_pci_resume),
@@ -108,6 +107,7 @@ static struct {
 };
 
 DRIVER_MODULE(if_wi, pci, wi_pci_driver, wi_devclass, 0, 0);
+MODULE_DEPEND(if_wi, wlan, 1, 1, 1);
 
 static int
 wi_pci_probe(dev)
@@ -231,7 +231,7 @@ wi_pci_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	error = wi_generic_attach(dev);
+	error = wi_attach(dev);
 	if (error != 0)
 		return (error);
 
@@ -239,23 +239,25 @@ wi_pci_attach(device_t dev)
 }
 
 static int
-wi_pci_suspend (device_t dev)
+wi_pci_suspend(device_t dev)
 {
 	struct wi_softc		*sc;
+	struct ifnet *ifp;
 	sc = device_get_softc(dev);
+	ifp = &sc->sc_if;
 
-	wi_stop(sc);
+	wi_stop(ifp, 1);
 	
 	return (0);
 }
 
 static int
-wi_pci_resume (device_t dev)
+wi_pci_resume(device_t dev)
 {
 	struct wi_softc *sc;
 	struct ifnet *ifp;
 	sc = device_get_softc(dev);
-	ifp = &sc->arpcom.ac_if;
+	ifp = &sc->sc_if;
 
 	if (sc->wi_bus_type != WI_BUS_PCI_NATIVE)
 		return (0);
