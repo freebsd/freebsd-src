@@ -53,6 +53,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
+int main __P((int, char *[]));
 void usage __P((void));
 
 int
@@ -80,10 +81,10 @@ main(argc,argv)
 		usage();
 
 	if (*argv) {
-		if (sethostname(*argv, strlen(*argv)))
+		if (sethostname(*argv, (int)strlen(*argv)))
 			err(1, "sethostname");
 	} else {
-		if (gethostname(hostname, sizeof(hostname)))
+		if (gethostname(hostname, (int)sizeof(hostname)))
 			err(1, "gethostname");
 		if (sflag && (p = strchr(hostname, '.')))
 			*p = '\0';
