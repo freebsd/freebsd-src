@@ -69,8 +69,8 @@
  */
 /* $FreeBSD$ */
 
-#ifndef _I386_BUS_AT386_H_
-#define _I386_BUS_AT386_H_
+#ifndef _AMD64_BUS_AMD64_H_
+#define _AMD64_BUS_AMD64_H_
 
 #include <machine/cpufunc.h>
 
@@ -78,16 +78,16 @@
  * To remain compatible with NetBSD's interface, default to both memio and
  * pio when neither of them is defined.
  */ 
-#if !defined(_I386_BUS_PIO_H_) && !defined(_I386_BUS_MEMIO_H_)
-#define _I386_BUS_PIO_H_
-#define _I386_BUS_MEMIO_H_
+#if !defined(_AMD64_BUS_PIO_H_) && !defined(_AMD64_BUS_MEMIO_H_)
+#define _AMD64_BUS_PIO_H_
+#define _AMD64_BUS_MEMIO_H_
 #endif
 
 /*
- * Values for the i386 bus space tag, not to be used directly by MI code.
+ * Values for the amd64 bus space tag, not to be used directly by MI code.
  */
-#define	I386_BUS_SPACE_IO	0	/* space is i/o space */
-#define I386_BUS_SPACE_MEM	1	/* space is mem space */
+#define	AMD64_BUS_SPACE_IO	0	/* space is i/o space */
+#define AMD64_BUS_SPACE_MEM	1	/* space is mem space */
 
 /*
  * Bus address and size types
@@ -175,7 +175,7 @@ bus_space_free(bus_space_tag_t t __unused, bus_space_handle_t bsh __unused,
 }
 
 
-#if defined(_I386_BUS_PIO_H_) || defined(_I386_BUS_MEMIO_H_)
+#if defined(_AMD64_BUS_PIO_H_) || defined(_AMD64_BUS_MEMIO_H_)
 
 /*
  * Read a 1, 2, 4, or 8 byte quantity from bus space
@@ -197,13 +197,13 @@ static __inline u_int8_t
 bus_space_read_1(bus_space_tag_t tag, bus_space_handle_t handle,
 		 bus_size_t offset)
 {
-#if defined (_I386_BUS_PIO_H_)
-#if defined (_I386_BUS_MEMIO_H_)
-	if (tag == I386_BUS_SPACE_IO)
+#if defined (_AMD64_BUS_PIO_H_)
+#if defined (_AMD64_BUS_MEMIO_H_)
+	if (tag == AMD64_BUS_SPACE_IO)
 #endif
 		return (inb(handle + offset));
 #endif
-#if defined (_I386_BUS_MEMIO_H_)
+#if defined (_AMD64_BUS_MEMIO_H_)
 	return (*(volatile u_int8_t *)(handle + offset));
 #endif
 }
@@ -212,13 +212,13 @@ static __inline u_int16_t
 bus_space_read_2(bus_space_tag_t tag, bus_space_handle_t handle,
 		 bus_size_t offset)
 {
-#if defined(_I386_BUS_PIO_H_)
-#if defined(_I386_BUS_MEMIO_H_)
-	if (tag == I386_BUS_SPACE_IO)
+#if defined(_AMD64_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+	if (tag == AMD64_BUS_SPACE_IO)
 #endif
 		return (inw(handle + offset));
 #endif
-#if defined(_I386_BUS_MEMIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
 	return (*(volatile u_int16_t *)(handle + offset));
 #endif
 }
@@ -227,13 +227,13 @@ static __inline u_int32_t
 bus_space_read_4(bus_space_tag_t tag, bus_space_handle_t handle,
 		 bus_size_t offset)
 {
-#if defined(_I386_BUS_PIO_H_)
-#if defined(_I386_BUS_MEMIO_H_)
-	if (tag == I386_BUS_SPACE_IO)
+#if defined(_AMD64_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+	if (tag == AMD64_BUS_SPACE_IO)
 #endif
 		return (inl(handle + offset));
 #endif
-#if defined(_I386_BUS_MEMIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
 	return (*(volatile u_int32_t *)(handle + offset));
 #endif
 }
@@ -265,14 +265,14 @@ static __inline void
 bus_space_read_multi_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 		       bus_size_t offset, u_int8_t *addr, size_t count)
 {
-#if defined(_I386_BUS_PIO_H_)
-#if defined(_I386_BUS_MEMIO_H_)
-	if (tag == I386_BUS_SPACE_IO)
+#if defined(_AMD64_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+	if (tag == AMD64_BUS_SPACE_IO)
 #endif
 		insb(bsh + offset, addr, count);
 #endif
-#if defined(_I386_BUS_MEMIO_H_)
-#if defined(_I386_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+#if defined(_AMD64_BUS_PIO_H_)
 	else
 #endif
 	{
@@ -294,14 +294,14 @@ static __inline void
 bus_space_read_multi_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 		       bus_size_t offset, u_int16_t *addr, size_t count)
 {
-#if defined(_I386_BUS_PIO_H_)
-#if defined(_I386_BUS_MEMIO_H_)
-	if (tag == I386_BUS_SPACE_IO)
+#if defined(_AMD64_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+	if (tag == AMD64_BUS_SPACE_IO)
 #endif
 		insw(bsh + offset, addr, count);
 #endif
-#if defined(_I386_BUS_MEMIO_H_)
-#if defined(_I386_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+#if defined(_AMD64_BUS_PIO_H_)
 	else
 #endif
 	{
@@ -323,14 +323,14 @@ static __inline void
 bus_space_read_multi_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 		       bus_size_t offset, u_int32_t *addr, size_t count)
 {
-#if defined(_I386_BUS_PIO_H_)
-#if defined(_I386_BUS_MEMIO_H_)
-	if (tag == I386_BUS_SPACE_IO)
+#if defined(_AMD64_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+	if (tag == AMD64_BUS_SPACE_IO)
 #endif
 		insl(bsh + offset, addr, count);
 #endif
-#if defined(_I386_BUS_MEMIO_H_)
-#if defined(_I386_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+#if defined(_AMD64_BUS_PIO_H_)
 	else
 #endif
 	{
@@ -377,9 +377,9 @@ static __inline void
 bus_space_read_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 			bus_size_t offset, u_int8_t *addr, size_t count)
 {
-#if defined(_I386_BUS_PIO_H_)
-#if defined(_I386_BUS_MEMIO_H_)
-	if (tag == I386_BUS_SPACE_IO)
+#if defined(_AMD64_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+	if (tag == AMD64_BUS_SPACE_IO)
 #endif
 	{
 		int _port_ = bsh + offset;
@@ -396,8 +396,8 @@ bus_space_read_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	}
 #endif
-#if defined(_I386_BUS_MEMIO_H_)
-#if defined(_I386_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+#if defined(_AMD64_BUS_PIO_H_)
 	else
 #endif
 	{
@@ -419,9 +419,9 @@ static __inline void
 bus_space_read_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 			bus_size_t offset, u_int16_t *addr, size_t count)
 {
-#if defined(_I386_BUS_PIO_H_)
-#if defined(_I386_BUS_MEMIO_H_)
-	if (tag == I386_BUS_SPACE_IO)
+#if defined(_AMD64_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+	if (tag == AMD64_BUS_SPACE_IO)
 #endif
 	{
 		int _port_ = bsh + offset;
@@ -438,8 +438,8 @@ bus_space_read_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	}
 #endif
-#if defined(_I386_BUS_MEMIO_H_)
-#if defined(_I386_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+#if defined(_AMD64_BUS_PIO_H_)
 	else
 #endif
 	{
@@ -461,9 +461,9 @@ static __inline void
 bus_space_read_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 			bus_size_t offset, u_int32_t *addr, size_t count)
 {
-#if defined(_I386_BUS_PIO_H_)
-#if defined(_I386_BUS_MEMIO_H_)
-	if (tag == I386_BUS_SPACE_IO)
+#if defined(_AMD64_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+	if (tag == AMD64_BUS_SPACE_IO)
 #endif
 	{
 		int _port_ = bsh + offset;
@@ -480,8 +480,8 @@ bus_space_read_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	}
 #endif
-#if defined(_I386_BUS_MEMIO_H_)
-#if defined(_I386_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+#if defined(_AMD64_BUS_PIO_H_)
 	else
 #endif
 	{
@@ -524,14 +524,14 @@ static __inline void
 bus_space_write_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 		       bus_size_t offset, u_int8_t value)
 {
-#if defined(_I386_BUS_PIO_H_)
-#if defined(_I386_BUS_MEMIO_H_)
-	if (tag == I386_BUS_SPACE_IO)
+#if defined(_AMD64_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+	if (tag == AMD64_BUS_SPACE_IO)
 #endif
 		outb(bsh + offset, value);
 #endif
-#if defined(_I386_BUS_MEMIO_H_)
-#if defined(_I386_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+#if defined(_AMD64_BUS_PIO_H_)
 	else
 #endif
 		*(volatile u_int8_t *)(bsh + offset) = value;
@@ -542,14 +542,14 @@ static __inline void
 bus_space_write_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 		       bus_size_t offset, u_int16_t value)
 {
-#if defined(_I386_BUS_PIO_H_)
-#if defined(_I386_BUS_MEMIO_H_)
-	if (tag == I386_BUS_SPACE_IO)
+#if defined(_AMD64_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+	if (tag == AMD64_BUS_SPACE_IO)
 #endif
 		outw(bsh + offset, value);
 #endif
-#if defined(_I386_BUS_MEMIO_H_)
-#if defined(_I386_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+#if defined(_AMD64_BUS_PIO_H_)
 	else
 #endif
 		*(volatile u_int16_t *)(bsh + offset) = value;
@@ -560,14 +560,14 @@ static __inline void
 bus_space_write_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 		       bus_size_t offset, u_int32_t value)
 {
-#if defined(_I386_BUS_PIO_H_)
-#if defined(_I386_BUS_MEMIO_H_)
-	if (tag == I386_BUS_SPACE_IO)
+#if defined(_AMD64_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+	if (tag == AMD64_BUS_SPACE_IO)
 #endif
 		outl(bsh + offset, value);
 #endif
-#if defined(_I386_BUS_MEMIO_H_)
-#if defined(_I386_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+#if defined(_AMD64_BUS_PIO_H_)
 	else
 #endif
 		*(volatile u_int32_t *)(bsh + offset) = value;
@@ -604,14 +604,14 @@ static __inline void
 bus_space_write_multi_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 			bus_size_t offset, const u_int8_t *addr, size_t count)
 {
-#if defined(_I386_BUS_PIO_H_)
-#if defined(_I386_BUS_MEMIO_H_)
-	if (tag == I386_BUS_SPACE_IO)
+#if defined(_AMD64_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+	if (tag == AMD64_BUS_SPACE_IO)
 #endif
 		outsb(bsh + offset, addr, count);
 #endif
-#if defined(_I386_BUS_MEMIO_H_)
-#if defined(_I386_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+#if defined(_AMD64_BUS_PIO_H_)
 	else
 #endif
 	{
@@ -633,14 +633,14 @@ static __inline void
 bus_space_write_multi_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 			bus_size_t offset, const u_int16_t *addr, size_t count)
 {
-#if defined(_I386_BUS_PIO_H_)
-#if defined(_I386_BUS_MEMIO_H_)
-	if (tag == I386_BUS_SPACE_IO)
+#if defined(_AMD64_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+	if (tag == AMD64_BUS_SPACE_IO)
 #endif
 		outsw(bsh + offset, addr, count);
 #endif
-#if defined(_I386_BUS_MEMIO_H_)
-#if defined(_I386_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+#if defined(_AMD64_BUS_PIO_H_)
 	else
 #endif
 	{
@@ -662,14 +662,14 @@ static __inline void
 bus_space_write_multi_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 			bus_size_t offset, const u_int32_t *addr, size_t count)
 {
-#if defined(_I386_BUS_PIO_H_)
-#if defined(_I386_BUS_MEMIO_H_)
-	if (tag == I386_BUS_SPACE_IO)
+#if defined(_AMD64_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+	if (tag == AMD64_BUS_SPACE_IO)
 #endif
 		outsl(bsh + offset, addr, count);
 #endif
-#if defined(_I386_BUS_MEMIO_H_)
-#if defined(_I386_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+#if defined(_AMD64_BUS_PIO_H_)
 	else
 #endif
 	{
@@ -717,9 +717,9 @@ static __inline void
 bus_space_write_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 			 bus_size_t offset, const u_int8_t *addr, size_t count)
 {
-#if defined(_I386_BUS_PIO_H_)
-#if defined(_I386_BUS_MEMIO_H_)
-	if (tag == I386_BUS_SPACE_IO)
+#if defined(_AMD64_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+	if (tag == AMD64_BUS_SPACE_IO)
 #endif
 	{
 		int _port_ = bsh + offset;
@@ -736,8 +736,8 @@ bus_space_write_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	}
 #endif
-#if defined(_I386_BUS_MEMIO_H_)
-#if defined(_I386_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+#if defined(_AMD64_BUS_PIO_H_)
 	else
 #endif
 	{
@@ -759,9 +759,9 @@ static __inline void
 bus_space_write_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 			 bus_size_t offset, const u_int16_t *addr, size_t count)
 {
-#if defined(_I386_BUS_PIO_H_)
-#if defined(_I386_BUS_MEMIO_H_)
-	if (tag == I386_BUS_SPACE_IO)
+#if defined(_AMD64_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+	if (tag == AMD64_BUS_SPACE_IO)
 #endif
 	{
 		int _port_ = bsh + offset;
@@ -778,8 +778,8 @@ bus_space_write_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	}
 #endif
-#if defined(_I386_BUS_MEMIO_H_)
-#if defined(_I386_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+#if defined(_AMD64_BUS_PIO_H_)
 	else
 #endif
 	{
@@ -801,9 +801,9 @@ static __inline void
 bus_space_write_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 			 bus_size_t offset, const u_int32_t *addr, size_t count)
 {
-#if defined(_I386_BUS_PIO_H_)
-#if defined(_I386_BUS_MEMIO_H_)
-	if (tag == I386_BUS_SPACE_IO)
+#if defined(_AMD64_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+	if (tag == AMD64_BUS_SPACE_IO)
 #endif
 	{
 		int _port_ = bsh + offset;
@@ -820,8 +820,8 @@ bus_space_write_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	}
 #endif
-#if defined(_I386_BUS_MEMIO_H_)
-#if defined(_I386_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+#if defined(_AMD64_BUS_PIO_H_)
 	else
 #endif
 	{
@@ -868,15 +868,15 @@ bus_space_set_multi_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 {
 	bus_space_handle_t addr = bsh + offset;
 
-#if defined(_I386_BUS_PIO_H_)
-#if defined(_I386_BUS_MEMIO_H_)
-	if (tag == I386_BUS_SPACE_IO)
+#if defined(_AMD64_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+	if (tag == AMD64_BUS_SPACE_IO)
 #endif
 		while (count--)
 			outb(addr, value);
 #endif
-#if defined(_I386_BUS_MEMIO_H_)
-#if defined(_I386_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+#if defined(_AMD64_BUS_PIO_H_)
 	else
 #endif
 		while (count--)
@@ -890,15 +890,15 @@ bus_space_set_multi_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 {
 	bus_space_handle_t addr = bsh + offset;
 
-#if defined(_I386_BUS_PIO_H_)
-#if defined(_I386_BUS_MEMIO_H_)
-	if (tag == I386_BUS_SPACE_IO)
+#if defined(_AMD64_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+	if (tag == AMD64_BUS_SPACE_IO)
 #endif
 		while (count--)
 			outw(addr, value);
 #endif
-#if defined(_I386_BUS_MEMIO_H_)
-#if defined(_I386_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+#if defined(_AMD64_BUS_PIO_H_)
 	else
 #endif
 		while (count--)
@@ -912,15 +912,15 @@ bus_space_set_multi_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 {
 	bus_space_handle_t addr = bsh + offset;
 
-#if defined(_I386_BUS_PIO_H_)
-#if defined(_I386_BUS_MEMIO_H_)
-	if (tag == I386_BUS_SPACE_IO)
+#if defined(_AMD64_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+	if (tag == AMD64_BUS_SPACE_IO)
 #endif
 		while (count--)
 			outl(addr, value);
 #endif
-#if defined(_I386_BUS_MEMIO_H_)
-#if defined(_I386_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+#if defined(_AMD64_BUS_PIO_H_)
 	else
 #endif
 		while (count--)
@@ -956,15 +956,15 @@ bus_space_set_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 {
 	bus_space_handle_t addr = bsh + offset;
 
-#if defined(_I386_BUS_PIO_H_)
-#if defined(_I386_BUS_MEMIO_H_)
-	if (tag == I386_BUS_SPACE_IO)
+#if defined(_AMD64_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+	if (tag == AMD64_BUS_SPACE_IO)
 #endif
 		for (; count != 0; count--, addr++)
 			outb(addr, value);
 #endif
-#if defined(_I386_BUS_MEMIO_H_)
-#if defined(_I386_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+#if defined(_AMD64_BUS_PIO_H_)
 	else
 #endif
 		for (; count != 0; count--, addr++)
@@ -978,15 +978,15 @@ bus_space_set_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 {
 	bus_space_handle_t addr = bsh + offset;
 
-#if defined(_I386_BUS_PIO_H_)
-#if defined(_I386_BUS_MEMIO_H_)
-	if (tag == I386_BUS_SPACE_IO)
+#if defined(_AMD64_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+	if (tag == AMD64_BUS_SPACE_IO)
 #endif
 		for (; count != 0; count--, addr += 2)
 			outw(addr, value);
 #endif
-#if defined(_I386_BUS_MEMIO_H_)
-#if defined(_I386_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+#if defined(_AMD64_BUS_PIO_H_)
 	else
 #endif
 		for (; count != 0; count--, addr += 2)
@@ -1000,15 +1000,15 @@ bus_space_set_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 {
 	bus_space_handle_t addr = bsh + offset;
 
-#if defined(_I386_BUS_PIO_H_)
-#if defined(_I386_BUS_MEMIO_H_)
-	if (tag == I386_BUS_SPACE_IO)
+#if defined(_AMD64_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+	if (tag == AMD64_BUS_SPACE_IO)
 #endif
 		for (; count != 0; count--, addr += 4)
 			outl(addr, value);
 #endif
-#if defined(_I386_BUS_MEMIO_H_)
-#if defined(_I386_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+#if defined(_AMD64_BUS_PIO_H_)
 	else
 #endif
 		for (; count != 0; count--, addr += 4)
@@ -1051,9 +1051,9 @@ bus_space_copy_region_1(bus_space_tag_t tag, bus_space_handle_t bsh1,
 	bus_space_handle_t addr1 = bsh1 + off1;
 	bus_space_handle_t addr2 = bsh2 + off2;
 
-#if defined(_I386_BUS_PIO_H_)
-#if defined(_I386_BUS_MEMIO_H_)
-	if (tag == I386_BUS_SPACE_IO)
+#if defined(_AMD64_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+	if (tag == AMD64_BUS_SPACE_IO)
 #endif
 	{
 		if (addr1 >= addr2) {
@@ -1068,8 +1068,8 @@ bus_space_copy_region_1(bus_space_tag_t tag, bus_space_handle_t bsh1,
 		}
 	}
 #endif
-#if defined(_I386_BUS_MEMIO_H_)
-#if defined(_I386_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+#if defined(_AMD64_BUS_PIO_H_)
 	else
 #endif
 	{
@@ -1097,9 +1097,9 @@ bus_space_copy_region_2(bus_space_tag_t tag, bus_space_handle_t bsh1,
 	bus_space_handle_t addr1 = bsh1 + off1;
 	bus_space_handle_t addr2 = bsh2 + off2;
 
-#if defined(_I386_BUS_PIO_H_)
-#if defined(_I386_BUS_MEMIO_H_)
-	if (tag == I386_BUS_SPACE_IO)
+#if defined(_AMD64_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+	if (tag == AMD64_BUS_SPACE_IO)
 #endif
 	{
 		if (addr1 >= addr2) {
@@ -1114,8 +1114,8 @@ bus_space_copy_region_2(bus_space_tag_t tag, bus_space_handle_t bsh1,
 		}
 	}
 #endif
-#if defined(_I386_BUS_MEMIO_H_)
-#if defined(_I386_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+#if defined(_AMD64_BUS_PIO_H_)
 	else
 #endif
 	{
@@ -1143,9 +1143,9 @@ bus_space_copy_region_4(bus_space_tag_t tag, bus_space_handle_t bsh1,
 	bus_space_handle_t addr1 = bsh1 + off1;
 	bus_space_handle_t addr2 = bsh2 + off2;
 
-#if defined(_I386_BUS_PIO_H_)
-#if defined(_I386_BUS_MEMIO_H_)
-	if (tag == I386_BUS_SPACE_IO)
+#if defined(_AMD64_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+	if (tag == AMD64_BUS_SPACE_IO)
 #endif
 	{
 		if (addr1 >= addr2) {
@@ -1160,8 +1160,8 @@ bus_space_copy_region_4(bus_space_tag_t tag, bus_space_handle_t bsh1,
 		}
 	}
 #endif
-#if defined(_I386_BUS_MEMIO_H_)
-#if defined(_I386_BUS_PIO_H_)
+#if defined(_AMD64_BUS_MEMIO_H_)
+#if defined(_AMD64_BUS_PIO_H_)
 	else
 #endif
 	{
@@ -1181,7 +1181,7 @@ bus_space_copy_region_4(bus_space_tag_t tag, bus_space_handle_t bsh1,
 #endif
 }
 
-#endif /* defined(_I386_BUS_PIO_H_) || defined(_I386_MEM_IO_H_) */
+#endif /* defined(_AMD64_BUS_PIO_H_) || defined(_AMD64_MEM_IO_H_) */
 
 #if 0	/* Cause a link error for bus_space_copy_8 */
 #define	bus_space_copy_region_8	!!! bus_space_copy_region_8 unimplemented !!!
@@ -1213,4 +1213,4 @@ bus_space_barrier(bus_space_tag_t tag __unused, bus_space_handle_t bsh __unused,
 #endif
 }
 
-#endif /* _I386_BUS_AT386_H_ */
+#endif /* _AMD64_BUS_AMD64_H_ */

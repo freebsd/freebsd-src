@@ -26,6 +26,6 @@
  * $FreeBSD$
  */
 
-#ifndef _I386_BUS_PIO_H_
-#define _I386_BUS_PIO_H_
-#endif /* _I386_BUS_PIO_H_ */
+#ifndef _AMD64_BUS_PIO_H_
+#define _AMD64_BUS_PIO_H_
+#endif /* _AMD64_BUS_PIO_H_ */
