@@ -68,7 +68,11 @@ __fix_locale_grouping_str(const char *str) {
 			n += *src - '0';
 		}
 
-		*dst++ = n;
+		*dst = n;
+		/* NOTE: assume all input started with "0" as 'no grouping' */
+		if (*dst == '\0')
+			return (dst == (char*)str) ? nogrouping : str;
+		dst++;
 	}
 	*dst = '\0';
 	return str;
