@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.20 1997/05/19 12:41:35 kato Exp $
+ *	$Id: identcpu.c,v 1.21 1997/05/23 06:22:47 charnier Exp $
  */
 
 #include "opt_cpu.h"
@@ -87,7 +87,7 @@ static struct cpu_nameclass i386_cpus[] = {
 	{ "Cyrix 5x86",		CPUCLASS_486 },		/* CPU_M1SC */
 	{ "Cyrix 6x86",		CPUCLASS_486 },		/* CPU_M1 */
 	{ "Blue Lightning",	CPUCLASS_486 },		/* CPU_BLUE */
-	{ "Cyrix M2",		CPUCLASS_586 },		/* CPU_M2 */
+	{ "Cyrix 6x86MX",	CPUCLASS_586 },		/* CPU_M2 */
 	{ "NexGen 586",		CPUCLASS_386 },		/* CPU_NX586 (XXX) */
 	{ "Cyrix 486S/DX",	CPUCLASS_486 },		/* CPU_CY486DX */
 };
@@ -193,111 +193,122 @@ printcpuinfo(void)
 		}
 	} else if (strcmp(cpu_vendor,"CyrixInstead") == 0) {
 		strcpy(cpu_model, "Cyrix ");
-		switch (cyrix_did & 0xf0) {
-		case 0x00:
-			switch (cyrix_did & 0x0f) {
-			case 0x00:
-				strcat(cpu_model, "486SLC");
-				break;
-			case 0x01:
-				strcat(cpu_model, "486DLC");
-				break;
-			case 0x02:
-				strcat(cpu_model, "486SLC2");
-				break;
-			case 0x03:
-				strcat(cpu_model, "486DLC2");
-				break;
-			case 0x04:
-				strcat(cpu_model, "486SRx");
-				break;
-			case 0x05:
-				strcat(cpu_model, "486DRx");
-				break;
-			case 0x06:
-				strcat(cpu_model, "486SRx2");
-				break;
-			case 0x07:
-				strcat(cpu_model, "486DRx2");
-				break;
-			case 0x08:
-				strcat(cpu_model, "486SRu");
-				break;
-			case 0x09:
-				strcat(cpu_model, "486DRu");
-				break;
-			case 0x0a:
-				strcat(cpu_model, "486SRu2");
-				break;
-			case 0x0b:
-				strcat(cpu_model, "486DRu2");
-				break;
-			default:
-				strcat(cpu_model, "Unknown");
-				break;
-			}
-			break;
-		case 0x10:
-			switch (cyrix_did & 0x0f) {
-			case 0x00:
-				strcat(cpu_model, "486S");
-				break;
-			case 0x01:
-				strcat(cpu_model, "486S2");
-				break;
-			case 0x02:
-				strcat(cpu_model, "486Se");
-				break;
-			case 0x03:
-				strcat(cpu_model, "486S2e");
-				break;
-			case 0x0a:
-				strcat(cpu_model, "486DX");
-				break;
-			case 0x0b:
-				strcat(cpu_model, "486DX2");
-				break;
-			case 0x0f:
-				strcat(cpu_model, "486DX4");
-				break;
-			default:
-				strcat(cpu_model, "Unknown");
-				break;
-			}
-			break;
-		case 0x20:
-			if ((cyrix_did & 0x0f) < 8)
-				strcat(cpu_model, "6x86");	/* Where did you get it? */
-			else
-				strcat(cpu_model, "5x86");
-			break;
-		case 0x30:
+		switch (cpu_id & 0xf00) {
+		case 0x500:
 			strcat(cpu_model, "6x86");
 			break;
-		case 0x40:
-			/* XXX */
-			strcat(cpu_model, "MediaGX");
+		case 0x600:
+			strcat(cpu_model, "6x86MX");
 			break;
-		case 0x50:
-			strcat(cpu_model, "M2");
-			break;
-		case 0xf0:
-			switch (cyrix_did & 0x0f) {
-			case 0x0d:
-				strcat(cpu_model, "Overdrive CPU");
-			case 0x0e:
-				strcpy(cpu_model, "Texas Instruments 486SXL");
+		default:
+			/* cpuid instruction is not supported */
+			switch (cyrix_did & 0xf0) {
+			case 0x00:
+				switch (cyrix_did & 0x0f) {
+				case 0x00:
+					strcat(cpu_model, "486SLC");
+					break;
+				case 0x01:
+					strcat(cpu_model, "486DLC");
+					break;
+				case 0x02:
+					strcat(cpu_model, "486SLC2");
+					break;
+				case 0x03:
+					strcat(cpu_model, "486DLC2");
+					break;
+				case 0x04:
+					strcat(cpu_model, "486SRx");
+					break;
+				case 0x05:
+					strcat(cpu_model, "486DRx");
+					break;
+				case 0x06:
+					strcat(cpu_model, "486SRx2");
+					break;
+				case 0x07:
+					strcat(cpu_model, "486DRx2");
+					break;
+				case 0x08:
+					strcat(cpu_model, "486SRu");
+					break;
+				case 0x09:
+					strcat(cpu_model, "486DRu");
+					break;
+				case 0x0a:
+					strcat(cpu_model, "486SRu2");
+					break;
+				case 0x0b:
+					strcat(cpu_model, "486DRu2");
+					break;
+				default:
+					strcat(cpu_model, "Unknown");
+					break;
+				}
 				break;
-			case 0x0f:
-				strcat(cpu_model, "486SLC/DLC");
+			case 0x10:
+				switch (cyrix_did & 0x0f) {
+				case 0x00:
+					strcat(cpu_model, "486S");
+					break;
+				case 0x01:
+					strcat(cpu_model, "486S2");
+					break;
+				case 0x02:
+					strcat(cpu_model, "486Se");
+					break;
+				case 0x03:
+					strcat(cpu_model, "486S2e");
+					break;
+				case 0x0a:
+					strcat(cpu_model, "486DX");
+					break;
+				case 0x0b:
+					strcat(cpu_model, "486DX2");
+					break;
+				case 0x0f:
+					strcat(cpu_model, "486DX4");
+					break;
+				default:
+					strcat(cpu_model, "Unknown");
+					break;
+				}
+				break;
+			case 0x20:
+				if ((cyrix_did & 0x0f) < 8)
+					strcat(cpu_model, "6x86");	/* Where did you get it? */
+				else
+					strcat(cpu_model, "5x86");
+				break;
+			case 0x30:
+				strcat(cpu_model, "6x86");
+				break;
+			case 0x40:
+				/* XXX */
+				strcat(cpu_model, "MediaGX");
+				break;
+			case 0x50:
+				strcat(cpu_model, "6x86MX");
+				break;
+			case 0xf0:
+				switch (cyrix_did & 0x0f) {
+				case 0x0d:
+					strcat(cpu_model, "Overdrive CPU");
+				case 0x0e:
+					strcpy(cpu_model, "Texas Instruments 486SXL");
+					break;
+				case 0x0f:
+					strcat(cpu_model, "486SLC/DLC");
+					break;
+				default:
+					strcat(cpu_model, "Unknown");
+					break;
+				}
 				break;
 			default:
 				strcat(cpu_model, "Unknown");
 				break;
 			}
-			break;
-		default:
-			strcat(cpu_model, "Unknown");
 			break;
 		}
 	} else if (strcmp(cpu_vendor,"IBM") == 0)
@@ -351,7 +362,9 @@ printcpuinfo(void)
 		printf("  Id = 0x%lx",cpu_id);
 
 	if (strcmp(cpu_vendor, "GenuineIntel") == 0 ||
-	    strcmp(cpu_vendor, "AuthenticAMD") == 0) {
+	    strcmp(cpu_vendor, "AuthenticAMD") == 0 ||
+		((strcmp(cpu_vendor, "CyrixInstead") == 0) &&
+		 (cpu_id & 0xf00 > 5))) {
 		printf("  Stepping=%ld", cpu_id & 0xf);
 		if (cpu_high > 0) {
 			/*
@@ -472,7 +485,7 @@ identblue(void)
 	 * Cyrix 486-class CPU does not support wrmsr instruction.
 	 * The wrmsr instruction causes invalid opcode fault, and exception
 	 * will be trapped by bluetrap() on Cyrix 486-class CPU.  The bluetrap()
-	 * set the magic number to tra_by_wrmsr.
+	 * set the magic number to trap_by_wrmsr.
 	 */
 	setidt(6, bluetrap, SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 	wrmsr(0x1002, 0x03000000LL);	/* Fault on Cyrix 486-class CPU. */
@@ -549,35 +562,41 @@ finishidentcpu(void)
 				return;
 			}
 		}
-		identifycyrix();
-		/*
-		 * This routine contains a trick.
-		 * Don't check (cpu_id & 0x00f0) == 0x50 to detect M2, now.
-		 */
-		switch (cyrix_did & 0x00f0) {
-		case 0x00:
-		case 0xf0:
-			cpu = CPU_486DLC;
-			break;
-		case 0x10:
-			cpu = CPU_CY486DX;
-			break;
-		case 0x20:
-			if ((cyrix_did & 0x00f0) < 8)
-				cpu = CPU_M1;
-			else
-				cpu = CPU_M1SC;
-			break;
-		case 0x30:
-			cpu = CPU_M1;
-			break;
-		case 0x40:
-			cpu = CPU_M1SC;
-			break;
-		default:
-			/* M2 and later CPUs are treated as M2. */
+		switch (cpu_id & 0xf00) {
+		case 0x600:
 			cpu = CPU_M2;
 			break;
+		default:
+			identifycyrix();
+			/*
+			 * This routine contains a trick.
+			 * Don't check (cpu_id & 0x00f0) == 0x50 to detect M2, now.
+			 */
+			switch (cyrix_did & 0x00f0) {
+			case 0x00:
+			case 0xf0:
+				cpu = CPU_486DLC;
+				break;
+			case 0x10:
+				cpu = CPU_CY486DX;
+				break;
+			case 0x20:
+				if ((cyrix_did & 0x00f0) < 8)
+					cpu = CPU_M1;
+				else
+					cpu = CPU_M1SC;
+				break;
+			case 0x30:
+				cpu = CPU_M1;
+				break;
+			case 0x40:
+				cpu = CPU_M1SC;
+				break;
+			default:
+				/* M2 and later CPUs are treated as M2. */
+				cpu = CPU_M2;
+				break;
+			}
 		}
 	}
 }
