@@ -1,10 +1,5 @@
-int
-fake_a_gnumalloc_lib()
+void
+cfree(void *foo)
 {
-return 1; 
-}
-
-void cfree(void *foo)
-{
-free(foo);
+	free(foo);
 }
