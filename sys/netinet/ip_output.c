@@ -876,9 +876,7 @@ skip_ipsec:
 			mhip->ip_vhl = IP_MAKE_VHL(IPVERSION, mhlen >> 2);
 		}
 		m->m_len = mhlen;
-		mhip->ip_off = ((off - hlen) >> 3) + (ip->ip_off & ~IP_MF);
-		if (ip->ip_off & IP_MF)
-			mhip->ip_off |= IP_MF;
+		mhip->ip_off = ((off - hlen) >> 3) + ip->ip_off;
 		if (off + len >= (u_short)ip->ip_len)
 			len = (u_short)ip->ip_len - off;
 		else
