@@ -188,7 +188,7 @@ CompatRunCommand (cmdp, gnp)
     int 	  reason;   	/* Reason for child's death */
     int	    	  status;   	/* Description of child's death */
     int	    	  cpid;	    	/* Child actually found */
-    ReturnStatus  stat;	    	/* Status of fork */
+    ReturnStatus  rstat;	/* Status of fork */
     LstNode 	  cmdNode;  	/* Node where current command is located */
     char    	  **av;	    	/* Argument vector for thing to exec */
     int	    	  argc;	    	/* Number of arguments in av or 0 if not
@@ -347,13 +347,13 @@ CompatRunCommand (cmdp, gnp)
      */
     while (1) {
 
-	while ((stat = wait(&reason)) != cpid) {
-	    if (stat == -1 && errno != EINTR) {
+	while ((rstat = wait(&reason)) != cpid) {
+	    if (rstat == -1 && errno != EINTR) {
 		break;
 	    }
 	}
 
-	if (stat > -1) {
+	if (rstat > -1) {
 	    if (WIFSTOPPED(reason)) {
 		status = WSTOPSIG(reason);		/* stopped */
 	    } else if (WIFEXITED(reason)) {
@@ -388,7 +388,7 @@ CompatRunCommand (cmdp, gnp)
 	    }
 	    break;
 	} else {
-	    Fatal ("error in wait: %d", stat);
+	    Fatal ("error in wait: %d", rstat);
 	    /*NOTREACHED*/
 	}
     }

@@ -456,13 +456,13 @@ Targ_PrintCmd (cmd, dummy)
  *-----------------------------------------------------------------------
  */
 char *
-Targ_FmtTime (time)
-    time_t    time;
+Targ_FmtTime (modtime)
+    time_t    modtime;
 {
     struct tm	  	*parts;
     static char	  	buf[128];
 
-    parts = localtime(&time);
+    parts = localtime(&modtime);
 
     strftime(buf, sizeof buf, "%H:%M:%S %b %d, %Y", parts);
     buf[sizeof(buf) - 1] = '\0';
