@@ -1637,7 +1637,7 @@ number as al, and ax.
 do { long l[2];								\
      REAL_VALUE_TO_TARGET_DOUBLE (VALUE, l);				\
      if (sizeof (int) == sizeof (long))					\
-       fprintf (FILE, "%s 0x%x,0x%x\n", ASM_LONG, l[0], l[1]);		\
+       fprintf (FILE, "%s 0x%x,0x%x\n", ASM_LONG, (int) l[0], (int) l[1]); \
      else								\
        fprintf (FILE, "%s 0x%lx,0x%lx\n", ASM_LONG, l[0], l[1]);	\
    } while (0)
@@ -1649,7 +1649,8 @@ do { long l[2];								\
 do { long l[3];						\
      REAL_VALUE_TO_TARGET_LONG_DOUBLE (VALUE, l);	\
      if (sizeof (int) == sizeof (long))			\
-       fprintf (FILE, "%s 0x%x,0x%x,0x%x\n", ASM_LONG, l[0], l[1], l[2]); \
+       fprintf (FILE, "%s 0x%x,0x%x,0x%x\n", ASM_LONG,	\
+		(int) l[0], (int) l[1], (int) l[2]);	\
      else						\
        fprintf (FILE, "%s 0x%lx,0x%lx,0x%lx\n", ASM_LONG, l[0], l[1], l[2]); \
    } while (0)
@@ -1660,7 +1661,7 @@ do { long l[3];						\
 do { long l;						\
      REAL_VALUE_TO_TARGET_SINGLE (VALUE, l);		\
      if (sizeof (int) == sizeof (long))			\
-       fprintf ((FILE), "%s 0x%x\n", ASM_LONG, l);	\
+       fprintf ((FILE), "%s 0x%x\n", ASM_LONG, (int) l); \
      else						\
        fprintf ((FILE), "%s 0x%lx\n", ASM_LONG, l);	\
    } while (0)
