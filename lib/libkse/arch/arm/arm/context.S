@@ -45,7 +45,10 @@ ENTRY(__thr_setcontext)
 	moveq 	pc, lr
 	cmp	r2, #0
 	strne	r1, [r2]
+	ldr	r1, [r0, #(16 * 4)] /* CPSR */
+	msr	cpsr, r1
 	ldmia	r0, {r0-r15}
+	mov	pc, lr
 	/* XXX: FP bits ? */
 
 /*
@@ -62,7 +65,7 @@ ENTRY(__thr_getcontext)
 	cmp	r0, #0
 	moveq	r0, #-1
 	moveq	pc, lr
-	stmia	r0, {r0-r13}
+	stmia	r0, {r1-r14}
 	mov	r1, #1
 	str	r1, [r0] /* Return 1 from setcontext */
 	str	lr, [r0, #(15 * 4)] /* PC */

@@ -81,7 +81,8 @@ struct kcb {
 	struct kse		*kcb_kse;
 };
 
-extern struct arm_tp *_tp;
+extern struct arm_tp **arm_tp;
+#define _tp (*arm_tp)
 
 #define	_tcb	((struct tcb*)((char*)(_tp) - offsetof(struct tcb, tcb_tp)))
 
@@ -235,7 +236,7 @@ _thread_switch(struct kcb *kcb, struct tcb *tcb, int setmbox)
 		return (-1);
 	_tcb_set(kcb, tcb);
 	mc = &tcb->tcb_tmbx.tm_context.uc_mcontext;
-	if (0 && _libkse_debug == 0) {
+	if (_libkse_debug == 0) {
 		tcb->tcb_tmbx.tm_lwp = kcb->kcb_kmbx.km_lwp;
 		if (setmbox)
 			_thr_setcontext(mc, (intptr_t)&tcb->tcb_tmbx,
