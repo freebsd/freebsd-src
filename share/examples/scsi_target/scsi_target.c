@@ -40,6 +40,7 @@
 #include <sysexits.h>
 #include <unistd.h>
 #include <aio.h>
+#include <assert.h>
 #include <sys/stat.h>
 #include <sys/queue.h>
 #include <sys/event.h>
@@ -204,6 +205,32 @@ main(int argc, char *argv[])
 	}
 	if (volume_size <= 0)
 		errx(1, "volume must be larger than %d", sector_size);
+
+	{
+		struct aiocb aio, *aiop;
+		
+		/* Make sure we have working AIO support */
+		memset(&aio, 0, sizeof(aio));
+		aio.aio_buf = malloc(sector_size);
+		if (aio.aio_buf == NULL)
+			err(1, "malloc");
+		aio.aio_fildes = file_fd;
+		aio.aio_offset = 0;
+		aio.aio_nbytes = sector_size;
+		signal(SIGSYS, SIG_IGN);
+		if (aio_read(&aio) != 0) {
+			printf("You must enable VFS_AIO in your kernel "
+			       "or load the aio(4) module.\n");
+			err(1, "aio_read");
+		}
+		if (aio_waitcomplete(&aiop, NULL) != sector_size)
+			err(1, "aio_waitcomplete");
+		assert(aiop == &aio);
+		signal(SIGSYS, SIG_DFL);
+		free((void *)aio.aio_buf);
+		if (debug)
+			warnx("aio support tested ok");
+	}
 
 	/* Go through all the control devices and find one that isn't busy. */
 	unit = 0;
