@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: delete.h,v 1.1.1.1 1993/08/26 01:19:54 jkh Exp $ */
 
 /*
  * FreeBSD install - a package for the installation and maintainance
@@ -25,6 +25,8 @@
 
 extern char	*Prefix;
 extern Boolean	NoDeInstall;
+extern Boolean	CleanDirs;
+extern Boolean	Force;
 extern char	*Directory;
 extern char	*PkgName;
 

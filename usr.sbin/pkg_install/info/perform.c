@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.8 1994/10/14 05:55:57 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.9 1994/10/14 05:57:49 jkh Exp $";
 #endif
 
 /*
@@ -60,7 +60,9 @@ pkg_perform(char **pkgs)
 	    }
 	    else
 		++err_cnt;
-	}
+	} else if (CheckPkg)
+	    return 1;			/* no dir -> not installed! */
+	    
     }
     for (i = 0; pkgs[i]; i++)
 	err_cnt += pkg_do(pkgs[i]);
@@ -143,14 +145,20 @@ pkg_do(char *pkg)
 	    printf("%sInformation for %s:\n\n", InfoPrefix, pkg);
 	if (Flags & SHOW_COMMENT)
 	    show_file("Comment:\n", COMMENT_FNAME);
+	if ((Flags & SHOW_REQBY) && !isemptyfile(REQUIRED_BY_FNAME))
+	    show_file("Required by:\n", REQUIRED_BY_FNAME);
 	if (Flags & SHOW_DESC)
 	    show_file("Description:\n", DESC_FNAME);
+	if ((Flags & SHOW_DISPLAY) && fexists(DISPLAY_FNAME))
+	    show_file("Install notice:\n", DISPLAY_FNAME);
 	if (Flags & SHOW_PLIST)
 	    show_plist("Packing list:\n", &plist, (plist_t)-1);
 	if ((Flags & SHOW_INSTALL) && fexists(INSTALL_FNAME))
 	    show_file("Install script:\n", INSTALL_FNAME);
 	if ((Flags & SHOW_DEINSTALL) && fexists(DEINSTALL_FNAME))
 	    show_file("De-Install script:\n", DEINSTALL_FNAME);
+	if ((Flags & SHOW_MTREE) && fexists(MTREE_FNAME))
+	    show_file("mtree file:\n", MTREE_FNAME);
 	if (Flags & SHOW_PREFIX)
 	    show_plist("Prefix(s):\n", &plist, PLIST_CWD);
 	if (Flags & SHOW_FILES)

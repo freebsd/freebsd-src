@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: exec.c,v 1.4 1993/09/04 05:06:47 jkh Exp $";
+static const char *rcsid = "$Id: exec.c,v 1.2 1993/09/03 23:01:12 jkh Exp $";
 #endif
 
 /*
@@ -33,16 +33,28 @@ int
 vsystem(const char *fmt, ...)
 {
     va_list args;
-    char cmd[FILENAME_MAX * 2];	/* reasonable default for what I do */
-    int ret;
+    char *cmd;
+    int ret, maxargs;
+
+    maxargs = sysconf(_SC_ARG_MAX);
+    maxargs -= 32;			/* some slop for the sh -c */
+    cmd = malloc(maxargs);
+    if (!cmd) {
+	whinge("vsystem can't alloc arg space");
+	return 1;
+    }
 
     va_start(args, fmt);
-    vsprintf(cmd, fmt, args);
+    if (vsnprintf(cmd, maxargs, fmt, args) > maxargs) {
+	whinge("vsystem args are too long");
+	return 1;
+    }
 #ifdef DEBUG
 printf("Executing %s\n", cmd);
 #endif
     ret = system(cmd);
     va_end(args);
+    free(cmd);
     return ret;
 }
 
