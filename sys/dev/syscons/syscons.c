@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.309 1999/06/26 11:00:17 peter Exp $
+ *	$Id: syscons.c,v 1.310 1999/06/29 17:30:33 yokota Exp $
  */
 
 #include "sc.h"
@@ -143,7 +143,9 @@ static int scparam(struct tty *tp, struct termios *t);
 static void scstart(struct tty *tp);
 static void scmousestart(struct tty *tp);
 static void scinit(int unit, int flags);
+#if __i386__
 static void scterm(int unit, int flags);
+#endif
 static void scshutdown(int howto, void *arg);
 static u_int scgetc(sc_softc_t *sc, u_int flags);
 #define SCGETC_CN	1
@@ -361,7 +363,7 @@ sc_attach_unit(int unit, int flags)
 
     /* register a shutdown callback for the kernel console */
     if (sc_console_unit == unit)
-	at_shutdown(scshutdown, (void *)unit, SHUTDOWN_PRE_SYNC);
+	at_shutdown(scshutdown, (void *)(uintptr_t)unit, SHUTDOWN_PRE_SYNC);
 
     /*
      * syscons's cdevsw must be registered from here. As syscons and
@@ -2417,6 +2419,7 @@ scan_esc(scr_stat *scp, u_char c)
     int i, n;
     int count;
 
+    i = n = 0;
     sc = scp->sc; 
     if (scp->term.esc == 1) {	/* seen ESC */
 	switch (c) {
@@ -3358,6 +3361,7 @@ scinit(int unit, int flags)
     sc->flags |= SC_INIT_DONE;
 }
 
+#if __i386__
 static void
 scterm(int unit, int flags)
 {
@@ -3404,6 +3408,7 @@ scterm(int unit, int flags)
     sc->keyboard = -1;
     sc->adapter = -1;
 }
+#endif
 
 static void
 scshutdown(int howto, void *arg)
