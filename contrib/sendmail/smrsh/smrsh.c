@@ -59,6 +59,8 @@ static char id[] = "@(#)$Id: smrsh.c,v 8.31.4.9 2001/04/24 04:11:51 ca Exp $";
 #include <unistd.h>
 #include <stdio.h>
 #include <sys/file.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <string.h>
 #include <ctype.h>
 #include <errno.h>
@@ -156,6 +158,7 @@ main(argc, argv)
 	char cmdbuf[1000];
 	char pathbuf[1000];
 	char specialbuf[32];
+	struct stat st;
 
 #ifndef DEBUG
 # ifndef LOG_MAIL
@@ -293,6 +296,36 @@ main(argc, argv)
 #ifdef DEBUG
 			printf("Trying %s\n", cmdbuf);
 #endif /* DEBUG */
+			if (stat(cmdbuf, &st) < 0)
+			{
+				/* can't stat it */
+				(void) fprintf(stderr, "%s: %s not available for sendmail programs (stat failed)\n",
+					       prg, cmd);
+				if (p != NULL)
+					*p = ' ';
+#ifndef DEBUG
+				syslog(LOG_CRIT, "uid %d: attempt to use %s (stat failed)",
+				       (int) getuid(), cmd);
+#endif /* ! DEBUG */
+				exit(EX_UNAVAILABLE);
+			}
+			if (!S_ISREG(st.st_mode)
+#ifdef S_ISLNK
+			    && !S_ISLNK(st.st_mode)
+#endif /* S_ISLNK */
+			   )
+			{
+				/* can't stat it */
+				(void) fprintf(stderr, "%s: %s not available for sendmail programs (not a file)\n",
+					       prg, cmd);
+				if (p != NULL)
+					*p = ' ';
+#ifndef DEBUG
+				syslog(LOG_CRIT, "uid %d: attempt to use %s (not a file)",
+				       (int) getuid(), cmd);
+#endif /* ! DEBUG */
+				exit(EX_UNAVAILABLE);
+			}
 			if (access(cmdbuf, X_OK) < 0)
 			{
 				/* oops....  crack attack possiblity */
