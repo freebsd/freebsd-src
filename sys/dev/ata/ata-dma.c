@@ -837,6 +837,7 @@ via_82c586:
 	break;
 
     case 0x4d69105a:	/* Promise TX2 ATA133 controllers */
+    case 0x5275105a:	/* Promise TX2 ATA133 controllers */
 	ATA_OUTB(ch->r_bmio, ATA_BMDEVSPEC_0, 0x0b);
 	if (udmamode >= 6 && !(ATA_INB(ch->r_bmio, ATA_BMDEVSPEC_1) & 0x04)) {
 	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
