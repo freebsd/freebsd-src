@@ -61,7 +61,6 @@
 #endif
 
 #include "bpfilter.h"
-#include "opt_inet.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -74,11 +73,6 @@
 
 #include <net/ethernet.h>
 #include <net/if_arp.h>
-
-#ifdef NS
-#include <netns/ns.h>
-#include <netns/ns_if.h>
-#endif
 
 #if NBPFILTER > 0
 #include <net/bpf.h>

@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.47 1998/01/08 23:42:29 eivind Exp $
+ *	$Id: if_fxp.c,v 1.48 1998/02/09 06:10:51 eivind Exp $
  */
 
 /*
@@ -35,7 +35,6 @@
  */
 
 #include "bpfilter.h"
-#include "opt_inet.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -47,11 +46,6 @@
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
-
-#ifdef INET
-#include <netinet/in.h>
-#include <netinet/if_ether.h>
-#endif
 
 #ifdef NS
 #include <netns/ns.h>

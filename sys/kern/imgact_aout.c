@@ -23,13 +23,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_aout.c,v 1.38 1998/01/11 21:35:30 dyson Exp $
+ *	$Id: imgact_aout.c,v 1.39 1998/02/03 21:41:12 bde Exp $
  */
 
 #include <sys/param.h>
 #include <sys/resourcevar.h>
 #include <sys/exec.h>
-#include <sys/mman.h>
 #include <sys/imgact.h>
 #include <sys/imgact_aout.h>
 #include <sys/kernel.h>
@@ -45,7 +44,6 @@
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
-#include <vm/vm_extern.h>
 
 static int	exec_aout_imgact __P((struct image_params *imgp));
 
