@@ -44,7 +44,7 @@
  *	pcvt_sup.c	VT220 Driver Support Routines
  *	---------------------------------------------
  *
- *	Last Edit-Date: [Mon Mar 27 16:11:33 2000]
+ *	Last Edit-Date: [Fri Mar 31 10:23:04 2000]
  *
  * $FreeBSD$
  *
@@ -310,6 +310,10 @@ vgapcvtinfo(struct pcvtinfo *data)
 #if PCVT_NO_LED_UPDATE
 	| CONF_NO_LED_UPDATE
 #endif
+#if PCVT_GREENSAVER
+	| CONF_GREENSAVER
+#endif
+
 	);
 }
 
@@ -1790,6 +1794,38 @@ pcvt_set_scrnsv_tmo(int timeout)
 	}
 }
 
+#if PCVT_GREENSAVER
+#define TSIDX		IO_VGA+0x04		/* timing sequencer idx */
+#define TSREG		IO_VGA+0x05		/* timing sequencer data */
+
+static void
+green_saver(int blank)
+{
+	u_char val;
+
+	if (blank)
+	{
+		outb(TSIDX, 0x01);
+		val = inb(TSREG);
+		outb(TSIDX, 0x01);
+		outb(TSREG, val | 0x20);
+		outb(addr_6845, 0x17);
+		val = inb(addr_6845 + 1);
+		outb(addr_6845 + 1, val & ~0x80);
+	}
+	else
+	{
+		outb(TSIDX, 0x01);
+		val = inb(TSREG);
+		outb(TSIDX, 0x01);
+		outb(TSREG, val & 0xDF);
+		outb(addr_6845, 0x17);
+		val = inb(addr_6845 + 1);
+		outb(addr_6845 + 1, val | 0x80);
+	}
+}
+#endif
+
 /*---------------------------------------------------------------------------*
  *	we were timed out
  *---------------------------------------------------------------------------*/
@@ -1868,6 +1904,10 @@ scrnsv_timedout(void *arg)
 #endif /* PCVT_PRETTYSCRNS */
 
 		sw_cursor(0);	/* cursor off on mda/cga */
+
+#if PCVT_GREENSAVER
+		green_saver(1);
+#endif
 	}
 	splx(x);
 }
@@ -1912,6 +1952,9 @@ pcvt_scrnsv_reset(void)
 			vgapaletteio(7 /* LIGHTGRAY */, &vsp->palette[7], 1);
 #endif /* PCVT_PRETTYSCRNS */
 
+#if PCVT_GREENSAVER
+			green_saver(0);
+#endif
 		}
 		scrnsv_active = 0;
 
