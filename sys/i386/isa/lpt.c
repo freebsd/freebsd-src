@@ -97,12 +97,13 @@
 int lptflag = 1;
 #endif
 
-int lptout();
+void lptout();
 #ifdef DEBUG
 int lptflag = 1;
 #endif
 
-int 	lptprobe(), lptattach(), lptintr();
+int 	lptprobe(), lptattach();
+void	lptintr();
 
 struct	isa_driver lptdriver = {
 	lptprobe, lptattach, "lpt"
@@ -143,7 +144,10 @@ struct lpt_softc {
  * Internal routine to lptprobe to do port tests of one byte value
  */
 int
-lpt_port_test(short port, u_char data, u_char mask)
+lpt_port_test(port, data, mask)
+	short port;
+	u_char data;
+	u_char mask;
 	{
 	int	temp, timeout;
 
@@ -182,8 +186,9 @@ lpt_port_test(short port, u_char data, u_char mask)
  */
 
 int
-lptprobe(struct isa_device *dvp)
-	{
+lptprobe(dvp)
+	struct isa_device *dvp;
+{
 	int	status;
 	short	port;
 	u_char	data;
@@ -227,6 +232,7 @@ lptprobe(struct isa_device *dvp)
 	return (status);
 	}
 
+int
 lptattach(isdp)
 	struct isa_device *isdp;
 {
@@ -242,13 +248,19 @@ lptattach(isdp)
  * lptopen -- reset the printer, then wait until it's selected and not busy.
  */
 
+int
 lptopen(dev, flag)
 	dev_t dev;
 	int flag;
 {
-	struct lpt_softc *sc = lpt_sc + LPTUNIT(minor(dev));
+	struct lpt_softc *sc;
 	int s;
 	int trys, port;
+	u_int unit = LPTUNIT(minor(dev));
+
+	if (unit >= NLPT)
+		return (ENXIO);
+	sc = lpt_sc + unit;
 
 	if (sc->sc_state) {
 lprintf("lp: still open\n") ;
@@ -310,6 +322,7 @@ lprintf("opened.\n");
 	return(0);
 }
 
+void
 lptout (sc)
 	struct lpt_softc *sc;
 {	int pl;
@@ -339,7 +352,9 @@ lprintf ("T %x ", inb(sc->sc_port+lpt_status));
  * lptclose -- close the device, free the local line buffer.
  */
 
+int
 lptclose(dev, flag)
+	dev_t dev;
 	int flag;
 {
 	struct lpt_softc *sc = lpt_sc + LPTUNIT(minor(dev));
@@ -365,6 +380,7 @@ lprintf("closed.\n");
  * putc to get the chars moved to the output queue.
  */
 
+int
 lptwrite(dev, uio)
 	dev_t dev;
 	struct uio *uio;
@@ -398,7 +414,9 @@ lprintf("W ");
  * ready to accept another char.
  */
 
+void
 lptintr(unit)
+	int unit;
 {
 	struct lpt_softc *sc = lpt_sc + unit;
 	int port = sc->sc_port,sts;
@@ -433,7 +451,11 @@ lprintf("sts %x ", sts);
 }
 
 int
-lptioctl(dev_t dev, int cmd, caddr_t data, int flag)
+lptioctl(dev, cmd, data, flag)
+	dev_t dev;
+	int cmd;
+	caddr_t data;
+	int flag;
 {
 	int	error;
 
