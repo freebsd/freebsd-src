@@ -573,7 +573,7 @@ vm_object_page_clean(object, start, end, flags)
 rescan:
 	curgeneration = object->generation;
 
-	for(p = TAILQ_FIRST(&object->memq); p; p = np) {
+	for (p = TAILQ_FIRST(&object->memq); p; p = np) {
 		np = TAILQ_NEXT(p, listq);
 
 		pi = p->pindex;
@@ -610,7 +610,7 @@ rescan:
 		}
 
 		maxf = 0;
-		for(i=1;i<vm_pageout_page_count;i++) {
+		for (i = 1; i < vm_pageout_page_count; i++) {
 			if ((tp = vm_page_lookup(object, pi + i)) != NULL) {
 				if ((tp->flags & PG_BUSY) ||
 					(tp->flags & PG_CLEANCHK) == 0 ||
@@ -635,7 +635,7 @@ rescan:
 		maxb = 0;
 		chkb = vm_pageout_page_count -  maxf;
 		if (chkb) {
-			for(i = 1; i < chkb;i++) {
+			for (i = 1; i < chkb; i++) {
 				if ((tp = vm_page_lookup(object, pi - i)) != NULL) {
 					if ((tp->flags & PG_BUSY) ||
 						(tp->flags & PG_CLEANCHK) == 0 ||
@@ -658,14 +658,14 @@ rescan:
 			}
 		}
 
-		for(i=0;i<maxb;i++) {
+		for (i = 0; i < maxb; i++) {
 			int index = (maxb - i) - 1;
 			ma[index] = mab[i];
 			vm_page_flag_clear(ma[index], PG_CLEANCHK);
 		}
 		vm_page_flag_clear(p, PG_CLEANCHK);
 		ma[maxb] = p;
-		for(i=0;i<maxf;i++) {
+		for (i = 0 ; i < maxf; i++) {
 			int index = (maxb + i) + 1;
 			ma[index] = maf[i];
 			vm_page_flag_clear(ma[index], PG_CLEANCHK);
@@ -674,7 +674,7 @@ rescan:
 
 		splx(s);
 		vm_pageout_flush(ma, runlen, pagerflags);
-		for (i = 0; i<runlen; i++) {
+		for (i = 0; i < runlen; i++) {
 			if (ma[i]->valid & ma[i]->dirty) {
 				vm_page_protect(ma[i], VM_PROT_READ);
 				vm_page_flag_set(ma[i], PG_CLEANCHK);
@@ -1637,7 +1637,7 @@ _vm_object_in_map(map, object, entry)
 			tmpe = tmpe->next;
 		}
 	} else if ((obj = entry->object.vm_object) != NULL) {
-		for(; obj; obj=obj->backing_object)
+		for (; obj; obj = obj->backing_object)
 			if( obj == object) {
 				return 1;
 			}
@@ -1794,7 +1794,7 @@ DB_SHOW_COMMAND(vmopag, vm_object_print_pages)
 		osize = object->size;
 		if (osize > 128)
 			osize = 128;
-		for(idx=0;idx<osize;idx++) {
+		for (idx = 0; idx < osize; idx++) {
 			m = vm_page_lookup(object, idx);
 			if (m == NULL) {
 				if (rcount) {

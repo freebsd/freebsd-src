@@ -332,10 +332,10 @@ vm_pager_unmap_page(kva)
 
 vm_object_t
 vm_pager_object_lookup(pg_list, handle)
-	register struct pagerlst *pg_list;
+	struct pagerlst *pg_list;
 	void *handle;
 {
-	register vm_object_t object;
+	vm_object_t object;
 
 	TAILQ_FOREACH(object, pg_list, pager_object_list)
 		if (object->handle == handle)

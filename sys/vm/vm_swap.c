@@ -91,7 +91,7 @@ swapdev_strategy(ap)
 	} */ *ap;
 {
 	int s, sz, off, seg, index;
-	register struct swdevt *sp;
+	struct swdevt *sp;
 	struct vnode *vp;
 	struct buf *bp;
 
@@ -189,7 +189,7 @@ swapon(p, uap)
 	struct proc *p;
 	struct swapon_args *uap;
 {
-	register struct vnode *vp;
+	struct vnode *vp;
 	struct nameidata nd;
 	int error;
 
@@ -242,9 +242,9 @@ swaponvp(p, vp, dev, nblks)
 	u_long nblks;
 {
 	int index;
-	register struct swdevt *sp;
-	register swblk_t vsbase;
-	register long blk;
+	struct swdevt *sp;
+	swblk_t vsbase;
+	long blk;
 	swblk_t dvbase;
 	int error;
 	u_long aligned_nblks;
