@@ -352,6 +352,8 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 		if (control)
 			m_freem(control);
 		error = ECONNRESET;	/* XXX EPIPE? */
+		tp = NULL;
+		TCPDEBUG1();
 		goto out;
 	}
 	tp = intotcpcb(inp);
