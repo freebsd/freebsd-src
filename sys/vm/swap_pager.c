@@ -366,6 +366,8 @@ swap_pager_swap_init()
  *	add because (I believe) it is not possible to attempt to create
  *	a new swap object w/handle when a default object with that handle
  *	already exists.
+ *
+ * MPSAFE
  */
 static vm_object_t
 swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
@@ -373,8 +375,7 @@ swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 {
 	vm_object_t object;
 
-	GIANT_REQUIRED;
-
+	mtx_lock(&Giant);
 	if (handle) {
 		/*
 		 * Reference existing named region or allocate new one.  There
@@ -401,7 +402,7 @@ swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 
 		swp_pager_meta_build(object, 0, SWAPBLK_NONE);
 	}
-
+	mtx_unlock(&Giant);
 	return (object);
 }
 
