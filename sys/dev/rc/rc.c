@@ -93,7 +93,6 @@ struct rc_chans  {
 	u_char           rc_msvr;               /* modem sig. status    */
 	u_char           rc_cor2;               /* options reg          */
 	u_char           rc_pendcmd;            /* special cmd pending  */
-	u_int            rc_dtrwait;            /* dtr timeout          */
 	u_int            rc_dcdwaits;           /* how many waits DCD in open */
 	struct tty       rc_tp;                 /* tty struct           */
 	u_char          *rc_iptr;               /* Chars input buffer         */
@@ -140,18 +139,15 @@ static void rc_reinit(struct rc_softc *);
 #ifdef RCDEBUG
 static void printrcflags();
 #endif
-static void rc_dtrwakeup(void *);
 static void rc_wait0(struct rc_softc *sc, int chan, int line);
 
 static	d_open_t	rcopen;
 static	d_close_t	rcclose;
-static	d_ioctl_t	rcioctl;
 
 static struct cdevsw rc_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_open =	rcopen,
 	.d_close =	rcclose,
-	.d_ioctl =	rcioctl,
 	.d_name =	"rc",
 	.d_flags =	D_TTY | D_NEEDGIANT,
 };
@@ -316,7 +312,6 @@ rc_attach(device_t dev)
 		rc->rc_bufend  = &rc->rc_ibuf[RC_IBUFSIZE];
 		rc->rc_hiwat   = &rc->rc_ibuf[RC_IHIGHWATER];
 		rc->rc_optr    = rc->rc_obufend  = rc->rc_obuf;
-		rc->rc_dtrwait = 3 * hz;
 		callout_init(&rc->rc_dtrcallout, 0);
 		tp = &rc->rc_tp;
 		ttychars(tp);
@@ -358,7 +353,7 @@ rc_detach(device_t dev)
 {
 	struct rc_softc *sc;
 	struct rc_chans *rc;
-	int error, i, s;
+	int error, i;
 
 	sc = device_get_softc(dev);
 	if (sc->sc_opencount > 0)
@@ -367,16 +362,9 @@ rc_detach(device_t dev)
 
 	rc = sc->sc_channels;
 	for (i = 0; i < CD180_NCHAN; i++, rc++) {
+		ttygone(&rc->rc_tp);
 		destroy_dev(rc->rc_dev);
 		destroy_dev(rc->rc_cdev);
-	}
-
-	rc = sc->sc_channels;
-	s = splsoftclock();
-	for (i = 0; i < CD180_NCHAN; i++) {
-		if ((rc->rc_flags & RC_DTR_OFF) &&
-		    !callout_stop(&rc->rc_dtrcallout))
-			tsleep(&rc->rc_dtrwait, TTIPRI, "rcdtrdet", 0);
 	}
 
 	error = bus_teardown_intr(dev, sc->sc_irq, sc->sc_hwicookie);
@@ -874,11 +862,9 @@ rcopen(struct cdev *dev, int flag, int mode, d_thread_t *td)
 	s = spltty();
 
 again:
-	while (rc->rc_flags & RC_DTR_OFF) {
-		error = tsleep(&(rc->rc_dtrwait), TTIPRI | PCATCH, "rcdtr", 0);
-		if (error != 0)
-			goto out;
-	}
+	error = ttydtrwaitsleep(tp);
+	if (error != 0)
+		goto out;
 	if (tp->t_state & TS_ISOPEN) {
 		if (CALLOUT(dev)) {
 			if (!(rc->rc_flags & RC_ACTOUT)) {
@@ -995,11 +981,7 @@ rc_hardclose(struct rc_chans *rc)
 		CCRCMD(sc, rc->rc_chan, CCR_ResetChan);
 		WAITFORCCR(sc, rc->rc_chan);
 		(void) rc_modem(tp, SER_RTS, 0);
-		if (rc->rc_dtrwait) {
-			callout_reset(&rc->rc_dtrcallout, rc->rc_dtrwait,
-			    rc_dtrwakeup, rc);
-			rc->rc_flags |= RC_DTR_OFF;
-		}
+		ttydtrwaitstart(tp);
 	}
 	rc->rc_flags &= ~RC_ACTOUT;
 	wakeup( &rc->rc_rcb);  /* wake bi */
@@ -1199,44 +1181,6 @@ rc_reinit(struct rc_softc *sc)
 	for (i = 0; i < CD180_NCHAN; i++, rc++)
 		(void) rc_param(&rc->rc_tp, &rc->rc_tp.t_termios);
 }
-
-static int
-rcioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, d_thread_t *td)
-{
-	struct rc_chans *rc;
-	struct tty *tp;
-	int s, error;
-
-	rc = DEV_TO_RC(dev);
-	tp = &rc->rc_tp;
-	error = ttyioctl(dev, cmd, data, flag, td);
-	ttyldoptim(tp);
-	if (error != ENOTTY)
-		return (error);
-	s = spltty();
-
-	switch (cmd) {
-	    case TIOCMSDTRWAIT:
-		error = suser(td);
-		if (error != 0) {
-			splx(s);
-			return (error);
-		}
-		rc->rc_dtrwait = *(int *)data * hz / 100;
-		break;
-
-	    case TIOCMGDTRWAIT:
-		*(int *)data = rc->rc_dtrwait * 100 / hz;
-		break;
-
-	    default:
-		(void) splx(s);
-		return ENOTTY;
-	}
-	(void) splx(s);
-	return 0;
-}
-
 
 /* Modem control routines */
 
@@ -1476,16 +1420,6 @@ printrcflags(struct rc_chans *rc, char *comment)
 		rcin(sc, CD180_CCSR));
 }
 #endif /* RCDEBUG */
-
-static void
-rc_dtrwakeup(void *arg)
-{
-	struct rc_chans  *rc;
-
-	rc = (struct rc_chans *)arg;
-	rc->rc_flags &= ~RC_DTR_OFF;
-	wakeup(&rc->rc_dtrwait);
-}
 
 static void
 rc_discard_output(struct rc_chans *rc)

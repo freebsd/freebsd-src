@@ -39,7 +39,6 @@ struct sx_port {
 	struct tty	*sp_tty;
 	int		sp_state;
 	int		sp_active_out;	/* callout is open */
-	int		sp_dtr_wait;	/* DTR holddown in hz */
 	int		sp_delta_overflows;
 	u_int		sp_wopeners;	/* Processes waiting for DCD.         */
 	struct termios	sp_iin;		/* Initial state.                     */

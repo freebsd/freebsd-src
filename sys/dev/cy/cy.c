@@ -117,7 +117,6 @@ __FBSDID("$FreeBSD$");
 #define	p_com_addr	p_cy_addr
 #define	sioclose	cyclose
 #define	siodriver	cydriver
-#define	siodtrwakeup	cydtrwakeup
 #define	sioinput	cyinput
 #define	siointr1	cyintr
 #define	sioioctl	cyioctl
@@ -191,7 +190,6 @@ __FBSDID("$FreeBSD$");
 #define	CS_ODEVREADY	0x20	/* external device h/w ready (CTS) */
 #define	CS_CHECKMSR	1	/* check of MSR scheduled */
 #define	CS_CTS_OFLOW	2	/* use CTS output flow control */
-#define	CS_DTR_OFF	0x10	/* DTR held off */
 #define	CS_ODONE	4	/* output completed */
 #define	CS_RTS_IFLOW	8	/* use RTS input flow control */
 #define	CSE_ODONE	1	/* output transmitted */
@@ -256,7 +254,6 @@ struct com_s {
 	bool_t	poll_output;	/* nonzero if polling for output is required */
 #endif
 	int	unit;		/* unit	number */
-	int	dtr_wait;	/* time to hold DTR down on close (* 1/hz) */
 #if 0
 	u_int	tx_fifo_size;
 #endif
@@ -332,7 +329,6 @@ static	void	cd1400_channel_cmd_wait(struct com_s *com);
 static	void	cd_etc(struct com_s *com, int etc);
 static	int	cd_getreg(struct com_s *com, int reg);
 static	void	cd_setreg(struct com_s *com, int reg, int val);
-static	timeout_t siodtrwakeup;
 static	void	comhardclose(struct com_s *com);
 static	void	sioinput(struct com_s *com);
 static	int	commctl(struct com_s *com, int bits, int how);
@@ -515,7 +511,6 @@ cyattach_common(cy_iobase, cy_align)
 				com->mcr_rts = MCR_RTS;
 				com->mcr_rts_reg = CD1400_MSVR1;
 			}
-	com->dtr_wait = 3 * hz;
 	com->obufs[0].l_head = com->obuf1;
 	com->obufs[1].l_head = com->obuf2;
 
@@ -614,11 +609,9 @@ sioopen(dev, flag, mode, td)
 	 * up any changes of the device state.
 	 */
 open_top:
-	while (com->state & CS_DTR_OFF) {
-		error = tsleep(&com->dtr_wait, TTIPRI | PCATCH, "cydtr", 0);
-		if (error != 0)
-			goto out;
-	}
+	error = ttydtrwaitsleep(tp);
+	if (error != 0)
+		goto out;
 	if (tp->t_state & TS_ISOPEN) {
 		/*
 		 * The device is open, so everything has been initialized.
@@ -864,10 +857,7 @@ comhardclose(com)
 					       | CD1400_CCR_RCVDIS;
 			cd1400_channel_cmd(com, com->channel_control);
 
-			if (com->dtr_wait != 0 && !(com->state & CS_DTR_OFF)) {
-				timeout(siodtrwakeup, com, com->dtr_wait);
-				com->state |= CS_DTR_OFF;
-			}
+			ttydtrwaitstart(tp);
 		}
 	}
 #if 0
@@ -918,17 +908,6 @@ siowrite(dev, uio, flag)
 #else
 	return (ttyld_write(tp, uio, flag));
 #endif
-}
-
-static void
-siodtrwakeup(chan)
-	void	*chan;
-{
-	struct com_s	*com;
-
-	com = (struct com_s *)chan;
-	com->state &= ~CS_DTR_OFF;
-	wakeup(&com->dtr_wait);
 }
 
 /*
@@ -1648,18 +1627,6 @@ sioioctl(dev, cmd, data, flag, td)
 		break;
 	case TIOCMGET:
 		*(int *)data = commctl(com, 0, DMGET);
-		break;
-	case TIOCMSDTRWAIT:
-		/* must be root since the wait applies to following logins */
-		error = suser(td);
-		if (error != 0) {
-			splx(s);
-			return (error);
-		}
-		com->dtr_wait = *(int *)data * hz / 100;
-		break;
-	case TIOCMGDTRWAIT:
-		*(int *)data = com->dtr_wait * 100 / hz;
 		break;
 	case TIOCTIMESTAMP:
 		com->do_timestamp = TRUE;

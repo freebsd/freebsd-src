@@ -86,7 +86,6 @@ struct digi_p {
 	u_char modem;		/* Force values */
 
 	int active_out;		/* nonzero if the callout device is open */
-	int dtr_wait;		/* time to hold DTR down on close (* 1/hz) */
 	u_int wopeners;		/* # processes waiting for DCD in open() */
 
 	/*

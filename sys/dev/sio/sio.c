@@ -150,7 +150,6 @@ __FBSDID("$FreeBSD$");
 #define	CS_ODEVREADY	0x20	/* external device h/w ready (CTS) */
 #define	CS_CHECKMSR	1	/* check of MSR scheduled */
 #define	CS_CTS_OFLOW	2	/* use CTS output flow control */
-#define	CS_DTR_OFF	0x10	/* DTR held off */
 #define	CS_ODONE	4	/* output completed */
 #define	CS_RTS_IFLOW	8	/* use RTS input flow control */
 #define	CSE_BUSYCHECK	1	/* siobusycheck() scheduled */
@@ -201,7 +200,6 @@ struct com_s {
 	bool_t	poll_output;	/* nonzero if polling for output is required */
 	bool_t	st16650a;	/* nonzero if Startech 16650A compatible */
 	int	unit;		/* unit	number */
-	int	dtr_wait;	/* time to hold DTR down on close (* 1/hz) */
 	u_int	flags;		/* copy of device flags */
 	u_int	tx_fifo_size;
 	u_int	wopeners;	/* # processes waiting for DCD in open() */
@@ -285,7 +283,6 @@ static	int	espattach(struct com_s *com, Port_t esp_port);
 static	void	combreak(struct tty *tp, int sig);
 static	timeout_t siobusycheck;
 static	u_int	siodivisor(u_long rclk, speed_t speed);
-static	timeout_t siodtrwakeup;
 static	void	comhardclose(struct com_s *com);
 static	void	sioinput(struct com_s *com);
 static	void	siointr1(struct com_s *com);
@@ -457,6 +454,7 @@ siodetach(dev)
 		return (0);
 	}
 	com->gone = TRUE;
+	ttygone(com->tp);
 	for (i = 0 ; i < 6; i++)
 		destroy_dev(com->devs[i]);
 	if (com->irqres) {
@@ -961,7 +959,6 @@ sioattach(dev, xrid, rclk)
 	com->bst = rman_get_bustag(port);
 	com->bsh = rman_get_bushandle(port);
 	com->cfcr_image = CFCR_8BITS;
-	com->dtr_wait = 3 * hz;
 	com->loses_outints = COM_LOSESOUTINTS(flags) != 0;
 	com->no_irq = bus_get_resource(dev, SYS_RES_IRQ, 0, NULL, NULL) != 0;
 	com->tx_fifo_size = 1;
@@ -1239,13 +1236,9 @@ sioopen(dev, flag, mode, td)
 	 * up any changes of the device state.
 	 */
 open_top:
-	while (com->state & CS_DTR_OFF) {
-		error = tsleep(&com->dtr_wait, TTIPRI | PCATCH, "siodtr", 0);
-		if (com_addr(unit) == NULL)
-			return (ENXIO);
-		if (error != 0 || com->gone)
-			goto out;
-	}
+	error = ttydtrwaitsleep(tp);
+	if (error != 0)
+		goto out;
 	if (tp->t_state & TS_ISOPEN) {
 		/*
 		 * The device is open, so everything has been initialized.
@@ -1479,10 +1472,7 @@ comhardclose(com)
 		        && !(com->it_in.c_cflag & CLOCAL))
 		    || !(tp->t_state & TS_ISOPEN)) {
 			(void)commodem(tp, 0, SER_DTR);
-			if (com->dtr_wait != 0 && !(com->state & CS_DTR_OFF)) {
-				timeout(siodtrwakeup, com, com->dtr_wait);
-				com->state |= CS_DTR_OFF;
-			}
+			ttydtrwaitstart(tp);
 		}
 	}
 	if (com->hasfifo) {
@@ -1608,17 +1598,6 @@ siodivisor(rclk, speed)
 		return (0);
 
 	return (divisor);
-}
-
-static void
-siodtrwakeup(chan)
-	void	*chan;
-{
-	struct com_s	*com;
-
-	com = (struct com_s *)chan;
-	com->state &= ~CS_DTR_OFF;
-	wakeup(&com->dtr_wait);
 }
 
 /*
@@ -2113,18 +2092,6 @@ sioioctl(dev, cmd, data, flag, td)
 		return (error);
 	s = spltty();
 	switch (cmd) {
-	case TIOCMSDTRWAIT:
-		/* must be root since the wait applies to following logins */
-		error = suser(td);
-		if (error != 0) {
-			splx(s);
-			return (error);
-		}
-		com->dtr_wait = *(int *)data * hz / 100;
-		break;
-	case TIOCMGDTRWAIT:
-		*(int *)data = com->dtr_wait * 100 / hz;
-		break;
 	case TIOCTIMESTAMP:
 		com->do_timestamp = TRUE;
 		*(struct timeval *)data = com->timestamp;
