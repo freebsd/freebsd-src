@@ -555,14 +555,14 @@ static int
 _havemaster(const char *_pw_yp_domain)
 {
 	char *result;
-	static char *key;
-	int resultlen;
-	static int keylen;
-	
-	if (yp_first(_pw_yp_domain, "master.passwd.byname",
-		      &key, &keylen, &result, &resultlen))
+	int *order;
+
+	if (yp_order(_pw_yp_domain, "master.passwd.byname", &order)) {
+		free(order);
 		return 0;
-	
+	}
+
+	free(order);
 	return 1;
 }
 
