@@ -66,11 +66,6 @@ device		fdc0	at isa? port IO_FD1 irq 6 drq 2
 device		fd0	at fdc0 drive 0
 
 # ATA and ATAPI devices
-# This is work in progress, use at your own risk.
-# It currently reuses the majors of wd.c and friends.
-# It cannot co-exist with the old system in one kernel.
-# You only need one "device ata0" for it to find all
-# PCI devices on modern machines.
 device		ata0
 device		atadisk0	# ATA disk drives
 device		atapicd0	# ATAPI CDROM drives
@@ -81,7 +76,7 @@ device		atapist0	# ATAPI tape drives
 # A single entry for any of these controllers (ahb, ahc, amd, ncr, etc...) is
 # sufficient for any number of installed devices.
 device		ahc0		# AHA2940 and onboard AIC7xxx devices
-#device		esp0
+#device		esp0		# 53C94 & friends, not CAM-ified
 device		isp0		# Qlogic family
 device		ncr0		# NCR/Symbios Logic
 device		sym0		# NCR/Symbios Logic (newer chipsets)
