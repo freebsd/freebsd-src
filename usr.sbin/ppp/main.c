@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.64 1997/06/17 01:46:05 brian Exp $
+ * $Id: main.c,v 1.65 1997/06/23 23:10:11 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -555,14 +555,14 @@ PacketMode()
 static void
 ShowHelp()
 {
-  fprintf(stderr, "The following commands are available:\n");
-  fprintf(stderr, " ~p\tEnter Packet mode\n");
-  fprintf(stderr, " ~-\tDecrease log level\n");
-  fprintf(stderr, " ~+\tIncrease log level\n");
-  fprintf(stderr, " ~t\tShow timers (only in \"log debug\" mode)\n");
-  fprintf(stderr, " ~m\tShow memory map (only in \"log debug\" mode)\n");
-  fprintf(stderr, " ~.\tTerminate program\n");
-  fprintf(stderr, " ~?\tThis help\n");
+  fprintf(stderr, "The following commands are available:\r\n");
+  fprintf(stderr, " ~p\tEnter Packet mode\r\n");
+  fprintf(stderr, " ~-\tDecrease log level\r\n");
+  fprintf(stderr, " ~+\tIncrease log level\r\n");
+  fprintf(stderr, " ~t\tShow timers (only in \"log debug\" mode)\r\n");
+  fprintf(stderr, " ~m\tShow memory map (only in \"log debug\" mode)\r\n");
+  fprintf(stderr, " ~.\tTerminate program\r\n");
+  fprintf(stderr, " ~?\tThis help\r\n");
 }
 
 static void
