@@ -469,7 +469,7 @@ alpha_fix_srm_checksum(bp)
 	u_int64_t sum;
 	int i;
 
-	p = bp->b_data;
+	p = (u_int64_t *) bp->b_data;
 	sum = 0;
 	for (i = 0; i < 63; i++)
 		sum += p[i];
