@@ -340,10 +340,12 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 		10,
 		0
 	};
-	struct passwd *pw;
+	struct passwd *pw = NULL;
 	fd_set fdset;
-	char buf[BUFSIZE], *cp = NULL, *p, **av, *osname = NULL;
-	int len, c, fflag = 0, nflag = 0, rflag = 0, argc = 0;
+	char buf[BUFSIZE], *cp = NULL, *p, **av, *osname = NULL, garbage[7];
+	char *fallback = NULL;
+	int len, c, fflag = 0, nflag = 0, rflag = 0, argc = 0, usedfallback = 0;
+	int gflag = 0, Rflag = 0;
 	u_short lport, fport;
 
 	inetd_setproctitle(sep->se_service, s);
@@ -362,17 +364,36 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 		argc++;
 	if (argc) {
 		int sec, usec;
+		size_t i;
+		u_int32_t random;
 
-		while ((c = getopt(argc, sep->se_argv, "fno:rt:")) != -1)
+		while ((c = getopt(argc, sep->se_argv, "d:fgno:rt:")) != -1)
 			switch (c) {
+			case 'd':
+				fallback = optarg;
+				break;
 			case 'f':
 				fflag = 1;
+				break;
+			case 'g':
+				gflag = 1;
+				random = 0;	/* Shush, compiler. */
+				for (i = 0; i < sizeof(garbage) - 1; i++) {
+					if (i % (sizeof(random) * 8 / 4) == 0)
+						random = arc4random();
+					snprintf(garbage + i, 2, "%.1x",
+					    (int)random & 0xf);
+					random >>= 4;
+				}
 				break;
 			case 'n':
 				nflag = 1;
 				break;
 			case 'o':
 				osname = optarg;
+				break;
+			case 'R':
+				Rflag = 2;
 				break;
 			case 'r':
 				rflag = 1;
@@ -425,7 +446,12 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 	buf[len] = '\0';
 	if (sscanf(buf, "%hu , %hu", &lport, &fport) != 2)
 		iderror(0, 0, s, 0);
-	if (!rflag) /* Send HIDDEN-USER immediately if not "real" */
+	if (gflag) {
+		cp = garbage;
+		goto printit;
+	}
+		
+	if (!rflag)	/* Send HIDDEN-USER immediately if not "real" */
 		iderror(lport, fport, s, -1);
 	/*
 	 * We take the input and construct an array of two sockaddr_ins
@@ -440,16 +466,21 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 	sin[1].sin_port = htons(fport);
 	len = sizeof(uc);
 	if (sysctlbyname("net.inet.tcp.getcred", &uc, &len, sin,
-	    sizeof(sin)) == -1)
-		iderror(lport, fport, s, errno);
-	pw = getpwuid(uc.cr_uid);	/* Look up the pw to get the username */
-	if (pw == NULL)
+	    sizeof(sin)) == -1) {
+		if (fallback == NULL)		/* Use a default, if asked to */
+			iderror(lport, fport, s, errno);
+		usedfallback = 1;
+	} else {
+		/* Look up the pw to get the username */
+		pw = getpwuid(uc.cr_uid);
+	}
+	if (pw == NULL && !usedfallback)		/* No such user... */
 		iderror(lport, fport, s, errno);
 	/*
 	 * If enabled, we check for a file named ".noident" in the user's
 	 * home directory. If found, we return HIDDEN-USER.
 	 */
-	if (nflag) {
+	if (nflag && !usedfallback) {
 		if (asprintf(&p, "%s/.noident", pw->pw_dir) == -1)
 			iderror(lport, fport, s, errno);
 		if (lstat(p, &sb) == 0) {
@@ -463,7 +494,7 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 	 * home directory. It consists of a line containing the name
 	 * they want.
 	 */
-	if (fflag) {
+	if (fflag && !usedfallback) {
 		FILE *fakeid = NULL;
 
 		if (asprintf(&p, "%s/.fakeid", pw->pw_dir) == -1)
@@ -518,8 +549,10 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 				cp = getpwuid(uc.cr_uid)->pw_name;
 		} else
 			cp = pw->pw_name;
-	} else
+	} else if (!usedfallback)
 		cp = pw->pw_name;
+	else
+		cp = fallback;
 printit:
 	/* Finally, we make and send the reply. */
 	if (asprintf(&p, "%d , %d : USERID : %s : %s\r\n", lport, fport, osname,
