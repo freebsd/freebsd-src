@@ -63,28 +63,22 @@
  */
 #define	MAKE_BSIZE	256	/* starting size for expandable buffers */
 
-#define	BUF_ERROR 256
+#define	BUF_DEF_SIZE	256	/* Default buffer size */
+#define	BUF_ADD_INC	256	/* Expansion increment when Adding */
 
 typedef char Byte;
 
 typedef struct Buffer {
-	size_t	size; 		/* Current size of the buffer */
-	size_t	left;		/* Space left (== size - (inPtr - buffer)) */
-	Byte	*buffer;	/* The buffer itself */
-	Byte	*inPtr;		/* Place to write to */
-	Byte	*outPtr;	/* Place to read from */
+	size_t	size;	/* Current size of the buffer */
+	Byte	*buf;	/* The buffer itself */
+	Byte	*end;	/* Place to write to */
 } Buffer;
 
-/* Buf_AddByte adds a single byte to a buffer. */
-#define	Buf_AddByte(bp, byte) \
-	(void)(--(bp)->left <= 0 ? Buf_OvAddByte((bp), (byte)), 1 : \
-		(*(bp)->inPtr++ = (byte), *(bp)->inPtr = 0), 1)
-
-void Buf_OvAddByte(Buffer *, Byte);
+void Buf_AddByte(Buffer *, Byte);
 void Buf_AddBytes(Buffer *, size_t, const Byte *);
 Byte *Buf_GetAll(Buffer *, size_t *);
 void Buf_Clear(Buffer *);
-size_t Buf_Size(Buffer *);
+size_t Buf_Size(const Buffer *);
 Buffer *Buf_Init(size_t);
 void Buf_Destroy(Buffer *, Boolean);
 void Buf_ReplaceLastByte(Buffer *, Byte);
