@@ -22,7 +22,8 @@ static char rcsid[] = "$FreeBSD$";
 #include "math_private.h"
 
 
-	double atanh(double x)		/* wrapper atanh */
+double
+atanh(double x)		/* wrapper atanh */
 {
 #ifdef _IEEE_LIBM
 	return __ieee754_atanh(x);

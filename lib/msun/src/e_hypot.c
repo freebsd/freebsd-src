@@ -49,7 +49,8 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-	double __ieee754_hypot(double x, double y)
+double
+__ieee754_hypot(double x, double y)
 {
 	double a=x,b=y,t1,t2,y1,y2,w;
 	int32_t j,k,ha,hb;

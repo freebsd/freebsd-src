@@ -22,7 +22,8 @@ static char rcsid[] = "$FreeBSD$";
 #include "math_private.h"
 
 
-	double log(double x)		/* wrapper log */
+double
+log(double x)		/* wrapper log */
 {
 #ifdef _IEEE_LIBM
 	return __ieee754_log(x);

@@ -31,7 +31,8 @@ static char rcsid[] = "$FreeBSD$";
 
 static const float huge = 1.0e30;
 
-	float floorf(float x)
+float
+floorf(float x)
 {
 	int32_t i0,j0;
 	u_int32_t i;

@@ -20,7 +20,8 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-	float sinf(float x)
+float
+sinf(float x)
 {
 	float y[2],z=0.0;
 	int32_t n, ix;

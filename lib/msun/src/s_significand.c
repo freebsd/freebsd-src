@@ -23,7 +23,8 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-	double __generic_significand(double x)
+double
+__generic_significand(double x)
 {
 	return __ieee754_scalb(x,(double) -ilogb(x));
 }

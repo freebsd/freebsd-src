@@ -21,7 +21,8 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-	double sinh(double x)		/* wrapper sinh */
+double
+sinh(double x)		/* wrapper sinh */
 {
 #ifdef _IEEE_LIBM
 	return __ieee754_sinh(x);

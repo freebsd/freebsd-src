@@ -22,7 +22,8 @@ static char rcsid[] = "$FreeBSD$";
 
 static const float one = 1.0, shuge = 1.0e37;
 
-	float __ieee754_sinhf(float x)
+float
+__ieee754_sinhf(float x)
 {
 	float t,w,h;
 	int32_t ix,jx;

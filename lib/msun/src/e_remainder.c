@@ -29,7 +29,8 @@ static char rcsid[] = "$FreeBSD$";
 static const double zero = 0.0;
 
 
-	double __generic___ieee754_remainder(double x, double p)
+double
+__generic___ieee754_remainder(double x, double p)
 {
 	int32_t hx,hp;
 	u_int32_t sx,lx,lp;

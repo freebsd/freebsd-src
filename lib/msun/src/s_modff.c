@@ -22,7 +22,8 @@ static char rcsid[] = "$FreeBSD$";
 
 static const float one = 1.0;
 
-	float modff(float x, float *iptr)
+float
+modff(float x, float *iptr)
 {
 	int32_t i0,j0;
 	u_int32_t i;

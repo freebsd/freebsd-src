@@ -29,7 +29,8 @@ C4  = -2.7557314297e-07, /* 0xb493f27c */
 C5  =  2.0875723372e-09, /* 0x310f74f6 */
 C6  = -1.1359647598e-11; /* 0xad47d74e */
 
-	float __kernel_cosf(float x, float y)
+float
+__kernel_cosf(float x, float y)
 {
 	float a,hz,z,r,qx;
 	int32_t ix;

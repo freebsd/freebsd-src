@@ -27,7 +27,8 @@ one   =  1.0000000000e+00; /* 0x3F800000 */
 
 static const float zero  =  0.0000000000e+00;
 
-	float __ieee754_jnf(int n, float x)
+float
+__ieee754_jnf(int n, float x)
 {
 	int32_t i,hx,ix, sgn;
 	float a, b, temp, di;
@@ -159,7 +160,8 @@ static const float zero  =  0.0000000000e+00;
 	if(sgn==1) return -b; else return b;
 }
 
-	float __ieee754_ynf(int n, float x)
+float
+__ieee754_ynf(int n, float x)
 {
 	int32_t i,hx,ix,ib;
 	int32_t sign;

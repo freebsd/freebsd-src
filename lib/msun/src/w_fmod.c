@@ -22,7 +22,8 @@ static char rcsid[] = "$FreeBSD$";
 #include "math_private.h"
 
 
-	double fmod(double x, double y)	/* wrapper fmod */
+double
+fmod(double x, double y)	/* wrapper fmod */
 {
 #ifdef _IEEE_LIBM
 	return __ieee754_fmod(x,y);

@@ -61,7 +61,8 @@ C4  = -2.75573143513906633035e-07, /* 0xBE927E4F, 0x809C52AD */
 C5  =  2.08757232129817482790e-09, /* 0x3E21EE9E, 0xBDB4B1C4 */
 C6  = -1.13596475577881948265e-11; /* 0xBDA8FAE9, 0xBE8838D4 */
 
-	double __kernel_cos(double x, double y)
+double
+__kernel_cos(double x, double y)
 {
 	double a,hz,z,r,qx;
 	int32_t ix;
