@@ -752,5 +752,4 @@ ums_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 	return error;
 }
 
-DEV_DRIVER_MODULE(ums, uhub, ums_driver, ums_devclass, 
-	ums_cdevsw, usbd_driver_load, 0);
+DRIVER_MODULE(ums, uhub, ums_driver, ums_devclass, usbd_driver_load, 0);
