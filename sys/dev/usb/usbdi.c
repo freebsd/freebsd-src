@@ -1249,7 +1249,7 @@ usbd_driver_load(module_t mod, int what, void *arg)
 		if (error)
 			return 0;	/* XXX maybe transient, or error? */
 
-		for (; devcount; devcount--)
+		for (devcount--; devcount >= 0; devcount--)
 			USB_RECONFIGURE(devlist[devcount]);
 
 		free(devlist, M_TEMP);
