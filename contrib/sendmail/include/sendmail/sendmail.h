@@ -10,7 +10,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: sendmail.h,v 8.34.4.5 2000/09/14 23:32:26 gshapiro Exp $
+ *	$Id: sendmail.h,v 8.34.4.7 2000/10/09 16:15:26 gshapiro Exp $
  */
 
 /*
@@ -52,6 +52,9 @@
 #define _BITBIT(bit)	((unsigned int)1 << ((bit) % (BYTEBITS * sizeof (int))))
 
 typedef unsigned int	BITMAP256[BITMAPBYTES / sizeof (int)];
+
+/* properly case and truncate bit */
+#define bitidx(bit)		((unsigned int) (bit) & 0xff)
 
 /* test bit number N */
 #define bitnset(bit, map)	((map)[_BITWORD(bit)] & _BITBIT(bit))

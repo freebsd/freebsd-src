@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: parseaddr.c,v 8.234.4.5 2000/09/25 07:53:29 gshapiro Exp $";
+static char id[] = "@(#)$Id: parseaddr.c,v 8.234.4.9 2000/10/09 03:14:48 gshapiro Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -2054,7 +2054,7 @@ static struct qflags	AddressFlags[] =
 	{ "QDELAYED",		QDELAYED	},
 	{ "QTHISPASS",		QTHISPASS	},
 	{ "QRCPTOK",		QRCPTOK		},
-	{ NULL }
+	{ NULL,			0		}
 };
 
 void
@@ -2644,6 +2644,7 @@ dequote_map(map, name, av, statp)
 **		rmcomm -- remove comments?
 **		cnt -- count rejections (statistics)?
 **		logl -- logging level
+**		host -- NULL or relay host.
 **
 **	Returns:
 **		EX_OK -- if the rwset doesn't resolve to $#error
@@ -2651,13 +2652,14 @@ dequote_map(map, name, av, statp)
 */
 
 int
-rscheck(rwset, p1, p2, e, rmcomm, cnt, logl)
+rscheck(rwset, p1, p2, e, rmcomm, cnt, logl, host)
 	char *rwset;
 	char *p1;
 	char *p2;
 	ENVELOPE *e;
 	bool rmcomm, cnt;
 	int logl;
+	char *host;
 {
 	char *buf;
 	int bufsize;
@@ -2775,7 +2777,12 @@ rscheck(rwset, p1, p2, e, rmcomm, cnt, logl)
 				p2);
 			p += strlen(p);
 		}
-		if ((relay = macvalue('_', e)) != NULL)
+
+		if (host != NULL)
+			relay = host;
+		else
+			relay = macvalue('_', e);
+		if (relay != NULL)
 		{
 			snprintf(p, SPACELEFT(lbuf, p),
 				", relay=%s", relay);

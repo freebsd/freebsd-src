@@ -1,5 +1,5 @@
 #
-#	$Id: aliases,v 8.1 1999/02/06 18:44:07 gshapiro Exp $
+#	$Id: aliases,v 8.1.36.1 2000/10/16 20:18:39 gshapiro Exp $
 #	@(#)aliases	8.2 (Berkeley) 3/5/94
 #
 #  Aliases in this file will NOT be expanded in the header from
@@ -31,24 +31,3 @@ operator:	root
 
 # trap decode to catch security attacks
 decode:		root
-
-# OFFICIAL CSRG/BUG ADDRESSES
-
-# Ftp maintainer.
-ftp: ftp-bugs
-ftp-bugs: bigbug@cs.berkeley.edu
-
-# Distribution office.
-bsd-dist: bsd-dist@cs.berkeley.edu
-
-# Fortune maintainer.
-fortune: fortune@cs.berkeley.edu
-
-# Termcap maintainer.
-termcap: termcap@cs.berkeley.edu
-
-# General bug address.
-ucb-fixes: bigbug@cs.berkeley.edu
-ucb-fixes-request: bigbug@cs.berkeley.edu
-bugs: bugs@cs.berkeley.edu
-# END OFFICIAL BUG ADDRESSES

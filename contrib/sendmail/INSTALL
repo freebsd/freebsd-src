@@ -30,4 +30,9 @@ On many environments this will do everything for you, no fuss, no muss.
    read the README in the utility's directory.  When you are ready to install
    it, back up your installed version and type "sh Build install".
 
-$Revision: 8.3.16.1 $, Last updated $Date: 2000/05/09 20:20:44 $
+8. If you are upgrading from an older version of sendmail and are using any
+   database maps, be sure to rebuild them with the new version of makemap,
+   in case you are now using a different (and thereby incompatible) version
+   of Berkeley DB.
+
+$Revision: 8.3.16.2 $, Last updated $Date: 2000/12/30 06:24:03 $

@@ -6,7 +6,7 @@
 ** forth in the LICENSE file which can be found at the top level of
 ** the sendmail distribution.
 **
-** $Id: smdb.h,v 8.29.2.1.2.1 2000/08/24 17:08:00 gshapiro Exp $
+** $Id: smdb.h,v 8.29.2.1.2.2 2000/10/05 22:23:55 gshapiro Exp $
 */
 
 #ifndef _SMDB_H_
@@ -53,7 +53,7 @@ ERROR	NDBM or NEWDB must be defined.
 
 typedef struct database_struct SMDB_DATABASE;
 typedef struct cursor_struct SMDB_CURSOR;
-typedef union database_entity_union SMDB_DBENT;
+typedef struct entry_struct SMDB_DBENT;
 
 
 /*
@@ -312,21 +312,11 @@ struct database_user_struct
 
 typedef struct database_user_struct SMDB_USER_INFO;
 
-union database_entity_union
+struct entry_struct
 {
-# ifdef NDBM
-	datum	dbm;
-# endif /* NDBM */
-# ifdef NEWDB
-	DBT	db;
-# endif /* NEWDB */
-	struct
-	{
-		char	*data;
-		size_t	size;
-	} data;
+	void	*data;
+	size_t	size;
 };
-
 
 typedef char *SMDB_DBTYPE;
 typedef u_int SMDB_FLAG;

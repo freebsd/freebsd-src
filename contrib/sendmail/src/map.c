@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: map.c,v 8.414.4.24 2000/09/27 04:11:29 gshapiro Exp $";
+static char id[] = "@(#)$Id: map.c,v 8.414.4.34 2000/12/18 18:00:43 ca Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -2895,6 +2895,7 @@ ldapmap_start(map)
 
 # if USE_LDAP_INIT
 	ld = ldap_init(lmap->ldap_host, lmap->ldap_port);
+	save_errno = errno;
 # else /* USE_LDAP_INIT */
 	/*
 	**  If using ldap_open(), the actual connection to the server
@@ -3574,7 +3575,7 @@ ldapmap_lookup(map, name, av, statp)
 	}
 
 	/* Did we match anything? */
-	if (vp == NULL)
+	if (vp == NULL && !bitset(MF_MATCHONLY, map->map_mflags))
 		return NULL;
 
 	/*
@@ -3586,22 +3587,26 @@ ldapmap_lookup(map, name, av, statp)
 
 	if (bitset(MF_NOREWRITE, map->map_mflags))
 	{
-		/* vp != NULL due to test above */
-		free(vp);
+		if (vp != NULL)
+			free(vp);
 		return "";
 	}
 
 	if (*statp == EX_OK)
 	{
-		/* vp != NULL due to test above */
 		if (LogLevel > 9)
 			sm_syslog(LOG_INFO, CurEnv->e_id,
-				  "ldap %.100s => %s", name, vp);
+				  "ldap %.100s => %s", name,
+				  vp == NULL ? "<NULL>" : vp);
 		if (bitset(MF_MATCHONLY, map->map_mflags))
 			result = map_rewrite(map, name, strlen(name), NULL);
 		else
+		{
+			/* vp != NULL according to test above */
 			result = map_rewrite(map, vp, strlen(vp), av);
-		free(vp);
+		}
+		if (vp != NULL)
+			free(vp);
 	}
 	return result;
 }
@@ -4238,7 +4243,7 @@ ldapmap_parseargs(map, args)
 			if (p != NULL)
 				*p++ = '\0';
 
-			if (i == LDAPMAP_MAX_ATTR)
+			if (i >= LDAPMAP_MAX_ATTR)
 			{
 				syserr("Too many return attributes in %s (max %d)",
 				       map->map_mname, LDAPMAP_MAX_ATTR);
@@ -4631,7 +4636,7 @@ ph_map_open(map, mode)
 	{
 		if (tTd(9, 1))
 			dprintf("ph_map_open(%s) => DEFERRED\n",
-			        map->map_mname);
+				map->map_mname);
 
 		/*
 		** Unset MF_DEFER here so that map_lookup() returns
@@ -6719,7 +6724,7 @@ macro_map_lookup(map, name, av, statp)
 
 struct regex_map
 {
-	regex_t	regex_pattern_buf;	/* xalloc it */
+	regex_t	*regex_pattern_buf;	/* xalloc it */
 	int	*regex_subfields;	/* move to type MAP */
 	char	*regex_delim;		/* move to type MAP */
 };
@@ -6796,6 +6801,7 @@ regex_map_init(map, ap)
 	p = ap;
 
 	map_p = (struct regex_map *) xnalloc(sizeof *map_p);
+	map_p->regex_pattern_buf = (regex_t *)xnalloc(sizeof(regex_t));
 
 	for (;;)
 	{
@@ -6852,14 +6858,15 @@ regex_map_init(map, ap)
 	if (tTd(38, 3))
 		dprintf("regex_map_init: compile '%s' 0x%x\n", p, pflags);
 
-	if ((regerr = regcomp(&(map_p->regex_pattern_buf), p, pflags)) != 0)
+	if ((regerr = regcomp(map_p->regex_pattern_buf, p, pflags)) != 0)
 	{
 		/* Errorhandling */
 		char errbuf[ERRBUF_SIZE];
 
-		(void) regerror(regerr, &(map_p->regex_pattern_buf),
+		(void) regerror(regerr, map_p->regex_pattern_buf,
 			 errbuf, ERRBUF_SIZE);
 		syserr("pattern-compile-error: %s\n", errbuf);
+		free(map_p->regex_pattern_buf);
 		free(map_p);
 		return FALSE;
 	}
@@ -6877,7 +6884,7 @@ regex_map_init(map, ap)
 		int substrings;
 		int *fields = (int *) xalloc(sizeof(int) * (MAX_MATCH + 1));
 
-		substrings = map_p->regex_pattern_buf.re_nsub + 1;
+		substrings = map_p->regex_pattern_buf->re_nsub + 1;
 
 		if (tTd(38, 3))
 			dprintf("regex_map_init: nr of substrings %d\n",
@@ -6886,6 +6893,7 @@ regex_map_init(map, ap)
 		if (substrings >= MAX_MATCH)
 		{
 			syserr("too many substrings, %d max\n", MAX_MATCH);
+			free(map_p->regex_pattern_buf);
 			free(map_p);
 			return FALSE;
 		}
@@ -6955,7 +6963,7 @@ regex_map_lookup(map, name, av, statp)
 	}
 
 	map_p = (struct regex_map *)(map->map_db1);
-	reg_res = regexec(&(map_p->regex_pattern_buf),
+	reg_res = regexec(map_p->regex_pattern_buf,
 			  name, MAX_MATCH, pmatch, 0);
 
 	if (bitset(MF_REGEX_NOT, map->map_mflags))
@@ -6987,7 +6995,7 @@ regex_map_lookup(map, name, av, statp)
 		if (av[1] != NULL)
 		{
 			if (parse_fields(av[1], fields, MAX_MATCH + 1,
-					 (int) map_p->regex_pattern_buf.re_nsub + 1) == -1)
+					 (int) map_p->regex_pattern_buf->re_nsub + 1) == -1)
 			{
 				*statp = EX_CONFIG;
 				return NULL;
@@ -7011,7 +7019,8 @@ regex_map_lookup(map, name, av, statp)
 				first = FALSE;
 
 
-			if (pmatch[*ip].rm_so < 0 || pmatch[*ip].rm_eo < 0)
+			if (*ip >= MAX_MATCH ||
+			    pmatch[*ip].rm_so < 0 || pmatch[*ip].rm_eo < 0)
 				continue;
 
 			sp = name + pmatch[*ip].rm_so;
@@ -7128,7 +7137,7 @@ nsd_map_lookup(map, name, av, statp)
 	char **av;
 	int *statp;
 {
-	int buflen;
+	int buflen, r;
 	char *p;
 	ns_map_t *ns_map;
 	char keybuf[MAXNAME + 1];
@@ -7150,12 +7159,27 @@ nsd_map_lookup(map, name, av, statp)
 	{
 		if (tTd(38, 20))
 			dprintf("nsd_map_t_find failed\n");
+		*statp = EX_UNAVAILABLE;
+		return NULL;
+	}
+	r = ns_lookup(ns_map, NULL, map->map_file, keybuf, NULL, buf, MAXLINE);
+	if (r == NS_UNAVAIL || r == NS_TRYAGAIN)
+	{
+		*statp = EX_TEMPFAIL;
+		return NULL;
+	}
+	if (r == NS_BADREQ || r == NS_NOPERM)
+	{
+		*statp = EX_CONFIG;
+		return NULL;
+	}
+	if (r != NS_SUCCESS)
+	{
+		*statp = EX_NOTFOUND;
 		return NULL;
 	}
 
-	if (ns_lookup(ns_map, NULL, map->map_file,
-		      keybuf, NULL, buf, MAXLINE) == NULL)
-		return NULL;
+	*statp = EX_OK;
 
 	/* Null out trailing \n */
 	if ((p = strchr(buf, '\n')) != NULL)

@@ -21,7 +21,7 @@ static char copyright[] =
 #endif /* ! lint */
 
 #ifndef lint
-static char id[] = "@(#)$Id: makemap.c,v 8.135.4.11 2000/09/13 01:11:10 gshapiro Exp $";
+static char id[] = "@(#)$Id: makemap.c,v 8.135.4.13 2000/10/05 23:00:50 gshapiro Exp $";
 #endif /* ! lint */
 
 
@@ -356,7 +356,6 @@ main(argc, argv)
 	exitstat = EX_OK;
 	if (unmake)
 	{
-		bool stop;
 		errno = database->smdb_cursor(database, &cursor, 0);
 		if (errno != SMDBE_OK)
 		{
@@ -370,20 +369,18 @@ main(argc, argv)
 		memset(&db_key, '\0', sizeof db_key);
 		memset(&db_val, '\0', sizeof db_val);
 
-		for (stop = FALSE, lineno = 0; !stop; lineno++)
+		for (lineno = 0; ; lineno++)
 		{
 			errno = cursor->smdbc_get(cursor, &db_key, &db_val,
 						  SMDB_CURSOR_GET_NEXT);
 			if (errno != SMDBE_OK)
-			{
-				stop = TRUE;
-			}
-			if (!stop)
-				printf("%.*s\t%.*s\n",
-				       (int) db_key.data.size,
-				       (char *) db_key.data.data,
-				       (int) db_val.data.size,
-				       (char *)db_val.data.data);
+				break;
+
+			printf("%.*s\t%.*s\n",
+			       (int) db_key.size,
+			       (char *) db_key.data,
+			       (int) db_val.size,
+			       (char *)db_val.data);
 
 		}
 		(void) cursor->smdbc_close(cursor);
@@ -430,16 +427,16 @@ main(argc, argv)
 
 			memset(&db_key, '\0', sizeof db_key);
 			memset(&db_val, '\0', sizeof db_val);
-			db_key.data.data = ibuf;
+			db_key.data = ibuf;
 
 			for (p = ibuf; *p != '\0' && !(ISSEP(*p)); p++)
 			{
 				if (foldcase && isascii(*p) && isupper(*p))
 					*p = tolower(*p);
 			}
-			db_key.data.size = p - ibuf;
+			db_key.size = p - ibuf;
 			if (inclnull)
-				db_key.data.size++;
+				db_key.size++;
 
 			if (*p != '\0')
 				*p++ = '\0';
@@ -450,15 +447,15 @@ main(argc, argv)
 				fprintf(stderr,
 					"%s: %s: line %d: no RHS for LHS %s\n",
 					progname, mapname, lineno,
-					(char *) db_key.data.data);
+					(char *) db_key.data);
 				exitstat = EX_DATAERR;
 				continue;
 			}
 
-			db_val.data.data = p;
-			db_val.data.size = strlen(p);
+			db_val.data = p;
+			db_val.size = strlen(p);
 			if (inclnull)
-				db_val.data.size++;
+				db_val.size++;
 
 			/*
 			**  Do the database insert.
@@ -467,8 +464,8 @@ main(argc, argv)
 			if (verbose)
 			{
 				printf("key=`%s', val=`%s'\n",
-				       (char *) db_key.data.data,
-				       (char *) db_val.data.data);
+				       (char *) db_key.data,
+				       (char *) db_val.data);
 			}
 
 			errno = database->smdb_put(database, &db_key, &db_val,
@@ -493,7 +490,7 @@ main(argc, argv)
 				fprintf(stderr,
 					"%s: %s: line %d: key %s: put error: %s\n",
 					progname, mapname, lineno,
-					(char *) db_key.data.data,
+					(char *) db_key.data,
 					errstring(errno));
 				exitstat = EX_IOERR;
 			}
@@ -502,7 +499,7 @@ main(argc, argv)
 				fprintf(stderr,
 					"%s: %s: line %d: key %s: duplicate key\n",
 					progname, mapname,
-					lineno, (char *) db_key.data.data);
+					lineno, (char *) db_key.data);
 				exitstat = EX_DATAERR;
 			}
 		}

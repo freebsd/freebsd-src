@@ -12,14 +12,17 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: macro.c,v 8.40.16.2 2000/09/17 17:04:26 gshapiro Exp $";
+static char id[] = "@(#)$Id: macro.c,v 8.40.16.7 2000/10/09 15:49:06 gshapiro Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
 
-char	*MacroName[256];	/* macro id to name table */
-int	NextMacroId = 0240;	/* codes for long named macros */
+#if MAXMACROID != (BITMAPBITS - 1)
+	ERROR Read the comment in conf.h
+#endif /* MAXMACROID != (BITMAPBITS - 1) */
 
+char	*MacroName[MAXMACROID + 1];	/* macro id to name table */
+int	NextMacroId = 0240;		/* codes for long named macros */
 
 /*
 **  EXPAND -- macro expand a string using $x escapes.
@@ -111,7 +114,7 @@ expand(s, buf, bufsize, e)
 			continue;
 
 		  case MACROEXPAND:	/* macro interpolation */
-			c = *++s & 0377;
+			c = bitidx(*++s);
 			if (c != '\0')
 				q = macvalue(c, e);
 			else
@@ -247,7 +250,7 @@ define(n, v, e)
 {
 	int m;
 
-	m = n & 0377;
+	m = bitidx(n);
 	if (tTd(35, 9))
 	{
 		dprintf("%sdefine(%s as ",
@@ -285,7 +288,7 @@ macvalue(n, e)
 	int n;
 	register ENVELOPE *e;
 {
-	n &= 0377;
+	n = bitidx(n);
 	while (e != NULL)
 	{
 		register char *p = e->e_macro[n];
@@ -315,7 +318,7 @@ macname(n)
 {
 	static char mbuf[2];
 
-	n &= 0377;
+	n = bitidx(n);
 	if (bitset(0200, n))
 	{
 		char *p = MacroName[n];
@@ -368,7 +371,7 @@ macid(p, ep)
 			*ep = p;
 		if (tTd(35, 14))
 			dprintf("NULL\n");
-		return '\0';
+		return 0;
 	}
 	if (*p != '{')
 	{
@@ -376,8 +379,8 @@ macid(p, ep)
 		if (ep != NULL)
 			*ep = p + 1;
 		if (tTd(35, 14))
-			dprintf("%c\n", *p);
-		return *p;
+			dprintf("%c\n", bitidx(*p));
+		return bitidx(*p);
 	}
 	bp = mbuf;
 	while (*++p != '\0' && *p != '}' && bp < &mbuf[sizeof mbuf - 1])
@@ -401,7 +404,7 @@ macid(p, ep)
 	else if (mbuf[1] == '\0')
 	{
 		/* ${x} == $x */
-		mid = mbuf[0];
+		mid = bitidx(mbuf[0]);
 		p++;
 	}
 	else
@@ -428,6 +431,13 @@ macid(p, ep)
 	}
 	if (ep != NULL)
 		*ep = p;
+	if (mid < 0 || mid > MAXMACROID)
+	{
+		syserr("Unable to assign macro/class ID (mid = 0x%x)", mid);
+		if (tTd(35, 14))
+			dprintf("NULL\n");
+		return 0;
+	}
 	if (tTd(35, 14))
 		dprintf("0x%x\n", mid);
 	return mid;
@@ -452,5 +462,5 @@ wordinclass(str, cl)
 	register STAB *s;
 
 	s = stab(str, ST_CLASS, ST_FIND);
-	return s != NULL && bitnset(cl & 0xff, s->s_class);
+	return s != NULL && bitnset(bitidx(cl), s->s_class);
 }
