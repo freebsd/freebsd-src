@@ -68,9 +68,6 @@ static const char rcsid[] =
 #include <netinet/tcp_debug.h>
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
-#ifdef IPSEC
-#include <netinet6/ipsec.h>
-#endif
 
 #include <arpa/inet.h>
 #include <err.h>
@@ -681,109 +678,6 @@ igmp_stats(off, name)
 #undef p
 #undef py
 }
-
-#ifdef IPSEC
-static	char *ipsec_ahnames[] = {
-	"none",
-	"hmac MD5",
-	"hmac SHA1",
-	"keyed MD5",
-	"keyed SHA1",
-	"null",
-};
-
-static	char *ipsec_espnames[] = {
-	"none",
-	"DES CBC",
-	"3DES CBC",
-	"simple",
-	"blowfish CBC",
-	"CAST128 CBC",
-	"RC5 CBC",
-};
-
-/*
- * Dump IPSEC statistics structure.
- */
-void
-ipsec_stats(off, name)
-	u_long off;
-	char *name;
-{
-	struct ipsecstat ipsecstat;
-	int first, proto;
-
-	if (off == 0)
-		return;
-	printf ("%s:\n", name);
-	kread(off, (char *)&ipsecstat, sizeof (ipsecstat));
-
-#define	p(f, m) if (ipsecstat.f || sflag <= 1) \
-    printf(m, ipsecstat.f, plural(ipsecstat.f))
-
-	p(in_success, "\t%lu inbound packet%s processed successfully\n");
-	p(in_polvio, "\t%lu inbound packet%s violated process security "
-		"policy\n");
-	p(in_nosa, "\t%lu inbound packet%s with no SA available\n");
-	p(in_inval, "\t%lu inbound packet%s failed processing due to EINVAL\n");
-	p(in_badspi, "\t%lu inbound packet%s failed getting SPI\n");
-	p(in_ahreplay, "\t%lu inbound packet%s failed on AH replay check\n");
-	p(in_espreplay, "\t%lu inbound packet%s failed on ESP replay check\n");
-	p(in_ahauthsucc, "\t%lu inbound AH packet%s considered authentic\n");
-	p(in_ahauthfail, "\t%lu inbound AH packet%s failed on authentication\n");
-	p(in_espauthsucc, "\t%lu inbound ESP packet%s considered authentic\n");
-	p(in_espauthfail, "\t%lu inbound ESP packet%s failed on authentication\n");
-	for (first = 1, proto = 0; proto < SADB_AALG_MAX; proto++) {
-		if (ipsecstat.in_ahhist[proto] <= 0)
-			continue;
-		if (first) {
-			printf("\tAH input histogram:\n");
-			first = 0;
-		}
-		printf("\t\t%s: %lu\n", ipsec_ahnames[proto],
-			ipsecstat.in_ahhist[proto]);
-	}
-	for (first = 1, proto = 0; proto < SADB_EALG_MAX; proto++) {
-		if (ipsecstat.in_esphist[proto] <= 0)
-			continue;
-		if (first) {
-			printf("\tESP input histogram:\n");
-		first = 0;
-		}
-		printf("\t\t%s: %lu\n", ipsec_espnames[proto],
-			ipsecstat.in_esphist[proto]);
-	}
-
-	p(out_success, "\t%lu outbound packet%s processed successfully\n");
-	p(out_polvio, "\t%lu outbound packet%s violated process security "
-		"policy\n");
-	p(out_nosa, "\t%lu outbound packet%s with no SA available\n");
-	p(out_inval, "\t%lu outbound packet%s failed processing due to "
-		"EINVAL\n");
-	p(out_noroute, "\t%lu outbound packet%s with no route\n");
-	for (first = 1, proto = 0; proto < SADB_AALG_MAX; proto++) {
-		if (ipsecstat.out_ahhist[proto] <= 0)
-			continue;
-		if (first) {
-			printf("\tAH output histogram:\n");
-			first = 0;
-		}
-		printf("\t\t%s: %lu\n", ipsec_ahnames[proto],
-			ipsecstat.out_ahhist[proto]);
-	}
-	for (first = 1, proto = 0; proto < SADB_EALG_MAX; proto++) {
-		if (ipsecstat.out_esphist[proto] <= 0)
-			continue;
-		if (first) {
-			printf("\tESP output histogram:\n");
-			first = 0;
-		}
-		printf("\t\t%s: %lu\n", ipsec_espnames[proto],
-			ipsecstat.out_esphist[proto]);
-	}
-#undef p
-}
-#endif /*IPSEC*/
 
 /*
  * Pretty print an Internet address (net address + port).

@@ -81,7 +81,16 @@ void	icmp6_ifstats __P((char *));
 void	pim6_stats __P((u_long, char *));
 void	mroute6pr __P((u_long, u_long));
 void	mrt6_stats __P((u_long));
+
+struct sockaddr_in6;
+struct in6_addr;
+char *routename6 __P((struct sockaddr_in6 *));
+char *netname6 __P((struct sockaddr_in6 *, struct in6_addr *));
 #endif /*INET6*/
+
+#ifdef IPSEC
+void	pfkey_stats __P((u_long, char *));
+#endif
 
 void	bdg_stats __P((u_long, char *));
 

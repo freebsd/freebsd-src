@@ -1,4 +1,7 @@
 .\" Copyright (c) 1983, 1987, 1991, 1993
+.\"	$FreeBSD$
+.\"	$KAME: getaddrinfo.3,v 1.16 2000/07/05 08:18:42 itojun Exp $
+.\"
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -30,15 +33,13 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)gethostbyname.3	8.4 (Berkeley) 5/25/95
-.\"     $Id: getaddrinfo.3,v 1.3 1999/10/07 08:22:04 jinmei Exp $
-.\"	$FreeBSD$
 .\"
 .Dd May 25, 1995
 .Dt GETADDRINFO 3
 .Os KAME
 .\"
 .Sh NAME
-.Nm getaddrinfo
+.Nm getaddrinfo ,
 .Nm freeaddrinfo ,
 .Nm gai_strerror
 .Nd nodename-to-address translation in protocol-independent manner
@@ -50,7 +51,8 @@
 .Fd #include <sys/socket.h>
 .Fd #include <netdb.h>
 .Ft int
-.Fn getaddrinfo "const char *nodename" "const char *servname" "const struct addrinfo *hints" "struct addrinfo **res"
+.Fn getaddrinfo "const char *nodename" "const char *servname" \
+"const struct addrinfo *hints" "struct addrinfo **res"
 .Ft void
 .Fn freeaddrinfo "struct addrinfo *ai"
 .Ft "char *"
@@ -60,14 +62,16 @@
 The
 .Fn getaddrinfo
 function is defined for protocol-independent nodename-to-address translation.
-It performs functionality of
+It performs the functionality of
 .Xr gethostbyname 3
 and
 .Xr getservbyname 3 ,
-in more sophisticated manner.
+but in a more sophisticated manner.
 .Pp
-The addrinfo structure is defined as a result of including the
-.Li <netdb.h>
+The
+.Li addrinfo
+structure is defined as a result of including the
+.Aq Pa netdb.h
 header:
 .Bd -literal -offset
 struct addrinfo {                                                  *
@@ -161,7 +165,8 @@ pointer, this is the same as if the caller had filled in an
 .Li addrinfo
 structure initialized to zero with
 .Fa ai_family
-set to PF_UNSPEC.
+set to
+.Dv PF_UNSPEC .
 .Pp
 Upon successful return a pointer to a linked list of one or more
 .Li addrinfo
@@ -224,7 +229,8 @@ call to
 .Pq for a connection-oriented protocol
 or either
 .Fn connect ,
-.Fn sendto , or
+.Fn sendto ,
+or
 .Fn sendmsg
 .Pq for a connectionless protocol .
 In this case, if the
@@ -269,7 +275,7 @@ All of the information returned by
 is dynamically allocated:
 the
 .Li addrinfo
-structures, and the socket address structures and canonical node name
+structures, the socket address structures, and canonical node name
 strings pointed to by the addrinfo structures.
 To return this information to the system the function
 .Fn freeaddrinfo
@@ -316,7 +322,7 @@ such as
 .Li ne0
 .Pc .
 Example would be like
-.Dq Li fe80::1@ne0 ,
+.Dq Li fe80::1%ne0 ,
 which means
 .Do
 .Li fe80::1
@@ -328,6 +334,105 @@ interface
 The implementation is still very experimental and non-standard.
 The current implementation assumes one-by-one relationship between
 interface and link, which is not necessarily true from the specification.
+.\"
+.Sh EXAMPLES
+The following code tries to connect to
+.Dq Li www.kame.net
+service
+.Dq Li http .
+via stream socket.
+It loops through all the addresses available, regardless from address family.
+If the destination resolves to IPv4 address, it will use
+.Dv AF_INET
+socket.
+Similarly, if it resolves to IPv6,
+.Dv AF_INET6
+socket is used.
+Observe that there is no hardcoded reference to particular address family.
+The code works even if
+.Nm getaddrinfo
+returns addresses that are not IPv4/v6.
+.Bd -literal -offset indent
+struct addrinfo hints, *res, *res0;
+int error;
+int s;
+const char *cause = NULL;
+
+memset(&hints, 0, sizeof(hints));
+hints.ai_family = PF_UNSPEC;
+hints.ai_socktype = SOCK_STREAM;
+error = getaddrinfo("www.kame.net", "http", &hints, &res0);
+if (error) {
+	err1(1, "%s", gai_strerror(error));
+	/*NOTREACHED*/
+}
+s = -1;
+for (res = res0; res; res = res->ai_next) {
+	s = socket(res->ai_family, res->ai_socktype,
+	    res->ai_protocol);
+	if (s < 0) {
+		cause = "socket";
+		continue;
+	}
+
+	if (connect(s, res->ai_addr, res->ai_addrlen) < 0) {
+		cause = "connect";
+		close(s);
+		s = -1;
+		continue;
+	}
+
+	break;	/* okay we got one */
+}
+if (s < 0) {
+	err(1, cause);
+	/*NOTREACHED*/
+}
+freeaddrinfo(res0);
+.Ed
+.Pp
+The following example tries to open wildcard listening socket onto service
+.Dq Li http ,
+for all the address families available.
+.Bd -literal -offset indent
+struct addrinfo hints, *res, *res0;
+int error;
+int s[MAXSOCK];
+int nsock;
+const char *cause = NULL;
+
+memset(&hints, 0, sizeof(hints));
+hints.ai_family = PF_UNSPEC;
+hints.ai_socktype = SOCK_STREAM;
+hints.ai_flags = AI_PASSIVE;
+error = getaddrinfo(NULL, "http", &hints, &res0);
+if (error) {
+	err1(1, "%s", gai_strerror(error));
+	/*NOTREACHED*/
+}
+nsock = 0;
+for (res = res0; res && nsock < MAXSOCK; res = res->ai_next) {
+	s[nsock] = socket(res->ai_family, res->ai_socktype,
+	    res->ai_protocol);
+	if (s[nsock] < 0) {
+		cause = "socket";
+		continue;
+	}
+
+	if (connect(s[nsock], res->ai_addr, res->ai_addrlen) < 0) {
+		cause = "connect";
+		close(s[nsock]);
+		continue;
+	}
+
+	nsock++;
+}
+if (nsock == 0) {
+	err(1, cause);
+	/*NOTREACHED*/
+}
+freeaddrinfo(res0);
+.Ed
 .\"
 .Sh FILES
 .Bl -tag -width /etc/resolv.conf -compact
@@ -341,32 +446,44 @@ Error return status from
 .Fn getaddrinfo
 is zero on success and non-zero on errors.
 Non-zero error codes are defined in
-.Li <netdb.h> ,
+.Aq Pa netdb.h ,
 and as follows:
 .Pp
 .Bl -tag -width EAI_ADDRFAMILY -compact
 .It Dv EAI_ADDRFAMILY
-address family for nodename not supported
+Address family for
+.Fa nodename
+not supported.
 .It Dv EAI_AGAIN
-temporary failure in name resolution
+Temporary failure in name resolution.
 .It Dv EAI_BADFLAGS
-invalid value for ai_flags
+Invalid value for
+.Fa ai_flags .
 .It Dv EAI_FAIL
-non-recoverable failure in name resolution
+Non-recoverable failure in name resolution.
 .It Dv EAI_FAMILY
-ai_family not supported
+.Fa ai_family
+not supported.
 .It Dv EAI_MEMORY
-memory allocation failure
+Memory allocation failure.
 .It Dv EAI_NODATA
-no address associated with nodename
+No address associated with
+.Fa nodename .
 .It Dv EAI_NONAME
-nodename nor servname provided, or not known
+.Fa nodename
+nor
+.Fa servname
+provided, or not known.
 .It Dv EAI_SERVICE
-servname not supported for ai_socktype
+.Fa servname
+not supported for
+.Fa ai_socktype .
 .It Dv EAI_SOCKTYPE
-ai_socktype not supported
+.Fa ai_socktype
+not supported.
 .It Dv EAI_SYSTEM
-system error returned in errno
+System error returned in
+.Va errno .
 .El
 .Pp
 If called with proper argument,
@@ -384,7 +501,7 @@ indicate an unknown error.
 .Xr hosts 5 ,
 .Xr services 5 ,
 .Xr hostname 7 ,
-.Xr named 8 .
+.Xr named 8
 .Pp
 .Rs
 .%A R. Gilligan
@@ -395,6 +512,20 @@ indicate an unknown error.
 .%R RFC2553
 .%D March 1999
 .Re
+.Rs
+.%A Tatsuya Jinmei
+.%A Atsushi Onoe
+.%T "An Extension of Format for IPv6 Scoped Addresses"
+.%R internet draft
+.%N draft-ietf-ipngwg-scopedaddr-format-02.txt
+.%O work in progress material
+.Re
+.Rs
+.%A Craig Metz
+.%T Protocol Independence Using the Sockets API
+.%B "Proceedings of the freenix track: 2000 USENIX annual technical conference"
+.%D June 2000
+.Re
 .\"
 .Sh HISTORY
 The implementation first appeared in WIDE Hydrangea IPv6 protocol stack kit.
@@ -403,8 +534,9 @@ The implementation first appeared in WIDE Hydrangea IPv6 protocol stack kit.
 The
 .Fn getaddrinfo
 function is defined IEEE POSIX 1003.1g draft specification,
-and documented in ``Basic Socket Interface Extensions for IPv6''
-.Pq RFC2533 .
+and documented in
+.Dq Basic Socket Interface Extensions for IPv6
+.Pq RFC2553 .
 .\"
 .Sh BUGS
 The text was shamelessly copied from RFC2553.

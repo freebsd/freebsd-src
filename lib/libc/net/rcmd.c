@@ -182,8 +182,8 @@ rcmd_af(ahost, rport, locuser, remuser, cmd, fd2p, af)
 			refused = 0;
 			continue;
 		}
-		freeaddrinfo(res);
 		(void)fprintf(stderr, "%s: %s\n", *ahost, strerror(errno));
+		freeaddrinfo(res);
 		sigsetmask(oldmask);
 		return (-1);
 	}

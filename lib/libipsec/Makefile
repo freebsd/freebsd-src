@@ -27,20 +27,22 @@
 # $FreeBSD$
 
 LIB=	ipsec
-SHLIB_MAJOR= 0
+SHLIB_MAJOR= 1
 SHLIB_MINOR= 0
 CFLAGS+=-I${.OBJDIR}
-CFLAGS+=-DIPSEC_DEBUG -DIPSEC -DINET6
+CFLAGS+=-DIPSEC_DEBUG -DIPSEC
+.if !defined(NOINET6)
+CFLAGS+=-DINET6
+.endif
 
-.PATH:	${.CURDIR}/../../sys/netkey
-SRCS=	pfkey.c pfkey_dump.c
+#.PATH:	${.CURDIR}/../../sys/netkey
+#SRCS=	pfkey.c pfkey_dump.c
 SRCS+=	ipsec_strerror.c policy_parse.y policy_token.l
 SRCS+=	ipsec_dump_policy.c ipsec_get_policylen.c
-SRCS+=	key_debug.c
-LDADD+=	-ll -ly
+#SRCS+=	key_debug.c
 CLEANFILES+=	y.tab.c y.tab.h
-YFLAGS+=-d -p __libyy
-LFLAGS+=-P__libyy
+YFLAGS+=-d -p __libipsecyy
+LFLAGS+=-P__libipsecyy
 
 MAN3=	ipsec_set_policy.3 ipsec_strerror.3
 MLINKS+=ipsec_set_policy.3 ipsec_get_policylen.3 \
