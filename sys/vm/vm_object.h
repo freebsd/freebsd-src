@@ -162,8 +162,6 @@ TAILQ_HEAD(object_q, vm_object);
 
 extern struct object_q vm_object_list;	/* list of allocated objects */
 
- /* lock for object list and count */
-
 extern vm_object_t kernel_object;	/* the single kernel object */
 extern vm_object_t kmem_object;
 
