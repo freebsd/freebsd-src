@@ -290,7 +290,7 @@ main(argc, argv)
 
 	af = AF_UNSPEC;
 
-	while ((ch = getopt(argc, argv, "Aabdf:ghI:liM:mN:np:rstuw:")) != -1)
+	while ((ch = getopt(argc, argv, "Aabdf:ghI:lLiM:mN:np:rstuw:")) != -1)
 		switch(ch) {
 		case 'A':
 			Aflag = 1;
@@ -350,6 +350,9 @@ main(argc, argv)
 			break;
 		case 'l':
 			lflag = 1;
+			break;
+		case 'L':
+			Lflag = 1;
 			break;
 		case 'M':
 			memf = optarg;
@@ -529,7 +532,7 @@ main(argc, argv)
 		for (tp = isoprotox; tp->pr_name; tp++)
 			printproto(tp, tp->pr_name);
 #endif
-	if ((af == AF_UNIX || af == AF_UNSPEC) && !sflag)
+	if ((af == AF_UNIX || af == AF_UNSPEC) && !Lflag && !sflag)
 		unixpr();
 	exit(0);
 }
