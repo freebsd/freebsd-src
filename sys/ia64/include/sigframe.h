@@ -31,9 +31,6 @@
 #ifndef _MACHINE_SIGFRAME_H_
 #define _MACHINE_SIGFRAME_H_ 1
 
-struct osigframe {
-};
-
 struct sigframe {
 	ucontext_t	sf_uc;
 	siginfo_t	sf_si;

@@ -37,6 +37,7 @@
  * $FreeBSD$
  */
 
+#include "opt_compat.h"
 #include "opt_kstack_pages.h"
 
 #include <sys/param.h>
@@ -151,12 +152,20 @@ ASSYM(TF_ERR, offsetof(struct trapframe, tf_err));
 ASSYM(TF_CS, offsetof(struct trapframe, tf_cs));
 ASSYM(TF_EFLAGS, offsetof(struct trapframe, tf_eflags));
 ASSYM(SIGF_HANDLER, offsetof(struct sigframe, sf_ahu.sf_handler));
+#ifdef COMPAT_43
 ASSYM(SIGF_SC, offsetof(struct osigframe, sf_siginfo.si_sc));
+#endif
 ASSYM(SIGF_UC, offsetof(struct sigframe, sf_uc));
+#ifdef COMPAT_43
 ASSYM(SC_PS, offsetof(struct osigcontext, sc_ps));
 ASSYM(SC_FS, offsetof(struct osigcontext, sc_fs));
 ASSYM(SC_GS, offsetof(struct osigcontext, sc_gs));
 ASSYM(SC_TRAPNO, offsetof(struct osigcontext, sc_trapno));
+#endif
+#ifdef COMPAT_FREEBSD4
+ASSYM(UC4_EFLAGS, offsetof(struct ucontext4, uc_mcontext.mc_eflags));
+ASSYM(UC4_GS, offsetof(struct ucontext4, uc_mcontext.mc_gs));
+#endif
 ASSYM(UC_EFLAGS, offsetof(ucontext_t, uc_mcontext.mc_eflags));
 ASSYM(UC_GS, offsetof(ucontext_t, uc_mcontext.mc_gs));
 ASSYM(ENOENT, ENOENT);

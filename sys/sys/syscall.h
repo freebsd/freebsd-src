@@ -107,7 +107,7 @@
 #define	SYS_getpriority	100
 				/* 101 is old send */
 				/* 102 is old recv */
-#define	SYS_osigreturn	103
+				/* 103 is old sigreturn */
 #define	SYS_bind	104
 #define	SYS_setsockopt	105
 #define	SYS_listen	106
@@ -265,9 +265,9 @@
 #define	SYS_jail	338
 #define	SYS_sigprocmask	340
 #define	SYS_sigsuspend	341
-#define	SYS_sigaction	342
+				/* 342 is old sigaction */
 #define	SYS_sigpending	343
-#define	SYS_sigreturn	344
+				/* 344 is old sigreturn */
 #define	SYS___acl_get_file	347
 #define	SYS___acl_set_file	348
 #define	SYS___acl_get_fd	349
@@ -323,4 +323,6 @@
 #define	SYS_extattr_set_link	412
 #define	SYS_extattr_get_link	413
 #define	SYS_extattr_delete_link	414
+#define	SYS_sigaction	416
+#define	SYS_sigreturn	417
 #define	SYS_MAXSYSCALL	421

@@ -302,6 +302,14 @@ struct sigvec {
 #define	sv_onstack	sv_flags	/* isn't compatibility wonderful! */
 #endif
 
+/* Keep this in one place only */
+#if defined(_KERNEL) && defined(COMPAT_43) && \
+    !defined(__i386__) && !defined(__alpha__)
+struct osigcontext {
+	int _not_used;
+};
+#endif
+
 #if __XSI_VISIBLE
 /*
  * Structure used in sigstack call.

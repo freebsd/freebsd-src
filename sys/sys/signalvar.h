@@ -56,11 +56,12 @@ struct sigacts {
 	sigset_t ps_sigreset;		/* signals that reset when caught */
 	sigset_t ps_signodefer;		/* signals not masked while handled */
 	sigset_t ps_siginfo;		/* signals that want SA_SIGINFO args */
-	sigset_t ps_osigset;		/* signals that use osigset_t */
+	sigset_t ps_freebsd4;		/* signals that use freebsd4 ucontext */
+	sigset_t ps_osigset;		/* signals that use <= 3.x osigset_t */
 	sigset_t ps_usertramp;		/* SunOS compat; libc sigtramp XXX */
 };
 
-#ifdef _KERNEL
+#if defined(_KERNEL) && defined(COMPAT_43)
 /*
  * Compatibility.
  */
@@ -81,7 +82,7 @@ struct osigaction {
 };
 
 typedef void __osiginfohandler_t(int, osiginfo_t *, void *);
-#endif /* _KERNEL */
+#endif /* _KERNEL && COMPAT_43 */
 
 /* additional signal action values, used only temporarily/internally */
 #define	SIG_CATCH	((__sighandler_t *)2)

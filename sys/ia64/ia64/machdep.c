@@ -951,18 +951,6 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 }
 
 /*
- * Stub to satisfy the reference to osigreturn in the syscall table.  This
- * is needed even for newer arches that don't support old signals because
- * the syscall table is machine-independent.
- */
-int
-osigreturn(struct thread *td, struct osigreturn_args *uap)
-{
-
-	return (nosys(td, (struct nosys_args *)uap));
-}
-
-/*
  * System call to cleanup state after a signal
  * has been taken.  Reset signal mask and
  * stack state from context left by sendsig (above).
@@ -1068,6 +1056,15 @@ sigreturn(struct thread *td,
 #endif
 	return (EJUSTRETURN);
 }
+
+#ifdef COMPAT_FREEBSD4
+int
+freebsd4_sigreturn(struct thread *td, struct freebsd4_sigreturn_args *uap)
+{
+
+	return sigreturn(td, (struct sigreturn_args *)uap);
+}
+#endif
 
 /*
  * Machine dependent boot() routine

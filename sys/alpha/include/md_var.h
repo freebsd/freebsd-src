@@ -36,6 +36,12 @@
 extern	char	sigcode[];
 extern	char	esigcode[];
 extern	int	szsigcode;
+#ifdef COMPAT_43
+extern	int	szosigcode;
+#endif
+#ifdef COMPAT_FREEBSD4
+extern	int	szfreebsd4_sigcode;
+#endif
 extern	long	Maxmem;
 extern	int	busdma_swi_pending;
 

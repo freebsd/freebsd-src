@@ -406,6 +406,22 @@ NON_GPROF_ENTRY(sigcode)
 	int	$0x80			/* enter kernel with args */
 0:	jmp	0b
 
+#ifdef COMPAT_FREEBSD4
+	ALIGN_TEXT
+freebsd4_sigcode:
+	call	*SIGF_HANDLER(%esp)	/* call signal handler */
+	lea	SIGF_UC(%esp),%eax	/* get ucontext_t */
+	pushl	%eax
+	testl	$PSL_VM,UC4_EFLAGS(%eax)
+	jne	9f
+	movl	UC4_GS(%eax),%gs	/* restore %gs */
+9:
+	movl	$344,%eax		/* 4.x SYS_sigreturn */
+	pushl	%eax			/* junk to fake return addr. */
+	int	$0x80			/* enter kernel with args */
+0:	jmp	0b
+#endif
+
 #ifdef COMPAT_43
 	ALIGN_TEXT
 osigcode:
@@ -416,7 +432,7 @@ osigcode:
 	jne	9f
 	movl	SC_GS(%eax),%gs		/* restore %gs */
 9:
-	movl	$SYS_osigreturn,%eax
+	movl	$103,%eax		/* 3.x SYS_sigreturn */
 	pushl	%eax			/* junk to fake return addr. */
 	int	$0x80			/* enter kernel with args */
 0:	jmp	0b
@@ -426,10 +442,16 @@ osigcode:
 esigcode:
 
 	.data
-	.globl	szsigcode, szosigcode
+	.globl	szsigcode
 szsigcode:
 	.long	esigcode-sigcode
+#ifdef COMPAT_FREEBSD4
+	.globl	szfreebsd4_sigcode
+szfreebsd4_sigcode:
+	.long	esigcode-freebsd4_sigcode
+#endif
 #ifdef COMPAT_43
+	.globl	szosigcode
 szosigcode:
 	.long	esigcode-osigcode
 #endif
