@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.151 1999/08/09 10:34:44 phk Exp $
+ **      $Id: userconfig.c,v 1.152 1999/08/09 13:52:12 mpp Exp $
  **/
 
 /**
@@ -388,6 +388,7 @@ static DEV_INFO device_info[] = {
 {"le",          "DEC Etherworks 2 and 3 Ethernet adapters",	0,	CLS_NETWORK},
 {"lnc",         "Isolan, Novell NE2100/NE32-VL Ethernet adapters",	0,CLS_NETWORK},
 {"sf",          "Adaptec AIC-6915 PCI Ethernet adapters",		0,CLS_NETWORK},
+{"ste",         "Sundance ST201 PCI Ethernet adapters",			0,CLS_NETWORK},
 {"sk",          "SysKonnect SK-984x gigabit Ethernet adapters",		0,CLS_NETWORK},
 {"ti",          "Alteon Networks Tigon gigabit Ethernet adapters",	0,CLS_NETWORK},
 {"tl",          "Texas Instruments ThunderLAN Ethernet adapters",	0,CLS_NETWORK},
@@ -2544,7 +2545,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.151 1999/08/09 10:34:44 phk Exp $
+ *      $Id: userconfig.c,v 1.152 1999/08/09 13:52:12 mpp Exp $
  */
 
 #include "scbus.h"
