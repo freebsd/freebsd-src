@@ -47,7 +47,7 @@
  *
  *	from: unknown origin, 386BSD 0.1
  *	From Id: lpt.c,v 1.55.2.1 1996/11/12 09:08:38 phk Exp
- *	$Id: nlpt.c,v 1.3 1997/08/28 10:15:11 msmith Exp $
+ *	$Id: nlpt.c,v 1.4 1997/08/28 11:12:08 msmith Exp $
  */
 
 /*
@@ -366,13 +366,12 @@ nlptattach(struct ppb_device *dev)
 	lpt_release_ppbus(sc);
 
 #ifdef DEVFS
-	/* XXX what to do about the flags in the minor number? */
 	sc->devfs_token = devfs_add_devswf(&nlpt_cdevsw,
-		unit, DV_CHR,
-		UID_ROOT, GID_WHEEL, 0600, LPT_NAME "%d", unit);
+		dev->id_unit, DV_CHR,
+		UID_ROOT, GID_WHEEL, 0600, LPT_NAME "%d", dev->id_unit);
 	sc->devfs_token_ctl = devfs_add_devswf(&nlpt_cdevsw,
-		unit | LP_BYPASS, DV_CHR,
-		UID_ROOT, GID_WHEEL, 0600, LPT_NAME "%d.ctl", unit);
+		dev->id_unit | LP_BYPASS, DV_CHR,
+		UID_ROOT, GID_WHEEL, 0600, LPT_NAME "%d.ctl", dev->id_unit);
 #endif
 
 	return (1);
