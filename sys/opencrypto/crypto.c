@@ -114,16 +114,16 @@ crypto_init(void)
 {
 	int error;
 
-	mtx_init(&crypto_drivers_mtx, "crypto driver table",
-		NULL, MTX_DEF|MTX_QUIET);
+	mtx_init(&crypto_drivers_mtx, "crypto", "crypto driver table",
+		MTX_DEF|MTX_QUIET);
 
 	TAILQ_INIT(&crp_q);
 	TAILQ_INIT(&crp_kq);
-	mtx_init(&crypto_q_mtx, "crypto op queues", NULL, MTX_DEF);
+	mtx_init(&crypto_q_mtx, "crypto", "crypto op queues", MTX_DEF);
 
 	TAILQ_INIT(&crp_ret_q);
 	TAILQ_INIT(&crp_ret_kq);
-	mtx_init(&crypto_ret_q_mtx, "crypto return queues", NULL, MTX_DEF);
+	mtx_init(&crypto_ret_q_mtx, "crypto", "crypto return queues", MTX_DEF);
 
 	cryptop_zone = uma_zcreate("cryptop", sizeof (struct cryptop),
 				    0, 0, 0, 0,
@@ -664,6 +664,7 @@ crypto_dispatch(struct cryptop *crp)
 		binuptime(&crp->crp_tstamp);
 #endif
 
+	CRYPTO_Q_LOCK();
 	if ((crp->crp_flags & CRYPTO_F_BATCH) == 0) {
 		struct cryptocap *cap;
 		/*
@@ -679,21 +680,22 @@ crypto_dispatch(struct cryptop *crp)
 				 * The driver ran out of resources, mark the
 				 * driver ``blocked'' for cryptop's and put
 				 * the request on the queue.
+				 *
+				 * XXX ops are placed at the tail so their
+				 * order is preserved but this can place them
+				 * behind batch'd ops.
 				 */
-				CRYPTO_Q_LOCK();
 				crypto_drivers[hid].cc_qblocked = 1;
-				TAILQ_INSERT_HEAD(&crp_q, crp, crp_next);
-				CRYPTO_Q_UNLOCK();
+				TAILQ_INSERT_TAIL(&crp_q, crp, crp_next);
 				cryptostats.cs_blocks++;
+				result = 0;
 			}
 		} else {
 			/*
 			 * The driver is blocked, just queue the op until
 			 * it unblocks and the kernel thread gets kicked.
 			 */
-			CRYPTO_Q_LOCK();
 			TAILQ_INSERT_TAIL(&crp_q, crp, crp_next);
-			CRYPTO_Q_UNLOCK();
 			result = 0;
 		}
 	} else {
@@ -704,14 +706,13 @@ crypto_dispatch(struct cryptop *crp)
 		 * when the operation is low priority and/or suitable
 		 * for batching.
 		 */
-		CRYPTO_Q_LOCK();
 		wasempty = TAILQ_EMPTY(&crp_q);
 		TAILQ_INSERT_TAIL(&crp_q, crp, crp_next);
 		if (wasempty)
 			wakeup_one(&crp_q);
-		CRYPTO_Q_UNLOCK();
 		result = 0;
 	}
+	CRYPTO_Q_UNLOCK();
 
 	return result;
 }
@@ -743,7 +744,7 @@ crypto_kdispatch(struct cryptkop *krp)
 			 * it at the end does not work.
 			 */
 			crypto_drivers[krp->krp_hid].cc_kqblocked = 1;
-			TAILQ_INSERT_HEAD(&crp_kq, krp, krp_next);
+			TAILQ_INSERT_TAIL(&crp_kq, krp, krp_next);
 			cryptostats.cs_kblocks++;
 		}
 	} else {
@@ -939,6 +940,9 @@ crypto_getreq(int num)
 void
 crypto_done(struct cryptop *crp)
 {
+	KASSERT((crp->crp_flags & CRYPTO_F_DONE) == 0,
+		("crypto_done: op already done, flags 0x%x", crp->crp_flags));
+	crp->crp_flags |= CRYPTO_F_DONE;
 	if (crp->crp_etype != 0)
 		cryptostats.cs_errs++;
 #ifdef CRYPTO_TIMING
