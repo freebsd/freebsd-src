@@ -204,7 +204,7 @@ do_single(argc, argv, action)
 {
 	struct ccd_ioctl ccio;
 	char *ccd, *cp, *cp2, **disks;
-	int noflags = 0, i, ileave, flags, j;
+	int noflags = 0, i, ileave, flags = 0, j;
 
 	bzero(&ccio, sizeof(ccio));
 
@@ -327,6 +327,7 @@ do_all(action)
 	int argc, rval;
 	gid_t egid;
 
+	rval = 0;
 	egid = getegid();
 	setegid(getgid());
 	if ((f = fopen(ccdconf, "r")) == NULL) {
