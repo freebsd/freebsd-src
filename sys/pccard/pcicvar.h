@@ -33,8 +33,8 @@ struct pcic_slot {
 	char revision;			/* Device Revision */
 	struct slot *slt;		/* Back ptr to slot */
 	struct pcic_softc *sc;		/* Back pointer to softc */
-	u_char (*getb)(struct pcic_slot *, int);
-	void   (*putb)(struct pcic_slot *, int, u_char);
+	u_int8_t (*getb)(struct pcic_slot *, int);
+	void   (*putb)(struct pcic_slot *, int, u_int8_t);
 	bus_space_tag_t bst;
 	bus_space_handle_t bsh;
 	driver_intr_t *intr;
