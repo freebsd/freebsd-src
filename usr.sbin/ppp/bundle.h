@@ -63,9 +63,6 @@ struct iface;
 struct bundle {
   struct descriptor desc;     /* really all our datalinks */
   int unit;                   /* The device/interface unit number */
-  const char **argv;          /* From main() */
-  const char *argv0;          /* Original */
-  const char *argv1;          /* Original */
 
   struct {
     char Name[20];            /* The /dev/XXXX name */
@@ -142,7 +139,7 @@ struct bundle {
 #define descriptor2bundle(d) \
   ((d)->type == BUNDLE_DESCRIPTOR ? (struct bundle *)(d) : NULL)
 
-extern struct bundle *bundle_Create(const char *, int, int, const char **);
+extern struct bundle *bundle_Create(const char *, int, int);
 extern void bundle_Destroy(struct bundle *);
 extern const char *bundle_PhaseName(struct bundle *);
 #define bundle_Phase(b) ((b)->phase)
