@@ -1,4 +1,5 @@
 /*	$OpenBSD: log.h,v 1.8 2002/07/19 15:43:33 markus Exp $	*/
+/*	$FreeBSD$	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -53,13 +54,21 @@ void     log_init(char *, LogLevel, SyslogFacility, int);
 SyslogFacility	log_facility_number(char *);
 LogLevel log_level_number(char *);
 
-void     fatal(const char *, ...) __attribute__((format(printf, 1, 2)));
-void     error(const char *, ...) __attribute__((format(printf, 1, 2)));
-void     log(const char *, ...) __attribute__((format(printf, 1, 2)));
-void     verbose(const char *, ...) __attribute__((format(printf, 1, 2)));
-void     debug(const char *, ...) __attribute__((format(printf, 1, 2)));
-void     debug2(const char *, ...) __attribute__((format(printf, 1, 2)));
-void     debug3(const char *, ...) __attribute__((format(printf, 1, 2)));
+#define fatal	ssh_fatal
+#define error	ssh_error
+#define log	ssh_log
+#define verbose	ssh_verbose
+#define debug	ssh_debug
+#define debug2	ssh_debug2
+#define debug3	ssh_debug3
+
+void     ssh_fatal(const char *, ...) __attribute__((format(printf, 1, 2)));
+void     ssh_error(const char *, ...) __attribute__((format(printf, 1, 2)));
+void     ssh_log(const char *, ...) __attribute__((format(printf, 1, 2)));
+void     ssh_verbose(const char *, ...) __attribute__((format(printf, 1, 2)));
+void     ssh_debug(const char *, ...) __attribute__((format(printf, 1, 2)));
+void     ssh_debug2(const char *, ...) __attribute__((format(printf, 1, 2)));
+void     ssh_debug3(const char *, ...) __attribute__((format(printf, 1, 2)));
 
 void     fatal_cleanup(void);
 void     fatal_add_cleanup(void (*) (void *), void *);
