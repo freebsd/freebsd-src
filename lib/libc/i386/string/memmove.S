@@ -32,12 +32,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: memmove.S,v 1.1 1994/08/05 01:18:29 wollman Exp $
+ *	$Id: memmove.S,v 1.2 1995/01/23 01:29:02 davidg Exp $
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
 	.text
-        .asciz "$Id: memmove.S,v 1.1 1994/08/05 01:18:29 wollman Exp $"
+        .asciz "$Id: memmove.S,v 1.2 1995/01/23 01:29:02 davidg Exp $"
 #endif /* LIBC_RCS and not lint */
 
 #include "DEFS.h"
@@ -54,8 +54,10 @@ ENTRY(memmove)
 	movl	12(%esp),%edi
 	movl	16(%esp),%esi
 	movl	20(%esp),%ecx
-	cmpl	%esi,%edi	/* potentially overlapping? */
-	jnb	1f
+	movl	%edi,%eax
+	subl	%esi,%eax
+	cmpl	%ecx,%eax
+	jb	1f
 	cld			/* nope, copy forwards. */
 	shrl	$2,%ecx		/* copy by words */
 	rep
@@ -71,10 +73,10 @@ ENTRY(memmove)
 1:
 	addl	%ecx,%edi	/* copy backwards. */
 	addl	%ecx,%esi
-	std
-	andl	$3,%ecx		/* any fractional bytes? */
 	decl	%edi
 	decl	%esi
+	andl	$3,%ecx		/* any fractional bytes? */
+	std
 	rep
 	movsb
 	movl	20(%esp),%ecx	/* copy remainder by words */
