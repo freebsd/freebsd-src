@@ -33,7 +33,7 @@ SRCS+=	acpi_powerres.c acpi_resource.c acpi_thermal.c acpi_timer.c
 SRCS+=	acpica_support.c
 SRCS+=  OsdDebug.c 
 SRCS+=	OsdHardware.c OsdInterrupt.c OsdMemory.c OsdSchedule.c
-SRCS+=	OsdStream.c OsdSynch.c OsdEnvironment.c 
+SRCS+=	OsdStream.c OsdSynch.c OsdTable.c OsdEnvironment.c 
 SRCS+=	opt_acpi.h opt_ddb.h
 SRCS+=	device_if.h bus_if.h pci_if.h pcib_if.h isa_if.h
 .if ACPI_NO_SEMAPHORES

@@ -208,7 +208,6 @@ acpi_identify(driver_t *driver, device_t parent)
 {
     device_t			child;
     int				error;
-    caddr_t			acpi_dsdt, p;
 #ifdef ENABLE_DEBUGGER
     char			*debugpoint;
 #endif
@@ -259,17 +258,6 @@ acpi_identify(driver_t *driver, device_t parent)
         freeenv(debugpoint);
     }
 #endif
-
-    if ((acpi_dsdt = preload_search_by_type("acpi_dsdt")) != NULL) {
-        if ((p = preload_search_info(acpi_dsdt, MODINFO_ADDR)) != NULL) {
-	    if (ACPI_FAILURE(error = AcpiSetDsdtTablePtr(*(void **)p))) {
-		printf("ACPI: DSDT overriding failed: %s\n",
-		       AcpiFormatException(error));
-	    } else {
-		printf("ACPI: DSDT was overridden.\n");
-	    }
-        }
-    }
 
     if (ACPI_FAILURE(error = AcpiLoadTables())) {
 	printf("ACPI: table load failed: %s\n", AcpiFormatException(error));
@@ -1335,8 +1323,8 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
     case ACPI_STATE_S2:
     case ACPI_STATE_S3:
     case ACPI_STATE_S4:
-	if (ACPI_FAILURE(status = AcpiHwGetSleepTypeData((UINT8)state, &TypeA, &TypeB))) {
-	    device_printf(sc->acpi_dev, "AcpiHwGetSleepTypeData failed - %s\n", AcpiFormatException(status));
+	if (ACPI_FAILURE(status = AcpiGetSleepTypeData((UINT8)state, &TypeA, &TypeB))) {
+	    device_printf(sc->acpi_dev, "AcpiGetSleepTypeData failed - %s\n", AcpiFormatException(status));
 	    break;
 	}
 
@@ -1863,11 +1851,11 @@ static struct debugtag dbg_level[] = {
     {"ACPI_LV_MUTEX",		ACPI_LV_MUTEX},
     {"ACPI_LV_INIT",		ACPI_LV_INIT},
     {"ACPI_LV_ALL",		ACPI_LV_ALL},
-    {"ACPI_DB_AML_DISASSEMBLE",	ACPI_DB_AML_DISASSEMBLE},
-    {"ACPI_DB_VERBOSE_INFO",	ACPI_DB_VERBOSE_INFO},
-    {"ACPI_DB_FULL_TABLES",	ACPI_DB_FULL_TABLES},
-    {"ACPI_DB_EVENTS",		ACPI_DB_EVENTS},
-    {"ACPI_DB_VERBOSE",		ACPI_DB_VERBOSE},
+    {"ACPI_LV_AML_DISASSEMBLE",	ACPI_LV_AML_DISASSEMBLE},
+    {"ACPI_LV_VERBOSE_INFO",	ACPI_LV_VERBOSE_INFO},
+    {"ACPI_LV_FULL_TABLES",	ACPI_LV_FULL_TABLES},
+    {"ACPI_LV_EVENTS",		ACPI_LV_EVENTS},
+    {"ACPI_LV_VERBOSE",		ACPI_LV_VERBOSE},
     {NULL, 0}
 };    
 
