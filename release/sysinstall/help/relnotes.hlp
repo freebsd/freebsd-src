@@ -213,6 +213,14 @@ network interface driver.  This is for example necesseray for PPP
 drivers to communicate things like CHAP names and secrets, or variable
 options between the driver and a userland utility.
 
+sppp(4) has been improved a fair bit since FreeBSD 2.2.X.  It now
+employs a full-fledged PPP state machine, offers a lot more of LCP and
+IPCP negotiation, making it ready for dial-on-demand connections (like
+those that are often running over ISDN).  It also offers PAP or CHAP
+authentication.  The userland counterpart spppcontrol(8) is also the
+first program that utilizes the abovementioned SIOC[SG]IFGENERIC ioctl
+commands.
+
 
 2. Supported Configurations
 ---------------------------
