@@ -3,6 +3,7 @@
 
 PROG=	strings
 MAN=	strings.1aout
+WARNS?=	2
 BINDIR= /usr/libexec/aout
 
 .include <bsd.prog.mk>

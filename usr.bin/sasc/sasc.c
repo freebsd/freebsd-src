@@ -67,7 +67,7 @@ main(int argc, char **argv)
   char c;
   int fd;
 
-  char *file = DEFAULT_FILE;
+  const char *file = DEFAULT_FILE;
   
   int show_dpi     = 0;
   int show_width   = 0;
