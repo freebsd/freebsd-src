@@ -142,7 +142,7 @@ SUBDIR+=ipftest \
 	iptest
 .endif
 
-.if !defined(NOLIBC_R)
+.if !defined(NOLIBC_R) && ${MACHINE_ARCH} != "powerpc"
 SUBDIR+=pppctl
 .endif
 
