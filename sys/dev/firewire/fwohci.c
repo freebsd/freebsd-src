@@ -69,7 +69,6 @@
 #include <vm/pmap.h>            /* for vtophys proto */
 
 #include <dev/firewire/firewire.h>
-#include <dev/firewire/firewirebusreg.h>
 #include <dev/firewire/firewirereg.h>
 #include <dev/firewire/fwohcireg.h>
 #include <dev/firewire/fwohcivar.h>
@@ -601,8 +600,8 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 
 	sc->arrq.ndesc = 1;
 	sc->arrs.ndesc = 1;
-	sc->atrq.ndesc = 10;
-	sc->atrs.ndesc = 10 / 2;
+	sc->atrq.ndesc = 6;	/* equal to maximum of mbuf chains */
+	sc->atrs.ndesc = 6 / 2;
 
 	sc->arrq.ndb = NDB;
 	sc->arrs.ndb = NDB / 2;
@@ -719,12 +718,6 @@ fwohci_cyctimer(struct firewire_comm *fc)
 	return(OREAD(sc, OHCI_CYCLETIMER));
 }
 
-#define LAST_DB(dbtr, db) do {						\
-	struct fwohcidb_tr *_dbtr = (dbtr);				\
-	int _cnt = _dbtr->dbcnt;					\
-	db = &_dbtr->db[ (_cnt > 2) ? (_cnt -1) : 0];			\
-} while (0)
-	
 int
 fwohci_detach(struct fwohci_softc *sc, device_t dev)
 {
@@ -750,6 +743,12 @@ fwohci_detach(struct fwohci_softc *sc, device_t dev)
 	return 0;
 }
 
+#define LAST_DB(dbtr, db) do {						\
+	struct fwohcidb_tr *_dbtr = (dbtr);				\
+	int _cnt = _dbtr->dbcnt;					\
+	db = &_dbtr->db[ (_cnt > 2) ? (_cnt -1) : 0];			\
+} while (0)
+	
 static void
 fwohci_start(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 {
@@ -764,6 +763,7 @@ fwohci_start(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 	volatile struct fwohcidb *db;
 	struct mbuf *m;
 	struct tcode_info *info;
+	static int maxdesc=0;
 
 	if(&sc->atrq == dbch){
 		off = OHCI_ATQOFF;
@@ -839,17 +839,29 @@ txloop:
 			db_tr->dbcnt++;
 		} else {
 			/* XXX we assume mbuf chain is shorter than ndesc */
-			m = xfer->mbuf;
-			do {
+			for (m = xfer->mbuf; m != NULL; m = m->m_next) {
+				if (m->m_len == 0)
+					/* unrecoverable error could ocurre. */
+					continue;
+				if (db_tr->dbcnt >= dbch->ndesc) {
+					device_printf(sc->fc.dev,
+						"dbch->ndesc is too small"
+						", trancated.\n");
+					break;
+				}
 				db->db.desc.addr
 					= vtophys(mtod(m, caddr_t));
 				db->db.desc.cmd = OHCI_OUTPUT_MORE | m->m_len;
  				db->db.desc.status = 0;
 				db++;
 				db_tr->dbcnt++;
-				m = m->m_next;
-			} while (m != NULL);
+			}
 		}
+	}
+	if (maxdesc < db_tr->dbcnt) {
+		maxdesc = db_tr->dbcnt;
+		if (bootverbose)
+			device_printf(sc->fc.dev, "maxdesc: %d\n", maxdesc);
 	}
 	/* last db */
 	LAST_DB(db_tr, db);
