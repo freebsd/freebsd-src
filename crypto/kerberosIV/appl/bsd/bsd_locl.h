@@ -37,9 +37,12 @@
  */
 
 /* $Id: bsd_locl.h,v 1.109.2.1 1999/07/22 03:13:49 assar Exp $ */
+/* $FreeBSD$ */
 
 #define LOGALL
+#ifndef KERBEROS
 #define KERBEROS
+#endif
 #define KLOGIN_PARANOID
 #define LOGIN_ACCESS
 #define PASSWD_FALLBACK
@@ -292,10 +295,12 @@ int krcmd_mutual(char **ahost, u_int16_t rport, char *remuser,
 
 int klogin(struct passwd *pw, char *instance, char *localhost, char *password);
 
+#if 0
 typedef struct {
         int cnt;
         char *buf;
 } BUF;
+#endif
 
 char *colon(char *cp);
 int okname(char *cp0);
@@ -332,10 +337,6 @@ int login_access(struct passwd *user, char *from);
 void fatal(int f, const char *msg, int syserr);
 
 extern int LEFT_JUSTIFIED;
-int des_enc_read(int fd,char *buf,int len,des_key_schedule sched,
-	des_cblock *iv);
-int des_enc_write(int fd,char *buf,int len,des_key_schedule sched,
-	des_cblock *iv);
 
 /* used in des_read and des_write */
 #define DES_RW_MAXWRITE	(1024*16)
