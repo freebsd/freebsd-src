@@ -226,21 +226,22 @@ vfs_buildopts(struct uio *auio, struct vfsoptlist **options)
 		namelen = auio->uio_iov[i].iov_len;
 		optlen = auio->uio_iov[i + 1].iov_len;
 		opt->name = malloc(namelen, M_MOUNT, M_WAITOK);
-		opt->len = optlen;
-		if (optlen == 0) {
-			opt->value = NULL;
+		opt->value = NULL;
+		if (auio->uio_segflg == UIO_SYSSPACE) {
+			bcopy(auio->uio_iov[i].iov_base, opt->name, namelen);
 		} else {
+			error = copyin(auio->uio_iov[i].iov_base, opt->name,
+			    namelen);
+			if (error)
+				goto bad;
+		}
+		opt->len = optlen;
+		if (optlen != 0) {
 			opt->value = malloc(optlen, M_MOUNT, M_WAITOK);
 			if (auio->uio_segflg == UIO_SYSSPACE) {
-				bcopy(auio->uio_iov[i].iov_base, opt->name,
-				    namelen);
 				bcopy(auio->uio_iov[i + 1].iov_base, opt->value,
 				    optlen);
 			} else {
-				error = copyin(auio->uio_iov[i].iov_base,
-				    opt->name, namelen);
-				if (error)
-					goto bad;
 				error = copyin(auio->uio_iov[i + 1].iov_base,
 				    opt->value, optlen);
 				if (error)
