@@ -160,6 +160,7 @@
 #include <machine/cache.h>
 #include <machine/cpufunc.h>
 #include <machine/fp.h>
+#include <machine/fsr.h>
 #include <machine/pcb.h>
 #include <machine/pmap.h>
 #include <machine/tte.h>
