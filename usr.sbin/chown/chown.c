@@ -155,11 +155,10 @@ main(argc, argv)
 
 	for (rval = 0; (p = fts_read(ftsp)) != NULL;) {
 		switch (p->fts_info) {
-		case FTS_D:
-			if (Rflag)		/* Change it at FTS_DP. */
-				continue;
-			fts_set(ftsp, p, FTS_SKIP);
-			break;
+		case FTS_D: 			/* Change it at FTS_DP. */
+			if (!Rflag)
+				fts_set(ftsp, p, FTS_SKIP);
+			continue;
 		case FTS_DNR:			/* Warn, chown, continue. */
 			warnx("%s: %s", p->fts_path, strerror(p->fts_errno));
 			rval = 1;
