@@ -7,7 +7,9 @@
 #include <netdb.h>
 
 #include <sys/time.h>
+#include <errno.h>
 #include <histedit.h>
+#include <setjmp.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,7 +28,7 @@ Usage()
     fprintf(stderr, "              -v tells pppctl to output all"
             " conversation\n");
     fprintf(stderr, "              -t n specifies a timeout of n"
-            " seconds (default 2)\n");
+            " seconds when connecting (default 2)\n");
     fprintf(stderr, "              -p passwd specifies your password\n");
     return 1;
 }
@@ -54,25 +56,19 @@ GetPrompt(EditLine *e)
 }
 
 static int
-Receive(int fd, unsigned TimeoutVal, int display)
+Receive(int fd, int display)
 {
     int Result;
-    struct sigaction act, oact;
     int len;
     char *last;
-
-    TimedOut = 0;
-    if (TimeoutVal) {
-        act.sa_handler = Timeout;
-        sigemptyset(&act.sa_mask);
-        act.sa_flags = 0;
-        sigaction(SIGALRM, &act, &oact);
-        alarm(TimeoutVal);
-    }
 
     prompt = Buffer;
     len = 0;
     while (Result = read(fd, Buffer+len, sizeof(Buffer)-len-1), Result != -1) {
+        if (Result == 0 && errno != EINTR) {
+          Result = -1;
+          break;
+        }
         len += Result;
         Buffer[len] = '\0';
         if (TimedOut) {
@@ -98,10 +94,6 @@ Receive(int fd, unsigned TimeoutVal, int display)
             if (last > Buffer+3 && !strncmp(last-3, " on", 3)) {
                  /* a password is required ! */
                  if (display & REC_PASSWD) {
-                    if (TimeoutVal) {
-                        alarm(0);
-                        sigaction(SIGALRM, &oact, 0);
-                    }
                     /* password time */
                     if (!passwd)
                         passwd = getpass("Password: ");
@@ -111,7 +103,7 @@ Receive(int fd, unsigned TimeoutVal, int display)
                         write(1, Buffer, strlen(Buffer));
                     write(fd, Buffer, strlen(Buffer));
                     memset(Buffer, '\0', strlen(Buffer));
-                    return Receive(fd, TimeoutVal, display & ~REC_PASSWD);
+                    return Receive(fd, display & ~REC_PASSWD);
                 }
                 Result = 1;
             } else
@@ -120,17 +112,11 @@ Receive(int fd, unsigned TimeoutVal, int display)
         }
     }
 
-    if (TimedOut)
-        Result = -1;
-
-    if (TimeoutVal) {
-        alarm(0);
-        sigaction(SIGALRM, &oact, 0);
-    }
     return Result;
 }
 
 static int data = -1;
+static jmp_buf pppdead;
 
 static void
 check_fd(int sig)
@@ -139,12 +125,18 @@ check_fd(int sig)
     struct timeval t;
     fd_set f;
     static char buf[LINELEN];
+    int len;
 
     FD_ZERO(&f);
     FD_SET(data, &f);
     t.tv_sec = t.tv_usec = 0;
-    if (select(data+1, &f, NULL, NULL, &t) > 0)
-      write(1, buf, read(data, buf, sizeof buf));
+    if (select(data+1, &f, NULL, NULL, &t) > 0) {
+      len = read(data, buf, sizeof buf);
+      if (len > 0)
+        write(1, buf, len);
+      else
+        longjmp(pppdead, -1);
+    }
   }
 }
 
@@ -152,12 +144,11 @@ static const char *
 smartgets(EditLine *e, int *count, int fd)
 {
   const char *result;
-  /* struct itimerval it; */
 
   data = fd;
   signal(SIGALRM, check_fd);
   ualarm(500000, 500000);
-  result = el_gets(e, count);
+  result = setjmp(pppdead) ? NULL : el_gets(e, count);
   ualarm(0,0);
   signal(SIGALRM, SIG_DFL);
   data = -1;
@@ -312,7 +303,7 @@ main(int argc, char **argv)
         len += strlen(Command+len);
     }
 
-    switch (Receive(fd, TimeoutVal, verbose | REC_PASSWD))
+    switch (Receive(fd, verbose | REC_PASSWD))
     {
         case 1:
             fprintf(stderr, "Password incorrect\n");
@@ -348,14 +339,10 @@ main(int argc, char **argv)
                     if (len > 1)
                         history(hist, H_ENTER, l);
                     write(fd, l, len);
-                    if (!strcasecmp(l, "quit\n") ||
-                        !strcasecmp(l, "bye\n"))   /* ok, we're cheating */
+                    if (Receive(fd, REC_SHOW) != 0)
                         break;
-                    if (Receive(fd, TimeoutVal, REC_SHOW) != 0) {
-                        fprintf(stderr, "Connection closed\n");
-                        break;
-                    }
                 }
+                fprintf(stderr, "Connection closed\n");
                 el_end(edit);
                 history_end(hist);
             } else {
@@ -372,7 +359,7 @@ main(int argc, char **argv)
                     if (verbose)
                         write(1, Buffer, strlen(Buffer));
                     write(fd, Buffer, strlen(Buffer));
-                    if (Receive(fd, TimeoutVal, verbose | REC_SHOW) != 0) {
+                    if (Receive(fd, verbose | REC_SHOW) != 0) {
                         fprintf(stderr, "No reply from ppp\n");
                         break;
                     }
