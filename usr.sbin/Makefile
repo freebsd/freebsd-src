@@ -17,11 +17,11 @@ SUBDIR=	accton amd arp chown chroot cron dbsym dev_mkdb diskpart \
 # SUBDIR+=XNSrouted trsp
 
 .if   make(clean) || make(cleandir)
-SUBDIR+=bad144 config config.new eeprom iostat timed 
+SUBDIR+=bad144 config config.new eeprom iostat swapinfo timed 
 .elif ${MACHINE} == "hp300"
 SUBDIR+=config iostat timed 
 .elif ${MACHINE} == "i386"
-SUBDIR+=bad144 config timed
+SUBDIR+=bad144 config swapinfo timed
 # iostat
 .elif ${MACHINE} == "luna68k"
 SUBDIR+=config iostat timed 
