@@ -5,7 +5,7 @@
 This FAQ lists systems (and componets) known to work with FreeBSD 2.0.  None
 of these lists should be seen as a recomandation for a manufacture.
 
-Revision: $Id: Systems.FAQ,v 1.4 1994/09/16 18:46:09 gclarkii Exp $
+Revision: $Id: Systems.FAQ,v 1.5 1994/09/16 18:51:50 gclarkii Exp $
 
 
 i386:
@@ -23,8 +23,17 @@ Disks:
 Controllers:
 	Generic IDE
 	Adaptec AH-1542CF
-NOTES:  This system has not been pounded on.
 
+Motherboard: Magitronics 386SX-40
+CPU: i386SX-40
+Busses: ISA
+Ram: 4 Megs
+Video: Monochrome
+Disks:
+	1-Seagate ST1126 (SCSI)
+Controllers:
+	Future Domain 850
+Notes: Slow but useable
 
 i486:
 
@@ -47,5 +56,4 @@ Credits:
 	FreeBSD Core Team
 	Gary Clark II
 	Poul-Henning Kamp
-
 
