@@ -139,7 +139,7 @@ getether(ifname, eap)
 	ifc.ifc_buf = (caddr_t) ibuf;
 	if (ioctl(fd, SIOCGIFCONF, (char *) &ifc) < 0 ||
 		ifc.ifc_len < sizeof(struct ifreq)) {
-		report(LOG_ERR, "getether: SIOCGIFCONF: %s", get_errmsg);
+		report(LOG_ERR, "getether: SIOCGIFCONF: %s", get_errmsg());
 		goto out;
 	}
 	/* Search interface configuration list for link layer address. */
