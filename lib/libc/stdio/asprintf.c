@@ -43,6 +43,7 @@ asprintf(char **str, char const *fmt, ...)
 	int ret;
 	va_list ap;
 	FILE f;
+	struct __sFILEX ext;
 
 	va_start(ap, fmt);
 	f._file = -1;
@@ -54,6 +55,8 @@ asprintf(char **str, char const *fmt, ...)
 		return (-1);
 	}
 	f._bf._size = f._w = 127;		/* Leave room for the NULL */
+	f._extra = &ext;
+	INITEXTRA(&f);
 	ret = __vfprintf(&f, fmt, ap);		/* Use unlocked __vfprintf */
 	*f._p = '\0';
 	va_end(ap);

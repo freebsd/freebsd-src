@@ -32,7 +32,7 @@
 .\"     @(#)stdio.3	8.7 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd April 19, 1994
+.Dd August 11, 2002
 .Dt STDIO 3
 .Os
 .Sh NAME
@@ -194,8 +194,12 @@ without first removing their current definitions with
 .Dv fwopen ,
 .Dv getc ,
 .Dv getchar ,
+.Dv getwc ,
+.Dv getwchar ,
 .Dv putc ,
 .Dv putchar ,
+.Dv putwc ,
+.Dv putwchar ,
 .Dv stderr ,
 .Dv stdin ,
 .Dv stdout ,
@@ -207,9 +211,13 @@ Function versions of the macro functions
 .Fn fileno ,
 .Fn getc ,
 .Fn getchar ,
+.Fn getwc ,
+.Fn getwchar ,
 .Fn putc ,
+.Fn putchar ,
+.Fn putwc
 and
-.Fn putchar
+.Fn putwchar
 exist and will be used if the macro
 definitions are explicitly removed.
 .Sh SEE ALSO
@@ -225,7 +233,7 @@ library and system functions, especially
 The
 .Nm
 library conforms to
-.St -isoC .
+.St -isoC-99 .
 .Sh LIST OF FUNCTIONS
 .Bl -column "Description"
 .It Sy "Function	Description"
@@ -240,12 +248,16 @@ library conforms to
 .It "fgetln	get a line from a stream"
 .It "fgetpos	reposition a stream"
 .It "fgets	get a line from a stream"
+.It "fgetwc	get next wide character from input stream"
+.It "fgetws	get a line of wide characters from a stream"
 .It "fileno	check and reset stream status"
 .It "fopen	stream open functions"
 .It "fprintf	formatted output conversion"
 .It "fpurge	flush a stream"
 .It "fputc	output a character or word to a stream"
 .It "fputs	output a line to a stream"
+.It "fputwc	output a wide character to a stream"
+.It "fputws	output a line of wide characters to a stream"
 .It "fread	binary stream input/output"
 .It "freopen	stream open functions"
 .It "fropen	open a stream"
@@ -254,12 +266,15 @@ library conforms to
 .It "fsetpos	reposition a stream"
 .It "ftell	reposition a stream"
 .It "funopen	open a stream"
+.It "fwide	set/get orientation of stream"
 .It "fwopen	open a stream"
 .It "fwrite	binary stream input/output"
 .It "getc	get next character or word from input stream"
 .It "getchar	get next character or word from input stream"
 .It "gets	get a line from a stream"
 .It "getw	get next character or word from input stream"
+.It "getwc	get next wide character from input stream"
+.It "getwchar	get next wide character from input stream"
 .It "mkdtemp	create unique temporary file"
 .It "mkstemp	create unique temporary file"
 .It "mktemp	create unique temporary file"
@@ -269,6 +284,8 @@ library conforms to
 .It "putchar	output a character or word to a stream"
 .It "puts	output a line to a stream"
 .It "putw	output a character or word to a stream"
+.It "putwc	output a wide character to a stream"
+.It "putwchar	output a wide character to a stream"
 .It "remove	remove directory entry"
 .It "rewind	reposition a stream"
 .It "scanf	input format conversion"
@@ -286,6 +303,7 @@ library conforms to
 .It "tmpfile	temporary file routines"
 .It "tmpnam	temporary file routines"
 .It "ungetc	un-get character from input stream"
+.It "ungetwc	un-get wide character from input stream"
 .It "vasprintf	formatted output conversion"
 .It "vfprintf	formatted output conversion"
 .It "vfscanf	input format conversion"

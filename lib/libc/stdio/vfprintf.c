@@ -151,6 +151,7 @@ __sbprintf(FILE *fp, const char *fmt, va_list ap)
 	fake._file = fp->_file;
 	fake._cookie = fp->_cookie;
 	fake._write = fp->_write;
+	fake._extra = fp->_extra;
 
 	/* set up the buffer */
 	fake._bf._base = fake._p = buf;
