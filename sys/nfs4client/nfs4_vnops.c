@@ -2641,8 +2641,7 @@ again:
 		 */
 		bveccount = 0;
 		VI_LOCK(vp);
-		for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
-			nbp = TAILQ_NEXT(bp, b_bobufs);
+		TAILQ_FOREACH_SAFE(bp, &vp->v_bufobj.bo_dirty.bv_hd, b_bobufs, nbp) {
 			if (BUF_REFCNT(bp) == 0 &&
 			    (bp->b_flags & (B_DELWRI | B_NEEDCOMMIT))
 				== (B_DELWRI | B_NEEDCOMMIT))
@@ -2673,7 +2672,7 @@ again:
 			bvec = bvec_on_stack;
 			bvecsize = NFS_COMMITBVECSIZ;
 		}
-		for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
+		TAILQ_FOREACH_SAFE(bp, &vp->v_bufobj.bo_dirty.bv_hd, b_bobufs, nbp) {
 			if (bvecpos >= bvecsize)
 				break;
 			if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL)) {
@@ -2801,8 +2800,7 @@ again:
 loop:
 	s = splbio();
 	VI_LOCK(vp);
-	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
-		nbp = TAILQ_NEXT(bp, b_bobufs);
+	TAILQ_FOREACH_SAFE(bp, &vp->v_bufobj.bo_dirty.bv_hd, b_bobufs, nbp) {
 		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL)) {
 			if (waitfor != MNT_WAIT || passone)
 				continue;
@@ -2863,7 +2861,7 @@ loop:
 			    VI_LOCK(vp);
 			}
 		}
-		if (!TAILQ_EMPTY(&vp->v_dirtyblkhd) && commit) {
+		if (vp->v_bufobj.bo_dirty.bv_cnt > 0 && commit) {
 			VI_UNLOCK(vp);
 			goto loop;
 		}
@@ -2946,7 +2944,7 @@ nfs4_writebp(struct buf *bp, int force __unused, struct thread *td)
 	bp->b_ioflags &= ~BIO_ERROR;
 	bp->b_iocmd = BIO_WRITE;
 
-	bufobj_wref(&bp->b_vp->v_bufobj);
+	bufobj_wref(bp->b_bufobj);
 	curthread->td_proc->p_stats->p_ru.ru_oublock++;
 	splx(s);
 

@@ -2535,7 +2535,7 @@ static void
 swapdev_strategy(struct buf *bp, struct swdevt *sp)
 {
 	int s;
-	struct vnode *vp, *vp2;
+	struct vnode *vp2;
 
 	bp->b_dev = NULL;
 	bp->b_blkno = ctodb(bp->b_blkno - sp->sw_first);
@@ -2544,9 +2544,8 @@ swapdev_strategy(struct buf *bp, struct swdevt *sp)
 	vhold(vp2);
 	s = splvm();
 	if (bp->b_iocmd == BIO_WRITE) {
-		vp = bp->b_vp;
-		if (vp)
-			bufobj_wdrop(&vp->v_bufobj);
+		if (bp->b_bufobj) /* XXX: should always be true /phk */
+			bufobj_wdrop(bp->b_bufobj);
 		bufobj_wref(&vp2->v_bufobj);
 	}
 	bp->b_vp = vp2;
