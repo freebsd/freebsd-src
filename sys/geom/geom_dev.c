@@ -260,6 +260,7 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 	error = 0;
 	DROP_GIANT();
 
+	gio = NULL;
 	i = IOCPARM_LEN(cmd);
 	switch (cmd) {
 	case DIOCGSECTORSIZE:
@@ -322,10 +323,8 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 		KASSERT(gio->func != NULL, ("NULL function but EDIRIOCTL"));
 		error = (gio->func)(gio->dev, cmd, data, fflag, td);
 	}
-	if (gio != NULL)
-		g_free(gio);
 	g_waitidle();
-	if (error == ENOIOCTL) {
+	if (gio != NULL && (error == EOPNOTSUPP || error == ENOIOCTL)) {
 		if (g_debugflags & G_T_TOPOLOGY) {
 			i = IOCGROUP(cmd);
 			printf("IOCTL(0x%lx) \"%s\"", cmd, gp->name);
@@ -342,6 +341,8 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 		}
 		error = ENOTTY;
 	}
+	if (gio != NULL)
+		g_free(gio);
 	return (error);
 }
 
