@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.56 1997/03/30 09:08:00 phk Exp $
+ *	$Id: apm.c,v 1.57 1997/06/15 02:02:41 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -227,7 +227,7 @@ apm_display(int newstate)
  * Turn off the entire system.
  */
 void
-apm_display(void)
+apm_power_off(void)
 {
 	u_long eax, ebx, ecx;
 
