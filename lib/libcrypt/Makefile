@@ -11,6 +11,10 @@ LSCRYPTBASE=	lib${LIB}
 LCRYPTSO=	${LCRYPTBASE}.so.${SHLIB_MAJOR}
 LSCRYPTSO=	${LSCRYPTBASE}.so.${SHLIB_MAJOR}
 
+.if ${OBJFORMAT} == elf
+SONAME=		${LCRYPTSO}
+.endif
+
 .PATH:		${.CURDIR}/../libmd
 SRCS=		crypt.c crypt-md5.c crypt-shs.c misc.c
 STATICSRCS=	md5c.c sha0c.c sha1c.c
