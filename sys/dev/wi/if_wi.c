@@ -231,7 +231,7 @@ static struct {
 	{0x16ab, 0x1101, WI_BUS_PCI_PLX, "GLPRISM2 PCI WaveLAN/IEEE 802.11"},
 	{0x16ab, 0x1102, WI_BUS_PCI_PLX, "Linksys WDT11 PCI IEEE 802.11b"},
 	{0x1260, 0x3873, WI_BUS_PCI_NATIVE, "Linksys WMP11 PCI Prism2.5"},
-	{0,	 0,	NULL}
+	{0, 0, 0, NULL}
 };
 #endif
 
