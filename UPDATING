@@ -23,6 +23,15 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+
+20050114:
+	Support for abbreviated forms of a number of ipfw options is
+	now deprecated.  Warnings are printed to stderr indicating the
+	correct full form when a match occurs.  Some abbreviations may
+	be supported at a later date based on user feedback.  To be
+	considered for support, abbreviations must be in use prior to
+	this commit and unlikely to be confused with current key words.
+
 20041221:
 	By a popular demand, a lot of NOFOO options were renamed
 	to NO_FOO (see bsd.compat.mk for a full list).  The old
