@@ -31,11 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)dirent.h	8.3 (Berkeley) 8/10/94
- * $Id: dirent.h,v 1.7 1997/02/22 09:45:02 peter Exp $
+ * $Id: dirent.h,v 1.8 1997/04/10 13:54:19 bde Exp $
  */
 
 #ifndef	_SYS_DIRENT_H_
 #define	_SYS_DIRENT_H_
+
+#include <machine/ansi.h>
 
 /*
  * The dirent structure defines the format of directory entries returned by
@@ -49,10 +51,10 @@
  */
 
 struct dirent {
-	u_int32_t d_fileno;		/* file number of entry */
-	u_int16_t d_reclen;		/* length of this record */
-	u_int8_t  d_type; 		/* file type, see below */
-	u_int8_t  d_namlen;		/* length of string in d_name */
+	__uint32_t d_fileno;		/* file number of entry */
+	__uint16_t d_reclen;		/* length of this record */
+	__uint8_t  d_type; 		/* file type, see below */
+	__uint8_t  d_namlen;		/* length of string in d_name */
 #ifdef _POSIX_SOURCE
 	char	d_name[255 + 1];	/* name must be no longer than this */
 #else
