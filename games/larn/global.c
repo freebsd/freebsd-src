@@ -619,4 +619,4 @@ rund(x)
 	{
 	return(random()%x);
 	}
-#endif MACRORND
+#endif /* MACRORND */
