@@ -101,7 +101,7 @@ vendor MAGICRAM			0x0135	Magic Ram, Inc
 vendor QUATECH			0x0137	Quatech
 vendor COMPAQ			0x0138	Compaq
 vendor OSITECH			0x0140	Ositech
-vendor DLINK_2			0x0143	D-Link
+vendor GREY_CELL		0x0143	Grey Cell Systems, Ltd
 vendor DLINK_3			0x0149	D-Link
 vendor LINKSYS			0x0149	Linksys Corporation
 vendor NETGEAR			0x0149	Netgear
@@ -264,9 +264,6 @@ product DAYNA COMMUNICARD_E_2	0x002f Dayna CommuniCard E
 /* DIGITAL Products */
 product DIGITAL MOBILE_MEDIA_CDROM 0x0d00 Digital Mobile Media CD-ROM
 
-/* D-Link Products */
-product DLINK_2 DMF560TX	0xc0ab D-Link DMF-650TX
-
 /* DSP Solutions, Inc. (Megahertz OEM) */
 product DSPSI XJEM1144		0x0101 Megahertz X-JACK
 product DSPSI XJACK		0x0103 Megahertz X-JACK Ethernet
@@ -301,6 +298,9 @@ product FUJITSU WL110		0x2003 PEGA-WL110 Wireless LAN
 
 /* Gemplus */
 product GEMPLUS GPR400		0x3004 GPR400 Smartcard Reader
+
+/* Grey Cell Systems, Ltd */
+product GREY_CELL DMF560TX	0xc0ab D-Link DMF-650TX
 
 /* Home Wireless Networks */
 product HWN AIRWAY80211		0x0002 HWN Airway Wireless PCMCIA Card
