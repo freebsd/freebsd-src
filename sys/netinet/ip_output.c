@@ -671,6 +671,7 @@ spd_done:
 	/* See if destination IP address was changed by packet filter. */
 	if (odst.s_addr != ip->ip_dst.s_addr) {
 		m->m_flags |= M_SKIP_FIREWALL;
+		/* If destination is now ourself drop to ip_input(). */
 		if (in_localip(ip->ip_dst)) {
 			m->m_flags |= M_FASTFWD_OURS;
 			if (m->m_pkthdr.rcvif == NULL)
@@ -686,7 +687,7 @@ spd_done:
 			error = netisr_queue(NETISR_IP, m);
 			goto done;
 		} else
-			goto again;
+			goto again;	/* Redo the routing table lookup. */
 	}
 
 #ifdef IPFIREWALL_FORWARD
