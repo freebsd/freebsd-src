@@ -95,6 +95,12 @@ SYSCTL_ULONG(_kern, OID_AUTO, ps_arg_cache_limit, CTLFLAG_RW,
 int ps_argsopen = 1;
 SYSCTL_INT(_kern, OID_AUTO, ps_argsopen, CTLFLAG_RW, &ps_argsopen, 0, "");
 
+#ifdef __ia64__
+/* XXX HACK */
+static int regstkpages = 256;
+SYSCTL_INT(_machdep, OID_AUTO, regstkpages, CTLFLAG_RW, &regstkpages, 0, "");
+#endif
+
 /*
  * Each of the items is a pointer to a `const struct execsw', hence the
  * double pointer here.
@@ -622,7 +628,7 @@ exec_new_vmspace(imgp)
 		vm_offset_t bsaddr;
 		bsaddr = USRSTACK - 2*maxssiz;
 		error = vm_map_find(&vmspace->vm_map, 0, 0, &bsaddr,
-				    4*PAGE_SIZE, 0,
+				    regstkpages * PAGE_SIZE, 0,
 				    VM_PROT_ALL, VM_PROT_ALL, 0);
 		FIRST_THREAD_IN_PROC(p)->td_md.md_bspstore = bsaddr;
 	}
