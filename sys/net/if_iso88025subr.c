@@ -321,7 +321,7 @@ iso88025_output(ifp, m, dst, rt0)
 
 	if (snap_type != 0) {
         	struct llc *l;
-		M_PREPEND(m, sizeof (struct llc), M_DONTWAIT);
+		M_PREPEND(m, LLC_SNAPFRAMELEN, M_DONTWAIT);
 		if (m == 0)
 			senderr(ENOBUFS);
 		l = mtod(m, struct llc *);
@@ -372,7 +372,7 @@ iso88025_output(ifp, m, dst, rt0)
 			}       
         }      
 
-	if (! IF_HANDOFF_ADJ(&ifp->if_snd, m, ifp, ISO88025_HDR_LEN + (sizeof(struct llc))) ) {
+	if (! IF_HANDOFF_ADJ(&ifp->if_snd, m, ifp, ISO88025_HDR_LEN + LLC_SNAPFRAMELEN) ) {
 		printf("iso88025_output: packet dropped QFULL.\n");
 		senderr(ENOBUFS);
 	}
@@ -441,7 +441,7 @@ iso88025_input(ifp, th, m)
 			goto dropanyway;
 
 		type = ntohs(l->llc_un.type_snap.ether_type);
-		m_adj(m, sizeof(struct llc));
+		m_adj(m, LLC_SNAPFRAMELEN);
 		switch (type) {
 #ifdef INET
 		case ETHERTYPE_IP:

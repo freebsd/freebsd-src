@@ -399,9 +399,9 @@ fddi_input(ifp, m)
 #endif
 
 	/* Strip off FDDI header. */
-	m_adj(m, sizeof(struct fddi_header));
+	m_adj(m, FDDI_HDR_LEN);
 
-	m = m_pullup(m, sizeof(struct llc));
+	m = m_pullup(m, LLC_SNAPFRAMELEN);
 	if (m == 0) {
 		ifp->if_ierrors++;
 		goto dropanyway;

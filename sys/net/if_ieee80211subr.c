@@ -560,12 +560,12 @@ ieee80211_encap(struct ifnet *ifp, struct mbuf *m)
 	struct llc *llc;
 	struct ieee80211_node *ni;
 
-	if (m->m_len < sizeof(struct ether_header)) {
-		m = m_pullup(m, sizeof(struct ether_header));
+	if (m->m_len < ETHER_HDR_LEN) {
+		m = m_pullup(m, ETHER_HDR_LEN);
 		if (m == NULL)
 			return NULL;
 	}
-	memcpy(&eh, mtod(m, caddr_t), sizeof(struct ether_header));
+	memcpy(&eh, mtod(m, caddr_t), ETHER_HDR_LEN);
 
 	if (!IEEE80211_IS_MULTICAST(eh.ether_dhost) &&
 	    (ic->ic_opmode == IEEE80211_M_IBSS ||
@@ -577,7 +577,7 @@ ieee80211_encap(struct ifnet *ifp, struct mbuf *m)
 		ni = &ic->ic_bss;
 	ni->ni_inact = 0;
 
-	m_adj(m, sizeof(struct ether_header) - sizeof(struct llc));
+	m_adj(m, ETHER_HDR_LEN - LLC_SNAPFRAMELEN);
 	llc = mtod(m, struct llc *);
 	llc->llc_dsap = llc->llc_ssap = LLC_SNAP_LSAP;
 	llc->llc_control = LLC_UI;
@@ -625,8 +625,8 @@ ieee80211_decap(struct ifnet *ifp, struct mbuf *m)
 	struct ieee80211_frame wh;
 	struct llc *llc;
 
-	if (m->m_len < sizeof(wh) + sizeof(*llc)) {
-		m = m_pullup(m, sizeof(wh) + sizeof(*llc));
+	if (m->m_len < sizeof(wh) + LLC_SNAPFRAMELEN) {
+		m = m_pullup(m, sizeof(wh) + LLC_SNAPFRAMELEN);
 		if (m == NULL)
 			return NULL;
 	}
@@ -635,10 +635,10 @@ ieee80211_decap(struct ifnet *ifp, struct mbuf *m)
 	if (llc->llc_dsap == LLC_SNAP_LSAP && llc->llc_ssap == LLC_SNAP_LSAP &&
 	    llc->llc_control == LLC_UI && llc->llc_snap.org_code[0] == 0 &&
 	    llc->llc_snap.org_code[1] == 0 && llc->llc_snap.org_code[2] == 0) {
-		m_adj(m, sizeof(wh) + sizeof(struct llc) - sizeof(*eh));
+		m_adj(m, sizeof(wh) + LLC_SNAPFRAMELEN - ETHER_HDR_LEN);
 		llc = NULL;
 	} else {
-		m_adj(m, sizeof(wh) - sizeof(*eh));
+		m_adj(m, sizeof(wh) - ETHER_HDR_LEN);
 	}
 	eh = mtod(m, struct ether_header *);
 	switch (wh.i_fc[1] & IEEE80211_FC1_DIR_MASK) {
@@ -660,7 +660,7 @@ ieee80211_decap(struct ifnet *ifp, struct mbuf *m)
 		m_freem(m);
 		return NULL;
 	}
-	if (!ALIGNED_POINTER(mtod(m, caddr_t) + sizeof(*eh), u_int32_t)) {
+	if (!ALIGNED_POINTER(mtod(m, caddr_t) + ETHER_HDR_LEN, u_int32_t)) {
 		struct mbuf *n, *n0, **np;
 		caddr_t newdata;
 		int off, pktlen;
@@ -694,8 +694,8 @@ ieee80211_decap(struct ifnet *ifp, struct mbuf *m)
 			}
 			if (n0 == NULL) {
 				newdata =
-				    (caddr_t)ALIGN(n->m_data + sizeof(*eh)) -
-				    sizeof(*eh);
+				    (caddr_t)ALIGN(n->m_data + ETHER_HDR_LEN) -
+				    ETHER_HDR_LEN;
 				n->m_len -= newdata - n->m_data;
 				n->m_data = newdata;
 			}
@@ -711,7 +711,7 @@ ieee80211_decap(struct ifnet *ifp, struct mbuf *m)
 	}
 	if (llc != NULL) {
 		eh = mtod(m, struct ether_header *);
-		eh->ether_type = htons(m->m_pkthdr.len - sizeof(*eh));
+		eh->ether_type = htons(m->m_pkthdr.len - ETHER_HDR_LEN);
 	}
 	return m;
 }
