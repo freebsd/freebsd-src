@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/callout.h>
+#include <sys/condvar.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -71,6 +72,32 @@ struct mtx dont_sleep_in_callout;
 #endif
 
 static struct callout *nextsoftcheck;	/* Next callout to be checked. */
+/*
+ * Locked by callout_lock:
+ *   curr_callout    - If a callout is in progress, it is curr_callout.
+ *                     If curr_callout is non-NULL, threads waiting on
+ *                     callout_wait will be woken up as soon as the 
+ *                     relevant callout completes.
+ *   wakeup_needed   - If a thread is waiting on callout_wait, then
+ *                     wakeup_needed is nonzero.  Increased only when
+ *                     cutt_callout is non-NULL.
+ *   wakeup_ctr      - Incremented every time a thread wants to wait
+ *                     for a callout to complete.  Modified only when
+ *                     curr_callout is non-NULL.
+ */
+static struct callout *curr_callout;
+static int wakeup_needed;
+static int wakeup_ctr;
+/*
+ * Locked by callout_wait_lock:
+ *   callout_wait    - If wakeup_needed is set, callout_wait will be
+ *                     triggered after the current callout finishes.
+ *   wakeup_done_ctr - Set to the current value of wakeup_ctr after
+ *                     callout_wait is triggered.
+ */
+static struct mtx callout_wait_lock;
+static struct cv callout_wait;
+static int wakeup_done_ctr;
 
 /*
  * kern_timeout_callwheel_alloc() - kernel low level callwheel initialization 
@@ -122,6 +149,12 @@ kern_timeout_callwheel_init(void)
 #ifdef DIAGNOSTIC
 	mtx_init(&dont_sleep_in_callout, "dont_sleep_in_callout", NULL, MTX_DEF);
 #endif
+	mtx_init(&callout_wait_lock, "callout_wait_lock", NULL, MTX_DEF);
+	cv_init(&callout_wait, "callout_wait");
+	curr_callout = NULL;
+	wakeup_needed = 0;
+	wakeup_ctr = 0;
+	wakeup_done_ctr = 0;
 }
 
 /*
@@ -150,6 +183,7 @@ softclock(void *dummy)
 	int depth;
 	int mpcalls;
 	int gcalls;
+	int wakeup_cookie;
 #ifdef DIAGNOSTIC
 	struct bintime bt1, bt2;
 	struct timespec ts2;
@@ -208,6 +242,7 @@ softclock(void *dummy)
 					c->c_flags =
 					    (c->c_flags & ~CALLOUT_PENDING);
 				}
+				curr_callout = c;
 				mtx_unlock_spin(&callout_lock);
 				if (!(c_flags & CALLOUT_MPSAFE)) {
 					mtx_lock(&Giant);
@@ -241,6 +276,21 @@ softclock(void *dummy)
 				if (!(c_flags & CALLOUT_MPSAFE))
 					mtx_unlock(&Giant);
 				mtx_lock_spin(&callout_lock);
+				curr_callout = NULL;
+				if (wakeup_needed) {
+					/*
+					 * There might be someone waiting
+					 * for the callout to complete.
+					 */
+					wakeup_cookie = wakeup_ctr;
+					mtx_unlock_spin(&callout_lock);
+					mtx_lock(&callout_wait_lock);
+					cv_broadcast(&callout_wait);
+					wakeup_done_ctr = wakeup_cookie;
+					mtx_unlock(&callout_wait_lock);
+					mtx_lock_spin(&callout_lock);
+					wakeup_needed = 0;
+				};
 				steps = 0;
 				c = nextsoftcheck;
 			}
@@ -344,6 +394,17 @@ callout_reset(c, to_ticks, ftn, arg)
 {
 
 	mtx_lock_spin(&callout_lock);
+
+	if (c == curr_callout && wakeup_needed) {
+		/*
+		 * We're being asked to reschedule a callout which is
+		 * currently in progress, and someone has called
+		 * callout_drain to kill that callout.  Don't reschedule.
+		 */
+		mtx_unlock_spin(&callout_lock);
+		return;
+	};
+
 	if (c->c_flags & CALLOUT_PENDING)
 		callout_stop(c);
 
@@ -364,10 +425,22 @@ callout_reset(c, to_ticks, ftn, arg)
 	mtx_unlock_spin(&callout_lock);
 }
 
+/* For binary compatibility */
+#undef callout_stop
 int
 callout_stop(c)
 	struct	callout *c;
 {
+
+	return(_callout_stop_safe(c, 0));
+}
+
+int
+_callout_stop_safe(c, safe)
+	struct	callout *c;
+	int	safe;
+{
+	int wakeup_cookie;
 
 	mtx_lock_spin(&callout_lock);
 	/*
@@ -375,7 +448,23 @@ callout_stop(c)
 	 */
 	if (!(c->c_flags & CALLOUT_PENDING)) {
 		c->c_flags &= ~CALLOUT_ACTIVE;
-		mtx_unlock_spin(&callout_lock);
+		if (c == curr_callout && safe) {
+			/* We need to wait until the callout is finished */
+			wakeup_needed = 1;
+			wakeup_cookie = wakeup_ctr++;
+			mtx_unlock_spin(&callout_lock);
+			mtx_lock(&callout_wait_lock);
+			/*
+			 * Check to make sure that softclock() didn't
+			 * do the wakeup in between our dropping
+			 * callout_lock and picking up callout_wait_lock
+			 */
+			if (wakeup_cookie - wakeup_done_ctr > 0)
+				cv_wait(&callout_wait, &callout_wait_lock);
+
+			mtx_unlock(&callout_wait_lock);
+		} else
+			mtx_unlock_spin(&callout_lock);
 		return (0);
 	}
 	c->c_flags &= ~(CALLOUT_ACTIVE | CALLOUT_PENDING);
