@@ -143,7 +143,7 @@ arm_handler_execute(void *irq)
 					 */
 				}
 			} else if (ih) {
-				ithread_schedule(ithd, !cold);
+				ithread_schedule(ithd);
 			}
 		}
 	}	
