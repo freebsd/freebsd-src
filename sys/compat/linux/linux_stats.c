@@ -285,16 +285,20 @@ struct l_ustat
 int
 linux_ustat(struct thread *td, struct linux_ustat_args *args)
 {
+#ifdef DEBUG
+	if (ldebug(ustat))
+		printf(ARGS(ustat, "%d, *"), args->dev);
+#endif
+
+	return (EOPNOTSUPP);
+
+#ifdef not_that_way
 	struct l_ustat lu;
 	struct cdev *dev;
 	struct vnode *vp;
 	struct statfs *stat;
 	int error;
 
-#ifdef DEBUG
-	if (ldebug(ustat))
-		printf(ARGS(ustat, "%d, *"), args->dev);
-#endif
 
 	/*
 	 * lu.f_fname and lu.f_fpack are not used. They are always zeroed.
@@ -334,6 +338,7 @@ linux_ustat(struct thread *td, struct linux_ustat_args *args)
 	}
 
 	return (copyout(&lu, args->ubuf, sizeof(lu)));
+#endif
 }
 
 #if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
