@@ -165,6 +165,8 @@ struct syscall *
 get_syscall(const char *name) {
 	struct syscall *sc = syscalls;
 
+	if (name == NULL)
+		return (NULL);
 	while (sc->name) {
 		if (!strcmp(name, sc->name))
 			return sc;
