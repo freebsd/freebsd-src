@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.86 1998/05/16 15:21:29 bde Exp $
+ * $Id: nfs_vnops.c,v 1.87 1998/05/16 16:03:10 bde Exp $
  */
 
 
@@ -3114,15 +3114,12 @@ nfsspec_read(ap)
 	} */ *ap;
 {
 	register struct nfsnode *np = VTONFS(ap->a_vp);
-	struct timeval tv;
 
 	/*
 	 * Set access flag.
 	 */
 	np->n_flag |= NACC;
-	getmicrotime(&tv);
-	np->n_atim.tv_sec = tv.tv_sec;
-	np->n_atim.tv_nsec = tv.tv_usec * 1000;
+	getnanotime(&np->n_atim);
 	return (VOCALL(spec_vnodeop_p, VOFFSET(vop_read), ap));
 }
 
@@ -3139,15 +3136,12 @@ nfsspec_write(ap)
 	} */ *ap;
 {
 	register struct nfsnode *np = VTONFS(ap->a_vp);
-	struct timeval tv;
 
 	/*
 	 * Set update flag.
 	 */
 	np->n_flag |= NUPD;
-	getmicrotime(&tv);
-	np->n_mtim.tv_sec = tv.tv_sec;
-	np->n_mtim.tv_nsec = tv.tv_usec * 1000;
+	getnanotime(&np->n_mtim);
 	return (VOCALL(spec_vnodeop_p, VOFFSET(vop_write), ap));
 }
 
@@ -3197,15 +3191,12 @@ nfsfifo_read(ap)
 	} */ *ap;
 {
 	register struct nfsnode *np = VTONFS(ap->a_vp);
-	struct timeval tv;
 
 	/*
 	 * Set access flag.
 	 */
 	np->n_flag |= NACC;
-	getmicrotime(&tv);
-	np->n_atim.tv_sec = tv.tv_sec;
-	np->n_atim.tv_nsec = tv.tv_usec * 1000;
+	getnanotime(&np->n_atim);
 	return (VOCALL(fifo_vnodeop_p, VOFFSET(vop_read), ap));
 }
 
@@ -3222,15 +3213,12 @@ nfsfifo_write(ap)
 	} */ *ap;
 {
 	register struct nfsnode *np = VTONFS(ap->a_vp);
-	struct timeval tv;
 
 	/*
 	 * Set update flag.
 	 */
 	np->n_flag |= NUPD;
-	getmicrotime(&tv);
-	np->n_mtim.tv_sec = tv.tv_sec;
-	np->n_mtim.tv_nsec = tv.tv_usec * 1000;
+	getnanotime(&np->n_mtim);
 	return (VOCALL(fifo_vnodeop_p, VOFFSET(vop_write), ap));
 }
 
@@ -3250,19 +3238,15 @@ nfsfifo_close(ap)
 {
 	register struct vnode *vp = ap->a_vp;
 	register struct nfsnode *np = VTONFS(vp);
-	struct timeval tv;
 	struct vattr vattr;
+	struct timespec ts;
 
 	if (np->n_flag & (NACC | NUPD)) {
-		getmicrotime(&tv);
-		if (np->n_flag & NACC) {
-			np->n_atim.tv_sec = tv.tv_sec;
-			np->n_atim.tv_nsec = tv.tv_usec * 1000;
-		}
-		if (np->n_flag & NUPD) {
-			np->n_mtim.tv_sec = tv.tv_sec;
-			np->n_mtim.tv_nsec = tv.tv_usec * 1000;
-		}
+		getnanotime(&ts);
+		if (np->n_flag & NACC)
+			np->n_atim = ts;
+		if (np->n_flag & NUPD)
+			np->n_mtim = ts;
 		np->n_flag |= NCHG;
 		if (vp->v_usecount == 1 &&
 		    (vp->v_mount->mnt_flag & MNT_RDONLY) == 0) {
