@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: boot0cfg.c,v 1.4 1999/06/19 21:44:43 rnordier Exp $";
+	"$Id: boot0cfg.c,v 1.5 1999/06/21 14:40:59 rnordier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -72,11 +72,15 @@ static const char fmt0[] = "#   flag     start chs   type"
 static const char fmt1[] = "%d   0x%02x   %4u:%3u:%2u   0x%02x"
     "   %4u:%3u:%2u   %10u   %10u\n";
 
+static int boot0bs(const u_int8_t *);
 static void stropt(const char *, int *, int *);
 static char *mkrdev(const char *);
 static int argtoi(const char *, int, int, int);
 static void usage(void);
 
+/*
+ * Boot manager installation/configuration utility.
+ */
 int
 main(int argc, char *argv[])
 {
@@ -139,6 +143,8 @@ main(int argc, char *argv[])
         errx(1, "%s: short read", disk);
     if (cv2(buf + OFF_MAGIC) != 0xaa55)
         errx(1, "%s: bad magic", disk);
+    if (!B_flag && !boot0bs(buf))
+	errx(1, "%s: unknown or incompatible boot code", disk);
     if (fpath) {
         if ((fd1 = open(fpath, O_WRONLY | O_CREAT | O_TRUNC,
                         0666)) == -1 ||
@@ -154,8 +160,8 @@ main(int argc, char *argv[])
             err(1, "%s", bpath);
         if (n != MBRSIZE)
             errx(1, "%s: short read", bpath);
-        if (cv2(buf + OFF_MAGIC) != 0xaa55)
-            errx(1, "%s: bad magic", bpath);
+        if (!boot0bs(buf))
+            errx(1, "%s: unknown or incompatible boot code", bpath);
         memcpy(buf + OFF_PTBL, part, sizeof(part));
     }
     if (d_arg != -1)
@@ -209,6 +215,34 @@ main(int argc, char *argv[])
     return 0;
 }
 
+/*
+ * Decide if we have valid boot0 boot code by looking for
+ * characteristic byte sequences at fixed offsets.
+ */
+static int
+boot0bs(const u_int8_t *bs)
+{
+    static u_int8_t id0[] = {0xfe, 0x45, 0xf2, 0xe9, 0x00, 0x8a};
+    static u_int8_t id1[] = {'D', 'r', 'i', 'v', 'e', ' '};
+    static struct {
+	unsigned off;
+	unsigned len;
+	u_int8_t *key;
+    } ident[2] = {
+        {0x1c,  sizeof(id0), id0},
+        {0x1b2, sizeof(id1), id1}
+    };
+    int i;
+
+    for (i = 0; i < sizeof(ident) / sizeof(ident[0]); i++)
+	if (memcmp(bs + ident[i].off, ident[i].key, ident[i].len))
+	    return 0;
+    return 1;
+};
+
+/*
+ * Adjust "and" and "or" masks for a -o option argument.
+ */
 static void
 stropt(const char *arg, int *xa, int *xo)
 {
@@ -237,6 +271,9 @@ stropt(const char *arg, int *xa, int *xo)
     free(s);
 }
 
+/*
+ * Produce a device path for a "canonical" name, where appropriate.
+ */
 static char *
 mkrdev(const char *fname)
 {
@@ -244,7 +281,7 @@ mkrdev(const char *fname)
     struct stat sb;
     char *s;
 
-    s = (char *) fname;
+    s = (char *)fname;
     if (!strchr(fname, '/')) {
         snprintf(buf, sizeof(buf), "%sr%s", _PATH_DEV, fname);
         if (stat(buf, &sb))
@@ -255,6 +292,9 @@ mkrdev(const char *fname)
     return s;
 }
 
+/*
+ * Convert and check an option argument.
+ */
 static int
 argtoi(const char *arg, int lo, int hi, int opt)
 {
@@ -268,6 +308,9 @@ argtoi(const char *arg, int lo, int hi, int opt)
     return x;
 }
 
+/*
+ * Display usage information.
+ */
 static void
 usage(void)
 {
