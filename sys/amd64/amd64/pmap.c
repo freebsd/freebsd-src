@@ -404,7 +404,7 @@ create_pagetables(void)
 
 	/* Now set up the direct map space using 2MB pages */
 	for (i = 0; i < NPDEPG * ndmpdp; i++) {
-		((pd_entry_t *)DMPDphys)[i] = i << PDRSHIFT;
+		((pd_entry_t *)DMPDphys)[i] = (vm_paddr_t)i << PDRSHIFT;
 		((pd_entry_t *)DMPDphys)[i] |= PG_RW | PG_V | PG_PS;
 	}
 
