@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.11.2.25 1998/05/06 19:11:44 gibbs Exp $
+ *	$Id: machdep.c,v 1.11.2.26 1998/06/26 02:49:25 kato Exp $
  */
 
 #include "npx.h"
@@ -1443,7 +1443,7 @@ f00f_hack(void *unused) {
 	if (!has_f00f_bug)
 		return;
 
-	printf("Intel Pentium F00F detected, installing workaround\n");
+	printf("Intel Pentium detected, installing workaround for F00F bug\n");
 
 	r_idt.rd_limit = sizeof(idt) - 1;
 
