@@ -56,6 +56,7 @@ static const char rcsid[] =
 #include <unistd.h>
 
 int	fflag;				/* Unlink existing files. */
+int	hflag;				/* Check new name for symlink first. */
 int	iflag;				/* Interactive mode. */
 int	sflag;				/* Symbolic, not hard, link. */
 int	vflag;				/* Verbose output. */
@@ -64,6 +65,7 @@ int (*linkf) __P((const char *, const char *));
 char	linkch;
 
 int	linkit __P((char *, char *, int));
+int	main __P((int, char *[]));
 void	usage __P((void));
 
 int
@@ -92,11 +94,15 @@ main(argc, argv)
 			usage();
 	}
 
-	while ((ch = getopt(argc, argv, "fisv")) != -1)
+	while ((ch = getopt(argc, argv, "fhinsv")) != -1)
 		switch (ch) {
 		case 'f':
 			fflag = 1;
 			iflag = 0;
+			break;
+		case 'h':
+		case 'n':
+			hflag = 1;
 			break;
 		case 'i':
 			iflag = 1;
@@ -122,6 +128,7 @@ main(argc, argv)
 	switch(argc) {
 	case 0:
 		usage();
+		/* NOTREACHED */
 	case 1:				/* ln target */
 		exit(linkit(argv[0], ".", 1));
 	case 2:				/* ln target source */
@@ -129,6 +136,14 @@ main(argc, argv)
 	}
 					/* ln target1 target2 directory */
 	sourcedir = argv[argc - 1];
+	if (hflag && lstat(sourcedir, &sb) == 0 && S_ISLNK(sb.st_mode)) {
+		/*
+		 * We were asked not to follow symlinks, but found one at
+		 * the target--simulate "not a directory" error
+		 */
+		errno = ENOTDIR;
+		err(1, "%s", sourcedir);
+	}
 	if (stat(sourcedir, &sb))
 		err(1, "%s", sourcedir);
 	if (!S_ISDIR(sb.st_mode))
@@ -161,18 +176,22 @@ linkit(target, source, isdir)
 		}
 	}
 
-	/* If the source is a directory, append the target's name. */
-	if (isdir || ((exists = !stat(source, &sb)) && S_ISDIR(sb.st_mode))) {
+	/*
+	 * If the source is a directory (and not a symlink if hflag),
+	 * append the target's name.
+	 */
+	if (isdir ||
+	    (lstat(source, &sb) == 0 && S_ISDIR(sb.st_mode)) ||
+	    (!hflag && stat(source, &sb) == 0 && S_ISDIR(sb.st_mode))) {
 		if ((p = strrchr(target, '/')) == NULL)
 			p = target;
 		else
 			++p;
 		(void)snprintf(path, sizeof(path), "%s/%s", source, p);
 		source = path;
-		exists = !lstat(source, &sb);
-	} else
-		exists = !lstat(source, &sb);
+	}
 
+	exists = !lstat(source, &sb);
 	/*
 	 * If the file exists, then unlink it forcibly if -f was specified
 	 * and interactively if -i was specified.
@@ -214,8 +233,8 @@ void
 usage()
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n",
-	    "usage: ln [-fisv] file1 file2",
-	    "       ln [-fisv] file ... directory",
+	    "usage: ln [-fhinsv] file1 file2",
+	    "       ln [-fhinsv] file ... directory",
 	    "       link file1 file2");
 	exit(1);
 }
