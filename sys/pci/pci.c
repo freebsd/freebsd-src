@@ -1267,7 +1267,7 @@ pci_probe_nomatch(device_t dev, device_t child)
 }
 
 static int
-pci_read_ivar(device_t dev, device_t child, int which, u_long *result)
+pci_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
 	struct pci_devinfo *dinfo;
 	pcicfgregs *cfg;

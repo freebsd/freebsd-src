@@ -660,7 +660,7 @@ static struct isa_pnp_id fdc_ids[] = {
 };
 
 static int
-fdc_read_ivar(device_t dev, device_t child, int which, u_long *result)
+fdc_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
 	struct fdc_ivars *ivars = device_get_ivars(child);
 
