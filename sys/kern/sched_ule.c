@@ -710,8 +710,10 @@ fixpt_t
 sched_pctcpu(struct kse *ke)
 {
 	fixpt_t pctcpu;
+	int realstathz;
 
 	pctcpu = 0;
+	realstathz = stathz ? stathz : hz;
 
 	if (ke->ke_ticks) {
 		int rtick;
@@ -722,7 +724,7 @@ sched_pctcpu(struct kse *ke)
 
 		/* How many rtick per second ? */
 		rtick = ke->ke_ticks / (SCHED_CPU_TIME * 10000);
-		pctcpu = (FSCALE * ((FSCALE * rtick)/stathz)) >> FSHIFT;
+		pctcpu = (FSCALE * ((FSCALE * rtick)/realstathz)) >> FSHIFT;
 	}
 
 	ke->ke_proc->p_swtime = ke->ke_ltick - ke->ke_ftick;
