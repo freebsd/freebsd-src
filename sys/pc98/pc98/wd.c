@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.69 1999/01/03 17:26:04 kato Exp $
+ *	$Id: wd.c,v 1.70 1999/01/16 11:43:12 kato Exp $
  */
 
 /* TODO:
@@ -340,7 +340,8 @@ wdprobe(struct isa_device *dvp)
 	du->dk_port = dvp->id_iobase;
 	if (wddma[interface].wdd_candma != NULL) {
 		du->dk_dmacookie =
-		    wddma[interface].wdd_candma(dvp->id_iobase, du->dk_ctrlr);
+		    wddma[interface].wdd_candma(dvp->id_iobase, du->dk_ctrlr,
+		    du->dk_unit);
 		du->dk_altport =
 		    wddma[interface].wdd_altiobase(du->dk_dmacookie);
 	}
@@ -2096,7 +2097,8 @@ failed:
 	 * check drive's DMA capability
 	 */
 	if (wddma[du->dk_interface].wdd_candma) {
-		du->dk_dmacookie = wddma[du->dk_interface].wdd_candma(du->dk_port, du->dk_ctrlr);
+		du->dk_dmacookie = wddma[du->dk_interface].wdd_candma(
+		    du->dk_port, du->dk_ctrlr, du->dk_unit);
 	/* does user want this? */
 		if ((du->cfg_flags & WDOPT_DMA) &&
 	    /* have we got a DMA controller? */
