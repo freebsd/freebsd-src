@@ -69,14 +69,14 @@ only forth also support-functions also builtins definitions
 	load_kernel_and_modules
 	?dup if exit then
       then
-      1 boot exit
+      0 1 boot exit
     then
   else
     s" kernelname" getenv? 0= if ( no kernel has been loaded )
       load_kernel_and_modules
       ?dup if exit then
     then
-    1 boot exit
+    0 1 boot exit
   then
   load_kernel_and_modules
   ?dup 0= if 0 1 boot then
