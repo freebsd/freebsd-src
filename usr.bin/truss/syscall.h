@@ -32,7 +32,7 @@
 
 enum Argtype { None = 1, Hex, Octal, Int, String, Ptr, Stat, Ioctl, Quad,
 	Signal, Sockaddr, StringArray, Timespec, Timeval, Itimerval, Pollfd, 
-	Fd_set, Sigaction, Fcntl, Mprot, Mmapflags, Whence };
+	Fd_set, Sigaction, Fcntl, Mprot, Mmapflags, Whence, Readlinkres };
 
 #define ARG_MASK	0xff
 #define OUT	0x100
@@ -53,7 +53,7 @@ struct syscall {
 
 struct syscall *get_syscall(const char*);
 char *get_string(int, void*, int);
-char *print_arg(int, struct syscall_args *, unsigned long*);
+char *print_arg(int, struct syscall_args *, unsigned long*, long);
 void print_syscall(struct trussinfo *, const char *, int, char **);
 void print_syscall_ret(struct trussinfo *, const char *, int, char **, int,
     long);
