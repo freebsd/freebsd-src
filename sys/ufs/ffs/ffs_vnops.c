@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.7 (Berkeley) 2/3/94
- * $Id: ffs_vnops.c,v 1.6 1994/10/06 21:06:59 davidg Exp $
+ * $Id: ffs_vnops.c,v 1.7 1994/10/10 01:04:40 phk Exp $
  */
 
 #include <sys/param.h>
@@ -261,19 +261,27 @@ loop:
 			continue;
 		if ((bp->b_flags & B_DELWRI) == 0)
 			panic("ffs_fsync: not dirty");
-		bremfree(bp);
-		bp->b_flags |= B_BUSY;
-		splx(s);
+
+		if (bp->b_vp != vp && ap->a_waitfor != MNT_NOWAIT) {
+			
+			bremfree(bp);
+			bp->b_flags |= B_BUSY;
+			splx(s);
 		/*
 		 * Wait for I/O associated with indirect blocks to complete,
 		 * since there is no way to quickly wait for them below.
 		 */
-		if (bp->b_vp == vp || ap->a_waitfor == MNT_NOWAIT)
-			(void) bawrite(bp);
-		else
-			(void) bwrite(bp);
+			if (bp->b_vp == vp || ap->a_waitfor == MNT_NOWAIT)
+				(void) bawrite(bp);
+			else
+				(void) bwrite(bp);
+		} else {
+			vfs_bio_awrite(bp);
+			splx(s);
+		}
 		goto loop;
 	}
+		
 	if (ap->a_waitfor == MNT_WAIT) {
 		while (vp->v_numoutput) {
 			vp->v_flag |= VBWAIT;
@@ -287,6 +295,7 @@ loop:
 #endif
 	}
 	splx(s);
+
 	tv = time;
 	return (VOP_UPDATE(ap->a_vp, &tv, &tv, ap->a_waitfor == MNT_WAIT));
 }

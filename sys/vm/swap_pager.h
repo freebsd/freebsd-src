@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)swap_pager.h	7.1 (Berkeley) 12/5/90
- *	$Id: swap_pager.h,v 1.2 1994/05/25 09:18:39 rgrimes Exp $
+ *	$Id: swap_pager.h,v 1.3 1994/10/09 01:52:06 phk Exp $
  */
 
 /*
@@ -56,46 +56,46 @@
  * space is recovered by the swap pager now...
  */
 #define SWB_NPAGES 8
-struct	swblock {
+struct swblock {
 	unsigned short swb_valid;	/* bitmask for valid pages */
 	unsigned short swb_locked;	/* block locked */
-	int	 swb_block[SWB_NPAGES];	/* unfortunately int instead of daddr_t */
+	int swb_block[SWB_NPAGES];	/* unfortunately int instead of daddr_t */
 };
-typedef struct swblock	*sw_blk_t;
+typedef struct swblock *sw_blk_t;
 
 /*
  * Swap pager private data.
  */
 struct swpager {
-	vm_size_t    sw_osize;	/* size of object we are backing (bytes) */
-	int	     sw_nblocks;/* number of blocks in list (sw_blk_t units) */
-	sw_blk_t     sw_blocks;	/* pointer to list of swap blocks */
-	short	     sw_flags;	/* flags */
-	short	     sw_poip;	/* pageouts in progress */
-	short	     sw_piip;	/* pageins in progress */
+	vm_size_t sw_osize;	/* size of object we are backing (bytes) */
+	int sw_nblocks;		/* number of blocks in list (sw_blk_t units) */
+	sw_blk_t sw_blocks;	/* pointer to list of swap blocks */
+	short sw_flags;		/* flags */
+	short sw_poip;		/* pageouts in progress */
+	short sw_piip;		/* pageins in progress */
 };
-typedef struct swpager	*sw_pager_t;
+typedef struct swpager *sw_pager_t;
 
 #define	SW_WANTED	0x01
 #define SW_NAMED	0x02
 
 #ifdef KERNEL
 
-void		swap_pager_init(void);
-vm_pager_t	swap_pager_alloc(caddr_t, vm_size_t, vm_prot_t, vm_offset_t);
-void		swap_pager_dealloc(vm_pager_t);
-boolean_t	swap_pager_getpage(vm_pager_t, vm_page_t, boolean_t);
-boolean_t	swap_pager_putpage(vm_pager_t, vm_page_t, boolean_t);
-boolean_t	swap_pager_getmulti(vm_pager_t, vm_page_t *, int, int, boolean_t);
-boolean_t	swap_pager_haspage(vm_pager_t, vm_offset_t);
-int		swap_pager_io(sw_pager_t, vm_page_t *, int, int, int);
-void		swap_pager_iodone(struct buf *);
-boolean_t	swap_pager_clean();
-void		swap_pager_copy __P((vm_pager_t, vm_offset_t, vm_pager_t, vm_offset_t, vm_offset_t));
-void		swap_pager_freespace __P((vm_pager_t, vm_offset_t, vm_offset_t));
+void swap_pager_init(void);
+vm_pager_t swap_pager_alloc(caddr_t, vm_size_t, vm_prot_t, vm_offset_t);
+void swap_pager_dealloc(vm_pager_t);
+boolean_t swap_pager_getpage(vm_pager_t, vm_page_t, boolean_t);
+boolean_t swap_pager_putpage(vm_pager_t, vm_page_t, boolean_t);
+boolean_t swap_pager_getmulti(vm_pager_t, vm_page_t *, int, int, boolean_t);
+boolean_t swap_pager_haspage(vm_pager_t, vm_offset_t);
+int swap_pager_io(sw_pager_t, vm_page_t *, int, int, int);
+void swap_pager_iodone(struct buf *);
+boolean_t swap_pager_clean();
+void swap_pager_copy __P((vm_pager_t, vm_offset_t, vm_pager_t, vm_offset_t, vm_offset_t));
+void swap_pager_freespace __P((vm_pager_t, vm_offset_t, vm_offset_t));
 
 extern struct pagerops swappagerops;
 
 #endif
 
-#endif	/* _SWAP_PAGER_ */
+#endif				/* _SWAP_PAGER_ */

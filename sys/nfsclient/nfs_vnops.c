@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.5 (Berkeley) 2/13/94
- * $Id: nfs_vnops.c,v 1.9 1994/10/09 07:35:06 davidg Exp $
+ * $Id: nfs_vnops.c,v 1.10 1994/10/17 17:47:41 phk Exp $
  */
 
 /*
@@ -2356,8 +2356,10 @@ nfs_update(ap)
 	} */ *ap;
 {
 
+#if 0
 	/* Use nfs_setattr */
 	printf("nfs_update: need to implement!!");
+#endif
 	return (EOPNOTSUPP);
 }
 

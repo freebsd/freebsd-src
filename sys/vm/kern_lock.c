@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -40,17 +40,17 @@
  * All rights reserved.
  *
  * Authors: Avadis Tevanian, Jr., Michael Wayne Young
- * 
+ *
  * Permission to use, copy, modify and distribute this software and
  * its documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
- * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS" 
- * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND 
+ *
+ * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
+ * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND
  * FOR ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
  *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id$
+ * $Id: kern_lock.c,v 1.2 1994/08/02 07:55:08 davidg Exp $
  */
 
 /*
@@ -75,7 +75,8 @@
 
 /* XXX */
 #include <sys/proc.h>
-typedef	int *thread_t;
+typedef int *thread_t;
+
 #define	current_thread()	((thread_t)&curproc->p_thread)
 /* XXX */
 
@@ -112,44 +113,49 @@ typedef	int *thread_t;
  *	may only be used for exclusive locks.
  */
 
-void simple_lock_init(l)
-	simple_lock_t	l;
+void 
+simple_lock_init(l)
+	simple_lock_t l;
 {
-	*(boolean_t *)l = FALSE;
+	*(boolean_t *) l = FALSE;
 }
 
-void simple_lock(l)
-	simple_lock_t	l;
+void 
+simple_lock(l)
+	simple_lock_t l;
 {
-	while (test_and_set((boolean_t *)l))
+	while (test_and_set((boolean_t *) l))
 		continue;
 }
 
-void simple_unlock(l)
-	simple_lock_t	l;
+void 
+simple_unlock(l)
+	simple_lock_t l;
 {
-	*(boolean_t *)l = FALSE;
+	*(boolean_t *) l = FALSE;
 }
 
-boolean_t simple_lock_try(l)
-	simple_lock_t	l;
+boolean_t 
+simple_lock_try(l)
+	simple_lock_t l;
 {
-    	return (!test_and_set((boolean_t *)l));
+	return (!test_and_set((boolean_t *) l));
 }
-#endif /* notdef */
-#endif /* NCPUS > 1 */
+#endif				/* notdef */
+#endif				/* NCPUS > 1 */
 
 #if	NCPUS > 1
 int lock_wait_time = 100;
-#else /* NCPUS > 1 */
 
-	/*
-	 * 	It is silly to spin on a uni-processor as if we
-	 *	thought something magical would happen to the
-	 *	want_write bit while we are executing.
-	 */
+#else				/* NCPUS > 1 */
+
+ /*
+  * It is silly to spin on a uni-processor as if we thought something magical
+  * would happen to the want_write bit while we are executing.
+  */
 int lock_wait_time = 0;
-#endif /* NCPUS > 1 */
+
+#endif				/* NCPUS > 1 */
 
 
 /*
@@ -160,9 +166,10 @@ int lock_wait_time = 0;
  *		variables and then initialize them, rather
  *		than getting a new one from this module.
  */
-void lock_init(l, can_sleep)
-	lock_t		l;
-	boolean_t	can_sleep;
+void 
+lock_init(l, can_sleep)
+	lock_t l;
+	boolean_t can_sleep;
 {
 	bzero(l, sizeof(lock_data_t));
 	simple_lock_init(&l->interlock);
@@ -170,13 +177,14 @@ void lock_init(l, can_sleep)
 	l->want_upgrade = FALSE;
 	l->read_count = 0;
 	l->can_sleep = can_sleep;
-	l->thread = (char *)-1;		/* XXX */
+	l->thread = (char *) -1;	/* XXX */
 	l->recursion_depth = 0;
 }
 
-void lock_sleepable(l, can_sleep)
-	lock_t		l;
-	boolean_t	can_sleep;
+void 
+lock_sleepable(l, can_sleep)
+	lock_t l;
+	boolean_t can_sleep;
 {
 	simple_lock(&l->interlock);
 	l->can_sleep = can_sleep;
@@ -190,24 +198,24 @@ void lock_sleepable(l, can_sleep)
  *	for the lock.  These work on uniprocessor systems.
  */
 
-void lock_write(l)
-	register lock_t	l;
+void 
+lock_write(l)
+	register lock_t l;
 {
-	register int	i;
+	register int i;
 
 	simple_lock(&l->interlock);
 
-	if (((thread_t)l->thread) == current_thread()) {
+	if (((thread_t) l->thread) == current_thread()) {
 		/*
-		 *	Recursive lock.
+		 * Recursive lock.
 		 */
 		l->recursion_depth++;
 		simple_unlock(&l->interlock);
 		return;
 	}
-
 	/*
-	 *	Try to acquire the want_write bit.
+	 * Try to acquire the want_write bit.
 	 */
 	while (l->want_write) {
 		if ((i = lock_wait_time) > 0) {
@@ -216,7 +224,6 @@ void lock_write(l)
 				continue;
 			simple_lock(&l->interlock);
 		}
-
 		if (l->can_sleep && l->want_write) {
 			l->waiting = TRUE;
 			thread_sleep((int) l, &l->interlock, FALSE);
@@ -231,11 +238,10 @@ void lock_write(l)
 		if ((i = lock_wait_time) > 0) {
 			simple_unlock(&l->interlock);
 			while (--i > 0 && (l->read_count != 0 ||
-					l->want_upgrade))
+				l->want_upgrade))
 				continue;
 			simple_lock(&l->interlock);
 		}
-
 		if (l->can_sleep && (l->read_count != 0 || l->want_upgrade)) {
 			l->waiting = TRUE;
 			thread_sleep((int) l, &l->interlock, FALSE);
@@ -245,21 +251,20 @@ void lock_write(l)
 	simple_unlock(&l->interlock);
 }
 
-void lock_done(l)
-	register lock_t	l;
+void 
+lock_done(l)
+	register lock_t l;
 {
 	simple_lock(&l->interlock);
 
 	if (l->read_count != 0)
 		l->read_count--;
-	else
-	if (l->recursion_depth != 0)
+	else if (l->recursion_depth != 0)
 		l->recursion_depth--;
+	else if (l->want_upgrade)
+		l->want_upgrade = FALSE;
 	else
-	if (l->want_upgrade)
-	 	l->want_upgrade = FALSE;
-	else
-	 	l->want_write = FALSE;
+		l->want_write = FALSE;
 
 	if (l->waiting) {
 		l->waiting = FALSE;
@@ -268,22 +273,22 @@ void lock_done(l)
 	simple_unlock(&l->interlock);
 }
 
-void lock_read(l)
-	register lock_t	l;
+void 
+lock_read(l)
+	register lock_t l;
 {
-	register int	i;
+	register int i;
 
 	simple_lock(&l->interlock);
 
-	if (((thread_t)l->thread) == current_thread()) {
+	if (((thread_t) l->thread) == current_thread()) {
 		/*
-		 *	Recursive lock.
+		 * Recursive lock.
 		 */
 		l->read_count++;
 		simple_unlock(&l->interlock);
 		return;
 	}
-
 	while (l->want_write || l->want_upgrade) {
 		if ((i = lock_wait_time) > 0) {
 			simple_unlock(&l->interlock);
@@ -291,7 +296,6 @@ void lock_read(l)
 				continue;
 			simple_lock(&l->interlock);
 		}
-
 		if (l->can_sleep && (l->want_write || l->want_upgrade)) {
 			l->waiting = TRUE;
 			thread_sleep((int) l, &l->interlock, FALSE);
@@ -313,39 +317,36 @@ void lock_read(l)
  *
  *		Returns TRUE if the upgrade *failed*.
  */
-boolean_t lock_read_to_write(l)
-	register lock_t	l;
+boolean_t 
+lock_read_to_write(l)
+	register lock_t l;
 {
-	register int	i;
+	register int i;
 
 	simple_lock(&l->interlock);
 
 	l->read_count--;
 
-	if (((thread_t)l->thread) == current_thread()) {
+	if (((thread_t) l->thread) == current_thread()) {
 		/*
-		 *	Recursive lock.
+		 * Recursive lock.
 		 */
 		l->recursion_depth++;
 		simple_unlock(&l->interlock);
-		return(FALSE);
+		return (FALSE);
 	}
-
 	if (l->want_upgrade) {
 		/*
-		 *	Someone else has requested upgrade.
-		 *	Since we've released a read lock, wake
-		 *	him up.
+		 * Someone else has requested upgrade. Since we've released a
+		 * read lock, wake him up.
 		 */
 		if (l->waiting) {
 			l->waiting = FALSE;
 			thread_wakeup((int) l);
 		}
-
 		simple_unlock(&l->interlock);
 		return (TRUE);
 	}
-
 	l->want_upgrade = TRUE;
 
 	while (l->read_count != 0) {
@@ -355,7 +356,6 @@ boolean_t lock_read_to_write(l)
 				continue;
 			simple_lock(&l->interlock);
 		}
-
 		if (l->can_sleep && l->read_count != 0) {
 			l->waiting = TRUE;
 			thread_sleep((int) l, &l->interlock, FALSE);
@@ -367,25 +367,24 @@ boolean_t lock_read_to_write(l)
 	return (FALSE);
 }
 
-void lock_write_to_read(l)
-	register lock_t	l;
+void 
+lock_write_to_read(l)
+	register lock_t l;
 {
 	simple_lock(&l->interlock);
 
 	l->read_count++;
 	if (l->recursion_depth != 0)
 		l->recursion_depth--;
-	else
-	if (l->want_upgrade)
+	else if (l->want_upgrade)
 		l->want_upgrade = FALSE;
 	else
-	 	l->want_write = FALSE;
+		l->want_write = FALSE;
 
 	if (l->waiting) {
 		l->waiting = FALSE;
 		thread_wakeup((int) l);
 	}
-
 	simple_unlock(&l->interlock);
 }
 
@@ -398,36 +397,35 @@ void lock_write_to_read(l)
  *		Returns FALSE if the lock is not held on return.
  */
 
-boolean_t lock_try_write(l)
-	register lock_t	l;
+boolean_t 
+lock_try_write(l)
+	register lock_t l;
 {
 
 	simple_lock(&l->interlock);
 
-	if (((thread_t)l->thread) == current_thread()) {
+	if (((thread_t) l->thread) == current_thread()) {
 		/*
-		 *	Recursive lock
+		 * Recursive lock
 		 */
 		l->recursion_depth++;
 		simple_unlock(&l->interlock);
-		return(TRUE);
+		return (TRUE);
 	}
-
 	if (l->want_write || l->want_upgrade || l->read_count) {
 		/*
-		 *	Can't get lock.
+		 * Can't get lock.
 		 */
 		simple_unlock(&l->interlock);
-		return(FALSE);
+		return (FALSE);
 	}
-
 	/*
-	 *	Have lock.
+	 * Have lock.
 	 */
 
 	l->want_write = TRUE;
 	simple_unlock(&l->interlock);
-	return(TRUE);
+	return (TRUE);
 }
 
 /*
@@ -438,28 +436,27 @@ boolean_t lock_try_write(l)
  *		Returns FALSE if the lock is not held on return.
  */
 
-boolean_t lock_try_read(l)
-	register lock_t	l;
+boolean_t 
+lock_try_read(l)
+	register lock_t l;
 {
 	simple_lock(&l->interlock);
 
-	if (((thread_t)l->thread) == current_thread()) {
+	if (((thread_t) l->thread) == current_thread()) {
 		/*
-		 *	Recursive lock
+		 * Recursive lock
 		 */
 		l->read_count++;
 		simple_unlock(&l->interlock);
-		return(TRUE);
+		return (TRUE);
 	}
-
 	if (l->want_write || l->want_upgrade) {
 		simple_unlock(&l->interlock);
-		return(FALSE);
+		return (FALSE);
 	}
-
 	l->read_count++;
 	simple_unlock(&l->interlock);
-	return(TRUE);
+	return (TRUE);
 }
 
 /*
@@ -472,25 +469,25 @@ boolean_t lock_try_read(l)
  *
  *		Returns FALSE if the upgrade *failed*.
  */
-boolean_t lock_try_read_to_write(l)
-	register lock_t	l;
+boolean_t 
+lock_try_read_to_write(l)
+	register lock_t l;
 {
 
 	simple_lock(&l->interlock);
 
-	if (((thread_t)l->thread) == current_thread()) {
+	if (((thread_t) l->thread) == current_thread()) {
 		/*
-		 *	Recursive lock
+		 * Recursive lock
 		 */
 		l->read_count--;
 		l->recursion_depth++;
 		simple_unlock(&l->interlock);
-		return(TRUE);
+		return (TRUE);
 	}
-
 	if (l->want_upgrade) {
 		simple_unlock(&l->interlock);
-		return(FALSE);
+		return (FALSE);
 	}
 	l->want_upgrade = TRUE;
 	l->read_count--;
@@ -502,15 +499,16 @@ boolean_t lock_try_read_to_write(l)
 	}
 
 	simple_unlock(&l->interlock);
-	return(TRUE);
+	return (TRUE);
 }
 
 /*
  *	Allow a process that has a lock for write to acquire it
  *	recursively (for read, write, or update).
  */
-void lock_set_recursive(l)
-	lock_t		l;
+void 
+lock_set_recursive(l)
+	lock_t l;
 {
 	simple_lock(&l->interlock);
 	if (!l->want_write) {
@@ -523,14 +521,15 @@ void lock_set_recursive(l)
 /*
  *	Prevent a lock from being re-acquired.
  */
-void lock_clear_recursive(l)
-	lock_t		l;
+void 
+lock_clear_recursive(l)
+	lock_t l;
 {
 	simple_lock(&l->interlock);
 	if (((thread_t) l->thread) != current_thread()) {
 		panic("lock_clear_recursive: wrong thread");
 	}
 	if (l->recursion_depth == 0)
-		l->thread = (char *)-1;		/* XXX */
+		l->thread = (char *) -1;	/* XXX */
 	simple_unlock(&l->interlock);
 }

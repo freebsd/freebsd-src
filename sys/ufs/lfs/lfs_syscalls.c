@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_syscalls.c	8.5 (Berkeley) 4/20/94
- * $Id: lfs_syscalls.c,v 1.4 1994/11/17 01:30:52 gibbs Exp $
+ * $Id: lfs_syscalls.c,v 1.5 1995/01/04 23:46:33 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -238,10 +238,6 @@ err2:	lfs_vunref(vp);
 	/* Free up fakebuffers */
 	for (bpp = --sp->cbpp; bpp >= sp->bpp; --bpp)
 		if ((*bpp)->b_flags & B_CALL) {
-			brelvp(*bpp);
-/*
-			free(*bpp, M_SEGMENT);
-*/
 			relpbuf(*bpp);
 		} else
 			brelse(*bpp);

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_subr.c	8.2 (Berkeley) 9/21/93
- * $Id: lfs_subr.c,v 1.4 1994/11/17 01:30:51 gibbs Exp $
+ * $Id: lfs_subr.c,v 1.5 1995/01/04 23:46:32 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -147,11 +147,8 @@ lfs_segunlock(fs)
 		if (sp->bpp != sp->cbpp) {
 			/* Free allocated segment summary */
 			fs->lfs_offset -= LFS_SUMMARY_SIZE / DEV_BSIZE;
-/*			free((*sp->bpp)->b_data, M_SEGMENT); */
-			lfs_free_buffer((*sp->bpp)->b_data, roundup( (*sp->bpp)->b_bufsize, DEV_BSIZE));
-	/*		free(*sp->bpp, M_SEGMENT); */
+			lfs_free_buffer((*sp->bpp)->b_data, roundup((*sp->bpp)->b_bufsize, DEV_BSIZE));
 			relpbuf(*sp->bpp);
-			
 		} else
 			printf ("unlock to 0 with no summary");
 		free(sp->bpp, M_SEGMENT);

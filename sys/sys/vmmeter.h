@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vmmeter.h	8.1 (Berkeley) 6/2/93
- * $Id: vmmeter.h,v 1.5 1994/10/15 13:33:02 davidg Exp $
+ * $Id: vmmeter.h,v 1.6 1994/10/18 14:59:13 davidg Exp $
  */
 
 #ifndef _SYS_VMMETER_H_
@@ -87,6 +87,10 @@ struct vmmeter {
 	unsigned v_active_count;/* number of pages active */
 	unsigned v_inactive_target; /* number of pages desired inactive */
 	unsigned v_inactive_count;  /* number of pages inactive */
+	unsigned v_cache_count;		/* number of pages on buffer cache queue */
+	unsigned v_cache_min;		/* min number of pages desired on cache queue */
+	unsigned v_cache_max;		/* max number of pages in cached obj */
+	unsigned v_pageout_free_min;	/* min number pages reserved for kernel */
 };
 #ifdef KERNEL
 struct	vmmeter cnt;

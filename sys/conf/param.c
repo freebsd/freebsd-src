@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.c	8.2 (Berkeley) 1/21/94
- * $Id: param.c,v 1.3 1994/08/02 07:38:30 davidg Exp $
+ * $Id: param.c,v 1.4 1994/09/13 14:46:24 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -81,14 +81,9 @@ int	tick = 1000000 / HZ;
 int	tickadj = 30000 / (60 * HZ);		/* can adjust 30ms in 60s */
 struct	timezone tz = { TIMEZONE, DST };
 #define	NPROC (20 + 16 * MAXUSERS)
-int	maxproc = NPROC;
-#define NTEXT NPROC
-int	vm_cache_max = NTEXT/2 + 16;
-#define	NVNODE (NPROC + NTEXT + 100)
-int	desiredvnodes = NVNODE;
-int	maxfiles = 3 * (NPROC + MAXUSERS) + 80;
-int	ncallout = 16 + NPROC;
-int	nclist = 60 + 12 * MAXUSERS;
+int	maxproc = NPROC;			/* maximum # of processes */
+int	maxfiles = 256;				/* open files per process limit */
+int	ncallout = 16 + NPROC;			/* maximum # of timer events */
 int	nmbclusters = NMBCLUSTERS;
 int	fscale = FSCALE;	/* kernel uses `FSCALE', user uses `fscale' */
 

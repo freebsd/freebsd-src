@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.10 1994/12/12 12:35:50 bde Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.11 1994/12/27 12:37:36 bde Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -704,7 +704,6 @@ msdosfs_write(ap)
 			dep->de_FileSize = uio->uio_offset + n;
 			vnode_pager_setsize(vp, dep->de_FileSize);	/* why? */
 		}
-		(void) vnode_pager_uncache(vp);	/* why not? */
 		/*
 		 * Should these vnode_pager_* functions be done on dir
 		 * files?
@@ -725,7 +724,6 @@ msdosfs_write(ap)
 		if (ioflag & IO_SYNC)
 			(void) bwrite(bp);
 		else if (n + croffset == pmp->pm_bpcluster) {
-			bp->b_flags |= B_AGE;
 			bawrite(bp);
 		} else
 			bdwrite(bp);
