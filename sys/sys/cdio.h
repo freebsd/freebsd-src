@@ -1,7 +1,7 @@
 /*
  * 16 Feb 93	Julian Elischer	(julian@dialix.oz.au)
  *
- *	$Id: cdio.h,v 1.3 1993/10/16 17:16:25 rgrimes Exp $
+ *	$Id: cdio.h,v 1.4 1993/11/07 17:52:24 wollman Exp $
  */
 /* Shared between kernel & process */
 #ifndef _SYS_CDIO_H_
@@ -142,6 +142,8 @@ struct	ioc_vol
 #define	CDIOCSTART	_IO('c',22)
 #define	CDIOCSTOP	_IO('c',23)
 #define	CDIOCEJECT	_IO('c',24)
+#define	CDIOCALLOW	_IO('c',25)
+#define	CDIOCPREVENT	_IO('c',26)
 
 struct ioc_play_msf
 {
