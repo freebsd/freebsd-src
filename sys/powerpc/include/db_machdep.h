@@ -1,26 +1,26 @@
-/* 
+/*
  * Mach Operating System
  * Copyright (c) 1992 Carnegie Mellon University
  * All Rights Reserved.
- * 
+ *
  * Permission to use, copy, modify and distribute this software and its
  * documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
+ *
  * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
  * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND FOR
  * ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
- * 
+ *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
  *  School of Computer Science
  *  Carnegie Mellon University
  *  Pittsburgh PA 15213-3890
- * 
- * any improvements or extensions that they make and grant Carnegie Mellon 
+ *
+ * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  *
  *	$OpenBSD: db_machdep.h,v 1.2 1997/03/21 00:48:48 niklas Exp $
@@ -34,8 +34,6 @@
 #ifndef _POWERPC_DB_MACHDEP_H_
 #define	_POWERPC_DB_MACHDEP_H_
 
-#define	PPC_MPC6XX
-
 #include <vm/vm_param.h>
 
 #define	DB_ELF_SYMBOLS
@@ -43,34 +41,22 @@
 
 typedef	vm_offset_t	db_addr_t;	/* address - unsigned */
 typedef	int		db_expr_t;	/* expression - signed */
-struct powerpc_saved_state {
-	u_int32_t	r[32];		/* data registers */
-	u_int32_t	iar;
-	u_int32_t	msr;
-	u_int32_t	lr;
-	u_int32_t	ctr;
-	u_int32_t	cr;
-	u_int32_t	xer;
-	u_int32_t	dear;
-	u_int32_t	esr;
-	u_int32_t	pid;
-};
-typedef struct powerpc_saved_state db_regs_t;
-extern db_regs_t	ddb_regs;	/* register state */
-#define	DDB_REGS	(&ddb_regs)
 
-#define	PC_REGS(regs)	((db_addr_t)(regs)->iar)
+#define	PC_REGS(regs)	((db_addr_t)kdb_thrctx->pcb_lr)
 
 #define	BKPT_INST	0x7C810808	/* breakpoint instruction */
 
 #define	BKPT_SIZE	(4)		/* size of breakpoint inst */
 #define	BKPT_SET(inst)	(BKPT_INST)
 
-#define	FIXUP_PC_AFTER_BREAK	(DDB_REGS)->iar -= 4;
+#define db_clear_single_step	kdb_cpu_clear_singlestep
+#define db_set_single_step	kdb_cpu_set_singlestep
 
+#if 0
 #define	SR_SINGLESTEP	0x400
 #define	db_clear_single_step(regs)	((regs)->msr &= ~SR_SINGLESTEP)
 #define	db_set_single_step(regs)	((regs)->msr |=  SR_SINGLESTEP)
+#endif
 
 #define	T_BREAKPOINT	0xffff
 #define	IS_BREAKPOINT_TRAP(type, code)	((type) == T_BREAKPOINT)
@@ -100,12 +86,5 @@ extern db_regs_t	ddb_regs;	/* register state */
 
 #define	DB_SMALL_VALUE_MAX	(0x7fffffff)
 #define	DB_SMALL_VALUE_MIN	(-0x40001)
-
-#ifdef _KERNEL
-
-void	kdb_kintr(void *);
-int	kdb_trap(int, void *);
-
-#endif /* _KERNEL */
 
 #endif	/* _POWERPC_DB_MACHDEP_H_ */
