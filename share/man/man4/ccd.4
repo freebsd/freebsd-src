@@ -56,7 +56,7 @@ partitions of the disks
 .Pa should not
 be combined.  Each component partition should be offset at least one
 cylinder from the beginning of the component disk.  This avoids potential
-conflicts between the compoent disk's disklabel and the
+conflicts between the component disk's disklabel and the
 .Nm ccd's
 disklabel.  The kernel will only allow component partitions of type FS_BSDFFS.
 .Pp
@@ -85,8 +85,8 @@ other than DEV_BSIZE in order to calculate the correct interleave.
 The kernel will not allow an interleave factor less than the size
 of the largest component sector divided by DEV_BSIZE.
 .Pp
-Note that best performance is achieved if all compent disks have the same
-geometery and size.  Optimum striping cannot occur with different
+Note that best performance is achieved if all component disks have the same
+geometry and size.  Optimum striping cannot occur with different
 disk types.
 .Pp
 There is a run-time utility that is used for configuring
