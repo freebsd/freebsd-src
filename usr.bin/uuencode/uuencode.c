@@ -32,13 +32,17 @@
  */
 
 #ifndef lint
-char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1983, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)uuencode.c	8.2 (Berkeley) 4/2/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -49,18 +53,21 @@ static char sccsid[] = "@(#)uuencode.c	8.2 (Berkeley) 4/2/94";
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include <err.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+void encode __P((void));
+static void usage __P((void));
 
 int
 main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	extern int optind;
-	extern int errno;
 	struct stat sb;
 	int mode;
-	char *strerror();
 
 	while (getopt(argc, argv, "") != EOF)
 		usage();
@@ -69,11 +76,8 @@ main(argc, argv)
 
 	switch(argc) {
 	case 2:			/* optional first argument is input file */
-		if (!freopen(*argv, "r", stdin) || fstat(fileno(stdin), &sb)) {
-			(void)fprintf(stderr, "uuencode: %s: %s.\n",
-			    *argv, strerror(errno));
-			exit(1);
-		}
+		if (!freopen(*argv, "r", stdin) || fstat(fileno(stdin), &sb))
+			err(1, "%s", *argv);
 #define	RWX	(S_IRWXU|S_IRWXG|S_IRWXO)
 		mode = sb.st_mode & RWX;
 		++argv;
@@ -90,10 +94,8 @@ main(argc, argv)
 	(void)printf("begin %o %s\n", mode, *argv);
 	encode();
 	(void)printf("end\n");
-	if (ferror(stdout)) {
-		(void)fprintf(stderr, "uuencode: write error.\n");
-		exit(1);
-	}
+	if (ferror(stdout))
+		errx(1, "write error");
 	exit(0);
 }
 
@@ -103,13 +105,14 @@ main(argc, argv)
 /*
  * copy from in to out, encoding as you go along.
  */
+void
 encode()
 {
 	register int ch, n;
 	register char *p;
 	char buf[80];
 
-	while (n = fread(buf, 1, 45, stdin)) {
+	while ((n = fread(buf, 1, 45, stdin))) {
 		ch = ENC(n);
 		if (putchar(ch) == EOF)
 			break;
@@ -134,15 +137,14 @@ encode()
 		if (putchar('\n') == EOF)
 			break;
 	}
-	if (ferror(stdin)) {
-		(void)fprintf(stderr, "uuencode: read error.\n");
-		exit(1);
-	}
+	if (ferror(stdin))
+		errx(1, "read error");
 	ch = ENC('\0');
 	(void)putchar(ch);
 	(void)putchar('\n');
 }
 
+static void
 usage()
 {
 	(void)fprintf(stderr,"usage: uuencode [infile] remotefile\n");
