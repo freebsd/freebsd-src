@@ -49,6 +49,6 @@ struct member_entry {
 #define TABLESIZE 1024
 #define HASH_MASK 0x000003FF
 
-extern void mstore __P(( struct member_entry ** , char *, int, int ));
-extern struct grouplist *lookup __P(( struct member_entry **, char * ));
+extern void mstore(struct member_entry ** , char *, int, int);
+extern struct grouplist *lookup(struct member_entry **, char *);
 
