@@ -1,5 +1,6 @@
 /* tc-arc.h - Macros and type defines for the ARC.
-   Copyright 1994, 1995, 1997, 2000, 2001 Free Software Foundation, Inc.
+   Copyright 1994, 1995, 1997, 2000, 2001, 2002
+   Free Software Foundation, Inc.
    Contributed by Doug Evans (dje@cygnus.com).
 
    This file is part of GAS, the GNU Assembler.
@@ -64,3 +65,10 @@ extern void arc_cons_fix_new PARAMS ((struct frag *, int, int, struct expression
 arc_cons_fix_new (FRAG, WHERE, NBYTES, EXP)
 
 #define DWARF2_LINE_MIN_INSN_LENGTH 4
+
+/* Values passed to md_apply_fix3 don't include the symbol value.  */
+#define MD_APPLY_SYM_VALUE(FIX) 0
+
+/* No shared lib support, so we don't need to ensure externally
+   visible symbols can be overridden.  */
+#define EXTERN_FORCE_RELOC 0

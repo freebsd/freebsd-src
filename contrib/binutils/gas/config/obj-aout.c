@@ -1,6 +1,6 @@
 /* a.out object file format
-   Copyright 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1999, 2000, 2001
-   Free Software Foundation, Inc.
+   Copyright 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1999, 2000,
+   2001, 2002 Free Software Foundation, Inc.
 
 This file is part of GAS, the GNU Assembler.
 
@@ -200,13 +200,13 @@ obj_aout_frob_symbol (sym, punt)
 }
 
 void
-obj_aout_frob_file ()
+obj_aout_frob_file_before_fix ()
 {
   /* Relocation processing may require knowing the VMAs of the sections.
      Since writing to a section will cause the BFD back end to compute the
      VMAs, fake it out here....  */
   bfd_byte b = 0;
-  boolean x = true;
+  bfd_boolean x = TRUE;
   if (bfd_section_size (stdoutput, text_section) != 0)
     {
       x = bfd_set_section_contents (stdoutput, text_section, &b, (file_ptr) 0,
@@ -217,7 +217,7 @@ obj_aout_frob_file ()
       x = bfd_set_section_contents (stdoutput, data_section, &b, (file_ptr) 0,
 				    (bfd_size_type) 1);
     }
-  assert (x == true);
+  assert (x);
 }
 
 #else /* ! BFD_ASSEMBLER */
@@ -464,14 +464,18 @@ obj_crawl_symbol_chain (headers)
       if (flag_readonly_data_in_text && (S_GET_SEGMENT (symbolP) == SEG_DATA))
 	{
 	  S_SET_SEGMENT (symbolP, SEG_TEXT);
-	}			/* if pusing data into text */
+	}			/* if pushing data into text */
 
       resolve_symbol_value (symbolP);
 
       /* Skip symbols which were equated to undefined or common
-	 symbols.  */
+	 symbols.  Also skip defined uncommon symbols which can
+	 be resolved since in this case they should have been
+	 resolved to a non-symbolic constant.  */
       if (symbolP->sy_value.X_op == O_symbol
-	  && (! S_IS_DEFINED (symbolP) || S_IS_COMMON (symbolP)))
+	  && (! S_IS_DEFINED (symbolP)
+	      || S_IS_COMMON (symbolP)
+	      || symbol_resolved_p (symbolP)))
 	{
 	  *symbolPP = symbol_next (symbolP);
 	  continue;
@@ -570,62 +574,6 @@ obj_pre_write_hook (headers)
   H_SET_VERSION (headers, AOUT_VERSION);
   H_SET_MACHTYPE (headers, AOUT_MACHTYPE);
   tc_aout_pre_write_hook (headers);
-}
-
-void
-s_sect ()
-{
-  /* Strip out the section name */
-  char *section_name;
-  char *section_name_end;
-  char c;
-
-  unsigned int len;
-  unsigned int exp;
-  char *save;
-
-  section_name = input_line_pointer;
-  c = get_symbol_end ();
-  section_name_end = input_line_pointer;
-
-  len = section_name_end - section_name;
-  input_line_pointer++;
-  save = input_line_pointer;
-
-  SKIP_WHITESPACE ();
-  if (c == ',')
-    {
-      exp = get_absolute_expression ();
-    }
-  else if (*input_line_pointer == ',')
-    {
-      input_line_pointer++;
-      exp = get_absolute_expression ();
-    }
-  else
-    {
-      input_line_pointer = save;
-      exp = 0;
-    }
-  if (exp >= 1000)
-    {
-      as_bad (_("subsegment index too high"));
-    }
-
-  if (strcmp (section_name, ".text") == 0)
-    {
-      subseg_set (SEG_TEXT, (subsegT) exp);
-    }
-
-  if (strcmp (section_name, ".data") == 0)
-    {
-      if (flag_readonly_data_in_text)
-	subseg_set (SEG_TEXT, (subsegT) exp + 1000);
-      else
-	subseg_set (SEG_DATA, (subsegT) exp);
-    }
-
-  *section_name_end = c;
 }
 
 #endif /* ! BFD_ASSEMBLER */
@@ -731,8 +679,9 @@ const struct format_ops aout_format_ops =
   0,	/* begin */
   0,	/* app_file */
   obj_aout_frob_symbol,
-  obj_aout_frob_file,
+  0,	/* frob_file */
   0,	/* frob_file_before_adjust */
+  obj_aout_frob_file_before_fix,
   0,	/* frob_file_after_relocs */
   0,	/* s_get_size */
   0,	/* s_set_size */

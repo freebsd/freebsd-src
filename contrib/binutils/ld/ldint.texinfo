@@ -1,6 +1,6 @@
 \input texinfo
 @setfilename ldint.info
-@c Copyright 1992, 1994, 1995, 1996, 1997, 1998, 1999, 2000
+@c Copyright 1992, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2003
 @c Free Software Foundation, Inc.
 
 @ifinfo
@@ -334,7 +334,7 @@ be run when doing a final relocation, they should be enclosed within a
 variable substitution based on @code{RELOCATING}.  For example, on many
 targets special symbols such as @code{_end} should be defined when doing
 a final link.  Naturally, those symbols should not be defined when doing
-a relocateable link using @code{-r}.  The @file{scripttempl} script
+a relocatable link using @code{-r}.  The @file{scripttempl} script
 could use a construct like this to define those symbols:
 @smallexample
   $@{RELOCATING+ _end = .;@}

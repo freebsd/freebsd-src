@@ -1,5 +1,5 @@
 /* ehopt.c--optimize gcc exception frame information.
-   Copyright 1998, 2000, 2001 Free Software Foundation, Inc.
+   Copyright 1998, 2000, 2001, 2003 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>.
 
 This file is part of GAS, the GNU Assembler.
@@ -94,13 +94,12 @@ struct cie_info
   int z_augmentation;
 };
 
-static int get_cie_info PARAMS ((struct cie_info *));
+static int get_cie_info (struct cie_info *);
 
 /* Extract information from the CIE.  */
 
 static int
-get_cie_info (info)
-     struct cie_info *info;
+get_cie_info (struct cie_info *info)
 {
   fragS *f;
   fixS *fix;
@@ -248,9 +247,7 @@ get_cie_info (info)
    change *EXP and *PNBYTES.  */
 
 int
-check_eh_frame (exp, pnbytes)
-     expressionS *exp;
-     unsigned int *pnbytes;
+check_eh_frame (expressionS *exp, unsigned int *pnbytes)
 {
   struct frame_data
   {
@@ -363,6 +360,8 @@ check_eh_frame (exp, pnbytes)
 	}
       else
 	d->state = state_error;
+      if (d->state == state_skipping_aug && d->aug_size == 0)
+	d->state = state_wait_loc4;
       break;
 
     case state_skipping_aug:
@@ -455,8 +454,7 @@ check_eh_frame (exp, pnbytes)
    relaxation loop.  We set fr_subtype{0:2} to the expected length.  */
 
 int
-eh_frame_estimate_size_before_relax (frag)
-     fragS *frag;
+eh_frame_estimate_size_before_relax (fragS *frag)
 {
   offsetT diff;
   int ca = frag->fr_subtype >> 3;
@@ -483,8 +481,7 @@ eh_frame_estimate_size_before_relax (frag)
    the frag.  This returns the change in frag length.  */
 
 int
-eh_frame_relax_frag (frag)
-     fragS *frag;
+eh_frame_relax_frag (fragS *frag)
 {
   int oldsize, newsize;
 
@@ -498,8 +495,7 @@ eh_frame_relax_frag (frag)
    fr_subtype{0:2} will be the desired length of the frag.  */
 
 void
-eh_frame_convert_frag (frag)
-     fragS *frag;
+eh_frame_convert_frag (fragS *frag)
 {
   offsetT diff;
   fragS *loc4_frag;

@@ -1,5 +1,5 @@
 /* alpha.h -- Header file for Alpha opcode table
-   Copyright 1996, 1999 Free Software Foundation, Inc.
+   Copyright 1996, 1999, 2001, 2003 Free Software Foundation, Inc.
    Contributed by Richard Henderson <rth@tamu.edu>,
    patterned after the PPC opcode table written by Ian Lance Taylor.
 
@@ -108,8 +108,7 @@ struct alpha_operand
      string (the operand will be inserted in any case).  If the
      operand value is legal, *ERRMSG will be unchanged (most operands
      can accept any value).  */
-  unsigned (*insert) PARAMS ((unsigned instruction, int op,
-			      const char **errmsg));
+  unsigned (*insert) (unsigned instruction, int op, const char **errmsg);
 
   /* Extraction function.  This is used by the disassembler.  To
      extract this operand type from an instruction, check this field.
@@ -128,7 +127,7 @@ struct alpha_operand
      non-zero if this operand type can not actually be extracted from
      this operand (i.e., the instruction does not match).  If the
      operand is valid, *INVALID will not be changed.  */
-  int (*extract) PARAMS ((unsigned instruction, int *invalid));
+  int (*extract) (unsigned instruction, int *invalid);
 };
 
 /* Elements in the table are retrieved by indexing with values from

@@ -10,8 +10,11 @@ to the rest of the data.
 
 @example
 
-struct _bfd
+struct bfd
 @{
+  /* A unique identifier of the BFD  */
+  unsigned int id;
+
   /* The filename the application opened the BFD with.  */
   const char *filename;
 
@@ -25,33 +28,33 @@ struct _bfd
      is the result of an fopen on the filename.  However, if the
      BFD_IN_MEMORY flag is set, then iostream is actually a pointer
      to a bfd_in_memory struct.  */
-  PTR iostream;
+  void *iostream;
 
   /* Is the file descriptor being cached?  That is, can it be closed as
      needed, and re-opened when accessed later?  */
-  boolean cacheable;
+  bfd_boolean cacheable;
 
   /* Marks whether there was a default target specified when the
      BFD was opened. This is used to select which matching algorithm
      to use to choose the back end.  */
-  boolean target_defaulted;
+  bfd_boolean target_defaulted;
 
   /* The caching routines use these to maintain a
      least-recently-used list of BFDs.  */
-  struct _bfd *lru_prev, *lru_next;
+  struct bfd *lru_prev, *lru_next;
 
   /* When a file is closed by the caching routines, BFD retains
      state information on the file here...  */
   ufile_ptr where;
 
   /* ... and here: (``once'' means at least once).  */
-  boolean opened_once;
+  bfd_boolean opened_once;
 
   /* Set if we have a locally maintained mtime value, rather than
      getting it from the file each time.  */
-  boolean mtime_set;
+  bfd_boolean mtime_set;
 
-  /* File modified time, if mtime_set is true.  */
+  /* File modified time, if mtime_set is TRUE.  */
   long mtime;
 
   /* Reserved for an unimplemented file locking extension.  */
@@ -80,16 +83,16 @@ struct _bfd
 
   /* Remember when output has begun, to stop strange things
      from happening.  */
-  boolean output_has_begun;
+  bfd_boolean output_has_begun;
 
   /* A hash table for section names.  */
   struct bfd_hash_table section_htab;
 
   /* Pointer to linked list of sections.  */
-  struct sec *sections;
+  struct bfd_section *sections;
 
   /* The place where we add to the section list.  */
-  struct sec **section_tail;
+  struct bfd_section **section_tail;
 
   /* The number of sections.  */
   unsigned int section_count;
@@ -102,7 +105,7 @@ struct _bfd
   unsigned int symcount;
 
   /* Symbol table for output BFD (with symcount entries).  */
-  struct symbol_cache_entry  **outsymbols;
+  struct bfd_symbol  **outsymbols;
 
   /* Used for slurped dynamic symbol tables.  */
   unsigned int dynsymcount;
@@ -111,14 +114,14 @@ struct _bfd
   const struct bfd_arch_info *arch_info;
 
   /* Stuff only useful for archives.  */
-  PTR arelt_data;
-  struct _bfd *my_archive;     /* The containing archive BFD.  */
-  struct _bfd *next;           /* The next BFD in the archive.  */
-  struct _bfd *archive_head;   /* The first BFD in the archive.  */
-  boolean has_armap;
+  void *arelt_data;
+  struct bfd *my_archive;      /* The containing archive BFD.  */
+  struct bfd *next;            /* The next BFD in the archive.  */
+  struct bfd *archive_head;    /* The first BFD in the archive.  */
+  bfd_boolean has_armap;
 
   /* A chain of BFD structures involved in a link.  */
-  struct _bfd *link_next;
+  struct bfd *link_next;
 
   /* A field used by _bfd_generic_link_add_archive_symbols.  This will
      be used only for archive elements.  */
@@ -156,17 +159,22 @@ struct _bfd
       struct cisco_core_struct *cisco_core_data;
       struct versados_data_struct *versados_data;
       struct netbsd_core_struct *netbsd_core_data;
-      PTR any;
+      struct mach_o_data_struct *mach_o_data;
+      struct mach_o_fat_data_struct *mach_o_fat_data;
+      struct bfd_pef_data_struct *pef_data;
+      struct bfd_pef_xlib_data_struct *pef_xlib_data;
+      struct bfd_sym_data_struct *sym_data;
+      void *any;
     @}
   tdata;
 
   /* Used by the application to hold private data.  */
-  PTR usrdata;
+  void *usrdata;
 
   /* Where all the allocated stuff under this BFD goes.  This is a
-     struct objalloc *, but we use PTR to avoid requiring the inclusion of
-     objalloc.h.  */
-  PTR memory;
+     struct objalloc *, but we use void * to avoid requiring the inclusion
+     of objalloc.h.  */
+  void *memory;
 @};
 
 @end example
@@ -258,14 +266,14 @@ by @var{message}, a colon, and a space.  It is followed by a newline.
 @subsection BFD error handler
 Some BFD functions want to print messages describing the
 problem.  They call a BFD error handler function.  This
-function may be overriden by the program.
+function may be overridden by the program.
 
 The BFD error handler acts like printf.
 
 
 @example
 
-typedef void (*bfd_error_handler_type) PARAMS ((const char *, ...));
+typedef void (*bfd_error_handler_type) (const char *, ...);
 
 @end example
 @findex bfd_set_error_handler
@@ -317,7 +325,7 @@ returns the file name.
 @subsubsection @code{bfd_get_reloc_upper_bound}
 @strong{Synopsis}
 @example
-long bfd_get_reloc_upper_bound(bfd *abfd, asection *sect);
+long bfd_get_reloc_upper_bound (bfd *abfd, asection *sect);
 @end example
 @strong{Description}@*
 Return the number of bytes required to store the
@@ -329,10 +337,7 @@ attached to bfd @var{abfd}.  If an error occurs, return -1.
 @strong{Synopsis}
 @example
 long bfd_canonicalize_reloc
-   (bfd *abfd,
-    asection *sec,
-    arelent **loc,
-    asymbol **syms);
+   (bfd *abfd, asection *sec, arelent **loc, asymbol **syms);
 @end example
 @strong{Description}@*
 Call the back end associated with the open BFD
@@ -362,7 +367,7 @@ The argument @var{abfd} is ignored.
 @subsubsection @code{bfd_set_file_flags}
 @strong{Synopsis}
 @example
-boolean bfd_set_file_flags(bfd *abfd, flagword flags);
+bfd_boolean bfd_set_file_flags (bfd *abfd, flagword flags);
 @end example
 @strong{Description}@*
 Set the flag word in the BFD @var{abfd} to the value @var{flags}.
@@ -418,60 +423,19 @@ not sign extend addresses, and @code{-1} otherwise.
 @subsubsection @code{bfd_set_start_address}
 @strong{Synopsis}
 @example
-boolean bfd_set_start_address(bfd *abfd, bfd_vma vma);
+bfd_boolean bfd_set_start_address (bfd *abfd, bfd_vma vma);
 @end example
 @strong{Description}@*
 Make @var{vma} the entry point of output BFD @var{abfd}.
 
 @strong{Returns}@*
-Returns @code{true} on success, @code{false} otherwise.
-
-@findex bfd_get_mtime
-@subsubsection @code{bfd_get_mtime}
-@strong{Synopsis}
-@example
-long bfd_get_mtime(bfd *abfd);
-@end example
-@strong{Description}@*
-Return the file modification time (as read from the file system, or
-from the archive header for archive members).
-
-@findex bfd_get_size
-@subsubsection @code{bfd_get_size}
-@strong{Synopsis}
-@example
-long bfd_get_size(bfd *abfd);
-@end example
-@strong{Description}@*
-Return the file size (as read from file system) for the file
-associated with BFD @var{abfd}.
-
-The initial motivation for, and use of, this routine is not
-so we can get the exact size of the object the BFD applies to, since
-that might not be generally possible (archive members for example).
-It would be ideal if someone could eventually modify
-it so that such results were guaranteed.
-
-Instead, we want to ask questions like "is this NNN byte sized
-object I'm about to try read from file offset YYY reasonable?"
-As as example of where we might do this, some object formats
-use string tables for which the first @code{sizeof (long)} bytes of the
-table contain the size of the table itself, including the size bytes.
-If an application tries to read what it thinks is one of these
-string tables, without some way to validate the size, and for
-some reason the size is wrong (byte swapping error, wrong location
-for the string table, etc.), the only clue is likely to be a read
-error when it tries to read the table, or a "virtual memory
-exhausted" error when it tries to allocate 15 bazillon bytes
-of space for the 15 bazillon byte table it is about to read.
-This function at least allows us to answer the quesion, "is the
-size reasonable?".
+Returns @code{TRUE} on success, @code{FALSE} otherwise.
 
 @findex bfd_get_gp_size
 @subsubsection @code{bfd_get_gp_size}
 @strong{Synopsis}
 @example
-unsigned int bfd_get_gp_size(bfd *abfd);
+unsigned int bfd_get_gp_size (bfd *abfd);
 @end example
 @strong{Description}@*
 Return the maximum size of objects to be optimized using the GP
@@ -482,7 +446,7 @@ argument to the compiler, assembler or linker.
 @subsubsection @code{bfd_set_gp_size}
 @strong{Synopsis}
 @example
-void bfd_set_gp_size(bfd *abfd, unsigned int i);
+void bfd_set_gp_size (bfd *abfd, unsigned int i);
 @end example
 @strong{Description}@*
 Set the maximum size of objects to be optimized using the GP
@@ -493,7 +457,7 @@ the @code{-G} argument to the compiler, assembler or linker.
 @subsubsection @code{bfd_scan_vma}
 @strong{Synopsis}
 @example
-bfd_vma bfd_scan_vma(const char *string, const char **end, int base);
+bfd_vma bfd_scan_vma (const char *string, const char **end, int base);
 @end example
 @strong{Description}@*
 Convert, like @code{strtoul}, a numerical expression
@@ -512,11 +476,11 @@ returned.
 @subsubsection @code{bfd_copy_private_bfd_data}
 @strong{Synopsis}
 @example
-boolean bfd_copy_private_bfd_data(bfd *ibfd, bfd *obfd);
+bfd_boolean bfd_copy_private_bfd_data (bfd *ibfd, bfd *obfd);
 @end example
 @strong{Description}@*
 Copy private BFD information from the BFD @var{ibfd} to the
-the BFD @var{obfd}.  Return @code{true} on success, @code{false} on error.
+the BFD @var{obfd}.  Return @code{TRUE} on success, @code{FALSE} on error.
 Possible error returns are:
 
 @itemize @bullet
@@ -535,12 +499,12 @@ Not enough memory exists to create private data for @var{obfd}.
 @subsubsection @code{bfd_merge_private_bfd_data}
 @strong{Synopsis}
 @example
-boolean bfd_merge_private_bfd_data(bfd *ibfd, bfd *obfd);
+bfd_boolean bfd_merge_private_bfd_data (bfd *ibfd, bfd *obfd);
 @end example
 @strong{Description}@*
 Merge private BFD information from the BFD @var{ibfd} to the
-the output file BFD @var{obfd} when linking.  Return @code{true}
-on success, @code{false} on error.  Possible error returns are:
+the output file BFD @var{obfd} when linking.  Return @code{TRUE}
+on success, @code{FALSE} on error.  Possible error returns are:
 
 @itemize @bullet
 
@@ -558,11 +522,11 @@ Not enough memory exists to create private data for @var{obfd}.
 @subsubsection @code{bfd_set_private_flags}
 @strong{Synopsis}
 @example
-boolean bfd_set_private_flags(bfd *abfd, flagword flags);
+bfd_boolean bfd_set_private_flags (bfd *abfd, flagword flags);
 @end example
 @strong{Description}@*
 Set private BFD flag information in the BFD @var{abfd}.
-Return @code{true} on success, @code{false} on error.  Possible error
+Return @code{TRUE} on success, @code{FALSE} on error.  Possible error
 returns are:
 
 @itemize @bullet
@@ -573,40 +537,38 @@ Not enough memory exists to create private data for @var{obfd}.
 @end itemize
 @example
 #define bfd_set_private_flags(abfd, flags) \
-     BFD_SEND (abfd, _bfd_set_private_flags, \
-               (abfd, flags))
+     BFD_SEND (abfd, _bfd_set_private_flags, (abfd, flags))
 @end example
 
-@findex stuff
-@subsubsection @code{stuff}
+@findex Other functions
+@subsubsection @code{Other functions}
 @strong{Description}@*
-Stuff which should be documented:
+The following functions exist but have not yet been documented.
 @example
 #define bfd_sizeof_headers(abfd, reloc) \
-     BFD_SEND (abfd, _bfd_sizeof_headers, (abfd, reloc))
+       BFD_SEND (abfd, _bfd_sizeof_headers, (abfd, reloc))
 
 #define bfd_find_nearest_line(abfd, sec, syms, off, file, func, line) \
-     BFD_SEND (abfd, _bfd_find_nearest_line,  (abfd, sec, syms, off, file, func, line))
+       BFD_SEND (abfd, _bfd_find_nearest_line, \
+                 (abfd, sec, syms, off, file, func, line))
 
-       /* Do these three do anything useful at all, for any back end?  */
 #define bfd_debug_info_start(abfd) \
-        BFD_SEND (abfd, _bfd_debug_info_start, (abfd))
+       BFD_SEND (abfd, _bfd_debug_info_start, (abfd))
 
 #define bfd_debug_info_end(abfd) \
-        BFD_SEND (abfd, _bfd_debug_info_end, (abfd))
+       BFD_SEND (abfd, _bfd_debug_info_end, (abfd))
 
 #define bfd_debug_info_accumulate(abfd, section) \
-        BFD_SEND (abfd, _bfd_debug_info_accumulate, (abfd, section))
-
+       BFD_SEND (abfd, _bfd_debug_info_accumulate, (abfd, section))
 
 #define bfd_stat_arch_elt(abfd, stat) \
-        BFD_SEND (abfd, _bfd_stat_arch_elt,(abfd, stat))
+       BFD_SEND (abfd, _bfd_stat_arch_elt,(abfd, stat))
 
 #define bfd_update_armap_timestamp(abfd) \
-        BFD_SEND (abfd, _bfd_update_armap_timestamp, (abfd))
+       BFD_SEND (abfd, _bfd_update_armap_timestamp, (abfd))
 
 #define bfd_set_arch_mach(abfd, arch, mach)\
-        BFD_SEND ( abfd, _bfd_set_arch_mach, (abfd, arch, mach))
+       BFD_SEND ( abfd, _bfd_set_arch_mach, (abfd, arch, mach))
 
 #define bfd_relax_section(abfd, section, link_info, again) \
        BFD_SEND (abfd, _bfd_relax_section, (abfd, section, link_info, again))
@@ -654,9 +616,8 @@ Stuff which should be documented:
        BFD_SEND (abfd, _bfd_canonicalize_dynamic_reloc, (abfd, arels, asyms))
 
 extern bfd_byte *bfd_get_relocated_section_contents
-       PARAMS ((bfd *, struct bfd_link_info *,
-                 struct bfd_link_order *, bfd_byte *,
-                 boolean, asymbol **));
+  (bfd *, struct bfd_link_info *, struct bfd_link_order *, bfd_byte *,
+   bfd_boolean, asymbol **);
 
 @end example
 
@@ -664,7 +625,7 @@ extern bfd_byte *bfd_get_relocated_section_contents
 @subsubsection @code{bfd_alt_mach_code}
 @strong{Synopsis}
 @example
-boolean bfd_alt_mach_code(bfd *abfd, int alternative);
+bfd_boolean bfd_alt_mach_code (bfd *abfd, int alternative);
 @end example
 @strong{Description}@*
 When more than one machine code number is available for the
@@ -672,4 +633,58 @@ same machine type, this function can be used to switch between
 the preferred one (alternative == 0) and any others.  Currently,
 only ELF supports this feature, with up to two alternate
 machine codes.
+
+
+@example
+struct bfd_preserve
+@{
+  void *marker;
+  void *tdata;
+  flagword flags;
+  const struct bfd_arch_info *arch_info;
+  struct bfd_section *sections;
+  struct bfd_section **section_tail;
+  unsigned int section_count;
+  struct bfd_hash_table section_htab;
+@};
+
+@end example
+@findex bfd_preserve_save
+@subsubsection @code{bfd_preserve_save}
+@strong{Synopsis}
+@example
+bfd_boolean bfd_preserve_save (bfd *, struct bfd_preserve *);
+@end example
+@strong{Description}@*
+When testing an object for compatibility with a particular
+target back-end, the back-end object_p function needs to set
+up certain fields in the bfd on successfully recognizing the
+object.  This typically happens in a piecemeal fashion, with
+failures possible at many points.  On failure, the bfd is
+supposed to be restored to its initial state, which is
+virtually impossible.  However, restoring a subset of the bfd
+state works in practice.  This function stores the subset and
+reinitializes the bfd.
+
+@findex bfd_preserve_restore
+@subsubsection @code{bfd_preserve_restore}
+@strong{Synopsis}
+@example
+void bfd_preserve_restore (bfd *, struct bfd_preserve *);
+@end example
+@strong{Description}@*
+This function restores bfd state saved by bfd_preserve_save.
+If MARKER is non-NULL in struct bfd_preserve then that block
+and all subsequently bfd_alloc'd memory is freed.
+
+@findex bfd_preserve_finish
+@subsubsection @code{bfd_preserve_finish}
+@strong{Synopsis}
+@example
+void bfd_preserve_finish (bfd *, struct bfd_preserve *);
+@end example
+@strong{Description}@*
+This function should be called when the bfd state saved by
+bfd_preserve_save is no longer needed.  ie. when the back-end
+object_p function returns with success.
 

@@ -1,6 +1,6 @@
-# Makefile.in generated automatically by automake 1.4 from Makefile.am
+# Makefile.in generated automatically by automake 1.4-p6 from Makefile.am
 
-# Copyright (C) 1994, 1995-8, 1999 Free Software Foundation, Inc.
+# Copyright (C) 1994, 1995-8, 1999, 2001 Free Software Foundation, Inc.
 # This Makefile.in is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
 # with or without modifications, as long as this notice is preserved.
@@ -68,6 +68,7 @@ AS = @AS@
 BFD_HOST_64BIT_LONG = @BFD_HOST_64BIT_LONG@
 BFD_HOST_64_BIT = @BFD_HOST_64_BIT@
 BFD_HOST_64_BIT_DEFINED = @BFD_HOST_64_BIT_DEFINED@
+BFD_HOST_LONG_LONG = @BFD_HOST_LONG_LONG@
 BFD_HOST_U_64_BIT = @BFD_HOST_U_64_BIT@
 CATALOGS = @CATALOGS@
 CATOBJEXT = @CATOBJEXT@
@@ -116,10 +117,11 @@ WIN32LIBADD = @WIN32LIBADD@
 all_backends = @all_backends@
 bfd_backends = @bfd_backends@
 bfd_default_target_size = @bfd_default_target_size@
+bfd_file_ptr = @bfd_file_ptr@
 bfd_libs = @bfd_libs@
 bfd_machines = @bfd_machines@
+bfd_ufile_ptr = @bfd_ufile_ptr@
 bfd_version = @bfd_version@
-bfd_version_date = @bfd_version_date@
 bfd_version_string = @bfd_version_string@
 bfdincludedir = @bfdincludedir@
 bfdlibdir = @bfdlibdir@
@@ -131,7 +133,8 @@ AUTOMAKE_OPTIONS = cygnus
 
 DOCFILES = aoutx.texi  archive.texi archures.texi \
 	bfdt.texi  cache.texi coffcode.texi \
-	core.texi elf.texi elfcode.texi  format.texi  libbfd.texi  \
+	core.texi elf.texi elfcode.texi  format.texi \
+	libbfd.texi bfdwin.texi bfdio.texi \
 	opncls.texi  reloc.texi  section.texi  \
 	syms.texi  targets.texi init.texi hash.texi linker.texi \
 	mmo.texi
@@ -139,6 +142,7 @@ DOCFILES = aoutx.texi  archive.texi archures.texi \
 
 PROTOS = archive.p archures.p bfd.p \
 	 core.p format.p \
+	bfdio.p bfdwin.p \
 	libbfd.p opncls.p reloc.p \
 	section.p syms.p targets.p  \
 	format.p  core.p init.p
@@ -151,6 +155,7 @@ IPROTOS = cache.ip libbfd.ip reloc.ip init.ip archures.ip coffcode.ip
 # you don't need these three:
 SRCDOC = $(srcdir)/../aoutx.h  $(srcdir)/../archive.c \
 	$(srcdir)/../archures.c $(srcdir)/../bfd.c \
+	$(srcdir)/../bfdio.c $(srcdir)/../bfdwin.c \
 	$(srcdir)/../cache.c $(srcdir)/../coffcode.h \
 	$(srcdir)/../corefile.c $(srcdir)/../elf.c \
 	$(srcdir)/../elfcode.h  $(srcdir)/../format.c \
@@ -164,12 +169,14 @@ SRCDOC = $(srcdir)/../aoutx.h  $(srcdir)/../archive.c \
 SRCPROT = $(srcdir)/../archive.c $(srcdir)/../archures.c \
 	$(srcdir)/../bfd.c $(srcdir)/../coffcode.h $(srcdir)/../corefile.c \
 	$(srcdir)/../format.c $(srcdir)/../libbfd.c \
+	$(srcdir)/../bfdio.c $(srcdir)/../bfdwin.c \
 	$(srcdir)/../opncls.c $(srcdir)/../reloc.c \
 	$(srcdir)/../section.c $(srcdir)/../syms.c \
 	$(srcdir)/../targets.c $(srcdir)/../init.c
 
 
 SRCIPROT = $(srcdir)/../cache.c $(srcdir)/../libbfd.c \
+	$(srcdir)/../bfdio.c $(srcdir)/../bfdwin.c \
 	$(srcdir)/../reloc.c $(srcdir)/../cpu-h8300.c \
 	$(srcdir)/../cpu-i960.c $(srcdir)/../archures.c \
 	$(srcdir)/../init.c
@@ -185,6 +192,8 @@ LIBBFD_H_DEP = \
 	$(srcdir)/../libbfd-in.h	\
 	$(srcdir)/../init.c		\
 	$(srcdir)/../libbfd.c		\
+	$(srcdir)/../bfdio.c		\
+	$(srcdir)/../bfdwin.c		\
 	$(srcdir)/../cache.c		\
 	$(srcdir)/../reloc.c		\
 	$(srcdir)/../archures.c		\
@@ -207,6 +216,8 @@ BFD_H_DEP = \
 	$(srcdir)/../init.c 		\
 	$(srcdir)/../opncls.c 		\
 	$(srcdir)/../libbfd.c 		\
+	$(srcdir)/../bfdio.c		\
+	$(srcdir)/../bfdwin.c		\
 	$(srcdir)/../section.c 		\
 	$(srcdir)/../archures.c		\
 	$(srcdir)/../reloc.c		\
@@ -216,6 +227,8 @@ BFD_H_DEP = \
 	$(srcdir)/../corefile.c		\
 	$(srcdir)/../targets.c		\
 	$(srcdir)/../format.c		\
+	$(srcdir)/../linker.c		\
+	$(srcdir)/../simple.c		\
 	$(srcdir)/header.sed		\
 	$(srcdir)/proto.str		\
 	$(srcdir)/../version.h		\
@@ -330,7 +343,7 @@ uninstall-info:
 	else ii=; fi; \
 	list='$(INFO_DEPS)'; \
 	for file in $$list; do \
-	  test -z "$ii" \
+	  test -z "$$ii" \
 	    || install-info --info-dir=$(DESTDIR)$(infodir) --remove $$file; \
 	done
 	@$(NORMAL_UNINSTALL)
@@ -459,7 +472,7 @@ mostlyclean distclean maintainer-clean
 
 
 $(MKDOC): chew.o
-	$(CC_FOR_BUILD) -o $(MKDOC) chew.o $(LOADLIBES) $(LDFLAGS)
+	$(CC_FOR_BUILD) -o $(MKDOC) chew.o $(CFLAGS) $(LOADLIBES) $(LDFLAGS)
 
 chew.o: chew.c
 	$(CC_FOR_BUILD) -c -I.. -I$(srcdir)/.. -I$(srcdir)/../../include -I$(srcdir)/../../intl -I../../intl $(H_CFLAGS) $(CFLAGS) $(srcdir)/chew.c
@@ -551,6 +564,18 @@ s-libbfd: $(MKDOC) $(srcdir)/../libbfd.c $(srcdir)/doc.str
 	$(srcdir)/../../move-if-change libbfd.tmp libbfd.texi
 	touch s-libbfd
 libbfd.texi: s-libbfd
+
+s-bfdio: $(MKDOC) $(srcdir)/../bfdio.c $(srcdir)/doc.str
+	./$(MKDOC) -f $(srcdir)/doc.str < $(srcdir)/../bfdio.c >bfdio.tmp
+	$(srcdir)/../../move-if-change bfdio.tmp bfdio.texi
+	touch s-bfdio
+bfdio.texi: s-bfdio
+
+s-bfdwin: $(MKDOC) $(srcdir)/../bfdwin.c $(srcdir)/doc.str
+	./$(MKDOC) -f $(srcdir)/doc.str < $(srcdir)/../bfdwin.c >bfdwin.tmp
+	$(srcdir)/../../move-if-change bfdwin.tmp bfdwin.texi
+	touch s-bfdwin
+bfdwin.texi: s-bfdwin
 
 s-opncls: $(MKDOC) $(srcdir)/../opncls.c $(srcdir)/doc.str
 	./$(MKDOC) -f $(srcdir)/doc.str  <$(srcdir)/../opncls.c >opncls.tmp

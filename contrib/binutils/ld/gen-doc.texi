@@ -5,8 +5,13 @@
 @c 2. Specific target machines
 @set H8300
 @set I960
+@set ARM
+@set HPPA
 @set MMIX
+@set MSP430
 @set TICOFF
+@set WIN32
+@set XTENSA
 
 @c 3. Properties of this configuration
 @clear SingleFormat

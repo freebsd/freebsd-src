@@ -1,6 +1,6 @@
 /* symbols.c -symbol table-
    Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002
+   1999, 2000, 2001, 2002, 2003
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -60,12 +60,13 @@ symbolS abs_symbol;
 
 struct obstack notes;
 
-static char *save_symbol_name PARAMS ((const char *));
-static void fb_label_init PARAMS ((void));
-static long dollar_label_instance PARAMS ((long));
-static long fb_label_instance PARAMS ((long));
+static char *save_symbol_name (const char *);
+static void fb_label_init (void);
+static long dollar_label_instance (long);
+static long fb_label_instance (long);
 
-static void print_binary PARAMS ((FILE *, const char *, expressionS *));
+static void print_binary (FILE *, const char *, expressionS *);
+static void report_op_error (symbolS *, symbolS *, symbolS *);
 
 /* Return a pointer to a new symbol.  Die if we can't make a new
    symbol.  Fill in the symbol's values.  Add symbol to end of symbol
@@ -77,11 +78,7 @@ static void print_binary PARAMS ((FILE *, const char *, expressionS *));
    output file, you can call symbol_create.  */
 
 symbolS *
-symbol_new (name, segment, valu, frag)
-     const char *name;
-     segT segment;
-     valueT valu;
-     fragS *frag;
+symbol_new (const char *name, segT segment, valueT valu, fragS *frag)
 {
   symbolS *symbolP = symbol_create (name, segment, valu, frag);
 
@@ -102,8 +99,7 @@ symbol_new (name, segment, valu, frag)
    to the object file format.  */
 
 static char *
-save_symbol_name (name)
-     const char *name;
+save_symbol_name (const char *name)
 {
   unsigned int name_length;
   char *ret;
@@ -133,11 +129,10 @@ save_symbol_name (name)
 }
 
 symbolS *
-symbol_create (name, segment, valu, frag)
-     const char *name;		/* It is copied, the caller can destroy/modify.  */
-     segT segment;		/* Segment identifier (SEG_<something>).  */
-     valueT valu;		/* Symbol value.  */
-     fragS *frag;		/* Associated fragment.  */
+symbol_create (const char *name, /* It is copied, the caller can destroy/modify.  */
+	       segT segment,	/* Segment identifier (SEG_<something>).  */
+	       valueT valu,	/* Symbol value.  */
+	       fragS *frag	/* Associated fragment.  */)
 {
   char *preserved_copy_of_name;
   symbolS *symbolP;
@@ -181,9 +176,7 @@ symbol_create (name, segment, valu, frag)
 /* Local symbol support.  If we can get away with it, we keep only a
    small amount of information for local symbols.  */
 
-static struct local_symbol *local_symbol_make PARAMS ((const char *, segT,
-						       valueT, fragS *));
-static symbolS *local_symbol_convert PARAMS ((struct local_symbol *));
+static symbolS *local_symbol_convert (struct local_symbol *);
 
 /* Used for statistics.  */
 
@@ -204,12 +197,8 @@ static unsigned long local_symbol_conversion_count;
 
 /* Create a local symbol and insert it into the local hash table.  */
 
-static struct local_symbol *
-local_symbol_make (name, section, value, frag)
-     const char *name;
-     segT section;
-     valueT value;
-     fragS *frag;
+struct local_symbol *
+local_symbol_make (const char *name, segT section, valueT value, fragS *frag)
 {
   char *name_copy;
   struct local_symbol *ret;
@@ -234,8 +223,7 @@ local_symbol_make (name, section, value, frag)
    reclaim the space used by the local symbol.  */
 
 static symbolS *
-local_symbol_convert (locsym)
-     struct local_symbol *locsym;
+local_symbol_convert (struct local_symbol *locsym)
 {
   symbolS *ret;
 
@@ -281,9 +269,9 @@ local_symbol_convert (locsym)
    Gripes if we are redefining a symbol incompatibly (and ignores it).  */
 
 symbolS *
-colon (sym_name)		/* Just seen "x:" - rattle symbols & frags.  */
-     const char *sym_name;	/* Symbol name, as a cannonical string.  */
-     /* We copy this string: OK to alter later.  */
+colon (/* Just seen "x:" - rattle symbols & frags.  */
+       const char *sym_name	/* Symbol name, as a cannonical string.  */
+       /* We copy this string: OK to alter later.  */)
 {
   register symbolS *symbolP;	/* Symbol we are working with.  */
 
@@ -313,6 +301,13 @@ colon (sym_name)		/* Just seen "x:" - rattle symbols & frags.  */
 
       extern const int md_short_jump_size;
       extern const int md_long_jump_size;
+
+      if (now_seg == absolute_section)
+	{
+	  as_bad (_("cannot define symbol `%s' in absolute section"), sym_name);
+	  return NULL;
+	}
+
       possible_bytes = (md_short_jump_size
 			+ new_broken_words * md_long_jump_size);
 
@@ -483,7 +478,7 @@ colon (sym_name)		/* Just seen "x:" - rattle symbols & frags.  */
   if (mri_common_symbol != NULL)
     {
       /* This symbol is actually being defined within an MRI common
-         section.  This requires special handling.  */
+	 section.  This requires special handling.  */
       if (LOCAL_SYMBOL_CHECK (symbolP))
 	symbolP = local_symbol_convert ((struct local_symbol *) symbolP);
       symbolP->sy_value.X_op = O_symbol;
@@ -507,8 +502,7 @@ colon (sym_name)		/* Just seen "x:" - rattle symbols & frags.  */
 /* Die if we can't insert the symbol.  */
 
 void
-symbol_table_insert (symbolP)
-     symbolS *symbolP;
+symbol_table_insert (symbolS *symbolP)
 {
   register const char *error_string;
 
@@ -536,8 +530,7 @@ symbol_table_insert (symbolP)
    it into the symbol table.  Return a pointer to it.  */
 
 symbolS *
-symbol_find_or_make (name)
-     const char *name;
+symbol_find_or_make (const char *name)
 {
   register symbolS *symbolP;
 
@@ -568,8 +561,7 @@ symbol_find_or_make (name)
 }
 
 symbolS *
-symbol_make (name)
-     const char *name;
+symbol_make (const char *name)
 {
   symbolS *symbolP;
 
@@ -582,14 +574,31 @@ symbol_make (name)
   return (symbolP);
 }
 
+symbolS *
+symbol_temp_new (segT seg, valueT ofs, fragS *frag)
+{
+  return symbol_new (FAKE_LABEL_NAME, seg, ofs, frag);
+}
+
+symbolS *
+symbol_temp_new_now (void)
+{
+  return symbol_temp_new (now_seg, frag_now_fix (), frag_now);
+}
+
+symbolS *
+symbol_temp_make (void)
+{
+  return symbol_make (FAKE_LABEL_NAME);
+}
+
 /* Implement symbol table lookup.
    In:	A symbol's name as a string: '\0' can't be part of a symbol name.
    Out:	NULL if the name was not in the symbol table, else the address
    of a struct symbol associated with that name.  */
 
 symbolS *
-symbol_find (name)
-     const char *name;
+symbol_find (const char *name)
 {
 #ifdef STRIP_UNDERSCORE
   return (symbol_find_base (name, 1));
@@ -599,8 +608,7 @@ symbol_find (name)
 }
 
 symbolS *
-symbol_find_exact (name)
-     const char *name;
+symbol_find_exact (const char *name)
 {
 #ifdef BFD_ASSEMBLER
   {
@@ -616,9 +624,7 @@ symbol_find_exact (name)
 }
 
 symbolS *
-symbol_find_base (name, strip_underscore)
-     const char *name;
-     int strip_underscore;
+symbol_find_base (const char *name, int strip_underscore)
 {
   if (strip_underscore && *name == '_')
     name++;
@@ -662,11 +668,8 @@ symbol_find_base (name, strip_underscore)
 /* Link symbol ADDME after symbol TARGET in the chain.  */
 
 void
-symbol_append (addme, target, rootPP, lastPP)
-     symbolS *addme;
-     symbolS *target;
-     symbolS **rootPP;
-     symbolS **lastPP;
+symbol_append (symbolS *addme, symbolS *target,
+	       symbolS **rootPP, symbolS **lastPP)
 {
   if (LOCAL_SYMBOL_CHECK (addme))
     abort ();
@@ -711,8 +714,7 @@ symbol_append (addme, target, rootPP, lastPP)
 /* Set the chain pointers of SYMBOL to null.  */
 
 void
-symbol_clear_list_pointers (symbolP)
-     symbolS *symbolP;
+symbol_clear_list_pointers (symbolS *symbolP)
 {
   if (LOCAL_SYMBOL_CHECK (symbolP))
     abort ();
@@ -726,10 +728,7 @@ symbol_clear_list_pointers (symbolP)
 /* Remove SYMBOLP from the list.  */
 
 void
-symbol_remove (symbolP, rootPP, lastPP)
-     symbolS *symbolP;
-     symbolS **rootPP;
-     symbolS **lastPP;
+symbol_remove (symbolS *symbolP, symbolS **rootPP, symbolS **lastPP)
 {
   if (LOCAL_SYMBOL_CHECK (symbolP))
     abort ();
@@ -760,11 +759,8 @@ symbol_remove (symbolP, rootPP, lastPP)
 /* Link symbol ADDME before symbol TARGET in the chain.  */
 
 void
-symbol_insert (addme, target, rootPP, lastPP)
-     symbolS *addme;
-     symbolS *target;
-     symbolS **rootPP;
-     symbolS **lastPP ATTRIBUTE_UNUSED;
+symbol_insert (symbolS *addme, symbolS *target,
+	       symbolS **rootPP, symbolS **lastPP ATTRIBUTE_UNUSED)
 {
   if (LOCAL_SYMBOL_CHECK (addme))
     abort ();
@@ -791,9 +787,7 @@ symbol_insert (addme, target, rootPP, lastPP)
 #endif /* SYMBOLS_NEED_BACKPOINTERS */
 
 void
-verify_symbol_chain (rootP, lastP)
-     symbolS *rootP;
-     symbolS *lastP;
+verify_symbol_chain (symbolS *rootP, symbolS *lastP)
 {
   symbolS *symbolP = rootP;
 
@@ -817,8 +811,7 @@ verify_symbol_chain (rootP, lastP)
 }
 
 void
-verify_symbol_chain_2 (sym)
-     symbolS *sym;
+verify_symbol_chain_2 (symbolS *sym)
 {
   symbolS *p = sym, *n = sym;
 #ifdef SYMBOLS_NEED_BACKPOINTERS
@@ -830,13 +823,67 @@ verify_symbol_chain_2 (sym)
   verify_symbol_chain (p, n);
 }
 
+static void
+report_op_error (symbolS *symp, symbolS *left, symbolS *right)
+{
+  char *file;
+  unsigned int line;
+  segT seg_left = S_GET_SEGMENT (left);
+  segT seg_right = right ? S_GET_SEGMENT (right) : 0;
+
+  if (expr_symbol_where (symp, &file, &line))
+    {
+      if (seg_left == undefined_section)
+	as_bad_where (file, line,
+		      _("undefined symbol `%s' in operation"),
+		      S_GET_NAME (left));
+      if (seg_right == undefined_section)
+	as_bad_where (file, line,
+		      _("undefined symbol `%s' in operation"),
+		      S_GET_NAME (right));
+      if (seg_left != undefined_section
+	  && seg_right != undefined_section)
+	{
+	  if (right)
+	    as_bad_where (file, line,
+			  _("invalid sections for operation on `%s' and `%s'"),
+			  S_GET_NAME (left), S_GET_NAME (right));
+	  else
+	    as_bad_where (file, line,
+			  _("invalid section for operation on `%s'"),
+			  S_GET_NAME (left));
+	}
+
+    }
+  else
+    {
+      if (seg_left == undefined_section)
+	as_bad (_("undefined symbol `%s' in operation setting `%s'"),
+		S_GET_NAME (left), S_GET_NAME (symp));
+      if (seg_right == undefined_section)
+	as_bad (_("undefined symbol `%s' in operation setting `%s'"),
+		S_GET_NAME (right), S_GET_NAME (symp));
+      if (seg_left != undefined_section
+	  && seg_right != undefined_section)
+	{
+	  if (right)
+	    as_bad_where (file, line,
+			  _("invalid sections for operation on `%s' and `%s' setting `%s'"),
+			  S_GET_NAME (left), S_GET_NAME (right), S_GET_NAME (symp));
+	  else
+	    as_bad_where (file, line,
+			  _("invalid section for operation on `%s' setting `%s'"),
+			  S_GET_NAME (left), S_GET_NAME (symp));
+	}
+    }
+}
+
 /* Resolve the value of a symbol.  This is called during the final
    pass over the symbol table to resolve any symbols with complex
    values.  */
 
 valueT
-resolve_symbol_value (symp)
-     symbolS *symp;
+resolve_symbol_value (symbolS *symp)
 {
   int resolved;
   valueT final_val = 0;
@@ -995,6 +1042,17 @@ resolve_symbol_value (symp)
 	  left = resolve_symbol_value (add_symbol);
 	  seg_left = S_GET_SEGMENT (add_symbol);
 
+	  /* By reducing these to the relevant dyadic operator, we get
+	     	!S -> S == 0 	permitted on anything,
+		-S -> 0 - S 	only permitted on absolute
+		~S -> S ^ ~0 	only permitted on absolute  */
+	  if (op != O_logical_not && seg_left != absolute_section
+	      && finalize_syms)
+	    report_op_error (symp, add_symbol, NULL);
+
+	  if (final_seg == expr_section || final_seg == undefined_section)
+	    final_seg = absolute_section;
+
 	  if (op == O_uminus)
 	    left = -left;
 	  else if (op == O_logical_not)
@@ -1003,8 +1061,6 @@ resolve_symbol_value (symp)
 	    left = ~left;
 
 	  final_val += left + symp->sy_frag->fr_address;
-	  if (final_seg == expr_section || final_seg == undefined_section)
-	    final_seg = seg_left;
 
 	  resolved = symbol_resolved_p (add_symbol);
 	  break;
@@ -1070,57 +1126,19 @@ resolve_symbol_value (symp)
 
 	     Don't emit messages unless we're finalizing the symbol value,
 	     otherwise we may get the same message multiple times.  */
-	  if ((op == O_eq || op == O_ne)
-	      || ((op == O_subtract
-		   || op == O_lt || op == O_le || op == O_ge || op == O_gt)
-		  && seg_left == seg_right
-		  && (seg_left != undefined_section
-		      || add_symbol == op_symbol))
-	      || (seg_left == absolute_section
-		  && seg_right == absolute_section))
-	    {
-	      if (final_seg == expr_section || final_seg == undefined_section)
-		final_seg = absolute_section;
-	    }
-	  else if (finalize_syms)
-	    {
-	      char *file;
-	      unsigned int line;
+	  if (finalize_syms
+	      && !(seg_left == absolute_section
+		   && seg_right == absolute_section)
+	      && !(op == O_eq || op == O_ne)
+	      && !((op == O_subtract
+		    || op == O_lt || op == O_le || op == O_ge || op == O_gt)
+		   && seg_left == seg_right
+		   && (seg_left != undefined_section
+		       || add_symbol == op_symbol)))
+	    report_op_error (symp, add_symbol, op_symbol);
 
-	      if (expr_symbol_where (symp, &file, &line))
-		{
-		  if (seg_left == undefined_section)
-		    as_bad_where (file, line,
-				  _("undefined symbol `%s' in operation"),
-				  S_GET_NAME (symp->sy_value.X_add_symbol));
-		  if (seg_right == undefined_section)
-		    as_bad_where (file, line,
-				  _("undefined symbol `%s' in operation"),
-				  S_GET_NAME (symp->sy_value.X_op_symbol));
-		  if (seg_left != undefined_section
-		      && seg_right != undefined_section)
-		    as_bad_where (file, line,
-				  _("invalid section for operation"));
-		}
-	      else
-		{
-		  if (seg_left == undefined_section)
-		    as_bad (_("undefined symbol `%s' in operation setting `%s'"),
-			    S_GET_NAME (symp->sy_value.X_add_symbol),
-			    S_GET_NAME (symp));
-		  if (seg_right == undefined_section)
-		    as_bad (_("undefined symbol `%s' in operation setting `%s'"),
-			    S_GET_NAME (symp->sy_value.X_op_symbol),
-			    S_GET_NAME (symp));
-		  if (seg_left != undefined_section
-		      && seg_right != undefined_section)
-		    as_bad (_("invalid section for operation setting `%s'"),
-			    S_GET_NAME (symp));
-		}
-	      /* Prevent the error propagating.  */
-	      if (final_seg == expr_section || final_seg == undefined_section)
-		final_seg = absolute_section;
-	    }
+	  if (final_seg == expr_section || final_seg == undefined_section)
+	    final_seg = absolute_section;
 
 	  /* Check for division by zero.  */
 	  if ((op == O_divide || op == O_modulus) && right == 0)
@@ -1233,14 +1251,12 @@ exit_dont_set_value:
 
 #ifdef BFD_ASSEMBLER
 
-static void resolve_local_symbol PARAMS ((const char *, PTR));
+static void resolve_local_symbol (const char *, PTR);
 
 /* A static function passed to hash_traverse.  */
 
 static void
-resolve_local_symbol (key, value)
-     const char *key ATTRIBUTE_UNUSED;
-     PTR value;
+resolve_local_symbol (const char *key ATTRIBUTE_UNUSED, PTR value)
 {
   if (value != NULL)
     resolve_symbol_value (value);
@@ -1251,7 +1267,7 @@ resolve_local_symbol (key, value)
 /* Resolve all local symbols.  */
 
 void
-resolve_local_symbol_values ()
+resolve_local_symbol_values (void)
 {
 #ifdef BFD_ASSEMBLER
   hash_traverse (local_hash, resolve_local_symbol);
@@ -1272,8 +1288,7 @@ static unsigned long dollar_label_count;
 static unsigned long dollar_label_max;
 
 int
-dollar_label_defined (label)
-     long label;
+dollar_label_defined (long label)
 {
   long *i;
 
@@ -1288,8 +1303,7 @@ dollar_label_defined (label)
 }
 
 static long
-dollar_label_instance (label)
-     long label;
+dollar_label_instance (long label)
 {
   long *i;
 
@@ -1305,7 +1319,7 @@ dollar_label_instance (label)
 }
 
 void
-dollar_label_clear ()
+dollar_label_clear (void)
 {
   memset (dollar_label_defines, '\0', (unsigned int) dollar_label_count);
 }
@@ -1313,8 +1327,7 @@ dollar_label_clear ()
 #define DOLLAR_LABEL_BUMP_BY 10
 
 void
-define_dollar_label (label)
-     long label;
+define_dollar_label (long label)
 {
   long *i;
 
@@ -1364,9 +1377,8 @@ define_dollar_label (label)
    of ^A.  */
 
 char *				/* Return local label name.  */
-dollar_label_name (n, augend)
-     register long n;		/* we just saw "n$:" : n a number.  */
-     register int augend;	/* 0 for current instance, 1 for new instance.  */
+dollar_label_name (register long n,	/* we just saw "n$:" : n a number.  */
+		   register int augend	/* 0 for current instance, 1 for new instance.  */)
 {
   long i;
   /* Returned to caller, then copied.  Used for created names ("4f").  */
@@ -1409,7 +1421,7 @@ dollar_label_name (n, augend)
   return symbol_name_build;
 }
 
-/* Sombody else's idea of local labels. They are made by "n:" where n
+/* Somebody else's idea of local labels. They are made by "n:" where n
    is any decimal digit. Refer to them with
     "nb" for previous (backward) n:
    or "nf" for next (forward) n:.
@@ -1438,7 +1450,7 @@ static long fb_label_max;
 #define FB_LABEL_BUMP_BY (FB_LABEL_SPECIAL + 6)
 
 static void
-fb_label_init ()
+fb_label_init (void)
 {
   memset ((void *) fb_low_counter, '\0', sizeof (fb_low_counter));
 }
@@ -1446,8 +1458,7 @@ fb_label_init ()
 /* Add one to the instance number of this fb label.  */
 
 void
-fb_label_instance_inc (label)
-     long label;
+fb_label_instance_inc (long label)
 {
   long *i;
 
@@ -1495,8 +1506,7 @@ fb_label_instance_inc (label)
 }
 
 static long
-fb_label_instance (label)
-     long label;
+fb_label_instance (long label)
 {
   long *i;
 
@@ -1534,9 +1544,8 @@ fb_label_instance (label)
    place of ^B.  */
 
 char *				/* Return local label name.  */
-fb_label_name (n, augend)
-     long n;			/* We just saw "n:", "nf" or "nb" : n a number.  */
-     long augend;		/* 0 for nb, 1 for n:, nf.  */
+fb_label_name (long n,	/* We just saw "n:", "nf" or "nb" : n a number.  */
+	       long augend	/* 0 for nb, 1 for n:, nf.  */)
 {
   long i;
   /* Returned to caller, then copied.  Used for created names ("4f").  */
@@ -1584,8 +1593,7 @@ fb_label_name (n, augend)
    unaltered.  This is used for error messages.  */
 
 char *
-decode_local_label_name (s)
-     char *s;
+decode_local_label_name (char *s)
 {
   char *p;
   char *symbol_decode;
@@ -1626,8 +1634,7 @@ decode_local_label_name (s)
 /* Get the value of a symbol.  */
 
 valueT
-S_GET_VALUE (s)
-     symbolS *s;
+S_GET_VALUE (symbolS *s)
 {
 #ifdef BFD_ASSEMBLER
   if (LOCAL_SYMBOL_CHECK (s))
@@ -1645,8 +1652,8 @@ S_GET_VALUE (s)
       static symbolS *recur;
 
       /* FIXME: In non BFD assemblers, S_IS_DEFINED and S_IS_COMMON
-         may call S_GET_VALUE.  We use a static symbol to avoid the
-         immediate recursion.  */
+	 may call S_GET_VALUE.  We use a static symbol to avoid the
+	 immediate recursion.  */
       if (recur == s)
 	return (valueT) s->sy_value.X_add_number;
       recur = s;
@@ -1663,9 +1670,7 @@ S_GET_VALUE (s)
 /* Set the value of a symbol.  */
 
 void
-S_SET_VALUE (s, val)
-     symbolS *s;
-     valueT val;
+S_SET_VALUE (symbolS *s, valueT val)
 {
 #ifdef BFD_ASSEMBLER
   if (LOCAL_SYMBOL_CHECK (s))
@@ -1681,8 +1686,7 @@ S_SET_VALUE (s, val)
 }
 
 void
-copy_symbol_attributes (dest, src)
-     symbolS *dest, *src;
+copy_symbol_attributes (symbolS *dest, symbolS *src)
 {
   if (LOCAL_SYMBOL_CHECK (dest))
     dest = local_symbol_convert ((struct local_symbol *) dest);
@@ -1704,8 +1708,7 @@ copy_symbol_attributes (dest, src)
 #ifdef BFD_ASSEMBLER
 
 int
-S_IS_FUNCTION (s)
-     symbolS *s;
+S_IS_FUNCTION (symbolS *s)
 {
   flagword flags;
 
@@ -1718,8 +1721,7 @@ S_IS_FUNCTION (s)
 }
 
 int
-S_IS_EXTERNAL (s)
-     symbolS *s;
+S_IS_EXTERNAL (symbolS *s)
 {
   flagword flags;
 
@@ -1736,8 +1738,7 @@ S_IS_EXTERNAL (s)
 }
 
 int
-S_IS_WEAK (s)
-     symbolS *s;
+S_IS_WEAK (symbolS *s)
 {
   if (LOCAL_SYMBOL_CHECK (s))
     return 0;
@@ -1745,8 +1746,7 @@ S_IS_WEAK (s)
 }
 
 int
-S_IS_COMMON (s)
-     symbolS *s;
+S_IS_COMMON (symbolS *s)
 {
   if (LOCAL_SYMBOL_CHECK (s))
     return 0;
@@ -1754,17 +1754,37 @@ S_IS_COMMON (s)
 }
 
 int
-S_IS_DEFINED (s)
-     symbolS *s;
+S_IS_DEFINED (symbolS *s)
 {
   if (LOCAL_SYMBOL_CHECK (s))
     return ((struct local_symbol *) s)->lsy_section != undefined_section;
   return s->bsym->section != undefined_section;
 }
 
+
+#ifndef EXTERN_FORCE_RELOC
+#define EXTERN_FORCE_RELOC IS_ELF
+#endif
+
+/* Return true for symbols that should not be reduced to section
+   symbols or eliminated from expressions, because they may be
+   overridden by the linker.  */
 int
-S_IS_DEBUG (s)
-     symbolS *s;
+S_FORCE_RELOC (symbolS *s, int strict)
+{
+  if (LOCAL_SYMBOL_CHECK (s))
+    return ((struct local_symbol *) s)->lsy_section == undefined_section;
+
+  return ((strict
+	   && ((s->bsym->flags & BSF_WEAK) != 0
+	       || (EXTERN_FORCE_RELOC
+		   && (s->bsym->flags & BSF_GLOBAL) != 0)))
+	  || s->bsym->section == undefined_section
+	  || bfd_is_com_section (s->bsym->section));
+}
+
+int
+S_IS_DEBUG (symbolS *s)
 {
   if (LOCAL_SYMBOL_CHECK (s))
     return 0;
@@ -1774,8 +1794,7 @@ S_IS_DEBUG (s)
 }
 
 int
-S_IS_LOCAL (s)
-     symbolS *s;
+S_IS_LOCAL (symbolS *s)
 {
   flagword flags;
   const char *name;
@@ -1810,22 +1829,19 @@ S_IS_LOCAL (s)
 }
 
 int
-S_IS_EXTERN (s)
-     symbolS *s;
+S_IS_EXTERN (symbolS *s)
 {
   return S_IS_EXTERNAL (s);
 }
 
 int
-S_IS_STABD (s)
-     symbolS *s;
+S_IS_STABD (symbolS *s)
 {
   return S_GET_NAME (s) == 0;
 }
 
 const char *
-S_GET_NAME (s)
-     symbolS *s;
+S_GET_NAME (symbolS *s)
 {
   if (LOCAL_SYMBOL_CHECK (s))
     return ((struct local_symbol *) s)->lsy_name;
@@ -1833,8 +1849,7 @@ S_GET_NAME (s)
 }
 
 segT
-S_GET_SEGMENT (s)
-     symbolS *s;
+S_GET_SEGMENT (symbolS *s)
 {
   if (LOCAL_SYMBOL_CHECK (s))
     return ((struct local_symbol *) s)->lsy_section;
@@ -1842,9 +1857,7 @@ S_GET_SEGMENT (s)
 }
 
 void
-S_SET_SEGMENT (s, seg)
-     symbolS *s;
-     segT seg;
+S_SET_SEGMENT (symbolS *s, segT seg)
 {
   /* Don't reassign section symbols.  The direct reason is to prevent seg
      faults assigning back to const global symbols such as *ABS*, but it
@@ -1871,8 +1884,7 @@ S_SET_SEGMENT (s, seg)
 }
 
 void
-S_SET_EXTERNAL (s)
-     symbolS *s;
+S_SET_EXTERNAL (symbolS *s)
 {
   if (LOCAL_SYMBOL_CHECK (s))
     s = local_symbol_convert ((struct local_symbol *) s);
@@ -1897,8 +1909,7 @@ S_SET_EXTERNAL (s)
 }
 
 void
-S_CLEAR_EXTERNAL (s)
-     symbolS *s;
+S_CLEAR_EXTERNAL (symbolS *s)
 {
   if (LOCAL_SYMBOL_CHECK (s))
     return;
@@ -1912,8 +1923,7 @@ S_CLEAR_EXTERNAL (s)
 }
 
 void
-S_SET_WEAK (s)
-     symbolS *s;
+S_SET_WEAK (symbolS *s)
 {
   if (LOCAL_SYMBOL_CHECK (s))
     s = local_symbol_convert ((struct local_symbol *) s);
@@ -1922,9 +1932,25 @@ S_SET_WEAK (s)
 }
 
 void
-S_SET_NAME (s, name)
-     symbolS *s;
-     char *name;
+S_SET_THREAD_LOCAL (symbolS *s)
+{
+  if (LOCAL_SYMBOL_CHECK (s))
+    s = local_symbol_convert ((struct local_symbol *) s);
+  if (bfd_is_com_section (s->bsym->section)
+      && (s->bsym->flags & BSF_THREAD_LOCAL) != 0)
+    return;
+  s->bsym->flags |= BSF_THREAD_LOCAL;
+  if ((s->bsym->flags & BSF_FUNCTION) != 0)
+    as_bad (_("Accessing function `%s' as thread-local object"),
+	    S_GET_NAME (s));
+  else if (! bfd_is_und_section (s->bsym->section)
+	   && (s->bsym->section->flags & SEC_THREAD_LOCAL) == 0)
+    as_bad (_("Accessing `%s' as thread-local object"),
+	    S_GET_NAME (s));
+}
+
+void
+S_SET_NAME (symbolS *s, char *name)
 {
   if (LOCAL_SYMBOL_CHECK (s))
     {
@@ -1940,8 +1966,7 @@ S_SET_NAME (s, name)
 /* Return the previous symbol in a chain.  */
 
 symbolS *
-symbol_previous (s)
-     symbolS *s;
+symbol_previous (symbolS *s)
 {
   if (LOCAL_SYMBOL_CHECK (s))
     abort ();
@@ -1953,8 +1978,7 @@ symbol_previous (s)
 /* Return the next symbol in a chain.  */
 
 symbolS *
-symbol_next (s)
-     symbolS *s;
+symbol_next (symbolS *s)
 {
   if (LOCAL_SYMBOL_CHECK (s))
     abort ();
@@ -1964,8 +1988,7 @@ symbol_next (s)
 /* Return a pointer to the value of a symbol as an expression.  */
 
 expressionS *
-symbol_get_value_expression (s)
-     symbolS *s;
+symbol_get_value_expression (symbolS *s)
 {
   if (LOCAL_SYMBOL_CHECK (s))
     s = local_symbol_convert ((struct local_symbol *) s);
@@ -1975,21 +1998,27 @@ symbol_get_value_expression (s)
 /* Set the value of a symbol to an expression.  */
 
 void
-symbol_set_value_expression (s, exp)
-     symbolS *s;
-     const expressionS *exp;
+symbol_set_value_expression (symbolS *s, const expressionS *exp)
 {
   if (LOCAL_SYMBOL_CHECK (s))
     s = local_symbol_convert ((struct local_symbol *) s);
   s->sy_value = *exp;
 }
 
+/* Set the value of SYM to the current position in the current segment.  */
+
+void
+symbol_set_value_now (symbolS *sym)
+{
+  S_SET_SEGMENT (sym, now_seg);
+  S_SET_VALUE (sym, frag_now_fix ());
+  symbol_set_frag (sym, frag_now);
+}
+
 /* Set the frag of a symbol.  */
 
 void
-symbol_set_frag (s, f)
-     symbolS *s;
-     fragS *f;
+symbol_set_frag (symbolS *s, fragS *f)
 {
 #ifdef BFD_ASSEMBLER
   if (LOCAL_SYMBOL_CHECK (s))
@@ -2004,8 +2033,7 @@ symbol_set_frag (s, f)
 /* Return the frag of a symbol.  */
 
 fragS *
-symbol_get_frag (s)
-     symbolS *s;
+symbol_get_frag (symbolS *s)
 {
 #ifdef BFD_ASSEMBLER
   if (LOCAL_SYMBOL_CHECK (s))
@@ -2017,8 +2045,7 @@ symbol_get_frag (s)
 /* Mark a symbol as having been used.  */
 
 void
-symbol_mark_used (s)
-     symbolS *s;
+symbol_mark_used (symbolS *s)
 {
   if (LOCAL_SYMBOL_CHECK (s))
     return;
@@ -2028,8 +2055,7 @@ symbol_mark_used (s)
 /* Clear the mark of whether a symbol has been used.  */
 
 void
-symbol_clear_used (s)
-     symbolS *s;
+symbol_clear_used (symbolS *s)
 {
   if (LOCAL_SYMBOL_CHECK (s))
     s = local_symbol_convert ((struct local_symbol *) s);
@@ -2039,8 +2065,7 @@ symbol_clear_used (s)
 /* Return whether a symbol has been used.  */
 
 int
-symbol_used_p (s)
-     symbolS *s;
+symbol_used_p (symbolS *s)
 {
   if (LOCAL_SYMBOL_CHECK (s))
     return 1;
@@ -2050,8 +2075,7 @@ symbol_used_p (s)
 /* Mark a symbol as having been used in a reloc.  */
 
 void
-symbol_mark_used_in_reloc (s)
-     symbolS *s;
+symbol_mark_used_in_reloc (symbolS *s)
 {
   if (LOCAL_SYMBOL_CHECK (s))
     s = local_symbol_convert ((struct local_symbol *) s);
@@ -2061,8 +2085,7 @@ symbol_mark_used_in_reloc (s)
 /* Clear the mark of whether a symbol has been used in a reloc.  */
 
 void
-symbol_clear_used_in_reloc (s)
-     symbolS *s;
+symbol_clear_used_in_reloc (symbolS *s)
 {
   if (LOCAL_SYMBOL_CHECK (s))
     return;
@@ -2072,8 +2095,7 @@ symbol_clear_used_in_reloc (s)
 /* Return whether a symbol has been used in a reloc.  */
 
 int
-symbol_used_in_reloc_p (s)
-     symbolS *s;
+symbol_used_in_reloc_p (symbolS *s)
 {
   if (LOCAL_SYMBOL_CHECK (s))
     return 0;
@@ -2083,8 +2105,7 @@ symbol_used_in_reloc_p (s)
 /* Mark a symbol as an MRI common symbol.  */
 
 void
-symbol_mark_mri_common (s)
-     symbolS *s;
+symbol_mark_mri_common (symbolS *s)
 {
   if (LOCAL_SYMBOL_CHECK (s))
     s = local_symbol_convert ((struct local_symbol *) s);
@@ -2094,8 +2115,7 @@ symbol_mark_mri_common (s)
 /* Clear the mark of whether a symbol is an MRI common symbol.  */
 
 void
-symbol_clear_mri_common (s)
-     symbolS *s;
+symbol_clear_mri_common (symbolS *s)
 {
   if (LOCAL_SYMBOL_CHECK (s))
     return;
@@ -2105,8 +2125,7 @@ symbol_clear_mri_common (s)
 /* Return whether a symbol is an MRI common symbol.  */
 
 int
-symbol_mri_common_p (s)
-     symbolS *s;
+symbol_mri_common_p (symbolS *s)
 {
   if (LOCAL_SYMBOL_CHECK (s))
     return 0;
@@ -2116,8 +2135,7 @@ symbol_mri_common_p (s)
 /* Mark a symbol as having been written.  */
 
 void
-symbol_mark_written (s)
-     symbolS *s;
+symbol_mark_written (symbolS *s)
 {
   if (LOCAL_SYMBOL_CHECK (s))
     return;
@@ -2127,8 +2145,7 @@ symbol_mark_written (s)
 /* Clear the mark of whether a symbol has been written.  */
 
 void
-symbol_clear_written (s)
-     symbolS *s;
+symbol_clear_written (symbolS *s)
 {
   if (LOCAL_SYMBOL_CHECK (s))
     return;
@@ -2138,8 +2155,7 @@ symbol_clear_written (s)
 /* Return whether a symbol has been written.  */
 
 int
-symbol_written_p (s)
-     symbolS *s;
+symbol_written_p (symbolS *s)
 {
   if (LOCAL_SYMBOL_CHECK (s))
     return 0;
@@ -2149,8 +2165,7 @@ symbol_written_p (s)
 /* Mark a symbol has having been resolved.  */
 
 void
-symbol_mark_resolved (s)
-     symbolS *s;
+symbol_mark_resolved (symbolS *s)
 {
 #ifdef BFD_ASSEMBLER
   if (LOCAL_SYMBOL_CHECK (s))
@@ -2165,8 +2180,7 @@ symbol_mark_resolved (s)
 /* Return whether a symbol has been resolved.  */
 
 int
-symbol_resolved_p (s)
-     symbolS *s;
+symbol_resolved_p (symbolS *s)
 {
 #ifdef BFD_ASSEMBLER
   if (LOCAL_SYMBOL_CHECK (s))
@@ -2178,8 +2192,7 @@ symbol_resolved_p (s)
 /* Return whether a symbol is a section symbol.  */
 
 int
-symbol_section_p (s)
-     symbolS *s ATTRIBUTE_UNUSED;
+symbol_section_p (symbolS *s ATTRIBUTE_UNUSED)
 {
   if (LOCAL_SYMBOL_CHECK (s))
     return 0;
@@ -2194,8 +2207,7 @@ symbol_section_p (s)
 /* Return whether a symbol is equated to another symbol.  */
 
 int
-symbol_equated_p (s)
-     symbolS *s;
+symbol_equated_p (symbolS *s)
 {
   if (LOCAL_SYMBOL_CHECK (s))
     return 0;
@@ -2206,8 +2218,7 @@ symbol_equated_p (s)
    treated specially when writing out relocs.  */
 
 int
-symbol_equated_reloc_p (s)
-     symbolS *s;
+symbol_equated_reloc_p (symbolS *s)
 {
   if (LOCAL_SYMBOL_CHECK (s))
     return 0;
@@ -2223,8 +2234,7 @@ symbol_equated_reloc_p (s)
 /* Return whether a symbol has a constant value.  */
 
 int
-symbol_constant_p (s)
-     symbolS *s;
+symbol_constant_p (symbolS *s)
 {
   if (LOCAL_SYMBOL_CHECK (s))
     return 1;
@@ -2236,8 +2246,7 @@ symbol_constant_p (s)
 /* Return the BFD symbol for a symbol.  */
 
 asymbol *
-symbol_get_bfdsym (s)
-     symbolS *s;
+symbol_get_bfdsym (symbolS *s)
 {
   if (LOCAL_SYMBOL_CHECK (s))
     s = local_symbol_convert ((struct local_symbol *) s);
@@ -2247,9 +2256,7 @@ symbol_get_bfdsym (s)
 /* Set the BFD symbol for a symbol.  */
 
 void
-symbol_set_bfdsym (s, bsym)
-     symbolS *s;
-     asymbol *bsym;
+symbol_set_bfdsym (symbolS *s, asymbol *bsym)
 {
   if (LOCAL_SYMBOL_CHECK (s))
     s = local_symbol_convert ((struct local_symbol *) s);
@@ -2263,8 +2270,7 @@ symbol_set_bfdsym (s, bsym)
 /* Get a pointer to the object format information for a symbol.  */
 
 OBJ_SYMFIELD_TYPE *
-symbol_get_obj (s)
-     symbolS *s;
+symbol_get_obj (symbolS *s)
 {
   if (LOCAL_SYMBOL_CHECK (s))
     s = local_symbol_convert ((struct local_symbol *) s);
@@ -2274,9 +2280,7 @@ symbol_get_obj (s)
 /* Set the object format information for a symbol.  */
 
 void
-symbol_set_obj (s, o)
-     symbolS *s;
-     OBJ_SYMFIELD_TYPE *o;
+symbol_set_obj (symbolS *s, OBJ_SYMFIELD_TYPE *o)
 {
   if (LOCAL_SYMBOL_CHECK (s))
     s = local_symbol_convert ((struct local_symbol *) s);
@@ -2290,8 +2294,7 @@ symbol_set_obj (s, o)
 /* Get a pointer to the processor information for a symbol.  */
 
 TC_SYMFIELD_TYPE *
-symbol_get_tc (s)
-     symbolS *s;
+symbol_get_tc (symbolS *s)
 {
   if (LOCAL_SYMBOL_CHECK (s))
     s = local_symbol_convert ((struct local_symbol *) s);
@@ -2301,9 +2304,7 @@ symbol_get_tc (s)
 /* Set the processor information for a symbol.  */
 
 void
-symbol_set_tc (s, o)
-     symbolS *s;
-     TC_SYMFIELD_TYPE *o;
+symbol_set_tc (symbolS *s, TC_SYMFIELD_TYPE *o)
 {
   if (LOCAL_SYMBOL_CHECK (s))
     s = local_symbol_convert ((struct local_symbol *) s);
@@ -2313,7 +2314,7 @@ symbol_set_tc (s, o)
 #endif /* TC_SYMFIELD_TYPE */
 
 void
-symbol_begin ()
+symbol_begin (void)
 {
   symbol_lastP = NULL;
   symbol_rootP = NULL;		/* In case we have 0 symbols (!!)  */
@@ -2347,7 +2348,7 @@ int max_indent_level = 8;
 #if 0
 
 static void
-indent ()
+indent (void)
 {
   printf ("%*s", indent_level * 4, "");
 }
@@ -2355,9 +2356,7 @@ indent ()
 #endif
 
 void
-print_symbol_value_1 (file, sym)
-     FILE *file;
-     symbolS *sym;
+print_symbol_value_1 (FILE *file, symbolS *sym)
 {
   const char *name = S_GET_NAME (sym);
   if (!name || !name[0])
@@ -2427,8 +2426,7 @@ print_symbol_value_1 (file, sym)
 }
 
 void
-print_symbol_value (sym)
-     symbolS *sym;
+print_symbol_value (symbolS *sym)
 {
   indent_level = 0;
   print_symbol_value_1 (stderr, sym);
@@ -2436,10 +2434,7 @@ print_symbol_value (sym)
 }
 
 static void
-print_binary (file, name, exp)
-     FILE *file;
-     const char *name;
-     expressionS *exp;
+print_binary (FILE *file, const char *name, expressionS *exp)
 {
   indent_level++;
   fprintf (file, "%s\n%*s<", name, indent_level * 4, "");
@@ -2451,9 +2446,7 @@ print_binary (file, name, exp)
 }
 
 void
-print_expr_1 (file, exp)
-     FILE *file;
-     expressionS *exp;
+print_expr_1 (FILE *file, expressionS *exp)
 {
   fprintf (file, "expr %lx ", (long) exp);
   switch (exp->X_op)
@@ -2565,16 +2558,14 @@ print_expr_1 (file, exp)
 }
 
 void
-print_expr (exp)
-     expressionS *exp;
+print_expr (expressionS *exp)
 {
   print_expr_1 (stderr, exp);
   fprintf (stderr, "\n");
 }
 
 void
-symbol_print_statistics (file)
-     FILE *file;
+symbol_print_statistics (FILE *file)
 {
   hash_print_statistics (file, "symbol table", sy_hash);
 #ifdef BFD_ASSEMBLER

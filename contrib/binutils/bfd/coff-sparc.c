@@ -1,6 +1,6 @@
 /* BFD back-end for Sparc COFF files.
-   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1999, 2000, 2001
-   Free Software Foundation, Inc.
+   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1999, 2000, 2001,
+   2002, 2003 Free Software Foundation, Inc.
    Written by Cygnus Support.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -103,30 +103,30 @@ bfd_coff_generic_reloc (abfd, reloc_entry, symbol, data, input_section,
 
 static reloc_howto_type coff_sparc_howto_table[] =
 {
-  HOWTO(R_SPARC_NONE,    0,0, 0,false,0,complain_overflow_dont,    bfd_coff_generic_reloc,"R_SPARC_NONE",    false,0,0x00000000,true),
-  HOWTO(R_SPARC_8,       0,0, 8,false,0,complain_overflow_bitfield,bfd_coff_generic_reloc,"R_SPARC_8",       false,0,0x000000ff,true),
-  HOWTO(R_SPARC_16,      0,1,16,false,0,complain_overflow_bitfield,bfd_coff_generic_reloc,"R_SPARC_16",      false,0,0x0000ffff,true),
-  HOWTO(R_SPARC_32,      0,2,32,false,0,complain_overflow_bitfield,bfd_coff_generic_reloc,"R_SPARC_32",      false,0,0xffffffff,true),
-  HOWTO(R_SPARC_DISP8,   0,0, 8,true, 0,complain_overflow_signed,  bfd_coff_generic_reloc,"R_SPARC_DISP8",   false,0,0x000000ff,true),
-  HOWTO(R_SPARC_DISP16,  0,1,16,true, 0,complain_overflow_signed,  bfd_coff_generic_reloc,"R_SPARC_DISP16",  false,0,0x0000ffff,true),
-  HOWTO(R_SPARC_DISP32,  0,2,32,true, 0,complain_overflow_signed,  bfd_coff_generic_reloc,"R_SPARC_DISP32",  false,0,0x00ffffff,true),
-  HOWTO(R_SPARC_WDISP30, 2,2,30,true, 0,complain_overflow_signed,  bfd_coff_generic_reloc,"R_SPARC_WDISP30", false,0,0x3fffffff,true),
-  HOWTO(R_SPARC_WDISP22, 2,2,22,true, 0,complain_overflow_signed,  bfd_coff_generic_reloc,"R_SPARC_WDISP22", false,0,0x003fffff,true),
-  HOWTO(R_SPARC_HI22,   10,2,22,false,0,complain_overflow_dont,    bfd_coff_generic_reloc,"R_SPARC_HI22",    false,0,0x003fffff,true),
-  HOWTO(R_SPARC_22,      0,2,22,false,0,complain_overflow_bitfield,bfd_coff_generic_reloc,"R_SPARC_22",      false,0,0x003fffff,true),
-  HOWTO(R_SPARC_13,      0,2,13,false,0,complain_overflow_bitfield,bfd_coff_generic_reloc,"R_SPARC_13",      false,0,0x00001fff,true),
-  HOWTO(R_SPARC_LO10,    0,2,10,false,0,complain_overflow_dont,    bfd_coff_generic_reloc,"R_SPARC_LO10",    false,0,0x000003ff,true),
-  HOWTO(R_SPARC_GOT10,   0,2,10,false,0,complain_overflow_bitfield,bfd_coff_generic_reloc,"R_SPARC_GOT10",   false,0,0x000003ff,true),
-  HOWTO(R_SPARC_GOT13,   0,2,13,false,0,complain_overflow_bitfield,bfd_coff_generic_reloc,"R_SPARC_GOT13",   false,0,0x00001fff,true),
-  HOWTO(R_SPARC_GOT22,  10,2,22,false,0,complain_overflow_bitfield,bfd_coff_generic_reloc,"R_SPARC_GOT22",   false,0,0x003fffff,true),
-  HOWTO(R_SPARC_PC10,    0,2,10,false,0,complain_overflow_bitfield,bfd_coff_generic_reloc,"R_SPARC_PC10",    false,0,0x000003ff,true),
-  HOWTO(R_SPARC_PC22,    0,2,22,false,0,complain_overflow_bitfield,bfd_coff_generic_reloc,"R_SPARC_PC22",    false,0,0x003fffff,true),
-  HOWTO(R_SPARC_WPLT30,  0,0,00,false,0,complain_overflow_dont,    bfd_coff_generic_reloc,"R_SPARC_WPLT30",  false,0,0x00000000,true),
-  HOWTO(R_SPARC_COPY,    0,0,00,false,0,complain_overflow_dont,    bfd_coff_generic_reloc,"R_SPARC_COPY",    false,0,0x00000000,true),
-  HOWTO(R_SPARC_GLOB_DAT,0,0,00,false,0,complain_overflow_dont,    bfd_coff_generic_reloc,"R_SPARC_GLOB_DAT",false,0,0x00000000,true),
-  HOWTO(R_SPARC_JMP_SLOT,0,0,00,false,0,complain_overflow_dont,    bfd_coff_generic_reloc,"R_SPARC_JMP_SLOT",false,0,0x00000000,true),
-  HOWTO(R_SPARC_RELATIVE,0,0,00,false,0,complain_overflow_dont,    bfd_coff_generic_reloc,"R_SPARC_RELATIVE",false,0,0x00000000,true),
-  HOWTO(R_SPARC_UA32,    0,0,00,false,0,complain_overflow_dont,    bfd_coff_generic_reloc,"R_SPARC_UA32",    false,0,0x00000000,true),
+  HOWTO(R_SPARC_NONE,    0,0, 0,FALSE,0,complain_overflow_dont,    bfd_coff_generic_reloc,"R_SPARC_NONE",    FALSE,0,0x00000000,TRUE),
+  HOWTO(R_SPARC_8,       0,0, 8,FALSE,0,complain_overflow_bitfield,bfd_coff_generic_reloc,"R_SPARC_8",       FALSE,0,0x000000ff,TRUE),
+  HOWTO(R_SPARC_16,      0,1,16,FALSE,0,complain_overflow_bitfield,bfd_coff_generic_reloc,"R_SPARC_16",      FALSE,0,0x0000ffff,TRUE),
+  HOWTO(R_SPARC_32,      0,2,32,FALSE,0,complain_overflow_bitfield,bfd_coff_generic_reloc,"R_SPARC_32",      FALSE,0,0xffffffff,TRUE),
+  HOWTO(R_SPARC_DISP8,   0,0, 8,TRUE, 0,complain_overflow_signed,  bfd_coff_generic_reloc,"R_SPARC_DISP8",   FALSE,0,0x000000ff,TRUE),
+  HOWTO(R_SPARC_DISP16,  0,1,16,TRUE, 0,complain_overflow_signed,  bfd_coff_generic_reloc,"R_SPARC_DISP16",  FALSE,0,0x0000ffff,TRUE),
+  HOWTO(R_SPARC_DISP32,  0,2,32,TRUE, 0,complain_overflow_signed,  bfd_coff_generic_reloc,"R_SPARC_DISP32",  FALSE,0,0x00ffffff,TRUE),
+  HOWTO(R_SPARC_WDISP30, 2,2,30,TRUE, 0,complain_overflow_signed,  bfd_coff_generic_reloc,"R_SPARC_WDISP30", FALSE,0,0x3fffffff,TRUE),
+  HOWTO(R_SPARC_WDISP22, 2,2,22,TRUE, 0,complain_overflow_signed,  bfd_coff_generic_reloc,"R_SPARC_WDISP22", FALSE,0,0x003fffff,TRUE),
+  HOWTO(R_SPARC_HI22,   10,2,22,FALSE,0,complain_overflow_dont,    bfd_coff_generic_reloc,"R_SPARC_HI22",    FALSE,0,0x003fffff,TRUE),
+  HOWTO(R_SPARC_22,      0,2,22,FALSE,0,complain_overflow_bitfield,bfd_coff_generic_reloc,"R_SPARC_22",      FALSE,0,0x003fffff,TRUE),
+  HOWTO(R_SPARC_13,      0,2,13,FALSE,0,complain_overflow_bitfield,bfd_coff_generic_reloc,"R_SPARC_13",      FALSE,0,0x00001fff,TRUE),
+  HOWTO(R_SPARC_LO10,    0,2,10,FALSE,0,complain_overflow_dont,    bfd_coff_generic_reloc,"R_SPARC_LO10",    FALSE,0,0x000003ff,TRUE),
+  HOWTO(R_SPARC_GOT10,   0,2,10,FALSE,0,complain_overflow_bitfield,bfd_coff_generic_reloc,"R_SPARC_GOT10",   FALSE,0,0x000003ff,TRUE),
+  HOWTO(R_SPARC_GOT13,   0,2,13,FALSE,0,complain_overflow_bitfield,bfd_coff_generic_reloc,"R_SPARC_GOT13",   FALSE,0,0x00001fff,TRUE),
+  HOWTO(R_SPARC_GOT22,  10,2,22,FALSE,0,complain_overflow_bitfield,bfd_coff_generic_reloc,"R_SPARC_GOT22",   FALSE,0,0x003fffff,TRUE),
+  HOWTO(R_SPARC_PC10,    0,2,10,FALSE,0,complain_overflow_bitfield,bfd_coff_generic_reloc,"R_SPARC_PC10",    FALSE,0,0x000003ff,TRUE),
+  HOWTO(R_SPARC_PC22,    0,2,22,FALSE,0,complain_overflow_bitfield,bfd_coff_generic_reloc,"R_SPARC_PC22",    FALSE,0,0x003fffff,TRUE),
+  HOWTO(R_SPARC_WPLT30,  0,0,00,FALSE,0,complain_overflow_dont,    bfd_coff_generic_reloc,"R_SPARC_WPLT30",  FALSE,0,0x00000000,TRUE),
+  HOWTO(R_SPARC_COPY,    0,0,00,FALSE,0,complain_overflow_dont,    bfd_coff_generic_reloc,"R_SPARC_COPY",    FALSE,0,0x00000000,TRUE),
+  HOWTO(R_SPARC_GLOB_DAT,0,0,00,FALSE,0,complain_overflow_dont,    bfd_coff_generic_reloc,"R_SPARC_GLOB_DAT",FALSE,0,0x00000000,TRUE),
+  HOWTO(R_SPARC_JMP_SLOT,0,0,00,FALSE,0,complain_overflow_dont,    bfd_coff_generic_reloc,"R_SPARC_JMP_SLOT",FALSE,0,0x00000000,TRUE),
+  HOWTO(R_SPARC_RELATIVE,0,0,00,FALSE,0,complain_overflow_dont,    bfd_coff_generic_reloc,"R_SPARC_RELATIVE",FALSE,0,0x00000000,TRUE),
+  HOWTO(R_SPARC_UA32,    0,0,00,FALSE,0,complain_overflow_dont,    bfd_coff_generic_reloc,"R_SPARC_UA32",    FALSE,0,0x00000000,TRUE),
 };
 
 struct coff_reloc_map {
@@ -216,4 +216,4 @@ rtype2howto (cache_ptr, dst)
 #define TARGET_NAME "coff-sparc"
 #endif
 
-CREATE_BIG_COFF_TARGET_VEC (TARGET_SYM, TARGET_NAME, D_PAGED, 0, '_', NULL)
+CREATE_BIG_COFF_TARGET_VEC (TARGET_SYM, TARGET_NAME, D_PAGED, 0, '_', NULL, COFF_SWAP_TABLE)

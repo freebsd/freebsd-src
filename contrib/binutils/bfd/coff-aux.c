@@ -1,5 +1,5 @@
 /* BFD back-end for Apple M68K COFF A/UX 3.x files.
-   Copyright 1996, 1997, 2000 Free Software Foundation, Inc.
+   Copyright 1996, 1997, 2000, 2002 Free Software Foundation, Inc.
    Written by Richard Henderson <rth@tamu.edu>.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -40,9 +40,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "bfd.h"
 #include "sysdep.h"
 
-static boolean coff_m68k_aux_link_add_one_symbol
+static bfd_boolean coff_m68k_aux_link_add_one_symbol
   PARAMS ((struct bfd_link_info *, bfd *, const char *, flagword,
-           asection *, bfd_vma, const char *, boolean, boolean,
+           asection *, bfd_vma, const char *, bfd_boolean, bfd_boolean,
            struct bfd_link_hash_entry **));
 
 #define coff_link_add_one_symbol coff_m68k_aux_link_add_one_symbol
@@ -56,7 +56,7 @@ static boolean coff_m68k_aux_link_add_one_symbol
    shared libraries work here, but can work if you are careful with
    what you include in the shared object.  */
 
-static boolean
+static bfd_boolean
 coff_m68k_aux_link_add_one_symbol (info, abfd, name, flags, section, value,
 				   string, copy, collect, hashp)
      struct bfd_link_info *info;
@@ -66,8 +66,8 @@ coff_m68k_aux_link_add_one_symbol (info, abfd, name, flags, section, value,
      asection *section;
      bfd_vma value;
      const char *string;
-     boolean copy;
-     boolean collect;
+     bfd_boolean copy;
+     bfd_boolean collect;
      struct bfd_link_hash_entry **hashp;
 {
   struct bfd_link_hash_entry *h;
@@ -86,21 +86,21 @@ coff_m68k_aux_link_add_one_symbol (info, abfd, name, flags, section, value,
 	}
       else
 	{
-	  h = bfd_link_hash_lookup (info->hash, name, true, copy, false);
+	  h = bfd_link_hash_lookup (info->hash, name, TRUE, copy, FALSE);
 	  if (h == NULL)
 	    {
 	      if (hashp != NULL)
 		*hashp = NULL;
-	      return false;
+	      return FALSE;
 	    }
 	}
 
       if (info->notice_hash != (struct bfd_hash_table *) NULL
-	  && (bfd_hash_lookup (info->notice_hash, name, false, false)
+	  && (bfd_hash_lookup (info->notice_hash, name, FALSE, FALSE)
 	      != (struct bfd_hash_entry *) NULL))
 	{
 	  if (! (*info->callbacks->notice) (info, name, abfd, section, value))
-	    return false;
+	    return FALSE;
 	}
 
       if (hashp != (struct bfd_link_hash_entry **) NULL)
@@ -121,10 +121,10 @@ coff_m68k_aux_link_add_one_symbol (info, abfd, name, flags, section, value,
 	    {
 	      h->u.def.section = section;
 	      h->u.def.value = value;
-	      return true;
+	      return TRUE;
 	    }
 	  else if (bfd_is_abs_section (section) && !bfd_is_abs_section (msec))
-	    return true;
+	    return TRUE;
 	}
     }
 

@@ -162,7 +162,7 @@ line is also ignored.
 This directive declares use of a global application or system register.
 It must be followed by a register name %g2, %g3, %g6 or %g7, comma and
 the symbol name for that register.  If symbol name is @code{#scratch},
-it is a scratch register, if it is @code{#ignore}, it just surpresses any
+it is a scratch register, if it is @code{#ignore}, it just suppresses any
 errors about using undeclared global register, but does not emit any
 information about it into the object file.  This can be useful e.g. if you
 save the register before use and restore it after.

@@ -1,6 +1,6 @@
 /* pe.h  -  PE COFF header information 
 
-   Copyright 2000, 2001 Free Software Foundation, Inc.
+   Copyright 2000, 2001, 2003 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -32,6 +32,7 @@
 #define IMAGE_FILE_32BIT_MACHINE             0x0100
 #define IMAGE_FILE_DEBUG_STRIPPED            0x0200
 #define IMAGE_FILE_REMOVABLE_RUN_FROM_SWAP   0x0400
+#define IMAGE_FILE_NET_RUN_FROM_SWAP         0x0800
 #define IMAGE_FILE_SYSTEM                    0x1000
 #define IMAGE_FILE_DLL                       0x2000
 #define IMAGE_FILE_UP_SYSTEM_ONLY            0x4000
@@ -88,24 +89,37 @@
 
 /* Machine numbers.  */
 
-#define IMAGE_FILE_MACHINE_UNKNOWN           0x0
-#define IMAGE_FILE_MACHINE_ALPHA             0x184
-#define IMAGE_FILE_MACHINE_ARM               0x1c0
-#define IMAGE_FILE_MACHINE_ALPHA64           0x284
-#define IMAGE_FILE_MACHINE_I386              0x14c
-#define IMAGE_FILE_MACHINE_IA64              0x200
-#define IMAGE_FILE_MACHINE_M68K              0x268
-#define IMAGE_FILE_MACHINE_MIPS16            0x266
-#define IMAGE_FILE_MACHINE_MIPSFPU           0x366
-#define IMAGE_FILE_MACHINE_MIPSFPU16         0x466
-#define IMAGE_FILE_MACHINE_POWERPC           0x1f0
-#define IMAGE_FILE_MACHINE_R3000             0x162
-#define IMAGE_FILE_MACHINE_R4000             0x166
-#define IMAGE_FILE_MACHINE_R10000            0x168
-#define IMAGE_FILE_MACHINE_SH3               0x1a2
-#define IMAGE_FILE_MACHINE_SH4               0x1a6
-#define IMAGE_FILE_MACHINE_THUMB             0x1c2
-                                                                           
+#define IMAGE_FILE_MACHINE_UNKNOWN           0x0000
+#define IMAGE_FILE_MACHINE_ALPHA             0x0184
+#define IMAGE_FILE_MACHINE_ALPHA64           0x0284
+#define IMAGE_FILE_MACHINE_AM33              0x01d3
+#define IMAGE_FILE_MACHINE_AMD64             0x8664
+#define IMAGE_FILE_MACHINE_ARM               0x01c0
+#define IMAGE_FILE_MACHINE_AXP64             IMAGE_FILE_MACHINE_ALPHA64
+#define IMAGE_FILE_MACHINE_CEE               0xc0ee
+#define IMAGE_FILE_MACHINE_CEF               0x0cef
+#define IMAGE_FILE_MACHINE_EBC               0x0ebc
+#define IMAGE_FILE_MACHINE_I386              0x014c
+#define IMAGE_FILE_MACHINE_IA64              0x0200
+#define IMAGE_FILE_MACHINE_M32R              0x9041
+#define IMAGE_FILE_MACHINE_M68K              0x0268
+#define IMAGE_FILE_MACHINE_MIPS16            0x0266
+#define IMAGE_FILE_MACHINE_MIPSFPU           0x0366
+#define IMAGE_FILE_MACHINE_MIPSFPU16         0x0466
+#define IMAGE_FILE_MACHINE_POWERPC           0x01f0
+#define IMAGE_FILE_MACHINE_POWERPCFP         0x01f1
+#define IMAGE_FILE_MACHINE_R10000            0x0168
+#define IMAGE_FILE_MACHINE_R3000             0x0162
+#define IMAGE_FILE_MACHINE_R4000             0x0166
+#define IMAGE_FILE_MACHINE_SH3               0x01a2
+#define IMAGE_FILE_MACHINE_SH3DSP            0x01a3
+#define IMAGE_FILE_MACHINE_SH3E              0x01a4
+#define IMAGE_FILE_MACHINE_SH4               0x01a6
+#define IMAGE_FILE_MACHINE_SH5               0x01a8
+#define IMAGE_FILE_MACHINE_THUMB             0x01c2
+#define IMAGE_FILE_MACHINE_TRICORE           0x0520
+#define IMAGE_FILE_MACHINE_WCEMIPSV2         0x0169
+
 #define IMAGE_SUBSYSTEM_UNKNOWN			 0
 #define IMAGE_SUBSYSTEM_NATIVE			 1
 #define IMAGE_SUBSYSTEM_WINDOWS_GUI		 2

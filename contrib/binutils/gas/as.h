@@ -1,6 +1,6 @@
 /* as.h - global header file
    Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002
+   1999, 2000, 2001, 2002, 2003
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -188,7 +188,7 @@ extern char **environ;
 #endif /* __FILE__ */
 
 #ifndef FOPEN_WB
-#ifdef GO32
+#if defined GO32 || defined __MINGW32__
 #include "fopen-bin.h"
 #else
 #include "fopen-same.h"
@@ -237,7 +237,7 @@ typedef addressT valueT;
 #ifdef TEST
 #define COMMON			/* declare our COMMONs storage here.  */
 #else
-#define COMMON extern		/* our commons live elswhere */
+#define COMMON extern		/* our commons live elsewhere */
 #endif
 #endif
 /* COMMON now defined */
@@ -301,7 +301,7 @@ typedef asection *segT;
 #endif
 typedef int subsegT;
 
-/* What subseg we are accreting now? */
+/* What subseg we are accessing now? */
 COMMON subsegT now_subseg;
 
 /* Segment our instructions emit to.  */
@@ -436,6 +436,12 @@ COMMON int flag_strip_local_absolute;
 /* True if we should generate a traditional format object file.  */
 COMMON int flag_traditional_format;
 
+/* TRUE if .note.GNU-stack section with SEC_CODE should be created */
+COMMON int flag_execstack;
+
+/* TRUE if .note.GNU-stack section with SEC_CODE should be created */
+COMMON int flag_noexecstack;
+
 /* name of emitted object file */
 COMMON char *out_file_name;
 
@@ -470,9 +476,13 @@ enum debug_info_type {
 };
 
 extern enum debug_info_type debug_type;
+extern int use_gnu_debug_info_extensions;
 
 /* Maximum level of macro nesting.  */
 extern int max_macro_nest;
+
+/* Verbosity level.  */
+extern int verbose;
 
 /* Obstack chunk size.  Keep large for efficient space use, make small to
    increase malloc calls for monitoring memory allocation.  */
@@ -482,7 +492,7 @@ struct _pseudo_type {
   /* assembler mnemonic, lower case, no '.' */
   const char *poc_name;
   /* Do the work */
-  void (*poc_handler) PARAMS ((int));
+  void (*poc_handler) (int);
   /* Value to pass to handler */
   int poc_val;
 };
@@ -522,10 +532,10 @@ typedef struct _pseudo_type pseudo_typeS;
 
 #else /* __GNUC__ < 2 || defined(VMS) */
 
-#define PRINTF_LIKE(FCN)	void FCN PARAMS ((const char *format, ...))
-#define PRINTF_WHERE_LIKE(FCN)	void FCN PARAMS ((char *file, \
-						  unsigned int line, \
-					  	  const char *format, ...))
+#define PRINTF_LIKE(FCN)	void FCN (const char *format, ...)
+#define PRINTF_WHERE_LIKE(FCN)	void FCN (char *file, \
+					  unsigned int line, \
+					  const char *format, ...)
 
 #endif /* __GNUC__ < 2 || defined(VMS) */
 
@@ -543,54 +553,54 @@ PRINTF_LIKE (as_warn);
 PRINTF_WHERE_LIKE (as_bad_where);
 PRINTF_WHERE_LIKE (as_warn_where);
 
-void as_assert PARAMS ((const char *, int, const char *));
-void as_abort PARAMS ((const char *, int, const char *)) ATTRIBUTE_NORETURN;
+void as_assert (const char *, int, const char *);
+void as_abort (const char *, int, const char *) ATTRIBUTE_NORETURN;
 
-void fprint_value PARAMS ((FILE *file, addressT value));
-void sprint_value PARAMS ((char *buf, addressT value));
+void fprint_value (FILE *file, addressT value);
+void sprint_value (char *buf, addressT value);
 
-int had_errors PARAMS ((void));
-int had_warnings PARAMS ((void));
+int had_errors (void);
+int had_warnings (void);
 
-void print_version_id PARAMS ((void));
-char *app_push PARAMS ((void));
-char *atof_ieee PARAMS ((char *str, int what_kind, LITTLENUM_TYPE * words));
-char *input_scrub_include_file PARAMS ((char *filename, char *position));
-extern void input_scrub_insert_line PARAMS((const char *line));
-extern void input_scrub_insert_file PARAMS((char *path));
-char *input_scrub_new_file PARAMS ((char *filename));
-char *input_scrub_next_buffer PARAMS ((char **bufp));
-int do_scrub_chars PARAMS ((int (*get) (char *, int), char *to, int tolen));
-int gen_to_words PARAMS ((LITTLENUM_TYPE * words, int precision,
-			  long exponent_bits));
-int had_err PARAMS ((void));
-int ignore_input PARAMS ((void));
-void cond_finish_check PARAMS ((int));
-void cond_exit_macro PARAMS ((int));
-int seen_at_least_1_file PARAMS ((void));
-void app_pop PARAMS ((char *arg));
-void as_howmuch PARAMS ((FILE * stream));
-void as_perror PARAMS ((const char *gripe, const char *filename));
-void as_where PARAMS ((char **namep, unsigned int *linep));
-void bump_line_counters PARAMS ((void));
-void do_scrub_begin PARAMS ((int));
-void input_scrub_begin PARAMS ((void));
-void input_scrub_close PARAMS ((void));
-void input_scrub_end PARAMS ((void));
-int new_logical_line PARAMS ((char *fname, int line_number));
-void subsegs_begin PARAMS ((void));
-void subseg_change PARAMS ((segT seg, int subseg));
-segT subseg_new PARAMS ((const char *name, subsegT subseg));
-segT subseg_force_new PARAMS ((const char *name, subsegT subseg));
-void subseg_set PARAMS ((segT seg, subsegT subseg));
+void print_version_id (void);
+char *app_push (void);
+char *atof_ieee (char *str, int what_kind, LITTLENUM_TYPE * words);
+char *input_scrub_include_file (char *filename, char *position);
+extern void input_scrub_insert_line (const char *line);
+extern void input_scrub_insert_file (char *path);
+char *input_scrub_new_file (char *filename);
+char *input_scrub_next_buffer (char **bufp);
+int do_scrub_chars (int (*get) (char *, int), char *to, int tolen);
+int gen_to_words (LITTLENUM_TYPE * words, int precision,
+			  long exponent_bits);
+int had_err (void);
+int ignore_input (void);
+void cond_finish_check (int);
+void cond_exit_macro (int);
+int seen_at_least_1_file (void);
+void app_pop (char *arg);
+void as_howmuch (FILE * stream);
+void as_perror (const char *gripe, const char *filename);
+void as_where (char **namep, unsigned int *linep);
+void bump_line_counters (void);
+void do_scrub_begin (int);
+void input_scrub_begin (void);
+void input_scrub_close (void);
+void input_scrub_end (void);
+int new_logical_line (char *fname, int line_number);
+void subsegs_begin (void);
+void subseg_change (segT seg, int subseg);
+segT subseg_new (const char *name, subsegT subseg);
+segT subseg_force_new (const char *name, subsegT subseg);
+void subseg_set (segT seg, subsegT subseg);
 #ifdef BFD_ASSEMBLER
-segT subseg_get PARAMS ((const char *, int));
+segT subseg_get (const char *, int);
 #endif
-int subseg_text_p PARAMS ((segT));
+int subseg_text_p (segT);
 
-void start_dependencies PARAMS ((char *));
-void register_dependency PARAMS ((char *));
-void print_dependencies PARAMS ((void));
+void start_dependencies (char *);
+void register_dependency (char *);
+void print_dependencies (void);
 
 struct expressionS;
 struct fix;
@@ -600,21 +610,29 @@ typedef struct frag fragS;
 
 #ifdef BFD_ASSEMBLER
 /* literal.c */
-valueT add_to_literal_pool PARAMS ((symbolS *, valueT, segT, int));
+valueT add_to_literal_pool (symbolS *, valueT, segT, int);
 #endif
 
-int check_eh_frame PARAMS ((struct expressionS *, unsigned int *));
-int eh_frame_estimate_size_before_relax PARAMS ((fragS *));
-int eh_frame_relax_frag PARAMS ((fragS *));
-void eh_frame_convert_frag PARAMS ((fragS *));
+int check_eh_frame (struct expressionS *, unsigned int *);
+int eh_frame_estimate_size_before_relax (fragS *);
+int eh_frame_relax_frag (fragS *);
+void eh_frame_convert_frag (fragS *);
+
+int generic_force_reloc (struct fix *);
 
 #include "expr.h"		/* Before targ-*.h */
 
 /* this one starts the chain of target dependant headers */
 #include "targ-env.h"
 
-#ifdef TC_ARC
-#include "struc-symbol.h"
+#ifdef OBJ_MAYBE_ELF
+#define IS_ELF (OUTPUT_FLAVOR == bfd_target_elf_flavour)
+#else
+#ifdef OBJ_ELF
+#define IS_ELF 1
+#else
+#define IS_ELF 0
+#endif
 #endif
 
 #include "write.h"

@@ -1,6 +1,6 @@
 ## Process this file with automake to generate Makefile.in
 
-AUTOMAKE_OPTIONS = cygnus
+AUTOMAKE_OPTIONS = 1.8 cygnus
 
 # What version of the manual you want; "all" includes everything
 CONFIG=all
@@ -15,8 +15,6 @@ POD2MAN = pod2man --center="GNU Development Tools" \
 
 man_MANS = as.1
 
-# The gasp.texi file is now deprecated, as GASP has been deprecated.
-# It will disappear in a future release.
 info_TEXINFOS = as.texinfo 
 
 asconfig.texi: $(CONFIG).texi
@@ -39,12 +37,14 @@ CPU_DOCS = \
 	c-i386.texi \
 	c-i860.texi \
 	c-i960.texi \
+	c-ip2k.texi \
 	c-m32r.texi \
 	c-m68hc11.texi \
 	c-m68k.texi \
 	c-m88k.texi \
 	c-mips.texi \
 	c-mmix.texi \
+	c-msp430.texi \
 	c-ns32k.texi \
 	c-pdp11.texi \
 	c-pj.texi \
@@ -55,6 +55,7 @@ CPU_DOCS = \
         c-tic54x.texi \
 	c-vax.texi \
 	c-v850.texi \
+	c-xtensa.texi \
 	c-z8k.texi
 
 gasver.texi: Makefile
@@ -66,15 +67,20 @@ as.dvi: $(srcdir)/as.texinfo asconfig.texi gasver.texi $(CPU_DOCS)
 
 # We want install to imply install-info as per GNU standards, despite the
 # cygnus option.
-install: install-info
+install-data-local: install-info
 
 # This one isn't ready for prime time yet.  Not even a little bit.
 
-noinst_TEXINFOS = internals.texi gasp.texi
+noinst_TEXINFOS = internals.texi
 
 DISTCLEANFILES = asconfig.texi
 
 MAINTAINERCLEANFILES = gasver.texi
+
+BASEDIR = $(srcdir)/../..
+BFDDIR = $(BASEDIR)/bfd
+
+CONFIG_STATUS_DEPENDENCIES = $(BFDDIR)/configure.in
 
 # Maintenance
 
@@ -84,7 +90,7 @@ info: $(MANS)
 # Build the man page from the texinfo file
 # The sed command removes the no-adjust Nroff command so that
 # the man output looks standard.
-as.1: $(srcdir)/as.texinfo
+as.1: $(srcdir)/as.texinfo asconfig.texi gasver.texi $(CPU_DOCS)
 	touch $@
 	-$(TEXI2POD) $(MANCONF) < $(srcdir)/as.texinfo > as.pod
 	-($(POD2MAN) as.pod | \

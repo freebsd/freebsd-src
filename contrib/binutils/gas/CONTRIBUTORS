@@ -30,9 +30,8 @@ sparc opcode file rewrite, decstation, rs6000, and hp300hpux host
 ports, updated "know" assertions and made them work, much other
 reorganization, cleanup, and lint.
 
-Ken Raeburn currently maintains gas, and wrote the high-level BFD
-interface code to replace most of the code in format-specific I/O
-modules.
+Ken Raeburn wrote the high-level BFD interface code to replace most of
+the code in format-specific I/O modules.
 
 The original Vax-VMS support was contributed by David L. Kashtan.
 Eric Youngdale and Pat Rankin have done much work with it since.

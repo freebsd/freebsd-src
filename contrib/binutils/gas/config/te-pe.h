@@ -1,5 +1,5 @@
 #define TE_PE
-#define LEX_AT 1 /* can have @'s inside labels */
+#define LEX_AT (LEX_BEGIN_NAME | LEX_NAME) /* Can have @'s inside labels.  */
 
 /* The PE format supports long section names.  */
 #define COFF_LONG_SECTION_NAMES

@@ -1,5 +1,5 @@
 /* bfd initialization stuff
-   Copyright 1990, 1991, 1992, 1993, 1994, 1995
+   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 2003
    Free Software Foundation, Inc.
    Written by Steve Chamberlain of Cygnus Support.
 
@@ -35,7 +35,7 @@ FUNCTION
 	bfd_init
 
 SYNOPSIS
-	void bfd_init(void);
+	void bfd_init (void);
 
 DESCRIPTION
 	This routine must be called before any other BFD function to
@@ -46,6 +46,6 @@ DESCRIPTION
    However, someday it may be needed, so keep it around.  */
 
 void
-bfd_init ()
+bfd_init (void)
 {
 }

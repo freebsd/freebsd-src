@@ -1,5 +1,5 @@
 /* Sysroff object format dumper.
-   Copyright 1994, 1995, 1998, 1999, 2000, 2001, 2002
+   Copyright 1994, 1995, 1998, 1999, 2000, 2001, 2002, 2003
    Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
@@ -40,35 +40,31 @@ static int code;
 static int addrsize = 4;
 static FILE *file;
 
-static void dh PARAMS ((unsigned char *, int));
-static void itheader PARAMS ((char *, int));
-static void p PARAMS ((void));
-static void tabout PARAMS ((void));
-static void pbarray PARAMS ((barray *));
-static int getone PARAMS ((int));
-static int opt PARAMS ((int));
-static void must PARAMS ((int));
-static void tab PARAMS ((int, char *));
-static void dump_symbol_info PARAMS ((void));
-static void derived_type PARAMS ((void));
-static void module PARAMS ((void));
-static void show_usage PARAMS ((FILE *, int));
+static void dh (unsigned char *, int);
+static void itheader (char *, int);
+static void p (void);
+static void tabout (void);
+static void pbarray (barray *);
+static int getone (int);
+static int opt (int);
+static void must (int);
+static void tab (int, char *);
+static void dump_symbol_info (void);
+static void derived_type (void);
+static void module (void);
+static void show_usage (FILE *, int);
 
-extern char *getCHARS PARAMS ((unsigned char *, int *, int, int));
-extern int fillup PARAMS ((char *));
-extern barray getBARRAY PARAMS ((unsigned char *, int *, int, int));
-extern int getINT PARAMS ((unsigned char *, int *, int, int));
-extern int getBITS PARAMS ((char *, int *, int, int));
-extern void sysroff_swap_tr_in PARAMS ((void));
-extern void sysroff_print_tr_out PARAMS ((void));
-extern int main PARAMS ((int, char **));
+extern char *getCHARS (unsigned char *, int *, int, int);
+extern int fillup (char *);
+extern barray getBARRAY (unsigned char *, int *, int, int);
+extern int getINT (unsigned char *, int *, int, int);
+extern int getBITS (char *, int *, int, int);
+extern void sysroff_swap_tr_in (void);
+extern void sysroff_print_tr_out (void);
+extern int main (int, char **);
 
 char *
-getCHARS (ptr, idx, size, max)
-     unsigned char *ptr;
-     int *idx;
-     int size;
-     int max;
+getCHARS (unsigned char *ptr, int *idx, int size, int max)
 {
   int oc = *idx / 8;
   char *r;
@@ -93,9 +89,7 @@ getCHARS (ptr, idx, size, max)
 }
 
 static void
-dh (ptr, size)
-     unsigned char *ptr;
-     int size;
+dh (unsigned char *ptr, int size)
 {
   int i;
   int j;
@@ -127,8 +121,7 @@ dh (ptr, size)
 }
 
 int
-fillup (ptr)
-     char *ptr;
+fillup (char *ptr)
 {
   int size;
   int sum;
@@ -151,11 +144,8 @@ fillup (ptr)
 }
 
 barray
-getBARRAY (ptr, idx, dsize, max)
-     unsigned char *ptr;
-     int *idx;
-     int dsize ATTRIBUTE_UNUSED;
-     int max ATTRIBUTE_UNUSED;
+getBARRAY (unsigned char *ptr, int *idx, int dsize ATTRIBUTE_UNUSED,
+	   int max ATTRIBUTE_UNUSED)
 {
   barray res;
   int i;
@@ -172,11 +162,7 @@ getBARRAY (ptr, idx, dsize, max)
 }
 
 int
-getINT (ptr, idx, size, max)
-     unsigned char *ptr;
-     int *idx;
-     int size;
-     int max;
+getINT (unsigned char *ptr, int *idx, int size, int max)
 {
   int n = 0;
   int byte = *idx / 8;
@@ -212,10 +198,7 @@ getINT (ptr, idx, size, max)
 }
 
 int
-getBITS (ptr, idx, size, max)
-     char *ptr;
-     int *idx;
-     int size, max;
+getBITS (char *ptr, int *idx, int size, int max)
 {
   int byte = *idx / 8;
   int bit = *idx % 8;
@@ -229,9 +212,7 @@ getBITS (ptr, idx, size, max)
 }
 
 static void
-itheader (name, code)
-     char *name;
-     int code;
+itheader (char *name, int code)
 {
   printf ("\n%s 0x%02x\n", name, code);
 }
@@ -239,7 +220,7 @@ itheader (name, code)
 static int indent;
 
 static void
-p ()
+p (void)
 {
   int i;
 
@@ -250,14 +231,13 @@ p ()
 }
 
 static void
-tabout ()
+tabout (void)
 {
   p ();
 }
 
 static void
-pbarray (y)
-     barray *y;
+pbarray (barray *y)
 {
   int x;
 
@@ -283,7 +263,7 @@ pbarray (y)
 #define IT_tr_CODE	0x7f
 
 void
-sysroff_swap_tr_in()
+sysroff_swap_tr_in (void)
 {
   char raw[255];
 
@@ -292,14 +272,13 @@ sysroff_swap_tr_in()
 }
 
 void
-sysroff_print_tr_out()
+sysroff_print_tr_out (void)
 {
   itheader ("tr", IT_tr_CODE);
 }
 
 static int
-getone (type)
-     int type;
+getone (int type)
 {
   int c = getc (file);
 
@@ -531,8 +510,7 @@ getone (type)
 }
 
 static int
-opt (x)
-     int x;
+opt (int x)
 {
   return getone (x);
 }
@@ -542,7 +520,7 @@ opt (x)
 /* This is no longer used.  */
 
 static void
-unit_info_list ()
+unit_info_list (void)
 {
   while (opt (IT_un_CODE))
     {
@@ -566,7 +544,7 @@ unit_info_list ()
 /* This is no longer used.  */
 
 static void
-object_body_list ()
+object_body_list (void)
 {
   while (getone (IT_sh_CODE))
     {
@@ -580,17 +558,14 @@ object_body_list ()
 #endif
 
 static void
-must (x)
-     int x;
+must (int x)
 {
   if (!getone (x))
     printf ("WANTED %x!!\n", x);
 }
 
 static void
-tab (i, s)
-     int i;
-     char *s;
+tab (int i, char *s)
 {
   indent += i;
 
@@ -603,7 +578,7 @@ tab (i, s)
 }
 
 static void
-dump_symbol_info ()
+dump_symbol_info (void)
 {
   tab (1, "SYMBOL INFO");
 
@@ -621,7 +596,7 @@ dump_symbol_info ()
 }
 
 static void
-derived_type ()
+derived_type (void)
 {
   tab (1, "DERIVED TYPE");
 
@@ -679,7 +654,7 @@ derived_type ()
 /* This is no longer used.  */
 
 static void
-program_structure ()
+program_structure (void)
 {
   tab (1, "PROGRAM STRUCTURE");
   while (opt (IT_dps_CODE))
@@ -699,7 +674,7 @@ program_structure ()
 /* This is no longer used.  */
 
 static void
-debug_list ()
+debug_list (void)
 {
   tab (1, "DEBUG LIST");
 
@@ -714,7 +689,7 @@ debug_list ()
 #endif
 
 static void
-module ()
+module (void)
 {
   int c = 0;
   int l = 0;
@@ -760,9 +735,7 @@ module ()
 char *program_name;
 
 static void
-show_usage (file, status)
-     FILE *file;
-     int status;
+show_usage (FILE *file, int status)
 {
   fprintf (file, _("Usage: %s [option(s)] in-file\n"), program_name);
   fprintf (file, _("Print a human readable interpretation of a SYSROFF object file\n"));
@@ -776,9 +749,7 @@ show_usage (file, status)
 }
 
 int
-main (ac, av)
-     int ac;
-     char **av;
+main (int ac, char **av)
 {
   char *input_file = NULL;
   int opt;

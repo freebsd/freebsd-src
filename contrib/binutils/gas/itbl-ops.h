@@ -86,24 +86,23 @@ extern int itbl_have_entries;
 
 /* These routines are visible to the main part of the assembler */
 
-int itbl_parse PARAMS ((char *insntbl));
-void itbl_init PARAMS ((void));
-char *itbl_get_field PARAMS ((char **s));
-unsigned long itbl_assemble PARAMS ((char *name, char *operands));
-int itbl_disassemble PARAMS ((char *str, unsigned long insn));
-int itbl_parse PARAMS ((char *tbl));	/* parses insn tbl */
-int itbl_get_reg_val PARAMS ((char *name, unsigned long *pval));
-int itbl_get_val PARAMS ((e_processor processor, e_type type, char *name,
-			  unsigned long *pval));
-char *itbl_get_name PARAMS ((e_processor processor, e_type type,
-			     unsigned long val));
+int itbl_parse (char *insntbl);
+void itbl_init (void);
+char *itbl_get_field (char **s);
+unsigned long itbl_assemble (char *name, char *operands);
+int itbl_disassemble (char *str, unsigned long insn);
+int itbl_parse (char *tbl);	/* parses insn tbl */
+int itbl_get_reg_val (char *name, unsigned long *pval);
+int itbl_get_val (e_processor processor, e_type type, char *name,
+		  unsigned long *pval);
+char *itbl_get_name (e_processor processor, e_type type, unsigned long val);
 
 /* These routines are called by the table parser used to build the
    dynamic list of new processor instructions and registers.  */
 
-struct itbl_entry *itbl_add_reg PARAMS ((int yyproc, int yytype,
-					 char *regname, int regnum));
-struct itbl_entry *itbl_add_insn PARAMS ((int yyproc, char *name,
-	     unsigned long value, int sbit, int ebit, unsigned long flags));
-struct itbl_field *itbl_add_operand PARAMS ((struct itbl_entry * e, int yytype,
-				  int sbit, int ebit, unsigned long flags));
+struct itbl_entry *itbl_add_reg (int yyproc, int yytype,
+				 char *regname, int regnum);
+struct itbl_entry *itbl_add_insn (int yyproc, char *name,
+	     unsigned long value, int sbit, int ebit, unsigned long flags);
+struct itbl_field *itbl_add_operand (struct itbl_entry * e, int yytype,
+				  int sbit, int ebit, unsigned long flags);

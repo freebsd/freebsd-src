@@ -1,8 +1,957 @@
-2002-10-28  Daniel Jacobowitz  <drow@mvista.com>
+2004-02-16  Matt Kraai  <kraai@alumni.cmu.edu>
 
-	Merge from mainline:
-	2002-10-16  Jakub Jelinek  <jakub@redhat.com>
+	* regex.c: Include <ansidecl.h>.
+	(regcomp): Cast i to int.
+	(regerror): Add ATTRIBUTE_UNUSED to parameter preg.
+
+2004-01-25  Ian Lance Taylor  <ian@wasabisystems.com>
+
+	* configure.ac: Add m4_pattern_allow(LIBOBJS).
+	* configure: Regenerate.
+
+2004-01-22  DJ Delorie  <dj@redhat.com>
+
+	* Makefile.in: Convert to ./ throughout.  Rebuild dependencies
+	with explicit build rules.
+	(VPATH): Remove.
+	(.c.o): Poison.
+	* configure.ac (pexecute, LIBOBJS): Add ./ .
+	* maint-tool: Build dependencies with explicit rules.
+
+2004-01-15  Kazu Hirata  <kazu@cs.umass.edu>
+
+	* strdup.c (strdup): Constify the argument.
+
+2004-01-14  Loren J. Rittle  <ljrittle@acm.org>
+
+	* Makefile.in (distclean): Remove config.cache.
+
+2004-01-13  Daniel Jacobowitz  <drow@mvista.com>
+
+	* cp-demangle.c (d_make_comp): DEMANGLE_COMPONENT_CONSTRUCTION_VTABLE
+	takes two parameters.
+	* cp-demint.c (cplus_demangle_fill_component): Likewise.
+
+2004-01-12  Ian Lance Taylor  <ian@wasabisystems.com>
+
+	* cp-demangle.c: Include "cp-demangle.h".  If IN_GLIBCPP_V3 is
+	defined, rename some functions which are to become static via
+	#define.
+	(CP_STATIC_IF_GLIBCPP_V3): Define.
+	(struct d_operator_info): Move definition to cp-demangle.h, and
+	rename to demangle_operator_info.  Change all uses.
+	(enum d_builtin_type_print): Move definition to cp-demangle.h.
+	(struct d_builtin_type_info): Move definition to cp-demangle.h,
+	and rename to demangle_builtin_type_info.  Change all uses.
+	(enum d_comp_type): Move definition to include/demangle.h, and
+	rename to demangle_component_type, and change all enums to start
+	with DEMANGLE_COMPONENT_ instead of D_.  Change all uses.
+	(struct d_comp): Move definition to include/demangle.h, and rename
+	to demangle_component.  Change all uses.
+	(struct d_info): Move definition to cp-demangle.h.
+	(cplus_demangle_fill_name): New function.
+	(cplus_demangle_fill_extended_operator): New function.
+	(cplus_demangle_fill_ctor): New function.
+	(cplus_demangle_fill_dtor): New function.
+	(d_make_empty): Remove type parameter.  Change all callers.
+	(d_make_name): Use cplus_demangle_fill_name.
+	(d_make_extended_operator): Use
+	cplus_demangle_fill_extended_operator.
+	(d_make_ctor): Use cplus_demangle_fill_ctor.
+	(d_make_dtor): Use cplus_demangle_fill_dtor.
+	(cplus_demangle_mangled_name): Rename from d_mangled_name.  Make
+	non-static by default.  Change all callers.
+	(cplus_demangle_operators): Rename from d_operators.  Change all
+	uses.  Make non-static by default.  Add sentinel at end of array.
+	(d_operator_name): Adjust initialization of high for new sentinel
+	in cplus_demangle_operators.
+	(cplus_demangle_builtin_types): Rename from d_builtin_types.
+	Change all uses.  Make non-static by default.  Change initializer
+	to use D_BUILTIN_TYPE_COUNT instead of magic number 26.
+	(cplus_demangle_type): Rename from d_type.  Make non-static by
+	default.  Change all callers.
+	(cplus_demangle_init_info): Rename from d_init_info.  Make
+	non-static by default.  Change all callers.
+	* cp-demangle.h: New file.
+	* cp-demint.c: New file.
+	* Makefile.in: Rebuild dependencies.
+	(CFILES): Add cp-demint.c.
+	(REQUIRED_OFILES): Add cp-demint.o.
+
+2004-01-09  Kelley Cook  <kcook@gcc.gnu.org>
+
+	* configure.in:  Rename file to ...
+	* configure.ac:  ... this.
+	* Makefile.in: Update a comment for above change.
+	* README: Likewise.
+	* config.in: Regenerate.
+
+2004-01-02  Ian Lance Taylor  <ian@wasabisystems.com>
+
+	* cp-demangle.c (d_encoding): When DMGL_PARAMS is not set, strip
+	CV-qualifiers from D_COMP_LOCAL_NAME right subtree.
+	* cplus-dem.c (demangle_arm_hp_template): Set DMGL_PARAMS when
+	demangling template parameters.
+	* testsuite/test-demangle.c (fail): New static function.
+	(main): Support new options in input file: --no-params,
+	--is-v3-ctor, and --is-v3-dtor.
+	* testsuite/demangle-expected: Add --no-params to most tests, and
+	add the correct result when parameters are not demangled.  Add
+	some simple tests for V3 constructor/destructor recognition.
+
+2003-12-25  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* cp-demangle.c (is_ctor_or_dtor): Fix error in last change.
+
+2003-12-22  Daniel Jacobowitz  <drow@mvista.com>
+
+	PR debug/13272
+	* Makefile.in (lbasename.o): Depend on filenames.h.
+	* lbasename.c: Include "filenames.h" instead of defining
+	its macros locally.
+
+2003-12-22  Ian Lance Taylor  <ian@wasabisystems.com>
+
+	* cp-demangle.c (CP_DYNAMIC_ARRAYS): Define if compiler supports
+	dynamic arrays.
+	(struct d_operator_info): Add len field.
+	(struct d_builtin_type_info): Add len and java_len fields.
+	(struct d_standard_sub_info): Add simple_len, full_len, and
+	set_last_name_len fields.
+	(struct d_comp): Add len field to s_string.
+	(struct d_info): Add send, did_subs, and expansion fields.
+	(d_append_string_constant): Define.
+	(d_append_string): Remove.  Change all users to use
+	d_append_string_constant or d_append_buffer instead.
+	(d_make_sub): Add len parameter.  Change all callers.
+	(d_name): Increase expansion when substituting std::.
+	(d_unqualified_name): Increase expansion for an operator.
+	(d_number): Don't use multiplication for negative numbers.
+	(d_identifier): Make sure there are enough characters in the
+	string for the specified length.  Adjust expansion for an
+	anonymous namespace.
+	(d_operators): Initialize len field.
+	(d_special_name, d_ctor_dtor_name): Increase expansion.
+	(d_builtin_types): Initialize len and java_len fields.
+	(d_type): Increase expansion for a builtin type.
+	(d_cv_qualifiers): Increase expansion for each qualifier.
+	(d_bare_function_type): Decrease expansion when removing single
+	void parameter.
+	(d_template_param): Increment did_subs.
+	(d_expression): Increase expansion for an operator.
+	(d_expr_primary): Decrease expansion for a type we will print
+	specially.
+	(standard_subs): Initialize new fields.
+	(d_substitution): Increment did_subs when doing a normal
+	substitution.  Increase expansion for a special substitution.
+	(d_print): Add estimate parameter.  Change all callers.
+	(d_print_comp) [D_COMP_NAME]: Handle C++ case inline.
+	(d_print_comp) [D_COMP_BINARY]: Use length to avoid strcmp call.
+	(d_print_java_identifier): Rename from d_print_identifier.  Handle
+	only Java case.  Change caller.
+	(d_init_info): Change return type to void.  Change all callers.
+	Initialize send, did_subs, and expansion fields.  Do not
+	initialize comps and subs fields.
+	(d_demangle): Ifdef CP_DYNAMIC_ARRAYS, allocate comps and subs
+	arrays on stack.  Make an estimate of the length of the demangled
+	name.  Ifdef CP_DEMANGLE_DEBUG, print estimation failures.
+	(is_ctor_or_dtor): Ifdef CP_DYNAMIC_ARRAYS, allocate comps and
+	subs arrays on stack.
+
+2003-12-20  Ian Lance Taylor  <ian@wasabisystems.com>
+
+	* cp-demangle.c (d_identifier): In Java mode, skip an optional '$'
+	after the identifier.
+	* testsuite/demangle-expected: Add test case.
+
+2003-12-19  Ian Lance Taylor  <ian@wasabisystems.com>
+
+	Fix for PR c++/13447:
+	* cp-demangle.c (enum d_comp_type): Add D_COMP_LOCAL_NAME.
+	(d_dump, d_make_comp): Handle D_COMP_LOCAL_NAME.
+	(is_ctor_dtor_or_conversion): Handle D_COMP_LOCAL_NAME like
+	D_COMP_QUAL_NAME.
+	(is_ctor_or_dtor): Likewise.
+	(d_local_name): Use D_COMP_LOCAL_NAME rather than
+	D_COMP_QUAL_NAME.
+	(d_print_comp) [D_COMP_LOCAL_NAME]: New.
+	(d_prinT_comp) [D_COMP_TYPED_NAME]: If the left tree is
+	D_COMP_LOCAL_NAME, pull any qualifiers off its right subtree.
+	(d_print_mod_list): Handle D_COMP_LOCAL_NAME.
+	* testsuite/demangle-expected: Add two test cases.
+
+	* cp-demangle.c (d_print_function_type): Clear the global modifier
+	list when printing the modifiers, not just when printing the
+	function parameters.
+	* testsuite/demangle-expected: Add two test cases.
+
+2003-12-15  Ian Lance Taylor  <ian@wasabisystems.com>
+
+	* cp-demangle.c (d_print_function_type): Print the function
+	parameters with no modifiers.
+	* testsuite/demangle-expected: Add test case.
+
+	* cp-demangle.c (d_demangle): If DMGL_PARAMS is not set, don't
+	expect that we've read the entire string.
+	(is_ctor_or_dtor): Don't expect that we've read the entire
+	string--reverse patch of 2003-11-29.
+
+2003-12-15  Brendan Kehoe  <brendan@zen.org>
+
+	* libiberty/Makefile.in (floatformat.o): Add dependency on
+	config.h to accompany change of 2003-12-03.
+
+2003-12-15  Ian Lance Taylor  <ian@wasabisystems.com>
+
+	Fix handling of constructor/destructor of standard substitution:
+	* cp-demangle.c (struct d_standard_sub_info): Define.
+	(d_substitution): Add prefix argument.  Change all callers.
+	Rework handling of standard substitutions to print full name when
+	qualifying a constructor/destructor, or when DMGL_VERBOSE is set.
+	* testsuite/demangle-expected: Add test case.
+
+	Fix handling of negative literal constants:
+	* cp-demangle.c (enum d_comp_type): Add D_COMP_LITERAL_NEG.
+	(d_dump, d_make_comp): Handle D_COMP_LITERAL_NEG.
+	(d_expr_primary): Use D_COMP_LITERAL_NEG for a negative number.
+	(d_print_comp): Handle D_COMP_LITERAL_NEG.
+	* testsuite/demangle-expected: Add test case.
+
+2003-12-04  Ian Lance Taylor  <ian@wasabisystems.com>
+
+	* cp-demangle.c (IS_UPPER, IS_LOWER): Define.
+	(d_last_char): Define new macro.
+	(d_make_name): Reject an empty name.
+	(d_prefix, d_unqualified_name, d_type): Use new IS_* macros.
+	(d_substitution, d_print_identifier): Likewise.
+	(d_print_comp) [D_COMP_OPERATOR]: Likewise.
+	(d_print_comp) [D_COMP_TEMPLATE]: Use new d_last_char macro.
+	(d_print_mod) Use new d_last_char macro.
+	(d_print_cast): Use new d_last_char macro.
+	(is_ctor_or_dtor): Don't leak memory.
+
+	Fix handling of member function modifiers:
+	* cp-demangle.c (enum d_comp_type): Add D_COMP_RESTRICT_THIS,
+	D_COMP_VOLATILE_THIS, and D_COMP_CONST_THIS.
+	(d_dump): Dump new d_comp_type values.
+	(d_make_comp): Accept new d_comp_type values.
+	(has_return_type): Only accept _THIS variants of qualifiers.
+	(d_encoding): Without DMGL_PARAMS, only remove _THIS variants of
+	qualifiers.
+	(d_cv_qualifiers): Add member_fn parameter.  Change all callers.
+	(d_print_comp) [D_COMP_TYPED_NAME]: Rather than removing
+	qualifiers and printing them at the end, add _THIS qualifiers to
+	the modifier list.
+	(d_print_comp) [D_COMP_*_THIS]: New cases.
+	(d_print_comp) [D_COMP_PTRMEM_TYPE]: Remove special handling of
+	qualifiers.
+	(d_print_mod_list): Add suffix parameter.  Change all callers.
+	Keep walking the list even if the current modifier has been
+	printed.
+	(d_print_mod): Handle new _THIS qualifiers.
+	(d_print_function_type): Handle new _THIS qualifiers when deciding
+	whether to print a parenthesis.  Put a space before the
+	parenthesis in some cases.  Call d_print_mod_list again at the
+	end, passing suffix as 1.
+	(is_ctor_or_dtor): Look for new _THIS qualifiers.
+	* testsuite/demangle-expected: Add test case.
+
+	Fix for PR gcc/13304:
+	* cp-demangle.c (d_print_comp) [D_COMP_TEMPLATE]: If the character
+	before the '<' is itself a '<', insert a space.
+	(d_print_cast): Likewise.
+	* testsuite/demangle-expected: Add test case.
+
+	Fix for PR gcc/13244:
+	* cp-demangle.c (d_print_comp) [D_COMP_BINARY]: Wrap an expression
+	which uses the '>' operator in an extra layer of parens.
+	* testsuite/demangle-expected: Add test case.
+
+2003-12-03  Ian Lance Taylor  <ian@wasabisystems.com>
+
+	* floatformat.c: Include "config.h" and <string.h> if available.
+	(INFINITY, NAN): Define if not defined by <math.h>.
+	(floatformat_to_double): Handle NaN, infinity, and denormalized
+	numbers.
+	(floatformat_from_double): Likewise.
+	(ieee_test): In debugging code, use little endian rather than big
+	endian.  Correct tests to handle NaN and to check correct sign of
+	zero.  Omit m68k extended test.
+	(main): Add more debugging cases.
+
+2003-11-29  Ian Lance Taylor  <ian@wasabisystems.com>
+
+	* cp-demangle.c (d_demangle): Only return success if we consumed
+	the entire demangled string.
+	(is_ctor_or_dtor): Likewise.
+
+	* testsuite/demangle-expected: Revert one part of 2003-06-26 patch
+	to restore expected result of EDG test case to original expected
+	result.
+
+2003-11-26  Ian Lance Taylor  <ian@wasabisystems.com>
+
+	* cp-demangle.c (struct d_print_mod): Add templates field.
+	(d_make_builtin_type): Check for NULL type.
+	(d_make_extended_operator): Check for NULL name.
+	(d_make_ctor, d_make_dtor): Likewise.
+	(d_mangled_name): Add top_level parameter.  Change all callers.
+	(d_encoding): If DMGL_PARAMS is not set, strip off initial
+	CV-qualifiers.
+	(d_type): Check some return values we rely on.
+	(d_bare_function_type, d_array_type): Likewise.
+	(d_pointer_to_member_type, d_template_args): Likewise.
+	(d_add_substitution): Fail if argument is NULL.
+	(d_print_resize): Check whether buf is NULL.
+	(d_print_comp): Save current templates list with each modifier.
+	Don't pass the modifier list down when printing a template.
+	(d_print_cast): Don't pass the modifier list down when printing a
+	template.
+	(d_print_mod_list): Temporarily set templates list while printing
+	a modifier.
+	(d_print_mod): Check that buf is not NULL before using it.
+	(d_print_function_type): Print parens if there is no modifier.
+	(d_init_info): Permit as many substitutions as there are
+	characters in the mangled name.
+	* testsuite/demangle-expected: Add two new test cases.
+
+2003-11-25  Ian Lance Taylor  <ian@wasabisystems.com>
+
+	* cp-demangle.c (java_demangle_v3): Pass DMGL_PARAMS to
+	d_demangle.
+
+2003-11-22  Ian Lance Taylor  <ian@wasabisystems.com>
+
+	* cp-demangle.c (d_encoding): Add top_level parameter.  Change all
+	callers.
+	(print_usage): Display new -p option.
+	(long_options): Add --no-params.
+	(main): Accept and handle -p.
+
+2003-11-21  Ian Lance Taylor  <ian@wasabisystems.com>
+
+	* cp-demangle.c (has_return_type): Skip qualifiers when checking
+	whether we have a template.
+	* testsuite/demangle-expected: Add four new tests.
+
+2003-11-20  Ian Lance Taylor  <ian@wasabisystems.com>
+
+	* testsuite/demangle-expected: Minor changes to match output of
+	new demangler: adjust whitespace in four tests, and change order
+	of qualifiers in one test.
+
+	* cp-demangle.c: Complete rewrite.
+
+2003-11-19  Mark Mitchell  <mark@codesourcery.com>
+
+	* cp-demangle.c (demangle_type): Correct thinko in substitution
+	processing.
+
+2003-11-18  Ian Lance Taylor  <ian@wasabisystems.com>
+
+	* cp-demangle.c (demangle_operator_name): Remove space before
+	"sizeof".
+	(demangle_type_ptr): Put qualifiers in the right place.  Handle
+	qualifiers in pointer to member specially.
+	(demangle_type): Handle qualifiers for pointer or reference
+	specially.  Handle function type.
+	(demangle_local_name): Save and restore caret around demangling of
+	initial encoding.
+
+	* testsuite/test-demangle.c (main): Don't pass DMGL_VERBOSE to
+	cplus_demangle.
+
+	* testsuite/Makefile.in (test-demangle): Depend upon libiberty.a.
+
+2003-10-31  Andreas Jaeger  <aj@suse.de>
+
+	* floatformat.c (floatformat_always_valid): Add unused attribute.
+
+2003-10-30  Josef Zlomek  <zlomekj@suse.cz>
+
+	Jan Hubicka <jh@suse.cz>
+	* vasprintf.c (int_vasprintf): Pass va_list by value.
+	Use va_copy for copying va_list.
+	(vasprintf): Pass va_list by value.
+
+2003-10-30  Josef Zlomek  <zlomekj@suse.cz>
+
+	* hashtab.c (htab_find_slot_with_hash): Decrease n_deleted
+	instead of increasing n_elements when inserting to deleted slot.
+
+2003-10-20  J. Brobecker  <brobecker@gnat.com>
+
+	* cplus-dem.c (demangle_template): Register a new Btype only
+	when needed.
+	* testsuite/demangle-expected: Add a new test.
+
+2003-10-16  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* testsuite/demangle-expected: Update the expected output of
+	_GLOBAL__I__Z2fnv.
+
+2003-10-02  Daniel Jacobowitz  <drow@mvista.com>
+
+	* strerror.c: Revert last change.  Declare static sys_nerr
+	and sys_errlist using different names.
+
+2003-10-01  Daniel Jacobowitz  <drow@mvista.com>
+
+	* strerror.c: Don't provide or reference sys_errlist if
+	strerror is available.
+
+2003-10-01  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* configure.in: Check if $MAKEINFO is missing.
+	* configure: Regenerated.
+
+2003-09-24  Daniel Jacobowitz  <drow@mvista.com>
+
+	* configure.in: Use AC_PROG_CPP_WERROR.
+	* configure: Regenerated.
+
+2003-09-22  Andrew Cagney  <cagney@redhat.com>
+
+	* floatformat.c (floatformat_i387_ext_is_valid): New function.
+	(floatformat_always_valid): New function.
+	(floatformat_i387_ext): Initialize new "is_valid" field to
+	"floatformat_i387_ext_is_valid".
+	(floatformat_ieee_single_little): Initialize "is_valid" field to
+	floatformat_always_valid.
+	(floatformat_ieee_double_big): Ditto.
+	(floatformat_ieee_double_little): Ditto.
+	(floatformat_ieee_double_little): Ditto.
+	(floatformat_ieee_double_littlebyte_bigword): Ditto.
+	(floatformat_i960_ext): Ditto.
+	(floatformat_m88110_ext): Ditto.
+	(floatformat_m88110_harris_ext): Ditto.
+	(floatformat_arm_ext_big): Ditto.
+	(floatformat_arm_ext_littlebyte_bigword): Ditto.
+	(floatformat_ia64_spill_big): Ditto.
+	(floatformat_ia64_spill_little): Ditto.
+	(floatformat_ia64_quad_big): Ditto.
+	(floatformat_ia64_quad_little): Ditto.
+	(floatformat_ia64_quad_little): Ditto.
+	(floatformat_is_valid): Call "is_valid".
+
+2003-09-15  Andrew Cagney  <cagney@redhat.com>
+
+	* floatformat.c (get_field): Make "data" constant.
+	(floatformat_is_valid, floatformat_to_double): Make "from"
+	constant, fix casts.
+	(floatformat_from_double): Make "from" constant.
+
+2003-09-15  Daniel Jacobowitz  <drow@mvista.com>
+
+	* floatformat.c (floatformat_is_valid): New function.
+	(get_field, put_field): Correct comments.
+
+2003-09-06  Josef Zlomek  <zlomekj@suse.cz>
+
+	* fibheap.c (fibheap_replace_key_data): Change type of OKEY to
+	FIBHEAPKEY_T.
+
+2003-09-02  John David Anglin  <dave.anglin@nrc-cnrc.gc.ca>
+
+	PR bootstrap/12100
+	* aclocal.m4 (AC_LANG_FUNC_LINK_TRY): Define.
+	* configure: Rebuilt.
+
+2003-08-27  Daniel Jacobowitz  <drow@mvista.com>
+
+	* aclocal.m4: Include acx.m4 and no-executables.m4.
+	(libiberty_AC_FUNC_STRNCMP): Use AC_LIBOBJ.
+	(LIB_AC_PROG_CC): Remove.
+	* configure.in: Update AC_PREREQ to 2.57.  Use GCC_NO_EXECUTABLES.
+	Use AC_PROG_CC and set ac_libiberty_warn_cflags instead of using
+	LIB_AC_PROG_CC.  Use AC_LIBOBJ.  Call AC_ISC_POSIX later, only if
+	performing link tests.
+	* configure: Regenerated.
+
+2003-08-12  Nathanael Nerode  <neroden@gcc.gnu.org>
+
+        * cp-demangle.c: Clarify what package(s) this is part of.
+
+2003-07-05  Danny Smith  <dannysmith@users.sourceforge.net>
+
+	* pex-win32.c (pexecute): Mark parameters this_pname and
+	temp_base as unused. Remove unused variables retries,
+	sleep_interval. Initialize org_stdin, org_stdout.
+	(pwait): Mark parameter flags as unused.
+
+2003-07-02  Danny Smith  <dannysmith@users.sourceforge.net>
+
+	* pex-win32.c (fix_argv): Ensure that the executable pathname
+	uses Win32 backslashes.
+	(pexecute): Cast away constness when assigning *errmsg_arg.
+
+2003-06-26  H.J. Lu <hongjiu.lu@intel.com>
+
+	* testsuite/demangle-expected: Add more GNU V3 testcases.
+
+2003-06-22  Zack Weinberg  <zack@codesourcery.com>
+
+	* safe-ctype.c: Use HOST_CHARSET_ASCII and HOST_CHARSET_EBCDIC,
+	not HC_ASCII and HC_EBCDIC.
+	Add documentation in form expected by gather-docs.
+	* hex.c: Use HOST_CHARSET, not hand-coded check of character set.
+	* Makefile.in, functions.texi: Regenerate.
+
+2003-06-21  Zack Weinberg  <zack@codesourcery.com>
+
+	* safe-ctype.c: Separate out EOF==-1 check.  Use HOST_CHARSET
+	for charset determination.
+
+2003-06-19  Dara Hazeghi  <dhazeghi@yahoo.com>
+
+	* configure.in: Add check for malloc.h needed by
+	m68k for function free().
+	* configure: Regenerated.
+	* config.in: Add HAVE_MALLOC_H.
+	* hashtab.c: include malloc.h were available for
+	free().
+
+2003-06-09  Albert Chin-A-Young  <china@thewrittenword.com>
+
+	PR bootstrap/10974
+	* physmem.c: Update comment.
+	* configure.in: Modify test for _system_configuration for older
+	AIX systems.
+
+	* config.in, configure: Regenerated.
+
+2003-06-05  John David Anglin  <dave.anglin@nrc-cnrc.gc.ca>
+
+	PR other/10810
+	* test-demangle.c (getline): Fix fence-post error.
+
+2003-06-03  Nick Clifton  <nickc@redhat.com>
+
+	* asprintf.c: Change comment to note that -1 is returned upon
+	error.
+	* vasprintf.c: Likewise.
+	(vasprintf): Return -1 upon error.
+	* functions.texi: Document changes to asprintf and vasprintf.
+
+2003-05-19  Kelley Cook  <kelleycook@wideopenwest.com>
+
+	* config.table: Accept i[345867]86 variant.
+
+2003-05-15  Jim Blandy  <jimb@redhat.com>
+
+	* hex.c (_hex_value): Make this unsigned.
+	(hex_value): Update documentation for new return type.  hex_value
+	now expands to an unsigned int expression, to avoid unexpected
+	sign extension when we store it in a bfd_vma, which is larger than
+	int on some platforms.
+	* functions.texi: Regenerated.
+
+2003-05-07  Josef Zlomek  <zlomekj@suse.cz>
+
+	* splay-tree.c (splay_tree_predecessor): Fix comment.
+	(splay_tree_successor): Fix comment.
+
+2003-05-07  Jason Merrill  <jason@redhat.com>
+
+	* hashtab.c (iterative_hash): New fn.
+	* configure.in: Add AC_C_BIGENDIAN_CROSS.
+	* aclocal.m4: Include accross.m4.
+	* configure, config.in: Regenerate.
+
+2003-05-04  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* configure.in (AC_CHECK_FUNCS): Don't make multiple calls.
+	* configure: Regenerate.
+
+2003-05-03  Carlo Wood  <carlo@alinoe.com>
+
+	* cp-demangle.c: Fix typo in "char_traints" string-literal.
+
+2003-04-22  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* vsnprintf.c (vsnprintf): Don't pad string with extra nulls.
+	(main): Test that we don't write too much data.
+
+2003-04-16  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* configure.in (funcs, AC_CHECK_FUNCS): Add snprintf and
+	vsnprintf.
+	* snprintf.c, vsnprintf.c: New files.
+	* Makefile.in (CFILES): Add snprintf.c and vsnprintf.c.
+	(CONFIGURED_OFILES): Add snprintf.o and vsnprintf.o.
+	Regenerate dependencies.
+
+	* functions.texi, configure, config.in: Regenerated.
+
+2003-04-15  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* mempcpy.c, stpcpy.c, stpncpy.c: New files.
+	* configure.in (funcs, AC_CHECK_FUNCS): Add mempcpy, stpcpy
+	and stpncpy.
+	* Makefile.in (CFILES): Add mempcpy.c, stpcpy.c and stpncpy.c.
+	(CONFIGURED_OFILES): Add mempcpy.o, stpcpy.o and stpncpy.o.
+	Regenerate dependencies.
+
+	* functions.texi, configure, config.in: Regenerated.
+
+2003-04-15  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* argv.c: Fix comments.
+	* calloc.c: Don't unnecessarily include "libiberty.h".
+	(bzero): Add prototype.
+	* floatformat.c: Include "ansidecl.h", rely on ANSI_PROTOTYPES.
+	* getcwd.c (getcwd): Use standard definition to avoid conflicts
+	with system headers.
+	* hashtab.c (htab_traverse): Delete unused variables.
+	* rename.c: Include "ansidecl.h".
+	(rename): Use standard definition to avoid conflicts with system
+	headers.
+	* strsignal.c: Rely on ANSI_PROTOTYPES.
+	* strstr.c: Check GNUC >= 2, not GNUC == 2.
+	* vfprintf.c: Include "ansidecl.h", rely on ANSI_PROTOTYPES.
+	* vprintf.c: Include "ansidecl.h" earlier, rely on
+	ANSI_PROTOTYPES.
+	* vsprintf.c: Include "ansidecl.h" earlier, rely on
+	ANSI_PROTOTYPES and possibly include <stdarg.h>.
+
+	* Makefile.in: Regenerate dependencies.
+
+2003-04-15  DJ Delorie  <dj@redhat.com>
+
+	* maint-tool (deps): Scan for headers in $srcdir also.
+
+2003-04-15  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	PR target/10338
+	PR bootstrap/10198
+	PR bootstrap/10140
+	* getopt.c (exchange, _getopt_initialize): Use mempcpy not
+	__mempcpy.
+	* regex.c (regerror): Likewise.
+
+2003-04-14  Roger Sayle  <roger@eyesopen.com>
+
+	* argv.c: Use ANSI_PROTOTYPES instead of __STDC__.
+	* memchr.c: Likewise.
+	* strcasecmp.c: Likewise.
+	* strncasecmp.c: Likewise.
+	* strncmp.c: Likewise.
+	* xatexit.c: Likewise.
+	* xmalloc.c: Likewise.
+
+	* copysign.c: Use traditional function declaration instead of DEFUN.
+	* sigsetmask.c: Likewise.
+
+	* memcmp.c: Both of the above, ANSI_PROTOTYPES and DEFUN.
+	* memset.c: Likewise.
+
+	* memcpy.c: ANSI_PROTOTYPES, DEFUN and prototype bcopy.
+	* memmove.c: Likewise.
+
+2003-04-14  Roger Sayle  <roger@eyesopen.com>
+
+	* strdup.c (strdup): Tweak implementation to use memcpy.
+
+2003-04-14  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* configure.in (HAVE_UINTPTR_T): Always define.
+	* configure: Regenerated.
+
+2003-03-23  Alexandre Oliva  <aoliva@redhat.com>
+
+	* Makefile.in (MULTIOSDIR): New macro.  Use $(CC) $(LIBCFLAGS)
+	instead of $$CC alone.
+	(install_to_tooldir): Use it.
+
+2003-17-03  Jan Hubicka  <jh@suse.cz>
+
+	* hashtab.c (htab_traverse_noresize): Break out from ...
+	* hashtab.c (htab_traverse): ... here.
+
+2003-12-03  Jan Hubicka  <jh@suse.cz>
+
+	* hashtab.c (htab_expand): Fix warning.
+
+	* hashtab.c (htab_expand): Compute the size of hashtable based
+	on the number of elements actually used.
+	(htab_traverse):  Call htab_expand when table is too empty.
+
+2003-03-11  Carlo Wood  <carlo@gnu.org>
+
+	* cplus-dem.c (demangle_integral_value): Correction to reflect
+	patch of 2002-01-10 in order to also make negative multi-digits
+	without leading underscore work.
+
+2003-03-03  Mark Mitchell  <mark@codesourcery.com>
+
+	* cplus-dem.c: Add license exception to copyright notice.
+
+2003-02-27  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* physmem.c: Formatting changes from upstream.
+
+2003-02-24  Danny Smith  <dannysmith@users.source.forge.net>
+
+	* physmem.c (physmem_total): Add _WIN32 support.
+	(physmem_available): Likewise.
+
+2003-02-24  Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
+
+	* physmem.c (physmem_total) [HAVE_GETSYSINFO]: Test for
+	GSI_PHYSMEM.
+	(physmem_available) [HAVE_TABLE]: Test for TBL_VMSTATS.
+
+2003-02-22  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* configure.in: Check for sys/systemcfg.h and
+	_system_configuration.
+	* physmem.c: Add support for AIX.  Tweek formatting as per
+	upstream coreutils beta.
+
+2003-02-22  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+	    Richard Earnshaw  <rearnsha@arm.com>
+	    Geoffrey Keating  <geoffk@apple.com>
+
+	* configure.in: Check for sys/sysctl.h and sysctl.
+	* physmem.c: Add support for *bsd and darwin.
+	* Makefile.in: Generate depedency for physmem.o.
+
+2003-02-21  Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
+
+	* physmem.c (physmem_total) [HAVE_GETSYSINFO]: Use getsysinfo on
+	Tru64 UNIX.
+	(physmem_available) [HAVE_TABLE && HAVE_SYS_TABLE_H]: Use table on
+	Tru64 UNIX.
+
+	* configure.in (AC_CHECK_HEADERS): Check for sys/sysinfo.h,
+	machine/hal_sysinfo.h, sys/table.h.
+	(checkfuncs, AC_CHECKFUNCS): Check for getsysinfo, table.
+	* configure, config.in: Regenerate.
+
+2003-02-21  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* configure.in: Check for sys/sysmp.h and sysmp.
+	* physmem.c: Pull upstream copy, add support for irix6.
+
+	* config.in, configure: Regenerated.
+
+2003-02-21  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* physmem.c (physmem_total, physmem_available): De-ANSI-fy.
+	* configure.in (AC_CHECK_FUNCS): Add pstat_getstatic and
+	pstat_getdynamic.
+
+2003-02-20  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* Makefile.in (CFILES): Add physmem.c.
+	(REQUIRED_OFILES): Add physmem.o.
+	* configure.in: Check for sys/pstat.h.
+	(checkfuncs): Add pstat_getstatic and pstat_getdynamic.
+	* physmem.c: New file, copied from textutils.
+
+	* config.in, configure: Regenerated.
+
+2003-02-20  Daniel Jacobowitz  <drow@mvista.com>
+
+	* Makefile.in (CFILES): Add lrealpath.c.
+	(REQUIRED_OFILES): Add lrealpath.o.
+	(lrealpath.o): Add rule.
+	* aclocal.m4 (libiberty_NEED_DECLARATION): Add.
+	* configure.in: Add realpath and canonicalize_file_name to
+	checkfuncs and AC_CHECK_FUNCS.  Use libiberty_NEED_DECLARATION
+	for canonicalize_file_name.
+	* lrealpath.c: New file.
+	* make-relative-prefix.c: Update documentation.
+	(make_relative_prefix): Simplify.  Use lbasename and lrealpath.
+	* config.in: Regenerated.
+	* configure: Regenerated.
+	* functions.texi: Regenerated.
+
+2003-02-20  jmc  <jmc@prioris.mini.pw.edu.pl>
+
+	* cplus_dem.c: Fix typo: intializes -> initializes.
+
+2003-02-20  Alexandre Oliva  <aoliva@redhat.com>
+
+	* configure.in: Propagate ORIGINAL_LD_FOR_MULTILIBS to
+	config.status.
+	* configure: Rebuilt.
+
+2003-02-13  Daniel Jacobowitz  <drow@mvista.com>
+
+	Fix PR c++/7612.
+	* cplus-dem.c (demangle_signature): Call string_delete.
+	Remove extra string_init.
+	(demangle_arm_hp_template): Call string_delete instead of
+	string_clear.  Add missing string_delete call.
+	(demangle_qualified): Add missing string_delete call.
+	(do_type): Remove unused variable btype.  Add missing string_delete
+	call.  Call string_delete instead of string_clear.
+	(demangle_fund_type): Move variable btype inside of the switch
+	statement.  Add missing string_delete call.
+	(do_arg): Call string_delete instead of string_clear.  Remove extra
+	string_init.
+	(demangle_nested_args): Free work->previous_argument.
+
+2003-02-12  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* acconfig.h: New file.  Add uintptr_t.
+	* config.in: Regenerated.
+
+2003-02-04  Joseph S. Myers  <jsm@polyomino.org.uk>
+
+	* libiberty.texi: Update to GFDL 1.2.
+
+2003-01-30  Christian Cornelssen  <ccorn@cs.tu-berlin.de>
+
+	* Makefile.in (libiberty_topdir): New subst.
+	(mkinstalldirs): Redefine in terms of the above.
+	* configure.in: AC_SUBST it.
+	* configure: Regenerate.
+
+2003-01-28  Christian Cornelssen  <ccorn@cs.tu-berlin.de>
+
+	* Makefile.in (all-subdir, check-subdir, installcheck-subdir)
+	(info-subdir, install-info-subdir, clean-info-subdir)
+	(dvi-subdir, install-subdir, etags-subdir, mostlyclean-subdir)
+	(clean-subdir, distclean-subdir, maintainer-clean-subdir):
+	Pass $(FLAGS_TO_PASS).
+
+2003-01-27  Alexandre Oliva  <aoliva@redhat.com>
+
+	* Makefile.in (install_to_tooldir): Instead of $(MULTISUBDIR), use
+	/`$$CC -print-multi-os-directory`.
+
+2003-01-26  Daniel Jacobowitz  <drow@mvista.com>
+
+	* hashtab.c (htab_create_alloc_ex): New function.
+	(hatab_set_functions_ex): New function.
+	(htab_delete, htab_expand): Support alternate allocation functions.
+
+2003-01-24  Christopher Faylor  <cgf@redhat.com>
+
+	* configure.in: Remove special pex-cygwin consideration.
+	* configure: Regenerate.
+	* pex-cygwin.c: Remove.
+	* Makefile.in: Remove pex-cygwin.[co] lines.
+
+2003-01-24  Zack Weinberg  <zack@codesourcery.com>
+
+	* Makefile.in (CFILES): Add pex-*.c.
+	(REQUIRED_OFILES): Change pexecute.o to @pexecute@
+	(CONFIGURED_OFILES): Add pex-*.o.
+	(TEXIFILES): Add pexecute.txh.
+	(pexecute.o): Delete rule.
+	(pex-cygwin.o, pex-djgpp.o, pex-mpw.o, pex-msdos.o, pex-os2.o,
+	pex-unix.o, pex-win32.o): New rules.
+	* configure.in: Change AC_INIT argument to xmalloc.c.
+	Compute appropriate pexecute implementation and substitute it
+	as @pexecute@.
+
+	* pexecute.c: Split up into...
+	* pex-cygwin.c, pex-djgpp.c, pex-mpw.c, pex-msdos.c, pex-os2.c,
+	pex-unix.c, pex-win32.c, pex-common.h, pexecute.txh: ... these
+	new files.
+
+	* functions.texi: Regenerate.
+	* configure: Regenerate.
+
+2003-01-20  Josef Zlomek  <zlomekj@suse.cz>
+
+	* hashtab.c (htab_expand): Fix allocation of new entries.
+
+2003-01-09  Christian Cornelssen  <ccorn@cs.tu-berlin.de>
+
+	* Makefile.in (FLAGS_TO_PASS): Also pass DESTDIR.
+
+	* Makefile.in (install_to_libdir, install_to_tooldir): Add a
+	mkinstalldirs command.
+
+2002-12-04  Danny Smith  <dannysmith@users.sourceforge.net>
+
+	* make-relative-prefix.c (HAVE_HOST_EXECUTABLE_SUFFIX):
+	Define for hosts with HOST_EXECUTABLE_SUFFIX.
+
+2002-11-24  Nick Clifton  <nickc@redhat.com>
+
+	* make-relative-prefix.c (make_relative_prefix): Ensure return
+	string is empty before using strcat to construct it.
+
+2002-11-22  Daniel Jacobowitz  <drow@mvista.com>
+
+	* Makefile.in: Add make-relative-prefix.c.
+	* make-relative-prefix.c: New file.
+	* functions.texi: Rebuilt.
+
+2002-11-16  Jakub Jelinek  <jakub@redhat.com>
+
+	* md5.c (md5_process_block): Avoid `function-like macro "F{G,H,I}" must be
+	used with arguments in traditional C' warnings.
+
+2002-10-16  Jakub Jelinek  <jakub@redhat.com>
+
 	* config.table: Use mh-s390pic for s390x too.
+
+2002-10-06  Andreas Jaeger  <aj@suse.de>
+
+	* libiberty/cplus-dem.c (ada_demangle): Get rid of unneeded
+	variable and of strict-aliasing warning.
+	(grow_vect): Use char as first parameter.
+
+2002-09-22  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* Makefile.in (all): Fix multilib parallel build.
+
+2002-09-19  John David Anglin  <dave@hiuly1.hia.nrc.ca>
+
+	* cp-demangle.c (demangling_new): Cast 0 to enum.
+	(demangle_char): Cast return of strdup to char *.
+	(is_gnu_v3_mangled_ctor): Cast 0 to enum.
+	(is_gnu_v3_mangled_dtor): Likewise.
+	* cplus-dem.c (grow_vect): Cast return of xrealloc to void *.
+	(work_stuff_copy_to_from): Cast return of xmalloc to char **.
+	* fibheap.c (fibnode_new): Cast return of xcalloc to fibnode_t.
+	* md5.c (md5_process_bytes): Cast results back to const void *.
+	(md5_process_block): Add cast to const md5_uint32 *.
+	* regex.c (re_compile_fastmap): Cast enum to UCHAR_T.
+	* safe-ctype.c (L, XL, U, XU, D, P, _, C, Z, M, V, T, S): Add cast to
+	unsigned short.
+	* splay-tree.c (splay_tree_xmalloc_allocate): Cast return of xmalloc
+	to void *.
+	* vasprintf.c (int_vasprintf): Cast return of malloc to char *.
+
+2002-09-19  Nick Clifton  <nickc@redhat.com>
+
+	* README: Update email addresses for bugs and patches.
+
+2002-09-10  Mike Stump  <mrs@apple.com>
+
+	* splay-tree.c (splay_tree_successor): Fix comments.
+
+2002-09-11  Zack Weinberg  <zack@codesourcery.com>
+
+	* cplus-dem.c: Code under #ifdef MAIN moved to gcc/cp/cxxfilt.c.
+	* testsuite/Makefile.in: Adjust for test-demangle.
+	* testsuite/regress-demangle: Deleted.
+	* testsuite/test-demangle.c: New file.
+	* testsuite/demangle-expected: Change \$ to $ throughout, now that
+	this file is not being read by a shell script.
+
+2002-09-05  Roger Sayle  <roger@eyesopen.com>
+
+	* regex.c: Only use "#pragma alloca" on AIX when not using gcc.
+
+2002-08-07  DJ Delorie  <dj@redhat.com>
+
+	* regex.c (re_error_msgid): Just use a simple array of strings.
+	(re_compile_pattern): Compensate.
+	(re_comp): Likewise.
+	(re_comp): Likewise.
+	(regerror): Likewise.
+
+2002-07-29  Neil Booth  <neil@daikokuya.co.uk>
+
+	* cplus-dem.c (PREPEND_BLANK): Remove.
 
 2002-07-10  Jason Merrill  <jason@redhat.com>
 
@@ -86,7 +1035,7 @@
 
 2002-03-30  Bryce McKinlay  <bryce@waitaki.otago.ac.nz>
 
-	* cp-demangle.c (java_demangle_v3): Don't try to release "demangled" 
+	* cp-demangle.c (java_demangle_v3): Don't try to release "demangled"
 	if it is NULL.
 
 2002-03-27  DJ Delorie  <dj@redhat.com>
@@ -500,10 +1449,10 @@ Thu Nov 15 11:06:25 2001  Jeffrey A Law  (law@cygnus.com)
 
 2001-08-22  Matt Kraai  <kraai@alumni.carnegiemellon.edu>
 
- 	* fibheap.c (fibheap_init, fibnode_init): Remove.
- 	(fibheap_new, fibnode_new): Use xcalloc to allocate and
- 	initialize memory.
- 	(fibheap_insert): Remove check for node allocation failure.
+	* fibheap.c (fibheap_init, fibnode_init): Remove.
+	(fibheap_new, fibnode_new): Use xcalloc to allocate and
+	initialize memory.
+	(fibheap_insert): Remove check for node allocation failure.
 
 2001-08-21  Richard Henderson  <rth@redhat.com>
 

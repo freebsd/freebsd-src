@@ -54,7 +54,8 @@ Archives are supported in BFD in @code{archive.c}.
 @subsubsection @code{bfd_get_next_mapent}
 @strong{Synopsis}
 @example
-symindex bfd_get_next_mapent(bfd *abfd, symindex previous, carsym **sym);
+symindex bfd_get_next_mapent
+   (bfd *abfd, symindex previous, carsym **sym);
 @end example
 @strong{Description}@*
 Step through archive @var{abfd}'s symbol table (if it
@@ -73,7 +74,7 @@ user-visible element is its name, a null-terminated string.
 @subsubsection @code{bfd_set_archive_head}
 @strong{Synopsis}
 @example
-boolean bfd_set_archive_head(bfd *output, bfd *new_head);
+bfd_boolean bfd_set_archive_head (bfd *output, bfd *new_head);
 @end example
 @strong{Description}@*
 Set the head of the chain of
@@ -83,7 +84,7 @@ BFDs contained in the archive @var{output} to @var{new_head}.
 @subsubsection @code{bfd_openr_next_archived_file}
 @strong{Synopsis}
 @example
-bfd *bfd_openr_next_archived_file(bfd *archive, bfd *previous);
+bfd *bfd_openr_next_archived_file (bfd *archive, bfd *previous);
 @end example
 @strong{Description}@*
 Provided a BFD, @var{archive}, containing an archive and NULL, open

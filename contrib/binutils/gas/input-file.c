@@ -1,5 +1,5 @@
 /* input_file.c - Deal with Input Files -
-   Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1999, 2000, 2001
+   Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1999, 2000, 2001, 2003
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -26,11 +26,12 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 #include "as.h"
 #include "input-file.h"
 #include "safe-ctype.h"
 
-static int input_file_get PARAMS ((char *, int));
+static int input_file_get (char *, int);
 
 /* This variable is non-zero if the file currently being read should be
    preprocessed by app.  It is zero if the file can be read straight in.  */
@@ -58,28 +59,28 @@ struct saved_file
     char * app_save;
   };
 
-/* These hooks accomodate most operating systems.  */
+/* These hooks accommodate most operating systems.  */
 
 void
-input_file_begin ()
+input_file_begin (void)
 {
   f_in = (FILE *) 0;
 }
 
 void
-input_file_end ()
+input_file_end (void)
 {
 }
 
 /* Return BUFFER_SIZE.  */
 unsigned int
-input_file_buffer_size ()
+input_file_buffer_size (void)
 {
   return (BUFFER_SIZE);
 }
 
 int
-input_file_is_open ()
+input_file_is_open (void)
 {
   return f_in != (FILE *) 0;
 }
@@ -88,7 +89,7 @@ input_file_is_open ()
    can be restored with input_file_pop ().  */
 
 char *
-input_file_push ()
+input_file_push (void)
 {
   register struct saved_file *saved;
 
@@ -107,8 +108,7 @@ input_file_push ()
 }
 
 void
-input_file_pop (arg)
-     char *arg;
+input_file_pop (char *arg)
 {
   register struct saved_file *saved = (struct saved_file *) arg;
 
@@ -124,9 +124,8 @@ input_file_pop (arg)
 }
 
 void
-input_file_open (filename, pre)
-     char *filename;		/* "" means use stdin. Must not be 0.  */
-     int pre;
+input_file_open (char *filename, /* "" means use stdin. Must not be 0.  */
+		 int pre)
 {
   int c;
   char buf[80];
@@ -135,23 +134,36 @@ input_file_open (filename, pre)
 
   assert (filename != 0);	/* Filename may not be NULL.  */
   if (filename[0])
-    {				/* We have a file name. Suck it and see.  */
+    {
       f_in = fopen (filename, FOPEN_RT);
       file_name = filename;
     }
   else
-    {				/* use stdin for the input file.  */
-      f_in = stdin;
-      file_name = _("{standard input}");	/* For error messages.  */
-    }
-  if (f_in == (FILE *) 0)
     {
-      as_bad (_("can't open %s for reading"), file_name);
-      as_perror ("%s", file_name);
+      /* Use stdin for the input file.  */
+      f_in = stdin;
+      /* For error messages.  */
+      file_name = _("{standard input}");
+    }
+
+  if (f_in)
+    c = getc (f_in);
+
+  if (f_in == NULL || ferror (f_in))
+    {
+#ifdef BFD_ASSEMBLER
+      bfd_set_error (bfd_error_system_call);
+#endif
+      as_perror (_("Can't open %s for reading"), file_name);
+
+      if (f_in)
+	{
+	  fclose (f_in);
+	  f_in = NULL;
+	}
       return;
     }
 
-  c = getc (f_in);
   if (c == '#')
     {
       /* Begins with comment, may not want to preprocess.  */
@@ -188,7 +200,7 @@ input_file_open (filename, pre)
 /* Close input file.  */
 
 void
-input_file_close ()
+input_file_close (void)
 {
   /* Don't close a null file pointer.  */
   if (f_in != NULL)
@@ -200,15 +212,16 @@ input_file_close ()
 /* This function is passed to do_scrub_chars.  */
 
 static int
-input_file_get (buf, buflen)
-     char *buf;
-     int buflen;
+input_file_get (char *buf, int buflen)
 {
   int size;
 
   size = fread (buf, sizeof (char), buflen, f_in);
   if (size < 0)
     {
+#ifdef BFD_ASSEMBLER
+      bfd_set_error (bfd_error_system_call);
+#endif
       as_perror (_("Can't read from %s"), file_name);
       size = 0;
     }
@@ -218,8 +231,7 @@ input_file_get (buf, buflen)
 /* Read a buffer from the input file.  */
 
 char *
-input_file_give_next_buffer (where)
-     char *where;		/* Where to place 1st character of new buffer.  */
+input_file_give_next_buffer (char *where /* Where to place 1st character of new buffer.  */)
 {
   char *return_value;		/* -> Last char of what we read, + 1.  */
   register int size;
@@ -236,6 +248,9 @@ input_file_give_next_buffer (where)
     size = fread (where, sizeof (char), BUFFER_SIZE, f_in);
   if (size < 0)
     {
+#ifdef BFD_ASSEMBLER
+      bfd_set_error (bfd_error_system_call);
+#endif
       as_perror (_("Can't read from %s"), file_name);
       size = 0;
     }
@@ -244,7 +259,12 @@ input_file_give_next_buffer (where)
   else
     {
       if (fclose (f_in))
-	as_perror (_("Can't close %s"), file_name);
+	{
+#ifdef BFD_ASSEMBLER
+	  bfd_set_error (bfd_error_system_call);
+#endif
+	  as_perror (_("Can't close %s"), file_name);
+	}
       f_in = (FILE *) 0;
       return_value = 0;
     }

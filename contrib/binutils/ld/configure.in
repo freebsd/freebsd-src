@@ -13,6 +13,7 @@ AM_INIT_AUTOMAKE(ld, ${BFD_VERSION})
 
 AM_PROG_LIBTOOL
 
+AC_ARG_WITH(lib-path, [  --with-lib-path=dir1:dir2...  set default LIB_PATH],LIB_PATH=$withval)
 AC_ARG_ENABLE(targets,
 [  --enable-targets        alternative target configurations],
 [case "${enableval}" in
@@ -29,9 +30,45 @@ AC_ARG_ENABLE(64-bit-bfd,
   *)    AC_MSG_ERROR(bad value ${enableval} for 64-bit-bfd option) ;;
 esac],[want64=false])dnl
 
+AC_ARG_WITH(sysroot,
+[  --with-sysroot[=DIR] Search for usr/lib et al within DIR.],
+[
+ case ${with_sysroot} in
+ yes) TARGET_SYSTEM_ROOT='${exec_prefix}/${target_alias}/sys-root' ;;
+ *) TARGET_SYSTEM_ROOT=$with_sysroot ;;
+ esac
+
+ TARGET_SYSTEM_ROOT_DEFINE='-DTARGET_SYSTEM_ROOT=\"$(TARGET_SYSTEM_ROOT)\"'
+ use_sysroot=yes
+
+ if test "x$exec_prefix" = xNONE; then
+  if test "x$prefix" = xNONE; then
+   test_prefix=/usr/local
+  else
+   test_prefix=$prefix
+  fi
+ else
+  test_prefix=$exec_prefix
+ fi
+ case ${TARGET_SYSTEM_ROOT} in
+ "${test_prefix}"|"${test_prefix}/"*|\
+ '${exec_prefix}'|'${exec_prefix}/'*)
+   t="$TARGET_SYSTEM_ROOT_DEFINE -DTARGET_SYSTEM_ROOT_RELOCATABLE"
+   TARGET_SYSTEM_ROOT_DEFINE="$t"
+   ;;
+ esac
+], [
+ use_sysroot=no
+ TARGET_SYSTEM_ROOT=
+ TARGET_SYSTEM_ROOT_DEFINE='-DTARGET_SYSTEM_ROOT=\"\"'
+])
+AC_SUBST(use_sysroot)
+AC_SUBST(TARGET_SYSTEM_ROOT)
+AC_SUBST(TARGET_SYSTEM_ROOT_DEFINE)
+
 build_warnings="-W -Wall -Wstrict-prototypes -Wmissing-prototypes"
 AC_ARG_ENABLE(build-warnings,
-[  --enable-build-warnings Enable build-time compiler warnings if gcc is used],
+[  --enable-build-warnings enable build-time compiler warnings if gcc is used],
 [case "${enableval}" in
   yes)	;;
   no)	build_warnings="-w";;
@@ -64,7 +101,7 @@ fi
 AC_PROG_CC
 AC_PROG_INSTALL
 
-ALL_LINGUAS="fr sv tr es"
+ALL_LINGUAS="fr sv tr es da"
 CY_GNU_GETTEXT
 
 AC_EXEEXT
@@ -82,7 +119,7 @@ AC_SUBST(HOSTING_LIBS)
 AC_SUBST(NATIVE_LIB_DIRS)
 
 AC_CHECK_HEADERS(string.h strings.h stdlib.h unistd.h)
-AC_CHECK_FUNCS(sbrk)
+AC_CHECK_FUNCS(sbrk realpath)
 AC_HEADER_DIRENT
 
 BFD_BINARY_FOPEN
@@ -202,6 +239,7 @@ else
 fi
 AC_SUBST(EMULATION_OFILES)
 AC_SUBST(EMUL_EXTRA_OFILES)
+AC_SUBST(LIB_PATH)
 
 EMULATION_LIBPATH=$all_libpath
 AC_SUBST(EMULATION_LIBPATH)

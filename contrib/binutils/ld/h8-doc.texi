@@ -4,7 +4,7 @@
 
 @c 2. Specific target machines
 @set H8300
-@set Hitachi
+@set Renesas
 @clear I960
 
 @c 3. Properties of this configuration

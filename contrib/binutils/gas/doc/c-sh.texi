@@ -1,10 +1,10 @@
-@c Copyright 1991, 1992, 1993, 1994, 1995, 1997, 2001
+@c Copyright 1991, 1992, 1993, 1994, 1995, 1997, 2001, 2004
 @c Free Software Foundation, Inc.
 @c This is part of the GAS manual.
 @c For copying conditions, see the file as.texinfo.
 @page
 @node SH-Dependent
-@chapter Hitachi SH Dependent Features
+@chapter Renesas / SuperH SH Dependent Features
 
 @cindex SH support
 @menu
@@ -20,8 +20,8 @@
 
 @cindex SH options
 @cindex options, SH
-@code{@value{AS}} has following command-line options for the Hitachi
-SH family.
+@code{@value{AS}} has following command-line options for the Renesas
+(formerly Hitachi) / SuperH SH family.
 
 @table @code
 @kindex -little
@@ -29,6 +29,7 @@ SH family.
 @kindex -relax
 @kindex -small
 @kindex -dsp
+@kindex -renesas
 
 @item -little
 Generate little endian code.
@@ -44,6 +45,19 @@ Align sections to 4 byte boundaries, not 16.
 
 @item -dsp
 Enable sh-dsp insns, and disable sh3e / sh4 insns.
+
+@item -renesas
+Disable optimization with section symbol for compatibility with
+Renesas assembler.
+
+@item -isa=sh4 | sh4a
+Specify the sh4 or sh4a instruction set.
+@item -isa=dsp
+Enable sh-dsp insns, and disable sh3e / sh4 insns.
+@item -isa=fp
+Enable sh2e, sh3e, sh4, and sh4a insn sets.
+@item -isa=all
+Enable sh1, sh2, sh2e, sh3, sh3e, sh4, sh4a, and sh-dsp insn sets.
 
 @end table
 
@@ -155,9 +169,23 @@ Immediate data
 
 @cindex floating point, SH (@sc{ieee})
 @cindex SH floating point (@sc{ieee})
-The SH family has no hardware floating point, but the @code{.float}
-directive generates @sc{ieee} floating-point numbers for compatibility
-with other development tools.
+SH2E, SH3E and SH4 groups have on-chip floating-point unit (FPU). Other
+SH groups can use @code{.float} directive to generate @sc{ieee} 
+floating-point numbers. 
+
+SH2E and SH3E support single-precision floating point calculations as 
+well as entirely PCAPI compatible emulation of double-precision 
+floating point calculations. SH2E and SH3E instructions are a subset of
+the floating point calculations conforming to the IEEE754 standard.
+
+In addition to single-precision and double-precision floating-point 
+operation capability, the on-chip FPU of SH4 has a 128-bit graphic 
+engine that enables 32-bit floating-point data to be processed 128 
+bits at a time. It also supports 4 * 4 array operations and inner 
+product operations. Also, a superscalar architecture is employed that 
+enables simultaneous execution of two instructions (including FPU 
+instructions), providing performance of up to twice that of 
+conventional architectures at the same frequency.
 
 @node SH Directives
 @section SH Machine Directives
@@ -183,7 +211,9 @@ with other development tools.
 @cindex mnemonics, SH
 @cindex instruction summary, SH
 For detailed information on the SH machine instruction set, see
-@cite{SH-Microcomputer User's Manual} (Hitachi Micro Systems, Inc.).
+@cite{SH-Microcomputer User's Manual} (Renesas) or
+@cite{SH-4 32-bit CPU Core Architecture} (SuperH) and
+@cite{SuperH (SH) 64-Bit RISC Series} (SuperH).
 
 @code{@value{AS}} implements all the standard SH opcodes.  No additional
 pseudo-instructions are needed on this family.  Note, however, that
@@ -289,7 +319,7 @@ stc SR,Rn
 @end smallexample
 @end ifset
 
-@ifset Hitachi-all
+@ifset Renesas-all
 @ifclear GENERIC
 @raisesections
 @end ifclear

@@ -1,6 +1,6 @@
 /* read.h - of read.c
    Copyright 1986, 1990, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000
+   2000, 2001, 2002, 2003
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -30,10 +30,7 @@ extern char *input_line_pointer;	/* -> char we are parsing now.  */
 
 #ifdef PERMIT_WHITESPACE
 #define SKIP_WHITESPACE()			\
-  {						\
-    if (* input_line_pointer == ' ')		\
-      ++ input_line_pointer;			\
-  }
+  ((*input_line_pointer == ' ') ? ++input_line_pointer : 0)
 #else
 #define SKIP_WHITESPACE() know(*input_line_pointer != ' ' )
 #endif
@@ -58,7 +55,7 @@ extern char *input_line_pointer;	/* -> char we are parsing now.  */
 extern char lex_type[];
 extern char is_end_of_line[];
 
-extern int is_it_end_of_statement PARAMS ((void));
+extern int is_it_end_of_statement (void);
 
 extern int target_big_endian;
 
@@ -93,94 +90,99 @@ enum linkonce_type {
   LINKONCE_SAME_CONTENTS
 };
 
-#define IGNORE_OPCODE_CASE
-#ifdef  IGNORE_OPCODE_CASE
+#ifndef TC_CASE_SENSITIVE
 extern char original_case_string[];
 #endif
 
-extern void pop_insert PARAMS ((const pseudo_typeS *));
+extern void pop_insert (const pseudo_typeS *);
 extern unsigned int get_stab_string_offset
-  PARAMS ((const char *string, const char *stabstr_secname));
-extern void aout_process_stab PARAMS ((int, const char *, int, int, int));
-extern char *demand_copy_C_string PARAMS ((int *len_pointer));
-extern char get_absolute_expression_and_terminator
-  PARAMS ((long *val_pointer));
-extern offsetT get_absolute_expression PARAMS ((void));
-extern unsigned int next_char_of_string PARAMS ((void));
-extern void s_mri_sect PARAMS ((char *));
-extern char *mri_comment_field PARAMS ((char *));
-extern void mri_comment_end PARAMS ((char *, int));
-extern void add_include_dir PARAMS ((char *path));
-extern void cons PARAMS ((int nbytes));
-extern void demand_empty_rest_of_line PARAMS ((void));
-extern void emit_expr PARAMS ((expressionS *exp, unsigned int nbytes));
-extern void emit_leb128_expr PARAMS ((expressionS *, int));
-extern void equals PARAMS ((char *sym_name, int reassign));
-extern void float_cons PARAMS ((int float_type));
-extern void ignore_rest_of_line PARAMS ((void));
-extern void discard_rest_of_line PARAMS ((void));
-extern int output_leb128 PARAMS ((char *, valueT, int sign));
-extern void pseudo_set PARAMS ((symbolS * symbolP));
-extern void read_a_source_file PARAMS ((char *name));
-extern void read_begin PARAMS ((void));
-extern void read_print_statistics PARAMS ((FILE *));
-extern int sizeof_leb128 PARAMS ((valueT, int sign));
-extern void stabs_generate_asm_file PARAMS ((void));
-extern void stabs_generate_asm_lineno PARAMS ((void));
-extern void stabs_generate_asm_func PARAMS ((const char *, const char *));
-extern void stabs_generate_asm_endfunc PARAMS ((const char *, const char *));
-extern void do_repeat PARAMS((int,const char *,const char *));
-extern void end_repeat PARAMS((int));
+  (const char *string, const char *stabstr_secname);
+extern void aout_process_stab (int, const char *, int, int, int);
+extern char *demand_copy_string (int *lenP);
+extern char *demand_copy_C_string (int *len_pointer);
+extern char get_absolute_expression_and_terminator (long *val_pointer);
+extern offsetT get_absolute_expr (expressionS *);
+extern offsetT get_absolute_expression (void);
+extern unsigned int next_char_of_string (void);
+extern void s_mri_sect (char *);
+extern char *mri_comment_field (char *);
+extern void mri_comment_end (char *, int);
+extern void add_include_dir (char *path);
+extern void cons (int nbytes);
+extern void demand_empty_rest_of_line (void);
+extern void emit_expr (expressionS *exp, unsigned int nbytes);
+extern void emit_leb128_expr (expressionS *, int);
+extern void equals (char *sym_name, int reassign);
+extern void float_cons (int float_type);
+extern void ignore_rest_of_line (void);
+extern void discard_rest_of_line (void);
+extern int output_leb128 (char *, valueT, int sign);
+extern void pseudo_set (symbolS * symbolP);
+extern void read_a_source_file (char *name);
+extern void read_begin (void);
+extern void read_print_statistics (FILE *);
+extern int sizeof_leb128 (valueT, int sign);
+extern void stabs_generate_asm_file (void);
+extern void stabs_generate_asm_lineno (void);
+extern void stabs_generate_asm_func (const char *, const char *);
+extern void stabs_generate_asm_endfunc (const char *, const char *);
+extern void do_repeat (int,const char *,const char *);
+extern void end_repeat (int);
+extern void do_parse_cons_expression (expressionS *, int);
 
-extern void generate_lineno_debug PARAMS ((void));
+extern void generate_lineno_debug (void);
 
-extern void s_abort PARAMS ((int)) ATTRIBUTE_NORETURN;
-extern void s_align_bytes PARAMS ((int arg));
-extern void s_align_ptwo PARAMS ((int));
-extern void s_app_file_string PARAMS ((char *));
-extern void s_app_file PARAMS ((int));
-extern void s_app_line PARAMS ((int));
-extern void s_bad_endr PARAMS ((int));
-extern void s_comm PARAMS ((int));
-extern void s_data PARAMS ((int));
-extern void s_desc PARAMS ((int));
-extern void s_else PARAMS ((int arg));
-extern void s_elseif PARAMS ((int arg));
-extern void s_end PARAMS ((int arg));
-extern void s_endif PARAMS ((int arg));
-extern void s_err PARAMS ((int));
-extern void s_fail PARAMS ((int));
-extern void s_fill PARAMS ((int));
-extern void s_float_space PARAMS ((int mult));
-extern void s_func PARAMS ((int));
-extern void do_s_func PARAMS ((int, const char *));
-extern void s_globl PARAMS ((int arg));
-extern void s_if PARAMS ((int arg));
-extern void s_ifc PARAMS ((int arg));
-extern void s_ifdef PARAMS ((int arg));
-extern void s_ifeqs PARAMS ((int arg));
-extern void s_ignore PARAMS ((int arg));
-extern void s_include PARAMS ((int arg));
-extern void s_irp PARAMS ((int arg));
-extern void s_lcomm PARAMS ((int needs_align));
-extern void s_lcomm_bytes PARAMS ((int needs_align));
-extern void s_leb128 PARAMS ((int sign));
-extern void s_linkonce PARAMS ((int));
-extern void s_lsym PARAMS ((int));
-extern void s_macro PARAMS ((int));
-extern void s_mexit PARAMS ((int));
-extern void s_mri PARAMS ((int));
-extern void s_mri_common PARAMS ((int));
-extern void s_org PARAMS ((int));
-extern void s_print PARAMS ((int));
-extern void s_purgem PARAMS ((int));
-extern void s_rept PARAMS ((int));
-extern void s_set PARAMS ((int));
-extern void s_space PARAMS ((int mult));
-extern void s_stab PARAMS ((int what));
-extern void s_struct PARAMS ((int));
-extern void s_text PARAMS ((int));
-extern void stringer PARAMS ((int append_zero));
-extern void s_xstab PARAMS ((int what));
-extern void s_rva PARAMS ((int));
-extern void s_incbin PARAMS ((int));
+extern void s_abort (int) ATTRIBUTE_NORETURN;
+extern void s_align_bytes (int arg);
+extern void s_align_ptwo (int);
+extern void bss_alloc (symbolS *, addressT, int);
+extern offsetT parse_align (int);
+extern symbolS *s_comm_internal (int, symbolS *(*) (int, symbolS *, addressT));
+extern symbolS *s_lcomm_internal (int, symbolS *, addressT);
+extern void s_app_file_string (char *);
+extern void s_app_file (int);
+extern void s_app_line (int);
+extern void s_bad_endr (int);
+extern void s_comm (int);
+extern void s_data (int);
+extern void s_desc (int);
+extern void s_else (int arg);
+extern void s_elseif (int arg);
+extern void s_end (int arg);
+extern void s_endif (int arg);
+extern void s_err (int);
+extern void s_fail (int);
+extern void s_fill (int);
+extern void s_float_space (int mult);
+extern void s_func (int);
+extern void do_s_func (int, const char *);
+extern void s_globl (int arg);
+extern void s_if (int arg);
+extern void s_ifc (int arg);
+extern void s_ifdef (int arg);
+extern void s_ifeqs (int arg);
+extern void s_ignore (int arg);
+extern void s_include (int arg);
+extern void s_irp (int arg);
+extern void s_lcomm (int needs_align);
+extern void s_lcomm_bytes (int needs_align);
+extern void s_leb128 (int sign);
+extern void s_linkonce (int);
+extern void s_lsym (int);
+extern void s_macro (int);
+extern void s_mexit (int);
+extern void s_mri (int);
+extern void s_mri_common (int);
+extern void s_org (int);
+extern void s_print (int);
+extern void s_purgem (int);
+extern void s_rept (int);
+extern void s_set (int);
+extern void s_space (int mult);
+extern void s_stab (int what);
+extern void s_struct (int);
+extern void s_text (int);
+extern void stringer (int append_zero);
+extern void s_xstab (int what);
+extern void s_rva (int);
+extern void s_incbin (int);

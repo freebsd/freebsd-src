@@ -1,5 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright (C) 2001 Free Software Foundation, Inc.
+#   Copyright 2001, 2002, 2003 Free Software Foundation, Inc.
 #
 # This file is part of GLD, the Gnu Linker.
 #
@@ -25,16 +25,14 @@ LDEMUL_BEFORE_ALLOCATION=need_relax_${EMULATION_NAME}_before_allocation
 
 cat >>e${EMULATION_NAME}.c <<EOF
 
-static void need_relax_${EMULATION_NAME}_before_allocation PARAMS ((void));
-
 static void
-need_relax_${EMULATION_NAME}_before_allocation ()
+need_relax_${EMULATION_NAME}_before_allocation (void)
 {
   /* Call main function; we're just extending it.  */
   gld${EMULATION_NAME}_before_allocation ();
 
   /* Force -relax on if not doing a relocatable link.  */
-  if (! link_info.relocateable)
-    command_line.relax = true;
+  if (! link_info.relocatable)
+    command_line.relax = TRUE;
 }
 EOF

@@ -23,21 +23,29 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* ARCHBITS_ESA and ARCH_ESAME correspond to the bit numbers defined
-   by s390_opcode_arch_val in include/opcode/s390.h:
-     ARCHBITS_ESAONLY = (1<<S390_OPCODE_ESA)
-     ARCHBITS_ESA     = (1<<S390_OPCODE_ESA) + (1<<S390_OPCODE_ESAME)
-     ARCHBITS_ESA     = (1<<S390_OPCODE_ESAME).  */
-#define ARCHBITS_ESAONLY 1
-#define ARCHBITS_ESA     3
-#define ARCHBITS_ESAME   2
+/* Taken from opcodes/s390.h */
+enum s390_opcode_mode_val
+  {
+    S390_OPCODE_ESA = 0,
+    S390_OPCODE_ZARCH
+  };
+
+enum s390_opcode_cpu_val
+  {
+    S390_OPCODE_G5 = 0,
+    S390_OPCODE_G6,
+    S390_OPCODE_Z900,
+    S390_OPCODE_Z990
+  };
 
 struct op_struct
   {
     char  opcode[16];
     char  mnemonic[16];
     char  format[16];
-    int   archbits;
+    int   mode_bits;
+    int   min_cpu;
+    
     unsigned long long sort_value;
     int   no_nibbles;
   };
@@ -57,7 +65,8 @@ createTable (void)
 /* `insertOpcode': insert an op_struct into sorted opcode array.  */
 
 static void
-insertOpcode (char *opcode, char *mnemonic, char *format, int archbits)
+insertOpcode (char *opcode, char *mnemonic, char *format,
+	      int min_cpu, int mode_bits)
 {
   char *str;
   unsigned long long sort_value;
@@ -87,6 +96,7 @@ insertOpcode (char *opcode, char *mnemonic, char *format, int archbits)
       str ++;
     }
   sort_value <<= 4*(16 - ix);
+  sort_value += (min_cpu << 8) + mode_bits;
   no_nibbles = ix;
   for (ix = 0; ix < no_ops; ix++)
     if (sort_value > op_array[ix].sort_value)
@@ -98,7 +108,8 @@ insertOpcode (char *opcode, char *mnemonic, char *format, int archbits)
   strcpy(op_array[ix].format, format);
   op_array[ix].sort_value = sort_value;
   op_array[ix].no_nibbles = no_nibbles;
-  op_array[ix].archbits = archbits;
+  op_array[ix].min_cpu = min_cpu;
+  op_array[ix].mode_bits = mode_bits;
   no_ops++;
 }
 
@@ -136,7 +147,8 @@ dumpTable (void)
 	      op_array[ix].no_nibbles*4, op_array[ix].opcode);
       printf ("MASK_%s, INSTR_%s, ",
 	      op_array[ix].format, op_array[ix].format);
-      printf ("%i}", op_array[ix].archbits);
+      printf ("%i, ", op_array[ix].mode_bits);
+      printf ("%i}", op_array[ix].min_cpu);
       if (ix < no_ops-1)
 	printf (",\n");
       else
@@ -162,24 +174,52 @@ main (void)
       char  mnemonic[16];
       char  format[16];
       char  description[64];
-      char  archtag[16];
-      int   archbits;
+      char  cpu_string[16];
+      char  modes_string[16];
+      int   min_cpu;
+      int   mode_bits;
+      char  *str;
 
       if (currentLine[0] == '#')
         continue;
       memset (opcode, 0, 8);
-      if (sscanf (currentLine, "%15s %15s %15s \"%[^\"]\" %15s",
-		  opcode, mnemonic, format, description, archtag) == 5)
+      if (sscanf (currentLine, "%15s %15s %15s \"%[^\"]\" %15s %15s",
+		  opcode, mnemonic, format, description,
+		  cpu_string, modes_string) == 6)
 	{
-	  if (strcmp (archtag, "esaonly") == 0)
-	    archbits = ARCHBITS_ESAONLY;
-	  else if (strcmp (archtag, "esa") == 0)
-	    archbits = ARCHBITS_ESA;
-	  else if (strcmp (archtag, "esame") == 0)
-	    archbits = ARCHBITS_ESAME;
-	  else
-	    archbits = 0;
-	  insertOpcode (opcode, mnemonic, format, archbits);
+	  if (strcmp (cpu_string, "g5") == 0)
+	    min_cpu = S390_OPCODE_G5;
+	  else if (strcmp (cpu_string, "g6") == 0)
+	    min_cpu = S390_OPCODE_G6;
+	  else if (strcmp (cpu_string, "z900") == 0)
+	    min_cpu = S390_OPCODE_Z900;
+	  else if (strcmp (cpu_string, "z990") == 0)
+	    min_cpu = S390_OPCODE_Z990;
+	  else {
+	    fprintf (stderr, "Couldn't parse cpu string %s\n", cpu_string);
+	    exit (1);
+	  }
+
+	  str = modes_string;
+	  mode_bits = 0;
+	  do {
+	    if (strncmp (str, "esa", 3) == 0
+		&& (str[3] == 0 || str[3] == ',')) {
+	      mode_bits |= 1 << S390_OPCODE_ESA;
+	      str += 3;
+	    } else if (strncmp (str, "zarch", 5) == 0
+		       && (str[5] == 0 || str[5] == ',')) {
+	      mode_bits |= 1 << S390_OPCODE_ZARCH;
+	      str += 5;
+	    } else {
+	      fprintf (stderr, "Couldn't parse modes string %s\n",
+		       modes_string);
+	      exit (1);
+	    }
+	    if (*str == ',')
+	      str++;
+	  } while (*str != 0);
+	  insertOpcode (opcode, mnemonic, format, min_cpu, mode_bits);
 	}
       else
         fprintf (stderr, "Couldn't scan line %s\n", currentLine);
