@@ -311,10 +311,8 @@ m_clalloc(ncl, how)
 	 * mb_map, (or trying to) in order to avoid dipping into the section
 	 * of mb_map which we've "reserved" for mbufs.
 	 */
-	if ((ncl + mbstat.m_clusters) > nmbclusters) {
-		mbstat.m_drops++;
-		return (0);
-	}
+	if ((ncl + mbstat.m_clusters) > nmbclusters)
+		goto m_clalloc_fail;
 
 	/*
 	 * Once we run out of map space, it will be impossible
@@ -322,10 +320,8 @@ m_clalloc(ncl, how)
 	 * map). From this point on, we solely rely on freed 
 	 * mclusters.
 	 */
-	if (mb_map_full) {
-		mbstat.m_drops++;
-		return (0);
-	}
+	if (mb_map_full)
+		goto m_clalloc_fail;
 
 #if MCLBYTES > PAGE_SIZE
 	if (how != M_WAIT) {
@@ -348,7 +344,14 @@ m_clalloc(ncl, how)
 	 * are no pages left.
 	 */
 	if (p == NULL) {
+		static int last_report ; /* when we did that (in ticks) */
+m_clalloc_fail:
 		mbstat.m_drops++;
+		if (ticks < last_report || (ticks - last_report) >= hz) {
+			last_report = ticks;
+			printf("m_clalloc failed, consider increase "
+				"NMBCLUSTERS value\n");
+		}
 		return (0);
 	}
 
@@ -437,8 +440,14 @@ m_retry(i, t)
 
 	if (m != NULL)
 		mbstat.m_wait++;
-	else
+	else {
+		static int last_report ; /* when we did that (in ticks) */
 		mbstat.m_drops++;
+		if (ticks < last_report || (ticks - last_report) >= hz) {
+			last_report = ticks;
+			printf("m_retry failed, consider increase mbuf value\n");
+		}
+	}
 
 	return (m);
 }
@@ -471,8 +480,14 @@ m_retryhdr(i, t)
 
 	if (m != NULL)  
 		mbstat.m_wait++;
-	else    
+	else    {
+		static int last_report ; /* when we did that (in ticks) */
 		mbstat.m_drops++;
+		if (ticks < last_report || (ticks - last_report) >= hz) {
+			last_report = ticks;
+			printf("m_retryhdr failed, consider increase mbuf value\n");
+		}
+	}
 	
 	return (m);
 }
