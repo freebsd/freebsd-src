@@ -3,6 +3,9 @@ Updating Information for FreeBSD current users
 This file is maintained by imp@village.org.  Please send new entries
 directly to him.  See end of file for further details.
 
+19990905:
+	/var/cron/log has been moved to /var/log/cron to get all the
+	log files in one place.
 19990831:
 	tn3270 has been removed from the based system and added as a port.
 
