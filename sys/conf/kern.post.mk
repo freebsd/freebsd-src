@@ -221,4 +221,4 @@ majors.c: $S/conf/majors $S/conf/majors.awk
 majors.o:
 	${NORMAL_C}
 
-.include <bsd.kern.mk>
+.include "kern.mk"
