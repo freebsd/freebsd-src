@@ -43,7 +43,7 @@ char copyright[] =
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: mount_std.c,v 1.1 1996/05/13 17:43:16 wollman Exp $";
+	"$Id: mount_std.c,v 1.2 1996/05/14 15:16:49 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -63,7 +63,7 @@ static struct mntopt mopts[] = {
 	{ NULL }
 };
 
-static __dead void	usage __P((void)) __dead2;
+static void	usage __P((void)) __dead2;
 static const char *fsname;
 
 int

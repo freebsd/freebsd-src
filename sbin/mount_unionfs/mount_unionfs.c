@@ -64,7 +64,7 @@ static struct mntopt mopts[] = {
 };
 
 static int	subdir __P((const char *, const char *));
-static __dead void	usage __P((void)) __dead2;
+static void	usage __P((void)) __dead2;
 
 int
 main(argc, argv)

@@ -45,7 +45,7 @@ char copyright[] =
 static char sccsid[] = "@(#)mount_null.c	8.5 (Berkeley) 3/27/94";
 */
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mount_null.c,v 1.4 1996/05/13 17:43:08 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -67,7 +67,7 @@ struct mntopt mopts[] = {
 };
 
 int	subdir __P((const char *, const char *));
-static __dead void	usage __P((void)) __dead2;
+static void	usage __P((void)) __dead2;
 
 int
 main(argc, argv)

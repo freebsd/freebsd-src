@@ -80,10 +80,8 @@ extern int __mb_cur_max;
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-__dead void
-	 abort __P((void)) __dead2;
-__pure int
-	 abs __P((int)) __pure2;
+void	 abort __P((void)) __dead2;
+int	 abs __P((int)) __pure2;
 int	 atexit __P((void (*)(void)));
 double	 atof __P((const char *));
 int	 atoi __P((const char *));
@@ -91,16 +89,12 @@ long	 atol __P((const char *));
 void	*bsearch __P((const void *, const void *, size_t,
 	    size_t, int (*)(const void *, const void *)));
 void	*calloc __P((size_t, size_t));
-__pure div_t
-	 div __P((int, int)) __pure2;
-__dead void
-	 exit __P((int)) __dead2;
+div_t	 div __P((int, int)) __pure2;
+void	 exit __P((int)) __dead2;
 void	 free __P((void *));
 char	*getenv __P((const char *));
-__pure long
-	 labs __P((long)) __pure2;
-__pure ldiv_t
-	 ldiv __P((long, long)) __pure2;
+long	 labs __P((long)) __pure2;
+ldiv_t	 ldiv __P((long, long)) __pure2;
 void	*malloc __P((size_t));
 void	 qsort __P((void *, size_t, size_t,
 	    int (*)(const void *, const void *)));

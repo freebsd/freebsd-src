@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)mount_lfs.c	8.3 (Berkeley) 3/27/94";
 */
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mount_ext2fs.c,v 1.3 1996/07/23 19:29:27 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -63,7 +63,7 @@ struct mntopt mopts[] = {
 	{ NULL }
 };
 
-static __dead void	usage __P((void)) __dead2;
+static void	usage __P((void)) __dead2;
 
 int
 main(argc, argv)

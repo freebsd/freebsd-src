@@ -49,8 +49,7 @@
 #endif
 
 __BEGIN_DECLS
-__dead void
-	 _exit __P((int)) __dead2;
+void	 _exit __P((int)) __dead2;
 int	 access __P((const char *, int));
 unsigned int	 alarm __P((unsigned int));
 int	 chdir __P((const char *));
@@ -121,8 +120,7 @@ int	 getgrouplist __P((const char *, int, int *, int *));
 long	 gethostid __P((void));
 int	 gethostname __P((char *, int));
 mode_t	 getmode __P((const void *, mode_t));
-__pure int
-	 getpagesize __P((void));
+int	 getpagesize __P((void)) __pure2;
 char	*getpass __P((const char *));
 char	*getusershell __P((void));
 char	*getwd __P((char *));			/* obsoleted by getcwd() */

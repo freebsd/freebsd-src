@@ -43,7 +43,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)route.c	8.3 (Berkeley) 3/19/94";
 */
 static const char rcsid[] =
-	"$Id: route.c,v 1.13 1996/08/13 22:20:20 julian Exp $";
+	"$Id: route.c,v 1.14 1996/08/19 18:52:49 julian Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -125,9 +125,9 @@ extern	char *inet_ntoa(), *iso_ntoa(), *link_ntoa();
 extern	int ccitt_addr __P((char *, struct sockaddr_x25 *));
 #endif
 
-__dead	void usage __P((const char *)) __dead2;
+void usage __P((const char *)) __dead2;
 
-__dead void
+void
 usage(cp)
 	const char *cp;
 {

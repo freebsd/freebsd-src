@@ -527,7 +527,7 @@ dofix(idesc, msg)
 }
 
 /* VARARGS1 */
-__dead void
+void
 errexit(const char *s1, ...)
 {
 	va_list ap;
@@ -580,7 +580,7 @@ pwarn(const char *s, ...)
 /*
  * Stub for routines from kernel.
  */
-__dead void
+void
 #ifdef __STDC__
 panic(const char *fmt, ...)
 #else

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: collate.c,v 1.4 1995/05/30 05:40:40 rgrimes Exp $
+ * $Id: collate.c,v 1.5 1995/10/23 20:08:24 ache Exp $
  */
 
 #include <rune.h>
@@ -52,7 +52,7 @@ struct __collate_st_chain_pri __collate_chain_pri_table[TABLE_SIZE];
 		} \
 	} while(0)
 
-__dead void __collate_err(int ex, const char *f) __dead2;
+void __collate_err(int ex, const char *f) __dead2;
 
 int
 __collate_load_tables(encoding)
@@ -163,7 +163,8 @@ __collate_strdup(s)
 	return t;
 }
 
-__dead void __collate_err(int ex, const char *f)
+void
+__collate_err(int ex, const char *f)
 {
 	extern char *__progname;                /* Program name, from crt0. */
 	const char *s;
