@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: elf_common.h,v 1.1 1998/08/16 03:03:38 jdp Exp $
+ *      $Id: elf_common.h,v 1.2 1998/09/08 20:38:06 jdp Exp $
  */
 
 #ifndef _SYS_ELF_COMMON_H_
@@ -178,6 +178,11 @@
 #define DT_JMPREL	23	/* Address of PLT relocations. */
 
 #define DT_COUNT	24	/* Number of defined d_tag values. */
+
+/* Values for n_type.  Used in core files. */
+#define NT_PRSTATUS	1	/* Process status. */
+#define NT_FPREGSET	2	/* Floating point registers. */
+#define NT_PRPSINFO	3	/* Process state info. */
 
 /* Symbol Binding - ELFNN_ST_BIND - st_info */
 #define STB_LOCAL	0	/* Local symbol */
