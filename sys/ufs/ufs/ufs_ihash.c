@@ -79,28 +79,6 @@ ufs_ihashuninit()
 
 /*
  * Use the device/inum pair to find the incore inode, and return a pointer
- * to it. If it is in core, return it, even if it is locked.
- */
-struct vnode *
-ufs_ihashlookup(dev, inum)
-	struct cdev *dev;
-	ino_t inum;
-{
-	struct inode *ip;
-
-	mtx_lock(&ufs_ihash_mtx);
-	LIST_FOREACH(ip, INOHASH(dev, inum), i_hash)
-		if (inum == ip->i_number && dev == ip->i_dev)
-			break;
-	mtx_unlock(&ufs_ihash_mtx);
-
-	if (ip)
-		return (ITOV(ip));
-	return (NULLVP);
-}
-
-/*
- * Use the device/inum pair to find the incore inode, and return a pointer
  * to it. If it is in core, but locked, wait for it.
  */
 int
