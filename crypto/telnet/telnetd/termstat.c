@@ -140,7 +140,6 @@ int	newmap = 1;	/* nonzero if \n maps to ^M^J */
 	void
 localstat()
 {
-	void netflush();
 	int need_will_echo = 0;
 
 #if	defined(CRAY2) && defined(UNICOS5)
@@ -404,7 +403,6 @@ flowstat()
 clientstat(code, parm1, parm2)
 	register int code, parm1, parm2;
 {
-	void netflush();
 
 	/*
 	 * Get a copy of terminal characteristics.

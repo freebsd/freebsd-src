@@ -69,10 +69,9 @@ static const char rcsid[] =
     void
 ttloop()
 {
-    void netflush();
 
     DIAG(TD_REPORT, output_data("td: ttloop\r\n"));
-    if (nfrontp-nbackp) {
+    if (nfrontp - nbackp > 0) {
 	netflush();
     }
     ncc = read(net, netibuf, sizeof netibuf);
@@ -257,10 +256,13 @@ netflush()
     int n;
     extern int not42;
 
-    if ((n = nfrontp - nbackp) > 0) {
+    while ((n = nfrontp - nbackp) > 0) {
+#if 0
+	/* XXX This causes output_data() to recurse and die */
 	DIAG(TD_REPORT, {
 	    n += output_data("td: netflush %d chars\r\n", n);
 	});
+#endif
 #ifdef	ENCRYPTION
 	if (encrypt_output) {
 		char *s = nclearto ? nclearto : nbackp;
@@ -293,25 +295,26 @@ netflush()
 		n = send(net, nbackp, n, MSG_OOB);	/* URGENT data */
 	    }
 	}
-    }
-    if (n < 0) {
-	if (errno == EWOULDBLOCK || errno == EINTR)
-		return;
-	cleanup(0);
-    }
-    nbackp += n;
+	if (n == -1) {
+	    if (errno == EWOULDBLOCK || errno == EINTR)
+		continue;
+	    cleanup(0);
+	    /* NOTREACHED */
+	}
+	nbackp += n;
 #ifdef	ENCRYPTION
-    if (nbackp > nclearto)
-	nclearto = 0;
+	if (nbackp > nclearto)
+	    nclearto = 0;
 #endif	/* ENCRYPTION */
-    if (nbackp >= neturg) {
-	neturg = 0;
-    }
-    if (nbackp == nfrontp) {
-	nbackp = nfrontp = netobuf;
+	if (nbackp >= neturg) {
+	    neturg = 0;
+	}
+	if (nbackp == nfrontp) {
+	    nbackp = nfrontp = netobuf;
 #ifdef	ENCRYPTION
-	nclearto = 0;
+	    nclearto = 0;
 #endif	/* ENCRYPTION */
+	}
     }
     return;
 }  /* end of netflush */

@@ -932,7 +932,6 @@ telnet(f, p, host)
 	char *HE;
 	char *HN;
 	char *IM;
-	void netflush();
 	int nfd;
 
 	/*
