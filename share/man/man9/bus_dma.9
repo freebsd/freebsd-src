@@ -655,6 +655,8 @@ a CPU and a DMA engine, frequently.
 Use of this flag does not remove the requirement of using
 bus_dmamap_sync, but it may reduce the cost of performing
 these operations.
+.It Dv BUS_DMA_ZERO
+Causes the allocated memory to be set to all zeros.
 .El
 .It Fa mapp
 Pointer to storage for the returned DMA map.
