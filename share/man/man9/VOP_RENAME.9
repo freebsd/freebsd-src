@@ -59,11 +59,11 @@ the vnode of the target file (if it exists)
 pathname information about the file's new name
 .El
 .Sh LOCKS
-The destination directory and file (if it exists) should be locked on entry.  
-The source directory and file
-will be released on exit.
-The destination directory and file (if it exists) will be unlocked
-and released on exit.
+The source directory and file will have their ref count bumped on entry.
+The destination directory and file will be locked and referenced on entry.
+The procedure must release (not unlock) the source directory and file,
+and must relase and unlock (i.e. vput) the destination directory and file
+prior to return.
 .Sh PSEUDOCODE
 .Bd -literal
 int
