@@ -3711,12 +3711,14 @@ revoke(td, uap)
 	VOP_UNLOCK(vp, 0, td);
 	if (td->td_ucred->cr_uid != vattr.va_uid) {
 		error = suser_cred(td->td_ucred, SUSER_ALLOWJAIL);
-		if (error)
-			goto out;
+		if (error) {
+			vrele(vp);
+			return (error);
+		}
 	}
 	if (vcount(vp) > 1)
 		VOP_REVOKE(vp, REVOKEALL);
-out:
+
 	vrele(vp);
 	return (error);
 }
