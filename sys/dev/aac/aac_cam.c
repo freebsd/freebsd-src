@@ -220,7 +220,9 @@ aac_cam_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->version_num = 1;
 		cpi->hba_inquiry = PI_WIDE_16;
 		cpi->target_sprt = 0;
-		cpi->hba_misc = 0;
+
+		/* Resetting via the passthrough causes problems. */
+		cpi->hba_misc = PIM_NOBUSRESET;
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = camsc->inf->TargetsPerBus;
 		cpi->max_lun = 8;	/* Per the controller spec */
@@ -514,7 +516,7 @@ aac_cam_reset_bus(struct cam_sim *sim, union ccb *ccb)
 	e = aac_sync_fib(sc, ContainerCommand, 0, fib,
 	    sizeof(struct aac_vmioctl));
 	if (e) {
-		device_printf(sc->aac_dev, "Error 0x%x sending passthrough\n",
+		device_printf(sc->aac_dev,"Error %d sending ResetBus command\n",
 		    e);
 		aac_release_sync_fib(sc);
 		return (CAM_REQ_ABORTED);
@@ -557,18 +559,21 @@ aac_cam_get_tran_settings(struct aac_softc *sc, struct ccb_trans_settings *cts, 
 	error = aac_sync_fib(sc, ContainerCommand, 0, fib,
 	    sizeof(struct aac_vmioctl));
 	if (error) {
-		device_printf(sc->aac_dev, "Error %d sending VMIoctl command\n",
-		    error);
+		device_printf(sc->aac_dev, "Error %d sending GetDeviceProbeInfo"
+		              " command\n", error);
 		aac_release_sync_fib(sc);
 		return (CAM_REQ_INVALID);
 	}
 
 	vmi_resp = (struct aac_vmi_devinfo_resp *)&fib->data[0];
 	if (vmi_resp->Status != ST_OK) {
-		device_printf(sc->aac_dev, "VM_Ioctl returned %d\n",
-		    vmi_resp->Status);
+		/*
+		 * The only reason why this command will return an error is
+		 * if the requested device doesn't exist.
+		 */
+		debug(1, "GetDeviceProbeInfo returned %d\n", vmi_resp->Status);
 		aac_release_sync_fib(sc);
-		return (CAM_REQ_CMP_ERR);
+		return (CAM_DEV_NOT_THERE);
 	}
 
 	cts->bus_width = ((vmi_resp->Inquiry7 & 0x60) >> 5);
