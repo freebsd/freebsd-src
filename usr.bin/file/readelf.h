@@ -1,6 +1,6 @@
 /*
  * readelf.h 
- * @(#)$Id: readelf.h,v 1.4 1997/01/15 17:23:24 christos Exp $
+ * @(#)$Id: readelf.h,v 1.1.1.1 1997/03/18 17:58:55 mpp Exp $
  *
  * Provide elf data structures for non-elf machines, allowing file
  * non-elf hosts to determine if an elf binary is stripped.
@@ -16,9 +16,9 @@ typedef unsigned int	Elf32_Word;
 typedef unsigned char	Elf32_Char;
 
 /* XXX: We need 64 bit numbers here */
-typedef unsigned int	Elf64_Addr[2];
+typedef u_quad_t	Elf64_Addr;
 typedef unsigned short	Elf64_Half;
-typedef unsigned int	Elf64_Off[2];
+typedef u_quad_t	Elf64_Off;
 typedef unsigned int	Elf64_Word;
 typedef unsigned char	Elf64_Char;
 
