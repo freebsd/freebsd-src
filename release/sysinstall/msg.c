@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: msg.c,v 1.25 1995/05/29 00:50:04 jkh Exp $
+ * $Id: msg.c,v 1.26 1995/05/29 01:43:18 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -48,6 +48,17 @@
 
 #define VTY_STATLINE	24
 #define TTY_STATLINE	23
+
+Boolean
+isDebug(void)
+{
+    char *cp;
+
+    cp = getenv("debug");
+    if (cp && !strcmp(cp, "yes"))
+	return TRUE;
+    return FALSE;
+}
 
 /* Whack up an informational message on the status line, in stand-out */
 void
@@ -105,7 +116,8 @@ msgInfo(char *fmt, ...)
     move(OnVTY ? VTY_STATLINE : TTY_STATLINE, 79);
     refresh();
     if (OnVTY) {
-	msgDebug("Information: `%s'\n", errstr);
+	if (isDebug())
+	    msgDebug("Information: `%s'\n", errstr);
 	msgInfo(NULL);
     }
     free(errstr);
@@ -130,7 +142,7 @@ msgWarn(char *fmt, ...)
     mvaddstr(OnVTY ? VTY_STATLINE : TTY_STATLINE, 0, errstr);
     attrset(attrs);
     refresh();
-    if (OnVTY)
+    if (OnVTY && isDebug())
 	msgDebug("Warning message `%s'\n", errstr);
     free(errstr);
 }
@@ -154,7 +166,7 @@ msgError(char *fmt, ...)
     mvaddstr(OnVTY ? VTY_STATLINE : TTY_STATLINE, 0, errstr);
     attrset(attrs);
     refresh();
-    if (OnVTY)
+    if (OnVTY && isDebug())
 	msgDebug("Error message `%s'\n", errstr);
     free(errstr);
 }
@@ -231,7 +243,8 @@ msgNotify(char *fmt, ...)
     va_end(args);
     use_helpline(NULL);
     use_helpfile(NULL);
-    msgDebug("Notify: %s\n", errstr);
+    if (isDebug())
+	msgDebug("Notify: %s\n", errstr);
     dialog_clear();
     dialog_msgbox("Information Dialog", errstr, -1, -1, 0);
     free(errstr);
@@ -254,8 +267,8 @@ msgYesNo(char *fmt, ...)
     use_helpfile(NULL);
     w = dupwin(newscr);
     if (OnVTY) {
+	msgDebug("Switching back to VTY 0\n");
 	ioctl(0, VT_RELDISP, 1);	/* Switch back */
-	msgDebug("User decision requested (type ALT-F1)\n");
 	msgInfo(NULL);
     }
     ret = dialog_yesno("User Confirmation Requested", errstr, -1, -1);

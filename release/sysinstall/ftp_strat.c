@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.3 1995/05/27 21:18:07 jkh Exp $
+ * $Id: ftp_strat.c,v 1.4 1995/05/27 23:39:30 phk Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -84,13 +84,16 @@ mediaInitFTP(Device *dev)
 	return FALSE;
     }
     strncpy(url, cp, BUFSIZ);
-    msgDebug("Using URL `%s'\n", url);
+    if (isDebug())
+	msgDebug("Using URL `%s'\n", url);
     hostname = url + 6;
     if ((dir = index(hostname, '/')) != NULL)
 	*(dir++) = '\0';
     strcpy(dev->name, hostname);
-    msgDebug("hostname = `%s'\n", hostname);
-    msgDebug("dir = `%s'\n", dir ? dir : "/");
+    if (isDebug()) {
+	msgDebug("hostname = `%s'\n", hostname);
+	msgDebug("dir = `%s'\n", dir ? dir : "/");
+    }
     msgNotify("Looking up host %s..", hostname);
     if ((gethostbyname(hostname) == NULL) && (inet_addr(hostname) == INADDR_NONE)) {
 	msgConfirm("Cannot resolve hostname `%s'!  Are you sure your name server\nand/or gateway values are set properly?", hostname);
@@ -98,7 +101,8 @@ mediaInitFTP(Device *dev)
     }
 
     snprintf(email, BUFSIZ, "installer@%s", my_name);
-    msgDebug("Using fake e-mail `%s'\n", email);
+    if (isDebug())
+	msgDebug("Using fake e-mail `%s'\n", email);
 
     msgNotify("Logging in as anonymous.");
     if ((i = FtpOpen(ftp, hostname, "anonymous", email)) != 0) {
@@ -113,7 +117,8 @@ mediaInitFTP(Device *dev)
 	msgNotify("CD to distribution in ~ftp/%s", dir);
 	FtpChdir(ftp, dir);
     }
-    msgDebug("leaving mediaInitFTP!\n");
+    if (isDebug())
+	msgDebug("leaving mediaInitFTP!\n");
     ftpInitted = TRUE;
     return TRUE;
 }
