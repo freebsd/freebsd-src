@@ -79,6 +79,7 @@
 #include <sys/vnode.h>
 #include <sys/resourcevar.h>
 #include <sys/sysent.h>
+#include <sys/stdint.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -3098,10 +3099,9 @@ DB_SHOW_COMMAND(map, vm_map_print)
 				db_printf(", wired");
 		}
 		if (entry->eflags & MAP_ENTRY_IS_SUB_MAP) {
-			/* XXX no %qd in kernel.  Truncate entry->offset. */
-			db_printf(", share=%p, offset=0x%lx\n",
+			db_printf(", share=%p, offset=0x%jx\n",
 			    (void *)entry->object.sub_map,
-			    (long)entry->offset);
+			    (uintmax_t)entry->offset);
 			nlines++;
 			if ((entry->prev == &map->header) ||
 			    (entry->prev->object.sub_map !=
@@ -3113,10 +3113,9 @@ DB_SHOW_COMMAND(map, vm_map_print)
 				db_indent -= 2;
 			}
 		} else {
-			/* XXX no %qd in kernel.  Truncate entry->offset. */
-			db_printf(", object=%p, offset=0x%lx",
+			db_printf(", object=%p, offset=0x%jx",
 			    (void *)entry->object.vm_object,
-			    (long)entry->offset);
+			    (uintmax_t)entry->offset);
 			if (entry->eflags & MAP_ENTRY_COW)
 				db_printf(", copy (%s)",
 				    (entry->eflags & MAP_ENTRY_NEEDS_COPY) ? "needed" : "done");
