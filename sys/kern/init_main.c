@@ -95,10 +95,6 @@ extern	struct user *proc0paddr;
 struct	vnode *rootvp;
 int	boothowto = 0;		/* initialized so that it can be patched */
 
-struct	timeval boottime;
-SYSCTL_STRUCT(_kern, KERN_BOOTTIME, boottime, CTLFLAG_RD, 
-    &boottime, timeval, "System boottime");
-
 /*
  * Promiscuous argument pass for start_init()
  *
