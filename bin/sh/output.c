@@ -107,6 +107,11 @@ out1str(const char *p)
 	outstr(p, out1);
 }
 
+void
+out1qstr(const char *p)
+{
+	outqstr(p, out1);
+}
 
 void
 out2str(const char *p)
@@ -114,6 +119,11 @@ out2str(const char *p)
 	outstr(p, out2);
 }
 
+void
+out2qstr(const char *p)
+{
+	outqstr(p, out2);
+}
 
 void
 outstr(const char *p, struct output *file)
@@ -124,9 +134,30 @@ outstr(const char *p, struct output *file)
 		flushout(file);
 }
 
+/* Like outstr(), but quote for re-input into the shell. */
+void
+outqstr(const char *p, struct output *file)
+{
+	char ch;
+
+	out1c('\'');
+	while ((ch = *p++) != '\0') {
+		switch (ch) {
+		case '\'':
+			/*
+			 * Can't quote single quotes inside single quotes;
+			 * close them, write escaped single quote, open again.
+			 */
+			outstr("'\\''", file);
+			break;
+		default:
+			outc(ch, file);
+		}
+	}
+	out1c('\'');
+}
 
 char out_junk[16];
-
 
 void
 emptyoutbuf(struct output *dest)
