@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx.c#198 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx.c#199 $
  *
  * $FreeBSD$
  */
@@ -378,7 +378,7 @@ ahd_flush_qoutfifo(struct ahd_softc *ahd)
 	 * Wait for any inprogress DMA to complete and clear DMA state
 	 * if this if for an SCB in the qinfifo.
 	 */
-	while ((ccscbctl = ahd_inb(ahd, CCSCBCTL) & (CCARREN|CCSCBEN)) != 0) {
+	while (((ccscbctl = ahd_inb(ahd, CCSCBCTL)) & (CCARREN|CCSCBEN)) != 0) {
 
 		if ((ccscbctl & (CCSCBDIR|CCARREN)) == (CCSCBDIR|CCARREN)) {
 			if ((ccscbctl & ARRDONE) != 0)
