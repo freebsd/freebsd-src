@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.53 1995/12/07 12:48:05 davidg Exp $
+ * $Id: swap_pager.c,v 1.54 1995/12/11 04:58:02 dyson Exp $
  */
 
 /*
@@ -944,16 +944,6 @@ swap_pager_getpages(object, m, count, reqpage)
 	spc = NULL;	/* we might not use an spc data structure */
 
 	if ((count == 1) && (swap_pager_free.tqh_first != NULL)) {
-		/*
-		 * if a kva has not been allocated, we can only do a one page
-		 * transfer, so we free the other pages that might have been
-		 * allocated by vm_fault.
-		 */
-		swap_pager_ridpages(m, count, reqpage);
-		m[0] = m[reqpage];
-		reqaddr[0] = reqaddr[reqpage];
-		count = 1;
-		reqpage = 0;
 		spc = swap_pager_free.tqh_first;
 		TAILQ_REMOVE(&swap_pager_free, spc, spc_list);
 		kva = spc->spc_kva;
@@ -1265,18 +1255,30 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 		swap_pager_free.tqh_first->spc_list.tqe_next->spc_list.tqe_next == NULL) {
 		s = splbio();
 		if (curproc == pageproc) {
+			/*
+			 * pageout daemon needs a swap control block
+			 */
+			swap_pager_needflags |= SWAP_FREE_NEEDED_BY_PAGEOUT|SWAP_FREE_NEEDED;
+			/*
+			 * if it does not get one within a short time, then
+			 * there is a potential deadlock, so we go-on trying
+			 * to free pages.
+			 */
+			tsleep(&swap_pager_free, PVM, "swpfre", hz/10);
 			swap_pager_sync();
-#if 1
-			splx(s);
-			return VM_PAGER_AGAIN;
-#endif
+			if (swap_pager_free.tqh_first == NULL ||
+				swap_pager_free.tqh_first->spc_list.tqe_next == NULL ||
+				swap_pager_free.tqh_first->spc_list.tqe_next->spc_list.tqe_next == NULL) {
+				splx(s);
+				return VM_PAGER_AGAIN;
+			}
 		} else
 			pagedaemon_wakeup();
 		while (swap_pager_free.tqh_first == NULL ||
 			swap_pager_free.tqh_first->spc_list.tqe_next == NULL ||
 			swap_pager_free.tqh_first->spc_list.tqe_next->spc_list.tqe_next == NULL) {
 			if (curproc == pageproc) {
-				swap_pager_needflags |= SWAP_FREE_NEEDED_BY_PAGEOUT;
+			    swap_pager_needflags |= SWAP_FREE_NEEDED_BY_PAGEOUT;
 			    if((cnt.v_free_count + cnt.v_cache_count) > cnt.v_free_reserved)
 					wakeup(&cnt.v_free_count);
 			}
