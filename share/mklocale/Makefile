@@ -34,6 +34,7 @@ LATIN15LINKS=	${LATIN1XLINKS} et_EE
 LATIN2LINKS=	cs_CZ hr_HR hu_HU pl_PL sl_SI sr_YU ro_RO sk_SK
 LATIN4LINKS=	lt_LT
 LATIN5LINKS=	sr_YU uk_UA
+CP1251LINKS=    ru_RU
 
 .SUFFIXES: .src .out
 
@@ -66,6 +67,10 @@ afterinstall:
 .for link in ${LATIN5LINKS}
 	ln -fs ../ru_RU.ISO8859-5/LC_CTYPE \
 		${LOCALEDIR}/${link}.ISO8859-5/LC_CTYPE
+.endfor
+.for link in ${CP1251LINKS}
+	ln -fs ../bg_BG.CP1251/LC_CTYPE \
+		${LOCALEDIR}/${link}.CP1251/LC_CTYPE
 .endfor
 .for link in ${ASCIILINKS}
 	ln -fs ../la_LN.US-ASCII/LC_CTYPE \
