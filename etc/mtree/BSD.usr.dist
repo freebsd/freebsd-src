@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.150 1999/01/31 18:24:36 vanilla Exp $
+#	$Id: BSD.usr.dist,v 1.151 1999/02/11 16:30:55 brian Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -352,20 +352,6 @@
                 ..
             ..
             libvgl
-            ..
-            lkm
-                misc
-                    module
-                    ..
-                    test
-                    ..
-                ..
-                syscall
-                    module
-                    ..
-                    test
-                    ..
-                ..
             ..
             meteor
 	    ..
