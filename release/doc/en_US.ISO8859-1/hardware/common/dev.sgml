@@ -124,7 +124,7 @@
 	</listitem>
       </itemizedlist>
     </para>
-    <para arch="i386,pc98,alpha">Adaptec SCSI Controllers
+    <para arch="i386,pc98,alpha,sparc64">Adaptec SCSI Controllers
       <itemizedlist>
         <listitem arch="i386">
 	  <para>Adaptec 1535 ISA SCSI controllers</para>
@@ -151,7 +151,7 @@
 	  narrow and wide variants (&man.ahc.4;
 	  driver)</para>
 	</listitem>
-	<listitem arch="i386,alpha">
+	<listitem arch="i386,alpha,sparc64">
 	  <para>Adaptec 19160/291x/2920/2930/2940/2950/29160/3940/3950/3960/39160/398x/494x
 	  series PCI SCSI controllers, including
 	  Narrow/Wide/Twin/Ultra/Ultra2 variants (&man.ahc.4;
@@ -187,8 +187,9 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Ultra-320 SCSI controllers based on the Adaptec AIC7901,
-      AIC7901A, and AIC7902 Ultra320 controller chips (&man.ahd.4; driver)
+    <para arch="i386,sparc64">Ultra-320 SCSI controllers based on the Adaptec
+      AIC7901, AIC7901A, and AIC7902 Ultra320 controller chips
+      (&man.ahd.4; driver)
       <itemizedlist>
         <listitem>
 	  <para>Adaptec 29320, 29320A, 29320B, 29320LP</para>
@@ -2478,7 +2479,10 @@
     <para arch="i386,alpha,ia64"><quote>PC standard</quote> 8250, 16450, and 16550-based serial ports (&man.sio.4; driver)</para>
 
     <para arch="sparc64">Serial ports based on the SAB82532 serial
-      chip (sab driver)</para>
+      chip, console only (sab driver)</para>
+
+    <para arch="sparc64">Serial ports based on the Zilog 8530 dual uart,
+      console only (zs driver)</para>
 
     <para arch="i386,alpha">AST 4 port serial card using shared IRQ</para>
 
