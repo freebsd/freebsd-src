@@ -1,5 +1,5 @@
 #
-#	$Id$
+#	$Id: Makefile,v 1.109.2.22 1998/02/18 11:36:46 markm Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -317,6 +317,11 @@ reinstall:
 	@echo " Installing everything.."
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR} && ${MAKE} install
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " Re-scanning the shared libraries.."
+	@echo "--------------------------------------------------------------"
+	cd ${.CURDIR} && ldconfig -R
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding man page indexes"
