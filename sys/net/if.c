@@ -533,7 +533,9 @@ if_detach(ifp)
 	for (i = 1; i <= AF_MAX; i++) {
 		if ((rnh = rt_tables[i]) == NULL)
 			continue;
+		RADIX_NODE_HEAD_LOCK(rnh);
 		(void) rnh->rnh_walktree(rnh, if_rtdel, ifp);
+		RADIX_NODE_HEAD_UNLOCK(rnh);
 	}
 
 	/* Announce that the interface is gone. */

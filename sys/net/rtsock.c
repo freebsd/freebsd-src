@@ -367,11 +367,15 @@ route_output(m, so)
 	case RTM_LOCK:
 		if ((rnh = rt_tables[dst->sa_family]) == 0) {
 			senderr(EAFNOSUPPORT);
-		} else if ((rt = (struct rtentry *)
-				rnh->rnh_lookup(dst, netmask, rnh)) != NULL)
+		}
+		RADIX_NODE_HEAD_LOCK(rnh);
+		rt = (struct rtentry *) rnh->rnh_lookup(dst, netmask, rnh);
+		RADIX_NODE_HEAD_UNLOCK(rnh);
+		if (rt != NULL)
 			rt->rt_refcnt++;
 		else
 			senderr(ESRCH);
+
 		switch(rtm->rtm_type) {
 
 		case RTM_GET:
@@ -1024,11 +1028,25 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 
 	case NET_RT_DUMP:
 	case NET_RT_FLAGS:
-		for (i = 1; i <= AF_MAX; i++)
-			if ((rnh = rt_tables[i]) && (af == 0 || af == i) &&
-			    (error = rnh->rnh_walktree(rnh,
-							sysctl_dumpentry, &w)))
-				break;
+		if (af != 0) {
+			if ((rnh = rt_tables[af]) != NULL) {
+				RADIX_NODE_HEAD_LOCK(rnh);
+			    	error = rnh->rnh_walktree(rnh,
+				    sysctl_dumpentry, &w);
+				RADIX_NODE_HEAD_UNLOCK(rnh);
+			} else
+				error = EAFNOSUPPORT;
+		} else {
+			for (i = 1; i <= AF_MAX; i++)
+				if ((rnh = rt_tables[i]) != NULL) {
+					RADIX_NODE_HEAD_LOCK(rnh);
+					error = rnh->rnh_walktree(rnh,
+					    sysctl_dumpentry, &w);
+					RADIX_NODE_HEAD_UNLOCK(rnh);
+					if (error)
+						break;
+				}
+		}
 		break;
 
 	case NET_RT_IFLIST:

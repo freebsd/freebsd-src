@@ -1024,6 +1024,7 @@ rn_inithead(head, off)
 	if (rnh == 0)
 		return (0);
 	Bzero(rnh, sizeof (*rnh));
+	RADIX_NODE_HEAD_LOCK_INIT(rnh);
 	*head = rnh;
 	t = rn_newpair(rn_zeros, off, rnh->rnh_nodes);
 	ttt = rnh->rnh_nodes + 2;
