@@ -1721,7 +1721,7 @@ device		pci
 # Deskpro systems. It also supports several Olicom 10Mbps and 10/100
 # boards.
 #
-# The `tx' device provides support for the SMC 9432TX cards.
+# The `tx' device provides support for the SMC 9432 TX, BTX and TX_2 cards.
 #
 # The `vr' device provides support for various fast ethernet adapters
 # based on the VIA Technologies VT3043 `Rhine I' and VT86C100A `Rhine II'
@@ -1898,6 +1898,7 @@ device		sf		# Adaptec AIC-6915 (``Starfire'')
 device		sis		# Silicon Integrated Systems SiS 900/SiS 7016
 device		ste		# Sundance ST201 (D-Link DFE-550TX)
 device		tl		# Texas Instruments ThunderLAN
+device		tx		# SMC EtherPower II (83c17x ``EPIC'')
 device		vr		# VIA Rhine, Rhine II
 device		wb		# Winbond W89C840F
 device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
@@ -1905,7 +1906,6 @@ device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 # PCI Ethernet NICs.
 device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
-device		tx		# SMC 9432TX (83c170 ``EPIC'')
 device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 
 device		sk
