@@ -124,7 +124,7 @@ static void ieee80211_recv_pspoll(struct ieee80211com *,
  * mean ``better signal''.  The receive timestamp is currently not used
  * by the 802.11 layer.
  */
-void
+int
 ieee80211_input(struct ieee80211com *ic, struct mbuf *m,
 	struct ieee80211_node *ni, int rssi, u_int32_t rstamp)
 {
@@ -150,6 +150,7 @@ ieee80211_input(struct ieee80211com *ic, struct mbuf *m,
 	KASSERT(m->m_pkthdr.len >= sizeof(struct ieee80211_frame_min),
 		("frame length too short: %u", m->m_pkthdr.len));
 
+	type = -1;			/* undefined */
 	/*
 	 * In monitor mode, send everything directly to bpf.
 	 * XXX may want to include the CRC
@@ -535,7 +536,7 @@ ieee80211_input(struct ieee80211com *ic, struct mbuf *m,
 			}
 			(*ifp->if_input)(ifp, m);
 		}
-		return;
+		return IEEE80211_FC0_TYPE_DATA;
 
 	case IEEE80211_FC0_TYPE_MGT:
 		IEEE80211_NODE_STAT(ni, rx_mgmt);
@@ -593,7 +594,7 @@ ieee80211_input(struct ieee80211com *ic, struct mbuf *m,
 			bpf_mtap(ic->ic_rawbpf, m);
 		(*ic->ic_recv_mgmt)(ic, m, ni, subtype, rssi, rstamp);
 		m_freem(m);
-		return;
+		return type;
 
 	case IEEE80211_FC0_TYPE_CTL:
 		IEEE80211_NODE_STAT(ni, rx_ctrl);
@@ -612,14 +613,15 @@ ieee80211_input(struct ieee80211com *ic, struct mbuf *m,
 		/* should not come here */
 		break;
 	}
-  err:
+err:
 	ifp->if_ierrors++;
-  out:
+out:
 	if (m != NULL) {
 		if (ic->ic_rawbpf)
 			bpf_mtap(ic->ic_rawbpf, m);
 		m_freem(m);
 	}
+	return type;
 #undef SEQ_LEQ
 }
 
