@@ -52,7 +52,7 @@ main()
 	form = form_start("example");
 
 	if (!form) {
-		err(-1, "No form returned");
+		err(-1, "No form `example' in example.frm returned");
 		exit(0);
 	}
 
@@ -62,7 +62,7 @@ main()
 
 	tuple = form_get_tuple(global_bindings, "example", FT_FORM);
 	if (!tuple)
-		err(0, "No such form");
+		err(0, "No such form: example");
 	else
 		form = (struct Form *)tuple->addr;
 
@@ -82,7 +82,7 @@ main()
 	wrefresh(form->window);
 
 	if  (form->status == FS_EXIT) {
-		printf("You're entries were:\n\n");
+		printf("Your entries were:\n\n");
 		tuple = form_get_tuple(form->bindings, "input1", FT_FIELD_INST);
 		printf("Input 1 = %s\n", ((struct Field *)tuple->addr)->field.input->input);
 		tuple = form_get_tuple(form->bindings, "input2", FT_FIELD_INST);
