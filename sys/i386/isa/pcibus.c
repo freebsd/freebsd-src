@@ -439,6 +439,7 @@ nexus_pcib_identify(driver_t *driver, device_t parent)
 	int found = 0;
 	int pcifunchigh;
 	int found824xx = 0;
+	int found_orion = 0;
 
 	if (pci_cfgopen() == 0)
 		return;
@@ -448,7 +449,7 @@ nexus_pcib_identify(driver_t *driver, device_t parent)
 	for (probe.slot = 0; probe.slot <= PCI_SLOTMAX; probe.slot++) {
 		probe.func = 0;
 		hdrtype = pci_cfgread(&probe, PCIR_HEADERTYPE, 1);
-		if (hdrtype & PCIM_MFDEV)
+		if (hdrtype & PCIM_MFDEV && (!found_orion || hdrtype != 0xff) )
 			pcifunchigh = 7;
 		else
 			pcifunchigh = 0;
@@ -483,6 +484,8 @@ nexus_pcib_identify(driver_t *driver, device_t parent)
 				found = 1;
 				if (id == 0x12258086)
 					found824xx = 1;
+				if (id == 0x84c48086)
+					found_orion = 1;
 			}
 		}
 	}
