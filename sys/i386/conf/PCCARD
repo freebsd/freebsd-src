@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: PCCARD,v 1.6 1998/09/25 17:34:48 peter Exp $
+#	$Id: PCCARD,v 1.7 1998/09/30 03:48:23 gibbs Exp $
 
 machine		"i386"
 cpu		"I386_CPU"
@@ -40,20 +40,20 @@ config		kernel	root on wd0
 controller	isa0
 controller	pci0
 
-controller	fdc0	at isa? port "IO_FD1" bio irq 6 drq 2 vector fdintr
+controller	fdc0	at isa? port "IO_FD1" bio irq 6 drq 2
 disk		fd0	at fdc0 drive 0
 
 options		"CMD640"	# work around CMD640 chip deficiency
-controller	wdc0	at isa? port "IO_WD1" bio irq 14 vector wdintr
+controller	wdc0	at isa? port "IO_WD1" bio irq 14
 disk		wd0	at wdc0 drive 0
 
-controller	wdc1	at isa? port "IO_WD2" bio irq 15 vector wdintr
+controller	wdc1	at isa? port "IO_WD2" bio irq 15
 
 options		ATAPI		#Enable ATAPI support for IDE bus
 options		ATAPI_STATIC	#Don't do it as an LKM
 device		wcd0	#IDE CD-ROM
 
-#controller	aic0	at isa? port 0x340 cam irq 11 vector aicintr
+#controller	aic0	at isa? port 0x340 cam irq 11
 
 #controller	scbus0
 
@@ -64,9 +64,9 @@ device		wcd0	#IDE CD-ROM
 #device		cd0	#Only need one of these, the code dynamically grows
 
 # syscons is the default console driver, resembling an SCO console
-device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
+device		sc0	at isa? port "IO_KBD" tty irq 1
 
-device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
+device		npx0	at isa? port "IO_NPX" irq 13
 
 #
 # Laptop support (see LINT for more options)
@@ -80,20 +80,20 @@ device		pcic1	at card?
 
 options		PCIC_RESUME_RESET	# reset after resume
 
-device		sio0	at isa? port "IO_COM1" flags 0x10 tty irq 4 vector siointr
-device		sio1	at isa? port "IO_COM2" tty irq 3 vector siointr
-device		sio2	at isa? disable port "IO_COM3" tty irq 5 vector siointr
-device		sio3	at isa? disable port "IO_COM4" tty irq 9 vector siointr
+device		sio0	at isa? port "IO_COM1" flags 0x10 tty irq 4
+device		sio1	at isa? port "IO_COM2" tty irq 3
+device		sio2	at isa? disable port "IO_COM3" tty irq 5
+device		sio3	at isa? disable port "IO_COM4" tty irq 9
 
-device		lpt0	at isa? port? tty irq 7 vector lptintr
+device		lpt0	at isa? port? tty irq 7
 
-device		psm0	at isa? port "IO_KBD" conflicts tty irq 12 vector psmintr
+device		psm0	at isa? port "IO_KBD" conflicts tty irq 12
 options		PSM_HOOKAPM		#hook the APM resume event
 options		PSM_RESETAFTERSUSPEND	#reset the device at the resume event
 
-device ed0 at isa? port 0x280 net irq 10 iomem 0xd8000 vector edintr
-device ep0 at isa? port 0x300 net irq 10 vector epintr
-device fe0 at isa? port 0x300 net irq ? vector feintr
+device ed0 at isa? port 0x280 net irq 10 iomem 0xd8000
+device ep0 at isa? port 0x300 net irq 10
+device fe0 at isa? port 0x300 net irq ?
 
 pseudo-device	loop
 pseudo-device	ether

@@ -2,7 +2,7 @@
 # LKM - verification kernel for LKMs.  This is not intended to be run
 # on any real hardware, only to make it possible to test-link LKMs.
 #
-#	$Id$
+#	$Id: LKM,v 1.1 1998/03/12 20:00:21 eivind Exp $
 #
 
 ##
@@ -23,7 +23,7 @@ options		FFS
 # missing NPX...
 controller	isa0
 # npx is mandated by config(8)
-device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
+device		npx0	at isa? port "IO_NPX" irq 13
 
 ##
 #  Requirements for various LKMs
@@ -32,7 +32,7 @@ device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
 #
 # Options required for the ATAPI LKM
 #
-controller	wdc0	at isa? port "IO_WD1" bio irq 14 vector wdintr
+controller	wdc0	at isa? port "IO_WD1" bio irq 14
 options ATAPI
 
 
@@ -59,13 +59,13 @@ controller	card0
 
 # Cascading requirement from card0 - any device that have a DATA_SET of
 # pccarddrv_set
-device		sio0	at isa? port "IO_COM1" tty irq 4 vector siointr
+device		sio0	at isa? port "IO_COM1" tty irq 4
 
 
 #
 # For the screensavers
 #
-device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
+device		sc0	at isa? port "IO_KBD" tty irq 1
 
 
 #
