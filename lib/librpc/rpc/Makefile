@@ -13,17 +13,6 @@ SRCS=	auth_none.c auth_unix.c  authunix_prot.c bindresvport.c \
 
 UNSUPPORTED=	xdr_float.c 
 
-HDRS=	auth.h auth_unix.h clnt.h pmap_clnt.h \
-	pmap_prot.h pmap_rmt.h rpc.h rpc_msg.h svc.h svc_auth.h types.h xdr.h
-
 all: librpc.a
-
-beforeinstall: ${HDRS}
-	rm -rf ${DESTDIR}/usr/include/rpc
-	mkdir ${DESTDIR}/usr/include/rpc
-	chown bin.bin ${DESTDIR}/usr/include/rpc
-	chmod 755 ${DESTDIR}/usr/include/rpc
-	cd ${.CURDIR}; install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${HDRS} \
-	    ${DESTDIR}/usr/include/rpc
 
 .include <bsd.lib.mk>
