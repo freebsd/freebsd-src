@@ -948,7 +948,7 @@ fp_begin:
 					}
 					size += nseps + nrepeats;
 				} else
-					lead = expt /*(expt < ndig) ? expt : ndig*/;
+					lead = expt;
 			}
 			break;
 #endif /* FLOATING_POINT */
