@@ -88,7 +88,7 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	char *cp, *special, *name, *action;
+	char *special, *name, *action;
 	struct stat st;
 	int i;
 	int Aflag = 0, active = 0;
@@ -96,10 +96,10 @@ main(argc, argv)
 	char *chg[2], device[MAXPATHLEN];
 	struct ufs_args args;
 	struct statfs stfs;
+	int found_arg, ch;
 
-	argc--, argv++;
-	if (argc < 2)
-		usage();
+        if (argc < 3)
+                usage();
 	special = argv[argc - 1];
 	fs = getfsfile(special);
 	if (fs) {
@@ -124,132 +124,121 @@ again:
 	    (st.st_mode & S_IFMT) != S_IFCHR)
 		errx(10, "%s: not a block or character device", special);
 	getsb(&sblock, special);
-	for (; argc > 0 && argv[0][0] == '-'; argc--, argv++) {
-		for (cp = &argv[0][1]; *cp; cp++)
-			switch (*cp) {
 
-			case 'A':
-				Aflag++;
-				continue;
-
-			case 'p':
-				printfs();
-				exit(0);
-
-			case 'a':
-				name = "maximum contiguous block count";
-				if (argc < 1)
-					errx(10, "-a: missing %s", name);
-				argc--, argv++;
-				i = atoi(*argv);
-				if (i < 1)
-					errx(10, "%s must be >= 1 (was %s)",
-					    name, *argv);
-				warnx("%s changes from %d to %d",
-				    name, sblock.fs_maxcontig, i);
-				sblock.fs_maxcontig = i;
-				continue;
-
-			case 'd':
-				name =
-				   "rotational delay between contiguous blocks";
-				if (argc < 1)
-					errx(10, "-d: missing %s", name);
-				argc--, argv++;
-				i = atoi(*argv);
-				warnx("%s changes from %dms to %dms",
+	found_arg = 0; /* at least one arg is required */
+	while ((ch = getopt(argc, argv, "Aa:d:e:m:n:o:p")) != -1)
+	  switch (ch) {
+	  case 'A':
+		found_arg = 1;
+		Aflag++;
+		break;
+	  case 'a':
+		found_arg = 1;
+		name = "maximum contiguous block count";
+		i = atoi(optarg);
+		if (i < 1)
+			errx(10, "%s must be >= 1 (was %s)", name, optarg);
+		if (sblock.fs_maxcontig == i) {
+			warnx("%s remains unchanged as %d", name, i);
+			break;
+		}
+		warnx("%s changes from %d to %d", name, sblock.fs_maxcontig, i);
+		sblock.fs_maxcontig = i;
+		break;
+	  case 'd':
+		found_arg = 1;
+		name = "rotational delay between contiguous blocks";
+		i = atoi(optarg);
+		if (sblock.fs_rotdelay == i) {
+			warnx("%s remains unchanged as %dms", name, i);
+			break;
+		}
+		warnx("%s changes from %dms to %dms",
 				    name, sblock.fs_rotdelay, i);
-				sblock.fs_rotdelay = i;
-				continue;
-
-			case 'e':
-				name =
-				  "maximum blocks per file in a cylinder group";
-				if (argc < 1)
-					errx(10, "-e: missing %s", name);
-				argc--, argv++;
-				i = atoi(*argv);
-				if (i < 1)
-					errx(10, "%s must be >= 1 (was %s)",
-					    name, *argv);
-				warnx("%s changes from %d to %d",
-				    name, sblock.fs_maxbpg, i);
-				sblock.fs_maxbpg = i;
-				continue;
-
-			case 'm':
-				name = "minimum percentage of free space";
-				if (argc < 1)
-					errx(10, "-m: missing %s", name);
-				argc--, argv++;
-				i = atoi(*argv);
-				if (i < 0 || i > 99)
-					errx(10, "bad %s (%s)", name, *argv);
-				warnx("%s changes from %d%% to %d%%",
+		sblock.fs_rotdelay = i;
+		break;
+	  case 'e':
+		found_arg = 1;
+		name = "maximum blocks per file in a cylinder group";
+		i = atoi(optarg);
+		if (i < 1)
+			errx(10, "%s must be >= 1 (was %s)", name, optarg);
+		if (sblock.fs_maxbpg == i) {
+			warnx("%s remains unchanged as %d", name, i);
+			break;
+		}
+		warnx("%s changes from %d to %d", name, sblock.fs_maxbpg, i);
+		sblock.fs_maxbpg = i;
+		break;
+	  case 'm':
+		found_arg = 1;
+		name = "minimum percentage of free space";
+		i = atoi(optarg);
+		if (i < 0 || i > 99)
+			errx(10, "bad %s (%s)", name, optarg);
+		if (sblock.fs_minfree == i) {
+			warnx("%s remains unchanged as %d%%", name, i);
+			break;
+		}
+		warnx("%s changes from %d%% to %d%%",
 				    name, sblock.fs_minfree, i);
-				sblock.fs_minfree = i;
-				if (i >= MINFREE &&
-				    sblock.fs_optim == FS_OPTSPACE)
-					warnx(OPTWARN, "time", ">=", MINFREE);
-				if (i < MINFREE &&
-				    sblock.fs_optim == FS_OPTTIME)
-					warnx(OPTWARN, "space", "<", MINFREE);
-				continue;
-
-			case 'n':
- 				name = "soft updates";
- 				if (argc < 1)
- 					errx(10, "-n: missing %s", name);
- 				argc--, argv++;
- 				if (strcmp(*argv, "enable") == 0) {
- 					sblock.fs_flags |= FS_DOSOFTDEP;
- 					action = "set";
- 				} else if (strcmp(*argv, "disable") == 0) {
- 					sblock.fs_flags &= ~FS_DOSOFTDEP;
- 					action = "cleared";
- 				} else {
- 					errx(10, "bad %s (options are %s)",
- 					    name, "`enable' or `disable'");
- 				}
- 				warnx("%s %s", name, action);
- 				continue;
- 
-			case 'o':
-				name = "optimization preference";
-				if (argc < 1)
-					errx(10, "-o: missing %s", name);
-				argc--, argv++;
-				chg[FS_OPTSPACE] = "space";
-				chg[FS_OPTTIME] = "time";
-				if (strcmp(*argv, chg[FS_OPTSPACE]) == 0)
-					i = FS_OPTSPACE;
-				else if (strcmp(*argv, chg[FS_OPTTIME]) == 0)
-					i = FS_OPTTIME;
-				else
-					errx(10, "bad %s (options are `space' or `time')",
+		sblock.fs_minfree = i;
+		if (i >= MINFREE && sblock.fs_optim == FS_OPTSPACE)
+			warnx(OPTWARN, "time", ">=", MINFREE);
+		if (i < MINFREE && sblock.fs_optim == FS_OPTTIME)
+			warnx(OPTWARN, "space", "<", MINFREE);
+		break;
+	  case 'n':
+		found_arg = 1;
+ 		name = "soft updates";
+ 		if (strcmp(optarg, "enable") == 0) {
+ 			sblock.fs_flags |= FS_DOSOFTDEP;
+ 			action = "set";
+ 		} else if (strcmp(optarg, "disable") == 0) {
+ 			sblock.fs_flags &= ~FS_DOSOFTDEP;
+ 			action = "cleared";
+ 		} else {
+ 			errx(10, "bad %s (options are %s)",
+ 			    name, "`enable' or `disable'");
+ 		}
+ 		warnx("%s %s", name, action);
+ 		break;
+	  case 'o':
+		found_arg = 1;
+		name = "optimization preference";
+		chg[FS_OPTSPACE] = "space";
+		chg[FS_OPTTIME] = "time";
+		if (strcmp(optarg, chg[FS_OPTSPACE]) == 0)
+			i = FS_OPTSPACE;
+		else if (strcmp(optarg, chg[FS_OPTTIME]) == 0)
+			i = FS_OPTTIME;
+		else
+			errx(10, "bad %s (options are `space' or `time')",
 					    name);
-				if (sblock.fs_optim == i) {
-					warnx("%s remains unchanged as %s",
-					    name, chg[i]);
-					continue;
-				}
-				warnx("%s changes from %s to %s",
+		if (sblock.fs_optim == i) {
+			warnx("%s remains unchanged as %s", name, chg[i]);
+			break;
+		}
+		warnx("%s changes from %s to %s",
 				    name, chg[sblock.fs_optim], chg[i]);
-				sblock.fs_optim = i;
-				if (sblock.fs_minfree >= MINFREE &&
-				    i == FS_OPTSPACE)
-					warnx(OPTWARN, "time", ">=", MINFREE);
-				if (sblock.fs_minfree < MINFREE &&
-				    i == FS_OPTTIME)
-					warnx(OPTWARN, "space", "<", MINFREE);
-				continue;
-
-			default:
-				usage();
-			}
-	}
-	if (argc != 1)
+		sblock.fs_optim = i;
+		if (sblock.fs_minfree >= MINFREE && i == FS_OPTSPACE)
+			warnx(OPTWARN, "time", ">=", MINFREE);
+		if (sblock.fs_minfree < MINFREE && i == FS_OPTTIME)
+			warnx(OPTWARN, "space", "<", MINFREE);
+		break;
+	  case 'p':
+		printfs();
+		exit(0);
+	  default:
 		usage();
+	  }
+	argc -= optind;
+	argv += optind;
+
+	if (found_arg == 0 || argc != 1)
+	  usage();
+
 	putsb(&sblock, special, Aflag);
 	if (active) {
 		bzero(&args, sizeof(args));
@@ -267,7 +256,7 @@ usage()
 	fprintf(stderr, "%s\n%s\n%s\n",
 "usage: tunefs [-A] [-a maxcontig] [-d rotdelay] [-e maxbpg] [-m minfree]",
 "              [-p] [-n enable | disable] [-o optimize_preference]",
-"              [special | filesystem]");
+"              special | filesystem");
 	exit(2);
 }
 
