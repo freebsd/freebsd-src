@@ -2232,7 +2232,7 @@ coff_arm_merge_private_bfd_data (ibfd, obfd)
 	    {
 	      _bfd_error_handler
 		/* xgettext: c-format */
-		(_("%s: ERROR: compiled for APCS-%d whereas target %s uses APCS-%d"),
+		(_("ERROR: %s is compiled for APCS-%d, whereas %s is compiled for APCS-%d"),
 		 bfd_archive_filename (ibfd), APCS_26_FLAG (ibfd) ? 26 : 32,
 		 bfd_get_filename (obfd), APCS_26_FLAG (obfd) ? 26 : 32
 		 );
@@ -2247,10 +2247,10 @@ coff_arm_merge_private_bfd_data (ibfd, obfd)
 
 	      if (APCS_FLOAT_FLAG (ibfd))
 		/* xgettext: c-format */
-		msg = _("%s: ERROR: passes floats in float registers whereas target %s uses integer registers");
+		msg = _("ERROR: %s passes floats in float registers, whereas %s passes them in integer registers");
 	      else
 		/* xgettext: c-format */
-		msg = _("%s: ERROR: passes floats in integer registers whereas target %s uses float registers");
+		msg = _("ERROR: %s passes floats in integer registers, whereas %s passes them in float registers");
 
 	      _bfd_error_handler (msg, bfd_archive_filename (ibfd),
 				  bfd_get_filename (obfd));
@@ -2265,10 +2265,10 @@ coff_arm_merge_private_bfd_data (ibfd, obfd)
 
 	      if (PIC_FLAG (ibfd))
 		/* xgettext: c-format */
-		msg = _("%s: ERROR: compiled as position independent code, whereas target %s is absolute position");
+		msg = _("ERROR: %s is compiled as position independent code, whereas target %s is absolute position");
 	      else
 		/* xgettext: c-format */
-		msg = _("%s: ERROR: compiled as absolute position code, whereas target %s is position independent");
+		msg = _("ERROR: %s is compiled as absolute position code, whereas target %s is position independent");
 	      _bfd_error_handler (msg, bfd_archive_filename (ibfd),
 				  bfd_get_filename (obfd));
 
@@ -2297,10 +2297,10 @@ coff_arm_merge_private_bfd_data (ibfd, obfd)
 
 	      if (INTERWORK_FLAG (ibfd))
 		/* xgettext: c-format */
-		msg = _("Warning: input file %s supports interworking, whereas %s does not.");
+		msg = _("Warning: %s supports interworking, whereas %s does not");
 	      else
 		/* xgettext: c-format */
-		msg = _("Warning: input file %s does not support interworking, whereas %s does.");
+		msg = _("Warning: %s does not support interworking, whereas %s does");
 
 	      _bfd_error_handler (msg, bfd_archive_filename (ibfd),
 				  bfd_get_filename (obfd));
@@ -2398,7 +2398,7 @@ _bfd_coff_arm_set_private_flags (abfd, flags)
     {
       if (flag)
 	/* xgettext: c-format */
-	_bfd_error_handler (_("Warning: Not setting interworking flag of %s, since it has already been specified as non-interworking"),
+	_bfd_error_handler (_("Warning: Not setting interworking flag of %s since it has already been specified as non-interworking"),
 			    bfd_archive_filename (abfd));
       else
 	/* xgettext: c-format */
@@ -2461,7 +2461,8 @@ coff_arm_copy_private_bfd_data (src, dest)
 	      if (INTERWORK_FLAG (dest))
 		{
 		  /* xgettext:c-format */
-		  _bfd_error_handler (("Warning: Clearing the interworking bit of %s, because the non-interworking code in %s has been copied into it"),
+		  _bfd_error_handler (("\
+Warning: Clearing the interworking flag of %s because non-interworking code in %s has been linked with it"),
 				      bfd_get_filename (dest),
 				      bfd_archive_filename (src));
 		}

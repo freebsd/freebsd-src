@@ -3062,7 +3062,7 @@ xcoff_generate_rtinit  (abfd, init, fini)
   bfd_byte reloc_ext[RELSZ * 2];
   bfd_byte *data_buffer;
   bfd_size_type data_buffer_size;
-  bfd_byte *string_table, *st_tmp;
+  bfd_byte *string_table = NULL, *st_tmp = NULL;
   bfd_size_type string_table_size;
   bfd_vma val;
   size_t initsz, finisz;

@@ -191,8 +191,8 @@ const bfd_target osf_core_vec =
   {
     "osf-core",
     bfd_target_unknown_flavour,
-    BFD_ENDIAN_BIG,		/* target byte order */
-    BFD_ENDIAN_BIG,		/* target headers byte order */
+    BFD_ENDIAN_LITTLE,		/* target byte order */
+    BFD_ENDIAN_LITTLE,		/* target headers byte order */
     (HAS_RELOC | EXEC_P |	/* object flags */
      HAS_LINENO | HAS_DEBUG |
      HAS_SYMS | HAS_LOCALS | WP_TEXT | D_PAGED),

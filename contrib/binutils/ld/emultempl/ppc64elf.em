@@ -47,6 +47,11 @@ gld${EMULATION_NAME}_after_allocation ()
 static void
 gld${EMULATION_NAME}_finish ()
 {
+  /* e_entry on PowerPC64 points to the function descriptor for
+     _start.  If _start is missing, default to the first function
+     descriptor in the .opd section.  */
+  entry_section = ".opd";
+
   /* If generating a relocatable output file, then we don't have any
      stubs.  */
   if (link_info.relocateable)
@@ -75,6 +80,8 @@ gld${EMULATION_NAME}_finish ()
 	 to recalculate all the section offsets.  After this, we may
 	 need to adjust the stub size again.  */
       need_laying_out = 0;
+
+      lang_reset_memory_regions ();
 
       /* Resize the sections.  */
       lang_size_sections (stat_ptr->head, abs_output_section,

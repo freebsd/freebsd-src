@@ -1,5 +1,5 @@
 /* Support for the generic parts of PE/PEI; the common executable parts.
-   Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2001
+   Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
    Written by Cygnus Solutions.
 
@@ -22,8 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 /* Most of this hacked by Steve Chamberlain <sac@cygnus.com>.
 
    PE/PEI rearrangement (and code added): Donn Terry
-					  Softway Systems, Inc.
-*/
+					  Softway Systems, Inc.  */
 
 /* Hey look, some documentation [and in a place you expect to find it]!
 
@@ -51,8 +50,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
    FIXME: Please add more docs here so the next poor fool that has to hack
    on this code has a chance of getting something accomplished without
-   wasting too much time.
-*/
+   wasting too much time.  */
 
 /* This expands into COFF_WITH_pe or COFF_WITH_pep depending on whether
    we're compiling for straight PE or PE+.  */
@@ -1129,9 +1127,9 @@ pe_print_idata (abfd, vfile)
 	   _("\nThe Import Tables (interpreted %s section contents)\n"),
 	   section->name);
   fprintf (file,
-	   _(" vma:            Hint    Time      Forward  DLL       First\n"));
-  fprintf (file,
-	   _("                 Table   Stamp     Chain    Name      Thunk\n"));
+	   _("\
+ vma:            Hint    Time      Forward  DLL       First\n\
+                 Table   Stamp     Chain    Name      Thunk\n"));
 
   amt = dataoff + datasize;
   data = (bfd_byte *) bfd_malloc (amt);
@@ -1539,10 +1537,9 @@ pe_print_pdata (abfd, vfile)
   fprintf (file,
 	   _(" vma:\t\t\tBegin Address    End Address      Unwind Info\n"));
 #else
-  fprintf (file,
-	   _(" vma:\t\tBegin    End      EH       EH       PrologEnd  Exception\n"));
-  fprintf (file,
-	   _("     \t\tAddress  Address  Handler  Data     Address    Mask\n"));
+  fprintf (file, _("\
+ vma:\t\tBegin    End      EH       EH       PrologEnd  Exception\n\
+     \t\tAddress  Address  Handler  Data     Address    Mask\n"));
 #endif
 
   datasize = bfd_section_size (abfd, section);

@@ -1,6 +1,6 @@
 /* BFD support for handling relocation entries.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001
+   2000, 2001, 2002
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -65,25 +65,25 @@ CODE_FRAGMENT
 .
 .typedef enum bfd_reloc_status
 .{
-.  {* No errors detected *}
+.  {* No errors detected.  *}
 .  bfd_reloc_ok,
 .
-.  {* The relocation was performed, but there was an overflow. *}
+.  {* The relocation was performed, but there was an overflow.  *}
 .  bfd_reloc_overflow,
 .
-.  {* The address to relocate was not within the section supplied. *}
+.  {* The address to relocate was not within the section supplied.  *}
 .  bfd_reloc_outofrange,
 .
-.  {* Used by special functions *}
+.  {* Used by special functions.  *}
 .  bfd_reloc_continue,
 .
-.  {* Unsupported relocation size requested. *}
+.  {* Unsupported relocation size requested.  *}
 .  bfd_reloc_notsupported,
 .
-.  {* Unused *}
+.  {* Unused.  *}
 .  bfd_reloc_other,
 .
-.  {* The symbol to relocate against was undefined. *}
+.  {* The symbol to relocate against was undefined.  *}
 .  bfd_reloc_undefined,
 .
 .  {* The relocation was performed, but may not be ok - presently
@@ -97,20 +97,21 @@ CODE_FRAGMENT
 .
 .typedef struct reloc_cache_entry
 .{
-.  {* A pointer into the canonical table of pointers  *}
+.  {* A pointer into the canonical table of pointers.  *}
 .  struct symbol_cache_entry **sym_ptr_ptr;
 .
-.  {* offset in section *}
+.  {* offset in section.  *}
 .  bfd_size_type address;
 .
-.  {* addend for relocation value *}
+.  {* addend for relocation value.  *}
 .  bfd_vma addend;
 .
-.  {* Pointer to how to perform the required relocation *}
+.  {* Pointer to how to perform the required relocation.  *}
 .  reloc_howto_type *howto;
 .
-.} arelent;
-
+.}
+.arelent;
+.
 */
 
 /*
@@ -250,19 +251,19 @@ CODE_FRAGMENT
 .
 .enum complain_overflow
 .{
-.  {* Do not complain on overflow. *}
+.  {* Do not complain on overflow.  *}
 .  complain_overflow_dont,
 .
 .  {* Complain if the bitfield overflows, whether it is considered
-.     as signed or unsigned. *}
+.     as signed or unsigned.  *}
 .  complain_overflow_bitfield,
 .
 .  {* Complain if the value overflows when considered as signed
-.     number. *}
+.     number.  *}
 .  complain_overflow_signed,
 .
 .  {* Complain if the value overflows when considered as an
-.     unsigned number. *}
+.     unsigned number.  *}
 .  complain_overflow_unsigned
 .};
 
@@ -276,7 +277,7 @@ SUBSUBSECTION
         information that libbfd needs to know to tie up a back end's data.
 
 CODE_FRAGMENT
-.struct symbol_cache_entry;		{* Forward declaration *}
+.struct symbol_cache_entry;		{* Forward declaration.  *}
 .
 .struct reloc_howto_struct
 .{
@@ -366,7 +367,7 @@ CODE_FRAGMENT
 .     empty (e.g., m88k bcs); this flag signals the fact.  *}
 .  boolean pcrel_offset;
 .};
-
+.
 */
 
 /*
@@ -413,7 +414,7 @@ DESCRIPTION
 .          }                                             \
 .      }                                                 \
 .  }
-
+.
 */
 
 /*
@@ -457,8 +458,9 @@ DESCRIPTION
 .{
 .  arelent relent;
 .  struct relent_chain *next;
-.} arelent_chain;
-
+.}
+.arelent_chain;
+.
 */
 
 /* N_ONES produces N one bits, without overflowing machine arithmetic.  */
@@ -819,11 +821,9 @@ space consuming.  For each target:
 			       bfd_arch_bits_per_address (abfd),
 			       relocation);
 
-  /*
-    Either we are relocating all the way, or we don't want to apply
-    the relocation to the reloc entry (probably because there isn't
-    any room in the output format to describe addends to relocs)
-    */
+  /* Either we are relocating all the way, or we don't want to apply
+     the relocation to the reloc entry (probably because there isn't
+     any room in the output format to describe addends to relocs).  */
 
   /* The cast to bfd_vma avoids a bug in the Alpha OSF/1 C compiler
      (OSF version 1.3, compiler version 3.11).  It miscompiles the
@@ -850,11 +850,10 @@ space consuming.  For each target:
 
   relocation >>= (bfd_vma) howto->rightshift;
 
-  /* Shift everything up to where it's going to be used */
-
+  /* Shift everything up to where it's going to be used.  */
   relocation <<= (bfd_vma) howto->bitpos;
 
-  /* Wait for the day when all have the mask in them */
+  /* Wait for the day when all have the mask in them.  */
 
   /* What we do:
      i instruction to be left alone
@@ -975,7 +974,6 @@ DESCRIPTION
 
 	For now, this function should be considered reserved for the
 	assembler.
-
 */
 
 bfd_reloc_status_type
@@ -1105,7 +1103,6 @@ bfd_install_relocation (abfd, reloc_entry, data_start, data_start_offset,
 
 	 If we've relocated with a symbol with a section, change
 	 into a ref to the section belonging to the symbol.  */
-
       reloc_entry->address += input_section->output_offset;
 
       /* WTF?? */
@@ -1181,8 +1178,7 @@ space consuming.  For each target:
     6) if the resulting object files are the same, you have at least
        made it no worse
     7) if they are different you have to figure out which version is
-       right
-*/
+       right.  */
 	  relocation -= reloc_entry->addend;
 #endif
 	  reloc_entry->addend = 0;
@@ -1207,11 +1203,9 @@ space consuming.  For each target:
 			       bfd_arch_bits_per_address (abfd),
 			       relocation);
 
-  /*
-    Either we are relocating all the way, or we don't want to apply
-    the relocation to the reloc entry (probably because there isn't
-    any room in the output format to describe addends to relocs)
-    */
+  /* Either we are relocating all the way, or we don't want to apply
+     the relocation to the reloc entry (probably because there isn't
+     any room in the output format to describe addends to relocs).  */
 
   /* The cast to bfd_vma avoids a bug in the Alpha OSF/1 C compiler
      (OSF version 1.3, compiler version 3.11).  It miscompiles the
@@ -1238,11 +1232,10 @@ space consuming.  For each target:
 
   relocation >>= (bfd_vma) howto->rightshift;
 
-  /* Shift everything up to where it's going to be used */
-
+  /* Shift everything up to where it's going to be used.  */
   relocation <<= (bfd_vma) howto->bitpos;
 
-  /* Wait for the day when all have the mask in them */
+  /* Wait for the day when all have the mask in them.  */
 
   /* What we do:
      i instruction to be left alone
@@ -1963,6 +1956,13 @@ ENUMDOC
      GP register.
 
 ENUM
+  BFD_RELOC_ALPHA_BRSGP
+ENUMDOC
+  Like BFD_RELOC_23_PCREL_S2, except that the source and target must
+  share a common GP, and the target address is adjusted for 
+  STO_ALPHA_STD_GPLOAD.
+
+ENUM
   BFD_RELOC_MIPS_JMP
 ENUMDOC
   Bits 27..2 of the relocation address shifted right 2 bits;
@@ -2049,6 +2049,107 @@ ENUMX
   BFD_RELOC_MIPS_RELGOT
 ENUMX
   BFD_RELOC_MIPS_JALR
+COMMENT
+COMMENT
+ENUMX
+  BFD_RELOC_SH_GOT_LOW16
+ENUMX
+  BFD_RELOC_SH_GOT_MEDLOW16
+ENUMX
+  BFD_RELOC_SH_GOT_MEDHI16
+ENUMX
+  BFD_RELOC_SH_GOT_HI16
+ENUMX
+  BFD_RELOC_SH_GOTPLT_LOW16
+ENUMX
+  BFD_RELOC_SH_GOTPLT_MEDLOW16
+ENUMX
+  BFD_RELOC_SH_GOTPLT_MEDHI16
+ENUMX
+  BFD_RELOC_SH_GOTPLT_HI16
+ENUMX
+  BFD_RELOC_SH_PLT_LOW16
+ENUMX
+  BFD_RELOC_SH_PLT_MEDLOW16
+ENUMX
+  BFD_RELOC_SH_PLT_MEDHI16
+ENUMX
+  BFD_RELOC_SH_PLT_HI16
+ENUMX
+  BFD_RELOC_SH_GOTOFF_LOW16
+ENUMX
+  BFD_RELOC_SH_GOTOFF_MEDLOW16
+ENUMX
+  BFD_RELOC_SH_GOTOFF_MEDHI16
+ENUMX
+  BFD_RELOC_SH_GOTOFF_HI16
+ENUMX
+  BFD_RELOC_SH_GOTPC_LOW16
+ENUMX
+  BFD_RELOC_SH_GOTPC_MEDLOW16
+ENUMX
+  BFD_RELOC_SH_GOTPC_MEDHI16
+ENUMX
+  BFD_RELOC_SH_GOTPC_HI16
+ENUMX
+  BFD_RELOC_SH_COPY64
+ENUMX
+  BFD_RELOC_SH_GLOB_DAT64
+ENUMX
+  BFD_RELOC_SH_JMP_SLOT64
+ENUMX
+  BFD_RELOC_SH_RELATIVE64
+ENUMX
+  BFD_RELOC_SH_GOT10BY4
+ENUMX
+  BFD_RELOC_SH_GOT10BY8
+ENUMX
+  BFD_RELOC_SH_GOTPLT10BY4
+ENUMX
+  BFD_RELOC_SH_GOTPLT10BY8
+ENUMX
+  BFD_RELOC_SH_GOTPLT32
+COMMENT
+ENUMX
+  BFD_RELOC_SH_SHMEDIA_CODE
+ENUMX
+  BFD_RELOC_SH_IMMU5
+ENUMX
+  BFD_RELOC_SH_IMMS6
+ENUMX
+  BFD_RELOC_SH_IMMS6BY32
+ENUMX
+  BFD_RELOC_SH_IMMU6
+ENUMX
+  BFD_RELOC_SH_IMMS10
+ENUMX
+  BFD_RELOC_SH_IMMS10BY2
+ENUMX
+  BFD_RELOC_SH_IMMS10BY4
+ENUMX
+  BFD_RELOC_SH_IMMS10BY8
+ENUMX
+  BFD_RELOC_SH_IMMS16
+ENUMX
+  BFD_RELOC_SH_IMMU16
+ENUMX
+  BFD_RELOC_SH_IMM_LOW16
+ENUMX
+  BFD_RELOC_SH_IMM_LOW16_PCREL
+ENUMX
+  BFD_RELOC_SH_IMM_MEDLOW16
+ENUMX
+  BFD_RELOC_SH_IMM_MEDLOW16_PCREL
+ENUMX
+  BFD_RELOC_SH_IMM_MEDHI16
+ENUMX
+  BFD_RELOC_SH_IMM_MEDHI16_PCREL
+ENUMX
+  BFD_RELOC_SH_IMM_HI16
+ENUMX
+  BFD_RELOC_SH_IMM_HI16_PCREL
+ENUMX
+  BFD_RELOC_SH_PT_16
 COMMENT
 ENUMDOC
   MIPS ELF relocations.
@@ -3374,7 +3475,6 @@ DESCRIPTION
 	don't do relaxing -- i.e., does nothing.
 */
 
-/*ARGSUSED*/
 boolean
 bfd_generic_relax_section (abfd, section, link_info, again)
      bfd *abfd ATTRIBUTE_UNUSED;
@@ -3399,7 +3499,6 @@ DESCRIPTION
 	don't do section gc -- i.e., does nothing.
 */
 
-/*ARGSUSED*/
 boolean
 bfd_generic_gc_sections (abfd, link_info)
      bfd *abfd ATTRIBUTE_UNUSED;
@@ -3421,7 +3520,6 @@ DESCRIPTION
 	which don't have SEC_MERGE support -- i.e., does nothing.
 */
 
-/*ARGSUSED*/
 boolean
 bfd_generic_merge_sections (abfd, link_info)
      bfd *abfd ATTRIBUTE_UNUSED;
@@ -3459,7 +3557,7 @@ bfd_generic_get_relocated_section_contents (abfd, link_info, link_order, data,
      boolean relocateable;
      asymbol **symbols;
 {
-  /* Get enough memory to hold the stuff */
+  /* Get enough memory to hold the stuff.  */
   bfd *input_bfd = link_order->u.indirect.section->owner;
   asection *input_section = link_order->u.indirect.section;
 
@@ -3474,7 +3572,7 @@ bfd_generic_get_relocated_section_contents (abfd, link_info, link_order, data,
   if (reloc_vector == NULL && reloc_size != 0)
     goto error_return;
 
-  /* read in the section */
+  /* Read in the section.  */
   if (!bfd_get_section_contents (input_bfd,
 				 input_section,
 				 (PTR) data,
@@ -3482,7 +3580,7 @@ bfd_generic_get_relocated_section_contents (abfd, link_info, link_order, data,
 				 input_section->_raw_size))
     goto error_return;
 
-  /* We're not relaxing the section, so just copy the size info */
+  /* We're not relaxing the section, so just copy the size info.  */
   input_section->_cooked_size = input_section->_raw_size;
   input_section->reloc_done = true;
 
@@ -3512,7 +3610,7 @@ bfd_generic_get_relocated_section_contents (abfd, link_info, link_order, data,
 	    {
 	      asection *os = input_section->output_section;
 
-	      /* A partial link, so keep the relocs */
+	      /* A partial link, so keep the relocs.  */
 	      os->orelocation[os->reloc_count] = *parent;
 	      os->reloc_count++;
 	    }

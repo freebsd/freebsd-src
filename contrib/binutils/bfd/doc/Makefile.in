@@ -116,6 +116,7 @@ WIN32LIBADD = @WIN32LIBADD@
 all_backends = @all_backends@
 bfd_backends = @bfd_backends@
 bfd_default_target_size = @bfd_default_target_size@
+bfd_libs = @bfd_libs@
 bfd_machines = @bfd_machines@
 bfd_version = @bfd_version@
 bfd_version_date = @bfd_version_date@
@@ -630,6 +631,10 @@ bfd.h: $(BFD_H_DEP)
 	echo "}" >> $@
 	echo "#endif" >> $@
 	echo "#endif" >> $@
+
+# We want install to imply install-info as per GNU standards, despite the
+# cygnus option.
+install: install-info
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

@@ -3152,7 +3152,7 @@ ppc_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 	  if (info->shared && r_symndx != 0)
 	    {
 	      Elf_Internal_Rela outrel;
-	      boolean skip;
+	      int skip;
 
 #ifdef DEBUG
 	      fprintf (stderr, "ppc_elf_relocate_section need to create relocation for %s\n",
@@ -3183,13 +3183,14 @@ ppc_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 		  BFD_ASSERT (sreloc != NULL);
 		}
 
-	      skip = false;
+	      skip = 0;
 
 	      outrel.r_offset =
 		_bfd_elf_section_offset (output_bfd, info, input_section,
 					 rel->r_offset);
-	      if (outrel.r_offset == (bfd_vma) -1)
-		skip = true;
+	      if (outrel.r_offset == (bfd_vma) -1
+		  || outrel.r_offset == (bfd_vma) -2)
+		skip = (int) outrel.r_offset;
 	      outrel.r_offset += (input_section->output_section->vma
 				  + input_section->output_offset);
 
@@ -3260,7 +3261,7 @@ ppc_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 	      /* This reloc will be computed at runtime, so there's no
                  need to do anything now, unless this is a RELATIVE
                  reloc in an unallocated section.  */
-	      if (skip
+	      if (skip != -1
 		  || (input_section->flags & SEC_ALLOC) != 0
 		  || ELF32_R_TYPE (outrel.r_info) != R_PPC_RELATIVE)
 		continue;

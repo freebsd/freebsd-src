@@ -586,16 +586,12 @@ _bfd_elf_discard_section_eh_frame (abfd, info, sec, ehdrsec,
 	    }
 
 	  /* For shared libraries, try to get rid of as many RELATIVE relocs
-	     as possible.
-	     FIXME: For this to work, ELF backends need to perform the
-	     relocation if omitting dynamic relocs, not skip it.  */
-          if (0
-	      && info->shared
+	     as possible.  */
+          if (info->shared
 	      && (cie.fde_encoding & 0xf0) == DW_EH_PE_absptr)
 	    cie.make_relative = 1;
 
-	  if (0
-	      && info->shared
+	  if (info->shared
 	      && (cie.lsda_encoding & 0xf0) == DW_EH_PE_absptr)
 	    cie.make_lsda_relative = 1;
 
@@ -636,6 +632,16 @@ _bfd_elf_discard_section_eh_frame (abfd, info, sec, ehdrsec,
 	    }
 	  else
 	    {
+	      if (info->shared
+		  && (cie.fde_encoding & 0xf0) == DW_EH_PE_absptr
+		  && cie.make_relative == 0)
+		{
+		  /* If shared library uses absolute pointers
+		     which we cannot turn into PC relative,
+		     don't create the binary search table,
+		     since it is affected by runtime relocations.  */
+		  hdr_info->table = false;
+		}
 	      cie_usage_count++;
 	      hdr_info->fde_count++;
 	    }
@@ -856,7 +862,7 @@ _bfd_elf_eh_frame_section_offset (output_bfd, sec, offset)
   if (sec_info->entry[mid].make_relative
       && ! sec_info->entry[mid].cie
       && offset == sec_info->entry[mid].offset + 8)
-    return (bfd_vma) -1;
+    return (bfd_vma) -2;
 
   /* If converting LSDA pointers to DW_EH_PE_pcrel, there will be no need
      for run-time relocation against LSDA field.  */
@@ -865,7 +871,7 @@ _bfd_elf_eh_frame_section_offset (output_bfd, sec, offset)
       && (offset
 	  == (sec_info->entry[mid].offset + 8
 	      + sec_info->entry[mid].lsda_offset)))
-    return (bfd_vma) -1;
+    return (bfd_vma) -2;
 
   return (offset + sec_info->entry[mid].new_offset
 	  - sec_info->entry[mid].offset);

@@ -860,7 +860,7 @@ ihex_write_object_contents (abfd)
 
 		      sprintf_vma (buf, where);
 		      (*_bfd_error_handler)
-			(_("%s: address 0x%s out of range for Intex Hex file"),
+			(_("%s: address 0x%s out of range for Intel Hex file"),
 			 bfd_get_filename (abfd), buf);
 		      bfd_set_error (bfd_error_bad_value);
 		      return false;
