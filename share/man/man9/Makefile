@@ -5,6 +5,7 @@ MAN=	accept_filter.9 \
 	accf_http.9 \
 	acl.9 \
 	alq.9 \
+	altq.9 \
 	atomic.9 \
 	bios.9 \
 	boot.9 \
@@ -336,6 +337,7 @@ MLINKS=	alq.9 ALQ.9 \
 	alq.9 alq_open.9 \
 	alq.9 alq_post.9 \
 	alq.9 alq_write.9
+MLINKS+=altq.9 ALTQ.9
 MLINKS+=atomic.9 atomic_add.9 \
 	atomic.9 atomic_clear.9 \
 	atomic.9 atomic_cmpset.9 \
