@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC98,v 1.60 1998/12/05 09:17:31 kato Exp $
+#	$Id: GENERIC98,v 1.61 1998/12/30 07:46:23 kato Exp $
 
 # GENERIC98 -- Generic PC98 machine with WD/SCSI disks
 
@@ -140,9 +140,33 @@ device		apm0    at isa?	disable	flags 0x31 # Advanced Power Management
 #device		pcic0	at card?
 #device		pcic1	at card?
 
+#
+# Serial Interface
+#
+# COM1
 device		sio0	at isa? port "IO_COM1" tty irq 4
-device		sio1	at isa? port 0xd2  tty irq 5 flags 0x101
-device		sio2	at isa? port 0x8d2 tty flags 0x101
+# COM2 (2nd CCU)
+device		sio1	at isa? port 0x238 tty irq 5 flags 0x12000000
+# PC-9861K, PC-9801-101, MDC-926Rs
+#device		sio1	at isa? port "IO_COM2" tty irq 5 flags 0x01000000
+#device		sio2	at isa? port "IO_COM3" tty irq 6 flags 0x02000000
+# PC-9801-120 (PnP off)
+#device		sio1	at isa? port 0x8b0 tty irq 5 flags 0x11000000
+# MC-16550II, MC-RS98
+#device		sio1	at isa? port 0xd2 tty irq 5 flags 0x14000101
+#device		sio2	at isa? port 0x8d2 tty flags 0x14000101
+# RSB-2000, RSB-3000, B98-02
+#device		sio1	at isa? port 0xb0 tty flags 0x15000101
+#device		sio2	at isa? port 0xb1 tty flags 0x15000101
+# RSB-384
+#device		sio1	at isa? port 0xb0 tty flags 0x16000000
+#device		sio2	at isa? port 0xb1 tty flags 0x16000000
+# RSA-98III
+#device		sio1	at isa? port 0x50e0 tty irq 5 flags 0x18000101
+#device		sio2	at isa? port 0x51e0 tty flags 0x18000101
+# ESP98
+#options	COM_ESP
+#device		sio1	at isa? port 0x18b0 tty irq 5 flags 0x19000000
 
 device		lpt0	at isa? port IO_LPT  tty
 device		mse0	at isa? port IO_MSE tty irq 13
