@@ -224,7 +224,7 @@ power_if.h		optional pccard					\
 dev/pcic/i82365.c	optional pcic pccard
 dev/pcic/i82365_isa.c	optional pcic pccard
 dev/pdq/if_fea.c	optional fea eisa
-dev/pdq/if_fpa.c	optional fea pci
+dev/pdq/if_fpa.c	optional fpa pci
 dev/pdq/pdq.c		optional fea eisa
 dev/pdq/pdq_ifsubr.c	optional fea eisa
 dev/pdq/pdq.c		optional fpa pci
