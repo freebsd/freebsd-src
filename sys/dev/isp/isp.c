@@ -938,7 +938,7 @@ isp_scsi_channel_init(struct ispsoftc *isp, int channel)
 
 
 	/*
-	 * Set current per-target parameters to a safe minimum.
+	 * Set current per-target parameters to an initial safe minimum.
 	 */
 	for (tgt = 0; tgt < MAX_TARGETS; tgt++) {
 		int lun;
@@ -948,19 +948,16 @@ isp_scsi_channel_init(struct ispsoftc *isp, int channel)
 			continue;
 		}
 #ifndef	ISP_TARGET_MODE
-		if (tgt == sdp->isp_initiator_id) {
-			sdf = DPARM_DEFAULT;
-		} else {
-			sdf = DPARM_SAFE_DFLT;
-			/*
-			 * It is not quite clear when this changed over so that
-			 * we could force narrow and async for 1000/1020 cards,
-			 * but assume that this is only the case for loaded
-			 * firmware.
-			 */
-			if (isp->isp_loaded_fw) {
-				sdf |= DPARM_NARROW | DPARM_ASYNC;
-			}
+		sdf = sdp->isp_devparam[tgt].goal_flags;
+		sdf &= DPARM_SAFE_DFLT;
+		/*
+		 * It is not quite clear when this changed over so that
+		 * we could force narrow and async for 1000/1020 cards,
+		 * but assume that this is only the case for loaded
+		 * firmware.
+		 */
+		if (isp->isp_loaded_fw) {
+			sdf |= DPARM_NARROW | DPARM_ASYNC;
 		}
 #else
 		/*
@@ -971,7 +968,7 @@ isp_scsi_channel_init(struct ispsoftc *isp, int channel)
 		 * (as in narrow/async). What the f/w *should* do is
 		 * use the initiator id settings to decide how to respond.
 		 */
-		sdf = DPARM_DEFAULT;
+		sdp->isp_devparam[tgt].goal_flags = sdf = DPARM_DEFAULT;
 #endif
 		mbs.param[0] = MBOX_SET_TARGET_PARAMS;
 		mbs.param[1] = (channel << 15) | (tgt << 8);
@@ -980,11 +977,11 @@ isp_scsi_channel_init(struct ispsoftc *isp, int channel)
 			mbs.param[3] = 0;
 		} else {
 			mbs.param[3] =
-			    (sdp->isp_devparam[tgt].sync_offset << 8) |
-			    (sdp->isp_devparam[tgt].sync_period);
+			    (sdp->isp_devparam[tgt].goal_offset << 8) |
+			    (sdp->isp_devparam[tgt].goal_period);
 		}
 		isp_prt(isp, ISP_LOGDEBUG0,
-		    "bus %d set tgt %d flags 0x%x off 0x%x period 0x%x",
+		    "Initial Settings bus%d tgt%d flags 0x%x off 0x%x per 0x%x",
 		    channel, tgt, mbs.param[2], mbs.param[3] >> 8,
 		    mbs.param[3] & 0xff);
 		isp_mboxcmd(isp, &mbs, MBLOGNONE);
@@ -1011,7 +1008,7 @@ isp_scsi_channel_init(struct ispsoftc *isp, int channel)
 		 * attempts to set parameters for devices that it hasn't
 		 * seen yet.
 		 */
-		sdp->isp_devparam[tgt].cur_dflags = sdf & ~DPARM_TQING;
+		sdp->isp_devparam[tgt].actv_flags = sdf & ~DPARM_TQING;
 		for (lun = 0; lun < (int) isp->isp_maxluns; lun++) {
 			mbs.param[0] = MBOX_SET_DEV_QUEUE_PARAMS;
 			mbs.param[1] = (channel << 15) | (tgt << 8) | lun;
@@ -2568,7 +2565,7 @@ isp_start(XS_T *xs)
 	} else {
 		sdparam *sdp = (sdparam *)isp->isp_param;
 		sdp += XS_CHANNEL(xs);
-		if ((sdp->isp_devparam[target].cur_dflags & DPARM_TQING) &&
+		if ((sdp->isp_devparam[target].actv_flags & DPARM_TQING) &&
 		    XS_TAG_P(xs)) {
 			reqp->req_flags = XS_TAG_TYPE(xs);
 		}
@@ -3782,7 +3779,7 @@ isp_parse_status(struct ispsoftc *isp, ispstatusreq_t *sp, XS_T *xs)
 		if (IS_SCSI(isp)) {
 			sdparam *sdp = isp->isp_param;
 			sdp += XS_CHANNEL(xs);
-			sdp->isp_devparam[XS_TGT(xs)].dev_flags &= ~DPARM_WIDE;
+			sdp->isp_devparam[XS_TGT(xs)].goal_flags &= ~DPARM_WIDE;
 			sdp->isp_devparam[XS_TGT(xs)].dev_update = 1;
 			isp->isp_update |= (1 << XS_CHANNEL(xs));
 		}
@@ -3798,7 +3795,7 @@ isp_parse_status(struct ispsoftc *isp, ispstatusreq_t *sp, XS_T *xs)
 		if (IS_SCSI(isp)) {
 			sdparam *sdp = isp->isp_param;
 			sdp += XS_CHANNEL(xs);
-			sdp->isp_devparam[XS_TGT(xs)].dev_flags &= ~DPARM_SYNC;
+			sdp->isp_devparam[XS_TGT(xs)].goal_flags &= ~DPARM_SYNC;
 			sdp->isp_devparam[XS_TGT(xs)].dev_update = 1;
 			isp->isp_update |= (1 << XS_CHANNEL(xs));
 		}
@@ -4543,7 +4540,7 @@ isp_update_bus(struct ispsoftc *isp, int bus)
 		}
 		/*
 		 * If the goal is to update the status of the device,
-		 * take what's in dev_flags and try and set the device
+		 * take what's in goal_flags and try and set the device
 		 * toward that. Otherwise, if we're just refreshing the
 		 * current device state, get the current parameters.
 		 */
@@ -4558,13 +4555,13 @@ isp_update_bus(struct ispsoftc *isp, int bus)
 		} else if (sdp->isp_devparam[tgt].dev_update) {
 			mbs.param[0] = MBOX_SET_TARGET_PARAMS;
 			/*
-			 * Make sure dev_flags has "Renegotiate on Error"
+			 * Make sure goal_flags has "Renegotiate on Error"
 			 * on and "Freeze Queue on Error" off.
 			 */
-			sdp->isp_devparam[tgt].dev_flags |= DPARM_RENEG;
-			sdp->isp_devparam[tgt].dev_flags &= ~DPARM_QFRZ;
+			sdp->isp_devparam[tgt].goal_flags |= DPARM_RENEG;
+			sdp->isp_devparam[tgt].goal_flags &= ~DPARM_QFRZ;
 
-			mbs.param[2] = sdp->isp_devparam[tgt].dev_flags;
+			mbs.param[2] = sdp->isp_devparam[tgt].goal_flags;
 
 			/*
 			 * Insist that PARITY must be enabled
@@ -4578,14 +4575,13 @@ isp_update_bus(struct ispsoftc *isp, int bus)
 				mbs.param[3] = 0;
 			} else {
 				mbs.param[3] =
-				    (sdp->isp_devparam[tgt].sync_offset << 8) |
-				    (sdp->isp_devparam[tgt].sync_period);
+				    (sdp->isp_devparam[tgt].goal_offset << 8) |
+				    (sdp->isp_devparam[tgt].goal_period);
 			}
 			/*
 			 * A command completion later that has
-			 * RQSTF_NEGOTIATION set canl cause
+			 * RQSTF_NEGOTIATION set can cause
 			 * the dev_refresh/announce cycle also.
-			 &
 			 *
 			 * Note: It is really important to update our current
 			 * flags with at least the state of TAG capabilities-
@@ -4593,9 +4589,9 @@ isp_update_bus(struct ispsoftc *isp, int bus)
 			 * when we have it all turned off. So change it here
 			 * to say that current already matches goal.
 			 */
-			sdp->isp_devparam[tgt].cur_dflags &= ~DPARM_TQING;
-			sdp->isp_devparam[tgt].cur_dflags |=
-			    (sdp->isp_devparam[tgt].dev_flags & DPARM_TQING);
+			sdp->isp_devparam[tgt].actv_flags &= ~DPARM_TQING;
+			sdp->isp_devparam[tgt].actv_flags |=
+			    (sdp->isp_devparam[tgt].goal_flags & DPARM_TQING);
 			isp_prt(isp, ISP_LOGDEBUG0,
 			    "bus %d set tgt %d flags 0x%x off 0x%x period 0x%x",
 			    bus, tgt, mbs.param[2], mbs.param[3] >> 8,
@@ -4615,9 +4611,9 @@ isp_update_bus(struct ispsoftc *isp, int bus)
 		flags = mbs.param[2];
 		period = mbs.param[3] & 0xff;
 		offset = mbs.param[3] >> 8;
-		sdp->isp_devparam[tgt].cur_dflags = flags;
-		sdp->isp_devparam[tgt].cur_period = period;
-		sdp->isp_devparam[tgt].cur_offset = offset;
+		sdp->isp_devparam[tgt].actv_flags = flags;
+		sdp->isp_devparam[tgt].actv_period = period;
+		sdp->isp_devparam[tgt].actv_offset = offset;
 		get = (bus << 16) | tgt;
 		(void) isp_async(isp, ISPASYNC_NEW_TGT_PARAMS, &get);
 	}
@@ -4747,10 +4743,11 @@ isp_setdfltparm(struct ispsoftc *isp, int channel)
 
 	/*
 	 * If we've not been told to avoid reading NVRAM, try and read it.
-	 * If we're successful reading it, we can return since NVRAM will
-	 * tell us the right thing to do. Otherwise, establish some reasonable
-	 * defaults.
+	 * If we're successful reading it, we can then return because NVRAM
+	 * will tell us what the desired settings are. Otherwise, we establish
+	 * some reasonable 'fake' nvram and goal defaults.
 	 */
+
 	if ((isp->isp_confopts & ISP_CFG_NONVRAM) == 0) {
 		if (isp_read_nvram(isp) == 0) {
 			return;
@@ -4783,100 +4780,55 @@ isp_setdfltparm(struct ispsoftc *isp, int channel)
 
 	/*
 	 * The trick here is to establish a default for the default (honk!)
-	 * state (dev_flags). Then try and get the current status from
+	 * state (goal_flags). Then try and get the current status from
 	 * the card to fill in the current state. We don't, in fact, set
 	 * the default to the SAFE default state- that's not the goal state.
 	 */
 	for (tgt = 0; tgt < MAX_TARGETS; tgt++) {
-		sdp->isp_devparam[tgt].cur_offset = 0;
-		sdp->isp_devparam[tgt].cur_period = 0;
-		sdp->isp_devparam[tgt].dev_flags = DPARM_DEFAULT;
-		sdp->isp_devparam[tgt].cur_dflags = 0;
+		u_int8_t off, per;
+		sdp->isp_devparam[tgt].actv_offset = 0;
+		sdp->isp_devparam[tgt].actv_period = 0;
+		sdp->isp_devparam[tgt].actv_flags = 0;
+
+		sdp->isp_devparam[tgt].goal_flags =
+		    sdp->isp_devparam[tgt].nvrm_flags = DPARM_DEFAULT;
+
 		/*
 		 * We default to Wide/Fast for versions less than a 1040
 		 * (unless it's SBus).
 		 */
-		if ((isp->isp_bustype == ISP_BT_SBUS &&
+		if (IS_ULTRA3(isp)) {
+			off = ISP_80M_SYNCPARMS >> 8;
+			per = ISP_80M_SYNCPARMS & 0xff;
+		} else if (IS_ULTRA2(isp)) {
+			off = ISP_40M_SYNCPARMS >> 8;
+			per = ISP_40M_SYNCPARMS & 0xff;
+		} else if (IS_1240(isp)) {
+			off = ISP_20M_SYNCPARMS >> 8;
+			per = ISP_20M_SYNCPARMS & 0xff;
+		} else if ((isp->isp_bustype == ISP_BT_SBUS &&
 		    isp->isp_type < ISP_HA_SCSI_1020A) ||
 		    (isp->isp_bustype == ISP_BT_PCI &&
 		    isp->isp_type < ISP_HA_SCSI_1040) ||
 		    (isp->isp_clock && isp->isp_clock < 60) ||
 		    (sdp->isp_ultramode == 0)) {
-			sdp->isp_devparam[tgt].sync_offset =
-			    ISP_10M_SYNCPARMS >> 8;
-			sdp->isp_devparam[tgt].sync_period =
-			    ISP_10M_SYNCPARMS & 0xff;
-		} else if (IS_ULTRA3(isp)) {
-			sdp->isp_devparam[tgt].sync_offset =
-			    ISP_80M_SYNCPARMS >> 8;
-			sdp->isp_devparam[tgt].sync_period =
-			    ISP_80M_SYNCPARMS & 0xff;
-		} else if (IS_ULTRA2(isp)) {
-			sdp->isp_devparam[tgt].sync_offset =
-			    ISP_40M_SYNCPARMS >> 8;
-			sdp->isp_devparam[tgt].sync_period =
-			    ISP_40M_SYNCPARMS & 0xff;
-		} else if (IS_1240(isp)) {
-			sdp->isp_devparam[tgt].sync_offset =
-			    ISP_20M_SYNCPARMS >> 8;
-			sdp->isp_devparam[tgt].sync_period =
-			    ISP_20M_SYNCPARMS & 0xff;
+			off = ISP_10M_SYNCPARMS >> 8;
+			per = ISP_10M_SYNCPARMS & 0xff;
 		} else {
-			sdp->isp_devparam[tgt].sync_offset =
-			    ISP_20M_SYNCPARMS_1040 >> 8;
-			sdp->isp_devparam[tgt].sync_period =
-			    ISP_20M_SYNCPARMS_1040 & 0xff;
+			off = ISP_20M_SYNCPARMS_1040 >> 8;
+			per = ISP_20M_SYNCPARMS_1040 & 0xff;
 		}
+		sdp->isp_devparam[tgt].goal_offset =
+		    sdp->isp_devparam[tgt].nvrm_offset = off;
+		sdp->isp_devparam[tgt].goal_period =
+		    sdp->isp_devparam[tgt].goal_period = per;
 
-		/*
-		 * Don't get current target parameters if we've been
-		 * told not to use NVRAM- it's really the same thing.
-		 */
-		if ((isp->isp_confopts & ISP_CFG_NONVRAM) == 0) {
-
-			mbs.param[0] = MBOX_GET_TARGET_PARAMS;
-			mbs.param[1] = tgt << 8;
-			isp_mboxcmd(isp, &mbs, MBLOGALL);
-			if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-				continue;
-			}
-			sdp->isp_devparam[tgt].cur_dflags = mbs.param[2];
-			sdp->isp_devparam[tgt].dev_flags = mbs.param[2];
-			sdp->isp_devparam[tgt].cur_period = mbs.param[3] & 0xff;
-			sdp->isp_devparam[tgt].cur_offset = mbs.param[3] >> 8;
-
-			/*
-			 * The maximum period we can really see
-			 * here is 100 (decimal), or 400 ns.
-			 * For some unknown reason we sometimes
-			 * get back wildass numbers from the
-			 * boot device's parameters (alpha only).
-			 */
-			if ((mbs.param[3] & 0xff) <= 0x64) {
-				sdp->isp_devparam[tgt].sync_period =
-				    mbs.param[3] & 0xff;
-				sdp->isp_devparam[tgt].sync_offset =
-				    mbs.param[3] >> 8;
-			}
-
-			/*
-			 * It is not safe to run Ultra Mode with a clock < 60.
-			 */
-			if (((isp->isp_clock && isp->isp_clock < 60) ||
-			    (isp->isp_type < ISP_HA_SCSI_1020A)) &&
-			    (sdp->isp_devparam[tgt].sync_period <=
-			    (ISP_20M_SYNCPARMS & 0xff))) {
-				sdp->isp_devparam[tgt].sync_offset =
-				    ISP_10M_SYNCPARMS >> 8;
-				sdp->isp_devparam[tgt].sync_period =
-				    ISP_10M_SYNCPARMS & 0xff;
-			}
-		}
 		isp_prt(isp, ISP_LOGDEBUG0,
-		    "Initial bus %d tgt %d flags %x offset %x period %x",
-		    channel, tgt, sdp->isp_devparam[tgt].dev_flags,
-		    sdp->isp_devparam[tgt].sync_offset,
-		    sdp->isp_devparam[tgt].sync_period);
+		    "Generated Defaults bus%d tgt%d flags %x off %x per %x",
+		    channel, tgt, sdp->isp_devparam[tgt].nvrm_flags,
+		    sdp->isp_devparam[tgt].nvrm_offset,
+		    sdp->isp_devparam[tgt].nvrm_period);
+
 	}
 }
 
@@ -5130,42 +5082,56 @@ isp_parse_nvram_1020(struct ispsoftc *isp, u_int8_t *nvram_data)
 			ISP_NVRAM_TGT_DEVICE_ENABLE(nvram_data, i);
 		sdp->isp_devparam[i].exc_throttle =
 			ISP_NVRAM_TGT_EXEC_THROTTLE(nvram_data, i);
-		sdp->isp_devparam[i].sync_offset =
+		sdp->isp_devparam[i].nvrm_offset =
 			ISP_NVRAM_TGT_SYNC_OFFSET(nvram_data, i);
-		sdp->isp_devparam[i].sync_period =
+		sdp->isp_devparam[i].nvrm_period =
 			ISP_NVRAM_TGT_SYNC_PERIOD(nvram_data, i);
-
+		/*
+		 * We probably shouldn't lie about this, but it
+		 * it makes it much safer if we limit NVRAM values
+		 * to sanity.
+		 */
 		if (isp->isp_type < ISP_HA_SCSI_1040) {
 			/*
 			 * If we're not ultra, we can't possibly
 			 * be a shorter period than this.
 			 */
-			if (sdp->isp_devparam[i].sync_period < 0x19) {
-				sdp->isp_devparam[i].sync_period = 0x19;
+			if (sdp->isp_devparam[i].nvrm_period < 0x19) {
+				sdp->isp_devparam[i].nvrm_period = 0x19;
 			}
-			if (sdp->isp_devparam[i].sync_offset > 0xc) {
-				sdp->isp_devparam[i].sync_offset = 0x0c;
+			if (sdp->isp_devparam[i].nvrm_offset > 0xc) {
+				sdp->isp_devparam[i].nvrm_offset = 0x0c;
 			}
 		} else {
-			if (sdp->isp_devparam[i].sync_offset > 0x8) {
-				sdp->isp_devparam[i].sync_offset = 0x8;
+			if (sdp->isp_devparam[i].nvrm_offset > 0x8) {
+				sdp->isp_devparam[i].nvrm_offset = 0x8;
 			}
 		}
-		sdp->isp_devparam[i].dev_flags = 0;
+		sdp->isp_devparam[i].nvrm_flags = 0;
 		if (ISP_NVRAM_TGT_RENEG(nvram_data, i))
-			sdp->isp_devparam[i].dev_flags |= DPARM_RENEG;
-		sdp->isp_devparam[i].dev_flags |= DPARM_ARQ;
+			sdp->isp_devparam[i].nvrm_flags |= DPARM_RENEG;
+		sdp->isp_devparam[i].nvrm_flags |= DPARM_ARQ;
 		if (ISP_NVRAM_TGT_TQING(nvram_data, i))
-			sdp->isp_devparam[i].dev_flags |= DPARM_TQING;
+			sdp->isp_devparam[i].nvrm_flags |= DPARM_TQING;
 		if (ISP_NVRAM_TGT_SYNC(nvram_data, i))
-			sdp->isp_devparam[i].dev_flags |= DPARM_SYNC;
+			sdp->isp_devparam[i].nvrm_flags |= DPARM_SYNC;
 		if (ISP_NVRAM_TGT_WIDE(nvram_data, i))
-			sdp->isp_devparam[i].dev_flags |= DPARM_WIDE;
+			sdp->isp_devparam[i].nvrm_flags |= DPARM_WIDE;
 		if (ISP_NVRAM_TGT_PARITY(nvram_data, i))
-			sdp->isp_devparam[i].dev_flags |= DPARM_PARITY;
+			sdp->isp_devparam[i].nvrm_flags |= DPARM_PARITY;
 		if (ISP_NVRAM_TGT_DISC(nvram_data, i))
-			sdp->isp_devparam[i].dev_flags |= DPARM_DISC;
-		sdp->isp_devparam[i].cur_dflags = 0; /* we don't know */
+			sdp->isp_devparam[i].nvrm_flags |= DPARM_DISC;
+		sdp->isp_devparam[i].actv_flags = 0; /* we don't know */
+		isp_prt(isp, ISP_LOGDEBUG0, "tgt %d flags %x offset %x per %x",
+		    i, sdp->isp_devparam[i].nvrm_flags,
+		    sdp->isp_devparam[i].nvrm_offset,
+		    sdp->isp_devparam[i].nvrm_period);
+		sdp->isp_devparam[i].goal_offset =
+		    sdp->isp_devparam[i].nvrm_offset;
+		sdp->isp_devparam[i].goal_period =
+		    sdp->isp_devparam[i].nvrm_period;
+		sdp->isp_devparam[i].goal_flags =
+		    sdp->isp_devparam[i].nvrm_flags;
 	}
 }
 
@@ -5220,25 +5186,35 @@ isp_parse_nvram_1080(struct ispsoftc *isp, int bus, u_int8_t *nvram_data)
 		    ISP1080_NVRAM_TGT_DEVICE_ENABLE(nvram_data, i, bus);
 		sdp->isp_devparam[i].exc_throttle =
 			ISP1080_NVRAM_TGT_EXEC_THROTTLE(nvram_data, i, bus);
-		sdp->isp_devparam[i].sync_offset =
+		sdp->isp_devparam[i].nvrm_offset =
 			ISP1080_NVRAM_TGT_SYNC_OFFSET(nvram_data, i, bus);
-		sdp->isp_devparam[i].sync_period =
+		sdp->isp_devparam[i].nvrm_period =
 			ISP1080_NVRAM_TGT_SYNC_PERIOD(nvram_data, i, bus);
-		sdp->isp_devparam[i].dev_flags = 0;
+		sdp->isp_devparam[i].nvrm_flags = 0;
 		if (ISP1080_NVRAM_TGT_RENEG(nvram_data, i, bus))
-			sdp->isp_devparam[i].dev_flags |= DPARM_RENEG;
-		sdp->isp_devparam[i].dev_flags |= DPARM_ARQ;
+			sdp->isp_devparam[i].nvrm_flags |= DPARM_RENEG;
+		sdp->isp_devparam[i].nvrm_flags |= DPARM_ARQ;
 		if (ISP1080_NVRAM_TGT_TQING(nvram_data, i, bus))
-			sdp->isp_devparam[i].dev_flags |= DPARM_TQING;
+			sdp->isp_devparam[i].nvrm_flags |= DPARM_TQING;
 		if (ISP1080_NVRAM_TGT_SYNC(nvram_data, i, bus))
-			sdp->isp_devparam[i].dev_flags |= DPARM_SYNC;
+			sdp->isp_devparam[i].nvrm_flags |= DPARM_SYNC;
 		if (ISP1080_NVRAM_TGT_WIDE(nvram_data, i, bus))
-			sdp->isp_devparam[i].dev_flags |= DPARM_WIDE;
+			sdp->isp_devparam[i].nvrm_flags |= DPARM_WIDE;
 		if (ISP1080_NVRAM_TGT_PARITY(nvram_data, i, bus))
-			sdp->isp_devparam[i].dev_flags |= DPARM_PARITY;
+			sdp->isp_devparam[i].nvrm_flags |= DPARM_PARITY;
 		if (ISP1080_NVRAM_TGT_DISC(nvram_data, i, bus))
-			sdp->isp_devparam[i].dev_flags |= DPARM_DISC;
-		sdp->isp_devparam[i].cur_dflags = 0;
+			sdp->isp_devparam[i].nvrm_flags |= DPARM_DISC;
+		sdp->isp_devparam[i].actv_flags = 0;
+		isp_prt(isp, ISP_LOGDEBUG0, "bus %d tgt %d flags %x %x/%x", bus,
+		    i, sdp->isp_devparam[i].nvrm_flags,
+		    sdp->isp_devparam[i].nvrm_offset,
+		    sdp->isp_devparam[i].nvrm_period);
+		sdp->isp_devparam[i].goal_offset =
+		    sdp->isp_devparam[i].nvrm_offset;
+		sdp->isp_devparam[i].goal_period =
+		    sdp->isp_devparam[i].nvrm_period;
+		sdp->isp_devparam[i].goal_flags =
+		    sdp->isp_devparam[i].nvrm_flags;
 	}
 }
 
@@ -5294,25 +5270,35 @@ isp_parse_nvram_12160(struct ispsoftc *isp, int bus, u_int8_t *nvram_data)
 		    ISP12160_NVRAM_TGT_DEVICE_ENABLE(nvram_data, i, bus);
 		sdp->isp_devparam[i].exc_throttle =
 			ISP12160_NVRAM_TGT_EXEC_THROTTLE(nvram_data, i, bus);
-		sdp->isp_devparam[i].sync_offset =
+		sdp->isp_devparam[i].nvrm_offset =
 			ISP12160_NVRAM_TGT_SYNC_OFFSET(nvram_data, i, bus);
-		sdp->isp_devparam[i].sync_period =
+		sdp->isp_devparam[i].nvrm_period =
 			ISP12160_NVRAM_TGT_SYNC_PERIOD(nvram_data, i, bus);
-		sdp->isp_devparam[i].dev_flags = 0;
+		sdp->isp_devparam[i].nvrm_flags = 0;
 		if (ISP12160_NVRAM_TGT_RENEG(nvram_data, i, bus))
-			sdp->isp_devparam[i].dev_flags |= DPARM_RENEG;
-		sdp->isp_devparam[i].dev_flags |= DPARM_ARQ;
+			sdp->isp_devparam[i].nvrm_flags |= DPARM_RENEG;
+		sdp->isp_devparam[i].nvrm_flags |= DPARM_ARQ;
 		if (ISP12160_NVRAM_TGT_TQING(nvram_data, i, bus))
-			sdp->isp_devparam[i].dev_flags |= DPARM_TQING;
+			sdp->isp_devparam[i].nvrm_flags |= DPARM_TQING;
 		if (ISP12160_NVRAM_TGT_SYNC(nvram_data, i, bus))
-			sdp->isp_devparam[i].dev_flags |= DPARM_SYNC;
+			sdp->isp_devparam[i].nvrm_flags |= DPARM_SYNC;
 		if (ISP12160_NVRAM_TGT_WIDE(nvram_data, i, bus))
-			sdp->isp_devparam[i].dev_flags |= DPARM_WIDE;
+			sdp->isp_devparam[i].nvrm_flags |= DPARM_WIDE;
 		if (ISP12160_NVRAM_TGT_PARITY(nvram_data, i, bus))
-			sdp->isp_devparam[i].dev_flags |= DPARM_PARITY;
+			sdp->isp_devparam[i].nvrm_flags |= DPARM_PARITY;
 		if (ISP12160_NVRAM_TGT_DISC(nvram_data, i, bus))
-			sdp->isp_devparam[i].dev_flags |= DPARM_DISC;
-		sdp->isp_devparam[i].cur_dflags = 0;
+			sdp->isp_devparam[i].nvrm_flags |= DPARM_DISC;
+		sdp->isp_devparam[i].actv_flags = 0;
+		isp_prt(isp, ISP_LOGDEBUG0, "bus %d tgt %d flags %x %x/%x", bus,
+		    i, sdp->isp_devparam[i].nvrm_flags,
+		    sdp->isp_devparam[i].nvrm_offset,
+		    sdp->isp_devparam[i].nvrm_period);
+		sdp->isp_devparam[i].goal_offset =
+		    sdp->isp_devparam[i].nvrm_offset;
+		sdp->isp_devparam[i].goal_period =
+		    sdp->isp_devparam[i].nvrm_period;
+		sdp->isp_devparam[i].goal_flags =
+		    sdp->isp_devparam[i].nvrm_flags;
 	}
 }
 
