@@ -176,7 +176,9 @@ in_pcballoc(so, pcbinfo, type)
 	error = mac_init_inpcb(inp, M_NOWAIT);
 	if (error != 0)
 		goto out;
+	SOCK_LOCK(so);
 	mac_create_inpcb_from_socket(so, inp);
+	SOCK_UNLOCK(so);
 #endif
 #if defined(IPSEC) || defined(FAST_IPSEC)
 #ifdef FAST_IPSEC
@@ -1175,10 +1177,11 @@ in_pcbsosetlabel(so)
 #ifdef MAC
 	struct inpcb *inp;
 
-	/* XXX: Will assert socket lock when we have them. */
 	inp = (struct inpcb *)so->so_pcb;
 	INP_LOCK(inp);
+	SOCK_LOCK(so);
 	mac_inpcb_sosetlabel(so, inp);
+	SOCK_UNLOCK(so);
 	INP_UNLOCK(inp);
 #endif
 }

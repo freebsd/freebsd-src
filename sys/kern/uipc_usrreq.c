@@ -846,8 +846,10 @@ unp_connect(so, nam, td)
 		    sizeof(unp->unp_peercred));
 		unp->unp_flags |= UNP_HAVEPC;
 #ifdef MAC
+		SOCK_LOCK(so);
 		mac_set_socket_peer_from_socket(so, so3);
 		mac_set_socket_peer_from_socket(so3, so);
+		SOCK_UNLOCK(so);
 #endif
 
 		so2 = so3;

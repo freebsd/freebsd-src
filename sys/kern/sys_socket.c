@@ -77,7 +77,9 @@ soo_read(fp, uio, active_cred, flags, td)
 
 	NET_LOCK_GIANT();
 #ifdef MAC
+	SOCK_LOCK(so);
 	error = mac_check_socket_receive(active_cred, so);
+	SOCK_UNLOCK(so);
 	if (error) {
 		NET_UNLOCK_GIANT();
 		return (error);
@@ -102,7 +104,9 @@ soo_write(fp, uio, active_cred, flags, td)
 
 	NET_LOCK_GIANT();
 #ifdef MAC
+	SOCK_LOCK(so);
 	error = mac_check_socket_send(active_cred, so);
+	SOCK_UNLOCK(so);
 	if (error) {
 		NET_UNLOCK_GIANT();
 		return (error);

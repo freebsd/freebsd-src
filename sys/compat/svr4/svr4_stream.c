@@ -171,7 +171,9 @@ svr4_sendit(td, s, mp, flags)
 		return (error);
 
 #ifdef MAC
+	SOCK_LOCK(so);
 	error = mac_check_socket_send(td->td_ucred, so);
+	SOCK_UNLOCK(so);
 	if (error)
 		goto done1;
 #endif
@@ -275,7 +277,9 @@ svr4_recvit(td, s, mp, namelenp)
 		return (error);
 
 #ifdef MAC
+	SOCK_LOCK(so);
 	error = mac_check_socket_receive(td->td_ucred, so);
+	SOCK_UNLOCK(so);
 	if (error)
 		goto done1;
 #endif
