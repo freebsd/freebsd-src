@@ -148,7 +148,7 @@ acpi_task_thread_init(void)
 
     for (i = 0; i < ACPI_MAX_THREADS; i++) {
 	err = kthread_create(acpi_task_thread, NULL, &acpi_kthread_proc,
-			     0, "acpi_task%d", i);
+			     0, 0, "acpi_task%d", i);
 	if (err != 0) {
 	    printf("%s: kthread_create failed(%d)\n", __func__, err);
 	    break;

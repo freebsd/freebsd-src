@@ -263,7 +263,7 @@ acpi_tz_attach(device_t dev)
      */
     if (acpi_tz_proc == NULL) {
 	    error = kthread_create(acpi_tz_thread, NULL, &acpi_tz_proc,
-				   RFHIGHPID, "acpi_thermal");
+				   RFHIGHPID, 0, "acpi_thermal");
 	    if (error != 0) {
 		    device_printf(sc->tz_dev, "could not create thread - %d", error);
 		    goto out;

@@ -646,7 +646,7 @@ mdnew(int unit)
 	sc = (struct md_s *)malloc(sizeof *sc, M_MD, M_WAITOK | M_ZERO);
 	sc->unit = unit;
 	sprintf(sc->name, "md%d", unit);
-	error = kthread_create(md_kthread, sc, &sc->procp, 0, "%s", sc->name);
+	error = kthread_create(md_kthread, sc, &sc->procp, 0, 0,"%s", sc->name);
 	if (error) {
 		free(sc, M_MD);
 		return (NULL);

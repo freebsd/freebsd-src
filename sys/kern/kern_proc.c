@@ -164,6 +164,15 @@ proc_dtor(void *mem, int size, void *arg)
 	KASSERT((kg != NULL), ("proc_dtor: bad kg pointer"));
         ke = FIRST_KSE_IN_KSEGRP(kg);
 	KASSERT((ke != NULL), ("proc_dtor: bad ke pointer"));
+
+	/* Dispose of an alternate kstack, if it exists.
+	 * XXX What if there are more than one thread in the proc?
+	 *     The first thread in the proc is special and not
+	 *     freed, so you gotta do this here.
+	 */
+	if (((p->p_flag & P_KTHREAD) != 0) && (td->td_altkstack != 0))
+		pmap_dispose_altkstack(td);
+
 	/*
 	 * We want to make sure we know the initial linkages.
 	 * so for now tear them down and remake them.

@@ -282,7 +282,7 @@ random_modevent(module_t mod __unused, int type, void *data __unused)
 
 		/* Start the hash/reseed thread */
 		error = kthread_create(random_kthread, NULL,
-			&random_kthread_proc, RFHIGHPID, "random");
+			&random_kthread_proc, RFHIGHPID, 0, "random");
 		if (error != 0)
 			return error;
 

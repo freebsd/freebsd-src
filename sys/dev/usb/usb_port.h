@@ -365,9 +365,9 @@ typedef struct thread *usb_proc_ptr;
 #define	memcpy(d, s, l)		bcopy((s),(d),(l))
 #define	memset(d, v, l)		bzero((d),(l))
 #define usb_kthread_create1(f, s, p, a0, a1) \
-		kthread_create((f), (s), (p), RFHIGHPID, (a0), (a1))
+		kthread_create((f), (s), (p), RFHIGHPID, 0, (a0), (a1))
 #define usb_kthread_create2(f, s, p, a0) \
-		kthread_create((f), (s), (p), RFHIGHPID, (a0))
+		kthread_create((f), (s), (p), RFHIGHPID, 0, (a0))
 #define usb_kthread_create	kthread_create
 
 #define	config_pending_incr()
