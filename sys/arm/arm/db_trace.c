@@ -102,7 +102,7 @@ db_stack_trace_cmd(addr, have_addr, count, modif)
 	db_expr_t offset;
 	boolean_t	kernel_only = TRUE;
 	boolean_t	trace_thread = FALSE;
-	int	scp_offset;
+	int	scp_offset, quit;
 
 	if (kdb_frame == NULL && !have_addr)
 		return;
@@ -142,7 +142,9 @@ db_stack_trace_cmd(addr, have_addr, count, modif)
 	lastframe = NULL;
 	scp_offset = -(get_pc_str_offset() >> 2);
 
-	while (count-- && frame != NULL) {
+	quit = 0;
+	db_setup_paging(db_simple_pager, &quit, DB_LINES_PER_PAGE);
+	while (count-- && frame != NULL && !quit) {
 		db_addr_t	scp;
 		u_int32_t	savecode;
 		int		r;
