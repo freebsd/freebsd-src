@@ -65,6 +65,7 @@ popen(command, type)
 	FILE *iop;
 	int pdes[2], pid, twoway;
 	char *argv[4];
+	struct pid *p;
 
 	/*
 	 * Lite2 introduced two-way popen() pipes using socketpair().
@@ -123,6 +124,9 @@ popen(command, type)
 				(void)close(pdes[0]);
 			}
 			(void)close(pdes[1]);
+		}
+		for (p = pidlist; p; p = p->next) {
+			(void)close(fileno(p->fp));
 		}
 		execve(_PATH_BSHELL, argv, environ);
 		_exit(127);
