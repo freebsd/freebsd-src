@@ -8,7 +8,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: ldap.c,v 1.44.2.2 2002/08/09 22:23:12 gshapiro Exp $")
+SM_RCSID("@(#)$Id: ldap.c,v 1.44.2.3 2003/07/07 20:16:16 gshapiro Exp $")
 
 #if LDAPMAP
 # include <sys/types.h>
@@ -582,7 +582,7 @@ sm_ldap_results(lmap, msgid, flags, delim, rpool, result,
 				save_errno += E_LDAPBASE;
 				SM_LDAP_ERROR_CLEANUP();
 				errno = save_errno;
-				return EX_OSERR;
+				return EX_TEMPFAIL;
 			}
 
 			rl = sm_ldap_add_recurse(&recurse, dn,

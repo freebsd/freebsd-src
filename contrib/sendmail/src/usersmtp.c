@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: usersmtp.c,v 8.437.2.9 2003/03/15 23:57:52 gshapiro Exp $")
+SM_RCSID("@(#)$Id: usersmtp.c,v 8.437.2.10 2003/05/05 23:51:47 ca Exp $")
 
 #include <sysexits.h>
 
@@ -1088,7 +1088,7 @@ getsecret(conn, context, id, psecret)
 						     len + 1);
 	if (*psecret == NULL)
 		return SASL_FAIL;
-	(void) sm_strlcpy((*psecret)->data, authpass, len + 1);
+	(void) sm_strlcpy((char *) (*psecret)->data, authpass, len + 1);
 	(*psecret)->len = (unsigned long) len;
 	return SASL_OK;
 }
