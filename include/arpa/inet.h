@@ -64,13 +64,8 @@
 /* Required for byteorder(3) functions. */
 #include <machine/endian.h>
 
-#ifndef INET_ADDRSTRLEN
 #define	INET_ADDRSTRLEN		16
-#endif
-
-#ifndef INET6_ADDRSTRLEN
 #define	INET6_ADDRSTRLEN	46
-#endif
 
 #ifndef _UINT16_T_DECLARED
 typedef	__uint16_t	uint16_t;
@@ -116,7 +111,7 @@ struct in_addr {
 #endif
 
 /* XXX all new diversions!! argh!! */
-#ifndef _POSIX_SOURCE
+#if __BSD_VISIBLE
 #define	inet_addr	__inet_addr
 #define	inet_aton	__inet_aton
 #define	inet_lnaof	__inet_lnaof
@@ -131,7 +126,7 @@ struct in_addr {
 #define	inet_ntop	__inet_ntop
 #define	inet_nsap_addr	__inet_nsap_addr
 #define	inet_nsap_ntoa	__inet_nsap_ntoa
-#endif /* !_POSIX_SOURCE */
+#endif /* __BSD_VISIBLE */
 
 __BEGIN_DECLS
 #ifndef _BYTEORDER_PROTOTYPED
@@ -147,8 +142,7 @@ char		*inet_ntoa(struct in_addr);
 const char	*inet_ntop(int, const void *, char *, socklen_t);
 int		 inet_pton(int, const char *, void *);
 
-/* Nonstandard functions. */
-#ifndef _POSIX_SOURCE
+#if __BSD_VISIBLE
 int		 ascii2addr(int, const char *, void *);
 char		*addr2ascii(int, const void *, int, char *);
 int		 inet_aton(const char *, struct in_addr *);
@@ -161,7 +155,7 @@ char		*inet_net_ntop(int, const void *, int, char *, size_t);
 int		 inet_net_pton(int, const char *, void *, size_t);
 unsigned	 inet_nsap_addr(const char *, unsigned char *, int);
 char		*inet_nsap_ntoa(int, const unsigned char *, char *);
-#endif /* !_POSIX_SOURCE */
+#endif /* __BSD_VISIBLE */
 __END_DECLS
 
 #ifndef _BYTEORDER_FUNC_DEFINED
