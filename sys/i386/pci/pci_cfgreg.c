@@ -118,7 +118,7 @@ pci_cfgregopen(void)
 /* 
  * Read configuration space register
  */
-u_int32_t
+static u_int32_t
 pci_do_cfgregread(int bus, int slot, int func, int reg, int bytes)
 {
     return(usebios ? 
