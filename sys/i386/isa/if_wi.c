@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_wi.c,v 1.48 1999/05/05 00:32:13 wpaul Exp wpaul $
+ *	$Id: if_wi.c,v 1.52 1999/05/06 16:28:02 wpaul Exp $
  */
 
 /*
@@ -116,7 +116,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_wi.c,v 1.48 1999/05/05 00:32:13 wpaul Exp wpaul $";
+	"$Id: if_wi.c,v 1.52 1999/05/06 16:28:02 wpaul Exp $";
 #endif
 
 static struct wi_softc wi_softc[NWI];
@@ -275,6 +275,7 @@ static int wi_attach(isa_dev)
 {
 	struct wi_softc		*sc;
 	struct wi_ltv_macaddr	mac;
+	struct wi_ltv_gen	gen;
 	struct ifnet		*ifp;
 	char			ifname[IFNAMSIZ];
 
@@ -329,6 +330,17 @@ static int wi_attach(isa_dev)
 	sc->wi_tx_rate = WI_DEFAULT_TX_RATE;
 	sc->wi_max_data_len = WI_DEFAULT_DATALEN;
 	sc->wi_create_ibss = WI_DEFAULT_CREATE_IBSS;
+
+	/*
+	 * Read the default channel from the NIC. This may vary
+	 * depending on the country where the NIC was purchased, so
+	 * we can't hard-code a default and expect it to work for
+	 * everyone.
+	 */
+	gen.wi_type = WI_RID_OWN_CHNL;
+	gen.wi_len = 2;
+	wi_read_record(sc, &gen);
+	sc->wi_channel = gen.wi_val;
 
 	bzero((char *)&sc->wi_stats, sizeof(sc->wi_stats));
 
@@ -941,6 +953,9 @@ static void wi_setdef(sc, wreq)
 	case WI_RID_CREATE_IBSS:
 		sc->wi_create_ibss = wreq->wi_val[0];
 		break;
+	case WI_RID_OWN_CHNL:
+		sc->wi_channel = wreq->wi_val[0];
+		break;
 	case WI_RID_NODENAME:
 		bzero(sc->wi_node_name, sizeof(sc->wi_node_name));
 		bcopy((char *)&wreq->wi_val[1], sc->wi_node_name, 30);
@@ -956,6 +971,9 @@ static void wi_setdef(sc, wreq)
 	default:
 		break;
 	}
+
+	/* Reinitialize WaveLAN. */
+	wi_init(sc);
 
 	return;
 }
@@ -1093,6 +1111,9 @@ static void wi_init(xsc)
 
 	/* Specify the network name */
 	WI_SETSTR(WI_RID_DESIRED_SSID, sc->wi_net_name);
+
+	/* Specify the frequency to use */
+	WI_SETVAL(WI_RID_OWN_CHNL, sc->wi_channel);
 
 	/* Program the nodename. */
 	WI_SETSTR(WI_RID_NODENAME, sc->wi_node_name);
