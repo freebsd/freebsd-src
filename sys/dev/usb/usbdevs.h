@@ -1075,8 +1075,10 @@
 /* Thrustmaster products */
 #define	USB_PRODUCT_THRUST_FUSION_PAD	0xa0a3		/* Fusion Digital Gamepad */
 
-/* Trek Technology products */
+#define USB_PRODUCT_TREK_THUMBDRIVE_8MB	0x9988		/* ThumbDrive 8MB *//* Trek Technology products */
 #define	USB_PRODUCT_TREK_THUMBDRIVE	0x1111		/* ThumbDrive */
+
+#define USB_PRODUCT_TREK_THUMBDRIVE_8MB	0x9988		/* ThumbDrive */
 
 /* Ultima products */
 #define	USB_PRODUCT_ULTIMA_1200UBPLUS	0x4002		/* 1200 UB Plus scanner */
