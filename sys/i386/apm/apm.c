@@ -13,7 +13,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.12.4.4 1996/03/12 21:53:57 nate Exp $
+ *	$Id: apm.c,v 1.12.4.5 1996/03/13 00:42:47 nate Exp $
  */
 
 #include "apm.h"
@@ -33,8 +33,14 @@
 #include <machine/segments.h>
 #include <machine/clock.h>
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
 #include <sys/syslog.h>
 #include "apm_setup.h"
+
+static int apm_display_off __P((void));
+static int apm_int __P((u_long *eax, u_long *ebx, u_long *ecx));
+static void apm_resume __P((void));
 
 /* static data */
 struct apm_softc {
@@ -83,12 +89,12 @@ setup_apm_gdt(u_int code32_base, u_int code16_base, u_int data_base, u_int code_
 }
 
 /* 48bit far pointer */
-struct addr48 {
+static struct addr48 {
 	u_long		offset;
 	u_short		segment;
 } apm_addr;
 
-int apm_errno;
+static int apm_errno;
 
 inline
 int
@@ -136,7 +142,7 @@ apm_enable_disable_pm(struct apm_softc *sc, int enable)
 static void
 apm_driver_version(void)
 {
-	u_long eax, ebx, ecx, i;
+	u_long eax, ebx, ecx;
 
 #ifdef APM_DEBUG
 	eax = (APM_BIOS<<8) | APM_INSTCHECK;
@@ -219,7 +225,7 @@ apm_suspend_system(struct apm_softc *sc)
  * If your laptop can control the display via APM, please inform me.
  *                            HOSOKAWA, Tatsumi <hosokawa@mt.cs.keio.ac.jp>
  */
-int
+static int
 apm_display_off(void)
 {
 	u_long eax, ebx, ecx;
@@ -329,6 +335,7 @@ apm_hook_establish(int apmh, struct apmhook *ah)
 	return apm_add_hook(&hook[apmh], ah);
 }
 
+#ifdef notused
 /* disestablish an apm hook */
 void
 apm_hook_disestablish(int apmh, struct apmhook *ah)
@@ -338,13 +345,14 @@ apm_hook_disestablish(int apmh, struct apmhook *ah)
 
 	apm_del_hook(&hook[apmh], ah);
 }
+#endif /* notused */
 
 
 static struct timeval suspend_time;
 static struct timeval diff_time;
 
 static int
-apm_default_resume(struct apm_softc *sc)
+apm_default_resume(void *arg)
 {
 	int pl;
 	u_int second, minute, hour;
@@ -369,7 +377,7 @@ apm_default_resume(struct apm_softc *sc)
 }
 
 static int
-apm_default_suspend(void)
+apm_default_suspend(void *arg)
 {
 	int	pl;
 
@@ -547,11 +555,10 @@ apm_not_halt_cpu(struct apm_softc *sc)
 }
 
 /* device driver definitions */
-int apmprobe (struct isa_device *);
-int apmattach(struct isa_device *);
+static int apmprobe (struct isa_device *);
+static int apmattach(struct isa_device *);
 struct isa_driver apmdriver = {
 	apmprobe, apmattach, "apm" };
-
 
 /*
  * probe APM (dummy):
@@ -562,7 +569,7 @@ struct isa_driver apmdriver = {
  * to use V86 mode in APM initialization.
  */
 
-int
+static int
 apmprobe(struct isa_device *dvp)
 {
 	int     unit = dvp->id_unit;
@@ -673,7 +680,7 @@ apm_processevent(struct apm_softc *sc)
  * /phk
  */
 
-int
+static int
 apmattach(struct isa_device *dvp)
 {
 	int	unit = dvp->id_unit;
