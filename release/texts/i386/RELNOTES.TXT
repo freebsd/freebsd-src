@@ -1,20 +1,22 @@
                                  RELEASE NOTES
-                            FreeBSD Release 3.0-SNAP
+                            FreeBSD Release 4.0-SNAP
 
-This is a 3.0-CURRENT release SNAPshot of FreeBSD, currently
-on its way to the next release after 3.0-RELEASE, which was
-released on October 16th, 1998.
+This is a 4.0-CURRENT release SNAPshot of FreeBSD, an active
+development branch which is not expected to produce a release for
+some time.  This line of development branched from the 3.x line
+on January 20, 1999; that branch will see continuing releases and
+some features of 4.0 will be back-ported.
 
 Any installation failures or crashes should be reported by using the
-send-pr command (those preferring a WEB based interface can also see
+send-pr command (those preferring a Web-based interface can also see
 http://www.freebsd.org/send-pr.html).
 
-For information about FreeBSD and the layout of the 3.0-RELEASE
+For information about FreeBSD and the layout of the 4.0-RELEASE
 directory (especially if you're installing from floppies!), see
 ABOUT.TXT.  For installation instructions, see the INSTALL.TXT and
 HARDWARE.TXT files.
 
-For the latest of these 3.0-current snapshots, you should always see:
+For the latest of these 4.0-current snapshots, you should always see:
 
         ftp://current.freebsd.org/pub/FreeBSD
 
@@ -22,7 +24,7 @@ If you wish to get the latest post-3.0-RELEASE technology.
 
 Table of contents:
 ------------------
-1. What's new since 3.0-RELEASE
+1. What's new since the 3.1/4.0 branch
    1.1 KERNEL CHANGES
    1.2 SECURITY FIXES
    1.3 USERLAND CHANGES
@@ -43,40 +45,16 @@ Table of contents:
 6. Acknowledgements
 
 
-1. What's new since 3.0-RELEASE
----------------------------------
-All changes described here are unique to the 3.0 branch unless
+1. What's new since the 3.1/4.0 branch
+--------------------------------------
+All changes described here are unique to the 4.0 branch unless
 specifically marked as [MERGED] features.
 
 1.1. KERNEL CHANGES
 -------------------
 
-Added driver support for fast ethernet adapters based on the
-RealTek 8129/8139 and Accton MPX 5030/5038 chips, including the
-SMC EZ Card 10/100 PCI 1211-TX.
-
-Added driver support for Lite-On PNIC-based fast ethernet cards
-including the LinkSys LNE100TX, NetGear FA310TX Rev. D1 and
-Matrox FastNIC 10/100.
-
-Added driver support for fast ethernet adapters based on the 
-Macronix 98713, 98713A, 98715, 98715A and 98725 chips.
-
-Added driver support for fast ethernet adapters based on the
-Winbond W89C840F chip.
-
-Added driver support for fast ethernet adapters based on the
-VIA Technologies VT3043 "Rhine I" and VT86C100A "Rhine II" chips.
-
-Added driver support for pocket ethernet adapters based on the
-RealTek RTL 8002 chip.
-
-Added driver support for fast ethernet adapters based on the
-ASIX Electronics AX88140A chip.
-
-Integrated isdn4bsd from the isdn4bsd project group into the
-regular system.
-
+The VM system's anonymous storage subsystem (the ``swap pager'') has
+been completely revamped.
 
 1.2. SECURITY FIXES
 -------------------
@@ -84,11 +62,10 @@ regular system.
 1.3. USERLAND CHANGES
 ---------------------
 
-When using ipfw(8) with the syntax of the first synopsis line from the
-man page (i. e., with a rules file), it can now optionally be run through
-a preprocessor (m4, cpp) so it's possible to use symbolic names and other
-constructs that make maintenance easier.
-
+The timezone database has been updated to catch all of the recent changes
+in Europe, the former Soviet Union, and Central and South America.
+The timezone data files now contain a magic number allowing for easy
+identification.
 
 2. Supported Configurations
 ---------------------------
@@ -442,40 +419,14 @@ unconditional return policy.
 ----------------------------------------------
 
 If you're upgrading from a previous release of FreeBSD, most likely
-it's 2.2.x or 2.1.x (in some lesser number of cases) and some of the
-following issues may affect you, depending of course on your chosen
-method of upgrading.  There are two popular ways of upgrading
-FreeBSD distributions:
+it's 3.0 and some of the following issues may affect you, depending
+of course on your chosen method of upgrading.  There are two popular
+ways of upgrading FreeBSD distributions:
 
         o Using sources, via /usr/src
         o Using sysinstall's (binary) upgrade option.
 
-In the case of using sources, there are simply two targets you need to
-be aware of: The standard ``world'' target, which will upgrade a 2.x
-system to 3.0, or the ``aout-to-elf'' target, which will both upgrade
-and convert the system to ELF binary format.
-In the case of using the binary upgrade option, the system will go
-straight to 3.0/ELF but also populate the /<basepath>/lib/aout
-directories for backwards compatibility with older binaries.
-
-In either case, going to ELF will mean that you'll have somewhat
-smaller binaries and access to a lot more compiler goodies which have
-been already been ported to other ELF environments (our older and
-somewhat crufty a.out format being largely unsupported by most other
-software projects), but on the downside you'll also have access to far
-fewer ports and packages since many of those have not been adapted to
-ELF yet.  This will occur in time, but those who wish to retain access
-to the greatest number of packages and 3rd-party binaries should
-probably stick with a.out.
-
-The kernel is also still in a.out format at this time so that older
-LKMs and library interfaces can continue to work, but a full
-transition to ELF will occur at some point after 3.0-RELEASE.  Those
-wishing to generate dynamic kernel components should therefore use the
-newer KLD mechanism rather than the older LKM format - the LKM format
-is not long for this world and will soon be unsupported!
-
-[ other important upgrading notes should go here]
+[insert other notes here]
 
 
 5. Reporting problems, making suggestions, submitting code.
