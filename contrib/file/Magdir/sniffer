@@ -32,6 +32,7 @@
 #
 # Network General Sniffer capture files.
 # Sorry, make that "Network Associates Sniffer capture files."
+# Sorry, make that "Network General old DOS Sniffer capture files."
 #
 0	string		TRSNIFF\ data\ \ \ \ \032	Sniffer capture file
 >33	byte		2		(compressed)
@@ -54,6 +55,7 @@
 # Sorry, make that "Network Associates Sniffer Basic capture files."
 # Sorry, make that "Network Associates Sniffer Basic, and Windows
 # Sniffer Pro", capture files."
+# Sorry, make that "Network General Sniffer capture files."
 #
 0	string		XCP\0		NetXRay capture file
 >4	string		>\0		- version %s
@@ -88,8 +90,10 @@
 >20	belong		12		(raw IP
 >20	belong		13		(BSD/OS SLIP
 >20	belong		14		(BSD/OS PPP
+>20	belong		19		(Linux ATM Classical IP
 >20	belong		50		(PPP or Cisco HDLC
 >20	belong		51		(PPP-over-Ethernet
+>20	belong		99		(Symantec Enterprise Firewall
 >20	belong		100		(RFC 1483 ATM
 >20	belong		101		(raw IP
 >20	belong		102		(BSD/OS SLIP
@@ -105,13 +109,32 @@
 >20	belong		114		(LocalTalk
 >20	belong		117		(OpenBSD PFLOG
 >20	belong		119		(802.11 with Prism header
+>20	belong		122		(RFC 2625 IP over Fibre Channel
 >20	belong		123		(SunATM
 >20	belong		127		(802.11 with radiotap header
 >20	belong		129		(Linux ARCNET
+>20	belong		138		(Apple IP over IEEE 1394
 >20	belong		140		(MTP2
 >20	belong		141		(MTP3
 >20	belong		143		(DOCSIS
 >20	belong		144		(IrDA
+>20	belong		147		(Private use 0
+>20	belong		148		(Private use 1
+>20	belong		149		(Private use 2
+>20	belong		150		(Private use 3
+>20	belong		151		(Private use 4
+>20	belong		152		(Private use 5
+>20	belong		153		(Private use 6
+>20	belong		154		(Private use 7
+>20	belong		155		(Private use 8
+>20	belong		156		(Private use 9
+>20	belong		157		(Private use 10
+>20	belong		158		(Private use 11
+>20	belong		159		(Private use 12
+>20	belong		160		(Private use 13
+>20	belong		161		(Private use 14
+>20	belong		162		(Private use 15
+>20	belong		163		(802.11 with AVS header
 >16	belong		x		\b, capture length %d)
 0	ulelong		0xa1b2c3d4	tcpdump capture file (little-endian)
 >4	leshort		x		- version %d
@@ -131,8 +154,10 @@
 >20	lelong		12		(raw IP
 >20	lelong		13		(BSD/OS SLIP
 >20	lelong		14		(BSD/OS PPP
+>20	lelong		19		(Linux ATM Classical IP
 >20	lelong		50		(PPP or Cisco HDLC
 >20	lelong		51		(PPP-over-Ethernet
+>20	lelong		99		(Symantec Enterprise Firewall
 >20	lelong		100		(RFC 1483 ATM
 >20	lelong		101		(raw IP
 >20	lelong		102		(BSD/OS SLIP
@@ -142,19 +167,38 @@
 >20	lelong		106		(Linux Classical IP over ATM
 >20	lelong		107		(Frame Relay
 >20	lelong		108		(OpenBSD loopback
->20	lelong		109		(OpenBSD IPSEC encrypted
+>20	lelong		109		(OpenBSD IPsec encrypted
 >20	lelong		112		(Cisco HDLC
 >20	lelong		113		(Linux "cooked"
 >20	lelong		114		(LocalTalk
 >20	lelong		117		(OpenBSD PFLOG
 >20	lelong		119		(802.11 with Prism header
+>20	lelong		122		(RFC 2625 IP over Fibre Channel
 >20	lelong		123		(SunATM
 >20	lelong		127		(802.11 with radiotap header
 >20	lelong		129		(Linux ARCNET
+>20	lelong		138		(Apple IP over IEEE 1394
 >20	lelong		140		(MTP2
 >20	lelong		141		(MTP3
 >20	lelong		143		(DOCSIS
 >20	lelong		144		(IrDA
+>20	lelong		147		(Private use 0
+>20	lelong		148		(Private use 1
+>20	lelong		149		(Private use 2
+>20	lelong		150		(Private use 3
+>20	lelong		151		(Private use 4
+>20	lelong		152		(Private use 5
+>20	lelong		153		(Private use 6
+>20	lelong		154		(Private use 7
+>20	lelong		155		(Private use 8
+>20	lelong		156		(Private use 9
+>20	lelong		157		(Private use 10
+>20	lelong		158		(Private use 11
+>20	lelong		159		(Private use 12
+>20	lelong		160		(Private use 13
+>20	lelong		161		(Private use 14
+>20	lelong		162		(Private use 15
+>20	lelong		163		(802.11 with AVS header
 >16	lelong		x		\b, capture length %d)
 
 #
@@ -231,3 +275,23 @@
 #
 0	string		NetS		NetStumbler log file
 >8	lelong		x		\b, %d stations found
+
+#
+# EtherPeek/AiroPeek "version 9" capture files.
+#
+0	string		\177ver		EtherPeek/AiroPeek capture file
+
+#
+# Visual Networks traffic capture files.
+#
+0	string		\x05VNF		Visual Networks traffic capture file
+
+#
+# Network Instruments Observer capture files.
+#
+0	string		ObserverPktBuffe	Network Instruments Observer capture file
+
+#
+# Files from Accellent Group's 5View products.
+#
+0	string		\xaa\xaa\xaa\xaa	5View capture file
