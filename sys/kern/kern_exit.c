@@ -105,11 +105,7 @@ static struct exit_list_head exit_list = TAILQ_HEAD_INITIALIZER(exit_list);
  * MPSAFE
  */
 void
-sys_exit(td, uap)
-	struct thread *td;
-	struct sys_exit_args /* {
-		int	rval;
-	} */ *uap;
+sys_exit(struct thread *td, struct sys_exit_args *uap)
 {
 
 	mtx_lock(&Giant);
@@ -123,15 +119,13 @@ sys_exit(td, uap)
  * status and rusage for wait().  Check for child processes and orphan them.
  */
 void
-exit1(td, rv)
-	register struct thread *td;
-	int rv;
+exit1(struct thread *td, int rv)
 {
 	struct exitlist *ep;
 	struct proc *p, *nq, *q;
 	struct tty *tp;
 	struct vnode *ttyvp;
-	register struct vmspace *vm;
+	struct vmspace *vm;
 	struct vnode *vtmp;
 #ifdef KTRACE
 	struct vnode *tracevp;
@@ -297,7 +291,7 @@ exit1(td, rv)
 
 	sx_xlock(&proctree_lock);
 	if (SESS_LEADER(p)) {
-		register struct session *sp;
+		struct session *sp;
 
 		sp = p->p_session;
 		if (sp->s_ttyvp) {
@@ -524,11 +518,7 @@ exit1(td, rv)
  * MPSAFE.  The dirty work is handled by wait1().
  */
 int
-owait(td, uap)
-	struct thread *td;
-	register struct owait_args /* {
-		int     dummy;
-	} */ *uap;
+owait(struct thread *td, struct owait_args *uap __unused)
 {
 	struct wait_args w;
 
@@ -544,9 +534,7 @@ owait(td, uap)
  * MPSAFE.  The dirty work is handled by wait1().
  */
 int
-wait4(td, uap)
-	struct thread *td;
-	struct wait_args *uap;
+wait4(struct thread *td, struct wait_args *uap)
 {
 
 	return (wait1(td, uap, 0));
@@ -556,15 +544,7 @@ wait4(td, uap)
  * MPSAFE
  */
 static int
-wait1(td, uap, compat)
-	register struct thread *td;
-	register struct wait_args /* {
-		int pid;
-		int *status;
-		int options;
-		struct rusage *rusage;
-	} */ *uap;
-	int compat;
+wait1(struct thread *td, struct wait_args *uap, int compat)
 {
 	struct rusage ru;
 	int nfound;
@@ -806,9 +786,7 @@ loop:
  * Must be called with an exclusive hold of proctree lock.
  */
 void
-proc_reparent(child, parent)
-	register struct proc *child;
-	register struct proc *parent;
+proc_reparent(struct proc *child, struct proc *parent)
 {
 
 	sx_assert(&proctree_lock, SX_XLOCKED);
@@ -832,8 +810,7 @@ proc_reparent(child, parent)
  */
 
 int
-at_exit(function)
-	exitlist_fn function;
+at_exit(exitlist_fn function)
 {
 	struct exitlist *ep;
 
@@ -856,8 +833,7 @@ at_exit(function)
  * Returns the number of items removed (0 or 1)
  */
 int
-rm_at_exit(function)
-	exitlist_fn function;
+rm_at_exit(exitlist_fn function)
 {
 	struct exitlist *ep;
 
