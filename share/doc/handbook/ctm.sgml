@@ -3,7 +3,7 @@
 #
 # Converted by Ollivier Robert <roberto@FreeBSD.ORG>
 #
-# $Id: ctm.sgml,v 1.15 1997/02/22 12:58:15 peter Exp $
+# $Id: ctm.sgml,v 1.16 1997/04/19 10:40:45 gpalmer Exp $
 #
 # ----------------------------------------------------------------------------
 # "THE BEER-WARE LICENSE" (Revision 42):
@@ -14,7 +14,7 @@
 #
 -->
 
-<sect><heading>CTM<label id="ctm"></heading>
+<sect1><heading>CTM<label id="ctm"></heading>
 
 <p><em>Contributed by &a.phk;.  Updated 16-Mar-1995.</em>
 
@@ -25,7 +25,7 @@
         this time on the process of creating deltas, so talk to &a.phk;
         for more information should you wish to use <tt/CTM/ for other things.
 
-    <sect1><heading>Why should I use <tt/CTM/?</heading>
+    <sect2><heading>Why should I use <tt/CTM/?</heading>
       <p><tt/CTM/ will give you a local copy of the ``FreeBSD-current''
         sources.  If you are an active developer on FreeBSD, but have lousy
         or non-existent TCP/IP connectivity, <tt/CTM/ was made for you.
@@ -39,7 +39,7 @@
         running ``current'' sources, and for this it is recommended that
         you read <ref id="current" name="Staying current with FreeBSD">.
 
-    <sect1><heading>What do I need to use <tt/CTM/?</heading>
+    <sect2><heading>What do I need to use <tt/CTM/?</heading>
 
       <p>You will need two things: The ``<tt/CTM/'' program and the initial
         deltas to feed it (to get up to ``current'' levels).
@@ -87,7 +87,7 @@
         posted.  Send an email to &a.majordomo with a single
         line of ``<tt/subscribe ctm-announce/'' to get added to the list.
 
-    <sect1><heading>Starting off with <tt/CTM/ for the first time</heading>
+    <sect2><heading>Starting off with <tt/CTM/ for the first time</heading>
       <p>Before you can start using <tt/CTM/ deltas, you will need to get a
         special ``base'' delta that provides the starting point for all
         deltas produced subsequently to it.
@@ -105,7 +105,7 @@
         Once you've picked a base delta to start from, you will also need
         all deltas with higher numbers following it.
 
-    <sect1><heading>Using <tt/CTM/ in your daily life</heading>
+    <sect2><heading>Using <tt/CTM/ in your daily life</heading>
       <p>To apply the deltas, simply say
         <verb>
           cd /where/ever/you/want/the/stuff
@@ -136,7 +136,7 @@
         make a copy.
 
 
-    <sect1><heading>Future plans for <tt/CTM/</heading>
+    <sect2><heading>Future plans for <tt/CTM/</heading>
       <p>
         Tons of them:
         <itemize>
@@ -161,7 +161,7 @@
         The bad news is that I am very busy, so any help in doing this will
         be most welcome.  And do not forget to tell me what you want also...
 
-    <sect1><heading>Miscellaneous stuff</heading>
+    <sect2><heading>Miscellaneous stuff</heading>
       <p>
         All the ``DES infected'' (e.g. export controlled) source is not
         included.  You will get the ``international'' version only.  If
@@ -184,7 +184,7 @@
         for details.
 
 
-    <sect1><heading>Thanks!</heading>
+    <sect2><heading>Thanks!</heading>
       <p>
         <descrip>
           <tag/&a.bde;/
