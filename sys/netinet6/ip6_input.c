@@ -135,7 +135,6 @@ extern struct callout in6_tmpaddrtimer_ch;
 int ip6_forward_srcrt;			/* XXX */
 int ip6_sourcecheck;			/* XXX */
 int ip6_sourcecheck_interval;		/* XXX */
-const int int6intrq_present = 1;
 
 int ip6_ours_check_algorithm;
 
@@ -183,6 +182,7 @@ ip6_init()
 			ip6_protox[pr->pr_protocol] = pr - inet6sw;
 	ip6intrq.ifq_maxlen = ip6qmaxlen;
 	mtx_init(&ip6intrq.ifq_mtx, "ip6_inq", MTX_DEF);
+	ip6intrq_present = 1;
 	register_netisr(NETISR_IPV6, ip6intr);
 	nd6_init();
 	frag6_init();

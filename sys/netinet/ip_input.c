@@ -171,7 +171,6 @@ SYSCTL_STRUCT(_net_inet_ip, IPCTL_STATS, stats, CTLFLAG_RW,
 static TAILQ_HEAD(ipqhead, ipq) ipq[IPREASS_NHASH];
 static int    nipq = 0;         /* total # of reass queues */
 static int    maxnipq;
-const  int    ipintrq_present = 1;
 
 #ifdef IPCTL_DEFMTU
 SYSCTL_INT(_net_inet_ip, IPCTL_DEFMTU, mtu, CTLFLAG_RW,
@@ -255,6 +254,7 @@ ip_init()
 #endif
 	ipintrq.ifq_maxlen = ipqmaxlen;
 	mtx_init(&ipintrq.ifq_mtx, "ip_inq", MTX_DEF);
+	ipintrq_present = 1;
 
 	register_netisr(NETISR_IP, ipintr);
 }

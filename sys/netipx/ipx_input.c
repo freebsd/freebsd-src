@@ -89,7 +89,6 @@ struct	ipxpcb ipxrawpcb;
 static int ipxqmaxlen = IFQ_MAXLEN;
 
 long	ipx_pexseq;
-const int ipxintrq_present = 1;
 
 static	int ipx_do_route(struct ipx_addr *src, struct route *ro);
 static	void ipx_undo_route(struct route *ro);
@@ -108,6 +107,7 @@ ipx_init()
 	read_random(&ipx_pexseq, sizeof ipx_pexseq);
 	ipxintrq.ifq_maxlen = ipxqmaxlen;
 	mtx_init(&ipxintrq.ifq_mtx, "ipx_inq", MTX_DEF);
+	ipxintrq_present = 1;
 	ipxpcb.ipxp_next = ipxpcb.ipxp_prev = &ipxpcb;
 	ipxrawpcb.ipxp_next = ipxrawpcb.ipxp_prev = &ipxrawpcb;
 

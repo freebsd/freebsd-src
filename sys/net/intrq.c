@@ -41,17 +41,17 @@
 /*
  * If the appropriate intrq_present variable is zero, don't use
  * the queue (as it'll never get processed).
- * When defined, each of the network stacks declares their own
- * *intrq_present variable to be non-zero.
+ * Each of the active network stacks sets their own
+ * *intrq_present variable non-zero.
  */
-const int	atintrq1_present;
-const int	atintrq2_present;
-const int	atmintrq_present;
-const int	ipintrq_present;
-const int	ip6intrq_present;
-const int	ipxintrq_present;
-const int	natmintrq_present;
-const int	nsintrq_present;
+int	atintrq1_present;
+int	atintrq2_present;
+int	atmintrq_present;
+int	ipintrq_present;
+int	ip6intrq_present;
+int	ipxintrq_present;
+int	natmintrq_present;
+int	nsintrq_present;
 
 struct ifqueue	atintrq1;
 struct ifqueue	atintrq2;

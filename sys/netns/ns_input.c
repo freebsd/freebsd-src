@@ -79,8 +79,6 @@ int	nsqmaxlen = IFQ_MAXLEN;
 int	idpcksum = 1;
 long	ns_pexseq;
 
-const int	nsintrq_present = 1;
-
 ns_init()
 {
 	extern struct timeval time;
@@ -91,6 +89,7 @@ ns_init()
 	nsrawpcb.nsp_next = nsrawpcb.nsp_prev = &nsrawpcb;
 	nsintrq.ifq_maxlen = nsqmaxlen;
 	mtx_init(&nsintrq.ifq_mtx, "ns_inq", MTX_DEF);
+	nsintrq_present = 1;
 	ns_pexseq = time.tv_usec;
 	ns_netmask.sns_len = 6;
 	ns_netmask.sns_addr.x_net = ns_broadnet;
