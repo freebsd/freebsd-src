@@ -52,7 +52,9 @@ makedevs.c:	Makefile rtermcap keymap.h
 	./rtermcap vt100 | \
 		file2c 'const char termcap_vt100[] = {' ',0};' \
 		>> makedevs.tmp
+.if ${MACHINE_ARCH} != "alpha"
 	file2c 'u_char boot0[] = {' '};' < /boot/boot0 >> makedevs.tmp
+.endif
 	mv makedevs.tmp makedevs.c
 
 rtermcap:	${.CURDIR}/rtermcap.c
