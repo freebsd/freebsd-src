@@ -13,15 +13,15 @@
 static const char sccsid[] = "%Z% %M% %I% %E% %U%";
 #endif
 
-#include <stdio.h>
-#include <syslog.h>
-#include <ctype.h>
 #include <sys/types.h>
-#include <grp.h>
+#include <ctype.h>
 #include <errno.h>
-#include <string.h>
-#include <unistd.h>
+#include <grp.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <syslog.h>
+#include <unistd.h>
 
 #include "login.h"
 #include "pathnames.h"
@@ -36,11 +36,11 @@ static char sep[] = ", \t";		/* list-element separator */
 #define YES             1
 #define NO              0
 
-static int list_match __P((char *, char *, int (*)(char *, char *)));
-static int user_match __P((char *, char *));
-static int from_match __P((char *, char *));
-static int string_match __P((char *, char *));
-static int netgroup_match __P((char *, char *, char *));
+static int	from_match __P((char *, char *));
+static int	list_match __P((char *, char *, int (*)(char *, char *)));
+static int	netgroup_match __P((char *, char *, char *));
+static int	string_match __P((char *, char *));
+static int	user_match __P((char *, char *));
 
 /* login_access - match username/group and host/tty with access control file */
 
