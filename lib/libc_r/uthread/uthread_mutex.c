@@ -37,6 +37,8 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
+static spinlock_t static_init_lock = _SPINLOCK_INITIALIZER;
+
 int
 pthread_mutex_init(pthread_mutex_t * mutex,
 		   const pthread_mutexattr_t * mutex_attr)
@@ -137,6 +139,23 @@ pthread_mutex_destroy(pthread_mutex_t * mutex)
 	return (ret);
 }
 
+static int
+init_static (pthread_mutex_t *mutex)
+{
+	int ret;
+
+	_SPINLOCK(&static_init_lock);
+
+	if ( *mutex == NULL )
+		ret = pthread_mutex_init(mutex, NULL);
+	else
+		ret = 0;
+
+	_SPINUNLOCK(&static_init_lock);
+
+	return(ret);
+}
+
 int
 pthread_mutex_trylock(pthread_mutex_t * mutex)
 {
@@ -149,8 +168,7 @@ pthread_mutex_trylock(pthread_mutex_t * mutex)
 	 * If the mutex is statically initialized, perform the dynamic
 	 * initialization:
 	 */
-	else if (*mutex != NULL ||
-	    (ret = pthread_mutex_init(mutex,NULL)) == 0) {
+	else if (*mutex != NULL || (ret = init_static(mutex)) == 0) {
 		/* Lock the mutex structure: */
 		_SPINLOCK(&(*mutex)->lock);
 
@@ -216,8 +234,7 @@ pthread_mutex_lock(pthread_mutex_t * mutex)
 	 * If the mutex is statically initialized, perform the dynamic
 	 * initialization:
 	 */
-	else if (*mutex != NULL ||
-	    (ret = pthread_mutex_init(mutex,NULL)) == 0) {
+	else if (*mutex != NULL || (ret = init_static(mutex)) == 0) {
 		/* Lock the mutex structure: */
 		_SPINLOCK(&(*mutex)->lock);
 
