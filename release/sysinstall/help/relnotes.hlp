@@ -13,36 +13,17 @@ see ABOUT.TXT.  For general information about FreeBSD, see README.TXT.
 For installation instructions, see the INSTALL.TXT and HARDWARE.TXT
 files.
 
-
 1. What's new since 2.2.X-RELEASE
 ------------------------------------
 
-The ATAPI CD-ROM support is now reported to work for quite an
-impressive number of drives.  In other words, all the drives that
-basically adhere to the ATAPI standard are likely to work.
+The kernel code from 4.4BSD-Lite2 has been (finally) merged.
 
-There are many new drivers available in the kernel, too many to keep
-them in mind.  Tekram supplied a driver for their DC390 and DC390T
-controllers.  These controllers are based on the AMD 53c974, and the
-driver is also able to handle other SCSI controllers based on that
-chip.  Of course, with Tekram being generous enough to support the
-FreeBSD project with their driver, we'd like to encourage you to buy
-their product.
+Use the new if_multiaddrs list for multicast addresses rather than the
+previous hackery involving struct in_ifaddr and arpcom.  Get rid of the
+abominable multi_kludge.
 
-The `ed' and `lnc' drivers now support auto-configuration for the
-respective PCI ethernet cards, including many NE2000 clones and the
-AMD PCnet chips.
-
-The SDL RISCom N2 support is new, as well as the PCI version of the
-Cyclades driver.
-
-The Intel Etherexpress Pro/10 card is now supported.
-
-Support for APM BIOSes is now in a much better shape.
-
-The manual section 9 has been started, describing `official' kernel
-programming interfaces.  We are still seeking volunteers to document
-interfaces here!
+The Advansys Systems Inc. SCSI Controller driver for ISA/VLB cards
+has been added.
 
 
 2. Supported Configurations
@@ -154,6 +135,7 @@ Fujitsu MB86960A/MB86965A
 HP PC Lan+ cards (model numbers: 27247B and 27252A).
 
 Intel EtherExpress (not recommended due to driver instability)
+Intel EtherExpress Pro/10
 Intel EtherExpress Pro/100B PCI Fast Ethernet
 
 Isolan AT 4141-0 (16 bit)
