@@ -192,6 +192,8 @@
                 ..
                 tbl_data
                 ..
+                th_TH
+                ..
                 th_TH.TACTIS
                 ..
                 tscii-0
@@ -201,6 +203,10 @@
                 vi_VN.viscii
                 ..
                 zh
+                ..
+                zh_CN.gbk
+                ..
+                zh_HK.big5hkscs
                 ..
                 zh_TW
                 ..
