@@ -68,7 +68,6 @@
 #define SWS_REGS   8 /* we use an area of 8 bytes for io */
 
 #include <sys/param.h>
-#include <sys/ioccom.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>

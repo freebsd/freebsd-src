@@ -48,7 +48,6 @@
 #elif defined(__FreeBSD__)
 #include <sys/module.h>
 #include <sys/bus.h>
-#include <sys/ioccom.h>
 #endif
 #include <sys/tty.h>
 #include <sys/file.h>

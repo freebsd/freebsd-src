@@ -49,7 +49,6 @@
 #if NISIC > 0 && defined(AVM_A1)
 
 #include <sys/param.h>
-#include <sys/ioccom.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>

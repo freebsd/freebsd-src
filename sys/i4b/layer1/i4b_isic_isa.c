@@ -41,7 +41,6 @@
 #if NISIC > 0
 
 #include <sys/param.h>
-#include <sys/ioccom.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
