@@ -1,15 +1,12 @@
-# $Id: Makefile,v 1.2 2003/04/26 23:55:34 max Exp $
+# $Id: Makefile,v 1.7 2003/09/07 18:15:55 max Exp $
 # $FreeBSD$
 
 PROG=		rfcomm_sppd
-MAN1=		rfcomm_sppd.1
-
-DESTDIR=        /usr/bin/
-MANDIR=         ../share/man/man
-
+MAN=		rfcomm_sppd.1
+SRCS=		rfcomm_sppd.c rfcomm_sdp.c
 WARNS?=		2
-CFLAGS+=	-g -I${.CURDIR}/../../../sys/netgraph/bluetooth/include/
 
-SRCS=		rfcomm_sppd.c
+DPADD=		${LIBBLUETOOTH} ${LIBSDP}
+LDADD=		-lbluetooth -lsdp
 
 .include <bsd.prog.mk>

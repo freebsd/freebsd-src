@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_l2cap_cmds.c,v 1.1 2002/11/24 19:47:06 max Exp $
+ * $Id: ng_l2cap_cmds.c,v 1.2 2003/09/08 19:11:45 max Exp $
  * $FreeBSD$
  */
 
@@ -69,7 +69,7 @@ ng_l2cap_con_wakeup(ng_l2cap_con_p con)
 	TAILQ_FOREACH(cmd, &con->cmd_list, next) {
 		KASSERT((cmd->con == con),
 ("%s: %s - invalid connection pointer!\n",
-		__func__, NG_NODE_NAME(con->l2cap->node)));
+			__func__, NG_NODE_NAME(con->l2cap->node)));
 
 		if (!(cmd->flags & NG_L2CAP_CMD_PENDING))
 			break;
@@ -200,12 +200,9 @@ ng_l2cap_con_wakeup(ng_l2cap_con_p con)
 	/* XXX FIXME add other commands */
 
 	default:
-		KASSERT(0,
-("%s: %s - unknown command code=%d\n",
-			__func__, NG_NODE_NAME(con->l2cap->node), cmd->code));
-
-		ng_l2cap_unlink_cmd(cmd);
-		ng_l2cap_free_cmd(cmd);
+		panic(
+"%s: %s - unknown command code=%d\n",
+			__func__, NG_NODE_NAME(con->l2cap->node), cmd->code);
 		break;
 	}
 } /* ng_l2cap_con_wakeup */
@@ -237,7 +234,7 @@ ng_l2cap_con_fail(ng_l2cap_con_p con, u_int16_t result)
 
 		KASSERT((cmd->con == con),
 ("%s: %s - invalid connection pointer!\n",
-			__func__, NG_NODE_NAME(con->l2cap->node)));
+			__func__, NG_NODE_NAME(l2cap->node)));
 
 		switch (cmd->code) {
 		case NG_L2CAP_CMD_REJ:
@@ -280,10 +277,9 @@ ng_l2cap_con_fail(ng_l2cap_con_p con, u_int16_t result)
 		/* XXX FIXME add other commands */
 
 		default:
-			KASSERT(0,
-("%s: %s - unexpected command code=%d\n",
-				__func__, NG_NODE_NAME(con->l2cap->node),
-				cmd->code));
+			panic(
+"%s: %s - unexpected command code=%d\n",
+				__func__, NG_NODE_NAME(l2cap->node), cmd->code);
 			break;
 		}
 
@@ -314,11 +310,34 @@ ng_l2cap_con_fail(ng_l2cap_con_p con, u_int16_t result)
 void
 ng_l2cap_process_command_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 {
-	ng_l2cap_cmd_p	cmd = (ng_l2cap_cmd_p) arg1;
+	ng_l2cap_p	l2cap = NULL;
+	ng_l2cap_con_p	con = NULL;
+	ng_l2cap_cmd_p	cmd = NULL;
+	u_int16_t	con_handle = (arg2 & 0x0ffff);
+	u_int8_t	ident = ((arg2 >> 16) & 0xff);
 
-	KASSERT((cmd->flags & NG_L2CAP_CMD_PENDING),
-("%s: %s - invalid command flags flags=%#x!\n",
-		__func__, NG_NODE_NAME(cmd->con->l2cap->node), cmd->flags));
+	if (NG_NODE_NOT_VALID(node)) {
+		printf("%s: Netgraph node is not valid\n", __func__);
+		return;
+	}
+
+	l2cap = (ng_l2cap_p) NG_NODE_PRIVATE(node);
+
+	con = ng_l2cap_con_by_handle(l2cap, con_handle);
+	if (con == NULL) {
+		NG_L2CAP_ALERT(
+"%s: %s - could not find connection, con_handle=%d\n",
+			__func__, NG_NODE_NAME(node), con_handle);
+		return;
+	}
+
+	cmd = ng_l2cap_cmd_by_ident(con, ident);
+	if (cmd == NULL) {
+		NG_L2CAP_ALERT(
+"%s: %s - could not find command, con_handle=%d, ident=%d\n",
+			__func__, NG_NODE_NAME(node), con_handle, ident);
+		return;
+	}
 
 	cmd->flags &= ~NG_L2CAP_CMD_PENDING;
 	ng_l2cap_unlink_cmd(cmd);
@@ -340,7 +359,7 @@ ng_l2cap_process_command_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 
 	case NG_L2CAP_ECHO_REQ:
 		/* Echo request timed out. Let the upper layer know */
-		ng_l2cap_l2ca_ping_rsp(cmd->con, cmd->token, 
+		ng_l2cap_l2ca_ping_rsp(cmd->con, cmd->token,
 			NG_L2CAP_TIMEOUT, NULL);
 		break;
 
@@ -353,10 +372,9 @@ ng_l2cap_process_command_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 	/* XXX FIXME add other commands */
 
 	default:
-		KASSERT(0,
-("%s: %s - unexpected command code=%d\n",
-			__func__, NG_NODE_NAME(cmd->con->l2cap->node),
-			cmd->code));
+		panic(
+"%s: %s - unexpected command code=%d\n",
+			__func__, NG_NODE_NAME(l2cap->node), cmd->code);
 		break;
 	}
 

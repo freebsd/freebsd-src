@@ -25,14 +25,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: link_control.c,v 1.2 2003/03/15 03:07:39 max Exp $
+ * $Id: link_control.c,v 1.4 2003/08/18 19:19:54 max Exp $
  * $FreeBSD$
  */
 
-#include <sys/types.h>
-#include <sys/endian.h>
+#include <bluetooth.h>
 #include <errno.h>
-#include <ng_hci.h>
 #include <stdio.h>
 #include <string.h>
 #include "hccontrol.h"
@@ -158,9 +156,7 @@ hci_inquiry_response(int n, u_int8_t **b)
 	}			*ir = (struct inquiry_response *)(*b);
 
 	fprintf(stdout, "Inquiry result #%d\n", n);
-	fprintf(stdout, "\tBD_ADDR: %02x:%02x:%02x:%02x:%02x:%02x\n",
-		ir->bdaddr.b[5], ir->bdaddr.b[4], ir->bdaddr.b[3],
-		ir->bdaddr.b[2], ir->bdaddr.b[1], ir->bdaddr.b[0]);
+	fprintf(stdout, "\tBD_ADDR: %s\n", hci_bdaddr2str(&ir->bdaddr));
 	fprintf(stdout, "\tPage Scan Rep. Mode: %#02x\n",
 		ir->page_scan_rep_mode);
 	fprintf(stdout, "\tPage Scan Period Mode: %#02x\n",
@@ -179,7 +175,7 @@ hci_inquiry_response(int n, u_int8_t **b)
 static int
 hci_create_connection(int s, int argc, char **argv)
 {
-	int			 n0, n1, n2, n3, n4, n5;
+	int			 n0;
 	char			 b[512];
 	ng_hci_create_con_cp	 cp;
 	ng_hci_event_pkt_t	*e = (ng_hci_event_pkt_t *) b; 
@@ -241,16 +237,14 @@ hci_create_connection(int s, int argc, char **argv)
 
 	case 1:
 		/* BD_ADDR */
-		if (sscanf(argv[0], "%x:%x:%x:%x:%x:%x",
-				&n5, &n4, &n3, &n2, &n1, &n0) != 6)
-			return (USAGE);
+		if (!bt_aton(argv[0], &cp.bdaddr)) {
+			struct hostent	*he = NULL;
 
-		cp.bdaddr.b[0] = (n0 & 0xff);
-		cp.bdaddr.b[1] = (n1 & 0xff);
-		cp.bdaddr.b[2] = (n2 & 0xff);
-		cp.bdaddr.b[3] = (n3 & 0xff);
-		cp.bdaddr.b[4] = (n4 & 0xff);
-		cp.bdaddr.b[5] = (n5 & 0xff);
+			if ((he = bt_gethostbyname(argv[0])) == NULL)
+				return (USAGE);
+
+			memcpy(&cp.bdaddr, he->h_addr, sizeof(cp.bdaddr));
+		}
 		break;
 
 	default:
@@ -286,9 +280,7 @@ again:
 			return (FAILED);
 		}
 
-		fprintf(stdout, "BD_ADDR: %02x:%02x:%02x:%02x:%02x:%02x\n",
-			ep->bdaddr.b[5], ep->bdaddr.b[4], ep->bdaddr.b[3],
-			ep->bdaddr.b[2], ep->bdaddr.b[1], ep->bdaddr.b[0]);
+		fprintf(stdout, "BD_ADDR: %s\n", hci_bdaddr2str(&ep->bdaddr));
 		fprintf(stdout, "Connection handle: %d\n",
 			le16toh(ep->con_handle));
 		fprintf(stdout, "Encryption mode: %s [%d]\n",
@@ -443,9 +435,7 @@ again:
 			return (FAILED);
 		}
 
-		fprintf(stdout, "BD_ADDR: %02x:%02x:%02x:%02x:%02x:%02x\n",
-			ep->bdaddr.b[5], ep->bdaddr.b[4], ep->bdaddr.b[3],
-			ep->bdaddr.b[2], ep->bdaddr.b[1], ep->bdaddr.b[0]);
+		fprintf(stdout, "BD_ADDR: %s\n", hci_bdaddr2str(&ep->bdaddr));
 		fprintf(stdout, "Connection handle: %d\n",
 			le16toh(ep->con_handle));
 		fprintf(stdout, "Encryption mode: %s [%d]\n",
@@ -531,7 +521,7 @@ again:
 static int
 hci_remote_name_request(int s, int argc, char **argv)
 {
-	int				 n0, n1, n2, n3, n4, n5;
+	int				 n0;
 	char				 b[512];
 	ng_hci_remote_name_req_cp	 cp;
 	ng_hci_event_pkt_t		*e = (ng_hci_event_pkt_t *) b; 
@@ -566,16 +556,14 @@ hci_remote_name_request(int s, int argc, char **argv)
 
 	case 1:
 		/* BD_ADDR */
-		if (sscanf(argv[0], "%x:%x:%x:%x:%x:%x",
-				&n5, &n4, &n3, &n2, &n1, &n0) != 6)
-			return (USAGE);
+		if (!bt_aton(argv[0], &cp.bdaddr)) {
+			struct hostent	*he = NULL;
 
-		cp.bdaddr.b[0] = (n0 & 0xff);
-		cp.bdaddr.b[1] = (n1 & 0xff);
-		cp.bdaddr.b[2] = (n2 & 0xff);
-		cp.bdaddr.b[3] = (n3 & 0xff);
-		cp.bdaddr.b[4] = (n4 & 0xff);
-		cp.bdaddr.b[5] = (n5 & 0xff);
+			if ((he = bt_gethostbyname(argv[0])) == NULL)
+				return (USAGE);
+
+			memcpy(&cp.bdaddr, he->h_addr, sizeof(cp.bdaddr));
+		}
 		break;
 
 	default:
@@ -612,9 +600,7 @@ again:
 			return (FAILED);
 		}
 
-		fprintf(stdout, "BD_ADDR: %02x:%02x:%02x:%02x:%02x:%02x\n",
-			ep->bdaddr.b[5], ep->bdaddr.b[4], ep->bdaddr.b[3],
-			ep->bdaddr.b[2], ep->bdaddr.b[1], ep->bdaddr.b[0]);
+		fprintf(stdout, "BD_ADDR: %s\n", hci_bdaddr2str(&ep->bdaddr));
 		fprintf(stdout, "Name: %s\n", ep->name);
 	} else 
 		goto again;

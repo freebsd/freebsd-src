@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_hci_evnt.c,v 1.5 2003/04/01 18:15:25 max Exp $
+ * $Id: ng_hci_evnt.c,v 1.6 2003/09/08 18:57:51 max Exp $
  * $FreeBSD$
  */
 
@@ -454,7 +454,10 @@ con_compl(ng_hci_unit_p unit, struct mbuf *event)
 	 * Two possible cases:
 	 *
 	 * 1) We have found connection descriptor. That means upper layer has
-	 *    requested this connection via LP_CON_REQ message
+	 *    requested this connection via LP_CON_REQ message. In this case
+	 *    connection must have timeout set. If ng_hci_con_untimeout() fails
+	 *    then timeout message already went into node's queue. In this case
+	 *    ignore Connection_Complete event and let timeout deal with it.
 	 *
 	 * 2) We do not have connection descriptor. That means upper layer
 	 *    nas not requested this connection or (less likely) we gave up
@@ -474,8 +477,8 @@ con_compl(ng_hci_unit_p unit, struct mbuf *event)
 		}
 
 		bcopy(&ep->bdaddr, &con->bdaddr, sizeof(con->bdaddr));
-	} else
-		ng_hci_con_untimeout(con);
+	} else if ((error = ng_hci_con_untimeout(con)) != 0)
+			goto out;
 
 	/*
 	 * Update connection descriptor and send notification 
@@ -543,7 +546,7 @@ out:
 	NG_FREE_M(event);
 
 	return (error);
-} /* com_compl */
+} /* con_compl */
 
 /* Connection request event */
 static int
@@ -617,8 +620,10 @@ con_req(ng_hci_unit_p unit, struct mbuf *event)
 			ng_hci_con_timeout(con);
 
 			error = ng_hci_lp_con_ind(con, ep->uclass);
-			if (error != 0)
+			if (error != 0) {
+				ng_hci_con_untimeout(con);
 				ng_hci_free_con(con);
+			}
 		} else
 			error = ENOMEM;
 	}
@@ -655,6 +660,11 @@ discon_compl(ng_hci_unit_p unit, struct mbuf *event)
 		con = ng_hci_con_by_handle(unit, h);
 		if (con != NULL) {
 			error = ng_hci_lp_discon_ind(con, ep->reason);
+
+			/* Remove all timeouts (if any) */
+			if (con->flags & NG_HCI_CON_TIMEOUT_PENDING)
+				ng_hci_con_untimeout(con);
+
 			ng_hci_free_con(con);
 		} else {
 			NG_HCI_ALERT(

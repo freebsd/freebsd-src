@@ -25,19 +25,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: l2control.c,v 1.3 2003/04/27 19:45:34 max Exp $
+ * $Id: l2control.c,v 1.6 2003/09/05 00:38:25 max Exp $
  * $FreeBSD$
  */
 
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <bitstring.h>
 #include <assert.h>
+#include <bluetooth.h>
 #include <err.h>
 #include <errno.h>
-#include <ng_hci.h>
-#include <ng_l2cap.h>
-#include <ng_btsocket.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -52,6 +47,9 @@ static void                   print_l2cap_command (struct l2cap_command *);
 static void                   usage               (void);
 
 /* Main */
+
+int	numeric_bdaddr = 0;
+
 int
 main(int argc, char *argv[])
 {
@@ -61,24 +59,22 @@ main(int argc, char *argv[])
 	memset(&bdaddr, 0, sizeof(bdaddr));
 
 	/* Process command line arguments */
-	while ((n = getopt(argc, argv, "a:h")) != -1) {
+	while ((n = getopt(argc, argv, "a:nh")) != -1) {
 		switch (n) {
-		case 'a': {
-			int	a0, a1, a2, a3, a4, a5;
+		case 'a':
+			if (!bt_aton(optarg, &bdaddr)) {
+				struct hostent	*he = NULL;
 
-			if (sscanf(optarg, "%x:%x:%x:%x:%x:%x",
-					&a5, &a4, &a3, &a2, &a1, &a0) != 6) {
-				usage();
-				break;
+				if ((he = bt_gethostbyname(optarg)) == NULL)
+					errx(1, "%s: %s", optarg, hstrerror(h_errno));
+
+				memcpy(&bdaddr, he->h_addr, sizeof(bdaddr));
 			}
+			break;
 
-			bdaddr.b[0] = (a0 & 0xff);
-			bdaddr.b[1] = (a1 & 0xff);
-			bdaddr.b[2] = (a2 & 0xff);
-			bdaddr.b[3] = (a3 & 0xff);
-			bdaddr.b[4] = (a4 & 0xff);
-			bdaddr.b[5] = (a5 & 0xff);
-			} break;
+		case 'n':
+			numeric_bdaddr = 1;
+			break;
 
 		case 'h':
 		default:
@@ -144,10 +140,7 @@ do_l2cap_command(bdaddr_p bdaddr, int argc, char **argv)
 	
 		if (bind(s, (struct sockaddr *) &sa, sizeof(sa)) < 0)
 			err(2,
-"Could not bind socket, bdaddr=%x:%x:%x:%x:%x:%x",
-				sa.l2cap_bdaddr.b[5], sa.l2cap_bdaddr.b[4],
-				sa.l2cap_bdaddr.b[3], sa.l2cap_bdaddr.b[2],
-				sa.l2cap_bdaddr.b[1], sa.l2cap_bdaddr.b[0]);
+"Could not bind socket, bdaddr=%s", bt_ntoa(&sa.l2cap_bdaddr, NULL));
 
 		e = 0x0ffff;
 		if (setsockopt(s, SOL_SOCKET, SO_RCVBUF, &e, sizeof(e)) < 0)
@@ -200,7 +193,7 @@ find_l2cap_command(char const *command, struct l2cap_command *category)
 	return (NULL);
 } /* find_l2cap_command */
 
-/* Try to find command in specified category */
+/* Print commands in specified category */
 static void
 print_l2cap_command(struct l2cap_command *category)
 {
@@ -214,7 +207,7 @@ print_l2cap_command(struct l2cap_command *category)
 static void
 usage(void)
 {
-	fprintf(stdout, "Usage: l2control -a BD_ADDR [-h] cmd [p1] [..]]\n");
+	fprintf(stdout, "Usage: l2control -a BD_ADDR [-n] [-h] cmd [p1] [..]]\n");
 	exit(255);
 } /* usage */
 

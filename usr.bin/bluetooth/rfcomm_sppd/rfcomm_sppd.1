@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: rfcomm_sppd.1,v 1.1 2003/04/26 23:55:34 max Exp $
+.\" $Id: rfcomm_sppd.1,v 1.3 2003/09/07 18:15:55 max Exp $
 .\" $FreeBSD$
 .\"
 .Dd April 26, 2003
@@ -72,8 +72,12 @@ This required option specifies the remote BD_ADDR of the RFCOMM server.
 .It Fl b
 Detach from the controlling terminal, i.e., run in background.
 .It Fl c Ar channel
-This required option specifies RFCOMM channel to connect to.
-This channel must provide Serial Port service.
+This option specifies RFCOMM channel to connect to.
+The channel must provide Serial Port service.
+If channel was not specified then
+.Nm
+utility will try to obtain RFCOMM channel via Service Discovery Protocol from
+the server.
 .It Fl h
 Display usage message and exit.
 .It Fl t Ar tty
@@ -101,9 +105,7 @@ slave pseudo terminals
 .Sh DIAGNOSTICS
 .Ex -std
 .Sh BUGS
-The
-.Nm
-utility is not currently integrated with SDP (Service Discovery Protocol).
+Please report if found.
 .Sh SEE ALSO
 .Xr ng_btsocket 4 ,
 .Xr pty 4 ,

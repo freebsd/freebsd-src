@@ -25,15 +25,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: link_policy.c,v 1.1 2002/11/24 20:22:38 max Exp $
+ * $Id: link_policy.c,v 1.3 2003/08/18 19:19:54 max Exp $
  * $FreeBSD$
  */
 
-#include <sys/types.h>
-#include <sys/endian.h>
+#include <bluetooth.h>
 #include <errno.h>
-#include <ng_hci.h>
 #include <stdio.h>
+#include <string.h>
 #include "hccontrol.h"
 
 /* Send Role Discovery to the unit */
@@ -84,7 +83,7 @@ hci_role_discovery(int s, int argc, char **argv)
 static int
 hci_switch_role(int s, int argc, char **argv)
 {
-	int			 n0, n1, n2, n3, n4, n5;
+	int			 n0;
 	char			 b[512];
 	ng_hci_switch_role_cp	 cp;
 	ng_hci_event_pkt_t	*e = (ng_hci_event_pkt_t *) b; 
@@ -93,16 +92,14 @@ hci_switch_role(int s, int argc, char **argv)
 	switch (argc) {
 	case 2:
 		/* bdaddr */
-		if (sscanf(argv[0], "%x:%x:%x:%x:%x:%x",
-				&n5, &n4, &n3, &n2, &n1, &n0) != 6)
-			return (USAGE);
+		if (!bt_aton(argv[0], &cp.bdaddr)) {
+			struct hostent	*he = NULL;
 
-		cp.bdaddr.b[0] = n0 & 0xff;
-		cp.bdaddr.b[1] = n1 & 0xff;
-		cp.bdaddr.b[2] = n2 & 0xff;
-		cp.bdaddr.b[3] = n3 & 0xff;
-		cp.bdaddr.b[4] = n4 & 0xff;
-		cp.bdaddr.b[5] = n5 & 0xff;
+			if ((he = bt_gethostbyname(argv[0])) == NULL)
+				return (USAGE);
+
+			memcpy(&cp.bdaddr, he->h_addr, sizeof(cp.bdaddr));
+		}
 
 		/* role */
 		if (sscanf(argv[1], "%d", &n0) != 1)
@@ -144,9 +141,7 @@ again:
 			return (FAILED);
 		}
 
-		fprintf(stdout, "BD_ADDR: %02x:%02x:%02x:%02x:%02x:%02x\n",
-			ep->bdaddr.b[5], ep->bdaddr.b[4], ep->bdaddr.b[3],
-			ep->bdaddr.b[2], ep->bdaddr.b[1], ep->bdaddr.b[0]);
+		fprintf(stdout, "BD_ADDR: %s\n", hci_bdaddr2str(&ep->bdaddr));
 		fprintf(stdout, "Role: %s [%#x]\n",
 			(ep->role == NG_HCI_ROLE_MASTER)? "Master" : "Slave",
 			ep->role);

@@ -25,20 +25,20 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: bt3cfw.c,v 1.1 2002/11/24 20:22:37 max Exp $
+ * $Id: bt3cfw.c,v 1.2 2003/05/21 22:40:29 max Exp $
  * $FreeBSD$
  */
 
 #include <sys/types.h>
 #include <errno.h>
 #include <netgraph.h>
+#include <netgraph/bluetooth/include/ng_bt3c.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
 #include <unistd.h>
-#include "ng_bt3c.h"
 
 #define BT3CFW_IDENT			"bt3cfw"
 #define BT3CFW_MAX_FIRMWARE_SIZE	0xffff

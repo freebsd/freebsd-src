@@ -25,20 +25,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: hcsecd.c,v 1.3 2003/04/27 19:45:32 max Exp $
+ * $Id: hcsecd.c,v 1.6 2003/08/18 19:19:55 max Exp $
  * $FreeBSD$
  */
 
-#include <sys/types.h>
-#include <sys/endian.h>
-#include <sys/socket.h>
 #include <sys/queue.h>
-#include <bitstring.h>
+#include <bluetooth.h>
 #include <err.h>
 #include <errno.h>
-#include <ng_hci.h>
-#include <ng_l2cap.h>
-#include <ng_btsocket.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -47,10 +41,6 @@
 #include <syslog.h>
 #include <unistd.h>
 #include "hcsecd.h"
-
-#define	HCSECD_BUFFER_SIZE	512
-#define	HCSECD_IDENT		"hcsecd"
-#define	HCSECD_PIDFILE		"/var/run/" HCSECD_IDENT ".pid"
 
 static int	done = 0;
 
@@ -62,6 +52,10 @@ static int send_pin_code_reply
 	(int sock, struct sockaddr_hci *addr, bdaddr_p bdaddr, char const *pin);
 static int send_link_key_reply
 	(int sock, struct sockaddr_hci *addr, bdaddr_p bdaddr, u_int8_t *key);
+static int process_link_key_notification_event
+	(int sock, struct sockaddr_hci *addr, ng_hci_link_key_notification_ep *ep);
+static void sighup
+	(int s);
 static void sigint
 	(int s);
 static void usage
@@ -115,7 +109,7 @@ main(int argc, char *argv[])
 		err(1, "Could not sigaction(SIGINT)");
 
 	memset(&sa, 0, sizeof(sa));
-	sa.sa_handler = read_config_file;
+	sa.sa_handler = sighup;
 	if (sigaction(SIGHUP, &sa, NULL) < 0)
 		err(1, "Could not sigaction(SIGHUP)");
 
@@ -127,6 +121,7 @@ main(int argc, char *argv[])
 	memset(&filter, 0, sizeof(filter));
 	bit_set(filter.event_mask, NG_HCI_EVENT_PIN_CODE_REQ - 1);
 	bit_set(filter.event_mask, NG_HCI_EVENT_LINK_KEY_REQ - 1);
+	bit_set(filter.event_mask, NG_HCI_EVENT_LINK_KEY_NOTIFICATION - 1);
 
 	if (setsockopt(sock, SOL_HCI_RAW, SO_HCI_RAW_FILTER,
 			(void * const) &filter, sizeof(filter)) < 0)
@@ -138,7 +133,8 @@ main(int argc, char *argv[])
 
 	openlog(HCSECD_IDENT, LOG_NDELAY|LOG_PERROR|LOG_PID, LOG_DAEMON);
 
-	read_config_file(0);
+	read_config_file();
+	read_keys_file();
 
 	if (detach) {
 		FILE	*pid = NULL;
@@ -184,6 +180,11 @@ main(int argc, char *argv[])
 							(bdaddr_p)(event + 1));
 			break;
 
+		case NG_HCI_EVENT_LINK_KEY_NOTIFICATION:
+			process_link_key_notification_event(sock, &addr,
+				(ng_hci_link_key_notification_ep *)(event + 1));
+			break;
+
 		default:
 			syslog(LOG_ERR, "Received unexpected HCI event, " \
 					"event=%#x", event->event);
@@ -196,6 +197,7 @@ main(int argc, char *argv[])
 			syslog(LOG_ERR, "Could not remove PID file %s. %s (%d)",
 					HCSECD_PIDFILE, strerror(errno), errno);
 
+	dump_keys_file();
 	clean_config();
 	closelog();
 	close(sock);
@@ -211,27 +213,21 @@ process_pin_code_request_event(int sock, struct sockaddr_hci *addr,
 	link_key_p	key = NULL;
 
 	syslog(LOG_DEBUG, "Got PIN_Code_Request event from '%s', " \
-			"remote bdaddr %x:%x:%x:%x:%x:%x", addr->hci_node,
-			bdaddr->b[5], bdaddr->b[4], bdaddr->b[3],
-			bdaddr->b[2], bdaddr->b[1], bdaddr->b[0]);
+			"remote bdaddr %s", addr->hci_node,
+			bt_ntoa(bdaddr, NULL));
 
 	if ((key = get_key(bdaddr, 0)) != NULL) {
 		syslog(LOG_DEBUG, "Found matching entry, " \
-				"remote bdaddr %x:%x:%x:%x:%x:%x, name '%s', " \
-				"PIN code %s",
-				key->bdaddr.b[5], key->bdaddr.b[4],
-				key->bdaddr.b[3], key->bdaddr.b[2],
-				key->bdaddr.b[1], key->bdaddr.b[0],
+				"remote bdaddr %s, name '%s', PIN code %s",
+				bt_ntoa(&key->bdaddr, NULL),
 				(key->name != NULL)? key->name : "No name",
 				(key->pin != NULL)? "exists" : "doesn't exist");
 
 		return (send_pin_code_reply(sock, addr, bdaddr, key->pin));
 	}
 
-	syslog(LOG_DEBUG, "Could not PIN code for remote bdaddr " \
-			"%x:%x:%x:%x:%x:%x",
-			bdaddr->b[5], bdaddr->b[4], bdaddr->b[3],
-			bdaddr->b[2], bdaddr->b[1], bdaddr->b[0]);
+	syslog(LOG_DEBUG, "Could not PIN code for remote bdaddr %s",
+			bt_ntoa(bdaddr, NULL));
 
 	return (send_pin_code_reply(sock, addr, bdaddr, NULL));
 }
@@ -244,27 +240,21 @@ process_link_key_request_event(int sock, struct sockaddr_hci *addr,
 	link_key_p	key = NULL;
 
 	syslog(LOG_DEBUG, "Got Link_Key_Request event from '%s', " \
-			"remote bdaddr %x:%x:%x:%x:%x:%x", addr->hci_node,
-			bdaddr->b[5], bdaddr->b[4], bdaddr->b[3],
-			bdaddr->b[2], bdaddr->b[1], bdaddr->b[0]);
+			"remote bdaddr %s", addr->hci_node,
+			bt_ntoa(bdaddr, NULL));
 
 	if ((key = get_key(bdaddr, 0)) != NULL) {
 		syslog(LOG_DEBUG, "Found matching entry, " \
-				"remote bdaddr %x:%x:%x:%x:%x:%x, name '%s', " \
-				"link key %s",
-				key->bdaddr.b[5], key->bdaddr.b[4],
-				key->bdaddr.b[3], key->bdaddr.b[2],
-				key->bdaddr.b[1], key->bdaddr.b[0],
+				"remote bdaddr %s, name '%s', link key %s",
+				bt_ntoa(&key->bdaddr, NULL),
 				(key->name != NULL)? key->name : "No name",
 				(key->key != NULL)? "exists" : "doesn't exist");
 
 		return (send_link_key_reply(sock, addr, bdaddr, key->key));
 	}
 
-	syslog(LOG_DEBUG, "Could not find link key for remote bdaddr " \
-			"%x:%x:%x:%x:%x:%x",
-			bdaddr->b[5], bdaddr->b[4], bdaddr->b[3],
-			bdaddr->b[2], bdaddr->b[1], bdaddr->b[0]);
+	syslog(LOG_DEBUG, "Could not find link key for remote bdaddr %s",
+			bt_ntoa(bdaddr, NULL));
 
 	return (send_link_key_reply(sock, addr, bdaddr, NULL));
 }
@@ -295,10 +285,8 @@ send_pin_code_reply(int sock, struct sockaddr_hci *addr,
 		cp->pin_size = strlen(cp->pin);
 
 		syslog(LOG_DEBUG, "Sending PIN_Code_Reply to '%s' " \
-				"for remote bdaddr %x:%x:%x:%x:%x:%x",
-				addr->hci_node,
-				bdaddr->b[5], bdaddr->b[4], bdaddr->b[3], 
-				bdaddr->b[2], bdaddr->b[1], bdaddr->b[0]);
+				"for remote bdaddr %s",
+				addr->hci_node, bt_ntoa(bdaddr, NULL));
 	} else {
 		ng_hci_pin_code_neg_rep_cp	*cp = NULL;
 
@@ -310,10 +298,8 @@ send_pin_code_reply(int sock, struct sockaddr_hci *addr,
 		memcpy(&cp->bdaddr, bdaddr, sizeof(cp->bdaddr));
 
 		syslog(LOG_DEBUG, "Sending PIN_Code_Negative_Reply to '%s' " \
-				"for remote bdaddr %x:%x:%x:%x:%x:%x",
-				addr->hci_node,
-				bdaddr->b[5], bdaddr->b[4], bdaddr->b[3], 
-				bdaddr->b[2], bdaddr->b[1], bdaddr->b[0]);
+				"for remote bdaddr %s",
+				addr->hci_node, bt_ntoa(bdaddr, NULL));
 	}
 
 again:
@@ -323,10 +309,8 @@ again:
 			goto again;
 
 		syslog(LOG_ERR, "Could not send PIN code reply to '%s' " \
-				"for remote bdaddr %x:%x:%x:%x:%x:%x. %s (%d)",
-				addr->hci_node,
-				bdaddr->b[5], bdaddr->b[4], bdaddr->b[3], 
-				bdaddr->b[2], bdaddr->b[1], bdaddr->b[0],
+				"for remote bdaddr %s. %s (%d)",
+				addr->hci_node, bt_ntoa(bdaddr, NULL),
 				strerror(errno), errno);
 		return (-1);
 	}
@@ -359,10 +343,8 @@ send_link_key_reply(int sock, struct sockaddr_hci *addr,
 		memcpy(&cp->key, key, sizeof(cp->key));
 
 		syslog(LOG_DEBUG, "Sending Link_Key_Reply to '%s' " \
-				"for remote bdaddr %x:%x:%x:%x:%x:%x",
-				addr->hci_node,
-				bdaddr->b[5], bdaddr->b[4], bdaddr->b[3], 
-				bdaddr->b[2], bdaddr->b[1], bdaddr->b[0]);
+				"for remote bdaddr %s",
+				addr->hci_node, bt_ntoa(bdaddr, NULL));
 	} else {
 		ng_hci_link_key_neg_rep_cp	*cp = NULL;
 
@@ -374,10 +356,8 @@ send_link_key_reply(int sock, struct sockaddr_hci *addr,
 		memcpy(&cp->bdaddr, bdaddr, sizeof(cp->bdaddr));
 
 		syslog(LOG_DEBUG, "Sending Link_Key_Negative_Reply to '%s' " \
-				"for remote bdaddr %x:%x:%x:%x:%x:%x",
-				addr->hci_node,
-				bdaddr->b[5], bdaddr->b[4], bdaddr->b[3], 
-				bdaddr->b[2], bdaddr->b[1], bdaddr->b[0]);
+				"for remote bdaddr %s",
+				addr->hci_node, bt_ntoa(bdaddr, NULL));
 	}
 
 again:
@@ -387,10 +367,8 @@ again:
 			goto again;
 
 		syslog(LOG_ERR, "Could not send link key reply to '%s' " \
-				"for remote bdaddr %x:%x:%x:%x:%x:%x. %s (%d)",
-				addr->hci_node,
-				bdaddr->b[5], bdaddr->b[4], bdaddr->b[3], 
-				bdaddr->b[2], bdaddr->b[1], bdaddr->b[0],
+				"for remote bdaddr %s. %s (%d)",
+				addr->hci_node, bt_ntoa(bdaddr, NULL),
 				strerror(errno), errno);
 		return (-1);
 	}
@@ -398,7 +376,53 @@ again:
 	return (0);
 }
 
-/* Signal handler */
+/* Process Link_Key_Notification event */
+static int
+process_link_key_notification_event(int sock, struct sockaddr_hci *addr,
+		ng_hci_link_key_notification_ep *ep)
+{
+	link_key_p	key = NULL;
+
+	syslog(LOG_DEBUG, "Got Link_Key_Notification event from '%s', " \
+			"remote bdaddr %s", addr->hci_node,
+			bt_ntoa(&ep->bdaddr, NULL));
+
+	if ((key = get_key(&ep->bdaddr, 1)) == NULL) {
+		syslog(LOG_ERR, "Could not find entry for remote bdaddr %s",
+				bt_ntoa(&ep->bdaddr, NULL));
+		return (-1);
+	}
+
+	syslog(LOG_DEBUG, "Updating link key for the entry, " \
+			"remote bdaddr %s, name '%s', link key %s",
+			bt_ntoa(&key->bdaddr, NULL),
+			(key->name != NULL)? key->name : "No name",
+			(key->key != NULL)? "exists" : "doesn't exist");
+
+	if (key->key == NULL) {
+		key->key = (u_int8_t *) malloc(NG_HCI_KEY_SIZE);
+		if (key->key == NULL) {
+			syslog(LOG_ERR, "Could not allocate link key");
+			exit(1);
+		}
+	}
+
+	memcpy(key->key, &ep->key, NG_HCI_KEY_SIZE);
+
+	return (0);
+}
+
+/* Signal handlers */
+static void
+sighup(int s)
+{
+	syslog(LOG_DEBUG, "Got SIGHUP (%d)", s);
+
+	dump_keys_file();
+	read_config_file();
+	read_keys_file();
+}
+
 static void
 sigint(int s)
 {

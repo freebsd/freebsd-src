@@ -25,18 +25,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: node.c,v 1.4 2003/03/23 21:28:17 max Exp $
+ * $Id: node.c,v 1.6 2003/07/22 21:14:02 max Exp $
  * $FreeBSD$
  */
 
-#include <sys/types.h>
-#include <sys/socket.h>
 #include <sys/ioctl.h>
-#include <bitstring.h>
+#include <bluetooth.h>
 #include <errno.h>
-#include <ng_hci.h>
-#include <ng_l2cap.h>
-#include <ng_btsocket.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -142,9 +137,7 @@ hci_read_node_bd_addr(int s, int argc, char **argv)
 	if (ioctl(s, SIOC_HCI_RAW_NODE_GET_BDADDR, &r, sizeof(r)) < 0)
 		return (ERROR);
 
-	fprintf(stdout, "BD_ADDR: %02x:%02x:%02x:%02x:%02x:%02x\n",
-		r.bdaddr.b[5], r.bdaddr.b[4], r.bdaddr.b[3],
-		r.bdaddr.b[2], r.bdaddr.b[1], r.bdaddr.b[0]);
+	fprintf(stdout, "BD_ADDR: %s\n", bt_ntoa(&r.bdaddr, NULL));
 
 	return (OK);
 } /* hci_read_node_bd_addr */
@@ -243,14 +236,12 @@ hci_read_neighbor_cache(int s, int argc, char **argv)
 
 	for (n = 0; n < r.num_entries; n++) {
 		fprintf(stdout, 
-"%02x:%02x:%02x:%02x:%02x:%02x " \
+"%-17.17s " \
 "%02x %02x %02x %02x %02x %02x %02x %02x " \
 "%#12x " \
 "%#9x " \
 "%#9x\n",
-			r.entries[n].bdaddr.b[5], r.entries[n].bdaddr.b[4],
-			r.entries[n].bdaddr.b[3], r.entries[n].bdaddr.b[2],
-			r.entries[n].bdaddr.b[1], r.entries[n].bdaddr.b[0],
+			hci_bdaddr2str(&r.entries[n].bdaddr),
 			r.entries[n].features[0], r.entries[n].features[1],
 			r.entries[n].features[2], r.entries[n].features[3],
 			r.entries[n].features[4], r.entries[n].features[5],
@@ -297,7 +288,7 @@ hci_read_connection_list(int s, int argc, char **argv)
 
 	for (n = 0; n < r.num_connections; n++) {
 		fprintf(stdout,
-"%02x:%02x:%02x:%02x:%02x:%02x " \
+"%-17.17s " \
 "%6d " \
 "%4.4s " \
 "%4d " \
@@ -306,12 +297,7 @@ hci_read_connection_list(int s, int argc, char **argv)
 "%7d " \
 "%5d " \
 "%s\n",
-			r.connections[n].bdaddr.b[5],
-			r.connections[n].bdaddr.b[4],
-			r.connections[n].bdaddr.b[3],
-			r.connections[n].bdaddr.b[2],
-			r.connections[n].bdaddr.b[1],
-			r.connections[n].bdaddr.b[0],
+			hci_bdaddr2str(&r.connections[n].bdaddr),
 			r.connections[n].con_handle,
 			(r.connections[n].link_type == NG_HCI_LINK_ACL)?
 				"ACL" : "SCO",

@@ -25,22 +25,18 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: rfcomm_sppd.c,v 1.2 2003/04/27 19:22:30 max Exp $
+ * $Id: rfcomm_sppd.c,v 1.4 2003/09/07 18:15:55 max Exp $
  * $FreeBSD$
  */
 
-#include <sys/types.h>
-#include <sys/socket.h>
 #include <sys/stat.h>
-#include <bitstring.h>
+#include <bluetooth.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <grp.h>
 #include <limits.h>
-#include <ng_hci.h>
-#include <ng_l2cap.h>
-#include <ng_btsocket.h>
+#include <sdp.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -53,6 +49,10 @@
 #define SPPD_IDENT		"rfcomm_sppd"
 #define SPPD_BUFFER_SIZE	1024
 #define max(a, b)		(((a) > (b))? (a) : (b))
+
+int		rfcomm_channel_lookup	(bdaddr_t const *local,
+					 bdaddr_t const *remote, 
+					 int service, int *channel, int *error);
 
 static int	sppd_ttys_open	(char const *tty, int *amaster, int *aslave);
 static int	sppd_read	(int fd, char *buffer, int size);
@@ -79,21 +79,16 @@ main(int argc, char *argv[])
 	/* Parse command line options */
 	while ((n = getopt(argc, argv, "a:bc:t:h")) != -1) {
 		switch (n) { 
-		case 'a': { /* BDADDR */
-			int	a0, a1, a2, a3, a4, a5;
+		case 'a': /* BDADDR */
+			if (!bt_aton(optarg, &addr)) {
+				struct hostent	*he = NULL;
 
-			if (sscanf(optarg, "%x:%x:%x:%x:%x:%x",
-					&a5, &a4, &a3, &a2, &a1, &a0) != 6)
-				usage();
-				/* NOT REACHED */
+				if ((he = bt_gethostbyname(optarg)) == NULL)
+					errx(1, "%s: %s", optarg, hstrerror(h_errno));
 
-			addr.b[0] = a0 & 0xff;
-			addr.b[1] = a1 & 0xff;
-			addr.b[2] = a2 & 0xff;
-			addr.b[3] = a3 & 0xff;
-			addr.b[4] = a4 & 0xff;
-			addr.b[5] = a5 & 0xff;
-			} break;
+				memcpy(&addr, he->h_addr, sizeof(addr));
+			}
+			break;
 
 		case 'c': /* RFCOMM channel */
 			channel = atoi(optarg);
@@ -115,8 +110,7 @@ main(int argc, char *argv[])
 	}
 
 	/* Check if we have everything we need */
-	if (channel == 0 || tty == NULL ||
-	    memcmp(&addr, NG_HCI_BDADDR_ANY, sizeof(addr)) == 0)
+	if (tty == NULL || memcmp(&addr, NG_HCI_BDADDR_ANY, sizeof(addr)) == 0)
 		usage();
 		/* NOT REACHED */
 
@@ -138,6 +132,14 @@ main(int argc, char *argv[])
 
 	if (sigaction(SIGCHLD, &sa, NULL) < 0)
 		err(1, "Could not sigaction(SIGCHLD)");
+
+	/* Check channel, if was not set then obtain it via SDP */
+	if (channel == 0)
+		if (rfcomm_channel_lookup(NULL, &addr,
+			    SDP_SERVICE_CLASS_SERIAL_PORT, &channel, &n) != 0)
+			errc(1, n, "Could not obtain RFCOMM channel");
+	if (channel <= 0 || channel > 30)
+		errx(1, "Invalid RFCOMM channel number %d", channel);
 
 	/* Open TTYs */
 	if (sppd_ttys_open(tty, &amaster, &aslave) < 0)
@@ -374,7 +376,7 @@ usage(void)
 "Where options are:\n" \
 "\t-a bdaddr  BDADDR to connect to (required)\n" \
 "\t-b         Run in background\n" \
-"\t-c channel RFCOMM channel to connect to (required)\n" \
+"\t-c channel RFCOMM channel to connect to\n" \
 "\t-t tty     TTY name\n" \
 "\t-h         Display this message\n", SPPD_IDENT);
 

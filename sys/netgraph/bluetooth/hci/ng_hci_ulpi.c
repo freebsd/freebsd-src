@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_hci_ulpi.c,v 1.6 2003/04/26 22:35:21 max Exp $
+ * $Id: ng_hci_ulpi.c,v 1.7 2003/09/08 18:57:51 max Exp $
  * $FreeBSD$
  */
 
@@ -195,11 +195,9 @@ ng_hci_lp_acl_con_req(ng_hci_unit_p unit, item_p item, hook_p hook)
 			} break;
 
 		default:
-			KASSERT(0,
-("%s: %s - Invalid connection state=%d\n",
-				__func__, NG_NODE_NAME(unit->node),con->state));
-
-			error = EINVAL;
+			panic(
+"%s: %s - Invalid connection state=%d\n",
+				__func__, NG_NODE_NAME(unit->node), con->state);
 			break;
 		}
 
@@ -390,12 +388,10 @@ ng_hci_lp_sco_con_req(ng_hci_unit_p unit, item_p item, hook_p hook)
 			break;
 
 		default:
-			KASSERT(0,
-("%s: %s - Inavalid connection state=%d\n",
+			panic(
+"%s: %s - Inavalid connection state=%d\n",
 				__func__, NG_NODE_NAME(unit->node),
-				sco_con->state));
-
-			error = EINVAL;
+				sco_con->state);
 			break;
 		}
 
@@ -763,10 +759,13 @@ ng_hci_lp_con_rsp(ng_hci_unit_p unit, item_p item, hook_p hook)
 	}
 
 	/* 
-	 * Remove connection timeout and check connection state
+	 * Remove connection timeout and check connection state.
+	 * Note: if ng_hci_con_untimeout() fails (returns non-zero value) then
+	 * timeout already happened and event went into node's queue.
 	 */
 
-	ng_hci_con_untimeout(con);
+	if ((error = ng_hci_con_untimeout(con)) != 0)
+		goto out;
 
 	switch (con->state) {
 	case NG_HCI_CON_W4_LP_CON_RSP:
@@ -856,11 +855,9 @@ ng_hci_lp_con_rsp(ng_hci_unit_p unit, item_p item, hook_p hook)
 		break;
 
 	default:
-		KASSERT(0,
-("%s: %s - Invalid connection state=%d\n",
-			__func__, NG_NODE_NAME(unit->node), con->state));
-
-		error = EINVAL;
+		panic(
+"%s: %s - Invalid connection state=%d\n",
+			__func__, NG_NODE_NAME(unit->node), con->state);
 		break;
 	}
 out:
@@ -1150,12 +1147,33 @@ ng_hci_lp_qos_ind(ng_hci_unit_con_p con)
  */
 
 void
-ng_hci_process_con_timeout(node_p node, hook_p hook, void *arg1, int arg2)
+ng_hci_process_con_timeout(node_p node, hook_p hook, void *arg1, int con_handle)
 {
-	ng_hci_unit_con_p	con = (ng_hci_unit_con_p) arg1;
+	ng_hci_unit_p		unit = NULL;
+	ng_hci_unit_con_p	con = NULL;
 
-	KASSERT((con->flags & NG_HCI_CON_TIMEOUT_PENDING),
-("%s: %s - No connection timeout!\n", __func__, NG_NODE_NAME(node)));
+	if (NG_NODE_NOT_VALID(node)) {
+		printf("%s: Netgraph node is not valid\n", __func__);
+		return;
+	}
+
+	unit = (ng_hci_unit_p) NG_NODE_PRIVATE(node);
+	con = ng_hci_con_by_handle(unit, con_handle);
+
+	if (con == NULL) {
+		NG_HCI_ALERT(
+"%s: %s - could not find connection, handle=%d\n",
+			__func__, NG_NODE_NAME(node), con_handle);
+		return;
+	}
+
+	if (!(con->flags & NG_HCI_CON_TIMEOUT_PENDING)) {
+		NG_HCI_ALERT(
+"%s: %s - no pending connection timeout, handle=%d, state=%d, flags=%#x\n",
+			__func__, NG_NODE_NAME(node), con_handle, con->state,
+			con->flags);
+		return;
+	}
 
 	con->flags &= ~NG_HCI_CON_TIMEOUT_PENDING;
 
@@ -1181,9 +1199,9 @@ ng_hci_process_con_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 		break;
 
 	default:
-		KASSERT(0,
-("%s: %s - Invalid connection state=%d\n",
-			__func__, NG_NODE_NAME(node), con->state));
+		panic(
+"%s: %s - Invalid connection state=%d\n",
+			__func__, NG_NODE_NAME(node), con->state);
 		break;
 	}
 
