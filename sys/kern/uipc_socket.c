@@ -115,7 +115,6 @@ soalloc(waitok)
 		/* XXX race condition for reentrant kernel */
 		bzero(so, sizeof *so);
 		so->so_gencnt = ++so_gencnt;
-		so->so_zone = socket_zone;
 		TAILQ_INIT(&so->so_aiojobq);
 	}
 	return so;
@@ -208,7 +207,7 @@ sodealloc(so)
 	}
 #endif /* INET */
 	crfree(so->so_cred);
-	zfreei(so->so_zone, so);
+	zfreei(socket_zone, so);
 }
 
 int
