@@ -2678,7 +2678,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para><application>am-utils</application> has been updated to
 	6.0.7.</para>
 
-      <para><application>awk</application> from Bell Labs (variously
+      <para>A 10 February 2002 snapshot of <application>awk</application> from Bell Labs (variously
 	known as <quote>BWK awk</quote> or <quote>The One True
 	AWK</quote>) has been imported.  It is available as
 	<command>awk</command> on the sparc64 architecture, and
@@ -2803,7 +2803,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<application>S/Key</application>.</para>
 
       <para><application>Perl</application> has been updated to version
-	5.6.0.</para>
+	5.6.1.</para>
 
       <para>&man.routed.8; has been updated to version
 	2.22. &merged;</para>
