@@ -50,23 +50,43 @@ HOME=/
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
 export HOME PATH
 
-# If there is a global system configuration file, suck it in.
-# XXX - The only purpose of duplicating it here is to catch rc_ng="YES"
+# check_rcng() is run in a subshell solely to determine the
+# RCNG mode.  We do not want to pollute our variable space
+# too soon so the procedure must be run in a subshell.  An
+# exit code of 3 indicates RCNG is enabled.
 #
-if [ -r /etc/defaults/rc.conf ]; then
-	. /etc/defaults/rc.conf
-	source_rc_confs
-elif [ -r /etc/rc.conf ]; then
-	. /etc/rc.conf
+check_rcng()
+{
+	if [ -r /etc/defaults/rc.conf ]; then
+		. /etc/defaults/rc.conf
+		source_rc_confs
+	elif [ -r /etc/rc.conf ]; then
+		. /etc/rc.conf
+	fi
+
+	# Diskless setups have to depend on a different mechanism since
+	# their config files haven't been retargeted yet.
+	#
+	[ -e /.rcng_yes ] && rc_ng="YES"
+	case ${rc_ng} in
+	[Yy][Ee][Ss])
+		exit 3
+		;;
+	*)
+		exit 0
+		;;
+	esac
+}
+
+( check_rcng )
+if [ $? = 3 ]; then
+    rc_ng=YES
+else
+    rc_ng=NO
 fi
 
-# Diskless setups have to depend on a different mechanism since
-# their config files haven't been retargeted yet.
-#
-[ -e /.rcng_yes ] && rc_ng="YES"
-
 case ${rc_ng} in
-[Yy][Ee][Ss])
+YES)
 	. /etc/rc.subr
 
 	# Note: the system configuration files are loaded as part of
