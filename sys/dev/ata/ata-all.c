@@ -195,12 +195,6 @@ ata_pcimatch(device_t dev)
 	return "Intel PIIX4 ATA controller";
     case 0x522910b9:
 	return "AcerLabs Aladdin ATA controller";
-    case 0x4d33105a:
-	return "Promise Ultra/33 ATA controller";
-    case 0x4d38105a:
-	return "Promise Ultra/66 ATA controller";
-    case 0x00041103:
-	return "HighPoint HPT366 ATA controller";
     case 0x05711106: /* 82c586 & 82c686 */
 	switch (pci_read_config(dev, 0x08, 1)) {
 	case 1:
@@ -209,6 +203,14 @@ ata_pcimatch(device_t dev)
 	    return "VIA 82C686 ATA controller";
 	}
 	return "VIA Apollo ATA controller";
+    case 0x55131039:
+	return "SiS 5591 ATA controller";
+    case 0x4d33105a:
+	return "Promise Ultra/33 ATA controller";
+    case 0x4d38105a:
+	return "Promise Ultra/66 ATA controller";
+    case 0x00041103:
+	return "HighPoint HPT366 ATA controller";
 
    /* unsupported but known chipsets, generic DMA only */
     case 0x05961106:
@@ -766,6 +768,7 @@ ata_wait(struct ata_softc *scp, int32_t device, u_int8_t mask)
     u_int8_t status;
     u_int32_t timeout = 0;
 
+    DELAY(1);
     while (timeout <= 5000000) {	/* timeout 5 secs */
 	status = inb(scp->ioaddr + ATA_STATUS);
 

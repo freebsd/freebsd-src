@@ -235,6 +235,7 @@ struct atapi_softc {
     struct ata_softc		*controller;	/* ptr to parent ctrl */
     struct atapi_params		*atapi_parm;	/* ata device params */
     int32_t			unit;		/* ATA_MASTER or ATA_SLAVE */
+    int8_t			*devname;	/* this devices name */
     int8_t			cmd;		/* last cmd executed */
     u_int32_t			flags;		/* drive flags */
 #define		ATAPI_F_DMA_ENABLED	0x0001
