@@ -490,14 +490,23 @@ targbhstart(struct cam_periph *periph, union ccb *start_ccb)
 		/* Is this a tagged request? */
 		flags = atio->ccb_h.flags & (CAM_TAG_ACTION_VALID|CAM_DIR_MASK);
 
+		csio = &start_ccb->csio;
 		/*
 		 * If we are done with the transaction, tell the
 		 * controller to send status and perform a CMD_CMPLT.
+		 * If we have associated sense data, see if we can
+		 * send that too.
 		 */
-		if (desc->data_resid == desc->data_increment)
+		if (desc->data_resid == desc->data_increment) {
 			flags |= CAM_SEND_STATUS;
+			if (atio->sense_len) {
+				csio->sense_len = atio->sense_len;
+				csio->sense_data = atio->sense_data;
+				flags |= CAM_SEND_SENSE;
+			}
 
-		csio = &start_ccb->csio;
+		}
+
 		cam_fill_ctio(csio,
 			      /*retries*/2,
 			      targbhdone,
@@ -579,6 +588,12 @@ targbhdone(struct cam_periph *periph, union ccb *done_ccb)
 			 || inq->page_code != 0) {
 				atio->ccb_h.flags &= ~CAM_DIR_MASK;
 				atio->ccb_h.flags |= CAM_DIR_NONE;
+				/*
+				 * This needs to have other than a
+				 * no_lun_sense_data response.
+				 */
+				atio->sense_data = no_lun_sense_data;
+				atio->sense_len = sizeof (no_lun_sense_data);
 				descr->data_resid = 0;
 				descr->data_increment = 0;
 				descr->status = SCSI_STATUS_CHECK_COND;
@@ -620,6 +635,8 @@ targbhdone(struct cam_periph *periph, union ccb *done_ccb)
 			/* Direction is always relative to the initator */
 			atio->ccb_h.flags &= ~CAM_DIR_MASK;
 			atio->ccb_h.flags |= CAM_DIR_NONE;
+			atio->sense_data = no_lun_sense_data;
+			atio->sense_len = sizeof (no_lun_sense_data);
 			descr->data_resid = 0;
 			descr->data_increment = 0;
 			descr->timeout = 5 * 1000;
@@ -645,6 +662,15 @@ targbhdone(struct cam_periph *periph, union ccb *done_ccb)
 
 		TAILQ_REMOVE(&softc->pending_queue, &atio->ccb_h,
 			     periph_links.tqe);
+
+		/*
+		 * We could check for CAM_SENT_SENSE bein set here,
+		 * but since we're not maintaining any CA/UA state,
+		 * there's no point.
+		 */
+		atio->sense_len = 0;
+		done_ccb->ccb_h.flags &= ~CAM_SEND_SENSE;
+		done_ccb->ccb_h.status &= ~CAM_SENT_SENSE;
 
 		/* XXX Check for errors */
 		desc->data_resid -= desc->data_increment;
