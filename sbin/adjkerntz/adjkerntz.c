@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1993-1996 by Andrey A. Chernov, Moscow, Russia.
+ * Copyright (C) 1993-1998 by Andrey A. Chernov, Moscow, Russia.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *		$Id: adjkerntz.c,v 1.21 1998/02/25 09:40:21 ache Exp $
+ *		$Id: adjkerntz.c,v 1.22 1998/03/30 09:29:47 ache Exp $
  */
 
 #ifndef lint
@@ -71,14 +71,14 @@ int main(argc, argv)
 	int argc;
 	char **argv;
 {
-	struct tm local, utc;
+	struct tm local;
 	struct timeval tv, *stv;
 	struct timezone tz, *stz;
 	int kern_offset, wall_clock, disrtcset;
 	size_t len;
 	int mib[2];
 	/* Avoid time_t here, can be unsigned long or worse */
-	long offset, utcsec, localsec, diff;
+	long offset, localsec, diff;
 	time_t initial_sec, final_sec;
 	int ch;
 	int initial_isdst = -1, final_isdst;
@@ -106,6 +106,10 @@ int main(argc, argv)
 		}
 	if (init == Unknown)
 		usage();
+
+	if (access(_PATH_CLOCK, F_OK) != 0)
+		return 0;
+
 	if (init)
 		sleep_mode = True;
 
@@ -161,27 +165,25 @@ recalculate:
 	local = *localtime(&initial_sec);
 	if (diff == 0)
 		initial_isdst = local.tm_isdst;
-	utc = *gmtime(&initial_sec);
-	local.tm_isdst = utc.tm_isdst = initial_isdst;
+	local.tm_isdst = initial_isdst;
 
 	/* calculate local CMOS diff from GMT */
 
-	utcsec = mktime(&utc);
 	localsec = mktime(&local);
-	if (utcsec == -1 || localsec == -1) {
+	if (localsec == -1) {
 		/*
 		 * XXX user can only control local time, and it is
 		 * unacceptable to fail here for init.  2:30 am in the
 		 * middle of the nonexistent hour means 3:30 am.
 		 */
-		syslog(LOG_WARNING,
-		"Warning: nonexistent %s time, try to run later.",
-			utcsec == -1 && localsec == -1 ? "UTC time and local" :
-			utcsec == -1 ? "UTC" : "local");
 		if (!sleep_mode) {
+			syslog(LOG_WARNING,
+			"Warning: nonexistent local time, try to run later.");
 			syslog(LOG_WARNING, "Giving up.");
 			return 1;
 		}
+		syslog(LOG_WARNING,
+			"Warning: nonexistent local time.");
 		syslog(LOG_WARNING, "Will retry after %d minutes.",
 			REPORT_PERIOD / 60);
 		(void) signal(SIGTERM, SIG_DFL);
@@ -189,7 +191,7 @@ recalculate:
 		(void) sleep(REPORT_PERIOD);
 		goto again;
 	}
-	offset = utcsec - localsec;
+	offset = -local.tm_gmtoff;
 #ifdef DEBUG
 	fprintf(stderr, "Initial offset: %ld secs\n", offset);
 #endif
@@ -217,25 +219,23 @@ recalculate:
 			initial_isdst = final_isdst;
 			goto recalculate;
 		}
-		utc = *gmtime(&final_sec);
-		local.tm_isdst = utc.tm_isdst = final_isdst;
+		local.tm_isdst =  final_isdst;
 
-		utcsec = mktime(&utc);
 		localsec = mktime(&local);
-		if (utcsec == -1 || localsec == -1) {
+		if (localsec == -1) {
 		bad_final:
 			/*
 			 * XXX as above.  The user has even less control,
 			 * but perhaps we never get here.
 			 */
-			syslog(LOG_WARNING,
-				"Warning: nonexistent final %s time, try to run later.",
-				utcsec == -1 && localsec == -1 ? "UTC time and local" :
-				utcsec == -1 ? "UTC" : "local");
 			if (!sleep_mode) {
+				syslog(LOG_WARNING,
+					"Warning: nonexistent final local time, try to run later.");
 				syslog(LOG_WARNING, "Giving up.");
 				return 1;
 			}
+			syslog(LOG_WARNING,
+				"Warning: nonexistent final local time.");
 			syslog(LOG_WARNING, "Will retry after %d minutes.",
 				REPORT_PERIOD / 60);
 			(void) signal(SIGTERM, SIG_DFL);
@@ -243,7 +243,7 @@ recalculate:
 			(void) sleep(REPORT_PERIOD);
 			goto again;
 		}
-		offset = utcsec - localsec;
+		offset = -local.tm_gmtoff;
 #ifdef DEBUG
 		fprintf(stderr, "Final offset: %ld secs\n", offset);
 #endif
