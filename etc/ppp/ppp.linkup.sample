@@ -12,7 +12,7 @@
 #
 #  3) If no label has been found, use MYADDR if it exists.
 #
-# $Id: ppp.linkup.sample,v 1.8 1997/08/25 01:07:08 brian Exp $
+# $Id: ppp.linkup.sample,v 1.9 1997/09/21 02:10:41 brian Exp $
 #
 #########################################################################
 
@@ -53,3 +53,10 @@ pmdemand:
  add 0 0 HISADDR
  add MYADDR 255.255.255.255 127.0.0.1
  !bg /etc/ppp/ppp.etherup.pmdemand
+
+# If your minimum call charge is 5 minutes, you may as well stay on
+# the line for that amount of time.  If we want a 60 second subsequent
+# timeout, set your timeout to 0 in ppp.conf and then do this:
+# 
+min5minutes:
+ !bg sh -c "sleep 240; pppctl -p mypassword 3000 set timeout 60"
