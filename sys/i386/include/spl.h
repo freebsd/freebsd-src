@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: spl.h,v 1.11 1995/08/26 20:46:43 bde Exp $
+ *	$Id: spl.h,v 1.12 1995/10/30 17:01:37 bde Exp $
  */
 
 #ifndef _MACHINE_IPL_H_
@@ -97,6 +97,9 @@ extern	unsigned tty_imask;	/* group of interrupts masked with spltty() */
 #define	setsofttty()	(*(unsigned *)&ipending |= SWI_TTY_PENDING)
 
 #define	schedsofttty()	(*(unsigned *)&idelayed |= SWI_TTY_PENDING)
+#define	schedsoftnet()	(*(unsigned *)&idelayed |= SWI_NET_PENDING)
+
+#define	softclockpending()	(ipending & SWI_CLOCK_PENDING)
 
 #ifdef __GNUC__
 
