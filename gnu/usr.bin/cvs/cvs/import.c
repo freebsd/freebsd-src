@@ -330,10 +330,14 @@ import_descend (message, vtag, targc, targv)
 	{
 	    while ((dp = readdir (dirp)) != NULL)
 	    {
-		if (ign_name (dp->d_name) || !isdir (dp->d_name))
+		if (!strcmp(".", dp->d_name) || !strcmp("..", dp->d_name))
+		    continue;
+		if (!isdir (dp->d_name) || ign_name (dp->d_name))
 		    continue;
 		err += import_descend_dir (message, dp->d_name,
 					   vtag, targc, targv);
+		/* need to re-load .cvsignore after each dir traversal */
+		ign_add_file (CVSDOTIGNORE, 1);
 	    }
 	    (void) closedir (dirp);
 	}
