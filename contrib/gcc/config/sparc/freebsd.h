@@ -1,4 +1,4 @@
-/* Definitions for Sun Sparc64 running FreeBSD using the ELF format
+/* Definitions for Sun SPARC64 running FreeBSD using the ELF format
    Copyright (C) 2001, 2002 Free Software Foundation, Inc.
    Contributed by David E. O'Brien <obrien@FreeBSD.org> and BSDi.
 
@@ -29,7 +29,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* Because we include sparc/sysv4.h.  */
 #undef  CPP_PREDEFINES
-#define CPP_PREDEFINES FBSD_CPP_PREDEFINES
+/* Do not define it here, we now use TARGET_OS_CPP_BUILTINS.  */
 
 #define LINK_SPEC "%(link_arch)						\
   %{!mno-relax:%{!r:-relax}}						\
@@ -55,14 +55,11 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    We use the GCC defaults instead.  */
 #undef WCHAR_TYPE
 
-#undef  WCHAR_UNSIGNED
-#define WCHAR_UNSIGNED 0
-
 #undef  WCHAR_TYPE_SIZE
 #define WCHAR_TYPE_SIZE 32
 
-/* Define for support of TFmode long double and REAL_ARITHMETIC.
-   Sparc ABI says that long double is 4 words.  */
+/* Define for support of TFmode long double.
+   SPARC ABI says that long double is 4 words.  */
 #undef  LONG_DOUBLE_TYPE_SIZE
 #define LONG_DOUBLE_TYPE_SIZE (TARGET_LONG_DOUBLE_128 ? 128 : 64)
 
