@@ -1601,3 +1601,30 @@ vfs_copyopt(opts, name, dest, len)
 	}
 	return (ENOENT);
 }
+
+
+/*
+ * This is a helper function for filesystems to traverse their
+ * vnodes.  See MNT_VNODE_FOREACH() in sys/mount.h
+ */
+
+struct vnode *
+__mnt_vnode_next(struct vnode **nvp, struct mount *mp)
+{
+	struct vnode *vp;
+
+	mtx_assert(&mp->mnt_mtx, MA_OWNED);
+	vp = *nvp;
+	/* Check if we are done */
+	if (vp == NULL)
+		return (NULL);
+	/* If our next vnode is no longer ours, start over */
+	if (vp->v_mount != mp) 
+		vp = TAILQ_FIRST(&mp->mnt_nvnodelist);
+	/* Save pointer to next vnode in list */
+	if (vp != NULL)
+		*nvp = TAILQ_NEXT(vp, v_nmntvnodes);
+	else
+		*nvp = NULL;
+	return (vp);
+}

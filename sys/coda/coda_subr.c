@@ -308,15 +308,12 @@ void
 coda_checkunmounting(mp)
 	struct mount *mp;
 {
-	register struct vnode *vp, *nvp;
+	struct vnode *vp, *nvp;
 	struct cnode *cp;
 	int count = 0, bad = 0;
 
 	MNT_ILOCK(mp);
-	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist); vp; vp = nvp) {
-		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
-		if (vp->v_mount != mp)
-			continue;
+	MNT_VNODE_FOREACH(vp, mp, nvp) {
 		VI_LOCK(vp);
 		if (vp->v_iflag & VI_XLOCK) {
 			VI_UNLOCK(vp);

@@ -813,11 +813,7 @@ nfs_clearcommit(struct mount *mp)
 
 	s = splbio();
 	MNT_ILOCK(mp);
-loop:
-	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist); vp; vp = nvp) {
-		if (vp->v_mount != mp)	/* Paranoia */
-			goto loop;
-		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
+	MNT_VNODE_FOREACH(vp, mp, nvp) {
 		VI_LOCK(vp);
 		if (vp->v_iflag & VI_XLOCK) {
 			VI_UNLOCK(vp);

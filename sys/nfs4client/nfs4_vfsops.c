@@ -716,7 +716,7 @@ nfs_root(struct mount *mp, struct vnode **vpp)
 static int
 nfs_sync(struct mount *mp, int waitfor, struct ucred *cred, struct thread *td)
 {
-	struct vnode *vp, *vnp;
+	struct vnode *vp, *nvp;
 	int error, allerror = 0;
 
 	/*
@@ -724,16 +724,7 @@ nfs_sync(struct mount *mp, int waitfor, struct ucred *cred, struct thread *td)
 	 */
 	MNT_ILOCK(mp);
 loop:
-	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist);
-	     vp != NULL;
-	     vp = vnp) {
-		/*
-		 * If the vnode that we are about to sync is no longer
-		 * associated with this mount point, start over.
-		 */
-		if (vp->v_mount != mp)
-			goto loop;
-		vnp = TAILQ_NEXT(vp, v_nmntvnodes);
+	MNT_VNODE_FOREACH(vp, mp, nvp) {
 		VI_LOCK(vp);
 		MNT_IUNLOCK(mp);
 		if (VOP_ISLOCKED(vp, NULL) || TAILQ_EMPTY(&vp->v_dirtyblkhd) ||
