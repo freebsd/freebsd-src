@@ -5,9 +5,11 @@
 #include <fcntl.h>
 #include <kvm.h>
 #include <nlist.h>
+#include <sysexits.h>
 #include <sys/uio.h>
 #include <sys/namei.h>
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/time.h>
 #include <sys/vnode.h>
 /*----------------------------------*/
@@ -16,6 +18,18 @@ static u_int crc16_table[16] = {
     0xF001, 0x3C00, 0x2800, 0xE401,
     0xA001, 0x6C00, 0x7800, 0xB401,
     0x5000, 0x9C01, 0x8801, 0x4400 
+};
+
+/* XXX Taken from sys/kern/vfs_cache.c */
+struct	namecache {
+	LIST_ENTRY(namecache) nc_hash;
+	LIST_ENTRY(namecache) nc_src;
+	TAILQ_ENTRY(namecache) nc_dst;
+	struct	vnode *nc_dvp;
+	struct	vnode *nc_vp;
+	u_char	nc_flag;
+	u_char	nc_nlen;
+	char	nc_name[0];
 };
 
 static u_short
@@ -59,14 +73,16 @@ main(int argc, char **argv)
 	struct namecache *nc;
 	struct vnode vn;
 
-	kvm_t *kvm = kvm_open(0, 0, 0, O_RDONLY, 0);
+	kvm_t *kvm = kvm_open(NULL, NULL, NULL, O_RDONLY, argv[0]);
+	if (kvm == NULL)
+		return(EX_OSERR);
 
 	printf("kvm: %p\n", kvm);
 	printf("kvm_nlist: %d\n", kvm_nlist(kvm, nl));
 	kvm_read(kvm, nl[0].n_value, &nchash, sizeof nchash);
 	nchash++;
 	nchashtbl = malloc(nchash * sizeof *nchashtbl);
-	nc = malloc(sizeof *nc + 400);
+	nc = malloc(sizeof *nc + NAME_MAX);
 	newbucket = malloc(nchash * sizeof (int));
 	memset(newbucket, 0, nchash * sizeof (int));
 	kvm_read(kvm, nl[1].n_value, &p, sizeof p);
@@ -79,7 +95,7 @@ main(int argc, char **argv)
 		p = (u_long)LIST_FIRST(nchashtbl+i);
 		while (p) {
 			nb++;
-			kvm_read(kvm, p, nc, sizeof *nc + 400);
+			kvm_read(kvm, p, nc, sizeof *nc + NAME_MAX);
 			kvm_read(kvm, (u_long)nc->nc_dvp, &vn, sizeof vn);
 			nc->nc_name[nc->nc_nlen] = '\0';
 			for (j=k=kn=0;nc->nc_name[j];j++) {
