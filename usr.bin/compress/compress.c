@@ -140,7 +140,10 @@ main(argc, argv)
 	for (; *argv; ++argv)
 		switch(style) {
 		case COMPRESS:
-			if (cat) {
+			if (strcmp(*argv, "-") == 0) {
+				compress("/dev/stdin", "/dev/stdout", bits);
+				break;
+			} else if (cat) {
 				compress(*argv, "/dev/stdout", bits);
 				break;
 			}
@@ -162,6 +165,10 @@ main(argc, argv)
 			compress(*argv, newname, bits);
 			break;
 		case DECOMPRESS:
+			if (strcmp(*argv, "-") == 0) {
+				decompress("/dev/stdin", "/dev/stdout", bits);
+				break;
+			}
 			len = strlen(*argv);
 			if ((p = rindex(*argv, '.')) == NULL ||
 			    strcmp(p, ".Z")) {
