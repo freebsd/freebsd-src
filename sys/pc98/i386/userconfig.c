@@ -337,7 +337,8 @@ static DEVCLASS_INFO devclass_names[] = {
 static DEV_INFO device_info[] = {
 /*---Name-----   ---Description---------------------------------------------- */
 #ifdef PC98
-{"bs",          "PC-9801-55 SCSI Interface",        0, CLS_STORAGE},
+{"bs",		"PC-9801-55 SCSI Interface",		0,		CLS_STORAGE},
+{"wdc",		"IDE/ESDI/MFM disk controller",		0,		CLS_STORAGE},
 #endif
 {"adv",         "AdvanSys SCSI narrow controller",	0,		CLS_STORAGE},
 {"bt",          "Buslogic SCSI controller",		0,		CLS_STORAGE},
@@ -345,7 +346,7 @@ static DEV_INFO device_info[] = {
 {"aic",         "Adaptec 152x SCSI and compatible SCSI cards",	0,      CLS_STORAGE},
 {"nca",         "ProAudio Spectrum SCSI and compatibles",	0,	CLS_STORAGE},
 {"sea",         "Seagate ST01/ST02 SCSI and compatibles",	0,	CLS_STORAGE},
-{"wdc",         "IDE/ESDI/MFM disk controller",		0,		CLS_STORAGE},
+{"stg",         "TMC 18C30/18C50 based SCSI cards",	0,		CLS_STORAGE},
 {"ata",		"ATA/ATAPI compatible disk controller",	0,		CLS_STORAGE},
 {"fdc",         "Floppy disk controller",		FLG_FIXED,	CLS_STORAGE},
 {"mcd",         "Mitsumi CD-ROM",			0,		CLS_STORAGE},

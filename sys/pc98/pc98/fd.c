@@ -91,6 +91,8 @@
 #include <isa/rtc.h>
 #endif
 
+/* misuse a flag to identify format operation */
+
 /* configuration flags */
 #define FDC_PRETEND_D0	(1 << 0)	/* pretend drive 0 to be there */
 #define FDC_NO_FIFO	(1 << 2)	/* do not enable FIFO  */
@@ -393,12 +395,14 @@ fdctl_wr_isa(fdc_p fdc, u_int8_t v)
 	bus_space_write_1(fdc->ctlt, fdc->ctlh, 0, v);
 }
 
+#if NCARD > 0
 static void
 fdctl_wr_pcmcia(fdc_p fdc, u_int8_t v)
 {
 	bus_space_write_1(fdc->portt, fdc->porth, FDCTL+fdc->port_off, v);
 }
 #endif
+#endif /* PC98 */
 
 #if 0
 
@@ -956,6 +960,7 @@ fdc_pccard_probe(device_t dev)
 #ifndef PC98
 	fdc->fdctl_wr = fdctl_wr_pcmcia;
 #endif
+
 	fdc->flags |= FDC_ISPCMCIA | FDC_NODMA;
 
 	/* Attempt to allocate our resources for the duration of the probe */
@@ -1154,6 +1159,69 @@ static driver_t fdc_pccard_driver = {
 DRIVER_MODULE(fdc, pccard, fdc_pccard_driver, fdc_devclass, 0, 0);
 
 #endif /* NCARD > 0 */
+
+static void fd_clone __P((void *arg, char *name, int namelen, dev_t *dev));
+
+static struct {
+	char *match;
+	int minor;
+	int link;
+} fd_suffix[] = {
+	{ "a",		0,	1 },
+	{ "b",		0,	1 },
+	{ "c",		0,	1 },
+	{ "d",		0,	1 },
+	{ "e",		0,	1 },
+	{ "f",		0,	1 },
+	{ "g",		0,	1 },
+	{ "h",		0,	1 },
+	{ ".1720",	1,	0 },
+	{ ".1480",	2,	0 },
+	{ ".1440",	3,	0 },
+	{ ".1200",	4,	0 },
+	{ ".820",	5,	0 },
+	{ ".800",	6,	0 },
+	{ ".720",	7,	0 },
+	{ ".360",	8,	0 },
+	{ ".640",	9,	0 },
+	{ ".1232",	10,	0 },
+#ifdef PC98
+	{ ".1280",	11,	0 },
+	{ ".1476",	12,	0 },
+#endif
+	{ 0, 0 }
+};
+static void
+fd_clone(arg, name, namelen, dev)
+	void *arg;
+	char *name;
+	int namelen;
+	dev_t *dev;
+{
+	int u, d, i;
+	char *n;
+	dev_t pdev;
+
+	if (*dev != NODEV)
+		return;
+	if (dev_stdclone(name, &n, "fd", &u) != 2)
+		return;
+	for (i = 0; ; i++) {
+		if (fd_suffix[i].match == NULL)
+			return;
+		if (strcmp(n, fd_suffix[i].match))
+			continue;
+		d = fd_suffix[i].minor;
+		break;
+	}
+	if (fd_suffix[i].link == 0) {
+		*dev = make_dev(&fd_cdevsw, (u << 6) + d,
+			UID_ROOT, GID_OPERATOR, 0640, name);
+	} else {
+		pdev = makedev(fd_cdevsw.d_maj, (u << 6) + d);
+		*dev = make_dev_alias(pdev, name);
+	}
+}
 
 /******************************************************************/
 /*
@@ -1390,26 +1458,17 @@ static int
 fd_attach(device_t dev)
 {
 	struct	fd_data *fd;
-#if 0
-	int	i;
-	int	mynor;
-	int	typemynor;
-	int	typesize;
-#endif
 	static int cdevsw_add_done = 0;
 
 	fd = device_get_softc(dev);
 
 	if (!cdevsw_add_done) {
-	    cdevsw_add(&fd_cdevsw);	/* XXX */
-	    cdevsw_add_done++;
+		cdevsw_add(&fd_cdevsw);	/* XXX */
+		cdevsw_add_done++;
 	}
+	EVENTHANDLER_REGISTER(dev_clone, fd_clone, 0, 1000);
 	make_dev(&fd_cdevsw, (fd->fdu << 6),
-		UID_ROOT, GID_OPERATOR, 0640, "rfd%d", fd->fdu);
-
-#if 0
-	/* Other make_dev() go here. */
-#endif
+		UID_ROOT, GID_OPERATOR, 0640, "fd%d", fd->fdu);
 
 	/*
 	 * Export the drive to the devstat interface.
@@ -2575,7 +2634,7 @@ fdstate(fdc_p fdc)
 static int
 retrier(struct fdc_data *fdc)
 {
-	register struct bio *bp;
+	struct bio *bp;
 	struct fd_data *fd;
 	int fdu;
 
@@ -2602,14 +2661,14 @@ retrier(struct fdc_data *fdc)
 	default:
 	fail:
 		{
-			dev_t sav_b_dev = bp->bio_dev;
+			dev_t sav_bio_dev = bp->bio_dev;
 			/* Trick diskerr */
 			bp->bio_dev = makedev(major(bp->bio_dev),
 				    (FDUNIT(minor(bp->bio_dev))<<3)|RAW_PART);
 			diskerr(bp, "hard error", LOG_PRINTF,
 				fdc->fd->skip / DEV_BSIZE,
 				(struct disklabel *)NULL);
-			bp->bio_dev = sav_b_dev;
+			bp->bio_dev = sav_bio_dev;
 			if (fdc->flags & FDC_STAT_VALID)
 			{
 				printf(
