@@ -200,7 +200,9 @@ in_control(so, cmd, data, ifp, p)
 	struct in_ifaddr *oia;
 	struct in_aliasreq *ifra = (struct in_aliasreq *)data;
 	struct sockaddr_in oldaddr;
-	int error, hostIsNew, maskIsNew, s;
+	int error, hostIsNew, iaIsNew, maskIsNew, s;
+
+	iaIsNew = 0;
 
 	switch (cmd) {
 	case SIOCALIFADDR:
@@ -297,6 +299,7 @@ in_control(so, cmd, data, ifp, p)
 			ia->ia_ifp = ifp;
 			if (!(ifp->if_flags & IFF_LOOPBACK))
 				in_interfaces++;
+			iaIsNew = 1;
 			splx(s);
 		}
 		break;
@@ -318,23 +321,23 @@ in_control(so, cmd, data, ifp, p)
 
 	case SIOCGIFADDR:
 		*((struct sockaddr_in *)&ifr->ifr_addr) = ia->ia_addr;
-		break;
+		return (0);
 
 	case SIOCGIFBRDADDR:
 		if ((ifp->if_flags & IFF_BROADCAST) == 0)
 			return (EINVAL);
 		*((struct sockaddr_in *)&ifr->ifr_dstaddr) = ia->ia_broadaddr;
-		break;
+		return (0);
 
 	case SIOCGIFDSTADDR:
 		if ((ifp->if_flags & IFF_POINTOPOINT) == 0)
 			return (EINVAL);
 		*((struct sockaddr_in *)&ifr->ifr_dstaddr) = ia->ia_dstaddr;
-		break;
+		return (0);
 
 	case SIOCGIFNETMASK:
 		*((struct sockaddr_in *)&ifr->ifr_addr) = ia->ia_sockmask;
-		break;
+		return (0);
 
 	case SIOCSIFDSTADDR:
 		if ((ifp->if_flags & IFF_POINTOPOINT) == 0)
@@ -353,22 +356,25 @@ in_control(so, cmd, data, ifp, p)
 					(struct sockaddr *)&ia->ia_dstaddr;
 			rtinit(&(ia->ia_ifa), (int)RTM_ADD, RTF_HOST|RTF_UP);
 		}
-		break;
+		return (0);
 
 	case SIOCSIFBRDADDR:
 		if ((ifp->if_flags & IFF_BROADCAST) == 0)
 			return (EINVAL);
 		ia->ia_broadaddr = *(struct sockaddr_in *)&ifr->ifr_broadaddr;
-		break;
+		return (0);
 
 	case SIOCSIFADDR:
-		return (in_ifinit(ifp, ia,
-		    (struct sockaddr_in *) &ifr->ifr_addr, 1));
+		error = in_ifinit(ifp, ia,
+		    (struct sockaddr_in *) &ifr->ifr_addr, 1);
+		if (error != 0 && iaIsNew)
+			break;
+		return (0);
 
 	case SIOCSIFNETMASK:
 		ia->ia_sockmask.sin_addr = ifra->ifra_addr.sin_addr;
 		ia->ia_subnetmask = ntohl(ia->ia_sockmask.sin_addr.s_addr);
-		break;
+		return (0);
 
 	case SIOCAIFADDR:
 		maskIsNew = 0;
@@ -398,6 +404,9 @@ in_control(so, cmd, data, ifp, p)
 		}
 		if (ifra->ifra_addr.sin_family == AF_INET &&
 		    (hostIsNew || maskIsNew))
+		if (error != 0 && iaIsNew)
+			break;
+
 			error = in_ifinit(ifp, ia, &ifra->ifra_addr, 0);
 		if ((ifp->if_flags & IFF_BROADCAST) &&
 		    (ifra->ifra_broadaddr.sin_family == AF_INET))
@@ -424,19 +433,7 @@ in_control(so, cmd, data, ifp, p)
 			in_pcbpurgeif0(LIST_FIRST(ripcbinfo.listhead), ifp);
 			in_pcbpurgeif0(LIST_FIRST(udbinfo.listhead), ifp);
 		}
-
-		/*
-		 * Protect from ipintr() traversing address list
-		 * while we're modifying it.
-		 */
-		s = splnet();
-
-		ifa = &ia->ia_ifa;
-		TAILQ_REMOVE(&ifp->if_addrhead, ifa, ifa_link);
-		TAILQ_REMOVE(&in_ifaddrhead, ia, ia_link);
-		LIST_REMOVE(ia, ia_hash);
-		IFAFREE(&ia->ia_ifa);
-		splx(s);
+		error = 0;
 		break;
 
 	default:
@@ -444,7 +441,19 @@ in_control(so, cmd, data, ifp, p)
 			return (EOPNOTSUPP);
 		return ((*ifp->if_ioctl)(ifp, cmd, data));
 	}
-	return (0);
+
+	/*
+	 * Protect from ipintr() traversing address list while we're modifying
+	 * it.
+	 */
+	s = splnet();
+	TAILQ_REMOVE(&ifp->if_addrhead, &ia->ia_ifa, ifa_link);
+	TAILQ_REMOVE(&in_ifaddrhead, ia, ia_link);
+	LIST_REMOVE(ia, ia_hash);
+	IFAFREE(&ia->ia_ifa);
+	splx(s);
+
+	return (error);
 }
 
 /*
@@ -720,6 +729,12 @@ in_ifinit(ifp, ia, sin, scrub)
 	}
 	if ((error = rtinit(&(ia->ia_ifa), (int)RTM_ADD, flags)) == 0)
 		ia->ia_flags |= IFA_ROUTE;
+
+	if (error != 0 && ia->ia_dstaddr.sin_family == AF_INET) {
+		ia->ia_addr = oldaddr;
+		return (error);
+	}
+
 	/* XXX check if the subnet route points to the same interface */
 	if (error == EEXIST)
 		error = 0;
