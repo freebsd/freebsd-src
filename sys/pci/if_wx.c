@@ -698,6 +698,8 @@ wx_dring_setup(sc)
 		return (-1);
 	}
 	if (((u_long)sc->rdescriptors) & 0xfff) {
+		contigfree(sc->rdescriptors, len, M_DEVBUF);
+		sc->rdescriptors = NULL;
 		printf("%s: rcv descriptors not 4KB aligned\n", sc->wx_name);
 		return (-1);
 	}
@@ -707,10 +709,16 @@ wx_dring_setup(sc)
 	sc->tdescriptors = (wxtd_t *)
 	    contigmalloc(len, M_DEVBUF, M_NOWAIT, 0, ~0, 4096, 0);
 	if (sc->tdescriptors == NULL) {
+		contigfree(sc->rdescriptors,
+		    sizeof (wxrd_t) * WX_MAX_RDESC, M_DEVBUF);
+		sc->rdescriptors = NULL;
 		printf("%s: could not allocate xmt descriptors\n", sc->wx_name);
 		return (-1);
 	}
 	if (((u_long)sc->tdescriptors) & 0xfff) {
+		contigfree(sc->rdescriptors,
+		    sizeof (wxrd_t) * WX_MAX_RDESC, M_DEVBUF);
+		sc->rdescriptors = NULL;
 		printf("%s: xmt descriptors not 4KB aligned\n", sc->wx_name);
 		return (-1);
 	}
@@ -723,11 +731,13 @@ wx_dring_teardown(sc)
 	wx_softc_t *sc;
 {
 	if (sc->rdescriptors) {
-		WXFREE(sc->rdescriptors);
+		contigfree(sc->rdescriptors,
+		    sizeof (wxrd_t) * WX_MAX_RDESC, M_DEVBUF);
 		sc->rdescriptors = NULL;
 	}
 	if (sc->tdescriptors) {
-		WXFREE(sc->tdescriptors);
+		contigfree(sc->tdescriptors,
+		    sizeof (wxtd_t) * WX_MAX_TDESC, M_DEVBUF);
 		sc->tdescriptors = NULL;
 	}
 }
