@@ -11,8 +11,6 @@
  *
  */
 
-#include "version.h"
-
 #ifndef __GNUC__
 #define inline
 #endif
