@@ -88,7 +88,7 @@ such as descriptors, from the device.
 Each endpoint, except the control endpoint, is unidirectional.
 .Pp
 The endpoints in a device are grouped into interfaces.
-An interface is a logical unit within a device; e.g.
+An interface is a logical unit within a device; e.g.\&
 a compound device with both a keyboard and a trackball would present
 one interface for each.
 An interface can sometimes be set into different modes,
@@ -245,7 +245,7 @@ struct usb_device_stats {
 .Pp
 The
 .Va requests
-field is indexed by the transfer kind, i.e.
+field is indexed by the transfer kind, i.e.\&
 .Va UE_* ,
 and indicates how many transfers of each kind that has been completed
 by the controller.
