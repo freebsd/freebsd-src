@@ -1205,6 +1205,7 @@ ugen_do_ioctl(struct ugen_softc *sc, int endpt, u_long cmd,
 
 	switch (cmd) {
 	case FIONBIO:
+	case FIOASYNC:
 		/* All handled in the upper FS layer. */
 		return (0);
 	case USB_SET_SHORT_XFER:
