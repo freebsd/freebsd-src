@@ -361,6 +361,12 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 	return (0);
 fail:
 	/*
+	 * If we have failed to allocate any blocks, simply return the error.
+	 * This is the usual case and avoids the need to fsync the file.
+	 */
+	if (allocblk == allociblk && allocib == NULL && unwindidx == -1)
+		return (error);
+	/*
 	 * If we have failed part way through block allocation, we
 	 * have to deallocate any indirect blocks that we have allocated.
 	 * We have to fsync the file before we start to get rid of all
@@ -821,6 +827,12 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 	*bpp = nbp;
 	return (0);
 fail:
+	/*
+	 * If we have failed to allocate any blocks, simply return the error.
+	 * This is the usual case and avoids the need to fsync the file.
+	 */
+	if (allocblk == allociblk && allocib == NULL && unwindidx == -1)
+		return (error);
 	/*
 	 * If we have failed part way through block allocation, we
 	 * have to deallocate any indirect blocks that we have allocated.
