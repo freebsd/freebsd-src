@@ -66,7 +66,7 @@ ${SASM}: ${.CURDIR}/../libc/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 
 ${THREADASM}: ${.CURDIR}/../libc/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 	@${ECHO} creating ${.PREFIX}.o
-	@printf '#include "SYS.h"\nPRSYSCALL(${.PREFIX})\n' | \
+	@printf '#include "SYS.h"\nPRSYSCALL(${.PREFIX},_thread_sys_${.PREFIX})\n' | \
 	    ${CPP} ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -o ${.PREFIX}.o
 	@${LD} -x -r ${.PREFIX}.o
 	@mv a.out ${.PREFIX}.o
@@ -74,7 +74,7 @@ ${THREADASM}: ${.CURDIR}/../libc/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 PTHREADASM=	${THREADASM:.o=.po}
 ${PTHREADASM}: ${.CURDIR}/../libc/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 	@${ECHO} creating ${.PREFIX}.po
-	@printf '#include "SYS.h"\nPRSYSCALL(${.PREFIX})\n' | \
+	@printf '#include "SYS.h"\nPRSYSCALL(${.PREFIX},_thread_sys_${.PREFIX})\n' | \
 	    ${CPP} -DPROF ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -o ${.PREFIX}.po
 	@${LD} -x -r ${.PREFIX}.po
 	@mv a.out ${.PREFIX}.po
@@ -82,7 +82,7 @@ ${PTHREADASM}: ${.CURDIR}/../libc/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 STHREADASM=	${THREADASM:.o=.so}
 ${STHREADASM}: ${.CURDIR}/../libc/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 	@${ECHO} creating ${.PREFIX}.so
-	@printf '#include "SYS.h"\nPRSYSCALL(${.PREFIX})\n' | \
+	@printf '#include "SYS.h"\nPRSYSCALL(${.PREFIX},_thread_sys_${.PREFIX})\n' | \
 	    ${CPP} -DPIC ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -k -o ${.PREFIX}.so
 
 ${PSEUDO}: ${.CURDIR}/../libc/${MACHINE}/SYS.h /usr/include/sys/syscall.h
