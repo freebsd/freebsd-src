@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.48 1998/01/15 15:09:00 kato Exp $
+#	$Id: files.pc98,v 1.49 1998/01/18 15:09:34 kato Exp $
 #
 #
 # The long compile-with and dependency lines are required because of
@@ -323,3 +323,6 @@ gnu/i386/fpemul/wm_sqrt.s	optional	gpl_math_emulate
 gnu/i386/isa/dgb.c		optional	dgb	device-driver
 gnu/i386/isa/sound/awe_wave.c	optional	awe	device-driver
 pci/ide_pci.c			optional	wd	device-driver
+dev/dpt/dpt_control.c		optional        dpt	device-driver
+dev/dpt/dpt_scsi.c		optional        dpt	device-driver
+pci/dpt_pci.c			optional        dpt	device-driver
