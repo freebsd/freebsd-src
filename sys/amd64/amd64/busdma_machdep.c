@@ -105,7 +105,6 @@ static struct mtx bounce_lock;
 static int total_bpages;
 static int busdma_zonecount;
 static STAILQ_HEAD(, bounce_zone) bounce_zone_list;
-static bus_addr_t bounce_lowaddr = BUS_SPACE_MAXADDR;
 
 SYSCTL_NODE(_hw, OID_AUTO, busdma, CTLFLAG_RD, 0, "Busdma parameters");
 SYSCTL_INT(_hw_busdma, OID_AUTO, total_bpages, CTLFLAG_RD, &total_bpages, 0,
@@ -290,14 +289,6 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 			return (error);
 		bz = newtag->bounce_zone;
 
-		if (lowaddr > bounce_lowaddr) {
-			/*
-			 * Go through the pool and kill any pages
-			 * that don't reside below lowaddr.
-			 */
-			panic("bus_dma_tag_create: page reallocation "
-			      "not implemented");
-		}
 		if (ptoa(bz->total_bpages) < maxsize) {
 			int pages;
 
@@ -392,12 +383,14 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 	if (dmat->flags & BUS_DMA_COULD_BOUNCE) {
 
 		/* Must bounce */
+		struct bounce_zone *bz;
 		int maxpages;
 
 		if (dmat->bounce_zone == NULL) {
 			if ((error = alloc_bounce_zone(dmat)) != 0)
 				return (error);
 		}
+		bz = dmat->bounce_zone;
 
 		*mapp = (bus_dmamap_t)malloc(sizeof(**mapp), M_DEVBUF,
 					     M_NOWAIT | M_ZERO);
@@ -414,21 +407,17 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 		 * Attempt to add pages to our pool on a per-instance
 		 * basis up to a sane limit.
 		 */
-		maxpages = MIN(MAX_BPAGES, Maxmem - atop(dmat->lowaddr));
+		if (dmat->alignment > 1)
+			maxpages = MAX_BPAGES;
+		else
+			maxpages = MIN(MAX_BPAGES, Maxmem -atop(dmat->lowaddr));
 		if ((dmat->flags & BUS_DMA_MIN_ALLOC_COMP) == 0
-		 || (dmat->map_count > 0 && total_bpages < maxpages)) {
+		 || (dmat->map_count > 0 && bz->total_bpages < maxpages)) {
 			int pages;
 
-			if (dmat->lowaddr > bounce_lowaddr) {
-				/*
-				 * Go through the pool and kill any pages
-				 * that don't reside below lowaddr.
-				 */
-				panic("bus_dmamap_create: page reallocation "
-				      "not implemented");
-			}
 			pages = MAX(atop(dmat->maxsize), 1);
-			pages = MIN(maxpages - total_bpages, pages);
+			pages = MIN(maxpages - bz->total_bpages, pages);
+			pages = MAX(pages, 1);
 			if (alloc_bounce_pages(dmat, pages) < pages)
 				error = ENOMEM;
 
