@@ -271,17 +271,35 @@ bpf_detachd(d)
 {
 	int error;
 	struct bpf_if *bp;
+	struct ifnet *ifp;
 
-	/* XXX locking */
 	bp = d->bd_bif;
+	BPFIF_LOCK(bp);
+	BPFD_LOCK(d);
+	ifp = d->bd_bif->bif_ifp;
+
+	/*
+	 * Remove d from the interface's descriptor list.
+	 */
+	LIST_REMOVE(d, bd_next);
+
+	/*
+	 * Let the driver know that there are no more listeners.
+	 */
+	if (LIST_EMPTY(&bp->bif_dlist))
+		*bp->bif_driverp = NULL;
+
 	d->bd_bif = NULL;
+	BPFD_UNLOCK(d);
+	BPFIF_UNLOCK(bp);
+
 	/*
 	 * Check if this descriptor had requested promiscuous mode.
 	 * If so, turn it off.
 	 */
 	if (d->bd_promisc) {
 		d->bd_promisc = 0;
-		error = ifpromisc(bp->bif_ifp, 0);
+		error = ifpromisc(ifp, 0);
 		if (error != 0 && error != ENXIO) {
 			/*
 			 * ENXIO can happen if a pccard is unplugged
@@ -293,15 +311,6 @@ bpf_detachd(d)
 				"bpf_detach: ifpromisc failed (%d)\n", error);
 		}
 	}
-	/* Remove d from the interface's descriptor list. */
-	BPFIF_LOCK(bp);
-	LIST_REMOVE(d, bd_next);
-	if (LIST_EMPTY(&bp->bif_dlist))
-		/*
-		 * Let the driver know that there are no more listeners.
-		 */
-		*bp->bif_driverp = NULL;
-	BPFIF_UNLOCK(bp);
 }
 
 /*
