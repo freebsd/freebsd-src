@@ -51,8 +51,8 @@ For ISA cards, in
 .Sh DESCRIPTION
 The
 .Nm
-driver supports the RISCom/N2 ISA cards and the WANic 400/405 PCI cards
-that are based on the HD64570 chip.
+driver supports the RISCom/N2 ISA cards, N2pci and the WANic 400/405 PCI
+cards that are based on the HD64570 chip.
 .Pp
 If you have ISA cards, you need to specify the resources for them in
 .Pa /boot/device.hints .
@@ -117,9 +117,11 @@ driver supports the following hardware:
 .Pp
 .Bl -bullet -compact
 .It
-RISCom/N2 ISA card
+SDL Communications RISCom/N2 ISA
 .It
-WANic 400/405 PCI cards
+SDL Communications N2pci
+.It
+SDL Communications WANic 400/405 PCI
 .El
 .Sh NETGRAPH SUPPORT
 If the kernel is compiled with
