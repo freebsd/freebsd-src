@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mptable.c,v 1.6 1997/07/22 18:52:20 fsmp Exp $
+ *	$Id: mptable.c,v 1.7 1997/08/26 05:12:45 fsmp Exp $
  */
 
 /*
@@ -31,7 +31,7 @@
 
 #define VMAJOR			2
 #define VMINOR			0
-#define VDELTA			14
+#define VDELTA			15
 
 /*
  * this will cause the raw mp table to be dumped to /tmp/mpdump
@@ -769,7 +769,7 @@ MPConfigTableHeader( void* pap )
     }
 
     /* process all the I/O Ints */
-    printf( "--\nI/O Ints:\tType\tPolarity    Trigger\tBus ID\t IRQ\tAPIC ID\tINT#\n" );
+    printf( "--\nI/O Ints:\tType\tPolarity    Trigger\tBus ID\t IRQ\tAPIC ID\tPIN#\n" );
     for ( t = totalSize, c = count; c; c-- ) {
 	if ( readType() == 3 )
 	    intEntry();
@@ -777,7 +777,7 @@ MPConfigTableHeader( void* pap )
     }
 
     /* process all the Local Ints */
-    printf( "--\nLocal Ints:\tType\tPolarity    Trigger\tBus ID\t IRQ\tAPIC ID\tINT#\n" );
+    printf( "--\nLocal Ints:\tType\tPolarity    Trigger\tBus ID\t IRQ\tAPIC ID\tPIN#\n" );
     for ( t = totalSize, c = count; c; c-- ) {
 	if ( readType() == 4 )
 	    intEntry();
