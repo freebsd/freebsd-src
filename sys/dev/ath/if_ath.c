@@ -39,6 +39,9 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Driver for the Atheros Wireless LAN controller.
+ *
+ * This software is derived from work of Atsushi Onoe; his contribution
+ * is greatly appreciated.
  */
 
 #include "opt_inet.h"
