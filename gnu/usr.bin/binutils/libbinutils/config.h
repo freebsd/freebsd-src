@@ -4,12 +4,6 @@
 /* Name of package.  */
 #define PACKAGE "binutils"
 
-/* Version of package.  */
-#define VERSION "2.9.1"
-
-/* Configured target name.  */
-#define TARGET "i386-unknown-freebsdelf"
-
 /* Whether strstr must be declared even if <string.h> is included.  */
 /* #undef NEED_DECLARATION_STRSTR */
 

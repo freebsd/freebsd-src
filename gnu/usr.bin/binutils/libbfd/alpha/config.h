@@ -1,6 +1,12 @@
 /* config.h.  Generated automatically by configure.  */
 /* config.in.  Generated automatically from configure.in by autoheader.  */
 
+/* Name of package.  */
+#define PACKAGE "bfd"
+
+/* Version of package.  */
+#define VERSION "2.9.1"
+
 /* Whether strstr must be declared even if <string.h> is included.  */
 /* #undef NEED_DECLARATION_STRSTR */
 
@@ -39,6 +45,9 @@
 
 /* Define if you have the fcntl function.  */
 #define HAVE_FCNTL 1
+
+/* Define if you have the fdopen function.  */
+#define HAVE_FDOPEN 1
 
 /* Define if you have the getpagesize function.  */
 #define HAVE_GETPAGESIZE 1
