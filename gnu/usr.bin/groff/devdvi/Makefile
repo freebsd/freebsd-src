@@ -9,8 +9,6 @@ DEVFILES=	DESC R I B BI CW CWI MI S EX H HI HB SA SB \
 
 CLEANFILES+=	DESC
 
-.include "../Makefile.inc"
-
 DESC:	DESC.in
 	cat ${DIST_DIR}/DESC.in >DESC
 	test -z '${DVIPRINT}' || echo print '${DVIPRINT}' >>DESC

@@ -13,8 +13,6 @@ DEVFILES=	DESC $(PSFILES) $(DISTFILES) $(DEVGENFILES)
 
 CLEANFILES+=	DESC ${PSFILES}
 
-.include "../Makefile.inc"
-
 DESC: DESC.in
 	-rm -f DESC
 	cat ${DIST_DIR}/DESC.in >DESC
@@ -30,12 +28,12 @@ fonts: DESC
 	${MAKE} -f ${DIST_DIR}/generate/Makefile \
 	  srcdir=${DIST_DIR}/generate DESC=${DIST_DIR}/DESC.in
 
-prologue:	${DIST_DIR}/prologue.ps
-zapfdr.pfa:	${DIST_DIR}/zapfdr.ps
-symbolsl.pfa:	${DIST_DIR}/symbolsl.ps
-
 ${PSFILES}:
 	-rm -f $@
 	sed -f ${DIST_DIR}/psstrip.sed $? >$@
 
 .include "../Makefile.dev"
+
+prologue:	${DIST_DIR}/prologue.ps
+zapfdr.pfa:	${DIST_DIR}/zapfdr.ps
+symbolsl.pfa:	${DIST_DIR}/symbolsl.ps
