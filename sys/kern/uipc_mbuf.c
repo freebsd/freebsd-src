@@ -205,12 +205,22 @@ m_alloc_ref(nmb, how)
 
 	nbytes = round_page(nmb * sizeof(union mext_refcnt));
 	mtx_exit(&mcntfree.m_mtx, MTX_DEF);
+#ifdef WITNESS
+	/*
+	 * XXX: Make sure we don't create lock order problems.
+	 * XXX: We'll grab Giant, but for that to be OK, make sure
+	 * XXX: that either Giant is already held OR make sure that
+	 * XXX: no other locks are held coming in. 
+	 * XXX: Revisit once most of the net stuff gets locks added.
+	 */
+	KASSERT(mtx_owned(&Giant) || witness_list(CURPROC) == 0,
+	    ("m_alloc_ref: Giant must be owned or no locks held")); 
+#endif
 	mtx_enter(&Giant, MTX_DEF);
 	if ((p = (caddr_t)kmem_malloc(mb_map, nbytes, how == M_TRYWAIT ?
 	    M_WAITOK : M_NOWAIT)) == NULL) {
 		mtx_exit(&Giant, MTX_DEF);
-		mtx_enter(&mcntfree.m_mtx, MTX_DEF); /* XXX: We must be	holding
-						             it going out. */
+		mtx_enter(&mcntfree.m_mtx, MTX_DEF);
 		return (0);
 	}
 	mtx_exit(&Giant, MTX_DEF);
@@ -264,9 +274,18 @@ m_mballoc(nmb, how)
 
 	nbytes = round_page(nmb * MSIZE);
 
-	/* XXX: The letting go of the mmbfree lock here may eventually
-	   be moved to only be done for M_TRYWAIT calls to kmem_malloc() */
 	mtx_exit(&mmbfree.m_mtx, MTX_DEF);
+#ifdef WITNESS
+	/*
+	 * XXX: Make sure we don't create lock order problems.
+	 * XXX: We'll grab Giant, but for that to be OK, make sure
+	 * XXX: that either Giant is already held OR make sure that
+	 * XXX: no other locks are held coming in.
+	 * XXX: Revisit once most of the net stuff gets locks added.
+	 */
+	KASSERT(mtx_owned(&Giant) || witness_list(CURPROC) == 0,
+	    ("m_mballoc: Giant must be owned or no locks held"));
+#endif
 	mtx_enter(&Giant, MTX_DEF);
 	p = (caddr_t)kmem_malloc(mb_map, nbytes, M_NOWAIT);
 	if (p == 0 && how == M_TRYWAIT) {
@@ -390,6 +409,17 @@ m_clalloc(ncl, how)
 
 	npg = ncl;
 	mtx_exit(&mclfree.m_mtx, MTX_DEF);
+#ifdef WITNESS
+	/*
+	 * XXX: Make sure we don't create lock order problems.
+	 * XXX: We'll grab Giant, but for that to be OK, make sure
+	 * XXX: that either Giant is already held OR make sure that
+	 * XXX: no other locks are held coming in.
+	 * XXX: Revisit once most of the net stuff gets locks added.
+	 */
+	KASSERT(mtx_owned(&Giant) || witness_list(CURPROC) == 0,
+	    ("m_clalloc: Giant must be owned or no locks held"));
+#endif
 	mtx_enter(&Giant, MTX_DEF);
 	p = (caddr_t)kmem_malloc(mb_map, ctob(npg),
 				 how == M_TRYWAIT ? M_WAITOK : M_NOWAIT);
@@ -466,6 +496,11 @@ m_reclaim()
 {
 	register struct domain *dp;
 	register struct protosw *pr;
+
+#ifdef WITNESS
+	KASSERT(witness_list(CURPROC) == 0,
+	    ("m_reclaim called with locks held"));
+#endif
 
 	for (dp = domains; dp; dp = dp->dom_next)
 		for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++)
