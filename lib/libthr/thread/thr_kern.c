@@ -74,10 +74,6 @@ _thread_sigblock()
 	 * Block all signals.
 	 */
 	SIGFILLSET(set);
-	SIGADDSET(set, SIGTHR);
-#ifdef _PTHREADS_INVARIANTS
-	SIGDELSET(set, SIGABRT);
-#endif
 	SIGDELSET(set, SIGTRAP);
 
 	/* If we have already blocked signals, just up the refcount */
@@ -121,7 +117,6 @@ _thread_suspend(pthread_t pthread, const struct timespec *abstime)
 {
 	struct timespec remaining;
 	struct timespec *ts;
-	siginfo_t info;
 	int error;
 
 	/*
@@ -139,19 +134,12 @@ _thread_suspend(pthread_t pthread, const struct timespec *abstime)
 		ts = &remaining;
 
 		/*
-		 * If the absolute timeout has already passed set the
-		 * relative timeout to 0 sec. so that sigtimedwait()
-		 * returns immediately.
 		 * NOTE: timespecsub() makes sure the tv_nsec member >= 0.
 		 */
-		if (ts->tv_sec < 0) {
-			ts->tv_sec = 0;
-			ts->tv_nsec = 0;
-		}
+		if (ts->tv_sec < 0)
+			return (ETIMEDOUT);
 	} else
 		ts = NULL;
-
-	error = sigtimedwait(&_thread_suspend_sigset, &info, ts);
-	error = (error == -1) ? errno : 0;
-	return (error);
+	error = thr_suspend(ts);
+	return (error == -1 ? errno : error);
 }
