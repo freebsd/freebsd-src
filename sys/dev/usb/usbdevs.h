@@ -339,6 +339,7 @@
 #define	USB_VENDOR_ARESCOM	0x09f5		/* ARESCOM */
 #define	USB_VENDOR_BAY	0x09f9		/* Bay Associates */
 #define	USB_VENDOR_ALTERA	0x09fb		/* Altera */
+#define	USB_VENDOR_CSR	0x0a12		/* Cambridge Silicon Radio Ltd. */
 #define	USB_VENDOR_TREK	0x0a16		/* Trek Technology */
 #define	USB_VENDOR_ASAHIOPTICAL	0x0a17		/* Asahi Optical */
 #define	USB_VENDOR_BOCASYSTEMS	0x0a43		/* Boca Systems */
@@ -357,6 +358,7 @@
 #define	USB_VENDOR_LUWEN	0x0c76		/* Luwen */
 #define	USB_VENDOR_SMC3	0x0d5c		/* Standard Microsystems */
 #define	USB_VENDOR_PNY	0x0d7d		/* PNY */
+#define	USB_VENDOR_MSI	0x0db0		/* Micro Star International */
 #define	USB_VENDOR_HAWKING	0x0e66		/* Hawking Technologies */
 #define	USB_VENDOR_MOTOROLA	0x1063		/* Motorola */
 #define	USB_VENDOR_PLX	0x10b5		/* PLX */
@@ -384,6 +386,7 @@
 
 /* 3Com products */
 #define	USB_PRODUCT_3COM_HOMECONN	0x009d		/* HomeConnect USB Camera */
+#define	USB_PRODUCT_3COM_3CREB96	0x00a0		/* Bluetooth USB dongle */
 #define	USB_PRODUCT_3COM_3C19250	0x03E8		/* 3C19250 Ethernet adapter */
 #define	USB_PRODUCT_3COM_USR56K	0x3021		/* U.S.Robotics 56000 Voice Faxmodem Pro */
 #define	USB_PRODUCT_3COM_3C460	0x11f8		/* HomeConnect 3C460 */
@@ -517,6 +520,9 @@
 /* Behavior Technology Computer products */
 #define	USB_PRODUCT_BTC_BTC7932	0x6782		/* Keyboard with mouse port */
 
+/* Broadcom products */
+#define	USB_PRODUCT_BROADCOM_BCM2033	0x2033		/* BCM2033 Bluetooth USB dongle */
+
 /* Canon, Inc. products */
 #define	USB_PRODUCT_CANON_N656U	0x2206		/* CanoScan N656U */
 #define	USB_PRODUCT_CANON_N1240U	0x220e		/* CanoScan N1240U */
@@ -557,6 +563,9 @@
 
 /* Creative products */
 #define	USB_PRODUCT_CREATIVE_NOMAD_II	0x1002		/* Nomad II MP3 player */
+
+/* Cambridge Silicon Radio Ltd. products */
+#define	USB_PRODUCT_CSR_BT_DONGLE	0x0001		/* Bluetooth USB dongle */
 
 /* CTX products */
 #define	USB_PRODUCT_CTX_EX1300	0x9999		/* Ex1300 hub */
@@ -927,8 +936,12 @@
 #define	USB_PRODUCT_MINOLTA_X	0x4009		/* Dimage X */
 #define	USB_PRODUCT_MINOLTA_5400	0x400e		/* Dimage 5400 */
 
+/* Micro Star International products */
+#define	USB_PRODUCT_MSI_BT_DONGLE	0x1967		/* Bluetooth USB dongle */
+
 /* Mitsumi products */
 #define	USB_PRODUCT_MITSUMI_CDRRW	0x0000		/* CD-R/RW Drive */
+#define	USB_PRODUCT_MITSUMI_BT_DONGLE	0x641f		/* Bluetooth USB dongle */
 
 /* Motorola products */
 #define	USB_PRODUCT_MOTOROLA_MC141555	0x1555		/* MC141555 hub controller */
@@ -1189,6 +1202,7 @@
 #define	USB_PRODUCT_TDK_UCA1464	0x0116		/* USB-cdmaOne Adapter UCA1464 */
 #define	USB_PRODUCT_TDK_UHA6400	0x0117		/* USB-PHS Adapter UHA6400 */
 #define	USB_PRODUCT_TDK_UPA6400	0x0118		/* USB-PHS Adapter UPA6400 */
+#define	USB_PRODUCT_TDK_BT_DONGLE	0x0309		/* Bluetooth USB dongle */
 
 /* TEAC products */
 #define	USB_PRODUCT_TEAC_FD05PUB	0x0000		/* FD-05PUB floppy */
