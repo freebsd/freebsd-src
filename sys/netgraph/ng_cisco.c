@@ -59,8 +59,6 @@
 #include <netinet/if_ether.h>
 
 #include <netatalk/at.h>
-#include <netatalk/at_var.h>
-#include <netatalk/at_extern.h>
 
 #include <netipx/ipx.h>
 #include <netipx/ipx_if.h>

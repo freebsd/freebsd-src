@@ -53,7 +53,6 @@
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/errno.h>
-#include <sys/syslog.h>
 #include <net/ethernet.h>
 
 #include <netgraph/ng_message.h>

@@ -45,8 +45,6 @@
 #include <sys/systm.h>
 #include <sys/errno.h>
 #include <sys/malloc.h>
-#include <sys/mbuf.h>
-#include <sys/socket.h>
 #include <sys/ctype.h>
 
 #include <netinet/in.h>

@@ -54,7 +54,6 @@
 #include <sys/linker.h>
 #include <sys/queue.h>
 #include <sys/mbuf.h>
-#include <sys/socketvar.h>
 #include <sys/ctype.h>
 #include <machine/limits.h>
 
