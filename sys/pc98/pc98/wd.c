@@ -1279,13 +1279,7 @@ done: ;
 		bp->b_resid = bp->b_bcount - du->dk_skip * DEV_BSIZE;
 		wdutab[du->dk_lunit].b_active = 0;
 		du->dk_skip = 0;
-
-		/* Update device stats */
-		devstat_end_transaction(&du->dk_stats,
-					bp->b_bcount - bp->b_resid,
-					DEVSTAT_TAG_NONE,
-					(bp->b_flags & B_READ) ? DEVSTAT_READ : DEVSTAT_WRITE);
-
+		devstat_end_transaction_buf(&du->dk_stats, bp);
 		biodone(bp);
 	}
 
