@@ -183,6 +183,7 @@ endElement(void *userData, const char *name)
 		g_simdisk_insertsector(sc, sc->sp);
 		sc->sp = NULL;
 	} else if (!strcasecmp(name, "diskimage")) {
+	} else if (!strcasecmp(name, "FreeBSD")) {
 	} else {
 		printf("<%s>[[%s]]\n", name, sbuf_data(sc->sbuf));
 	}
