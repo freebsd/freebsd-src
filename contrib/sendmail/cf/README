@@ -3687,6 +3687,7 @@ confMAX_HEADERS_LENGTH	MaxHeadersLength
 confMAX_MIME_HEADER_LENGTH  MaxMimeHeaderLength
 					[undefined] Maximum length of
 					certain MIME header field values.
+					If not set, sendmail uses 2048/1024.
 confCONNECTION_RATE_THROTTLE ConnectionRateThrottle
 					[undefined] The maximum number of
 					connections permitted per second per
@@ -3849,8 +3850,6 @@ confRUN_AS_USER		RunAsUser	[undefined] If set, become this user
 					this user.  Also, all programs will
 					be run as this user, and all output
 					files will be written as this user.
-					Intended for use only on firewalls
-					where users do not have accounts.
 confMAX_RCPTS_PER_MESSAGE  MaxRecipientsPerMessage
 					[infinite] If set, allow no more than
 					the specified number of recipients in
@@ -4375,4 +4374,4 @@ M4 DIVERSIONS
    8	DNS based blacklists
    9	special local rulesets (1 and 2)
 
-$Revision: 8.623.2.21 $, Last updated $Date: 2003/01/17 00:36:57 $
+$Revision: 8.623.2.23 $, Last updated $Date: 2003/03/28 17:28:26 $

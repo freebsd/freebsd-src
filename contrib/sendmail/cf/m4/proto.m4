@@ -13,7 +13,7 @@ divert(-1)
 #
 divert(0)
 
-VERSIONID(`$Id: proto.m4,v 8.649.2.14 2002/12/30 15:46:02 ca Exp $')
+VERSIONID(`$Id: proto.m4,v 8.649.2.17 2003/03/28 17:20:53 ca Exp $')
 
 # level CF_LEVEL config file format
 V`'CF_LEVEL/ifdef(`VENDOR_NAME', `VENDOR_NAME', `Berkeley')
@@ -424,10 +424,14 @@ _OPTION(Timeout.queuereturn, `confTO_QUEUERETURN', `5d')
 _OPTION(Timeout.queuereturn.normal, `confTO_QUEUERETURN_NORMAL', `5d')
 _OPTION(Timeout.queuereturn.urgent, `confTO_QUEUERETURN_URGENT', `2d')
 _OPTION(Timeout.queuereturn.non-urgent, `confTO_QUEUERETURN_NONURGENT', `7d')
+ifdef(`confTO_QUEUERETURN_DSN', `dnl
+O Timeout.queuereturn.dsn=confTO_QUEUERETURN_DSN')
 _OPTION(Timeout.queuewarn, `confTO_QUEUEWARN', `4h')
 _OPTION(Timeout.queuewarn.normal, `confTO_QUEUEWARN_NORMAL', `4h')
 _OPTION(Timeout.queuewarn.urgent, `confTO_QUEUEWARN_URGENT', `1h')
 _OPTION(Timeout.queuewarn.non-urgent, `confTO_QUEUEWARN_NONURGENT', `12h')
+ifdef(`confTO_QUEUEWARN_DSN', `dnl
+O Timeout.queuewarn.dsn=confTO_QUEUEWARN_DSN')
 _OPTION(Timeout.hoststatus, `confTO_HOSTSTATUS', `30m')
 _OPTION(Timeout.resolver.retrans, `confTO_RESOLVER_RETRANS', `5s')
 _OPTION(Timeout.resolver.retrans.first, `confTO_RESOLVER_RETRANS_FIRST', `5s')
@@ -582,7 +586,7 @@ _OPTION(TrustedUser, `confTRUSTED_USER', `root')
 _OPTION(ControlSocketName, `confCONTROL_SOCKET_NAME', `/var/spool/mqueue/.control')
 
 # Maximum MIME header length to protect MUAs
-_OPTION(MaxMimeHeaderLength, `confMAX_MIME_HEADER_LENGTH', `0/0')
+_OPTION(MaxMimeHeaderLength, `confMAX_MIME_HEADER_LENGTH', `2048/1024')
 
 # Maximum length of the sum of all headers
 _OPTION(MaxHeadersLength, `confMAX_HEADERS_LENGTH', `32768')
@@ -1017,7 +1021,7 @@ ifdef(`_MAILER_smtp_',
 `# handle numeric address spec
 dnl there is no check whether this is really an IP number
 R$* < @ [ $+ ] > $*	$: $>ParseLocal $1 < @ [ $2 ] > $3	numeric internet spec
-R$* < @ [ $+ ] > $*	$1 < @ [ $2 ] : $S > $3		Add smart host to path
+R$* < @ [ $+ ] > $*	$: $1 < @ [ $2 ] : $S > $3	Add smart host to path
 R$* < @ [ $+ ] : > $*		$#_SMTP_ $@ [$2] $: $1 < @ [$2] > $3	no smarthost: send
 R$* < @ [ $+ ] : $- : $*> $*	$#$3 $@ $4 $: $1 < @ [$2] > $5	smarthost with mailer
 R$* < @ [ $+ ] : $+ > $*	$#_SMTP_ $@ $3 $: $1 < @ [$2] > $4	smarthost without mailer',

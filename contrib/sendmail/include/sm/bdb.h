@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2002, 2003 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -7,7 +7,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: bdb.h,v 1.1.2.3 2002/12/05 05:07:44 ca Exp $
+ *	$Id: bdb.h,v 1.1.2.4 2003/03/06 16:27:38 ca Exp $
  */
 
 #ifndef	SM_BDB_H
@@ -35,11 +35,11 @@
 # else /* DB_VERSION_MAJOR >= 4 && DB_VERSION_MINOR >= 1 */
 
 #  define DBTXN
-#  if !HASFLOCK
+#  if !HASFLOCK && defined(DB_FCNTL_LOCKING)
 #   define SM_DB_FLAG_ADD(flag)	(flag) |= DB_FCNTL_LOCKING
-#  else /* !HASFLOCK */
+#  else /* !HASFLOCK && defined(DB_FCNTL_LOCKING) */
 #   define SM_DB_FLAG_ADD(flag)	((void) 0)
-#  endif /* !HASFLOCK */
+#  endif /* !HASFLOCK && defined(DB_FCNTL_LOCKING) */
 
 # endif /* DB_VERSION_MAJOR >= 4 && DB_VERSION_MINOR >= 1 */
 #endif /* NEWDB */
