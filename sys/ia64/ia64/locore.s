@@ -143,6 +143,8 @@ ENTRY(mi_startup_trampoline, 0)
 
 END(mi_startup_trampoline)
 
+#ifdef SMP
+
 /*
  * AP wake-up entry point. The handoff state is similar as for the BSP,
  * as described on page 3-9 of the IPF SAL Specification. The difference
@@ -192,6 +194,8 @@ ENTRY(os_boot_rendez,0)
 	br.call.sptk.many rp=ia64_ap_startup
 	/* NOT REACHED */
 END(os_boot_rendez)
+
+#endif /* !SMP */
 
 /**************************************************************************/
 
