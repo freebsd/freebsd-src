@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.252 1996/05/01 03:30:01 bde Exp $
+#	$Id: LINT,v 1.253 1996/05/01 05:04:38 bde Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -864,6 +864,6 @@ options		POWERFAIL_NMI	# make it beep instead of panicing
 options		DEBUG
 options		"EXT2FS"
 options		"IBCS2"
-options		LINUX
+options		COMPAT_LINUX
 options		"SCSI_2_DEF"
 options		SHOW_BUSYBUFS	# List buffers that prevent root unmount
