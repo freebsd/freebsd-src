@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_environment.c,v 1.2 1998/10/09 11:03:46 jkh Exp $
+ *	$Id: kern_environment.c,v 1.3 1998/10/09 21:21:34 msmith Exp $
  */
 
 /*
@@ -65,6 +65,25 @@ getenv(char *name)
     return(NULL);
 }
 
+/*
+ * Return an integer value from an environment variable.
+ */
+int
+getenv_int(char *name, int *data)
+{
+    char	*value, *vtp;
+    quad_t	iv;
+    
+    if ((value = getenv(name)) == NULL)
+	return(0);
+    
+    iv = strtoq(value, &vtp, 0);
+    if ((vtp == value) || (*vtp != 0))
+	return(0);
+    
+    *data = (int)iv;
+    return(1);
+}
 
 static int
 sysctl_kernenv SYSCTL_HANDLER_ARGS
