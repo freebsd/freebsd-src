@@ -113,6 +113,7 @@ AcpiOsExecuteQueue(void *arg, int pending)
     Function = (OSD_EXECUTION_CALLBACK)at->at_function;
     Context = at->at_context;
 
+    TASK_DESTROY(at);
     free(at, M_ACPITASK);
 
     Function(Context);
