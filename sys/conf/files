@@ -16,6 +16,12 @@ ddb/db_variables.c	optional ddb
 ddb/db_watch.c		optional ddb
 ddb/db_write_cmd.c	optional ddb
 dev/vn/vn.c		optional vn
+gnu/scsi/nic5000.c          optional snic
+gnu/isdn/iitel.c            optional itel device-driver
+gnu/isdn/iitty.c            optional ity device-driver
+gnu/isdn/if_ii.c            optional ii device-driver
+gnu/isdn/isdn.c             optional isdn device-driver
+gnu/isdn/iispy.c            optional ispy device-driver
 isofs/cd9660/cd9660_bmap.c	optional cd9660
 isofs/cd9660/cd9660_lookup.c	optional cd9660
 isofs/cd9660/cd9660_node.c	optional cd9660
