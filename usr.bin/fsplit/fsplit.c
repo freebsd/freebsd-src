@@ -45,12 +45,13 @@ static const char copyright[] =
 static char sccsid[] = "@(#)fsplit.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: fsplit.c,v 1.3 1997/07/08 11:01:35 charnier Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
 #include <err.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
