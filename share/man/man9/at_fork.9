@@ -35,7 +35,8 @@
 .Sh SYNOPSIS
 .In sys/types.h
 .In sys/systm.h
-.Ft "typedef void" ( *forklist_fn ) ( "struct proc*" , "struct proc*" , int ) ;
+.Ft "typedef void"
+.Fn \*[lp]*forklist_fn\*[rp] "struct proc *" "struct proc *" int
 .Pp
 .Ft int
 .Fn at_fork "forklist_fn func"
