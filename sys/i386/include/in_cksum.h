@@ -59,9 +59,9 @@ in_cksum_hdr(const struct ip *ip)
 {
 	register u_int sum = 0;
 		    
-#define ADD(n)	__asm("addl " #n "(%2), %0" : "=r" (sum) : "0" (sum), "r" (ip))
-#define ADDC(n)	__asm("adcl " #n "(%2), %0" : "=r" (sum) : "0" (sum), "r" (ip))
-#define MOP	__asm("adcl         $0, %0" : "=r" (sum) : "0" (sum))
+#define ADD(n)	__asm("addl " #n "(%1), %0" : "+r" (sum) : "r" (ip))
+#define ADDC(n)	__asm("adcl " #n "(%1), %0" : "+r" (sum) : "r" (ip))
+#define MOP	__asm("adcl         $0, %0" : "+r" (sum))
 
 	ADD(0);
 	ADDC(4);
@@ -91,8 +91,8 @@ static __inline u_short
 in_addword(u_short sum, u_short b)
 {
 		    
-	__asm("addw %2, %0" : "=r" (sum) : "0" (sum), "r" (b));
-	__asm("adcw $0, %0" : "=r" (sum) : "0" (sum));
+	__asm("addw %1, %0" : "+r" (sum) : "r" (b));
+	__asm("adcw $0, %0" : "+r" (sum));
 
 	return (sum);
 }
@@ -101,9 +101,9 @@ static __inline u_short
 in_pseudo(u_int sum, u_int b, u_int c)
 {
 		    
-	__asm("addl %2, %0" : "=r" (sum) : "0" (sum), "r" (b));
-	__asm("adcl %2, %0" : "=r" (sum) : "0" (sum), "r" (c));
-	__asm("adcl $0, %0" : "=r" (sum) : "0" (sum));
+	__asm("addl %1, %0" : "+r" (sum) : "r" (b));
+	__asm("adcl %1, %0" : "+r" (sum) : "r" (c));
+	__asm("adcl $0, %0" : "+r" (sum));
 
 	sum = (sum & 0xffff) + (sum >> 16);
 	if (sum > 0xffff)
