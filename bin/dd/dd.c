@@ -87,7 +87,7 @@ const	u_char *ctab;		/* conversion table */
 
 int
 main(argc, argv)
-	int argc;
+	int argc __unused;
 	char *argv[];
 {
 	(void)setlocale(LC_CTYPE, "");
