@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_generic.c	8.5 (Berkeley) 1/21/94
- * $Id: sys_generic.c,v 1.43 1998/12/10 01:53:26 jkh Exp $
+ * $Id: sys_generic.c,v 1.44 1999/01/27 21:49:57 dillon Exp $
  */
 
 #include "opt_ktrace.h"
@@ -248,7 +248,7 @@ write(p, uap)
 	    (fp = fdp->fd_ofiles[uap->fd]) == NULL ||
 	    (fp->f_flag & FWRITE) == 0)
 		return (EBADF);
-	aiov.iov_base = (c_caddr_t)uap->buf;
+	aiov.iov_base = uap->buf;
 	aiov.iov_len = uap->nbyte;
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
