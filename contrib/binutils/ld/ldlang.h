@@ -483,5 +483,6 @@ extern void lang_register_vers_node
 	   struct bfd_elf_version_deps *));
 boolean unique_section_p PARAMS ((const char *));
 extern void lang_add_unique PARAMS ((const char *));
+extern const char *lang_get_output_target PARAMS ((void));
 
 #endif

@@ -385,15 +385,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #ifndef elf_backend_write_section
 #define elf_backend_write_section		NULL
 #endif
-#ifndef elf_backend_set_nonloadable_filepos
-#define elf_backend_set_nonloadable_filepos	NULL
-#endif
-#ifndef elf_backend_is_contained_by_filepos
-#define elf_backend_is_contained_by_filepos	NULL
-#endif
-#ifndef elf_backend_copy_private_bfd_data_p
-#define elf_backend_copy_private_bfd_data_p	NULL
-#endif
 #ifndef elf_backend_mips_irix_compat
 #define elf_backend_mips_irix_compat		NULL
 #endif
@@ -495,9 +486,6 @@ static const struct elf_backend_data elfNN_bed =
   elf_backend_discard_info,
   elf_backend_ignore_discarded_relocs,
   elf_backend_write_section,
-  elf_backend_set_nonloadable_filepos,
-  elf_backend_is_contained_by_filepos,
-  elf_backend_copy_private_bfd_data_p,
   elf_backend_mips_irix_compat,
   elf_backend_mips_rtype_to_howto,
   elf_backend_ecoff_debug_swap,

@@ -643,7 +643,8 @@ bfd_section_hash_newfunc (entry, table, string)
      subclass.  */
   if (entry == NULL)
     {
-      entry = bfd_hash_allocate (table, sizeof (struct section_hash_entry));
+      entry = (struct bfd_hash_entry *)
+	bfd_hash_allocate (table, sizeof (struct section_hash_entry));
       if (entry == NULL)
 	return entry;
     }
@@ -1186,7 +1187,7 @@ bfd_set_section_contents (abfd, section, location, offset, count)
 
   /* Record a copy of the data in memory if desired.  */
   if (section->contents
-      && location != section->contents + offset)
+      && location != (PTR) (section->contents + offset))
     memcpy (section->contents + offset, location, (size_t) count);
 
   if (BFD_SEND (abfd, _bfd_set_section_contents,

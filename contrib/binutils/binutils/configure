@@ -2717,7 +2717,7 @@ EOF
 fi
 
 
-ALL_LINGUAS="fr tr ja es sv"
+ALL_LINGUAS="fr tr ja es sv da"
 # Extract the first word of "ranlib", so it can be a program name with args.
 set dummy ranlib; ac_word=$2
 echo $ac_n "checking for $ac_word""... $ac_c" 1>&6

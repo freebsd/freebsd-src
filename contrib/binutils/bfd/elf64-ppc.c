@@ -1661,6 +1661,7 @@ ppc64_elf_merge_private_bfd_data (ibfd, obfd)
 {
   /* Check if we have the same endianess.  */
   if (ibfd->xvec->byteorder != obfd->xvec->byteorder
+      && ibfd->xvec->byteorder != BFD_ENDIAN_UNKNOWN
       && obfd->xvec->byteorder != BFD_ENDIAN_UNKNOWN)
     {
       const char *msg;
@@ -1788,19 +1789,19 @@ struct ppc_dyn_relocs
    ppc_stub_plt_branch:
    Similar to the above, but a 24 bit branch in the stub section won't
    reach its destination.
-   .	addis	%r12,%r2,xxx@ha
-   .	ld	%r11,xxx@l(%r12)
+   .	addis	%r12,%r2,xxx@toc@ha
+   .	ld	%r11,xxx@toc@l(%r12)
    .	mtctr	%r11
    .	bctr
 
    ppc_stub_plt_call:
    Used to call a function in a shared library.
-   .	addis	%r12,%r2,xxx@ha
+   .	addis	%r12,%r2,xxx@toc@ha
    .	std	%r2,40(%r1)
-   .	ld	%r11,xxx+0@l(%r12)
-   .	ld	%r2,xxx+8@l(%r12)
+   .	ld	%r11,xxx+0@toc@l(%r12)
+   .	ld	%r2,xxx+8@toc@l(%r12)
    .	mtctr	%r11
-   .	ld	%r11,xxx+16@l(%r12)
+   .	ld	%r11,xxx+16@toc@l(%r12)
    .	bctr
 */
 
@@ -3169,6 +3170,7 @@ func_desc_adjust (h, inf)
 	{
 	  bfd *abfd;
 	  asymbol *newsym;
+	  struct bfd_link_hash_entry *bh;
 
 	  abfd = h->root.u.undef.abfd;
 	  newsym = bfd_make_empty_symbol (abfd);
@@ -3179,13 +3181,14 @@ func_desc_adjust (h, inf)
 	  if (h->root.type == bfd_link_hash_undefweak)
 	    newsym->flags |= BSF_WEAK;
 
+	  bh = &fdh->root;
 	  if ( !(_bfd_generic_link_add_one_symbol
 		 (info, abfd, newsym->name, newsym->flags,
-		  newsym->section, newsym->value, NULL, false, false,
-		  (struct bfd_link_hash_entry **) &fdh)))
+		  newsym->section, newsym->value, NULL, false, false, &bh)))
 	    {
 	      return false;
 	    }
+	  fdh = (struct elf_link_hash_entry *) bh;
 	  fdh->elf_link_hash_flags &= ~ELF_LINK_NON_ELF;
 	}
 
@@ -3805,8 +3808,7 @@ edit_opd (obfd, info)
 			     for the function descriptor sym which we
 			     don't have at the moment.  So keep an
 			     array of adjustments.  */ 
-			  adjust[(rel->r_offset + wptr - rptr) / 24]
-			    = wptr - rptr;
+			  adjust[rel->r_offset / 24] = wptr - rptr;
 			}
 
 		      if (wptr != rptr)

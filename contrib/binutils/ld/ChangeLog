@@ -1,3 +1,111 @@
+2002-11-27  David O'Brien  <obrien@FreeBSD.org>
+
+	* configure.host: Fix generic FreeBSD configuration entry.
+
+2002-11-20  Alan Modra  <amodra@bigpond.net.au>
+
+	* emulparams/elf64ppc.sh (DATA_ADDR): Don't define.
+
+2002-10-30  Daniel Jacobowitz  <drow@mvista.com>
+
+	* ld.1: Regenerated.
+	* ldgram.c: Regenerated.
+	* po/ld.pot: Regenerated.
+
+2002-10-29  Daniel Jacobowitz  <drow@mvista.com>
+
+	* emultempl/aix.em: Use include <> for generated headers.
+	* emultempl/beos.em: Likewise.
+	* emultempl/elf32.em: Likewise.
+	* emultempl/pe.em: Likewise.
+	* ldctor.c: Likewise.
+	* ldexp.c: Likewise.
+	* ldfile.c: Likewise.
+	* ldlang.c: Likewise.
+	* ldlex.c: Likewise.
+	* ldlex.l: Likewise.
+	* ldmain.c: Likewise.
+	* ldmisc.c: Likewise.
+	* ldwrite.c: Likewise.
+	* lexsup.c: Likewise.
+	* mri.c: Likewise.
+	* pe-dll.c: Likewise.
+
+2002-10-28  Daniel Jacobowitz  <drow@mvista.com>
+
+	Merge from mainline:
+	2002-10-23  Jakub Jelinek  <jakub@redhat.com>
+	* emultempl/elf32.em (place_orphan): Don't put non-allocated .rel*
+	sections into .rel{,a}.dyn.
+
+	2002-10-21  Danny Smith  <dannysmith@users.sourceforeg.net>
+	* scripttempl/pe.sc (__RUNTIME_PSEUDO_RELOC_LIST__,
+	__RUNTIME_PSEUDO_RELOC_LIST_END__): Add only when relocating.
+
+	2002-10-16  Jakub Jelinek  <jakub@redhat.com>
+	* configure.tgt (s390x-*-linux*): Add elf_s390 emulation.
+	(s390-*-linux*): Add elf64_s390 emulation if want64.
+	* emulparams/elf64_sparc.sh (LIB_PATH): Update to match 2002-05-22
+	genscript.sh changes.
+	* emulparams/elf_x86_64.sh (LIB_PATH): Likewise.
+	* emulparams/elf64_s390.sh (LIB_PATH): Set up native 64 bit dirs.
+
+	2002-10-10  Jakub Jelinek  <jakub@redhat.com>
+	* ldfile.c (ldfile_try_open_bfd): When searching skip linker scripts if
+	they have OUTPUT_FORMAT not matching actual output format.
+	* ldlang.c (lang_get_output_target): New function.
+	(open_output): Use it.
+	* ldlang.h (lang_get_output_target): New prototype.
+
+	2002-10-07  Ralf Habacker  <Ralf.Habacker@freenet.de>
+	* pe-dll.cc (autofilter_symbolprefixlist): Don't re-export
+	auto-import symbols.
+	(make_one): Create _nm_<symbol> for data only.
+
+	2002-10-10  Alan Modra  <amodra@bigpond.net.au>
+	* emultempl/elf32.em (output_rel_find): Prefer .rel script sections
+	when orphan is .rel, .rela when orphan is .rela.
+	(gld${EMULATION_NAME}_place_orphan): Handle combreloc .rel* case
+	first.  Remove outsecname var.
+
+	2002-09-30  Alan Modra  <amodra@bigpond.net.au>
+	* scripttempl/elfd30v.sc: Order reloc sections placing .plt last.
+	* scripttempl/elfm68hc11.sc: Likewise.
+	* scripttempl/elfm68hc12.sc: Likewise.
+
+	* emultempl/elf32.em (output_rel_find): Always place orphan loadable
+	reloc sections just before .rel.plt/.rela.plt.
+	(gld${EMULATION_NAME}_place_orphan <.rel>): Remove combreloc code.
+	Only put loadable reloc sections in hold_rel.
+
+	2002-09-29  H.J. Lu <hjl@gnu.org>
+	* emulparams/elf32ppc.sh (OTHER_GOT_RELOC_SECTIONS): New.
+
+	2002-08-27  Egor Duda  <deo@logos-m.ru>
+	* scripttempl/pe.sc: Handle .rdata_runtime_pseudo_reloc sections.
+	Add symbols for application to access them.
+
+2002-10-15  Alan Modra  <amodra@bigpond.net.au>
+
+	* ldlang.c (load_symbols): Revert last change.
+
+2002-10-14  Alan Modra  <amodra@bigpond.net.au>
+
+	* ldlang.c (load_symbols): Don't call bfd_link_add_symbols when
+	just_syms_flag.
+	(lang_reasonable_defaults): Don't compare against false.
+	(size_input_section): Likewise.
+	(lang_size_sections_1): Likewise.
+	(lang_do_assignments): Likewise.
+	(lang_add_output): Likewise.
+
+2002-10-11  Alan Modra  <amodra@bigpond.net.au>
+
+	* pe-dll.c (make_import_fixup_mark): Avoid type-punned pointer.
+
+	* ldgram.y (memory_spec): Provide empty action.
+	(section <NAME>): Likewise.
+
 2002-10-02  Alan Modra  <amodra@bigpond.net.au>
 
 	* emulparams/elf64ppc.sh (MAXPAGESIZE): Set to 0x10000.
