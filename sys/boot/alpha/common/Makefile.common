@@ -10,14 +10,16 @@ SRCS+=		main.c conf.c
 SRCS+=		dev_net.c
 .endif
 
+.if !defined(NOFORTH)
 # Enable BootForth
 BOOT_FORTH=	yes
-CFLAGS+=	-I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/alpha
 CFLAGS+=	-DBOOT_FORTH
+CFLAGS+=	-I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/alpha
 .if exists(${.OBJDIR}/../../ficl/libficl.a)
 LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
 .else
 LIBFICL=	${.CURDIR}/../../ficl/libficl.a
+.endif
 .endif
 
 # Always add MI sources 
