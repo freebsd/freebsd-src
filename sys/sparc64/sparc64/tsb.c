@@ -69,7 +69,9 @@ PMAP_STATS_VAR(tsb_nrepl);
 PMAP_STATS_VAR(tsb_nlookup_k);
 PMAP_STATS_VAR(tsb_nlookup_u);
 PMAP_STATS_VAR(tsb_nenter_k);
+PMAP_STATS_VAR(tsb_nenter_k_oc);
 PMAP_STATS_VAR(tsb_nenter_u);
+PMAP_STATS_VAR(tsb_nenter_u_oc);
 PMAP_STATS_VAR(tsb_nforeach);
 
 struct tte *tsb_kernel;
@@ -113,6 +115,19 @@ tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va, u_long sz, u_long data)
 	vm_offset_t ova;
 	int b0;
 	int i;
+
+	if (m->pc != DCACHE_COLOR(va)) {
+		CTR6(KTR_CT2,
+	"tsb_tte_enter: off colour va=%#lx pa=%#lx o=%p oc=%#lx ot=%d pi=%#lx",
+		    va, VM_PAGE_TO_PHYS(m), m->object,
+		    m->object ? m->object->pg_color : -1,
+		    m->object ? m->object->type : -1,
+		    m->pindex);
+		if (pm == kernel_pmap)
+			PMAP_STATS_INC(tsb_nenter_k_oc);
+		else
+			PMAP_STATS_INC(tsb_nenter_u_oc);
+	}
 
 	if (pm == kernel_pmap) {
 		PMAP_STATS_INC(tsb_nenter_k);

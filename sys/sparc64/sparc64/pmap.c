@@ -182,6 +182,8 @@ PMAP_STATS_VAR(pmap_nenter_update);
 PMAP_STATS_VAR(pmap_nenter_replace);
 PMAP_STATS_VAR(pmap_nenter_new);
 PMAP_STATS_VAR(pmap_nkenter);
+PMAP_STATS_VAR(pmap_nkenter_oc);
+PMAP_STATS_VAR(pmap_nkenter_stupid);
 PMAP_STATS_VAR(pmap_nkremove);
 PMAP_STATS_VAR(pmap_nqenter);
 PMAP_STATS_VAR(pmap_nqremove);
@@ -298,9 +300,19 @@ pmap_bootstrap(vm_offset_t ekva)
 	CTR0(KTR_PMAP, "pmap_bootstrap: physical memory");
 	qsort(mra, sz, sizeof (*mra), mr_cmp);
 	physsz = 0;
+	getenv_quad("hw.physmem", &physmem);
 	for (i = 0, j = 0; i < sz; i++, j += 2) {
 		CTR2(KTR_PMAP, "start=%#lx size=%#lx", mra[i].mr_start,
 		    mra[i].mr_size);
+		if (physmem != 0 && btoc(physsz + mra[i].mr_size) >= physmem) {
+			if (btoc(physsz) < physmem) {
+				phys_avail[j] = mra[i].mr_start;
+				phys_avail[j + 1] = mra[i].mr_start +
+				    (ctob(physmem) - physsz);
+				physsz = ctob(physmem);
+			}
+			break;
+		}
 		phys_avail[j] = mra[i].mr_start;
 		phys_avail[j + 1] = mra[i].mr_start + mra[i].mr_size;
 		physsz += mra[i].mr_size;
@@ -612,7 +624,7 @@ pmap_init(vm_offset_t phys_start, vm_offset_t phys_end)
 		size = translations[i].om_size;
 		if (addr < VM_MIN_PROM_ADDRESS || addr > VM_MAX_PROM_ADDRESS)
 			continue;
-		result = vm_map_find(kernel_map, NULL, 0, &addr, size, TRUE,
+		result = vm_map_find(kernel_map, NULL, 0, &addr, size, FALSE,
 		    VM_PROT_ALL, VM_PROT_ALL, 0);
 		if (result != KERN_SUCCESS || addr != translations[i].om_start)
 			panic("pmap_init: vm_map_find");
@@ -806,6 +818,7 @@ pmap_cache_remove(vm_page_t m, vm_offset_t va)
 void
 pmap_kenter(vm_offset_t va, vm_offset_t pa)
 {
+	vm_offset_t opa;
 	vm_offset_t ova;
 	struct tte *tp;
 	vm_page_t om;
@@ -817,9 +830,23 @@ pmap_kenter(vm_offset_t va, vm_offset_t pa)
 	m = PHYS_TO_VM_PAGE(pa);
 	CTR4(KTR_PMAP, "pmap_kenter: va=%#lx pa=%#lx tp=%p data=%#lx",
 	    va, pa, tp, tp->tte_data);
+	if (m->pc != DCACHE_COLOR(va)) {
+		CTR6(KTR_CT2,
+	"pmap_kenter: off colour va=%#lx pa=%#lx o=%p oc=%#lx ot=%d pi=%#lx",
+		    va, pa, m->object,
+		    m->object ? m->object->pg_color : -1,
+		    m->object ? m->object->type : -1,
+		    m->pindex);
+		PMAP_STATS_INC(pmap_nkenter_oc);
+	}
 	if ((tp->tte_data & TD_V) != 0) {
-		om = PHYS_TO_VM_PAGE(TTE_GET_PA(tp));
+		opa = TTE_GET_PA(tp);
 		ova = TTE_GET_VA(tp);
+		if (pa == opa && va == ova) {
+			PMAP_STATS_INC(pmap_nkenter_stupid);
+			return;
+		}
+		om = PHYS_TO_VM_PAGE(opa);
 		TAILQ_REMOVE(&om->md.tte_list, tp, tte_link);
 		pmap_cache_remove(om, ova);
 		if (va != ova)
