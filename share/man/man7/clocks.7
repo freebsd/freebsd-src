@@ -25,7 +25,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: clocks.7,v 1.2 1996/04/07 21:12:10 mpp Exp $
+.\" $Id: clocks.7,v 1.6 1997/03/21 20:14:09 mpp Exp $
 .\" "
 .Dd April 1, 1996
 .Os
@@ -58,7 +58,9 @@ Note that
 .Dv CLOCKS_PER_SEC
 may be floating point.  Don't use 
 .Fn clock
-in new programs under FreeBSD.  It is feeble compared with
+in new programs under
+.Tn FreeBSD .
+It is feeble compared with
 .Xr getrusage 2 .
 It is provided for ANSI conformance.  It is implemented by calling
 .Fn getrusage
@@ -77,7 +79,9 @@ Note that its frequency may be different from
 .Dv CLOCKS_PER_SEC .
 Don't use 
 .Xr times 3
-in new programs under FreeBSD.  It is feeble compared with
+in new programs under
+.Tn FreeBSD .
+It is feeble compared with
 .Xr gettimeofday 2
 together with 
 .Fn getrusage .
