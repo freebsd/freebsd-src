@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eisaconf.c,v 1.46 1999/06/22 09:44:00 peter Exp $
+ *	$Id: eisaconf.c,v 1.47 1999/07/11 13:42:35 dfr Exp $
  */
 
 #include "opt_eisa.h"
@@ -212,12 +212,17 @@ eisa_probe_nomatch(device_t dev, device_t child)
 	return;
 }
 
-static void
+static int
 eisa_print_child(device_t dev, device_t child)
 {
-	/* XXX print resource descriptions? */
-	printf(" at slot %d", eisa_get_slot(child));
-	printf(" on %s", device_get_nameunit(dev));
+	int retval = 0;
+
+	bus_print_child_header(dev, child);
+
+	retval += printf(" on %s slot %d", device_get_nameunit(dev),
+			 eisa_get_slot(child));
+
+	return (retval);
 }
 
 static int

@@ -1224,30 +1224,34 @@ usbd_get_endpoint_descriptor(iface, address)
 }
 
 #if defined(__FreeBSD__)
-void
+int
 usbd_print_child(device_t parent, device_t child)
 {
 	/*
 	struct usb_softc *sc = device_get_softc(child);
 	*/
+	int retval = 0;
 
-	printf(" at %s%d", device_get_name(parent), device_get_unit(parent));
+	retval += bus_print_child_header(parent, child);
+	retval += bus_print_child_footer(parent, child);
 
 	/* XXX How do we get to the usbd_device_handle???
 	usbd_device_handle dev = invalidadosch;
 
-	printf(" addr %d", dev->addr);
+	retval += printf(" addr %d\n", dev->addr);
 
 	if (bootverbose) {
 		if (dev->lowspeed)
-			printf(", lowspeed");
+			retval += printf(", lowspeed");
 		if (dev->self_powered)
-			printf(", self powered");
+			retval += printf(", self powered");
 		else
-			printf(", %dmA", dev->power);
-		printf(", config %d", dev->config);
+			retval += printf(", %dmA", dev->power);
+		retval += printf(", config %d", dev->config);
 	}
 	 */
+
+	return (retval);
 }
 
 /* Reconfigure all the USB busses in the system. */

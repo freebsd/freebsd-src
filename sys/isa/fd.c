@@ -47,7 +47,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.148 1999/07/04 14:58:32 phk Exp $
+ *	$Id: fd.c,v 1.149 1999/07/21 12:19:44 joerg Exp $
  *
  */
 
@@ -757,11 +757,16 @@ fdc_attach(device_t dev)
 	return (bus_generic_attach(dev));
 }
 
-static void
+static int
 fdc_print_child(device_t me, device_t child)
 {
-	printf(" at %s%d drive %d", device_get_name(me), device_get_unit(me),
+	int retval = 0;
+
+	retval += bus_print_child_header(me, child);
+	retval += printf(" on %s drive %d\n", device_get_nameunit(me),
 	       *(int *)device_get_ivars(child));
+	
+	return (retval);
 }
 
 static int

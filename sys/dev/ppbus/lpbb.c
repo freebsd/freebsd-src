@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: lpbb.c,v 1.4 1999/01/10 12:04:54 nsouch Exp $
+ *	$Id: lpbb.c,v 1.5 1999/05/08 21:59:06 dfr Exp $
  *
  */
 
@@ -62,7 +62,6 @@ static int lpbb_detect(struct lpbb_softc *);
 
 static int lpbb_probe(device_t);
 static int lpbb_attach(device_t);
-static void lpbb_print_child(device_t, device_t);
 
 static int lpbb_callback(device_t, int, caddr_t *);
 static void lpbb_setlines(device_t, int, int);
@@ -77,7 +76,7 @@ static device_method_t lpbb_methods[] = {
 	DEVMETHOD(device_attach,	lpbb_attach),
 
 	/* bus interface */
-	DEVMETHOD(bus_print_child,	lpbb_print_child),
+	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 
 	/* iicbb interface */
 	DEVMETHOD(iicbb_callback,	lpbb_callback),
@@ -305,14 +304,6 @@ lpbb_getdataline(device_t dev)
 	struct lpbb_softc *sc = (struct lpbb_softc *)device_get_softc(dev);
 
 	return (getSDA(sc));
-}
-
-static void
-lpbb_print_child(device_t bus, device_t dev)
-{
-	printf(" on %s%d", device_get_name(bus), device_get_unit(bus));
-
-	return;
 }
 
 DRIVER_MODULE(lpbb, root, lpbb_driver, lpbb_devclass, 0, 0);
