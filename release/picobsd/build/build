@@ -52,9 +52,9 @@ set_defaults() {
     done <<__eof__
 # build	MFS		- Byte/inode -
 # name		suffix	DFLT_SZ	init	MFS	FLOPPY
-dial		-D	1600	init	4096	32768
-router		-R	820	oinit	3072	32768
-net		-N	2200	init	4096	32768
+dial		-D	2400	init	4096	32768
+router		-R	2400	oinit	3072	32768
+net		-N	2400	init	4096	32768
 isp		-I	2400	init	4096	32768
 install		-S	2400	init	4096	4096
 custom		-C	2400	init	8192	32768
@@ -227,6 +227,7 @@ main_dialog() {
 	    dial "dialin (ppp etc.)" \
 	    router "router/bridge/mrouter" \
 	    net "net admin tool" \
+            install "network system installer" \
 	    isp "isp (ppp and terminal server)" \
 	    custom "custom config (need pathname)" 2> ${RISU} || rm ${RISU}
 	if [ -f ${RISU} ] ; then
