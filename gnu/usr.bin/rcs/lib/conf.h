@@ -1,6 +1,6 @@
 /* RCS compile-time configuration */
 
-	/* $Id: conf.sh,v 5.25 1995/06/16 06:19:24 eggert Exp $ */
+	/* $Id: conf.h,v 1.4 1995/10/28 21:49:25 peter Exp $ */
 
 /*
  * This file is generated automatically.
@@ -210,7 +210,7 @@ typedef void *malloc_type; /* type returned by malloc() */
 /* Do struct stat s and t describe the same file?  Answer d if unknown.  */
 #define same_file(s,t,d) ((s).st_ino==(t).st_ino && (s).st_dev==(t).st_dev)
 #define has_utimbuf 1 /* Does struct utimbuf work?  */
-#define CO "/usr/local/bin/co" /* name of 'co' program */
+#define CO "/usr/bin/co" /* name of 'co' program */
 #define COMPAT2 0 /* Are version 2 files supported?  */
 #define DIFF "/usr/bin/diff" /* name of 'diff' program */
 #define DIFF3 "/usr/bin/diff3" /* name of 'diff3' program */
@@ -221,7 +221,7 @@ typedef void *malloc_type; /* type returned by malloc() */
 #define DIFF_FAILURE 1 /* DIFF status if differences are found */
 #define DIFF_TROUBLE 2 /* DIFF status if trouble */
 #define ED "/bin/ed" /* name of 'ed' program (used only if !DIFF3_BIN) */
-#define MERGE "/usr/local/bin/merge" /* name of 'merge' program */
+#define MERGE "/usr/bin/merge" /* name of 'merge' program */
 #define TMPDIR "/tmp" /* default directory for temporary files */
 #define SLASH '/' /* principal filename separator */
 #define SLASHes '/' /* `case SLASHes:' labels all filename separators */
