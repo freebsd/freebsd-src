@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001 Matthew Dillon.  All Rights Reserved.  Copyright 
+ * Copyright (c) 2001 Matthew Dillon.  All Rights Reserved.  Copyright
  * terms are as specified in the COPYRIGHT file at the base of the source
  * tree.
  *
@@ -14,13 +14,13 @@
  *	  without adding bloat to the structures.
  *	- mutexes can be obtained for invalid pointers, useful when uses
  *	  mutexes to interlock destructor ops.
- *	- no initialization/destructor overhead
+ *	- no initialization/destructor overhead.
  *	- can be used with msleep.
  *
  * Disadvantages:
- *	- should generally only be used as leaf mutexes
+ *	- should generally only be used as leaf mutexes.
  *	- pool/pool dependancy ordering cannot be depended on.
- *	- possible L1 cache mastersip contention between cpus
+ *	- possible L1 cache mastersip contention between cpus.
  */
 
 #include <sys/cdefs.h>
@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 #ifndef MTX_POOL_SIZE
 #define MTX_POOL_SIZE	128
 #endif
-#define MTX_POOL_MASK	(MTX_POOL_SIZE-1)
+#define MTX_POOL_MASK	(MTX_POOL_SIZE - 1)
 
 static struct mtx mtx_pool_ary[MTX_POOL_SIZE];
 
@@ -48,14 +48,13 @@ int mtx_pool_valid = 0;
  * Inline version of mtx_pool_find(), used to streamline our main API
  * function calls.
  */
-static __inline
-struct mtx *
+static __inline struct mtx *
 _mtx_pool_find(void *ptr)
 {
     int p;
 
     p = (int)(uintptr_t)ptr;
-    return(&mtx_pool_ary[(p ^ (p >> 6)) & MTX_POOL_MASK]);
+    return (&mtx_pool_ary[(p ^ (p >> 6)) & MTX_POOL_MASK]);
 }
 
 static void
@@ -64,7 +63,8 @@ mtx_pool_setup(void *dummy __unused)
     int i;
 
     for (i = 0; i < MTX_POOL_SIZE; ++i)
-	mtx_init(&mtx_pool_ary[i], "pool mutex", NULL, MTX_DEF | MTX_NOWITNESS | MTX_QUIET);
+	mtx_init(&mtx_pool_ary[i], "pool mutex", NULL,
+	    MTX_DEF | MTX_NOWITNESS | MTX_QUIET);
     mtx_pool_valid = 1;
 }
 
@@ -77,7 +77,8 @@ struct mtx *
 mtx_pool_alloc(void)
 {
     static int si;
-    return(&mtx_pool_ary[si++ & MTX_POOL_MASK]);
+
+    return (&mtx_pool_ary[si++ & MTX_POOL_MASK]);
 }
 
 /*
@@ -89,16 +90,18 @@ mtx_pool_alloc(void)
 struct mtx *
 mtx_pool_find(void *ptr)
 {
-    return(_mtx_pool_find(ptr));
+
+    return (_mtx_pool_find(ptr));
 }
 
 /*
  * Combined find/lock operation.  Lock the pool mutex associated with
  * the specified address.
  */
-void 
+void
 mtx_pool_lock(void *ptr)
 {
+
     mtx_lock(_mtx_pool_find(ptr));
 }
 
@@ -109,8 +112,8 @@ mtx_pool_lock(void *ptr)
 void
 mtx_pool_unlock(void *ptr)
 {
+
     mtx_unlock(_mtx_pool_find(ptr));
 }
 
-SYSINIT(mtxpooli, SI_SUB_MTX_POOL, SI_ORDER_FIRST, mtx_pool_setup, NULL)   
-
+SYSINIT(mtxpooli, SI_SUB_MTX_POOL, SI_ORDER_FIRST, mtx_pool_setup, NULL);
