@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999 Robert N. M. Watson
+ * Copyright (c) 1999, 2000, 2001 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ * $FreeBSD$
  */
 /*
  * Support functionality for the POSIX.1e ACL interface
@@ -46,15 +46,15 @@
 #define ACL_STRING_PERM_NONE    '-'
 
 /*
- * acl_entry_compare -- compare two acl_entry structures to determine the
- * order they should appear in.  Used by acl_sort to sort ACL entries into
- * the kernel-desired order -- i.e., the order useful for evaluation and
- * O(n) validity checking.  Beter to have an O(nlogn) sort in userland and
- * an O(n) in kernel than to have both in kernel.
+ * _posix1e_acl_entry_compare -- compare two acl_entry structures to
+ * determine the order they should appear in.  Used by _posix1e_acl_sort to
+ * sort ACL entries into the kernel-desired order -- i.e., the order useful
+ * for evaluation and O(n) validity checking.  Beter to have an O(nlogn) sort
+ * in userland and an O(n) in kernel than to have both in kernel.
  */
 typedef int (*compare)(const void *, const void *);
 static int
-acl_entry_compare(struct acl_entry *a, struct acl_entry *b)
+_posix1e_acl_entry_compare(struct acl_entry *a, struct acl_entry *b)
 {
 	/*
 	 * First, sort between tags -- conveniently defined in the correct
@@ -87,16 +87,16 @@ acl_entry_compare(struct acl_entry *a, struct acl_entry *b)
 }
 
 /*
- * acl_sort -- sort ACL entries.
+ * _posix1e_acl_sort -- sort ACL entries in POSIX.1e-formatted ACLs
  * Give the opportunity to fail, althouh we don't currently have a way
  * to fail.
  */
 int
-acl_sort(acl_t acl)
+_posix1e_acl_sort(acl_t acl)
 {
 
 	qsort(&acl->acl_entry[0], acl->acl_cnt, sizeof(struct acl_entry), 
-	    (compare) acl_entry_compare);
+	    (compare) _posix1e_acl_entry_compare);
 
 	return (0);
 }
@@ -107,18 +107,18 @@ acl_sort(acl_t acl)
  * ACL_TYPE_DEFAULT
  */
 int
-acl_posix1e(acl_t acl, acl_type_t type)
+_posix1e_acl(acl_t acl, acl_type_t type)
 {
 
 	return ((type == ACL_TYPE_ACCESS) || (type == ACL_TYPE_DEFAULT));
 }
 
 /*
- * acl_check -- given an ACL, check its validity.  This is mirrored from
- * code in sys/kern/kern_acl.c, and if changes are made in one, they should
- * be made in the other also.  This copy of acl_check is made available
- * in userland for the benefit of processes wanting to check ACLs for
- * validity before submitting them to the kernel, or for performing 
+ * _posix1e_acl_check -- given an ACL, check its validity.  This is mirrored
+ * from code in sys/kern/kern_acl.c, and if changes are made in one, they
+ * should be made in the other also.  This copy of acl_check is made
+ * available * in userland for the benefit of processes wanting to check ACLs
+ * for validity before submitting them to the kernel, or for performing 
  * in userland file system checking.  Needless to say, the kernel makes
  * the real checks on calls to get/setacl.
  *
@@ -128,7 +128,7 @@ acl_posix1e(acl_t acl, acl_type_t type)
  * this.  Returns 0 on success, EINVAL on failure.
  */
 int
-acl_check(struct acl *acl)
+_posix1e_acl_check(struct acl *acl)
 {
 	struct acl_entry	*entry; 	/* current entry */
 	uid_t	obj_uid=-1, obj_gid=-1, highest_uid=0, highest_gid=0;
@@ -137,9 +137,9 @@ acl_check(struct acl *acl)
 	int	count_user_obj=0, count_user=0, count_group_obj=0,
 		count_group=0, count_mask=0, count_other=0;
 
-	/* printf("acl_check: checking acl with %d entries\n", acl->acl_cnt); */
+	/* printf("_posix1e_acl_check: checking acl with %d entries\n",
+	    acl->acl_cnt); */
 	while (i < acl->acl_cnt) {
-
 		entry = &acl->acl_entry[i];
 
 		if ((entry->ae_perm | ACL_PERM_BITS) != ACL_PERM_BITS)
@@ -147,7 +147,8 @@ acl_check(struct acl *acl)
 
 		switch(entry->ae_tag) {
 		case ACL_USER_OBJ:
-			/* printf("acl_check: %d: ACL_USER_OBJ\n", i); */
+			/* printf("_posix1e_acl_check: %d: ACL_USER_OBJ\n",
+			    i); */
 			if (stage > ACL_USER_OBJ)
 				return (EINVAL);
 			stage = ACL_USER;
@@ -156,7 +157,7 @@ acl_check(struct acl *acl)
 			break;
 	
 		case ACL_USER:
-			/* printf("acl_check: %d: ACL_USER\n", i); */
+			/* printf("_posix1e_acl_check: %d: ACL_USER\n", i); */
 			if (stage > ACL_USER)
 				return (EINVAL);
 			stage = ACL_USER;
@@ -169,7 +170,8 @@ acl_check(struct acl *acl)
 			break;	
 	
 		case ACL_GROUP_OBJ:
-			/* printf("acl_check: %d: ACL_GROUP_OBJ\n", i); */
+			/* printf("_posix1e_acl_check: %d: ACL_GROUP_OBJ\n",
+			    i); */
 			if (stage > ACL_GROUP_OBJ)
 				return (EINVAL);
 			stage = ACL_GROUP;
@@ -178,7 +180,7 @@ acl_check(struct acl *acl)
 			break;
 	
 		case ACL_GROUP:
-			/* printf("acl_check: %d: ACL_GROUP\n", i); */
+			/* printf("_posix1e_acl_check: %d: ACL_GROUP\n", i); */
 			if (stage > ACL_GROUP)
 				return (EINVAL);
 			stage = ACL_GROUP;
@@ -191,7 +193,7 @@ acl_check(struct acl *acl)
 			break;
 			
 		case ACL_MASK:
-			/* printf("acl_check: %d: ACL_MASK\n", i); */
+			/* printf("_posix1e_acl_check: %d: ACL_MASK\n", i); */
 			if (stage > ACL_MASK)
 				return (EINVAL);
 			stage = ACL_MASK;
@@ -199,7 +201,7 @@ acl_check(struct acl *acl)
 			break;
 	
 		case ACL_OTHER:
-			/* printf("acl_check: %d: ACL_OTHER\n", i); */
+			/* printf("_posix1e_acl_check: %d: ACL_OTHER\n", i); */
 			if (stage > ACL_OTHER)
 				return (EINVAL);
 			stage = ACL_OTHER;
@@ -207,7 +209,7 @@ acl_check(struct acl *acl)
 			break;
 	
 		default:
-			/* printf("acl_check: %d: INVALID\n", i); */
+			/* printf("_posix1e_acl_check: %d: INVALID\n", i); */
 			return (EINVAL);
 		}
 		i++;
@@ -236,7 +238,7 @@ acl_check(struct acl *acl)
  * MAY HAVE SIDE-EFFECTS
  */
 int
-acl_id_to_name(acl_tag_t tag, uid_t id, ssize_t buf_len, char *buf)
+_posix1e_acl_id_to_name(acl_tag_t tag, uid_t id, ssize_t buf_len, char *buf)
 {
 	struct group	*g;
 	struct passwd	*p;
@@ -285,7 +287,7 @@ acl_id_to_name(acl_tag_t tag, uid_t id, ssize_t buf_len, char *buf)
  * instead of a username.  What is correct behavior here?  Check chown.
  */
 int
-acl_name_to_id(acl_tag_t tag, char *name, uid_t *id)
+_posix1e_acl_name_to_id(acl_tag_t tag, char *name, uid_t *id)
 {
 	struct group	*g;
 	struct passwd	*p;
@@ -332,10 +334,10 @@ acl_name_to_id(acl_tag_t tag, char *name, uid_t *id)
  * in a string describing the permissions.
  */
 int
-acl_perm_to_string(acl_perm_t perm, ssize_t buf_len, char *buf)
+_posix1e_acl_perm_to_string(acl_perm_t perm, ssize_t buf_len, char *buf)
 {
 
-	if (buf_len < ACL_STRING_PERM_MAXSIZE + 1) {
+	if (buf_len < _POSIX1E_ACL_STRING_PERM_MAXSIZE + 1) {
 		errno = ENOMEM;
 		return (-1);
 	}
@@ -369,7 +371,7 @@ acl_perm_to_string(acl_perm_t perm, ssize_t buf_len, char *buf)
  * given a string, return a permission describing it
  */
 int
-acl_string_to_perm(char *string, acl_perm_t *perm)
+_posix1e_acl_string_to_perm(char *string, acl_perm_t *perm)
 {
 	acl_perm_t	myperm = ACL_PERM_NONE;
 	char	*ch;
@@ -402,7 +404,7 @@ acl_string_to_perm(char *string, acl_perm_t *perm)
  * Add an ACL entry without doing much checking, et al
  */
 int
-acl_add_entry(acl_t acl, acl_tag_t tag, uid_t id, acl_perm_t perm)
+_posix1e_acl_add_entry(acl_t acl, acl_tag_t tag, uid_t id, acl_perm_t perm)
 {
 	struct acl_entry	*e;
 

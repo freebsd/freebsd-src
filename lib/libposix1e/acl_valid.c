@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999 Robert N. M. Watson
+ * Copyright (c) 1999, 2000, 20001 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ * $FreeBSD$
  */
 /*
  * acl_valid -- POSIX.1e ACL check routine
@@ -40,7 +40,7 @@
  * and errno set to EINVAL.
  *
  * Implemented by calling the acl_check routine in acl_support, which
- * requires ordering.  We call acl_support's acl_sort to make this
+ * requires ordering.  We call acl_support's _posix1e_acl_sort to make this
  * true.  POSIX.1e allows acl_valid() to reorder the ACL as it sees fit.
  *
  * This call is deprecated, as it doesn't ask whether the ACL is valid
@@ -52,8 +52,8 @@ acl_valid(acl_t acl)
 {
 	int	error;
 
-	acl_sort(acl);
-	error = acl_check(acl);
+	_posix1e_acl_sort(acl);
+	error = _posix1e_acl_check(acl);
 	if (error) {
 		errno = error;
 		return (-1);
@@ -68,8 +68,8 @@ acl_valid_file_np(const char *pathp, acl_type_t type, acl_t acl)
 {
 	int	error;
 
-	if (acl_posix1e(acl, type)) {
-		error = acl_sort(acl);
+	if (_posix1e_acl(acl, type)) {
+		error = _posix1e_acl_sort(acl);
 		if (error) {
 			errno = error;
 			return (-1);
@@ -85,8 +85,8 @@ acl_valid_fd_np(int fd, acl_type_t type, acl_t acl)
 {
 	int	error;
 
-	if (acl_posix1e(acl, type)) {
-		error = acl_sort(acl);
+	if (_posix1e_acl(acl, type)) {
+		error = _posix1e_acl_sort(acl);
 		if (error) {
 			errno = error;
 			return (-1);
