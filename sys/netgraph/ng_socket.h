@@ -51,6 +51,14 @@
 #define	NG_DATA			1
 #define	NG_CONTROL		2
 
+/* Commands */
+enum {
+	NGM_SOCK_CMD_NOLINGER = 1,	/* close the soket on with last hook */
+	NGM_SOCK_CMD_LINGER		/* Keep socket even if 0 hooks */
+};
+
+
+
 /* Netgraph version of struct sockaddr */
 struct sockaddr_ng {
 	u_char  sg_len;		/* total length */
