@@ -32,13 +32,13 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1989, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)telnetd.c	8.4 (Berkeley) 5/30/95";
+static const char sccsid[] = "@(#)telnetd.c	8.4 (Berkeley) 5/30/95";
 #endif /* not lint */
 
 #include "telnetd.h"
@@ -75,6 +75,10 @@ struct	socket_security ss;
 #include <libtelnet/auth.h>
 int	auth_level = 0;
 #endif
+#if	defined(ENCRYPTION)
+#include <libtelnet/encrypt.h>
+#endif
+#include <libtelnet/misc.h>
 #if	defined(SecurID)
 int	require_SecurID = 0;
 #endif
@@ -101,8 +105,6 @@ char	ptyibuf2[BUFSIZ];
 unsigned char ctlbuf[BUFSIZ];
 struct	strbuf strbufc, strbufd;
 
-int readstream();
-
 #else	/* ! STREAMPTY */
 
 /*
@@ -111,6 +113,13 @@ int readstream();
  */
 char	ptyibuf[BUFSIZ], *ptyip = ptyibuf;
 char	ptyibuf2[BUFSIZ];
+
+# include <termcap.h>
+
+int readstream(int p, char *ibuf, int bufsize);
+void doit(struct sockaddr_in *who);
+int terminaltypeok(char *s);
+void startslave(char *host, int autologin, char *autoname);
 
 #endif /* ! STREAMPTY */
 
@@ -390,7 +399,7 @@ main(argc, argv)
 		usage();
 		/* NOT REACHED */
 	    } else if (argc == 1) {
-		    if (sp = getservbyname(*argv, "tcp")) {
+		    if ((sp = getservbyname(*argv, "tcp"))) {
 			sin.sin_port = sp->s_port;
 		    } else {
 			sin.sin_port = atoi(*argv);
@@ -792,11 +801,11 @@ char user_name[256];
 /*
  * Get a pty, scan input lines.
  */
+void
 doit(who)
 	struct sockaddr_in *who;
 {
 	char *host, *inet_ntoa();
-	int t;
 	struct hostent *hp;
 	int ptynum;
 

@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)utilities.c	8.3 (Berkeley) 5/30/95";
+static const char sccsid[] = "@(#)utilities.c	8.3 (Berkeley) 5/30/95";
 #endif /* not lint */
 
 #define	TELOPTS
@@ -40,7 +40,9 @@ static char sccsid[] = "@(#)utilities.c	8.3 (Berkeley) 5/30/95";
 #define	SLC_NAMES
 #include <arpa/telnet.h>
 #include <sys/types.h>
+#include <sys/socket.h>
 #include <sys/time.h>
+#include <unistd.h>
 
 #include <ctype.h>
 
@@ -53,6 +55,13 @@ static char sccsid[] = "@(#)utilities.c	8.3 (Berkeley) 5/30/95";
 #include "defines.h"
 
 #include "externs.h"
+
+#if	defined(AUTHENTICATION)
+#include <libtelnet/auth.h>
+#endif
+#if	defined(ENCRYPTION)
+#include <libtelnet/encrypt.h>
+#endif
 
 FILE	*NetTrace = 0;		/* Not in bss, since needs to stay */
 int	prettydump;
@@ -134,7 +143,6 @@ Dump(direction, buffer, length)
 #   define min(x,y)	((x<y)? x:y)
     unsigned char *pThis;
     int offset;
-    extern pettydump;
 
     offset = 0;
 
@@ -819,7 +827,6 @@ printsub(direction, pointer, length)
 			    break;
 
 			default:
-			def_case:
 			    if (isprint(pointer[i]) && pointer[i] != '"') {
 				if (noquote) {
 				    putc('"', NetTrace);

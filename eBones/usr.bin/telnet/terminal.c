@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)terminal.c	8.2 (Berkeley) 2/16/95";
+static const char sccsid[] = "@(#)terminal.c	8.2 (Berkeley) 2/16/95";
 #endif /* not lint */
 
 #include <arpa/telnet.h>
@@ -42,6 +42,10 @@ static char sccsid[] = "@(#)terminal.c	8.2 (Berkeley) 2/16/95";
 
 #include "externs.h"
 #include "types.h"
+
+#if	defined(ENCRYPTION)
+#include <libtelnet/encrypt.h>
+#endif
 
 Ring		ttyoring, ttyiring;
 unsigned char	ttyobuf[2*BUFSIZ], ttyibuf[BUFSIZ];

@@ -245,6 +245,7 @@ extern jmp_buf
 extern void
     command P((int, char *, int)),
     Dump P((int, unsigned char *, int)),
+    ExitString P((char *, int)),
     init_3270 P((void)),
     printoption P((char *, int, int)),
     printsub P((int, unsigned char *, int)),
@@ -290,7 +291,14 @@ extern void
     slc_add_reply P((int, int, int)),
     slc_end_reply P((void));
 extern int
-    slc_update P((void));
+    NetClose P((int)),
+    netflush P((void)),
+    SetSockOpt P((int, int, int, int)),
+    slc_update P((void)),
+    telrcv P((void)),
+    TerminalWrite P((char *, int)),
+    TerminalAutoFlush P((void)),
+    ttyflush P((int));
 
 extern void
     env_opt P((unsigned char *, int)),
