@@ -64,6 +64,14 @@
 /* Required for byteorder(3) functions. */
 #include <machine/endian.h>
 
+#ifndef INET_ADDRSTRLEN
+#define	INET_ADDRSTRLEN		16
+#endif
+
+#ifndef INET6_ADDRSTRLEN
+#define	INET6_ADDRSTRLEN	46
+#endif
+
 #ifndef	_IN_ADDR_T_DECLARED_
 typedef	__uint32_t	in_addr_t;
 #define	_IN_ADDR_T_DECLARED_
@@ -82,8 +90,8 @@ typedef	_BSD_SIZE_T_	size_t;
 #endif /* !_POSIX_SOURCE */
 
 /*
- * XXX socklen_t is used by a POSIX.1-200x interface, but not required by
- * POSIX.1-200x.
+ * XXX socklen_t is used by a POSIX.1-2001 interface, but not required by
+ * POSIX.1-2001.
  */
 #ifdef	_BSD_SOCKLEN_T_
 typedef	_BSD_SOCKLEN_T_	socklen_t;
@@ -96,6 +104,10 @@ struct in_addr {
 };
 #define	_STRUCT_IN_ADDR_DECLARED
 #endif
+
+/*
+ * XXX missing typedefs for uint16_t and uint32_t.
+ */
 
 /* XXX all new diversions!! argh!! */
 #ifndef _POSIX_SOURCE
