@@ -799,14 +799,9 @@ findpcb:
 		/*
 		 * RFC1122 4.2.3.10, p. 104: discard bcast/mcast SYN
 		 *
-		 * It is possible for a malicious (or misconfigured)
-		 * attacker to send unicast link-layer packets with a
-		 * broadcast IP address. Use in_broadcast() to find them.
-		 * (This check was erroneously removed in CSRG revision
-		 * 7.35.)
-		 *
-		 * Packets with a multicast source address should also
-		 * be discarded.
+		 * Note that it is quite possible to receive unicast
+		 * link-layer packets with a broadcast IP address. Use
+		 * in_broadcast() to find them.
 		 */
 		if (m->m_flags & (M_BCAST|M_MCAST))
 			goto drop;
