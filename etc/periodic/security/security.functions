@@ -67,7 +67,8 @@ check_diff() {
     [ $rc -lt 1 ] && rc=1
     echo ""
     echo "${msg}"
-    diff -b ${LOG}/${label}.today ${tmpf} | eval "${filter}"
+    diff ${daily_status_security_diff_flags} ${LOG}/${label}.today \
+	${tmpf} | eval "${filter}"
     mv ${LOG}/${label}.today ${LOG}/${label}.yesterday || rc=3
     mv ${tmpf} ${LOG}/${label}.today || rc=3
   fi
