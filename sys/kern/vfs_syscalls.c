@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.44 1995/12/17 21:23:22 phk Exp $
+ * $Id: vfs_syscalls.c,v 1.45 1996/01/05 17:46:14 wollman Exp $
  */
 
 /*
@@ -486,7 +486,10 @@ getfsstat(p, uap, retval)
 	sfsp = (caddr_t)uap->buf;
 	count = 0;
 	for (mp = mountlist.cqh_first; mp != (void *)&mountlist; mp = nmp) {
-		nmp = mp->mnt_list.cqe_next;
+		if (vfs_busy(mp)) {
+			nmp = mp->mnt_list.cqe_next;
+			continue;
+		}
 		if (sfsp && count < maxcount &&
 		    ((mp->mnt_flag & MNT_MLOCK) == 0)) {
 			sp = &mp->mnt_stat;
@@ -496,15 +499,22 @@ getfsstat(p, uap, retval)
 			 */
 			if (((uap->flags & MNT_NOWAIT) == 0 ||
 			    (uap->flags & MNT_WAIT)) &&
-			    (error = VFS_STATFS(mp, sp, p)))
+			    (error = VFS_STATFS(mp, sp, p))) {
+				nmp = mp->mnt_list.cqe_next;
+				vfs_unbusy(mp);
 				continue;
+			}
 			sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
 			error = copyout((caddr_t)sp, sfsp, sizeof(*sp));
-			if (error)
+			if (error) {
+				vfs_unbusy(mp);
 				return (error);
+			}
 			sfsp += sizeof(*sp);
 		}
 		count++;
+		nmp = mp->mnt_list.cqe_next;
+		vfs_unbusy(mp);
 	}
 	if (sfsp && count > maxcount)
 		*retval = maxcount;
