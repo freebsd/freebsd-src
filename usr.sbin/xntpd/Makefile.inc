@@ -1,5 +1,4 @@
-.if !defined(BEEN_HERE)
-BEEN_HERE=1
+#	$Id$
 
 DEFS_LOCAL=-DREFCLOCK -DPARSE -DUDP_WILDCARD_DELIVERY
 NTPDEFS=   -DSYS_FREEBSD -DSYS_44BSD
@@ -20,4 +19,3 @@ AUTHDEFS+=	-DDES
 .endif
 
 .include "../Makefile.inc"
-.endif
