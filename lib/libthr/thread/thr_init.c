@@ -66,14 +66,6 @@
 
 #include "thr_private.h"
 
-/*
- * Early implementations of sigtimedwait interpreted the signal
- * set incorrectly.
- */
-#define SIGTIMEDWAIT_SET_IS_INVERTED(osreldate) \
-    ((500100 <= (osreldate) && (osreldate) <= 500113) || \
-    (osreldate) == 501000 || (osreldate) == 501100)
-
 extern void _thread_init_hack(void);
 
 /*
@@ -252,12 +244,7 @@ _thread_init(void)
 	int             i;
 	size_t		len;
 	int		mib[2];
-	sigset_t	set;
-	int		osreldate;
 	int		error;
-
-	struct clockinfo clockinfo;
-	struct sigaction act;
 
 	/* Check if this function has already been called: */
 	if (_thread_initial)
@@ -362,44 +349,6 @@ _thread_init(void)
 		    &_thread_sigact[i - 1]) != 0)
 			PANIC("Cannot read signal handler info");
 	}
-	act.sa_sigaction = _thread_sig_wrapper;
-	act.sa_flags = SA_SIGINFO;
-	SIGFILLSET(act.sa_mask);
-
-	if (__sys_sigaction(SIGTHR, &act, NULL))
-		PANIC("Cannot set SIGTHR handler.\n");
-
-	SIGEMPTYSET(set);
-	SIGADDSET(set, SIGTHR);
-	__sys_sigprocmask(SIG_BLOCK, &set, 0);
-
-	/*
-	 * Precompute the signal set used by _thread_suspend to wait
-	 * for SIGTHR.
-	 */
-	mib[0] = CTL_KERN;
-	mib[1] = KERN_OSRELDATE;
-	len = sizeof(osreldate);
-	if (sysctl(mib, 2, &osreldate, &len, NULL, 0) == 0 &&
-	    SIGTIMEDWAIT_SET_IS_INVERTED(osreldate)) {
-		/* Kernel bug requires an inverted signal set. */
-		SIGFILLSET(_thread_suspend_sigset);
-		SIGDELSET(_thread_suspend_sigset, SIGTHR);
-	} else {
-		SIGEMPTYSET(_thread_suspend_sigset);
-		SIGADDSET(_thread_suspend_sigset, SIGTHR);
-	}
-#ifdef _PTHREADS_INVARIANTS
-	SIGADDSET(_thread_suspend_sigset, SIGALRM);
-#endif
-
-	/* Get the kernel clockrate: */
-	mib[0] = CTL_KERN;
-	mib[1] = KERN_CLOCKRATE;
-	len = sizeof (struct clockinfo);
-	if (sysctl(mib, 2, &clockinfo, &len, NULL, 0) == 0)
-		_clock_res_usec = clockinfo.tick > CLOCK_RES_USEC_MIN ?
-		    clockinfo.tick : CLOCK_RES_USEC_MIN;
 }
 
 /*

@@ -712,13 +712,6 @@ SCLASS struct pthread_cond_attr pthread_condattr_default
 ;
 #endif
 
-SCLASS int    _clock_res_usec		/* Clock resolution in usec.	*/
-#ifdef GLOBAL_PTHREAD_PRIVATE
-= CLOCK_RES_USEC;
-#else
-;
-#endif
-
 /*
  * Array of signal actions for this process.
  */
