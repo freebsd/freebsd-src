@@ -9,7 +9,7 @@
  *
  * Ari Suutari <suutari@iki.fi>
  *
- * $Id$
+ * $Id: natd.c,v 1.8 1997/12/27 19:31:11 alex Exp $
  */
 
 #include <sys/types.h>
@@ -699,7 +699,7 @@ static void SetAliasAddressFromIfName (char* ifName)
 		Quit ("Cannot get interface address.");
 
 	addr = (struct sockaddr_in*) &req.ifr_addr;
-	SetPacketAliasAddress (addr->sin_addr);
+	PacketAliasSetAddress (addr->sin_addr);
 	syslog (LOG_INFO, "Aliasing to %s, mtu %d bytes",
 			  inet_ntoa (addr->sin_addr),
 			  ifMTU);
@@ -1160,6 +1160,7 @@ void SetupPermanentLink (char* parms)
 	char*		ptr;
 	struct in_addr	srcAddr;
 	struct in_addr	dstAddr;
+	struct in_addr  null_address;
 	u_short		srcPort;
 	u_short		dstPort;
 	u_short		aliasPort;
@@ -1200,11 +1201,12 @@ void SetupPermanentLink (char* parms)
 
 	aliasPort = StrToPort (ptr, protoName);
 
-	PacketAliasPermanentLink (srcAddr,
+	null_address.s_addr = 0;
+	PacketAliasRedirectPort (srcAddr,
 				  srcPort,
 				  dstAddr,
 				  dstPort,
-				  aliasPort,
+				  null_address, aliasPort,
 				  proto);
 }
 
