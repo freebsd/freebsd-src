@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 static char sccsid[] = "From: @(#)chpass.c	8.4 (Berkeley) 4/2/94";
 static char rcsid[] =
-	"$Id: chpass.c,v 1.5 1996/02/23 14:33:05 wpaul Exp $";
+	"$Id: chpass.c,v 1.7 1996/02/23 16:08:56 wpaul Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -112,9 +112,9 @@ main(argc, argv)
 			break;
 #ifdef YP
 		case 'h':
-#ifdef PARAMOID
+#ifdef PARANOID
 			if (getuid()) {
-				warnx("Only the superuser can use the -d flag");
+				warnx("Only the superuser can use the -h flag");
 			} else {
 #endif
 				yp_server = optarg;
@@ -136,11 +136,8 @@ main(argc, argv)
 #endif
 			break;
 		case 'l':
-			if (getuid()) {
-				warnx("Only the superuser can use the -h flag");
-			} else {
-				force_local = 1;
-			}
+			_use_yp = 0;
+			force_local = 1;
 			break;
 		case 'y':
 			_use_yp = force_yp = 1;
