@@ -1284,7 +1284,6 @@ re_detach(dev)
 		 * anymore.
 		 */
 		ifp->if_flags &= ~IFF_UP;
-		ether_ifdetach(ifp);
 	}
 	if (sc->rl_miibus)
 		device_delete_child(dev, sc->rl_miibus);
