@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: scsi_all.c,v 1.1 1998/09/15 06:36:33 gibbs Exp $
+ *	$Id: scsi_all.c,v 1.2 1998/09/18 22:33:59 ken Exp $
  */
 
 #include <sys/param.h>
@@ -2128,13 +2128,16 @@ scsi_interpret_sense(struct cam_device *device, union ccb *ccb,
 		case SSD_KEY_BLANK_CHECK: /* should be filtered out by
 					     peripheral drivers */
 			retry = ccb->ccb_h.retry_count > 0;
-			if (retry)
+			if (retry) {
 				ccb->ccb_h.retry_count--;
-
-			if ((error_action & SSQ_PRINT_SENSE) == 0)
+				error = ERESTART;
 				print_sense = FALSE;
+			} else {
+				if ((error_action & SSQ_PRINT_SENSE) == 0)
+					print_sense = FALSE;
 
-			error = error_action & SS_ERRMASK;
+				error = error_action & SS_ERRMASK;
+			}
 
 			break;
 		case SSD_KEY_UNIT_ATTENTION:
@@ -2150,34 +2153,43 @@ scsi_interpret_sense(struct cam_device *device, union ccb *ccb,
 			} else {
 				/* decrement the number of retries */
 				retry = ccb->ccb_h.retry_count > 0;
-				if (retry)
+				if (retry) {
 					ccb->ccb_h.retry_count--;
-
-				if ((error_action & SSQ_PRINT_SENSE) == 0)
+					error = ERESTART;
 					print_sense = FALSE;
+				} else {
+					if ((error_action & SSQ_PRINT_SENSE)==0)
+						print_sense = FALSE;
 
-				error = error_action & SS_ERRMASK;
+					error = error_action & SS_ERRMASK;
+				}
 			}
 			break;
 		default:
 			/* decrement the number of retries */
 			retry = ccb->ccb_h.retry_count > 0;
-			if (retry)
+			if (retry) {
 				ccb->ccb_h.retry_count--;
-
-			if ((error_action & SSQ_PRINT_SENSE) == 0)
+				error = ERESTART;
 				print_sense = FALSE;
+			} else {
+				if ((error_action & SSQ_PRINT_SENSE) == 0)
+					print_sense = FALSE;
 
-			error = error_action & SS_ERRMASK;
+				error = error_action & SS_ERRMASK;
+			}
 		}
 		break;
 	}
 	default:
 		/* decrement the number of retries */
 		retry = ccb->ccb_h.retry_count > 0;
-		if (retry)
+		if (retry) {
 			ccb->ccb_h.retry_count--;
-		error =EIO;
+			error = ERESTART;
+			print_sense = FALSE;
+		} else 
+			error = EIO;
 		break;
 	}
 
