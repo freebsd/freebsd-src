@@ -39,6 +39,8 @@ static const char copyright[] =
 
 #ifndef lint
 static const char sccsid[] = "@(#)env.c	8.3 (Berkeley) 4/2/94";
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <err.h>
@@ -49,6 +51,7 @@ static const char sccsid[] = "@(#)env.c	8.3 (Berkeley) 4/2/94";
 
 extern char **environ;
 
+int main __P((int, char *[]));
 static void usage __P((void));
 
 int
