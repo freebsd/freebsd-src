@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.24.4.4 1996/06/05 02:53:55 jkh Exp $
+#	$Id: bsd.lib.mk,v 1.24.4.5 1997/02/05 05:09:13 pst Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -64,12 +64,12 @@ BINMODE?=	555
 	@${LD} -x -r ${.TARGET}
 	@mv a.out ${.TARGET}
 
-.cc.po .C.po .cxx.o:
+.cc.po .cxx.o .C.po:
 	${CXX} -p ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	@${LD} -X -r ${.TARGET}
 	@mv a.out ${.TARGET}
 
-.cc.so .C.so:
+.cc.so .cxx.so .C.so:
 	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	@${LD} -x -r ${.TARGET}
 	@mv a.out ${.TARGET}
