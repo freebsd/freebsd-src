@@ -301,7 +301,7 @@ USB_ATTACH(ums)
 	DPRINTF(("ums_attach: X\t%d/%d\n", 
 		 sc->sc_loc_x.pos, sc->sc_loc_x.size));
 	DPRINTF(("ums_attach: Y\t%d/%d\n", 
-		 sc->sc_loc_x.pos, sc->sc_loc_x.size));
+		 sc->sc_loc_y.pos, sc->sc_loc_y.size));
 	if (sc->flags & UMS_Z)
 		DPRINTF(("ums_attach: Z\t%d/%d\n", 
 			 sc->sc_loc_z.pos, sc->sc_loc_z.size));
