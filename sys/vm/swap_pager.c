@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.38 1995/05/10 18:56:02 davidg Exp $
+ * $Id: swap_pager.c,v 1.39 1995/05/14 03:00:08 davidg Exp $
  */
 
 /*
@@ -273,7 +273,7 @@ swap_pager_alloc(handle, size, prot, offset)
 		 * referenced.  Can't do this with handle == NULL since it
 		 * might be the pageout daemon calling.
 		 */
-		object = vm_object_allocate(size);
+		object = vm_object_allocate(offset + size);
 		object->flags &= ~OBJ_INTERNAL;
 		vm_object_enter(object, pager);
 		object->pager = pager;
@@ -1606,7 +1606,7 @@ swap_pager_finish(spc)
 	}
 
 	/*
-	 * If no error mark as clean and inform the pmap system. If error,
+	 * If no error, mark as clean and inform the pmap system. If error,
 	 * mark as dirty so we will try again. (XXX could get stuck doing
 	 * this, should give up after awhile)
 	 */

@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.21 1995/03/25 17:44:03 davidg Exp $
+ * $Id: vm_mmap.c,v 1.22 1995/04/16 12:56:18 davidg Exp $
  */
 
 /*
@@ -641,9 +641,14 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 	 * a reference to ensure continued existance of the object. (XXX the
 	 * exception is to appease the pageout daemon)
 	 */
-	if (flags & MAP_ANON)
+	if (flags & MAP_ANON) {
 		type = PG_DFLT;
-	else {
+		/*
+		 * Unnamed anonymous regions always start at 0.
+		 */
+		if (handle == 0)
+			foff = 0;
+	} else {
 		vp = (struct vnode *) handle;
 		if (vp->v_type == VCHR) {
 			type = PG_DEVICE;

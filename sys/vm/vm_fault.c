@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.22 1995/04/09 06:03:48 davidg Exp $
+ * $Id: vm_fault.c,v 1.23 1995/04/16 14:12:12 davidg Exp $
  */
 
 /*
@@ -300,6 +300,10 @@ RetryFault:;
 		if (((object->pager != NULL) && (!change_wiring || wired))
 		    || (object == first_object)) {
 
+			if (offset >= object->size) {
+				UNLOCK_AND_DEALLOCATE;
+				return (KERN_PROTECTION_FAILURE);
+			}
 			if (swap_pager_full && !object->shadow && (!object->pager ||
 				(object->pager && object->pager->pg_type == PG_SWAP &&
 				    !vm_pager_has_page(object->pager, offset + object->paging_offset)))) {
