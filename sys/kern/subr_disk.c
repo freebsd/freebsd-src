@@ -115,8 +115,10 @@ diskopen(dev_t dev, int oflags, int devtype, struct proc *p)
 	if (!dp)
 		return (ENXIO);
 
-	if (!dsisopen(dp->d_slice))
+	if (!dsisopen(dp->d_slice)) {
+		pdev->si_iosize_max = dev->si_iosize_max;
 		error = dp->d_devsw->d_open(pdev, oflags, devtype, p);
+	}
 
 	/* Inherit properties from the whole/raw dev_t */
 	dev->si_disk = pdev->si_disk;
@@ -163,12 +165,12 @@ diskstrategy(struct buf *bp)
 	dp = bp->b_dev->si_disk;
 	if (!dp) {
 		pdev = dkmodpart(dkmodslice(bp->b_dev, WHOLE_DISK_SLICE), RAW_PART);
-		dp = pdev->si_disk;
+		dp = bp->b_dev->si_disk = pdev->si_disk;
 		bp->b_dev->si_drv1 = pdev->si_drv1;
 		bp->b_dev->si_drv2 = pdev->si_drv2;
-		/* XXX: don't set bp->b_dev->si_disk (?) */
-	} else {
-		pdev = dp->d_dev;
+		bp->b_dev->si_iosize_max = pdev->si_iosize_max;
+		bp->b_dev->si_bsize_phys = pdev->si_bsize_phys;
+		bp->b_dev->si_bsize_best = pdev->si_bsize_best;
 	}
 
 	if (!dp) {
