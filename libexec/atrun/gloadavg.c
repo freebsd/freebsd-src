@@ -23,6 +23,11 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 #ifndef __FreeBSD__
 #define _POSIX_SOURCE 1
 
@@ -37,11 +42,9 @@
 
 #include "gloadavg.h"
 
-/* File scope variables */
-
-static char rcsid[] = "$Id$";
-
 /* Global functions */
+
+void perr(const char *a);
 
 double
 gloadavg(void)
@@ -63,7 +66,7 @@ gloadavg(void)
     }
 #else
     if (getloadavg(&result, 1) != 1)
-	    perr("Error in getloadavg");
+	    perr("error in getloadavg");
 #endif
     return result;
 }
