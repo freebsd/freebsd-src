@@ -196,7 +196,7 @@ ntfs_inactive(ap)
 
 	dprintf(("ntfs_inactive: vnode: %p, ntnode: %d\n", vp, ip->i_number));
 
-	if (ntfs_prtactive && vp->v_usecount != 0)
+	if (ntfs_prtactive && vrefcnt(vp) != 0)
 		vprint("ntfs_inactive: pushing active", vp);
 
 	VOP_UNLOCK(vp, 0, ap->a_td);
@@ -223,7 +223,7 @@ ntfs_reclaim(ap)
 
 	dprintf(("ntfs_reclaim: vnode: %p, ntnode: %d\n", vp, ip->i_number));
 
-	if (ntfs_prtactive && vp->v_usecount != 0)
+	if (ntfs_prtactive && vrefcnt(vp) != 0)
 		vprint("ntfs_reclaim: pushing active", vp);
 
 	if ((error = ntfs_ntget(ip)) != 0)

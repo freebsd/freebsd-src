@@ -103,8 +103,8 @@ nwfs_sysctl_vnprint(SYSCTL_HANDLER_ARGS) {
 		LIST_FOREACH(np, nhpp, n_hash) {
 			vp = NWTOV(np);
 			vprint(NULL, vp);
-			printf("%s:%d:%d:%d:%d\n",np->n_name,vp->v_usecount,vp->v_holdcnt,
-			    np->n_fid.f_id, np->n_fid.f_parent);
+			printf("%s:%d:%d:%d:%d\n",np->n_name,vrefcnt(vp),
+			    vp->v_holdcnt,np->n_fid.f_id, np->n_fid.f_parent);
 		}
 	}
 	return 0;
@@ -256,7 +256,7 @@ nwfs_reclaim(ap)
 	struct nwmount *nmp = VTONWFS(vp);
 	struct thread *td = ap->a_td;
 	
-	NCPVNDEBUG("%s,%d\n", np->n_name, vp->v_usecount);
+	NCPVNDEBUG("%s,%d\n", np->n_name, vrefcnt(vp));
 	if (np->n_flag & NREFPARENT) {
 		np->n_flag &= ~NREFPARENT;
 		if (nwfs_lookupnp(nmp, np->n_parent, td, &dnp) == 0) {
@@ -293,7 +293,7 @@ nwfs_inactive(ap)
 	struct nwnode *np = VTONW(vp);
 	int error;
 
-	NCPVNDEBUG("%s: %d\n", VTONW(vp)->n_name, vp->v_usecount);
+	NCPVNDEBUG("%s: %d\n", VTONW(vp)->n_name, vrefcnt(vp));
 	if (np->opened) {
 		error = nwfs_vinvalbuf(vp, V_SAVE, cred, td, 1);
 		error = ncp_close_file(NWFSTOCONN(VTONWFS(vp)), &np->n_fh, td, cred);

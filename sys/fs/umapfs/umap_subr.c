@@ -328,7 +328,7 @@ umap_checkvp(vp, fil, lno)
 		while (umap_checkvp_barrier) /*WAIT*/ ;
 		panic("umap_checkvp");
 	}
-	if (a->umap_lowervp->v_usecount < 1) {
+	if (vrefcnt(a->umap_lowervp) < 1) {
 		int i; u_long *p;
 		printf("vp = %p, unref'ed lowervp\n", (void *)vp);
 		for (p = (u_long *) a, i = 0; i < 8; i++)
