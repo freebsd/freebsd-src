@@ -49,6 +49,9 @@
 #include <sys/conf.h>
 #include <sys/dirent.h>
 #include <sys/fcntl.h>
+#include <sys/file.h>
+#include <sys/filedesc.h>
+#include <sys/filio.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mac.h>
@@ -59,10 +62,32 @@
 #include <sys/stat.h>
 #include <sys/sx.h>
 #include <sys/time.h>
+#include <sys/ttycom.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
 
 #include <fs/devfs/devfs.h>
+
+static int devfs_fops = 0;
+
+static fo_rdwr_t	devfs_read_f;
+static fo_rdwr_t	devfs_write_f;
+static fo_ioctl_t	devfs_ioctl_f;
+static fo_poll_t	devfs_poll_f;
+static fo_kqfilter_t	devfs_kqfilter_f;
+static fo_stat_t	devfs_stat_f;
+static fo_close_t	devfs_close_f;
+
+struct fileops devfs_ops_f = {
+	.fo_read =	devfs_read_f,
+	.fo_write =	devfs_write_f,
+	.fo_ioctl =	devfs_ioctl_f,
+	.fo_poll =	devfs_poll_f,
+	.fo_kqfilter =	devfs_kqfilter_f,
+	.fo_stat =	devfs_stat_f,
+	.fo_close =	devfs_close_f,
+	.fo_flags =	DFLAG_PASSABLE | DFLAG_SEEKABLE
+};
 
 static int	devfs_access(struct vop_access_args *ap);
 static int	devfs_advlock(struct vop_advlock_args *ap);
@@ -314,6 +339,18 @@ devfs_close(ap)
 	return (error);
 }
 
+static int
+devfs_close_f(struct file *fp, struct thread *td)
+{
+	struct cdev *dev;
+
+	dev = fp->f_data;
+#if 0
+	printf("devfs_close_f(%s)\n", devtoname(dev));
+#endif
+	return (vnops.fo_close(fp, td));
+}
+
 /*
  * Synch buffers associated with a block device
  */
@@ -439,6 +476,67 @@ devfs_ioctl(ap)
 	return (error);
 }
 
+static int
+devfs_ioctl_f(struct file *fp, u_long com, void *data, struct ucred *cred, struct thread *td)
+{
+	struct cdev *dev;
+	struct cdevsw *dsw;
+	struct vnode *vp = fp->f_vnode;
+	struct vnode *vpold;
+	int error;
+
+	dev = fp->f_data;
+#if 0
+	printf("devfs_ioctl_f(%s)\n", devtoname(dev));
+#endif
+	KASSERT(dev->si_refcount > 0,
+	    ("devfs_ioctl() on un-referenced struct cdev *(%s)",
+	    devtoname(dev)));
+	dsw = dev_refthread(dev);
+	if (dsw == NULL)
+		return (ENXIO);
+
+	if (com == FIODTYPE) {
+		*(int *)data = dsw->d_flags & D_TYPEMASK;
+		dev_relthread(dev);
+		return (0);
+	}
+	if (dsw->d_flags & D_NEEDGIANT)
+		mtx_lock(&Giant);
+	error = dsw->d_ioctl(dev, com, data, fp->f_flag, td);
+	if (dsw->d_flags & D_NEEDGIANT)
+		mtx_unlock(&Giant);
+	dev_relthread(dev);
+	if (error == ENOIOCTL)
+		error = ENOTTY;
+	if (error == 0 && com == TIOCSCTTY) {
+
+		/* Do nothing if reassigning same control tty */
+		sx_slock(&proctree_lock);
+		if (td->td_proc->p_session->s_ttyvp == vp) {
+			sx_sunlock(&proctree_lock);
+			return (0);
+		}
+
+		mtx_lock(&Giant);
+
+		vpold = td->td_proc->p_session->s_ttyvp;
+		VREF(vp);
+		SESS_LOCK(td->td_proc->p_session);
+		td->td_proc->p_session->s_ttyvp = vp;
+		SESS_UNLOCK(td->td_proc->p_session);
+
+		sx_sunlock(&proctree_lock);
+
+		/* Get rid of reference to old control tty */
+		if (vpold)
+			vrele(vpold);
+		mtx_unlock(&Giant);
+	}
+	return (error);
+}
+
+
 /* ARGSUSED */
 static int
 devfs_kqfilter(ap)
@@ -463,6 +561,32 @@ devfs_kqfilter(ap)
 		PICKUP_GIANT();
 	} else
 		error = dsw->d_kqfilter(dev, ap->a_kn);
+	dev_relthread(dev);
+	return (error);
+}
+
+static int
+devfs_kqfilter_f(struct file *fp, struct knote *kn)
+{
+	struct cdev *dev;
+	struct cdevsw *dsw;
+	int error;
+
+	dev = fp->f_data;
+#if 0
+	printf("devfs_kqfilter_f(%s)\n", devtoname(dev));
+#endif
+	KASSERT(dev->si_refcount > 0,
+	    ("devfs_kqfilter() on un-referenced struct cdev *(%s)",
+	    devtoname(dev)));
+	dsw = dev_refthread(dev);
+	if (dsw == NULL)
+		return(0);
+	if (dsw->d_flags & D_NEEDGIANT)
+		mtx_lock(&Giant);
+	error = dsw->d_kqfilter(dev, kn);
+	if (dsw->d_flags & D_NEEDGIANT)
+		mtx_unlock(&Giant);
 	dev_relthread(dev);
 	return (error);
 }
@@ -697,8 +821,17 @@ devfs_open(ap)
 	struct thread *td = ap->a_td;
 	struct vnode *vp = ap->a_vp;
 	struct cdev *dev = vp->v_rdev;
+	struct file *fp;
 	int error;
 	struct cdevsw *dsw;
+	static int once;
+
+	if (!once) {
+		TUNABLE_INT_FETCH("vfs.devfs.fops", &devfs_fops);
+		if (devfs_fops)
+			printf("WARNING: DEVFS uses fops\n");
+		once = 1;
+	}
 
 	if (vp->v_type == VBLK)
 		return (ENXIO);
@@ -750,6 +883,23 @@ devfs_open(ap)
 
 	if (error)
 		return (error);
+
+	if (devfs_fops && ap->a_fdidx >= 0) {
+		/*
+		 * This is a pretty disgustingly long chain, but I am not
+		 * sure there is any better way.  Passing the fdidx into
+		 * VOP_OPEN() offers us more information than just passing
+		 * the file *.
+		 */
+		fp = ap->a_td->td_proc->p_fd->fd_ofiles[ap->a_fdidx];
+		if (fp->f_ops == &badfileops) {
+#if 0
+			printf("devfs_open(%s)\n", devtoname(dev));
+#endif
+			fp->f_ops = &devfs_ops_f;
+			fp->f_data = dev;
+		}
+	}
 
 	return (error);
 }
@@ -817,6 +967,32 @@ devfs_poll(ap)
 	return(error);
 }
 
+static int
+devfs_poll_f(struct file *fp, int events, struct ucred *cred, struct thread *td)
+{
+	struct cdev *dev;
+	struct cdevsw *dsw;
+	int error;
+
+	dev = fp->f_data;
+#if 0
+	printf("devfs_poll_f(%s)\n", devtoname(dev));
+#endif
+	dsw = dev_refthread(dev);
+	if (dsw == NULL)
+		return (0);
+	KASSERT(dev->si_refcount > 0,
+	    ("devfs_poll() on un-referenced struct cdev *(%s)",
+	    devtoname(dev)));
+	if (dsw->d_flags & D_NEEDGIANT)
+		mtx_lock(&Giant);
+	error = dsw->d_poll(dev, events, td);
+	if (dsw->d_flags & D_NEEDGIANT)
+		mtx_unlock(&Giant);
+	dev_relthread(dev);
+	return(error);
+}
+
 /*
  * Print out the contents of a special device vnode.
  */
@@ -876,6 +1052,55 @@ devfs_read(ap)
 	dev_relthread(dev);
 	if (uio->uio_resid != resid || (error == 0 && resid != 0))
 		vfs_timestamp(&dev->si_atime);
+	return (error);
+}
+
+static int
+devfs_read_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, struct thread *td)
+{
+	struct cdev *dev;
+	int ioflag, error, resid;
+	struct cdevsw *dsw;
+	struct vnode *vp;
+
+	dev = fp->f_data;
+#if 0
+	/*
+	 * Enabling this one is dangerous, syslog will log once for each
+	 * read from /dev/klog so...
+	 */
+	printf("devfs_read_f(%s)\n", devtoname(dev));
+#endif
+	KASSERT(dev->si_refcount > 0,
+	    ("specread() on un-referenced struct cdev *(%s)", devtoname(dev)));
+	dsw = dev_refthread(dev);
+	if (dsw == NULL)
+		return (ENXIO);
+
+	vp = fp->f_vnode;
+	resid = uio->uio_resid;
+
+	ioflag = 0;
+	if (fp->f_flag & FNONBLOCK)
+		ioflag |= IO_NDELAY;
+	if (fp->f_flag & O_DIRECT)
+		ioflag |= IO_DIRECT;
+
+	if ((flags & FOF_OFFSET) == 0)
+		uio->uio_offset = fp->f_offset;
+
+	if (dsw->d_flags & D_NEEDGIANT)
+		mtx_lock(&Giant);
+	error = dsw->d_read(dev, uio, ioflag);
+	if (dsw->d_flags & D_NEEDGIANT)
+		mtx_unlock(&Giant);
+	dev_relthread(dev);
+	if (uio->uio_resid != resid || (error == 0 && resid != 0))
+		vfs_timestamp(&dev->si_atime);
+
+	if ((flags & FOF_OFFSET) == 0)
+		fp->f_offset = uio->uio_offset;
+	fp->f_nextoff = uio->uio_offset;
 	return (error);
 }
 
@@ -1199,6 +1424,18 @@ devfs_setlabel(ap)
 #endif
 
 static int
+devfs_stat_f(struct file *fp, struct stat *sb, struct ucred *cred, struct thread *td)
+{
+	struct cdev *dev;
+
+	dev = fp->f_data;
+#if 0
+	printf("devfs_stat_f(%s)\n", devtoname(dev));
+#endif
+	return (vnops.fo_stat(fp, sb, cred, td));
+}
+
+static int
 devfs_symlink(ap)
 	struct vop_symlink_args /* {
 		struct vnode *a_dvp;
@@ -1288,6 +1525,56 @@ devfs_write(ap)
 	return (error);
 }
 
+static int
+devfs_write_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, struct thread *td)
+{
+	struct cdev *dev;
+	struct vnode *vp;
+	int error, ioflag, resid;
+	struct cdevsw *dsw;
+
+	dev = fp->f_data;
+#if 0
+	printf("devfs_write_f(%s)\n", devtoname(dev));
+#endif
+	KASSERT(dev->si_refcount > 0,
+	    ("devfs_write() on un-referenced struct cdev *(%s)",
+	    devtoname(dev)));
+	dsw = dev_refthread(dev);
+	if (dsw == NULL)
+		return (ENXIO);
+
+	KASSERT(uio->uio_td == td, ("uio_td %p is not td %p", uio->uio_td, td));
+	vp = fp->f_vnode;
+	ioflag = IO_UNIT;
+	if (fp->f_flag & FNONBLOCK)
+		ioflag |= IO_NDELAY;
+	if (fp->f_flag & O_DIRECT)
+		ioflag |= IO_DIRECT;
+	if ((fp->f_flag & O_FSYNC) ||
+	    (vp->v_mount && (vp->v_mount->mnt_flag & MNT_SYNCHRONOUS)))
+		ioflag |= IO_SYNC;
+	if ((flags & FOF_OFFSET) == 0)
+		uio->uio_offset = fp->f_offset;
+
+	resid = uio->uio_resid;
+
+	if (dsw->d_flags & D_NEEDGIANT)
+		mtx_lock(&Giant);
+	error = dsw->d_write(dev, uio, ioflag);
+	if (dsw->d_flags & D_NEEDGIANT)
+		mtx_unlock(&Giant);
+	dev_relthread(dev);
+	if (uio->uio_resid != resid || (error == 0 && resid != 0)) {
+		vfs_timestamp(&dev->si_ctime);
+		dev->si_mtime = dev->si_ctime;
+	}
+
+	if ((flags & FOF_OFFSET) == 0)
+		fp->f_offset = uio->uio_offset;
+	fp->f_nextoff = uio->uio_offset;
+	return (error);
+}
 
 static struct vnodeopv_entry_desc devfs_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vop_defaultop },
