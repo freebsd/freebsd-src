@@ -756,7 +756,6 @@ options 	FFS			#Fast filesystem
 options 	NFSCLIENT		#Network File System client
 
 # The rest are optional:
-options 	AUTOFS			#Auto File System
 options 	CD9660			#ISO 9660 filesystem
 options 	FDESCFS			#File descriptor filesystem
 options 	HPFS			#OS/2 File system
