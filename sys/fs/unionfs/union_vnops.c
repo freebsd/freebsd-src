@@ -705,8 +705,7 @@ union_mknod(ap)
 
 	if ((dvp = union_lock_upper(dun, cnp->cn_proc)) != NULL) {
 		struct vnode *vp;
-		error = VOP_MKNOD(dvp, &vp, cnp, ap->a_vap);
-		/* vp is garbage whether an error occurs or not */
+		error = VOP_MKNOD(dvp, ap->a_vpp, cnp, ap->a_vap);
 		union_unlock_upper(dvp, cnp->cn_proc);
 	}
 	return (error);
