@@ -939,7 +939,7 @@ to truncate your system mailbox instead of deleting it when it
 is empty.  This is useful if you elect to protect your mailbox, which
 you would do with the shell command:
 .(l
-chmod 600 /usr/spool/mail/yourname
+chmod 600 /var/mail/yourname
 .)l
 where
 .i yourname

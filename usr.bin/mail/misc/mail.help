@@ -8,7 +8,7 @@ s <message list> file		append messages to file
 u <message list>		undelete messages
 R <message list>		reply to message senders
 r <message list>		reply to message senders and all recipients
-pre <message list>		make messages go back to /usr/spool/mail
+pre <message list>		make messages go back to /var/mail
 m <user list>			mail to specific users
 q				quit, saving unresolved messages in mbox
 x				quit, do not remove system mailbox
