@@ -90,7 +90,7 @@ static MALLOC_DEFINE(M_VLAN, "vlan", "802.1Q Virtual LAN Interface");
 static LIST_HEAD(, ifvlan) ifv_list;
 
 static	int vlan_clone_create(struct if_clone *, int);
-static	int vlan_clone_destroy(struct ifnet *);
+static	void vlan_clone_destroy(struct ifnet *);
 static	void vlan_start(struct ifnet *ifp);
 static	void vlan_ifinit(void *foo);
 static	int vlan_input(struct ether_header *eh, struct mbuf *m);
@@ -102,7 +102,7 @@ static	int vlan_unconfig(struct ifnet *ifp);
 static	int vlan_config(struct ifvlan *ifv, struct ifnet *p);
 
 struct if_clone vlan_cloner = IF_CLONE_INITIALIZER("vlan",
-    vlan_clone_create, vlan_clone_destroy, IF_MAXUNIT);
+    vlan_clone_create, vlan_clone_destroy, 0, IF_MAXUNIT);
 
 /*
  * Program our multicast filter. What we're actually doing is
@@ -236,7 +236,7 @@ vlan_clone_create(struct if_clone *ifc, int unit)
 	return (0);
 }
 
-static int
+static void
 vlan_clone_destroy(struct ifnet *ifp)
 {
 	struct ifvlan *ifv = ifp->if_softc;
@@ -250,7 +250,6 @@ vlan_clone_destroy(struct ifnet *ifp)
 	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
 
 	free(ifv, M_VLAN);
-	return (0);
 }
 
 static void

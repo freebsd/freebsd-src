@@ -110,7 +110,7 @@ static void	lortrequest(int, struct rtentry *, struct rt_addrinfo *);
 int		looutput(struct ifnet *ifp, struct mbuf *m,
 		    struct sockaddr *dst, struct rtentry *rt);
 int		lo_clone_create(struct if_clone *, int);
-int		lo_clone_destroy(struct ifnet *);
+void		lo_clone_destroy(struct ifnet *);
 
 struct ifnet *loif = NULL;			/* Used externally */
 
@@ -118,10 +118,10 @@ static MALLOC_DEFINE(M_LO, LONAME, "Loopback Interface");
 
 static LIST_HEAD(lo_list, lo_softc) lo_list;
 
-struct if_clone lo_cloner =
-    IF_CLONE_INITIALIZER(LONAME, lo_clone_create, lo_clone_destroy, IF_MAXUNIT);
+struct if_clone lo_cloner = IF_CLONE_INITIALIZER(LONAME,
+    lo_clone_create, lo_clone_destroy, 1, IF_MAXUNIT);
 
-int
+void
 lo_clone_destroy(ifp)
 	struct ifnet *ifp;
 {
@@ -129,17 +129,13 @@ lo_clone_destroy(ifp)
 	
 	sc = ifp->if_softc;
 
-	/*
-	 * Prevent lo0 from being destroyed.
-	 */
-	if (loif == ifp)
-		return (EINVAL);
+	/* XXX: destroying lo0 will lead to panics. */
+	KASSERT(loif != ifp, ("%s: destroying lo0", __func__));
 
 	bpfdetach(ifp);
 	if_detach(ifp);
 	LIST_REMOVE(sc, sc_next);
 	free(sc, M_LO);
-	return (0);
 }
 
 int
@@ -172,16 +168,10 @@ lo_clone_create(ifc, unit)
 static int
 loop_modevent(module_t mod, int type, void *data) 
 { 
-	int err;
-
 	switch (type) { 
 	case MOD_LOAD: 
 		LIST_INIT(&lo_list);
 		if_clone_attach(&lo_cloner);
-
-		/* Create lo0 */
-		err = if_clone_create("lo0", sizeof ("lo0"));
-		KASSERT(err == 0, ("%s: can't create lo0", __func__));
 		break; 
 	case MOD_UNLOAD: 
 		printf("loop module unload - not possible for this module type\n"); 
