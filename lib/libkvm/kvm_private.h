@@ -57,6 +57,7 @@ struct __kvm {
 	int	arglen;		/* length of the above */
 	char	**argv;		/* (dynamic) storage for argv pointers */
 	int	argc;		/* length of above (not actual # present) */
+	char	*argbuf;	/* (dynamic) temporary storage */
 	/*
 	 * Kernel virtual address translation state.  This only gets filled
 	 * in for dead kernels; otherwise, the running kernel (i.e. kmem)
