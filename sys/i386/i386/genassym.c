@@ -34,38 +34,30 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.44 1997/04/07 07:15:48 peter Exp $
+ *	$Id: genassym.c,v 1.45 1997/04/26 11:45:06 peter Exp $
  */
 
 #include <stdio.h>
 #include <sys/param.h>
 #include <sys/buf.h>
+#include <sys/errno.h>
 #include <sys/proc.h>
-/* XXX This is just real ugly to have to do, but it is what you have to do! */
-#ifndef	NFS
-#define	NFS
 #include <sys/mount.h>
-#undef	NFS
-#else
-#include <sys/mount.h>
-#endif
-#include <sys/mbuf.h>
 #include <sys/socket.h>
-#include <sys/msgbuf.h>
-#include <machine/cpu.h>
-#include <machine/trap.h>
-#include <machine/psl.h>
-#include <machine/reg.h>
+#include <sys/resource.h>
+#include <sys/resourcevar.h>
+#include <machine/frame.h>
 #include <machine/bootinfo.h>
 #include <machine/tss.h>
-#include <sys/syscall.h>
 #include <sys/vmmeter.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
+#define KERNEL /* XXX avoid user headers */
 #include <sys/user.h>
+#undef KERNEL
 #include <net/if.h>
 #include <netinet/in.h>
 #include <nfs/nfsv2.h>
@@ -102,8 +94,10 @@ main()
 	printf("#define\tP_WCHAN %p\n", &p->p_wchan);
 	printf("#define\tP_FLAG %p\n", &p->p_flag);
 	printf("#define\tP_PID %p\n", &p->p_pid);
+#ifdef SMP
 	printf("#define\tP_ONCPU %p\n", &p->p_oncpu);
 	printf("#define\tP_LASTCPU %p\n", &p->p_lastcpu);
+#endif
 	printf("#define\tSSLEEP %d\n", SSLEEP);
 	printf("#define\tSRUN %d\n", SRUN);
 	printf("#define\tV_TRAP %p\n", &vm->v_trap);
@@ -133,7 +127,9 @@ main()
 	printf("#define\tPCB_EIP %p\n", &pcb->pcb_eip);
 	printf("#define\tTSS_ESP0 %p\n", &tss->tss_esp0);
 	printf("#define\tPCB_USERLDT %p\n", &pcb->pcb_ldt);
+#ifdef SMP
 	printf("#define\tPCB_MPNEST %p\n", &pcb->pcb_mpnest);
+#endif
 	printf("#define\tU_PROF %p\n", &up->u_stats.p_prof);
 	printf("#define\tU_PROFSCALE %p\n", &up->u_stats.p_prof.pr_scale);
 	printf("#define\tPR_BASE %p\n", &uprof->pr_base);
