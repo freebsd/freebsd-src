@@ -4,7 +4,8 @@
 LIB=	util
 SHLIB_MAJOR= 3
 SHLIB_MINOR= 0
-CFLAGS+=-Wall -DLIBC_SCCS -I${.CURDIR} -I${.CURDIR}/../libc/gen/
+CFLAGS+=-Wall -DLIBC_SCCS -I${.CURDIR} -I${.CURDIR}/../libc/gen/ \
+	-I${.CURDIR}/../../sys
 CFLAGS+=-DINET6
 SRCS=	_secure_path.c auth.c fparseln.c login.c login_auth.c \
 	login_cap.c login_class.c login_crypt.c login_ok.c login_times.c \
