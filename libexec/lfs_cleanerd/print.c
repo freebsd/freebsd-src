@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)print.c	8.1 (Berkeley) 6/4/93";
+static char sccsid[] = "@(#)print.c	8.2 (Berkeley) 5/24/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -65,21 +65,31 @@ dump_summary(lfsp, sp, flags, iaddrp)
 	FINFO *fp;
 	int ck;
 
+	if (sp->ss_magic != SS_MAGIC)
+		return(-1);
+
 	if (sp->ss_sumsum != (ck = cksum(&sp->ss_datasum, 
 	    LFS_SUMMARY_SIZE - sizeof(sp->ss_sumsum))))
 		return(-1);
 
+	numblocks = (sp->ss_ninos + INOPB(lfsp) - 1) / INOPB(lfsp);
+
+	/* Do some basic sanity checking. */
+	if (sp->ss_nfinfo > LFS_SUMMARY_SIZE / sizeof(FINFO) ||
+	    numblocks > lfsp->lfs_ssize ||
+	    numblocks > LFS_SUMMARY_SIZE / sizeof(daddr_t))
+		return(-1);
+
 	if (flags & DUMP_SUM_HEADER) {
-		(void)printf("    %s0x%X\t%s%d\t%s%d\n    %s0x%X\t%s0x%X",
+		(void)printf("  %s0x%X\t%s%d\t%s%d\n  %s0x%X\t%s0x%X\t%s0x%X\n",
 			"next     ", sp->ss_next,
 			"nfinfo   ", sp->ss_nfinfo,
 			"ninos    ", sp->ss_ninos,
 			"sumsum   ", sp->ss_sumsum,
-			"datasum  ", sp->ss_datasum );
-		(void)printf("\tcreate   %s", ctime((time_t *)&sp->ss_create));
+			"datasum  ", sp->ss_datasum,
+			"magic    ", sp->ss_magic);
+		(void)printf("  create   %s", ctime((time_t *)&sp->ss_create));
 	}
-
-	numblocks = (sp->ss_ninos + INOPB(lfsp) - 1) / INOPB(lfsp);
 
 	/* Dump out inode disk addresses */
 	if (flags & DUMP_INODE_ADDRS)
@@ -161,13 +171,13 @@ dump_super(lfsp)
 		"cleansz  ", lfsp->lfs_cleansz,
 		"segtabsz ", lfsp->lfs_segtabsz);
 
-	(void)printf("%s0x%X\t%s%d\t%s0x%X\t%s%d\n",
+	(void)printf("%s0x%X\t%s%d\t%s0x%qX\t%s%d\n",
 		"segmask  ", lfsp->lfs_segmask,
 		"segshift ", lfsp->lfs_segshift,
 		"bmask    ", lfsp->lfs_bmask,
 		"bshift   ", lfsp->lfs_bshift);
 
-	(void)printf("%s0x%X\t\t%s%d\t%s0x%X\t%s%d\n",
+	(void)printf("%s0x%qX\t\t%s%d\t%s0x%qX\t%s%d\n",
 		"ffmask   ", lfsp->lfs_ffmask,
 		"ffshift  ", lfsp->lfs_ffshift,
 		"fbmask   ", lfsp->lfs_fbmask,

@@ -38,7 +38,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)ftpd.c	8.4 (Berkeley) 4/16/94";
+static char sccsid[] = "@(#)ftpd.c	8.5 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 /*
@@ -483,7 +483,7 @@ checkuser(name)
 				*p = '\0';
 				if (line[0] == '#')
 					continue;
-				if (strcmp(p, name) == 0) {
+				if (strcmp(line, name) == 0) {
 					found = 1;
 					break;
 				}

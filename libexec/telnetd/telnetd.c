@@ -38,7 +38,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)telnetd.c	8.2 (Berkeley) 12/15/93";
+static char sccsid[] = "@(#)telnetd.c	8.4 (Berkeley) 5/30/95";
 #endif /* not lint */
 
 #include "telnetd.h"
@@ -451,7 +451,7 @@ main(argc, argv)
 		int szi = sizeof(int);
 #endif /* SO_SEC_MULTI */
 
-		bzero((char *)&dv, sizeof(dv));
+		memset((char *)&dv, 0, sizeof(dv));
 
 		if (getsysv(&sysv, sizeof(struct sysv)) != 0) {
 			perror("getsysv");
@@ -637,34 +637,40 @@ getterminaltype(name)
 	static unsigned char sb[] =
 			{ IAC, SB, TELOPT_TSPEED, TELQUAL_SEND, IAC, SE };
 
-	bcopy(sb, nfrontp, sizeof sb);
+	memmove(nfrontp, sb, sizeof sb);
 	nfrontp += sizeof sb;
+	DIAG(TD_OPTIONS, printsub('>', sb + 2, sizeof sb - 2););
     }
     if (his_state_is_will(TELOPT_XDISPLOC)) {
 	static unsigned char sb[] =
 			{ IAC, SB, TELOPT_XDISPLOC, TELQUAL_SEND, IAC, SE };
 
-	bcopy(sb, nfrontp, sizeof sb);
+	memmove(nfrontp, sb, sizeof sb);
 	nfrontp += sizeof sb;
+	DIAG(TD_OPTIONS, printsub('>', sb + 2, sizeof sb - 2););
     }
     if (his_state_is_will(TELOPT_NEW_ENVIRON)) {
 	static unsigned char sb[] =
 			{ IAC, SB, TELOPT_NEW_ENVIRON, TELQUAL_SEND, IAC, SE };
 
-	bcopy(sb, nfrontp, sizeof sb);
+	memmove(nfrontp, sb, sizeof sb);
 	nfrontp += sizeof sb;
+	DIAG(TD_OPTIONS, printsub('>', sb + 2, sizeof sb - 2););
     }
     else if (his_state_is_will(TELOPT_OLD_ENVIRON)) {
 	static unsigned char sb[] =
 			{ IAC, SB, TELOPT_OLD_ENVIRON, TELQUAL_SEND, IAC, SE };
 
-	bcopy(sb, nfrontp, sizeof sb);
+	memmove(nfrontp, sb, sizeof sb);
 	nfrontp += sizeof sb;
+	DIAG(TD_OPTIONS, printsub('>', sb + 2, sizeof sb - 2););
     }
     if (his_state_is_will(TELOPT_TTYPE)) {
 
-	bcopy(ttytype_sbbuf, nfrontp, sizeof ttytype_sbbuf);
+	memmove(nfrontp, ttytype_sbbuf, sizeof ttytype_sbbuf);
 	nfrontp += sizeof ttytype_sbbuf;
+	DIAG(TD_OPTIONS, printsub('>', ttytype_sbbuf + 2,
+					sizeof ttytype_sbbuf - 2););
     }
     if (his_state_is_will(TELOPT_TSPEED)) {
 	while (sequenceIs(tspeedsubopt, baseline))
@@ -737,8 +743,10 @@ _gettermname()
     if (his_state_is_wont(TELOPT_TTYPE))
 	return;
     settimer(baseline);
-    bcopy(ttytype_sbbuf, nfrontp, sizeof ttytype_sbbuf);
+    memmove(nfrontp, ttytype_sbbuf, sizeof ttytype_sbbuf);
     nfrontp += sizeof ttytype_sbbuf;
+    DIAG(TD_OPTIONS, printsub('>', ttytype_sbbuf + 2,
+					sizeof ttytype_sbbuf - 2););
     while (sequenceIs(ttypesubopt, baseline))
 	ttloop();
 }
@@ -816,7 +824,7 @@ doit(who)
 
 #if	defined(_SC_CRAY_SECURE_SYS)
 	/*
-	 *	set ttyp line security label 
+	 *	set ttyp line security label
 	 */
 	if (secflag) {
 		char slave_dev[16];
@@ -836,9 +844,10 @@ doit(who)
 
 	if (hp == NULL && registerd_host_only) {
 		fatal(net, "Couldn't resolve your address into a host name.\r\n\
-         Please contact your net administrator");
+	 Please contact your net administrator");
 	} else if (hp &&
-	    (strlen(hp->h_name) <= ((utmp_len < 0) ? -utmp_len : utmp_len))) {
+	    (strlen(hp->h_name) <= (unsigned int)((utmp_len < 0) ? -utmp_len
+								 : utmp_len))) {
 		host = hp->h_name;
 	} else {
 		host = inet_ntoa(who->sin_addr);
@@ -927,6 +936,7 @@ telnet(f, p, host)
 	char *HN;
 	char *IM;
 	void netflush();
+	int nfd;
 
 	/*
 	 * Initialize the slc mapping table.
@@ -1156,6 +1166,7 @@ telnet(f, p, host)
 	startslave(host);
 #endif
 
+	nfd = ((f > p) ? f : p) + 1;
 	for (;;) {
 		fd_set ibits, obits, xbits;
 		register int c;
@@ -1187,7 +1198,7 @@ telnet(f, p, host)
 		if (!SYNCHing) {
 			FD_SET(f, &xbits);
 		}
-		if ((c = select(16, &ibits, &obits, &xbits,
+		if ((c = select(nfd, &ibits, &obits, &xbits,
 						(struct timeval *)0)) < 1) {
 			if (c == -1) {
 				if (errno == EINTR) {
@@ -1326,6 +1337,9 @@ telnet(f, p, host)
 					*nfrontp++ = IAC;
 					*nfrontp++ = DM;
 					neturg = nfrontp-1; /* off by one XXX */
+					DIAG(TD_OPTIONS,
+					    printoption("td: send IAC", DM));
+
 #endif
 				}
 				if (his_state_is_will(TELOPT_LFLOW) &&
@@ -1342,6 +1356,9 @@ telnet(f, p, host)
 								 : LFLOW_OFF,
 							IAC, SE);
 						nfrontp += 6;
+						DIAG(TD_OPTIONS, printsub('>',
+						    (unsigned char *)nfrontp-4,
+						    4););
 					}
 				}
 				pcc--;
@@ -1400,7 +1417,7 @@ telnet(f, p, host)
 	}
 	cleanup(0);
 }  /* end of telnet */
-	
+
 #ifndef	TCSIG
 # ifdef	TIOCSIG
 #  define TCSIG TIOCSIG
@@ -1476,7 +1493,7 @@ int readstream(p, ibuf, bufsize)
 			tp = (struct termio *) (ibuf+1 + sizeof(struct iocblk));
 			vstop = tp->c_cc[VSTOP];
 			vstart = tp->c_cc[VSTART];
-			ixon = tp->c_iflag & IXON;      
+			ixon = tp->c_iflag & IXON;
 			break;
 		default:
 			errno = EAGAIN;
@@ -1507,6 +1524,14 @@ interrupt()
 {
 	ptyflush();	/* half-hearted */
 
+#if defined(STREAMSPTY) && defined(TIOCSIGNAL)
+	/* Streams PTY style ioctl to post a signal */
+	{
+		int sig = SIGINT;
+		(void) ioctl(pty, TIOCSIGNAL, &sig);
+		(void) ioctl(pty, I_FLUSH, FLUSHR);
+	}
+#else
 #ifdef	TCSIG
 	(void) ioctl(pty, TCSIG, (char *)SIGINT);
 #else	/* TCSIG */
@@ -1514,6 +1539,7 @@ interrupt()
 	*pfrontp++ = slctab[SLC_IP].sptr ?
 			(unsigned char)*slctab[SLC_IP].sptr : '\177';
 #endif	/* TCSIG */
+#endif
 }
 
 /*

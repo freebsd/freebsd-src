@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)slc.c	8.1 (Berkeley) 6/4/93";
+static char sccsid[] = "@(#)slc.c	8.2 (Berkeley) 5/30/95";
 #endif /* not lint */
 
 #include "telnetd.h"
@@ -109,10 +109,10 @@ get_slc_defaults()
 	init_termbuf();
 
 	for (i = 1; i <= NSLC; i++) {
-		slctab[i].defset.flag = 
+		slctab[i].defset.flag =
 			spcset(i, &slctab[i].defset.val, &slctab[i].sptr);
-		slctab[i].current.flag = SLC_NOSUPPORT; 
-		slctab[i].current.val = 0; 
+		slctab[i].current.flag = SLC_NOSUPPORT;
+		slctab[i].current.val = 0;
 	}
 
 }  /* end of get_slc_defaults */
@@ -286,7 +286,7 @@ change_slc(func, flag, val)
 	register cc_t val;
 {
 	register int hislevel, mylevel;
-	
+
 	hislevel = flag & SLC_LEVELBITS;
 	mylevel = slctab[func].defset.flag & SLC_LEVELBITS;
 	/*
@@ -345,7 +345,7 @@ change_slc(func, flag, val)
 		* request as he asks.
 		*
 		* If our level is DEFAULT, then just ack whatever was
-		* sent. 
+		* sent.
 		*
 		* If he can't change and we can't change,
 		* then degenerate to NOSUPPORT.
@@ -372,7 +372,6 @@ change_slc(func, flag, val)
 					slctab[func].defset.val;
 				val = slctab[func].current.val;
 			}
-			
 		}
 		add_slc(func, flag, val);
 	}
@@ -423,7 +422,6 @@ check_slc()
 						slctab[i].current.val);
 		}
 	}
-			
 }  /* check_slc */
 
 /*
@@ -465,7 +463,7 @@ do_opt_slc(ptr, len)
 			def_slcbuf = (unsigned char *)malloc((unsigned)len);
 			if (def_slcbuf == (unsigned char *)0)
 				return;  /* too bad */
-			bcopy(ptr, def_slcbuf, len);
+			memmove(def_slcbuf, ptr, len);
 		}
 	}
 
