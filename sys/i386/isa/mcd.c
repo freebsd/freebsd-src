@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.64 1996/02/01 16:51:53 ache Exp $
+ *	$Id: mcd.c,v 1.65 1996/02/01 19:15:41 ache Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -1348,7 +1348,7 @@ mcd_toc_header(int unit, struct ioc_toc_header *th)
 	th->ending_track = bcd2bin(cd->volinfo.trk_high);
 	th->len = sizeof(struct ioc_toc_header) +
 		  (th->ending_track - th->starting_track + 1) *
-		  sizeof(struct cd_toc_entry);
+		  sizeof(struct cd_toc_entry) + 6 /* ??? */;
 
 	return 0;
 }
