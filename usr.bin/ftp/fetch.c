@@ -65,6 +65,7 @@ __RCSID_SOURCE("$NetBSD: fetch.c,v 1.16.2.1 1997/11/18 01:00:22 mellon Exp $");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <vis.h>
 
 #include "ftp_var.h"
 
@@ -104,7 +105,7 @@ url_get(origline, proxyenv)
 	char *port;
 	volatile int s;
 	size_t len;
-	char c, *cp, *ep, *http_buffer, *portnum, *path, buf[4096];
+	char c, *cp, *ep, *http_buffer, *portnum, *path, *uri, buf[4096];
 	const char *savefile;
 	char *line, *proxy, *host;
 	volatile sig_t oldintr;
@@ -160,6 +161,11 @@ url_get(origline, proxyenv)
 		goto cleanup_url_get;
 	}
 
+	uri = (char *) calloc(strlen(path) * 4 + 1, sizeof(char));
+	if (uri == NULL)
+		errx(1, "Can't allocate memory for URI.");
+	strvisx(uri, path, strlen(path), VIS_HTTPSTYLE);
+
 	if (proxyenv != NULL) {				/* use proxy */
 		proxy = strdup(proxyenv);
 		if (proxy == NULL)
@@ -198,7 +204,7 @@ url_get(origline, proxyenv)
 	
 	if (debug)
 		printf("host %s, port %s, path %s, save as %s.\n",
-		    host, portnum, path, savefile);
+		    host, portnum, uri, savefile);
 
 	if (! EMPTYSTRING(portnum)) {
 		port = portnum;
@@ -279,12 +285,13 @@ url_get(origline, proxyenv)
 	if (!proxy) {
 		printf("Requesting %s\n", origline);
 		len = asprintf(&http_buffer,
-		    "GET /%s HTTP/1.1\r\nHost: %s\r\nConnection: close\r\n\r\n", path, host);
+		    "GET /%s HTTP/1.1\r\nHost: %s\r\nConnection: close\r\n\r\n", uri, host);
 	} else {
 		printf("Requesting %s (via %s)\n", origline, proxyenv);
 		len = asprintf(&http_buffer,
 		    "GET %s HTTP/1.0\r\n\r\n", path);
 	}
+	free(uri);
 	if (len < 0) {
 		warnx("Failed to format HTTP request");
 		goto cleanup_url_get;
