@@ -42,7 +42,7 @@ SRCS=	authenc.c commands.c main.c network.c ring.c sys_bsd.c telnet.c \
 	terminal.c tn3270.c utilities.c
 
 CFLAGS+=-DTERMCAP -DKLUDGELINEMODE -DUSE_TERMIO -DENV_HACK -DENCRYPTION
-CFLAGS+=-I${.CURDIR}/../../lib
+CFLAGS+=-DSKEY -I${.CURDIR}/../../lib
 LDADD+= -L${TELNETOBJDIR} -ltermcap -ltelnet
 DPADD+= ${TELNETOBJDIR}/libtelnet.a ${LIBTERMCAP}
 

@@ -96,6 +96,7 @@ stilloob(s)
     do {
 	FD_ZERO(&excepts);
 	FD_SET(s, &excepts);
+	memset((char *)&timeout, 0, sizeof timeout);
 	value = select(s+1, (fd_set *)0, (fd_set *)0, &excepts, &timeout);
     } while ((value == -1) && (errno == EINTR));
 
