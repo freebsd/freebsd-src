@@ -284,7 +284,7 @@ witness_initialize(void *dummy __unused)
 	mtx_unlock(&Giant);
 	mtx_assert(&Giant, MA_NOTOWNED);
 
-	CTR1(KTR_WITNESS, "%s: initializing witness", __func__);
+	CTR0(KTR_WITNESS, __func__ ": initializing witness");
 	STAILQ_INSERT_HEAD(&all_locks, &all_mtx.mtx_object, lo_list);
 	mtx_init(&w_mtx, "witness lock", MTX_SPIN | MTX_QUIET | MTX_NOWITNESS);
 	for (i = 0; i < WITNESS_COUNT; i++)
@@ -381,8 +381,8 @@ witness_destroy(struct lock_object *lock)
 		mtx_lock_spin(&w_mtx);
 		w->w_refcount--;
 		if (w->w_refcount == 0) {
-			CTR1(KTR_WITNESS, "Marking witness %s as dead",
-			    w->w_name);
+			CTR1(KTR_WITNESS,
+			    __func__ ": marking witness %s as dead", w->w_name);
 			w->w_name = "(dead)";
 			w->w_file = "(dead)";
 			w->w_line = 0;
@@ -541,7 +541,7 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 			    lock1->li_line);
 			panic("recurse");
 		}
-		CTR3(KTR_WITNESS, "witness_lock: pid %d recursed on %s r=%d",
+		CTR3(KTR_WITNESS, __func__ ": pid %d recursed on %s r=%d",
 		    curproc->p_pid, lock->lo_name,
 		    lock1->li_flags & LI_RECURSEMASK);
 		lock1->li_file = file;
@@ -668,10 +668,19 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 		}
 	}
 	lock1 = &(*lock_list)->ll_children[(*lock_list)->ll_count - 1];
-	CTR2(KTR_WITNESS, "Adding %s as a child of %s", lock->lo_name,
-	    lock1->li_lock->lo_name);
-	if (!itismychild(lock1->li_lock->lo_witness, w))
+	/*
+	 * Don't build a new relationship if we are locking Giant just
+	 * after waking up and the previous lock in the list was acquired
+	 * prior to blocking.
+	 */
+	if (lock == &Giant.mtx_object && (lock1->li_flags & LI_SLEPT) != 0)
 		mtx_unlock_spin(&w_mtx);
+	else {
+		CTR2(KTR_WITNESS, __func__ ": adding %s as a child of %s",
+		    lock->lo_name, lock1->li_lock->lo_name);
+		if (!itismychild(lock1->li_lock->lo_witness, w))
+			mtx_unlock_spin(&w_mtx);
+	} 
 
 out:
 #ifdef DDB
@@ -687,7 +696,7 @@ out:
 		if (lle == NULL)
 			return;
 		lle->ll_next = *lock_list;
-		CTR2(KTR_WITNESS, "witness_lock: pid %d added lle %p",
+		CTR2(KTR_WITNESS, __func__ ": pid %d added lle %p",
 		    curproc->p_pid, lle);
 		*lock_list = lle;
 	}
@@ -699,7 +708,7 @@ out:
 		lock1->li_flags = LI_EXCLUSIVE;
 	else
 		lock1->li_flags = 0;
-	CTR3(KTR_WITNESS, "witness_lock: pid %d added %s as lle[%d]",
+	CTR3(KTR_WITNESS, __func__ ": pid %d added %s as lle[%d]",
 	    curproc->p_pid, lock->lo_name, lle->ll_count - 1);
 }
 
@@ -753,7 +762,7 @@ witness_unlock(struct lock_object *lock, int flags, const char *file, int line)
 				/* If we are recursed, unrecurse. */
 				if ((instance->li_flags & LI_RECURSEMASK) > 0) {
 					CTR3(KTR_WITNESS,
-				"witness_unlock: pid %d unrecursed on %s r=%d",
+				    __func__ ": pid %d unrecursed on %s r=%d",
 					    curproc->p_pid,
 					    instance->li_lock->lo_name,
 					    instance->li_flags);
@@ -762,7 +771,7 @@ witness_unlock(struct lock_object *lock, int flags, const char *file, int line)
 				}
 				s = critical_enter();
 				CTR3(KTR_WITNESS,
-			    "witness_unlock: pid %d removed %s from lle[%d]",
+				    __func__ ": pid %d removed %s from lle[%d]",
 				    curproc->p_pid, instance->li_lock->lo_name,
 				    (*lock_list)->ll_count - 1);
 				(*lock_list)->ll_count--;
@@ -774,7 +783,7 @@ witness_unlock(struct lock_object *lock, int flags, const char *file, int line)
 					lle = *lock_list;
 					*lock_list = lle->ll_next;
 					CTR2(KTR_WITNESS,
-				    "witness_unlock: pid %d removed lle %p",
+					    __func__ ": pid %d removed lle %p",
 					    curproc->p_pid, lle);
 					witness_lock_list_free(lle);
 				}
@@ -832,7 +841,7 @@ again:
 			if ((lock1->li_lock->lo_flags & LO_SLEEPABLE) != 0) {
 				if (check_only == 0) {
 					CTR3(KTR_WITNESS,
-				    "pid %d: sleeping with (%s) %s held",
+				    "pid %d: sleeping with lock (%s) %s held",
 					    curproc->p_pid,
 					    lock1->li_lock->lo_class->lc_name,
 					    lock1->li_lock->lo_name);
@@ -1334,6 +1343,61 @@ witness_restore(struct lock_object *lock, const char *file, int line)
 	lock->lo_witness->w_line = line;
 	instance->li_file = file;
 	instance->li_line = line;
+}
+
+void
+witness_assert(struct lock_object *lock, int flags, const char *file, int line)
+{
+#ifdef INVARIANT_SUPPORT
+	struct lock_instance *instance;
+
+	if ((lock->lo_class->lc_flags & LC_SLEEPLOCK) != 0)
+		instance = find_instance(curproc->p_sleeplocks, lock);
+	else if ((lock->lo_class->lc_flags & LC_SPINLOCK) != 0)
+		instance = find_instance(PCPU_GET(spinlocks), lock);
+	else
+		panic("Lock (%s) %s is not sleep or spin!",
+		    lock->lo_class->lc_name, lock->lo_name);
+	switch (flags) {
+	case LA_UNLOCKED:
+		if (instance != NULL)
+			panic("Lock (%s) %s locked @ %s:%d.",
+			    lock->lo_class->lc_name, lock->lo_name, file, line);
+		break;
+	case LA_LOCKED:
+	case LA_LOCKED | LA_RECURSED:
+	case LA_LOCKED | LA_NOTRECURSED:
+	case LA_SLOCKED:
+	case LA_SLOCKED | LA_RECURSED:
+	case LA_SLOCKED | LA_NOTRECURSED:
+	case LA_XLOCKED:
+	case LA_XLOCKED | LA_RECURSED:
+	case LA_XLOCKED | LA_NOTRECURSED:
+		if (instance == NULL)
+			panic("Lock (%s) %s not locked @ %s:%d.",
+			    lock->lo_class->lc_name, lock->lo_name, file, line);
+		if ((flags & LA_XLOCKED) != 0 &&
+		    (instance->li_flags & LI_EXCLUSIVE) == 0)
+			panic("Lock (%s) %s not exclusively locked @ %s:%d.",
+			    lock->lo_class->lc_name, lock->lo_name, file, line);
+		if ((flags & LA_SLOCKED) != 0 &&
+		    (instance->li_flags & LI_EXCLUSIVE) != 0)
+			panic("Lock (%s) %s exclusively locked @ %s:%d.",
+			    lock->lo_class->lc_name, lock->lo_name, file, line);
+		if ((flags & LA_RECURSED) != 0 &&
+		    (instance->li_flags & LI_RECURSEMASK) == 0)
+			panic("Lock (%s) %s not recursed @ %s:%d.",
+			    lock->lo_class->lc_name, lock->lo_name, file, line);
+		if ((flags & LA_NOTRECURSED) != 0 &&
+		    (instance->li_flags & LI_RECURSEMASK) != 0)
+			panic("Lock (%s) %s recursed @ %s:%d.",
+			    lock->lo_class->lc_name, lock->lo_name, file, line);
+		break;
+	default:
+		panic("Invalid lock assertion at %s:%d.", file, line);
+
+	}
+#endif	/* INVARIANT_SUPPORT */
 }
 
 #ifdef DDB

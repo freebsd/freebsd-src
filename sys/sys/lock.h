@@ -81,6 +81,14 @@ struct	lock_class {
 #define	LOP_TRYLOCK	0x00000004	/* Don't check lock order. */
 #define	LOP_EXCLUSIVE	0x00000008	/* Exclusive lock. */
 
+/* Flags passed to witness_assert. */
+#define	LA_UNLOCKED	0x00000000	/* Lock is unlocked. */
+#define	LA_LOCKED	0x00000001	/* Lock is at least share locked. */
+#define	LA_SLOCKED	0x00000002	/* Lock is exactly share locked. */
+#define	LA_XLOCKED	0x00000004	/* Lock is exclusively locked. */
+#define	LA_RECURSED	0x00000008	/* Lock is recursed. */
+#define	LA_NOTRECURSED	0x00000010	/* Lock is not recursed. */
+
 #ifdef _KERNEL
 /*
  * Lock instances.  A lock instance is the data associated with a lock while
@@ -172,6 +180,7 @@ void	witness_restore(struct lock_object *, const char *, int);
 int	witness_list_locks(struct lock_list_entry **);
 int	witness_list(struct proc *);
 int	witness_sleep(int, struct lock_object *, const char *, int);
+void	witness_assert(struct lock_object *, int, const char *, int);
 
 #ifdef	WITNESS
 #define	WITNESS_INIT(lock)						\
