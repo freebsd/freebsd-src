@@ -36,7 +36,7 @@
 .\"     @(#)fseek.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd March 5, 1999
+.Dd October 12, 2002
 .Dt FSEEK 3
 .Os
 .Sh NAME
@@ -92,7 +92,9 @@ A successful call to the
 function clears the end-of-file indicator for the stream and undoes
 any effects of the
 .Xr ungetc 3
-function on the same stream.
+and
+.Xr ungetwc 3
+functions on the same stream.
 .Pp
 The
 .Fn ftell
@@ -162,6 +164,14 @@ systems an
 .Dq Fa fpos_t
 object may be a complex object
 and these routines may be the only way to portably reposition a text stream.
+.Pp
+If the stream is a wide character stream (see
+.Xr fwide 3 Ns No ),
+the position specified by the combination of
+.Fa offset
+and
+.Fa whence
+must contain the first byte of a multibyte sequence.
 .Sh RETURN VALUES
 The
 .Fn rewind
@@ -231,7 +241,9 @@ and
 .Sh SEE ALSO
 .Xr lseek 2 ,
 .Xr clearerr 3 ,
-.Xr ungetc 3
+.Xr fwide 3 ,
+.Xr ungetc 3 ,
+.Xr ungetwc 3
 .Sh STANDARDS
 The
 .Fn fgetpos ,
