@@ -43,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.29 1996/09/20 17:39:20 bde Exp $
+ *	$Id: subr_diskslice.c,v 1.30 1996/10/29 13:15:30 bde Exp $
  */
 
 #include <sys/param.h>
@@ -310,6 +310,8 @@ dsioctl(dname, dev, cmd, data, flags, sspp, strat, setgeom)
 	int	error;
 	struct disklabel *lp;
 	int	old_wlabel;
+	u_char	openmask;
+	int	part;
 	int	slice;
 	struct diskslice *sp;
 	struct diskslices *ssp;
@@ -374,6 +376,13 @@ dsioctl(dname, dev, cmd, data, flags, sspp, strat, setgeom)
 		/* XXX why doesn't setdisklabel() check this? */
 		if (error == 0 && lp->d_partitions[RAW_PART].p_offset != 0)
 			error = EINVAL;
+		if (error == 0) {
+			if (lp->d_secperunit > sp->ds_size)
+				error = ENOSPC;
+			for (part = 0; part < lp->d_npartitions; part++)
+				if (lp->d_partitions[part].p_size > sp->ds_size)
+					error = ENOSPC;
+		}
 #if 0 /* XXX */
 		if (error != 0 && setgeom != NULL)
 			error = setgeom(lp);
@@ -429,9 +438,6 @@ dsioctl(dname, dev, cmd, data, flags, sspp, strat, setgeom)
 		 * if anything fails.
 		 */
 		for (slice = 0; slice < ssp->dss_nslices; slice++) {
-			u_char	openmask;
-			int	part;
-
 			for (openmask = ssp->dss_slices[slice].ds_bopenmask,
 			     part = 0; openmask; openmask >>= 1, part++) {
 				if (!(openmask & 1))
