@@ -169,16 +169,16 @@ int session_id2_len = 0;
 
 /* These are used to implement connections_per_period. */
 struct ratelim_connection {
-		struct timeval connections_begin;
-		unsigned int connections_this_period;
+	struct timeval connections_begin;
+	unsigned int connections_this_period;
 } *ratelim_connections;
 
 static void
 ratelim_init(void) {
-		ratelim_connections = calloc(num_listen_socks,
-		    sizeof(struct ratelim_connection));
-		if (ratelim_connections == NULL)
-			fatal("calloc: %s", strerror(errno));
+	ratelim_connections = calloc(num_listen_socks,
+	    sizeof(struct ratelim_connection));
+	if (ratelim_connections == NULL)
+		fatal("calloc: %s", strerror(errno));
 }
 
 static __inline struct timeval
