@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: mlfk_ipl.c,v 2.1.2.3 2000/08/13 03:42:42 darrenr Exp $
+ * $Id: mlfk_ipl.c,v 2.1.2.4 2000/08/23 11:02:33 darrenr Exp $
  */
 
 
@@ -65,6 +65,8 @@ SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_tcptimeout, CTLFLAG_RW,
 	   &fr_tcptimeout, 0, "");
 SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_tcpclosed, CTLFLAG_RW,
 	   &fr_tcpclosed, 0, "");
+SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_tcphalfclosed, CTLFLAG_RW,
+	   &fr_tcphalfclosed, 0, "");
 SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_udptimeout, CTLFLAG_RW,
 	   &fr_udptimeout, 0, "");
 SYSCTL_INT(_net_inet_ipf, OID_AUTO, fr_icmptimeout, CTLFLAG_RW,
