@@ -328,6 +328,10 @@ cache_leaf_test(struct vnode *vp)
  * returned. If the lookup determines that the name does not exist
  * (negative cacheing), a status of ENOENT is returned. If the lookup
  * fails, a status of zero is returned.
+ *
+ * vpp is locked and ref'd on return.  If we're looking up DOTDOT, dvp is
+ * unlocked.  If we're looking up . an extra ref is taken, but the lock is
+ * not recursively acquired.
  */
 
 int
@@ -343,7 +347,7 @@ cache_lookup(dvp, vpp, cnp)
 		cnp->cn_flags &= ~MAKEENTRY;
 		return (0);
 	}
-
+retry:
 	CACHE_LOCK();
 	numcalls++;
 
@@ -351,8 +355,7 @@ cache_lookup(dvp, vpp, cnp)
 		if (cnp->cn_namelen == 1) {
 			*vpp = dvp;
 			dothits++;
-			CACHE_UNLOCK();
-			return (-1);
+			goto success;
 		}
 		if (cnp->cn_namelen == 2 && cnp->cn_nameptr[1] == '.') {
 			dotdothits++;
@@ -363,8 +366,7 @@ cache_lookup(dvp, vpp, cnp)
 				return (0);
 			}
 			*vpp = dvp->v_dd;
-			CACHE_UNLOCK();
-			return (-1);
+			goto success;
 		}
 	}
 
@@ -403,8 +405,7 @@ cache_lookup(dvp, vpp, cnp)
 		numposhits++;
 		nchstats.ncs_goodhits++;
 		*vpp = ncp->nc_vp;
-		CACHE_UNLOCK();
-		return (-1);
+		goto success;
 	}
 
 	/* We found a negative match, and want to create it, so purge */
@@ -430,6 +431,28 @@ cache_lookup(dvp, vpp, cnp)
 		cnp->cn_flags |= ISWHITEOUT;
 	CACHE_UNLOCK();
 	return (ENOENT);
+
+success:
+	/*
+	 * On success we return a locked and ref'd vnode as per the lookup
+	 * protocol.
+	 */
+	if (dvp == *vpp) {   /* lookup on "." */
+		VREF(*vpp);
+		CACHE_UNLOCK();
+		return (-1);
+	}
+	if (cnp->cn_flags & ISDOTDOT)
+		VOP_UNLOCK(dvp, 0, cnp->cn_thread);
+	VI_LOCK(*vpp);
+	CACHE_UNLOCK();
+	if (vget(*vpp, cnp->cn_lkflags | LK_INTERLOCK, cnp->cn_thread)) {
+		if (cnp->cn_flags & ISDOTDOT)
+			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, cnp->cn_thread);
+		*vpp = NULL;
+		goto retry;
+	}
+	return (-1);
 }
 
 /*
@@ -632,14 +655,13 @@ vfs_cache_lookup(ap)
 		struct componentname *a_cnp;
 	} */ *ap;
 {
-	struct vnode *dvp, *vp;
+	struct vnode *dvp;
 	int error;
 	struct vnode **vpp = ap->a_vpp;
 	struct componentname *cnp = ap->a_cnp;
 	struct ucred *cred = cnp->cn_cred;
 	int flags = cnp->cn_flags;
 	struct thread *td = cnp->cn_thread;
-	u_long vpid;	/* capability number of vnode */
 
 	*vpp = NULL;
 	dvp = ap->a_dvp;
@@ -652,39 +674,15 @@ vfs_cache_lookup(ap)
 		return (EROFS);
 
 	error = VOP_ACCESS(dvp, VEXEC, cred, td);
-
 	if (error)
 		return (error);
 
 	error = cache_lookup(dvp, vpp, cnp);
-	if (!error)
+	if (error == 0)
 		return (VOP_CACHEDLOOKUP(dvp, vpp, cnp));
 	if (error == ENOENT)
 		return (error);
-	vp = *vpp;
-	vpid = vp->v_id;
-	if (dvp == vp) {   /* lookup on "." */
-		VREF(vp);
-		error = 0;
-	} else if (flags & ISDOTDOT) {
-		VOP_UNLOCK(dvp, 0, td);
-		error = vget(vp, cnp->cn_lkflags, td);
-		if (error)
-			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
-	} else
-		error = vget(vp, cnp->cn_lkflags, td);
-	/*
-	 * Check that the capability number did not change
-	 * while we were waiting for the lock.
-	 */
-	if (!error) {
-		if (vpid == vp->v_id)
-			return (0);
-		vput(vp);
-		if (flags & ISDOTDOT)
-			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
-	}
-	return (VOP_CACHEDLOOKUP(dvp, vpp, cnp));
+	return (0);
 }
 
 
