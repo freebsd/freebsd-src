@@ -2,6 +2,9 @@
 # This writes a skeleton driver and puts it into the kernel tree for you
 #arg1 is lowercase "foo" 
 #
+# It also creates a directory under /usr/src/lkm to help you create
+#loadable kernel modules, though without much use except for development.
+#
 # Trust me, RUN THIS SCRIPT :)
 #
 #-------cut here------------------
@@ -13,6 +16,11 @@ then
 	exit 1
 fi
 
+if [ -d /usr/src/lkm ]
+then
+	mkdir /usr/src/lkm/${1}
+fi
+
 UPPER=`echo ${1} |tr "[:lower:]" "[:upper:]"` 
 cat >files.${UPPER} <<DONE
 i386/isa/${1}.c      optional ${1} device-driver
@@ -21,7 +29,7 @@ DONE
 cat >${UPPER} <<DONE
 # Configuration file for kernel type: ${UPPER}
 ident	${UPPER}
-# \$Id: make_device_driver.sh,v 1.1 1997/02/02 07:19:30 julian Exp $"
+# \$Id: make_device_driver.sh,v 1.2 1997/12/30 03:23:12 julian Exp $"
 DONE
 
 grep -v GENERIC < GENERIC >>${UPPER}
@@ -37,7 +45,7 @@ cat >../isa/${1}.c <<DONE
  * Copyright ME
  *
  * ${1} driver
- * \$Id: make_device_driver.sh,v 1.1 1997/02/02 07:19:30 julian Exp $
+ * \$Id: make_device_driver.sh,v 1.2 1997/12/30 03:23:12 julian Exp $
  */
 
 
@@ -67,7 +75,9 @@ static  d_mmap_t	${1}mmap;
 static  d_poll_t	${1}poll;
 static	int		${1}probe (struct isa_device *);
 static	int		${1}attach (struct isa_device *);
-/* void ${1}intr(int unit);*//* actually defined in ioconf.h (generated file) */
+#ifdef ${UPPER}_MODULE
+void ${1}intr(int unit); /* actually defined in ioconf.h (generated file) */
+#endif
  
 #define CDEV_MAJOR 20
 static struct cdevsw ${1}_cdevsw = {
@@ -340,9 +350,12 @@ ${1}poll(dev_t dev, int which, struct proc *p)
 	return (0); /* this is the wrong value I'm sure */
 }
 
+#ifndef ${UPPER}_MODULE
+
 /*
  * Now  for some driver initialisation.
  * Occurs ONCE during boot (very early).
+ * This is if we are NOT a loadable module.
  */
 static void             
 ${1}_drvinit(void *unused)
@@ -356,6 +369,52 @@ ${1}_drvinit(void *unused)
 SYSINIT(${1}dev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE+CDEV_MAJOR,
 		${1}_drvinit, NULL)
 
+#else  /* ${UPPER}_MODULE */
+/* Here is the support for if we ARE a loadable kernel module */
+
+#include <sys/exec.h>
+#include <sys/sysent.h>
+#include <sys/lkm.h>
+
+MOD_DEV (${1}, LM_DT_CHAR, CDEV_MAJOR, &${1}_cdevsw);
+
+static struct isa_device dev = {0, &${1}driver, BASE_IO, IRQ, DMA, (caddr_t) PHYS_IO, PHYS_IO_SIZE, INT_INT, 0, FLAGS, 0, 0, 0, 0, 1, 0, 0};
+
+static int
+${1}_load (struct lkm_table *lkmtp, int cmd)
+{
+	if (${1}probe (&dev)) {
+		${1}attach (&dev);
+		uprintf ("${1} driver loaded\n");
+		uprintf ("${1}: interrupts not hooked\n");
+		return 0;
+	} else {
+		uprintf ("${1} driver: probe failed\n");
+		return 1;
+	}
+}
+
+static int
+${1}_unload (struct lkm_table *lkmtp, int cmd)
+{
+	uprintf ("${1} driver unloaded\n");
+	return 0;
+}
+
+static int
+${1}_stat (struct lkm_table *lkmtp, int cmd)
+{
+	return 0;
+}
+
+int
+${1}_mod (struct lkm_table *lkmtp, int cmd, int ver)
+{
+	MOD_DISPATCH(${1}, lkmtp, cmd, ver,
+		${1}_load, ${1}_unload, ${1}_stat);
+}
+
+#endif /* ${UPPER}_MODULE */
 
 DONE
 
@@ -379,6 +438,45 @@ cat >../../sys/${1}io.h <<DONE
 #endif
 DONE
 
+if [ -d /usr/src/lkm/${1} ]
+then
+	cat >/usr/src/lkm/${1}/Makefile <<DONE
+#	${UPPER} Loadable Kernel Module
+#
+#	This happens not to work, actually. It's written for
+#	a character ISA device driver, but they cannot be
+#	be made into lkm's, because you have to hard code
+#	everything you'll otherwise enter into the kernel
+#	configuration file.
+
+.PATH:	\${.CURDIR}/../../sys/i386/isa
+KMOD	= ${1}_mod
+SRCS	= ${1}.c ${1}.h
+
+CFLAGS		+= -I. -D${UPPER}_MODULE
+CLEANFILES	+= ${1}.h
+
+BASE_IO=0		# Base IO address
+IRQ=0			# IRQ number
+DMA=-1			# DMA channel
+PHYS_IO=0		# Physical IO Memory base address
+PHYS_IO_SIZE=0		# Physical IO Memory size
+INT_INT=0		# Interrupt interface
+FLAGS=0			# Flags
+
+CFLAGS+= -DBASE_IO=\${BASE_IO} -DIRQ=\${IRQ} -DDMA=\${DMA} -DPHYS_IO=\${PHYS_IO} -DPHYS_IO_SIZE=\${PHYS_IO_SIZE} -DINT_INT=\${INT_INT} -DFLAGS=\${FLAGS}
+
+${1}.h:
+	echo "#define N${UPPER} 1" > ${1}.h
+
+afterinstall:
+	\${INSTALL} -c -o \${BINOWN} -g \${BINGRP} -m \${BINMODE} \
+	\${.CURDIR}/${1} \${DESTDIR}/usr/bin
+
+.include <bsd.kmod.mk>
+DONE
+fi
+
 config ${UPPER}
 cd ../../compile/${UPPER}
 make depend
@@ -387,9 +485,6 @@ make
 exit
 
 #--------------end of script---------------
-#
-#you also need to add an entry into the cdevsw[]
-#array in conf.c, but it's too hard to do in a script..
 #
 #edit to your taste..
 #
