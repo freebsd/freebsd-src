@@ -268,7 +268,6 @@ nwfs_reclaim(ap)
 	lockmgr(&nwhashlock, LK_EXCLUSIVE, NULL, td);
 	LIST_REMOVE(np, n_hash);
 	lockmgr(&nwhashlock, LK_RELEASE, NULL, td);
-	cache_purge(vp);
 	if (nmp->n_root == np) {
 		nmp->n_root = NULL;
 	}
