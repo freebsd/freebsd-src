@@ -1007,9 +1007,6 @@
 /* Define if you want support in hprop for reading kaserver databases */
 /* #undef KASERVER_DB */
 
-/* Define if you have the krb4 package. */
-#define KRB4 1
-
 /* Enable Kerberos 5 support in applications. */
 #define KRB5 1
 
