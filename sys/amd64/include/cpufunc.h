@@ -118,23 +118,7 @@ enable_intr(void)
 #ifdef _KERNEL
 
 #define	HAVE_INLINE_FFS
-
-static __inline int
-ffs(int mask)
-{
-#if 0
-	/*
-	 * Note that gcc-2's builtin ffs would be used if we didn't declare
-	 * this inline or turn off the builtin.  The builtin is faster but
-	 * broken in gcc-2.4.5 and slower but working in gcc-2.5 and later
-	 * versions.
-	 */
-	return (mask == 0 ? mask : (int)bsfl((u_int)mask) + 1);
-#else
-	/* Actually, the above is way out of date.  The builtins use cmov etc */
-	return (__builtin_ffs(mask));
-#endif
-}
+#define        ffs(x)  __builtin_ffs(x)
 
 #define	HAVE_INLINE_FFSL
 
