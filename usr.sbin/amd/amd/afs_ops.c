@@ -37,7 +37,7 @@
  *
  *	@(#)afs_ops.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: afs_ops.c,v 1.2 1995/05/30 03:45:43 rgrimes Exp $
+ * $Id: afs_ops.c,v 1.3 1995/06/27 11:07:23 dfr Exp $
  *
  */
 
@@ -1545,8 +1545,8 @@ in_progrss:
 		return new_mp;
 	}
 
-	if (error && (cp->mp->am_mnt->mf_ops == &efs_ops))
-		cp->mp->am_error = error;
+	if (error && (new_mp->am_mnt->mf_ops == &efs_ops))
+		new_mp->am_error = error;
 
 	assign_error_mntfs(new_mp);
 
