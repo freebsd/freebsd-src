@@ -312,6 +312,9 @@ proc0_init(void *dummy __unused)
 
 	bcopy("swapper", p->p_comm, sizeof ("swapper"));
 
+	callout_init(&p->p_itcallout, 0);
+	callout_init(&p->p_slpcallout, 0);
+
 	/* Create credentials. */
 	cred0.p_refcnt = 1;
 	cred0.p_uidinfo = uifind(0);

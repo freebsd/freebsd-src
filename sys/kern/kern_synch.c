@@ -70,6 +70,9 @@ int	hogticks;
 int	lbolt;
 int	sched_quantum;		/* Roundrobin scheduling quantum in ticks. */
 
+static struct callout schedcpu_callout;
+static struct callout roundrobin_callout;
+
 static int	curpriority_cmp __P((struct proc *p));
 static void	endtsleep __P((void *));
 static void	maybe_resched __P((struct proc *chk));
@@ -175,7 +178,7 @@ roundrobin(arg)
  		need_resched();
 #endif
 
- 	timeout(roundrobin, NULL, sched_quantum);
+	callout_reset(&roundrobin_callout, sched_quantum, roundrobin, NULL);
 }
 
 /*
@@ -344,7 +347,7 @@ schedcpu(arg)
 	lockmgr(&allproc_lock, LK_RELEASE, NULL, CURPROC);
 	vmmeter();
 	wakeup((caddr_t)&lbolt);
-	timeout(schedcpu, (void *)0, hz);
+	callout_reset(&schedcpu_callout, hz, schedcpu, NULL);
 }
 
 /*
@@ -414,7 +417,6 @@ msleep(ident, mtx, priority, wmesg, timo)
 {
 	struct proc *p = curproc;
 	int s, sig, catch = priority & PCATCH;
-	struct callout_handle thandle;
 	int rval = 0;
 	WITNESS_SAVE_DECL(mtx);
 
@@ -465,7 +467,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 		p, p->p_pid, p->p_comm, (void *) sched_lock.mtx_lock);
 	TAILQ_INSERT_TAIL(&slpque[LOOKUP(ident)], p, p_slpq);
 	if (timo)
-		thandle = timeout(endtsleep, (void *)p, timo);
+		callout_reset(&p->p_slpcallout, timo, endtsleep, p);
 	/*
 	 * We put ourselves on the sleep queue and start our timeout
 	 * before calling CURSIG, as we could stop there, and a wakeup
@@ -517,7 +519,7 @@ resume:
 			goto out;
 		}
 	} else if (timo)
-		untimeout(endtsleep, (void *)p, thandle);
+		callout_stop(&p->p_slpcallout);
 	mtx_exit(&sched_lock, MTX_SPIN);
 
 	if (catch && (sig != 0 || (sig = CURSIG(p)))) {
@@ -628,7 +630,6 @@ mawait(struct mtx *mtx, int priority, int timo)
 	s = splhigh();
 
 	if (p->p_wchan != NULL) {
-		struct callout_handle thandle;
 		int sig;
 		int catch;
 
@@ -646,7 +647,7 @@ mawait(struct mtx *mtx, int priority, int timo)
 		 */
 
 		if (timo)
-			thandle = timeout(endtsleep, (void *)p, timo);
+			callout_reset(&p->p_slpcallout, timo, endtsleep, p);
 
 		sig = 0;
 		catch = priority & PCATCH;
@@ -687,7 +688,7 @@ resume:
 				goto out;
 			}
 		} else if (timo)
-			untimeout(endtsleep, (void *)p, thandle);
+			callout_stop(&p->p_slpcallout);
 		mtx_exit(&sched_lock, MTX_SPIN);
 
 		if (catch && (sig != 0 || (sig = CURSIG(p)))) {
@@ -1036,6 +1037,10 @@ static void
 sched_setup(dummy)
 	void *dummy;
 {
+
+	callout_init(&schedcpu_callout, 1);
+	callout_init(&roundrobin_callout, 0);
+
 	/* Kick off timeout driven events by calling first time. */
 	roundrobin(NULL);
 	schedcpu(NULL);

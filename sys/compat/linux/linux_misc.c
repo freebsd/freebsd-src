@@ -115,9 +115,9 @@ linux_alarm(struct proc *p, struct linux_alarm_args *args)
     old_it = p->p_realtimer;
     getmicrouptime(&tv);
     if (timevalisset(&old_it.it_value))
-	untimeout(realitexpire, (caddr_t)p, p->p_ithandle);
+	callout_stop(&p->p_itcallout);
     if (it.it_value.tv_sec != 0) {
-	p->p_ithandle = timeout(realitexpire, (caddr_t)p, tvtohz(&it.it_value));
+	callout_reset(&p->p_itcallout, tvtohz(&it.it_value), realitexpire, p);
 	timevaladd(&it.it_value, &tv);
     }
     p->p_realtimer = it;

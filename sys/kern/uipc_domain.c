@@ -61,6 +61,9 @@
 static void domaininit __P((void *));
 SYSINIT(domain, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST, domaininit, NULL)
 
+static struct callout pffast_callout;
+static struct callout pfslow_callout;
+
 static void	pffasttimo __P((void *));
 static void	pfslowtimo __P((void *));
 
@@ -137,8 +140,11 @@ domaininit(void *dummy)
 	if (max_linkhdr < 16)		/* XXX */
 		max_linkhdr = 16;
 
-	timeout(pffasttimo, (void *)0, 1);
-	timeout(pfslowtimo, (void *)0, 1);
+	callout_init(&pffast_callout, 0);
+	callout_init(&pfslow_callout, 0);
+
+	callout_reset(&pffast_callout, 1, pffasttimo, NULL);
+	callout_reset(&pfslow_callout, 1, pfslowtimo, NULL);
 }
 
 
@@ -214,7 +220,7 @@ pfslowtimo(arg)
 		for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++)
 			if (pr->pr_slowtimo)
 				(*pr->pr_slowtimo)();
-	timeout(pfslowtimo, (void *)0, hz/2);
+	callout_reset(&pfslow_callout, hz/2, pfslowtimo, NULL);
 }
 
 static void
@@ -228,5 +234,5 @@ pffasttimo(arg)
 		for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++)
 			if (pr->pr_fasttimo)
 				(*pr->pr_fasttimo)();
-	timeout(pffasttimo, (void *)0, hz/5);
+	callout_reset(&pffast_callout, hz/5, pffasttimo, NULL);
 }
