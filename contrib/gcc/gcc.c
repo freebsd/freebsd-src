@@ -2328,11 +2328,7 @@ struct infile
 };
 
 #if defined(FREEBSD_NATIVE) && defined(__i386__)
-#if defined(FREEBSD_AOUT)
-static int objformat_aout = 1;		/* set default format in absense of */
-#else					/* any other hints. */
 static int objformat_aout = 0;
-#endif
 #endif
 
 /* Also a vector of input files specified.  */
