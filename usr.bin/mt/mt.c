@@ -312,6 +312,10 @@ struct tape_desc {
 	char	*t_dsbits;	/* "drive status" register */
 	char	*t_erbits;	/* "error" register */
 } tapes[] = {
+	/*
+	 * XXX This is weird.  The st driver reports the tape drive
+	 * as 0x7 (MT_ISAR - Sun/Archive compatible).
+	 */
 	{ MT_ISAR,	"SCSI tape drive", 0,		0 },
 	{ 0, NULL, 0, 0 }
 };
