@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.107 1998/03/09 15:00:43 jkh Exp $
+ * $Id: config.c,v 1.108 1998/03/10 17:24:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -510,7 +510,10 @@ configXEnvironment(dialogMenuItem *self)
     dialog_clear_norefresh();
     if (!dmenuOpenSimple(&MenuXF86Config, FALSE))
 	return DITEM_FAILURE | DITEM_RESTORE;
-    systemExecute("/sbin/ldconfig /usr/lib /usr/X11R6/lib /usr/local/lib /usr/lib/compat");
+    if (file_readable("/var/run/ld.so.hints"))
+	systemExecute("/sbin/ldconfig -m /usr/lib /usr/X11R6/lib /usr/local/lib /usr/lib/compat");
+    else
+	systemExecute("/sbin/ldconfig /usr/lib /usr/X11R6/lib /usr/local/lib /usr/lib/compat");
     config = variable_get(VAR_XF86_CONFIG);
     if (!config)
 	return DITEM_FAILURE | DITEM_RESTORE;
