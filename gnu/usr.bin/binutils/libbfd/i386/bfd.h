@@ -91,7 +91,7 @@ typedef struct _bfd bfd;
 /* Yup, SVR4 has a "typedef enum boolean" in <sys/types.h>  -fnf */
 /* It gets worse if the host also defines a true/false enum... -sts */
 /* And even worse if your compiler has built-in boolean types... -law */
-#if defined (__GNUG__) && (__GNUC_MINOR__ > 5)
+#if defined (__GNUG__) && (__GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ >= 6))
 #define TRUE_FALSE_ALREADY_DEFINED
 #endif
 #ifdef MPW
@@ -641,6 +641,9 @@ extern long bfd_get_elf_phdr_upper_bound PARAMS ((bfd *abfd));
    Return the number of program header table entries read, or -1 if an
    error occurs; bfd_get_error will return an appropriate code.  */
 extern int bfd_get_elf_phdrs PARAMS ((bfd *abfd, void *phdrs));
+
+/* Return the arch_size field of an elf bfd, or -1 if not elf.  */
+extern int bfd_elf_get_arch_size PARAMS ((bfd *));
 
 /* SunOS shared library support routines for the linker.  */
 
