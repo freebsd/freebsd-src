@@ -146,16 +146,7 @@ main(int argc, char **argv)
 	dtab = NULL;
 	if (yyparse())
 		exit(3);
-	switch (machine) {
-
-	case MACHINE_I386:
-	case MACHINE_PC98:
-	case MACHINE_ALPHA:
-	case MACHINE_IA64:
-	case MACHINE_POWERPC:
-		break;
-
-	default:
+	if (machinename == NULL) {
 		printf("Specify machine type, e.g. ``machine i386''\n");
 		exit(1);
 	}

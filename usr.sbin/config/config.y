@@ -121,23 +121,7 @@ Spec:
 Config_spec:
 	ARCH Save_id
 	    = {
-		if (!strcmp($2, "i386")) {
-			machine = MACHINE_I386;
-			machinename = "i386";
-		} else if (!strcmp($2, "pc98")) {
-			machine = MACHINE_PC98;
-			machinename = "pc98";
-		} else if (!strcmp($2, "alpha")) {
-			machine = MACHINE_ALPHA;
-			machinename = "alpha";
-		} else if (!strcmp($2, "ia64")) {
-			machine = MACHINE_IA64;
-			machinename = "ia64";
-		} else if (!strcmp($2, "powerpc")) {
-			machine = MACHINE_POWERPC;
-			machinename = "powerpc";
-		} else
-			yyerror("Unknown machine type");
+		machinename = $2;
 	      } |
 	CPU Save_id
 	      = {
