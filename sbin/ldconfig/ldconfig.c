@@ -465,17 +465,13 @@ buildhints()
 		errx(1, "str_index(%d) != strtab_sz(%d)", str_index, strtab_sz);
 	}
 
-	tmpfile = concat(hints_file, ".XXXXXX", "");
-	if ((tmpfile = mktemp(tmpfile)) == NULL) {
+	tmpfile = concat(hints_file, ".XXXXXXXXXX", "");
+	umask(0);	/* Create with exact permissions */
+	if ((fd = mkstemp(tmpfile)) == -1) {
 		warn("%s", tmpfile);
 		return -1;
 	}
-
-	umask(0);	/* Create with exact permissions */
-	if ((fd = open(tmpfile, O_RDWR|O_CREAT|O_TRUNC, 0444)) == -1) {
-		warn("%s", hints_file);
-		return -1;
-	}
+	fchmod(fd, 0444);
 
 	if (write(fd, &hdr, sizeof(struct hints_header)) !=
 						sizeof(struct hints_header)) {
