@@ -115,7 +115,7 @@ static	char mybuf[50];
 	case 0xff:
 		return "????";
 	default:
-		if (nflag) {
+		if (numeric_port) {
 			(void)snprintf(mybuf, sizeof(mybuf), "%d",
 			    (unsigned int)sat->sat_port);
 		} else {
