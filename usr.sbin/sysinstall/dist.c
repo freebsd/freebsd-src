@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.45 1996/04/28 03:26:51 jkh Exp $
+ * $Id: dist.c,v 1.46 1996/04/29 17:59:07 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -390,7 +390,6 @@ distExtract(char *parent, Distribution *me)
 		goto punt;
 	    }
 	    snprintf(prompt, 80, "Extracting %s into %s directory...", me[i].my_name, me[i].my_dir);
-	    dialog_clear();
 	    dialog_gauge("Progress", prompt, 8, 15, 6, 50, (int)((float)(chunk + 1) / numchunks * 100));
 	    move(0, 0);	/* Get cursor out of the way - it makes gauges look strange */
 	    while ((n = read(fd, buf, sizeof buf)) > 0) {
