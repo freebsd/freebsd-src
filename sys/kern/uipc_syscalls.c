@@ -80,6 +80,8 @@ static int recvit __P((struct proc *p, int s, struct msghdr *mp,
 		       caddr_t namelenp));
   
 static int accept1 __P((struct proc *p, struct accept_args *uap, int compat));
+static int do_sendfile __P((struct proc *p, struct sendfile_args *uap,
+			    int compat));
 static int getsockname1 __P((struct proc *p, struct getsockname_args *uap,
 			     int compat));
 static int getpeername1 __P((struct proc *p, struct getpeername_args *uap,
@@ -1522,6 +1524,31 @@ sf_buf_free(caddr_t addr, u_int size)
 int
 sendfile(struct proc *p, struct sendfile_args *uap)
 {
+
+	return (do_sendfile(p, uap, 0));
+}
+
+#ifdef COMPAT_43
+int
+osendfile(struct proc *p, struct osendfile_args *uap)
+{
+	struct sendfile_args args;
+
+	args.fd = uap->fd;
+	args.s = uap->s;
+	args.offset = uap->offset;
+	args.nbytes = uap->nbytes;
+	args.hdtr = uap->hdtr;
+	args.sbytes = uap->sbytes;
+	args.flags = uap->flags;
+
+	return (do_sendfile(p, &args, 1));
+}
+#endif
+
+int
+do_sendfile(struct proc *p, struct sendfile_args *uap, int compat)
+{
 	struct file *fp;
 	struct filedesc *fdp = p->p_fd;
 	struct vnode *vp;
@@ -1592,7 +1619,10 @@ sendfile(struct proc *p, struct sendfile_args *uap)
 			error = writev(p, &nuap);
 			if (error)
 				goto done;
-			hdtr_size += p->p_retval[0];
+			if (compat)
+				sbytes += p->p_retval[0];
+			else
+				hdtr_size += p->p_retval[0];
 		}
 	}
 
@@ -1832,12 +1862,16 @@ retry_space:
 			error = writev(p, &nuap);
 			if (error)
 				goto done;
-			hdtr_size += p->p_retval[0];
+			if (compat)
+				sbytes += p->p_retval[0];
+			else
+				hdtr_size += p->p_retval[0];
 	}
 
 done:
 	if (uap->sbytes != NULL) {
-		sbytes += hdtr_size;
+		if (compat == 0)
+			sbytes += hdtr_size;
 		copyout(&sbytes, uap->sbytes, sizeof(off_t));
 	}
 	if (vp)
