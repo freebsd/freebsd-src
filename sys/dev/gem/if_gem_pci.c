@@ -107,12 +107,13 @@ DRIVER_MODULE(if_gem, pci, gem_pci_driver, gem_devclass, 0, 0);
 
 struct gem_pci_dev {
 	u_int32_t	gpd_devid;
+	int	gpd_variant;
 	char	*gpd_desc;
 } gem_pci_devlist[] = {
-	{ 0x1101108e, "Sun ERI 10/100 Ethernet Adaptor" },
-	{ 0x2bad108e, "Sun GEM Gigabit Ethernet Adaptor" },
-	{ 0x0021106b, "Apple GMAC Ethernet Adaptor" },
-	{ 0x0024106b, "Apple GMAC2 Ethernet Adaptor" },
+	{ 0x1101108e, GEM_SUN_GEM,	"Sun ERI 10/100 Ethernet Adaptor" },
+	{ 0x2bad108e, GEM_SUN_GEM,	"Sun GEM Gigabit Ethernet Adaptor" },
+	{ 0x0021106b, GEM_APPLE_GMAC,	"Apple GMAC Ethernet Adaptor" },
+	{ 0x0024106b, GEM_APPLE_GMAC,	"Apple GMAC2 Ethernet Adaptor" },
 	{ 0, NULL }
 };
 
@@ -125,11 +126,15 @@ gem_pci_probe(dev)
 {
 	int i;
 	u_int32_t devid;
+	struct gem_pci_softc *gsc;
 
 	devid = pci_get_devid(dev);
 	for (i = 0; gem_pci_devlist[i].gpd_desc != NULL; i++) {
 		if (devid == gem_pci_devlist[i].gpd_devid) {
 			device_set_desc(dev, gem_pci_devlist[i].gpd_desc);
+			gsc = device_get_softc(dev);
+			gsc->gsc_gem.sc_variant =
+			    gem_pci_devlist[i].gpd_variant;
 			return (0);
 		}
 	}
