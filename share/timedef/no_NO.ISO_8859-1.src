@@ -1,4 +1,4 @@
-# $Id:$
+# $Id: no_NO.ISO_8859-1.src,v 1.1 1997/06/03 14:17:12 ache Exp $
 #
 # WARNING: spaces may be essential at the end of lines
 # WARNING: empty lines are essential too
@@ -35,23 +35,23 @@ Desember
 #
 # Short weekdays names
 # (padded with a space to conform with other languages)
-S=F8n
+Søn
 Man
 Tir
 Ons
 Tor
 Fre
-L=F8r
+Lør
 #
 # Long weekdays names
 #
-S=F8ndag
+Søndag
 Mandag
 Tirsdag
 Onsdag
 Torsdag
 Fredag
-L=F8rdag
+Lørdag
 #
 # X_fmt
 #
