@@ -433,12 +433,12 @@ vm_object_deallocate(vm_object_t object)
 {
 	vm_object_t temp;
 
-	mtx_lock(&Giant);
+	vm_object_lock(object);
 	while (object != NULL) {
 
 		if (object->type == OBJT_VNODE) {
 			vm_object_vndeallocate(object);
-			mtx_unlock(&Giant);
+			vm_object_unlock(object);
 			return;
 		}
 
@@ -453,7 +453,7 @@ vm_object_deallocate(vm_object_t object)
 		 */
 		object->ref_count--;
 		if (object->ref_count > 1) {
-			mtx_unlock(&Giant);
+			vm_object_unlock(object);
 			return;
 		} else if (object->ref_count == 1) {
 			if (object->shadow_count == 0) {
@@ -494,7 +494,7 @@ vm_object_deallocate(vm_object_t object)
 					continue;
 				}
 			}
-			mtx_unlock(&Giant);
+			vm_object_unlock(object);
 			return;
 		}
 doterm:
@@ -518,7 +518,7 @@ doterm:
 			vm_object_terminate(object);
 		object = temp;
 	}
-	mtx_unlock(&Giant);
+	vm_object_unlock(object);
 }
 
 /*
