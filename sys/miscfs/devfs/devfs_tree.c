@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_tree.c,v 1.54 1998/06/21 14:53:20 bde Exp $
+ *	$Id: devfs_tree.c,v 1.55 1998/07/04 22:30:22 julian Exp $
  */
 
 
@@ -498,7 +498,7 @@ dev_add_node(int entrytype, union typeinfo *by, dn_p proto,
 		 * Make sure it has DEVICE type ops
 		 * and device specific fields are correct
 		 */
-		dnp->ops = &dev_spec_vnodeop_p;
+		dnp->ops = &devfs_spec_vnodeop_p;
 		dnp->by.Bdev.bdevsw = by->Bdev.bdevsw;
 		dnp->by.Bdev.dev = by->Bdev.dev;
 		break;
@@ -507,7 +507,7 @@ dev_add_node(int entrytype, union typeinfo *by, dn_p proto,
 		 * Make sure it has DEVICE type ops
 		 * and device specific fields are correct
 		 */
-		dnp->ops = &dev_spec_vnodeop_p;
+		dnp->ops = &devfs_spec_vnodeop_p;
 		dnp->by.Cdev.cdevsw = by->Cdev.cdevsw;
 		dnp->by.Cdev.dev = by->Cdev.dev;
 		break;
