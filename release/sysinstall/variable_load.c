@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: variable_load.c,v 1.1.2.2 1997/04/01 02:04:58 pst Exp $
+ * $Id: variable_load.c,v 1.3 1997/04/01 02:08:07 pst Exp $
  *
  * Copyright (c) 1997
  *	Paul Traina.  All rights reserved.
@@ -84,6 +84,10 @@ variableLoad(dialogMenuItem * self)
     msgNotify("Loading %s pre-configuration file", cp);
 
     while (fgets(buf, sizeof buf, fp)) {
+	if ((cp = strchr(buf, '\n')) != NULL)
+	    *cp = '\0';
+	if (*buf == '\0' || *buf == '#')
+	    continue;
 	if (DITEM_STATUS(dispatchCommand(buf)) != DITEM_SUCCESS) {
 	    msgConfirm("Command `%s' failed - rest of script aborted.\n", buf);
 	    what |= DITEM_FAILURE;
