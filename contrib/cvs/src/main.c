@@ -340,13 +340,14 @@ main (argc, argv)
 				   lets us support the `cvs -H cmd'
 				   convention to give help for cmd. */
     static struct option long_options[] =
-      {
+    {
         {"help", 0, NULL, 'H'},
         {"version", 0, NULL, 'v'},
 	{"help-commands", 0, NULL, 1},
 	{"help-synonyms", 0, NULL, 2},
+	{"allow-root", required_argument, NULL, 3},
         {0, 0, 0, 0}
-      };
+    };
     /* `getopt_long' stores the option index here, but right now we
         don't use it. */
     int option_index = 0;
@@ -441,9 +442,9 @@ main (argc, argv)
     while ((c = getopt_long
             (argc, argv, "+QqrwtnRlvb:T:e:d:Hfz:s:x", long_options, &option_index))
            != EOF)
-      {
+    {
 	switch (c)
-          {
+	{
             case 1:
 	        /* --help-commands */
                 usage (cmd_usage);
@@ -452,6 +453,10 @@ main (argc, argv)
 	        /* --help-synonyms */
                 usage (cmd_synonyms());
                 break;
+	    case 3:
+		/* --allow-root */
+		root_allow_add (optarg);
+		break;
 	    case 'Q':
 		really_quiet = TRUE;
 		/* FALL THROUGH */
@@ -613,6 +618,12 @@ main (argc, argv)
 #if defined(AUTH_SERVER_SUPPORT) && defined(SERVER_SUPPORT)
 	if (strcmp (command_name, "pserver") == 0)
 	{
+	    /* The reason that --allow-root is not a command option
+	       is mainly the comment in server() about how argc,argv
+	       might be from .cvsrc.  I'm not sure about that, and
+	       I'm not sure it is only true of command options, but
+	       it seems easier to make it a global option.  */
+
 	    /* Gets username and password from client, authenticates, then
 	       switches to run as that user and sends an ACK back to the
 	       client. */
@@ -895,6 +906,7 @@ main (argc, argv)
 	free (Tmpdir);
     if (free_Rcsbin)
 	free (Rcsbin);
+    root_allow_free ();
 
 #ifdef SYSTEM_CLEANUP
     /* Hook for OS-specific behavior, for example socket subsystems on
