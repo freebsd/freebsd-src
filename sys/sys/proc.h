@@ -35,8 +35,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)proc.h	8.8 (Berkeley) 1/21/94
- * $Id: proc.h,v 1.21 1996/02/25 09:28:06 hsu Exp $
+ *	@(#)proc.h	8.15 (Berkeley) 5/19/95
+ * $Id: proc.h,v 1.23 1996/03/10 23:48:35 hsu Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -46,6 +46,7 @@
 #include <sys/rtprio.h>			/* For struct rtprio. */
 #include <sys/select.h>			/* For struct selinfo. */
 #include <sys/time.h>			/* For structs itimerval, timeval. */
+#include <sys/queue.h>
 
 /*
  * One structure allocated per session.
@@ -62,8 +63,8 @@ struct	session {
  * One structure allocated per process group.
  */
 struct	pgrp {
-	struct	pgrp *pg_hforw;		/* Forward link in hash bucket. */
-	struct	proc *pg_mem;		/* Pointer to pgrp members. */
+	LIST_ENTRY(pgrp) pg_hash;	/* Hash chain. */
+	LIST_HEAD(, proc) pg_members;	/* Pointer to pgrp members. */
 	struct	session *pg_session;	/* Pointer to session. */
 	pid_t	pg_id;			/* Pgrp id. */
 	int	pg_jobc;	/* # procs qualifying pgrp for job control */
@@ -83,8 +84,7 @@ struct	pgrp {
 struct	proc {
 	struct	proc *p_forw;		/* Doubly-linked run/sleep queue. */
 	struct	proc *p_back;
-	struct	proc *p_next;		/* Linked list of active procs */
-	struct	proc **p_prev;		/*    and zombies. */
+	LIST_ENTRY(proc) p_list;	/* List of all processes. */
 
 	/* substructures: */
 	struct	pcred *p_cred;		/* Process owner's identity. */
@@ -102,15 +102,14 @@ struct	proc {
 	char	p_pad1[3];
 
 	pid_t	p_pid;			/* Process identifier. */
-	struct	proc *p_hash;	 /* Hashed based on p_pid for kill+exit+... */
-	struct	proc *p_pgrpnxt; /* Pointer to next process in process group. */
-	struct	proc *p_pptr;	 /* Pointer to process structure of parent. */
-	struct	proc *p_osptr;	 /* Pointer to older sibling processes. */
+	LIST_ENTRY(proc) p_pglist;	/* List of processes in pgrp. */
+	struct	proc *p_pptr;	 	/* Pointer to parent process. */
+	LIST_ENTRY(proc) p_sibling;	/* List of sibling processes. */
+	LIST_HEAD(, proc) p_children;	/* Pointer to list of children. */
 
 /* The following fields are all zeroed upon creation in fork. */
-#define	p_startzero	p_ysptr
-	struct	proc *p_ysptr;	 /* Pointer to younger siblings. */
-	struct	proc *p_cptr;	 /* Pointer to youngest living child. */
+#define	p_startzero	p_oppid
+
 	pid_t	p_oppid;	 /* Save parent pid during ptrace. XXX */
 	int	p_dupfd;	 /* Sideways return value from fdopen. XXX */
 
@@ -139,8 +138,17 @@ struct	proc {
 	char	p_lock;			/* Process lock (prevent swap) count. */
 	char	p_pad2[3];		/* alignment */
 
+	short	p_locks;		/* DEBUG: lockmgr count of held locks */
+	short	p_simple_locks;		/* DEBUG: count of held simple locks */
+
 /* End area that is zeroed on creation. */
-#define	p_endzero	p_startcopy
+#define	p_endzero	p_hash.le_next
+
+	/*
+	 * Not copied, not zero'ed.
+	 * Belongs after p_pid, but here to avoid shifting proc elements.
+	 */
+	LIST_ENTRY(proc) p_hash;	/* Hash chain. */
 
 /* The following fields are all copied upon creation in fork. */
 #define	p_startcopy	p_sigmask
@@ -194,13 +202,16 @@ struct	proc {
 #define	P_TRACED	0x00800	/* Debugged process being traced. */
 #define	P_WAITED	0x01000	/* Debugging process has waited for child. */
 #define	P_WEXIT		0x02000	/* Working on exiting. */
-#define P_EXEC		0x04000	/* Process called exec. */
-#define	P_SWAPPING	0x40000	/* Process is being swapped. */
-#define	P_NOSWAP	0x08000	/* Flag to prevent swap out. */
+#define	P_EXEC		0x04000	/* Process called exec. */
+
+/* Should probably be changed into a hold count. */
+#define	P_NOSWAP	0x08000	/* Another flag to prevent swap out. */
 #define	P_PHYSIO	0x10000	/* Doing physical I/O. */
 
 /* Should be moved to machine-dependent areas. */
 #define	P_OWEUPC	0x20000	/* Owe process an addupc() call at next ast. */
+
+#define	P_SWAPPING	0x40000	/* Process is being swapped. */
 
 /*
  * MOVE TO ucred.h?
@@ -225,7 +236,6 @@ struct	pcred {
  */
 #define	PID_MAX		30000
 #define	NO_PID		30001
-#define	PIDHASH(pid)	((pid) & pidhashmask)
 
 #define SESS_LEADER(p)	((p)->p_session->s_leader == (p))
 #define	SESSHOLD(s)	((s)->s_count++)
@@ -241,16 +251,22 @@ struct	pcred {
 }
 #define PRELE(p)	(--(p)->p_lock)
 
-extern struct proc *pidhash[];		/* In param.c. */
-extern struct pgrp *pgrphash[];		/* In param.c. */
+#define	PIDHASH(pid)	(&pidhashtbl[(pid) & pidhash])
+extern LIST_HEAD(pidhashhead, proc) *pidhashtbl;
+extern u_long pidhash;
+
+#define	PGRPHASH(pgid)	(&pgrphashtbl[(pgid) & pgrphash])
+extern LIST_HEAD(pgrphashhead, pgrp) *pgrphashtbl;
+extern u_long pgrphash;
+
 extern struct proc *curproc;		/* Current running proc. */
 extern struct proc proc0;		/* Process slot for swapper. */
 extern int nprocs, maxproc;		/* Current and max number of procs. */
 extern int maxprocperuid;		/* Max procs per uid. */
-extern int pidhashmask;			/* In param.c. */
 
-extern volatile struct proc *allproc;	/* List of active procs. */
-extern struct proc *zombproc;		/* List of zombie procs. */
+LIST_HEAD(proclist, proc);
+extern struct proclist allproc;		/* List of all processes. */
+extern struct proclist zombproc;	/* List of zombie processes. */
 extern struct proc *initproc, *pageproc; /* Process slots for init, pager. */
 
 #define	NQS	32			/* 32 run queues. */
@@ -263,10 +279,16 @@ struct	prochd {
 	struct	proc *ph_rlink;
 };
 
-int	chgproccnt __P((uid_t, int));
 struct proc *pfind __P((pid_t));	/* Find process by id. */
 struct pgrp *pgfind __P((pid_t));	/* Find process group by id. */
+
+int	chgproccnt __P((uid_t uid, int diff));
+int	enterpgrp __P((struct proc *p, pid_t pgid, int mksess));
+void	fixjobc __P((struct proc *p, struct pgrp *pgrp, int entering));
+int	inferior __P((struct proc *p));
+int	leavepgrp __P((struct proc *p));
 void	mi_switch __P((void));
+void	procinit __P((void));
 void	resetpriority __P((struct proc *));
 void	roundrobin __P((void *));
 void	schedcpu __P((void *));
@@ -281,13 +303,9 @@ void	wakeup __P((void *chan));
 
 __dead void cpu_exit __P((struct proc *)) __dead2;
 __dead void exit1 __P((struct proc *, int)) __dead2;
-void	fixjobc __P((struct proc *, struct pgrp *, int));
-int	leavepgrp __P((struct proc *));
-int	enterpgrp __P((struct proc *, pid_t, int));
 int	trace_req __P((struct proc *));
 void	cpu_wait __P((struct proc *));
 int	cpu_coredump __P((struct proc *, struct vnode *, struct ucred *));
-int	inferior __P((struct proc *));
 #endif	/* KERNEL */
 
 #endif	/* !_SYS_PROC_H_ */
