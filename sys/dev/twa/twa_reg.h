@@ -163,6 +163,7 @@
 #define TWA_OP_DIAGNOSTICS		0x1F
 
 /* Misc defines. */
+#define TWA_BUNDLED_FW_VERSION_STRING	"2.04.00.005" 
 #define TWA_ALIGNMENT			0x4
 #define TWA_MAX_UNITS			16
 #define TWA_INIT_MESSAGE_CREDITS	0x100
@@ -170,12 +171,12 @@
 #define TWA_64BIT_SG_ADDRESSES		0x00000001
 #define TWA_EXTENDED_INIT_CONNECT	0x00000002
 #define TWA_BASE_MODE			1
-#define TWA_BASE_FW_SRL			0x17
+#define TWA_BASE_FW_SRL			23
 #define TWA_BASE_FW_BRANCH		0
 #define TWA_BASE_FW_BUILD		1
-#define TWA_CURRENT_FW_SRL		0x18
-#define TWA_CURRENT_FW_BRANCH		1
-#define TWA_CURRENT_FW_BUILD		9
+#define TWA_CURRENT_FW_SRL		27
+#define TWA_CURRENT_FW_BRANCH		2
+#define TWA_CURRENT_FW_BUILD		6
 #define TWA_9000_ARCH_ID		0x5	/* 9000 series controllers */
 #define TWA_CTLR_FW_SAME_OR_NEWER	0x00000001
 #define TWA_CTLR_FW_COMPATIBLE		0x00000002
@@ -198,7 +199,7 @@
 /* Scatter/Gather list entry. */
 struct twa_sg {
 	bus_addr_t	address;
-	bus_size_t	length;
+	u_int32_t	length;
 } __attribute__ ((packed));
 
 
@@ -396,7 +397,7 @@ struct twa_command_header {
 			u_int8_t	reserved:5;
 		} substatus_block;
 	} status_block;
-	u_int8_t	err_specific_desc[98];
+	u_int8_t	err_desc[98];
 	struct {
 		u_int8_t	size_header;
 		u_int16_t	reserved;

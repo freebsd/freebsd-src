@@ -35,11 +35,7 @@
  */
 
 
-/*
- * The scheme for the driver version is:
- * <major change>.<external release>.<3ware internal release>.<development release>
- */
-#define TWA_DRIVER_VERSION_STRING		"2.40.00.000"
+#define TWA_DRIVER_VERSION_STRING		"2.40.02.011"
 
 #define TWA_CDEV_MAJOR				187
 
@@ -68,7 +64,9 @@
 #define TWA_CMD_DATA_OUT		(1<<1)	/* write request */
 #define TWA_CMD_DATA_COPY_NEEDED	(1<<2)	/* data in ccb is misaligned, have to copy to/from private buffer */
 #define TWA_CMD_SLEEP_ON_REQUEST	(1<<3)	/* owner is sleeping on this command */
-#define TWA_CMD_IN_PROGRESS		(1<<4)	/* bus_dmamap_load returned EINPROGRESS */
+#define TWA_CMD_MAPPED			(1<<4)	/* request has been mapped */
+#define TWA_CMD_IN_PROGRESS		(1<<5)	/* bus_dmamap_load returned EINPROGRESS */
+#define TWA_CMD_TIMER_SET		(1<<6)	/* request is being timed */
 
 /* Possible values of tr->tr_cmd_pkt_type. */
 #define TWA_CMD_PKT_TYPE_7K		(1<<0)
@@ -114,10 +112,10 @@ struct twa_request {
 	u_int32_t		tr_request_id;	/* request id for tracking with firmware */
 
 	void			*tr_data;	/* ptr to data being passed to firmware */
-	size_t			tr_length;	/* length of buffer being passed to firmware */
+	u_int32_t		tr_length;	/* length of buffer being passed to firmware */
 
 	void			*tr_real_data;	/* ptr to, and length of data passed */
-	size_t			tr_real_length; /* to us from above, in case a buffer copy
+	u_int32_t		tr_real_length; /* to us from above, in case a buffer copy
 							was done due to non-compliance to 
 							alignment requirements */
 
@@ -131,7 +129,7 @@ struct twa_request {
 	void			*tr_private;	/* request specific data to use during callback */
 	void			(*tr_callback)(struct twa_request *tr);/* callback handler */
 	bus_addr_t		tr_cmd_phys;	/* physical address of command in controller space */
-	bus_dmamap_t		tr_dma_map;	/* DMA map for data */
+	bus_dmamap_t		tr_buf_map;	/* DMA map for data */
 } __attribute__ ((packed));
 
 
@@ -178,7 +176,9 @@ struct twa_softc {
 	struct resource		*twa_io_res;	/* register interface window */
 	bus_space_handle_t	twa_bus_handle;	/* bus space handle */
 	bus_space_tag_t		twa_bus_tag;	/* bus space tag */
-	bus_dma_tag_t		twa_dma_tag;	/* data buffer DMA tag */
+	bus_dma_tag_t		twa_parent_tag;	/* parent DMA tag */
+	bus_dma_tag_t		twa_cmd_tag;	/* cmd DMA tag */
+	bus_dma_tag_t		twa_buf_tag;	/* data buffer DMA tag */
 	bus_dmamap_t		twa_cmd_map;	/* DMA map for the array of cmd pkts */
 	bus_addr_t		twa_cmd_pkt_phys;/* phys addr of first of array of cmd pkts */
 	struct resource		*twa_irq_res;	/* interrupt resource*/
