@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.293 1996/11/13 22:50:32 ache Exp $
+#	$Id: LINT,v 1.294 1996/11/15 18:36:21 jkh Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -903,10 +903,10 @@ options	AHC_TAGENABLE
 options	AHC_SCBPAGING_ENABLE
 
 # The aic7xxx driver will attempt to use memory mapped I/O for all PCI
-# controllers that have it configured.  Unfortunately, this doesn't work
-# on some motherboards.  This option will force the driver to use programmed
-# I/O instead.
-options AHC_FORCE_PIO
+# controllers that have it configured only if this option is set. Unfortunately,
+# this doesn't work on some motherboards, which prevents it from being the
+# default.
+options AHC_ALLOW_MEMIO
 
 #
 # PCI devices:
