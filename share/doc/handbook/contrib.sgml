@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.229 1997/03/31 04:58:47 jb Exp $ -->
+<!-- $Id: contrib.sgml,v 1.230 1997/04/01 09:53:32 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -145,7 +145,7 @@ groups of people:
         <tag/Networking/ &a.wollman 
         <tag/Postmaster/ &a.jmb; 
         <tag/Release Coordinator/ &a.jkh 
-        <tag/Public Relations & Corporate Liason/ &a.jkh 
+        <tag/Public Relations & Corporate Liaison/ &a.jkh 
 	<tag/Security Officer/ &a.guido
         <tag/Source Repository Manager/ &a.peter 
         <tag/Ports Manager/ &a.asami 
