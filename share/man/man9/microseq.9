@@ -1,0 +1,118 @@
+.\" Copyright (c) 1998, Nicolas Souchu
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"
+.Dd June 6, 1998
+.Dt MICROSEQ 9
+.Os FreeBSD
+.Sh NAME
+.Nm microseq
+.Nd
+ppbus microseqencer developer's guide
+.Sh SYNOPSIS
+.Fd "#include <dev/ppbus/ppb_msq.h>"
+.Sh DESCRIPTION
+See
+.Xr ppbus 4
+for ppbus description and general info about the microsequencer.
+.Pp
+The purpose of this document is to encourage developers to use the
+microsequencer mechanism in order to have:
+.Bl -enum -offset indent
+.It
+a uniform programming model
+.It
+efficient code
+.El
+.Sh INTERFACE
+.Ss C structures
+.Bd -literal
+union ppb_insarg {
+	int	i;
+	char	c;
+	void	*p;
+	int	(* f)(void *, char *);
+};
+.Ed
+.Bd -literal
+struct ppb_microseq {
+	int			opcode;		/* microins. opcode */
+	union ppb_insarg	arg[PPB_MS_MAXARGS];	/* arguments */
+};
+.Ed
+.Ss Using microsequences
+.Pp
+To instanciate a microsequence, just declare an array of ppb_microseq
+structures and initialize it as needed. You may either use defined macros
+or code directly your microinstructions according to the ppb_microseq
+definition. For example,
+.Bd -literal
+	struct ppb_microseq select_microseq[] = {
+
+		/* parameter list
+		 */
+		#define SELECT_TARGET    MS_PARAM(0, 1, MS_TYP_INT)
+		#define SELECT_INITIATOR MS_PARAM(3, 1, MS_TYP_INT)
+
+		/* send the select command to the drive */
+		MS_DASS(MS_UNKNOWN),
+		MS_CASS(H_nAUTO | H_nSELIN |  H_INIT | H_STROBE),
+		MS_CASS( H_AUTO | H_nSELIN |  H_INIT | H_STROBE),
+		MS_DASS(MS_UNKNOWN),
+		MS_CASS( H_AUTO | H_nSELIN | H_nINIT | H_STROBE),
+
+		/* now, wait until the drive is ready */
+		MS_SET(VP0_SELTMO),
+/* loop: */	MS_BRSET(H_ACK, 3 /* ready */),
+		MS_DBRA(-1 /* loop */),
+/* error: */	MS_RET(1),
+/* ready: */	MS_RET(0)
+	};
+.Ed
+.Pp
+Here, some parameters are undefined and must be filled before executing
+the microsequence. In order to initialize seach a microsequence, one should
+use the ppb_MS_init_msq() function like this:
+.Bd -literal
+	ppb_MS_init_msq(select_microseq, 2,
+			SELECT_TARGET, 1 << target,
+			SELECT_INITIATOR, 1 << initiator);
+.Ed
+.Pp
+and then execute the microsequence.
+.Ss The microsequencer
+The microsequencer is executed either at ppbus or adapter level (see
+.Xr ppbus 4
+for info about ppbus system layers).
+.Sh SEE ALSO
+.Xr ppbus 4
+.Sh HISTORY
+The
+.Nm
+manual page first appeared in
+.Fx 3.0 .
+.Sh AUTHOR
+This
+manual page was written by
+.An Nicolas Souchu .
