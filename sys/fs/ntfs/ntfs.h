@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ntfs.h,v 1.2 1999/02/19 12:31:02 semenu Exp $
+ *	$Id: ntfs.h,v 1.9 1999/02/02 01:54:54 semen Exp $
  */
 
 /*#define NTFS_DEBUG 1*/
@@ -213,6 +213,8 @@ struct ntvattrdef {
 	u_int32_t	ad_type;
 };
 
+#define	NTFS_BBID	"NTFS    "
+#define	NTFS_BBIDLEN	8
 struct bootfile {
 	u_int8_t        reserved1[3];	/* asm jmp near ... */
 	u_int8_t        bf_sysid[8];	/* 'NTFS    ' */
@@ -246,6 +248,7 @@ struct ntfsmount {
 	gid_t           ntm_gid;
 	mode_t          ntm_mode;
 	u_long          ntm_flag;
+	cn_t		ntm_cfree;
 	struct ntvattrdef *ntm_ad;
 	int		ntm_adnum;
 };

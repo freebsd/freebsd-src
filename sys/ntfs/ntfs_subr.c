@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998, 1999 Semen Ustimenko
+ * Copyright (c) 1998, 1999 Semen Ustimenko (semenu@FreeBSD.org)
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -58,6 +58,9 @@ MALLOC_DEFINE(M_NTFSRUN, "NTFS vrun", "NTFS vrun storage");
 MALLOC_DEFINE(M_NTFSDECOMP, "NTFS decomp", "NTFS decompression temporary");
 #endif
 
+/*
+ * 
+ */
 int
 ntfs_ntvattrrele(
 		 struct ntvattr * vap)
@@ -70,6 +73,13 @@ ntfs_ntvattrrele(
 	return (0);
 }
 
+/*
+ * Search attribute specifed in ntnode (load ntnode if nessecary).
+ * If not found but ATTR_A_ATTRLIST present, read it in and search throught.
+ * VOP_VGET node needed, and lookup througth it's ntnode (load if nessesary).
+ *
+ * ntnode should be locked
+ */
 int
 ntfs_ntvattrget(
 		struct ntfsmount * ntmp,
@@ -113,7 +123,7 @@ ntfs_ntvattrget(
 		}
 	}
 
-	for (vap = ip->i_vattrp; vap; vap = vap->va_nextp) {
+	for (vap = ip->i_valist.lh_first; vap; vap = vap->va_list.le_next) {
 		ddprintf(("type: 0x%x, vcn: %d - %d\n", \
 			  vap->va_type, (u_int32_t) vap->va_vcnstart, \
 			  (u_int32_t) vap->va_vcnend));
@@ -171,14 +181,20 @@ ntfs_ntvattrget(
 			dprintf(("ntfs_ntvattrget: attrbute in ino: %d\n",
 				 aalp->al_inumber));
 
+/*
 			error = VFS_VGET(ntmp->ntm_mountp, aalp->al_inumber,
 					 &newvp);
+*/
+			error = ntfs_vgetex(ntmp->ntm_mountp, aalp->al_inumber,
+					NTFS_A_DATA, NULL, LK_EXCLUSIVE,
+					VG_EXT, curproc, &newvp);
 			if (error) {
 				printf("ntfs_ntvattrget: CAN'T VGET INO: %d\n",
 				       aalp->al_inumber);
 				goto out;
 			}
 			newip = VTONT(newvp);
+			/* XXX have to lock ntnode */
 			if(~newip->i_flag & IN_LOADED) {
 				dprintf(("ntfs_ntvattrget: node not loaded," \
 					 " ino: %d\n", newip->i_number));
@@ -190,7 +206,7 @@ ntfs_ntvattrget(
 					goto out;
 				}
 			}
-			for (vap = newip->i_vattrp; vap; vap = vap->va_nextp) {
+			for (vap = newip->i_valist.lh_first; vap; vap = vap->va_list.le_next) {
 				if ((vap->va_type == type) &&
 				    (vap->va_vcnstart <= vcn) &&
 				    (vap->va_vcnend >= vcn) &&
@@ -219,10 +235,14 @@ ntfs_ntvattrget(
 	       ip->i_number, type, name, (u_int32_t) vcn));
 out:
 	FREE(alpool, M_TEMP);
-
 	return (error);
 }
 
+/*
+ * Read ntnode from disk, make ntvattr list.
+ *
+ * ntnode should be locked
+ */
 int
 ntfs_loadntnode(
 	      struct ntfsmount * ntmp,
@@ -232,7 +252,7 @@ ntfs_loadntnode(
 	daddr_t         bn;
 	int		error,off;
 	struct attr    *ap;
-	struct ntvattr**vapp;
+	struct ntvattr *nvap;
 
 	dprintf(("ntfs_loadnode: loading ino: %d\n",ip->i_number));
 
@@ -269,6 +289,7 @@ ntfs_loadntnode(
 			goto out;
 		}
 	}
+
 	/* Check if magic and fixups are correct */
 	error = ntfs_procfixups(ntmp, NTFS_FILEMAGIC, (caddr_t)mfrp,
 				ntfs_bntob(ntmp->ntm_bpmftrec));
@@ -281,16 +302,16 @@ ntfs_loadntnode(
 	dprintf(("ntfs_loadnode: load attrs for ino: %d\n",ip->i_number));
 	off = mfrp->fr_attroff;
 	ap = (struct attr *) ((caddr_t)mfrp + off);
-	if (ip->i_vattrp)
-		printf("ntfs_ntloadnode: WARNING! already loaded?\n");
+
+	LIST_INIT(&ip->i_valist);
 	
-	vapp = &ip->i_vattrp;
 	while (ap->a_hdr.a_type != -1) {
-		error = ntfs_attrtontvattr(ntmp, vapp, ap);
+		error = ntfs_attrtontvattr(ntmp, &nvap, ap);
 		if (error)
 			break;
-		(*vapp)->va_ip = ip;
-		vapp = &((*vapp)->va_nextp);
+		nvap->va_ip = ip;
+
+		LIST_INSERT_HEAD(&ip->i_valist, nvap, va_list);
 
 		off += ap->a_hdr.reclen;
 		ap = (struct attr *) ((caddr_t)mfrp + off);
@@ -312,44 +333,74 @@ out:
 	return (error);
 }
 		
-
-static int ntfs_ntnode_hash_lock;
+/*
+ * Routine locks ntnode and increase usecount, just opposite of
+ * ntfs_ntput.
+ */
 int
 ntfs_ntget(
+	   struct ntnode *ip)
+{
+	dprintf(("ntfs_ntget: get ntnode %d: %p, usecount: %d\n",
+		ip->i_number, ip, ip->i_usecount));
+
+	ip->i_usecount++;
+
+restart:
+	if (ip->i_lock) {
+		while (ip->i_lock) {
+			ip->i_lock = -1;
+			tsleep(&ip->i_lock, PVM, "ntnode", 0);
+		}
+		goto restart;
+	}
+	ip->i_lock = 1;
+
+	return 0;
+}
+
+/*
+ * Routine search ntnode in hash, if found: lock, inc usecount and return.
+ * If not in hash allocate structure for ntnode, prefill it, lock,
+ * inc count and return.
+ *
+ * ntnode returned locked
+ */
+static int ntfs_ntnode_hash_lock;
+int
+ntfs_ntlookup(
 	   struct ntfsmount * ntmp,
 	   ino_t ino,
 	   struct ntnode ** ipp)
 {
 	struct ntnode  *ip;
 
-	dprintf(("ntfs_ntget: ntget ntnode %d\n", ino));
+	dprintf(("ntfs_ntlookup: for ntnode %d\n", ino));
 	*ipp = NULL;
 
 restart:
-	ip = ntfs_nthashlookup(ntmp->ntm_dev, ino);
+	ip = ntfs_nthashlookup(ntmp->ntm_dev, ino); /* XXX */
 	if (ip) {
-		ip->i_usecount++;
+		ntfs_ntget(ip);
 		*ipp = ip;
-		dprintf(("ntfs_ntget: ntnode %d: %p, usecount: %d\n",
+		dprintf(("ntfs_ntlookup: ntnode %d: %p, usecount: %d\n",
 			ino, ip, ip->i_usecount));
 
 		return (0);
 	}
 
 	if (ntfs_ntnode_hash_lock) {
-		printf("waiting for hash_lock to free...\n");
 		while(ntfs_ntnode_hash_lock) {
 			ntfs_ntnode_hash_lock = -1;
 			tsleep(&ntfs_ntnode_hash_lock, PVM, "ntfsntgt", 0);
 		}
-		printf("hash_lock freeed\n");
 		goto restart;
 	}
 	ntfs_ntnode_hash_lock = 1;
 
 	MALLOC(ip, struct ntnode *, sizeof(struct ntnode),
 	       M_NTFSNTNODE, M_WAITOK);
-	ddprintf(("ntfs_ntget: allocating ntnode: %d: %p\n", ino, ip));
+	ddprintf(("ntfs_ntlookup: allocating ntnode: %d: %p\n", ino, ip));
 	bzero((caddr_t) ip, sizeof(struct ntnode));
 
 	/* Generic initialization */
@@ -361,6 +412,8 @@ restart:
 	ip->i_mode = ntmp->ntm_mode;
 	ip->i_usecount++;
 
+	ip->i_lock = 1;
+
 	LIST_INIT(&ip->i_fnlist);
 
 	ntfs_nthashins(ip);
@@ -371,45 +424,77 @@ restart:
 
 	*ipp = ip;
 
-	dprintf(("ntfs_ntget: ntnode %d: %p, usecount: %d\n",
+	dprintf(("ntfs_ntlookup: ntnode %d: %p, usecount: %d\n",
 		ino, ip, ip->i_usecount));
 
 	return (0);
 }
 
+/*
+ * Decrement usecount of ntnode and unlock it, if usecount reach zero,
+ * deallocate ntnode.
+ *
+ * ntnode should be locked on entry, and unlocked on return.
+ */
 void
-ntfs_ntrele(
-	    struct ntnode * ip)
+ntfs_ntput(
+	   struct ntnode *ip)
 {
 	struct ntvattr *vap;
 
-	dprintf(("ntfs_ntrele: rele ntnode %d: %p, usecount: %d\n",
+	if (!ip->i_lock) printf("ntfs_ntput: NOT LOCKED");
+
+	dprintf(("ntfs_ntput: rele ntnode %d: %p, usecount: %d\n",
 		ip->i_number, ip, ip->i_usecount));
 
 	ip->i_usecount--;
 
 	if (ip->i_usecount < 0) {
-		panic("ntfs_ntrele: ino: %d usecount: %d \n",
+		panic("ntfs_ntput: ino: %d usecount: %d \n",
 		      ip->i_number,ip->i_usecount);
 	} else if (ip->i_usecount == 0) {
-		dprintf(("ntfs_ntrele: deallocating ntnode: %d\n",
+		dprintf(("ntfs_ntput: deallocating ntnode: %d\n",
 			ip->i_number));
 
 		if (ip->i_fnlist.lh_first)
-			panic("ntfs_ntrele: ntnode has fnodes\n");
+			panic("ntfs_ntput: ntnode has fnodes\n");
 
 		ntfs_nthashrem(ip);
 
-		while (ip->i_vattrp) {
-			vap = ip->i_vattrp;
-			ip->i_vattrp = vap->va_nextp;
+		while (ip->i_valist.lh_first != NULL) {
+			vap = ip->i_valist.lh_first;
+			LIST_REMOVE(vap,va_list);
 			ntfs_freentvattr(vap);
 		}
 		FREE(ip, M_NTFSNTNODE);
+	} else {
+		if (ip->i_lock < 0)
+			wakeup(&ip->i_lock);
+		ip->i_lock = 0;
 	}
-	dprintf(("ntfs_ntrele: rele ok\n"));
 }
 
+/*
+ * Decrement usecount of ntnode.
+ */
+void
+ntfs_ntrele(
+	    struct ntnode * ip)
+{
+	dprintf(("ntfs_ntrele: rele ntnode %d: %p, usecount: %d\n",
+		ip->i_number, ip, ip->i_usecount));
+
+	ip->i_usecount--;
+
+	if (ip->i_usecount < 0)
+		panic("ntfs_ntrele: ino: %d usecount: %d \n",
+		      ip->i_number,ip->i_usecount);
+}
+
+/*
+ * Deallocate all memory allocated for ntvattr by call to
+ * ntfs_attrtontvattr and some other functions.
+ */
 void
 ntfs_freentvattr(
 		 struct ntvattr * vap)
@@ -426,6 +511,10 @@ ntfs_freentvattr(
 	FREE(vap, M_NTFSNTVATTR);
 }
 
+/*
+ * Convert disk image of attribute into ntvattr structure,
+ * runs are expanded also.
+ */
 int
 ntfs_attrtontvattr(
 		   struct ntfsmount * ntmp,
@@ -493,6 +582,9 @@ ntfs_attrtontvattr(
 	return (error);
 }
 
+/*
+ * Expand run into more utilizable and more memory eating format.
+ */
 int
 ntfs_runtovrun(
 	       cn_t ** rcnp,
@@ -552,7 +644,9 @@ ntfs_runtovrun(
 	return (0);
 }
 
-
+/*
+ * Convert wchar to uppercase wchar, should be macros?
+ */
 wchar
 ntfs_toupper(
 	     struct ntfsmount * ntmp,
@@ -561,6 +655,9 @@ ntfs_toupper(
 	return (ntmp->ntm_upcase[wc & 0xFF]);
 }
 
+/*
+ * Compare to unicode strings case insensible.
+ */
 int
 ntfs_uustricmp(
 	       struct ntfsmount * ntmp,
@@ -581,6 +678,9 @@ ntfs_uustricmp(
 	return (str1len - str2len);
 }
 
+/*
+ * Compare unicode and ascii string case insens.
+ */
 int
 ntfs_uastricmp(
 	       struct ntfsmount * ntmp,
@@ -601,6 +701,9 @@ ntfs_uastricmp(
 	return (str1len - str2len);
 }
 
+/*
+ * Compare unicode and ascii string case sens.
+ */
 int
 ntfs_uastrcmp(
 	      struct ntfsmount * ntmp,
@@ -620,6 +723,11 @@ ntfs_uastrcmp(
 	return (str1len - str2len);
 }
 
+/* 
+ * Search fnode in ntnode, if not found allocate and preinitialize.
+ *
+ * ntnode should be locked on entry.
+ */
 int
 ntfs_fget(
 	struct ntfsmount *ntmp,
@@ -628,7 +736,6 @@ ntfs_fget(
 	char *attrname,
 	struct fnode **fpp)
 {
-	int error;
 	struct fnode *fp;
 
 	dprintf(("ntfs_fget: ino: %d, attrtype: 0x%x, attrname: %s\n",
@@ -662,15 +769,6 @@ ntfs_fget(
 	fp->f_attrname = attrname;
 	if (fp->f_attrname) fp->f_flag |= FN_AATTRNAME;
 	fp->f_attrtype = attrtype;
-	if ((fp->f_attrtype == NTFS_A_DATA) && (fp->f_attrname == NULL))
-		 fp->f_flag |= FN_DEFAULT;
-	else {
-		error = ntfs_filesize(ntmp, fp, &fp->f_size, &fp->f_allocated);
-		if (error) {
-			FREE(fp,M_NTFSFNODE);
-			return (error);
-		}
-	}
 
 	ntfs_ntref(ip);
 
@@ -681,6 +779,11 @@ ntfs_fget(
 	return (0);
 }
 
+/*
+ * Deallocate fnode, remove it from ntnode's fnode list.
+ *
+ * ntnode should be locked.
+ */
 void
 ntfs_frele(
 	struct fnode *fp)
@@ -699,6 +802,11 @@ ntfs_frele(
 	ntfs_ntrele(ip);
 }
 
+/*
+ * Lookup attribute name in format: [[:$ATTR_TYPE]:$ATTR_NAME], 
+ * $ATTR_TYPE is searched in attrdefs read from $AttrDefs.
+ * If $ATTR_TYPE nott specifed, ATTR_A_DATA assumed.
+ */
 int
 ntfs_ntlookupattr(
 		struct ntfsmount * ntmp,
@@ -753,12 +861,13 @@ ntfs_ntlookupattr(
 
 	return (0);
 }
+
 /*
  * Lookup specifed node for filename, matching cnp,
  * return fnode filled.
  */
 int
-ntfs_ntlookup(
+ntfs_ntlookupfile(
 	      struct ntfsmount * ntmp,
 	      struct vnode * vp,
 	      struct componentname * cnp,
@@ -776,6 +885,10 @@ ntfs_ntlookup(
 	char	       *fname,*aname;
 	u_int32_t       aoff;
 
+	error = ntfs_ntget(ip);
+	if (error)
+		return (error);
+
 	error = ntfs_ntvattrget(ntmp, ip, NTFS_A_INDXROOT, "$I30", 0, &vap);
 	if (error || (vap->va_flag & NTFS_AF_INRUN))
 		return (ENOTDIR);
@@ -783,6 +896,10 @@ ntfs_ntlookup(
 	blsize = vap->va_a_iroot->ir_size;
 	rdsize = vap->va_datalen;
 
+	/*
+	 * Divide file name into: foofilefoofilefoofile[:attrspec]
+	 * Store like this:       fname:fnamelen       [aname:anamelen]
+	 */
 	fname = cnp->cn_nameptr;
 	aname = NULL;
 	anamelen = 0;
@@ -790,12 +907,12 @@ ntfs_ntlookup(
 		if(fname[fnamelen] == ':') {
 			aname = fname + fnamelen + 1;
 			anamelen = cnp->cn_namelen - fnamelen - 1;
-			dprintf(("ntfs_ntlookup: file %s (%d), attr: %s (%d)\n",
+			dprintf(("ntfs_ntlookupfile: %s (%d), attr: %s (%d)\n",
 				fname, fnamelen, aname, anamelen));
 			break;
 		}
 
-	dprintf(("ntfs_ntlookup: blocksize: %d, rdsize: %d\n", blsize, rdsize));
+	dprintf(("ntfs_ntlookupfile: blksz: %d, rdsz: %d\n", blsize, rdsize));
 
 	MALLOC(rdbuf, caddr_t, blsize, M_TEMP, M_WAITOK);
 
@@ -856,13 +973,19 @@ ntfs_ntlookup(
 							   attrtype,
 							   attrname,
 							   LK_EXCLUSIVE,
-							   VG_DONTLOAD,
+							   VG_DONTLOADIN | 
+							    VG_DONTVALIDFN,
 							   curproc,
 							   &nvp);
 					if(error)
 						goto fail;
 
 					nfp = VTOF(nvp);
+
+					if (nfp->f_flag & FN_VALID) {
+						*vpp = nvp;
+						goto fail;
+					}
 
 					nfp->f_fflag = iep->ie_fflag;
 					nfp->f_pnumber = iep->ie_fpnumber;
@@ -883,7 +1006,17 @@ ntfs_ntlookup(
 						nfp->f_size = iep->ie_fsize;
 						nfp->f_allocated = iep->ie_fallocated;
 						nfp->f_flag |= FN_PRELOADED;
+					} else {
+						error = ntfs_filesize(ntmp, nfp,
+							    &nfp->f_size,
+							    &nfp->f_allocated);
+						if (error) {
+							vput(nvp);
+							goto fail;
+						}
 					}
+
+					nfp->f_flag &= ~FN_VALID;
 					*vpp = nvp;
 					goto fail;
 				}
@@ -896,7 +1029,7 @@ ntfs_ntlookup(
 
 		/* Dive if possible */
 		if (iep->ie_flag & NTFS_IEFLAG_SUBNODE) {
-			dprintf(("ntfs_ntlookup: diving\n"));
+			dprintf(("ntfs_ntlookupfile: diving\n"));
 
 			cn = *(cn_t *) (rdbuf + aoff +
 					iep->reclen - sizeof(cn_t));
@@ -915,7 +1048,7 @@ ntfs_ntlookup(
 			aoff = (((struct attr_indexalloc *) rdbuf)->ia_hdrsize +
 				0x18);
 		} else {
-			dprintf(("ntfs_ntlookup: nowhere to dive :-(\n"));
+			dprintf(("ntfs_ntlookupfile: nowhere to dive :-(\n"));
 			error = ENOENT;
 			break;
 		}
@@ -925,10 +1058,14 @@ ntfs_ntlookup(
 
 fail:
 	ntfs_ntvattrrele(vap);
+	ntfs_ntput(ip);
 	FREE(rdbuf, M_TEMP);
 	return (error);
 }
 
+/*
+ * Check if name type is permitted to show.
+ */
 int
 ntfs_isnamepermitted(
 		     struct ntfsmount * ntmp,
@@ -942,9 +1079,7 @@ ntfs_isnamepermitted(
 	case 2:
 		ddprintf(("ntfs_isnamepermitted: skiped DOS name\n"));
 		return 0;
-	case 0:
-	case 1:
-	case 3:
+	case 0: case 1: case 3:
 		return 1;
 	default:
 		printf("ntfs_isnamepermitted: " \
@@ -955,6 +1090,14 @@ ntfs_isnamepermitted(
 	return 0;
 }
 
+/*
+ * Read ntfs dir like stream of attr_indexentry, not like btree of them.
+ * This is done by scaning $BITMAP:$I30 for busy clusters and reading them.
+ * Ofcouse $INDEX_ROOT:$I30 is read before. Last read values are stored in
+ * fnode, so we can skip toward record number num almost immediatly.
+ * Anyway this is rather slow routine. The problem is that we don't know
+ * how many records are there in $INDEX_ALLOCATION:$I30 block.
+ */
 int
 ntfs_ntreaddir(
 	       struct ntfsmount * ntmp,
@@ -978,6 +1121,10 @@ ntfs_ntreaddir(
 	u_int32_t       aoff, cnum;
 
 	dprintf(("ntfs_ntreaddir: read ino: %d, num: %d\n", ip->i_number, num));
+	error = ntfs_ntget(ip);
+	if (error)
+		return (error);
+
 	error = ntfs_ntvattrget(ntmp, ip, NTFS_A_INDXROOT, "$I30", 0, &vap);
 	if (error)
 		return (ENOTDIR);
@@ -1106,12 +1253,14 @@ fail:
 		ntfs_ntvattrrele(iavap);
 	if (bmp)
 		FREE(bmp, M_TEMP);
+	ntfs_ntput(ip);
 	return (error);
 }
-/*
- * #undef dprintf #define dprintf(a)
- */
 
+/*
+ * Convert NTFS times that are in 100 ns units and begins from
+ * 1601 Jan 1 into unix times.
+ */
 struct timespec
 ntfs_nttimetounix(
 		  u_int64_t nt)
@@ -1126,6 +1275,9 @@ ntfs_nttimetounix(
 	return (t);
 }
 
+/*
+ * Get file times from NTFS_A_NAME attribute.
+ */
 int
 ntfs_times(
 	   struct ntfsmount * ntmp,
@@ -1136,15 +1288,28 @@ ntfs_times(
 	int             error;
 
 	dprintf(("ntfs_times: ino: %d...\n", ip->i_number));
-	error = ntfs_ntvattrget(ntmp, ip, NTFS_A_NAME, NULL, 0, &vap);
+
+	error = ntfs_ntget(ip);
 	if (error)
 		return (error);
+
+	error = ntfs_ntvattrget(ntmp, ip, NTFS_A_NAME, NULL, 0, &vap);
+	if (error) {
+		ntfs_ntput(ip);
+		return (error);
+	}
 	*tm = vap->va_a_name->n_times;
 	ntfs_ntvattrrele(vap);
+	ntfs_ntput(ip);
 
 	return (0);
 }
 
+/*
+ * Get file sizes from corresponding attribute. 
+ * 
+ * ntnode under fnode should be locked.
+ */
 int
 ntfs_filesize(
 	      struct ntfsmount * ntmp,
@@ -1158,15 +1323,12 @@ ntfs_filesize(
 	int             error;
 
 	dprintf(("ntfs_filesize: ino: %d\n", ip->i_number));
-	if (fp->f_flag & FN_DEFAULT) {
-		error = ntfs_ntvattrget(ntmp, ip,
-			NTFS_A_DATA, NULL, 0, &vap);
-	} else {
-		error = ntfs_ntvattrget(ntmp, ip,
-			fp->f_attrtype, fp->f_attrname, 0, &vap);
-	}
+
+	error = ntfs_ntvattrget(ntmp, ip,
+		fp->f_attrtype, fp->f_attrname, 0, &vap);
 	if (error)
 		return (error);
+
 	bn = vap->va_allocated;
 	sz = vap->va_datalen;
 
@@ -1183,6 +1345,11 @@ ntfs_filesize(
 	return (0);
 }
 
+/*
+ * This is one of write routine.
+ *
+ * ntnode should be locked.
+ */
 int
 ntfs_writeattr_plain(
 		     struct ntfsmount * ntmp,
@@ -1234,6 +1401,11 @@ ntfs_writeattr_plain(
 	return (error);
 }
 
+/*
+ * This is one of write routine.
+ *
+ * ntnode should be locked.
+ */
 int
 ntfs_writentvattr_plain(
 			struct ntfsmount * ntmp,
@@ -1313,7 +1485,7 @@ ntfs_writentvattr_plain(
 						}
 					}
 					memcpy(bp->b_data + off, data, tocopy);
-					bwrite(bp);
+					bawrite(bp);
 					data = data + tocopy;
 					*initp += tocopy;
 					off = 0;
@@ -1336,6 +1508,11 @@ ntfs_writentvattr_plain(
 	return (error);
 }
 
+/*
+ * This is one of read routines.
+ *
+ * ntnode should be locked.
+ */
 int
 ntfs_readntvattr_plain(
 			struct ntfsmount * ntmp,
@@ -1379,7 +1556,7 @@ ntfs_readntvattr_plain(
 				cnt++;
 				continue;
 			}
-			if (ccn || ip->i_number == NTFS_BOOTINO) { /* XXX */
+			if (ccn || ip->i_number == NTFS_BOOTINO) {
 				ccl -= ntfs_btocn(off);
 				cn = ccn + ntfs_btocn(off);
 				off = ntfs_btocnoff(off);
@@ -1442,6 +1619,11 @@ ntfs_readntvattr_plain(
 	return (error);
 }
 
+/*
+ * This is one of read routines.
+ *
+ * ntnode should be locked.
+ */
 int
 ntfs_readattr_plain(
 		     struct ntfsmount * ntmp,
@@ -1493,6 +1675,11 @@ ntfs_readattr_plain(
 	return (error);
 }
 
+/*
+ * This is one of read routines.
+ *
+ * ntnode should be locked.
+ */
 int
 ntfs_readattr(
 	       struct ntfsmount * ntmp,
@@ -1574,6 +1761,7 @@ ntfs_readattr(
 	return (error);
 }
 
+#if UNUSED_CODE
 int
 ntfs_parserun(
 	      cn_t * cn,
@@ -1616,7 +1804,11 @@ ntfs_parserun(
 
 	return (0);
 }
+#endif
 
+/*
+ * Process fixup routine on given buffer.
+ */
 int
 ntfs_procfixups(
 		struct ntfsmount * ntmp,
@@ -1659,6 +1851,7 @@ ntfs_procfixups(
 	return (0);
 }
 
+#if UNUSED_CODE
 int
 ntfs_runtocn(
 	     cn_t * cn,	
@@ -1701,3 +1894,4 @@ ntfs_runtocn(
 	*cn = ccn + vcn;
 	return (0);
 }
+#endif
