@@ -142,7 +142,7 @@ static void			mlx_complete(struct mlx_softc *sc);
  * Debugging.
  */
 static char			*mlx_diagnose_command(struct mlx_command *mc);
-static char			*mlx_name_controller(u_int32_t hwid);
+static void			mlx_describe_controller(struct mlx_softc *sc);
 
 
 /*
@@ -201,6 +201,10 @@ mlx_free(struct mlx_softc *sc)
     if (sc->mlx_mem != NULL)
 	bus_release_resource(sc->mlx_dev, SYS_RES_MEMORY, 
 			     (sc->mlx_iftype == MLX_IFTYPE_3) ? MLX_CFG_BASE1 : MLX_CFG_BASE0, sc->mlx_mem);
+
+    /* free controller enquiry data */
+    if (sc->mlx_enq2 != NULL)
+	free(sc->mlx_enq2, M_DEVBUF);
 }
 
 /********************************************************************************
@@ -273,9 +277,7 @@ mlx_sglist_map(struct mlx_softc *sc)
 int
 mlx_attach(struct mlx_softc *sc)
 {
-    struct mlx_enquiry	*me;
-    struct mlx_enquiry2	*me2;
-    int			rid, error;
+    int			rid, error, fwminor;
 
     debug("called");
 
@@ -350,69 +352,48 @@ mlx_attach(struct mlx_softc *sc)
     /*
      * Create an initial set of s/g mappings.
      */
-    sc->mlx_maxiop = 2;
+    sc->mlx_maxiop = 8;
     error = mlx_sglist_map(sc);
     if (error != 0) {
 	device_printf(sc->mlx_dev, "couldn't make initial s/g list mapping\n");
 	return(error);
     }
 
-    /*
-     * Probe the controller for more information.
-     */
-    /* send an ENQUIRY to the controller */
-    if ((me = mlx_enquire(sc, MLX_CMD_ENQUIRY, sizeof(*me), NULL)) == NULL) {
-	device_printf(sc->mlx_dev, "ENQUIRY failed\n");
-	return(ENXIO);
-    }
-
-    /* pull information out of the ENQUIRY result */
-    sc->mlx_fwminor = me->me_fwminor;
-    sc->mlx_fwmajor = me->me_fwmajor;
-    sc->mlx_maxiop = me->me_max_commands;
-    sc->mlx_lastevent = sc->mlx_currevent = me->me_event_log_seq_num;
-    free(me, M_DEVBUF);
-
     /* send an ENQUIRY2 to the controller */
-    if ((me2 = mlx_enquire(sc, MLX_CMD_ENQUIRY2, sizeof(*me2), NULL)) == NULL) {
+    if ((sc->mlx_enq2 = mlx_enquire(sc, MLX_CMD_ENQUIRY2, sizeof(struct mlx_enquiry2), NULL)) == NULL) {
 	device_printf(sc->mlx_dev, "ENQUIRY2 failed\n");
 	return(ENXIO);
     }
 
-    /* pull information out of the ENQUIRY2 result */
-    sc->mlx_nchan = me2->me_configured_channels;
-    sc->mlx_maxiosize = me2->me_maxblk;
-    sc->mlx_maxtarg = me2->me_max_targets;
-    sc->mlx_maxtags = me2->me_max_tags;
-    sc->mlx_scsicap = me2->me_scsi_cap;
-    sc->mlx_hwid = me2->me_hardware_id;
+    /*
+     * We don't (yet) know where the event log is up to.
+     */
+    sc->mlx_lastevent = -1;
 
-    /* print a little information about the controller and ourselves */
-    device_printf(sc->mlx_dev, "Mylex %s, firmware %d.%02d, %dMB RAM\n", 
-	   mlx_name_controller(sc->mlx_hwid), sc->mlx_fwmajor, sc->mlx_fwminor,
-	me2->me_mem_size / (1024 * 1024));
-    free(me2, M_DEVBUF);
+    /* print a little information about the controller */
+    mlx_describe_controller(sc);
 
     /*
      * Do quirk/feature related things.
      */
+    fwminor = (sc->mlx_enq2->me_firmware_id >> 8) & 0xff;
     switch(sc->mlx_iftype) {
     case MLX_IFTYPE_3:
 	/* XXX certify 3.52? */
-	if (sc->mlx_fwminor < 51) {
+	if (fwminor < 51) {
 	    device_printf(sc->mlx_dev, " *** WARNING *** This firmware revision is not recommended\n");
 	    device_printf(sc->mlx_dev, " *** WARNING *** Use revision 3.51 or later\n");
 	}
 	break;
     case MLX_IFTYPE_4:
 	/* XXX certify firmware versions? */
-	if (sc->mlx_fwminor < 6) {
+	if (fwminor < 6) {
 	    device_printf(sc->mlx_dev, " *** WARNING *** This firmware revision is not recommended\n");
 	    device_printf(sc->mlx_dev, " *** WARNING *** Use revision 4.06 or later\n");
 	}
 	break;
     case MLX_IFTYPE_5:
-	if (sc->mlx_fwminor < 7) {
+	if (fwminor < 7) {
 	    device_printf(sc->mlx_dev, " *** WARNING *** This firmware revision is not recommended\n");
 	    device_printf(sc->mlx_dev, " *** WARNING *** Use revision 5.07 or later\n");
 	}
@@ -426,6 +407,7 @@ mlx_attach(struct mlx_softc *sc)
      * Create the final set of s/g mappings now that we know how many commands
      * the controller actually supports.
      */
+    sc->mlx_maxiop = sc->mlx_enq2->me_max_commands;
     error = mlx_sglist_map(sc);
     if (error != 0) {
 	device_printf(sc->mlx_dev, "couldn't make initial s/g list mapping\n");
@@ -470,7 +452,7 @@ mlx_startup(struct mlx_softc *sc)
      */
     mes = mlx_enquire(sc, MLX_CMD_ENQSYSDRIVE, sizeof(*mes) * MLX_MAXDRIVES, NULL);
     if (mes == NULL) {
-	device_printf(sc->mlx_dev, "error fetching drive status");
+	device_printf(sc->mlx_dev, "error fetching drive status\n");
 	return;
     }
     
@@ -798,7 +780,7 @@ mlx_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 	    sc->mlx_pause.mp_which = 0;
 	} else {
 	    /* fix for legal channels */
-	    mp->mp_which &= ((1 << sc->mlx_nchan) -1);
+	    mp->mp_which &= ((1 << sc->mlx_enq2->me_actual_channels) -1);
 	    /* check time values */
 	    if ((mp->mp_when < 0) || (mp->mp_when > 3600))
 		return(EINVAL);
@@ -1016,14 +998,16 @@ mlx_periodic_enquiry(struct mlx_command *mc)
     {
 	struct mlx_enquiry		*me = (struct mlx_enquiry *)mc->mc_data;
 	
-	/* New stuff in the event log? */
-	if (me->me_event_log_seq_num != sc->mlx_lastevent) {
+	if (sc->mlx_lastevent == -1) {
+	    /* initialise our view of the event log */
+	    sc->mlx_currevent = sc->mlx_lastevent = me->me_event_log_seq_num;
+	} else if (me->me_event_log_seq_num != sc->mlx_lastevent) {
 	    /* record where current events are up to */
 	    sc->mlx_currevent = me->me_event_log_seq_num;
 	    device_printf(sc->mlx_dev, "event log pointer was %d, now %d\n", 
 			  sc->mlx_lastevent, sc->mlx_currevent);
 
-	    /* start poll of event log */
+	    /* drain new eventlog entries */
 	    mlx_periodic_eventlog_poll(sc);
 	}
 	break;
@@ -1269,7 +1253,7 @@ mlx_pause_action(struct mlx_softc *sc)
     }
 
     /* build commands for every channel requested */
-    for (i = 0; i < sc->mlx_nchan; i++) {
+    for (i = 0; i < sc->mlx_enq2->me_actual_channels; i++) {
 	if ((1 << i) & sc->mlx_pause.mp_which) {
 
 	    /* get ourselves a command buffer */
@@ -1750,13 +1734,13 @@ static int
 mlx_getslot(struct mlx_command *mc)
 {
     struct mlx_softc	*sc = mc->mc_sc;
-    int			s, slot, limit;
+    int			s, slot;
 
     debug("called  mc %p  sc %p", mc, sc);
 
     /* enforce slot-usage limit */
-    limit = (mc->mc_flags & MLX_CMD_PRIORITY) ? sc->mlx_maxiop : sc->mlx_maxiop - 4;
-    if (sc->mlx_busycmds > limit)
+    if (sc->mlx_busycmds >= ((mc->mc_flags & MLX_CMD_PRIORITY) ? 
+			     sc->mlx_maxiop : sc->mlx_maxiop - 4))
 	return(EBUSY);
 
     /* 
@@ -1976,10 +1960,6 @@ mlx_complete(struct mlx_softc *sc)
     mc = TAILQ_FIRST(&sc->mlx_work);
     while (mc != NULL) {
 	nc = TAILQ_NEXT(mc, mc_link);
-
-	/* XXX this is slightly bogus */
-	if (count++ > (sc->mlx_maxiop * 2))
-	    panic("mlx_work list corrupt!");
 
 	/* Command has been completed in some fashion */
 	if (mc->mc_status != MLX_STATUS_BUSY) {
@@ -2421,31 +2401,79 @@ static struct
     {0x02,	"960PL"},
     {0x10,	"960PG"},
     {0x11,	"960PJ"},
-    {0x16,	"960PTL"},
-    {0x20,	"1164P"},
+    {0x12,	"960PR"},
+    {0x13,	"960PT"},
+    {0x14,	"960PTL0"},
+    {0x15,	"960PRL"},
+    {0x16,	"960PTL1"},
+    {0x20,	"1164PVX"},
     {-1, NULL}
 };
 
-static char *
-mlx_name_controller(u_int32_t hwid) 
+static void
+mlx_describe_controller(struct mlx_softc *sc) 
 {
     static char		buf[80];
     char		*model;
-    int			nchn, i;
+    int			i;
 
     for (i = 0, model = NULL; mlx_controller_names[i].name != NULL; i++) {
-	if ((hwid & 0xff) == mlx_controller_names[i].hwid) {
+	if ((sc->mlx_enq2->me_hardware_id & 0xff) == mlx_controller_names[i].hwid) {
 	    model = mlx_controller_names[i].name;
 	    break;
 	}
     }
     if (model == NULL) {
-	sprintf(buf, " model 0x%x", hwid & 0xff);
+	sprintf(buf, " model 0x%x", sc->mlx_enq2->me_hardware_id & 0xff);
 	model = buf;
     }
-    nchn = (hwid >> 8) & 0xff;
-    sprintf(buf, "DAC%s, %d channel%s", model, nchn, nchn > 1 ? "s" : "");
-    return(buf);
+    device_printf(sc->mlx_dev, "DAC%s, %d channel%s, firmware %d.%02d-%c-%d, %dMB RAM\n",
+		  model, 
+		  sc->mlx_enq2->me_actual_channels, 
+		  sc->mlx_enq2->me_actual_channels > 1 ? "s" : "",
+		  sc->mlx_enq2->me_firmware_id & 0xff,
+		  (sc->mlx_enq2->me_firmware_id >> 8) & 0xff,
+		  (sc->mlx_enq2->me_firmware_id >> 16),
+		  (sc->mlx_enq2->me_firmware_id >> 24) & 0xff,
+		  sc->mlx_enq2->me_mem_size / (1024 * 1024));
+
+    if (bootverbose) {
+	device_printf(sc->mlx_dev, "  Hardware ID                 0x%08x\n", sc->mlx_enq2->me_hardware_id);
+	device_printf(sc->mlx_dev, "  Firmware ID                 0x%08x\n", sc->mlx_enq2->me_firmware_id);
+	device_printf(sc->mlx_dev, "  Configured/Actual channels  %d/%d\n", sc->mlx_enq2->me_configured_channels,
+		      sc->mlx_enq2->me_actual_channels);
+	device_printf(sc->mlx_dev, "  Max Targets                 %d\n", sc->mlx_enq2->me_max_targets);
+	device_printf(sc->mlx_dev, "  Max Tags                    %d\n", sc->mlx_enq2->me_max_tags);
+	device_printf(sc->mlx_dev, "  Max System Drives           %d\n", sc->mlx_enq2->me_max_sys_drives);
+	device_printf(sc->mlx_dev, "  Max Arms                    %d\n", sc->mlx_enq2->me_max_arms);
+	device_printf(sc->mlx_dev, "  Max Spans                   %d\n", sc->mlx_enq2->me_max_spans);
+	device_printf(sc->mlx_dev, "  DRAM/cache/flash/NVRAM size %d/%d/%d/%d\n", sc->mlx_enq2->me_mem_size,
+		      sc->mlx_enq2->me_cache_size, sc->mlx_enq2->me_flash_size, sc->mlx_enq2->me_nvram_size);
+	device_printf(sc->mlx_dev, "  DRAM type                   %d\n", sc->mlx_enq2->me_mem_type);
+	device_printf(sc->mlx_dev, "  Clock Speed                 %dns\n", sc->mlx_enq2->me_clock_speed);
+	device_printf(sc->mlx_dev, "  Hardware Speed              %dns\n", sc->mlx_enq2->me_hardware_speed);
+	device_printf(sc->mlx_dev, "  Max Commands                %d\n", sc->mlx_enq2->me_max_commands);
+	device_printf(sc->mlx_dev, "  Max SG Entries              %d\n", sc->mlx_enq2->me_max_sg);
+	device_printf(sc->mlx_dev, "  Max DP                      %d\n", sc->mlx_enq2->me_max_dp);
+	device_printf(sc->mlx_dev, "  Max IOD                     %d\n", sc->mlx_enq2->me_max_iod);
+	device_printf(sc->mlx_dev, "  Max Comb                    %d\n", sc->mlx_enq2->me_max_comb);
+	device_printf(sc->mlx_dev, "  Latency                     %ds\n", sc->mlx_enq2->me_latency);
+	device_printf(sc->mlx_dev, "  SCSI Timeout                %ds\n", sc->mlx_enq2->me_scsi_timeout);
+	device_printf(sc->mlx_dev, "  Min Free Lines              %d\n", sc->mlx_enq2->me_min_freelines);
+	device_printf(sc->mlx_dev, "  Rate Constant               %d\n", sc->mlx_enq2->me_rate_const);
+	device_printf(sc->mlx_dev, "  MAXBLK                      %d\n", sc->mlx_enq2->me_maxblk);
+	device_printf(sc->mlx_dev, "  Blocking Factor             %d sectors\n", sc->mlx_enq2->me_blocking_factor);
+	device_printf(sc->mlx_dev, "  Cache Line Size             %d blocks\n", sc->mlx_enq2->me_cacheline);
+	device_printf(sc->mlx_dev, "  SCSI Capability             %s%dMHz, %d bit\n", 
+		      sc->mlx_enq2->me_scsi_cap & (1<<4) ? "differential " : "",
+		      (1 << ((sc->mlx_enq2->me_scsi_cap >> 2) & 3)) * 10,
+		      8 << (sc->mlx_enq2->me_scsi_cap & 0x3));
+	device_printf(sc->mlx_dev, "  Firmware Build Number       %d\n", sc->mlx_enq2->me_firmware_build);
+	device_printf(sc->mlx_dev, "  Fault Management Type       %d\n", sc->mlx_enq2->me_fault_mgmt_type);
+	device_printf(sc->mlx_dev, "  Features                    %b\n", sc->mlx_enq2->me_firmware_features,
+		      "\20\4Background Init\3Read Ahead\2MORE\1Cluster\n");
+	
+    }
 }
 
 /********************************************************************************
