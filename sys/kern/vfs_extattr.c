@@ -3621,7 +3621,7 @@ fhopen(td, uap)
 		if (error)
 			goto bad;
 	}
-	error = VOP_OPEN(vp, fmode, td->td_ucred, td);
+	error = VOP_OPEN(vp, fmode, td->td_ucred, td, -1);
 	if (error)
 		goto bad;
 	/*

@@ -234,7 +234,7 @@ restart:
 		vp->v_cachedfs = vap->va_fsid;
 		vp->v_cachedid = vap->va_fileid;
 	}
-	if ((error = VOP_OPEN(vp, fmode, cred, td)) != 0)
+	if ((error = VOP_OPEN(vp, fmode, cred, td, -1)) != 0)
 		goto bad;
 	/*
 	 * Make sure that a VM object is created for VMIO support.

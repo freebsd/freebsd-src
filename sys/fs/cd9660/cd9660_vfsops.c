@@ -154,7 +154,7 @@ iso_mountroot(mp, td)
 	args.flags = ISOFSMNT_ROOT;
 
 	vn_lock(rootvp, LK_EXCLUSIVE | LK_RETRY, td);
-	error = VOP_OPEN(rootvp, FREAD, FSCRED, td);
+	error = VOP_OPEN(rootvp, FREAD, FSCRED, td, -1);
 	VOP_UNLOCK(rootvp, 0, td);
 	if (error)
 		return error;
@@ -304,7 +304,7 @@ iso_mountfs(devvp, mp, td, argp)
 		return (error);
 
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
-	error = VOP_OPEN(devvp, FREAD, FSCRED, td);
+	error = VOP_OPEN(devvp, FREAD, FSCRED, td, -1);
 	VOP_UNLOCK(devvp, 0, td);
 	if (error)
 		return error;
