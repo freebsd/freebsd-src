@@ -1678,11 +1678,12 @@ swp_pager_hash(vm_object_t object, vm_pindex_t index)
 static void
 swp_pager_meta_build(
 	vm_object_t object, 
-	vm_pindex_t index,
+	vm_pindex_t pindex,
 	daddr_t swapblk
 ) {
 	struct swblock *swap;
 	struct swblock **pswap;
+	int idx;
 
 	GIANT_REQUIRED;
 	/*
@@ -1715,7 +1716,7 @@ swp_pager_meta_build(
 	 * and, since the hash table may have changed, retry.
 	 */
 retry:
-	pswap = swp_pager_hash(object, index);
+	pswap = swp_pager_hash(object, pindex);
 
 	if ((swap = *pswap) == NULL) {
 		int i;
@@ -1731,7 +1732,7 @@ retry:
 
 		swap->swb_hnext = NULL;
 		swap->swb_object = object;
-		swap->swb_index = index & ~(vm_pindex_t)SWAP_META_MASK;
+		swap->swb_index = pindex & ~(vm_pindex_t)SWAP_META_MASK;
 		swap->swb_count = 0;
 
 		++object->un_pager.swp.swp_bcount;
@@ -1743,17 +1744,17 @@ retry:
 	/*
 	 * Delete prior contents of metadata
 	 */
-	index &= SWAP_META_MASK;
+	idx = pindex & SWAP_META_MASK;
 
-	if (swap->swb_pages[index] != SWAPBLK_NONE) {
-		swp_pager_freeswapspace(swap->swb_pages[index], 1);
+	if (swap->swb_pages[idx] != SWAPBLK_NONE) {
+		swp_pager_freeswapspace(swap->swb_pages[idx], 1);
 		--swap->swb_count;
 	}
 
 	/*
 	 * Enter block into metadata
 	 */
-	swap->swb_pages[index] = swapblk;
+	swap->swb_pages[idx] = swapblk;
 	if (swapblk != SWAPBLK_NONE)
 		++swap->swb_count;
 }
@@ -1877,12 +1878,13 @@ swp_pager_meta_free_all(vm_object_t object)
 static daddr_t
 swp_pager_meta_ctl(
 	vm_object_t object,
-	vm_pindex_t index,
+	vm_pindex_t pindex,
 	int flags
 ) {
 	struct swblock **pswap;
 	struct swblock *swap;
 	daddr_t r1;
+	int idx;
 
 	GIANT_REQUIRED;
 	/*
@@ -1893,11 +1895,11 @@ swp_pager_meta_ctl(
 		return (SWAPBLK_NONE);
 
 	r1 = SWAPBLK_NONE;
-	pswap = swp_pager_hash(object, index);
+	pswap = swp_pager_hash(object, pindex);
 
 	if ((swap = *pswap) != NULL) {
-		index &= SWAP_META_MASK;
-		r1 = swap->swb_pages[index];
+		idx = pindex & SWAP_META_MASK;
+		r1 = swap->swb_pages[idx];
 
 		if (r1 != SWAPBLK_NONE) {
 			if (flags & SWM_FREE) {
@@ -1905,7 +1907,7 @@ swp_pager_meta_ctl(
 				r1 = SWAPBLK_NONE;
 			}
 			if (flags & (SWM_FREE|SWM_POP)) {
-				swap->swb_pages[index] = SWAPBLK_NONE;
+				swap->swb_pages[idx] = SWAPBLK_NONE;
 				if (--swap->swb_count == 0) {
 					*pswap = swap->swb_hnext;
 					uma_zfree(swap_zone, swap);
