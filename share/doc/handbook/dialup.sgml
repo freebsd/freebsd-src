@@ -1,6 +1,6 @@
 <!-- This is an SGML document in the linuxdoc DTD of the Tutorial for
      Configuring a FreeBSD for Dialup Services by Guy Helmer.
-     $Id: dialup.sgml,v 1.9 1996/05/16 23:17:53 mpp Exp $
+     $Id: dialup.sgml,v 1.10 1996/05/24 19:33:31 jfieber Exp $
 
 <!DOCTYPE linuxdoc PUBLIC "-//Linux//DTD linuxdoc//EN">
 
@@ -474,7 +474,7 @@ If you have a slow CPU or a heavily loaded system and you dobnot have
 16550A-based serial ports, you may receive sio ``silo'' errors at 57.6
 Kbps.
 
-<sect2><heading>/etc/ttys</heading>
+<sect2><heading>/etc/ttys<label id="dialup:ttys"></heading>
 <p>
 
 <tt>/etc/ttys</tt> is the list of <tt/ttys/ for <tt/init/ to monitor.
