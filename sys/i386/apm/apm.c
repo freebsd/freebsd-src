@@ -13,7 +13,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.27 1996/03/13 00:41:38 nate Exp $
+ *	$Id: apm.c,v 1.28 1996/03/18 21:58:22 nate Exp $
  */
 
 #include "apm.h"
@@ -59,6 +59,18 @@ struct apm_softc {
 	void 	*sc_devfs_token;
 };
 
+static struct kern_devconf kdc_apm = {
+	0, 0, 0,		/* filled in by dev_attach */
+	"apm", 0, { MDDT_ISA, 0 },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
+	&kdc_isa0,		/* parent */
+	0,			/* parentdata */
+	DC_UNCONFIGURED,	/* state */
+	"APM BIOS",
+	DC_CLS_MISC		/* class */
+};
+
+
 static struct apm_softc apm_softc;
 static struct apmhook	*hook[NAPM_HOOK];		/* XXX */
 
@@ -77,6 +89,18 @@ static struct cdevsw apm_cdevsw =
 	{ apmopen,	apmclose,	noread,		nowrite,	/*39*/
 	  apmioctl,	nostop,		nullreset,	nodevtotty,/* APM */
 	  seltrue,	nommap,		NULL ,	"apm"	,NULL,	-1};
+
+static void
+apm_registerdev(struct isa_device *id)
+{
+	if (kdc_apm.kdc_isa)
+		return;
+	kdc_apm.kdc_state = DC_UNCONFIGURED;
+	kdc_apm.kdc_description = "APM BIOS";
+	kdc_apm.kdc_unit = 0;
+	kdc_apm.kdc_isa = id;
+	dev_attach(&kdc_apm);
+}
 
 /* setup APM GDT discriptors */
 static void
@@ -583,6 +607,7 @@ apmprobe(struct isa_device *dvp)
 		printf("apm: Only one APM driver supported.\n");
 		return 0;
 	}
+	apm_registerdev(dvp);
 	switch (apm_version) {
 	case APMINI_CANTFIND:
 		/* silent */
@@ -660,27 +685,6 @@ apm_processevent(struct apm_softc *sc)
  * Attach APM:
  *
  * Initialize APM driver (APM BIOS itself has been initialized in locore.s)
- *
- * Now, unless I'm mad, (not quite ruled out yet), the APM-1.1 spec is bogus:
- *
- * Appendix C says under the header "APM 1.0/APM 1.1 Modal BIOS Behavior"
- * that "When an APM Driver connects with an APM 1.1 BIOS, the APM 1.1 BIOS
- * will default to an APM 1.0 connection.  After an APM Driver calls the APM
- * Driver Version function, specifying that it supports APM 1.1, and [sic!]
- * APM BIOS will change its behavior to an APM 1.1 connection.  If the APM
- * BIOS is an APM 1.0 BIOS, the APM Driver Version function call will fail,
- * and the connection will remain an APM 1.0 connection."
- *
- * OK so I can establish a 1.0 connection, and then tell that I'm a 1.1
- * and maybe then the BIOS will tell that it too is a 1.1.
- * Fine.
- * Now how will I ever get the segment-limits for instance ?  There is no
- * way I can see that I can get a 1.1 response back from an "APM Protected
- * Mode 32-bit Interface Connect" function ???
- *
- * Who made this,  Intel and Microsoft ?  -- How did you guess !
- *
- * /phk
  */
 
 static int
@@ -690,8 +694,9 @@ apmattach(struct isa_device *dvp)
 	struct apm_softc	*sc = &apm_softc;
 
 	sc->initialized = 0;
+
+	/* Must be externally enabled */
 	sc->active = 0;
-	sc->halt_cpu = 1;
 
 	/* setup APM parameters */
 	sc->cs16_base = (apm_cs32_base << 4) + APM_KERNBASE;
@@ -701,6 +706,7 @@ apmattach(struct isa_device *dvp)
 	sc->ds_limit = apm_ds_limit;
 	sc->cs_entry = apm_cs_entry;
 
+	sc->halt_cpu = 1;
 	sc->idle_cpu = ((apm_flags & APM_CPUIDLE_SLOW) != 0);
 	sc->disabled = ((apm_flags & APM_DISABLED) != 0);
 	sc->disengaged = ((apm_flags & APM_DISENGAGED) != 0);
@@ -791,12 +797,8 @@ apmopen(dev_t dev, int flag, int fmt, struct proc *p)
 {
 	struct apm_softc *sc = &apm_softc;
 
-	if (minor(dev) != 0 ) {
+	if (minor(dev) != 0 || !sc->initialized)
 		return (ENXIO);
-	}
-	if (!sc->initialized) {
-		return (ENXIO);
-	}
 
 	return 0;
 }
@@ -813,16 +815,11 @@ apmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 	struct apm_softc *sc = &apm_softc;
 	int error = 0;
 
+	if (minor(dev) != 0 || !sc->initialized)
+		return (ENXIO);
 #ifdef APM_DEBUG
 	printf("APM ioctl: cmd = 0x%x\n", cmd);
 #endif
-
-	if (minor(dev) != 0) {
-		return ENXIO;
-	}
-	if (!sc->initialized) {
-		return ENXIO;
-	}
 	switch (cmd) {
 	case APMIO_SUSPEND:
 		apm_suspend();
@@ -833,9 +830,11 @@ apmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 		}
 		break;
 	case APMIO_ENABLE:
+		kdc_apm.kdc_state = DC_BUSY;
 		apm_event_enable(sc);
 		break;
 	case APMIO_DISABLE:
+		kdc_apm.kdc_state = DC_IDLE;
 		apm_event_disable(sc);
 		break;
 	case APMIO_HALTCPU:
