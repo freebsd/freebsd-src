@@ -65,7 +65,6 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_pfil_hooks.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -86,9 +85,7 @@
 #include <net/if_dl.h>
 #include <net/route.h>
 #include <net/netisr.h>
-#ifdef PFIL_HOOKS
 #include <net/pfil.h>
-#endif
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -139,9 +136,7 @@ int ip6_sourcecheck_interval;		/* XXX */
 
 int ip6_ours_check_algorithm;
 
-#ifdef PFIL_HOOKS
 struct pfil_head inet6_pfil_hook;
-#endif
 
 /* firewall hooks */
 ip6_fw_chk_t *ip6_fw_chk_ptr;
@@ -181,13 +176,14 @@ ip6_init()
 		if (pr->pr_domain->dom_family == PF_INET6 &&
 		    pr->pr_protocol && pr->pr_protocol != IPPROTO_RAW)
 			ip6_protox[pr->pr_protocol] = pr - inet6sw;
-#ifdef PFIL_HOOKS
+
+	/* Initialize packet filter hooks. */
 	inet6_pfil_hook.ph_type = PFIL_TYPE_AF;
 	inet6_pfil_hook.ph_af = AF_INET6;
 	if ((i = pfil_head_register(&inet6_pfil_hook)) != 0)
 		printf("%s: WARNING: unable to register pfil hook, "
 			"error %d\n", __func__, i);
-#endif /* PFIL_HOOKS */
+
 	ip6intrq.ifq_maxlen = ip6qmaxlen;
 	mtx_init(&ip6intrq.ifq_mtx, "ip6_inq", NULL, MTX_DEF);
 	netisr_register(NETISR_IPV6, ip6_input, &ip6intrq, 0);
@@ -233,9 +229,7 @@ ip6_input(m)
 	struct ifnet *deliverifp = NULL;
 	struct sockaddr_in6 sa6;
 	u_int32_t srczone, dstzone;
-#ifdef PFIL_HOOKS
 	struct in6_addr odst;
-#endif
 	int srcrt = 0;
 
 	GIANT_REQUIRED;			/* XXX for now */
@@ -417,7 +411,6 @@ ip6_input(m)
 		}
 	}
 
-#ifdef PFIL_HOOKS
 	/*
 	 * Run through list of hooks for input packets.
 	 *
@@ -426,14 +419,19 @@ ip6_input(m)
 	 *     tell ip6_forward to do the right thing.
 	 */
 	odst = ip6->ip6_dst;
+
+	/* Jump over all PFIL processing if hooks are not active. */
+	if (inet6_pfil_hook.ph_busy_count == -1)
+		goto passin;
+
 	if (pfil_run_hooks(&inet6_pfil_hook, &m, m->m_pkthdr.rcvif, PFIL_IN))
 		return;
 	if (m == NULL)			/* consumed by filter */
 		return;
 	ip6 = mtod(m, struct ip6_hdr *);
 	srcrt = !IN6_ARE_ADDR_EQUAL(&odst, &ip6->ip6_dst);
-#endif /* PFIL_HOOKS */
 
+passin:
 	/*
 	 * Check with the firewall...
 	 */

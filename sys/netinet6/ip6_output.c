@@ -65,7 +65,6 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_pfil_hooks.h"
 
 #include <sys/param.h>
 #include <sys/malloc.h>
@@ -80,9 +79,7 @@
 
 #include <net/if.h>
 #include <net/route.h>
-#ifdef PFIL_HOOKS
 #include <net/pfil.h>
-#endif
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
@@ -936,16 +933,17 @@ skip_ipsec2:;
 		m->m_pkthdr.rcvif = NULL;
 	}
 
-#ifdef PFIL_HOOKS
-	/*
-	 * Run through list of hooks for output packets.
-	 */
+	/* Jump over all PFIL processing if hooks are not active. */
+	if (inet6_pfil_hook.ph_busy_count == -1)
+		goto passout;
+
+	/* Run through list of hooks for output packets. */
 	error = pfil_run_hooks(&inet6_pfil_hook, &m, ifp, PFIL_OUT);
 	if (error != 0 || m == NULL)
 		goto done;
 	ip6 = mtod(m, struct ip6_hdr *);
-#endif /* PFIL_HOOKS */
 
+passout:
 	/*
 	 * Send the packet to the outgoing interface.
 	 * If necessary, do IPv6 fragmentation before sending.

@@ -40,7 +40,6 @@ options 	MSDOSFS		# MSDOS Filesystem
 options 	NFSCLIENT	# Network Filesystem Client
 options 	NFSSERVER	# Network Filesystem Server
 options 	NFS_ROOT	# NFS usable as root device
-options 	PFIL_HOOKS	# pfil(9) framework
 options 	PROCFS		# Process filesystem (/proc)
 options 	PSEUDOFS	# Pseudo-filesystem framework
 options 	SCHED_ULE	# ULE scheduler

@@ -77,7 +77,6 @@
 
 #include "opt_ipfw.h"
 #include "opt_ipstealth.h"
-#include "opt_pfil_hooks.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -353,10 +352,13 @@ ip_fastforward(struct mbuf *m)
 	ip->ip_off = ntohs(ip->ip_off);
 
 	odest.s_addr = dest.s_addr = ip->ip_dst.s_addr;
-#ifdef PFIL_HOOKS
+
 	/*
 	 * Run through list of ipfilter hooks for input packets
 	 */
+	if (inet_pfil_hook.ph_busy_count == -1)
+		goto passin;
+
 	if (pfil_run_hooks(&inet_pfil_hook, &m, m->m_pkthdr.rcvif, PFIL_IN) ||
 	    m == NULL)
 		return 1;
@@ -388,8 +390,8 @@ ip_fastforward(struct mbuf *m)
 		goto forwardlocal;
 	}
 #endif /* IPFIREWALL_FORWARD */
-#endif /* PFIL_HOOKS */
 
+passin:
 	/*
 	 * Step 4: decrement TTL and look up route
 	 */
@@ -429,10 +431,12 @@ ip_fastforward(struct mbuf *m)
 	 * Step 5: outgoing firewall packet processing
 	 */
 
-#ifdef PFIL_HOOKS
 	/*
 	 * Run through list of hooks for output packets.
 	 */
+	if (inet_pfil_hook.ph_busy_count == -1)
+		goto passout;
+
 	if (pfil_run_hooks(&inet_pfil_hook, &m, ifp, PFIL_OUT) || m == NULL) {
 		goto consumed;
 	}
@@ -489,8 +493,8 @@ forwardlocal:
 			return 1;	/* icmp unreach already sent */
 		ifp = ro.ro_rt->rt_ifp;
 	}
-#endif /* PFIL_HOOKS */
 
+passout:
 	/*
 	 * Step 6: send off the packet
 	 */
