@@ -8,7 +8,11 @@ OBJS+=		gcrt1.o
 CFLAGS+=	-Wall -Wno-unused \
 		-I${.CURDIR}/../common \
 		-I${.CURDIR}/../../libc/include
-NOLIB=		true
+NOMAN=		true
+NOPIC=		true
+NOPROFILE=	true
+INTERNALLIB=	true
+
 
 all: ${OBJS} ${SOBJS}
 
