@@ -416,6 +416,7 @@ dev/firewire/fwohci.c	optional firewire
 dev/firewire/fwohci_pci.c	optional firewire pci
 dev/firewire/if_fwe.c	optional fwe
 dev/firewire/sbp.c	optional sbp
+dev/firewire/sbp_targ.c	optional sbp_targ
 dev/fxp/if_fxp.c	optional fxp
 dev/gem/if_gem.c	optional gem
 dev/gem/if_gem_pci.c	optional gem pci
