@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_balloc.c	8.1 (Berkeley) 6/11/93
- * $Id$
+ * $Id: lfs_balloc.c,v 1.2 1994/08/02 07:54:30 davidg Exp $
  */
 #include <sys/param.h>
 #include <sys/buf.h>
@@ -129,6 +129,7 @@ lfs_balloc(vp, iosize, lbn, bpp)
 		else  {
 			bp->b_blkno = daddr;
 			bp->b_flags |= B_READ;
+			vfs_busy_pages(bp, 0);
 			VOP_STRATEGY(bp);
 			return(biowait(bp));
 		}

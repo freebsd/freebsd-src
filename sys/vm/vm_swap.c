@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.11 1994/10/22 17:53:35 phk Exp $
+ * $Id: vm_swap.c,v 1.12 1994/11/22 08:47:20 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -51,15 +51,18 @@
  * Indirect driver for multi-controller paging.
  */
 
-int	nswap, nswdev;
-int	vm_swap_size;
+int nswap, nswdev;
+int vm_swap_size;
+
 #ifdef SEQSWAP
-int	niswdev;		/* number of interleaved swap devices */
-int	niswap;			/* size of interleaved swap area */
+int niswdev;			/* number of interleaved swap devices */
+int niswap;			/* size of interleaved swap area */
+
 #endif
 
 int bswneeded;
 vm_offset_t swapbkva;		/* swap buffers kva */
+
 /*
  * Set up swap devices.
  * Initialize linked list of free swap
@@ -75,12 +78,12 @@ swapinit()
 	int error;
 
 	/*
-	 * Count swap devices, and adjust total swap space available.
-	 * Some of the space will not be countable until later (dynamically
+	 * Count swap devices, and adjust total swap space available. Some of
+	 * the space will not be countable until later (dynamically
 	 * configurable devices) and some of the counted space will not be
 	 * available until a swapon() system call is issued, both usually
 	 * happen when the system goes multi-user.
-	 *
+	 * 
 	 * If using NFS for swap, swdevt[0] will already be bdevvp'd.	XXX
 	 */
 #ifdef SEQSWAP
@@ -104,7 +107,7 @@ swapinit()
 	/*
 	 * The remainder must be sequential
 	 */
-	for ( ; swp->sw_dev != NODEV; swp++) {
+	for (; swp->sw_dev != NODEV; swp++) {
 		if ((swp->sw_flags & SW_SEQUENTIAL) == 0)
 			panic("binit: mis-ordered swap devices");
 		nswdev++;
@@ -136,13 +139,13 @@ swapinit()
 		panic("swapvp");
 #endif
 	/*
-	 * If there is no swap configured, tell the user. We don't automatically
-	 * activate any swapspaces in the kernel; the user must explicitly use
-	 * swapon to enable swaping on a device.
+	 * If there is no swap configured, tell the user. We don't
+	 * automatically activate any swapspaces in the kernel; the user must
+	 * explicitly use swapon to enable swaping on a device.
 	 */
 	if (nswap == 0)
 		printf("WARNING: no swap space found\n");
-	for (swp = swdevt; ;swp++) {
+	for (swp = swdevt;; swp++) {
 		if (swp->sw_dev == NODEV) {
 			if (swp->sw_vp == NULL)
 				break;
@@ -151,8 +154,8 @@ swapinit()
 			error = swfree(p, swp - swdevt);
 			if (error) {
 				printf(
-				   "Couldn't enable swapspace %d, error = %d",
-				   swp-swdevt,error);
+				    "Couldn't enable swapspace %d, error = %d",
+				    swp - swdevt, error);
 			}
 		}
 	}
@@ -168,10 +171,9 @@ swstrategy(bp)
 
 #ifdef GENERIC
 	/*
-	 * A mini-root gets copied into the front of the swap
-	 * and we run over top of the swap area just long
-	 * enough for us to do a mkfs and restor of the real
-	 * root (sure beats rewriting standalone restor).
+	 * A mini-root gets copied into the front of the swap and we run over
+	 * top of the swap area just long enough for us to do a mkfs and
+	 * restor of the real root (sure beats rewriting standalone restor).
 	 */
 #define	MINIROOTSIZE	4096
 	if (rootdev == dumpdev)
@@ -189,7 +191,7 @@ swstrategy(bp)
 		if (bp->b_blkno < niswap) {
 			if (niswdev > 1) {
 				off = bp->b_blkno % dmmax;
-				if (off+sz > dmmax) {
+				if (off + sz > dmmax) {
 					bp->b_error = EINVAL;
 					bp->b_flags |= B_ERROR;
 					biodone(bp);
@@ -198,7 +200,7 @@ swstrategy(bp)
 				seg = bp->b_blkno / dmmax;
 				index = seg % niswdev;
 				seg /= niswdev;
-				bp->b_blkno = seg*dmmax + off;
+				bp->b_blkno = seg * dmmax + off;
 			} else
 				index = 0;
 		} else {
@@ -206,16 +208,16 @@ swstrategy(bp)
 
 			bp->b_blkno -= niswap;
 			for (index = niswdev, swp = &swdevt[niswdev];
-			     swp->sw_dev != NODEV;
-			     swp++, index++) {
+			    swp->sw_dev != NODEV;
+			    swp++, index++) {
 				if (bp->b_blkno < swp->sw_nblks)
 					break;
 				bp->b_blkno -= swp->sw_nblks;
 			}
 			if (swp->sw_dev == NODEV ||
-			    bp->b_blkno+sz > swp->sw_nblks) {
+			    bp->b_blkno + sz > swp->sw_nblks) {
 				bp->b_error = swp->sw_dev == NODEV ?
-					ENODEV : EINVAL;
+				    ENODEV : EINVAL;
 				bp->b_flags |= B_ERROR;
 				biodone(bp);
 				return;
@@ -223,7 +225,7 @@ swstrategy(bp)
 		}
 #else
 		off = bp->b_blkno % dmmax;
-		if (off+sz > dmmax) {
+		if (off + sz > dmmax) {
 			bp->b_error = EINVAL;
 			bp->b_flags |= B_ERROR;
 			biodone(bp);
@@ -232,7 +234,7 @@ swstrategy(bp)
 		seg = bp->b_blkno / dmmax;
 		index = seg % nswdev;
 		seg /= nswdev;
-		bp->b_blkno = seg*dmmax + off;
+		bp->b_blkno = seg * dmmax + off;
 #endif
 	} else
 		index = 0;
@@ -252,13 +254,13 @@ swstrategy(bp)
 			vp->v_numoutput--;
 			if ((vp->v_flag & VBWAIT) && vp->v_numoutput <= 0) {
 				vp->v_flag &= ~VBWAIT;
-				wakeup((caddr_t)&vp->v_numoutput);
+				wakeup((caddr_t) & vp->v_numoutput);
 			}
 		}
 		sp->sw_vp->v_numoutput++;
 	}
 	if (bp->b_vp != NULL)
-		brelvp(bp);
+		pbrelvp(bp);
 	bp->b_vp = sp->sw_vp;
 	VOP_STRATEGY(bp);
 }
@@ -269,8 +271,9 @@ swstrategy(bp)
  * if already swapping on this device.
  */
 struct swapon_args {
-	char	*name;
+	char *name;
 };
+
 /* ARGSUSED */
 int
 swapon(p, uap, retval)
@@ -296,7 +299,7 @@ swapon(p, uap, retval)
 		vrele(vp);
 		return (ENOTBLK);
 	}
-	dev = (dev_t)vp->v_rdev;
+	dev = (dev_t) vp->v_rdev;
 	if (major(dev) >= nblkdev) {
 		vrele(vp);
 		return (ENXIO);
@@ -318,11 +321,11 @@ swapon(p, uap, retval)
 #ifdef SEQSWAP
 		/*
 		 * If we have reached a non-freed sequential device without
-		 * finding what we are looking for, it is an error.
-		 * That is because all interleaved devices must come first
-		 * and sequential devices must be freed in order.
+		 * finding what we are looking for, it is an error. That is
+		 * because all interleaved devices must come first and
+		 * sequential devices must be freed in order.
 		 */
-		if ((sp->sw_flags & (SW_SEQUENTIAL|SW_FREED)) == SW_SEQUENTIAL)
+		if ((sp->sw_flags & (SW_SEQUENTIAL | SW_FREED)) == SW_SEQUENTIAL)
 			break;
 #endif
 	}
@@ -351,22 +354,22 @@ swfree(p, index)
 
 	sp = &swdevt[index];
 	vp = sp->sw_vp;
-	error = VOP_OPEN(vp, FREAD|FWRITE, p->p_ucred, p);
+	error = VOP_OPEN(vp, FREAD | FWRITE, p->p_ucred, p);
 	if (error)
 		return (error);
 	sp->sw_flags |= SW_FREED;
 	nblks = sp->sw_nblks;
 	/*
-	 * Some devices may not exist til after boot time.
-	 * If so, their nblk count will be 0.
+	 * Some devices may not exist til after boot time. If so, their nblk
+	 * count will be 0.
 	 */
 	if (nblks <= 0) {
 		int perdev;
 		dev_t dev = sp->sw_dev;
 
 		if (bdevsw[major(dev)].d_psize == 0 ||
-		    (nblks = (*bdevsw[major(dev)].d_psize)(dev)) == -1) {
-			(void) VOP_CLOSE(vp, FREAD|FWRITE, p->p_ucred, p);
+		    (nblks = (*bdevsw[major(dev)].d_psize) (dev)) == -1) {
+			(void) VOP_CLOSE(vp, FREAD | FWRITE, p->p_ucred, p);
 			sp->sw_flags &= ~SW_FREED;
 			return (ENXIO);
 		}
@@ -388,7 +391,7 @@ swfree(p, index)
 		sp->sw_nblks = nblks;
 	}
 	if (nblks == 0) {
-		(void) VOP_CLOSE(vp, FREAD|FWRITE, p->p_ucred, p);
+		(void) VOP_CLOSE(vp, FREAD | FWRITE, p->p_ucred, p);
 		sp->sw_flags &= ~SW_FREED;
 		return (0);	/* XXX error? */
 	}
@@ -399,26 +402,26 @@ swfree(p, index)
 		blk = niswap;
 		for (swp = &swdevt[niswdev]; swp != sp; swp++)
 			blk += swp->sw_nblks;
-		rlist_free(&swaplist, blk, blk + nblks - 1); 
+		rlist_free(&swaplist, blk, blk + nblks - 1);
 		vm_swap_size += nblks;
 		return (0);
 	}
 #endif
 	for (dvbase = dmmax; dvbase < nblks; dvbase += dmmax) {
 		blk = nblks - dvbase;
-			
+
 #ifdef SEQSWAP
-		if ((vsbase = index*dmmax + dvbase*niswdev) >= niswap)
+		if ((vsbase = index * dmmax + dvbase * niswdev) >= niswap)
 			panic("swfree");
 #else
-		if ((vsbase = index*dmmax + dvbase*nswdev) >= nswap)
+		if ((vsbase = index * dmmax + dvbase * nswdev) >= nswap)
 			panic("swfree");
 #endif
 		if (blk > dmmax)
 			blk = dmmax;
 		/* XXX -- we need to exclude the first cluster as above */
 		/* but for now, this will work fine... */
-		rlist_free(&swaplist, vsbase, vsbase + blk - 1); 
+		rlist_free(&swaplist, vsbase, vsbase + blk - 1);
 		vm_swap_size += blk;
 	}
 	return (0);

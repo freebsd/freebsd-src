@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.98 1994/12/11 03:33:58 davidg Exp $
+ *	$Id: machdep.c,v 1.99 1995/01/05 19:51:14 se Exp $
  */
 
 #include "npx.h"
@@ -114,16 +114,11 @@ char cpu_model[sizeof("Cy486DLC") + 1];
 /*
  * Declare these as initialized data so we can patch them.
  */
-int	nswbuf = 0;
+int	nswbuf = 128;
 #ifdef	NBUF
 int	nbuf = NBUF;
 #else
 int	nbuf = 0;
-#endif
-#ifdef	BUFPAGES
-int	bufpages = BUFPAGES;
-#else
-int	bufpages = 0;
 #endif
 
 #ifdef BOUNCE_BUFFERS
@@ -170,9 +165,7 @@ cpu_startup()
 	vm_offset_t maxaddr;
 	vm_size_t size = 0;
 	int firstaddr;
-#ifdef BOUNCE_BUFFERS
 	vm_offset_t minaddr;
-#endif /* BOUNCE_BUFFERS */
 
 	if (boothowto & RB_VERBOSE)
 		bootverbose++;
@@ -261,33 +254,11 @@ again:
 	valloc(msghdrs, struct msg, msginfo.msgtql);
 	valloc(msqids, struct msqid_ds, msginfo.msgmni);
 #endif
-	/*
-	 * Determine how many buffers to allocate.
-	 * Use 20% of memory of memory beyond the first 2MB
-	 * Insure a minimum of 16 fs buffers.
-	 * We allocate 1/2 as many swap buffer headers as file i/o buffers.
-	 */
-	if (bufpages == 0)
-		bufpages = ((physmem << PGSHIFT) - 2048*1024) / NBPG / 6;
-	if (bufpages < 64)
-		bufpages = 64;
 
-	/*
-	 * We must still limit the maximum number of buffers to be no
-	 * more than 750 because we'll run out of kernel VM otherwise.
-	 */
-	bufpages = min(bufpages, 1500);
-	if (nbuf == 0) {
-		nbuf = bufpages / 2;
-		if (nbuf < 32)
-			nbuf = 32;
-	}
-	freebufspace = bufpages * NBPG;
-	if (nswbuf == 0) {
-		nswbuf = (nbuf / 2) &~ 1;	/* force even */
-		if (nswbuf > 64)
-			nswbuf = 64;		/* sanity */
-	}
+	if (nbuf == 0)
+		nbuf = min(physmem / 30, 256);
+	nswbuf = nbuf;
+
 	valloc(swbuf, struct buf, nswbuf);
 	valloc(buf, struct buf, nbuf);
 
@@ -296,8 +267,10 @@ again:
 	 * If there is more than 16MB of memory, allocate some bounce buffers
 	 */
 	if (Maxmem > 4096) {
-		if (bouncepages == 0)
-			bouncepages = 96;	/* largest physio size + extra */
+		if (bouncepages == 0) {
+			bouncepages = 64;
+			bouncepages += ((Maxmem - 4096) / 2048) * 32;
+		}
 		v = (caddr_t)((vm_offset_t)((vm_offset_t)v + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1));
 		valloc(bouncememory, char, bouncepages * PAGE_SIZE);
 	}
@@ -333,6 +306,10 @@ again:
 				(nbuf*MAXBSIZE), TRUE);
 	pager_map = kmem_suballoc(clean_map, &pager_sva, &pager_eva,
 				(nswbuf*MAXPHYS) + pager_map_size, TRUE);
+	exec_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
+				(16*ARG_MAX), TRUE);
+	u_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
+				(maxproc*UPAGES*PAGE_SIZE), FALSE);
 
 	/*
 	 * Finally, allocate mbuf pool.  Since mclrefcnt is an off-size
@@ -353,8 +330,6 @@ again:
         if (boothowto & RB_CONFIG)
 		userconfig();
 	printf("avail memory = %d (%d pages)\n", ptoa(cnt.v_free_count), cnt.v_free_count);
-	printf("using %d buffers containing %d bytes of memory\n",
-		nbuf, bufpages * CLBYTES);
 
 #ifdef BOUNCE_BUFFERS
 	/*
@@ -744,9 +719,11 @@ boot(arghowto)
 
 		for (iter = 0; iter < 20; iter++) {
 			nbusy = 0;
-			for (bp = &buf[nbuf]; --bp >= buf; )
-				if ((bp->b_flags & (B_BUSY|B_INVAL)) == B_BUSY)
+			for (bp = &buf[nbuf]; --bp >= buf; ) {
+				if ((bp->b_flags & (B_BUSY|B_INVAL)) == B_BUSY) {
 					nbusy++;
+				}
+			}
 			if (nbusy == 0)
 				break;
 			printf("%d ", nbusy);
@@ -1642,4 +1619,3 @@ disk_externalize(int drive, void *userp, size_t *maxlen)
 	*maxlen -= sizeof drive;
 	return copyout(&drive, userp, sizeof drive);
 }
-

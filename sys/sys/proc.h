@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.8 (Berkeley) 1/21/94
- * $Id: proc.h,v 1.13 1994/11/13 12:46:08 davidg Exp $
+ * $Id: proc.h,v 1.14 1994/11/15 14:37:39 bde Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -99,8 +99,7 @@ struct	proc {
 
 	int	p_flag;			/* P_* flags. */
 	char	p_stat;			/* S* process status. */
-	char	p_lock;			/* Process lock count. */
-	char	p_pad1[2];
+	char	p_pad1[3];
 
 	pid_t	p_pid;			/* Process identifier. */
 	struct	proc *p_hash;	 /* Hashed based on p_pid for kill+exit+... */
@@ -137,7 +136,9 @@ struct	proc {
 
 	struct	vnode *p_textvp;	/* Vnode of executable. */
 
-	long	p_spare[3];		/* Pad to 256, avoid shifting eproc. */
+	char	p_lock;			/* Process lock count. */
+	char	p_pad2[3];		/* alignment */
+	long	p_spare[2];		/* Pad to 256, avoid shifting eproc. XXX */
 
 /* End area that is zeroed on creation. */
 #define	p_endzero	p_startcopy

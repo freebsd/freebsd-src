@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_segment.c	8.5 (Berkeley) 1/4/94
- * $Id: lfs_segment.c,v 1.5 1994/11/17 01:30:49 gibbs Exp $
+ * $Id: lfs_segment.c,v 1.6 1995/01/04 23:46:32 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -1091,7 +1091,6 @@ lfs_newbuf(vp, daddr, size)
 	bp = getpbuf();
 	if (nbytes)
 		bp->b_data = lfs_alloc_buffer( nbytes);
-	bgetvp(vp, bp);
 	bp->b_bufsize = size;
 	bp->b_bcount = size;
 	bp->b_lblkno = daddr;

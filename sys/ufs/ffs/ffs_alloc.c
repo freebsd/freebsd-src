@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.8 (Berkeley) 2/21/94
- * $Id: ffs_alloc.c,v 1.4 1994/09/20 05:53:24 bde Exp $
+ * $Id: ffs_alloc.c,v 1.5 1994/10/10 01:04:34 phk Exp $
  */
 
 #include <sys/param.h>
@@ -210,7 +210,7 @@ ffs_realloccg(ip, lbprev, bpref, osize, nsize, cred, bpp)
 			panic("bad blockno");
 		ip->i_blocks += btodb(nsize - osize);
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
-		allocbuf(bp, nsize);
+		allocbuf(bp, nsize, 0);
 		bp->b_flags |= B_DONE;
 		bzero((char *)bp->b_data + osize, (u_int)nsize - osize);
 		*bpp = bp;
@@ -268,14 +268,14 @@ ffs_realloccg(ip, lbprev, bpref, osize, nsize, cred, bpp)
 	    (u_long (*)())ffs_alloccg);
 	if (bno > 0) {
 		bp->b_blkno = fsbtodb(fs, bno);
-		(void) vnode_pager_uncache(ITOV(ip));
+		/* (void) vnode_pager_uncache(ITOV(ip)); */
 		ffs_blkfree(ip, bprev, (long)osize);
 		if (nsize < request)
 			ffs_blkfree(ip, bno + numfrags(fs, nsize),
 			    (long)(request - nsize));
 		ip->i_blocks += btodb(nsize - osize);
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
-		allocbuf(bp, nsize);
+		allocbuf(bp, nsize, 0);
 		bp->b_flags |= B_DONE;
 		bzero((char *)bp->b_data + osize, (u_int)nsize - osize);
 		*bpp = bp;

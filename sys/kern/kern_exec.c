@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.9 1994/09/25 19:33:36 phk Exp $
+ *	$Id: kern_exec.c,v 1.10 1994/10/02 17:35:13 phk Exp $
  */
 
 #include <sys/param.h>
@@ -97,7 +97,7 @@ execve(p, uap, retval)
 	 * Allocate temporary demand zeroed space for argument and
 	 *	environment strings
 	 */
-	error = vm_allocate(kernel_map, (vm_offset_t *)&iparams->stringbase, 
+	error = vm_allocate(exec_map, (vm_offset_t *)&iparams->stringbase, 
 			    ARG_MAX, TRUE);
 	if (error) {
 		log(LOG_WARNING, "execve: failed to allocate string space\n");
@@ -127,7 +127,7 @@ interpret:
 
 	error = namei(ndp);
 	if (error) {
-		vm_deallocate(kernel_map, (vm_offset_t)iparams->stringbase, 
+		vm_deallocate(exec_map, (vm_offset_t)iparams->stringbase, 
 			      ARG_MAX);
 		goto exec_fail;	
 	}
@@ -296,7 +296,7 @@ interpret:
 	/*
 	 * free various allocated resources
 	 */
-	if (vm_deallocate(kernel_map, (vm_offset_t)iparams->stringbase, ARG_MAX))
+	if (vm_deallocate(exec_map, (vm_offset_t)iparams->stringbase, ARG_MAX))
 		panic("execve: string buffer dealloc failed (1)");
 	if (vm_deallocate(kernel_map, (vm_offset_t)image_header, PAGE_SIZE))
 		panic("execve: header dealloc failed (2)");
@@ -307,7 +307,7 @@ interpret:
 
 exec_fail_dealloc:
 	if (iparams->stringbase && iparams->stringbase != (char *)-1)
-		if (vm_deallocate(kernel_map, (vm_offset_t)iparams->stringbase,
+		if (vm_deallocate(exec_map, (vm_offset_t)iparams->stringbase,
 				  ARG_MAX))
 			panic("execve: string buffer dealloc failed (2)");
 	if (iparams->image_header && iparams->image_header != (char *)-1)

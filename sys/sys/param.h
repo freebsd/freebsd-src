@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.h	8.2 (Berkeley) 1/21/94
- * $Id: param.h,v 1.4 1994/08/21 04:41:55 paul Exp $
+ * $Id: param.h,v 1.5 1994/09/01 05:12:51 davidg Exp $
  */
 
 #ifndef _SYS_PARAM_H_
@@ -152,9 +152,10 @@
  * smaller units (fragments) only in the last direct block.  MAXBSIZE
  * primarily determines the size of buffers in the buffer pool.  It may be
  * made larger without any effect on existing file systems; however making
- * it smaller make make some file systems unmountable.
+ * it smaller make make some file systems unmountable.  Also, MAXBSIZE
+ * must be less than MAXPHYS!!!
  */
-#define	MAXBSIZE	MAXPHYS
+#define	MAXBSIZE	16384
 #define MAXFRAG 	8
 
 /*

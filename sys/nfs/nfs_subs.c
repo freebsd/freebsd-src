@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.6 1994/10/02 17:27:01 phk Exp $
+ * $Id: nfs_subs.c,v 1.7 1994/10/17 17:47:37 phk Exp $
  */
 
 /*
@@ -995,6 +995,7 @@ nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, p)
 	 */
 	if (cnp->cn_flags & (SAVENAME | SAVESTART)) {
 		cnp->cn_flags |= HASBUF;
+		nfsrv_vmio( ndp->ni_vp);
 		return (0);
 	}
 out:
@@ -1123,6 +1124,7 @@ nfsrv_fhtovp(fhp, lockflag, vpp, cred, slp, nam, rdonlyp)
 		*rdonlyp = 0;
 	if (!lockflag)
 		VOP_UNLOCK(*vpp);
+	nfsrv_vmio(*vpp);
 	return (0);
 }
 
@@ -1168,3 +1170,54 @@ netaddr_match(family, haddr, nam)
 	};
 	return (0);
 }
+
+int
+nfsrv_vmio( struct vnode *vp) {
+	int rtval;
+	vm_object_t object;
+	vm_pager_t pager;
+
+	if( (vp == NULL) || (vp->v_type != VREG))
+		return 1;
+
+retry:
+	if( (vp->v_flag & VVMIO) == 0) {
+		pager = (vm_pager_t) vnode_pager_alloc(vp, 0, 0, 0);
+		object = (vm_object_t) vp->v_vmdata;
+		if( object->pager != pager)
+			panic("nfsrv_vmio: pager/object mismatch");
+		(void) vm_object_lookup( pager);
+		pager_cache( object, TRUE);
+		vp->v_flag |= VVMIO;
+	} else {
+		if( (object = (vm_object_t)vp->v_vmdata) &&
+			(object->flags & OBJ_DEAD)) {
+			tsleep( (caddr_t) object, PVM, "nfdead", 0);
+			goto retry;
+		}
+		if( !object)
+			panic("nfsrv_vmio: VMIO object missing");
+		pager = object->pager;
+		if( !pager)
+			panic("nfsrv_vmio: VMIO pager missing");
+		(void) vm_object_lookup( pager);
+	}
+	return 0;
+}
+int
+nfsrv_vput( struct vnode *vp) {
+	if( (vp->v_flag & VVMIO) && vp->v_vmdata) {
+		vm_object_deallocate( (vm_object_t) vp->v_vmdata);
+	}
+	vput( vp);
+	return 0;
+}
+int
+nfsrv_vrele( struct vnode *vp) {
+	if( (vp->v_flag & VVMIO) && vp->v_vmdata) {
+		vm_object_deallocate( (vm_object_t) vp->v_vmdata);
+	}
+	vrele( vp);
+	return 0;
+}
+

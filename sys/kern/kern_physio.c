@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: kern_physio.c,v 1.7 1994/08/18 22:35:02 wollman Exp $
+ * $Id: kern_physio.c,v 1.8 1994/09/25 19:33:40 phk Exp $
  */
 
 #include <sys/param.h>
@@ -158,8 +158,8 @@ u_int
 minphys(struct buf *bp)
 {
 
-	if( bp->b_bcount > MAXBSIZE) {
-		bp->b_bcount = MAXBSIZE;
+	if( bp->b_bcount > MAXPHYS) {
+		bp->b_bcount = MAXPHYS;
 	}
 	return bp->b_bcount;
 }

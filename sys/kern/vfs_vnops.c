@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.5 1994/10/02 17:35:40 phk Exp $
+ * $Id: vfs_vnops.c,v 1.6 1994/10/05 09:48:26 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -158,21 +158,26 @@ vn_open(ndp, fmode, cmode)
 	if( vp->v_type == VREG) {
 		vm_object_t object;
 		vm_pager_t pager;
+retry:
 		if( (vp->v_flag & VVMIO) == 0) {
 			pager = (vm_pager_t) vnode_pager_alloc(vp, 0, 0, 0);
 			object = (vm_object_t) vp->v_vmdata;
 			if( object->pager != pager)
-				panic("ufs_open: pager/object mismatch");
+				panic("vn_open: pager/object mismatch");
 			(void) vm_object_lookup( pager);
 			pager_cache( object, TRUE);
 			vp->v_flag |= VVMIO;
 		} else {
-			object = (vm_object_t) vp->v_vmdata;
+			if( (object = (vm_object_t)vp->v_vmdata) &&
+				(object->flags & OBJ_DEAD)) {
+				tsleep( (caddr_t) object, PVM, "vodead", 0);
+				goto retry;
+			}
 			if( !object)
-				panic("ufs_open: VMIO object missing");
+				panic("vn_open: VMIO object missing");
 			pager = object->pager;
 			if( !pager)
-				panic("ufs_open: VMIO pager missing");
+				panic("vn_open: VMIO pager missing");
 			(void) vm_object_lookup( pager);
 		}
 	}
@@ -235,11 +240,12 @@ vn_close(vp, flags, cred, p)
 	 * be in vfs code.
 	 */
 	if (vp->v_flag & VVMIO) {
+		vrele(vp);
 		if( vp->v_vmdata == NULL)
-			panic("ufs_close: VMIO object missing");
+			panic("vn_close: VMIO object missing");
 		vm_object_deallocate( (vm_object_t) vp->v_vmdata);
-	}
-	vrele(vp);
+	} else
+		vrele(vp);
 	return (error);
 }
 

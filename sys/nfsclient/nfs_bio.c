@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.5 (Berkeley) 1/4/94
- * $Id: nfs_bio.c,v 1.6 1994/10/02 17:26:55 phk Exp $
+ * $Id: nfs_bio.c,v 1.7 1994/10/17 17:47:32 phk Exp $
  */
 
 #include <sys/param.h>
@@ -78,7 +78,7 @@ nfs_bioread(vp, uio, ioflag, cred)
 	struct vattr vattr;
 	struct proc *p;
 	struct nfsmount *nmp;
-	daddr_t lbn, bn, rabn;
+	daddr_t lbn, rabn;
 	caddr_t baddr;
 	int got_buf = 0, nra, error = 0, n = 0, on = 0, not_readin;
 
@@ -94,7 +94,7 @@ nfs_bioread(vp, uio, ioflag, cred)
 	if (uio->uio_offset < 0 && vp->v_type != VDIR)
 		return (EINVAL);
 	nmp = VFSTONFS(vp->v_mount);
-	biosize = nmp->nm_rsize;
+	biosize = NFS_MAXDGRAMDATA;
 	p = uio->uio_procp;
 	/*
 	 * For nfs, cache consistency can only be maintained approximately.
@@ -198,7 +198,6 @@ nfs_bioread(vp, uio, ioflag, cred)
 		nfsstats.biocache_reads++;
 		lbn = uio->uio_offset / biosize;
 		on = uio->uio_offset & (biosize-1);
-		bn = lbn * (biosize / DEV_BSIZE);
 		not_readin = 1;
 
 		/*
@@ -208,15 +207,17 @@ nfs_bioread(vp, uio, ioflag, cred)
 		    lbn == vp->v_lastr + 1) {
 		    for (nra = 0; nra < nmp->nm_readahead &&
 			(lbn + 1 + nra) * biosize < np->n_size; nra++) {
-			rabn = (lbn + 1 + nra) * (biosize / DEV_BSIZE);
+			rabn = lbn + 1 + nra;
 			if (!incore(vp, rabn)) {
 			    rabp = nfs_getcacheblk(vp, rabn, biosize, p);
 			    if (!rabp)
 				return (EINTR);
 			    if ((rabp->b_flags & (B_DELWRI | B_DONE)) == 0) {
 				rabp->b_flags |= (B_READ | B_ASYNC);
+				vfs_busy_pages(rabp, 0);
 				if (nfs_asyncio(rabp, cred)) {
-				    rabp->b_flags |= B_INVAL;
+				    rabp->b_flags |= B_INVAL|B_ERROR;
+				    vfs_unbusy_pages(rabp);
 				    brelse(rabp);
 				}
 			    }
@@ -230,21 +231,23 @@ nfs_bioread(vp, uio, ioflag, cred)
 		 * Otherwise, get the block and write back/read in,
 		 * as required.
 		 */
-		if ((bp = incore(vp, bn)) &&
+		if ((bp = incore(vp, lbn)) &&
 		    (bp->b_flags & (B_BUSY | B_WRITEINPROG)) ==
 		    (B_BUSY | B_WRITEINPROG))
 			got_buf = 0;
 		else {
 again:
-			bp = nfs_getcacheblk(vp, bn, biosize, p);
+			bp = nfs_getcacheblk(vp, lbn, biosize, p);
 			if (!bp)
 				return (EINTR);
 			got_buf = 1;
 			if ((bp->b_flags & (B_DONE | B_DELWRI)) == 0) {
 				bp->b_flags |= B_READ;
 				not_readin = 0;
+				vfs_busy_pages(bp, 0);
 				error = nfs_doio(bp, cred, p);
 				if (error) {
+				    vfs_unbusy_pages(bp);
 				    brelse(bp);
 				    return (error);
 				}
@@ -257,7 +260,7 @@ again:
 		if (not_readin && n > 0) {
 			if (on < bp->b_validoff || (on + n) > bp->b_validend) {
 				if (!got_buf) {
-				    bp = nfs_getcacheblk(vp, bn, biosize, p);
+				    bp = nfs_getcacheblk(vp, lbn, biosize, p);
 				    if (!bp)
 					return (EINTR);
 				    got_buf = 1;
@@ -285,8 +288,11 @@ again:
 			return (EINTR);
 		if ((bp->b_flags & B_DONE) == 0) {
 			bp->b_flags |= B_READ;
+			vfs_busy_pages(bp, 0);
 			error = nfs_doio(bp, cred, p);
 			if (error) {
+				vfs_unbusy_pages(bp);
+				bp->b_flags |= B_ERROR;
 				brelse(bp);
 				return (error);
 			}
@@ -297,14 +303,18 @@ again:
 		break;
 	    case VDIR:
 		nfsstats.biocache_readdirs++;
-		bn = (daddr_t)uio->uio_offset;
-		bp = nfs_getcacheblk(vp, bn, NFS_DIRBLKSIZ, p);
+		lbn = (daddr_t)uio->uio_offset;
+		bp = nfs_getcacheblk(vp, lbn, NFS_DIRBLKSIZ, p);
 		if (!bp)
 			return (EINTR);
+
 		if ((bp->b_flags & B_DONE) == 0) {
 			bp->b_flags |= B_READ;
+			vfs_busy_pages(bp, 0);
 			error = nfs_doio(bp, cred, p);
 			if (error) {
+				vfs_unbusy_pages(bp);
+				bp->b_flags |= B_ERROR;
 				brelse(bp);
 				return (error);
 			}
@@ -323,8 +333,10 @@ again:
 			if (rabp) {
 			    if ((rabp->b_flags & (B_DONE | B_DELWRI)) == 0) {
 				rabp->b_flags |= (B_READ | B_ASYNC);
+				vfs_busy_pages(rabp, 0);
 				if (nfs_asyncio(rabp, cred)) {
-				    rabp->b_flags |= B_INVAL;
+				    vfs_unbusy_pages(rabp);
+				    rabp->b_flags |= B_INVAL|B_ERROR;
 				    brelse(rabp);
 				}
 			    }
@@ -385,7 +397,7 @@ nfs_write(ap)
 	struct buf *bp;
 	struct vattr vattr;
 	struct nfsmount *nmp;
-	daddr_t lbn, bn;
+	daddr_t lbn;
 	int n, on, error = 0;
 
 #ifdef DIAGNOSTIC
@@ -434,14 +446,12 @@ nfs_write(ap)
 	 * will be the same size within a filesystem. nfs_writerpc will
 	 * still use nm_wsize when sizing the rpc's.
 	 */
-	biosize = nmp->nm_rsize;
+	biosize = NFS_MAXDGRAMDATA;
 	do {
 
 		/*
 		 * XXX make sure we aren't cached in the VM page cache
 		 */
-		(void)vnode_pager_uncache(vp);
-
 		/*
 		 * Check for a valid write lease.
 		 * If non-cachable, just do the rpc
@@ -467,9 +477,8 @@ nfs_write(ap)
 		lbn = uio->uio_offset / biosize;
 		on = uio->uio_offset & (biosize-1);
 		n = min((unsigned)(biosize - on), uio->uio_resid);
-		bn = lbn * (biosize / DEV_BSIZE);
 again:
-		bp = nfs_getcacheblk(vp, bn, biosize, p);
+		bp = nfs_getcacheblk(vp, lbn, biosize, p);
 		if (!bp)
 			return (EINTR);
 		if (bp->b_wcred == NOCRED) {
@@ -591,6 +600,10 @@ nfs_getcacheblk(vp, bn, size, p)
 		}
 	} else
 		bp = getblk(vp, bn, size, 0, 0);
+
+	if( vp->v_type == VREG)
+		bp->b_blkno = (bn * NFS_MAXDGRAMDATA) / DEV_BSIZE;
+
 	return (bp);
 }
 

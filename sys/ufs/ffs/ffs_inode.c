@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.5 (Berkeley) 12/30/93
- * $Id: ffs_inode.c,v 1.9 1994/10/22 02:27:32 davidg Exp $
+ * $Id: ffs_inode.c,v 1.10 1994/12/27 14:44:42 bde Exp $
  */
 
 #include <sys/param.h>
@@ -204,7 +204,6 @@ ffs_truncate(ap)
 	if (error)
 		return (error);
 #endif
-	vnode_pager_setsize(ovp, (u_long)length);
 	osize = oip->i_size;
 	/*
 	 * Lengthen the size of the file. We must ensure that the
@@ -226,6 +225,7 @@ ffs_truncate(ap)
 			bwrite(bp);
 		else
 			bawrite(bp);
+		vnode_pager_setsize(ovp, (u_long)length);
 		oip->i_flag |= IN_CHANGE | IN_UPDATE;
 		return (VOP_UPDATE(ovp, &tv, &tv, 1));
 	}
@@ -250,7 +250,7 @@ ffs_truncate(ap)
 		oip->i_size = length;
 		size = blksize(fs, oip, lbn);
 		bzero((char *)bp->b_data + offset, (u_int)(size - offset));
-		allocbuf(bp, size);
+		allocbuf(bp, size, 0);
 		if (aflags & IO_SYNC)
 			bwrite(bp);
 		else
@@ -386,6 +386,7 @@ done:
 	if (oip->i_blocks < 0)			/* sanity */
 		oip->i_blocks = 0;
 	oip->i_flag |= IN_CHANGE;
+	vnode_pager_setsize(ovp, (u_long)length);
 #ifdef QUOTA
 	(void) chkdq(oip, -blocksreleased, NOCRED, 0);
 #endif
@@ -441,7 +442,8 @@ ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 	 */
 	vp = ITOV(ip);
 	bp = getblk(vp, lbn, (int)fs->fs_bsize, 0, 0);
-	if (bp->b_flags & (B_DONE | B_DELWRI)) {
+	/* if (bp->b_flags & (B_DONE | B_DELWRI)) { */
+	if (bp->b_flags & B_CACHE) {
 		/* Braces must be here in case trace evaluates to nothing. */
 		trace(TR_BREADHIT, pack(vp, fs->fs_bsize), lbn);
 	} else {
@@ -451,6 +453,7 @@ ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 		if (bp->b_bcount > bp->b_bufsize)
 			panic("ffs_indirtrunc: bad buffer size");
 		bp->b_blkno = dbn;
+		vfs_busy_pages(bp, 0);
 		VOP_STRATEGY(bp);
 		error = biowait(bp);
 	}
