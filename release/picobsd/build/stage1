@@ -269,8 +269,8 @@ do_floppy() {
     # now transfer the floppy tree
     cp -Rp floppy.tree/* ${MFS_MOUNTPOINT}
     cat <<__EOF > ${MFS_MOUNTPOINT}/boot/loader.rc
-load kernel
-load -t mfs_root ${MFS_NAME}
+load /kernel
+load -t mfs_root /${MFS_NAME}
 __EOF
     (echo "-> Fixing permissions"; cd ${MFS_MOUNTPOINT} ; chown -R root *)
 
