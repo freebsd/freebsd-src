@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.upgrade,v 1.9.2.3 1999/01/27 02:24:45 jkh Exp $
+#	$Id: Makefile.upgrade,v 1.11 1999/01/26 09:12:21 jkh Exp $
 #
 # This makefile contains rules for preforming upgrades that are outside
 # the scope of the normal build world process.
@@ -52,7 +52,7 @@ aout-to-elf aout-to-elf-install :	/var/db/update.cfg	\
 # front-load all the information we're going to need.
 /var/db/update.cfg:
 	@if [ -f ${.CURDIR}/tools/tools/upgrade/doupgrade.sh ]; then \
-	    env MACHINE=${MACHINE} sh ${.CURDIR}/tools/tools/upgrade/doupgrade.sh 1 /var/db/update.cfg; \
+	    env MACHINE=${MACHINE} CURDIR=${.CURDIR} sh ${.CURDIR}/tools/tools/upgrade/doupgrade.sh 1 /var/db/update.cfg; \
 	else \
 	    echo "Your source tree must not be fully populated; unable to find upgrade script"; echo "in ${.CURDIR}/tools/tools/upgrade/doupgrade.sh."; exit 1; \
 	fi
@@ -198,8 +198,8 @@ ${MAKEOBJDIRPREFIX}/do_aout_installworld :
 # boot it.
 #
 ${MAKEOBJDIRPREFIX}/do_elf_kernel :
-	@if [ -f /var/db/update.cfg -a -f ${.CURDIR}/release/scripts/doupgrade.sh ]; then \
-	     env MACHINE=${MACHINE} sh ${.CURDIR}/release/scripts/doupgrade.sh 2 /var/db/update.cfg; \
+	@if [ -f /var/db/update.cfg -a -f ${.CURDIR}/tools/tools/upgrade/doupgrade.sh ]; then \
+	     env MACHINE=${MACHINE} CURDIR=${.CURDIR} sh ${.CURDIR}/tools/tools/upgrade/doupgrade.sh 2 /var/db/update.cfg; \
 	fi
 	@touch ${MAKEOBJDIRPREFIX}/do_elf_kernel
 	@rm -f /var/db/update.cfg
@@ -249,20 +249,19 @@ ${MAKEOBJDIRPREFIX}/do_set_objformat	:
 
 #
 # Time to reboot!
-#
 ${MAKEOBJDIRPREFIX}/do_reboot	:
 .if !defined(NOCONFIRM)
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Your system has now been fully updated to elf!"
+ 	@echo " Your system has now been fully updated to elf!"
 	@echo
-	@echo " It's now time to reboot from your new ELF kernel."
-	@echo " You can type Ctrl-C to abort this (at your own risk)"
-	@echo " or press return to reboot the system."
+ 	@echo " It's now time to reboot from your new ELF kernel."
+ 	@echo " You can type Ctrl-C to abort this (at your own risk)"
+ 	@echo " or press return to reboot the system."
 	@echo "--------------------------------------------------------------"
 	@${MAKEOBJDIRPREFIX}/sh -c "read -p \"Return to continue or Ctrl-C to abort: \" _e"
 .endif
 	@echo " Rebooting......."
 	@echo "--------------------------------------------------------------"
-	@touch ${MAKEOBJDIRPREFIX}/do_reboot
+ 	@touch ${MAKEOBJDIRPREFIX}/do_reboot
 	@-${MAKEOBJDIRPREFIX}/reboot
