@@ -29,7 +29,7 @@
 	build.
 
         $FreeBSD$
-        Original revision: 1.158
+        Original revision: 1.159
 -->
 
 <sect1 id="support">
@@ -3114,6 +3114,10 @@
         <listitem arch="i386,alpha">
 	  <para>AMD-756</para>
 	</listitem>
+         <listitem arch="i386,alpha">
+	  <para>Belkin USB 2.0 High Speed Host Controller
+	    (&man.ehci.4; ドライバ)</para>
+	</listitem>
         <listitem arch="i386,alpha">
 	  <para>CMD Tech 670 & 673</para>
 	</listitem>
@@ -3136,7 +3140,7 @@
 	  <para>Intel 82443MX</para>
 	</listitem>
         <listitem arch="i386,alpha">
-	  <para>NEC uPD 9210</para>
+	  <para>NEC uPD 9210 (&man.ehci.4; ドライバ)</para>
 	</listitem>
         <listitem arch="i386,alpha">
 	  <para>OPTi 82C861 (FireLink)</para>
