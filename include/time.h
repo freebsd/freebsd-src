@@ -116,6 +116,10 @@ struct tm {
 
 #include <sys/cdefs.h>
 
+#ifndef	_ANSI_SOURCE
+extern char *tzname[];
+#endif
+
 __BEGIN_DECLS
 char *asctime __P((const struct tm *));
 clock_t clock __P((void));
