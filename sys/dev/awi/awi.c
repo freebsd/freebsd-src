@@ -283,7 +283,7 @@ awi_attach(struct awi_softc *sc)
 #ifdef IFF_NOTRAILERS
 	    IFF_NOTRAILERS |
 #endif
-	    IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST;
+	    IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST | IFF_NEEDSGIANT;
 	ifp->if_ioctl = awi_ioctl;
 	ifp->if_start = awi_start;
 	ifp->if_watchdog = awi_watchdog;
