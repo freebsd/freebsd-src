@@ -199,7 +199,7 @@ ip_output(m0, opt, ro, flags, imo, inp)
 	}
 	m = m0;
 
-	KASSERT(!m || (m->m_flags & M_PKTHDR) != 0, ("ip_output: no HDR"));
+	M_ASSERTPKTHDR(m);
 #ifndef FAST_IPSEC
 	KASSERT(ro != NULL, ("ip_output: no route, proto %d",
 	    mtod(m, struct ip *)->ip_p));
