@@ -29,9 +29,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)send.2	8.2 (Berkeley) 2/21/94
+.\"     From: @(#)send.2	8.2 (Berkeley) 2/21/94
+.\"	$Id$
 .\"
-.Dd February 21, 1994
+.Dd February 15, 1995
 .Dt SEND 2
 .Os BSD 4.2
 .Sh NAME
@@ -94,8 +95,11 @@ The
 .Fa flags
 parameter may include one or more of the following:
 .Bd -literal
-#define	MSG_OOB        0x1  /* process out-of-band data */
-#define	MSG_DONTROUTE  0x4  /* bypass routing, use direct interface */
+#define	MSG_OOB		0x1   /* process out-of-band data */
+#define	MSG_PEEK	0x2   /* peek at incoming message */
+#define	MSG_DONTROUTE	0x4   /* bypass routing, use direct interface */
+#define MSG_EOR		0x8   /* data completes record */
+#define	MSG_EOF		0x100 /* data completes transaction */
 .Ed
 .Pp
 The flag
@@ -107,6 +111,20 @@ data on sockets that support this notion (e.g.
 the underlying protocol must also support
 .Dq out-of-band
 data.
+.Dv MSG_EOR
+is used to indicate a record mark for protocols which support the
+concept.
+.Dv MSG_EOF
+requests that the sender side of a socket be shut down, and that an
+appropriate indication be sent at the end of the specified data;
+this flag is only implemented for
+.Dv SOCK_STREAM
+sockets in the
+.Dv PF_INET
+protocol family, and is used to implement Transaction
+.Tn TCP
+(see
+.Xr ttcp 4 ) .
 .Dv MSG_DONTROUTE
 is usually used only by diagnostic or routing programs.
 .Pp
