@@ -12,6 +12,9 @@
    GNU General Public License for more details.
 
    */
+/*
+ * $FreeBSD$
+ */
 
 /* Written by Randy Smith */
 /* Librarification by Tim Pierce */
@@ -1274,7 +1277,7 @@ read_diff (filea, fileb, output_placement)
   *ap++ = fileb;
   *ap = 0;
 
-  diffout = tmpnam(NULL);
+  diffout = (char *)cvs_temp_name();
 
   outfile_hold = outfile;
   callbacks_hold = callbacks;

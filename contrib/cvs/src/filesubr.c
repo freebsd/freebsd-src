@@ -686,6 +686,23 @@ xcmp (file1, file2)
    4.3), and as last resort tmpnam (POSIX). Reason is that tempnam and
    mktemp both allow to specify the directory in which the temporary
    file will be created.  */
+#if 1
+char *
+cvs_temp_name ()
+{
+    char *value;
+    int retval;
+
+    value = xmalloc (strlen (Tmpdir) + 40);
+    sprintf (value, "%s/%s", Tmpdir, "cvsXXXXXX");
+    retval = mkstemp (value);
+
+    if (retval == -1)
+	error (1, errno, "cannot generate temporary filename");
+    close (retval);
+    return value;
+}
+#else
 #ifdef HAVE_TEMPNAM
 char *
 cvs_temp_name ()
@@ -724,6 +741,7 @@ cvs_temp_name ()
     return xstrdup (value);
 #  endif
 }
+#endif
 #endif
 
 /* Return non-zero iff FILENAME is absolute.
