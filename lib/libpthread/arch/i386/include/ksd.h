@@ -50,22 +50,7 @@ struct kse;
 /*
  * Evaluates to the value of the per-kse variable name.
  */
-#define	__KSD_GET_PTR(name) ({					\
-	void *__result;						\
-								\
-	u_int __i;						\
-	__asm __volatile("movl %%gs:%1, %0"			\
-	    : "=r" (__i)					\
-	    : "m" (*(u_int *)(__ksd_offset(name))));		\
-	__result = (void *)__i;					\
-								\
-	__result;						\
-})
-
-/*
- * Evaluates to the value of the per-kse variable name.
- */
-#define	__KSD_GET32(name) ({					\
+#define	KSD_GET32(name) ({					\
 	__ksd_type(name) __result;				\
 								\
 	u_int __i;						\
@@ -80,7 +65,7 @@ struct kse;
 /*
  * Sets the value of the per-cpu variable name to value val.
  */
-#define	__KSD_SET32(name, val) ({				\
+#define	KSD_SET32(name, val) ({					\
 	__ksd_type(name) __val = (val);				\
 								\
 	u_int __i;						\
@@ -104,7 +89,7 @@ __ksd_readandclear32(volatile u_long *addr)
 	return (result);
 }
 
-#define	__KSD_READANDCLEAR32(name) ({				\
+#define	KSD_READANDCLEAR32(name) ({				\
 	__ksd_type(name) __result;				\
 								\
 	__result = (__ksd_type(name))				\
@@ -112,18 +97,12 @@ __ksd_readandclear32(volatile u_long *addr)
 	__result;						\
 })
 
-/*
- * All members of struct kse are prefixed with k_.
- */
-#define	KSD_GET_PTR(member)		__KSD_GET_PTR(k_ ## member)
-#define	KSD_SET_PTR(member, val)	__KSD_SET32(k_ ## member, val)
-#define	KSD_READANDCLEAR_PTR(member)	__KSD_READANDCLEAR32(k_ ## member)
 
-#define	_ksd_curkse()		((struct kse *)KSD_GET_PTR(mbx.km_udata))
-#define	_ksd_curthread()	KSD_GET_PTR(curthread)
-#define _ksd_set_tmbx(value)	KSD_SET_PTR(mbx.km_curthread, (void *)value)
-#define	_ksd_get_tmbx()		KSD_GET_PTR(mbx.km_curthread)
-#define	_ksd_readandclear_tmbx() KSD_READANDCLEAR_PTR(mbx.km_curthread)
+#define	_ksd_curkse()		((struct kse *)KSD_GET32(k_mbx.km_udata))
+#define	_ksd_curthread()	KSD_GET32(k_curthread)
+#define	_ksd_get_tmbx()		KSD_GET32(k_mbx.km_curthread)
+#define	_ksd_set_tmbx(value)	KSD_SET32(k_mbx.km_curthread, (void *)value);
+#define	_ksd_readandclear_tmbx() KSD_READANDCLEAR32(k_mbx.km_curthread)
 
 int	_ksd_create(struct ksd *ksd, void *base, int size);
 void	_ksd_destroy(struct ksd *ksd);
