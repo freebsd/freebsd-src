@@ -8,7 +8,7 @@ SUBDIR= disklabel dmesg dset dump dumpfs \
 	mount mount_cd9660 mount_ext2fs \
 	mount_nfs mount_null mount_portal mount_std \
 	mount_umap mount_union mountd newfs nfsd nfsiod \
-	nologin quotacheck reboot restore route routed \
+	noc-tun nologin quotacheck reboot restore route routed \
 	scsiformat shutdown slattach startslip spppcontrol tunefs \
 	umount
 
