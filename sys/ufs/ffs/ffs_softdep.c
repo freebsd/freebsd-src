@@ -52,8 +52,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)ffs_softdep.c	9.34 (McKusick) 3/1/99
- *	$Id: ffs_softdep.c,v 1.23 1999/03/02 00:19:47 mckusick Exp $
+ *	from: @(#)ffs_softdep.c	9.35 (McKusick) 5/6/99
+ *	$Id: ffs_softdep.c,v 1.24 1999/03/02 06:38:07 mckusick Exp $
  */
 
 /*
@@ -157,7 +157,10 @@ static struct malloc_type *memtype[] = {
  * Internal function prototypes.
  */
 static	void softdep_error __P((char *, int));
+static	void drain_output __P((struct vnode *, int));
 static	int getdirtybuf __P((struct buf **, int));
+static	void clear_remove __P((struct proc *));
+static	void clear_inodedeps __P((struct proc *));
 static	int flush_pagedep_deps __P((struct vnode *, struct mount *,
 	    struct diraddhd *));
 static	int flush_inodedep_deps __P((struct fs *, ino_t));
@@ -441,23 +444,34 @@ static struct workhead softdep_workitem_pending;
 static int softdep_worklist_busy;
 static int max_softdeps;	/* maximum number of structs before slowdown */
 static int tickdelay = 2;	/* number of ticks to pause during slowdown */
-static int max_limit_hit;	/* number of times slowdown imposed */
 static int rush_requests;	/* number of times I/O speeded up */
+static int blk_limit_push;	/* number of times block limit neared */
+static int ino_limit_push;	/* number of times inode limit neared */
+static int blk_limit_hit;	/* number of times block slowdown imposed */
+static int ino_limit_hit;	/* number of times inode slowdown imposed */
 static int proc_waiting;	/* tracks whether we have a timeout posted */
-static pid_t filesys_syncer_pid;/* records pid of filesystem syncer process */
+static struct proc *filesys_syncer; /* proc of filesystem syncer process */
+static int req_clear_inodedeps;	/* syncer process flush some inodedeps */
+static int req_clear_remove;	/* syncer process flush some freeblks */
 #ifdef DEBUG
 #include <vm/vm.h>
 #include <sys/sysctl.h>
 #if defined(__FreeBSD__)
 SYSCTL_INT(_debug, OID_AUTO, max_softdeps, CTLFLAG_RW, &max_softdeps, 0, "");
 SYSCTL_INT(_debug, OID_AUTO, tickdelay, CTLFLAG_RW, &tickdelay, 0, "");
-SYSCTL_INT(_debug, OID_AUTO, max_limit_hit, CTLFLAG_RW, &max_limit_hit, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, blk_limit_push, CTLFLAG_RW, &blk_limit_push, 0,"");
+SYSCTL_INT(_debug, OID_AUTO, ino_limit_push, CTLFLAG_RW, &ino_limit_push, 0,"");
+SYSCTL_INT(_debug, OID_AUTO, blk_limit_hit, CTLFLAG_RW, &blk_limit_hit, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, ino_limit_hit, CTLFLAG_RW, &ino_limit_hit, 0, "");
 SYSCTL_INT(_debug, OID_AUTO, rush_requests, CTLFLAG_RW, &rush_requests, 0, "");
 #else /* !__FreeBSD__ */
-struct ctldebug debug8 = { "max_softdeps", &max_softdeps };
-struct ctldebug debug9 = { "tickdelay", &tickdelay };
-struct ctldebug debug10 = { "max_limit_hit", &max_limit_hit };
-struct ctldebug debug11 = { "rush_requests", &rush_requests };
+struct ctldebug debug7 = { "max_softdeps", &max_softdeps };
+struct ctldebug debug8 = { "tickdelay", &tickdelay };
+struct ctldebug debug9 = { "rush_requests", &rush_requests };
+struct ctldebug debug10 = { "blk_limit_push", &blk_limit_push };
+struct ctldebug debug11 = { "ino_limit_push", &ino_limit_push };
+struct ctldebug debug12 = { "blk_limit_hit", &blk_limit_hit };
+struct ctldebug debug13 = { "ino_limit_hit", &ino_limit_hit };
 #endif	/* !__FreeBSD__ */
 
 #endif /* DEBUG */
@@ -478,11 +492,10 @@ add_to_worklist(wk)
 	if (wk->wk_state & ONWORKLIST)
 		panic("add_to_worklist: already on list");
 	wk->wk_state |= ONWORKLIST;
-	if (LIST_FIRST(&softdep_workitem_pending) == NULL) {
+	if (LIST_FIRST(&softdep_workitem_pending) == NULL)
 		LIST_INSERT_HEAD(&softdep_workitem_pending, wk, wk_list);
-	} else {
+	else
 		LIST_INSERT_AFTER(worklist_tail, wk, wk_list);
-	}
 	worklist_tail = wk;
 }
 
@@ -508,7 +521,7 @@ softdep_process_worklist(matchmnt)
 	 * Record the process identifier of our caller so that we can
 	 * give this process preferential treatment in checklimit below.
 	 */
-	filesys_syncer_pid = p->p_pid;
+	filesys_syncer = p;
 	matchcnt = 0;
 	matchfs = NULL;
 	if (matchmnt != NULL)
@@ -521,6 +534,19 @@ softdep_process_worklist(matchmnt)
 	 */
 	if (softdep_worklist_busy && matchmnt == NULL)
 		return (-1);
+	/*
+	 * If requested, try removing inode or removal dependencies.
+	 */
+	if (req_clear_inodedeps) {
+		clear_inodedeps(p);
+		req_clear_inodedeps = 0;
+		wakeup(&proc_waiting);
+	}
+	if (req_clear_remove) {
+		clear_remove(p);
+		req_clear_remove = 0;
+		wakeup(&proc_waiting);
+	}
 	ACQUIRE_LOCK(&lk);
 	while ((wk = LIST_FIRST(&softdep_workitem_pending)) != 0) {
 		WORKLIST_REMOVE(wk);
@@ -562,6 +588,19 @@ softdep_process_worklist(matchmnt)
 		}
 		if (softdep_worklist_busy && matchmnt == NULL)
 			return (-1);
+		/*
+		 * If requested, try removing inode or removal dependencies.
+		 */
+		if (req_clear_inodedeps) {
+			clear_inodedeps(p);
+			req_clear_inodedeps = 0;
+			wakeup(&proc_waiting);
+		}
+		if (req_clear_remove) {
+			clear_remove(p);
+			req_clear_remove = 0;
+			wakeup(&proc_waiting);
+		}
 		ACQUIRE_LOCK(&lk);
 	}
 	FREE_LOCK(&lk);
@@ -629,71 +668,6 @@ softdep_flushfiles(oldmnt, flags, p)
 		error = EBUSY;
 	}
 	return (error);
-}
-
-/*
- * A large burst of file addition or deletion activity can drive the
- * memory load excessively high. Therefore we deliberately slow things
- * down and speed up the I/O processing if we find ourselves with too
- * many dependencies in progress.
- */
-static int
-checklimit(resource, islocked)
-	long *resource;
-	int islocked;
-{
-	struct proc *p = CURPROC;
-
-	/*
-	 * If we are under our limit, just proceed.
-	 */
-	if (*resource < max_softdeps)
-		return (0);
-	/*
-	 * We never hold up the filesystem syncer process.
-	 */
-	if (p->p_pid == filesys_syncer_pid)
-		return (0);
-	/*
-	 * Our first approach is to speed up the syncer process.
-	 * We never push it to speed up more than half of its
-	 * normal turn time, otherwise it could take over the cpu.
-	 */
-	if (rushjob < syncdelay / 2) {
-		rushjob += 1;
-		rush_requests += 1;
-		return (0);
-	}
-	/*
-	 * Every trick has failed, so we pause momentarily to let
-	 * the filesystem syncer process catch up.
-	 */
-	if (islocked == 0)
-		ACQUIRE_LOCK(&lk);
-	if (proc_waiting == 0) {
-		proc_waiting = 1;
-		timeout(pause_timer, NULL, tickdelay > 2 ? tickdelay : 2);
-	}
-	FREE_LOCK_INTERLOCKED(&lk);
-	(void) tsleep((caddr_t)&proc_waiting, PPAUSE | PCATCH, "softupdate", 0);
-	ACQUIRE_LOCK_INTERLOCKED(&lk);
-	if (islocked == 0)
-		FREE_LOCK(&lk);
-	max_limit_hit += 1;
-	return (1);
-}
-
-/*
- * Awaken processes pausing in checklimit and clear proc_waiting
- * to indicate that there is no longer a timer running.
- */
-void
-pause_timer(arg)
-	void *arg;
-{
-
-	proc_waiting = 0;
-	wakeup(&proc_waiting);
 }
 
 /*
@@ -1659,12 +1633,7 @@ softdep_setup_freeblocks(ip, length)
 	 */
 	vp = ITOV(ip);
 	ACQUIRE_LOCK(&lk);
-	while (vp->v_numoutput) {
-		vp->v_flag |= VBWAIT;
-		FREE_LOCK_INTERLOCKED(&lk);
-		tsleep((caddr_t)&vp->v_numoutput, PRIBIO + 1, "sdsetf", 0);
-		ACQUIRE_LOCK_INTERLOCKED(&lk);
-	}
+	drain_output(vp, 1);
 	while (getdirtybuf(&TAILQ_FIRST(&vp->v_dirtyblkhd), MNT_WAIT)) {
 		bp = TAILQ_FIRST(&vp->v_dirtyblkhd);
 		(void) inodedep_lookup(fs, ip->i_number, 0, &inodedep);
@@ -2954,7 +2923,7 @@ softdep_disk_write_complete(bp)
 
 		case D_BMSAFEMAP:
 			bmsafemap = WK_BMSAFEMAP(wk);
-			while (newblk = LIST_FIRST(&bmsafemap->sm_newblkhd)) {
+			while ((newblk = LIST_FIRST(&bmsafemap->sm_newblkhd))) {
 				newblk->nb_state |= DEPCOMPLETE;
 				newblk->nb_bmsafemap = NULL;
 				LIST_REMOVE(newblk, nb_deps);
@@ -3724,7 +3693,7 @@ softdep_sync_metadata(ap)
 	 * Ensure that any direct block dependencies have been cleared.
 	 */
 	ACQUIRE_LOCK(&lk);
-	if (error = flush_inodedep_deps(VTOI(vp)->i_fs, VTOI(vp)->i_number)) {
+	if ((error = flush_inodedep_deps(VTOI(vp)->i_fs, VTOI(vp)->i_number))) {
 		FREE_LOCK(&lk);
 		return (error);
 	}
@@ -3748,13 +3717,6 @@ softdep_sync_metadata(ap)
 	waitfor = MNT_NOWAIT;
 top:
 	if (getdirtybuf(&TAILQ_FIRST(&vp->v_dirtyblkhd), MNT_WAIT) == 0) {
-		while (vp->v_numoutput) {
-			vp->v_flag |= VBWAIT;
-			FREE_LOCK_INTERLOCKED(&lk);
-			tsleep((caddr_t)&vp->v_numoutput, PRIBIO + 1,
-				"sdsynm", 0);
-			ACQUIRE_LOCK_INTERLOCKED(&lk);
-		}
 		FREE_LOCK(&lk);
 		return (0);
 	}
@@ -3914,12 +3876,7 @@ loop:
 	 * Once they are all there, proceed with the second pass
 	 * which will wait for the I/O as per above.
 	 */
-	while (vp->v_numoutput) {
-		vp->v_flag |= VBWAIT;
-		FREE_LOCK_INTERLOCKED(&lk);
-		tsleep((caddr_t)&vp->v_numoutput, PRIBIO + 1, "sdsynm", 0);
-		ACQUIRE_LOCK_INTERLOCKED(&lk);
-	}
+	drain_output(vp, 1);
 	/*
 	 * The brief unlock is to allow any pent up dependency
 	 * processing to be done.
@@ -4155,15 +4112,7 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 				vput(vp);
 				break;
 			}
-			ACQUIRE_LOCK(&lk);
-			while (vp->v_numoutput) {
-				vp->v_flag |= VBWAIT;
-				FREE_LOCK_INTERLOCKED(&lk);
-				tsleep((caddr_t)&vp->v_numoutput, PRIBIO + 1, 
-					"sdflpd", 0);
-				ACQUIRE_LOCK_INTERLOCKED(&lk);
-			}
-			FREE_LOCK(&lk);
+			drain_output(vp, 0);
 		}
 #ifdef __FreeBSD__
 		error = UFS_UPDATE(vp, 1);
@@ -4185,6 +4134,217 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 	if (error)
 		ACQUIRE_LOCK(&lk);
 	return (error);
+}
+
+/*
+ * A large burst of file addition or deletion activity can drive the
+ * memory load excessively high. Therefore we deliberately slow things
+ * down and speed up the I/O processing if we find ourselves with too
+ * many dependencies in progress.
+ */
+static int
+checklimit(resource, islocked)
+	long *resource;
+	int islocked;
+{
+	struct callout_handle handle;
+	struct proc *p = CURPROC;
+	int s;
+
+	/*
+	 * If we are under our limit, just proceed.
+	 */
+	if (*resource < max_softdeps)
+		return (0);
+	/*
+	 * We never hold up the filesystem syncer process.
+	 */
+	if (p == filesys_syncer)
+		return (0);
+	/*
+	 * Our first approach is to speed up the syncer process.
+	 * We never push it to speed up more than half of its
+	 * normal turn time, otherwise it could take over the cpu.
+	 */
+	s = splhigh();
+	if (filesys_syncer->p_wchan == &lbolt)
+		setrunnable(filesys_syncer);
+	splx(s);
+	if (rushjob < syncdelay / 2) {
+		rushjob += 1;
+		rush_requests += 1;
+		return (0);
+	}
+	/*
+	 * If we are resource constrained on inode dependencies, try
+	 * flushing some dirty inodes. Otherwise, we are constrained
+	 * by file deletions, so try accelerating flushes of directories
+	 * with removal dependencies. We would like to do the cleanup
+	 * here, but we probably hold an inode locked at this point and 
+	 * that might deadlock against one that we try to clean. So,
+	 * the best that we can do is request the syncer daemon (kick
+	 * started above) to do the cleanup for us.
+	 */
+	if (resource == &num_inodedep) {
+		ino_limit_push += 1;
+		req_clear_inodedeps = 1;
+	} else {
+		blk_limit_push += 1;
+		req_clear_remove = 1;
+	}
+	/*
+	 * Hopefully the syncer daemon will catch up and awaken us.
+	 * We wait at most tickdelay before proceeding in any case.
+	 */
+	if (islocked == 0)
+		ACQUIRE_LOCK(&lk);
+	if (proc_waiting == 0) {
+		proc_waiting = 1;
+		handle = timeout(pause_timer, NULL,
+		    tickdelay > 2 ? tickdelay : 2);
+	}
+	FREE_LOCK_INTERLOCKED(&lk);
+	(void) tsleep((caddr_t)&proc_waiting, PPAUSE | PCATCH, "softupdate", 0);
+	ACQUIRE_LOCK_INTERLOCKED(&lk);
+	if (proc_waiting) {
+		untimeout(pause_timer, NULL, handle);
+		proc_waiting = 0;
+	} else {
+		if (resource == &num_inodedep)
+			ino_limit_hit += 1;
+		else
+			blk_limit_hit += 1;
+	}
+	if (islocked == 0)
+		FREE_LOCK(&lk);
+	return (1);
+}
+
+/*
+ * Awaken processes pausing in checklimit and clear proc_waiting
+ * to indicate that there is no longer a timer running.
+ */
+void
+pause_timer(arg)
+	void *arg;
+{
+
+	proc_waiting = 0;
+	wakeup(&proc_waiting);
+}
+
+/*
+ * Flush out a directory with at least one removal dependency in an effort
+ * to reduce the number of freefile and freeblks dependency structures.
+ */
+static void
+clear_remove(p)
+	struct proc *p;
+{
+	struct pagedep_hashhead *pagedephd;
+	struct pagedep *pagedep;
+	static int next = 0;
+	struct mount *mp;
+	struct vnode *vp;
+	int error, cnt;
+	ino_t ino;
+
+	ACQUIRE_LOCK(&lk);
+	for (cnt = 0; cnt < pagedep_hash; cnt++) {
+		pagedephd = &pagedep_hashtbl[next++];
+		if (next >= pagedep_hash)
+			next = 0;
+		for (pagedep = LIST_FIRST(pagedephd); pagedep;
+		     pagedep = LIST_NEXT(pagedep, pd_hash)) {
+			if (LIST_FIRST(&pagedep->pd_dirremhd) == NULL)
+				continue;
+			mp = pagedep->pd_mnt;
+			ino = pagedep->pd_ino;
+			FREE_LOCK(&lk);
+			if ((error = VFS_VGET(mp, ino, &vp)) != 0) {
+				softdep_error("clear_remove: vget", error);
+				return;
+			}
+			if ((error = VOP_FSYNC(vp, p->p_ucred, MNT_NOWAIT, p)))
+				softdep_error("clear_remove: fsync", error);
+			drain_output(vp, 0);
+			vput(vp);
+			return;
+		}
+	}
+	FREE_LOCK(&lk);
+}
+
+/*
+ * Clear out a block of dirty inodes in an effort to reduce
+ * the number of inodedep dependency structures.
+ */
+static void
+clear_inodedeps(p)
+	struct proc *p;
+{
+	struct inodedep_hashhead *inodedephd;
+	struct inodedep *inodedep;
+	static int next = 0;
+	struct mount *mp;
+	struct vnode *vp;
+	struct fs *fs;
+	int error, cnt;
+	ino_t firstino, lastino, ino;
+
+	ACQUIRE_LOCK(&lk);
+	/*
+	 * Pick a random inode dependency to be cleared.
+	 * We will then gather up all the inodes in its block 
+	 * that have dependencies and flush them out.
+	 */
+	for (cnt = 0; cnt < inodedep_hash; cnt++) {
+		inodedephd = &inodedep_hashtbl[next++];
+		if (next >= inodedep_hash)
+			next = 0;
+		if ((inodedep = LIST_FIRST(inodedephd)) != NULL)
+			break;
+	}
+	/*
+	 * Ugly code to find mount point given pointer to superblock.
+	 */
+	fs = inodedep->id_fs;
+	for (mp = CIRCLEQ_FIRST(&mountlist); mp != (void *)&mountlist;
+	     mp = CIRCLEQ_NEXT(mp, mnt_list))
+		if ((mp->mnt_flag & MNT_SOFTDEP) && fs == VFSTOUFS(mp)->um_fs)
+			break;
+	/*
+	 * Find the last inode in the block with dependencies.
+	 */
+	firstino = inodedep->id_ino & ~(INOPB(fs) - 1);
+	for (lastino = firstino + INOPB(fs) - 1; lastino > firstino; lastino--)
+		if (inodedep_lookup(fs, lastino, 0, &inodedep) != 0)
+			break;
+	/*
+	 * Asynchronously push all but the last inode with dependencies.
+	 * Synchronously push the last inode with dependencies to ensure
+	 * that the inode block gets written to free up the inodedeps.
+	 */
+	for (ino = firstino; ino <= lastino; ino++) {
+		if (inodedep_lookup(fs, ino, 0, &inodedep) == 0)
+			continue;
+		FREE_LOCK(&lk);
+		if ((error = VFS_VGET(mp, ino, &vp)) != 0) {
+			softdep_error("clear_inodedeps: vget", error);
+			return;
+		}
+		if (ino == lastino) {
+			if ((error = VOP_FSYNC(vp, p->p_ucred, MNT_WAIT, p)))
+				softdep_error("clear_inodedeps: fsync1", error);
+		} else {
+			if ((error = VOP_FSYNC(vp, p->p_ucred, MNT_NOWAIT, p)))
+				softdep_error("clear_inodedeps: fsync2", error);
+			drain_output(vp, 0);
+		}
+		vput(vp);
+		ACQUIRE_LOCK(&lk);
+	}
+	FREE_LOCK(&lk);
 }
 
 /*
@@ -4216,6 +4376,28 @@ getdirtybuf(bpp, waitfor)
 	bremfree(bp);
 	bp->b_flags |= B_BUSY;
 	return (1);
+}
+
+/*
+ * Wait for pending output on a vnode to complete.
+ * Must be called with vnode locked.
+ */
+static void
+drain_output(vp, islocked)
+	struct vnode *vp;
+	int islocked;
+{
+
+	if (!islocked)
+		ACQUIRE_LOCK(&lk);
+	while (vp->v_numoutput) {
+		vp->v_flag |= VBWAIT;
+		FREE_LOCK_INTERLOCKED(&lk);
+		tsleep((caddr_t)&vp->v_numoutput, PRIBIO + 1, "drainvp", 0);
+		ACQUIRE_LOCK_INTERLOCKED(&lk);
+	}
+	if (!islocked)
+		FREE_LOCK(&lk);
 }
 
 /*
