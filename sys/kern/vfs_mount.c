@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_conf.c	8.8 (Berkeley) 3/31/94
- * $Id: vfs_conf.c,v 1.25 1998/06/09 12:52:33 bde Exp $
+ * $Id: vfs_conf.c,v 1.26 1998/09/14 19:56:40 sos Exp $
  */
 
 /*
@@ -52,6 +52,7 @@
  *		on SMP reentrancy
  */
 #include "opt_bootp.h"
+#include "opt_mfs.h"
 
 #include <sys/param.h>		/* dev_t (types.h)*/
 #include <sys/kernel.h>
@@ -116,9 +117,12 @@ static void
 vfs_mountrootfs(void *unused)
 {
 	struct mount		*mp;
-	int			i, err;
+	int			err;
 	struct proc		*p = curproc;	/* XXX */
+#ifndef MFS_ROOT
+	int			i;
 	dev_t			orootdev;
+#endif
 
 #ifdef BOOTP
 	bootpc_init();
@@ -136,6 +140,9 @@ vfs_mountrootfs(void *unused)
 	/*
 	 * Attempt the mount
 	 */
+#ifdef	MFS_ROOT
+	err = VFS_MOUNT(mp, NULL, NULL, NULL, p);
+#else
 	err = ENXIO;
 	orootdev = rootdev;
 	if (rootdevs[0] == NODEV)
@@ -154,6 +161,7 @@ vfs_mountrootfs(void *unused)
 		if (err != ENXIO)
 			break;
 	}
+#endif
 	if (err) {
 		/*
 		 * XXX should ask the user for the name in some cases.
