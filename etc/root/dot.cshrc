@@ -1,4 +1,4 @@
-#	$Id: dot.cshrc,v 1.10 1994/09/19 07:01:35 pst Exp $
+#	$Id: dot.cshrc,v 1.11 1994/09/22 08:23:02 rgrimes Exp $
 #
 alias mail Mail
 set history=1000
@@ -6,7 +6,7 @@ set savehist=1000
 set path=(/sbin /usr/sbin /bin /usr/bin /usr/local/bin)
 
 # directory stuff: cdpath/cd/back
-set cdpath=(/sys/{i386,} /usr/src/{bin,sbin,usr.{bin,sbin},lib,libexec,share,contrib,etc,games,gnu,include,})
+# set cdpath=(/sys/{i386,} /usr/src/{bin,sbin,usr.{bin,sbin},lib,libexec,share,contrib,etc,games,gnu,include,})
 alias	cd	'set old=$cwd; chdir \!*'
 alias	h	history
 alias	j	jobs -l
