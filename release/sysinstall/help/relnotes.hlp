@@ -1,5 +1,11 @@
                                  RELEASE NOTES
-                             FreeBSD Release 2.1.5
+                           FreeBSD Release 2.1.5 GAMMA
+
+0. What's new since 2.1-960627-SNAP?
+------------------------------------
+A few decidedly fatal kernel bugs were found, the installation has
+had a change or two made to it based on initial feedback, more
+general fixes merged over from 2.2.
 
 
 1. What's New since 2.1.0-RELEASE?
@@ -15,8 +21,9 @@ Support for the Adaptec AIC7850 on-board SCSI adapter.
 
 Support for Specialix SI and XIO serial cards.
 
-Support for the Stallion EasyIO, EasyConnection 8/32 and EasyConnection 8/64,
-as well as the older Onboard and Brumby serial cards.
+Support for the Stallion EasyIO, EasyConnection 8/32 and
+EasyConnection 8/64, as well as the older Onboard and Brumby serial
+cards.
 
 Support for the Intel EtherExpress Pro/100B PCI ethernet card.
 
@@ -30,8 +37,8 @@ Better support for the Matrox Meteor frame grabber card.
 
 Support for the Connectix Quickcam.
 
-Worm driver - it is now possible to burn CDROMs using the Plasmon or HP 4080i
-CDR drives (see `wormcontrol(1)').
+Worm driver - it is now possible to burn CDROMs using the Plasmon or
+HP 4080i CDR drives (see `wormcontrol(1)').
 
 
 Kernel features:
@@ -512,4 +519,4 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.1.2.21 1996/06/30 23:31:05 jkh Exp $
+$Id: relnotes.hlp,v 1.1.2.22 1996/07/05 01:24:12 jkh Exp $
