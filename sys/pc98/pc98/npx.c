@@ -132,7 +132,7 @@ static	void	npx_intr	__P((void *));
 #endif
 static	int	npx_probe	__P((device_t dev));
 static	int	npx_probe1	__P((device_t dev));
-#ifdef I586_CPU
+#ifdef I586_CPU_XXX
 static	long	timezero	__P((const char *funcname,
 				     void (*func)(void *buf, size_t len)));
 #endif /* I586_CPU */
@@ -957,7 +957,7 @@ timezero(funcname, func)
 	if (usec <= 0)
 		usec = 1;
 	if (bootverbose)
-		printf("%s bandwidth = %lu kBps\n", funcname,
+		printf("%s bandwidth = %u kBps\n", funcname,
 		    (u_int32_t)(((BUFSIZE >> 10) * 1000000) / usec));
 	free(buf, M_TEMP);
 	return (usec);
