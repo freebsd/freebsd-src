@@ -90,7 +90,6 @@ _set_curthread(ucontext_t *uc, struct pthread *thr, int *err)
 	union descriptor desc;
 	void **ldt_entry;
 	int ldt_index;
-	int error;
 
 	*err = 0;
 
@@ -128,7 +127,6 @@ _set_curthread(ucontext_t *uc, struct pthread *thr, int *err)
 	 * what the gs register will point to.
 	 */
 	*ldt_entry = (void *)thr;
-	ldt_index = LDT_INDEX(ldt_entry);
 
 	bzero(&desc, sizeof(desc));
 
@@ -147,9 +145,10 @@ _set_curthread(ucontext_t *uc, struct pthread *thr, int *err)
 	desc.sd.sd_gran = 0;
 	desc.sd.sd_hibase = (unsigned int)ldt_entry >> 24;
 
-	error = i386_set_ldt(ldt_index, &desc, 1);
-	if (error == -1)
-		abort(); 
+	/* Get a slot from the process' LDT list */
+	ldt_index = i386_set_ldt(LDT_AUTO_ALLOC, &desc, 1);
+	if (ldt_index == -1)
+		abort();
 
 	/*
 	 * Set up our gs with the index into the ldt for this entry.
