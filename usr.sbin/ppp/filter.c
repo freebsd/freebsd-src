@@ -153,6 +153,9 @@ ParsePort(const char *service, int proto)
   int port;
 
   switch (proto) {
+  case P_IPIP:
+    protocol_name = "ipip";
+    break;
   case P_UDP:
     protocol_name = "udp";
     break;
@@ -483,6 +486,9 @@ Parse(struct ipcp *ipcp, int argc, char const *const *argv,
   case P_UDP:
     val = ParseUdpOrTcp(argc, argv, P_UDP, &filterdata);
     break;
+  case P_IPIP:
+    val = ParseUdpOrTcp(argc, argv, P_IPIP, &filterdata);
+    break;
   case P_ICMP:
     val = ParseIcmp(argc, argv, &filterdata);
     break;
@@ -641,7 +647,7 @@ filter_Show(struct cmdargs const *arg)
 }
 
 static const char * const protoname[] = {
-  "none", "tcp", "udp", "icmp", "ospf", "igmp", "gre"
+  "none", "tcp", "udp", "icmp", "ospf", "igmp", "gre", "ipip"
 };
 
 const char *
