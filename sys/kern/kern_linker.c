@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_linker.c,v 1.10 1998/10/15 17:12:12 peter Exp $
+ *	$Id: kern_linker.c,v 1.11 1998/10/24 18:35:09 msmith Exp $
  */
 
 #include "opt_ddb.h"
@@ -523,7 +523,7 @@ kldload(struct proc* p, struct kldload_args* uap)
     if (error = copyinstr(SCARG(uap, file), filename, MAXPATHLEN, NULL))
 	goto out;
 
-    if (error = linker_load_file(uap->file, &lf))
+    if (error = linker_load_file(filename, &lf))
 	goto out;
 
     lf->userrefs++;
