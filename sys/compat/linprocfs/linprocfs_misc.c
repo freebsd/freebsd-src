@@ -83,7 +83,7 @@ extern struct 	cdevsw *cdevsw[];
 /*
  * Various conversion macros
  */
-#define T2J(x) (((x) * 100) / (stathz ? stathz : hz))	/* ticks to jiffies */
+#define T2J(x) (((x) * 100UL) / (stathz ? stathz : hz))	/* ticks to jiffies */
 #define T2S(x) ((x) / (stathz ? stathz : hz))		/* ticks to seconds */
 #define B2K(x) ((x) >> 10)				/* bytes to kbytes */
 #define B2P(x) ((x) >> PAGE_SHIFT)			/* bytes to pages */
