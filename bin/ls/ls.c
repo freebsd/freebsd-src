@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ls.c	8.5 (Berkeley) 4/2/94";
 #else
 static const char rcsid[] =
-	"$Id: ls.c,v 1.24 1999/05/08 10:20:30 kris Exp $";
+	"$Id: ls.c,v 1.25 1999/08/02 14:55:58 sheldonh Exp $";
 #endif
 #endif /* not lint */
 
@@ -57,14 +57,22 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 #include <fts.h>
+#include <limits.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <locale.h>
 
 #include "ls.h"
 #include "extern.h"
+
+/*
+ * Upward approximation of the maximum number of characters needed to
+ * represent a value of integral type t as a string, excluding the
+ * NUL terminator, with provision for a sign.
+ */
+#define STRBUF_SIZEOF(t)	(CHAR_BIT * sizeof(t) / 3 + 1)
 
 static void	 display __P((FTSENT *, FTSENT *));
 static u_quad_t	 makenines __P((u_long));
@@ -88,6 +96,7 @@ int f_listdot;			/* list files beginning with . */
 int f_longform;			/* long listing format */
 int f_nonprint;			/* show unprintables as ? */
 int f_nosort;			/* don't sort output */
+int f_notabs;			/* don't use tab-separated multi-col output */
 int f_numericonly;		/* don't convert uid/gid to name */
 int f_octal;			/* show unprintables as \xxx */
 int f_octal_escape;		/* like f_octal but use C escapes if possible */
@@ -97,7 +106,6 @@ int f_sectime;			/* print the real time for all files */
 int f_singlecol;		/* use single column output */
 int f_size;			/* list size in short listing */
 int f_statustime;		/* use time of last mode change */
-int f_notabs;			/* don't use tab-separated multi-col output */
 int f_timesort;			/* sort by time vice name */
 int f_type;			/* add type character for non-regular files */
 int f_whiteout;			/* show whiteout entries */
@@ -405,7 +413,9 @@ display(p, list)
 	char *initmax;
 	int entries, needstats;
 	char *user, *group, *flags;
-	char nuser[12], ngroup[12], buf[21];	/* 32 bits == 10 digits */
+	char buf[STRBUF_SIZEOF(u_quad_t) + 1];
+	char ngroup[STRBUF_SIZEOF(uid_t) + 1];
+	char nuser[STRBUF_SIZEOF(gid_t) + 1];
 
 	/*
 	 * If list is NULL there are two possibilities: that the parent
