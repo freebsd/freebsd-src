@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: cdrom.c,v 1.30 1996/12/12 16:55:37 jkh Exp $
+ * $Id: cdrom.c,v 1.31 1997/01/01 12:36:05 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -65,7 +65,7 @@ mediaInitCDROM(Device *dev)
     struct iso_args	args;
     Attribs *cd_attr;
     char *cp;
-    Boolean dontRead;
+    Boolean readInfo = TRUE;
 
     if (cdromMounted != CD_UNMOUNTED)
 	return TRUE;
@@ -76,7 +76,6 @@ mediaInitCDROM(Device *dev)
 
     cd_attr = alloca(sizeof(Attribs) * MAX_ATTRIBS);
     cp = NULL;
-    dontRead = FALSE;
     /* If this cdrom's not already mounted or can't be mounted, yell */
     if (!file_readable("/cdrom/cdrom.inf")) {
 	Mkdir("/cdrom");
@@ -97,15 +96,17 @@ mediaInitCDROM(Device *dev)
 			 "CD or it is an older (pre 2.1.5) FreeBSD CD which does not\n"
 			 "have a version number on it.  Do you wish to use this CD anyway?") != 0) {
 		unmount("/cdrom", MNT_FORCE);
+		cdromMounted = CD_UNMOUNTED;
 		return FALSE;
 	    }
-	    dontRead = TRUE;
+	    else
+		readInfo = FALSE;
 	}
 	cdromMounted = CD_WE_MOUNTED_IT;
     }
     else
 	cdromMounted = CD_ALREADY_MOUNTED;
-    if (!dontRead && (DITEM_STATUS(attr_parse_file(cd_attr, "/cdrom/cdrom.inf")) == DITEM_FAILURE ||
+    if (readInfo && (DITEM_STATUS(attr_parse_file(cd_attr, "/cdrom/cdrom.inf")) == DITEM_FAILURE ||
 	!(cp = attr_match(cd_attr, "CD_VERSION")) || strcmp(cp, variable_get(VAR_RELNAME)))) {
 	if (cdromMounted != CD_ALREADY_MOUNTED)
 	    unmount("/cdrom", MNT_FORCE);
@@ -117,12 +118,18 @@ mediaInitCDROM(Device *dev)
 		       "try again.");
 	else
 	    msgConfirm("Warning: The version of the FreeBSD CD currently in the drive\n"
-		       "(%s) does not match the version of this boot floppy\n"
+		       "(%s) does not match the version of the boot floppy\n"
 		       "(%s).\n\n"
-		       "If this is intentional, then please visit the Options editor\n"
-		       "to set the boot floppy version string to match that of the CD\n"
-		       "before selecting it as an installation media.", cp, variable_get(VAR_RELNAME));
-	return FALSE;
+		       "If this is intentional, to avoid this message in the future\n"
+		       "please visit the Options editor to set the boot floppy version\n"
+		       "string to match that of the CD before selecting it as your\n"
+		       "installation media.", cp, variable_get(VAR_RELNAME));
+
+	if (msgYesNo("Would you like to try and use this CDROM anyway?") != 0) {
+	    unmount("/cdrom", MNT_FORCE);
+	    cdromMounted = CD_UNMOUNTED;
+	    return FALSE;
+	}
     }
     msgDebug("Mounted FreeBSD CDROM on device %s as /cdrom\n", dev->devname);
     return TRUE;
@@ -151,8 +158,7 @@ mediaGetCDROM(Device *dev, char *file, Boolean probe)
 void
 mediaShutdownCDROM(Device *dev)
 {
-    /* Only undo it if we did it */
-    if (cdromMounted != CD_WE_MOUNTED_IT)
+    if (cdromMounted == CD_UNMOUNTED)
 	return;
     msgDebug("Unmounting %s from /cdrom\n", dev->devname);
     if (unmount("/cdrom", MNT_FORCE) != 0) {
@@ -160,7 +166,7 @@ mediaShutdownCDROM(Device *dev)
 	cdromMounted = CD_ALREADY_MOUNTED;	/* Guess somebody else got it */
     }
     else {
-	msgDebug("Unmount successful\n");
+	msgDebug("Unmount of CDROM successful\n");
 	cdromMounted = CD_UNMOUNTED;
     }
 }
