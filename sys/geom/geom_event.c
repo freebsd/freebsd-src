@@ -142,10 +142,6 @@ g_destroy_event(struct g_event *ep)
 static void
 g_do_event(struct g_event *ep)
 {
-	struct g_class *mp;
-	struct g_consumer *cp;
-	struct g_provider *pp;
-	int i;
 
 	g_trace(G_T_TOPOLOGY, "g_do_event(%p) %d - ", ep, ep->event);
 	g_topology_assert();
@@ -154,24 +150,6 @@ g_do_event(struct g_event *ep)
 		ep->func(ep->arg, 0);
 		g_topology_assert();
 		break;	
-	case EV_NEW_PROVIDER:
-		if (g_shutdown)
-			break;
-		pp = ep->ref[0];
-		g_trace(G_T_TOPOLOGY, "EV_NEW_PROVIDER(%s)", pp->name);
-		LIST_FOREACH(mp, &g_classes, class) {
-			if (mp->taste == NULL)
-				continue;
-			i = 1;
-			LIST_FOREACH(cp, &pp->consumers, consumers)
-				if(cp->geom->class == mp)
-					i = 0;
-			if (i) {
-				mp->taste(mp, pp, 0);
-				g_topology_assert();
-			}
-		}
-		break;
 	case EV_LAST:
 	default:
 		KASSERT(1 == 0, ("Unknown event %d", ep->event));
