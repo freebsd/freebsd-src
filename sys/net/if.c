@@ -36,6 +36,7 @@
 
 #include "opt_compat.h"
 #include "opt_inet6.h"
+#include "opt_inet.h"
 
 #include <sys/param.h>
 #include <sys/malloc.h>
@@ -55,9 +56,10 @@
 #include <net/radix.h>
 #include <net/route.h>
 
-#ifdef INET6
+#if defined(INET) || defined(INET6)
 /*XXX*/
 #include <netinet/in.h>
+#include <netinet/in_var.h>
 #endif
 
 /*
@@ -239,19 +241,36 @@ if_detach(ifp)
 
 	for (ifa = TAILQ_FIRST(&ifp->if_addrhead); ifa;
 	     ifa = TAILQ_FIRST(&ifp->if_addrhead)) {
+#ifdef INET
 		/* XXX: Ugly!! ad hoc just for INET */
 		if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET) {
 			struct ifaliasreq ifr;
 
 			bzero(&ifr, sizeof(ifr));
-			if (ifa->ifa_addr)
-				ifr.ifra_addr = *ifa->ifa_addr;
+			ifr.ifra_addr = *ifa->ifa_addr;
 			if (ifa->ifa_dstaddr)
 				ifr.ifra_broadaddr = *ifa->ifa_dstaddr;
 			if (in_control(NULL, SIOCDIFADDR, (caddr_t)&ifr, ifp,
 			    NULL) == 0)
 				continue;
 		}
+#endif /* INET */
+#ifdef INET6
+		/* XXX: Ugly!! ad hoc just for INET6 */
+		if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET6) {
+			struct in6_aliasreq ifr;
+
+			bzero(&ifr, sizeof(ifr));
+			ifr.ifra_addr =
+				*((struct sockaddr_in6 *)ifa->ifa_addr);
+			if (ifa->ifa_dstaddr)
+				ifr.ifra_dstaddr =
+				    *((struct sockaddr_in6 *)ifa->ifa_dstaddr);
+			if (in6_control(NULL, SIOCDIFADDR_IN6, (caddr_t)&ifr,
+					ifp, NULL) == 0)
+				continue;
+		}
+#endif /* INET6 */
 		TAILQ_REMOVE(&ifp->if_addrhead, ifa, ifa_link);
 		IFAFREE(ifa);
 	}
