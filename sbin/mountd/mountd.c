@@ -61,7 +61,7 @@ static const char rcsid[] =
 #include <rpcsvc/mount.h>
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
-#include <nfs/nfs.h>
+#include <nfsserver/nfs.h>
 #include <ufs/ufs/ufsmount.h>
 #include <fs/msdosfs/msdosfsmount.h>
 #include <fs/ntfs/ntfsmount.h>
@@ -109,7 +109,6 @@ struct dirlist {
 /* dp_flag bits */
 #define	DP_DEFSET	0x1
 #define DP_HOSTSET	0x2
-#define DP_KERB		0x4
 
 struct exportlist {
 	struct exportlist *ex_next;
@@ -236,7 +235,7 @@ int mountdlockfd;
 /* Bits for opt_flags above */
 #define	OP_MAPROOT	0x01
 #define	OP_MAPALL	0x02
-#define	OP_KERB		0x04
+/* 0x4 free */
 #define	OP_MASK		0x08
 #define	OP_NET		0x10
 #define	OP_ALLDIRS	0x40
@@ -745,10 +744,7 @@ xdr_fhs(xdrsp, cp)
 			return (0);
 		if (!xdr_opaque(xdrsp, (caddr_t)&fhrp->fhr_fh, len))
 			return (0);
-		if (fhrp->fhr_flag & DP_KERB)
-			auth = RPCAUTH_KERB4;
-		else
-			auth = RPCAUTH_UNIX;
+		auth = RPCAUTH_UNIX;
 		len = 1;
 		if (!xdr_long(xdrsp, &len))
 			return (0);
@@ -1298,12 +1294,8 @@ hang_dirp(dp, grp, ep, flags)
 			ep->ex_defdir = dp;
 		if (grp == (struct grouplist *)NULL) {
 			ep->ex_defdir->dp_flag |= DP_DEFSET;
-			if (flags & OP_KERB)
-				ep->ex_defdir->dp_flag |= DP_KERB;
 		} else while (grp) {
 			hp = get_ht();
-			if (flags & OP_KERB)
-				hp->ht_flag |= DP_KERB;
 			hp->ht_grp = grp;
 			hp->ht_next = ep->ex_defdir->dp_hosts;
 			ep->ex_defdir->dp_hosts = hp;
@@ -1360,8 +1352,6 @@ add_dlist(dpp, newdp, grp, flags)
 		 */
 		do {
 			hp = get_ht();
-			if (flags & OP_KERB)
-				hp->ht_flag |= DP_KERB;
 			hp->ht_grp = grp;
 			hp->ht_next = dp->dp_hosts;
 			dp->dp_hosts = hp;
@@ -1369,8 +1359,6 @@ add_dlist(dpp, newdp, grp, flags)
 		} while (grp);
 	} else {
 		dp->dp_flag |= DP_DEFSET;
-		if (flags & OP_KERB)
-			dp->dp_flag |= DP_KERB;
 	}
 }
 
@@ -1538,9 +1526,6 @@ do_opt(cpp, endcpp, ep, grp, has_hostp, exflagsp, cr)
 				opt_flags |= OP_MAPALL;
 			} else
 				opt_flags |= OP_MAPROOT;
-		} else if (!strcmp(cpopt, "kerb") || !strcmp(cpopt, "k")) {
-			*exflagsp |= MNT_EXKERB;
-			opt_flags |= OP_KERB;
 		} else if (cpoptarg && (!strcmp(cpopt, "mask") ||
 		    !strcmp(cpopt, "m"))) {
 			if (get_net(cpoptarg, &grp->gr_ptr.gt_net, 1)) {
@@ -2285,10 +2270,8 @@ check_options(dp)
 
 	if (dp == (struct dirlist *)NULL)
 	    return (1);
-	if ((opt_flags & (OP_MAPROOT | OP_MAPALL)) == (OP_MAPROOT | OP_MAPALL) ||
-	    (opt_flags & (OP_MAPROOT | OP_KERB)) == (OP_MAPROOT | OP_KERB) ||
-	    (opt_flags & (OP_MAPALL | OP_KERB)) == (OP_MAPALL | OP_KERB)) {
-	    syslog(LOG_ERR, "-mapall, -maproot and -kerb mutually exclusive");
+	if ((opt_flags & (OP_MAPROOT | OP_MAPALL)) == (OP_MAPROOT | OP_MAPALL)) {
+	    syslog(LOG_ERR, "-mapall and -maproot mutually exclusive");
 	    return (1);
 	}
 	if ((opt_flags & OP_MASK) && (opt_flags & OP_NET) == 0) {

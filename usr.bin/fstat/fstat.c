@@ -71,8 +71,8 @@ static const char rcsid[] =
 #undef _KERNEL
 #include <nfs/nfsproto.h>
 #include <nfs/rpcv2.h>
-#include <nfs/nfs.h>
-#include <nfs/nfsnode.h>
+#include <nfsclient/nfs.h>
+#include <nfsclient/nfsnode.h>
 
 
 #include <vm/vm.h>
