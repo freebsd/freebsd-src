@@ -144,15 +144,15 @@ Select a
 .Ar scheme
 used to convert file names between NetWare and
 .Fx .
-Currently only
-.Ar koi2cp866
-and
-.Ar asis
-can be here.
-Please note, that scheme should be enabled at compile
-time in
-.Pa config.mk
-file.
+Supported conversion schemes are:
+.Bl -tag -width "koi2cp866A"
+.It asis
+Characters passed as is without any alteration.
+.It koi2cp866
+koi8-r <-> CP866
+.It se
+Suits for setups used in Sweden.
+.El
 .It Fl M Ar mode
 See
 .Xr ncplogin 1
