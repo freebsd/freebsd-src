@@ -29,7 +29,6 @@ __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <errno.h>
-#include <rune.h>
 #include <stdio.h>
 #include <wchar.h>
 #include "un-namespace.h"
@@ -44,7 +43,7 @@ fputws(const wchar_t * __restrict ws, FILE * __restrict fp)
 
 	/* XXX Inefficient */
 	while (*ws != '\0')
-		if (fputrune((rune_t)*ws++, fp) == EOF)
+		if (fputwc(*ws++, fp) == WEOF)
 			return (-1);
 
 	return (0);
