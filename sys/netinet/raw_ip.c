@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
- *	$Id: raw_ip.c,v 1.37.2.2 1997/03/03 09:24:38 davidg Exp $
+ *	$Id: raw_ip.c,v 1.37.2.3 1997/05/22 20:53:36 fenner Exp $
  */
 
 #include <sys/param.h>
@@ -112,7 +112,7 @@ rip_input(m, iphlen)
 
 	ripsrc.sin_addr = ip->ip_src;
 	for (inp = ripcb.lh_first; inp != NULL; inp = inp->inp_list.le_next) {
-		if (inp->inp_ip.ip_p && inp->inp_ip.ip_p != ip->ip_p)
+		if (inp->inp_ip_p && inp->inp_ip_p != ip->ip_p)
 			continue;
 		if (inp->inp_laddr.s_addr &&
                   inp->inp_laddr.s_addr != ip->ip_dst.s_addr)
@@ -185,7 +185,7 @@ rip_output(m, so, dst)
 		ip = mtod(m, struct ip *);
 		ip->ip_tos = 0;
 		ip->ip_off = 0;
-		ip->ip_p = inp->inp_ip.ip_p;
+		ip->ip_p = inp->inp_ip_p;
 		ip->ip_len = m->m_pkthdr.len;
 		ip->ip_src = inp->inp_laddr;
 		ip->ip_dst.s_addr = dst;
@@ -345,7 +345,7 @@ rip_usrreq(so, req, m, nam, control)
 		    (error = in_pcballoc(so, &ripcbinfo)))
 			break;
 		inp = (struct inpcb *)so->so_pcb;
-		inp->inp_ip.ip_p = (int)nam;
+		inp->inp_ip_p = (int)nam;
 		break;
 
 	case PRU_DISCONNECT:

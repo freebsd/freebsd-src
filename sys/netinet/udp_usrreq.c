@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
- *	$Id: udp_usrreq.c,v 1.30.2.1 1996/11/11 23:41:00 phk Exp $
+ *	$Id: udp_usrreq.c,v 1.30.2.2 1997/03/03 09:24:40 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -436,8 +436,8 @@ udp_output(inp, m, addr, control)
 		ui->ui_sum = 0xffff;
 	}
 	((struct ip *)ui)->ip_len = sizeof (struct udpiphdr) + len;
-	((struct ip *)ui)->ip_ttl = inp->inp_ip.ip_ttl;	/* XXX */
-	((struct ip *)ui)->ip_tos = inp->inp_ip.ip_tos;	/* XXX */
+	((struct ip *)ui)->ip_ttl = inp->inp_ip_ttl;	/* XXX */
+	((struct ip *)ui)->ip_tos = inp->inp_ip_tos;	/* XXX */
 	udpstat.udps_opackets++;
 	error = ip_output(m, inp->inp_options, &inp->inp_route,
 	    inp->inp_socket->so_options & (SO_DONTROUTE | SO_BROADCAST),
@@ -501,7 +501,7 @@ udp_usrreq(so, req, m, addr, control)
 		error = soreserve(so, udp_sendspace, udp_recvspace);
 		if (error)
 			break;
-		((struct inpcb *) so->so_pcb)->inp_ip.ip_ttl = ip_defttl;
+		((struct inpcb *) so->so_pcb)->inp_ip_ttl = ip_defttl;
 		break;
 
 	case PRU_DETACH:

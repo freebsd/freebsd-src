@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_subr.c,v 1.31.2.1 1997/03/03 09:24:39 davidg Exp $
+ *	$Id: tcp_subr.c,v 1.31.2.2 1997/09/16 18:37:01 joerg Exp $
  */
 
 #include "opt_tcpdebug.h"
@@ -278,7 +278,7 @@ tcp_newtcpcb(inp)
 	tp->t_rxtcur = TCPTV_RTOBASE;
 	tp->snd_cwnd = TCP_MAXWIN << TCP_MAX_WINSHIFT;
 	tp->snd_ssthresh = TCP_MAXWIN << TCP_MAX_WINSHIFT;
-	inp->inp_ip.ip_ttl = ip_defttl;
+	inp->inp_ip_ttl = ip_defttl;
 	inp->inp_ppcb = (caddr_t)tp;
 	return (tp);
 }
