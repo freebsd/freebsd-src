@@ -1411,7 +1411,9 @@ trimthenstep6:
 			tcpstat.tcps_rcvduppack++;
 			tcpstat.tcps_rcvdupbyte += tlen;
 			tcpstat.tcps_pawsdrop++;
-			goto dropafterack;
+			if (tlen)
+				goto dropafterack;
+			goto drop;
 		}
 	}
 
