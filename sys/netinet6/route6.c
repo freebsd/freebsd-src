@@ -172,8 +172,7 @@ ip6_rthdr0(m, ip6, rh0)
 
 	index = addrs - rh0->ip6r0_segleft;
 	rh0->ip6r0_segleft--;
-	/* note that ip6r0_addr does not exist in RFC2292bis */
-	nextaddr = rh0->ip6r0_addr + index;
+	nextaddr = ((struct in6_addr *)(rh0 + 1)) + index;
 
 	/*
 	 * reject invalid addresses.  be proactive about malicious use of

@@ -331,10 +331,11 @@ rip6_output(m, va_alist)
 	struct inpcb *in6p;
 	u_int	plen = m->m_pkthdr.len;
 	int error = 0;
-	struct ip6_pktopts opt, *optp = 0;
+	struct ip6_pktopts opt, *stickyopt = NULL;
 	struct ifnet *oifp = NULL;
 	int type = 0, code = 0;		/* for ICMPv6 output statistics only */
 	int priv = 0;
+	struct in6_addr *in6a;
 	va_list ap;
 
 	va_start(ap, m);
@@ -344,17 +345,21 @@ rip6_output(m, va_alist)
 	va_end(ap);
 
 	in6p = sotoin6pcb(so);
+	stickyopt = in6p->in6p_outputopts;
 
 	priv = 0;
 	if (so->so_cred->cr_uid == 0)
 		priv = 1;
 	dst = &dstsock->sin6_addr;
 	if (control) {
-		if ((error = ip6_setpktoptions(control, &opt, priv, 0)) != 0)
+		if ((error = ip6_setpktoptions(control, &opt,
+					       stickyopt, priv, 0,
+					       so->so_proto->pr_protocol))
+		    != 0) {
 			goto bad;
-		optp = &opt;
-	} else
-		optp = in6p->in6p_outputopts;
+		}
+		in6p->in6p_outputopts = &opt;
+	}
 
 	/*
 	 * For an ICMPv6 packet, we should know its type and code
@@ -393,7 +398,9 @@ rip6_output(m, va_alist)
 		 * XXX Boundary check is assumed to be already done in
 		 * ip6_setpktoptions().
 		 */
-		if (optp && (pi = optp->ip6po_pktinfo) && pi->ipi6_ifindex) {
+		if (in6p->in6p_outputopts &&
+		    (pi = in6p->in6p_outputopts->ip6po_pktinfo) &&
+		    pi->ipi6_ifindex) {
 			ip6->ip6_dst.s6_addr16[1] = htons(pi->ipi6_ifindex);
 			oifp = ifnet_byindex(pi->ipi6_ifindex);
 		} else if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst) &&
@@ -416,19 +423,16 @@ rip6_output(m, va_alist)
 	/*
 	 * Source address selection.
 	 */
-	{
-		struct in6_addr *in6a;
-
-		if ((in6a = in6_selectsrc(dstsock, optp, in6p->in6p_moptions,
-		    &in6p->in6p_route, &in6p->in6p_laddr, &error)) == 0) {
-			if (error == 0)
-				error = EADDRNOTAVAIL;
-			goto bad;
-		}
-		ip6->ip6_src = *in6a;
-		if (in6p->in6p_route.ro_rt)
-			oifp = ifnet_byindex(in6p->in6p_route.ro_rt->rt_ifp->if_index);
+	if ((in6a = in6_selectsrc(dstsock, in6p->in6p_outputopts,
+	    in6p->in6p_moptions, &in6p->in6p_route, &in6p->in6p_laddr,
+	    &error)) == 0) {
+		if (error == 0)
+			error = EADDRNOTAVAIL;
+		goto bad;
 	}
+	ip6->ip6_src = *in6a;
+	if (in6p->in6p_route.ro_rt)
+		oifp = ifnet_byindex(in6p->in6p_route.ro_rt->rt_ifp->if_index);
 	ip6->ip6_flow = (ip6->ip6_flow & ~IPV6_FLOWINFO_MASK) |
 		(in6p->in6p_flowinfo & IPV6_FLOWINFO_MASK);
 	ip6->ip6_vfc = (ip6->ip6_vfc & ~IPV6_VERSION_MASK) |
@@ -466,7 +470,7 @@ rip6_output(m, va_alist)
 		*p = in6_cksum(m, ip6->ip6_nxt, sizeof(*ip6), plen);
 	}
 
-	error = ip6_output(m, optp, &in6p->in6p_route, 0,
+	error = ip6_output(m, in6p->in6p_outputopts, &in6p->in6p_route, 0,
 			   in6p->in6p_moptions, &oifp, in6p);
 	if (so->so_proto->pr_protocol == IPPROTO_ICMPV6) {
 		if (oifp)
@@ -482,11 +486,9 @@ rip6_output(m, va_alist)
 		m_freem(m);
 
  freectl:
-	if (optp == &opt && optp->ip6po_rthdr && optp->ip6po_route.ro_rt)
-		RTFREE(optp->ip6po_route.ro_rt);
 	if (control) {
-		if (optp == &opt)
-			ip6_clearpktopts(optp, 0, -1);
+		ip6_clearpktopts(in6p->in6p_outputopts, -1);
+		in6p->in6p_outputopts = stickyopt;
 		m_freem(control);
 	}
 	return (error);

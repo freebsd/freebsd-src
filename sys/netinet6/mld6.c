@@ -125,7 +125,7 @@ mld6_init()
 	/* XXX: grotty hard coding... */
 	hbh_buf[2] = IP6OPT_PADN;	/* 2 byte padding */
 	hbh_buf[3] = 0;
-	hbh_buf[4] = IP6OPT_RTALERT;
+	hbh_buf[4] = IP6OPT_ROUTER_ALERT;
 	hbh_buf[5] = IP6OPT_RTALERT_LEN - 2;
 	bcopy((caddr_t)&rtalert_code, &hbh_buf[6], sizeof(u_int16_t));
 
