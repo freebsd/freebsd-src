@@ -134,15 +134,24 @@ unmappedaddr(struct sockaddr_in6 *sin6)
 static int
 _ftp_chkerr(int cd)
 {
-    do {
-	if (_fetch_getln(cd, &last_reply, &lr_size, &lr_length) == -1) {
-	    _fetch_syserr();
-	    return -1;
-	}
+    if (_fetch_getln(cd, &last_reply, &lr_size, &lr_length) == -1) {
+	_fetch_syserr();
+	return -1;
+    }
 #ifndef NDEBUG
-	_fetch_info("got reply '%.*s'", lr_length - 2, last_reply);
+    _fetch_info("got reply '%.*s'", lr_length - 2, last_reply);
 #endif
-    } while (isftpinfo(last_reply));
+    if (isftpinfo(last_reply)) {
+	while (!isftpreply(last_reply)) {
+	    if (_fetch_getln(cd, &last_reply, &lr_size, &lr_length) == -1) {
+		_fetch_syserr();
+		return -1;
+	    }
+#ifndef NDEBUG
+	    _fetch_info("got reply '%.*s'", lr_length - 2, last_reply);
+#endif
+	}
+    }
 
     while (lr_length && isspace(last_reply[lr_length-1]))
 	lr_length--;
