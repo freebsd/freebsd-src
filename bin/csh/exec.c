@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)exec.c	8.1 (Berkeley) 5/31/93";
 #else
 static const char rcsid[] =
-	"$Id: exec.c,v 1.7 1997/08/07 21:42:07 steve Exp $";
+	"$Id: exec.c,v 1.8 1997/12/10 22:18:22 eivind Exp $";
 #endif
 #endif /* not lint */
 
@@ -195,7 +195,7 @@ doexec(v, t)
      * We must do this AFTER any possible forking (like `foo` in glob) so that
      * this shell can still do subprocesses.
      */
-    (void) sigsetmask((sigset_t) 0);
+    (void) sigsetmask(0);
     /*
      * If no path, no words in path, or a / in the filename then restrict the
      * command search.
