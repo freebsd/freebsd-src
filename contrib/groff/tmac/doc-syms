@@ -211,6 +211,8 @@
 .as doc-str-At-V.1 " \*[doc-Tn-font-size]UNIX\*[doc-str-At]
 .ds doc-str-At-V.2 \*[doc-Tn-font-size]AT&T\*[doc-str-At] System\~V.2
 .as doc-str-At-V.2 " \*[doc-Tn-font-size]UNIX\*[doc-str-At]
+.ds doc-str-At-V.3 \*[doc-Tn-font-size]AT&T\*[doc-str-At] System\~V.3
+.as doc-str-At-V.3 " \*[doc-Tn-font-size]UNIX\*[doc-str-At]
 .ds doc-str-At-V.4 \*[doc-Tn-font-size]AT&T\*[doc-str-At] System\~V.4
 .as doc-str-At-V.4 " \*[doc-Tn-font-size]UNIX\*[doc-str-At]
 .
@@ -537,10 +539,11 @@
 .
 .\" ANSI/ISO C
 .ds doc-str-St--ansiC-89       \*[Ai] \*[doc-str-St]X\^3.159-1989
-.as doc-str-St--ansiC-89       " (\*[Lq]\)\*[Ai]\~C\*[doc-str-St]\*[Rq])
+.as doc-str-St--ansiC-89       " (\*[Lq]\)\*[Ai]\~C89\*[doc-str-St]\*[Rq])
 .als doc-str-St--ansiC doc-str-St--ansiC-89
 .ds doc-str-St--isoC           \*[doc-Tn-font-size]ISO/IEC\*[doc-str-St] 9899:1990
-.as doc-str-St--isoC           " (\*[Lq]\*[doc-Tn-font-size]ISO\~C\^89\*[doc-str-St]\*[Rq])
+.as doc-str-St--isoC           " (\*[Lq]\*[doc-Tn-font-size]ISO\~C\^90\*[doc-str-St]\*[Rq])
+.als doc-str-St--isoC-90 doc-str-St--isoC
 .ds doc-str-St--isoC-99        \*[doc-Tn-font-size]ISO/IEC\*[doc-str-St] 9899:1999
 .as doc-str-St--isoC-99        " (\*[Lq]\*[doc-Tn-font-size]ISO\~C\^99\*[doc-str-St]\*[Rq])
 .
@@ -585,7 +588,7 @@
 .as doc-str-St--xbd5           " (\*[Lq]\*[doc-Tn-font-size]XBD\*[doc-str-St]\^5\*[Rq])
 .ds doc-str-St--xcu5           \*[doc-Tn-font-size]X/Open\*[doc-str-St] Commands and Utilities Issue\~5
 .as doc-str-St--xcu5           " (\*[Lq]\*[doc-Tn-font-size]XCU\*[doc-str-St]\^5\*[Rq])
-.ds doc-str-St--xcurses4.2     \*[doc-Tn-font-size]X/Open\*[doc-str-St] Curses Issue\~4.2
+.ds doc-str-St--xcurses4.2     \*[doc-Tn-font-size]X/Open\*[doc-str-St] Curses Issue\~4, Version\~2
 .as doc-str-St--xcurses4.2     " (\*[Lq]\*[doc-Tn-font-size]XCURSES\*[doc-str-St]\^4.2\*[Rq])
 .ds doc-str-St--xns5           \*[doc-Tn-font-size]X/Open\*[doc-str-St] Networking Services Issue\~5
 .as doc-str-St--xns5           " (\*[Lq]\*[doc-Tn-font-size]XNS\*[doc-str-St]\^5\*[Rq])
@@ -595,7 +598,7 @@
 .as doc-str-St--xpg3           " (\*[Lq]\*[doc-Tn-font-size]XPG\*[doc-str-St]\^3\*[Rq])
 .ds doc-str-St--xpg4           \*[doc-Tn-font-size]X/Open\*[doc-str-St] Portability Guide Issue\~4
 .as doc-str-St--xpg4           " (\*[Lq]\*[doc-Tn-font-size]XPG\*[doc-str-St]\^4\*[Rq])
-.ds doc-str-St--xpg4.2         \*[doc-Tn-font-size]X/Open\*[doc-str-St] Portability Guide Issue\~4.2
+.ds doc-str-St--xpg4.2         \*[doc-Tn-font-size]X/Open\*[doc-str-St] Portability Guide Issue\~4, Version\~2
 .as doc-str-St--xpg4.2         " (\*[Lq]\*[doc-Tn-font-size]XPG\*[doc-str-St]\^4.2\*[Rq])
 .ds doc-str-St--xsh5           \*[doc-Tn-font-size]X/Open\*[doc-str-St] System Interfaces and Headers Issue\~5
 .as doc-str-St--xsh5           " (\*[Lq]\*[doc-Tn-font-size]XSH\*[doc-str-St]\^5\*[Rq])
@@ -673,22 +676,36 @@
 .\" NS
 .\" NS width register `Lb' defined in doc-common
 .
+.ds doc-str-Lb-libarm      ARM Architecture Library (libarm, \-larm)
 .ds doc-str-Lb-libarm32    ARM32 Architecture Library (libarm32, \-larm32)
 .ds doc-str-Lb-libc        Standard C\~Library (libc, \-lc)
+.ds doc-str-Lb-libcdk      Curses Development Kit Library (libcdk, \-lcdk)
 .ds doc-str-Lb-libcompat   Compatibility Library (libcompat, \-lcompat)
 .ds doc-str-Lb-libcrypt    Crypt Library (libcrypt, \-lcrypt)
 .ds doc-str-Lb-libcurses   Curses Library (libcurses, \-lcurses)
 .ds doc-str-Lb-libedit     Command Line Editor Library (libedit, \-ledit)
+.ds doc-str-Lb-libevent    Event Notification Library (libevent, \-levent)
+.ds doc-str-Lb-libform     Curses Form Library (libform, \-lform)
 .ds doc-str-Lb-libi386     i386 Architecture Library (libi386, \-li386)
+.ds doc-str-Lb-libintl     Internationalized Message Handling Library (libintl, \-lintl)
 .ds doc-str-Lb-libipsec    IPsec Policy Control Library (libipsec, \-lipsec)
 .ds doc-str-Lb-libkvm      Kernel Data Access Library (libkvm, \-lkvm)
 .ds doc-str-Lb-libm        Math Library (libm, \-lm)
+.ds doc-str-Lb-libm68k     m68k Architecture Library (libm68k, \-lm68k)
+.ds doc-str-Lb-libmagic    Magic Number Recognition Library (libmagic, \-lmagic)
 .ds doc-str-Lb-libmenu     Curses Menu Library (libmenu, \-lmenu)
 .ds doc-str-Lb-libossaudio OSS Audio Emulation Library (libossaudio, \-lossaudio)
+.ds doc-str-Lb-libpcap     Packet Capture Library (libpcap, \-lpcap)
+.ds doc-str-Lb-libpci      PCI Bus Access Library (libpci, \-lpci)
+.ds doc-str-Lb-libpmc      Performance Counters Library (libpmc, \-lpmc)
 .ds doc-str-Lb-libposix    \*[Px] Compatibility Library (libposix, \-lposix)
+.ds doc-str-Lb-libpthread  POSIX Threads Library (libpthread, \-lpthread)
 .ds doc-str-Lb-libresolv   DNS Resolver Library (libresolv, \-lresolv)
+.ds doc-str-Lb-librt       POSIX Real-time Library (librt, \-lrt)
 .ds doc-str-Lb-libtermcap  Termcap Access Library (libtermcap, \-ltermcap)
+.ds doc-str-Lb-libusbhid   USB Human Interface Devices Library (libusbhid, \-lusbhid)
 .ds doc-str-Lb-libutil     System Utilities Library (libutil, \-lutil)
+.ds doc-str-Lb-libx86_64   x86_64 Architecture Library (libx86_64, \-lx86_64)
 .ds doc-str-Lb-libz        Compression Library (libz, \-lz)
 .
 .de Lb
