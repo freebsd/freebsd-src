@@ -410,7 +410,7 @@ release.4:
 		  ( ( [ -f ${.CURDIR}/${MACHINE}/$${j}_crunch.conf ] && \
 		    crunchgen ${.CURDIR}/${MACHINE}/$${j}_crunch.conf ) || \
 		    ( crunchgen ${.CURDIR}/$${j}_crunch.conf ) ) && \
-		  ${MAKE} -DRELEASE_CRUNCH -f $${j}_crunch.mk subclean all \
+		  ${MAKE} -f $${j}_crunch.mk subclean all \
 		    NOCRYPT=yes "CFLAGS=${CFLAGS} -DCRUNCHED_BINARY") && \
 		mv $${j}_crunch/$${j}_crunch ${RD}/crunch/$${j} && \
 		true || { rm -rf $${j}_crunch ; false ; } ; \
