@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.123 1998/09/12 21:16:16 jkh Exp $
+#	$Id: BSD.usr.dist,v 1.124 1998/09/14 08:34:45 obrien Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -464,7 +464,7 @@
 	    zh_TW.BIG5
             ..
         ..
-/set type=dir uname=man gname=root mode=0755
+/set type=dir uname=man gname=man mode=0755
         man             uname=wheel
             cat1
             ..
