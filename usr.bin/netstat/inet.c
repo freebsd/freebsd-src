@@ -221,6 +221,7 @@ tcp_stats(off, name)
 	p(tcps_rexmttimeo, "\t%d retransmit timeout%s\n");
 	p(tcps_timeoutdrop, "\t\t%d connection%s dropped by rexmit timeout\n");
 	p(tcps_persisttimeo, "\t%d persist timeout%s\n");
+	p(tcps_persistdrop, "\t\t%d connection%s dropped by persist timeout\n");
 	p(tcps_keeptimeo, "\t%d keepalive timeout%s\n");
 	p(tcps_keepprobe, "\t\t%d keepalive probe%s sent\n");
 	p(tcps_keepdrops, "\t\t%d connection%s dropped by keepalive\n");
