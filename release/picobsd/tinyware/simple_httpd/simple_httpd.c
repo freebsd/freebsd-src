@@ -105,6 +105,7 @@ init_servconnection(void)
 /*
  * Wait here until we see an incoming http request
  */
+void
 wait_connection(void)
 {
 	int lg;
@@ -121,7 +122,8 @@ wait_connection(void)
 /*
  * Print timestamp for HTTP HEAD and GET
  */
-http_date()
+void
+http_date(void)
 {
 	time_t	tl;
 	char	buff[50];
@@ -135,6 +137,7 @@ http_date()
 /*
  * Send data to the open socket
  */
+void
 http_output(char *html)
 {
         write(con_sock, html, strlen(html));
@@ -146,6 +149,7 @@ http_output(char *html)
  * Create and write the log information to file
  * Log file format is one line per entry
  */
+void
 log_line(char *req)
 {
         char            log_buff[256];
@@ -189,6 +193,7 @@ log_line(char *req)
  * We have a connection.  Identify what type of request GET, HEAD, CGI, etc 
  * and do what needs to be done
  */
+void
 http_request()
 {
 	int             fd, lg, i; 
@@ -345,6 +350,7 @@ end_request:
  * Should satisfy simple httpd needs.  For more demanding situations
  * apache is probably a better (but much larger) choice.
  */
+int
 main(int argc, char *argv[])
 {
         extern char *optarg;
