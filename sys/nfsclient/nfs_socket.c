@@ -53,7 +53,6 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/syslog.h>
-#include <sys/tprintf.h>
 #include <sys/sysctl.h>
 #include <sys/signalvar.h>
 
@@ -1969,14 +1968,8 @@ nfs_msg(p, server, msg)
 	struct proc *p;
 	char *server, *msg;
 {
-	tpr_t tpr;
 
-	if (p)
-		tpr = tprintf_open(p);
-	else
-		tpr = NULL;
-	tprintf(tpr, "nfs server %s: %s\n", server, msg);
-	tprintf_close(tpr);
+	tprintf(p, LOG_INFO, "nfs server %s: %s\n", server, msg);
 	return (0);
 }
 
