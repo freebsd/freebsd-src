@@ -92,6 +92,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
@@ -715,7 +716,7 @@ void
 panc(char *string1, char *string2)
 {
 	printf("%s", string1);
-	Debugger(string2);
+	kdb_enter(string2);
 }
 
 void

@@ -37,12 +37,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_ddb.h"
 #include "opt_ktrace.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/condvar.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
@@ -57,9 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
 #include <sys/vmmeter.h>
-#ifdef DDB
-#include <ddb/ddb.h>
-#endif
 #ifdef KTRACE
 #include <sys/uio.h>
 #include <sys/ktrace.h>
@@ -321,16 +318,15 @@ mi_switch(int flags, struct thread *newtd)
 
 	td->td_generation++;	/* bump preempt-detect counter */
 
-#ifdef DDB
 	/*
 	 * Don't perform context switches from the debugger.
 	 */
-	if (db_active) {
+	if (kdb_active) {
 		mtx_unlock_spin(&sched_lock);
-		db_print_backtrace();
-		db_error("Context switches not allowed in the debugger");
+		kdb_backtrace();
+		kdb_reenter();
+		panic("%s: did not reenter debugger", __func__);
 	}
-#endif
 
 	/*
 	 * Check if the process exceeds its cpu resource allocation.  If
