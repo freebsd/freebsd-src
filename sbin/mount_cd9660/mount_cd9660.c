@@ -75,6 +75,7 @@ struct mntopt mopts[] = {
 	{ "gens", 0, ISOFSMNT_GENS, 1 },
 	{ "rrip", 1, ISOFSMNT_NORRIP, 1 },
 	{ "joliet", 1, ISOFSMNT_NOJOLIET, 1 },
+	{ "strictjoliet", 1, ISOFSMNT_BROKENJOLIET, 1 },
 	{ NULL }
 };
 
@@ -93,8 +94,11 @@ main(int argc, char **argv)
 	mntflags = opts = verbose = 0;
 	memset(&args, 0, sizeof args);
 	args.ssector = -1;
-	while ((ch = getopt(argc, argv, "egjo:rs:v")) != -1)
+	while ((ch = getopt(argc, argv, "begjo:rs:v")) != -1)
 		switch (ch) {
+		case 'b':
+			opts |= ISOFSMNT_BROKENJOLIET;
+			break;
 		case 'e':
 			opts |= ISOFSMNT_EXTATT;
 			break;
