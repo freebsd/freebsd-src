@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.66.4.14 1996/06/19 21:41:56 nate Exp $
+#	$Id: rc,v 1.66.4.15 1996/06/25 14:56:02 joerg Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -313,6 +313,7 @@ echo '.'
 # add your own entries or you may come to grief.
 if [ -x /sbin/ldconfig ]; then
 	_LDC=/usr/lib
+	if [ -d /usr/lib/compat ]; then _LDC="${_LDC} /usr/lib/compat" ; fi
 	if [ -d /usr/X11R6/lib ]; then _LDC="${_LDC} /usr/X11R6/lib" ; fi
 	if [ -d /usr/X386/lib ]; then _LDC="${_LDC} /usr/X386/lib" ; fi
 	if [ -d /usr/local/lib ]; then _LDC="${_LDC} /usr/local/lib" ; fi

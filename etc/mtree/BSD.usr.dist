@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.40.4.10 1996/06/25 08:40:13 jkh Exp $
+#	$Id: BSD.usr.dist,v 1.40.4.11 1996/08/10 21:59:41 rgrimes Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -14,6 +14,8 @@
     include
     ..
     lib
+	compat
+	..
     ..
     libdata
 	lint
