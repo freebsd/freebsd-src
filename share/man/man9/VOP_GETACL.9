@@ -77,14 +77,14 @@ an appropriate error code is returned.
 .Sh ERRORS
 .Bl -tag -width Er
 .It Bq Er EINVAL
-The ACL type passed is invalid for this vnode
+The ACL type passed is invalid for this vnode.
 .It Bq Er EACCES
 Permission denied
 .It Bq Er ENOMEM
 Insufficient memory available to fulfill request
 .It Bq Er EOPNOTSUPP
 The filesystem does not support
-.Fn VOP_GETACL
+.Fn VOP_GETACL .
 .El
 .Sh SEE ALSO
 .Xr acl 9 ,
