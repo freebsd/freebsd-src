@@ -78,25 +78,25 @@
  * Multicast support by Kei TANAKA <kei@pal.xerox.com>
  * Special thanks to itojun@itojun.org
  */
-#include "sn.h"
-#if NSN > 0
 
 #undef	SN_DEBUG	/* (by hosokawa) */
 
 #include <sys/param.h>
-#if defined(__FreeBSD__)
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#endif
 #include <sys/errno.h>
 #include <sys/sockio.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
-#if defined(__NetBSD__)
-#include <sys/select.h>
-#endif
+
+#include <sys/module.h>
+#include <sys/bus.h>
+
+#include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/rman.h> 
 
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -120,43 +120,24 @@
 #include <net/bpf.h>
 #include <net/bpfdesc.h>
 
-#if defined(__FreeBSD__)
 #include <machine/clock.h>
-#endif
-
-#include <i386/isa/isa_device.h>
-
-/* PCCARD suport */
-#define NCARD 0
-#if NCARD > 0
-#include <sys/select.h>
-#include <sys/module.h>
-#include <pccard/cardinfo.h>
-#include <pccard/slot.h>
-#include <pccard/driver.h>
-#endif /* NCARD > 0 */
 
 #include <dev/sn/if_snreg.h>
+#include <dev/sn/if_snvar.h>
 
-/* for PCMCIA Ethernet */
-static int	sn_pccard[NSN];	/* set to 1 if it's PCMCIA card */
-static u_char	sn_pccard_macaddr[NSN][6];
-static int	sn_import_macaddr[NSN];
+/* Exported variables */
+devclass_t sn_devclass;
 
-static int snprobe __P((struct isa_device *));
-static int snattach __P((struct isa_device *));
-static int snioctl __P((struct ifnet * ifp, u_long, caddr_t));
+static int snioctl(struct ifnet * ifp, u_long, caddr_t);
 
-static int smc_probe __P((int ioaddr, int pccard));
-static void snresume __P((struct ifnet *));
+static void snresume(struct ifnet *);
 
-void sninit     __P((void *));
-static ointhand2_t snintr;
-void snread     __P((struct ifnet *));
-void snreset    __P((int));
-void snstart    __P((struct ifnet *));
-void snstop     __P((int));
-void snwatchdog __P((struct ifnet *));
+void sninit(void *);
+void snread(struct ifnet *);
+void snreset(struct sn_softc *);
+void snstart(struct ifnet *);
+void snstop(struct sn_softc *);
+void snwatchdog(struct ifnet *);
 
 static void sn_setmcast(struct sn_softc *);
 static int sn_getmcf(struct arpcom *ac, u_char *mcf);
@@ -167,152 +148,40 @@ static u_int smc_crc(u_char *);
  */
 #define SW_PAD
 
-struct sn_softc sn_softc[NSN];
+/* XXX KLUDGE XXX */
+u_char sn_pccard_macaddr[6] = { 0x00, 0x00, 0x86, 0x10, 0x2b, 0xc0 };
 
-struct isa_driver sndriver = {
-	snprobe,
-	snattach,
-	"sn",
-	0
+static const char *chip_ids[15] = {
+	NULL, NULL, NULL,
+	 /* 3 */ "SMC91C90/91C92",
+	 /* 4 */ "SMC91C94",
+	 /* 5 */ "SMC91C95",
+	NULL,
+	 /* 7 */ "SMC91C100",
+	NULL, NULL, NULL, NULL,
+	NULL, NULL, NULL
 };
 
-
-/* PCCARD Support */
-#if NCARD > 0
-/*
- *	PC-Card (PCMCIA) specific code.
- */
-static int sn_card_intr(struct pccard_devinfo *);	/* Interrupt handler */
-static void snunload(struct pccard_devinfo *);		/* Disable driver */
-static int sn_card_init(struct pccard_devinfo *);	/* init device */
-
-PCCARD_MODULE(sn,sn_card_init,snunload,sn_card_intr,0,net_imask);
-
-static int
-sn_card_init(struct pccard_devinfo *devi)
-{
-	int		unit = devi->pd_unit;
-	struct sn_softc *sc = &sn_softc[devi->pd_unit];
-
-	sn_pccard[unit] = 1;
-	sn_import_macaddr[unit] = 0;
-	if (devi->misc[0] | devi->misc[1] | devi->misc[2]) {
-		int	i;
-		for (i = 0; i < 6; i++) {
-			sn_pccard_macaddr[unit][i] = devi->misc[i];
-		}
-		sn_import_macaddr[unit] = 1;
-	}
-	sc->gone = 0;
-	/*
-	 *      validate unit number.
-	 */
-	if (unit >= NSN)
-		return ENODEV;
-	/*
-	 *	Probe the device. If a value is returned, the
-	 *	device was found at the location.
-	 */
-#ifdef	SN_DEBUG
-printf("snprobe()\n");
-#endif
-	if (snprobe(&devi->isahd)==0)
-		return ENXIO;
-#ifdef	SN_DEBUG
-printf("snattach()\n");
-#endif
-	if (snattach(&devi->isahd)==0)
-		return ENXIO;
-	/* initialize interface dynamically */
-	sc->arpcom.ac_if.if_snd.ifq_maxlen = ifqmaxlen;
-
-	return 0;
-}
-
-static void
-snunload(struct pccard_devinfo *devi)
-{
-	int		unit = devi->pd_unit;
-	struct sn_softc *sc = &sn_softc[devi->pd_unit];
-	struct ifnet   *ifp = &sc->arpcom.ac_if;
-
-	if (sc->gone) {
-		printf("sn%d: already unloaded.\n", unit);
-		return;
-	}
-
-	snstop(unit);
-	sc->gone = 1;
-	ifp->if_flags &= ~IFF_RUNNING;
-	if_down(ifp);
-	printf("sn%d: unload.\n", unit);
-}
-
-static int
-sn_card_intr(struct pccard_devinfo *devi)
-{
-	int	unit = devi->pd_unit;
-	snintr(unit);
-	return(1);
-}
-
-#endif /* NCARD > 0 */
-
-
 int
-snprobe(struct isa_device *is)
+sn_attach(device_t dev)
 {
-	/*
-	 * Device was configured with 'port ?' In this case we complain
-	 */
-	if (is->id_iobase == -1) {	/* port? */
-		printf("sn%d: SMC91Cxx cannot determine ioaddr\n", is->id_unit);
-		return 0;
-	}
-	/*
-	 * Device was configured with 'irq ?' In this case we complain
-	 */
-	if (is->id_irq == 0) {
-		printf("sn%d: SMC91Cxx cannot determine irq\n", is->id_unit);
-		return (0);
-	}
-	/*
-	 * Device was configured with 'port xxx', 'irq xx' In this case we
-	 * search for the card with that address
-	 */
-	if (smc_probe(is->id_iobase, sn_pccard[is->id_unit]) != 0)
-		return (0);
-
-	return (SMC_IO_EXTENT);
-}
-
-static int
-snattach(struct isa_device *is)
-{
-	struct sn_softc *sc = &sn_softc[is->id_unit];
+	struct sn_softc *sc = device_get_softc(dev);
 	struct ifnet   *ifp = &sc->arpcom.ac_if;
 	u_short         i;
-	int		j;
 	u_char         *p;
 	struct ifaddr  *ifa;
 	struct sockaddr_dl *sdl;
 	int             rev;
 	u_short         address;
-#if NCARD > 0
-	static int      alredy_ifatch[NSN];
-#endif
-	snstop(is->id_unit);
 
-	is->id_ointr = snintr;
+	sn_activate(dev);
 
-	/*
-	 * This is the value used for BASE
-	 */
-	sc->sn_io_addr = is->id_iobase;
+	snstop(sc);
 
+	sc->dev = dev;
 	sc->pages_wanted = -1;
 
-	printf("sn%d: ", is->id_unit);
+	device_printf(dev, " ");
 
 	SMC_SELECT_BANK(3);
 	rev = inw(BASE + REVISION_REG_W);
@@ -323,12 +192,16 @@ snattach(struct isa_device *is)
 	i = inw(BASE + CONFIG_REG_W);
 	printf(i & CR_AUI_SELECT ? "AUI" : "UTP");
 
-	if (sn_import_macaddr[is->id_unit]) {
+	if (1) {
+		/* XXX The pccard probe routine for megahearts needs to */
+		/* XXX snag this from your info 2 */
+		int j;
+
 		for (j = 0; j < 3; j++) {
 			u_short	w;
 
-			w = (u_short)sn_pccard_macaddr[is->id_unit][j * 2] | 
-				(((u_short)sn_pccard_macaddr[is->id_unit][j * 2 + 1]) << 8);
+			w = (u_short)sn_pccard_macaddr[j * 2] | 
+				(((u_short)sn_pccard_macaddr[j * 2 + 1]) << 8);
 			outw(BASE + IAR_ADDR0_REG_W + j * 2, w);
 		}
 	}
@@ -346,7 +219,7 @@ snattach(struct isa_device *is)
 	}
 	printf(" MAC address %6D\n", sc->arpcom.ac_enaddr, ":");
 	ifp->if_softc = sc;
-	ifp->if_unit = is->id_unit;
+	ifp->if_unit = device_get_unit(dev);
 	ifp->if_name = "sn";
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
@@ -355,18 +228,13 @@ snattach(struct isa_device *is)
 	ifp->if_ioctl = snioctl;
 	ifp->if_watchdog = snwatchdog;
 	ifp->if_init = sninit;
+	ifp->if_snd.ifq_maxlen = 8;
 
 	ifp->if_timer = 0;
 
-#if NCARD > 0
-	if (alredy_ifatch[is->id_unit] != 1) {
-		if_attach( ifp );
-		alredy_ifatch[is->id_unit] = 1;
-	}
-#else
 	if_attach(ifp);
-#endif
 	ether_ifattach(ifp);
+
 	/*
 	 * Fill the hardware address into ifa_addr if we find an AF_LINK
 	 * entry. We need to do this so bpf's can get the hardware addr of
@@ -387,7 +255,7 @@ snattach(struct isa_device *is)
 
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 
-	return 1;
+	return 0;
 }
 
 
@@ -397,17 +265,12 @@ snattach(struct isa_device *is)
 void
 sninit(void *xsc)
 {
-	/* register struct sn_softc *sc = &sn_softc[unit]; */
 	register struct sn_softc *sc = xsc;
 	register struct ifnet *ifp = &sc->arpcom.ac_if;
 	int             s;
 	int             flags;
 	int             mask;
 
-#if	NCARD > 0
-	if (sc->gone)
-		return;
-#endif
 	s = splimp();
 
 	/*
@@ -501,7 +364,7 @@ sninit(void *xsc)
 void
 snstart(struct ifnet *ifp)
 {
-	register struct sn_softc *sc = &sn_softc[ifp->if_unit];
+	register struct sn_softc *sc = ifp->if_softc;
 	register u_int  len;
 	register struct mbuf *m;
 	struct mbuf    *top;
@@ -511,11 +374,6 @@ snstart(struct ifnet *ifp)
 	u_short         numPages;
 	u_char          packet_no;
 	int             time_out;
-
-#if	NCARD > 0
-	if (sc->gone)
-		return;
-#endif
 
 	s = splimp();
 
@@ -553,9 +411,7 @@ startagain:
 	 * them instead?
 	 */
 	if (len + pad > ETHER_MAX_LEN - ETHER_CRC_LEN) {
-
 		printf("sn%d: large packet discarded (A)\n", ifp->if_unit);
-
 		++sc->arpcom.ac_if.if_oerrors;
 		IF_DEQUEUE(&sc->arpcom.ac_if.if_snd, m);
 		m_freem(m);
@@ -735,7 +591,7 @@ readcheck:
 static void
 snresume(struct ifnet *ifp)
 {
-	register struct sn_softc *sc = &sn_softc[ifp->if_unit];
+	register struct sn_softc *sc = ifp->if_softc;
 	register u_int  len;
 	register struct mbuf *m;
 	struct mbuf    *top;
@@ -774,9 +630,7 @@ snresume(struct ifnet *ifp)
 	 * them instead?
 	 */
 	if (len + pad > ETHER_MAX_LEN - ETHER_CRC_LEN) {
-
 		printf("sn%d: large packet discarded (B)\n", ifp->if_unit);
-
 		++sc->arpcom.ac_if.if_oerrors;
 		IF_DEQUEUE(&sc->arpcom.ac_if.if_snd, m);
 		m_freem(m);
@@ -812,13 +666,9 @@ snresume(struct ifnet *ifp)
 	 */
 	packet_no = inb(BASE + ALLOC_RESULT_REG_B);
 	if (packet_no & ARR_FAILED) {
-
 		printf("sn%d: Memory allocation failed.  Weird.\n", ifp->if_unit);
-
 		sc->arpcom.ac_if.if_timer = 1;
-
 		goto try_start;
-		return;
 	}
 	/*
 	 * We have a packet number, so tell the card to use it.
@@ -830,9 +680,7 @@ snresume(struct ifnet *ifp)
 	 * memory allocation was initiated.
 	 */
 	if (pages_wanted != numPages) {
-
 		printf("sn%d: memory allocation wrong size.  Weird.\n", ifp->if_unit);
-
 		/*
 		 * If the allocation was the wrong size we simply release the
 		 * memory once it is granted. Wait for the MMU to be un-busy.
@@ -932,10 +780,10 @@ try_start:
 
 
 void
-snintr(int unit)
+sn_intr(void *arg)
 {
 	int             status, interrupts;
-	register struct sn_softc *sc = &sn_softc[unit];
+	register struct sn_softc *sc = (struct sn_softc *) arg;
 	struct ifnet   *ifp = &sc->arpcom.ac_if;
 	int             x;
 
@@ -946,11 +794,6 @@ snintr(int unit)
 	u_char          packet_no;
 	u_short         tx_status;
 	u_short         card_stats;
-
-#if	NCARD > 0
-	if (sc->gone)
-		return;
-#endif
 
 	/*
 	 * if_ep.c did this, so I do too.  Yet if_ed.c doesn't. I wonder...
@@ -1062,7 +905,8 @@ snintr(int unit)
 		tx_status = inw(BASE + DATA_REG_W);
 
 		if (tx_status & EPHSR_TX_SUC) {
-			printf("sn%d: Successful packet caused interrupt\n", unit);
+			device_printf(sc->dev, 
+			    "Successful packet caused interrupt\n");
 		} else {
 			++sc->arpcom.ac_if.if_oerrors;
 		}
@@ -1138,7 +982,7 @@ snintr(int unit)
 	 * Some other error.  Try to fix it by resetting the adapter.
 	 */
 	if (status & IM_EPH_INT) {
-		snstop(unit);
+		snstop(sc);
 		sninit(sc);
 	}
 
@@ -1166,7 +1010,7 @@ out:
 void
 snread(register struct ifnet *ifp)
 {
-        struct sn_softc *sc = &sn_softc[ifp->if_unit];
+        struct sn_softc *sc = ifp->if_softc;
 	struct ether_header *eh;
 	struct mbuf    *m;
 	short           status;
@@ -1320,18 +1164,8 @@ out:
 static int
 snioctl(register struct ifnet *ifp, u_long cmd, caddr_t data)
 {
-	struct sn_softc *sc = &sn_softc[ifp->if_unit];
+	struct sn_softc *sc = ifp->if_softc;
 	int             s, error = 0;
-#if !defined(__FreeBSD__) || __FreeBSD_version < 300000
-	struct ifreq   *ifr = (struct ifreq *) data;
-#endif
-
-#if	NCARD > 0
-	if (sc->gone) {
-		ifp->if_flags &= ~IFF_RUNNING;
-		return ENXIO;
-	}
-#endif
 
 	s = splimp();
 
@@ -1345,7 +1179,7 @@ snioctl(register struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCSIFFLAGS:
 		if ((ifp->if_flags & IFF_UP) == 0 && ifp->if_flags & IFF_RUNNING) {
 			ifp->if_flags &= ~IFF_RUNNING;
-			snstop(ifp->if_unit);
+			snstop(sc);
 			break;
 		} else {
 			/* reinitialize card on any parameter change */
@@ -1362,32 +1196,14 @@ snioctl(register struct ifnet *ifp, u_long cmd, caddr_t data)
 #endif
 
 	case SIOCADDMULTI:
-#if defined(__FreeBSD__) && __FreeBSD_version >= 300000
 	    /* update multicast filter list. */
 	    sn_setmcast(sc);
 	    error = 0;
-#else
-	    error = ether_addmulti(ifr, &sc->arpcom);
-	    if (error == ENETRESET) {
-		/* update multicast filter list. */
-	        sn_setmcast(sc);
-		error = 0;
-	    }
-#endif
 	    break;
 	case SIOCDELMULTI:
-#if defined(__FreeBSD__) && __FreeBSD_version >= 300000
 	    /* update multicast filter list. */
 	    sn_setmcast(sc);
 	    error = 0;
-#else
-	    error = ether_delmulti(ifr, &sc->arpcom);
-	    if (error == ENETRESET) {
-		/* update multicast filter list. */
-	        sn_setmcast(sc);
-		error = 0;
-	    }
-#endif
 	    break;
 	default:
 		error = EINVAL;
@@ -1399,17 +1215,12 @@ snioctl(register struct ifnet *ifp, u_long cmd, caddr_t data)
 }
 
 void
-snreset(int unit)
+snreset(struct sn_softc *sc)
 {
 	int	s;
-	struct sn_softc *sc = &sn_softc[unit];
-
-#if NCARD > 0
-	if (sc->gone) 
-		return;
-#endif
+	
 	s = splimp();
-	snstop(unit);
+	snstop(sc);
 	sninit(sc);
 
 	splx(s);
@@ -1419,14 +1230,8 @@ void
 snwatchdog(struct ifnet *ifp)
 {
 	int	s;
-#if NCARD > 0
-	struct sn_softc *sc = &sn_softc[ifp->if_unit];
-
-	if (sc->gone)
-		return;
-#endif
 	s = splimp();
-	snintr(ifp->if_unit);
+	sn_intr(ifp->if_softc);
 	splx(s);
 }
 
@@ -1436,15 +1241,11 @@ snwatchdog(struct ifnet *ifp)
  * 3. clear the enable xmit flags
  */
 void
-snstop(int unit)
+snstop(struct sn_softc *sc)
 {
-	struct sn_softc *sc = &sn_softc[unit];
+	
 	struct ifnet   *ifp = &sc->arpcom.ac_if;
 
-#if NCARD > 0
-	if (sc->gone)
-		return;
-#endif
 	/*
 	 * Clear interrupt mask; disable all interrupts.
 	 */
@@ -1465,9 +1266,63 @@ snstop(int unit)
 }
 
 
+int
+sn_activate(device_t dev)
+{
+	struct sn_softc *sc = device_get_softc(dev);
+	int err;
+
+	sc->port_rid = 0;
+	sc->port_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->port_rid,
+	    0, ~0, SMC_IO_EXTENT, RF_ACTIVE);
+	if (!sc->port_res) {
+#ifdef SN_DEBUG
+		device_printf(dev, "Cannot allocate ioport\n");
+#endif		
+		return ENOMEM;
+	}
+
+	sc->irq_rid = 0;
+	sc->irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irq_rid, 
+	    0, ~0, 1, RF_ACTIVE);
+	if (!sc->irq_res) {
+#ifdef SN_DEBUG
+		deivce_printf(dev, "Cannot allocate irq\n");
+#endif
+		sn_deactivate(dev);
+		return ENOMEM;
+	}
+	if ((err = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET, sn_intr, sc,
+	    &sc->intrhand)) != 0) {
+		sn_deactivate(dev);
+		return err;
+	}
+	
+	sc->sn_io_addr = rman_get_start(sc->port_res);
+	return (0);
+}
+
+void
+sn_deactivate(device_t dev)
+{
+	struct sn_softc *sc = device_get_softc(dev);
+	
+	if (sc->intrhand)
+		bus_teardown_intr(dev, sc->irq_res, sc->intrhand);
+	sc->intrhand = 0;
+	if (sc->port_res)
+		bus_release_resource(dev, SYS_RES_IOPORT, sc->port_rid, 
+		    sc->port_res);
+	sc->port_res = 0;
+	if (sc->irq_res)
+		bus_release_resource(dev, SYS_RES_IRQ, sc->irq_rid, 
+		    sc->irq_res);
+	sc->irq_res = 0;
+	return;
+}
 
 /*
- * Function: smc_probe( int ioaddr, int pccard )
+ * Function: sn_probe( device_t dev, int pccard )
  *
  * Purpose:
  *      Tests to see if a given ioaddr points to an SMC9xxx chip.
@@ -1481,12 +1336,20 @@ snstop(int unit)
  *
  *
  */
-static int 
-smc_probe(int ioaddr, int pccard)
+int 
+sn_probe(device_t dev, int pccard)
 {
+	struct sn_softc *sc = device_get_softc(dev);
 	u_int           bank;
 	u_short         revision_register;
 	u_short         base_address_register;
+	u_short		ioaddr;
+	int		err;
+
+	if ((err = sn_activate(dev)) != 0)
+		return err;
+
+	ioaddr = sc->sn_io_addr;
 
 	/*
 	 * First, see if the high byte is 0x33
@@ -1494,9 +1357,9 @@ smc_probe(int ioaddr, int pccard)
 	bank = inw(ioaddr + BANK_SELECT_REG_W);
 	if ((bank & BSR_DETECT_MASK) != BSR_DETECT_VALUE) {
 #ifdef	SN_DEBUG
-printf("test1 failed\n");
+		device_printf(dev, "test1 failed\n");
 #endif
-		return -ENODEV;
+		goto error;
 	}
 	/*
 	 * The above MIGHT indicate a device, but I need to write to further
@@ -1507,9 +1370,9 @@ printf("test1 failed\n");
 	bank = inw(ioaddr + BANK_SELECT_REG_W);
 	if ((bank & BSR_DETECT_MASK) != BSR_DETECT_VALUE) {
 #ifdef	SN_DEBUG
-printf("test2 failed\n");
+		device_printf(dev, "test2 failed\n");
 #endif
-		return -ENODEV;
+		goto error;
 	}
 	/*
 	 * well, we've already written once, so hopefully another time won't
@@ -1537,10 +1400,11 @@ printf("test2 failed\n");
 		 */
 
 #ifdef	SN_DEBUG
-printf("test3 failed ioaddr = 0x%x, base_address_register = 0x%x\n",
-	ioaddr, base_address_register >> 3 & 0x3E0);
+		device_printf(dev, "test3 failed ioaddr = 0x%x, "
+		    "base_address_register = 0x%x\n", ioaddr,
+		    base_address_register >> 3 & 0x3E0);
 #endif
-		return -ENODEV;
+		goto error;
 	}
 	/*
 	 * Check if the revision register is something that I recognize.
@@ -1554,22 +1418,21 @@ printf("test3 failed ioaddr = 0x%x, base_address_register = 0x%x\n",
 		/*
 		 * I don't regonize this chip, so...
 		 */
-		/*
-		 * printf("sn: ioaddr %x unrecognized revision register:
-		 * %x\n", ioaddr, revision_register );
-		 */
-
 #ifdef	SN_DEBUG
-printf("test4 failed\n");
+		device_printf(dev, "test4 failed\n");
 #endif
-		return -ENODEV;
+		goto error;
 	}
 	/*
 	 * at this point I'll assume that the chip is an SMC9xxx. It might be
 	 * prudent to check a listing of MAC addresses against the hardware
 	 * address, or do some other tests.
 	 */
+	sn_deactivate(dev);
 	return 0;
+ error:
+	sn_deactivate(dev);
+	return ENXIO;
 }
 
 #define MCFSZ 8
@@ -1612,7 +1475,6 @@ sn_setmcast(struct sn_softc *sc)
 	outw(BASE + RECV_CONTROL_REG_W, flags);
 }
 
-#if defined(__FreeBSD__) && __FreeBSD_version >= 300000
 static int
 sn_getmcf(struct arpcom *ac, u_char *mcf)
 {
@@ -1638,36 +1500,6 @@ sn_getmcf(struct arpcom *ac, u_char *mcf)
 	}
 	return 1;  /* use multicast filter */
 }
-#else
-static int
-sn_getmcf(struct arpcom *ac, u_char *mcf)
-{
-	int i;
-	struct ether_multi *enm;
-	struct ether_multistep step;
-	u_int a, b;
-
-	bzero(mcf, MCFSZ);
-	ETHER_FIRST_MULTI(step, ac, enm);
-	while (enm) {
-		if (bcmp(enm->enm_addrlo, enm->enm_addrhi, 6) != 0) {
-			/* impossible to hash */
-			bzero(mcf, MCFSZ);
-			return 0;
-		}
-		a = smc_crc(enm->enm_addrlo) & 0x3f;
-		b = 0;
-		for (i=0; i < 6; i++) {
-			b <<= 1;
-			b |= (a & 0x01);
-			a >>= 1;
-		}
-		mcf[b >> 3] |= 1 << (b & 7);
-		ETHER_NEXT_MULTI(step, enm);
-	}
-	return 1;  /* use multicast filter */
-}
-#endif
 
 static u_int
 smc_crc(u_char *s)
@@ -1687,4 +1519,3 @@ smc_crc(u_char *s)
 	}
 	return v;
 }
-#endif

@@ -51,25 +51,6 @@
 #ifndef _IF_SNREG_H_
 #define _IF_SNREG_H_
 
-#include <net/if_arp.h>
-
-/*
- * Ethernet software status per interface.  The first element MUST
- * be the arpcom struct since the address of the arpcom struct is
- * used as a backdoor to obtain the address of this whole structure
- * in many cases.
- */
-struct sn_softc {
-	struct arpcom   arpcom;	/* Ethernet common part */
-	short           sn_io_addr;	/* i/o bus address (BASE) */
-	int             pages_wanted;	/* Size of outstanding MMU ALLOC */
-	int             intr_mask;	/* Most recently set interrupt mask */
-#if	NCARD > 0
-	int		gone;
-#endif	/* NCARD > 0 */
-};
-
-
 /*
  * Wait time for memory to be free.  This probably shouldn't be
  * tuned that much, as waiting for this means nothing else happens
@@ -356,18 +337,6 @@ struct sn_softc {
 #define CHIP_9194       4
 #define CHIP_9195       5
 #define CHIP_91100      7
-
-static const char *chip_ids[15] = {
-	NULL, NULL, NULL,
-	 /* 3 */ "SMC91C90/91C92",
-	 /* 4 */ "SMC91C94",
-	 /* 5 */ "SMC91C95",
-	NULL,
-	 /* 7 */ "SMC91C100",
-	NULL, NULL, NULL, NULL,
-	NULL, NULL, NULL
-};
-
 
 /* When packets are stuffed into the card or sucked out of the card
  * they are set up more or less as follows:
