@@ -243,13 +243,57 @@ cleanup(int sig)
 }
 
 /*
+ * Return an absolute path, additionally removing all .'s, ..'s, and extraneous
+ * /'s, as realpath() would, but without resolving symlinks, because that can
+ * potentially screw up our comparisons later.
+ */
+char *
+abspath(const char *pathname)
+{
+    char *tmp, *tmp1, *resolved_path;
+    char *cwd = NULL;
+    int len;
+
+    if (pathname[0] != '/') {
+	cwd = getcwd(NULL, MAXPATHLEN);
+	asprintf(&resolved_path, "%s/%s/", cwd, pathname);
+    } else
+	asprintf(&resolved_path, "%s/", pathname);
+
+    if (resolved_path == NULL)
+	errx(2, NULL);
+
+    if (cwd != NULL)
+	free(cwd);    
+
+    while ((tmp = strstr(resolved_path, "//")) != NULL)
+	strcpy(tmp, tmp + 1);
+ 
+    while ((tmp = strstr(resolved_path, "/./")) != NULL)
+	strcpy(tmp, tmp + 2);
+ 
+    while ((tmp = strstr(resolved_path, "/../")) != NULL) {
+	*tmp = '\0';
+	if ((tmp1 = strrchr(resolved_path, '/')) == NULL)
+	   tmp1 = resolved_path;
+	strcpy(tmp1, tmp + 3);
+    }
+
+    len = strlen(resolved_path);
+    if (len > 1 && resolved_path[len - 1] == '/')
+	resolved_path[len - 1] = '\0';
+
+    return resolved_path;
+}
+
+/*
  * Comparison to see if the path we're on matches the
  * one we are looking for.
  */
 static int
 cmp_path(const char *target, const char *current, const char *cwd) 
 {
-    char *loc, *temp;
+    char *resolved, *temp;
     int rval;
 
     asprintf(&temp, "%s/%s", cwd, current);
@@ -257,18 +301,18 @@ cmp_path(const char *target, const char *current, const char *cwd)
         errx(2, NULL);
 
     /*
-     * Make sure there's no multiple /'s, since some plists
-     * seem to have them and it could screw up our strncmp.
+     * Make sure there's no multiple /'s or other weird things in the PLIST,
+     * since some plists seem to have them and it could screw up our strncmp.
      */
-    while ((loc = strstr(temp, "//")) != NULL)
-	strcpy(loc, loc + 1);
+    resolved = abspath(temp);
 
-    if (strcmp(target, temp) == 0)
+    if (strcmp(target, resolved) == 0)
 	rval = 1;
     else
 	rval = 0;
 
     free(temp);
+    free(resolved);
     return rval;
 }
 
@@ -284,48 +328,31 @@ find_pkg(char *db_dir, struct which_head *which_list)
     struct which_entry *wp;
 
     TAILQ_FOREACH(wp, which_list, next) {
+	char *msg = "file cannot be found";
+	char *tmp;
+
+	wp->skip = TRUE;
 	/* If it's not a file, we'll see if it's an executable. */
 	if (isfile(wp->file) == FALSE) {
 	    if (strchr(wp->file, '/') == NULL) {
-		char *tmp;
 		tmp = vpipe("/usr/bin/which %s", wp->file);
-		if (tmp == NULL) {
-		    warnx("%s: file is not in PATH", wp->file);
-		    wp->skip = TRUE;
-		} else
+		if (tmp != NULL) {
 		    strlcpy(wp->file, tmp, PATH_MAX);
-		free(tmp);
-	    } else {
-		warnx("%s: file cannot be found", wp->file);
-		wp->skip = TRUE;
+		    wp->skip = FALSE;
+		    free(tmp);
+		} else
+		    msg = "file is not in PATH";
 	    }
-	} else if (wp->file[0] != '/') {
-	    /*
-	     * If it is a file, and it doesn't start with a /, then it's a 
-	     * relative path.  in order to give us some chance of getting a 
-	     * successful match, tack the current working directory on the 
-	     * beginning.  this won't work for filenames that include .. or . 
-	     * or extra /'s, but it's better than nothing).
-	     */
-	    char *curdir, *tmp;
-
-	    curdir = getcwd(NULL, PATH_MAX);
-	    if (curdir == NULL)
-		err(2, NULL);
-
-	    asprintf(&tmp, "%s/%s", curdir, wp->file);
-	    if (tmp == NULL)
-		err(2, NULL);
-
-	    if (!isfile(tmp)) {
-		warnx("%s: file cannot be found", tmp);
-		wp->skip = TRUE;
-	    } else
-		strlcpy(wp->file, tmp, PATH_MAX);
-
+	} else {
+	    tmp = abspath(wp->file);
+	    if (isfile(tmp)) {
+	    	strlcpy(wp->file, tmp, PATH_MAX);
+	    	wp->skip = FALSE;
+	    }
 	    free(tmp);
-	    free(curdir);
 	}
+	if (wp->skip == TRUE)
+	    warnx("%s: %s", wp->file, msg);
     }
 
     installed = matchinstalled(MATCH_ALL, NULL, &errcode);
