@@ -182,12 +182,12 @@ map_set(RPCB *regp, char *owner)
 	a->r_owner = strdup(owner);
 	if (!a->r_addr || !a->r_netid || !a->r_owner) {
 		if (a->r_netid)
-			free((void *) a->r_netid);
+			free(a->r_netid);
 		if (a->r_addr)
-			free((void *) a->r_addr);
+			free(a->r_addr);
 		if (a->r_owner)
-			free((void *) a->r_owner);
-		free((void *)rbl);
+			free(a->r_owner);
+		free(rbl);
 		return (FALSE);
 	}
 	rbl->rpcb_next = (rpcblist_ptr)NULL;
@@ -267,10 +267,10 @@ map_unset(RPCB *regp, char *owner)
 			list_rbl = rbl;
 		else
 			prev->rpcb_next = rbl;
-		free((void *) tmp->rpcb_map.r_addr);
-		free((void *) tmp->rpcb_map.r_netid);
-		free((void *) tmp->rpcb_map.r_owner);
-		free((void *) tmp);
+		free(tmp->rpcb_map.r_addr);
+		free(tmp->rpcb_map.r_netid);
+		free(tmp->rpcb_map.r_owner);
+		free(tmp);
 	}
 #ifdef PORTMAP
 	if (ans)
@@ -311,8 +311,10 @@ rpcbproc_getaddr_com(RPCB *regp, struct svc_req *rqstp, SVCXPRT *transp,
 	char *saddr = NULL;
 	rpcblist_ptr fnd;
 
-	if (uaddr && uaddr[0])
-		free((void *) uaddr);
+	if (uaddr != NULL && uaddr != nullstring) {
+		free(uaddr);
+		uaddr = NULL;
+	}
 	fnd = find_service(regp->r_prog, regp->r_vers, transp->xp_netid);
 	if (fnd && ((verstype == RPCB_ALLVERS) ||
 		    (regp->r_vers == fnd->rpcb_map.r_vers))) {
@@ -369,8 +371,9 @@ rpcbproc_uaddr2taddr_com(void *arg, struct svc_req *rqstp, SVCXPRT *transp,
 	static struct netbuf *taddr;
 
 	if (taddr) {
-		free((void *) taddr->buf);
-		free((void *) taddr);
+		free(taddr->buf);
+		free(taddr);
+		taddr = NULL;
 	}
 	if (((nconf = rpcbind_get_conf(transp->xp_netid)) == NULL) ||
 	    ((taddr = uaddr2taddr(nconf, *uaddrp)) == NULL)) {
@@ -401,8 +404,10 @@ rpcbproc_taddr2uaddr_com(void *arg, struct svc_req *rqstp, SVCXPRT *transp,
 		return (&uaddr);
 	}
 #endif /* CHEW_FDS */
-	if (uaddr && !uaddr[0])
-		free((void *) uaddr);
+	if (uaddr != NULL && uaddr != nullstring) {
+		free(uaddr);
+		uaddr = NULL;
+	}
 	if (((nconf = rpcbind_get_conf(transp->xp_netid)) == NULL) ||
 		((uaddr = taddr2uaddr(nconf, taddr)) == NULL)) {
 		uaddr = nullstring;
@@ -609,7 +614,7 @@ rpcbproc_callit_com(struct svc_req *rqstp, SVCXPRT *transp,
 	XDR outxdr;
 	AUTH *auth;
 	int fd = -1;
-	char *uaddr, *m_uaddr, *local_uaddr = NULL;
+	char *uaddr, *m_uaddr = NULL, *local_uaddr = NULL;
 	u_int32_t *xidp;
 	struct __rpc_sockinfo si;
 	struct sockaddr *localsa;
@@ -679,7 +684,7 @@ rpcbproc_callit_com(struct svc_req *rqstp, SVCXPRT *transp,
 			(unsigned long)a.rmt_proc, transp->xp_netid,
 			uaddr ? uaddr : "unknown");
 		if (uaddr)
-			free((void *) uaddr);
+			free(uaddr);
 	}
 #endif
 
@@ -721,16 +726,13 @@ rpcbproc_callit_com(struct svc_req *rqstp, SVCXPRT *transp,
 	if (reply_type == RPCBPROC_INDIRECT) {
 		uaddr = mergeaddr(transp, transp->xp_netid,
 			rbl->rpcb_map.r_addr, NULL);
-		if ((uaddr == (char *) NULL) || uaddr[0] == '\0') {
+		if (uaddr == NULL || uaddr[0] == '\0') {
 			svcerr_noprog(transp);
-			if (uaddr != NULL) {
-				free((void *) uaddr);
-			}
+			if (uaddr != NULL)
+				free(uaddr);
 			goto error;
 		}
-		if (uaddr != NULL) {
-			free((void *) uaddr);
-		}
+		free(uaddr);
 	}
 	nconf = rpcbind_get_conf(transp->xp_netid);
 	if (nconf == (struct netconfig *)NULL) {
@@ -761,7 +763,6 @@ rpcbproc_callit_com(struct svc_req *rqstp, SVCXPRT *transp,
 	if ((fd = find_rmtcallfd_by_netid(nconf->nc_netid)) == -1) {
 		if (reply_type == RPCBPROC_INDIRECT)
 			svcerr_systemerr(transp);
-		free((void *) m_uaddr);
 		goto error;
 	}
 	xidp = __rpcb_get_dg_xidp(transp);
@@ -779,14 +780,12 @@ rpcbproc_callit_com(struct svc_req *rqstp, SVCXPRT *transp,
 		if (debugging)
 			fprintf(stderr,
 			"rpcbproc_callit_com:  duplicate request\n");
-		free((void *) m_uaddr);
 		goto error;
 	case -1:
 		/*  forward_register failed.  Perhaps no memory. */
 		if (debugging)
 			fprintf(stderr,
 			"rpcbproc_callit_com:  forward_register failed\n");
-		free((void *) m_uaddr);
 		goto error;
 	}
 
@@ -912,13 +911,15 @@ out:
 	if (local_uaddr)
 		free(local_uaddr);
 	if (buf_alloc)
-		free((void *) buf_alloc);
+		free(buf_alloc);
 	if (outbuf_alloc)
-		free((void *) outbuf_alloc);
+		free(outbuf_alloc);
 	if (na) {
 		free(na->buf);
 		free(na);
 	}
+	if (m_uaddr != NULL)
+		free(m_uaddr);
 }
 
 /*
@@ -1035,7 +1036,7 @@ free_slot_by_index(int index)
 		/* XXX may be too big, but can't access xprt array here */
 		if (fi->forward_fd >= svc_maxfd)
 			svc_maxfd--;
-		free((void *) fi->uaddr);
+		free(fi->uaddr);
 		fi->flag &= ~FINFO_ACTIVE;
 		rpcb_rmtcalls--;
 		return (1);
@@ -1054,19 +1055,22 @@ netbufdup(struct netbuf *ap)
 {
 	struct netbuf  *np;
 
-	np = (struct netbuf *) malloc(sizeof (struct netbuf) + ap->len);
-	if (np) {
-		np->maxlen = np->len = ap->len;
-		np->buf = ((char *) np) + sizeof (struct netbuf);
-		(void) memcpy(np->buf, ap->buf, ap->len);
+	if ((np = malloc(sizeof(struct netbuf))) == NULL)
+		return (NULL);
+	if ((np->buf = malloc(ap->len)) == NULL) {
+		free(np);
+		return (NULL);
 	}
+	np->maxlen = np->len = ap->len;
+	memcpy(np->buf, ap->buf, ap->len);
 	return (np);
 }
 
 static void
 netbuffree(struct netbuf *ap)
 {
-	free((void *) ap);
+	free(ap);
+	free(ap->buf);
 }
 
 
@@ -1273,7 +1277,7 @@ handle_reply(int fd, SVCXPRT *xprt)
 			a.rmt_uaddr, uaddr ? uaddr : "unknown");
 	}
 	if (uaddr)
-		free((void *) uaddr);
+		free(uaddr);
 #endif
 	svc_sendreply(xprt, (xdrproc_t) xdr_rmtcall_result, (char *) &a);
 done:
@@ -1454,7 +1458,7 @@ del_pmaplist(RPCB *arg)
 			list_pml = pml;
 		else
 			prevpml->pml_next = pml;
-		free((void *) fnd);
+		free(fnd);
 	}
 	return (0);
 }
