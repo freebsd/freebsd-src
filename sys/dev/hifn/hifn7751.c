@@ -41,11 +41,10 @@
  *
  */
 
-#define HIFN_DEBUG
-
 /*
  * Driver for the Hifn 7751 encryption processor.
  */
+#include "opt_hifn.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -72,6 +71,10 @@
 
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
+
+#ifdef HIFN_RNDTEST
+#include <dev/rndtest/rndtest.h>
+#endif
 #include <dev/hifn/hifn7751reg.h>
 #include <dev/hifn/hifn7751var.h>
 
@@ -109,6 +112,9 @@ static devclass_t hifn_devclass;
 
 DRIVER_MODULE(hifn, pci, hifn_driver, hifn_devclass, 0, 0);
 MODULE_DEPEND(hifn, crypto, 1, 1, 1);
+#ifdef HIFN_RNDTEST
+MODULE_DEPEND(hifn, rndtest, 1, 1, 1);
+#endif
 
 static	void hifn_reset_board(struct hifn_softc *, int);
 static	void hifn_reset_puc(struct hifn_softc *);
@@ -228,6 +234,12 @@ hifn_partname(struct hifn_softc *sc)
 		return "NetSec unknown-part";
 	}
 	return "Unknown-vendor unknown-part";
+}
+
+static void
+default_harvest(struct rndtest_state *rsp, void *buf, u_int count)
+{
+	random_harvest(buf, count, count*NBBY, 0, RANDOM_PURE);
 }
 
 /*
@@ -621,6 +633,15 @@ hifn_init_pubrng(struct hifn_softc *sc)
 	u_int32_t r;
 	int i;
 
+#ifdef HIFN_RNDTEST
+	sc->sc_rndtest = rndtest_attach(sc->sc_dev);
+	if (sc->sc_rndtest)
+		sc->sc_harvest = rndtest_harvest;
+	else
+		sc->sc_harvest = default_harvest;
+#else
+	sc->sc_harvest = default_harvest;
+#endif
 	if ((sc->sc_flags & HIFN_IS_7811) == 0) {
 		/* Reset 7951 public key/rng engine */
 		WRITE_REG_1(sc, HIFN_1_PUB_RESET,
@@ -705,7 +726,8 @@ hifn_rng(void *vsc)
 			if (sc->sc_rngfirst)
 				sc->sc_rngfirst = 0;
 			else
-				random_harvest(num, RANDOM_BITS(2), RANDOM_PURE);
+				(*sc->sc_harvest)(sc->sc_rndtest,
+					num, sizeof (num));
 		}
 	} else {
 		num[0] = READ_REG_1(sc, HIFN_1_RNG_DATA);
@@ -714,7 +736,8 @@ hifn_rng(void *vsc)
 		if (sc->sc_rngfirst)
 			sc->sc_rngfirst = 0;
 		else
-			random_harvest(num, RANDOM_BITS(1), RANDOM_PURE);
+			(*sc->sc_harvest)(sc->sc_rndtest,
+				num, sizeof (num[0]));
 	}
 
 	callout_reset(&sc->sc_rngto, sc->sc_rnghz, hifn_rng, sc);

@@ -133,6 +133,8 @@ struct hifn_session {
 #define	HS_STATE_USED	1		/* allocated, but key not on card */
 #define	HS_STATE_KEY	2		/* allocated and key is on card */
 
+struct rndstate_test;
+
 /*
  * Holds data specific to a single HIFN board.
  */
@@ -171,6 +173,9 @@ struct hifn_softc {
 	struct callout		sc_tickto;	/* for managing DMA */
 	int			sc_rngfirst;
 	int			sc_rnghz;	/* RNG polling frequency */
+	struct rndtest_state	*sc_rndtest;	/* RNG test state */
+	void			(*sc_harvest)(struct rndtest_state *,
+					void *, u_int);
 	int			sc_c_busy;	/* command ring busy */
 	int			sc_s_busy;	/* source data ring busy */
 	int			sc_d_busy;	/* destination data ring busy */
