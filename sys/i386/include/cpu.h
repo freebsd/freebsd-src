@@ -68,20 +68,6 @@
 #define	CLKF_PC(framep)		((framep)->cf_eip)
 
 /*
- * Arrange to handle pending profiling ticks before returning to user mode.
- *
- * XXX this is now poorly named and implemented.  It used to handle only a
- * single tick and the PS_OWEUPC flag served as a counter.  Now there is a
- * counter in the proc table and flag isn't really necessary.
- */
-#define	need_proftick(p) do {						\
-	mtx_lock_spin(&sched_lock);					\
-	(p)->p_sflag |= PS_OWEUPC;					\
-	aston(p);							\
-	mtx_unlock_spin(&sched_lock);					\
-} while (0)
-
-/*
  * CTL_MACHDEP definitions.
  */
 #define CPU_CONSDEV		1	/* dev_t: console terminal device */

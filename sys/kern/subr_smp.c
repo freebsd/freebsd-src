@@ -150,7 +150,7 @@ forward_roundrobin(void)
 		id = gd->gd_cpuid;
 		if (id != PCPU_GET(cpuid) && (id & stopped_cpus) == 0 &&
 		    p != gd->gd_idleproc) {
-			need_resched(p);
+			p->p_sflag |= PS_NEEDRESCHED;
 			map |= id;
 		}
 	}

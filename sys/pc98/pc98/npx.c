@@ -279,7 +279,7 @@ npx_intr(dummy)
 	if (p != NULL) {
 		p->p_addr->u_pcb.pcb_flags |= PCB_NPXTRAP;
 		mtx_lock_spin(&sched_lock);
-		aston(p);
+		p->p_sflag |= PS_ASTPENDING;
 		mtx_unlock_spin(&sched_lock);
 	}
 }

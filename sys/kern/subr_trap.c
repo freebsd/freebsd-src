@@ -63,7 +63,7 @@ void
 userret(p, frame, oticks)
 	struct proc *p;
 	struct trapframe *frame;
-	u_quad_t oticks;
+	u_int oticks;
 {
 	int sig;
 
@@ -72,11 +72,11 @@ userret(p, frame, oticks)
 	while ((sig = CURSIG(p)) != 0)
 		postsig(sig);
 	mtx_unlock(&Giant);
+	PROC_UNLOCK(p);
 
 	mtx_lock_spin(&sched_lock);
-	PROC_UNLOCK_NOSWITCH(p);
 	p->p_pri.pri_level = p->p_pri.pri_user;
-	if (resched_wanted(p)) {
+	if (p->p_sflag & PS_NEEDRESCHED) {
 		/*
 		 * Since we are curproc, a clock interrupt could
 		 * change our priority without changing run queues
@@ -96,93 +96,97 @@ userret(p, frame, oticks)
 		while ((sig = CURSIG(p)) != 0)
 			postsig(sig);
 		mtx_unlock(&Giant);
-		mtx_lock_spin(&sched_lock);
-		PROC_UNLOCK_NOSWITCH(p);
-	}
+		PROC_UNLOCK(p);
+	} else
+		mtx_unlock_spin(&sched_lock);
 
 	/*
 	 * Charge system time if profiling.
 	 */
-	if (p->p_sflag & PS_PROFIL) {
-		mtx_unlock_spin(&sched_lock);
+	if (p->p_sflag & PS_PROFIL)
 		addupc_task(p, TRAPF_PC(frame),
-			    (u_int)(p->p_sticks - oticks) * psratio);
-	} else
-		mtx_unlock_spin(&sched_lock);
+			    ((u_int)p->p_sticks - oticks) * psratio);
 }
 
 /*
  * Process an asynchronous software trap.
  * This is relatively easy.
+ * This function will return with preemption disabled.
  */
 void
 ast(framep)
 	struct trapframe *framep;
 {
 	struct proc *p = CURPROC;
-	u_quad_t sticks;
+	u_int prticks, sticks;
+	critical_t s;
+	int sflag;
 #if defined(DEV_NPX) && !defined(SMP)
 	int ucode;
 #endif
 
 	KASSERT(TRAPF_USERMODE(framep), ("ast in kernel mode"));
-
-	/*
-	 * We check for a pending AST here rather than in the assembly as
-	 * acquiring and releasing mutexes in assembly is not fun.
-	 */
-	mtx_lock_spin(&sched_lock);
-	if (!(astpending(p) || resched_wanted(p))) {
-		mtx_unlock_spin(&sched_lock);
-		return;
-	}
-
-	sticks = p->p_sticks;
-	p->p_frame = framep;
-
-	astoff(p);
-	cnt.v_soft++;
-	mtx_intr_enable(&sched_lock);
-	if (p->p_sflag & PS_OWEUPC) {
-		p->p_sflag &= ~PS_OWEUPC;
-		mtx_unlock_spin(&sched_lock);
-		mtx_lock(&Giant);
-		addupc_task(p, p->p_stats->p_prof.pr_addr,
-			    p->p_stats->p_prof.pr_ticks);
-		mtx_lock_spin(&sched_lock);
-	}
-	if (p->p_sflag & PS_ALRMPEND) {
-		p->p_sflag &= ~PS_ALRMPEND;
-		mtx_unlock_spin(&sched_lock);
-		PROC_LOCK(p);
-		psignal(p, SIGVTALRM);
-		PROC_UNLOCK(p);
-		mtx_lock_spin(&sched_lock);
-	}
-#if defined(DEV_NPX) && !defined(SMP)
-	if (PCPU_GET(curpcb)->pcb_flags & PCB_NPXTRAP) {
-		PCPU_GET(curpcb)->pcb_flags &= ~PCB_NPXTRAP;
-		mtx_unlock_spin(&sched_lock);
-		ucode = npxtrap();
-		if (ucode != -1) {
-			if (!mtx_owned(&Giant))
-				mtx_lock(&Giant);
-			trapsignal(p, SIGFPE, ucode);
-		}
-		mtx_lock_spin(&sched_lock);
-	}
+#ifdef WITNESS
+	if (witness_list(p))
+		panic("Returning to user mode with mutex(s) held");
 #endif
-	if (p->p_sflag & PS_PROFPEND) {
-		p->p_sflag &= ~PS_PROFPEND;
-		mtx_unlock_spin(&sched_lock);
-		PROC_LOCK(p);
-		psignal(p, SIGPROF);
-		PROC_UNLOCK(p);
-	} else
-		mtx_unlock_spin(&sched_lock);
+	mtx_assert(&Giant, MA_NOTOWNED);
+	s = critical_enter();
+	while ((p->p_sflag & (PS_ASTPENDING | PS_NEEDRESCHED)) != 0) {
+		critical_exit(s);
+		p->p_frame = framep;
+		/*
+		 * This updates the p_sflag's for the checks below in one
+		 * "atomic" operation with turning off the astpending flag.
+		 * If another AST is triggered while we are handling the
+		 * AST's saved in sflag, the astpending flag will be set and
+		 * we will loop again.
+		 */
+		mtx_lock_spin(&sched_lock);
+		sticks = p->p_sticks;
+		sflag = p->p_sflag;
+		p->p_sflag &= ~(PS_OWEUPC | PS_ALRMPEND | PS_PROFPEND |
+		    PS_ASTPENDING);
+		cnt.v_soft++;
+		if (sflag & PS_OWEUPC) {
+			prticks = p->p_stats->p_prof.pr_ticks;
+			p->p_stats->p_prof.pr_ticks = 0;
+			mtx_unlock_spin(&sched_lock);
+			addupc_task(p, p->p_stats->p_prof.pr_addr, prticks);
+		} else
+			mtx_unlock_spin(&sched_lock);
+		if (sflag & PS_ALRMPEND) {
+			PROC_LOCK(p);
+			psignal(p, SIGVTALRM);
+			PROC_UNLOCK(p);
+		}
+#if defined(DEV_NPX) && !defined(SMP)
+		if (PCPU_GET(curpcb)->pcb_flags & PCB_NPXTRAP) {
+			atomic_clear_char(&PCPU_GET(curpcb)->pcb_flags,
+			    PCB_NPXTRAP);
+			ucode = npxtrap();
+			if (ucode != -1) {
+				mtx_lock(&Giant);
+				trapsignal(p, SIGFPE, ucode);
+			}
+		}
+#endif
+		if (sflag & PS_PROFPEND) {
+			PROC_LOCK(p);
+			psignal(p, SIGPROF);
+			PROC_UNLOCK(p);
+		}
 
-	userret(p, framep, sticks);
-
-	if (mtx_owned(&Giant))
-		mtx_unlock(&Giant);
+		userret(p, framep, sticks);
+		if (mtx_owned(&Giant))
+			mtx_unlock(&Giant);
+		s = critical_enter();
+	}
+	mtx_assert(&Giant, MA_NOTOWNED);
+	/*
+	 * We need to keep interrupts disabled so that if any further AST's
+	 * come in, the interrupt they come in on will be delayed until we
+	 * finish returning to userland.  We assume that the return to userland
+	 * will perform the equivalent of critical_exit().
+	 */
 }

@@ -422,9 +422,11 @@ addupc_intr(p, pc, ticks)
 
 	addr = prof->pr_base + i;
 	if ((v = fuswintr(addr)) == -1 || suswintr(addr, v + ticks) == -1) {
+		mtx_lock_spin(&sched_lock);
 		prof->pr_addr = pc;
 		prof->pr_ticks = ticks;
-		need_proftick(p);
+		p->p_sflag |= PS_OWEUPC | PS_ASTPENDING;
+		mtx_unlock_spin(&sched_lock);
 	}
 }
 

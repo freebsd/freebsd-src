@@ -63,7 +63,7 @@ struct pstats {
 		u_long	pr_off;		/* pc offset */
 		u_long	pr_scale;	/* pc scaling */
 		u_long	pr_addr;	/* temp storage for addr until AST */
-		u_long	pr_ticks;	/* temp storage for ticks until AST */
+		u_int	pr_ticks;	/* temp storage for ticks until AST */
 	} p_prof;
 #define	pstat_endcopy	p_start
 	struct	timeval p_start;	/* starting time */

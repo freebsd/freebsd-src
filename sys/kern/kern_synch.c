@@ -109,7 +109,7 @@ maybe_resched(p)
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	if (p->p_pri.pri_level < curproc->p_pri.pri_level)
-		need_resched(curproc);
+		curproc->p_sflag |= PS_NEEDRESCHED;
 }
 
 int 
@@ -702,7 +702,7 @@ mi_switch()
 	sched_nest = sched_lock.mtx_recurse;
 	p->p_lastcpu = p->p_oncpu;
 	p->p_oncpu = NOCPU;
-	clear_resched(p);
+	p->p_sflag &= ~PS_NEEDRESCHED;
 	cpu_switch();
 	p->p_oncpu = PCPU_GET(cpuid);
 	sched_lock.mtx_savecrit = sched_crit;

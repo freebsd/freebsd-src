@@ -174,7 +174,7 @@ trap(frame)
 	struct trapframe frame;
 {
 	struct proc *p = curproc;
-	u_quad_t sticks = 0;
+	u_int sticks = 0;
 	int i = 0, ucode = 0, type, code;
 	vm_offset_t eva;
 #ifdef POWERFAIL_NMI
@@ -225,9 +225,7 @@ restart:
 	    ((frame.tf_eflags & PSL_VM) && !in_vm86call)) {
 		/* user trap */
 
-		mtx_lock_spin(&sched_lock);
 		sticks = p->p_sticks;
-		mtx_unlock_spin(&sched_lock);
 		p->p_frame = &frame;
 
 		switch (type) {
@@ -1031,7 +1029,7 @@ syscall(frame)
 	int i;
 	struct sysent *callp;
 	struct proc *p = curproc;
-	u_quad_t sticks;
+	u_int sticks;
 	int error;
 	int narg;
 	int args[8];
@@ -1047,10 +1045,7 @@ syscall(frame)
 	}
 #endif
 
-	mtx_lock_spin(&sched_lock);
 	sticks = p->p_sticks;
-	mtx_unlock_spin(&sched_lock);
-
 	p->p_frame = &frame;
 	params = (caddr_t)frame.tf_esp + sizeof(int);
 	code = frame.tf_eax;
