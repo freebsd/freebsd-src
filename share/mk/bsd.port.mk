@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.211 1996/06/20 18:51:28 jkh Exp $
+# $Id: bsd.port.mk,v 1.212 1996/06/20 23:52:45 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -618,7 +618,7 @@ do-fetch:
 					continue 2; \
 				fi \
 			done; \
-			${ECHO_MSG} ">> Couldn't fetch it - please try to retreive this";\
+			${ECHO_MSG} ">> Couldn't fetch it - please try to retrieve this";\
 			${ECHO_MSG} ">> port manually into ${DISTDIR} and try again."; \
 			exit 1; \
 	    fi \
@@ -641,7 +641,7 @@ do-fetch:
 					continue 2; \
 				fi \
 			done; \
-			${ECHO_MSG} ">> Couldn't fetch it - please try to retreive this";\
+			${ECHO_MSG} ">> Couldn't fetch it - please try to retrieve this";\
 			${ECHO_MSG} ">> port manually into ${DISTDIR} and try again."; \
 			exit 1; \
 	    fi \
