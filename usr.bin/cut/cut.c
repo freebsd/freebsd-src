@@ -61,9 +61,10 @@ int	fflag;
 int	nflag;
 int	sflag;
 
-void	b_n_cut(FILE *, const char *);
-void	c_cut(FILE *, const char *);
-void	f_cut(FILE *, const char *);
+int	b_cut(FILE *, const char *);
+int	b_n_cut(FILE *, const char *);
+int	c_cut(FILE *, const char *);
+int	f_cut(FILE *, const char *);
 void	get_list(char *);
 void	needpos(size_t);
 static 	void usage(void);
@@ -72,7 +73,7 @@ int
 main(int argc, char *argv[])
 {
 	FILE *fp;
-	void (*fcn)(FILE *, const char *);
+	int (*fcn)(FILE *, const char *);
 	int ch, rval;
 
 	setlocale(LC_ALL, "");
@@ -80,19 +81,13 @@ main(int argc, char *argv[])
 	fcn = NULL;
 	dchar = '\t';			/* default delimiter is \t */
 
-	/*
-	 * Since we don't support multi-byte characters, the -c and -b
-	 * options are equivalent.
-	 */
 	while ((ch = getopt(argc, argv, "b:c:d:f:sn")) != -1)
 		switch(ch) {
 		case 'b':
-			fcn = c_cut;
 			get_list(optarg);
 			bflag = 1;
 			break;
 		case 'c':
-			fcn = c_cut;
 			get_list(optarg);
 			cflag = 1;
 			break;
@@ -102,7 +97,6 @@ main(int argc, char *argv[])
 			break;
 		case 'f':
 			get_list(optarg);
-			fcn = f_cut;
 			fflag = 1;
 			break;
 		case 's':
@@ -126,14 +120,18 @@ main(int argc, char *argv[])
 	else if (!bflag && nflag)
 		usage();
 
-	if (nflag)
-		fcn = b_n_cut;
+	if (fflag)
+		fcn = f_cut;
+	else if (cflag)
+		fcn = MB_CUR_MAX > 1 ? c_cut : b_cut;
+	else if (bflag)
+		fcn = nflag && MB_CUR_MAX > 1 ? b_n_cut : b_cut;
 
 	rval = 0;
 	if (*argv)
 		for (; *argv; ++argv) {
 			if (strcmp(*argv, "-") == 0)
-				fcn(stdin, "stdin");
+				rval |= fcn(stdin, "stdin");
 			else {
 				if (!(fp = fopen(*argv, "r"))) {
 					warn("%s", *argv);
@@ -145,7 +143,7 @@ main(int argc, char *argv[])
 			}
 		}
 	else
-		fcn(stdin, "stdin");
+		rval = fcn(stdin, "stdin");
 	exit(rval);
 }
 
@@ -229,12 +227,41 @@ needpos(size_t n)
 	}
 }
 
+int
+b_cut(FILE *fp, const char *fname)
+{
+	int ch, col;
+	char *pos;
+
+	ch = 0;
+	for (;;) {
+		pos = positions + 1;
+		for (col = maxval; col; --col) {
+			if ((ch = getc(fp)) == EOF)
+				return (0);
+			if (ch == '\n')
+				break;
+			if (*pos++)
+				(void)putchar(ch);
+		}
+		if (ch != '\n') {
+			if (autostop)
+				while ((ch = getc(fp)) != EOF && ch != '\n')
+					(void)putchar(ch);
+			else
+				while ((ch = getc(fp)) != EOF && ch != '\n');
+		}
+		(void)putchar('\n');
+	}
+	return (0);
+}
+
 /*
  * Cut based on byte positions, taking care not to split multibyte characters.
  * Although this function also handles the case where -n is not specified,
- * c_cut() ought to be much faster.
+ * b_cut() ought to be much faster.
  */
-void
+int
 b_n_cut(FILE *fp, const char *fname)
 {
 	size_t col, i, lbuflen;
@@ -293,37 +320,45 @@ b_n_cut(FILE *fp, const char *fname)
 		if (lbuflen > 0)
 			putchar('\n');
 	}
+	return (warned);
 }
 
-void
-c_cut(FILE *fp, const char *fname __unused)
+int
+c_cut(FILE *fp, const char *fname)
 {
-	int ch, col;
+	wint_t ch;
+	int col;
 	char *pos;
 
 	ch = 0;
 	for (;;) {
 		pos = positions + 1;
 		for (col = maxval; col; --col) {
-			if ((ch = getc(fp)) == EOF)
-				return;
+			if ((ch = getwc(fp)) == WEOF)
+				goto out;
 			if (ch == '\n')
 				break;
 			if (*pos++)
-				(void)putchar(ch);
+				(void)putwchar(ch);
 		}
 		if (ch != '\n') {
 			if (autostop)
-				while ((ch = getc(fp)) != EOF && ch != '\n')
-					(void)putchar(ch);
+				while ((ch = getwc(fp)) != WEOF && ch != '\n')
+					(void)putwchar(ch);
 			else
-				while ((ch = getc(fp)) != EOF && ch != '\n');
+				while ((ch = getwc(fp)) != WEOF && ch != '\n');
 		}
-		(void)putchar('\n');
+		(void)putwchar('\n');
 	}
+out:
+	if (ferror(fp)) {
+		warn("%s", fname);
+		return (1);
+	}
+	return (0);
 }
 
-void
+int
 f_cut(FILE *fp, const char *fname __unused)
 {
 	int ch, field, isdelim;
@@ -386,6 +421,7 @@ f_cut(FILE *fp, const char *fname __unused)
 	}
 	if (mlbuf != NULL)
 		free(mlbuf);
+	return (0);
 }
 
 static void
