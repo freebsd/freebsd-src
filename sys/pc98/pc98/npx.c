@@ -137,10 +137,6 @@ void	stop_emulating	__P((void));
 	(cpu_fxsr ? \
 		(proc)->p_addr->u_pcb.pcb_save.sv_xmm.sv_env.en_sw : \
 		(proc)->p_addr->u_pcb.pcb_save.sv_87.sv_env.en_sw)
-#define MASK_FPU_SW(proc, mask) \
-	(cpu_fxsr ? \
-		(proc)->p_addr->u_pcb.pcb_save.sv_xmm.sv_env.en_sw & (mask) : \
-		(proc)->p_addr->u_pcb.pcb_save.sv_87.sv_env.en_sw & (mask))
 #define GET_FPU_EXSW_PTR(pcb) \
 	(cpu_fxsr ? \
 		&(pcb)->pcb_save.sv_xmm.sv_ex_sw : \
@@ -150,8 +146,6 @@ void	stop_emulating	__P((void));
 	(proc->p_addr->u_pcb.pcb_save.sv_87.sv_env.en_cw)
 #define GET_FPU_SW(proc) \
 	(proc->p_addr->u_pcb.pcb_save.sv_87.sv_env.en_sw)
-#define MASK_FPU_SW(proc, mask) \
-	((proc)->p_addr->u_pcb.pcb_save.sv_87.sv_env.en_sw & (mask))
 #define GET_FPU_EXSW_PTR(pcb) \
 	(&(pcb)->pcb_save.sv_87.sv_ex_sw)
 #endif /* CPU_ENABLE_SSE */
@@ -886,7 +880,7 @@ npxtrap()
 	exstat = GET_FPU_EXSW_PTR(&curproc->p_addr->u_pcb);
 	*exstat = status;
 	if (PCPU_GET(npxproc) != curproc)
-		MASK_FPU_SW(curproc, ~0x80bf);
+		GET_FPU_SW(curproc) &= ~0x80bf;
 	else
 		fnclex();
 	critical_exit(savecrit);
