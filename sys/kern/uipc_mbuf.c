@@ -1612,11 +1612,11 @@ m_clreflimit(struct mbuf *m0, int how)
 		if ((m->m_flags & M_EXT) && (m->m_ext.ext_ref == NULL)) {
 			maxrefs = max(maxrefs,
 				mclrefcnt[mtocl(m->m_ext.ext_buf)]);
+			KASSERT(mclrefcnt[mtocl(m->m_ext.ext_buf)] > 0,
+			("m_clreflimit: bad reference count: %d",
+			 mclrefcnt[mtocl(m->m_ext.ext_buf)]));
 		}
 	}
-
-	if (maxrefs < 0)
-		panic("m_clreflimit detected a negative ref count.");
 
 	if (maxrefs < MAX_CLREFCOUNT)
 		return (m0);
