@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: adduser.perl,v 1.33 1997/07/24 17:44:46 wosch Exp $
+# $Id: adduser.perl,v 1.34 1997/07/31 15:24:37 pst Exp $
 
 
 # read variables
@@ -105,13 +105,13 @@ sub shells_read {
 	}
     }
 
-# Allow /nonexistent and /bin/date as a valid shell for system utils
+    # Allow /nonexistent and /bin/date as a valid shell for system utils
     push(@list, "/nonexistent");
-    push(@shellpref, "no");
+    push(@shellpref, "no") if !grep(/^no$/, @shellpref);
     $shell{"no"} = "/nonexistent";
 
     push(@list, "/bin/date");
-    push(@shellpref, "date");
+    push(@shellpref, "date") if !grep(/^date$/, @shellpref);
     $shell{"date"} = "/bin/date";
 
     return $err;
