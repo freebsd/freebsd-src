@@ -11,8 +11,8 @@ CFLAGS+=-DIPSEC
 #.PATH:	${.CURDIR}/../../sys/netiso
 BINGRP=	kmem
 BINMODE=2555
-DPADD=	${LIBKVM} ${LIBIPX} ${LIBNETGRAPH}
-LDADD=	-lkvm -lipx -lnetgraph
+DPADD=	${LIBKVM} ${LIBIPX} ${LIBNETGRAPH} ${LIBUTIL}
+LDADD=	-lkvm -lipx -lnetgraph -lutil
 CFLAGS+=-DINET6 -DIPSEC
 
 .include <bsd.prog.mk>

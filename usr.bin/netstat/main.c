@@ -290,7 +290,30 @@ static struct protox *name2protox __P((char *));
 static struct protox *knownname __P((char *));
 
 static kvm_t *kvmd;
-char *nlistf = NULL, *memf = NULL;
+static char *nlistf = NULL, *memf = NULL;
+
+int	Aflag;		/* show addresses of protocol control block */
+int	aflag;		/* show all sockets (including servers) */
+int	bflag;		/* show i/f total bytes in/out */
+int	dflag;		/* show i/f dropped packets */
+int	gflag;		/* show group (multicast) routing or stats */
+int	iflag;		/* show interfaces */
+int	lflag;		/* show routing table with use and ref */
+int	Lflag;		/* show size of listen queues */
+int	mflag;		/* show memory stats */
+int	nflag;		/* show addresses numerically */
+int	pflag;		/* show given protocol */
+int	rflag;		/* show routing tables (or routing stats) */
+int	sflag;		/* show protocol statistics */
+int	tflag;		/* show i/f watchdog timers */
+int	Wflag;		/* wide display */
+
+int	interval;	/* repeat interval for i/f stats */
+
+char	*interface;	/* desired i/f for stats, or NULL for all i/fs */
+int	unit;		/* unit number for above */
+
+int	af;		/* address family */
 
 int
 main(argc, argv)
@@ -302,7 +325,7 @@ main(argc, argv)
 
 	af = AF_UNSPEC;
 
-	while ((ch = getopt(argc, argv, "Aabdf:ghI:lLiM:mN:np:rstuw:")) != -1)
+	while ((ch = getopt(argc, argv, "Aabdf:ghI:lLiM:mN:np:rstuWw:")) != -1)
 		switch(ch) {
 		case 'A':
 			Aflag = 1;
@@ -401,6 +424,9 @@ main(argc, argv)
 			break;
 		case 'u':
 			af = AF_UNIX;
+			break;
+		case 'W':
+			Wflag = 1;
 			break;
 		case 'w':
 			interval = atoi(optarg);
@@ -696,39 +722,9 @@ static void
 usage()
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n",
-"usage: netstat [-AaLln] [-f address_family] [-M core] [-N system]",
+"usage: netstat [-AaLlnW] [-f address_family] [-M core] [-N system]",
 "       netstat [-abdghilmnrs] [-f address_family] [-M core] [-N system]",
 "       netstat [-bdn] [-I interface] [-M core] [-N system] [-w wait]",
 "       netstat [-M core] [-N system] [-p protocol]");
 	exit(1);
 }
-
-void
-trimdomain(cp)
-	char *cp;
-{
-	static char domain[MAXHOSTNAMELEN + 1];
-	static int first = 1;
-	char *s;
-
-	if (first) {
-		first = 0;
-		if (gethostname(domain, MAXHOSTNAMELEN) == 0 &&
-		    (s = strchr(domain, '.')))
-			(void) strcpy(domain, s + 1);
-		else
-			domain[0] = 0;
-	}
-
-	if (domain[0]) {
-		while ((cp = strchr(cp, '.'))) {
-			if (!strcasecmp(cp + 1, domain)) {
-				*cp = 0;	/* hit it */
-				break;
-			} else {
-				cp++;
-			}
-		}
-	}
-}
-
