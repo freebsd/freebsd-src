@@ -14,9 +14,10 @@ beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${TEXTMODE} \
 	    ${.CURDIR}/calendars/calendar.* ${DESTDIR}${SHAREDIR}/calendar
 .for lang in ${INTER}
+	mkdir -p ${DESTDIR}${SHAREDIR}/calendar/${lang}
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${TEXTMODE} \
 		${.CURDIR}/calendars/${lang}/calendar.* \
-		${DESTDIR}${SHAREDIR}/calendar/${lang}; 
+		${DESTDIR}${SHAREDIR}/calendar/${lang} 
 .endfor
 .for link in ${DE_LINKS}
 	rm -rf ${DESTDIR}${SHAREDIR}/calendar/${link}
