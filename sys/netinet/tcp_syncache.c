@@ -95,7 +95,8 @@ static void	 syncache_free(struct syncache *);
 static void	 syncache_insert(struct syncache *, struct syncache_head *);
 struct syncache *syncache_lookup(struct in_conninfo *, struct syncache_head **);
 static int	 syncache_respond(struct syncache *, struct mbuf *);
-static struct 	 socket *syncache_socket(struct syncache *, struct socket *);
+static struct 	 socket *syncache_socket(struct syncache *, struct socket *,
+		    struct mbuf *m);
 static void	 syncache_timer(void *);
 static u_int32_t syncookie_generate(struct syncache *);
 static struct syncache *syncookie_lookup(struct in_conninfo *,
@@ -524,9 +525,10 @@ syncache_unreach(inc, th)
  * Build a new TCP socket structure from a syncache entry.
  */
 static struct socket *
-syncache_socket(sc, lso)
+syncache_socket(sc, lso, m)
 	struct syncache *sc;
 	struct socket *lso;
+	struct mbuf *m;
 {
 	struct inpcb *inp = NULL;
 	struct socket *so;
@@ -754,7 +756,7 @@ syncache_expand(inc, th, sop, m)
 	if (th->th_ack != sc->sc_iss + 1)
 		return (0);
 
-	so = syncache_socket(sc, *sop);
+	so = syncache_socket(sc, *sop, m);
 	if (so == NULL) {
 #if 0
 resetandabort:
@@ -983,7 +985,7 @@ syncache_add(inc, to, th, sop, m)
 		    taop != NULL && taop->tao_cc != 0 &&
 		    CC_GT(to->to_cc, taop->tao_cc)) {
 			sc->sc_rxtslot = 0;
-			so = syncache_socket(sc, *sop);
+			so = syncache_socket(sc, *sop, m);
 			if (so != NULL) {
 				sc->sc_flags |= SCF_KEEPROUTE;
 				taop->tao_cc = to->to_cc;
