@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.9 1995/05/08 00:38:02 jkh Exp $
+ * $Id: disks.c,v 1.10 1995/05/08 00:56:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -551,7 +551,7 @@ partition_disks(struct disk **disks)
 	    break;
 
 	case 'W':
-	    if (!msgYesNo("Are you sure you want to go into Wizard mode?\nThis is an entirely documented feature which you are not\nexpected to understand!")) {
+	    if (!msgYesNo("Are you sure you want to go into Wizard mode?\n\nThis is an entirely undocumented feature which you are not\nexpected to understand!")) {
 		int i;
 
 		clear();
@@ -592,14 +592,19 @@ write_disks(struct disk **disks)
     for (i = 0; disks[i]; i++) {
 	if (contains_root_partition(disks[i]))
 	    Set_Boot_Blocks(disks[i], boot1, boot2);
+	dialog_clear();
 	if (i == 0 && !msgYesNo("Would you like to install a boot manager?\n\nThis will allow you to easily select between other operating systems\non the first disk, or boot from a disk other than the first."))
 	    Set_Boot_Mgr(disks[i], bteasy17);
-	else if (i == 0 && !msgYesNo("Would you like to remove an existing boot manager?"))
-	    Set_Boot_Mgr(disks[i], mbr);
+	else {
+	    dialog_clear();
+	    if (i == 0 && !msgYesNo("Would you like to remove an existing boot manager?"))
+		Set_Boot_Mgr(disks[i], mbr);
+	}
+	dialog_clear();
 	if (!msgYesNo("Last Chance!  Are you sure you want to write out\nall these changes to disk?")) {
 	    Write_Disk(disks[i]);
+	    return 0;
 	}
-	return 0;
     }
     return 1;
 }
