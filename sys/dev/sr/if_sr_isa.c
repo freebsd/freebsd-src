@@ -382,7 +382,7 @@ static ng_newhook_t	ngsr_newhook;
 /*static ng_findhook_t	ngsr_findhook; */
 static ng_connect_t	ngsr_connect;
 static ng_rcvdata_t	ngsr_rcvdata;
-static ng_disconnect_t	ngsngsrsconnect;
+static ng_disconnect_t	ngsr_disconnect;
 
 static struct ng_type typestruct = {
 	NG_VERSION,
