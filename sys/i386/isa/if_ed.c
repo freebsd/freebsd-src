@@ -13,7 +13,7 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.80 1995/10/26 20:29:27 julian Exp $
+ * $Id: if_ed.c,v 1.81 1995/10/28 15:39:01 phk Exp $
  */
 
 #include "ed.h"
@@ -61,11 +61,6 @@
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
 #include <i386/isa/if_edreg.h>
-
-/* For backwards compatibility */
-#ifndef IFF_ALTPHYS
-#define IFF_ALTPHYS IFF_LINK0
-#endif
 
 /*
  * ed_softc: per line info and status
