@@ -53,6 +53,12 @@
 # =: the same on input and output, may be either L or U.
 # X: locked if not nil.
 #
+# The paramater named "vpp" is assumed to be always used with double
+# indirection (**vpp) and that name is hard-codeed in vnode_if.awk !
+#
+# If other such parameters are introduced, they have to be added to
+# the AWK script at the head of the definition of "add_debug_code()".
+#
 
 #
 # islocked	vp	= = =
