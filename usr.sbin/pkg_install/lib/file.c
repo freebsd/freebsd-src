@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: file.c,v 1.5 1993/09/18 03:39:48 jkh Exp $";
+static const char *rcsid = "$Id: file.c,v 1.6 1994/12/06 00:51:48 jkh Exp $";
 #endif
 
 /*
@@ -132,6 +132,19 @@ copy_file(char *dir, char *fname, char *to)
 	barf("Couldn't perform '%s'", cmd);
 }
 
+void
+move_file(char *dir, char *fname, char *to)
+{
+    char cmd[FILENAME_MAX];
+
+    if (fname[0] == '/')
+	sprintf(cmd, "mv %s %s", fname, to);
+    else
+	sprintf(cmd, "mv %s/%s %s", dir, fname, to);
+    if (vsystem(cmd))
+	barf("Couldn't perform '%s'", cmd);
+}
+
 /*
  * Copy a hierarchy (possibly from dir) to the current directory, or
  * if "to" is TRUE, from the current directory to a location someplace
@@ -174,7 +187,7 @@ unpack(char *pkg, char *flist)
     if (cp) {
 	strcpy(suffix, cp + 1);
 	if (index(suffix, 'z') || index(suffix, 'Z'))
-	    strcpy(args, "z");
+	    strcpy(args, "-z");
     }
     strcat(args, "xpf");
     if (vsystem("tar %s %s %s", args, pkg, flist ? flist : "")) {
