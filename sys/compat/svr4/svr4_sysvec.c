@@ -50,6 +50,7 @@
 #include <sys/vnode.h>
 #include <sys/module.h>
 #include <vm/vm.h>
+#include <vm/vm_zone.h>
 #include <sys/exec.h>
 #include <sys/kernel.h>
 #include <machine/cpu.h>
