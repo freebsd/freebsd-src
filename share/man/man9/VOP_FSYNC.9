@@ -50,22 +50,22 @@ system calls.
 Its arguments are:
 .Bl -tag -width waitfor
 .It Fa vp
-the vnode of the file
+The vnode of the file.
 .It Fa cred
-the caller's credentials
+The caller's credentials.
 .It Fa waitfor
-whether the function should wait for I/O to complete.
+Whether the function should wait for I/O to complete.
 Possible values are:
 .Bl -tag -width MNT_NOWAIT
 .It Dv MNT_WAIT
-synchronously wait for I/O to complete
+Synchronously wait for I/O to complete.
 .It Dv MNT_NOWAIT
-start all I/O, but do not wait for it
+Start all I/O, but do not wait for it.
 .It Dv MNT_LAZY
-push data not written by file system syncer
+Push data not written by file system syncer.
 .El
 .It Fa td
-the calling thread
+The calling thread.
 .El
 .Pp
 The argument

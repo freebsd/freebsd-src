@@ -45,17 +45,17 @@ Manipulate a file in device dependent ways.
 Its arguments are:
 .Bl -tag -width command
 .It Fa vp
-the vnode of the file (normally representing a device)
+The vnode of the file (normally representing a device).
 .It Fa command
-the device specific operation to perform
+The device specific operation to perform.
 .It Fa cnp
-extra data for the specified operation
+Extra data for the specified operation.
 .It Fa fflag
-some flags ???
+Some flags ???
 .It Fa cred
-the caller's credentials
+The caller's credentials.
 .It Fa td
-the calling thread
+The calling thread.
 .El
 .Pp
 Most file systems do not implement this entry point.
