@@ -1871,10 +1871,19 @@ void
 bundle_AdjustFilters(struct bundle *bundle, struct in_addr *my_ip,
                      struct in_addr *peer_ip)
 {
-  filter_AdjustAddr(&bundle->filter.in, my_ip, peer_ip);
-  filter_AdjustAddr(&bundle->filter.out, my_ip, peer_ip);
-  filter_AdjustAddr(&bundle->filter.dial, my_ip, peer_ip);
-  filter_AdjustAddr(&bundle->filter.alive, my_ip, peer_ip);
+  filter_AdjustAddr(&bundle->filter.in, my_ip, peer_ip, NULL);
+  filter_AdjustAddr(&bundle->filter.out, my_ip, peer_ip, NULL);
+  filter_AdjustAddr(&bundle->filter.dial, my_ip, peer_ip, NULL);
+  filter_AdjustAddr(&bundle->filter.alive, my_ip, peer_ip, NULL);
+}
+
+void
+bundle_AdjustDNS(struct bundle *bundle, struct in_addr dns[2])
+{
+  filter_AdjustAddr(&bundle->filter.in, NULL, NULL, dns);
+  filter_AdjustAddr(&bundle->filter.out, NULL, NULL, dns);
+  filter_AdjustAddr(&bundle->filter.dial, NULL, NULL, dns);
+  filter_AdjustAddr(&bundle->filter.alive, NULL, NULL, dns);
 }
 
 void

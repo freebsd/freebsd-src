@@ -436,6 +436,10 @@ command_Expand(char **nargv, int argc, char const *const *oargv,
                                   bundle->ncp.mp.cfg.enddisc.len));
     nargv[arg] = subst(nargv[arg], "PROCESSID", pidstr);
     nargv[arg] = subst(nargv[arg], "LABEL", bundle_GetLabel(bundle));
+    nargv[arg] = subst(nargv[arg], "DNS0",
+                       inet_ntoa(bundle->ncp.ipcp.ns.dns[0]));
+    nargv[arg] = subst(nargv[arg], "DNS1",
+                       inet_ntoa(bundle->ncp.ipcp.ns.dns[1]));
   }
   nargv[arg] = NULL;
 }
@@ -552,6 +556,29 @@ static int
 FgShellCommand(struct cmdargs const *arg)
 {
   return ShellCommand(arg, 0);
+}
+
+static int
+ResolvCommand(struct cmdargs const *arg)
+{
+  if (arg->argc == arg->argn + 1) {
+    if (!strcasecmp(arg->argv[arg->argn], "reload"))
+      ipcp_LoadDNS(&arg->bundle->ncp.ipcp);
+    else if (!strcasecmp(arg->argv[arg->argn], "restore"))
+      ipcp_RestoreDNS(&arg->bundle->ncp.ipcp);
+    else if (!strcasecmp(arg->argv[arg->argn], "rewrite"))
+      ipcp_WriteDNS(&arg->bundle->ncp.ipcp);
+    else if (!strcasecmp(arg->argv[arg->argn], "readonly"))
+      arg->bundle->ncp.ipcp.ns.writable = 0;
+    else if (!strcasecmp(arg->argv[arg->argn], "writable"))
+      arg->bundle->ncp.ipcp.ns.writable = 1;
+    else
+      return -1;
+
+    return 0;
+  }
+
+  return -1;
 }
 
 #ifndef NONAT
@@ -673,6 +700,8 @@ static struct cmdtab const Commands[] = {
   "Remove a link", "remove"},
   {"rename", "mv", RenameCommand, LOCAL_AUTH | LOCAL_CX,
   "Rename a link", "rename name"},
+  {"resolv", NULL, ResolvCommand, LOCAL_AUTH,
+  "Manipulate resolv.conf", "resolv readonly|reload|restore|rewrite|writable"},
   {"save", NULL, SaveCommand, LOCAL_AUTH,
   "Save settings", "save"},
   {"set", "setup", SetCommand, LOCAL_AUTH | LOCAL_CX_OPT,
@@ -1669,12 +1698,13 @@ SetVariable(struct cmdargs const *arg)
 
   case VAR_NBNS:
   case VAR_DNS:
-    if (param == VAR_DNS)
+    if (param == VAR_DNS) {
       addr = arg->bundle->ncp.ipcp.cfg.ns.dns;
-    else
+      addr[0].s_addr = addr[1].s_addr = INADDR_NONE;
+    } else {
       addr = arg->bundle->ncp.ipcp.cfg.ns.nbns;
-
-    addr[0].s_addr = addr[1].s_addr = INADDR_ANY;
+      addr[0].s_addr = addr[1].s_addr = INADDR_ANY;
+    }
 
     if (arg->argc > arg->argn) {
       ParseAddr(&arg->bundle->ncp.ipcp, arg->argv[arg->argn],
@@ -1683,10 +1713,14 @@ SetVariable(struct cmdargs const *arg)
         ParseAddr(&arg->bundle->ncp.ipcp, arg->argv[arg->argn + 1],
                   addr + 1, &dummyaddr, &dummyint);
 
-      if (addr[1].s_addr == INADDR_ANY)
-        addr[1].s_addr = addr[0].s_addr;
-      if (addr[0].s_addr == INADDR_ANY)
+      if (addr[0].s_addr == INADDR_ANY) {
         addr[0].s_addr = addr[1].s_addr;
+        addr[1].s_addr = INADDR_ANY;
+      }
+      if (addr[0].s_addr == INADDR_NONE) {
+        addr[0].s_addr = addr[1].s_addr;
+        addr[1].s_addr = INADDR_NONE;
+      }
     }
     break;
 
@@ -1969,7 +2003,7 @@ SetCommand(struct cmdargs const *arg)
              arg->prompt, arg->cx);
   else if (arg->prompt)
     prompt_Printf(arg->prompt, "Use `set ?' to get a list or `set ? <var>' for"
-	    " syntax help.\n");
+	          " syntax help.\n");
   else
     log_Printf(LogWARN, "set command must have arguments\n");
 
@@ -1999,6 +2033,10 @@ AddCommand(struct cmdargs const *arg)
         addrs = ROUTE_DSTMYADDR;
       else if (!strncasecmp(arg->argv[arg->argn], "HISADDR", 7))
         addrs = ROUTE_DSTHISADDR;
+      else if (!strncasecmp(arg->argv[arg->argn], "DNS0", 4))
+        addrs = ROUTE_DSTDNS0;
+      else if (!strncasecmp(arg->argv[arg->argn], "DNS1", 4))
+        addrs = ROUTE_DSTDNS1;
     }
     gw = 1;
   } else {
@@ -2008,6 +2046,12 @@ AddCommand(struct cmdargs const *arg)
     } else if (strcasecmp(arg->argv[arg->argn], "HISADDR") == 0) {
       addrs = ROUTE_DSTHISADDR;
       dest = arg->bundle->ncp.ipcp.peer_ip;
+    } else if (strcasecmp(arg->argv[arg->argn], "DNS0") == 0) {
+      addrs = ROUTE_DSTDNS0;
+      dest = arg->bundle->ncp.ipcp.ns.dns[0];
+    } else if (strcasecmp(arg->argv[arg->argn], "DNS1") == 0) {
+      addrs = ROUTE_DSTDNS1;
+      dest = arg->bundle->ncp.ipcp.ns.dns[1];
     } else
       dest = GetIpAddr(arg->argv[arg->argn]);
     netmask = GetIpAddr(arg->argv[arg->argn+1]);
@@ -2046,6 +2090,12 @@ DeleteCommand(struct cmdargs const *arg)
       } else if (strcasecmp(arg->argv[arg->argn], "HISADDR") == 0) {
         dest = arg->bundle->ncp.ipcp.peer_ip;
         addrs = ROUTE_DSTHISADDR;
+      } else if (strcasecmp(arg->argv[arg->argn], "DNS0") == 0) {
+        dest = arg->bundle->ncp.ipcp.ns.dns[0];
+        addrs = ROUTE_DSTDNS0;
+      } else if (strcasecmp(arg->argv[arg->argn], "DNS1") == 0) {
+        dest = arg->bundle->ncp.ipcp.ns.dns[1];
+        addrs = ROUTE_DSTDNS1;
       } else {
         dest = GetIpAddr(arg->argv[arg->argn]);
         if (dest.s_addr == INADDR_NONE) {
