@@ -49,6 +49,7 @@ _thread_create(pthread_t * thread, const pthread_attr_t * attr,
 	int             ret = 0;
 	int             status;
 	pthread_t       new_thread;
+	pthread_attr_t	pattr;
 	void           *stack;
 
 	/* Block signals: */
@@ -60,15 +61,17 @@ _thread_create(pthread_t * thread, const pthread_attr_t * attr,
 		ret = EAGAIN;
 	} else {
 		/* Check if default thread attributes are required: */
-		if (attr == NULL) {
+		if (attr == NULL || *attr == NULL) {
 			/* Use the default thread attributes: */
-			attr = &pthread_attr_default;
+			pattr = &pthread_attr_default;
+		} else {
+			pattr = *attr;
 		}
 		/* Check if a stack was specified in the thread attributes: */
-		if ((stack = attr->stackaddr_attr) != NULL) {
+		if ((stack = pattr->stackaddr_attr) != NULL) {
 		}
 		/* Allocate memory for the stack: */
-		else if ((stack = (void *) malloc(attr->stacksize_attr)) == NULL) {
+		else if ((stack = (void *) malloc(pattr->stacksize_attr)) == NULL) {
 			/* Insufficient memory to create a thread: */
 			ret = EAGAIN;
 			free(new_thread);
@@ -83,7 +86,7 @@ _thread_create(pthread_t * thread, const pthread_attr_t * attr,
 			new_thread->stack = stack;
 			new_thread->start_routine = start_routine;
 			new_thread->arg = arg;
-			if (attr->suspend == PTHREAD_CREATE_SUSPENDED) {
+			if (pattr->suspend == PTHREAD_CREATE_SUSPENDED) {
 				new_thread->state = PS_SUSPENDED;
 			} else {
 				new_thread->state = PS_RUNNING;
@@ -148,19 +151,19 @@ _thread_create(pthread_t * thread, const pthread_attr_t * attr,
 
 			/* The stack starts high and builds down: */
 #if	defined(__FreeBSD__)
-			new_thread->saved_jmp_buf[0]._jb[2] = (int) (new_thread->stack + attr->stacksize_attr - sizeof(double));
+			new_thread->saved_jmp_buf[0]._jb[2] = (int) (new_thread->stack + pattr->stacksize_attr - sizeof(double));
 #elif	defined(__NetBSD__)
 #if	defined(__alpha)
-			new_thread->saved_jmp_buf[4 + R_SP] = (long) new_thread->stack + attr->stacksize_attr - sizeof(double);
+			new_thread->saved_jmp_buf[4 + R_SP] = (long) new_thread->stack + pattr->stacksize_attr - sizeof(double);
 #else
-			new_thread->saved_jmp_buf[2] = (long) new_thread->stack + attr->stacksize_attr - sizeof(double);
+			new_thread->saved_jmp_buf[2] = (long) new_thread->stack + pattr->stacksize_attr - sizeof(double);
 #endif
 #else
 #error	"Don't recognize this operating system!"
 #endif
 
 			/* Copy the thread attributes: */
-			memcpy(&new_thread->attr, attr, sizeof(pthread_attr_t));
+			memcpy(&new_thread->attr, pattr, sizeof(struct pthread_attr));
 
 			/*
 			 * Check if this thread is to inherit the scheduling

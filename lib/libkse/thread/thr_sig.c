@@ -31,6 +31,8 @@
  *
  */
 #include <signal.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <errno.h>
 #ifdef _THREAD_SAFE
 #include <pthread.h>
@@ -40,6 +42,7 @@ void
 _thread_sig_handler(int sig, int code, struct sigcontext * scp)
 {
 	char            c;
+	int             i;
 	pthread_t       pthread;
 
 	/*
@@ -67,16 +70,52 @@ _thread_sig_handler(int sig, int code, struct sigcontext * scp)
 	} else {
 		/* Handle depending on signal type: */
 		switch (sig) {
-			/* Interval timer used for timeslicing: */
+		/* Interval timer used for timeslicing: */
 		case SIGVTALRM:
 			/*
 			 * Don't add the signal to any thread.  Just want to
-			 * call   
+			 * call the scheduler:
 			 */
-			/* the scheduler: */
 			break;
 
-			/* Signals specific to the running thread: */
+		/* Child termination: */
+		case SIGCHLD:
+			/*
+			 * Enter a loop to process each thread in the linked
+			 * list:
+			 */
+			for (pthread = _thread_link_list; pthread != NULL;
+			     pthread = pthread->nxt) {
+				/*
+				 * Add the signal to the set of pending
+				 * signals:
+				 */
+				pthread->sigpend[sig] += 1;
+				if (pthread->state == PS_WAIT_WAIT) {
+					/* Reset the error: */
+					/* There should be another flag so that this is not required! ### */
+					_thread_seterrno(pthread, 0);
+
+					/* Change the state of the thread to run: */
+					pthread->state = PS_RUNNING;
+				}
+			}
+
+			/*
+			 * Go through the file list and set all files
+			 * to non-blocking again in case the child
+			 * set some of them to block. Sigh.
+			 */
+			for (i = 0; i < _thread_dtablesize; i++) {
+				/* Check if this file is used: */
+				if (_thread_fd_table[i] != NULL) {
+					/* Set the file descriptor to non-blocking: */
+					_thread_sys_fcntl(i, F_SETFL, _thread_fd_table[i]->flags | O_NONBLOCK);
+				}
+			}
+			break;
+
+		/* Signals specific to the running thread: */
 		case SIGBUS:
 		case SIGEMT:
 		case SIGFPE:
@@ -88,7 +127,7 @@ _thread_sig_handler(int sig, int code, struct sigcontext * scp)
 			_thread_run->sigpend[sig] += 1;
 			break;
 
-			/* Signals to send to all threads: */
+		/* Signals to send to all threads: */
 		default:
 			/*
 			 * Enter a loop to process each thread in the linked

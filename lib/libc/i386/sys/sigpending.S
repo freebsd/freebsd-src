@@ -33,21 +33,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sigpending.S,v 1.3 1996/01/22 00:00:59 julian Exp $
+ *	$Id: sigpending.S,v 1.4 1996/05/05 07:56:18 peter Exp $
  */
 
 #if defined(SYSLIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id: sigpending.S,v 1.3 1996/01/22 00:00:59 julian Exp $"
+	.asciz "$Id: sigpending.S,v 1.4 1996/05/05 07:56:18 peter Exp $"
 #endif /* SYSLIBC_RCS and not lint */
 
 #include "SYS.h"
 
-#ifdef _THREAD_SAFE
-PSYSCALL(sigpending,_thread_sys_sigpending)
-#else
-SYSCALL(sigpending)
-#endif
+PSYSCALL(sigpending)
 	movl	4(%esp),%ecx		# fetch pointer to...
 	movl	%eax,(%ecx)		# store old mask
 	xorl	%eax,%eax

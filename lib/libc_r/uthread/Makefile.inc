@@ -1,4 +1,4 @@
-#	$Id: Makefile.inc,v 1.1 1996/01/22 00:23:03 julian Exp $
+#	$Id: Makefile.inc,v 1.2 1996/02/17 02:19:35 jdp Exp $
 
 CPLUSPLUSLIB=	cpluspluslib
 
@@ -7,7 +7,7 @@ CPLUSPLUSLIB=	cpluspluslib
 
 SRCS+= \
 	uthread_accept.c \
-	uthread_attr_setcreatesuspend.c \
+	uthread_attr_setcreatesuspend_np.c \
 	uthread_autoinit.cc \
 	uthread_bind.c \
 	uthread_clean.c \
@@ -52,7 +52,7 @@ SRCS+= \
 	uthread_read.c \
 	uthread_readv.c \
 	uthread_recvfrom.c \
-	uthread_resume.c \
+	uthread_resume_np.c \
 	uthread_select.c \
 	uthread_self.c \
 	uthread_sendto.c \
@@ -71,7 +71,7 @@ SRCS+= \
 	uthread_socket.c \
 	uthread_socketpair.c \
 	uthread_spec.c \
-	uthread_suspend.c \
+	uthread_suspend_np.c \
 	uthread_wait4.c \
 	uthread_write.c \
 	uthread_writev.c \

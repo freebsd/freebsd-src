@@ -30,7 +30,10 @@
  * SUCH DAMAGE.
  *
  */
+#include <stdlib.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 #ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
@@ -38,10 +41,55 @@
 int
 close(int fd)
 {
-	int ret;
+	int		flags;
+	int		ret;
+	int		status;
+	struct stat	sb;
+
+	/* Lock the file descriptor while the file is closed: */
 	if ((ret = _thread_fd_lock(fd, FD_RDWR, NULL, __FILE__, __LINE__)) == 0) {
+		/* Block signals: */
+		_thread_kern_sig_block(&status);
+
+		/* Get file descriptor status. */
+		fstat(fd, &sb);
+
+		/*
+		 * Check if the file should be left as blocking.
+		 *
+		 * This is so that the file descriptors shared with a parent
+		 * process aren't left set to non-blocking if the child
+		 * closes them prior to exit.  An example where this causes
+		 * problems with /bin/sh is when a child closes stdin.
+		 *
+		 * Setting a file as blocking causes problems if a threaded
+		 * parent accesses the file descriptor before the child exits.
+		 * Once the threaded parent receives a SIGCHLD then it resets
+		 * all of its files to non-blocking, and so it is then safe
+		 * to access them.
+		 *
+		 * Pipes are not set to blocking when they are closed, as
+		 * the parent and child will normally close the file
+		 * descriptor of the end of the pipe that they are not
+		 * using, which would then cause any reads to block
+		 * indefinitely.
+		 */
+		if ((S_ISREG(sb.st_mode) || S_ISCHR(sb.st_mode)) && (_thread_fd_table[fd]->flags & O_NONBLOCK) == 0) {
+			/* Get the current flags: */
+			flags = _thread_sys_fcntl(fd, F_GETFL, NULL);
+			/* Clear the nonblocking file descriptor flag: */
+			_thread_sys_fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
+		}
+
+		/* Close the file descriptor: */
 		ret = _thread_sys_close(fd);
-		_thread_fd_unlock(fd, FD_RDWR);
+
+		/* Free the file descriptor table entry: */
+		free(_thread_fd_table[fd]);
+		_thread_fd_table[fd] = NULL;
+
+		/* Unblock signals again: */
+		_thread_kern_sig_unblock(status);
 	}
 	return (ret);
 }
