@@ -1,10 +1,11 @@
+# ex:ts=8
 # $FreeBSD$
 
 .include "../Makefile.inc0"
 
 GDBDIR= ${.CURDIR}/../../../../contrib/gdb
-.PATH:  ${GDBDIR}/gdb ${GDBDIR}/gdb/cli ${GDBDIR}/gdb/mi
-.PATH:  ${SRCDIR}/opcodes ${SRCDIR}/binutils
+.PATH: ${GDBDIR}/gdb ${GDBDIR}/gdb/cli ${GDBDIR}/gdb/mi
+.PATH: ${SRCDIR}/opcodes ${SRCDIR}/binutils
 
 .if ${TARGET_ARCH} == "sparc64"
 GDB_CPU=	sparc
