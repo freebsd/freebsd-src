@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_node.h	8.6 (Berkeley) 5/14/95
- * $Id: cd9660_node.h,v 1.13 1997/10/12 20:23:36 phk Exp $
+ * $Id: cd9660_node.h,v 1.14 1997/10/16 10:47:39 phk Exp $
  */
 
 /*
@@ -61,6 +61,7 @@ typedef	struct	{
 
 
 struct iso_node {
+	struct	lock i_lock;	/* node lock > Keep this first< */
 	struct	iso_node *i_next, **i_prev;	/* hash chain */
 	struct	vnode *i_vnode;	/* vnode associated with this inode */
 	struct	vnode *i_devvp;	/* vnode for block I/O */
@@ -74,7 +75,6 @@ struct iso_node {
 	doff_t	i_diroff;	/* offset in dir, where we found last entry */
 	doff_t	i_offset;	/* offset of free space in directory */
 	ino_t	i_ino;		/* inode number of found directory */
-	struct	lock i_lock;	/* node lock */
 
 	long iso_extent;	/* extent of file */
 	long i_size;

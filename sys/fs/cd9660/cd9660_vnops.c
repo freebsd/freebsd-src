@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.19 (Berkeley) 5/27/95
- * $Id: cd9660_vnops.c,v 1.44 1997/10/16 10:47:47 phk Exp $
+ * $Id: cd9660_vnops.c,v 1.45 1997/10/16 20:32:21 phk Exp $
  */
 
 #include <sys/param.h>
@@ -69,11 +69,8 @@ static int iso_shipdir __P((struct isoreaddir *idp));
 static int cd9660_readdir __P((struct vop_readdir_args *));
 static int cd9660_readlink __P((struct vop_readlink_args *ap));
 static int cd9660_abortop __P((struct vop_abortop_args *));
-static int cd9660_lock __P((struct vop_lock_args *));
-static int cd9660_unlock __P((struct vop_unlock_args *));
 static int cd9660_strategy __P((struct vop_strategy_args *));
 static int cd9660_print __P((struct vop_print_args *));
-static int cd9660_islocked __P((struct vop_islocked_args *));
 
 /*
  * Setattr call. Only allowed for block and character special devices.
@@ -718,40 +715,6 @@ cd9660_abortop(ap)
 }
 
 /*
- * Lock an inode.
- */
-static int
-cd9660_lock(ap)
-	struct vop_lock_args /* {
-		struct vnode *a_vp;
-		int a_flags;
-		struct proc *a_p;
-	} */ *ap;
-{
-	struct vnode *vp = ap->a_vp;
-
-	return (lockmgr(&VTOI(vp)->i_lock, ap->a_flags, &vp->v_interlock,
-		ap->a_p));
-}
-
-/*
- * Unlock an inode.
- */
-static int
-cd9660_unlock(ap)
-	struct vop_unlock_args /* {
-		struct vnode *a_vp;
-		int a_flags;
-		struct proc *a_p;
-	} */ *ap;
-{
-	struct vnode *vp = ap->a_vp;
-
-	return (lockmgr(&VTOI(vp)->i_lock, ap->a_flags | LK_RELEASE,
-		&vp->v_interlock, ap->a_p));
-}
-
-/*
  * Calculate the logical to physical mapping if not done already,
  * then call the device strategy routine.
  */
@@ -802,19 +765,6 @@ cd9660_print(ap)
 
 	printf("tag VT_ISOFS, isofs vnode\n");
 	return (0);
-}
-
-/*
- * Check for a locked inode.
- */
-int
-cd9660_islocked(ap)
-	struct vop_islocked_args /* {
-		struct vnode *a_vp;
-	} */ *ap;
-{
-
-	return (lockstatus(&VTOI(ap->a_vp)->i_lock));
 }
 
 /*
@@ -869,8 +819,8 @@ struct vnodeopv_entry_desc cd9660_vnodeop_entries[] = {
 	{ &vop_cachedlookup_desc,	(vop_t *) cd9660_lookup },
 	{ &vop_getattr_desc,		(vop_t *) cd9660_getattr },
 	{ &vop_inactive_desc,		(vop_t *) cd9660_inactive },
-	{ &vop_islocked_desc,		(vop_t *) cd9660_islocked },
-	{ &vop_lock_desc,		(vop_t *) cd9660_lock },
+	{ &vop_islocked_desc,		(vop_t *) vop_stdislocked },
+	{ &vop_lock_desc,		(vop_t *) vop_stdlock },
 	{ &vop_lookup_desc,		(vop_t *) vfs_cache_lookup },
 	{ &vop_pathconf_desc,		(vop_t *) cd9660_pathconf },
 	{ &vop_print_desc,		(vop_t *) cd9660_print },
@@ -880,7 +830,7 @@ struct vnodeopv_entry_desc cd9660_vnodeop_entries[] = {
 	{ &vop_reclaim_desc,		(vop_t *) cd9660_reclaim },
 	{ &vop_setattr_desc,		(vop_t *) cd9660_setattr },
 	{ &vop_strategy_desc,		(vop_t *) cd9660_strategy },
-	{ &vop_unlock_desc,		(vop_t *) cd9660_unlock },
+	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc cd9660_vnodeop_opv_desc =
@@ -896,12 +846,12 @@ struct vnodeopv_entry_desc cd9660_specop_entries[] = {
 	{ &vop_access_desc,		(vop_t *) cd9660_access },
 	{ &vop_getattr_desc,		(vop_t *) cd9660_getattr },
 	{ &vop_inactive_desc,		(vop_t *) cd9660_inactive },
-	{ &vop_islocked_desc,		(vop_t *) cd9660_islocked },
-	{ &vop_lock_desc,		(vop_t *) cd9660_lock },
+	{ &vop_islocked_desc,		(vop_t *) vop_stdislocked },
+	{ &vop_lock_desc,		(vop_t *) vop_stdlock },
 	{ &vop_print_desc,		(vop_t *) cd9660_print },
 	{ &vop_reclaim_desc,		(vop_t *) cd9660_reclaim },
 	{ &vop_setattr_desc,		(vop_t *) cd9660_setattr },
-	{ &vop_unlock_desc,		(vop_t *) cd9660_unlock },
+	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc cd9660_specop_opv_desc =
@@ -914,12 +864,12 @@ struct vnodeopv_entry_desc cd9660_fifoop_entries[] = {
 	{ &vop_access_desc,		(vop_t *) cd9660_access },
 	{ &vop_getattr_desc,		(vop_t *) cd9660_getattr },
 	{ &vop_inactive_desc,		(vop_t *) cd9660_inactive },
-	{ &vop_islocked_desc,		(vop_t *) cd9660_islocked },
-	{ &vop_lock_desc,		(vop_t *) cd9660_lock },
+	{ &vop_islocked_desc,		(vop_t *) vop_stdislocked },
+	{ &vop_lock_desc,		(vop_t *) vop_stdlock },
 	{ &vop_print_desc,		(vop_t *) cd9660_print },
 	{ &vop_reclaim_desc,		(vop_t *) cd9660_reclaim },
 	{ &vop_setattr_desc,		(vop_t *) cd9660_setattr },
-	{ &vop_unlock_desc,		(vop_t *) cd9660_unlock },
+	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc cd9660_fifoop_opv_desc =
