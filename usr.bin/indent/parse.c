@@ -251,7 +251,7 @@ parse(int tk) /* tk: the code for the construct scanned */
 static void
 reduce(void)
 {
-    register int i;
+    int i;
 
     for (;;) {			/* keep looping until there is nothing left to
 				 * reduce */

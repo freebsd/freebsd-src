@@ -164,7 +164,7 @@ struct pro {
 void
 set_profile(void)
 {
-    register FILE *f;
+    FILE *f;
     char        fname[BUFSIZ];
     static char prof[] = ".indent.pro";
 
@@ -181,10 +181,10 @@ set_profile(void)
 }
 
 static void
-scan_profile(register FILE *f)
+scan_profile(FILE *f)
 {
-    register int i;
-    register char *p;
+    int i;
+    char *p;
     char        buf[BUFSIZ];
 
     while (1) {
@@ -219,7 +219,7 @@ eqin(const char *s1, const char *s2)
 void
 set_defaults(void)
 {
-    register struct pro *p;
+    struct pro *p;
 
     /*
      * Because ps.case_indent is a float, we can't initialize it from the
@@ -234,7 +234,7 @@ set_defaults(void)
 void
 set_option(char *arg)
 {
-    register struct pro *p;
+    struct pro *p;
 
     arg++;			/* ignore leading "-" */
     for (p = pro; p->p_name; p++)
@@ -267,7 +267,7 @@ found:
 	    if (*param_start == 0)
 		goto need_param;
 	    {
-		register char *str = (char *) malloc(strlen(param_start) + 1);
+		char *str = (char *) malloc(strlen(param_start) + 1);
 		strcpy(str, param_start);
 		addkey(str, 4);
 	    }
