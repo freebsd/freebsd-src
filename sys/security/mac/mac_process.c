@@ -2170,6 +2170,58 @@ mac_check_ifnet_transmit(struct ifnet *ifnet, struct mbuf *mbuf)
 }
 
 int
+mac_check_kenv_dump(struct ucred *cred)
+{
+	int error;
+
+	if (!mac_enforce_system)
+		return (0);
+
+	MAC_CHECK(check_kenv_dump, cred);
+
+	return (error);
+}
+
+int
+mac_check_kenv_get(struct ucred *cred, char *name)
+{
+	int error;
+
+	if (!mac_enforce_system)
+		return (0);
+
+	MAC_CHECK(check_kenv_get, cred, name);
+
+	return (error);
+}
+
+int
+mac_check_kenv_set(struct ucred *cred, char *name, char *value)
+{
+	int error;
+
+	if (!mac_enforce_system)
+		return (0);
+
+	MAC_CHECK(check_kenv_set, cred, name, value);
+
+	return (error);
+}
+
+int
+mac_check_kenv_unset(struct ucred *cred, char *name)
+{
+	int error;
+
+	if (!mac_enforce_system)
+		return (0);
+
+	MAC_CHECK(check_kenv_unset, cred, name);
+
+	return (error);
+}
+
+int
 mac_check_mount_stat(struct ucred *cred, struct mount *mount)
 {
 	int error;
