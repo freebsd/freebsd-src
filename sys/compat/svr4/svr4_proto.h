@@ -11,6 +11,8 @@
 
 #include <sys/signal.h>
 
+#include <sys/acl.h>
+
 struct proc;
 
 #define	PAD_(t)	(sizeof(register_t) <= sizeof(t) ? \
