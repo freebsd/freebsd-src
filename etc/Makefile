@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.143.2.12 1997/10/20 00:54:02 jmb Exp $
+#	$Id: Makefile,v 1.143.2.13 1998/02/01 06:10:09 steve Exp $
 
 # -rw-r--r--
 BINOWN= root
@@ -26,7 +26,7 @@ MTREE=	BSD.include.dist BSD.local.dist BSD.root.dist BSD.usr.dist \
 	BSD.var.dist BSD.x11.dist
 NAMEDB=	PROTO.localhost.rev named.boot named.root make-localhost
 PPPCNF=	ppp.conf.sample ppp.linkup.sample ppp.linkdown.sample \
-	ppp.secrect.sample ppp.deny ppp.shells.sample
+	ppp.secret.sample ppp.deny ppp.shells.sample
 NOSPAM=	Makefile README sendmail.cf.additions
 
 
