@@ -990,7 +990,7 @@ vm_object_pmap_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 		return;
 	TAILQ_FOREACH(p, &object->memq, listq) {
 		if (p->pindex >= start && p->pindex < end)
-			vm_page_protect(p, VM_PROT_NONE);
+			pmap_page_protect(p, VM_PROT_NONE);
 	}
 	if ((start == 0) && (object->size == end))
 		vm_object_clear_flag(object, OBJ_WRITEABLE);
@@ -1439,7 +1439,7 @@ vm_object_backing_scan(vm_object_t object, int op)
 				 * can simply destroy it. 
 				 */
 				vm_page_lock_queues();
-				vm_page_protect(p, VM_PROT_NONE);
+				pmap_page_protect(p, VM_PROT_NONE);
 				vm_page_free(p);
 				vm_page_unlock_queues();
 				p = next;
@@ -1459,7 +1459,7 @@ vm_object_backing_scan(vm_object_t object, int op)
 				 * Leave the parent's page alone
 				 */
 				vm_page_lock_queues();
-				vm_page_protect(p, VM_PROT_NONE);
+				pmap_page_protect(p, VM_PROT_NONE);
 				vm_page_free(p);
 				vm_page_unlock_queues();
 				p = next;
@@ -1746,7 +1746,7 @@ again:
 			next = TAILQ_NEXT(p, listq);
 			if (all || ((start <= p->pindex) && (p->pindex < end))) {
 				if (p->wire_count != 0) {
-					vm_page_protect(p, VM_PROT_NONE);
+					pmap_page_protect(p, VM_PROT_NONE);
 					if (!clean_only)
 						p->valid = 0;
 					continue;
@@ -1765,7 +1765,7 @@ again:
 						continue;
 				}
 				vm_page_busy(p);
-				vm_page_protect(p, VM_PROT_NONE);
+				pmap_page_protect(p, VM_PROT_NONE);
 				vm_page_free(p);
 			}
 		}
@@ -1773,7 +1773,7 @@ again:
 		while (size > 0) {
 			if ((p = vm_page_lookup(object, start)) != NULL) {
 				if (p->wire_count != 0) {
-					vm_page_protect(p, VM_PROT_NONE);
+					pmap_page_protect(p, VM_PROT_NONE);
 					if (!clean_only)
 						p->valid = 0;
 					start += 1;
@@ -1797,7 +1797,7 @@ again:
 					}
 				}
 				vm_page_busy(p);
-				vm_page_protect(p, VM_PROT_NONE);
+				pmap_page_protect(p, VM_PROT_NONE);
 				vm_page_free(p);
 			}
 			start += 1;
@@ -1968,7 +1968,7 @@ vm_freeze_copyopts(vm_object_t object, vm_pindex_t froma, vm_pindex_t toa)
 					vm_page_unlock_queues();
 				}
 
-				vm_page_protect(m_in, VM_PROT_NONE);
+				pmap_page_protect(m_in, VM_PROT_NONE);
 				pmap_copy_page(m_in, m_out);
 				m_out->valid = m_in->valid;
 				vm_page_dirty(m_out);

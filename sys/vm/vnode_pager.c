@@ -348,7 +348,7 @@ vnode_pager_setsize(vp, nsize)
 				 * XXX should vm_pager_unmap_page() have
 				 * dealt with this?
 				 */
-				vm_page_protect(m, VM_PROT_NONE);
+				pmap_page_protect(m, VM_PROT_NONE);
 
 				/*
 				 * Clear out partial-page dirty bits.  This
