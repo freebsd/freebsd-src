@@ -60,11 +60,15 @@ in the hash.
 .\"
 Currently these include the
 .Tn NBS
-.Tn Data Encryption Standard (DES) , and
-.Tn MD5 .
+.Tn Data Encryption Standard (DES) ,
+.Tn MD5
+and
+.Tn Blowfish .
 The algorithm used will depend upon the format of the Salt (following
 the Modular Crypt Format (MCF)), if
 .Tn DES
+and/or
+.Tn Blowfish
 is installed or not, and whether
 .Fn crypt_set_format
 has been called to change the default.
@@ -172,6 +176,8 @@ Currently supported algorithms are:
 .Bl -enum -compact -offset indent
 .It
 MD5
+.It
+Blowfish
 .El
 .Pp
 Other crypt formats may be easilly added.  An example salt would be:
@@ -183,18 +189,17 @@ Other crypt formats may be easilly added.  An example salt would be:
 .Pp
 The algorithm used will depend upon whether
 .Fn crypt_set_format
-has been called and whether
-.Tn DES
-is installed or not.  If
-.Tn DES
-is installed and
+has been called and whether a global default format has been specified.
+Unless a global default has been specified or
 .Fn crypt_set_format
-has not set the format to something else, it will be used.
-Otherwise, the best algorithm is used, which is currently
+has set the format to something else, the built-in default format is
+used.
+This is currently
 .\"
 .\" NOTICE: Also make sure to update this
 .\"
-MD5.
+DES
+if it is available, or MD5 if not.
 .Pp
 How the salt is used will depend upon the algorithm for the hash.  For
 best results, specify at least two characters of salt.
@@ -207,7 +212,8 @@ Valid values are
 .\"
 .\" NOTICE: Also make sure to update this, too, as well
 .\"
-.Ql des
+.Ql des ,
+.Ql blf
 and
 .Ql md5 .
 .Pp
@@ -215,6 +221,12 @@ The
 .Fn crypt_set_format
 function sets the default encoding format according to the supplied
 .Fa string .
+.Pp
+The global default format can be set using the
+.Pa /etc/auth.conf
+file using the
+.Ql crypt_format
+property.
 .Sh RETURN VALUES
 .Pp
 .Fn crypt
@@ -229,8 +241,10 @@ Otherwise, a value of 0 is returned.
 .Sh SEE ALSO
 .Xr login 1 ,
 .Xr passwd 1 ,
+.Xr auth_getval 3 ,
 .Xr cipher 3 ,
 .Xr getpass 3 ,
+.Xr auth.conf 5 ,
 .Xr passwd 5 ,
 .Sh BUGS
 The
@@ -265,6 +279,8 @@ Originally written by
 later additions and changes by
 .An Poul-Henning Kamp ,
 .An Mark R V Murray ,
-.An Kris Kennaway
+.An Kris Kennaway ,
+.An Brian Feldman ,
+.An Paul Herman
 and
-.An Brian Feldman .
+.An Niels Provos .

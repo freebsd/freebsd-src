@@ -28,10 +28,13 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char rcsid[] = "$FreeBSD$";
+static const char rcsid[] =
+"$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
+#include <sys/types.h>
 #include <string.h>
+#include <libutil.h>
 #include "crypt.h"
 
 static const struct {
@@ -39,7 +42,7 @@ static const struct {
 	char *(*const func)(const char *, const char *);
 	const char *const magic;
 } crypt_types[] = {
-#ifdef NONEXPORTABLE_CRYPT
+#ifdef HAS_DES
 	{
 		"des",
 		crypt_des,
@@ -51,24 +54,57 @@ static const struct {
 		crypt_md5,
 		"$1$"
 	},
+#ifdef HAS_BLOWFISH
+	{
+		"blf",
+		crypt_blowfish,
+		"$2"
+	},
+#endif
 	{
 		NULL,
 		NULL
 	}
 };
 
-static int crypt_type = 0;
+static int crypt_type = -1;
+
+static void
+crypt_setdefault(void)
+{
+	char *def;
+	int i;
+
+	if (crypt_type != -1)
+		return;
+	def = auth_getval("crypt_default");
+	if (def == NULL) {
+		crypt_type = 0;
+		return;
+	}
+	for (i = 0; i < sizeof(crypt_types) / sizeof(crypt_types[0]) - 1; i++) {
+		if (strcmp(def, crypt_types[i].name) == 0) {
+			crypt_type = i;
+			return;
+		}
+	}
+	crypt_type = 0;
+}
 
 const char *
-crypt_get_format(void) {
+crypt_get_format(void)
+{
 
+	crypt_setdefault();
 	return (crypt_types[crypt_type].name);
 }
 
 int
-crypt_set_format(char *type) {
+crypt_set_format(char *type)
+{
 	int i;
 
+	crypt_setdefault();
 	for (i = 0; i < sizeof(crypt_types) / sizeof(crypt_types[0]) - 1; i++) {
 		if (strcmp(type, crypt_types[i].name) == 0) {
 			crypt_type = i;
@@ -83,6 +119,7 @@ crypt(char *passwd, char *salt)
 {
 	int i;
 
+	crypt_setdefault();
 	for (i = 0; i < sizeof(crypt_types) / sizeof(crypt_types[0]) - 1; i++) {
 		if (crypt_types[i].magic != NULL && strncmp(salt,
 		    crypt_types[i].magic, strlen(crypt_types[i].magic)) == 0)

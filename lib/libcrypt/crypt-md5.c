@@ -22,18 +22,6 @@ static const char rcsid[] = \
 #include <err.h>
 #include "crypt.h"
 
-#ifdef __PIC__
-#include <dlfcn.h>
-
-#define	MD5Init(ctx)			dl_MD5Init(ctx)
-#define	MD5Update(ctx, data, len)	dl_MD5Update(ctx, data, len)
-#define	MD5Final(dgst, ctx)		dl_MD5Final(dgst, ctx)
-
-static void (*dl_MD5Init)(MD5_CTX *);
-static void (*dl_MD5Update)(MD5_CTX *, const unsigned char *, unsigned int);
-static void (*dl_MD5Final)(unsigned char digest[16], MD5_CTX *);
-#endif
-
 /*
  * UNIX password
  */
@@ -55,9 +43,6 @@ crypt_md5(pw, salt)
 	int sl,pl,i;
 	MD5_CTX	ctx,ctx1;
 	unsigned long l;
-#ifdef __PIC__
-	void *libmd;
-#endif
 
 	/* Refine the Salt first */
 	sp = salt;
@@ -73,31 +58,6 @@ crypt_md5(pw, salt)
 	/* get the length of the true salt */
 	sl = ep - sp;
 
-#ifdef __PIC__
-	libmd = dlopen("libmd.so", RTLD_NOW);
-	if (libmd == NULL) {
-		warnx("libcrypt-md5: dlopen(libmd.so): %s\n", dlerror());
-		return NULL;
-	}
-	dl_MD5Init = dlsym(libmd, "MD5Init");
-	if (dl_MD5Init == NULL) {
-		warnx("libcrypt-md5: looking for MD5Init: %s\n", dlerror());
-		dlclose(libmd);
-		return NULL;
-	}
-	dl_MD5Update = dlsym(libmd, "MD5Update");
-	if (dl_MD5Update == NULL) {
-		warnx("libcrypt-md5: looking for MD5Update: %s\n", dlerror());
-		dlclose(libmd);
-		return NULL;
-	}
-	dl_MD5Final = dlsym(libmd, "MD5Final");
-	if (dl_MD5Final == NULL) {
-		warnx("libcrypt-md5: looking for MD5Final: %s\n", dlerror());
-		dlclose(libmd);
-		return NULL;
-	}
-#endif
 	MD5Init(&ctx);
 
 	/* The password first, since that is what is most unknown */
@@ -160,9 +120,6 @@ crypt_md5(pw, salt)
 		MD5Final(final,&ctx1);
 	}
 
-#ifdef __PIC__
-	dlclose(libmd);
-#endif
 	p = passwd + strlen(passwd);
 
 	l = (final[ 0]<<16) | (final[ 6]<<8) | final[12];
