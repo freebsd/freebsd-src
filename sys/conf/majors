@@ -74,7 +74,7 @@
 64	??		Talisman
 65	*targ		SCSI target sample driver
 66	labpc		National Instruments LabPC
-67	*meteor		Matrox Meteor video capture
+67	-		was meteor Matrox Meteor video capture
 68	*si		Specialix SI/XIO (peter@freebsd.org)
 69	*wcd		ATAPI CDROM client of "wd"
 70	crypto		Device-independent crypto interface (from openbsd)
