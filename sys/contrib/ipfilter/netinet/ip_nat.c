@@ -119,6 +119,7 @@ u_int	ipf_nattable_sz = NAT_TABLE_SZ;
 u_int	ipf_natrules_sz = NAT_SIZE;
 u_int	ipf_rdrrules_sz = RDR_SIZE;
 u_int	ipf_hostmap_sz = HOSTMAP_SIZE;
+int	nat_wilds = 0;
 u_32_t	nat_masks = 0;
 u_32_t	rdr_masks = 0;
 ipnat_t	**nat_rules = NULL;
@@ -144,6 +145,7 @@ static	void	nat_delnat __P((struct ipnat *));
 static	int	fr_natgetent __P((caddr_t));
 static	int	fr_natgetsz __P((caddr_t));
 static	int	fr_natputent __P((caddr_t));
+static	void	nat_tabmove __P((nat_t *, u_int));
 static	int	nat_match __P((fr_info_t *, ipnat_t *, ip_t *));
 static	hostmap_t *nat_hostmap __P((ipnat_t *, struct in_addr,
 				    struct in_addr));
@@ -301,10 +303,9 @@ struct hostmap *hm;
 }
 
 
-void fix_outcksum(sp, n , len)
+void fix_outcksum(sp, n)
 u_short *sp;
 u_32_t n;
-int len;
 {
 	register u_short sumshort;
 	register u_32_t sum1;
@@ -327,10 +328,9 @@ int len;
 }
 
 
-void fix_incksum(sp, n , len)
+void fix_incksum(sp, n)
 u_short *sp;
 u_32_t n;
-int len;
 {
 	register u_short sumshort;
 	register u_32_t sum1;
@@ -356,6 +356,38 @@ int len;
 	*(sp) = htons(sumshort);
 }
 
+
+/*
+ * fix_datacksum is used *only* for the adjustments of checksums in the data
+ * section of an IP packet.
+ *
+ * The only situation in which you need to do this is when NAT'ing an 
+ * ICMP error message. Such a message, contains in its body the IP header
+ * of the original IP packet, that causes the error.
+ *
+ * You can't use fix_incksum or fix_outcksum in that case, because for the
+ * kernel the data section of the ICMP error is just data, and no special 
+ * processing like hardware cksum or ntohs processing have been done by the 
+ * kernel on the data section.
+ */
+void fix_datacksum(sp, n)
+u_short *sp;
+u_32_t n;
+{
+	register u_short sumshort;
+	register u_32_t sum1;
+
+	if (!n)
+		return;
+
+	sum1 = (~ntohs(*sp)) & 0xffff;
+	sum1 += (n);
+	sum1 = (sum1 >> 16) + (sum1 & 0xffff);
+	/* Again */
+	sum1 = (sum1 >> 16) + (sum1 & 0xffff);
+	sumshort = ~(u_short)sum1;
+	*(sp) = htons(sumshort);
+}
 
 /*
  * How the NAT is organised and works.
@@ -857,8 +889,8 @@ caddr_t data;
 	/*
 	 * Initialize all these so that nat_delete() doesn't cause a crash.
 	 */
-	nat->nat_hstart[0] = NULL;
-	nat->nat_hstart[1] = NULL;
+	nat->nat_phnext[0] = NULL;
+	nat->nat_phnext[1] = NULL;
 	fr = nat->nat_fr;
 	nat->nat_fr = NULL;
 	aps = nat->nat_aps;
@@ -970,22 +1002,16 @@ junkput:
 static void nat_delete(natd)
 struct nat *natd;
 {
-	register struct nat **natp, *nat;
 	struct ipnat *ipn;
 
-	for (natp = natd->nat_hstart[0]; natp && (nat = *natp);
-	     natp = &nat->nat_hnext[0])
-		if (nat == natd) {
-			*natp = nat->nat_hnext[0];
-			break;
-		}
-
-	for (natp = natd->nat_hstart[1]; natp && (nat = *natp);
-	     natp = &nat->nat_hnext[1])
-		if (nat == natd) {
-			*natp = nat->nat_hnext[1];
-			break;
-		}
+	if (natd->nat_flags & FI_WILDP)
+		nat_wilds--;
+	if (natd->nat_hnext[0])
+		natd->nat_hnext[0]->nat_phnext[0] = natd->nat_phnext[0];
+	*natd->nat_phnext[0] = natd->nat_hnext[0];
+	if (natd->nat_hnext[1])
+		natd->nat_hnext[1]->nat_phnext[1] = natd->nat_phnext[1];
+	*natd->nat_phnext[1] = natd->nat_hnext[1];
 
 	if (natd->nat_fr != NULL) {
 		ATOMIC_DEC32(natd->nat_fr->fr_ref);
@@ -1030,7 +1056,7 @@ static int nat_flushtable()
 {
 	register nat_t *nat, **natp;
 	register int j = 0;
-  
+
 	/*
 	 * ALL NAT mappings deleted, so lets just make the deletions
 	 * quicker.
@@ -1122,6 +1148,8 @@ int direction;
 
 	bzero((char *)nat, sizeof(*nat));
 	nat->nat_flags = flags;
+	if (flags & FI_WILDP)
+		nat_wilds++;
 	/*
 	 * Search the current table for a match.
 	 */
@@ -1444,16 +1472,22 @@ nat_t	*nat;
 
 	nat->nat_next = nat_instances;
 	nat_instances = nat;
+
 	hv = NAT_HASH_FN(nat->nat_inip.s_addr, nat->nat_inport,
 			 ipf_nattable_sz);
 	natp = &nat_table[0][hv];
-	nat->nat_hstart[0] = natp;
+	if (*natp)
+		(*natp)->nat_phnext[0] = &nat->nat_hnext[0];
+	nat->nat_phnext[0] = natp;
 	nat->nat_hnext[0] = *natp;
 	*natp = nat;
+
 	hv = NAT_HASH_FN(nat->nat_outip.s_addr, nat->nat_outport,
 			 ipf_nattable_sz);
 	natp = &nat_table[1][hv];
-	nat->nat_hstart[1] = natp;
+	if (*natp)
+		(*natp)->nat_phnext[1] = &nat->nat_hnext[1];
+	nat->nat_phnext[1] = natp;
 	nat->nat_hnext[1] = *natp;
 	*natp = nat;
 
@@ -1561,12 +1595,16 @@ int dir;
 	u_32_t sum1, sum2, sumd;
 	struct in_addr in;
 	icmphdr_t *icmp;
+	udphdr_t *udp;
 	nat_t *nat;
 	ip_t *oip;
 	int flags = 0;
 
 	if ((fin->fin_fi.fi_fl & FI_SHORT) || (ip->ip_off & IP_OFFMASK))
 		return NULL;
+	/*
+	 * nat_icmplookup() will return NULL for `defective' packets.
+	 */
 	if ((ip->ip_v != 4) || !(nat = nat_icmplookup(ip, fin, dir)))
 		return NULL;
 	*nflags = IPN_ICMPERR;
@@ -1576,14 +1614,31 @@ int dir;
 		flags = IPN_TCP;
 	else if (oip->ip_p == IPPROTO_UDP)
 		flags = IPN_UDP;
+	udp = (udphdr_t *)((((char *)oip) + (oip->ip_hl << 2)));
 	/*
 	 * Need to adjust ICMP header to include the real IP#'s and
 	 * port #'s.  Only apply a checksum change relative to the
-	 * IP address change is it will be modified again in ip_natout
+	 * IP address change as it will be modified again in ip_natout
 	 * for both address and port.  Two checksum changes are
 	 * necessary for the two header address changes.  Be careful
 	 * to only modify the checksum once for the port # and twice
 	 * for the IP#.
+	 */
+
+	/*
+	 * Step 1
+	 * Fix the IP addresses in the offending IP packet. You also need
+	 * to adjust the IP header checksum of that offending IP packet
+	 * and the ICMP checksum of the ICMP error message itself.
+	 *
+	 * Unfortunately, for UDP and TCP, the IP addresses are also contained
+	 * in the pseudo header that is used to compute the UDP resp. TCP
+	 * checksum. So, we must compensate that as well. Even worse, the
+	 * change in the UDP and TCP checksums require yet another
+	 * adjustment of the ICMP checksum of the ICMP error message.
+	 *
+	 * For the moment we forget about TCP, because that checksum is not
+	 * in the first 8 bytes, so it will not be available in most cases.
 	 */
 
 	if (nat->nat_dir == NAT_OUTBOUND) {
@@ -1601,19 +1656,117 @@ int dir;
 	CALC_SUMD(sum1, sum2, sumd);
 
 	if (nat->nat_dir == NAT_OUTBOUND) {
-		fix_incksum(&oip->ip_sum, sumd, 0);
+		/*
+		 * Fix IP checksum of the offending IP packet to adjust for
+		 * the change in the IP address.
+		 *
+		 * Normally, you would expect that the ICMP checksum of the 
+		 * ICMP error message needs to be adjusted as well for the
+		 * IP address change in oip.
+		 * However, this is a NOP, because the ICMP checksum is 
+		 * calculated over the complete ICMP packet, which includes the
+		 * changed oip IP addresses and oip->ip_sum. However, these 
+		 * two changes cancel each other out (if the delta for
+		 * the IP address is x, then the delta for ip_sum is minus x), 
+		 * so no change in the icmp_cksum is necessary.
+		 *
+		 * Be careful that nat_dir refers to the direction of the
+		 * offending IP packet (oip), not to its ICMP response (icmp)
+		 */
+		fix_datacksum(&oip->ip_sum, sumd);
 
-		sumd += (sumd & 0xffff);
-		while (sumd > 0xffff)
-			sumd = (sumd & 0xffff) + (sumd >> 16);
-		fix_outcksum(&icmp->icmp_cksum, sumd, 0);
+		/*
+		 * Fix UDP pseudo header checksum to compensate for the
+		 * IP address change.
+		 */
+		if (oip->ip_p == IPPROTO_UDP && udp->uh_sum) {
+			/*
+			 * The UDP checksum is optional, only adjust it 
+			 * if it has been set.
+			 */
+			sum1 = ntohs(udp->uh_sum);
+			fix_datacksum(&udp->uh_sum, sumd);
+			sum2 = ntohs(udp->uh_sum);
+
+			/*
+			 * Fix ICMP checksum to compensate the UDP 
+			 * checksum adjustment.
+			 */
+			CALC_SUMD(sum1, sum2, sumd);
+			fix_outcksum(&icmp->icmp_cksum, sumd);
+		}
+
+#if 0
+		/*
+		 * Fix TCP pseudo header checksum to compensate for the 
+		 * IP address change. Before we can do the change, we
+		 * must make sure that oip is sufficient large to hold
+		 * the TCP checksum (normally it does not!).
+		 */
+		if (oip->ip_p == IPPROTO_TCP) {
+		
+		}
+#endif
 	} else {
-		fix_outcksum(&oip->ip_sum, sumd, 0);
+
+		/*
+		 * Fix IP checksum of the offending IP packet to adjust for
+		 * the change in the IP address.
+		 *
+		 * Normally, you would expect that the ICMP checksum of the 
+		 * ICMP error message needs to be adjusted as well for the
+		 * IP address change in oip.
+		 * However, this is a NOP, because the ICMP checksum is 
+		 * calculated over the complete ICMP packet, which includes the
+		 * changed oip IP addresses and oip->ip_sum. However, these 
+		 * two changes cancel each other out (if the delta for
+		 * the IP address is x, then the delta for ip_sum is minus x), 
+		 * so no change in the icmp_cksum is necessary.
+		 *
+		 * Be careful that nat_dir refers to the direction of the
+		 * offending IP packet (oip), not to its ICMP response (icmp)
+		 */
+		fix_datacksum(&oip->ip_sum, sumd);
+
+/* XXX FV : without having looked at Solaris source code, it seems unlikely
+ * that SOLARIS would compensate this in the kernel (a body of an IP packet 
+ * in the data section of an ICMP packet). I have the feeling that this should
+ * be unconditional, but I'm not in a position to check.
+ */
 #if !SOLARIS && !defined(__sgi)
-		sumd += (sumd & 0xffff);
-		while (sumd > 0xffff)
-			sumd = (sumd & 0xffff) + (sumd >> 16);
-		fix_incksum(&icmp->icmp_cksum, sumd, 0);
+		/*
+		 * Fix UDP pseudo header checksum to compensate for the
+		 * IP address change.
+		 */
+		if (oip->ip_p == IPPROTO_UDP && udp->uh_sum) {
+			/*
+			 * The UDP checksum is optional, only adjust it 
+			 * if it has been set 
+			 */
+			sum1 = ntohs(udp->uh_sum);
+			fix_datacksum(&udp->uh_sum, sumd);
+			sum2 = ntohs(udp->uh_sum);
+
+			/*
+			 * Fix ICMP checksum to compensate the UDP 
+			 * checksum adjustment.
+			 */
+			CALC_SUMD(sum1, sum2, sumd);
+			fix_incksum(&icmp->icmp_cksum, sumd);
+		}
+		
+#if 0
+		/* 
+		 * Fix TCP pseudo header checksum to compensate for the 
+		 * IP address change. Before we can do the change, we
+		 * must make sure that oip is sufficient large to hold
+		 * the TCP checksum (normally it does not!).
+		 */
+		if (oip->ip_p == IPPROTO_TCP) {
+		
+		};
+#endif
+		
 #endif
 	}
 
@@ -1624,23 +1777,98 @@ int dir;
 		 * XXX - what if this is bogus hl and we go off the end ?
 		 * In this case, nat_icmpinlookup() will have returned NULL.
 		 */
-		tcp = (tcphdr_t *)((((char *)oip) + (oip->ip_hl << 2)));
+		tcp = (tcphdr_t *)udp;
+
+		/*
+		 * Step 2 :
+		 * For offending TCP/UDP IP packets, translate the ports as
+		 * well, based on the NAT specification. Of course such
+		 * a change must be reflected in the ICMP checksum as well.
+		 *
+		 * Advance notice : Now it becomes complicated :-)
+		 *
+		 * Since the port fields are part of the TCP/UDP checksum
+		 * of the offending IP packet, you need to adjust that checksum
+		 * as well... but, if you change, you must change the icmp
+		 * checksum *again*, to reflect that change.
+		 *
+		 * To further complicate: the TCP checksum is not in the first
+		 * 8 bytes of the offending ip packet, so it most likely is not
+		 * available (we might have to fix that if the encounter a
+		 * device that returns more than 8 data bytes on icmp error)
+		 */
 
 		if (nat->nat_dir == NAT_OUTBOUND) {
 			if (tcp->th_sport != nat->nat_inport) {
+				/*
+				 * Fix ICMP checksum to compensate port
+				 * adjustment.
+				 */
 				sum1 = ntohs(tcp->th_sport);
 				sum2 = ntohs(nat->nat_inport);
 				CALC_SUMD(sum1, sum2, sumd);
 				tcp->th_sport = nat->nat_inport;
-				fix_outcksum(&icmp->icmp_cksum, sumd, 0);
+				fix_outcksum(&icmp->icmp_cksum, sumd);
+
+				/*
+				 * Fix udp checksum to compensate port
+				 * adjustment.  NOTE : the offending IP packet
+				 * flows the other direction compared to the
+				 * ICMP message.
+				 *
+				 * The UDP checksum is optional, only adjust
+				 * it if it has been set.
+				 */
+				if (oip->ip_p == IPPROTO_UDP && udp->uh_sum) {
+
+					sum1 = ntohs(udp->uh_sum);
+					fix_datacksum(&udp->uh_sum, sumd);
+					sum2 = ntohs(udp->uh_sum);
+
+					/*
+					 * Fix ICMP checksum to 
+					 * compensate UDP checksum 
+					 * adjustment.
+					 */
+					CALC_SUMD(sum1, sum2, sumd);
+					fix_outcksum(&icmp->icmp_cksum, sumd);
+				}
 			}
 		} else {
+
 			if (tcp->th_dport != nat->nat_outport) {
+				/*
+				 * Fix ICMP checksum to compensate port
+				 * adjustment.
+				 */
 				sum1 = ntohs(tcp->th_dport);
 				sum2 = ntohs(nat->nat_outport);
 				CALC_SUMD(sum1, sum2, sumd);
 				tcp->th_dport = nat->nat_outport;
-				fix_incksum(&icmp->icmp_cksum, sumd, 0);
+				fix_incksum(&icmp->icmp_cksum, sumd);
+
+				/*
+				 * Fix udp checksum to compensate port
+				 * adjustment.   NOTE : the offending IP
+				 * packet flows the other direction compared
+				 * to the ICMP message.
+				 *
+				 * The UDP checksum is optional, only adjust
+				 * it if it has been set.
+				 */
+				if (oip->ip_p == IPPROTO_UDP && udp->uh_sum) {
+
+					sum1 = ntohs(udp->uh_sum);
+					fix_datacksum(&udp->uh_sum, sumd);
+					sum2 = ntohs(udp->uh_sum);
+
+					/*
+					 * Fix ICMP checksum to compensate
+					 * UDP checksum adjustment.
+					 */
+					CALC_SUMD(sum1, sum2, sumd);
+					fix_incksum(&icmp->icmp_cksum, sumd);
+				}
 			}
 		}
 	}
@@ -1665,30 +1893,92 @@ register u_int flags, p;
 struct in_addr src , mapdst;
 u_32_t ports;
 {
-	register u_short sport, mapdport;
+	register u_short sport, dport;
 	register nat_t *nat;
 	register int nflags;
+	register u_32_t dst;
 	u_int hv;
 
-	mapdport = ports >> 16;
+	dst = mapdst.s_addr;
+	dport = ports >> 16;
 	sport = ports & 0xffff;
 	flags &= IPN_TCPUDP;
 
-	hv = NAT_HASH_FN(mapdst.s_addr, mapdport, ipf_nattable_sz);
+	hv = NAT_HASH_FN(dst, dport, ipf_nattable_sz);
 	nat = nat_table[1][hv];
 	for (; nat; nat = nat->nat_hnext[1]) {
 		nflags = nat->nat_flags;
 		if ((!ifp || ifp == nat->nat_ifp) &&
 		    nat->nat_oip.s_addr == src.s_addr &&
-		    nat->nat_outip.s_addr == mapdst.s_addr &&
+		    nat->nat_outip.s_addr == dst &&
 		    (((p == 0) && (flags == (nat->nat_flags & IPN_TCPUDP)))
 		     || (p == nat->nat_p)) && (!flags ||
 		     (((nat->nat_oport == sport) || (nflags & FI_W_DPORT)) &&
-		      ((nat->nat_outport == mapdport) ||
-		       (nflags & FI_W_SPORT)))))
+		      ((nat->nat_outport == dport) || (nflags & FI_W_SPORT)))))
 			return nat;
 	}
-	return NULL;
+	if (!nat_wilds || !(flags & IPN_TCPUDP))
+		return NULL;
+	RWLOCK_EXIT(&ipf_nat);
+	hv = NAT_HASH_FN(dst, 0, ipf_nattable_sz);
+	WRITE_ENTER(&ipf_nat);
+	nat = nat_table[1][hv];
+	for (; nat; nat = nat->nat_hnext[1]) {
+		nflags = nat->nat_flags;
+		if (ifp && ifp != nat->nat_ifp)
+			continue;
+		if (!(nflags & IPN_TCPUDP))
+			continue;
+		if (!(nflags & FI_WILDP))
+			continue;
+		if (nat->nat_oip.s_addr != src.s_addr ||
+		    nat->nat_outip.s_addr != dst)
+			continue;
+		if (((nat->nat_oport == sport) || (nflags & FI_W_DPORT)) &&
+		    ((nat->nat_outport == dport) || (nflags & FI_W_SPORT))) {
+			hv = NAT_HASH_FN(dst, dport, ipf_nattable_sz);
+			nat_tabmove(nat, hv);
+			break;
+		}
+	}
+	MUTEX_DOWNGRADE(&ipf_nat);
+	return nat;
+}
+
+
+static void nat_tabmove(nat, hv)
+nat_t *nat;
+u_int hv;
+{
+	nat_t **natp;
+
+	/*
+	 * Remove the NAT entry from the old location
+	 */
+	if (nat->nat_hnext[0])
+		nat->nat_hnext[0]->nat_phnext[0] = nat->nat_phnext[0];
+	*nat->nat_phnext[0] = nat->nat_hnext[0];
+
+	if (nat->nat_hnext[1])
+		nat->nat_hnext[0]->nat_phnext[1] = nat->nat_phnext[1];
+	*nat->nat_phnext[1] = nat->nat_hnext[1];
+
+	natp = &nat_table[0][hv];
+	if (*natp)
+		(*natp)->nat_phnext[0] = &nat->nat_hnext[0];
+	nat->nat_phnext[0] = natp;
+	nat->nat_hnext[0] = *natp;
+	*natp = nat;
+
+	/*
+	 * Add into the NAT table in the new position
+	 */
+	natp = &nat_table[1][hv];
+	if (*natp)
+		(*natp)->nat_phnext[1] = &nat->nat_hnext[1];
+	nat->nat_phnext[1] = natp;
+	nat->nat_hnext[1] = *natp;
+	*natp = nat;
 }
 
 
@@ -1707,19 +1997,21 @@ u_32_t ports;
 	register u_short sport, dport;
 	register nat_t *nat;
 	register int nflags;
+	u_32_t srcip;
 	u_int hv;
 
 	sport = ports & 0xffff;
 	dport = ports >> 16;
 	flags &= IPN_TCPUDP;
+	srcip = src.s_addr;
 
-	hv = NAT_HASH_FN(src.s_addr, sport, ipf_nattable_sz);
+	hv = NAT_HASH_FN(srcip, sport, ipf_nattable_sz);
 	nat = nat_table[0][hv];
 	for (; nat; nat = nat->nat_hnext[0]) {
 		nflags = nat->nat_flags;
 
 		if ((!ifp || ifp == nat->nat_ifp) &&
-		    nat->nat_inip.s_addr == src.s_addr &&
+		    nat->nat_inip.s_addr == srcip &&
 		    nat->nat_oip.s_addr == dst.s_addr &&
 		    (((p == 0) && (flags == (nat->nat_flags & IPN_TCPUDP)))
 		     || (p == nat->nat_p)) && (!flags ||
@@ -1727,7 +2019,32 @@ u_32_t ports;
 		      (nat->nat_oport == dport || nflags & FI_W_DPORT))))
 			return nat;
 	}
-	return NULL;
+	if (!nat_wilds || !(flags & IPN_TCPUDP))
+		return NULL;
+	RWLOCK_EXIT(&ipf_nat);
+	hv = NAT_HASH_FN(srcip, 0, ipf_nattable_sz);
+	WRITE_ENTER(&ipf_nat);
+	nat = nat_table[0][hv];
+	for (; nat; nat = nat->nat_hnext[0]) {
+		nflags = nat->nat_flags;
+		if (ifp && ifp != nat->nat_ifp)
+			continue;
+		if (!(nflags & IPN_TCPUDP))
+			continue;
+		if (!(nflags & FI_WILDP))
+			continue;
+		if ((nat->nat_inip.s_addr != srcip) ||
+		    (nat->nat_oip.s_addr != dst.s_addr))
+			continue;
+		if (((nat->nat_inport == sport) || (nflags & FI_W_DPORT)) &&
+		    ((nat->nat_oport == dport) || (nflags & FI_W_SPORT))) {
+			hv = NAT_HASH_FN(srcip, sport, ipf_nattable_sz);
+			nat_tabmove(nat, hv);
+			break;
+		}
+	}
+	MUTEX_DOWNGRADE(&ipf_nat);
+	return nat;
 }
 
 
@@ -1863,6 +2180,7 @@ fr_info_t *fin;
 				nat->nat_outport = sport;
 			nat->nat_flags &= ~(FI_W_DPORT|FI_W_SPORT);
 			nflags = nat->nat_flags;
+			nat_wilds--;
 		}
 	} else {
 		RWLOCK_EXIT(&ipf_nat);
@@ -1943,16 +2261,16 @@ maskloop:
 			CALC_SUMD(s1, s2, sumd);
 
 			if (nat->nat_dir == NAT_OUTBOUND)
-				fix_incksum(&ip->ip_sum, sumd, 0);
+				fix_incksum(&ip->ip_sum, sumd);
 			else
-				fix_outcksum(&ip->ip_sum, sumd, 0);
+				fix_outcksum(&ip->ip_sum, sumd);
 		}
 #if SOLARIS || defined(__sgi)
 		else {
 			if (nat->nat_dir == NAT_OUTBOUND)
-				fix_outcksum(&ip->ip_sum, nat->nat_ipsumd, 0);
+				fix_outcksum(&ip->ip_sum, nat->nat_ipsumd);
 			else
-				fix_incksum(&ip->ip_sum, nat->nat_ipsumd, 0);
+				fix_incksum(&ip->ip_sum, nat->nat_ipsumd);
 		}
 #endif
 		ip->ip_src = nat->nat_outip;
@@ -1996,11 +2314,9 @@ maskloop:
 
 			if (csump) {
 				if (nat->nat_dir == NAT_OUTBOUND)
-					fix_outcksum(csump, nat->nat_sumd[1],
-						     ip->ip_len);
+					fix_outcksum(csump, nat->nat_sumd[1]);
 				else
-					fix_incksum(csump, nat->nat_sumd[1],
-						     ip->ip_len);
+					fix_incksum(csump, nat->nat_sumd[1]);
 			}
 		}
 
@@ -2077,6 +2393,7 @@ fr_info_t *fin;
 				nat->nat_outport = dport;
 			nat->nat_flags &= ~(FI_W_SPORT|FI_W_DPORT);
 			nflags = nat->nat_flags;
+			nat_wilds--;
 		}
 	} else {
 		RWLOCK_EXIT(&ipf_nat);
@@ -2154,9 +2471,9 @@ maskloop:
 		 */
 #if SOLARIS || defined(__sgi)
 		if (nat->nat_dir == NAT_OUTBOUND)
-			fix_incksum(&ip->ip_sum, nat->nat_ipsumd, 0);
+			fix_incksum(&ip->ip_sum, nat->nat_ipsumd);
 		else
-			fix_outcksum(&ip->ip_sum, nat->nat_ipsumd, 0);
+			fix_outcksum(&ip->ip_sum, nat->nat_ipsumd);
 #endif
 		if (!(ip->ip_off & IP_OFFMASK) &&
 		    !(fin->fin_fi.fi_fl & FI_SHORT)) {
@@ -2197,11 +2514,9 @@ maskloop:
 
 			if (csump) {
 				if (nat->nat_dir == NAT_OUTBOUND)
-					fix_incksum(csump, nat->nat_sumd[0],
-						    0);
+					fix_incksum(csump, nat->nat_sumd[0]);
 				else
-					fix_outcksum(csump, nat->nat_sumd[0],
-						     0);
+					fix_outcksum(csump, nat->nat_sumd[0]);
 			}
 		}
 		ATOMIC_INCL(nat_stats.ns_mapped[0]);

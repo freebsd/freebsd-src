@@ -61,6 +61,6 @@ extern	void	ipfr_slowtimer __P((void *));
 # endif
 #else
 extern	int	ipfr_slowtimer __P((void));
-#endif
+#endif /* (BSD >= 199306) || SOLARIS */
 
 #endif	/* __IP_FIL_H__ */
