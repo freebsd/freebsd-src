@@ -27,6 +27,7 @@
 #
 
 #include <sys/bus.h>
+#include <machine/bus.h>
 #include <dev/pccard/pccardvar.h>
 
 INTERFACE card;
