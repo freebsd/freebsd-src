@@ -71,6 +71,28 @@ It implements the mount protocol as described in RFC 1094, Appendix A and
 .%T "NFS: Network File System Version 3 Protocol Specification" ,
 Appendix I.
 .Pp
+By default,
+.Nm
+keeps retrying until the mount succeeds.
+This behaviour is intended for filesystems listed in
+.Xr fstab 5
+that are critical to the boot process.
+For non-critical filesystems, the
+.Fl b
+and
+.Fl R
+flags provide mechanisms to prevent the boot process from hanging
+if the server is unavailable.
+.Pp
+If the server becomes unresponsive while an NFS filesystem is
+mounted, any new or outstanding file operations on that filesystem
+will hang uninterruptibly until the server comes back.
+To modify this default behaviour, see the
+.Fl i
+and
+.Fl s
+flags.
+.Pp
 The options are:
 .Bl -tag -width indent
 .It Fl 2
@@ -126,12 +148,8 @@ but untrustworthy users and the network cables are in secure areas this does
 help, but for normal desktop clients this does not apply.)
 .It Fl R
 Set the mount retry count to the specified value.
-A retry count of zero means to keep retrying forever.
-By default,
-.Nm
-retries forever on background mounts (see the
-.Fl b
-option), and otherwise tries just once.
+The default is a retry count of zero, which means to keep retrying
+forever.
 There is a 60 second delay between each attempt.
 .It Fl T
 Use TCP transport instead of UDP.
