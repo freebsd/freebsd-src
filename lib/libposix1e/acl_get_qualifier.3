@@ -30,71 +30,83 @@
 .Os
 .Sh NAME
 .Nm acl_get_qualifier
-.Nd Retrieve the qualifier from an ACL entry
+.Nd retrieve the qualifier from an ACL entry
 .Sh LIBRARY
 .Lb libposix1e
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <sys/acl.h>
-.Ft int
+.Ft void *
 .Fn acl_get_qualifier "acl_entry_t entry_d"
 .Sh DESCRIPTION
 .Fn acl_get_qualifier
 is a POSIX.1e call that retrieves the qualifier of the tag for
 the ACL entry indicated by the argument
-.Ar entry_d
+.Fa entry_d
 into working storage and returns a pointer to that storage.
 .Pp
 If the value of the tag type in the ACL entry referred to by
-.Ar entry_d
-is ACL_USER, then the value returned by
+.Fa entry_d
+is
+.Dv ACL_USER ,
+then the value returned by
 .Fn acl_get_qualifier
-will be a pointer to type uid_t.
+will be a pointer to type
+.Vt uid_t .
 .Pp
 If the value of the tag type in
 the ACL entry referred to by
-.Ar entry_d
-is ACL_GROUP, then the value returned by
+.Fa entry_d
+is
+.Dv ACL_GROUP ,
+then the value returned by
 .Fn acl_get_qualifier
-will be a pointer to type gid_t.
+will be a pointer to type
+.Vt gid_t .
 .Pp
 If the value of the tag type in the ACL enty referred to by
-.Ar entry_d
-is ACL_UNDEFINED_TAG, ACL_USER_OBJ, ACL_GROUP_OBJ, ACL_OTHER,
-ACL_MASK, or an implementation-defined value for which a qualifier
+.Fa entry_d
+is
+.Dv ACL_UNDEFINED_TAG , ACL_USER_OBJ , ACL_GROUP_OBJ ,
+.Dv ACL_OTHER , ACL_MASK ,
+or an implementation-defined value for which a qualifier
 is not supported, then
 .Fn acl_get_qualifier
-will return a valid of (void *)NULL and the function will fail.
+will return a value of
+.Vt ( void * ) Ns Dv NULL
+and the function will fail.
 .Pp
 This function may cause memory to be allocated.  The caller should
 free any releasable memory, when the new qualifier is no longer
 required, by calling
 .Fn acl_free
-with void* as the argument.
+with
+.Vt void *
+as the argument.
 .Sh RETURN VALUES
-Upon successful completion, the function will return a value of
-.Va 0 .
-Otherwise, a value of
-.Va -1
-will be returned, and
-.Va errno
-will be set to indicate the error.
-.Sh ERRORS
-If any of the following conditions occur, the
+The
 .Fn acl_get_qualifier
-function will return a value of
-.Va (void *)NULL
-and set
+function returns a pointer to the allocated storage if successful;
+otherwise a
+.Dv NULL
+pointer is returned and the global variable
 .Va errno
-to the corresponding value:
+is set to indicate the error.
+.Sh ERRORS
+The
+.Fn acl_get_qualifier
+fails if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 Argument
-.Ar entry_d
+.Fa entry_d
 does not point to a valid descriptor for an ACL entry.  The
 value of the tag type in the ACL entry referenced by argument
-.Ar entry_d
-is not ACL_USER or ACL_GROUP.
+.Fa entry_d
+is not
+.Dv ACL_USER
+or
+.Dv ACL_GROUP .
 .It Bq Er ENOMEM
 The value to be returned requires more memory than is allowed
 by the hardware or system-imposed memory management constraints.
