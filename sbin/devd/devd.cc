@@ -176,7 +176,7 @@ protected:
 	void sort_vector(vector<event_proc *> &);
 	void parse_one_file(const char *fn);
 	void parse_files_in_dir(const char *dirname);
-	void expand_one(const char *&src, char *&dst, char *eod);
+	void expand_one(const char *&src, string &dst);
 	bool is_id_char(char);
 	bool chop_var(char *&buffer, char *&lhs, char *&rhs);
 private:
@@ -475,20 +475,16 @@ config::is_id_char(char ch)
 	    ch == '-'));
 }
 
-// XXX
-// imp should learn how to make effective use of the string class.
 void
-config::expand_one(const char *&src, char *&dst, char *)
+config::expand_one(const char *&src, string &dst)
 {
 	int count;
-	const char *var;
-	char buffer[1024];
-	string varstr;
+	string buffer, varstr;
 
 	src++;
 	// $$ -> $
 	if (*src == '$') {
-		*dst++ = *src++;
+		dst.append(src++, 1);
 		return;
 	}
 		
@@ -496,54 +492,52 @@ config::expand_one(const char *&src, char *&dst, char *)
 	// Not sure if I want to support this or not, so for now we just pass
 	// it through.
 	if (*src == '(') {
-		*dst++ = '$';
+		dst.append("$");
 		count = 1;
-		while (count > 0) {
+		/* If the string ends before ) is matched , return. */
+		while (count > 0 && *src) {
 			if (*src == ')')
 				count--;
 			else if (*src == '(')
 				count++;
-			*dst++ = *src++;
+			dst.append(src++, 1);
 		}
 		return;
 	}
 	
 	// ${^A-Za-z] -> $\1
 	if (!isalpha(*src)) {
-		*dst++ = '$';
-		*dst++ = *src++;
+		dst.append("$");
+		dst.append(src++, 1);
 		return;
 	}
 
 	// $var -> replace with value
-	var = src++;
-	while (is_id_char(*src))
-		src++;
-	memcpy(buffer, var, src - var);
-	buffer[src - var] = '\0';
-	varstr = get_variable(buffer);
-	strcpy(dst, varstr.c_str());
-	dst += strlen(dst);
+	do {
+		buffer.append(src++, 1);
+	} while (*src && isalpha(*src) || isdigit(*src) || *src == '_' ||
+	    *src == '-');
+	buffer.append("", 1);
+	varstr = get_variable(buffer.c_str());
+	dst.append(varstr);
 }
 
 const string
 config::expand_string(const string &s)
 {
 	const char *src;
-	char *dst;
-	char buffer[1024];
+	string dst;
 
 	src = s.c_str();
-	dst = buffer;
 	while (*src) {
 		if (*src == '$')
-			expand_one(src, dst, buffer + sizeof(buffer));
+			expand_one(src, dst);
 		else
-			*dst++ = *src++;
+			dst.append(src++, 1);
 	}
-	*dst++ = '\0';
+	dst.append("", 1);
 
-	return (buffer);
+	return (dst);
 }
 
 bool
