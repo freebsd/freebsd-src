@@ -30,6 +30,7 @@
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/kthread.h>
+#include <sys/lock.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/unistd.h>
@@ -113,7 +114,10 @@ kthread_create(void (*func)(void *), void *arg,
 void
 kthread_exit(int ecode)
 {
+
+	PROCTREE_LOCK(PT_EXCLUSIVE);
 	proc_reparent(curproc, initproc);
+	PROCTREE_LOCK(PT_RELEASE);
 	exit1(curproc, W_EXITCODE(ecode, 0));
 }
 

@@ -50,6 +50,7 @@
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/pioctl.h>
@@ -65,8 +66,9 @@ struct getpid_args {
 #endif
 
 /*
- * NOT MP SAFE due to p_pptr access
+ * getpid - MP SAFE
  */
+
 /* ARGSUSED */
 int
 getpid(p, uap)
@@ -76,10 +78,16 @@ getpid(p, uap)
 
 	p->p_retval[0] = p->p_pid;
 #if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+	PROCTREE_LOCK(PT_SHARED);
 	p->p_retval[1] = p->p_pptr->p_pid;
+	PROCTREE_LOCK(PT_RELEASE);
 #endif
 	return (0);
 }
+
+/*
+ * getppid - MP SAFE
+ */
 
 #ifndef _SYS_SYSPROTO_H_
 struct getppid_args {
@@ -93,7 +101,9 @@ getppid(p, uap)
 	struct getppid_args *uap;
 {
 
+	PROCTREE_LOCK(PT_SHARED);
 	p->p_retval[0] = p->p_pptr->p_pid;
+	PROCTREE_LOCK(PT_RELEASE);
 	return (0);
 }
 

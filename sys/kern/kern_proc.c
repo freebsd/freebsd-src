@@ -73,6 +73,7 @@ u_long pgrphash;
 struct proclist allproc;
 struct proclist zombproc;
 struct lock allproc_lock;
+struct lock proctree_lock;
 vm_zone_t proc_zone;
 vm_zone_t ithread_zone;
 
@@ -84,6 +85,7 @@ procinit()
 {
 
 	lockinit(&allproc_lock, PZERO, "allproc", 0, 0);
+	lockinit(&proctree_lock, PZERO, "proctree", 0, 0);
 	LIST_INIT(&allproc);
 	LIST_INIT(&zombproc);
 	pidhashtbl = hashinit(maxproc / 4, M_PROC, &pidhash);
@@ -106,11 +108,16 @@ int
 inferior(p)
 	register struct proc *p;
 {
+	int rval = 1;
 
+	PROCTREE_LOCK(PT_SHARED);
 	for (; p != curproc; p = p->p_pptr)
-		if (p->p_pid == 0)
-			return (0);
-	return (1);
+		if (p->p_pid == 0) {
+			rval = 0;
+			break;
+		}
+	PROCTREE_LOCK(PT_RELEASE);
+	return (rval);
 }
 
 /*
@@ -281,6 +288,7 @@ fixjobc(p, pgrp, entering)
 	 * Check p's parent to see whether p qualifies its own process
 	 * group; if so, adjust count for p's process group.
 	 */
+	PROCTREE_LOCK(PT_SHARED);
 	if ((hispgrp = p->p_pptr->p_pgrp) != pgrp &&
 	    hispgrp->pg_session == mysession) {
 		if (entering)
@@ -303,6 +311,7 @@ fixjobc(p, pgrp, entering)
 			else if (--hispgrp->pg_jobc == 0)
 				orphanpg(hispgrp);
 		}
+	PROCTREE_LOCK(PT_RELEASE);
 }
 
 /*
@@ -414,8 +423,10 @@ fill_kinfo_proc(p, kp)
 	kp->ki_rtprio = p->p_rtprio;
 	kp->ki_runtime = p->p_runtime;
 	kp->ki_pid = p->p_pid;
+	PROCTREE_LOCK(PT_SHARED);
 	if (p->p_pptr)
 		kp->ki_ppid = p->p_pptr->p_pid;
+	PROCTREE_LOCK(PT_RELEASE);
 	sp = NULL;
 	if (p->p_pgrp) {
 		kp->ki_pgid = p->p_pgrp->pg_id;
