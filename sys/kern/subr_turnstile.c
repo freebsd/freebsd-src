@@ -699,6 +699,7 @@ turnstile_unpend(struct turnstile *ts)
 	ts->ts_owner = NULL;
 	LIST_REMOVE(ts, ts_link);
 	mtx_unlock_spin(&td_contested_lock);
+	critical_enter();
 	mtx_unlock_spin(&tc->tc_lock);
 
 	/*
@@ -742,6 +743,7 @@ turnstile_unpend(struct turnstile *ts)
 			MPASS(TD_IS_RUNNING(td) || TD_ON_RUNQ(td));
 		}
 	}
+	critical_exit();
 	mtx_unlock_spin(&sched_lock);
 }
 
