@@ -1057,6 +1057,7 @@ installFilesystems(dialogMenuItem *self)
 		char bootdir[FILENAME_MAX];
 		char efi_bootdir[FILENAME_MAX];
 		PartInfo *pi = (PartInfo *)c1->private_data;
+		char *p;
 
 		if (pi->newfs && (!upgrade || !msgNoYes("You are upgrading - are you SURE you want to newfs /dev/%s?", c1->name)))
 		    command_shell_add(pi->mountpoint, "%s %s/dev/%s", pi->newfs_cmd, RunningAsInit ? "/mnt" : "", c1->name);
@@ -1074,7 +1075,11 @@ installFilesystems(dialogMenuItem *self)
 		strcat(bootdir, "/boot");
 		strcat(efi_bootdir, "/boot");
 		Mkdir(efi_bootdir);
-		symlink(efi_bootdir, bootdir);
+		/* Make a relative link. */
+		p = &efi_bootdir[(RunningAsInit) ? 4 : 0];
+		while (*p == '/')
+			p++;
+		symlink(p, bootdir);
 	    }
 #endif
 	}
