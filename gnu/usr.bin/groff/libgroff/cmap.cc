@@ -24,7 +24,7 @@ Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. */
 cmap cmlower(CMAP_BUILTIN);
 cmap cmupper(CMAP_BUILTIN);
 
-#ifdef isascii
+#if defined(isascii) && !defined(__FreeBSD__)
 #define ISASCII(c) isascii(c)
 #else
 #define ISASCII(c) (1)
