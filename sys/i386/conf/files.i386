@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.194 1998/03/11 00:30:11 julian Exp $
+#	$Id: files.i386,v 1.195 1998/03/23 16:44:22 peter Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -43,8 +43,9 @@ i386/i386/cons.c		standard
 i386/i386/db_disasm.c		optional	ddb
 i386/i386/db_interface.c	optional	ddb
 i386/i386/db_trace.c		optional	ddb
-i386/i386/i386-gdbstub.c	optional	ddb
 i386/i386/exception.s		standard
+i386/i386/globals.s		standard
+i386/i386/i386-gdbstub.c	optional	ddb
 i386/i386/identcpu.c		standard
 i386/i386/in_cksum.c		optional	inet
 i386/i386/initcpu.c		standard
