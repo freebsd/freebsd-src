@@ -39,31 +39,31 @@
  * between application locks and libc locks (threads holding the
  * latter can't be allowed to exit/terminate).
  */
-#pragma weak	_pthread_cond_init=_pthread_cond_init_stub
-#pragma weak	_pthread_cond_signal=_pthread_cond_signal_stub
-#pragma weak	_pthread_cond_wait=_pthread_cond_wait_stub
-#pragma weak	_pthread_getspecific=_pthread_getspecific_stub
-#pragma weak	_pthread_key_create=_pthread_key_create_stub
-#pragma weak	_pthread_key_delete=_pthread_key_delete_stub
-#pragma weak	_pthread_main_np=_pthread_main_np_stub
-#pragma weak	_pthread_mutex_destroy=_pthread_mutex_destroy_stub
-#pragma weak	_pthread_mutex_init=_pthread_mutex_init_stub
-#pragma weak	_pthread_mutex_lock=_pthread_mutex_lock_stub
-#pragma weak	_pthread_mutex_trylock=_pthread_mutex_trylock_stub
-#pragma weak	_pthread_mutex_unlock=_pthread_mutex_unlock_stub
-#pragma weak	_pthread_mutexattr_init=_pthread_mutexattr_init_stub
-#pragma weak	_pthread_mutexattr_destroy=_pthread_mutexattr_destroy_stub
-#pragma weak	_pthread_mutexattr_settype=_pthread_mutexattr_settype_stub
-#pragma weak	_pthread_once=_pthread_once_stub
-#pragma weak	_pthread_self=_pthread_self_stub
-#pragma weak	_pthread_rwlock_init=_pthread_rwlock_init_stub
-#pragma weak	_pthread_rwlock_rdlock=_pthread_rwlock_rdlock_stub
-#pragma weak	_pthread_rwlock_tryrdlock=_pthread_rwlock_tryrdlock_stub
-#pragma weak	_pthread_rwlock_trywrloc=_pthread_rwlock_trywrlock_stub
-#pragma weak	_pthread_rwlock_unlock=_pthread_rwlock_unlock_stub
-#pragma weak	_pthread_rwlock_wrlock=_pthread_rwlock_wrlock_stub 
-#pragma weak	_pthread_setspecific=_pthread_setspecific_stub
-#pragma weak	_pthread_sigmask=_pthread_sigmask_stub
+__weak_reference(_pthread_cond_init_stub,	_pthread_cond_init);
+__weak_reference(_pthread_cond_signal_stub,	_pthread_cond_signal);
+__weak_reference(_pthread_cond_wait_stub,	_pthread_cond_wait);
+__weak_reference(_pthread_getspecific_stub,	_pthread_getspecific);
+__weak_reference(_pthread_key_create_stub,	_pthread_key_create);
+__weak_reference(_pthread_key_delete_stub,	_pthread_key_delete);
+__weak_reference(_pthread_main_np_stub,		_pthread_main_np);
+__weak_reference(_pthread_mutex_destroy_stub,	_pthread_mutex_destroy);
+__weak_reference(_pthread_mutex_init_stub,	_pthread_mutex_init);
+__weak_reference(_pthread_mutex_lock_stub,	_pthread_mutex_lock);
+__weak_reference(_pthread_mutex_trylock_stub,	_pthread_mutex_trylock);
+__weak_reference(_pthread_mutex_unlock_stub,	_pthread_mutex_unlock);
+__weak_reference(_pthread_mutexattr_init_stub,	_pthread_mutexattr_init);
+__weak_reference(_pthread_mutexattr_destroy_stub, _pthread_mutexattr_destroy);
+__weak_reference(_pthread_mutexattr_settype_stub, _pthread_mutexattr_settype);
+__weak_reference(_pthread_once_stub,		_pthread_once);
+__weak_reference(_pthread_self_stub,		_pthread_self);
+__weak_reference(_pthread_rwlock_init_stub,	_pthread_rwlock_init);
+__weak_reference(_pthread_rwlock_rdlock_stub,	_pthread_rwlock_rdlock);
+__weak_reference(_pthread_rwlock_tryrdlock_stub, _pthread_rwlock_tryrdlock);
+__weak_reference(_pthread_rwlock_trywrlock_stub, _pthread_rwlock_trywrloc);
+__weak_reference(_pthread_rwlock_unlock_stub,	_pthread_rwlock_unlock);
+__weak_reference(_pthread_rwlock_wrlock_stub,	_pthread_rwlock_wrlock); 
+__weak_reference(_pthread_setspecific_stub,	_pthread_setspecific);
+__weak_reference(_pthread_sigmask_stub,		_pthread_sigmask);
 
 /* Define a null pthread structure just to satisfy _pthread_self. */
 struct pthread {
@@ -85,8 +85,7 @@ _pthread_cond_signal_stub(pthread_cond_t *cond)
 }
 
 int
-_pthread_cond_wait_stub(pthread_cond_t *cond,
-    pthread_mutex_t *mutex)
+_pthread_cond_wait_stub(pthread_cond_t *cond, pthread_mutex_t *mutex)
 {
 	return (0);
 }
