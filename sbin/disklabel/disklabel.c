@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <sys/disk.h>
 #define DKTYPENAMES
 #define FSTYPENAMES
 #include <sys/disklabel.h>
@@ -1573,8 +1574,11 @@ struct disklabel *
 getvirginlabel(void)
 {
 	static struct disklabel loclab;
+	struct partition *dp;
 	char lnamebuf[BBSIZE];
 	int f;
+	u_int secsize, u;
+	off_t mediasize;
 
 	if (dkname[0] == '/') {
 		warnx("\"auto\" requires the usage of a canonical disk name");
@@ -1586,28 +1590,51 @@ getvirginlabel(void)
 		return (NULL);
 	}
 
-	/*
-	 * Try to use the new get-virgin-label ioctl.  If it fails,
-	 * fallback to the old get-disdk-info ioctl.
-	 */
-	if (ioctl(f, DIOCGDVIRGIN, &loclab) == 0)
-		goto out;
-	if (ioctl(f, DIOCGDINFO, &loclab) == 0)
-		goto out;
-	close(f);
-	(void)snprintf(lnamebuf, BBSIZE, "%s%s%c", _PATH_DEV, dkname,
-	    'a' + RAW_PART);
-	if ((f = open(lnamebuf, O_RDONLY)) == -1) {
-		warn("cannot open %s", lnamebuf);
+	/* New world order */
+	if ((ioctl(f, DIOCGMEDIASIZE, &mediasize) != 0) ||
+	    (ioctl(f, DIOCGSECTORSIZE, &secsize) != 0)) {
+		close (f);
 		return (NULL);
 	}
-	if (ioctl(f, DIOCGDINFO, &loclab) == 0)
-		goto out;
-	close(f);
-	warn("No virgin disklabel found %s", lnamebuf);
-	return (NULL);
-    out:
-	close(f);
+	memset(&loclab, 0, sizeof loclab);
+	loclab.d_magic = DISKMAGIC;
+	loclab.d_magic2 = DISKMAGIC;
+	loclab.d_secsize = secsize;
+	loclab.d_secperunit = mediasize / secsize;
+
+	/*
+	 * Nobody in these enligthened days uses the CHS geometry for
+	 * anything, but nontheless try to get it right.  If we fail
+	 * to get any good ideas from the device, construct something
+	 * which is IBM-PC friendly.
+	 */
+	if (ioctl(f, DIOCGFWSECTORS, &u) == 0)
+		loclab.d_nsectors = u;
+	else
+		loclab.d_nsectors = 63;
+	if (ioctl(f, DIOCGFWHEADS, &u) == 0)
+		loclab.d_ntracks = u;
+	else if (loclab.d_secperunit <= 63*1*1024)
+		loclab.d_ntracks = 1;
+	else if (loclab.d_secperunit <= 63*16*1024)
+		loclab.d_ntracks = 16;
+	else
+		loclab.d_ntracks = 255;
+	loclab.d_secpercyl = loclab.d_ntracks * loclab.d_nsectors;
+	loclab.d_ncylinders = loclab.d_secperunit / loclab.d_secpercyl;
+	loclab.d_npartitions = MAXPARTITIONS;
+
+	/* Various (unneeded) compat stuff */
+	loclab.d_rpm = 3600;
+	loclab.d_bbsize = BBSIZE;
+	loclab.d_interleave = 1;;
+	strncpy(loclab.d_typename, "amnesiac",
+	    sizeof(loclab.d_typename));
+
+	dp = &loclab.d_partitions[RAW_PART];
+	dp->p_size = loclab.d_secperunit;
+	loclab.d_checksum = dkcksum(&loclab);
+	close (f);
 	return (&loclab);
 }
 
