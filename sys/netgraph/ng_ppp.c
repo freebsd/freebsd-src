@@ -728,12 +728,16 @@ ng_ppp_output(node_p node, int linkNum, struct mbuf *m, meta_p meta)
 		return (ENETDOWN);
 	}
 
-	/* Update stats XXX even if error? */
-	priv->linkStats[linkNum].xmitFrames++;
-	priv->linkStats[linkNum].xmitOctets += m->m_pkthdr.len;
-
 	/* Deliver frame */
 	NG_SEND_DATA(error, priv->links[linkNum], m, meta);
+
+	/* Update stats and 'bytes in queue' counter */
+	if (error == 0) {
+		priv->linkStats[linkNum].xmitFrames++;
+		priv->linkStats[linkNum].xmitOctets += m->m_pkthdr.len;
+		priv->qstat[linkNum].bytesInQueue += m->m_pkthdr.len;
+		microtime(&priv->qstat[linkNum].lastWrite);
+	}
 	return error;
 }
 
@@ -1155,7 +1159,7 @@ ng_ppp_mp_strategy(node_p node, int len, int *distrib)
 	}
 
 	/* Get current time */
-	getmicrotime(&now);
+	microtime(&now);
 
 	/* Compute latencies for each link at this point in time */
 	for (activeLinkNum = 0;
@@ -1236,10 +1240,11 @@ ng_ppp_mp_strategy(node_p node, int len, int *distrib)
 		total += distrib[sortByLatency[i]];
 	}
 
-	/* Deal with any rounding error by adjusting fastest link */
-	if (total != len) {
+	/* Deal with any rounding error */
+	if (total < len) {
 		int fast = 0;
 
+		/* Find the fastest link */
 		for (i = 1; i < numFragments; i++) {
 			if (priv->conf.links[
 			      priv->activeLinks[sortByLatency[i]]].bandwidth >
@@ -1248,12 +1253,24 @@ ng_ppp_mp_strategy(node_p node, int len, int *distrib)
 				fast = i;
 		}
 		distrib[sortByLatency[fast]] += len - total;
-	}
+	} else while (total > len) {
+		int delta, slow = 0;
 
-	/* Update bytes in queue counters */
-	for (i = 0; i < priv->numActiveLinks; i++) {
-		priv->qstat[i].bytesInQueue += distrib[i];
-		priv->qstat[i].lastWrite = now;
+		/* Find the slowest link that still has bytes to remove */
+		for (i = 1; i < numFragments; i++) {
+			if (distrib[sortByLatency[slow]] == 0
+			  || (distrib[sortByLatency[i]] > 0
+			    && priv->conf.links[priv->activeLinks[
+					sortByLatency[i]]].bandwidth <
+			      priv->conf.links[priv->activeLinks[
+					sortByLatency[slow]]].bandwidth))
+				slow = i;
+		}
+		delta = total - len;
+		if (delta > distrib[sortByLatency[slow]])
+			delta = distrib[sortByLatency[slow]];
+		distrib[sortByLatency[slow]] -= delta;
+		total -= delta;
 	}
 }
 
