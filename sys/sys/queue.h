@@ -40,8 +40,8 @@
 #include <machine/ansi.h>	/* for __offsetof */
 
 /*
- * This file defines five types of data structures: singly-linked lists,
- * singly-linked tail queues, lists, tail queues, and circular queues.
+ * This file defines four types of data structures: singly-linked lists,
+ * singly-linked tail queues, lists and tail queues.
  *
  * A singly-linked list is headed by a single forward pointer. The elements
  * are singly linked for minimum space and pointer manipulation overhead at
