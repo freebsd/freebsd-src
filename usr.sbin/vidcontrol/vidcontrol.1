@@ -71,6 +71,9 @@ and ends on scanline
 .B end
 .
 .TP
+.BI "\-d\ "
+Print out current screen output map.
+.TP
 .BI "\-l\ " scrmap
 Install screen output map file from
 .I scrmap
@@ -96,6 +99,9 @@ seconds, or turns it
 Sets the screensaver appearance to
 .I NAME .
 Use \-s help to print a list of the available screen savers.
+.TP
+.BI "\-x\ "
+Use hexadecimal digits for output.
 .PP
 .SH FILES
 /usr/share/syscons/fonts
@@ -106,7 +112,7 @@ Report when found.
 .BR kbdcontrol(1) ,
 .BR keyboard (4) ,
 .BR screen (4) ,
-.BR /sys/i386/conf/SYSCONS
+.BR /sys/i386/conf/GENERICAH
 .SH AUTHORS
 Søren Schmidt (sos@login.dkuug.dk)
 
