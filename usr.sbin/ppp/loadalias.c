@@ -49,8 +49,7 @@ loadAliasHandlers(struct aliasHandlers * h)
     if (OrigUid() == 0)
       path = env;
     else
-      LogPrintf(LogALERT, "Ignoring environment _PATH_ALIAS value (%s)",
-		env);
+      LogPrintf(LogALERT, "Ignoring environment _PATH_ALIAS value (%s)\n", env);
 
   dl = dlopen(path, RTLD_LAZY);
   if (dl == (void *) 0) {

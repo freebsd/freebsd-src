@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.48 1997/08/23 23:14:23 brian Exp $
+ * $Id: modem.c,v 1.49 1997/08/25 00:29:21 brian Exp $
  *
  *  TODO:
  */
@@ -757,7 +757,7 @@ ModemStartOutput(int fd)
       }
     } else if (nw < 0) {
       if (errno != EAGAIN) {
-	LogPrintf(LogERROR, "modem write (%d): %s", modem, strerror(errno));
+	LogPrintf(LogERROR, "modem write (%d): %s\n", modem, strerror(errno));
 	reconnect(RECON_TRUE);
 	DownConnection();
       }
