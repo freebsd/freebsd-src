@@ -28,12 +28,17 @@
  *	from: FreeBSD: src/lib/libc/alpha/gen/isinf.c,v 1.2 2000/05/10
  */
 
+/* For binary compat; to be removed in FreeBSD 6.0. */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <machine/ieee.h>
 #include <math.h>
+
+#undef isnan
+#undef isinf
 
 int
 isnan(double d)
