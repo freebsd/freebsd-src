@@ -64,7 +64,6 @@ struct partentry {
 	char		  	*p_devname;	/* device name */
 	char			*p_mntpt;	/* mount point */
 	char		  	*p_type;	/* filesystem type */
-	void			*p_auxarg;	/* auxiliary argument */
 };
 
 TAILQ_HEAD(part, partentry) badh;
@@ -81,23 +80,22 @@ TAILQ_HEAD(disk, diskentry) diskh;
 static int nrun = 0, ndisks = 0;
 
 static struct diskentry *finddisk __P((const char *));
-static void addpart __P((const char *, const char *, const char *, void *));
+static void addpart __P((const char *, const char *, const char *));
 static int startdisk __P((struct diskentry *, 
-    int (*)(const char *, const char *, const char *, void *, pid_t *)));
+    int (*)(const char *, const char *, const char *, char *, pid_t *)));
 static void printpart __P((void));
 
 int
 checkfstab(flags, docheck, checkit)
 	int flags;
-	void *(*docheck) __P((struct fstab *));
-	int (*checkit) __P((const char *, const char *, const char *, void *,
+	int (*docheck) __P((struct fstab *));
+	int (*checkit) __P((const char *, const char *, const char *, char *,
 	    pid_t *));
 {
 	struct fstab *fs;
 	struct diskentry *d, *nextdisk;
 	struct partentry *p;
 	int ret, pid, retcode, passno, sumstatus, status, nextpass;
-	void *auxarg;
 	const char *name;
 
 	TAILQ_INIT(&badh);
@@ -116,20 +114,18 @@ checkfstab(flags, docheck, checkit)
 			return (8);
 		}
 		while ((fs = getfsent()) != 0) {
-			if ((auxarg = (*docheck)(fs)) == NULL)
-				continue;
-
 			name = fs->fs_spec;
 			if (fs->fs_passno > passno && fs->fs_passno < nextpass)
 				nextpass = fs->fs_passno;
 
-			if (passno != fs->fs_passno)
+			if (passno != fs->fs_passno || (*docheck)(fs) == 0)
 				continue;
 
 			if (flags & CHECK_DEBUG)
 				printf("pass %d, name %s\n", passno, name);
 
-			if ((flags & CHECK_PREEN) == 0 || passno == 1) {
+			if ((flags & CHECK_PREEN) == 0 || passno == 1 ||
+			    (flags & DO_BACKGRD) != 0) {
 				if (name == NULL) {
 					if (flags & CHECK_PREEN)
 						return 8;
@@ -137,7 +133,7 @@ checkfstab(flags, docheck, checkit)
 						continue;
 				}
 				sumstatus = (*checkit)(fs->fs_vfstype,
-				    name, fs->fs_file, auxarg, NULL);
+				    name, fs->fs_file, NULL, NULL);
 
 				if (sumstatus)
 					return (sumstatus);
@@ -149,11 +145,11 @@ checkfstab(flags, docheck, checkit)
 				sumstatus |= 8;
 				continue;
 			}
-			addpart(fs->fs_vfstype, name, fs->fs_file,
-			    auxarg);
+			addpart(fs->fs_vfstype, name, fs->fs_file);
 		}
 
-		if ((flags & CHECK_PREEN) == 0 || passno == 1)
+		if ((flags & CHECK_PREEN) == 0 || passno == 1 ||
+		    (flags & DO_BACKGRD) != 0)
 			continue;
 
 		if (flags & CHECK_DEBUG) {
@@ -304,9 +300,8 @@ printpart()
 
 
 static void
-addpart(type, devname, mntpt, auxarg)
+addpart(type, devname, mntpt)
 	const char *type, *devname, *mntpt;
-	void *auxarg;
 {
 	struct diskentry *d = finddisk(devname);
 	struct partentry *p;
@@ -321,7 +316,6 @@ addpart(type, devname, mntpt, auxarg)
 	p->p_devname = estrdup(devname);
 	p->p_mntpt = estrdup(mntpt);
 	p->p_type = estrdup(type);
-	p->p_auxarg = auxarg;
 
 	TAILQ_INSERT_TAIL(&d->d_part, p, p_entries);
 }
@@ -330,14 +324,14 @@ addpart(type, devname, mntpt, auxarg)
 static int
 startdisk(d, checkit)
 	struct diskentry *d;
-	int (*checkit) __P((const char *, const char *, const char *, void *,
+	int (*checkit) __P((const char *, const char *, const char *, char *,
 	    pid_t *));
 {
 	struct partentry *p = TAILQ_FIRST(&d->d_part);
 	int rv;
 
 	while ((rv = (*checkit)(p->p_type, p->p_devname, p->p_mntpt,
-	    p->p_auxarg, &d->d_pid)) != 0 && nrun > 0)
+	    NULL, &d->d_pid)) != 0 && nrun > 0)
 		sleep(10);
 
 	if (rv == 0)

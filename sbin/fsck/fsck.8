@@ -37,6 +37,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl dvplfyn
+.Op Fl B | F
 .Op Fl l Ar maxparallel
 .Op Fl t Ar fstype 
 .Op Fl T Ar fstype : Ns Ar fsoptions 
@@ -52,9 +53,29 @@ file or in the command line for consistency.
 It is normally used in the script
 .Pa /etc/rc
 during automatic reboot.
-If no filesystems are specified, and ``preen'' mode is enabled (
-.Fl p
-option)
+Traditionally,
+.Nm
+is invoked before the filesystems are mounted
+and all checks are done to completion at that time.
+If background checking is available,
+.Nm
+is invoked twice.
+It is first invoked at the traditional time,
+before the filesystems are mounted, with the
+.Fl F
+flag to do checking on all the filesystems
+that cannot do background checking.
+It is then invoked a second time,
+after the system has completed going multiuser, with the
+.Fl B
+flag to do checking on all the filesystems
+that can do background checking.
+Unlike the foreground checking,
+the background checking is started asynchonously
+so that other system activity can proceed
+even on the filesystems that are being checked.
+.Pp
+If no filesystems are specified
 .Nm
 reads the table
 .Pa /etc/fstab
@@ -99,6 +120,42 @@ Causes
 to assume no as the answer to all operator questions, except "CONTINUE?".
 .It Fl p
 Enter preen mode.
+In preen mode, only a restricted class of innocuous
+filesystem inconsistencies will be corrected.
+If unexpected inconsistencies caused by hardware or
+software failures are encounted, the check program 
+will exit with a failure.
+See the manual pages for the individual check programs
+for a list of the sorts of failures that they correct
+when running in preen mode.
+.It Fl F
+Run in foreground mode.
+The check program for each filesystem is invoked with the
+.Fl F
+flag to determine whether it wishes to run as part of
+the boot up sequence,
+or if it is able to do its job in background after the
+system is up and running.
+A non-zero exit code indicates that it wants to run in foreground
+and the check program is invoked.
+A zero exit code indicates that it is able to run later in background
+and just a deferred message is printed.
+.It Fl B
+Run in background mode.
+The check program for each filesystem is invoked with the
+.Fl F
+flag to determine whether it wishes to run as part of
+the boot up sequence,
+or if it is able to do its job in background after the
+system is up and running.
+A non-zero exit code indicates that it wanted to run in foreground
+which is assumed to have been done, so the filesystem is skipped.
+A zero exit code indicates that it is able to run in background
+so the check program is invoked with the
+.Fl B
+flag to indicate that a check on the active filesystem should be done.
+When running in background mode,
+only one filesystem at a time will be checked.
 .It Fl t Ar fstype
 Invoke
 .Nm
