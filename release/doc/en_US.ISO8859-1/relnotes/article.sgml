@@ -399,7 +399,7 @@
 	behavior for locally generated packets and allows redirection of
 	packets destined to locally configured IP addresses.
 	Note that &man.ipfw.8; rules have to be carefully crafted to
-	make sure that things like PMTU discovery do not break.</para>
+	make sure that things like PMTU discovery do not break. &merged;</para>
 
       <para>Ongoing work is reducing the use of the Giant lock by the
 	network protocol stack and improving the locking
@@ -486,6 +486,15 @@
 
       <para>The autofs(9) file system and the userland library
 	&man.libautofs.3; have been added.</para>
+
+      <para>Recomputing the summary information for
+	<quote>dirty</quote> UFS and UFS2 file systems is no longer
+	done at mount time, but is now done by background
+	&man.fsck.8;.  This change improves the startup speed when
+	mounting large file systems after a crash.  The prior behavior
+	can be restored by setting the
+	<varname>vfs.ffs.compute_summary_at_mount</varname> sysctl
+	variable to a non-zero value.  &merged;</para>
 
       <para>A kernel panic in the NFS server has been fixed.  More
 	details can be found in errata note
@@ -592,11 +601,19 @@
       on memory or vnode file systems that will not require snapshot
       support. &merged;</para>
 
+    <para>The &man.newfs.8; utility now emits a warning when creating
+      a UFS or UFS2 file system that cannot support snapshots.  This
+      situation can occur in the case of very large file systems with
+      small block sizes. &merged;</para>
+
     <para>The &man.newsyslog.8; utility now supports
 	a <option>-d</option> option to specify an alternate root for log files
 	similar to <varname>DESTDIR</varname> in the BSD make process.
 	This only affects log file paths, not configuration file (<option>-f</option>)
 	or archive directory (<option>-a</option>) paths.</para>
+
+    <para>The &man.newsyslog.8; utility now supports a
+      <option>-N</option> that causes it not to rotate any files.</para>
 
     <para>The <literal>NO_NIS</literal> compile-time knob for userland
       has been added.  As its name implies, enabling this
@@ -648,7 +665,7 @@
     <para>The &man.strftime.3; function now supports some GNU extensions
       such as <literal>-</literal> (no padding),
       <literal>_</literal> (use space as padding),
-      and <literal>0</literal> (zero padding).</para>
+      and <literal>0</literal> (zero padding). &merged;</para>
 
     <para>The &man.syslog.3; function is now thread-safe. &merged;</para>
 
@@ -659,6 +676,9 @@
       programs from locking when the domain sockets
       run out of buffer space due to a
       local denial-of-service attack. &merged;</para>
+
+    <para>The &man.systat.1; <option>-netstat</option> display is now
+      IPv6-aware. &merged;<para>
 
     <para>The <option>-f</option> option of &man.tail.1; utility
       now supports more than one file at a time. &merged;</para>
@@ -718,7 +738,7 @@ moused_ums0_port="/dev/ums0"</programlisting>
 	These can be used to pass extra options to the &man.mdmfs.8; utility,
 	to customize the finer details of the &man.md.4; file system creation,
 	such as to turn on/off softupdates, to specify a default owner
-	for the file system, and so on.</para>
+	for the file system, and so on. &merged;</para>
 
     </sect3>
   </sect2>
@@ -797,6 +817,20 @@ moused_ums0_port="/dev/ums0"</programlisting>
 
   <sect2 id="releng">
     <title>Release Engineering and Integration</title>
+
+    <para>In prior &os; releases, the <filename>disc1</filename>
+      CD-ROM (or ISO image) was a bootable installation disk
+      containing the base system, ports tree, and common packages.
+      The <filename>disc2</filename> CD-ROM (or ISO image) was a
+      bootable <quote>fix it</quote> disk with a live filesystem, to
+      be used for making emergency repairs.  This layout has now
+      changed.  For all architectures except ia64, the
+      <filename>disc1</filename> image now contains the base system
+      distribution files, ports tree, and the live filesystem, making
+      it suitable for both an initial installation and repair
+      purposes.  (On the ia64, the live filesystem is on a separate
+      disk due to its size.)  Packages appear on separate
+      disks. &merged;</para>
 
     <para>The supported version of the
       <application>GNOME</application> desktop environment has been
