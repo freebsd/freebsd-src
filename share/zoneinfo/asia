@@ -1,4 +1,4 @@
-# @(#)asia	7.63
+# @(#)asia	7.65
 
 # $FreeBSD$
 
@@ -12,7 +12,7 @@
 # Thomas G. Shanks, The International Atlas (5th edition),
 # San Diego: ACS Publications, Inc. (1999).
 #
-# Gwillim Law <Gwil_Law@bridge-point.com> writes that a good source
+# Gwillim Law writes that a good source
 # for recent time zone data is the International Air Transport
 # Association's Standard Schedules Information Manual (IATA SSIM),
 # published semiannually.  Law sent in several helpful summaries
@@ -39,8 +39,11 @@
 #	4:00	GST	Gulf*
 #	5:30	IST	India
 #	7:00	ICT	Indochina*
+#	7:00	WIT	west Indonesia
+#	8:00	CIT	central Indonesia
 #	8:00	CST	China
 #	9:00	CJT	Central Japanese Time (1896/1937)*
+#	9:00	EIT	east Indonesia
 #	9:00	JST	Japan
 #	9:00	KST	Korea
 #	9:30	CST	(Australian) Central Standard Time
@@ -133,9 +136,11 @@ Zone	Asia/Thimphu	5:58:36 -	LMT	1947 Aug 15 # or Thimbu
 			6:00	-	BTT	# Bhutan Time
 
 # British Indian Ocean Territory
-# From Whitman:
+# Whitman and the 1995 CIA time zone map say 5:00, but the
+# 1997 and later maps say 6:00.  Assume the switch occurred in 1996.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Indian/Chagos	5:00	-	IOT	# BIOT Time
+Zone	Indian/Chagos	5:00	-	IOT	1996 # BIOT Time
+			6:00	-	IOT
 
 # Brunei
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -207,7 +212,7 @@ Zone	Asia/Harbin	8:26:44	-	LMT	1928 # or Haerbin
 Zone	Asia/Shanghai	8:05:52	-	LMT	1928
 			8:00	Shang	C%sT	1949
 			8:00	PRC	C%sT
-Zone	Asia/Chungking	7:06:20	-	LMT	1928 # or Chongqing
+Zone	Asia/Chongqing	7:06:20	-	LMT	1928 # or Chungking
 			7:00	-	CHUT	1980 May # Chungking Time
 			8:00	PRC	C%sT
 Zone	Asia/Urumqi	5:50:20	-	LMT	1928 # or Urumchi
@@ -260,7 +265,7 @@ Rule	Taiwan	1974	1975	-	Oct	1	0:00	0	S
 Rule	Taiwan	1980	only	-	Jun	30	0:00	1:00	D
 Rule	Taiwan	1980	only	-	Sep	30	0:00	0	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Asia/Taipei	8:06:00 -	LMT	1896
+Zone	Asia/Taipei	8:06:00 -	LMT	1896 # or Taibei or T'ai-pei
 			8:00	Taiwan	C%sT
 
 # Macao (Macau, Aomen)
@@ -359,7 +364,7 @@ Zone	Asia/Dili	8:22:20 -	LMT	1912
 			8:00	-	TPT	1942 Feb 21 23:00 # E Timor Time
 			9:00	-	JST	1945 Aug
 			9:00	-	TPT	1976 May  3
-			8:00	-	TPT	2000 Sep 17 00:00
+			8:00	-	CIT	2000 Sep 17 00:00
 			9:00	-	TPT
 
 # India
@@ -376,27 +381,43 @@ Zone	Asia/Calcutta	5:53:28 -	LMT	1880
 #	Nicobar Is
 
 # Indonesia
+#
+# From Gwillim Law (2001-05-28), overriding Shanks:
+# <http://www.sumatera-inc.com/go_to_invest/about_indonesia.asp#standtime>
+# says that Indonesia's time zones changed on 1988-01-01.  Looking at some
+# time zone maps, I think that must refer to Western Borneo (Kalimantan Barat
+# and Kalimantan Tengah) switching from UTC+8 to UTC+7.
+#
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Asia/Jakarta	7:07:12 -	LMT	1867 Aug 10
 # Shanks says the next transition was at 1924 Jan 1 0:13,
 # but this must be a typo.
 			7:07:12	-	JMT	1923 Dec 31 23:47:12 # Jakarta
 			7:20	-	JAVT	1932 Nov	 # Java Time
-			7:30	-	JAVT	1942 Mar 23
+			7:30	-	WIT	1942 Mar 23
 			9:00	-	JST	1945 Aug
-			7:30	-	JAVT	1948 May
-			8:00	-	JAVT	1950 May
-			7:30	-	JAVT	1964
-			7:00	-	JAVT
+			7:30	-	WIT	1948 May
+			8:00	-	WIT	1950 May
+			7:30	-	WIT	1964
+			7:00	-	WIT
+Zone Asia/Pontianak	7:17:20	-	LMT	1908 May
+			7:17:20	-	PMT	1932 Nov    # Pontianak MT
+			7:30	-	WIT	1942 Jan 29
+			9:00	-	JST	1945 Aug
+			7:30	-	WIT	1948 May
+			8:00	-	WIT	1950 May
+			7:30	-	WIT	1964
+			8:00	-	CIT	1988 Jan  1
+			7:00	-	WIT
 Zone Asia/Ujung_Pandang 7:57:36 -	LMT	1920
 			7:57:36	-	MMT	1932 Nov    # Macassar MT
-			8:00	-	BORT	1942 Feb  9 # Borneo Time
+			8:00	-	CIT	1942 Feb  9
 			9:00	-	JST	1945 Aug
-			8:00	-	BORT
+			8:00	-	CIT
 Zone Asia/Jayapura	9:22:48 -	LMT	1932 Nov
-			9:00	-	JAYT	1944	    # Jayapura Time
+			9:00	-	EIT	1944
 			9:30	-	CST	1964
-			9:00	-	JAYT
+			9:00	-	EIT
 
 # Iran
 # From Paul Eggert (2000-06-12), following up a suggestion by Rich Wales:
@@ -913,9 +934,11 @@ Zone	Asia/Beirut	2:22:00 -	LMT	1880
 
 # Malaysia
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	NBorneo	1935	1941	-	Sep	14	0:00	0:20	TS
+Rule	NBorneo	1935	1941	-	Sep	14	0:00	0:20	TS # one-Third Summer
 Rule	NBorneo	1935	1941	-	Dec	14	0:00	0	-
+#
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# peninsular Malaysia
 Zone Asia/Kuala_Lumpur	6:46:48 -	LMT	1880
 			6:55:24	-	SMT	1905 Jun # Singapore Mean Time
 			7:00	-	MALT	1933	 # Malaya Time
@@ -924,6 +947,7 @@ Zone Asia/Kuala_Lumpur	6:46:48 -	LMT	1880
 			7:20	-	MALT	1950
 			7:30	-	MALT	1982 May
 			8:00	-	MYT	# Malaysia Time
+# Sabah & Sarawak
 Zone Asia/Kuching	7:21:20	-	LMT	1926 Mar
 			7:30	-	BORT	1933	# Borneo Time
 			8:00	NBorneo	BOR%sT	1942
@@ -962,38 +986,51 @@ Zone	Indian/Maldives	4:54:00 -	LMT	1880	# Male
 # Suhbaatar, and possibly Khentij.
 
 # From Paul Eggert (1999-12-15):
-# For now, we'll comment out the east zone (Choybalsan)
-# and use Shanks's and the IATA's data for the daylight-saving rules.
 # Naming and spelling is tricky in Mongolia.
 # We'll use Hovd (also spelled Chovd and Khovd) to represent the west zone;
 # the capital of the Hovd province is sometimes called Hovd, sometimes Dund-Us,
 # and sometimes Jirgalanta (with variant spellings), but the name Hovd
 # is good enough for our purposes.
 
+# From Rives McDow (2001-05-13):
+# In addition to Mongolia starting daylight savings as reported earlier
+# (adopted DST on 2001-04-27 02:00 local time, ending 2001-09-28),
+# there are three time zones.
+#
+# Provinces [at 7:00]: Bayan-ulgii, Uvs, Khovd, Zavkhan, Govi-Altai
+# Provinces [at 8:00]: Khovsgol, Bulgan, Arkhangai, Khentii, Tov,
+#	Bayankhongor, Ovorkhangai, Dundgovi, Dornogovi, Omnogovi
+# Provinces [at 9:00]: Dornod, Sukhbaatar
+#
+# [The province of Selenge is omitted from the above lists.]
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Mongol	1981	1984	-	Apr	1	0:00	1:00	S
-Rule	Mongol	1981	1984	-	Oct	1	0:00	0	-
-Rule	Mongol	1985	1990	-	Mar	lastSun	2:00	1:00	S
-Rule	Mongol	1985	1990	-	Sep	lastSun	3:00	0	-
-Rule	Mongol	1991	1998	-	Mar	lastSun	0:00	1:00	S
-Rule	Mongol	1991	1995	-	Sep	lastSun	0:00	0	-
-# IATA SSIM (1996-09) says 1996-10-25; go with Shanks.
-Rule	Mongol	1996	only	-	Oct	lastSun	0:00	0	-
-Rule	Mongol	1997	1998	-	Sep	lastSun	0:00	0	-
+Rule	Mongol	1983	1984	-	Apr	1	0:00	1:00	S
+Rule	Mongol	1983	only	-	Oct	1	0:00	0	-
+# IATA SSIM says 1990s switches occurred at 00:00, but Shanks (1995) lists
+# them at 02:00s, and McDow says the 2001 switches also occurred at 02:00.
+# Also, IATA SSIM (1996-09) says 1996-10-25.  Go with Shanks through 1998.
+Rule	Mongol	1985	1998	-	Mar	lastSun	2:00s	1:00	S
+Rule	Mongol	1984	1998	-	Sep	lastSun	2:00s	0	-
 # IATA SSIM (1999-09) says Mongolia no longer observes DST.
+Rule	Mongol	2001	only	-	Apr	27	2:00s	1:00	S
+Rule	Mongol	2001	only	-	Sep	28	2:00s	0	-
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Hovd, a.k.a. Chovd, Dund-Us, Dzhargalant, Khovd, Jirgalanta
 Zone	Asia/Hovd	6:06:36 -	LMT	1905 Aug
 			6:00	-	HOVT	1978	# Hovd Time
 			7:00	Mongol	HOV%sT
+# Ulaanbaatar, a.k.a. Ulan Bataar, Ulan Bator, Urga
 Zone	Asia/Ulaanbaatar 7:07:32 -	LMT	1905 Aug
 			7:00	-	ULAT	1978	# Ulaanbaatar Time
 			8:00	Mongol	ULA%sT
-# We're not sure about this entry yet, so we'll omit it for now.
-#Zone Asia/Choybalsan	7:38:00 -	LMT	1905 Aug
-#			8:00	-	CHOT	1978	# Choybalsan Time
-#			9:00	Mongol	CHO%sT	19??
-#			8:00	Mongol	ULA%sT
+# Choibalsan, a.k.a. Bajan Tuemen, Bajan Tumen, Chojbalsan,
+# Choybalsan, Sanbejse, Tchoibalsan
+Zone	Asia/Choibalsan	7:38:00 -	LMT	1905 Aug
+			7:00	-	ULAT	1978
+			8:00	-	ULAT	1983 Apr
+			9:00	Mongol	CHO%sT	# Choibalsan Time
 
 # Nepal
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
