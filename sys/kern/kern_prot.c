@@ -162,7 +162,7 @@ getsid(p, uap)
 	if (uap->pid == 0)
 		goto found;
 
-	if ((pt == pfind(uap->pid)) == 0)
+	if ((pt = pfind(uap->pid)) == 0)
 		return ESRCH;
 found:
 	p->p_retval[0] = pt->p_session->s_sid;
