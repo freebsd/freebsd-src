@@ -33,7 +33,7 @@
 #include <sys/proc.h>
 
 #include <i386/linux/linux.h>
-#include <i386/linux/linux_proto.h>
+#include <linux_proto.h>
 
 #define DUMMY(s) 							\
 int									\
