@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id$
+ * $Id: vm_map.h,v 1.24 1997/02/22 09:48:24 peter Exp $
  */
 
 /*
@@ -243,9 +243,12 @@ typedef struct {
 /*
  * vm_fault option flags
  */
-#define VM_FAULT_NORMAL 0
-#define VM_FAULT_CHANGE_WIRING 1
-#define VM_FAULT_USER_WIRE 2
+#define VM_FAULT_NORMAL 0		/* Nothing special */
+#define VM_FAULT_CHANGE_WIRING 1	/* Change the wiring as appropriate */
+#define VM_FAULT_USER_WIRE 2		/* Likewise, but for user purposes */
+#define VM_FAULT_WIRE_MASK (VM_FAULT_CHANGE_WIRING|VM_FAULT_USER_WIRE)
+#define	VM_FAULT_HOLD 4			/* Hold the page */
+#define VM_FAULT_DIRTY 8		/* Dirty the page */
 
 #ifdef KERNEL
 extern vm_offset_t kentry_data;
