@@ -84,12 +84,14 @@ dev_lock(void)
 void
 dev_unlock(void)
 {
+
 	mtx_unlock(&devmtx);
 }
 
 void
 dev_ref(struct cdev *dev)
 {
+
 	dev_lock();
 	dev->si_refcount++;
 	dev_unlock();
@@ -106,6 +108,29 @@ dev_rel(struct cdev *dev)
 		LIST_REMOVE(dev, si_list);
 		freedev(dev);
 	}
+}
+struct cdevsw *
+dev_refthread(struct cdev *dev)
+{
+	struct cdevsw *csw;
+
+	mtx_assert(&devmtx, MA_NOTOWNED);
+	dev_lock();
+	csw = dev->si_devsw;
+	if (csw != NULL)
+		dev->si_threadcount++;
+	dev_unlock();
+	return (csw);
+}
+
+void	
+dev_relthread(struct cdev *dev)
+{
+
+	mtx_assert(&devmtx, MA_NOTOWNED);
+	dev_lock();
+	dev->si_threadcount--;
+	dev_unlock();
 }
 
 int
