@@ -221,7 +221,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	if ((arg = getarg(args, 'g')) != NULL) {
 		p = arg->val;
 		if ((grp = GETGRNAM(p)) == NULL) {
-			if (!isdigit(*p) || (grp = GETGRGID((gid_t) atoi(p))) == NULL)
+			if (!isdigit((unsigned char)*p) || (grp = GETGRGID((gid_t) atoi(p))) == NULL)
 				errx(EX_NOUSER, "group `%s' does not exist", p);
 		}
 		cnf->default_group = newstr(grp->gr_name);
@@ -234,7 +234,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 
 		for (p = strtok(arg->val, ", \t"); p != NULL; p = strtok(NULL, ", \t")) {
 			if ((grp = GETGRNAM(p)) == NULL) {
-				if (!isdigit(*p) || (grp = GETGRGID((gid_t) atoi(p))) == NULL)
+				if (!isdigit((unsigned char)*p) || (grp = GETGRGID((gid_t) atoi(p))) == NULL)
 					errx(EX_NOUSER, "group `%s' does not exist", p);
 			}
 			if (extendarray(&cnf->groups, &cnf->numgroups, i + 2) != -1)
@@ -455,7 +455,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			edited = 1;
 		}
 
-		if ((arg = getarg(args, 'u')) != NULL && isdigit(*arg->val)) {
+		if ((arg = getarg(args, 'u')) != NULL && isdigit((unsigned char)*arg->val)) {
 			pwd->pw_uid = (uid_t) atol(arg->val);
 			edited = 1;
 			if (pwd->pw_uid != 0 && strcmp(pwd->pw_name, "root") == 0)
@@ -827,7 +827,7 @@ pw_gidpolicy(struct userconf * cnf, struct cargs * args, char *nam, gid_t prefer
 	if (a_gid != NULL) {
 		if ((grp = GETGRNAM(a_gid->val)) == NULL) {
 			gid = (gid_t) atol(a_gid->val);
-			if ((gid == 0 && !isdigit(*a_gid->val)) || (grp = GETGRGID(gid)) == NULL)
+			if ((gid == 0 && !isdigit((unsigned char)*a_gid->val)) || (grp = GETGRGID(gid)) == NULL)
 				errx(EX_NOUSER, "group `%s' is not defined", a_gid->val);
 		}
 		gid = grp->gr_gid;
@@ -1078,7 +1078,7 @@ pw_password(struct userconf * cnf, struct cargs * args, char const * user)
 		 * We give this information back to the user
 		 */
 		if (getarg(args, 'h') == NULL && getarg(args, 'N') == NULL) {
-			if (isatty(1))
+			if (isatty(STDOUT_FILENO))
 				printf("Password for '%s' is: ", user);
 			printf("%s\n", pwbuf);
 			fflush(stdout);
@@ -1143,12 +1143,12 @@ print_user(struct passwd * pwd, int pretty, int v7)
 
 			memmove(p + l, p + 1, m);
 			memmove(p, pwd->pw_name, l);
-			*p = (char) toupper(*p);
+			*p = (char) toupper((unsigned char)*p);
 		}
 		if (pwd->pw_expire > (time_t)0 && (tptr = localtime(&pwd->pw_expire)) != NULL)
-		  strftime(acexpire, sizeof acexpire, "%e-%b-%Y %T", tptr);
-		if (pwd->pw_change > (time_t)9 && (tptr = localtime(&pwd->pw_change)) != NULL)
-		  strftime(pwexpire, sizeof pwexpire, "%e-%b-%Y %T", tptr);
+		  strftime(acexpire, sizeof acexpire, "%a %Ef %Y %X", tptr);
+		if (pwd->pw_change > (time_t)0 && (tptr = localtime(&pwd->pw_change)) != NULL)
+		  strftime(pwexpire, sizeof pwexpire, "%a %Ef %Y %X", tptr);
 		printf("Login Name: %-15s   #%-12ld Group: %-15s   #%ld\n"
 		       " Full Name: %s\n"
 		       "      Home: %-26.26s      Class: %s\n"
@@ -1176,7 +1176,7 @@ print_user(struct passwd * pwd, int pretty, int v7)
 			}
 		}
 		ENDGRENT();
-		printf("%s\n", j ? "\n" : "");
+		printf("%s", j ? "\n" : "");
 	}
 	return EXIT_SUCCESS;
 }

@@ -31,6 +31,7 @@ static const char rcsid[] =
 
 #include <err.h>
 #include <fcntl.h>
+#include <locale.h>
 #include <paths.h>
 #include <sys/wait.h>
 #include "pw.h"
@@ -130,6 +131,8 @@ main(int argc, char *argv[])
 
 	umask(0);		/* We wish to handle this manually */
 	LIST_INIT(&arglist);
+
+	(void)setlocale(LC_ALL, "");
 
 	/*
 	 * Break off the first couple of words to determine what exactly
