@@ -234,7 +234,7 @@ commands illustrates:
 
         fdformat -f 1440 fd0.1440
         disklabel -w -r fd0.1440 floppy3
-        newfs -t 2 -u 18 -l 1 -i 65536 /dev/rfd0
+        newfs -t 2 -u 18 -l 1 -i 65536 /dev/fd0
 
 After you've formatted the floppies for DOS or UFS, you'll need to
 copy the files onto them.  The distribution files are split into
