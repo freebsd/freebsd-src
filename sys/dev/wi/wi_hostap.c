@@ -294,7 +294,7 @@ wihap_shutdown(struct wi_softc *sc)
 	 * a single broadcast.  Maybe try that someday.
 	 */
 
-	s = splclock();
+	s = splimp();
 	sta = LIST_FIRST(&whi->sta_list);
 	while (sta) {
 		untimeout(wihap_sta_timeout, sta, sta->tmo);
@@ -345,7 +345,7 @@ wihap_sta_timeout(void *v)
 	struct wihap_info	*whi = &sc->wi_hostap_info;
 	int	s;
 
-	s = splimp();
+	s = splnet();
 	if (sta->flags & WI_SIFLAGS_ASSOC) {
 		if (sc->arpcom.ac_if.if_flags & IFF_DEBUG)
 			device_printf(sc->dev, "inactivity disassoc: %6D\n",
@@ -938,7 +938,7 @@ wihap_mgmt_input(struct wi_softc *sc, struct wi_frame *rxfrm, struct mbuf *m)
 	    htole16(WI_FTYPE_MGMT)) {
 
 		/* any of the following will mess w/ the station list */
-		s = splclock();	/* XXX */
+		s = splnet();
 		switch (le16toh(rxfrm->wi_frame_ctl) & WI_FCTL_STYPE) {
 		case WI_STYPE_MGMT_ASREQ:
 			wihap_assoc_req(sc, rxfrm, pkt, len);
@@ -985,7 +985,7 @@ wihap_sta_is_assoc(struct wihap_info *whi, u_int8_t addr[])
 	struct wihap_sta_info *sta;
 	int retval, s;
 
-	s = splclock();
+	s = splnet();
 	retval = 0;
 	sta = wihap_sta_find(whi, addr);
 	if (sta != NULL && (sta->flags & WI_SIFLAGS_ASSOC)) {
@@ -1015,7 +1015,7 @@ wihap_check_tx(struct wihap_info *whi, u_int8_t addr[], u_int8_t *txrate)
 		*txrate = 0; /* XXX: multicast rate? */
 		return(1);
 	}
-	s = splclock();
+	s = splnet();
 	sta = wihap_sta_find(whi, addr);
 	if (sta != NULL && (sta->flags & WI_SIFLAGS_ASSOC)) {
 		/* Keep it active. */
