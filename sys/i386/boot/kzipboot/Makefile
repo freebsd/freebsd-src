@@ -1,6 +1,7 @@
-# $Id: Makefile,v 1.1 1995/04/15 08:23:31 phk Exp $
+# $Id: Makefile,v 1.2 1995/05/29 01:38:03 phk Exp $
 
 PROG= kzip.o
+BINMODE = 444	# target is a relocatable object
 SRCS= head.S boot.c unzip.c misc.c malloc.c inflate.c
 BINDIR= /usr/lib
 .PATH:	${.CURDIR}/../../../kern
