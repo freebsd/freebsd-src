@@ -897,6 +897,7 @@ readrest:
 	} else {
 		vm_page_activate(fs.m);
 	}
+	vm_page_wakeup(fs.m);
 	vm_page_unlock_queues();
 	mtx_lock_spin(&sched_lock);
 	if (curproc && (curproc->p_sflag & PS_INMEM) && curproc->p_stats) {
@@ -911,7 +912,6 @@ readrest:
 	/*
 	 * Unlock everything, and return
 	 */
-	vm_page_wakeup(fs.m);
 	vm_object_deallocate(fs.first_object);
 	mtx_unlock(&Giant);
 	return (KERN_SUCCESS);
