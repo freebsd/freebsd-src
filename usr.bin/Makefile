@@ -146,7 +146,6 @@ SUBDIR=	apply \
 	tee \
 	tftp \
 	time \
-	tip \
 	top \
 	touch \
 	tput \
