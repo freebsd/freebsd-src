@@ -1801,6 +1801,8 @@ uma_zone_set_max(uma_zone_t zone, int nitems)
 		zone->uz_maxpages = nitems * zone->uz_ppera;
 	else
 		zone->uz_maxpages = nitems / zone->uz_ipers;
+	if (zone->uz_maxpages * zone->uz_ipers < nitems)
+		zone->uz_maxpages++;
 	ZONE_UNLOCK(zone);
 }
 
