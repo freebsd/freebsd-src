@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exregion - ACPI default OpRegion (address space) handlers
- *              $Revision: 84 $
+ *              $Revision: 85 $
  *
  *****************************************************************************/
 
@@ -242,7 +242,7 @@ AcpiExSystemMemorySpaceHandler (
         if (ACPI_FAILURE (Status))
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Could not map memory at %8.8X%8.8X, size %X\n",
-                ACPI_HIDWORD (Address), ACPI_LODWORD (Address), (UINT32) WindowSize));
+                    ACPI_FORMAT_UINT64 (Address), (UINT32) WindowSize));
             MemInfo->MappedLength = 0;
             return_ACPI_STATUS (Status);
         }
@@ -261,8 +261,8 @@ AcpiExSystemMemorySpaceHandler (
                     ((ACPI_INTEGER) Address - (ACPI_INTEGER) MemInfo->MappedPhysicalAddress);
 
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-        "SystemMemory %d (%d width) Address=%8.8X%8.8X\n", Function, BitWidth,
-        ACPI_HIDWORD (Address), ACPI_LODWORD (Address)));
+            "SystemMemory %d (%d width) Address=%8.8X%8.8X\n", Function, BitWidth,
+            ACPI_FORMAT_UINT64 (Address)));
 
    /*
     * Perform the memory read or write
@@ -374,8 +374,8 @@ AcpiExSystemIoSpaceHandler (
 
 
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-        "SystemIO %d (%d width) Address=%8.8X%8.8X\n", Function, BitWidth,
-        ACPI_HIDWORD (Address), ACPI_LODWORD (Address)));
+            "SystemIO %d (%d width) Address=%8.8X%8.8X\n", Function, BitWidth,
+            ACPI_FORMAT_UINT64 (Address)));
 
     /* Decode the function parameter */
 

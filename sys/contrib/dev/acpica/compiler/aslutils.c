@@ -126,7 +126,7 @@
 
 #ifdef _USE_BERKELEY_YACC
 extern const char * const       AslCompilername[];
-static const char * const       *yytname = &AslCompilername[254];
+static const char * const       *yytname = &AslCompilername[255];
 #else
 extern const char * const       yytname[];
 #endif

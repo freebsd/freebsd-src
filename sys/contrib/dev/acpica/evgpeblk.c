@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evgpeblk - GPE block creation and initialization.
- *              $Revision: 23 $
+ *              $Revision: 26 $
  *
  *****************************************************************************/
 
@@ -280,7 +280,7 @@ AcpiEvSaveMethodInfo (
     Name[ACPI_NAME_SIZE] = 0;
 
     /*
-     * Edge/Level determination is based on the 2nd character 
+     * Edge/Level determination is based on the 2nd character
      * of the method name
      */
     switch (Name[1])
@@ -577,7 +577,7 @@ UnlockAndExit:
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Install new GPE block with mutex support
+ * DESCRIPTION: Remove a GPE block
  *
  ******************************************************************************/
 
@@ -862,8 +862,7 @@ AcpiEvCreateGpeBlock (
                 ((GpeBlock->RegisterCount * ACPI_GPE_REGISTER_WIDTH) -1)),
         GpeDevice->Name.Ascii,
         GpeBlock->RegisterCount,
-        ACPI_HIDWORD (ACPI_GET_ADDRESS (GpeBlock->BlockAddress.Address)),
-        ACPI_LODWORD (ACPI_GET_ADDRESS (GpeBlock->BlockAddress.Address)),
+        ACPI_FORMAT_UINT64 (ACPI_GET_ADDRESS (GpeBlock->BlockAddress.Address)),
         InterruptLevel));
 
     /* Find all GPE methods (_Lxx, _Exx) for this block */

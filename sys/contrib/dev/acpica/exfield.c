@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exfield - ACPI AML (p-code) execution - field manipulation
- *              $Revision: 118 $
+ *              $Revision: 119 $
  *
  *****************************************************************************/
 
@@ -245,10 +245,10 @@ AcpiExReadDataFromField (
     }
 
     ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
-        "Obj=%p Type=%X Buf=%p Len=%X\n",
+        "FieldRead [TO]:   Obj %p, Type %X, Buf %p, ByteLen %X\n",
         ObjDesc, ACPI_GET_OBJECT_TYPE (ObjDesc), Buffer, (UINT32) Length));
     ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
-        "FieldWrite: BitLen=%X BitOff=%X ByteOff=%X\n",
+        "FieldRead [FROM]: BitLen %X, BitOff %X, ByteOff %X\n",
         ObjDesc->CommonField.BitLength,
         ObjDesc->CommonField.StartFieldBitOffset,
         ObjDesc->CommonField.BaseByteOffset));
@@ -433,10 +433,13 @@ AcpiExWriteDataToField (
     }
 
     ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
-        "Obj=%p Type=%X Buf=%p Len=%X\n",
-        ObjDesc, ACPI_GET_OBJECT_TYPE (ObjDesc), Buffer, Length));
+        "FieldWrite [FROM]: Obj %p (%s:%X), Buf %p, ByteLen %X\n",
+        SourceDesc, AcpiUtGetTypeName (ACPI_GET_OBJECT_TYPE (SourceDesc)),
+        ACPI_GET_OBJECT_TYPE (SourceDesc), Buffer, Length));
     ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
-        "FieldRead: BitLen=%X BitOff=%X ByteOff=%X\n",
+        "FieldWrite [TO]:   Obj %p (%s:%X), BitLen %X, BitOff %X, ByteOff %X\n",
+        ObjDesc, AcpiUtGetTypeName (ACPI_GET_OBJECT_TYPE (ObjDesc)),
+        ACPI_GET_OBJECT_TYPE (ObjDesc),
         ObjDesc->CommonField.BitLength,
         ObjDesc->CommonField.StartFieldBitOffset,
         ObjDesc->CommonField.BaseByteOffset));

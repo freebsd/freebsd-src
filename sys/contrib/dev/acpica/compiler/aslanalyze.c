@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: aslanalyze.c - check for semantic errors
- *              $Revision: 77 $
+ *              $Revision: 79 $
  *
  *****************************************************************************/
 
@@ -886,6 +886,15 @@ AnMethodAnalysisWalkBegin (
         if (!Next)
         {
             AslError (ASL_ERROR, ASL_MSG_NO_WHILE, Op, NULL);
+        }
+        break;
+
+
+    case PARSEOP_STALL:
+
+        if (Op->Asl.Child->Asl.Value.Integer > ACPI_UINT8_MAX)
+        {
+            AslError (ASL_ERROR, ASL_MSG_INVALID_TIME, Op, NULL);
         }
         break;
 

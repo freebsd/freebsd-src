@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dmresrcl.c - "Large" Resource Descriptor disassembly
- *              $Revision: 10 $
+ *              $Revision: 11 $
  *
  ******************************************************************************/
 
@@ -358,28 +358,23 @@ AcpiDmQwordDescriptor (
     AcpiOsPrintf ("\n");
     AcpiDmIndent (Level + 1);
     AcpiOsPrintf ("0x%8.8X%8.8X,\n",
-        ACPI_HIDWORD (ACPI_GET_ADDRESS (Resource->Granularity)),
-        ACPI_LODWORD (ACPI_GET_ADDRESS (Resource->Granularity)));
+        ACPI_FORMAT_UINT64 (ACPI_GET_ADDRESS (Resource->Granularity)));
 
     AcpiDmIndent (Level + 1);
     AcpiOsPrintf ("0x%8.8X%8.8X,\n",
-        ACPI_HIDWORD (ACPI_GET_ADDRESS (Resource->AddressMin)),
-        ACPI_LODWORD (ACPI_GET_ADDRESS (Resource->AddressMin)));
+        ACPI_FORMAT_UINT64 (ACPI_GET_ADDRESS (Resource->AddressMin)));
 
     AcpiDmIndent (Level + 1);
     AcpiOsPrintf ("0x%8.8X%8.8X,\n",
-        ACPI_HIDWORD (ACPI_GET_ADDRESS (Resource->AddressMax)),
-        ACPI_LODWORD (ACPI_GET_ADDRESS (Resource->AddressMax)));
+        ACPI_FORMAT_UINT64 (ACPI_GET_ADDRESS (Resource->AddressMax)));
 
     AcpiDmIndent (Level + 1);
     AcpiOsPrintf ("0x%8.8X%8.8X,\n",
-        ACPI_HIDWORD (ACPI_GET_ADDRESS (Resource->TranslationOffset)),
-        ACPI_LODWORD (ACPI_GET_ADDRESS (Resource->TranslationOffset)));
+        ACPI_FORMAT_UINT64 (ACPI_GET_ADDRESS (Resource->TranslationOffset)));
 
     AcpiDmIndent (Level + 1);
     AcpiOsPrintf ("0x%8.8X%8.8X",
-        ACPI_HIDWORD (ACPI_GET_ADDRESS (Resource->AddressLength)),
-        ACPI_LODWORD (ACPI_GET_ADDRESS (Resource->AddressLength)));
+        ACPI_FORMAT_UINT64 (ACPI_GET_ADDRESS (Resource->AddressLength)));
 
     /* Optional fields */
 
@@ -518,8 +513,7 @@ AcpiDmGenericRegisterDescriptor (
     AcpiOsPrintf ("0x%2.2X, 0x%2.2X, 0x%8.8X%8.8X)\n",
         (UINT32) Resource->BitWidth,
         (UINT32) Resource->BitOffset,
-        ACPI_HIDWORD (ACPI_GET_ADDRESS (Resource->Address)),
-        ACPI_LODWORD (ACPI_GET_ADDRESS (Resource->Address)));
+        ACPI_FORMAT_UINT64 (ACPI_GET_ADDRESS (Resource->Address)));
 }
 
 

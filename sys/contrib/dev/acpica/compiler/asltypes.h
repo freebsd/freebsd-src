@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: asltypes.h - compiler data types and struct definitions
- *              $Revision: 59 $
+ *              $Revision: 61 $
  *
  *****************************************************************************/
 
@@ -385,7 +385,9 @@ typedef enum
     ASL_MSG_CORE_EXCEPTION,
     ASL_MSG_UNREACHABLE_CODE,
     ASL_MSG_EARLY_EOF,
-    ASL_MSG_SCOPE_FWD_REF
+    ASL_MSG_SCOPE_FWD_REF,
+    ASL_MSG_NON_ASCII,
+    ASL_MSG_INVALID_TIME
 
 } ASL_MESSAGE_IDS;
 
@@ -473,7 +475,10 @@ char                        *AslMessages [] = {
 /*    ASL_MSG_CORE_EXCEPTION, */            "From ACPI CA Subsystem",
 /*    ASL_MSG_UNREACHABLE_CODE, */          "Statement is unreachable",
 /*    ASL_MSG_EARLY_EOF */                  "Premature end-of-file reached",
-/*    ASL_MSG_SCOPE_FWD_REF */              "Forward references from Scope() not allowed"
+/*    ASL_MSG_SCOPE_FWD_REF */              "Forward references from Scope() not allowed",
+/*    ASL_MSG_NON_ASCII */                  "Invalid characters found in file",
+/*    ASL_MSG_INVALID_TIME */               "Time parameter too long (255 max)"
+
 };
 
 

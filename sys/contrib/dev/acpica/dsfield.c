@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dsfield - Dispatcher field routines
- *              $Revision: 72 $
+ *              $Revision: 73 $
  *
  *****************************************************************************/
 
@@ -182,30 +182,38 @@ AcpiDsCreateBufferField (
         return_ACPI_STATUS (AE_AML_NO_OPERAND);
     }
 
-    /*
-     * During the load phase, we want to enter the name of the field into
-     * the namespace.  During the execute phase (when we evaluate the size
-     * operand), we want to lookup the name
-     */
-    if (WalkState->ParseFlags & ACPI_PARSE_EXECUTE)
+    if (WalkState->DeferredNode)
     {
-        Flags = ACPI_NS_NO_UPSEARCH | ACPI_NS_DONT_OPEN_SCOPE;
+        Node = WalkState->DeferredNode;
+        Status = AE_OK;
     }
     else
     {
-        Flags = ACPI_NS_NO_UPSEARCH | ACPI_NS_DONT_OPEN_SCOPE | ACPI_NS_ERROR_IF_FOUND;
-    }
+        /*
+         * During the load phase, we want to enter the name of the field into
+         * the namespace.  During the execute phase (when we evaluate the size
+         * operand), we want to lookup the name
+         */
+        if (WalkState->ParseFlags & ACPI_PARSE_EXECUTE)
+        {
+            Flags = ACPI_NS_NO_UPSEARCH | ACPI_NS_DONT_OPEN_SCOPE;
+        }
+        else
+        {
+            Flags = ACPI_NS_NO_UPSEARCH | ACPI_NS_DONT_OPEN_SCOPE | ACPI_NS_ERROR_IF_FOUND;
+        }
 
-    /*
-     * Enter the NameString into the namespace
-     */
-    Status = AcpiNsLookup (WalkState->ScopeInfo, Arg->Common.Value.String,
-                            ACPI_TYPE_ANY, ACPI_IMODE_LOAD_PASS1,
-                            Flags, WalkState, &(Node));
-    if (ACPI_FAILURE (Status))
-    {
-        ACPI_REPORT_NSERROR (Arg->Common.Value.String, Status);
-        return_ACPI_STATUS (Status);
+        /*
+         * Enter the NameString into the namespace
+         */
+        Status = AcpiNsLookup (WalkState->ScopeInfo, Arg->Common.Value.String,
+                                ACPI_TYPE_ANY, ACPI_IMODE_LOAD_PASS1,
+                                Flags, WalkState, &(Node));
+        if (ACPI_FAILURE (Status))
+        {
+            ACPI_REPORT_NSERROR (Arg->Common.Value.String, Status);
+            return_ACPI_STATUS (Status);
+        }
     }
 
     /* We could put the returned object (Node) on the object stack for later, but

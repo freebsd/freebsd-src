@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbdisply - debug display commands
- *              $Revision: 95 $
+ *              $Revision: 98 $
  *
  ******************************************************************************/
 
@@ -433,8 +433,10 @@ AcpiDbDisplayMethodInfo (
     NumArgs     = ObjDesc->Method.ParamCount;
     Concurrency = ObjDesc->Method.Concurrency;
 
-    AcpiOsPrintf ("Currently executing control method is [%4.4s]\n", Node->Name.Ascii);
-    AcpiOsPrintf ("%X arguments, max concurrency = %X\n", NumArgs, Concurrency);
+    AcpiOsPrintf ("Currently executing control method is [%4.4s]\n",
+            AcpiUtGetNodeName (Node));
+    AcpiOsPrintf ("%X arguments, max concurrency = %X\n",
+            NumArgs, Concurrency);
 
 
     RootOp = StartOp;
@@ -586,7 +588,7 @@ AcpiDbDisplayResults (void)
     }
 
     ObjDesc = WalkState->MethodDesc;
-    Node = WalkState->MethodNode;
+    Node    = WalkState->MethodNode;
 
     if (WalkState->Results)
     {
@@ -594,7 +596,7 @@ AcpiDbDisplayResults (void)
     }
 
     AcpiOsPrintf ("Method [%4.4s] has %X stacked result objects\n",
-        Node->Name.Ascii, NumResults);
+            AcpiUtGetNodeName (Node), NumResults);
 
     for (i = 0; i < NumResults; i++)
     {
@@ -638,7 +640,7 @@ AcpiDbDisplayCallingTree (void)
     {
         Node = WalkState->MethodNode;
 
-        AcpiOsPrintf ("    [%4.4s]\n", Node->Name.Ascii);
+        AcpiOsPrintf ("    [%4.4s]\n", AcpiUtGetNodeName (Node));
 
         WalkState = WalkState->Next;
     }
@@ -649,11 +651,11 @@ AcpiDbDisplayCallingTree (void)
  *
  * FUNCTION:    AcpiDbDisplayObjectType
  *
- * PARAMETERS:  None
+ * PARAMETERS:  ObjectArg       - User entered NS node handle
  *
  * RETURN:      None
  *
- * DESCRIPTION: Display current calling tree of nested control methods
+ * DESCRIPTION: Display type of an arbitrary NS node
  *
  ******************************************************************************/
 
@@ -677,7 +679,7 @@ AcpiDbDisplayObjectType (
         Info = Buffer.Pointer;
         AcpiOsPrintf ("HID: %s, ADR: %8.8X%8.8X, Status %8.8X\n",
                         &Info->HardwareId,
-                        ACPI_HIDWORD (Info->Address), ACPI_LODWORD (Info->Address),
+                        ACPI_FORMAT_UINT64 (Info->Address),
                         Info->CurrentStatus);
 
         if (Info->Valid & ACPI_VALID_CID)
@@ -694,7 +696,6 @@ AcpiDbDisplayObjectType (
     {
         AcpiOsPrintf ("%s\n", AcpiFormatException (Status));
     }
-
 }
 
 
@@ -767,11 +768,11 @@ AcpiDbDisplayArgumentObject (
  *
  * FUNCTION:    AcpiDbDisplayGpes
  *
- * PARAMETERS:
+ * PARAMETERS:  None
  *
  * RETURN:      None
  *
- * DESCRIPTION: Display the GPE structures
+ * DESCRIPTION: Display the current GPE structures
  *
  ******************************************************************************/
 

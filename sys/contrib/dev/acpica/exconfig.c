@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exconfig - Namespace reconfiguration (Load/Unload opcodes)
- *              $Revision: 72 $
+ *              $Revision: 74 $
  *
  *****************************************************************************/
 
@@ -168,6 +168,9 @@ AcpiExAddTable (
 
     /* Install the new table into the local data structures */
 
+    ACPI_MEMSET (&TableInfo, 0, sizeof (ACPI_TABLE_DESC));
+
+    TableInfo.Type         = 5;
     TableInfo.Pointer      = Table;
     TableInfo.Length       = (ACPI_SIZE) Table->Length;
     TableInfo.Allocation   = ACPI_MEM_ALLOCATED;
@@ -259,7 +262,7 @@ AcpiExLoadTableOp (
             return_ACPI_STATUS (Status);
         }
 
-        /* Not found, return an Integer=0 and AE_OK */
+        /* Table not found, return an Integer=0 and AE_OK */
 
         DdbHandle = AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
         if (!DdbHandle)
@@ -338,9 +341,11 @@ AcpiExLoadTableOp (
         if (ACPI_FAILURE (Status))
         {
             (void) AcpiExUnloadTable (DdbHandle);
+            return_ACPI_STATUS (Status);
         }
     }
 
+    *ReturnDesc = DdbHandle;
     return_ACPI_STATUS  (Status);
 }
 
@@ -519,7 +524,7 @@ ACPI_STATUS
 AcpiExUnloadTable (
     ACPI_OPERAND_OBJECT     *DdbHandle)
 {
-    ACPI_STATUS             Status = AE_NOT_IMPLEMENTED;
+    ACPI_STATUS             Status = AE_OK;
     ACPI_OPERAND_OBJECT     *TableDesc = DdbHandle;
     ACPI_TABLE_DESC         *TableInfo;
 

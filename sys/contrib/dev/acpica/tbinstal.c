@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbinstal - ACPI table installation and removal
- *              $Revision: 69 $
+ *              $Revision: 72 $
  *
  *****************************************************************************/
 
@@ -358,23 +358,45 @@ AcpiTbInitTableDescriptor (
         {
             return_ACPI_STATUS (AE_ALREADY_EXISTS);
         }
+
+        TableDesc->Next = ListHead->Next;
+        ListHead->Next = TableDesc;
+
+        if (TableDesc->Next)
+        {
+            TableDesc->Next->Prev = TableDesc;
+        }
+
+        ListHead->Count++;
     }
-
-    /*
-     * Link the new table in to the list of tables of this type.
-     * Just insert at the start of the list, order unimportant.
-     *
-     * TableDesc->Prev is already NULL from calloc()
-     */
-    TableDesc->Next = ListHead->Next;
-    ListHead->Next  = TableDesc;
-
-    if (TableDesc->Next)
+    else
     {
-        TableDesc->Next->Prev = TableDesc;
-    }
+        /*
+         * Link the new table in to the list of tables of this type.
+         * Insert at the end of the list, order IS IMPORTANT.
+         *
+         * TableDesc->Prev & Next are already NULL from calloc()
+         */
+        ListHead->Count++;
 
-    ListHead->Count++;
+        if (!ListHead->Next)
+        {
+            ListHead->Next = TableDesc;
+        }
+        else
+        {
+            TableDesc->Next = ListHead->Next;
+
+            while (TableDesc->Next->Next)
+            {
+                TableDesc->Next = TableDesc->Next->Next;
+            }
+
+            TableDesc->Next->Next = TableDesc;
+            TableDesc->Prev = TableDesc->Next;
+            TableDesc->Next = NULL;
+        }
+    }
 
     /* Finish initialization of the table descriptor */
 
@@ -421,7 +443,7 @@ AcpiTbInitTableDescriptor (
 void
 AcpiTbDeleteAllTables (void)
 {
-    ACPI_TABLE_TYPE             Type;
+    ACPI_TABLE_TYPE         Type;
 
 
     /*
@@ -450,7 +472,7 @@ AcpiTbDeleteAllTables (void)
 
 void
 AcpiTbDeleteTablesByType (
-    ACPI_TABLE_TYPE             Type)
+    ACPI_TABLE_TYPE         Type)
 {
     ACPI_TABLE_DESC         *TableDesc;
     UINT32                  Count;
@@ -500,15 +522,16 @@ AcpiTbDeleteTablesByType (
         break;
     }
 
-    /* Free the table */
-    /* Get the head of the list */
-
+    /*
+     * Free the table
+     * 1) Get the head of the list
+     */
     TableDesc = AcpiGbl_TableLists[Type].Next;
     Count     = AcpiGbl_TableLists[Type].Count;
 
     /*
-     * Walk the entire list, deleting both the allocated tables
-     * and the table descriptors
+     * 2) Walk the entire list, deleting both the allocated tables
+     *    and the table descriptors
      */
     for (i = 0; i < Count; i++)
     {
