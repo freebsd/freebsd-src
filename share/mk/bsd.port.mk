@@ -1,7 +1,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.20 1994/08/25 22:59:56 jkh Exp $
+# $Id: bsd.port.mk,v 1.21 1994/08/28 14:41:34 jkh Exp $
 
 #
 # Supported Variables and their behaviors:
@@ -191,6 +191,9 @@ build: configure pre-build
 .else defined(USE_GMAKE)
 	@(cd ${WRKSRC}; ${MAKE} all)
 .endif
+	@if [ -f ${SCRIPTDIR}/post-build ]; then \
+	    sh ${SCRIPTDIR}/post-build ${PORTSDIR} ${.CURDIR} ${WRKSRC}; \
+	fi
 .endif
 
 .if !target(pre-configure)
