@@ -1781,6 +1781,7 @@ struct bge_status_block {
 #define BCOM_VENDORID			0x14E4
 #define BCOM_DEVICEID_BCM5700		0x1644
 #define BCOM_DEVICEID_BCM5701		0x1645
+#define BCOM_DEVICEID_BCM5702X		0x16A6
 
 /*
  * Alteon AceNIC PCI vendor/device ID.
