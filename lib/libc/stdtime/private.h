@@ -1,11 +1,11 @@
-/* $FreeBSD$ */
-
 #ifndef PRIVATE_H
 
 #define PRIVATE_H
 /*
 ** This file is in the public domain, so clarified as of
 ** June 5, 1996 by Arthur David Olson (arthur_david_olson@nih.gov).
+**
+** $FreeBSD$
 */
 
 /* Stuff moved from Makefile.inc to reduce clutter */
