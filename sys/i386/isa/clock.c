@@ -105,7 +105,7 @@ static void setup_8254_mixed_mode(void);
  * 32-bit time_t's can't reach leap years before 1904 or after 2036, so we
  * can use a simple formula for leap years.
  */
-#define	LEAPYEAR(y) ((u_int)(y) % 4 == 0)
+#define	LEAPYEAR(y) (((u_int)(y) % 4 == 0) ? 1 : 0)
 #define DAYSPERYEAR   (31+28+31+30+31+30+31+31+30+31+30+31)
 
 #define	TIMER_DIV(x) ((timer_freq + (x) / 2) / (x))
