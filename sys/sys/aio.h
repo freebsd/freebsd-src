@@ -16,10 +16,36 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: aio.h,v 1.3 1997/12/08 02:18:14 dyson Exp $
+ * $Id: aio.h,v 1.4 1998/03/08 17:25:30 dufault Exp $
  */
 
 #include <sys/types.h>
+
+/**************************************************************************/
+/* Additions to signal.h -- hack alert.                                   */
+/**************************************************************************/
+/*
+ * sigval structure:
+ */
+union sigval {
+	int	sival_int;
+	void	*sival_ptr;
+};
+
+/*
+ * this is the sigevent structure:
+ */
+struct sigevent {
+	int	sigev_notify;		/* Notification */
+	int	sigev_signo;		/* Signal number */
+	union sigval sigev_value;	/* Not used yet in FreeBSD */
+};
+
+/*
+ * values for sigev_notify:
+ */	
+define	SIGEV_NONE	0		/* Don't post a signal */
+#define	SIGEV_SIGNAL	1		/* Post specified signal */
 
 /*
  * Returned by aio_cancel:
@@ -43,6 +69,11 @@
 #define	LIO_WAIT		0x1
 
 /*
+ * Maximum number of allowed LIO operations
+ */
+#define	AIO_LISTIO_MAX		16
+
+/*
  * Private mode bit for aio.
  * (This bit is set by the library routine
  *  to allow the kernel to support sync
@@ -51,11 +82,6 @@
 #define AIO_PMODE_SYNC		0x1
 #define AIO_PMODE_DONE		0x2
 #define AIO_PMODE_SUSPEND	0x4
-
-/*
- * I/O active flag -- used for compat
- * with kernel.
- */
 #define AIO_PMODE_ACTIVE	0x2357c0de
 
 /*
