@@ -43,7 +43,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)mountd.c	8.8 (Berkeley) 2/20/94";*/
 static const char rcsid[] =
-	"$Id: mountd.c,v 1.11.2.10 1998/06/15 15:44:35 joerg Exp $";
+	"$Id: mountd.c,v 1.11.2.11 1998/06/25 21:27:24 wpaul Exp $";
 #endif /*not lint*/
 
 #include <sys/param.h>
@@ -453,7 +453,7 @@ mntsrv(rqstp, transp)
 				add_mlist(inet_ntoa(transp->xp_raddr.sin_addr),
 					dirpath);
 			if (debug)
-				fprintf(stderr,"Mount successfull.\n");
+				fprintf(stderr,"Mount successful.\n");
 		} else
 			bad = EACCES;
 
@@ -1075,6 +1075,8 @@ add_expdir(dpp, cp, len)
 	struct dirlist *dp;
 
 	dp = (struct dirlist *)malloc(sizeof (struct dirlist) + len);
+	if (dp == (struct dirlist *)NULL)
+		out_of_mem();
 	dp->dp_left = *dpp;
 	dp->dp_right = (struct dirlist *)NULL;
 	dp->dp_flag = 0;
@@ -1119,7 +1121,7 @@ hang_dirp(dp, grp, ep, flags)
 	} else {
 
 		/*
-		 * Loop throught the directories adding them to the tree.
+		 * Loop through the directories adding them to the tree.
 		 */
 		while (dp) {
 			dp2 = dp->dp_left;
@@ -1749,7 +1751,7 @@ get_net(cp, net, maskflg)
 	if (isdigit(*cp) && ((netaddr = inet_network(cp)) != -1)) {
 		inetaddr = inet_makeaddr(netaddr, 0);
 		/*
-		 * Due to arbritrary subnet masks, you don't know how many
+		 * Due to arbitrary subnet masks, you don't know how many
 		 * bits to shift the address to make it into a network,
 		 * however you do know how to make a network address into
 		 * a host with host == 0 and then compare them.
@@ -1866,7 +1868,7 @@ parsecred(namelist, cr)
 	int ngroups, groups[NGROUPS + 1];
 
 	/*
-	 * Set up the unpriviledged user.
+	 * Set up the unprivileged user.
 	 */
 	cr->cr_ref = 1;
 	cr->cr_uid = -2;
@@ -1954,6 +1956,8 @@ get_mountlist()
 		    (dirp = index(str, ' ')) == NULL)
 			continue;
 		mlp = (struct mountlist *)malloc(sizeof (*mlp));
+		if (mlp == (struct mountlist *)NULL)
+			out_of_mem();
 		len = dirp-str;
 		if (len > RPCMNT_NAMELEN)
 			len = RPCMNT_NAMELEN;
@@ -2031,6 +2035,8 @@ add_mlist(hostp, dirp)
 		mlp = mlp->ml_next;
 	}
 	mlp = (struct mountlist *)malloc(sizeof (*mlp));
+	if (mlp == (struct mountlist *)NULL)
+		out_of_mem();
 	strncpy(mlp->ml_host, hostp, RPCMNT_NAMELEN);
 	mlp->ml_host[RPCMNT_NAMELEN] = '\0';
 	strncpy(mlp->ml_dirp, dirp, RPCMNT_PATHLEN);
