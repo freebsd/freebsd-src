@@ -35,7 +35,7 @@
 #define TX_INIT_RATE         16
 #define TX_INIT_MAX_RATE     64
 #define RX_INIT_LATENCY      64
-#define RX_INIT_EARLY_THRESH 208 /* not less than MINCLSIZE */
+#define RX_INIT_EARLY_THRESH 208/* not less than MINCLSIZE */
 #define RX_NEXT_EARLY_THRESH 500
 
 #define EEPROMSIZE      0x40
@@ -94,13 +94,13 @@
 #define EEPROM_NODE_ADDR_1	0x1	/* Word */
 #define EEPROM_NODE_ADDR_2	0x2	/* Word */
 #define EEPROM_PROD_ID		0x3	/* 0x9[0-f]50 */
-#define EEPROM_MFG_DATE         0x4     /* Manufacturing date */
-#define EEPROM_MFG_DIVSION      0x5     /* Manufacturing division */
-#define EEPROM_MFG_PRODUCT      0x6     /* Product code */
+#define EEPROM_MFG_DATE         0x4	/* Manufacturing date */
+#define EEPROM_MFG_DIVSION      0x5	/* Manufacturing division */
+#define EEPROM_MFG_PRODUCT      0x6	/* Product code */
 #define EEPROM_MFG_ID		0x7	/* 0x6d50 */
 #define EEPROM_ADDR_CFG		0x8	/* Base addr */
-# define ADDR_CFG_EISA		0x1f
-# define ADDR_CFG_MASK		0x1f
+#define ADDR_CFG_EISA		0x1f
+#define ADDR_CFG_MASK		0x1f
 #define EEPROM_RESOURCE_CFG	0x9	/* IRQ. Bits 12-15 */
 #define EEPROM_OEM_ADDR0        0xa
 #define EEPROM_OEM_ADDR1        0xb
@@ -109,22 +109,24 @@
 #define EEPROM_COMPAT           0xe
 #define EEPROM_SOFTINFO2        0xf
 #define EEPROM_CAP              0x10
-# define CAP_ISA		0x2083
-# define CAP_PCMCIA		0x2082
+#define CAP_ISA		0x2083
+#define CAP_PCMCIA		0x2082
 #define EEPROM_INT_CONFIG_0	0x12
 #define EEPROM_INT_CONFIG_1	0x13
 /* RAM Partition TX FIFO/RX FIFO */
-# define ICW1_RAM_PART_MASK	0x03
-# define ICW1_RAM_PART_35	0x00	/* 2:5 (only legal if RAM size == 000b default power-up/reset */
-# define ICW1_RAM_PART_13	0x01	/* 1:3 (only legal if RAM size == 000b) */
-# define ICW1_RAM_PART_11	0x10	/* 1:1		*/
-# define ICW1_RAM_PART_RESV	0x11	/* Reserved	*/
+#define ICW1_RAM_PART_MASK	0x03
+#define ICW1_RAM_PART_35	0x00	/* 2:5 (only legal if RAM size == 000b
+					 * default power-up/reset */
+#define ICW1_RAM_PART_13	0x01	/* 1:3 (only legal if RAM size ==
+					 * 000b) */
+#define ICW1_RAM_PART_11	0x10	/* 1:1		 */
+#define ICW1_RAM_PART_RESV	0x11	/* Reserved	 */
 /* ISA Adapter Selection */
-# define ICW1_IAS_MASK		0x0c
-# define ICW1_IAS_DIS		0x00	/* Both mechanisms disabled (default) */
-# define ICW1_IAS_ISA		0x04	/* ISA contention only */
-# define ICW1_IAS_PNP		0x08	/* ISA Plug and Play only */
-# define ICW1_IAS_BOTH		0x0c	/* Both mechanisms enabled */
+#define ICW1_IAS_MASK		0x0c
+#define ICW1_IAS_DIS		0x00	/* Both mechanisms disabled (default) */
+#define ICW1_IAS_ISA		0x04	/* ISA contention only */
+#define ICW1_IAS_PNP		0x08	/* ISA Plug and Play only */
+#define ICW1_IAS_BOTH		0x0c	/* Both mechanisms enabled */
 
 #define EEPROM_CHECKSUM_EL3     0x17
 
@@ -233,13 +235,13 @@
  *
  ****************************************/
 
-/* 
+/*
  * Command parameter that disables threshold interrupts
  *   PIO (3c509) cards use 2044.  The fifo word-oriented and 2044--2047 work.
  *  "busmastering" cards need 8188.
  * The implicit two-bit upshift done by busmastering cards means
  * a value of 2047 disables threshold interrupts on both.
- */   
+ */
 #define EP_THRESH_DISABLE    2047
 
 /*
@@ -294,7 +296,7 @@
 #define C_RX_EARLY	(u_short) (ACK_INTR|0x20)
 #define C_INT_RQD		(u_short) (ACK_INTR|0x40)
 #define C_UPD_STATS	(u_short) (ACK_INTR|0x80)
-#define C_MASK	(u_short) 0xFF /* mask of C_* */
+#define C_MASK	(u_short) 0xFF	/* mask of C_* */
 
 /*
  * Status register. All windows.
@@ -322,7 +324,7 @@
 #define S_RX_EARLY		(u_short) (0x20)
 #define S_INT_RQD		(u_short) (0x40)
 #define S_UPD_STATS		(u_short) (0x80)
-#define S_MASK	(u_short) 0xFF /* mask of S_* */
+#define S_MASK	(u_short) 0xFF	/* mask of S_* */
 #define S_5_INTS                (S_CARD_FAILURE|S_TX_COMPLETE|\
 				 S_TX_AVAIL|S_RX_COMPLETE|S_RX_EARLY)
 #define S_COMMAND_IN_PROGRESS	(u_short) (0x1000)
@@ -343,7 +345,7 @@
 
 #define SET_IRQ(base,irq)     outw((base) + EP_W0_RESOURCE_CFG, \
                               ((inw((base) + EP_W0_RESOURCE_CFG) & 0x0fff) | \
-                              ((u_short)(irq)<<12))  ) /* set IRQ i */
+                              ((u_short)(irq)<<12))  )	/* set IRQ i */
 
 /*
  * FIFO Registers.
@@ -418,8 +420,9 @@
 /*
  * Misc defines for various things.
  */
-#define ACTIVATE_ADAPTER_TO_CONFIG 	0xff /* to the id_port */
-#define MFG_ID 				0x6d50 /* in EEPROM and W0 ADDR_CONFIG */
+#define ACTIVATE_ADAPTER_TO_CONFIG 	0xff	/* to the id_port */
+#define MFG_ID 				0x6d50	/* in EEPROM and W0
+						 * ADDR_CONFIG */
 #define PROD_ID 			0x9150
 
 #define AUI 				0x1

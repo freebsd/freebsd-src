@@ -22,22 +22,22 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
-
 #include <sys/module.h>
 #include <sys/bus.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/rman.h>
- 
-#include <net/if.h> 
+
+#include <net/if.h>
 #include <net/if_arp.h>
 #include <net/if_media.h>
 
@@ -54,22 +54,22 @@
 #define EP_MCA_62F7	0x62f7
 
 static struct mca_ident ep_mca_devs[] = {
-	{ EP_MCA_627C, "3Com 3C529 Network Adapter" },
-	{ EP_MCA_627D, "3Com 3C529-TP Network Adapter" },
+	{EP_MCA_627C, "3Com 3C529 Network Adapter"},
+	{EP_MCA_627D, "3Com 3C529-TP Network Adapter"},
 
 	/*
 	 * These are from the linux 3c509 driver.
-	 * I have not seen the ADFs for them and have 
+	 * I have not seen the ADFs for them and have
 	 * not tested or even seen the hardware.
  	 * Someone with the ADFs should replace the names with
 	 * whatever is in the AdapterName field of the ADF.
 	 * (and fix the media setup for the cards as well.)
 	 */
-	{ EP_MCA_62DB, "3Com 3c529 EtherLink III (test mode)" },
-	{ EP_MCA_62F6, "3Com 3c529 EtherLink III (TP or coax)" },
-	{ EP_MCA_62F7, "3Com 3c529 EtherLink III (TP)" },
+	{EP_MCA_62DB, "3Com 3c529 EtherLink III (test mode)"},
+	{EP_MCA_62F6, "3Com 3c529 EtherLink III (TP or coax)"},
+	{EP_MCA_62F7, "3Com 3c529 EtherLink III (TP)"},
 
-	{ 0, NULL },
+	{0, NULL},
 };
 
 #define EP_MCA_IOPORT_POS	MCA_ADP_POS(MCA_POS2)
@@ -87,12 +87,12 @@ static struct mca_ident ep_mca_devs[] = {
 #define EP_MCA_MEDIA(pos)	(pos & EP_MCA_MEDIA_MASK)
 
 static int
-ep_mca_probe (device_t dev)
+ep_mca_probe(device_t dev)
 {
-	const char *	desc;
-	u_int32_t       iobase = 0;
-	u_int8_t	irq = 0;
-	u_int8_t	pos;
+	const char *desc;
+	u_int32_t iobase = 0;
+	u_int8_t irq = 0;
+	u_int8_t pos;
 
 	desc = mca_match_id(mca_get_id(dev), ep_mca_devs);
 	if (!desc)
@@ -112,10 +112,10 @@ ep_mca_probe (device_t dev)
 }
 
 static int
-ep_mca_attach (device_t dev)
+ep_mca_attach(device_t dev)
 {
-	struct ep_softc *	sc = device_get_softc(dev);
-	int			error = 0;
+	struct ep_softc *sc = device_get_softc(dev);
+	int error = 0;
 
 	if ((error = ep_alloc(dev))) {
 		device_printf(dev, "ep_alloc() failed! (%d)\n", error);
@@ -132,13 +132,11 @@ ep_mca_attach (device_t dev)
 		device_printf(dev, "ep_attach() failed! (%d)\n", error);
 		goto bad;
 	}
-
 	if ((error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET, ep_intr,
-				   sc, &sc->ep_intrhand))) {
+		    sc, &sc->ep_intrhand))) {
 		device_printf(dev, "bus_setup_intr() failed! (%d)\n", error);
 		goto bad;
 	}
-
 	return (0);
 bad:
 	ep_free(dev);
@@ -147,11 +145,11 @@ bad:
 
 static device_method_t ep_mca_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		ep_mca_probe),
-	DEVMETHOD(device_attach,	ep_mca_attach),
-	DEVMETHOD(device_detach,	ep_detach),
+	DEVMETHOD(device_probe, ep_mca_probe),
+	DEVMETHOD(device_attach, ep_mca_attach),
+	DEVMETHOD(device_detach, ep_detach),
 
-	{ 0, 0 }
+	{0, 0}
 };
 
 static driver_t ep_mca_driver = {
