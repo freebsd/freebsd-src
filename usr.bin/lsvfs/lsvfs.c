@@ -3,8 +3,10 @@
  * Garrett A. Wollman, September 1994
  * This file is in the public domain.
  *
- * $Id: lsvfs.c,v 1.8 1997/03/03 17:21:57 bde Exp $
+ * $Id: lsvfs.c,v 1.9 1997/07/23 06:48:01 charnier Exp $
  */
+
+#define _NEW_VFSCONF
 
 #include <sys/param.h>
 #include <sys/mount.h>
@@ -23,7 +25,8 @@ int
 main(int argc, char **argv)
 {
   int rv = 0;
-  struct vfsconf *vfc;
+  struct vfsconf vfc;
+  struct ovfsconf *ovfcp;
   argc--, argv++;
 
   setvfsent(1);
@@ -33,19 +36,18 @@ main(int argc, char **argv)
 
   if(argc) {
     for(; argc; argc--, argv++) {
-      vfc = getvfsbyname(*argv);
-      if(vfc) {
-        printf(FMT, vfc->vfc_name, vfc->vfc_index, vfc->vfc_refcount,
-               fmt_flags(vfc->vfc_flags));
+      if (getvfsbyname(*argv, &vfc) != 0) {
+        printf(FMT, vfc.vfc_name, vfc.vfc_typenum, vfc.vfc_refcount,
+               fmt_flags(vfc.vfc_flags));
       } else {
 	warnx("VFS %s unknown or not loaded", *argv);
         rv++;
       }
     }
   } else {
-    while(vfc = getvfsent()) {
-      printf(FMT, vfc->vfc_name, vfc->vfc_index, vfc->vfc_refcount,
-             fmt_flags(vfc->vfc_flags));
+    while (ovfcp = getvfsent()) {
+      printf(FMT, ovfcp->vfc_name, ovfcp->vfc_index, ovfcp->vfc_refcount,
+             fmt_flags(ovfcp->vfc_flags));
     }
   }
 
