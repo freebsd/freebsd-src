@@ -46,6 +46,9 @@ pkg_perform(char **pkgs)
     if (CheckPkg) {
 	char buf[FILENAME_MAX];
 
+	tmp = getenv(PKG_DBDIR);
+	if (!tmp)
+	    tmp = DEF_LOG_DIR;
 	snprintf(buf, FILENAME_MAX, "%s/%s", tmp, CheckPkg);
 	return abs(access(buf, R_OK));
 	/* Not reached */
