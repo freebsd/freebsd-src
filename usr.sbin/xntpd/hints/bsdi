@@ -1,0 +1,61 @@
+README.bsdi
+
+Author:		Bdale Garbee, bdale@gag.com
+Last revision:  16 July 1993
+
+Included in this distribution of XNTP is a configuration file suitable
+for use with the BSDI BSD/386 operation system.  It has been tested against
+the version 1.0 "production release", but should work with any 0.9.X "gamma
+release" version if anyone still cares.  I'm using the stock gcc provided
+with the OS.
+
+[ As the pmake is badly broken on these systems at the time of this writing
+  the only way to compile is to call make like this "make -e MAKE=make [target]"
+  - Frank Kardel - 93/12/3 ]
+
+To date, I haven't used this with any hardware clocks, but I will probably
+get around to trying a Spectracom WWVB receiver at some point, and I'm hacking
+on an interface for the Rockwell Navcore 5 GPS widget in my "copious spare
+time".
+
+The config file is Config.bsdi, and the following steps should be all that
+are required to install and use the bits.
+
+To build the software:
+
+	rm -f Config.local
+	make refconf
+	make
+
+To install the software:
+
+	make install
+
+	This will place all of the executables in /usr/local/etc.  The config
+	file is expected to be /usr/local/etc/xntp.conf and the key file for
+	the optional authentication is /etc/ntp.keys.
+
+	Craft a config file and a key file, and put them in the right places.
+	There is information on how to do this elsewhere in the documentation,
+	the only thing I'll mention is that I put the drift file in 
+	/var/log/ntp.drift, and the authdelay on my 486DX/50 system is 
+	0.000064.  Your mileage will vary, learn to use the authspeed tools
+	if you're going to authenticate.
+	
+	In the file /etc/rc.local, make sure that the invocation of ntpd is
+	commented out, and add an invocation of xntpd.  Here's what I'm using:
+
+		echo -n 'starting local daemons:'
+
+		if [ -f /etc/ntp.keys -a -f /usr/local/etc/xntp.conf ]; then
+		    echo -n ' xntpd';           /usr/local/etc/xntpd
+		fi
+
+		#XXX# echo -n ' ntpd';          /usr/libexec/ntpd -t
+
+At this point, you should be good to go.  Try running /usr/local/etc/xntpd and
+using ntpq or xntpdc to see if things are working, then pay attention the next
+time you reboot to make sure that xntpd is being invoked, and use ntpq or
+xntpdc again to make sure all is well.  
+
+Enjoy!

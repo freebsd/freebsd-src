@@ -1,0 +1,16 @@
+#
+# gobble possible parameters
+#
+if [ $# -eq 5 ]; then
+  RCONFIG="$1"
+  PPSFEATURES="$2"
+  PPSOK="$3"
+  DEFS="$4"
+  REFCONF="$5"
+fi
+#
+# shell dumbness detection
+#
+if (eval "_x () { :; }") >/dev/null 2>&1 ; then
+  . refclocks/setupfn
+fi

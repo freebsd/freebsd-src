@@ -1,0 +1,67 @@
+README file for directory ./util of the NTP Version 3 distribution
+
+This directory contains the sources for the various utility programs. See
+the README and RELNOTES files in the parent directory for directions on
+how to make and install these programs.
+
+The ntptime.c program checks the kernel configuration for the NTP user
+interface syscalls ntp_gettime() and ntp_adjtime(). If present, the
+current timekeeping data are displayed. If not, a dissapointment is
+displayed. Do "make ntptime" in this directory to make the thing,
+but be advised that, unless you have installed the kernel support,
+there will probably be missing vital header files. See the README.kern
+file in the doc directory of this distribution for further details.
+
+The jitter.c program can be used to determine the timing jitter due to
+the operating system in a gettimeofday() call. For most systems the
+dominant contribution to the jitter budget is the period of the hardware
+interrupt, usually in the range 1-10 ms. For those systems with microsecond
+counters, such as recent Sun and certain Ultrix systems, the jitter is
+dominated only by the operating system. 
+
+The timetrim.c program can be used with SGI machines to implement a
+scheme to discipline the hardware clock frequency. See the source code
+for further information.
+
+The byteorder.c and longsize.c programs are used during the configuration
+process to determine the byte order (little or big endian) and longword
+size (32 or 64 bits). See the ../scripts/makefile.sh script for further
+details.
+
+The testrs6000.c program is used for testing purposes with the IBM
+RS/6000 AIX machines. Bill Jones <jones@chpc.utexas.edu> reports:
+"I could not get a tickadj of less then 40 us to work on a RS6000.
+If you set it less then 40 us do so at your own risk!"
+
+The tickadj.c program can be used to read and set various kernel
+parameters affecting NTP operations. Comes now the rationale for its use.
+
+Then daemon's clock adjustment algorithms depend (too) strongly
+on the internals of the kernel adjtime() call, and expect it to
+match that which comes with Berkeley-flavour operating systems.
+The daemon actually reads a couple of values from your kernel
+using /dev/kmem (ugh!), the value of `tick' and the value of `tickadj'.
+`tick' is expected to be the number of microseconds which are
+added to the system time on timer interrupts when the clock isn't
+being slewed.  `tickadj' is the number of microseconds which are
+added or subtracted from tick when the clock is being slewed.
+
+The program tickadj mimics the daemon's handling of these variables.
+If you run it (as root) and it fails or produces bizarre looking
+values you may have to torque ntp_unixclock.c in the daemon code.
+
+You can also use tickadj -a to set tickadj in the running kernel.
+In addition, tickadj -A will compute the value to set based on the
+kernel's value of tick, while the -t flag allows one to set the
+value of tick and the -s flag will set the value of dosynctodr
+to zero.  This is an alternative for people who can't change the
+values in the kernel's disk image.
+
+In addition, the -p flag will set the noprintf variable. This will
+suppress any kernel messages. Kernel message can then only be seen via
+syslog(3). This inhibits clockhopping due to kernel printf's.
+
+The target "ntptime" can only be compiled on systems with kernel PLL
+support. This is currently only possible for SunOS4, Ultrix and DECOSF1.
+You need the propriatary header files for that. So there is no need to
+attempt to compile ntptime unless you have the above configuration.
