@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_mib.c,v 1.18 1999/01/26 07:37:11 dillon Exp $
+ * $Id: kern_mib.c,v 1.19 1999/04/28 11:36:56 phk Exp $
  */
 
 #include <sys/param.h>
@@ -77,54 +77,70 @@ SYSCTL_NODE(, CTL_P1003_1B,  p1003_1b,   CTLFLAG_RW, 0,
 SYSCTL_NODE(_kern, OID_AUTO,  prison,   CTLFLAG_RW, 0,
 	"Prison rules");
 
-SYSCTL_STRING(_kern, KERN_OSRELEASE, osrelease, CTLFLAG_RD, osrelease, 0, "");
+SYSCTL_STRING(_kern, KERN_OSRELEASE, osrelease, CTLFLAG_RD, 
+    osrelease, 0, "Operating system type");
 
-SYSCTL_INT(_kern, KERN_OSREV, osrevision, CTLFLAG_RD, 0, BSD, "");
+SYSCTL_INT(_kern, KERN_OSREV, osrevision, CTLFLAG_RD, 
+    0, BSD, "Operating system revision");
 
-SYSCTL_STRING(_kern, KERN_VERSION, version, CTLFLAG_RD, version, 0, "");
+SYSCTL_STRING(_kern, KERN_VERSION, version, CTLFLAG_RD, 
+    version, 0, "Kernel version");
 
-SYSCTL_STRING(_kern, KERN_OSTYPE, ostype, CTLFLAG_RD, ostype, 0, "");
+SYSCTL_STRING(_kern, KERN_OSTYPE, ostype, CTLFLAG_RD, 
+    ostype, 0, "Operating system type");
 
 extern int osreldate;
-SYSCTL_INT(_kern, KERN_OSRELDATE, osreldate, CTLFLAG_RD, &osreldate, 0, "");
+SYSCTL_INT(_kern, KERN_OSRELDATE, osreldate, CTLFLAG_RD, 
+    &osreldate, 0, "Operating system release date");
 
-SYSCTL_INT(_kern, KERN_MAXPROC, maxproc, CTLFLAG_RD, &maxproc, 0, "");
+SYSCTL_INT(_kern, KERN_MAXPROC, maxproc, CTLFLAG_RD, 
+    &maxproc, 0, "Maximum number of processes");
 
-SYSCTL_INT(_kern, KERN_MAXPROCPERUID, maxprocperuid,
-	CTLFLAG_RW, &maxprocperuid, 0, "");
+SYSCTL_INT(_kern, KERN_MAXPROCPERUID, maxprocperuid, CTLFLAG_RW, 
+    &maxprocperuid, 0, "Maximum processes allowed per userid");
 
-SYSCTL_INT(_kern, KERN_ARGMAX, argmax, CTLFLAG_RD, 0, ARG_MAX, "");
+SYSCTL_INT(_kern, KERN_ARGMAX, argmax, CTLFLAG_RD, 
+    0, ARG_MAX, "Maximum bytes of argument to execve(2)");
 
-SYSCTL_INT(_kern, KERN_POSIX1, posix1version, CTLFLAG_RD, 0, _KPOSIX_VERSION, "");
+SYSCTL_INT(_kern, KERN_POSIX1, posix1version, CTLFLAG_RD, 
+    0, _KPOSIX_VERSION, "Version of POSIX attempting to comply to");
 
-SYSCTL_INT(_kern, KERN_NGROUPS, ngroups, CTLFLAG_RD, 0, NGROUPS_MAX, "");
+SYSCTL_INT(_kern, KERN_NGROUPS, ngroups, CTLFLAG_RD, 
+    0, NGROUPS_MAX, "Maximum number of groups a user can belong to");
 
-SYSCTL_INT(_kern, KERN_JOB_CONTROL, job_control, CTLFLAG_RD, 0, 1, "");
+SYSCTL_INT(_kern, KERN_JOB_CONTROL, job_control, CTLFLAG_RD, 
+    0, 1, "Whether job control is available");
 
 #ifdef _POSIX_SAVED_IDS
-SYSCTL_INT(_kern, KERN_SAVED_IDS, saved_ids, CTLFLAG_RD, 0, 1, "");
+SYSCTL_INT(_kern, KERN_SAVED_IDS, saved_ids, CTLFLAG_RD, 
+    0, 1, "Whether saved set-group/user ID is available");
 #else
-SYSCTL_INT(_kern, KERN_SAVED_IDS, saved_ids, CTLFLAG_RD, 0, 0, "");
+SYSCTL_INT(_kern, KERN_SAVED_IDS, saved_ids, CTLFLAG_RD, 
+    0, 0, "Whether saved set-group/user ID is available");
 #endif
 
 char kernelname[MAXPATHLEN] = "/kernel";	/* XXX bloat */
 
-SYSCTL_STRING(_kern, KERN_BOOTFILE, bootfile,
-	CTLFLAG_RW, kernelname, sizeof kernelname, "");
+SYSCTL_STRING(_kern, KERN_BOOTFILE, bootfile, CTLFLAG_RW, 
+    kernelname, sizeof kernelname, "Name of kernel file booted");
 
 #ifdef SMP
-SYSCTL_INT(_hw, HW_NCPU, ncpu, CTLFLAG_RD, &mp_ncpus, 0, "");
+SYSCTL_INT(_hw, HW_NCPU, ncpu, CTLFLAG_RD, 
+    &mp_ncpus, 0, "Number of active CPUs");
 #else
-SYSCTL_INT(_hw, HW_NCPU, ncpu, CTLFLAG_RD, 0, 1, "");
+SYSCTL_INT(_hw, HW_NCPU, ncpu, CTLFLAG_RD, 
+    0, 1, "Number of active CPUs");
 #endif
 
-SYSCTL_INT(_hw, HW_BYTEORDER, byteorder, CTLFLAG_RD, 0, BYTE_ORDER, "");
+SYSCTL_INT(_hw, HW_BYTEORDER, byteorder, CTLFLAG_RD, 
+    0, BYTE_ORDER, "System byte order");
 
-SYSCTL_INT(_hw, HW_PAGESIZE, pagesize, CTLFLAG_RD, 0, PAGE_SIZE, "");
+SYSCTL_INT(_hw, HW_PAGESIZE, pagesize, CTLFLAG_RD, 
+    0, PAGE_SIZE, "System memory page size");
 
 static char	machine_arch[] = MACHINE_ARCH;
 SYSCTL_STRING(_hw, HW_MACHINE_ARCH, machine_arch, CTLFLAG_RD,
-			  machine_arch, 0, "");
+    machine_arch, 0, "System architecture");
 
 char hostname[MAXHOSTNAMELEN];
 
@@ -145,7 +161,7 @@ sysctl_hostname SYSCTL_HANDLER_ARGS
 
 SYSCTL_PROC(_kern, KERN_HOSTNAME, hostname, 
        CTLTYPE_STRING|CTLFLAG_RW|CTLFLAG_PRISON,
-       0, 0, sysctl_hostname, "A", "");
+       0, 0, sysctl_hostname, "A", "Hostname");
 
 int securelevel = -1;
 
@@ -165,38 +181,58 @@ sysctl_kern_securelvl SYSCTL_HANDLER_ARGS
 }
 
 SYSCTL_PROC(_kern, KERN_SECURELVL, securelevel, CTLTYPE_INT|CTLFLAG_RW,
-	0, 0, sysctl_kern_securelvl, "I", "");
+    0, 0, sysctl_kern_securelvl, "I", "Current secure level");
 
 char domainname[MAXHOSTNAMELEN];
 SYSCTL_STRING(_kern, KERN_NISDOMAINNAME, domainname, CTLFLAG_RW,
-	&domainname, sizeof(domainname), "");
+    &domainname, sizeof(domainname), "Name of the current YP/NIS domain");
 
 long hostid;
 /* Some trouble here, if sizeof (int) != sizeof (long) */
-SYSCTL_INT(_kern, KERN_HOSTID, hostid, CTLFLAG_RW, &hostid, 0, "");
+SYSCTL_INT(_kern, KERN_HOSTID, hostid, CTLFLAG_RW, &hostid, 0, "Host ID");
 
 /*
  * This is really cheating.  These actually live in the libc, something
  * which I'm not quite sure is a good idea anyway, but in order for 
  * getnext and friends to actually work, we define dummies here.
  */
-SYSCTL_STRING(_user, USER_CS_PATH, cs_path, CTLFLAG_RD, "", 0, "");
-SYSCTL_INT(_user, USER_BC_BASE_MAX, bc_base_max, CTLFLAG_RD, 0, 0, "");
-SYSCTL_INT(_user, USER_BC_DIM_MAX, bc_dim_max, CTLFLAG_RD, 0, 0, "");
-SYSCTL_INT(_user, USER_BC_SCALE_MAX, bc_scale_max, CTLFLAG_RD, 0, 0, "");
-SYSCTL_INT(_user, USER_BC_STRING_MAX, bc_string_max, CTLFLAG_RD, 0, 0, "");
-SYSCTL_INT(_user, USER_COLL_WEIGHTS_MAX, coll_weights_max, CTLFLAG_RD, 0, 0, "");
+SYSCTL_STRING(_user, USER_CS_PATH, cs_path, CTLFLAG_RD, 
+    "", 0, "PATH that finds all the standard utilities");
+SYSCTL_INT(_user, USER_BC_BASE_MAX, bc_base_max, CTLFLAG_RD, 
+    0, 0, "Max ibase/obase values in bc(1)");
+SYSCTL_INT(_user, USER_BC_DIM_MAX, bc_dim_max, CTLFLAG_RD, 
+    0, 0, "Max array size in bc(1)");
+SYSCTL_INT(_user, USER_BC_SCALE_MAX, bc_scale_max, CTLFLAG_RD, 
+    0, 0, "Max scale value in bc(1)");
+SYSCTL_INT(_user, USER_BC_STRING_MAX, bc_string_max, CTLFLAG_RD, 
+    0, 0, "Max string length in bc(1)");
+SYSCTL_INT(_user, USER_COLL_WEIGHTS_MAX, coll_weights_max, CTLFLAG_RD, 
+    0, 0, "Maximum number of weights assigned to an LC_COLLATE locale entry");
 SYSCTL_INT(_user, USER_EXPR_NEST_MAX, expr_nest_max, CTLFLAG_RD, 0, 0, "");
-SYSCTL_INT(_user, USER_LINE_MAX, line_max, CTLFLAG_RD, 0, 0, "");
-SYSCTL_INT(_user, USER_RE_DUP_MAX, re_dup_max, CTLFLAG_RD, 0, 0, "");
-SYSCTL_INT(_user, USER_POSIX2_VERSION, posix2_version, CTLFLAG_RD, 0, 0, "");
-SYSCTL_INT(_user, USER_POSIX2_C_BIND, posix2_c_bind, CTLFLAG_RD, 0, 0, "");
-SYSCTL_INT(_user, USER_POSIX2_C_DEV, posix2_c_dev, CTLFLAG_RD, 0, 0, "");
-SYSCTL_INT(_user, USER_POSIX2_CHAR_TERM, posix2_char_term, CTLFLAG_RD, 0, 0, "");
-SYSCTL_INT(_user, USER_POSIX2_FORT_DEV, posix2_fort_dev, CTLFLAG_RD, 0, 0, "");
-SYSCTL_INT(_user, USER_POSIX2_FORT_RUN, posix2_fort_run, CTLFLAG_RD, 0, 0, "");
-SYSCTL_INT(_user, USER_POSIX2_LOCALEDEF, posix2_localedef, CTLFLAG_RD, 0, 0, "");
-SYSCTL_INT(_user, USER_POSIX2_SW_DEV, posix2_sw_dev, CTLFLAG_RD, 0, 0, "");
-SYSCTL_INT(_user, USER_POSIX2_UPE, posix2_upe, CTLFLAG_RD, 0, 0, "");
-SYSCTL_INT(_user, USER_STREAM_MAX, stream_max, CTLFLAG_RD, 0, 0, "");
-SYSCTL_INT(_user, USER_TZNAME_MAX, tzname_max, CTLFLAG_RD, 0, 0, "");
+SYSCTL_INT(_user, USER_LINE_MAX, line_max, CTLFLAG_RD, 
+    0, 0, "Max length (bytes) of a text-processing utility's input line");
+SYSCTL_INT(_user, USER_RE_DUP_MAX, re_dup_max, CTLFLAG_RD, 
+    0, 0, "Maximum number of repeats of a regexp permitted");
+SYSCTL_INT(_user, USER_POSIX2_VERSION, posix2_version, CTLFLAG_RD, 
+    0, 0, 
+    "The version of POSIX 1003.2 with which the system attempts to comply");
+SYSCTL_INT(_user, USER_POSIX2_C_BIND, posix2_c_bind, CTLFLAG_RD, 
+    0, 0, "Whether C development supports the C bindings option");
+SYSCTL_INT(_user, USER_POSIX2_C_DEV, posix2_c_dev, CTLFLAG_RD, 
+    0, 0, "Whether system supports the C development utilities option");
+SYSCTL_INT(_user, USER_POSIX2_CHAR_TERM, posix2_char_term, CTLFLAG_RD, 
+    0, 0, "");
+SYSCTL_INT(_user, USER_POSIX2_FORT_DEV, posix2_fort_dev, CTLFLAG_RD, 
+    0, 0, "Whether system supports FORTRAN development utilities");
+SYSCTL_INT(_user, USER_POSIX2_FORT_RUN, posix2_fort_run, CTLFLAG_RD, 
+    0, 0, "Whether system supports FORTRAN runtime utilities");
+SYSCTL_INT(_user, USER_POSIX2_LOCALEDEF, posix2_localedef, CTLFLAG_RD, 
+    0, 0, "Whether system supports creation of locales");
+SYSCTL_INT(_user, USER_POSIX2_SW_DEV, posix2_sw_dev, CTLFLAG_RD, 
+    0, 0, "Whether system supports software development utilities");
+SYSCTL_INT(_user, USER_POSIX2_UPE, posix2_upe, CTLFLAG_RD, 
+    0, 0, "Whether system supports the user portability utilities");
+SYSCTL_INT(_user, USER_STREAM_MAX, stream_max, CTLFLAG_RD, 
+    0, 0, "Min Maximum number of streams a process may have open at one time");
+SYSCTL_INT(_user, USER_TZNAME_MAX, tzname_max, CTLFLAG_RD, 
+    0, 0, "Min Maximum number of types supported for timezone names");

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- *	$Id: uipc_socket.c,v 1.55 1999/02/16 10:49:49 dfr Exp $
+ *	$Id: uipc_socket.c,v 1.56 1999/04/24 18:22:34 ache Exp $
  */
 
 #include <sys/param.h>
@@ -63,8 +63,8 @@ MALLOC_DEFINE(M_PCB, "pcb", "protocol control block");
 SYSCTL_DECL(_kern_ipc);
 
 static int somaxconn = SOMAXCONN;
-SYSCTL_INT(_kern_ipc, KIPC_SOMAXCONN, somaxconn, CTLFLAG_RW, &somaxconn,
-	   0, "");
+SYSCTL_INT(_kern_ipc, KIPC_SOMAXCONN, somaxconn, CTLFLAG_RW, 
+    &somaxconn, 0, "Maximum pending socket connection queue size");
 
 /*
  * Socket operation routines.

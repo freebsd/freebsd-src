@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.54 1999/01/26 02:38:10 julian Exp $
+ * $Id: kern_sig.c,v 1.55 1999/04/28 11:36:59 phk Exp $
  */
 
 #include "opt_compat.h"
@@ -73,7 +73,9 @@ static void setsigvec	__P((struct proc *p, int signum, struct sigaction *sa));
 static void stop	__P((struct proc *));
 
 static int	kern_logsigexit = 1;
-SYSCTL_INT(_kern, KERN_LOGSIGEXIT, logsigexit, CTLFLAG_RW, &kern_logsigexit, 0, "");
+SYSCTL_INT(_kern, KERN_LOGSIGEXIT, logsigexit, CTLFLAG_RW, 
+    &kern_logsigexit, 0, 
+    "Log processes quitting on abnormal signals to syslog(3)");
 
 /*
  * Can process p, with pcred pc, send the signal signum to process q?
@@ -97,7 +99,8 @@ SYSCTL_INT(_kern, KERN_LOGSIGEXIT, logsigexit, CTLFLAG_RW, &kern_logsigexit, 0, 
 	    (uc)->cr_uid == (q)->p_ucred->cr_uid)
 
 int sugid_coredump;
-SYSCTL_INT(_kern, OID_AUTO, sugid_coredump, CTLFLAG_RW, &sugid_coredump, 0, "");
+SYSCTL_INT(_kern, OID_AUTO, sugid_coredump, CTLFLAG_RW, 
+    &sugid_coredump, 0, "Enable coredumping set user/group ID processes");
 
 #ifndef _SYS_SYSPROTO_H_
 struct sigaction_args {

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.46 1999/01/30 19:29:10 msmith Exp $
+ * $Id: kern_shutdown.c,v 1.47 1999/04/27 11:16:04 phk Exp $
  */
 
 #include "opt_ddb.h"
@@ -85,7 +85,7 @@ int debugger_on_panic = 0;
 int debugger_on_panic = 1;
 #endif
 SYSCTL_INT(_debug, OID_AUTO, debugger_on_panic, CTLFLAG_RW,
-	&debugger_on_panic, 0, "");
+	&debugger_on_panic, 0, "Run debugger on kernel panic");
 #endif
 
 SYSCTL_NODE(_kern, OID_AUTO, shutdown, CTLFLAG_RW, 0, "Shutdown environment");
@@ -350,7 +350,8 @@ static u_long const	dumpmag = 0x8fca0101UL;
 static int	dumpsize = 0;		/* also for savecore */
 
 static int	dodump = 1;
-SYSCTL_INT(_machdep, OID_AUTO, do_dump, CTLFLAG_RW, &dodump, 0, "");
+SYSCTL_INT(_machdep, OID_AUTO, do_dump, CTLFLAG_RW, 
+    &dodump, 0, "Do coredump on kernel panic");
 
 /* ARGSUSED */
 static void dump_conf __P((void *dummy));
