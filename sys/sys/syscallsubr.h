@@ -49,6 +49,8 @@ int	kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg,
 	    u_int buflen);
 int	kern_access(struct thread *td, char *path, enum uio_seg pathseg,
 	    int flags);
+int	kern_adjtime(struct thread *td, struct timeval *delta,
+	    struct timeval *olddelta);
 int	kern_alternate_path(struct thread *td, const char *prefix, char *path,
 	    enum uio_seg pathseg, char **pathbuf, int create);
 int	kern_bind(struct thread *td, int fd, struct sockaddr *sa);
@@ -98,9 +100,12 @@ int	kern_ptrace(struct thread *td, int req, pid_t pid, void *addr,
 	    int data);
 int	kern_readlink(struct thread *td, char *path, enum uio_seg pathseg,
 	    char *buf, enum uio_seg bufseg, int count);
+int	kern_readv(struct thread *td, int fd, struct uio *auio);
 int	kern_rename(struct thread *td, char *from, char *to,
 	    enum uio_seg pathseg);
 int	kern_rmdir(struct thread *td, char *path, enum uio_seg pathseg);
+int	kern_sched_rr_get_interval(struct thread *td, pid_t pid,
+	    struct timespec *ts);
 int	kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	    fd_set *fd_ex, struct timeval *tvp);
 int	kern_sendit(struct thread *td, int s, struct msghdr *mp, int flags,
@@ -110,6 +115,8 @@ int	kern_setitimer(struct thread *, u_int, struct itimerval *,
 int	kern_setrlimit(struct thread *, u_int, struct rlimit *);
 int	kern_setsockopt(struct thread *td, int s, int level, int name,
 	    void *optval, enum uio_seg valseg, socklen_t valsize);
+int	kern_settimeofday(struct thread *td, struct timeval *tv,
+	    struct timezone *tzp);
 int	kern_shmat(struct thread *td, int shmid, const void *shmaddr,
 	    int shmflg);
 int	kern_shmctl(struct thread *td, int shmid, int cmd, void *buf,
@@ -133,6 +140,7 @@ int	kern_utimes(struct thread *td, char *path, enum uio_seg pathseg,
 	    struct timeval *tptr, enum uio_seg tptrseg);
 int	kern_wait(struct thread *td, pid_t pid, int *status, int options,
 	    struct rusage *rup);
+int	kern_writev(struct thread *td, int fd, struct uio *auio);
 
 /* flags for kern_sigaction */
 #define	KSA_OSIGSET	0x0001	/* uses osigact_t */
