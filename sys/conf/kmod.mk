@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.50 1998/07/29 14:19:48 bde Exp $
+#	$Id: bsd.kmod.mk,v 1.51 1998/08/08 07:02:07 peter Exp $
 #
 # The include file <bsd.kmod.mk> handles installing Loadable Kernel Modules.
 #
@@ -108,6 +108,10 @@ CFLAGS+=	-I${.OBJDIR} -I${.OBJDIR}/@
 .if defined(DESTDIR)
 CFLAGS+=	-I${DESTDIR}/usr/include
 .endif
+
+# XXX temporary until we build ELF kernels.
+CFLAGS+=	-aout
+LDFLAGS+=	-aout
 
 .if defined(NOSHARED) && ( ${NOSHARED} != "no" && ${NOSHARED} != "NO" )
 LDFLAGS+= -static
