@@ -10,7 +10,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) lrange.test 1.5 96/02/16 08:56:13
+# SCCS: @(#) lrange.test 1.6 96/07/10 17:16:47
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -56,6 +56,9 @@ test lrange-1.13 {range of list elements} {
 test lrange-1.14 {range of list elements} {
     lrange "a b c d" end 2
 } {}
+test lrange-1.14 {range of list elements} {
+    concat \"[lrange {a b \{\   	} 0 2]"
+} {"a b \{\ "}
 
 test lrange-2.1 {error conditions} {
     list [catch {lrange a b} msg] $msg

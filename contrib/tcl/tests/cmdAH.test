@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) cmdah.test 1.7 96/04/12 10:49:01
+# SCCS: @(#) cmdAH.test 1.9 96/07/01 14:38:19
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -404,7 +404,7 @@ test cmdah-3.42 {Tcl_FileCmd: tail} {
     set result [file tail ~]
     set env(HOME) $temp
     set result
-} {}
+} test
 test cmdah-3.43 {Tcl_FileCmd: tail} {
     global env
     set temp $env(HOME)
@@ -422,7 +422,7 @@ test cmdah-3.44 {Tcl_FileCmd: tail} {
     set result [file tail ~]
     set env(HOME) $temp
     set result
-} {}
+} test
 test cmdah-3.45 {Tcl_FileCmd: tail} {
     global env
     set temp $env(HOME)
@@ -431,7 +431,7 @@ test cmdah-3.45 {Tcl_FileCmd: tail} {
     set result [file tail ~]
     set env(HOME) $temp
     set result
-} {}
+} test
 test cmdah-3.46 {Tcl_FileCmd: tail} {
     testsetplatform unix
     file tail {f.oo\bar/baz.bat}
@@ -1016,7 +1016,11 @@ test cmdah-19.3 {Tcl_FileCmd: readlink errors} {unixOnly nonPortable} {
     list [catch {file readlink _bogus_} msg] [string tolower $msg] \
 	    [string tolower $errorCode]
 } {1 {couldn't readlink "_bogus_": no such file or directory} {posix enoent {no such file or directory}}}
-test cmdah-19.4 {Tcl_FileCmd: readlink errors} {macOrPc nonPortable} {
+test cmdah-19.4 {Tcl_FileCmd: readlink errors} {macOnly nonPortable} {
+    list [catch {file readlink _bogus_} msg] [string tolower $msg] \
+	    [string tolower $errorCode]
+} {1 {couldn't readlink "_bogus_": no such file or directory} {posix enoent {no such file or directory}}}
+test cmdah-19.5 {Tcl_FileCmd: readlink errors} {pcOnly nonPortable} {
     list [catch {file readlink _bogus_} msg] [string tolower $msg] \
 	    [string tolower $errorCode]
 } {1 {couldn't readlink "_bogus_": invalid argument} {posix einval {invalid argument}}}

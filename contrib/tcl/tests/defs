@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) defs 1.37 96/04/12 13:45:04
+# SCCS: @(#) defs 1.38 96/07/24 17:18:20
 
 if ![info exists VERBOSE] {
     set VERBOSE 0
@@ -55,6 +55,7 @@ if {[info commands memory] == ""} {
 #			run tests that only work on PCs.
 #	unixOrPc -	1 means this is a UNIX or PC platform.
 #	macOrPc -	1 means this is a Mac or PC platform.
+#	macOrUnix -	1 means this is a Mac or UNIX platform.
 #	nonPortable -	1 means this the tests are being running in
 #			the master Tcl/Tk development environment;
 #			Some tests are inherently non-portable because
@@ -93,6 +94,7 @@ if {$tcl_platform(platform) == "windows"} {
 }
 set testConfig(unixOrPc) [expr $testConfig(unixOnly) || $testConfig(pcOnly)]
 set testConfig(macOrPc) [expr $testConfig(macOnly) || $testConfig(pcOnly)]
+set testConfig(macOrUnix) [expr $testConfig(macOnly) || $testConfig(unixOnly)]
 set testConfig(nonPortable) [file exists doAllTests]
 
 set f [open defs r]

@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) fileName.test 1.20 96/04/19 12:36:13
+# SCCS: @(#) fileName.test 1.23 96/07/31 11:46:11
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -1086,8 +1086,8 @@ test filename-11.12 {Tcl_GlobCmd} {
 testsetplatform $platform
 
 test filename-11.13 {Tcl_GlobCmd} {
-    list [catch {glob ~} msg] $msg
-} [list 0 [list $env(HOME)]]
+    list [catch {file join [lindex [glob ~] 0]} msg] $msg
+} [list 0 [file join $env(HOME)]]
 
 # The following tests will work on Windows platforms only if MKS
 # toolkit is installed.

@@ -1,23 +1,22 @@
 Tcl
 
-by John Ousterhout (and many others at Sun Microsystems and elsewhere)
-john.ousterhout@eng.sun.com
-
-SCCS: @(#) README 1.29 96/04/19 11:42:58
+SCCS: @(#) README 1.32 96/07/31 16:29:01
 
 1. Introduction
 ---------------
 
 This directory and its descendants contain the sources and documentation
-for Tcl, an embeddable scripting language.  The information here corresponds
-to release 7.5.  The most important new feature in this release is support
-for the PC and Mac platforms.  In addition, there are major new facilities
-for dynamic loading, package and version management, multiple interpreters,
-safe execution of untrusted scripts, and a new I/O system that supports
+for Tcl, an embeddable scripting language.  The information here
+corresponds to release 7.5p1, the first patch release for Tcl 7.5.  The
+most important new feature in Tcl 7.5 is support for the PC and Mac
+platforms.  In addition, there are major new facilities for dynamic
+loading, package and version management, multiple interpreters, safe
+execution of untrusted scripts, and a new I/O system that supports
 nonblocking I/O and sockets.  This release also contains many bug fixes.
-Tcl 7.5 should be backwards compatible with Tcl 7.4 scripts (there are two
-small incompatibilities described below, but they are relatively insignificant
-and shouldn't affect most existing Tcl code and extensions).
+Tcl 7.5 should be backwards compatible with Tcl 7.4 scripts (there are
+two small incompatibilities described below, but they are relatively
+insignificant and shouldn't affect most existing Tcl code and
+extensions).
 
 2. Documentation
 ----------------
@@ -66,22 +65,38 @@ or Win 3.1 with Win32s).
 Before trying to compile Tcl you should do the following things:
 
     (a) Check for a binary release.  Pre-compiled binary releases are
-        available now for PCs and Macintoshes, and they may be available
-	in the future for some flavors of UNIX.  Binary releases are much
-	easier to install than source releases.  To find out whether a
-	binary release is available for your platform, check the home page
-	for the Sun Tcl/Tk project (http://www.sunlabs.com/research/tcl)
-	and also check in the FTP directory from which you retrieved the
-	base distribution.
+        available now for PCs, Macintoshes, and several flavors of UNIX.
+	Binary releases are much easier to install than source releases.
+	To find out whether a binary release is available for your platform,
+	check the home page for the Sun Tcl/Tk project
+	(http://www.sunlabs.com/research/tcl) and also check in the FTP
+	directory from which you retrieved the base distribution.  Some
+	of the binary releases are available freely, while others are for
+	sale.
 
-    (b) Check for patches.  Look in the FTP directory from which you
-        retrieved the base distribution and see if there are files with
-	names like tcl7.5p1.patch, tcl7.5p2.patch, etc.  These files may
-	also have .gz or .Z extensions to indicate compression.  If you find
-	any patch files, apply them to the source directory in order
-	from "p1" up.  To apply an uncompressed patch file such as
-	tcl7.5p1.patch, invoke a shell command like the following from
-	the directory containing this file:
+    (b) Make sure you have the most recent patch release.  Look in the
+	FTP directory from which you retrieved this distribution to see
+	if it has been updated with patches.  Patch releases fix bugs
+	without changing any features, so you should normally use the
+	latest patch release for the version of Tcl that you want. 
+	Patch releases are available in two forms.  A file like
+	tcl7.5p1.tar.Z is a complete release for patch level 1 of Tcl
+	version 7.5.  If there is a file with a higher patch level than
+	this release, just fetch the file with the highest patch level
+	and use it.
+
+	Patches are also available in the form of patch files that just
+	contain the changes from one patch level to another.  These
+	files have names like tcl7.5p1.patch, tcl7.5p2.patch, etc.  They
+	may also have .gz or .Z extensions to indicate compression.  To
+	use one of these files, you apply it to an existing release with
+	the "patch" program.  Patches must be applied in order:
+	tcl7.5p1.patch must be applied to an unpatched Tcl 7.5 release
+	to produce a Tcl 7.5p1 release;  tcl7.5p2.patch can then be
+	applied to Tcl7.5 p1 to produce Tcl 7.5 p2, and so on. To apply an
+	uncompressed patch file such as tcl7.5p1.patch, invoke a shell
+	command like the following from the directory containing this
+	file:
 	    patch -p < tcl7.5p1.patch
 	If the patch file has a .gz extension, invoke a command like the
 	following:
@@ -329,3 +344,8 @@ a major problem turns up then we'll fix it even if it introduces an
 incompatibility.  Once the official release is made then there won't
 be any more incompatibilities until the next release with a new major
 version number.
+
+Patch releases have a suffix such as p1 or p2.  These releases contain
+bug fixes only.  A patch release (e.g Tcl 7.5p2) should be completely
+compatible with the base release from which it is derived (e.g. Tcl
+7.5), and you should normally use the highest available patch release.

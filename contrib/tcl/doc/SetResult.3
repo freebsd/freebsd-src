@@ -5,10 +5,10 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) SetResult.3 1.18 96/03/25 20:06:54
+'\" SCCS: @(#) SetResult.3 1.19 96/06/05 18:00:15
 '\" 
 .so man.macros
-.TH Tcl_SetResult 3 7.0 Tcl "Tcl Library Procedures"
+.TH Tcl_SetResult 3 7.5 Tcl "Tcl Library Procedures"
 .BS
 .SH NAME
 Tcl_SetResult, Tcl_AppendResult, Tcl_AppendElement, Tcl_ResetResult \- manipulate Tcl result string
@@ -51,11 +51,13 @@ command in \fIinterp\fR, replacing any existing result.
 If \fIfreeProc\fR is \fBTCL_STATIC\fR it means that \fIstring\fR
 refers to an area of static storage that is guaranteed not to be
 modified until at least the next call to \fBTcl_Eval\fR.
+.VS
 If \fIfreeProc\fR
 is \fBTCL_DYNAMIC\fR it means that \fIstring\fR was allocated with a call
-to \fBmalloc()\fR and is now the property of the Tcl system.
+to \fBTcl_Alloc\fR and is now the property of the Tcl system.
 \fBTcl_SetResult\fR will arrange for the string's storage to be
-released by calling \fBfree()\fR when it is no longer needed.
+released by calling \fBTcl_Free\fR when it is no longer needed.
+.VE
 If \fIfreeProc\fR is \fBTCL_VOLATILE\fR it means that \fIstring\fR
 points to an area of memory that is likely to be overwritten when
 \fBTcl_SetResult\fR returns (e.g. it points to something in a stack frame).

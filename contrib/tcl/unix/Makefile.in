@@ -5,7 +5,7 @@
 # "autoconf" program (constructs like "@foo@" will get replaced in the
 # actual Makefile.
 #
-# SCCS: @(#) Makefile.in 1.130 96/04/18 16:55:37
+# SCCS: @(#) Makefile.in 1.140 96/08/01 20:06:06
 
 # Current Tcl version;  used in various names.
 
@@ -44,6 +44,9 @@ SCRIPT_INSTALL_DIR =	$(INSTALL_ROOT)$(TCL_LIBRARY)
 
 # Directory in which to install libtcl.so or libtcl.a:
 LIB_INSTALL_DIR =	$(INSTALL_ROOT)$(exec_prefix)/lib
+
+# Path to use at runtime to refer to LIB_INSTALL_DIR:
+LIB_RUNTIME_DIR =	$(exec_prefix)/lib
 
 # Directory in which to install the program tclsh:
 BIN_INSTALL_DIR =	$(INSTALL_ROOT)$(exec_prefix)/bin
@@ -348,6 +351,10 @@ dltest/Makefile: $(DLTEST_DIR)/configure $(DLTEST_DIR)/Makefile.in tclConfig.sh
 
 install: install-binaries install-libraries install-man
 
+# Note: before running ranlib below, must cd to target directory because
+# some ranlibs write to current directory, and this might not always be
+# possible (e.g. if installing as root).
+
 install-binaries: $(TCL_LIB_FILE) tclsh
 	@for i in $(LIB_INSTALL_DIR) $(BIN_INSTALL_DIR) ; \
 	    do \
@@ -360,10 +367,12 @@ install-binaries: $(TCL_LIB_FILE) tclsh
 	    done;
 	@echo "Installing $(TCL_LIB_FILE)"
 	@$(INSTALL_DATA) $(TCL_LIB_FILE) $(LIB_INSTALL_DIR)/$(TCL_LIB_FILE)
-	@$(RANLIB) $(LIB_INSTALL_DIR)/$(TCL_LIB_FILE)
+	@(cd $(LIB_INSTALL_DIR); $(RANLIB) $(TCL_LIB_FILE))
 	@chmod 555 $(LIB_INSTALL_DIR)/$(TCL_LIB_FILE)
 	@echo "Installing tclsh"
 	@$(INSTALL_PROGRAM) tclsh $(BIN_INSTALL_DIR)/tclsh$(VERSION)
+	@echo "Installing tclConfig.sh"
+	@$(INSTALL_DATA) tclConfig.sh $(LIB_INSTALL_DIR)/tclConfig.sh
 
 install-libraries:
 	@for i in $(INSTALL_ROOT)$(prefix)/lib $(INCLUDE_INSTALL_DIR) \
@@ -378,8 +387,6 @@ install-libraries:
 	    done;
 	@echo "Installing tcl.h"
 	@$(INSTALL_DATA) $(GENERIC_DIR)/tcl.h $(INCLUDE_INSTALL_DIR)/tcl.h
-	@echo "Installing tclConfig.sh"
-	@$(INSTALL_DATA) tclConfig.sh $(LIB_INSTALL_DIR)/tclConfig.sh
 	@for i in $(TOP_DIR)/library/*.tcl $(TOP_DIR)/library/tclIndex $(UNIX_DIR)/tclAppInit.c; \
 	    do \
 	    echo "Installing $$i"; \
@@ -433,7 +440,7 @@ clean:
 	if test -f dltest/Makefile; then cd dltest; make clean; fi
 
 distclean: clean
-	rm -f Makefile config.* tclConfig.sh
+	rm -f Makefile config.status config.cache config.log tclConfig.sh
 	if test -f dltest/Makefile; then cd dltest; make distclean; fi
 
 depend:
@@ -676,7 +683,7 @@ checkexports: $(TCL_LIB_FILE)
 # to put the distribution.
 #
 
-DISTDIR =	/proj/tcl/dist/tcl7.5
+DISTDIR =	/proj/tcl/dist/tcl7.5p1
 configure: configure.in
 	autoconf
 dist: configure
@@ -684,6 +691,7 @@ dist: configure
 	mkdir $(DISTDIR)
 	mkdir $(DISTDIR)/unix
 	cp -p $(UNIX_DIR)/*.c $(UNIX_DIR)/*.h $(DISTDIR)/unix
+	rm -f $(DISTDIR)/unix/bp.c
 	cp Makefile.in $(DISTDIR)/unix
 	chmod 664 $(DISTDIR)/unix/Makefile.in
 	cp configure configure.in tclConfig.sh.in install-sh porting.notes \
@@ -722,6 +730,7 @@ dist: configure
 	rm -f tclMacProjects.sit.hqx
 	cp -p ../mac/*.c ../mac/*.h ../mac/*.r $(DISTDIR)/mac
 	cp -p ../mac/porting.notes ../mac/README $(DISTDIR)/mac
+	cp -p ../mac/*.doc ../mac/*.pch $(DISTDIR)/mac
 	cp -p ../license.terms $(DISTDIR)/mac
 	mkdir $(DISTDIR)/unix/dltest
 	cp -p dltest/*.c dltest/Makefile.in $(DISTDIR)/unix/dltest
