@@ -91,6 +91,7 @@
 #define	MPT_LOCK_SETUP(mpt)
 #define	MPT_LOCK_DESTROY(mpt)
 #else
+#if	LOCKING_WORKED_AS_IT_SHOULD
 #define	MPT_IFLAGS		INTR_TYPE_CAM | INTR_ENTROPY | INTR_MPSAFE
 #define	MPT_LOCK_SETUP(mpt)						\
 		mtx_init(&mpt->mpt_lock, "mpt", NULL, MTX_DEF);		\
@@ -107,6 +108,15 @@
 	mtx_unlock(&(mpt)->mpt_lock); mtx_lock(&Giant)
 #define	CAMLOCK_2_MPTLOCK(mpt)	\
 	mtx_unlock(&Giant); mtx_lock(&(mpt)->mpt_lock)
+#else
+#define	MPT_IFLAGS		INTR_TYPE_CAM | INTR_ENTROPY
+#define	MPT_LOCK_SETUP(mpt)	do { } while (0)
+#define	MPT_LOCK_DESTROY(mpt)	do { } while (0)
+#define	MPT_LOCK(mpt)		do { } while (0)
+#define	MPT_UNLOCK(mpt)		do { } while (0)
+#define	MPTLOCK_2_CAMLOCK(mpt)	do { } while (0)
+#define	CAMLOCK_2_MPTLOCK(mpt)	do { } while (0)
+#endif
 #endif
 	
 
