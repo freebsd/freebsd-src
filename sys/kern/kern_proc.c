@@ -555,11 +555,15 @@ sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 	if (!p)
 		return (0);
 
-	if ((!ps_argsopen) && p_trespass(curproc, p))
+	if (p_trespass(curproc, p))
 		return (0);
 
-	if (req->newptr && curproc != p)
-		return (EPERM);
+	if (curproc != p) {
+		if (!ps_argsopen)
+			return (EPERM);
+		if (req->newptr != NULL)
+			return (EPERM);
+	}
 
 	if (req->oldptr && p->p_args != NULL)
 		error = SYSCTL_OUT(req, p->p_args->ar_args, p->p_args->ar_length);
