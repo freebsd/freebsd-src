@@ -114,8 +114,9 @@ then a parsing error was encountered.
 The remaining functions provide the ability to test a given time_t or
 struct tm value against a specific time period or array of time
 periods.
+The
 .Fn in_ltm
-determines whether the given time described by the struct tm
+function determines whether the given time described by the struct tm
 passed as the second parameter falls within the period described
 by the first parameter.
 A boolean value is returned, indicating whether or not the time
@@ -135,19 +136,22 @@ elements in length, and terminated by an element with its
 field set to
 .Em LTM_NONE .
 .Sh RETURN VALUES
+The
 .Fn parse_lt
-returns a filled in structure of type login_time_t containing the
+function returns a filled in structure of type login_time_t containing the
 parsed time period.
 If a parsing error occurs, the lt_dow field is set to
 .Em LTM_NONE
 (i.e. 0).
 .Pp
+The
 .Fn in_ltm
-returns non-zero if the given time falls within the period described
+function returns non-zero if the given time falls within the period described
 by the login_time_t passed as the first parameter.
 .Pp
+The
 .Fn in_ltms
-returns the index of the first time period found in which the given
+function returns the index of the first time period found in which the given
 time falls, or -1 if none of them apply.
 .Sh SEE ALSO
 .Xr getcap 3 ,

@@ -68,8 +68,9 @@ If
 .Fa s
 is NULL, an internal array is used and its address will be returned.
 .Sh RETURN VALUES
+The
 .Fn cuserid
-returns the address of an array in which the name has been stored.
+function returns the address of an array in which the name has been stored.
 .Pp
 If the name associated with the effective UID of the current process
 could not be found, either a null pointer will be returned, or
