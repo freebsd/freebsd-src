@@ -130,8 +130,10 @@ cpu_startup(void *arg)
 {
 	phandle_t child;
 	phandle_t root;
+	char name[32];
 	char type[8];
 	u_int clock;
+	caddr_t p;
 
 	root = OF_peer(0);
 	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
@@ -141,6 +143,7 @@ cpu_startup(void *arg)
 	}
 	if (child == 0)
 		panic("cpu_startup: no cpu\n");
+	OF_getprop(child, "name", name, sizeof(name));
 	OF_getprop(child, "clock-frequency", &clock, sizeof(clock));
 
 	tick_tc.tc_get_timecount = tick_get_timecount;
