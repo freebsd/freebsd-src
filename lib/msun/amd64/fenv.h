@@ -181,7 +181,7 @@ int feupdateenv(const fenv_t *__envp);
 #if __BSD_VISIBLE
 
 int feenableexcept(int __mask);
-int fedisableexcpt(int __mask);
+int fedisableexcept(int __mask);
 
 static __inline int
 fegetexcept(void)
