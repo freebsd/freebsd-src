@@ -475,10 +475,6 @@ nfs_mountroot(struct mount *mp, struct thread *td)
 	printf("NFS ROOT: %s\n", buf);
 	if ((error = nfs_mountdiskless(buf, "/", MNT_RDONLY,
 	    &nd->root_saddr, &nd->root_args, td, &vp, &mp)) != 0) {
-		if (swap_mp) {
-			mp->mnt_vfc->vfc_refcount--;
-			free(swap_mp, M_MOUNT);
-		}
 		return (error);
 	}
 
