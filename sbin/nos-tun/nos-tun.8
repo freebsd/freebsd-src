@@ -50,7 +50,7 @@ If you configure the tunnel against a cisco router, use a netmask of
 .Dq 255.255.255.252
 on the cisco.  This is because the tunnel is a point-to-point interface
 in the
-.Bx Free
+.Fx
 end, a concept cisco doesn't really implement.
 .Pp
 .Ar Protocol number
@@ -62,7 +62,7 @@ is the address of the remote tunnel device, this must match the source
 address set on the remote end.
 .Sh EXAMPLES
 This end, a
-.Bx Free
+.Fx
 box on address 192.168.59.34:
 .Bd -literal -offset indent 4m 
 nos-tun -t /dev/tun0 -s 192.168.61.1 -d 192.168.61.2 192.168.56.45
