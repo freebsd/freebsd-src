@@ -688,7 +688,6 @@
 .ds doc-str-Lb-libposix    \*[Px] Compatibility Library (libposix, \-lposix)
 .ds doc-str-Lb-libresolv   DNS Resolver Library (libresolv, \-lresolv)
 .ds doc-str-Lb-libtermcap  Termcap Access Library (libtermcap, \-ltermcap)
-.ds doc-str-Lb-libugidfw   File System Firewall Interface Library (libugidfw, \-lugidfw)
 .ds doc-str-Lb-libutil     System Utilities Library (libutil, \-lutil)
 .ds doc-str-Lb-libz        Compression Library (libz, \-lz)
 .
