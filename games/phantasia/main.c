@@ -27,6 +27,7 @@
 
 #include <sys/types.h>
 #include <pwd.h>
+#include <string.h>
 
 /*
  * The program allocates as much file space as it needs to store characters,
@@ -100,7 +101,7 @@ char	**argv;
 bool	noheader = FALSE;	/* set if don't want header */
 bool	headeronly = FALSE;	/* set if only want header */
 bool	examine = FALSE;	/* set if examine a character */
-long	seconds;		/* for time of day */
+time_t	seconds;		/* for time of day */
 double	dtemp;			/* for temporary calculations */
 
     initialstate();		/* init globals */
