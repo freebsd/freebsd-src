@@ -140,6 +140,7 @@ Text Segment
 Undefined
 .It ?
 None of the above
+.El
 .Sh SEE ALSO
 .Xr ar 1 ,
 .Xr a.out 5 ,
