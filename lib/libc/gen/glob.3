@@ -263,7 +263,8 @@ to user name home directories.
 .It Dv GLOB_LIMIT
 Limit the total number of returned pathnames to the value provided in
 .Fa gl_matchc
-(default ARG_MAX).
+(default
+.Dv ARG_MAX ) .
 This option should be set for programs
 that can be coerced into a denial of service attack
 via patterns that expand to a very large number of matches,
