@@ -11,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.33 1996/02/26 15:28:15 phk Exp $
+ *	$Id: ip_fw.c,v 1.34 1996/04/03 13:52:13 phk Exp $
  */
 
 /*
@@ -449,22 +449,22 @@ add_entry(chainptr, frwl)
 	u_short nbr = 0;
 	int s;
 
-	s = splnet();
-
 	fwc = malloc(sizeof *fwc, M_IPFW, M_DONTWAIT);
 	ftmp = malloc(sizeof *ftmp, M_IPFW, M_DONTWAIT);
 	if (!fwc || !ftmp) {
 		dprintf(("ip_fw_ctl:  malloc said no\n"));
 		if (fwc)  free(fwc, M_IPFW);
 		if (ftmp) free(ftmp, M_IPFW);
-		splx(s);
 		return (ENOSPC);
 	}
+
 	bcopy(frwl, ftmp, sizeof(struct ip_fw));
 	ftmp->fw_pcnt = 0L;
 	ftmp->fw_bcnt = 0L;
 	fwc->rule = ftmp;
 	
+	s = splnet();
+
 	if (!chainptr->lh_first) {
 		LIST_INSERT_HEAD(chainptr, fwc, chain);
         } else if (ftmp->fw_number == (u_short)-1) {
@@ -507,18 +507,18 @@ del_entry(chainptr, frwl)
 	s = splnet();
 
 	fcp = chainptr->lh_first; 
-	if (fcp->rule->fw_number == (u_short)-1)
-		return (EINVAL);
-
-	for (; fcp; fcp = fcp->chain.le_next) {
-		if (fcp->rule->fw_number == frwl->fw_number) {
-			LIST_REMOVE(fcp, chain);
-			splx(s);
-			free(fcp->rule, M_IPFW);
-			free(fcp, M_IPFW);
-			return 0;
+	if (fcp->rule->fw_number != (u_short)-1) {
+		for (; fcp; fcp = fcp->chain.le_next) {
+			if (fcp->rule->fw_number == frwl->fw_number) {
+				LIST_REMOVE(fcp, chain);
+				splx(s);
+				free(fcp->rule, M_IPFW);
+				free(fcp, M_IPFW);
+				return 0;
+			}
 		}
 	}
+
 	splx(s);
 	return (EINVAL);
 }
@@ -595,7 +595,9 @@ ip_fw_ctl(stage, mm)
 		while (ip_fw_chain.lh_first != NULL && 
 		    ip_fw_chain.lh_first->rule->fw_number != (u_short)-1) {
 			struct ip_fw_chain *fcp = ip_fw_chain.lh_first;
+			int s = splnet();
 			LIST_REMOVE(ip_fw_chain.lh_first, chain);
+			splx(s);
 			free(fcp->rule, M_IPFW);
 			free(fcp, M_IPFW);
 		}
@@ -603,9 +605,11 @@ ip_fw_ctl(stage, mm)
 		return (0);
 	}
 	if (stage == IP_FW_ZERO) {
+		int s = splnet();
 		struct ip_fw_chain *fcp;
 		for (fcp = ip_fw_chain.lh_first; fcp; fcp = fcp->chain.le_next)
 			fcp->rule->fw_bcnt = fcp->rule->fw_pcnt = 0;
+		splx(s);
 		if (m) (void)m_free(m);
 		return (0);
 	}
