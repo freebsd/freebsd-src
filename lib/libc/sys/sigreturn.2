@@ -42,40 +42,15 @@
 .Lb libc
 .Sh SYNOPSIS
 .In signal.h
-.Pp
-.Bd -literal
-struct	sigcontext {
-	int	sc_onstack;		/* sigstack state to restore */
-	int	sc_mask;		/* signal mask to restore */
-	int	sc_esp;			/* machine state */
-	int	sc_ebp;
-	int	sc_isp;
-	int	sc_eip;
-	int	sc_efl;
-	int	sc_es;
-	int	sc_ds;
-	int	sc_cs;
-	int	sc_ss;
-	int	sc_edi;
-	int	sc_esi;
-	int	sc_ebx;
-	int	sc_edx;
-	int	sc_ecx;
-	int	sc_eax;
-#  define sc_sp sc_esp
-#  define sc_fp sc_ebp
-#  define sc_pc sc_eip
-#  define sc_ps sc_efl
-};
-.Ed
 .Ft int
-.Fn sigreturn "struct sigcontext *scp"
+.Fn sigreturn "ucontext_t *scp"
 .Sh DESCRIPTION
 .Fn Sigreturn
 allows users to atomically unmask, switch stacks,
 and return from a signal context.
 The processes signal mask and stack status are
-restored from the context.
+restored from the context structure pointed to by
+.Fa scp .
 The system call does not return;
 the users stack pointer, frame pointer, argument pointer,
 and processor status longword are restored from the context.
@@ -107,7 +82,8 @@ raise the privilege level of the process.
 .El
 .Sh SEE ALSO
 .Xr sigvec 2 ,
-.Xr setjmp 3
+.Xr setjmp 3 ,
+.Xr ucontext 3
 .Sh HISTORY
 The
 .Fn sigreturn
