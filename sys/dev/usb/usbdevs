@@ -299,6 +299,7 @@ vendor DIAMOND		0x0841	Diamond
 vendor NETGEAR		0x0846	BayNETGEAR
 vendor ACTIVEWIRE	0x0854	ActiveWire
 vendor PORTGEAR		0x085a	PortGear
+vendor SYSTEMTALKS	0x086e	System TALKS, Inc.
 vendor METRICOM		0x0870	Metricom
 vendor ADESSOKBTEK	0x087c	ADESSO/Kbtek America
 vendor JATON		0x087d	Jaton
@@ -379,6 +380,7 @@ vendor DLINK		0x2001	D-Link
 vendor VIDZMEDIA	0x3275	VidzMedia Pte Ltd
 vendor DAISY		0x3579	Daisy Technology
 vendor DELL		0x413c	Dell
+vendor SITECOM		0x6189	Sitecom
 vendor INTEL		0x8086	Intel
 vendor HP2		0xf003	Hewlett Packard
 
@@ -1198,6 +1200,9 @@ product SILICONPORTALS YAPPHONE	0x0201	YAP Phone
 /* Sirius Technologies products */
 product SIRIUS ROADSTER		0x0001	NetComm Roadster II 56 USB
 
+/* Sitecom products */
+product	SITECOM LN029		0x182d	USB 2.0 Ethernet Adapter
+
 /* SmartBridges products */
 product SMARTBRIDGES SMARTLINK	0x0001	SmartLink USB ethernet adapter
 product SMARTBRIDGES SMARTNIC	0x0003	smartNIC 2 PnP Adapter
@@ -1253,6 +1258,9 @@ product SUNTAC AS144L4		0x0011	SUNTAC U-Cable type A4
 product SUN KEYBOARD		0x0005	Type 6 USB keyboard
 /* XXX The above is a North American PC style keyboard possibly */
 product SUN MOUSE		0x0100	Type 6 USB mouse
+
+/* System TALKS, Inc. */
+product SYSTEMTALKS SGCX2UL	0x1920	SGC-X2UL
 
 /* Supra products */
 product DIAMOND2 SUPRAEXPRESS56K 0x07da	Supra Express 56K modem
