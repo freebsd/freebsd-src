@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.32 1998/06/08 08:55:43 kato Exp $
+ *	$Id: fd.c,v 1.33 1998/07/06 10:09:37 kato Exp $
  *
  */
 
@@ -615,7 +615,7 @@ fd_read_status(fdc_p fdc, int fdsu)
 	{
 		/*
 		 * XXX types are poorly chosen.  Only bytes can by read
-		 * from the hardware, but fdc_status wants u_longs and
+		 * from the hardware, but fdc->status[] wants u_ints and
 		 * fd_in() gives ints.
 		 */
 		int status;
@@ -2294,7 +2294,7 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 	default:
 		printf("fdc%d: Unexpected FD int->", fdcu);
 		if (fd_read_status(fdc, fd->fdsu) == 0)
-			printf("FDC status :%lx %lx %lx %lx %lx %lx %lx   ",
+			printf("FDC status :%x %x %x %x %x %x %x   ",
 			       fdc->status[0],
 			       fdc->status[1],
 			       fdc->status[2],
@@ -2372,7 +2372,7 @@ retrier(fdcu)
 			if (fdc->flags & FDC_STAT_VALID)
 			{
 				printf(
-			" (ST0 %b ST1 %b ST2 %b cyl %ld hd %ld sec %ld)\n",
+			" (ST0 %b ST1 %b ST2 %b cyl %u hd %u sec %u)\n",
 				       fdc->status[0], NE7_ST0BITS,
 				       fdc->status[1], NE7_ST1BITS,
 				       fdc->status[2], NE7_ST2BITS,
