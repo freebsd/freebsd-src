@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yppasswdd_server.c,v 1.8 1996/02/09 04:38:19 wpaul Exp $
+ *	$Id: yppasswdd_server.c,v 1.11 1996/02/24 21:41:15 wpaul Exp $
  */
 
 #include <stdio.h>
@@ -60,7 +60,7 @@ struct dom_binding {};
 #include "yppasswd_comm.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: yppasswdd_server.c,v 1.8 1996/02/09 04:38:19 wpaul Exp $";
+static const char rcsid[] = "$Id: yppasswdd_server.c,v 1.11 1996/02/24 21:41:15 wpaul Exp $";
 #endif /* not lint */
 
 char *tempname;
@@ -337,6 +337,12 @@ yppasswdproc_update_1_svc(yppasswd *argp, struct svc_req *rqstp)
 	result = 1;
 
 	rqhost = svc_getcaller(rqstp->rq_xprt);
+
+	if (yp_access(resvport ? "master.passwd.byname" : NULL, rqstp)) {
+		yp_error("rejected update request from unauthorized host");
+		svcerr_auth(rqstp->rq_xprt, AUTH_BADCRED);
+		return(&result);
+	}
 
 	/*
 	 * Step one: find the user. (It's kinda pointless to
