@@ -201,6 +201,11 @@
     <option>create</option> option should be used when another device
     instance is desired.</para>
 
+    <para>The kernel message buffer is now accessible by the
+    (machine-independent) <varname>kern.msgbuf</varname> sysctl
+    variable; &man.dmesg.8; no longer needs to be SGID
+    <groupname>kmem</groupname>.</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
@@ -252,6 +257,10 @@
       Acrobat 4 on EV4 and EV5.</para>
 
       <para arch="alpha">SMP support for the alpha is now operational.</para>
+
+      <para arch="i386">Detection for new processors, such as the
+      FC-PGA2 Pentium III (Tualatin), Transmeta Crusoe, and Transmeta
+      Crusoe LongRun, has been added.</para>
 
     </sect3>
 
@@ -406,6 +415,11 @@
       third SYN segment sent.  This behavior tries to work around
       (very old) terminal servers with buggy VJ header compression
       implementations. &merged;</para>
+
+      <para>The TCP implementation no longer requires the
+      allocation of a TCP template structure for each connection; this
+      should reduce the buffer usage on large systems handling many
+      connections.</para>
 
       <para>A new sysctl <literal>net.inet.ip.check_interface</literal>,
       which is on by default, causes IP to verify that an incoming
@@ -1016,6 +1030,9 @@
 
     <para>&man.netstat.1; now keeps track of input and output packets
     on a per-address basis for each interface. &merged;</para>
+
+    <para>&man.netstat.1; now has a <option>-z</option> flag to reset
+    statistics.</para>
 
     <para>&man.sockstat.1; now has <option>-c</option> and
     <option>-l</option> flags for listing connected and listening
