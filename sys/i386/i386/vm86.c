@@ -98,7 +98,7 @@ static __inline void
 PUSH(u_short x, struct vm86frame *vmf)
 {
 	vmf->vmf_sp -= 2;
-	susword(MAKE_ADDR(vmf->vmf_ss, vmf->vmf_sp), x);
+	suword16(MAKE_ADDR(vmf->vmf_ss, vmf->vmf_sp), x);
 }
 
 static __inline void
@@ -111,7 +111,7 @@ PUSHL(u_int x, struct vm86frame *vmf)
 static __inline u_short
 POP(struct vm86frame *vmf)
 {
-	u_short x = fusword(MAKE_ADDR(vmf->vmf_ss, vmf->vmf_sp));
+	u_short x = fuword16(MAKE_ADDR(vmf->vmf_ss, vmf->vmf_sp));
 
 	vmf->vmf_sp += 2;
 	return (x);

@@ -71,7 +71,7 @@ get_fs_byte(char *adr)
 
 static unsigned short
 get_fs_word(unsigned short *adr)
-	{ return(fuword(adr)); }
+	{ return(fuword16(adr)); }
 
 static u_int32_t
 get_fs_long(u_int32_t *adr)
@@ -83,7 +83,7 @@ put_fs_byte(unsigned char val, char *adr)
 
 static void 
 put_fs_word(unsigned short val, short *adr)
-	{ (void)susword(adr,val); }
+	{ (void)suword16(adr,val); }
 
 static void 
 put_fs_long(u_long val, u_int32_t *adr)
