@@ -8,7 +8,7 @@
   This file is a part of bzip2 and/or libbzip2, a program and
   library for lossless, block-sorting data compression.
 
-  Copyright (C) 1996-2000 Julian R Seward.  All rights reserved.
+  Copyright (C) 1996-2002 Julian R Seward.  All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions
@@ -76,7 +76,7 @@
 
 /*-- General stuff. --*/
 
-#define BZ_VERSION  "1.0.1, 23-June-2000"
+#define BZ_VERSION  "1.0.2, 30-Dec-2001"
 
 typedef char            Char;
 typedef unsigned char   Bool;
@@ -137,6 +137,13 @@ extern void bz_internal_error ( int errcode );
 #define BZFREE(ppp)  (strm->bzfree)(strm->opaque,(ppp))
 
 
+/*-- Header bytes. --*/
+
+#define BZ_HDR_B 0x42   /* 'B' */
+#define BZ_HDR_Z 0x5a   /* 'Z' */
+#define BZ_HDR_h 0x68   /* 'h' */
+#define BZ_HDR_0 0x30   /* '0' */
+  
 /*-- Constants for the back end. --*/
 
 #define BZ_MAX_ALPHA_SIZE 258
