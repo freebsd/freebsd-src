@@ -1,4 +1,5 @@
-/*	$NetBSD: nsphy.c,v 1.18 1999/07/14 23:57:36 thorpej Exp $	*/
+/*	OpenBSD: qsphy.c,v 1.6 2000/08/26 20:04:18 nate Exp */
+/*	NetBSD: qsphy.c,v 1.19 2000/02/02 23:34:57 thorpej Exp 	*/
 
 /*-
  * Copyright (c) 1998, 1999 The NetBSD Foundation, Inc.
@@ -36,7 +37,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-
+ 
 /*
  * Copyright (c) 1997 Manuel Bouyer.  All rights reserved.
  *
@@ -67,8 +68,8 @@
  */
 
 /*
- * driver for National Semiconductor's DP83840A ethernet 10/100 PHY
- * Data Sheet available from www.national.com
+ * driver for Quality Semiconductor's QS6612 ethernet 10/100 PHY
+ * datasheet from www.qualitysemi.com
  */
 
 #include <sys/param.h>
@@ -86,7 +87,7 @@
 #include <dev/mii/miivar.h>
 #include <dev/mii/miidevs.h>
 
-#include <dev/mii/nsphyreg.h>
+#include <dev/mii/qsphyreg.h>
 
 #include "miibus_if.h"
 
@@ -95,49 +96,50 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif
 
-static int nsphy_probe		__P((device_t));
-static int nsphy_attach		__P((device_t));
-static int nsphy_detach		__P((device_t));
+static int qsphy_probe		__P((device_t));
+static int qsphy_attach		__P((device_t));
+static int qsphy_detach		__P((device_t));
 
-static device_method_t nsphy_methods[] = {
+static device_method_t qsphy_methods[] = {
 	/* device interface */
-	DEVMETHOD(device_probe,		nsphy_probe),
-	DEVMETHOD(device_attach,	nsphy_attach),
-	DEVMETHOD(device_detach,	nsphy_detach),
+	DEVMETHOD(device_probe,		qsphy_probe),
+	DEVMETHOD(device_attach,	qsphy_attach),
+	DEVMETHOD(device_detach,	qsphy_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	{ 0, 0 }
 };
 
-static devclass_t nsphy_devclass;
+static devclass_t qsphy_devclass;
 
-static driver_t nsphy_driver = {
-	"nsphy",
-	nsphy_methods,
+static driver_t qsphy_driver = {
+	"qsphy",
+	qsphy_methods,
 	sizeof(struct mii_softc)
 };
 
-DRIVER_MODULE(nsphy, miibus, nsphy_driver, nsphy_devclass, 0, 0);
+DRIVER_MODULE(qsphy, miibus, qsphy_driver, qsphy_devclass, 0, 0);
 
-int	nsphy_service __P((struct mii_softc *, struct mii_data *, int));
-void	nsphy_status __P((struct mii_softc *));
+int	qsphy_service __P((struct mii_softc *, struct mii_data *, int));
+void	qsphy_reset __P((struct mii_softc *));
+void	qsphy_status __P((struct mii_softc *));
 
-static int nsphy_probe(dev)
+static int qsphy_probe(dev)
 	device_t		dev;
 {
 	struct mii_attach_args *ma;
 
 	ma = device_get_ivars(dev);
 
-	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_NATSEMI &&
-	    MII_MODEL(ma->mii_id2) == MII_MODEL_NATSEMI_DP83840) {
-		device_set_desc(dev, MII_STR_NATSEMI_DP83840);
+	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_QUALSEMI &&
+	    MII_MODEL(ma->mii_id2) == MII_MODEL_QUALSEMI_QS6612) {
+		device_set_desc(dev, MII_STR_QUALSEMI_QS6612);
 	} else 
 		return (ENXIO);
 
 	return (0);
 }
 
-static int nsphy_attach(dev)
+static int qsphy_attach(dev)
 	device_t		dev;
 {
 	struct mii_softc *sc;
@@ -152,48 +154,27 @@ static int nsphy_attach(dev)
 
 	sc->mii_inst = mii->mii_instance;
 	sc->mii_phy = ma->mii_phyno;
-	sc->mii_service = nsphy_service;
+	sc->mii_service = qsphy_service;
 	sc->mii_pdata = mii;
-
-#ifdef foo
-	/*
-	 * i82557 wedges if all of its PHYs are isolated!
-	 */
-	if (strcmp(device_get_name(device_get_parent(sc->mii_dev)),
-	    "fxp") == 0 && mii->mii_instance == 0)
-#endif
-
 	sc->mii_flags |= MIIF_NOISOLATE;
+
+	qsphy_reset(sc);
+
 	mii->mii_instance++;
-
-#define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
-
-#if 0
-	/* Can't do this on the i82557! */
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_NONE, 0, sc->mii_inst),
-	    BMCR_ISO);
-#endif
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_LOOP, sc->mii_inst),
-	    BMCR_LOOP|BMCR_S100);
-
-	mii_phy_reset(sc);
 
 	sc->mii_capabilities =
 	    PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
 	device_printf(dev, " ");
-	if ((sc->mii_capabilities & BMSR_MEDIAMASK) == 0)
-		printf("no media present");
-	else
+	if (sc->mii_capabilities & BMSR_MEDIAMASK)
 		mii_add_media(mii, sc->mii_capabilities,
 		    sc->mii_inst);
 	printf("\n");
-#undef ADD
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
-	return(0);
+	return (0);
 }
 
-static int nsphy_detach(dev)
+static int qsphy_detach(dev)
 	device_t		dev;
 {
 	struct mii_softc *sc;
@@ -201,7 +182,6 @@ static int nsphy_detach(dev)
 
 	sc = device_get_softc(dev);
 	mii = device_get_softc(device_get_parent(dev));
-	mii_phy_auto_stop(sc);
 	sc->mii_dev = NULL;
 	LIST_REMOVE(sc, mii_list);
 
@@ -209,7 +189,7 @@ static int nsphy_detach(dev)
 }
 
 int
-nsphy_service(sc, mii, cmd)
+qsphy_service(sc, mii, cmd)
 	struct mii_softc *sc;
 	struct mii_data *mii;
 	int cmd;
@@ -243,38 +223,6 @@ nsphy_service(sc, mii, cmd)
 		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
 			break;
 
-		reg = PHY_READ(sc, MII_NSPHY_PCR);
-
-		/*
-		 * Set up the PCR to use LED4 to indicate full-duplex
-		 * in both 10baseT and 100baseTX modes.
-		 */
-		reg |= PCR_LED4MODE;
-
-		/*
-		 * Make sure Carrier Intgrity Monitor function is
-		 * disabled (normal for Node operation, but sometimes
-		 * it's not set?!)
-		 */
-		reg |= PCR_CIMDIS;
-
-		/*
-		 * Make sure "force link good" is set to normal mode.
-		 * It's only intended for debugging.
-		 */
-		reg |= PCR_FLINK100;
-
-#if 0
-		/*
-		 * Mystery bits which are supposedly `reserved',
-		 * but we seem to need to set them when the PHY
-		 * is connected to some interfaces!
-		 */
-		reg |= 0x0100 | 0x0400;
-#endif
-/*
-		PHY_WRITE(sc, MII_NSPHY_PCR, reg);
-*/
 		switch (IFM_SUBTYPE(ife->ifm_media)) {
 		case IFM_AUTO:
 			/*
@@ -282,13 +230,10 @@ nsphy_service(sc, mii, cmd)
 			 */
 			if (PHY_READ(sc, MII_BMCR) & BMCR_AUTOEN)
 				return (0);
+
 			(void) mii_phy_auto(sc, 1);
 			break;
-		case IFM_100_T4:
-			/*
-			 * XXX Not supported as a manual setting right now.
-			 */
-			return (EINVAL);
+
 		default:
 			/*
 			 * BMCR data is stored in the ifmedia entry.
@@ -342,7 +287,7 @@ nsphy_service(sc, mii, cmd)
 	}
 
 	/* Update the media status. */
-	nsphy_status(sc);
+	qsphy_status(sc);
 
 	/* Callback if something changed. */
 	if (sc->mii_active != mii->mii_media_active || cmd == MII_MEDIACHG) {
@@ -353,11 +298,12 @@ nsphy_service(sc, mii, cmd)
 }
 
 void
-nsphy_status(sc)
+qsphy_status(sc)
 	struct mii_softc *sc;
 {
 	struct mii_data *mii = sc->mii_pdata;
-	int bmsr, bmcr, par, anlpar;
+	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
+	int bmsr, bmcr, pctl;
 
 	mii->mii_media_status = IFM_AVALID;
 	mii->mii_media_active = IFM_ETHER;
@@ -378,53 +324,43 @@ nsphy_status(sc)
 		mii->mii_media_active |= IFM_LOOP;
 
 	if (bmcr & BMCR_AUTOEN) {
-		/*
-		 * The PAR status bits are only valid of autonegotiation
-		 * has completed (or it's disabled).
-		 */
 		if ((bmsr & BMSR_ACOMP) == 0) {
 			/* Erg, still trying, I guess... */
 			mii->mii_media_active |= IFM_NONE;
 			return;
 		}
-
-		/*
-		 * Argh.  The PAR doesn't seem to indicate duplex mode
-		 * properly!  Determine media based on link partner's
-		 * advertised capabilities.
-		 */
-		if (PHY_READ(sc, MII_ANER) & ANER_LPAN) {
-			anlpar = PHY_READ(sc, MII_ANAR) &
-			    PHY_READ(sc, MII_ANLPAR);
-			if (anlpar & ANLPAR_T4)
-				mii->mii_media_active |= IFM_100_T4;
-			else if (anlpar & ANLPAR_TX_FD)
-				mii->mii_media_active |= IFM_100_TX|IFM_FDX;
-			else if (anlpar & ANLPAR_TX)
-				mii->mii_media_active |= IFM_100_TX;
-			else if (anlpar & ANLPAR_10_FD)
-				mii->mii_media_active |= IFM_10_T|IFM_FDX;
-			else if (anlpar & ANLPAR_10)
-				mii->mii_media_active |= IFM_10_T;
-			else
-				mii->mii_media_active |= IFM_NONE;
-			return;
-		}
-
-		/*
-		 * Link partner is not capable of autonegotiation.
-		 * We will never be in full-duplex mode if this is
-		 * the case, so reading the PAR is OK.
-		 */
-		par = PHY_READ(sc, MII_NSPHY_PAR);
-		if (par & PAR_10)
+		pctl = PHY_READ(sc, MII_QSPHY_PCTL) |
+		    PHY_READ(sc, MII_QSPHY_PCTL);
+		switch (pctl & PCTL_OPMASK) {
+		case PCTL_10_T:
 			mii->mii_media_active |= IFM_10_T;
-		else
+			break;
+		case PCTL_10_T_FDX:
+			mii->mii_media_active |= IFM_10_T|IFM_FDX;
+			break;
+		case PCTL_100_TX:
 			mii->mii_media_active |= IFM_100_TX;
-#if 0
-		if (par & PAR_FDX)
-			mii->mii_media_active |= IFM_FDX;
-#endif
+			break;
+		case PCTL_100_TX_FDX:
+			mii->mii_media_active |= IFM_100_TX|IFM_FDX;
+			break;
+		case PCTL_100_T4:
+			mii->mii_media_active |= IFM_100_T4;
+			break;
+		default:
+			/* Erg... this shouldn't happen. */
+			mii->mii_media_active |= IFM_NONE;
+			break;
+		}
 	} else
-		mii->mii_media_active |= mii_media_from_bmcr(bmcr);
+		mii->mii_media_active = ife->ifm_media;
+}
+
+void
+qsphy_reset(sc)
+	struct mii_softc *sc;
+{
+
+	mii_phy_reset(sc);
+	PHY_WRITE(sc, MII_QSPHY_IMASK, 0);
 }
