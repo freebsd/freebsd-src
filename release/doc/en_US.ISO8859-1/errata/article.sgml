@@ -86,7 +86,7 @@
     date by definition, but other copies are kept updated on the Internet and
     should be consulted as the <quote>current errata</quote> for this
     release.  These other copies of the errata are located at <ulink
-    url="http://www.freebsd.org/releases/"></ulink>,
+    url="http://www.FreeBSD.org/releases/"></ulink>,
     plus any sites which keep up-to-date mirrors of this
     location.</para>
 
@@ -98,8 +98,8 @@
     &a.current;.</para>
 
     <para>For a list of all &os; CERT security advisories, see <ulink
-    url="http://www.freebsd.org/security/"></ulink> or <ulink
-    url="ftp://ftp.freebsd.org/pub/FreeBSD/CERT/"></ulink>.</para>
+    url="http://www.FreeBSD.org/security/"></ulink> or <ulink
+    url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"></ulink>.</para>
   </sect1>
 
   <sect1>

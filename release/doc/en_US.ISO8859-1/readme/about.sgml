@@ -43,13 +43,13 @@ come from the old ABOUT.TXT.
 
   <para>Pointers to more documentation on &os; can be found in the
   <ulink
-  url="http://www.freebsd.org/handbook/bibliography.html#BIBLIOGRAPHY-FREEBSD">Books
+  url="http://www.FreeBSD.org/handbook/bibliography.html#BIBLIOGRAPHY-FREEBSD">Books
   &amp; Magazines Specific to FreeBSD</ulink> section of the <ulink
-  url="http://www.freebsd.org/handbook/">FreeBSD Handbook</ulink>.
+  url="http://www.FreeBSD.org/handbook/">FreeBSD Handbook</ulink>.
   Because of &os;'s strong UNIX heritage, many other documents written
   for UNIX systems are applicable as well.  A selection of these books
   can be found in the Handbook's <ulink
-  url="http://www.freebsd.org/handbook/bibliography.html">Bibliography</ulink>.
+  url="http://www.FreeBSD.org/handbook/bibliography.html">Bibliography</ulink>.
   </para>
 
   <para>If you're new to &os; then you should also read
@@ -64,11 +64,11 @@ come from the old ABOUT.TXT.
 
   <para>On-line
   versions of the <ulink
-  url="http://www.freebsd.org/faq/">FAQ (Frequently Asked
+  url="http://www.FreeBSD.org/faq/">FAQ (Frequently Asked
   Questions)</ulink> document and <ulink
-  url="http://www.freebsd.org/handbook/">Handbook</ulink> are always
+  url="http://www.FreeBSD.org/handbook/">Handbook</ulink> are always
   available from the <ulink
-  url="http://www.freebsd.org/">FreeBSD Project Web
+  url="http://www.FreeBSD.org/">FreeBSD Project Web
   site</ulink> or its mirrors.
   If you install the
   <filename>doc</filename> distribution set, you can use a
@@ -85,7 +85,7 @@ come from the old ABOUT.TXT.
     and should be consulted as the <quote>current errata</quote> for
     this release.  These
     other copies of the errata are located at
-    <ulink url="http://www.freebsd.org/releases/"></ulink>
+    <ulink url="http://www.FreeBSD.org/releases/"></ulink>
     (as well as any sites which keep up-to-date mirrors of this
     location).</para>
   </note>
