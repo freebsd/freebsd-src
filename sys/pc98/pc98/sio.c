@@ -91,6 +91,7 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
+#include <sys/serial.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/tty.h>
@@ -369,6 +370,7 @@ struct com_s {
 static	int	espattach(struct com_s *com, Port_t esp_port);
 #endif
 
+static	int	combreak(struct tty *tp, int sig);
 static	timeout_t siobusycheck;
 static	u_int	siodivisor(u_long rclk, speed_t speed);
 static	timeout_t siodtrwakeup;
@@ -376,7 +378,7 @@ static	void	comhardclose(struct com_s *com);
 static	void	sioinput(struct com_s *com);
 static	void	siointr1(struct com_s *com);
 static	void	siointr(void *arg);
-static	int	commctl(struct com_s *com, int bits, int how);
+static	int	commodem(struct tty *tp, int sigon, int sigoff);
 static	int	comparam(struct tty *tp, struct termios *t);
 static	void	siopoll(void *);
 static	void	siosettimeout(void);
@@ -467,7 +469,6 @@ static	int	sysclock;
 #define COM1_EXT_CLOCK			0x40000
 
 static	void	commint(struct cdev *dev);
-static	void	com_tiocm_set(struct com_s *com, int msr);
 static	void	com_tiocm_bis(struct com_s *com, int msr);
 static	void	com_tiocm_bic(struct com_s *com, int msr);
 static	int	com_tiocm_get(struct com_s *com);
@@ -507,9 +508,13 @@ static	void	pc98_set_ioport(struct com_s *com);
 #define com_int_TxRx_enable(com) \
 		pc98_enable_i8251_interrupt(com,IEN_TxFLAG|IEN_Rx)
 #define com_send_break_on(com) \
-		pc98_i8251_or_cmd(com,CMD8251_SBRK)
+		(IS_8251((com)->pc98_if_type) ? \
+		 pc98_i8251_or_cmd((com), CMD8251_SBRK) : \
+		 sio_setreg((com), com_cfcr, (com)->cfcr_image |= CFCR_SBREAK))
 #define com_send_break_off(com) \
-		pc98_i8251_clear_cmd(com,CMD8251_SBRK)
+		(IS_8251((com)->pc98_if_type) ? \
+		 pc98_i8251_clear_cmd((com), CMD8251_SBRK) : \
+		 sio_setreg((com), com_cfcr, (com)->cfcr_image &= ~CFCR_SBREAK))
 
 static struct speedtab pc98speedtab[] = {	/* internal RS232C interface */
 	{ 0,		0, },
@@ -1951,13 +1956,15 @@ open_top:
 		tp->t_oproc = comstart;
 		tp->t_param = comparam;
 		tp->t_stop = comstop;
+		tp->t_modem = commodem;
+		tp->t_break = combreak;
 		tp->t_dev = dev;
 		tp->t_termios = mynor & CALLOUT_MASK
 				? com->it_out : com->it_in;
 #ifdef PC98
 		if (!IS_8251(com->pc98_if_type))
 #endif
-		(void)commctl(com, TIOCM_DTR | TIOCM_RTS, DMSET);
+		(void)commodem(tp, SER_DTR | SER_RTS, 0);
 		com->poll = com->no_irq;
 		com->poll_output = com->loses_outints;
 		++com->wopeners;
@@ -2169,11 +2176,10 @@ comhardclose(com)
 	com->do_timestamp = FALSE;
 	com->pps.ppsparam.mode = 0;
 #ifdef PC98
-	if (IS_8251(com->pc98_if_type))
-		com_send_break_off(com);
-	else
-#endif
+	com_send_break_off(com);
+#else
 	sio_setreg(com, com_cfcr, com->cfcr_image &= ~CFCR_SBREAK);
+#endif
 	tp = com->tp;
 
 #if defined(DDB) && (defined(BREAK_TO_DEBUGGER) || \
@@ -2222,7 +2228,7 @@ comhardclose(com)
 			    com_tiocm_bic(com, TIOCM_DTR|TIOCM_RTS|TIOCM_LE);
 			else
 #endif
-			(void)commctl(com, TIOCM_DTR, DMBIC);
+			(void)commodem(tp, 0, SER_DTR);
 			if (com->dtr_wait != 0 && !(com->state & CS_DTR_OFF)) {
 				timeout(siodtrwakeup, com, com->dtr_wait);
 				com->state |= CS_DTR_OFF;
@@ -3080,91 +3086,7 @@ sioioctl(dev, cmd, data, flag, td)
 	if (error != ENOTTY)
 		return (error);
 	s = spltty();
-#ifdef PC98
-	if (IS_8251(com->pc98_if_type)) {
-	    switch (cmd) {
-	    case TIOCSBRK:
-		com_send_break_on(com);
-		break;
-	    case TIOCCBRK:
-		com_send_break_off(com);
-		break;
-	    case TIOCSDTR:
-		com_tiocm_bis(com, TIOCM_DTR | TIOCM_RTS);
-		break;
-	    case TIOCCDTR:
-		com_tiocm_bic(com, TIOCM_DTR);
-		break;
-	/*
-	 * XXX should disallow changing MCR_RTS if CS_RTS_IFLOW is set.  The
-	 * changes get undone on the next call to comparam().
-	 */
-	    case TIOCMSET:
-		com_tiocm_set(com, *(int *)data);
-		break;
-	    case TIOCMBIS:
-		com_tiocm_bis(com, *(int *)data);
-		break;
-	    case TIOCMBIC:
-		com_tiocm_bic(com, *(int *)data);
-		break;
-	    case TIOCMGET:
-		*(int *)data = com_tiocm_get(com);
-		break;
-	    case TIOCMSDTRWAIT:
-		/* must be root since the wait applies to following logins */
-		error = suser(td);
-		if (error != 0) {
-			splx(s);
-			return (error);
-		}
-		com->dtr_wait = *(int *)data * hz / 100;
-		break;
-	    case TIOCMGDTRWAIT:
-		*(int *)data = com->dtr_wait * 100 / hz;
-		break;
-	    case TIOCTIMESTAMP:
-		com->do_timestamp = TRUE;
-		*(struct timeval *)data = com->timestamp;
-		break;
-	    default:
-		splx(s);
-		error = pps_ioctl(cmd, data, &com->pps);
-		if (error == ENODEV)
-			error = ENOTTY;
-		return (error);
-	    }
-	} else {
-#endif
 	switch (cmd) {
-	case TIOCSBRK:
-		sio_setreg(com, com_cfcr, com->cfcr_image |= CFCR_SBREAK);
-		break;
-	case TIOCCBRK:
-		sio_setreg(com, com_cfcr, com->cfcr_image &= ~CFCR_SBREAK);
-		break;
-	case TIOCSDTR:
-		(void)commctl(com, TIOCM_DTR, DMBIS);
-		break;
-	case TIOCCDTR:
-		(void)commctl(com, TIOCM_DTR, DMBIC);
-		break;
-	/*
-	 * XXX should disallow changing MCR_RTS if CS_RTS_IFLOW is set.  The
-	 * changes get undone on the next call to comparam().
-	 */
-	case TIOCMSET:
-		(void)commctl(com, *(int *)data, DMSET);
-		break;
-	case TIOCMBIS:
-		(void)commctl(com, *(int *)data, DMBIS);
-		break;
-	case TIOCMBIC:
-		(void)commctl(com, *(int *)data, DMBIC);
-		break;
-	case TIOCMGET:
-		*(int *)data = commctl(com, 0, DMGET);
-		break;
 	case TIOCMSDTRWAIT:
 		/* must be root since the wait applies to following logins */
 		error = suser(td);
@@ -3188,9 +3110,6 @@ sioioctl(dev, cmd, data, flag, td)
 			error = ENOTTY;
 		return (error);
 	}
-#ifdef PC98
-	}
-#endif
 	splx(s);
 	return (0);
 }
@@ -3274,6 +3193,29 @@ repeat:
 }
 
 static int
+combreak(tp, sig)
+	struct tty 	*tp;
+	int		sig;
+{
+	struct com_s	*com;
+
+	com = tp->t_dev->si_drv1;
+
+#ifdef PC98
+	if (sig)
+		com_send_break_on(com);
+	else
+		com_send_break_off(com);
+#else
+	if (sig)
+		sio_setreg(com, com_cfcr, com->cfcr_image |= CFCR_SBREAK);
+	else
+		sio_setreg(com, com_cfcr, com->cfcr_image &= ~CFCR_SBREAK);
+#endif
+	return (0);
+}
+
+static int
 comparam(tp, t)
 	struct tty	*tp;
 	struct termios	*t;
@@ -3325,9 +3267,9 @@ comparam(tp, t)
 	} else
 #endif
 	if (t->c_ospeed == 0)
-		(void)commctl(com, TIOCM_DTR, DMBIC);	/* hang up line */
+		(void)commodem(tp, 0, SER_DTR);	/* hang up line */
 	else
-		(void)commctl(com, TIOCM_DTR, DMBIS);
+		(void)commodem(tp, SER_DTR, 0);
 	cflag = t->c_cflag;
 #ifdef PC98
 	if (!IS_8251(com->pc98_if_type)) {
@@ -3758,59 +3700,97 @@ comstop(tp, rw)
 }
 
 static int
-commctl(com, bits, how)
-	struct com_s	*com;
-	int		bits;
-	int		how;
+commodem(tp, sigon, sigoff)
+	struct tty 	*tp;
+	int		sigon, sigoff;
 {
-	int	mcr;
-	int	msr;
+	struct com_s	*com;
+	int	bitand, bitor, msr;
+#ifdef PC98
+	int	clr, set;
+#endif
 
-	if (how == DMGET) {
-		bits = TIOCM_LE;	/* XXX - always enabled while open */
-		mcr = com->mcr_image;
-		if (mcr & MCR_DTR)
-			bits |= TIOCM_DTR;
-		if (mcr & MCR_RTS)
-			bits |= TIOCM_RTS;
-		msr = com->prev_modem_status;
-		if (msr & MSR_CTS)
-			bits |= TIOCM_CTS;
-		if (msr & MSR_DCD)
-			bits |= TIOCM_CD;
-		if (msr & MSR_DSR)
-			bits |= TIOCM_DSR;
-		/*
-		 * XXX - MSR_RI is naturally volatile, and we make MSR_TERI
-		 * more volatile by reading the modem status a lot.  Perhaps
-		 * we should latch both bits until the status is read here.
-		 */
-		if (msr & (MSR_RI | MSR_TERI))
-			bits |= TIOCM_RI;
-		return (bits);
-	}
-	mcr = 0;
-	if (bits & TIOCM_DTR)
-		mcr |= MCR_DTR;
-	if (bits & TIOCM_RTS)
-		mcr |= MCR_RTS;
+	com = tp->t_dev->si_drv1;
 	if (com->gone)
 		return(0);
-	mtx_lock_spin(&sio_lock);
-	switch (how) {
-	case DMSET:
-		outb(com->modem_ctl_port,
-		     com->mcr_image = mcr | (com->mcr_image & MCR_IENABLE));
-		break;
-	case DMBIS:
-		outb(com->modem_ctl_port, com->mcr_image |= mcr);
-		break;
-	case DMBIC:
-		outb(com->modem_ctl_port, com->mcr_image &= ~mcr);
-		break;
+	if (sigon != 0 || sigoff != 0) {
+#ifdef PC98
+		if (IS_8251(com->pc98_if_type)) {
+			bitand = bitor = 0;	
+			clr = set = 0;
+			if (sigoff & SER_DTR) {
+				bitand |= TIOCM_DTR;
+				clr |= CMD8251_DTR;
+			}
+			if (sigoff & SER_RTS) {
+				bitand |= TIOCM_RTS;
+				clr |= CMD8251_RxEN | CMD8251_RTS;
+			}
+			if (sigon & SER_DTR) {
+				bitor |= TIOCM_DTR;
+				set |= CMD8251_TxEN | CMD8251_RxEN |
+					CMD8251_DTR;
+			}
+			if (sigon & SER_RTS) {
+				bitor |= TIOCM_RTS;
+				set |= CMD8251_TxEN | CMD8251_RxEN |
+					CMD8251_RTS;
+			}
+			bitand = ~bitand;
+			mtx_lock_spin(&sio_lock);
+			com->pc98_prev_modem_status &= bitand;
+			com->pc98_prev_modem_status |= bitor;
+			pc98_i8251_clear_or_cmd(com, clr, set);
+			mtx_unlock_spin(&sio_lock);
+			return (0);
+		} else {
+#endif
+		bitand = bitor = 0;
+		if (sigoff & SER_DTR)
+			bitand |= MCR_DTR;
+		if (sigoff & SER_RTS)
+			bitand |= MCR_RTS;
+		if (sigon & SER_DTR)
+			bitor |= MCR_DTR;
+		if (sigon & SER_RTS)
+			bitor |= MCR_RTS;
+		bitand = ~bitand;
+		mtx_lock_spin(&sio_lock);
+		com->mcr_image &= bitand;
+		com->mcr_image |= bitor;
+		outb(com->modem_ctl_port, com->mcr_image);
+		mtx_unlock_spin(&sio_lock);
+		return (0);
+#ifdef PC98
+		}
+#endif
+	} else {
+#ifdef PC98
+		if (IS_8251(com->pc98_if_type))
+			return (com_tiocm_get(com));
+		else {
+#endif
+		bitor = 0;
+		if (com->mcr_image & MCR_DTR)
+			bitor |= SER_DTR;
+		if (com->mcr_image & MCR_RTS)
+			bitor |= SER_RTS;
+		msr = com->prev_modem_status;
+		if (msr & MSR_CTS)
+			bitor |= SER_CTS;
+		if (msr & MSR_DCD)
+			bitor |= SER_DCD;
+		if (msr & MSR_DSR)
+			bitor |= SER_DSR;
+		if (msr & MSR_DSR)
+			bitor |= SER_DSR;
+		if (msr & (MSR_RI | MSR_TERI))
+			bitor |= SER_RI;
+		return (bitor);
+#ifdef PC98
+		}
+#endif
 	}
-	mtx_unlock_spin(&sio_lock);
-	return (0);
 }
 
 static void
@@ -4486,24 +4466,6 @@ siogdbputc(c)
 /*
  *  pc98 local function
  */
-
-static void
-com_tiocm_set(struct com_s *com, int msr)
-{
-	int	s;
-	int	tmp = 0;
-	int	mask = CMD8251_TxEN|CMD8251_RxEN|CMD8251_DTR|CMD8251_RTS;
-
-	s=spltty();
-	com->pc98_prev_modem_status = ( msr & (TIOCM_LE|TIOCM_DTR|TIOCM_RTS) )
-	   | ( com->pc98_prev_modem_status & ~(TIOCM_LE|TIOCM_DTR|TIOCM_RTS) );
-	tmp |= (CMD8251_TxEN|CMD8251_RxEN);
-	if ( msr & TIOCM_DTR ) tmp |= CMD8251_DTR;
-	if ( msr & TIOCM_RTS ) tmp |= CMD8251_RTS;
-	pc98_i8251_clear_or_cmd( com, mask, tmp );
-	splx(s);
-}
-
 static void
 com_tiocm_bis(struct com_s *com, int msr)
 {
