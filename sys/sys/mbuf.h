@@ -72,7 +72,6 @@
  */
 struct mb_args {
 	int	flags;	/* Flags for mbuf being allocated */
-	int	how;	/* How to allocate: M_WAITOK or M_DONTWAIT */
 	short	type;	/* Type of mbuf being allocated */
 };
 #endif /* _KERNEL */
@@ -343,7 +342,6 @@ m_get(int how, short type)
 	struct mb_args args;
 
 	args.flags = 0;
-	args.how = how;
 	args.type = type;
 	return (uma_zalloc_arg(zone_mbuf, &args, how));
 }
@@ -357,7 +355,6 @@ m_getclr(int how, short type)
 	struct mb_args args;
 
 	args.flags = 0;
-	args.how = how;
 	args.type = type;
 	m = uma_zalloc_arg(zone_mbuf, &args, how);
 	if (m != NULL)
@@ -372,7 +369,6 @@ m_gethdr(int how, short type)
 	struct mb_args args;
 
 	args.flags = M_PKTHDR;
-	args.how = how;
 	args.type = type;
 	return (uma_zalloc_arg(zone_mbuf, &args, how));
 }
@@ -384,7 +380,6 @@ m_getcl(int how, short type, int flags)
 	struct mb_args args;
 
 	args.flags = flags;
-	args.how = how;
 	args.type = type;
 	return (uma_zalloc_arg(zone_pack, &args, how));
 }

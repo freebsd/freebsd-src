@@ -182,9 +182,9 @@ static void pipe_clone_write_buffer(struct pipe *wpipe);
 static int pipespace(struct pipe *cpipe, int size);
 static int pipespace_new(struct pipe *cpipe, int size);
 
-static void	pipe_zone_ctor(void *mem, int size, void *arg);
+static int	pipe_zone_ctor(void *mem, int size, void *arg, int flags);
 static void	pipe_zone_dtor(void *mem, int size, void *arg);
-static void	pipe_zone_init(void *mem, int size);
+static int	pipe_zone_init(void *mem, int size, int flags);
 static void	pipe_zone_fini(void *mem, int size);
 
 static uma_zone_t pipe_zone;
@@ -201,8 +201,8 @@ pipeinit(void *dummy __unused)
 	KASSERT(pipe_zone != NULL, ("pipe_zone not initialized"));
 }
 
-static void
-pipe_zone_ctor(void *mem, int size, void *arg)
+static int
+pipe_zone_ctor(void *mem, int size, void *arg, int flags)
 {
 	struct pipepair *pp;
 	struct pipe *rpipe, *wpipe;
@@ -247,6 +247,7 @@ pipe_zone_ctor(void *mem, int size, void *arg)
 	pp->pp_label = NULL;
 
 	atomic_add_int(&amountpipes, 2);
+	return (0);
 }
 
 static void
@@ -261,8 +262,8 @@ pipe_zone_dtor(void *mem, int size, void *arg)
 	atomic_subtract_int(&amountpipes, 2);
 }
 
-static void
-pipe_zone_init(void *mem, int size)
+static int
+pipe_zone_init(void *mem, int size, int flags)
 {
 	struct pipepair *pp;
 
@@ -271,6 +272,7 @@ pipe_zone_init(void *mem, int size)
 	pp = (struct pipepair *)mem;
 
 	mtx_init(&pp->pp_mtx, "pipe mutex", NULL, MTX_DEF | MTX_RECURSE);
+	return (0);
 }
 
 static void
