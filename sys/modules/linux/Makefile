@@ -11,7 +11,7 @@ SRCS=	linux_file.c linux_ioctl.c linux_ipc.c linux_machdep.c linux_misc.c \
 	opt_compat.h opt_linux.h opt_vmpage.h vnode_if.h
 OBJS=	linux_locore.o
 
-.if ${MACHINE_ARCH} != "alpha"
+.if ${MACHINE_ARCH} == "i386"
 SRCS+=	imgact_linux.c
 .endif
 
