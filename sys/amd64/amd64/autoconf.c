@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.58 1996/12/18 18:53:00 bde Exp $
+ *	$Id: autoconf.c,v 1.59 1996/12/21 16:43:35 phk Exp $
  */
 
 /*
@@ -176,11 +176,6 @@ configure(dummy)
         enable_intr();
         INTREN(IRQ_SLAVE);
 
-#if NCRD > 0
-	/* Before isa_configure to avoid ISA drivers finding our cards */
-	pccard_configure();
-#endif
-
 #if NEISA > 0
 	eisa_configure();
 #endif
@@ -191,6 +186,11 @@ configure(dummy)
 
 #if NISA > 0
 	isa_configure();
+#endif
+
+#if NCRD > 0
+	/* After everyone else has a chance at grabbing resources */
+	pccard_configure();
 #endif
 
 	if (setdumpdev(dumpdev) != 0)
