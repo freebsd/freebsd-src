@@ -133,11 +133,8 @@ userret(td, frame, oticks)
 	 * Let the scheduler adjust our priority etc.
 	 */
 	sched_userret(td);
-#if 0
-	/* This is not presently working. */
 	KASSERT(td->td_locks == 0,
 	    ("userret: Returning with %d locks held.", td->td_locks));
-#endif
 }
 
 /*
