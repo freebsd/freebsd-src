@@ -24,7 +24,7 @@ static const char copyright[] =
     "@(#) Copyright (c) 1988, 1989, 1991, 1994, 1995, 1996\n\
 The Regents of the University of California.  All rights reserved.\n";
 static const char rcsid[] =
-    "@(#)$Header: /home/ncvs/src/contrib/traceroute/traceroute.c,v 1.4 1996/10/08 02:44:26 sef Exp $ (LBL)";
+    "@(#)$Header: /home/ncvs/src/contrib/traceroute/traceroute.c,v 1.5 1996/10/08 19:16:24 sef Exp $ (LBL)";
 #endif
 
 /*
@@ -753,7 +753,9 @@ send_probe(register int seq, register int ttl, register struct timeval *tp)
 
 	outdata->seq = seq;
 	outdata->ttl = ttl;
-	outdata->tv = *tp;
+
+	/* Avoid alignment problems by copying bytewise: */
+	memcpy(&outdata->tv, tp, sizeof(outdata->tv));
 
 	i = sendto(sndsock, (char *)outip, packlen, 0, &whereto,
 		   sizeof(whereto));
