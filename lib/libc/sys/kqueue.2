@@ -34,12 +34,12 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
 .Fd #include <sys/event.h>
 .Ft int
 .Fn kqueue "void"
 .Ft int
-.Fn kevent "int kq" "int nchanges" "struct kevent **changelist" \
-"int nevents" "struct kevent *eventlist" "struct timespec *timeout"
+.Fn kevent "int kq" "int nchanges" "struct kevent **changelist" "int nevents" "struct kevent *eventlist" "struct timespec *timeout"
 .Sh DESCRIPTION
 .Fn kqueue
 provides a generic method of notifying the user when an event
@@ -68,6 +68,10 @@ on a file descriptor will remove any kevents that reference the descriptor.
 .Pp
 .Fn kqueue
 creates a new kernel event queue and returns a descriptor.
+The queue is not inherited by a child created with
+.Xr fork 2 .
+However, you can perform a rfork() and share the descriptor table,
+which will allow sharing of the kqueue between two processes.
 .Pp
 .Fn kevent
 is used to register events with the queue, and return any pending
@@ -331,17 +335,22 @@ returns the number of times the signal has occurred since the last call to
 This filter automatically sets the EV_CLEAR flag internally.
 .El
 .Sh RETURN VALUES
+.Fn kqueue
+creates a new kernel event queue and returns a file descriptor.
+If there was an error creating the kernel event queue, a value of -1 is
+returned and errno set.
+.Pp
 .Fn kevent
 returns the number of events placed in the
-.Ar eventlist ,
+.Fa eventlist ,
 up to the value given by
-.Ar nevents .
+.Fa nevents .
 If an error occurs while processing an element of the
-.Ar changelist
+.Fa changelist
 and there is enough room in the
-.Ar eventlist ,
+.Fa eventlist ,
 then the event will be placed in the
-.Ar eventlist
+.Fa eventlist
 with
 .Dv EV_ERROR
 set in
@@ -357,6 +366,18 @@ If the time limit expires, then
 .Fn kevent
 returns 0.
 .Sh ERRORS
+The
+.Fn kqueue
+function fails if:
+.Bl -tag -width Er
+.It Bq Er ENOMEM
+The kernel failed to allocate enough memory for the kernel queue.
+.It Bq Er EMFILE
+The per-process descriptor table is full.
+.It Bq Er ENFILE
+The system file table is full.
+.El
+.Pp
 The
 .Fn kevent
 function fails if:
@@ -395,9 +416,12 @@ The
 and
 .Fn kevent
 functions first appeared in
-.Fx 5.0 .
+.Fx 4.1 .
 .Sh AUTHORS
 The
 .Fn kqueue
 system and this manual page were written by
 .An Jonathan Lemon Aq jlemon@FreeBSD.org .
+.Sh BUGS
+It is currently not possible to watch a vnode that resides on anything but
+a UFS file system.
