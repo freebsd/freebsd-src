@@ -193,6 +193,12 @@
     <sect3>
       <title>Disks and Storage</title>
 
+      <para arch="i386">The &man.asr.4; driver now supports the Adaptec
+      2000S and 2005S Zero-Channel RAID controllers.</para>
+
+      <para arch="i386">The &man.aac.4; driver now supports the Adaptec
+      SCSI RAID 5400S controller.</para>
+
       <para>The &man.ata.4; driver again has write-caching enabled by 
       default.</para>
 
