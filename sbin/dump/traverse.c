@@ -131,9 +131,9 @@ blockest(union dinode *dp)
 /*
  * Dump pass 1.
  *
- * Walk the inode list for a filesystem to find all allocated inodes
+ * Walk the inode list for a file system to find all allocated inodes
  * that have been modified since the previous dump time. Also, find all
- * the directories in the filesystem.
+ * the directories in the file system.
  */
 int
 mapfiles(ino_t maxino, long *tapesize)
@@ -181,7 +181,7 @@ mapfiles(ino_t maxino, long *tapesize)
 /*
  * Dump pass 2.
  *
- * Scan each directory on the filesystem to see if it has any modified
+ * Scan each directory on the file system to see if it has any modified
  * files in it. If it does, and has not already been added to the dump
  * list (because it was itself modified), then add it. If a directory
  * has not been modified itself, contains no modified files and has no

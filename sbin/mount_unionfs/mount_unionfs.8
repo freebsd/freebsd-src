@@ -40,7 +40,7 @@
 .Os
 .Sh NAME
 .Nm mount_unionfs
-.Nd mount union filesystems
+.Nd mount union file systems
 .Sh SYNOPSIS
 .Nm
 .Op Fl br
@@ -88,7 +88,7 @@ Hide the lower layer completely in the same way as mounting with
 .Xr mount_nullfs 8 .
 .El
 .Pp
-To enforce filesystem security, the user mounting the filesystem
+To enforce file system security, the user mounting the file system
 must be superuser or else have write permission on the mounted-on
 directory.
 .Pp
@@ -110,7 +110,7 @@ which will still allow the lower files to be accessed by a different
 pathname.
 .Pp
 Except in the case of a directory,
-access to an object is granted via the normal filesystem access checks.
+access to an object is granted via the normal file system access checks.
 For directories, the current user must have access to both the upper
 and lower directories (should they both exist).
 .Pp
@@ -128,12 +128,12 @@ Any other operation which would ultimately require modification to
 the lower layer fails with
 .Er EROFS .
 .Pp
-The union filesystem manipulates the namespace, rather than
-individual filesystems.
+The union file system manipulates the namespace, rather than
+individual file systems.
 The union operation applies recursively down the directory tree
 now rooted at
 .Ar uniondir .
-Thus any filesystems which are mounted under
+Thus any file systems which are mounted under
 .Ar uniondir
 will take part in the union operation.
 This differs from the
@@ -192,7 +192,7 @@ hackers can apply by sending mail to
 and announcing
 their intent to take it over.
 .Pp
-Without whiteout support from the filesystem backing the upper layer,
+Without whiteout support from the file system backing the upper layer,
 there is no way that delete and rename operations on lower layer
 objects can be done.
 .Er EROFS

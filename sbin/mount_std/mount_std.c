@@ -90,9 +90,9 @@ main(argc, argv)
 	/*
 	 * XXX
 	 * mount(8) calls the mount programs with an argv[0] which is
-	 * /just/ the filesystem name.  So, if there is no underscore
+	 * /just/ the file system name.  So, if there is no underscore
 	 * in argv[0], we assume that we are being called from mount(8)
-	 * and that argv[0] is thus the name of the filesystem type.
+	 * and that argv[0] is thus the name of the file system type.
 	 */
 	fsname = strrchr(argv[0], '_');
 	if (fsname) {
@@ -146,7 +146,7 @@ main(argc, argv)
 
 	/*
 	 * Try with the old mount syscall in the case
-	 * this filesystem has not been converted yet,
+	 * this file system has not been converted yet,
 	 * or the user didn't recompile his kernel.
 	 */
 	if (error && (errno == EOPNOTSUPP || errno == ENOSYS || caughtsig))

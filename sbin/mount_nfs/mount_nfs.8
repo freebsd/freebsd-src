@@ -38,7 +38,7 @@
 .Os
 .Sh NAME
 .Nm mount_nfs
-.Nd mount nfs filesystems
+.Nd mount nfs file systems
 .Sh SYNOPSIS
 .Nm
 .Op Fl 23NPTUbcdiLls
@@ -58,9 +58,9 @@ The
 .Nm
 utility calls the
 .Xr mount 2
-system call to prepare and graft a remote nfs filesystem
+system call to prepare and graft a remote nfs file system
 .Pq Ar rhost : Ns Ar path
-on to the filesystem tree at the point
+on to the file system tree at the point
 .Ar node .
 This command is normally executed by
 .Xr mount 8 .
@@ -71,18 +71,18 @@ Appendix I.
 By default,
 .Nm
 keeps retrying until the mount succeeds.
-This behaviour is intended for filesystems listed in
+This behaviour is intended for file systems listed in
 .Xr fstab 5
 that are critical to the boot process.
-For non-critical filesystems, the
+For non-critical file systems, the
 .Fl b
 and
 .Fl R
 flags provide mechanisms to prevent the boot process from hanging
 if the server is unavailable.
 .Pp
-If the server becomes unresponsive while an NFS filesystem is
-mounted, any new or outstanding file operations on that filesystem
+If the server becomes unresponsive while an NFS file system is
+mounted, any new or outstanding file operations on that file system
 will hang uninterruptibly until the server comes back.
 To modify this default behaviour, see the
 .Fl i
@@ -168,7 +168,7 @@ If an initial attempt to contact the server fails, fork off a child to keep
 trying the mount in the background.
 Useful for
 .Xr fstab 5 ,
-where the filesystem mount is not critical to multiuser operation.
+where the file system mount is not critical to multiuser operation.
 .It Fl c
 For UDP mount points, do not do a
 .Xr connect 2 .
@@ -187,7 +187,7 @@ group list size of 16, as specified in RFC 1057.
 Try 8, if users in a lot of groups cannot get response from the mount
 point.
 .It Fl i
-Make the mount interruptible, which implies that filesystem calls that
+Make the mount interruptible, which implies that file system calls that
 are delayed due to an unresponsive server will fail with EINTR when a
 termination signal is posted for the process.
 .It Fl l
@@ -288,7 +288,7 @@ See the
 .Fl w
 option as well.
 .It Fl s
-A soft mount, which implies that filesystem calls will fail
+A soft mount, which implies that file system calls will fail
 after \fBRetry\fR round trip timeout intervals.
 .It Fl t
 Set the initial retransmit timeout to the specified value.
@@ -296,7 +296,7 @@ May be useful for fine tuning UDP mounts over internetworks
 with high packet loss rates or an overloaded server.
 Try increasing the interval if
 .Xr nfsstat 1
-shows high retransmit rates while the filesystem is active or reducing the
+shows high retransmit rates while the file system is active or reducing the
 value if there is a low retransmit rate but long response delay observed.
 (Normally, the -d option should be specified when using this option to manually
 tune the timeout

@@ -49,7 +49,7 @@
 .Sh DESCRIPTION
 .Sy Power fail and crash recovery .
 Normally, the system will reboot itself at power-up or after crashes.
-An automatic consistency check of the filesystems will be performed,
+An automatic consistency check of the file systems will be performed,
 and unless this fails, the system will resume multi-user operations.
 .Pp
 .Sy Cold starts .
@@ -180,7 +180,7 @@ Boot flags:
 .Bl -tag -width "-CXX" -compact
 .It Fl a
 during kernel initialization,
-ask for the device to mount as the root filesystem.
+ask for the device to mount as the root file system.
 .It Fl C
 boot from CDROM.
 .It Fl c
@@ -246,10 +246,10 @@ options are automatically set.
 pause after each attached device during the device probing phase.
 .It Fl r
 use the statically configured default for the device containing the
-root filesystem
+root file system
 (see
 .Xr config 8 ) .
-Normally, the root filesystem is on the device
+Normally, the root file system is on the device
 that the kernel was loaded from.
 .It Fl s
 boot into single-user mode; if the console is marked as

@@ -77,11 +77,11 @@ Since a
 .Xr panic 9
 condition may occur in a situation
 where the kernel cannot trust its internal representation
-of the state of any given filesystem,
+of the state of any given file system,
 one of the system swap devices,
 and
 .Em not
-a device containing a filesystem,
+a device containing a file system,
 should be used as the dump device.
 .Pp
 The
@@ -126,7 +126,7 @@ standard swap areas
 boot-time system configuration
 .El
 .Sh BUGS
-Because the filesystem layer is already dead by the time a crash dump
+Because the file system layer is already dead by the time a crash dump
 is taken, it is not possible to send crash dumps directly to a file.
 .Sh HISTORY
 The

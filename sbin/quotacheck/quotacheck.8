@@ -40,13 +40,13 @@
 .Os
 .Sh NAME
 .Nm quotacheck
-.Nd filesystem quota consistency checker
+.Nd file system quota consistency checker
 .Sh SYNOPSIS
 .Nm
 .Op Fl g
 .Op Fl u
 .Op Fl v
-.Ar filesystem
+.Ar file system
 .Ar
 .Nm
 .Op Fl g
@@ -56,22 +56,22 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility examines each filesystem,
+utility examines each file system,
 builds a table of current disk usage,
 and compares this table against that recorded
-in the disk quota file for the filesystem.
+in the disk quota file for the file system.
 If any inconsistencies are detected, both the
 quota file and the current system copy of the
 incorrect quotas are updated (the latter only
-occurs if an active filesystem is checked).
+occurs if an active file system is checked).
 By default both user and group quotas are checked.
 .Pp
 The following options are available:
 .Bl -tag -width indent
 .It Fl a
-If supplied in place of any filesystem names,
+If supplied in place of any file system names,
 .Nm
-will check all the filesystems indicated in
+will check all the file systems indicated in
 .Pa /etc/fstab
 to be read-write with disk quotas.
 By default only the types of quotas listed in
@@ -95,7 +95,7 @@ Specifying both
 and
 .Fl u
 is equivalent to the default.
-Parallel passes are run on the filesystems required,
+Parallel passes are run on the file systems required,
 using the pass numbers in
 .Pa /etc/fstab
 in an identical fashion to
@@ -107,12 +107,12 @@ operates silently.
 .Pp
 The
 .Nm
-utility expects each filesystem to be checked to have a
+utility expects each file system to be checked to have a
 quota files named
 .Pa quota.user
 and
 .Pa quota.group
-which are located at the root of the associated filesystem.
+which are located at the root of the associated file system.
 These defaults may be overridden in
 .Pa /etc/fstab .
 If a file is not present,
@@ -143,18 +143,18 @@ The
 .Nm
 utility accesses the raw device in calculating the actual
 disk usage for each user.
-Thus, the filesystems
+Thus, the file systems
 checked should be quiescent while
 .Nm
 is running.
 .Sh FILES
 .Bl -tag -width quota.group -compact
 .It Pa quota.user
-at the filesystem root with user quotas
+at the file system root with user quotas
 .It Pa quota.group
-at the filesystem root with group quotas
+at the file system root with group quotas
 .It Pa /etc/fstab
-default filesystems
+default file systems
 .El
 .Sh SEE ALSO
 .Xr quota 1 ,

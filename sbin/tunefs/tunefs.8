@@ -37,7 +37,7 @@
 .Os
 .Sh NAME
 .Nm tunefs
-.Nd tune up an existing filesystem
+.Nd tune up an existing file system
 .Sh SYNOPSIS
 .Nm
 .Op Fl A
@@ -49,23 +49,23 @@
 .Op Fl o Cm space | time
 .Op Fl p
 .Op Fl s Ar avgfpdir
-.Ar special | filesystem
+.Ar special | file system
 .Sh DESCRIPTION
 The
 .Nm
-utility is designed to change the dynamic parameters of a filesystem
+utility is designed to change the dynamic parameters of a file system
 which affect the layout policies.
 The
 .Nm
-utility cannot be run on an active filesystem.
-To change an active filesystem,
+utility cannot be run on an active file system.
+To change an active file system,
 it must be downgraded to read-only or unmounted.
 .Pp
 The parameters which are to be changed are indicated by the flags
 given below:
 .Bl -tag -width indent
 .It Fl A
-The filesystem has several backups of the super-block.
+The file system has several backups of the super-block.
 Specifying
 this option will cause all backups to be modified as well as the
 primary super-block.
@@ -87,7 +87,7 @@ in that cylinder group.
 The effect of this limit is to cause big files to do long seeks
 more frequently than if they were allowed to allocate all the blocks
 in a cylinder group before seeking elsewhere.
-For filesystems with exclusively large files,
+For file systems with exclusively large files,
 this parameter should be set higher.
 .It Fl f Ar avgfilesize
 Specify the expected average file size.
@@ -102,7 +102,7 @@ Settings of 5% and less force space optimization to
 always be used which will greatly increase the overhead for file
 writes.
 .It
-The filesystem's ability to avoid fragmentation will be reduced
+The file system's ability to avoid fragmentation will be reduced
 when the total free space, including the reserve, drops below 15%.
 As free space approaches zero, throughput can degrade by up to a
 factor of three over the performance obtained at a 10% threshold.
@@ -114,16 +114,16 @@ been deleted to get under the higher threshold.
 .It Fl n Cm enable | disable
 Turn on/off soft updates.
 .It Fl o Cm space | time
-The filesystem can either try to minimize the time spent
+The file system can either try to minimize the time spent
 allocating blocks, or it can attempt to minimize the space
 fragmentation on the disk.
 Optimization for space has much
 higher overhead for file writes.
 The kernel normally changes the preference automatically as
-the percent fragmentation changes on the filesystem.
+the percent fragmentation changes on the file system.
 .It Fl p
 Show a summary of what the current tunable settings
-are on the selected filesystem.
+are on the selected file system.
 More detailed information can be
 obtained from the
 .Xr dumpfs 8
@@ -159,11 +159,11 @@ specified mount point.
 .%O "(reprinted in the BSD System Manager's Manual, SMM:5)"
 .Re
 .Sh BUGS
-This utility should work on active filesystems.
+This utility should work on active file systems.
 .\" Take this out and a Unix Daemon will dog your steps from now until
 .\" the time_t's wrap around.
 .Pp
-You can tune a filesystem, but you can't tune a fish.
+You can tune a file system, but you can't tune a fish.
 .Sh HISTORY
 The
 .Nm

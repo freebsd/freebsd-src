@@ -159,18 +159,18 @@ fsirand(char *device)
 			break;
 	}
 	if (sblock_try[i] == -1) {
-		fprintf(stderr, "Cannot find filesystem superblock\n");
+		fprintf(stderr, "Cannot find file system superblock\n");
 		return (1);
 	}
 	maxino = sblock->fs_ncg * sblock->fs_ipg;
 
 	if (sblock->fs_magic == FS_UFS1_MAGIC &&
 	    sblock->fs_old_inodefmt < FS_44INODEFMT) {
-		warnx("filesystem format is too old, sorry");
+		warnx("file system format is too old, sorry");
 		return (1);
 	}
 	if (!force && !printonly && sblock->fs_clean != 1) {
-		warnx("filesystem is not clean, fsck %s first", device);
+		warnx("file system is not clean, fsck %s first", device);
 		return (1);
 	}
 
@@ -217,7 +217,7 @@ fsirand(char *device)
 			    sblock->fs_id[1]);
 	}
 
-	/* Randomize fs_id unless old 4.2BSD filesystem */
+	/* Randomize fs_id unless old 4.2BSD file system */
 	if (!printonly) {
 		/* Randomize fs_id and write out new sblock and backups */
 		sblock->fs_id[0] = (u_int32_t)time(NULL);

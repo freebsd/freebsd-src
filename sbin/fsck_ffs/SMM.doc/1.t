@@ -38,14 +38,14 @@ Introduction
 .PP
 This document reflects the use of
 .I fsck_ffs
-with the 4.2BSD and 4.3BSD filesystem organization.  This
+with the 4.2BSD and 4.3BSD file system organization.  This
 is a revision of the
 original paper written by
 T. J. Kowalski.
 .PP
 When a UNIX
 operating system is brought up, a consistency
-check of the filesystems should always be performed.
+check of the file systems should always be performed.
 This precautionary measure helps to insure
 a reliable environment for file storage on disk.
 If an inconsistency is discovered,
@@ -55,7 +55,7 @@ runs in two modes.
 Normally it is run non-interactively by the system after 
 a normal boot.
 When running in this mode,
-it will only make changes to the filesystem that are known
+it will only make changes to the file system that are known
 to always be correct.
 If an unexpected inconsistency is found
 .I fsck_ffs
@@ -71,10 +71,10 @@ should be made.
 .PP
 The purpose of this memo is to dispel the
 mystique surrounding
-filesystem inconsistencies.
-It first describes the updating of the filesystem
+file system inconsistencies.
+It first describes the updating of the file system
 (the calm before the storm) and
-then describes filesystem corruption (the storm).
+then describes file system corruption (the storm).
 Finally,
 the set of deterministic corrective actions
 used by

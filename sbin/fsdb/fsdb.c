@@ -65,8 +65,8 @@ char nflag;
 /*
  * We suck in lots of fsck code, and just pick & choose the stuff we want.
  *
- * fsreadfd is set up to read from the filesystem, fswritefd to write to
- * the filesystem.
+ * fsreadfd is set up to read from the file system, fswritefd to write to
+ * the file system.
  */
 int
 main(int argc, char *argv[])
@@ -100,8 +100,8 @@ main(int argc, char *argv[])
 
 	sblock_init();
 	if (!setup(fsys))
-		errx(1, "cannot set up filesystem `%s'", fsys);
-	printf("%s filesystem `%s'\nLast Mounted on %s\n",
+		errx(1, "cannot set up file system `%s'", fsys);
+	printf("%s file system `%s'\nLast Mounted on %s\n",
 	       nflag? "Examining": "Editing", fsys, sblock.fs_fsmnt);
 	rval = cmdloop();
 	if (!nflag) {

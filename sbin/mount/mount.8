@@ -37,7 +37,7 @@
 .Os
 .Sh NAME
 .Nm mount
-.Nd mount filesystems
+.Nd mount file systems
 .Sh SYNOPSIS
 .Nm
 .Op Fl adfpruvw
@@ -57,7 +57,7 @@ utility calls the
 .Xr mount 2
 system call to prepare and graft a
 .Ar "special device"
-or the remote node (rhost:path) on to the filesystem tree at the point
+or the remote node (rhost:path) on to the file system tree at the point
 .Ar node .
 If either
 .Ar special
@@ -67,7 +67,7 @@ are not provided, the appropriate information is taken from the
 .Xr fstab 5
 file.
 .Pp
-The system maintains a list of currently mounted filesystems.
+The system maintains a list of currently mounted file systems.
 If no arguments are given to
 .Nm ,
 this list is printed.
@@ -75,7 +75,7 @@ this list is printed.
 The options are as follows:
 .Bl -tag -width indent
 .It Fl a
-All the filesystems described in
+All the file systems described in
 .Xr fstab 5
 are mounted.
 Exceptions are those marked as
@@ -83,7 +83,7 @@ Exceptions are those marked as
 excluded by the
 .Fl t
 flag (see below), or if they are already mounted (except the
-root filesystem which is always remounted to preserve
+root file system which is always remounted to preserve
 traditional single user mode behavior).
 .It Fl d
 Causes everything to be done except for the actual system call.
@@ -95,9 +95,9 @@ determine what the
 command is trying to do.
 .It Fl f
 Forces the revocation of write access when trying to downgrade
-a filesystem mount status from read-write to read-only.
+a file system mount status from read-write to read-only.
 Also
-forces the R/W mount of an unclean filesystem (dangerous; use with
+forces the R/W mount of an unclean file system (dangerous; use with
 caution).
 .It Fl o
 Options are specified with a
@@ -110,7 +110,7 @@ The following options are available:
 .It Cm async
 All
 .Tn I/O
-to the filesystem should be done asynchronously.
+to the file system should be done asynchronously.
 This is a
 .Em dangerous
 flag to set,
@@ -120,20 +120,20 @@ system should your system crash.
 When used with the
 .Fl u
 flag, this is the same as specifying the options currently in effect for
-the mounted filesystem.
+the mounted file system.
 .It Cm force
 The same as
 .Fl f ;
 forces the revocation of write access when trying to downgrade
-a filesystem mount status from read-write to read-only.
+a file system mount status from read-write to read-only.
 Also
-forces the R/W mount of an unclean filesystem (dangerous; use with caution).
+forces the R/W mount of an unclean file system (dangerous; use with caution).
 .It Cm fstab
 When used with the
 .Fl u
 flag, this is the same as specifying all the options listed in the
 .Xr fstab 5
-file for the filesystem.
+file for the file system.
 .It Cm noasync
 Metadata I/O should be done synchronously, while data I/O should be done
 asynchronously.
@@ -141,12 +141,12 @@ This is the default.
 .It Cm noatime
 Do not update the file access time when reading from a file.
 This option
-is useful on filesystems where there are large numbers of files and
+is useful on file systems where there are large numbers of files and
 performance is more critical than updating the file access time (which is
 rarely ever important).
-This option is currently only supported on local filesystems.
+This option is currently only supported on local file systems.
 .It Cm noauto
-This filesystem should be skipped when
+This file system should be skipped when
 .Nm
 is run with the
 .Fl a
@@ -156,12 +156,12 @@ Disable read clustering.
 .It Cm noclusterw
 Disable write clustering.
 .It Cm nodev
-Do not interpret character or block special devices on the filesystem.
-This option is useful for a server that has filesystems containing
+Do not interpret character or block special devices on the file system.
+This option is useful for a server that has file systems containing
 special devices for architectures other than its own.
 .It Cm noexec
-Do not allow execution of any binaries on the mounted filesystem.
-This option is useful for a server that has filesystems containing
+Do not allow execution of any binaries on the mounted file system.
+This option is useful for a server that has file systems containing
 binaries for architectures other than its own.
 .It Cm nosuid
 Do not allow set-user-identifier or set-group-identifier bits to take effect.
@@ -171,23 +171,23 @@ wrapper like
 is installed on your system.
 .It Cm nosymfollow
 Do not follow symlinks
-on the mounted filesystem.
+on the mounted file system.
 .It Cm rdonly
 The same as
 .Fl r ;
-mount the filesystem read-only (even the super-user may not write it).
+mount the file system read-only (even the super-user may not write it).
 .It Cm sync
 All
 .Tn I/O
-to the filesystem should be done synchronously.
+to the file system should be done synchronously.
 .It Cm snapshot
-This option allows a snapshot of the specified filesystem to be taken.
+This option allows a snapshot of the specified file system to be taken.
 The
 .Fl u
 flag is required with this option.
-Note that snapshot files must be created in the filesystem that is being
+Note that snapshot files must be created in the file system that is being
 snapshotted.
-You may create up to 20 snapshots per filesystem.
+You may create up to 20 snapshots per file system.
 Active snapshots are recorded in the superblock, so they persist across unmount
 and remount operations and across system reboots.
 When you are done with a snapshot, it can be removed with the
@@ -210,7 +210,7 @@ do with it:
 Run
 .Xr fsck 8
 on the snapshot file.
-Assuming that the filesystem was clean when it was mounted, you should always
+Assuming that the file system was clean when it was mounted, you should always
 get a clean (and unchanging) result from running fsck on the snapshot.
 This is essentially what the background fsck process does.
 .Pp
@@ -218,7 +218,7 @@ This is essentially what the background fsck process does.
 Run
 .Xr dump 8
 on the snapshot.
-You will get a dump that is consistent with the filesystem as of the timestamp
+You will get a dump that is consistent with the file system as of the timestamp
 of the snapshot.
 Note that
 .Xr dump 8
@@ -228,7 +228,7 @@ file correctly, so do not use this
 feature in production until that fix is made.
 .Pp
 .It
-Mount the snapshot as a frozen image of the filesystem.
+Mount the snapshot as a frozen image of the file system.
 To mount the snapshot
 .Pa /var/snapshot/snap1 :
 .Bd -literal
@@ -238,7 +238,7 @@ mount -r /dev/md4 /mnt
 .Pp
 You can now cruise around your frozen
 .Pa /var
-filesystem at
+file system at
 .Pa /mnt .
 Everything will be in the same state that it was at the time the snapshot was
 taken.
@@ -254,7 +254,7 @@ Further details can be found in the file at
 .Pa /usr/src/sys/ufs/ffs/README.snapshot .
 .El
 .It Cm suiddir
-A directory on the mounted filesystem will respond to the SUID bit
+A directory on the mounted file system will respond to the SUID bit
 being set, by setting the owner of any new files to be the same
 as the owner of the directory.
 New directories will inherit the bit from their parents.
@@ -267,24 +267,24 @@ It provides security holes for shell users and as
 such should not be used on shell machines, especially on home directories.
 This option requires the SUIDDIR
 option in the kernel to work.
-Only UFS filesystems support this option.
+Only UFS file systems support this option.
 See
 .Xr chmod 2
 for more information.
 .It Cm update
 The same as
 .Fl u ;
-indicate that the status of an already mounted filesystem should be changed.
+indicate that the status of an already mounted file system should be changed.
 .It Cm union
 Causes the namespace at the mount point to appear as the union
-of the mounted filesystem root and the existing directory.
-Lookups will be done in the mounted filesystem first.
+of the mounted file system root and the existing directory.
+Lookups will be done in the mounted file system first.
 If those operations fail due to a non-existent file the underlying
 directory is then accessed.
-All creates are done in the mounted filesystem.
+All creates are done in the mounted file system.
 .El
 .Pp
-Any additional options specific to a filesystem type that is not
+Any additional options specific to a file system type that is not
 one of the internally known types (see the
 .Fl t
 option) may be passed as a comma separated list; these options are
@@ -306,7 +306,7 @@ to execute the equivalent of:
 /sbin/mount_unionfs -b /sys $HOME/sys
 .Ed
 .Pp
-Additional options specific to filesystem types
+Additional options specific to file system types
 which are not internally known
 (see the description of the
 .Fl t
@@ -322,8 +322,8 @@ Implies also the
 .Fl v
 option.
 .It Fl r
-The filesystem is to be mounted read-only.
-Mount the filesystem read-only (even the super-user may not write it).
+The file system is to be mounted read-only.
+Mount the file system read-only (even the super-user may not write it).
 The same as the
 .Cm rdonly
 argument to the
@@ -332,7 +332,7 @@ option.
 .It Fl t Ar ufs | external_type
 The argument following the
 .Fl t
-is used to indicate the filesystem type.
+is used to indicate the file system type.
 The type
 .Ar ufs
 is the default.
@@ -340,11 +340,11 @@ The
 .Fl t
 option can be used
 to indicate that the actions should only be taken on
-filesystems of the specified type.
+file systems of the specified type.
 More than one type may be specified in a comma separated list.
-The list of filesystem types can be prefixed with
+The list of file system types can be prefixed with
 .Dq no
-to specify the filesystem types for which action should
+to specify the file system types for which action should
 .Em not
 be taken.
 For example, the
@@ -354,7 +354,7 @@ command:
 mount -a -t nonfs,nullfs
 .Ed
 .Pp
-mounts all filesystems except those of type
+mounts all file systems except those of type
 .Tn NFS
 and
 .Tn NULLFS .
@@ -366,10 +366,10 @@ will attempt to execute a program in
 where
 .Sy XXX
 is replaced by the type name.
-For example, nfs filesystems are mounted by the program
+For example, nfs file systems are mounted by the program
 .Pa /sbin/mount_nfs .
 .Pp
-Most filesystems will be dynamically loaded by the kernel
+Most file systems will be dynamically loaded by the kernel
 if not already present, and if the kernel module is available.
 .It Fl u
 The
@@ -380,10 +380,10 @@ Any of the options discussed above (the
 .Fl o
 option)
 may be changed;
-also a filesystem can be changed from read-only to read-write
+also a file system can be changed from read-only to read-write
 or vice versa.
 An attempt to change from read-write to read-only will fail if any
-files on the filesystem are currently open for writing unless the
+files on the file system are currently open for writing unless the
 .Fl f
 flag is also specified.
 The set of options is determined by applying the options specified
@@ -397,22 +397,22 @@ option.
 .It Fl v
 Verbose mode.
 .It Fl w
-The filesystem object is to be read and write.
+The file system object is to be read and write.
 .El
 .Sh DIAGNOSTICS
 Various, most of them are self-explanatory.
 .Pp
-.Dl XXXXX filesystem is not available
+.Dl XXXXX file system is not available
 .Pp
-The kernel does not support the respective filesystem type.
+The kernel does not support the respective file system type.
 Note that
-support for a particular filesystem might be provided either on a static
+support for a particular file system might be provided either on a static
 (kernel compile-time), or dynamic basis (loaded as a kernel module by
 .Xr kldload 8 ) .
 .Sh FILES
 .Bl -tag -width /etc/fstab -compact
 .It Pa /etc/fstab
-filesystem table
+file system table
 .El
 .Sh SEE ALSO
 .Xr mount 2 ,
@@ -438,13 +438,13 @@ filesystem table
 .Xr mount_unionfs 8 ,
 .Xr umount 8
 .Sh BUGS
-It is possible for a corrupted filesystem to cause a crash.
+It is possible for a corrupted file system to cause a crash.
 .Sh CAVEATS
 After a successful
 .Nm ,
 the permissions on the original mount point determine if
 .Pa ..\&
-is accessible from the mounted filesystem.
+is accessible from the mounted file system.
 The minimum permissions for
 the mount point for traversal across the mount point in both
 directions to be possible for all users is 0111 (execute for all).

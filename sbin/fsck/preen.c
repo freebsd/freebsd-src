@@ -63,7 +63,7 @@ struct partentry {
 	TAILQ_ENTRY(partentry)	 p_entries;
 	char		  	*p_devname;	/* device name */
 	char			*p_mntpt;	/* mount point */
-	char		  	*p_type;	/* filesystem type */
+	char		  	*p_type;	/* file system type */
 };
 
 TAILQ_HEAD(part, partentry) badh;

@@ -41,7 +41,7 @@
 .Os
 .Sh NAME
 .Nm mount_cd9660
-.Nd mount an ISO-9660 filesystem
+.Nd mount an ISO-9660 file system
 .Sh SYNOPSIS
 .Nm
 .Op Fl begjrv
@@ -51,9 +51,9 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility attaches the ISO-9660 filesystem residing on the device
+utility attaches the ISO-9660 file system residing on the device
 .Pa special
-to the global filesystem namespace at the location indicated by
+to the global file system namespace at the location indicated by
 .Pa node .
 This command is normally executed by
 .Xr mount 8
@@ -73,7 +73,7 @@ only the last one will be listed.)
 In either case, files may be opened without explicitly stating a
 version number.
 .It Fl j
-Do not use any Joliet extensions included in the filesystem.
+Do not use any Joliet extensions included in the file system.
 .It Fl o
 Options are specified with a
 .Fl o
@@ -101,15 +101,15 @@ Same as
 .Fl b .
 .El
 .It Fl r
-Do not use any Rockridge extensions included in the filesystem.
+Do not use any Rockridge extensions included in the file system.
 .It Fl s Ar startsector
-Start the filesystem at
+Start the file system at
 .Ar startsector .
 Normally, if the underlying device is a CD-ROM drive,
 .Nm
 will try to figure out the last track from the CD-ROM containing
-data, and start the filesystem there.  If the device is not a CD-ROM,
-or the table of contents cannot be examined, the filesystem will be
+data, and start the file system there.  If the device is not a CD-ROM,
+or the table of contents cannot be examined, the file system will be
 started at sector 0.  This option can be used to override the behaviour.
 Note that
 .Ar startsector

@@ -125,12 +125,12 @@ rdfs(daddr_t bno, size_t size, void *bf, int fsi)
 
 /* ************************************************************** main ***** */
 /*
- * ffsinfo(8) is a tool to dump all metadata of a filesystem. It helps to find
- * errors is the filesystem much easier. You can run ffsinfo before and  after
+ * ffsinfo(8) is a tool to dump all metadata of a file system. It helps to find
+ * errors is the file system much easier. You can run ffsinfo before and  after
  * an  fsck(8),  and compare the two ascii dumps easy with diff, and  you  see
  * directly where the problem is. You can control how much detail you want  to
  * see  with some command line arguments. You can also easy check  the  status
- * of  a filesystem, like is there is enough space for growing  a  filesystem,
+ * of  a file system, like is there is enough space for growing  a  file system,
  * or  how  many active snapshots do we have. It provides much  more  detailed
  * information  then dumpfs. Snapshots, as they are very new, are  not  really
  * supported.  They  are just mentioned currently, but it is  planned  to  run

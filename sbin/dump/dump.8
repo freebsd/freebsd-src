@@ -39,7 +39,7 @@
 .Sh NAME
 .Nm dump ,
 .Nm rdump
-.Nd filesystem backup
+.Nd file system backup
 .Sh SYNOPSIS
 .Nm
 .Op Fl 0123456789acknSu
@@ -51,7 +51,7 @@
 .Op Fl h Ar level
 .Op Fl s Ar feet
 .Op Fl T Ar date
-.Ar filesystem
+.Ar file system
 .Nm
 .Fl W | Fl w
 .Pp
@@ -68,7 +68,7 @@ is not documented here.)
 The
 .Nm
 utility examines files
-on a filesystem
+on a file system
 and determines which files
 need to be backed up.
 These files
@@ -93,8 +93,8 @@ options.
 By default, the same output file name is used for each volume
 after prompting the operator to change media.
 .Pp
-The filesystem to be dumped is specified by the argument
-.Ar filesystem
+The file system to be dumped is specified by the argument
+.Ar file system
 as either its device-special file or its mount point
 (if that is in a standard entry in
 .Pa /etc/fstab ) .
@@ -105,7 +105,7 @@ The following options are supported by
 .It Fl 0\-9
 Dump levels.
 A level 0, full backup,
-guarantees the entire filesystem is copied
+guarantees the entire file system is copied
 (but see also the
 .Fl h
 option below).
@@ -239,12 +239,12 @@ the
 file
 is readable by people, consisting of one
 free format record per line:
-filesystem name,
+file system name,
 increment level
 and
 .Xr ctime 3
 format dump date.
-There may be only one entry per filesystem at each level.
+There may be only one entry per file system at each level.
 The
 .Pa dumpdates
 file
@@ -258,7 +258,7 @@ but the
 .Fl D
 option may be used to change it.
 .It Fl W
-Tell the operator what filesystems need to be dumped.
+Tell the operator what file systems need to be dumped.
 This information is gleaned from the files
 .Pa dumpdates
 and
@@ -267,19 +267,19 @@ The
 .Fl W
 option causes
 .Nm
-to print out, for each filesystem in
+to print out, for each file system in
 the
 .Pa dumpdates
 file
 the most recent dump date and level,
-and highlights those filesystems that should be dumped.
+and highlights those file systems that should be dumped.
 If the
 .Fl W
 option is set, all other options are ignored, and
 .Nm
 exits immediately.
 .It Fl w
-Is like W, but prints only those filesystems which need to be dumped.
+Is like W, but prints only those file systems which need to be dumped.
 .El
 .Pp
 Directories and regular files which have their
@@ -360,7 +360,7 @@ Always start with a level 0 backup, for example:
 This should be done at set intervals, say once a month or once every two months,
 and on a set of fresh tapes that is saved forever.
 .It
-After a level 0, dumps of active filesystems are taken on a daily basis,
+After a level 0, dumps of active file systems are taken on a daily basis,
 using a modified Tower of Hanoi algorithm,
 with this sequence of dump levels:
 .Bd -literal -offset indent
@@ -371,7 +371,7 @@ For the daily dumps, it should be possible to use a fixed number of tapes
 for each day, used on a weekly basis.
 Each week, a level 1 dump is taken, and
 the daily Hanoi sequence repeats beginning with 3.
-For weekly dumps, another fixed set of tapes per dumped filesystem is
+For weekly dumps, another fixed set of tapes per dumped file system is
 used, also on a cyclical basis.
 .El
 .Pp
@@ -394,7 +394,7 @@ see the
 .Fl D
 option)
 .It Pa /etc/fstab
-dump table: filesystems and frequency
+dump table: file systems and frequency
 .It Pa /etc/group
 to find group
 .Em operator
@@ -411,7 +411,7 @@ Dump exits with zero status on success.
 Startup errors are indicated with an exit code of 1;
 abnormal termination is indicated with an exit code of 3.
 .Sh BUGS
-Fewer than 32 read errors on the filesystem are ignored.
+Fewer than 32 read errors on the file system are ignored.
 .Pp
 Each reel requires a new process, so parent processes for
 reels already written just hang around until the entire tape
@@ -430,7 +430,7 @@ utility with the
 .Fl W
 or
 .Fl w
-options does not report filesystems that have never been recorded
+options does not report file systems that have never been recorded
 in the
 .Pa dumpdates
 file,
