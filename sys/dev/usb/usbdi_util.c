@@ -1,5 +1,5 @@
-/*	$NetBSD: usbdi_util.c,v 1.11 1999/01/03 01:00:56 augustss Exp $	*/
-/*	FreeBSD $Id$ */
+/*	$NetBSD: usbdi_util.c,v 1.13 1999/01/08 11:58:26 augustss Exp $	*/
+/*	FreeBSD $Id: usbdi_util.c,v 1.5 1999/01/07 23:31:43 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -46,7 +46,6 @@
 #if defined(__FreeBSD__)
 #include <sys/bus.h>
 #endif
-#include <sys/select.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbhid.h>
@@ -488,7 +487,7 @@ usbd_bulk_transfer(reqh, pipe, flags, buf, size, lbl)
 			       flags, USBD_NO_TIMEOUT, usbd_bulk_transfer_cb);
 	if (r != USBD_NORMAL_COMPLETION)
 		return (r);
-	DPRINTFN(1, ("usbd_bulk_transfer: transfer %d bytes\n", *size));
+	DPRINTFN(1, ("usbd_bulk_transfer: start transfer %d bytes\n", *size));
 	s = splusb();		/* don't want callback until tsleep() */
 	r = usbd_transfer(reqh);
 	if (r != USBD_IN_PROGRESS) {
@@ -502,8 +501,9 @@ usbd_bulk_transfer(reqh, pipe, flags, buf, size, lbl)
 		return (USBD_INTERRUPTED);
 	}
 	usbd_get_request_status(reqh, &priv, &buffer, size, &r);
+	DPRINTFN(1,("usbd_bulk_transfer: transferred %d\n", *size));
 	if (r != USBD_NORMAL_COMPLETION) {
-		DPRINTF(("ugenread: error=%d\n", r));
+		DPRINTF(("usbd_bulk_transfer: error=%d\n", r));
 		usbd_clear_endpoint_stall(pipe);
 	}
 	return (r);

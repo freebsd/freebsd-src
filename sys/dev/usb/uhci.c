@@ -1,5 +1,5 @@
-/*	$NetBSD: uhci.c,v 1.20 1998/12/30 18:06:25 augustss Exp $	*/
-/*	FreeBSD $Id$ */
+/*	$NetBSD: uhci.c,v 1.22 1999/01/08 11:58:25 augustss Exp $	*/
+/*	FreeBSD $Id: uhci.c,v 1.6 1999/01/07 23:31:33 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -418,9 +418,9 @@ uhci_dump_td(p)
 	if (uhci_longtd)
 		printf("  %b %b,errcnt=%d,actlen=%d pid=%02x,addr=%d,endpt=%d,"
 		       "D=%d,maxlen=%d\n",
-		       (long)p->td->td_link,
+		       (int)p->td->td_link,
 		       "\20\1T\2Q\3VF",
-		       (long)p->td->td_status,
+		       (int)p->td->td_status,
 		       "\20\22BITSTUFF\23CRCTO\24NAK\25BABBLE\26DBUFFER\27"
 		       "STALLED\30ACTIVE\31IOC\32ISO\33LS\36SPD",
 		       UHCI_TD_GET_ERRCNT(p->td->td_status),
@@ -775,7 +775,7 @@ uhci_ii_done(ii, timo)
 #endif
 
 	/* The transfer is done, compute length and status. */
-	/* XXX stop at first inactive to get toggle right. */
+	/* XXX Should stop at first inactive to get toggle right. */
 	/* XXX Is this correct for control xfers? */
 	for (len = status = 0, std = ii->stdstart; 
 	     std != 0; 
@@ -799,7 +799,7 @@ uhci_ii_done(ii, timo)
 			  "status 0x%b\n",
 			  reqh->pipe->device->address,
 			  reqh->pipe->endpoint->edesc->bEndpointAddress,
-			  (long)status, 
+			  (int)status, 
 			  "\20\22BITSTUFF\23CRCTO\24NAK\25BABBLE\26DBUFFER\27"
 			  "STALLED\30ACTIVE"));
 		if (status == UHCI_TD_STALLED)

@@ -1,5 +1,4 @@
-/*	$NetBSD: umodem.c,v 1.4 1998/12/30 17:46:20 augustss Exp $	*/
-/*	FreeBSD $Id$ */
+/*	$NetBSD: umodem.c,v 1.5 1999/01/08 11:58:25 augustss Exp $	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -43,7 +42,6 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #if defined(__NetBSD__)
-#include <sys/device.h>
 #include <sys/ioctl.h>
 #elif defined(__FreeBSD__)
 #include <sys/module.h>
@@ -60,13 +58,12 @@
 #include <sys/poll.h>
 
 #include <dev/usb/usb.h>
-#include <dev/usb/usbhid.h>
+#include <dev/usb/usbcdc.h>
 
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
 #include <dev/usb/usbdevs.h>
 #include <dev/usb/usb_quirks.h>
-#include <dev/usb/hid.h>
 
 #ifdef USB_DEBUG
 #define DPRINTF(x)	if (umodemdebug) printf x
@@ -79,7 +76,10 @@ int	umodemdebug = 0;
 
 struct umodem_softc {
 	bdevice sc_dev;			/* base device */
-	usbd_interface_handle sc_iface;	/* interface */
+	usbd_interface_handle sc_ctl;	/* control interface */
+	usbd_interface_handle sc_data;	/* data interface */
+	uByte	cmCaps;
+	uByte	acmCaps;
 };
 
 void umodem_intr __P((usbd_request_handle, usbd_private_handle, usbd_status));
@@ -111,7 +111,7 @@ USB_ATTACH(umodem)
 	usb_interface_descriptor_t *id;
 	char devinfo[1024];
 	
-	sc->sc_iface = iface;
+	sc->sc_ctl = iface;
 	id = usbd_get_interface_descriptor(iface);
 	usbd_devinfo(uaa->device, 0, devinfo);
 	USB_ATTACH_SETUP;
@@ -125,18 +125,18 @@ USB_ATTACH(umodem)
 static int
 umodem_detach(device_t self)
 {
-	struct umodem_softc *sc = device_get_softc(self);
 	char *devinfo = (char *) device_get_desc(self);
 
 	if (devinfo) {
 		device_set_desc(self, NULL);
 		free(devinfo, M_USB);
-}
+	}
 
 	return 0;
 }
 #endif
 
 #if defined(__FreeBSD__)
-DRIVER_MODULE(umodem, usb, umodem_driver, umodem_devclass, usbd_driver_load, 0);
+DRIVER_MODULE(umodem, usb, umodem_driver, umodem_devclass, usbd_driver_load,0);
 #endif
+

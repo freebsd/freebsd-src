@@ -1,5 +1,5 @@
-/*	$NetBSD: ums.c,v 1.18 1998/12/30 17:46:20 augustss Exp $	*/
-/*	FreeBSD $Id$ */
+/*	$NetBSD: ums.c,v 1.19 1999/01/08 11:58:25 augustss Exp $	*/
+/*	FreeBSD $Id: ums.c,v 1.6 1999/01/07 23:31:36 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -110,13 +110,14 @@ struct ums_softc {
 	int flags;		/* device configuration */
 #define UMS_Z		0x01	/* z direction available */
 	int nbuttons;
+#define MAX_BUTTONS	7	/* chosen because sc_buttons is u_char */
 
 #if defined(__NetBSD__)
 	u_char sc_buttons;	/* mouse button status */
 	struct device *sc_wsmousedev;
 #elif defined(__FreeBSD__)
 	u_char		qbuf[QUEUE_BUFSIZE];
-	u_char		dummy[100];		/* just for safety and for now */
+	u_char		dummy[100];	/* XXX just for safety and for now */
 	int		qcount, qhead, qtail;
 	mousehw_t	hw;
 	mousemode_t	mode;
@@ -275,12 +276,19 @@ USB_ATTACH(ums)
 		if ((flags & MOUSE_FLAGS_MASK) != MOUSE_FLAGS) {
 			sc->sc_loc_z.size = 0;	/* Bad Z coord, ignore it */
 		} else {
+#if defined(__FreeBSD__)
+#ifdef USBVERBOSE
+			printf("%s: Z dir. ignored due to bugs in ums.c\n",
+				USBDEVNAME(sc->sc_dev));
+#endif
+#else
 			sc->flags |= UMS_Z;
+#endif
 		}
 	}
 
-	/* figure out the number of buttons, 7 is an arbitrary limit */
-	for (i = 1; i <= 7; i++)
+	/* figure out the number of buttons */
+	for (i = 1; i <= MAX_BUTTONS; i++)
 		if (!hid_locate(desc, size, HID_USAGE2(HUP_BUTTON, i),
 				hid_input, &loc_btn, 0))
 			break;
@@ -404,6 +412,7 @@ ums_intr(reqh, addr, status)
 	int dx, dy, dz;
 	u_char buttons = 0;
 	int i;
+
 #if defined(__NetBSD__)
 #define UMS_BUT(i) ((i) == 1 || (i) == 2 ? 3 - (i) : i)
 #elif defined(__FreeBSD__)
@@ -428,12 +437,10 @@ ums_intr(reqh, addr, status)
 		if (*ibuf++ != sc->sc_iid)
 			return;
 	}
+
 	dx =  hid_get_data(ibuf, &sc->sc_loc_x);
 	dy = -hid_get_data(ibuf, &sc->sc_loc_y);
 	dz =  hid_get_data(ibuf, &sc->sc_loc_z);
-	/* NWH Why are you modifying the button assignments here?
-	 * That's the purpose of a high level mouse driver
-	 */
 	for (i = 0; i < sc->nbuttons; i++)
 		if (hid_get_data(ibuf, &sc->sc_loc_btn[i]))
 			buttons |= (1 << UMS_BUT(i));

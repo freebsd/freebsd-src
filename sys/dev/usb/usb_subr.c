@@ -1,5 +1,5 @@
-/*	$NetBSD: usb_subr.c,v 1.24 1999/01/01 15:21:42 augustss Exp $	*/
-/*	FreeBSD $Id$ */
+/*	$NetBSD: usb_subr.c,v 1.27 1999/01/08 11:58:25 augustss Exp $	*/
+/*	FreeBSD $Id: usb_subr.c,v 1.6 1999/01/07 23:31:40 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -80,8 +80,6 @@ int usbd_getnewaddr __P((usbd_bus_handle bus));
 int usbd_print __P((void *aux, const char *pnp));
 int usbd_submatch __P((bdevice *, struct cfdata *cf, void *));
 #endif
-usb_interface_descriptor_t *usbd_find_idesc __P((usb_config_descriptor_t *cd,
-						 int ifaceidx, int altidx));
 void usbd_free_iface_data __P((usbd_device_handle dev, int ifcno));
 void usbd_kill_pipe __P((usbd_pipe_handle));
 usbd_status usbd_probe_and_attach 
@@ -725,7 +723,6 @@ usbd_probe_and_attach(parent, dev, port, addr)
 	int port;
 	int addr;
 {
-	bdevice bdev;
 	struct usb_attach_arg uaa;
 	usb_device_descriptor_t *dd = &dev->ddesc;
 	int r, found, i, confi, nifaces;
@@ -735,6 +732,7 @@ usbd_probe_and_attach(parent, dev, port, addr)
 /* XXX uaa is a static var. Not a problem as it _should_ be used only
  * during probe and attach. Should be changed however
  */
+	bdevice bdev;
 	bdev = device_add_child(*parent, NULL, -1, &uaa);
 	if (!bdev) {
 	    printf("%s: Device creation failed\n", USBDEVNAME(dev->bus->bdev));
@@ -1028,14 +1026,6 @@ usbd_submatch(parent, cf, aux)
 	     cf->uhubcf_interface != uaa->ifaceno))
 		return 0;
 	return ((*cf->cf_attach->ca_match)(parent, cf, aux));
-}
-
-#elif defined(__FreeBSD__)
-static void
-usbd_bus_print_child(device_t bus, device_t dev)
-{
-	/* FIXME print the device address and the configuration used
-	 */
 }
 #endif
 

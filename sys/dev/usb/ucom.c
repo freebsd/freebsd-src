@@ -1,5 +1,5 @@
-/*	$NetBSD: ucom.c,v 1.4 1998/12/30 17:46:20 augustss Exp $	*/
-/*	FreeBSD $Id: ucom.c,v 1.5 1999/01/07 23:31:31 n_hibma Exp $ */
+/*	$NetBSD: ucom.c,v 1.6 1999/01/08 11:58:25 augustss Exp $	*/
+/*	FreeBSD $Id: ucom.c,v 1.6 1999/01/08 17:25:37 eivind Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -58,7 +58,6 @@
 #include <sys/select.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
-#include <sys/device.h>
 #include <sys/poll.h>
 
 #include <dev/usb/usb.h>
@@ -125,7 +124,6 @@ USB_ATTACH(ucom)
 static int
 ucom_detach(device_t self)
 {       
-        struct ucom_softc *sc = device_get_softc(self);
 	char *devinfo = (char *) device_get_desc(self);
 
 	if (devinfo) {
