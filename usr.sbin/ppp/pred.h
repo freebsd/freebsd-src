@@ -15,31 +15,15 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.h,v 1.4 1995/02/27 03:18:22 amurai Exp $
+ * $Id: ccp.h,v 1.2 1995/02/26 12:17:15 amurai Exp $
  *
  *	TODO:
  */
 
-#ifndef _MODEM_H_
-#define	_MODEM_H_
-#include <termios.h>
-#include "mbuf.h"
-#include "cdefs.h"
+#ifndef _PRED_H_
+#define	_PRED_H_
 
-extern int RawModem __P((int));
-extern void UnrawModem __P((int));
-extern void UpModem __P((int));
-extern void DownModem __P((int));
-extern void WriteModem __P((int, char *, int));
-extern void ModemStartOutput __P((int));
-extern int OpenModem __P((int));
-extern void CloseModem __P((void));
-extern int ModemSpeed __P((void));
-extern int ModemQlen __P((void));
-extern int DialModem __P((void));
-extern int SpeedToInt __P((speed_t));
-extern speed_t IntToSpeed __P((int));
-extern void ModemTimeout __P((void));
-extern void DownConnection __P((void));
-extern void ModemOutput __P((int, struct mbuf *));
+extern void Pred1Output __P((int, u_short, struct mbuf *bp));
+extern void Pred1Input __P((struct mbuf*));
+extern void Pred1Init __P((int));
 #endif

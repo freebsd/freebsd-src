@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.11 1996/01/10 21:27:40 phk Exp $
+ * $Id: command.c,v 1.12 1996/01/11 05:58:59 peter Exp $
  *
  */
 #include <sys/types.h>
@@ -30,6 +30,7 @@
 #include "lcp.h"
 #include "ipcp.h"
 #include "modem.h"
+#include "filter.h"
 #include "command.h"
 #include "hdlc.h"
 #include "vars.h"
@@ -318,8 +319,8 @@ static int ShowAuthKey()
 
 static int ShowVersion()
 {
-  extern char *VarVersion[];
-  extern char *VarLocalVersion[];
+  extern char VarVersion[];
+  extern char VarLocalVersion[];
 
   printf("%s - %s \n", VarVersion, VarLocalVersion);
   return(1);
@@ -833,7 +834,7 @@ int param;
       strncpy(VarDevice, *argv, sizeof(VarDevice)-1);
       break;
     case VAR_ACCMAP:
-      sscanf(*argv, "%x", &map);
+      sscanf(*argv, "%lx", &map);
       VarAccmap = map;
       break;
     case VAR_PHONE:

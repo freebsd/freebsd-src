@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.4 1995/05/30 03:50:25 rgrimes Exp $
+ * $Id: auth.c,v 1.5 1995/09/02 17:20:49 amurai Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
@@ -26,20 +26,24 @@
 #include "lcpproto.h"
 #include "ipcp.h"
 #include "vars.h"
+#include "filter.h"
 #include "auth.h"
+#include "chat.h"
 
 extern FILE *OpenSecret();
 extern void CloseSecret();
 
 LOCAL_AUTH_VALID
-LocalAuthInit(void){
+LocalAuthInit(void)
+{
 
   char *p;
 
   if ( gethostname( VarShortHost, sizeof(VarShortHost))) {
   	return(NOT_FOUND);
   }
-  if ( p = strchr( VarShortHost, '.' ) )
+  p = strchr( VarShortHost, '.' );
+  if (p) 
 	*p = '\0';
 
   VarLocalAuth = LOCAL_NO_AUTH;
@@ -64,7 +68,7 @@ LocalAuthValidate( char *fname, char *system, char *key) {
       continue;
     buff[strlen(buff)-1] = 0;
     bzero(vector, sizeof(vector));
-    n = MakeArgs(buff, &vector);
+    n = MakeArgs(buff, vector);
     if (n < 1)
       continue;
     if (strcmp(vector[0], system) == 0) {
@@ -98,7 +102,7 @@ char *fname, *system, *key;
       continue;
     buff[strlen(buff)-1] = 0;
     bzero(vector, sizeof(vector));
-    n = MakeArgs(buff, &vector);
+    n = MakeArgs(buff, vector);
     if (n < 2)
       continue;
     if (strcmp(vector[0], system) == 0) {
@@ -139,7 +143,7 @@ int len, setaddr;
       continue;
     buff[strlen(buff)-1] = 0;
     bzero(vector, sizeof(vector));
-    n = MakeArgs(buff, &vector);
+    n = MakeArgs(buff, vector);
     if (n < 2)
       continue;
     if (strlen(vector[0]) == len && strncmp(vector[0], system, len) == 0) {

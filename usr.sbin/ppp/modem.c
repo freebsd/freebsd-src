@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.9 1995/09/02 17:20:53 amurai Exp $
+ * $Id: modem.c,v 1.10 1996/01/10 21:27:55 phk Exp $
  *
  *  TODO:
  */
@@ -40,7 +40,6 @@
 #endif
 
 extern int DoChat();
-extern void CloseModem();
 
 static int mbits;			/* Current DCD status */
 static int connect_time;		/* connection time */

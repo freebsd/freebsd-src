@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.3 1995/05/30 03:50:27 rgrimes Exp $
+ * $Id: ccp.c,v 1.4 1996/01/10 21:27:36 phk Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -28,6 +28,7 @@
 #include "ccp.h"
 #include "phase.h"
 #include "vars.h"
+#include "pred.h"
 #include "cdefs.h"
 
 extern void PutConfValue __P((void));

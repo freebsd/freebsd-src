@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.11 1995/10/08 14:57:29 amurai Exp $
+ * $Id: main.c,v 1.12 1996/01/10 21:27:53 phk Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -37,11 +37,14 @@
 #include "modem.h"
 #include "os.h"
 #include "hdlc.h"
+#include "ccp.h"
 #include "lcp.h"
 #include "ipcp.h"
 #include "vars.h"
 #include "auth.h"
 #include "filter.h"
+#include "systems.h"
+#include "ip.h"
 
 #define LAUTH_M1 "Warning: No password entry for this host in ppp.secret\n"
 #define LAUTH_M2 "Warning: All manipulation is allowed by anyone in the world\n"
@@ -377,7 +380,7 @@ char **argv;
       snprintf(pid_filename, sizeof (pid_filename), "%s/PPP.%s",
 		  _PATH_VARRUN, dstsystem);
       unlink(pid_filename);
-      sprintf(pid, "%d\n", getpid());
+      sprintf(pid, "%lu\n", getpid());
 
       if ((fd = open(pid_filename, O_RDWR|O_CREAT, 0666)) != -1)
       {
@@ -565,7 +568,8 @@ int n;
     fp = *hp;
     if (DEV_IS_SYNC)
       fp++;
-    if (ptr = strstr((char *)cp, fp))
+    ptr = strstr((char *)cp, fp);
+    if (ptr)
       break;
   }
   return((u_char *)ptr);
