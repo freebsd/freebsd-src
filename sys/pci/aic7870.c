@@ -19,13 +19,14 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7870.c,v 1.6 1995/02/03 17:08:17 gibbs Exp $
+ *	$Id: aic7870.c,v 1.7 1995/03/17 04:27:15 davidg Exp $
  */
 
 #include <pci.h>
 #if NPCI > 0
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/malloc.h>
 #include <kernel.h>
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
@@ -57,11 +58,11 @@ aic7870_probe (pcici_t tag, pcidi_t type)
 {   
 	switch(type) {
 		case PCI_DEVICE_ID_ADAPTEC_2940:
-				return ("Adaptec 294X SCSI host adapter");
-				break;
+			return ("Adaptec 294X SCSI host adapter");
+			break;
 		case PCI_DEVICE_ID_ADAPTEC_AIC7870:
-				return ("Adaptec aic7870 SCSI host adapter");
-				break;
+			return ("Adaptec aic7870 SCSI host adapter");
+			break;
 		default:
 			break;
 	}
@@ -75,25 +76,49 @@ aic7870_attach(config_id, unit)
 	int	unit;
 {       
 	u_long io_port; 
-	if(!(io_port = pci_conf_read(config_id, PCI_BASEADR0)))
+	unsigned opri = 0;
+	ahc_type ahc_t = AHC_NONE;
+        if(!(io_port = pci_conf_read(config_id, PCI_BASEADR0)))
 		return;
-	io_port -= 0xc01ul;	/*
-	printf("io_port = 0x%lx\n", io_port);
-				 * Make the offsets the same as for EISA 
-				 * The first bit of PCI_BASEADR0 is always
-				 * set hence we subtract 0xc01 instead of the
-				 * 0xc00 that you would expect.
-				 */
-	if(ahcprobe(unit, io_port, AHC_294)){
+	/*
+	 * Make the offsets the same as for EISA
+	 * The first bit of PCI_BASEADR0 is always
+	 * set hence we subtract 0xc01 instead of the
+	 * 0xc00 that you would expect.
+	 */
+	io_port -= 0xc01ul; 
+
+	switch (pci_conf_read (config_id, PCI_ID_REG)) {
+		case PCI_DEVICE_ID_ADAPTEC_2940:
+			ahc_t = AHC_294;	
+			break;
+		case PCI_DEVICE_ID_ADAPTEC_AIC7870:
+			ahc_t = AHC_AIC7870;
+			break;
+		default:
+			break;
+	}
+
+	if(ahcprobe(unit, io_port, ahc_t)){
 		ahc_unit++;
-		if(ahc_attach(unit))
-			/*
-			 * To be compatible with the isa style of 
-			 * interrupt handler, we pass the unit number
-			 * not a pointer to our per device structure.
-			 */ 
-			pci_map_int (config_id, ahcintr, (void *)unit, 
-				     &bio_imask);
+		/*
+		 * To be compatible with the isa style of
+		 * interrupt handler, we pass the unit number
+		 * not a pointer to our per device structure.
+		 */
+		if(!(pci_map_int(config_id, ahcintr, (void *)unit,
+			&bio_imask))) {
+			free(ahcdata[unit], M_TEMP);
+			ahcdata[unit] = NULL;
+			return;
+		}
+		/*
+		 * Since ahc_attach will poll, protect ourself
+		 * from the registered interrupt handler.
+		 */
+		opri = splbio();
+		ahc_attach(unit);
+		splx(opri);
 	}
 	return;
 }       
