@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.62 1996/12/14 17:54:15 dyson Exp $
+ * $Id: vm_map.c,v 1.63 1996/12/28 23:07:48 dyson Exp $
  */
 
 /*
@@ -583,7 +583,6 @@ vm_map_lookup_entry(map, address, entry)
 	return (FALSE);
 }
 
-#define VM_MAP_INSERT_NULL_OBJECT_ONLY
 /*
  *	vm_map_insert:
  *
@@ -638,46 +637,39 @@ vm_map_insert(map, object, offset, start, end, prot, max, cow)
 	    (prev_entry->next->start < end))
 		return (KERN_NO_SPACE);
 
-	if ((prev_entry != &map->header) &&
-		(prev_entry->end == start) &&
-#if !defined(VM_MAP_INSERT_NULL_OBJECT_ONLY)
-		((object == NULL) || (prev_entry->object.vm_object == object)) &&
-#else
-		(object == NULL) &&
-#endif
-		(prev_entry->is_a_map == FALSE) &&
-		(prev_entry->is_sub_map == FALSE) &&
-		(prev_entry->inheritance == VM_INHERIT_DEFAULT) &&
-		(prev_entry->protection == prot) &&
-		(prev_entry->max_protection == max) &&
-		(prev_entry->wired_count == 0)) {
-
-			
 	/*
 	 * See if we can avoid creating a new entry by extending one of our
-	 * neighbors.
+	 * neighbors.  Or at least extend the object.
 	 */
-#if !defined(VM_MAP_INSERT_NULL_OBJECT_ONLY)
-		if (object == NULL) {
-#endif
-			u_char needs_copy = (cow & MAP_COPY_NEEDED) != 0;
-			u_char copy_on_write = (cow & MAP_COPY_ON_WRITE) != 0;
-			u_char nofault = (cow & MAP_NOFAULT) != 0;
 
-			if ((needs_copy == prev_entry->needs_copy) &&
-			    (copy_on_write == prev_entry->copy_on_write) &&
-			    (nofault == prev_entry->nofault) &&
-				(nofault || vm_object_coalesce(prev_entry->object.vm_object,
-				OFF_TO_IDX(prev_entry->offset),
-				(vm_size_t) (prev_entry->end
-				    - prev_entry->start),
-				(vm_size_t) (end - prev_entry->end)))) {
+	if ((object == NULL) &&
+	    (prev_entry != &map->header) &&
+	    ( ! prev_entry->is_a_map) &&
+	    ( ! prev_entry->is_sub_map) &&
+	    (prev_entry->end == start) &&
+	    (prev_entry->wired_count == 0)) {
 
-				/*
-				 * Coalesced the two objects - can extend the
-				 * previous map entry to include the new
-				 * range.
-				 */
+		u_char needs_copy = (cow & MAP_COPY_NEEDED) != 0;
+		u_char copy_on_write = (cow & MAP_COPY_ON_WRITE) != 0;
+		u_char nofault = (cow & MAP_NOFAULT) != 0;
+
+		if ((needs_copy == prev_entry->needs_copy) &&
+		    (copy_on_write == prev_entry->copy_on_write) &&
+		    (nofault == prev_entry->nofault) &&
+		    (nofault ||
+		     vm_object_coalesce(prev_entry->object.vm_object,
+					OFF_TO_IDX(prev_entry->offset),
+					(vm_size_t) (prev_entry->end - prev_entry->start),
+					(vm_size_t) (end - prev_entry->end)))) {
+
+			/*
+			 * Coalesced the two objects.  Can we extend the
+			 * previous map entry to include the new range?
+			 */
+			if ((prev_entry->inheritance == VM_INHERIT_DEFAULT) &&
+			    (prev_entry->protection == prot) &&
+			    (prev_entry->max_protection == max)) {
+
 				map->size += (end - prev_entry->end);
 				prev_entry->end = end;
 				if (!nofault) {
@@ -686,10 +678,16 @@ vm_map_insert(map, object, offset, start, end, prot, max, cow)
 				}
 				return (KERN_SUCCESS);
 			}
-#if !defined(VM_MAP_INSERT_NULL_OBJECT_ONLY)
+			else {
+				object = prev_entry->object.vm_object;
+				offset = prev_entry->offset + (prev_entry->end -
+							       prev_entry->start);
+
+				vm_object_reference(object);
+			}
 		}
-#endif
 	}
+
 	/*
 	 * Create a new entry
 	 */

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.81 1996/09/14 11:54:57 bde Exp $
+ * $Id: vm_object.c,v 1.82 1996/09/28 03:33:26 dyson Exp $
  */
 
 /*
@@ -1299,13 +1299,18 @@ vm_object_coalesce(prev_object, prev_pindex, prev_size, next_size)
 	 * pages not mapped to prev_entry may be in use anyway)
 	 */
 
-	if (prev_object->ref_count > 1 ||
-	    prev_object->backing_object != NULL) {
+	if (prev_object->backing_object != NULL) {
 		return (FALSE);
 	}
 
 	prev_size >>= PAGE_SHIFT;
 	next_size >>= PAGE_SHIFT;
+
+	if ((prev_object->ref_count > 1) &&
+	    (prev_object->size != prev_pindex + prev_size)) {
+		return (FALSE);
+	}
+
 	/*
 	 * Remove any pages that may still be in the object from a previous
 	 * deallocation.
