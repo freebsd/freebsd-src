@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.73 1997/12/15 21:51:45 eivind Exp $
+ * $Id: ufs_vnops.c,v 1.74 1997/12/27 02:56:39 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -1296,7 +1296,7 @@ ufs_mkdir(ap)
 		 * and we are not giving it TOO root, (would subvert quotas)
 		 * then go ahead and give it to the other user.
 		 * The new directory also inherits the SUID bit.
-		 * If user's UID an ddir UID are the same,
+		 * If user's UID and dir UID are the same,
 		 * 'give it away' so that the SUID is still forced on.
 		 */
 		if ((dvp->v_mount->mnt_flag & MNT_SUIDDIR) &&
@@ -1304,7 +1304,7 @@ ufs_mkdir(ap)
 			dmode |= ISUID;
 			ip->i_uid = dp->i_uid;
 #ifdef QUOTA
-			if (pdir->i_uid != cnp->cn_cred->cr_uid) {
+			if (dp->i_uid != cnp->cn_cred->cr_uid) {
 				/*
 				 * Make sure the correct user gets charged
 				 * for the space.
@@ -1316,7 +1316,7 @@ ufs_mkdir(ap)
 				ucred.cr_uid = ip->i_uid;
 				ucred.cr_ngroups = 1;
 				ucred.cr_groups[0] = dp->i_gid;
-				ucp = *ucred;
+				ucp = &ucred;
 			}
 #endif
 		} else
@@ -1324,8 +1324,8 @@ ufs_mkdir(ap)
 #ifdef QUOTA
 		if ((error = getinoquota(ip)) ||
 	    	    (error = chkiq(ip, 1, ucp, 0))) {
-			free(cnp->cn_pnbuf, M_NAMEI);
-			VOP_VFREE(tvp, ip->i_number, dmode);
+			zfree(namei_zone, cnp->cn_pnbuf);
+			UFS_VFREE(tvp, ip->i_number, dmode);
 			vput(tvp);
 			vput(dvp);
 			return (error);
@@ -2046,7 +2046,7 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 			ucred.cr_uid = ip->i_uid;
 			ucred.cr_ngroups = 1;
 			ucred.cr_groups[0] = pdir->i_gid;
-			ucp = *ucred;
+			ucp = &ucred;
 #endif
 		} else
 			ip->i_uid = cnp->cn_cred->cr_uid;
@@ -2054,8 +2054,8 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 #ifdef QUOTA
 		if ((error = getinoquota(ip)) ||
 	    	    (error = chkiq(ip, 1, ucp, 0))) {
-			free(cnp->cn_pnbuf, M_NAMEI);
-			VOP_VFREE(tvp, ip->i_number, mode);
+			zfree(namei_zone, cnp->cn_pnbuf);
+			UFS_VFREE(tvp, ip->i_number, mode);
 			vput(tvp);
 			vput(dvp);
 			return (error);
