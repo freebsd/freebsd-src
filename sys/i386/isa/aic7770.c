@@ -18,7 +18,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7770.c,v 1.3 1994/11/18 09:03:09 jkh Exp $
+ *      $Id: aic7770.c,v 1.4 1994/11/18 09:14:14 gibbs Exp $
  */
 /*
  * TODO:
@@ -57,6 +57,7 @@
 #include <machine/cpufunc.h>
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
+#include <sys/devconf.h>
 
 #define AHC_NSEG        256     /* number of dma segments supported */
 #define PAGESIZ 4096  
@@ -145,6 +146,27 @@ struct scsi_device ahc_dev =
     0,  
     { 0, 0 }
 };
+
+static struct kern_devconf kdc_ahc[NAHC] = { {
+        0, 0, 0,                /* filled in by dev_attach */
+	"ahc", 0, { MDDT_ISA, 0, "bio" },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
+	&kdc_isa0,              /* parent */
+	0,                      /* parentdata */
+	DC_BUSY,                /* host adapters are always ``in use'' */
+	"Adaptec aic7770 based SCSI host adapter"
+} };
+
+static inline void
+ahc_registerdev(struct isa_device *id)
+{
+        if(id->id_unit)
+		kdc_ahc[id->id_unit] = kdc_ahc[0];
+	kdc_ahc[id->id_unit].kdc_unit = id->id_unit;
+	kdc_ahc[id->id_unit].kdc_parentdata = id;
+	dev_attach(&kdc_ahc[id->id_unit]);
+}
+
 
 /*
  * All of these should be in a separate header file shared by the sequencer
@@ -826,6 +848,8 @@ ahc_attach(dev)
 	 * This should be done when we get or write sequencer code that 
 	 * supports more than one channel. XXX
 	 */
+
+        ahc_registerdev(dev);
 
         /*
          * ask the adapter what subunits are present
