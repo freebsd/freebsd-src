@@ -44,7 +44,7 @@ static const char rcsid[] = "@(#)$FreeBSD$";
 # include <sys/protosw.h>
 #endif
 #include <sys/socket.h>
-#if defined(_KERNEL) && !defined(linux)
+#if (defined(_KERNEL) || defined(KERNEL)) && !defined(linux)
 # include <sys/systm.h>
 #endif
 #if !defined(__SVR4) && !defined(__svr4__)

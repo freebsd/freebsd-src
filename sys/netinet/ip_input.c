@@ -155,7 +155,6 @@ ip_dn_ctl_t *ip_dn_ctl_ptr;
 #endif
 
 #if defined(IPFILTER_LKM) || defined(IPFILTER)
-int iplattach __P((void));
 int (*fr_checkp) __P((struct ip *, int, struct ifnet *, int, struct mbuf **)) = NULL;
 #endif
 
@@ -219,10 +218,6 @@ ip_init()
 
 	ip_id = time_second & 0xffff;
 	ipintrq.ifq_maxlen = ipqmaxlen;
-#ifdef IPFILTER
-        iplattach(); 
-#endif
-
 }
 
 static struct	sockaddr_in ipaddr = { sizeof(ipaddr), AF_INET };
