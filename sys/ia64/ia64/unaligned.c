@@ -34,6 +34,7 @@
 #include <vm/vm_extern.h>
 #include <machine/frame.h>
 #include <machine/inst.h>
+#include <machine/rse.h>
 
 #define sign_extend(imm, w) (((int64_t)(imm) << (64 - (w))) >> (64 - (w)))
 
@@ -149,56 +150,6 @@ unaligned_decode_M5(union ia64_instruction ins, struct decoding *d)
 }
 
 static int
-rse_slot(u_int64_t *bsp)
-{
-	return ((u_int64_t) bsp >> 3) & 0x3f;
-}
-
-/*
- * Return the address of register regno (regno >= 32) given that bsp
- * points at the base of the register stack frame.
- */
-static u_int64_t *
-rse_register_address(u_int64_t *bsp, int regno)
-{
-	int off = regno - 32;
-	u_int64_t rnats = (rse_slot(bsp) + off) / 63;
-	u_int64_t *p = bsp + off + rnats;
-
-	/*
-	 * We only really need this if the current bspstore
-	 * hasn't advanced past the user's register frame. Its
-	 * hardly worth trying to optimise though.
-	 */
-	__asm __volatile("flushrs");
-
-	return p;
-}
-
-static u_int64_t *
-rse_previous_frame(u_int64_t *bsp, int sof)
-{
-	int slot = rse_slot(bsp);
-	int rnats = 0;
-	int count = sof;
-
-	while (count > slot) {
-		count -= 63;
-		rnats++;
-		slot = 63;
-	}
-	return bsp - sof - rnats;
-}
-
-static u_int64_t *
-rse_current_frame(struct trapframe *framep, struct thread *td)
-{
-	int sof = framep->tf_cr_ifs & 0x7f;
-	u_int64_t *bsp = (u_int64_t *) (td->td_kstack + framep->tf_ndirty);
-	return rse_previous_frame(bsp, sof);
-}
-
-static int
 read_register(struct trapframe *framep, struct thread *td,
 	      int reg, u_int64_t *valuep)
 {
@@ -210,10 +161,16 @@ read_register(struct trapframe *framep, struct thread *td,
 		return 0;
 	} else {
 		u_int64_t cfm = framep->tf_cr_ifs;
+		u_int64_t *bsp = (u_int64_t *) (td->td_kstack
+						+ framep->tf_ndirty);
 		int sof = cfm & 0x7f;
 		int sor = 8*((cfm >> 14) & 15);
 		int rrb_gr = (cfm >> 18) & 0x7f;
-		u_int64_t *bsp = rse_current_frame(framep, td);
+
+		/*
+		 * Skip back to the start of the interrupted frame.
+		 */
+		bsp = ia64_rse_previous_frame(bsp, sof);
 
 		if (reg - 32 > sof)
 			return EINVAL;
@@ -224,7 +181,7 @@ read_register(struct trapframe *framep, struct thread *td,
 				reg = reg + rrb_gr;
 		}
 
-		*valuep = *rse_register_address(bsp, reg);
+		*valuep = *ia64_rse_register_address(bsp, reg);
 		return 0;
 	}
 
@@ -242,10 +199,16 @@ write_register(struct trapframe *framep, struct thread *td,
 		return 0;
 	} else {
 		u_int64_t cfm = framep->tf_cr_ifs;
+		u_int64_t *bsp = (u_int64_t *) (td->td_kstack
+						+ framep->tf_ndirty);
 		int sof = cfm & 0x7f;
 		int sor = 8*((cfm >> 14) & 15);
 		int rrb_gr = (cfm >> 18) & 0x7f;
-		u_int64_t *bsp = rse_current_frame(framep, td);
+
+		/*
+		 * Skip back to the start of the interrupted frame.
+		 */
+		bsp = ia64_rse_previous_frame(bsp, sof);
 
 		if (reg - 32 > sof)
 			return EINVAL;
@@ -256,7 +219,7 @@ write_register(struct trapframe *framep, struct thread *td,
 				reg = reg + rrb_gr;
 		}
 
-		*rse_register_address(bsp, reg) = value;
+		*ia64_rse_register_address(bsp, reg) = value;
 		return 0;
 	}
 
@@ -529,6 +492,13 @@ unaligned_fixup(struct trapframe *framep, struct thread *td)
 	if (dofix && decoded) {
 		u_int64_t addr, update, value, isr;
 		int error = 0;
+
+		/*
+		 * We only really need this if the current bspstore
+		 * hasn't advanced past the user's register frame. Its
+		 * hardly worth trying to optimise though.
+		 */
+		__asm __volatile("flushrs");
 
 		isr = framep->tf_cr_isr;
 		error = read_register(framep, td, dec.basereg, &addr);

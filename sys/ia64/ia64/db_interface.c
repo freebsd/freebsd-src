@@ -51,6 +51,7 @@
 #include <vm/vm.h>
 
 #include <machine/inst.h>
+#include <machine/rse.h>
 #include <machine/db_machdep.h>
 #include <machine/mutex.h>
 
@@ -231,49 +232,6 @@ struct db_variable db_regs[] = {
 struct db_variable *db_eregs = db_regs + sizeof(db_regs)/sizeof(db_regs[0]);
 
 static int
-rse_slot(u_int64_t *bsp)
-{
-	return ((u_int64_t) bsp >> 3) & 0x3f;
-}
-
-/*
- * Return the address of register regno (regno >= 32) given that bsp
- * points at the base of the register stack frame.
- */
-u_int64_t *
-db_rse_register_address(u_int64_t *bsp, int regno)
-{
-	int off = regno - 32;
-	u_int64_t rnats = (rse_slot(bsp) + off) / 63;
-	u_int64_t *p = bsp + off + rnats;
-	return p;
-}
-
-u_int64_t *
-db_rse_current_frame()
-{
-	int sof = ddb_regs.tf_cr_ifs & 0x7f;
-	u_int64_t *bsp = (u_int64_t *)
-		(ddb_regs.tf_ar_bspstore + ddb_regs.tf_ndirty);
-	return db_rse_previous_frame(bsp, sof);
-}
-
-u_int64_t *
-db_rse_previous_frame(u_int64_t *bsp, int sof)
-{
-	int slot = rse_slot(bsp);
-	int rnats = 0;
-	int count = sof;
-
-	while (count > slot) {
-		count -= 63;
-		rnats++;
-		slot = 63;
-	}
-	return bsp - sof - rnats;
-}
-
-static int
 db_get_rse_reg(struct db_variable *vp, db_expr_t *valuep, int op)
 {
 	int sof = ddb_regs.tf_cr_ifs & 0x7f;
@@ -285,8 +243,8 @@ db_get_rse_reg(struct db_variable *vp, db_expr_t *valuep, int op)
 		if (op == DB_VAR_GET)
 			*valuep = 0xdeadbeefdeadbeef;
 	} else {
-		bsp = db_rse_previous_frame(bsp, sof);
-		reg = db_rse_register_address(bsp, regno);
+		bsp = ia64_rse_previous_frame(bsp, sof);
+		reg = ia64_rse_register_address(bsp, regno);
 		if (op == DB_VAR_GET)
 			*valuep = *reg;
 		else
@@ -471,8 +429,8 @@ db_register_value(regs, regno)
 		if (regno - 32 >= sof) {
 			return 0xdeadbeefdeadbeef;
 		} else {
-			bsp = db_rse_previous_frame(bsp, sof);
-			reg = db_rse_register_address(bsp, regno);
+			bsp = ia64_rse_previous_frame(bsp, sof);
+			reg = ia64_rse_register_address(bsp, regno);
 			return *reg;
 		}
 	}
