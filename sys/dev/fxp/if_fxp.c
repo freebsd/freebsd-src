@@ -480,7 +480,7 @@ fxp_attach(device_t dev)
 	 */
 	sc->tunable_int_delay = TUNABLE_INT_DELAY;
 	sc->tunable_bundle_max = TUNABLE_BUNDLE_MAX;
-	sc->tunable_noflow = 0;
+	sc->tunable_noflow = 1;
 	(void) resource_int_value(device_get_name(dev), device_get_unit(dev),
 	    "int_delay", &sc->tunable_int_delay);
 	(void) resource_int_value(device_get_name(dev), device_get_unit(dev),
