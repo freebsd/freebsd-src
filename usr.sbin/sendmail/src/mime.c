@@ -36,7 +36,7 @@
 # include <string.h>
 
 #ifndef lint
-static char sccsid[] = "@(#)mime.c	8.48 (Berkeley) 10/18/96";
+static char sccsid[] = "@(#)mime.c	8.49 (Berkeley) 10/30/96";
 #endif /* not lint */
 
 /*
