@@ -80,16 +80,13 @@ standard error file descriptor.
 If the argument
 .Fa string
 is
-.Pf non- Dv NULL ,
-it is prepended to the message
+.Pf non- Dv NULL
+or points to the null character,
+this string is prepended to the message
 string and separated from it by
 a colon and space
-.Pq Ql \&:\ \& .
-If
-.Fa string
-is
-.Dv NULL ,
-only the error message string is printed.
+.Pq Ql \&:\ \& ;
+otherwise, only the error message string is printed.
 .Pp
 If
 .Fa errnum
