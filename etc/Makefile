@@ -130,6 +130,8 @@ distribution:
 	    ${DESTDIR}/etc/dumpdates
 	${INSTALL} -c -o nobody -g ${BINGRP} -m 644 /dev/null \
 	    ${DESTDIR}/var/db/locate.database
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
+	    ${DESTDIR}/var/log/authentication.log
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
 	    ${DESTDIR}/var/log/lpd-errs
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 640 /dev/null \
