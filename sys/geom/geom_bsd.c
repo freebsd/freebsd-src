@@ -692,12 +692,18 @@ g_bsd_config(struct gctl_req *req, struct g_geom *gp, const char *verb)
 	struct h0h0 h0h0;
 	struct g_slicer *gsp;
 	struct g_consumer *cp;
+	struct g_bsd_softc *ms;
 
 	i = 0;
 	g_topology_assert();
 	cp = LIST_FIRST(&gp->consumer);
 	gsp = gp->softc;
-	if (!strcmp(verb, "write label")) {
+	ms = gsp->softc;
+	if (!strcmp(verb, "read mbroffset")) {
+		error = gctl_set_param(req, "mbroffset",
+		    &ms->mbroffset, sizeof(ms->mbroffset));
+		return (error);
+	} else if (!strcmp(verb, "write label")) {
 		label = gctl_get_paraml(req, "label", LABELSIZE);
 		if (label == NULL)
 			return (EINVAL);
