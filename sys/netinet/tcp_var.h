@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_var.h	8.3 (Berkeley) 4/10/94
- * $Id: tcp_var.h,v 1.11.4.4 1996/03/04 04:56:27 davidg Exp $
+ * $Id: tcp_var.h,v 1.11.4.5 1996/09/19 08:18:43 pst Exp $
  */
 
 #ifndef _NETINET_TCP_VAR_H_
@@ -289,6 +289,7 @@ struct	tcpstat {
 	u_long	tcps_persistdrop;	/* timeout in persist state */
 	u_long	tcps_badsyn;		/* bogus SYN, e.g. premature ACK */
 	u_long	tcps_mturesent;		/* resends due to MTU discovery */
+	u_long	tcps_listendrop;	/* listen queue overflows */
 };
 
 /*
