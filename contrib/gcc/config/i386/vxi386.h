@@ -20,7 +20,7 @@ Boston, MA 02111-1307, USA.  */
 
 #undef CPP_CPU_SPEC
 #define CPP_CPU_SPEC "\
--Asystem(unix) -Acpu(i386) -Amachine(i386) \
+-Asystem=unix -Acpu=i386 -Amachine=i386 \
 %{!ansi:-Di386} -D__i386 -D__i386__ \
 %{march=i386:-DCPU=I80386} \
 %{march=i486:-DCPU=I80486 %(cpp_486)} \
@@ -40,7 +40,7 @@ Boston, MA 02111-1307, USA.  */
 #define HANDLE_SYSV_PRAGMA
 
 #undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-D__vxworks -D__i386__"
+#define CPP_PREDEFINES "-D__vxworks"
 
 /* VxWorks does all the library stuff itself.  */
 
@@ -48,7 +48,7 @@ Boston, MA 02111-1307, USA.  */
 #define LIB_SPEC ""
 
 /* VxWorks uses object files, not loadable images.  make linker just
-   combine objects. */
+   combine objects.  */
 
 #undef LINK_SPEC
 #define LINK_SPEC "-r"

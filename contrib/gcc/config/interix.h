@@ -1,6 +1,6 @@
 /* Operating system specific defines to be used when targeting GCC for
    Interix
-   Copyright (C) 1994, 1995, 1999 Free Software Foundation, Inc.
+   Copyright (C) 1994, 1995, 1999, 2002 Free Software Foundation, Inc.
    Donn Terry, Softway Systems, Inc. (donn@softway.com)
    Modified from code
       Contributed by Douglas B. Rupp (drupp@cs.washington.edu).
@@ -22,7 +22,9 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
+#ifndef TARGET_MEM_FUNCTIONS
 #define TARGET_MEM_FUNCTIONS
+#endif
 
 /* POSIX/Uni-thread only for now.  Look at the winnt version
 for windows/multi thread */
@@ -81,8 +83,7 @@ for windows/multi thread */
 
 #endif /* 0 */
 
-#undef STDC_VALUE
-#define STDC_VALUE 0
+#define STDC_0_IN_SYSTEM_HEADERS 1
 
 #define HANDLE_SYSV_PRAGMA
 #undef HANDLE_PRAGMA_WEAK  /* until the link format can handle it */
@@ -103,5 +104,36 @@ for windows/multi thread */
 #define WCHAR_TYPE "short unsigned int"
 #define WCHAR_TYPE_SIZE 16
 
-/* For the sake of libgcc2.c, indicate target supports atexit.  */
-#define HAVE_ATEXIT
+/* Our strategy for finding global constructors is a bit different, although
+   not a lot. */
+#define DO_GLOBAL_CTORS_BODY						\
+do {									\
+  int i;								\
+  unsigned long nptrs;							\
+  func_ptr *p;								\
+  asm(									\
+       "     .section .ctor_head, \"rw\"\n"				\
+       "1:\n"								\
+       "     .text \n"							\
+       ASM_LOAD_ADDR(1b,%0)						\
+       : "=r" (p) : : "cc");						\
+  for (nptrs = 0; p[nptrs] != 0; nptrs++);				\
+  for (i = nptrs-1; i >= 0; i--)					\
+    p[i] ();								\
+} while (0) 
+
+#define DO_GLOBAL_DTORS_BODY						\
+do {									\
+  func_ptr *p;								\
+  asm(									\
+       "     .section .dtor_head, \"rw\"\n"				\
+       "1:\n"								\
+       "     .text \n"							\
+       ASM_LOAD_ADDR(1b,%0)						\
+       : "=r" (p) : : "cc");						\
+  while (*p)								\
+    {									\
+      p++;								\
+      (*(p-1)) ();							\
+    }									\
+} while (0) 

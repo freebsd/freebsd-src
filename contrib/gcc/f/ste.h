@@ -27,8 +27,8 @@ the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 
 /* Allow multiple inclusion to work. */
 
-#ifndef _H_f_ste
-#define _H_f_ste
+#ifndef GCC_F_STE_H
+#define GCC_F_STE_H
 
 /* Simple definitions and enumerations. */
 
@@ -147,16 +147,10 @@ void ffeste_V026 (ffestpFindStmt *info);
 #define ffeste_init_2()
 #define ffeste_init_3()
 #define ffeste_init_4()
-#if FFECOM_targetCURRENT == FFECOM_targetGCC
 #define ffeste_filename() input_filename
 #define ffeste_filelinenum() lineno
 #define ffeste_set_line(name,num) \
   (input_filename = (name), lineno = (num))
-#elif FFECOM_targetCURRENT == FFECOM_targetFFE
-#define ffeste_set_line(name,num)
-#else
-#error
-#endif	/* FFECOM_targetCURRENT == FFECOM_targetFFE */
 #define ffeste_terminate_0()
 #define ffeste_terminate_1()
 #ifdef ENABLE_CHECKING
@@ -169,4 +163,4 @@ void ffeste_terminate_2 (void);
 
 /* End of #include file. */
 
-#endif
+#endif /* ! GCC_F_STE_H */

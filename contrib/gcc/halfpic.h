@@ -1,29 +1,24 @@
 /* OSF/rose half-pic support definitions.
-   Copyright (C) 1992, 1996, 1997, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1992, 1996, 1997, 1998, 2000 Free Software Foundation, Inc.
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+GCC is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 2, or (at your option) any later
+version.
 
-GNU CC is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+along with GCC; see the file COPYING.  If not, write to the Free
+Software Foundation, 59 Temple Place - Suite 330, Boston, MA
+02111-1307, USA.  */
 
 #ifndef NO_HALF_PIC
-
-#ifdef ANSI_PROTOTYPES
-union tree_node;		/* forward reference */
-struct rtx_def;
-#endif
 
 /* Declare the variable flag_half_pic as 'int' instead of 'extern
    int', so that BSS variables are created (even though this is not
@@ -35,18 +30,19 @@ struct rtx_def;
    be true in the gen* programs).  */
 
 int flag_half_pic;			/* Global half-pic flag.  */
-int (*ptr_half_pic_address_p) ();	/* ptr to half_pic_address_p () */
+int (*ptr_half_pic_address_p) PARAMS ((struct rtx_def *)); /* ptr to half_pic_address_p () */
 
 extern int  half_pic_number_ptrs;				/* # distinct pointers found */
 extern int  half_pic_number_refs;				/* # half-pic references */
-extern void half_pic_encode PROTO((union tree_node *));		/* encode whether half-pic */
-extern void half_pic_declare PROTO((char *));			/* declare object local */
-extern void half_pic_external PROTO((char *));			/* declare object external */
-extern void half_pic_init PROTO((void));			/* half_pic initialization */
-extern int  half_pic_address_p PROTO((struct rtx_def *));	/* true if an address is half-pic */
-extern struct rtx_def *half_pic_ptr PROTO((struct rtx_def *));	/* return RTX for half-pic pointer */
-/* Can't use prototype since FILE isn't defined yet.  */
-extern void half_pic_finish (/* FILE * */);		/* half_pic termination */
+extern void half_pic_encode PARAMS ((union tree_node *));	/* encode whether half-pic */
+extern void half_pic_declare PARAMS ((const char *));		/* declare object local */
+extern void half_pic_external PARAMS ((const char *));		/* declare object external */
+extern void half_pic_init PARAMS ((void));			/* half_pic initialization */
+extern int  half_pic_address_p PARAMS ((struct rtx_def *));	/* true if an address is half-pic */
+extern struct rtx_def *half_pic_ptr PARAMS ((struct rtx_def *));	/* return RTX for half-pic pointer */
+#ifdef BUFSIZ
+extern void half_pic_finish PARAMS ((FILE *));	/* half_pic termination */
+#endif
 
 /* Macros to provide access to the half-pic stuff (so they can easily
    be stubbed out.  */

@@ -1,10 +1,9 @@
-Noteworthy changes in GCC after EGCS 1.1.
------------------------------------------
-
-Target specific NEWS
-
-    RS6000/PowerPC: -mcpu=401 was added as an alias for -mcpu=403.  -mcpu=e603e
-		    was added to do -mcpu=603e and -msoft-float.
+This file contains information about GCC releases up to GCC 2.8.1, and
+some information about EGCS releases.  For more details of changes in
+EGCS releases, and details of changes in GCC 2.95 and more recent
+releases, see the release notes on the GCC web site and the file NEWS
+which contains the most relevant parts of those release notes in text
+form.
 
 Noteworthy changes in GCC for EGCS 1.1.
 ---------------------------------------
@@ -58,7 +57,7 @@ do not have integer mul/div or floating point support on-chip.
 
 GCC now supports a "--help" option to print detailed help information.
 
-cpplib has been greatly improved.  It is probably useable for some sites now
+cpplib has been greatly improved.  It is probably usable for some sites now
 (major missing feature is trigraphs).
 
 Memory footprint for the compiler has been significantly reduced for certain
@@ -68,7 +67,7 @@ Build time improvements for targets which support lots of sched parameters
 (alpha and mips primarily).
 
 Compile time for certain programs using large constant initializers has been
-improved (effects glibc significantly).
+improved (affects glibc significantly).
 
 Plus an incredible number of infrastructure changes, warning fixes, bugfixes
 and local optimizations.

@@ -1,5 +1,5 @@
 /* Specific flags and argument handling of the Fortran front-end.
-   Copyright (C) 1997, 1999, 2000 Free Software Foundation, Inc.
+   Copyright (C) 1997, 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -46,10 +46,15 @@ Boston, MA 02111-1307, USA.  */
 
 #include "config.h"
 #include "system.h"
+#include "gcc.h"
 #include <f/version.h>
 
 #ifndef MATH_LIBRARY
 #define MATH_LIBRARY "-lm"
+#endif
+
+#ifndef FORTRAN_INIT
+#define FORTRAN_INIT "-lfrtbegin"
 #endif
 
 #ifndef FORTRAN_LIBRARY
@@ -85,14 +90,14 @@ typedef enum
 
 /* The original argument list and related info is copied here.  */
 static int g77_xargc;
-static char **g77_xargv;
-static void (*g77_fn)();
+static const char *const *g77_xargv;
+static void lookup_option PARAMS ((Option *, int *, const char **,
+				   const char *));
+static void append_arg PARAMS ((const char *));
 
 /* The new argument list will be built here.  */
 static int g77_newargc;
-static char **g77_newargv;
-
-extern char *version_string;
+static const char **g77_newargv;
 
 /* --- This comes from gcc.c (2.8.1) verbatim: */
 
@@ -136,12 +141,12 @@ static void
 lookup_option (xopt, xskip, xarg, text)
      Option *xopt;
      int *xskip;
-     char **xarg;
-     char *text;
+     const char **xarg;
+     const char *text;
 {
   Option opt = OPTION_;
   int skip;
-  char *arg = NULL;
+  const char *arg = NULL;
 
   if ((skip = SWITCH_TAKES_ARG (text[1])))
     skip -= (text[2] != '\0');	/* See gcc.c. */
@@ -189,6 +194,8 @@ lookup_option (xopt, xskip, xarg, text)
 	opt = OPTION_syntax_only;
       else if (! strcmp (text, "-dumpversion"))
 	opt = OPTION_version;
+      else if (! strcmp (text, "-fversion"))  /* Really --version!! */
+	opt = OPTION_version;
       else if (! strcmp (text, "-Xlinker")
 	       || ! strcmp (text, "-specs"))
 	skip = 1;
@@ -216,7 +223,7 @@ lookup_option (xopt, xskip, xarg, text)
 
 static void
 append_arg (arg)
-     char *arg;
+     const char *arg;
 {
   static int newargsize;
 
@@ -238,7 +245,7 @@ append_arg (arg)
       int i;
 
       newargsize = (g77_xargc << 2) + 20;	/* This should handle all. */
-      g77_newargv = (char **) xmalloc (newargsize * sizeof (char *));
+      g77_newargv = (const char **) xmalloc (newargsize * sizeof (char *));
 
       /* Copy what has been done so far.  */
       for (i = 0; i < g77_newargc; ++i)
@@ -246,36 +253,28 @@ append_arg (arg)
     }
 
   if (g77_newargc == newargsize)
-    (*g77_fn) ("overflowed output arg list for `%s'", arg);
+    fatal ("overflowed output arg list for `%s'", arg);
 
   g77_newargv[g77_newargc++] = arg;
 }
 
 void
-lang_specific_driver (fn, in_argc, in_argv, in_added_libraries)
-     void (*fn)();
+lang_specific_driver (in_argc, in_argv, in_added_libraries)
      int *in_argc;
-     char ***in_argv;
-     int *in_added_libraries;
+     const char *const **in_argv;
+     int *in_added_libraries ATTRIBUTE_UNUSED;
 {
   int argc = *in_argc;
-  char **argv = *in_argv;
+  const char *const *argv = *in_argv;
   int i;
   int verbose = 0;
   Option opt;
   int skip;
-  char *arg;
+  const char *arg;
 
   /* This will be NULL if we encounter a situation where we should not
      link in libf2c.  */
-  char *library = FORTRAN_LIBRARY;
-
-  /* This will become 0 if anything other than -v and kin (like -V)
-     is seen, meaning the user is trying to accomplish something.
-     If it remains nonzero, and the user wants version info, add stuff to
-     the command line to make gcc invoke all the appropriate phases
-     to get all the version info.  */
-  int add_version_magic = 1;
+  const char *library = FORTRAN_LIBRARY;
 
   /* 0 => -xnone in effect.
      1 => -xfoo in effect.  */
@@ -286,6 +285,9 @@ lang_specific_driver (fn, in_argc, in_argv, in_added_libraries)
      2 => last two args were -l<library> -lm.  */
   int saw_library = 0;
 
+  /* 0 => initial/reset state
+     1 => FORTRAN_INIT linked in */
+  int use_init = 0;
   /* By default, we throw on the math library if we have one.  */
   int need_math = (MATH_LIBRARY[0] != '\0');
 
@@ -303,8 +305,7 @@ lang_specific_driver (fn, in_argc, in_argv, in_added_libraries)
   g77_xargc = argc;
   g77_xargv = argv;
   g77_newargc = 0;
-  g77_newargv = argv;
-  g77_fn = fn;
+  g77_newargv = (const char **) argv;
 
   /* First pass through arglist.
 
@@ -325,14 +326,12 @@ lang_specific_driver (fn, in_argc, in_argv, in_added_libraries)
     {
       if ((argv[i][0] == '+') && (argv[i][1] == 'e'))
 	{
-	  add_version_magic = 0;
 	  continue;
 	}
 
       if ((argv[i][0] != '-') || (argv[i][1] == '\0'))
 	{
 	  ++n_infiles;
-	  add_version_magic = 0;
 	  continue;
 	}
 
@@ -350,23 +349,17 @@ lang_specific_driver (fn, in_argc, in_argv, in_added_libraries)
 	  /* These options disable linking entirely or linking of the
 	     standard libraries.  */
 	  library = 0;
-	  add_version_magic = 0;
 	  break;
 
 	case OPTION_l:
 	  ++n_infiles;
-	  add_version_magic = 0;
 	  break;
 
 	case OPTION_o:
 	  ++n_outfiles;
-	  add_version_magic = 0;
 	  break;
 
 	case OPTION_v:
-	  if (! verbose)
-	    fprintf (stderr, "g77 version %s (from FSF-g77 version %s)\n",
-		     version_string, ffe_version_string);
 	  verbose = 1;
 	  break;
 
@@ -381,64 +374,28 @@ lang_specific_driver (fn, in_argc, in_argv, in_added_libraries)
 
 	case OPTION_version:
 	  printf ("\
-GNU Fortran %s\n\
-Copyright (C) 1997 Free Software Foundation, Inc.\n\
-For more version information on components of the GNU Fortran\n\
-compilation system, especially useful when reporting bugs,\n\
-type the command `g77 --verbose'.\n\
+GNU Fortran (GCC %s) %s\n\
+Copyright (C) 2002 Free Software Foundation, Inc.\n\
 \n\
 GNU Fortran comes with NO WARRANTY, to the extent permitted by law.\n\
 You may redistribute copies of GNU Fortran\n\
 under the terms of the GNU General Public License.\n\
 For more information about these matters, see the file named COPYING\n\
 or type the command `info -f g77 Copying'.\n\
-", ffe_version_string);
+", version_string, ffe_version_string);
 	  exit (0);
 	  break;
 
 	case OPTION_help:
-	  /* Let gcc.c handle this, as the egcs version has a really
+	  /* Let gcc.c handle this, as it has a really
 	     cool facility for handling --help and --verbose --help.  */
 	  return;
 
-#if 0
-	  printf ("\
-Usage: g77 [OPTION]... FORTRAN-SOURCE...\n\
-\n\
-Compile and link Fortran source code to produce an executable program,\n\
-which by default is named `a.out', and can be invoked with the UNIX\n\
-command `./a.out'.\n\
-\n\
-Options:\n\
---debug                include debugging information in executable.\n\
---help                 display this help and exit.\n\
---optimize[=LEVEL]     take extra time and memory to make generated\n\
-                         executable run faster.  LEVEL is 0 for no\n\
-                         optimization, 1 for normal optimization, and\n\
-                         increases through 3 for more optimization.\n\
---output=PROGRAM       name the executable PROGRAM instead of a.out;\n\
-                         invoke with the command `./PROGRAM'.\n\
---version              display version information and exit.\n\
-\n\
-Many other options exist to tailor the compilation process, specify\n\
-the dialect of the Fortran source code, specify details of the\n\
-code-generation methodology, and so on.\n\
-\n\
-For more information on g77 and gcc, type the commands `info -f g77'\n\
-and `info -f gcc' to read the Info documentation.\n\
-\n\
-For bug reporting instructions, please see:\n\
-%s.\n", GCCBUGURL);
-	  exit (0);
-	  break;
-#endif
-
 	case OPTION_driver:
-	  (*fn) ("--driver no longer supported", argv[i]);
+	  fatal ("--driver no longer supported");
 	  break;
 
 	default:
-	  add_version_magic = 0;
 	  break;
 	}
 
@@ -448,11 +405,15 @@ For bug reporting instructions, please see:\n\
       if (i + skip < argc)
 	i += skip;
       else
-	(*fn) ("argument to `%s' missing", argv[i]);
+	fatal ("argument to `%s' missing", argv[i]);
     }
 
   if ((n_outfiles != 0) && (n_infiles == 0))
-    (*fn) ("No input files; unwilling to write output files");
+    fatal ("no input files; unwilling to write output files");
+
+  /* If there are no input files, no need for the library.  */
+  if (n_infiles == 0)
+    library = 0;
 
   /* Second pass through arglist, transforming arguments as appropriate.  */
 
@@ -486,7 +447,7 @@ For bug reporting instructions, please see:\n\
 	  if (opt == OPTION_x)
 	    {
 	      /* Track input language. */
-	      char *lang;
+	      const char *lang;
 
 	      if (arg == NULL)
 		lang = argv[i+1];
@@ -519,7 +480,14 @@ For bug reporting instructions, please see:\n\
 	      if (saw_library == 1)
 		saw_library = 2;	/* -l<library> -lm. */
 	      else
-		append_arg (FORTRAN_LIBRARY);
+		{
+		  if (0 == use_init)
+		    {
+		      append_arg (FORTRAN_INIT);
+		      use_init = 1;
+		    }
+		  append_arg (FORTRAN_LIBRARY);
+		}
 	    }
 	  else if (strcmp (argv[i], FORTRAN_LIBRARY) == 0)
 	    saw_library = 1;	/* -l<library>. */
@@ -535,7 +503,7 @@ For bug reporting instructions, please see:\n\
 
   /* Append `-lg2c -lm' as necessary.  */
 
-  if (! add_version_magic && library)
+  if (library)
     {				/* Doing a link and no -nostdlib. */
       if (saw_speclang)
 	append_arg ("-xnone");
@@ -543,6 +511,11 @@ For bug reporting instructions, please see:\n\
       switch (saw_library)
 	{
 	case 0:
+	  if (0 == use_init)
+	    {
+	      append_arg (FORTRAN_INIT);
+	      use_init = 1;
+	    }
 	  append_arg (library);
 	case 1:
 	 if (need_math)
@@ -551,13 +524,23 @@ For bug reporting instructions, please see:\n\
 	  break;
 	}
     }
-  else if (add_version_magic && verbose)
+
+#ifdef ENABLE_SHARED_LIBGCC
+  if (library)
     {
-      append_arg ("-c");
-      append_arg ("-xf77-version");
-      append_arg ("/dev/null");
-      append_arg ("-xnone");
+      int i;
+
+      for (i = 1; i < g77_newargc; i++)
+	if (g77_newargv[i][0] == '-')
+	  if (strcmp (g77_newargv[i], "-static-libgcc") == 0
+	      || strcmp (g77_newargv[i], "-static") == 0)
+	    break;
+    
+      if (i == g77_newargc)
+	append_arg ("-shared-libgcc");
     }
+  
+#endif
 
   if (verbose
       && g77_newargv != g77_xargv)

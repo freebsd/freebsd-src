@@ -1,21 +1,10 @@
-MULTILIB_OPTIONS = m64/m32
-MULTILIB_DIRNAMES = 64 32
-MULTILIB_MATCHES =
+MULTILIB_OPTIONS = m64/m32 mno-app-regs|mcmodel=medany
+MULTILIB_DIRNAMES = 64 32 alt 
+MULTILIB_MATCHES = mcmodel?medany=mcmodel?medmid
+MULTILIB_EXCEPTIONS = m32/mno-app-regs* m32/mcmodel=*
+MULTILIB_EXCLUSIONS = m32/!m64/mno-app-regs m32/!m64/mcmodel=medany
 
 LIBGCC = stmp-multilib
 INSTALL_LIBGCC = install-multilib
 
-EXTRA_MULTILIB_PARTS=crtbegin.o crtend.o crtbeginS.o crtendS.o
-
-tcrtbeginS.o: crtstuff.c $(GCC_PASSES) $(CONFIG_H) \
-  defaults.h frame.h gbl-ctors.h
-	$(GCC_FOR_TARGET) $(GCC_CFLAGS) $(INCLUDES) $(MULTILIB_CFLAGS) -g0 \
-	  -finhibit-size-directive -fno-inline-functions -fno-exceptions $(CRTSTUFF_T_CFLAGS_S) \
-	  -c $(srcdir)/crtstuff.c -DCRT_BEGIN -o tcrtbeginS$(objext)
-
-tcrtendS.o: crtstuff.c $(GCC_PASSES) $(CONFIG_H) \
-  defaults.h frame.h gbl-ctors.h
-	$(GCC_FOR_TARGET) $(GCC_CFLAGS) $(INCLUDES) $(MULTILIB_CFLAGS) -g0 \
-	  -finhibit-size-directive -fno-inline-functions -fno-exceptions $(CRTSTUFF_T_CFLAGS_S) \
-	  -c $(srcdir)/crtstuff.c -DCRT_END -o tcrtendS$(objext)
-
+EXTRA_MULTILIB_PARTS=crtbegin.o crtend.o crtbeginS.o crtendS.o crtbeginT.o

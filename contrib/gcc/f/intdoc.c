@@ -1,5 +1,5 @@
 /* intdoc.c
-   Copyright (C) 1997 Free Software Foundation, Inc.
+   Copyright (C) 1997, 2000, 2001 Free Software Foundation, Inc.
    Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
@@ -22,25 +22,9 @@ the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 /* From f/proj.h, which uses #error -- not all C compilers
    support that, and we want *this* program to be compilable
    by pretty much any C compiler.  */
-#include "hconfig.j"
-#include "system.j"
-#include "assert.j"
-#if HAVE_STDDEF_H
-#include <stddef.h>
-#endif
-
-typedef enum
-  {
-#if !defined(false) || !defined(true)
-    false = 0, true = 1,
-#endif
-#if !defined(FALSE) || !defined(TRUE)
-    FALSE = 0, TRUE = 1,
-#endif
-    Doggone_Trailing_Comma_Dont_Work = 1
-  } bool;
-
-#define ARRAY_SIZE(a) (sizeof(a)/sizeof(a[0]))
+#include "hconfig.h"
+#include "system.h"
+#include "assert.h"
 
 /* Pull in the intrinsics info, but only the doc parts.  */
 #define FFEINTRIN_DOC 1
@@ -86,39 +70,36 @@ Usage: intdoc > intdoc.texi\n\
 
 struct _ffeintrin_name_
   {
-    const char *name_uc;
-    const char *name_lc;
-    const char *name_ic;
-    ffeintrinGen generic;
-    ffeintrinSpec specific;
+    const char *const name_uc;
+    const char *const name_lc;
+    const char *const name_ic;
+    const ffeintrinGen generic;
+    const ffeintrinSpec specific;
   };
 
 struct _ffeintrin_gen_
   {
-    const char *name;		/* Name as seen in program. */
-    ffeintrinSpec specs[2];
+    const char *const name;		/* Name as seen in program. */
+    const ffeintrinSpec specs[2];
   };
 
 struct _ffeintrin_spec_
   {
-    const char *name;		/* Uppercase name as seen in source code,
+    const char *const name;	/* Uppercase name as seen in source code,
 				   lowercase if no source name, "none" if no
 				   name at all (NONE case). */
-    bool is_actualarg;		/* Ok to pass as actual arg if -pedantic. */
-    ffeintrinFamily family;
-    ffeintrinImp implementation;
+    const bool is_actualarg;	/* Ok to pass as actual arg if -pedantic. */
+    const ffeintrinFamily family;
+    const ffeintrinImp implementation;
   };
 
 struct _ffeintrin_imp_
   {
-    const char *name;			/* Name of implementation. */
-#if 0	/* FFECOM_targetCURRENT == FFECOM_targetGCC */
-    ffecomGfrt gfrt;		/* gfrt index in library. */
-#endif	/* FFECOM_targetCURRENT == FFECOM_targetGCC */
-    const char *control;
+    const char *const name;		/* Name of implementation. */
+    const char *const control;
   };
 
-static struct _ffeintrin_name_ names[] = {
+static const struct _ffeintrin_name_ names[] = {
 #define DEFNAME(UPPER,LOWER,MIXED,GEN,SPEC) \
   { UPPER, LOWER, MIXED, FFEINTRIN_ ## GEN, FFEINTRIN_ ## SPEC },
 #define DEFGEN(CODE,NAME,SPEC1,SPEC2)
@@ -133,7 +114,7 @@ static struct _ffeintrin_name_ names[] = {
 #undef DEFIMPY
 };
 
-static struct _ffeintrin_gen_ gens[] = {
+static const struct _ffeintrin_gen_ gens[] = {
 #define DEFNAME(UPPER,LOWER,MIXED,GEN,SPEC)
 #define DEFGEN(CODE,NAME,SPEC1,SPEC2) \
   { NAME, { SPEC1, SPEC2, }, },
@@ -148,23 +129,14 @@ static struct _ffeintrin_gen_ gens[] = {
 #undef DEFIMPY
 };
 
-static struct _ffeintrin_imp_ imps[] = {
+static const struct _ffeintrin_imp_ imps[] = {
 #define DEFNAME(UPPER,LOWER,MIXED,GEN,SPEC)
 #define DEFGEN(CODE,NAME,SPEC1,SPEC2)
 #define DEFSPEC(CODE,NAME,CALLABLE,FAMILY,IMP)
-#if 0	/* FFECOM_targetCURRENT == FFECOM_targetGCC */
-#define DEFIMP(CODE,NAME,GFRTDIRECT,GFRTF2C,GFRTGNU,CONTROL) \
-  { NAME, FFECOM_gfrt ## GFRT, CONTROL },
-#define DEFIMPY(CODE,NAME,GFRTDIRECT,GFRTF2C,GFRTGNU,CONTROL,Y2KBAD) \
-  { NAME, FFECOM_gfrt ## GFRT, CONTROL },
-#elif 1	/* FFECOM_targetCURRENT == FFECOM_targetFFE */
 #define DEFIMP(CODE,NAME,GFRTDIRECT,GFRTF2C,GFRTGNU,CONTROL) \
   { NAME, CONTROL },
 #define DEFIMPY(CODE,NAME,GFRTDIRECT,GFRTF2C,GFRTGNU,CONTROL,Y2KBAD) \
   { NAME, CONTROL },
-#else
-#error
-#endif
 #include "intrin.def"
 #undef DEFNAME
 #undef DEFGEN
@@ -173,7 +145,7 @@ static struct _ffeintrin_imp_ imps[] = {
 #undef DEFIMPY
 };
 
-static struct _ffeintrin_spec_ specs[] = {
+static const struct _ffeintrin_spec_ specs[] = {
 #define DEFNAME(UPPER,LOWER,MIXED,GEN,SPEC)
 #define DEFGEN(CODE,NAME,SPEC1,SPEC2)
 #define DEFSPEC(CODE,NAME,CALLABLE,FAMILY,IMP) \
@@ -187,17 +159,17 @@ static struct _ffeintrin_spec_ specs[] = {
 #undef DEFIMPY
 };
 
-struct cc_pair { ffeintrinImp imp; const char *text; };
+struct cc_pair { const ffeintrinImp imp; const char *const text; };
 
 static const char *descriptions[FFEINTRIN_imp] = { 0 };
-static struct cc_pair cc_descriptions[] = {
+static const struct cc_pair cc_descriptions[] = {
 #define DEFDOC(IMP,SUMMARY,DESCRIPTION) { FFEINTRIN_imp ## IMP, DESCRIPTION },
 #include "intdoc.h0"
 #undef DEFDOC
 };
 
 static const char *summaries[FFEINTRIN_imp] = { 0 };
-static struct cc_pair cc_summaries[] = {
+static const struct cc_pair cc_summaries[] = {
 #define DEFDOC(IMP,SUMMARY,DESCRIPTION) { FFEINTRIN_imp ## IMP, SUMMARY },
 #include "intdoc.h0"
 #undef DEFDOC
@@ -427,15 +399,12 @@ dumpimp (int menu, const char *name, const char *name_uc, size_t genno,
 
 	  for (c = summaries[imp]; c[0] != '\0'; ++c)
 	    {
-	      if ((c[0] == '@')
-		  && (c[1] >= '0')
-	      && (c[1] <= '9'))
+	      if (c[0] == '@' && ISDIGIT (c[1]))
 		{
 		  int argno = c[1] - '0';
 
 		  c += 2;
-		  while ((c[0] >= '0')
-			 && (c[0] <= '9'))
+		  while (ISDIGIT (c[0]))
 		    {
 		      argno = 10 * argno + (c[0] - '0');
 		      ++c;
@@ -523,8 +492,7 @@ external procedure.\n\
       const char *arg_string;
       const char *arg_info;
 
-      if ((c[colon + 1] >= '0')
-	  && (c[colon + 1] <= '9'))
+      if (ISDIGIT (c[colon + 1]))
 	{
 	  other_arg = c[colon + 1] - '0';
 	  arg_string = argument_name_string (imp, other_arg);
@@ -576,9 +544,7 @@ this intrinsic is valid only when used as the argument to\n\
 	printf (", the exact type being wide enough to hold a pointer\n\
 on the target system (typically @code{INTEGER(KIND=1)} or @code{INTEGER(KIND=4)}).\n\n");
 #endif
-      else if ((c[1] == '=')
-	       && (c[colon + 1] >= '0')
-	       && (c[colon + 1] <= '9'))
+      else if (c[1] == '=' && ISDIGIT (c[colon + 1]))
 	{
 	  assert (other_arg >= 0);
 
@@ -1039,15 +1005,12 @@ Description:\n\
 
       while (c[0] != '\0')
 	{
-	  if ((c[0] == '@')
-	      && (c[1] >= '0')
-	  && (c[1] <= '9'))
+	  if (c[0] == '@' && ISDIGIT (c[1]))
 	    {
 	      int argno = c[1] - '0';
 
 	      c += 2;
-	      while ((c[0] >= '0')
-		     && (c[0] <= '9'))
+	      while (ISDIGIT (c[0]))
 		{
 		  argno = 10 * argno + (c[0] - '0');
 		  ++c;

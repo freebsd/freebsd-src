@@ -1,28 +1,30 @@
 /* Utility routines for data type conversion for GNU C.
-   Copyright (C) 1987, 88, 91-95, 97, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1988, 1991, 1992, 1993, 1994, 1995, 1997,
+   1998 Free Software Foundation, Inc.
 
-This file is part of GNU C.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+GCC is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 2, or (at your option) any later
+version.
 
-GNU CC is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GCC is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+along with GCC; see the file COPYING.  If not, write to the Free
+Software Foundation, 59 Temple Place - Suite 330, Boston, MA
+02111-1307, USA.  */
 
 
 /* These routines are somewhat language-independent utility function
    intended to be called by the language-specific convert () functions.  */
 
 #include "config.h"
+#include "system.h"
 #include "tree.h"
 #include "flags.h"
 #include "convert.h"
@@ -106,8 +108,8 @@ convert_to_real (type, expr)
 
 /* Convert EXPR to some integer (or enum) type TYPE.
 
-   EXPR must be pointer, integer, discrete (enum, char, or bool), or float;
-   in other cases error is called.
+   EXPR must be pointer, integer, discrete (enum, char, or bool), float, or
+   vector; in other cases error is called.
 
    The result of this is always supposed to be a newly created tree node
    not in use in any existing structure.  */
@@ -118,12 +120,12 @@ convert_to_integer (type, expr)
 {
   enum tree_code ex_form = TREE_CODE (expr);
   tree intype = TREE_TYPE (expr);
-  int inprec = TYPE_PRECISION (intype);
-  int outprec = TYPE_PRECISION (type);
+  unsigned int inprec = TYPE_PRECISION (intype);
+  unsigned int outprec = TYPE_PRECISION (type);
 
   /* An INTEGER_TYPE cannot be incomplete, but an ENUMERAL_TYPE can
      be.  Consider `enum E = { a, b = (enum E) 3 };'.  */
-  if (!TYPE_SIZE (type))
+  if (!COMPLETE_TYPE_P (type))
     {
       error ("conversion to incomplete type");
       return error_mark_node;
@@ -293,7 +295,7 @@ convert_to_integer (type, expr)
 	      {
 		/* Do the arithmetic in type TYPEX,
 		   then convert result to TYPE.  */
-		register tree typex = type;
+		tree typex = type;
 
 		/* Can't do arithmetic in enumeral types
 		   so use an integer type that will hold the values.  */
@@ -308,13 +310,13 @@ convert_to_integer (type, expr)
 		  {
 		    /* Don't do unsigned arithmetic where signed was wanted,
 		       or vice versa.
-		       Exception: if either of the original operands were
+		       Exception: if both of the original operands were
 		       unsigned then can safely do the work as unsigned.
 		       And we may need to do it as unsigned
 		       if we truncate to the original size.  */
 		    typex = ((TREE_UNSIGNED (TREE_TYPE (expr))
-			      || TREE_UNSIGNED (TREE_TYPE (arg0))
-			      || TREE_UNSIGNED (TREE_TYPE (arg1)))
+			      || (TREE_UNSIGNED (TREE_TYPE (arg0))
+				  && TREE_UNSIGNED (TREE_TYPE (arg1))))
 			     ? unsigned_type (typex) : signed_type (typex));
 		    return convert (type,
 				    fold (build (ex_form, typex,
@@ -331,7 +333,7 @@ convert_to_integer (type, expr)
 	  /* This is not correct for ABS_EXPR,
 	     since we must test the sign before truncation.  */
 	  {
-	    register tree typex = type;
+	    tree typex = type;
 
 	    /* Can't do arithmetic in enumeral types
 	       so use an integer type that will hold the values.  */
@@ -380,6 +382,15 @@ convert_to_integer (type, expr)
       return convert (type,
 		      fold (build1 (REALPART_EXPR,
 				    TREE_TYPE (TREE_TYPE (expr)), expr)));
+
+    case VECTOR_TYPE:
+      if (GET_MODE_SIZE (TYPE_MODE (type))
+	  != GET_MODE_SIZE (TYPE_MODE (TREE_TYPE (expr))))
+	{
+	  error ("can't convert between vector values of different size");
+	  return error_mark_node;
+	}
+      return build1 (NOP_EXPR, type, expr);
 
     default:
       error ("aggregate value used where an integer was expected");
@@ -440,5 +451,29 @@ convert_to_complex (type, expr)
     default:
       error ("aggregate value used where a complex was expected");
       return convert_to_complex (type, integer_zero_node);
+    }
+}
+
+/* Convert EXPR to the vector type TYPE in the usual ways.  */
+
+tree
+convert_to_vector (type, expr)
+     tree type, expr;
+{
+  switch (TREE_CODE (TREE_TYPE (expr)))
+    {
+    case INTEGER_TYPE:
+    case VECTOR_TYPE:
+      if (GET_MODE_SIZE (TYPE_MODE (type))
+	  != GET_MODE_SIZE (TYPE_MODE (TREE_TYPE (expr))))
+	{
+	  error ("can't convert between vector values of different size");
+	  return error_mark_node;
+	}
+      return build1 (NOP_EXPR, type, expr);
+
+    default:
+      error ("can't convert value to a vector");
+      return convert_to_vector (type, integer_zero_node);
     }
 }

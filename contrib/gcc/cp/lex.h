@@ -1,5 +1,6 @@
 /* Define constants and variables for communication with parse.y.
-   Copyright (C) 1987, 92-97, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
+   2000 Free Software Foundation, Inc.
    Hacked by Michael Tiemann (tiemann@cygnus.com)
    and by Brendan Kehoe (brendan@cygnus.com).
 
@@ -20,71 +21,13 @@ can know your rights and responsibilities.  It should be in a
 file named COPYING.  Among other things, the copyright notice
 and this notice must be preserved on all copies.  */
 
+#ifndef GCC_CP_LEX_H
+#define GCC_CP_LEX_H
 
-
-enum rid
-{
-  RID_UNUSED,
-  RID_INT,
-  RID_BOOL,
-  RID_CHAR,
-  RID_WCHAR,
-  RID_FLOAT,
-  RID_DOUBLE,
-  RID_VOID,
-
-  /* C++ extension */
-  RID_CLASS,
-  RID_RECORD,
-  RID_UNION,
-  RID_ENUM,
-  RID_LONGLONG,
-
-  /* This is where grokdeclarator starts its search when setting the specbits.
-     The first seven are in the order of most frequently used, as found
-     building libg++.  */
-
-  RID_EXTERN,
-  RID_CONST,
-  RID_LONG,
-  RID_TYPEDEF,
-  RID_UNSIGNED,
-  RID_SHORT,
-  RID_INLINE,
-
-  RID_STATIC,
-
-  RID_REGISTER,
-  RID_VOLATILE,
-  RID_FRIEND,
-  RID_VIRTUAL,
-  RID_EXPLICIT,
-  RID_EXPORT,
-  RID_SIGNED,
-  RID_AUTO,
-  RID_MUTABLE,
-  RID_COMPLEX,
-  RID_RESTRICT,
-
-  /* This is where grokdeclarator ends its search when setting the
-     specbits.  */
-
-  RID_PUBLIC,
-  RID_PRIVATE,
-  RID_PROTECTED,
-  RID_EXCEPTION,
-  RID_TEMPLATE,
-  RID_SIGNATURE,
-  RID_NULL,
-  /* Before adding enough to get up to 64, the RIDBIT_* macros
-     will have to be changed a little.  */
-  RID_MAX
-};
-
-#define NORID RID_UNUSED
-
-#define RID_FIRST_MODIFIER RID_EXTERN
-#define RID_LAST_MODIFIER RID_COMPLEX
+#if 0
+/* Formerly, the RID_* values used as mask bits did not fit into a
+   single 32-bit word.  Now they do, but let's preserve the old logic
+   in case they ever stop fitting again.  -zw, 8 Aug 2000 */
 
 /* The type that can represent all values of RIDBIT.  */
 /* We assume that we can stick in at least 32 bits into this.  */
@@ -108,19 +51,24 @@ typedef struct { unsigned long idata[2]; }
 				   (V).idata[1] = 0;			      \
 				 } while (0)
 #define RIDBIT_ANY_SET(V) ((V).idata[0] || (V).idata[1])
+#else
+typedef unsigned long RID_BIT_TYPE;	/* assumed at least 32 bits */
+#define RIDBIT_OF(R) ((unsigned long)1 << (int) (R))
 
-/* The elements of `ridpointers' are identifier nodes
-   for the reserved type names and storage classes.
-   It is indexed by a RID_... value.  */
-extern tree ridpointers[(int) RID_MAX];
+#define RIDBIT_SETP(N, V) ((V) & RIDBIT_OF (N))
+#define RIDBIT_NOTSETP(N, V) (! ((V) & RIDBIT_OF (N)))
+#define RIDBIT_ANY_SET(V) (V)
+
+#define RIDBIT_SET(N, V) do { (V) |= RIDBIT_OF (N); } while (0)
+#define RIDBIT_RESET(N, V) do { (V) &= ~RIDBIT_OF (N); } while (0)
+#define RIDBIT_RESET_ALL(V) do { (V) = 0; } while (0)
+#endif
 
 /* the declaration found for the last IDENTIFIER token read in.
    yylex must look this up to detect typedefs, which get token type TYPENAME,
    so it is left around in case the identifier is not a typedef but is
    used in a context which makes it a reference to a variable.  */
 extern tree lastiddecl;
-
-extern char *token_buffer;	/* Pointer to token buffer.  */
 
 /* Back-door communication channel to the lexer.  */
 extern int looking_for_typename;
@@ -134,4 +82,6 @@ extern tree got_object;
    Positive is push count, negative is pop count.  */
 extern int pending_lang_change;
 
-extern int yylex PROTO((void));
+extern int yylex PARAMS ((void));
+
+#endif /* ! GCC_CP_LEX_H */

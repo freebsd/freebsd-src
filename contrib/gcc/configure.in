@@ -1,27 +1,27 @@
-# configure.in for GNU CC
+# configure.in for GCC
 # Process this file with autoconf to generate a configuration script.
 
-# Copyright (C) 1997, 1998, 1999, 2000, 2001 Free Software Foundation, Inc.
+# Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
 
-#This file is part of GNU CC.
+#This file is part of GCC.
 
-#GNU CC is free software; you can redistribute it and/or modify
-#it under the terms of the GNU General Public License as published by
-#the Free Software Foundation; either version 2, or (at your option)
-#any later version.
+#GCC is free software; you can redistribute it and/or modify it under
+#the terms of the GNU General Public License as published by the Free
+#Software Foundation; either version 2, or (at your option) any later
+#version.
 
-#GNU CC is distributed in the hope that it will be useful,
-#but WITHOUT ANY WARRANTY; without even the implied warranty of
-#MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#GNU General Public License for more details.
+#GCC is distributed in the hope that it will be useful, but WITHOUT
+#ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+#FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+#for more details.
 
 #You should have received a copy of the GNU General Public License
-#along with GNU CC; see the file COPYING.  If not, write to
-#the Free Software Foundation, 59 Temple Place - Suite 330,
-#Boston, MA 02111-1307, USA.
+#along with GCC; see the file COPYING.  If not, write to the Free
+#Software Foundation, 59 Temple Place - Suite 330, Boston, MA
+#02111-1307, USA.
 
 # Initialization and defaults
-AC_PREREQ(2.12.1)
+AC_PREREQ(2.13)
 AC_INIT(tree.c)
 AC_CONFIG_HEADER(auto-host.h:config.in)
 
@@ -93,7 +93,7 @@ gnu_ld_flag=no)
 
 # With pre-defined ld
 AC_ARG_WITH(ld,
-[  --with-ld               arrange to use the specified ld (full pathname).],
+[  --with-ld               arrange to use the specified ld (full pathname)],
 DEFAULT_LINKER="$with_ld")
 if test x"${DEFAULT_LINKER+set}" = x"set"; then
   if test ! -x "$DEFAULT_LINKER"; then
@@ -101,17 +101,18 @@ if test x"${DEFAULT_LINKER+set}" = x"set"; then
   elif $DEFAULT_LINKER -v < /dev/null 2>&1 | grep GNU > /dev/null; then
     gnu_ld_flag=yes
   fi
-  AC_DEFINE_UNQUOTED(DEFAULT_LINKER,"$DEFAULT_LINKER")
+  AC_DEFINE_UNQUOTED(DEFAULT_LINKER,"$DEFAULT_LINKER",
+	[Define to enable the use of a default linker.])
 fi
 
 # With GNU as
 AC_ARG_WITH(gnu-as,
-[  --with-gnu-as           arrange to work with GNU as.],
+[  --with-gnu-as           arrange to work with GNU as],
 gas_flag="$with_gnu_as",
 gas_flag=no)
 
 AC_ARG_WITH(as,
-[  --with-as               arrange to use the specified as (full pathname).],
+[  --with-as               arrange to use the specified as (full pathname)],
 DEFAULT_ASSEMBLER="$with_as")
 if test x"${DEFAULT_ASSEMBLER+set}" = x"set"; then
   if test ! -x "$DEFAULT_ASSEMBLER"; then
@@ -119,25 +120,26 @@ if test x"${DEFAULT_ASSEMBLER+set}" = x"set"; then
   elif $DEFAULT_ASSEMBLER -v < /dev/null 2>&1 | grep GNU > /dev/null; then
     gas_flag=yes
   fi
-  AC_DEFINE_UNQUOTED(DEFAULT_ASSEMBLER,"$DEFAULT_ASSEMBLER")
+  AC_DEFINE_UNQUOTED(DEFAULT_ASSEMBLER,"$DEFAULT_ASSEMBLER",
+	[Define to enable the use of a default assembler.])
 fi
 
 # With stabs
 AC_ARG_WITH(stabs,
-[  --with-stabs            arrange to use stabs instead of host debug format.],
+[  --with-stabs            arrange to use stabs instead of host debug format],
 stabs="$with_stabs",
 stabs=no)
 
 # With ELF
 AC_ARG_WITH(elf,
-[  --with-elf              arrange to use ELF instead of host debug format.],
+[  --with-elf              arrange to use ELF instead of host debug format],
 elf="$with_elf",
 elf=no)
 
 # Specify the local prefix
 local_prefix=
 AC_ARG_WITH(local-prefix,
-[  --with-local-prefix=DIR specifies directory to put local include.],
+[  --with-local-prefix=DIR specifies directory to put local include],
 [case "${withval}" in
 yes)	AC_MSG_ERROR(bad value ${withval} given for local include directory prefix) ;;
 no)	;;
@@ -156,7 +158,7 @@ gcc_gxx_include_dir=
 # Specify the g++ header file directory
 AC_ARG_WITH(gxx-include-dir,
 [  --with-gxx-include-dir=DIR
-                          specifies directory to put g++ header files.],
+                          specifies directory to put g++ header files],
 [case "${withval}" in
 yes)	AC_MSG_ERROR(bad value ${withval} given for g++ include directory) ;;
 no)	;;
@@ -169,84 +171,110 @@ if test x${gcc_gxx_include_dir} = x; then
   else
     topsrcdir=${srcdir}/.. . ${srcdir}/../config.if
 changequote(<<, >>)dnl
-    gcc_gxx_include_dir="\$(libsubdir)/\$(unlibsubdir)/..\`echo \$(exec_prefix) | sed -e 's|^\$(prefix)||' -e 's|/[^/]*|/..|g'\`/include/g++"-${libstdcxx_interface}
+    gcc_gxx_include_dir="\$(libsubdir)/\$(unlibsubdir)/..\`echo \$(exec_prefix) | sed -e 's|^\$(prefix)||' -e 's|/[^/]*|/..|g'\`/include/"${libstdcxx_incdir}
 changequote([, ])dnl
   fi
 fi
 
+# Determine whether or not multilibs are enabled.
+AC_ARG_ENABLE(multilib,
+[  --enable-multilib       enable library support for multiple ABIs],
+[], [enable_multilib=yes])
+AC_SUBST(enable_multilib)
+
 # Enable expensive internal checks
 AC_ARG_ENABLE(checking,
-[  --enable-checking       enable expensive run-time checks.],
-[case "${enableval}" in
-yes)	AC_DEFINE(ENABLE_CHECKING) ;;
+[  --enable-checking[=LIST]
+			  enable expensive run-time checks.  With LIST,
+			  enable only specific categories of checks.
+			  Categories are: misc,tree,rtl,gc,gcac; default
+			  is misc,tree,gc],
+[ac_checking=
+ac_tree_checking=
+ac_rtl_checking=
+ac_gc_checking=
+ac_gc_always_collect=
+case "${enableval}" in
+yes)	ac_checking=1 ; ac_tree_checking=1 ; ac_gc_checking=1 ;;
 no)	;;
-*)	AC_MSG_ERROR(bad value ${enableval} given for checking option) ;;
-esac])
+*)	IFS="${IFS= 	}"; ac_save_IFS="$IFS"; IFS="$IFS,"
+	set fnord $enableval; shift
+	IFS="$ac_save_IFS"
+	for check
+	do
+		case $check in
+		misc)	ac_checking=1 ;;
+		tree)	ac_tree_checking=1 ;;
+		rtl)	ac_rtl_checking=1 ;;
+		gc)	ac_gc_checking=1 ;;
+		gcac)	ac_gc_always_collect=1 ;;
+		*)	AC_MSG_ERROR(unknown check category $check) ;;
+		esac
+	done
+	;;
+esac
+], 
+# Enable some checks by default for development versions of GCC
+[ac_checking=1; ac_tree_checking=1; ac_gc_checking=1;])
+if test x$ac_checking != x ; then
+  AC_DEFINE(ENABLE_CHECKING, 1,
+[Define if you want more run-time sanity checks.  This one gets a grab
+   bag of miscellaneous but relatively cheap checks.])
+fi
+if test x$ac_tree_checking != x ; then
+  AC_DEFINE(ENABLE_TREE_CHECKING, 1,
+[Define if you want all operations on trees (the basic data
+   structure of the front ends) to be checked for dynamic type safety
+   at runtime.  This is moderately expensive.])
+fi
+if test x$ac_rtl_checking != x ; then
+  AC_DEFINE(ENABLE_RTL_CHECKING, 1,
+[Define if you want all operations on RTL (the basic data structure
+   of the optimizer and back end) to be checked for dynamic type safety
+   at runtime.  This is quite expensive.])
+fi
+if test x$ac_gc_checking != x ; then
+  AC_DEFINE(ENABLE_GC_CHECKING, 1,
+[Define if you want the garbage collector to do object poisoning and
+   other memory allocation checks.  This is quite expensive.])
+fi
+if test x$ac_gc_always_collect != x ; then
+  AC_DEFINE(ENABLE_GC_ALWAYS_COLLECT, 1,
+[Define if you want the garbage collector to operate in maximally
+   paranoid mode, validating the entire heap and collecting garbage at
+   every opportunity.  This is extremely expensive.])
+fi
+
 
 AC_ARG_ENABLE(cpp,
-[  --disable-cpp           don't provide a user-visible C preprocessor.],
+[  --disable-cpp           don't provide a user-visible C preprocessor],
 [], [enable_cpp=yes])
 
 AC_ARG_WITH(cpp_install_dir,
 [  --with-cpp-install-dir=DIR
                           install the user visible C preprocessor in DIR
-                          (relative to PREFIX) as well as PREFIX/bin.],
+                          (relative to PREFIX) as well as PREFIX/bin],
 [if test x$withval = xyes; then
   AC_MSG_ERROR([option --with-cpp-install-dir requires an argument])
 elif test x$withval != xno; then
   cpp_install_dir=$withval
 fi])
 
-# Use cpplib+cppmain for the preprocessor, but don't link it with the compiler.
-cpp_main=cccp
-AC_ARG_ENABLE(cpplib,
-[  --enable-cpplib         use cpplib for the C preprocessor.],
-if test x$enable_cpplib != xno; then
-  cpp_main=cppmain
-fi)
-
-# Link cpplib into the compiler proper, for C/C++/ObjC.
-AC_ARG_ENABLE(c-cpplib,
-[  --enable-c-cpplib       link cpplib directly into C and C++ compilers
-                          (EXPERIMENTAL) (implies --enable-cpplib).],
-if test x$enable_c_cpplib != xno; then
-  extra_c_objs="${extra_c_objs} libcpp.a"
-  extra_cxx_objs="${extra_cxx_objs} ../libcpp.a"
-  extra_c_flags="${extra_c_flags} -DUSE_CPPLIB=1"
-  cpp_main=cppmain
-fi)
-
 # Enable Multibyte Characters for C/C++
 AC_ARG_ENABLE(c-mbchar,
-[  --enable-c-mbchar       enable multibyte characters for C and C++.],
+[  --enable-c-mbchar       enable multibyte characters for C and C++],
 if test x$enable_c_mbchar != xno; then
-  extra_c_flags=-DMULTIBYTE_CHARS=1
+  AC_DEFINE(MULTIBYTE_CHARS, 1,
+  [Define if you want the C and C++ compilers to support multibyte
+   character sets for source code.])
 fi)
-
-# Disable fast fixincludes
-AC_ARG_ENABLE(fast-fixincludes,
-[  --disable-fast-fixincludes
-                         Disable the new fast fixincludes.
-                         Run the old fixincludes script unconditionally],
-if test x$enable_fast_fixincludes = xno ; then
-  cp $srcdir/fixincludes ./fixinc.sh
-fi)
-
-# Enable Haifa scheduler.
-AC_ARG_ENABLE(haifa,
-[  --enable-haifa          use the experimental scheduler.
-  --disable-haifa         don't use the experimental scheduler for the
-                          targets which normally enable it.])
-
+  
 # Enable threads
 # Pass with no value to take the default
 # Pass with a value to specify a thread package
 AC_ARG_ENABLE(threads,
-[  --enable-threads        enable thread usage for target GCC.
-  --enable-threads=LIB    use LIB thread package for target GCC.],
-if test x$enable_threads = xno; then
-	enable_threads=''
-fi,
+[  --enable-threads        enable thread usage for target GCC
+  --enable-threads=LIB    use LIB thread package for target GCC],,
 enable_threads='')
 
 enable_threads_flag=$enable_threads
@@ -261,7 +289,7 @@ case x${enable_threads_flag} in
 		target_thread_file=''
 		;;
 	xdecosf1 | xirix | xmach | xos2 | xposix | xpthreads | xsingle | \
-	xsolaris | xwin32 | xdce | xvxworks)
+	xsolaris | xwin32 | xdce | xrtems| xvxworks | xaix)
 		target_thread_file=$enable_threads_flag
 		;;
 	*)
@@ -272,41 +300,119 @@ esac
 
 AC_ARG_ENABLE(objc-gc,
 [  --enable-objc-gc	  enable the use of Boehm's garbage collector with
-			  the GNU Objective-C runtime.],
-if [[[ x$enable_objc_gc = xno ]]]; then
+			  the GNU Objective-C runtime],
+if test x$enable_objc_gc = xno; then
 	objc_boehm_gc=''
 else
 	objc_boehm_gc=1
 fi,
 objc_boehm_gc='')
 
-AC_ARG_ENABLE(java-gc,
-changequote(<<,>>)dnl
-<<  --enable-java-gc=TYPE   choose garbage collector [boehm]>>,
-changequote([,])
-  JAVAGC=$enableval,
-  JAVAGC=boehm)
-
 AC_ARG_WITH(dwarf2,
-[  --enable-dwarf2	  enable DWARF2 debugging as default.],
+[  --with-dwarf2           force the default debug format to be DWARF 2],
 dwarf2="$with_dwarf2",
 dwarf2=no)
+
+AC_ARG_ENABLE(shared,
+[  --disable-shared        don't provide a shared libgcc],
+[
+  case $enable_shared in
+  yes | no) ;;
+  *)
+    enable_shared=no
+    IFS="${IFS= 	}"; ac_save_ifs="$IFS"; IFS="${IFS}:,"
+    for pkg in $enableval; do
+      if test "X$pkg" = "Xgcc" || test "X$pkg" = "Xlibgcc"; then
+        enable_shared=yes
+      fi
+    done
+    IFS="$ac_save_ifs"
+    ;;
+  esac
+], [enable_shared=yes])
+AC_SUBST(enable_shared)
 
 # Determine the host, build, and target systems
 AC_CANONICAL_SYSTEM
 
+# Set program_transform_name
+AC_ARG_PROGRAM
+
 # Find the native compiler
 AC_PROG_CC
+AC_PROG_CC_C_O
+# autoconf is lame and doesn't give us any substitution variable for this.
+if eval "test \"`echo '$ac_cv_prog_cc_'${ac_cc}_c_o`\" = no"; then
+  NO_MINUS_C_MINUS_O=yes
+else
+  OUTPUT_OPTION='-o $@'
+fi
+AC_SUBST(NO_MINUS_C_MINUS_O)
+AC_SUBST(OUTPUT_OPTION)
+
+AC_CACHE_CHECK(whether ${CC-cc} accepts -Wno-long-long,
+ac_cv_prog_cc_no_long_long,
+[save_CFLAGS="$CFLAGS"
+CFLAGS="-Wno-long-long"
+AC_TRY_COMPILE(,,ac_cv_prog_cc_no_long_long=yes,
+	       ac_cv_prog_cc_no_long_long=no)
+CFLAGS="$save_CFLAGS"])
+strict1_warn=
+if test $ac_cv_prog_cc_no_long_long = yes; then
+  strict1_warn="-pedantic -Wno-long-long"
+fi
+AC_SUBST(strict1_warn)
+
+AC_PROG_CPP
+AC_C_INLINE
+gcc_AC_C_VOLATILE
+
+gcc_AC_C_LONG_DOUBLE
+gcc_AC_C_LONG_LONG
+gcc_AC_C__BOOL
+
+# sizeof(char) is 1 by definition.
+gcc_AC_COMPILE_CHECK_SIZEOF(short)
+gcc_AC_COMPILE_CHECK_SIZEOF(int)
+gcc_AC_COMPILE_CHECK_SIZEOF(long)
+if test $ac_cv_c_long_long = yes; then
+  gcc_AC_COMPILE_CHECK_SIZEOF(long long)
+fi
+if test $ac_cv_c___int64 = yes; then
+  gcc_AC_COMPILE_CHECK_SIZEOF(__int64)
+fi
+
+gcc_AC_C_CHARSET
 
 # If the native compiler is GCC, we can enable warnings even in stage1.  
 # That's useful for people building cross-compilers, or just running a
 # quick `make'.
-if test "x$GCC" = "xyes"; then 
-  stage1_warn_cflags='$(WARN_CFLAGS)'
-else
-  stage1_warn_cflags=""
+warn_cflags=
+if test "x$GCC" = "xyes"; then
+  warn_cflags='$(GCC_WARN_CFLAGS)'
 fi
-AC_SUBST(stage1_warn_cflags)
+AC_SUBST(warn_cflags)
+
+# Stage specific cflags for build.
+stage1_cflags=
+case $build in
+vax-*-*)
+  if test x$GCC = xyes
+  then
+    stage1_cflags="-Wa,-J"
+  else
+    stage1_cflags="-J"
+  fi
+  ;;
+powerpc-*-darwin*)
+  # The spiffy cpp-precomp chokes on some legitimate constructs in GCC
+  # sources; use -no-cpp-precomp to get to GNU cpp.
+  # Apple's GCC has bugs in designated initializer handling, so disable
+  # that too.
+  stage1_cflags="-no-cpp-precomp -DHAVE_DESIGNATED_INITIALIZERS=0"
+  ;;
+esac
+AC_SUBST(stage1_cflags)
 
 AC_PROG_MAKE_SET
 
@@ -332,41 +438,133 @@ else
     AC_MSG_RESULT(no)
 fi
 
+AC_MSG_CHECKING(for GNU C library)
+AC_CACHE_VAL(gcc_cv_glibc,
+[AC_TRY_COMPILE(
+  [#include <features.h>],[
+#if ! (defined __GLIBC__ || defined __GNU_LIBRARY__)
+#error Not a GNU C library system
+#endif], 
+  [gcc_cv_glibc=yes], 
+  gcc_cv_glibc=no)])
+AC_MSG_RESULT($gcc_cv_glibc)
+if test $gcc_cv_glibc = yes; then
+  AC_DEFINE(_GNU_SOURCE, 1, [Always define this when using the GNU C Library])
+fi
+
 # Find some useful tools
 AC_PROG_AWK
-AC_PROG_LEX
-GCC_PROG_LN
-GCC_PROG_LN_S
-GCC_C_VOLATILE
+gcc_AC_PROG_LN
+gcc_AC_PROG_LN_S
 AC_PROG_RANLIB
-AC_PROG_YACC
-EGCS_PROG_INSTALL
+gcc_AC_PROG_INSTALL
 
 AC_HEADER_STDC
 AC_HEADER_TIME
-GCC_HEADER_STRING
+gcc_AC_HEADER_STDBOOL
+gcc_AC_HEADER_STRING
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS(limits.h stddef.h string.h strings.h stdlib.h time.h fcntl.h unistd.h stab.h sys/file.h sys/time.h sys/resource.h sys/param.h sys/times.h sys/stat.h direct.h)
+AC_CHECK_HEADERS(limits.h stddef.h string.h strings.h stdlib.h time.h \
+		 fcntl.h unistd.h sys/file.h sys/time.h \
+		 sys/resource.h sys/param.h sys/times.h sys/stat.h \
+		 direct.h malloc.h langinfo.h)
 
 # Check for thread headers.
 AC_CHECK_HEADER(thread.h, [have_thread_h=yes], [have_thread_h=])
 AC_CHECK_HEADER(pthread.h, [have_pthread_h=yes], [have_pthread_h=])
 
-# See if GNAT has been installed
-AC_CHECK_PROG(gnat, gnatbind, yes, no)
+# These tests can't be done till we know if we have limits.h.
+gcc_AC_C_CHAR_BIT
+gcc_AC_C_COMPILE_ENDIAN
+gcc_AC_C_FLOAT_FORMAT
 
-# See if the system preprocessor understands the ANSI C preprocessor
-# stringification operator.
-AC_MSG_CHECKING(whether cpp understands the stringify operator)
-AC_CACHE_VAL(gcc_cv_c_have_stringify,
-[AC_TRY_COMPILE(,
-[#define S(x)   #x
-char *test = S(foo);],
-gcc_cv_c_have_stringify=yes, gcc_cv_c_have_stringify=no)])
-AC_MSG_RESULT($gcc_cv_c_have_stringify)
-if test $gcc_cv_c_have_stringify = yes; then
-  AC_DEFINE(HAVE_CPP_STRINGIFY)
+# See if GNAT has been installed
+gcc_AC_PROG_GNAT
+
+# See if we have the mktemp command.
+AC_CHECK_PROG(have_mktemp_command, mktemp, yes, no)
+
+# Do we have a single-tree copy of texinfo?
+if test -f $srcdir/../texinfo/Makefile.in; then
+  MAKEINFO='$(objdir)/../texinfo/makeinfo/makeinfo'
+  gcc_cv_prog_makeinfo_modern=yes
+  AC_MSG_RESULT([Using makeinfo from the unified source tree.])
+else
+  # See if makeinfo has been installed and is modern enough
+  # that we can use it.
+  gcc_AC_CHECK_PROG_VER(MAKEINFO, makeinfo, --version,
+  [GNU texinfo.* \([0-9][0-9.]*\)],
+  [4.*])
 fi
+
+if test $gcc_cv_prog_makeinfo_modern = no; then
+  AC_MSG_WARN([
+*** Makeinfo is missing or too old.
+*** Info documentation will not be built.])
+  BUILD_INFO=
+else
+  BUILD_INFO=info		AC_SUBST(BUILD_INFO)
+fi
+
+# Is pod2man recent enough to regenerate manpages?
+AC_MSG_CHECKING([for recent Pod::Man])
+if (perl -e 'use 1.10 Pod::Man') >/dev/null 2>&1; then
+  AC_MSG_RESULT(yes)
+  GENERATED_MANPAGES=generated-manpages		AC_SUBST(GENERATED_MANPAGES)
+else
+  AC_MSG_RESULT(no)
+  GENERATED_MANPAGES=
+fi
+
+# How about lex?
+dnl Don't use AC_PROG_LEX; we insist on flex.
+dnl LEXLIB is not useful in gcc.
+if test -f $srcdir/../flex/skel.c; then
+  FLEX='$(objdir)/../flex/flex'
+else
+  AC_CHECK_PROG(FLEX, flex, flex, false)
+fi
+
+# Bison?
+# The -L switch is so bison can find its skeleton file.
+if test -f $srcdir/../bison/bison.simple; then
+  BISON='$(objdir)/../bison/bison -L $(srcdir)/../bison/'
+else
+  AC_CHECK_PROG(BISON, bison, bison, false)
+fi
+
+# These libraries may be used by collect2.
+# We may need a special search path to get them linked.
+AC_CACHE_CHECK(for collect2 libraries, gcc_cv_collect2_libs,
+[save_LIBS="$LIBS"
+for libs in '' -lld -lmld \
+		'-L/usr/lib/cmplrs/cc2.11 -lmld' \
+		'-L/usr/lib/cmplrs/cc3.11 -lmld'
+do
+	LIBS="$libs"
+	AC_TRY_LINK_FUNC(ldopen,
+		[gcc_cv_collect2_libs="$libs"; break])
+done
+LIBS="$save_LIBS"
+test -z "$gcc_cv_collect2_libs" && gcc_cv_collect2_libs='none required'])
+case $gcc_cv_collect2_libs in
+	"none required")	;;
+	*)	COLLECT2_LIBS=$gcc_cv_collect2_libs ;;
+esac
+AC_SUBST(COLLECT2_LIBS)
+
+# When building Ada code on Alpha, we need exc_resume which is usually in
+# -lexc.  So test for it.
+save_LIBS="$LIBS"
+LIBS=
+AC_SEARCH_LIBS(exc_resume, exc)
+GNAT_LIBEXC="$LIBS"
+LIBS="$save_LIBS"
+AC_SUBST(GNAT_LIBEXC)
+
+# See if the stage1 system preprocessor understands the ANSI C
+# preprocessor stringification operator.  (Used by symcat.h.)
+AC_C_STRINGIZE
 
 # Use <inttypes.h> only if it exists,
 # doesn't clash with <sys/types.h>, and declares intmax_t.
@@ -380,19 +578,40 @@ AC_CACHE_VAL(gcc_cv_header_inttypes_h,
   gcc_cv_header_inttypes_h=no)])
 AC_MSG_RESULT($gcc_cv_header_inttypes_h)
 if test $gcc_cv_header_inttypes_h = yes; then
-  AC_DEFINE(HAVE_INTTYPES_H)
+  AC_DEFINE(HAVE_INTTYPES_H, 1,
+	[Define if you have a working <inttypes.h> header file.])
 fi
 
-AC_CHECK_FUNCS(strtoul bsearch strerror putenv popen bcopy bzero bcmp \
-	index rindex strchr strrchr kill getrlimit setrlimit atoll atoq \
-	sysconf isascii gettimeofday strsignal putc_unlocked fputc_unlocked \
-	fputs_unlocked)
+dnl Disabled until we have a complete test for buggy enum bitfields.
+dnl gcc_AC_C_ENUM_BF_UNSIGNED
 
-# Make sure wchar_t is available
-#AC_CHECK_TYPE(wchar_t, unsigned int)
+AC_CHECK_FUNCS(times clock dup2 kill getrlimit setrlimit atoll atoq \
+	sysconf strsignal putc_unlocked fputc_unlocked fputs_unlocked \
+	fwrite_unlocked fprintf_unlocked getrusage nl_langinfo lstat)
 
-GCC_FUNC_VFPRINTF_DOPRNT
-GCC_FUNC_PRINTF_PTR
+AC_CHECK_TYPE(ssize_t, int)
+
+# Try to determine the array type of the second argument of getgroups
+# for the target system (int or gid_t).
+AC_TYPE_GETGROUPS
+if test "${target}" = "${build}"; then
+  TARGET_GETGROUPS_T=$ac_cv_type_getgroups
+else
+  case "${target}" in
+	# This condition may need some tweaking.  It should include all
+	# targets where the array type of the second argument of getgroups
+	# is int and the type of gid_t is not equivalent to int.
+	*-*-sunos* | *-*-ultrix*)
+		TARGET_GETGROUPS_T=int
+		;;
+	*)
+		TARGET_GETGROUPS_T=gid_t
+		;;
+  esac
+fi
+AC_SUBST(TARGET_GETGROUPS_T)
+
+gcc_AC_FUNC_PRINTF_PTR
 
 case "${host}" in
 *-*-uwin*)
@@ -400,24 +619,76 @@ case "${host}" in
 *** UWIN may not be used as a host platform because
 *** linking with posix.dll is not allowed by the GNU GPL])
   ;;
+*-*-*vms*)
+  # Under VMS, vfork works very different than on Unix. The standard test 
+  # won't work, and it isn't easily adaptable. It makes more sense to
+  # just force it.
+  ac_cv_func_vfork_works=yes
+  ;;
 esac
 AC_FUNC_VFORK
+AC_FUNC_MMAP_ANYWHERE
+AC_FUNC_MMAP_FILE
 
-GCC_NEED_DECLARATIONS(malloc realloc calloc free bcopy bzero bcmp \
-	index rindex getenv atol sbrk abort atof strerror getcwd getwd \
-	strsignal putc_unlocked fputs_unlocked strstr)
+AM_ICONV
 
-GCC_NEED_DECLARATIONS(getrlimit setrlimit, [
-#include <sys/types.h>
+# We will need to find libiberty.h and ansidecl.h
+saved_CFLAGS="$CFLAGS"
+CFLAGS="$CFLAGS -I${srcdir} -I${srcdir}/../include"
+gcc_AC_CHECK_DECLS(getenv atol sbrk abort atof getcwd getwd \
+	strsignal putc_unlocked fputs_unlocked fwrite_unlocked \
+        fprintf_unlocked strstr errno \
+	malloc realloc calloc free basename getopt clock, , ,[
+#include "ansidecl.h"
+#include "system.h"])
+
+gcc_AC_CHECK_DECLS(getrlimit setrlimit getrusage, , ,[
+#include "ansidecl.h"
+#include "system.h"
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
 #endif
 ])
 
-AC_DECL_SYS_SIGLIST
+gcc_AC_CHECK_DECLS(times, , ,[
+#include "ansidecl.h"
+#include "system.h"
+#ifdef HAVE_SYS_TIMES_H
+#include <sys/times.h>
+#endif
+])
+
+# More time-related stuff.
+AC_CACHE_CHECK(for struct tms, ac_cv_struct_tms, [
+AC_TRY_COMPILE([
+#include "ansidecl.h"
+#include "system.h"
+#ifdef HAVE_SYS_TIMES_H
+#include <sys/times.h>
+#endif
+], [struct tms tms;], ac_cv_struct_tms=yes, ac_cv_struct_tms=no)])
+if test $ac_cv_struct_tms = yes; then
+  AC_DEFINE(HAVE_STRUCT_TMS, 1,
+  [Define if <sys/times.h> defines struct tms.])
+fi
+
+# use gcc_cv_* here because this doesn't match the behavior of AC_CHECK_TYPE.
+# revisit after autoconf 2.50.
+AC_CACHE_CHECK(for clock_t, gcc_cv_type_clock_t, [
+AC_TRY_COMPILE([
+#include "ansidecl.h"
+#include "system.h"
+], [clock_t x;], gcc_cv_type_clock_t=yes, gcc_cv_type_clock_t=no)])
+if test $gcc_cv_type_clock_t = yes; then
+  AC_DEFINE(HAVE_CLOCK_T, 1,
+  [Define if <time.h> defines clock_t.])
+fi
+
+# Restore CFLAGS from before the gcc_AC_NEED_DECLARATIONS tests.
+CFLAGS="$saved_CFLAGS"
 
 # mkdir takes a single argument on some systems. 
-GCC_FUNC_MKDIR_TAKES_ONE_ARG
+gcc_AC_FUNC_MKDIR_TAKES_ONE_ARG
 
 # File extensions
 manext='.1'
@@ -440,3090 +711,7 @@ host_exeext=
 # then we decode the target machine and forget everything else
 # that came from the host machine.
 for machine in $build $host $target; do
-
-	out_file=
-	xmake_file=
-	tmake_file=
-	extra_headers=
-	extra_passes=
-	extra_parts=
-	extra_programs=
-	extra_objs=
-	extra_host_objs=
-	extra_gcc_objs=
-	xm_defines=
-	float_format=
-	# Set this to force installation and use of collect2.
-	use_collect2=
-	# Set this to override the default target model.
-	target_cpu_default=
-	# Set this to control how the header file directory is installed.
-	install_headers_dir=install-headers-tar
-	# Set this to a non-empty list of args to pass to cpp if the target
-	# wants its .md file passed through cpp.
-	md_cppflags=
-	# Set this if directory names should be truncated to 14 characters.
-	truncate_target=
-	# Set this if gdb needs a dir command with `dirname $out_file`
-	gdb_needs_out_file_path=
-	# Set this if the build machine requires executables to have a
-	# file name suffix.
-	exeext=
-	# Set this to control which thread package will be used.
-	thread_file=
-	# Reinitialize these from the flag values every loop pass, since some
-	# configure entries modify them.
-	gas="$gas_flag"
-	gnu_ld="$gnu_ld_flag"
-	enable_threads=$enable_threads_flag
-
-	# Set default cpu_type, tm_file and xm_file so it can be updated in
-	# each machine entry.
-	cpu_type=`echo $machine | sed 's/-.*$//'`
-	case $machine in
-	alpha*-*-*)
-		cpu_type=alpha
-		;;
-	arm*-*-*)
-		cpu_type=arm
-		;;
-	c*-convex-*)
-		cpu_type=convex
-		;;
-changequote(,)dnl
-	i[34567]86-*-*)
-changequote([,])dnl
-		cpu_type=i386
-		;;
-	hppa*-*-*)
-		cpu_type=pa
-		;;
-	m68000-*-*)
-		cpu_type=m68k
-		;;
-	mips*-*-*)
-		cpu_type=mips
-		;;
-	powerpc*-*-*)
-		cpu_type=rs6000
-		;;
-	pyramid-*-*)
-		cpu_type=pyr
-		;;
-	sparc*-*-*)
-		cpu_type=sparc
-		;;
-	esac
-
-	tm_file=${cpu_type}/${cpu_type}.h
-	xm_file=${cpu_type}/xm-${cpu_type}.h
-	
-	# Common parts for linux-gnu and openbsd systems
-	case $machine in
-	*-*-linux-gnu*)
-		xm_defines="HAVE_ATEXIT POSIX BSTRING"
-		;;
-	*-*-openbsd*)
-		tm_file=${cpu_type}/openbsd.h
-		tmake_file="t-libc-ok t-openbsd"
-		# avoid surprises, always provide an xm-openbsd file 
-		xm_file=${cpu_type}/xm-openbsd.h
-		# don't depend on processor x-fragments as well
-		xmake_file=none
- 		if test x$enable_threads = xyes; then
- 			thread_file='posix'
-			tmake_file="${tmake_file} t-openbsd-thread"
-		fi
-		;;
-	esac
-
-	case $machine in
-	# Support site-specific machine types.
-	*local*)
-		cpu_type=`echo $machine | sed -e 's/-.*//'`
-		rest=`echo $machine | sed -e "s/$cpu_type-//"`
-		xm_file=${cpu_type}/xm-$rest.h
-		tm_file=${cpu_type}/$rest.h
-		if test -f $srcdir/config/${cpu_type}/x-$rest; \
-		then xmake_file=${cpu_type}/x-$rest; \
-		else true; \
-		fi
-		if test -f $srcdir/config/${cpu_type}/t-$rest; \
-		then tmake_file=${cpu_type}/t-$rest; \
-		else true; \
-		fi
-		;;
-	1750a-*-*)
-		;;
-	a29k-*-bsd* | a29k-*-sym1*)
-		tm_file="${tm_file} a29k/unix.h"
-		xm_defines=USG
-		xmake_file=a29k/x-unix
-		use_collect2=yes
-		;;
-	a29k-*-udi | a29k-*-coff)
-		tm_file="${tm_file} dbxcoff.h a29k/udi.h"
-		tmake_file=a29k/t-a29kbare
-		;;
-	a29k-wrs-vxworks*)
-		tm_file="${tm_file} dbxcoff.h a29k/udi.h a29k/vx29k.h"
-		tmake_file=a29k/t-vx29k
-		extra_parts="crtbegin.o crtend.o"
-		thread_file='vxworks'
-		;;
-	a29k-*-*)			# Default a29k environment.
-		use_collect2=yes
-		;;
-	alpha-*-interix)
-		tm_file="${tm_file} alpha/alpha32.h interix.h alpha/alpha-interix.h"
-
-		# GAS + IEEE_CONFORMANT+IEEE (no inexact);
-		#target_cpu_default="MASK_GAS|MASK_IEEE_CONFORMANT|MASK_IEEE"
-
-		# GAS + IEEE_CONFORMANT
-		target_cpu_default="MASK_GAS|MASK_IEEE_CONFORMANT"
-
-		xm_file="alpha/xm-alpha-interix.h xm-interix.h"
-		xmake_file="x-interix alpha/t-pe"
-		tmake_file="alpha/t-interix alpha/t-ieee"
- 		if test x$enable_threads = xyes ; then
-			thread_file='posix'
-		fi
-		if test x$stabs = xyes ; then
-			tm_file="${tm_file} dbxcoff.h"
-		fi
-		#prefix='$$INTERIX_ROOT'/usr/contrib
-		#local_prefix='$$INTERIX_ROOT'/usr/contrib
-		;;
-	alpha*-*-linux-gnuecoff*)
-		tm_file="${tm_file} alpha/linux-ecoff.h alpha/linux.h"
-		target_cpu_default="MASK_GAS"
-		tmake_file="alpha/t-ieee"
-		gas=no
-		xmake_file=none
-		gas=yes gnu_ld=yes
-		;;
-	alpha*-*-linux-gnulibc1*)
-		tm_file="${tm_file} alpha/elf.h alpha/linux.h alpha/linux-elf.h"
-		target_cpu_default="MASK_GAS"
-		tmake_file="t-linux t-linux-gnulibc1 alpha/t-linux alpha/t-crtbe alpha/t-ieee"
-		extra_parts="crtbegin.o crtend.o"
-		xmake_file=none
-		gas=yes gnu_ld=yes
- 		if test x$enable_threads = xyes; then
- 			thread_file='posix'
- 		fi
-		;;
-	alpha*-*-linux-gnu*)
-		tm_file="${tm_file} alpha/elf.h alpha/linux.h alpha/linux-elf.h"
-		target_cpu_default="MASK_GAS"
-		tmake_file="t-linux alpha/t-linux alpha/t-crtbe alpha/t-ieee"
-		extra_parts="crtbegin.o crtend.o"
-		xmake_file=none
-		gas=yes gnu_ld=yes
- 		if test x$enable_threads = xyes; then
- 			thread_file='posix'
- 		fi
-		;;
-	alpha*-*-netbsd*)
-		tm_file="${tm_file} alpha/elf.h alpha/netbsd.h alpha/netbsd-elf.h"
-		target_cpu_default="MASK_GAS"
-		tmake_file="alpha/t-crtbe alpha/t-ieee"
-		extra_parts="crtbegin.o crtend.o"
-		xmake_file=none
-		gas=yes gnu_ld=yes
-		;;
-
-	alpha*-*-openbsd*)
-		# default x-alpha is only appropriate for dec-osf.
-		target_cpu_default="MASK_GAS"
-		tmake_file="alpha/t-ieee"
-		;;
-		
-	alpha*-dec-osf*)
-		if test x$stabs = xyes
-		then
-			tm_file="${tm_file} dbx.h"
-		fi
-		if test x$gas != xyes
-		then
-			extra_passes="mips-tfile mips-tdump"
-		fi
-		use_collect2=yes
-		tmake_file="alpha/t-ieee"
-		case $machine in
-		  *-*-osf1*)
-		    tm_file="${tm_file} alpha/osf.h alpha/osf12.h alpha/osf2or3.h"
-		    ;;
-changequote(,)dnl
-		  *-*-osf[23]*)
-changequote([,])dnl
-		    tm_file="${tm_file} alpha/osf.h alpha/osf2or3.h"
-		    ;;
-		  *-*-osf4*)
-		    tm_file="${tm_file} alpha/osf.h"
-		    # Some versions of OSF4 (specifically X4.0-9 296.7) have
-		    # a broken tar, so we use cpio instead.
-		    install_headers_dir=install-headers-cpio
-		    ;;
-		esac
-		case $machine in
-changequote(,)dnl
-		  *-*-osf4.0[b-z] | *-*-osf4.[1-9]*)
-changequote([,])dnl
-		    target_cpu_default=MASK_SUPPORT_ARCH
-		    ;;
-		esac
-		;;
- 	alpha*-*-vxworks*)
-		tm_file="${tm_file} dbx.h alpha/vxworks.h"
-		tmake_file="alpha/t-ieee"
-		if [ x$gas != xyes ]
-		then
-			extra_passes="mips-tfile mips-tdump"
-		fi
-		use_collect2=yes
-		thread_file='vxworks'
-		;;
-	alpha*-*-winnt*)
-	 	tm_file="${tm_file} alpha/alpha32.h alpha/win-nt.h winnt/win-nt.h"
-		xm_file="${xm_file} config/winnt/xm-winnt.h alpha/xm-winnt.h"
-		tmake_file="t-libc-ok alpha/t-ieee"
-		xmake_file=winnt/x-winnt
-		extra_host_objs=oldnames.o
-		extra_gcc_objs="spawnv.o oldnames.o"
-		if test x$gnu_ld != xyes
-		then
-			extra_programs=ld.exe
-		fi
- 		if test x$enable_threads = xyes; then
-			thread_file='win32'
-		fi
-		;;
-	alpha*-dec-vms*)
-		tm_file=alpha/vms.h
-		xm_file="${xm_file} alpha/xm-vms.h"
-		tmake_file="alpha/t-vms alpha/t-ieee"
-		;;
-	arc-*-elf*)
-		extra_parts="crtinit.o crtfini.o"
-		;;
-	arm-*-coff* | armel-*-coff*)
-		tm_file=arm/coff.h
-		tmake_file=arm/t-bare
-		;;
-	arm-*-vxworks*)
-		tm_file=arm/vxarm.h
-		tmake_file=arm/t-bare
-		thread_file='vxworks'
-		;;
-changequote(,)dnl
-	arm-*-riscix1.[01]*)		# Acorn RISC machine (early versions)
-changequote([,])dnl
-		tm_file=arm/riscix1-1.h
-		use_collect2=yes
-		;;
-	arm-*-riscix*)			# Acorn RISC machine
-		if test x$gas = xyes
-		then
-		    tm_file=arm/rix-gas.h
-		else
-		    tm_file=arm/riscix.h
-		fi
-		xmake_file=arm/x-riscix
-		tmake_file=arm/t-riscix
-		use_collect2=yes
-		;;
-	arm-semi-aout | armel-semi-aout)
-		tm_file=arm/semi.h
-		tmake_file=arm/t-semi
-		;;
-	arm-semi-aof | armel-semi-aof)
-		tm_file=arm/semiaof.h
-		tmake_file=arm/t-semiaof
-		;;
-	arm*-*-netbsd*)
-		tm_file=arm/netbsd.h
-		xm_file="arm/xm-netbsd.h ${xm_file}"
-		tmake_file="t-netbsd arm/t-netbsd"
-       use_collect2=yes
-		;;
-	arm*-*-linux-gnuaout*)		# ARM GNU/Linux with a.out
-		cpu_type=arm
-		xmake_file=x-linux
-		tm_file=arm/linux-aout.h
-		tmake_file=arm/t-linux
-		gnu_ld=yes
-		;;
-	arm*-*-linux-gnuoldld*)		# ARM GNU/Linux with old ELF linker
-		xm_file=arm/xm-linux.h
-		xmake_file=x-linux
-		tm_file="arm/linux-oldld.h arm/linux-elf.h"
-		case $machine in
-		armv2*-*-*)
-			tm_file="arm/linux-elf26.h $tm_file"
-			;;
-		esac
-		tmake_file="t-linux arm/t-linux"
-		extra_parts="crtbegin.o crtbeginS.o crtend.o crtendS.o"
-		gnu_ld=yes
-		case x${enable_threads} in
-		x | xyes | xpthreads | xposix)
-			thread_file='posix'
-			;;
-		esac
-		;;
-	arm*-*-linux-gnu*)		# ARM GNU/Linux with ELF
-		xm_file=arm/xm-linux.h
-		xmake_file=x-linux
-		tm_file="arm/linux-elf.h"
-		case $machine in
-		armv2*-*-*)
-			tm_file="arm/linux-elf26.h $tm_file"
-			;;
-		esac
-		tmake_file="t-linux arm/t-linux"
-		extra_parts="crtbegin.o crtbeginS.o crtend.o crtendS.o"
-		gnu_ld=yes
-		case x${enable_threads} in
-		x | xyes | xpthreads | xposix)
-			thread_file='posix'
-			;;
-		esac
-		;;
-	arm*-*-aout)
-		tm_file=arm/aout.h
-		tmake_file=arm/t-bare
-		;;
-        arm*-*-ecos-elf)
-		tm_file=arm/ecos-elf.h
-		tmake_file=arm/t-elf
-		;; 
-	arm*-*-elf)
-		tm_file=arm/unknown-elf.h
-		tmake_file=arm/t-arm-elf
-		;;
-        arm*-*-oabi)
-		tm_file=arm/unknown-elf-oabi.h
-		tmake_file=arm/t-arm-elf
-		;;
-	c1-convex-*)			# Convex C1
-		target_cpu_default=1
-		use_collect2=yes
-		;;
-	c2-convex-*)			# Convex C2
-		target_cpu_default=2
-		use_collect2=yes
-		;;
-	c32-convex-*)
-		target_cpu_default=4
-		use_collect2=yes
-		;;
-	c34-convex-*)
-		target_cpu_default=8
-		use_collect2=yes
-		;;
-	c38-convex-*)
-		target_cpu_default=16		
-		use_collect2=yes
-		;;
- 	c4x-*)
- 		cpu_type=c4x
- 		tmake_file=c4x/t-c4x
- 		;;
-	clipper-intergraph-clix*)
-		tm_file="${tm_file} svr3.h clipper/clix.h"
-		xm_file=clipper/xm-clix.h
-		xmake_file=clipper/x-clix
-		extra_headers=va-clipper.h
-		extra_parts="crtbegin.o crtend.o"
-		install_headers_dir=install-headers-cpio
-		;;
-	dsp16xx-*)
-		;;
-	elxsi-elxsi-*)
-		use_collect2=yes
-		;;
-# This hasn't been upgraded to GCC 2.
-#	fx80-alliant-*)			# Alliant FX/80
-#		;;
-	h8300-*-*)
-		float_format=i32
-		;;
-	hppa*-*-openbsd*)
-		target_cpu_default="MASK_PA_11"
-		tmake_file=pa/t-openbsd
-		;;
-	hppa1.1-*-pro*)
-		tm_file="pa/pa-pro.h ${tm_file} pa/pa-pro-end.h libgloss.h"
-		xm_file=pa/xm-papro.h
-		tmake_file=pa/t-pro
-		;;
-	hppa1.1-*-osf*)
-		target_cpu_default="MASK_PA_11"
-		tm_file="${tm_file} pa/pa-osf.h"
-		use_collect2=yes
-		;;
-	hppa1.1-*-rtems*)
-		tm_file="pa/pa-pro.h ${tm_file} pa/pa-pro-end.h libgloss.h pa/rtems.h"
-		xm_file=pa/xm-papro.h
-		tmake_file=pa/t-pro
-		;;
-	hppa1.0-*-osf*)
-		tm_file="${tm_file} pa/pa-osf.h"
-		use_collect2=yes
-		;;
-	hppa1.1-*-bsd*)
-		target_cpu_default="MASK_PA_11"
-		use_collect2=yes
-		;;
-	hppa1.0-*-bsd*)
-		use_collect2=yes
-		;;
-	hppa1.0-*-hpux7*)
-		tm_file="pa/pa-oldas.h ${tm_file} pa/pa-hpux7.h"
-		xm_file=pa/xm-pahpux.h
-		xmake_file=pa/x-pa-hpux
-		if test x$gas = xyes
-		then
-			tm_file="${tm_file} pa/gas.h"
-		fi
-		install_headers_dir=install-headers-cpio
-		use_collect2=yes
-		;;
-changequote(,)dnl
-	hppa1.0-*-hpux8.0[0-2]*)
-changequote([,])dnl
-		tm_file="${tm_file} pa/pa-hpux.h"
-		xm_file=pa/xm-pahpux.h
-		xmake_file=pa/x-pa-hpux
-		if test x$gas = xyes
-		then
-			tm_file="${tm_file} pa/pa-gas.h"
-		else
-			tm_file="pa/pa-oldas.h ${tm_file}"
-		fi
-		install_headers_dir=install-headers-cpio
-		use_collect2=yes
-		;;
-changequote(,)dnl
-	hppa1.1-*-hpux8.0[0-2]*)
-changequote([,])dnl
-		target_cpu_default="MASK_PA_11"
-		tm_file="${tm_file} pa/pa-hpux.h"
-		xm_file=pa/xm-pahpux.h
-		xmake_file=pa/x-pa-hpux
-		if test x$gas = xyes
-		then
-			tm_file="${tm_file} pa/pa-gas.h"
-		else
-			tm_file="pa/pa-oldas.h ${tm_file}"
-		fi
-		install_headers_dir=install-headers-cpio
-		use_collect2=yes
-		;;
-	hppa1.1-*-hpux8*)
-		target_cpu_default="MASK_PA_11"
-		tm_file="${tm_file} pa/pa-hpux.h"
-		xm_file=pa/xm-pahpux.h
-		xmake_file=pa/x-pa-hpux
-		if test x$gas = xyes
-		then
-			tm_file="${tm_file} pa/pa-gas.h"
-		fi
-		install_headers_dir=install-headers-cpio
-		use_collect2=yes
-		;;
-	hppa1.0-*-hpux8*)
-		tm_file="${tm_file} pa/pa-hpux.h"
-		xm_file=pa/xm-pahpux.h
-		xmake_file=pa/x-pa-hpux
-		if test x$gas = xyes
-		then
-			tm_file="${tm_file} pa/pa-gas.h"
-		fi
-		install_headers_dir=install-headers-cpio
-		use_collect2=yes
-		;;
-	hppa1.1-*-hpux10* | hppa2*-*-hpux10*)
-		target_cpu_default="MASK_PA_11"
-		tm_file="${tm_file} pa/pa-hpux.h pa/pa-hpux10.h"
-		xm_file=pa/xm-pahpux.h
-		xmake_file=pa/x-pa-hpux
-		tmake_file=pa/t-pa
-		if test x$gas = xyes
-		then
-			tm_file="${tm_file} pa/pa-gas.h"
-		fi
-		if test x$enable_threads = x; then
-		    enable_threads=$have_pthread_h
-		fi
- 		if test x$enable_threads = xyes; then
-			thread_file='dce'
-			tmake_file="${tmake_file} pa/t-dce-thr"
-		fi
-		install_headers_dir=install-headers-cpio
-		use_collect2=yes
-		;;
-	hppa1.0-*-hpux10*)
-		tm_file="${tm_file} pa/pa-hpux.h pa/pa-hpux10.h"
-		xm_file=pa/xm-pahpux.h
-		xmake_file=pa/x-pa-hpux
-		tmake_file=pa/t-pa
-		if test x$gas = xyes
-		then
-			tm_file="${tm_file} pa/pa-gas.h"
-		fi
-		if test x$enable_threads = x; then
-		    enable_threads=$have_pthread_h
-		fi
- 		if test x$enable_threads = xyes; then
-			thread_file='dce'
-			tmake_file="${tmake_file} pa/t-dce-thr"
-		fi
-		install_headers_dir=install-headers-cpio
-		use_collect2=yes
-		;;
-	hppa1.1-*-hpux* | hppa2*-*-hpux*)
-		target_cpu_default="MASK_PA_11"
-		tm_file="${tm_file} pa/pa-hpux.h pa/pa-hpux9.h"
-		xm_file=pa/xm-pahpux.h
-		xmake_file=pa/x-pa-hpux
-		if test x$gas = xyes
-		then
-			tm_file="${tm_file} pa/pa-gas.h"
-		fi
-		install_headers_dir=install-headers-cpio
-		use_collect2=yes
-		;;
-	hppa1.0-*-hpux*)
-		tm_file="${tm_file} pa/pa-hpux.h pa/pa-hpux9.h"
-		xm_file=pa/xm-pahpux.h
-		xmake_file=pa/x-pa-hpux
-		if test x$gas = xyes
-		then
-			tm_file="${tm_file} pa/pa-gas.h"
-		fi
-		install_headers_dir=install-headers-cpio
-		use_collect2=yes
-		;;
-	hppa1.1-*-hiux* | hppa2*-*-hiux*)
-		target_cpu_default="MASK_PA_11"
-		tm_file="${tm_file} pa/pa-hpux.h pa/pa-hiux.h"
-		xm_file=pa/xm-pahpux.h
-		xmake_file=pa/x-pa-hpux
-		if test x$gas = xyes
-		then
-			tm_file="${tm_file} pa/pa-gas.h"
-		fi
-		install_headers_dir=install-headers-cpio
-		use_collect2=yes
-		;;
-	hppa1.0-*-hiux*)
-		tm_file="${tm_file} pa/pa-hpux.h pa/pa-hiux.h"
-		xm_file=pa/xm-pahpux.h
-		xmake_file=pa/x-pa-hpux
-		if test x$gas = xyes
-		then
-			tm_file="${tm_file} pa/pa-gas.h"
-		fi
-		install_headers_dir=install-headers-cpio
-		use_collect2=yes
-		;;
-	hppa*-*-lites*)
-		target_cpu_default="MASK_PA_11"
-		use_collect2=yes
-		;;
-	i370-*-mvs*)
-		;;
-changequote(,)dnl
-	i[34567]86-ibm-aix*)		# IBM PS/2 running AIX
-changequote([,])dnl
-                if test x$gas = xyes
-		then
-			tm_file=i386/aix386.h
-			extra_parts="crtbegin.o crtend.o"
-			tmake_file=i386/t-crtstuff
-		else
-			tm_file=i386/aix386ng.h
-			use_collect2=yes
-		fi
-		xm_file="xm-alloca.h i386/xm-aix.h ${xm_file}"
-		xm_defines=USG
-		xmake_file=i386/x-aix
-		;;
-changequote(,)dnl
-	i[34567]86-ncr-sysv4*)		# NCR 3000 - ix86 running system V.4
-changequote([,])dnl
-		xm_file="xm-siglist.h xm-alloca.h ${xm_file}"
-		xm_defines="USG POSIX SMALL_ARG_MAX"
-		xmake_file=i386/x-ncr3000
-		if test x$stabs = xyes -a x$gas = xyes
-		then
-			tm_file=i386/sysv4gdb.h
-		else
-			tm_file=i386/sysv4.h
-		fi
-		extra_parts="crtbegin.o crtend.o"
-		tmake_file=i386/t-crtpic
-		;;
-changequote(,)dnl
-	i[34567]86-next-*)
-changequote([,])dnl
-		tm_file=i386/next.h
-		xm_file=i386/xm-next.h
-		tmake_file=i386/t-next
-		xmake_file=i386/x-next
-		extra_objs=nextstep.o
-		extra_parts="crtbegin.o crtend.o"
- 		if test x$enable_threads = xyes; then
-			thread_file='mach'
-		fi
-		;;
-changequote(,)dnl
-	i[34567]86-sequent-bsd*) 		# 80386 from Sequent
-changequote([,])dnl
-		use_collect2=yes
-		if test x$gas = xyes
-		then
-			tm_file=i386/seq-gas.h
-		else
-			tm_file=i386/sequent.h
-		fi
-		;;
-changequote(,)dnl
-	i[34567]86-sequent-ptx1*)
-changequote([,])dnl
-		xm_defines="USG SVR3"
-		xmake_file=i386/x-sysv3
-		tm_file=i386/seq-sysv3.h
-		tmake_file=i386/t-crtstuff
-		extra_parts="crtbegin.o crtend.o"
-		install_headers_dir=install-headers-cpio
-		;;
-changequote(,)dnl
-	i[34567]86-sequent-ptx2* | i[34567]86-sequent-sysv3*)
-changequote([,])dnl
-		xm_defines="USG SVR3"
-		xmake_file=i386/x-sysv3
-		tm_file=i386/seq2-sysv3.h
-		tmake_file=i386/t-crtstuff
-		extra_parts="crtbegin.o crtend.o"
-		install_headers_dir=install-headers-cpio
-		;;
-changequote(,)dnl
-	i[34567]86-sequent-ptx4* | i[34567]86-sequent-sysv4*)
-changequote([,])dnl
-		xm_file="xm-siglist.h xm-alloca.h ${xm_file}"
-		xm_defines="USG POSIX SMALL_ARG_MAX"
-		xmake_file=x-svr4
-		tm_file=i386/ptx4-i.h
-		tmake_file=t-svr4
-		extra_parts="crtbegin.o crtend.o"
-		install_headers_dir=install-headers-cpio
-		;;
-	i386-sun-sunos*)		# Sun i386 roadrunner
-		xm_defines=USG
-		tm_file=i386/sun.h
-		use_collect2=yes
-		;;
-changequote(,)dnl
-	i[34567]86-wrs-vxworks*)
-changequote([,])dnl
-		tm_file=i386/vxi386.h
-		tmake_file=i386/t-i386bare
-		thread_file='vxworks'
-		;;
-changequote(,)dnl
-	i[34567]86-*-aout*)
-changequote([,])dnl
-		tm_file=i386/i386-aout.h
-		tmake_file=i386/t-i386bare
-		;;
-changequote(,)dnl
-	i[34567]86-*-bsdi* | i[34567]86-*-bsd386*)
-changequote([,])dnl
-		tm_file=i386/bsd386.h
-#		tmake_file=t-libc-ok
-		;;
-changequote(,)dnl
-	i[34567]86-*-bsd*)
-changequote([,])dnl
-		tm_file=i386/386bsd.h
-#		tmake_file=t-libc-ok
-# Next line turned off because both 386BSD and BSD/386 use GNU ld.
-#		use_collect2=yes
-		;;
-changequote(,)dnl
-	i[34567]86-*-freebsdelf*)
-changequote([,])dnl
-		tm_file="i386/i386.h i386/att.h svr4.h i386/freebsd-elf.h i386/perform.h"
-		extra_parts="crtbegin.o crtbeginS.o crtend.o crtendS.o"
-		tmake_file=t-freebsd
-		gas=yes
-		gnu_ld=yes
-		stabs=yes
-		;;
-changequote(,)dnl
-	i[34567]86-*-freebsd*)
-changequote([,])dnl
-		tm_file=i386/freebsd.h
-		tmake_file=t-freebsd
-		;;
-changequote(,)dnl
-	i[34567]86-*-netbsd*)
-changequote([,])dnl
-		tm_file=i386/netbsd.h
-		tmake_file=t-netbsd
-       use_collect2=yes
-		;;
-changequote(,)dnl
-	i[34567]86-*-openbsd*)
-changequote([,])dnl
-		# we need collect2 until our bug is fixed...
-		use_collect2=yes
-		;;
-changequote(,)dnl
-	i[34567]86-*-coff*)
-changequote([,])dnl
-		tm_file=i386/i386-coff.h
-		tmake_file=i386/t-i386bare
-		;;
-changequote(,)dnl
-	i[34567]86-*-isc*)		# 80386 running ISC system
-changequote([,])dnl
-		xm_file="${xm_file} i386/xm-isc.h"
-		xm_defines="USG SVR3"
-		case $machine in
-changequote(,)dnl
-		  i[34567]86-*-isc[34]*)
-changequote([,])dnl
-		    xmake_file=i386/x-isc3
-		    ;;
-		  *)
-		    xmake_file=i386/x-isc
-		    ;;
-		esac
-                if test x$gas = xyes -a x$stabs = xyes
-		then
-			tm_file=i386/iscdbx.h
-			tmake_file=i386/t-svr3dbx
-			extra_parts="svr3.ifile svr3z.ifile"
-		else
-			tm_file=i386/isccoff.h
-			tmake_file=i386/t-crtstuff
-			extra_parts="crtbegin.o crtend.o"
-		fi
-		install_headers_dir=install-headers-cpio
-		;;
-changequote(,)dnl
-	i[34567]86-*-linux-gnuoldld*)	# Intel 80386's running GNU/Linux
-changequote([,])dnl			# with a.out format using
-					# pre BFD linkers
-		xmake_file=x-linux-aout
-		tmake_file="t-linux-aout i386/t-crtstuff"
-		tm_file=i386/linux-oldld.h
-		gnu_ld=yes
-		float_format=i386
-		;;
-changequote(,)dnl
-	i[34567]86-*-linux-gnuaout*)	# Intel 80386's running GNU/Linux
-changequote([,])dnl			# with a.out format
-		xmake_file=x-linux-aout
-		tmake_file="t-linux-aout i386/t-crtstuff"
-		tm_file=i386/linux-aout.h
-		gnu_ld=yes
-		float_format=i386
-		;;
-changequote(,)dnl
-	i[34567]86-*-linux-gnulibc1)	# Intel 80386's running GNU/Linux
-changequote([,])dnl			# with ELF format using the
-					# GNU/Linux C library 5
-		xmake_file=x-linux	
-		tm_file=i386/linux.h	
-		tmake_file="t-linux t-linux-gnulibc1 i386/t-crtstuff"
-		extra_parts="crtbegin.o crtbeginS.o crtend.o crtendS.o"
-		gnu_ld=yes
-		float_format=i386
- 		if test x$enable_threads = xyes; then
- 			thread_file='single'
- 		fi
-		;;
-changequote(,)dnl
-	i[34567]86-*-linux-gnu*)	# Intel 80386's running GNU/Linux
-changequote([,])dnl			# with ELF format using glibc 2
-					# aka GNU/Linux C library 6
-		xmake_file=x-linux
-		tm_file=i386/linux.h
-		tmake_file="t-linux i386/t-crtstuff"
-		extra_parts="crtbegin.o crtbeginS.o crtend.o crtendS.o"
-		gnu_ld=yes
-		float_format=i386
- 		if test x$enable_threads = xyes; then
- 			thread_file='posix'
- 		fi
-		;;
-changequote(,)dnl
-	i[34567]86-*-gnu*)
-		float_format=i386
-changequote([,])dnl
-		;;
-changequote(,)dnl
-	i[34567]86-go32-msdos | i[34567]86-*-go32*)
-changequote([,])dnl
-		echo "GO32/DJGPP V1.X is no longer supported. Use *-pc-msdosdjgpp for DJGPP V2.X instead."
-		exit 1
-		;;
-changequote(,)dnl
-	i[34567]86-pc-msdosdjgpp*)
-changequote([,])dnl
-		xm_file=i386/xm-djgpp.h
-		tm_file=i386/djgpp.h
-		tmake_file=i386/t-djgpp
-		xmake_file=i386/x-djgpp
-		gnu_ld=yes
-		gas=yes
-		exeext=.exe
-		case $host in *pc-msdosdjgpp*)
-			target_alias=djgpp
-			;;
-		esac
-		;;
-changequote(,)dnl
-	i[34567]86-moss-msdos* | i[34567]86-*-moss*)
-changequote([,])dnl
-		tm_file=i386/moss.h
-		tmake_file=t-libc-ok
-		gnu_ld=yes
-		gas=yes
-		;;
-changequote(,)dnl
-	i[34567]86-*-lynxos*)
-changequote([,])dnl
-		if test x$gas = xyes
-		then
-			tm_file=i386/lynx.h
-		else
-			tm_file=i386/lynx-ng.h
-		fi
-		xm_file=i386/xm-lynx.h
-		tmake_file=i386/t-i386bare
-		xmake_file=x-lynx
-		;;
-changequote(,)dnl
-	i[34567]86-*-mach*)
-changequote([,])dnl
-		tm_file=i386/mach.h
-#		tmake_file=t-libc-ok
-		use_collect2=yes
-		;;
-changequote(,)dnl
-	i[34567]86-*-osfrose*)		# 386 using OSF/rose
-changequote([,])dnl
-                if test x$elf = xyes
-		then
-			tm_file=i386/osfelf.h
-			use_collect2=
-		else
-			tm_file=i386/osfrose.h
-			use_collect2=yes
-		fi
-		xm_file="i386/xm-osf.h ${xm_file}"
-		xmake_file=i386/x-osfrose
-		tmake_file=i386/t-osf
-		extra_objs=halfpic.o
-		;;
-changequote(,)dnl
-	i[34567]86-go32-rtems*)
-changequote([,])dnl
-		cpu_type=i386
-		xm_file=i386/xm-go32.h
-		tm_file=i386/go32-rtems.h
-		tmake_file="i386/t-go32 t-rtems"
-		;;
-changequote(,)dnl
-	i[34567]86-*-rtemself*)
-changequote([,])dnl
-		cpu_type=i386
-		tm_file=i386/rtemself.h
-		tmake_file="i386/t-i386bare t-rtems"
-		;;
-changequote(,)dnl
-	i[34567]86-*-rtems*)
-changequote([,])dnl
-		cpu_type=i386
-		tm_file=i386/rtems.h
-		tmake_file="i386/t-i386bare t-rtems"
-		;;
-changequote(,)dnl
-	i[34567]86-*-sco3.2v5*)	# 80386 running SCO Open Server 5
-changequote([,])dnl
-		xm_file="xm-siglist.h xm-alloca.h ${xm_file} i386/xm-sco5.h"
-		xm_defines="USG SVR3"
-		xmake_file=i386/x-sco5
-		install_headers_dir=install-headers-cpio
-		tm_file=i386/sco5.h
-		if test x$gas = xyes
-		then
-			tm_file="i386/sco5gas.h ${tm_file}"
-			tmake_file=i386/t-sco5gas
-		else
-			tmake_file=i386/t-sco5
-		fi
-		extra_parts="crti.o crtbegin.o crtend.o crtbeginS.o crtendS.o"
-		;;
-changequote(,)dnl
-	i[34567]86-*-sco3.2v4*) 	# 80386 running SCO 3.2v4 system
-changequote([,])dnl
-		xm_file="${xm_file} i386/xm-sco.h"
-		xm_defines="USG SVR3 BROKEN_LDEXP SMALL_ARG_MAX NO_SYS_SIGLIST"
-		xmake_file=i386/x-sco4
-		install_headers_dir=install-headers-cpio
-                if test x$stabs = xyes
-		then
-			tm_file=i386/sco4dbx.h
-			tmake_file=i386/t-svr3dbx
-			extra_parts="svr3.ifile svr3z.rfile"
-		else
-			tm_file=i386/sco4.h
-			tmake_file=i386/t-crtstuff
-			extra_parts="crtbegin.o crtend.o"
-		fi
-		truncate_target=yes
-		;;
-changequote(,)dnl
-	i[34567]86-*-sco*)	 	# 80386 running SCO system
-changequote([,])dnl
-		xm_file=i386/xm-sco.h
-		xmake_file=i386/x-sco
-		install_headers_dir=install-headers-cpio
-                if test x$stabs = xyes
-		then
-			tm_file=i386/scodbx.h
-			tmake_file=i386/t-svr3dbx
-			extra_parts="svr3.ifile svr3z.rfile"
-		else
-			tm_file=i386/sco.h
-			extra_parts="crtbegin.o crtend.o"
-			tmake_file=i386/t-crtstuff
-		fi
-		truncate_target=yes
-		;;
-changequote(,)dnl
-	i[34567]86-*-solaris2*)
-changequote([,])dnl
-		xm_file="xm-siglist.h xm-alloca.h ${xm_file}"
-		xm_defines="USG POSIX SMALL_ARG_MAX"
-		tm_file=i386/sol2.h
-		if test x$gas = xyes; then
-			# Only needed if gas does not support -s
-			tm_file="i386/sol2gas.h ${tm_file}"
-		fi
-		tmake_file=i386/t-sol2
-		extra_parts="crt1.o crti.o crtn.o gcrt1.o gmon.o crtbegin.o crtend.o"
-		xmake_file=x-svr4
- 		if test x$enable_threads = xyes; then
-			thread_file='solaris'
-		fi
-		;;
-changequote(,)dnl
-       i[34567]86-*-sysv5*)           # Intel x86 on System V Release 5
-changequote([,])dnl
-               xm_file="xm-alloca.h xm-siglist.h ${xm_file}"
-               xm_defines="USG POSIX"
-               tm_file=i386/sysv5.h
-               if test x$stabs = xyes
-               then
-                       tm_file="${tm_file} dbx.h"
-               fi
-               tmake_file=i386/t-crtpic
-               xmake_file=x-svr4
-               extra_parts="crtbegin.o crtend.o"
-	       if test x$enable_threads = xyes; then
-		       thread_file='posix'
-	       fi
-               ;;
-changequote(,)dnl
-	i[34567]86-*-sysv4*)		# Intel 80386's running system V.4
-changequote([,])dnl
-		xm_file="xm-siglist.h xm-alloca.h ${xm_file}"
-		xm_defines="USG POSIX SMALL_ARG_MAX"
-		tm_file=i386/sysv4.h
-		if test x$stabs = xyes
-		then
-			tm_file="${tm_file} dbx.h"
-		fi
-		tmake_file=i386/t-crtpic
-		xmake_file=x-svr4
-		extra_parts="crtbegin.o crtend.o"
-		;;
-changequote(,)dnl
-	i[34567]86-*-udk*)      # Intel x86 on SCO UW/OSR5 Dev Kit
-changequote([,])dnl
-		xm_file="xm-alloca.h xm-siglist.h ${xm_file}"
-		xm_defines="USG POSIX"
-		tm_file=i386/udk.h
-		tmake_file="i386/t-crtpic i386/t-udk"
-		xmake_file=x-svr4
-		extra_parts="crtbegin.o crtend.o"
-		install_headers_dir=install-headers-cpio
-		;;
-changequote(,)dnl
-	i[34567]86-*-osf1*)		# Intel 80386's running OSF/1 1.3+
-changequote([,])dnl
-		cpu_type=i386
-		xm_file="${xm_file} xm-svr4.h i386/xm-sysv4.h i386/xm-osf1elf.h"
-		xm_defines="USE_C_ALLOCA SMALL_ARG_MAX"
-		if test x$stabs = xyes
-		then
-			tm_file=i386/osf1elfgdb.h
-		else
-			tm_file=i386/osf1elf.h
-		fi
-		tmake_file=i386/t-osf1elf
-		xmake_file=i386/x-osf1elf
-		extra_parts="crti.o crtn.o crtbegin.o crtend.o"
-		;;
-changequote(,)dnl
-	i[34567]86-*-sysv*)		# Intel 80386's running system V
-changequote([,])dnl
-		xm_defines="USG SVR3"
-		xmake_file=i386/x-sysv3
-		if test x$gas = xyes
-		then
-			if test x$stabs = xyes
-			then
-				tm_file=i386/svr3dbx.h
-				tmake_file=i386/t-svr3dbx
-				extra_parts="svr3.ifile svr3z.rfile"
-			else
-				tm_file=i386/svr3gas.h
-				extra_parts="crtbegin.o crtend.o"
-				tmake_file=i386/t-crtstuff
-			fi
-		else
-			tm_file=i386/sysv3.h
-			extra_parts="crtbegin.o crtend.o"
-			tmake_file=i386/t-crtstuff
-		fi
-		;;
-	i386-*-vsta)			# Intel 80386's running VSTa kernel
-		xm_file="${xm_file} i386/xm-vsta.h"
-		tm_file=i386/vsta.h
-		tmake_file=i386/t-vsta
-		xmake_file=i386/x-vsta
-		;;
-changequote(,)dnl
-	i[34567]86-*-win32)
-changequote([,])dnl
-		xm_file="${xm_file} i386/xm-cygwin.h"
-		tmake_file=i386/t-cygwin
-		tm_file=i386/win32.h
-		xmake_file=i386/x-cygwin
-		extra_objs=winnt.o
- 		if test x$enable_threads = xyes; then
-			thread_file='win32'
-		fi
-		exeext=.exe
-		;;
-changequote(,)dnl
-	i[34567]86-*-pe | i[34567]86-*-cygwin*)
-changequote([,])dnl
-		xm_file="${xm_file} i386/xm-cygwin.h"
-		tmake_file=i386/t-cygwin
-		tm_file=i386/cygwin.h
-		xmake_file=i386/x-cygwin
-		extra_objs=winnt.o
- 		if test x$enable_threads = xyes; then
-			thread_file='win32'
-		fi
-		exeext=.exe
-		;;
-changequote(,)dnl
-	i[34567]86-*-mingw32*)
-changequote([,])dnl
-		tm_file=i386/mingw32.h
-		xm_file="${xm_file} i386/xm-mingw32.h"
-		tmake_file="i386/t-cygwin i386/t-mingw32"
-		extra_objs=winnt.o
-		xmake_file=i386/x-cygwin
- 		if test x$enable_threads = xyes; then
-			thread_file='win32'
-		fi
-		exeext=.exe
-		case $machine in
-			*mingw32msv*)
-				;;
-			*minwg32crt* | *mingw32*)
-				tm_file="${tm_file} i386/crtdll.h"
-				;;
-		esac
-		;;
-changequote(,)dnl
-	i[34567]86-*-uwin*)
-changequote([,])dnl
-		tm_file=i386/uwin.h
-		tmake_file="i386/t-cygwin i386/t-uwin"
-		extra_objs=winnt.o
-		xmake_file=i386/x-cygwin
- 		if test x$enable_threads = xyes; then
-			thread_file='win32'
-		fi
-		exeext=.exe
-		;;
-changequote(,)dnl
-	i[34567]86-*-interix*)
-changequote([,])dnl
-		tm_file="i386/i386-interix.h interix.h"
-		xm_file="i386/xm-i386-interix.h xm-interix.h"
-		xm_defines="USG NO_SYS_SIGLIST"
-		tmake_file="i386/t-interix"
-		extra_objs=interix.o
-		xmake_file=x-interix
- 		if test x$enable_threads = xyes ; then
-			thread_file='posix'
-		fi
- 		if test x$stabs = xyes ; then
-			tm_file="${tm_file} dbxcoff.h"
-		fi
-		;;
-changequote(,)dnl
-	i[34567]86-*-winnt3*)
-changequote([,])dnl
-		tm_file=i386/win-nt.h
-		out_file=i386/i386.c
-		xm_file="xm-winnt.h ${xm_file}"
-		xmake_file=winnt/x-winnt
-		tmake_file=i386/t-winnt
-		extra_host_objs="winnt.o oldnames.o"
-		extra_gcc_objs="spawnv.o oldnames.o"
-		if test x$gnu_ld != xyes
-		then
-			extra_programs=ld.exe
-		fi
- 		if test x$enable_threads = xyes; then
-			thread_file='win32'
-		fi
-		;;
-changequote(,)dnl
-	i[34567]86-dg-dgux*)
-changequote([,])dnl
-		xm_file="xm-alloca.h xm-siglist.h ${xm_file}"
-		xm_defines="USG POSIX"
-		out_file=i386/dgux.c
-		tm_file=i386/dgux.h
-		tmake_file=i386/t-dgux
-		xmake_file=i386/x-dgux
-		install_headers_dir=install-headers-cpio
-              ;;
-	i860-alliant-*)		# Alliant FX/2800
-		tm_file="${tm_file} svr4.h i860/sysv4.h i860/fx2800.h"
-		xm_file="${xm_file}"
-		xmake_file=i860/x-fx2800
-		tmake_file=i860/t-fx2800
-		extra_parts="crtbegin.o crtend.o"
-		;;
-	i860-*-bsd*)
-		tm_file="${tm_file} i860/bsd.h"
-		if test x$gas = xyes
-		then
-			tm_file="${tm_file} i860/bsd-gas.h"
-		fi
-		use_collect2=yes
-		;;
-	i860-*-mach*)
-		tm_file="${tm_file} i860/mach.h"
-		tmake_file=t-libc-ok
-		;;
-	i860-*-osf*)			# Intel Paragon XP/S, OSF/1AD
-		tm_file="${tm_file} svr3.h i860/paragon.h"
-		xm_defines="USG SVR3"
-		tmake_file=t-osf
-		;;
-	i860-*-sysv3*)
-		tm_file="${tm_file} svr3.h i860/sysv3.h"
-		xm_defines="USG SVR3"
-		xmake_file=i860/x-sysv3
-		extra_parts="crtbegin.o crtend.o"
-		;;
-	i860-*-sysv4*)
-		tm_file="${tm_file} svr4.h i860/sysv4.h"
-		xm_defines="USG SVR3"
-		xmake_file=i860/x-sysv4
-		tmake_file=t-svr4
-		extra_parts="crtbegin.o crtend.o"
-		;;
-	i960-wrs-vxworks5 | i960-wrs-vxworks5.0*)
-		tm_file="${tm_file} i960/vx960.h"
-		tmake_file=i960/t-vxworks960
-		use_collect2=yes
-		thread_file='vxworks'
-		;;
-	i960-wrs-vxworks5* | i960-wrs-vxworks)
-		tm_file="${tm_file} dbxcoff.h i960/i960-coff.h i960/vx960-coff.h"
-		tmake_file=i960/t-vxworks960
-		use_collect2=yes
-		thread_file='vxworks'
-		;;
-	i960-wrs-vxworks*)
-		tm_file="${tm_file} i960/vx960.h"
-		tmake_file=i960/t-vxworks960
-		use_collect2=yes
-		thread_file='vxworks'
-		;;
-	i960-*-coff*)
-		tm_file="${tm_file} dbxcoff.h i960/i960-coff.h libgloss.h"
-		tmake_file=i960/t-960bare
-		use_collect2=yes
-		;;
-	i960-*-rtems)
-		tmake_file="i960/t-960bare t-rtems"
-		tm_file="${tm_file} dbxcoff.h i960/rtems.h"
-		use_collect2=yes
-		;;
-	i960-*-*)			# Default i960 environment.
-		use_collect2=yes
-		;;
-	m32r-*-elf*)
-		extra_parts="crtinit.o crtfini.o"
-		;;
-	m68000-convergent-sysv*)
-		tm_file=m68k/ctix.h
-		xm_file="m68k/xm-3b1.h ${xm_file}"
-		xm_defines=USG
-		use_collect2=yes
-		extra_headers=math-68881.h
-		;;
-	m68000-hp-bsd*)			# HP 9000/200 running BSD
-		tm_file=m68k/hp2bsd.h
-		xmake_file=m68k/x-hp2bsd
-		use_collect2=yes
-		extra_headers=math-68881.h
-		;;
-	m68000-hp-hpux*)		# HP 9000 series 300
-		xm_file="xm-alloca.h ${xm_file}"
-		xm_defines="USG NO_SYS_SIGLIST"
-		if test x$gas = xyes
-		then
-			xmake_file=m68k/x-hp320g
-			tm_file=m68k/hp310g.h
-		else
-			xmake_file=m68k/x-hp320
-			tm_file=m68k/hp310.h
-		fi
-		install_headers_dir=install-headers-cpio
-		use_collect2=yes
-		extra_headers=math-68881.h
-		;;
-	m68000-sun-sunos3*)
-		tm_file=m68k/sun2.h
-		use_collect2=yes
-		extra_headers=math-68881.h
-		;;
-	m68000-sun-sunos4*)
-		tm_file=m68k/sun2o4.h
-		use_collect2=yes
-		extra_headers=math-68881.h
-		;;
-	m68000-att-sysv*)
-		xm_file="m68k/xm-3b1.h ${xm_file}"
-		xm_defines=USG
-		if test x$gas = xyes
-		then
-			tm_file=m68k/3b1g.h
-		else
-			tm_file=m68k/3b1.h
-		fi
-		use_collect2=yes
-		extra_headers=math-68881.h
-		;;
-	m68k-apple-aux*)		# Apple Macintosh running A/UX
-		xm_defines="USG AUX"
-		tmake_file=m68k/t-aux
-		install_headers_dir=install-headers-cpio
-		extra_headers=math-68881.h
-		extra_parts="crt1.o mcrt1.o maccrt1.o crt2.o crtn.o"
-		tm_file=
-		if test "$gnu_ld" = yes
-		then
-			tm_file="${tm_file} m68k/auxgld.h"
-		else
-			tm_file="${tm_file} m68k/auxld.h"
-		fi
-		if test "$gas" = yes
-		then
-			tm_file="${tm_file} m68k/auxgas.h"
-		else
-			tm_file="${tm_file} m68k/auxas.h"
-		fi
-		tm_file="${tm_file} m68k/a-ux.h"
-		float_format=m68k
-		;;
-	m68k-apollo-*)
-		tm_file=m68k/apollo68.h
-		xmake_file=m68k/x-apollo68
-		use_collect2=yes
-		extra_headers=math-68881.h
-		float_format=m68k
-		;;
-	m68k-altos-sysv*)		   # Altos 3068
-		if test x$gas = xyes
-		then
-		        tm_file=m68k/altos3068.h
-			xm_defines=USG
-		else
-			echo "The Altos is supported only with the GNU assembler" 1>&2
-			exit 1
-		fi
-		extra_headers=math-68881.h
-	        ;;
-	m68k-bull-sysv*)		# Bull DPX/2
-		if test x$gas = xyes
-		then
-			if test x$stabs = xyes
-			then
-				tm_file=m68k/dpx2cdbx.h
-			else
-				tm_file=m68k/dpx2g.h
-			fi
-		else
-			tm_file=m68k/dpx2.h
-		fi
-		xm_file="xm-alloca.h ${xm_file}"
-		xm_defines=USG
-		xmake_file=m68k/x-dpx2
-		use_collect2=yes
-		extra_headers=math-68881.h
-		;;
-	m68k-atari-sysv4*)              # Atari variant of V.4.
-		tm_file=m68k/atari.h
-		xm_file="xm-alloca.h ${xm_file}"
-		xm_defines="USG FULL_PROTOTYPES"
-		tmake_file=t-svr4
-		extra_parts="crtbegin.o crtend.o"
-		extra_headers=math-68881.h
-		float_format=m68k
-		;;
-	m68k-motorola-sysv*)
-		tm_file=m68k/mot3300.h
-		xm_file="xm-alloca.h m68k/xm-mot3300.h ${xm_file}"
-		xm_defines=NO_SYS_SIGLIST
-		if test x$gas = xyes
-		then
-			xmake_file=m68k/x-mot3300-gas
-			if test x$gnu_ld = xyes
-			then
-				tmake_file=m68k/t-mot3300-gald
-			else
-				tmake_file=m68k/t-mot3300-gas
-				use_collect2=yes
-			fi
-		else
-			xmake_file=m68k/x-mot3300
-			if test x$gnu_ld = xyes
-			then
-				tmake_file=m68k/t-mot3300-gld
-			else
-				tmake_file=m68k/t-mot3300
-				use_collect2=yes
-			fi
-		fi
-		gdb_needs_out_file_path=yes
-		extra_parts="crt0.o mcrt0.o"
-		extra_headers=math-68881.h
-		float_format=m68k
-		;;
-	m68k-ncr-sysv*)			# NCR Tower 32 SVR3
-		tm_file=m68k/tower-as.h
-		xm_defines="USG SVR3"
-		xmake_file=m68k/x-tower
-		extra_parts="crtbegin.o crtend.o"
-		extra_headers=math-68881.h
-		;;
-        m68k-plexus-sysv*)
-		tm_file=m68k/plexus.h
-		xm_file="xm-alloca.h m68k/xm-plexus.h ${xm_file}"
-		xm_defines=USG
-		use_collect2=yes
-		extra_headers=math-68881.h
-		;;
-	m68k-tti-*)
-		tm_file=m68k/pbb.h
-		xm_file="xm-alloca.h ${xm_file}"
-		xm_defines=USG
-		extra_headers=math-68881.h
-		;;
-	m68k-crds-unos*)
-		xm_file="xm-alloca.h m68k/xm-crds.h ${xm_file}"
-		xm_defines="USG unos"
-		xmake_file=m68k/x-crds
-		tm_file=m68k/crds.h
-		use_collect2=yes
-		extra_headers=math-68881.h
-		;;
-	m68k-cbm-sysv4*)		# Commodore variant of V.4.
-		tm_file=m68k/amix.h
-		xm_file="xm-alloca.h ${xm_file}"
-		xm_defines="USG FULL_PROTOTYPES"
-		xmake_file=m68k/x-amix
-		tmake_file=t-svr4
-		extra_parts="crtbegin.o crtend.o"
-		extra_headers=math-68881.h
-		float_format=m68k
-		;;
-	m68k-ccur-rtu)
-		tm_file=m68k/ccur-GAS.h
-		xmake_file=m68k/x-ccur
-		extra_headers=math-68881.h
-		use_collect2=yes
-		float_format=m68k
-		;;
-	m68k-hp-bsd4.4*)		# HP 9000/3xx running 4.4bsd
-		tm_file=m68k/hp3bsd44.h
-		use_collect2=yes
-		extra_headers=math-68881.h
-		float_format=m68k
-		;;
-	m68k-hp-bsd*)			# HP 9000/3xx running Berkeley Unix
-		tm_file=m68k/hp3bsd.h
-		use_collect2=yes
-		extra_headers=math-68881.h
-		float_format=m68k
-		;;
-	m68k-isi-bsd*)
-		if test x$with_fp = xno
-		then
-			tm_file=m68k/isi-nfp.h
-		else
-			tm_file=m68k/isi.h
-			float_format=m68k
-		fi
-		use_collect2=yes
-		extra_headers=math-68881.h
-		;;
-	m68k-hp-hpux7*)	# HP 9000 series 300 running HPUX version 7.
-		xm_file="xm-alloca.h ${xm_file}"
-		xm_defines="USG NO_SYS_SIGLIST"
-		if test x$gas = xyes
-		then
-			xmake_file=m68k/x-hp320g
-			tm_file=m68k/hp320g.h
-		else
-			xmake_file=m68k/x-hp320
-			tm_file=m68k/hpux7.h
-		fi
-		install_headers_dir=install-headers-cpio
-		use_collect2=yes
-		extra_headers=math-68881.h
-		float_format=m68k
-		;;
-	m68k-hp-hpux*)	# HP 9000 series 300
-		xm_file="xm-alloca.h ${xm_file}"
-		xm_defines="USG NO_SYS_SIGLIST"
-		if test x$gas = xyes
-		then
-			xmake_file=m68k/x-hp320g
-			tm_file=m68k/hp320g.h
-		else
-			xmake_file=m68k/x-hp320
-			tm_file=m68k/hp320.h
-		fi
-		install_headers_dir=install-headers-cpio
-		use_collect2=yes
-		extra_headers=math-68881.h
-		float_format=m68k
-		;;
-	m68k-sun-mach*)
-		tm_file=m68k/sun3mach.h
-		use_collect2=yes
-		extra_headers=math-68881.h
-		float_format=m68k
-		;;
-	m68k-sony-newsos3*)
-		if test x$gas = xyes
-		then
-			tm_file=m68k/news3gas.h
-		else
-			tm_file=m68k/news3.h
-		fi
-		use_collect2=yes
-		extra_headers=math-68881.h
-		float_format=m68k
-		;;
-	m68k-sony-bsd* | m68k-sony-newsos*)
-		if test x$gas = xyes
-		then
-			tm_file=m68k/newsgas.h
-		else
-			tm_file=m68k/news.h
-		fi
-		use_collect2=yes
-		extra_headers=math-68881.h
-		float_format=m68k
-		;;
-	m68k-next-nextstep2*)
-		tm_file=m68k/next21.h
-		xm_file="m68k/xm-next.h ${xm_file}"
-		tmake_file=m68k/t-next
-		xmake_file=m68k/x-next
-		extra_objs=nextstep.o
-		extra_headers=math-68881.h
-		use_collect2=yes
-		float_format=m68k
-                ;;
-	m68k-next-nextstep3*)
-		tm_file=m68k/next.h
-		xm_file="m68k/xm-next.h ${xm_file}"
-		tmake_file=m68k/t-next
-		xmake_file=m68k/x-next
-		extra_objs=nextstep.o
-		extra_parts="crtbegin.o crtend.o"
-		extra_headers=math-68881.h
-		float_format=m68k
- 		if test x$enable_threads = xyes; then
-			thread_file='mach'
-		fi
-		;;
-	m68k-sun-sunos3*)
-		if test x$with_fp = xno
-		then
-			tm_file=m68k/sun3n3.h
-		else
-			tm_file=m68k/sun3o3.h
-			float_format=m68k
-		fi
-		use_collect2=yes
-		extra_headers=math-68881.h
-		;;
-	m68k-sun-sunos*)			# For SunOS 4 (the default).
-		if test x$with_fp = xno
-		then
-			tm_file=m68k/sun3n.h
-		else
-			tm_file=m68k/sun3.h
-			float_format=m68k
-		fi
-		use_collect2=yes
-		extra_headers=math-68881.h
-		;;
-	m68k-wrs-vxworks*)
-		tm_file=m68k/vxm68k.h
-		tmake_file=m68k/t-vxworks68
-		extra_headers=math-68881.h
-		thread_file='vxworks'
-		float_format=m68k
-		;;
-	m68k-*-aout*)
-		tmake_file=m68k/t-m68kbare
-		tm_file="m68k/m68k-aout.h libgloss.h"
-		extra_headers=math-68881.h
-		float_format=m68k
-		;;
-	m68k-*-coff*)
-		tmake_file=m68k/t-m68kbare
-		tm_file="m68k/m68k-coff.h dbx.h libgloss.h"
-		extra_headers=math-68881.h
-		float_format=m68k
-		;;
-	m68020-*-elf* | m68k-*-elf*)
-		tm_file="m68k/m68020-elf.h libgloss.h"
-		xm_file=m68k/xm-m68kv.h
-		tmake_file=m68k/t-m68kelf
-		header_files=math-68881.h
-		;;
-	m68k-*-lynxos*)
-		if test x$gas = xyes
-		then
-			tm_file=m68k/lynx.h
-		else
-			tm_file=m68k/lynx-ng.h
-		fi
-		xm_file=m68k/xm-lynx.h
-		xmake_file=x-lynx
-		tmake_file=m68k/t-lynx
-		extra_headers=math-68881.h
-		float_format=m68k
-		;;
-	m68k*-*-netbsd*)
-		tm_file=m68k/netbsd.h
-		tmake_file=t-netbsd
-		float_format=m68k
-       use_collect2=yes
-		;;
-	m68k*-*-openbsd*)
-		float_format=m68k
-		# we need collect2 until our bug is fixed...
-		use_collect2=yes
-		;;
-	m68k-*-sysv3*)			# Motorola m68k's running system V.3
-		xm_file="xm-alloca.h ${xm_file}"
-		xm_defines=USG
-		xmake_file=m68k/x-m68kv
-		extra_parts="crtbegin.o crtend.o"
-		extra_headers=math-68881.h
-		float_format=m68k
-		;;
-	m68k-*-sysv4*)			# Motorola m68k's running system V.4
-		tm_file=m68k/m68kv4.h
-		xm_file="xm-alloca.h ${xm_file}"
-		xm_defines=USG
-		tmake_file=t-svr4
-		extra_parts="crtbegin.o crtend.o"
-		extra_headers=math-68881.h
-		float_format=m68k
-		;;
-	m68k-*-linux-gnuaout*)		# Motorola m68k's running GNU/Linux
-					# with a.out format
-		xmake_file=x-linux
-		tm_file=m68k/linux-aout.h
-		tmake_file="t-linux-aout m68k/t-linux-aout"
-		extra_headers=math-68881.h
-		float_format=m68k
-		gnu_ld=yes
-		;;
-	m68k-*-linux-gnulibc1)		# Motorola m68k's running GNU/Linux
-					# with ELF format using the
-					# GNU/Linux C library 5
-		xmake_file=x-linux
-		tm_file=m68k/linux.h
-		tmake_file="t-linux t-linux-gnulibc1 m68k/t-linux"
-		extra_parts="crtbegin.o crtbeginS.o crtend.o crtendS.o"
-		extra_headers=math-68881.h
-		float_format=m68k
-		gnu_ld=yes
-		;;
-	m68k-*-linux-gnu*)		# Motorola m68k's running GNU/Linux
-					# with ELF format using glibc 2
-					# aka the GNU/Linux C library 6.
-		xmake_file=x-linux
-		tm_file=m68k/linux.h
-		tmake_file="t-linux m68k/t-linux"
-		extra_parts="crtbegin.o crtbeginS.o crtend.o crtendS.o"
-		extra_headers=math-68881.h
-		float_format=m68k
-		gnu_ld=yes
-		if test x$enable_threads = xyes; then
-			thread_file='posix'
-		fi
-		;;
-	m68k-*-psos*)
-		tmake_file=m68k/t-m68kbare
-		tm_file=m68k/m68k-psos.h
-		extra_headers=math-68881.h
-		float_format=m68k
-		;;
-	m68k-*-rtems*)
-		tmake_file="m68k/t-m68kbare t-rtems"
-		tm_file=m68k/rtems.h
-		extra_headers=math-68881.h
-		float_format=m68k
-		;;
-
-	m88k-dg-dgux*)
-		case $machine in
-		  m88k-dg-dguxbcs*)
-		    tm_file=m88k/dguxbcs.h
-		    tmake_file=m88k/t-dguxbcs
-		    ;;
-		  *)
-		    tm_file=m88k/dgux.h
-		    tmake_file=m88k/t-dgux
-		    ;;
-		esac
-		extra_parts="crtbegin.o bcscrtbegin.o crtend.o m88kdgux.ld"
-		xmake_file=m88k/x-dgux
-		if test x$gas = xyes
-		then
-			tmake_file=m88k/t-dgux-gas
-		fi
-		;;
-	m88k-dolphin-sysv3*)
-		tm_file=m88k/dolph.h
-		extra_parts="crtbegin.o crtend.o"
-		xm_file="m88k/xm-sysv3.h ${xm_file}"
-		xmake_file=m88k/x-dolph
-		if test x$gas = xyes
-		then
-			tmake_file=m88k/t-m88k-gas
-		fi
-		;;
-	m88k-tektronix-sysv3)
-		tm_file=m88k/tekXD88.h
-		extra_parts="crtbegin.o crtend.o"
-		xm_file="m88k/xm-sysv3.h ${xm_file}"
-		xmake_file=m88k/x-tekXD88
-		if test x$gas = xyes
-		then
-			tmake_file=m88k/t-m88k-gas
-		fi
-		;;
-	m88k-*-aout*)
-		tm_file=m88k/m88k-aout.h
-		;;
-	m88k-*-coff*)
-		tm_file=m88k/m88k-coff.h
-		tmake_file=m88k/t-bug
-		;;
-	m88k-*-luna*)
-		tm_file=m88k/luna.h
-		extra_parts="crtbegin.o crtend.o"
-		if test x$gas = xyes
-		then
-			tmake_file=m88k/t-luna-gas
-		else
-			tmake_file=m88k/t-luna
-		fi
-		;;
-	m88k-*-openbsd*)
-		tmake_file="${tmake_file} m88k/t-luna-gas"
-		;;
-	m88k-*-sysv3*)
-		tm_file=m88k/sysv3.h
-		extra_parts="crtbegin.o crtend.o"
-		xm_file="m88k/xm-sysv3.h ${xm_file}"
-		xmake_file=m88k/x-sysv3
-		if test x$gas = xyes
-		then
-			tmake_file=m88k/t-m88k-gas
-		fi
-		;;
-	m88k-*-sysv4*)
-		tm_file=m88k/sysv4.h
-		extra_parts="crtbegin.o crtend.o"
-		xmake_file=m88k/x-sysv4
-		tmake_file=m88k/t-sysv4
-		;;
-	mips-sgi-irix6*)		# SGI System V.4., IRIX 6
-		tm_file=mips/iris6.h
-		xm_file=mips/xm-iris6.h
-		xmake_file=mips/x-iris6
-		tmake_file=mips/t-iris6
-# 		if test x$enable_threads = xyes; then
-#			thread_file='irix'
-#		fi
-		;;
-	mips-wrs-vxworks)
-		tm_file="mips/elf.h libgloss.h mips/vxworks.h"
- 		tmake_file=mips/t-ecoff
- 		gas=yes
-		gnu_ld=yes
- 		extra_parts="crtbegin.o crtend.o"
-		thread_file='vxworks'
- 		;;
-	mips-sgi-irix5cross64)		# Irix5 host, Irix 6 target, cross64
-		tm_file="mips/iris6.h mips/cross64.h"
-		xm_defines=USG
-		xm_file="mips/xm-iris5.h"
-		xmake_file=mips/x-iris
-		tmake_file=mips/t-cross64
-		# See comment in mips/iris[56].h files.
-		use_collect2=yes
-# 		if test x$enable_threads = xyes; then
-#			thread_file='irix'
-#		fi
-		;;
-        mips-sni-sysv4)
-		if test x$gas = xyes
-		then
-			if test x$stabs = xyes
-			then
-				tm_file=mips/iris5gdb.h
-			else
-				tm_file="mips/sni-svr4.h mips/sni-gas.h"
-			fi
-		else
-			tm_file=mips/sni-svr4.h
-		fi
-		xm_defines=USG
-                xmake_file=mips/x-sni-svr4
-                tmake_file=mips/t-mips-gas
-                if test x$gnu_ld != xyes
-                then
-                        use_collect2=yes
-                fi
-                ;;
-	mips-sgi-irix5*)		# SGI System V.4., IRIX 5
-		if test x$gas = xyes
-		then
-			tm_file="mips/iris5.h mips/iris5gas.h"
-			if test x$stabs = xyes
-			then
-				tm_file="${tm_file} dbx.h"
-			fi
-		else
-			tm_file=mips/iris5.h
-		fi
-		xm_defines=USG
-		xm_file="mips/xm-iris5.h"
-		xmake_file=mips/x-iris
-		# mips-tfile doesn't work yet
-		tmake_file=mips/t-mips-gas
-		# See comment in mips/iris5.h file.
-		use_collect2=yes
-# 		if test x$enable_threads = xyes; then
-#			thread_file='irix'
-#		fi
-		;;
-	mips-sgi-irix4loser*)		# Mostly like a MIPS.
-		tm_file="mips/iris4loser.h mips/iris3.h ${tm_file} mips/iris4.h"
-		if test x$stabs = xyes; then
-			tm_file="${tm_file} dbx.h"
-		fi
-		xm_defines=USG
-		xmake_file=mips/x-iris
-		if test x$gas = xyes
-		then
-			tmake_file=mips/t-mips-gas
-		else
-			extra_passes="mips-tfile mips-tdump"
-		fi
-		if test x$gnu_ld != xyes
-		then
-			use_collect2=yes
-		fi
-# 		if test x$enable_threads = xyes; then
-#			thread_file='irix'
-#		fi
-		;;
-	mips-sgi-irix4*)		# Mostly like a MIPS.
-		tm_file="mips/iris3.h ${tm_file} mips/iris4.h"
-		if test x$stabs = xyes; then
-			tm_file="${tm_file} dbx.h"
-		fi
-		xm_defines=USG
-		xmake_file=mips/x-iris
-		if test x$gas = xyes
-		then
-			tmake_file=mips/t-mips-gas
-		else
-			extra_passes="mips-tfile mips-tdump"
-		fi
-		if test x$gnu_ld != xyes
-		then
-			use_collect2=yes
-		fi
-# 		if test x$enable_threads = xyes; then
-#			thread_file='irix'
-#		fi
-		;;
-	mips-sgi-*)			# Mostly like a MIPS.
-		tm_file="mips/iris3.h ${tm_file}"
-		if test x$stabs = xyes; then
-			tm_file="${tm_file} dbx.h"
-		fi
-		xm_defines=USG
-		xmake_file=mips/x-iris3
-		if test x$gas = xyes
-		then
-			tmake_file=mips/t-mips-gas
-		else
-			extra_passes="mips-tfile mips-tdump"
-		fi
-		if test x$gnu_ld != xyes
-		then
-			use_collect2=yes
-		fi
-		;;
-	mips-dec-osfrose*)		# Decstation running OSF/1 reference port with OSF/rose.
-		tm_file="mips/osfrose.h ${tm_file}"
-		xmake_file=mips/x-osfrose
-		tmake_file=mips/t-osfrose
-		extra_objs=halfpic.o
-		use_collect2=yes
-		;;
-	mips-dec-osf*)			# Decstation running OSF/1 as shipped by DIGITAL
-		tm_file=mips/dec-osf1.h
-		if test x$stabs = xyes; then
-			tm_file="${tm_file} dbx.h"
-		fi
-		xmake_file=mips/x-dec-osf1
-		if test x$gas = xyes
-		then
-			tmake_file=mips/t-mips-gas
-		else
-			tmake_file=mips/t-ultrix
-			extra_passes="mips-tfile mips-tdump"
-		fi
-		if test x$gnu_ld != xyes
-		then
-			use_collect2=yes
-		fi
-		;;
-	mips-dec-bsd*)                  # Decstation running 4.4 BSD
-              tm_file=mips/dec-bsd.h
-	      if test x$gas = xyes
-	      then
-		   	tmake_file=mips/t-mips-gas
-	      else
-			tmake_file=mips/t-ultrix
-			extra_passes="mips-tfile mips-tdump"
-	      fi
-	      if test x$gnu_ld != xyes
-	      then
-			use_collect2=yes
-	      fi
-	      ;;
-	mipsel-*-netbsd* | mips-dec-netbsd*)    # Decstation running NetBSD
-		tm_file=mips/netbsd.h
-		# On NetBSD, the headers are already okay, except for math.h.
-		tmake_file=t-netbsd
-		;;
-       mips*-*-linux*)                         # Linux MIPS, either endian.
-		xmake_file=x-linux
-		xm_file="xm-siglist.h ${xm_file}"
-               case $machine in
-                       mipsel-*)  tm_file="mips/elfl.h mips/linux.h" ;;
-                       *)         tm_file="mips/elf.h mips/linux.h" ;;
-               esac
-		extra_parts="crtbegin.o crtend.o"
-		gnu_ld=yes
-		gas=yes
-		;;
-	mips*el-*-openbsd*)	# mips little endian
-		target_cpu_default="MASK_GAS|MASK_ABICALLS"
-		tm_file=mips/openbsd.h
-		;;
-	mips*-*-openbsd*)		# mips big endian
-		target_cpu_default="MASK_GAS|MASK_ABICALLS"
-		tm_file=mips/openbsd-be.h
-		;;
-	mips-sony-bsd* | mips-sony-newsos*)	# Sony NEWS 3600 or risc/news.
-		tm_file="mips/news4.h ${tm_file}"
-		if test x$stabs = xyes; then
-			tm_file="${tm_file} dbx.h"
-		fi
-		if test x$gas = xyes
-		then
-			tmake_file=mips/t-mips-gas
-		else
-			extra_passes="mips-tfile mips-tdump"
-		fi
-		if test x$gnu_ld != xyes
-		then
-			use_collect2=yes
-		fi
-		xmake_file=mips/x-sony
-		;;
-	mips-sony-sysv*)		# Sony NEWS 3800 with NEWSOS5.0.
-					# That is based on svr4.
-		# t-svr4 is not right because this system doesn't use ELF.
-		tm_file="mips/news5.h ${tm_file}"
-		if test x$stabs = xyes; then
-			tm_file="${tm_file} dbx.h"
-		fi
-		xm_file="xm-siglist.h ${xm_file}"
-		xm_defines=USG
-		if test x$gas = xyes
-		then
-			tmake_file=mips/t-mips-gas
-		else
-			extra_passes="mips-tfile mips-tdump"
-		fi
-		if test x$gnu_ld != xyes
-		then
-			use_collect2=yes
-		fi
-		;;
-	mips-tandem-sysv4*)		# Tandem S2 running NonStop UX
-		tm_file="mips/svr4-5.h mips/svr4-t.h"
-		if test x$stabs = xyes; then
-			tm_file="${tm_file} dbx.h"
-		fi
-		xm_file="xm-siglist.h ${xm_file}"
-		xm_defines=USG
-		xmake_file=mips/x-sysv
-		if test x$gas = xyes
-		then
-			tmake_file=mips/t-mips-gas
-			extra_parts="crtbegin.o crtend.o"
-		else
-			tmake_file=mips/t-mips
-			extra_passes="mips-tfile mips-tdump"
-		fi
-		if test x$gnu_ld != xyes
-		then
-			use_collect2=yes
-		fi
-		;;
-	mips-*-ultrix* | mips-dec-mach3)	# Decstation.
-		tm_file="mips/ultrix.h ${tm_file}"
-		if test x$stabs = xyes; then
-			tm_file="${tm_file} dbx.h"
-		fi
-		xmake_file=mips/x-ultrix
-		if test x$gas = xyes
-		then
-			tmake_file=mips/t-mips-gas
-		else
-			tmake_file=mips/t-ultrix
-			extra_passes="mips-tfile mips-tdump"
-		fi
-		if test x$gnu_ld != xyes
-		then
-			use_collect2=yes
-		fi
-	        ;;
-changequote(,)dnl
-	mips-*-riscos[56789]bsd*)
-changequote([,])dnl
-		tm_file=mips/bsd-5.h	# MIPS BSD 4.3, RISC-OS 5.0
-		if test x$stabs = xyes; then
-			tm_file="${tm_file} dbx.h"
-		fi
-		if test x$gas = xyes
-		then
-			tmake_file=mips/t-bsd-gas
-		else
-			tmake_file=mips/t-bsd
-			extra_passes="mips-tfile mips-tdump"
-		fi
-		if test x$gnu_ld != xyes
-		then
-			use_collect2=yes
-		fi
-	        ;;
-changequote(,)dnl
-	mips-*-bsd* | mips-*-riscosbsd* | mips-*-riscos[1234]bsd*)
-changequote([,])dnl
-		tm_file="mips/bsd-4.h ${tm_file}" # MIPS BSD 4.3, RISC-OS 4.0
-		if test x$stabs = xyes; then
-			tm_file="${tm_file} dbx.h"
-		fi
-		if test x$gas = xyes
-		then
-			tmake_file=mips/t-bsd-gas
-		else
-			tmake_file=mips/t-bsd
-			extra_passes="mips-tfile mips-tdump"
-		fi
-		if test x$gnu_ld != xyes
-		then
-			use_collect2=yes
-		fi
-	        ;;
-changequote(,)dnl
-	mips-*-riscos[56789]sysv4*)
-changequote([,])dnl
-		tm_file=mips/svr4-5.h	# MIPS System V.4., RISC-OS 5.0
-		if test x$stabs = xyes; then
-			tm_file="${tm_file} dbx.h"
-		fi
-		xm_file="xm-siglist.h ${xm_file}"
-		xmake_file=mips/x-sysv
-		if test x$gas = xyes
-		then
-			tmake_file=mips/t-svr4-gas
-		else
-			tmake_file=mips/t-svr4
-			extra_passes="mips-tfile mips-tdump"
-		fi
-		if test x$gnu_ld != xyes
-		then
-			use_collect2=yes
-		fi
-		;;
-changequote(,)dnl
-	mips-*-sysv4* | mips-*-riscos[1234]sysv4* | mips-*-riscossysv4*)
-changequote([,])dnl
-		tm_file="mips/svr4-4.h ${tm_file}"
-		if test x$stabs = xyes; then
-			tm_file="${tm_file} dbx.h"
-		fi
-		xm_defines=USG
-		xmake_file=mips/x-sysv
-		if test x$gas = xyes
-		then
-			tmake_file=mips/t-svr4-gas
-		else
-			tmake_file=mips/t-svr4
-			extra_passes="mips-tfile mips-tdump"
-		fi
-		if test x$gnu_ld != xyes
-		then
-			use_collect2=yes
-		fi
-		;;
-changequote(,)dnl
-	mips-*-riscos[56789]sysv*)
-changequote([,])dnl
-		tm_file=mips/svr3-5.h	# MIPS System V.3, RISC-OS 5.0
-		if test x$stabs = xyes; then
-			tm_file="${tm_file} dbx.h"
-		fi
-		xm_defines=USG
-		xmake_file=mips/x-sysv
-		if test x$gas = xyes
-		then
-			tmake_file=mips/t-svr3-gas
-		else
-			tmake_file=mips/t-svr3
-			extra_passes="mips-tfile mips-tdump"
-		fi
-		if test x$gnu_ld != xyes
-		then
-			use_collect2=yes
-		fi
-		;;
-	mips-*-sysv* | mips-*-riscos*sysv*)
-		tm_file="mips/svr3-4.h ${tm_file}"
-		if test x$stabs = xyes; then
-			tm_file="${tm_file} dbx.h"
-		fi
-		xm_defines=USG
-		xmake_file=mips/x-sysv
-		if test x$gas = xyes
-		then
-			tmake_file=mips/t-svr3-gas
-		else
-			tmake_file=mips/t-svr3
-			extra_passes="mips-tfile mips-tdump"
-		fi
-		if test x$gnu_ld != xyes
-		then
-			use_collect2=yes
-		fi
-		;;
-changequote(,)dnl
-	mips-*-riscos[56789]*)		# Default MIPS RISC-OS 5.0.
-changequote([,])dnl
-		tm_file=mips/mips-5.h
-		if test x$stabs = xyes; then
-			tm_file="${tm_file} dbx.h"
-		fi
-		if test x$gas = xyes
-		then
-			tmake_file=mips/t-mips-gas
-		else
-			extra_passes="mips-tfile mips-tdump"
-		fi
-		if test x$gnu_ld != xyes
-		then
-			use_collect2=yes
-		fi
-		;;
-	mips-*-gnu*)
-		;;
-	mipsel-*-ecoff*)
-		tm_file=mips/ecoffl.h
-		if test x$stabs = xyes; then
-			tm_file="${tm_file} dbx.h"
-		fi
-		tmake_file=mips/t-ecoff
-		;;
-	mips-*-ecoff*)
-		tm_file="gofast.h mips/ecoff.h"
-		if test x$stabs = xyes; then
-			tm_file="${tm_file} dbx.h"
-		fi
-		tmake_file=mips/t-ecoff
-		;;
-	mipsel-*-elf*)
-		tm_file="mips/elfl.h libgloss.h"
-		tmake_file=mips/t-elf
-		;;
-	mips-*-elf*)
-		tm_file="mips/elf.h"
-		tmake_file=mips/t-elf
-		;;
-	mips64el-*-elf*)
-		tm_file="mips/elfl64.h"
-		tmake_file=mips/t-elf
-		;;
-	mips64orionel-*-elf*)
-		tm_file="mips/elforion.h mips/elfl64.h libgloss.h"
-		tmake_file=mips/t-elf
-		;;
-	mips64-*-elf*)
-		tm_file="mips/elf64.h"
-		tmake_file=mips/t-elf
-		;;
-	mips64orion-*-elf*)
-		tm_file="mips/elforion.h mips/elf64.h libgloss.h"
-		tmake_file=mips/t-elf
-		;;
-	mips64orion-*-rtems*)
-		tm_file="mips/elforion.h mips/elf64.h mips/rtems64.h"
-		tmake_file="mips/t-ecoff t-rtems"
-		;;
-	mipstx39el-*-elf*)
-		tm_file="mips/r3900.h mips/elfl.h mips/abi64.h"
-		tmake_file=mips/t-r3900
-		;;
-	mipstx39-*-elf*)
-		tm_file="mips/r3900.h mips/elf.h mips/abi64.h"
-		tmake_file=mips/t-r3900
-		;;
-	mips-*-*)				# Default MIPS RISC-OS 4.0.
-		if test x$stabs = xyes; then
-			tm_file="${tm_file} dbx.h"
-		fi
-		if test x$gas = xyes
-		then
-			tmake_file=mips/t-mips-gas
-		else
-			extra_passes="mips-tfile mips-tdump"
-		fi
-		if test x$gnu_ld != xyes
-		then
-			use_collect2=yes
-		fi
-		;;
-	mn10200-*-*)
-		cpu_type=mn10200
-		tm_file="mn10200/mn10200.h"
-		if test x$stabs = xyes
-		then
-			tm_file="${tm_file} dbx.h"
-		fi
-		use_collect2=no
-		;;
-	mn10300-*-*)
-		cpu_type=mn10300
-		tm_file="mn10300/mn10300.h"
-		if test x$stabs = xyes
-		then
-			tm_file="${tm_file} dbx.h"
-		fi
-		use_collect2=no
-		;;
-	ns32k-encore-bsd*)
-		tm_file=ns32k/encore.h
-		use_collect2=yes
-		;;
-	ns32k-sequent-bsd*)
-		tm_file=ns32k/sequent.h
-		use_collect2=yes
-		;;
-	ns32k-tek6100-bsd*)
-		tm_file=ns32k/tek6100.h
-		use_collect2=yes
-		;;
-	ns32k-tek6200-bsd*)
-		tm_file=ns32k/tek6200.h
-		use_collect2=yes
-		;;
-# This has not been updated to GCC 2.
-#	ns32k-ns-genix*)
-#		xm_defines=USG
-#		xmake_file=ns32k/x-genix
-#		tm_file=ns32k/genix.h
-#		use_collect2=yes
-#		;;
-	ns32k-merlin-*)
-		tm_file=ns32k/merlin.h
-		use_collect2=yes
-		;;
-	ns32k-pc532-mach*)
-		tm_file=ns32k/pc532-mach.h
-		use_collect2=yes
-		;;
-	ns32k-pc532-minix*)
-		tm_file=ns32k/pc532-min.h
-		xm_file="ns32k/xm-pc532-min.h ${xm-file}"
-		xm_defines=USG
-		use_collect2=yes
-		;;
-	ns32k-*-netbsd*)
-		tm_file=ns32k/netbsd.h
-		xm_file="ns32k/xm-netbsd.h ${xm_file}"
-		# On NetBSD, the headers are already okay, except for math.h.
-		tmake_file=t-netbsd
-       use_collect2=yes
-		;;
-        pdp11-*-bsd)
-		tm_file="${tm_file} pdp11/2bsd.h"
-                ;;
-        pdp11-*-*)
-		;;
-	ns32k-*-openbsd*)
-		# Nothing special
-		;;
-	pyramid-*-*)
-		cpu_type=pyr
-		xmake_file=pyr/x-pyr
-		use_collect2=yes
-		;;
-	romp-*-aos*)
-		use_collect2=yes
-		;;
-	romp-*-mach*)
-		xmake_file=romp/x-mach
-		use_collect2=yes
-		;;
-	romp-*-openbsd*)
-		# Nothing special
-		;;
-	powerpc-*-openbsd*)
-		tmake_file="${tmake_file} rs6000/t-rs6000 rs6000/t-openbsd"
-		;;
-	powerpc-*-beos*)
-		cpu_type=rs6000
-		tm_file=rs6000/beos.h
-		xm_file=rs6000/xm-beos.h
-		tmake_file=rs6000/t-beos
-		xmake_file=rs6000/x-beos
-		;;
-	powerpc-*-sysv* | powerpc-*-elf*)
-		tm_file=rs6000/sysv4.h
-		xm_file="xm-siglist.h rs6000/xm-sysv4.h"
-		xm_defines="USG POSIX"
-		extra_headers=ppc-asm.h
-		if test x$gas = xyes
-		then
-			tmake_file="rs6000/t-ppcos rs6000/t-ppccomm"
-		else
-			tmake_file="rs6000/t-ppc rs6000/t-ppccomm"
-		fi
-		xmake_file=rs6000/x-sysv4
-		;;
-	powerpc-*-eabiaix*)
-		tm_file=rs6000/eabiaix.h
-		tmake_file="rs6000/t-ppcgas rs6000/t-ppccomm"
-		extra_headers=ppc-asm.h
-		;;
-	powerpc-*-eabisim*)
-		tm_file=rs6000/eabisim.h
-		tmake_file="rs6000/t-ppcgas rs6000/t-ppccomm"
-		extra_headers=ppc-asm.h
-		;;
-	powerpc-*-eabi*)
-		tm_file=rs6000/eabi.h
-		if test x$gas = xyes
-		then
-			tmake_file="rs6000/t-ppcgas rs6000/t-ppccomm"
-		else
-			tmake_file="rs6000/t-ppc rs6000/t-ppccomm"
-		fi
-		extra_headers=ppc-asm.h
-		;;
-	powerpc-*-rtems*)
-		tm_file=rs6000/rtems.h
-		if test x$gas = xyes
-		then
-		     tmake_file="rs6000/t-ppcgas t-rtems rs6000/t-ppccomm"
-		else
-		     tmake_file="rs6000/t-ppc t-rtems rs6000/t-ppccomm"
-		fi
-		extra_headers=ppc-asm.h
-		;;
-	powerpc-*-linux-gnulibc1)
-		tm_file=rs6000/linux.h
-		xm_file=rs6000/xm-sysv4.h
-		out_file=rs6000/rs6000.c
-		if test x$gas = xyes
-		then
-			tmake_file="rs6000/t-ppcos t-linux t-linux-gnulibc1 rs6000/t-ppccomm"
-		else
-			tmake_file="rs6000/t-ppc t-linux t-linux-gnulibc1 rs6000/t-ppccomm"
-		fi
-		xmake_file=x-linux
-		extra_parts="crtbegin.o crtbeginS.o crtend.o crtendS.o"
-		extra_headers=ppc-asm.h
-		if test x$enable_threads = xyes; then
-			thread_file='posix'
-		fi
-		;;
-	powerpc-*-linux-gnu*)
-		tm_file=rs6000/linux.h
-		xm_file="xm-siglist.h rs6000/xm-sysv4.h"
-		xm_defines="USG ${xm_defines}"
-		out_file=rs6000/rs6000.c
-		if test x$gas = xyes
-		then
-			tmake_file="rs6000/t-ppcos t-linux rs6000/t-ppccomm"
-		else
-			tmake_file="rs6000/t-ppc t-linux rs6000/t-ppccomm"
-		fi
-		xmake_file=x-linux
-		extra_parts="crtbegin.o crtbeginS.o crtend.o crtendS.o"
-		extra_headers=ppc-asm.h
-		if test x$enable_threads = xyes; then
-			thread_file='posix'
-		fi
-		;;
-        powerpc-wrs-vxworks*)
-                cpu_type=rs6000
-		xm_file="xm-siglist.h rs6000/xm-sysv4.h"
-		xm_defines="USG POSIX"
-                tm_file=rs6000/vxppc.h
-                tmake_file="rs6000/t-ppcgas rs6000/t-ppccomm"
-		extra_headers=ppc-asm.h
-		thread_file='vxworks'
-                ;;
-	powerpcle-*-sysv* | powerpcle-*-elf*)
-		tm_file=rs6000/sysv4le.h
-		xm_file="xm-siglist.h rs6000/xm-sysv4.h"
-		xm_defines="USG POSIX"
-		if test x$gas = xyes
-		then
-			tmake_file="rs6000/t-ppcos rs6000/t-ppccomm"
-		else
-			tmake_file="rs6000/t-ppc rs6000/t-ppccomm"
-		fi
-		xmake_file=rs6000/x-sysv4
-		extra_headers=ppc-asm.h
-		;;
-	powerpcle-*-eabisim*)
-		tm_file=rs6000/eabilesim.h
-		tmake_file="rs6000/t-ppcgas rs6000/t-ppccomm"
-		extra_headers=ppc-asm.h
-		;;
-	powerpcle-*-eabi*)
-		tm_file=rs6000/eabile.h
-		if test x$gas = xyes
-		then
-			tmake_file="rs6000/t-ppcgas rs6000/t-ppccomm"
-		else
-			tmake_file="rs6000/t-ppc rs6000/t-ppccomm"
-		fi
-		extra_headers=ppc-asm.h
-		;;
-        powerpcle-*-winnt* )
-                tm_file=rs6000/win-nt.h
-                tmake_file=rs6000/t-winnt
-#               extra_objs=pe.o
- 		if test x$enable_threads = xyes; then
-			thread_file='win32'
-		fi
-		extra_headers=ppc-asm.h
-		;;
-	powerpcle-*-pe | powerpcle-*-cygwin*)
-		tm_file=rs6000/cygwin.h
-		xm_file="rs6000/xm-cygwin.h ${xm_file}"
-		tmake_file=rs6000/t-winnt
-		xmake_file=rs6000/x-cygwin
-#		extra_objs=pe.o
- 		if test x$enable_threads = xyes; then
-			thread_file='win32'
-		fi
-		exeext=.exe
-		extra_headers=ppc-asm.h
-		;;
-	powerpcle-*-solaris2*)
-		tm_file=rs6000/sol2.h
-		xm_file="xm-siglist.h rs6000/xm-sysv4.h"
-		xm_defines="USG POSIX"
-		if test x$gas = xyes
-		then
-			tmake_file="rs6000/t-ppcos rs6000/t-ppccomm"
-		else
-			tmake_file="rs6000/t-ppc rs6000/t-ppccomm"
-		fi
-		xmake_file=rs6000/x-sysv4
-		extra_headers=ppc-asm.h
-		;;
-changequote(,)dnl
-	rs6000-ibm-aix3.[01]*)
-changequote([,])dnl
-		tm_file=rs6000/aix31.h
-		xmake_file=rs6000/x-aix31
-		float_format=none
-		use_collect2=yes
-		;;
-changequote(,)dnl
-	rs6000-ibm-aix3.2.[456789]* | powerpc-ibm-aix3.2.[456789]*)
-changequote([,])dnl
-		tm_file=rs6000/aix3newas.h
-		if test x$host != x$target
-		then
-			tmake_file=rs6000/t-xnewas
-		else
-			tmake_file=rs6000/t-newas
-		fi
-		float_format=none
-		use_collect2=yes
-		;;
-changequote(,)dnl
-	rs6000-ibm-aix4.[12]* | powerpc-ibm-aix4.[12]*)
-changequote([,])dnl
-		tm_file=rs6000/aix41.h
-		if test x$host != x$target
-		then
-			tmake_file=rs6000/t-xnewas
-		else
-			tmake_file=rs6000/t-newas
-		fi
-		if test "$gnu_ld" = yes
-		then
-			xmake_file=rs6000/x-aix41-gld
-		else
-			xmake_file=rs6000/x-aix41
-		fi
-		float_format=none
-		use_collect2=yes
-		;;
-changequote(,)dnl
-	rs6000-ibm-aix4.[3456789]* | powerpc-ibm-aix4.[3456789]*)
-changequote([,])dnl
-		tm_file=rs6000/aix43.h
-		if test x$host != x$target
-		then
-			tmake_file=rs6000/t-xaix43
-		else
-			tmake_file=rs6000/t-aix43
-		fi
-		xmake_file=rs6000/x-aix43
-		float_format=none
-		use_collect2=yes
-		;;
-changequote(,)dnl
-	rs6000-ibm-aix[56789].* | powerpc-ibm-aix[56789].*)
-changequote([,])dnl
-		tm_file=rs6000/aix43.h
-		if test x$host != x$target
-		then
-			tmake_file=rs6000/t-xaix43
-		else
-			tmake_file=rs6000/t-aix43
-		fi
-		xmake_file=rs6000/x-aix43
-		float_format=none
-		use_collect2=yes
-		;;
-	rs6000-ibm-aix*)
-		float_format=none
-		use_collect2=yes
-		;;
-	rs6000-bull-bosx)
-		float_format=none
-		use_collect2=yes
-		;;
-	rs6000-*-mach*)
-		tm_file=rs6000/mach.h
-		xm_file="${xm_file} rs6000/xm-mach.h"
-		xmake_file=rs6000/x-mach
-		use_collect2=yes
-		;;
-	rs6000-*-lynxos*)
-		tm_file=rs6000/lynx.h
-		xm_file=rs6000/xm-lynx.h
-		tmake_file=rs6000/t-rs6000
-		xmake_file=rs6000/x-lynx
-		use_collect2=yes
-		;;
-	sh-*-elf*)
-		tm_file=sh/elf.h
-		float_format=sh
-		;;
-	sh-*-rtemself*)
-		tmake_file="sh/t-sh t-rtems"
-		tm_file=sh/rtemself.h
-		float_format=sh
-		;;
-	sh-*-rtems*)
-		tmake_file="sh/t-sh t-rtems"
-		tm_file=sh/rtems.h
-		float_format=sh
-		;;
-	sh-*-*)
-		float_format=sh
-		;;
-	sparc-tti-*)
-		tm_file=sparc/pbd.h
-		xm_file="xm-alloca.h ${xm_file}"
-		xm_defines=USG
-		;;
-	sparc-wrs-vxworks* | sparclite-wrs-vxworks*)
-		tm_file=sparc/vxsparc.h
-		tmake_file=sparc/t-vxsparc
-		use_collect2=yes
-		thread_file='vxworks'
-		;;
-	sparc-*-aout*)
-		tmake_file=sparc/t-sparcbare
-		tm_file="sparc/aout.h libgloss.h"
-		;;
-	sparc-*-netbsd*)
-		tm_file=sparc/netbsd.h
-		tmake_file=t-netbsd
-       use_collect2=yes
-		;;
-	sparc-*-openbsd*)
-		# we need collect2 until our bug is fixed...
-		use_collect2=yes
-		;;
-	sparc-*-bsd*)
-		tm_file=sparc/bsd.h
-		;;
-	sparc-*-elf*)
-		tm_file=sparc/elf.h
-		tmake_file=sparc/t-elf
-		extra_parts="crti.o crtn.o crtbegin.o crtend.o"
-		#float_format=i128
-		float_format=i64
-		;;
-	sparc-*-linux-gnuaout*)		# Sparc's running GNU/Linux, a.out
-		xm_file="${xm_file} sparc/xm-linux.h"
-		tm_file=sparc/linux-aout.h
-		xmake_file=x-linux
-		gnu_ld=yes
-		;;
-	sparc-*-linux-gnulibc1*)	# Sparc's running GNU/Linux, libc5
-		xm_file="${xm_file} sparc/xm-linux.h"
-		xmake_file=x-linux
-		tm_file=sparc/linux.h
-		tmake_file="t-linux t-linux-gnulibc1"
-		extra_parts="crtbegin.o crtbeginS.o crtend.o crtendS.o"
-		gnu_ld=yes
-		;;
-	sparc-*-linux-gnu*)		# Sparc's running GNU/Linux, libc6
-		xm_file="${xm_file} sparc/xm-linux.h"
-		xmake_file=x-linux
-		tm_file=sparc/linux.h
-		tmake_file="t-linux"
-		extra_parts="crtbegin.o crtbeginS.o crtend.o crtendS.o"
-		gnu_ld=yes
- 		if test x$enable_threads = xyes; then
- 			thread_file='posix'
- 		fi
-		;;
-	sparc-*-lynxos*)
-		if test x$gas = xyes
-		then
-			tm_file=sparc/lynx.h
-		else
-			tm_file=sparc/lynx-ng.h
-		fi
-		xm_file=sparc/xm-lynx.h
-		tmake_file=sparc/t-sunos41
-		xmake_file=x-lynx
-		;;
-	sparc-*-rtems*)
-		tmake_file="sparc/t-sparcbare t-rtems"
-		tm_file=sparc/rtems.h
-		;;
-	sparcv9-*-solaris2*)
-		tm_file=sparc/sol2-sld-64.h
-		xm_file="sparc/xm-sysv4-64.h sparc/xm-sol2.h"
-		xm_defines="USG POSIX"
-		tmake_file="sparc/t-sol2 sparc/t-sol2-64"
-		xmake_file=sparc/x-sysv4
-		extra_parts="crt1.o crti.o crtn.o gcrt1.o crtbegin.o crtend.o"
-		float_format=none
-		if test x${enable_threads} = x ; then
-		    enable_threads=$have_pthread_h
-		    if test x${enable_threads} = x ; then
-			enable_threads=$have_thread_h
-		    fi
-		fi
-		if test x${enable_threads} = xyes ; then
-		    if test x${have_pthread_h} = xyes ; then
-			thread_file='posix'
-		    else
-			thread_file='solaris'
-		    fi
-		fi
-		;;
-        sparc-hal-solaris2*)
-                xm_file="xm-siglist.h sparc/xm-sysv4.h sparc/xm-sol2.h"
-                xm_defines="USG POSIX"
-                tm_file="sparc/sol2.h sparc/hal.h"
-                tmake_file="sparc/t-halos sparc/t-sol2"
-                xmake_file=sparc/x-sysv4
-                extra_parts="crt1.o crti.o crtn.o gmon.o crtbegin.o crtend.o"
-                case $machine in
-                *-*-solaris2.[0-4])
-                        float_format=i128
-                ;;
-                *)
-                        float_format=none
-                        ;;
-                esac
-		thread_file='solaris'
-                ;;
-	sparc-*-solaris2*)
-		if test x$gnu_ld = xyes
-		then
-			tm_file=sparc/sol2.h
-		else
-			tm_file=sparc/sol2-sld.h
-		fi
-		xm_file="xm-siglist.h sparc/xm-sysv4.h sparc/xm-sol2.h"
-		xm_defines="USG POSIX"
-		tmake_file=sparc/t-sol2
-		xmake_file=sparc/x-sysv4
-		extra_parts="crt1.o crti.o crtn.o gcrt1.o gmon.o crtbegin.o crtend.o"
-		case $machine in
-changequote(,)dnl
-		*-*-solaris2.[0-4])
-changequote([,])dnl
-			float_format=i128
-			;;
-		*)
-			float_format=none
-			;;
-		esac
-		if test x${enable_threads} = x; then
-		    enable_threads=$have_pthread_h
-		    if test x${enable_threads} = x; then
-			enable_threads=$have_thread_h
-		    fi
-		fi
-		if test x${enable_threads} = xyes; then
-		    if test x${have_pthread_h} = xyes; then
-			thread_file='posix'
-		    else
-			thread_file='solaris'
-		    fi
-		fi
-		;;
-	sparc-*-sunos4.0*)
-		tm_file=sparc/sunos4.h
-		tmake_file=sparc/t-sunos40
-		use_collect2=yes
-		;;
-	sparc-*-sunos4*)
-		tm_file=sparc/sunos4.h
-		tmake_file=sparc/t-sunos41
-		use_collect2=yes
-		if test x$gas = xyes; then
-			tm_file="${tm_file} sparc/sun4gas.h"
-		fi
-		;;
-	sparc-*-sunos3*)
-		tm_file=sparc/sun4o3.h
-		use_collect2=yes
-		;;
-	sparc-*-sysv4*)
-		tm_file=sparc/sysv4.h
-		xm_file="xm-siglist.h sparc/xm-sysv4.h"
-		xm_defines="USG POSIX"
-		tmake_file=t-svr4
-		xmake_file=sparc/x-sysv4
-		extra_parts="crtbegin.o crtend.o"
-		;;
-	sparc-*-vxsim*)
-		xm_file="xm-siglist.h sparc/xm-sysv4.h sparc/xm-sol2.h"
-		xm_defines="USG POSIX"
-		tm_file=sparc/vxsim.h
-		tmake_file=sparc/t-vxsparc
-		xmake_file=sparc/x-sysv4
-		;;
-	sparclet-*-aout*)
-		tm_file="sparc/splet.h libgloss.h"
-		tmake_file=sparc/t-splet
-		;;
-	sparclite-*-coff*)
-		tm_file="sparc/litecoff.h libgloss.h"
-		tmake_file=sparc/t-sparclite
-		;;
-	sparclite-*-aout*)
-		tm_file="sparc/lite.h aoutos.h libgloss.h"
-		tmake_file=sparc/t-sparclite
-		;;
-	sparc64-*-aout*)
-		tmake_file=sparc/t-sp64
-		tm_file=sparc/sp64-aout.h
-		;;
-	sparc64-*-elf*)
-		tmake_file=sparc/t-sp64
-		tm_file=sparc/sp64-elf.h
-		extra_parts="crtbegin.o crtend.o"
-		;;
-	sparc64-*-linux*)		# 64-bit Sparc's running GNU/Linux
-		tmake_file="t-linux sparc/t-linux64"
-		xm_file="sparc/xm-sp64.h sparc/xm-linux.h"
-		tm_file=sparc/linux64.h
-		xmake_file=x-linux
-		extra_parts="crtbegin.o crtbeginS.o crtend.o crtendS.o"
-		gnu_ld=yes
-		;;
-# This hasn't been upgraded to GCC 2.
-#	tahoe-harris-*)			# Harris tahoe, using COFF.
-#		tm_file=tahoe/harris.h
-#		;;
-#	tahoe-*-bsd*)			# tahoe running BSD
-#		;;
-	thumb-*-coff* | thumbel-*-coff*)
-		tm_file=arm/tcoff.h
-		out_file=arm/thumb.c
-		xm_file=arm/xm-thumb.h
-		md_file=arm/thumb.md
-		tmake_file=arm/t-thumb
-		;;
-	thumb-wrs-vxworks)
-		tm_file=arm/tcoff.h
-		out_file=arm/thumb.c
-		xm_file=arm/xm-thumb.h
-		md_file=arm/thumb.md
-		tmake_file=arm/t-thumb
-		thread_file='vxworks'
-		;;
-# This hasn't been upgraded to GCC 2.
-#	tron-*-*)
-#		cpu_type=gmicro
-#		use_collect2=yes
-#		;;
-	v850-*-*)
-		cpu_type=v850
-		tm_file="v850/v850.h"
-		xm_file="v850/xm-v850.h"
-		tmake_file=v850/t-v850
-		if test x$stabs = xyes
-		then
-			tm_file="${tm_file} dbx.h"
-		fi
-		use_collect2=no
-		;;
-	vax-*-bsd*)			# vaxen running BSD
-		use_collect2=yes
-		float_format=vax
-		;;
-	vax-*-sysv*)			# vaxen running system V
-		tm_file="${tm_file} vax/vaxv.h"
-		xm_defines=USG
-		float_format=vax
-		;;
-	vax-*-netbsd*)
-		tm_file="${tm_file} netbsd.h vax/netbsd.h"
-		tmake_file=t-netbsd
-		float_format=vax
-       use_collect2=yes
-		;;
-	vax-*-openbsd*)
-		tmake_file="${tmake_file} vax/t-openbsd"
-		;;
-	vax-*-ultrix*)			# vaxen running ultrix
-		tm_file="${tm_file} vax/ultrix.h"
-		use_collect2=yes
-		float_format=vax
-		;;
-	vax-*-vms*)			# vaxen running VMS
-		xm_file=vax/xm-vms.h
-		tm_file=vax/vms.h
-		float_format=vax
-		;;
-	vax-*-*)			# vax default entry
-		float_format=vax
-		;;
-	we32k-att-sysv*)
-		xm_file="${xm_file} xm-svr3"
-		use_collect2=yes
-		;;
-	*)
-		echo "Configuration $machine not supported" 1>&2
-		exit 1
-		;;
-	esac
-
-	case $machine in
-	*-*-linux-gnu*)
-	        ;; # Existing GNU/Linux systems do not use the GNU setup.
-	*-*-gnu*)
-		# On the GNU system, the setup is just about the same on
-		# each different CPU.  The specific machines that GNU
-		# supports are matched above and just set $cpu_type.
-		xm_file="xm-gnu.h ${xm_file}"
-		tm_file=${cpu_type}/gnu.h
-		extra_parts="crtbegin.o crtend.o crtbeginS.o crtendS.o"
-		# GNU always uses ELF.
-		elf=yes
-		# GNU tools are the only tools.
-		gnu_ld=yes
-		gas=yes
-		xmake_file=x-linux	# These details are the same as Linux.
-		tmake_file=t-gnu	# These are not.
-		;;
-	*-*-sysv4*)
-		xmake_try_sysv=x-sysv
-		install_headers_dir=install-headers-cpio
-		;;
-	*-*-sysv*)
-		install_headers_dir=install-headers-cpio
-		;;
-	esac
-
-	# Distinguish i[34567]86
-	# Also, do not run mips-tfile on MIPS if using gas.
-	# Process --with-cpu= for PowerPC/rs6000
-	target_cpu_default2=
-	case $machine in
-	i486-*-*)
-		target_cpu_default2=1
-		;;
-	i586-*-*)
-		case $target_alias in
-			k6-*)
-				target_cpu_default2=4
-				;;
-			*)
-				target_cpu_default2=2
-				;;
-		esac
-		;;
-	i686-*-* | i786-*-*)
-		target_cpu_default2=3
-		;;
-	alpha*-*-*)
-		case $machine in
-			alphaev6*)
-				target_cpu_default2="MASK_CPU_EV6|MASK_BWX|MASK_MAX|MASK_FIX"
-				;;
-			alphapca56*)
-				target_cpu_default2="MASK_CPU_EV5|MASK_BWX|MASK_MAX"
-				;;
-			alphaev56*)
-				target_cpu_default2="MASK_CPU_EV5|MASK_BWX"
-				;;
-			alphaev5*)
-				target_cpu_default2="MASK_CPU_EV5"
-				;;
-		esac
-				
-		if test x$gas = xyes
-		then
-			if test "$target_cpu_default2" = ""
-			then
-				target_cpu_default2="MASK_GAS"
-			else
-				target_cpu_default2="${target_cpu_default2}|MASK_GAS"
-			fi
-		fi
-		;;
-	arm*-*-*)
-		case "x$with_cpu" in
-			x)
-				# The most generic
-				target_cpu_default2="TARGET_CPU_generic"
-				;;
-
-			# Distinguish cores, and major variants
-			# arm7m doesn't exist, but D & I don't affect code
-			xarm[23678] | xarm250 | xarm[67][01]0 \
-			| xarm7m | xarm7dm | xarm7dmi | xarm7tdmi \
-			| xarm7100 | xarm7500 | xarm7500fe | xarm810 \
-			| xstrongarm | xstrongarm110 | xstrongarm1100)
-				target_cpu_default2="TARGET_CPU_$with_cpu"
-				;;
-
-			xyes | xno)
-				echo "--with-cpu must be passed a value" 1>&2
-				exit 1
-				;;
-
-			*)
-				if test x$pass2done = xyes
-				then
-					echo "Unknown cpu used with --with-cpu=$with_cpu" 1>&2
-					exit 1
-				fi
-				;;
-		esac
-		;;
-
-	mips*-*-ecoff* | mips*-*-elf*)
-		if test x$gas = xyes
-		then
-			if test x$gnu_ld = xyes
-			then
-				target_cpu_default2=20
-			else
-				target_cpu_default2=16
-			fi
-		fi
-		;;
-	mips*-*-*)
-		if test x$gas = xyes
-		then
-			target_cpu_default2=16
-		fi
-		;;
-	powerpc*-*-* | rs6000-*-*)
-		case "x$with_cpu" in
-			x)
-				;;
-
-			xcommon | xpower | xpower2 | xpowerpc | xrios \
-			  | xrios1 | xrios2 | xrsc | xrsc1 \
-			  | x601 | x602 | x603 | x603e | x604 | x604e | x620 \
-			  | xec603e | x740 | x750 | x401 \
-			  | x403 | x505 | x801 | x821 | x823 | x860)
-				target_cpu_default2="\"$with_cpu\""
-				;;
-
-			xyes | xno)
-				echo "--with-cpu must be passed a value" 1>&2
-				exit 1
-				;;
-
-			*)
-				if test x$pass2done = xyes
-				then
-					echo "Unknown cpu used with --with-cpu=$with_cpu" 1>&2
-					exit 1
-				fi
-				;;
-		esac
-		;;
-	sparc*-*-*)
-		case ".$with_cpu" in
-			.)
-				target_cpu_default2=TARGET_CPU_"`echo $machine | sed 's/-.*$//'`"
-				;;
-			.supersparc | .hypersparc | .ultrasparc | .v7 | .v8 | .v9)
-				target_cpu_default2="TARGET_CPU_$with_cpu"
-				;;
-			*)
-				if test x$pass2done = xyes
-				then
-					echo "Unknown cpu used with --with-cpu=$with_cpu" 1>&2
-					exit 1
-				fi
-				;;
-		esac
-		;;
-	esac
-
-	if test "$target_cpu_default2" != ""
-	then
-		if test "$target_cpu_default" != ""
-		then
-			target_cpu_default="(${target_cpu_default}|${target_cpu_default2})"
-		else
-			target_cpu_default=$target_cpu_default2
-		fi
-	fi
-
-	# No need for collect2 if we have the GNU linker.
-	# Actually, there is now; GNU ld doesn't handle the EH info or
-	# collecting for shared libraries.
-	#case x$gnu_ld in
-	#xyes)
-	#	use_collect2=
-	#	;;
-	#esac
-
-# Save data on machine being used to compile GCC in build_xm_file.
-# Save data on host machine in vars host_xm_file and host_xmake_file.
-	if test x$pass1done = x
-	then
-		if test x"$xm_file" = x
-		then build_xm_file=$cpu_type/xm-$cpu_type.h
-		else build_xm_file=$xm_file
-		fi
-		build_xm_defines=$xm_defines
-		build_install_headers_dir=$install_headers_dir
-		build_exeext=$exeext
-		pass1done=yes
-	else
-		if test x$pass2done = x
-		then
-			if test x"$xm_file" = x
-			then host_xm_file=$cpu_type/xm-$cpu_type.h
-			else host_xm_file=$xm_file
-			fi
-			host_xm_defines=$xm_defines
-			if test x"$xmake_file" = x
-			then xmake_file=$cpu_type/x-$cpu_type
-			fi
-			host_xmake_file="$xmake_file"
-			host_truncate_target=$truncate_target
-			host_extra_gcc_objs=$extra_gcc_objs
-			host_extra_objs=$extra_host_objs
-			host_exeext=$exeext
-			pass2done=yes
-		fi
-	fi
+	. ${srcdir}/config.gcc
 done
 
 extra_objs="${host_extra_objs} ${extra_objs}"
@@ -3532,11 +720,8 @@ extra_objs="${host_extra_objs} ${extra_objs}"
 if test x"$tm_file" = x
 then tm_file=$cpu_type/$cpu_type.h; fi
 
-if test x$extra_headers = x
+if test x"$extra_headers" = x
 then extra_headers=; fi
-
-if test x"$xm_file" = x
-then xm_file=$cpu_type/xm-$cpu_type.h; fi
 
 if test x$md_file = x
 then md_file=$cpu_type/$cpu_type.md; fi
@@ -3549,7 +734,7 @@ then tmake_file=$cpu_type/t-$cpu_type
 fi
 
 if test x"$dwarf2" = xyes
-then tm_file="tm-dwarf2.h $tm_file"
+then tm_file="$tm_file tm-dwarf2.h"
 fi
 
 if test x$float_format = x
@@ -3561,14 +746,6 @@ then float_h_file=Makefile.in
 else float_h_file=float-$float_format.h
 fi
 
-if test x$enable_haifa = x
-then
-  case $target in
-    alpha*-* | hppa*-* | powerpc*-* | rs6000-* | *sparc*-* | m32r*-*)
-      enable_haifa=yes;;
-  esac
-fi
-
 # Handle cpp installation.
 if test x$enable_cpp != xno
 then
@@ -3576,8 +753,38 @@ then
 fi
 
 # Say what files are being used for the output code and MD file.
-echo "Using \`$srcdir/config/$out_file' to output insns."
+echo "Using \`$srcdir/config/$out_file' for machine-specific logic."
 echo "Using \`$srcdir/config/$md_file' as machine description file."
+
+# If any of the xm_file variables contain nonexistent files, warn
+# about them and drop them.
+
+bx=
+for x in $build_xm_file; do
+  if    test -f $srcdir/config/$x
+  then      bx="$bx $x"
+  else      AC_MSG_WARN($srcdir/config/$x does not exist.)
+  fi
+done
+build_xm_file="$bx"
+
+hx=
+for x in $host_xm_file; do
+  if    test -f $srcdir/config/$x
+  then      hx="$hx $x"
+  else      AC_MSG_WARN($srcdir/config/$x does not exist.)
+  fi
+done
+host_xm_file="$hx"
+
+tx=
+for x in $xm_file; do
+  if    test -f $srcdir/config/$x
+  then      tx="$tx $x"
+  else      AC_MSG_WARN($srcdir/config/$x does not exist.)
+  fi
+done
+xm_file="$tx"
 
 count=a
 for f in $tm_file; do
@@ -3596,7 +803,9 @@ count=a
 for f in $host_xm_file; do
 	count=${count}x
 done
-if test $count = ax; then
+if test $count = a; then
+	:
+elif test $count = ax; then
 	echo "Using \`$srcdir/config/$host_xm_file' as host machine macro file."
 else
 	echo "Using the following host machine macro files:"
@@ -3610,7 +819,9 @@ if test "$host_xm_file" != "$build_xm_file"; then
 	for f in $build_xm_file; do
 		count=${count}x
 	done
-	if test $count = ax; then
+	if test $count = a; then
+		:
+	elif test $count = ax; then
 		echo "Using \`$srcdir/config/$build_xm_file' as build machine macro file."
 	else
 		echo "Using the following build machine macro files:"
@@ -3628,20 +839,15 @@ if test x$thread_file = x; then
 	fi
 fi
 
-# Set up the header files.
-# $links is the list of header files to create.
-# $vars is the list of shell variables with file names to include.
 # auto-host.h is the file containing items generated by autoconf and is
 # the first file included by config.h.
-null_defines=
-host_xm_file="auto-host.h gansidecl.h ${host_xm_file} hwint.h"
-
 # If host=build, it is correct to have hconfig include auto-host.h
 # as well.  If host!=build, we are in error and need to do more 
 # work to find out the build config parameters.
 if test x$host = x$build
 then
-	build_xm_file="auto-host.h gansidecl.h ${build_xm_file} hwint.h"
+	build_auto=auto-host.h
+	FORBUILD=..
 else
 	# We create a subdir, then run autoconf in the subdir.
 	# To prevent recursion we set host and build for the new
@@ -3652,70 +858,29 @@ else
 	mkdir $tempdir
 	cd $tempdir
 	case ${srcdir} in
-	/*) realsrcdir=${srcdir};;
+	/* | [A-Za-z]:[\\/]* ) realsrcdir=${srcdir};;
 	*) realsrcdir=../${srcdir};;
 	esac
-	CC=${CC_FOR_BUILD} ${realsrcdir}/configure \
+	saved_CFLAGS="${CFLAGS}"
+	CC="${CC_FOR_BUILD}" CFLAGS="${CFLAGS_FOR_BUILD}" \
+	${realsrcdir}/configure \
 		--target=$target --host=$build --build=$build
+	CFLAGS="${saved_CFLAGS}"
 
 	# We just finished tests for the build machine, so rename
 	# the file auto-build.h in the gcc directory.
 	mv auto-host.h ../auto-build.h
 	cd ..
 	rm -rf $tempdir
-	build_xm_file="auto-build.h gansidecl.h ${build_xm_file} hwint.h"
+	build_auto=auto-build.h
+	FORBUILD=../$build
 fi
+AC_SUBST(FORBUILD)
 
-xm_file="gansidecl.h ${xm_file}"
-tm_file="gansidecl.h ${tm_file}"
-
-vars="host_xm_file tm_file xm_file build_xm_file"
-links="config.h tm.h tconfig.h hconfig.h"
-defines="host_xm_defines null_defines xm_defines build_xm_defines"
-
-rm -f config.bak
-if test -f config.status; then mv -f config.status config.bak; fi
-
-# Make the links.
-while test -n "$vars"
-do
-	set $vars; var=$1; shift; vars=$*
-	set $links; link=$1; shift; links=$*
-	set $defines; define=$1; shift; defines=$*
-
-	rm -f $link
-
-	# Define TARGET_CPU_DEFAULT if the system wants one.
-	# This substitutes for lots of *.h files.
-	if test "$target_cpu_default" != "" -a $link = tm.h
-	then
-		echo "#define TARGET_CPU_DEFAULT ($target_cpu_default)" >>$link
-	fi
-
-	for file in `eval echo '$'$var`; do
-		case $file in
-		auto-config.h)
-			;;
-		*)
-			echo '#ifdef IN_GCC' >>$link
-			;;
-		esac
-		echo "#include \"$file\"" >>$link
-		case $file in
-		auto-config.h)
-			;;
-		*)
-			echo '#endif' >>$link
-			;;
-		esac
-	done
-
-	for def in `eval echo '$'$define`; do
-		echo "#ifndef $def" >>$link
-		echo "#define $def" >>$link
-		echo "#endif" >>$link
-	done
-done
+tm_file="${tm_file} defaults.h"
+host_xm_file="auto-host.h ansidecl.h ${host_xm_file} ${tm_file}"
+build_xm_file="${build_auto} ansidecl.h ${build_xm_file} ${tm_file}"
+xm_file="ansidecl.h ${xm_file} ${tm_file}"
 
 # Truncate the target if necessary
 if test x$host_truncate_target != x; then
@@ -3729,27 +894,91 @@ else
 	gcc_version_trigger=${srcdir}/version.c
 fi
 changequote(,)dnl
-gcc_version=`sed -e 's/.*\"\([^ \"]*\)[ \"].*/\1/' < ${gcc_version_trigger}`
+gcc_version_full=`grep version_string ${gcc_version_trigger} | sed -e 's/.*"\([^"]*\)".*/\1/'`
+gcc_version=`echo ${gcc_version_full} | sed -e 's/\([^ ]*\) .*/\1/'`
+
+# Compile in configure arguments.
+if test -f configargs.h ; then
+	# Being re-configured.
+	gcc_config_arguments=`grep configuration_arguments configargs.h | sed -e 's/.*"\([^"]*\)".*/\1/'`
+	gcc_config_arguments="$gcc_config_arguments : (reconfigured) $TOPLEVEL_CONFIGURE_ARGUMENTS"
+else
+	gcc_config_arguments="$TOPLEVEL_CONFIGURE_ARGUMENTS"
+fi
+cat > configargs.h <<EOF
+/* Generated automatically. */
+static const char configuration_arguments[] = "$gcc_config_arguments";
+static const char thread_model[] = "$thread_file";
+EOF
 changequote([,])dnl
 
 # Internationalization
 PACKAGE=gcc
 VERSION="$gcc_version"
-AC_DEFINE_UNQUOTED(PACKAGE, "$PACKAGE")
-AC_DEFINE_UNQUOTED(VERSION, "$VERSION")
 AC_SUBST(PACKAGE)
 AC_SUBST(VERSION)
 
-ALL_LINGUAS="en_UK"
-
-# NLS support is still experimental, so disable it by default for now.
+# Enable NLS support by default
 AC_ARG_ENABLE(nls,
-[  --enable-nls            use Native Language Support (disabled by default).
-                          EXPERIMENTAL, see ABOUT-GCC-NLS.],
-  , enable_nls=no)
+  [  --enable-nls            use Native Language Support (default)],
+  , enable_nls=yes)
+
+# if cross compiling, disable NLS support.
+# It's not worth the trouble, at least for now.
+
+if test "${build}" != "${host}" && test "x$enable_nls" = "xyes"; then
+  AC_MSG_WARN(Disabling NLS support for canadian cross compiler.)
+  enable_nls=no
+fi
 
 AM_GNU_GETTEXT
-XGETTEXT="AWK='$AWK' \$(SHELL) \$(top_srcdir)/exgettext $XGETTEXT"
+
+# Windows32 Registry support for specifying GCC installation paths.
+AC_ARG_ENABLE(win32-registry,
+[  --disable-win32-registry
+                          disable lookup of installation paths in the
+                          Registry on Windows hosts
+  --enable-win32-registry enable registry lookup (default)
+  --enable-win32-registry=KEY
+                          use KEY instead of GCC version as the last portion
+                          of the registry key],,)
+case $host_os in
+	win32 | pe | cygwin* | mingw32* | uwin*)
+AC_MSG_CHECKING(whether windows registry support is requested)
+if test "x$enable_win32_registry" != xno; then
+  AC_DEFINE(ENABLE_WIN32_REGISTRY, 1,
+[Define to 1 if installation paths should be looked up in Windows32
+   Registry. Ignored on non windows32 hosts.])
+  AC_MSG_RESULT(yes)
+  AC_SEARCH_LIBS(RegOpenKeyExA, advapi32)
+else
+  AC_MSG_RESULT(no)
+fi
+
+# Check if user specified a different registry key.
+case "x${enable_win32_registry}" in
+x | xyes)
+  # default.
+  gcc_cv_win32_registry_key="$VERSION"
+  ;;
+xno)
+  # no registry lookup.
+  gcc_cv_win32_registry_key=''
+  ;;
+*)
+  # user-specified key.
+  gcc_cv_win32_registry_key="$enable_win32_registry"
+  ;;
+esac
+
+if test "x$enable_win32_registry" != xno; then
+  AC_MSG_CHECKING(registry key on windows hosts)
+  AC_DEFINE_UNQUOTED(WIN32_REGISTRY_KEY, "$gcc_cv_win32_registry_key",
+	[Define to be the last portion of registry key on windows hosts.])
+  AC_MSG_RESULT($gcc_cv_win32_registry_key)
+fi
+;;
+esac
 
 # Get an absolute path to the GCC top-level source directory
 holddir=`pwd`
@@ -3792,6 +1021,7 @@ then
 	cc_set_by_configure="\$(CC)"
 	quoted_cc_set_by_configure="\$(CC)"
 	stage_prefix_set_by_configure="\$(STAGE_PREFIX)"
+	quoted_stage_prefix_set_by_configure="\$(STAGE_PREFIX)"
 else
 	rm -f symtest.tem
 	if cp -p $srcdir/gcc.c symtest.tem 2>/dev/null
@@ -3803,6 +1033,7 @@ else
 	cc_set_by_configure="\`case '\$(CC)' in stage*) echo '\$(CC)' | sed -e 's|stage|../stage|g';; *) echo '\$(CC)';; esac\`"
 	quoted_cc_set_by_configure="\\\`case '\\\$(CC)' in stage*) echo '\\\$(CC)' | sed -e 's|stage|../stage|g';; *) echo '\\\$(CC)';; esac\\\`"
 	stage_prefix_set_by_configure="\`case '\$(STAGE_PREFIX)' in stage*) echo '\$(STAGE_PREFIX)' | sed -e 's|stage|../stage|g';; *) echo '\$(STAGE_PREFIX)';; esac\`"
+	quoted_stage_prefix_set_by_configure="\\\`case '\\\$(STAGE_PREFIX)' in stage*) echo '\\\$(STAGE_PREFIX)' | sed -e 's|stage|../stage|g';; *) echo '\\\$(STAGE_PREFIX)';; esac\\\`"
 fi
 rm -f symtest.tem
 
@@ -3811,16 +1042,25 @@ out_object_file=`basename $out_file .c`.o
 tm_file_list=
 for f in $tm_file; do
   case $f in
-    gansidecl.h )
+    ansidecl.h )
+       tm_file_list="${tm_file_list} \$(srcdir)/../include/ansidecl.h" ;;
+    defaults.h )
        tm_file_list="${tm_file_list} $f" ;;
     *) tm_file_list="${tm_file_list} \$(srcdir)/config/$f" ;;
   esac
 done
 
+tm_p_file_list=
+for f in $tm_p_file; do
+    tm_p_file_list="${tm_p_file_list} \$(srcdir)/config/$f"
+done
+
 host_xm_file_list=
 for f in $host_xm_file; do
   case $f in
-    auto-host.h | gansidecl.h | hwint.h )
+    ansidecl.h )
+       host_xm_file_list="${host_xm_file_list} \$(srcdir)/../include/ansidecl.h" ;;
+    auto-host.h | defaults.h )
        host_xm_file_list="${host_xm_file_list} $f" ;;
     *) host_xm_file_list="${host_xm_file_list} \$(srcdir)/config/$f" ;;
   esac
@@ -3829,30 +1069,68 @@ done
 build_xm_file_list=
 for f in $build_xm_file; do
   case $f in
-    auto-build.h | auto-host.h | gansidecl.h | hwint.h )
+    ansidecl.h )
+       build_xm_file_list="${build_xm_file_list} \$(srcdir)/../include/ansidecl.h" ;;
+    auto-build.h | auto-host.h | defaults.h )
        build_xm_file_list="${build_xm_file_list} $f" ;;
     *) build_xm_file_list="${build_xm_file_list} \$(srcdir)/config/$f" ;;
   esac
 done
 
-# Define macro CROSS_COMPILE in compilation
-# if this is a cross-compiler.
-# Also use all.cross instead of all.internal
-# and add cross-make to Makefile.
-cross_overrides="/dev/null"
+# Define macro CROSS_COMPILE in compilation if this is a cross-compiler.
+# Also use all.cross instead of all.internal and adjust SYSTEM_HEADER_DIR.
+CROSS=						AC_SUBST(CROSS)
+ALL=all.internal				AC_SUBST(ALL)
+SYSTEM_HEADER_DIR='$(NATIVE_SYSTEM_HEADER_DIR)'	AC_SUBST(SYSTEM_HEADER_DIR)
 if test x$host != x$target
 then
-	cross_defines="CROSS=-DCROSS_COMPILE"
-	cross_overrides="${topdir}/cross-make"
+	CROSS="-DCROSS_COMPILE"
+	ALL=all.cross
+	SYSTEM_HEADER_DIR='$(CROSS_SYSTEM_HEADER_DIR)'
 fi
 
-# When building gcc with a cross-compiler, we need to fix a few things.
-# This must come after cross-make as we want all.build to override
-# all.cross.
-build_overrides="/dev/null"
+# If this is a cross-compiler that does not
+# have its own set of headers then define
+# inhibit_libc
+
+# If this is using newlib, then define inhibit_libc in LIBGCC2_CFLAGS.
+# This prevents libgcc2 from containing any code which requires libc
+# support.
+inhibit_libc=
+if [test x$host != x$target] && [test x$with_headers = x]; then
+       inhibit_libc=-Dinhibit_libc
+else
+       if [test x$with_newlib = xyes]; then
+               inhibit_libc=-Dinhibit_libc
+       fi
+fi
+AC_SUBST(inhibit_libc)
+
+# When building gcc with a cross-compiler, we need to adjust things so
+# that the generator programs are still built with the native compiler.
+# Also, we cannot run fixincludes or fix-header.
+# Note that the terminology here is wrong; it should be BUILD_* throughout.
+# FIXME.
+
+# These are the normal (build=host) settings:
+HOST_PREFIX=			AC_SUBST(HOST_PREFIX)
+HOST_PREFIX_1=ignore-		AC_SUBST(HOST_PREFIX_1)
+HOST_CC='$(CC)'			AC_SUBST(HOST_CC)
+HOST_CFLAGS='$(ALL_CFLAGS)'	AC_SUBST(HOST_CFLAGS)
+
+STMP_FIXINC=stmp-fixinc		AC_SUBST(STMP_FIXINC)
+STMP_FIXPROTO=stmp-fixproto	AC_SUBST(STMP_FIXPROTO)
+
+# And these apply if build != host.
 if test x$build != x$host
 then
-	build_overrides="${topdir}/build-make"
+    HOST_PREFIX=build-
+    HOST_PREFIX_1=build-
+    HOST_CC='$(CC_FOR_BUILD)'
+    HOST_CFLAGS='$(INTERNAL_CFLAGS) $(T_CFLAGS) $(CFLAGS_FOR_BUILD) $(XCFLAGS)'
+
+    STMP_FIXINC=
+    STMP_FIXPROTO=
 fi
 
 # Expand extra_headers to include complete path.
@@ -3861,10 +1139,10 @@ extra_headers_list=
 if test "x$extra_headers" = x
 then true
 else
-	# Prepend ${srcdir}/ginclude/ to every entry in extra_headers.
+	# Prepend ${srcdir}/config/${cpu_type}/ to every entry in extra_headers.
 	for file in $extra_headers;
 	do
-		extra_headers_list="${extra_headers_list} \$(srcdir)/ginclude/${file}"
+		extra_headers_list="${extra_headers_list} \$(srcdir)/config/${cpu_type}/${file}"
 	done
 fi
 
@@ -3873,29 +1151,10 @@ if test x$use_collect2 = xno; then
 fi
 
 # Add a definition of USE_COLLECT2 if system wants one.
-# Also tell toplev.c what to do.
-# This substitutes for lots of t-* files.
-if test x$use_collect2 = x
+if test x$use_collect2 != x
 then
-	will_use_collect2=
-	maybe_use_collect2=
-else
-	will_use_collect2="collect2"
-	maybe_use_collect2="-DUSE_COLLECT2"
-fi
-
-# NEED TO CONVERT
-# Set MD_DEPS if the real md file is in md.pre-cpp.
-# Set MD_CPP to the cpp to pass the md file through.  Md files use ';'
-# for line oriented comments, so we must always use a GNU cpp.  If
-# building gcc with a cross compiler, use the cross compiler just
-# built.  Otherwise, we can use the cpp just built.
-md_file_sub=
-if test "x$md_cppflags" = x
-then
-	md_file_sub=$srcdir/config/$md_file
-else
-	md_file=md
+	host_xm_defines="${host_xm_defines} USE_COLLECT2"
+	xm_defines="${xm_defines} USE_COLLECT2"
 fi
 
 # If we have gas in the build tree, make a link to it.
@@ -3903,25 +1162,24 @@ if test -f ../gas/Makefile; then
 	rm -f as; $symbolic_link ../gas/as-new$host_exeext as$host_exeext 2>/dev/null
 fi
 
-# If we have nm in the build tree, make a link to it.
+# If we have nm and objdump in the build tree, make a link to them.
 if test -f ../binutils/Makefile; then
 	rm -f nm; $symbolic_link ../binutils/nm-new$host_exeext nm$host_exeext 2>/dev/null
+	rm -f objdump; $symbolic_link ../binutils/objdump$host_exeext objdump$host_exeext 2>/dev/null
 fi
 
 # If we have ld in the build tree, make a link to it.
 if test -f ../ld/Makefile; then
-#	if test x$use_collect2 = x; then
-#		rm -f ld; $symbolic_link ../ld/ld-new$host_exeext ld$host_exeext 2>/dev/null
-#	else
-		rm -f collect-ld; $symbolic_link ../ld/ld-new$host_exeext collect-ld$host_exeext 2>/dev/null
-#	fi
+	rm -f collect-ld; $symbolic_link ../ld/ld-new$host_exeext collect-ld$host_exeext 2>/dev/null
 fi
 
-# Figure out what assembler alignment features are present.
-AC_MSG_CHECKING(assembler alignment features)
+# Figure out what assembler we will be using.
+AC_MSG_CHECKING(what assembler to use)
 gcc_cv_as=
-gcc_cv_as_alignment_features=
+gcc_cv_gas_major_version=
+gcc_cv_gas_minor_version=
 gcc_cv_as_gas_srcdir=`echo $srcdir | sed -e 's,/gcc$,,'`/gas
+gcc_cv_as_bfd_srcdir=`echo $srcdir | sed -e 's,/gcc$,,'`/bfd
 if test -x "$DEFAULT_ASSEMBLER"; then
 	gcc_cv_as="$DEFAULT_ASSEMBLER"
 elif test -x "$AS"; then
@@ -3931,7 +1189,7 @@ elif test -x as$host_exeext; then
 	gcc_cv_as=./as$host_exeext
 elif test -f $gcc_cv_as_gas_srcdir/configure.in -a -f ../gas/Makefile; then
 	# Single tree build which includes gas.
-	for f in $gcc_cv_as_gas_srcdir/configure $gcc_cv_as_gas_srcdir/configure.in $gcc_cv_as_gas_srcdir/Makefile.in
+	for f in $gcc_cv_as_bfd_srcdir/configure $gcc_cv_as_gas_srcdir/configure $gcc_cv_as_gas_srcdir/configure.in $gcc_cv_as_gas_srcdir/Makefile.in
 	do
 changequote(,)dnl
 		gcc_cv_gas_version=`grep '^VERSION=[0-9]*\.[0-9]*' $f`
@@ -3944,21 +1202,9 @@ changequote(,)dnl
 	gcc_cv_gas_major_version=`expr "$gcc_cv_gas_version" : "VERSION=\([0-9]*\)"`
 	gcc_cv_gas_minor_version=`expr "$gcc_cv_gas_version" : "VERSION=[0-9]*\.\([0-9]*\)"`
 changequote([,])dnl
-	if test x$gcc_cv_gas_major_version != x -a x$gcc_cv_gas_minor_version != x; then
-		# Gas version 2.6 and later support for .balign and .p2align.
-		# bytes to skip when using .p2align.
-		if test "$gcc_cv_gas_major_version" -eq 2 -a "$gcc_cv_gas_minor_version" -ge 6 -o "$gcc_cv_gas_major_version" -gt 2; then
-			gcc_cv_as_alignment_features=".balign and .p2align"
-			AC_DEFINE(HAVE_GAS_BALIGN_AND_P2ALIGN)
-		fi
-		# Gas version 2.8 and later support specifying the maximum
-		# bytes to skip when using .p2align.
-		if test "$gcc_cv_gas_major_version" -eq 2 -a "$gcc_cv_gas_minor_version" -ge 8 -o "$gcc_cv_gas_major_version" -gt 2; then
-			gcc_cv_as_alignment_features=".p2align including maximum skip"
-			AC_DEFINE(HAVE_GAS_MAX_SKIP_P2ALIGN)
-		fi
-	fi
-elif test x$host = x$target; then
+fi
+
+if test "x$gcc_cv_as" = x -a x$host = x$target; then
 	# Native build.
 	# Search the same directories that the installed compiler will
 	# search.  Else we may find the wrong assembler and lose.  If we
@@ -3984,7 +1230,7 @@ elif test x$host = x$target; then
 	# If the loop below does not find an assembler, then use whatever
 	# one we can find in the users's path.
 	# user's path.
-	as=as$host_exeext
+	gcc_cv_as=as$host_exeext
 
 	test_dirs="$test_prefix/lib/gcc-lib/$target/$gcc_version \
 		   $test_prefix/lib/gcc-lib/$target \
@@ -4010,7 +1256,138 @@ elif test x$host = x$target; then
 		fi
 	done
 fi
-if test x$gcc_cv_as != x; then
+if test x$gcc_cv_gas_major_version != x -a x$gcc_cv_gas_minor_version != x; then
+  AC_MSG_RESULT("newly built gas")
+else
+  AC_MSG_RESULT($gcc_cv_as)
+fi
+
+# Figure out what linker we will be using.
+AC_MSG_CHECKING(what linker to use)
+gcc_cv_ld=
+gcc_cv_gld_major_version=
+gcc_cv_gld_minor_version=
+gcc_cv_ld_gld_srcdir=`echo $srcdir | sed -e 's,/gcc$,,'`/ld
+gcc_cv_ld_bfd_srcdir=`echo $srcdir | sed -e 's,/gcc$,,'`/bfd
+if test -x "$DEFAULT_LINKER"; then
+	gcc_cv_ld="$DEFAULT_LINKER"
+elif test -x "$LD"; then
+	gcc_cv_ld="$LD"
+elif test -x ld$host_exeext; then
+	# Build using linker in the current directory.
+	gcc_cv_ld=./ld$host_exeext
+elif test -f $gcc_cv_ld_gld_srcdir/configure.in -a -f ../ld/Makefile; then
+	# Single tree build which includes ld.
+	for f in $gcc_cv_ld_bfd_srcdir/configure $gcc_cv_ld_gld_srcdir/configure $gcc_cv_ld_gld_srcdir/configure.in $gcc_cv_ld_gld_srcdir/Makefile.in
+	do
+changequote(,)dnl
+		gcc_cv_gld_version=`grep '^VERSION=[0-9]*\.[0-9]*' $f`
+changequote([,])dnl
+		if test x$gcc_cv_gld_version != x; then
+			break
+		fi
+	done
+changequote(,)dnl
+	gcc_cv_gld_major_version=`expr "$gcc_cv_gld_version" : "VERSION=\([0-9]*\)"`
+	gcc_cv_gld_minor_version=`expr "$gcc_cv_gld_version" : "VERSION=[0-9]*\.\([0-9]*\)"`
+changequote([,])dnl
+fi
+
+if test "x$gcc_cv_ld" = x -a x$host = x$target; then
+	# Native build.
+	# Search the same directories that the installed compiler will
+	# search.  Else we may find the wrong linker and lose.  If we
+	# do not find a suitable linker binary, then try the user's
+	# path.
+	#
+	# Also note we have to check MD_EXEC_PREFIX before checking the
+	# user's path.  Unfortunately, there is no good way to get at the
+	# value of MD_EXEC_PREFIX here.  So we do a brute force search
+	# through all the known MD_EXEC_PREFIX values.  Ugh.  This needs
+	# to be fixed as part of the make/configure rewrite too.
+
+	if test "x$exec_prefix" = xNONE; then
+		if test "x$prefix" = xNONE; then
+			test_prefix=/usr/local
+		else
+			test_prefix=$prefix
+		fi
+	else
+		test_prefix=$exec_prefix
+	fi
+
+	# If the loop below does not find an linker, then use whatever
+	# one we can find in the users's path.
+	# user's path.
+	gcc_cv_ld=ld$host_exeext
+
+	test_dirs="$test_prefix/lib/gcc-lib/$target/$gcc_version \
+		   $test_prefix/lib/gcc-lib/$target \
+		   /usr/lib/gcc/$target/$gcc_version \
+		   /usr/lib/gcc/$target \
+		   $test_prefix/$target/bin/$target/$gcc_version \
+		   $test_prefix/$target/bin \
+		   /usr/libexec \
+		   /usr/ccs/gcc \
+		   /usr/ccs/bin \
+		   /udk/usr/ccs/bin \
+		   /bsd43/usr/lib/cmplrs/cc \
+		   /usr/cross64/usr/bin \
+		   /usr/lib/cmplrs/cc \
+		   /sysv/usr/lib/cmplrs/cc \
+		   /svr4/usr/lib/cmplrs/cc \
+		   /usr/bin"
+
+	for dir in $test_dirs; do
+		if test -f $dir/ld$host_exeext; then
+			gcc_cv_ld=$dir/ld$host_exeext
+			break;
+		fi
+	done
+fi
+if test x$gcc_cv_gld_major_version != x -a x$gcc_cv_gld_minor_version != x; then
+  AC_MSG_RESULT("newly built ld")
+else
+  AC_MSG_RESULT($gcc_cv_ld)
+fi
+
+# Figure out what nm we will be using.
+AC_MSG_CHECKING(what nm to use)
+if test -x nm$host_exeext; then
+	gcc_cv_nm=./nm$host_exeext
+elif test x$host = x$target; then
+	# Native build.
+	gcc_cv_nm=nm$host_exeext
+fi
+AC_MSG_RESULT($gcc_cv_nm)
+
+# Figure out what objdump we will be using.
+AC_MSG_CHECKING(what objdump to use)
+if test -x objdump$host_exeext; then
+	gcc_cv_objdump=./objdump$host_exeext
+elif test x$host = x$target; then
+	# Native build.
+	gcc_cv_objdump=objdump$host_exeext
+fi
+AC_MSG_RESULT($gcc_cv_objdump)
+
+# Figure out what assembler alignment features are present.
+AC_MSG_CHECKING(assembler alignment features)
+gcc_cv_as_alignment_features=none
+if test x$gcc_cv_gas_major_version != x -a x$gcc_cv_gas_minor_version != x; then
+	# Gas version 2.6 and later support for .balign and .p2align.
+	# bytes to skip when using .p2align.
+	if test "$gcc_cv_gas_major_version" -eq 2 -a "$gcc_cv_gas_minor_version" -ge 6 -o "$gcc_cv_gas_major_version" -gt 2; then
+		gcc_cv_as_alignment_features=".balign and .p2align"
+		AC_DEFINE(HAVE_GAS_BALIGN_AND_P2ALIGN)
+	fi
+	# Gas version 2.8 and later support specifying the maximum
+	# bytes to skip when using .p2align.
+	if test "$gcc_cv_gas_major_version" -eq 2 -a "$gcc_cv_gas_minor_version" -ge 8 -o "$gcc_cv_gas_major_version" -gt 2; then
+		gcc_cv_as_alignment_features=".p2align including maximum skip"
+		AC_DEFINE(HAVE_GAS_MAX_SKIP_P2ALIGN)
+	fi
+elif test x$gcc_cv_as != x; then
 	# Check if we have .balign and .p2align
 	echo ".balign  4" > conftest.s
 	echo ".p2align  2" >> conftest.s
@@ -4031,18 +1408,16 @@ fi
 AC_MSG_RESULT($gcc_cv_as_alignment_features)
 
 AC_MSG_CHECKING(assembler subsection support)
-gcc_cv_as_subsections=
-if test x$gcc_cv_as != x; then
+gcc_cv_as_subsections=no
+if test x$gcc_cv_gas_major_version != x -a x$gcc_cv_gas_minor_version != x; then
+  if test "$gcc_cv_gas_major_version" -eq 2 -a "$gcc_cv_gas_minor_version" -ge 9 -o "$gcc_cv_gas_major_version" -gt 2 && grep 'obj_format = elf' ../gas/Makefile > /dev/null; then
+    gcc_cv_as_subsections="working .subsection -1"
+  fi
+elif test x$gcc_cv_as != x; then
 	# Check if we have .subsection
 	echo ".subsection 1" > conftest.s
 	if $gcc_cv_as -o conftest.o conftest.s > /dev/null 2>&1; then
 		gcc_cv_as_subsections=".subsection"
-		if test -x nm$host_exeext; then
-			gcc_cv_nm=./nm$host_exeext
-		elif test x$host = x$target; then
-			# Native build.
-			gcc_cv_nm=nm$host_exeext
-		fi
 		if test x$gcc_cv_nm != x; then
 			cat > conftest.s <<EOF
 conftest_label1: .word 0
@@ -4057,43 +1432,606 @@ EOF
 					:
 				else
 					gcc_cv_as_subsections="working .subsection -1"
-					AC_DEFINE(HAVE_GAS_SUBSECTION_ORDERING)
 				fi
 			fi
 		fi
 	fi
 	rm -f conftest.s conftest.o conftest.nm1 conftest.nm2
 fi
+if test x"$gcc_cv_as_subsections" = x"working .subsection -1"; then
+	AC_DEFINE(HAVE_GAS_SUBSECTION_ORDERING, 1,
+[Define if your assembler supports .subsection and .subsection -1 starts
+   emitting at the beginning of your section.])
+fi
 AC_MSG_RESULT($gcc_cv_as_subsections)
 
-AC_MSG_CHECKING(assembler instructions)
-gcc_cv_as_instructions=
-if test x$gcc_cv_as != x; then
+AC_MSG_CHECKING(assembler weak support)
+gcc_cv_as_weak=no
+if test x$gcc_cv_gas_major_version != x -a x$gcc_cv_gas_minor_version != x; then
+  if test "$gcc_cv_gas_major_version" -eq 2 -a "$gcc_cv_gas_minor_version" -ge 2 -o "$gcc_cv_gas_major_version" -gt 2; then
+    gcc_cv_as_weak="yes"
+  fi
+elif test x$gcc_cv_as != x; then
+	# Check if we have .weak
+	echo "	.weak foobar" > conftest.s
+	if $gcc_cv_as -o conftest.o conftest.s > /dev/null 2>&1; then
+		gcc_cv_as_weak="yes"
+	fi
+	rm -f conftest.s conftest.o conftest.nm1 conftest.nm2
+fi
+if test x"$gcc_cv_as_weak" = xyes; then
+	AC_DEFINE(HAVE_GAS_WEAK, 1, [Define if your assembler supports .weak.])
+fi
+AC_MSG_RESULT($gcc_cv_as_weak)
+
+AC_MSG_CHECKING(assembler hidden support)
+gcc_cv_as_hidden=no
+if test x$gcc_cv_gas_major_version != x -a x$gcc_cv_gas_minor_version != x; then
+  if test "$gcc_cv_gas_major_version" -eq 2 -a "$gcc_cv_gas_minor_version" -ge 10 -o "$gcc_cv_gas_major_version" -gt 2 && grep 'obj_format = elf' ../gas/Makefile > /dev/null; then
+    gcc_cv_as_hidden="yes"
+  fi
+elif test x$gcc_cv_as != x; then
+	# Check if we have .hidden
+	echo "	.hidden foobar" > conftest.s
+	echo "foobar:" >> conftest.s
+	if $gcc_cv_as -o conftest.o conftest.s > /dev/null 2>&1; then
+		gcc_cv_as_hidden="yes"
+	fi
+	rm -f conftest.s conftest.o conftest.nm1 conftest.nm2
+fi
+if test x"$gcc_cv_as_hidden" = xyes; then
+	AC_DEFINE(HAVE_GAS_HIDDEN, 1,
+		[Define if your assembler supports .hidden.])
+fi
+AC_MSG_RESULT($gcc_cv_as_hidden)
+
+AC_MSG_CHECKING(assembler leb128 support)
+gcc_cv_as_leb128=no
+if test x$gcc_cv_gas_major_version != x -a x$gcc_cv_gas_minor_version != x; then
+  if test "$gcc_cv_gas_major_version" -eq 2 -a "$gcc_cv_gas_minor_version" -ge 11 -o "$gcc_cv_gas_major_version" -gt 2 && grep 'obj_format = elf' ../gas/Makefile > /dev/null; then
+    gcc_cv_as_leb128="yes"
+  fi
+elif test x$gcc_cv_as != x; then
+	# Check if we have .[us]leb128, and support symbol arithmetic with it.
+	cat > conftest.s <<EOF
+	.data
+	.uleb128 L2 - L1
+L1:
+	.uleb128 1280
+	.sleb128 -1010
+L2:
+EOF
+	if $gcc_cv_as -o conftest.o conftest.s > /dev/null 2>&1; then
+		gcc_cv_as_leb128="yes"
+
+		# GAS versions before 2.11 do not support uleb128,
+		# despite appearing to.
+		# ??? There exists an elf-specific test that will crash
+		# the assembler.  Perhaps it's better to figure out whether
+		# arbitrary sections are supported and try the test.
+		as_ver=`$gcc_cv_as --version 2>/dev/null | head -1`
+		if echo "$as_ver" | grep GNU > /dev/null; then
+changequote(,)dnl
+			as_ver=`echo $as_ver | sed -e 's/GNU assembler \([0-9.][0-9.]*\).*/\1/'`
+			as_major=`echo $as_ver | sed 's/\..*//'`
+			as_minor=`echo $as_ver | sed 's/[^.]*\.\([0-9]*\).*/\1/'`
+changequote([,])dnl
+			if test $as_major -eq 2 -a $as_minor -lt 11; then
+				gcc_cv_as_leb128="no"
+			fi
+		fi
+	fi
+	rm -f conftest.s conftest.o conftest.nm1 conftest.nm2
+fi
+if test x"$gcc_cv_as_leb128" = xyes; then
+	AC_DEFINE(HAVE_AS_LEB128, 1,
+		[Define if your assembler supports .uleb128.])
+fi
+AC_MSG_RESULT($gcc_cv_as_leb128)
+
+AC_MSG_CHECKING(assembler eh_frame optimization)
+gcc_cv_as_eh_frame=no
+if test x$gcc_cv_gas_major_version != x -a x$gcc_cv_gas_minor_version != x; then
+  if test "$gcc_cv_gas_major_version" -eq 2 -a "$gcc_cv_gas_minor_version" -ge 12 -o "$gcc_cv_gas_major_version" -gt 2 && grep 'obj_format = elf' ../gas/Makefile > /dev/null; then
+    gcc_cv_as_eh_frame="yes"
+  fi
+elif test x$gcc_cv_as != x; then
+	# Check if this is GAS.
+	as_ver=`$gcc_cv_as --version < /dev/null 2> /dev/null | head -1`
+	rm -f a.out 2> /dev/null
+	if echo "$as_ver" | grep GNU > /dev/null; then
+		# Versions up to and including 2.11.0 may mis-optimize
+		# .eh_frame data.  Try something.
+		cat > conftest.s <<EOF
+	.text
+.LFB1:
+	.4byte	0
+.L1:
+	.4byte	0
+.LFE1:
+	.section	.eh_frame,"aw",@progbits
+__FRAME_BEGIN__:
+	.4byte	.LECIE1-.LSCIE1
+.LSCIE1:
+	.4byte	0x0
+	.byte	0x1
+	.ascii "z\0"
+	.byte	0x1
+	.byte	0x78
+	.byte	0x1a
+	.byte	0x0
+	.byte	0x4
+	.4byte	1
+	.p2align 1
+.LECIE1:
+.LSFDE1:
+	.4byte	.LEFDE1-.LASFDE1
+.LASFDE1:
+	.4byte	.LASFDE1-__FRAME_BEGIN__
+	.4byte	.LFB1
+	.4byte	.LFE1-.LFB1
+	.byte	0x4
+	.4byte	.LFE1-.LFB1
+	.byte	0x4
+	.4byte	.L1-.LFB1
+.LEFDE1:
+EOF
+		cat > conftest.lit <<EOF
+ 0000 10000000 00000000 017a0001 781a0004  .........z..x...
+ 0010 01000000 12000000 18000000 00000000  ................
+ 0020 08000000 04080000 0044               .........D      
+EOF
+		cat > conftest.big <<EOF
+ 0000 00000010 00000000 017a0001 781a0004  .........z..x...
+ 0010 00000001 00000012 00000018 00000000  ................
+ 0020 00000008 04000000 0844               .........D      
+EOF
+		# If the assembler didn't choke, and we can objdump,
+		# and we got the correct data, then succeed.
+		if $gcc_cv_as -o conftest.o conftest.s > /dev/null 2>&1 \
+		   && $gcc_cv_objdump -s -j .eh_frame conftest.o 2>/dev/null \
+		      | tail -3 > conftest.got \
+		   && { cmp conftest.lit conftest.got > /dev/null 2>&1 \
+		        || cmp conftest.big conftest.got > /dev/null 2>&1; }
+		then
+			gcc_cv_as_eh_frame="yes"
+		else
+			gcc_cv_as_eh_frame="bad"
+			if $gcc_cv_as -o conftest.o --traditional-format /dev/null; then
+				AC_DEFINE(USE_AS_TRADITIONAL_FORMAT, 1,
+	[Define if your assembler mis-optimizes .eh_frame data.])
+			fi
+		fi
+	fi
+	rm -f conftest.*
+fi
+AC_MSG_RESULT($gcc_cv_as_eh_frame)
+
+AC_MSG_CHECKING(assembler section merging support)
+gcc_cv_as_shf_merge=no
+if test x$gcc_cv_gas_major_version != x -a x$gcc_cv_gas_minor_version != x; then
+  if test "$gcc_cv_gas_major_version" -eq 2 -a "$gcc_cv_gas_minor_version" -ge 12 -o "$gcc_cv_gas_major_version" -gt 2 && grep 'obj_format = elf' ../gas/Makefile > /dev/null; then
+    gcc_cv_as_shf_merge=yes
+  fi
+elif test x$gcc_cv_as != x; then
+	# Check if we support SHF_MERGE sections
+	echo '.section .rodata.str, "aMS", @progbits, 1' > conftest.s
+	if $gcc_cv_as --fatal-warnings -o conftest.o conftest.s > /dev/null 2>&1; then
+		gcc_cv_as_shf_merge=yes
+	fi
+	rm -f conftest.s conftest.o
+fi
+if test x"$gcc_cv_as_shf_merge" = xyes; then
+	AC_DEFINE(HAVE_GAS_SHF_MERGE, 1,
+[Define if your assembler supports marking sections with SHF_MERGE flag.])
+fi
+AC_MSG_RESULT($gcc_cv_as_shf_merge)
+
+case "$target" in
+  # All TARGET_ABI_OSF targets.
+  alpha*-*-osf* | alpha*-*-linux* | alpha*-*-*bsd*)
+    AC_CACHE_CHECK([assembler supports explicit relocations],
+	gcc_cv_as_explicit_relocs, [
+	gcc_cv_as_explicit_relocs=unknown
+	if test x$gcc_cv_gas_major_version != x \
+		-a x$gcc_cv_gas_minor_version != x
+	then
+	   if test "$gcc_cv_gas_major_version" -eq 2 \
+	           -a "$gcc_cv_gas_minor_version" -ge 12 \
+	           -o "$gcc_cv_gas_major_version" -gt 2; then
+	      gcc_cv_as_explicit_relocs=yes
+	   fi
+	elif test x$gcc_cv_as != x; then
+	    cat > conftest.s << 'EOF'
+	.set nomacro
+	.text
+	extbl	$3, $2, $3	!lituse_bytoff!1
+	ldq	$2, a($29)	!literal!1
+	ldq	$4, b($29)	!literal!2
+	ldq_u	$3, 0($2)	!lituse_base!1
+	ldq	$27, f($29)	!literal!5
+	jsr	$26, ($27), f	!lituse_jsr!5
+	ldah	$29, 0($26)	!gpdisp!3
+	lda	$0, c($29)	!gprel
+	ldah	$1, d($29)	!gprelhigh
+	lda	$1, d($1)	!gprellow
+	lda	$29, 0($29)	!gpdisp!3
+EOF
+	    if $gcc_cv_as -o conftest.o conftest.s > /dev/null 2>&1; then
+		gcc_cv_as_explicit_relocs=yes
+	    else
+		gcc_cv_as_explicit_relocs=no
+	    fi
+	    rm -f conftest.s conftest.o
+	fi
+    ])
+    if test "x$gcc_cv_as_explicit_relocs" = xyes; then
+	AC_DEFINE(HAVE_AS_EXPLICIT_RELOCS, 1,
+		[Define if your assembler supports explicit relocations.])
+    fi
+    ;;
+  sparc*-*-*)
+    AC_CACHE_CHECK([assembler .register pseudo-op support],
+	gcc_cv_as_register_pseudo_op, [
+	gcc_cv_as_register_pseudo_op=unknown
+	if test x$gcc_cv_as != x; then
+	    # Check if we have .register
+	    echo ".register %g2, #scratch" > conftest.s
+	    if $gcc_cv_as -o conftest.o conftest.s > /dev/null 2>&1; then
+		gcc_cv_as_register_pseudo_op=yes
+	    else
+		gcc_cv_as_register_pseudo_op=no
+	    fi
+	    rm -f conftest.s conftest.o
+	fi
+    ])
+    if test "x$gcc_cv_as_register_pseudo_op" = xyes; then
+	AC_DEFINE(HAVE_AS_REGISTER_PSEUDO_OP, 1,
+		[Define if your assembler supports .register.])
+    fi
+
+    AC_CACHE_CHECK([assembler supports -relax],
+	gcc_cv_as_relax_opt, [
+	gcc_cv_as_relax_opt=unknown
+	if test x$gcc_cv_as != x; then
+	    # Check if gas supports -relax
+	    echo ".text" > conftest.s
+	    if $gcc_cv_as -relax -o conftest.o conftest.s > /dev/null 2>&1; then
+		gcc_cv_as_relax_opt=yes
+	    else
+		gcc_cv_as_relax_opt=no
+	    fi
+	    rm -f conftest.s conftest.o
+	fi
+    ])
+    if test "x$gcc_cv_as_relax_opt" = xyes; then
+	AC_DEFINE(HAVE_AS_RELAX_OPTION, 1,
+		[Define if your assembler supports -relax option.])
+    fi
+
+    AC_CACHE_CHECK([assembler and linker support unaligned pc related relocs],
+	gcc_cv_as_sparc_ua_pcrel, [
+	gcc_cv_as_sparc_ua_pcrel=unknown
+	if test x$gcc_cv_as != x -a x$gcc_cv_ld != x; then
+	    gcc_cv_as_sparc_ua_pcrel=no
+	    echo ".text; foo: nop; .data; .align 4; .byte 0; .uaword %r_disp32(foo)" > conftest.s
+	    if $gcc_cv_as -K PIC -o conftest.o conftest.s > /dev/null 2>&1; then
+		if $gcc_cv_ld -o conftest conftest.o -G > /dev/null 2>&1; then
+		    gcc_cv_as_sparc_ua_pcrel=yes
+		fi
+	    fi
+	    rm -f conftest.s conftest.o conftest
+	fi
+    ])
+    if test "x$gcc_cv_as_sparc_ua_pcrel" = xyes; then
+	AC_DEFINE(HAVE_AS_SPARC_UA_PCREL, 1,
+		[Define if your assembler and linker support unaligned PC relative relocs.])
+    fi
+
+    case "$tm_file" in
+    *64*)
+	AC_CACHE_CHECK([for 64 bit support in assembler ($gcc_cv_as)],
+	    gcc_cv_as_flags64, [
+		if test -n "$gcc_cv_as"; then
+		    echo ".xword foo" > conftest.s
+		    gcc_cv_as_flags64=no
+		    for flag in "-xarch=v9" "-64 -Av9"; do
+			if $gcc_cv_as $flag -o conftest.o conftest.s \
+			    > /dev/null 2>&1; then
+			    gcc_cv_as_flags64=$flag
+			    break
+			fi
+		    done
+		    rm -f conftest.s conftest.o
+		else
+		    if test "$gas" = yes; then
+			gcc_cv_as_flags64="-64 -Av9"
+		    else
+			gcc_cv_as_flags64="-xarch=v9"
+		    fi
+		fi
+	])
+	if test "x$gcc_cv_as_flags64" = xno; then
+changequote(, )
+	    tmake_file=`echo " $tmake_file " | sed -e 's, sparc/t-sol2-64 , ,' -e 's,^ ,,' -e 's, $,,'`
+	    dep_tmake_file=`echo " $dep_tmake_file " | sed -e 's, [^ ]*/config/sparc/t-sol2-64 , ,' -e 's,^ ,,' -e 's, $,,'`
+changequote([, ])
+	else
+	    AC_DEFINE_UNQUOTED(AS_SPARC64_FLAG, "$gcc_cv_as_flags64",
+			[Define if the assembler supports 64bit sparc.])
+	fi
+	;;
+    *) gcc_cv_as_flags64=${gcc_cv_as_flags64-no}
+	;;
+    esac
+
+    if test "x$gcc_cv_as_flags64" != xno; then
+	AC_CACHE_CHECK([for assembler offsetable %lo() support],
+	    gcc_cv_as_offsetable_lo10, [
+	    gcc_cv_as_offsetable_lo10=unknown
+	    if test "x$gcc_cv_as" != x; then
+		# Check if assembler has offsetable %lo()
+		echo "or %g1, %lo(ab) + 12, %g1" > conftest.s
+		echo "or %g1, %lo(ab + 12), %g1" > conftest1.s
+		if $gcc_cv_as $gcc_cv_as_flags64 -o conftest.o conftest.s \
+			> /dev/null 2>&1 &&
+		   $gcc_cv_as $gcc_cv_as_flags64 -o conftest1.o conftest1.s \
+			> /dev/null 2>&1; then
+		    if cmp conftest.o conftest1.o > /dev/null 2>&1; then
+			gcc_cv_as_offsetable_lo10=no
+		    else
+			gcc_cv_as_offsetable_lo10=yes
+		    fi
+		else
+		    gcc_cv_as_offsetable_lo10=no
+		fi
+		rm -f conftest.s conftest.o conftest1.s conftest1.o
+	    fi
+	])
+	if test "x$gcc_cv_as_offsetable_lo10" = xyes; then
+	    AC_DEFINE(HAVE_AS_OFFSETABLE_LO10, 1,
+		[Define if your assembler supports offsetable %lo().])
+	fi
+    fi
+
+    ;;
+
+changequote(,)dnl
+  i[34567]86-*-* | x86_64-*-*)
+changequote([,])dnl
+    AC_MSG_CHECKING(assembler instructions)
+    gcc_cv_as_instructions=
+    if test x$gcc_cv_gas_major_version != x -a x$gcc_cv_gas_minor_version != x; then
+      if test "$gcc_cv_gas_major_version" -eq 2 -a "$gcc_cv_gas_minor_version" -ge 9 -o "$gcc_cv_gas_major_version" -gt 2; then
+	gcc_cv_as_instructions="filds fists"
+      fi
+    elif test x$gcc_cv_as != x; then
 	set "filds fists" "filds mem; fists mem"
 	while test $# -gt 0
   	do
 		echo "$2" > conftest.s
 		if $gcc_cv_as -o conftest.o conftest.s > /dev/null 2>&1; then
 			gcc_cv_as_instructions=${gcc_cv_as_instructions}$1" "
-			AC_DEFINE_UNQUOTED(HAVE_GAS_`echo "$1" | tr '[a-z ]' '[A-Z_]'`)
 		fi
 		shift 2
 	done
 	rm -f conftest.s conftest.o
+    fi
+    if test x"$gcc_cv_as_instructions" != x; then
+	AC_DEFINE_UNQUOTED(HAVE_GAS_`echo "$gcc_cv_as_instructions" | sed -e 's/ $//' | tr '[a-z ]' '[A-Z_]'`)
+    fi
+    AC_MSG_RESULT($gcc_cv_as_instructions)
+
+    AC_MSG_CHECKING(assembler GOTOFF in data directives)
+    gcc_cv_as_gotoff_in_data=no
+    if test x$gcc_cv_gas_major_version != x -a x$gcc_cv_gas_minor_version != x
+    then
+      if test "$gcc_cv_gas_major_version" -eq 2 \
+	 -a "$gcc_cv_gas_minor_version" -ge 11 \
+	 -o "$gcc_cv_gas_major_version" -gt 2; then
+	gcc_cv_as_gotoff_in_data=yes
+      fi
+    elif test x$gcc_cv_as != x; then
+	cat > conftest.s <<EOF
+	.text
+.L0:
+	nop
+	.data
+	.long .L0@GOTOFF
+EOF
+	if $gcc_cv_as -o conftest.o conftest.s > /dev/null 2>&1; then
+	  gcc_cv_as_gotoff_in_data=yes
+	fi
+    fi
+    AC_DEFINE_UNQUOTED(HAVE_AS_GOTOFF_IN_DATA,
+      [`if test $gcc_cv_as_gotoff_in_data = yes; then echo 1; else echo 0; fi`],
+      [Define true if the assembler supports '.long foo@GOTOFF'.])
+    AC_MSG_RESULT($gcc_cv_as_gotoff_in_data)
+    ;;
+esac
+
+AC_MSG_CHECKING(assembler dwarf2 debug_line support)
+gcc_cv_as_dwarf2_debug_line=no
+# ??? Not all targets support dwarf2 debug_line, even within a version
+# of gas.  Moreover, we need to emit a valid instruction to trigger any
+# info to the output file.  So, as supported targets are added to gas 2.11,
+# add some instruction here to (also) show we expect this might work.
+# ??? Once 2.11 is released, probably need to add first known working
+# version to the per-target configury.
+case "$target" in
+  i?86*-*-* | mips*-*-* | alpha*-*-* | powerpc*-*-* | sparc*-*-* | m68*-*-* | x86_64*-*-*)
+    insn="nop"
+    ;;
+  ia64*-*-*)
+    insn="nop 0"
+    ;;
+  esac
+if test x$gcc_cv_gas_major_version != x -a x$gcc_cv_gas_minor_version != x;
+then
+  if test "$gcc_cv_gas_major_version" -eq 2 \
+	-a "$gcc_cv_gas_minor_version" -ge 11 \
+	-o "$gcc_cv_gas_major_version" -gt 2 \
+     && grep 'obj_format = elf' ../gas/Makefile > /dev/null \
+     && test x"$insn" != x ; then
+    gcc_cv_as_dwarf2_debug_line="yes"
+  fi
+elif test x$gcc_cv_as != x -a x"$insn" != x ; then
+	echo '	.file 1 "conftest.s"' > conftest.s
+	echo '	.loc 1 3 0' >> conftest.s
+	echo "	$insn" >> conftest.s
+	# ??? This fails with non-gnu grep.
+	if $gcc_cv_as -o conftest.o conftest.s > /dev/null 2>&1 \
+	   && grep debug_line conftest.o > /dev/null 2>&1 ; then
+		# The .debug_line file table must be in the exact order that
+		# we specified the files, since these indices are also used
+		# by DW_AT_decl_file.  Approximate this test by testing if
+		# the assembler bitches if the same index is assigned twice.
+		echo '	.file 1 "foo.s"' > conftest.s
+		echo '	.file 1 "bar.s"' >> conftest.s
+		if $gcc_cv_as -o conftest.o conftest.s > /dev/null 2>&1
+		then
+		  gcc_cv_as_dwarf2_debug_line="no"
+		else
+		  gcc_cv_as_dwarf2_debug_line="yes"
+		fi
+	fi
+	rm -f conftest.s conftest.o conftest.nm1 conftest.nm2
 fi
-AC_MSG_RESULT($gcc_cv_as_instructions)
+if test x"$gcc_cv_as_dwarf2_debug_line" = xyes; then
+	AC_DEFINE(HAVE_AS_DWARF2_DEBUG_LINE, 1,
+[Define if your assembler supports dwarf2 .file/.loc directives,
+   and preserves file table indices exactly as given.])
+fi
+AC_MSG_RESULT($gcc_cv_as_dwarf2_debug_line)
+
+AC_MSG_CHECKING(assembler --gdwarf2 support)
+gcc_cv_as_gdwarf2_flag=no
+if test x$gcc_cv_gas_major_version != x -a x$gcc_cv_gas_minor_version != x;
+then
+  if test "$gcc_cv_gas_major_version" -eq 2 \
+	-a "$gcc_cv_gas_minor_version" -ge 11 \
+	-o "$gcc_cv_gas_major_version" -gt 2 \
+     && grep 'obj_format = elf' ../gas/Makefile > /dev/null \
+     && test x"$insn" != x ; then
+    gcc_cv_as_gdwarf2_debug_flag="yes"
+  fi
+elif test x$gcc_cv_as != x -a x"$insn" != x ; then
+	echo '' > conftest.s
+	# ??? This fails with non-gnu grep.
+	if $gcc_cv_as --gdwarf2 -o conftest.o conftest.s > /dev/null 2>&1
+	  then
+	  gcc_cv_as_gdwarf2_flag="yes"
+	fi
+	rm -f conftest.s conftest.o
+fi
+if test x"$gcc_cv_as_gdwarf2_flag" = xyes; then
+	AC_DEFINE(HAVE_AS_GDWARF2_DEBUG_FLAG, 1,
+[Define if your assembler supports the --gdwarf2 option.])
+fi
+AC_MSG_RESULT($gcc_cv_as_gdwarf2_flag)
+
+AC_MSG_CHECKING(assembler --gstabs support)
+gcc_cv_as_gstabs_flag=no
+if test x$gcc_cv_gas_major_version != x -a x$gcc_cv_gas_minor_version != x;
+then
+  if test "$gcc_cv_gas_major_version" -eq 2 \
+	-a "$gcc_cv_gas_minor_version" -ge 11 \
+	-o "$gcc_cv_gas_major_version" -gt 2 \
+     && grep 'obj_format = elf' ../gas/Makefile > /dev/null \
+     && test x"$insn" != x ; then
+    gcc_cv_as_gstabs_debug_flag="yes"
+  fi
+elif test x$gcc_cv_as != x -a x"$insn" != x ; then
+	echo '' > conftest.s
+	# ??? This fails with non-gnu grep.
+	if $gcc_cv_as --gstabs -o conftest.o conftest.s > /dev/null 2>&1 ; then
+	  gcc_cv_as_gstabs_flag="yes"
+	fi
+	rm -f conftest.s conftest.o
+fi
+if test x"$gcc_cv_as_gstabs_flag" = xyes; then
+	AC_DEFINE(HAVE_AS_GSTABS_DEBUG_FLAG, 1,
+[Define if your assembler supports the --gstabs option.])
+fi
+AC_MSG_RESULT($gcc_cv_as_gstabs_flag)
+
+AC_MSG_CHECKING(linker PT_GNU_EH_FRAME support)
+gcc_cv_ld_eh_frame_hdr=no
+if test x$gcc_cv_gld_major_version != x -a x$gcc_cv_gld_minor_version != x; then
+  if test "$gcc_cv_gld_major_version" -eq 2 -a "$gcc_cv_gld_minor_version" -ge 12 -o "$gcc_cv_gld_major_version" -gt 2 && grep 'EMUL = elf' ../ld/Makefile > /dev/null; then
+    gcc_cv_ld_eh_frame_hdr=yes
+  fi
+elif test x$gcc_cv_ld != x; then
+	# Check if linker supports --eh-frame-hdr option
+	if $gcc_cv_ld --help 2>/dev/null | grep eh-frame-hdr > /dev/null; then
+		gcc_cv_ld_eh_frame_hdr=yes
+	fi
+fi
+if test x"$gcc_cv_ld_eh_frame_hdr" = xyes; then
+	AC_DEFINE(HAVE_LD_EH_FRAME_HDR, 1,
+[Define if your linker supports --eh-frame-hdr option.])
+fi
+AC_MSG_RESULT($gcc_cv_ld_eh_frame_hdr)
+
+if test "$prefix" != "/usr" && test "$prefix" != "/usr/local" ; then
+  AC_DEFINE_UNQUOTED(PREFIX_INCLUDE_DIR, "$prefix/include")
+fi
 
 # Figure out what language subdirectories are present.
 # Look if the user specified --enable-languages="..."; if not, use
 # the environment variable $LANGUAGES if defined. $LANGUAGES might
 # go away some day.
+# NB:  embedded tabs in this IF block -- do not untabify
 if test x"${enable_languages+set}" != xset; then
 	if test x"${LANGUAGES+set}" = xset; then
-		enable_languages="`echo ${LANGUAGES} | tr ' ' ','`"
+		enable_languages="${LANGUAGES}"
+		AC_MSG_WARN([setting LANGUAGES is deprecated, use --enable-languages instead])
+
 	else
 		enable_languages=all
 	fi
+else
+	if test x"${enable_languages}" = x ||
+	   test x"${enable_languages}" = xyes;
+	then
+		AC_MSG_ERROR([--enable-languages needs at least one language argument])
+	fi
 fi
+enable_languages=`echo "${enable_languages}" | sed -e 's/[[ 	,]][[ 	,]]*/,/g' -e 's/,$//'`
+
+# First scan to see if an enabled language requires some other language.
+# We assume that a given config-lang.in will list all the language
+# front ends it requires, even if some are required indirectly.
+for lang in ${srcdir}/*/config-lang.in ..
+do
+   case $lang in
+    ..)
+       ;;
+    # The odd quoting in the next line works around
+    # an apparent bug in bash 1.12 on linux.
+changequote(,)dnl
+    ${srcdir}/[*]/config-lang.in)
+       ;;
+    *)
+       lang_alias=`sed -n -e 's,^language=['"'"'"'"]\(.*\)["'"'"'"'].*$,\1,p' -e 's,^language=\([^ 	]*\).*$,\1,p' $lang`
+       this_lang_requires=`sed -n -e 's,^lang_requires=['"'"'"'"]\(.*\)["'"'"'"'].*$,\1,p' -e 's,^lang_requires=\([^ 	]*\).*$,\1,p' $lang`
+       for other in $this_lang_requires
+       do
+	  case ,${enable_languages}, in
+	   *,$other,*)
+	      ;;
+	   *,all,*)
+	      ;;
+	   *,$lang_alias,*)
+	      enable_languages="$enable_languages,$other"
+	      ;;
+	  esac
+       done
+       ;;
+changequote([,])dnl
+   esac
+done
+
 subdirs=
 for lang in ${srcdir}/*/config-lang.in ..
 do
@@ -4105,27 +2043,23 @@ changequote(,)dnl
 	${srcdir}/[*]/config-lang.in) ;;
 	*)
 	  lang_alias=`sed -n -e 's,^language=['"'"'"'"]\(.*\)["'"'"'"'].*$,\1,p' -e 's,^language=\([^ 	]*\).*$,\1,p' $lang`
+	  this_lang_libs=`sed -n -e 's,^target_libs=['"'"'"'"]\(.*\)["'"'"'"'].*$,\1,p' -e 's,^target_libs=\([^ 	]*\).*$,\1,p' $lang`
+	  build_by_default=`sed -n -e 's,^build_by_default=['"'"'"'"]\(.*\)["'"'"'"'].*$,\1,p' -e 's,^build_by_default=\([^ 	]*\).*$,\1,p' $lang`
 	  if test "x$lang_alias" = x
 	  then
 		echo "$lang doesn't set \$language." 1>&2
 		exit 1
 	  fi
-	  if test x"${enable_languages}" = xall; then
-	  	add_this_lang=yes
-	  else
-		case "${enable_languages}" in
-		    ${lang_alias} | "${lang_alias},"* | *",${lang_alias},"* | *",${lang_alias}" )
-			add_this_lang=yes
-			;;
-		    * )
-			add_this_lang=no
-			;;
-		esac
-	  fi
+	  case ${build_by_default},${enable_languages}, in
+	  *,$lang_alias,*) add_this_lang=yes ;;
+	  no,*) add_this_lang=no ;;
+	  *,all,*) add_this_lang=yes ;;
+	  *) add_this_lang=no ;;
+	  esac
 	  if test x"${add_this_lang}" = xyes; then
 		case $lang in
 		    ${srcdir}/ada/config-lang.in)
-			if test x$gnat = xyes ; then
+			if test x$have_gnat = xyes ; then
 				subdirs="$subdirs `echo $lang | sed -e 's,^.*/\([^/]*\)/config-lang.in$,\1,'`"
 			fi
 			;;
@@ -4148,27 +2082,77 @@ if test $thread_file != single; then
 fi
 AC_SUBST(gthread_flags)
 
+# Find out what GC implementation we want, or may, use.
+AC_ARG_WITH(gc,
+[  --with-gc={simple,page} choose the garbage collection mechanism to use
+                          with the compiler],
+[case "$withval" in
+  simple | page)
+    GGC=ggc-$withval
+    ;;
+  *)
+    AC_MSG_ERROR([$withval is an invalid option to --with-gc])
+    ;;
+esac],
+[GGC=ggc-page])
+AC_SUBST(GGC)
+echo "Using $GGC for garbage collection."
+
+# Use the system's zlib library.
+zlibdir=-L../zlib
+zlibinc="-I\$(srcdir)/../zlib"
+AC_ARG_WITH(system-zlib,
+[  --with-system-zlib      use installed libz],
+zlibdir=
+zlibinc=
+)
+AC_SUBST(zlibdir)
+AC_SUBST(zlibinc)
+
+dnl Very limited version of automake's enable-maintainer-mode
+
+AC_MSG_CHECKING([whether to enable maintainer-specific portions of Makefiles])
+  dnl maintainer-mode is disabled by default
+  AC_ARG_ENABLE(maintainer-mode,
+[  --enable-maintainer-mode
+                          enable make rules and dependencies not useful
+                          (and sometimes confusing) to the casual installer],
+      maintainer_mode=$enableval,
+      maintainer_mode=no)
+
+AC_MSG_RESULT($maintainer_mode)
+
+if test "$maintainer_mode" = "yes"; then
+  MAINT=''
+else
+  MAINT='#'
+fi
+AC_SUBST(MAINT)dnl
+
+# With Setjmp/Longjmp based exception handling.
+AC_ARG_ENABLE(sjlj-exceptions,
+[  --enable-sjlj-exceptions
+                          arrange to use setjmp/longjmp exception handling],
+[sjlj=`if test $enableval = yes; then echo 1; else echo 0; fi`
+AC_DEFINE_UNQUOTED(CONFIG_SJLJ_EXCEPTIONS, $sjlj,
+  [Define 0/1 to force the choice for exception handling model.])])
+
 # Make empty files to contain the specs and options for each language.
 # Then add #include lines to for a compiler that has specs and/or options.
 
 lang_specs_files=
 lang_options_files=
 lang_tree_files=
-rm -f specs.h options.h gencheck.h
-touch specs.h options.h gencheck.h
 for subdir in . $subdirs
 do
 	if test -f $srcdir/$subdir/lang-specs.h; then
-		echo "#include \"$subdir/lang-specs.h\"" >>specs.h
-		lang_specs_files="$lang_specs_files $srcdir/$subdir/lang-specs.h"
+	    lang_specs_files="$lang_specs_files $srcdir/$subdir/lang-specs.h"
 	fi
 	if test -f $srcdir/$subdir/lang-options.h; then
-		echo "#include \"$subdir/lang-options.h\"" >>options.h
-		lang_options_files="$lang_options_files $srcdir/$subdir/lang-options.h"
+	    lang_options_files="$lang_options_files $srcdir/$subdir/lang-options.h"
 	fi
 	if test -f $srcdir/$subdir/$subdir-tree.def; then
-		echo "#include \"$subdir/$subdir-tree.def\"" >>gencheck.h
-		lang_tree_files="$lang_tree_files $srcdir/$subdir/$subdir-tree.def"
+	    lang_tree_files="$lang_tree_files $srcdir/$subdir/$subdir-tree.def"
 	fi
 done
 
@@ -4178,12 +2162,9 @@ all_languages=
 all_boot_languages=
 all_compilers=
 all_stagestuff=
-all_diff_excludes=
-all_outputs='Makefile intl/Makefile po/Makefile.in fixinc/Makefile'
+all_outputs='Makefile intl/Makefile fixinc/Makefile gccbug mklibgcc'
 # List of language makefile fragments.
 all_lang_makefiles=
-all_headers=
-all_lib2funcs=
 
 # Add the language fragments.
 # Languages are added via two mechanisms.  Some information must be
@@ -4194,7 +2175,6 @@ all_lib2funcs=
 
 language_fragments="Make-lang"
 language_hooks="Make-hooks"
-oldstyle_subdirs=
 
 for s in .. $subdirs
 do
@@ -4204,17 +2184,17 @@ do
 		boot_language=
 		compilers=
 		stagestuff=
-		diff_excludes=
-		headers=
 		outputs=
-		lib2funcs=
 		. ${srcdir}/$s/config-lang.in
 		if test "x$language" = x
 		then
 			echo "${srcdir}/$s/config-lang.in doesn't set \$language." 1>&2
 			exit 1
 		fi
-		all_lang_makefiles="$all_lang_makefiles ${srcdir}/$s/Make-lang.in ${srcdir}/$s/Makefile.in"
+		all_lang_makefiles="$all_lang_makefiles ${srcdir}/$s/Make-lang.in"
+		if test -f ${srcdir}/$s/Makefile.in
+		then all_lang_makefiles="$all_lang_makefiles ${srcdir}/$s/Makefile.in"
+		fi
 		all_languages="$all_languages $language"
 		if test "x$boot_language" = xyes
 		then
@@ -4222,14 +2202,16 @@ do
 		fi
 		all_compilers="$all_compilers $compilers"
 		all_stagestuff="$all_stagestuff $stagestuff"
-		all_diff_excludes="$all_diff_excludes $diff_excludes"
-		all_headers="$all_headers $headers"
 		all_outputs="$all_outputs $outputs"
-		if test x$outputs = x
-		then
-			oldstyle_subdirs="$oldstyle_subdirs $s"
-		fi
-		all_lib2funcs="$all_lib2funcs $lib2funcs"
+	fi
+done
+
+check_languages=
+for language in .. $all_languages
+do
+	if test $language != ".."
+	then
+		check_languages="$check_languages check-$language"
 	fi
 done
 
@@ -4239,9 +2221,9 @@ done
 rm -f Make-hooks
 touch Make-hooks
 target_list="all.build all.cross start.encap rest.encap \
-	info dvi \
+	info dvi generated-manpages \
 	install-normal install-common install-info install-man \
-	uninstall distdir \
+	uninstall \
 	mostlyclean clean distclean extraclean maintainer-clean \
 	stage1 stage2 stage3 stage4"
 for t in $target_list
@@ -4256,23 +2238,21 @@ do
 	echo "lang.$t: $x" >> Make-hooks
 done
 
-# If we're not building in srcdir, create .gdbinit.
+# Create .gdbinit.
 
-if test ! -f Makefile.in; then
-	echo "dir ." > .gdbinit
-	echo "dir ${srcdir}" >> .gdbinit
-	if test x$gdb_needs_out_file_path = xyes
-	then
-		echo "dir ${srcdir}/config/"`dirname ${out_file}` >> .gdbinit
-	fi
-	if test "x$subdirs" != x; then
-		for s in $subdirs
-		do
-			echo "dir ${srcdir}/$s" >> .gdbinit
-		done
-	fi
-	echo "source ${srcdir}/.gdbinit" >> .gdbinit
+echo "dir ." > .gdbinit
+echo "dir ${srcdir}" >> .gdbinit
+if test x$gdb_needs_out_file_path = xyes
+then
+	echo "dir ${srcdir}/config/"`dirname ${out_file}` >> .gdbinit
 fi
+if test "x$subdirs" != x; then
+	for s in $subdirs
+	do
+		echo "dir ${srcdir}/$s" >> .gdbinit
+	done
+fi
+echo "source ${srcdir}/gdbinit.in" >> .gdbinit
 
 # Define variables host_canonical and build_canonical
 # because some Cygnus local changes in the Makefile depend on them.
@@ -4280,42 +2260,12 @@ build_canonical=${build}
 host_canonical=${host}
 target_subdir=
 if test "${host}" != "${target}" ; then
-    target_subdir=${target}/
+    target_subdir=${target_alias}/
 fi
 AC_SUBST(build_canonical)
 AC_SUBST(host_canonical)
 AC_SUBST(target_subdir)
 	
-# If this is using newlib, then define inhibit_libc in
-# LIBGCC2_CFLAGS.  This will cause __eprintf to be left out of
-# libgcc.a, but that's OK because newib should have its own version of
-# assert.h.
-inhibit_libc=
-if test x$with_newlib = xyes; then
-	inhibit_libc=-Dinhibit_libc
-fi
-AC_SUBST(inhibit_libc)
-
-# Override SCHED_OBJ and SCHED_CFLAGS to enable the Haifa scheduler.
-sched_prefix=
-sched_cflags=
-if test x$enable_haifa = xyes; then
-    echo "Using the Haifa scheduler."
-    sched_prefix=haifa-
-    sched_cflags=-DHAIFA
-fi
-AC_SUBST(sched_prefix)
-AC_SUBST(sched_cflags)
-if test x$enable_haifa != x; then
-    # Explicitly remove files that need to be recompiled for the Haifa scheduler.
-    for x in genattrtab.o toplev.o *sched.o; do
-	if test -f $x; then
-	    echo "Removing $x"
-	    rm -f $x
-	fi
-    done
-fi
-
 # If $(exec_prefix) exists and is not the same as $(prefix), then compute an
 # absolute path for gcc_tooldir based on inserting the number of up-directory
 # movements required to get from $(exec_prefix) to $(prefix) into the basic
@@ -4331,7 +2281,7 @@ changequote(<<, >>)dnl
 #  -e 's|^\$(prefix)||'   matches and eliminates 'prefix' from 'exec_prefix'
 #  -e 's|/$||'            match a trailing forward slash and eliminates it
 #  -e 's|^[^/]|/|'        forces the string to start with a forward slash (*)
-#  -e 's|/[^/]*|../|g'    replaces each occurance of /<directory> with ../
+#  -e 's|/[^/]*|../|g'    replaces each occurrence of /<directory> with ../
 #
 # (*) Note this pattern overwrites the first character of the string
 # with a forward slash if one is not already present.  This is not a
@@ -4355,6 +2305,25 @@ fi
 AC_SUBST(gcc_tooldir)
 AC_SUBST(dollar)
 
+# Find a directory in which to install a shared libgcc.
+
+AC_ARG_ENABLE(version-specific-runtime-libs,
+[  --enable-version-specific-runtime-libs
+                          specify that runtime libraries should be
+                          installed in a compiler-specific directory])
+
+AC_ARG_WITH(slibdir,
+[  --with-slibdir=DIR      shared libraries in DIR [LIBDIR]],
+slibdir="$with_slibdir",
+if test "${enable_version_specific_runtime_libs+set}" = set; then
+  slibdir='$(libsubdir)'
+elif test "$host" != "$target"; then
+  slibdir='$(build_tooldir)/lib'
+else
+  slibdir='$(libdir)'
+fi)
+AC_SUBST(slibdir)
+
 # Nothing to do for FLOAT_H, float_format already handled.
 objdir=`pwd`
 AC_SUBST(objdir)
@@ -4366,61 +2335,63 @@ ${CONFIG_SHELL-/bin/sh} $srcdir/configure.frag $srcdir "$subdirs" "$dep_host_xma
 AC_SUBST(subdirs)
 AC_SUBST(all_boot_languages)
 AC_SUBST(all_compilers)
-AC_SUBST(all_diff_excludes)
-AC_SUBST(all_headers)
 AC_SUBST(all_lang_makefiles)
 AC_SUBST(all_languages)
-AC_SUBST(all_lib2funcs)
 AC_SUBST(all_stagestuff)
 AC_SUBST(build_exeext)
 AC_SUBST(build_install_headers_dir)
 AC_SUBST(build_xm_file_list)
+AC_SUBST(build_xm_file)
+AC_SUBST(build_xm_defines)
+AC_SUBST(check_languages)
 AC_SUBST(cc_set_by_configure)
 AC_SUBST(quoted_cc_set_by_configure)
 AC_SUBST(cpp_install_dir)
-AC_SUBST(cpp_main)
 AC_SUBST(dep_host_xmake_file)
 AC_SUBST(dep_tmake_file)
-AC_SUBST(extra_c_flags)
-AC_SUBST(extra_c_objs)
-AC_SUBST(extra_cpp_objs)
-AC_SUBST(extra_cxx_objs)
 AC_SUBST(extra_headers_list)
 AC_SUBST(extra_objs)
 AC_SUBST(extra_parts)
 AC_SUBST(extra_passes)
 AC_SUBST(extra_programs)
-AC_SUBST(fixinc_defs)
 AC_SUBST(float_h_file)
+AC_SUBST(gcc_config_arguments)
 AC_SUBST(gcc_gxx_include_dir)
+AC_SUBST(libstdcxx_incdir)
 AC_SUBST(gcc_version)
+AC_SUBST(gcc_version_full)
 AC_SUBST(gcc_version_trigger)
 AC_SUBST(host_exeext)
 AC_SUBST(host_extra_gcc_objs)
 AC_SUBST(host_xm_file_list)
+AC_SUBST(host_xm_file)
+AC_SUBST(host_xm_defines)
 AC_SUBST(install)
-AC_SUBST(JAVAGC)
 AC_SUBST(lang_options_files)
 AC_SUBST(lang_specs_files)
 AC_SUBST(lang_tree_files)
 AC_SUBST(local_prefix)
-AC_SUBST(maybe_use_collect2)
 AC_SUBST(md_file)
 AC_SUBST(objc_boehm_gc)
 AC_SUBST(out_file)
 AC_SUBST(out_object_file)
 AC_SUBST(stage_prefix_set_by_configure)
+AC_SUBST(quoted_stage_prefix_set_by_configure)
 AC_SUBST(symbolic_link)
 AC_SUBST(thread_file)
 AC_SUBST(tm_file_list)
-AC_SUBST(will_use_collect2)
-
+AC_SUBST(tm_file)
+AC_SUBST(tm_p_file_list)
+AC_SUBST(tm_p_file)
+AC_SUBST(xm_file)
+AC_SUBST(xm_defines)
+AC_SUBST(target_alias)
+AC_SUBST(c_target_objs)
+AC_SUBST(cxx_target_objs)
+AC_SUBST(target_cpu_default)
 
 AC_SUBST_FILE(target_overrides)
 AC_SUBST_FILE(host_overrides)
-AC_SUBST(cross_defines)
-AC_SUBST_FILE(cross_overrides)
-AC_SUBST_FILE(build_overrides)
 AC_SUBST_FILE(language_fragments)
 AC_SUBST_FILE(language_hooks)
 
@@ -4462,7 +2433,6 @@ fi
 # and configure language subdirectories
 AC_OUTPUT($all_outputs,
 [
-. $srcdir/configure.lang
 case x$CONFIG_HEADERS in
 xauto-host.h:config.in)
 echo > cstamp-h ;;
@@ -4474,7 +2444,7 @@ esac
 # This is virtually a duplicate of what happens in configure.lang; we do
 # an extra check to make sure this only happens if ln -s can be used.
 if test "$symbolic_link" = "ln -s"; then
- for d in .. ${subdirs} ; do
+ for d in .. ${subdirs} fixinc ; do
    if test $d != ..; then
 	STARTDIR=`pwd`
 	cd $d
@@ -4492,37 +2462,7 @@ if test -f intl/libintl.h; then
   echo creating libintl.h
   echo '#include "intl/libintl.h"' >libintl.h
 fi
-],
-[
-host='${host}'
-build='${build}'
-target='${target}'
-target_alias='${target_alias}'
-srcdir='${srcdir}'
-subdirs='${subdirs}'
-oldstyle_subdirs='${oldstyle_subdirs}'
-symbolic_link='${symbolic_link}'
-program_transform_set='${program_transform_set}'
-program_transform_name='${program_transform_name}'
-dep_host_xmake_file='${dep_host_xmake_file}'
-host_xmake_file='${host_xmake_file}'
-dep_tmake_file='${dep_tmake_file}'
-tmake_file='${tmake_file}'
-thread_file='${thread_file}'
-gcc_version='${gcc_version}'
-gcc_version_trigger='${gcc_version_trigger}'
-local_prefix='${local_prefix}'
-build_install_headers_dir='${build_install_headers_dir}'
-build_exeext='${build_exeext}'
-host_exeext='${host_exeext}'
-out_file='${out_file}'
-gdb_needs_out_file_path='${gdb_needs_out_file_path}'
-SET_MAKE='${SET_MAKE}'
-target_list='${target_list}'
-target_overrides='${target_overrides}'
-host_overrides='${host_overrides}'
-cross_defines='${cross_defines}'
-cross_overrides='${cross_overrides}'
-build_overrides='${build_overrides}'
-cpp_install_dir='${cpp_install_dir}'
+], 
+[subdirs='$subdirs'
+symbolic_link='$symbolic_link'
 ])

@@ -41,7 +41,7 @@ Boston, MA 02111-1307, USA.  */
   "%{!nostdlib:%{!r*:%{!e*:-e __start}}} -dc -dp %{assert*}"
 
 /* run-time target specifications */
-#define CPP_PREDEFINES "-D__unix__ -D__ANSI_COMPAT -Asystem(unix) \
+#define CPP_PREDEFINES "-D__unix__ -D__ANSI_COMPAT -Asystem=unix \
 -D__OpenBSD__ -D__alpha__ -D__alpha"
 
 /* Layout of source language data types.  */
@@ -100,8 +100,8 @@ Boston, MA 02111-1307, USA.  */
   fprintf (FILE, "\t.set noat\n");				\
   if (TARGET_SUPPORT_ARCH)					\
     fprintf (FILE, "\t.arch %s\n",				\
-             alpha_cpu == PROCESSOR_EV6 ? "ev6"			\
-	     : (alpha_cpu == PROCESSOR_EV5			\
+             TARGET_CPU_EV6 ? "ev6"				\
+	     : (TARGET_CPU_EV5					\
 		? (TARGET_MAX ? "pca56" : TARGET_BWX ? "ev56" : "ev5") \
 		: "ev4"));					\
 								\

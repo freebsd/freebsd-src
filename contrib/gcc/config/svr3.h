@@ -1,6 +1,6 @@
 /* Operating system specific defines to be used when targeting GCC for
    generic System V Release 3 system.
-   Copyright (C) 1991, 1996 Free Software Foundation, Inc.
+   Copyright (C) 1991, 1996, 2000 Free Software Foundation, Inc.
    Contributed by Ron Guilmette (rfg@monkeys.com).
 
 This file is part of GNU CC.
@@ -61,7 +61,7 @@ Boston, MA 02111-1307, USA.
 #undef ASM_FILE_START
 #define ASM_FILE_START(FILE)					\
   do { output_file_directive ((FILE), main_input_filename);	\
-       if (optimize) ASM_FILE_START_1 (FILE);			\
+       if (optimize) { ASM_FILE_START_1 (FILE); }		\
      } while (0)
 
 /* By default, do nothing: a few machines support .optim, but not most.  */
@@ -119,6 +119,7 @@ Boston, MA 02111-1307, USA.
 
 /* Output #ident as a .ident.  */
 
+#undef  ASM_OUTPUT_IDENT
 #define ASM_OUTPUT_IDENT(FILE, NAME) \
   fprintf (FILE, "\t.ident \"%s\"\n", NAME);
 
@@ -153,12 +154,6 @@ Boston, MA 02111-1307, USA.
 #undef WCHAR_TYPE_SIZE
 #define WCHAR_TYPE_SIZE BITS_PER_WORD
 
-/* Assembler pseudos to introduce constants of various size.  These
-   definitions should work for most svr3 systems.  */
-
-#undef ASM_BYTE_OP
-#define ASM_BYTE_OP "\t.byte"
-
 /* The prefix to add to user-visible assembler symbols.
 
    For System V Release 3 the convention is to prepend a leading
@@ -187,7 +182,7 @@ Boston, MA 02111-1307, USA.
 
 #undef ASM_GENERATE_INTERNAL_LABEL
 #define ASM_GENERATE_INTERNAL_LABEL(LABEL,PREFIX,NUM)	\
-  sprintf (LABEL, "*%s%s%d", LOCAL_LABEL_PREFIX, PREFIX, NUM)
+  sprintf (LABEL, "*%s%s%ld", LOCAL_LABEL_PREFIX, PREFIX, (long)(NUM))
 
 /* We want local labels to start with period if made with asm_fprintf.  */
 #undef LOCAL_LABEL_PREFIX
@@ -211,14 +206,13 @@ Boston, MA 02111-1307, USA.
    and CTOR_LIST_END to contribute to the .init section an instruction to
    push a word containing 0 (or some equivalent of that).
 
-   Define ASM_OUTPUT_CONSTRUCTOR to push the address of the constructor.  */
+   Define TARGET_ASM_CONSTRUCTOR to push the address of the constructor.  */
 
 #define USE_CONST_SECTION	0
 
-#define INIT_SECTION_ASM_OP     ".section\t.init"
-#define FINI_SECTION_ASM_OP     ".section .fini,\"x\""
-#define CONST_SECTION_ASM_OP	".section\t.rodata, \"x\""
-#define CTORS_SECTION_ASM_OP	INIT_SECTION_ASM_OP
+#define INIT_SECTION_ASM_OP     "\t.section\t.init"
+#define FINI_SECTION_ASM_OP     "\t.section .fini,\"x\""
+#define CONST_SECTION_ASM_OP	"\t.section\t.rodata, \"x\""
 #define DTORS_SECTION_ASM_OP    FINI_SECTION_ASM_OP
 
 /* CTOR_LIST_BEGIN and CTOR_LIST_END are machine-dependent
@@ -266,7 +260,7 @@ init_section ()							\
 {								\
   if (in_section != in_init)					\
     {								\
-      fprintf (asm_out_file, "\t%s\n", INIT_SECTION_ASM_OP);	\
+      fprintf (asm_out_file, "%s\n", INIT_SECTION_ASM_OP);	\
       in_section = in_init;					\
     }								\
 }
@@ -277,7 +271,7 @@ fini_section ()							\
 {								\
   if (in_section != in_fini)					\
     {								\
-      fprintf (asm_out_file, "\t%s\n", FINI_SECTION_ASM_OP);	\
+      fprintf (asm_out_file, "%s\n", FINI_SECTION_ASM_OP);	\
       in_section = in_fini;					\
     }								\
 }
@@ -288,7 +282,6 @@ fini_section ()							\
 void									\
 const_section ()							\
 {									\
-  extern void text_section();						\
   if (!USE_CONST_SECTION)						\
     text_section();							\
   else if (in_section != in_const)					\
@@ -298,51 +291,13 @@ const_section ()							\
     }									\
 }
 
-/* The ctors and dtors sections are not normally put into use 
-   by EXTRA_SECTIONS and EXTRA_SECTION_FUNCTIONS as defined in svr3.h,
-   but it can't hurt to define these macros for whatever systems use them.  */
-#define CTORS_SECTION_FUNCTION						\
-void									\
-ctors_section ()							\
-{									\
-  if (in_section != in_ctors)						\
-    {									\
-      fprintf (asm_out_file, "%s\n", CTORS_SECTION_ASM_OP);		\
-      in_section = in_ctors;						\
-    }									\
-}
-
-#define DTORS_SECTION_FUNCTION						\
-void									\
-dtors_section ()							\
-{									\
-  if (in_section != in_dtors)						\
-    {									\
-      fprintf (asm_out_file, "%s\n", DTORS_SECTION_ASM_OP);		\
-      in_section = in_dtors;						\
-    }									\
-}
-
-/* This is machine-dependent
-   because it needs to push something on the stack.  */
-#undef ASM_OUTPUT_CONSTRUCTOR
-
-/* A C statement (sans semicolon) to output an element in the table of
-   global destructors.  */
-#define ASM_OUTPUT_DESTRUCTOR(FILE,NAME)       				\
-  do {									\
-    fini_section ();                   				\
-    fprintf (FILE, "%s\t ", ASM_LONG);					\
-    assemble_name (FILE, NAME);              				\
-    fprintf (FILE, "\n");						\
-  } while (0)
-
 /* A C statement or statements to switch to the appropriate
    section for output of DECL.  DECL is either a `VAR_DECL' node
    or a constant of some sort.  RELOC indicates whether forming
    the initial value of DECL requires link-time relocations.  */
 
-#define SELECT_SECTION(DECL,RELOC)					\
+#undef  SELECT_SECTION
+#define SELECT_SECTION(DECL,RELOC,ALIGN)				\
 {									\
   if (TREE_CODE (DECL) == STRING_CST)					\
     {									\
@@ -372,4 +327,5 @@ dtors_section ()							\
    in the case of a `const_int' rtx.  Currently, these always
    go into the const section.  */
 
-#define SELECT_RTX_SECTION(MODE,RTX) const_section()
+#undef  SELECT_RTX_SECTION
+#define SELECT_RTX_SECTION(MODE,RTX,ALIGN) const_section()
