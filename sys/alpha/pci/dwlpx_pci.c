@@ -41,7 +41,7 @@ static int
 dwlpx_pcib_probe(device_t dev)
 {
 	device_set_desc(dev, "DWLPX PCI host bus adapter");
-	device_add_child(dev, "pci", -1);
+	device_add_child(dev, "pci", device_get_unit(dev) << 4);
 	return (0);
 }
 
