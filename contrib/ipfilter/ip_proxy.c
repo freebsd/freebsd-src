@@ -1,12 +1,12 @@
 /*
- * (C)opyright 1997 by Darren Reed.
+ * Copyright (C) 1997 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
  */
-#if !defined(lint) && defined(LIBC_SCCS)
-static	char	rcsid[] = "$Id: ip_proxy.c,v 2.0.2.3 1997/05/24 07:36:22 darrenr Exp $";
+#if !defined(lint)
+static const char rcsid[] = "@(#)$Id: ip_proxy.c,v 2.0.2.11.2.2 1997/11/12 10:54:11 darrenr Exp $";
 #endif
 
 #if defined(__FreeBSD__) && defined(KERNEL) && !defined(_KERNEL)
@@ -26,13 +26,21 @@ static	char	rcsid[] = "$Id: ip_proxy.c,v 2.0.2.3 1997/05/24 07:36:22 darrenr Exp
 #include <sys/ioctl.h>
 #include <sys/fcntl.h>
 #include <sys/uio.h>
-#include <sys/protosw.h>
+#ifndef	linux
+# include <sys/protosw.h>
+#endif
 #include <sys/socket.h>
-#ifdef _KERNEL
-# include <sys/systm.h>
+#if defined(_KERNEL)
+# if !defined(linux)
+#  include <sys/systm.h>
+# else
+#  include <linux/string.h>
+# endif
 #endif
 #if !defined(__SVR4) && !defined(__svr4__)
-# include <sys/mbuf.h>
+# ifndef linux
+#  include <sys/mbuf.h>
+# endif
 #else
 # include <sys/byteorder.h>
 # include <sys/dditypes.h>
@@ -50,12 +58,14 @@ static	char	rcsid[] = "$Id: ip_proxy.c,v 2.0.2.3 1997/05/24 07:36:22 darrenr Exp
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
-#include <netinet/ip_var.h>
+#ifndef linux
+# include <netinet/ip_var.h>
+#endif
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
-#include <netinet/tcpip.h>
 #include <netinet/ip_icmp.h>
 #include "netinet/ip_compat.h"
+#include <netinet/tcpip.h>
 #include "netinet/ip_fil.h"
 #include "netinet/ip_proxy.h"
 #include "netinet/ip_nat.h"
@@ -71,7 +81,7 @@ static ap_session_t *ap_new_session __P((aproxy_t *, ip_t *, tcphdr_t *,
 
 #define	AP_SESS_SIZE	53
 
-#ifdef	_KERNEL
+#if defined(_KERNEL) && !defined(linux)
 #include "netinet/ip_ftp_pxy.c"
 #endif
 
@@ -105,11 +115,14 @@ static ap_session_t *ap_find(ip, tcp)
 ip_t *ip;
 tcphdr_t *tcp;
 {
-	struct in_addr src = ip->ip_src, dst = ip->ip_dst;
+	struct in_addr src, dst;
 	register u_long hv;
 	register u_short sp, dp;
 	register ap_session_t *aps;
 	register u_char p = ip->ip_p;
+
+	src = ip->ip_src, dst = ip->ip_dst;
+	sp = dp = 0;			/* XXX gcc -Wunitialized */
 
 	hv = ip->ip_src.s_addr ^ ip->ip_dst.s_addr;
 	hv *= 651733;
@@ -134,6 +147,12 @@ tcphdr_t *tcp;
 	return aps;
 }
 
+
+/*
+ * Allocate a new application proxy structure and fill it in with the
+ * relevant details.  call the init function once complete, prior to
+ * returning.
+ */
 static ap_session_t *ap_new_session(apr, ip, tcp, fin, nat)
 aproxy_t *apr;
 ip_t *ip;
@@ -163,20 +182,13 @@ nat_t *nat;
 	KMALLOC(aps, ap_session_t *, sizeof(*aps));
 	if (!aps)
 		return NULL;
-	bzero((char *)aps, sizeof(aps));
-	apr->apr_ref++;
+	bzero((char *)aps, sizeof(*aps));
 	aps->aps_apr = apr;
 	aps->aps_src = ip->ip_src;
 	aps->aps_dst = ip->ip_dst;
 	aps->aps_p = ip->ip_p;
 	aps->aps_tout = 1200;	/* XXX */
 	if (tcp) {
-		if (ip->ip_p == IPPROTO_TCP) {
-			aps->aps_seqoff = 0;
-			aps->aps_ackoff = 0;
-			aps->aps_state[0] = 0;
-			aps->aps_state[1] = 0;
-		}
 		aps->aps_sport = tcp->th_sport;
 		aps->aps_dport = tcp->th_dport;
 	}
@@ -189,6 +201,10 @@ nat_t *nat;
 }
 
 
+/*
+ * check to see if a packet should be passed through an active proxy routine
+ * if one has been setup for it.
+ */
 int ap_check(ip, tcp, fin, nat)
 ip_t *ip;
 tcphdr_t *tcp;
@@ -204,9 +220,20 @@ nat_t *nat;
 
 	if ((aps = ap_find(ip, tcp)) ||
 	    (aps = ap_new_session(nat->nat_ptr->in_apr, ip, tcp, fin, nat))) {
-		if (ip->ip_p == IPPROTO_TCP)
+		if (ip->ip_p == IPPROTO_TCP) {
+			/*
+			 * verify that the checksum is correct.  If not, then
+			 * don't do anything with this packet.
+			 */
+			if (tcp->th_sum != fr_tcpsum(*(mb_t **)fin->fin_mp,
+						     ip, tcp)) {
+				frstats[fin->fin_out].fr_tcpbad++;
+				return -1;
+			}
 			fr_tcp_age(&aps->aps_tout, aps->aps_state, ip, fin,
 				   tcp->th_sport == aps->aps_sport);
+		}
+
 		apr = aps->aps_apr;
 		err = 0;
 		if (fin->fin_out) {
@@ -219,7 +246,7 @@ nat_t *nat;
 							aps, nat);
 		}
 		if (err == 2) {
-			tcp->th_sum = fr_tcpsum(fin->fin_mp, ip, tcp);
+			tcp->th_sum = fr_tcpsum(*(mb_t **)fin->fin_mp, ip, tcp);
 			err = 0;
 		}
 		return err;
@@ -229,15 +256,17 @@ nat_t *nat;
 
 
 aproxy_t *ap_match(pr, name)
-char pr;
+u_char pr;
 char *name;
 {
 	aproxy_t *ap;
 
 	for (ap = ap_proxies; ap->apr_p; ap++)
 		if ((ap->apr_p == pr) &&
-		    !strncmp(name, ap->apr_label, sizeof(ap->apr_label)))
+		    !strncmp(name, ap->apr_label, sizeof(ap->apr_label))) {
+			ap->apr_ref++;
 			return ap;
+		}
 	return NULL;
 }
 
@@ -245,7 +274,7 @@ char *name;
 void ap_free(ap)
 aproxy_t *ap;
 {
-	KFREE(ap);
+	ap->apr_ref--;
 }
 
 
@@ -264,7 +293,7 @@ void ap_unload()
 	int i;
 
 	for (i = 0; i < AP_SESS_SIZE; i++)
-		while (aps = ap_sess_tab[i]) {
+		while ((aps = ap_sess_tab[i])) {
 			ap_sess_tab[i] = aps->aps_next;
 			aps_free(aps);
 		}

@@ -53,9 +53,9 @@
  * --Copyright--
  */
 
-#if !defined(lint) && defined(LIBC_SCCS)
-static char sccsid[] = "@(#)inet_addr.c	8.1 (Berkeley) 6/17/93";
-static char rcsid[] = "$Id: inet_addr.c,v 2.0.2.4 1997/05/08 10:11:34 darrenr Exp $";
+#if !defined(lint)
+static const char sccsid[] = "@(#)inet_addr.c	8.1 (Berkeley) 6/17/93";
+static const char rcsid[] = "@(#)$Id: inet_addr.c,v 2.0.2.6 1997/10/19 15:39:21 darrenr Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -180,7 +180,7 @@ inet_aton(cp, addr)
  * The value returned is in network order.
  */
 #if defined(SOLARIS2) && (SOLARIS2 > 5)
-u_int
+in_addr_t
 #else
 u_long
 #endif

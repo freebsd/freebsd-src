@@ -1,12 +1,12 @@
 /*
- * (C)opyright 1993,1994,1995 by Darren Reed.
+ * Copyright (C) 1993-1997 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
  */
 /* #pragma ident   "@(#)solaris.c	1.12 6/5/96 (C) 1995 Darren Reed"*/
-#pragma ident   "$Id: solaris.c,v 2.0.2.5 1997/05/08 10:11:04 darrenr Exp $";
+#pragma ident "@(#)$Id: solaris.c,v 2.0.2.22.2.1 1997/11/08 04:55:57 darrenr Exp $";
 
 #include <sys/systm.h>
 #include <sys/types.h>
@@ -44,42 +44,47 @@
 #include "ip_compat.h"
 #include "ipl.h"
 #include "ip_fil.h"
+#include "ip_nat.h"
 
 char	_depends_on[] = "drv/ip";
 
-extern	void	copyout_mblk __P((mblk_t *, int, char *, int));
-extern	void	copyin_mblk __P((mblk_t *, int, char *, int));
 
-int	solattach __P((void));
+void	solipdrvattach __P((void));
+int	solipdrvdetach __P((void));
+
+void	solattach __P((void));
 int	soldetach __P((void));
 
 extern	struct	filterstats	frstats[];
-extern	kmutex_t	ipl_mutex, ipf_mutex, ipfs_mutex;
+extern	kmutex_t	ipf_mutex, ipfs_mutex, ipf_nat;
 extern	int	fr_flags;
+
+extern ipnat_t *nat_list;
 
 static	qif_t	*qif_head = NULL;
 
-static	int	ipl_getinfo __P((dev_info_t *, ddi_info_cmd_t,
+static	int	ipf_getinfo __P((dev_info_t *, ddi_info_cmd_t,
 				 void *, void **));
-static	int	ipl_probe __P((dev_info_t *));
-static	int	ipl_identify __P((dev_info_t *));
-static	int	ipl_attach __P((dev_info_t *, ddi_attach_cmd_t));
-static	int	ipl_detach __P((dev_info_t *, ddi_detach_cmd_t));
+static	int	ipf_probe __P((dev_info_t *));
+static	int	ipf_identify __P((dev_info_t *));
+static	int	ipf_attach __P((dev_info_t *, ddi_attach_cmd_t));
+static	int	ipf_detach __P((dev_info_t *, ddi_detach_cmd_t));
 static	qif_t	*qif_from_queue __P((queue_t *));
-static	int	fr_qin __P((queue_t *, mblk_t *));
-static	int	fr_qout __P((queue_t *, mblk_t *));
 static	void	fr_donotip __P((int, qif_t *, queue_t *, mblk_t *,
 				mblk_t *, ip_t *, int));
+static	char	*ipf_devfiles[] = { IPL_NAME, IPL_NAT, IPL_STATE, IPL_AUTH,
+				    NULL };
+#ifdef	IPFDEBUG
 void	printire __P((ire_t *));
-int	ipfr_fastroute __P((qif_t *, ip_t *, mblk_t *, mblk_t **,
-			    fr_info_t *, frdest_t *));
-int	fr_precheck __P((mblk_t **, queue_t *, qif_t *, int));
+#endif
+static int	fr_precheck __P((mblk_t **, queue_t *, qif_t *, int));
 
 
-static struct cb_ops ipl_cb_ops = {
+static struct cb_ops ipf_cb_ops = {
 	iplopen,
 	iplclose,
-	nodev,		/* strategy */ nodev,		/* print */
+	nodev,		/* strategy */
+	nodev,		/* print */
 	nodev,		/* dump */
 	iplread,
 	nodev,		/* write */
@@ -90,26 +95,31 @@ static struct cb_ops ipl_cb_ops = {
 	nochpoll,	/* poll */
 	ddi_prop_op,
 	NULL,
-	D_MTSAFE
+	D_MTSAFE,
+#if SOLARIS2 > 4
+	CB_REV,
+	nodev,		/* aread */
+	nodev,		/* awrite */
+#endif
 };
 
-static struct dev_ops ipl_ops = {
+static struct dev_ops ipf_ops = {
 	DEVO_REV,
 	0,
-	ipl_getinfo,
-	ipl_identify,
-	ipl_probe,
-	ipl_attach,
-	ipl_detach,
+	ipf_getinfo,
+	ipf_identify,
+	ipf_probe,
+	ipf_attach,
+	ipf_detach,
 	nodev,		/* reset */
-	&ipl_cb_ops,
+	&ipf_cb_ops,
 	(struct bus_ops *)0
 };
 
 extern struct mod_ops mod_driverops;
 static struct modldrv iplmod = {
-	&mod_driverops, IPL_VERSION, &ipl_ops };
-static struct modlinkage modlink1 = { MODREV_1, &iplmod, 0 };
+	&mod_driverops, IPL_VERSION, &ipf_ops };
+static struct modlinkage modlink1 = { MODREV_1, &iplmod, NULL };
 
 
 static dev_info_t *ipf_dev_info = NULL;
@@ -118,43 +128,57 @@ static dev_info_t *ipf_dev_info = NULL;
 int _init()
 {
 #ifdef	IPFDEBUG
-	cmn_err(CE_NOTE, "IP Filter: ipf_init()");
-#endif
+	int ipfinst = mod_install(&modlink1);
+
+	cmn_err(CE_NOTE, "IP Filter: _init() = %d\n", ipfinst);
+	return ipfinst;
+#else
 	return mod_install(&modlink1);
+#endif
 }
 
 
 int _fini(void)
 {
 #ifdef	IPFDEBUG
-	cmn_err(CE_NOTE, "IP Filter: ipf_fini()");
-#endif
+	int ipfinst = mod_remove(&modlink1);
+
+	cmn_err(CE_NOTE, "IP Filter: _fini() = %d\n", ipfinst);
+	return ipfinst;
+#else
 	return mod_remove(&modlink1);
-}
-
-
-int _info(struct modinfo *modinfop)
-{
-#ifdef	IPFDEBUG
-	cmn_err(CE_NOTE, "IP Filter: ipf_info(%x)", modinfop);
 #endif
-	return mod_info(&modlink1, modinfop);
 }
 
 
-static int ipl_probe(dev_info_t *dip)
+int _info(modinfop)
+struct modinfo *modinfop;
 {
 #ifdef	IPFDEBUG
-	cmn_err(CE_NOTE, "IP Filter: ipl_probe(%x)", dip);
+	int ipfinst = mod_info(&modlink1, modinfop);
+	cmn_err(CE_NOTE, "IP Filter: _info(%x) = %x\n", modinfop, ipfinst);
+	return ipfinst;
+#else
+	return mod_info(&modlink1, modinfop);
+#endif
+}
+
+
+static int ipf_probe(dip)
+dev_info_t *dip;
+{
+#ifdef	IPFDEBUG
+	cmn_err(CE_NOTE, "IP Filter: ipf_probe(%x)", dip);
 #endif
 	return DDI_PROBE_SUCCESS;
 }
 
 
-static int ipl_identify(dev_info_t *dip)
+static int ipf_identify(dip)
+dev_info_t *dip;
 {
 #ifdef	IPFDEBUG
-	cmn_err(CE_NOTE, "IP Filter: ipl_identify(%x)", dip);
+	cmn_err(CE_NOTE, "IP Filter: ipf_identify(%x)", dip);
 #endif
 	if (strcmp(ddi_get_name(dip), "ipf") == 0)
 		return (DDI_IDENTIFIED);
@@ -162,20 +186,20 @@ static int ipl_identify(dev_info_t *dip)
 }
 
 
-static int ipl_attach(dip, cmd)
+static int ipf_attach(dip, cmd)
 dev_info_t *dip;
 ddi_attach_cmd_t cmd;
 {
 	int instance;
 
 #ifdef	IPFDEBUG
-	cmn_err(CE_NOTE, "IP Filter: ipl_attach(%x,%x)", dip, cmd);
+	cmn_err(CE_NOTE, "IP Filter: ipf_attach(%x,%x)", dip, cmd);
 #endif
 	switch (cmd) {
 	case DDI_ATTACH:
 		instance = ddi_get_instance(dip);
 #ifdef	IPFDEBUG
-		cmn_err(CE_NOTE, "IP Filter: attach ipf instace %d", instance);
+		cmn_err(CE_NOTE, "IP Filter: attach ipf instance %d", instance);
 #endif
 		if (ddi_create_minor_node(dip, "ipf", S_IFCHR, IPL_LOGIPF,
 					  DDI_PSEUDO, 0) == DDI_FAILURE) {
@@ -192,6 +216,11 @@ ddi_attach_cmd_t cmd;
 			ddi_remove_minor_node(dip, NULL);
 			goto attach_failed;
 		}
+		if (ddi_create_minor_node(dip, "ipauth", S_IFCHR, IPL_LOGAUTH,
+					  DDI_PSEUDO, 0) == DDI_FAILURE) {
+			ddi_remove_minor_node(dip, NULL);
+			goto attach_failed;
+		}
 		ipf_dev_info = dip;
 		sync();
 		/*
@@ -199,6 +228,7 @@ ddi_attach_cmd_t cmd;
 		 */
 		iplattach();
 		solattach();
+		solipdrvattach();
 		cmn_err(CE_CONT, "IP Filter: attaching complete.\n");
 		return (DDI_SUCCESS);
 	default:
@@ -206,28 +236,29 @@ ddi_attach_cmd_t cmd;
 	}
 
 attach_failed:
+	cmn_err(CE_NOTE, "IP Filter: failed to attach\n");
 	/*
 	 * Use our own detach routine to toss
 	 * away any stuff we allocated above.
 	 */
-	(void) ipl_detach(dip, DDI_DETACH);
+	(void) ipf_detach(dip, DDI_DETACH);
 	return (DDI_FAILURE);
 }
 
 
-static int ipl_detach(dip, cmd)
+static int ipf_detach(dip, cmd)
 dev_info_t *dip;
 ddi_detach_cmd_t cmd;
 {
 	int instance;
 
 #ifdef	IPFDEBUG
-	cmn_err(CE_NOTE, "IP Filter: ipl_detach(%x,%x)", dip, cmd);
+	cmn_err(CE_NOTE, "IP Filter: ipf_detach(%x,%x)", dip, cmd);
 #endif
 	switch (cmd) {
 	case DDI_DETACH:
 		/*
-		 * Undo what we did in ipl_attach, freeing resources
+		 * Undo what we did in ipf_attach, freeing resources
 		 * and removing things we installed.  The system
 		 * framework guarantees we are not active with this devinfo
 		 * node in any other entry points at this time.
@@ -236,6 +267,7 @@ ddi_detach_cmd_t cmd;
 		instance = ddi_get_instance(dip);
 		ddi_remove_minor_node(dip, NULL);
 		sync();
+		solipdrvdetach();
 		if (!soldetach()) {
 			cmn_err(CE_CONT, "IP Filter: detached\n");
 			return (DDI_SUCCESS);
@@ -246,7 +278,7 @@ ddi_detach_cmd_t cmd;
 }
 
 
-static int ipl_getinfo(dip, infocmd, arg, result)
+static int ipf_getinfo(dip, infocmd, arg, result)
 dev_info_t *dip;
 ddi_info_cmd_t infocmd;
 void *arg, **result;
@@ -254,7 +286,7 @@ void *arg, **result;
 	int error = DDI_FAILURE;
 
 #ifdef	IPFDEBUG
-	cmn_err(CE_NOTE, "IP Filter: ipl_getinfo(%x,%x)", dip, infocmd);
+	cmn_err(CE_NOTE, "IP Filter: ipf_getinfo(%x,%x)", dip, infocmd);
 #endif
 	switch (infocmd) {
 	case DDI_INFO_DEVT2DEVINFO:
@@ -311,7 +343,7 @@ int off;
 	if (!ip && (m == mt) && m->b_cont && (MTYPE(m) != M_DATA))
 		m = m->b_cont;
 
-	printf("!IP %s:%d %x %x %x %d %x %x %x %d %d %x\n%02x%02x%02x%02x\n",
+	printf("!IP %s:%d %p %p %p %d %p %p %p %d %d %p\n%02x%02x%02x%02x\n",
 		qif ? qif->qf_name : "?", out, q, q ? q->q_ptr : NULL,
 		q ? q->q_qinfo : NULL, mt->b_wptr - mt->b_rptr, m, mt,
 		m->b_rptr, m->b_wptr - m->b_rptr, off, ip,
@@ -351,14 +383,14 @@ int off;
  * none of the nice IP sanity checks (including checksumming) should have been
  * done yet - dangerous!
  */
-int fr_precheck(mp, q, qif, out)
+static int fr_precheck(mp, q, qif, out)
 mblk_t **mp;
-queue_t	*q;
+queue_t *q;
 qif_t *qif;
 int out;
 {
 	u_long	lbuf[48];
-	mblk_t *m, *mp1, *mt = *mp;
+	mblk_t *m, *mt = *mp;
 	register ip_t *ip;
 	int iphlen, hlen, len, err, mlen, off, synced = 0;
 #ifndef	sparc
@@ -405,7 +437,7 @@ tryagain:
 	 */
 	if (!OK_32PTR(ip)) {
 		len = MIN(mlen, sizeof(ip_t));
-		copyout_mblk(m, 0, (char *)lbuf, len);
+		copyout_mblk(m, 0, len, (char *)lbuf);
 		frstats[out].fr_pull[0]++;
 		ip = (ip_t *)lbuf;
 	} else
@@ -429,7 +461,7 @@ tryagain:
 	 * Make hlen the total size of the IP header plus TCP/UDP/ICMP header
 	 * (if it is one of these three).
 	 */
-	if (!(ip->ip_off & 0x1fff))
+	if (!(ntohs((u_short)ip->ip_off) & 0x1fff))
 		switch (ip->ip_p)
 		{
 		case IPPROTO_TCP :
@@ -439,7 +471,8 @@ tryagain:
 			hlen += sizeof(udphdr_t);
 			break;
 		case IPPROTO_ICMP :
-			hlen += sizeof(icmphdr_t);
+			/* 76 bytes is enough for a complete ICMP error. */
+			hlen += 76 + sizeof(icmphdr_t);
 			break;
 		default :
 			break;
@@ -451,16 +484,17 @@ tryagain:
 	if ((hlen > len)) {
 		len = MIN(hlen, sizeof(lbuf));
 		len = MIN(mlen, len);
-		copyout_mblk(m, 0, (char *)lbuf, len);
+		copyout_mblk(m, 0, len, (char *)lbuf);
 		frstats[out].fr_pull[0]++;
 		ip = (ip_t *)lbuf;
 	}
 
 #ifndef	sparc
-	__iplen = ip->ip_len;
-	ip->ip_len = ntohs(__iplen);
-	__ipoff = ip->ip_off;
-	ip->ip_off = ntohs(__ipoff);
+	__iplen = (u_short)ip->ip_len,
+	__ipoff = (u_short)ip->ip_off;
+
+	ip->ip_len = htons(__iplen);
+	ip->ip_off = htons(__ipoff);
 #endif
 
 	if ((iphlen < sizeof(ip_t)) || (iphlen > (u_short)ip->ip_len) ||
@@ -474,22 +508,26 @@ tryagain:
 	}
 
 	qif->qf_m = m;
+	qif->qf_q = q;
+	qif->qf_off = off;
 	qif->qf_len = len;
-	err = fr_check(ip, iphlen, (struct ifnet *)qif->qf_ill, out, qif,
-		       q, mp);
+	err = fr_check(ip, iphlen, qif->qf_ill, out, qif, mp);
 	/*
 	 * Copy back the ip header data if it was changed, we haven't yet
 	 * freed the message and we aren't going to drop the packet.
 	 */
 #ifndef	sparc
 	if (*mp) {
-		ip->ip_len = __iplen;
-		ip->ip_off = __ipoff;
+		__iplen = (u_short)ip->ip_len,
+		__ipoff = (u_short)ip->ip_off;
+
+		ip->ip_len = htons(__iplen);
+		ip->ip_off = htons(__ipoff);
 	}
 #endif
 	if (err == 1) {
 		if (*mp && (ip == (ip_t *)lbuf)) {
-			copyin_mblk(m, 0, (char *)lbuf, len);
+			copyin_mblk(m, 0, len, (char *)lbuf);
 			frstats[out].fr_pull[1]++;
 		}
 		err = 0;
@@ -499,7 +537,7 @@ tryagain:
 }
 
 
-static int fr_qin(q, mb)
+int fr_qin(q, mb)
 queue_t *q;
 mblk_t *mb;
 {
@@ -510,8 +548,9 @@ again:
 	mutex_enter(&ipfs_mutex);
 	while (!(qif = qif_from_queue(q))) {
 		for (qif = qif_head; qif; qif = qif->qf_next)
-			if (qif->qf_rqinfo == q->q_qinfo && qif->qf_inp) {
-				pnext = qif->qf_inp;
+			if (&qif->qf_rqinit == q->q_qinfo && qif->qf_rqinfo &&
+					qif->qf_rqinfo->qi_putp) {
+				pnext = qif->qf_rqinfo->qi_putp;
 				mutex_exit(&ipfs_mutex);
 				frstats[0].fr_notip++;
 				if (!synced) {
@@ -531,12 +570,18 @@ again:
 		cmn_err(CE_WARN,
 			"IP Filter: dropped: fr_qin(%x,%x): type %x qif %x",
 			q, mb, MTYPE(mb), qif);
-		cmn_err(CE_CONT, "info %x next %x ptr %x fsrv %x bsrv %x\n",
+		cmn_err(CE_CONT,
+			"IP Filter: info %x next %x ptr %x fsrv %x bsrv %x\n",
 			q->q_qinfo, q->q_next, q->q_ptr, q->q_nfsrv,
 			q->q_nbsrv);
 		cmn_err(CE_CONT, "IP Filter: info: putp %x srvp %x info %x\n",
 			q->q_qinfo->qi_putp, q->q_qinfo->qi_srvp,
-			q->q_qinfo->qi_infop);
+#if SOLARIS > 3
+			q->q_qinfo->qi_infop
+#else
+			0
+#endif
+			);
 		frstats[0].fr_drop++;
 		freemsg(mb);
 		return 0;
@@ -547,7 +592,7 @@ again:
 	bcopy((char *)qif, (char *)&qfb, sizeof(*qif));
 	mutex_exit(&ipfs_mutex);
 	qif = &qfb;
-	pnext = qif->qf_inp;
+	pnext = qif->qf_rqinfo->qi_putp;
 
 	type = MTYPE(mb);
 	if (type == M_DATA || type == M_PROTO || type == M_PCPROTO)
@@ -569,7 +614,7 @@ again:
 }
 
 
-static int fr_qout(q, mb)
+int fr_qout(q, mb)
 queue_t *q;
 mblk_t *mb;
 {
@@ -580,8 +625,9 @@ again:
 	mutex_enter(&ipfs_mutex);
 	if (!(qif = qif_from_queue(q))) {
 		for (qif = qif_head; qif; qif = qif->qf_next)
-			if (qif->qf_wqinfo == q->q_qinfo && qif->qf_outp) {
-				pnext = qif->qf_outp;
+			if (&qif->qf_wqinit == q->q_qinfo && qif->qf_wqinfo &&
+					qif->qf_wqinfo->qi_putp) {
+				pnext = qif->qf_wqinfo->qi_putp;
 				mutex_exit(&ipfs_mutex);
 				frstats[1].fr_notip++;
 				if (!synced) {
@@ -601,18 +647,26 @@ again:
 		cmn_err(CE_WARN,
 			"IP Filter: dropped: fr_qout(%x,%x): type %x: qif %x",
 			q, mb, MTYPE(mb), qif);
-		cmn_err(CE_CONT, "info %x next %x ptr %x fsrv %x bsrv %x\n",
+		cmn_err(CE_CONT,
+			"IP Filter: info %x next %x ptr %x fsrv %x bsrv %x\n",
 			q->q_qinfo, q->q_next, q->q_ptr, q->q_nfsrv,
 			q->q_nbsrv);
 		cmn_err(CE_CONT, "IP Filter: info: putp %x srvp %x info %x\n",
 			q->q_qinfo->qi_putp, q->q_qinfo->qi_srvp,
-			q->q_qinfo->qi_infop);
+#if SOLARIS > 3
+			q->q_qinfo->qi_infop
+#else
+			0
+#endif
+			);
 		if (q->q_nfsrv)
-			cmn_err(CE_CONT, "nfsrv: info %x next %x ptr %x\n",
+			cmn_err(CE_CONT,
+				"IP Filter: nfsrv: info %x next %x ptr %x\n",
 				q->q_nfsrv->q_qinfo, q->q_nfsrv->q_next,
 				q->q_nfsrv->q_ptr);
 		if (q->q_nbsrv)
-			cmn_err(CE_CONT, "nbsrv: info %x next %x ptr %x\n",
+			cmn_err(CE_CONT,
+				"IP Filter: nbsrv: info %x next %x ptr %x\n",
 				q->q_nbsrv->q_qinfo, q->q_nbsrv->q_next,
 				q->q_nbsrv->q_ptr);
 		frstats[1].fr_drop++;
@@ -625,7 +679,7 @@ again:
 	bcopy((char *)qif, (char *)&qfb, sizeof(*qif));
 	mutex_exit(&ipfs_mutex);
 	qif = &qfb;
-	pnext = qif->qf_outp;
+	pnext = qif->qf_wqinfo->qi_putp;
 
 	type = MTYPE(mb);
 	if (type == M_DATA || type == M_PROTO || type == M_PCPROTO)
@@ -646,6 +700,98 @@ again:
 	return 0;
 }
 
+static int (*ipf_ip_inp) __P((queue_t *, mblk_t *)) = NULL;
+
+#include <sys/stropts.h>
+#include <sys/sockio.h>
+
+static int synctimeoutid = 0;
+
+void ipf_synctimeout(arg)
+caddr_t arg;
+{
+	ipfsync();
+	mutex_enter(&ipfs_mutex);
+	synctimeoutid = 0;
+	mutex_exit(&ipfs_mutex);
+}
+
+static int ipf_ip_qin(q, mp)
+queue_t *q;
+mblk_t *mp;
+{
+	struct iocblk *ioc;
+	int ret;
+ 
+	if (mp->b_datap->db_type != M_IOCTL)
+		return (*ipf_ip_inp)(q, mp);
+
+	ioc = (struct iocblk *)mp->b_rptr;
+
+	switch (ioc->ioc_cmd) {
+	case I_LINK:
+	case I_UNLINK:
+	case SIOCSIFADDR:
+	case SIOCSIFFLAGS:
+#ifdef	IPFDEBUG
+		cmn_err(CE_NOTE, "IP Filter: ipf_ip_qin() M_IOCTL type=0x%x\n", ioc->ioc_cmd);
+#endif
+		ret = (*ipf_ip_inp)(q, mp);
+
+		mutex_enter(&ipfs_mutex);
+		if (synctimeoutid == 0) {
+			synctimeoutid = timeout(
+						ipf_synctimeout,
+						NULL,
+						drv_usectohz(1000000) /*1 sec*/
+					);
+			mutex_exit(&ipfs_mutex);
+		} else
+			mutex_exit(&ipfs_mutex);
+
+		return ret;
+	default:
+		return (*ipf_ip_inp)(q, mp);
+	}
+}
+
+static int ipdrvattcnt = 0;
+extern struct streamtab ipinfo;
+
+void solipdrvattach()
+{
+#ifdef	IPFDEBUG
+	cmn_err(CE_NOTE, "IP Filter: solipdrvattach() ipinfo=0x%lx\n", &ipinfo);
+#endif
+
+	if (++ipdrvattcnt == 1) {
+		if (ipf_ip_inp == NULL) {
+			ipf_ip_inp = ipinfo.st_wrinit->qi_putp;
+			ipinfo.st_wrinit->qi_putp = ipf_ip_qin;
+		}
+	}
+}
+
+int solipdrvdetach()
+{
+#ifdef	IPFDEBUG
+	cmn_err(CE_NOTE, "IP Filter: solipdrvdetach() ipinfo=0x%lx\n", &ipinfo);
+#endif
+
+	if (--ipdrvattcnt <= 0) {
+		if (ipf_ip_inp && (ipinfo.st_wrinit->qi_putp == ipf_ip_qin)) {
+			ipinfo.st_wrinit->qi_putp = ipf_ip_inp;
+			ipf_ip_inp = NULL;
+		}
+		mutex_enter(&ipfs_mutex);
+		if (synctimeoutid) {
+			synctimeoutid = 0;
+			mutex_exit(&ipfs_mutex);
+			untimeout(synctimeoutid);
+		} else
+			mutex_exit(&ipfs_mutex);
+	}
+}
 
 /*
  * attach the packet filter to each interface that is defined as having an
@@ -653,11 +799,14 @@ again:
  * so we're not out of date as soon as te ill disappears - but we must sync
  * to be correct!
  */
-int solattach()
+void solattach()
 {
 	queue_t *in, *out;
 	qif_t *qif, *qf2;
 	ill_t *il;
+	struct frentry *f;
+	ipnat_t *np;
+	int len;
 
 	for (il = ill_g_head; il; il = il->ill_next) {
 		in = il->ill_rq;
@@ -685,11 +834,17 @@ int solattach()
 			out->q_qinfo->qi_putp, out->q_qinfo, in->q_qinfo);
 #endif
 		KMALLOC(qif, qif_t *, sizeof(*qif));
+		if (!qif) {
+			cmn_err(CE_NOTE,
+				"IP Filter: malloc(%d) for qif_t failed\n",
+				sizeof(qif_t));
+			continue;
+		}
 
 		if (in->q_qinfo->qi_putp == fr_qin) {
 			for (qf2 = qif_head; qf2; qf2 = qf2->qf_next)
-				if (qf2->qf_rqinfo == in->q_qinfo) {
-					qif->qf_inp = qf2->qf_inp;
+				if (&qf2->qf_rqinit == in->q_qinfo) {
+					qif->qf_rqinfo = qf2->qf_rqinfo;
 					break;
 				}
 			if (!qf2) {
@@ -704,12 +859,12 @@ int solattach()
 				continue;
 			}
 		} else
-			qif->qf_inp = in->q_qinfo->qi_putp;
+			qif->qf_rqinfo = in->q_qinfo;
 
 		if (out->q_qinfo->qi_putp == fr_qout) {
 			for (qf2 = qif_head; qf2; qf2 = qf2->qf_next)
-				if (qf2->qf_wqinfo == out->q_qinfo) {
-					qif->qf_outp = qf2->qf_outp;
+				if (&qf2->qf_wqinit == out->q_qinfo) {
+					qif->qf_wqinfo = qf2->qf_wqinfo;
 					break;
 				}
 			if (!qf2) {
@@ -724,7 +879,7 @@ int solattach()
 				continue;
 			}
 		} else
-			qif->qf_outp = out->q_qinfo->qi_putp;
+			qif->qf_wqinfo = out->q_qinfo;
 
 		qif->qf_ill = il;
 		qif->qf_iptr = in->q_ptr;
@@ -732,22 +887,71 @@ int solattach()
 		qif->qf_hl = il->ill_hdr_length;
 		strncpy(qif->qf_name, il->ill_name, sizeof(qif->qf_name));
 		qif->qf_name[sizeof(qif->qf_name) - 1] = '\0';
-		qif->qf_wqinfo = out->q_qinfo;
-		qif->qf_rqinfo = in->q_qinfo;
 
 		qif->qf_next = qif_head;
 		qif_head = qif;
-		in->q_qinfo->qi_putp = fr_qin;
-		out->q_qinfo->qi_putp = fr_qout;
+
+		/*
+		 * Activate any rules directly associated with this interface
+		 */
+		mutex_enter(&ipf_mutex);
+		for (f = ipfilter[0][0]; f; f = f->fr_next) {
+			if ((f->fr_ifa == (struct ifnet *)-1)) {
+				len = strlen(f->fr_ifname)+1; /* includes \0 */
+				if (len && (len == il->ill_name_length) &&
+				    !strncmp(il->ill_name, f->fr_ifname, len))
+					f->fr_ifa = il;
+			}
+		}
+		for (f = ipfilter[1][0]; f; f = f->fr_next) {
+			if ((f->fr_ifa == (struct ifnet *)-1)) {
+				len = strlen(f->fr_ifname)+1; /* includes \0 */
+				if (len && (len == il->ill_name_length) &&
+				    !strncmp(il->ill_name, f->fr_ifname, len))
+					f->fr_ifa = il;
+			}
+		}
+		mutex_exit(&ipf_mutex);
+		mutex_enter(&ipf_nat);
+		for (np = nat_list; np; np = np->in_next) {
+			if ((np->in_ifp == (struct ifnet *)-1)) {
+				len = strlen(np->in_ifname)+1; /* includes \0 */
+				if (len && (len == il->ill_name_length) &&
+				    !strncmp(il->ill_name, np->in_ifname, len))
+					np->in_ifp = il;
+			}
+		}
+		mutex_exit(&ipf_nat);
+
+		bcopy((caddr_t)qif->qf_rqinfo, (caddr_t)&qif->qf_rqinit,
+		      sizeof(struct qinit));
+		qif->qf_rqinit.qi_putp = fr_qin;
+#ifdef	IPFDEBUG
+		cmn_err(CE_NOTE,
+			"IP Filter: solattach: in queue(%lx)->q_qinfo FROM %lx TO %lx",
+			in, in->q_qinfo, &qif->qf_rqinit
+			);
+#endif
+		in->q_qinfo = &qif->qf_rqinit;
+
+		bcopy((caddr_t)qif->qf_wqinfo, (caddr_t)&qif->qf_wqinit,
+		      sizeof(struct qinit));
+		qif->qf_wqinit.qi_putp = fr_qout;
+#ifdef	IPFDEBUG
+		cmn_err(CE_NOTE,
+			"IP Filter: solattach: out queue(%lx)->q_qinfo FROM %lx TO %lx",
+			out, out->q_qinfo, &qif->qf_wqinit
+			);
+#endif
+		out->q_qinfo = &qif->qf_wqinit;
+
 		mutex_exit(&ipfs_mutex);
 		cmn_err(CE_CONT, "IP Filter: attach to [%s,%d]\n",
 			qif->qf_name, il->ill_ppa);
 	}
-	if (!qif_head) {
+	if (!qif_head)
 		cmn_err(CE_CONT, "IP Filter: not attached to any interfaces\n");
-		return -1;
-	}
-	return 0;
+	return;
 }
 
 
@@ -757,9 +961,11 @@ int solattach()
  */
 int ipfsync()
 {
-	register struct frentry *f, **fp;
+	register struct frentry *f;
+	register ipnat_t *np;
 	register qif_t *qif, **qp;
 	register ill_t *il;
+	queue_t *in, *out;
 
 	mutex_enter(&ipfs_mutex);
 	for (qp = &qif_head; (qif = *qp); ) {
@@ -770,7 +976,8 @@ int ipfsync()
 
 				qif->qf_hl = il->ill_hdr_length;
 				if (m && qif->qf_hl != (m->b_wptr - m->b_rptr))
-					printf("ILL Header Length Mismatch\n");
+					cmn_err(CE_NOTE,
+						"IP Filter: ILL Header Length Mismatch\n");
 				break;
 			}
 		if (il) {
@@ -781,28 +988,62 @@ int ipfsync()
 		*qp = qif->qf_next;
 
 		/*
-		 * Delete any rules directly associated with this interface
+		 * Disable any rules directly associated with this interface
 		 */
+		mutex_enter(&ipf_nat);
+		for (np = nat_list; np; np = np->in_next)
+			if (np->in_ifp == (void *)qif->qf_ill)
+				np->in_ifp = (struct ifnet *)-1;
+		mutex_exit(&ipf_nat);
 		mutex_enter(&ipf_mutex);
-		for (fp = &ipfilter[0][0]; (f = *fp); )
-			if ((void *)f->fr_ifa == (void *)qif->qf_ill) {
-				*fp = f->fr_next;
-				KFREE(f);
-			} else
-				fp = &f->fr_next;
-		for (fp = &ipfilter[1][0]; (f = *fp); )
-			if ((void *)f->fr_ifa == (void *)qif->qf_ill) {
-				*fp = f->fr_next;
-				KFREE(f);
-			} else
-				fp = &f->fr_next;
+		for (f = ipfilter[0][0]; f; f = f->fr_next)
+			if (f->fr_ifa == (void *)qif->qf_ill)
+				f->fr_ifa = (struct ifnet *)-1;
+		for (f = ipfilter[1][0]; f; f = f->fr_next)
+			if (f->fr_ifa == (void *)qif->qf_ill)
+				f->fr_ifa = (struct ifnet *)-1;
+
+		/*
+		 * Restore q_qinfo pointers in interface queues
+		 */
+		il = qif->qf_ill;
+		in = il->ill_rq;
+		out = NULL;
+		if (in && il->ill_wq) {
+			out = il->ill_wq->q_next;
+		}
+		if (in) {
+#ifdef	IPFDEBUG
+			cmn_err(CE_NOTE,
+				"IP Filter: ipfsync: in queue(%lx)->q_qinfo FROM %lx TO %lx",
+				in, in->q_qinfo, qif->qf_rqinfo
+				);
+#endif
+			in->q_qinfo = qif->qf_rqinfo;
+		}
+		if (out) {
+#ifdef	IPFDEBUG
+			cmn_err(CE_NOTE,
+				"IP Filter: ipfsync: out queue(%lx)->q_qinfo FROM %lx TO %lx",
+				out, out->q_qinfo, qif->qf_wqinfo
+				);
+#endif
+			out->q_qinfo = qif->qf_wqinfo;
+		}
 		mutex_exit(&ipf_mutex);
 
 		KFREE(qif);
 		qif = *qp;
 	}
 	mutex_exit(&ipfs_mutex);
-	return solattach();
+	solattach();
+
+	/*
+	 * Resync. any NAT `connections' using this interface and its IP #.
+	 */
+	for (il = ill_g_head; il; il = il->ill_next)
+		ip_natsync((void *)il);
+	return 0;
 }
 
 
@@ -841,28 +1082,25 @@ int soldetach()
 		if (il) {
 			in = il->ill_rq;
 			out = il->ill_wq->q_next;
-			printf("IP Filter: detaching [%s,%d]\n", qif->qf_name,
-				il->ill_ppa);
-			in->q_qinfo->qi_putp = qif->qf_inp;
-			/*
-			 * and change back if something is still interested
-			 * in filtering (read side) on this interface.
-			 */
-			for (qf2 = qif_head; qf2; qf2 = qf2->qf_next)
-				if (qf2->qf_rqinfo == in->q_qinfo) {
-					in->q_qinfo->qi_putp = fr_qin;
-					break;
-				}
+			cmn_err(CE_CONT, "IP Filter: detaching [%s,%d]\n",
+				qif->qf_name, il->ill_ppa);
+
+#ifdef	IPFDEBUG
+			cmn_err(CE_NOTE,
+				"IP Filter: soldetach: in queue(%lx)->q_qinfo FROM %lx TO %lx",
+				in, in->q_qinfo, qif->qf_rqinfo);
+#endif
+			in->q_qinfo = qif->qf_rqinfo;
+
 			/*
 			 * and the write queue...
 			 */
-			out->q_qinfo->qi_putp = qif->qf_outp;
-			for (qf2 = qif_head; qf2; qf2 = qf2->qf_next)
-				if (qf2->qf_wqinfo == out->q_qinfo) {
-					out->q_qinfo->qi_putp = fr_qout;
-					break;
-				}
-
+#ifdef	IPFDEBUG
+			cmn_err(CE_NOTE,
+				"IP Filter: soldetach: out queue(%lx)->q_qinfo FROM %lx TO %lx",
+				out, out->q_qinfo, qif->qf_wqinfo);
+#endif
+			out->q_qinfo = qif->qf_wqinfo;
 		}
 		KFREE(qif);
 	}
@@ -871,18 +1109,20 @@ int soldetach()
 }
 
 
+#ifdef	IPFDEBUG
 void printire(ire)
 ire_t *ire;
 {
-	printf("ire: ll_hdr_mp %x rfq %x stq %x src_addr %x max_frag %d\n",
+	printf("ire: ll_hdr_mp %p rfq %p stq %p src_addr %x max_frag %d\n",
 		ire->ire_ll_hdr_mp, ire->ire_rfq, ire->ire_stq,
 		ire->ire_src_addr, ire->ire_max_frag);
 	printf("ire: mask %x addr %x gateway_addr %x type %d\n",
 		ire->ire_mask, ire->ire_addr, ire->ire_gateway_addr,
 		ire->ire_type);
-	printf("ire: ll_hdr_length %d ll_hdr_saved_mp %x\n",
+	printf("ire: ll_hdr_length %d ll_hdr_saved_mp %p\n",
 		ire->ire_ll_hdr_length, ire->ire_ll_hdr_saved_mp);
 }
+#endif
 
 
 int ipfr_fastroute(qf, ip, mb, mpp, fin, fdp)
@@ -923,7 +1163,7 @@ frdest_t *fdp;
 #endif
 
 	if (ip != (ip_t *)mb->b_rptr) {
-		copyin_mblk(mb, 0, (char *)ip, qf->qf_len);
+		copyin_mblk(mb, 0, qf->qf_len, (char *)ip);
 		frstats[fin->fin_out].fr_pull[1]++;
 	}
 
@@ -943,10 +1183,12 @@ frdest_t *fdp;
 		dst = fin->fin_fi.fi_dst;
 
 #if SOLARIS2 > 5
-	if (dir = ire_cache_lookup(dst.s_addr))
+	dir = ire_route_lookup(dst.s_addr, 0, 0, 0, NULL, NULL, NULL,
+				MATCH_IRE_DSTONLY);
 #else
-	if (dir = ire_lookup(dst.s_addr))
+	dir = ire_lookup(dst.s_addr);
 #endif
+	if (dir)
 		if (!dir->ire_ll_hdr_mp || !dir->ire_ll_hdr_length)
 			dir = NULL;
 
@@ -980,15 +1222,17 @@ frdest_t *fdp;
 			q = WR(ir->ire_rfq);
 		if (q) {
 			putnext(q, mb);
+			ipl_frouteok[0]++;
 			return 0;
 		}
 	}
 bad_fastroute:
+	ipl_frouteok[0]++;
 	return -1;
 }
 
 
-void copyout_mblk(m, off, buf, len)
+void copyout_mblk(m, off, len, buf)
 mblk_t *m;
 int off, len;
 char *buf;
@@ -1018,7 +1262,7 @@ char *buf;
 }
 
 
-void copyin_mblk(m, off, buf, len)
+void copyin_mblk(m, off, len, buf)
 mblk_t *m;
 int off, len;
 char *buf;

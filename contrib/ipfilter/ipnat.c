@@ -1,5 +1,5 @@
 /*
- * (C)opyright 1993,1994,1995 by Darren Reed.
+ * Copyright (C) 1993-1997 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
@@ -19,12 +19,12 @@
 #include <stdio.h>
 #include <string.h>
 #include <fcntl.h>
+#include <sys/types.h>
 #if !defined(__SVR4) && !defined(__svr4__)
 #include <strings.h>
 #else
 #include <sys/byteorder.h>
 #endif
-#include <sys/types.h>
 #include <sys/time.h>
 #include <sys/param.h>
 #include <stdlib.h>
@@ -46,17 +46,17 @@
 #include <arpa/inet.h>
 #include <resolv.h>
 #include <ctype.h>
-#include "ip_compat.h"
-#include "ip_fil.h"
-#include "ip_proxy.h"
-#include "ip_nat.h"
+#include "netinet/ip_compat.h"
+#include "netinet/ip_fil.h"
+#include "netinet/ip_proxy.h"
+#include "netinet/ip_nat.h"
 #include "kmem.h"
 
-
-#if !defined(lint) && defined(LIBC_SCCS)
-static  char    sccsid[] ="@(#)ipnat.c	1.9 6/5/96 (C) 1993 Darren Reed";
-static	char	rcsid[] = "$Id: ipnat.c,v 2.0.2.9 1997/05/05 14:03:55 darrenr Exp $";
+#if !defined(lint)
+static const char sccsid[] ="@(#)ipnat.c	1.9 6/5/96 (C) 1993 Darren Reed";
+static const char rcsid[] = "@(#)$Id: ipnat.c,v 2.0.2.21.2.1 1997/11/08 04:55:55 darrenr Exp $";
 #endif
+
 
 #if	SOLARIS
 #define	bzero(a,b)	memset(a,0,b)
@@ -97,8 +97,8 @@ int main(argc, argv)
 int argc;
 char *argv[];
 {
-	char	*file = NULL, c;
-	int	fd, opts = 1;
+	char	*file = NULL;
+	int	fd = -1, opts = 1, c;
 
 	while ((c = getopt(argc, argv, "CFf:lnrsv")) != -1)
 		switch (c)
@@ -182,11 +182,12 @@ int verbose;
 void *ptr;
 {
 	int	bits;
+	struct	protoent	*pr;
 
 	switch (np->in_redir)
 	{
 	case NAT_REDIRECT :
-		printf("redir ");
+		printf("rdr ");
 		break;
 	case NAT_MAP :
 		printf("map ");
@@ -212,11 +213,11 @@ void *ptr;
 		printf("-> %s", inet_ntoa(np->in_in[0]));
 		if (np->in_pnext)
 			printf(" port %d", ntohs(np->in_pnext));
-		if (np->in_flags & IPN_TCPUDP)
+		if ((np->in_flags & IPN_TCPUDP) == IPN_TCPUDP)
 			printf(" tcp/udp");
-		else if (np->in_flags & IPN_TCP)
+		else if ((np->in_flags & IPN_TCP) == IPN_TCP)
 			printf(" tcp");
-		else if (np->in_flags & IPN_UDP)
+		else if ((np->in_flags & IPN_UDP) == IPN_UDP)
 			printf(" udp");
 		printf("\n");
 		if (verbose)
@@ -238,11 +239,15 @@ void *ptr;
 		else
 			printf("%s", inet_ntoa(np->in_out[1]));
 		if (*np->in_plabel) {
-			printf(" proxy");
+			printf(" proxy port");
 			if (np->in_dport)
 				printf(" %hu", ntohs(np->in_dport));
-			printf(" %.*s/%d", sizeof(np->in_plabel),
-				np->in_plabel, np->in_p);
+			printf(" %.*s/", (int)sizeof(np->in_plabel),
+				np->in_plabel);
+			if ((pr = getprotobynumber(np->in_p)))
+				fputs(pr->p_name, stdout);
+			else
+				printf("%d", np->in_p);
 		} else if (np->in_pmin || np->in_pmax) {
 			printf(" portmap");
 			if ((np->in_flags & IPN_TCPUDP) == IPN_TCPUDP)
@@ -452,7 +457,7 @@ int	*resolved;
 		}
 		return np->n_net;
 	}
-	return *(u_long *)hp->h_addr;
+	return *(u_32_t *)hp->h_addr;
 }
 
 
@@ -654,8 +659,12 @@ char *line;
 		ipn.in_pnext = portnum(tport, proto); /* target port */
 		s = NULL; /* That's all she wrote! */
 	}
+	ipn.in_inip &= ipn.in_inmsk;
+	ipn.in_outip &= ipn.in_outmsk;
+
 	if (!s)
 		return &ipn;
+
 	if (ipn.in_redir == NAT_BIMAP) {
 		fprintf(stderr, "extra words at the end of bimap line: %s\n",
 			s);
@@ -749,9 +758,12 @@ int opts;
 	FILE	*fp;
 	int	linenum = 1;
 
-	if (strcmp(file, "-"))
-		fp = fopen(file, "r");
-	else
+	if (strcmp(file, "-")) {
+		if (!(fp = fopen(file, "r"))) {
+			perror(file);
+			exit(1);
+		}
+	} else
 		fp = stdin;
 
 	while (fgets(line, sizeof(line) - 1, fp)) {
@@ -773,7 +785,8 @@ int opts;
 		}
 		linenum++;
 	}
-	fclose(stdin);
+	if (fp != stdin)
+		fclose(fp);
 }
 
 

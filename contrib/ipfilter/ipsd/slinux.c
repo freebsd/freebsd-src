@@ -1,8 +1,9 @@
 /*
- * (C)opyright October 1992 Darren Reed. (from tcplog)
+ * (C)opyright 1992-1997 Darren Reed. (from tcplog)
  *
- *   This software may be freely distributed as long as it is not altered
- * in any way and that this messagge always accompanies it.
+ * Redistribution and use in source and binary forms are permitted
+ * provided that this notice is preserved and due credit is given
+ * to the original author and the contributors.
  *
  *   The author of this software makes no garuntee about the
  * performance of this package or its suitability to fulfill any purpose.
@@ -30,7 +31,7 @@
 #include "tcpip.h"
 
 #ifndef	lint
-static	char	sccsid[] = "@(#)slinux.c	1.1 12/3/95 (C) 1995 Darren Reed";
+static const char sccsid[] = "@(#)slinux.c	1.1 12/3/95 (C) 1995 Darren Reed";
 #endif
 
 #define BUFSPACE	32768

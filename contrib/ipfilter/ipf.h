@@ -1,12 +1,12 @@
 /*
- * (C)opyright 1993-1997 by Darren Reed.
+ * Copyright (C) 1993-1997 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
  *
  * @(#)ipf.h	1.12 6/5/96
- * $Id: ipf.h,v 2.0.2.6 1997/04/30 13:49:05 darrenr Exp $
+ * $Id: ipf.h,v 2.0.2.12 1997/09/28 07:11:50 darrenr Exp $
  */
 
 #ifndef	__IPF_H__
@@ -33,6 +33,8 @@
 #define	OPT_PRINTFR	0x08000
 #define	OPT_ZERORULEST	0x10000
 #define	OPT_SAVEOUT	0x20000
+#define	OPT_AUTHSTATS	0x40000
+#define	OPT_RAW		0x80000
 
 #ifndef __P
 # ifdef	__STDC__
@@ -40,6 +42,10 @@
 # else
 #  define	__P(x)	()
 # endif
+#endif
+
+#ifdef	ultrix
+extern	char	*strdup __P((char *));
 #endif
 
 extern	struct	frentry	*parse __P((char *));
@@ -57,10 +63,10 @@ struct	ipopt_names	{
 };
 
 
-extern	u_long	buildopts __P((char *, char *));
-extern	u_long	hostnum __P((char *, int *));
-extern	u_long	optname __P((char ***, u_short *));
-extern	void	printpacket __P((struct ip *));
+extern	u_32_t	buildopts __P((char *, char *, int));
+extern	u_32_t	hostnum __P((char *, int *));
+extern	u_32_t	optname __P((char ***, u_short *));
+extern	void	printpacket __P((ip_t *));
 #if SOLARIS
 extern	int	inet_aton __P((const char *, struct in_addr *));
 #endif
