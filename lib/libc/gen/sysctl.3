@@ -413,7 +413,7 @@ Returns 1 if saved set-group and saved set-user ID is available.
 .It Li KERN_SECURELVL
 The system security level.
 This level may be raised by processes with appropriate privilege.
-It may only be lowered by process 1.
+It may not be lowered.
 .It Li KERN_VERSION
 The system version string.
 .It Li KERN_VNODE
@@ -613,6 +613,15 @@ privilege may change the value.
 .It Sy Pa Second level name	Type	Changeable
 .It VM\_LOADAVG	struct loadavg	no
 .It VM\_METER	struct vmtotal	no
+.It VM\_PAGEOUT\_ALGORITHM	integer	yes
+.It VM\_SWAPPING\_ENABLED	integer	maybe
+.It VM\_V\_CACHE\_MAX	integer	yes
+.It VM\_V\_CACHE\_MIN	integer	yes
+.It VM\_V\_FREE\_MIN	integer	yes
+.It VM\_V\_FREE\_RESERVED	integer	yes
+.It VM\_V\_FREE\_TARGET	integer	yes
+.It VM\_V\_INACTIVE\_TARGET	integer	yes
+.It VM\_V\_PAGEOUT\_FREE\_MIN	integer	yes 
 .El
 .Pp
 .Bl -tag -width "123456"
@@ -624,6 +633,34 @@ The returned data consists of a
 Return the system wide virtual memory statistics.
 The returned data consists of a
 .Va struct vmtotal .
+.It Li VM_PAGEOUT_ALGORITHM
+0 if the statistics-based page management algorithm is in use
+or 1 if the near-LRU algorithm is in use.
+.It Li VM_SWAPPING_ENABLED
+1 if process swapping is enabled or 0 if disabled.  This variable is
+permanently set to 0 if the kernel was built with swapping disabled.
+.It Li VM_V_CACHE_MAX
+Maximum desired size of the cache queue.
+.It Li VM_V_CACHE_MIN
+Minimum desired size of the cache queue.  If the cache queue size
+falls very far below this value, the pageout daemon is awakened.
+.It Li VM_V_FREE_MIN
+Minimum amount of memory (cache memory plus free memory)
+required to be available before a process waiting on memory will be
+awakened.
+.It Li VM_V_FREE_RESERVED
+Processes will awaken the pageout daemon and wait for memory if the
+number of free and cached pages drops below this value.
+.It Li VM_V_FREE_TARGET
+The total amount of free memory (including cache memory) that the
+pageout daemon tries to maintain.
+.It Li VM_V_INACTIVE_TARGET
+The desired number of inactive pages that the pageout daemon should
+achieve when it runs.  Inactive pages can be quickly inserted into
+process address space when needed.
+.It Li VM_V_PAGEOUT_FREE_MIN
+If the amount of free and cache memory falls below this value, the
+pageout daemon will enter "memory conserving mode" to avoid deadlock.
 .El
 .Sh RETURN VALUES
 If the call to
