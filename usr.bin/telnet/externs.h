@@ -144,7 +144,8 @@ extern int
 #endif	/* defined(TN3270) */
     termdata,		/* Print out terminal data flow */
 #endif	/* defined(unix) */
-    debug;			/* Debug level */
+    debug,		/* Debug level */
+    clienteof;		/* Client received EOF */
 
 extern cc_t escape;	/* Escape to command mode */
 extern cc_t rlogin;	/* Rlogin mode escape character */
