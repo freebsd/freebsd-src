@@ -12,6 +12,8 @@
  *	@(#)conf.h	8.385 (Berkeley) 1/28/1999
  */
 
+/* $FreeBSD$ */
+
 /*
 **  CONF.H -- All user-configurable parameters for sendmail
 **
@@ -831,6 +833,10 @@ typedef int		pid_t;
 
 #if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
 # include <paths.h>
+# if defined(__FreeBSD__) && !defined(__NetBSD__) && !defined(__OpenBSD__)
+#  define _PATH_VENDOR_CF	"/etc/mail/sendmail.cf"
+#  define USE_VENDOR_CF_PATH
+# endif
 # define HASUNSETENV	1	/* has unsetenv(3) call */
 # define HASSETSID	1	/* has the setsid(2) POSIX syscall */
 # define USESETEUID	1	/* has useable seteuid(2) call */
