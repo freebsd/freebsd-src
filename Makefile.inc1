@@ -62,7 +62,7 @@ SUBDIR+=secure
 .if !defined(NOSHARE)
 SUBDIR+=share
 .endif
-.if ${MACHINE_ARCH} == "alpha"
+.if ${MACHINE_ARCH} != "alpha"
 SUBDIR+=sys
 .endif
 SUBDIR+=usr.bin usr.sbin etc
