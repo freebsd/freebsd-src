@@ -53,7 +53,6 @@ extern int exec_coff_imgact __P((struct image_params *iparams));
 
 static int load_coff_section __P((struct vmspace *vmspace, struct vnode *vp, vm_offset_t offset, caddr_t vmaddr, size_t memsz, size_t filsz, vm_prot_t prot));
 
-
 static int
 load_coff_section(vmspace, vp, offset, vmaddr, memsz, filsz, prot)
 	struct vmspace *vmspace;
@@ -380,23 +379,32 @@ exec_coff_imgact(iparams)
 				    foff)) {
 	      		return ENOEXEC;
 	    	}
-	    	for (j = off; j < scns[i].s_size + off; j++) {
-	      		char *libname;
-			char libbuf[40];
+		if(scns[i].s_size) {
+			char *libbuf;
+			int emul_path_len = strlen(ibcs2_emul_path);
 
-	      		libname = buf + j + 4 * *(long*)(buf + j + 4);
-	      		j += 4* *(long*)(buf + j);
+			libbuf = malloc(MAXPATHLEN + emul_path_len,
+					M_TEMP, M_WAITOK);
+			strcpy(libbuf, ibcs2_emul_path);
 
-			DPRINTF(("%s(%d):  shared library %s\n",
-				 __FILE__, __LINE__, libname));
-			strcpy(libbuf, "/emul/ibcs2");
-			strcpy(&libbuf[11], libname);
-	      		error = coff_load_file(iparams->proc, libbuf);
-	      		if (error)
-	      			error = coff_load_file(iparams->proc, libname);
-	      		if (error)
-				break;
-	    	}
+		    	for (j = off; j < scns[i].s_size + off; j++) {
+	      			char *libname;
+
+		      		libname = buf + j + 4 * *(long*)(buf + j + 4);
+		      		j += 4* *(long*)(buf + j);
+
+				DPRINTF(("%s(%d):  shared library %s\n",
+					 __FILE__, __LINE__, libname));
+				strcpy(&libbuf[emul_path_len], libname);
+		      		error = coff_load_file(iparams->proc, libbuf);
+		      		if (error)
+	      				error = coff_load_file(iparams->proc,
+							       libname);
+		      		if (error)
+					break;
+		    	}
+			free(libbuf, M_TEMP);
+		}
 		if (vm_map_remove(kernel_map,
 				  (vm_offset_t) buf,
 				  (vm_offset_t) buf + len))
