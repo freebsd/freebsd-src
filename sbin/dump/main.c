@@ -287,7 +287,6 @@ main(argc, argv)
 	if (signal(SIGINT, interrupt) == SIG_IGN)
 		signal(SIGINT, SIG_IGN);
 
-	set_operators();	/* /etc/group snarfed */
 	getfstab();		/* /etc/fstab snarfed */
 	/*
 	 *	disk can be either the full special file name,
