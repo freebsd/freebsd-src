@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 SUBDIR= cat \
+	chflags \
 	chio \
 	chmod \
 	cp \
