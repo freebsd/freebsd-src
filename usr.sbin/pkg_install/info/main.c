@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: main.c,v 1.14 1997/10/08 07:47:26 charnier Exp $";
+	"$Id: main.c,v 1.15 1997/12/26 05:29:29 hoek Exp $";
 #endif
 
 /*
@@ -46,7 +46,11 @@ main(int argc, char **argv)
     char **pkgs, **start;
 
     pkgs = start = argv;
-    while ((ch = getopt(argc, argv, Options)) != -1)
+    if (argc == 1) {
+	AllInstalled = TRUE;
+	Flags = SHOW_INDEX;
+    }
+    else while ((ch = getopt(argc, argv, Options)) != -1) {
 	switch(ch) {
 	case 'a':
 	    AllInstalled = TRUE;
@@ -129,6 +133,7 @@ main(int argc, char **argv)
 	    usage();
 	    break;
 	}
+    }
 
     argc -= optind;
     argv += optind;
