@@ -83,6 +83,8 @@ struct pnp_quirk pnp_quirks[] = {
 	  PNP_QUIRK_EXTRA_IO,	0x400,	 0x800 },
 	{ 0xc1008c0e /* SB64(CTL00c1) */,	0x22008c0e,
 	  PNP_QUIRK_EXTRA_IO,	0x400,	 0x800 },
+	{ 0xc5008c0e /* SB64(CTL00c5) */,	0x22008c0e,
+	  PNP_QUIRK_EXTRA_IO,	0x400,	 0x800 },
 	{ 0xe4008c0e /* SB64(CTL00e4) */,	0x22008c0e,
 	  PNP_QUIRK_EXTRA_IO,	0x400,	 0x800 },
 
