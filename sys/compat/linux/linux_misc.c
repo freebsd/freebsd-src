@@ -416,7 +416,7 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 			goto cleanup;
 
 		/* copy from kernel VM space to user space */
-		error = copyout((void *)(buffer + file_offset),
+		error = copyout((void *)(uintptr_t)(buffer + file_offset),
 		    (void *)vmaddr, a_out->a_text + a_out->a_data);
 
 		/* release temporary kernel space */
