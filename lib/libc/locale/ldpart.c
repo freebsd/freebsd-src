@@ -45,7 +45,8 @@ __part_load_locale(const char *name,
 		int* using_locale,
 		char *locale_buf,
 		const char *category_name,
-		int locale_buf_size,
+		int locale_buf_size_max,
+		int locale_buf_size_min,
 		const char **dst_localebuf) {
 
 	static char		locale_buf_C[] = "C";
@@ -118,8 +119,10 @@ __part_load_locale(const char *name,
 	if (plim[-1] != '\n')
 		goto bad_lbuf;
 	num_lines = split_lines(p, plim);
-	if (num_lines >= locale_buf_size)
-		num_lines = locale_buf_size;
+	if (num_lines >= locale_buf_size_max)
+		num_lines = locale_buf_size_max;
+	else if (num_lines >= locale_buf_size_min)
+		num_lines = locale_buf_size_min;
 	else
 		goto reset_locale;
 	set_from_buf(lbuf, num_lines, dst_localebuf);
