@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.3 (Berkeley) 10/24/94
-#	$Id: Makefile.inc,v 1.37 1997/08/19 07:19:42 peter Exp $
+#	$Id: Makefile.inc,v 1.38 1997/09/14 03:29:55 peter Exp $
 
 # sys sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/sys ${.CURDIR}/../libc/sys
@@ -105,7 +105,7 @@ MAN2+=	sys/accept.2 sys/access.2 sys/acct.2 sys/adjtime.2 sys/bind.2 \
 	sys/mlock.2 \
 	sys/mmap.2 sys/mount.2 sys/mprotect.2 sys/msync.2 sys/munmap.2 \
 	sys/nanosleep.2 \
-	sys/ptrace.2 sys/nfssvc.2 sys/open.2 sys/pathconf.2 sys/pipe.2 \
+	sys/ptrace.2 sys/nfssvc.2 sys/open.2 sys/pathconf.2 sys/pipe.2 poll.2 \
 	sys/profil.2 sys/quotactl.2 sys/read.2 sys/readlink.2 sys/reboot.2 \
 	sys/recv.2 sys/rename.2 sys/revoke.2 sys/rfork.2 sys/rmdir.2 \
 	sys/rtprio.2 sys/select.2 \
