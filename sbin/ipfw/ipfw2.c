@@ -881,6 +881,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 	static int twidth = 0;
 	int l;
 	ipfw_insn *cmd;
+	char *comment = NULL;	/* ptr to comment if we have one */
 	int proto = 0;		/* default */
 	int flags = 0;	/* prerequisites */
 	ipfw_insn_log *logptr = NULL; /* set if we find an O_LOG */
@@ -1263,7 +1264,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 				break;
 
 			case O_NOP:
-				printf(" // %s", (char *)(cmd + 1));
+				comment = (char *)(cmd + 1);
 				break;
 
 			case O_KEEP_STATE:
@@ -1302,7 +1303,8 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 		}
 	}
 	show_prerequisites(&flags, HAVE_IP, 0);
-
+	if (comment)
+		printf(" // %s", comment);
 	printf("\n");
 }
 
