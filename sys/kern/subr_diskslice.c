@@ -523,8 +523,7 @@ dsioctl(dev, cmd, data, flags, sspp)
 			     part = 0; openmask; openmask >>= 1, part++) {
 				if (!(openmask & 1))
 					continue;
-				error = dsopen(
-					       dkmodslice(dkmodpart(dev, part),
+				error = dsopen(dkmodslice(dkmodpart(dev, part),
 							  slice),
 					       S_IFBLK, ssp->dss_oflags, sspp,
 					       lp);
@@ -540,8 +539,7 @@ dsioctl(dev, cmd, data, flags, sspp)
 			     part = 0; openmask; openmask >>= 1, part++) {
 				if (!(openmask & 1))
 					continue;
-				error = dsopen(
-					       dkmodslice(dkmodpart(dev, part),
+				error = dsopen(dkmodslice(dkmodpart(dev, part),
 							  slice),
 					       S_IFCHR, ssp->dss_oflags, sspp,
 					       lp);
@@ -669,7 +667,7 @@ dsname(dev, unit, slice, part, partname)
 	char	*partname;
 {
 	static char name[32];
-	char	*dname;
+	const char *dname;
 
 	dname = devsw(dev)->d_name;
 	if (strlen(dname) > 16)
@@ -890,7 +888,8 @@ dssize(dev, sspp)
 	ssp = *sspp;
 	if (ssp == NULL || slice >= ssp->dss_nslices
 	    || !(ssp->dss_slices[slice].ds_bopenmask & (1 << part))) {
-		if (devsw(dev)->d_open(dev, FREAD, S_IFBLK, (struct proc *)NULL) != 0)
+		if (devsw(dev)->d_open(dev, FREAD, S_IFBLK,
+		    (struct proc *)NULL) != 0)
 			return (-1);
 		devsw(dev)->d_close(dev, FREAD, S_IFBLK, (struct proc *)NULL);
 		ssp = *sspp;
