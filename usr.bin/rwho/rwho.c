@@ -144,7 +144,7 @@ main(argc, argv)
 	mp = myutmp;
 	for (i = 0; i < nusers; i++) {
 		char buf[BUFSIZ];
-		(void)sprintf(buf, "%s:%s", mp->myhost, mp->myutmp.out_line);
+		(void)sprintf(buf, "%s:%-8.8s", mp->myhost, mp->myutmp.out_line);
 		printf("%-8.8s %-*s %.12s",
 		   mp->myutmp.out_name,
 		   width,
