@@ -130,15 +130,15 @@ struct statinfo cur, last, run;
 
 static	enum state { BOOT, TIME, RUN } state = TIME;
 
-static void allocinfo __P((struct Info *));
-static void copyinfo __P((struct Info *, struct Info *));
-static float cputime __P((int));
-static void dinfo __P((int, int, struct statinfo *, struct statinfo *));
-static void getinfo __P((struct Info *));
-static void putint __P((int, int, int, int));
-static void putfloat __P((double, int, int, int, int, int));
-static void putlongdouble __P((long double, int, int, int, int, int));
-static int ucount __P((void));
+static void allocinfo(struct Info *);
+static void copyinfo(struct Info *, struct Info *);
+static float cputime(int);
+static void dinfo(int, int, struct statinfo *, struct statinfo *);
+static void getinfo(struct Info *);
+static void putint(int, int, int, int);
+static void putfloat(double, int, int, int, int, int);
+static void putlongdouble(long double, int, int, int, int, int);
+static int ucount(void);
 
 static	int ncpu;
 static	int ut;

@@ -33,4 +33,4 @@
  * $FreeBSD$
  */
 
-extern int foldit __P((char *, int, int));
+extern int foldit(char *, int, int);

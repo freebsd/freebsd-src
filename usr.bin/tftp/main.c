@@ -90,38 +90,38 @@ char	*margv[20];
 jmp_buf	toplevel;
 struct	servent *sp;
 
-void	get __P((int, char **));
-void	help __P((int, char **));
-void	intr __P((int));
-void	modecmd __P((int, char **));
-void	put __P((int, char **));
-void	quit __P((int, char **));
-void	setascii __P((int, char **));
-void	setbinary __P((int, char **));
-void	setpeer __P((int, char **));
-void	setrexmt __P((int, char **));
-void	settimeout __P((int, char **));
-void	settrace __P((int, char **));
-void	setverbose __P((int, char **));
-void	status __P((int, char **));
+void	get(int, char **);
+void	help(int, char **);
+void	intr(int);
+void	modecmd(int, char **);
+void	put(int, char **);
+void	quit(int, char **);
+void	setascii(int, char **);
+void	setbinary(int, char **);
+void	setpeer(int, char **);
+void	setrexmt(int, char **);
+void	settimeout(int, char **);
+void	settrace(int, char **);
+void	setverbose(int, char **);
+void	status(int, char **);
 
-static void command __P((void)) __dead2;
-static const char *command_prompt __P((void));
+static void command(void) __dead2;
+static const char *command_prompt(void);
 
-static void getusage __P((char *));
-static void makeargv __P((void));
-static void putusage __P((char *));
-static void settftpmode __P((const char *));
+static void getusage(char *);
+static void makeargv(void);
+static void putusage(char *);
+static void settftpmode(const char *);
 
-char	*tail __P((char *));
-struct	cmd *getcmd __P((char *));
+char	*tail(char *);
+struct	cmd *getcmd(char *);
 
 #define HELPINDENT (sizeof("connect"))
 
 struct cmd {
 	const char	*name;
 	char	*help;
-	void	(*handler) __P((int, char **));
+	void	(*handler)(int, char **);
 };
 
 char	vhelp[] = "toggle verbose mode";

@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 
 #define	TABLE_SIZE 1024
 
-static int hash __P((const char *));
+static int hash(const char *);
 
 bucket **symbol_table;
 bucket *first_symbol;

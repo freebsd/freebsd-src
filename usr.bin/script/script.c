@@ -71,12 +71,12 @@ int	qflg;
 
 struct	termios tt;
 
-void	done __P((int)) __dead2;
-void	dooutput __P((void));
-void	doshell __P((char **));
-void	fail __P((void));
-void	finish __P((void));
-static void usage __P((void));
+void	done(int) __dead2;
+void	dooutput(void);
+void	doshell(char **);
+void	fail(void);
+void	finish(void);
+static void usage(void);
 
 int
 main(argc, argv)

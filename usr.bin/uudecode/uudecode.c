@@ -69,10 +69,10 @@ const char *filename;
 char *outfile;
 int cflag, iflag, oflag, pflag, sflag;
 
-static void usage __P((void));
-int	decode __P((void));
-int	decode2 __P((int));
-void	base64_decode __P((const char *));
+static void usage(void);
+int	decode(void);
+int	decode2(int);
+void	base64_decode(const char *);
 
 int
 main(argc, argv)

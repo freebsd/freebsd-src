@@ -57,18 +57,18 @@
 #include "screen.h"
 #include "utils.h"
 
-static void getsysctl __P((char *, void *, size_t));
+static void getsysctl(char *, void *, size_t);
 
 #define GETSYSCTL(name, var) getsysctl(name, &(var), sizeof(var))
 
-extern char* printable __P((char *));
-int swapmode __P((int *retavail, int *retfree));
+extern char* printable(char *);
+int swapmode(int *retavail, int *retfree);
 static int smpmode;
 static int namelength;
 static int cmdlengthdelta;
 
 /* Prototypes for top internals */
-void quit __P((int));
+void quit(int);
 
 /* get_process_info passes back a handle.  This is what it looks like: */
 

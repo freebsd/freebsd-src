@@ -49,10 +49,10 @@ extern int aflag, eflag, nflag;
 extern const char *fname;
 extern int rflags;	/* regex flags to use */
 
-void	 cfclose __P((struct s_command *, struct s_command *));
-void	 compile __P((void));
-void	 cspace __P((SPACE *, char *, size_t, enum e_spflag));
-char	*cu_fgets __P((char *, int, int *));
-int	 mf_fgets __P((SPACE *, enum e_spflag));
-void	 process __P((void));
-char	*strregerror __P((int, regex_t *));
+void	 cfclose(struct s_command *, struct s_command *);
+void	 compile(void);
+void	 cspace(SPACE *, char *, size_t, enum e_spflag);
+char	*cu_fgets(char *, int, int *);
+int	 mf_fgets(SPACE *, enum e_spflag);
+void	 process(void);
+char	*strregerror(int, regex_t *);

@@ -58,8 +58,8 @@ static const char sccsid[] = "@(#)swap.c	8.3 (Berkeley) 4/29/95";
 #include "systat.h"
 #include "extern.h"
 
-extern char *getbsize __P((int *headerlenp, long *blocksizep));
-void showspace __P((char *header, int hlen, long blocksize));
+extern char *getbsize(int *headerlenp, long *blocksizep);
+void showspace(char *header, int hlen, long blocksize);
 
 kvm_t	*kd;
 

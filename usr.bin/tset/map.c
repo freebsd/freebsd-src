@@ -49,7 +49,7 @@ static const char sccsid[] = "@(#)map.c	8.1 (Berkeley) 6/9/93";
 #include "extern.h"
 
 extern speed_t Ospeed;
-speed_t	tset_baudrate __P((char *));
+speed_t	tset_baudrate(char *);
 
 /* Baud rate conditionals for mapping. */
 #define	GT		0x01

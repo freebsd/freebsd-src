@@ -48,8 +48,8 @@ static char rcsid[] = "$OpenBSD: acu.c,v 1.7 2001/10/24 18:38:58 millert Exp $";
 
 static acu_t *acu = NOACU;
 static int conflag;
-static void acuabort __P((int));
-static acu_t *acutype __P((char *));
+static void acuabort(int);
+static acu_t *acutype(char *);
 static jmp_buf jmpbuf;
 /*
  * Establish connection for tip

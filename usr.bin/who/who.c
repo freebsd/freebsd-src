@@ -62,9 +62,9 @@ static const char sccsid[] = "@(#)who.c	8.1 (Berkeley) 6/6/93";
 #include <unistd.h>
 #include <utmp.h>
 
-static void usage __P((void));
-static void output __P((struct utmp *));
-static FILE *file __P((const char *));
+static void usage(void);
+static void output(struct utmp *);
+static FILE *file(const char *);
 
 int
 main(argc, argv)

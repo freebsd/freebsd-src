@@ -85,18 +85,18 @@ int	halfpos;
 int	upln;
 int	iflag;
 
-static void usage __P((void));
-void setnewmode __P((int));
-void initcap __P((void));
-void reverse __P((void));
-int outchar __P((int));
-void fwd __P((void));
-void initbuf __P((void));
-void iattr __P((void));
-void overstrike __P((void));
-void flushln __P((void));
-void filter __P((FILE *));
-void outc __P((int));
+static void usage(void);
+void setnewmode(int);
+void initcap(void);
+void reverse(void);
+int outchar(int);
+void fwd(void);
+void initbuf(void);
+void iattr(void);
+void overstrike(void);
+void flushln(void);
+void filter(FILE *);
+void outc(int);
 
 #define	PRINT(s)	if (s == NULL) /* void */; else tputs(s, 1, outchar)
 
