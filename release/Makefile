@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.161 1995/05/20 23:33:07 phk Exp $
+#	$Id: Makefile,v 1.162 1995/05/21 03:16:19 phk Exp $
 #
 # How to roll a release:
 #
@@ -45,7 +45,7 @@ FDCYLS=			80
 FDCYLSIZE=		15k
 FDLABEL=		fd1200
 
-NEWFSARGS=		-c 80 -b 4096 -f 512 -i 4500 -m 0 -t 0 -u 0 \
+NEWFSARGS=		-c 80 -b 4096 -f 512 -i 4300 -m 0 -t 0 -u 0 \
 				-o space -T ${FDLABEL}
 
 ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
@@ -277,6 +277,7 @@ release.6:
 	( cd ${RD}/trees/bin/dev ; \
 		ls console tty ttyv1 null zero \
 		*[sw]d* cuaa[01] fd[01] rfd[01] | \
+		cd[01]a mcd[01]a scd[01]a matcd[01]a \
 	cpio -dump ${RD}/bootfd/dev )
 	tar --exclude CVS -cf - -C ${.CURDIR}/sysinstall help | \
 		tar xvf - -C ${RD}/bootfd/stand
