@@ -2764,7 +2764,7 @@ static scr_stat
     if (sc_init_emulator(scp, SC_DFLT_TERM))
 	sc_init_emulator(scp, "*");
 
-#ifndef SC_NO_SYSMOUSE
+#ifndef SC_NO_CUTPASTE
     if (ISMOUSEAVAIL(sc->adp->va_flags))
 	sc_alloc_cut_buffer(scp, TRUE);
 #endif
