@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.5 1995/08/22 00:48:17 peter Exp $
+ *	$Id: si.c,v 1.6 1995/09/11 06:28:38 peter Exp $
  */
 
 #ifndef lint
@@ -94,9 +94,22 @@ static void si_disc_optim __P((struct tty *tp, struct termios *t,
 static void sihardclose __P((struct si_port *pp));
 static void sidtrwakeup __P((void *chan));
 
-void	sistop __P((struct tty *tp, int rw));
+void	sistop	__P((struct tty *tp, int rw));
+void	siintr	__P((int bdnum));
 int	siparam __P((struct tty *, struct termios *));
-int	siintr __P((int bdnum));
+
+extern	void	si_registerdev __P((struct isa_device *id));
+extern	int	siprobe __P((struct isa_device *id));
+extern	int	siattach __P((struct isa_device *id));
+static	void	si_modem_state __P((struct si_port *pp, struct tty *tp, int hi_ip));
+
+#ifdef SI_DEBUG
+static	void	si_dprintf __P((/* XXX should be varargs struct si_port *pp, int flags, char *str, int a1, int a2, int a3, int a4, int a5, int a6 */));
+static	char	*si_mctl2str __P((enum si_mctl cmd));
+#define	DPRINT(x)	si_dprintf x
+#else
+#define	DPRINT(x)	/* void */
+#endif
 
 static int si_Nports = 0;
 static int si_Nmodules = 0;
@@ -1610,7 +1623,7 @@ si_modem_state(pp, tp, hi_ip)
  * Poller to catch missed interrupts.
  */
 #ifdef POLL
-void
+static void
 si_poll(void *nothing)
 {
 	register struct si_softc *sc;
@@ -1660,7 +1673,7 @@ out:
 
 static BYTE rxbuf[SLXOS_BUFFERSIZE];	/* input staging area */
 
-int
+void
 siintr(int bdnum)
 {
 	struct si_softc *Isc = NULL;
@@ -1686,10 +1699,10 @@ siintr(int bdnum)
 	DPRINT((0, (Isc == 0)?DBG_POLL:DBG_INTR, "siintr(0x%x)\n", Isc));
 	if (in_intr != 0) {
 		if (Isc == NULL)	/* should never happen */
-			return(0);
+			return;
 		printf("SLXOS si%d: Warning interrupt handler re-entered\n",
 			Isc==0 ? -1 : Isc->sc_dev.dv_unit);
-		return(0);
+		return;
 	}
 	in_intr = 1;
 
@@ -1882,7 +1895,6 @@ siintr(int bdnum)
 
 	in_poll = in_intr = 0;
 	DPRINT((0, (Isc==0)?DBG_POLL:DBG_INTR, "end of siintr()\n"));
-	return(1);		/* say it was expected */
 }
 
 /*
