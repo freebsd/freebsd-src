@@ -64,7 +64,7 @@ osreldate.h:	${.CURDIR}/../sys/conf/newvers.sh \
 		${.CURDIR}/Makefile
 	@${ECHO} creating osreldate.h from newvers.sh
 	@setvar PARAMFILE ${.CURDIR}/../sys/sys/param.h; \
-	. ${.CURDIR}/../sys/conf/newvers.sh;			\
+	MAKE=${MAKE} . ${.CURDIR}/../sys/conf/newvers.sh;	\
 	echo "$$COPYRIGHT" > osreldate.h;			\
 	echo "#ifdef _KERNEL" >> osreldate.h;			\
 	echo '#error "<osreldate.h> cannot be used in the kernel, use <sys/param.h>"' >> osreldate.h; \
