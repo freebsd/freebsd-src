@@ -1,5 +1,5 @@
 /* Utility to accept --help and --version options as unobtrusively as possible.
-   Copyright (C) 1993 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1994 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,21 +18,11 @@
 /* Jim Meyering (meyering@comco.com) */
 
 #ifdef HAVE_CONFIG_H
-#if defined (CONFIG_BROKETS)
-/* We use <config.h> instead of "config.h" so that a compilation
-   using -I. -I$srcdir will use ./config.h rather than $srcdir/config.h
-   (which it would do because it found this file in $srcdir).  */
 #include <config.h>
-#else
-#include "config.h"
-#endif
 #endif
 
 #include <stdio.h>
 #include <getopt.h>
-#include <sys/types.h>
-#include "system.h"
-#include "version.h"
 #include "long-options.h"
 
 static struct option const long_options[] =
@@ -46,9 +36,11 @@ static struct option const long_options[] =
    Be careful not to gobble up `--'.  */
 
 void
-parse_long_options (argc, argv, usage)
+parse_long_options (argc, argv, command_name, version_string, usage)
      int argc;
      char **argv;
+     const char *command_name;
+     const char *version_string;
      void (*usage)();
 {
   int c;
@@ -67,10 +59,10 @@ parse_long_options (argc, argv, usage)
       switch (c)
 	{
 	case 'h':
-	  usage (0);
+	  (*usage) (0);
 
 	case 'v':
-	  printf ("%s\n", version_string);
+	  printf ("%s - %s\n", command_name, version_string);
 	  exit (0);
 
 	default:
