@@ -94,21 +94,6 @@ METHOD int detach_card {
 }
 
 #
-# Activates (and powers up if necessary) the card's nth function
-# since each function gets its own device, there is no need to
-# to specify a function number
-#
-METHOD int activate_function {
-	device_t  dev;
-	device_t  child;
-}
-
-METHOD int deactivate_function {
-	device_t  dev;
-	device_t  child;
-}
-
-#
 # Compatibility methods for OLDCARD drivers.  We use these routines to make
 # it possible to call the OLDCARD driver's probe routine in the context that
 # it expects.  For OLDCARD these are implemented as pass throughs to the

@@ -381,20 +381,6 @@ pccard_get_memory_offset(device_t bus, device_t child, int rid,
 }
 
 #if __FreeBSD_version >= 500000
-static int
-pccard_activate_function(device_t bus, device_t child)
-{
-	/* pccardd has alrady activated the function */
-	return (0);
-}
-
-static int
-pccard_deactivate_function(device_t bus, device_t child)
-{
-	/* pccardd will deactivate the function */
-	return (0);
-}
-
 static const struct pccard_product *
 pccard_do_product_lookup(device_t bus, device_t dev,
 		      const struct pccard_product *tab,
@@ -432,8 +418,6 @@ static device_method_t pccard_methods[] = {
 	DEVMETHOD(card_set_memory_offset, pccard_set_memory_offset),
  	DEVMETHOD(card_get_memory_offset, pccard_get_memory_offset),
 #if __FreeBSD_version >= 500000
-	DEVMETHOD(card_activate_function, pccard_activate_function),
-	DEVMETHOD(card_deactivate_function, pccard_deactivate_function),
 	DEVMETHOD(card_compat_do_probe, pccard_compat_do_probe),
 	DEVMETHOD(card_compat_do_attach, pccard_compat_do_attach),
 	DEVMETHOD(card_do_product_lookup, pccard_do_product_lookup),
