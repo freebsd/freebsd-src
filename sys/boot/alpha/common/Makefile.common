@@ -40,20 +40,18 @@ CRT=		start.o
 STRIP=
 BINDIR?=	/boot
 
-all: ${BASE}
+all: ${BASE} ${BASE}.help
 
 vers.o: ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
 	${CC} -c vers.c
 
-${BASE}: ${BASE}.sym ${BASE}.help
-	objcopy -O binary ${BASE}.sym ${BASE}
-
-${BASE}.sym: ${OBJS} ${LIBSTAND} ${LIBFICL} ${LIBALPHA} ${CRT} vers.o
+${BASE}: ${OBJS} ${LIBSTAND} ${LIBFICL} ${LIBALPHA} ${CRT} vers.o
 	${LD} -o ${BASE}.sym -M -e start -N -Ttext ${LOAD_ADDRESS} \
 	${CRT} ${OBJS} vers.o \
 	-L${DESTDIR}${LIBDIR} ${LIBSTAND} ${LIBALPHA} ${LIBFICL} ${LIBSTAND} \
 	>${.OBJDIR}/${BASE}.list
+	objcopy -O binary ${BASE}.sym ${BASE}
 
 CLEANFILES+=	${BASE}.help
 ${BASE}.help: help.common help.alpha
