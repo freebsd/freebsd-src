@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.8 1994/01/22 22:48:21 davidg Exp $
+ *	$Id: cons.c,v 1.9 1994/01/23 17:50:11 davidg Exp $
  */
 
 
@@ -49,6 +49,7 @@
 #include "sys/tty.h"
 #include "sys/file.h"
 #include "sys/conf.h"
+#include "sys/vnode.h"
 #include "machine/stdarg.h"
 
 #include "machine/cons.h"
@@ -115,9 +116,15 @@ cnopen(dev, flag, mode, p)
 	int flag, mode;
 	struct proc *p;
 {
+	struct vnode *vp = 0;
+
 	if (cn_tab == NULL)
 		return (0);
+
 	dev = cn_tab->cn_dev;
+	if ((vfinddev(dev, VCHR, &vp) == 0) && vcount(vp))
+		return (0);
+
 	return ((*cdevsw[major(dev)].d_open)(dev, flag, mode, p));
 }
  
@@ -127,9 +134,15 @@ cnclose(dev, flag, mode, p)
 	int flag, mode;
 	struct proc *p;
 {
+	struct vnode *vp = 0;
+
 	if (cn_tab == NULL)
 		return (0);
+
 	dev = cn_tab->cn_dev;
+	if ((vfinddev(dev, VCHR, &vp) == 0) && vcount(vp))
+		return (0);
+
 	return ((*cdevsw[major(dev)].d_close)(dev, flag, mode, p));
 }
  
