@@ -98,7 +98,7 @@ static int ip6_sa2str __P((const struct sockaddr_in6 *, char *, size_t, int));
 int
 getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
 	const struct sockaddr *sa;
-	size_t salen;
+	socklen_t salen;
 	char *host;
 	size_t hostlen;
 	char *serv;

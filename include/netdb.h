@@ -61,8 +61,13 @@
 #ifndef _NETDB_H_
 #define _NETDB_H_
 
+#include <machine/ansi.h>
 #include <sys/cdefs.h>
-#include <sys/types.h>
+
+#ifdef	_BSD_SIZE_T_
+typedef	_BSD_SIZE_T_	size_t;
+#undef	_BSD_SIZE_T_
+#endif
 
 #ifndef _PATH_HEQUIV
 # define	_PATH_HEQUIV	"/etc/hosts.equiv"
@@ -192,6 +197,14 @@ struct addrinfo {
  */
 #define	SCOPE_DELIMITER	'%'
 
+/*
+ * data types - basically forward decl for getnameinfo()
+ */
+#ifdef	_BSD_SOCKLEN_T_
+typedef	_BSD_SOCKLEN_T_	socklen_t;
+#undef	_BSD_SOCKLEN_T_
+#endif
+
 __BEGIN_DECLS
 void		endhostent __P((void));
 void		endnetent __P((void));
@@ -221,7 +234,7 @@ void		setnetent __P((int));
 void		setprotoent __P((int));
 int		getaddrinfo __P((const char *, const char *,
 				 const struct addrinfo *, struct addrinfo **));
-int		getnameinfo __P((const struct sockaddr *, size_t, char *,
+int		getnameinfo __P((const struct sockaddr *, socklen_t, char *,
 				 size_t, char *, size_t, int));
 void		freeaddrinfo __P((struct addrinfo *));
 char		*gai_strerror __P((int));
