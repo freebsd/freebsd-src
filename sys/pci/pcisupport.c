@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.29 1996/01/25 20:38:31 wollman Exp $
+**  $Id: pcisupport.c,v 1.30 1996/01/27 20:14:32 wollman Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -107,8 +107,6 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return ("Intel 82437 (Triton) PCI cache memory controller");
 	case 0x122e8086:
 		return ("Intel 82371 (Triton) PCI-ISA bridge");
-	case 0x12308086:
-		return ("Intel 82371 (Triton) Bus-master IDE controller");
 	case 0x04961039:
 		return ("SiS 85c496");
 	case 0x04061039:
@@ -501,6 +499,7 @@ static const struct condmsg conf82371fb[] =
     { 0 }
 };
 
+#if 0				/* xxx not used */
 static const struct condmsg conf82371fb2[] =
 {
     /* IDETM -- IDE Timing Register */
@@ -513,6 +512,7 @@ static const struct condmsg conf82371fb2[] =
     /* end of list */
     { 0 }
 };
+#endif
 
 static char confread (pcici_t config_id, int port)
 {
@@ -587,11 +587,11 @@ chipset_attach (pcici_t config_id, int unit)
 	case 0x122e8086:
 		writeconfig (config_id, conf82371fb);
 		break;
+#if 0
 	case 0x12308086:
-		printf("\tI/O Base Address: %#lx\n",
-		       (u_long)pci_conf_read(config_id, 0x20) & 0xfff0);
 		writeconfig (config_id, conf82371fb2);
 		break;
+#endif
 	};
 #endif /* PCI_QUIET */
 }
