@@ -185,6 +185,7 @@ struct amr_softc
 #define AMR_STATE_SUSPEND	(1<<1)
 #define AMR_STATE_INTEN		(1<<2)
 #define AMR_STATE_SHUTDOWN	(1<<3)
+#define AMR_STATE_CRASHDUMP	(1<<4)
 
     /* per-controller queues */
     struct bio_queue_head 	amr_bioq;		/* pending I/O with no commands */
