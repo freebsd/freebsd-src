@@ -1,0 +1,75 @@
+#	$Id$
+
+# uthread sources
+.PATH: ${.CURDIR}/uthread
+
+SRCS+= \
+	uthread_accept.c \
+	uthread_attr_setcreatesuspend.c \
+	uthread_bind.c \
+	uthread_clean.c \
+	uthread_close.c \
+	uthread_cond.c \
+	uthread_connect.c \
+	uthread_create.c \
+	uthread_detach.c \
+	uthread_dup.c \
+	uthread_dup2.c \
+	uthread_equal.c \
+	uthread_execve.c \
+	uthread_exit.c \
+	uthread_fchmod.c \
+	uthread_fchown.c \
+	uthread_fcntl.c \
+	uthread_fd.c \
+	uthread_file.c \
+	uthread_flock.c \
+	uthread_fork.c \
+	uthread_fstat.c \
+	uthread_fstatfs.c \
+	uthread_fsync.c \
+	uthread_getdirentries.c \
+	uthread_getpeername.c \
+	uthread_getprio.c \
+	uthread_getsockname.c \
+	uthread_getsockopt.c \
+	uthread_info.c \
+	uthread_init.c \
+	uthread_ioctl.c \
+	uthread_join.c \
+	uthread_kern.c \
+	uthread_listen.c \
+	uthread_longjmp.c \
+	uthread_mutex.c \
+	uthread_nanosleep.c \
+	uthread_once.c \
+	uthread_open.c \
+	uthread_pipe.c \
+	uthread_queue.c \
+	uthread_read.c \
+	uthread_readv.c \
+	uthread_recvfrom.c \
+	uthread_resume.c \
+	uthread_select.c \
+	uthread_self.c \
+	uthread_sendto.c \
+	uthread_seterrno.c \
+	uthread_setjmp.c \
+	uthread_setprio.c \
+	uthread_setsockopt.c \
+	uthread_shutdown.c \
+	uthread_sig.c \
+	uthread_sigaction.c \
+	uthread_sigblock.c \
+	uthread_signal.c \
+	uthread_sigprocmask.c \
+	uthread_sigsetmask.c \
+	uthread_sigsuspend.c \
+	uthread_socket.c \
+	uthread_socketpair.c \
+	uthread_spec.c \
+	uthread_suspend.c \
+	uthread_wait4.c \
+	uthread_write.c \
+	uthread_writev.c \
+	uthread_yield.c
