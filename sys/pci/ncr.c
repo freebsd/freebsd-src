@@ -1303,12 +1303,6 @@ static	int	ncr_attach	(device_t dev);
 **==========================================================
 */
 
-
-#if !defined(lint)
-static const char ident[] =
-	"\n$FreeBSD$\n";
-#endif
-
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
 	+ (u_long) sizeof (struct nccb)	*  5
