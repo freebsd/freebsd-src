@@ -909,18 +909,27 @@ win2unixfn(wep, chksum, pmp)
 }
 
 /*
- * Compute the checksum of a DOS filename for Win95 use
+ * Compute the unrolled checksum of a DOS filename for Win95 LFN use.
  */
 u_int8_t
 winChksum(name)
 	u_int8_t *name;
 {
-	int i;
 	u_int8_t s;
 
-	for (s = 0, i = 11; --i >= 0; s += *name++)
-		s = (s << 7)|(s >> 1);
-	return s;
+	s = name[0];
+	s = ((s << 7) | (s >> 1)) + name[1];
+	s = ((s << 7) | (s >> 1)) + name[2];
+	s = ((s << 7) | (s >> 1)) + name[3];
+	s = ((s << 7) | (s >> 1)) + name[4];
+	s = ((s << 7) | (s >> 1)) + name[5];
+	s = ((s << 7) | (s >> 1)) + name[6];
+	s = ((s << 7) | (s >> 1)) + name[7];
+	s = ((s << 7) | (s >> 1)) + name[8];
+	s = ((s << 7) | (s >> 1)) + name[9];
+	s = ((s << 7) | (s >> 1)) + name[10];
+
+	return (s);
 }
 
 /*
