@@ -2492,6 +2492,19 @@ mac_check_system_reboot(struct ucred *cred, int howto)
 }
 
 int
+mac_check_system_settime(struct ucred *cred)
+{
+	int error;
+
+	if (!mac_enforce_system)
+		return (0);
+
+	MAC_CHECK(check_system_settime, cred);
+
+	return (error);
+}
+
+int
 mac_check_system_swapon(struct ucred *cred, struct vnode *vp)
 {
 	int error;
