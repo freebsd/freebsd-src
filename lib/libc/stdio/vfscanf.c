@@ -41,9 +41,11 @@ static char sccsid[] = "@(#)vfscanf.c	8.1 (Berkeley) 6/4/93";
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
+#include <ctype.h>
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <ctype.h>
+#include <stddef.h>
 #if __STDC__
 #include <stdarg.h>
 #else
@@ -71,10 +73,15 @@ __FBSDID("$FreeBSD$");
 #define	LONG		0x01	/* l: long or double */
 #define	LONGDBL		0x02	/* L: long double */
 #define	SHORT		0x04	/* h: short */
-#define	SUPPRESS	0x08	/* suppress assignment */
-#define	POINTER		0x10	/* weird %p pointer (`fake hex') */
-#define	NOSKIP		0x20	/* do not skip blanks */
-#define	QUAD		0x400
+#define	SUPPRESS	0x08	/* *: suppress assignment */
+#define	POINTER		0x10	/* p: void * (as hex) */
+#define	NOSKIP		0x20	/* [ or c: do not skip blanks */
+#define	LONGLONG	0x400	/* ll: long long (+ deprecated q: quad) */
+#define	INTMAXT		0x800	/* j: intmax_t */
+#define	PTRDIFFT	0x1000	/* t: ptrdiff_t */
+#define	SIZET		0x2000	/* z: size_t */
+#define	SHORTSHORT	0x4000	/* hh: char */
+#define	UNSIGNED	0x8000	/* %[oupxX] conversions */
 
 /*
  * The following are used in numeric conversions only:
@@ -96,13 +103,10 @@ __FBSDID("$FreeBSD$");
 #define	CT_CHAR		0	/* %c conversion */
 #define	CT_CCL		1	/* %[...] conversion */
 #define	CT_STRING	2	/* %s conversion */
-#define	CT_INT		3	/* integer, i.e., strtoq or strtouq */
-#define	CT_FLOAT	4	/* floating, i.e., strtod */
+#define	CT_INT		3	/* %[dioupxX] conversion */
+#define	CT_FLOAT	4	/* %[efgEFG] conversion */
 
-#define u_char unsigned char
-#define u_long unsigned long
-
-static u_char *__sccl(char *, u_char *);
+static const u_char *__sccl(char *, const u_char *);
 
 /*
  * __vfscanf - MT-safe version
@@ -122,9 +126,9 @@ __vfscanf(FILE *fp, char const *fmt0, va_list ap)
  * __svfscanf - non-MT-safe version of __vfscanf
  */
 int
-__svfscanf(FILE *fp, char const *fmt0, va_list ap)
+__svfscanf(FILE *fp, const char *fmt0, va_list ap)
 {
-	u_char *fmt = (u_char *)fmt0;
+	const u_char *fmt = (const u_char *)fmt0;
 	int c;			/* character from format, or conversion */
 	size_t width;		/* field width, or 0 */
 	char *p;		/* points into all kinds of strings */
@@ -134,8 +138,7 @@ __svfscanf(FILE *fp, char const *fmt0, va_list ap)
 	int nassigned;		/* number of fields assigned */
 	int nconversions;	/* number of conversions */
 	int nread;		/* number of characters consumed from fp */
-	int base;		/* base argument to strtoq/strtouq */
-	u_quad_t(*ccfn)();	/* conversion function (strtoq/strtouq) */
+	int base;		/* base argument to conversion function */
 	char ccltab[256];	/* character class table for %[...] */
 	char buf[BUF];		/* buffer for numeric conversions */
 
@@ -149,8 +152,6 @@ __svfscanf(FILE *fp, char const *fmt0, va_list ap)
 	nassigned = 0;
 	nconversions = 0;
 	nread = 0;
-	base = 0;		/* XXX just to keep gcc happy */
-	ccfn = NULL;		/* XXX just to keep gcc happy */
 	for (;;) {
 		c = *fmt++;
 		if (c == 0)
@@ -183,17 +184,34 @@ literal:
 		case '*':
 			flags |= SUPPRESS;
 			goto again;
+		case 'j':
+			flags |= INTMAXT;
+			goto again;
 		case 'l':
-			flags |= LONG;
+			if (flags & LONG) {
+				flags &= ~LONG;
+				flags |= LONGLONG;
+			} else
+				flags |= LONG;
 			goto again;
 		case 'q':
-			flags |= QUAD;
+			flags |= LONGLONG;	/* not quite */
+			goto again;
+		case 't':
+			flags |= PTRDIFFT;
+			goto again;
+		case 'z':
+			flags |= SIZET;
 			goto again;
 		case 'L':
 			flags |= LONGDBL;
 			goto again;
 		case 'h':
-			flags |= SHORT;
+			if (flags & SHORT) {
+				flags &= ~SHORT;
+				flags |= SHORTSHORT;
+			} else
+				flags |= SHORT;
 			goto again;
 
 		case '0': case '1': case '2': case '3': case '4':
@@ -203,61 +221,47 @@ literal:
 
 		/*
 		 * Conversions.
-		 * Those marked `compat' are for 4.[123]BSD compatibility.
-		 *
-		 * (According to ANSI, E and X formats are supposed
-		 * to the same as e and x.  Sorry about that.)
 		 */
-		case 'D':	/* compat */
-			flags |= LONG;
-			/* FALLTHROUGH */
 		case 'd':
 			c = CT_INT;
-			ccfn = (u_quad_t (*)())strtoq;
 			base = 10;
 			break;
 
 		case 'i':
 			c = CT_INT;
-			ccfn = (u_quad_t (*)())strtoq;
 			base = 0;
 			break;
 
-		case 'O':	/* compat */
-			flags |= LONG;
-			/* FALLTHROUGH */
 		case 'o':
 			c = CT_INT;
-			ccfn = strtouq;
+			flags |= UNSIGNED;
 			base = 8;
 			break;
 
 		case 'u':
 			c = CT_INT;
-			ccfn = strtouq;
+			flags |= UNSIGNED;
 			base = 10;
 			break;
 
-		case 'X':	/* compat   XXX */
-			flags |= LONG;
-			/* FALLTHROUGH */
+		case 'X':
 		case 'x':
 			flags |= PFXOK;	/* enable 0x prefixing */
 			c = CT_INT;
-			ccfn = strtouq;
+			flags |= UNSIGNED;
 			base = 16;
 			break;
 
 #ifdef FLOATING_POINT
-		case 'E':	/* compat   XXX */
-		case 'F':	/* compat */
-			flags |= LONG;
-			/* FALLTHROUGH */
+		case 'E': case 'F': case 'G':
 		case 'e': case 'f': case 'g':
 			c = CT_FLOAT;
 			break;
 #endif
 
+		case 'S':
+			flags |= LONG;
+			/* FALLTHROUGH */
 		case 's':
 			c = CT_STRING;
 			break;
@@ -268,6 +272,9 @@ literal:
 			c = CT_CCL;
 			break;
 
+		case 'C':
+			flags |= LONG;
+			/* FALLTHROUGH */
 		case 'c':
 			flags |= NOSKIP;
 			c = CT_CHAR;
@@ -275,8 +282,8 @@ literal:
 
 		case 'p':	/* pointer format is like hex */
 			flags |= POINTER | PFXOK;
-			c = CT_INT;
-			ccfn = strtouq;
+			c = CT_INT;		/* assumes sizeof(uintmax_t) */
+			flags |= UNSIGNED;	/*      >= sizeof(uintptr_t) */
 			base = 16;
 			break;
 
@@ -284,29 +291,32 @@ literal:
 			nconversions++;
 			if (flags & SUPPRESS)	/* ??? */
 				continue;
-			if (flags & SHORT)
+			if (flags & SHORTSHORT)
+				*va_arg(ap, char *) = nread;
+			else if (flags & SHORT)
 				*va_arg(ap, short *) = nread;
 			else if (flags & LONG)
 				*va_arg(ap, long *) = nread;
-			else if (flags & QUAD)
-				*va_arg(ap, quad_t *) = nread;
+			else if (flags & LONGLONG)
+				*va_arg(ap, long long *) = nread;
+			else if (flags & INTMAXT)
+				*va_arg(ap, intmax_t *) = nread;
+			else if (flags & SIZET)
+				*va_arg(ap, size_t *) = nread;
+			else if (flags & PTRDIFFT)
+				*va_arg(ap, ptrdiff_t *) = nread;
 			else
 				*va_arg(ap, int *) = nread;
 			continue;
 
+		default:
+			goto match_failure;
+
 		/*
-		 * Disgusting backwards compatibility hacks.	XXX
+		 * Disgusting backwards compatibility hack.	XXX
 		 */
 		case '\0':	/* compat */
 			return (EOF);
-
-		default:	/* compat */
-			if (isupper(c))
-				flags |= LONG;
-			c = CT_INT;
-			ccfn = (u_quad_t (*)())strtoq;
-			base = 10;
-			break;
 		}
 
 		/*
@@ -449,7 +459,7 @@ literal:
 			continue;
 
 		case CT_INT:
-			/* scan an integer as if by strtoq/strtouq */
+			/* scan an integer as if by the conversion function */
 #ifdef hardway
 			if (width == 0 || width > sizeof(buf) - 1)
 				width = sizeof(buf) - 1;
@@ -567,19 +577,30 @@ literal:
 				(void) __ungetc(c, fp);
 			}
 			if ((flags & SUPPRESS) == 0) {
-				u_quad_t res;
+				uintmax_t res;
 
 				*p = 0;
-				res = (*ccfn)(buf, (char **)NULL, base);
+				if ((flags & UNSIGNED) == 0)
+				    res = strtoimax(buf, (char **)NULL, base);
+				else
+				    res = strtoumax(buf, (char **)NULL, base);
 				if (flags & POINTER)
 					*va_arg(ap, void **) =
-						(void *)(u_long)res;
+							(void *)(uintptr_t)res;
+				else if (flags & SHORTSHORT)
+					*va_arg(ap, char *) = res;
 				else if (flags & SHORT)
 					*va_arg(ap, short *) = res;
 				else if (flags & LONG)
 					*va_arg(ap, long *) = res;
-				else if (flags & QUAD)
-					*va_arg(ap, quad_t *) = res;
+				else if (flags & LONGLONG)
+					*va_arg(ap, long long *) = res;
+				else if (flags & INTMAXT)
+					*va_arg(ap, intmax_t *) = res;
+				else if (flags & PTRDIFFT)
+					*va_arg(ap, ptrdiff_t *) = res;
+				else if (flags & SIZET)
+					*va_arg(ap, size_t *) = res;
 				else
 					*va_arg(ap, int *) = res;
 				nassigned++;
@@ -698,10 +719,10 @@ match_failure:
  * closing `]'.  The table has a 1 wherever characters should be
  * considered part of the scanset.
  */
-static u_char *
+static const u_char *
 __sccl(tab, fmt)
 	char *tab;
-	u_char *fmt;
+	const u_char *fmt;
 {
 	int c, n, v, i;
 
