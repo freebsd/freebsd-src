@@ -61,7 +61,7 @@
 #define	SHRT_MAX	__SHRT_MAX	/* max value for a short */
 #define	SHRT_MIN	__SHRT_MIN	/* min value for a short */
 
-#define	UINT_MAX	__UNIT_MAX	/* max value for an unsigned int */
+#define	UINT_MAX	__UINT_MAX	/* max value for an unsigned int */
 #define	INT_MAX		__INT_MAX	/* max value for an int */
 #define	INT_MIN		__INT_MIN	/* min value for an int */
 
