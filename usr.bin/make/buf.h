@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)buf.h	8.1 (Berkeley) 6/6/93
+ *	@(#)buf.h	8.2 (Berkeley) 4/28/95
  */
 
 /*-
@@ -48,7 +48,7 @@
 
 #include    "sprite.h"
 
-typedef unsigned char Byte;
+typedef char Byte;
 
 typedef struct Buffer {
     int	    size; 	/* Current size of the buffer */
@@ -65,16 +65,16 @@ typedef struct Buffer {
 
 #define BUF_ERROR 256
 
-void	 Buf_AddBytes __P((Buffer, int, Byte *));
-void	 Buf_Destroy __P((Buffer, Boolean));
-void	 Buf_Discard __P((Buffer, int));
-Byte	*Buf_GetAll __P((Buffer, int *));
-int	 Buf_GetByte __P((Buffer));
-int	 Buf_GetBytes __P((Buffer, int, Byte *));
-Buffer	 Buf_Init __P((int));
-void	 Buf_OvAddByte __P((Buffer, int));
-int	 Buf_Size __P((Buffer));
-void	 Buf_UngetByte __P((Buffer, int));
-void	 Buf_UngetBytes __P((Buffer, int, Byte *));
+void Buf_OvAddByte __P((Buffer, int));
+void Buf_AddBytes __P((Buffer, int, Byte *));
+void Buf_UngetByte __P((Buffer, int));
+void Buf_UngetBytes __P((Buffer, int, Byte *));
+int Buf_GetByte __P((Buffer));
+int Buf_GetBytes __P((Buffer, int, Byte *));
+Byte *Buf_GetAll __P((Buffer, int *));
+void Buf_Discard __P((Buffer, int));
+int Buf_Size __P((Buffer));
+Buffer Buf_Init __P((int));
+void Buf_Destroy __P((Buffer, Boolean));
 
 #endif /* _BUF_H */
