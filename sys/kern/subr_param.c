@@ -181,15 +181,13 @@ init_param2(long physpages)
 void
 init_param3(long kmempages)
 {
+
 	/*
-	 * Limit pageable pipe memory usage to 5% of the kernel map
-	 * (via pipe_map).  Ensure that all have reasonable floors.
-	 * (See sys_pipe.c for more info.)
+	 * The default for maxpipekva is max(5% of the kernel map, 512KB).
+	 * See sys_pipe.c for more details.
 	 */
 	maxpipekva = (kmempages / 20) * PAGE_SIZE;
-
 	if (maxpipekva < 512 * 1024)
 		maxpipekva = 512 * 1024;
-
 	TUNABLE_INT_FETCH("kern.ipc.maxpipekva", &maxpipekva);
 }
