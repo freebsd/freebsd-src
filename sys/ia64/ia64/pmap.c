@@ -177,7 +177,6 @@ int	protection_codes[2][8];
  */
 struct pmap kernel_pmap_store;
 
-vm_offset_t avail_end;		/* PA of last available physical page */
 vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
 vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
 static boolean_t pmap_initialized = FALSE;	/* Has pmap_init completed? */
@@ -368,7 +367,6 @@ pmap_bootstrap()
 	    VM_GATEWAY_SIZE;
 
 	for (i = 0; phys_avail[i+2]; i+= 2) ;
-	avail_end = phys_avail[i+1];
 	count = i+2;
 
 	/*
