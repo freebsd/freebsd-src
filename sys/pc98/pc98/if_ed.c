@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.33 1997/10/29 08:14:56 kato Exp $
+ *	$Id: if_ed.c,v 1.34 1997/11/03 02:27:36 kato Exp $
  */
 
 /*
@@ -3325,7 +3325,6 @@ ed_ioctl(ifp, command, data)
 	caddr_t data;
 {
 	struct ed_softc *sc = ifp->if_softc;
-	struct ifreq *ifr = (struct ifreq *) data;
 	int     s, error = 0;
 
 	if (sc->gone) {
