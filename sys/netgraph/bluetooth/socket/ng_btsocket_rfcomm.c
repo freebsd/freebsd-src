@@ -1024,7 +1024,7 @@ ng_btsocket_rfcomm_session_task(ng_btsocket_rfcomm_session_p s)
 {
 	mtx_assert(&s->session_mtx, MA_OWNED);
 
-	if (s->l2so->so_state & SS_CANTRCVMORE) {
+	if (s->l2so->so_rcv.sb_state & SBS_CANTRCVMORE) {
 		NG_BTSOCKET_RFCOMM_INFO(
 "%s: L2CAP connection has been terminated, so=%p, so_state=%#x, so_count=%d, " \
 "state=%d, flags=%#x\n", __func__, s->l2so, s->l2so->so_state, 
@@ -1357,7 +1357,7 @@ ng_btsocket_rfcomm_session_accept(ng_btsocket_rfcomm_session_p s0)
 	ACCEPT_LOCK();
 	if (TAILQ_EMPTY(&s0->l2so->so_comp)) {
 		ACCEPT_UNLOCK();
-		if (s0->l2so->so_state & SS_CANTRCVMORE)
+		if (s0->l2so->so_rcv.sb_state & SBS_CANTRCVMORE)
 			return (ECONNABORTED);
 		return (EWOULDBLOCK);
 	}

@@ -767,7 +767,7 @@ atm_aal5_cpcs_data(tok, m)
 	 * that there's room in the socket buffer
 	 */
 	if (((so->so_state & SS_ISCONNECTED) == 0) ||
-	    (so->so_state & SS_CANTRCVMORE) ||
+	    (so->so_rcv.sb_state & SBS_CANTRCVMORE) ||
 	    (len > sbspace(&so->so_rcv))) {
 		atm_sock_stat.as_indrop[atp->atp_type]++;
 		KB_FREEALL(m);

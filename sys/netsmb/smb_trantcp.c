@@ -414,8 +414,8 @@ nbssn_recv(struct nbpcb *nbp, struct mbuf **mpp, int *lenp,
 		 * If we don't have one waiting, return.
 		 */
 		error = nbssn_recvhdr(nbp, &len, &rpcode, MSG_DONTWAIT, td);
-		if (so->so_state &
-		    (SS_ISDISCONNECTING | SS_ISDISCONNECTED | SS_CANTRCVMORE)) {
+		if ((so->so_state & (SS_ISDISCONNECTING | SS_ISDISCONNECTED)) ||
+		    (so->so_rcv.sb_state & SBS_CANTRCVMORE)) {
 			nbp->nbp_state = NBST_CLOSED;
 			NBDEBUG("session closed by peer\n");
 			return ECONNRESET;

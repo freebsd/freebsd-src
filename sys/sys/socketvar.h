@@ -109,6 +109,7 @@ struct socket {
 		int	sb_lowat;	/* low water mark */
 		int	sb_timeo;	/* timeout for read/write */
 		short	sb_flags;	/* flags, see below */
+		short	sb_state;	/* (c/d) socket state on sockbuf */
 	} so_rcv, so_snd;
 #define	SB_MAX		(256*1024)	/* default for max chars in sockbuf */
 #define	SB_LOCK		0x01		/* lock on data queue */
@@ -177,22 +178,33 @@ extern struct mtx accept_mtx;
 #define	SOCK_UNLOCK(_so)		SOCKBUF_UNLOCK(&(_so)->so_rcv)
 #define	SOCK_LOCK_ASSERT(_so)		SOCKBUF_LOCK_ASSERT(&(_so)->so_rcv)
 
-/*
+/*-
  * Socket state bits.
+ *
+ * Historically, this bits were all kept in the so_state field.  For
+ * locking reasons, they are now in multiple fields, as they are
+ * locked differently.  so_state maintains basic socket state protected
+ * by the socket lock.  so_qstate holds information about the socket
+ * accept queues.  Each socket buffer also has a state field holding
+ * information relevant to that socket buffer (can't send, rcv).  Many
+ * fields will be read without locks to improve performance and avoid
+ * lock order issues.  However, this approach must be used with caution.
  */
 #define	SS_NOFDREF		0x0001	/* no file table ref any more */
 #define	SS_ISCONNECTED		0x0002	/* socket connected to a peer */
 #define	SS_ISCONNECTING		0x0004	/* in process of connecting to peer */
 #define	SS_ISDISCONNECTING	0x0008	/* in process of disconnecting */
-#define	SS_CANTSENDMORE		0x0010	/* can't send more data to peer */
-#define	SS_CANTRCVMORE		0x0020	/* can't receive more data from peer */
-#define	SS_RCVATMARK		0x0040	/* at mark on input */
-
 #define	SS_NBIO			0x0100	/* non-blocking ops */
 #define	SS_ASYNC		0x0200	/* async i/o notify */
 #define	SS_ISCONFIRMING		0x0400	/* deciding to accept connection req */
-
 #define	SS_ISDISCONNECTED	0x2000	/* socket disconnected from peer */
+
+/*
+ * Socket state bits now stored in the socket buffer state field.
+ */
+#define	SBS_CANTSENDMORE	0x0010	/* can't send more data to peer */
+#define	SBS_CANTRCVMORE		0x0020	/* can't receive more data from peer */
+#define	SBS_RCVATMARK		0x0040	/* at mark on input */
 
 /*
  * Socket state bits stored in so_qstate.
@@ -261,7 +273,7 @@ struct xsocket {
 /* can we read something from so? */
 #define	soreadable(so) \
     ((so)->so_rcv.sb_cc >= (so)->so_rcv.sb_lowat || \
-	((so)->so_state & SS_CANTRCVMORE) || \
+	((so)->so_rcv.sb_state & SBS_CANTRCVMORE) || \
 	!TAILQ_EMPTY(&(so)->so_comp) || (so)->so_error)
 
 /* can we write something to so? */
@@ -269,7 +281,7 @@ struct xsocket {
     ((sbspace(&(so)->so_snd) >= (so)->so_snd.sb_lowat && \
 	(((so)->so_state&SS_ISCONNECTED) || \
 	  ((so)->so_proto->pr_flags&PR_CONNREQUIRED)==0)) || \
-     ((so)->so_state & SS_CANTSENDMORE) || \
+     ((so)->so_snd.sb_state & SBS_CANTSENDMORE) || \
      (so)->so_error)
 
 /* adjust counters in sb reflecting allocation of m */

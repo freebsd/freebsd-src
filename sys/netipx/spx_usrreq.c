@@ -567,7 +567,7 @@ present:
 				if (so->so_rcv.sb_cc)
 					so->so_oobmark = so->so_rcv.sb_cc;
 				else
-					so->so_state |= SS_RCVATMARK;
+					so->so_rcv.sb_state |= SBS_RCVATMARK;
 			}
 			q = q->si_prev;
 			remque(q->si_next);
@@ -597,7 +597,7 @@ present:
 					MCHTYPE(m, MT_OOBDATA);
 					spx_newchecks[1]++;
 					so->so_oobmark = 0;
-					so->so_state &= ~SS_RCVATMARK;
+					so->so_rcv.sb_state &= ~SBS_RCVATMARK;
 				}
 				if (packetp == 0) {
 					m->m_data += SPINC;
@@ -1537,7 +1537,7 @@ spx_rcvoob(so, m, flags)
 	cb = ipxtospxpcb(ipxp);
 
 	if ((cb->s_oobflags & SF_IOOB) || so->so_oobmark ||
-	    (so->so_state & SS_RCVATMARK)) {
+	    (so->so_rcv.sb_state & SBS_RCVATMARK)) {
 		m->m_len = 1;
 		*mtod(m, caddr_t) = cb->s_iobc;
 		return (0);
