@@ -1,6 +1,11 @@
+# $FreeBSD$
+
 PROG=	kbdcontrol
 SRCS=	kbdcontrol.c lex.l
-DPADD+=	${LIBL}
-LDADD+=	-ll
+MAN1=	kbdcontrol.1
+MAN5=	kbdmap.5
+MLINKS= kbdmap.5 keymap.5
+DPADD=	${LIBL}
+LDADD=	-ll
 
 .include <bsd.prog.mk>
