@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)job.h	8.1 (Berkeley) 6/6/93
- *	$Id: job.h,v 1.5 1996/10/08 04:05:56 steve Exp $
+ *	$Id: job.h,v 1.5.2.1 1997/09/15 09:20:39 jkh Exp $
  */
 
 /*-
@@ -47,7 +47,7 @@
 #ifndef _JOB_H_
 #define _JOB_H_
 
-#define TMPPAT	"/tmp/makeXXXXX"
+#define TMPPAT	"/tmp/makeXXXXXXXXXX"
 
 /*
  * The SEL_ constants determine the maximum amount of time spent in select
@@ -128,7 +128,7 @@ typedef struct Job {
 	}   	    o_pipe;	    /* data used when catching the output via
 				     * a pipe */
 	struct {
-	    char  	of_outFile[sizeof(TMPPAT)+2];
+	    char  	of_outFile[sizeof(TMPPAT)];
 	    	  	    	    	/* Name of file to which shell output
 					 * was rerouted */
 	    int	    	of_outFd;	/* Stream open to the output
