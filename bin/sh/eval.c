@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eval.c,v 1.8 1996/11/12 18:35:06 peter Exp $
+ *	$Id: eval.c,v 1.7.2.1 1996/11/12 19:23:44 jkh Exp $
  */
 
 #ifndef lint
@@ -957,7 +957,7 @@ returncmd(argc, argv)
 {
 	int ret;
 
-	ret = exitstatus;
+	ret = oexitstatus;
 	if (argc > 1)
 		ret = number(argv[1]);
 	if (funcnest) {
