@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: http.c,v 1.26 1999/02/23 18:51:13 wollman Exp $
+ *	$Id: http.c,v 1.24.2.1 1999/02/25 18:36:32 wollman Exp $
  */
 
 #include <sys/types.h>
@@ -1006,7 +1006,7 @@ spewerror:
 	if (to_stdout)
 		local = fopen("/dev/stdout", restarting ? "a" : "w");
 	else
-		local = fopen(fs->fs_outputfile, restarting ? "a" : "w");
+		local = fopen(fs->fs_outputfile, restarting ? "a+" : "w+");
 	if (local == 0) {
 		warn("%s: fopen", fs->fs_outputfile);
 		fclose(remote);
@@ -1048,7 +1048,11 @@ spewerror:
 		 */
 		fseek(local, restart_from, SEEK_SET);
 		fs->fs_status = "computing MD5 message digest";
-		status = check_md5(local, base64ofmd5);
+		if (!to_stdout)
+			status = check_md5(local, base64ofmd5);
+		else
+			warnx("can't check md5 digest on stdout: %s",
+			    base64ofmd5);
 		free(base64ofmd5);
 	}
 
