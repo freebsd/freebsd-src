@@ -7,46 +7,15 @@
 #include <stdio.h>
 #include "mit-sipb-copyright.h"
 
-/*
- * Our environment only provides for ANSI's <stdarg.h> when using GNU
- * C.  Grump grump...
- */
-#if ! __GNUC__
-#define VARARGS 1
-#endif
-
-/* We don't have the v*printf routines... */
-#define vfprintf(stream,fmt,args) _doprnt(fmt,args,stream)
-
-#if __STDC__ && !VARARGS
-#	include <stdarg.h>
-#else /* varargs: not STDC or no <stdarg> */
-	/* Non-ANSI, always take <varargs.h> path. */
-#	undef VARARGS
-#	define VARARGS 1
-#	include <varargs.h>
-#	undef vfprintf
-#	define vfprintf(stream,fmt,args) _doprnt(fmt,args,stream)
-#endif /* varargs */
+#include <stdarg.h>
 
 #include "error_table.h"
 #include "internal.h"
-
-/*
- * Protect us from header version (externally visible) of com_err, so
- * we can survive in a <varargs.h> environment.  I think.
- */
-#define com_err com_err_external
 #include "com_err.h"
-#undef com_err
-
-/* BSD. sigh. */
-#undef vfprintf
-#define vfprintf(stream,fmt,args) _doprnt(fmt,args,stream)
 
 #if ! lint
 static const char rcsid[] =
-    "$Header: /afs/rel-eng.athena.mit.edu/project/release/current/source/athena/athena.lib/et/RCS/com_err.c,v 1.2 90/03/23 13:22:20 epeisach Exp $";
+    "$Id: /a/ncvs/src/lib/libcom_err/com_err.c,v 1.1.1.1 1995/01/14 22:23:41 wollman Exp $";
 #endif	/* ! lint */
 
 static void
