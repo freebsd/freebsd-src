@@ -41,7 +41,7 @@ __weak_reference(_pthread_join, pthread_join);
 int
 _pthread_join(pthread_t pthread, void **thread_return)
 {
-	int ret = 0;
+	int ret, dead;
 	pthread_t thread;
  
 	/* Check if the caller has specified an invalid thread: */
@@ -60,6 +60,9 @@ _pthread_join(pthread_t pthread, void **thread_return)
 	 * the searches in _thread_list and _dead_list (as well as setting up
 	 * join/detach state) have to be done atomically.
 	 */
+	ret = 0;
+	dead = 0;
+	thread = NULL;
 	_thread_sigblock();
 	DEAD_LIST_LOCK;
 	THREAD_LIST_LOCK;
@@ -70,10 +73,12 @@ _pthread_join(pthread_t pthread, void **thread_return)
 				break;
 			}
 		}
-	} else {
+	}
+	if (thread == NULL) {
 		TAILQ_FOREACH(thread, &_dead_list, dle) {
 			if (thread == pthread) {
 				PTHREAD_LOCK(pthread);
+				dead = 1;
 				break;
 			}
 		}
@@ -109,7 +114,7 @@ _pthread_join(pthread_t pthread, void **thread_return)
 	}
 
 	/* Check if the thread is not dead: */
-	if (!pthread->isdead) {
+	if (!dead) {
 		/* Set the running thread to be the joiner: */
 		pthread->joiner = curthread;
 		PTHREAD_UNLOCK(pthread);
