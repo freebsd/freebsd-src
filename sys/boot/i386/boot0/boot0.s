@@ -25,7 +25,7 @@
 		.set PRT_OFF,0x1be		# Partition table
 
 		.set TBL0SZ,0x3 		# Table 0 size
-		.set TBL1SZ,0xc 		# Table 1 size
+		.set TBL1SZ,0xb 		# Table 1 size
 
 		.set MAGIC,0xaa55		# Magic: bootable
 		.set B0MAGIC,0xbb66		# Identification
