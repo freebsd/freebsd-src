@@ -83,6 +83,23 @@ Support for the NWFS filesystem and NetWare client connections has
 been added.  A variety of NetWare related tools, such as ipxping
 and ncprint, have been added in ports/net/ncplib.
 
+A new ATA/ATAPI driver has been implemented. The aim of this new
+subsystem is to maximise performance on modern ATA/ATAPI based
+systems. The "ata" driver supports all major chipsets including
+those used on PCI card based controllers like the Promise and the
+Abit/SIIG. There is support for busmaster DMA transfers upto and 
+including the new ATA/66 mode. The 'ata' driver automatically
+setup the hardware for the maximum possible transfer mode to
+maximise system throughput. Supported devices are all ATA compliant
+disks and ATAPI CDROM, CD-R, CD-RW, DVD-ROM, DVD-RAM, LS120, ZIP 
+and tape drives. The ata driver also support PCCARD ATA devices. 
+The 'ata' driver also sports error handling and timeout code, to 
+avoid the problems of "hung" ATA/ATAPI devices.
+
+A new utility 'burncd' has been written to facilitate easy control
+of ATAPI CD-R and CD-RW drives, and allows burning of CD-R/RW
+media in a wide selction of formats, including multisession mode.
+
 Driver support has been added for PCI gigabit ethernet adapters
 based on the Alteon Networks Tigon 1 and Tigon 2 chipsets, including
 the Alteon AceNIC, 3Com 3c985 and Netgear GA620. [MERGED]
