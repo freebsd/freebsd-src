@@ -605,15 +605,17 @@ setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 	struct trapframe *tf;
 	struct md_utrap *ut;
 	struct pcb *pcb;
+	struct proc *p;
 	u_long sp;
 
 	/* XXX no cpu_exec */
-	td->td_proc->p_md.md_sigtramp = NULL;
-	if ((ut = td->td_proc->p_md.md_utrap) != NULL) {
+	p = td->td_proc;
+	p->p_md.md_sigtramp = NULL;
+	if ((ut = p->p_md.md_utrap) != NULL) {
 		ut->ut_refcnt--;
 		if (ut->ut_refcnt == 0)
 			free(ut, M_SUBPROC);
-		td->td_proc->p_md.md_utrap = NULL;
+		p->p_md.md_utrap = NULL;
 	}
 
 	pcb = td->td_pcb;
