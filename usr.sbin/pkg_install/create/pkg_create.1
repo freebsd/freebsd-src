@@ -15,7 +15,7 @@
 .\"
 .\"
 .\"     @(#)pkg_create.1
-.\"	$Id: pkg_create.1,v 1.20 1997/06/19 15:18:29 jkh Exp $	
+.\"	$Id: pkg_create.1,v 1.21 1997/07/01 06:13:44 jkh Exp $	
 .\"
 .\" hacked up by John Kohl for NetBSD--fixed a few bugs, extended keywords,
 .\" added dependency tracking, etc.
@@ -25,7 +25,7 @@
 .\"
 .Dd April 21, 1995
 .Dt pkg_create 1
-.Os FreeBSD 2.0
+.Os FreeBSD
 .Sh NAME
 .Nm pkg_create
 .Nd a utility for creating software package distributions.
@@ -53,7 +53,7 @@ one of the package extraction/info utilities.  The input description
 and command line arguments for the creation of a package are not
 really meant to be human-generated, though it is easy enough to
 do so.  It is more expected that you will use a front-end tool for
-the job rather than muddling through it yourself. Nonetheless, a short
+the job rather than muddling through it yourself.  Nonetheless, a short
 description of the input syntax is included in this document.
 .Sh OPTIONS
 The following command line options are supported.
@@ -112,7 +112,7 @@ when the package is later installed.
 .Em "Optional."
 .It Fl P Ar pkgs
 Sets the initial package dependency list to
-.Ar pkgs.
+.Ar pkgs .
 This is assumed to be a whitespace separated list of package names
 and is meant as a convenient shorthand for specifying multiple
 .Cm @pkgdep
@@ -170,7 +170,7 @@ with
 flag) for further information on using this flag.
 .It Fl D Ar displayfile
 Display the file (using
-.Xr more 1 ) 
+.Xr more 1 )
 after installing the package.  Useful for things like
 legal notices on almost-free software, etc.
 .It Fl m Ar mtreefile
@@ -203,7 +203,7 @@ for a package that could be installed potentially anywhere, there is
 another method of specifying where things are supposed to go
 and, optionally, what ownership and mode information they should be
 installed with.  This is done by imbeding specialized command sequences
-in the packing list. Briefly described, these sequences are:
+in the packing list.  Briefly described, these sequences are:
 .Bl -tag -width indent -compact
 .It Cm @cwd Ar directory
 Sets the internal directory pointer to point to
@@ -269,7 +269,7 @@ removable).  The advantage of using
 over a deinstallation script is that you can use the ``special
 sequence expansion'' to get at files regardless of where they've
 been potentially redirected (see
-.Fl p )
+.Fl p ) .
 .It Cm @mode Ar mode
 Sets default permission for all subsequently extracted files to
 .Ar mode .
