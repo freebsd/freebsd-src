@@ -242,6 +242,11 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 		mtx_unlock(interlkp);
 	}
 
+	if (panicstr != NULL) {
+		mtx_unlock(lkp->lk_interlock);
+		return (0);
+	}
+
 	extflags = (flags | lkp->lk_flags) & LK_EXTFLG_MASK;
 
 	switch (flags & LK_TYPE_MASK) {
