@@ -173,11 +173,11 @@ struct atapi_request {
 
 void atapi_attach(struct ata_device *);
 void atapi_detach(struct ata_device *);
+void atapi_reinit(struct ata_device *);
 void atapi_start(struct ata_device *);
 int atapi_transfer(struct atapi_request *);
 int atapi_interrupt(struct atapi_request *);
 int atapi_queue_cmd(struct ata_device *, int8_t [], caddr_t, int, int, int, atapi_callback_t, void *);
-void atapi_reinit(struct ata_device *);
 int atapi_test_ready(struct ata_device *);
 int atapi_wait_dsc(struct ata_device *, int);
 void atapi_request_sense(struct ata_device *, struct atapi_reqsense *);
