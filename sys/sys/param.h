@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.h	8.3 (Berkeley) 4/4/95
- * $Id: param.h,v 1.33 1998/06/07 17:13:03 dfr Exp $
+ * $Id: param.h,v 1.34 1998/07/06 16:07:43 eivind Exp $
  */
 
 #ifndef _SYS_PARAM_H_
@@ -206,7 +206,11 @@
  * Constraints: PAGE_SIZE <= MAXALLOCSAVE <= 2 ** (MINBUCKET + 14), and
  * MAXALLOCSIZE must be a power of two.
  */
+#if defined(__alpha__)
+#define MINBUCKET	5		/* 5 => min allocation of 32 bytes */
+#else
 #define MINBUCKET	4		/* 4 => min allocation of 16 bytes */
+#endif
 #define MAXALLOCSAVE	(2 * PAGE_SIZE)
 
 /*
