@@ -925,9 +925,12 @@ mi_switch()
 	 */
 	microuptime(&new_switchtime);
 	if (timevalcmp(&new_switchtime, PCPU_PTR(switchtime), <)) {
+#if 0
+		/* XXX: This doesn't play well with sched_lock right now. */
 		printf("microuptime() went backwards (%ld.%06ld -> %ld.%06ld)\n",
 		    PCPU_GET(switchtime.tv_sec), PCPU_GET(switchtime.tv_usec),
 		    new_switchtime.tv_sec, new_switchtime.tv_usec);
+#endif
 		new_switchtime = PCPU_GET(switchtime);
 	} else {
 		p->p_runtime += (new_switchtime.tv_usec - PCPU_GET(switchtime.tv_usec)) +
@@ -935,6 +938,7 @@ mi_switch()
 		    (int64_t)1000000;
 	}
 
+#if 0
 	/*
 	 * Check if the process exceeds its cpu resource allocation.
 	 * If over max, kill it.
@@ -954,6 +958,7 @@ mi_switch()
 			}
 		}
 	}
+#endif
 
 	/*
 	 * Pick a new current process and record its start time.
