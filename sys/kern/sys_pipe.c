@@ -1245,7 +1245,6 @@ pipe_kqfilter(struct file *fp, struct knote *kn)
 	default:
 		return (1);
 	}
-	kn->kn_hook = (caddr_t)cpipe;
 
 	SLIST_INSERT_HEAD(&cpipe->pipe_sel.si_note, kn, kn_selnext);
 	return (0);
@@ -1254,7 +1253,13 @@ pipe_kqfilter(struct file *fp, struct knote *kn)
 static void
 filt_pipedetach(struct knote *kn)
 {
-	struct pipe *cpipe = (struct pipe *)kn->kn_hook;
+	struct pipe *cpipe = (struct pipe *)kn->kn_fp->f_data;
+
+	if (kn->kn_filter == EVFILT_WRITE) {
+		if (cpipe->pipe_peer == NULL)
+			return;
+		cpipe = cpipe->pipe_peer;
+	}
 
 	SLIST_REMOVE(&cpipe->pipe_sel.si_note, kn, knote, kn_selnext);
 }
