@@ -202,7 +202,7 @@ atmarp_is_server(aip)
 	rc = (asrv_info->asp_addr.address_format == T_ATM_ABSENT) &&
 			(asrv_info->asp_subaddr.address_format ==
 				T_ATM_ABSENT);
-	UM_FREE(asrv_info);
+	free(asrv_info);
 	return(rc);
 }
 
@@ -235,7 +235,7 @@ atmarp_if_ready(aip)
 	 * Get the IP address and physical interface name
 	 * associated with the network interface
 	 */
-	UM_ZERO(&air, sizeof(struct atminfreq));
+	bzero(&air, sizeof(struct atminfreq));
 	air.air_opcode = AIOCS_INF_NIF;
 	strcpy(air.air_netif_intf, aip->ai_intf);
 	len = do_info_ioctl(&air, sizeof(struct air_netif_rsp));
@@ -272,7 +272,7 @@ atmarp_if_ready(aip)
 	/*
 	 * Get physical interface information
 	 */
-	UM_ZERO(&air, sizeof(struct atminfreq));
+	bzero(&air, sizeof(struct atminfreq));
 	air.air_opcode = AIOCS_INF_INT;
 	strcpy(air.air_int_intf, netif_rsp->anp_phy_intf);
 	len = do_info_ioctl(&air, sizeof(struct air_int_rsp));
@@ -351,7 +351,7 @@ atmarp_if_ready(aip)
 	ATMARP_LOOKUP(aip, aip->ai_ip_addr.s_addr, aap);
 	if (aap) {
 		ATMARP_DELETE(aip, aap);
-		UM_FREE(aap);
+		free(aap);
 	}
 
 	/*
@@ -378,11 +378,9 @@ atmarp_if_ready(aip)
 	/*
 	 * Get a new ATMARP cache for the interface
 	 */
-	aap = (Atmarp *)UM_ALLOC(sizeof(Atmarp));
-	if (!aap) {
+	aap = calloc(1, sizeof(Atmarp));
+	if (aap == NULL)
 		atmarp_mem_err("atmarp_if_ready: sizeof(Atmarp)");
-	}
-	UM_ZERO(aap, sizeof(Atmarp));
 	
 	/*
 	 * Fill out the entry
@@ -396,8 +394,7 @@ atmarp_if_ready(aip)
 			SCSP_ATMARP_KEY_LEN, aap->aa_key.key);
 	aap->aa_oid.id_len = SCSP_ATMARP_ID_LEN;
 	aap->aa_seq = SCSP_CSA_SEQ_MIN;
-	UM_COPY(&aap->aa_dstip.s_addr, aap->aa_oid.id,
-			SCSP_ATMARP_ID_LEN);
+	bcopy(&aap->aa_dstip.s_addr, aap->aa_oid.id, SCSP_ATMARP_ID_LEN);
 	aap->aa_intf = aip;
 	aap->aa_flags = AAF_SERVER;
 	aap->aa_origin = UAO_LOCAL;
@@ -410,17 +407,15 @@ atmarp_if_ready(aip)
 	/*
 	 * Free dynamic data
 	 */
-	UM_FREE(netif_rsp);
-	UM_FREE(intf_rsp);
-
+	free(netif_rsp);
+	free(intf_rsp);
 	return(1);
 
 if_ready_fail:
 	if (netif_rsp)
-		UM_FREE(netif_rsp);
+		free(netif_rsp);
 	if (intf_rsp)
-		UM_FREE(intf_rsp);
-
+		free(intf_rsp);
 	return(0);
 }
 
@@ -458,20 +453,19 @@ atmarp_copy_cache_entry(cp)
 	/*
 	 * Get a new cache entry
 	 */
-	aap = (Atmarp *)UM_ALLOC(sizeof(Atmarp));
-	if (!aap) {
+	aap = calloc(1, sizeof(Atmarp));
+	if (aap == NULL) {
 		errno = ENOMEM;
-		return((Atmarp *)0);
+		return(NULL);
 	}
-	UM_ZERO(aap, sizeof(Atmarp));
 	aap->aa_intf = aip;
 
 	/*
 	 * Copy fields from the kernel entry to the new entry
 	 */
 	ipp = (struct sockaddr_in *)&cp->aap_arp_addr;
-	UM_COPY(&ipp->sin_addr.s_addr, &aap->aa_dstip.s_addr,
-			sizeof(aap->aa_dstip.s_addr));
+	bcopy(&ipp->sin_addr.s_addr, &aap->aa_dstip.s_addr,
+	    sizeof(aap->aa_dstip.s_addr));
         ATM_ADDR_COPY(&cp->aap_addr, &aap->aa_dstatm);
         ATM_ADDR_COPY(&cp->aap_subaddr, &aap->aa_dstatmsub);
 	if (cp->aap_origin == UAO_PERM)
@@ -485,8 +479,7 @@ atmarp_copy_cache_entry(cp)
 	scsp_cache_key(&cp->aap_addr, &aap->aa_dstip,
 			SCSP_ATMARP_KEY_LEN, (char *)aap->aa_key.key);
 	aap->aa_oid.id_len = SCSP_ATMARP_ID_LEN;
-	UM_COPY(&aip->ai_ip_addr.s_addr, aap->aa_oid.id,
-			SCSP_ATMARP_ID_LEN);
+	bcopy(&aip->ai_ip_addr.s_addr, aap->aa_oid.id, SCSP_ATMARP_ID_LEN);
 	aap->aa_seq = SCSP_CSA_SEQ_MIN;
 
 	return(aap);
@@ -515,7 +508,7 @@ atmarp_update_kernel(aap)
 	/*
 	 * Build ioctl request
 	 */
-	UM_ZERO(&aar, sizeof(aar));
+	bzero(&aar, sizeof(aar));
 	aar.aar_opcode = AIOCS_ADD_ARP;
 	strncpy(aar.aar_arp_intf, aap->aa_intf->ai_intf,
 			sizeof(aar.aar_arp_intf));
@@ -628,7 +621,7 @@ atmarp_get_updated_cache()
 	/*
 	 * Free the ioctl response
 	 */
-	UM_FREE(air.air_buf_addr);
+	free(air.air_buf_addr);
 }
 
 
@@ -933,7 +926,7 @@ atmarp_sigint(sig)
 	/*
 	 * Build a file name
 	 */
-	UM_ZERO(fname, sizeof(fname));
+	bzero(&fname, sizeof(fname));
 	sprintf(fname, "/tmp/atmarpd.%d.%03d.out", getpid(), dump_no++);
 
 	/*

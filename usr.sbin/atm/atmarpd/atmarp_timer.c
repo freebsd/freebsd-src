@@ -197,11 +197,16 @@ atmarp_keepalive_timeout(tp)
 
 	/*
 	 * Get a message buffer
+	 *
+	 * XXX arr:  Previously, the check on the returned value from
+	 * the memory allocation routine was checked and _nothing_
+	 * resulted from the check (which would cause problems since
+	 * the bzero() of NULL is not fun).  At the moment, I am having
+	 * it soley return -- this should be reviewed again soon.
 	 */
-	msg = (Scsp_if_msg *)UM_ALLOC(sizeof(Scsp_if_msg));
-	if (!msg) {
-	}
-	UM_ZERO(msg, sizeof(Scsp_if_msg));
+	msg = calloc(1, sizeof(Scsp_if_msg));
+	if (msg == NULL)
+		return;
 
 	/*
 	 * Build a NOP message
@@ -214,7 +219,7 @@ atmarp_keepalive_timeout(tp)
 	 * Send the message to SCSP
 	 */
 	(void)atmarp_scsp_out(aip, (char *)msg, msg->si_len);
-	UM_FREE(msg);
+	free(msg);
 
 	/*
 	 * Restart the keepalive timer
