@@ -118,6 +118,11 @@ g_orphan_register(struct g_provider *pp)
 		cp->geom->orphan(cp);
 		cp = cp2;
 	}
+	cp = LIST_FIRST(&pp->consumers);
+	if (cp != NULL)
+		return;
+	if (pp->geom->flags & G_GEOM_WITHER)
+		g_destroy_provider(pp);
 }
 
 static void
