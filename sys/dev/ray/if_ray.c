@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_ray.c,v 1.5 2000/03/03 17:07:42 dmlb Exp $
+ * $Id: if_ray.c,v 1.7 2000/03/05 22:24:30 dmlb Exp $
  *
  */
 
@@ -171,7 +171,9 @@
  *	31	IOCTL calls
  *	51	MBUFs dumped/packet types reported
  */
-#define RAY_DEBUG		101
+#ifndef RAY_DEBUG
+#define RAY_DEBUG		2
+#endif
 
 #define RAY_DOWNLOAD_TIMEOUT	(hz/2)	/* Timeout for CCS commands - only used for downloading startup parameters */
 
@@ -267,7 +269,6 @@
 #include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_mib.h>
-#include <i386/isa/if_ieee80211.h>
 
 #if NBPFILTER > 0
 #include <net/bpf.h>
@@ -282,6 +283,7 @@
 #include <i386/isa/isa_device.h>
 #include <i386/isa/if_rayreg.h>
 #include <i386/isa/if_raymib.h>
+#include <i386/isa/if_ieee80211.h>
 
 #if NCARD > 0
 #include <pccard/cardinfo.h>
@@ -558,7 +560,7 @@ ray_pccard_init (dev_p)
 
 #if RAY_NEED_CM_FIXUP
     doRemap = 0;
-    if (sc->md.start = 0x0) {
+    if (sc->md.start == 0x0) {
 	printf("ray%d: pccardd did not map CM - giving up\n", sc->unit);
 	return(ENXIO);
     }
@@ -590,9 +592,9 @@ ray_pccard_init (dev_p)
     sc->maddr = dev_p->isahd.id_maddr;
     sc->flags = dev_p->isahd.id_flags;
 
-    printf("ray%d: <Raylink/IEEE 802.11> maddr 0x%lx msize 0x%x irq %d flags 0x%x on isa (PC-Card slot %d)\n",
+    printf("ray%d: <Raylink/IEEE 802.11> maddr %p msize 0x%x irq %d flags 0x%x on isa (PC-Card slot %d)\n",
 	sc->unit,
-	(unsigned long)sc->maddr,
+	sc->maddr,
 	dev_p->isahd.id_msize,
 	ffs(dev_p->isahd.id_irq) - 1,
 	sc->flags,
@@ -746,8 +748,6 @@ ray_attach (dev_p)
 	return(1);
     }
 
-printf("  maddr 0x%x\n", sc->maddr);
-RAY_DHEX8((u_int8_t *)sc->maddr, sizeof(sc->sc_ecf_startup));
     /*
      * Read startup results, check the card is okay and work out what
      * version we are using.
