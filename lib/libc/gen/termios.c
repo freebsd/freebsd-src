@@ -195,7 +195,9 @@ __tcdrain(fd)
 	return (ioctl(fd, TIOCDRAIN, 0));
 }
 
+#ifndef _THREAD_SAFE
 __weak_reference(__tcdrain, tcdrain);
+#endif
 
 int
 tcflush(fd, which)
