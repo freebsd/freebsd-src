@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: log.c,v 1.30 2002/08/20 09:49:09 joda Exp $");
+RCSID("$Id: log.c,v 1.31 2002/09/05 14:59:14 joda Exp $");
 
 struct facility {
     int min;
@@ -382,24 +382,33 @@ krb5_vlog_msg(krb5_context context,
 	      va_list ap)
      __attribute__((format (printf, 5, 0)))
 {
-    char *msg;
-    const char *actual;
+    
+    char *msg = NULL;
+    const char *actual = NULL;
     char buf[64];
-    time_t t;
+    time_t t = 0;
     int i;
 
-    vasprintf(&msg, fmt, ap);
-    if (msg != NULL)
-	actual = msg;
-    else
-	actual = fmt;
-    t = time(NULL);
-    krb5_format_time(context, t, buf, sizeof(buf), TRUE);
-    for(i = 0; i < fac->len; i++)
+    for(i = 0; fac && i < fac->len; i++)
 	if(fac->val[i].min <= level && 
-	   (fac->val[i].max < 0 || fac->val[i].max >= level))
+	   (fac->val[i].max < 0 || fac->val[i].max >= level)) {
+	    if(t == 0) {
+		t = time(NULL);
+		krb5_format_time(context, t, buf, sizeof(buf), TRUE);
+	    }
+	    if(actual == NULL) {
+		vasprintf(&msg, fmt, ap);
+		if(msg == NULL)
+		    actual = fmt;
+		else
+		    actual = msg;
+	    }
 	    (*fac->val[i].log)(buf, actual, fac->val[i].data);
-    *reply = msg;
+	}
+    if(reply == NULL)
+	free(msg);
+    else
+	*reply = msg;
     return 0;
 }
 
@@ -411,12 +420,7 @@ krb5_vlog(krb5_context context,
 	  va_list ap)
      __attribute__((format (printf, 4, 0)))
 {
-    char *msg;
-    krb5_error_code ret;
-
-    ret = krb5_vlog_msg(context, fac, &msg, level, fmt, ap);
-    free(msg);
-    return ret;
+    return krb5_vlog_msg(context, fac, NULL, level, fmt, ap);
 }
 
 krb5_error_code

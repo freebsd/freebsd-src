@@ -1,3 +1,27 @@
+2002-09-04  Johan Danielsson  <joda@pdc.kth.se>
+
+	* rsh.c: free some memory
+
+2002-09-04  Assar Westerlund  <assar@kth.se>
+
+	* common.c: krb5_crypto_block_size -> krb5_crypto_getblocksize
+
+2002-09-04  Johan Danielsson  <joda@pdc.kth.se>
+
+	* rsh.1: document -P
+
+2002-09-03  Johan Danielsson  <joda@pdc.kth.se>
+
+	* rsh.c: revert to protocol v1 if not asked for specific protocol
+
+	* rshd.c: handle protocol version 2
+
+	* rsh.c: handle protocol version 2
+
+	* common.c: handle protocol version 2
+
+	* rsh_locl.h: handle protocol version 2
+
 2002-02-18  Johan Danielsson  <joda@pdc.kth.se>
 
 	* rshd.c: don't show options that doesn't apply

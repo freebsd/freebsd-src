@@ -1,6 +1,6 @@
-.\"	$Id: rsh.1,v 1.3 2002/08/20 17:07:08 joda Exp $
+.\"	$Id: rsh.1,v 1.4 2002/09/04 13:01:52 joda Exp $
 .\"
-.Dd July 31, 2001
+.Dd September 4, 2002
 .Dt RSH 1
 .Os HEIMDAL
 .Sh NAME
@@ -13,6 +13,7 @@ remote shell
 .Op Fl U Pa string
 .Op Fl p Ar port
 .Op Fl l Ar username
+.Op Fl P Ar N|O
 .Ar host [command]
 .Sh DESCRIPTION
 .Nm
@@ -145,6 +146,22 @@ By default the remote username is the same as the local. The
 option or the
 .Pa username@host
 format allow the remote name to be specified.
+.It Xo
+.Fl P Ar N|O|1|2 ,
+.Fl -protocol= Ns Ar N|O|1|2
+.Xc
+Specifies which protocol version to use with Kerberos 5.
+.Ar N
+and
+.Ar 2
+selects protocol version 2, while 
+.Ar O
+and
+.Ar 1
+selects version 1. Version 2 is beleived to be more secure, and is the
+default. Unless asked for a specific version,
+.Nm
+will try both.  This behaviour may change in the future.
 .El
 .\".Pp
 .\"Without a
@@ -155,7 +172,7 @@ format allow the remote name to be specified.
 .\"with the same arguments.
 .Sh EXAMPLES
 Care should be taken when issuing commands containing shell meta
-characters. Without quoting these will be expanded on the local
+characters. Without quoting, these will be expanded on the local
 machine.
 .Pp
 The following command:

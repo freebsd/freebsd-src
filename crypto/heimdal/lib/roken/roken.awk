@@ -1,10 +1,10 @@
-# $Id: roken.awk,v 1.7 2001/03/26 09:26:35 joda Exp $
+# $Id: roken.awk,v 1.8 2002/09/10 20:05:55 joda Exp $
 
 BEGIN {
-	print "#include <stdio.h>"
 	print "#ifdef HAVE_CONFIG_H"
 	print "#include <config.h>"
 	print "#endif"
+	print "#include <stdio.h>"
 	print ""
 	print "int main()"
 	print "{"

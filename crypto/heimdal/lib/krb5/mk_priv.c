@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,12 +33,9 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: mk_priv.c,v 1.30 2001/06/18 02:44:54 assar Exp $");
+RCSID("$Id: mk_priv.c,v 1.31 2002/09/04 16:26:04 joda Exp $");
 
-/*
- *
- */
-
+      
 krb5_error_code
 krb5_mk_priv(krb5_context context,
 	     krb5_auth_context auth_context,
@@ -83,35 +80,11 @@ krb5_mk_priv(krb5_context context,
   part.s_address = auth_context->local_address;
   part.r_address = auth_context->remote_address;
 
-  buf_size = 1024;
-  buf = malloc (buf_size);
-  if (buf == NULL) {
-      krb5_set_error_string (context, "malloc: out of memory");
-      return ENOMEM;
-  }
-
   krb5_data_zero (&s.enc_part.cipher);
 
-  do {
-      ret = encode_EncKrbPrivPart (buf + buf_size - 1, buf_size,
-				   &part, &len);
-      if (ret) {
-	  if (ret == ASN1_OVERFLOW) {
-	      u_char *tmp;
-
-	      buf_size *= 2;
-	      tmp = realloc (buf, buf_size);
-	      if (tmp == NULL) {
-		  krb5_set_error_string (context, "malloc: out of memory");
-		  ret = ENOMEM;
-		  goto fail;
-	      }
-	      buf = tmp;
-	  } else {
-	      goto fail;
-	  }
-      }
-  } while(ret == ASN1_OVERFLOW);
+  ASN1_MALLOC_ENCODE(EncKrbPrivPart, buf, buf_size, &part, &len, ret);
+  if (ret)
+      goto fail;
 
   s.pvno = 5;
   s.msg_type = krb_priv;
@@ -134,37 +107,21 @@ krb5_mk_priv(krb5_context context,
       free(buf);
       return ret;
   }
+  free(buf);
 
-  do {
-      ret = encode_KRB_PRIV (buf + buf_size - 1, buf_size, &s, &len);
 
-      if (ret){
-	  if (ret == ASN1_OVERFLOW) {
-	      u_char *tmp;
+  ASN1_MALLOC_ENCODE(KRB_PRIV, buf, buf_size, &s, &len, ret);
 
-	      buf_size *= 2;
-	      tmp = realloc (buf, buf_size);
-	      if (tmp == NULL) {
-		  krb5_set_error_string (context, "malloc: out of memory");
-		  ret = ENOMEM;
-		  goto fail;
-	      }
-	      buf = tmp;
-	  } else {
-	      goto fail;
-	  }
-      }
-  } while(ret == ASN1_OVERFLOW);
+  if(ret)
+      goto fail;
   krb5_data_free (&s.enc_part.cipher);
 
-  outbuf->length = len;
-  outbuf->data   = malloc (len);
-  if (outbuf->data == NULL) {
+  ret = krb5_data_copy(outbuf, buf + buf_size - len, len);
+  if (ret) {
       krb5_set_error_string (context, "malloc: out of memory");
       free(buf);
       return ENOMEM;
   }
-  memcpy (outbuf->data, buf + buf_size - len, len);
   free (buf);
   if (auth_context->flags & KRB5_AUTH_CONTEXT_DO_SEQUENCE)
       auth_context->local_seqnumber =

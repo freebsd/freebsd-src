@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 1999, 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: kf_locl.h,v 1.2 1999/12/02 17:04:55 joda Exp $ */
+/* $Id: kf_locl.h,v 1.3 2002/09/04 20:29:04 joda Exp $ */
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -74,7 +74,8 @@
 #include <err.h>
 #include <krb5.h>
 
-#define SERVICE "host"
+#define KF_SERVICE		"host"
 
-#define PORT "kf"
-#define PORT_NUM 2110
+#define KF_PORT_NAME		"kf"
+#define KF_PORT_NUM		2110
+#define KF_VERSION_1		"KFWDV0.1"

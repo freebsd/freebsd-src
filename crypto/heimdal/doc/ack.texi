@@ -1,4 +1,4 @@
-@c $Id: ack.texi,v 1.14 2001/02/24 05:09:23 assar Exp $
+@c $Id: ack.texi,v 1.15 2002/09/04 01:03:35 assar Exp $
 
 @node  Acknowledgments, , Migration, Top
 @comment  node-name,  next,  previous,  up
@@ -18,6 +18,9 @@ Some of the functions in @file{libroken} also come from Berkeley by way
 of NetBSD/FreeBSD.
 
 @code{editline} was written by Simmule Turner and Rich Salz.
+
+The @code{getifaddrs} implementation for Linux was written by Hideaki
+YOSHIFUJI for the Usagi project.
 
 Bugfixes, documentation, encouragement, and code has been contributed by:
 @table @asis

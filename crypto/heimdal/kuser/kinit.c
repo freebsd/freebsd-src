@@ -32,7 +32,7 @@
  */
 
 #include "kuser_locl.h"
-RCSID("$Id: kinit.c,v 1.89 2002/08/21 12:21:31 joda Exp $");
+RCSID("$Id: kinit.c,v 1.90 2002/09/09 22:17:53 joda Exp $");
 
 int forwardable_flag	= -1;
 int proxiable_flag	= -1;
@@ -290,9 +290,11 @@ do_524init(krb5_context context, krb5_ccache ccache,
 	krb5_cc_get_principal(context, ccache, &client);
 	memset(&in_creds, 0, sizeof(in_creds));
 	ret = get_server(context, client, server, &in_creds.server);
+	krb5_free_principal(context, client);
 	if(ret)
 	    return ret;
 	ret = krb5_get_credentials(context, 0, ccache, &in_creds, &real_creds);
+	krb5_free_principal(context, in_creds.server);
 	if(ret)
 	    return ret;
     }

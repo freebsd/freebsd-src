@@ -34,7 +34,7 @@
 #include "krb5_locl.h"
 #include <com_err.h>
 
-RCSID("$Id: context.c,v 1.80 2002/08/28 15:27:24 joda Exp $");
+RCSID("$Id: context.c,v 1.81 2002/09/02 17:03:12 joda Exp $");
 
 #define INIT_FIELD(C, T, E, D, F)					\
     (C)->E = krb5_config_get_ ## T ## _default ((C), NULL, (D), 	\
@@ -173,14 +173,9 @@ init_context_from_config_file(krb5_context context)
     
     INIT_FIELD(context, bool, scan_interfaces, TRUE, "scan_interfaces");
     INIT_FIELD(context, int, fcache_vno, 0, "fcache_version");
-    INIT_FIELD(context, bool, srv_lookup, TRUE, "dns_lookup_kdc");
-    /* srv_lookup backwards compatibility. */
-    { 
-    const char **p;
-    p = krb5_config_get_strings(context, NULL, "libdefaults", "srv_lookup", NULL);
-    if (p != NULL)
-	INIT_FIELD(context, bool, srv_lookup, TRUE, "srv_lookup");
-    }
+    /* prefer dns_lookup_kdc over srv_lookup. */
+    INIT_FIELD(context, bool, srv_lookup, TRUE, "srv_lookup");
+    INIT_FIELD(context, bool, srv_lookup, context->srv_lookup, "dns_lookup_kdc");
     return 0;
 }
 
