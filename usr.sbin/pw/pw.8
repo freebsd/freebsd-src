@@ -311,7 +311,7 @@ to automatically allocate the uid to a new user with
 then you should
 .Em not
 use the
-.Ql Fl u
+.Fl u
 option.
 You may also provide either the account or userid immediately after the
 .Ar useradd ,
@@ -320,9 +320,9 @@ You may also provide either the account or userid immediately after the
 or
 .Ar usershow
 keywords on the command line without using the
-.Ql Fl n
+.Fl n
 or
-.Ql Fl u 
+.Fl u 
 options.
 .El
 .Pp
@@ -366,7 +366,7 @@ Set the account's password expiration date.
 This field is similar to the account expiration date option, except that it
 applies to forced password changes.
 This is set in the same manner as the
-.Ql Fl e
+.Fl e
 option.
 .It Fl g Ar group
 Set the account's primary group to the given group.
@@ -403,7 +403,7 @@ The new home directory is populated with the contents of the
 directory, which typically contains a set of shell configuration files that the
 user may personalize to taste.
 When
-.Ql Fl m
+.Fl m
 is used on an account with
 .Ar usermod ,
 existing configuration files in the user's home directory are
@@ -413,10 +413,10 @@ overwritten from the skeleton files.
 When a user's home directory is created, it will by default be a subdirectory of the
 .Ar basehome
 directory as specified by the
-.Ql Fl b 
+.Fl b 
 option (see below), bearing the name of the new account.
 This can be overridden by the
-.Ql Fl d 
+.Fl d 
 option on the command line, if desired.
 .It Fl k Ar dir
 Set the
@@ -424,9 +424,9 @@ Set the
 directory, from which basic startup and configuration files are copied when
 the user's home directory is created.
 This option only has meaning when used with the
-.Ql Fl d
+.Fl d
 or
-.Ql Fl m 
+.Fl m 
 flags.
 .It Fl s Ar shell
 Set or changes the user's login shell to
@@ -474,7 +474,7 @@ all possess mechanisms by which this can be done.
 Alternatively,
 .Nm
 will prompt for the user's password if
-.Ql Fl h Ar 0
+.Fl h Ar 0
 is given, nominating
 .Em stdin
 as the file descriptor on which to read the password.
@@ -498,7 +498,7 @@ It is possible to use
 .Ar useradd
 to create a new account that duplicates an existing user id.
 While this is normally considered an error and will be rejected, the
-.Ql Fl o
+.Fl o
 option overrides the check for duplicates and allows the duplication of
 the user id.
 This may be useful if you allow the same user to login under
@@ -509,21 +509,21 @@ permissions for access to the user's files in each account.
 The
 .Ar useradd
 command also has the ability to set new user and group defaults by using the
-.Ql Fl D
+.Fl D
 option.
 Instead of adding a new user,
 .Nm
 writes a new set of defaults to its configuration file,
 .Pa /etc/pw.conf .
 When using the
-.Ql Fl D
+.Fl D
 option, you must not use either
-.Ql Fl n Ar name
+.Fl n Ar name
 or
-.Ql Fl u Ar uid
+.Fl u Ar uid
 or an error will result.
 Use of
-.Ql Fl D
+.Fl D
 changes the meaning of several command line switches in the
 .Ar useradd
 command.
@@ -533,7 +533,7 @@ These are:
 Set default values in
 .Pa /etc/pw.conf
 configuration file, or a different named configuration file if the
-.Ql Fl C Ar config
+.Fl C Ar config
 option is used.
 .It Fl b Ar dir
 Set the root directory in which user home directories are created.
@@ -543,7 +543,7 @@ but it may be set elsewhere as desired.
 .It Fl e Ar days
 Set the default account expiration period in days.
 Unlike use without
-.Ql Fl D ,
+.Fl D ,
 the argument must be numeric, which specifies the number of days after creation when
 the account is to expire.
 A value of 0 suppresses automatic calculation of the expiry date.
@@ -552,7 +552,7 @@ Set the default password expiration period in days.
 .It Fl g Ar group
 Set the default group for new users.
 If a blank group is specified using
-.Ql Fl g Ar \&"" ,
+.Fl g Ar \&"" ,
 then new users will be allocated their own private primary group
 with the same name as their login name.
 If a group is supplied, either its name or uid may be given as an argument.
@@ -594,7 +594,7 @@ and numbers greater than 32000 may also be reserved for special purposes (used b
 some system daemons).
 .It Fl w Ar method
 The
-.Ql Fl w
+.Fl w
 option sets the default method used to set passwords for newly created user accounts.
 .Ar method
 is one of:
@@ -636,9 +636,9 @@ The
 .Ar userdel
 command has only three valid options.
 The
-.Ql Fl n Ar name
+.Fl n Ar name
 and
-.Ql Fl u Ar uid
+.Fl u Ar uid
 options have already been covered above.
 The additional option is:
 .Bl -tag -width "-G grouplist"
@@ -674,12 +674,12 @@ By default, the format is identical to the format used in
 with the password field replaced with a
 .Ql \&* .
 If the
-.Ql Fl P
+.Fl P
 option is used, then
 .Nm
 outputs the account details in a more human readable form.
 The
-.Ql Fl a
+.Fl a
 option lists all users currently on file.
 .Pp
 The command
@@ -691,9 +691,9 @@ that use
 .Pp
 .Sh GROUP OPTIONS
 The
-.Ql Fl C 
+.Fl C 
 and
-.Ql Fl q
+.Fl q
 options (explained at the start of the previous section) are available
 with the group manipulation commands.
 Other common options to all group-related commands are:
@@ -716,7 +716,7 @@ groupmod).
 is a comma separated list of valid and existing user names or uids.
 .It Fl m Ar newmembers
 Similar to
-.Ql Fl M ,
+.Fl M ,
 this option allows the
 .Em addition
 of existing users to a group without replacing the existing list of
@@ -727,7 +727,7 @@ silently eliminated.
 .Pp
 .Ar groupadd
 also has a
-.Ql Fl o
+.Fl o
 option that allows allocation of an existing group id to a new group.
 The default action is to reject an attempt to add a group, and this option overrides
 the check for duplicate group ids.
@@ -750,9 +750,9 @@ Options for
 are the same as for
 .Ar usershow ,
 with the
-.Ql Fl g Ar gid
+.Fl g Ar gid
 replacing
-.Ql Fl u Ar uid
+.Fl u Ar uid
 to specify the group id.
 .Pp
 The command
