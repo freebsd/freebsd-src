@@ -41,7 +41,7 @@
 #
 ##-M#########################################################################
 
-VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.17 1995/07/04 20:58:57 gibbs Exp $"
+VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.18 1995/07/31 08:21:59 gibbs Exp $"
 
 SCBMASK		= 0x1f
 
@@ -268,19 +268,15 @@ SCB_LIST_NULL	= 0xff
 #  Poll QINCNT for work - the lower bits contain
 #  the number of entries in the Queue In FIFO.
 #
-start:
-	cmp	WAITING_SCBH,SCB_LIST_NULL jne start_waiting
 poll_for_work:
 	test	FLAGS,TWIN_BUS	jz start2	# Are we a twin channel device?
 # For fairness, we check the other bus first, since we just finished a 
 # transaction on the current channel.
 	xor	SBLKCTL,0x08			# Toggle to the other bus
 	test	SSTAT0,SELDI	jnz reselect
-	test	SSTAT0,SELDO	jnz select
 	xor	SBLKCTL,0x08			# Toggle to the original bus
 start2:
 	test	SSTAT0,SELDI	jnz reselect
-	test	SSTAT0,SELDO	jnz select
 	cmp	WAITING_SCBH,SCB_LIST_NULL jne start_waiting
 	test	QINCNT,SCBMASK	jz poll_for_work
 
@@ -388,7 +384,7 @@ start_selection:
 #  so we interrupt the driver, allow it to fill the message buffer, and
 #  then go back into the arbitration loop
 	mvi     INTSTAT,AWAITING_MSG
-	jmp     poll_for_work
+	jmp     wait_for_selection
 
 identify:
 	mov	SCBARRAY+1	call disconnect	# disconnect ok?
@@ -418,7 +414,10 @@ mk_tag_done:
 	mov	DINDEX	call mk_dtr	# build DTR message if needed
 
 !message:
-	jmp	poll_for_work
+wait_for_selection:
+	test	SSTAT0,SELDI	jnz reselect
+	test	SSTAT0,SELDO	jnz select
+	jmp	wait_for_selection
 
 #  Reselection has been initiated by a target. Make a note that we've been
 #  reselected, but haven't seen an IDENTIFY message from the target
@@ -706,7 +705,7 @@ clear_a:
 # complete.  This is so that any action that might require carefull timing
 # with the completion of this command can occur.
 	mvi	INTSTAT,IMMEDDONE
-	jmp	start
+	jmp	poll_for_work
 complete:
 	mov	QOUTFIFO,SCBPTR
 	mvi	INTSTAT,CMDCMPLT
@@ -883,7 +882,7 @@ p_busfree:
 #  if this is an immediate command, perform a psuedo command complete to
 #  notify the driver.
 	test	SCBARRAY+11,0xff	jz status_ok
-	jmp	start
+	jmp	poll_for_work
 
 #  Instead of a generic bcopy routine that requires an argument, we unroll
 #  the two cases that are actually used, and call them explicitly.  This
