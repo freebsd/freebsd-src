@@ -5,12 +5,19 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20000630:
+	The libfetch based version of fetch has gone into the tree.
+	Minor problems may result on some of the less popular sites,
+	which should be reported to des@freebsd.org.
+
 20000625:
 	From approximately this date forward, one must have the crypto
-	system installed in order to build the system and kernel.  While
-	not technically strictly true, one should treat it as true and
-	grab the crypto bits.  If you are grabbing CVS trees, src-all
-	and cvs-crypto should be treated as if they were required.
+	system installed in order to build the system and kernel.
+	While not technically strictly true, one should treat it as
+	required and grab the crypto bits.  If you are grabbing CVS
+	trees, src-all and cvs-crypto should be treated as if they
+	were required.  You should check with the latest collections
+	to make sure that these haven't changed.
 
 20000624:
 	Mark Murray just committed the first parts of a cleanup of
@@ -20,6 +27,11 @@ ITEMS:'
 	until Mark can merge in the fixes to this work in progress.
 	openssh and openssl should not be used to generate keys from this
 	date to the completion of the work.
+
+	If you must operate at this reduced level of security, add '
+	options RANDOMDEV' to your kernel or modload the randomdev
+	module.  You may also need to copy a new MAKEDEV to /dev and
+	recreate the random and urandom devices.
 
 20000622:
 	The license on the softupdates is now a standard 2 clause
