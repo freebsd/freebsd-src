@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
- *	$Id: raw_ip.c,v 1.35 1996/08/27 20:52:27 sos Exp $
+ *	$Id: raw_ip.c,v 1.36 1996/10/07 19:21:46 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -165,6 +165,10 @@ rip_output(m, so, dst)
 	 * Otherwise, allocate an mbuf for a header and fill it in.
 	 */
 	if ((inp->inp_flags & INP_HDRINCL) == 0) {
+		if (m->m_pkthdr.len + sizeof(struct ip) > IP_MAXPACKET) {
+			m_freem(m);
+			return(EMSGSIZE);
+		}
 		M_PREPEND(m, sizeof(struct ip), M_WAIT);
 		ip = mtod(m, struct ip *);
 		ip->ip_tos = 0;
@@ -175,6 +179,10 @@ rip_output(m, so, dst)
 		ip->ip_dst.s_addr = dst;
 		ip->ip_ttl = MAXTTL;
 	} else {
+		if (m->m_pkthdr.len > IP_MAXPACKET) {
+			m_freem(m);
+			return(EMSGSIZE);
+		}
 		ip = mtod(m, struct ip *);
 		/* don't allow both user specified and setsockopt options,
 		   and don't allow packet length sizes that will crash */
