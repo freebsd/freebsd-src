@@ -403,7 +403,7 @@ retry:
 		 * since their existence means someone is screwing up.
 		 */
 		if (q->p_flag & P_TRACED) {
-			q->p_flag &= ~P_TRACED;
+			q->p_flag &= ~(P_TRACED | P_STOPPED_TRACE);
 			psignal(q, SIGKILL);
 		}
 		PROC_UNLOCK(q);
