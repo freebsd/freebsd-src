@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.79 1998/05/17 18:53:08 tegge Exp $
+ *	$Id: cpufunc.h,v 1.80 1998/07/11 04:58:25 bde Exp $
  */
 
 /*
@@ -48,6 +48,14 @@
 #if defined(SWTCH_OPTIM_STATS)
 extern int tlb_flush_count;
 #endif
+
+#define readb(va)	(*(volatile u_int8_t *) (va))
+#define readw(va)	(*(volatile u_int16_t *) (va))
+#define readl(va)	(*(volatile u_int32_t *) (va))
+
+#define writeb(va, d)	(*(volatile u_int8_t *) (va) = (d))
+#define writew(va, d)	(*(volatile u_int16_t *) (va) = (d))
+#define writel(va, d)	(*(volatile u_int32_t *) (va) = (d))
 
 #ifdef	__GNUC__
 
