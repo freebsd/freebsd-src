@@ -44,7 +44,7 @@
 
 /* Node type name and magic cookie */
 #define NG_SOURCE_NODE_TYPE	"source"
-#define NGM_SOURCE_COOKIE	1034346805
+#define NGM_SOURCE_COOKIE	1110646684
 
 /* Hook names */
 #define NG_SOURCE_HOOK_INPUT	"input"
@@ -82,7 +82,7 @@ enum {
 	NGM_SOURCE_START,		/* start sending queued data */
 	NGM_SOURCE_STOP,		/* stop sending queued data */
 	NGM_SOURCE_CLR_DATA,		/* clear the queued data */
-	NGM_SOURCE_START_NOW,		/* start on non-ether output */
+	NGM_SOURCE_SETIFACE,		/* configure downstream iface */
 };
 
 #endif /* _NETGRAPH_NG_SOURCE_H_ */
