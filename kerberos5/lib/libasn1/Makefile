@@ -66,6 +66,7 @@ INCLUDES=asn1.h asn1_err.h
 .include <bsd.lib.mk>
 
 .PATH:		${KRB5DIR}/lib/asn1
+.PATH:		${KRB5DIR}/lib/vers
 .PATH:		${KRB5DIR}/lib/roken
 .ORDER:		parse.o lex.o
 
@@ -101,7 +102,7 @@ parse.h parse.c:	parse.y
 lex.o:		lex.l
 
 print_version.o: print_version.h print_version.c roken.h
-	${CC} ${CFLAGS} -c -o ${.TARGET} ${KRB5DIR}/lib/roken/print_version.c
+	${CC} ${CFLAGS} -c -o ${.TARGET} ${KRB5DIR}/lib/vers/print_version.c
 
 print_version.h: make-print-version
 	./make-print-version print_version.h
