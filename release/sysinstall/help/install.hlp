@@ -31,7 +31,7 @@ Last updated:   Tue Mar 24 00:56:14 PST 1998
 This manual documents the process of making a new installation of
 FreeBSD on your machine.  If you are upgrading from a previous
 release of FreeBSD, please see the file UPGRADE.TXT for important
-information on upgrading.  If you are not familar with configuring
+information on upgrading.  If you are not familiar with configuring
 PC hardware for FreeBSD, you should also read the HARDWARE.TXT file -
 it contains important information which may save you a lot of grief.
 
