@@ -36,7 +36,7 @@
  *
  */
 
-/* $Id: v.c,v 1.22 1998/08/11 07:44:54 grog Exp grog $ */
+/* $Id: v.c,v 1.1.1.1 1998/09/16 05:57:36 grog Exp $ */
 
 #include <ctype.h>
 #include <errno.h>
@@ -51,7 +51,7 @@
 #include <syslog.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
-#include "vinumhdr.h"
+#include <dev/vinum/vinumhdr.h>
 #include "vext.h"
 #include <sys/types.h>
 #include <sys/wait.h>
