@@ -1,4 +1,4 @@
-/*	$KAME: if.c,v 1.9 2000/05/27 11:30:43 jinmei Exp $	*/
+/*	$KAME: if.c,v 1.14 2000/10/25 04:28:34 jinmei Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -148,42 +148,44 @@ if_nametosdl(char *name)
 int
 if_getmtu(char *name)
 {
-#if 0
-	struct ifreq ifr;
-	int s;
-
-	if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0)
-		return(0);
-
-	ifr.ifr_addr.sa_family = AF_INET6;
-	strncpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
-	if (ioctl(s, SIOCGIFMTU, (caddr_t)&ifr) < 0) {
-		close(s);
-		return(0);
-	}
-
-	close(s);
-
-	return(ifr.ifr_mtu);
-#else
 	struct ifaddrs *ifap, *ifa;
 	struct if_data *ifd;
+	u_long mtu = 0;
 
 	if (getifaddrs(&ifap) < 0)
 		return(0);
 	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
 		if (strcmp(ifa->ifa_name, name) == 0) {
 			ifd = ifa->ifa_data;
-			freeifaddrs(ifap);
 			if (ifd)
-				return ifd->ifi_mtu;
-			else
-				return 0;
+				mtu = ifd->ifi_mtu;
+			break;
 		}
 	}
 	freeifaddrs(ifap);
-	return 0;
+
+#ifdef SIOCGIFMTU		/* XXX: this ifdef may not be necessary */
+	if (mtu == 0) {
+		struct ifreq ifr;
+		int s;
+
+		if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0)
+			return(0);
+
+		ifr.ifr_addr.sa_family = AF_INET6;
+		strncpy(ifr.ifr_name, name,
+			sizeof(ifr.ifr_name));
+		if (ioctl(s, SIOCGIFMTU, (caddr_t)&ifr) < 0) {
+			close(s);
+			return(0);
+		}
+		close(s);
+
+		mtu = ifr.ifr_mtu;
+	}
 #endif
+
+	return(mtu);
 }
 
 /* give interface index and its old flags, then new flags returned */
@@ -206,6 +208,7 @@ if_getflags(int ifindex, int oifflags)
 		close(s);
 		return (oifflags & ~IFF_UP);
 	}
+	close(s);
 	return (ifr.ifr_flags);
 }
 
@@ -410,7 +413,6 @@ get_prefixlen(char *buf)
 {
 	struct rt_msghdr *rtm = (struct rt_msghdr *)buf;
 	struct sockaddr *sa, *rti_info[RTAX_MAX];
-	int masklen;
 	u_char *p, *lim;
 	
 	sa = (struct sockaddr *)(rtm + 1);
@@ -419,6 +421,14 @@ get_prefixlen(char *buf)
 
 	p = (u_char *)(&SIN6(sa)->sin6_addr);
 	lim = (u_char *)sa + sa->sa_len;
+	return prefixlen(p, lim);
+}
+
+int
+prefixlen(u_char *p, u_char *lim)
+{
+	int masklen;
+
 	for (masklen = 0; p < lim; p++) {
 		switch (*p) {
 		case 0xff:
