@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.381 1998/09/12 20:04:44 jhay Exp $
+#	$Id: Makefile,v 1.382 1998/09/13 17:20:57 phk Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -341,7 +341,7 @@ release.5:
 	# Create symlinks for the MD5-based crypt lib, too.  The
 	# automatically created links still point to the DES stuff,
 	# which went into its own distribution.
-	for i in ${RD}/trees/bin/usr/lib/${OBJFORMAT}/libscrypt* ; do \
+	for i in ${RD}/trees/bin/usr/lib/libscrypt* ; do \
 		c=`echo $$i | sed -e 's/libscrypt/libcrypt/'` ; \
 		rm -f $$c ; \
 		ln -s `basename $$i` $$c ; \
