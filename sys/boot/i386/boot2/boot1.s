@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: boot1.s,v 1.6 1998/11/11 08:56:17 rnordier Exp $
+#	$Id: boot1.s,v 1.7 1999/01/10 13:29:51 peter Exp $
 
 		.set MEM_REL,0x700		# Relocation address
 		.set MEM_ARG,0x900		# Arguments
@@ -45,11 +45,11 @@ xread:		pushl %ecx			# Set
 		pushl %ebx			#  buffer
 		pushl %edx			# Set count:drive
 		callwi(read)			# Read from disk
-		popl %edx			# Pop
-		popl %ebx			#  all
-		popl %es			#  registers
-		popl %eax			#  we
-		popl %ecx			#  pushed
+		popl %edx			# Pop all
+		popl %ebx			#  registers
+		popl %es			#  pushed, but
+		popl %ecx			#  preserve
+		popl %ecx			#  AX
 		lret				# To far caller
 
 # Bootstrap
