@@ -55,11 +55,11 @@ lseek(fd, offset, whence)
 {
 #ifdef _THREAD_SAFE
 	off_t	offs;
-	if (_thread_fd_lock(fd, FD_RDWR, NULL,__FILE__,__LINE__) != 0) {
+	if (_FD_LOCK(fd, FD_RDWR, NULL) != 0) {
 		offs = -1;
 	} else {
 		offs = __syscall((quad_t) SYS_lseek,fd, 0, offset, whence);
-		_thread_fd_unlock(fd, FD_RDWR);
+		_FD_UNLOCK(fd, FD_RDWR);
 	}
 	return(offs);
 
