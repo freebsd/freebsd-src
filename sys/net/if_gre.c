@@ -440,7 +440,7 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCSIFADDR:
 		ifp->if_flags |= IFF_UP;
 		break;
-	case SIOCSIFDSTADDR: 
+	case SIOCSIFDSTADDR:
 		break;
 	case SIOCSIFFLAGS:
 		if ((error = suser(curproc)) != 0)
@@ -531,7 +531,7 @@ gre_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			    dm.sin_family = AF_INET;
 			sp.sin_addr = sc->g_src;
 			dp.sin_addr = sc->g_dst;
-			sm.sin_addr.s_addr = dm.sin_addr.s_addr = 
+			sm.sin_addr.s_addr = dm.sin_addr.s_addr =
 			    INADDR_BROADCAST;
 #ifdef INET
 			sc->encap = encap_attach(AF_INET, sc->g_proto,
