@@ -3,21 +3,22 @@
 PROG=		eqn
 SRCS=		main.cc lex.cc  box.cc limit.cc list.cc over.cc text.cc\
 		script.cc mark.cc other.cc delim.cc sqrt.cc pile.cc special.cc
-OBJS=		eqn.o 
-CFLAGS+=	-I. -I${.CURDIR}/../include
+OBJS=		eqn.o
+#CFLAGS+=	-I. -I${.CURDIR}/../include
 LDADD+=		${LIBGROFF}
 DPADD+=		${LIBGROFF}
 
 MANDEPEND=	eqn.1
-CLEANFILES+=	eqn.cc eqn.tab.h ${MANDEPEND}
+CLEANFILES+=	eqn.cc eqn.tab.h neqn ${MANDEPEND}
 
-afterinstall:
-	sed -e 's/@g@/${g}/g' ${.CURDIR}/neqn.sh > ${DESTDIR}${BINDIR}/neqn
-	chown ${BINOWN}.${BINGRP} ${DESTDIR}${BINDIR}/neqn
-	chmod ${BINMODE} ${DESTDIR}${BINDIR}/neqn
+neqn:
+	sed -e 's/@g@/${g}/g' ${DISTDIR}/neqn.sh > neqn
+
+afterinstall:	neqn
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} neqn \
+		${DESTDIR}${BINDIR}
 
 beforedepend: eqn.cc
 
-.include "../../../usr.bin/Makefile.inc"
 .include "../Makefile.cfg"
 .include <bsd.prog.mk>

@@ -2,7 +2,7 @@
 
 LIB=		driver
 SRCS=		input.cc printer.cc
-CFLAGS+=	-I$(.CURDIR)/../include
+CFLAGS+=	-I$(DISTDIR)/../include
 
 NOMAN=		noman
 NOPROFILE=	noprofile

@@ -1,4 +1,8 @@
 # Makefile for libgroff
+#
+# $Id$
+#
+.include "../Makefile.inc"
 
 LIB=		groff
 SRCS=		assert.cc change_lf.cc cmap.cc cset.cc device.cc errarg.cc\
@@ -10,12 +14,13 @@ SRCS+=		iftoa.c itoa.c matherr.c
 CFLAGS+=	-I$(.CURDIR)/../include
 
 NOMAN=		noman
-NOPROFILE=	noprofile	
+NOPROFILE=	noprofile
 
 CLEANFILES+=	version.cc
-version.cc: $(.CURDIR)/../VERSION
+
+version.cc: $(GROFF_DIST)/VERSION
 	@${ECHO} Making version.cc
-	@echo const char \*version_string = \"`cat $(.CURDIR)/../VERSION`\"\; >$@
+	@echo const char \*version_string = \"`cat $(GROFF_DIST)/VERSION`\"\; >$@
 
 install:
 
