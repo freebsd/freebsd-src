@@ -96,12 +96,12 @@ The
 hook is equivalent to
 .Dv lower ,
 except that only unrecognized packets (that would otherwise be discarded)
-are written to the hook, and normal incoming traffic is unaffected.
-At most one of
+are written to the hook, while other normal incoming traffic is unaffected.
+Unrecognized packets written to
+.Dv upper
+will be forwarded back out to
 .Dv orphans
-and
-.Dv lower
-may be connected at any time.
+if connected.
 .Pp
 In all cases, frames are raw Ethernet frames with the standard
 14 byte Ethernet header (but no checksum).
