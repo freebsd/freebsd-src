@@ -2718,7 +2718,7 @@ xl_init(xsc)
 		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_COAX_STOP);
 
 	/* increase packet size to allow reception of 802.1q or ISL packets */
-	 if (sc->xl_type == XL_TYPE_905B) 
+	if (sc->xl_type == XL_TYPE_905B) 
 		CSR_WRITE_2(sc, XL_W3_MAXPKTSIZE, XL_PACKET_SIZE);
 	/* Clear out the stats counters. */
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_STATS_DISABLE);
