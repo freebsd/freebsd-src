@@ -86,20 +86,20 @@ elf64_exec(struct preloaded_file *fp)
     bzero(PT3, PAGE_SIZE);
     bzero(PT2, PAGE_SIZE);
 
-    /* single PML4 entry */
-    PT4[0] = (p4_entry_t)VTOP((uintptr_t)&PT3[0]);
-    PT4[0] |= PG_V | PG_RW | PG_U;
-
-    /* Direct map 1GB at address zero */
-    PT3[0] = (p3_entry_t)VTOP((uintptr_t)&PT2[0]);
-    PT3[0] |= PG_V | PG_RW | PG_U;
-
-    /* Direct map 1GB at KERNBASE (hardcoded for now) */
-    PT3[1] = (p3_entry_t)VTOP((uintptr_t)&PT2[0]);
-    PT3[1] |= PG_V | PG_RW | PG_U;
-
-    /* 512 PG_PS (2MB) page mappings for 1GB of direct mapping */
+    /*
+     * This is kinda brutal, but every single 1GB VM memory segment points to
+     * the same first 1GB of physical memory.  But it is more than adequate.
+     */
     for (i = 0; i < 512; i++) {
+	/* Each slot of the level 4 pages points to the same level 3 page */
+	PT4[i] = (p4_entry_t)VTOP((uintptr_t)&PT3[0]);
+	PT4[i] |= PG_V | PG_RW | PG_U;
+
+	/* Each slot of the level 3 pages points to the same level 2 page */
+	PT3[i] = (p3_entry_t)VTOP((uintptr_t)&PT2[0]);
+	PT3[i] |= PG_V | PG_RW | PG_U;
+
+	/* The level 2 page slots are mapped with 2MB pages for 1GB. */
 	PT2[i] = i * (2 * 1024 * 1024);
 	PT2[i] |= PG_V | PG_RW | PG_PS | PG_U;
     }
