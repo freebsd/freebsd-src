@@ -679,6 +679,12 @@ usbd_add_event(int type, usbd_device_handle dev)
 	splx(s);
 }
 
+void
+usb_schedsoftintr(struct usbd_bus *bus)
+{
+       bus->methods->soft_intr(bus);
+}
+
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 int
 usb_activate(device_ptr_t self, enum devact act)
