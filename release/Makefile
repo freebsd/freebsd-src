@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.44 1997/06/21 15:47:30 jkh Exp $
+#	$Id: Makefile,v 1.246.2.45 1997/06/21 19:40:04 jkh Exp $
 #
 # How to roll a release:
 #
@@ -22,11 +22,11 @@
 # Things which without too much trouble can be considered variables
 # BIN_DISTS are special in that they get full /etc installation sets.
 #
-COMPAT_DISTS=	compat1x compat20 compat21
-EXPORT_DISTS=	games manpages catpages proflibs dict info doc ${COMPAT_DISTS}
-EXTRA_DISTS=	krb des
+COMPAT_DISTS?=	compat1x compat20 compat21
+OTHER_DISTS?=	games manpages catpages proflibs dict info doc
+CRYPTO_DISTS?=	krb des
 BIN_DISTS?=	bin
-ALL_DISTS?=	${BIN_DISTS} ${EXPORT_DISTS} ${EXTRA_DISTS}
+DISTRIBUTIONS?=	${BIN_DISTS} ${OTHER_DISTS} ${COMPAT_DISTS} ${CRYPTO_DISTS}
 KERNELS?=	GENERIC
 
 # Extra source tarballs; each argument is a pair of source dir and
@@ -53,7 +53,6 @@ FIXITINODE=		6000
 BOOTINODE=		100000
 
 # Things which may get you into trouble if you change them
-DISTRIBUTIONS?=		${ALL_DISTS}
 MTREEFILES=		${.CURDIR}/../etc/mtree
 RD=			/R/stage
 FD=			/R/ftp
@@ -309,7 +308,7 @@ release.5:
 	cd ${RD}/trees/bin/usr/share/misc && rm -f termcap.db vgrindefs.db
 	# Remove all the directories we don't need.
 	-cd ${RD}/trees && \
-		find ${EXPORT_DISTS} ${EXTRA_DISTS} -depth -type d -print | xargs rmdir
+		find ${OTHER_DISTS} ${COMPAT_DISTS} ${CRYPTO_DISTS} -depth -type d -print | xargs rmdir
 	touch release.5
 
 #
