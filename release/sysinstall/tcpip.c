@@ -116,18 +116,36 @@ feepout(char *msg)
     msgConfirm(msg);
 }
 
-/* Very basic IP address integrity check - could be drastically improved */
+/* Verify IP address integrity */
 static int
-verifyIP(char *ip)
+verifyIP(char *ip, unsigned long *out)
 {
-    int a, b, c, d;
+    long a, b, c, d;
+    char *endptr;
 
-    if (ip && sscanf(ip, "%d.%d.%d.%d", &a, &b, &c, &d) == 4 &&
-	_validByte(a) && _validByte(b) && _validByte(c) &&
-	_validByte(d) && (d != 255))
-	return 1;
-    else
+    if (ip == NULL)
 	return 0;
+    a = strtol(ip, &endptr, 10);
+    if (*endptr++ != '.')
+	return 0;
+    b = strtol(endptr, &endptr, 10);
+    if (*endptr++ != '.')
+	return 0;
+    c = strtol(endptr, &endptr, 10);
+    if (*endptr++ != '.')
+	return 0;
+    d = strtol(endptr, &endptr, 10);
+    if (*endptr != '\0')
+	return 0;
+    /* Both 0 and 255 are technically valid in nets that are larger
+       than class C, but at least MS' TCP/IP stacks freak out if they see
+       them. */
+    if (!_validByte(a) || !_validByte(b) || !_validByte(c) ||
+	!_validByte(d) || (d == 0) || (d == 255))
+	return 0;
+    if (out) 
+	*out = (a << 24) | (b << 16) | (c << 8) | d;
+    return 1;
 }
 
 static int
@@ -146,21 +164,81 @@ verifyIP6(char *ip)
     return 0;
 }
 
+/* Verify IPv4 netmask as being well-formed as
+   a 0x or AAA.BBB.CCC.DDD mask */
+static int
+verifyNetmask(const char *netmask, unsigned long *out)
+{
+    unsigned long mask;
+    unsigned long tmp;
+    char *endptr;
+
+    if (netmask[0] == '0' && (netmask[1] == 'x' || netmask[1] == 'X')) {
+        /* Parse out hex mask */
+        mask = strtoul(netmask, &endptr, 0);
+        if (*endptr != '\0')
+            return 0;
+    } else {
+        /* Parse out quad decimal mask */
+        mask = strtoul(netmask, &endptr, 10);
+        if (!_validByte(mask) || *endptr++ != '.')
+            return 0;
+        tmp = strtoul(endptr, &endptr, 10);
+        if (!_validByte(tmp) || *endptr++ != '.')
+            return 0;
+	mask = (mask << 8) + tmp;
+        tmp = strtoul(endptr, &endptr, 10);
+        if (!_validByte(tmp) || *endptr++ != '.')
+            return 0;
+	mask = (mask << 8) + tmp;
+        tmp = strtoul(endptr, &endptr, 10);
+        if (!_validByte(tmp) || *endptr++ != '\0')
+            return 0;
+	mask = (mask << 8) + tmp;
+    }
+    /* Verify that we have a continous netmask */
+    if ((((-mask & mask) - 1) | mask) != 0xffffffff)
+        return 0;
+    if (out)
+        *out = mask;
+    return 1;
+}
+
+static int
+verifyGW(char *gw, unsigned long *ip, unsigned long *mask)
+{
+    unsigned long parsedgw;
+
+    if (!verifyIP(gw, &parsedgw))
+	return 0;
+    /* Gateway needs to be within the set of IPs reachable through the
+       interface */
+    if (ip && mask && ((parsedgw & *mask) != (*ip & *mask)))
+	return 0;
+    return 1;
+}
+
 /* Check for the settings on the screen - the per-interface stuff is
    moved to the main handling code now to do it on the fly - sigh */
 static int
 verifySettings(void)
 {
+    unsigned long parsedip;
+    unsigned long parsednetmask;
+
     if (!hostname[0])
 	feepout("Must specify a host name of some sort!");
-    else if (gateway[0] && strcmp(gateway, "NO") && !verifyIP(gateway))
-	feepout("Invalid gateway IPv4 address specified");
-    else if (nameserver[0] && !verifyIP(nameserver) && !verifyIP6(nameserver))
+    else if (nameserver[0] && !verifyIP(nameserver, NULL) &&
+		    !verifyIP6(nameserver))
 	feepout("Invalid name server IP address specified");
-    else if (netmask[0] && (netmask[0] < '0' && netmask[0] > '3'))
-	feepout("Invalid netmask value");
-    else if (ipaddr[0] && !verifyIP(ipaddr))
+    else if (ipaddr[0] && !verifyIP(ipaddr, &parsedip))
 	feepout("Invalid IPv4 address");
+    else if (netmask[0] && !verifyNetmask(netmask, &parsednetmask))
+	feepout("Invalid netmask value");
+    else if (gateway[0] && strcmp(gateway, "NO") &&
+	     !verifyGW(gateway, ipaddr[0] ? &parsedip : NULL,
+		     netmask[0] ? &parsednetmask : NULL))
+	feepout("Invalid gateway IPv4 address specified");
     else
 	return 1;
     return 0;
