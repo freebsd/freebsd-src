@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_interface.c,v 1.36 1997/08/07 05:15:46 dyson Exp $
+ *	$Id: db_interface.c,v 1.37 1997/10/27 17:23:12 bde Exp $
  */
 
 /*
@@ -41,7 +41,6 @@
 #endif
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
 
 #include <ddb/ddb.h>
@@ -247,17 +246,16 @@ db_write_bytes(addr, size, data)
 
 	db_nofault = &db_jmpbuf;
 
-	if (addr >= VM_MIN_KERNEL_ADDRESS &&
-	    addr <= round_page((vm_offset_t)&etext)) {
+	if (addr > trunc_page((vm_offset_t)btext) - size &&
+	    addr < round_page((vm_offset_t)etext)) {
 
 	    ptep0 = pmap_pte(kernel_pmap, addr);
 	    oldmap0 = *ptep0;
 	    *ptep0 |= PG_RW;
+
+	    /* Map another page if the data crosses a page boundary. */
 	    if ((*ptep0 & PG_PS) == 0) {
-
 	    	addr1 = trunc_page(addr + size - 1);
-
-	    	/* Map another page if the data crosses a page boundary. */
 	    	if (trunc_page(addr) != addr1) {
 		    ptep1 = pmap_pte(kernel_pmap, addr1);
 		    oldmap1 = *ptep1;
