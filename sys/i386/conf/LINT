@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.90 1994/10/01 05:43:09 davidg Exp $
+#	$Id: LINT,v 1.91 1994/10/01 16:44:07 phk Exp $
 #
 
 machine		"i386"
@@ -211,6 +211,9 @@ device snd2 at isa? port 0x220 irq 7 drq 1 vector sbintr
 device snd6 at isa? port 0x220 irq 7 drq 5 vector sbintr
 device snd7 at isa? port 0x300
 device snd1 at isa? port 0x388
+
+# Cortex-I Frame Grabber driver
+device		ctx0	at isa? port 0x230 iomem 0xd0000
 
 # The digital speaker driver (/dev/pcaudio).
 device pca0 at isa? tty
