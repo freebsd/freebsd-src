@@ -40,7 +40,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <fcntl.h>
-#include <strings.h>
+#include <string.h>
 #include <err.h>
 #include <sys/errno.h>
 #include <sys/stat.h>
