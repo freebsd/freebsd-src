@@ -85,6 +85,15 @@
 	List loaded modules. If [-v] is specified, print more details.
 
 ################################################################################
+# Tmore DPage files
+
+	more <filename> [<filename> ...]
+
+	Show contents of text files. When displaying the contents of more,
+	than one file, if the user elects to quit displaying a file, the
+	remaining files will not be shown.
+
+################################################################################
 # Tpnpscan DScan for PnP devices
 
 	pnpscan [-v]
@@ -241,7 +250,7 @@
 ################################################################################
 # Tinclude DRead commands from a script file
 
-	include <filename>
+	include <filename> [<filename> ...]
 
 	The entire contents of <filename> are read into memory before executing
 	commands, so it is safe to source a file from removable media.
