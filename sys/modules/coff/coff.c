@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: coff.c,v 1.4 1995/11/13 07:18:21 bde Exp $
+ *	$Id: coff.c,v 1.5 1995/11/14 07:33:54 bde Exp $
  */
 
 #include <sys/param.h>
@@ -38,7 +38,7 @@
 
 extern const struct execsw coff_execsw;
 
-MOD_EXEC(ibcs2_coff, -1, (struct execsw*)&coff_execsw);
+MOD_EXEC(ibcs2_coff, -1, &coff_execsw);
 
 static int
 ibcs2_coff_load(struct lkm_table *lkmtp, int cmd)

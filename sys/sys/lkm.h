@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: lkm.h,v 1.10 1995/11/21 12:55:11 bde Exp $
+ * $Id: lkm.h,v 1.11 1995/12/13 15:13:46 julian Exp $
  */
 
 #ifndef _SYS_LKM_H_
@@ -134,7 +134,7 @@ struct lkm_exec {
 	int	lkm_ver;
 	char	*lkm_name;
 	u_long	lkm_offset;
-	struct execsw	*lkm_exec;
+	const struct execsw	*lkm_exec;
 	struct execsw	lkm_oldexec;
 };
 
