@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.92 1996/06/22 13:05:20 joerg Exp $
+#	$Id: rc,v 1.93 1996/06/24 19:00:28 pst Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -294,14 +294,6 @@ if [ "X${lpd}" != X"NO" -a -x /usr/sbin/lpd ]; then
 	echo -n ' printer';		lpd
 fi
 
-# $sendmail_flags is imported from /etc/sysconfig;
-# if $sendmail_flags is something other than NO, sendmail is run.
-if [ "X${sendmail_flags}" != X"NO" -a -r /etc/sendmail.cf ]; then
-	echo -n ' sendmail';            /usr/sbin/sendmail ${sendmail_flags}
-fi
-
-echo '.'
-
 # Make shared lib searching a little faster.  Leave /usr/lib first if you
 # add your own entries or you may come to grief.
 if [ -x /sbin/ldconfig ]; then
@@ -312,6 +304,14 @@ if [ -x /sbin/ldconfig ]; then
 	echo 'setting ldconfig path:' ${_LDC}
 	ldconfig ${_LDC}
 fi
+
+# $sendmail_flags is imported from /etc/sysconfig;
+# if $sendmail_flags is something other than NO, sendmail is run.
+if [ "X${sendmail_flags}" != X"NO" -a -r /etc/sendmail.cf ]; then
+	echo -n ' sendmail';            /usr/sbin/sendmail ${sendmail_flags}
+fi
+
+echo '.'
 
 # configure implementation specific stuff
 arch=`uname -m`
