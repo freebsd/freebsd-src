@@ -1374,7 +1374,7 @@ restart:
 	dbp = NULL;
 	outofspace = 0;
 	if (bufspace >= hibufspace) {
-		if ((curproc->p_flag & P_BUFEXHAUST) == 0 ||
+		if ((curproc && (curproc->p_flag & P_BUFEXHAUST) == 0) ||
 		    bufspace >= maxbufspace) {
 			outofspace = 1;
 			if (defrag > 0)
@@ -1406,7 +1406,7 @@ restart:
 	 * constantly out of space or in need of defragmentation.
 	 */
 
-	if ((curproc->p_flag & P_BUFEXHAUST) == 0 &&
+	if (curproc && (curproc->p_flag & P_BUFEXHAUST) == 0 &&
 	    numfreebuffers < lofreebuffers) {
 		nqindex = QUEUE_CLEAN;
 		nbp = NULL;
@@ -1992,9 +1992,15 @@ loop:
 	/*
 	 * Block if we are low on buffers.   Certain processes are allowed
 	 * to completely exhaust the buffer cache.
-	 */
-	if (curproc->p_flag & P_BUFEXHAUST) {
+         *
+         * If this check ever becomes a bottleneck it may be better to
+         * move it into the else, when gbincore() fails.  At the moment
+         * it isn't a problem.
+         */
+	if (!curproc || (curproc->p_flag & P_BUFEXHAUST)) {
 		if (numfreebuffers == 0) {
+			if (!curproc)
+				return NULL;
 			needsbuffer |= VFS_BIO_NEED_ANY;
 			tsleep(&needsbuffer, (PRIBIO + 4) | slpflag, "newbuf",
 			    slptimeo);
