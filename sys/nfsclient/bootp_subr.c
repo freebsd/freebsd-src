@@ -599,6 +599,7 @@ bootpc_call(struct bootpc_globalcontext *gctx, struct thread *td)
 	tv.tv_sec = 1;
 	tv.tv_usec = 0;
 	bzero(&sopt, sizeof(sopt));
+	sopt.sopt_dir = SOPT_SET;
 	sopt.sopt_level = SOL_SOCKET;
 	sopt.sopt_name = SO_RCVTIMEO;
 	sopt.sopt_val = &tv;
