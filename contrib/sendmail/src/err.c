@@ -216,7 +216,7 @@ usrerr(fmt, va_alist)
 			char buf[MAXLINE];
 
 			snprintf(buf, sizeof buf, "Postmaster warning: %.*s",
-				sizeof buf - 22, MsgBuf + 4);
+				(int)sizeof buf - 22, MsgBuf + 4);
 			CurEnv->e_message = newstr(buf);
 		}
 		else
