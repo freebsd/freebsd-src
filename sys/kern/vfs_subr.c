@@ -71,6 +71,7 @@
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
+#include <vm/vm_kern.h>
 #include <vm/uma.h>
 
 static MALLOC_DEFINE(M_NETADDR, "Export Host", "Export host address structure");
@@ -458,7 +459,15 @@ static void
 vntblinit(void *dummy __unused)
 {
 
-	desiredvnodes = maxproc + cnt.v_page_count / 4;
+	/*
+	 * Desiredvnodes is a function of the physical memory size and
+	 * the kernel's heap size.  Specifically, desiredvnodes scales
+	 * in proportion to the physical memory size until two fifths
+	 * of the kernel's heap size is consumed by vnodes and vm
+	 * objects.  
+	 */
+	desiredvnodes = min(maxproc + cnt.v_page_count / 4, 2 * vm_kmem_size /
+	    (5 * (sizeof(struct vm_object) + sizeof(struct vnode))));
 	minvnodes = desiredvnodes / 4;
 	mtx_init(&mountlist_mtx, "mountlist", NULL, MTX_DEF);
 	mtx_init(&mntvnode_mtx, "mntvnode", NULL, MTX_DEF);
