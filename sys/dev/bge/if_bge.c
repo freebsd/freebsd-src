@@ -3022,7 +3022,9 @@ bge_tick_locked(sc)
 				BGE_CLRBIT(sc, BGE_MAC_MODE,
 				    BGE_MACMODE_TBI_SEND_CFGS);
 			CSR_WRITE_4(sc, BGE_MAC_STS, 0xFFFFFFFF);
-			printf("bge%d: gigabit link up\n", sc->bge_unit);
+			if (bootverbose)
+				printf("bge%d: gigabit link up\n",
+				    sc->bge_unit);
 			if (ifp->if_snd.ifq_head != NULL)
 				bge_start_locked(ifp);
 		}
@@ -3035,8 +3037,9 @@ bge_tick_locked(sc)
 	if (!sc->bge_link && mii->mii_media_status & IFM_ACTIVE &&
 	    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
 		sc->bge_link++;
-		if (IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_T ||
-		    IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_SX)
+		if ((IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_T ||
+		    IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_SX) &&
+		    bootverbose)
 			printf("bge%d: gigabit link up\n",
 			   sc->bge_unit);
 		if (ifp->if_snd.ifq_head != NULL)
