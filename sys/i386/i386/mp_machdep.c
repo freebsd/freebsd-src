@@ -72,6 +72,7 @@
 #include <machine/tss.h>
 #include <machine/specialreg.h>
 #include <machine/cputypes.h>
+#include <machine/cputypes.h>
 #include <machine/globaldata.h>
 
 #if defined(APIC_IO)
@@ -2188,6 +2189,9 @@ ap_init()
 
 	/* XXX FIXME: i386 specific, and redundant: Setup the FPU. */
 	load_cr0((rcr0() & ~CR0_EM) | CR0_MP | CR0_NE | CR0_TS);
+
+	/* set up FPU state on the AP */
+	npxinit(__INITIAL_NPXCW__);
 
 	/* A quick check from sanity claus */
 	apic_id = (apic_id_to_logical[(lapic.id & 0x0f000000) >> 24]);
