@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.15 1996/11/21 07:18:58 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.14.2.1 1996/11/23 08:32:09 phk Exp $
  *
  *
  */
@@ -139,13 +139,20 @@ DBPRINT(("start "));
 
 /*
  *  Unmount the filesystem described by mp.
- * Note: vnodes from this FS may hang around if being used..
- * This should not be a problem, they should be self contained.
  */
 static int
 devfs_unmount( struct mount *mp, int mntflags, struct proc *p)
 {
 	struct devfsmount *devfs_mp_p = (struct devfsmount *)mp->mnt_data;
+	int flags = 0;
+	int error;
+	
+	if (mntflags & MNT_FORCE) {
+		flags |= FORCECLOSE;
+	}
+	error = vflush(mp, NULLVP, flags);
+	if (error)
+		return error;
 
 DBPRINT(("unmount "));
 	devfs_free_plane(devfs_mp_p);
@@ -251,7 +258,6 @@ loop:
 			if (vget(vp, 1))
 				goto loop;
 			error = VOP_FSYNC(vp, cred, waitfor, p);
-printf("syncing device\n");
 			if (error)
 				allerror = error;
 			vput(vp);

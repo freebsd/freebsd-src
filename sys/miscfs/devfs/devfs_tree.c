@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.33 1996/11/21 07:18:57 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.32.2.1 1996/11/23 08:32:08 phk Exp $
  */
 
 #include "opt_devfs.h"
@@ -34,7 +34,7 @@ int devfs_up_and_going;
  * set up yet, so be careful about what we reference..
  * Notice that the ops are by indirection.. as they haven't
  * been set up yet!
- * DEVFS has a hiddne mountpoint that is used as the anchor point
+ * DEVFS has a hidden mountpoint that is used as the anchor point
  * for the internal 'blueprint' version of the dev filesystem tree.
  */
 /*proto*/
@@ -273,6 +273,7 @@ dev_add_name(char *name, dn_p dirnode, devnm_p back, dn_p dnp,
 		devnmp->nextlink = dnp->linklist;
 		devnmp->prevlinkp = devnmp->nextlink->prevlinkp;
 		devnmp->nextlink->prevlinkp = &(devnmp->nextlink);
+		*devnmp->prevlinkp = devnmp;
 		dnp->linklist = devnmp;
 	} else {
 		devnmp->nextlink = devnmp;
@@ -291,7 +292,7 @@ dev_add_name(char *name, dn_p dirnode, devnm_p back, dn_p dnp,
 		 * If we are unlinking from an old dir, decrement it's links
 		 * as we point our '..' elsewhere
 		 * Note: it's up to the calling code to remove the 
-		 * us from teh original directory's list
+		 * us from the original directory's list
 		 */
 		if(dnp->by.Dir.parent) {
 			dnp->by.Dir.parent->links--;
@@ -498,6 +499,12 @@ devfs_dn_free(dn_p dnp)
 	if(--dnp->links <= 0 ) /* can be -1 for initial free, on error */
 	{
 		/*probably need to do other cleanups XXX */
+		if (dnp->nextsibling != dnp) {
+			dn_p* prevp = dnp->prevsiblingp;
+			*prevp = dnp->nextsibling;
+			dnp->nextsibling->prevsiblingp = prevp;
+			
+		}
 		if(dnp->type == DEV_SLNK) {
 			free(dnp->by.Slnk.name,M_DEVFSNODE);
 		}
@@ -539,7 +546,7 @@ devfs_propogate(devnm_p parent,devnm_p child)
 	* Find the other instances of the parent node	*
 	\***********************************************/
 	for (adnp = pdnp->nextsibling;
-		adnp != pdnp->nextsibling;
+		adnp != pdnp;
 		adnp = adnp->nextsibling)
 	{
 		/*
@@ -547,7 +554,7 @@ devfs_propogate(devnm_p parent,devnm_p child)
 		 * if the node already exists on that plane it won't be
 		 * re-made..
 		 */
-		if ( error = dev_add_entry(child->name, pdnp, type,
+		if ( error = dev_add_entry(child->name, adnp, type,
 					NULL, dnp, adnp->dvm, &newnmp)) {
 			printf("duplicating %s failed\n",child->name);
 		}
