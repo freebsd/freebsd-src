@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.52 1996/07/10 17:09:20 jraynard Exp $
+<date> $Id: freebsd-faq.sgml,v 1.53 1996/07/28 22:46:27 jraynard Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -1453,9 +1453,6 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
           fourth serial port, and <bf/even/ if you disable sio3 (the fourth
           port) which normally uses this address.
 
-      <sect1>
-        <heading>What's the solution or workaround for this problem?</heading>
-        <p>
           Until the bug has been fixed, you can use this workaround:
           <enum>
             <item> Enter <tt/-c/ at the bootprompt.
@@ -1466,22 +1463,18 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
             <item> Type exit to continue booting.
           </enum>
 
-      <sect1>
-        <heading>That works, but I want to use my serial ports...</heading>
-        <p>
-          You'll have to build a new kernel with the following
+          If you want to be able to use your serial ports, 
+          you'll have to build a new kernel with the following
           modification: in <tt>/usr/src/sys/i386/isa/sio.c</tt> find the
           one occurrence of the string <tt/0x2e8/ and remove that string
           and the preceding comma (keep the trailing comma).  Now follow
           the normal procedure of building a new kernel.
 
-      <sect1>
-        <heading>Now everything runs great, except for X Window!</heading>
-        <p>
-          Some newer ATI Mach 64 video cards (notably ATI Mach Xpression)
-          do not run with the current version of <tt/XFree86/; the screen
-          goes black when you start X Window, or it works with strange
-          problems. You can get 
+          Even after applying these workarounds, you may still find that
+          X Window does not work properly.  Some newer ATI Mach 64 video 
+          cards (notably ATI Mach Xpression) do not run with the current 
+          version of <tt/XFree86/; the screen goes black when you start 
+          X Window, or it works with strange problems. You can get 
           a beta-version of a new X-server that works better, by looking at 
           <url url="http://www.xfree86.org" name="the XFree86 site">
           and following the links to the new beta release. Get the
