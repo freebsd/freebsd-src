@@ -331,7 +331,7 @@ mac_to_text(struct mac *mac, char **text)
 }
 
 int
-mac_prepare(struct mac **mac, char *elements)
+mac_prepare(struct mac **mac, const char *elements)
 {
 
 	if (strlen(elements) >= MAC_MAX_LABEL_BUF_LEN)

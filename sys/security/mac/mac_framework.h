@@ -86,7 +86,7 @@ int		 mac_get_link(const char *_path, mac_t _label);
 int		 mac_get_pid(pid_t _pid, mac_t _label);
 int		 mac_get_proc(mac_t _label);
 int		 mac_is_present(const char *_policyname);
-int		 mac_prepare(mac_t *_label, char *_elements);
+int		 mac_prepare(mac_t *_label, const char *_elements);
 int		 mac_prepare_file_label(mac_t *_label);
 int		 mac_prepare_ifnet_label(mac_t *_label);
 int		 mac_prepare_process_label(mac_t *_label);
