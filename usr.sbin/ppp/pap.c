@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.20.2.8 1998/02/09 19:21:05 brian Exp $
+ * $Id: pap.c,v 1.20.2.9 1998/02/16 00:00:54 brian Exp $
  *
  *	TODO:
  */
@@ -57,6 +57,7 @@
 #include "descriptor.h"
 #include "physical.h"
 #include "bundle.h"
+#include "id.h"
 
 static const char *papcodes[] = { "???", "REQUEST", "ACK", "NAK" };
 
@@ -179,11 +180,9 @@ PapInput(struct bundle *bundle, struct mbuf *bp, struct physical *physical)
               struct utmp ut;
               memset(&ut, 0, sizeof ut);
               time(&ut.ut_time);
-              strncpy(ut.ut_name, cp+1, sizeof ut.ut_name - 1);
+              strncpy(ut.ut_name, cp+1, sizeof ut.ut_name);
               strncpy(ut.ut_line, VarBaseDevice, sizeof ut.ut_line - 1);
-              if (logout(ut.ut_line))
-                logwtmp(ut.ut_line, "", "");
-              login(&ut);
+              ID0login(&ut);
               Utmp = 1;
             }
 

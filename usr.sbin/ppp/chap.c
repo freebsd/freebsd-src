@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.28.2.8 1998/02/09 19:20:34 brian Exp $
+ * $Id: chap.c,v 1.28.2.9 1998/02/15 23:59:43 brian Exp $
  *
  *	TODO:
  */
@@ -62,6 +62,7 @@
 #include "descriptor.h"
 #include "physical.h"
 #include "bundle.h"
+#include "id.h"
 
 static const char *chapcodes[] = {
   "???", "CHALLENGE", "RESPONSE", "SUCCESS", "FAILURE"
@@ -245,11 +246,9 @@ RecvChapTalk(struct bundle *bundle, struct fsmheader *chp, struct mbuf *bp,
 	    struct utmp ut;
 	    memset(&ut, 0, sizeof ut);
 	    time(&ut.ut_time);
-	    strncpy(ut.ut_name, name, sizeof ut.ut_name - 1);
+	    strncpy(ut.ut_name, name, sizeof ut.ut_name);
 	    strncpy(ut.ut_line, VarBaseDevice, sizeof ut.ut_line - 1);
-	    if (logout(ut.ut_line))
-	      logwtmp(ut.ut_line, "", "");
-	    login(&ut);
+	    ID0login(&ut);
 	    Utmp = 1;
 	  }
 
