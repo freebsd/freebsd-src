@@ -30,6 +30,11 @@ INCS=	libatm.h
 
 LDADD=	-lmd
 DPADD=	${LIBMD}
+
+.if ${MACHINE_ARCH} == "arm"
+WARNS?= 3
+.else
 WARNS?=	6
+.endif
 
 .include <bsd.lib.mk>

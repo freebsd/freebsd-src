@@ -28,7 +28,12 @@ SRCS=	atm.c atm_fore200.c atm_inet.c atm_print.c \
 	atm_set.c atm_show.c atm_subr.c
 MAN=	atm.8
 
+.if ${MACHINE_ARCH} == "arm"
+WARNS?= 3
+.else
 WARNS?=	6
+.endif
+
 CFLAGS+= -I${.CURDIR}/../../../sys
 
 DPADD=	${LIBATM}
