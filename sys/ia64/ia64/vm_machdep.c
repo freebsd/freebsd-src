@@ -293,7 +293,7 @@ cpu_fork(td1, p2, td2, flags)
 void
 cpu_set_fork_handler(td, func, arg)
 	struct thread *td;
-	void (*func) __P((void *));
+	void (*func)(void *);
 	void *arg;
 {
 	td->td_pcb->pcb_r4 = (u_int64_t) func;

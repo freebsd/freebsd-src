@@ -40,9 +40,9 @@
 #include <ddb/db_output.h>
 
 
-int  db_md_set_watchpoint   __P((db_expr_t addr, db_expr_t size));
-int  db_md_clr_watchpoint   __P((db_expr_t addr, db_expr_t size));
-void db_md_list_watchpoints __P((void));
+int  db_md_set_watchpoint(db_expr_t addr, db_expr_t size);
+int  db_md_clr_watchpoint(db_expr_t addr, db_expr_t size);
+void db_md_list_watchpoints(void);
 
 extern char ia64_vector_table[], do_syscall[], do_syscall_end[];
 
