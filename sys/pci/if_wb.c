@@ -392,9 +392,9 @@ static int wb_mii_readreg(sc, frame)
 	struct wb_mii_frame	*frame;
 	
 {
-	int			i, ack, s;
+	int			i, ack;
 
-	s = splimp();
+	WB_LOCK(sc);
 
 	/*
 	 * Set up frame for RX.
@@ -473,7 +473,7 @@ fail:
 	SIO_SET(WB_SIO_MII_CLK);
 	DELAY(1);
 
-	splx(s);
+	WB_UNLOCK(sc);
 
 	if (ack)
 		return(1);
@@ -488,9 +488,8 @@ static int wb_mii_writereg(sc, frame)
 	struct wb_mii_frame	*frame;
 	
 {
-	int			s;
+	WB_LOCK(sc);
 
-	s = splimp();
 	/*
 	 * Set up frame for TX.
 	 */
@@ -524,7 +523,7 @@ static int wb_mii_writereg(sc, frame)
 	 */
 	SIO_CLR(WB_SIO_MII_DIR);
 
-	splx(s);
+	WB_UNLOCK(sc);
 
 	return(0);
 }
@@ -574,8 +573,10 @@ static void wb_miibus_statchg(dev)
 	struct mii_data		*mii;
 
 	sc = device_get_softc(dev);
+	WB_LOCK(sc);
 	mii = device_get_softc(sc->wb_miibus);
 	wb_setcfg(sc, mii->mii_media_active);
+	WB_UNLOCK(sc);
 
 	return;
 }
@@ -808,14 +809,11 @@ static int wb_probe(dev)
 static int wb_attach(dev)
 	device_t		dev;
 {
-	int			s;
 	u_char			eaddr[ETHER_ADDR_LEN];
 	u_int32_t		command;
 	struct wb_softc		*sc;
 	struct ifnet		*ifp;
 	int			unit, error = 0, rid;
-
-	s = splimp();
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
@@ -909,6 +907,9 @@ static int wb_attach(dev)
 	/* Save the cache line size. */
 	sc->wb_cachesize = pci_read_config(dev, WB_PCI_CACHELEN, 4) & 0xFF;
 
+	mtx_init(&sc->wb_mtx, "wb", MTX_DEF);
+	WB_LOCK(sc);
+
 	/* Reset the adapter. */
 	wb_reset(sc);
 
@@ -970,11 +971,14 @@ static int wb_attach(dev)
 	 * Call MI attach routine.
 	 */
 	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+	WB_UNLOCK(sc);
+	return(0);
 
 fail:
 	if (error)
 		device_delete_child(dev, sc->wb_miibus);
-	splx(s);
+	WB_UNLOCK(sc);
+	mtx_destroy(&sc->wb_mtx);
 
 	return(error);
 }
@@ -984,11 +988,9 @@ static int wb_detach(dev)
 {
 	struct wb_softc		*sc;
 	struct ifnet		*ifp;
-	int			s;
-
-	s = splimp();
 
 	sc = device_get_softc(dev);
+	WB_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
 	wb_stop(sc);
@@ -1004,7 +1006,8 @@ static int wb_detach(dev)
 
 	free(sc->wb_ldata_ptr, M_DEVBUF);
 
-	splx(s);
+	WB_UNLOCK(sc);
+	mtx_destroy(&sc->wb_mtx);
 
 	return(0);
 }
@@ -1303,10 +1306,13 @@ static void wb_intr(arg)
 	u_int32_t		status;
 
 	sc = arg;
+	WB_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
-	if (!(ifp->if_flags & IFF_UP))
+	if (!(ifp->if_flags & IFF_UP)) {
+		WB_UNLOCK(sc);
 		return;
+	}
 
 	/* Disable interrupts. */
 	CSR_WRITE_4(sc, WB_IMR, 0x00000000);
@@ -1374,6 +1380,8 @@ static void wb_intr(arg)
 		wb_start(ifp);
 	}
 
+	WB_UNLOCK(sc);
+
 	return;
 }
 
@@ -1382,18 +1390,16 @@ static void wb_tick(xsc)
 {
 	struct wb_softc		*sc;
 	struct mii_data		*mii;
-	int			s;
-
-	s = splimp();
 
 	sc = xsc;
+	WB_LOCK(sc);
 	mii = device_get_softc(sc->wb_miibus);
 
 	mii_tick(mii);
 
 	sc->wb_stat_ch = timeout(wb_tick, sc, hz);
 
-	splx(s);
+	WB_UNLOCK(sc);
 
 	return;
 }
@@ -1508,6 +1514,7 @@ static void wb_start(ifp)
 	struct wb_chain		*cur_tx = NULL, *start_tx;
 
 	sc = ifp->if_softc;
+	WB_LOCK(sc);
 
 	/*
 	 * Check for an available queue slot. If there are none,
@@ -1515,6 +1522,7 @@ static void wb_start(ifp)
 	 */
 	if (sc->wb_cdata.wb_tx_free->wb_mbuf != NULL) {
 		ifp->if_flags |= IFF_OACTIVE;
+		WB_UNLOCK(sc);
 		return;
 	}
 
@@ -1546,8 +1554,10 @@ static void wb_start(ifp)
 	/*
 	 * If there are no packets queued, bail.
 	 */
-	if (cur_tx == NULL)
+	if (cur_tx == NULL) {
+		WB_UNLOCK(sc);
 		return;
+	}
 
 	/*
 	 * Place the request for the upload interrupt
@@ -1584,6 +1594,7 @@ static void wb_start(ifp)
 	 * Set a timeout in case the chip goes out to lunch.
 	 */
 	ifp->if_timer = 5;
+	WB_UNLOCK(sc);
 
 	return;
 }
@@ -1593,11 +1604,10 @@ static void wb_init(xsc)
 {
 	struct wb_softc		*sc = xsc;
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
-	int			s, i;
+	int			i;
 	struct mii_data		*mii;
 
-	s = splimp();
-
+	WB_LOCK(sc);
 	mii = device_get_softc(sc->wb_miibus);
 
 	/*
@@ -1648,7 +1658,7 @@ static void wb_init(xsc)
 		printf("wb%d: initialization failed: no "
 			"memory for rx buffers\n", sc->wb_unit);
 		wb_stop(sc);
-		(void)splx(s);
+		WB_UNLOCK(sc);
 		return;
 	}
 
@@ -1701,9 +1711,8 @@ static void wb_init(xsc)
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
 
-	(void)splx(s);
-
 	sc->wb_stat_ch = timeout(wb_tick, sc, hz);
+	WB_UNLOCK(sc);
 
 	return;
 }
@@ -1753,9 +1762,9 @@ static int wb_ioctl(ifp, command, data)
 	struct wb_softc		*sc = ifp->if_softc;
 	struct mii_data		*mii;
 	struct ifreq		*ifr = (struct ifreq *) data;
-	int			s, error = 0;
+	int			error = 0;
 
-	s = splimp();
+	WB_LOCK(sc);
 
 	switch(command) {
 	case SIOCSIFADDR:
@@ -1787,7 +1796,7 @@ static int wb_ioctl(ifp, command, data)
 		break;
 	}
 
-	(void)splx(s);
+	WB_UNLOCK(sc);
 
 	return(error);
 }
@@ -1799,6 +1808,7 @@ static void wb_watchdog(ifp)
 
 	sc = ifp->if_softc;
 
+	WB_LOCK(sc);
 	ifp->if_oerrors++;
 	printf("wb%d: watchdog timeout\n", sc->wb_unit);
 #ifdef foo
@@ -1812,6 +1822,7 @@ static void wb_watchdog(ifp)
 
 	if (ifp->if_snd.ifq_head != NULL)
 		wb_start(ifp);
+	WB_UNLOCK(sc);
 
 	return;
 }
@@ -1826,6 +1837,7 @@ static void wb_stop(sc)
 	register int		i;
 	struct ifnet		*ifp;
 
+	WB_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_timer = 0;
 
@@ -1862,6 +1874,7 @@ static void wb_stop(sc)
 		sizeof(sc->wb_ldata->wb_tx_list));
 
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	WB_UNLOCK(sc);
 
 	return;
 }

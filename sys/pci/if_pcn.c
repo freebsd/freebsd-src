@@ -398,12 +398,16 @@ static int pcn_probe(dev)
 			}
 			sc->pcn_btag = rman_get_bustag(sc->pcn_res);
 			sc->pcn_bhandle = rman_get_bushandle(sc->pcn_res);
+			mtx_init(&sc->pcn_mtx, "pcn", MTX_DEF);
+			PCN_LOCK(sc);
 			pcn_reset(sc);
 			chip_id = pcn_csr_read(sc, PCN_CSR_CHIPID1);
 			chip_id <<= 16;
 			chip_id |= pcn_csr_read(sc, PCN_CSR_CHIPID0);
 			bus_release_resource(dev, PCN_RES,
 			    PCN_RID, sc->pcn_res);
+			PCN_UNLOCK(sc);
+			mtx_destroy(&sc->pcn_mtx);
 			chip_id >>= 12;
 			sc->pcn_type = chip_id & PART_MASK;
 			switch(sc->pcn_type) {
@@ -434,14 +438,11 @@ static int pcn_probe(dev)
 static int pcn_attach(dev)
 	device_t		dev;
 {
-	int			s;
 	u_int32_t		eaddr[2];
 	u_int32_t		command;
 	struct pcn_softc	*sc;
 	struct ifnet		*ifp;
 	int			unit, error = 0, rid;
-
-	s = splimp();
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
@@ -532,6 +533,10 @@ static int pcn_attach(dev)
 		goto fail;
 	}
 
+	/* Initialize our mutex. */
+	mtx_init(&sc->pcn_mtx, "pcn", MTX_DEF);
+	PCN_LOCK(sc);
+
 	/* Reset the adapter. */
 	pcn_reset(sc);
 
@@ -596,9 +601,13 @@ static int pcn_attach(dev)
 	 */
 	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 	callout_handle_init(&sc->pcn_stat_ch);
+	PCN_UNLOCK(sc);
+	return(0);
 
 fail:
-	splx(s);
+	PCN_UNLOCK(sc);
+	mtx_destroy(&sc->pcn_mtx);
+
 	return(error);
 }
 
@@ -607,12 +616,11 @@ static int pcn_detach(dev)
 {
 	struct pcn_softc	*sc;
 	struct ifnet		*ifp;
-	int			s;
-
-	s = splimp();
 
 	sc = device_get_softc(dev);
 	ifp = &sc->arpcom.ac_if;
+
+	PCN_LOCK(sc);
 
 	pcn_reset(sc);
 	pcn_stop(sc);
@@ -628,8 +636,9 @@ static int pcn_detach(dev)
 	bus_release_resource(dev, PCN_RES, PCN_RID, sc->pcn_res);
 
 	contigfree(sc->pcn_ldata, sizeof(struct pcn_list_data), M_DEVBUF);
+	PCN_UNLOCK(sc);
 
-	splx(s);
+	mtx_destroy(&sc->pcn_mtx);
 
 	return(0);
 }
@@ -860,12 +869,10 @@ static void pcn_tick(xsc)
 	struct pcn_softc	*sc;
 	struct mii_data		*mii;
 	struct ifnet		*ifp;
-	int			s;
-
-	s = splimp();
 
 	sc = xsc;
 	ifp = &sc->arpcom.ac_if;
+	PCN_LOCK(sc);
 
 	mii = device_get_softc(sc->pcn_miibus);
 	mii_tick(mii);
@@ -884,7 +891,7 @@ static void pcn_tick(xsc)
 
 	sc->pcn_stat_ch = timeout(pcn_tick, sc, hz);
 
-	splx(s);
+	PCN_UNLOCK(sc);
 
 	return;
 }
@@ -996,13 +1003,19 @@ static void pcn_start(ifp)
 
 	sc = ifp->if_softc;
 
-	if (!sc->pcn_link)
+	PCN_LOCK(sc);
+
+	if (!sc->pcn_link) {
+		PCN_UNLOCK(sc);
 		return;
+	}
 
 	idx = sc->pcn_cdata.pcn_tx_prod;
 
-	if (ifp->if_flags & IFF_OACTIVE)
+	if (ifp->if_flags & IFF_OACTIVE) {
+		PCN_UNLOCK(sc);
 		return;
+	}
 
 	while(sc->pcn_cdata.pcn_tx_chain[idx] == NULL) {
 		IF_DEQUEUE(&ifp->if_snd, m_head);
@@ -1033,6 +1046,8 @@ static void pcn_start(ifp)
 	 */
 	ifp->if_timer = 5;
 
+	PCN_UNLOCK(sc);
+
 	return;
 }
 
@@ -1042,9 +1057,8 @@ static void pcn_init(xsc)
 	struct pcn_softc	*sc = xsc;
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
 	struct mii_data		*mii = NULL;
-	int			s;
 
-	s = splimp();
+	PCN_LOCK(sc);
 
 	/*
 	 * Cancel pending I/O and free all RX/TX buffers.
@@ -1067,7 +1081,7 @@ static void pcn_init(xsc)
 		printf("pcn%d: initialization failed: no "
 		    "memory for rx buffers\n", sc->pcn_unit);
 		pcn_stop(sc);
-		(void)splx(s);
+		PCN_UNLOCK(sc);
 		return;
 	}
 
@@ -1149,8 +1163,8 @@ static void pcn_init(xsc)
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
 
-	(void)splx(s);
 	sc->pcn_stat_ch = timeout(pcn_tick, sc, hz);
+	PCN_UNLOCK(sc);
 
 	return;
 }
@@ -1207,9 +1221,9 @@ static int pcn_ioctl(ifp, command, data)
 	struct pcn_softc	*sc = ifp->if_softc;
 	struct ifreq		*ifr = (struct ifreq *) data;
 	struct mii_data		*mii = NULL;
-	int			s, error = 0;
+	int			error = 0;
 
-	s = splimp();
+	PCN_LOCK(sc);
 
 	switch(command) {
 	case SIOCSIFADDR:
@@ -1265,7 +1279,7 @@ static int pcn_ioctl(ifp, command, data)
 		break;
 	}
 
-	(void)splx(s);
+	PCN_UNLOCK(sc);
 
 	return(error);
 }
@@ -1277,6 +1291,8 @@ static void pcn_watchdog(ifp)
 
 	sc = ifp->if_softc;
 
+	PCN_LOCK(sc);
+
 	ifp->if_oerrors++;
 	printf("pcn%d: watchdog timeout\n", sc->pcn_unit);
 
@@ -1286,6 +1302,8 @@ static void pcn_watchdog(ifp)
 
 	if (ifp->if_snd.ifq_head != NULL)
 		pcn_start(ifp);
+
+	PCN_UNLOCK(sc);
 
 	return;
 }
@@ -1301,6 +1319,7 @@ static void pcn_stop(sc)
 	struct ifnet		*ifp;
 
 	ifp = &sc->arpcom.ac_if;
+	PCN_LOCK(sc);
 	ifp->if_timer = 0;
 
 	untimeout(pcn_tick, sc, sc->pcn_stat_ch);
@@ -1333,6 +1352,7 @@ static void pcn_stop(sc)
 		sizeof(sc->pcn_ldata->pcn_tx_list));
 
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
+	PCN_UNLOCK(sc);
 
 	return;
 }
@@ -1348,8 +1368,10 @@ static void pcn_shutdown(dev)
 
 	sc = device_get_softc(dev);
 
+	PCN_LOCK(sc);
 	pcn_reset(sc);
 	pcn_stop(sc);
+	PCN_UNLOCK(sc);
 
 	return;
 }

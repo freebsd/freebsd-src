@@ -389,7 +389,11 @@ struct sis_softc {
 	struct sis_list_data	*sis_ldata;
 	struct sis_ring_data	sis_cdata;
 	struct callout_handle	sis_stat_ch;
+	struct mtx		sis_mtx;
 };
+
+#define	SIS_LOCK(_sc)		mtx_enter(&(_sc)->sis_mtx, MTX_DEF)
+#define	SIS_UNLOCK(_sc)		mtx_exit(&(_sc)->sis_mtx, MTX_DEF)
 
 /*
  * register space access macros
