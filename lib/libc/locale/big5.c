@@ -82,10 +82,10 @@ _BIG5_sgetrune(string, n, result)
 			*result = string;
 		return (_INVALID_RUNE);
 	}
-	while (len-- >= 0)
+	while (--len >= 0)
 		rune = (rune << 8) | ((u_int)(*string++) & 0xff);
 	if (result)
-		*result = string + len;
+		*result = string;
 	return rune;
 }
 
