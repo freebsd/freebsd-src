@@ -1,21 +1,22 @@
 /* Interface to bare machine for GDB running as kernel debugger.
    Copyright (C) 1986, 1989, 1991 Free Software Foundation, Inc.
 
-This file is part of GDB.
+   This file is part of GDB.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
 #include <stdio.h>
 #include <sys/ioctl.h>
@@ -33,19 +34,22 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "symtab.h"
 #include "frame.h"
 #include "inferior.h"
-#include "wait.h"
-
+#include "gdb_wait.h"
 
+
 /* Random system calls, mostly no-ops to prevent link problems  */
 
 ioctl (desc, code, arg)
-{}
+{
+}
 
-int (* signal ()) ()
-{}
+int (*signal ()) ()
+{
+}
 
 kill ()
-{}
+{
+}
 
 getpid ()
 {
@@ -53,10 +57,12 @@ getpid ()
 }
 
 sigsetmask ()
-{}
+{
+}
 
 chdir ()
-{}
+{
+}
 
 char *
 getcwd (buf, len)
@@ -92,7 +98,7 @@ exit ()
    char[]  name of the file, ending with a null.
    padding to multiple of 4 boundary.
    char[]  file contents.  The length can be deduced from what was
-           specified before.  There is no terminating null here.
+   specified before.  There is no terminating null here.
 
    If the int at the front is zero, it means there are no more files.
 
@@ -141,14 +147,14 @@ open (filename, modes)
       return -1;
     }
 
-  for (next = files_start; * (int *) next; next += * (int *) next)
+  for (next = files_start; *(int *) next; next += *(int *) next)
     {
       if (!STRCMP (next + 4, filename))
 	{
 	  sourcebeg = next + 4 + strlen (next + 4) + 1;
 	  sourcebeg = (char *) (((int) sourcebeg + 3) & (-4));
 	  sourceptr = sourcebeg;
-	  sourcesize = next + * (int *) next - sourceptr;
+	  sourcesize = next + *(int *) next - sourceptr;
 	  sourceleft = sourcesize;
 	  return sourcedesc;
 	}
@@ -324,10 +330,12 @@ fflush (ign)
 /* Entries into core and inflow, needed only to make things link ok.  */
 
 exec_file_command ()
-{}
+{
+}
 
 core_file_command ()
-{}
+{
+}
 
 char *
 get_exec_file (err)
@@ -350,19 +358,24 @@ kill_command ()
 }
 
 terminal_inferior ()
-{}
+{
+}
 
 terminal_ours ()
-{}
+{
+}
 
 terminal_init_inferior ()
-{}
+{
+}
 
 write_inferior_register ()
-{}
+{
+}
 
 read_inferior_register ()
-{}
+{
+}
 
 read_memory (memaddr, myaddr, len)
      CORE_ADDR memaddr;
@@ -417,16 +430,20 @@ vfork ()
    and these definitions are so it will link without errors.  */
 
 ptrace ()
-{}
+{
+}
 
 setpgrp ()
-{}
+{
+}
 
 execle ()
-{}
+{
+}
 
 _exit ()
-{}
+{
+}
 
 /* Malloc calls these.  */
 
@@ -564,7 +581,8 @@ wait (w)
 #define HEAP_SIZE 400000
 #endif
 
-char heap[HEAP_SIZE] = {0};
+char heap[HEAP_SIZE] =
+{0};
 
 #ifndef STACK_SIZE
 #define STACK_SIZE 100000
@@ -583,11 +601,12 @@ _initialize_standalone ()
 
   /* Find the end of the data on files.  */
 
-  for (next = files_start; * (int *) next; next += * (int *) next) {}
+  for (next = files_start; *(int *) next; next += *(int *) next)
+    {
+    }
 
   /* That is where free storage starts for sbrk to give out.  */
   next_free = next;
 
   memory_limit = heap + sizeof heap;
 }
-

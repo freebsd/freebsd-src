@@ -1,16 +1,5 @@
-
-/* Whether malloc must be declared even if <stdlib.h> is included.  */
-#undef NEED_DECLARATION_MALLOC
-
-/* Whether realloc must be declared even if <stdlib.h> is included.  */
-#undef NEED_DECLARATION_REALLOC
-
-/* Whether free must be declared even if <stdlib.h> is included.  */
-#undef NEED_DECLARATION_FREE
-
-/* Whether strerror must be declared even if <string.h> is included.  */
-#undef NEED_DECLARATION_STRERROR
-@TOP@
+/* Define if compiling on Solaris 7. */
+#undef _MSE_INT_H
 
 /* Define if pstatus_t type is available */
 #undef HAVE_PSTATUS_T
@@ -24,12 +13,27 @@
 /* Define if gregset_t type is available. */
 #undef HAVE_GREGSET_T
 
+/* Define if <sys/procfs.h> has prgregset_t. */
+#undef HAVE_PRGREGSET_T
+
+/* Define if <sys/procfs.h> has prfpregset_t. */
+#undef HAVE_PRFPREGSET_T
+
+/* Define if <sys/procfs.h> has lwpid_t. */
+#undef HAVE_LWPID_T
+
+/* Define if <sys/procfs.h> has psaddr_t. */
+#undef HAVE_PSADDR_T
+
+/* Define if the prfpregset_t type is broken. */
+#undef PRFPREGSET_T_BROKEN
+
+/* Define if you want to use new multi-fd /proc interface
+   (replaces HAVE_MULTIPLE_PROC_FDS as well as other macros). */
+#undef NEW_PROC_API
+
 /* Define if ioctl argument PIOCSET is available. */
 #undef HAVE_PROCFS_PIOCSET
-
-/* /proc PID entries are directories containing the files
-   ctl as map status */
-#undef HAVE_MULTIPLE_PROC_FDS
 
 /* Define if the `long long' type works.  */
 #undef CC_HAS_LONG_LONG
@@ -88,8 +92,17 @@
    name, as a C string.  */
 #undef TARGET_CPU_DEFAULT
 
+/* Define if the simulator is being linked in.  */
+#undef WITH_SIM
+
 /* Set to true if the save_state_t structure is present */
-#define HAVE_STRUCT_SAVE_STATE_T 0
+#undef HAVE_STRUCT_SAVE_STATE_T
 
 /* Set to true if the save_state_t structure has the ss_wide member */
-#define HAVE_STRUCT_MEMBER_SS_WIDE 0
+#undef HAVE_STRUCT_MEMBER_SS_WIDE
+
+/* Define if <sys/ptrace.h> defines the PTRACE_GETREGS request.  */
+#undef HAVE_PTRACE_GETREGS
+
+/* Define if <sys/ptrace.h> defines the PTRACE_GETXFPREGS request.  */
+#undef HAVE_PTRACE_GETXFPREGS

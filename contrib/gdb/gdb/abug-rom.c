@@ -3,21 +3,22 @@
 
    Written by Rob Savoye of Cygnus Support
 
-This file is part of GDB.
+   This file is part of GDB.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
 #include "defs.h"
 #include "gdbcore.h"
@@ -92,61 +93,62 @@ static char *abug_regnames[NUM_REGS] =
 
 static struct target_ops abug_ops;
 
-static char *abug_inits[] = {"\r", NULL};
+static char *abug_inits[] =
+{"\r", NULL};
 
-static struct monitor_ops abug_cmds ;
-
-static void 
-init_abug_cmds(void)
-{
-  abug_cmds.flags =   MO_CLR_BREAK_USES_ADDR;
-  abug_cmds.init =   abug_inits;			/* Init strings */
-  abug_cmds.cont =   "g\r";			/* continue command */
-  abug_cmds.step =   "t\r";			/* single step */
-  abug_cmds.stop =   NULL;				/* interrupt command */
-  abug_cmds.set_break =   "br %x\r";			/* set a breakpoint */
-  abug_cmds.clr_break =   "nobr %x\r";			/* clear a breakpoint */
-  abug_cmds.clr_all_break =   "nobr\r";			/* clear all breakpoints */
-  abug_cmds.fill =   "bf %x:%x %x;b\r";		/* fill (start count val) */
-  abug_cmds.setmem.cmdb =     "ms %x %02x\r";		/* setmem.cmdb (addr, value) */
-  abug_cmds.setmem.cmdw =     "ms %x %04x\r";		/* setmem.cmdw (addr, value) */
-  abug_cmds.setmem.cmdl =     "ms %x %08x\r";		/* setmem.cmdl (addr, value) */
-  abug_cmds.setmem.cmdll =     NULL;			/* setmem.cmdll (addr, value) */
-  abug_cmds.setmem.resp_delim =     NULL;			/* setreg.resp_delim */
-  abug_cmds.setmem.term =     NULL;			/* setreg.term */
-  abug_cmds.setmem.term_cmd =     NULL;			/* setreg.term_cmd */
-  abug_cmds.getmem.cmdb =     "md %x:%x;b\r";		/* getmem.cmdb (addr, len) */
-  abug_cmds.getmem.cmdw =     "md %x:%x;b\r";		/* getmem.cmdw (addr, len) */
-  abug_cmds.getmem.cmdl =     "md %x:%x;b\r";		/* getmem.cmdl (addr, len) */
-  abug_cmds.getmem.cmdll =     NULL;			/* getmem.cmdll (addr, len) */
-  abug_cmds.getmem.resp_delim =     " ";			/* getmem.resp_delim */
-  abug_cmds.getmem.term =     NULL;			/* getmem.term */
-  abug_cmds.getmem.term_cmd =     NULL;			/* getmem.term_cmd */
-  abug_cmds.setreg.cmd =     "rm %s %x\r";		/* setreg.cmd (name, value) */
-  abug_cmds.setreg.resp_delim =     "=";			/* setreg.resp_delim */
-  abug_cmds.setreg.term =     "? ";			/* setreg.term */
-  abug_cmds.setreg.term_cmd =     ".\r"	;		/* setreg.term_cmd */
-  abug_cmds.getreg.cmd =     "rm %s\r";			/* getreg.cmd (name) */
-  abug_cmds.getreg.resp_delim =     "=";			/* getreg.resp_delim */
-  abug_cmds.getreg.term =     "? ";			/* getreg.term */
-  abug_cmds.getreg.term_cmd =     ".\r"	;		/* getreg.term_cmd */
-    abug_cmds.dump_registers =   "rd\r";			/* dump_registers */
-  abug_cmds.register_pattern =   "\\(\\w+\\) +=\\([0-9a-fA-F]+\\b\\)"; /* register_pattern */
-  abug_cmds.supply_register =   abug_supply_register;	/* supply_register */
-  abug_cmds.load_routine =   NULL;				/* load_routine (defaults to SRECs) */
-  abug_cmds.load =   "lo 0\r";			/* download command */
-  abug_cmds.loadresp =   "\n";				/* load response */
-  abug_cmds.prompt =   "135Bug>";			/* monitor command prompt */
-  abug_cmds.line_term =   "\r";				/* end-of-line terminator */
-  abug_cmds.cmd_end =   NULL;				/* optional command terminator */
-  abug_cmds.target =   &abug_ops;			/* target operations */
-  abug_cmds.stopbits =   SERIAL_1_STOPBITS;		/* number of stop bits */
-  abug_cmds.regnames =   abug_regnames;		/* registers names */
-  abug_cmds.magic =   MONITOR_OPS_MAGIC	;	/* magic */
-}; 
+static struct monitor_ops abug_cmds;
 
 static void
-abug_open(args, from_tty)
+init_abug_cmds (void)
+{
+  abug_cmds.flags = MO_CLR_BREAK_USES_ADDR;
+  abug_cmds.init = abug_inits;	/* Init strings */
+  abug_cmds.cont = "g\r";	/* continue command */
+  abug_cmds.step = "t\r";	/* single step */
+  abug_cmds.stop = NULL;	/* interrupt command */
+  abug_cmds.set_break = "br %x\r";	/* set a breakpoint */
+  abug_cmds.clr_break = "nobr %x\r";	/* clear a breakpoint */
+  abug_cmds.clr_all_break = "nobr\r";	/* clear all breakpoints */
+  abug_cmds.fill = "bf %x:%x %x;b\r";	/* fill (start count val) */
+  abug_cmds.setmem.cmdb = "ms %x %02x\r";	/* setmem.cmdb (addr, value) */
+  abug_cmds.setmem.cmdw = "ms %x %04x\r";	/* setmem.cmdw (addr, value) */
+  abug_cmds.setmem.cmdl = "ms %x %08x\r";	/* setmem.cmdl (addr, value) */
+  abug_cmds.setmem.cmdll = NULL;	/* setmem.cmdll (addr, value) */
+  abug_cmds.setmem.resp_delim = NULL;	/* setreg.resp_delim */
+  abug_cmds.setmem.term = NULL;	/* setreg.term */
+  abug_cmds.setmem.term_cmd = NULL;	/* setreg.term_cmd */
+  abug_cmds.getmem.cmdb = "md %x:%x;b\r";	/* getmem.cmdb (addr, len) */
+  abug_cmds.getmem.cmdw = "md %x:%x;b\r";	/* getmem.cmdw (addr, len) */
+  abug_cmds.getmem.cmdl = "md %x:%x;b\r";	/* getmem.cmdl (addr, len) */
+  abug_cmds.getmem.cmdll = NULL;	/* getmem.cmdll (addr, len) */
+  abug_cmds.getmem.resp_delim = " ";	/* getmem.resp_delim */
+  abug_cmds.getmem.term = NULL;	/* getmem.term */
+  abug_cmds.getmem.term_cmd = NULL;	/* getmem.term_cmd */
+  abug_cmds.setreg.cmd = "rm %s %x\r";	/* setreg.cmd (name, value) */
+  abug_cmds.setreg.resp_delim = "=";	/* setreg.resp_delim */
+  abug_cmds.setreg.term = "? ";	/* setreg.term */
+  abug_cmds.setreg.term_cmd = ".\r";	/* setreg.term_cmd */
+  abug_cmds.getreg.cmd = "rm %s\r";	/* getreg.cmd (name) */
+  abug_cmds.getreg.resp_delim = "=";	/* getreg.resp_delim */
+  abug_cmds.getreg.term = "? ";	/* getreg.term */
+  abug_cmds.getreg.term_cmd = ".\r";	/* getreg.term_cmd */
+  abug_cmds.dump_registers = "rd\r";	/* dump_registers */
+  abug_cmds.register_pattern = "\\(\\w+\\) +=\\([0-9a-fA-F]+\\b\\)";	/* register_pattern */
+  abug_cmds.supply_register = abug_supply_register;	/* supply_register */
+  abug_cmds.load_routine = NULL;	/* load_routine (defaults to SRECs) */
+  abug_cmds.load = "lo 0\r";	/* download command */
+  abug_cmds.loadresp = "\n";	/* load response */
+  abug_cmds.prompt = "135Bug>";	/* monitor command prompt */
+  abug_cmds.line_term = "\r";	/* end-of-line terminator */
+  abug_cmds.cmd_end = NULL;	/* optional command terminator */
+  abug_cmds.target = &abug_ops;	/* target operations */
+  abug_cmds.stopbits = SERIAL_1_STOPBITS;	/* number of stop bits */
+  abug_cmds.regnames = abug_regnames;	/* registers names */
+  abug_cmds.magic = MONITOR_OPS_MAGIC;	/* magic */
+};
+
+static void
+abug_open (args, from_tty)
      char *args;
      int from_tty;
 {
@@ -156,7 +158,7 @@ abug_open(args, from_tty)
 void
 _initialize_abug_rom ()
 {
-  init_abug_cmds() ;
+  init_abug_cmds ();
   init_monitor_ops (&abug_ops);
 
   abug_ops.to_shortname = "abug";

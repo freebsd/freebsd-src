@@ -1,21 +1,22 @@
 /* Target-dependent code for the Fujitsu FR30.
    Copyright 1999, Free Software Foundation, Inc.
 
-This file is part of GDB.
+   This file is part of GDB.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
 #include "defs.h"
 #include "frame.h"
@@ -28,6 +29,22 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "gdbcore.h"
 #include "symfile.h"
 
+/* An expression that tells us whether the function invocation represented
+   by FI does not have a frame on the stack associated with it.  */
+int
+fr30_frameless_function_invocation (fi)
+     struct frame_info *fi;
+{
+  int frameless;
+  CORE_ADDR func_start, after_prologue;
+  func_start = (get_pc_function_start ((fi)->pc) +
+		FUNCTION_START_OFFSET);
+  after_prologue = func_start;
+  after_prologue = SKIP_PROLOGUE (after_prologue);
+  frameless = (after_prologue == func_start);
+  return frameless;
+}
+
 /* Function: pop_frame
    This routine gets called when either the user uses the `return'
    command, or the call dummy breakpoint gets hit.  */
@@ -35,32 +52,75 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 void
 fr30_pop_frame ()
 {
-  struct frame_info *frame = get_current_frame();
+  struct frame_info *frame = get_current_frame ();
   int regnum;
-  CORE_ADDR sp = read_register(SP_REGNUM);
+  CORE_ADDR sp = read_register (SP_REGNUM);
 
-  if (PC_IN_CALL_DUMMY(frame->pc, frame->frame, frame->frame))
+  if (PC_IN_CALL_DUMMY (frame->pc, frame->frame, frame->frame))
     generic_pop_dummy_frame ();
   else
     {
       write_register (PC_REGNUM, FRAME_SAVED_PC (frame));
 
       for (regnum = 0; regnum < NUM_REGS; regnum++)
-	if (frame->fsr.regs[regnum] != 0) {
-	  write_register (regnum,
-		  read_memory_unsigned_integer (frame->fsr.regs[regnum],
-			REGISTER_RAW_SIZE(regnum)));
-	}
+	if (frame->fsr.regs[regnum] != 0)
+	  {
+	    write_register (regnum,
+		      read_memory_unsigned_integer (frame->fsr.regs[regnum],
+					       REGISTER_RAW_SIZE (regnum)));
+	  }
       write_register (SP_REGNUM, sp + frame->framesize);
     }
   flush_cached_frames ();
 }
 
+
+/* Function: fr30_store_return_value
+   Put a value where a caller expects to see it.  Used by the 'return'
+   command.  */
+void
+fr30_store_return_value (struct type *type,
+			 char *valbuf)
+{
+  /* Here's how the FR30 returns values (gleaned from gcc/config/
+     fr30/fr30.h):
+
+     If the return value is 32 bits long or less, it goes in r4.
+
+     If the return value is 64 bits long or less, it goes in r4 (most
+     significant word) and r5 (least significant word.
+
+     If the function returns a structure, of any size, the caller
+     passes the function an invisible first argument where the callee
+     should store the value.  But GDB doesn't let you do that anyway.
+
+     If you're returning a value smaller than a word, it's not really
+     necessary to zero the upper bytes of the register; the caller is
+     supposed to ignore them.  However, the FR30 typically keeps its
+     values extended to the full register width, so we should emulate
+     that.  */
+
+  /* The FR30 is big-endian, so if we return a small value (like a
+     short or a char), we need to position it correctly within the
+     register.  We round the size up to a register boundary, and then
+     adjust the offset so as to place the value at the right end.  */
+  int value_size = TYPE_LENGTH (type);
+  int returned_size = (value_size + FR30_REGSIZE - 1) & ~(FR30_REGSIZE - 1);
+  int offset = (REGISTER_BYTE (RETVAL_REG)
+		+ (returned_size - value_size));
+  char *zeros = alloca (returned_size);
+  memset (zeros, 0, returned_size);
+
+  write_register_bytes (REGISTER_BYTE (RETVAL_REG), zeros, returned_size);
+  write_register_bytes (offset, valbuf, value_size);
+}
+
+
 /* Function: skip_prologue
    Return the address of the first code past the prologue of the function.  */
 
 CORE_ADDR
-fr30_skip_prologue(CORE_ADDR pc)
+fr30_skip_prologue (CORE_ADDR pc)
 {
   CORE_ADDR func_addr, func_end;
 
@@ -72,8 +132,9 @@ fr30_skip_prologue(CORE_ADDR pc)
 
       sal = find_pc_line (func_addr, 0);
 
-      if (sal.line != 0 && sal.end < func_end) {
-	return sal.end;
+      if (sal.line != 0 && sal.end < func_end)
+	{
+	  return sal.end;
 	}
     }
 
@@ -95,96 +156,99 @@ fr30_skip_prologue(CORE_ADDR pc)
    is passed in as a secret first argument (always in FIRST_ARGREG).
 
    Stack space for the args has NOT been allocated: that job is up to us.
-*/
+ */
 
 CORE_ADDR
-fr30_push_arguments(nargs, args, sp, struct_return, struct_addr)
-     int         nargs;
-     value_ptr * args;
-     CORE_ADDR   sp;
-     int         struct_return;
-     CORE_ADDR   struct_addr;
+fr30_push_arguments (nargs, args, sp, struct_return, struct_addr)
+     int nargs;
+     value_ptr *args;
+     CORE_ADDR sp;
+     int struct_return;
+     CORE_ADDR struct_addr;
 {
   int argreg;
   int argnum;
   int stack_offset;
-  struct stack_arg {
+  struct stack_arg
+    {
       char *val;
       int len;
       int offset;
     };
   struct stack_arg *stack_args =
-      (struct stack_arg*)alloca (nargs * sizeof (struct stack_arg));
+  (struct stack_arg *) alloca (nargs * sizeof (struct stack_arg));
   int nstack_args = 0;
 
   argreg = FIRST_ARGREG;
 
   /* the struct_return pointer occupies the first parameter-passing reg */
   if (struct_return)
-      write_register (argreg++, struct_addr);
+    write_register (argreg++, struct_addr);
 
   stack_offset = 0;
 
   /* Process args from left to right.  Store as many as allowed in
-	registers, save the rest to be pushed on the stack */
-  for(argnum = 0; argnum < nargs; argnum++)
+     registers, save the rest to be pushed on the stack */
+  for (argnum = 0; argnum < nargs; argnum++)
     {
-      char *         val;
-      value_ptr      arg = args[argnum];
-      struct type *  arg_type = check_typedef (VALUE_TYPE (arg));
-      struct type *  target_type = TYPE_TARGET_TYPE (arg_type);
-      int            len = TYPE_LENGTH (arg_type);
+      char *val;
+      value_ptr arg = args[argnum];
+      struct type *arg_type = check_typedef (VALUE_TYPE (arg));
+      struct type *target_type = TYPE_TARGET_TYPE (arg_type);
+      int len = TYPE_LENGTH (arg_type);
       enum type_code typecode = TYPE_CODE (arg_type);
-      CORE_ADDR      regval;
+      CORE_ADDR regval;
       int newarg;
 
       val = (char *) VALUE_CONTENTS (arg);
 
-	{
-	  /* Copy the argument to general registers or the stack in
-	     register-sized pieces.  Large arguments are split between
-	     registers and stack.  */
-	  while (len > 0)
-	    {
-	      if (argreg <= LAST_ARGREG)
-		{
-	          int partial_len = len < REGISTER_SIZE ? len : REGISTER_SIZE;
-		  regval = extract_address (val, partial_len);
-
-		  /* It's a simple argument being passed in a general
-		     register.  */
-		  write_register (argreg, regval);
-		  argreg++;
-	          len -= partial_len;
-	          val += partial_len;
-		}
-	      else
-		{
-		  /* keep for later pushing */
-		  stack_args[nstack_args].val = val;
-		  stack_args[nstack_args++].len = len;
-		  break;
-		}
-	    }
-	}
-    }
-    /* now do the real stack pushing, process args right to left */
-    while(nstack_args--)
       {
-	sp -= stack_args[nstack_args].len;
-	write_memory(sp, stack_args[nstack_args].val,
-		stack_args[nstack_args].len);
+	/* Copy the argument to general registers or the stack in
+	   register-sized pieces.  Large arguments are split between
+	   registers and stack.  */
+	while (len > 0)
+	  {
+	    if (argreg <= LAST_ARGREG)
+	      {
+		int partial_len = len < REGISTER_SIZE ? len : REGISTER_SIZE;
+		regval = extract_address (val, partial_len);
+
+		/* It's a simple argument being passed in a general
+		   register.  */
+		write_register (argreg, regval);
+		argreg++;
+		len -= partial_len;
+		val += partial_len;
+	      }
+	    else
+	      {
+		/* keep for later pushing */
+		stack_args[nstack_args].val = val;
+		stack_args[nstack_args++].len = len;
+		break;
+	      }
+	  }
       }
+    }
+  /* now do the real stack pushing, process args right to left */
+  while (nstack_args--)
+    {
+      sp -= stack_args[nstack_args].len;
+      write_memory (sp, stack_args[nstack_args].val,
+		    stack_args[nstack_args].len);
+    }
 
   /* Return adjusted stack pointer.  */
   return sp;
 }
 
-_initialize_fr30_tdep()
-{
-	extern int print_insn_fr30(bfd_vma, disassemble_info *);
+void _initialize_fr30_tdep PARAMS ((void));
 
-	tm_print_insn = print_insn_fr30;
+void
+_initialize_fr30_tdep ()
+{
+  extern int print_insn_fr30 (bfd_vma, disassemble_info *);
+  tm_print_insn = print_insn_fr30;
 }
 
 /* Function: check_prologue_cache
@@ -193,23 +257,23 @@ _initialize_fr30_tdep()
    return non-zero.  Otherwise do not copy anything and return zero.
 
    The information saved in the cache includes:
-     * the frame register number;
-     * the size of the stack frame;
-     * the offsets of saved regs (relative to the old SP); and
-     * the offset from the stack pointer to the frame pointer
+   * the frame register number;
+   * the size of the stack frame;
+   * the offsets of saved regs (relative to the old SP); and
+   * the offset from the stack pointer to the frame pointer
 
    The cache contains only one entry, since this is adequate
    for the typical sequence of prologue scan requests we get.
    When performing a backtrace, GDB will usually ask to scan
    the same function twice in a row (once to get the frame chain,
    and once to fill in the extra frame information).
-*/
+ */
 
 static struct frame_info prologue_cache;
 
 static int
 check_prologue_cache (fi)
-     struct frame_info * fi;
+     struct frame_info *fi;
 {
   int i;
 
@@ -229,22 +293,23 @@ check_prologue_cache (fi)
 
 /* Function: save_prologue_cache
    Copy the prologue information from fi to the prologue cache.
-*/
+ */
 
 static void
 save_prologue_cache (fi)
-     struct frame_info * fi;
+     struct frame_info *fi;
 {
   int i;
 
-  prologue_cache.pc          = fi->pc;
-  prologue_cache.framereg    = fi->framereg;
-  prologue_cache.framesize   = fi->framesize;
+  prologue_cache.pc = fi->pc;
+  prologue_cache.framereg = fi->framereg;
+  prologue_cache.framesize = fi->framesize;
   prologue_cache.frameoffset = fi->frameoffset;
-  
-  for (i = 0; i <= NUM_REGS; i++) {
-    prologue_cache.fsr.regs[i] = fi->fsr.regs[i];
-  }
+
+  for (i = 0; i <= NUM_REGS; i++)
+    {
+      prologue_cache.fsr.regs[i] = fi->fsr.regs[i];
+    }
 }
 
 
@@ -259,7 +324,7 @@ save_prologue_cache (fi)
 
 static void
 fr30_scan_prologue (fi)
-     struct frame_info * fi;
+     struct frame_info *fi;
 {
   int sp_offset, fp_offset;
   CORE_ADDR prologue_start, prologue_end, current_pc;
@@ -269,8 +334,8 @@ fr30_scan_prologue (fi)
     return;
 
   /* Assume there is no frame until proven otherwise.  */
-  fi->framereg    = SP_REGNUM;
-  fi->framesize   = 0;
+  fi->framereg = SP_REGNUM;
+  fi->framesize = 0;
   fi->frameoffset = 0;
 
   /* Find the function prologue.  If we can't find the function in
@@ -281,10 +346,10 @@ fr30_scan_prologue (fi)
          in the function and the first source line.  */
       struct symtab_and_line sal = find_pc_line (prologue_start, 0);
 
-      if (sal.line == 0)		/* no line info, use current PC */
+      if (sal.line == 0)	/* no line info, use current PC */
 	prologue_end = fi->pc;
       else if (sal.end < prologue_end)	/* next line begins after fn end */
-	prologue_end = sal.end;		/* (probably means no prologue)  */
+	prologue_end = sal.end;	/* (probably means no prologue)  */
     }
   else
     {
@@ -303,14 +368,14 @@ fr30_scan_prologue (fi)
 
       insn = read_memory_unsigned_integer (current_pc, 2);
 
-      if ((insn & 0xfe00) == 0x8e00)			/* stm0 or stm1 */
+      if ((insn & 0xfe00) == 0x8e00)	/* stm0 or stm1 */
 	{
 	  int reg, mask = insn & 0xff;
 
 	  /* scan in one sweep - create virtual 16-bit mask from either insn's mask */
-          if((insn & 0x0100) == 0)
+	  if ((insn & 0x0100) == 0)
 	    {
-	      mask <<= 8;  /* stm0 - move to upper byte in virtual mask */
+	      mask <<= 8;	/* stm0 - move to upper byte in virtual mask */
 	    }
 
 	  /* Calculate offsets of saved registers (to be turned later into addresses). */
@@ -321,53 +386,53 @@ fr30_scan_prologue (fi)
 		fi->fsr.regs[reg] = sp_offset;
 	      }
 	}
-      else if((insn & 0xfff0) == 0x1700)		/* st rx,@-r15 */
-        {
+      else if ((insn & 0xfff0) == 0x1700)	/* st rx,@-r15 */
+	{
 	  int reg = insn & 0xf;
 
 	  sp_offset -= 4;
 	  fi->fsr.regs[reg] = sp_offset;
 	}
-      else if((insn & 0xff00) == 0x0f00)		/* enter */
-        {
+      else if ((insn & 0xff00) == 0x0f00)	/* enter */
+	{
 	  fp_offset = fi->fsr.regs[FP_REGNUM] = sp_offset - 4;
 	  sp_offset -= 4 * (insn & 0xff);
 	  fi->framereg = FP_REGNUM;
 	}
-      else if(insn == 0x1781)				/* st rp,@-sp */
+      else if (insn == 0x1781)	/* st rp,@-sp */
 	{
-		sp_offset -= 4;
-		fi->fsr.regs[RP_REGNUM] = sp_offset;
+	  sp_offset -= 4;
+	  fi->fsr.regs[RP_REGNUM] = sp_offset;
 	}
-      else if(insn == 0x170e)				/* st fp,@-sp */
+      else if (insn == 0x170e)	/* st fp,@-sp */
 	{
-		sp_offset -= 4;
-		fi->fsr.regs[FP_REGNUM] = sp_offset;
+	  sp_offset -= 4;
+	  fi->fsr.regs[FP_REGNUM] = sp_offset;
 	}
-      else if(insn == 0x8bfe)				/* mov sp,fp */
+      else if (insn == 0x8bfe)	/* mov sp,fp */
 	{
 	  fi->framereg = FP_REGNUM;
 	}
-      else if((insn & 0xff00) == 0xa300)		/* addsp xx */
+      else if ((insn & 0xff00) == 0xa300)	/* addsp xx */
 	{
-	  sp_offset += 4 * (signed char)(insn & 0xff);
+	  sp_offset += 4 * (signed char) (insn & 0xff);
 	}
-      else if((insn & 0xff0f) == 0x9b00 &&		/* ldi:20 xx,r0 */
-	read_memory_unsigned_integer(current_pc+4, 2)
-	  == 0xac0f)					/* sub r0,sp */
+      else if ((insn & 0xff0f) == 0x9b00 &&	/* ldi:20 xx,r0 */
+	       read_memory_unsigned_integer (current_pc + 4, 2)
+	       == 0xac0f)	/* sub r0,sp */
 	{
 	  /* large stack adjustment */
-	  sp_offset -= (((insn & 0xf0) << 12) | read_memory_unsigned_integer(current_pc+2, 2));
+	  sp_offset -= (((insn & 0xf0) << 12) | read_memory_unsigned_integer (current_pc + 2, 2));
 	  current_pc += 4;
 	}
-      else if(insn == 0x9f80 &&				/* ldi:32 xx,r0 */
-	read_memory_unsigned_integer(current_pc+6, 2)
-	  == 0xac0f)					/* sub r0,sp */
+      else if (insn == 0x9f80 &&	/* ldi:32 xx,r0 */
+	       read_memory_unsigned_integer (current_pc + 6, 2)
+	       == 0xac0f)	/* sub r0,sp */
 	{
 	  /* large stack adjustment */
 	  sp_offset -=
-		(read_memory_unsigned_integer(current_pc+2, 2) << 16 |
-			read_memory_unsigned_integer(current_pc+4, 2));
+	    (read_memory_unsigned_integer (current_pc + 2, 2) << 16 |
+	     read_memory_unsigned_integer (current_pc + 4, 2));
 	  current_pc += 6;
 	}
     }
@@ -377,7 +442,7 @@ fr30_scan_prologue (fi)
      [new FP] - [new SP].  */
   fi->framesize = -sp_offset;
   fi->frameoffset = fp_offset - sp_offset;
-  
+
   save_prologue_cache (fi);
 }
 
@@ -396,7 +461,7 @@ fr30_scan_prologue (fi)
 
 void
 fr30_init_extra_frame_info (fi)
-     struct frame_info * fi;
+     struct frame_info *fi;
 {
   int reg;
 
@@ -408,28 +473,29 @@ fr30_init_extra_frame_info (fi)
   if (PC_IN_CALL_DUMMY (fi->pc, fi->frame, fi->frame))
     {
       /* We need to setup fi->frame here because run_stack_dummy gets it wrong
-	 by assuming it's always FP.  */
-      fi->frame       = generic_read_register_dummy (fi->pc, fi->frame, SP_REGNUM);
-      fi->framesize   = 0;
+         by assuming it's always FP.  */
+      fi->frame = generic_read_register_dummy (fi->pc, fi->frame, SP_REGNUM);
+      fi->framesize = 0;
       fi->frameoffset = 0;
       return;
     }
-      fr30_scan_prologue (fi);
+  fr30_scan_prologue (fi);
 
-      if (!fi->next)			/* this is the innermost frame? */
-	fi->frame = read_register (fi->framereg);
-      else			 	/* not the innermost frame */
-	/* If we have an FP,  the callee saved it. */
-	if (fi->framereg == FP_REGNUM)
-	  if (fi->next->fsr.regs[fi->framereg] != 0)
-	    fi->frame = read_memory_integer (fi->next->fsr.regs[fi->framereg],
-					     4);
-      /* Calculate actual addresses of saved registers using offsets determined
-         by fr30_scan_prologue.  */
-      for (reg = 0; reg < NUM_REGS; reg++)
-	if (fi->fsr.regs[reg] != 0) {
-	  fi->fsr.regs[reg] += fi->frame + fi->framesize - fi->frameoffset;
-	}
+  if (!fi->next)		/* this is the innermost frame? */
+    fi->frame = read_register (fi->framereg);
+  else
+    /* not the innermost frame */
+    /* If we have an FP,  the callee saved it. */ if (fi->framereg == FP_REGNUM)
+    if (fi->next->fsr.regs[fi->framereg] != 0)
+      fi->frame = read_memory_integer (fi->next->fsr.regs[fi->framereg],
+				       4);
+  /* Calculate actual addresses of saved registers using offsets determined
+     by fr30_scan_prologue.  */
+  for (reg = 0; reg < NUM_REGS; reg++)
+    if (fi->fsr.regs[reg] != 0)
+      {
+	fi->fsr.regs[reg] += fi->frame + fi->framesize - fi->frameoffset;
+      }
 }
 
 /* Function: find_callers_reg
@@ -449,8 +515,8 @@ fr30_find_callers_reg (fi, regnum)
     if (PC_IN_CALL_DUMMY (fi->pc, fi->frame, fi->frame))
       return generic_read_register_dummy (fi->pc, fi->frame, regnum);
     else if (fi->fsr.regs[regnum] != 0)
-      return read_memory_unsigned_integer (fi->fsr.regs[regnum], 
-					   REGISTER_RAW_SIZE(regnum));
+      return read_memory_unsigned_integer (fi->fsr.regs[regnum],
+					   REGISTER_RAW_SIZE (regnum));
 
   return read_register (regnum);
 }
@@ -466,7 +532,7 @@ fr30_find_callers_reg (fi, regnum)
 
 CORE_ADDR
 fr30_frame_chain (fi)
-     struct frame_info * fi;
+     struct frame_info *fi;
 {
   CORE_ADDR fn_start, callers_pc, fp;
   struct frame_info caller_fi;
@@ -474,17 +540,17 @@ fr30_frame_chain (fi)
 
   /* is this a dummy frame? */
   if (PC_IN_CALL_DUMMY (fi->pc, fi->frame, fi->frame))
-    return fi->frame;	/* dummy frame same as caller's frame */
+    return fi->frame;		/* dummy frame same as caller's frame */
 
   /* is caller-of-this a dummy frame? */
-  callers_pc = FRAME_SAVED_PC(fi);  /* find out who called us: */
+  callers_pc = FRAME_SAVED_PC (fi);	/* find out who called us: */
   fp = fr30_find_callers_reg (fi, FP_REGNUM);
-  if (PC_IN_CALL_DUMMY (callers_pc, fp, fp))	
-    return fp;		/* dummy frame's frame may bear no relation to ours */
+  if (PC_IN_CALL_DUMMY (callers_pc, fp, fp))
+    return fp;			/* dummy frame's frame may bear no relation to ours */
 
   if (find_pc_partial_function (fi->pc, 0, &fn_start, 0))
     if (fn_start == entry_point_address ())
-      return 0;		/* in _start fn, don't chain further */
+      return 0;			/* in _start fn, don't chain further */
 
   framereg = fi->framereg;
 
@@ -493,9 +559,9 @@ fr30_frame_chain (fi)
     if (fn_start == entry_point_address ())
       return 0;
 
-  memset (& caller_fi, 0, sizeof (caller_fi));
+  memset (&caller_fi, 0, sizeof (caller_fi));
   caller_fi.pc = callers_pc;
-  fr30_scan_prologue (& caller_fi);
+  fr30_scan_prologue (&caller_fi);
   framereg = caller_fi.framereg;
 
   /* If the caller used a frame register, return its value.
@@ -517,8 +583,8 @@ CORE_ADDR
 fr30_frame_saved_pc (fi)
      struct frame_info *fi;
 {
-  if (PC_IN_CALL_DUMMY(fi->pc, fi->frame, fi->frame))
-    return generic_read_register_dummy(fi->pc, fi->frame, PC_REGNUM);
+  if (PC_IN_CALL_DUMMY (fi->pc, fi->frame, fi->frame))
+    return generic_read_register_dummy (fi->pc, fi->frame, PC_REGNUM);
   else
     return fr30_find_callers_reg (fi, RP_REGNUM);
 }
@@ -526,9 +592,9 @@ fr30_frame_saved_pc (fi)
 /* Function: fix_call_dummy
    Pokes the callee function's address into the CALL_DUMMY assembly stub.
    Assumes that the CALL_DUMMY looks like this:
-	jarl <offset24>, r31
-	trap
-   */
+   jarl <offset24>, r31
+   trap
+ */
 
 int
 fr30_fix_call_dummy (dummy, sp, fun, nargs, args, type, gcc_p)
@@ -546,7 +612,7 @@ fr30_fix_call_dummy (dummy, sp, fun, nargs, args, type, gcc_p)
   offset24 &= 0x3fffff;
   offset24 |= 0xff800000;	/* jarl <offset24>, r31 */
 
-  store_unsigned_integer ((unsigned int *)&dummy[2], 2, offset24 & 0xffff);
-  store_unsigned_integer ((unsigned int *)&dummy[0], 2, offset24 >> 16);
+  store_unsigned_integer ((unsigned int *) &dummy[2], 2, offset24 & 0xffff);
+  store_unsigned_integer ((unsigned int *) &dummy[0], 2, offset24 >> 16);
   return 0;
 }
