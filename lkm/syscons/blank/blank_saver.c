@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: blank_saver.c,v 1.6.2.1 1997/06/29 08:51:37 obrien Exp $
+ *	$Id: blank_saver.c,v 1.6.2.2 1997/09/02 10:37:30 yokota Exp $
  */
 
 #include <sys/param.h>
@@ -46,12 +46,44 @@ blank_saver(int blank)
 	u_char val;
 	if (blank) {
 		scrn_blanked = 1;
-		outb(TSIDX, 0x01); val = inb(TSREG);
-		outb(TSIDX, 0x01); outb(TSREG, val | 0x20);
+		switch (crtc_type) {
+		case KD_VGA:
+			outb(TSIDX, 0x01); val = inb(TSREG);
+			outb(TSIDX, 0x01); outb(TSREG, val | 0x20);
+			break;
+		case KD_EGA:
+			/* not yet done XXX */
+			break;
+		case KD_CGA:
+			outb(crtc_addr + 4, 0x25);
+			break;
+		case KD_MONO:
+		case KD_HERCULES:
+			outb(crtc_addr + 4, 0x21);
+			break;
+		default:
+			break;
+		}
 	}
 	else {
-		outb(TSIDX, 0x01); val = inb(TSREG);
-		outb(TSIDX, 0x01); outb(TSREG, val & 0xDF);
+		switch (crtc_type) {
+		case KD_VGA:
+			outb(TSIDX, 0x01); val = inb(TSREG);
+			outb(TSIDX, 0x01); outb(TSREG, val & 0xDF);
+			break;
+		case KD_EGA:
+			/* not yet done XXX */
+			break;
+		case KD_CGA:
+			outb(crtc_addr + 4, 0x2d);
+			break;
+		case KD_MONO:
+		case KD_HERCULES:
+			outb(crtc_addr + 4, 0x29);
+			break;
+		default:
+			break;
+		}
 		scrn_blanked = 0;
 	}
 }
@@ -59,8 +91,17 @@ blank_saver(int blank)
 static int
 blank_saver_load(struct lkm_table *lkmtp, int cmd)
 {
-	if (!crtc_vga)
-		return EINVAL;
+	switch (crtc_type) {
+	case KD_MONO:
+	case KD_HERCULES:
+	case KD_CGA:
+	case KD_VGA:
+		break;
+	case KD_EGA:
+		/* EGA is yet to be supported */
+	default:
+		return ENODEV;
+	}
 	return add_scrn_saver(blank_saver);
 }
 

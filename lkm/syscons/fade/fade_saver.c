@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: fade_saver.c,v 1.6.2.2 1997/06/29 08:51:42 obrien Exp $
+ *	$Id: fade_saver.c,v 1.6.2.3 1997/09/02 10:37:43 yokota Exp $
  */
 
 #include <sys/param.h>
@@ -48,34 +48,80 @@ fade_saver(int blank)
 
 	if (blank) {
 		scrn_blanked = 1;
-		if (count < 64) {
-			outb(PIXMASK, 0xFF);		/* no pixelmask */
-			outb(PALWADR, 0x00);
-			outb(PALDATA, 0);
-			outb(PALDATA, 0);
-			outb(PALDATA, 0);
-			for (i = 3; i < 768; i++) {
-				if (palette[i] - count > 15)
-					outb(PALDATA, palette[i]-count);
-				else
-					outb(PALDATA, 15);
+		switch (crtc_type) {
+		case KD_VGA:
+			if (count < 64) {
+				outb(PIXMASK, 0xFF);	/* no pixelmask */
+				outb(PALWADR, 0x00);
+				outb(PALDATA, 0);
+				outb(PALDATA, 0);
+				outb(PALDATA, 0);
+				for (i = 3; i < 768; i++) {
+					if (palette[i] - count > 15)
+						outb(PALDATA, palette[i]-count);
+					else
+						outb(PALDATA, 15);
+				}
+				inb(crtc_addr+6);	/* reset flip/flop */
+				outb(ATC, 0x20);	/* enable palette */
+				count++;
 			}
-			inb(crtc_addr+6);		/* reset flip/flop */
-			outb(ATC, 0x20);		/* enable palette */
-			count++;
+			break;
+		case KD_EGA:
+			/* not yet done XXX */
+			break;
+		case KD_CGA:
+			outb(crtc_addr + 4, 0x25);
+			break;
+		case KD_MONO:
+		case KD_HERCULES:
+			outb(crtc_addr + 4, 0x21);
+			break;
+		default:
+			break;
 		}
 	}
 	else {
-		load_palette(palette);
-		count = scrn_blanked = 0;
+		switch (crtc_type) {
+		case KD_VGA:
+			load_palette(palette);
+			count = 0;
+			break;
+		case KD_EGA:
+			/* not yet done XXX */
+			break;
+		case KD_CGA:
+			outb(crtc_addr + 4, 0x2d);
+			break;
+		case KD_MONO:
+		case KD_HERCULES:
+			outb(crtc_addr + 4, 0x29);
+			break;
+		default:
+			break;
+		}
+		scrn_blanked = 0;
 	}
 }
 
 static int
 fade_saver_load(struct lkm_table *lkmtp, int cmd)
 {
-	if (!crtc_vga)
-		return EINVAL;
+	switch (crtc_type) {
+	case KD_MONO:
+	case KD_HERCULES:
+	case KD_CGA:
+		/* 
+		 * `fade' saver is not fully implemented for MDA and CGA.
+		 * It simply blanks the display instead.
+		 */
+	case KD_VGA:
+		break;
+	case KD_EGA:
+		/* EGA is yet to be supported */
+	default:
+		return ENODEV;
+	}
 	return add_scrn_saver(fade_saver);
 }
 
