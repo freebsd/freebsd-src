@@ -1,6 +1,6 @@
 /* misc.c -- miscellaneous bindable readline functions. */
 
-/* Copyright (C) 1987-2002 Free Software Foundation, Inc.
+/* Copyright (C) 1987-2004 Free Software Foundation, Inc.
 
    This file is part of the GNU Readline Library, a library for
    reading lines of text with interactive input and history editing.
@@ -253,6 +253,8 @@ rl_maybe_unsave_line ()
 {
   if (_rl_saved_line_for_history)
     {
+      /* Can't call with `1' because rl_undo_list might point to an undo
+	 list from a history entry, as in rl_replace_from_history() below. */
       rl_replace_line (_rl_saved_line_for_history->line, 0);
       rl_undo_list = (UNDO_LIST *)_rl_saved_line_for_history->data;
       _rl_free_history_entry (_rl_saved_line_for_history);
@@ -274,6 +276,13 @@ rl_maybe_save_line ()
       _rl_saved_line_for_history->line = savestring (rl_line_buffer);
       _rl_saved_line_for_history->data = (char *)rl_undo_list;
     }
+  else if (STREQ (rl_line_buffer, _rl_saved_line_for_history->line) == 0)
+    {
+      free (_rl_saved_line_for_history->line);
+      _rl_saved_line_for_history->line = savestring (rl_line_buffer);
+      _rl_saved_line_for_history->data = (char *)rl_undo_list;	/* XXX possible memleak */
+    }
+
   return 0;
 }
 
@@ -298,7 +307,7 @@ _rl_history_set_point ()
     rl_point = rl_end;
 
 #if defined (VI_MODE)
-  if (rl_editing_mode == vi_mode)
+  if (rl_editing_mode == vi_mode && _rl_keymap != vi_insertion_keymap)
     rl_point = 0;
 #endif /* VI_MODE */
 
@@ -311,6 +320,8 @@ rl_replace_from_history (entry, flags)
      HIST_ENTRY *entry;
      int flags;			/* currently unused */
 {
+  /* Can't call with `1' because rl_undo_list might point to an undo list
+     from a history entry, just like we're setting up here. */
   rl_replace_line (entry->line, 0);
   rl_undo_list = (UNDO_LIST *)entry->data;
   rl_point = rl_end;
@@ -435,6 +446,7 @@ rl_get_previous_history (count, key)
       rl_replace_from_history (temp, 0);
       _rl_history_set_point ();
     }
+
   return 0;
 }
 
