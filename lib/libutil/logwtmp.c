@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)logwtmp.c	8.1 (Berkeley) 6/4/93";
 #else
 static const char rcsid[] =
-	"$Id: logwtmp.c,v 1.8 1998/10/09 11:24:19 jkh Exp $";
+	"$Id: logwtmp.c,v 1.9 1999/04/07 08:27:04 brian Exp $";
 #endif
 #endif /* LIBC_SCCS and not lint */
 
@@ -55,7 +55,7 @@ static const char rcsid[] =
 #include <utmp.h>
 
 void
-trimdomain( char * fullhost, int hostsize )
+trimdomain(char *fullhost, int hostsize)
 {
     static char domain[MAXHOSTNAMELEN];
     static int first = 1;
@@ -67,21 +67,18 @@ trimdomain( char * fullhost, int hostsize )
             (s = strchr(domain, '.')))
             bcopy(s + 1, domain, strlen(s + 1) + 1);
         else
-            domain[0] = 0;
+            domain[0] = '\0';
     }
 
-    if (domain[0]) {
-		s = fullhost;
-        while ((fullhost = strchr(fullhost, '.'))) {
+    if (domain[0] != '\0') {
+	s = fullhost;
+        while ((fullhost = strchr(fullhost, '.')) != NULL)
             if (!strcasecmp(fullhost + 1, domain)) {
-		if ( fullhost - s  < hostsize ) {
+		if (fullhost - s  <= hostsize)
                		*fullhost = '\0';    /* hit it and acceptable size*/
-		}
                 break;
-            } else {
+            } else
                 fullhost++;
-            }
-        }
     }
 }
 
