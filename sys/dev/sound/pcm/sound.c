@@ -88,7 +88,7 @@ nomenclature:
 
 static devclass_t pcm_devclass;
 int snd_unit;
-TUNABLE_INT_DECL("hw.sndunit", 0, snd_unit);
+TUNABLE_INT_DECL("hw.snd.unit", 0, snd_unit);
 
 static void
 pcm_makelinks(void *dummy)
