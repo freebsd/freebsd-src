@@ -41,7 +41,7 @@
 .Nd front-end to the print spooler
 .Sh SYNOPSIS
 .Nm lp
-.Op Fl c
+.Op Fl cs
 .Op Fl d Ar printer
 .Op Fl n Ar num
 .Op Ar name ...
@@ -78,6 +78,11 @@ are taken as the destination printer.
 Specify that
 .Ar num
 copies of each of the named files shall be printed.
+.It Fl s
+Silent operation.
+Not supported,
+provided only as a compatibility option for
+.St -susv2 .
 .El
 .Sh ENVIRONMENT
 As described above, the variables
