@@ -67,7 +67,7 @@ Int_Open_Disk(const char *name, u_long size)
 #endif
 	u_long offset = 0;
 
-	strcpy(device,_PATH_DEV"r");
+	strcpy(device,_PATH_DEV);
 	strcat(device,name);
 
 	d = (struct disk *)malloc(sizeof *d);
@@ -236,7 +236,7 @@ Int_Open_Disk(const char *name, u_long size)
 		char pname[20];
 		int j,k;
 
-		strcpy(pname,_PATH_DEV"r");
+		strcpy(pname,_PATH_DEV);
 		strcat(pname,sname);
 		j = open(pname,O_RDONLY);
 		if (j < 0) {
@@ -301,7 +301,7 @@ Int_Open_Disk(const char *name, u_long size)
 		char pname[20];
 		int j,k;
 
-		strcpy(pname,_PATH_DEV"r");
+		strcpy(pname,_PATH_DEV);
 		strcat(pname,name);
 		j = open(pname,O_RDONLY);
 		if (j < 0) {
@@ -458,7 +458,7 @@ Disk_Names()
 	for (j = 0; device_list[j]; j++) {
 		for (i = 0; i < MAX_NO_DISKS; i++) {
 			sprintf(diskname, "%s%d", device_list[j], i);
-			sprintf(disk, _PATH_DEV"r%s", diskname);
+			sprintf(disk, _PATH_DEV"%s", diskname);
 			if (stat(disk, &st) || !(st.st_mode & S_IFCHR))
 				continue;
 			if ((fd = open(disk, O_RDWR)) == -1)

@@ -182,7 +182,7 @@ Write_Disk(struct disk *d1)
 	int one = 1;
 	int zero = 0;
 
-	strcpy(device,_PATH_DEV"r");
+	strcpy(device,_PATH_DEV);
         strcat(device,d1->name);
 
 #ifdef PC98
