@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.7 (Berkeley) 1/21/94
- * $Id: ufs_readwrite.c,v 1.16 1995/11/20 12:25:23 phk Exp $
+ * $Id: ufs_readwrite.c,v 1.17 1995/12/11 04:57:47 dyson Exp $
  */
 
 #ifdef LFS_READWRITE
@@ -382,7 +382,7 @@ ffs_getpages(ap)
 		}
 	}
 
-	physoffset = reqblkno * DEV_BSIZE + poff * PAGE_SIZE;
+	physoffset = (off_t)reqblkno * DEV_BSIZE + (off_t)poff * PAGE_SIZE;
 	pagesperblock = bsize / PAGE_SIZE;
 	/*
 	 * find the first page that is contiguous...
