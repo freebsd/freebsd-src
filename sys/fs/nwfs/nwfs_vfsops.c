@@ -147,6 +147,8 @@ static int nwfs_omount(struct mount *mp, char *path, caddr_t data,
 	struct vnode *vp;
 	char *pc,*pe;
 
+	if (mp->mnt_flag & MNT_ROOTFS)
+		return (EOPNOTSUPP);
 	if (data == NULL) {
 		nwfs_printf("missing data argument\n");
 		return 1;

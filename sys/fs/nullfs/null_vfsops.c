@@ -85,6 +85,8 @@ nullfs_mount(struct mount *mp, struct thread *td)
 
 	NULLFSDEBUG("nullfs_mount(mp = %p)\n", (void *)mp);
 
+	if (mp->mnt_flag & MNT_ROOTFS)
+		return (EOPNOTSUPP);
 	/*
 	 * Update is a no-op
 	 */
