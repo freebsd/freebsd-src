@@ -397,7 +397,8 @@ if_attach(struct ifnet *ifp)
 		if_grow();
 
 	ifnet_byindex(ifp->if_index) = ifp;
-	ifdev_byindex(ifp->if_index) = make_dev(&net_cdevsw, ifp->if_index,
+	ifdev_byindex(ifp->if_index) = make_dev(&net_cdevsw,
+	    unit2minor(ifp->if_index),
 	    UID_ROOT, GID_WHEEL, 0600, "%s/%s",
 	    net_cdevsw.d_name, ifp->if_xname);
 	make_dev_alias(ifdev_byindex(ifp->if_index), "%s%d",
