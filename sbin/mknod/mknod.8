@@ -43,6 +43,7 @@
 .Ar name
 .Op Cm c | Cm b
 .Ar major minor
+.Op owner:group
 .Sh DESCRIPTION
 The
 .Nm mknod
@@ -90,6 +91,23 @@ The minor device number tells the kernel which subunit
 the node corresponds to on the device; for example,
 a subunit may be a filesystem partition
 or a tty line.
+.It Ar "owner \: group"
+The
+.Ar owner
+.Ar group
+operand pair is optional, however, if one is specified, they both must be
+specified.
+The
+.Ar owner
+may be either a numeric user ID or a user name.
+If a user name is also a numeric user ID, the operand is used as a
+user name.
+The
+.Ar group
+may be either a numeric group ID or a group name.
+Simular to the user name, 
+if a group name is also a numeric group ID, the operand is used as a
+group name.
 .El
 .Pp
 Major and minor device numbers can be given in any format acceptable to
@@ -99,10 +117,21 @@ so that a leading
 indicates a hexadecimal number, and a leading
 .Ql 0
 will cause the number to be interpreted as octal.
+.Sh COMPATIBILITY
+The
+.Xr chown 8
+like functionality is specific to
+.Fx
+and was added so that
+.Pa /dev/MAKEDEV
+wound not depend on
+.Pa /usr
+being mounted.
 .Sh SEE ALSO
 .Xr mkfifo 1 ,
 .Xr mknod 2 ,
-.Xr MAKEDEV 8
+.Xr MAKEDEV 8 ,
+.Xr chown 8
 .Sh HISTORY
 A
 .Nm
