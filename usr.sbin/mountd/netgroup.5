@@ -67,7 +67,8 @@ Any of the comma separated fields may be empty to specify a ``wildcard'' value
 or may consist of the string ``-'' to specify ``no valid value''.
 The members of the list may be separated by whitespace and/or commas;
 the ``\e'' character may be used at the end of a line to specify
-line continuation. Lines are limited to 1024 characters.
+line continuation.
+Lines are limited to 1024 characters.
 The functions specified in
 .Xr getnetgrent 3
 should normally be used to access the
@@ -82,25 +83,29 @@ are only used in conjunction with
 .Tn NIS
 and local
 .Pa /etc/netgroup
-files are ignored. With
+files are ignored.
+With
 .Fx ,
 .Nm Ns s
 can be used with either
 .Tn NIS
 or local files, but there are certain
-caveats to consider. The existing
+caveats to consider.
+The existing
 .Nm
 system is extremely inefficient where
 .Fn innetgr 3
 lookups are concerned since
 .Nm
-memberships are computed on the fly. By contrast, the
+memberships are computed on the fly.
+By contrast, the
 .Tn NIS
 .Nm
 database consists of three separate maps (netgroup, netgroup.byuser
 and netgroup.byhost) that are keyed to allow
 .Fn innetgr 3
-lookups to be done quickly. The
+lookups to be done quickly.
+The
 .Fx
 .Nm
 system can interact with the
@@ -152,7 +157,8 @@ token, the local data and the
 netgroup
 map will be processed as a single combined
 .Nm
-database. While this configuration is the most flexible, it
+database.
+While this configuration is the most flexible, it
 is also the least efficient: in particular,
 .Fn innetgr 3
 lookups will be especially slow if the
