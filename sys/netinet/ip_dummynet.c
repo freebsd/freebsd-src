@@ -33,9 +33,21 @@
 /*
  * This module implements IP dummynet, a bandwidth limiter/delay emulator
  * used in conjunction with the ipfw package.
+ * Description of the data structures used is in ip_dummynet.h
+ * Here you mainly find the following blocks of code:
+ *  + variable declarations;
+ *  + heap management functions;
+ *  + scheduler and dummynet functions;
+ *  + configuration and initialization.
+ *
+ * NOTA BENE: critical sections are protected by splimp()/splx()
+ *    pairs. One would think that splnet() is enough as for most of
+ *    the netinet code, but it is not so because when used with
+ *    bridging, dummynet is invoked at splimp().
  *
  * Most important Changes:
  *
+ * 010122: Fixed spl protection.
  * 000601: WF2Q+ support
  * 000106: large rewrite, use heaps to handle very many pipes.
  * 980513:	initial release
@@ -213,6 +225,12 @@ heap_init(struct dn_heap *h, int new_size)
 #define SET_OFFSET(heap, node) \
     if (heap->offset > 0) \
 	    *((int *)((char *)(heap->p[node].object) + heap->offset)) = node ;
+/*
+ * RESET_OFFSET is used for sanity checks. It sets offset to an invalid value.
+ */
+#define RESET_OFFSET(heap, node) \
+    if (heap->offset > 0) \
+	*((int *)((char *)(heap->p[node].object) + heap->offset)) = -1 ;
 static int
 heap_insert(struct dn_heap *h, dn_key key1, void *p)
 {   
@@ -261,6 +279,12 @@ heap_extract(struct dn_heap *h, void *obj)
 	    return ; /* or maybe panic... */
 	}
 	father = *((int *)((char *)obj + h->offset)) ;
+	if (father < 0 || father >= h->elements) {
+	    printf("dummynet: heap_extract, father %d out of bound 0..%d\n",
+		father, h->elements);
+	    panic("heap_extract");
+	}
+	RESET_OFFSET(h, father); 
     }
     child = HEAP_LEFT(father) ;		/* left child */
     while (child <= max) {		/* valid entry */
@@ -557,7 +581,6 @@ ready_event_wfq(struct dn_pipe *p)
 	}
     }
 
-
     while ( sch->elements && p->numbytes >= 0 ) {
 	struct dn_heap *neh ;
 	u_int64_t normalized_service ;
@@ -658,7 +681,7 @@ dummynet(void * __unused unused)
     heaps[0] = &ready_heap ;		/* fixed-rate queues */
     heaps[1] = &wfq_ready_heap ;	/* wfq queues */
     heaps[2] = &extract_heap ;		/* delay line */
-    s = splnet(); /* avoid network interrupts... */
+    s = splimp(); /* see note on top, splnet() is not enough */
     curr_time++ ;
     for (i=0; i < 3 ; i++) {
 	h = heaps[i];
@@ -991,7 +1014,7 @@ dummynet_io(int pipe_nr, int dir,	/* pipe_nr can also be a fs_nr */
     struct dn_flow_queue *q = NULL ;
     int s ;
 
-    s = splimp(); /* XXX might be unnecessary, we are already at splnet() */
+    s = splimp();
 
     pipe_nr &= 0xffff ;
     if ( (fs = rule->rule->pipe_ptr) == NULL ) {
@@ -1068,8 +1091,13 @@ dummynet_io(int pipe_nr, int dir,	/* pipe_nr can also be a fs_nr */
     q->len++;
     q->len_bytes += len ;
 
-    if ( q->head != pkt )	/* flow was not idle, we are done */
-	goto done;
+    if ( q->head != pkt ) {	/* flow was not idle, we are done */
+	static int errors = 0 ;
+	if (q->blh_pos >= 0 ) /* good... */
+	    goto done;
+	printf("+++ hey [%d] flow 0x%08x not idle but not in heap\n",
+	    ++errors, q);
+    }
     /*
      * The flow was previously idle, so we need to schedule it.
      */
@@ -1207,7 +1235,7 @@ dummynet_flush()
     struct dn_flow_set *fs, *curr_fs;
     int s ;
 
-    s = splnet() ;
+    s = splimp() ;
 
     /* remove all references to pipes ...*/
     for (chain= ip_fw_chain.lh_first ; chain; chain = chain->chain.le_next)
@@ -1440,7 +1468,7 @@ config_pipe(struct dn_pipe *p)
 		free(x, M_IPFW);
 		return s ;
 	    }
-	    s = splnet() ;
+	    s = splimp() ;
 	    x->next = b ;
 	    if (a == NULL)
 		all_pipes = x ;
@@ -1484,7 +1512,7 @@ config_pipe(struct dn_pipe *p)
 		free(x, M_IPFW);
 		return s ;
 	    }
-	    s = splnet() ;
+	    s = splimp() ;
 	    x->next = b;
 	    if (a == NULL)
 		all_flow_sets = x;
@@ -1582,7 +1610,7 @@ delete_pipe(struct dn_pipe *p)
 	if (b == NULL || (b->pipe_nr != p->pipe_nr) )
 	    return EINVAL ; /* not found */
 
-	s = splnet() ;
+	s = splimp() ;
 
 	/* unlink from list of pipes */
 	if (a == NULL)
@@ -1618,7 +1646,7 @@ delete_pipe(struct dn_pipe *p)
 	if (b == NULL || (b->fs_nr != p->fs.fs_nr) )
 	    return EINVAL ; /* not found */
 
-	s = splnet() ;
+	s = splimp() ;
 	if (a == NULL)
 	    all_flow_sets = b->next ;
 	else
@@ -1683,7 +1711,7 @@ dummynet_get(struct sockopt *sopt)
     struct dn_pipe *p ;
     int s, error=0 ;
 
-    s = splnet() ; /* to avoid thing change while we work! */
+    s = splimp();
     /*
      * compute size of data structures: list of pipes and flow_sets.
      */
@@ -1793,10 +1821,12 @@ ip_dn_init(void)
     all_pipes = NULL ;
     all_flow_sets = NULL ;
     ready_heap.size = ready_heap.elements = 0 ;
-    ready_heap.offset = 0 ;
+    /* ready_heap.offset = 0 ; */
+    ready_heap.offset=OFFSET_OF(struct dn_flow_queue, blh_pos);
 
     wfq_ready_heap.size = wfq_ready_heap.elements = 0 ;
-    wfq_ready_heap.offset = 0 ;
+    /* wfq_ready_heap.offset = 0 ; */
+    wfq_ready_heap.offset=OFFSET_OF(struct dn_flow_queue, blh_pos);
 
     extract_heap.size = extract_heap.elements = 0 ;
     extract_heap.offset = 0 ;
@@ -1812,13 +1842,13 @@ dummynet_modevent(module_t mod, int type, void *data)
 	int s ;
 	switch (type) {
 	case MOD_LOAD:
-		s = splnet();
+		s = splimp();
 		old_dn_ctl_ptr = ip_dn_ctl_ptr;
 		ip_dn_init();
 		splx(s);
 		break;
 	case MOD_UNLOAD:
-		s = splnet();
+		s = splimp();
 		ip_dn_ctl_ptr =  old_dn_ctl_ptr;
 		splx(s);
 		dummynet_flush();
