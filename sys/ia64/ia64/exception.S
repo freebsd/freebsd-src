@@ -96,6 +96,7 @@ interruption_Instruction_TLB:
 (p1)	br.dpnt.few 1f
 	;;
 	ld8	r21=[r18]		// read pte
+	mov	pr=r17,0x1ffff
 	;;
 	itc.i	r21			// insert pte
 	rfi				// done
@@ -172,6 +173,7 @@ interruption_Data_TLB:
 (p1)	br.dpnt.few 1f
 	;;
 	ld8	r21=[r18]		// read pte
+	mov	pr=r17,0x1ffff
 	;;
 	itc.d	r21			// insert pte
 	rfi				// done
