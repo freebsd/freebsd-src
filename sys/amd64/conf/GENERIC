@@ -1,7 +1,7 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: GENERIC,v 1.21 1994/12/16 06:04:14 phk Exp $
+#	$Id: GENERIC,v 1.22 1994/12/18 12:01:40 jkh Exp $
 #
 
 machine		"i386"
@@ -19,10 +19,8 @@ options		MSDOSFS			#MSDOS Filesystem
 options		"CD9660"		#ISO 9660 Filesystem
 options		PROCFS			#Process filesystem
 options		"COMPAT_43"		#Compatible with BSD 4.3
-options		UCONSOLE		#X Console support
 options		"FAT_CURSOR"		#block cursor in syscons or pccons
 options		"SCSI_DELAY=15"		#Be pessimistic about Joe SCSI device
-options		"NCONS=4"		#4 virtual consoles
 options		BOUNCE_BUFFERS		#include support for DMA bounce buffers
 
 config		kernel	root on wd0 swap on wd0 and wd1 and sd0 and sd1 and vn0 dumps on wd0
