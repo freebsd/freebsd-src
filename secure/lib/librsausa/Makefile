@@ -2,7 +2,8 @@
 
 .include "../libcrypto/Makefile.inc"
 
-# Don't blame kris.. -peter
+.PATH:	${LCRYPTO_SRC}/../rsaref
+
 MAINTAINER=	kris
 
 LIB=		rsaUSA
@@ -25,23 +26,8 @@ HDRS=	asn1/asn1.h asn1/asn1_mac.h bio/bio.h bf/blowfish.h bn/bn.h \
 	stack/safestack.h sha/sha.h stack/stack.h tmdiff.h txt_db/txt_db.h \
 	x509/x509.h x509/x509_vfy.h x509v3/x509v3.h
 
-beforedepend: headers ${.OBJDIR}/openssl/opensslconf.h 
-
-DPADD+=	${.OBJDIR}/openssl/opensslconf.h
-
-CLEANDIRS+=	${.OBJDIR}/openssl
-
-${.OBJDIR}/openssl/opensslconf.h: ../libcrypto/opensslconf-${MACHINE_ARCH}.h
-	@test -d ${.OBJDIR}/openssl || mkdir -p ${.OBJDIR}/openssl; \
-	cp ${.OODATE} ${.TARGET}
-
-headers:
-	@test -d ${.OBJDIR}/openssl || mkdir -p ${.OBJDIR}/openssl; \
-	for i in ${HDRS}; do \
-		${INSTALL} ${COPY} -m 444 ${LCRYPTO_SRC}/$$i \
-			${.OBJDIR}/openssl; \
-	done
-
-.PATH:	${LCRYPTO_SRC}/../rsaref
+.for h in ${HDRS}
+CRYPTO_HDRS+= ${LCRYPTO_SRC}/${h}
+.endfor
 
 .include <bsd.lib.mk>
