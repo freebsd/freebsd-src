@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.47 1996/10/12 16:11:55 bde Exp $
+ * $Id: systm.h,v 1.47.2.1 1997/02/04 21:04:13 jhay Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -181,6 +181,16 @@ int rm_at_fork(forklist_fn function);
 typedef void (*exitlist_fn)(struct proc *procp);
 int at_exit(exitlist_fn function);
 int rm_at_exit(exitlist_fn function);
+
+/* Not exactly a callout LIST, but a callout entry.. 			*/
+/* Allow an external module to define a hardware watchdog tickler	*/
+/* Normally a process would do this, but there are times when the	*/
+/* kernel needs to be able to hold off the watchdog, when the process	*/
+/* is not active, e.g. when dumping core. Costs us a whole 4 bytes to	*/
+/* make this generic. the variable is in kern_shutdown.c */
+typedef void (*watchdog_tickle_fn)(void);
+extern watchdog_tickle_fn wdog_tickler;
+
 
 /* 
  * Common `proc' functions are declared here so that proc.h can be included
