@@ -65,7 +65,7 @@ des_cblock (*iv);
 
 	long rnum;
 	int i,j,k,outnum;
-	char *outbuf=NULL;
+	static char *outbuf=NULL;
 	char shortbuf[8];
 	char *p;
 	static int start=1;
