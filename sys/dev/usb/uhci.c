@@ -188,11 +188,15 @@ Static void		uhci_abort_xfer_end(void *v);
 Static void		uhci_timeout(void *);
 Static void		uhci_lock_frames(uhci_softc_t *);
 Static void		uhci_unlock_frames(uhci_softc_t *);
-Static void		uhci_add_ctrl(uhci_softc_t *, uhci_soft_qh_t *);
+Static void		uhci_add_ls_ctrl(uhci_softc_t *, uhci_soft_qh_t *);
+Static void		uhci_add_hs_ctrl(uhci_softc_t *, uhci_soft_qh_t *);
 Static void		uhci_add_bulk(uhci_softc_t *, uhci_soft_qh_t *);
-Static void		uhci_remove_ctrl(uhci_softc_t *,uhci_soft_qh_t *);
+Static void		uhci_remove_ls_ctrl(uhci_softc_t *,uhci_soft_qh_t *);
+Static void		uhci_remove_hs_ctrl(uhci_softc_t *,uhci_soft_qh_t *);
 Static void		uhci_remove_bulk(uhci_softc_t *,uhci_soft_qh_t *);
 Static int		uhci_str(usb_string_descriptor_t *, int, char *);
+Static void		uhci_add_loop(uhci_softc_t *sc);
+Static void		uhci_rem_loop(uhci_softc_t *sc);
 
 Static usbd_status	uhci_setup_isoc(usbd_pipe_handle pipe);
 Static void		uhci_device_isoc_enter(usbd_xfer_handle);
@@ -250,6 +254,10 @@ Static usbd_status	uhci_device_setintr(uhci_softc_t *sc,
 
 Static void		uhci_device_clear_toggle(usbd_pipe_handle pipe);
 Static void		uhci_noop(usbd_pipe_handle pipe);
+
+Static __inline__ uhci_soft_qh_t *uhci_find_prev_qh(uhci_soft_qh_t *,
+						    uhci_soft_qh_t *);
+
 
 #ifdef UHCI_DEBUG
 Static void		uhci_dump_all(uhci_softc_t *);
@@ -341,6 +349,22 @@ struct usbd_pipe_methods uhci_device_isoc_methods = {
 	uhci_device_isoc_done,
 };
 
+Static __inline__ uhci_soft_qh_t *
+uhci_find_prev_qh(uhci_soft_qh_t *pqh, uhci_soft_qh_t *sqh)
+{
+	DPRINTFN(15,("uhci_find_prev_qh: pqh=%p sqh=%p\n", pqh, sqh));
+
+	for (; pqh->hlink != sqh; pqh = pqh->hlink) {
+#if defined(DIAGNOSTIC) || defined(UHCI_DEBUG)          
+		if (le32toh(pqh->qh.qh_hlink) & UHCI_PTR_T) {
+			printf("uhci_find_prev_qh: QH not found\n");
+			return (NULL);
+		}
+#endif
+	}
+	return (pqh);
+}
+
 void
 uhci_busreset(uhci_softc_t *sc)
 {
@@ -354,7 +378,7 @@ uhci_init(uhci_softc_t *sc)
 {
 	usbd_status err;
 	int i, j;
-	uhci_soft_qh_t *csqh, *bsqh, *sqh;
+	uhci_soft_qh_t *clsqh, *chsqh, *bsqh, *sqh, *lsqh;
 	uhci_soft_td_t *std;
 
 	DPRINTFN(1,("uhci_init: start\n"));
@@ -381,25 +405,59 @@ uhci_init(uhci_softc_t *sc)
 	UWRITE2(sc, UHCI_FRNUM, 0);		/* set frame number to 0 */
 	UWRITE4(sc, UHCI_FLBASEADDR, DMAADDR(&sc->sc_dma, 0)); /* set frame list*/
 
+	/* 
+	 * Allocate a TD, inactive, that hangs from the last QH.
+	 * This is to avoid a bug in the PIIX that makes it run berserk
+	 * otherwise.
+	 */
+	std = uhci_alloc_std(sc);
+	if (std == NULL)
+		return (USBD_NOMEM);
+	std->link.std = NULL;
+	std->td.td_link = htole32(UHCI_PTR_T);
+	std->td.td_status = htole32(0); /* inactive */
+	std->td.td_token = htole32(0);
+	std->td.td_buffer = htole32(0);
+ 
+	/* Allocate the dummy QH marking the end and used for looping the QHs.*/
+	lsqh = uhci_alloc_sqh(sc);
+	if (lsqh == NULL)
+		return (USBD_NOMEM);
+	lsqh->hlink = NULL;
+	lsqh->qh.qh_hlink = htole32(UHCI_PTR_T);	/* end of QH chain */
+	lsqh->elink = std;
+	lsqh->qh.qh_elink = htole32(std->physaddr | UHCI_PTR_TD);
+	sc->sc_last_qh = lsqh;
+
 	/* Allocate the dummy QH where bulk traffic will be queued. */
 	bsqh = uhci_alloc_sqh(sc);
 	if (bsqh == NULL)
 		return (USBD_NOMEM);
-	bsqh->hlink = NULL;
-	bsqh->qh.qh_hlink = htole32(UHCI_PTR_T);	/* end of QH chain */
+	bsqh->hlink = lsqh;
+	bsqh->qh.qh_hlink = htole32(lsqh->physaddr | UHCI_PTR_QH);
 	bsqh->elink = NULL;
 	bsqh->qh.qh_elink = htole32(UHCI_PTR_T);
 	sc->sc_bulk_start = sc->sc_bulk_end = bsqh;
 
-	/* Allocate the dummy QH where control traffic will be queued. */
-	csqh = uhci_alloc_sqh(sc);
-	if (csqh == NULL)
+	/* Allocate dummy QH where high speed control traffic will be queued. */
+	chsqh = uhci_alloc_sqh(sc);
+	if (chsqh == NULL)
 		return (USBD_NOMEM);
-	csqh->hlink = bsqh;
-	csqh->qh.qh_hlink = htole32(bsqh->physaddr | UHCI_PTR_QH);
-	csqh->elink = NULL;
-	csqh->qh.qh_elink = htole32(UHCI_PTR_T);
-	sc->sc_ctl_start = sc->sc_ctl_end = csqh;
+	chsqh->hlink = bsqh;
+	chsqh->qh.qh_hlink = htole32(bsqh->physaddr | UHCI_PTR_QH);
+	chsqh->elink = NULL;
+	chsqh->qh.qh_elink = htole32(UHCI_PTR_T);
+	sc->sc_hctl_start = sc->sc_hctl_end = chsqh;
+ 
+	/* Allocate dummy QH where control traffic will be queued. */
+	clsqh = uhci_alloc_sqh(sc);
+	if (clsqh == NULL)
+		return (USBD_NOMEM);
+	clsqh->hlink = bsqh;
+	clsqh->qh.qh_hlink = htole32(chsqh->physaddr | UHCI_PTR_QH);
+	clsqh->elink = NULL;
+	clsqh->qh.qh_elink = htole32(UHCI_PTR_T);
+	sc->sc_lctl_start = sc->sc_lctl_end = clsqh;
 
 	/* 
 	 * Make all (virtual) frame list pointers point to the interrupt
@@ -416,8 +474,8 @@ uhci_init(uhci_softc_t *sc)
 		std->td.td_status = htole32(UHCI_TD_IOS); /* iso, inactive */
 		std->td.td_token = htole32(0);
 		std->td.td_buffer = htole32(0);
-		sqh->hlink = csqh;
-		sqh->qh.qh_hlink = htole32(csqh->physaddr | UHCI_PTR_QH);
+		sqh->hlink = clsqh;
+		sqh->qh.qh_hlink = htole32(clsqh->physaddr | UHCI_PTR_QH);
 		sqh->elink = NULL;
 		sqh->qh.qh_elink = htole32(UHCI_PTR_T);
 		sc->sc_vframes[i].htd = std;
@@ -694,7 +752,7 @@ uhci_dump_all(uhci_softc_t *sc)
 	uhci_dumpregs(sc);
 	printf("intrs=%d\n", sc->sc_bus.no_intrs);
 	/*printf("framelist[i].link = %08x\n", sc->sc_framelist[0].link);*/
-	uhci_dump_qh(sc->sc_ctl_start->qh.hlink);
+	uhci_dump_qh(sc->sc_lctl_start);
 }
 
 
@@ -844,45 +902,96 @@ uhci_free_intr_info(uhci_intr_info_t *ii)
 	LIST_INSERT_HEAD(&uhci_ii_free, ii, list); /* and put on free list */
 }
 
-/* Add control QH, called at splusb(). */
+/*
+ * Let the last QH loop back to the high speed control transfer QH.
+ * This is what intel calls "bandwidth reclamation" and improves
+ * USB performance a lot for some devices.
+ * If we are already looping, just count it.
+ */
 void
-uhci_add_ctrl(uhci_softc_t *sc, uhci_soft_qh_t *sqh)
+uhci_add_loop(uhci_softc_t *sc) {
+	if (++sc->sc_loops == 1) {
+		DPRINTFN(10,("uhci_start_loop: add\n"));
+		/* Note, we don't loop back the soft pointer. */
+		sc->sc_last_qh->qh.qh_hlink = 
+		    htole32(sc->sc_hctl_start->physaddr | UHCI_PTR_QH);
+	}
+}
+
+void
+uhci_rem_loop(uhci_softc_t *sc) {
+	if (--sc->sc_loops == 0) {
+		DPRINTFN(5,("uhci_end_loop: remove\n"));
+		sc->sc_last_qh->qh.qh_hlink = htole32(UHCI_PTR_T);
+	}
+}
+
+/* Add high speed control QH, called at splusb(). */
+void
+uhci_add_hs_ctrl(uhci_softc_t *sc, uhci_soft_qh_t *sqh)
 {
 	uhci_soft_qh_t *eqh;
 
 	SPLUSBCHECK;
 
 	DPRINTFN(10, ("uhci_add_ctrl: sqh=%p\n", sqh));
-	eqh = sc->sc_ctl_end;
+	eqh = sc->sc_hctl_end;
 	sqh->hlink       = eqh->hlink;
 	sqh->qh.qh_hlink = eqh->qh.qh_hlink;
 	eqh->hlink       = sqh;
 	eqh->qh.qh_hlink = htole32(sqh->physaddr | UHCI_PTR_QH);
-	sc->sc_ctl_end = sqh;
+	sc->sc_hctl_end = sqh;
+	uhci_add_loop(sc);
 }
 
-/* Remove control QH, called at splusb(). */
+/* Remove high speed control QH, called at splusb(). */
 void
-uhci_remove_ctrl(uhci_softc_t *sc, uhci_soft_qh_t *sqh)
+uhci_remove_hs_ctrl(uhci_softc_t *sc, uhci_soft_qh_t *sqh)
 {
 	uhci_soft_qh_t *pqh;
 
 	SPLUSBCHECK;
 
-	DPRINTFN(10, ("uhci_remove_ctrl: sqh=%p\n", sqh));
-	for (pqh = sc->sc_ctl_start; pqh->hlink != sqh; pqh=pqh->hlink)
-#if defined(DIAGNOSTIC) || defined(UHCI_DEBUG)		
-		if (le32toh(pqh->qh.qh_hlink) & UHCI_PTR_T) {
-			printf("uhci_remove_ctrl: QH not found\n");
-			return;
-		}
-#else
-		;
-#endif
-	pqh->hlink       = sqh->hlink;
+	DPRINTFN(10, ("uhci_remove_hs_ctrl: sqh=%p\n", sqh));
+	uhci_rem_loop(sc);
+	pqh = uhci_find_prev_qh(sc->sc_hctl_start, sqh);
+	pqh->hlink = sqh->hlink;
 	pqh->qh.qh_hlink = sqh->qh.qh_hlink;
-	if (sc->sc_ctl_end == sqh)
-		sc->sc_ctl_end = pqh;
+	if (sc->sc_hctl_end == sqh)
+		sc->sc_hctl_end = pqh;
+}
+
+/* Add low speed control QH, called at splusb(). */
+void
+uhci_add_ls_ctrl(uhci_softc_t *sc, uhci_soft_qh_t *sqh)
+{
+	uhci_soft_qh_t *eqh;
+ 
+	SPLUSBCHECK;
+ 
+	DPRINTFN(10, ("uhci_add_ls_ctrl: sqh=%p\n", sqh));
+	eqh = sc->sc_lctl_end;
+	sqh->hlink       = eqh->hlink;
+	sqh->qh.qh_hlink = eqh->qh.qh_hlink;
+	eqh->hlink       = sqh;
+	eqh->qh.qh_hlink = htole32(sqh->physaddr | UHCI_PTR_QH);
+	sc->sc_lctl_end = sqh;
+}
+
+/* Remove low speed control QH, called at splusb(). */
+void
+uhci_remove_ls_ctrl(uhci_softc_t *sc, uhci_soft_qh_t *sqh)
+{
+	uhci_soft_qh_t *pqh;
+ 
+	SPLUSBCHECK;
+ 
+	DPRINTFN(10, ("uhci_remove_ls_ctrl: sqh=%p\n", sqh));
+	pqh = uhci_find_prev_qh(sc->sc_lctl_start, sqh);
+	pqh->hlink = sqh->hlink;
+	pqh->qh.qh_hlink = sqh->qh.qh_hlink;
+	if (sc->sc_lctl_end == sqh)
+		sc->sc_lctl_end = pqh;
 }
 
 /* Add bulk QH, called at splusb(). */
@@ -900,6 +1009,7 @@ uhci_add_bulk(uhci_softc_t *sc, uhci_soft_qh_t *sqh)
 	eqh->hlink       = sqh;
 	eqh->qh.qh_hlink = htole32(sqh->physaddr | UHCI_PTR_QH);
 	sc->sc_bulk_end = sqh;
+	uhci_add_loop(sc);
 }
 
 /* Remove bulk QH, called at splusb(). */
@@ -911,16 +1021,9 @@ uhci_remove_bulk(uhci_softc_t *sc, uhci_soft_qh_t *sqh)
 	SPLUSBCHECK;
 
 	DPRINTFN(10, ("uhci_remove_bulk: sqh=%p\n", sqh));
-	for (pqh = sc->sc_bulk_start; pqh->hlink != sqh; pqh = pqh->hlink)
-#if defined(DIAGNOSTIC) || defined(UHCI_DEBUG)		
-		if (le32toh(pqh->qh.qh_hlink) & UHCI_PTR_T) {
-			printf("uhci_remove_bulk: QH not found\n");
-			return;
-		}
-#else
-		;
-#endif
-	pqh->hlink       = sqh->hlink;
+	uhci_rem_loop(sc);
+	pqh = uhci_find_prev_qh(sc->sc_bulk_start, sqh);
+	pqh->hlink = sqh->hlink;
 	pqh->qh.qh_hlink = sqh->qh.qh_hlink;
 	if (sc->sc_bulk_end == sqh)
 		sc->sc_bulk_end = pqh;
@@ -1964,7 +2067,10 @@ uhci_device_request(usbd_xfer_handle xfer)
 	sqh->intr_info = ii;
 
 	s = splusb();
-	uhci_add_ctrl(sc, sqh);
+	if (dev->lowspeed)
+		uhci_add_ls_ctrl(sc, sqh);
+	else
+		uhci_add_hs_ctrl(sc, sqh);
 	LIST_INSERT_HEAD(&sc->sc_intrhead, ii, list);
 #ifdef UHCI_DEBUG
 	if (uhcidebug > 12) {
@@ -2378,7 +2484,10 @@ uhci_device_ctrl_done(usbd_xfer_handle xfer)
 
 	LIST_REMOVE(ii, list);	/* remove from active list */
 
-	uhci_remove_ctrl(sc, upipe->u.ctl.sqh);
+	if (upipe->pipe.device->lowspeed)
+		uhci_remove_ls_ctrl(sc, upipe->u.ctl.sqh);
+	else
+		uhci_remove_hs_ctrl(sc, upipe->u.ctl.sqh);
 
 	if (upipe->u.ctl.length != 0)
 		uhci_free_std_chain(sc, ii->stdstart->link.std, ii->stdend);
