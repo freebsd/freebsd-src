@@ -179,7 +179,7 @@ struct wst {
     int lun;                		/* Logical device unit */
     int flags;              		/* Device state flags */
     int blksize;                	/* Block size (512 | 1024) */
-    struct buf_queue_head buf_queue;    /* Queue of i/o requests */
+    struct bio_queue_head buf_queue;    /* Queue of i/o requests */
     struct atapi_params *param;     	/* Drive parameters table */
     struct wst_header header;       	/* MODE SENSE param header */
     struct wst_cappage cap;         	/* Capabilities page info */
@@ -193,7 +193,7 @@ static int wst_sense(struct wst *t);
 static void wst_describe(struct wst *t);
 static void wst_poll_dsc(struct wst *t);
 static void wst_start(struct wst *t);
-static void wst_done(struct wst *t, struct buf *bp, int resid, struct atapires result);
+static void wst_done(struct wst *t, struct bio *bp, int resid, struct atapires result);
 static int wst_error(struct wst *t, struct atapires result);
 static void wst_drvinit(void *unused);
 static int wst_space_cmd(struct wst *t, u_char function, u_int count);
@@ -241,7 +241,7 @@ wstattach(struct atapi *ata, int unit, struct atapi_params *ap, int debug)
     }
     wsttab[wstnlun] = t;
     bzero(t, sizeof(struct wst));
-    bufq_init(&t->buf_queue);
+    bioq_init(&t->buf_queue);
     t->ata = ata;
     t->unit = unit;
     t->ata->use_dsc = 1;
@@ -380,39 +380,39 @@ wstclose(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 void 
-wststrategy(struct buf *bp)
+wststrategy(struct bio *bp)
 {
-    int lun = UNIT(bp->b_dev);
+    int lun = UNIT(bp->bio_dev);
     struct wst *t = wsttab[lun];
     int x;
 
     /* If it's a null transfer, return immediatly. */
-    if (bp->b_bcount == 0) {
-        bp->b_resid = 0;
+    if (bp->bio_bcount == 0) {
+        bp->bio_resid = 0;
         biodone(bp);
         return;
     }
 
     /* Check for != blocksize requests */
-    if (bp->b_bcount % t->blksize) {
+    if (bp->bio_bcount % t->blksize) {
         printf("wst%d: bad request, must be multiple of %d\n", lun, t->blksize);
-        bp->b_error = EIO;
-	bp->b_ioflags |= BIO_ERROR;
+        bp->bio_error = EIO;
+	bp->bio_flags |= BIO_ERROR;
         biodone(bp);
         return;
     }
 
-    if (bp->b_bcount > t->blksize*t->cap.ctl) {  
+    if (bp->bio_bcount > t->blksize*t->cap.ctl) {  
 	if ((t->flags & WST_CTL_WARN) == 0) {
             printf("wst%d: WARNING: CTL exceeded %ld>%d\n", 
-		    lun, bp->b_bcount, t->blksize*t->cap.ctl);
+		    lun, bp->bio_bcount, t->blksize*t->cap.ctl);
 	    t->flags |= WST_CTL_WARN;
 	}
     }
 
     x = splbio();
-    wst_total += bp->b_bcount;
-    bufq_insert_tail(&t->buf_queue, bp);
+    wst_total += bp->bio_bcount;
+    bioq_insert_tail(&t->buf_queue, bp);
     wst_start(t);
     splx(x);
 }
@@ -432,7 +432,7 @@ wst_poll_dsc(struct wst *t)
 static void 
 wst_start(struct wst *t)
 {
-    struct buf *bp = bufq_first(&t->buf_queue);
+    struct bio *bp = bioq_first(&t->buf_queue);
     u_long blk_count;
     u_char op_code;
     long byte_count;
@@ -450,37 +450,37 @@ wst_start(struct wst *t)
         tsleep((caddr_t) t, 0, "wstdsc", 0);
     }
 
-    bufq_remove(&t->buf_queue, bp);
-    blk_count = bp->b_bcount / t->blksize;
+    bioq_remove(&t->buf_queue, bp);
+    blk_count = bp->bio_bcount / t->blksize;
 
-    if (bp->b_flags & B_READ) {
+    if (bp->bio_cmd & BIO_READ) {
         op_code = ATAPI_TAPE_READ_CMD;
-        byte_count = bp->b_bcount;
+        byte_count = bp->bio_bcount;
     } else {
         op_code = ATAPI_TAPE_WRITE_CMD;
 	t->flags |= WST_DATA_WRITTEN;
-        byte_count = -bp->b_bcount;
+        byte_count = -bp->bio_bcount;
     }
 
     atapi_request_callback(t->ata, t->unit, op_code, 1,
                     	   blk_count>>16, blk_count>>8, blk_count,
                     	   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                    	   (u_char*) bp->b_data, byte_count, 
+                    	   (u_char*) bp->bio_data, byte_count, 
                     	   (void*)wst_done, t, bp);
 }
 
 static void 
-wst_done(struct wst *t, struct buf *bp, int resid,
+wst_done(struct wst *t, struct bio *bp, int resid,
     struct atapires result)
 {
     if (result.code) {
 	printf("wst_done: ");
         wst_error(t, result);
-        bp->b_error = EIO;
-        bp->b_ioflags |= BIO_ERROR;
+        bp->bio_error = EIO;
+        bp->bio_flags |= BIO_ERROR;
     }
     else
-	bp->b_resid = resid;
+	bp->bio_resid = resid;
 
     biodone(bp);
     /*wst_start(t);*/
