@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: stage3.c,v 1.4 1994/10/21 02:14:52 phk Exp $
+ * $Id: stage4.c,v 1.2 1994/10/26 05:41:01 phk Exp $
  *
  */
 
@@ -60,7 +60,7 @@ stage4()
 		close(pfd[1]);
 		close(1); open("/dev/null",O_WRONLY);
 		chdir("/stand");
-		i = exec (1,"/stand/cpio","/stand/cpio","-idum", 0);
+		i = exec (1,"/stand/cpio","/stand/cpio","-iduvm", 0);
 		exit(i);
 	}
 	close(pfd[0]);

@@ -32,9 +32,16 @@ static char *welcome[] = {
     "Exit to shell.",
 };
 
-void stage0()
+void 
+stage0()
 {
     int valid = 0;
+
+	if (!access(README_FILE, R_OK)) {
+	    dialog_clear();
+	    dialog_textbox("READ ME FIRST", README_FILE, 24, 80);
+	}
+    return;
 
     do {
 	if (!dialog_menu("Welcome to FreeBSD!",
