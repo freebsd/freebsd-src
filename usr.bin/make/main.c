@@ -900,7 +900,6 @@ main(int argc, char **argv)
 		const char	*name;
 		char		*v;
 		char		*value;
-		Buffer		*buf;
 
 		LST_FOREACH(n, &variables) {
 			name = Lst_Datum(n);
@@ -908,12 +907,12 @@ main(int argc, char **argv)
 				v = emalloc(strlen(name) + 1 + 3);
 				sprintf(v, "${%s}", name);
 
-				buf = Var_Subst(NULL, v, VAR_GLOBAL, FALSE);
-				value = Buf_GetAll(buf, NULL);
+				value = Buf_Peel(Var_Subst(NULL, v,
+				    VAR_GLOBAL, FALSE));
 				printf("%s\n", value);
 
-				Buf_Destroy(buf, TRUE);
 				free(v);
+				free(value);
 			} else {
 				value = Var_Value(name, VAR_GLOBAL, &v);
 				printf("%s\n", value != NULL ? value : "");
