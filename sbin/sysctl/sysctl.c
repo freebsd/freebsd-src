@@ -58,7 +58,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-static int	aflag, bflag, Nflag, nflag, oflag, xflag;
+static int	aflag, bflag, eflag, Nflag, nflag, oflag, xflag;
 
 static int	oidfmt(int *, int, char *, u_int *);
 static void	parse(char *);
@@ -71,8 +71,8 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n",
-	    "usage: sysctl [-bNnox] variable[=value] ...",
-	    "       sysctl [-bNnox] -a");
+	    "usage: sysctl [-beNnox] variable[=value] ...",
+	    "       sysctl [-beNnox] -a");
 	exit(1);
 }
 
@@ -83,7 +83,7 @@ main(int argc, char **argv)
 	setbuf(stdout,0);
 	setbuf(stderr,0);
 
-	while ((ch = getopt(argc, argv, "AabNnowxX")) != -1) {
+	while ((ch = getopt(argc, argv, "AabeNnowxX")) != -1) {
 		switch (ch) {
 		case 'A':
 			/* compatibility */
@@ -94,6 +94,9 @@ main(int argc, char **argv)
 			break;
 		case 'b':
 			bflag = 1;
+			break;
+		case 'e':
+			eflag = 1;
 			break;
 		case 'N':
 			Nflag = 1;
@@ -380,7 +383,7 @@ static int
 show_var(int *oid, int nlen)
 {
 	u_char buf[BUFSIZ], *val, *p;
-	char name[BUFSIZ], *fmt;
+	char name[BUFSIZ], *fmt, *sep;
 	int qoid[CTL_MAXNAME+2];
 	int i;
 	size_t j, len;
@@ -400,6 +403,11 @@ show_var(int *oid, int nlen)
 		printf("%s", name);
 		return (0);
 	}
+
+	if (eflag)
+		sep = "=";
+	else
+		sep = ": ";
 
 	/* find an estimate of how much we need for this var */
 	j = 0;
@@ -431,13 +439,13 @@ show_var(int *oid, int nlen)
 	switch (*fmt) {
 	case 'A':
 		if (!nflag)
-			printf("%s: ", name);
+			printf("%s%s", name, sep);
 		printf("%s", p);
 		return (0);
 		
 	case 'I':
 		if (!nflag)
-			printf("%s: ", name);
+			printf("%s%s", name, sep);
 		fmt++;
 		val = "";
 		while (len >= sizeof(int)) {
@@ -453,7 +461,7 @@ show_var(int *oid, int nlen)
 
 	case 'L':
 		if (!nflag)
-			printf("%s: ", name);
+			printf("%s%s", name, sep);
 		fmt++;
 		val = "";
 		while (len >= sizeof(long)) {
@@ -469,7 +477,7 @@ show_var(int *oid, int nlen)
 
 	case 'P':
 		if (!nflag)
-			printf("%s: ", name);
+			printf("%s%s", name, sep);
 		printf("%p", *(void **)p);
 		return (0);
 
@@ -488,7 +496,7 @@ show_var(int *oid, int nlen)
 			func = NULL;
 		if (func) {
 			if (!nflag)
-				printf("%s: ", name);
+				printf("%s%s", name, sep);
 			return ((*func)(len, p));
 		}
 		/* FALL THROUGH */
@@ -496,7 +504,7 @@ show_var(int *oid, int nlen)
 		if (!oflag && !xflag)
 			return (1);
 		if (!nflag)
-			printf("%s: ", name);
+			printf("%s%s", name, sep);
 		printf("Format:%s Length:%d Dump:0x", fmt, len);
 		while (len-- && (xflag || p < val + 16))
 			printf("%02x", *p++);
