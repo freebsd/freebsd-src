@@ -7,6 +7,7 @@ set -ex
 
 export BLOCKSIZE=512
 
+DISKLABEL=$1; shift
 MACHINE=${1:+"-m $1"}; shift
 FSIMG=$1; shift
 RD=$1 ; shift
@@ -103,7 +104,7 @@ dofs_md () {
 
 	trap "umount ${MNT}; mdconfig -d -u ${MDDEVICE}" EXIT
 
-	disklabel ${MACHINE} -w ${BOOT} ${MDDEVICE} ${FSLABEL}
+	${DISKLABEL} ${MACHINE} -w ${BOOT} ${MDDEVICE} ${FSLABEL}
 	newfs -i ${FSINODE} -o space -m 0 /dev/${MDDEVICE}c
 
 	mount /dev/${MDDEVICE}c ${MNT}
