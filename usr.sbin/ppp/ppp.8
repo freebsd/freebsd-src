@@ -1,5 +1,5 @@
 .\" manual page [] for ppp 0.94 beta2 + alpha
-.\" $Id: ppp.8,v 1.18 1996/10/06 13:32:33 jkh Exp $
+.\" $Id: ppp.8,v 1.19 1996/10/31 19:55:05 joerg Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -9,7 +9,8 @@
 Point to Point Protocol (aka iijppp) 
 .Sh SYNOPSIS
 .Nm
-.Op Fl auto | Fl direct | Fl dedicated
+.Op Fl auto | ddial | direct | dedicated 
+.Op Fl alias
 .Op Ar system
 .Sh DESCRIPTION
 This is a user process
@@ -52,6 +53,21 @@ will act as a daemon and wait for a packet to be sent over the
 .Em PPP
 link.  When this happens, the daemon automatically dials and establishes the
 connection.
+
+In almost the same manner ddial mode (dedicated or demon dialing)
+also automatically dials and establishes the connection.  However, it
+differs in that it will dial the remote site any time it detects the
+link is down, even if there are no packets to be sent.  This mode is
+useful for full-time connections who worry less about line charges
+and more about being connected full time.
+
+.It Supports packet aliasing.
+Packet aliasing, more commonly known as masquerading, allows computers
+on a private, unregistered network to access the internet.  The
+.Em PPP
+host acts as a masquerading gateway.  IP addresses as well as TCP and
+UDP port numbers are aliased for outgoing packets and de-aliased for
+returning packets.
 
 .It Supports server-side PPP connections.
 Can act as server which accepts incoming
@@ -280,6 +296,8 @@ remote peer.
 
 To play with demand dialing, you must use the
 .Fl auto
+or
+.Fl ddial
 option.  You must also specify the destination label in
 .Pa /etc/ppp/ppp.conf
 to use.  It should contain the
@@ -293,6 +311,8 @@ command to define the remote peer's IP address. (refer to
 
 When
 .Fl auto
+or
+.Fl ddial
 is specified,
 .Nm
 runs as a daemon but you can still configure or examine its
@@ -368,6 +388,36 @@ command will terminate the telnet connection but not the program itself.
 You must use
 .Dq quit all
 to terminate the program as well.
+
+.Sh PACKET ALIASING
+
+The
+.Fl alias
+command line option enables packet aliasing.  This allows the
+ppp host to act as a masquerading gateway for other computers over
+a local area network.  Outgoing IP packets are are aliased so that
+they appear to come from the ppp host, and incoming packets are
+de-aliased so that they are routed to the correct machine on the
+local area network.
+
+Packet aliasing allows computers on private, unregistered
+subnets to have internet access, although they are invisible
+from the outside world.
+
+In general, correct ppp operation should first be verified
+with packet aliasing disabled.  Then, the 
+.Fl alias
+option should be switched on, and network applications (web browser,
+telnet, ftp, ping, traceroute) should be checked on the ppp host.
+Finally, the same or similar applications should be checked on other
+computers in the LAN.
+
+If network applications work correctly on the ppp host, but not on
+other machines in the LAN, then the masquerading software is working
+properly, but the host is either not forwarding or possibly receiving
+IP packets.  Check that IP forwarding is enabled in /etc/sysconfig
+and that other machines have designated the ppp host as the gateway
+for the LAN.
 
 .Sh PACKET FILTERING
 

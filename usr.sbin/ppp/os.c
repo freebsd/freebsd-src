@@ -17,22 +17,26 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: os.c,v 1.6 1996/05/13 07:20:11 phk Exp $
+ * $Id: os.c,v 1.8 1996/12/10 17:00:38 wollman Exp $
  *
  */
 #include "fsm.h"
 #include <sys/param.h>
 #include <sys/socket.h>
-#include <net/route.h>
 #if BSD >= 199206 || _BSDI_VERSION >= 199312
 #include <sys/select.h>
 #endif
 #include <sys/ioctl.h>
+#include <sys/time.h>
+
 #include <fcntl.h>
+#include <errno.h>
+
 #include <net/if.h>
 #include <net/if_tun.h>
+#include <net/route.h>
 #include <arpa/inet.h>
-#include <errno.h>
+
 #include "ipcp.h"
 #include "os.h"
 #include "vars.h"
