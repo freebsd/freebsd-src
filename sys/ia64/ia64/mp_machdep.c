@@ -69,7 +69,7 @@ struct mp_cpu {
 
 int	mp_hardware = 0;
 int	mp_ipi_vector[IPI_COUNT];
-int	mp_ipi_test;
+int	mp_ipi_test = 0;
 
 TAILQ_HEAD(, mp_cpu) ia64_cpus = TAILQ_HEAD_INITIALIZER(ia64_cpus);
 
@@ -77,32 +77,34 @@ void *
 ia64_ap_get_stack(void)
 {
 	struct mp_cpu *cpu;
-	u_int64_t lid = ia64_get_lid() & 0xffff0000;
+	u_int64_t lid = ia64_get_lid() & 0xffff0000L;
 
 	TAILQ_FOREACH(cpu, &ia64_cpus, cpu_next) {
 		if (cpu->cpu_lid == lid)
 			return (cpu->cpu_stack);
 	}
 
-	/* XXX - Should never reach here */
-	return NULL;
+	panic(__func__": bad LID or RR5 misconfigured");
 }
 
 void
 ia64_ap_startup(void)
 {
 	struct mp_cpu *cpu;
-	u_int64_t lid = ia64_get_lid() & 0xffff0000;
+	u_int64_t lid = ia64_get_lid() & 0xffff0000L;
 
 	TAILQ_FOREACH(cpu, &ia64_cpus, cpu_next) {
-		if (cpu->cpu_lid == lid) {
-			cpu->cpu_lid = ia64_get_lid();
-			cpu->cpu_awake = 1;
-			printf("SMP: CPU%d is awake!\n", cpu->cpu_no);
-			while (1)
-				ia64_call_pal_static(PAL_HALT_LIGHT, 0, 0, 0);
-		}
+		if (cpu->cpu_lid == lid)
+			break;
 	}
+
+	KASSERT(cpu != NULL, ("foo!"));
+
+	cpu->cpu_lid = ia64_get_lid();
+	cpu->cpu_awake = 1;
+
+	while(1)
+		ia64_call_pal_static(PAL_HALT_LIGHT, 0, 0, 0);
 }
 
 int
@@ -116,7 +118,7 @@ void
 cpu_mp_add(uint acpiid, uint apicid, uint apiceid)
 {
 	struct mp_cpu *cpu;
-	u_int64_t lid = ia64_get_lid() & 0xffff0000;
+	u_int64_t bsp = ia64_get_lid() & 0xffff0000L;
 
 	cpu = malloc(sizeof(*cpu), M_SMP, M_WAITOK|M_ZERO);
 	if (cpu == NULL)
@@ -124,13 +126,9 @@ cpu_mp_add(uint acpiid, uint apicid, uint apiceid)
 
 	TAILQ_INSERT_TAIL(&ia64_cpus, cpu, cpu_next);
 	cpu->cpu_no = acpiid;
-	lid = ((apicid & 0xff) << 8 | (apiceid & 0xff)) << 16;
-	if (lid == (ia64_get_lid() & 0xffff0000L)) {
-		cpu->cpu_lid = ia64_get_lid();
+	cpu->cpu_lid = ((apicid & 0xff) << 8 | (apiceid & 0xff)) << 16;
+	if (cpu->cpu_lid == bsp)
 		cpu->cpu_bsp = 1;
-		cpu->cpu_awake = 1;
-	} else
-		cpu->cpu_lid = lid;
 	all_cpus |= (1 << acpiid);
 	mp_ncpus++;
 }
@@ -141,9 +139,12 @@ cpu_mp_announce()
 	struct mp_cpu *cpu;
 
 	TAILQ_FOREACH(cpu, &ia64_cpus, cpu_next) {
-		printf("cpu%d: SAPIC Id=%x, SAPIC Eid=%x (%s)\n", cpu->cpu_no,
-		    LID_SAPIC_ID(cpu->cpu_lid), LID_SAPIC_EID(cpu->cpu_lid),
-		    (cpu->cpu_bsp) ? "BSP" : "AP");
+		printf("cpu%d: SAPIC Id=%x, SAPIC Eid=%x", cpu->cpu_no,
+		    LID_SAPIC_ID(cpu->cpu_lid), LID_SAPIC_EID(cpu->cpu_lid));
+		if (cpu->cpu_bsp)
+			printf(" (BSP)\n");
+		else
+			printf("\n");
 	}
 }
 
@@ -157,10 +158,11 @@ cpu_mp_start()
 			cpu->cpu_stack = malloc(KSTACK_PAGES * PAGE_SIZE,
 			    M_SMP, M_WAITOK);
 			if (bootverbose)
-				printf("SMP: waking up CPU%d\n", cpu->cpu_no);
+				printf("SMP: waking up cpu%d\n", cpu->cpu_no);
 			ipi_send(cpu->cpu_lid, IPI_AP_WAKEUP);
 		} else {
-			mp_ipi_test = 0;
+			cpu->cpu_lid = ia64_get_lid();
+			cpu->cpu_awake = 1;
 			ipi_self(IPI_TEST);
 		}
 	}
@@ -169,12 +171,21 @@ cpu_mp_start()
 static void
 cpu_mp_unleash(void *dummy)
 {
+	struct mp_cpu *cpu;
+	int awake = 0;
 
 	if (!mp_hardware)
 		return;
 
 	if (mp_ipi_test != 1)
 		printf("SMP: sending of a test IPI to BSP failed\n");
+
+	TAILQ_FOREACH(cpu, &ia64_cpus, cpu_next) {
+		awake += cpu->cpu_awake;
+	}
+
+	if (awake != mp_ncpus)
+		printf("SMP: %d CPU(s) didn't get woken\n", mp_ncpus - awake);
 }
 
 /*
