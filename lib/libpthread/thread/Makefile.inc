@@ -103,6 +103,7 @@ SRCS+= \
 	thr_suspend_np.c \
 	thr_switch_np.c \
 	thr_system.c \
+	thr_symbols.c \
 	thr_tcdrain.c \
 	thr_vfork.c \
 	thr_wait.c \
