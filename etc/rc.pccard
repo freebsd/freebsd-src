@@ -3,7 +3,7 @@
 # PC-card startup script
 # HOSOKAWA, Tatsumi <hosokawa@mt.cs.keio.ac.jp>
 #
-#	$Id: rc.pccard,v 1.6.2.3 1999/03/17 20:58:33 nate Exp $
+#	$Id: rc.pccard,v 1.6.2.4 1999/03/17 21:57:53 nate Exp $
 #
 
 if [ "X$pccard_enable" = X"YES" ] ; then
@@ -21,5 +21,5 @@ if [ "X$pccard_enable" = X"YES" ] ; then
 		pccardc pccardmem 0xd0000
 	fi
 	echo -n "Enable PC-card." 
-	pccardd 2>&1 > /var/log/pccardd.debug &
+	pccardd 2>&1 > /var/log/pccardd.debug
 fi
