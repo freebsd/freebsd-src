@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.53 1996/05/23 16:34:25 jkh Exp $
+ * $Id: dist.c,v 1.36.2.30 1996/05/24 06:08:26 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -359,12 +359,13 @@ distExtract(char *parent, Distribution *me)
 	dist_attr = NULL;
 	numchunks = 0;
 
-	snprintf(buf, sizeof buf, "/stand/info/%s/%s.inf", path, dist);
-	if (file_readable(buf)) {
+	snprintf(buf, sizeof buf, "%s/%s.inf", path, dist);
+	fd = mediaDevice->get(mediaDevice, buf, TRUE);
+	if (fd >= 0) {
 	    if (isDebug())
 		msgDebug("Parsing attributes file for distribution %s\n", dist);
 	    dist_attr = safe_malloc(sizeof(Attribs) * MAX_ATTRIBS);
-	    if (DITEM_STATUS(attr_parse_file(dist_attr, buf)) == DITEM_FAILURE)
+	    if (DITEM_STATUS(attr_parse(dist_attr, fd)) == DITEM_FAILURE)
 		msgConfirm("Cannot load information file for %s distribution!\n"
 			   "Please verify that your media is valid and try again.", dist);
 	    else {
@@ -375,8 +376,13 @@ distExtract(char *parent, Distribution *me)
 		    numchunks = strtol(tmp, 0, 0);
 	    }
 	    safe_free(dist_attr);
+	    mediaDevice->close(mediaDevice, fd);
 	}
-
+	else if (fd == -2) {	/* Hard error, can't continue */
+	    mediaDevice->shutdown(mediaDevice);
+	    status = FALSE;
+	    goto done;
+	}
 	if (!numchunks)
 	    continue;
 
@@ -419,7 +425,7 @@ distExtract(char *parent, Distribution *me)
 		seconds = stop.tv_sec + (stop.tv_usec / 1000000.0);
 		if (!seconds)
 		    seconds = 1;
-		msgInfo("%d bytes read from distribution chunk %d of %d, %d KBytes/second",
+		msgInfo("%d bytes read from distribution, chunk %d of %d, %d KBytes/second",
 			total, chunk + 1, numchunks, (total / seconds) / 1024);
 		retval = write(fd2, buf, n);
 		if (retval != n) {
@@ -468,10 +474,9 @@ distExtract(char *parent, Distribution *me)
 }
 
 static void
-printSelected(char *buf, int selected, Distribution *me)
+printSelected(char *buf, int selected, Distribution *me, int *col)
 {
     int i;
-    static int col = 0;
 
     /* Loop through to see if we're in our parent's plans */
     for (i = 0; me[i].my_name; i++) {
@@ -484,15 +489,15 @@ printSelected(char *buf, int selected, Distribution *me)
 	if (!me[i].my_dir)
 	    continue;
 
-	col += strlen(me[i].my_name);
-	if (col > 50) {
-	    col = 0;
+	*col += strlen(me[i].my_name);
+	if (*col > 50) {
+	    *col = 0;
 	    strcat(buf, "\n");
 	}
 	sprintf(&buf[strlen(buf)], " %s", me[i].my_name);
 	/* Recurse if have a sub-distribution */
 	if (me[i].my_dist)
-	    printSelected(buf, *(me[i].my_mask), me[i].my_dist);
+	    printSelected(buf, *(me[i].my_mask), me[i].my_dist, col);
     }
 }
 
@@ -519,7 +524,10 @@ distExtractAll(dialogMenuItem *self)
 	distExtract(NULL, DistTable);
 
     if (Dists) {
-	printSelected(buf, Dists, DistTable);
+	int col = 0;
+
+	buf[0] = '\0';
+	printSelected(buf, Dists, DistTable, &col);
 	dialog_clear();
 	msgConfirm("Couldn't extract the following distributions.  This may\n"
 		   "be because they were not available on the installation\n"

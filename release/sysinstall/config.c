@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.32 1996/05/23 16:34:24 jkh Exp $
+ * $Id: config.c,v 1.16.2.48 1996/05/24 06:08:18 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -432,6 +432,7 @@ configPackages(dialogMenuItem *self)
 	msgNotify("Attempting to fetch packages/INDEX file from selected media.");
 	fd = mediaDevice->get(mediaDevice, "packages/INDEX", TRUE);
 	if (fd < 0) {
+	    dialog_clear();
 	    msgConfirm("Unable to get packages/INDEX file from selected media.\n"
 		       "This may be because the packages collection is not available at\n"
 		       "on the distribution media you've chosen (most likely an FTP site\n"
@@ -439,7 +440,7 @@ configPackages(dialogMenuItem *self)
 		       "(or path to media) and try again.  If your local site does not\n"
 		       "carry the packages collection, then we recommend either a CD\n"
 		       "distribution or the master distribution on ftp.freebsd.org.");
-	    return DITEM_FAILURE;
+	    return DITEM_FAILURE | DITEM_RESTORE;
 	}
 	msgNotify("Got INDEX successfully, now building packages menu..");
 	index_init(&top, &plist);

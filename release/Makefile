@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.215 1996/05/16 03:20:52 jkh Exp $
+#	$Id: Makefile,v 1.217 1996/05/29 04:13:17 jkh Exp $
 #
 # How to roll a release:
 #
@@ -56,7 +56,7 @@ FD=			${RELEASEDIR}/ftp
 CD=			${RELEASEDIR}/cdrom
 
 .if !defined(WHICH_CRUNCH)
-WHICH_CRUNCH=	boot root fixit
+WHICH_CRUNCH=	boot fixit
 .endif
 
 rerelease release:
@@ -119,7 +119,7 @@ whap:
 	  sed "s/__RELEASE/${BUILDNAME}/" version.h > version.h.new && mv version.h.new version.h )
 
 clean:
-	rm -rf root_crunch boot_crunch release.[0-9] release.1[0]
+	rm -rf boot_crunch release.[0-9] release.1[0]
 
 # Clean out ${RELEASEDIR} and make the directory structure.
 release.1:
@@ -276,7 +276,6 @@ release.6:
 	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
 	rm -rf ${RD}/dists
 	mkdir -p ${RD}/dists
-	mkdir -p ${RD}/info
 	@for i in ${DISTRIBUTIONS} ; \
 	do \
 		if [ -d ${RD}/trees/$${i} ] ; then \
@@ -288,8 +287,6 @@ release.6:
 	done
 	( cd ${RD}/dists && \
 		if [ -f krb/krb.aa ] ; then mv krb/* des && rmdir krb ; fi )
-	( cd ${RD}/info && \
-		if [ -d krb ] ; then mv krb/* des && rmdir krb ; fi )
 	touch release.6
 
 
@@ -318,8 +315,7 @@ release.7:
 .endif
 	( cd ${RD}/dists/src && \
 		if [ -f ssecure.aa ] ; then mv ssecure.* ../des ; fi && \
-		if [ -f sebones.aa ] ; then mv sebones.* ../des ; fi )
-	( cd ${RD}/info/src && \
+		if [ -f sebones.aa ] ; then mv sebones.* ../des ; fi && \
 		if [ -f ssecure.inf ] ; then mv ssecure.inf ../des ; fi && \
 		if [ -f sebones.inf ] ; then mv sebones.inf ../des ; fi ; )
 	@echo "src distribution is finished."
@@ -368,6 +364,8 @@ release.8: write_mfs_in_kernel
 	# add more stuff for the complete bootfd
 	tar --exclude CVS -cf - -C ${.CURDIR}/sysinstall help | \
 		tar xvf - -C ${RD}/mfsfd/stand
+	cp ${.CURDIR}/sysinstall/power.uu ${RD}/mfsfd/stand && \
+		cd ${RD}/mfsfd/stand && uudecode power.uu && rm power.uu
 	sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${BOOTMFSSIZE} ${RD}/mfsfd \
 		${MFSINODE} minimum
 	mv fs-image fs-image.std
@@ -380,32 +378,9 @@ release.8: write_mfs_in_kernel
 	touch release.8
 
 #
-# --==## Create a root floppy ##==--
-#
-release.9:
-	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
-	rm -rf ${RD}/rootfd
-	mkdir ${RD}/rootfd
-	cd ${RD}/rootfd && \
-		mkdir stand stand/info
-	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=root \
-		DIR=${RD}/rootfd/stand ZIP=false
-	tar --exclude CVS -cf - -C ${RD} info | tar xvf - -C ${RD}/rootfd/stand
-	tar -cf - -C ${RD}/trees/bin/dev MAKEDEV | \
-		tar xvf - -C ${RD}/rootfd/stand
-	cp ${.CURDIR}/sysinstall/power.uu ${RD}/rootfd/stand && \
-		cd ${RD}/rootfd/stand && uudecode power.uu && rm power.uu
-	cd ${RD}/rootfd && \
-		( rm -f OK && find . -print && touch OK && echo OK ) | \
-		cpio -H newc -oa | gzip -9 -c | \
-		dd conv=osync > ${RD}/floppies/root.tmp
-	mv ${RD}/floppies/root.tmp ${RD}/floppies/root.flp
-	touch release.9
-
-#
 # --==## Create a fixit floppy ##==--
 #
-release.10:
+release.9:
 	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
 	rm -rf ${RD}/fixitfd
 	mkdir ${RD}/fixitfd
@@ -421,7 +396,7 @@ release.10:
 	sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${FDSIZE} ${RD}/fixitfd \
 		10000 ${FDLABEL}
 	mv fs-image ${RD}/floppies/fixit.flp
-	touch release.10
+	touch release.9
 
 #
 # --==## Setup a suitable ftp-area ##==--
@@ -469,19 +444,16 @@ doTARBALL:
 		echo rolling ${TD}/$$tn tarball &&\
 		tar --exclude CVS --exclude obj -cf - ${ARG} | \
 		${ZIPNSPLIT} ${RD}/dists/${TD}/$$tn. && \
-		cd ${RD}/info && \
-		mkdir -p ${TD} && \
-		sh ${.CURDIR}/info.sh ${RD}/dists/${TD}/$$tn > ${TD}/$$tn.inf \
-	)
+		mkdir -p ${TD} && sh ${.CURDIR}/info.sh \
+		  ${RD}/dists/${TD}/$$tn > ${RD}/dists/${TD}/$$tn.inf )
 
 doRELEASE:  release.1 release.2 release.3 release.4 release.5 release.6 \
-		release.7 release.8 release.9 release.10
+		release.7 release.8 release.9
 	cd ${.CURDIR} && ${MAKE} cdrom.1 ftp.1
 	@echo "Release done"
 
 floppies:
 	cd ${.CURDIR} && ${MAKE} boot.flp
-	cd ${.CURDIR} && ${MAKE} root.flp
 	cd ${.CURDIR} && ${MAKE} fixit.flp
 	cd ${RD} && find floppies -print | cpio -dumpl ${FD}
 
@@ -489,13 +461,9 @@ boot.flp:
 	rm -f release.4 release.8
 	cd ${.CURDIR} && ${MAKE} release.4 release.8 WHICH_CRUNCH=boot
 
-root.flp:
-	rm -f release.4 release.9
-	cd ${.CURDIR} && ${MAKE} release.4 release.9 WHICH_CRUNCH=root
-
 fixit.flp:
-	rm -f release.4 release.10
-	cd ${.CURDIR} && ${MAKE} release.4 release.10 WHICH_CRUNCH=fixit
+	rm -f release.4 release.9
+	cd ${.CURDIR} && ${MAKE} release.4 release.9 WHICH_CRUNCH=fixit
 
 write_mfs_in_kernel:	${.CURDIR}/write_mfs_in_kernel.c
 	${CC} ${CFLAGS} -o write_mfs_in_kernel ${.CURDIR}/write_mfs_in_kernel.c

@@ -157,15 +157,6 @@ If you must install from floppy disks, either due to unsupported
 hardware or just because you enjoy doing things the hard way, you must
 first prepare some floppies for the install.
 
-The first floppy you'll need in addition to the boot.flp image is
-``floppies/root.flp'', which is somewhat special in that it's not a
-DOS filesystem floppy at all, but rather a floppy "image" (it's
-actually a gzip'd cpio file).  You can create this floppy in the same
-way that you created the boot floppy (see notes in section 2.1).  Once
-this floppy is made, you can go on to make the distribution set
-floppies using ordinary DOS or UFS (if you're preparing the floppies
-on another FreeBSD machine) formatted diskettes.
-
 You will need, at minimum, as many 1.44MB or 1.2MB floppies as it
 takes to hold all files in the bin (binary distribution) directory.
 If you're preparing these floppies under DOS, then THESE floppies
@@ -211,12 +202,9 @@ this:
 
         C> MD C:\FREEBSD
         C> XCOPY /S E:\DISTS\BIN C:\FREEBSD\BIN
-        C> XCOPY /S E:\FLOPPIES C:\FREEBSD\FLOPPIES
 
 Asssuming that `C:' was where you had free space and `E:' was where
-your CD was mounted.  Note that you need the FLOPPIES directory
-because the `root.flp' image is automatically looked for there when
-you're doing a DOS installation.
+your CD was mounted. 
 
 For as many `DISTS' as you wish to install from DOS (and you have free
 space for), install each one in a directory under `C:\FREEBSD' - the
@@ -232,11 +220,7 @@ all of the files for the distributions you're interested in, simply
 tar them onto the tape with a command like:
 
         cd /where/you/have/your/dists
-        tar cvf /dev/rwt0 (or /dev/rst0) floppies dist1 .. dist2
-
-It's important to make sure that the `floppies/' directory is
-specified along with the dists because the installation will look for
-`floppies/root.flp' on the tape.
+        tar cvf /dev/rwt0 (or /dev/rst0) dist1 .. dist2
 
 When you go to do the installation, you should also make sure that you
 leave enough room in some temporary directory (which you'll be allowed

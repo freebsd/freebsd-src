@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.97 1996/05/16 11:47:30 jkh Exp $
+ * $Id: install.c,v 1.71.2.90 1996/05/24 06:08:41 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -455,7 +455,7 @@ installNovice(dialogMenuItem *self)
 	    configPorts(self);
     }
 
-    if (!msgYesNo("The FreeBSD package collection is a collection of over 300 ready-to-run\n"
+    if (!msgYesNo("The FreeBSD package collection is a collection of over 450 ready-to-run\n"
 		  "applications, from text editors to games to WEB servers.  Would you like\n"
 		  "to browse the collection now?"))
 	configPackages(self);
@@ -522,11 +522,6 @@ installCommit(dialogMenuItem *self)
 	    return i;
 	if (DITEM_STATUS((i = configFstab())) == DITEM_FAILURE)
 	    return i;
-	if (!rootExtract()) {
-	    msgConfirm("Failed to load the ROOT distribution.  Please correct\n"
-		       "this problem and try again.");
-	    return DITEM_FAILURE;
-	}
     }
 
     i = distExtractAll(self);
@@ -825,67 +820,6 @@ copySelf(void)
 	return TRUE;
     }
     return TRUE;
-}
-
-static Boolean loop_on_root_floppy(void);
-
-Boolean
-rootExtract(void)
-{
-    int fd;
-    static Boolean alreadyExtracted = FALSE;
-
-    if (alreadyExtracted)
-	return TRUE;
-
-    if (mediaDevice) {
-	if (isDebug())
-	    msgDebug("Attempting to extract root image from %s\n", mediaDevice->name);
-	switch(mediaDevice->type) {
-
-	case DEVICE_TYPE_FLOPPY:
-	    alreadyExtracted = loop_on_root_floppy();
-	    break;
-
-	default:
-	    if (!mediaDevice->init(mediaDevice))
-		break;
-	    fd = mediaDevice->get(mediaDevice, "floppies/root.flp", FALSE);
-	    if (fd < 0) {
-		msgConfirm("Couldn't get root image from %s!\n"
-			   "Will try to get it from floppy.", mediaDevice->name);
-		mediaDevice->shutdown(mediaDevice);
-	        alreadyExtracted = loop_on_root_floppy();
-	    }
-	    else {
-		msgNotify("Loading root image from:\n%s", mediaDevice->name);
-		alreadyExtracted = mediaExtractDist("/", fd);
-		mediaDevice->close(mediaDevice, fd);
-	    }
-	    break;
-	}
-    }
-    else
-	alreadyExtracted = loop_on_root_floppy();
-    return alreadyExtracted;
-}
-
-static Boolean
-loop_on_root_floppy(void)
-{
-    int fd;
-    int status = FALSE;
-
-    while (1) {
-	fd = getRootFloppy();
-	if (fd != -1) {
-	    msgNotify("Extracting root floppy..");
-	    status = mediaExtractDist("/", fd);
-	    close(fd);
-	    break;
-	}
-    }
-    return status;
 }
 
 static void
