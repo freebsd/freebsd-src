@@ -862,16 +862,16 @@ mac_test_check_socket_connect(struct ucred *cred, struct socket *socket,
 }
 
 static int
-mac_test_check_socket_listen(struct ucred *cred, struct socket *socket,
-    struct label *socketlabel, struct sockaddr *sockaddr)
+mac_test_check_socket_deliver(struct socket *socket, struct label *socketlabel,
+    struct mbuf *m, struct label *mbuflabel)
 {
 
 	return (0);
 }
 
 static int
-mac_test_check_socket_receive(struct socket *socket, struct label *socketlabel,
-    struct mbuf *m, struct label *mbuflabel)
+mac_test_check_socket_listen(struct ucred *cred, struct socket *socket,
+    struct label *socketlabel, struct sockaddr *sockaddr)
 {
 
 	return (0);
@@ -1248,10 +1248,10 @@ static struct mac_policy_op_entry mac_test_ops[] =
 	    (macop_t)mac_test_check_socket_bind },
 	{ MAC_CHECK_SOCKET_CONNECT,
 	    (macop_t)mac_test_check_socket_connect },
+	{ MAC_CHECK_SOCKET_DELIVER,
+	    (macop_t)mac_test_check_socket_deliver },
 	{ MAC_CHECK_SOCKET_LISTEN,
 	    (macop_t)mac_test_check_socket_listen },
-	{ MAC_CHECK_SOCKET_RECEIVE,
-	    (macop_t)mac_test_check_socket_receive },
 	{ MAC_CHECK_SOCKET_RELABEL,
 	    (macop_t)mac_test_check_socket_relabel },
 	{ MAC_CHECK_SOCKET_VISIBLE,

@@ -1424,7 +1424,7 @@ mac_biba_check_proc_signal(struct ucred *cred, struct proc *proc, int signum)
 }
 
 static int
-mac_biba_check_socket_receive(struct socket *so, struct label *socketlabel,
+mac_biba_check_socket_deliver(struct socket *so, struct label *socketlabel,
     struct mbuf *m, struct label *mbuflabel)
 {
 	struct mac_biba *p, *s;
@@ -2161,8 +2161,8 @@ static struct mac_policy_op_entry mac_biba_ops[] =
 	    (macop_t)mac_biba_check_proc_sched },
 	{ MAC_CHECK_PROC_SIGNAL,
 	    (macop_t)mac_biba_check_proc_signal },
-	{ MAC_CHECK_SOCKET_RECEIVE,
-	    (macop_t)mac_biba_check_socket_receive },
+	{ MAC_CHECK_SOCKET_DELIVER,
+	    (macop_t)mac_biba_check_socket_deliver },
 	{ MAC_CHECK_SOCKET_RELABEL,
 	    (macop_t)mac_biba_check_socket_relabel },
 	{ MAC_CHECK_SOCKET_VISIBLE,

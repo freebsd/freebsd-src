@@ -320,7 +320,7 @@ udp_input(m, off)
 				}
 #endif /*IPSEC*/
 #ifdef MAC
-				if (mac_check_socket_receive(last->inp_socket,
+				if (mac_check_socket_deliver(last->inp_socket,
 				    m) != 0)
 					policyfail = 1;
 #endif
@@ -406,7 +406,7 @@ udp_input(m, off)
 	}
 #endif /*IPSEC*/
 #ifdef MAC
-	error = mac_check_socket_receive(inp->inp_socket, m);
+	error = mac_check_socket_deliver(inp->inp_socket, m);
 	if (error)
 		goto bad;
 #endif
