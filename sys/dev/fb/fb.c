@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: $
+ * $Id: fb.c,v 1.1 1999/01/09 02:44:49 yokota Exp $
  */
 
 #include "fb.h"
@@ -48,16 +48,19 @@
  * for the kernel console.  The arrays will be increased dynamically
  * when necessary.
  */
-static video_adapter_t	*adp_ini;
-static video_switch_t	*vidsw_ini;
-static struct cdevsw	*vidcdevsw_ini;
 
-static video_adapter_t	**adapter = &adp_ini;
 static int		adapters = 1;
+static video_adapter_t	*adp_ini;
+static video_adapter_t	**adapter = &adp_ini;
+static video_switch_t	*vidsw_ini;
        video_switch_t	**vidsw = &vidsw_ini;
-static struct cdevsw	**vidcdevsw = &vidcdevsw_ini;
+
+#ifdef FB_INSTALL_CDEV
 
 #define ARRAY_DELTA	4
+
+static struct cdevsw	*vidcdevsw_ini;
+static struct cdevsw	**vidcdevsw = &vidcdevsw_ini;
 
 static void
 vid_realloc_array(void)
@@ -93,6 +96,8 @@ vid_realloc_array(void)
 	if (bootverbose)
 		printf("fb: new array size %d\n", adapters);
 }
+
+#endif /* FB_INSTALL_CDEV */
 
 /*
  * Low-level frame buffer driver functions
