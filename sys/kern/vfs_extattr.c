@@ -397,6 +397,10 @@ fchdir(td, uap)
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	if (vp->v_type != VDIR)
 		error = ENOTDIR;
+#ifdef MAC
+	else if ((error = mac_check_vnode_chdir(td->td_ucred, vp)) != 0) {
+	}
+#endif
 	else
 		error = VOP_ACCESS(vp, VEXEC, td->td_ucred, td);
 	while (!error && (mp = vp->v_mountedhere) != NULL) {
@@ -524,6 +528,10 @@ chroot(td, uap)
 	mtx_lock(&Giant);
 	if ((error = change_dir(&nd, td)) != 0)
 		goto error;
+#ifdef MAC
+	if ((error = mac_check_vnode_chroot(td->td_ucred, nd.ni_vp)))
+		goto error;
+#endif
 	FILEDESC_LOCK(fdp);
 	if (chroot_allow_open_directories == 0 ||
 	    (chroot_allow_open_directories == 1 && fdp->fd_rdir != rootvnode)) {
@@ -567,6 +575,10 @@ change_dir(ndp, td)
 	vp = ndp->ni_vp;
 	if (vp->v_type != VDIR)
 		error = ENOTDIR;
+#ifdef MAC
+	else if ((error = mac_check_vnode_chdir(td->td_ucred, vp)) != 0) {
+	}
+#endif
 	else
 		error = VOP_ACCESS(vp, VEXEC, td->td_ucred, td);
 	if (error)
