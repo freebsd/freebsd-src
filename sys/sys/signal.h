@@ -133,12 +133,18 @@ union sigval {
 
 struct sigevent {
 	int	sigev_notify;		/* Notification type */
-	int	sigev_signo;		/* Signal number */
+	union {
+		int	__sigev_signo;	/* Signal number */
+		int	__sigev_notify_kqueue;
+	} __sigev_u;
 	union sigval sigev_value;	/* Signal value */
 };
+#define sigev_signo		__sigev_u.__sigev_signo
+#define sigev_notify_kqueue	__sigev_u.__sigev_notify_kqueue
 
 #define	SIGEV_NONE	0		/* No async notification */
 #define	SIGEV_SIGNAL	1		/* Generate a queued signal */
+#define SIGEV_KEVENT	3		/* Generate a kevent */
 
 typedef struct __siginfo {
 	int	si_signo;		/* signal number */
