@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.13 1998/08/07 18:42:50 brian Exp $
+ *	$Id: mp.c,v 1.14 1998/08/25 17:48:42 brian Exp $
  */
 
 #include <sys/types.h>
@@ -53,11 +53,11 @@
 #include "iplist.h"
 #include "throughput.h"
 #include "slcompress.h"
+#include "lqr.h"
+#include "hdlc.h"
 #include "ipcp.h"
 #include "auth.h"
 #include "lcp.h"
-#include "lqr.h"
-#include "hdlc.h"
 #include "async.h"
 #include "ccp.h"
 #include "link.h"

@@ -2,7 +2,7 @@
  * The code in this file was written by Eivind Eklund <perhaps@yes.no>,
  * who places it in the public domain without restriction.
  *
- *	$Id: alias_cmd.c,v 1.15 1998/06/27 14:17:23 brian Exp $
+ *	$Id: alias_cmd.c,v 1.16 1998/06/27 14:17:59 brian Exp $
  */
 
 #include <sys/types.h>
@@ -31,10 +31,10 @@
 #include "slcompress.h"
 #include "throughput.h"
 #include "iplist.h"
-#include "ipcp.h"
+#include "mbuf.h"
 #include "lqr.h"
 #include "hdlc.h"
-#include "mbuf.h"
+#include "ipcp.h"
 #include "lcp.h"
 #include "ccp.h"
 #include "link.h"
