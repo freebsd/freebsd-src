@@ -101,6 +101,9 @@ getenv_quad(const char *name, quad_t *data)
     return(1);
 }
 
+/*
+ * Export for userland.  See kenv(1) specifically.
+ */
 static int
 sysctl_kernenv(SYSCTL_HANDLER_ARGS)
 {
