@@ -26,7 +26,6 @@
  * $FreeBSD$
  */
 
-#include "vt.h"
 #include "ar.h"
 #include "cx.h"
 #include "el.h"
@@ -77,7 +76,6 @@ struct old_isa_driver {
 	struct isa_driver	*driver;
 };
 
-extern struct isa_driver  vtdriver;
 extern struct isa_driver  ardriver;
 extern struct isa_driver  cxdriver;
 extern struct isa_driver  eldriver;
@@ -141,9 +139,6 @@ static struct old_isa_driver old_drivers[] = {
 
 /* TTY */
 
-#if NVT > 0
-	{ INTR_TYPE_TTY, &vtdriver },
-#endif
 #if NGP > 0
 	{ INTR_TYPE_TTY, &gpdriver },
 #endif
