@@ -630,7 +630,8 @@
       CS4281 sound chip has been added.  A driver for the S3
       Sonicvobes chipset has been added. &merged;</para>
 
-      <para arch="i386">A driver for the Advance Logic ALS4000 has been added.</para>
+      <para arch="i386">A driver for the Advance Logic ALS4000 has
+      been added. &merged;</para>
 
       <para arch="i386">A driver for the
       ESS Maestro-3/Allegro has been added, however due to licensing
@@ -946,7 +947,7 @@
     <para>&man.ifconfig.8; now has support for setting parameters for
     IEEE 802.11 wireless network devices.  &man.wi.4; and
     &man.an.4; devices are supported, and partial support is provided
-    for awi devices.</para>
+    for &man.awi.4; devices. &merged;</para>
 
     <para>&man.ifconfig.8; no longer displays the list of supported
     media by default.  Instead it displays it when the
@@ -1646,7 +1647,7 @@
 
       <para>&man.traceroute.8; now takes its default maximum TTL value
       from the <varname>net.inet.ip.ttl</varname> sysctl
-      variable.</para>
+      variable. &merged;</para>
 
       <sect4>
         <title>OpenSSH</title>
