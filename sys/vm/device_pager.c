@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)device_pager.c	8.1 (Berkeley) 6/11/93
- * $Id: device_pager.c,v 1.13 1995/11/06 00:36:19 bde Exp $
+ * $Id: device_pager.c,v 1.14 1995/12/03 12:18:30 bde Exp $
  */
 
 #include <sys/param.h>
@@ -94,8 +94,10 @@ dev_pager_alloc(handle, size, prot, foff)
 	 */
 	dev = (dev_t) (u_long) handle;
 	mapfunc = cdevsw[major(dev)].d_mmap;
-	if (mapfunc == NULL || mapfunc == nullop)
+	if (mapfunc == NULL || mapfunc == (d_mmap_t *)nullop) {
+		printf("obsolete map function %p\n", (void *)mapfunc);
 		return (NULL);
+	}
 
 	/*
 	 * Offset should be page aligned.
@@ -187,7 +189,7 @@ dev_pager_getpages(object, m, count, reqpage)
 	prot = PROT_READ;	/* XXX should pass in? */
 	mapfunc = cdevsw[major(dev)].d_mmap;
 
-	if (mapfunc == NULL || mapfunc == nullop)
+	if (mapfunc == NULL || mapfunc == (d_mmap_t *)nullop)
 		panic("dev_pager_getpage: no map function");
 
 	paddr = pmap_phys_address((*mapfunc) ((dev_t) dev, (int) offset, prot));
