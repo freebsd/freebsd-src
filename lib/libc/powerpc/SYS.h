@@ -41,3 +41,7 @@ ENTRY(__CONCAT(__sys_,x)) ;						\
 	li	0,(SYS_ ## x) ;						\
 	sc ;								\
 	bso	2b
+
+#define	RSYSCALL(x)							\
+	SYSCALL(x) ;							\
+	blr
