@@ -84,10 +84,12 @@ GENSRCS+=	c-gperf.h
 gxx-hash.h: gxx.gperf
 	gperf -p -j1 -g -o -t -N is_reserved_word '-k1,4,7,$$' \
 	    ${GCCDIR}/cp/gxx.gperf >gxx-hash.h
+GENSRCS+=	gxx-hash.h
 
+# make a link the the Cygnus used name for now -- hopes are they will change it
 hash.h: gxx-hash.h
 	ln -s ${.ALLSRC} ${.TARGET}
-GENSRCS+=	gxx-hash.h hash.h
+GENSRCS+=	hash.h
 
 #-----------------------------------------------------------------------
 # Common parser stuff.
