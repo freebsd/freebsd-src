@@ -36,9 +36,9 @@
 
 #ifndef lint
 #if SMTP
-static char sccsid[] = "@(#)usersmtp.c	8.87 (Berkeley) 6/3/97 (with SMTP)";
+static char sccsid[] = "@(#)usersmtp.c	8.88 (Berkeley) 10/20/97 (with SMTP)";
 #else
-static char sccsid[] = "@(#)usersmtp.c	8.87 (Berkeley) 6/3/97 (without SMTP)";
+static char sccsid[] = "@(#)usersmtp.c	8.88 (Berkeley) 10/20/97 (without SMTP)";
 #endif
 #endif /* not lint */
 
@@ -60,7 +60,6 @@ static char sccsid[] = "@(#)usersmtp.c	8.87 (Berkeley) 6/3/97 (without SMTP)";
 char	SmtpMsgBuffer[MAXLINE];		/* buffer for commands */
 char	SmtpReplyBuffer[MAXLINE];	/* buffer for replies */
 char	SmtpError[MAXLINE] = "";	/* save failure error messages */
-int	SmtpPid;			/* pid of mailer */
 bool	SmtpNeedIntro;			/* need "while talking" in transcript */
 
 extern void	smtpmessage __P((char *f, MAILER *m, MCI *mci, ...));

@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)deliver.c	8.285 (Berkeley) 8/2/97";
+static char sccsid[] = "@(#)deliver.c	8.296 (Berkeley) 10/22/97";
 #endif /* not lint */
 
 #include "sendmail.h"
@@ -42,6 +42,10 @@ static char sccsid[] = "@(#)deliver.c	8.285 (Berkeley) 8/2/97";
 #include <resolv.h>
 
 extern int	h_errno;
+#endif
+
+#if HASSETUSERCONTEXT
+# include <login_cap.h>
 #endif
 
 #if SMTP
@@ -77,7 +81,7 @@ sendall(e, mode)
 	register ENVELOPE *ee;
 	ENVELOPE *splitenv = NULL;
 	int oldverbose = Verbose;
-	bool somedeliveries = FALSE;
+	bool somedeliveries = FALSE, expensive = FALSE;
 	pid_t pid;
 	extern void sendenvelope();
 
@@ -281,6 +285,7 @@ sendall(e, mode)
 				if (tTd(13, 30))
 					printf("    ... expensive\n");
 				q->q_flags |= QQUEUEUP;
+				expensive = TRUE;
 			}
 			else
 			{
@@ -393,11 +398,13 @@ sendall(e, mode)
 
 		/* treat this as a delivery in terms of counting tries */
 		e->e_dtime = curtime();
-		e->e_ntries++;
+		if (!expensive)
+			e->e_ntries++;
 		for (ee = splitenv; ee != NULL; ee = ee->e_sibling)
 		{
 			ee->e_dtime = curtime();
-			ee->e_ntries++;
+			if (!expensive)
+				ee->e_ntries++;
 		}
 	}
 
@@ -466,34 +473,13 @@ sendall(e, mode)
 		/*
 		**  Since fcntl locking has the interesting semantic that
 		**  the lock is owned by a process, not by an open file
-		**  descriptor, we have to flush this to the queue, and
+		**  descriptor, we have to unlock this envelope, and
 		**  then restart from scratch in the child.
 		*/
 
-		{
-			/* save id for future use */
-			char *qid = e->e_id;
-
-			/* now drop the envelope in the parent */
-			e->e_flags |= EF_INQUEUE;
-			dropenvelope(e, FALSE);
-
-			/* arrange to reacquire lock after fork */
-			e->e_id = qid;
-		}
-
+		unlockqueue(e);
 		for (ee = splitenv; ee != NULL; ee = ee->e_sibling)
-		{
-			/* save id for future use */
-			char *qid = ee->e_id;
-
-			/* drop envelope in parent */
-			ee->e_flags |= EF_INQUEUE;
-			dropenvelope(ee, FALSE);
-
-			/* and save qid for reacquisition */
-			ee->e_id = qid;
-		}
+			unlockqueue(ee);
 
 # endif /* !HASFLOCK */
 
@@ -1368,7 +1354,7 @@ tryhost:
 					hostbuf, m->m_name);
 			else
 				message("Connecting to %s port %d via %s...",
-					hostbuf, port, m->m_name);
+					hostbuf, ntohs(port), m->m_name);
 			i = makeconnection(hostbuf, port, mci, e);
 			mci->mci_lastuse = curtime();
 			mci->mci_exitstat = i;
@@ -1901,7 +1887,7 @@ tryhost:
 			for (to = tochain; to != NULL; to = to->q_tchain)
 			{
 				e->e_to = to->q_paddr;
-				if (strlen(to->q_paddr) + (t - tobuf) + 2 >= sizeof tobuf)
+				if (strlen(to->q_paddr) + (t - tobuf) + 2 > sizeof tobuf)
 				{
 					/* not enough room */
 					continue;
@@ -2244,6 +2230,8 @@ endmailer(mci, e, pv)
 {
 	int st;
 
+	mci_unlock_host(mci);
+
 	/* close any connections */
 	if (mci->mci_in != NULL)
 		(void) xfclose(mci->mci_in, mci->mci_mailer->m_name, "mci_in");
@@ -2330,6 +2318,9 @@ giveresponse(stat, m, mci, ctladdr, xstart, e)
 	register int i;
 	extern int N_SysEx;
 	char buf[MAXLINE];
+
+	if (e == NULL)
+		syserr("giveresponse: null envelope");
 
 	/*
 	**  Compute status message from code.
@@ -2428,7 +2419,8 @@ giveresponse(stat, m, mci, ctladdr, xstart, e)
 	**	that.
 	*/
 
-	if (LogLevel > ((stat == EX_TEMPFAIL) ? 8 : (stat == EX_OK) ? 7 : 6))
+	if (OpMode != MD_VERIFY && !bitset(EF_VRFYONLY, e->e_flags) &&
+	    LogLevel > ((stat == EX_TEMPFAIL) ? 8 : (stat == EX_OK) ? 7 : 6))
 		logdelivery(m, mci, &statmsg[4], ctladdr, xstart, e);
 
 	if (tTd(11, 2))
@@ -2741,7 +2733,7 @@ putfromline(mci, e)
 		}
 	}
 	expand(template, buf, sizeof buf, e);
-	putxline(buf, strlen(buf), mci, PXLF_NOTHINGSPECIAL);
+	putxline(buf, strlen(buf), mci, PXLF_HEADER);
 }
 /*
 **  PUTBODY -- put the body of a message.
@@ -3096,17 +3088,21 @@ endofmessage:
 **		none.
 */
 
+static jmp_buf	CtxMailfileTimeout;
+static void	mailfiletimeout();
+
 int
 mailfile(filename, ctladdr, sfflags, e)
-	char *filename;
+	char *volatile filename;
 	ADDRESS *ctladdr;
-	int sfflags;
+	volatile int sfflags;
 	register ENVELOPE *e;
 {
 	register FILE *f;
 	register pid_t pid = -1;
-	int mode = ST_MODE_NOFILE;
+	volatile int mode = ST_MODE_NOFILE;
 	bool suidwarn = geteuid() == 0;
+	EVENT *ev;
 
 	if (tTd(11, 1))
 	{
@@ -3140,7 +3136,7 @@ mailfile(filename, ctladdr, sfflags, e)
 		/* child -- actually write to file */
 		struct stat stb;
 		MCI mcibuf;
-		int oflags = O_WRONLY|O_APPEND;
+		volatile int oflags = O_WRONLY|O_APPEND;
 
 		if (e->e_lockfp != NULL)
 			(void) close(fileno(e->e_lockfp));
@@ -3151,6 +3147,16 @@ mailfile(filename, ctladdr, sfflags, e)
 		(void) umask(OldUmask);
 		e->e_to = filename;
 		ExitStat = EX_OK;
+
+		if (setjmp(CtxMailfileTimeout) != 0)
+		{
+			exit(EX_TEMPFAIL);
+		}
+
+		if (TimeOuts.to_fileopen > 0)
+			ev = setevent(TimeOuts.to_fileopen, mailfiletimeout, 0);
+		else
+			ev = NULL;
 
 #ifdef HASLSTAT
 		if (lstat(filename, &stb) < 0)
@@ -3287,6 +3293,9 @@ mailfile(filename, ctladdr, sfflags, e)
 			exit(EX_CANTCREAT);
 		}
 
+		if (ev != NULL)
+			clrevent(ev);
+
 		bzero(&mcibuf, sizeof mcibuf);
 		mcibuf.mci_mailer = FileMailer;
 		mcibuf.mci_out = f;
@@ -3331,6 +3340,12 @@ mailfile(filename, ctladdr, sfflags, e)
 		/*NOTREACHED*/
 	}
 	return EX_UNAVAILABLE;	/* avoid compiler warning on IRIX */
+}
+
+static void
+mailfiletimeout()
+{
+	longjmp(CtxMailfileTimeout, 1);
 }
 /*
 **  HOSTSIGNATURE -- return the "signature" for a host.

@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)util.c	8.133 (Berkeley) 8/1/97";
+static char sccsid[] = "@(#)util.c	8.137 (Berkeley) 10/22/97";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -520,6 +520,7 @@ putline(l, mci)
 **		pxflags -- flag bits:
 **		    PXLF_MAPFROM -- map From_ to >From_.
 **		    PXLF_STRIP8BIT -- strip 8th bit.
+**		    PXLF_HEADER -- map bare newline in header to newline space.
 **
 **	Returns:
 **		none
@@ -626,7 +627,8 @@ putxline(l, len, mci, pxflags)
 		fputs(mci->mci_mailer->m_eol, mci->mci_out);
 		if (l < end && *l == '\n')
 		{
-			if (*++l != ' ' && *l != '\t' && *l != '\0')
+			if (*++l != ' ' && *l != '\t' && *l != '\0' &&
+			    bitset(PXLF_HEADER, pxflags))
 			{
 				(void) putc(' ', mci->mci_out);
 				if (TrafficLogFile != NULL)
@@ -1058,7 +1060,6 @@ checkfd012(where)
 {
 #if XDEBUG
 	register int i;
-	struct stat stbuf;
 
 	for (i = 0; i < 3; i++)
 		fill_fd(i, where);
@@ -1199,7 +1200,6 @@ dumpfd(fd, printclosed, logit)
 	int i;
 	struct stat st;
 	char buf[200];
-	extern char *hostnamebyanyaddr();
 
 	p = buf;
 	snprintf(p, SPACELEFT(buf, p), "%3d: ", fd);
@@ -1311,7 +1311,7 @@ defprint:
 
 printit:
 	if (logit)
-		sm_syslog(LOG_DEBUG, CurEnv->e_id,
+		sm_syslog(LOG_DEBUG, CurEnv ? CurEnv->e_id : NULL,
 			"%.800s", buf);
 	else
 		printf("%s\n", buf);

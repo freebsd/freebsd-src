@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)parseaddr.c	8.130 (Berkeley) 8/2/97";
+static char sccsid[] = "@(#)parseaddr.c	8.132 (Berkeley) 10/20/97";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -1859,6 +1859,7 @@ struct qflags	AddressFlags[] =
 	{ "QDELIVERED",		QDELIVERED	},
 	{ "QDELAYED",		QDELAYED	},
 	{ "QTHISPASS",		QTHISPASS	},
+	{ "QRCPTOK",		QRCPTOK		},
 	{ NULL }
 };
 
@@ -2136,7 +2137,11 @@ maplocaluser(a, sendq, aliaslevel, e)
 	}
 	pvp = prescan(a->q_user, '\0', pvpbuf, sizeof pvpbuf, &delimptr, NULL);
 	if (pvp == NULL)
+	{
+		if (tTd(29, 9))
+			printf("maplocaluser: cannot prescan %s\n", a->q_user);
 		return;
+	}
 
 	define('h', a->q_host, e);
 	define('u', a->q_user, e);
@@ -2144,17 +2149,25 @@ maplocaluser(a, sendq, aliaslevel, e)
  
 	if (rewrite(pvp, 5, 0, e) == EX_TEMPFAIL)
 	{
+		if (tTd(29, 9))
+			printf("maplocaluser: rewrite tempfail\n");
 		a->q_flags |= QQUEUEUP;
 		a->q_status = "4.4.3";
 		return;
 	}
 	if (pvp[0] == NULL || (pvp[0][0] & 0377) != CANONNET)
+	{
+		if (tTd(29, 9))
+			printf("maplocaluser: doesn't resolve\n");
 		return;
+	}
 
 	/* if non-null, mailer destination specified -- has it changed? */
 	a1 = buildaddr(pvp, NULL, 0, e);
 	if (a1 == NULL || sameaddr(a, a1))
 	{
+		if (tTd(29, 9))
+			printf("maplocaluser: address unchanged\n");
 		if (a1 != NULL)
 			free(a1);
 		return;
