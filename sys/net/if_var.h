@@ -96,6 +96,26 @@ struct	ifqueue {
  *
  * (Would like to call this struct ``if'', but C isn't PL/1.)
  */
+
+/*
+ * NB: For FreeBSD, it is assumed that each NIC driver's softc starts with  
+ * one of these structures, typically held within an arpcom structure.   
+ * 
+ *	struct <foo>_softc {
+ *		struct arpcom {
+ *			struct  ifnet ac_if;
+ *			...
+ *		} <arpcom> ;
+ *		...   
+ *	};
+ *
+ * The assumption is used in a number of places, including many
+ * files in sys/net, device drivers, and sys/dev/mii.c:miibus_attach().
+ * 
+ * Unfortunately devices' softc are opaque, so we depend on this layout
+ * to locate the struct ifnet from the softc in the generic code.
+ * 
+ */
 struct ifnet {
 	void	*if_softc;		/* pointer to driver state */
 	char	*if_name;		/* name, e.g. ``en'' or ``lo'' */
