@@ -106,7 +106,7 @@ struct mtx_debug {
 	: (struct proc *)((m)->mtx_lock & MTX_FLAGMASK))
 
 #define RETIP(x)		*(((uintptr_t *)(&x)) - 1)
-#define SET_PRIO(p, pri)	(p)->p_priority = (pri)
+#define SET_PRIO(p, pri)	(p)->p_pri.pri_level = (pri)
 
 /*
  * Early WITNESS-enabled declarations.
@@ -180,7 +180,7 @@ static void	propagate_priority(struct proc *);
 static void
 propagate_priority(struct proc *p)
 {
-	int pri = p->p_priority;
+	int pri = p->p_pri.pri_level;
 	struct mtx *m = p->p_blocked;
 
 	mtx_assert(&sched_lock, MA_OWNED);
@@ -201,7 +201,7 @@ propagate_priority(struct proc *p)
 
 		MPASS(p->p_magic == P_MAGIC);
 		KASSERT(p->p_stat != SSLEEP, ("sleeping process owns a mutex"));
-		if (p->p_priority <= pri)
+		if (p->p_pri.pri_level <= pri)
 			return;
 
 		/*
@@ -212,32 +212,16 @@ propagate_priority(struct proc *p)
 		/*
 		 * If lock holder is actually running, just bump priority.
 		 */
-#ifdef SMP
-		/*
-		 * For SMP, we can check the p_oncpu field to see if we are
-		 * running.
-		 */
 		if (p->p_oncpu != 0xff) {
 			MPASS(p->p_stat == SRUN || p->p_stat == SZOMB);
 			return;
 		}
-#else
-		/*
-		 * For UP, we check to see if p is curproc (this shouldn't
-		 * ever happen however as it would mean we are in a deadlock.)
-		 */
-		if (p == curproc) {
-			panic("Deadlock detected");
-			return;
-		}
-#endif
+
 		/*
 		 * If on run queue move to new run queue, and
 		 * quit.
 		 */
 		if (p->p_stat == SRUN) {
-			printf("XXX: moving proc %d(%s) to a new run queue\n",
-			       p->p_pid, p->p_comm);
 			MPASS(p->p_blocked == NULL);
 			remrunqueue(p);
 			setrunqueue(p);
@@ -258,23 +242,16 @@ propagate_priority(struct proc *p)
 		m = p->p_blocked;
 		MPASS(m != NULL);
 
-		printf("XXX: process %d(%s) is blocked on %s\n", p->p_pid,
-		    p->p_comm, m->mtx_description);
-
 		/*
 		 * Check if the proc needs to be moved up on
 		 * the blocked chain
 		 */
 		if (p == TAILQ_FIRST(&m->mtx_blocked)) {
-			printf("XXX: process at head of run queue\n");
 			continue;
 		}
 
-		p1 = TAILQ_PREV(p, rq, p_procq);
-		if (p1->p_priority <= pri) {
-			printf(
-			   "XXX: previous process %d(%s) has higher priority\n",
-	                    p->p_pid, p->p_comm);
+		p1 = TAILQ_PREV(p, procqueue, p_procq);
+		if (p1->p_pri.pri_level <= pri) {
 			continue;
 		}
 
@@ -288,7 +265,7 @@ propagate_priority(struct proc *p)
 		TAILQ_REMOVE(&m->mtx_blocked, p, p_procq);
 		TAILQ_FOREACH(p1, &m->mtx_blocked, p_procq) {
 			MPASS(p1->p_magic == P_MAGIC);
-			if (p1->p_priority > pri)
+			if (p1->p_pri.pri_level > pri)
 				break;
 		}
 
@@ -371,7 +348,7 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 	 * p_nativepri is only read when we are blocked on a mutex, so that
 	 * can't be happening right now either.
 	 */
-	p->p_nativepri = p->p_priority;
+	p->p_pri.pri_native = p->p_pri.pri_level;
 
 	while (!_obtain_lock(m, p)) {
 		uintptr_t v;
@@ -396,8 +373,8 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 			MPASS(p1 != NULL);
 			m->mtx_lock = (uintptr_t)p | MTX_CONTESTED;
 
-			if (p1->p_priority < p->p_priority)
-				SET_PRIO(p, p1->p_priority); 
+			if (p1->p_pri.pri_level < p->p_pri.pri_level)
+				SET_PRIO(p, p1->p_pri.pri_level); 
 			mtx_unlock_spin(&sched_lock);
 			return;
 		}
@@ -446,7 +423,7 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 			TAILQ_INSERT_TAIL(&m->mtx_blocked, p, p_procq);
 		} else {
 			TAILQ_FOREACH(p1, &m->mtx_blocked, p_procq)
-				if (p1->p_priority > p->p_priority)
+				if (p1->p_pri.pri_level > p->p_pri.pri_level)
 					break;
 			if (p1)
 				TAILQ_INSERT_BEFORE(p1, p, p_procq);
@@ -460,9 +437,7 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 		p->p_blocked = m;
 		p->p_mtxname = m->mtx_description;
 		p->p_stat = SMTX;
-#if 0
 		propagate_priority(p);
-#endif
 
 		if ((opts & MTX_QUIET) == 0)
 			CTR3(KTR_LOCK,
@@ -565,15 +540,15 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 	} else
 		atomic_store_rel_ptr(&m->mtx_lock, (void *)MTX_CONTESTED);
 
-	pri = MAXPRI;
+	pri = PRI_MAX;
 	LIST_FOREACH(m1, &p->p_contested, mtx_contested) {
-		int cp = TAILQ_FIRST(&m1->mtx_blocked)->p_priority;
+		int cp = TAILQ_FIRST(&m1->mtx_blocked)->p_pri.pri_level;
 		if (cp < pri)
 			pri = cp;
 	}
 
-	if (pri > p->p_nativepri)
-		pri = p->p_nativepri;
+	if (pri > p->p_pri.pri_native)
+		pri = p->p_pri.pri_native;
 	SET_PRIO(p, pri);
 
 	if ((opts & MTX_QUIET) == 0)
@@ -585,7 +560,7 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 	p1->p_stat = SRUN;
 	setrunqueue(p1);
 
-	if ((opts & MTX_NOSWITCH) == 0 && p1->p_priority < pri) {
+	if ((opts & MTX_NOSWITCH) == 0 && p1->p_pri.pri_level < pri) {
 #ifdef notyet
 		if (p->p_flag & (P_ITHD | P_SITHD)) {
 			ithd_t *it = (ithd_t *)p;

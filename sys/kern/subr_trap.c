@@ -179,7 +179,7 @@ userret(p, frame, oticks)
 	}
 
 	mtx_lock_spin(&sched_lock);
-	p->p_priority = p->p_usrpri;
+	p->p_pri.pri_level = p->p_pri.pri_user;
 	if (resched_wanted()) {
 		/*
 		 * Since we are curproc, clock will normally just change
@@ -216,7 +216,6 @@ userret(p, frame, oticks)
 		addupc_task(p, TRAPF_PC(frame),
 			    (u_int)(p->p_sticks - oticks) * psratio);
 	}
-	curpriority = p->p_priority;
 	mtx_unlock_spin(&sched_lock);
 }
 

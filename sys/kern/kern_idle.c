@@ -101,8 +101,10 @@ idle_proc(void *dummy)
 				    " for a process");
 #endif
 
+#if 0
 			if (vm_page_zero_idle() != 0)
 				continue;
+#endif
 
 #ifdef __i386__
 			cpu_idle();

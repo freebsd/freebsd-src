@@ -94,7 +94,7 @@ userret(register struct proc *p, struct trapframe *frame, u_quad_t oticks)
 		postsig(sig);
 	}
 	mtx_lock_spin(&sched_lock);
-	p->p_priority = p->p_usrpri;
+	p->p_pri.pri_level = p->p_pri.pri_user;
 	if (want_resched) {
 		/*
 		 * Since we are curproc, a clock interrupt could
@@ -131,7 +131,6 @@ userret(register struct proc *p, struct trapframe *frame, u_quad_t oticks)
 		addupc_task(p, frame->tf_cr_iip,
 		    (int)(p->p_sticks - oticks) * psratio);
 	}
-	curpriority = p->p_priority;
 	mtx_unlock_spin(&sched_lock);
 }
 

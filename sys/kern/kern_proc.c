@@ -439,11 +439,8 @@ fill_kinfo_proc(p, kp)
 	kp->ki_swtime = p->p_swtime;
 	kp->ki_wchan = p->p_wchan;
 	kp->ki_traceflag = p->p_traceflag;
-	kp->ki_priority = p->p_priority;
-	kp->ki_usrpri = p->p_usrpri;
-	kp->ki_nativepri = p->p_nativepri;
+	kp->ki_pri = p->p_pri;
 	kp->ki_nice = p->p_nice;
-	kp->ki_rtprio = p->p_rtprio;
 	kp->ki_runtime = p->p_runtime;
 	kp->ki_pid = p->p_pid;
 	kp->ki_rqindex = p->p_rqindex;

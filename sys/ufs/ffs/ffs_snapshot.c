@@ -985,7 +985,7 @@ retry:
 				VOP_UNLOCK(vp, 0, p);
 				if (error != EWOULDBLOCK)
 					break;
-				tsleep(vp, p->p_usrpri, "nap", 1);
+				tsleep(vp, p->p_pri.pri_user, "nap", 1);
 				goto retry;
 			}
 			indiroff = (lbn - NDADDR) % NINDIR(fs);
@@ -1013,7 +1013,7 @@ retry:
 		if (error) {
 			if (error != EWOULDBLOCK)
 				break;
-			tsleep(vp, p->p_usrpri, "nap", 1);
+			tsleep(vp, p->p_pri.pri_user, "nap", 1);
 			goto retry;
 		}
 #ifdef DEBUG
