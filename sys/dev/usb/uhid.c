@@ -71,7 +71,6 @@
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
 #include <dev/usb/hid.h>
-#include <dev/usb/usb_quirks.h>
 
 #ifdef UHID_DEBUG
 #define DPRINTF(x)	if (uhiddebug) logprintf x
@@ -153,13 +152,13 @@ Static struct cdevsw uhid_cdevsw = {
 };
 #endif
 
-Static void uhid_intr __P((usbd_xfer_handle, usbd_private_handle,
-			   usbd_status));
+Static void uhid_intr(usbd_xfer_handle, usbd_private_handle,
+			   usbd_status);
 
-Static int uhid_do_read __P((struct uhid_softc *, struct uio *uio, int));
-Static int uhid_do_write __P((struct uhid_softc *, struct uio *uio, int));
-Static int uhid_do_ioctl __P((struct uhid_softc *, u_long, caddr_t, int,
-			      struct proc *));
+Static int uhid_do_read(struct uhid_softc *, struct uio *uio, int);
+Static int uhid_do_write(struct uhid_softc *, struct uio *uio, int);
+Static int uhid_do_ioctl(struct uhid_softc *, u_long, caddr_t, int,
+			      struct proc *);
 
 USB_DECLARE_DRIVER(uhid);
 
