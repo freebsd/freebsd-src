@@ -629,7 +629,7 @@ devfs_filestat(vp, fsp)
 	fsp->fileid = devfs_dirent.de_inode;
 	fsp->mode = (devfs_dirent.de_mode & ~S_IFMT) | S_IFCHR;
 	fsp->size = 0;
-	fsp->rdev = dev2udev((dev_t)vnode.v_rdev);
+	fsp->rdev = dev2udev(vnode.v_rdev);
 
 	return 1;
 }
@@ -875,7 +875,7 @@ bad:
  */
 udev_t
 dev2udev(dev)
-	dev_t dev;
+	struct cdev *dev;
 {
 	struct cdev si;
 
