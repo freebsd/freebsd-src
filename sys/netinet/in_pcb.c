@@ -561,7 +561,6 @@ in_pcbconnect_setup(inp, nam, laddrp, lportp, faddrp, fportp, oinpp, td)
 		if (error)
 			return (error);
 	}
-
 	if (!TAILQ_EMPTY(&in_ifaddrhead)) {
 		/*
 		 * If the destination address is INADDR_ANY,
@@ -579,32 +578,20 @@ in_pcbconnect_setup(inp, nam, laddrp, lportp, faddrp, fportp, oinpp, td)
 			    &in_ifaddrhead)->ia_broadaddr)->sin_addr;
 	}
 	if (laddr.s_addr == INADDR_ANY) {
-		register struct route *ro;
+		struct route sro;
 
+		sro.ro_rt = NULL;
 		ia = (struct in_ifaddr *)0;
 		/*
-		 * If route is known or can be allocated now,
-		 * our src addr is taken from the i/f, else punt.
-		 * Note that we should check the address family of the cached
-		 * destination, in case of sharing the cache with IPv6.
+		 * If route is known our src addr is taken from the i/f,
+		 * else punt.
 		 */
-		ro = &inp->inp_route;
-		if (ro->ro_rt && ((ro->ro_rt->rt_flags & RTF_UP) == 0 ||
-		    ro->ro_dst.sa_family != AF_INET ||
-		    satosin(&ro->ro_dst)->sin_addr.s_addr != faddr.s_addr ||
-		    inp->inp_socket->so_options & SO_DONTROUTE)) {
-			RTFREE(ro->ro_rt);
-			ro->ro_rt = (struct rtentry *)0;
-		}
-		if ((inp->inp_socket->so_options & SO_DONTROUTE) == 0 && /*XXX*/
-		    (ro->ro_rt == (struct rtentry *)0 ||
-		    ro->ro_rt->rt_ifp == (struct ifnet *)0)) {
-			/* No route yet, so try to acquire one */
-			bzero(&ro->ro_dst, sizeof(struct sockaddr_in));
-			ro->ro_dst.sa_family = AF_INET;
-			ro->ro_dst.sa_len = sizeof(struct sockaddr_in);
-			((struct sockaddr_in *)&ro->ro_dst)->sin_addr = faddr;
-			rtalloc(ro);
+		if ((inp->inp_socket->so_options & SO_DONTROUTE) == 0) {
+			/* Find out route to destination */
+			sro.ro_dst.sa_family = AF_INET;
+			sro.ro_dst.sa_len = sizeof(struct sockaddr_in);
+			((struct sockaddr_in *)&sro.ro_dst)->sin_addr = faddr;
+			rtalloc_ign(&sro, RTF_CLONING);
 		}
 		/*
 		 * If we found a route, use the address
@@ -612,8 +599,10 @@ in_pcbconnect_setup(inp, nam, laddrp, lportp, faddrp, fportp, oinpp, td)
 		 * unless it is the loopback (in case a route
 		 * to our address on another net goes to loopback).
 		 */
-		if (ro->ro_rt && !(ro->ro_rt->rt_ifp->if_flags & IFF_LOOPBACK))
-			ia = ifatoia(ro->ro_rt->rt_ifa);
+		if (sro.ro_rt && !(sro.ro_rt->rt_ifp->if_flags & IFF_LOOPBACK))
+			ia = ifatoia(sro.ro_rt->rt_ifa);
+		if (sro.ro_rt)
+			RTFREE(sro.ro_rt);
 		if (ia == 0) {
 			bzero(&sa, sizeof(sa));
 			sa.sin_addr = faddr;
@@ -706,8 +695,6 @@ in_pcbdetach(inp)
 	}
 	if (inp->inp_options)
 		(void)m_free(inp->inp_options);
-	if (inp->inp_route.ro_rt)
-		RTFREE(inp->inp_route.ro_rt);
 	ip_freemoptions(inp->inp_moptions);
 	inp->inp_vflag = 0;
 	INP_LOCK_DESTROY(inp);
@@ -881,62 +868,6 @@ in_pcbpurgeif0(pcbinfo, ifp)
 		INP_UNLOCK(inp);
 	}
 	INP_INFO_RUNLOCK(pcbinfo);
-}
-
-/*
- * Check for alternatives when higher level complains
- * about service problems.  For now, invalidate cached
- * routing information.  If the route was created dynamically
- * (by a redirect), time to try a default gateway again.
- */
-void
-in_losing(inp)
-	struct inpcb *inp;
-{
-	register struct rtentry *rt;
-	struct rt_addrinfo info;
-
-	INP_LOCK_ASSERT(inp);
-
-	if ((rt = inp->inp_route.ro_rt)) {
-		RT_LOCK(rt);
-		inp->inp_route.ro_rt = NULL;
-		bzero((caddr_t)&info, sizeof(info));
-		info.rti_flags = rt->rt_flags;
-		info.rti_info[RTAX_DST] = rt_key(rt);
-		info.rti_info[RTAX_GATEWAY] = rt->rt_gateway;
-		info.rti_info[RTAX_NETMASK] = rt_mask(rt);
-		rt_missmsg(RTM_LOSING, &info, rt->rt_flags, 0);
-		if (rt->rt_flags & RTF_DYNAMIC)
-			rtexpunge(rt);
-		RTFREE_LOCKED(rt);
-		/*
-		 * A new route can be allocated
-		 * the next time output is attempted.
-		 */
-	}
-}
-
-/*
- * After a routing change, flush old routing
- * and allocate a (hopefully) better one.
- */
-struct inpcb *
-in_rtchange(inp, errno)
-	register struct inpcb *inp;
-	int errno;
-{
-	INP_LOCK_ASSERT(inp);
-
-	if (inp->inp_route.ro_rt) {
-		RTFREE(inp->inp_route.ro_rt);
-		inp->inp_route.ro_rt = 0;
-		/*
-		 * A new route can be allocated the next time
-		 * output is attempted.
-		 */
-	}
-	return inp;
 }
 
 /*

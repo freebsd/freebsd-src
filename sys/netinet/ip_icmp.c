@@ -52,11 +52,15 @@
 #include <net/route.h>
 
 #include <netinet/in.h>
+#include <netinet/in_pcb.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/ip_var.h>
+#include <netinet/tcp.h>
+#include <netinet/tcp_var.h>
+#include <netinet/tcpip.h>
 #include <netinet/icmp_var.h>
 
 #ifdef IPSEC
@@ -395,7 +399,7 @@ icmp_input(m, off)
 			printf("deliver to protocol %d\n", icp->icmp_ip.ip_p);
 #endif
 		icmpsrc.sin_addr = icp->icmp_ip.ip_dst;
-#if 1
+
 		/*
 		 * MTU discovery:
 		 * If we got a needfrag and there is a host route to the
@@ -405,40 +409,37 @@ icmp_input(m, off)
 		 * notice that the MTU has changed and adapt accordingly.
 		 * If no new MTU was suggested, then we guess a new one
 		 * less than the current value.  If the new MTU is 
-		 * unreasonably small (arbitrarily set at 296), then
-		 * we reset the MTU to the interface value and enable the
-		 * lock bit, indicating that we are no longer doing MTU
-		 * discovery.
+		 * unreasonably small, then we don't update the MTU value.
+		 *
+		 * XXX: All this should be done in tcp_mtudisc() because
+		 * the way we do it now, everyone can send us bogus ICMP
+		 * MSGSIZE packets for any destination. By doing this far
+		 * higher in the chain we have a matching tcp connection.
+		 * Thus spoofing is much harder. However there is no easy
+		 * non-hackish way to pass the new MTU up to tcp_mtudisc().
+		 * Also see next XXX regarding IPv4 AH TCP.
 		 */
 		if (code == PRC_MSGSIZE) {
-			struct rtentry *rt;
 			int mtu;
+			struct in_conninfo inc;
 
-			rt = rtalloc1((struct sockaddr *)&icmpsrc, 0,
-				      RTF_CLONING);
-			if (rt && (rt->rt_flags & RTF_HOST)
-			    && !(rt->rt_rmx.rmx_locks & RTV_MTU)) {
-				mtu = ntohs(icp->icmp_nextmtu);
-				if (!mtu)
-					mtu = ip_next_mtu(rt->rt_rmx.rmx_mtu,
-							  1);
+			bzero(&inc, sizeof(inc));
+			inc.inc_flags = 0; /* IPv4 */
+			inc.inc_faddr = icmpsrc.sin_addr;
+
+			mtu = ntohs(icp->icmp_nextmtu);
+			if (!mtu)
+				mtu = ip_next_mtu(mtu, 1);
+
+			if (mtu >= 256 + sizeof(struct tcpiphdr))
+				tcp_hc_updatemtu(&inc, mtu);
+
 #ifdef DEBUG_MTUDISC
-				printf("MTU for %s reduced to %d\n",
-					inet_ntoa(icmpsrc.sin_addr), mtu);
+			printf("MTU for %s reduced to %d\n",
+				inet_ntoa(icmpsrc.sin_addr), mtu);
 #endif
-				if (mtu < 296) {
-					/* rt->rt_rmx.rmx_mtu =
-						rt->rt_ifp->if_mtu; */
-					rt->rt_rmx.rmx_locks |= RTV_MTU;
-				} else if (rt->rt_rmx.rmx_mtu > mtu) {
-					rt->rt_rmx.rmx_mtu = mtu;
-				}
-			}
-			if (rt)
-				rtfree(rt);
 		}
 
-#endif
 		/*
 		 * XXX if the packet contains [IPv4 AH TCP], we can't make a
 		 * notification to TCP layer.
@@ -785,7 +786,6 @@ iptime()
 	return (htonl(t));
 }
 
-#if 1
 /*
  * Return the next larger or smaller MTU plateau (table from RFC 1191)
  * given current value MTU.  If DIR is less than zero, a larger plateau
@@ -823,7 +823,6 @@ ip_next_mtu(mtu, dir)
 		}
 	}
 }
-#endif
 
 
 /*

@@ -544,10 +544,17 @@ udp_ctlinput(cmd, sa, vip)
 	if (sa->sa_family != AF_INET || faddr.s_addr == INADDR_ANY)
         	return;
 
-	if (PRC_IS_REDIRECT(cmd)) {
-		ip = 0;
-		notify = in_rtchange;
-	} else if (cmd == PRC_HOSTDEAD)
+	/*
+	 * Redirects don't need to be handled up here.
+	 */
+	if (PRC_IS_REDIRECT(cmd))
+		return;
+	/*
+	 * Hostdead is ugly because it goes linearly through all PCBs.
+	 * XXX: We never get this from ICMP, otherwise it makes an
+	 * excellent DoS attack on machines with many connections.
+	 */
+	if (cmd == PRC_HOSTDEAD)
 		ip = 0;
 	else if ((unsigned)cmd >= PRC_NCMDS || inetctlerrmap[cmd] == 0)
 		return;
@@ -873,7 +880,7 @@ udp_output(inp, m, addr, control, td)
 	((struct ip *)ui)->ip_tos = inp->inp_ip_tos;	/* XXX */
 	udpstat.udps_opackets++;
 
-	error = ip_output(m, inp->inp_options, &inp->inp_route, ipflags,
+	error = ip_output(m, inp->inp_options, NULL, ipflags,
 	    inp->inp_moptions, inp);
 	return (error);
 

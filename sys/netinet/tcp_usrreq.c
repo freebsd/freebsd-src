@@ -848,11 +848,12 @@ tcp_connect(tp, nam, td)
 	struct inpcb *inp = tp->t_inpcb, *oinp;
 	struct socket *so = inp->inp_socket;
 	struct tcptw *otw;
-	struct rmxp_tao *taop;
-	struct rmxp_tao tao_noncached;
+	struct rmxp_tao tao;
 	struct in_addr laddr;
 	u_short lport;
 	int error;
+
+	bzero(&tao, sizeof(tao));
 
 	if (inp->inp_lport == 0) {
 		error = in_pcbbind(inp, (struct sockaddr *)0, td);
@@ -902,19 +903,21 @@ tcp_connect(tp, nam, td)
 	 * Generate a CC value for this connection and
 	 * check whether CC or CCnew should be used.
 	 */
-	if ((taop = tcp_gettaocache(&tp->t_inpcb->inp_inc)) == NULL) {
-		taop = &tao_noncached;
-		bzero(taop, sizeof(*taop));
-	}
+	if (tcp_do_rfc1644)
+		tcp_hc_gettao(&inp->inp_inc, &tao);
 
 	tp->cc_send = CC_INC(tcp_ccgen);
-	if (taop->tao_ccsent != 0 &&
-	    CC_GEQ(tp->cc_send, taop->tao_ccsent)) {
-		taop->tao_ccsent = tp->cc_send;
+	if (tao.tao_ccsent != 0 &&
+	    CC_GEQ(tp->cc_send, tao.tao_ccsent)) {
+		tao.tao_ccsent = tp->cc_send;
 	} else {
-		taop->tao_ccsent = 0;
+		tao.tao_ccsent = 0;
 		tp->t_flags |= TF_SENDCCNEW;
 	}
+
+	if (tcp_do_rfc1644)
+		tcp_hc_updatetao(&inp->inp_inc, TCP_HC_TAO_CCSENT,
+				 tao.tao_ccsent, 0);
 
 	return 0;
 }
@@ -931,9 +934,10 @@ tcp6_connect(tp, nam, td)
 	struct tcptw *otw;
 	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)nam;
 	struct in6_addr *addr6;
-	struct rmxp_tao *taop;
-	struct rmxp_tao tao_noncached;
+	struct rmxp_tao tao;
 	int error;
+
+	bzero(&tao, sizeof(tao));
 
 	if (inp->inp_lport == 0) {
 		error = in6_pcbbind(inp, (struct sockaddr *)0, td);
@@ -991,19 +995,20 @@ tcp6_connect(tp, nam, td)
 	 * Generate a CC value for this connection and
 	 * check whether CC or CCnew should be used.
 	 */
-	if ((taop = tcp_gettaocache(&tp->t_inpcb->inp_inc)) == NULL) {
-		taop = &tao_noncached;
-		bzero(taop, sizeof(*taop));
-	}
+	if (tcp_do_rfc1644)
+		tcp_hc_gettao(&inp->inp_inc, &tao);
 
 	tp->cc_send = CC_INC(tcp_ccgen);
-	if (taop->tao_ccsent != 0 &&
-	    CC_GEQ(tp->cc_send, taop->tao_ccsent)) {
-		taop->tao_ccsent = tp->cc_send;
+	if (tao.tao_ccsent != 0 &&
+	    CC_GEQ(tp->cc_send, tao.tao_ccsent)) {
+		tao.tao_ccsent = tp->cc_send;
 	} else {
-		taop->tao_ccsent = 0;
+		tao.tao_ccsent = 0;
 		tp->t_flags |= TF_SENDCCNEW;
 	}
+	if (tcp_do_rfc1644)
+		tcp_hc_updatetao(&inp->inp_inc, TCP_HC_TAO_CCSENT,
+				 tao.tao_ccsent, 0);
 
 	return 0;
 }

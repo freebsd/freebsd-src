@@ -1612,22 +1612,22 @@ struct in_ifaddr *
 ip_rtaddr(dst)
 	struct in_addr dst;
 {
+	struct route sro;
 	struct sockaddr_in *sin;
 	struct in_ifaddr *ifa;
-	struct route ro;
 
-	bzero(&ro, sizeof(ro));
-	sin = (struct sockaddr_in *)&ro.ro_dst;
+	sro.ro_rt = NULL;
+	sin = (struct sockaddr_in *)&sro.ro_dst;
 	sin->sin_family = AF_INET;
 	sin->sin_len = sizeof(*sin);
 	sin->sin_addr = dst;
-	rtalloc_ign(&ro, RTF_CLONING);
+	rtalloc_ign(&sro, RTF_CLONING);
 
-	if (ro.ro_rt == 0)
+	if (sro.ro_rt == NULL)
 		return ((struct in_ifaddr *)0);
 
-	ifa = ifatoia(ro.ro_rt->rt_ifa);
-	RTFREE(ro.ro_rt);
+	ifa = ifatoia(sro.ro_rt->rt_ifa);
+	RTFREE(sro.ro_rt);
 	return ifa;
 }
 
@@ -1879,7 +1879,7 @@ ip_forward(struct mbuf *m, int srcrt, struct sockaddr_in *next_hop)
 		struct route ro;
 		struct rtentry *rt;
 
-		bzero(&ro, sizeof(ro));
+		ro.ro_rt = NULL;
 		sin = (struct sockaddr_in *)&ro.ro_dst;
 		sin->sin_family = AF_INET;
 		sin->sin_len = sizeof(*sin);

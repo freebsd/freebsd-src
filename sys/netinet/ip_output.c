@@ -302,13 +302,9 @@ ip_output(struct mbuf *m0, struct mbuf *opt, struct route *ro,
 		isbroadcast = 0;	/* fool gcc */
 	} else {
 		/*
-		 * If this is the case, we probably don't want to allocate
-		 * a protocol-cloned route since we didn't get one from the
-		 * ULP.  This lets TCP do its thing, while not burdening
-		 * forwarding or ICMP with the overhead of cloning a route.
-		 * Of course, we still want to do any cloning requested by
-		 * the link layer, as this is probably required in all cases
-		 * for correct operation (as it is for ARP).
+		 * We want to do any cloning requested by the link layer,
+		 * as this is probably required in all cases for correct
+		 * operation (as it is for ARP).
 		 */
 		if (ro->ro_rt == 0)
 			rtalloc(ro);
@@ -319,7 +315,7 @@ ip_output(struct mbuf *m0, struct mbuf *opt, struct route *ro,
 		}
 		ia = ifatoia(ro->ro_rt->rt_ifa);
 		ifp = ro->ro_rt->rt_ifp;
-		ro->ro_rt->rt_use++;
+		ro->ro_rt->rt_rmx.rmx_pksent++;
 		if (ro->ro_rt->rt_flags & RTF_GATEWAY)
 			dst = (struct sockaddr_in *)ro->ro_rt->rt_gateway;
 		if (ro->ro_rt->rt_flags & RTF_HOST)
@@ -931,16 +927,14 @@ spd_done:
 				ip_input((struct mbuf *)&tag);
 				goto done;
 			}
-			/* Some of the logic for this was
+			/*
+			 * Some of the logic for this was
 			 * nicked from above.
-			 *
-			 * This rewrites the cached route in a local PCB.
-			 * Is this what we want to do?
 			 */
 			bcopy(dst, &ro_fwd->ro_dst, sizeof(*dst));
 
 			ro_fwd->ro_rt = 0;
-			rtalloc(ro_fwd);
+			rtalloc_ign(ro_fwd, RTF_CLONING);
 
 			if (ro_fwd->ro_rt == 0) {
 				ipstat.ips_noroute++;
@@ -950,7 +944,7 @@ spd_done:
 
 			ia = ifatoia(ro_fwd->ro_rt->rt_ifa);
 			ifp = ro_fwd->ro_rt->rt_ifp;
-			ro_fwd->ro_rt->rt_use++;
+			ro_fwd->ro_rt->rt_rmx.rmx_pksent++;
 			if (ro_fwd->ro_rt->rt_flags & RTF_GATEWAY)
 				dst = (struct sockaddr_in *)
 					ro_fwd->ro_rt->rt_gateway;
@@ -1045,7 +1039,6 @@ pass:
 		 * routes when the MTU is changed.
 		 */
 		if ((ro->ro_rt->rt_flags & (RTF_UP | RTF_HOST)) &&
-		    !(ro->ro_rt->rt_rmx.rmx_locks & RTV_MTU) &&
 		    (ro->ro_rt->rt_rmx.rmx_mtu > ifp->if_mtu)) {
 			ro->ro_rt->rt_rmx.rmx_mtu = ifp->if_mtu;
 		}
@@ -1983,7 +1976,7 @@ ip_setmoptions(sopt, imop)
 			dst->sin_len = sizeof(*dst);
 			dst->sin_family = AF_INET;
 			dst->sin_addr = mreq.imr_multiaddr;
-			rtalloc(&ro);
+			rtalloc_ign(&ro, RTF_CLONING);
 			if (ro.ro_rt == NULL) {
 				error = EADDRNOTAVAIL;
 				splx(s);
