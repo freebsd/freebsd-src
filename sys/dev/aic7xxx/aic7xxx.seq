@@ -39,7 +39,7 @@
  *
  *-M************************************************************************/
 
-VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.48 1996/11/11 05:16:36 gibbs Exp $"
+VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.49 1996/11/16 01:07:34 gibbs Exp $"
 
 #if defined(__NetBSD__)
 #include "../../../../dev/ic/aic7xxxreg.h"
@@ -536,36 +536,27 @@ p_mesgout_start:
  * a MESSAGE REJECT.
  */
 p_mesgout_loop:
-	test	SSTAT1,REQINIT	jz p_mesgout_loop
-	test	SSTAT1,PHASEMIS	jnz p_mesgout_phasemis
-	cmp	DINDEX,1	jne p_mesgout_outb	/* last byte? */
-	mvi	CLRSINT1,CLRATNO			/* drop ATN */
-p_mesgout_outb:
-	test	SSTAT0, SPIORDY jz p_mesgout_outb
-	dec	DINDEX
-	mvi	CLRSINT1, CLRREQINIT
-	mov	SCSIDATL,SINDIR
-	
-p_mesgout4:
-	test	DINDEX,0xff	jnz p_mesgout_loop
-
+	test	SSTAT1,BUSFREE	jnz p_mesgout_done
+	test	SSTAT0,SPIORDY jz p_mesgout_loop
+	test	SSTAT1,PHASEMIS	jnz p_mesgout_done
 /*
  * If the next bus phase after ATN drops is a message out, it means
  * that the target is requesting that the last message(s) be resent.
  */
-p_mesgout_snoop:
-	test	SSTAT1,BUSFREE	jnz p_mesgout_done
-	test	SSTAT1,REQINIT	jz p_mesgout_snoop
+	test	DINDEX,0xff	jnz p_mesgout_outb
+	or	SCSISIGO,ATNO		/* turn on ATN for the retry */
+	jmp	p_mesgout_start
+p_mesgout_outb:
+	cmp	DINDEX,1	jne p_mesgout_outb2	/* last byte? */
+	mvi	CLRSINT1,CLRATNO			/* drop ATN */
+p_mesgout_outb2:
+	dec	DINDEX
+	mvi	CLRSINT0, CLRSPIORDY
+	mov	SCSIDATL,SINDIR
+	jmp	p_mesgout_loop
 
-	test	SSTAT1,PHASEMIS	jnz p_mesgout_done
-
-	or	SCSISIGO,ATNO			/* turn on ATNO */
-
-	jmp	ITloop
-
-p_mesgout_phasemis:
-	mvi	CLRSINT1,CLRATNO	/* Be sure to turn ATNO off */
 p_mesgout_done:
+	mvi	CLRSINT1,CLRATNO	/* Be sure to turn ATNO off */
 	clr	MSG_LEN			/* no active msg */
 	jmp	ITloop
 
@@ -906,13 +897,13 @@ mk_mesg1:
 inb_next:
 	call	inb_last	/* ACK */
 inb_next_wait:
-	test	SSTAT1, REQINIT jz inb_next_wait
+	test	SSTAT0, SPIORDY	jz inb_next_wait
 	test	SSTAT1,PHASEMIS	jnz mesgin_phasemis
 inb_first:
 	mov	DINDEX,SINDEX
 	mov	DINDIR,SCSIBUSL	ret		/*read byte directly from bus*/
 inb_last:
-	mvi	CLRSINT1, CLRREQINIT
+	mvi	CLRSINT0, CLRSPIORDY
 	mov	NONE,SCSIDATL ret		/*dummy read from latch to ACK*/
 
 mesgin_phasemis:
