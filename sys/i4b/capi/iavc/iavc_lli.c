@@ -826,3 +826,161 @@ static void iavc_start_tx(iavc_softc_t *sc)
 	    AMCC_WRITE(sc, AMCC_INTCSR, sc->sc_csr);
     }
 }
+
+int t1io_get_slice(iavc_softc_t *sc, u_int8_t *dp)
+{
+    int len, i;
+    len = i = b1io_get_word(sc);
+    if (t1io_isfastlink(sc)) {
+	int status;
+	while (i) {
+	    status = t1io_fifostatus(sc) & (T1F_IREADY|T1F_IHALF);
+	    if (i >= FIFO_INPBSIZE) status |= T1F_IFULL;
+
+	    switch (status) {
+	    case T1F_IREADY|T1F_IHALF|T1F_IFULL:
+		bus_space_read_multi_1(sc->sc_io_bt, sc->sc_io_bh,
+				       T1_READ, dp, FIFO_INPBSIZE);
+		dp += FIFO_INPBSIZE;
+		i -= FIFO_INPBSIZE;
+		break;
+
+	    case T1F_IREADY|T1F_IHALF:
+		bus_space_read_multi_1(sc->sc_io_bt, sc->sc_io_bh,
+				       T1_READ, dp, i);
+		dp += i;
+		i = 0;
+		break;
+
+	    default:
+		*dp++ = b1io_get_byte(sc);
+		i--;
+	    }
+	}
+    } else { /* not fastlink */
+	if (i--) *dp++ = b1io_get_byte(sc);
+    }
+    return len;
+}
+
+void t1io_put_slice(iavc_softc_t *sc, u_int8_t *dp, int len)
+{
+    int i = len;
+    b1io_put_word(sc, i);
+    if (t1io_isfastlink(sc)) {
+	int status;
+	while (i) {
+	    status = t1io_fifostatus(sc) & (T1F_OREADY|T1F_OHALF);
+	    if (i >= FIFO_OUTBSIZE) status |= T1F_OFULL;
+
+	    switch (status) {
+	    case T1F_OREADY|T1F_OHALF|T1F_OFULL:
+		bus_space_write_multi_1(sc->sc_io_bt, sc->sc_io_bh,
+					T1_WRITE, dp, FIFO_OUTBSIZE);
+		dp += FIFO_OUTBSIZE;
+		i -= FIFO_OUTBSIZE;
+		break;
+
+	    case T1F_OREADY|T1F_OHALF:
+		bus_space_write_multi_1(sc->sc_io_bt, sc->sc_io_bh,
+					T1_WRITE, dp, i);
+		dp += i;
+		i = 0;
+		break;
+
+	    default:
+		b1io_put_byte(sc, *dp++);
+		i--;
+	    }
+	}
+    } else {
+	while (i--) b1io_put_byte(sc, *dp++);
+    }
+}
+
+u_int32_t b1io_get_word(iavc_softc_t *sc)
+{
+    u_int32_t val = 0;
+    val |= b1io_get_byte(sc);
+    val |= (b1io_get_byte(sc) << 8);
+    val |= (b1io_get_byte(sc) << 16);
+    val |= (b1io_get_byte(sc) << 24);
+    return val;
+}
+
+void b1io_put_word(iavc_softc_t *sc, u_int32_t val)
+{
+    b1io_put_byte(sc, (val & 0xff));
+    b1io_put_byte(sc, (val >> 8) & 0xff);
+    b1io_put_byte(sc, (val >> 16) & 0xff);
+    b1io_put_byte(sc, (val >> 24) & 0xff);
+}
+
+int b1io_get_slice(iavc_softc_t *sc, u_int8_t *dp)
+{
+    int len, i;
+    len = i = b1io_get_word(sc);
+    while (i--) *dp++ = b1io_get_byte(sc);
+    return len;
+}
+
+void b1io_put_slice(iavc_softc_t *sc, u_int8_t *dp, int len)
+{
+    b1io_put_word(sc, len);
+    while (len--) b1io_put_byte(sc, *dp++);
+}
+
+u_int32_t b1io_read_reg(iavc_softc_t *sc, int reg)
+{
+    b1io_put_byte(sc, READ_REGISTER);
+    b1io_put_word(sc, reg);
+    return b1io_get_word(sc);
+}
+
+u_int32_t b1io_write_reg(iavc_softc_t *sc, int reg, u_int32_t val)
+{
+    b1io_put_byte(sc, WRITE_REGISTER);
+    b1io_put_word(sc, reg);
+    b1io_put_word(sc, val);
+    return b1io_get_word(sc);
+}
+
+u_int8_t b1io_get_byte(iavc_softc_t *sc)
+{
+    int spin = 0;
+    while (!b1io_rx_full(sc) && spin < B1IO_WAIT_MAX) {
+	spin++; DELAY(B1IO_WAIT_DLY);
+    }
+    if (b1io_rx_full(sc))
+	return bus_space_read_1(sc->sc_io_bt, sc->sc_io_bh, B1_READ);
+    printf("iavc%d: rx not completed\n", sc->sc_unit);
+    return 0xff;
+}
+
+int b1io_put_byte(iavc_softc_t *sc, u_int8_t val)
+{
+    int spin = 0;
+    while (!b1io_tx_empty(sc) && spin < B1IO_WAIT_MAX) {
+	spin++; DELAY(B1IO_WAIT_DLY);
+    }
+    if (b1io_tx_empty(sc)) {
+	bus_space_write_1(sc->sc_io_bt, sc->sc_io_bh, B1_WRITE, val);
+	return 0;
+    }
+    printf("iavc%d: tx not emptied\n", sc->sc_unit);
+    return -1;
+}
+
+int b1io_save_put_byte(iavc_softc_t *sc, u_int8_t val)
+{
+    int spin = 0;
+    while (!b1io_tx_empty(sc) && spin < B1IO_WAIT_MAX) {
+	spin++; DELAY(B1IO_WAIT_DLY);
+    }
+    if (b1io_tx_empty(sc)) {
+	b1io_outp(sc, B1_WRITE, val);
+	return 0;
+    }
+    printf("iavc%d: tx not emptied\n", sc->sc_unit);
+    return -1;
+}
