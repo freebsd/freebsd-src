@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.90 1998/02/04 22:32:41 eivind Exp $
+ * $Id: vfs_syscalls.c,v 1.91 1998/02/06 12:13:32 eivind Exp $
  */
 
 /* For 4.3 integer FS ID compatibility */
@@ -2159,14 +2159,15 @@ fsync(p, uap)
 	if (error = getvnode(p->p_fd, SCARG(uap, fd), &fp))
 		return (error);
 	vp = (struct vnode *)fp->f_data;
-	vn_lock(vp, LK_EXCLUSIVE, p);
-	if (vp->v_object) {
-		vm_object_page_clean(vp->v_object, 0, 0 ,0);
+	if ((error = vn_lock(vp, LK_EXCLUSIVE|LK_RETRY, p)) == NULL) {
+		if (vp->v_object) {
+			vm_object_page_clean(vp->v_object, 0, 0 ,0);
+		}
+		error = VOP_FSYNC(vp, fp->f_cred,
+			(vp->v_mount && (vp->v_mount->mnt_flag & MNT_ASYNC)) ? 
+			MNT_NOWAIT : MNT_WAIT, p);
+		VOP_UNLOCK(vp, 0, p);
 	}
-	error = VOP_FSYNC(vp, fp->f_cred,
-		(vp->v_mount && (vp->v_mount->mnt_flag & MNT_ASYNC)) ? 
-		MNT_NOWAIT : MNT_WAIT, p);
-	VOP_UNLOCK(vp, 0, p);
 	return (error);
 }
 
