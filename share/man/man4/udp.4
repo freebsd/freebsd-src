@@ -101,9 +101,9 @@ transport level may be used with
 .Tn UDP ;
 see
 .Xr ip 4 .
-.Sh DIAGNOSTICS
+.Sh ERRORS
 A socket operation may fail with one of the following errors returned:
-.Bl -tag -width [EADDRNOTAVAIL]
+.Bl -tag -width Er
 .It Bq Er EISCONN
 when trying to establish a connection on a socket which
 already has one, or when trying to send a datagram with the destination

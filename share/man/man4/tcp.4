@@ -232,9 +232,9 @@ as described in RFC 2582.
 .It tcp.path_mtu_discovery
 Enable Path MTU Discovery
 .El
-.Sh DIAGNOSTICS
+.Sh ERRORS
 A socket operation may fail with one of the following errors returned:
-.Bl -tag -width [EADDRNOTAVAIL]
+.Bl -tag -width Er
 .It Bq Er EISCONN
 when trying to establish a connection on a socket which
 already has one;
