@@ -70,6 +70,7 @@ SYSCTL_INT(_debug, OID_AUTO, es_debug, CTLFLAG_RW, &debug, 0, "");
 /* PCI IDs of supported chips */
 #define ES1370_PCI_ID 0x50001274
 #define ES1371_PCI_ID 0x13711274
+#define ES1371_PCI_ID2 0x13713274
 
 /* device private data */
 struct es_info;
@@ -703,7 +704,8 @@ es_pci_probe(device_t dev)
 	if (pci_get_devid(dev) == ES1370_PCI_ID) {
 		device_set_desc(dev, "AudioPCI ES1370");
 		return 0;
-	} else if (pci_get_devid(dev) == ES1371_PCI_ID) {
+	} else if (pci_get_devid(dev) == ES1371_PCI_ID ||
+		   pci_get_devid(dev) == ES1371_PCI_ID2) {
 		device_set_desc(dev, "AudioPCI ES1371");
 		return 0;
 	}
@@ -766,7 +768,8 @@ es_pci_attach(device_t dev)
 		goto bad;
 	}
 
-	if (pci_get_devid(dev) == ES1371_PCI_ID) {
+	if (pci_get_devid(dev) == ES1371_PCI_ID ||
+	    pci_get_devid(dev) == ES1371_PCI_ID2) {
 		if(-1 == es1371_init(es, pci_get_revid(dev))) {
 			device_printf(dev, "unable to initialize the card\n");
 			goto bad;
