@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: show.c,v 1.8 1996/06/20 18:33:47 jkh Exp $";
+	"$Id: show.c,v 1.8.2.1 1997/10/09 07:09:48 charnier Exp $";
 #endif
 
 /*
@@ -103,6 +103,10 @@ show_plist(char *title, Package *plist, plist_t type)
 
 	case PLIST_CMD:
 	    printf(Quiet ? "@exec %s\n" : "\tEXEC '%s'\n", p->name);
+	    break;
+
+	case PLIST_UNEXEC:
+	    printf(Quiet ? "@unexec %s\n" : "\tUNEXEC '%s'\n", p->name);
 	    break;
 
 	case PLIST_CHMOD:
