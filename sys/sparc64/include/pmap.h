@@ -44,14 +44,8 @@
 #define	_MACHINE_PMAP_H_
 
 #include <sys/queue.h>
+#include <machine/cache.h>
 #include <machine/tte.h>
-
-#define	DCACHE_COLOR_BITS	(1)
-#define	DCACHE_COLORS		(1 << DCACHE_COLOR_BITS)
-#define	DCACHE_COLOR_MASK	(DCACHE_COLORS - 1)
-#define	DCACHE_COLOR(va)	(((va) >> PAGE_SHIFT) & DCACHE_COLOR_MASK)
-#define	DCACHE_OTHER_COLOR(color) \
-	((color) ^ DCACHE_COLOR_BITS)
 
 #define	PMAP_CONTEXT_MAX	8192
 
