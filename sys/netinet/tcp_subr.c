@@ -325,6 +325,8 @@ tcpip_fillheaders(inp, ip_ptr, tcp_ptr)
 {
 	struct tcphdr *th = (struct tcphdr *)tcp_ptr;
 
+	INP_LOCK_ASSERT(inp);
+
 #ifdef INET6
 	if ((inp->inp_vflag & INP_IPV6) != 0) {
 		struct ip6_hdr *ip6;
@@ -678,6 +680,8 @@ tcp_discardcb(tp)
 	int isipv6 = (inp->inp_vflag & INP_IPV6) != 0;
 #endif /* INET6 */
 
+	INP_LOCK_ASSERT(inp);
+
 	/*
 	 * Make sure that all of our timers are stopped before we
 	 * delete the PCB.
@@ -773,6 +777,8 @@ tcp_close(tp)
 	struct socket *so = inp->inp_socket;
 #endif
 
+	INP_LOCK_ASSERT(inp);
+
 	tcp_discardcb(tp);
 #ifdef INET6
 	if (INP_CHECK_SOCKAF(so, AF_INET6))
@@ -836,6 +842,8 @@ tcp_notify(inp, error)
 	int error;
 {
 	struct tcpcb *tp = (struct tcpcb *)inp->inp_ppcb;
+
+	INP_LOCK_ASSERT(inp);
 
 	/*
 	 * Ignore some errors if we are hooked up.
@@ -1313,6 +1321,7 @@ tcp_new_isn(tp)
 	tcp_seq new_isn;
 
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);
+	INP_LOCK_ASSERT(tp->t_inpcb);
 
 	/* Seed if this is the first use, reseed if requested. */
 	if ((isn_last_reseed == 0) || ((tcp_isn_reseed_interval > 0) &&
@@ -1630,7 +1639,7 @@ ipsec_hdrsiz_tcp(tp)
 
 /*
  * Move a TCP connection into TIME_WAIT state.
- *    tcbinfo is unlocked.
+ *    tcbinfo is locked.
  *    inp is locked, and is unlocked before returning.
  */
 void
@@ -1933,6 +1942,8 @@ tcp_xmit_bandwidth_limit(struct tcpcb *tp, tcp_seq ack_seq)
 	u_long bw;
 	u_long bwnd;
 	int save_ticks;
+
+	INP_LOCK_ASSERT(tp->t_inpcb);
 
 	/*
 	 * If inflight_enable is disabled in the middle of a tcp connection,
