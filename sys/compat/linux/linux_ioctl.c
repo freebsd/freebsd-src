@@ -57,7 +57,6 @@
 #include <machine/../linux/linux_proto.h>
 #endif
 
-#include <linux_proto.h>
 #ifdef __alpha__
 #include <machine/../linux/linux_ioctl.h>
 #else
