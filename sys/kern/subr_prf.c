@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.27 1996/01/24 20:56:20 phk Exp $
+ * $Id: subr_prf.c,v 1.28 1996/01/25 00:17:22 bde Exp $
  */
 
 #include "opt_ddb.h"
@@ -287,23 +287,25 @@ addlog(const char *fmt, ...)
 	logwakeup();
 }
 
-void
+int
 printf(const char *fmt, ...)
 {
 	va_list ap;
 	register int savintr;
 	struct putchar_arg pca;
+	int retval;
 
 	savintr = consintr;		/* disable interrupts */
 	consintr = 0;
 	va_start(ap, fmt);
 	pca.tty = NULL;
 	pca.flags = TOCONS | TOLOG;
-	kvprintf(fmt, putchar, &pca, 10, ap);
+	retval = kvprintf(fmt, putchar, &pca, 10, ap);
 	va_end(ap);
 	if (!panicstr)
 		logwakeup();
 	consintr = savintr;		/* reenable interrupts */
+	return retval;
 }
 
 void
