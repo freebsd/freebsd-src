@@ -466,63 +466,75 @@ slices.
 Use
 .Xr fdisk 8
 to initialize the hard disk, and create a slice table, referred to
-as the partition table in DOS.
-Here you will define disk slices for your system.
+as the
+.Dq "partition table"
+in
+.Tn DOS .
 .It
 Use
 .Nm
-to define and write partitions and mount points.
-You are not required to define the mount points here though,
-they can be defined later using
-.Xr mount 8 .
+to define partitions on
+.Fx
+slices created in the previous step.
 .It
 Finally use
 .Xr newfs 8
-to create a file system on the new partition.
-A typical partitioning scheme would be to have an
-.Dq a
-partition
-of approximately 128MB to hold the root file system, a
-.Dq b
-partition for
-swap, a
-.Dq d
-partition for /var (usually 128MB), an
-.Dq e
-partition
-for /var/tmp (usually 128MB), an
-.Dq f
-partition for /usr (usually around 2G),
-and finally a
-.Dq g
-partition for /home (usually all remaining space).
-Your mileage may vary.
+to create file systems on new partitions.
 .El
 .Pp
-.Nm fdisk Fl BI Ar da0
+A typical partitioning scheme would be to have an
+.Ql a
+partition
+of approximately 128MB to hold the root file system, a
+.Ql b
+partition for
+swap, a
+.Ql d
+partition for
+.Pa /var
+(usually 128MB), an
+.Ql e
+partition
+for
+.Pa /var/tmp
+(usually 128MB), an
+.Ql f
+partition for
+.Pa /usr
+(usually around 2GB),
+and finally a
+.Ql g
+partition for
+.Pa /home
+(usually all remaining space).
+Your mileage may vary.
+.Pp
+.Nm fdisk Fl BI Pa da0
 .Pp
 .Nm
-.Fl w
-.Fl B
-.Ar da0s1
-auto
-.Pp
+.Fl w B
+.Pa da0s1
+.Cm auto
 .Pp
 .Nm
 .Fl e
-.Ar da0s1
+.Pa da0s1
 .Sh FILES
-.Bl -tag -width Pa -compact
+.Bl -tag -width ".Pa /etc/disktab" -compact
+.It Pa /boot/boot
+Default boot image.
 .It Pa /etc/disktab
-.It Pa /boot/
-.It Pa /boot/boot<n>
+Disk description file.
 .El
 .Sh SAVED FILE FORMAT
 The
 .Nm
 utility
-uses an ASCII version of the label when examining, editing or restoring a disk
-label.  The format is:
+uses an
+.Tn ASCII
+version of the label when examining, editing, or restoring a disk
+label.
+The format is:
 .Bd -literal -offset 4n
 # /dev/da1c:
 type: SCSI
@@ -551,51 +563,56 @@ drivedata: 0
   h:   962010   211920     vinum                        # (Cyl.  218*- 1211*)
 .Ed
 .Pp
-Lines starting with a # mark are comments.  Most of the other specifications are
-no longer used.  The ones which must still be set correctly are:
+Lines starting with a
+.Ql #
+mark are comments.
+Most of the other specifications are no longer used.
+The ones which must still be set correctly are:
 .Pp
-.Bl -hang -width 20n
-.It Nm label
+.Bl -inset
+.It Ar label
 is an optional label, set by the
 .Ar packid
 option when writing a label.
-.It Nm flags
-Flags may be
-.Ar removable ,
-.Ar ecc
+.It Ar flags
+may be
+.Cm removable , ecc
 or
-.Ar badsect .
-.Ar removable
+.Cm badsect .
+.Cm removable
 is set for removable media drives, but no current
 .Fx
 driver evaluates this
 flag.
-.Ar ecc
+.Cm ecc
 is no longer supported;
-.Ar badsect
+.Cm badsect
 specifies that the drive can perform bad sector remapping.
-.It Nm sectors/unit
-describes the total size of the disk.  This value must be correct.
-.It Nm the partition table
-This is the
+.It Ar sectors/unit
+describes the total size of the disk.
+This value must be correct.
+.It Ar "the partition table"
+is the
 .Ux
-partition table, not the Microsoft partition table described in
+partition table, not the
+.Tn DOS
+partition table described in
 .Xr fdisk 8 .
 .El
 .Pp
-The partition table can have up to 8 entries.  It contains the following
-information:
-.Bl -hang -width 10n
-.It identifier
+The partition table can have up to 8 entries.
+It contains the following information:
+.Bl -tag -width indent
+.It Ar #
 The partition identifier is a single letter in the range
-.Dq a
+.Ql a
 to
-.Dq h .
+.Ql h .
 By convention, partition
-.Dq c
+.Ql c
 is reserved to describe the entire disk.
-.It size
-is the size of the partition in sectors,
+.It Ar size
+The size of the partition in sectors,
 .Cm K
 (kilobytes - 1024),
 .Cm M
@@ -603,51 +620,59 @@ is the size of the partition in sectors,
 .Cm G
 (gigabytes - 1024*1024*1024),
 .Cm %
-(percentage of free space AFTER removing any fixed-size partitions other
-than partition
-.Dq c) ,
+(percentage of free space
+.Em after
+removing any fixed-size partitions other than partition
+.Ql c ) ,
 or
 .Cm *
-(all remaining free space AFTER fixed-size and percentage
-partitions).  For partition
-.Dq c ,
+(all remaining free space
+.Em after
+fixed-size and percentage partitions).
+For partition
+.Ql c ,
 a size of
 .Cm *
-indicates the entire disk.  Lowercase versions of
+indicates the entire disk.
+Lowercase versions of
 .Cm K , M ,
 and
 .Cm G
 are allowed.
 Size and type should be specifed without any spaces between them.
 .Pp
-Example: 2097152, 1g, 1024m and 1048576k are all the same size
+Example: 2097152, 1G, 1024M and 1048576K are all the same size
 (assuming 512-byte sectors).
-.It offset
-is the offset of the start of the partition from the beginning of the
+.It Ar offset
+The offset of the start of the partition from the beginning of the
 drive in sectors, or
 .Cm *
 to have
 .Nm
 calculate the correct offset to use (the end of the previous partition plus
 one, ignoring partition
-.Dq c .
+.Ql c .
 For partition
-.Dq c ,
+.Ql c ,
 .Cm *
 will be interpreted as an offset of 0.
-.It fstype
-describes the purpose of the partition.  The example shows all currently used
-partition types.
-For UFS file systems and ccd partitions, use type
+.It Ar fstype
+Describes the purpose of the partition.
+The example shows all currently used partition types.
+For
+.Tn UFS
+file systems and
+.Xr ccd 4
+partitions, use type
 .Cm 4.2BSD .
 For Vinum drives, use type
 .Cm vinum .
 Other common types are
-.Cm unused
+.Cm swap
 and
-.Cm swap .
+.Cm unused .
 By convention, partition
-.Dq c
+.Ql c
 represents the entire slice and should be of type
 .Cm unused ,
 though
@@ -656,51 +681,59 @@ does not enforce this convention.
 The
 .Nm
 utility
-also knows about a number of other partition types, none of which are in current
-use.
-See the definitions starting with
+also knows about a number of other partition types,
+none of which are in current use.
+(See the definitions starting with
 .Dv FS_UNUSED
 in
-.Pa /usr/include/sys/disklabel.h
-for more details.
-.It fsize
+.Aq Pa sys/disklabel.h
+for more details).
+.It Ar fsize
 For
 .Cm 4.2BSD
-and LFS file systems only, the fragment size.  Defaults to 1024 for
-partitions smaller than 1 GB, 4096 for partitions 1GB or larger.
-.It bsize
+and
+.Tn LFS
+file systems only, the fragment size.
+Defaults to 1024 for partitions smaller than 1GB,
+4096 for partitions 1GB or larger.
+.It Ar bsize
 For
 .Cm 4.2BSD
-and LFS file systems only, the block size.  Defaults to 8192 for
-partitions smaller than 1 GB, 16384 for partitions 1GB or larger.
-.It bps/cpg
+and
+.Tn LFS
+file systems only, the block size.
+Defaults to 8192 for partitions smaller than 1GB,
+16384 for partitions 1GB or larger.
+.It Ar bps/cpg
 For
 .Cm 4.2BSD
-file systems, the number of cylinders in a cylinder group.  For LFS file
-systems, the segment shift value.  Defaults to 16 for
-partitions smaller than 1 GB, 64 for partitions 1GB or larger.
+file systems, the number of cylinders in a cylinder group.
+For
+.Tn LFS
+file systems, the segment shift value.
+Defaults to 16 for partitions smaller than 1GB,
+64 for partitions 1GB or larger.
 .El
 .Pp
 The remainder of the line is a comment and shows the cylinder allocations based
 on the obsolete (but possibly correct) geometry information about the drive.
-The asterisk (*) indicates that the partition does not begin or end exactly on a
+The asterisk
+.Pq Ql *
+indicates that the partition does not begin or end exactly on a
 cylinder boundary.
 .Sh EXAMPLES
-.Dl disklabel da0
+.Dl "disklabel da0s1"
 .Pp
-Display the in-core label for
-.Pa da0s1
-as obtained via
+Display the in-core label for the first slice of the
+.Pa da0
+disk, as obtained via
 .Pa /dev/da0s1 .
-When reading a label,
-.Fx
-will allow you to specify the base disk name
-even if the label resides on a slice.  However, to be proper you should
-specify the base disk name only if you are using a
-.Dq dangerously-dedicated
-label.  Normally you specify the slice.
+(If the disk is
+.Dq dangerously-dedicated ,
+the base disk name should be specified, such as
+.Pa da0 . )
 .Pp
-.Dl disklabel da0s1 > savedlabel
+.Dl "disklabel da0s1 > savedlabel"
 .Pp
 Save the in-core label for
 .Pa da0s1
@@ -708,9 +741,9 @@ into the file
 .Pa savedlabel .
 This file can be used with the
 .Fl R
-flag to restore the label at a later date.
+option to restore the label at a later date.
 .Pp
-.Dl disklabel -w -r /dev/da0s1 da2212 foo
+.Dl "disklabel -w -r /dev/da0s1 da2212 foo"
 .Pp
 Create a label for
 .Pa da0s1
@@ -718,30 +751,36 @@ based on information for
 .Dq da2212
 found in
 .Pa /etc/disktab .
-Any existing bootstrap code will be clobbered.
+Any existing bootstrap code will be clobbered
+and the disk rendered unbootable.
 .Pp
-.Dl disklabel -e -r da0s1
-.Pp
-Read the on-disk label for
-.Pa da0s1 ,
-edit it and reinstall in-core as well as on-disk.  Existing bootstrap code is
-unaffected.
-.Pp
-.Dl disklabel -e -r -n da0s1
+.Dl "disklabel -e -r da0s1"
 .Pp
 Read the on-disk label for
 .Pa da0s1 ,
-edit it, and display what the new label would be (in sectors).  It does
-NOT install the new label either in-core or on-disk.
+edit it, and reinstall in-core as well as on-disk.
+Existing bootstrap code is unaffected.
 .Pp
-.Dl disklabel -r -w da0s1 auto
+.Dl "disklabel -e -r -n da0s1"
+.Pp
+Read the on-disk label for
+.Pa da0s1 ,
+edit it, and display what the new label would be (in sectors).
+It does
+.Em not
+install the new label either in-core or on-disk.
+.Pp
+.Dl "disklabel -r -w da0s1 auto"
 .Pp
 Try to auto-detect the required information from
 .Pa da0s1 ,
-and write a new label to the disk.  Use another disklabel -e command to edit the
+and write a new label to the disk.
+Use another
+.Nm Fl e
+command to edit the
 partitioning and file system information.
 .Pp
-.Dl disklabel -R da0s1 savedlabel
+.Dl "disklabel -R da0s1 savedlabel"
 .Pp
 Restore the on-disk and in-core label for
 .Pa da0s1
@@ -749,7 +788,7 @@ from information in
 .Pa savedlabel .
 Existing bootstrap code is unaffected.
 .Pp
-.Dl disklabel -R -n da0s1 label_layout
+.Dl "disklabel -R -n da0s1 label_layout"
 .Pp
 Display what the label would be for
 .Pa da0s1
