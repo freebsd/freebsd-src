@@ -44,11 +44,13 @@
 #include <sys/sysctl.h>
 #include <crypto/blowfish/blowfish.h>
 
+#include <dev/randomdev/hash.h>
 #include <dev/randomdev/yarrow.h>
 
 static d_open_t random_open;
 static d_read_t random_read;
 static d_write_t random_write;
+static d_ioctl_t random_ioctl;
 
 #define CDEV_MAJOR	2
 #define RANDOM_MINOR	3
@@ -59,7 +61,7 @@ static struct cdevsw random_cdevsw = {
 	/* close */	(d_close_t *)nullop,
 	/* read */	random_read,
 	/* write */	random_write,
-	/* ioctl */	noioctl,
+	/* ioctl */	random_ioctl,
 	/* poll */	nopoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
@@ -73,7 +75,7 @@ static struct cdevsw random_cdevsw = {
 
 /* For use with make_dev(9)/destroy_dev(9). */
 static dev_t random_dev;
-static dev_t urandom_dev;
+static dev_t urandom_dev; /* XXX Temporary */
 
 SYSCTL_NODE(_kern, OID_AUTO, random, CTLFLAG_RW, 0, "Random Number Generator");
 SYSCTL_NODE(_kern_random, OID_AUTO, yarrow, CTLFLAG_RW, 0, "Yarrow Parameters");
@@ -107,7 +109,7 @@ random_read(dev_t dev, struct uio *uio, int flag)
 	c = min(uio->uio_resid, PAGE_SIZE);
 	random_buf = (void *)malloc(c, M_TEMP, M_WAITOK);
 	while (uio->uio_resid > 0 && error == 0) {
-		ret = read_random(random_buf, c);
+		ret = read_random(uio->uio_procp, random_buf, c);
 		error = uiomove(random_buf, ret, uio);
 	}
 	free(random_buf, M_TEMP);
@@ -134,23 +136,33 @@ random_write(dev_t dev, struct uio *uio, int flag)
 }
 
 static int
+random_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
+{
+	return ENOTTY;
+}
+
+static int
 random_modevent(module_t mod, int type, void *data)
 {
+	int error;
+
 	switch(type) {
 	case MOD_LOAD:
+		error = random_init();
+		if (error != 0)
+			return error;
 		if (bootverbose)
 			printf("random: <entropy source>\n");
 		random_dev = make_dev(&random_cdevsw, RANDOM_MINOR, UID_ROOT,
 			GID_WHEEL, 0666, "random");
 		urandom_dev = make_dev(&random_cdevsw, URANDOM_MINOR, UID_ROOT,
-			GID_WHEEL, 0666, "urandom");
-		random_init();
+			GID_WHEEL, 0666, "urandom"); /* XXX Temporary */
 		return 0;
 
 	case MOD_UNLOAD:
 		random_deinit();
 		destroy_dev(random_dev);
-		destroy_dev(urandom_dev);
+		destroy_dev(urandom_dev); /* XXX Temporary */
 		return 0;
 
 	case MOD_SHUTDOWN:
