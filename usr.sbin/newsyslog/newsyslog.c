@@ -115,6 +115,7 @@ int rotatereq = 0;		/* -R = Always rotate the file(s) as given */
 char *requestor;		/* The name given on a -R request */
 char *archdirname;		/* Directory path to old logfiles archive */
 const char *conf;		/* Configuration file to use */
+time_t dbg_timenow;		/* A "timenow" value set via -D option */
 time_t timenow;
 
 char hostname[MAXHOSTNAMELEN];	/* hostname */
@@ -135,6 +136,7 @@ static void free_entry(struct conf_entry *ent);
 static struct conf_entry *init_entry(const char *fname,
 		struct conf_entry *src_entry);
 static void parse_args(int argc, char **argv);
+static int parse_doption(const char *doption);
 static void usage(void);
 static void dotrim(const struct conf_entry *ent, char *log,
 		int numdays, int flags);
@@ -144,12 +146,12 @@ static void bzcompress_log(char *log, int dowait);
 static int sizefile(char *file);
 static int age_old_log(char *file);
 static int send_signal(const struct conf_entry *ent);
-static time_t parse8601(char *s, char *errline);
 static void movefile(char *from, char *to, int perm, uid_t owner_uid,
 		gid_t group_gid);
 static void createdir(const struct conf_entry *ent, char *dirpart);
 static void createlog(const struct conf_entry *ent);
-static time_t parseDWM(char *s, char *errline);
+static time_t parse8601(const char *s);
+static time_t parseDWM(char *s);
 
 /*
  * All the following are defined to work on an 'int', in the
@@ -496,6 +498,7 @@ parse_args(int argc, char **argv)
 {
 	int ch;
 	char *p;
+	char debugtime[32];
 
 	timenow = time(NULL);
 	(void)strncpy(daytime, ctime(&timenow) + 4, 15);
@@ -509,7 +512,7 @@ parse_args(int argc, char **argv)
 		*p = '\0';
 
 	/* Parse command line options. */
-	while ((ch = getopt(argc, argv, "a:f:nrsvCFR:")) != -1)
+	while ((ch = getopt(argc, argv, "a:f:nrsvCD:FR:")) != -1)
 		switch (ch) {
 		case 'a':
 			archtodir++;
@@ -534,6 +537,16 @@ parse_args(int argc, char **argv)
 			/* Useful for things like rc.diskless... */
 			createlogs++;
 			break;
+		case 'D':
+			/*
+			 * Set some debugging option.  The specific option
+			 * depends on the value of optarg.  These options
+			 * may come and go without notice or documentation.
+			 */
+			if (parse_doption(optarg))
+				break;
+			usage();
+			/* NOTREACHED */
 		case 'F':
 			force++;
 			break;
@@ -559,6 +572,47 @@ parse_args(int argc, char **argv)
 				*p = '.';
 		}
 	}
+
+	if (dbg_timenow) {
+		/*
+		 * Note that the 'daytime' variable is not changed.
+		 * That is only used in messages that track when a
+		 * logfile is rotated, and if a file *is* rotated,
+		 * then it will still rotated at the "real now" time.
+		 */
+		timenow = dbg_timenow;
+		strlcpy(debugtime, ctime(&timenow), sizeof(debugtime));
+		fprintf(stderr, "Debug: Running as if TimeNow is %s",
+		    debugtime);
+	}
+
+}
+
+static int
+parse_doption(const char *doption)
+{
+	const char TN[] = "TN=";
+
+	if (strncmp(doption, TN, sizeof(TN) - 1) == 0) {
+		/*
+		 * The "TimeNow" debugging option.  This probably will
+		 * be off by an hour when crossing a timezone change.
+		 */
+		dbg_timenow = parse8601(doption + sizeof(TN) - 1);
+		if (dbg_timenow == (time_t)-1) {
+			warnx("Malformed time given on -D %s", doption);
+			return (0);			/* failure */
+		}
+		if (dbg_timenow == (time_t)-2) {
+			warnx("Non-existent time specified on -D %s", doption);
+			return (0);			/* failure */
+		}
+		return (1);			/* successfully parsed */
+
+	}
+
+	warnx("Unknown -D (debug) option: %s", doption);
+	return (0);				/* failure */
 }
 
 static void
@@ -984,15 +1038,18 @@ parse_file(FILE *cf, const char *cfname, struct conf_entry **work_p,
 			    *ep != '$')
 				errx(1, "malformed interval/at:\n%s", errline);
 			if (*ep == '@') {
-				if ((working->trim_at = parse8601(ep + 1, errline))
-				    == (time_t) - 1)
-					errx(1, "malformed at:\n%s", errline);
+				working->trim_at = parse8601(ep + 1);
 				working->flags |= CE_TRIMAT;
 			} else if (*ep == '$') {
-				if ((working->trim_at = parseDWM(ep + 1, errline))
-				    == (time_t) - 1)
-					errx(1, "malformed at:\n%s", errline);
+				working->trim_at = parseDWM(ep + 1);
 				working->flags |= CE_TRIMAT;
+			}
+			if (working->flags & CE_TRIMAT) {
+				if (working->trim_at == (time_t)-1)
+					errx(1, "malformed at:\n%s", errline);
+				if (working->trim_at == (time_t)-2)
+					errx(1, "nonexistent time:\n%s",
+					    errline);
 			}
 		}
 
@@ -1548,127 +1605,6 @@ isnumberstr(const char *string)
 	return (1);
 }
 
-static int	 days_pmonth(int month, int year);
-
-/*
- * Simple routine to calculate the number of days in a given month.
- */
-static int
-days_pmonth(int month, int year)
-{
-	static const int mtab[] = {31, 28, 31, 30, 31, 30, 31, 31,
-	    30, 31, 30, 31};
-	int ndays;
-
-	ndays = mtab[month];
-
-	if (month == 1) {
-		/*
-		 * We are usually called with a 'tm-year' value
-		 * (ie, the value = the number of years past 1900).
-		 */
-		if (year < 1900)
-			year += 1900;
-		if (year % 4 == 0) {
-			/*
-			 * This is a leap year, as long as it is not a
-			 * multiple of 100, or if it is a multiple of
-			 * both 100 and 400.
-			 */
-			if (year % 100 != 0)
-				ndays++;	/* not multiple of 100 */
-			else if (year % 400 == 0)
-				ndays++;	/* is multiple of 100 and 400 */
-		}
-	}
-	return (ndays);
-}
-
-/*
- * Parse a limited subset of ISO 8601. The specific format is as follows:
- *
- * [CC[YY[MM[DD]]]][THH[MM[SS]]]	(where `T' is the literal letter)
- *
- * We don't accept a timezone specification; missing fields (including timezone)
- * are defaulted to the current date but time zero.
- */
-static time_t
-parse8601(char *s, char *errline)
-{
-	char *t;
-	time_t tsecs;
-	struct tm tm, *tmp;
-	u_long ul;
-
-	tmp = localtime(&timenow);
-	tm = *tmp;
-
-	tm.tm_hour = tm.tm_min = tm.tm_sec = 0;
-
-	ul = strtoul(s, &t, 10);
-	if (*t != '\0' && *t != 'T')
-		return (-1);
-
-	/*
-	 * Now t points either to the end of the string (if no time was
-	 * provided) or to the letter `T' which separates date and time in
-	 * ISO 8601.  The pointer arithmetic is the same for either case.
-	 */
-	switch (t - s) {
-	case 8:
-		tm.tm_year = ((ul / 1000000) - 19) * 100;
-		ul = ul % 1000000;
-	case 6:
-		tm.tm_year -= tm.tm_year % 100;
-		tm.tm_year += ul / 10000;
-		ul = ul % 10000;
-	case 4:
-		tm.tm_mon = (ul / 100) - 1;
-		ul = ul % 100;
-	case 2:
-		tm.tm_mday = ul;
-	case 0:
-		break;
-	default:
-		return (-1);
-	}
-
-	/* sanity check */
-	if (tm.tm_year < 70 || tm.tm_mon < 0 || tm.tm_mon > 12
-	    || tm.tm_mday < 1 || tm.tm_mday > 31)
-		return (-1);
-
-	if (*t != '\0') {
-		s = ++t;
-		ul = strtoul(s, &t, 10);
-		if (*t != '\0' && !isspace(*t))
-			return (-1);
-
-		switch (t - s) {
-		case 6:
-			tm.tm_sec = ul % 100;
-			ul /= 100;
-		case 4:
-			tm.tm_min = ul % 100;
-			ul /= 100;
-		case 2:
-			tm.tm_hour = ul;
-		case 0:
-			break;
-		default:
-			return (-1);
-		}
-
-		/* sanity check */
-		if (tm.tm_sec < 0 || tm.tm_sec > 60 || tm.tm_min < 0
-		    || tm.tm_min > 59 || tm.tm_hour < 0 || tm.tm_hour > 23)
-			return (-1);
-	}
-	if ((tsecs = mktime(&tm)) == -1)
-		errx(1, "nonexistent time:\n%s", errline);
-	return (tsecs);
-}
-
 /* physically move file */
 static void
 movefile(char *from, char *to, int perm, uid_t owner_uid, gid_t group_gid)
@@ -1841,6 +1777,133 @@ createlog(const struct conf_entry *ent)
 		close(fd);
 }
 
+static int	 days_pmonth(int month, int year);
+
+/*
+ * Simple routine to calculate the number of days in a given month.
+ */
+static int
+days_pmonth(int month, int year)
+{
+	static const int mtab[] = {31, 28, 31, 30, 31, 30, 31, 31,
+	    30, 31, 30, 31};
+	int ndays;
+
+	ndays = mtab[month];
+
+	if (month == 1) {
+		/*
+		 * We are usually called with a 'tm-year' value
+		 * (ie, the value = the number of years past 1900).
+		 */
+		if (year < 1900)
+			year += 1900;
+		if (year % 4 == 0) {
+			/*
+			 * This is a leap year, as long as it is not a
+			 * multiple of 100, or if it is a multiple of
+			 * both 100 and 400.
+			 */
+			if (year % 100 != 0)
+				ndays++;	/* not multiple of 100 */
+			else if (year % 400 == 0)
+				ndays++;	/* is multiple of 100 and 400 */
+		}
+	}
+	return (ndays);
+}
+
+/*-
+ * Parse a limited subset of ISO 8601. The specific format is as follows:
+ *
+ * [CC[YY[MM[DD]]]][THH[MM[SS]]]	(where `T' is the literal letter)
+ *
+ * We don't accept a timezone specification; missing fields (including timezone)
+ * are defaulted to the current date but time zero.
+ */
+static time_t
+parse8601(const char *s)
+{
+	char *t;
+	time_t tsecs;
+	struct tm tm, *tmp;
+	long l;
+
+	tmp = localtime(&timenow);
+	tm = *tmp;
+
+	tm.tm_hour = tm.tm_min = tm.tm_sec = 0;
+
+	l = strtol(s, &t, 10);
+	if (l < 0 || l >= INT_MAX || (*t != '\0' && *t != 'T'))
+		return (-1);
+
+	/*
+	 * Now t points either to the end of the string (if no time was
+	 * provided) or to the letter `T' which separates date and time in
+	 * ISO 8601.  The pointer arithmetic is the same for either case.
+	 */
+	switch (t - s) {
+	case 8:
+		tm.tm_year = ((l / 1000000) - 19) * 100;
+		l = l % 1000000;
+	case 6:
+		tm.tm_year -= tm.tm_year % 100;
+		tm.tm_year += l / 10000;
+		l = l % 10000;
+	case 4:
+		tm.tm_mon = (l / 100) - 1;
+		l = l % 100;
+	case 2:
+		tm.tm_mday = l;
+	case 0:
+		break;
+	default:
+		return (-1);
+	}
+
+	/* sanity check */
+	if (tm.tm_year < 70 || tm.tm_mon < 0 || tm.tm_mon > 12
+	    || tm.tm_mday < 1 || tm.tm_mday > 31)
+		return (-1);
+
+	if (*t != '\0') {
+		s = ++t;
+		l = strtol(s, &t, 10);
+		if (l < 0 || l >= INT_MAX || (*t != '\0' && !isspace(*t)))
+			return (-1);
+
+		switch (t - s) {
+		case 6:
+			tm.tm_sec = l % 100;
+			l /= 100;
+		case 4:
+			tm.tm_min = l % 100;
+			l /= 100;
+		case 2:
+			tm.tm_hour = l;
+		case 0:
+			break;
+		default:
+			return (-1);
+		}
+
+		/* sanity check */
+		if (tm.tm_sec < 0 || tm.tm_sec > 60 || tm.tm_min < 0
+		    || tm.tm_min > 59 || tm.tm_hour < 0 || tm.tm_hour > 23)
+			return (-1);
+	}
+
+	tsecs = mktime(&tm);
+	/*
+	 * Check for invalid times, including things like the missing
+	 * hour when switching from "standard time" to "daylight saving".
+	 */
+	if (tsecs == (time_t)-1)
+		tsecs = (time_t)-2;
+	return (tsecs);
+}
+
 /*-
  * Parse a cyclic time specification, the format is as follows:
  *
@@ -1856,7 +1919,7 @@ createlog(const struct conf_entry *ent)
  * are defaulted to the current date but time zero.
  */
 static time_t
-parseDWM(char *s, char *errline)
+parseDWM(char *s)
 {
 	char *t;
 	time_t tsecs;
@@ -1944,7 +2007,13 @@ parseDWM(char *s, char *errline)
 		else
 			s = t;
 	}
-	if ((tsecs = mktime(&tm)) == -1)
-		errx(1, "nonexistent time:\n%s", errline);
+
+	tsecs = mktime(&tm);
+	/*
+	 * Check for invalid times, including things like the missing
+	 * hour when switching from "standard time" to "daylight saving".
+	 */
+	if (tsecs == (time_t)-1)
+		tsecs = (time_t)-2;
 	return (tsecs);
 }
