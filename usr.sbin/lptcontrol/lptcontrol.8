@@ -11,7 +11,7 @@
 .\"    documentation and/or other materials provided with the distribution.
 .\"
 .\"
-.\" $Id: lptcontrol.8,v 1.6 1997/09/25 06:36:28 charnier Exp $
+.\" $Id: lptcontrol.8,v 1.7 1998/03/23 08:23:49 charnier Exp $
 .Dd September 3, 1994
 .Dt LPTCONTROL 8
 .Os FreeBSD 2
@@ -23,16 +23,21 @@
 .Cm -i
 |
 .Cm -p
-.Op Fl u Ar unit no
+|
+.Cm -e
+.Op Fl d Ar device
 .Sh DESCRIPTION
 The
 .Nm
-command is used to set either the interrupt-driven or polling mode
+command is used to set either the interrupt-driven, extended or polling mode
 of individual 
 .Xr lpt 4
-devices.  When a printer is switched between
-interrupt-driven and polled mode, this change will only take effect
+devices.  When a printer is switched from
+a mode to another, this change will only take effect
 the next time the device is opened.
+.Pp
+Extended mode is anything the parallel port interface can support. For an
+ECP/ISA parallel port, it may be FIFO+DMA or ECP.
 .Sh OPTIONS
 .TP
 The following command line options are supported:
@@ -41,21 +46,23 @@ The following command line options are supported:
 Turn on interrupt-driven mode.
 .It Fl p
 Turn on polled mode.
-.It Fl u  Ar n
+.It Fl e
+Turn on extended mode.
+.It Fl d Ar dev
 Set the mode of the printer device specified by
-.Em n .
+.Em dev .
 The default value for 
-.Em n
+.Em dev
 is
-.Em 0
-(ie.
-.Pa /dev/lpt0 )
+.Em /dev/lpt0
 .El
 .Pp
 One of 
 .Fl i
-or
+,
 .Fl p
+or
+.Fl e
 must be specified.
 .Pp
 .Sh FILES
