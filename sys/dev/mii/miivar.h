@@ -130,8 +130,18 @@ struct mii_softc {
 typedef struct mii_softc mii_softc_t;
 
 /* mii_flags */
-#define	MIIF_NOISOLATE	0x0001		/* do not isolate the PHY */
-#define	MIIF_DOINGAUTO	0x0002		/* doing autonegotiation */
+#define	MIIF_INITDONE	0x0001		/* has been initialized (mii_data) */
+#define	MIIF_NOISOLATE	0x0002		/* do not isolate the PHY */
+#define	MIIF_NOLOOP	0x0004		/* no loopback capability */
+#define	MIIF_DOINGAUTO	0x0008		/* doing autonegotiation (mii_softc) */
+#define MIIF_AUTOTSLEEP	0x0010		/* use tsleep(), not callout() */
+#define MIIF_HAVEFIBER	0x0020		/* from parent: has fiber interface */
+#define	MIIF_HAVE_GTCR	0x0040		/* has 100base-T2/1000base-T CR */
+#define	MIIF_IS_1000X	0x0080		/* is a 1000BASE-X device */
+#define	MIIF_DOPAUSE	0x0100		/* advertise PAUSE capability */
+#define	MIIF_IS_HPNA	0x0200		/* is a HomePNA device */
+
+#define	MIIF_INHERIT_MASK	(MIIF_NOISOLATE|MIIF_NOLOOP|MIIF_AUTOTSLEEP)
 
 /*
  * Used to attach a PHY to a parent.
@@ -144,6 +154,27 @@ struct mii_attach_args {
 	int mii_capmask;		/* capability mask from BMSR */
 };
 typedef struct mii_attach_args mii_attach_args_t;
+
+/*
+ * An array of these structures map MII media types to BMCR/ANAR settings.
+ */
+struct mii_media {
+	int	mm_bmcr;		/* BMCR settings for this media */
+	int	mm_anar;		/* ANAR settings for this media */
+	int	mm_gtcr;		/* 100base-T2 or 1000base-T CR */
+};
+
+#define	MII_MEDIA_NONE		0
+#define	MII_MEDIA_10_T		1
+#define	MII_MEDIA_10_T_FDX	2
+#define	MII_MEDIA_100_T4	3
+#define	MII_MEDIA_100_TX	4
+#define	MII_MEDIA_100_TX_FDX	5
+#define	MII_MEDIA_1000_X	6
+#define	MII_MEDIA_1000_X_FDX	7
+#define	MII_MEDIA_1000_T	8
+#define	MII_MEDIA_1000_T_FDX	9
+#define	MII_NMEDIA		10
 
 #ifdef _KERNEL
 
@@ -172,6 +203,7 @@ int	mii_media_from_bmcr(int);
 int	mii_phy_auto(struct mii_softc *, int);
 void	mii_phy_auto_stop(struct mii_softc *);
 void	mii_phy_reset(struct mii_softc *);
+void	mii_phy_setmedia(struct mii_softc *sc);
 void	mii_phy_update(struct mii_softc *, int);
 int	mii_phy_tick(struct mii_softc *);
 
