@@ -415,7 +415,7 @@ __semctl(p, uap)
 		return (ENOSYS);
 
 	semid = IPCID_TO_IX(semid);
-	if (semid < 0 || semid >= seminfo.semmsl)
+	if (semid < 0 || semid >= seminfo.semmni)
 		return(EINVAL);
 
 	semaptr = &sema[semid];
@@ -700,7 +700,7 @@ semop(p, uap)
 
 	semid = IPCID_TO_IX(semid);	/* Convert back to zero origin */
 
-	if (semid < 0 || semid >= seminfo.semmsl)
+	if (semid < 0 || semid >= seminfo.semmni)
 		return(EINVAL);
 
 	semaptr = &sema[semid];
