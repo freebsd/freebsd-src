@@ -22,10 +22,6 @@
 
 #include <ctype.h>
 
-#ifndef __FreeBSD__
-#include "strtok.c"
-#endif
-
 #ifdef USE_SCCS_IDS
 static const char SCCSid[] = "@(#) mytinfo buildpath.c 3.2 92/02/01 public domain, By Ross Ridge";
 #endif
@@ -130,6 +126,7 @@ va_dcl
 #endif
 	va_list ap;
 	register char *s, *d, *e;
+	char *p;
 	char line[MAX_BUF+1];
 	char name[MAX_NAME+1];
 	int i,j;
@@ -186,11 +183,14 @@ va_dcl
 		}
 		*d = '\0';
 		if (type == 0 || line[0] == '/') {
-			s = strtok(line, SEPERATORS);
+			p = line;
+			while ((s = strsep(&p, SEPERATORS)) != NULL && *s == '\0')
+				;
 			while(s != NULL) {
 				if (addfile(s, 0) == 0)
 					return NULL;
-				s = strtok(NULL, SEPERATORS);
+				while ((s = strsep(&p, SEPERATORS)) != NULL && *s == '\0')
+					;
 			}
 		} else 
 			if (addfile(line, type) == 0)
