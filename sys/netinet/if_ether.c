@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.20 1995/10/22 19:07:58 phk Exp $
+ * $Id: if_ether.c,v 1.21 1995/12/02 19:37:48 bde Exp $
  */
 
 /*
@@ -41,16 +41,13 @@
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/malloc.h>
-#include <sys/mbuf.h>
-#include <sys/socket.h>
-#include <sys/time.h>
 #include <sys/kernel.h>
-#include <sys/errno.h>
-#include <sys/ioctl.h>
-#include <sys/syslog.h>
+#include <sys/sysctl.h>
 #include <sys/queue.h>
+#include <sys/systm.h>
+#include <sys/mbuf.h>
+#include <sys/malloc.h>
+#include <sys/syslog.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -58,28 +55,27 @@
 #include <net/netisr.h>
 
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
 #include <netinet/in_var.h>
-#include <netinet/ip.h>
 #include <netinet/if_ether.h>
-
-extern int	arpioctl __P((int cmd, caddr_t data));
 
 #define SIN(s) ((struct sockaddr_in *)s)
 #define SDL(s) ((struct sockaddr_dl *)s)
-#define SRP(s) ((struct sockaddr_inarp *)s)
 
-/*
- * ARP trailer negotiation.  Trailer protocol is not IP specific,
- * but ARP request/response use IP addresses.
- */
-#define ETHERTYPE_IPTRAILERS ETHERTYPE_TRAIL
-
+SYSCTL_NODE(_net, OID_AUTO, arp, CTLFLAG_RW, 0, "");
 
 /* timer values */
-int	arpt_prune = (5*60*1);	/* walk list every 5 minutes */
-int	arpt_keep = (20*60);	/* once resolved, good for 20 more minutes */
-int	arpt_down = 20;		/* once declared down, don't send for 20 secs */
+static int	arpt_prune = (5*60*1);
+	/* walk list every 5 minutes */
+SYSCTL_INT(_net_arp, OID_AUTO, t_prune, CTLFLAG_RW, &arpt_prune, 0, "");
+
+static int	arpt_keep = (20*60);
+	/* once resolved, good for 20 more minutes */
+SYSCTL_INT(_net_arp, OID_AUTO, t_keep, CTLFLAG_RW, &arpt_keep, 0, "");
+
+static int	arpt_down = 20;
+	/* once declared down, don't send for 20 secs */
+SYSCTL_INT(_net_arp, OID_AUTO, t_down, CTLFLAG_RW, &arpt_down, 0, "");
+
 #define	rt_expire rt_rmx.rmx_expire
 
 struct llinfo_arp {
@@ -89,24 +85,30 @@ struct llinfo_arp {
 	long	la_asked;		/* last time we QUERIED for this addr */
 #define la_timer la_rt->rt_rmx.rmx_expire /* deletion time in seconds */
 };
-static	LIST_HEAD(, llinfo_arp) llinfo_arp;
 
-static	void arprequest __P((struct arpcom *, u_long *, u_long *, u_char *));
-static	void arptfree __P((struct llinfo_arp *));
-static	void arp_rtrequest __P((int, struct rtentry *, struct sockaddr *));
-static	void arptimer __P((void *));
-static	struct llinfo_arp *arplookup __P((u_long, int, int));
-static	void in_arpinput __P((struct mbuf *));
+static	LIST_HEAD(, llinfo_arp) llinfo_arp;
 
 struct	ifqueue arpintrq = {0, 0, 0, 50};
 int	arp_inuse, arp_allocated, arp_intimer;
-int	arp_maxtries = 5;
-int	useloopback = 1;	/* use loopback interface for local traffic */
-int	arpinit_done = 0;
 
-#ifdef	ARP_PROXYALL
-int	arp_proxyall = 1;
-#endif
+static int	arp_maxtries = 5;
+SYSCTL_INT(_net_arp, OID_AUTO, maxtries, CTLFLAG_RW, &arp_maxtries, 0, "");
+
+static int	useloopback = 1;
+	/* use loopback interface for local traffic */
+SYSCTL_INT(_net_arp, OID_AUTO, useloopback, CTLFLAG_RW, &useloopback, 0, "");
+
+static int	arp_proxyall = 0;
+SYSCTL_INT(_net_arp, OID_AUTO, proxyall, CTLFLAG_RW, &arp_proxyall, 0, "");
+
+static void	arprequest __P((struct arpcom *, u_long *, u_long *, u_char *));
+static void	arpintr __P((void));
+static void	arptfree __P((struct llinfo_arp *));
+static void	arptimer __P((void *));
+static void	arpwhohas __P((struct arpcom *ac, struct in_addr *addr));
+static struct llinfo_arp
+		*arplookup __P((u_long, int, int));
+static void	in_arpinput __P((struct mbuf *));
 
 /*
  * Timeout routine.  Age arp_tab entries periodically.
@@ -142,6 +144,7 @@ arp_rtrequest(req, rt, sa)
 	register struct sockaddr *gate = rt->rt_gateway;
 	register struct llinfo_arp *la = (struct llinfo_arp *)rt->rt_llinfo;
 	static struct sockaddr_dl null_sdl = {sizeof(null_sdl), AF_LINK};
+	static int arpinit_done;
 
 	if (!arpinit_done) {
 		arpinit_done = 1;
@@ -238,14 +241,13 @@ arp_rtrequest(req, rt, sa)
 		Free((caddr_t)la);
 	}
 }
-
 /*
  * Broadcast an ARP packet, asking who has addr on interface ac.
  */
-void
+static void
 arpwhohas(ac, addr)
-	register struct arpcom *ac;
-	register struct in_addr *addr;
+	struct arpcom *ac;
+	struct in_addr *addr;
 {
 	arprequest(ac, &ac->ac_ipaddr.s_addr, &addr->s_addr, ac->ac_enaddr);
 }
@@ -371,7 +373,7 @@ arpresolve(ac, rt, m, dst, desten, rt0)
  * Common length and type checks are done here,
  * then the protocol-specific routine is called.
  */
-void
+static void
 arpintr(void)
 {
 	register struct mbuf *m;
@@ -393,7 +395,6 @@ arpintr(void)
 			    switch (ntohs(ar->ar_pro)) {
 
 			    case ETHERTYPE_IP:
-			    case ETHERTYPE_IPTRAILERS:
 				    in_arpinput(m);
 				    continue;
 			    }
@@ -443,18 +444,23 @@ in_arpinput(m)
 			     (isaddr.s_addr == ia->ia_addr.sin_addr.s_addr))
 				break;
 		}
-	if (maybe_ia == 0)
-		goto out;
+	if (maybe_ia == 0) {
+		m_freem(m);
+		return;
+	}
 	myaddr = ia ? ia->ia_addr.sin_addr : maybe_ia->ia_addr.sin_addr;
 	if (!bcmp((caddr_t)ea->arp_sha, (caddr_t)ac->ac_enaddr,
-	    sizeof (ea->arp_sha)))
-		goto out;	/* it's from me, ignore it. */
+	    sizeof (ea->arp_sha))) {
+		m_freem(m);	/* it's from me, ignore it. */
+		return;
+	}
 	if (!bcmp((caddr_t)ea->arp_sha, (caddr_t)etherbroadcastaddr,
 	    sizeof (ea->arp_sha))) {
 		log(LOG_ERR,
 		    "arp: ether address is broadcast for IP address %s!\n",
 		    inet_ntoa(isaddr));
-		goto out;
+		m_freem(m);
+		return;
 	}
 	if (isaddr.s_addr == myaddr.s_addr) {
 		log(LOG_ERR,
@@ -483,7 +489,6 @@ in_arpinput(m)
 	}
 reply:
 	if (op != ARPOP_REQUEST) {
-	out:
 		m_freem(m);
 		return;
 	}
@@ -494,10 +499,12 @@ reply:
 	} else {
 		la = arplookup(itaddr.s_addr, 0, SIN_PROXY);
 		if (la == NULL) {
-#ifdef ARP_PROXYALL
 			struct sockaddr_in sin;
 
-			if(!arp_proxyall) goto out;
+			if (!arp_proxyall) {
+				m_freem(m);
+				return;
+			}
 
 			bzero(&sin, sizeof sin);
 			sin.sin_family = AF_INET;
@@ -505,16 +512,19 @@ reply:
 			sin.sin_addr = itaddr;
 
 			rt = rtalloc1((struct sockaddr *)&sin, 0, 0UL);
-			if( !rt )
-				goto out;
+			if (!rt) {
+				m_freem(m);
+				return;
+			}
 			/*
 			 * Don't send proxies for nodes on the same interface
 			 * as this one came out of, or we'll get into a fight
 			 * over who claims what Ether address.
 			 */
-			if(rt->rt_ifp == &ac->ac_if) {
+			if (rt->rt_ifp == &ac->ac_if) {
 				rtfree(rt);
-				goto out;
+				m_freem(m);
+				return;
 			}
 			(void)memcpy(ea->arp_tha, ea->arp_sha, sizeof(ea->arp_sha));
 			(void)memcpy(ea->arp_sha, ac->ac_enaddr, sizeof(ea->arp_sha));
@@ -522,9 +532,6 @@ reply:
 #ifdef DEBUG_PROXY
 			printf("arp: proxying for %s\n",
 			       inet_ntoa(itaddr));
-#endif
-#else
-			goto out;
 #endif
 		} else {
 			rt = la->la_rt;
@@ -587,29 +594,21 @@ arplookup(addr, create, proxy)
 		return (0);
 	rt->rt_refcnt--;
 
-	if(rt->rt_flags & RTF_GATEWAY)
+	if (rt->rt_flags & RTF_GATEWAY)
 		why = "host is not on local network";
-	else if((rt->rt_flags & RTF_LLINFO) == 0)
+	else if ((rt->rt_flags & RTF_LLINFO) == 0)
 		why = "could not allocate llinfo";
-	else if(rt->rt_gateway->sa_family != AF_LINK)
+	else if (rt->rt_gateway->sa_family != AF_LINK)
 		why = "gateway route is not ours";
 
-	if(why && create) {
+	if (why && create) {
 		log(LOG_DEBUG, "arplookup %s failed: %s\n",
 		    inet_ntoa(sin.sin_addr), why);
 		return 0;
-	} else if(why) {
+	} else if (why) {
 		return 0;
 	}
 	return ((struct llinfo_arp *)rt->rt_llinfo);
-}
-
-int
-arpioctl(cmd, data)
-	int cmd;
-	caddr_t data;
-{
-	return (EOPNOTSUPP);
 }
 
 void
