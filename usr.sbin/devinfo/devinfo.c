@@ -141,7 +141,12 @@ print_device(struct devinfo_dev *dev, void *arg)
 		indent = (int)(intptr_t)arg;
 		for (i = 0; i < indent; i++)
 			printf(" ");
-		printf("%s\n", dev->dd_name[0] ? dev->dd_name : "unknown");
+		printf("%s", dev->dd_name[0] ? dev->dd_name : "unknown");
+		if (vflag && *dev->dd_pnpinfo)
+			printf(" pnpinfo %s", dev->dd_pnpinfo);
+		if (vflag && *dev->dd_location)
+			printf(" at %s", dev->dd_location);
+		printf("\n");
 		if (rflag) {
 			ia.indent = indent + 4;
 			ia.arg = dev;
