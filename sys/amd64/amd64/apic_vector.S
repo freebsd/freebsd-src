@@ -321,19 +321,4 @@ IDTVEC(rendezvous)
 	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
 	POP_FRAME			/* Why not doreti? */
 	iretq
-	
-#ifdef LAZY_SWITCH
-/*
- * Clean up when we lose out on the lazy context switch optimization.
- * ie: when we are about to release a PTD but a cpu is still borrowing it.
- */
-	SUPERALIGN_TEXT
-IDTVEC(lazypmap)
-	PUSH_FRAME
-	call	pmap_lazyfix_action
-	movq	lapic, %rax	
-	movl	$0, LA_EOI(%rax)	/* End Of Interrupt to APIC */
-	POP_FRAME			/* Why not doreti? */
-	iretq
-#endif
 #endif /* SMP */

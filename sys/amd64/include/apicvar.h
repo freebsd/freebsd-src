@@ -93,7 +93,6 @@
 #define	IPI_INVLTLB	(APIC_IPI_INTS + 1)	/* TLB Shootdown IPIs */
 #define	IPI_INVLPG	(APIC_IPI_INTS + 2)
 #define	IPI_INVLRNG	(APIC_IPI_INTS + 3)
-#define	IPI_LAZYPMAP	(APIC_IPI_INTS + 4)	/* Lazy pmap release. */
 #define	IPI_HARDCLOCK	(APIC_IPI_INTS + 8)	/* Inter-CPU clock handling. */
 #define	IPI_STATCLOCK	(APIC_IPI_INTS + 9)
 #define	IPI_RENDEZVOUS	(APIC_IPI_INTS + 10)	/* Inter-CPU rendezvous. */
