@@ -535,6 +535,23 @@ cputime(KINFO *k, VARENT *ve)
 	(void)printf("%*s", v->width, obuff);
 }
 
+void
+elapsed(KINFO *k, VARENT *ve)
+{
+	VAR *v;
+	time_t secs;
+	char obuff[128];
+	static time_t now;
+
+	v = ve->var;
+
+	if (!now)
+		time(&now);
+	secs = now - k->ki_p->ki_start.tv_sec;
+	(void)snprintf(obuff, sizeof(obuff), "%3ld:%02ld", secs/60, secs%60);
+	(void)printf("%*s", v->width, obuff);
+}
+
 double
 getpcpu(const KINFO *k)
 {
