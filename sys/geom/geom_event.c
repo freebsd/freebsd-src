@@ -52,11 +52,22 @@
 #include <geom/geom.h>
 #include <geom/geom_int.h>
 
+TAILQ_HEAD(event_tailq_head, g_event);
+
 static struct event_tailq_head g_events = TAILQ_HEAD_INITIALIZER(g_events);
 static u_int g_pending_events;
 static TAILQ_HEAD(,g_provider) g_doorstep = TAILQ_HEAD_INITIALIZER(g_doorstep);
 static struct mtx g_eventlock;
 static struct sx g_eventstall;
+
+#define G_N_EVENTREFS		20
+
+struct g_event {
+	TAILQ_ENTRY(g_event)	events;
+	void			*arg;
+	g_event_t		*func;
+	void			*ref[G_N_EVENTREFS];
+};
 
 void
 g_waitidle(void)
@@ -242,7 +253,6 @@ g_post_event(g_event_t *func, void *arg, int flag, ...)
 	wakeup(&g_wait_event);
 	return (0);
 }
-
 
 void
 g_event_init()
