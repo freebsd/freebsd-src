@@ -57,7 +57,7 @@
 
 /* $FreeBSD$ */
 
-#define SYM_DRIVER_NAME	"sym-1.5.1-20000429"
+#define SYM_DRIVER_NAME	"sym-1.5.2-20000430"
 
 #include <pci.h>
 #include <stddef.h>	/* For offsetof */
@@ -1965,10 +1965,10 @@ sym_fw2_patch(hcb_p np)
 	 *  These ones are loaded by the SCRIPTS processor.
 	 */
 	scriptb0->pm0_data_addr[0] =
-		cpu_to_scr(np->scriptb_ba + 
+		cpu_to_scr(np->scripta_ba + 
 			   offsetof(struct sym_fw2a_scr, pm0_data));
 	scriptb0->pm1_data_addr[0] =
-		cpu_to_scr(np->scriptb_ba + 
+		cpu_to_scr(np->scripta_ba + 
 			   offsetof(struct sym_fw2a_scr, pm1_data));
 }
 
