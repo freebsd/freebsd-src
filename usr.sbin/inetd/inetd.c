@@ -466,6 +466,8 @@ main(int argc, char **argv)
 
 	if (argc > 0)
 		CONFIG = argv[0];
+	if (access(CONFIG, R_OK) < 0)
+		syslog(LOG_ERR, "Accessing %s: %m, continuing anyway.", CONFIG);
 	if (debug == 0) {
 		FILE *fp;
 		if (daemon(0, 0) < 0) {
