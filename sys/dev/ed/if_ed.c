@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: if_ed.c,v 1.35 1994/03/02 05:50:01 davidg Exp $
+ * $Id: if_ed.c,v 1.36 1994/04/10 20:06:26 davidg Exp $
  */
 
 #include "ed.h"
@@ -527,6 +527,7 @@ ed_probe_WD80x3(isa_dev)
 			if (sc->is790) {
 				sc->wd_laar_proto = inb(sc->asic_addr + ED_WD_LAAR);
 				outb(sc->asic_addr + ED_WD_LAAR, ED_WD_LAAR_M16EN);
+				(void) inb(0x84);
 			} else {
 				outb(sc->asic_addr + ED_WD_LAAR, (sc->wd_laar_proto =
 				     ED_WD_LAAR_L16EN | ED_WD_LAAR_M16EN |
@@ -556,9 +557,11 @@ ed_probe_WD80x3(isa_dev)
 				/*
 				 * Disable 16 bit access to shared memory
 				 */
-				if (isa16bit)
+				if (isa16bit) {
 					outb(sc->asic_addr + ED_WD_LAAR, (sc->wd_laar_proto &=
 					     ~ED_WD_LAAR_M16EN));
+					(void) inb(0x84);
+				}
 
 				return(0);
 			}
@@ -571,10 +574,11 @@ ed_probe_WD80x3(isa_dev)
 		 *	memory. and 2) so that other 8 bit devices with shared
 		 *	memory can be used in this 128k region, too.
 		 */
-		if (isa16bit)
+		if (isa16bit) {
 			outb(sc->asic_addr + ED_WD_LAAR, (sc->wd_laar_proto &=
 			     ~ED_WD_LAAR_M16EN));
-
+			(void) inb(0x84);
+		}
 	}
 
 	return (ED_WD_IO_PORTS);
@@ -1456,8 +1460,12 @@ outloop:
 			case ED_VENDOR_WD_SMC: {
 				outb(sc->asic_addr + ED_WD_LAAR,
 				    (sc->wd_laar_proto | ED_WD_LAAR_M16EN));
-				if (sc->is790)
-				    outb(sc->asic_addr + ED_WD_MSR, ED_WD_MSR_MENB);
+				(void) inb(0x84);
+				if (sc->is790) {
+					outb(sc->asic_addr + ED_WD_MSR, ED_WD_MSR_MENB);
+					(void) inb(0x84);
+				}
+				(void) inb(0x84);
 				break;
 			    }
 			}
@@ -1480,8 +1488,11 @@ outloop:
 				break;
 			case ED_VENDOR_WD_SMC: {
 				outb(sc->asic_addr + ED_WD_LAAR, sc->wd_laar_proto);
-				if (sc->is790)
-				    outb(sc->asic_addr + ED_WD_MSR, 0x00);
+				(void) inb(0x84);
+				if (sc->is790) {
+					outb(sc->asic_addr + ED_WD_MSR, 0x00);
+					(void) inb(0x84);
+				}
 				break;
 			    }
 			}
@@ -1839,9 +1850,12 @@ edintr(unit)
 					outb(sc->asic_addr + ED_WD_LAAR,
 					     (sc->wd_laar_proto |=
 					     ED_WD_LAAR_M16EN));
-					if (sc->is790)
-					    outb(sc->asic_addr + ED_WD_MSR,
-						ED_WD_MSR_MENB);
+					(void) inb(0x84);
+					if (sc->is790) {
+						outb(sc->asic_addr + ED_WD_MSR,
+						    ED_WD_MSR_MENB);
+						(void) inb(0x84);
+					}
 				}
 
 				ed_rint (unit);
@@ -1853,8 +1867,11 @@ edintr(unit)
 					outb(sc->asic_addr + ED_WD_LAAR,
 					     (sc->wd_laar_proto &=
 					     ~ED_WD_LAAR_M16EN));
-					if (sc->is790)
-					    outb(sc->asic_addr + ED_WD_MSR, 0x00);
+					(void) inb(0x84);
+					if (sc->is790) {
+						outb(sc->asic_addr + ED_WD_MSR, 0x00);
+						(void) inb(0x84);
+					}
 				}
 			}
 		}
