@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.37 1997/02/22 09:42:41 peter Exp $
+ * $Id: nfs_subs.c,v 1.38 1997/04/04 17:49:29 dfr Exp $
  */
 
 /*
@@ -53,6 +53,7 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/malloc.h>
+#include <sys/dirent.h>
 #ifdef VFS_LKM
 #include <sys/sysent.h>
 #include <sys/syscall.h>
@@ -559,6 +560,8 @@ extern int nfssvc(struct proc *, struct nfssvc_args *, int *);
 #endif
 
 LIST_HEAD(nfsnodehashhead, nfsnode);
+
+int nfs_webnamei __P((struct nameidata *, struct vnode *, struct proc *));
 
 /*
  * Create the header for an rpc request packet
@@ -1412,10 +1415,16 @@ nfs_getattrcache(vp, vaper)
 
 #ifndef NFS_NOSERVER
 /*
- * Set up nameidata for a lookup() call and do it
+ * Set up nameidata for a lookup() call and do it.
+ *
+ * If pubflag is set, this call is done for a lookup operation on the
+ * public filehandle. In that case we allow crossing mountpoints and
+ * absolute pathnames. However, the caller is expected to check that
+ * the lookup result is within the public fs, and deny access if
+ * it is not.
  */
 int
-nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, retdirp, p, kerbflag)
+nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, retdirp, p, kerbflag, pubflag)
 	register struct nameidata *ndp;
 	fhandle_t *fhp;
 	int len;
@@ -1425,13 +1434,15 @@ nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, retdirp, p, kerbflag)
 	caddr_t *dposp;
 	struct vnode **retdirp;
 	struct proc *p;
-	int kerbflag;
+	int kerbflag, pubflag;
 {
 	register int i, rem;
 	register struct mbuf *md;
-	register char *fromcp, *tocp;
+	register char *fromcp, *tocp, *cp;
+	struct iovec aiov;
+	struct uio auio;
 	struct vnode *dp;
-	int error, rdonly;
+	int error, rdonly, linklen;
 	struct componentname *cnp = &ndp->ni_cnd;
 
 	*retdirp = (struct vnode *)0;
@@ -1455,7 +1466,7 @@ nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, retdirp, p, kerbflag)
 			fromcp = mtod(md, caddr_t);
 			rem = md->m_len;
 		}
-		if (*fromcp == '\0' || *fromcp == '/') {
+		if (*fromcp == '\0' || (!pubflag && *fromcp == '/')) {
 			error = EACCES;
 			goto out;
 		}
@@ -1473,55 +1484,170 @@ nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, retdirp, p, kerbflag)
 		else if (error = nfs_adv(mdp, dposp, len, rem))
 			goto out;
 	}
-	ndp->ni_pathlen = tocp - cnp->cn_pnbuf;
-	cnp->cn_nameptr = cnp->cn_pnbuf;
+
 	/*
 	 * Extract and set starting directory.
 	 */
-	if (error = nfsrv_fhtovp(fhp, FALSE, &dp, ndp->ni_cnd.cn_cred, slp,
-	    nam, &rdonly, kerbflag))
+	error = nfsrv_fhtovp(fhp, FALSE, &dp, ndp->ni_cnd.cn_cred, slp,
+	    nam, &rdonly, kerbflag, pubflag);
+	if (error)
 		goto out;
 	if (dp->v_type != VDIR) {
 		vrele(dp);
 		error = ENOTDIR;
 		goto out;
 	}
-	VREF(dp);
-	*retdirp = dp;
-	ndp->ni_startdir = dp;
+
 	if (rdonly)
-		cnp->cn_flags |= (NOCROSSMOUNT | RDONLY);
-	else
-		cnp->cn_flags |= NOCROSSMOUNT;
+		cnp->cn_flags |= RDONLY;
+
+	if (pubflag) {
+		/*
+		 * Oh joy. For WebNFS, handle those pesky '%' escapes,
+		 * and the 'native path' indicator.
+		 */
+		MALLOC(cp, char *, MAXPATHLEN, M_NAMEI, M_WAITOK);
+		fromcp = cnp->cn_pnbuf;
+		tocp = cp;
+		if ((unsigned char)*fromcp >= WEBNFS_SPECCHAR_START) {
+			switch ((unsigned char)*fromcp) {
+			case WEBNFS_NATIVE_CHAR:
+				/*
+				 * 'Native' path for us is the same
+				 * as a path according to the NFS spec,
+				 * just skip the escape char.
+				 */
+				fromcp++;
+				break;
+			/*
+			 * More may be added in the future, range 0x80-0xff
+			 */
+			default:
+				error = EIO;
+				FREE(cp, M_NAMEI);
+				goto out;
+			}
+		}
+		/*
+		 * Translate the '%' escapes, URL-style.
+		 */
+		while (*fromcp != '\0') {
+			if (*fromcp == WEBNFS_ESC_CHAR) {
+				if (fromcp[1] != '\0' && fromcp[2] != '\0') {
+					fromcp++;
+					*tocp++ = HEXSTRTOI(fromcp);
+					fromcp += 2;
+					continue;
+				} else {
+					error = ENOENT;
+					FREE(cp, M_NAMEI);
+					goto out;
+				}
+			} else
+				*tocp++ = *fromcp++;
+		}
+		*tocp = '\0';
+		FREE(cnp->cn_pnbuf, M_NAMEI);
+		cnp->cn_pnbuf = cp;
+	}
+
+	ndp->ni_pathlen = (tocp - cnp->cn_pnbuf) + 1;
+	ndp->ni_segflg = UIO_SYSSPACE;
+
+	if (pubflag) {
+		ndp->ni_rootdir = rootvnode;
+		ndp->ni_loopcnt = 0;
+		if (cnp->cn_pnbuf[0] == '/')
+			dp = rootvnode;
+	} else {
+  		cnp->cn_flags |= NOCROSSMOUNT;
+	}
+
+	cnp->cn_proc = p;
+	VREF(dp);
+
+      for (;;) {
+	cnp->cn_nameptr = cnp->cn_pnbuf;
+	ndp->ni_startdir = dp;
 	/*
 	 * And call lookup() to do the real work
 	 */
 	cnp->cn_proc = p;
 	if (error = lookup(ndp))
-		goto out;
+		break;
 	/*
 	 * Check for encountering a symbolic link
 	 */
-	if (cnp->cn_flags & ISSYMLINK) {
+	if ((cnp->cn_flags & ISSYMLINK) == 0) {
+		nfsrv_object_create(ndp->ni_vp);
+		if (cnp->cn_flags & (SAVENAME | SAVESTART)) {
+			cnp->cn_flags |= HASBUF;
+			return (0);
+		}
+		break;
+	} else {
 		if ((cnp->cn_flags & LOCKPARENT) && ndp->ni_pathlen == 1)
-			vput(ndp->ni_dvp);
-		else
+			VOP_UNLOCK(ndp->ni_dvp, 0, p);
+		if (!pubflag) {
 			vrele(ndp->ni_dvp);
+			vput(ndp->ni_vp);
+			ndp->ni_vp = NULL;
+			error = EINVAL;
+			break;
+		}
+
+		if (ndp->ni_loopcnt++ >= MAXSYMLINKS) {
+			error = ELOOP;
+			break;
+		}
+		if (ndp->ni_pathlen > 0)
+			MALLOC(cp, char *, MAXPATHLEN, M_NAMEI, M_WAITOK);
+		else
+			cp = cnp->cn_pnbuf;
+		aiov.iov_base = cp;
+		aiov.iov_len = MAXPATHLEN;
+		auio.uio_iov = &aiov;
+		auio.uio_iovcnt = 1;
+		auio.uio_offset = 0;
+		auio.uio_rw = UIO_READ;
+		auio.uio_segflg = UIO_SYSSPACE;
+		auio.uio_procp = (struct proc *)0;
+		auio.uio_resid = MAXPATHLEN;
+		error = VOP_READLINK(ndp->ni_vp, &auio, cnp->cn_cred);
+		if (error) {
+		badlink:
+			if (ndp->ni_pathlen > 1)
+				FREE(cp, M_NAMEI);
+			break;
+		}
+		linklen = MAXPATHLEN - auio.uio_resid;
+		if (linklen == 0) {
+			error = ENOENT;
+			goto badlink;
+		}
+		if (linklen + ndp->ni_pathlen >= MAXPATHLEN) {
+			error = ENAMETOOLONG;
+			goto badlink;
+		}
+		if (ndp->ni_pathlen > 1) {
+			bcopy(ndp->ni_next, cp + linklen, ndp->ni_pathlen);
+			FREE(cnp->cn_pnbuf, M_NAMEI);
+			cnp->cn_pnbuf = cp;
+		} else
+			cnp->cn_pnbuf[linklen] = '\0';
+		ndp->ni_pathlen += linklen;
 		vput(ndp->ni_vp);
-		ndp->ni_vp = NULL;
-		error = EINVAL;
-		goto out;
+		dp = ndp->ni_dvp;
+		/*
+		 * Check if root directory should replace current directory.
+		 */
+		if (cnp->cn_pnbuf[0] == '/') {
+			vrele(dp);
+			dp = ndp->ni_rootdir;
+			VREF(dp);
+		}
 	}
-
-	nfsrv_object_create(ndp->ni_vp);
-
-	/*
-	 * Check for saved name request
-	 */
-	if (cnp->cn_flags & (SAVENAME | SAVESTART)) {
-		cnp->cn_flags |= HASBUF;
-		return (0);
-	}
+      }
 out:
 	FREE(cnp->cn_pnbuf, M_NAMEI);
 	return (error);
@@ -1700,7 +1826,7 @@ nfsm_srvfattr(nfsd, vap, fp)
  *	- if not lockflag unlock it with VOP_UNLOCK()
  */
 int
-nfsrv_fhtovp(fhp, lockflag, vpp, cred, slp, nam, rdonlyp, kerbflag)
+nfsrv_fhtovp(fhp, lockflag, vpp, cred, slp, nam, rdonlyp, kerbflag, pubflag)
 	fhandle_t *fhp;
 	int lockflag;
 	struct vnode **vpp;
@@ -1709,6 +1835,7 @@ nfsrv_fhtovp(fhp, lockflag, vpp, cred, slp, nam, rdonlyp, kerbflag)
 	struct mbuf *nam;
 	int *rdonlyp;
 	int kerbflag;
+	int pubflag;
 {
 	struct proc *p = curproc; /* XXX */
 	register struct mount *mp;
@@ -1717,6 +1844,13 @@ nfsrv_fhtovp(fhp, lockflag, vpp, cred, slp, nam, rdonlyp, kerbflag)
 	int error, exflags;
 
 	*vpp = (struct vnode *)0;
+
+	if (nfs_ispublicfh(fhp)) {
+		if (!pubflag || !nfs_pub.np_valid)
+			return (ESTALE);
+		fhp = &nfs_pub.np_handle;
+	}
+
 	mp = vfs_getvfs(&fhp->fh_fsid);
 	if (!mp)
 		return (ESTALE);
@@ -1752,6 +1886,25 @@ nfsrv_fhtovp(fhp, lockflag, vpp, cred, slp, nam, rdonlyp, kerbflag)
 	return (0);
 }
 
+
+/*
+ * WebNFS: check if a filehandle is a public filehandle. For v3, this
+ * means a length of 0, for v2 it means all zeroes. nfsm_srvmtofh has
+ * transformed this to all zeroes in both cases, so check for it.
+ */
+int
+nfs_ispublicfh(fhp)
+	fhandle_t *fhp;
+{
+	char *cp = (char *)fhp;
+	int i;
+
+	for (i = 0; i < NFSX_V3FH; i++)
+		if (*cp++ != 0)
+			return (FALSE);
+	return (TRUE);
+}
+  
 #endif /* NFS_NOSERVER */
 /*
  * This function compares two net addresses by family and returns TRUE
