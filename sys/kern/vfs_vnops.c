@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.11.4.1 1995/07/20 07:52:03 davidg Exp $
+ * $Id: vfs_vnops.c,v 1.11.4.2 1995/07/20 10:34:04 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -151,8 +151,6 @@ vn_open(ndp, fmode, cmode)
 	error = VOP_OPEN(vp, fmode, cred, p);
 	if (error)
 		goto bad;
-	if (fmode & FWRITE)
-		vp->v_writecount++;
 	/*
 	 * this is here for VMIO support
 	 */
@@ -182,6 +180,8 @@ retry:
 			(void) vm_object_lookup(pager);
 		}
 	}
+	if (fmode & FWRITE)
+		vp->v_writecount++;
 	return (0);
 bad:
 	vput(vp);
