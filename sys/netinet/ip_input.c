@@ -663,10 +663,10 @@ found:
 #endif
 				return;
 			}
-			/* Get the length of the reassembled packets header */
-			hlen = IP_VHL_HL(ip->ip_vhl) << 2;
 			ipstat.ips_reassembled++;
 			ip = mtod(m, struct ip *);
+			/* Get the header length of the reassembled packet */
+			hlen = IP_VHL_HL(ip->ip_vhl) << 2;
 #ifdef IPDIVERT
 			/* Restore original checksum before diverting packet */
 			if (divert_info != 0) {
