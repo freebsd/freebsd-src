@@ -11,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.h,v 1.35 1998/09/02 19:14:01 phk Exp $
+ *	$Id: ip_fw.h,v 1.36 1998/12/14 18:09:13 luigi Exp $
  */
 
 #ifndef _IP_FW_H
@@ -83,6 +83,22 @@ struct ip_fw {
     void *next_rule_ptr ;              /* next rule in case of match */
 };
 
+/*
+ * extended ipfw structure... some fields in the original struct
+ * can be used to pass parameters up/down, namely pointers
+ *     void *pipe_ptr
+ *     void *next_rule_ptr 
+ * some others can be used to pass parameters down, namely counters etc.
+ *     u_int64_t fw_pcnt,fw_bcnt;
+ *     long timestamp;
+ */
+
+struct ip_fw_ext {             /* extended structure */
+    struct ip_fw rule;      /* must be at offset 0 */
+    long    dont_match_prob;        /* 0x7fffffff means 1.0, always fail */
+    u_int   param1;         /* unused at the moment */
+};
+
 #define IP_FW_GETNSRCP(rule)		((rule)->fw_nports & 0x0f)
 #define IP_FW_SETNSRCP(rule, n)		do {				\
 					  (rule)->fw_nports &= ~0x0f;	\
@@ -144,7 +160,9 @@ struct ip_fw_chain {
 
 #define IP_FW_F_ICMPBIT 0x00100000	/* ICMP type bitmap is valid		*/
 
-#define IP_FW_F_MASK	0x001FFFFF	/* All possible flag bits mask		*/
+#define IP_FW_F_RND_MATCH 0x00800000	/* probabilistic rule match		*/
+
+#define IP_FW_F_MASK	0x009FFFFF	/* All possible flag bits mask		*/
 
 /*
  * For backwards compatibility with rules specifying "via iface" but

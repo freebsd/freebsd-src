@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.103.2.4 1999/05/24 10:09:21 luigi Exp $
+ *	$Id: ip_fw.c,v 1.103.2.5 1999/06/17 13:38:59 ru Exp $
  */
 
 /*
@@ -611,7 +611,7 @@ again:
 
 		/* Check protocol; if wildcard, match */
 		if (f->fw_prot == IPPROTO_IP)
-			goto got_match;
+			goto rnd_then_got_match;
 
 		/* If different, don't match */
 		if (ip->ip_p != f->fw_prot) 
@@ -715,6 +715,10 @@ bogusfrag:
 			goto dropit;
 		}
 
+rnd_then_got_match:
+		if ( ((struct ip_fw_ext *)f)->dont_match_prob &&
+		    random() < ((struct ip_fw_ext *)f)->dont_match_prob )
+			continue ;
 got_match:
 		*flow_id = chain ; /* XXX set flow id */
 		/* Update statistics */
@@ -870,12 +874,14 @@ static int
 add_entry(struct ip_fw_head *chainptr, struct ip_fw *frwl)
 {
 	struct ip_fw *ftmp = 0;
+	struct ip_fw_ext *ftmp_ext = 0 
 	struct ip_fw_chain *fwc = 0, *fcp, *fcpl = 0;
 	u_short nbr = 0;
 	int s;
 
 	fwc = malloc(sizeof *fwc, M_IPFW, M_DONTWAIT);
-	ftmp = malloc(sizeof *ftmp, M_IPFW, M_DONTWAIT);
+	ftmp_ext = malloc(sizeof *ftmp_ext, M_IPFW, M_DONTWAIT);
+	ftmp = &ftmp_ext->rule ;
 	if (!fwc || !ftmp) {
 		dprintf(("%s malloc said no\n", err_prefix));
 		if (fwc)  free(fwc, M_IPFW);
@@ -883,7 +889,11 @@ add_entry(struct ip_fw_head *chainptr, struct ip_fw *frwl)
 		return (ENOSPC);
 	}
 
-	bcopy(frwl, ftmp, sizeof(struct ip_fw));
+	bzero(ftmp_ext, sizeof(*ftmp_ext)); /* play safe! */
+	bcopy(frwl, ftmp, sizeof(*ftmp));
+	if (ftmp->fw_flg & IP_FW_F_RND_MATCH)
+		ftmp_ext->dont_match_prob = (long)(ftmp->pipe_ptr) ;
+
 	ftmp->fw_in_if.fu_via_if.name[FW_IFNLEN - 1] = '\0';
 	ftmp->fw_pcnt = 0L;
 	ftmp->fw_bcnt = 0L;
@@ -1142,9 +1152,8 @@ ip_fw_ctl(struct sockopt *sopt)
 {
 	int error, s;
 	size_t size;
-	char *buf, *bp;
 	struct ip_fw_chain *fcp;
-	struct ip_fw frwl;
+	struct ip_fw frwl, *bp , *buf;
 
 	/* Disallow sets in really-really secure mode. */
 	if (sopt->sopt_dir == SOPT_SET && securelevel >= 3)
@@ -1165,7 +1174,9 @@ ip_fw_ctl(struct sockopt *sopt)
 		for (fcp = LIST_FIRST(&ip_fw_chain), bp = buf; fcp;
 		     fcp = LIST_NEXT(fcp, chain)) {
 			bcopy(fcp->rule, bp, sizeof *fcp->rule);
-			bp += sizeof *fcp->rule;
+			(long)bp->pipe_ptr =
+			    ((struct ip_fw_ext *)fcp->rule)->dont_match_prob;
+			bp ++ ;
 		}
 		error = sooptcopyout(sopt, buf, size);
 		FREE(buf, M_TEMP);
