@@ -202,9 +202,10 @@ static u_int16_t xe_phy_readreg		(struct xe_softc *scp, u_int16_t reg);
 static void      xe_phy_writereg	(struct xe_softc *scp, u_int16_t reg, u_int16_t data);
 
 /*
- * Debug functions
+ * Debug functions -- uncomment for VERY verbose dignostic information.
+ * Set to 1 for less verbose information
  */
-#define XE_DEBUG 2
+/* #define XE_DEBUG 2 */
 #ifdef XE_DEBUG
 #define XE_REG_DUMP(scp)		xe_reg_dump((scp))
 #define XE_MII_DUMP(scp)		xe_mii_dump((scp))
