@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2000  Mark Nudelman
+ * Copyright (C) 1984-2002  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -260,7 +260,7 @@ expand_special_keys(table, len)
 			repl = special_key_str(fm[1]);
 			klen = fm[2] & 0377;
 			fm += klen;
-			if (repl == NULL || strlen(repl) > klen)
+			if (repl == NULL || (int) strlen(repl) > klen)
 				repl = "\377";
 			while (*repl != '\0')
 				*to++ = *repl++;
@@ -653,7 +653,7 @@ lesskey(filename, sysvar)
 	/*
 	 * Try to open the lesskey file.
 	 */
-	filename = unquote_file(filename);
+	filename = shell_unquote(filename);
 	f = open(filename, OPEN_READ);
 	free(filename);
 	if (f < 0)

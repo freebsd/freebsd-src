@@ -1,4 +1,4 @@
-.TH LESS 1 "Version 371: 26 Dec 2001"
+.TH LESS 1 "Version 381: 17 Jan 2003"
 .SH NAME
 less \- opposite of more
 .SH SYNOPSIS
@@ -10,15 +10,15 @@ less \- opposite of more
 .br
 .B "less --version"
 .br
-.B "less [-[+]aBcCdeEfFgGiIJmMnNqQrRsSuUVwWX]"
+.B "less [-[+]aBcCdeEfFgGiIJLmMnNqQrRsSuUVwWX~]"
 .br
-.B "     [-b \fIbufs\fP] [-h \fIlines\fP] [-j \fIline\fP] [-k \fIkeyfile\fP]"
+.B "     [-b \fIspace\fP] [-h \fIlines\fP] [-j \fIline\fP] [-k \fIkeyfile\fP]"
 .br
 .B "     [-{oO} \fIlogfile\fP] [-p \fIpattern\fP] [-P \fIprompt\fP] [-t \fItag\fP]"
 .br
 .B "     [-T \fItagsfile\fP] [-x \fItab\fP,...] [-y \fIlines\fP] [-[z] \fIlines\fP]"
 .br
-.B "     [+[+]\fIcmd\fP] [--] [\fIfilename\fP]..."
+.B "     [-# \fIshift\fP] [+[+]\fIcmd\fP] [--] [\fIfilename\fP]..."
 .br
 (See the OPTIONS section for alternate option syntax with long option names.)
 
@@ -444,7 +444,7 @@ This option displays a summary of the commands accepted by
 .I less
 (the same as the h command).
 (Depending on how your shell interprets the question mark,
-it may be necessary to quote the question mark, thus: "-\\?".)
+it may be necessary to quote the question mark, thus: "-\e?".)
 .IP "-a or --search-skip-screen"
 Causes searches to start after the last line
 displayed on the screen, 
@@ -452,19 +452,24 @@ thus skipping all lines displayed on the screen.
 By default, searches start at the second line on the screen
 (or after the last found line; see the -j option).
 .IP "-b\fIn\fP or --buffers=\fIn\fP"
-Specifies the number of buffers
+Specifies the amount of buffer space
 .I less
-will use for each file.
-Buffers are 1K, and by default 10 buffers are used for each file
-(except if the file is a pipe; see the -B option).
-The number \fIn\fP specifies a different number of buffers to use.
+will use for each file, in units of kilobytes (1024 bytes).
+By default 64K of buffer space is used for each file
+(unless the file is a pipe; see the -B option).
+The -b option specifies instead that \fIn\fP kilobytes of 
+buffer space should be used for each file.
+If \fIn\fP is -1, buffer space is unlimited; that is,
+the entire file is read into memory.
 .IP "-B or --auto-buffers"
 By default, when data is read from a pipe,
 buffers are allocated automatically as needed.
 If a large amount of data is read from the pipe, this can cause
 a large amount of memory to be allocated.
 The -B option disables this automatic allocation of buffers for pipes,
-so that only the number of buffers specified by the -b option are used.
+so that only 64K 
+(or the amount of space specified by the -b option)
+is used for the pipe.
 Warning: use of -B can result in erroneous display, since only the
 most recently viewed part of the file is kept in memory; 
 any earlier data is lost.
@@ -481,7 +486,7 @@ that is, lacks some important capability,
 such as the ability to clear the screen or scroll backward.
 The -d option does not otherwise change the behavior of
 .I less
-on a dumb terminal).
+on a dumb terminal.
 .IP "-D\fBx\fP\fIcolor\fP or --color=\fBx\fP\fIcolor\fP"
 [MS-DOS only]
 Sets the color of the text displayed.
@@ -574,6 +579,12 @@ if a lesskey file is found in a standard place (see KEY BINDINGS),
 it is also used as a 
 .I lesskey
 file.
+.IP "-L or --no-lessopen"
+Ignore the LESSOPEN environment variable
+(see the INPUT PREPROCESSOR section below).
+This option can be set from within \fIless\fP, 
+but it will apply only to files opened subsequently, not to the 
+file which is currently open.
 .IP "-m or --long-prompt"
 Causes 
 .I less
@@ -692,7 +703,8 @@ output.
 .IP "-S or --chop-long-lines"
 Causes lines longer than the screen width to be
 chopped rather than folded.
-That is, the remainder of a long line is simply discarded.
+That is, the portion of a long line that does not fit in
+the screen width is not shown.
 The default is to fold long lines; that is, display the remainder
 on the next line.
 .IP "-t\fItag\fP or --tag=\fItag\fP"
@@ -791,7 +803,7 @@ lines less than the current screen size.
 For example, if the screen is 24 lines, \fI-z-4\fP sets the 
 scrolling window to 20 lines.  If the screen is resized to 40 lines,
 the scrolling window automatically changes to 36 lines.
-.IP -"\fIcc\fP\ or\ --quotes=\fIcc\fP
+.IP "-\fI\(dqcc\fP\ or\ --quotes=\fIcc\fP"
 Changes the filename quoting character.
 This may be necessary if you are trying to name a file
 which contains both spaces and quote characters.
@@ -879,7 +891,7 @@ If it matches more than one filename, the first match
 is entered into the command line.
 Repeated TABs will cycle thru the other matching filenames.
 If the completed filename is a directory, a "/" is appended to the filename.
-(On MS-DOS systems, a "\\" is appended.)
+(On MS-DOS systems, a "\e" is appended.)
 The environment variable LESSSEPARATOR can be used to specify a 
 different character to append to a directory name.
 .IP "BACKTAB [ ESC-TAB ]"
@@ -947,8 +959,8 @@ On Unix systems, the system-wide lesskey file is /usr/local/etc/sysless.
 .I less 
 was built with a different sysconf directory than /usr/local/etc,
 that directory is where the sysless file is found.)
-On MS-DOS and Windows systems, the system-wide lesskey file is c:\\_sysless.
-On OS/2 systems, the system-wide lesskey file is c:\\sysless.ini.
+On MS-DOS and Windows systems, the system-wide lesskey file is c:\e_sysless.
+On OS/2 systems, the system-wide lesskey file is c:\esysless.ini.
 
 .SH "INPUT PREPROCESSOR"
 You may define an "input preprocessor" for 
@@ -1149,6 +1161,7 @@ to each of the possible values for LESSCHARSET:
 	\ \ \ \ \ \ 	9.8b8.17b3.3b9.7b9.8b8.6b10.b.b.b.
 .br
 	IBM-1047	4cbcbc3b9cbccbccbb4c6bcc5b3cbbc4bc4bccbc
+.br
 	\ \ \ \ \ \ 	191.b
 .br
 	iso8859	8bcccbcc18b95.33b.
@@ -1317,7 +1330,7 @@ Some examples:
 This prompt prints the filename, if known;
 otherwise the string "Standard input".
 .sp
-?f%f .?ltLine %lt:?pt%pt\\%:?btByte %bt:-...
+?f%f .?ltLine %lt:?pt%pt\e%:?btByte %bt:-...
 .sp
 This prompt would print the filename, if known.
 The filename is followed by the line number, if known,
@@ -1327,7 +1340,7 @@ Notice how each question mark has a matching period,
 and how the % after the %pt
 is included literally by escaping it with a backslash.
 .sp
-?n?f%f\ .?m(file\ %i\ of\ %m)\ ..?e(END)\ ?x-\ Next\\:\ %x..%t
+?n?f%f\ .?m(file\ %i\ of\ %m)\ ..?e(END)\ ?x-\ Next\e:\ %x..%t
 .sp
 This prints the filename if this is the first prompt in a file,
 followed by the "file N of N" message if there is more
@@ -1341,18 +1354,18 @@ the other two prompts (-m and -M respectively).
 Each is broken into two lines here for readability only.
 .nf
 .sp
-?n?f%f\ .?m(file\ %i\ of\ %m)\ ..?e(END)\ ?x-\ Next\\:\ %x.:
-	?pB%pB\\%:byte\ %bB?s/%s...%t
+?n?f%f\ .?m(file\ %i\ of\ %m)\ ..?e(END)\ ?x-\ Next\e:\ %x.:
+	?pB%pB\e%:byte\ %bB?s/%s...%t
 .sp
 ?f%f\ .?n?m(file\ %i\ of\ %m)\ ..?ltlines\ %lt-%lb?L/%L.\ :
-	byte\ %bB?s/%s.\ .?e(END)\ ?x-\ Next\\:\ %x.:?pB%pB\\%..%t
+	byte\ %bB?s/%s.\ .?e(END)\ ?x-\ Next\e:\ %x.:?pB%pB\e%..%t
 .sp
 .fi
 And here is the default message produced by the = command:
 .nf
 .sp
 ?f%f\ .?m(file\ %i\ of\ %m)\ .?ltlines\ %lt-%lb?L/%L.\ .
-	byte\ %bB?s/%s.\ ?e(END)\ :?pB%pB\\%..%t
+	byte\ %bB?s/%s.\ ?e(END)\ :?pB%pB\e%..%t
 .fi
 .PP
 The prompt expansion features are also used for another purpose:
@@ -1534,7 +1547,7 @@ See http://www.greenwoodsoftware.com/less for the latest list of known bugs in t
 version of less.
 
 .SH COPYRIGHT
-Copyright (C) 2001  Mark Nudelman
+Copyright (C) 2002  Mark Nudelman
 .PP
 less is part of the GNU project and is free software.
 You can redistribute it and/or modify it
