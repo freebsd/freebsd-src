@@ -34,6 +34,7 @@
 .Op Fl a | Fl append
 .Op Fl h | Fl help
 .Op Fl i | Fl indent Ar column
+.Op Fl L | Fl locale
 .Op Fl n | Fl name Ar name
 .Op Fl o | Fl outfile Ar file
 .Op Fl v | Fl verbose
@@ -66,6 +67,9 @@ Print options and exit.
 .It Fl i , Fl indent Ar column
 Justify description strings to
 .Ar column Pq default 24 .
+.It Fl L , Fl locale
+Sense locale environment variables for possible localized man subdirectories
+and process this entries only.
 .It Fl n , Fl name Ar name
 Use
 .Ar name
