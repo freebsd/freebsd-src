@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: netinst.sh,v 1.12 1994/11/28 22:13:07 jkh Exp $
+# $Id: netinst.sh,v 1.13 1994/12/01 20:00:32 jkh Exp $
 
 if [ "${_NETINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -30,7 +30,7 @@ network_set_defaults()
 	IFCONFIG_FLAGS=""
 	REMOTE_HOSTIP=""
 	REMOTE_IPADDR=""
-	INTERFACE=lo0	
+	INTERFACE=""
 	SERIAL_INTERFACE="/dev/tty00"
 	SERIAL_SPEED="38400"
 }
@@ -72,7 +72,7 @@ network_setup_ether()
 	"de0" "DEC PCI ethernet adapter (or compatible)" \
 	"ie0" "AT&T StarLan and EN100 family at 0x360 and IRQ 7" \
 	"is0" "Isolan 4141-0 or Isolink 4110 at 0x280 and IRQ 7" \
-	"le0" "DEC Etherworks ethernet adapter" 
+	"le0" "DEC Etherworks ethernet adapter" \
 	"ze0" "PCMCIA IBM or National card at 0x300 and IRQ 5" \
 	  2> ${TMP}/menu.tmp.$$
 
@@ -196,7 +196,7 @@ network_setup()
 			${PPPD_CMD} ${PPPD_FLAGS} ${SERIAL_INTERFACE} ${SERIAL_SPEED} ${IPADDR}:${REMOTE_IPADDR}
 			progress ${PPPD_CMD} ${PPPD_FLAGS} ${SERIAL_INTERFACE} ${SERIAL_SPEED} ${IPADDR}:${REMOTE_IPADDR}
 		fi
-		echo "${IPADDR} ${REMOTE_IPADDR} netmask ${NETMASK} ${IFCONFIG_FLAGS}" > ${ETC}/hostname.$interface
+		echo "${IPADDR} ${REMOTE_IPADDR} netmask ${NETMASK} ${IFCONFIG_FLAGS}" > ${ETC}/hostname.${INTERFACE}
 		DEFAULT_VALUE=""
 		if network_dialog "If you have a default gateway, enter its IP address"; then
 			if [ "${ANSWER}" != "" ]; then
