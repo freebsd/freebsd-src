@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.68 1994/12/23 02:25:32 jkh Exp $
+#	$Id: Makefile,v 1.69 1994/12/23 03:29:58 jkh Exp $
 #
 
 FLOPPY=		fd0
@@ -128,6 +128,7 @@ release20:
 	@echo "It will otherwise blow away your root directory!"
 	@exit 1
 .endif
+	@echo "Did you remember to increment the release number?"
 	( cd ${.CURDIR} ; ${MAKE} clean)
 	-mkdir ${RELEASEDIR}
 	chflags -R noschg ${RELEASEDIR}/.
