@@ -1,6 +1,6 @@
 /*
  * 6 digits of version.  The most significant are branch indicators
- * (eg: RELENG_2_2 = 22, -current presently = 50 etc). The least
+ * (eg: RELENG_2_2 = 22, -current presently = 60 etc). The least
  * significant digits are incremented for each incompatible change.
  *
  * The numbering scheme is inspired by the sys/conf/newvers.sh RELDATE
@@ -8,4 +8,4 @@
  *
  * $FreeBSD$
  */
-#define	CONFIGVERS	600001
+#define	CONFIGVERS	600002
