@@ -712,18 +712,14 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 
 		for(i = 0 ; i < sc->fc->ir[sub]->bnchunk; i++){
 			ir->bulkxfer[i].buf =
-				ir->buf +
-				i * sc->fc->ir[sub]->bnpacket *
-			  	sc->fc->ir[sub]->psize;
+				ir->buf + i * ir->bnpacket * ir->psize;
 			STAILQ_INSERT_TAIL(&ir->stfree,
 					&ir->bulkxfer[i], link);
 			ir->bulkxfer[i].npacket = ir->bnpacket;
 		}
 		for(i = 0 ; i < sc->fc->it[sub]->bnchunk; i++){
 			it->bulkxfer[i].buf =
-				it->buf +
-				i * sc->fc->it[sub]->bnpacket *
-			  	sc->fc->it[sub]->psize;
+				it->buf + i * it->bnpacket * it->psize;
 			STAILQ_INSERT_TAIL(&it->stfree,
 					&it->bulkxfer[i], link);
 			it->bulkxfer[i].npacket = it->bnpacket;

@@ -835,6 +835,7 @@ txloop:
 			 = (OREAD(sc, OHCI_CYCLETIMER) >> 12) + (1 << 13);
 	}
 
+again:
 	db_tr->dbcnt = 2;
 	db = &db_tr->db[db_tr->dbcnt];
 	if(len > hdr_off){
@@ -848,7 +849,7 @@ txloop:
 			db_tr->dbcnt++;
 		} else {
 			int mchain=0;
-			/* XXX we assume mbuf chain is shorter than ndesc */
+			/* XXX we can handle only 6 (=8-2) mbuf chains */
 			for (m = xfer->mbuf; m != NULL; m = m->m_next) {
 				if (m->m_len == 0)
 					/* unrecoverable error could occur. */
@@ -864,11 +865,25 @@ txloop:
 				db++;
 				db_tr->dbcnt++;
 			}
-			if (mchain > dbch->ndesc - 2)
-				device_printf(sc->fc.dev,
-					"dbch->ndesc(%d) is too small for"
-					" mbuf chain(%d), trancated.\n",
-					dbch->ndesc, mchain);
+			if (mchain > dbch->ndesc - 2) {
+				struct mbuf *m_new;
+				if (bootverbose)
+					device_printf(sc->fc.dev,
+						"too long mbuf chain(%d)\n",
+							mchain);
+				m_new = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+				if (m_new != NULL) {
+					m_copydata(xfer->mbuf, 0,
+						xfer->mbuf->m_pkthdr.len,
+						mtod(m_new, caddr_t));
+					m_new->m_pkthdr.len = m_new->m_len =
+						xfer->mbuf->m_pkthdr.len;
+					m_freem(xfer->mbuf);
+					xfer->mbuf = m_new;
+					goto again;
+				}
+				device_printf(sc->fc.dev, "m_getcl failed.\n");
+			}
 		}
 	}
 	if (maxdesc < db_tr->dbcnt) {
@@ -1060,6 +1075,12 @@ fwohci_txd(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 		packets ++;
 		tr = STAILQ_NEXT(tr, link);
 		dbch->bottom = tr;
+		if (dbch->bottom == dbch->top) {
+			/* we reaches the end of context program */
+			if (firewire_debug && dbch->xferq.queued > 0)
+				printf("queued > 0\n");
+			break;
+		}
 	}
 out:
 	if ((dbch->flags & FWOHCI_DBCH_FULL) && packets > 0) {
@@ -1401,7 +1422,10 @@ fwohci_rx_enable(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 		}else{
 			fwohci_add_rx_buf(db_tr,
 				dbch->xferq.psize, dbch->xferq.flag,
-				dbch->xferq.buf + dbch->xferq.psize * idb,
+				dbch->xferq.bulkxfer[idb 
+					/ dbch->xferq.bnpacket].buf
+				+ dbch->xferq.psize *
+					(idb % dbch->xferq.bnpacket),
 				dbch->dummy + sizeof(u_int32_t) * idb);
 		}
 		if(STAILQ_NEXT(db_tr, link) == NULL){
@@ -1620,6 +1644,10 @@ fwohci_irxbuf_enable(struct firewire_comm *fc, int dmach)
 	while  ((chunk = STAILQ_FIRST(&ir->stfree)) != NULL) {
 		volatile struct fwohcidb *db;
 
+#if 1 /* XXX for if_fwe */
+		db = ((struct fwohcidb_tr *)(chunk->start))->db;
+		db[ldesc].db.desc.addr = vtophys(chunk->buf);
+#endif
 		db = ((struct fwohcidb_tr *)(chunk->end))->db;
 		db[ldesc].db.desc.status = db[ldesc].db.desc.count = 0;
 		db[ldesc].db.desc.depend &= ~0xf;
@@ -2067,16 +2095,22 @@ fwohci_rbuf_update(struct fwohci_softc *sc, int dmach)
 		STAILQ_INSERT_TAIL(&ir->stvalid, chunk, link);
 		switch (stat & FWOHCIEV_MASK) {
 		case FWOHCIEV_ACKCOMPL:
+			chunk->resp = 0;
 			break;
 		default:
+			chunk->resp = EINVAL;
 			device_printf(fc->dev,
 				"Isochronous receive err %02x\n", stat);
 		}
 		w++;
 	}
 	splx(s);
-	if (w)
-		wakeup(ir);
+	if (w) {
+		if (ir->flag & FWXFERQ_HANDLER) 
+			ir->hand(ir);
+		else
+			wakeup(ir);
+	}
 }
 
 void
