@@ -306,6 +306,12 @@ ata_reinit(struct ata_channel *ch)
 	}
     }
 
+    ch->flags &= ~ATA_IMMEDIATE_MODE;
+    mtx_lock(&ch->state_mtx);
+    ch->state = ATA_IDLE;
+    mtx_unlock(&ch->state_mtx);
+    ch->locking(ch, ATA_LF_UNLOCK);
+
     /* attach new devices */
     if ((newdev = ~devices & ch->devices)) {
 	if ((newdev & (ATA_ATA_MASTER | ATA_ATAPI_MASTER)) &&
@@ -322,12 +328,6 @@ ata_reinit(struct ata_channel *ch)
 
     if (bootverbose)
 	ata_printf(ch, -1, "device config done ..\n");
-
-    ch->flags &= ~ATA_IMMEDIATE_MODE;
-    mtx_lock(&ch->state_mtx);
-    ch->state = ATA_IDLE;
-    mtx_unlock(&ch->state_mtx);
-    ch->locking(ch, ATA_LF_UNLOCK);
 
     ata_start(ch);
     return 0;
