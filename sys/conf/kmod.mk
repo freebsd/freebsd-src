@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.44 1998/02/20 15:52:49 bde Exp $
+#	$Id: bsd.kmod.mk,v 1.45 1998/03/06 05:43:46 bde Exp $
 #
 # The include file <bsd.kmod.mk> handles installing Loadable Kernel Modules.
 #
@@ -118,7 +118,6 @@ CLEANFILES+=	vnode_if.h vnode_if.c
 CFLAGS+= -DPSEUDO_LKM
 .endif
 
-DPSRCS+= ${SRCS:M*.h}
 OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 
 .if !defined(PROG)
@@ -237,7 +236,7 @@ vnode_if.h:	${KERN}/vnode_if.sh ${KERN}/vnode_if.src
 .include <bsd.dep.mk>
 
 .if !exists(${DEPENDFILE})
-${OBJS}: ${DPSRCS}
+${OBJS}: ${SRCS:M*.h}
 .endif
 
 .include <bsd.kern.mk>
