@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.35.2.8 1995/06/03 02:14:26 jkh Exp $
+ * $Id: dist.c,v 1.35.2.9 1995/06/03 06:31:01 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -235,6 +235,7 @@ distExtract(char *parent, Distribution *me)
     char *path, *dist, buf[10240];
     const char *tmp;
     Attribs *dist_attr;
+    unsigned int oldStatus;
 
     status = TRUE;
     if (isDebug())
@@ -259,7 +260,10 @@ distExtract(char *parent, Distribution *me)
 
 	/* First try to get the distribution as a single file */
         snprintf(buf, 512, "%s/%s.tgz", path, dist);
+	oldOpts = OptFlags;
+	OptFlags |= OPT_FTP_ABORT;
 	fd = (*mediaDevice->get)(buf);
+	OptFlags = oldOpts;
 	if (fd >= 0) {
 	    msgNotify("Extracting %s into %s directory...", me[i].my_name, me[i].my_dir);
 	    status = mediaExtractDist(me[i].my_dir, fd);

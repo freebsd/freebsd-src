@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.6.2.10 1995/06/03 06:36:03 jkh Exp $
+ * $Id: ftp_strat.c,v 1.6.2.11 1995/06/03 07:38:22 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -149,11 +149,11 @@ mediaInitFTP(Device *dev)
 	strcpy(password, getenv(FTP_PASS) ? getenv(FTP_PASS) : login_name);
     }
     retries = i = 0;
-    if (OptFlags & OPT_FTP_RESELECT)
+    if (OptFlags & (OPT_FTP_RESELECT + OPT_FTP_ABORT))
 	max_retries = 0;
 retry:
     if (i && ++retries > max_retries) {
-	if (!get_new_host())
+	if ((OptFlags & OPT_FTP_ABORT) || !get_new_host())
 	    return FALSE;
 	retries = 0;
     }
@@ -193,14 +193,16 @@ mediaGetFTP(char *file)
     int nretries = 0, max_retries = MAX_FTP_RETRIES;
     Boolean boing = TRUE;
 
-    if (OptFlags & OPT_FTP_RESELECT)
+    if (OptFlags & (OPT_FTP_RESELECT + OPT_FTP_ABORT))
 	max_retries = 0;
 evil_goto:
     fd = FtpGet(ftp, file);
     if (fd < 0) {
 	/* If a hard fail, try to "bounce" the ftp server to clear it */
 	if (fd == -2 || ++nretries > max_retries) {
-	    if (!get_new_host())
+	    if (OptFlags & OPT_FTP_ABORT)
+		return -1;
+	    else if (!get_new_host())
 		return -2;
 	    nretries = 0;
 	}
