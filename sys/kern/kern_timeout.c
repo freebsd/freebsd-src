@@ -251,11 +251,12 @@ softclock(void *dummy)
 					c->c_flags = CALLOUT_LOCAL_ALLOC;
 					SLIST_INSERT_HEAD(&callfree, c,
 							  c_links.sle);
+					curr_callout = NULL;
 				} else {
 					c->c_flags =
 					    (c->c_flags & ~CALLOUT_PENDING);
+					curr_callout = c;
 				}
-				curr_callout = c;
 				curr_cancelled = 0;
 				mtx_unlock_spin(&callout_lock);
 				if (c_mtx != NULL) {
