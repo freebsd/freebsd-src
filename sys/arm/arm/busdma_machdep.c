@@ -332,18 +332,16 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	if (flags & BUS_DMA_ZERO)
 		mflags |= M_ZERO;
 
-	if (!*mapp) {
-		newmap = malloc(sizeof(*newmap), M_DEVBUF, M_NOWAIT | M_ZERO);
-		if (newmap == NULL) {
-			CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
-			    __func__, dmat, dmat->flags, ENOMEM);
-			return (ENOMEM);
-		}
-		dmat->map_count++;
-		newmap->flags = 0;
-		*mapp = newmap;
-		newmap->dmat = dmat;
+	newmap = malloc(sizeof(*newmap), M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (newmap == NULL) {
+		CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
+		    __func__, dmat, dmat->flags, ENOMEM);
+		return (ENOMEM);
 	}
+	dmat->map_count++;
+	newmap->flags = 0;
+	*mapp = newmap;
+	newmap->dmat = dmat;
 	
         if (dmat->maxsize <= PAGE_SIZE) {
                 *vaddr = malloc(dmat->maxsize, M_DEVBUF, mflags);
@@ -536,6 +534,8 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	bus_dma_segment_t dm_segments[BUS_DMAMAP_NSEGS];
 #endif
 
+	KASSERT(dmat != NULL, ("dmatag is NULL"));
+	KASSERT(map != NULL, ("dmamap is NULL"));
 	map->flags &= ~DMAMAP_TYPE_MASK;
 	map->flags |= DMAMAP_LINEAR|DMAMAP_COHERENT;
 	map->buffer = buf;
