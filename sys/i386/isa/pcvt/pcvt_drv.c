@@ -776,7 +776,8 @@ int pcvt_kbd_rptr = 0;
 short pcvt_kbd_count= 0;
 static u_char pcvt_timeout_scheduled = 0;
 
-static	void	pcvt_timeout (void *arg)
+static void
+pcvt_timeout(void *arg)
 {
 	u_char *cp;
 
@@ -891,7 +892,7 @@ pcrint(int unit)
 		{
 			PCVT_DISABLE_INTR ();
 			pcvt_timeout_scheduled = 1;	/* flag active */
-			timeout((TIMEOUT_FUNC_T)pcvt_timeout, (caddr_t) 0, 1); /* fire off */
+			timeout(pcvt_timeout, NULL, hz / 100);	/* fire off */
 			PCVT_ENABLE_INTR ();
 		}
 	}
