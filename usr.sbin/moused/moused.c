@@ -70,6 +70,9 @@ static const char rcsid[] =
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
+#include <sys/param.h>
+#include <sys/linker.h>
+#include <sys/module.h>
 #include <unistd.h>
 
 #define MAX_CLICKTHRESHOLD	2000	/* 2 seconds */
@@ -495,6 +498,8 @@ static void	mremote_clientchg(int add);
 
 static int kidspad(u_char rxc, mousestatus_t *act);
 
+static int usbmodule(void);
+
 int
 main(int argc, char *argv[])
 {
@@ -754,8 +759,7 @@ main(int argc, char *argv[])
 
     retry = 1;
     if (strncmp(rodent.portname, "/dev/ums", 8) == 0) {
-	if (kldload("ums") == -1 && errno != EEXIST)
-	    logerr(1, "unable to load USB mouse driver");
+	usbmodule();
 	retry = 5;
     }
 
@@ -824,6 +828,38 @@ main(int argc, char *argv[])
     /* NOT REACHED */
 
     exit(0);
+}
+
+static int
+usbmodule(void)
+{
+    struct kld_file_stat fstat;
+    struct module_stat mstat;
+    int fileid, modid;
+    int loaded;
+
+    for (loaded = 0, fileid = kldnext(0); !loaded && fileid > 0;
+	 fileid = kldnext(fileid)) {
+	fstat.version = sizeof(fstat);
+	if (kldstat(fileid, &fstat) < 0)
+	    continue;
+	if (strncmp(fstat.name, "uhub/ums", 8) == 0) {
+	    loaded = 1;
+	    break;
+	}
+	for (modid = kldfirstmod(fileid); modid > 0;
+	     modid = modfnext(modid)) {
+	    mstat.version = sizeof(mstat);
+	    if (modstat(modid, &mstat) < 0)
+		continue;
+	    if (strncmp(mstat.name, "uhub/ums", 8) == 0) {
+		loaded = 1;
+		break;
+	    }
+	}
+    }
+    if (!loaded && kldload("ums") == -1 && errno != EEXIST)
+	logerr(1, "unable to load USB mouse driver");
 }
 
 static void
