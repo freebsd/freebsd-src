@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.89.2.19 1997/02/13 00:31:59 jkh Exp $
+ * $Id: menus.c,v 1.89.2.20 1997/02/14 21:24:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -266,7 +266,7 @@ DMenu MenuIndex = {
       { "Syscons, Keyrate",	"The console key rate configuration menu.", NULL, dmenuSubmenu, NULL, &MenuSysconsKeyrate },
       { "Syscons, Saver",	"The console screen saver configuration menu.",	NULL, dmenuSubmenu, NULL, &MenuSysconsSaver },
       { "Syscons, Screenmap",	"The console screenmap configuration menu.", NULL, dmenuSubmenu, NULL, &MenuSysconsScrnmap },
-      { "Time Zone",		"Set the system's time zone.",		NULL, dmenuSystemCommand, NULL, "rm -f /etc/localtime; tzsetup" },
+      { "Time Zone",		"Set the system's time zone.",		NULL, dmenuSystemCommand, NULL, "tzsetup" },
       { "Upgrade",		"Upgrade an existing system.",		NULL, installUpgrade },
       { "Usage",		"Quick start - How to use this menu system.",	NULL, dmenuDisplayFile, NULL, "usage" },
       { "User Management",	"Add user and group information.",	NULL, dmenuSubmenu, NULL, &MenuUsermgmt },
@@ -1043,7 +1043,7 @@ DMenu MenuConfigure = {
       { "2 Console",	"Customize system console behavior",
 	NULL,	dmenuSubmenu, NULL, &MenuSyscons },
       { "3 Time Zone",	"Set which time zone you're in",
-	NULL,	dmenuSystemCommand, NULL, "rm -f /etc/localtime; tzsetup" },
+	NULL,	dmenuSystemCommand, NULL, "tzsetup" },
       { "4 Media",	"Change the installation media type",
 	NULL,	dmenuSubmenu, NULL, &MenuMedia	},
       { "5 Mouse",	"Select the type of mouse you have",
