@@ -244,7 +244,8 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		 */
 		enc->ul[0] = htonl(enc->ul[0]);
 
-		return (IF_HANDOFF(&ifp->if_snd, m, ifp) ? 0 : ENOBUFS);
+		IFQ_HANDOFF(ifp, m, error);
+		return (error);
 	} else {
 		/*
 		 * Fragment the datagram, making sure to leave enough
@@ -298,7 +299,8 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 			enc->ul[0] = htonl(enc->ul[0]);
 			enc->ul[1] = htonl(enc->ul[1]);
 
-			if (!IF_HANDOFF(&ifp->if_snd, m, ifp)) {
+			IFQ_HANDOFF(ifp, m, error);
+			if (error) {
 				if (mtail)
 					m_freem(mtail);
 				return (ENOBUFS);

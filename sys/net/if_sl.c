@@ -549,8 +549,7 @@ sloutput(ifp, m, dst, rtp)
 {
 	register struct sl_softc *sc = ifp->if_softc;
 	register struct ip *ip;
-	register struct ifqueue *ifq;
-	int s;
+	int s, error;
 
 	/*
 	 * `Cannot happen' (see slioctl).  Someday we will extend
@@ -571,15 +570,17 @@ sloutput(ifp, m, dst, rtp)
 		m_freem(m);
 		return (EHOSTUNREACH);
 	}
-	ifq = (struct ifqueue *)&sc->sc_if.if_snd;
 	ip = mtod(m, struct ip *);
 	if (sc->sc_if.if_flags & SC_NOICMP && ip->ip_p == IPPROTO_ICMP) {
 		m_freem(m);
 		return (ENETRESET);		/* XXX ? */
 	}
-	if (ip->ip_tos & IPTOS_LOWDELAY)
-		ifq = &sc->sc_fastq;
-	if (! IF_HANDOFF(ifq, m, NULL)) {
+	if (ip->ip_tos & IPTOS_LOWDELAY &&
+	    !ALTQ_IS_ENABLED(&sc->sc_if.if_snd))
+		error = !(IF_HANDOFF(&sc->sc_fastq, m, NULL));
+	else
+		IFQ_HANDOFF(&sc->sc_if, m, error);
+	if (error) {
 		sc->sc_if.if_oerrors++;
 		return (ENOBUFS);
 	}
