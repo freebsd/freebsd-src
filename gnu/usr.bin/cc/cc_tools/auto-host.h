@@ -551,7 +551,8 @@
 /* #undef HAVE_AS_OFFSETABLE_LO10 */
 
 /* Define true if the assembler supports '.long foo@GOTOFF'. */
-#define HAVE_AS_GOTOFF_IN_DATA 1
+/* DEO:XXX match TARGET_ELF definition in i386/freebsd.h.  */
+#define HAVE_AS_GOTOFF_IN_DATA ((target_flags & MASK_AOUT) == 0)
 
 /* Define if your assembler supports dwarf2 .file/.loc directives,
    and preserves file table indices exactly as given. */
