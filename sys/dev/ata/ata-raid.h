@@ -82,7 +82,7 @@ struct ar_softc {
 
 struct ar_buf {
     struct bio		bp;		/* must be first element! */
-    struct bio		*org;	
+    struct bio		*org;
     struct ar_buf	*mirror;
     int			drive;
     int			flags;
@@ -100,11 +100,9 @@ struct highpoint_raid_conf {
     u_int32_t		magic_0;
     u_int32_t		magic_1;
     u_int32_t		order;
-#define HPT_O_DOWN		0x00
-#define HPT_O_RAID01DEGRADED	0x01
-#define HPT_O_RAID01DST		0x02
-#define HPT_O_RAID01SRC		0x03
-#define HPT_O_READY		0x04
+#define HPT_O_OK		0x01
+#define HPT_O_RAID1		0x02
+#define HPT_O_RAID0		0x04
 
     u_int8_t		array_width;
     u_int8_t		stripe_shift;
@@ -138,8 +136,7 @@ struct highpoint_raid_conf {
 	u_int32_t	lba;
     } errorlog[32];
     int8_t		filler2[16];
-    u_int32_t		magic_2; 
-#define HPT_MAGIC_2		0x7fffffff
+    u_int32_t		rebuild_lba;
     u_int8_t		dummy_1;
     u_int8_t		name_1[15];
     u_int8_t		dummy_2;
