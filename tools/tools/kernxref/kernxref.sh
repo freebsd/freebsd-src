@@ -7,7 +7,7 @@
 # this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 # ----------------------------------------------------------------------------
 #
-# $Id: kernxref.sh,v 1.1 1995/10/15 11:33:42 phk Exp $
+# $Id: kernxref.sh,v 1.2 1995/11/06 16:51:45 phk Exp $
 #
 # This shellscript will make a cross reference of the symbols of the LINT 
 # kernel.
@@ -42,11 +42,10 @@ NF > 1	{
 	} else if ($2 == "C") {
 		if (def[$3] == $2)
 			i++
-		else if (def[$3] != "")
-			def[$3]=def[$3]",C"
+		else if (def[$3] == "")
+			def[$3]=$1
 		else
-			def[$3]="C"
-		ref[$3]=ref[$3]" "$1
+			ref[$3]=ref[$3]" "$1
 	} else {
 		print ">>>",$0
 	}
