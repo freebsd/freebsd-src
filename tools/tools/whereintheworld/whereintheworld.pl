@@ -9,6 +9,7 @@
 # $Id: whereintheworld,v 1.3 2000/01/28 00:42:32 fenner Exp $
 # $FreeBSD$
 #
+
 use strict;
 
 my $line;
@@ -33,10 +34,10 @@ while ($line = <>) {
 		next;
 	}
 	if ($line =~ /^=+>/) {
-	    @lines = ();
+		@lines = ();
 	}
 	if (length($line) >= $width) {
-	    substr($line, $width - 7) = " [...]\n";
+		substr($line, $width - 7) = " [...]\n";
 	}
 	push(@lines, $line);
 	if ($line =~ /^\*\*\* Error/ && $line !~ /\(ignored\)/) {
@@ -50,10 +51,10 @@ while ($line = <>) {
 
 print shift(@lines);
 while (@lines > $thresh) {
-    shift(@lines);
-    ++$elided;
+	shift(@lines);
+	++$elided;
 }
 if ($elided > 0) {
-    print "[$elided lines elided]\n";
+	print "[$elided lines elided]\n";
 }
 print @lines;
