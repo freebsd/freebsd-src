@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7770.c,v 1.16 1995/09/05 23:39:31 gibbs Exp $
+ *	$Id: aic7770.c,v 1.17 1995/11/05 04:42:47 gibbs Exp $
  */
 
 #include "eisa.h"
@@ -128,11 +128,15 @@ aic7770probe(void)
 				printf("aic7770 at slot %d: illegal "
 				       "irq setting %d\n", e_dev->ioconf.slot,
 					intdef);
-				DELAY(10000000);
 				continue;
 		}
 		eisa_add_intr(e_dev, irq);
 		eisa_registerdev(e_dev, &ahc_eisa_driver, &kdc_aic7770);
+		if(e_dev->id == EISA_DEVICE_ID_ADAPTEC_284xB
+		   || e_dev->id == EISA_DEVICE_ID_ADAPTEC_284x) {
+			/* Our real parent is the isa bus.  Say so */
+			e_dev->kdc->kdc_parent = &kdc_isa0;
+		}
 		count++;
 	}
 	return count;
