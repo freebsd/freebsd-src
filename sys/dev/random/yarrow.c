@@ -455,9 +455,6 @@ write_random(void *buf, u_int count)
 		random_harvest_internal(get_cyclecount(), (char *)buf + i, count,
 			0, 0, RANDOM_WRITE);
 	}
-
-	/* Explicit reseed */
-	reseed(FAST);
 }
 
 static void
@@ -526,4 +523,11 @@ random_harvest_internal(u_int64_t somecounter, void *entropy, u_int count,
 
 		mtx_exit(&random_harvest_mtx, MTX_DEF);
 	}
+}
+
+/* Helper routine to perform explicit reseeds */
+void
+random_reseed(void)
+{
+	reseed(FAST);
 }

@@ -45,6 +45,8 @@ void random_init_harvester(void (*)(u_int64_t, void *, u_int, u_int, u_int, enum
 void random_deinit_harvester(void);
 void random_set_wakeup_exit(void *);
 
+void random_reseed(void);
+
 u_int read_random_real(void *, u_int);
 void write_random(void *, u_int);
 
