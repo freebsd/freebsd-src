@@ -2,14 +2,35 @@
 .\" Copyright (c) 1994, Wilko Bulte
 .\" All rights reserved.
 .\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
 .\" $FreeBSD$
 .\"
-.Dd September 23, 1994
+.Dd September 4, 2004
 .Dt IE 4 i386
 .Os
 .Sh NAME
 .Nm ie
-.Nd ethernet device driver
+.Nd Ethernet device driver
 .Sh SYNOPSIS
 .Cd "device ie 2"
 .Pp
@@ -23,14 +44,26 @@ In
 .Cd hint.ie.1.port="0x360"
 .Cd hint.ie.1.irq="7"
 .Cd hint.ie.1.maddr="0xd0000"
-.Sh DESCRIPTION
+.Sh HARDWARE
 The
 .Nm
-driver provides support for 8 and 16bit ISA ethernet cards that are based on
-the Intel i82586 chip.
-It supports the AT&T Starlan 10 and Starlan Fiber,
-the EN100, the Intel EtherExpress 16, the 3COM 3C507 and the RACAL Interlan
-NI5210.
+driver provides supports the following 8 and 16bit ISA Ethernet cards
+that are based on the Intel i82586 chip:
+.Pp
+.Bl -bullet -compact
+.It
+3COM 3C507
+.It
+AT&T EN100
+.It
+AT&T Starlan 10
+.It
+AT&T Starlan Fiber
+.It
+Intel EtherExpress 16
+.It
+RACAL Interlan NI5210
+.El
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "ie%d: unknown board type code %d"
@@ -50,7 +83,7 @@ interrupt than the one specified in the kernel configuration file.
 .It "ie%d: reset"
 The Intel i82586 had to be reset by the driver.
 .It "ie%d: transceiver problem"
-The driver has detected a problem with the ethernet transceiver.
+The driver has detected a problem with the Ethernet transceiver.
 This is
 usually due to a loose or broken transceiver cable when using an external
 transceiver.
@@ -58,15 +91,15 @@ When you experience this problem with an on-card transceiver
 your card may be incorrectly jumpered for to use an external transceiver.
 Worst case your on-board transceiver may be broken.
 .It "ie%d: TDR detected an open %d clocks away"
-The driver detected an open circuit in the ethernet cable.
+The driver detected an open circuit in the Ethernet cable.
 Check your
 coax cable and terminator resistors.
 .It "ie%d: TDR detected a short %d clocks away"
-The driver detected a short circuit in the ethernet cable.
+The driver detected a short circuit in the Ethernet cable.
 Check your
 coax cable and terminator resistors.
 .It "ie%d: TDR returned unknown status %x"
-The driver got an unknown status from the card during the ethernet cable
+The driver got an unknown status from the card during the Ethernet cable
 test.
 .It "ie%d: multicast address setup command failed"
 The card could not be put into multicast mode.
