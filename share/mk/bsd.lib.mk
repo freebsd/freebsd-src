@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.71 1998/05/15 09:30:12 bde Exp $
+#	$Id: bsd.lib.mk,v 1.72 1998/05/15 09:34:48 bde Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -170,7 +170,7 @@ lib${LIB}_p.a:: ${POBJS}
 .endif
 
 .if defined(DESTDIR)
-LDDESTDIRENV?=	LIBRARY_PATH=${DESTDIR}${SHLIBDIR}:${DESTDIR}/usr/lib
+LDDESTDIRENV?=	LIBRARY_PATH=${DESTDIR}${SHLIBDIR}:${DESTDIR}${LIBDIR}
 .endif
 
 .if !defined(NOPIC)
