@@ -56,7 +56,7 @@
 
 static u_int16_t isp_pci_rd_reg __P((struct ispsoftc *, int));
 static void isp_pci_wr_reg __P((struct ispsoftc *, int, u_int16_t));
-#if !defined(ISP_DISABLE_1080_SUPPORT) && !defined(ISP_DISABLE_12160_SUPPORT)
+#if !defined(ISP_DISABLE_1080_SUPPORT) || !defined(ISP_DISABLE_12160_SUPPORT)
 static u_int16_t isp_pci_rd_reg_1080 __P((struct ispsoftc *, int));
 static void isp_pci_wr_reg_1080 __P((struct ispsoftc *, int, u_int16_t));
 #endif
@@ -489,7 +489,7 @@ isp_pci_attach(device_t dev)
 		    ISP1080_DMA_REGS_OFF;
 	}
 #endif
-#ifndef	ISP_DISABLE_1080_SUPPORT
+#ifndef	ISP_DISABLE_12160_SUPPORT
 	if (pci_get_devid(dev) == PCI_QLOGIC_ISP12160) {
 		mdvp = &mdvec_12160;
 		basetype = ISP_HA_SCSI_12160;
@@ -778,7 +778,7 @@ isp_pci_wr_reg(isp, regoff, val)
 	}
 }
 
-#if !defined(ISP_DISABLE_1080_SUPPORT) && !defined(ISP_DISABLE_12160_SUPPORT)
+#if !defined(ISP_DISABLE_1080_SUPPORT) || !defined(ISP_DISABLE_12160_SUPPORT)
 static u_int16_t
 isp_pci_rd_reg_1080(isp, regoff)
 	struct ispsoftc *isp;
