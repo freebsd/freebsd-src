@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2003 Jake Burkholder
  * Copyright (c) 2003 Poul-Henning Kamp
- * Copyright (c) 2004 Joerg Wunsch
+ * Copyright (c) 2004,2005 Joerg Wunsch
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,10 +38,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 #include <sys/errno.h>
 #include <sys/sun_disklabel.h>
+#ifdef _KERNEL
+#include <sys/systm.h>
+#else
+#include <string.h>
+#endif
 
 #define	SL_TEXT		0x0
 #define	SL_TEXT_SIZEOF	0x80
 #define	SL_VTOC_VERS	0x80
+#define	SL_VTOC_VOLNAME	0x84
 #define	SL_VTOC_NPART	0x8c
 #define	SL_VTOC_MAP	0x8e
 #define	SL_VTOC_SANITY	0xbc
@@ -105,6 +111,8 @@ sunlabel_dec(void const *pp, struct sun_disklabel *sl)
 		 */
 		sl->sl_vtoc_sane = vtocsane;
 		sl->sl_vtoc_vers = be32dec(p + SL_VTOC_VERS);
+		memcpy(sl->sl_vtoc_volname, p + SL_VTOC_VOLNAME,
+		    SUN_VOLNAME_LEN);
 		sl->sl_vtoc_nparts = SUN_NPART;
 		for (i = 0; i < SUN_NPART; i++) {
 			sl->sl_vtoc_map[i].svtoc_tag = be16dec(p +
@@ -156,6 +164,8 @@ sunlabel_enc(void *pp, struct sun_disklabel *sl)
 		 */
 		be32enc(p + SL_VTOC_VERS, sl->sl_vtoc_vers);
 		be32enc(p + SL_VTOC_SANITY, SUN_VTOC_SANE);
+		memcpy(p + SL_VTOC_VOLNAME, sl->sl_vtoc_volname,
+		    SUN_VOLNAME_LEN);
 		be16enc(p + SL_VTOC_NPART, SUN_NPART);
 		for (i = 0; i < SUN_NPART; i++) {
 			be16enc(p + SL_VTOC_MAP + (i * SVTOC_SIZEOF)

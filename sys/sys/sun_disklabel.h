@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
- * Copyright (c) 2004, Joerg Wunsch
+ * Copyright (c) 2004,2005 Joerg Wunsch
  *
  * This software was developed by the Computer Systems Engineering group
  * at Lawrence Berkeley Laboratory under DARPA contract BG 91-66 and
@@ -54,6 +54,7 @@
 #define	SUN_SIZE	512
 #define	SUN_VTOC_VERSION 1
 #define	SUN_VTOC_SANE	0x600DDEEE /* SVR4-compatible VTOC is "sane". */
+#define	SUN_VOLNAME_LEN	8
 /*
  * XXX: I am actually not sure if this should be "16 sectors" or "8192 bytes".
  * XXX: Considering that Sun went to the effort of getting 512 byte compatible
@@ -98,6 +99,7 @@ struct sun_disklabel {
 
 	/* SVR4 VTOC information */
 	u_int32_t	sl_vtoc_vers;		/* == SUN_VTOC_VERSION */
+	char		sl_vtoc_volname[SUN_VOLNAME_LEN];
 	u_int16_t	sl_vtoc_nparts;		/* == SUN_NPART */
 	struct sun_vtoc_info sl_vtoc_map[SUN_NPART]; /* partition tag/flag */
 	u_int32_t	sl_vtoc_sane;		/* == SUN_VTOC_SANE */
