@@ -68,7 +68,6 @@
 #include "sl.h"
 #if NSL > 0
 
-#include "bpf.h"
 #include "opt_inet.h"
 #if !defined(ACTUALLY_LKM_NOT_KERNEL) && !defined(KLD_MODULE)
 #include "opt_slip.h"
@@ -105,9 +104,7 @@
 #include <net/if_slvar.h>
 #include <net/slip.h>
 
-#if NBPF > 0
 #include <net/bpf.h>
-#endif
 
 static void slattach __P((void *));
 PSEUDO_SET(slattach, if_sl);
@@ -150,11 +147,7 @@ PSEUDO_SET(slattach, if_sl);
  * time.  So, setting SLIP_HIWAT to ~100 guarantees that we'll lose
  * at most 1% while maintaining good interactive response.
  */
-#if NBPF > 0
 #define	BUFOFFSET	(128+sizeof(struct ifnet **)+SLIP_HDRLEN)
-#else
-#define	BUFOFFSET	(128+sizeof(struct ifnet **))
-#endif
 #define	SLRMAX		(MCLBYTES - BUFOFFSET)
 #define	SLBUFSIZE	(SLRMAX + BUFOFFSET)
 #ifndef SLMTU
@@ -232,9 +225,7 @@ slattach(dummy)
 		sc->sc_if.if_linkmib = sc;
 		sc->sc_if.if_linkmiblen = sizeof *sc;
 		if_attach(&sc->sc_if);
-#if NBPF > 0
 		bpfattach(&sc->sc_if, DLT_SLIP, SLIP_HDRLEN);
-#endif
 	}
 }
 
@@ -539,10 +530,8 @@ slstart(tp)
 	register struct ip *ip;
 	int s;
 	struct mbuf *m2;
-#if NBPF > 0
 	u_char bpfbuf[SLTMAX + SLIP_HDRLEN];
 	register int len = 0;
-#endif
 
 	for (;;) {
 		/*
@@ -584,7 +573,6 @@ slstart(tp)
 		 * queueing, and the connection id compression will get
 		 * munged when this happens.
 		 */
-#if NBPF > 0
 		if (sc->sc_if.if_bpf) {
 			/*
 			 * We need to save the TCP/IP header before it's
@@ -606,14 +594,12 @@ slstart(tp)
 				len += mlen;
 			} while ((m1 = m1->m_next) != NULL);
 		}
-#endif
 		ip = mtod(m, struct ip *);
 		if (ip->ip_v == IPVERSION && ip->ip_p == IPPROTO_TCP) {
 			if (sc->sc_if.if_flags & SC_COMPRESS)
 				*mtod(m, u_char *) |= sl_compress_tcp(m, ip,
 				    &sc->sc_comp, 1);
 		}
-#if NBPF > 0
 		if (sc->sc_if.if_bpf) {
 			/*
 			 * Put the SLIP pseudo-"link header" in place.  The
@@ -624,7 +610,6 @@ slstart(tp)
 			bcopy(mtod(m, caddr_t), &bpfbuf[SLX_CHDR], CHDR_LEN);
 			bpf_tap(&sc->sc_if, bpfbuf, len + SLIP_HDRLEN);
 		}
-#endif
 
 		/*
 		 * If system is getting low on clists, just flush our
@@ -776,9 +761,7 @@ slinput(c, tp)
 	register struct mbuf *m;
 	register int len;
 	int s;
-#if NBPF > 0
 	u_char chdr[CHDR_LEN];
-#endif
 
 	tk_nin++;
 	sc = (struct sl_softc *)tp->t_sc;
@@ -845,7 +828,6 @@ slinput(c, tp)
 			/* less than min length packet - ignore */
 			goto newpack;
 
-#if NBPF > 0
 		if (sc->sc_if.if_bpf) {
 			/*
 			 * Save the compressed header, so we
@@ -857,7 +839,6 @@ slinput(c, tp)
 			 */
 			bcopy(sc->sc_buf, chdr, CHDR_LEN);
 		}
-#endif
 
 		if ((c = (*sc->sc_buf & 0xf0)) != (IPVERSION << 4)) {
 			if (c & 0x80)
@@ -886,7 +867,6 @@ slinput(c, tp)
 			} else
 				goto error;
 		}
-#if NBPF > 0
 		if (sc->sc_if.if_bpf) {
 			/*
 			 * Put the SLIP pseudo-"link header" in place.
@@ -900,7 +880,6 @@ slinput(c, tp)
 			bcopy(chdr, &hp[SLX_CHDR], CHDR_LEN);
 			bpf_tap(&sc->sc_if, hp, len + SLIP_HDRLEN);
 		}
-#endif
 		m = sl_btom(sc, len);
 		if (m == NULL)
 			goto error;

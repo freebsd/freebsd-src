@@ -62,7 +62,6 @@
  */
 
 #include "rdp.h"
-#include "bpf.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -89,9 +88,7 @@
 #include <netns/ns_if.h>
 #endif
 
-#if NBPF > 0
 #include <net/bpf.h>
-#endif
 
 #include <machine/clock.h>
 #include <machine/md_var.h>
@@ -629,9 +626,7 @@ rdp_attach(struct isa_device *isa_dev)
 	/*
 	 * If BPF is in the kernel, call the attach for it
 	 */
-#if NBPF > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
-#endif
 	return 1;
 }
 
@@ -814,11 +809,9 @@ outloop:
 	/*
 	 * Tap off here if there is a bpf listener.
 	 */
-#if NBPF > 0
 	if (ifp->if_bpf) {
 		bpf_mtap(ifp, m);
 	}
-#endif
 
 	m_freem(m);
 
@@ -862,7 +855,6 @@ rdp_ioctl(struct ifnet *ifp, IOCTL_CMD_T command, caddr_t data)
 			}
 		}
 
-#if NBPF > 0
 		/*
 		 * Promiscuous flag may have changed, propagage this
 		 * to the NIC.
@@ -872,7 +864,6 @@ rdp_ioctl(struct ifnet *ifp, IOCTL_CMD_T command, caddr_t data)
 			      MkHi((ifp->if_flags & IFF_PROMISC)?
 				   CMR2_AM_ALL: CMR2_AM_PB));
 
-#endif
 		break;
 
 	case SIOCADDMULTI:
@@ -1164,8 +1155,6 @@ rdp_get_packet(struct rdp_softc *sc, unsigned len)
 	outb(sc->baseaddr + lpt_control, Ctrl_SelData);
 	WrNib(sc, CMR1, CMR1_RDPAC);
 
-#if NBPF > 0
-
 	/*
 	 * Check if there's a BPF listener on this interface. If so, hand off
 	 * the raw packet to bpf.
@@ -1185,7 +1174,6 @@ rdp_get_packet(struct rdp_softc *sc, unsigned len)
 			return;
 		}
 	}
-#endif
 
 	/*
 	 * Remove link layer address.

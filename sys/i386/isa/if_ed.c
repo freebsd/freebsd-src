@@ -38,7 +38,6 @@
  */
 
 #include "ed.h"
-#include "bpf.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -62,9 +61,7 @@
 #include <net/if_dl.h>
 #include <net/if_mib.h>
 
-#if NBPF > 0
 #include <net/bpf.h>
-#endif
 #include "opt_bdg.h"
 #ifdef BRIDGE
 #include <net/bridge.h>
@@ -1715,9 +1712,7 @@ ed_attach(sc, unit, flags)
 	/*
 	 * If BPF is in the kernel, call the attach for it
 	 */
-#if NBPF > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
-#endif
 	return 1;
 }
 
@@ -2173,11 +2168,9 @@ outloop:
 	/*
 	 * Tap off here if there is a bpf listener.
 	 */
-#if NBPF > 0
 	if (ifp->if_bpf) {
 		bpf_mtap(ifp, m0);
 	}
-#endif
 
 	m_freem(m0);
 
@@ -2615,13 +2608,10 @@ ed_ioctl(ifp, command, data)
 			}
 		}
 
-#if NBPF > 0
-
 		/*
 		 * Promiscuous flag may have changed, so reprogram the RCR.
 		 */
 		ed_setrcr(sc);
-#endif
 
 		/*
 		 * An unfortunate hack to provide the (required) software
@@ -2746,13 +2736,11 @@ ed_get_packet(sc, buf, len, multicast)
 		struct ifnet *ifp ;
 		int need_more = 1 ; /* in case not bpf */
 
-#if NBPF > 0
 		if (sc->arpcom.ac_if.if_bpf) {
 			need_more = 0 ;
 			ed_ring_copy(sc, buf, (char *)eh, len);
 			bpf_mtap(&sc->arpcom.ac_if, m);
 		} else
-#endif
 			ed_ring_copy(sc, buf, (char *)eh, 14);
 		ifp = bridge_in(m);
 		if (ifp == BDG_DROP) {
@@ -2777,15 +2765,12 @@ ed_get_packet(sc, buf, len, multicast)
 	 */
 	ed_ring_copy(sc, buf, (char *)eh, len);
 
-#if NBPF > 0
-
 	/*
 	 * Check if there's a BPF listener on this interface. If so, hand off
 	 * the raw packet to bpf.
 	 */
 	if (sc->arpcom.ac_if.if_bpf)
 		bpf_mtap(&sc->arpcom.ac_if, m);
-#endif
 	/*
 	 * If we are in promiscuous mode, we have to check whether
 	 * this packet is really for us.

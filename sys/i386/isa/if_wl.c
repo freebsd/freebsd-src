@@ -190,7 +190,6 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 #include "wl.h"
 #include "opt_wavelan.h"
-#include "bpf.h"
 #include "opt_inet.h"
 
 #include <sys/param.h>
@@ -215,9 +214,7 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <netinet/if_ether.h>
 #endif
 
-#if NBPF > 0
 #include <net/bpf.h>
-#endif
 
 #include <machine/clock.h>
 
@@ -511,9 +508,7 @@ wlattach(struct isa_device *id)
     if_attach(ifp);
     ether_ifattach(ifp);
 
-#if NBPF > 0
     bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
-#endif
 
     bcopy(&sc->wl_addr[0], sc->wl_ac.ac_enaddr, WAVELAN_ADDR_SIZE);
     printf("%s%d: address %6D, NWID 0x%02x%02x", ifp->if_name, ifp->if_unit,
@@ -896,12 +891,10 @@ wlstart(struct ifnet *ifp)
     ifp = &(sc->wl_if);
     IF_DEQUEUE(&ifp->if_snd, m);
     if (m != (struct mbuf *)0) {
-#if NBPF > 0
 	/* let BPF see it before we commit it */
 	if (ifp->if_bpf) {
 	    bpf_mtap(ifp, m);
 	}
-#endif
 	sc->tbusy++;
 	/* set the watchdog timer so that if the board
 	 * fails to interrupt we will restart
@@ -1081,7 +1074,6 @@ wlread(int unit, u_short fd_p)
 
     m->m_pkthdr.len = clen;
 
-#if NBPF > 0
     /*
      * Check if there's a BPF listener on this interface. If so, hand off
      * the raw packet to bpf.
@@ -1099,7 +1091,6 @@ wlread(int unit, u_short fd_p)
 	bpf_mtap(ifp, &m0);
 	
     }
-#endif
     /*
      * If hw is in promiscuous mode (note that I said hardware, not if
      * IFF_PROMISC is set in ifnet flags), then if this is a unicast

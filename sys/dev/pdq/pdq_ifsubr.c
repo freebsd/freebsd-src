@@ -45,10 +45,7 @@
 #include <net/if.h>
 #include <net/if_dl.h>
 
-#include "bpf.h"
-#if NBPF > 0
 #include <net/bpf.h>
-#endif
 
 #if defined(__FreeBSD__)
 #ifdef INET
@@ -186,14 +183,12 @@ pdq_os_receive_pdu(
     struct fddi_header *fh = mtod(m, struct fddi_header *);
 
     sc->sc_if.if_ipackets++;
-#if NBPF > 0
     if (sc->sc_bpf != NULL)
 	PDQ_BPF_MTAP(sc, m);
     if ((fh->fddi_fc & (FDDIFC_L|FDDIFC_F)) != FDDIFC_LLC_ASYNC) {
 	m_freem(m);
 	return;
     }
-#endif
 
     m->m_data += sizeof(struct fddi_header);
     m->m_len  -= sizeof(struct fddi_header);
@@ -222,10 +217,8 @@ pdq_os_transmit_done(
     struct mbuf *m)
 {
     pdq_softc_t *sc = (pdq_softc_t *) pdq->pdq_os_ctx;
-#if NBPF > 0
     if (sc->sc_bpf != NULL)
 	PDQ_BPF_MTAP(sc, m);
-#endif
     m_freem(m);
     sc->sc_if.if_opackets++;
 }
@@ -384,7 +377,5 @@ pdq_ifattach(
   
     if_attach(ifp);
     fddi_ifattach(ifp);
-#if NBPF > 0
     PDQ_BPFATTACH(sc, DLT_FDDI, sizeof(struct fddi_header));
-#endif
 }

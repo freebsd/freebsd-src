@@ -130,8 +130,6 @@ iomem and and with 0xffff.
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 
-#include "bpf.h"
-
 #include <machine/clock.h>
 #include <machine/md_var.h>
 
@@ -143,9 +141,7 @@ iomem and and with 0xffff.
 #include <i386/isa/if_iee16.h>
 #include <i386/isa/elink.h>
 
-#if NBPF > 0
 #include <net/bpf.h>
-#endif
 
 #ifdef DEBUG
 #define IED_RINT	0x01
@@ -836,9 +832,7 @@ ieattach(struct isa_device *dvp)
 		EVENTHANDLER_REGISTER(shutdown_post_sync, ee16_shutdown,
 				      ie, SHUTDOWN_PRI_DEFAULT);
 
-#if NBPF > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
-#endif
 
 	if_attach(ifp);
 	ether_ifattach(ifp);
@@ -1095,10 +1089,8 @@ check_eh(struct ie_softc * ie, struct ether_header * eh, int *to_bpf)
 		 * Receiving all multicasts, but no unicasts except those
 		 * destined for us.
 		 */
-#if NBPF > 0
 		/* BPF gets this packet if anybody cares */
 		*to_bpf = (ie->arpcom.ac_if.if_bpf != 0);
-#endif
 		if (eh->ether_dhost[0] & 1) {
 			return (1);
 		}
@@ -1111,17 +1103,13 @@ check_eh(struct ie_softc * ie, struct ether_header * eh, int *to_bpf)
 		 * Receiving all packets.  These need to be passed on to
 		 * BPF.
 		 */
-#if NBPF > 0
 		*to_bpf = (ie->arpcom.ac_if.if_bpf != 0);
-#endif
 		/* If for us, accept and hand up to BPF */
 		if (ether_equal(eh->ether_dhost, ie->arpcom.ac_enaddr))
 			return (1);
 
-#if NBPF > 0
 		if (*to_bpf)
 			*to_bpf = 2;	/* we don't need to see it */
-#endif
 
 		/*
 		 * Not a multicast, so BPF wants to see it but we don't.
@@ -1136,10 +1124,8 @@ check_eh(struct ie_softc * ie, struct ether_header * eh, int *to_bpf)
 		for (i = 0; i < ie->mcast_count; i++) {
 			if (ether_equal(eh->ether_dhost,
 			    (u_char *)&ie->mcast_addrs[i])) {
-#if NBPF > 0
 				if (*to_bpf)
 					*to_bpf = 1;
-#endif
 				return (1);
 			}
 		}
@@ -1150,9 +1136,7 @@ check_eh(struct ie_softc * ie, struct ether_header * eh, int *to_bpf)
 		 * Acting as a multicast router, and BPF running at the same
 		 * time. Whew!	(Hope this is a fast machine...)
 		 */
-#if NBPF > 0
 		*to_bpf = (ie->arpcom.ac_if.if_bpf != 0);
-#endif
 		/* We want to see multicasts. */
 		if (eh->ether_dhost[0] & 1)
 			return (1);
@@ -1162,10 +1146,8 @@ check_eh(struct ie_softc * ie, struct ether_header * eh, int *to_bpf)
 			return (1);
 
 		/* Anything else goes to BPF but nothing else. */
-#if NBPF > 0
 		if (*to_bpf)
 			*to_bpf = 2;
-#endif
 		return (1);
 
 	default:
@@ -1177,9 +1159,7 @@ check_eh(struct ie_softc * ie, struct ether_header * eh, int *to_bpf)
 		 * for the multicast filter), but it will do in this case,
 		 * and we want to get out of here as quickly as possible.
 		 */
-#if NBPF > 0
 		*to_bpf = (ie->arpcom.ac_if.if_bpf != 0);
-#endif
 		return (1);
 	}
 	return (0);
@@ -1414,10 +1394,7 @@ ie_readframe(int unit, struct ie_softc *ie, int	num/* frame number to read */)
 	struct mbuf *m = 0;
 	struct ether_header eh;
 
-#if NBPF > 0
 	int	bpf_gets_it = 0;
-
-#endif
 
 	bcopy((v_caddr_t) (ie->rframes[num]), &rfd,
 	      sizeof(struct ie_recv_frame_desc));
@@ -1433,11 +1410,7 @@ ie_readframe(int unit, struct ie_softc *ie, int	num/* frame number to read */)
 	ie->rfhead = (ie->rfhead + 1) % ie->nframes;
 
 	if (rfd.ie_fd_status & IE_FD_OK) {
-#if NBPF > 0
 		if (ieget(unit, ie, &m, &eh, &bpf_gets_it)) {
-#else
-		if (ieget(unit, ie, &m, &eh, (int *)0)) {
-#endif
 			ie->arpcom.ac_if.if_ierrors++;	/* this counts as an
 							 * error */
 			return;
@@ -1460,7 +1433,6 @@ ie_readframe(int unit, struct ie_softc *ie, int	num/* frame number to read */)
 		m_freem(last_not_for_us);
 		last_not_for_us = 0;
 	}
-#if NBPF > 0
 	/*
 	 * Check for a BPF filter; if so, hand it up. Note that we have to
 	 * stick an extra mbuf up front, because bpf_mtap expects to have
@@ -1488,7 +1460,6 @@ ie_readframe(int unit, struct ie_softc *ie, int	num/* frame number to read */)
 		last_not_for_us = m;
 		return;
 	}
-#endif				/* NBPF > 0 */
 	/*
 	 * In here there used to be code to check destination addresses upon
 	 * receipt of a packet.	 We have deleted that code, and replaced it
@@ -1572,7 +1543,6 @@ iestart(struct ifnet *ifp)
 		m_freem(m0);
 		len = max(len, ETHER_MIN_LEN);
 
-#if NBPF > 0
 		/*
 		 * See if bpf is listening on this interface, let it see the
 		 * packet before we commit it to the wire.
@@ -1580,7 +1550,6 @@ iestart(struct ifnet *ifp)
 		if (ie->arpcom.ac_if.if_bpf)
 			bpf_tap(&ie->arpcom.ac_if,
 				(void *)ie->xmit_cbuffs[ie->xmit_count], len);
-#endif
 
 		ie->xmit_buffs[ie->xmit_count]->ie_xmit_flags =
 		    IE_XMIT_LAST|len;

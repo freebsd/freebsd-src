@@ -20,7 +20,6 @@
  *	- Does not currently support multicasts
  */
 #include "el.h"
-#include "bpf.h"
 #include "opt_inet.h"
 #include "opt_ipx.h"
 
@@ -37,9 +36,7 @@
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 
-#if NBPF > 0
 #include <net/bpf.h>
-#endif
 
 #include <machine/clock.h>
 
@@ -203,10 +200,8 @@ el_attach(struct isa_device *idev)
 	  sc->arpcom.ac_enaddr, ":");
 
 	/* Finally, attach to bpf filter if it is present. */
-#if NBPF > 0
 	dprintf(("Attaching to BPF...\n"));
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
-#endif
 
 	dprintf(("el_attach() finished.\n"));
 	return(1);
@@ -340,10 +335,8 @@ el_start(struct ifnet *ifp)
 		len = max(len,ETHER_MIN_LEN);
 
 		/* Give the packet to the bpf, if any */
-#if NBPF > 0
 		if(sc->arpcom.ac_if.if_bpf)
 			bpf_tap(&sc->arpcom.ac_if, sc->el_pktbuf, len);
-#endif
 
 		/* Transfer datagram to board */
 		dprintf(("el: xfr pkt length=%d...\n",len));
@@ -430,7 +423,6 @@ elread(struct el_softc *sc,caddr_t buf,int len)
 
 	eh = (struct ether_header *)buf;
 
-#if NBPF > 0
 	/*
 	 * Check if there's a bpf filter listening on this interface.
 	 * If so, hand off the raw packet to bpf.
@@ -453,7 +445,6 @@ elread(struct el_softc *sc,caddr_t buf,int len)
 			   sizeof(eh->ether_dhost)) != 0)
 			return;
 	}
-#endif
 
 	/*
 	 * Pull packet off interface.
