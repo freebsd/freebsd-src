@@ -52,11 +52,11 @@ returns a pointer to the next logical line from the stream referenced by
 .Fa stream .
 This string is
 .Dv NUL
-terminated and it is dynamicaly allocated on each invocation.
+terminated and it is dynamically allocated on each invocation.
 It is the
 responsibility of the caller to free the pointer.
 .Pp
-By default, if a character is escaped, both it and the preceeding escape
+By default, if a character is escaped, both it and the preceding escape
 character will be present in the returned string.
 Various
 .Fa flags
@@ -112,13 +112,13 @@ The various flags, which may be
 together, are:
 .Bl -tag -width "FPARSELN_UNESCCOMM"
 .It Dv FPARSELN_UNESCCOMM
-Remove escape preceeding an escaped comment.
+Remove escape preceding an escaped comment.
 .It Dv FPARSELN_UNESCCONT
-Remove escape preceeding an escaped continuation.
+Remove escape preceding an escaped continuation.
 .It Dv FPARSELN_UNESCESC
-Remove escape preceeding an escaped escape.
+Remove escape preceding an escaped escape.
 .It Dv FPARSELN_UNESCREST
-Remove escape preceeding any other character.
+Remove escape preceding any other character.
 .It Dv FPARSELN_UNESCALL
 All of the above.
 .El
