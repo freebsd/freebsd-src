@@ -87,7 +87,11 @@ copy_file(FTSENT *entp, int dne)
 	 */
 	if (!dne) {
 #define YESNO "(y/n [n]) "
-		if (iflag) {
+		if (nflag) {
+			if (vflag)
+				printf("%s not overwritten\n", to.p_path);
+			return (0);
+		} else if (iflag) {
 			(void)fprintf(stderr, "overwrite %s? %s", 
 					to.p_path, YESNO);
 			checkch = ch = getchar();
@@ -300,7 +304,7 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n",
-"usage: cp [-R [-H | -L | -P]] [-f | -i] [-pv] src target",
-"       cp [-R [-H | -L | -P]] [-f | -i] [-pv] src1 ... srcN directory");
+"usage: cp [-R [-H | -L | -P]] [-f | -i | -n] [-pv] src target",
+"       cp [-R [-H | -L | -P]] [-f | -i | -n] [-pv] src1 ... srcN directory");
 	exit(EX_USAGE);
 }
