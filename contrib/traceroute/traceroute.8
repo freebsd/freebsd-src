@@ -13,7 +13,8 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
-.\"	$Header: /home/ncvs/src/contrib/traceroute/traceroute.8,v 1.4 1999/05/06 03:23:23 archie Exp $
+.\"	$Header: traceroute.8,v 1.7 96/09/27 20:02:41 leres Exp $
+.\"	$FreeBSD$
 .\"
 .TH TRACEROUTE 8 "27 September 1996"
 .UC 6
@@ -124,6 +125,9 @@ at the destination host (so an ICMP PORT_UNREACHABLE message will
 be returned to terminate the route tracing).  If something is
 listening on a port in the default range, this option can be used
 to pick an unused port range.
+.TP
+.B \-q
+Set the number of probes per hop (default is 3).
 .TP
 .B \-r
 Bypass the normal routing tables and send directly to a host on an attached
