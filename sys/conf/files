@@ -1044,6 +1044,7 @@ libkern/strlcpy.c	standard
 libkern/strlen.c	standard
 libkern/strncmp.c	standard
 libkern/strncpy.c	standard
+libkern/strsep.c	standard
 libkern/strtol.c	standard
 libkern/strtoq.c	standard
 libkern/strtoul.c	standard
