@@ -1,4 +1,4 @@
-SCRMAPS = koi8-r2cp866.scm default.scm
+SCRMAPS = koi8-r2cp866.scm
 
 SCRMAPS_MK = ${SCRMAPS:R:S/$/.mk/g}
 SCRDIR = /usr/share/syscons/scrnmaps
