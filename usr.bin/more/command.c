@@ -174,7 +174,7 @@ prompt()
 		repaint();
 
 	/* if no -e flag and we've hit EOF on the last file, quit. */
-	if ((!quit_at_eof || short_file) && hit_eof && curr_ac + 1 >= ac)
+	if (!quit_at_eof && hit_eof && curr_ac + 1 >= ac)
 		quit();
 
 	/* select the proper prompt and display it. */
