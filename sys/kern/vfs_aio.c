@@ -944,8 +944,17 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 
 	vp = (struct vnode *)fp->f_data;
 
-	if (!vn_isdisk(vp, &error))
-		return (error);
+	/*
+	 * If its not a disk, we don't want to return a positive error.
+	 * It causes the aio code to not fall through to try the thread
+	 * way when you're talking to a regular file.
+	 */
+	if (!vn_isdisk(vp, &error)) {
+		if (error == ENOTBLK)
+			return (-1);
+		else
+			return (error);
+	}
 
  	if (cb->aio_nbytes % vp->v_rdev->si_bsize_phys)
 		return (-1);
