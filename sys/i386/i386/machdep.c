@@ -1798,7 +1798,7 @@ physmap_done:
 			/*
 			 * block out kernel memory as not available.
 			 */
-			if (pa >= 0x100000 && pa < first)
+			if (pa >= KERNLOAD && pa < first)
 				continue;
 	
 			page_bad = FALSE;

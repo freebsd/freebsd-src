@@ -536,8 +536,6 @@ init_secondary(void)
 	cr0 = rcr0();
 	cr0 &= ~(CR0_CD | CR0_NW | CR0_EM);
 	load_cr0(cr0);
-
-	pmap_set_opt();
 }
 
 
@@ -926,7 +924,6 @@ mptable_pass2(void)
 	int     type;
 	int     apic, bus, cpu, intr;
 	int	i, j;
-	int	pgeflag;
 
 	POSTCODE(MPTABLE_PASS2_POST);
 
@@ -934,8 +931,6 @@ mptable_pass2(void)
 	bzero(&proc, sizeof(proc));
 	proc.type = 0;
 	proc.cpu_flags = PROCENTRY_FLAG_EN;
-
-	pgeflag = 0;		/* XXX - Not used under SMP yet.  */
 
 	MALLOC(io_apic_versions, u_int32_t *, sizeof(u_int32_t) * mp_napics,
 	    M_DEVBUF, M_WAITOK);
@@ -961,7 +956,7 @@ mptable_pass2(void)
 			/* use this slot if available */
 			if (((vm_offset_t)SMPpt[NPTEPG-2-j] & PG_FRAME) == 0) {
 				SMPpt[NPTEPG-2-j] = (pt_entry_t)(PG_V | PG_RW |
-				    pgeflag | (io_apic_address[i] & PG_FRAME));
+				    (io_apic_address[i] & PG_FRAME));
 				ioapic[i] = (ioapic_t *)((u_int)SMP_prvspace
 					+ (NPTEPG-2-j) * PAGE_SIZE
 					+ (io_apic_address[i] & PAGE_MASK));
@@ -2177,7 +2172,6 @@ start_all_aps(u_int boot_addr)
 
 	for (x = 0; x < NKPT; x++)
 		PTD[x] = 0;
-	pmap_set_opt();
 
 	/* number of APs actually started */
 	return mp_ncpus - 1;
@@ -2285,7 +2279,7 @@ start_ap(int logical_cpu, u_int boot_addr)
 	/* setup common fields for subsequent IPIs */
 	icr_lo = lapic.icr_lo & APIC_ICRLO_RESV_MASK;
 	icr_lo |= APIC_DESTMODE_PHY;
-	
+
 	/* do an INIT IPI: assert RESET */
 	lapic.icr_lo = icr_lo | APIC_DEST_DESTFLD | APIC_TRIGMOD_EDGE |
 	    APIC_LEVEL_ASSERT | APIC_DELMODE_INIT;
