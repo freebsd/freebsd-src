@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.107 1998/11/11 10:03:56 truckman Exp $
+ * $Id: tty.c,v 1.108 1998/11/22 09:04:09 bde Exp $
  */
 
 /*-
@@ -1452,6 +1452,7 @@ ttread(tp, uio, flag)
 	int s, first, error = 0;
 	int has_stime = 0, last_cc = 0;
 	long slp = 0;		/* XXX this should be renamed `timo'. */
+	struct timeval stime;
 
 loop:
 	s = spltty();
@@ -1508,7 +1509,7 @@ loop:
 	if (!ISSET(lflag, ICANON)) {
 		int m = cc[VMIN];
 		long t = cc[VTIME];
-		struct timeval stime, timecopy;
+		struct timeval timecopy;
 
 		/*
 		 * Check each of the four combinations.
