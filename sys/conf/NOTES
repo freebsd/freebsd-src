@@ -2794,6 +2794,12 @@ options 	SHMMNI=33
 # a single process at one time. 
 options 	SHMSEG=9
 
+# Set the amount of time (in seconds) the system will wait before
+# rebooting automatically when a kernel panic occurs.  If set to (-1),
+# the system will wait indefinitely until a key is pressed on the
+# console.
+options 	PANIC_REBOOT_WAIT_TIME=16
+
 #####################################################################
 
 # More undocumented options for linting.
@@ -2843,8 +2849,6 @@ options 	MSGTQL=41	# Max number of messages in system
 options 	NBUF=512	# Number of buffer headers
 
 options 	NMBCLUSTERS=1024	# Number of mbuf clusters
-
-options 	PANIC_REBOOT_WAIT_TIME=16
 
 options 	PSM_DEBUG=1
 
