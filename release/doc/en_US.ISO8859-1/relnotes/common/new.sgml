@@ -103,7 +103,8 @@
 
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
-    <para></para>
+    <para>A number of bugs have been fixed in the ULE
+      scheduler. &merged;</para>
 
     <sect3 id="boot">
       <title>Boot Loader Changes</title>
@@ -125,8 +126,16 @@
       <sect4 id="net-if">
 	<title>Network Interface Support</title>
 
+	<para arch="amd64">The &man.ndis.4; device driver wrapper now
+	  supports &windows;/x86-64 binaries on amd64
+	  systems.</para>
+
 	<para>The &man.sf.4; driver now has support for device polling
 	  and &man.altq.4;.</para>
+
+	<para>The &man.sk.4; driver now has support for &man.altq.4;.
+	  This driver also now supports jumbo frames on Yukon-based
+	  interfaces.</para>
 
       </sect4>
     </sect3>
@@ -165,7 +174,8 @@
       <title>Contributed Software</title>
 
       <para>A snapshot of <application>netcat</application> from OpenBSD
-	as of 4 February 2005 has been added.</para>
+	as of 4 February 2005 has been added.  More information can be
+        found in the &man.nc.1; manual page.</para>
 
       <para>The timezone database has been updated from
 	<application>tzdata2004e</application> to
@@ -191,6 +201,20 @@
     <para>The &man.ncal.1; utility now supports a <option>-m</option>
       flag to generate a calendar for a specified month in the current
       year.</para>
+
+    <para>The &man.ppp.8; program now implements an
+      <option>echo</option> parameter, which allows LCP ECHOs to be
+      enabled independently of LQR reports.  Older versions of
+      &man.ppp.8; would revert to LCP ECHO mode on negotiation
+      failure.  It is now necessary to specify <command>enable
+      echo</command> to get this behaviour. &merged;</para>
+
+    <para>&man.whois.1; now supports
+      a <option>-k</option> flag
+      for querying <hostid role="fqdn">whois.krnic.net</hostid>
+      (the National Internet Development Agency of Korea)
+      which hold details of IP address allocations within
+      Korea.</para>
 
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
