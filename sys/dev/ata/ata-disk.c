@@ -202,11 +202,9 @@ ad_attach(struct ata_device *atadev)
     atadev->flags = 0;
 
     ata_enclosure_print(atadev);
-
-    /* only print probe banner if we are not part of a RAID array */
-    if (!ata_raiddisk_attach(adp))
-	if (atadev->driver)
-	    ad_print(adp);
+    if (atadev->driver)
+	ad_print(adp);
+    ata_raiddisk_attach(adp);
 }
 
 void
@@ -248,9 +246,9 @@ adopen(struct disk *dp)
     struct ad_softc *adp = dp->d_drv1;
 
     if (adp->flags & AD_F_RAID_SUBDISK)
-	return EBUSY;
+	return EPERM;
 
-    /* hold off access to we are fully attached */
+    /* hold off access until we are fully attached */
     while (ata_delayed_attach)
 	tsleep(&ata_delayed_attach, PRIBIO, "adopn", 1);
     return 0;
