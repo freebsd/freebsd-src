@@ -1606,7 +1606,11 @@ em_setup_interface(device_t dev, struct adapter * adapter)
 		ifp->if_capabilities = IFCAP_HWCSUM;
 		ifp->if_capenable = ifp->if_capabilities;
 	}
-
+                
+        /*
+         * Tell the upper layer(s) we support long frames.
+         */
+        ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 #if __FreeBSD_version >= 500000
         ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
 #endif
