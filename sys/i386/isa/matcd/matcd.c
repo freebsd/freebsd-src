@@ -337,7 +337,7 @@ static char	MATCDVERSION[]="Version  1(26) 18-Oct-95";
 static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank Durda IV";
 /*	The proceeding strings may not be changed*/
 
-/* $Id: matcd.c,v 1.15 1996/03/28 14:29:52 scrappy Exp $ */
+/* $Id: matcd.c,v 1.16 1996/05/03 14:58:09 phk Exp $ */
 
 /*---------------------------------------------------------------------------
 	Include declarations
@@ -1382,6 +1382,7 @@ matcd_attach(struct isa_device *dev)
 #endif /*DEBUGPROBE*/
 	printf("matcdc%d Host interface type %d\n",
 		nextcontroller,iftype);
+	TAILQ_INIT(&request_head[nextcontroller]);
 	for (cdrive=0; cdrive<4; cdrive++) {	/*We're hunting drives...*/
 		zero_cmd(cmd);
 		cmd[0]=NOP;		/*A reasonably harmless command.

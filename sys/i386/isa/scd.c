@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.18 1996/03/28 14:28:50 scrappy Exp $ */
+/* $Id: scd.c,v 1.19 1996/05/03 14:57:25 phk Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -244,6 +244,7 @@ int scd_attach(struct isa_device *dev)
 
 	cd->flags = SCDINIT;
 	cd->audio_status = CD_AS_AUDIO_INVALID;
+	TAILQ_INIT(&cd->head);
 
 #ifdef DEVFS
 #define SCD_UID 0
