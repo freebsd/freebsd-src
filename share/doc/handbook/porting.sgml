@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.44 1996/11/27 03:54:50 max Exp $ -->
+<!-- $Id: porting.sgml,v 1.45 1996/12/05 11:21:47 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
@@ -856,6 +856,13 @@ FETCH_DEPENDS=   ncftp2:${PORTSDIR}/net/ncftp2
 	  license, set the variable <tt>NO_CDROM</tt>.  We will make
 	  sure such ports won't go into the CD-ROM come release time.
 	  The distfile and package will still be available via ftp.
+
+	<item>If the resulting package needs to be built uniquely for
+	  each site, or the resulting binary package can't be distributed
+	  due to licensing; set the variable <tt>NO_PACKAGE</tt>.
+	  We will make sure such packages won't go on the ftp site, nor 
+	  into the CD-ROM come release time.  The distfile will still be
+	  included on both however.
 
 	<item>If the port has legal restrictions on who can use it
 	  (e.g., crypto stuff) or has a `no commercial use' license,
