@@ -135,7 +135,6 @@
 #include "buf.h"
 #include "kernel.h"
 #include "ioctl.h"
-#include "tty.h"
 #include "uio.h"
 #include "syslog.h"
 #include "select.h"

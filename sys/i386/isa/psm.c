@@ -55,7 +55,6 @@
 #include <sys/buf.h>
 #include <sys/malloc.h>
 #include <sys/ioctl.h>
-#include <sys/tty.h>
 #include <sys/file.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>

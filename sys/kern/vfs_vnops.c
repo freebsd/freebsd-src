@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.14 1995/07/09 06:57:53 davidg Exp $
+ * $Id: vfs_vnops.c,v 1.15 1995/07/13 08:47:44 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -50,7 +50,6 @@
 #include <sys/namei.h>
 #include <sys/vnode.h>
 #include <sys/ioctl.h>
-#include <sys/tty.h>
 
 #include <vm/vm.h>
 #include <vm/vnode_pager.h>
