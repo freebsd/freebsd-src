@@ -43,18 +43,18 @@
 .Os
 .Sh NAME
 .Nm devfs
-.Nd device filesystem
+.Nd device file system
 .Sh SYNOPSIS
 devfs	/dev	devfs rw 0 0
 .Sh DESCRIPTION
-The device filesystem, or
+The device file system, or
 .Nm ,
 provides access to kernel's device
-namespace in the global filesystem namespace.
+namespace in the global file system namespace.
 The conventional mount point is
 .Pa /dev .
 .Pp
-The filesystem includes several directories, links, symbolic links
+The file system includes several directories, links, symbolic links
 and devices, some of which can also be written.  In a chroot'ed
 environment,
 .Nm
@@ -73,7 +73,7 @@ mount point.
 .Sh HISTORY
 The
 .Nm
-filesystem first appeared in
+file system first appeared in
 .Fx 2.0 .
 The
 .Nm

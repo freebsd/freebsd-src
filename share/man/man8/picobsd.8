@@ -30,15 +30,15 @@ in the server, it can be extremely useful to developers to
 test their code without having to reinstall the system.
 .Pp
 The boot media (typically a floppy disk) contains a boot loader and a
-compressed kernel which includes a memory filesystem.
+compressed kernel which includes a memory file system.
 Depending on the media, it might also contain a number of
 additional files, which can be updated at run time, and are
-used to override/update those in the memory filesystem.
+used to override/update those in the memory file system.
 .Pp
 The system loads the kernel in the normal way, uncompresses
-the memory filesystem and mounts it as root.
+the memory file system and mounts it as root.
 It then updates the memory
-filesystem with files from the boot media (if present),
+file system with files from the boot media (if present),
 and executes a specialized version of
 .Pa /etc/rc .
 The boot media (floppy, etc.) is
@@ -96,8 +96,8 @@ commands to be executed and waiting for user
 input before executing each of them.
 Useful for debugging.
 .It Fl -all_in_mfs
-Put the entire contents of the filesystem in the
-memory filesystem image which is contained in the
+Put the entire contents of the file system in the
+memory file system image which is contained in the
 kernel.
 This is the default behaviour, and is
 extremely useful as the kernel itself can be loaded,
@@ -233,7 +233,7 @@ option:
 options MD_ROOT_SIZE=4200      # same as def_sz
 .Ed
 .Pp
-This informs the script of the size of the memory filesystem and
+This informs the script of the size of the memory file system and
 provides a few other details on how to build the image.
 .It Pa crunch.conf
 .Xr crunchgen 1
@@ -317,7 +317,7 @@ because only the files that are actually loaded from the image
 contribute to the memory usage.
 .It Va import_files
 Contains a list of files to be imported in the floppy tree.
-Absolute names refer to the standard filesystem, relative
+Absolute names refer to the standard file system, relative
 names refer to the root of the source tree being used
 (i.e.\&
 .Va SRC_PATH/.. ) .
@@ -494,7 +494,7 @@ ethernet.
 .Pp
 After booting,
 .Nm
-loads the root filesystem from the memory filesystem, starts
+loads the root file system from the memory file system, starts
 .Pa /sbin/init ,
 and passes control to a first startup script,
 .Pa /etc/rc .
@@ -504,7 +504,7 @@ and
 .Pa /root
 directories with the default files, then tries to identify the boot
 device (floppy, hard disk partition) and possibly override the contents
-of the root filesystem with files read from the boot device.
+of the root file system with files read from the boot device.
 This allows you to store local configuration on the same media.
 After this phase the boot device is no longer used, unless the
 user specifically does it.

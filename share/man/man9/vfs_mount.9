@@ -31,7 +31,7 @@
 .Os
 .Sh NAME
 .Nm vfs_mount
-.Nd "generic filesystem mount function"
+.Nd "generic file system mount function"
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/mount.h
@@ -46,8 +46,8 @@
 .Sh DESCRIPTION
 The
 .Fn vfs_mount
-function handles the generic portion of mounting a filesystem,
-and calls the filesystem specific mount function after verifying
+function handles the generic portion of mounting a file system,
+and calls the file system specific mount function after verifying
 its parameters and setting up the structures expected by the
 underlying mount code.
 .Pp
@@ -61,9 +61,9 @@ Its arguments are:
 .It Fa td
 The thread responsible for this call.
 .It Fa fstype
-The type of filesystem being mounted.
+The type of file system being mounted.
 .It Fa fspath
-The path to the mount point of the filesystem.
+The path to the mount point of the file system.
 .It Fa fsflags
 Flags controlling the mount.
 See
@@ -75,11 +75,11 @@ for details.
 .Dv MNT_SNAPSHOT , MNT_NOCLUSTERR , MNT_NOCLUSTERW , MNT_IGNORE ,
 .Dv MNT_UNION , MNT_NOSYMFOLLOW
 .It Fa fsdata
-Filesystem specific data structure.
+File system specific data structure.
 It is in userspace
 when passed to
 .Fn vfs_mount
-and is left untouched when passed to filesystem's
+and is left untouched when passed to file system's
 .Fn mount .
 .El
 .Sh RETURN VALUES
@@ -92,7 +92,7 @@ path component is too long.
 .It Bq Er EPERM
 Permission denied.
 There are a number of reason this can occur
-ranging from the user not having permission to mount a filesystem
+ranging from the user not having permission to mount a file system
 to the securelevel being to high to load the
 .Fa fstype
 module.
@@ -105,7 +105,7 @@ The mount point does not exist (from
 The mount point is a muddle of links (from
 .Fn namei ) .
 .It Bq Er EOPNOTSUPP
-The operation is not supported (ex: reloading a r/w filesystem).
+The operation is not supported (ex: reloading a r/w file system).
 .It Bq Er EBUSY
 The mount point is busy or is not really a mount point (on update).
 .It Bq Er ENOTDIR
@@ -118,10 +118,10 @@ or was unable to find the specified
 module.
 .El
 .Pp
-Other errors can be returned by the filesystem's
+Other errors can be returned by the file system's
 .Fn mount
 and
-you should check the specific filesystem for details.
+you should check the specific file system for details.
 Also
 this call relies on a large number of other kernel services
 whose errors it returns so this list may not be exhaustive.

@@ -145,7 +145,7 @@ this option any VM pages you dirty may be flushed to disk every so often
 (every 30-60 seconds usually) which can create performance problems if you
 do not need that to occur (such as when you are using shared file-backed
 mmap regions for IPC purposes).
-Note that VM/filesystem coherency is
+Note that VM/file system coherency is
 maintained whether you use
 .Dv MAP_NOSYNC
 or not.
@@ -197,9 +197,9 @@ The
 .Xr msync 2
 system call is obsolete since
 .Bx
-implements a coherent filesystem buffer cache.
+implements a coherent file system buffer cache.
 However, it may be
-used to associate dirty VM pages with filesystem buffers and thus cause
+used to associate dirty VM pages with file system buffers and thus cause
 them to be flushed to physical media sooner rather then later.
 .It Dv MAP_PRIVATE
 Modifications are private.
@@ -346,8 +346,8 @@ this gives
 .Fx
 a maximum of 8TB filesizes.
 It is actually bugs in
-the filesystem code that causes the limit to be further restricted to
+the file system code that causes the limit to be further restricted to
 1TB (loss of precision when doing blockno calculations).
 .Pp
-Another reason for the 2GB limit is that filesystem metadata can
+Another reason for the 2GB limit is that file system metadata can
 reside at negative offsets.

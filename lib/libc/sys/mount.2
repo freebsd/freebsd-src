@@ -38,7 +38,7 @@
 .Sh NAME
 .Nm mount ,
 .Nm unmount
-.Nd mount or dismount a filesystem
+.Nd mount or dismount a file system
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -52,12 +52,12 @@
 The
 .Fn mount
 function grafts
-a filesystem object onto the system file tree
+a file system object onto the system file tree
 at the point
 .Ar dir .
 The argument
 .Ar data
-describes the filesystem object to be mounted.
+describes the file system object to be mounted.
 The argument
 .Ar type
 tells the kernel how to interpret
@@ -65,41 +65,41 @@ tells the kernel how to interpret
 (See
 .Ar type
 below).
-The contents of the filesystem
+The contents of the file system
 become available through the new mount point
 .Ar dir .
 Any files in
 .Ar dir
 at the time
 of a successful mount are swept under the carpet so to speak, and
-are unavailable until the filesystem is unmounted.
+are unavailable until the file system is unmounted.
 .Pp
 The following
 .Ar flags
 may be specified to
-suppress default semantics which affect filesystem access.
+suppress default semantics which affect file system access.
 .Bl -tag -width MNT_SYNCHRONOUS
 .It Dv MNT_RDONLY
-The filesystem should be treated as read-only;
+The file system should be treated as read-only;
 Even the super-user may not write on it.
 Specifying MNT_UPDATE without this option will upgrade
-a read-only filesystem to read/write.
+a read-only file system to read/write.
 .It Dv MNT_NOEXEC
-Do not allow files to be executed from the filesystem.
+Do not allow files to be executed from the file system.
 .It Dv MNT_NOSUID
 Do not honor setuid or setgid bits on files when executing them.
 .It Dv MNT_NOATIME
 Disable update of file access times.
 .It Dv MNT_NODEV
-Do not interpret special files on the filesystem.
+Do not interpret special files on the file system.
 .It Dv MNT_SUIDDIR
 Directories with the SUID bit set chown new files to their own owner.
 .It Dv MNT_SYNCHRONOUS
-All I/O to the filesystem should be done synchronously.
+All I/O to the file system should be done synchronously.
 .It Dv MNT_ASYNC
-All I/O to the filesystem should be done asynchronously.
+All I/O to the file system should be done asynchronously.
 .It Dv MNT_FORCE
-Force a read-write mount even if the filesystem appears to be unclean.
+Force a read-write mount even if the file system appears to be unclean.
 Dangerous.
 .It Dv MNT_NOCLUSTERR
 Disable read clustering.
@@ -110,41 +110,41 @@ Disable write clustering.
 The flag
 .Dv MNT_UPDATE
 indicates that the mount command is being applied
-to an already mounted filesystem.
+to an already mounted file system.
 This allows the mount flags to be changed without requiring
-that the filesystem be unmounted and remounted.
-Some filesystems may not allow all flags to be changed.
+that the file system be unmounted and remounted.
+Some file systems may not allow all flags to be changed.
 For example,
-many filesystems will not allow a change from read-write to read-only.
+many file systems will not allow a change from read-write to read-only.
 .Pp
 The flag
 .Dv MNT_RELOAD
 causes the vfs subsystem to update its data structures pertaining to
-the specified already mounted filesystem.
+the specified already mounted file system.
 .Pp
 The
 .Fa type
-argument names the filesystem.
-The types of filesystems known to the system can be obtained with
+argument names the file system.
+The types of file systems known to the system can be obtained with
 .Xr lsvfs 1 .
 .Pp
 .Fa Data
 is a pointer to a structure that contains the type
 specific arguments to mount.
 The format for these argument structures is described in the
-manual page for each filesystem.
-By convention filesystem manual pages are named
-by prefixing ``mount_'' to the name of the filesystem as returned by
+manual page for each file system.
+By convention file system manual pages are named
+by prefixing ``mount_'' to the name of the file system as returned by
 .Xr lsvfs 1 .
 Thus the
 .Nm NFS
-filesystem is described by the
+file system is described by the
 .Xr mount_nfs 8
 manual page.
 .Pp
 The
 .Fn unmount
-function call disassociates the filesystem from the specified
+function call disassociates the file system from the specified
 mount point
 .Fa dir .
 .Pp
@@ -152,12 +152,12 @@ The
 .Fa flags
 argument may specify
 .Dv MNT_FORCE
-to specify that the filesystem should be forcibly unmounted or made read-only
+to specify that the file system should be forcibly unmounted or made read-only
 (if MNT_UPDATE and MNT_RDONLY are also specified)
 even if files are still active.
 Active special devices continue to work,
 but any further accesses to any other active files result in errors
-even if the filesystem is later remounted.
+even if the file system is later remounted.
 .Pp
 The
 .Dv MNT_SUIDDIR
@@ -203,7 +203,7 @@ points outside the process's allocated address space.
 .Pp
 The following errors can occur for a
 .Em ufs
-filesystem mount:
+file system mount:
 .Bl -tag -width Er
 .It Bq Er ENODEV
 A component of ufs_args
@@ -223,11 +223,11 @@ is already mounted.
 .It Bq Er EMFILE
 No space remains in the mount table.
 .It Bq Er EINVAL
-The super block for the filesystem had a bad magic
+The super block for the file system had a bad magic
 number or an out of range block size.
 .It Bq Er ENOMEM
 Not enough memory was available to read the cylinder
-group information for the filesystem.
+group information for the file system.
 .It Bq Er EIO
 An I/O error occurred while reading the super block or
 cylinder group information.
@@ -238,7 +238,7 @@ points outside the process's allocated address space.
 .Pp
 The following errors can occur for a
 .Em nfs
-filesystem mount:
+file system mount:
 .Bl -tag -width Er
 .It Bq Er ETIMEDOUT
 .Em Nfs
@@ -265,9 +265,9 @@ Too many symbolic links were encountered in translating the pathname.
 The requested directory is not in the mount table.
 .It Bq Er EBUSY
 A process is holding a reference to a file located
-on the filesystem.
+on the file system.
 .It Bq Er EIO
-An I/O error occurred while writing cached filesystem information.
+An I/O error occurred while writing cached file system information.
 .It Bq Er EFAULT
 .Fa Dir
 points outside the process's allocated address space.
@@ -275,7 +275,7 @@ points outside the process's allocated address space.
 .Pp
 A
 .Em ufs
-mount can also fail if the maximum number of filesystems are currently
+mount can also fail if the maximum number of file systems are currently
 mounted.
 .Sh SEE ALSO
 .Xr lsvfs 1 ,

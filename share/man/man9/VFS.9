@@ -33,11 +33,11 @@
 .Dt VFS 9
 .Sh NAME
 .Nm VFS
-.Nd kernel interface to filesystems
+.Nd kernel interface to file systems
 .Sh DESCRIPTION
-Calls used to set or query filesystems for settings or information.
+Calls used to set or query file systems for settings or information.
 .Pp
-Filesystems that don't implement a VFS operation should use the appropriate
+File systems that don't implement a VFS operation should use the appropriate
 .Fa vfs_std
 function from
 .Pa src/sys/kern/vfs_default.c

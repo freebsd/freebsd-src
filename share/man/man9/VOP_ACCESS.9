@@ -76,7 +76,7 @@ vop_access(struct vnode *vp, int mode, struct ucred *cred, struct thread *td)
     int error;
 
     /*
-     * Disallow write attempts on read-only filesystems;
+     * Disallow write attempts on read-only file systems;
      * unless the file is a socket, fifo, or a block or
      * character device resident on the filesystem.
      */

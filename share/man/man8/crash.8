@@ -58,7 +58,7 @@ and then invokes an automatic reboot procedure as
 described in
 .Xr reboot 8 .
 Unless some unexpected inconsistency is encountered in the state
-of the filesystems due to hardware or software failure, the system
+of the file systems due to hardware or software failure, the system
 will then resume multi-user operations.
 .Pp
 The system has a large number of internal consistency checks; if one
@@ -78,12 +78,12 @@ error produced the message in some unexpected way.
 .Pp
 .Bl -diag -compact
 .It "cannot mount root"
-This panic message results from a failure to mount the root filesystem
+This panic message results from a failure to mount the root file system
 during the bootstrap process.
-Either the root filesystem has been corrupted,
-or the system is attempting to use the wrong device as root filesystem.
+Either the root file system has been corrupted,
+or the system is attempting to use the wrong device as root file system.
 Usually, an alternate copy of the system binary or an alternate root
-filesystem can be used to bring up the system to investigate.
+file system can be used to bring up the system to investigate.
 Most often
 this is done by the use of the boot floppy you used to install the system,
 and then using the
@@ -95,7 +95,7 @@ This is not a panic message, as reboots are likely to be futile.
 Late in the bootstrap procedure, the system was unable to locate
 and execute the initialization process,
 .Xr init 8 .
-The root filesystem is incorrect or has been corrupted, or the mode
+The root file system is incorrect or has been corrupted, or the mode
 or type of
 .Pa /sbin/init
 forbids execution or is totally missing.
@@ -108,11 +108,11 @@ forbids execution or is totally missing.
 .It "blkfree: freeing free frag"
 .It "ifree: freeing free inode"
 These panic messages are among those that may be produced
-when filesystem inconsistencies are detected.
-The problem generally results from a failure to repair damaged filesystems
+when file system inconsistencies are detected.
+The problem generally results from a failure to repair damaged file systems
 after a crash, hardware failures, or other condition that should not
 normally occur.
-A filesystem check will normally correct the problem.
+A file system check will normally correct the problem.
 .Pp
 .It "timeout table full"
 This really should not be a panic, but until the data structure

@@ -31,7 +31,7 @@
 .Os
 .Sh NAME
 .Nm vfs_getvfs
-.Nd "returns a mount point given its filesystem identifier"
+.Nd "returns a mount point given its file system identifier"
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/mount.h
@@ -40,9 +40,9 @@
 .Sh DESCRIPTION
 The
 .Fn vfs_getvfs
-function returns the mount point structure for a filesystem given its filesystem
+function returns the mount point structure for a file system given its file system
 identifier.
-The filesystem ID should have been allocated by calling
+The file system ID should have been allocated by calling
 .Xr vfs_getnewfsid 9 ;
 otherwise, it will not be found.
 .Pp
@@ -51,12 +51,12 @@ A major user of
 is NFS, which uses the
 .Vt fsid
 as part of file handles in order to determine the
-filesystem a given RPC is for.
+file system a given RPC is for.
 If
 .Fn vfs_getvfs
 fails to find the mount point related to
 .Fa fsid ,
-the filesystem is considered stale.
+the file system is considered stale.
 .Sh RETURN VALUES
 If
 .Fa fsid

@@ -31,7 +31,7 @@
 .Os
 .Sh NAME
 .Nm vfs_mountedon
-.Nd "check if the vnode belongs to a mounted filesystem"
+.Nd "check if the vnode belongs to a mounted file system"
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/mount.h
@@ -49,7 +49,7 @@ If the mount is valid, the vnode is considered to be busy.
 A common use of
 .Fn vfs_mountedon
 is to call it on device vnodes to determine if they are already associated with
-a filesystem.
+a file system.
 This is done to prevent multiple mounts on the same device.
 .Sh RETURN VALUES
 .Er EBUSY

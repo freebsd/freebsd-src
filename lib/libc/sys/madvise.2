@@ -104,8 +104,8 @@ modified again.
 .It Dv MADV_NOSYNC
 Request that the system not flush the data associated with this map to
 physical backing store unless it needs to.  Typically this prevents the
-filesystem update daemon from gratuitously writing pages dirtied
-by the VM system to physical disk.  Note that VM/filesystem coherency is
+file system update daemon from gratuitously writing pages dirtied
+by the VM system to physical disk.  Note that VM/file system coherency is
 always maintained, this feature simply ensures that the mapped data is
 only flush when it needs to be, usually by the system pager.
 .Pp

@@ -66,14 +66,14 @@ program.
 Communication is by
 .Tn RPC .
 Three modes of operation are supported by the current protocol.
-By default a list of mount points and auto-mounted filesystems
+By default a list of mount points and auto-mounted file systems
 is output.
 An alternative host can be specified using the
 .Fl h
 option.
 .Pp
 If directory names are given, as output by default,
-then per-filesystem information is displayed.
+then per file system information is displayed.
 .Sh OPTIONS
 .Bl -tag -width Ds
 .It Fl f
@@ -97,8 +97,8 @@ refresh
 open file handle on the log file, so that it can be rotated and compressed via
 daily cron jobs.
 .It Fl m
-Request the automounter to provide a list of mounted filesystems,
-including the number of references to each filesystem and any error
+Request the automounter to provide a list of mounted file systems,
+including the number of references to each file system and any error
 which occurred while mounting.
 .It Fl p
 Return the process ID of the remote or locally running
@@ -112,9 +112,9 @@ script.
 .It Fl s
 Request the automounter to provide system-wide mount statistics.
 .It Fl u
-Request the automounter to unmount the named filesystems
+Request the automounter to unmount the named file systems
 instead of providing information about them.  Unmounts are requested,
-not forced.  They merely cause the mounted filesystem to timeout,
+not forced.  They merely cause the mounted file system to timeout,
 which will be picked up by
 .Nm amd Ns \'s
 main scheduler thus causing the normal timeout action to be taken.

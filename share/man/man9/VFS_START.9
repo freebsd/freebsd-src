@@ -33,7 +33,7 @@
 .Dt VFS_START 9
 .Sh NAME
 .Nm VFS_START
-.Nd make a filesystem operational
+.Nd make a file system operational
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/mount.h
@@ -43,15 +43,15 @@
 .Sh DESCRIPTION
 This is called after
 .Xr VFS_MOUNT 9
-and before the first access to the filesystem.
+and before the first access to the file system.
 Its arguments are:
 .Bl -tag -width flags
 .It Ar mp
-The filesystem.
+The file system.
 .It Ar flags
 ??
 .It Ar td
-Thread which is starting the filesystem.
+Thread which is starting the file system.
 .El
 .Sh SEE ALSO
 .Xr VFS 9 ,
