@@ -181,7 +181,7 @@ maximum of 16, and the other, aforementioned options are now dynamic.
 [MERGED]
 
 The ahc(4) driver has been updated.  Among various improvements are
-improved compatability with chips in "RAID Port" mode and systems with
+improved compatibility with chips in "RAID Port" mode and systems with
 AAA and ARO cards installed, as well as performance
 improvements. [MERGED]
 
