@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.49 1997/07/21 13:11:14 kato Exp $
+ *  $Id: syscons.c,v 1.50 1997/07/26 01:36:10 kato Exp $
  */
 
 #include "sc.h"
@@ -155,7 +155,10 @@ static  long       	scrn_time_stamp;
 
 	char        	font_8[256*8];
 	char		font_14[256*14];
-extern	unsigned char	font_16[256*16];
+#ifdef STD8X16FONT
+extern
+#endif
+	unsigned char	font_16[256*16];
 	char        	palette[256*3];
 static  char		vgaregs[64];
 static	char 		*cut_buffer;
