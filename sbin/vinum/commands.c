@@ -137,8 +137,6 @@ vinum_create(int argc, char *argv[], char *arg0[])
     error = ioctl(superdev, VINUM_SAVECONFIG, &ioctltype);  /* save the config to disk */
     if (error != 0)
 	perror("Can't save Vinum config");
-    if (no_devfs)
-	make_devices();
     listconfig();
     checkupdates();					    /* make sure we're updating */
 }
@@ -162,8 +160,6 @@ vinum_read(int argc, char *argv[], char *arg0[])
     ioctl(superdev, VINUM_READCONFIG, &buffer);
     if (reply->error != 0) 				    /* error in config */
 	fprintf(stdout, "** %s: %s\n", reply->msg, strerror(reply->error));
-    else if (no_devfs)
-	make_devices();
     checkupdates();					    /* make sure we're updating */
 }
 
@@ -233,8 +229,6 @@ vinum_rm(int argc, char *argv[], char *arg0[])
 	}
 	checkupdates();					    /* make sure we're updating */
 	/* Arguably we should be cleverer about this. */
-	if (no_devfs)
-	    make_devices();
     }
 }
 
@@ -260,8 +254,6 @@ vinum_resetconfig(int argc, char *argv[], char *arg0[])
 		else
 		    perror("Can't find vinum config");
 	    } else {
-		if (no_devfs)
-		    make_devices();			    /* recreate the /dev/vinum hierarchy */
 		printf("\b Vinum configuration obliterated\n");
 		start_daemon();				    /* then restart the daemon */
 	    }
@@ -1502,8 +1494,6 @@ vinum_concat(int argc, char *argv[], char *argv0[])
     if (error != 0)
 	perror("Can't save Vinum config");
     find_object(objectname, &type);			    /* find the index of the volume */
-    if (no_devfs)
-	make_vol_dev(vol.volno, 1);			    /* and create the devices */
     if (vflag) {
 	vflag--;					    /* XXX don't give too much detail */
 	find_object(objectname, &type);			    /* point to the volume */
@@ -1648,8 +1638,6 @@ vinum_stripe(int argc, char *argv[], char *argv0[])
     if (error != 0)
 	perror("Can't save Vinum config");
     find_object(objectname, &type);			    /* find the index of the volume */
-    if (no_devfs)
-	make_vol_dev(vol.volno, 1);			    /* and create the devices */
     if (vflag) {
 	vflag--;					    /* XXX don't give too much detail */
 	find_object(objectname, &type);			    /* point to the volume */
@@ -1793,8 +1781,6 @@ vinum_raid4(int argc, char *argv[], char *argv0[])
     if (error != 0)
 	perror("Can't save Vinum config");
     find_object(objectname, &type);			    /* find the index of the volume */
-    if (no_devfs)
-	make_vol_dev(vol.volno, 1);			    /* and create the devices */
     if (vflag) {
 	vflag--;					    /* XXX don't give too much detail */
 	find_object(objectname, &type);			    /* point to the volume */
@@ -1938,8 +1924,6 @@ vinum_raid5(int argc, char *argv[], char *argv0[])
     if (error != 0)
 	perror("Can't save Vinum config");
     find_object(objectname, &type);			    /* find the index of the volume */
-    if (no_devfs)
-	make_vol_dev(vol.volno, 1);			    /* and create the devices */
     if (vflag) {
 	vflag--;					    /* XXX don't give too much detail */
 	find_object(objectname, &type);			    /* point to the volume */
@@ -2115,8 +2099,6 @@ vinum_mirror(int argc, char *argv[], char *argv0[])
     if (error != 0)
 	perror("Can't save Vinum config");
     find_object(objectname, &type);			    /* find the index of the volume */
-    if (no_devfs)
-	make_vol_dev(vol.volno, 1);			    /* and create the devices */
     if (vflag) {
 	vflag--;					    /* XXX don't give too much detail */
 	sflag = 0;					    /* no stats, please */
