@@ -39,7 +39,7 @@
 .Nm rc
 .Nd command scripts for auto\-reboot and daemon startup
 .Sh SYNOPSIS
-.Nm rc
+.Nm
 .Nm rc.conf
 .Nm rc.conf.local
 .Nm rc.d
@@ -139,11 +139,11 @@ is the command script which contains any necessary commands
 to be executed as the system is shut down.
 .Pp
 When an automatic reboot is in progress,
-.Nm rc
+.Nm
 is invoked with the argument
 .Em autoboot .
 The first portion of
-.Nm rc
+.Nm
 runs an
 .Xr fsck 8
 with option
@@ -152,13 +152,13 @@ to ``preen'' all the disks of minor inconsistencies resulting
 from the last system shutdown and to check for serious inconsistencies
 caused by hardware or software failure.
 If this auto-check and repair succeeds, then the second part of
-.Nm rc
+.Nm
 is run.
 .Pp
 The second part of
-.Nm rc ,
+.Nm ,
 which is run after an auto-reboot succeeds and also if
-.Nm rc
+.Nm
 is invoked when a single user shell terminates (see
 .Xr init 8 ) ,
 starts all the daemons on the system, preserves editor files
@@ -213,7 +213,7 @@ runs architecture specific programs.
 .Pp
 .Nm Rc.local
 is executed after the scripts above, but before the rest of the
-.Nm rc
+.Nm
 file is completed.
 In a default installation
 .Nm rc.local

@@ -40,7 +40,7 @@
 .Cd "device ed"
 .Sh DESCRIPTION
 The
-.Nm ed
+.Nm
 driver provides support for 8 and 16bit ethernet cards that are based on
 the National Semiconductor DS8390 and similar NICs manufactured by other companies.
 .Pp
@@ -108,7 +108,7 @@ The irq number that was specified in the kernel config file (and then compiled
 into the kernel) differs from the irq that has been set on the interface card.
 .It "ed%d: failed to clear shared memory at %x - check configuration."
 When the card was probed at system boot time, the
-.Nm ed
+.Nm
 driver found that it could not clear the card's shared memory.
 This is most commonly
 caused by a BIOS extension ROM being configured in the same address space as the
@@ -174,7 +174,7 @@ In addition, you should also specify
 to take advantage of the extra 8k of shared memory that 16bit mode provides.
 .Sh BUGS
 The
-.Nm ed
+.Nm
 driver is a bit too aggressive about resetting the card whenever any bad
 packets are received.
 As a result, it may throw out some good packets which
@@ -186,7 +186,7 @@ have been received but not yet transfered from the card to main memory.
 .Xr ifconfig 8
 .Sh HISTORY
 The
-.Nm ed
+.Nm
 device driver first appeared in
 .Fx 1.0 .
 .Sh AUTHORS
