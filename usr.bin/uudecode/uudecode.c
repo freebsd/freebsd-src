@@ -140,12 +140,12 @@ decode2(flag)
 {
 	struct passwd *pw;
 	register int n;
-	register char ch, first, *p;
-	int mode, n1;
+	register char ch, *p;
+	int ignore, mode, n1;
 	char buf[MAXPATHLEN];
 	char buffn[MAXPATHLEN]; /* file name buffer */
 
-	
+	ignore = 0;
 	/* search for header line */
 	do {
 		if (!fgets(buf, sizeof(buf), stdin)) {
@@ -197,9 +197,10 @@ decode2(flag)
 		; /* print to stdout */
 
 	else {
-		if (iflag && !access(buf, F_OK))
+		if (iflag && !access(buf, F_OK)) {
 			(void)fprintf(stderr, "not overwritten: %s\n", buf);
-		if (!freopen(buf, "w", stdout) ||
+			ignore++;
+		} else if (!freopen(buf, "w", stdout) ||
 		    fchmod(fileno(stdout), mode&0666)) {
 			warn("%s: %s", buf, filename);
 			return(1);
@@ -224,6 +225,9 @@ decode2(flag)
  	filename, buffn, 1 + ' ', 077 + ' ' + 1); \
         return(1); \
 }
+#define PUTCHAR(c) \
+if (!ignore) \
+	putchar(c)
 
 
 		/*
@@ -239,11 +243,11 @@ decode2(flag)
                                 	OUT_OF_RANGE
 
 				ch = DEC(p[0]) << 2 | DEC(p[1]) >> 4;
-				putchar(ch);
+				PUTCHAR(ch);
 				ch = DEC(p[1]) << 4 | DEC(p[2]) >> 2;
-				putchar(ch);
+				PUTCHAR(ch);
 				ch = DEC(p[2]) << 6 | DEC(p[3]);
-				putchar(ch);
+				PUTCHAR(ch);
 				
 			}
 			else {
@@ -251,7 +255,7 @@ decode2(flag)
 					if (!(IS_DEC(*p) && IS_DEC(*(p + 1))))
 	                                	OUT_OF_RANGE
 					ch = DEC(p[0]) << 2 | DEC(p[1]) >> 4;
-					putchar(ch);
+					PUTCHAR(ch);
 				}
 				if (n >= 2) {
 					if (!(IS_DEC(*(p + 1)) && 
@@ -259,14 +263,14 @@ decode2(flag)
 		                                OUT_OF_RANGE
 
 					ch = DEC(p[1]) << 4 | DEC(p[2]) >> 2;
-					putchar(ch);
+					PUTCHAR(ch);
 				}
 				if (n >= 3) {
 					if (!(IS_DEC(*(p + 2)) && 
 						IS_DEC(*(p + 3))))
 		                                OUT_OF_RANGE
 					ch = DEC(p[2]) << 6 | DEC(p[3]);
-					putchar(ch);
+					PUTCHAR(ch);
 				}
 			}
 	}
