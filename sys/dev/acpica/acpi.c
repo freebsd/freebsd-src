@@ -1045,6 +1045,8 @@ acpi_AppendBufferResource(ACPI_BUFFER *buf, ACPI_RESOURCE *res)
 	if ((newp = AcpiOsAllocate(buf->Length * 2)) == NULL)
 	    return(AE_NO_MEMORY);
 	bcopy(buf->Pointer, newp, buf->Length);
+        rp = (ACPI_RESOURCE *)((u_int8_t *)newp +
+			       ((u_int8_t *)rp - (u_int8_t *)buf->Pointer));
 	AcpiOsFree(buf->Pointer);
 	buf->Pointer = newp;
 	buf->Length += buf->Length;
