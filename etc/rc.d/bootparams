@@ -7,13 +7,22 @@
 # PROVIDE: bootparams
 # REQUIRE: rpcbind DAEMON
 # BEFORE:  LOGIN
+# KEYWORD: FreeBSD
 
 . /etc/rc.subr
 
 name="bootparamd"
-rcvar=$name
-command="/usr/sbin/rpc.${name}"
+rcvar=`set_rcvar`
 required_files="/etc/bootparams"
+
+case `${CMD_OSTYPE}` in
+FreeBSD)
+	command="/usr/sbin/${name}"
+	;;
+NetBSD)
+	command="/usr/sbin/rpc.${name}"
+	;;
+esac
 
 load_rc_config $name
 run_rc_command "$1"
