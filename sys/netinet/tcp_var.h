@@ -451,6 +451,11 @@ struct	xtcpcb {
 };
 #endif
 
+struct tcp_ident_mapping {
+	struct sockaddr_storage faddr, laddr;
+	uid_t euid, ruid;
+};
+
 /*
  * Names for TCP sysctl objects
  */
@@ -467,7 +472,8 @@ struct	xtcpcb {
 #define	TCPCTL_DELACKTIME	12	/* time before sending delayed ACK */
 #define	TCPCTL_V6MSSDFLT	13	/* MSS default for IPv6 */
 #define	TCPCTL_SACK		14	/* Selective Acknowledgement,rfc 2018 */
-#define	TCPCTL_MAXID		15
+#define	TCPCTL_DROP		15	/* drop tcp connection */
+#define	TCPCTL_MAXID		16
 
 #define TCPCTL_NAMES { \
 	{ 0, 0 }, \
