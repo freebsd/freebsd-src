@@ -61,15 +61,11 @@ static char sccsid[] = "@(#)fstat.c	8.3 (Berkeley) 5/2/95";
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
 #undef KERNEL
-#define NFS
 #include <sys/mount.h>
 #include <nfs/nfsproto.h>
 #include <nfs/rpcv2.h>
-#define	KERNEL
 #include <nfs/nfs.h>
-#undef KERNEL
 #include <nfs/nfsnode.h>
-#undef NFS
 
 #include <net/route.h>
 #include <netinet/in.h>
