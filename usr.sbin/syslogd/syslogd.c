@@ -984,6 +984,7 @@ fprintlog(f, flags, msg)
 	v++;
 
 	if (msg) {
+		/* XXX should check for NULL return */
 		wmsg = strdup(msg); /* XXX iov_base needs a `const' sibling. */
 		v->iov_base = wmsg;
 		v->iov_len = strlen(msg);
@@ -1245,6 +1246,7 @@ cvthname(f)
 		dprintf("Host name for your address (%s) unknown\n", ip);
 		return (ip);
 	}
+	/* XXX Not quite correct, but close enough for government work. */
 	if ((p = strchr(hname, '.')) && strcasecmp(p + 1, LocalDomain) == 0)
 		*p = '\0';
 	return (hname);
@@ -1384,8 +1386,10 @@ init(signo)
 	/* open the configuration file */
 	if ((cf = fopen(ConfFile, "r")) == NULL) {
 		dprintf("cannot open %s\n", ConfFile);
+		/* XXX should check for NULL return */
 		*nextp = (struct filed *)calloc(1, sizeof(*f));
 		cfline("*.ERR\t/dev/console", *nextp, "*", "*");
+		/* XXX should check for NULL return */
 		(*nextp)->f_next = (struct filed *)calloc(1, sizeof(*f));
 		cfline("*.PANIC\t*", (*nextp)->f_next, "*", "*");
 		Initialized = 1;
@@ -1414,7 +1418,7 @@ init(signo)
 				continue;
 		}
 		if (*p == '+' || *p == '-') {
-			host[0] = *++p;
+			host[0] = *p++;
 			while (isspace(*p))
 				p++;
 			if ((!*p) || (*p == '*')) {
@@ -1449,6 +1453,7 @@ init(signo)
 		for (p = strchr(cline, '\0'); isspace(*--p);)
 			continue;
 		*++p = '\0';
+		/* XXX should check for NULL return */
 		f = (struct filed *)calloc(1, sizeof(*f));
 		*nextp = f;
 		nextp = &f->f_next;
@@ -1539,13 +1544,24 @@ cfline(line, f, prog, host)
 	/* save hostname if any */
 	if (host && *host == '*')
 		host = NULL;
-	if (host)
+	if (host) {
+		int hl, dl;
+
+		/* XXX should check for NULL return */
 		f->f_host = strdup(host);
+		hl = strlen(f->f_host);
+		if (f->f_host[hl-1] == '.')
+			f->f_host[--hl] = '\0';
+		dl = strlen(LocalDomain) + 1;
+		if (hl > dl && f->f_host[hl-dl] == '.')
+			f->f_host[hl-dl] = '\0';
+	}
 
 	/* save program name if any */
 	if (prog && *prog == '*')
 		prog = NULL;
 	if (prog)
+		/* XXX should check for NULL return */
 		f->f_program = strdup(prog);
 
 	/* scan through the list of selectors */
@@ -2023,6 +2039,7 @@ allowaddr(s)
 	if ((AllowedPeers = realloc(AllowedPeers,
 				    ++NumAllowed * sizeof(struct allowedpeer)))
 	    == NULL) {
+		/* XXX should use err()... consistency! */
 		fprintf(stderr, "Out of memory!\n");
 		exit(EX_OSERR);
 	}
@@ -2176,6 +2193,7 @@ p_open(prog, pid)
 		return -1;
 
 	case 0:
+		/* XXX should check for NULL return */
 		argv[0] = strdup("sh");
 		argv[1] = strdup("-c");
 		argv[2] = strdup(prog);
@@ -2249,8 +2267,8 @@ deadq_enter(pid, name)
 	}
 
 	p = malloc(sizeof(struct deadq_entry));
-	if (p == 0) {
-		errno = 0;
+	if (p == NULL) {
+		errno = 0; /* XXX why?  isn't ENOMEM good enough? */
 		logerror("panic: out of virtual memory!");
 		exit(1);
 	}
@@ -2324,7 +2342,7 @@ socksetup(af, bindhostname)
 	/* Count max number of sockets we may open */
 	for (maxs = 0, r = res; r; r = r->ai_next, maxs++);
 	socks = malloc((maxs+1) * sizeof(int));
-	if (!socks) {
+	if (socks == NULL) {
 		logerror("couldn't allocate memory for sockets");
 		die(0);
 	}
