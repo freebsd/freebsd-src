@@ -108,7 +108,9 @@ for the specified size.
 .Pp
 The
 .Fn reallocf
-function call is identical to the realloc function call, except that it
+function is identical to
+.Fn realloc
+except that it
 will free the passed pointer when the requested memory cannot be allocated.
 .Pp
 The
@@ -139,7 +141,7 @@ Causes the allocated memory to be set to all zeros.
 Causes
 .Fn malloc ,
 .Fn realloc ,
-or
+and
 .Fn reallocf
 to return
 .Dv NULL
@@ -154,7 +156,7 @@ rather then block.
 Note that
 .Dv M_WAITOK
 is defined to be 0, meaning that blocking operation is the default.
-Also note that 
+Also note that
 .Dv M_NOWAIT
 is required when running in an interrupt context.
 .It Dv M_WAITOK
@@ -214,7 +216,7 @@ MALLOC(buf, struct foo_buf *, sizeof *buf, M_FOOBUF, M_NOWAIT);
 .Fn malloc ,
 .Fn realloc ,
 and
-.Fn reallocf 
+.Fn reallocf
 return a kernel virtual address that is suitably aligned for storage of
 any type of object, or
 .Dv NULL
