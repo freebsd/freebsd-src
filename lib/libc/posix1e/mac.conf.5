@@ -45,12 +45,18 @@ in addition to blank lines and comments preceded by a
 .Ql #
 symbol.
 .Pp
-Each declaration consists of a single line with two fields separated
-by white space: the object class name, and a list of label elements
-as used by the
+Currently, the implementation supports two syntax styles for label
+element declaration. The old (deprecated) syntax consists of a
+single line with two fields separated by white space: the object
+class name, and a list of label elements as used by the
 .Xr mac_prepare 3
 library calls prior to an application invocation of a function from
 .Xr mac_get 3 .
+.Pp
+The newer more preferred syntax consists of three fields separated by
+white space: the label group, object class name and a list of
+label elements.
+.Pp
 Label element names may optionally begin with a
 .Ql \&?
 symbol to indicate that a failure to retrieve the label element for
@@ -67,7 +73,14 @@ and
 .Bd -literal -offset indent
 #
 # Default label set to be used by simple MAC applications
+
+default_labels file ?biba,?lomac,?mls,?sebsd
+default_labels ifnet ?biba,?lomac,?mls,?sebsd
+default_labels process ?biba,?lomac,?mls,?partition,?sebsd
+default_labels socket ?biba,?lomac,?mls
+
 #
+# Deprecated (old) syntax
 
 default_file_labels ?biba,?mls,?sebsd
 default_ifnet_labels ?biba,?mls,?sebsd
