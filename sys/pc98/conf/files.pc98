@@ -178,7 +178,7 @@ i386/isa/bs/bsif.c		optional	bs
 #i386/isa/adv_isa.c		optional	adv
 i386/isa/asc.c			optional	asc
 i386/isa/atapi-cd.c		optional	wcd
-i386/isa/atapi.c		optional	wdc
+pc98/pc98/atapi.c		optional	wdc
 pc98/pc98/clock.c		standard
 i386/isa/cronyx.c		optional	cx
 i386/isa/ctx.c			optional	ctx
