@@ -1873,9 +1873,9 @@ allowaddr(s)
 		if (res->ai_family == AF_INET) {
 			ap.a_mask.ss_len = sizeof(struct sockaddr_in);
 			maskp = &((struct sockaddr_in *)&ap.a_mask)->sin_addr;
+			addrp = &((struct sockaddr_in *)&ap.a_addr)->sin_addr;
 			if (masklen < 0) {
 				/* use default netmask */
-				addrp = &((struct sockaddr_in *)&ap.a_addr)->sin_addr;
 				if (IN_CLASSA(ntohl(addrp->s_addr)))
 					maskp->s_addr = htonl(IN_CLASSA_NET);
 				else if (IN_CLASSB(ntohl(addrp->s_addr)))
@@ -1889,6 +1889,8 @@ allowaddr(s)
 				freeaddrinfo(res);
 				return -1;
 			}
+			/* Lose any host bits in the network number. */
+			addrp->s_addr &= maskp->s_addr;
 		}
 #ifdef INET6
 		else if (res->ai_family == AF_INET6 && masklen <= 128) {
