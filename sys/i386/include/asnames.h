@@ -194,6 +194,7 @@
 #define _cpu_feature			cpu_feature
 #define _cpu_fxsr			cpu_fxsr
 #define _cpu_high			cpu_high
+#define _cpu_procinfo			cpu_procinfo
 #define _cpu_id				cpu_id
 #define _cpu_idle			cpu_idle
 #define _cpu_num_to_apic_id		cpu_num_to_apic_id
