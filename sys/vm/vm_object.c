@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.159 1999/07/11 18:30:32 alc Exp $
+ * $Id: vm_object.c,v 1.160 1999/07/16 05:11:36 alc Exp $
  */
 
 /*
@@ -154,7 +154,6 @@ _vm_object_allocate(type, size, object)
 	object->flags = 0;
 	if ((object->type == OBJT_DEFAULT) || (object->type == OBJT_SWAP))
 		vm_object_set_flag(object, OBJ_ONEMAPPING);
-	object->behavior = OBJ_NORMAL;
 	object->paging_in_progress = 0;
 	object->resident_page_count = 0;
 	object->shadow_count = 0;
