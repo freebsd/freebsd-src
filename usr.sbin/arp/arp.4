@@ -124,6 +124,15 @@ The route for the referenced host points to a device upon which ARP is
 required, but ARP was unable to allocate a routing table entry in which
 to store the host's MAC address.  This usually points to a misconfigured
 routing table.  It can also occur if the kernel cannot allocate memory.
+.Pp
+.Em "arp: %d.%d.%d.%d is on if0 but got reply from %x:%x:%x:%x:%x:%x on if1" :
+Physical connections exist to the same logical IP network on both if0 and if1.
+It can also occur if an entry already exists in the ARP cache for the IP
+address above, and the cable has been disconnected from if0, then reconnected
+to if1.
+This message can only be issued if the sysctl
+.Dv net.link.ether.inet.log_arp_wrong_iface
+is set to 1, which is the system's default behaviour.
 .Sh SEE ALSO
 .Xr inet 4 ,
 .Xr route 4 ,
