@@ -47,6 +47,13 @@
 .Nm Pwd
 writes the absolute pathname of the current working directory to
 the standard output.
+.Pp
+Some shells may provide a builtin
+.Nm
+command which is similar or identical to this utility. Consult
+the
+.Xr builtin 1
+manual page.
 .Sh DIAGNOSTICS
 The
 .Nm
@@ -58,14 +65,17 @@ utility is expected to be
 .St -p1003.2
 compatible.
 .Sh SEE ALSO
+.Xr builtin 1 ,
 .Xr cd 1 ,
 .Xr csh 1 ,
-.Xr getcwd 3
+.Xr getcwd 3 ,
+.Xr sh 1
 .Sh BUGS
 In
 .Xr csh  1
 the command
 .Ic dirs
-is always faster (although it can give a different answer in the rare case
+is always faster because it is built into that shell. However,
+it can give a different answer in the rare case
 that the current directory or a containing directory was moved after
-the shell descended into it).
+the shell descended into it.

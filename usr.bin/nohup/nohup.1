@@ -68,6 +68,13 @@ as the standard output.
 .Nm Nohup
 exits 1 if an error occurs, otherwise the exit status is that of
 .Ar command  .
+.Pp
+Some shells may provide a builtin
+.Nm
+command which is similar or identical to this utility. Consult
+the
+.Xr builtin 1
+manual page.
 .Sh ENVIRONMENT
 The following variable is utilized by
 .Nm nohup .
@@ -82,6 +89,8 @@ utility uses the directory named by
 to create the file.
 .El
 .Sh SEE ALSO
+.Xr builtin 1 ,
+.Xr csh 1 ,
 .Xr signal 3
 .Sh STANDARDS
 The
