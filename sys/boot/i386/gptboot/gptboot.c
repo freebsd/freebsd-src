@@ -14,7 +14,7 @@
  */
 
 /*
- *	$Id: boot2.c,v 1.5 1998/10/13 23:00:47 rnordier Exp $
+ *	$Id: boot2.c,v 1.6 1998/10/13 23:43:38 rnordier Exp $
  */
 
 #include <sys/param.h>
@@ -34,14 +34,21 @@
 
 #include <btxv86.h>
 
+#include "lib.h"
+
 #define RBX_ASKNAME	0x0	/* -a */
 #define RBX_SINGLE	0x1	/* -s */
 #define RBX_DFLTROOT	0x5	/* -r */
 #define RBX_KDB 	0x6	/* -d */
 #define RBX_CONFIG	0xa	/* -c */
 #define RBX_VERBOSE	0xb	/* -v */
+#define RBX_SERIAL	0xc	/* -h */
 #define RBX_CDROM	0xd	/* -C */
 #define RBX_GDB 	0xf	/* -g */
+#define RBX_DUAL	0x1d	/* -D */
+#define RBX_PROBEKBD	0x1e	/* -P */
+
+#define RBX_MASK	0xffff
 
 #define PATH_CONFIG	"/boot.config"
 #define PATH_BOOT3	"/boot/loader"
@@ -49,7 +56,8 @@
 #define PATH_HELP	"boot.help"
 
 #define ARGS		0x800
-#define NOPT		8
+#define NOPT		11
+#define XOPT		2
 #define BSIZEMAX	8192
 #define NDEV		5
 #define MEM_BASE	0x12
@@ -67,13 +75,16 @@
 
 extern uint32_t _end;
 
-static const char optstr[NOPT] = "aCcdgrsv";
+static const char optstr[NOPT] = "DhaCcdgPrsv";
 static const unsigned char flags[NOPT] = {
+    RBX_DUAL,
+    RBX_SERIAL,
     RBX_ASKNAME,
     RBX_CDROM,
     RBX_CONFIG,
     RBX_KDB,
     RBX_GDB,
+    RBX_PROBEKBD,
     RBX_DFLTROOT,
     RBX_SINGLE,
     RBX_VERBOSE
@@ -98,6 +109,7 @@ static uint32_t opts;
 static struct bootinfo bootinfo;
 static int ls;
 static uint32_t fs_off;
+static uint8_t ioctrl = 0x1;
 
 void exit(int);
 static void load(const char *);
@@ -119,8 +131,10 @@ static uint32_t memsize(int);
 static uint32_t drvinfo(int);
 static int drvread(void *, unsigned, unsigned);
 static int keyhit(unsigned);
-static int putch(int);
-static int getch(void);
+static int xputc(int);
+static int xgetc(int);
+static void putc(int);
+static int getc(int);
 
 int
 main(void)
@@ -163,6 +177,8 @@ main(void)
 	       "boot: ",
 	       dsk.drive & DRV_MASK, dev_nm[dsk.type], dsk.unit,
 	       'a' + dsk.part, kname, helpon ? help : "");
+	if (ioctrl & 0x2)
+	    sio_flush();
 	if (!autoboot || keyhit(0x5a))
 	    getstr(cmd, sizeof(cmd));
 	autoboot = helpon = 0;
@@ -279,7 +295,7 @@ load(const char *fname)
     bootinfo.bi_esymtab = VTOP(p);
     printf("]\nentry=0x%x\n", addr);
     bootinfo.bi_kernelname = VTOP(fname);
-    __exec((caddr_t)addr, RB_BOOTINFO | opts,
+    __exec((caddr_t)addr, RB_BOOTINFO | (opts & RBX_MASK),
 	   MAKEBOOTDEV(dsk.type, 0, dsk.slice, dsk.unit, dsk.part),
 	   0, 0, 0, VTOP(&bootinfo));
 }
@@ -296,14 +312,27 @@ parse(char *arg)
 	for (p = arg; *p && *p != '\n' && *p != ' '; p++);
 	if (*p)
 	    *p++ = 0;
-	if (c == '-')
+	if (c == '-') {
 	    while ((c = *arg++)) {
 		for (i = 0; c != optstr[i]; i++)
 		    if (i == NOPT - 1)
 			return -1;
-		opts |= 1 << flags[i];
+		if (i < XOPT)
+		    opts ^= 1 << flags[i];
+		else
+		    opts |= 1 << flags[i];
 	    }
-	else {
+	    if (opts & 1 << RBX_PROBEKBD) {
+		i = *(uint8_t *)PTOV(0x496) & 0x10;
+		printf("Keyboard: %s\n", i ? "yes" : "no");
+		if (!i)
+		    opts |= 1 << RBX_DUAL | 1 << RBX_SERIAL;
+	    }
+	    ioctrl = opts & 1 << RBX_DUAL ? 0x3 :
+		     opts & 1 << RBX_SERIAL ? 0x2 : 0x1;
+	    if (ioctrl & 0x2)
+	        sio_init();
+	} else {
 	    for (q = arg--; *q && *q != '('; q++);
 	    if (*q) {
 		drv = -1;
@@ -634,8 +663,8 @@ static int
 putchar(int c)
 {
     if (c == '\n')
-	putch('\r');
-    return putch(c);
+	xputc('\r');
+    return xputc(c);
 }
 
 static int
@@ -643,7 +672,7 @@ getchar(void)
 {
     int c;
 
-    c = getch();
+    c = xgetc(0);
     if (c == '\r')
 	c = '\n';
     return c;
@@ -731,10 +760,7 @@ keyhit(unsigned ticks)
 
     t0 = 0;
     for (;;) {
-	v86.addr = 0x16;
-	v86.eax = 0x100;
-	v86int();
-	if (!V86_ZR(v86.efl))
+	if (xgetc(1))
 	    return 1;
 	t1 = *(uint32_t *)PTOV(0x46c);
 	if (!t0)
@@ -745,20 +771,42 @@ keyhit(unsigned ticks)
 }
 
 static int
-putch(int c)
+xputc(int c)
+{
+    if (ioctrl & 0x1)
+	putc(c);
+    if (ioctrl & 0x2)
+	sio_putc(c);
+    return c;
+}
+
+static int
+xgetc(int fn)
+{
+    for (;;) {
+	if (ioctrl & 0x1 && getc(1))
+	    return fn ? 1 : getc(0);
+	if (ioctrl & 0x2 && sio_ischar())
+	    return fn ? 1 : sio_getc();
+	if (fn)
+	    return 0;
+    }
+}
+
+static void
+putc(int c)
 {
     v86.addr = 0x10;
     v86.eax = 0xe00 | (c & 0xff);
     v86.ebx = 0x7;
     v86int();
-    return c;
 }
 
 static int
-getch(void)
+getc(int fn)
 {
     v86.addr = 0x16;
-    v86.eax = 0;
+    v86.eax = fn << 8;
     v86int();
-    return v86.eax & 0xff;
+    return fn == 0 ? v86.eax & 0xff : !V86_ZR(v86.efl);
 }

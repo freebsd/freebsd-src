@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.4 1998/10/14 00:24:16 rnordier Exp $
+#	$Id: Makefile,v 1.5 1998/10/14 01:53:56 rnordier Exp $
 
 PROG=		boot2
 NOMAN=
@@ -6,7 +6,8 @@ STRIP=
 BINDIR?=	/boot
 BINMODE=	444
 CLEANFILES+=	boot1 boot1.out boot1.o \
-		boot2.ldr boot2.bin boot2.ld boot2.out boot2.o
+		boot2.ldr boot2.bin boot2.ld boot2.out boot2.o \
+		sio.o
 
 M4?=	m4
 
@@ -52,9 +53,12 @@ boot2.ldr:
 boot2.bin: boot2.out
 	objcopy -S -O binary boot2.out ${.TARGET}
 
-boot2.out: boot2.o
+boot2.out: boot2.o sio.o
 	${LD} ${LDFLAGS} -Ttext ${ORG2} -o ${.TARGET} \
-		${BTX}/lib/crt0.o boot2.o
+		${BTX}/lib/crt0.o boot2.o sio.o
+
+sio.o: sio.s
+	${AS} ${AFLAGS} -o ${.TARGET} sio.s
 
 install:
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
