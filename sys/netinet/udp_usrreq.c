@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
- *	$Id: udp_usrreq.c,v 1.50 1999/04/28 11:37:51 phk Exp $
+ *	$Id: udp_usrreq.c,v 1.51 1999/05/03 23:57:32 billf Exp $
  */
 
 #include <sys/param.h>
@@ -78,7 +78,7 @@ SYSCTL_INT(_net_inet_udp, OID_AUTO, log_in_vain, CTLFLAG_RW,
     &log_in_vain, 0, "Log all incoming UDP packets");
 
 static struct	inpcbhead udb;		/* from udp_var.h */
-static struct	inpcbinfo udbinfo;
+struct inpcbinfo udbinfo;
 
 #ifndef UDBHASHSIZE
 #define UDBHASHSIZE 16
