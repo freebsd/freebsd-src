@@ -13,6 +13,7 @@ SRCS+=	lstAppend.c lstAtEnd.c lstAtFront.c lstClose.c lstConcat.c \
 	lstMember.c lstNext.c lstOpen.c lstRemove.c lstReplace.c lstSucc.c
 .PATH:	${.CURDIR}/lst.lib
 
+WARNS?=	3
 NOSHARED?=	YES
 
 CFLAGS+=-DMAKE_VERSION=\"5200408120\"
