@@ -31,59 +31,45 @@ will search '/', and all subdirectories, for files with 'GENERIC' in the name.
 %
 In tcsh, you can `set autolist' to have the shell automatically show
 all the possible matches when doing filename/directory expansion.
-		--  Giorgos Keramidas <keramida@ceid.upatras.gr>
 %
 You can `set autologout = 30' to have tcsh log you off automatically
 if you leave the shell idle for more than 30 seconds.
-		--  Giorgos Keramidas <keramida@ceid.upatras.gr>
 %
 If you `set filec' (file completion) in tcsh and write a part of the
 filename, pressing TAB will show you the available choices when there
 is more than one, or complete the filename if there's only one match.
-		--  Giorgos Keramidas <keramida@ceid.upatras.gr>
 %
 You can press up-arrow or down-arrow to walk through a list of
 previous commands in tcsh.
-		--  Giorgos Keramidas <keramida@ceid.upatras.gr>
 %
 You can disable tcsh's terminal beep if you `set nobeep'.
-		--  Giorgos Keramidas <keramida@ceid.upatras.gr>
 %
 If you `set watch (0 any any)' in tcsh, you will be notified when
 someone logs in or out of your system.
-		--  Giorgos Keramidas <keramida@ceid.upatras.gr>
 %
 Nice tcsh prompt: set prompt = '%m %# '
-		--  Giorgos Keramidas <keramida@ceid.upatras.gr>
 %
 Nice tcsh prompt: set prompt = '%n@%m%# '
-		--  Giorgos Keramidas <keramida@ceid.upatras.gr>
 %
 Nice tcsh prompt: set prompt = '%n@%m:%~%# '
-		--  Giorgos Keramidas <keramida@ceid.upatras.gr>
 %
 Nice tcsh prompt: set prompt = '%n@%m:%/%# '
-		--  Giorgos Keramidas <keramida@ceid.upatras.gr>
 %
 Nice tcsh prompt: set prompt = '[%B%m%b] %B%~%b%# '
 %
 Simple tcsh prompt: set prompt = '%# '
-		--  Giorgos Keramidas <keramida@ceid.upatras.gr>
 %
 If you want df(1) and other commands to display disk sizes in
 kilobytes instead of 512-byte blocks, set BLOCKSIZE in your
 environment to 'K'.
-		--  Giorgos Keramidas <keramida@ceid.upatras.gr>
 %
 To change an environment variable in tcsh you use: setenv NAME "value"
 where NAME is the name of the variable and "value" its new value.
-		--  Giorgos Keramidas <keramida@ceid.upatras.gr>
 %
 To change an environment variable in /bin/sh use:
 
 	$ VARIABLE="value"
 	$ export VARIABLE
-		--  Giorgos Keramidas <keramida@ceid.upatras.gr>
 %
 /etc/make.conf contains overrides to /etc/defaults/make.conf, which
 controls the options used to compile software on this system.
