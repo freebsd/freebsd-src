@@ -407,6 +407,11 @@ smbfs_setattr(ap)
 	if (vap->va_atime.tv_sec != VNOVAL)
 		atime = &vap->va_atime;
 	if (mtime != atime) {
+		if (ap->a_cred->cr_uid != VTOSMBFS(vp)->sm_args.uid &&
+		    (error = suser_xxx(ap->a_cred, ap->a_p, PRISON_ROOT)) &&
+		    ((vap->va_vaflags & VA_UTIMES_NULL) == 0 ||
+		    (error = VOP_ACCESS(vp, VWRITE, ap->a_cred, ap->a_p))))
+			return (error);
 #if 0
 		if (mtime == NULL)
 			mtime = &np->n_mtime;
