@@ -44,7 +44,7 @@
 #include <sys/proc.h>
 #include <sys/conf.h>
 #include <sys/dkstat.h>
-#include <sys/file.h>
+#include <sys/fcntl.h>
 #include <sys/uio.h>
 #include <sys/kernel.h>
 #include <sys/syslog.h>

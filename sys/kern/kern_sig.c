@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id$
+ * $Id: kern_sig.c,v 1.30 1997/02/22 09:39:11 peter Exp $
  */
 
 #include "opt_ktrace.h"
@@ -54,7 +54,7 @@
 #include <sys/times.h>
 #include <sys/buf.h>
 #include <sys/acct.h>
-#include <sys/file.h>
+#include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/wait.h>
 #include <sys/ktrace.h>

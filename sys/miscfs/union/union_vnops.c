@@ -35,13 +35,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.32 (Berkeley) 6/23/95
- * $Id$
+ * $Id: union_vnops.c,v 1.19 1997/02/22 09:40:42 peter Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
-#include <sys/file.h>
+#include <sys/fcntl.h>
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/types.h>

@@ -31,14 +31,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)file.h	8.3 (Berkeley) 1/9/95
- * $Id$
+ * $Id: file.h,v 1.12 1997/02/22 09:45:14 peter Exp $
  */
 
 #ifndef _SYS_FILE_H_
 #define	_SYS_FILE_H_
 
-#include <sys/fcntl.h>
 #ifndef KERNEL
+#include <sys/fcntl.h>
 #include <sys/unistd.h>
 #endif
 

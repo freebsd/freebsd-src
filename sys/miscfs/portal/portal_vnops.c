@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vnops.c	8.14 (Berkeley) 5/21/95
  *
- * $Id$
+ * $Id: portal_vnops.c,v 1.17 1997/02/22 09:40:25 peter Exp $
  */
 
 /*
@@ -52,6 +52,7 @@
 #include <sys/filedesc.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
+#include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/mount.h>

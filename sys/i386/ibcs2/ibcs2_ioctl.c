@@ -31,6 +31,7 @@
 #include <sys/namei.h>
 #include <sys/dir.h>
 #include <sys/proc.h>
+#include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/filedesc.h>

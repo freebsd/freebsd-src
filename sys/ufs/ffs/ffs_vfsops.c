@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.48 1997/03/18 19:50:12 peter Exp $
+ * $Id: ffs_vfsops.c,v 1.49 1997/03/22 06:53:30 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -46,7 +46,7 @@
 #include <sys/mount.h>
 #include <sys/buf.h>
 #include <sys/mbuf.h>
-#include <sys/file.h>
+#include <sys/fcntl.h>
 #include <sys/disklabel.h>
 #include <sys/ioctl.h>
 #include <sys/errno.h>
