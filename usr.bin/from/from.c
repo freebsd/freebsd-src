@@ -42,9 +42,11 @@ static char sccsid[] = "@(#)from.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 #include <sys/types.h>
+
 #include <ctype.h>
 #include <pwd.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <paths.h>
 
@@ -83,16 +85,22 @@ main(argc, argv)
 	argv += optind;
 
 	if (!file) {
-		if (!(file = *argv)) {
-			if (!(pwd = getpwuid(getuid()))) {
-				fprintf(stderr,
+		if (*argv) {
+			(void)sprintf(buf, "%s/%s", _PATH_MAILDIR, *argv);
+			file  = buf;
+		} else {
+			if (!(file = getenv("MAIL"))) {
+				if (!(pwd = getpwuid(getuid()))) {
+					(void)fprintf(stderr,
 				    "from: no password file entry for you.\n");
-				exit(1);
+					exit(1);
+				}
+				file = pwd->pw_name;
+				(void)sprintf(buf,
+				    "%s/%s", _PATH_MAILDIR, file);
+				file = buf;
 			}
-			file = pwd->pw_name;
 		}
-		(void)sprintf(buf, "%s/%s", _PATH_MAILDIR, file);
-		file = buf;
 	}
 
 	/* read from stdin */
