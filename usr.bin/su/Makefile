@@ -15,8 +15,8 @@ CFLAGS+= -Wall
 
 .if exists(${DESTDIR}${LIBDIR}/libkrb.a) && defined(MAKE_KERBEROS4)
 CFLAGS+=-DKERBEROS
-DPADD+=	${LIBKRB} ${LIBDES} ${LIBCOM_ERR}
-LDADD+=	-lkrb -ldes -lcom_err
+DPADD+=	${LIBKRB} ${LIBCRYPTO} ${LIBCOM_ERR}
+LDADD+=	-lkrb -lcrypto -lcom_err
 DISTRIBUTION=	krb4
 .endif
 

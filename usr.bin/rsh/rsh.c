@@ -69,7 +69,7 @@ static const char rcsid[] =
 #include "pathnames.h"
 
 #ifdef KERBEROS
-#include <des.h>
+#include <openssl/des.h>
 #include <krb.h>
 #include "krb.h"
 
