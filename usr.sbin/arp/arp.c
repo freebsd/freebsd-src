@@ -96,7 +96,7 @@ int file(char *name);
 void getsocket(void);
 int my_ether_aton(char *a, u_char *n);
 int rtmsg(int cmd);
-int get_ether_addr(u_long ipaddr, u_char *hwaddr);
+int get_ether_addr(u_int32_t ipaddr, u_char *hwaddr);
 
 static int pid;
 static int nflag;	/* no reverse dns lookups */
@@ -212,8 +212,8 @@ file(char *name)
 	args[4] = &arg[4][0];
 	retval = 0;
 	while(fgets(line, 100, fp) != NULL) {
-		i = sscanf(line, "%s %s %s %s %s", arg[0], arg[1], arg[2],
-		    arg[3], arg[4]);
+		i = sscanf(line, "%49s %49s %49s %49s %49s", arg[0], arg[1],
+		    arg[2], arg[3], arg[4]);
 		if (i < 2) {
 			warnx("bad line: %s", line);
 			retval = 1;
@@ -451,7 +451,7 @@ search(u_long addr, void (*action)(struct sockaddr_dl *sdl,
 	for (next = buf; next < lim; next += rtm->rtm_msglen) {
 		rtm = (struct rt_msghdr *)next;
 		sin = (struct sockaddr_inarp *)(rtm + 1);
-		sdl = (struct sockaddr_dl *)(sin + 1);
+		(char *)sdl = (char *)sin + ROUNDUP(sin->sin_len);
 		if (addr) {
 			if (addr != sin->sin_addr.s_addr)
 				continue;
@@ -641,10 +641,10 @@ doit:
 #define MAX_IFS		32
 
 int
-get_ether_addr(u_long ipaddr, u_char *hwaddr)
+get_ether_addr(u_int32_t ipaddr, u_char *hwaddr)
 {
 	struct ifreq *ifr, *ifend, *ifp;
-	u_long ina, mask;
+	u_int32_t ina, mask;
 	struct sockaddr_dl *dla;
 	struct ifreq ifreq;
 	struct ifconf ifc;
