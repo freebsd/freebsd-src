@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_pty.c,v 1.11 1995/05/30 08:06:14 rgrimes Exp $
+ * $Id: tty_pty.c,v 1.12 1995/07/21 16:30:52 bde Exp $
  */
 
 /*
@@ -137,7 +137,7 @@ ptsopen(dev, flag, devtype, p)
 		if (flag&FNONBLOCK)
 			break;
 		error = ttysleep(tp, (caddr_t)&tp->t_rawq, TTIPRI | PCATCH,
-		    ttopen, 0);
+				 "ptsopn", 0);
 		if (error)
 			return (error);
 	}
@@ -183,16 +183,16 @@ again:
 			    p->p_flag & P_PPWAIT)
 				return (EIO);
 			pgsignal(p->p_pgrp, SIGTTIN, 1);
-			error = ttysleep(tp, (caddr_t)&lbolt,
-			    TTIPRI | PCATCH, ttybg, 0);
+			error = ttysleep(tp, &lbolt, TTIPRI | PCATCH, "ptsbg",
+					 0);
 			if (error)
 				return (error);
 		}
 		if (tp->t_canq.c_cc == 0) {
 			if (flag & IO_NDELAY)
 				return (EWOULDBLOCK);
-			error = ttysleep(tp, (caddr_t)&tp->t_canq,
-			    TTIPRI | PCATCH, ttyin, 0);
+			error = ttysleep(tp, &tp->t_canq, TTIPRI | PCATCH,
+					 "ptsin", 0);
 			if (error)
 				return (error);
 			goto again;
@@ -361,8 +361,7 @@ ptcread(dev, uio, flag)
 			return (0);	/* EOF */
 		if (flag & IO_NDELAY)
 			return (EWOULDBLOCK);
-		error = tsleep((caddr_t)&tp->t_outq.c_cf, TTIPRI | PCATCH,
-		    ttyin, 0);
+		error = tsleep(&tp->t_outq.c_cf, TTIPRI | PCATCH, "ptcin", 0);
 		if (error)
 			return (error);
 	}
@@ -542,7 +541,7 @@ block:
 			return (EWOULDBLOCK);
 		return (0);
 	}
-	error = tsleep((caddr_t)&tp->t_rawq.c_cl, TTOPRI | PCATCH, ttyout, 0);
+	error = tsleep(&tp->t_rawq.c_cl, TTOPRI | PCATCH, "ptcout", 0);
 	if (error) {
 		/* adjust for data copied in but not written */
 		uio->uio_resid += cc;

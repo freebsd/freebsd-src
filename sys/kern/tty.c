@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.52 1995/07/21 16:30:51 bde Exp $
+ * $Id: tty.c,v 1.53 1995/07/21 17:30:12 bde Exp $
  */
 
 /*-
@@ -98,14 +98,6 @@ static int	ttnread __P((struct tty *));
 static void	ttyblock __P((struct tty *tp));
 static void	ttyecho __P((int, struct tty *tp));
 static void	ttyrubo __P((struct tty *, int));
-
-/* Symbolic sleep message strings. */
-char ttclos[]	= "ttycls";
-char ttopen[]	= "ttyopn";
-char ttybg[]	= "ttybg";
-char ttybuf[]	= "ttybuf";
-char ttyin[]	= "ttyin";
-char ttyout[]	= "ttyout";
 
 /*
  * Table with character classes and parity. The 8th bit indicates parity,
@@ -720,7 +712,8 @@ ttioctl(tp, cmd, data, flag)
 		    (p->p_sigignore & sigmask(SIGTTOU)) == 0 &&
 		    (p->p_sigmask & sigmask(SIGTTOU)) == 0) {
 			pgsignal(p->p_pgrp, SIGTTOU, 1);
-			error = ttysleep(tp, &lbolt, TTOPRI | PCATCH, ttybg, 0);
+			error = ttysleep(tp, &lbolt, TTOPRI | PCATCH, "ttybg1",
+					 0);
 			if (error)
 				return (error);
 		}
@@ -1386,7 +1379,7 @@ loop:
 		    p->p_flag & P_PPWAIT || p->p_pgrp->pg_jobc == 0)
 			return (EIO);
 		pgsignal(p->p_pgrp, SIGTTIN, 1);
-		error = ttysleep(tp, &lbolt, TTIPRI | PCATCH, ttybg, 0);
+		error = ttysleep(tp, &lbolt, TTIPRI | PCATCH, "ttybg2", 0);
 		if (error)
 			return (error);
 		goto loop;
@@ -1511,7 +1504,8 @@ sleep:
 			return (0);	/* EOF */
 		}
 		error = ttysleep(tp, &tp->t_rawq, TTIPRI | PCATCH,
-		    carrier ? ttyin : ttopen, (int)slp);
+				 carrier ?
+				 "ttyin" : "ttyhup", (int)slp);
 		splx(s);
 		if (error == EWOULDBLOCK)
 			error = 0;
@@ -1576,8 +1570,8 @@ slowcase:
 		if (CCEQ(cc[VDSUSP], c) && ISSET(lflag, ISIG)) {
 			pgsignal(tp->t_pgrp, SIGTSTP, 1);
 			if (first) {
-				error = ttysleep(tp,
-				    &lbolt, TTIPRI | PCATCH, ttybg, 0);
+				error = ttysleep(tp, &lbolt, TTIPRI | PCATCH,
+						 "ttybg3", 0);
 				if (error)
 					break;
 				goto loop;
@@ -1703,8 +1697,8 @@ loop:
 			goto out;
 		} else {
 			/* Sleep awaiting carrier. */
-			error = ttysleep(tp,
-			    &tp->t_rawq, TTIPRI | PCATCH,ttopen, 0);
+			error = ttysleep(tp, &tp->t_rawq, TTIPRI | PCATCH,
+					 "ttydcd", 0);
 			splx(s);
 			if (error)
 				goto out;
@@ -1722,7 +1716,7 @@ loop:
 	    (p->p_sigmask & sigmask(SIGTTOU)) == 0 &&
 	     p->p_pgrp->pg_jobc) {
 		pgsignal(p->p_pgrp, SIGTTOU, 1);
-		error = ttysleep(tp, &lbolt, TTIPRI | PCATCH, ttybg, 0);
+		error = ttysleep(tp, &lbolt, TTIPRI | PCATCH, "ttybg4", 0);
 		if (error)
 			goto out;
 		goto loop;
@@ -1785,7 +1779,8 @@ loop:
 							goto out;
 						}
 						error = ttysleep(tp, &lbolt,
-						    TTOPRI | PCATCH, ttybuf, 0);
+								 TTOPRI|PCATCH,
+								 "ttybf1", 0);
 						if (error)
 							goto out;
 						goto loop;
@@ -1819,8 +1814,8 @@ loop:
 					error = EWOULDBLOCK;
 					goto out;
 				}
-				error = ttysleep(tp,
-				    &lbolt, TTOPRI | PCATCH, ttybuf, 0);
+				error = ttysleep(tp, &lbolt, TTOPRI | PCATCH,
+						 "ttybf2", 0);
 				if (error)
 					goto out;
 				goto loop;

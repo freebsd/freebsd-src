@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.6 (Berkeley) 1/21/94
- * $Id: tty.h,v 1.19 1995/07/16 10:22:37 joerg Exp $
+ * $Id: tty.h,v 1.20 1995/07/21 17:47:08 bde Exp $
  */
 
 #ifndef _SYS_TTY_H_
@@ -202,9 +202,6 @@ struct speedtab {
 #ifdef KERNEL
 extern	struct tty *constty;	/* Temporary virtual console. */
 extern	struct ttychars ttydefaults;
-
-/* Symbolic sleep message strings. */
-extern	 char ttyin[], ttyout[], ttopen[], ttclos[], ttybg[], ttybuf[];
 
 int	 b_to_q __P((char *cp, int cc, struct clist *q));
 void	 catq __P((struct clist *from, struct clist *to));
