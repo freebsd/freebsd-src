@@ -145,7 +145,7 @@ acpi_pwr_register_resource(ACPI_HANDLE res)
 {
     ACPI_STATUS			status;
     ACPI_BUFFER			buf;
-    ACPI_OPERAND_OBJECT		*obj;
+    ACPI_OBJECT			*obj;
     struct acpi_powerresource	*rp, *srp;
 
     FUNCTION_TRACE(__func__);
@@ -171,15 +171,13 @@ acpi_pwr_register_resource(ACPI_HANDLE res)
 	goto out;
     }
     obj = buf.Pointer;
-    if (obj->Common.Type != ACPI_TYPE_POWER) {
+    if (obj->Type != ACPI_TYPE_POWER) {
 	DEBUG_PRINT(TRACE_OBJECTS, ("questionable power resource object %s\n", acpi_name(res)));
-	/* XXX ACPI CA seems to return ACPI_TYPE_ANY, needs to be fixed */
-	rp->ap_systemlevel = 0;
-	rp->ap_order = 0;
-    } else {
-	rp->ap_systemlevel = obj->PowerResource.SystemLevel;
-	rp->ap_order = obj->PowerResource.ResourceOrder;
+	status = AE_TYPE;
+	goto out;
     }
+    rp->ap_systemlevel = obj->PowerResource.SystemLevel;
+    rp->ap_order = obj->PowerResource.ResourceOrder;
     
     /* sort the resource into the list */
     status = AE_OK;
