@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: perform.c,v 1.37.2.9 1998/01/21 06:08:58 jkh Exp $";
+	"$Id: perform.c,v 1.37.2.10 1998/02/16 17:41:31 jkh Exp $";
 #endif
 
 /*
@@ -124,8 +124,11 @@ pkg_do(char *pkg)
 	    }
 	    Home = make_playpen(playpen, sb.st_size * 4);
 	    if (!Home)
-		warnx("unable to make playpen for %d bytes", sb.st_size * 4);
+		errx(1, "unable to make playpen for %d bytes", sb.st_size * 4);
 	    where_to = Home;
+	    /* Since we can call ourselves recursively, keep notes on where we came from */
+	    if (!getenv("_TOP"))
+		setenv("_TOP", Home, 1);
 	    if (unpack(pkg_fullname, extract)) {
 		warnx(
 	"unable to extract table of contents file from `%s' - not a package?",
@@ -238,7 +241,7 @@ pkg_do(char *pkg)
 
 	    if (!Fake) {
 		if (!isURL(pkg) && !getenv("PKG_ADD_BASE")) {
-		    snprintf(path, FILENAME_MAX, "%s/%s.tgz", Home, p->name);
+		    snprintf(path, FILENAME_MAX, "%s/%s.tgz", getenv("_TOP"), p->name);
 		    if (fexists(path))
 			cp = path;
 		    else
