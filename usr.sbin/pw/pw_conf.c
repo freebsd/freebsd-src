@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pw_conf.c,v 1.1.1.1 1996/12/09 14:05:35 joerg Exp $
+ *	$Id: pw_conf.c,v 1.1.1.2 1996/12/10 23:59:00 joerg Exp $
  */
 
 #include <string.h>
@@ -31,6 +31,7 @@
 #include <fcntl.h>
 
 #include "pw.h"
+#include "pwupd.h"
 
 #define debugging 0
 
@@ -66,11 +67,6 @@ static char    *system_shells[_UC_MAXSHELLS] =
 	"csh"
 };
 
-static char    *default_groups[_UC_MAXGROUPS] =
-{
-	NULL
-};
-
 static char const *booltrue[] =
 {
 	"yes", "true", "1", "on", NULL
@@ -93,7 +89,7 @@ static struct userconf config =
 	system_shells,		/* List of shells (first is default) */
 	bourne_shell,		/* Default shell */
 	NULL,			/* Default group name */
-	default_groups,		/* Default (additional) groups */
+	NULL,			/* Default (additional) groups */
 	NULL,			/* Default login class */
 	1000, 32000,		/* Allowed range of uids */
 	1000, 32000,		/* Allowed range of gids */
@@ -212,126 +208,143 @@ newstr(char const * p)
 	return q;
 }
 
+#define LNBUFSZ 1024
+
 
 struct userconf *
 read_userconfig(char const * file)
 {
 	FILE           *fp;
 
+	extendarray(&config.groups, &config.numgroups, 200);
+	memset(config.groups, 0, config.numgroups * sizeof(char *));
 	if (file == NULL)
 		file = _PATH_PW_CONF;
 	if ((fp = fopen(file, "r")) != NULL) {
-		char            buf[_UC_MAXLINE];
+		int	    buflen = LNBUFSZ;
+		char       *buf = malloc(buflen);
 
-		while (fgets(buf, sizeof buf, fp) != NULL) {
-			char           *p = strchr(buf, '\n');
+	nextline:
+		while (fgets(buf, buflen, fp) != NULL) {
+			char           *p;
 
-			if (p == NULL) {	/* Line too long */
-				int             ch;
+			while ((p = strchr(buf, '\n')) == NULL) {
+				int	  l;
+				if (extendline(&buf, &buflen, buflen + LNBUFSZ) == -1) {
+					int	ch;
+					while ((ch = fgetc(fp)) != '\n' && ch != EOF);
+					goto nextline;	/* Ignore it */
+				}
+				l = strlen(buf);
+				if (fgets(buf + l, buflen - l, fp) == NULL)
+					break;	/* Unterminated last line */
+			}
 
-				while ((ch = fgetc(fp)) != '\n' && ch != EOF);
-			} else {
+			if (p != NULL)
 				*p = '\0';
-				if (*buf && *buf != '\n' && (p = strtok(buf, " \t\r\n=")) != NULL && *p != '#') {
-					static char const toks[] = " \t\r\n,=";
-					char           *q = strtok(NULL, toks);
-					int             i = 0;
 
-					while (i < _UC_FIELDS && strcmp(p, kwds[i]) != 0)
-						++i;
+			if (*buf && (p = strtok(buf, " \t\r\n=")) != NULL && *p != '#') {
+				static char const toks[] = " \t\r\n,=";
+				char           *q = strtok(NULL, toks);
+				int             i = 0;
+
+				while (i < _UC_FIELDS && strcmp(p, kwds[i]) != 0)
+					++i;
 #if debugging
-					if (i == _UC_FIELDS)
-						printf("Got unknown kwd `%s' val=`%s'\n", p, q ? q : "");
-					else
-						printf("Got kwd[%s]=%s\n", p, q);
+				if (i == _UC_FIELDS)
+					printf("Got unknown kwd `%s' val=`%s'\n", p, q ? q : "");
+				else
+					printf("Got kwd[%s]=%s\n", p, q);
 #endif
-					switch (i) {
-					case _UC_DEFAULTPWD:
-						config.default_password = boolean_val(q, 1);
-						break;
-					case _UC_REUSEUID:
-						config.reuse_uids = boolean_val(q, 0);
-						break;
-					case _UC_REUSEGID:
-						config.reuse_gids = boolean_val(q, 0);
-						break;
-					case _UC_DOTDIR:
-						config.dotdir = (q == NULL || !boolean_val(q, 1))
-							? NULL : newstr(q);
-						break;
-					case _UC_NEWMAIL:
-						config.newmail = (q == NULL || !boolean_val(q, 1))
-							? NULL : newstr(q);
-						break;
-					case _UC_LOGFILE:
-						config.logfile = (q == NULL || !boolean_val(q, 1))
-							? NULL : newstr(q);
-						break;
-					case _UC_HOMEROOT:
-						config.home = (q == NULL || !boolean_val(q, 1))
-							? "/home" : newstr(q);
-						break;
-					case _UC_SHELLPATH:
-						config.shelldir = (q == NULL || !boolean_val(q, 1))
-							? "/bin" : newstr(q);
-						break;
-					case _UC_SHELLS:
-						for (i = 0; i < _UC_MAXSHELLS && q != NULL; i++, q = strtok(NULL, toks))
-							system_shells[i] = newstr(q);
-						if (i > 0)
-							while (i < _UC_MAXSHELLS)
-								system_shells[i++] = NULL;
-						break;
-					case _UC_DEFAULTSHELL:
-						config.shell_default = (q == NULL || !boolean_val(q, 1))
-							? (char *) bourne_shell : newstr(q);
-						break;
-					case _UC_DEFAULTGROUP:
-						config.default_group = (q == NULL || !boolean_val(q, 1) || getgrnam(q) == NULL)
-							? NULL : newstr(q);
-						break;
-					case _UC_EXTRAGROUPS:
-						for (i = 0; i < _UC_MAXGROUPS && q != NULL; i++, q = strtok(NULL, toks))
-							default_groups[i] = newstr(q);
-						if (i > 0)
-							while (i < _UC_MAXGROUPS)
-								default_groups[i++] = NULL;
-						break;
-					case _UC_DEFAULTCLASS:
-						config.default_class = (q == NULL || !boolean_val(q, 1))
-							? NULL : newstr(q);
-						break;
-					case _UC_MINUID:
-						if ((q = unquote(q)) != NULL && isdigit(*q))
-							config.min_uid = (uid_t) atol(q);
-						break;
-					case _UC_MAXUID:
-						if ((q = unquote(q)) != NULL && isdigit(*q))
-							config.max_uid = (uid_t) atol(q);
-						break;
-					case _UC_MINGID:
-						if ((q = unquote(q)) != NULL && isdigit(*q))
-							config.min_gid = (gid_t) atol(q);
-						break;
-					case _UC_MAXGID:
-						if ((q = unquote(q)) != NULL && isdigit(*q))
-							config.max_gid = (gid_t) atol(q);
-						break;
-					case _UC_EXPIRE:
-						if ((q = unquote(q)) != NULL && isdigit(*q))
-							config.expire_days = atoi(q);
-						break;
-					case _UC_PASSWORD:
-						if ((q = unquote(q)) != NULL && isdigit(*q))
-							config.password_days = atoi(q);
-						break;
-					case _UC_FIELDS:
-					case _UC_NONE:
-						break;
+				switch (i) {
+				case _UC_DEFAULTPWD:
+					config.default_password = boolean_val(q, 1);
+					break;
+				case _UC_REUSEUID:
+					config.reuse_uids = boolean_val(q, 0);
+					break;
+				case _UC_REUSEGID:
+					config.reuse_gids = boolean_val(q, 0);
+					break;
+				case _UC_DOTDIR:
+					config.dotdir = (q == NULL || !boolean_val(q, 1))
+						? NULL : newstr(q);
+					break;
+				case _UC_NEWMAIL:
+					config.newmail = (q == NULL || !boolean_val(q, 1))
+						? NULL : newstr(q);
+					break;
+				case _UC_LOGFILE:
+					config.logfile = (q == NULL || !boolean_val(q, 1))
+						? NULL : newstr(q);
+					break;
+				case _UC_HOMEROOT:
+					config.home = (q == NULL || !boolean_val(q, 1))
+						? "/home" : newstr(q);
+					break;
+				case _UC_SHELLPATH:
+					config.shelldir = (q == NULL || !boolean_val(q, 1))
+						? "/bin" : newstr(q);
+					break;
+				case _UC_SHELLS:
+					for (i = 0; i < _UC_MAXSHELLS && q != NULL; i++, q = strtok(NULL, toks))
+						system_shells[i] = newstr(q);
+					if (i > 0)
+						while (i < _UC_MAXSHELLS)
+							system_shells[i++] = NULL;
+					break;
+				case _UC_DEFAULTSHELL:
+					config.shell_default = (q == NULL || !boolean_val(q, 1))
+						? (char *) bourne_shell : newstr(q);
+					break;
+				case _UC_DEFAULTGROUP:
+					config.default_group = (q == NULL || !boolean_val(q, 1) || getgrnam(q) == NULL)
+						? NULL : newstr(q);
+					break;
+				case _UC_EXTRAGROUPS:
+					for (i = 0; q != NULL; q = strtok(NULL, toks)) {
+						if (extendarray(&config.groups, &config.numgroups, i + 2) != -1)
+							config.groups[i++] = newstr(q);
 					}
+					if (i > 0)
+						while (i < config.numgroups)
+							config.groups[i++] = NULL;
+					break;
+				case _UC_DEFAULTCLASS:
+					config.default_class = (q == NULL || !boolean_val(q, 1))
+						? NULL : newstr(q);
+					break;
+				case _UC_MINUID:
+					if ((q = unquote(q)) != NULL && isdigit(*q))
+						config.min_uid = (uid_t) atol(q);
+					break;
+				case _UC_MAXUID:
+					if ((q = unquote(q)) != NULL && isdigit(*q))
+						config.max_uid = (uid_t) atol(q);
+					break;
+				case _UC_MINGID:
+					if ((q = unquote(q)) != NULL && isdigit(*q))
+						config.min_gid = (gid_t) atol(q);
+					break;
+				case _UC_MAXGID:
+					if ((q = unquote(q)) != NULL && isdigit(*q))
+						config.max_gid = (gid_t) atol(q);
+					break;
+				case _UC_EXPIRE:
+					if ((q = unquote(q)) != NULL && isdigit(*q))
+						config.expire_days = atoi(q);
+					break;
+				case _UC_PASSWORD:
+					if ((q = unquote(q)) != NULL && isdigit(*q))
+						config.password_days = atoi(q);
+					break;
+				case _UC_FIELDS:
+				case _UC_NONE:
+					break;
 				}
 			}
 		}
+		free(buf);
 		fclose(fp);
 	}
 	return &config;
@@ -353,7 +366,8 @@ write_userconfig(char const * file)
 			close(fd);
 		else {
 			int             i, j, k;
-			char            buf[_UC_MAXLINE];
+			int		len = LNBUFSZ;
+			char           *buf = malloc(len);
 
 			for (i = _UC_NONE; i < _UC_FIELDS; i++) {
 				int             quote = 1;
@@ -386,8 +400,14 @@ write_userconfig(char const * file)
 					val = config.shelldir;
 					break;
 				case _UC_SHELLS:
-					for (j = k = 0; j < _UC_MAXSHELLS && system_shells[j] != NULL; j++)
-						k += sprintf(buf + k, "%s\"%s\"", k ? "," : "", system_shells[j]);
+					for (j = k = 0; j < _UC_MAXSHELLS && system_shells[j] != NULL; j++) {
+						char	lbuf[64];
+						int	l = snprintf(lbuf, sizeof lbuf, "%s\"%s\"", k ? "," : "", system_shells[j]);
+						if (l + k + 1 < len || extendline(&buf, &len, len + LNBUFSZ) != -1) {
+							strcpy(buf + k, lbuf);
+							k += l;
+						}
+					}
 					quote = 0;
 					break;
 				case _UC_DEFAULTSHELL:
@@ -397,8 +417,15 @@ write_userconfig(char const * file)
 					val = config.default_group ? config.default_group : "";
 					break;
 				case _UC_EXTRAGROUPS:
-					for (j = k = 0; j < _UC_MAXGROUPS && default_groups[j] != NULL; j++)
-						k += sprintf(buf + k, "%s\"%s\"", k ? "," : "", default_groups[j]);
+					extendarray(&config.groups, &config.numgroups, 200);
+					for (j = k = 0; j < config.numgroups && config.groups[j] != NULL; j++) {
+						char	lbuf[64];
+						int	l = snprintf(lbuf, sizeof lbuf, "%s\"%s\"", k ? "," : "", config.groups[j]);
+						if (l + k + 1 < len || extendline(&buf, &len, len + 1024) != -1) {
+							strcpy(buf + k, lbuf);
+							k +=  l;
+						}
+					}
 					quote = 0;
 					break;
 				case _UC_DEFAULTCLASS:
@@ -445,6 +472,7 @@ write_userconfig(char const * file)
 #endif
 				}
 			}
+			free(buf);
 			return fclose(fp) != EOF;
 		}
 	}
