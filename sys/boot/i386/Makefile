@@ -1,9 +1,8 @@
 # $FreeBSD$
 
-SUBDIR=		mbr boot0 kgzldr btx boot2 libi386 loader
+SUBDIR=		mbr boot0 btx boot2 cdboot kgzldr libi386 loader
 
 # special boot programs, 'self-extracting boot2+loader'
-SUBDIR+=	cdldr 
 SUBDIR+=	pxeldr
 SUBDIR+=	liloldr
 
