@@ -182,7 +182,7 @@ BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
 		${BMAKEENV} ${MAKE} -f Makefile.inc1 \
 		DESTDIR= \
 		BOOTSTRAPPING=${OSRELDATE} \
-		-DNOHTML -DNO_INFO -DNO_LINT -DNO_MAN -DNO_PIC -DNO_PROFILE \
+		-DNO_HTML -DNO_INFO -DNO_LINT -DNO_MAN -DNO_PIC -DNO_PROFILE \
 		-DNO_SHARED -DNO_CPU_CFLAGS -DNO_WARNS
 
 # build-tools stage
@@ -231,7 +231,7 @@ LIB32MAKEENV=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
 		SHLIBDIR=/usr/lib32
 
 LIB32MAKE=	${LIB32MAKEENV} ${MAKE} -DNO_CPU_CFLAGS -DCOMPAT_32BIT \
-		-DNO_BIND -DNO_MAN -DNO_INFO -DNOHTML \
+		-DNO_BIND -DNO_MAN -DNO_INFO -DNO_HTML \
 		CC="cc ${LIB32CC}" \
 		CXX="c++ ${LIB32CXX}" \
 		OBJC="cc ${LIB32OBJC}" \
@@ -364,7 +364,7 @@ _libraries:
 	@echo ">>> stage 4.2: building libraries"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; \
-	    ${WMAKE} -DNO_FSCHG -DNOHTML -DNO_INFO -DNO_LINT -DNO_MAN -DNO_PROFILE \
+	    ${WMAKE} -DNO_FSCHG -DNO_HTML -DNO_INFO -DNO_LINT -DNO_MAN -DNO_PROFILE \
 	    libraries
 _depend:
 	@echo
