@@ -804,6 +804,21 @@ thread_single_end(void)
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	p->p_flag &= ~P_STOPPED_SNGL;
 	p->p_singlethread = NULL;
-	thread_unsuspend(p);
+	/*
+	 * If there are other threads they mey now run,
+	 * unless of course there is a blanket 'stop order'
+	 * on the process. The single threader must be allowed
+	 * to continue however as this is a bad place to stop.
+	 */
+	if ((p->p_numthreads != 1) && (!P_SHOULDSTOP(p))) {
+		mtx_lock_spin(&sched_lock);
+		while (( td = TAILQ_FIRST(&p->p_suspended))) {
+			TAILQ_REMOVE(&p->p_suspended, td, td_runq);
+			p->p_suspcount--;
+			setrunqueue(td);
+		}
+		mtx_unlock_spin(&sched_lock);
+	}
 }
+
 
