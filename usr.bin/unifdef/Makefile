@@ -4,7 +4,7 @@
 MAINTAINER=	fanf@FreeBSD.org
 
 PROG=	unifdef
-SCRIPTS=unifdefall
+SCRIPTS=unifdefall.sh
 MLINKS=	unifdef.1 unifdefall.1
 
 .include <bsd.prog.mk>
