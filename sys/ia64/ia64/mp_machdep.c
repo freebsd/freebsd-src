@@ -285,7 +285,7 @@ forward_statclock(int pscnt)
 	map = PCPU_GET(other_cpus) & ~stopped_cpus ;
 	checkstate_probed_cpus = 0;
 	if (map != 0)
-		smp_ipi_selected(map, IPI_CHECKSTATE);
+		ipi_selected(map, IPI_CHECKSTATE);
 
 	i = 0;
 	while (checkstate_probed_cpus != map) {
@@ -315,7 +315,7 @@ forward_statclock(int pscnt)
 	}
 	if (map != 0) {
 		checkstate_need_ast |= map;
-		smp_ipi_selected(map, IPI_AST);
+		ipi_selected(map, IPI_AST);
 		i = 0;
 		while ((checkstate_need_ast & map) != 0) {
 			/* spin */
@@ -361,7 +361,7 @@ forward_hardclock(int pscnt)
 	map = PCPU_GET(other_cpus) & ~stopped_cpus ;
 	checkstate_probed_cpus = 0;
 	if (map != 0)
-		smp_ipi_selected(map, IPI_CHECKSTATE);
+		ipi_selected(map, IPI_CHECKSTATE);
 	
 	i = 0;
 	while (checkstate_probed_cpus != map) {
@@ -410,7 +410,7 @@ forward_hardclock(int pscnt)
 	}
 	if (map != 0) {
 		checkstate_need_ast |= map;
-		smp_ipi_selected(map, IPI_AST);
+		ipi_selected(map, IPI_AST);
 		i = 0;
 		while ((checkstate_need_ast & map) != 0) {
 			/* spin */
@@ -458,7 +458,7 @@ forward_signal(struct proc *p)
 			return;
 		map = (1<<id);
 		checkstate_need_ast |= map;
-		smp_ipi_selected(map, IPI_AST);
+		ipi_selected(map, IPI_AST);
 		i = 0;
 		while ((checkstate_need_ast & map) != 0) {
 			/* spin */
@@ -490,7 +490,7 @@ forward_roundrobin(void)
 		return;
 	resched_cpus |= PCPU_GET(other_cpus);
 	map = PCPU_GET(other_cpus) & ~stopped_cpus ;
-	smp_ipi_selected(map, IPI_AST);
+	ipi_selected(map, IPI_AST);
 	i = 0;
 	while ((checkstate_need_ast & map) != 0) {
 		/* spin */
@@ -533,7 +533,7 @@ stop_cpus(u_int map)
 	CTR1(KTR_SMP, "stop_cpus(%x)", map);
 
 	/* send the stop IPI to all CPUs in map */
-	smp_ipi_selected(map, IPI_STOP);
+	ipi_selected(map, IPI_STOP);
 	
 	i = 0;
 	while ((stopped_cpus & map) != map) {
@@ -638,7 +638,7 @@ smp_rendezvous(void (* setup_func)(void *),
 	smp_rv_waiters[1] = 0;
 
 	/* signal other processors, which will enter the IPI with interrupts off */
-	smp_ipi_all_but_self(IPI_RENDEZVOUS);
+	ipi_all_but_self(IPI_RENDEZVOUS);
 
 	/* call executor function */
 	smp_rendezvous_action();
@@ -651,11 +651,11 @@ smp_rendezvous(void (* setup_func)(void *),
  * send an IPI to a set of cpus.
  */
 void
-smp_ipi_selected(u_int32_t cpus, u_int64_t ipi)
+ipi_selected(u_int32_t cpus, u_int64_t ipi)
 {
 	struct globaldata *globaldata;
 
-	CTR2(KTR_SMP, "smp_ipi_selected: cpus: %x ipi: %lx", cpus, ipi);
+	CTR2(KTR_SMP, "ipi_selected: cpus: %x ipi: %lx", cpus, ipi);
 	ia64_mf();
 	while (cpus) {
 		int cpuid = ffs(cpus) - 1;
@@ -677,27 +677,27 @@ smp_ipi_selected(u_int32_t cpus, u_int64_t ipi)
  * send an IPI INTerrupt containing 'vector' to all CPUs, including myself
  */
 void
-smp_ipi_all(u_int64_t ipi)
+ipi_all(u_int64_t ipi)
 {
-	smp_ipi_selected(all_cpus, ipi);
+	ipi_selected(all_cpus, ipi);
 }
 
 /*
  * send an IPI to all CPUs EXCEPT myself
  */
 void
-smp_ipi_all_but_self(u_int64_t ipi)
+ipi_all_but_self(u_int64_t ipi)
 {
-	smp_ipi_selected(PCPU_GET(other_cpus), ipi);
+	ipi_selected(PCPU_GET(other_cpus), ipi);
 }
 
 /*
  * send an IPI to myself
  */
 void
-smp_ipi_self(u_int64_t ipi)
+ipi_self(u_int64_t ipi)
 {
-	smp_ipi_selected(1 << PCPU_GET(cpuid), ipi);
+	ipi_selected(1 << PCPU_GET(cpuid), ipi);
 }
 
 /*
