@@ -16,10 +16,22 @@
 
 # It possibly modifies the following shell variables:
 #   cpu_include_dir        CPU-specific include directory, relative to srcdir
+#
 #   os_include_dir         OS-specific include directory, relative to srcdir
+#
+#   c_model                the model to use for "C" headers, defaults to c_std.
+#
+#   c_compatibility        if "C" compatibility headers are necessary, 
+#                              defaults to no.
+
+# DEFAULTS
+c_model=c_std
+c_compatibility=no
+abi_baseline_triplet=${target}
 
 
-# Set any CPU dependent compiler flags.
+# TARGET-SPECIFIC OVERRIDES 
+# Set any CPU-dependent bits.
 # THIS TABLE IS SORTED.  KEEP IT THAT WAY.
 case "${target_cpu}" in
   alpha*)
@@ -108,6 +120,10 @@ case "${target_os}" in
   hpux*)
     os_include_dir="config/os/hpux"
     ;;
+  qnx6.[12]*)
+    os_include_dir="config/os/qnx/qnx6.1"
+    c_model=c
+    ;;
   *)
     os_include_dir="config/os/generic"
     ;;
@@ -170,7 +186,7 @@ case "${target}" in
    mmix-*-*)
      CPULIMITSH=config/cpu/mmix
      ;;
-   powerpc-*-*)
+   powerpc-*-* | rs6000-*-*)
      CPULIMITSH=config/cpu/powerpc
      ;;
    s390-*-* | s390x-*-*)

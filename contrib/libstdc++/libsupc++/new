@@ -62,7 +62,7 @@ namespace std
    *  be of this type.  */
   typedef void (*new_handler)();
   /// Takes a replacement handler as the argument, returns the previous handler.
-  new_handler set_new_handler(new_handler);
+  new_handler set_new_handler(new_handler) throw();
 } // namespace std
 
 //@{
@@ -88,6 +88,10 @@ void operator delete[](void*, const std::nothrow_t&) throw();
 // Default placement versions of operator new.
 inline void* operator new(std::size_t, void* __p) throw() { return __p; }
 inline void* operator new[](std::size_t, void* __p) throw() { return __p; }
+
+// Default placement versions of operator delete.
+inline void  operator delete  (void*, void*) throw() { };
+inline void  operator delete[](void*, void*) throw() { };
 //@}
 } // extern "C++"
 
