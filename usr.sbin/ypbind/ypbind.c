@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char rcsid[] = "$Id: ypbind.c,v 1.15 1995/05/30 03:55:13 rgrimes Exp $";
+static char rcsid[] = "$Id: ypbind.c,v 1.16 1995/07/15 23:27:27 wpaul Exp $";
 #endif
 
 #include <sys/param.h>
@@ -99,6 +99,8 @@ int	tell_parent __P((char *, struct sockaddr_in *));
 void	handle_children __P(( struct _dom_binding * ));
 void	reaper __P((int));
 void	terminate __P((int));
+void	yp_restricted_mode __P((char *));
+int	verify __P((struct in_addr));
 
 char *domainname;
 struct _dom_binding *ypbindlist;
@@ -109,6 +111,15 @@ static struct _dom_binding *broad_domain;
 #define YPSET_ALL	2
 int ypsetmode = YPSET_NO;
 int ypsecuremode = 0;
+
+/*
+ * Special restricted mode variables: when in restricted mode, only the
+ * specified restricted_domain will be bound, and only the servers listed
+ * in restricted_addrs will be used for binding.
+ */
+#define RESTRICTED_SERVERS 10
+int yp_restricted = 0;
+struct in_addr restricted_addrs[RESTRICTED_SERVERS];
 
 /* No more than MAX_CHILDREN child broadcasters at a time. */
 #ifndef MAX_CHILDREN
@@ -123,6 +134,12 @@ int ypsecuremode = 0;
 #define FAIL_THRESHOLD 10
 #endif
 
+/* Number of times to fish for a response froma particular set of hosts */
+#ifndef MAX_RETRIES
+#define MAX_RETRIES 30
+#endif
+
+int retries = 0;
 int children = 0;
 int domains = 0;
 int yplockfd;
@@ -162,6 +179,11 @@ CLIENT *clnt;
 		}
 
 	if(ypdb==NULL) {
+		if (yp_restricted) {
+			syslog(LOG_NOTICE, "Running in restricted mode -- request to bind domain \"%s\" rejected.\n", argp);
+			return &res;
+		}
+
 		if (domains >= MAX_DOMAINS) {
 			syslog(LOG_WARNING, "domain limit (%d) exceeded",
 							MAX_DOMAINS);
@@ -363,6 +385,7 @@ char **argv;
 		exit(1);
 	}
 
+	/* XXX domainname will be overriden if we use restricted mode */
 	yp_get_default_domain(&domainname);
 	if( domainname[0] == '\0') {
 		fprintf(stderr, "domainname not set. Aborting.\n");
@@ -376,6 +399,8 @@ char **argv;
 		        ypsetmode = YPSET_LOCAL;
 		else if (strcmp("-s", argv[i]) == 0)
 		        ypsecuremode++;
+		else if (strcmp("-S", argv[i]) == 0 && argc > i)
+			yp_restricted_mode(argv[i+1]);
 	}
 
 	/* blow away everything in BINDINGDIR (if it exists) */
@@ -555,9 +580,22 @@ bool_t broadcast_result(out, addr)
 bool_t *out;
 struct sockaddr_in *addr;
 {
-	if (tell_parent(broad_domain->dom_domain, addr))
-		syslog(LOG_WARNING, "lost connection to parent");
-	return TRUE;
+	if (retries >= MAX_RETRIES) {
+		bzero((char *)addr, sizeof(struct sockaddr_in));
+		if (tell_parent(broad_domain->dom_domain, addr))
+			syslog(LOG_WARNING, "lost connection to parent");
+		return TRUE;
+	}
+
+	if (yp_restricted && verify(addr->sin_addr)) {
+		retries++;
+		syslog(LOG_NOTICE, "NIS server at %s not in restricted mode access list -- rejecting.\n",inet_ntoa(addr->sin_addr));
+		return FALSE;
+	} else {
+		if (tell_parent(broad_domain->dom_domain, addr))
+			syslog(LOG_WARNING, "lost connection to parent");
+		return TRUE;
+	}
 }
 
 /*
@@ -614,6 +652,8 @@ struct _dom_binding *ypdb;
 		ypbindlist = ypbindlist->dom_pnext;
 	}
 	close(yplockfd);
+
+	retries = 0;
 
 	stat = clnt_broadcast(YPPROG, YPVERS, YPPROC_DOMAIN_NONACK,
 	    xdr_domainname, (char *)ypdb->dom_domain, xdr_bool, (char *)&out,
@@ -717,8 +757,8 @@ int force;
 		}
 	}
 
-	/* if in securemode, check originating port number */
-	if (ypsecuremode && (ntohs(raddrp->sin_port) >= IPPORT_RESERVED)) {
+	/* if in secure mode, check originating port number */
+	if ((ypsecuremode && (ntohs(raddrp->sin_port) >= IPPORT_RESERVED))) {
 	    syslog(LOG_WARNING, "Rejected NIS server on [%s/%d] for domain %s.",
 		   inet_ntoa(raddrp->sin_addr), ntohs(raddrp->sin_port),
 		   dom);
@@ -823,4 +863,55 @@ int force;
 		ypdb->dom_lockfd = -1;
 		return;
 	}
+}
+
+/*
+ * Check address against list of allowed servers. Return 0 if okay,
+ * 1 if not matched.
+ */
+int
+verify(addr)
+struct in_addr addr;
+{
+	int i;
+
+	for (i = 0; i < RESTRICTED_SERVERS; i++)
+		if (!bcmp((char *)&addr, (char *)&restricted_addrs[i],
+			sizeof(struct in_addr)))
+			return(0);
+
+	return(1);
+}
+
+/*
+ * Try to set restricted mode. We default to normal mode if we can't
+ * resolve the specified hostnames.
+ */
+void
+yp_restricted_mode(args)
+char *args;
+{
+	struct hostent *h;
+	int i = 0;
+	char *s;
+
+	/* Find the restricted domain. */
+	if ((s = strsep(&args, ",")) == NULL)
+		return;
+	domainname = s;
+
+	/* Get the addresses of the servers. */
+	while ((s = strsep(&args, ",")) != NULL && i < RESTRICTED_SERVERS) {
+		if ((h = gethostbyname(s)) == NULL)
+			return;
+		bcopy ((char *)h->h_addr_list[0], (char *)&restricted_addrs[i],
+			sizeof(struct in_addr));
+	i++;
+	}
+
+	/* ypset and ypsetme not allowed with restricted mode */
+	ypsetmode = YPSET_NO;
+	
+	yp_restricted = 1;
+	return;
 }
