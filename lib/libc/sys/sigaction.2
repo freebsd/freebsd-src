@@ -46,7 +46,7 @@ struct sigaction {
 	int	 sa_flags;
 };
 .Ed
-.Fn sigaction "int sig" "struct sigaction *act" "struct sigaction *oact"
+.Fn sigaction "int sig" "const struct sigaction *act" "struct sigaction *oact"
 .Sh DESCRIPTION
 The system defines a set of signals that may be delivered to a process.
 Signal delivery resembles the occurrence of a hardware interrupt:
