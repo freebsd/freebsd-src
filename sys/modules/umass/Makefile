@@ -9,4 +9,4 @@ SRCS		 = bus_if.h device_if.h \
 		   umass.c
 NOMAN		 =
 
-.include "${.CURDIR}/../../conf/kmod.mk"
+.include <bsd.kmod.mk>

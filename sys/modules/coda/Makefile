@@ -12,4 +12,4 @@ CLEANFILES=	vcoda.h
 vcoda.h:
 	echo "#define NVCODA 4" > vcoda.h
 
-.include "${.CURDIR}/../../conf/kmod.mk"
+.include <bsd.kmod.mk>

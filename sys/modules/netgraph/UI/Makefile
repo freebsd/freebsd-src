@@ -5,4 +5,4 @@ KMOD=		ng_UI
 SRCS= 		ng_UI.c
 MAN4=		ng_UI.4
 
-.include "${.CURDIR}/../../../conf/kmod.mk"
+.include <bsd.kmod.mk>

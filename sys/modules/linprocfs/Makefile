@@ -8,4 +8,4 @@ NOMAN=
 VFS_KLD=
 CFLAGS+= -DLINPROCFS
 
-.include "${.CURDIR}/../../conf/kmod.mk"
+.include <bsd.kmod.mk>

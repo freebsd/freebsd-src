@@ -8,4 +8,4 @@ SRCS=	vnode_if.h \
 	procfs_vnops.c
 NOMAN=
 
-.include "${.CURDIR}/../../conf/kmod.mk"
+.include <bsd.kmod.mk>

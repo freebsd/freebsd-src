@@ -7,4 +7,4 @@ SRCS=	vnode_if.h \
 	hpfs_alsubr.c
 NOMAN=
 
-.include "${.CURDIR}/../../conf/kmod.mk"
+.include <bsd.kmod.mk>
