@@ -102,6 +102,7 @@ dhclient_poststop()
 
 if [ -n "$2" ]; then
 	_cmdifn="$2"
+	stop_cmd=":"
 fi
 
 load_rc_config $name
