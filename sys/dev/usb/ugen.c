@@ -27,8 +27,8 @@ __FBSDID("$FreeBSD$");
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
+ *	This product includes software developed by the NetBSD
+ *	Foundation, Inc. and its contributors.
  * 4. Neither the name of The NetBSD Foundation nor the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
@@ -438,10 +438,10 @@ ugenopen(dev_t dev, int flag, int mode, usb_proc_ptr p)
 			if (clalloc(&sce->q, UGEN_IBSIZE, 0) == -1)
 				return (ENOMEM);
 			err = usbd_open_pipe_intr(sce->iface,
-				edesc->bEndpointAddress,
-				USBD_SHORT_XFER_OK, &sce->pipeh, sce,
-				sce->ibuf, isize, ugenintr,
-				USBD_DEFAULT_INTERVAL);
+				  edesc->bEndpointAddress,
+				  USBD_SHORT_XFER_OK, &sce->pipeh, sce,
+				  sce->ibuf, isize, ugenintr,
+				  USBD_DEFAULT_INTERVAL);
 			if (err) {
 				free(sce->ibuf, M_USBDEV);
 				clfree(&sce->q);
@@ -558,6 +558,7 @@ ugenclose(dev_t dev, int flag, int mode, usb_proc_ptr p)
 		case UE_ISOCHRONOUS:
 			for (i = 0; i < UGEN_NISOREQS; ++i)
 				usbd_free_xfer(sce->isoreqs[i].xfer);
+
 		default:
 			break;
 		}
@@ -596,6 +597,7 @@ ugen_do_read(struct ugen_softc *sc, int endpt, struct uio *uio, int flag)
 	if (sce == NULL)
 		return (EINVAL);
 
+#ifdef DIAGNOSTIC
 	if (sce->edesc == NULL) {
 		printf("ugenread: no edesc\n");
 		return (EIO);
@@ -604,6 +606,7 @@ ugen_do_read(struct ugen_softc *sc, int endpt, struct uio *uio, int flag)
 		printf("ugenread: no pipe\n");
 		return (EIO);
 	}
+#endif
 
 	switch (sce->edesc->bmAttributes & UE_XFERTYPE) {
 	case UE_INTERRUPT:
@@ -753,6 +756,7 @@ ugen_do_write(struct ugen_softc *sc, int endpt, struct uio *uio, int flag)
 	if (sce == NULL)
 		return (EINVAL);
 
+#ifdef DIAGNOSTIC
 	if (sce->edesc == NULL) {
 		printf("ugenwrite: no edesc\n");
 		return (EIO);
@@ -761,6 +765,7 @@ ugen_do_write(struct ugen_softc *sc, int endpt, struct uio *uio, int flag)
 		printf("ugenwrite: no pipe\n");
 		return (EIO);
 	}
+#endif
 
 	switch (sce->edesc->bmAttributes & UE_XFERTYPE) {
 	case UE_BULK:
@@ -797,7 +802,7 @@ ugen_do_write(struct ugen_softc *sc, int endpt, struct uio *uio, int flag)
 				break;
 			DPRINTFN(1, ("ugenwrite: transfer %d bytes\n", n));
 			err = usbd_intr_transfer(xfer, sce->pipeh, 0,
-				  sce->timeout, buf, &n,"ugenwi");
+			    sce->timeout, buf, &n, "ugenwi");
 			if (err) {
 				if (err == USBD_INTERRUPTED)
 					error = EINTR;
@@ -1146,9 +1151,9 @@ ugen_do_ioctl(struct ugen_softc *sc, int endpt, u_long cmd,
 		/* All handled in the upper FS layer. */
 		return (0);
 	case USB_SET_SHORT_XFER:
-		/* This flag only affects read */
 		if (endpt == USB_CONTROL_ENDPOINT)
 			return (EINVAL);
+		/* This flag only affects read */
 		sce = &sc->sc_endpoints[endpt][IN];
 		if (sce == NULL)
 			return (EINVAL);
@@ -1220,7 +1225,8 @@ ugen_do_ioctl(struct ugen_softc *sc, int endpt, u_long cmd,
 			  ai->uai_interface_index, &iface);
 		if (err)
 			return (EINVAL);
-		err = ugen_set_interface(sc, ai->uai_interface_index, ai->uai_alt_no);
+		err = ugen_set_interface(sc, ai->uai_interface_index,
+		    ai->uai_alt_no);
 		if (err)
 			return (EINVAL);
 		break;
@@ -1234,7 +1240,8 @@ ugen_do_ioctl(struct ugen_softc *sc, int endpt, u_long cmd,
 			free(cdesc, M_TEMP);
 			return (EINVAL);
 		}
-		ai->uai_alt_no = usbd_get_no_alts(cdesc, idesc->bInterfaceNumber);
+		ai->uai_alt_no = usbd_get_no_alts(cdesc,
+		    idesc->bInterfaceNumber);
 		free(cdesc, M_TEMP);
 		break;
 	case USB_GET_DEVICE_DESC:
@@ -1424,6 +1431,7 @@ ugenpoll(dev_t dev, int events, usb_proc_ptr p)
 	if (sce == NULL)
 		return (EINVAL);
 
+#ifdef DIAGNOSTIC
 	if (!sce->edesc) {
 		printf("ugenpoll: no edesc\n");
 		return (EIO);
@@ -1432,7 +1440,7 @@ ugenpoll(dev_t dev, int events, usb_proc_ptr p)
 		printf("ugenpoll: no pipe\n");
 		return (EIO);
 	}
-
+#endif
 	s = splusb();
 	switch (sce->edesc->bmAttributes & UE_XFERTYPE) {
 	case UE_INTERRUPT:
