@@ -182,6 +182,9 @@ aac_disk_strategy(struct bio *bp)
 
 /*
  * Map the S/G elements for doing a dump.
+ *
+ * XXX This does not handle >4GB of RAM.  Fixing it is possible except on
+ *     adapters that cannot do 64bit s/g lists.
  */
 static void
 aac_dump_map_sg(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
@@ -198,6 +201,8 @@ aac_dump_map_sg(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	if (sg != NULL) {
 		sg->SgCount = nsegs;
 		for (i = 0; i < nsegs; i++) {
+			if (segs[i].ds_addr >= BUS_SPACE_MAXADDR_32BIT)
+				return;
 			sg->SgEntry[i].SgAddress = segs[i].ds_addr;
 			sg->SgEntry[i].SgByteCount = segs[i].ds_len;
 		}
@@ -249,8 +254,17 @@ aac_disk_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size
 		bw->BlockNumber = offset / AAC_BLOCK_SIZE;
 		bw->ByteCount = len;
 		bw->Stable = CUNSTABLE;
-		bus_dmamap_load(sc->aac_buffer_dmat, dump_datamap, virtual,
-		    len, aac_dump_map_sg, fib, 0);
+
+		/*
+		 * There really isn't any way to recover from errors or
+		 * resource shortages here.  Oh well.  Because of that, don't
+		 * bother trying to send the command from the callback; there
+		 * is too much required context.
+		 */
+		if (bus_dmamap_load(sc->aac_buffer_dmat, dump_datamap, virtual,
+		    len, aac_dump_map_sg, fib, 0) != 0)
+			return (EIO);
+
 		bus_dmamap_sync(sc->aac_buffer_dmat, dump_datamap,
 		    BUS_DMASYNC_PREWRITE);
 
@@ -261,8 +275,10 @@ aac_disk_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size
 			printf("Error dumping block 0x%x\n", physical);
 			return (EIO);
 		}
+
 		length -= len;
 		offset += len;
+		(vm_offset_t)virtual += len;
 	}
 
 	return (0);
