@@ -37,7 +37,7 @@ static char sccsid[] = "@(#)strcasecmp.c	8.1 (Berkeley) 6/4/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <string.h>
+#include <strings.h>
 #include <ctype.h>
 
 typedef unsigned char u_char;

@@ -44,7 +44,7 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.In string.h
+.In strings.h
 .Ft int
 .Fn strcasecmp "const char *s1" "const char *s2"
 .Ft int
@@ -95,3 +95,10 @@ and
 .Fn strncasecmp
 functions first appeared in
 .Bx 4.4 .
+Their prototypes existed previously in
+.Aq Pa string.h
+before they were moved to
+.Aq Pa strings.h
+for
+.St -p1003.1-2001
+compliance.
