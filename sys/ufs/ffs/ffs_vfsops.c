@@ -193,7 +193,7 @@ ffs_mount(mp, path, data, ndp, p)
 				return (error);
 			}
 			fs->fs_ronly = 1;
-			if ((fs->fs_flags & FS_UNCLEAN) == 0)
+			if ((fs->fs_flags & (FS_UNCLEAN | FS_NEEDSFSCK)) == 0)
 				fs->fs_clean = 1;
 			if ((error = ffs_sbupdate(ump, MNT_WAIT)) != 0) {
 				fs->fs_ronly = 0;
@@ -224,7 +224,8 @@ ffs_mount(mp, path, data, ndp, p)
 			if (fs->fs_clean == 0) {
 				fs->fs_flags |= FS_UNCLEAN;
 				if ((mp->mnt_flag & MNT_FORCE) ||
-				    (fs->fs_flags & FS_DOSOFTDEP)) {
+				    ((fs->fs_flags & FS_NEEDSFSCK) == 0 &&
+				     (fs->fs_flags & FS_DOSOFTDEP))) {
 					printf("WARNING: %s was not %s\n",
 					   fs->fs_fsmnt, "properly dismounted");
 				} else {
@@ -586,7 +587,8 @@ ffs_mountfs(devvp, mp, p, malloctype)
 	if (fs->fs_clean == 0) {
 		fs->fs_flags |= FS_UNCLEAN;
 		if (ronly || (mp->mnt_flag & MNT_FORCE) ||
-		    (fs->fs_flags & FS_DOSOFTDEP)) {
+		    ((fs->fs_flags & FS_NEEDSFSCK) == 0 &&
+		     (fs->fs_flags & FS_DOSOFTDEP))) {
 			printf(
 "WARNING: %s was not properly dismounted\n",
 			    fs->fs_fsmnt);
@@ -805,7 +807,7 @@ ffs_unmount(mp, mntflags, p)
 	}
 	fs = ump->um_fs;
 	if (fs->fs_ronly == 0) {
-		fs->fs_clean = fs->fs_flags & FS_UNCLEAN ? 0 : 1;
+		fs->fs_clean = fs->fs_flags & (FS_UNCLEAN|FS_NEEDSFSCK) ? 0 : 1;
 		error = ffs_sbupdate(ump, MNT_WAIT);
 		if (error) {
 			fs->fs_clean = 0;
