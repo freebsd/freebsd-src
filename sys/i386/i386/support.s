@@ -350,6 +350,20 @@ intreg_i586_bzero:
 	ret
 #endif /* I586_CPU && defined(DEV_NPX) */
 
+ENTRY(sse2_pagezero)
+	pushl	%ebx
+	movl	8(%esp),%ecx
+	movl	%ecx,%eax
+	addl	$4096,%eax
+	xor	%ebx,%ebx
+1:
+	movnti	%ebx,(%ecx)
+	addl	$4,%ecx
+	cmpl	%ecx,%eax
+	jne	1b
+	popl	%ebx
+	ret
+
 ENTRY(i686_pagezero)
 	pushl	%edi
 	pushl	%ebx

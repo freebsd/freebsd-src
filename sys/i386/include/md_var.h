@@ -93,6 +93,7 @@ void	i586_bzero(void *buf, size_t len);
 int	i586_copyin(const void *udaddr, void *kaddr, size_t len);
 int	i586_copyout(const void *kaddr, void *udaddr, size_t len);
 void	i686_pagezero(void *addr);
+void	sse2_pagezero(void *addr);
 void	init_AMD_Elan_sc520(void);
 int	is_physical_memory(vm_offset_t addr);
 vm_paddr_t kvtop(void *addr);
