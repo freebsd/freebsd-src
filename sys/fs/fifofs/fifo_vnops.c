@@ -155,22 +155,19 @@ fifo_lookup(ap)
 
 /*
  * Dispose of fifo resources.
- * Should be called with vnode locked
  */
 static void
 fifo_cleanup(struct vnode *vp)
 {
 	struct fifoinfo *fip = vp->v_fifoinfo;
 
-	VI_LOCK(vp);
-	if (vp->v_usecount == 1) {
+	ASSERT_VOP_LOCKED(vp, "fifo_cleanup");
+	if (fip->fi_readers == 0 && fip->fi_writers == 0) {
 		vp->v_fifoinfo = NULL;
-		VI_UNLOCK(vp);
 		(void)soclose(fip->fi_readsock);
 		(void)soclose(fip->fi_writesock);
 		FREE(fip, M_VNODE);
-	} else
-		VI_UNLOCK(vp);
+	}
 }
 
 /*
