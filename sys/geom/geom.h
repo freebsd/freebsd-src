@@ -229,6 +229,11 @@ struct g_ioctl {
 
 #ifdef _KERNEL
 
+struct g_kerneldump {
+	off_t		offset;
+	off_t		length;
+};
+
 MALLOC_DECLARE(M_GEOM);
 
 static __inline void *

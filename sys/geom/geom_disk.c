@@ -99,6 +99,24 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 }
 
 static void
+g_disk_kerneldump(struct bio *bp, struct disk *dp)
+{ 
+	int error;
+	struct g_kerneldump *gkd;
+	struct dumperinfo di;
+
+	gkd = (struct g_kerneldump*)bp->bio_data;
+	printf("Kerneldump off=%lld len=%lld\n", gkd->offset, gkd->length);
+	di.dumper = (dumper_t *)dp->d_devsw->d_dump;
+	di.priv = dp->d_dev;
+	di.blocksize = dp->d_label.d_secsize;
+	di.mediaoffset = gkd->offset;
+	di.mediasize = gkd->length;
+	error = set_dumper(&di);
+	g_io_fail(bp, error);
+}
+
+static void
 g_disk_done(struct bio *bp)
 {
 
@@ -148,6 +166,8 @@ g_disk_start(struct bio *bp)
 			break;
 		else if (g_haveattr_off_t(bp, "GEOM::frontstuff", 0))
 			break;
+		else if (!strcmp(bp->bio_attribute, "GEOM::kerneldump"))
+			g_disk_kerneldump(bp, dp);
 		else if (!strcmp(bp->bio_attribute, "GEOM::ioctl") &&
 		    bp->bio_length == sizeof *gio) {
 			gio = (struct g_ioctl *)bp->bio_data;
