@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.79 1997/11/20 17:07:21 bde Exp $
+ *	$Id: autoconf.c,v 1.80 1997/11/21 05:44:07 peter Exp $
  */
 
 /*
@@ -200,6 +200,12 @@ configure(dummy)
 	 * XXX behavior to no longer rely on interrupts or to register an
 	 * XXX interrupt_driven_config_hook for the task.
 	 */
+	/*
+	 * XXX The above is wrong, because we're implicitly at splhigh(),
+	 * XXX and should stay there, so enabling interrupts in the CPU
+	 * XXX and the ICU at most gives pending interrupts which just get
+	 * XXX in the way.
+	 */
 #ifdef APIC_IO
 	bsp_apic_configure();
 	enable_intr();
@@ -223,6 +229,12 @@ configure(dummy)
 #if NISA > 0
 	isa_configure();
 #endif
+
+	/*
+	 * Now we're ready to handle (pending) interrupts.
+	 * XXX this is slightly misplaced.
+	 */
+	spl0();
 
 #if NCARD > 0
 	/* After everyone else has a chance at grabbing resources */
