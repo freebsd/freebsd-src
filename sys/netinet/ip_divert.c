@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ip_divert.c,v 1.1.2.12 1998/07/06 08:48:38 julian Exp $
+ *	$Id: ip_divert.c,v 1.1.2.13 1999/02/08 05:34:09 julian Exp $
  */
 
 #include "opt_ipfw.h"
@@ -318,14 +318,12 @@ div_output(so, m, addr, control)
 
 		/* If no luck with the name above, check by IP address.  */
 		if (m->m_pkthdr.rcvif == NULL) {
-			u_int64_t *zp = (u_int64_t *)sin->sin_zero;
-
 			/*
 			 * Make sure there are no distractions
 			 * for ifa_ifwithaddr. Clear the port and the ifname.
 			 */
+			bzero(sin->sin_zero, sizeof(sin->sin_zero));
 			sin->sin_port = 0;
-			*zp = 0;
 			if (!(ifa = ifa_ifwithaddr((struct sockaddr *) sin))) {
 				error = EADDRNOTAVAIL;
 				goto cantsend;
