@@ -81,7 +81,8 @@ Example:
 .Fl S Li 00:05:04:03:02:01 .
 .It Fl s Ar size
 Specify the number of payload bytes to be sent.
-The default is 64.
+The default is the minimum L2CAP MTU minus the size of the L2CAP signalling
+command header (44 bytes).
 The maximum size is 65531.
 Use this option with caution.
 Some implementations may not like large sizes and may hang or even crash.

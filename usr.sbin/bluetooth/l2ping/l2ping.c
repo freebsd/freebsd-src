@@ -59,27 +59,30 @@ static char const		pattern[] = "1234567890-";
 int
 main(int argc, char *argv[])
 {
-	bdaddr_t				 src, dst;
-	struct hostent				*he = NULL;
-	struct sockaddr_l2cap			 sa;
-	struct ng_btsocket_l2cap_raw_ping	 r;
-	int					 n, s, count, wait, flood, fail;
-	struct timeval				 a, b;
+	bdaddr_t		 src, dst;
+	struct hostent		*he = NULL;
+	uint8_t			*echo_data = NULL;
+	struct sockaddr_l2cap	 sa;
+	int32_t			 n, s, count, wait, flood, echo_size;
 
 	/* Set defaults */
 	memcpy(&src, NG_HCI_BDADDR_ANY, sizeof(src));
 	memcpy(&dst, NG_HCI_BDADDR_ANY, sizeof(dst));
 
-	memset(&r, 0, sizeof(r));
-	r.echo_data = calloc(NG_L2CAP_MAX_ECHO_SIZE, sizeof(u_int8_t));
-	if (r.echo_data == NULL) {
+	echo_data = (uint8_t *) calloc(NG_L2CAP_MAX_ECHO_SIZE, sizeof(uint8_t));
+	if (echo_data == NULL) {
 		fprintf(stderr, "Failed to allocate echo data buffer");
 		exit(1);
 	}
 
-	r.echo_size = 64; /* bytes */
-	count = -1;       /* unlimited */
-	wait = 1;         /* sec */
+	/*
+	 * Set default echo size to the NG_L2CAP_MTU_MINIMUM minus
+	 * the size of the L2CAP signalling command header.
+	 */
+
+	echo_size = NG_L2CAP_MTU_MINIMUM - sizeof(ng_l2cap_cmd_hdr_t);
+	count = -1; /* unimited */
+	wait = 1;   /* sec */
 	flood = 0;
 
 	/* Parse command line arguments */
@@ -120,12 +123,12 @@ main(int argc, char *argv[])
 			break;
 
 		case 's':
-			r.echo_size = atoi(optarg);
-			if ((int) r.echo_size < sizeof(int))
+			echo_size = atoi(optarg);
+			if (echo_size < sizeof(int32_t))
 				usage();
 
-			if (r.echo_size > NG_L2CAP_MAX_ECHO_SIZE)
-				r.echo_size = NG_L2CAP_MAX_ECHO_SIZE;
+			if (echo_size > NG_L2CAP_MAX_ECHO_SIZE)
+				echo_size = NG_L2CAP_MAX_ECHO_SIZE;
 			break;
 
 		case 'h':
@@ -161,20 +164,28 @@ main(int argc, char *argv[])
 "Could not connect socket, dst bdaddr=%s", bt_ntoa(&sa.l2cap_bdaddr, NULL));
 
 	/* Fill pattern */
-	for (n = 0; n < r.echo_size; ) {
-		int	avail = min(r.echo_size - n, PATTERN_SIZE);
+	for (n = 0; n < echo_size; ) {
+		int32_t	avail = min(echo_size - n, PATTERN_SIZE);
 
-		memcpy(r.echo_data + n, pattern, avail);
+		memcpy(echo_data + n, pattern, avail);
 		n += avail;
 	}
 
 	/* Start ping'ing */
 	for (n = 0; count == -1 || count > 0; n ++) {
+		struct ng_btsocket_l2cap_raw_ping	r;
+		struct timeval				a, b;
+		int32_t					fail;
+
 		if (gettimeofday(&a, NULL) < 0)
 			err(5, "Could not gettimeofday(a)");
 
 		fail = 0;
-		*((int *)(r.echo_data)) = htonl(n);
+		*((int32_t *) echo_data) = htonl(n);
+
+		r.result = 0;
+		r.echo_size = echo_size;
+		r.echo_data = echo_data;
 		if (ioctl(s, SIOC_L2CAP_L2CA_PING, &r, sizeof(r)) < 0) {
 			r.result = errno;
 			fail = 1;
@@ -193,7 +204,7 @@ main(int argc, char *argv[])
 "%d bytes from %s seq_no=%d time=%.3f ms result=%#x %s\n",
 			r.echo_size,
 			bt_ntoa(&dst, NULL),
-			ntohl(*((int *)(r.echo_data))),
+			ntohl(*((int32_t *)(r.echo_data))),
 			tv2msec(&b), r.result,
 			((fail == 0)? "" : strerror(errno)));
 
@@ -208,7 +219,7 @@ main(int argc, char *argv[])
 			count --;
 	}
 
-	free(r.echo_data);
+	free(echo_data);
 	close(s);
 
 	return (0);
@@ -256,7 +267,7 @@ usage(void)
 	fprintf(stderr, "\t-f                 - No delay (soft of flood)\n");
 	fprintf(stderr, "\t-i wait            - Delay between packets (sec)\n");
 	fprintf(stderr, "\t-s size            - Packet size (bytes), " \
-		"between %d and %d\n", sizeof(int), NG_L2CAP_MAX_ECHO_SIZE);
+		"between %d and %d\n", sizeof(int32_t), NG_L2CAP_MAX_ECHO_SIZE);
 	fprintf(stderr, "\t-h                 - Display this message\n");
 	
 	exit(255);
