@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.5 1994/09/29 13:19:39 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.6 1994/12/06 00:51:40 jkh Exp $";
 #endif
 
 /*
@@ -50,12 +50,14 @@ pkg_do(char *pkg)
     FILE *cfile;
     char home[FILENAME_MAX];
     PackingList p;
+    char *tmp;
 
     /* Reset some state */
     if (Plist.head)
 	free_plist(&Plist);
 
-    sprintf(LogDir, "%s/%s", LOG_DIR, pkg);
+    sprintf(LogDir, "%s/%s", (tmp = getenv(PKG_DBDIR)) ? tmp : DEF_LOG_DIR,
+    	    pkg);
     if (!fexists(LogDir)) {
 	whinge("No such package '%s' installed.", pkg);
 	return 1;
@@ -154,9 +156,12 @@ undepend(PackingList p, char *pkgname)
      char fname[FILENAME_MAX], ftmp[FILENAME_MAX];
      char fbuf[FILENAME_MAX];
      FILE *fp, *fpwr;
+     char *tmp;
      int s;
 
-     sprintf(fname, "%s/%s/%s", LOG_DIR, p->name, REQUIRED_BY_FNAME);
+     sprintf(fname, "%s/%s/%s",
+	     (tmp = getenv(PKG_DBDIR)) ? tmp : DEF_LOG_DIR,
+	     p->name, REQUIRED_BY_FNAME);
      fp = fopen(fname, "r");
      if (fp == NULL) {
 	 whinge("Couldn't open dependency file `%s'", fname);

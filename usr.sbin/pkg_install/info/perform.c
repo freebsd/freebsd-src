@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.10 1994/12/06 00:51:45 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.11 1995/01/05 01:10:12 swallace Exp $";
 #endif
 
 /*
@@ -33,16 +33,20 @@ int
 pkg_perform(char **pkgs)
 {
     int i, err_cnt = 0;
+    char *tmp;
 
     signal(SIGINT, cleanup);
 
+    tmp = getenv(PKG_DBDIR);
+    if (!tmp)
+	tmp = DEF_LOG_DIR;
     /* Overriding action? */
     if (AllInstalled || CheckPkg) {
-	if (isdir(LOG_DIR)) {
+	if (isdir(tmp)) {
 	    DIR *dirp;
 	    struct dirent *dp;
 
-	    dirp = opendir(LOG_DIR);
+	    dirp = opendir(tmp);
 	    if (dirp) {
 		for (dp = readdir(dirp); dp != NULL; dp = readdir(dirp)) {
 		    if (strcmp(dp->d_name, ".") && strcmp(dp->d_name, "..")) {
@@ -106,7 +110,10 @@ pkg_do(char *pkg)
 	}
     }
     else {
-	sprintf(log_dir, "%s/%s", LOG_DIR, pkg);
+	char *tmp;
+
+	sprintf(log_dir, "%s/%s", (tmp = getenv(PKG_DBDIR)) ? tmp : DEF_LOG_DIR,
+		pkg);
 	if (!fexists(log_dir)) {
 	    whinge("Can't find package '%s' installed or in a file!", pkg);
 	    return 1;
