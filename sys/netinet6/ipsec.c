@@ -409,10 +409,10 @@ ipsec_invalpcbcacheall()
  * NOTE: IPv6 mapped adddress concern is implemented here.
  */
 struct secpolicy *
-ipsec4_getpolicybysock(m, dir, so, error)
+ipsec4_getpolicybypcb(m, dir, inp, error)
 	struct mbuf *m;
 	u_int dir;
-	struct socket *so;
+	struct inpcb *inp;
 	int *error;
 {
 	struct inpcbpolicy *pcbsp = NULL;
@@ -422,21 +422,10 @@ ipsec4_getpolicybysock(m, dir, so, error)
 	u_int16_t tag;
 
 	/* sanity check */
-	if (m == NULL || so == NULL || error == NULL)
+	if (m == NULL || inp == NULL || error == NULL)
 		panic("ipsec4_getpolicybysock: NULL pointer was passed.");
 
-	switch (so->so_proto->pr_domain->dom_family) {
-	case AF_INET:
-		pcbsp = sotoinpcb(so)->inp_sp;
-		break;
-#ifdef INET6
-	case AF_INET6:
-		pcbsp = sotoin6pcb(so)->in6p_sp;
-		break;
-#endif
-	default:
-		panic("ipsec4_getpolicybysock: unsupported address family");
-	}
+	pcbsp = inp->inp_sp;
 
 #ifdef DIAGNOSTIC
 	if (pcbsp == NULL)
@@ -555,6 +544,19 @@ ipsec4_getpolicybysock(m, dir, so, error)
 	/* NOTREACHED */
 }
 
+struct secpolicy *
+ipsec4_getpolicybysock(m, dir, so, error)
+	struct mbuf *m;
+	u_int dir;
+	struct socket *so;
+	int *error;
+{
+
+	if (so == NULL)
+		panic("ipsec4_getpolicybysock: NULL pointer was passed.\n");
+	return (ipsec4_getpolicybypcb(m, dir, sotoinpcb(so), error));
+}
+
 /*
  * For FORWADING packet or OUTBOUND without a socket. Searching SPD for packet,
  * and return a pointer to SP.
@@ -624,10 +626,10 @@ ipsec4_getpolicybyaddr(m, dir, flag, error)
  *	others:	a pointer to SP
  */
 struct secpolicy *
-ipsec6_getpolicybysock(m, dir, so, error)
+ipsec6_getpolicybypcb(m, dir, inp, error)
 	struct mbuf *m;
 	u_int dir;
-	struct socket *so;
+	struct inpcb *inp;
 	int *error;
 {
 	struct inpcbpolicy *pcbsp = NULL;
@@ -637,15 +639,15 @@ ipsec6_getpolicybysock(m, dir, so, error)
 	u_int16_t tag;
 
 	/* sanity check */
-	if (m == NULL || so == NULL || error == NULL)
+	if (m == NULL || inp == NULL || error == NULL)
 		panic("ipsec6_getpolicybysock: NULL pointer was passed.");
 
 #ifdef DIAGNOSTIC
-	if (so->so_proto->pr_domain->dom_family != AF_INET6)
+	if ((inp->inp_vflag & INP_IPV6PROTO) == 0)
 		panic("ipsec6_getpolicybysock: socket domain != inet6");
 #endif
 
-	pcbsp = sotoin6pcb(so)->in6p_sp;
+	pcbsp = inp->in6p_sp;
 
 #ifdef DIAGNOSTIC
 	if (pcbsp == NULL)
@@ -763,6 +765,19 @@ ipsec6_getpolicybysock(m, dir, so, error)
 		return NULL;
 	}
 	/* NOTREACHED */
+}
+
+struct secpolicy *
+ipsec6_getpolicybysock(m, dir, so, error)
+	struct mbuf *m;
+	u_int dir;
+	struct socket *so;
+	int *error;
+{
+
+	if (so == NULL)
+		panic("ipsec6_getpolicybysock: NULL pointer was passed.\n");
+	return (ipsec6_getpolicybypcb(m, dir, sotoin6pcb(so), error));
 }
 
 /*
@@ -1821,9 +1836,9 @@ ipsec_in_reject(sp, m)
  * and {ah,esp}4_input for tunnel mode
  */
 int
-ipsec4_in_reject_so(m, so)
+ipsec4_in_reject(m, inp)
 	struct mbuf *m;
-	struct socket *so;
+	struct inpcb *inp;
 {
 	struct secpolicy *sp = NULL;
 	int error;
@@ -1837,11 +1852,11 @@ ipsec4_in_reject_so(m, so)
 	 * When we are called from ip_forward(), we call
 	 * ipsec4_getpolicybyaddr() with IP_FORWARDING flag.
 	 */
-	if (so == NULL)
+	if (inp == NULL)
 		sp = ipsec4_getpolicybyaddr(m, IPSEC_DIR_INBOUND,
 		    IP_FORWARDING, &error);
 	else
-		sp = ipsec4_getpolicybysock(m, IPSEC_DIR_INBOUND, so, &error);
+		sp = ipsec4_getpolicybypcb(m, IPSEC_DIR_INBOUND, inp, &error);
 
 	/* XXX should be panic ? -> No, there may be error. */
 	if (sp == NULL)
@@ -1849,23 +1864,20 @@ ipsec4_in_reject_so(m, so)
 
 	result = ipsec_in_reject(sp, m);
 	KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
-		printf("DP ipsec4_in_reject_so call free SP:%p\n", sp));
+		printf("DP ipsec4_in_reject call free SP:%p\n", sp));
 	key_freesp(sp);
 
 	return result;
 }
 
 int
-ipsec4_in_reject(m, inp)
+ipsec4_in_reject_so(m, so)
 	struct mbuf *m;
-	struct inpcb *inp;
+	struct socket *so;
 {
-	if (inp == NULL)
-		return ipsec4_in_reject_so(m, NULL);
-	if (inp->inp_socket)
-		return ipsec4_in_reject_so(m, inp->inp_socket);
-	else
-		panic("ipsec4_in_reject: invalid inpcb/socket");
+	if (so == NULL)
+		return ipsec4_in_reject(m, NULL);
+	return ipsec4_in_reject(m, sotoinpcb(so));
 }
 
 #ifdef INET6
@@ -1875,9 +1887,9 @@ ipsec4_in_reject(m, inp)
  * and {ah,esp}6_input for tunnel mode
  */
 int
-ipsec6_in_reject_so(m, so)
+ipsec6_in_reject(m, in6p)
 	struct mbuf *m;
-	struct socket *so;
+	struct in6pcb *in6p;
 {
 	struct secpolicy *sp = NULL;
 	int error;
@@ -1891,34 +1903,31 @@ ipsec6_in_reject_so(m, so)
 	 * When we are called from ip_forward(), we call
 	 * ipsec6_getpolicybyaddr() with IP_FORWARDING flag.
 	 */
-	if (so == NULL)
+	if (in6p == NULL)
 		sp = ipsec6_getpolicybyaddr(m, IPSEC_DIR_INBOUND,
 		    IP_FORWARDING, &error);
 	else
-		sp = ipsec6_getpolicybysock(m, IPSEC_DIR_INBOUND, so, &error);
+		sp = ipsec6_getpolicybypcb(m, IPSEC_DIR_INBOUND, in6p, &error);
 
 	if (sp == NULL)
 		return 0;	/* XXX should be panic ? */
 
 	result = ipsec_in_reject(sp, m);
 	KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
-		printf("DP ipsec6_in_reject_so call free SP:%p\n", sp));
+		printf("DP ipsec6_in_reject call free SP:%p\n", sp));
 	key_freesp(sp);
 
 	return result;
 }
 
 int
-ipsec6_in_reject(m, in6p)
+ipsec6_in_reject_so(m, so)
 	struct mbuf *m;
-	struct in6pcb *in6p;
+	struct socket *so;
 {
-	if (in6p == NULL)
-		return ipsec6_in_reject_so(m, NULL);
-	if (in6p->in6p_socket)
-		return ipsec6_in_reject_so(m, in6p->in6p_socket);
-	else
-		panic("ipsec6_in_reject: invalid in6p/socket");
+	if (so == NULL)
+		return ipsec6_in_reject(m, NULL);
+	return ipsec6_in_reject(m, sotoin6pcb(so));
 }
 #endif
 
@@ -2012,8 +2021,11 @@ ipsec4_hdrsiz(m, dir, inp)
 	/* sanity check */
 	if (m == NULL)
 		return 0;	/* XXX should be panic ? */
+#if 0
+	/* this is possible in TIME_WAIT state */
 	if (inp != NULL && inp->inp_socket == NULL)
 		panic("ipsec4_hdrsize: why is socket NULL but there is PCB.");
+#endif
 
 	/* get SP for this packet.
 	 * When we are called from ip_forward(), we call
@@ -2022,7 +2034,7 @@ ipsec4_hdrsiz(m, dir, inp)
 	if (inp == NULL)
 		sp = ipsec4_getpolicybyaddr(m, dir, IP_FORWARDING, &error);
 	else
-		sp = ipsec4_getpolicybysock(m, dir, inp->inp_socket, &error);
+		sp = ipsec4_getpolicybypcb(m, dir, inp, &error);
 
 	if (sp == NULL)
 		return 0;	/* XXX should be panic ? */
@@ -2054,15 +2066,18 @@ ipsec6_hdrsiz(m, dir, in6p)
 	/* sanity check */
 	if (m == NULL)
 		return 0;	/* XXX should be panic ? */
+#if 0
+	/* this is possible in TIME_WAIT state */
 	if (in6p != NULL && in6p->in6p_socket == NULL)
 		panic("ipsec6_hdrsize: why is socket NULL but there is PCB.");
+#endif
 
 	/* get SP for this packet */
 	/* XXX Is it right to call with IP_FORWARDING. */
 	if (in6p == NULL)
 		sp = ipsec6_getpolicybyaddr(m, dir, IP_FORWARDING, &error);
 	else
-		sp = ipsec6_getpolicybysock(m, dir, in6p->in6p_socket, &error);
+		sp = ipsec6_getpolicybypcb(m, dir, in6p, &error);
 
 	if (sp == NULL)
 		return 0;
@@ -3625,42 +3640,7 @@ ipsec_optaux(m, aux)
 
 	if (aux == NULL)
 		return;
-	if (!aux->so && !aux->sp)
-		ipsec_delaux(m);
-}
-
-int
-ipsec_setsocket(m, so)
-	struct mbuf *m;
-	struct socket *so;
-{
-	struct ipsecaux *aux;
-
-	/* if so == NULL, don't insist on getting the aux mbuf */
-	if (so) {
-		aux = ipsec_addaux(m);
-		if (aux == NULL)
-			return ENOBUFS;
-	} else
-		aux = ipsec_findaux(m);
-	if (aux != NULL) {
-		aux->so = so;
-	}
-	ipsec_optaux(m, aux);
-	return 0;
-}
-
-struct socket *
-ipsec_getsocket(m)
-	struct mbuf *m;
-{
-	struct ipsecaux *aux;
-
-	aux = ipsec_findaux(m);
-	if (aux != NULL)
-		return aux->so;
-	else
-		return NULL;
+	ipsec_delaux(m);
 }
 
 int
