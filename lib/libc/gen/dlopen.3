@@ -32,11 +32,11 @@
 .\" @(#) dlopen.3 1.6 90/01/31 SMI
 .\" $FreeBSD$
 .\"
-.Dd September 24, 1989
+.Dd May 28, 2002
 .Os
 .Dt DLOPEN 3
 .Sh NAME
-.Nm dlopen , dlsym , dlerror , dlclose
+.Nm dlopen , dlsym , dlfunc , dlerror , dlclose
 .Nd programmatic interface to the dynamic linker
 .Sh LIBRARY
 .Lb libc
@@ -46,6 +46,8 @@
 .Fn dlopen "const char *path" "int mode"
 .Ft void *
 .Fn dlsym "void *handle" "const char *symbol"
+.Ft __dlfunc_t
+.Fn dlfunc "void *handle" "const char *symbol"
 .Ft const char *
 .Fn dlerror "void"
 .Ft int
@@ -214,17 +216,39 @@ could access the
 .Fn getpid
 with
 .Li dlsym(RTLD_NEXT, \&"getpid\&") .
+(Actually, the
+.Fn dlfunc
+interface, below, should be used, since
+.Fn getpid
+is a function and not a data object.)
 .Pp
 .Fn dlsym
 returns a null pointer if the symbol cannot be found, and sets an error
 condition which may be queried with
 .Fn dlerror .
 .Pp
+.Fn dlfunc
+implements all of the behavior of
+.Fn dlsym ,
+but has a return type which can be cast to a function pointer without
+triggering compiler diagnostics.
+.Po Fn dlsym
+returns a data pointer; in the C standard, conversions between
+data and function pointer types are undefined.  Some compilers and
+.Xr lint 1
+utilities warn about such casts.
+.Pc
+The precise return type of
+.Fn dlfunc
+is unspecified; applications must cast it to an appropriate function pointer
+type.
+.Pp
 .Fn dlerror
 returns a null-terminated character string describing the last error that
 occurred during a call to
 .Fn dlopen ,
 .Fn dlsym ,
+.Fn dlfunc ,
 or
 .Fn dlclose .
 If no such error has occurred,
@@ -277,10 +301,11 @@ still the case when using the (obsolete)
 .Fl aout
 option to the C language compiler.
 .Sh ERRORS
-.Fn dlopen
+.Fn dlopen ,
+.Fn dlsym ,
 and
-.Fn dlsym
-return the null pointer in the event of errors.
+.Fn dlfunc
+return a null pointer in the event of errors.
 .Fn dlclose
 returns 0 on success, or -1 if an error occurred.
 Whenever an error has been detected, a message detailing it can be

@@ -63,10 +63,31 @@ typedef struct dl_info {
 	void		*dli_saddr;	/* Address of nearest symbol */
 } Dl_info;
 
+/*
+ * The actual type declared by this typedef is immaterial, provided that
+ * it is a function pointer.  Its purpose is to provide a return type for
+ * dlfunc() which can be cast to a function pointer type without depending
+ * on behavior undefined by the C standard, which might trigger a compiler
+ * diagnostic.  We intentionally declare a unique type signature to force
+ * a diagnostic should the application not cast the return value of dlfunc()
+ * appropriately.
+ */
+struct __dlfunc_arg {
+	int __dlfunc_dummy;
+};
+
+typedef void (*__dlfunc_t)(struct __dlfunc_arg);
+
 __BEGIN_DECLS
-int dladdr(const void *, Dl_info *);
+/* XSI functions first */
 int dlclose(void *);
 const char *dlerror(void);
+void *dlopen(const char *, int);
+void *dlsym(void * /* __restrict */, const char * /* __restrict */);
+
+#if __BSD_VISIBLE
+int dladdr(const void *, Dl_info *);
+__dlfunc_t dlfunc(void * /* __restrict */, const char * /* __restrict */);
 void dllockinit(void *_context,
 		void *(*_lock_create)(void *_context),
 		void (*_rlock_acquire)(void *_lock),
@@ -74,8 +95,7 @@ void dllockinit(void *_context,
 		void (*_lock_release)(void *_lock),
 		void (*_lock_destroy)(void *_lock),
 		void (*_context_destroy)(void *_context));
-void *dlopen(const char *, int);
-void *dlsym(void *, const char *);
+#endif /* __BSD_VISIBLE */
 __END_DECLS
 
 #endif /* !_DLFCN_H_ */
