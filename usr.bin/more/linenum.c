@@ -36,6 +36,11 @@
 static char sccsid[] = "@(#)linenum.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif /* not lint */
+
 /*
  * Code to handle displaying line numbers.
  *
@@ -121,7 +126,7 @@ clr_linenum()
 	 * Initialize the anchor.
 	 */
 	anchor.next = anchor.prev = &anchor;
-	anchor.gap = 0;
+	anchor.gap = (off_t)0;
 	anchor.pos = (off_t)0;
 	anchor.line = 1;
 }
@@ -227,8 +232,8 @@ add_lnum(line, pos)
 				mingap = p->gap;
 			}
 		}
-		spare->next->prev = spare->prev;
-		spare->prev->next = spare->next;
+		calcgap(spare->next->prev = spare->prev);
+		calcgap(spare->prev->next = spare->next);
 	}
 }
 
