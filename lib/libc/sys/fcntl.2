@@ -249,9 +249,6 @@ current position, or end of the file, respectively.
 The value of
 .Fa l_len
 is the number of consecutive bytes to be locked.
-If
-.Fa l_len
-is negative, the result is undefined.
 The
 .Fa l_pid
 field is only used with
@@ -469,14 +466,14 @@ The argument
 .Fa cmd
 is
 .Dv F_GETLK ,
-.Dv F_SETLK ,
+.Dv F_SETLK
 or
 .Dv F_SETLKW
 and the data to which
 .Fa arg
-points is not valid, or
-.Fa fildes
-refers to a file that does not support locking.
+points is not valid or
+.Fa l_len
+is negative.
 .It Bq Er EMFILE
 The argument
 .Fa cmd
@@ -496,6 +493,20 @@ or
 .Dv F_SETLKW ,
 and satisfying the lock or unlock request would result in the
 number of locked regions in the system exceeding a system-imposed limit.
+.It Bq Er EOPNOTSUPP
+.Fa Fildes
+refers to a file that does not support locking.
+.It Bq Er EOVERFLOW
+The argument
+.Fa cmd
+of
+.Dv F_GETLK ,
+.Dv F_SETLK
+or
+.Dv F_SETLKW
+cause
+.Fa off_t
+type calculations overflow.
 .It Bq Er EPERM
 .Fa Cmd
 is
