@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
  * of token scanned.
  */
 
+#include <err.h>
 #include <stdio.h>
 #include <ctype.h>
 #include <stdlib.h>
@@ -57,8 +58,6 @@ __FBSDID("$FreeBSD$");
 
 #define alphanum 1
 #define opchar 3
-
-void fill_buffer(void);
 
 struct templ {
     const char *rwd;
