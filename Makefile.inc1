@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.71 1999/04/04 21:35:27 obrien Exp $
+#	$Id: Makefile.inc1,v 1.72 1999/04/05 22:37:54 obrien Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -365,11 +365,13 @@ reinstall:
 	@echo "--------------------------------------------------------------"
 	-cd ${.CURDIR}; /sbin/ldconfig -R
 .endif
+.if !defined(NOMAN)
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Rebuilding man page indexes"
+	@echo ">>> Rebuilding man page indices"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}/share/man; ${MAKE} makedb
+.endif
 
 #
 # update
