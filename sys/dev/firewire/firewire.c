@@ -1888,7 +1888,7 @@ error:
 /*
  * To candidate Bus Manager election process.
  */
-void
+static void
 fw_try_bmr(void *arg)
 {
 	struct fw_xfer *xfer;
@@ -2031,7 +2031,7 @@ fw_crc16(u_int32_t *ptr, u_int32_t len){
 	return((u_int16_t) crc);
 }
 
-int
+static int
 fw_bmr(struct firewire_comm *fc)
 {
 	struct fw_device fwdev;
