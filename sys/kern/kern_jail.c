@@ -28,24 +28,24 @@
 
 MALLOC_DEFINE(M_PRISON, "prison", "Prison structures");
 
-SYSCTL_DECL(_kern_security);
-SYSCTL_NODE(_kern_security, OID_AUTO, jail, CTLFLAG_RW, 0,
+SYSCTL_DECL(_security);
+SYSCTL_NODE(_security, OID_AUTO, jail, CTLFLAG_RW, 0,
     "Jail rules");
 
 mp_fixme("these variables need a lock")
 
 int	jail_set_hostname_allowed = 1;
-SYSCTL_INT(_kern_security_jail, OID_AUTO, set_hostname_allowed, CTLFLAG_RW,
+SYSCTL_INT(_security_jail, OID_AUTO, set_hostname_allowed, CTLFLAG_RW,
     &jail_set_hostname_allowed, 0,
     "Processes in jail can set their hostnames");
 
 int	jail_socket_unixiproute_only = 1;
-SYSCTL_INT(_kern_security_jail, OID_AUTO, socket_unixiproute_only, CTLFLAG_RW,
+SYSCTL_INT(_security_jail, OID_AUTO, socket_unixiproute_only, CTLFLAG_RW,
     &jail_socket_unixiproute_only, 0,
     "Processes in jail are limited to creating UNIX/IPv4/route sockets only");
 
 int	jail_sysvipc_allowed = 0;
-SYSCTL_INT(_kern_security_jail, OID_AUTO, sysvipc_allowed, CTLFLAG_RW,
+SYSCTL_INT(_security_jail, OID_AUTO, sysvipc_allowed, CTLFLAG_RW,
     &jail_sysvipc_allowed, 0,
     "Processes in jail can use System V IPC primitives");
 
