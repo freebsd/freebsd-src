@@ -20,6 +20,7 @@
 #	-DNO_PORTSUPDATE do not update ports in ${MAKE} update
 #	-DNO_DOCUPDATE do not update doc in ${MAKE} update
 #	LOCAL_DIRS="list of dirs" to add additional dirs to the SUBDIR list
+#	MACHINE_ARCH="machine arch" to crossbuild world to a different arch
 
 #
 # The intended user-driven targets are:
@@ -174,7 +175,8 @@ CROSSENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
 
 # bootstrap-tool stage
 BMAKEENV=	${BOOTSTRAPENV}
-BMAKE=		${BMAKEENV} ${MAKE} -f Makefile.inc1 -DNOMAN -DNOINFO -DNOHTML
+BMAKE=		${BMAKEENV} ${MAKE} -f Makefile.inc1 -DNOHTML -DNOINFO \
+			-DNOMAN -DNOPIC -DNOPROFILE -DNOSHARED
 
 # build-tool stage
 TMAKEENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
@@ -185,8 +187,9 @@ TMAKE=		${TMAKEENV} ${MAKE} -f Makefile.inc1
 # cross-tool stage
 XMAKEENV=	${BOOTSTRAPENV} \
 		TARGET_ARCH=${MACHINE_ARCH}
-XMAKE=		${XMAKEENV} ${MAKE} -f Makefile.inc1 -DNOMAN -DNOINFO -DNOHTML \
-		-DNO_FORTRAN -DNO_GDB
+XMAKE=		${XMAKEENV} ${MAKE} -f Makefile.inc1 -DNO_FORTRAN -DNO_GDB \
+			-DNOHTML -DNOINFO -DNOMAN -DNOPIC -DNOPROFILE \
+			-DNOSHARED
 
 # world stage
 WMAKEENV=	${CROSSENV} \
@@ -338,6 +341,15 @@ reinstall:
 .endif
 
 #
+# distribworld
+#
+# Front-end to distribute to make sure the search path contains
+# the object directory. Needed for miniperl.
+#
+distribworld:
+	cd ${.CURDIR}; PATH=${TMPPATH} ${MAKE} -f Makefile.inc1 distribute
+
+#
 # buildkernel and installkernel
 #
 # Which kernels to build and/or install is specified by setting
@@ -395,6 +407,7 @@ buildkernel:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> WARNING: KERNEL= setting should be changed to KERNCONF="
 	@echo "--------------------------------------------------------------"
+	@sleep 3
 .endif
 	@echo
 .for _kernel in ${BUILDKERNELS}
@@ -575,7 +588,7 @@ _perl=	gnu/usr.bin/perl
 .endif
 
 build-tools:
-.for _tool in bin/sh ${_games} gnu/usr.bin/cc/cc_tools ${_fortran} \
+.for _tool in bin/csh bin/sh ${_games} gnu/usr.bin/cc/cc_tools ${_fortran} \
     ${_libroken4} ${_libkrb5} lib/libncurses ${_share} ${_perl}
 	cd ${.CURDIR}/${_tool}; ${MAKE} build-tools
 .endfor
@@ -773,8 +786,7 @@ libraries:
     ${_secure_lib} ${_kerberosIV_lib} \
     ${_kerberos5_lib} lib/libcom_err ${_libm} lib/libncurses \
     lib/libopie lib/libradius lib/libskey lib/libtacplus lib/libutil \
-    lib/libz lib gnu/lib \
-    ${_libperl} usr.bin/lex/lib ${_libkeycap}
+    lib/libz lib gnu/lib ${_libperl} usr.bin/lex/lib ${_libkeycap}
 .if exists(${.CURDIR}/${_lib})
 	cd ${.CURDIR}/${_lib}; \
 		${MAKE} depend; \
