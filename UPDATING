@@ -28,7 +28,7 @@ build and install as described in the COMMON ITEMS section.
 20010810:	p11
 	Check filehandle size when mounting nfs filesystems.
 
-20010805:	p10
+20010805:	p10	FreeBSD-SA-01:52
 	Prevent DoS attack from bogus fragmented packets.
 
 20010723:	p9	FreeBSD-SA-01:49 (part 2)
@@ -52,7 +52,7 @@ build and install as described in the COMMON ITEMS section.
 20010708:	p4	FreeBSD-SA-01:48
 	Fix possible tcpdump buffer overflow.
 
-20010704:	p3
+20010704:	p3	FreeBSD-SA-01:56
 	Unbreak paranoid host checking in tcp_wrappers.
 
 20010601:	p2	FreeBSD-SA-01:40 (part 2)
