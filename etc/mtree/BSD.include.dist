@@ -1,4 +1,4 @@
-#	$Id: BSD.include.dist,v 1.21 1998/09/19 10:41:35 vanilla Exp $
+#	$Id: BSD.include.dist,v 1.22 1998/11/18 01:51:25 jdp Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -8,6 +8,8 @@
     cam
         scsi
         ..
+    ..
+    dev
     ..
     g++
         std
