@@ -1234,7 +1234,7 @@ typedef int bus_dma_filter_t(void *, bus_addr_t);
  *			value of this function indicate success.
  */
 /* XXX Should probably allow specification of alignment */
-int bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignemnt,
+int bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		       bus_size_t boundary, bus_addr_t lowaddr,
 		       bus_addr_t highaddr, bus_dma_filter_t *filtfunc,
 		       void *filtfuncarg, bus_size_t maxsize, int nsegments,
