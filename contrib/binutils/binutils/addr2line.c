@@ -1,5 +1,5 @@
 /* addr2line.c -- convert addresses to line number and function name
-   Copyright 1997, 1998 Free Software Foundation, Inc.
+   Copyright 1997, 98, 99, 2000 Free Software Foundation, Inc.
    Contributed by Ulrich Lauther <Ulrich.Lauther@zfe.siemens.de>
 
    This file is part of GNU Binutils.
@@ -73,14 +73,14 @@ usage (stream, status)
      FILE *stream;
      int status;
 {
-  fprintf (stream, "\
+  fprintf (stream, _("\
 Usage: %s [-CfsHV] [-b bfdname] [--target=bfdname]\n\
        [-e executable] [--exe=executable] [--demangle]\n\
-       [--basenames] [--functions] [addr addr ...]\n",
+       [--basenames] [--functions] [addr addr ...]\n"),
 	   program_name);
   list_supported_targets (program_name, stream);
   if (status == 0)
-    fprintf (stream, "Report bugs to bug-gnu-utils@gnu.org\n");
+    fprintf (stream, _("Report bugs to %s\n"), REPORT_BUGS_TO);
   exit (status);
 }
 
@@ -123,9 +123,10 @@ static void
 find_address_in_section (abfd, section, data)
      bfd *abfd;
      asection *section;
-     PTR data;
+     PTR data ATTRIBUTE_UNUSED;
 {
   bfd_vma vma;
+  bfd_size_type size;
 
   if (found)
     return;
@@ -135,6 +136,10 @@ find_address_in_section (abfd, section, data)
 
   vma = bfd_get_section_vma (abfd, section);
   if (pc < vma)
+    return;
+
+  size = bfd_get_section_size_before_reloc (section);
+  if (pc >= vma + size)
     return;
 
   found = bfd_find_nearest_line (abfd, section, syms, pc - vma,
@@ -181,7 +186,7 @@ translate_addresses (abfd)
 	{
 	  if (with_functions)
 	    {
-	      if (*functionname == '\0')
+	      if (functionname == NULL || *functionname == '\0')
 		printf ("??\n");
 	      else if (! do_demangle)
 		printf ("%s\n", functionname);
@@ -200,7 +205,7 @@ translate_addresses (abfd)
 		}
 	    }
 
-	  if (base_names)
+	  if (base_names && filename != NULL)
 	    {
 	      char *h;
 
@@ -209,7 +214,7 @@ translate_addresses (abfd)
 		filename = h + 1;
 	    }
 
-	  printf ("%s:%u\n", filename, line);
+	  printf ("%s:%u\n", filename ? filename : "??", line);
 	}
 
       /* fflush() is essential for using this command as a server
@@ -235,7 +240,7 @@ process_file (filename, target)
     bfd_fatal (filename);
 
   if (bfd_check_format (abfd, bfd_archive))
-    fatal ("%s: can not get addresses from archive", filename);
+    fatal (_("%s: can not get addresses from archive"), filename);
 
   if (! bfd_check_format_matches (abfd, bfd_object, &matching))
     {
@@ -269,6 +274,12 @@ main (argc, argv)
   char *filename;
   char *target;
   int c;
+
+#if defined (HAVE_SETLOCALE) && defined (HAVE_LC_MESSAGES)
+  setlocale (LC_MESSAGES, "");
+#endif
+  bindtextdomain (PACKAGE, LOCALEDIR);
+  textdomain (PACKAGE);
 
   program_name = *argv;
   xmalloc_set_program_name (program_name);

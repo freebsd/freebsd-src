@@ -1,5 +1,5 @@
 /* debug.c -- Handle generic debugging information.
-   Copyright (C) 1995, 1996 Free Software Foundation, Inc.
+   Copyright (C) 1995, 1996, 1997, 1998, 1999 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>.
 
    This file is part of GNU Binutils.
@@ -541,6 +541,17 @@ struct debug_type_compare_list
   struct debug_type *t2;
 };
 
+/* During debug_get_real_type, a linked list of these structures is
+   kept on the stack to avoid infinite recursion.  */
+
+struct debug_type_real_list
+{
+  /* Next type on list.  */
+  struct debug_type_real_list *next;
+  /* The type we are checking.  */
+  struct debug_type *t;
+};
+
 /* Local functions.  */
 
 static void debug_error PARAMS ((const char *));
@@ -552,7 +563,8 @@ static struct debug_name *debug_add_to_current_namespace
 	   enum debug_object_linkage));
 static struct debug_type *debug_make_type
   PARAMS ((struct debug_handle *, enum debug_type_kind, unsigned int));
-static struct debug_type *debug_get_real_type PARAMS ((PTR, debug_type));
+static struct debug_type *debug_get_real_type
+  PARAMS ((PTR, debug_type, struct debug_type_real_list *));
 static boolean debug_write_name
   PARAMS ((struct debug_handle *, const struct debug_write_fns *, PTR,
 	   struct debug_name *));
@@ -591,7 +603,7 @@ debug_error (message)
 
 static struct debug_name *
 debug_add_to_namespace (info, nsp, name, kind, linkage)
-     struct debug_handle *info;
+     struct debug_handle *info ATTRIBUTE_UNUSED;
      struct debug_namespace **nsp;
      const char *name;
      enum debug_object_kind kind;
@@ -638,7 +650,7 @@ debug_add_to_current_namespace (info, name, kind, linkage)
   if (info->current_unit == NULL
       || info->current_file == NULL)
     {
-      debug_error ("debug_add_to_current_namespace: no current file");
+      debug_error (_("debug_add_to_current_namespace: no current file"));
       return NULL;
     }
 
@@ -721,7 +733,7 @@ debug_start_source (handle, name)
 
   if (info->current_unit == NULL)
     {
-      debug_error ("debug_start_source: no debug_set_filename call");
+      debug_error (_("debug_start_source: no debug_set_filename call"));
       return false;
     }
 
@@ -780,7 +792,7 @@ debug_record_function (handle, name, return_type, global, addr)
 
   if (info->current_unit == NULL)
     {
-      debug_error ("debug_record_function: no debug_set_filename call");
+      debug_error (_("debug_record_function: no debug_set_filename call"));
       return false;
     }
 
@@ -836,7 +848,7 @@ debug_record_parameter (handle, name, type, kind, val)
   if (info->current_unit == NULL
       || info->current_function == NULL)
     {
-      debug_error ("debug_record_parameter: no current function");
+      debug_error (_("debug_record_parameter: no current function"));
       return false;
     }
 
@@ -870,13 +882,13 @@ debug_end_function (handle, addr)
       || info->current_block == NULL
       || info->current_function == NULL)
     {
-      debug_error ("debug_end_function: no current function");
+      debug_error (_("debug_end_function: no current function"));
       return false;
     }
 
   if (info->current_block->parent != NULL)
     {
-      debug_error ("debug_end_function: some blocks were not closed");
+      debug_error (_("debug_end_function: some blocks were not closed"));
       return false;
     }
 
@@ -906,7 +918,7 @@ debug_start_block (handle, addr)
   if (info->current_unit == NULL
       || info->current_block == NULL)
     {
-      debug_error ("debug_start_block: no current block");
+      debug_error (_("debug_start_block: no current block"));
       return false;
     }
 
@@ -944,14 +956,14 @@ debug_end_block (handle, addr)
   if (info->current_unit == NULL
       || info->current_block == NULL)
     {
-      debug_error ("debug_end_block: no current block");
+      debug_error (_("debug_end_block: no current block"));
       return false;
     }
 
   parent = info->current_block->parent;
   if (parent == NULL)
     {
-      debug_error ("debug_end_block: attempt to close top level block");
+      debug_error (_("debug_end_block: attempt to close top level block"));
       return false;
     }
 
@@ -977,7 +989,7 @@ debug_record_line (handle, lineno, addr)
 
   if (info->current_unit == NULL)
     {
-      debug_error ("debug_record_line: no current unit");
+      debug_error (_("debug_record_line: no current unit"));
       return false;
     }
 
@@ -1027,11 +1039,11 @@ debug_record_line (handle, lineno, addr)
 
 boolean
 debug_start_common_block (handle, name)
-     PTR handle;
-     const char *name;
+     PTR handle ATTRIBUTE_UNUSED;
+     const char *name ATTRIBUTE_UNUSED;
 {
   /* FIXME */
-  debug_error ("debug_start_common_block: not implemented");
+  debug_error (_("debug_start_common_block: not implemented"));
   return false;
 }
 
@@ -1039,11 +1051,11 @@ debug_start_common_block (handle, name)
 
 boolean
 debug_end_common_block (handle, name)
-     PTR handle;
-     const char *name;
+     PTR handle ATTRIBUTE_UNUSED;
+     const char *name ATTRIBUTE_UNUSED;
 {
   /* FIXME */
-  debug_error ("debug_end_common_block: not implemented");
+  debug_error (_("debug_end_common_block: not implemented"));
   return false;
 }
 
@@ -1131,13 +1143,13 @@ debug_record_typed_const (handle, name, type, val)
 
 boolean
 debug_record_label (handle, name, type, addr)
-     PTR handle;
-     const char *name;
-     debug_type type;
-     bfd_vma addr;
+     PTR handle ATTRIBUTE_UNUSED;
+     const char *name ATTRIBUTE_UNUSED;
+     debug_type type ATTRIBUTE_UNUSED;
+     bfd_vma addr ATTRIBUTE_UNUSED;
 {
   /* FIXME.  */
-  debug_error ("debug_record_label not implemented");
+  debug_error (_("debug_record_label not implemented"));
   return false;
 }
 
@@ -1163,7 +1175,7 @@ debug_record_variable (handle, name, type, kind, val)
   if (info->current_unit == NULL
       || info->current_file == NULL)
     {
-      debug_error ("debug_record_variable: no current file");
+      debug_error (_("debug_record_variable: no current file"));
       return false;
     }
 
@@ -1179,7 +1191,7 @@ debug_record_variable (handle, name, type, kind, val)
     {
       if (info->current_block == NULL)
 	{
-	  debug_error ("debug_record_variable: no current block");
+	  debug_error (_("debug_record_variable: no current block"));
 	  return false;
 	}
       nsp = &info->current_block->locals;
@@ -1207,7 +1219,7 @@ debug_record_variable (handle, name, type, kind, val)
 /*ARGSUSED*/
 static struct debug_type *
 debug_make_type (info, kind, size)
-     struct debug_handle *info;
+     struct debug_handle *info ATTRIBUTE_UNUSED;
      enum debug_type_kind kind;
      unsigned int size;
 {
@@ -1749,7 +1761,7 @@ debug_make_undefined_tagged_type (handle, name, kind)
       break;
 
     default:
-      debug_error ("debug_make_undefined_type: unsupported kind");
+      debug_error (_("debug_make_undefined_type: unsupported kind"));
       return DEBUG_TYPE_NULL;
     }
 
@@ -1769,7 +1781,7 @@ debug_make_undefined_tagged_type (handle, name, kind)
 /*ARGSUSED*/
 debug_baseclass
 debug_make_baseclass (handle, type, bitpos, virtual, visibility)
-     PTR handle;
+     PTR handle ATTRIBUTE_UNUSED;
      debug_type type;
      bfd_vma bitpos;
      boolean virtual;
@@ -1797,7 +1809,7 @@ debug_make_baseclass (handle, type, bitpos, virtual, visibility)
 /*ARGSUSED*/
 debug_field
 debug_make_field (handle, name, type, bitpos, bitsize, visibility)
-     PTR handle;
+     PTR handle ATTRIBUTE_UNUSED;
      const char *name;
      debug_type type;
      bfd_vma bitpos;
@@ -1828,7 +1840,7 @@ debug_make_field (handle, name, type, bitpos, bitsize, visibility)
 /*ARGSUSED*/
 debug_field
 debug_make_static_member (handle, name, type, physname, visibility)
-     PTR handle;
+     PTR handle ATTRIBUTE_UNUSED;
      const char *name;
      debug_type type;
      const char *physname;
@@ -1854,7 +1866,7 @@ debug_make_static_member (handle, name, type, physname, visibility)
 /*ARGSUSED*/
 debug_method
 debug_make_method (handle, name, variants)
-     PTR handle;
+     PTR handle ATTRIBUTE_UNUSED;
      const char *name;
      debug_method_variant *variants;
 {
@@ -1882,7 +1894,7 @@ debug_make_method (handle, name, variants)
 debug_method_variant
 debug_make_method_variant (handle, physname, type, visibility, constp,
 			   volatilep, voffset, context)
-     PTR handle;
+     PTR handle ATTRIBUTE_UNUSED;
      const char *physname;
      debug_type type;
      enum debug_visibility visibility;
@@ -1914,7 +1926,7 @@ debug_make_method_variant (handle, physname, type, visibility, constp,
 debug_method_variant
 debug_make_static_method_variant (handle, physname, type, visibility,
 				  constp, volatilep)
-     PTR handle;
+     PTR handle ATTRIBUTE_UNUSED;
      const char *physname;
      debug_type type;
      enum debug_visibility visibility;
@@ -1955,8 +1967,8 @@ debug_name_type (handle, name, type)
   if (info->current_unit == NULL
       || info->current_file == NULL)
     {
-      debug_error ("debug_name_type: no current file");
-      return false;
+      debug_error (_("debug_name_type: no current file"));
+      return DEBUG_TYPE_NULL;
     }
 
   t = debug_make_type (info, DEBUG_KIND_NAMED, 0);
@@ -1976,7 +1988,7 @@ debug_name_type (handle, name, type)
   nm = debug_add_to_namespace (info, &info->current_file->globals, name,
 			       DEBUG_OBJECT_TYPE, DEBUG_LINKAGE_NONE);
   if (nm == NULL)
-    return false;
+    return DEBUG_TYPE_NULL;
 
   nm->u.type = t;
 
@@ -2003,7 +2015,7 @@ debug_tag_type (handle, name, type)
 
   if (info->current_file == NULL)
     {
-      debug_error ("debug_tag_type: no current file");
+      debug_error (_("debug_tag_type: no current file"));
       return DEBUG_TYPE_NULL;
     }
 
@@ -2011,7 +2023,7 @@ debug_tag_type (handle, name, type)
     {
       if (strcmp (type->u.knamed->name->name, name) == 0)
 	return type;
-      debug_error ("debug_tag_type: extra tag attempted");
+      debug_error (_("debug_tag_type: extra tag attempted"));
       return DEBUG_TYPE_NULL;
     }
 
@@ -2032,7 +2044,7 @@ debug_tag_type (handle, name, type)
   nm = debug_add_to_namespace (info, &info->current_file->globals, name,
 			       DEBUG_OBJECT_TAG, DEBUG_LINKAGE_NONE);
   if (nm == NULL)
-    return false;
+    return DEBUG_TYPE_NULL;
 
   nm->u.tag = t;
 
@@ -2046,12 +2058,12 @@ debug_tag_type (handle, name, type)
 /*ARGSUSED*/
 boolean
 debug_record_type_size (handle, type, size)
-     PTR handle;
+     PTR handle ATTRIBUTE_UNUSED;
      debug_type type;
      unsigned int size;
 {
   if (type->size != 0 && type->size != size)
-    fprintf (stderr, "Warning: changing type size from %d to %d\n",
+    fprintf (stderr, _("Warning: changing type size from %d to %d\n"),
 	     type->size, size);
 
   type->size = size;
@@ -2075,7 +2087,7 @@ debug_find_named_type (handle, name)
 
   if (info->current_unit == NULL)
     {
-      debug_error ("debug_find_named_type: no current compilation unit");
+      debug_error (_("debug_find_named_type: no current compilation unit"));
       return DEBUG_TYPE_NULL;
     }
 
@@ -2154,24 +2166,54 @@ debug_find_tagged_type (handle, name, kind)
   return DEBUG_TYPE_NULL;
 }
 
-/* Get a base type.  */
+/* Get a base type.  We build a linked list on the stack to avoid
+   crashing if the type is defined circularly.  */
 
 static struct debug_type *
-debug_get_real_type (handle, type)
+debug_get_real_type (handle, type, list)
      PTR handle;
      debug_type type;
+     struct debug_type_real_list *list;
 {
+  struct debug_type_real_list *l;
+  struct debug_type_real_list rl;
+
   switch (type->kind)
     {
     default:
       return type;
+
+    case DEBUG_KIND_INDIRECT:
+    case DEBUG_KIND_NAMED:
+    case DEBUG_KIND_TAGGED:
+      break;
+    }
+
+  for (l = list; l != NULL; l = l->next)
+    {
+      if (l->t == type)
+	{
+	  fprintf (stderr,
+		   _("debug_get_real_type: circular debug information for %s\n"),
+		   debug_get_type_name (handle, type));
+	  return NULL;
+	}
+    }
+
+  rl.next = list;
+  rl.t = type;
+
+  switch (type->kind)
+    {
+      /* The default case is just here to avoid warnings.  */
+    default:
     case DEBUG_KIND_INDIRECT:
       if (*type->u.kindirect->slot != NULL)
-	return debug_get_real_type (handle, *type->u.kindirect->slot);
+	return debug_get_real_type (handle, *type->u.kindirect->slot, &rl);
       return type;
     case DEBUG_KIND_NAMED:
     case DEBUG_KIND_TAGGED:
-      return debug_get_real_type (handle, type->u.knamed->type);
+      return debug_get_real_type (handle, type->u.knamed->type, &rl);
     }
   /*NOTREACHED*/
 }
@@ -2185,7 +2227,9 @@ debug_get_type_kind (handle, type)
 {
   if (type == NULL)
     return DEBUG_KIND_ILLEGAL;
-  type = debug_get_real_type (handle, type);
+  type = debug_get_real_type (handle, type, NULL);
+  if (type == NULL)
+    return DEBUG_KIND_ILLEGAL;
   return type->kind;
 }
 
@@ -2248,7 +2292,9 @@ debug_get_return_type (handle, type)
 {
   if (type == NULL)
     return DEBUG_TYPE_NULL;
-  type = debug_get_real_type (handle, type);
+  type = debug_get_real_type (handle, type, NULL);
+  if (type == NULL)
+    return DEBUG_TYPE_NULL;
   switch (type->kind)
     {
     default:
@@ -2272,7 +2318,9 @@ debug_get_parameter_types (handle, type, pvarargs)
 {
   if (type == NULL)
     return NULL;
-  type = debug_get_real_type (handle, type);
+  type = debug_get_real_type (handle, type, NULL);
+  if (type == NULL)
+    return NULL;
   switch (type->kind)
     {
     default:
@@ -2296,7 +2344,9 @@ debug_get_target_type (handle, type)
 {
   if (type == NULL)
     return NULL;
-  type = debug_get_real_type (handle, type);
+  type = debug_get_real_type (handle, type, NULL);
+  if (type == NULL)
+    return NULL;
   switch (type->kind)
     {
     default:
@@ -2323,7 +2373,9 @@ debug_get_fields (handle, type)
 {
   if (type == NULL)
     return NULL;
-  type = debug_get_real_type (handle, type);
+  type = debug_get_real_type (handle, type, NULL);
+  if (type == NULL)
+    return NULL;
   switch (type->kind)
     {
     default:
@@ -2342,7 +2394,7 @@ debug_get_fields (handle, type)
 /*ARGSUSED*/
 debug_type
 debug_get_field_type (handle, field)
-     PTR handle;
+     PTR handle ATTRIBUTE_UNUSED;
      debug_field field;
 {
   if (field == NULL)
@@ -2355,7 +2407,7 @@ debug_get_field_type (handle, field)
 /*ARGSUSED*/
 const char *
 debug_get_field_name (handle, field)
-     PTR handle;
+     PTR handle ATTRIBUTE_UNUSED;
      debug_field field;
 {
   if (field == NULL)
@@ -2368,7 +2420,7 @@ debug_get_field_name (handle, field)
 /*ARGSUSED*/
 bfd_vma
 debug_get_field_bitpos (handle, field)
-     PTR handle;
+     PTR handle ATTRIBUTE_UNUSED;
      debug_field field;
 {
   if (field == NULL || field->static_member)
@@ -2381,7 +2433,7 @@ debug_get_field_bitpos (handle, field)
 /*ARGSUSED*/
 bfd_vma
 debug_get_field_bitsize (handle, field)
-     PTR handle;
+     PTR handle ATTRIBUTE_UNUSED;
      debug_field field;
 {
   if (field == NULL || field->static_member)
@@ -2394,7 +2446,7 @@ debug_get_field_bitsize (handle, field)
 /*ARGSUSED*/
 enum debug_visibility
 debug_get_field_visibility (handle, field)
-     PTR handle;
+     PTR handle ATTRIBUTE_UNUSED;
      debug_field field;
 {
   if (field == NULL)
@@ -2406,7 +2458,7 @@ debug_get_field_visibility (handle, field)
 
 const char *
 debug_get_field_physname (handle, field)
-     PTR handle;
+     PTR handle ATTRIBUTE_UNUSED;
      debug_field field;
 {
   if (field == NULL || ! field->static_member)
@@ -2546,7 +2598,7 @@ debug_write_type (info, fns, fhandle, type, name)
 {
   unsigned int i;
   int is;
-  const char *tag;
+  const char *tag = NULL;
 
   /* If we have a name for this type, just output it.  We only output
      typedef names after they have been defined.  We output type tags
@@ -2564,7 +2616,9 @@ debug_write_type (info, fns, fhandle, type, name)
 	  struct debug_type *real;
 	  unsigned int id;
 
-	  real = debug_get_real_type ((PTR) info, type);
+	  real = debug_get_real_type ((PTR) info, type, NULL);
+	  if (real == NULL)
+	    return (*fns->empty_type) (fhandle);
 	  id = 0;
 	  if ((real->kind == DEBUG_KIND_STRUCT
 	       || real->kind == DEBUG_KIND_UNION
@@ -2594,7 +2648,6 @@ debug_write_type (info, fns, fhandle, type, name)
   if (name != NULL)
     name->mark = info->mark;
 
-  tag = NULL;
   if (name != NULL
       && type->kind != DEBUG_KIND_NAMED
       && type->kind != DEBUG_KIND_TAGGED)
@@ -2606,7 +2659,7 @@ debug_write_type (info, fns, fhandle, type, name)
   switch (type->kind)
     {
     case DEBUG_KIND_ILLEGAL:
-      debug_error ("debug_write_type: illegal type encountered");
+      debug_error (_("debug_write_type: illegal type encountered"));
       return false;
     case DEBUG_KIND_INDIRECT:
       if (*type->u.kindirect->slot == DEBUG_TYPE_NULL)
@@ -3278,8 +3331,12 @@ debug_type_samep (info, t1, t2)
 	  a1 = t1->u.kfunction->arg_types;
 	  a2 = t2->u.kfunction->arg_types;
 	  while (*a1 != NULL && *a2 != NULL)
-	    if (! debug_type_samep (info, *a1, *a2))
-	      break;
+	    {
+	      if (! debug_type_samep (info, *a1, *a2))
+		break;
+	      ++a1;
+	      ++a2;
+	    }
 	  ret = *a1 == NULL && *a2 == NULL;
 	}
       break;
@@ -3332,8 +3389,12 @@ debug_type_samep (info, t1, t2)
 	  a1 = t1->u.kmethod->arg_types;
 	  a2 = t2->u.kmethod->arg_types;
 	  while (*a1 != NULL && *a2 != NULL)
-	    if (! debug_type_samep (info, *a1, *a2))
-	      break;
+	    {
+	      if (! debug_type_samep (info, *a1, *a2))
+		break;
+	      ++a1;
+	      ++a2;
+	    }
 	  ret = *a1 == NULL && *a2 == NULL;
 	}
       break;
@@ -3413,9 +3474,9 @@ debug_class_type_samep (info, t1, t2)
 	  if (strcmp (f1->name, f2->name) != 0
 	      || ! debug_type_samep (info,
 				     debug_get_real_type ((PTR) info,
-							  f1->type),
+							  f1->type, NULL),
 				     debug_get_real_type ((PTR) info,
-							  f2->type)))
+							  f2->type, NULL)))
 	    return false;
 	}
       if (*pf1 != NULL || *pf2 != NULL)

@@ -9,10 +9,14 @@
 #ifndef DIS_ASM_H
 #define DIS_ASM_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdio.h>
 #include "bfd.h"
 
-typedef int (*fprintf_ftype) PARAMS((FILE*, const char*, ...));
+typedef int (*fprintf_ftype) PARAMS((PTR, const char*, ...));
 
 enum dis_insn_type {
   dis_noninsn,			/* Not a valid instruction */
@@ -37,7 +41,7 @@ enum dis_insn_type {
 
 typedef struct disassemble_info {
   fprintf_ftype fprintf_func;
-  FILE *stream;
+  PTR stream;
   PTR application_data;
 
   /* Target description.  We could replace this with a pointer to the bfd,
@@ -74,7 +78,7 @@ typedef struct disassemble_info {
      INFO is a pointer to this struct.
      Returns an errno value or 0 for success.  */
   int (*read_memory_func)
-    PARAMS ((bfd_vma memaddr, bfd_byte *myaddr, int length,
+    PARAMS ((bfd_vma memaddr, bfd_byte *myaddr, unsigned int length,
 	     struct disassemble_info *info));
 
   /* Function which should be called if we get an error that we can't
@@ -101,7 +105,7 @@ typedef struct disassemble_info {
   /* These are for buffer_read_memory.  */
   bfd_byte *buffer;
   bfd_vma buffer_vma;
-  int buffer_length;
+  unsigned int buffer_length;
 
   /* This variable may be set by the instruction decoder.  It suggests
       the number of bytes objdump should display on a single line.  If
@@ -116,6 +120,11 @@ typedef struct disassemble_info {
      with the chunks displayed according to "display_endian". */
   int bytes_per_chunk;
   enum bfd_endian display_endian;
+
+  /* Number of octets per incremented target address 
+     Normally one, but some DSPs have byte sizes of 16 or 32 bits
+   */
+  unsigned int octets_per_byte;
 
   /* Results from instruction decoders.  Not all decoders yet support
      this information.  This info is set each time an instruction is
@@ -133,6 +142,9 @@ typedef struct disassemble_info {
 				   zero if unknown.  */
   bfd_vma target2;		/* Second target address for dref2 */
 
+  /* Command line options specific to the target disassembler.  */
+  char * disassembler_options;
+
 } disassemble_info;
 
 
@@ -143,7 +155,9 @@ typedef int (*disassembler_ftype)
 
 extern int print_insn_big_mips		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_little_mips	PARAMS ((bfd_vma, disassemble_info*));
-extern int print_insn_i386		PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_i386_att		PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_i386_intel	PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_i370		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_m68k		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_z8001		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_z8002		PARAMS ((bfd_vma, disassemble_info*));
@@ -162,8 +176,10 @@ extern int print_insn_i960		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_sh		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_shl		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_hppa		PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_fr30		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_m32r		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_m88k		PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_mcore		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_mn10200		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_mn10300		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_ns32k		PARAMS ((bfd_vma, disassemble_info*));
@@ -172,11 +188,25 @@ extern int print_insn_little_powerpc	PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_rs6000		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_w65		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_d10v		PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_d30v		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_v850		PARAMS ((bfd_vma, disassemble_info*));
 extern int print_insn_tic30		PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_vax		PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_tic80		PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_pj		PARAMS ((bfd_vma, disassemble_info*));
+extern int print_insn_avr		PARAMS ((bfd_vma, disassemble_info*));
+
+extern void print_arm_disassembler_options PARAMS ((FILE *));
+extern void parse_arm_disassembler_option  PARAMS ((char *));
+extern int  get_arm_regname_num_options    PARAMS ((void));
+extern int  set_arm_regname_option         PARAMS ((int));
+extern int  get_arm_regnames               PARAMS ((int, const char **, const char **, const char ***));
 
 /* Fetch the disassembler for a given BFD, if that support is available.  */
 extern disassembler_ftype disassembler	PARAMS ((bfd *));
+
+/* Document any target specific options available from the disassembler.  */
+extern void disassembler_usage          PARAMS ((FILE *));
 
 
 /* This block of definitions is for particular callers who read instructions
@@ -185,7 +215,7 @@ extern disassembler_ftype disassembler	PARAMS ((bfd *));
 /* Here is a function which callers may wish to use for read_memory_func.
    It gets bytes from a buffer.  */
 extern int buffer_read_memory
-  PARAMS ((bfd_vma, bfd_byte *, int, struct disassemble_info *));
+  PARAMS ((bfd_vma, bfd_byte *, unsigned int, struct disassemble_info *));
 
 /* This function goes with buffer_read_memory.
    It prints a message using info->fprintf_func and info->stream.  */
@@ -209,6 +239,7 @@ extern int generic_symbol_at_address
   (INFO).arch = bfd_arch_unknown, \
   (INFO).mach = 0, \
   (INFO).endian = BFD_ENDIAN_UNKNOWN, \
+  (INFO).octets_per_byte = 1, \
   INIT_DISASSEMBLE_INFO_NO_ARCH(INFO, STREAM, FPRINTF_FUNC)
 
 /* Call this macro to initialize only the internal variables for the
@@ -217,8 +248,8 @@ extern int generic_symbol_at_address
    GDB which must initialize these things seperatly.  */
 
 #define INIT_DISASSEMBLE_INFO_NO_ARCH(INFO, STREAM, FPRINTF_FUNC) \
-  (INFO).fprintf_func = (FPRINTF_FUNC), \
-  (INFO).stream = (STREAM), \
+  (INFO).fprintf_func = (fprintf_ftype)(FPRINTF_FUNC), \
+  (INFO).stream = (PTR)(STREAM), \
   (INFO).symbols = NULL, \
   (INFO).num_symbols = 0, \
   (INFO).buffer = NULL, \
@@ -233,5 +264,9 @@ extern int generic_symbol_at_address
   (INFO).bytes_per_chunk = 0, \
   (INFO).display_endian = BFD_ENDIAN_UNKNOWN, \
   (INFO).insn_info_valid = 0
+
+#ifdef __cplusplus
+};
+#endif
 
 #endif /* ! defined (DIS_ASM_H) */

@@ -1,5 +1,5 @@
 /* sysdep.h -- handle host dependencies for the BFD library
-   Copyright 1995, 1996 Free Software Foundation, Inc.
+   Copyright 1995, 96, 97, 98, 1999 Free Software Foundation, Inc.
    Written by Cygnus Support.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -120,6 +120,25 @@ extern void free ();
 
 #ifdef NEED_DECLARATION_GETENV
 extern char *getenv ();
+#endif
+
+#ifdef ENABLE_NLS
+#include <libintl.h>
+#define _(String) dgettext (PACKAGE, String)
+#ifdef gettext_noop
+#define N_(String) gettext_noop (String)
+#else
+#define N_(String) (String)
+#endif
+#else
+/* Stubs that do something close enough.  */
+#define textdomain(String) (String)
+#define gettext(String) (String)
+#define dgettext(Domain,Message) (Message)
+#define dcgettext(Domain,Message,Type) (Message)
+#define bindtextdomain(Domain,Directory) (Domain)
+#define _(String) (String)
+#define N_(String) (String)
 #endif
 
 #endif /* ! defined (BFD_SYSDEP_H) */

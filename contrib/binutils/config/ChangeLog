@@ -1,3 +1,89 @@
+2000-02-23  Linas Vepstas <linas@linas.org>
+
+	* mh-i370pic: New file.
+	* mt-i370pic: New file.
+
+2000-02-22  Nick Clifton  <nickc@cygnus.com>
+
+	* config/mt-wince: new file: Makefile fragment for WinCE targets.
+
+2000-01-06  Geoff Keating  <geoffk@cygnus.com>
+
+	* mh-aix43: Delete, move to mt-aix43.
+	* mt-aix43: New file.
+
+1999-04-07  Michael Meissner  <meissner@cygnus.com>
+
+	* mt-d30v: New file, pass -g -Os -Wa,-C as default options.
+
+1999-02-08  Syd Polk  <spolk@cygnus.com>
+
+	* acinclude.m4: Added macros to find itcl files.
+	Export TCL_CFLAGS from tclConfig.sh.
+	Export TCL_LIB_FULL_PATH, TK_LIB_FULL_PATH, ITCL_LIB_FULL_PATH,
+	ITK_LIB_FULL_PATH, and TIX_LIB_FULL_PATH
+	Replace TIX macros with better ones from snavigator.
+
+Tue Feb  2 22:51:21 1999 Philip Blundell  <philb@gnu.org>
+
+	* mh-armpic: New file.  Patch from Jim Pick <jim@jimpick.com>.
+	* mt-armpic: Likewise.
+
+Mon Jan 18 19:41:08 1999  Christopher Faylor <cgf@cygnus.com>
+
+	* cygwin.mh: Activate commented out dependencies for
+	gdb: libtermcap.
+
+Wed Nov 18 20:29:46 1998  Christopher Faylor <cgf@cygnus.com>
+
+	* cygwin.mh: Add extra libtermcap target information.
+	Add commented out dependency for gdb to libtermcap for
+	future readline requirement.
+
+Mon Nov  2 15:15:33 1998  Geoffrey Noer  <noer@cygnus.com>
+
+        * mh-cygwin32: delete
+        * mh-cygwin: was mh-cygwin32
+
+1998-10-26  Syd Polk  <spolk@cygnus.com>
+
+	* acinclude.m4: TCLHDIR and TKHDIR need to be run through
+	cygpath for Microsoft builds.
+
+1998-10-20  Syd Polk  <spolk@cygnus.com>
+
+	* acinclude.m4: Re-exported TCL_LIBS and TCL_LD_SEARCH_FLAGS
+	because itcl needs them.
+
+Mon Aug 31 17:50:53 1998  David Edelsohn  <edelsohn@mhpcc.edu>
+
+	* mh-aix43 (NM_FOR_TARGET): Add -X32_64 as well.
+
+Sat Aug 29 14:32:55 1998  David Edelsohn  <edelsohn@mhpcc.edu>
+
+	* mh-aix43: New file.
+
+Mon Aug 10 00:15:47 1998  HJ Lu (hjl@gnu.org)
+
+	* mt-linux (CXXFLAGS_FOR_TARGET): Add -D_GNU_SOURCE.
+
+1998-05-29  Rob Savoye  <rob@chinadoll.cygnus.com>
+
+	* acinclude.m4: New collection of generic autoconf macros.
+	
+Wed Apr 22 12:24:28 1998  Michael Meissner  <meissner@cygnus.com>
+
+	* mt-ospace: New file, support using -Os instead of -O2 to compile
+	the libraries.
+
+Wed Apr 22 10:53:14 1998  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
+
+	* mt-linux (CXXFLAGS_FOR_TARGET): Set this instead of CXXFLAGS.
+
+Sat Apr 11 22:43:17 1998  J. Kean Johnston  <jkj@sco.com>
+
+	* mh-svsv5: New file - support for SCO UnixWare 7 / SVR5.
+
 Thu Mar 26 01:54:25 1998  Geoffrey Noer  <noer@cygnus.com>
 
 	* mh-cygwin32: stop configuring and building dosrel.

@@ -14,7 +14,7 @@
 ## For more information on these two systems, check out the documentation
 ## for 'Autoconf' (autoconf.texi) and 'Configure' (configure.texi).  
 
-#   Copyright (C) 1992, 93, 94, 95, 96, 97, 1998 Free Software Foundation, Inc.
+#   Copyright (C) 1992-99, 2000 Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@
 
 # these libraries are used by various programs built for the host environment
 #
-host_libs="intl mmalloc libiberty opcodes bfd readline gash db tcl tk tclX itcl tix libgui"
+host_libs="intl mmalloc libiberty opcodes bfd readline gash db tcl tk tcl8.1 tk8.1 tclX itcl tix libgui"
 
 if [ "${enable_gdbgui}" = "yes" ] ; then
 	host_libs="${host_libs} libgui"
@@ -50,13 +50,18 @@ fi
 # these tools are built for the host environment
 # Note, the powerpc-eabi build depends on sim occurring before gdb in order to
 # know that we are building the simulator.
-host_tools="byacc flex bison binutils ld gas gcc sim gdb make patch prms send-pr gprof gdbtest tgas etc expect dejagnu bash m4 autoconf automake ispell grep diff rcs cvssrc fileutils shellutils time textutils wdiff find emacs emacs19 uudecode hello tar gzip indent recode release sed utils guile perl apache inet gawk findutils snavigator libtool gettext"
+host_tools="texinfo byacc flex bison binutils ld gas gcc sim gdb make patch prms send-pr gprof gdbtest tgas etc expect dejagnu ash bash bzip2 m4 autoconf automake libtool ispell grep diff rcs cvssrc fileutils shellutils time textutils wdiff find emacs emacs19 uudecode hello tar gzip indent recode release sed utils guile perl apache inet gawk findutils snavigator libtool gettext zip"
 
 # these libraries are built for the target environment, and are built after
 # the host libraries and the host tools (which may be a cross compiler)
 #
-target_libs="target-libiberty target-libgloss target-newlib target-libio target-librx target-libstdc++ target-libg++"
-
+target_libs="target-libiberty \
+		target-libgloss \
+		target-newlib \
+		target-libio \
+		target-librx \
+		target-libstdc++ \
+		target-libg++"
 
 # these tools are built using the target libs, and are intended to run only
 # in the target environment
@@ -79,11 +84,11 @@ target_tools="target-examples target-groff target-gperf"
 #
 # This must be a single line because of the way it is searched by grep in
 # the code below.
-native_only="autoconf automake cvssrc emacs emacs19 fileutils find gawk gettext grep gzip hello indent ispell m4 rcs recode sed shellutils tar textutils gash uudecode wdiff gprof target-groff guile perl apache inet time bash prms snavigator gnuserv target-gperf libtool"
+native_only="autoconf automake libtool cvssrc emacs emacs19 fileutils find gawk gettext grep gzip hello indent ispell m4 rcs recode sed shellutils tar textutils gash uudecode wdiff gprof target-groff guile perl apache inet time ash bash bzip2 prms snavigator gnuserv target-gperf"
 
 # directories to be built in a cross environment only
 #
-cross_only="target-libgloss target-newlib target-cygmon target-opcodes"
+cross_only="target-libgloss target-newlib target-cygmon target-opcodes target-libstub"
 
 ## All tools belong in one of the four categories, and are assigned above
 ## We assign ${configdirs} this way to remove all embedded newlines.  This
@@ -149,6 +154,9 @@ case "${host}" in
   mips*-*-sysv*)
     host_makefile_frag="${host_makefile_frag} config/mh-riscos"
     ;;
+  i[3456]86-*-sysv5*)
+    host_makefile_frag="${host_makefile_frag} config/mh-sysv5"
+    ;;
   i[3456]86-*-dgux*)
     host_makefile_frag="${host_makefile_frag} config/mh-dgux386"
     ;;
@@ -164,6 +172,9 @@ case "${host}" in
   i[3456]86-*-sco*)
     host_makefile_frag="${host_makefile_frag} config/mh-sco"
     ;;
+  i[3456]86-*-udk*)
+    host_makefile_frag="${host_makefile_frag} config/mh-sysv5"
+    ;;
   i[3456]86-*-isc*)
     host_makefile_frag="${host_makefile_frag} config/mh-sysv"
     ;;
@@ -173,17 +184,17 @@ case "${host}" in
   i[3456]86-*-aix*)
     host_makefile_frag="${host_makefile_frag} config/mh-aix386"
     ;;
-  i[3456]86-*-go32*)
-    host_makefile_frag="${host_makefile_frag} config/mh-go32"
-    ;;
   i[3456]86-*-msdosdjgpp*)
-    host_makefile_frag="${host_makefile_frag} config/mh-go32"
+    host_makefile_frag="${host_makefile_frag} config/mh-djgpp"
     ;;
-  *-cygwin32*)
-    host_makefile_frag="${host_makefile_frag} config/mh-cygwin32"
+  *-cygwin*)
+    host_makefile_frag="${host_makefile_frag} config/mh-cygwin"
     ;;
   *-mingw32*)
     host_makefile_frag="${host_makefile_frag} config/mh-mingw32"
+    ;;
+  *-interix*)
+    host_makefile_frag="${host_makefile_frag} config/mh-interix"
     ;;
   *-windows*)
     host_makefile_frag="${host_makefile_frag} config/mh-windows"
@@ -223,7 +234,7 @@ fi
 
 # If we aren't going to be using gcc, see if we can extract a definition
 # of CC from the fragment.
-if [ -z "${CC}" -a "${build}" = "${host}" ]; then
+if [ -z "${CC}" ] && [ "${build}" = "${host}" ]; then
   IFS="${IFS= 	}"; save_ifs="$IFS"; IFS="${IFS}:"
   found=
   for dir in $PATH; do
@@ -234,7 +245,7 @@ if [ -z "${CC}" -a "${build}" = "${host}" ]; then
     fi
   done
   IFS="$save_ifs"
-  if [ -z "${found}" -a -n "${host_makefile_frag}" -a -f "${srcdir}/${host_makefile_frag}" ]; then
+  if [ -z "${found}" ] && [ -n "${host_makefile_frag}" ] && [ -f "${srcdir}/${host_makefile_frag}" ]; then
     xx=`sed -n -e 's/^[ 	]*CC[ 	]*=[ 	]*\(.*\)$/\1/p' < ${srcdir}/${host_makefile_frag}`
     if [ -n "${xx}" ] ; then
       CC=$xx
@@ -262,22 +273,34 @@ esac
 
 if [ x${shared} = xyes ]; then
   case "${host}" in
-    hppa*)
-      host_makefile_frag="${host_makefile_frag} config/mh-papic"
-      ;;
-    i[3456]86-*)
-      host_makefile_frag="${host_makefile_frag} config/mh-x86pic"
-      ;;
-    sparc64-*)
-      host_makefile_frag="${host_makefile_frag} config/mh-sparcpic"
-      ;;
-    powerpc*-*)
-      host_makefile_frag="${host_makefile_frag} config/mh-ppcpic"
-      ;;
     alpha*-*-linux*)
       host_makefile_frag="${host_makefile_frag} config/mh-elfalphapic"
       ;;
-    *)
+    arm*-*-*)
+      host_makefile_frag="${host_makefile_frag} config/mh-armpic"
+      ;;
+    hppa*-*-*)
+      host_makefile_frag="${host_makefile_frag} config/mh-papic"
+      ;;
+    i[3456]86-*-cygwin*)
+      # We don't want -fPIC on Cygwin.
+      ;;
+    i[3456]86-*-*)
+      host_makefile_frag="${host_makefile_frag} config/mh-x86pic"
+      ;;
+    i370-*-*)
+      host_makefile_frag="${host_makefile_frag} config/mh-i370pic"
+      ;;
+    sparc64-*-*)
+      host_makefile_frag="${host_makefile_frag} config/mh-sparcpic"
+      ;;
+    powerpc*-*-aix*)
+      # We don't want -fPIC on AIX.
+      ;;
+    powerpc*-*-*)
+      host_makefile_frag="${host_makefile_frag} config/mh-ppcpic"
+      ;;
+    *-*-*)
       if test -f ${srcdir}/config/mh-${host_cpu}pic; then
         host_makefile_frag="${host_makefile_frag} config/mh-${host_cpu}pic"
       fi
@@ -306,8 +329,34 @@ case "${target}" in
   powerpc-*-netware*)
     target_makefile_frag="${target_makefile_frag} config/mt-netware"
     ;;
-  *-*-linux-gnu)
+  *-*-linux-gnu*)
     target_makefile_frag="${target_makefile_frag} config/mt-linux"
+    ;;
+  *-*-aix4.[3456789]* | *-*-aix[56789].*)
+    target_makefile_frag="${target_makefile_frag} config/mt-aix43"
+    ;;
+  mips*-*-pe | sh*-*-pe | *arm-wince-pe)
+    target_makefile_frag="${target_makefile_frag} config/mt-wince"
+    ;;
+esac
+
+# If --enable-target-optspace always use -Os instead of -O2 to build
+# the target libraries, similarly if it is not specified, use -Os
+# on selected platforms.
+case "${enable_target_optspace}:${target}" in
+  yes:*)
+    target_makefile_frag="${target_makefile_frag} config/mt-ospace"
+    ;;
+  :d30v-*)
+    target_makefile_frag="${target_makefile_frag} config/mt-d30v"
+    ;;
+  :m32r-* | :d10v-* | :fr30-*)
+    target_makefile_frag="${target_makefile_frag} config/mt-ospace"
+    ;;
+  no:* | :*)
+    ;;
+  *)
+    echo "*** bad value \"${enable_target_optspace}\" for --enable-target-optspace flag; ignored" 1>&2
     ;;
 esac
 
@@ -342,19 +391,16 @@ if [ x"${host}" = x"${target}" ] ; then
 	# that are in the 'cross only' list
 	skipdirs="${skipdirs} ${cross_only}"
 	is_cross_compiler=no
-	target_subdir=.
-	case "${host}" in
-          # We need multilib support for irix6, to get libiberty built
-	  #  properly for o32 and n32.
-          mips-sgi-irix6*) target_subdir=${host} ;;
-	esac
 else
 	# similarly, don't build the targets in the 'native only' 
 	# list when building a cross compiler
 	skipdirs="${skipdirs} ${native_only}"
 	is_cross_compiler=yes
-	target_subdir=${target_alias}
 fi	
+
+# We always want to use the same name for this directory, so that dejagnu
+# can reliably find it.
+target_subdir=${target_alias}
 
 if [ ! -d ${target_subdir} ] ; then
   if mkdir ${target_subdir} ; then true
@@ -418,7 +464,7 @@ if [ x${with_stabs} = x ]; then
   case "${target}" in
   mips*-*-irix6*)
     ;;
-  mips*-*-* | alpha*-*-osf* | i[3456]86*-*-sysv4* | i[3456]86*-*-unixware*)
+  mips*-*-* | alpha*-*-osf*)
     with_stabs=yes;
     withoptions="${withoptions} --with-stabs"
     ;;
@@ -463,8 +509,8 @@ case "${host}" in
 	  configdirs="$configdirs dosrel" ;;
 	i[3456]86-*-mingw32*)
 	  configdirs="$configdirs dosrel" ;;
-	*-cygwin32*)
-	  configdirs="$configdirs dosrel" ;;
+	*-cygwin*)
+	  configdirs="$configdirs libtermcap dosrel" ;;
 esac
 
 # Remove more programs from consideration, based on the host or 
@@ -482,16 +528,13 @@ case "${host}" in
 	;;
   i[3456]86-*-mingw32*)
     # noconfigdirs="tcl tk expect dejagnu make texinfo bison patch flex byacc send-pr uudecode dejagnu diff guile perl apache inet itcl tix db snavigator gnuserv"
-     noconfigdirs="expect dejagnu cvs autoconf automake send-pr gprof rcs guile perl texinfo apache inet libtool"
+     noconfigdirs="expect dejagnu cvs autoconf automake send-pr rcs guile perl texinfo apache inet libtool"
 	;;
-  *-*-cygwin32)
-     noconfigdirs="autoconf automake send-pr gprof rcs guile perl texinfo apache inet"
-    ;;
-  *-*-windows*)
-# This is only used to build WinGDB...
-# note that powerpc-eabi depends on sim configured before gdb.
-     configdirs="bfd libiberty opcodes readline sim gdb"
-     target_configdirs=
+  i[3456]86-*-beos*)
+     noconfigdirs="$noconfigdirs tk itcl tix libgui gdb"
+     ;;
+  *-*-cygwin*)
+     noconfigdirs="autoconf automake send-pr rcs guile perl texinfo apache inet"
     ;;
   *-*-netbsd*)
     noconfigdirs="rcs"
@@ -531,6 +574,21 @@ case "${target}" in
     # newlib is not 64 bit ready
     noconfigdirs="$noconfigdirs target-newlib target-libgloss"
     ;;
+  sh*-*-pe|mips*-*-pe|*arm-wince-pe)
+    noconfigdirs="$noconfigdirs target-libjava target-libffi target-zlib"
+    noconfigdirs="$noconfigdirs target-boehm-gc target-qthreads target-examples"
+    noconfigdirs="$noconfigdirs target-librx target-libiberty texinfo send-pr"
+    noconfigdirs="$noconfigdirs tcl tix tk itcl libgui sim"
+    noconfigdirs="$noconfigdirs expect dejagnu"
+    # the C++ libraries don't build on top of CE's C libraries
+    noconfigdirs="$noconfigdirs target-libg++ target-libstdc++ target-libio"
+    skipdirs="$skipdirs target-newlib"
+    case "${host}" in
+      *-*-cygwin*) ;; # keep gdb and readline
+      *) noconfigdirs="$noconfigdirs gdb readline target-libio target-libstdc++ target-libg++"
+	 ;;
+    esac
+    ;;
   arc-*-*)
     noconfigdirs="$noconfigdirs target-libgloss"
     ;;
@@ -539,26 +597,67 @@ case "${target}" in
     ;;
   arm-*-coff*)
     noconfigdirs="$noconfigdirs target-libgloss"
+    if [ x${is_cross_compiler} != xno ] ; then
+	   target_configdirs="${target_configdirs} target-bsp target-cygmon"
+    fi
+    ;;
+  arm-*-elf*)
+    noconfigdirs="$noconfigdirs target-libgloss"
+    if [ x${is_cross_compiler} != xno ] ; then
+	   target_configdirs="${target_configdirs} target-bsp target-cygmon"
+    fi
+    ;;
+  arm-*-oabi*)
+    noconfigdirs="$noconfigdirs target-libgloss"
+    ;;
+  c4x-*-*)
+    noconfigdirs="$noconfigdirs target-libg++ target-libstdc++ target-libio target-librx target-libgloss"
     ;;
   thumb-*-coff)
     noconfigdirs="$noconfigdirs target-libgloss"
     ;;
-  thumb-*-pe) # CYGNUS LOCAL nickc/thumb
+  thumb-*-elf)
+    noconfigdirs="$noconfigdirs target-libgloss"
+    ;;
+  thumb-*-oabi)
+    noconfigdirs="$noconfigdirs target-libgloss"
+    ;;
+  strongarm-*-elf)
+    noconfigdirs="$noconfigdirs target-libgloss"
+    if [ x${is_cross_compiler} != xno ] ; then
+	   target_configdirs="${target_configdirs} target-bsp target-cygmon"
+    fi
+    ;;
+  strongarm-*-coff)
+    noconfigdirs="$noconfigdirs target-libgloss"
+    if [ x${is_cross_compiler} != xno ] ; then
+	   target_configdirs="${target_configdirs} target-bsp target-cygmon"
+    fi
+    ;;
+  thumb-*-pe)
     noconfigdirs="$noconfigdirs target-libgloss"
     ;;
   arm-*-riscix*)
     noconfigdirs="$noconfigdirs ld target-libgloss"
     ;;
   d10v-*-*)
-    noconfigdirs="$noconfigdirs target-librx target-libg++ target-libstdc++ target-libio target-libgloss"
+    noconfigdirs="$noconfigdirs target-librx target-libg++ target-libstdc++ target-libio"
+    ;;
+  d30v-*-*)
+    ;;
+  fr30-*-elf*)
+    if [ x${is_cross_compiler} != xno ] ; then
+	   target_configdirs="${target_configdirs} target-bsp target-libstub target-cygmon"
+    fi
     ;;
   h8300*-*-* | \
   h8500-*-*)
     noconfigdirs="$noconfigdirs target-libg++ target-libstdc++ target-libio target-librx target-libgloss"
     ;;
   hppa*-*-*elf* | \
+  hppa*-*-linux-gnu* | \
   hppa*-*-lites*)
-    # Do configure ld/binutils/gas for this case.
+    # Do configure ld/binutils/gas for the above cases.
     ;;
   hppa*-*-*)
     # HP's C compiler doesn't handle Emacs correctly (but on BSD and Mach
@@ -569,6 +668,11 @@ case "${target}" in
         *) ;;
     esac
     noconfigdirs="$noconfigdirs ld shellutils"
+    ;;
+  i[3456]86-*-coff | i[3456]86-*-elf)
+    if [ x${is_cross_compiler} != xno ] ; then
+         target_configdirs="${target_configdirs} target-libstub target-cygmon"
+    fi
     ;;
   i[3456]86-*-go32* | i[3456]-*-msdosdjgpp*)
     # but don't build gdb
@@ -585,15 +689,15 @@ case "${target}" in
          ;;
     esac
     ;;    
-  *-*-cygwin32*)
-    target_configdirs="$target_configdirs target-winsup"
-    noconfigdirs="$noconfigdirs target-gperf target-libgloss"
+  *-*-cygwin*)
+    target_configdirs="$target_configdirs target-libtermcap target-winsup"
+    noconfigdirs="$noconfigdirs target-libgloss"
     # always build newlib.
     skipdirs=`echo " ${skipdirs} " | sed -e 's/ target-newlib / /'`
 
-    # Can't build gdb for cygwin32 if not native.
+    # Can't build gdb for Cygwin if not native.
     case "${host}" in
-      *-*-cygwin32*) ;; # keep gdb tcl tk expect etc.
+      *-*-cygwin*) ;; # keep gdb tcl tk expect etc.
       *) noconfigdirs="$noconfigdirs gdb tcl tk expect itcl tix libgui db snavigator gnuserv"
          ;;
     esac
@@ -604,16 +708,13 @@ case "${target}" in
   i[3456]86-*-sco3.2v5*)
     # The linker does not yet know about weak symbols in COFF,
     # and is not configured to handle mixed ELF and COFF.
-    noconfigdirs="$noconfigdirs gprof ld target-libgloss"
+    noconfigdirs="$noconfigdirs ld target-libgloss"
     ;;
   i[3456]86-*-sco*)
     noconfigdirs="$noconfigdirs gprof target-libgloss"
     ;;
   i[3456]86-*-solaris2*)
-    # The linker does static linking correctly, but the Solaris C library
-    # has bugs such that some important functions won't work when statically
-    # linked.  (See man pages for getpwuid, for example.)
-    noconfigdirs="$noconfigdirs ld target-libgloss"
+    noconfigdirs="$noconfigdirs target-libgloss"
     ;;
   i[3456]86-*-sysv4*)
     # The SYSV4 C compiler doesn't handle Emacs correctly
@@ -624,16 +725,38 @@ case "${target}" in
     # but that's okay since emacs doesn't work anyway
     noconfigdirs="$noconfigdirs emacs emacs19 target-libgloss"
     ;;
+  i[3456]86-*-beos*)
+     noconfigdirs="$noconfigdirs gdb target-newlib target-libgloss"
+     ;;
+  m68k-*-elf*)
+    if [ x${is_cross_compiler} != xno ] ; then
+	   target_configdirs="${target_configdirs} target-bsp target-cygmon"
+    fi
+    ;;
+  m68k-*-coff*)
+    if [ x${is_cross_compiler} != xno ] ; then
+	   target_configdirs="${target_configdirs} target-bsp target-cygmon"
+    fi
+    ;;
   mn10200-*-*)
-    noconfigdirs="$noconfigdirs target-libgloss"
+    noconfigdirs="$noconfigdirs"
+    if [ x${is_cross_compiler} != xno ] ; then
+	   target_configdirs="${target_configdirs} target-libstub target-cygmon"
+    fi
     ;;
   mn10300-*-*)
     noconfigdirs="$noconfigdirs"
+    if [ x${is_cross_compiler} != xno ] ; then
+	   target_configdirs="${target_configdirs} target-bsp target-libstub target-cygmon"
+    fi
     ;;
   powerpc-*-aix*)
     # copied from rs6000-*-* entry
-    noconfigdirs="$noconfigdirs gprof cvssrc target-libgloss"
-    # This is needed until gcc and ld are fixed to work together.
+    # The configure and build of ld are currently disabled because
+    # GNU ld is known to be broken for AIX 4.2 and 4.3 (at least)
+    # The symptom is that GDBtk 4.18 fails at startup with a segfault
+    # if linked by GNU ld, but not if linked by the native ld.
+    noconfigdirs="$noconfigdirs gprof cvssrc target-libgloss ld"
     use_gnu_ld=no
     ;;
   powerpc*-*-winnt* | powerpc*-*-pe* | ppc*-*-pe)
@@ -646,14 +769,22 @@ case "${target}" in
   powerpcle-*-solaris*)
     noconfigdirs="$noconfigdirs gdb sim make tcl tk expect itcl tix db snavigator gnuserv"
     ;;
+  powerpc-*-eabi)
+    if [ x${is_cross_compiler} != xno ] ; then
+	   target_configdirs="${target_configdirs} target-bsp target-libstub target-cygmon"
+    fi
+    ;;
   rs6000-*-lynxos*)
     # The CVS server code doesn't work on the RS/6000
     # Newlib makes problems for libg++ in crosses.
     noconfigdirs="$noconfigdirs target-newlib gprof cvssrc"
     ;;
   rs6000-*-aix*)
-    noconfigdirs="$noconfigdirs gprof"
-    # This is needed until gcc and ld are fixed to work together.
+    # The configure and build of ld are currently disabled because
+    # GNU ld is known to be broken for AIX 4.2 and 4.3 (at least)
+    # The symptom is that GDBtk 4.18 fails at startup with a segfault
+    # if linked by GNU ld, but not if linked by the native ld.
+    noconfigdirs="$noconfigdirs gprof ld"
     use_gnu_ld=no
     ;;
   rs6000-*-*)
@@ -668,9 +799,14 @@ case "${target}" in
     noconfigdirs="$noconfigdirs ld gprof emacs target-libgloss"
     ;;
   mips*-*-irix6*)
-    # The GNU assembler and linker do not support IRIX 6.
+    # The GNU assembler does not support IRIX 6.
     # emacs is emacs 18, which does not work on Irix 5 (emacs19 does work)
-    noconfigdirs="$noconfigdirs ld gas gprof emacs target-libgloss"
+    noconfigdirs="$noconfigdirs gas gprof emacs target-libgloss"
+    ;;
+  mips*-*-linux*)
+    noconfigdirs="$noconfigdirs gprof"
+    # linux has rx in libc
+    skipdirs="$skipdirs target-librx"
     ;;
   mips*-dec-bsd*)
     noconfigdirs="$noconfigdirs gprof target-libgloss"
@@ -678,6 +814,10 @@ case "${target}" in
   mips*-*-bsd*)
     noconfigdirs="$noconfigdirs gprof target-libgloss"
     ;;
+  mipstx39-*-*)
+    noconfigdirs="$noconfigdirs gprof"   # same as generic mips
+    target_configdirs="${target_configdirs} target-bsp target-libstub target-cygmon"
+   ;;
   mips*-*-*)
     noconfigdirs="$noconfigdirs gprof"
     ;;
@@ -695,17 +835,17 @@ case "${target}" in
     ;;
   sparc-*-elf*)
     if [ x${is_cross_compiler} != xno ] ; then
-	   target_configdirs="${target_configdirs} target-cygmon"
+	   target_configdirs="${target_configdirs} target-libstub target-cygmon"
     fi
     ;;
   sparc64-*-elf*)
     if [ x${is_cross_compiler} != xno ] ; then
-	   target_configdirs="${target_configdirs} target-cygmon"
+	   target_configdirs="${target_configdirs} target-libstub target-cygmon"
     fi
     ;;
-  sparclite-*-aout*)
+  sparclite-*-*)
     if [ x${is_cross_compiler} != xno ] ; then
-	   target_configdirs="${target_configdirs} target-cygmon"
+	   target_configdirs="${target_configdirs} target-bsp target-libstub target-cygmon"
     fi
     ;;
   sparc-*-sunos4*)
@@ -721,11 +861,21 @@ case "${target}" in
   v850-*-*)
     noconfigdirs="$noconfigdirs target-libgloss"
     ;;
+  v850e-*-*)
+    noconfigdirs="$noconfigdirs target-libgloss"
+    ;;
+  v850ea-*-*)
+    noconfigdirs="$noconfigdirs target-libgloss"
+    ;;
   vax-*-vms)
     noconfigdirs="$noconfigdirs bfd binutils gdb ld target-newlib opcodes target-libgloss"
     ;;
   vax-*-*)
     noconfigdirs="$noconfigdirs target-newlib target-libgloss"
+    ;;
+  *-*-linux*)
+    # linux has rx in libc
+    skipdirs="$skipdirs target-librx"
     ;;
   *-*-lynxos*)
     # Newlib makes problems for libg++ in crosses.
@@ -808,12 +958,12 @@ fi
 # Deconfigure all subdirectories, in case we are changing the
 # configuration from one where a subdirectory is supported to one where it
 # is not.
-if [ -z "${norecursion}" -a -n "${configdirs}" ]; then
+if [ -z "${norecursion}" ] && [ -n "${configdirs}" ]; then
   for i in `echo ${configdirs} | sed -e s/target-//g` ; do
     rm -f $i/Makefile
   done
 fi
-if [ -z "${norecursion}" -a -n "${target_configdirs}" ]; then
+if [ -z "${norecursion}" ] && [ -n "${target_configdirs}" ]; then
   for i in `echo ${target_configdirs} | sed -e s/target-//g` ; do
     rm -f ${target_subdir}/$i/Makefile
   done
@@ -984,21 +1134,10 @@ if [ "${shared}" = "yes" ]; then
   esac
 fi
 
-# If we are building for a win32 host, then set INSTALL_PROGRAM_ARGS to
-# -x.  This will cause programs to be installed with .exe extensions.
-case "${host}" in
-*-*-cygwin32* | i[3456]86-*-mingw32)
-    sed -e 's/^INSTALL_PROGRAM_ARGS[ 	]*=.*$/INSTALL_PROGRAM_ARGS = -x/' \
-	Makefile > Makefile.tem
-    rm -f Makefile
-    mv -f Makefile.tem Makefile
-    ;;
-esac
-
 # Record target_configdirs and the configure arguments in Makefile.
 target_configdirs=`echo "${target_configdirs}" | sed -e 's/target-//g'`
 targargs=`echo "${arguments}" | \
-	sed -e 's/--norecursion//' \
+	sed -e 's/--no[^ 	]*//' \
 	    -e 's/--cache[a-z-]*=[^ 	]*//' \
 	    -e 's/--ho[a-z-]*=[^ 	]*//' \
 	    -e 's/--bu[a-z-]*=[^ 	]*//' \
@@ -1018,10 +1157,46 @@ if [ x${enable_multilib} = x ]; then
   targargs="--enable-multilib ${targargs}"
 fi
 
+# Pass --with-newlib if appropriate.  Note that target_configdirs has
+# changed from the earlier setting of with_newlib.
+if [ x${with_newlib} != xno ] && echo " ${target_configdirs} " | grep " newlib " > /dev/null 2>&1 && [ -d ${srcdir}/newlib ] ; then
+  targargs="--with-newlib ${targargs}"
+fi
+
+# provide a proper gxx_include_dir.
+# Note, if you change the default, make sure to fix both here and in
+# the gcc, libio, libstdc++ and libg++ subdirectories.
+# Check whether --with-gxx-include-dir or --without-gxx-include-dir was given.
+gxx_include_dir=
+if test -n "${with_gxx_include_dir}"; then
+  case "${with_gxx_include_dir}" in
+    yes )
+      echo "configure.in: error: bad value ${withval} given for g++ include directory" 1>&2
+      exit 1
+      ;;
+    no )
+      ;;
+    * )
+      gxx_include_dir=${with_gxx_include_dir}
+      ;;
+  esac
+fi
+if test x${gxx_include_dir} = x; then
+  if test x${enable_version_specific_runtime_libs} = xyes; then
+    gxx_include_dir='${libsubdir}/include/g++'
+  else
+    . ${topsrcdir}/config.if
+    gxx_include_dir='${prefix}/include/g++'-${libstdcxx_interface}
+  fi
+else
+  gxx_include_dir=${gxx_include_dir}
+fi
+
 targargs="--host=${target_alias} --build=${build_alias} ${targargs}"
 sed -e "s:^TARGET_CONFIGDIRS[ 	]*=.*$:TARGET_CONFIGDIRS = ${target_configdirs}:" \
     -e "s%^CONFIG_ARGUMENTS[ 	]*=.*$%CONFIG_ARGUMENTS = ${targargs}%" \
     -e "s%^TARGET_SUBDIR[ 	]*=.*$%TARGET_SUBDIR = ${target_subdir}%" \
+    -e "s%^gxx_include_dir[ 	]*=.*$%gxx_include_dir=${gxx_include_dir}%" \
        Makefile > Makefile.tem
 rm -f Makefile
 mv -f Makefile.tem Makefile

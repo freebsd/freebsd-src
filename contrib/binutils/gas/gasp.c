@@ -1,5 +1,6 @@
 /* gasp.c - Gnu assembler preprocessor main program.
-   Copyright (C) 1994, 95, 96, 97, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1994, 95, 96, 97, 98, 99, 2000
+   Free Software Foundation, Inc.
 
    Written by Steve and Judy Chamberlain of Cygnus Support,
       sac@cygnus.com
@@ -49,6 +50,7 @@ suitable for gas to consume.
 */
 
 #include "config.h"
+#include "bin-bugs.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -67,6 +69,7 @@ extern char *malloc ();
 #include "libiberty.h"
 #include "sb.h"
 #include "macro.h"
+#include "asintl.h"
 
 char *program_version = "1.2";
 
@@ -74,6 +77,11 @@ char *program_version = "1.2";
    need the function because other files linked with gasp.c might call
    it.  */
 extern void as_abort PARAMS ((const char *, int, const char *));
+
+/* The default obstack chunk size.  If we set this to zero, the
+   obstack code will use whatever will fit in a 4096 byte block.  This
+   is used by the hash table code used by macro.c.  */
+int chunksize = 0;
 
 #define MAX_INCLUDES 30		/* Maximum include depth */
 #define MAX_REASONABLE 1000	/* Maximum number of expansions */
@@ -185,37 +193,6 @@ typedef struct
     int size;
   } hash_table;
 
-
-/* Structures used to store macros. 
-
-   Each macro knows its name and included text.  It gets built with a
-   list of formal arguments, and also keeps a hash table which points
-   into the list to speed up formal search.  Each formal knows its
-   name and its default value.  Each time the macro is expanded, the
-   formals get the actual values attatched to them. */
-
-/* describe the formal arguments to a macro */
-
-typedef struct formal_struct
-  {
-    struct formal_struct *next;	/* next formal in list */
-    sb name;			/* name of the formal */
-    sb def;			/* the default value */
-    sb actual;			/* the actual argument (changed on each expansion) */
-    int index;			/* the index of the formal 0..formal_count-1 */
-  }
-formal_entry;
-
-/* describe the macro. */
-
-typedef struct macro_struct
-  {
-    sb sub;			/* substitution text. */
-    int formal_count;		/* number of formal args. */
-    formal_entry *formals;	/* pointer to list of formal_structs */
-    hash_table formal_hash;	/* hash table of formals. */
-  }
-macro_entry;
 
 /* how we nest files and expand macros etc.
 
@@ -475,7 +452,7 @@ hash_add_to_string_table (tab, key, name, again)
   if (ptr->value.s.len)
     {
       if (!again)
-	ERROR ((stderr, "redefinition not allowed\n"));
+	ERROR ((stderr, _("redefinition not allowed\n")));
     }
 
   ptr->type = hash_string;
@@ -549,7 +526,7 @@ checkconst (op, term)
   if (term->add_symbol.len
       || term->sub_symbol.len)
     {
-      ERROR ((stderr, "the %c operator cannot take non-absolute arguments.\n", op));
+      ERROR ((stderr, _("the %c operator cannot take non-absolute arguments.\n"), op));
     }
 }
 
@@ -626,13 +603,13 @@ level_0 (idx, string, lhs)
     {
       sb acc;
       sb_new (&acc);
-      ERROR ((stderr, "string where expression expected.\n"));
+      ERROR ((stderr, _("string where expression expected.\n")));
       idx = getstring (idx, string, &acc);
       sb_kill (&acc);
     }
   else
     {
-      ERROR ((stderr, "can't find primary in expression.\n"));
+      ERROR ((stderr, _("can't find primary in expression.\n")));
       idx++;
     }
   return sb_skip_white (idx, string);
@@ -672,7 +649,7 @@ level_1 (idx, string, lhs)
       idx++;
       idx = level_5 (sb_skip_white (idx, string), string, lhs);
       if (string->ptr[idx] != ')')
-	ERROR ((stderr, "misplaced closing parens.\n"));
+	ERROR ((stderr, _("misplaced closing parens.\n")));
       else
 	idx++;
       break;
@@ -709,7 +686,7 @@ level_2 (idx, string, lhs)
 	  checkconst ('/', lhs);
 	  checkconst ('/', &rhs);
 	  if (rhs.value == 0)
-	    ERROR ((stderr, "attempt to divide by zero.\n"));
+	    ERROR ((stderr, _("attempt to divide by zero.\n")));
 	  else
 	    lhs->value /= rhs.value;
 	  break;
@@ -741,7 +718,7 @@ level_3 (idx, string, lhs)
 	  lhs->value += rhs.value;
 	  if (lhs->add_symbol.name && rhs.add_symbol.name)
 	    {
-	      ERROR ((stderr, "can't add two relocatable expressions\n"));
+	      ERROR ((stderr, _("can't add two relocatable expressions\n")));
 	    }
 	  /* change nn+symbol to symbol + nn */
 	  if (rhs.add_symbol.name)
@@ -887,7 +864,7 @@ exp_get_abs (emsg, idx, in, val)
   exp_t res;
   idx = exp_parse (idx, in, &res);
   if (res.add_symbol.len || res.sub_symbol.len)
-    ERROR ((stderr, emsg));
+    ERROR ((stderr, "%s", emsg));
   *val = res.value;
   return idx;
 }
@@ -946,7 +923,7 @@ include_buf (name, ptr, type, index)
 {
   sp++;
   if (sp - include_stack >= MAX_INCLUDES)
-    FATAL ((stderr, "unreasonable nesting.\n"));
+    FATAL ((stderr, _("unreasonable nesting.\n")));
   sb_new (&sp->name);
   sb_add_sb (&sp->name, name);
   sp->handle = 0;
@@ -1024,7 +1001,7 @@ get_line (in)
 	{
 	  if (online)
 	    {
-	      WARNING ((stderr, "End of file not at start of line.\n"));
+	      WARNING ((stderr, _("End of file not at start of line.\n")));
 	      if (copysource)
 		putc ('\n', outfile);
 	      ch = '\n';
@@ -1079,7 +1056,7 @@ grab_label (in, out)
 {
   int i = 0;
   sb_reset (out);
-  if (ISFIRSTCHAR (in->ptr[i]))
+  if (ISFIRSTCHAR (in->ptr[i]) || in->ptr[i] == '\\')
     {
       sb_add_char (out, in->ptr[i]);
       i++;
@@ -1145,7 +1122,7 @@ change_base (idx, in, out)
 	      base = 10;
 	      break;
 	    default:
-	      ERROR ((stderr, "Illegal base character %c.\n", in->ptr[idx]));
+	      ERROR ((stderr, _("Illegal base character %c.\n"), in->ptr[idx]));
 	      base = 10;
 	      break;
 	    }
@@ -1260,7 +1237,7 @@ do_radix (ptr)
       radix = 16;
       break;
     default:
-      ERROR ((stderr, "radix is %c must be one of b, q, d or h", radix));
+      ERROR ((stderr, _("radix is %c must be one of b, q, d or h"), radix));
     }
 }
 
@@ -1296,7 +1273,7 @@ get_opsize (idx, in, size)
     case '\t':
       break;
     default:
-      ERROR ((stderr, "size must be one of b, w or l, is %c.\n", in->ptr[idx]));
+      ERROR ((stderr, _("size must be one of b, w or l, is %c.\n"), in->ptr[idx]));
       break;
     }
   idx++;
@@ -1378,7 +1355,7 @@ do_data (idx, in, size)
 	  idx = exp_parse (idx, in, &e);
 	  exp_string (&e, &acc);
 	  sb_add_char (&acc, 0);
-	  fprintf (outfile, acc.ptr);
+	  fprintf (outfile, "%s", acc.ptr);
 	  if (idx < in->len && in->ptr[idx] == ',')
 	    {
 	      fprintf (outfile, ",");
@@ -1404,9 +1381,9 @@ do_datab (idx, in)
 
   idx = get_opsize (idx, in, &opsize);
 
-  idx = exp_get_abs ("datab repeat must be constant.\n", idx, in, &repeat);
+  idx = exp_get_abs (_("datab repeat must be constant.\n"), idx, in, &repeat);
   idx = sb_skip_comma (idx, in);
-  idx = exp_get_abs ("datab data must be absolute.\n", idx, in, &fill);
+  idx = exp_get_abs (_("datab data must be absolute.\n"), idx, in, &fill);
 
   fprintf (outfile, ".fill\t%d,%d,%d\n", repeat, opsize, fill);
 }
@@ -1420,22 +1397,17 @@ do_align (idx, in)
 {
   int al, have_fill, fill;
 
-  idx = exp_get_abs ("align needs absolute expression.\n", idx, in, &al);
+  idx = exp_get_abs (_("align needs absolute expression.\n"), idx, in, &al);
   idx = sb_skip_white (idx, in);
   have_fill = 0;
   fill = 0;
   if (! eol (idx, in))
     {
       idx = sb_skip_comma (idx, in);
-      idx = exp_get_abs (".align needs absolute fill value.\n", idx, in,
+      idx = exp_get_abs (_(".align needs absolute fill value.\n"), idx, in,
 			 &fill);
       have_fill = 1;
     }
-
-  if (al != 1
-      && al != 2
-      && al != 4)
-    WARNING ((stderr, "alignment must be one of 1, 2 or 4.\n"));
 
   fprintf (outfile, ".align	%d", al);
   if (have_fill)
@@ -1460,7 +1432,7 @@ do_res (idx, in, type)
       idx = sb_skip_white (idx, in);
       if (in->ptr[idx] == ',')
 	idx++;
-      idx = exp_get_abs ("res needs absolute expression for fill count.\n", idx, in, &count);
+      idx = exp_get_abs (_("res needs absolute expression for fill count.\n"), idx, in, &count);
 
       if (type == 'c' || type == 'z')
 	count++;
@@ -1540,13 +1512,13 @@ do_form (idx, in)
       if (strncasecmp (in->ptr + idx, "LIN=", 4) == 0)
 	{
 	  idx += 4;
-	  idx = exp_get_abs ("form LIN= needs absolute expresssion.\n", idx, in, &lines);
+	  idx = exp_get_abs (_("form LIN= needs absolute expresssion.\n"), idx, in, &lines);
 	}
 
-      if (strncasecmp (in->ptr + idx, "COL=", 4) == 0)
+      if (strncasecmp (in->ptr + idx, _("COL="), 4) == 0)
 	{
 	  idx += 4;
-	  idx = exp_get_abs ("form COL= needs absolute expresssion.\n", idx, in, &columns);
+	  idx = exp_get_abs (_("form COL= needs absolute expresssion.\n"), idx, in, &columns);
 	}
 
       idx++;
@@ -1588,7 +1560,7 @@ get_any_string (idx, in, out, expand, pretend_quoted)
 	  int val;
 	  char buf[20];
 	  /* Turns the next expression into a string */
-	  idx = exp_get_abs ("% operator needs absolute expression",
+	  idx = exp_get_abs (_("% operator needs absolute expression"),
 			     idx + 1,
 			     in,
 			     &val);
@@ -1650,7 +1622,7 @@ skip_openp (idx, in)
 {
   idx = sb_skip_white (idx, in);
   if (in->ptr[idx] != '(')
-    ERROR ((stderr, "misplaced ( .\n"));
+    ERROR ((stderr, _("misplaced ( .\n")));
   idx = sb_skip_white (idx + 1, in);
   return idx;
 }
@@ -1665,7 +1637,7 @@ skip_closep (idx, in)
 {
   idx = sb_skip_white (idx, in);
   if (in->ptr[idx] != ')')
-    ERROR ((stderr, "misplaced ).\n"));
+    ERROR ((stderr, _("misplaced ).\n")));
   idx = sb_skip_white (idx + 1, in);
   return idx;
 }
@@ -1719,7 +1691,7 @@ doinstr (idx, in, out)
   idx = sb_skip_comma (idx, in);
   if (isdigit ((unsigned char) in->ptr[idx]))
     {
-      idx = exp_get_abs (".instr needs absolute expresson.\n", idx, in, &start);
+      idx = exp_get_abs (_(".instr needs absolute expresson.\n"), idx, in, &start);
     }
   else
     {
@@ -1757,9 +1729,9 @@ dosubstr (idx, in, out)
   idx = skip_openp (idx, in);
   idx = get_and_process (idx, in, &string);
   idx = sb_skip_comma (idx, in);
-  idx = exp_get_abs ("need absolute position.\n", idx, in, &pos);
+  idx = exp_get_abs (_("need absolute position.\n"), idx, in, &pos);
   idx = sb_skip_comma (idx, in);
-  idx = exp_get_abs ("need absolute length.\n", idx, in, &len);
+  idx = exp_get_abs (_("need absolute length.\n"), idx, in, &len);
   idx = skip_closep (idx, in);
 
 
@@ -1916,7 +1888,7 @@ process_file ()
 		   || line.ptr[0] == '!'))
 	{
 	  /* MRI line comment.  */
-	  fprintf (outfile, sb_name (&line));
+	  fprintf (outfile, "%s", sb_name (&line));
 	}
       else
 	{
@@ -2008,7 +1980,7 @@ process_file ()
     }
 
   if (!had_end && !mri)
-    WARNING ((stderr, "END missing from end of file.\n"));
+    WARNING ((stderr, _("END missing from end of file.\n")));
 }
 
 
@@ -2038,11 +2010,11 @@ do_assigna (idx, in)
   sb_new (&tmp);
 
   process_assigns (idx, in, &tmp);
-  idx = exp_get_abs (".ASSIGNA needs constant expression argument.\n", 0, &tmp, &val);
+  idx = exp_get_abs (_(".ASSIGNA needs constant expression argument.\n"), 0, &tmp, &val);
 
   if (!label.len)
     {
-      ERROR ((stderr, ".ASSIGNA without label.\n"));
+      ERROR ((stderr, _(".ASSIGNA without label.\n")));
     }
   else
     {
@@ -2067,7 +2039,7 @@ do_assignc (idx, in)
 
   if (!label.len)
     {
-      ERROR ((stderr, ".ASSIGNS without label.\n"));
+      ERROR ((stderr, _(".ASSIGNS without label.\n")));
     }
   else
     {
@@ -2134,7 +2106,7 @@ condass_lookup_name (inbuf, idx, out, warn)
     {
       if (warn) 
 	{
-	  WARNING ((stderr, "Can't find preprocessor variable %s.\n", sb_name (&condass_acc)));
+	  WARNING ((stderr, _("Can't find preprocessor variable %s.\n"), sb_name (&condass_acc)));
 	}
       else 
 	{
@@ -2199,7 +2171,7 @@ whatcond (idx, in, val)
     }
   if (cond == NEVER)
     {
-      ERROR ((stderr, "Comparison operator must be one of EQ, NE, LT, LE, GT or GE.\n"));
+      ERROR ((stderr, _("Comparison operator must be one of EQ, NE, LT, LE, GT or GE.\n")));
       cond = NEVER;
     }
   idx = sb_skip_white (idx + 2, in);
@@ -2233,7 +2205,7 @@ istrue (idx, in)
 
       if (cond != EQ && cond != NE)
 	{
-	  ERROR ((stderr, "Comparison operator for strings must be EQ or NE\n"));
+	  ERROR ((stderr, _("Comparison operator for strings must be EQ or NE\n")));
 	  res = 0;
 	}
       else
@@ -2245,17 +2217,17 @@ istrue (idx, in)
       int vala;
       int valb;
       int cond;
-      idx = exp_get_abs ("Conditional operator must have absolute operands.\n", idx, in, &vala);
+      idx = exp_get_abs (_("Conditional operator must have absolute operands.\n"), idx, in, &vala);
       idx = whatcond (idx, in, &cond);
       idx = sb_skip_white (idx, in);
       if (in->ptr[idx] == '"')
 	{
-	  WARNING ((stderr, "String compared against expression.\n"));
+	  WARNING ((stderr, _("String compared against expression.\n")));
 	  res = 0;
 	}
       else
 	{
-	  idx = exp_get_abs ("Conditional operator must have absolute operands.\n", idx, in, &valb);
+	  idx = exp_get_abs (_("Conditional operator must have absolute operands.\n"), idx, in, &valb);
 	  switch (cond)
 	    {
 	    default:
@@ -2300,7 +2272,7 @@ do_aif (idx, in)
 {
   if (ifi >= IFNESTING)
     {
-      FATAL ((stderr, "AIF nesting unreasonable.\n"));
+      FATAL ((stderr, _("AIF nesting unreasonable.\n")));
     }
   ifi++;
   ifstack[ifi].on = ifstack[ifi-1].on ? istrue (idx, in) : 0;
@@ -2315,7 +2287,7 @@ do_aelse ()
   ifstack[ifi].on = ifstack[ifi-1].on ? !ifstack[ifi].on : 0;
   if (ifstack[ifi].hadelse)
     {
-      ERROR ((stderr, "Multiple AELSEs in AIF.\n"));
+      ERROR ((stderr, _("Multiple AELSEs in AIF.\n")));
     }
   ifstack[ifi].hadelse = 1;
 }
@@ -2331,7 +2303,7 @@ do_aendi ()
     }
   else
     {
-      ERROR ((stderr, "AENDI without AIF.\n"));
+      ERROR ((stderr, _("AENDI without AIF.\n")));
     }
 }
 
@@ -2354,10 +2326,10 @@ do_if (idx, in, cond)
 
   if (ifi >= IFNESTING)
     {
-      FATAL ((stderr, "IF nesting unreasonable.\n"));
+      FATAL ((stderr, _("IF nesting unreasonable.\n")));
     }
 
-  idx = exp_get_abs ("Conditional operator must have absolute operands.\n",
+  idx = exp_get_abs (_("Conditional operator must have absolute operands.\n"),
 		     idx, in, &val);
   switch (cond)
     {
@@ -2436,7 +2408,7 @@ do_ifc (idx, in, ifnc)
 
   if (ifi >= IFNESTING)
     {
-      FATAL ((stderr, "IF nesting unreasonable.\n"));
+      FATAL ((stderr, _("IF nesting unreasonable.\n")));
     }
 
   sb_new (&first);
@@ -2446,7 +2418,7 @@ do_ifc (idx, in, ifnc)
 
   if (idx >= in->len || in->ptr[idx] != ',')
     {
-      ERROR ((stderr, "Bad format for IF or IFNC.\n"));
+      ERROR ((stderr, _("Bad format for IF or IFNC.\n")));
       return;
     }
 
@@ -2466,9 +2438,9 @@ static void
 do_aendr ()
 {
   if (!mri)
-    ERROR ((stderr, "AENDR without a AREPEAT.\n"));
+    ERROR ((stderr, _("AENDR without a AREPEAT.\n")));
   else
-    ERROR ((stderr, "ENDR without a REPT.\n"));
+    ERROR ((stderr, _("ENDR without a REPT.\n")));
 }
 
 /* .AWHILE */
@@ -2491,7 +2463,7 @@ do_awhile (idx, in)
   doit = istrue (0, &exp);
 
   if (! buffer_and_nest ("AWHILE", "AENDW", &sub, get_line))
-    FATAL ((stderr, "AWHILE without a AENDW at %d.\n", line - 1));
+    FATAL ((stderr, _("AWHILE without a AENDW at %d.\n"), line - 1));
 
   /* Turn
      	.AWHILE exp
@@ -2529,7 +2501,7 @@ do_awhile (idx, in)
 static void
 do_aendw ()
 {
-  ERROR ((stderr, "AENDW without a AENDW.\n"));
+  ERROR ((stderr, _("AENDW without a AENDW.\n")));
 }
 
 
@@ -2574,13 +2546,13 @@ do_arepeat (idx, in)
   sb_new (&copy);
   sb_new (&sub);
   process_assigns (idx, in, &exp);
-  idx = exp_get_abs ("AREPEAT must have absolute operand.\n", 0, &exp, &rc);
+  idx = exp_get_abs (_("AREPEAT must have absolute operand.\n"), 0, &exp, &rc);
   if (!mri)
     ret = buffer_and_nest ("AREPEAT", "AENDR", &sub, get_line);
   else
     ret = buffer_and_nest ("REPT", "ENDR", &sub, get_line);
   if (! ret)
-    FATAL ((stderr, "AREPEAT without a AENDR at %d.\n", line - 1));
+    FATAL ((stderr, _("AREPEAT without a AENDR at %d.\n"), line - 1));
   if (rc > 0)
     {
       /* Push back the text following the repeat, and another repeat block
@@ -2622,7 +2594,7 @@ do_arepeat (idx, in)
 static void
 do_endm ()
 {
-  ERROR ((stderr, ".ENDM without a matching .MACRO.\n"));
+  ERROR ((stderr, _(".ENDM without a matching .MACRO.\n")));
 }
 
 /* MRI IRP pseudo-op.  */
@@ -2653,10 +2625,10 @@ do_irp (idx, in, irpc)
 static
 void 
 do_local (idx, line)
-     int idx;
-     sb *line;
+     int idx ATTRIBUTE_UNUSED;
+     sb *line ATTRIBUTE_UNUSED;
 {
-  ERROR ((stderr, "LOCAL outside of MACRO"));
+  ERROR ((stderr, _("LOCAL outside of MACRO")));
 }
 
 static void
@@ -2669,7 +2641,7 @@ do_macro (idx, in)
 
   err = define_macro (idx, in, &label, get_line, (const char **) NULL);
   if (err != NULL)
-    ERROR ((stderr, "macro at line %d: %s\n", line - 1, err));
+    ERROR ((stderr, _("macro at line %d: %s\n"), line - 1, err));
 }
 
 static int
@@ -2685,14 +2657,14 @@ macro_op (idx, in)
     return 0;
 
   sb_terminate (in);
-  if (! check_macro (in->ptr + idx, &out, comment_char, &err))
+  if (! check_macro (in->ptr + idx, &out, comment_char, &err, NULL))
     return 0;
 
   if (err != NULL)
     ERROR ((stderr, "%s\n", err));
 
   sb_new (&name);
-  sb_add_string (&name, "macro expansion");
+  sb_add_string (&name, _("macro expansion"));
 
   include_buf (&name, &out, include_macro, include_next_index ());
 
@@ -2744,12 +2716,12 @@ getstring (idx, in, acc)
 	  else {
 	    int code;
 	    idx++;
-	    idx = exp_get_abs ("Character code in string must be absolute expression.\n",
+	    idx = exp_get_abs (_("Character code in string must be absolute expression.\n"),
 			       idx, in, &code);
 	    sb_add_char (acc, code);
 
 	    if (in->ptr[idx] != '>')
-	      ERROR ((stderr, "Missing > for character code.\n"));
+	      ERROR ((stderr, _("Missing > for character code.\n")));
 	    idx++;
 	  }
 	}
@@ -2808,7 +2780,7 @@ do_sdata (idx, in, type)
 	    {
 	      if (acc.len > 255)
 		{
-		  ERROR ((stderr, "string for SDATAC longer than 255 characters (%d).\n", acc.len));
+		  ERROR ((stderr, _("string for SDATAC longer than 255 characters (%d).\n"), acc.len));
 		}
 	      fprintf (outfile, "%d", acc.len);
 	      nc = 1;
@@ -2836,7 +2808,7 @@ do_sdata (idx, in, type)
       if (!alternate && in->ptr[idx] != ',' && idx != in->len)
 	{
 	  fprintf (outfile, "\n");
-	  ERROR ((stderr, "illegal character in SDATA line (0x%x).\n", in->ptr[idx]));
+	  ERROR ((stderr, _("illegal character in SDATA line (0x%x).\n"), in->ptr[idx]));
 	  break;
 	}
       idx++;
@@ -2857,10 +2829,10 @@ do_sdatab (idx, in)
   sb acc;
   sb_new (&acc);
 
-  idx = exp_get_abs ("Must have absolute SDATAB repeat count.\n", idx, in, &repeat);
+  idx = exp_get_abs (_("Must have absolute SDATAB repeat count.\n"), idx, in, &repeat);
   if (repeat <= 0)
     {
-      ERROR ((stderr, "Must have positive SDATAB repeat count (%d).\n", repeat));
+      ERROR ((stderr, _("Must have positive SDATAB repeat count (%d).\n"), repeat));
       repeat = 1;
     }
 
@@ -2888,7 +2860,7 @@ new_file (name)
     return 0;
 
   if (isp == MAX_INCLUDES)
-    FATAL ((stderr, "Unreasonable include depth (%ld).\n", (long) isp));
+    FATAL ((stderr, _("Unreasonable include depth (%ld).\n"), (long) isp));
 
   sp++;
   sp->handle = newone;
@@ -2942,7 +2914,7 @@ do_include (idx, in)
   if (!includes)
     {
       if (! new_file (sb_name (&t)))
-	FATAL ((stderr, "Can't open include file `%s'.\n", sb_name (&t)));
+	FATAL ((stderr, _("Can't open include file `%s'.\n"), sb_name (&t)));
     }
   sb_kill (&cat);
   sb_kill (&t);
@@ -3016,7 +2988,7 @@ include_next_index ()
   static int index;
   if (!unreasonable
       && index > MAX_REASONABLE)
-    FATAL ((stderr, "Unreasonable expansion (-u turns off check).\n"));
+    FATAL ((stderr, _("Unreasonable expansion (-u turns off check).\n")));
   return ++index;
 }
 
@@ -3237,7 +3209,7 @@ process_pseudo_op (idx, line, acc)
 #if 0
 	  /* This one causes lots of pain when trying to preprocess
 	     ordinary code */
-	  WARNING ((stderr, "Unrecognised pseudo op `%s'.\n", sb_name (acc)));
+	  WARNING ((stderr, _("Unrecognised pseudo op `%s'.\n"), sb_name (acc)));
 #endif
 	  return 0;
 	}
@@ -3304,7 +3276,7 @@ process_pseudo_op (idx, line, acc)
 	      do_aendi ();
 	      return 1;
 	    case K_ORG:
-	      ERROR ((stderr, "ORG command not allowed.\n"));
+	      ERROR ((stderr, _("ORG command not allowed.\n")));
 	      break;
 	    case K_RADIX:
 	      do_radix (line);
@@ -3521,7 +3493,7 @@ do_define (string)
 	      sb_add_char (&value, *string);
 	      string++;
 	    }
-	  exp_get_abs ("Invalid expression on command line.\n", 0, &value, &res);
+	  exp_get_abs (_("Invalid expression on command line.\n"), 0, &value, &res);
 	  sb_kill (&value);
 	  break;
 	}
@@ -3562,7 +3534,7 @@ show_usage (file, status)
      FILE *file;
      int status;
 {
-  fprintf (file, "\
+  fprintf (file, _("\
 Usage: %s \n\
   [-a]      [--alternate]         enter alternate macro mode\n\
   [-c char] [--commentchar char]  change the comment character from !\n\
@@ -3570,16 +3542,16 @@ Usage: %s \n\
   [-h]      [--help]              print this message\n\
   [-M]      [--mri]               enter MRI compatibility mode\n\
   [-o out]  [--output out]        set the output file\n\
-  [-p]      [--print]             print line numbers\n", program_name);
-  fprintf (file, "\
+  [-p]      [--print]             print line numbers\n"), program_name);
+  fprintf (file, _("\
   [-s]      [--copysource]        copy source through as comments \n\
   [-u]      [--unreasonable]      allow unreasonable nesting\n\
   [-v]      [--version]           print the program version\n\
   [-Dname=value]                  create preprocessor variable called name, with value\n\
   [-Ipath]                        add to include path list\n\
-  [in-file]\n");
+  [in-file]\n"));
   if (status == 0)
-    printf ("\nReport bugs to bug-gnu-utils@gnu.org\n");
+    printf (_("Report bugs to %s\n"), REPORT_BUGS_TO);
   exit (status);
 }
 
@@ -3587,7 +3559,7 @@ Usage: %s \n\
 static void
 show_help ()
 {
-  printf ("%s: Gnu Assembler Macro Preprocessor\n",
+  printf (_("%s: Gnu Assembler Macro Preprocessor\n"),
 	  program_name);
   show_usage (stdout, 0);
 }
@@ -3604,7 +3576,11 @@ main (argc, argv)
   ifstack[0].on = 1;
   ifi = 0;
 
-
+#if defined (HAVE_SETLOCALE) && defined (HAVE_LC_MESSAGES)
+  setlocale (LC_MESSAGES, "");
+#endif
+  bindtextdomain (PACKAGE, LOCALEDIR);
+  textdomain (PACKAGE);
 
   program_name = argv[0];
   xmalloc_set_program_name (program_name);
@@ -3667,11 +3643,11 @@ main (argc, argv)
 	  /*NOTREACHED*/
 	case 'v':
 	  /* This output is intended to follow the GNU standards document.  */
-	  printf ("GNU assembler pre-processor %s\n", program_version);
-	  printf ("Copyright 1996 Free Software Foundation, Inc.\n");
-	  printf ("\
+	  printf (_("GNU assembler pre-processor %s\n"), program_version);
+	  printf (_("Copyright 1996 Free Software Foundation, Inc.\n"));
+	  printf (_("\
 This program is free software; you may redistribute it under the terms of\n\
-the GNU General Public License.  This program has absolutely no warranty.\n");
+the GNU General Public License.  This program has absolutely no warranty.\n"));
 	  exit (0);
 	  /*NOTREACHED*/
 	case 0:
@@ -3690,7 +3666,7 @@ the GNU General Public License.  This program has absolutely no warranty.\n");
     outfile = fopen (out_name, "w");
     if (!outfile)
       {
-	fprintf (stderr, "%s: Can't open output file `%s'.\n",
+	fprintf (stderr, _("%s: Can't open output file `%s'.\n"),
 		 program_name, out_name);
 	exit (1);
       }
@@ -3713,7 +3689,7 @@ the GNU General Public License.  This program has absolutely no warranty.\n");
 	}
       else
 	{
-	  fprintf (stderr, "%s: Can't open input file `%s'.\n",
+	  fprintf (stderr, _("%s: Can't open input file `%s'.\n"),
 		   program_name, argv[optind]);
 	  exit (1);
 	}
@@ -3732,9 +3708,9 @@ as_abort (file, line, fn)
      const char *file, *fn;
      int line;
 {
-  fprintf (stderr, "Internal error, aborting at %s line %d", file, line);
+  fprintf (stderr, _("Internal error, aborting at %s line %d"), file, line);
   if (fn)
     fprintf (stderr, " in %s", fn);
-  fprintf (stderr, "\nPlease report this bug.\n");
+  fprintf (stderr, _("\nPlease report this bug.\n"));
   exit (1);
 }

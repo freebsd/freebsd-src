@@ -1,5 +1,5 @@
 /* BFD back-end for archive files (libraries).
-   Copyright 1990, 91, 92, 93, 94, 95, 96, 97, 1998
+   Copyright 1990, 91, 92, 93, 94, 95, 96, 97, 98, 1999
    Free Software Foundation, Inc.
    Written by Cygnus Support.  Mostly Gumby Henkel-Wallace's fault.
 
@@ -131,8 +131,6 @@ DESCRIPTION
 #include "libbfd.h"
 #include "aout/ar.h"
 #include "aout/ranlib.h"
-#include <errno.h>
-#include <string.h>		/* For memchr, strrchr and friends */
 #include <ctype.h>
 
 #ifndef errno
@@ -175,7 +173,8 @@ static boolean do_slurp_bsd_armap PARAMS ((bfd *abfd));
 static boolean do_slurp_coff_armap PARAMS ((bfd *abfd));
 static const char *normalize PARAMS ((bfd *, const char *file));
 static struct areltdata *bfd_ar_hdr_from_filesystem PARAMS ((bfd *abfd,
-							     const char *));
+							     const char *,
+							     bfd *member));
 
 boolean
 _bfd_generic_mkarchive (abfd)
@@ -397,7 +396,7 @@ _bfd_generic_read_ar_hdr_mag (abfd, mag)
     }
 
   /* Extract the filename from the archive - there are two ways to
-     specify an extendend name table, either the first char of the
+     specify an extended name table, either the first char of the
      name is a space, or it's a slash.  */
   if ((hdr.ar_name[0] == '/'
        || (hdr.ar_name[0] == ' '
@@ -443,19 +442,22 @@ _bfd_generic_read_ar_hdr_mag (abfd, mag)
 	 Note:  The SYSV format (terminated by '/') allows embedded
 	 spaces, so only look for ' ' if we don't find '/'. */
 
-      namelen = 0;
-      while (hdr.ar_name[namelen] != '\0' &&
-	     hdr.ar_name[namelen] != '/')
+      char *e;
+      e = memchr (hdr.ar_name, '\0', ar_maxnamelen (abfd));
+      if (e == NULL)
 	{
-	  namelen++;
-	  if (namelen == (unsigned) ar_maxnamelen (abfd))
-	    {
-	      namelen = 0;
-	      while (hdr.ar_name[namelen] != ' '
-		     && namelen < (unsigned) ar_maxnamelen (abfd))
-		namelen++;
-	      break;
-	    }
+          e = memchr (hdr.ar_name, '/', ar_maxnamelen (abfd));
+	  if (e == NULL)
+            e = memchr (hdr.ar_name, ' ', ar_maxnamelen (abfd));
+	}
+
+      if (e != NULL)
+	namelen = e - hdr.ar_name;
+      else
+	{
+	  /* If we didn't find a termination character, then the name
+	     must be the entire field.  */
+	  namelen = ar_maxnamelen (abfd);
 	}
 
       allocsize += namelen + 1;
@@ -1176,7 +1178,7 @@ normalize (abfd, file)
 #else
 static const char *
 normalize (abfd, file)
-     bfd *abfd;
+     bfd *abfd ATTRIBUTE_UNUSED;
      const char *file;
 {
   const char *filename = strrchr (file, '/');
@@ -1338,21 +1340,41 @@ _bfd_construct_extended_name_table (abfd, trailing_slash, tabloc, tablen)
 
 /** A couple of functions for creating ar_hdrs */
 
+#ifndef HAVE_GETUID
+#define getuid() 0
+#endif
+
+#ifndef HAVE_GETGID
+#define getgid() 0
+#endif
+
 /* Takes a filename, returns an arelt_data for it, or NULL if it can't
    make one.  The filename must refer to a filename in the filesystem.
-   The filename field of the ar_hdr will NOT be initialized */
+   The filename field of the ar_hdr will NOT be initialized.  If member
+   is set, and it's an in-memory bfd, we fake it. */
 
 static struct areltdata *
-bfd_ar_hdr_from_filesystem (abfd, filename)
+bfd_ar_hdr_from_filesystem (abfd, filename, member)
      bfd *abfd;
      const char *filename;
+     bfd *member;
 {
   struct stat status;
   struct areltdata *ared;
   struct ar_hdr *hdr;
   char *temp, *temp1;
 
-  if (stat (filename, &status) != 0)
+  if (member && (member->flags & BFD_IN_MEMORY) != 0)
+    {
+      /* Assume we just "made" the member, and fake it */
+      struct bfd_in_memory *bim = (struct bfd_in_memory *) member->iostream;
+      time(&status.st_mtime);
+      status.st_uid = getuid();
+      status.st_gid = getgid();
+      status.st_mode = 0644;
+      status.st_size = bim->size;
+    }
+  else if (stat (filename, &status) != 0)
     {
       bfd_set_error (bfd_error_system_call);
       return NULL;
@@ -1404,7 +1426,7 @@ bfd_special_undocumented_glue (abfd, filename)
      bfd *abfd;
      const char *filename;
 {
-  struct areltdata *ar_elt = bfd_ar_hdr_from_filesystem (abfd, filename);
+  struct areltdata *ar_elt = bfd_ar_hdr_from_filesystem (abfd, filename, 0);
   if (ar_elt == NULL)
     return NULL;
   return (struct ar_hdr *) ar_elt->arch_header;
@@ -1586,7 +1608,7 @@ _bfd_write_archive_contents (arch)
       if (!current->arelt_data)
 	{
 	  current->arelt_data =
-	    (PTR) bfd_ar_hdr_from_filesystem (arch, current->filename);
+	    (PTR) bfd_ar_hdr_from_filesystem (arch, current->filename, current);
 	  if (!current->arelt_data)
 	    return false;
 
@@ -1699,7 +1721,7 @@ _bfd_write_archive_contents (arch)
 	  if (bfd_update_armap_timestamp (arch))
 	    break;
 	  (*_bfd_error_handler)
-	    ("Warning: writing archive was slow: rewriting timestamp\n");
+	    (_("Warning: writing archive was slow: rewriting timestamp\n"));
 	}
       while (++tries < 6);
     }
@@ -1887,13 +1909,8 @@ bsd_write_armap (arch, elength, map, orl_count, stridx)
   bfd_ardata (arch)->armap_datepos = (SARMAG
 				      + offsetof (struct ar_hdr, ar_date[0]));
   sprintf (hdr.ar_date, "%ld", bfd_ardata (arch)->armap_timestamp);
-#ifndef _WIN32
   sprintf (hdr.ar_uid, "%ld", (long) getuid ());
   sprintf (hdr.ar_gid, "%ld", (long) getgid ());
-#else
-  sprintf (hdr.ar_uid, "%ld", (long) 666);
-  sprintf (hdr.ar_gid, "%ld", (long) 42);
-#endif
   sprintf (hdr.ar_size, "%-10d", (int) mapsize);
   strncpy (hdr.ar_fmag, ARFMAG, 2);
   for (i = 0; i < sizeof (struct ar_hdr); i++)
@@ -1970,7 +1987,7 @@ _bfd_archive_bsd_update_armap_timestamp (arch)
   bfd_flush (arch);
   if (bfd_stat (arch, &archstat) == -1)
     {
-      perror ("Reading archive file mod timestamp");
+      perror (_("Reading archive file mod timestamp"));
       return true;		/* Can't read mod time for some reason */
     }
   if (archstat.st_mtime <= bfd_ardata (arch)->armap_timestamp)
@@ -1994,7 +2011,7 @@ _bfd_archive_bsd_update_armap_timestamp (arch)
 	  != sizeof (hdr.ar_date)))
     {
       /* FIXME: bfd can't call perror.  */
-      perror ("Writing updated armap timestamp");
+      perror (_("Writing updated armap timestamp"));
       return true;		/* Some error while writing */
     }
 

@@ -1,4 +1,4 @@
-.\" Copyright (c) 1991, 92, 93, 94, 95, 96, 1997 Free Software Foundation
+.\" Copyright (c) 1991, 92, 93, 94, 95, 96, 97, 98, 1999 Free Software Foundation
 .\" See section COPYING for conditions for redistribution
 .TH ld 1 "17 August 1992" "cygnus support" "GNU Development Tools"
 .de BP
@@ -42,6 +42,8 @@ ld \- the GNU linker
 \& = \c
 .I expression\c
 \&\|]
+.RB "[\|" \-\-demangle "\|]"
+.RB "[\|" \-\-no\-demangle "\|]"
 .RB "[\|" "\-e\ "\c
 .I entry\c
 \&\|] 
@@ -92,6 +94,9 @@ ld \- the GNU linker
 .RB "[\|" \-noinhibit-exec "\|]" 
 .RB "[\|" \-no\-keep\-memory "\|]" 
 .RB "[\|" \-no\-warn\-mismatch "\|]" 
+.RB "[\|" \-O\c
+.I level\c
+\&\|]
 .RB "[\|" "\-oformat\ "\c
 .I output-format\c
 \&\|] 
@@ -468,12 +473,29 @@ constants or symbols.  If you need more elaborate expressions, consider
 using the linker command language from a script.
 
 .TP
+.B \-\-demangle
+.TP
+.B \-\-no\-demangle
+These options control whether to demangle symbol names in error
+messages and other output.  When the linker is told to demangle, it
+tries to present symbol names in a readable fashion: it strips leading
+underscores if they are used by the object file format, and converts
+C++ mangled symbol names into user readable names.  The linker will
+demangle by default unless the environment variable
+.B COLLECT_NO_DEMANGLE
+is set.  These options may be used to override the default.
+
+.TP
 .BI "-e " "entry"\c
 \& 
 Use \c
 .I entry\c
 \& as the explicit symbol for beginning execution of your
-program, rather than the default entry point.  for a
+program, rather than the default entry point.  See the `\|\c
+.B ld\c
+\|' entry in `\|\c
+.B info\c
+\|' for a
 discussion of defaults and other ways of specifying the
 entry point.
 
@@ -690,6 +712,16 @@ script command \c
 \& can also specify the output file name.
 
 .TP
+.BI "\-O" "level"
+Generate optimized output files.  This might use significantly more
+time and therefore probably should be enabled only for generating the
+final binary.
+\c
+.I level\c
+\& is supposed to be a numeric value.  Any value greater than zero enables
+the optimizations.
+
+.TP
 .BI "\-oformat " "output\-format"
 Specify the binary format for the output object file.
 You don't usually need to specify this, as
@@ -774,7 +806,7 @@ will be used if it is defined.
 The
 .B \-rpath
 option may also be used on SunOS.  By default, on SunOS, the linker
-will form a runtime search patch out of all the
+will form a runtime search path out of all the
 .B \-L
 options it is given.  If a
 .B \-rpath
@@ -874,7 +906,7 @@ Use \c
 .B text\c
 \& segment of the output file.
 \c
-.I textorg\c
+.I org\c
 \& must be a hexadecimal integer.
 
 .TP
@@ -1065,7 +1097,7 @@ The GNU Binary Utilities\c
 , Roland H. Pesch.
 
 .SH COPYING
-Copyright (c) 1991, 1992 Free Software Foundation, Inc.
+Copyright (c) 1991, 92, 93, 94, 95, 96, 97, 1998 Free Software Foundation, Inc.
 .PP
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice

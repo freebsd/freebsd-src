@@ -16,10 +16,12 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
+#include "sysdep.h"
 #include "dis-asm.h"
 #include "opcode/arc.h"
 #include "elf-bfd.h"
 #include "elf/arc.h"
+#include "opintl.h"
 
 static int print_insn_arc_base_little PARAMS ((bfd_vma, disassemble_info *));
 static int print_insn_arc_base_big PARAMS ((bfd_vma, disassemble_info *));
@@ -227,7 +229,7 @@ print_insn (pc, info, mach, big_p)
       return got_limm_p ? 8 : 4;
     }
 
-  (*func) (stream, "*unknown*");
+  (*func) (stream, _("*unknown*"));
   return 4;
 }
 
