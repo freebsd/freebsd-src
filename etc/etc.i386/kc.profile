@@ -63,7 +63,7 @@ if [ "$todo"X = copyX ]; then
 	echo    ""
 	echo    "copying kernel..."
 
-	${test} cp /netbsd /mnt/netbsd
+	${test} cp /386bsd /mnt/386bsd
 	if [ $? -ne 0 ]; then
 		echo ""
 		echo "copy failed...  (?!?!?!)"
