@@ -688,7 +688,7 @@ u_int flags;
 #endif
 	RWLOCK_EXIT(&ipf_state);
 	fin->fin_rev = IP6NEQ(is->is_dst, fin->fin_fi.fi_dst);
-	if (fin->fin_fi.fi_fl & FI_FRAG)
+	if ((fin->fin_fi.fi_fl & FI_FRAG) && (pass & FR_KEEPFRAG))
 		ipfr_newfrag(ip, fin, pass ^ FR_KEEPSTATE);
 	return is;
 }
@@ -1345,7 +1345,7 @@ retry_tcpudp:
 		fr_delstate(is);
 #endif
 	RWLOCK_EXIT(&ipf_state);
-	if (fin->fin_fi.fi_fl & FI_FRAG)
+	if ((fin->fin_fi.fi_fl & FI_FRAG) && (pass & FR_KEEPFRAG))
 		ipfr_newfrag(ip, fin, pass ^ FR_KEEPSTATE);
 	return fr;
 }
