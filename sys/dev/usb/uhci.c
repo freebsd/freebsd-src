@@ -934,8 +934,11 @@ uhci_intr(void *arg)
 #endif
 
 	status = UREAD2(sc, UHCI_STS);
-	if (status == 0)	/* The interrupt was not for us. */
+	if (status == 0) {	/* The interrupt was not for us. */
+		printf("%s: interrupt, but not for us\n",
+		       USBDEVNAME(sc->sc_bus.bdev));
 		return (0);
+	}
 
 #if defined(DIAGNOSTIC) && defined(__NetBSD__)
 	if (sc->sc_suspend != PWR_RESUME)
@@ -966,10 +969,13 @@ uhci_intr(void *arg)
 		       USBDEVNAME(sc->sc_bus.bdev));
 	}
 
-	if (ack)	/* acknowledge the ints */
+	if (ack) {	/* acknowledge the ints */
 		UWRITE2(sc, UHCI_STS, ack);
-	else	/* nothing to acknowledge */
+	} else {	/* nothing to acknowledge */
+		printf("%s: UHCI interrupt, STS = 0x%04x, but ack == 0\n",
+		       USBDEVNAME(sc->sc_bus.bdev), status);
 		return (0);
+	}
 
 	sc->sc_bus.intr_context++;
 	sc->sc_bus.no_intrs++;
