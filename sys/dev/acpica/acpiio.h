@@ -34,6 +34,30 @@
 #define ACPIIO_DISABLE		_IO('P', 2)
 #define ACPIIO_SETSLPSTATE	_IOW('P', 3, int)
 
+#define ACPI_CMBAT_MAXSTRLEN 32
+struct acpi_bif {
+	u_int32_t unit;				/* 0 for mWh, 1 for mAh */
+	u_int32_t dcap;				/* Design Capacity */
+	u_int32_t btech;			/* Battery Technorogy */
+	u_int32_t lfcap;			/* Last Full capacity */
+	u_int32_t dvol;				/* Design voltage (mV) */
+	u_int32_t wcap;				/* WARN capacity */
+	u_int32_t lcap;				/* Low capacity */
+	u_int32_t gra1;				/* Granulity 1(Warn to Low) */
+	u_int32_t gra2;				/* Granulity 2(Full to Warn) */
+	char model[ACPI_CMBAT_MAXSTRLEN];	/* model identifier */
+	char serial[ACPI_CMBAT_MAXSTRLEN];	/* Serial number */
+	char type[ACPI_CMBAT_MAXSTRLEN];	/* Type */
+	char oeminfo[ACPI_CMBAT_MAXSTRLEN];	/* OEM infomation */
+};
+
+struct acpi_bst {
+	u_int32_t state;			/* Battery State */
+	u_int32_t rate;				/* Present Rate */
+	u_int32_t cap;				/* Remaining Capacity */
+	u_int32_t volt;				/* Present Voltage */
+};
+
 #ifdef _KERNEL
 extern int	acpi_register_ioctl(u_long cmd, int (* fn)(u_long cmd, caddr_t addr, void *arg), void *arg);
 extern void	acpi_deregister_ioctl(u_long cmd, int (* fn)(u_long cmd, caddr_t addr, void *arg));

@@ -33,6 +33,7 @@ SRCS		+= rscreate.c rsdump.c rsio.c rsirq.c rslist.c rsmemory.c
 SRCS		+= rsmisc.c rsutils.c rsxface.c tbconvrt.c tbget.c tbinstal.c tbutils.c 
 SRCS		+= tbxface.c tbxfroot.c acpi.c acpi_apic.c acpi_button.c
 SRCS		+= acpi_ec.c acpi_isa.c acpi_lid.c acpi_pcib.c acpi_processor.c
+SRCS		+= acpi_acad.c acpi_cmbat.c
 SRCS		+= acpi_resource.c acpi_thermal.c acpi_timer.c OsdDebug.c 
 SRCS		+= OsdHardware.c OsdInterrupt.c OsdMemory.c OsdSchedule.c
 SRCS		+= OsdStream.c OsdSynch.c OsdEnvironment.c 
