@@ -110,7 +110,7 @@ __FBSDID("$FreeBSD$");
 	or	pat, %g1, pat ; \
 	sllx	pat, 32, %g1 ; \
 	or	pat, %g1, pat ; \
-	_ALIGN_TEXT ; \
+	.align 16 ; \
 1:	deccc	1, len ; \
 	bl,pn	%xcc, 5f ; \
 	 btst	7, dst ; \
@@ -119,7 +119,7 @@ __FBSDID("$FreeBSD$");
 	ST(b, da) pat, [dst] dasi ; \
 	b	%xcc, 1b ; \
 	 inc	dst ; \
-	_ALIGN_TEXT ; \
+	.align 16 ; \
 2:	deccc	32, len ; \
 	bl,a,pn	%xcc, 3f ; \
 	 inc	32, len ; \
@@ -129,14 +129,14 @@ __FBSDID("$FreeBSD$");
 	ST(x, da) pat, [dst + 24] dasi ; \
 	b	%xcc, 2b ; \
 	 inc	32, dst ; \
-	_ALIGN_TEXT ; \
+	.align 16 ; \
 3:	deccc	8, len ; \
 	bl,a,pn	%xcc, 4f ; \
 	 inc	8, len ; \
 	ST(x, da) pat, [dst] dasi ; \
 	b	%xcc, 3b ; \
 	 inc	8, dst ; \
-	_ALIGN_TEXT ; \
+	.align 16 ; \
 4:	deccc	1, len ; \
 	bl,a,pn	%xcc, 5f ; \
 	 nop ; \
@@ -172,12 +172,12 @@ __FBSDID("$FreeBSD$");
 	inc	1, src ; \
 	b	%xcc, 1b ; \
 	 inc	1, dst ; \
-	_ALIGN_TEXT ; \
+	.align 16 ; \
 2:	btst	7, src ; \
 	bz,a,pt	%xcc, 3f ; \
 	 nop ; \
 	b,a	%xcc, 5f ; \
-	_ALIGN_TEXT ; \
+	.align 16 ; \
 3:	deccc	32, len ; \
 	bl,a,pn	%xcc, 4f ; \
 	 inc	32, len ; \
@@ -192,7 +192,7 @@ __FBSDID("$FreeBSD$");
 	inc	32, src ; \
 	b	%xcc, 3b ; \
 	 inc	32, dst ; \
-	_ALIGN_TEXT ; \
+	.align 16 ; \
 4:	deccc	8, len ; \
 	bl,a,pn	%xcc, 5f ; \
 	 inc	8, len ; \
@@ -201,7 +201,7 @@ __FBSDID("$FreeBSD$");
 	inc	8, src ; \
 	b	%xcc, 4b ; \
 	 inc	8, dst ; \
-	_ALIGN_TEXT ; \
+	.align 16 ; \
 5:	deccc	1, len ; \
 	bl,a,pn	%xcc, 6f ; \
 	 nop ; \
