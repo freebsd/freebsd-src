@@ -75,8 +75,10 @@ crypt_sha(pw, salt)
 
 #ifdef __PIC__
 	libmd = dlopen("libmd.so", RTLD_NOW);
-	if (libmd == NULL)
+	if (libmd == NULL) {
+		warnx("libcrypt-md5: dlopen(libmd.so): %s\n", dlerror());
 		return NULL;
+	}
 	dl_SHA_Init = dlsym(libmd, "SHA_Init");
 	if (dl_SHA_Init == NULL) {
 		warnx("libcrypt-md5: looking for SHA_Init: %s\n", dlerror());
