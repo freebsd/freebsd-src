@@ -1,4 +1,4 @@
-$Id: sound.doc,v 1.2 1995/03/12 23:34:06 swallace Exp $
+$Id: sound.doc,v 1.3 1995/03/13 18:49:37 swallace Exp $
 
 Instructions on using audio on a FreeBSD 2.1 (or 2.0-current) system.
 See also /sys/i386/conf/LINT.
@@ -13,6 +13,9 @@ controller	snd0
 Uncomment one or more of these device entries, depending on what type of
 sound card you have:
 
+# ProAudioSpectrum PCM and Midi - for PAS
+#device pas0     at isa? port 0x388 irq 10 drq 6 vector pasintr
+
 # SoundBlaster DSP driver - for SB, SB Pro, SB16, PAS(emulating SB)
 #device sb0      at isa? port 0x220 irq 7 drq 1 vector sbintr
 
@@ -22,19 +25,13 @@ sound card you have:
 # SoundBlaster 16 MIDI - for SB16 - requires sb0 device
 #device sbmidi0  at isa? port 0x300
 
-# ProAudioSpectrum PCM and Midi - for PAS
-#device pas0     at isa? port 0x388 irq 10 drq 6 vector pasintr
-
 # Gravis UltraSound - for GUS, GUS16, GUSMAX
-#device gus0 at isa? port 0x220 irq 11 drq 1 vector gusintr
+#device gus0 at isa? port 0x220 irq 11 drq 1 flags 0x3 vector gusintr
 
 # Gravis UltraSound 16 bit option - for GUS16 - requires gus0
 #device gusxvi0 at isa? port 0x530 irq 7 drq 3 vector adintr
 
-# Gravis UltraSound MAX - for GUSMAX - requires gus0
-#device gusmax0 at isa? port 0x32c
-
-# MS Sound System
+# MS Sound System (AD1848 Based Boards)
 #device mss0 at isa? port 0x530 irq 10 drq 1 vector adintr
 
 # Yamaha OPL-2/OPL-3 FM - for SB, SB Pro, SB16, PAS
@@ -58,6 +55,38 @@ is NOT recommended unless you really know what you're doing.
 #options 	EXCLUDE_GUS_IODETECT		# NO GUS io detection
 #options 	EXCLUDE_PRO_MIDI		# NO PAS MIDI support
 
+Other Options:
+
+#options	SYMPHONY_PAS
+	Adds some code to make pas work with Symphony chipsets.  Only use
+	this if your pas doesn't work and you have a Symphony chipset.
+
+#options	BROKEN_BUS_CLOCK
+	Some systems with the OPTI chipset and a PAS will require you to
+	use this option.  Symptoms are that you will hear a lot of clicking and
+	popping sounds, like a geiger counter, coming out of the PAS even when
+	it is not playing anything.
+
+#options	MOZART_PORT
+	Adds support for Mozart (OAK OTI-601). (Part of the MSS driver)
+
+#options	OPTI_MAD16_PORT
+	Adds support for the OPTI MAD16 Chip. (Part of the MSS driver)
+
+#options	__SGNXPRO__
+	Adds support for the SG NX Pro mixer. (Part of the SB driver)
+
+#options	JAZZ16
+	Adds support for the MV Jazz16 (ProSonic etc). (Part of the SB Driver)
+
+#options	SM_WAVE
+	Adds support for the SoundMan Wave (Part of the SB Driver)
+	Note:  You will need to do some work to get this to work.
+	       See i386/isa/sound/configure.c
+
+#options	SM_GAMES
+	Adds support for the Logitech SoundMan Games (Part of the SB Driver)
+
 NOTE:  The MPU-401 driver may or may not work, and is unfortunately
 unverifiable since no one I know has one.  If you can test this,
 please let me know!  Also note that you will have to change these
@@ -66,21 +95,17 @@ Please check your documentation (or verify with any provided DOS utilities
 that may have come with your card) and set the IRQ or address fields
 accordingly.
 
-Also:  Some systems with the OPTI chipset will require you to #define
-BROKEN_BUS_CLOCK in /sys/i386/sound/pas2_card.c.  Symptoms are that
-you will hear a lot of clicking and popping sounds, like a geiger counter,
-coming out of the PAS even when is not playing anything.
 
 Also:  You can configure more then one card on a single DMA using 
-ALLOW_CONFLICT_DMA.
+ALLOW_CONFLICT_DMA.  This is useful for boards with more then one type of
+emulation.
+
 
 Probing problems:  Since the SB16 uses the same IRQ and addresses for
 the different drivers, some of the snd dirvers will not be probed because
 the kernel thinks there is a conflict.  This can be worked-around by
 setting the ALLOW_CONFLICT_IOADDR or ALLOW_CONFLICT_IRQ options.
 
-Warning: Setting the ALLOW_* options will will bypass checks for ALL drivers,
-so be careful when you use them!
 
 		- Jordan Hubbard (jkh@freefall.cdrom.com)
 		- Steven Wallace (swallace@freefall.cdrom.com)
