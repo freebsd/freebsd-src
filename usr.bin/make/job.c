@@ -166,11 +166,10 @@ static int     	  numCommands; 	    /* The number of commands actually printed
  */
 static char     tfile[sizeof(TMPPAT)];
 
-
 /*
  * Descriptions for various shells.
  */
-static Shell    shells[] = {
+static const DEF_SHELL_STRUCT(CShell, const) shells[] = {
     /*
      * CSH description. The csh can do echo control by playing
      * with the setting of the 'echo' shell variable. Sadly,
@@ -296,7 +295,7 @@ static void JobRestart(Job *);
 static int JobStart(GNode *, int, Job *);
 static char *JobOutput(Job *, char *, char *, int);
 static void JobDoOutput(Job *, Boolean);
-static Shell *JobMatchShell(char *);
+static Shell *JobMatchShell(const char *);
 static void JobInterrupt(int, int);
 static void JobRestartJobs(void);
 
@@ -2150,7 +2149,7 @@ Shell_Init(void)
 {
 
     if (commandShell == NULL)
-	commandShell = JobCopyShell(&shells[DEFSHELL]);
+	commandShell = JobMatchShell(shells[DEFSHELL].name);
 
     if (shellPath == NULL) {
 	/*
@@ -2253,12 +2252,6 @@ Job_Init(int maxproc)
     }
 
     Shell_Init();
-    if (commandShell->exit == NULL) {
-	commandShell->exit = "";
-    }
-    if (commandShell->echo == NULL) {
-	commandShell->echo = "";
-    }
 
     /*
      * Catch the four signals that POSIX specifies if they aren't ignored.
@@ -2394,7 +2387,9 @@ Job_Empty(void)
  *	Find a matching shell in 'shells' given its final component.
  *
  * Results:
- *	A pointer to the Shell structure.
+ *	A pointer to a freshly allocated Shell structure with is a copy
+ *	of the static structure or NULL if no shell with the given name
+ *	is found.
  *
  * Side Effects:
  *	None.
@@ -2402,13 +2397,14 @@ Job_Empty(void)
  *-----------------------------------------------------------------------
  */
 static Shell *
-JobMatchShell(char *name)
+JobMatchShell(const char *name)
 {
-    Shell	  *sh;	      /* Pointer into shells table */
-    Shell	  *match;     /* Longest-matching shell */
-    char	  *cp1,
-		  *cp2;
-    char	  *eoname;
+    const struct CShell	*sh;	      /* Pointer into shells table */
+    const struct CShell	*match;     /* Longest-matching shell */
+    struct Shell *nsh;
+    const char *cp1;
+    const char *cp2;
+    const char *eoname;
 
     eoname = name + strlen(name);
 
@@ -2426,7 +2422,25 @@ JobMatchShell(char *name)
 	   match = sh;
 	}
     }
-    return(match);
+    if (match == NULL)
+	return (NULL);
+
+    /* make a copy */
+    nsh = emalloc(sizeof(*nsh));
+
+    nsh->name = estrdup(match->name);
+    nsh->echoOff = estrdup(match->echoOff);
+    nsh->echoOn = estrdup(match->echoOn);
+    nsh->hasEchoCtl = match->hasEchoCtl;
+    nsh->noPrint = estrdup(match->noPrint);
+    nsh->noPLen = match->noPLen;
+    nsh->hasErrCtl = match->hasErrCtl;
+    nsh->errCheck = estrdup(match->errCheck);
+    nsh->ignErr = estrdup(match->ignErr);
+    nsh->echo = estrdup(match->echo);
+    nsh->exit = estrdup(match->exit);
+
+    return (nsh);
 }
 
 /*-
@@ -2480,7 +2494,8 @@ Job_ParseShell(char *line)
     char	  **argv;
     int		  argc;
     char    	  *path;
-    Shell   	  newShell, *sh;
+    Shell   	  newShell;
+    Shell	  *sh;
     Boolean 	  fullSpec = FALSE;
 
     while (isspace((unsigned char) *line)) {
@@ -2585,13 +2600,13 @@ Job_ParseShell(char *line)
 		return (FAILURE);
 	    }
 	} else {
-	    sh = &newShell;
+	    sh = JobCopyShell(&newShell);
 	}
     }
 
     /* set the new shell */
     JobFreeShell(commandShell);
-    commandShell = JobCopyShell(sh);
+    commandShell = sh;
 
     shellName = commandShell->name;
 
