@@ -93,8 +93,8 @@ pmdemand:
 PAPorCHAPpmdemand:
  set phone 1234567
  set login
- set authname MyName
- set authkey MyKey
+ set authname "MyName"
+ set authkey "MyKey"
  set timeout 120
  set ifaddr 10.0.0.1/0 10.0.0.2/0 255.255.255.0 0.0.0.0
  add default HISADDR
@@ -126,8 +126,8 @@ ondemand:
 TA:
  set phone 12345678	# Replace this with your ISPs phone number
 
- set authname somename	# Replace these with your login name & password.
- set authkey somepasswd	# This profile assumes you're using PAP or CHAP.
+ set authname "somename"  # Replace these with your login name & password.
+ set authkey "somepasswd" # This profile assumes you're using PAP or CHAP.
 
  enable lqr
  set reconnect 3 5
@@ -319,8 +319,8 @@ dodgynet:
     set speed 115200
     deny lqr                                    # Don't support LQR
     set phone 0W1194                            # Remote system phone number,
-    set authname pppLogin                       # login
-    set authkey MyPassword                      # and password
+    set authname "pppLogin"                     # login
+    set authkey "MyPassword"                    # and password
     set dial "ABORT BUSY ABORT NO\\sCARRIER \   # Chat script to dial the peer
               TIMEOUT 5 \"\" ATZ OK-ATZ-OK \
               ATE1Q0M0 OK \\dATDT\\T \
@@ -717,7 +717,7 @@ CHAPprompt:
 #
 loginprompt:
  load pmdemand
- set authname brian
+ set authname "brian"
  set login "ABORT NO\\sCARRIER TIMEOUT 15 \"\" \"\" name:--name: \\U \
             code: \"!/usr/share/examples/ppp/login-auth -display keep:0.0 \
                     AUTHNAME\" MTU \\c ."
