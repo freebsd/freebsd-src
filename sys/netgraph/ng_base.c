@@ -3592,7 +3592,7 @@ ng_send_fn(node_p node, hook_p hook, ng_item_fn *fn, void * arg1, int arg2)
  * Official timeout routines for Netgraph nodes.
  */
 static void
-ng_callout_trapoline(void *arg)
+ng_callout_trampoline(void *arg)
 {
 	item_p item = arg;
 
@@ -3619,7 +3619,7 @@ ng_callout(struct callout *c, node_p node, hook_p hook, int ticks,
 	NGI_FN(item) = fn;
 	NGI_ARG1(item) = arg1;
 	NGI_ARG2(item) = arg2;
-	callout_reset(c, ticks, &ng_callout_trapoline, item);
+	callout_reset(c, ticks, &ng_callout_trampoline, item);
 	return (0);
 }
 
@@ -3635,7 +3635,7 @@ ng_uncallout(struct callout *c, node_p node)
 	rval = callout_stop(c);
 	item = c->c_arg;
 	/* Do an extra check */
-	if ((rval > 0) && (c->c_func == &ng_callout_trapoline) &&
+	if ((rval > 0) && (c->c_func == &ng_callout_trampoline) &&
 	    (NGI_NODE(item) == node)) {
 		/*
 		 * We successfully removed it from the queue before it ran
