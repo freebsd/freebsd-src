@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.134.2.9 1996/11/13 20:05:56 phk Exp $
+ * $Id: install.c,v 1.134.2.10 1996/11/16 21:10:03 phk Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -285,6 +285,9 @@ installFixitFloppy(dialogMenuItem *self)
 		       "be essentially usable.");
 	}
     }
+    if (!directory_exists("/bin"))
+	(void)Mkdir("/bin");
+    (void)symlink("/stand/sh", "/bin/sh");
     /* Link the /etc/ files */
     if (DITEM_STATUS(Mkdir("/etc")) != DITEM_SUCCESS)
 	msgConfirm("Unable to create an /etc directory!  Things are weird on this floppy..");
