@@ -127,6 +127,7 @@ SUBDIR+=ipfilter
 #	ncp \
 #	nwfs \
 # XXX some of these can move to the general case when de-i386'ed
+# XXX some of these can move now, but are untested on other architectures.
 .if ${MACHINE} == "i386"
 SUBDIR+=aac \
 	acpi \
@@ -139,6 +140,8 @@ SUBDIR+=aac \
 	atspeaker \
 	bktr \
 	cam \
+	cardbus \
+	cbb \
 	cd9660 \
 	ciss \
 	cm \
@@ -146,6 +149,7 @@ SUBDIR+=aac \
 	drm \
 	el \
 	em \
+	ep \
 	fe \
 	fpu \
 	gnufpu \
@@ -162,6 +166,7 @@ SUBDIR+=aac \
 	netgraph \
 	oltr \
 	pecoff \
+	pccard \
 	ray \
 	s3 \
 	sbni \
