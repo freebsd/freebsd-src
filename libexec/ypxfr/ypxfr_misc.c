@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ypxfr_misc.c,v 1.7 1996/02/04 04:05:30 wpaul Exp $
+ *	$Id: ypxfr_misc.c,v 1.2 1996/02/04 05:18:44 wpaul Exp $
  */
 #include <stdlib.h>
 #include <unistd.h>
@@ -41,7 +41,7 @@ struct dom_binding {};
 #include "ypxfr_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: ypxfr_misc.c,v 1.7 1996/02/04 04:05:30 wpaul Exp $";
+static const char rcsid[] = "$Id: ypxfr_misc.c,v 1.2 1996/02/04 05:18:44 wpaul Exp $";
 #endif
 
 char *ypxfrerr_string(code)
@@ -188,7 +188,7 @@ failed"));
 			return(NULL);
 		}
 		snprintf(mastername, sizeof(mastername), "%s", resp->peer);
-		xdr_free(xdr_ypresp_master, (char *)&resp);
+/*		xdr_free(xdr_ypresp_master, (char *)&resp);  */
 		return((char *)&mastername);
 	}
 }
