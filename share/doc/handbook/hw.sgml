@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.22 1996/05/22 19:13:58 jkh Exp $ -->
+<!-- $Id: hw.sgml,v 1.23 1996/05/29 16:32:27 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- 
@@ -55,12 +55,10 @@
     this page.
   </item>
 
-  <item>FreeBSD on the <htmlurl url="http://www.cs.ruu.nl/people/edwin/FreeBSD/"
-    name="Toshiba Satellite Pro 410CDT Notebook">
-
-    <p>Here is <htmlurl url="mailto:edwin.kremer@cs.ruu.nl"
-    name="Edwin Kremer's"> report on using FreeBSD with his Toshiba 410CDT.
-  </item>
+  <item>Here is <htmlurl url="mailto:edwin.kremer@cs.ruu.nl"
+    name="Edwin Kremer's"> report on using FreeBSD with his 
+  <htmlurl url="http://www.cs.ruu.nl/people/edwin/FreeBSD/"
+    name="Toshiba Satellite Pro 410CDT Notebook">.
 
   <item>FreeBSD on the <htmlurl url="http://www.kfu.com/~nsayer/zenith/"
     name="Zenith Z-NoteFlex Laptop">
