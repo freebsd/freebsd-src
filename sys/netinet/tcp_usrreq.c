@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_usrreq.c	8.2 (Berkeley) 1/3/94
- *	$Id: tcp_usrreq.c,v 1.11 1995/02/17 00:29:42 wollman Exp $
+ *	$Id: tcp_usrreq.c,v 1.12 1995/03/16 18:15:06 bde Exp $
  */
 
 #include <sys/param.h>
@@ -184,7 +184,7 @@ tcp_usrreq(so, req, m, nam, control)
 	 */
 	case PRU_LISTEN:
 		if (inp->inp_lport == 0)
-			error = in_pcbbind(inp, (struct mbuf *)0);
+			error = in_pcbbind(inp, NULL);
 		if (error == 0)
 			tp->t_state = TCPS_LISTEN;
 		break;
@@ -408,7 +408,7 @@ tcp_connect(tp, nam)
 	 * TIME_WAIT state, creating an ADDRINUSE error.
 	 */
 	error = in_pcbladdr(inp, nam, &ifaddr);
-	oinp = in_pcblookup(inp->inp_head,
+	oinp = in_pcblookup(inp->inp_pcbinfo->listhead,
 	    sin->sin_addr, sin->sin_port,
 	    inp->inp_laddr.s_addr != INADDR_ANY ? inp->inp_laddr
 						: ifaddr->sin_addr,
@@ -426,6 +426,7 @@ tcp_connect(tp, nam)
 		inp->inp_laddr = ifaddr->sin_addr;
 	inp->inp_faddr = sin->sin_addr;
 	inp->inp_fport = sin->sin_port;
+	in_pcbrehash(inp);
 
 	tp->t_template = tcp_template(tp);
 	if (tp->t_template == 0) {
@@ -578,7 +579,7 @@ tcp_attach(so)
 		if (error)
 			return (error);
 	}
-	error = in_pcballoc(so, &tcb);
+	error = in_pcballoc(so, &tcbinfo);
 	if (error)
 		return (error);
 	inp = sotoinpcb(so);
