@@ -42,12 +42,8 @@ CFLAGS+=-DSKEY
 CFLAGS+=-I${.CURDIR}/../../lib
 CFLAGS+=-DINET6
 
-#CFLAGS+= -DKRB4
-
 DPADD=	${LIBTERMCAP} ${LIBTELNET}
 LDADD=	-ltermcap -ltelnet
-#DPADD+=	${LIBKRB} ${LIBDES}
-#LDADD+=	-lkrb -ldes
 
 .if !defined(RELEASE_CRUNCH)
 CFLAGS+=-DIPSEC
