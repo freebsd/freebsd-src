@@ -658,7 +658,8 @@ hifn_init_pubrng(struct hifn_softc *sc)
 			sc->sc_rnghz = hz / 100;
 		else
 			sc->sc_rnghz = 1;
-		callout_init(&sc->sc_rngto, 0);
+		/* NB: 1 means the callout runs w/o Giant locked */
+		callout_init(&sc->sc_rngto, 1);
 		callout_reset(&sc->sc_rngto, sc->sc_rnghz, hifn_rng, sc);
 	}
 
