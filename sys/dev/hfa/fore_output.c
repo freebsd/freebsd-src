@@ -339,7 +339,7 @@ retry:
 			 */
 			fup->fu_stats->st_drv.drv_xm_segnoal++;
 			bfr = cp - align;
-			KM_COPY(cp, bfr, KB_LEN(m));
+			bcopy(cp, bfr, KB_LEN(m));
 			KB_HEADMOVE(m, -align);
 		} else {
 			/*
