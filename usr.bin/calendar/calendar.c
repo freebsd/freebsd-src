@@ -145,9 +145,10 @@ main(argc, argv)
 void
 usage()
 {
-	(void)fprintf(stderr, 
-		      "usage: calendar [-a] [-A days] [-W days] [-F friday] [-B days]\n"
-		      "\t[-f calendarfile] [-t dd[.mm[.year]]]\n");
+	(void)fprintf(stderr, "%s\n%s\n",
+	    "usage: calendar [-a] [-A days] [-B days] [-F friday] "
+	    "[-f calendarfile]",
+	    "                [-t dd[.mm[.year]]] [-W days]");
 	exit(1);
 }
 
