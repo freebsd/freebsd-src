@@ -252,6 +252,12 @@ ieee80211_media_init(struct ifnet *ifp,
 	struct ieee80211_rateset allrates;
 
 	/*
+	 * Do late attach work that must wait for any subclass
+	 * (i.e. driver) work such as overriding methods.
+	 */
+	ieee80211_node_lateattach(ifp);
+
+	/*
 	 * Fill in media characteristics.
 	 */
 	ifmedia_init(&ic->ic_media, 0, media_change, media_stat);
