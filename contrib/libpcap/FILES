@@ -5,7 +5,7 @@ Makefile.in
 README
 SUNOS4
 VERSION
-aclocal.m4
+acsite.m4
 bpf/net/bpf.h
 bpf/net/bpf_filter.c
 bpf_image.c
@@ -23,10 +23,14 @@ install-sh
 lbl/gnuc.h
 lbl/os-solaris2.h
 lbl/os-sunos4.h
+lbl/os-ultrix4.h
+linux-include/netinet/if_ether.h
+linux-include/netinet/ip_var.h
 mkdep
 nametoaddr.c
 optimize.c
 pcap-bpf.c
+pcap-linux.c
 pcap-dlpi.c
 pcap-enet.c
 pcap-int.h

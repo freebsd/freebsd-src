@@ -20,8 +20,8 @@
  */
 
 #ifndef lint
-static char rcsid[] =
-    "@(#) $Header: bpf_image.c,v 1.21 96/07/15 00:48:36 leres Exp $ (LBL)";
+static const char rcsid[] =
+    "@(#) $Header: bpf_image.c,v 1.22 96/09/26 23:27:56 leres Exp $ (LBL)";
 #endif
 
 #include <sys/types.h>
