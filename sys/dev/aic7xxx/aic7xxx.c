@@ -3677,6 +3677,7 @@ ahc_handle_devreset(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
 	found = ahc_abort_scbs(ahc, devinfo->target, devinfo->channel,
 			       CAM_LUN_WILDCARD, SCB_LIST_NULL, devinfo->role,
 			       status);
+
 	/*
 	 * Send an immediate notify ccb to all target more peripheral
 	 * drivers affected by this action.
@@ -3865,11 +3866,6 @@ ahc_init(struct ahc_softc *ahc)
 	size_t	  driver_data_size;
 	u_int32_t physaddr;
 
-#if 0
-	printf("SBLKCTL = 0x%x\n", ahc_inb(ahc, SBLKCTL));
-	printf("SSTAT0 = 0x%x\n", ahc_inb(ahc, SSTAT0));
-	printf("SFUNCT = 0x%x\n", ahc_inb(ahc, SFUNCT));
-#endif
 #ifdef AHC_PRINT_SRAM
 	printf("Scratch Ram:");
 	for (i = 0x20; i < 0x5f; i++) {
