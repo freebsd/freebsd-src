@@ -541,6 +541,7 @@ restart:
 			if (ithd->it_enable != NULL)
 				ithd->it_enable(ithd->it_vector);
 			p->p_stat = SWAIT; /* we're idle */
+			p->p_stats->p_ru.ru_nvcsw++;
 			CTR1(KTR_INTR, __func__ ": pid %d: done", p->p_pid);
 			mi_switch();
 			CTR1(KTR_INTR, __func__ ": pid %d: resumed", p->p_pid);
