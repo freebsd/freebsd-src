@@ -42,21 +42,21 @@
 .Nd manipulated extended attributes
 .Sh SYNOPSIS
 .Nm getextattr
-.Op Fl fqsx
+.Op Fl fhqsx
 .Ar attrnamespace
 .Ar attrname
 .Ar filename ...
 .Nm lsextattr
-.Op Fl fq
+.Op Fl fhq
 .Ar attrnamespace
 .Ar filename ...
 .Nm rmextattr
-.Op Fl fq
+.Op Fl fhq
 .Ar attrnamespace
 .Ar attrname
 .Ar filename ...
 .Nm setextattr
-.Op Fl fq
+.Op Fl fhq
 .Ar attrnamespace
 .Ar attrname
 .Ar attrvalue
@@ -83,6 +83,9 @@ The following options are available:
 .It Fl -f
 (Force) Ignore errors on individual filenames and continue with
 the remaining arguments.
+.It Fl -h
+(No follow) If the file is a symbolic link, perform the operation on the
+link itself rather than the file that the link points to.
 .It Fl -q
 (Quiet) Do not print out the pathname and suppress error messages.
 .It Fl -s

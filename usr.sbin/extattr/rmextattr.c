@@ -58,19 +58,19 @@ usage(void)
 
 	switch (what) {
 	case EAGET:
-		fprintf(stderr, "usage: getextattr [-fqsx] attrnamespace");
+		fprintf(stderr, "usage: getextattr [-fhqsx] attrnamespace");
 		fprintf(stderr, " attrname filename ...\n");
 		exit(-1);
 	case EASET:
-		fprintf(stderr, "usage: setextattr [-fq] attrnamespace");
+		fprintf(stderr, "usage: setextattr [-fhq] attrnamespace");
 		fprintf(stderr, " attrname attrvalue filename ...\n");
 		exit(-1);
 	case EARM:
-		fprintf(stderr, "usage: rmextattr [-fq] attrnamespace");
+		fprintf(stderr, "usage: rmextattr [-fhq] attrnamespace");
 		fprintf(stderr, " attrname filename ...\n");
 		exit(-1);
 	case EALS:
-		fprintf(stderr, "usage: lsextattr [-fq] attrnamespace");
+		fprintf(stderr, "usage: lsextattr [-fhq] attrnamespace");
 		fprintf(stderr, " filename ...\n");
 		exit(-1);
 	case EADUNNO:
@@ -105,6 +105,7 @@ main(int argc, char *argv[])
 	int	 buflen, visbuflen, ch, error, i, arg_counter, attrnamespace;
 
 	int	flag_force = 0;
+	int	flag_nofollow = 0;
 	int	flag_quiet = 0;
 	int	flag_string = 0;
 	int	flag_hex = 0;
@@ -117,16 +118,16 @@ main(int argc, char *argv[])
 		p = argv[0];
 	if (!strcmp(p, "getextattr")) {
 		what = EAGET;
-		options = "fqsx";
+		options = "fhqsx";
 	} else if (!strcmp(p, "setextattr")) {
 		what = EASET;
-		options = "fq";
+		options = "fhq";
 	} else if (!strcmp(p, "rmextattr")) {
 		what = EARM;
-		options = "fq";
+		options = "fhq";
 	} else if (!strcmp(p, "lsextattr")) {
 		what = EALS;
-		options = "fq";
+		options = "fhq";
 	} else {
 		usage();
 	}
@@ -135,6 +136,9 @@ main(int argc, char *argv[])
 		switch (ch) {
 		case 'f':
 			flag_force = 1;
+			break;
+		case 'h':
+			flag_nofollow = 1;
 			break;
 		case 'q':
 			flag_quiet = 1;
@@ -178,26 +182,42 @@ main(int argc, char *argv[])
 	for (arg_counter = 0; arg_counter < argc; arg_counter++) {
 		switch (what) {
 		case EARM:
-			error = extattr_delete_file(argv[arg_counter],
-			    attrnamespace, attrname);
+			if (flag_nofollow)
+				error = extattr_delete_link(argv[arg_counter],
+				    attrnamespace, attrname);
+			else
+				error = extattr_delete_file(argv[arg_counter],
+				    attrnamespace, attrname);
 			if (error >= 0)
 				continue;
 			break;
 		case EASET:
-			error = extattr_set_file(argv[arg_counter],
-			    attrnamespace, attrname, buf, strlen(buf));
+			if (flag_nofollow)
+				error = extattr_set_link(argv[arg_counter],
+				    attrnamespace, attrname, buf, strlen(buf));
+			else
+				error = extattr_set_file(argv[arg_counter],
+				    attrnamespace, attrname, buf, strlen(buf));
 			if (error >= 0)
 				continue;
 			break;
 		case EALS:
 		case EAGET:
-			error = extattr_get_file(argv[arg_counter],
-			    attrnamespace, attrname, NULL, 0);
+			if (flag_nofollow)
+				error = extattr_get_link(argv[arg_counter],
+				    attrnamespace, attrname, NULL, 0);
+			else
+				error = extattr_get_file(argv[arg_counter],
+				    attrnamespace, attrname, NULL, 0);
 			if (error < 0)
 				break;
 			mkbuf(&buf, &buflen, error);
-			error = extattr_get_file(argv[arg_counter],
-			    attrnamespace, attrname, buf, buflen);
+			if (flag_nofollow)
+				error = extattr_get_link(argv[arg_counter],
+				    attrnamespace, attrname, buf, buflen);
+			else
+				error = extattr_get_file(argv[arg_counter],
+				    attrnamespace, attrname, buf, buflen);
 			if (error < 0)
 				break;
 			if (!flag_quiet)
