@@ -1003,7 +1003,7 @@ do_child(Session *s, const char *command)
 	char cmd[1024];
 	FILE *f = NULL;
 	u_int envsize, i;
-	char **env;
+	char **env = NULL;
 	extern char **environ;
 	struct stat st;
 	char *argv[10];
