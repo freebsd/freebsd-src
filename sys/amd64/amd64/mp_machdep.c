@@ -234,7 +234,7 @@ typedef struct BASETABLE_ENTRY {
 #define MP_ANNOUNCE_POST	0x19
 
 /* used to hold the AP's until we are ready to release them */
-struct mtx			ap_boot_mtx;
+static struct mtx ap_boot_mtx;
 
 /** XXX FIXME: where does this really belong, isa.h/isa.c perhaps? */
 int	current_postcode;
