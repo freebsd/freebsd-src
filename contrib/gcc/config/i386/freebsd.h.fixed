@@ -467,19 +467,11 @@ do {									\
 #define CPP_PREDEFINES "-Di386 -Acpu(i386) -Amachine(i386)" CPP_FBSD_PREDEFINES
 
 #undef CPP_SPEC
-#if TARGET_CPU_DEFAULT == 2
 #define CPP_SPEC "\
 %{!maout: -D__ELF__} \
 %{munderscores: -D__UNDERSCORES__} \
 %{maout: %{!mno-underscores: -D__UNDERSCORES__}} \
-%{fPIC:-D__PIC__ -D__pic__} %{fpic:-D__PIC__ -D__pic__} %{!m386:-D__i486__}"
-#else
-#define CPP_SPEC "\
-%{!maout: -D__ELF__} \
-%{munderscores: -D__UNDERSCORES__} \
-%{maout: %{!mno-underscores: -D__UNDERSCORES__}} \
-%{fPIC:-D__PIC__ -D__pic__} %{fpic:-D__PIC__ -D__pic__} %{m486:-D__i486__}"
-#endif
+%{fPIC:-D__PIC__ -D__pic__} %{fpic:-D__PIC__ -D__pic__}}"
 
 #undef CC1_SPEC
 #define CC1_SPEC "\
