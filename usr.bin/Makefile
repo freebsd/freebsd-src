@@ -1,8 +1,8 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$Id: Makefile,v 1.93 1997/12/15 20:52:24 helbig Exp $
+#	$Id: Makefile,v 1.94 1998/03/13 19:41:06 jb Exp $
 
 # XXX MISSING:		deroff diction graph learn plot
-#			spell spline struct units xsend
+#			spell spline struct xsend
 # XXX Use GNU versions: apropos bc dc diff grep ld man patch ptx uucp whatis
 # Moved to secure: bdes
 #
