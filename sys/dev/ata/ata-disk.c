@@ -675,17 +675,17 @@ ad_service(struct ad_softc *adp, int change)
 	int device = adp->device->unit;
 
 	if (adp->device->unit == ATA_MASTER) {
-	    if (adp->device->channel->devices & ATA_ATA_SLAVE &&
-		((struct ad_softc *)
-		 (adp->device->channel->
-		  device[ATA_DEV(ATA_SLAVE)].driver))->flags&AD_F_TAG_ENABLED)
+	    if ((adp->device->channel->devices & ATA_ATA_SLAVE) &&
+		(adp->device->channel->device[SLAVE].driver) &&
+		((struct ad_softc *) (adp->device->channel->
+		 device[SLAVE].driver))->flags & AD_F_TAG_ENABLED)
 		device = ATA_SLAVE;
 	}
 	else {
-	    if (adp->device->channel->devices & ATA_ATA_MASTER &&
-		((struct ad_softc *)
-		 (adp->device->channel->
-		  device[ATA_DEV(ATA_MASTER)].driver))->flags&AD_F_TAG_ENABLED)
+	    if ((adp->device->channel->devices & ATA_ATA_MASTER) &&
+		(adp->device->channel->device[MASTER].driver) &&
+		((struct ad_softc *) (adp->device->channel->
+		 device[MASTER].driver))->flags & AD_F_TAG_ENABLED)
 		device = ATA_MASTER;
 	}
 	if (device != adp->device->unit &&
