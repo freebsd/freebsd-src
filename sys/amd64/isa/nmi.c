@@ -309,7 +309,8 @@ isa_nmi(cd)
 /*
  *  ICU reinitialize when ICU configuration has lost.
  */
-void icu_reinit()
+void
+icu_reinit()
 {
 	int i;
 	register_t crit;
@@ -349,7 +350,8 @@ isa_defaultirq()
 /* 
  *initialize 8259's
  */
-static void init_i8259()
+static void
+init_i8259()
 {
 
 #ifdef DEV_MCA
