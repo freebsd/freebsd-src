@@ -49,11 +49,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/asmacros.h>
 
-#ifdef PC98
-#include <pc98/pc98/pc98.h>
-#else
 #include <i386/isa/isa.h>
-#endif
 #include <i386/isa/timerreg.h>
 
 #ifdef GUPROF
