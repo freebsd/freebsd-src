@@ -23,7 +23,7 @@ CLEANFILES= 	${FONTS}
 
 all: $(FONTS)
 
-install: ${FONTS}
+install:
 	@if [ ! -d ${DESTDIR}${FONTDIR} ]; then mkdir ${DESTDIR}${FONTDIR};fi
 	@for i in ${FONTS}; do \
 		${ECHO} "installing font $$i into ${DESTDIR}${FONTDIR}"; \
