@@ -111,6 +111,7 @@ ext2_debug("ext2_balloc called (%d, %d, %d)\n",
 				brelse(bp);
 				return (error);
 			}
+			bp->b_blkno = fsbtodb(fs, nb);
 			*bpp = bp;
 			return (0);
 		}
@@ -126,6 +127,7 @@ ext2_debug("ext2_balloc called (%d, %d, %d)\n",
 					brelse(bp);
 					return (error);
 				}
+				bp->b_blkno = fsbtodb(fs, nb);
 			} else {
 			/* Godmar thinks: this shouldn't happen w/o fragments */
 				printf("nsize %d(%d) > osize %d(%d) nb %d\n", 
