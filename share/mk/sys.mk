@@ -168,15 +168,18 @@ HTAGSFLAGS=
 
 # non-Posix rule set
 
-.c:
-	${CC} ${CFLAGS} ${LDFLAGS} ${.IMPSRC} ${LDLIBS} -o ${.TARGET}
-
 .sh:
 	cp -p ${.IMPSRC} ${.TARGET}
 	chmod a+x ${.TARGET}
 
+.c:
+	${CC} ${CFLAGS} ${LDFLAGS} ${.IMPSRC} ${LDLIBS} -o ${.TARGET}
+
 .c.o:
 	${CC} ${CFLAGS} -c ${.IMPSRC}
+
+.cc .cpp .cxx .C:
+	${CXX} ${CXXFLAGS} ${LDFLAGS} ${.IMPSRC} ${LDLIBS} -o ${.TARGET}
 
 .cc.o .cpp.o .cxx.o .C.o:
 	${CXX} ${CXXFLAGS} -c ${.IMPSRC}
@@ -186,6 +189,10 @@ HTAGSFLAGS=
 
 .p.o:
 	${PC} ${PFLAGS} -c ${.IMPSRC}
+
+.e .r .F .f:
+	${FC} ${RFLAGS} ${EFLAGS} ${FFLAGS} ${LDFLAGS} ${.IMPSRC} ${LDLIBS} \
+	    -o ${.TARGET}
 
 .e.o .r.o .F.o .f.o:
 	${FC} ${RFLAGS} ${EFLAGS} ${FFLAGS} -c ${.IMPSRC}
