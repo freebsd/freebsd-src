@@ -681,8 +681,16 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	if (mode == M_ADD || getarg(args, 'G') != NULL)
 		editgroups(pwd->pw_name, cnf->groups);
 
-	/* pwd may have been invalidated */
-	if ((pwd = GETPWNAM(a_name->val)) == NULL)
+	/* go get a current version of pwd */
+	pwd = GETPWNAM(a_name->val);
+	if (pwd == NULL) {
+		/* This will fail when we rename, so special case that */
+		if (mode == M_UPDATE && (arg = getarg(args, 'l')) != NULL) {
+			a_name->val = arg->val;		/* update new name */
+			pwd = GETPWNAM(a_name->val);	/* refetch renamed rec */
+		}
+	}
+	if (pwd == NULL)	/* can't go on without this */
 		errx(EX_NOUSER, "user '%s' disappeared during update", a_name->val);
 
 	grp = GETGRGID(pwd->pw_gid);
