@@ -1,4 +1,4 @@
-<!-- $Id$ -->
+<!-- $Id: submitters.sgml,v 1.41 1997/02/22 12:59:28 peter Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Contributing to FreeBSD<label id="submitters"></heading>
@@ -483,7 +483,7 @@ motherboards, etc) and if you would like to make such a donation, please contact
 <item>Hardware currently unsupported by FreeBSD for which you would like to
 see such support added.  Please contact the &a.core; before sending
 such items as we will need to find a developer willing to take on the task
-before we can accept delivery of them.  
+before we can accept delivery of new hardware.  
 </itemize>
 
 <sect2><heading>Donating Internet access</heading>
@@ -499,43 +499,63 @@ administrators"> for more information.
 like to publically thank them here!
 
 <itemize>
+<item><bf>Contributors to the central server project:</bf>
+  <p>The following individuals and businesses made it possible for
+  the FreeBSD Project to build a new central server machine to eventually
+  replace <em>freefall.freebsd.org</em> by donating the following items:
+  <itemize>
+	<item><url url="mailto:mbarkah@freebsd.org" name="Ade Barkah">
+	and his employer, <url url="http://www.hemi.com"
+	name="Hemisphere Online">, donated a <bf>Pentium Pro (P6) 200Mhz CPU
+	</bf>
+
+	<item><url url="mailto:ulf@Alameda.net" name="Ulf Zimmermann">
+	of <url url="http://www.Alameda.net" name="Alameda Networks">
+	donated <bf>128MB of memory</bf> and a <bf>4 Gb disk drive</bf>.
+
+	<item><url url="http://www.asacomputers.com" name="ASA Computers">
+	donated a <bf>Tyan 1662 motherboard</bf>.
+   </itemize>
+
+<item><bf>Direct funding:</bf>
+  <p>The following individuals and businesses have generously contributed
+  direct funding to the project:
+  <itemize>
 	<item><htmlurl url="mailto:ANDRSN@HOOVER.STANFORD.EDU"
 	name="Annelise Anderson">
 
-	has generously donated funding for the further development of FreeBSD
-	</item>
-
 	<item><htmlurl url="http://www.epilogue.com/" name="Epilogue
-        Technology Corporation">has generously donated funding for FreeBSD
-	development.
-        </item>
+        Technology Corporation">
 
 	<item><htmlurl url="mailto:gmarco@masternet.it"
-	name="Gianmarco Giovannelli"> has generously donated funding for
-	FreeBSD development.
-	</item>
+	name="Gianmarco Giovannelli">
+
+	<item><htmlurl url="http://www.imagescape.com"
+	name="Imaginary Landscape, LLC.">
 
         <item><htmlurl url="http://www.iijnet.or.jp/laser5/" name="Laser5">
-        in Japan has graciously donated a portion of their profits from the
-        sale of their <em>FreeBSD for PC98'ers</em> CD, a port of FreeBSD to
-        the NEC PC98.
-        </item>
+        of Japan (a portion of the profits from sales of their
+        <em>FreeBSD for PC98'ers</em> CD, a port of FreeBSD to
+        the NEC PC98).
+   </itemize>
 
+<item><bf>Special contributors:</bf>
+  <itemize>
 	<item><htmlurl url="http://www.cdrom.com" name="Walnut Creek CDROM">
 	has donated almost more than we can say (see the
 	<ref id="history" name="history"> document for more details).
-	In particular, we would like to thank them for the hardware used for
-	<em>freefall.FreeBSD.ORG</em>, our primary development machine,
-	and for <em>thud.FreeBSD.ORG</em>, our testing and build box.
+	In particular, we would like to thank them for the original hardware
+	used for <em>freefall.FreeBSD.ORG</em>, our primary development
+	machine, and for <em>thud.FreeBSD.ORG</em>, a testing and build box.
 	We are also indebted to them for funding various contributors over
 	the years and providing us with unrestricted use of their T1
-	connection to the Internet.
-	</item>
+	connection to the Internet.</item>
 
-	<item>The <htmlurl url="http://www.interface-business.de" name="interface
-	business GmbH, Dresden"> has been patiently supporting &a.joerg; who has often
-	preferred FreeBSD work over paywork, and used to fall back to their
-	(quite expensive) EUnet Internet connection whenever his private
-	connection became too slow or flakey to work with it...
-	</item>
+	<item>The <htmlurl url="http://www.interface-business.de"
+	name="interface business GmbH, Dresden"> has been patiently
+	supporting &a.joerg; who has often preferred FreeBSD work over
+	paywork, and used to fall back to their (quite expensive) EUnet
+	Internet connection whenever his private connection became too
+	slow or flakey to work with it...</item>
+  </itemize>
 </itemize>
