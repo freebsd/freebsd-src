@@ -223,10 +223,6 @@ struct linux_sigsuspend_args {
 struct linux_sigpending_args {
 	char mask_l_[PADL_(l_osigset_t *)]; l_osigset_t * mask; char mask_r_[PADR_(l_osigset_t *)];
 };
-struct linux_sethostname_args {
-	char hostname_l_[PADL_(char *)]; char * hostname; char hostname_r_[PADR_(char *)];
-	char len_l_[PADL_(u_int)]; u_int len; char len_r_[PADR_(u_int)];
-};
 struct linux_setrlimit_args {
 	char resource_l_[PADL_(l_uint)]; l_uint resource; char resource_r_[PADR_(l_uint)];
 	char rlim_l_[PADL_(struct l_rlimit *)]; struct l_rlimit * rlim; char rlim_r_[PADR_(struct l_rlimit *)];
@@ -695,7 +691,6 @@ int	linux_setreuid16(struct thread *, struct linux_setreuid16_args *);
 int	linux_setregid16(struct thread *, struct linux_setregid16_args *);
 int	linux_sigsuspend(struct thread *, struct linux_sigsuspend_args *);
 int	linux_sigpending(struct thread *, struct linux_sigpending_args *);
-int	linux_sethostname(struct thread *, struct linux_sethostname_args *);
 int	linux_setrlimit(struct thread *, struct linux_setrlimit_args *);
 int	linux_old_getrlimit(struct thread *, struct linux_old_getrlimit_args *);
 int	linux_getgroups16(struct thread *, struct linux_getgroups16_args *);
