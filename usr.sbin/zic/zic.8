@@ -154,17 +154,7 @@ then the rule applies in all years between
 .B FROM
 and
 .B TO
-inclusive;
-if
-.B TYPE
-is
-.BR uspres ,
-the rule applies in U.S. Presidential election years;
-if
-.B TYPE
-is
-.BR nonpres ,
-the rule applies in years other than U.S. Presidential election years.
+inclusive.
 If
 .B TYPE
 is something else, then
@@ -219,14 +209,18 @@ Any of these forms may be followed by the letter
 .B w
 if the given time is local
 .q "wall clock"
-time or
+time,
 .B s
 if the given time is local
 .q standard
-time; in the absence of
-.B w
+time, or
+.B u
+(or
+.B g
 or
-.BR s ,
+.BR z )
+if the given time is universal time;
+in the absence of an indicator,
 wall clock time is assumed.
 .TP
 .B SAVE
@@ -300,6 +294,9 @@ The pair of characters
 is used to show where the
 .q "variable part"
 of the time zone abbreviation goes.
+Alternately,
+a slash (/)
+separates standard and daylight abbreviations.
 .TP
 .B UNTIL
 The time at which the GMT offset or the rule(s) change for a location.
@@ -326,14 +323,13 @@ A link line has the form
 .sp
 .nf
 .ti +.5i
-.if t .ta \w'Link\0\0'u +\w'LINK-FROM\0\0'u
-.if n .ta \w'Link\0\0'u +\w'US/Eastern\0\0'u
+.ta \w'Link\0\0'u +\w'Europe/Istanbul\0\0'u
 Link	LINK-FROM	LINK-TO
 .sp
 For example:
 .sp
 .ti +.5i
-Link	US/Eastern	EST5EDT
+Link	Europe/Istanbul	Asia/Istanbul
 .sp
 .fi
 The
@@ -409,4 +405,4 @@ the earliest transition time recorded in the compiled file is correct.
 /usr/local/etc/zoneinfo	standard directory used for created files
 .SH "SEE ALSO"
 newctime(3), tzfile(5), zdump(8)
-.\" @(#)zic.8	7.7
+.\" @(#)zic.8	7.12
