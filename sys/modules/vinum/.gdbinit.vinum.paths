@@ -1,7 +1,7 @@
-dir /src/3.2-STABLE/src/sys/modules/vinum
-dir /src/3.2-STABLE/src/sys/i386/conf
-dir /src/3.2-STABLE/src/sys
-file /src/3.2-STABLE/src/sys/compile/DAEMON/kernel.debug
+dir /usr/src/sys/modules/vinum
+dir /usr/src/sys/i386/conf
+dir /usr/src/sys
+file /usr/src/sys/compile/GENERIC/kernel.debug
 define asf
    set $file = linker_files.tqh_first
    set $found = 0
@@ -12,7 +12,7 @@ define asf
        set $file = $file->link.tqe_next
      end
    end
-   shell /usr/bin/objdump --section-headers /src/obj/src/3.2-STABLE/src/sys/modules/vinum/vinum.ko | grep ' .text' | awk '{print "add-symbol-file /src/obj/src/3.2-STABLE/src/sys/modules/vinum/vinum.ko \$file->address+0x" $4}' > .asf
+   shell /usr/bin/objdump --section-headers /usr/obj/sys/modules/vinum/vinum.ko | grep ' .text' | awk '{print "add-symbol-file /usr/obj/sys/modules/vinum/vinum.ko \$file->address+0x" $4}' > .asf
    source .asf
 end
 document asf
