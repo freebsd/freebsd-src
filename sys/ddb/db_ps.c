@@ -72,7 +72,7 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 		/*
 		 * XXX just take 20 for now...
 		 */
-		if (nl++ == 20) {
+		if (nl++ >= 20) {
 			int c;
 
 			db_printf("--More--");
@@ -108,7 +108,7 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 			if (P_SHOULDSTOP(p))
 				state = "stop";
 			else
-				state = "norm";
+				state = "";
 			break;
 		case PRS_NEW:
 			state = "new ";
@@ -120,7 +120,7 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 			state = "Unkn";
 			break;
 		}
-		db_printf("%5d %8p %8p %4d %5d %5d %07x %-4s",
+		db_printf("%5d %8p %8p %4d %5d %5d %07x %s",
 		    p->p_pid, (volatile void *)p, (void *)p->p_uarea, 
 		    p->p_ucred != NULL ? p->p_ucred->cr_ruid : 0, pp->p_pid,
 		    p->p_pgrp != NULL ? p->p_pgrp->pg_id : 0, p->p_flag,
@@ -129,6 +129,7 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 			db_printf("(threaded)  %s\n", p->p_comm);
 		FOREACH_THREAD_IN_PROC(p, td) {
 			dumpthread(p, td);
+			nl++;
 		}
 		/* PROC_UNLOCK(p); */
 
@@ -146,10 +147,16 @@ dumpthread(volatile struct proc *p, volatile struct thread *td)
 		db_printf( "   thread %p ksegrp %p ", td, td->td_ksegrp);
 	if (TD_ON_SLEEPQ(td)) {
 		if (td->td_flags & TDF_CVWAITQ)
-			db_printf("[CVQ ");
+			if (TD_IS_SLEEPING(td))
+				db_printf("[CV]");
+			else
+				db_printf("[CVQ");
 		else
-			db_printf("[SLPQ ");
-		db_printf(" %6s %8p]", td->td_wmesg,
+			if (TD_IS_SLEEPING(td))
+				db_printf("[SLP]");
+			else
+				db_printf("[SLPQ");
+		db_printf("%s %p]", td->td_wmesg,
 		    (void *)td->td_wchan);
 	}
 	switch (td->td_state) {
@@ -159,9 +166,11 @@ dumpthread(volatile struct proc *p, volatile struct thread *td)
 			    td->td_lockname,
 			    (void *)td->td_blocked);
 		}
+#if 0 /* covered above */
 		if (TD_IS_SLEEPING(td)) {
 			db_printf("[SLP]");
 		}  
+#endif
 		if (TD_IS_SWAPPED(td)) {
 			db_printf("[SWAP]");
 		}
