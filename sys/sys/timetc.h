@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)time.h	8.5 (Berkeley) 5/4/95
- * $Id: time.h,v 1.31 1998/06/07 14:14:39 phk Exp $
+ * $Id: time.h,v 1.32 1998/06/07 20:36:55 phk Exp $
  */
 
 #ifndef _SYS_TIME_H_
@@ -132,26 +132,26 @@ typedef void timecounter_pps_t __P((struct timecounter *));
 
 struct timecounter {
 	/* These fields must be initialized by the driver. */
-	timecounter_get_t	*get_timecount;
-	timecounter_pps_t	*poll_pps;
-	unsigned 		counter_mask;
-	u_int32_t		frequency;
-	char			*name;
-	void			*priv;
+	timecounter_get_t	*tc_get_timecount;
+	timecounter_pps_t	*tc_poll_pps;
+	unsigned 		tc_counter_mask;
+	u_int32_t		tc_frequency;
+	char			*tc_name;
+	void			*tc_priv;
 	/* These fields will be managed by the generic code. */
-	int			cost;
-	int32_t			adjustment;
-	u_int32_t		scale_micro;
-	u_int32_t		scale_nano_i;
-	u_int32_t		scale_nano_f;
-	unsigned 		offset_count;
-	u_int32_t		offset_sec;
-	u_int32_t		offset_micro;
-	u_int64_t		offset_nano;
-	struct timeval		microtime;
-	struct timespec		nanotime;
-	struct timecounter	*other;
-	struct timecounter	*tweak;
+	int			tc_cost;
+	int32_t			tc_adjustment;
+	u_int32_t		tc_scale_micro;
+	u_int32_t		tc_scale_nano_i;
+	u_int32_t		tc_scale_nano_f;
+	unsigned 		tc_offset_count;
+	u_int32_t		tc_offset_sec;
+	u_int32_t		tc_offset_micro;
+	u_int64_t		tc_offset_nano;
+	struct timeval		tc_microtime;
+	struct timespec		tc_nanotime;
+	struct timecounter	*tc_other;
+	struct timecounter	*tc_tweak;
 };
 
 #ifdef KERNEL
