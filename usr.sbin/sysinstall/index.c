@@ -200,7 +200,7 @@ strip(char *buf)
 }
 
 static IndexEntryPtr
-new_index(char *name, char *pathto, char *prefix, char *comment, char *descr, char *maint, char *deps)
+new_index(char *name, char *pathto, char *prefix, char *comment, char *descr, char *maint, char *deps, int volume)
 {
     IndexEntryPtr tmp = safe_malloc(sizeof(IndexEntry));
 
@@ -213,6 +213,7 @@ new_index(char *name, char *pathto, char *prefix, char *comment, char *descr, ch
     tmp->deps =		_strdup(deps);
     tmp->depc =		0;
     tmp->installed =	package_exists(name);
+    tmp->volume =	volume;
     return tmp;
 }
 
@@ -269,11 +270,17 @@ readline(FILE *fp, char *buf, int max)
     return rv;
 }
 
+/*
+ * XXX - this function should do error checking, and skip corrupted INDEX
+ * lines without a set number of '|' delimited fields.
+ */
+
 int
-index_parse(FILE *fp, char *name, char *pathto, char *prefix, char *comment, char *descr, char *maint, char *cats, char *rdeps)
+index_parse(FILE *fp, char *name, char *pathto, char *prefix, char *comment, char *descr, char *maint, char *cats, char *rdeps, int *volume)
 {
     char line[10240];
     char junk[2048];
+    char volstr[2048];
     char *cp;
     int i;
 
@@ -289,10 +296,20 @@ index_parse(FILE *fp, char *name, char *pathto, char *prefix, char *comment, cha
     cp += copy_to_sep(maint, cp, '|');
     cp += copy_to_sep(cats, cp, '|');
     cp += copy_to_sep(junk, cp, '|');	/* build deps - not used */
+    cp += copy_to_sep(rdeps, cp, '|');
     if (index(cp, '|'))
-	copy_to_sep(rdeps, cp, '|');
-    else
-	strncpy(rdeps, cp, 1023);
+        cp += copy_to_sep(junk, cp, '|');	/* url - not used */
+    else {
+	strncpy(junk, cp, 1023);
+	*volume = 0;
+	return 0;
+    }
+    if (index(cp, '|'))
+        cp += copy_to_sep(volstr, cp, '|');	/* media volume */
+    else {
+	strncpy(volstr, cp, 1023);
+    }
+    *volume = atoi(volstr);
     return 0;
 }
 
@@ -300,13 +317,14 @@ int
 index_read(FILE *fp, PkgNodePtr papa)
 {
     char name[127], pathto[255], prefix[255], comment[255], descr[127], maint[127], cats[511], deps[2048];
+    int volume;
     PkgNodePtr i;
 
-    while (index_parse(fp, name, pathto, prefix, comment, descr, maint, cats, deps) != EOF) {
+    while (index_parse(fp, name, pathto, prefix, comment, descr, maint, cats, deps, &volume) != EOF) {
 	char *cp, *cp2, tmp[1024];
 	IndexEntryPtr idx;
 
-	idx = new_index(name, pathto, prefix, comment, descr, maint, deps);
+	idx = new_index(name, pathto, prefix, comment, descr, maint, deps, volume);
 	/* For now, we only add things to menus if they're in categories.  Keywords are ignored */
 	for (cp = strcpy(tmp, cats); (cp2 = strchr(cp, ' ')) != NULL; cp = cp2 + 1) {
 	    *cp2 = '\0';
@@ -651,7 +669,26 @@ index_extract(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended)
      */
 
     if (id->installed == 1)
-	    return DITEM_SUCCESS;
+	return DITEM_SUCCESS;
+
+    /*
+     * What if the package is not available on the current media volume?
+     *
+     */
+    if (id->volume != dev->volume) {
+	if (!msgYesNo("This is disc #%d.  Package %s is on disc #%d\n"
+	    "Would you like to switch discs now?\n", dev->volume,
+	    id->name, id->volume)) {
+		DEVICE_SHUTDOWN(mediaDevice);
+		msgConfirm("Please remove disc #%d from your drive, and add disc #%d\n",
+		    dev->volume, id->volume);
+		DEVICE_INIT(mediaDevice);
+		/* XXX, at this point we check to see if this is the
+		 * correct disc, and if not, we loop */
+	} else {
+	    return DITEM_FAILURE;
+	}
+    }
 
     if (id && id->deps && strlen(id->deps)) {
 	char t[1024], *cp, *cp2;
