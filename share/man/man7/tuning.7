@@ -4,7 +4,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 25, 2001
+.Dd June 25, 2002
 .Dt TUNING 7
 .Os
 .Sh NAME
@@ -416,21 +416,28 @@ wasted memory but you should experiment to find out.
 .Pp
 The
 .Va vfs.write_behind
-sysctl defaults to 1 (on).  This tells the filesystem to issue media
+sysctl defaults to 1 (on).
+This tells the filesystem to issue media
 writes as full clusters are collected, which typically occurs when writing
-large sequential files.  The idea is to avoid saturating the buffer
-cache with dirty buffers when it would not benefit I/O performance.  However,
+large sequential files.
+The idea is to avoid saturating the buffer
+cache with dirty buffers when it would not benefit I/O performance.
+However,
 this may stall processes and under certain circumstances you may wish to turn
 it off.
 .Pp
 The
 .Va vfs.hirunningspace
 sysctl determines how much outstanding write I/O may be queued to
-disk controllers system wide at any given instance.  The default is
+disk controllers system-wide at any given instance.
+The default is
 usually sufficient but on machines with lots of disks you may want to bump
-it up to four or five megabytes.  Note that setting too high a value
+it up to four or five megabytes.
+Note that setting too high a value
 (exceeding the buffer cache's write threshold) can lead to extremely
-bad clustering performance.  Do not set this value arbitrarily high!  Also,
+bad clustering performance.
+Do not set this value arbitrarily high!
+Also,
 higher write queueing values may add latency to reads occuring at the same
 time.
 .Pp
