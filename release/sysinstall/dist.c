@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.35.2.32 1995/06/10 07:54:04 jkh Exp $
+ * $Id: dist.c,v 1.35.2.33 1995/06/10 08:59:15 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -85,7 +85,7 @@ static Distribution DistTable[] = {
 };
 
 /* The DES distribution (not for export!) */
-static Distribution DESTable[] = {
+static Distribution DESDistTable[] = {
 { "des",        "/",                    &DESDists,	DIST_DES_DES,		NULL		},
 { "krb",	"/",			&DESDists,	DIST_DES_KERBEROS,	NULL		},
 { "ssecure",	"/usr/src",		&DESDists,	DIST_DES_SSECURE,	NULL		},
