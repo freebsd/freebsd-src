@@ -85,7 +85,7 @@ Since the
 .Fn strnstr
 function is a
 .Fx
-specific API, it should only be used when portablility is not a concern.
+specific API, it should only be used when portability is not a concern.
 .Sh RETURN VALUES
 If
 .Fa little
@@ -96,7 +96,8 @@ if
 .Fa little
 occurs nowhere in
 .Fa big ,
-NULL is returned;
+.Dv NULL
+is returned;
 otherwise a pointer to the first character of the first occurrence of
 .Fa little
 is returned.
@@ -104,7 +105,7 @@ is returned.
 The following sets the pointer
 .Va ptr
 to the
-.Dq Li Bar Baz
+.Qq Li Bar Baz
 portion of
 .Va largestring :
 .Bd -literal -offset indent
@@ -117,7 +118,9 @@ ptr = strstr(largestring, smallstring);
 .Pp
 The following sets the pointer
 .Va ptr
-to NULL, because only the first 4 characters of 
+to
+.Dv NULL ,
+because only the first 4 characters of
 .Va largestring
 are searched:
 .Bd -literal -offset indent
