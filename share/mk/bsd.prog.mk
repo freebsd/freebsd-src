@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.3 1994/08/10 02:48:08 wollman Exp $
+#	$Id: bsd.prog.mk,v 1.4 1994/08/28 15:32:10 bde Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -42,7 +42,7 @@ LIBRESOLV?=	/usr/lib/libresolv.a
 LIBRPCSVC?=	/usr/lib/librpcsvc.a
 LIBSKEY?=	/usr/lib/libskey.a
 LIBTELNET?=	/usr/lib/libtelnet.a
-LIBTERM?=       /usr/lib/libtermcap.a
+LIBTERMCAP?=	/usr/lib/libtermcap.a
 LIBUTIL?=	/usr/lib/libutil.a
 .else
 LIBCRT0?=	${DESTDIR}/usr/lib/crt0.o
@@ -66,7 +66,7 @@ LIBRESOLV?=	${DESTDIR}/usr/lib/libresolv.a
 LIBRPCSVC?=	${DESTDIR}/usr/lib/librpcsvc.a
 LIBSKEY?=	${DESTDIR}/usr/lib/libskey.a
 LIBTELNET?=	${DESTDIR}/usr/lib/libtelnet.a
-LIBTERM?=       ${DESTDIR}/usr/lib/libtermcap.a
+LIBTERMCAP?=	${DESTDIR}/usr/lib/libtermcap.a
 LIBUTIL?=	${DESTDIR}/usr/lib/libutil.a
 .endif
 .if defined(NOSHARED)
