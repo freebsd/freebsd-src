@@ -62,38 +62,6 @@ do
 	echo ">>> Filesystem is ${FSSIZE} K, $4 left"
 	echo ">>>     ${FSINODE} bytes/inode, $7 left"
 	echo ">>>   `expr ${FSSIZE} \* 1024 / ${FSINODE}`"
-
-# As far as I can tell, the following has only really caused me great
-# difficulty..
-#
-
-#	if [ $4 -gt 128 ] ; then
-#		echo "Reducing size"
-#		FSSIZE=`expr ${FSSIZE} - $4 / 2`
-#		continue
-#	fi
-#	if [ $7 -gt 128 ] ; then
-#		echo "Increasing bytes per inode"
-#		FSINODE=`expr ${FSINODE} + 8192`
-#		continue
-#	fi
-#	if [ $4 -gt 32 ] ; then
-#		echo "Reducing size"
-#		FSSIZE=`expr ${FSSIZE} - 4`
-#		FSINODE=`expr ${FSINODE} - 1024`
-#		continue
-#	fi
-#	if [ $7 -gt 64 ] ; then
-#		echo "Increasing bytes per inode"
-#		FSINODE=`expr ${FSINODE} + 8192`
-#		continue
-#	fi
-#	if [ $deadlock -eq 0 ] ; then
-#		echo "Avoiding deadlock, giving up"
-#		echo ${FSSIZE} > fs-image.size
-#		break
-#	fi
-#	deadlock=`expr $deadlock - 1`
 	echo ${FSSIZE} > fs-image.size
 	break;
 done
