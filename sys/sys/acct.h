@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)acct.h	8.4 (Berkeley) 1/9/95
- * $Id: acct.h,v 1.8 1997/02/22 09:44:48 peter Exp $
+ * $Id: acct.h,v 1.9 1998/02/01 20:08:35 bde Exp $
  */
 
 #ifndef _SYS_ACCT_H_
@@ -49,6 +49,12 @@
  */
 typedef u_int16_t comp_t;
 
+#ifdef KERNEL
+#define __dev_t udev_t
+#else
+#define __dev_t dev_t
+#endif
+
 #define AC_COMM_LEN 16
 struct acct {
 	char	  ac_comm[AC_COMM_LEN];	/* command name */
@@ -60,7 +66,7 @@ struct acct {
 	gid_t	  ac_gid;		/* group id */
 	u_int16_t ac_mem;		/* average memory usage */
 	comp_t	  ac_io;		/* count of IO blocks */
-	dev_t	  ac_tty;		/* controlling tty */
+	__dev_t	  ac_tty;		/* controlling tty */
 
 #define	AFORK	0x01			/* forked but not exec'ed */
 #define	ASU	0x02			/* used super-user permissions */
@@ -69,6 +75,7 @@ struct acct {
 #define	AXSIG	0x10			/* killed by a signal */
 	u_int8_t  ac_flag;		/* accounting flags */
 };
+#undef __dev_t
 
 /*
  * 1/AHZ is the granularity of the data encoded in the comp_t fields.

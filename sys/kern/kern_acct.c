@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_acct.c	8.1 (Berkeley) 6/14/93
- *	$Id: kern_acct.c,v 1.19 1998/06/05 21:44:19 dg Exp $
+ *	$Id: kern_acct.c,v 1.20 1999/04/27 11:15:53 phk Exp $
  */
 
 #include <sys/param.h>
@@ -221,9 +221,9 @@ acct_process(p)
 
 	/* (7) The terminal from which the process was started */
 	if ((p->p_flag & P_CONTROLT) && p->p_pgrp->pg_session->s_ttyp)
-		acct.ac_tty = p->p_pgrp->pg_session->s_ttyp->t_dev;
+		acct.ac_tty = dev2udev(p->p_pgrp->pg_session->s_ttyp->t_dev);
 	else
-		acct.ac_tty = NODEV;
+		acct.ac_tty = NOUDEV;
 
 	/* (8) The boolean flags that tell how the process terminated, etc. */
 	acct.ac_flag = p->p_acflag;
