@@ -22,7 +22,7 @@ sub scan_opts
 
     $dont_do_it = "-n" if $opt_n;
     if($opt_v) {
-	print STDERR '$Source: /home/ncvs/src/gnu/usr.bin/cvs/contrib/easy-import.pl,v $ $Revision: 1.14 $' . "\n"; # 'emacs kludge
+	print STDERR '$FreeBSD$' . "\n"; # 'emacs kludge
 	exit 0;
     }
     die "usage: $0 [-v] [-n] [moduledir]\n" .

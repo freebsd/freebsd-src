@@ -217,6 +217,10 @@ The @var{text} should be supplied to the
 user.  Compatibility note: @sc{cvs} 1.9.10 and older clients will print
 @code{unrecognized auth response} and @var{text}, and then exit, upon
 receiving this response.
+Note that @var{text} for this response, or the @var{text} in an @code{E}
+response, is not designed for machine parsing.  More vigorous use of
+@var{code}, or future extensions, will be needed to prove a cleaner
+machine-parseable indication of what the error was.
 @end table
 
 @c If you are thinking of putting samp or code around BEGIN AUTH REQUEST
@@ -479,7 +483,7 @@ For the @samp{-D} option to the @code{annotate}, @code{co}, @code{diff},
 and @code{update} requests, the server should support two formats:
 
 @example
-26 May 1997 13:01:40 GMT  ; @r{RFC 822 as modified by RFC 1123}
+26 May 1997 13:01:40 -0000  ; @r{RFC 822 as modified by RFC 1123}
 5/26/1997 13:01:40 GMT    ; @r{traditional}
 @end example
 
@@ -491,7 +495,9 @@ least support RFC 822/1123 format.  Clients are encouraged to use this
 format too (traditionally the command line CVS client has just passed
 along the date format specified by the user, however).
 
-For @code{Mod-time}, see the description of that response.
+The @code{Mod-time} response and @code{Checkin-time} request use RFC
+822/1123 format (see the descriptions of that response and request for
+details).
 
 For @code{Notify}, see the description of that request.
 
@@ -503,6 +509,16 @@ a response from the server, while all others do -- save one.  The
 exception is @samp{gzip-file-contents}.  Unrecognized requests will
 always elicit a response from the server, even if that request begins
 with a capital letter.
+
+The term @dfn{command} means a request which expects a response (except
+@code{valid-requests}).  The general model is that the client transmits
+a great number of requests, but nothing happens until the very end when
+the client transmits a command.  Although the intention is that
+transmitting several commands in one connection should be legal,
+existing servers probably have some bugs with some combinations of more
+than one command, and so clients may find it necessary to make several
+connections in some cases.  This should be thought of as a workaround
+rather than a desired attribute of the protocol.
 
 @node Requests
 @section Requests
@@ -521,7 +537,7 @@ in use, connection, authentication, etc., are already taken care of.
 
 The @code{Root} request must be sent only once, and it must be sent
 before any requests other than @code{Valid-responses},
-@code{valid-requests}, @code{UseUnchanged}, or @code{init}.
+@code{valid-requests}, @code{UseUnchanged}, @code{Set} or @code{init}.
 
 @item Valid-responses @var{request-list} \n
 Response expected: no.
@@ -606,6 +622,99 @@ Each @code{Directory} request specifies a brand-new
 @var{local-directory} and @var{repository} are never relative to paths
 specified in any previous @code{Directory} request.
 
+Here's a more complex example, in which we request an update of a
+working directory which has been checked out from multiple places in the
+repository.
+
+@example
+C: Argument dir1
+C: Directory dir1
+C: /home/foo/repos/mod1
+. . .
+C: Argument dir2
+C: Directory dir2
+C: /home/foo/repos/mod2
+. . .
+C: Argument dir3
+C: Directory dir3/subdir3
+C: /home/foo/repos/mod3
+. . .
+C: update
+@end example
+
+While directories @code{dir1} and @code{dir2} will be handled in similar
+fashion to the other examples given above, @code{dir3} is slightly
+different from the server's standpoint.  Notice that module @code{mod3}
+is actually checked out into @code{dir3/subdir3}, meaning that directory
+@code{dir3} is either empty or does not contain data checked out from
+this repository.  
+
+The above example will work correctly in @sc{cvs} 1.10.1 and later.  The
+server will descend the tree starting from all directories mentioned in
+@code{Argument} requests and update those directories specifically
+mentioned in @code{Directory} requests.
+
+Previous versions of @sc{cvs} (1.10 and earlier) do not behave the same
+way.  While the descent of the tree begins at all directories mentioned
+in @code{Argument} requests, descent into subdirectories only occurs if
+a directory has been mentioned in a @code{Directory} request.
+Therefore, the above example would succeed in updating @code{dir1} and
+@code{dir2}, but would skip @code{dir3} because that directory was not
+specifically mentioned in a @code{Directory} request.  A functional
+version of the above that would run on a 1.10 or earlier server is as
+follows:
+
+@example
+C: Argument dir1
+C: Directory dir1
+C: /home/foo/repos/mod1
+. . .
+C: Argument dir2
+C: Directory dir2
+C: /home/foo/repos/mod2
+. . .
+C: Argument dir3
+C: Directory dir3
+C: /home/foo/repos/.
+. . .
+C: Directory dir3/subdir3
+C: /home/foo/repos/mod3
+. . .
+C: update
+@end example
+
+Note the extra @code{Directory dir3} request.  It might be better to use
+@code{Emptydir} as the repository for the @code{dir3} directory, but the
+above will certainly work.
+
+One more peculiarity of the 1.10 and earlier protocol is the ordering of
+@code{Directory} arguments.  In order for a subdirectory to be
+registered correctly for descent by the recursion processor, its parent
+must be sent first.  For example, the following would not work to update
+@code{dir3/subdir3}:
+
+@example
+. . .
+C: Argument dir3
+C: Directory dir3/subdir3
+C: /home/foo/repos/mod3
+. . .
+C: Directory dir3
+C: /home/foo/repos/.
+. . .
+C: update
+@end example
+
+The implementation of the server in 1.10 and earlier writes the
+administration files for a given directory at the time of the
+@code{Directory} request.  It also tries to register the directory with
+its parent to mark it for recursion.  In the above example, at the time
+@code{dir3/subdir3} is created, the physical directory for @code{dir3}
+will be created on disk, but the administration files will not have been
+created.  Therefore, when the server tries to register
+@code{dir3/subdir3} for recursion, the operation will silently fail
+because the administration files do not yet exist for @code{dir3}.
+
 @item Max-dotdot @var{level} \n
 Response expected: no.
 Tell the server that @var{level} levels of directories above the
@@ -627,9 +736,10 @@ responses.
 @item Sticky @var{tagspec} \n
 Response expected: no.  Tell the server that the directory most recently
 specified with @code{Directory} has a sticky tag or date @var{tagspec}.
-The first character of @var{tagspec} is @samp{T} for a tag, or @samp{D}
-for a date.  The remainder of @var{tagspec} contains the actual tag or
-date.
+The first character of @var{tagspec} is @samp{T} for a tag, @samp{D}
+for a date, or some other character supplied by a Set-sticky response
+from a previous request to the server.  The remainder of @var{tagspec}
+contains the actual tag or date, again as supplied by Set-sticky.
 
 The server should remember @code{Static-directory} and @code{Sticky}
 requests for a particular directory; the client need not resend them
@@ -672,10 +782,34 @@ Typically this will be a file being added via an @code{add} or
 @code{import} request.  The client may not send both @code{Kopt} and
 @code{Entry} for the same file.
 
+@item Checkin-time @var{time} \n
+For the file specified by the next @code{Modified} request, use
+@var{time} as the time of the checkin.  The @var{time} is in the format
+specified by RFC822 as modified by RFC1123.  The client may specify any
+timezone it chooses; servers will want to convert that to their own
+timezone as appropriate.  An example of this format is:
+
+@example
+26 May 1997 13:01:40 -0400
+@end example
+
+There is no requirement that the client and server clocks be
+synchronized.  The client just sends its recommendation for a timestamp
+(based on file timestamps or whatever), and the server should just believe
+it (this means that the time might be in the future, for example).
+
+Note that this is not a general-purpose way to tell the server about the
+timestamp of a file; that would be a separate request (if there are
+servers which can maintain timestamp and time of checkin separately).
+
+This request should affect the @code{import} request, and may optionally
+affect the @code{ci} request or other relevant requests if any.
+
 @item Modified @var{filename} \n
 Response expected: no.  Additional data: mode, \n, file transmission.
 Send the server a copy of one locally modified file.  @var{filename} is
-relative to the most recent repository sent with @code{Directory}.  If
+a file within the most recent directory sent with @code{Directory}; it
+must not contain @samp{/}.  If
 the user is operating on only some files in a directory, only those
 files need to be included.  This can also be sent without @code{Entry},
 if there is no entry for the file.
@@ -717,8 +851,9 @@ investigation, the more conservative course of action is to stick to
 
 @item Unchanged @var{filename} \n
 Response expected: no.  Tell the server that @var{filename} has not been
-modified in the checked out directory.  The name is relative to the most
-recent repository sent with @code{Directory}.
+modified in the checked out directory.  The @var{filename} is
+a file within the most recent directory sent with @code{Directory}; it
+must not contain @samp{/}.
 
 @item UseUnchanged \n
 Response expected: no.  To specify the version of the protocol described
@@ -727,10 +862,13 @@ not do anything) and clients must issue it.
 
 @item Notify @var{filename} \n
 Response expected: no.
-Tell the server that a @code{edit} or @code{unedit} command has taken
+Tell the server that an @code{edit} or @code{unedit} command has taken
 place.  The server needs to send a @code{Notified} response, but such
 response is deferred until the next time that the server is sending
-responses.  Response expected: no.  Additional data:
+responses.
+The @var{filename} is a file within the most recent directory sent with
+@code{Directory}; it must not contain @samp{/}.
+Additional data:
 @example
 @var{notification-type} \t @var{time} \t @var{clienthost} \t
 @var{working-dir} \t @var{watches} \n
@@ -748,8 +886,16 @@ time as an opaque string rather than interpreting it).
 @var{clienthost} is the name of the host on which the edit or unedit
 took place, and @var{working-dir} is the pathname of the working
 directory where the edit or unedit took place.  @var{watches} are the
-temporary watches to set.  If @var{watches} is followed by \t then the
+temporary watches, zero or more of the following characters in the
+following order: @samp{E} for edit, @samp{U} for unedit, @samp{C} for
+commit, and all other letters should be silently ignored for future
+expansion.  If @var{notification-type} is @samp{E} the temporary watches
+are set; if it is @samp{U} they are cleared.
+If @var{watches} is followed by \t then the
 \t and the rest of the line should be ignored, for future expansion.
+
+The @var{time}, @var{clienthost}, and @var{working-dir} fields may not
+contain the characters @samp{+}, @samp{,}, @samp{>}, @samp{;}, or @samp{=}.
 
 Note that a client may be capable of performing an @code{edit} or
 @code{unedit} operation without connecting to the server at that time,
@@ -982,7 +1128,9 @@ Response expected: yes.  Actually do a @code{cvs import} command.  This
 uses any previous @code{Argument}, @code{Directory}, @code{Entry}, or
 @code{Modified} requests, if they have been sent.  The
 last @code{Directory} sent specifies the working directory at the time
-of the operation.  The files to be imported are sent in @code{Modified}
+of the operation - unlike most commands, the repository field of each
+@code{Directory} request is ignored (it merely must point somewhere
+within the root).  The files to be imported are sent in @code{Modified}
 requests (files which the client knows should be ignored are not sent;
 the server must still process the CVSROOT/cvsignore file unless -I ! is
 sent).  A log message must have been specified with a @code{-m}
@@ -1134,7 +1282,7 @@ Response expected: yes.
 Any unrecognized request expects a response, and does not
 contain any additional data.  The response will normally be something like
 @samp{error  unrecognized request}, but it could be a different error if
-a previous command which doesn't expect a response produced an error.
+a previous request which doesn't expect a response produced an error.
 @end table
 
 When the client is done, it drops the connection.
@@ -1330,6 +1478,11 @@ synchronized.  The server just sends its recommendation for a timestamp
 (based on its own clock, presumably), and the client should just believe
 it (this means that the time might be in the future, for example).
 
+If the server does not send @code{Mod-time} for a given file, the client
+should pick a modification time in the usual way (usually, just let the
+operating system set the modification time to the time that the CVS
+command is running).
+
 @item Checksum @var{checksum}\n
 The @var{checksum} applies to the next file sent (that is,
 @code{Checksum} is a file update modifying response
@@ -1433,6 +1586,13 @@ extending this one, for graceful handling of @code{Valid-responses}).
 
 @item M @var{text} \n
 A one-line message for the user.
+Note that the format of @var{text} is not designed for machine parsing.
+Although sometimes scripts and clients will have little choice, the
+exact text which is output is subject to vary at the discretion of the
+server and the example output given in this document is just that,
+example output.  Servers are encouraged to use the @samp{MT} response,
+and future versions of this document will hopefully standardize more of
+the @samp{MT} tags; see @ref{Text tags}.
 
 @item Mbinary \n
 Additional data: file transmission (note: compressed file transmissions
@@ -1530,6 +1690,12 @@ feature, or if it's not appropriate for this particular message, it just
 omits the errno-code (in that case there are two spaces after
 @samp{error}).  Text is an error message such as that provided by
 strerror(), or any other message the server wants to use.
+The @var{text} is like the @code{M} response, in the sense that it is
+not particularly intended to be machine-parsed; servers may wish to
+print an error message with @code{MT} responses, and then issue a
+@code{error} response without @var{text} (although it should be noted
+that @code{MT} currently has no way of flagging the output as intended
+for standard error, the way that the @code{E} response does).
 
 @item ok \n
 The command completed successfully.
@@ -1562,6 +1728,23 @@ before the command).
 MT +updated
 MT fname @var{name}
 MT -updated
+@end example
+
+The @code{importmergecmd} tag is used when doing an import which has
+conflicts.  The client can use it to report how to merge in the newly
+imported changes.  The @var{count} is the number of conflicts.  The
+newly imported changes can be merged by running the following command:
+@smallexample
+cvs checkout -j @var{tag1} -j @var{tag2} @var{repository}
+@end smallexample
+
+@example
+MT +importmergecmd
+MT conflicts @var{count}
+MT mergetag1 @var{tag1}
+MT mergetag2 @var{tag2}
+MT repository @var{repository}
+MT -importmergecmd
 @end example
 
 @node Example
@@ -1751,6 +1934,8 @@ working directory, and the meaning of sending @code{Entries} without
 A number of enhancements are possible.  Also see the file @sc{todo} in
 the @sc{cvs} source distribution, which has further ideas concerning
 various aspects of @sc{cvs}, some of which impact the protocol.
+Similarly, the @code{http://www.cyclic.com} site, in particular the
+@cite{Development of CVS} page.
 
 @itemize @bullet
 @item
@@ -1760,18 +1945,6 @@ of the file which was originally checked out; probably requiring the use
 of "cvs edit" in this case is the most sensible course (the "cvs edit"
 could be handled by a package like VC for emacs).  This would also allow
 local operation of @code{cvs diff} without arguments.
-
-@item
-The current procedure for @code{cvs update} is highly sub-optimal if
-there are many modified files.  One possible alternative would be to
-have the client send a first request without the contents of every
-modified file, then have the server tell it what files it needs.  Note
-the server needs to do the what-needs-to-be-updated check twice (or
-more, if changes in the repository mean it has to ask the client for
-more files), because it can't keep locks open while waiting for the
-network.  Perhaps this whole thing is irrelevant if there is a multisite
-capability (as noted in @sc{todo}), and therefore the rcsmerge can be
-done with a repository which is connected via a fast connection.
 
 @item
 The fact that @code{pserver} requires an extra network turnaround in

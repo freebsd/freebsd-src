@@ -233,7 +233,10 @@ environment variable is set.
 .B \-R
 Turns on read-only repository mode.  This allows one to check out from a
 read-only repository, such as within an anoncvs server, or from a CDROM
-repository.  Using
+repository.
+Same effect as if the
+.SM CVSREADONLYFS
+environment variable is set.  Using
 .B \-R
 can also considerably speed up checkout's over NFS.
 .TP
@@ -318,6 +321,15 @@ it will have the effect of producing context sensitive diffs for
 all executions of
 .` "cvs diff"
 ).
+.SP
+Global options are specified using the \fBcvs\fP keyword.  For example,
+the following:
+.SP
+cvs \-q
+.SP
+will mean that all
+.` "cvs"
+commands will behave as thought he \-q global option had been supplied.
 .SH "CVS COMMAND SUMMARY"
 Here are brief descriptions of all the
 .B cvs
@@ -2047,6 +2059,13 @@ will try hard to make the files in your working directory read-only.
 When this is not set, the default behavior is to permit modification
 of your working files.
 .TP
+.SM CVSREADONLYFS
+If this is set, the
+.B \-R
+option is assumed, and
+.B cvs
+operates in read-only repository mode.
+.TP
 .SM RCSBIN
 Specifies the full pathname where to find
 .SM RCS
@@ -2071,6 +2090,12 @@ is not set either, the default is
 If this variable is set then
 .B cvs
 will ignore all references to remote repositories in the CVS/Root file.
+.TP
+.SM CVS_OPTIONS
+Specifies a set of default options for
+.B cvs.
+These options are interpreted before the startup file (\fI~/.cvsrc\fP) is read
+and can be overridden by explicit command line parameters.
 .TP
 .SM CVS_RSH
 .B cvs

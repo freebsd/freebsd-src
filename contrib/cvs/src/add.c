@@ -172,9 +172,20 @@ add (argc, argv)
 	}
 
 	for (i = 0; i < argc; ++i)
+	{
 	    /* FIXME: Does this erroneously call Create_Admin in error
 	       conditions which are only detected once the server gets its
 	       hands on things?  */
+	    /* FIXME-also: if filenames are case-insensitive on the
+	       client, and the directory in the repository already
+	       exists and is named "foo", and the command is "cvs add
+	       FOO", this call to Create_Admin puts the wrong thing in
+	       CVS/Repository and so a subsequent "cvs update" will
+	       give an error.  The fix will be to have the server report
+	       back what it actually did (e.g. use tagged text for the
+	       "Directory %s added" message), and then Create_Admin,
+	       which should also fix the error handling concerns.  */
+
 	    if (isdir (argv[i]))
 	    {
 		char *tag;
@@ -240,8 +251,9 @@ add (argc, argv)
 		free (repository);
 		free (filedir);
 	    }
-	send_file_names (argc, argv, SEND_EXPAND_WILD);
+	}
 	send_files (argc, argv, 0, 0, SEND_BUILD_DIRS | SEND_NO_CONTENTS);
+	send_file_names (argc, argv, SEND_EXPAND_WILD);
 	send_to_server ("add\012", 0);
 	if (message)
 	    free (message);
@@ -258,6 +270,9 @@ add (argc, argv)
 #endif
 	struct file_info finfo;
 	char *p;
+#if defined (SERVER_SUPPORT) && !defined (FILENAMES_CASE_INSENSITIVE)
+	char *found_name;
+#endif
 
 	memset (&finfo, 0, sizeof finfo);
 
@@ -293,6 +308,60 @@ add (argc, argv)
 
 	finfo.repository = repository;
 	finfo.entries = entries;
+
+#if defined (SERVER_SUPPORT) && !defined (FILENAMES_CASE_INSENSITIVE)
+	if (ign_case)
+	{
+	    /* Need to check whether there is a directory with the
+	       same name but different case.  We'll check for files
+	       with the same name later (when Version_TS calls
+	       RCS_parse which calls fopen_case).  If CVS some day
+	       records directories in the RCS files, then we should be
+	       able to skip the separate check here, which would be
+	       cleaner.  */
+	    DIR *dirp;
+	    struct dirent *dp;
+
+	    dirp = CVS_OPENDIR (finfo.repository);
+	    if (dirp == NULL)
+		error (1, errno, "cannot read directory %s", finfo.repository);
+	    found_name = NULL;
+	    errno = 0;
+	    while ((dp = readdir (dirp)) != NULL)
+	    {
+		if (cvs_casecmp (dp->d_name, finfo.file) == 0)
+		{
+		    if (found_name != NULL)
+			error (1, 0, "%s is ambiguous; could mean %s or %s",
+			       finfo.file, dp->d_name, found_name);
+		    found_name = xstrdup (dp->d_name);
+		}
+	    }
+	    if (errno != 0)
+		error (1, errno, "cannot read directory %s", finfo.repository);
+	    closedir (dirp);
+
+	    if (found_name != NULL)
+	    {
+		/* OK, we are about to patch up the name, so patch up
+		   the temporary directory too to match.  The isdir
+		   should "always" be true (since files have ,v), but
+		   I guess we might as well make some attempt to not
+		   get confused by stray files in the repository.  */
+		if (isdir (finfo.file))
+		{
+		    if (CVS_MKDIR (found_name, 0777) < 0
+			&& errno != EEXIST)
+			error (0, errno, "cannot create %s", finfo.file);
+		}
+
+		/* OK, we found a directory with the same name, maybe in
+		   a different case.  Treat it as if the name were the
+		   same.  */
+		finfo.file = found_name;
+	    }
+	}
+#endif
 
 	/* We pass force_tag_match as 1.  If the directory has a
            sticky branch tag, and there is already an RCS file which
@@ -420,7 +489,7 @@ file `%s' will be added on branch `%s' from version %s",
 re-adding file %s (in place of dead revision %s)",
 				   finfo.fullname, vers->vn_rcs);
 			Register (entries, finfo.file, "0", vers->ts_user,
-				  NULL,
+				  vers->options,
 				  vers->tag, NULL, NULL);
 			++added_files;
 		    }
@@ -538,6 +607,10 @@ cannot resurrect %s; RCS file removed by second party", finfo.fullname);
 	free_cwd (&cwd);
 
 	free (finfo.fullname);
+#if defined (SERVER_SUPPORT) && !defined (FILENAMES_CASE_INSENSITIVE)
+	if (ign_case && found_name != NULL)
+	    free (found_name);
+#endif
     }
     if (added_files)
 	error (0, 0, "use '%s commit' to add %s permanently",

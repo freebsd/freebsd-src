@@ -5,6 +5,8 @@
  * specified in the README file that comes with CVS.
  * 
  * Allow user to log in for an authenticating server.
+ *
+ * $FreeBSD$
  */
 
 #include "cvs.h"
@@ -48,7 +50,14 @@ construct_cvspass_filename ()
     homedir = get_homedir ();
     if (! homedir)
     {
-	error (1, errno, "could not find out home directory");
+	/* FIXME?  This message confuses a lot of users, at least
+	   on Win95 (which doesn't set HOMEDRIVE and HOMEPATH like
+	   NT does).  I suppose the answer for Win95 is to store the
+	   passwords in the registry or something (??).  And .cvsrc
+	   and such too?  Wonder what WinCVS does (about .cvsrc, the
+	   right thing for a GUI is to just store the password in
+	   memory only)...  */
+	error (1, 0, "could not find out home directory");
 	return (char *) NULL;
     }
 
@@ -246,7 +255,8 @@ login (argc, argv)
 	    /* FIXME: rename_file would make more sense (e.g. almost
 	       always faster).  */
 	    copy_file (tmp_name, passfile);
-	    unlink_file (tmp_name);
+	    if (unlink_file (tmp_name) < 0)
+		error (0, errno, "cannot remove %s", tmp_name);
 	    chmod (passfile, 0600);
 
 	    free (tmp_name);
@@ -447,6 +457,8 @@ logout (argc, argv)
      */
 
     passfile = construct_cvspass_filename ();
+    /* FIXME: This should not be in /tmp; that is almost surely a security
+       hole.  Probably should just keep it in memory.  */
     tmp_name = cvs_temp_name ();
     if ((tmp_fp = CVS_FOPEN (tmp_name, "w")) == NULL)
     {
@@ -486,14 +498,16 @@ logout (argc, argv)
     if (! found) 
     {
 	printf ("Entry not found for %s\n", CVSroot_original);
-	unlink_file (tmp_name);
+	if (unlink_file (tmp_name) < 0)
+	    error (0, errno, "cannot remove %s", tmp_name);
     }
     else
     {
 	/* FIXME: rename_file would make more sense (e.g. almost
 	   always faster).  */
 	copy_file (tmp_name, passfile);
-	unlink_file (tmp_name);
+	if (unlink_file (tmp_name) < 0)
+	    error (0, errno, "cannot remove %s", tmp_name);
 	chmod (passfile, 0600);
     }
     return 0;

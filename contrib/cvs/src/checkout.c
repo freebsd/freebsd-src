@@ -238,7 +238,7 @@ checkout (argc, argv)
 	if (!tag && !date)
 	    error (1, 0, "must specify a tag or date");
 
-	if (tag && isdigit (tag[0]))
+	if (tag && isdigit ((unsigned char) tag[0]))
 	    error (1, 0, "tag `%s' must be a symbolic tag", tag);
     }
 

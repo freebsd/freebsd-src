@@ -120,34 +120,10 @@ admin (argc, argv)
     struct admin_data admin_data;
     int c;
     int i;
+    int only_k_option;
 
     if (argc <= 1)
 	usage (admin_usage);
-
-#ifdef CVS_ADMIN_GROUP
-    grp = getgrnam(CVS_ADMIN_GROUP);
-     /* skip usage right check if group CVS_ADMIN_GROUP does not exist */
-    if (grp != NULL)
-    {
-	char *me = getcaller();
-	char **grnam = grp->gr_mem;
-	int denied = 1;
-	
-	while (*grnam)
-	{
-	    if (strcmp(*grnam, me) == 0) 
-	    {
-		denied = 0;
-		break;
-	    }
-	    grnam++;
-	}
-
-	if (denied)
-	    error (1, 0, "usage is restricted to members of the group %s",
-		   CVS_ADMIN_GROUP);
-    }
-#endif
 
     wrap_setup ();
 
@@ -157,9 +133,13 @@ admin (argc, argv)
        example, admin_data->branch should be not `-bfoo' but simply `foo'. */
 
     optind = 0;
+    only_k_option = 1;
     while ((c = getopt (argc, argv,
-			"+ib::c:a:A:e:l::u::LUn:N:m:o:s:t::IqxV:k:")) != -1)
+			"+ib::c:a:A:e::l::u::LUn:N:m:o:s:t::IqxV:k:")) != -1)
     {
+	if (c != 'k')
+	    only_k_option = 0;
+
 	switch (c)
 	{
 	    case 'i':
@@ -211,6 +191,11 @@ admin (argc, argv)
 		break;
 
 	    case 'e':
+		if (optarg == NULL)
+		{
+		    error (1, 0,
+			   "removing entire access list not yet implemented");
+		}
 		arg_add (&admin_data, 'e', optarg);
 		break;
 
@@ -353,6 +338,33 @@ admin (argc, argv)
     argc -= optind;
     argv += optind;
 
+#ifdef CVS_ADMIN_GROUP
+    grp = getgrnam(CVS_ADMIN_GROUP);
+     /* skip usage right check if group CVS_ADMIN_GROUP does not exist */
+    if (grp != NULL)
+    {
+	char *me = getcaller();
+	char **grnam = grp->gr_mem;
+	/* The use of `cvs admin -k' is unrestricted.  However, any
+	   other option is restricted.  */
+	int denied = ! only_k_option;
+	
+	while (*grnam)
+	{
+	    if (strcmp(*grnam, me) == 0) 
+	    {
+		denied = 0;
+		break;
+	    }
+	    grnam++;
+	}
+
+	if (denied)
+	    error (1, 0, "usage is restricted to members of the group %s",
+		   CVS_ADMIN_GROUP);
+    }
+#endif
+
     for (i = 0; i < admin_data.ac; ++i)
     {
 	assert (admin_data.av[i][0] == '-');
@@ -375,9 +387,9 @@ admin (argc, argv)
 
 	check_numeric (admin_data.delete_revs + 2, argc, argv);
 	p = strchr (admin_data.delete_revs + 2, ':');
-	if (p != NULL && isdigit (p[1]))
+	if (p != NULL && isdigit ((unsigned char) p[1]))
 	    check_numeric (p + 1, argc, argv);
-	else if (p != NULL && p[1] == ':' && isdigit(p[2]))
+	else if (p != NULL && p[1] == ':' && isdigit ((unsigned char) p[2]))
 	    check_numeric (p + 2, argc, argv);
     }
 
@@ -414,8 +426,8 @@ admin (argc, argv)
 	for (i = 0; i < admin_data.ac; ++i)
 	    send_arg (admin_data.av[i]);
 
-	send_file_names (argc, argv, SEND_EXPAND_WILD);
 	send_files (argc, argv, 0, 0, SEND_NO_CONTENTS);
+	send_file_names (argc, argv, SEND_EXPAND_WILD);
 	send_to_server ("admin\012", 0);
         err = get_responses_and_close ();
 	goto return_it;
@@ -492,7 +504,7 @@ admin_fileproc (callerdat, finfo)
     if (admin_data->branch != NULL)
     {
 	char *branch = &admin_data->branch[2];
-	if (*branch != '\0' && ! isdigit (*branch))
+	if (*branch != '\0' && ! isdigit ((unsigned char) *branch))
 	{
 	    branch = RCS_whatbranch (rcs, admin_data->branch + 2);
 	    if (branch == NULL)
@@ -604,12 +616,9 @@ admin_fileproc (callerdat, finfo)
     if (admin_data->kflag != NULL)
     {
 	char *kflag = admin_data->kflag + 2;
-	if (!rcs->expand || strcmp (rcs->expand, kflag) != 0)
-	{
-	    if (rcs->expand)
-		free (rcs->expand);
-	    rcs->expand = xstrdup (kflag);
-	}
+	char *oldexpand = RCS_getexpand (rcs);
+	if (oldexpand == NULL || strcmp (oldexpand, kflag) != 0)
+	    RCS_setexpand (rcs, kflag);
     }
 
     /* Handle miscellaneous options.  TODO: decide whether any or all

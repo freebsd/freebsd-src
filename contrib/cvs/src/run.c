@@ -175,10 +175,11 @@ run_exec (stin, stout, sterr, flags)
 
     /* The output files, if any, are now created.  Do the fork and dups.
 
-       We use vfork not so much for the sake of unices without
-       copy-on-write (such systems are rare these days), but for the
-       sake of systems without an MMU, which therefore can't do
-       copy-on-write (e.g. Amiga).  The other solution is spawn (see
+       We use vfork not so much for a performance boost (the
+       performance boost, if any, is modest on most modern unices),
+       but for the sake of systems without a memory management unit,
+       which find it difficult or impossible to implement fork at all
+       (e.g. Amiga).  The other solution is spawn (see
        windows-NT/run.c).  */
 
 #ifdef HAVE_VFORK
@@ -365,12 +366,8 @@ run_popen (cmd, mode)
     const char *mode;
 {
     if (trace)
-#ifdef SERVER_SUPPORT
-	(void) fprintf (stderr, "%c-> run_popen(%s,%s)\n",
-			(server_active) ? 'S' : ' ', cmd, mode);
-#else
-	(void) fprintf (stderr, "-> run_popen(%s,%s)\n", cmd, mode);
-#endif
+	(void) fprintf (stderr, "%s-> run_popen(%s,%s)\n",
+			CLIENT_SERVER_STR, cmd, mode);
     if (noexec)
 	return (NULL);
 
@@ -409,21 +406,21 @@ piped_child (command, tofdp, fromfdp)
     if (pid == 0)
     {
 	if (dup2 (to_child_pipe[0], STDIN_FILENO) < 0)
-	    error (1, errno, "cannot dup2");
+	    error (1, errno, "cannot dup2 pipe");
 	if (close (to_child_pipe[1]) < 0)
-	    error (1, errno, "cannot close");
+	    error (1, errno, "cannot close pipe");
 	if (close (from_child_pipe[0]) < 0)
-	    error (1, errno, "cannot close");
+	    error (1, errno, "cannot close pipe");
 	if (dup2 (from_child_pipe[1], STDOUT_FILENO) < 0)
-	    error (1, errno, "cannot dup2");
+	    error (1, errno, "cannot dup2 pipe");
 
 	execvp (command[0], command);
-	error (1, errno, "cannot exec");
+	error (1, errno, "cannot exec %s", command[0]);
     }
     if (close (to_child_pipe[0]) < 0)
-	error (1, errno, "cannot close");
+	error (1, errno, "cannot close pipe");
     if (close (from_child_pipe[1]) < 0)
-	error (1, errno, "cannot close");
+	error (1, errno, "cannot close pipe");
 
     *tofdp = to_child_pipe[1];
     *fromfdp = from_child_pipe[0];
@@ -436,81 +433,7 @@ close_on_exec (fd)
      int fd;
 {
 #if defined (FD_CLOEXEC) && defined (F_SETFD)
-  if (fcntl (fd, F_SETFD, 1))
-    error (1, errno, "can't set close-on-exec flag on %d", fd);
+    if (fcntl (fd, F_SETFD, 1))
+	error (1, errno, "can't set close-on-exec flag on %d", fd);
 #endif
-}
-
-/*
- * dir = 0 : main proc writes to new proc, which writes to oldfd
- * dir = 1 : main proc reads from new proc, which reads from oldfd
- *
- * Returns: a file descriptor.  On failure (i.e., the exec fails),
- * then filter_stream_through_program() complains and dies.
- */
-
-int
-filter_stream_through_program (oldfd, dir, prog, pidp)
-     int oldfd, dir;
-     char **prog;
-     pid_t *pidp;
-{
-    int p[2], newfd;
-    pid_t newpid;
-
-    if (pipe (p))
-	error (1, errno, "cannot create pipe");
-#ifdef USE_SETMODE_BINARY
-    setmode (p[0], O_BINARY);
-    setmode (p[1], O_BINARY);
-#endif
-
-#ifdef HAVE_VFORK
-    newpid = vfork ();
-#else
-    newpid = fork ();
-#endif
-    if (pidp)
-	*pidp = newpid;
-    switch (newpid)
-    {
-      case -1:
-	error (1, errno, "cannot fork");
-      case 0:
-	/* child */
-	if (dir)
-	{
-	    /* write to new pipe */
-	    close (p[0]);
-	    dup2 (oldfd, 0);
-	    dup2 (p[1], 1);
-	}
-	else
-	{
-	    /* read from new pipe */
-	    close (p[1]);
-	    dup2 (p[0], 0);
-	    dup2 (oldfd, 1);
-	}
-	/* Should I be blocking some signals here?  */
-	execvp (prog[0], prog);
-	error (1, errno, "couldn't exec %s", prog[0]);
-      default:
-	/* parent */
-	close (oldfd);
-	if (dir)
-	{
-	    /* read from new pipe */
-	    close (p[1]);
-	    newfd = p[0];
-	}
-	else
-	{
-	    /* write to new pipe */
-	    close (p[0]);
-	    newfd = p[1];
-	}
-	close_on_exec (newfd);
-	return newfd;
-    }
 }

@@ -43,7 +43,7 @@ variable_set (nameval)
     Node *node;
 
     p = nameval;
-    while (isalnum (*p) || *p == '_')
+    while (isalnum ((unsigned char) *p) || *p == '_')
 	++p;
     if (*p != '=')
 	error (1, 0, "illegal character in user variable name in %s", nameval);
@@ -133,7 +133,7 @@ expand_path (name, file, line)
 	    {
 		if (flag
 		    ? *s =='}'
-		    : isalnum (*s) == 0 && *s != '_')
+		    : isalnum ((unsigned char) *s) == 0 && *s != '_')
 		    break;
 		doff = d - mybuf;
 		expand_string (&mybuf, &mybuf_size, doff + 1);
@@ -214,6 +214,9 @@ expand_path (name, file, line)
 	    t = ps->pw_dir;
 #endif
 	}
+	if (t == NULL)
+	    error (1, 0, "cannot find home directory");
+
 	doff = d - buf;
 	expand_string (&buf, &buf_size, doff + 1);
 	d = buf + doff;
@@ -283,7 +286,7 @@ expand_variable (name, file, line)
 	return Editor;
     else if (strcmp (name, "USER") == 0)
 	return getcaller ();
-    else if (isalpha (name[0]))
+    else if (isalpha ((unsigned char) name[0]))
     {
 	/* These names are reserved for future versions of CVS,
 	   so that is why it is an error.  */

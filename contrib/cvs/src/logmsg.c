@@ -4,6 +4,8 @@
  * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS source distribution.
+ *
+ * $FreeBSD$
  */
 
 #include "cvs.h"
@@ -452,7 +454,8 @@ do_verify (messagep, repository)
 	    {
 		/* Since following error() exits, delete the temp file
 		   now.  */
-		unlink_file (fname);
+		if (unlink_file (fname) < 0)
+		    error (0, errno, "cannot remove %s", fname);
 
 		error (1, retcode == -1 ? errno : 0, 
 		       "Message verification failed");
@@ -510,7 +513,8 @@ do_verify (messagep, repository)
 
 	/* Delete the temp file  */
 
-	unlink_file (fname);
+	if (unlink_file (fname) < 0)
+	    error (0, errno, "cannot remove %s", fname);
 	free (fname);
     }
 }

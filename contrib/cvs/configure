@@ -1782,7 +1782,7 @@ EOF
 
 fi
 
-for ac_func in mkdir rename strstr dup2 strerror valloc waitpid memmove vasprintf strtoul
+for ac_func in mkdir rename strstr dup2 strerror valloc waitpid memmove strtoul
 do
 echo $ac_n "checking for $ac_func""... $ac_c" 1>&6
 if eval "test \"`echo '$''{'ac_cv_func_$ac_func'+set}'`\" = set"; then
@@ -2939,7 +2939,7 @@ echo "default place for GSSAPI is $GSSAPI"
 
 hold_cppflags=$CPPFLAGS
 CPPFLAGS="$CPPFLAGS -I$GSSAPI/include "
-for ac_hdr in gssapi.h gssapi/gssapi.h gssapi/gssapi_generic.h
+for ac_hdr in krb5.h gssapi.h gssapi/gssapi.h gssapi/gssapi_generic.h
 do
 ac_safe=`echo "$ac_hdr" | tr './\055' '___'`
 echo $ac_n "checking for $ac_hdr""... $ac_c" 1>&6
@@ -2978,7 +2978,9 @@ done
 
 CPPFLAGS=$hold_cppflags
 
-if test "$ac_cv_header_gssapi_h" = "yes" || test "$ac_cv_header_gssapi_gssapi_h" = "yes"; then
+if test "$ac_cv_header_krb5_h" = "yes" && 
+   (test "$ac_cv_header_gssapi_h" = "yes" ||
+    test "$ac_cv_header_gssapi_gssapi_h" = "yes"); then
   cat >> confdefs.h <<\EOF
 #define HAVE_GSSAPI 1
 EOF
@@ -2994,7 +2996,7 @@ EOF
   CPPFLAGS="-I$GSSAPI/include $CPPFLAGS"
   if test "$ac_cv_header_gssapi_h" = "yes"; then
     cat > conftest.$ac_ext <<EOF
-#line 2998 "configure"
+#line 3000 "configure"
 #include "confdefs.h"
 #include <gssapi.h>
 EOF
@@ -3010,7 +3012,7 @@ rm -f conftest*
 
   else
     cat > conftest.$ac_ext <<EOF
-#line 3014 "configure"
+#line 3016 "configure"
 #include "confdefs.h"
 #include <gssapi/gssapi.h>
 EOF
@@ -3036,7 +3038,7 @@ else
   ac_save_LIBS="$LIBS"
 LIBS="-lgen  $LIBS"
 cat > conftest.$ac_ext <<EOF
-#line 3040 "configure"
+#line 3042 "configure"
 #include "confdefs.h"
 /* Override any gcc2 internal prototype to avoid an error.  */
 /* We use char because int might match the return type of a gcc2
@@ -3048,7 +3050,7 @@ int t() {
 compile()
 ; return 0; }
 EOF
-if { (eval echo configure:3052: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; }; then
+if { (eval echo configure:3054: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; }; then
   rm -rf conftest*
   eval "ac_cv_lib_$ac_lib_var=yes"
 else
@@ -3098,7 +3100,7 @@ if eval "test \"`echo '$''{'ac_cv_func_gethostname'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
   cat > conftest.$ac_ext <<EOF
-#line 3102 "configure"
+#line 3104 "configure"
 #include "confdefs.h"
 /* System header to define __stub macros and hopefully few prototypes,
     which can conflict with char gethostname(); below.  */
@@ -3122,7 +3124,7 @@ gethostname();
 
 ; return 0; }
 EOF
-if { (eval echo configure:3126: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; }; then
+if { (eval echo configure:3128: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; }; then
   rm -rf conftest*
   eval "ac_cv_func_gethostname=yes"
 else
@@ -3199,7 +3201,7 @@ else
   ac_save_LIBS="$LIBS"
 LIBS="-lcrypt  $LIBS"
 cat > conftest.$ac_ext <<EOF
-#line 3203 "configure"
+#line 3205 "configure"
 #include "confdefs.h"
 /* Override any gcc2 internal prototype to avoid an error.  */
 /* We use char because int might match the return type of a gcc2
@@ -3211,7 +3213,7 @@ int t() {
 crypt()
 ; return 0; }
 EOF
-if { (eval echo configure:3215: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; }; then
+if { (eval echo configure:3217: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; }; then
   rm -rf conftest*
   eval "ac_cv_lib_$ac_lib_var=yes"
 else
@@ -3242,7 +3244,7 @@ if eval "test \"`echo '$''{'ac_cv_func_$ac_func'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
   cat > conftest.$ac_ext <<EOF
-#line 3246 "configure"
+#line 3248 "configure"
 #include "confdefs.h"
 /* System header to define __stub macros and hopefully few prototypes,
     which can conflict with char $ac_func(); below.  */
@@ -3266,7 +3268,7 @@ $ac_func();
 
 ; return 0; }
 EOF
-if { (eval echo configure:3270: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; }; then
+if { (eval echo configure:3272: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; }; then
   rm -rf conftest*
   eval "ac_cv_func_$ac_func=yes"
 else
@@ -3307,7 +3309,7 @@ if eval "test \"`echo '$''{'ccvs_cv_sys_cygwin32'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
   cat > conftest.$ac_ext <<EOF
-#line 3311 "configure"
+#line 3313 "configure"
 #include "confdefs.h"
 
 int main() { return 0; }
@@ -3315,7 +3317,7 @@ int t() {
 return __CYGWIN32__;
 ; return 0; }
 EOF
-if { (eval echo configure:3319: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
+if { (eval echo configure:3321: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
   rm -rf conftest*
   ccvs_cv_sys_cygwin32=yes
 else
@@ -3441,10 +3443,10 @@ ac_given_srcdir=$srcdir
 ac_given_INSTALL="$INSTALL"
 
 trap 'rm -fr `echo "Makefile lib/Makefile src/Makefile zlib/Makefile diff/Makefile doc/Makefile \
-	  man/Makefile tools/Makefile tools/pcl-cvs/Makefile \
-	  contrib/Makefile contrib/elib/Makefile \
+	  man/Makefile tools/Makefile \
+	  contrib/Makefile \
 	  windows-NT/Makefile windows-NT/SCC/Makefile \
-	  os2/Makefile emx/Makefile macintosh/Makefile vms/Makefile \
+	  os2/Makefile emx/Makefile vms/Makefile \
 	  stamp-h config.h src/options.h" | sed "s/:[^ ]*//g"` conftest*; exit 1' 1 2 15
 EOF
 cat >> $CONFIG_STATUS <<EOF
@@ -3495,10 +3497,10 @@ EOF
 cat >> $CONFIG_STATUS <<EOF
 
 CONFIG_FILES=\${CONFIG_FILES-"Makefile lib/Makefile src/Makefile zlib/Makefile diff/Makefile doc/Makefile \
-	  man/Makefile tools/Makefile tools/pcl-cvs/Makefile \
-	  contrib/Makefile contrib/elib/Makefile \
+	  man/Makefile tools/Makefile \
+	  contrib/Makefile \
 	  windows-NT/Makefile windows-NT/SCC/Makefile \
-	  os2/Makefile emx/Makefile macintosh/Makefile vms/Makefile \
+	  os2/Makefile emx/Makefile vms/Makefile \
 	  stamp-h"}
 EOF
 cat >> $CONFIG_STATUS <<\EOF

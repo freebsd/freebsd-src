@@ -13,13 +13,11 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with GNU DIFF; see the file COPYING.  If not, write to
-the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+*/
 
 #include "diff.h"
 
-#ifdef __STDC__
+#if __STDC__
 #include <stdarg.h>
 #else
 #include <varargs.h>
@@ -340,14 +338,14 @@ write_output (text, len)
 
 /* Printf something to the output file.  */
 
-#ifdef __STDC__
+#if __STDC__
 #define VA_START(args, lastarg) va_start(args, lastarg)
 #else /* ! __STDC__ */
 #define VA_START(args, lastarg) va_start(args)
 #endif /* __STDC__ */
 
 void
-#if defined (__STDC__)
+#if __STDC__
 printf_output (const char *format, ...)
 #else
 printf_output (format, va_alist)
@@ -360,17 +358,51 @@ printf_output (format, va_alist)
   VA_START (args, format);
   if (callbacks && callbacks->write_output)
     {
-      char *p;
+      /* We implement our own limited printf-like functionality (%s, %d,
+	 and %c only).  Callers who want something fancier can use
+	 sprintf.  */
+      const char *p = format;
+      char *q;
+      char *str;
+      int num;
+      int ch;
+      unsigned char buf[100];
 
-      p = NULL;
-      vasprintf (&p, format, args);
-      if (p == NULL)
-	fatal ("out of memory");
+      while ((q = strchr (p, '%')) != NULL)
+	{
+	  static const char msg[] =
+	    "\ninternal error: bad % in printf_output\n";
+	  (*callbacks->write_output) (p, q - p);
+
+	  switch (q[1])
+	    {
+	    case 's':
+	      str = va_arg (args, char *);
+	      (*callbacks->write_output) (str, strlen (str));
+	      break;
+	    case 'd':
+	      num = va_arg (args, int);
+	      sprintf (buf, "%d", num);
+	      (*callbacks->write_output) (buf, strlen (buf));
+	      break;
+	    case 'c':
+	      ch = va_arg (args, int);
+	      buf[0] = ch;
+	      (*callbacks->write_output) (buf, 1);
+	      break;
+	    default:
+	      (*callbacks->write_output) (msg, sizeof (msg) - 1);
+	      /* Don't just keep going, because q + 1 might point to the
+		 terminating '\0'.  */
+	      goto out;
+	    }
+	  p = q + 2;
+	}
       (*callbacks->write_output) (p, strlen (p));
-      free (p);
     }
   else
     vfprintf (outfile, format, args);
+ out:
   va_end (args);
 }
 

@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /* config.h.  Generated automatically by configure.  */
 /* config.h.in.  Generated automatically from configure.in by autoheader.  */
 
@@ -74,6 +75,10 @@
 
 /* Define if you have GSSAPI with MIT Kerberos version 5 available.  */
 /* #undef HAVE_GSSAPI */
+
+/* Define if GSS_C_NT_HOSTBASED_SERVICE is defined in the gssapi.h
+   header file.  Only relevant when using GSSAPI.  */
+/* #undef HAVE_GSS_C_NT_HOSTBASED_SERVICE */
 
 /* Define if you want CVS to be able to be a remote repository client.  */
 #define CLIENT_SUPPORT 1
@@ -191,6 +196,15 @@
 
 /* Define if you have the <fcntl.h> header file.  */
 #define HAVE_FCNTL_H 1
+
+/* Define if you have the <gssapi.h> header file.  */
+/* #undef HAVE_GSSAPI_H */
+
+/* Define if you have the <gssapi/gssapi.h> header file.  */
+/* #undef HAVE_GSSAPI_GSSAPI_H */
+
+/* Define if you have the <gssapi/gssapi_generic.h> header file.  */
+/* #undef HAVE_GSSAPI_GSSAPI_GENERIC_H */
 
 /* Define if you have the <io.h> header file.  */
 /* #undef HAVE_IO_H */
