@@ -310,6 +310,11 @@ int	 ttysleep(struct tty *tp, void *chan, int pri, char *wmesg, int timo);
 int	 ttywait(struct tty *tp);
 int	 unputc(struct clist *q);
 
+/*
+ * XXX: temporary
+ */
+#include <sys/linedisc.h>
+
 #endif /* _KERNEL */
 
 #endif /* !_SYS_TTY_H_ */
