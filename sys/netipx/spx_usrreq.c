@@ -77,7 +77,7 @@ static struct	spx_istat spx_istat;
 #define spxstat spx_istat.newstats
 #endif  
 
-static int spx_backoff[SPX_MAXRXTSHIFT+1] =
+static const int spx_backoff[SPX_MAXRXTSHIFT+1] =
     { 1, 2, 4, 8, 16, 32, 64, 64, 64, 64, 64, 64, 64 };
 
 static	struct spxpcb *spx_close(struct spxpcb *cb);
