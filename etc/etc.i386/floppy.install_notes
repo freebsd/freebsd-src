@@ -22,7 +22,7 @@ to make initial installation of the system from floppy as easy as possible.
 	Adaptec 174x series
 	Buslogic 545S
 
-    Then please use the disk image:	kcopy-ah-floppy
+    Then please use the disk image:	kcopy_ah.flp
     to construct your boot floppy.
 
     If your disk controller is one of:
@@ -30,13 +30,13 @@ to make initial installation of the system from floppy as easy as possible.
 	Bustek 742a
 	UltraStore 14F or 34F
 
-    Then please use the disk image:	kcopy-bt-floppy
+    Then please use the disk image:	kcopy_bt.flp
     to construct your boot floppy.
 
-    Next, make a second floppy from the disk image:	filesystem-floppy
+    Next, make a second floppy from the disk image:	filesyst.flp
     You'll need this for the second stage of the boot process.
 
-    Finally, make a third floppy from the disk image:	cpio-floppy
+    Finally, make a third floppy from the disk image:	cpio.flp
     You'll need this for the last stage of the boot process.
 
     If you want to use any of the optional tools in the tools
@@ -53,7 +53,7 @@ to make initial installation of the system from floppy as easy as possible.
     the dos floppy in the last stage of the boot process.
 
 2.  Boot the first floppy.  When it asks you to insert the file system floppy,
-    insert the second floppy ``filesystem-floppy.''  Follow the instructions
+    insert the second floppy ``filesyst.flp.''  Follow the instructions
     that floppy gives you.  If partitions  already exist on the hard disk,
     then by default FreeBSD attempts to install itself at the end of these.
     Before rebooting, note the type of disk it says to copy the kernel
@@ -69,12 +69,12 @@ to make initial installation of the system from floppy as easy as possible.
 
 4.  Making sure that there's no floppy in the drive, press return to boot
     from the hard disk.  After it has booted and is asking what drive the
-    cpio floppy is in, insert the third floppy ``cpio-floppy'' into a
+    cpio floppy is in, insert the third floppy ``cpio.flp'' into a
     floppy drive and answer the question about what drive it is in.
     Note that 0 is the same as DOS drive A:, and 1 is the same as DOS
     drive B:
 
-5.  After the cpio-floppy has been copied to the disk, remove it from the
+5.  After the cpio floppy has been copied to the disk, remove it from the
     drive.  If there are programs on the dos-floppy that you would like
     installed, then insert this disk in a floppy drive, again specifying 
     the drive to read from.
@@ -97,30 +97,20 @@ to make initial installation of the system from floppy as easy as possible.
 10. Follow the instructions about set_tmp_dir and extract that
     will come on your screen after you've pressed the return key.
 
-11. You will get the following errors while extracting the bin
-    distribution, which you can safely ignore:
-
-	/tmp/tar: Could not create file bin/sh : Text file busy
-	/tmp/tar: Could not create file sbin/init : Text file busy
-	/tmp/tar: Could not link .profile to root/.profile : File exists
-
-12. Run the configure command to set up some of the /etc files by
+11. Run the configure command to set up some of the /etc files by
     typing ``configure''.  You will have to edit /etc/netstart after
     this if you have a networking interface.
 
-13. Reboot so that the system comes up multiuser by typing ``reboot''.
+12. Reboot so that the system comes up multiuser by typing ``reboot''.
 
-14. You are now running FreeBSD!  Congradulations!  You may now continue
+13. You are now running FreeBSD!  Congradulations!  You may now continue
     with installing the source distribution, or stop here for now.
 
-    Should you decided to postpone further installation, you should
-    probably save the ``installing profile'' for possible future use by
-    saving it and linking a default profile into place.
+14. The file /magic contains the special sh commands used during
+    installation.  Should you need to use them you can do the following.
 
-    Do it like this:
-
-	mv /.profile /.profile.install
-	ln /root/.profile /.profile
+	/bin/sh
+	. /magic
 
 15. If your disk has several operating systems, you may want to
     install the Thomas Wolfram's os-bs boot manager for selecting
@@ -150,4 +140,4 @@ to make initial installation of the system from floppy as easy as possible.
     freebsd.cdrom.com - please have a look around!  You may also find 
     this a good time to read the release notes in RELNOTES.FreeBSD.
     
-End of $Id: floppy.install_notes,v 1.12 1993/10/16 12:41:36 jkh Exp $
+End of $Id: floppy.install_notes,v 1.13.2.1 1994/05/05 03:58:27 rgrimes Exp $
