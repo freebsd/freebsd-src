@@ -188,7 +188,7 @@ in order to control the scope of the multicasts:
 u_char ttl;	/* range: 0 to 255, default = 1 */
 setsockopt(s, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof(ttl));
 .Ed
-.sp
+.Pp
 Datagrams with a TTL of 1 are not forwarded beyond the local network.
 Multicast datagrams with a TTL of 0 will not be transmitted on any network,
 but may be delivered locally if the sending host belongs to the destination
@@ -206,7 +206,7 @@ subsequent transmissions from a given socket:
 struct in_addr addr;
 setsockopt(s, IPPROTO_IP, IP_MULTICAST_IF, &addr, sizeof(addr));
 .Ed
-.sp
+.Pp
 where "addr" is the local 
 .Tn IP 
 address of the desired interface or
@@ -231,7 +231,7 @@ over whether or not subsequent datagrams are looped back:
 u_char loop;	/* 0 = disable, 1 = enable (default) */
 setsockopt(s, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof(loop));
 .Ed
-.sp
+.Pp
 This option
 improves performance for applications that may have no more than one
 instance on a single host (such as a router demon), by eliminating
@@ -253,17 +253,17 @@ option:
 struct ip_mreq mreq;
 setsockopt(s, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq));
 .Ed
-.sp
+.Pp
 where 
 .Fa mreq
 is the following structure:
 .Bd -literal
 struct ip_mreq {
-    struct in_addr imr_multiaddr; /* multicast group to join */
-    struct in_addr imr_interface; /* interface to join on */
+    struct in_addr imr_multiaddr; /* IP multicast address of group */
+    struct in_addr imr_interface; /* local IP address of interface */
 }
 .Ed
-.sp
+.Pp
 .Dv imr_interface 
 should
 be 
@@ -286,7 +286,7 @@ To drop a membership, use:
 struct ip_mreq mreq;
 setsockopt(s, IPPROTO_IP, IP_DROP_MEMBERSHIP, &mreq, sizeof(mreq));
 .Ed
-.sp
+.Pp
 where 
 .Fa mreq
 contains the same values as used to add the membership. 
@@ -349,7 +349,7 @@ type.
 int hincl = 1;                  /* 1 = on, 0 = off */
 setsockopt(s, IPPROTO_IP, IP_HDRINCL, &hincl, sizeof(hincl));
 .Ed
-.sp
+.Pp
 Unlike previous 
 .Tn BSD 
 releases, the program must set all
@@ -360,7 +360,7 @@ ip->ip_hl = hlen >> 2;
 ip->ip_id = 0;  /* 0 means kernel set appropriate value */
 ip->ip_off = offset;
 .Ed
-.sp .5
+.Pp
 If the header source address is set to 
 .Dv INADDR_ANY,
 the kernel will choose an appropriate address.
