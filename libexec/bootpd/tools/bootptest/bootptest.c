@@ -31,8 +31,10 @@
  * 09/28/93 Released version 1.0
  * 09/93 Original developed by Gordon W. Ross <gwr@mc.com>
  *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 char *usage = "bootptest [-h] server-name [vendor-data-template-file]";
 
@@ -52,6 +54,7 @@ char *usage = "bootptest [-h] server-name [vendor-data-template-file]";
 #include <unistd.h>
 #endif
 
+#include <err.h>
 #include <stdlib.h>
 #include <signal.h>
 #include <stdio.h>
@@ -163,10 +166,8 @@ main(argc, argv)
 	 */
 	assert(sizeof(struct bootp) == BP_MINPKTSZ);
 
-	if (uname(&my_uname) < 0) {
-		fprintf(stderr, "%s: can't get hostname\n", argv[0]);
-		exit(1);
-	}
+	if (uname(&my_uname) < 0)
+		errx(1, "can't get hostname");
 	hostname = my_uname.nodename;
 
 	sndbuf = malloc(BUFLEN);
@@ -244,7 +245,7 @@ main(argc, argv)
 	if (sep) {
 		bootps_port = ntohs((u_short) sep->s_port);
 	} else {
-		fprintf(stderr, "udp/bootps: unknown service -- using port %d\n",
+		warnx("bootps/udp: unknown service -- using port %d",
 				IPPORT_BOOTPS);
 		bootps_port = (u_short) IPPORT_BOOTPS;
 	}
@@ -257,10 +258,8 @@ main(argc, argv)
 			server_addr = inet_addr(servername);
 		else {
 			hep = gethostbyname(servername);
-			if (!hep) {
-				fprintf(stderr, "%s: unknown host\n", servername);
-				exit(1);
-			}
+			if (!hep)
+				errx(1, "%s: unknown host", servername);
 			bcopy(hep->h_addr, &server_addr, sizeof(server_addr));
 		}
 	} else {
@@ -279,7 +278,7 @@ main(argc, argv)
 	if (sep) {
 		bootpc_port = ntohs(sep->s_port);
 	} else {
-		fprintf(stderr, "udp/bootpc: unknown service -- using port %d\n",
+		warnx("bootpc/udp: unknown service -- using port %d",
 				IPPORT_BOOTPC);
 		bootpc_port = (u_short) IPPORT_BOOTPC;
 	}
@@ -295,10 +294,12 @@ main(argc, argv)
 	 * Bind client socket to BOOTPC port.
 	 */
 	if (bind(s, (struct sockaddr *) &sin_client, sizeof(sin_client)) < 0) {
-		perror("bind BOOTPC port");
-		if (errno == EACCES)
-			fprintf(stderr, "You need to run this as root\n");
-		exit(1);
+		if (errno == EACCES) {
+			warn("bind BOOTPC port");
+			errx(1, "you need to run this as root");
+		}
+		else
+			err(1, "bind BOOTPC port");
 	}
 	/*
 	 * Build a request.
@@ -437,8 +438,7 @@ main(argc, argv)
 		 * will now listen for one second after a response.
 		 */
 	}
-	fprintf(stderr, "no response from %s\n", servername);
-	exit(1);
+	errx(1, "no response from %s", servername);
 }
 
 static void
