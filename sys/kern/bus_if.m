@@ -113,7 +113,7 @@ METHOD void child_detached {
 METHOD void driver_added {
 	device_t dev;
 	driver_t *driver;
-}
+} DEFAULT bus_generic_driver_added;
 
 #
 # For busses which use use drivers supporting DEVICE_IDENTIFY to
