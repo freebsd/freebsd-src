@@ -168,7 +168,7 @@ main(int argc, char **argv)
 		info_print(fd, iocmd.channel, 0);
 	}
 	else if (!strcmp(argv[1], "reinit") && argc == 3) {
-		iocmd.cmd = ATAATTACH;
+		iocmd.cmd = ATAREINIT;
 		if (ioctl(fd, IOCATA, &iocmd) < 0)
 			warn("ioctl(ATAREINIT)");
 		info_print(fd, iocmd.channel, 0);
