@@ -941,6 +941,9 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	 */
 	tf->tf_special.sp = (u_int64_t)sfp - 16;
 	tf->tf_special.gp = sbs;
+	tf->tf_special.bspstore = sf.sf_uc.uc_mcontext.mc_special.bspstore;
+	tf->tf_special.ndirty = 0;
+	tf->tf_special.rnat = sf.sf_uc.uc_mcontext.mc_special.rnat;
 	tf->tf_scratch.gr8 = sig;
 	tf->tf_scratch.gr9 = code;
 	tf->tf_scratch.gr10 = (u_int64_t)catcher;
@@ -1049,12 +1052,14 @@ get_mcontext(struct thread *td, mcontext_t *mc, int flags)
 		copyout((void*)kstk, (void*)tf->tf_special.bspstore,
 		    tf->tf_special.ndirty);
 		kstk += tf->tf_special.ndirty;
-		tf->tf_special.bspstore += tf->tf_special.ndirty;
-		tf->tf_special.ndirty = 0;
-		tf->tf_special.rnat =
+		mc->mc_special = tf->tf_special;
+		mc->mc_special.rnat =
 		    (bspst > kstk && (bspst & 0x1ffUL) < (kstk & 0x1ffUL))
 		    ? *(uint64_t*)(kstk | 0x1f8UL) : rnat;
-	}
+		mc->mc_special.bspstore += mc->mc_special.ndirty;
+		mc->mc_special.ndirty = 0;
+	} else
+		mc->mc_special = tf->tf_special;
 	if (tf->tf_flags & FRAME_SYSCALL) {
 		if (flags & GET_MC_IA64_SCRATCH) {
 			mc->mc_flags |= _MC_FLAGS_SCRATCH_VALID;
@@ -1081,7 +1086,6 @@ get_mcontext(struct thread *td, mcontext_t *mc, int flags)
 		mc->mc_scratch_fp = tf->tf_scratch_fp;
 		/* XXX High FP */
 	}
-	mc->mc_special = tf->tf_special;
 	save_callee_saved(&mc->mc_preserved);
 	save_callee_saved_fp(&mc->mc_preserved_fp);
 	return (0);
