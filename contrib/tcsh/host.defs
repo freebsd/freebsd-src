@@ -1,5 +1,5 @@
 newcode	:
-/* $Header: /src/pub/tcsh/host.defs,v 1.31 2001/06/10 02:19:11 christos Exp $ */
+/* $Header: /src/pub/tcsh/host.defs,v 1.35 2002/07/23 16:13:21 christos Exp $ */
 /*
  * host.defs: Hosttype/Machtype etc.
  */
@@ -15,11 +15,7 @@ newcode	:
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -37,7 +33,7 @@ newcode	:
  */
 #include "sh.h"
 
-RCSID("$Id: host.defs,v 1.31 2001/06/10 02:19:11 christos Exp $")
+RCSID("$Id: host.defs,v 1.35 2002/07/23 16:13:21 christos Exp $")
 
 endcode	:
 
@@ -468,7 +464,7 @@ enddef	:
 
 newdef	: defined(__NetBSD__) 
 comment	: NetBSD
-vendor	: defined(arm32)				: "acorn"
+vendor	: defined(arm32) || defined(__arm__)		: "acorn"
 vendor	: defined(alpha)				: "digital"
 vendor	: defined(amiga)				: "commodore"
 vendor	: defined(atari)				: "atari"
@@ -484,7 +480,9 @@ vendor	: defined(sun3)					: "sun"
 vendor	: defined(vax)					: "digital"
 hosttype: 						: "NetBSD"
 ostype	: 						: "NetBSD"
-machtype: defined(arm32)				: "arm32"
+machtype: defined(arm32) || defined(__APCS_32__)	: "arm32"
+machtype: defined(arm26) || defined(__APCS_26__)	: "arm26"
+machtype: defined(arm) || defined(__arm__)		: "arm"
 machtype: defined(sparc)				: "sparc"
 machtype: defined(mc68020)				: "m68k"
 machtype: defined(M_i386)				: "i386"
@@ -727,12 +725,12 @@ machtype: defined(sparc)   || defined(__sparc__)	: "sparc"
 enddef	:
 
 
-newdef	: defined(__APPLE__)
-comment	: Rhapsody
+newdef	: defined(__APPLE__) && defined(__MACH__)
+comment	: OS X
 vendor	:						: "apple"
 hosttype: defined(__i386__)				: "intel-pc"
-hosttype: defined(__ppc__)				: "macintosh"
-ostype	:						: "rhapsody"
+hosttype: defined(__ppc__)				: "powermac"
+ostype	:						: "darwin"
 machtype: defined(__i386__)				: "i386"
 machtype: defined(__ppc__)				: "powerpc"
 enddef	:

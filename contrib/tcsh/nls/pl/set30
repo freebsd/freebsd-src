@@ -7,10 +7,10 @@ $set 30
 4 %s: Internal match error.\n
 5 elementów
 6 wierszy
-7 Jest %d %s, pokazaæ je? [n/t] 
+7 Jest %d %s, pokazaæ je? [n/y] 
 8 looking = %d\n
 9 \ntcsh internal error: I don't know what I'm looking for!\n
 10 nie jest katalogiem
 11 nie zosta³ znaleziony
 12 jest nieczytelny
-13 tT
+13 yY

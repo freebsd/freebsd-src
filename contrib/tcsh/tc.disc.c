@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tc.disc.c,v 3.11 1997/10/02 16:36:31 christos Exp $ */
+/* $Header: /src/pub/tcsh/tc.disc.c,v 3.13 2002/07/06 22:28:13 christos Exp $ */
 /*
  * tc.disc.c: Functions to set/clear line disciplines
  *
@@ -15,11 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -37,13 +33,13 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tc.disc.c,v 3.11 1997/10/02 16:36:31 christos Exp $")
+RCSID("$Id: tc.disc.c,v 3.13 2002/07/06 22:28:13 christos Exp $")
 
 #ifdef OREO
 #include <compat.h>
 #endif	/* OREO */
 
-#include "ed.term.h"
+#include "ed.h"
 
 static bool add_discipline = 0;	/* Did we add a line discipline	 */
 

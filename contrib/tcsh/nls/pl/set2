@@ -10,59 +10,59 @@ $set 2
 7 Abort
 8 IOT trap
 9 System Crash Imminent
-10 Powrót z b³êdem
+10 Error exit
 11 EMT trap
 12 Floating exception
 13 Zabity
-14 1 sygna³ u¿ytkownika
-15 2 sygna³ u¿ytkownika
+14 User signal 1
+15 User signal 2
 16 Naruszenie ochrony pamiêci
 17 B³±d szyny
 18 Program range error
 19 Operand range error
 20 Nieprawid³owe wywo³anie systemowe
-21 Przerwany potok
+21 Broken pipe
 22 Alarm clock
 23 Zakoñczono
-24 Zmiana statusu potomka
+24 Child status change
 25 ¦mieræ potomka
-26 B³±d specyficzny dla Apollo
+26 Apollo-specific fault
 27 Potomek zakoñczy³ dzia³anie, lub zosta³ wy³±czony
 28 Potomek zakoñczy³ dzia³anie
 29 Brak zasilania
-30 Zasób stracony
+30 Resource Lost
 31 Przerwanie (Ctrl-Break)
 32 Input/output possible signal
 33 Asynchroniczne We/Wy (select)
-34 Pilne zdarzenie na kanale I/O
+34 Urgent condition on I/O channel
 35 Multitasking wake-up
 36 Multitasking kill
 37 Fortran asynchronous I/O completion
 38 Recovery
-39 Nienaprawialny b³±d pamiêci
+39 Uncorrectable memory error
 40 Limit czasu CPU przekroczony
 41 System shutdown imminent
 42 micro-tasking group-no wakeup flag set
 43 Thread error - (use cord -T for detailed info)
-44 B³±d rejestru parzysto¶ci dla CRAY Y-MP
-45 ¯±danie informacji
+44 CRAY Y-MP register parity error
+45 Information request
 46 Zawieszony (sygna³)
 47 Zatrzymany (sygna³)
 48 Zawieszony
 49 Zatrzymany
-50 Kontynuowany
-51 Zawieszony (oczekuje wej¶cia z tty)
-52 Zatrzymany (oczekuje wej¶cia z tty)
-53 Zawieszony (wyj¶cie na tty)
-54 Zatrzymany (wyj¶cie na tty)
+50 Continued
+51 Suspended (tty input)
+52 Stopped (tty input)
+53 Suspended (tty output)
+54 Stopped (tty output)
 55 Window status changed
 56 Window size changed
 57 Phone status changed
-58 Limit czasu CPU wyczerpany
-59 Limit systemu plików wyczerpany
+58 Cputime limit exceeded
+59 Filesize limit exceeded
 60 Virtual time alarm
 61 Profiling time alarm
-62 sygna³ DIL
+62 DIL signal
 63 Pollable event occured
 64 Process's lwps are blocked
 65 Special LWP signal
@@ -87,14 +87,14 @@ $set 2
 84 Secure attention key
 85 Reschedule
 86 Signaling SS$_DEBUG
-87 Zmieniono priorytet
+87 Priority changed
 88 True deadlock detected
 89 New input character
-90 Limit stosu wyczerpany
-91 Nieu¿ywany sygna³
+90 Stack limit exceeded
+91 Unused signal
 92 LM overlay
-93 system zamro¿ony
-94 system odmro¿ony
+93 system freeze
+94 system defreeze
 95 dead lock
 96 exceeded memory size limit
 97 exceeded data size limit
@@ -102,8 +102,8 @@ $set 2
 99 exce error for no memory
 100 check point start
 101 check point start of kernel
-102 pocz±tek restartu
-103 restart j±dra
+102 restart start
+103 restart of kernel
 104 exeeded XMU size limit
 105 exeeded RLG0 limit
 106 exeeded RLG1 limit
