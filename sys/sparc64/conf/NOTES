@@ -82,3 +82,49 @@ nodevice	bt
 nodevice	wds
 nodevice	ep
 nodevice	ex
+
+
+#####################################################################
+# Options we don't want to deal with
+
+nooption	VGA_DEBUG
+nooption	SC_RENDER_DEBUG
+nooption	SC_DEBUG_LEVEL
+nooption	PPC_DEBUG
+nooption	PPC_PROBE_CHIPSET
+nooption	SC_NO_SUSPEND_VTYSWITCH
+nooption	SC_NO_SYSMOUSE
+nooption	SC_NO_HISTORY
+nooption	SC_NO_FONT_LOADING
+nooption	SC_NO_CUTPASTE
+nooption	SC_TWOBUTTON_MOUSE
+nooption	SC_CUT_SEPCHARS
+nooption	SC_CUT_SPACES2TABS
+nooption	SC_KERNEL_CONS_REV_ATTR
+nooption	SC_KERNEL_CONS_ATTR
+nooption	SC_NORM_REV_ATTR
+nooption	SC_NORM_ATTR
+nooption	SC_PIXEL_MODE
+nooption	SC_MOUSE_CHAR
+nooption	SC_HISTORY_SIZE
+nooption	SC_DISABLE_REBOOT
+nooption	SC_DISABLE_DDBKEY
+nooption	SC_DFLT_FONT
+nooption	SC_ALT_MOUSE_IMAGE
+nooption	MAXCONS
+nooption	VGA_WIDTH90
+nooption	VGA_SLOW_IOACCESS
+nooption	VGA_ALT_SEQACCESS
+nooption	PSM_RESETAFTERSUSPEND
+nooption	PSM_HOOKRESUME
+nooption	KBD_INSTALL_CDEV
+nooption	KBD_DISABLE_KEYMAP_LOAD
+nooption	ATKBD_DFLT_KEYMAP
+nooption	EXT2FS
+
+
+#####################################################################
+# Make options we don't want to deal with
+
+nomakeoption	SC_DFLT_FONT
+nomakeoption	ATKBD_DFLT_KEYMAP
