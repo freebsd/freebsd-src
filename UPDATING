@@ -17,6 +17,17 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20030829:
+	The following rc.d scripts have been removed and should be
+	deleted from your installation: atm2.sh atm3.sh devdb
+	localdaemons network1 network2 network3. Depending on when
+	you last updated world and used mergemaster(8) you may or
+	may not have problems during the rc boot sequence. The simplest
+	solution is an 'rm -rf /etc/rc.d/*' and then 'mergemaster -i'.
+	The atm2.sh atm3.sh and devdb scripts were removed some time
+	ago, so depending on when you installed -CURRENT these scripts
+	may or may not exist on your system.
+
 20030824:
 	ATAng has been committed. You need to build world as sys/ata.h 
 	has changed, and userland atacontrol depends on it.
