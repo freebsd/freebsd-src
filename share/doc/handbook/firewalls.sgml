@@ -1,4 +1,4 @@
-<!-- $Id: firewalls.sgml,v 1.1.2.1 1995/11/01 03:15:14 jfieber Exp $ -->
+<!-- $Id: firewalls.sgml,v 1.1.2.2 1996/01/31 14:32:19 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Firewalls<label id="firewalls"></heading>
@@ -47,7 +47,7 @@ impossible to cover them in this document.
 <sect2><heading>Packet filtering routers<label id="firewalls:packet_filters"></heading>
 
 <p>A router is a machine which forwards packets between two or more
-networks. A packet filtering router has an extra piece of code in it's
+networks. A packet filtering router has an extra piece of code in its
 kernel, which compares each packet to a list of rules before deciding
 if it should be forwarded or not. Most modern IP routing software has
 packet filtering code in it, which defaults to forwarding all
@@ -56,7 +56,7 @@ the filtering code, so that it can decide if the packet should be
 allowed to pass or not.
 
 <p>To decide if a packet should be passed on or not, the code looks
-through it's set of rules for a rule which matches the contents of
+through its set of rules for a rule which matches the contents of
 this packets headers. Once a match is found, the rule action is
 obeyed.  The rule action could be to drop the packet, to forward the
 packet, or even to send an ICMP message back to the originator.  Only
@@ -146,7 +146,7 @@ will happen.
 <p>The configuration of the <tt>IPFW</tt> software is done through the
 <tt>ipfw(8)</tt> utility. The syntax for this command looks
 quite complicated, but it is relatively simple once you understand
-it's structure.
+its structure.
 
 <p>There are currently two different command line formats for the
 utility, depending on what you are doing. The first form is used when

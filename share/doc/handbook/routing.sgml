@@ -1,4 +1,4 @@
-<!-- $Id: routing.sgml,v 1.1 1995/10/07 04:31:41 jfieber Exp $ -->
+<!-- $Id: routing.sgml,v 1.1.2.1 1996/01/31 14:32:28 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 <!-- <!DOCTYPE linuxdoc PUBLIC '-//FreeBSD//DTD linuxdoc//EN'> -->
 
@@ -68,7 +68,7 @@ host2.foobar.com link#1             UC          0        0
       (<tt>10.20.30.255</tt> is the broadcast address for the subnet
       <tt>10.20.30</tt>, and <tt>foobar.com</tt> is the domain name
       associated with that subnet). The designation <tt>link&num;1</tt>
-      refers to the first ethernet card in the machine. You'll
+      refers to the first ethernet card in the machine. You will
       notice no additional interface is specified for those.
 
       Both of these groups (local network hosts and local
@@ -150,7 +150,7 @@ host2.foobar.com link#1             UC          0        0
 	world, then the default route will be the gateway machine
 	at your Internet Service Provider's (ISP) site.
 
-	Let's look at an example of default routes. This is a
+	Let us look at an example of default routes. This is a
 	common configuration:
 <tscreen><verb>
 [Local2]  <--ether-->  [Local1]  <--PPP-->  [ISP-Serv]  <--ether-->  [T1-GW]

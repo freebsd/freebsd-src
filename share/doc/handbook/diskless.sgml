@@ -1,4 +1,4 @@
-<!-- $Id: diskless.sgml,v 1.1.1.1.4.2 1995/10/12 03:15:54 jfieber Exp $ -->
+<!-- $Id: diskless.sgml,v 1.1.1.1.4.3 1996/01/31 14:32:15 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Diskless operation<label id="diskless"></heading>
@@ -117,7 +117,7 @@ hostname myclient.mydomain
 
 	      <item> On HP-UX systems: The server should be
 		running HP-UX 9.04 or later for HP9000/800 series
-		machines.  Prior versions don't allow the
+		machines.  Prior versions do not allow the
 		creation of device files over NFS.
 
 	      <item> When extracting <tt>/dev</tt> in

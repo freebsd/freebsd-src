@@ -1,22 +1,31 @@
-<!-- $Id: porting.sgml,v 1.2.4.3 1995/11/16 01:59:13 jkh Exp $ -->
+<!-- $Id: porting.sgml,v 1.21 1996/05/24 19:33:33 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
-<sect><heading>Porting applications<label id="porting"></heading>
+<sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
 
 <p><em>Contributed by &a.jkh;, &a.gpalmer; and
       &a.asami;.<newline>19 August 1995.</em>
 
-	Here are the guidelines one should follow in
-	creating a new port for FreeBSD 2.x .  This documentation will
-	change as this process is progressively refined, so watch
-	this space for details.  The <tt>&dollar;{..}</tt>
-	variable names you see in this document all refer to
-	various user-overridable defaults used (and documented)
-	by <tt>/usr/share/mk/bsd.port.mk</tt>.  Please refer to
-	that file for more details.
+<p>The porting of freely available software, while perhaps not as
+gratifying as developing your own from scratch, is still a vital part
+of FreeBSD's growth and of great usefulness to those who would not
+otherwise know where to turn for it.  All ported software is organized
+into a carefully organized hierarchy know as ``the ports collection''.
+The collection enables a new user to get a quick and complete overview
+of what is available for FreeBSD in an easy-to-compile form.  It also
+saves considerable space by not actually containing the the majority
+of the sources being ported, but merely those differences required for
+running under FreeBSD. 
 
-    <sect1>
-      <heading>Before Starting the Port</heading>
+<p>What follows are some guidelines for creating a new port for
+FreeBSD 2.x . The <tt>&dollar;{..}</tt> variable names you will
+see in this document all refer to various user-overrideable defaults
+used (and documented) by <tt>/usr/share/mk/bsd.port.mk</tt>.
+Please refer to that file for more details on the inner workings of
+the ports collection.
+
+    <sect2>
+      <heading>Before Starting the Port<label id="porting:starting"></heading>
 
       <p>Note: Only a fraction of the overrideable variables are
 	mentioned in this document. Most (if not all) are documented
@@ -28,7 +37,7 @@
 	once the file has been loaded.
 
       <p>You may come across code that needs modifications or
-	conditional compilation based upon what version of UNIX it's
+	conditional compilation based upon what version of UNIX it is
 	running under.  If you need to make such changes to the code
 	for conditional compilation, make sure you make the changes as
 	general as possible so that we can back-port code to FreeBSD
@@ -80,29 +89,51 @@
 	  Berkeleyisms, not FreeBSD changes.
 
 	<item>In FreeBSD 2.x, <tt>__FreeBSD__</tt> is defined to be
-	  <tt>2</tt>.  In earlier versions, it's <tt>1</tt>.
+	  <tt>2</tt>.  In earlier versions, it is <tt>1</tt>.
 
 	<item>If you need to tell the difference between a FreeBSD 1.x
 	  system and a FreeBSD 2.x system, usually the right answer is
 	  to use the <tt>BSD</tt> macros described above.  If there
 	  actually is a FreeBSD specific change (such as special
-	  shared library options when using `<tt>ld</tt>') then it's
-	  OK to use <tt>__FreeBSD__</tt> and `<tt>#if __FreeBSD_ &gt;
+	  shared library options when using `<tt>ld</tt>') then it is
+	  OK to use <tt>__FreeBSD__</tt> and `<tt>#if __FreeBSD__ &gt;
 	  1</tt>' to detect a FreeBSD 2.x system.
+
+	  If you need more granularity in detecting FreeBSD systems since
+	  2.0-RELEASE you can use the following:
+
+<tscreen><verb>
+#if __FreeBSD__ >= 2
+#include <osreldate.h>
+#    if __FreeBSD_version >= 199504
+         /* 2.0.5+ release specific code here */
+#    endif
+#endif
+</verb></tscreen>
+<tt>__FreeBSD_version</tt> values:
+<tscreen><verb>
+2.0-RELEASE:                    199411
+2.1-current's:                  199501, 199503
+2.0.5-RELEASE:                  199504
+2.1.0-RELEASE:                  199511
+2.2-current before 2.1:         199508
+2.2-current as 10 Jan 1996:     199512  (will certainly be bumped)
+</verb></tscreen>
+The pattern is the year followed by the month.
 
       </itemize>
 
       <p>In the dozens of ports that have been done, there have
 	only been one or two cases where <tt>__FreeBSD__</tt>
 	should have been used.  Just because an earlier port
-	screwed up and used it in the wrong place doesn't mean
+	screwed up and used it in the wrong place does not mean
 	you should do so too.
 
-    <sect1>
+    <sect2>
       <heading>Quick Porting</heading>
 
       <p>This section tells you how to do a quick port.  In many
-	cases, it is not enough, but we'll see.
+	cases, it is not enough, but we will see.
 
       <p>First, get the original tarball and put it into
 	<tt>&dollar;{DISTDIR}</tt>, which defaults to
@@ -111,10 +142,10 @@
       <p>Note: The following assumes that the software compiled
 	out-of-the-box, i.e., there was absolutely no change required
 	for the port to work on your FreeBSD box.  If you needed to
-	change something, you'll have to refer to the next section
+	change something, you will have to refer to the next section
 	too.
 
-      <sect2>
+      <sect3>
 	<heading>Writing the Makefile</heading>
 
 	<p>The minimal <tt>Makefile</tt> would look something like this:
@@ -125,7 +156,7 @@
  # Date created:		5 December 1994
  # Whom:			asami
  #
- # $Id: porting.sgml,v 1.2.4.3 1995/11/16 01:59:13 jkh Exp $
+ # $Id: porting.sgml,v 1.21 1996/05/24 19:33:33 jfieber Exp $
  #
  
  DISTNAME=	oneko-1.1b
@@ -139,12 +170,12 @@
  .include <bsd.port.mk>
 </verb></tscreen>
 
-      <p>See if you can figure it out.  Don't worry about the contents
+      <p>See if you can figure it out.  Do not worry about the contents
 	of the <tt>&dollar;Id&dollar;</tt> line, it will be filled in
 	automatically by CVS when the port is imported to our main
 	ports tree.
 
-      <sect2>
+      <sect3>
 	<heading>Writing the description files</heading>
 
 	<p>There are three required description files that are
@@ -152,7 +183,7 @@
 	  They are <tt>COMMENT</tt>, <tt>DESCR</tt>, and
           <tt>PLIST</tt>, and reside in the <tt>pkg</tt> subdirectory.
 
-	<sect3>
+	<sect4>
 	  <heading>COMMENT</heading>
 
 	  <p>This is the one-line description of the port.  It is
@@ -162,7 +193,7 @@
 A cat chasing a mouse all over the screen
 </verb></tscreen>
 
-	<sect3>
+	<sect4>
 	  <heading>DESCR</heading>
 
 	  <p>This is a longer description of the port.  One to a few
@@ -170,25 +201,23 @@ A cat chasing a mouse all over the screen
 	    sufficient.  Note: This is <em>not</em> a manual nor an
 	    in-depth description on how to use or compile the port.
 	    In particular, please do not just copy the <tt>README</tt>
-	    file here, unless, of course, it's a concise description
+	    file here, unless, of course, it is a concise description
 	    of the port.
 
 	  <p>It is recommended that you sign the name at the end of
-	    this file, and also state the version number, as in:
+	    this file, as in:
 
 <tscreen><verb>
 This is a port of oneko, in which a cat chases a poor mouse all over
 the screen.
  :
 (etc.)
- :
-This is version 1.1b.
 
 - Satoshi
 asami@cs.berkeley.edu
 </verb></tscreen>
 
-	<sect3>
+	<sect4>
 	  <heading>PLIST</heading>
 
 	  <p>This file lists all the files installed by the port.  It
@@ -208,13 +237,13 @@ lib/X11/oneko/cat2.xpm
 lib/X11/oneko/mouse.xpm
 </verb></tscreen>
 
-      <sect2>
+      <sect3>
 	<heading>Creating the checksum file</heading>
 
 	<p>Just type `<tt>make makesum</tt>'.  The ports make rules
 	  will automatically generate the file <tt>files/md5</tt>.
 
-      <sect2>
+      <sect3>
 	<heading>Testing the port</heading>
 
 	<p>You should make sure that the port rules do exactly what
@@ -225,10 +254,10 @@ lib/X11/oneko/mouse.xpm
 	  &lt;pkgname&gt;.tgz</tt>' and see if everything re-appears
 	  and works correctly.
 
-      <sect2>
+      <sect3>
 	<heading>Submitting the port</heading>
 
-	<p>Now that you're happy with your port, the only thing
+	<p>Now that you are happy with your port, the only thing
 	  remaining is to put it in the main FreeBSD ports tree and
 	  make everybody else happy about it too.  To accomplish this,
 	  pack the necessary files (everything described in this
@@ -236,23 +265,23 @@ lib/X11/oneko/mouse.xpm
 	  original source tarball or the `<tt>work</tt>' subdirectory)
 	  into a <tt>.tar.gz</tt> file, stick it in the directory
 <tscreen><verb>
-ftp://ftp.freebsd.org/pub/FreeBSD/incoming/
+ftp://ftp.FreeBSD.ORG/pub/FreeBSD/incoming/
 </verb></tscreen>
-	  and send mail to <tt>ports@freebsd.org</tt>.  We will take a
+	  and send mail to the &a.ports;.  We will take a
 	  look, get back to you if necessary, and put it in the tree.
 	  Your name will also appear in the list of `Additional
 	  FreeBSD contributors' on the FreeBSD Handbook and other
 	  files.  Isn't that great?!? <tt>:)</tt>
 
-    <sect1>
+    <sect2>
       <heading>Slow Porting</heading>
 
-      <p>Ok, so it wasn't that simple, and the port required some
-	modifications to get it to work.  In this section, we'll
+      <p>Ok, so it was not that simple, and the port required some
+	modifications to get it to work.  In this section, we will
 	explain, step by step, how to modify it to get it to work with 
 	the ports paradigm.
 
-      <sect2>
+      <sect3>
 	<heading>How things work</heading>
 
 	<p>First, this is the sequence of events which occurs when the
@@ -260,7 +289,7 @@ ftp://ftp.freebsd.org/pub/FreeBSD/incoming/
 	  and you may find that having <tt>bsd.port.mk</tt> in another
 	  window while you read this really helps to understand it.
 
-	<p>But don't worry if you don't really understand what
+	<p>But do not worry if you do not really understand what
 	  <tt>bsd.port.mk</tt> is doing, not many people
 	  do... <tt>:&gt;</tt>
 
@@ -335,7 +364,7 @@ ftp://ftp.freebsd.org/pub/FreeBSD/incoming/
 	  targets `<tt>do-&lt;something&gt;</tt>'.  For example, the
 	  commands to extract a port are in the target
 	  `<tt>do-extract</tt>'.  If you are not happy with the
-	  default target, and you can't fix it by redefining the
+	  default target, and you cannot fix it by redefining the
 	  `<tt>do-&lt;something&gt;</tt>' target in your Makefile.
 
 	<p>Note that the `main' targets (e.g., <tt>extract</tt>,
@@ -346,10 +375,10 @@ ftp://ftp.freebsd.org/pub/FreeBSD/incoming/
 	  <tt>do-extract</tt>, but never ever touch <tt>extract</tt>!
 
 	<p>Now that you understand what goes on when the user types
-	  `<tt>make</tt>', let's go through the recommended steps to
+	  `<tt>make</tt>', let us go through the recommended steps to
 	  create the perfect port.
 
-      <sect2>
+      <sect3>
 	<heading>Getting the original sources</heading>
 
 	<p>Get the original sources (normally) as a compressed tarball
@@ -357,24 +386,24 @@ ftp://ftp.freebsd.org/pub/FreeBSD/incoming/
 	  and copy it into <tt>&dollar;{DISTDIR}</tt>.  Always use
 	  <em>mainstream</em> sources when and where you can.
 
-	<p>If you can't find a ftp site that is well-connected to the
+	<p>If you cannot find a ftp site that is well-connected to the
 	  net, or can only find sites that have irritatingly
 	  non-standard formats, we can `house' it ourselves by putting
 	  it on
 <tscreen><verb>
-ftp://freefall.freebsd.org/pub/FreeBSD/LOCAL_PORTS/
+ftp://freefall.FreeBSD.ORG/pub/FreeBSD/LOCAL_PORTS/
 </verb></tscreen>
-	  as the last resort.  Send mail to <tt>ports@freebsd.org</tt>
+	  as the last resort.  Send mail to the &a.ports
 	  if you are not sure what to do.
 
 	<p>If your port requires some additional `patches' that are
 	  available on the Internet, fetch them too and put them in
-	  <tt>&dollar;{DISTDIR}</tt>.  Don't worry if they come from
+	  <tt>&dollar;{DISTDIR}</tt>.  Do not worry if they come from
 	  site other than where you got the the main source tarball,
 	  we have a way to handle these situations (see the
 	  description of <tt>&dollar;{PATCHFILES}</tt> below).
 
-      <sect2>
+      <sect3>
 	<heading>Modifying the port</heading>
 
 	<p>Unpack a copy of the tarball in a private directory and
@@ -394,13 +423,13 @@ ftp://freefall.freebsd.org/pub/FreeBSD/LOCAL_PORTS/
 	  as possible for the end-user while using a minimum of disk
 	  space.
 
-      <sect2>
+      <sect3>
 	<heading>Patching</heading>
 
 	<p>In the preparation of the port, files that have been added
 	  or changed can be picked up with a recursive diff for later
 	  feeding to patch.  This is the easiest kind of change to
-	  make as it doesn't involve any mucking around with
+	  make as it does not involve any mucking around with
 	  configuration files.  Each set of patches you wish to apply
 	  should be collected into a file named
 	  `<tt>patch-&lt;xx&gt;</tt>' where <tt>&lt;xx&gt;</tt>
@@ -413,10 +442,10 @@ ftp://freefall.freebsd.org/pub/FreeBSD/LOCAL_PORTS/
 	  the directory your port's tarball unpacks itself into, that
 	  being where the make is done).  To make fixes and upgrades
 	  easier you should avoid having more than one patch fix the
-	  same file (e.g., patch-ab and patch-ab both changing
+	  same file (e.g., patch-aa and patch-ab both changing
 	  <tt>&dollar;{WRKSRC}</tt>/foobar.c).
 
-      <sect2>
+      <sect3>
 	<heading>Configuring</heading>
 
 	<p>Include any additional customization commands to your
@@ -425,7 +454,7 @@ ftp://freefall.freebsd.org/pub/FreeBSD/LOCAL_PORTS/
 	  can also do this as Makefile targets and/or scripts with the
 	  name <tt>pre-configure</tt> or <tt>post-configure</tt>.
 
-      <sect2>
+      <sect3>
 	<heading>Handling user input</heading>
 
 	<p>If your port requires user input to build, configure or
@@ -436,7 +465,7 @@ ftp://freefall.freebsd.org/pub/FreeBSD/LOCAL_PORTS/
 	  then <em>only</em> those ports requiring interaction are
 	  built).
 
-    <sect1>
+    <sect2>
       <heading>Configuring the Makefile</heading>
 
       <p>Configuring the Makefile is pretty simple, and again we
@@ -444,7 +473,7 @@ ftp://freefall.freebsd.org/pub/FreeBSD/LOCAL_PORTS/
 	starting.  Consider the following problems in sequence as
 	you design your new Makefile:
 
-      <sect2>
+      <sect3>
 	<heading>The original source</heading>
 
 	<p>Does it live in <tt>&dollar;{DISTDIR}</tt> as a standard
@@ -463,14 +492,14 @@ ftp://freefall.freebsd.org/pub/FreeBSD/LOCAL_PORTS/
 	  `<tt>do-extract</tt>' target to override the default, though
 	  this should be rarely, if ever, necessary.
 
-      <sect2>
+      <sect3>
 	<heading>DISTNAME</heading>
 	<p>You should set <tt>&dollar;{DISTNAME}</tt> to be the base
 	  name of your port.  The default rules expect the
 	  distribution file list (<tt>&dollar;{DISTFILES}</tt>) to be
 	  named
-	  <tt>&dollar;{DISTFILE}&dollar;{EXTRACT_SUFX}</tt>
-	  by default which, if it's a normal tarball, is going to be
+	  <tt>&dollar;{DISTNAME}&dollar;{EXTRACT_SUFX}</tt>
+	  by default which, if it is a normal tarball, is going to be
 	  something like:
 <tscreen><verb>	
 foozolix-1.0.tar.gz
@@ -494,8 +523,8 @@ work/foozolix-1.0/
 	  extraction, and the rest will be just left in
 	  <tt>&dollar;{DISTDIR}</tt> for later use.
 
-      <sect2>
-	<heading>CATEGORIES and KEYWORDS</heading>
+      <sect3>
+	<heading>CATEGORIES</heading>
 	<p>When a package is created, it is put under
 	  <tt>/usr/ports/packages/All</tt> and links are made from one
 	  or more subdirectories of <tt>/usr/ports/packages</tt>.  The
@@ -509,23 +538,17 @@ work/foozolix-1.0/
 	  truly belongs to something that is different from all the
 	  existing ones, you can even create a new category name.
 
-	<p>If you want to add more information than just the category
-	  names, add them to <tt>&dollar;{KEYWORDS}</tt>.  The value
-	  of this variable defaults to that of
-	  <tt>&dollar;{CATEGORIES}</tt>.  This is currently used only
-	  as a field of the <tt>/usr/ports/INDEX</tt> file.
-
-      <sect2>
+      <sect3>
 	<heading>MASTER_SITES</heading>
 	<p>If you have a ftp-URL pointing at the the original tarball,
 	  record the directory containing the tarball in
 	  <tt>&dollar;{MASTER_SITES}</tt>.  This will provide a backup
 	  site, as well as a direct pointer to the original source
-	  location.  Don't forget the trailing slash (<tt>/</tt>)!
+	  location.  Do not forget the trailing slash (<tt>/</tt>)!
 
  	<p>The make macros will try to use this specification for
 	  grabbing the distribution file with <tt>&dollar;{NCFTP}</tt>
-	  if they can't find it already on the system.
+	  if they cannot find it already on the system.
 
 	<p>It is recommended that you put multiple sites on this list,
 	  preferably from different continents.  This will safeguard
@@ -533,7 +556,7 @@ work/foozolix-1.0/
 	  to add support for automatically determining the closest
 	  master site and fetching from there!
 
-      <sect2>
+      <sect3>
 	<heading>PATCHFILES</heading>
 	<p>If your port requires some additional patches that are
 	  available by ftp, set <tt>&dollar;{PATCHFILES}</tt> to the
@@ -548,55 +571,55 @@ work/foozolix-1.0/
 	  patch has an extra `<tt>foozolix-1.0/</tt>' in front of the
 	  filenames, then set `<tt>PATCH_DIST_STRIP=-p1</tt>'.
 
-	<p>Don't worry if the patches are compressed, they will be
+	<p>Do not worry if the patches are compressed, they will be
 	  decompressed automatically if the filenames end with
 	  `<tt>.gz</tt>' or `<tt>.Z</tt>'.
 
-      <sect2>
+      <sect3>
 	<heading>MAINTAINER</heading>
 	<p>Set your mail-address here.  Please. <tt>:)</tt>
 
-      <sect2>
+      <sect3>
 	<heading>Dependencies</heading>
 	<p>Many ports depend on other ports.  There are five
 	  variables that you can use to ensure that all the required
 	  bits will be on the user's machine.
-	<sect3>
+	<sect4>
 	  <heading>LIB_DEPENDS</heading>
 	  <p>This variable specifies the shared libraries this port
 	    depends on.  It is a list of `<tt>lib:dir</tt>' pairs
 	    where <tt>lib</tt> is the name of the shared library, and
 	    <tt>dir</tt> is the directory in which to find it in case
-	    it's not available.  For example,
+	    it is not available.  For example,
 <tscreen><verb>
 LIB_DEPENDS=    tcl\\.7\\.:${PORTSDIR}/lang/tcl
 </verb></tscreen>
 	    will check for a shared tcl library with major version 7,
 	    and descend into the <tt>lang/tcl</tt> subdirectory of
-	    your ports tree to build and install it if it's not found.
+	    your ports tree to build and install it if it is not found.
 
 	    Note that the <tt>lib</tt> part is just an argument given
 	    to `<tt>ldconfig -r | grep</tt>', so periods should be
 	    escaped by two backslashes like in the example above.
-	<sect3>
+	<sect4>
 	  <heading>RUN_DEPENDS</heading>
 	  <p>This variable specifies executables this port depends on
 	    during run-time.  It is a list of `<tt>exec:dir</tt>'
 	    pairs where <tt>exec</tt> is the name of the executable,
 	    and <tt>dir</tt> is the directory in which to find it in
-	    case it's not available.  For example,
+	    case it is not available.  For example,
 <tscreen><verb>
 RUN_DEPENDS=   wish:${PORTSDIR}/x11/tk
 </verb></tscreen>
 	    will check for an executable called `<tt>wish</tt>', and
 	    descend into the <tt>x11/tk</tt> subdirectory of your
-	    ports tree to build and install it if it's not found.
+	    ports tree to build and install it if it is not found.
 
 	    The dependency is checked from within the <tt>install</tt>
 	    target.  Also, the name of the dependency is put in to the 
 	    package so that <tt>pkg_add</tt> will automatically
 	    install it if it is not on the user's system.
-	<sect3>
+	<sect4>
 	  <heading>BUILD_DEPENDS</heading>
 	  <p>This variable specifies executables this port requires to
 	    build.  Like <tt>RUN_DEPENDS</tt>, it is a list of
@@ -606,12 +629,12 @@ BUILD_DEPENDS=   unzip:${PORTSDIR}/archivers/unzip
 </verb></tscreen>
 	    will check for an executable called `<tt>unzip</tt>', and
 	    descend into the <tt>archivers/unzip</tt> subdirectory of
-	    your ports tree to build and install it if it's not found.
+	    your ports tree to build and install it if it is not found.
 
 	    Note that `build' here means everything from extracting to 
 	    compilation.  The dependency is checked from within the
 	    <tt>extract</tt> target.
-	<sect3>
+	<sect4>
 	  <heading>FETCH_DEPENDS</heading>
 	  <p>This variable specifies executables this port requires to
 	    fetch.  Like the previous two, it is a list of
@@ -621,20 +644,20 @@ FETCH_DEPENDS=   ncftp2:${PORTSDIR}/net/ncftp2
 </verb></tscreen>
 	    will check for an executable called `<tt>ncftp2</tt>', and
 	    descend into the <tt>net/ncftp2</tt> subdirectory of
-	    your ports tree to build and install it if it's not found.
+	    your ports tree to build and install it if it is not found.
 
 	    The dependency is checked from within the <tt>fetch</tt>
 	    target.
-	<sect3>
+	<sect4>
 	  <heading>DEPENDS</heading>
-	  <p>If there is a dependency that doesn't fall into either of
+	  <p>If there is a dependency that does not fall into either of
 	    the above four categories, or your port requires to have
 	    the source of the other port extracted (i.e., having them
 	    installed is not enough), then use this variable.  This is
 	    just a list of directories, as there is nothing to check,
 	    unlike the previous two.
 
-      <sect2>
+      <sect3>
 	<heading>Building mechanisms</heading>
 	<p>If your package uses GNU <tt>make</tt>, set
 	  `<tt>USE_GMAKE=yes</tt>'.  If your package uses GNU
@@ -656,14 +679,14 @@ FETCH_DEPENDS=   ncftp2:${PORTSDIR}/net/ncftp2
 	  <tt>&dollar;{ALL_TARGET}</tt> accordingly.  Same goes for
 	  `<tt>install</tt>' and <tt>&dollar;{INSTALL_TARGET}</tt>.
 
-      <sect2>
+      <sect3>
 	<heading>NO_INSTALL_MANPAGES</heading>
-	<p>If the port uses imake but doesn't understand the
+	<p>If the port uses imake but does not understand the
 	  `<tt>install.man</tt>' target,
 	  `<tt>NO_INSTALL_MANPAGES=yes</tt>' should be set.  In
 	  addition, the author of the original port should be shot.
 
-    <sect1>
+    <sect2>
       <heading>Licensing Problems</heading>
       <p>Some software packages have restrictive licenses or are in
         violation to the law (PKP's patent on public key crypto,
@@ -673,57 +696,56 @@ FETCH_DEPENDS=   ncftp2:${PORTSDIR}/net/ncftp2
 
       <p>Note that it is your responsibility as a porter to read the
 	licensing terms of the software and make sure that the FreeBSD
-	project won't held accountable of violating them by
+	project will not be held accountable of violating them by
 	redistributing the source or compiled binaries either via ftp
-	or CD-ROM.  If in doubt, please contact
-	<tt>ports@freebsd.org</tt>.
+	or CD-ROM.  If in doubt, please contact the &a.ports;.
 
       <p>We usually get around this problem by setting
 	<tt>&dollar;{NO_PACKAGE}</tt> in the Makefile, and not putting
 	the distfile up for ftp.  However, for most cases, you should
-	at least be able to make a port, so don't let the license
+	at least be able to make a port, so do not let the license
 	scare you away!
 
       <p>Note: The GNU General Public License (GPL), both version 1
-	and 2, shouldn't be a problem for ports.
+	and 2, should not be a problem for ports.
 
       <p>Note: If you are a committer, make sure you update the
 	<tt>ports/LEGAL</tt> file too.
 
-    <sect1>
+    <sect2>
       <heading>* Upgrading</heading>
       <p>This section is still under construction, sorry.
 
-    <sect1>
+    <sect2>
       <heading>Do's and Dont's</heading>
 
-      <p>Here's a list of common do's and dont's that you encounter
+      <p>Here is a list of common do's and dont's that you encounter
 	during the porting process.
 
-      <sect2>
+      <sect3>
 	<heading>WRKDIR</heading>
-	<p>Don't leave anything valuable lying around in the
+	<p>Do not leave anything valuable lying around in the
 	  `<tt>work</tt>' subdirectory, `<tt>make clean</tt>' will
 	  <em>nuke</em> it completely!  If you need auxiliary files
-	  that aren't scripts or patches, put them in the subdirectory
+	  that are not scripts or patches, put them in the subdirectory
 	  `<tt>files</tt>' and use the <tt>post-extract</tt> target to
 	  copy them to the `<tt>work</tt>' subdirectory.
 
-      <sect2>
+      <sect3>
 	<heading>Package information</heading>
 	<p>Do install package information, i.e., the three files in
 	  <tt>pkg</tt>.  Note that these files are not used only for
 	  packaging anymore, and are <em>mandatory</em> now, even if
 	  <tt>&dollar;{NO_PACKAGE}</tt> is set.
 
-      <sect2>
+      <sect3>
 	<heading>Compress manpages, strip binaries</heading>
 	<p>Do compress manpages and strip binaries.  If the original
 	  source already does that, fine; otherwise, you can add a
 	  <tt>post-install</tt> rule to do it yourself.  Make sure
 	  that you check the variable <tt>NOMANCOMPRESS</tt> that the
 	  user can set in <tt>/etc/make.conf</tt> to disable man page
-	  compression.  Here's an example:
+	  compression.  Here is an example:
 <tscreen><verb>
  post-install:
 	 strip ${PREFIX}/bin/xdl
@@ -734,16 +756,69 @@ FETCH_DEPENDS=   ncftp2:${PORTSDIR}/net/ncftp2
 
 	<p>Use the <tt>file</tt> command on the installed executable
 	  to check whether the binary is stripped or not.  If it
-	  doesn't say `not stripped', it is stripped.
+	  does not say `not stripped', it is stripped.
 
-      <sect2>
+      <sect3>
+	<heading>Install additional documentation</heading>
+	<p>If your software has some documentation other than the
+	  standard man and info pages that you think is useful for the
+	  user, install it under <tt>&dollar;{PREFIX}/share/doc</tt>.
+	  This can be done, like the previous item, in the
+	  <tt>post-install</tt> target.
+
+        <p>Create a new directory for your port.  The directory name
+	  should reflect what the port is.  This usually means
+	  <tt>&dollar;{PKGNAME}</tt> minus the version part.  However,
+	  if you think the user might want different versions of the
+	  port to be installed at the same time (e.g., tcl/tk), you
+	  can use the whole <tt>&dollar;{PKGNAME}</tt>.
+
+	<p>Make the installation dependent to the variable
+	  <tt>NOPORTDOCS</tt> so that users can disable it in
+	  <tt>/etc/make.conf</tt>, like this:
+<tscreen><verb>
+ post-install:
+ .if !defined(NOPORTDOCS)
+	 mkdir -p ${PREFIX}/share/doc/xv
+	 cp ${WRKSRC}/docs/xvdocs.ps ${PREFIX}/share/doc/xv
+ .endif
+</verb></tscreen>
+
+	<p>Do not forget to add them to <tt>pkg/PLIST</tt> too!  (Do not
+	  worry about <tt>NOPORTDOCS</tt> here; there is currently no
+	  way for the packages to read variables from
+	  <tt>/etc/make.conf</tt>.)
+
+      <sect3>
+	<heading>DIST_SUBDIR</heading>
+	<p>Do not let your port clutter <tt>/usr/ports/distfiles</tt>.  If
+	  your port requires a lot of files (including patchfiles) to be
+	  fetched, or contains a file that has a name that might conflict
+	  with other ports (e.g., `Makefile'), set
+	  <tt>&dollar;{DIST_SUBDIR}</tt> to the name of the port
+	  (<tt>&dollar;{PKGNAME}</tt> without the version part should work
+	  fine).  This will change <tt>&dollar;{DISTDIR}</tt> from the
+	  default <tt>/usr/ports/distfiles</tt> to
+	  <tt>/usr/ports/distfiles/&dollar;{DIST_SUBDIR}</tt>, and in
+	  effect puts everything that is required for your port into that
+	  subdirectory.
+
+	<p>It will also look at the subdirectory with the same name on the
+	  backup master site at <tt>ftp.freebsd.org</tt>.  (Setting
+	  <tt>&dollar;{DISTDIR}</tt> explicitly in your Makefile will not
+	  accomplish this, so please use <tt>&dollar;{DIST_SUBDIR}</tt>.)
+	  
+	<p>Note this does not affect the <tt>&dollar;{MASTER_SITES}</tt>
+	  you define in your Makefile.
+
+      <sect3>
 	<heading>Custom utilities</heading>
-	<p>Don't rely on custom utilities in your local configure
+	<p>Do not rely on custom utilities in your local configure
 	  script or anything -- they may not be there on the user's
 	  system!  If you really need something else to be installed
 	  before you can work, detect this from your configure script,
 	  print a helpful message and exit with a non-zero status!  At
-	  least you'll have given the user some idea of what's needed.
+	  least you will have given the user some idea of what is needed.
 	  If the custom utility or package is actually part of the
 	  ports tree, this should be dealt by the dependency mechanism
 	  of ports.
@@ -757,23 +832,23 @@ FETCH_DEPENDS=   ncftp2:${PORTSDIR}/net/ncftp2
 	  `<tt>make</tt>' and have that port, as well as everything it
 	  requires, built automatically.
 
-      <sect2>
+      <sect3>
 	<heading>Feedback</heading>
 	<p>Do send applicable changes/patches to the original
 	  author/maintainer for inclusion in next release of the code.
 	  This will only make your job that much easier for the next
 	  release.
 
-      <sect2>
+      <sect3>
 	<heading>RCS strings</heading>
-	<p>Don't put RCS strings in patches.  CVS will mangle them
+	<p>Do not put RCS strings in patches.  CVS will mangle them
 	  when we put the files into the ports tree, and when we check
 	  them out again, they will come out different and the patch
 	  will fail.  RCS strings are surrounded by dollar
 	  (`<tt>&dollar;</tt>') signs, and typically start with
 	  `<tt>&dollar;Id</tt>' or `<tt>&dollar;RCS</tt>'.
 
-      <sect2>
+      <sect3>
 	<heading>Recursive diff</heading>
 	<p>Using the recurse (`<tt>-r</tt>') option to <tt>diff</tt>
 	  to generate patches is fine, but please take a look at the
@@ -785,25 +860,44 @@ FETCH_DEPENDS=   ncftp2:${PORTSDIR}/net/ncftp2
 	  <tt>post-extract</tt> target rather than as part of the
 	  patch.
 
-      <sect2>
+      <sect3>
 	<heading>PREFIX</heading>
 	<p>Do try to make your port install relative to
-	  <tt>&dollar;{PREFIX}</tt> in your Makefiles.  This will
-	  normally be set to <tt>/usr/local</tt>, or
-	  <tt>/usr/X11R6</tt> if <tt>&dollar;{USE_IMAKE}</tt> or
-	  <tt>&dollar;{USE_X11}</tt> is set, though it can be
-	  reassigned in your Makefile or in the users environment, if
-	  need be.
+	  <tt>&dollar;{PREFIX}</tt>.  (The value of this variable will be
+	  set to <tt>&dollar;{LOCALBASE}</tt> (default
+	  <tt>/usr/local</tt>), unless <tt>&dollar;{USE_IMAKE}</tt> or
+	  <tt>&dollar;{USE_X11}</tt> is set, in which case it will be
+	  <tt>&dollar;{X11BASE}</tt> (default <tt>/usr/X11R6</tt>).)
 
-	<p>Not hard-coding <tt>/usr/local</tt> anywhere in your
-	  installation will make the port much more flexible and cater
-	  to the needs of other sites.  Note that this doesn't count
-	  for package `packing list' files since they have their own
-	  scheme for relocating themselves and can be left independent
-	  of <tt>&dollar;{PREFIX}</tt> unless the package is one that
-	  hard-codes itself to a compiled-in location.
+	<p>Not hard-coding `<tt>/usr/local</tt>' or `<tt>/usr/X11R6</tt>'
+	  anywhere in the source will make the port much more flexible and
+	  able to cater to the needs of other sites.  For X ports that use
+	  imake, this is automatic; otherwise, this can often be done by
+	  simply replacing the occurrences of `<tt>/usr/local</tt>' (or
+	  `<tt>/usr/X11R6</tt>' for X ports that do not use imake) in the
+	  various scripts/Makefiles in the port to read
+	  `<tt>&dollar;{PREFIX}</tt>', as this variable is automatically
+	  passed down to every stage of the build and install processes.
 
-      <sect2>
+	<p>The variable <tt>&dollar;{PREFIX}</tt> can be reassigned in your
+	  Makefile or in the user's environment.  However, it is strongly
+	  discouraged for individual ports to set this variable explicitly
+	  in the Makefiles.  (If your port is an X port but does not use
+	  imake, set <tt>USE_X11=yes</tt>; this is quite different from
+	  setting <tt>PREFIX=/usr/X11R6</tt>.)
+
+	<p>Also, refer to programs/files from other ports with the
+	  variables mentioned above, not explicit pathnames.  For instance,
+	  if your port requires a macro <tt>PAGER</tt> to be the full
+	  pathname of <tt>less</tt>, use the compiler flag:
+	  <verb>-DPAGER=\"&dollar;{PREFIX}/bin/less\"</verb> or
+	  <verb>-DPAGER=\"&dollar;{LOCALBASE}/bin/less\"</verb> if this is an
+	  X port, instead of <verb>-DPAGER=\"/usr/local/bin/less\"</verb>.
+	  This way it will have a better chance of working if the system
+	  administrator has moved the whole `/usr/local' tree somewhere
+	  else.
+
+      <sect3>
       <heading>Subdirectories</heading>
 	<p>Try to let the port put things in the right subdirectories
 	  of <tt>&dollar;{PREFIX}</tt>.  Some ports lump everything
@@ -820,7 +914,7 @@ FETCH_DEPENDS=   ncftp2:${PORTSDIR}/net/ncftp2
 	  <tt>/usr</tt> pretty much applies to <tt>/usr/local</tt>
 	  too.
 
-      <sect2>
+      <sect3>
 	<heading>ldconfig</heading>
 	<p>If your port installs a shared library, add a
 	  <tt>post-install</tt> target to your Makefile that runs
@@ -839,29 +933,29 @@ lib/libtcl.so.7.3
 </verb></tscreen>
 
 	<p>Note: the `-m' option is new since 2.0.5 and
-	  2.1.0-950726-SNAP, so don't be alarmed if it doesn't work on 
+	  2.1.0-950726-SNAP, so do not be alarmed if it does not work on 
 	  your machine.
 
 	<p>Never, ever, <em>ever</em> add a line that says
 	  `<tt>ldconfig</tt>' without any arguments to your Makefile
 	  or pkg/PLIST.  This will reset the shared library cache to
 	  the contents of <tt>/usr/lib</tt> only, and will royally
-	  screw up the user's machine ("Help, xinit doesn't run
+	  screw up the user's machine ("Help, xinit does not run
 	  anymore after I install this port!").  Anybody who does this
 	  will be shot and cut into 65,536 pieces by a rusty knife and
 	  have his liver chopped out by a bunch of crows and will
 	  eternally rot to death in the deepest bowels of hell (not
 	  necessarily in that order)....
 
-      <sect2>
+      <sect3>
 	<heading>If you are stuck....</heading>
 	<p>Do look at existing examples and the <tt>bsd.port.mk</tt>
 	  file before asking us questions!  <tt>;)</tt>
 
-	<p>Do ask us questions if you have any trouble!  Don't just
+	<p>Do ask us questions if you have any trouble!  Do not just
 	  beat your head against a wall! <tt>:)</tt>
 
-    <sect1>
+    <sect2>
       <heading>A Sample Makefile</heading>
       <p>Here is a sample Makefile that you can use to create a new
 	port.  Make sure you remove all the extra comments (ones
@@ -882,19 +976,18 @@ lib/libtcl.so.7.3
   person who wrote this Makefile]
  # Whom:			Satoshi Asami <asami@FreeBSD.ORG>
  #
- # $Id: porting.sgml,v 1.2.4.3 1995/11/16 01:59:13 jkh Exp $
- [ ^^^^ don't worry about this...it will be automatically filled in by CVS when 
-  it is committed to our repository]
+ # $Id: porting.sgml,v 1.21 1996/05/24 19:33:33 jfieber Exp $
+ [ ^^^^ do not worry about this...it will be automatically filled in by CVS 
+  when it is committed to our repository]
  #
  
  [section to describe the package itself and main ftp site - DISTNAME
   is always first, followed by PKGNAME (if necessary), CATEGORIES,
-  KEYWORDs (if necessary) and then MASTER_SITES, and optionally
-  EXTRACT_SUFX or DISTFILES]
+  and then MASTER_SITES, and optionally EXTRACT_SUFX or DISTFILES]
  DISTNAME=	xdvi
  PKGNAME=	xdvi-pl18
  CATEGORIES+=	printing
- [don't forget the trailing slash ("/")!]
+ [do not forget the trailing slash ("/")!]
  MASTER_SITES=	ftp://crl.dec.com/pub/X11/contrib/applications/
  [set this if the source is not in the standard ".tar.gz" form]
  EXTRACT_SUFX=	.tar.Z
@@ -906,7 +999,7 @@ lib/libtcl.so.7.3
  [maintainer; *mandatory*!  This is the person (preferably with commit
   privileges) who a user can contact for questions and bug reports - this
   person should be the porter or someone who can forward questions to the
-  original porter reasonably promptly.  If you really don't want to have your
+  original porter reasonably promptly.  If you really do not want to have your
   address here, set it to "ports@FreeBSD.ORG".]
  MAINTAINER=	asami@FreeBSD.ORG
  
@@ -914,8 +1007,8 @@ lib/libtcl.so.7.3
  RUN_DEPENDS=	gs:${PORTSDIR}/print/ghostscript
  LIB_DEPENDS=	Xpm\\.4\\.:${PORTSDIR}/graphics/xpm
  
- [this section is for other standard bsd.port.mk variables that don't belong to
-  any of the above]
+ [this section is for other standard bsd.port.mk variables that do not belong 
+  to any of the above]
  [If it extracts to a directory other than ${DISTNAME}...]
  WRKSRC=		${WRKDIR}/xdvi-new
  [If it asks questions during configure, build, install...]
@@ -945,7 +1038,7 @@ lib/libtcl.so.7.3
  .include <bsd.port.mk>
 </verb></tscreen>
 
-    <sect1>
+    <sect2>
       <heading>Package Names</heading>
 
       <p>The following are the conventions you should follow in
@@ -1000,13 +1093,13 @@ xvgr-2.10pl1	xvgr-2.10.1	`pl' allowed only when no maj/minor numbers
 	original author or use the date string (`yy.mm.dd') as the
 	version.
 
-    <sect1>
-      <heading>That's It, Folks!</heading>
+    <sect2>
+      <heading>That is It, Folks!</heading>
 
       <p>Boy, this sure was a long tutorial, wasn't it?  Thanks for
 	following us to here, really.
 
-      <p>Well, now that you know how to do a port, let's go at it and
+      <p>Well, now that you know how to do a port, let us go at it and
 	convert everything in the world into ports!  That is the
 	easiest way to start contributing to the FreeBSD Project! 
 	<tt>:)</tt>

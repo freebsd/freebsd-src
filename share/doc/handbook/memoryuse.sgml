@@ -1,4 +1,4 @@
-<!-- $Id: memoryuse.sgml,v 1.3 1995/09/25 04:53:33 jfieber Exp $ -->
+<!-- $Id: memoryuse.sgml,v 1.1.4.3 1995/10/22 00:50:32 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>PC memory utilization<label id="memoryuse"></heading>
@@ -6,10 +6,8 @@
 <p><em>Contributed by &a.joerg;.<newline>
   16 Apr 1995.</em>
 
-<bf>Question:</bf> <em>By the way, I have seen no description 
-of how FreeBSD uses PC memory, ie
-what 0-640K gets used for, does the kernel load there or higher,
-is the kernel relocated, etc.  Is there a paper on this?</em>
+<em>A short description of how FreeBSD uses the memory on the i386 
+platform</em>
 
 The boot sector will be loaded at <tt>0:0x7c00</tt>, and relocates itself
 immediately to <tt>0x7c0:0</tt>.  (This is nothing magic, just an adjustment
@@ -18,7 +16,7 @@ for the <tt>%cs</tt> selector, done by an <tt>ljmp</tt>.)
 It then loads the first 15 sectors at <tt>0x10000</tt> (segment BOOTSEG in the
 biosboot Makefile), and sets up the stack to work below <tt>0x1fff0</tt>.
 After this, it jumps to the entry of boot2 within that code.  I.e., it
-jumps over itself and the (dummy) partition table, and it's going to
+jumps over itself and the (dummy) partition table, and it is going to
 adjust the %cs selector---we are still in 16-bit mode there.
 
 boot2 asks for the boot file, and examines the <tt>a.out</tt> header.  It masks
@@ -32,7 +30,7 @@ The boot code itself uses segment selectors <tt>0x18</tt> and <tt>0x20</tt> for 
 kernel is finally started with <tt>%cs</tt> <tt>0x08</tt> and <tt>%ds/%es/%ss</tt> <tt>0x10</tt>, which
 refer to dummy descriptors covering the entire address space.
 
-The kernel will be started at its load point.  Since it's been linked
+The kernel will be started at its load point.  Since it has been linked
 for another (high) address, it will have to execute PIC until the page
 table and page directory stuff is setup properly, at which point
 paging will be enabled and the kernel will finally run at the address

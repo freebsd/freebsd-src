@@ -1,4 +1,4 @@
-<!-- $Id: userppp.sgml,v 1.3 1995/08/29 01:42:52 jfieber Exp $ -->
+<!-- $Id: userppp.sgml,v 1.3.2.1 1996/01/31 14:32:32 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect>Setting up user PPP<label id="userppp">
@@ -11,11 +11,11 @@
   (and above).
 
   I hope this document turns into a collaborative effort, largely
-  because I am not really much of an authority on PPP. I've got
+  because I am not really much of an authority on PPP. I have got
   it working, and want to pass on details of what I did so that
-  other people can get it working. But I'm not 100% clear on some
+  other people can get it working. But I am not 100% clear on some
   details, so I hope that by writing this and having others
-  flesh out some of the information I'm going to learn something
+  flesh out some of the information I am going to learn something
   as well.
 -->
 
@@ -27,7 +27,7 @@
 <quote>
        This is a user process PPP software package. Normally, PPP is
        implemented as a part of the kernel (e.g. as managed by pppd) and
-       it's thus somewhat hard to debug and/or modify its behavior. However,
+       it is thus somewhat hard to debug and/or modify its behavior. However,
        in this implementation PPP is done as a user process with the help of
        the tunnel device driver (tun).
 </quote>
@@ -50,7 +50,7 @@
 
 <sect1><heading>Before you start</heading>
 
-<p>This document assumes you're in roughly this position:
+<p>This document assumes you are in roughly this position:
 
     You have an account with an Internet Service Provider (ISP) which lets you
     use PPP. Further, you have a modem (or other device) connected and
@@ -77,7 +77,7 @@
   your kernel. Check <ref id="kernelconfig" name="Kernel
   Configuration"> for more information on how to acquire these.
 
-  In addition, I've assumed that because your connection to the Internet is  
+  In addition, I have assumed that because your connection to the Internet is  
   not full time you are not running a name server (<tt>named(8)</tt>).
 
 <sect1><heading>Building a ppp ready kernel</heading>
@@ -92,10 +92,13 @@
 pseudo-device	  tun		1
 </verb></tscreen>
   in it somewhere. The stock GENERIC kernel has this as standard, so if you
-  have not installed a custom kernel you don't have to change anything.
+  have not installed a custom kernel you do not have to change anything.
   If your kernel configuration file does not have this line in it then you
   should add the line, re-compile and then re-install the kernel. Boot from
-  this new kernel.
+  this new kernel.  Please refer to the 
+  <ref id="kernelconfig" name="Configuring the FreeBSD Kernel">
+  section for more information on kernel configuration.
+
 
 <sect1><heading>Check the tun device</heading>
 
@@ -105,7 +108,7 @@ pseudo-device	  tun		1
   below to reflect whichever device number you are using.
 
   The easiest way to make sure that the tun0 device is configured correctly is
-  to re-make it. To this end, execute the following commands,
+  to re-make it. To this end, execute the following commands:
 <tscreen><verb>
 # cd /dev
 # ./MAKEDEV tun0
@@ -118,7 +121,7 @@ pseudo-device	  tun		1
   Confusingly, it appears that both user ppp and pppd (the kernel level
   implementation of PPP) both assume configuration files kept in
   /etc/ppp. However, the sample configuration files provided are good for
-  user ppp, so keep them around for reference. The easiest way to do this is,
+  user ppp, so keep them around for reference. The easiest way to do this is:
 <tscreen><verb>
 # cd /etc
 # mv ppp ppp.orig
@@ -140,14 +143,14 @@ pseudo-device	  tun		1
      into hostnames. It can be configured to look for maps that describe IP to
      hostname mappings in one of two places.
 
-     The first is a file called /etc/hosts (``hosts'' in section 5 of the
-     manual). The second is the Internet Domain Name Service, a distributed
+     The first is a file called <tt>/etc/hosts</tt> (<tt>man 5 hosts</tt>).
+     The second is the Internet Domain Name Service, a distributed
      data base, the discussion of which is beyond the realm of this document.
 
      The resolver is a set of system calls that do the mappings,
      and you have to tell them where to get their information
-     from. You do this by editing the file /etc/host.conf. Do
-     <bf>not</bf> call this file /etc/hosts.conf (note the extra
+     from. You do this by editing the file <tt>/etc/host.conf</tt>. Do
+     <bf>not</bf> call this file <tt>/etc/hosts.conf</tt> (note the extra
      ``s'') as the results can be confusing.
 
      This file should contain the following two lines,
@@ -155,12 +158,13 @@ pseudo-device	  tun		1
 hosts
 bind
 </verb></tscreen>
-     which instruct the resolver to look in the file /etc/hosts first, and
-     then to consult the DNS if the name was not found in the /etc/hosts file.
+     which instruct the resolver to look in the file <tt>/etc/hosts</tt> first,
+     and then to consult the DNS if the name was not found in the
+     <tt>/etc/hosts</tt> file.
 
-     It's probably a good idea to make sure you are not running the ``named''
-     service. Check your /etc/sysconfig file for the line that refers to
-     ``namedflags'', and make sure the line reads
+     It is probably a good idea to make sure you are not running the ``named''
+     service. Check your <tt>/etc/sysconfig</tt> file for the line that refers
+     to ``namedflags'', and make sure the line reads
 <tscreen><verb>
 namedflags="NO"
 </verb></tscreen>
@@ -169,10 +173,11 @@ namedflags="NO"
 
 <p>This file should contain the IP addresses and names of machines on your
      network. At a bare minimum it should contain entries for the machine
-     which will be running ppp. Assuming that you're machine is called
-     foo.bar.com with the IP address 10.0.0.1, /etc/hosts should contain
+     which will be running ppp. Assuming that your machine is called
+     foo.bar.com with the IP address 10.0.0.1, <tt>/etc/hosts</tt> should
+     contain:
 <tscreen><verb>
-127.0.0.0    localhost
+127.0.0.1    localhost
 10.0.0.1     foo.bar.com	       foo
 </verb></tscreen>
      The first line defines the alias ``localhost'' as a synonym for the
@@ -188,13 +193,13 @@ namedflags="NO"
 
 <sect2><heading>Create the /etc/resolv.conf file</heading>
 
-<p>/etc/resolv.conf contains some extra information required when you are
-     not running a nameserver. It points the resolver routines at real
+<p><tt>/etc/resolv.conf</tt> contains some extra information required when
+     you are not running a nameserver. It points the resolver routines at real
      nameservers, and specifies some other information.
 
-     At the very least, /etc/resolv.conf should contain one line with a
-     nameserver which can be queried. You should enter this as an IP
-     address. My /etc/resolv.conf contains
+     At the very least, <tt>/etc/resolv.conf</tt> should contain one line with
+     a nameserver which can be queried. You should enter this as an IP
+     address. My <tt>/etc/resolv.conf</tt> contains:
 <tscreen><verb>
 nameserver 158.152.1.193
 nameserver 158.152.1.65
@@ -205,13 +210,13 @@ nameserver 158.152.1.65
 <sect1><heading>PPP and static IP addresses</heading>
 
 <p>Probably the easiest to configure for. You will need to create three files
-    in the /etc/ppp directory.
+    in the <tt>/etc/ppp</tt> directory.
 
-    The first of these is ppp.conf. It should look similar to the example
-    below. Note that lines that end in a ``:'' start in column 1, all other
-    lines should be indented as shown.
+    The first of these is <tt>ppp.conf</tt>. It should look similar to the
+    example below. Note that lines that end in a ``:'' start in column 1, all
+    other lines should be indented as shown.
 
-    /etc/ppp/ppp.conf
+    <tt>/etc/ppp/ppp.conf</tt>
 <tscreen><verb>
 1     default:
 2       set device /dev/cuaa0
@@ -226,29 +231,29 @@ nameserver 158.152.1.65
 10       set timeout 120
 11       set ifaddr x.x.x.x y.y.y.y
 </verb></tscreen>
-    Don't include the line numbers, they're just for this discussion.
+    Do not include the line numbers, they are just for this discussion.
 
 <descrip>
 <tag/Line 1:/ Identifies the default entry. Commands in this entry are
               executed automatically when ppp is run.
 
 <tag/Line 2:/ Identifies the device that has the modem hanging from it.
-              COM1: is /dev/cuaa0 and COM2: is /dev/cuaa1
+              COM1: is <tt>/dev/cuaa0</tt> and COM2: is <tt>/dev/cuaa1</tt>.
 
 <tag/Line 3:/ Sets the speed you want to connect at.
 
-<tag/* Lines 4 and 5:/ Don't know exactly what effect these lines have
+<tag/* Lines 4 and 5:/ Do not know exactly what effect these lines have
 
-<tag/Line 6:/ Dial string commands. user ppp uses the chat(8) language. Check
-              the manual page for information on the features of this
-	      language.
+<tag/Line 6:/ Dial string commands. user ppp uses the <tt>chat(8)</tt>
+              language. Check the manual page for information on the features
+              of this language.
 
 <tag/Line 7:/ Identifies an entry for a provider called ``provider''.
 
-<tag/Line 8:/ Sets the phone number for this provider. Don't include any
+<tag/Line 8:/ Sets the phone number for this provider. Do not include any
               spaces in the phone number.
 
-<tag/Line 9:/ Set's the login string sequence. In this example, the string is
+<tag/Line 9:/ Sets the login string sequence. In this example, the string is
 	      for a service who's login session looks like
 <tscreen><verb>
 J. Random Provider
@@ -257,7 +262,7 @@ password: bar
 protocol: ppp
 </verb></tscreen>
 	      You will need to alter this script to suit your own needs. It is
-	      written in the chat(8) language.
+	      written in the <tt>chat(8)</tt> language.
 
 <tag/Line 10:/ Sets the default timeout (in seconds) for the connection. So
 	      the connection will be closed automatically after 120 seconds
@@ -269,7 +274,7 @@ protocol: ppp
 	      ISP indicated for their gateway.
 </descrip>
 
-    Now you have to edit the file /etc/ppp/ppp.linkup:
+    Now you have to edit the file <tt>/etc/ppp/ppp.linkup</tt>:
 <tscreen><verb>
 x.x.x.x:
   add 0 0 HISADDR
@@ -278,10 +283,10 @@ x.x.x.x:
     automatically add a default route from your ISP (who's address is
     automatically inserted with the HISADDR macro) to you.
 
-    Finally, you can create the file /etc/ppp/ppp.secret, which sets some
-    passwords to prevent people messing around with ppp on your system. You
-    may or may not want to do this, depending on how many people have access
-    to your ppp system.
+    Finally, you can create the file <tt>/etc/ppp/ppp.secret</tt>, which sets
+    some passwords to prevent people messing around with ppp on your system.
+    You may or may not want to do this, depending on how many people have
+    access to your ppp system.
 
 <sect1><heading>PPP and Dynamic IP configuration</heading>
 
@@ -296,8 +301,9 @@ set ifaddr 0 0
 
 <sect1><heading>Final system configuration</heading>
 
-<p>You now have PPP configured, but there's a few more things to do before
-    it's ready to work. They all involve editing the /etc/sysconfig file.
+<p>You now have PPP configured, but there are a few more things to do before
+    it is ready to work. They all involve editing the <tt>/etc/sysconfig</tt>
+    file.
 
     Working from the top down in this file, make sure the ``hostname='' line
     is set, e.g.,
@@ -327,7 +333,7 @@ ifconfig_tun0="inet foo.bar.com y.y.y.y netmask 0xffffffff"
 <tscreen><verb>
 routedflags=-s
 </verb></tscreen>
-    It's probably worth your while ensuring that the ``sendmail_flags'' line
+    It is probably worth your while ensuring that the ``sendmail_flags'' line
     does not include the ``-q'' option, otherwise sendmail will attempt to do
     a network lookup every now and then, possibly causing your machine to dial
     out. My sendmail line looks like
@@ -340,7 +346,7 @@ sendmail_flags="-bd"
 # /usr/sbin/sendmail -q
 </verb></tscreen>
     That should be about all you need to do to get PPP working with a static
-    IP address. All that's left is to reboot the machine. During startup the
+    IP address. All that is left is to reboot the machine. During startup the
     tun0 device should be detected, and two lines like the following should be
     printed,
 <tscreen><verb>
@@ -356,5 +362,5 @@ inet x.x.x.x --> y.y.y.y netmask 0xffffffff
 <tscreen><verb>
 # ppp -auto provider
 </verb></tscreen>
-    This line could be added to your /etc/rc.local file.
+    This line could be added to your <tt>/etc/rc.local</tt> file.
 

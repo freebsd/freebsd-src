@@ -27,13 +27,10 @@ suggestions here.
 This guide was originally written for SLIP Server services on a
 FreeBSD 1.x system.  It has been modified to reflect changes in the
 pathnames and the removal of the SLIP interface compression flags in
-FreeBSD 2.x, which appear to be the only major changes between
-FreeBSD versions.  If you do run encounter mistakes in this document,
-please email the author with enough information to help correct the
-problem.
-
-For FreeBSD 1.x users, all of the files referenced in the directory
-<tt>/etc/sliphome</tt> are actually in the <tt>/etc</tt> directory.
+early versions of FreeBSD 2.X, which appear to be the only major
+changes between FreeBSD versions.  If you do encounter mistakes in
+this document, please email the author with enough information to
+help correct the problem.
 
 <sect1><heading>Prerequisites<label id="slips:prereqs"></>
 
@@ -49,9 +46,9 @@ Administration</em> published by O'Reilly &amp; Associates, Inc. (ISBN
 Number 0-937175-82-X), or Douglas Comer's books on the TCP/IP
 protocol.
 
-It's further assumed that you have already setup your modem(s) and
+It is further assumed that you have already setup your modem(s) and
 configured the appropriate system files to allow logins through your
-modems.  If you haven't prepared your system for this yet, please see
+modems.  If you have not prepared your system for this yet, please see
 the tutorial for configuring dialup services; if you have a World-Wide
 Web browser available, browse the list of tutorials at
 <tt>http://www.freebsd.org/</tt>; otherwise, check the place
@@ -119,7 +116,7 @@ goes into <tt>/var/log/messages</tt> (see the manual pages for
 <tt>/etc/syslog.conf</tt> to see to which files <tt>syslogd</tt> is
 logging).
 
-OK, enough of the examples -- let's dive into setting up the system.
+OK, enough of the examples -- let us dive into setting up the system.
 
 <sect1><heading>Kernel Configuration</heading>
 <p>
@@ -151,24 +148,14 @@ Internet RFC requirements for Internet hosts (see RFC's 1009
 &lsqb;Requirements for Internet Hosts -- Communication Layers&rsqb;,
 and perhaps 1127 &lsqb;A Perspective on the Host Requirements
 RFCs&rsqb;), so if you want your FreeBSD SLIP Server to act as a
-router, you'll have to add the line <tt>options GATEWAY </tt> to your
-machine's kernel configuration file and re-compile the kernel anyway.
-(Trivia: ``Gateways'' are the Internet's old name for what are now
-usually called ``routers''.)
+router, you will have to add the line
+<verb>
+sysctl -w net.inet.ip.forwarding = 0
+</verb>
+to your rc.local file.
 
-Please see the BSD System Manager's Manual chapter on ``Building
-Berkeley Kernels with Config'' &lsqb;the source for which is in
-<tt>/usr/src/share/doc/smm</tt>&rsqb; and ``FreeBSD Configuration
-Options'' &lsqb;in <tt>/sys/doc/options.doc</tt>&rsqb; for more
-information on configuring and building kernels.  You may have to
-unpack the kernel source distribution if haven't installed the system
-sources already (<tt>srcdist/srcsys.??</tt> in FreeBSD 1.1,
-<tt>srcdist/sys.??</tt> in FreeBSD 1.1.5.1, or the entire source
-distribution in FreeBSD 2.0) to be able to configure and build
-kernels.
-
-You'll notice that near the end of the default kernel configuration
-file (<tt>/sys/i386/conf/GENERICAH</tt>) is a line that reads:
+You will notice that near the end of the default kernel configuration
+file (<tt>/sys/i386/conf/GENERIC</tt>) is a line that reads:
 
 <tscreen><verb>
 pseudo-device sl 2
@@ -178,9 +165,8 @@ which is the line that defines the number of SLIP devices available in
 the kernel; the number at the end of the line is the maximum number of
 SLIP connections that may be operating simultaneously.
 
-See the document ``Building Berkeley Kernels with Config'' and the
-manual page for <tt>config(8)</tt> to see how to configure and build
-kernels.
+Please refer to <ref id="kernelconfig" name="Configuring the FreeBSD Kernel">
+for help in reconfiguring your kernel.
 
 <sect1><heading>Sliplogin Configuration</heading>
 
@@ -237,17 +223,17 @@ At the end of the line is one or more of the options.
 	dropped instead of using up your bandwidth)
 </itemize>
 
-It appears that <tt/sliplogin/ under FreeBSD 2.x ignores the options
-that FreeBSD 1.x recognized, so the options <tt/normal/,
-<tt/compress/, <tt/autocomp/, and <tt/noicmp/ will have no effect
-under FreeBSD 2.x unless your <tt/slip.login/ script includes code to
-make use of the flags.
+Note that <tt/sliplogin/ under early releases of FreeBSD 2 ignored
+the options that FreeBSD 1.x recognized, so the options
+<tt/normal/, <tt/compress/, <tt/autocomp/, and <tt/noicmp/ had no effect
+until support was added in FreeBSD 2.2 (unless your <tt/slip.login/ script
+included code to make use of the flags).
 
 Your choice of local and remote addresses for your SLIP links depends
 on whether you are going to dedicate a TCP/IP subnet or if you are
-going to use ``proxy ARP'' on your SLIP server (it's not ``true''
+going to use ``proxy ARP'' on your SLIP server (it is not ``true''
 proxy ARP, but that is the terminology used in this document to
-describe it).  If you're not sure which method to select or how to
+describe it).  If you are not sure which method to select or how to
 assign IP addresses, please refer to the TCP/IP books referenced in
 the <ref id="slips:prereqs"> section and/or consult your IP network manager.
 
@@ -263,7 +249,7 @@ subnet.
 
 Otherwise, if you will use the ``proxy ARP'' method, you will need to
 assign your SLIP client's IP addresses out of your SLIP server's
-Ethernet subnet, and you'll also need to adjust your
+Ethernet subnet, and you will also need to adjust your
 <tt>/etc/sliphome/slip.login</tt> and
 <tt>/etc/sliphome/slip.logout</tt> scripts to use <tt>arp(8)</tt> to
 manage the proxy-ARP entries in the SLIP server's ARP table.
@@ -351,7 +337,7 @@ will be unable to execute it.
 
 <p>
 
-<tt>/etc/sliphome/slip.logout</tt> isn't strictly needed (unless you
+<tt>/etc/sliphome/slip.logout</tt> is not strictly needed (unless you
 are implementing ``proxy ARP''), but if you decide to create it, this
 is an example of a basic <tt>slip.logout</tt> script:
 
@@ -371,7 +357,7 @@ is an example of a basic <tt>slip.logout</tt> script:
 ----- end /etc/sliphome/slip.logout -----
 </verb></tscreen>
 
-If you are using ``proxy ARP'', you'll want to have
+If you are using ``proxy ARP'', you will want to have
 <tt>/etc/sliphome/slip.logout</tt> remove the ARP entry for the SLIP
 client:
 
@@ -415,7 +401,7 @@ routers via appropriate routing protocols about your SLIP subnet.
 
 <p>
 Adding static routes to your nearest default routers can be
-troublesome (or impossible, if you don't have authority to do so...).
+troublesome (or impossible, if you do not have authority to do so...).
 If you have a multiple-router network in your organization, some
 routers, such as Cisco and Proteon, may not only need to be configured
 with the static route to the SLIP subnet, but also need to be told
@@ -437,7 +423,7 @@ FreeBSD ``out-of-the-box''.  Complete information and documentation on
 <tt>gated</tt> is available on the Web starting at
 <tt>http://www.gated.cornell.edu/</tt>.  Compile and install it, and
 then write a <tt>/etc/gated.conf</tt> file to configure your gated;
-here's a sample, similar to what the author used on a FreeBSD SLIP
+here is a sample, similar to what the author used on a FreeBSD SLIP
 server:
 
 <tscreen><verb>
@@ -486,17 +472,17 @@ import proto rip interface ed {
 The above sample <tt>gated.conf</tt> file broadcasts routing
 information regarding the SLIP subnet <tt>xxx.xxx.yy</tt> via RIP onto
 the Ethernet; if you are using a different Ethernet driver than the
-<tt/ed/ driver, you'll need to change the references to the <tt/ed/
+<tt/ed/ driver, you will need to change the references to the <tt/ed/
 interface appropriately.  This sample file also sets up tracing to
 <tt>/var/tmp/gated.output</tt> for debugging <tt>gated</tt>'s
 activity; you can certainly turn off the tracing options if
-<tt>gated</tt> works OK for you.  You'll need to change the
+<tt>gated</tt> works OK for you.  You will need to change the
 <tt>xxx.xxx.yy</tt>'s into the network address of your own SLIP subnet
 (be sure to change the net mask in the <tt>proto direct</tt> clause as
 well).
 
 When you get <tt>gated</tt> built and installed and create a
-configuration file for it, you'll need to run <tt>gated</tt> in place
+configuration file for it, you will need to run <tt>gated</tt> in place
 of <tt>routed</tt> on your FreeBSD system; change the
 <tt>routed/gated</tt> startup parameters in <tt>/etc/netstart</tt> as
 appropriate for your system.  Please see the manual page for

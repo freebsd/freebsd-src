@@ -1,4 +1,4 @@
-<!-- $Id: ppp.sgml,v 1.5 1995/09/27 00:46:27 jmz Exp $ -->
+<!-- $Id: ppp.sgml,v 1.1.1.1.4.2 1995/10/12 03:16:29 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Setting up kernel PPP<label id="ppp"></heading>
@@ -17,17 +17,17 @@ world via PPP serial connection or modem line.
 <item> as a "server" , i.e. your machine is located on the network and
 used to connect other computers using PPP.
 </enum>
-In both cases you will need to set up an options file ( /etc/ppp/options
-or ~/.ppprc if you have more then one user on your machine that uses
-PPP ).
+In both cases you will need to set up an options file (<tt>/etc/ppp/options</tt>
+or <tt>~/.ppprc</tt> if you have more then one user on your machine that uses
+PPP).
 
 You also will need some modem/serial software ( preferably kermit )
 so you can dial and establish connection with remote host.
 
 <sect1><heading>Working as a PPP client</heading>
 
-<p>I used the following /etc/ppp/options to connect to CISCO terminal server PPP
-line.
+<p>I used the following <tt>/etc/ppp/options</tt> to connect to CISCO terminal
+server PPP line.
 <verb>
 crtscts		# enable hardware flow control
 modem		# modem control line
@@ -62,10 +62,10 @@ on the remote host )
 </enum>
 
 Now your computer is connected with PPP. If the connection fails for some
-reasons you can add the "debug" option to the /etc/ppp/options file
+reasons you can add the "debug" option to the <tt>/etc/ppp/options</tt> file
 and check messages on the console to track the problem
 
-Following /etc/ppp/pppup script will make all 3 stages automatically:
+Following <tt>/etc/ppp/pppup</tt> script will make all 3 stages automatically:
 <verb>
 #!/bin/sh 
 ps ax |grep pppd |grep -v grep
@@ -88,11 +88,11 @@ kermit -y /etc/ppp/kermit.dial
 pppd /dev/tty01 19200
 </verb>
 
-/etc/ppp/kermit.dial is kermit script that dials and makes all
+<tt>/etc/ppp/kermit.dial</tt> is kermit script that dials and makes all
 necessary authorization on the remote host.
 ( Example of such script is attached to the end of this document )
 
-Use the following /etc/ppp/pppdown script to disconnect the PPP line:
+Use the following <tt>/etc/ppp/pppdown</tt> script to disconnect the PPP line:
 <verb>
 #!/bin/sh
 pid=`ps ax |grep pppd |grep -v grep|awk '{print $1;}'`
@@ -114,7 +114,7 @@ kermit -y /etc/ppp/kermit.hup
 /etc/ppp/ppptest
 </verb>
 
-Check if PPP is still running (/usr/etc/ppp/ppptest):
+Check if PPP is still running (<tt>/usr/etc/ppp/ppptest</tt>):
 <verb>
 #!/bin/sh
 pid=`ps ax| grep pppd |grep -v grep|awk '{print $1;}'`
@@ -128,7 +128,7 @@ netstat -n -I ppp0
 ifconfig ppp0
 </verb>
 
-Hangs up modem line (/etc/ppp/kermit.hup):
+Hangs up modem line (<tt>/etc/ppp/kermit.hup</tt>):
 <verb>
 set line /dev/tty01	; put your modem device here
 set speed 19200
@@ -152,7 +152,7 @@ exit
 
 <sect1><heading>Working as a PPP server</heading>
 
-<p>/etc/ppp/options:
+<p><tt>/etc/ppp/options</tt>:
 <verb>
 crtscts				# Hardware flow control
 netmask 255.255.255.0		# netmask ( not required )
@@ -167,7 +167,8 @@ passive				# wait for LCP
 modem				# modem line
 </verb>
 
-Following /etc/ppp/pppserv script will enable ppp server on your machine
+Following <tt>/etc/ppp/pppserv</tt> script will enable ppp server on your
+machine
 <verb>
 #!/bin/sh 
 ps ax |grep pppd |grep -v grep
@@ -194,7 +195,7 @@ kermit -y /etc/ppp/kermit.ans
 pppd /dev/tty01 19200
 </verb>
 
-Use this /etc/ppp/pppservdown script to stop ppp server:
+Use this <tt>/etc/ppp/pppservdown</tt> script to stop ppp server:
 <verb>
 #!/bin/sh 
 ps ax |grep pppd |grep -v grep
@@ -216,7 +217,7 @@ kermit -y /etc/ppp/kermit.noans
 </verb>
 
 Following kermit script will enable/disable autoanswer mode 
-on your modem (/etc/ppp/kermit.ans):
+on your modem (<tt>/etc/ppp/kermit.ans</tt>):
 <verb>
 set line /dev/tty01
 set speed 19200
@@ -243,9 +244,9 @@ echo \13
 exit
 </verb>
 
-This /etc/ppp/kermit.dial script is used for dialing and authorizing on remote host.
-You will need to customize it for your needs.
-Put your login and password in this script , also you'll need
+This <tt>/etc/ppp/kermit.dial</tt> script is used for dialing and authorizing
+on remote host. You will need to customize it for your needs.
+Put your login and password in this script , also you will need
 to change input statement depending on responses from your modem
 and remote host.
 <verb>

@@ -1,4 +1,4 @@
-<!-- $Id: kerneldebug.sgml,v 1.3.2.2 1995/10/22 00:50:30 jfieber Exp $ -->
+<!-- $Id: kerneldebug.sgml,v 1.3.2.3 1996/01/31 14:32:23 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Kernel Debugging<label id="kerneldebug"></heading>
@@ -36,7 +36,7 @@
   done by default, however.</em>
 
   When the kernel has been built make a copy of it, say
-  <tt>kernel.debug</tt>, and then run <tt>strip -x</tt> on the
+  <tt>kernel.debug</tt>, and then run <tt>strip -d</tt> on the
   original. Install the original as normal.  You may also install
   the unstripped kernel, but symbol table lookup time for some
   programs will drastically increase, and since
@@ -64,16 +64,16 @@
   <tt>kgdb</tt>.  From <tt>kgdb</tt> do:
 <tscreen><verb>
   symbol-file kernel.debug
-  exec-file /var/crash/system.0
-  core-file /var/crash/ram.0
+  exec-file /var/crash/kernel.0
+  core-file /var/crash/vmcore.0
 </verb></tscreen>
   and voila, you can debug the crash dump using the kernel sources
   just like you can for any other program.
 
-  Here's a script log of a <tt>kgdb</tt> session illustrating the
+  Here is a script log of a <tt>kgdb</tt> session illustrating the
   procedure.  Long
   lines have been folded to improve readability, and the lines are
-  numbered for reference.  Despite of this, it's a real-world error
+  numbered for reference.  Despite this, it is a real-world error
   trace taken during the development of the pcvt console driver.
 <tscreen><verb>
    1:Script started on Fri Dec 30 23:15:22 1994
@@ -169,10 +169,10 @@
 <tag/line 36:/  Force usage of a new stack frame; this is no longer
             necessary now.  The stack frames are supposed to point to
             the right locations now, even in case of a trap.
-            (I don't have a new core dump handy &lt;g&gt;, my kernel
-            didn't panic for rather long.)
+            (I do not have a new core dump handy &lt;g&gt;, my kernel
+            did not panic for ia rather long time.)
             From looking at the code in source line 403,
-            there's a high probability that either the pointer
+            there is a high probability that either the pointer
             access for ``tp'' was messed up, or the array access was
             out of bounds.
 <tag/line 52:/  The pointer looks suspicious, but happens to be a valid
@@ -188,23 +188,23 @@
 <sect><heading>Post-mortem analysis of a dump</heading>
 
 <p>What do you do if a kernel dumped core but you did not expect
-  it, and it's therefore not compiled using <tt>config -g</tt>?
-  Not everything is lost here.  Don't panic!
+  it, and it is therefore not compiled using <tt>config -g</tt>?
+  Not everything is lost here.  Do not panic!
 
   Of course, you still need to enable crash dumps.  See above
-  on the options you've got in order to do this.
+  on the options you have to specify in order to do this.
 
   Go to your kernel compile directory, and edit the line
   containing <tt>COPTFLAGS?=-O</tt>.  Add the <tt>-g</tt> option
-  there (but <em>don't</em> change anything on the level of
+  there (but <em>do not</em> change anything on the level of
   optimization).  If you do already know roughly the probable
   location of the failing piece of code (e.g., the <tt>pcvt</tt>
   driver in the example above), remove all the object files for
   this code.  Rebuild the kernel. Due to the time stamp change on
   the Makefile, there will be some other object files rebuild,
   for example <tt>trap.o</tt>.  With a bit of luck, the added
-  <tt>-g</tt> option won't change anything for the generated
-  code, so you'll finally get a new kernel with similar code to
+  <tt>-g</tt> option will not change anything for the generated
+  code, so you will finally get a new kernel with similar code to
   the faulting one but some debugging symbols.  You should at
   least verify the old and new sizes with the <tt>size(1)</tt> command. If
   there is a mismatch, you probably need to give up here.
@@ -226,8 +226,8 @@
   The most important ones being breakpointing and single-stepping
   kernel code.
 
-  If you need to do low-level debugging on your kernel, there's
-  an on- line debugger available called DDB.  It allows to
+  If you need to do low-level debugging on your kernel, there is
+  an on-line debugger available called DDB.  It allows to
   setting breakpoints, single-steping kernel functions, examining
   and changing kernel variables, etc.  However, it cannot not
   access kernel source files, and only has access to the global
@@ -255,7 +255,7 @@
   The second scenario is a hot-key on the keyboard, usually
   Ctrl-Alt-ESC.  For syscons, this can be remapped, and some of
   the distributed maps do this, so watch out.
-  There's an option
+  There is an option
   available for serial consoles
   that allows the use of a serial line BREAK on the console line to
   enter DDB (``<tt>options BREAK_TO_DEBUGGER</tt>''
@@ -314,7 +314,7 @@
 <tscreen><verb>
   n
 </verb></tscreen>
-  <bf>Note:</bf> this is different from <tt>gdb</tt>'s `next' statement, it's like
+  <bf>Note:</bf> this is different from <tt>gdb</tt>'s `next' statement, it is like
   <tt>gdb</tt>'s `finish'.
 
   To examine data from memory, use (for example):
@@ -405,9 +405,9 @@
 <tscreen><verb>
   help
 </verb></tscreen>
-  However, it's highly recommended to have a printed copy of the
+  However, it is highly recommended to have a printed copy of the
   <tt>ddb(4)</tt> manual page ready for a debugging session.
-  Remember that it's hard to read the on-line manual while
+  Remember that it is hard to read the on-line manual while
   single-stepping the kernel.
 
 
