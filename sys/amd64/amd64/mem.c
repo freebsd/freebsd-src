@@ -134,7 +134,7 @@ static int
 mmrw(dev_t dev, struct uio *uio, int flags)
 {
 	int o;
-	u_int c, v;
+	u_int c = 0, v;
 	struct iovec *iov;
 	int error = 0;
 	vm_offset_t addr, eaddr;
@@ -218,6 +218,9 @@ memmmap(dev_t dev, vm_offset_t offset, int prot)
 	case 1:
         	return i386_btop(vtophys(offset));
 	}
+
+	default:
+		return -1;
 }
 
 /*
