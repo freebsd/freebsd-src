@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 24, 2000
+.Dd September 24, 2004
 .Dt KTHREAD 9
 .Os
 .Sh NAME
@@ -141,6 +141,11 @@ letting the main function return to its caller.
 The
 .Fa ecode
 argument specifies the exit status of the thread.
+While exiting, the function
+.Xr exit1 9
+will initiate a call to
+.Xr wakeup 9
+on the thread handle.
 .Pp
 The
 .Fn kthread_resume ,
@@ -258,8 +263,10 @@ flag was specified in the
 parameter.
 .El
 .Sh SEE ALSO
+.Xr exit1 9 ,
 .Xr rfork 2 ,
-.Xr SYSINIT 9
+.Xr SYSINIT 9 ,
+.Xr wakeup 9
 .Sh HISTORY
 The
 .Fn kproc_start
