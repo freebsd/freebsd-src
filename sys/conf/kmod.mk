@@ -83,7 +83,7 @@ CFLAGS+=	-nostdinc -I- ${INCLMAGIC} ${_ICFLAGS}
 # Add -I paths for system headers.  Individual KLD makefiles don't
 # need any -I paths for this.  Similar defaults for .PATH can't be
 # set because there are no standard paths for non-headers.
-CFLAGS+=	-I. -I@ -I@/dev
+CFLAGS+=	-I. -I@
 
 # Add a -I path to standard headers like <stddef.h>.  Use a relative
 # path to src/include if possible.  If the @ symlink hasn't been built
