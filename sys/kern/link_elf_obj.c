@@ -160,7 +160,36 @@ r_debug_state(struct r_debug *dummy_one __unused,
 {
 }
 
-#endif
+static void
+link_elf_add_gdb(struct link_map *l)
+{
+    struct link_map *prev;
+
+    /*
+     * Scan to the end of the list.
+     */
+    for (prev = r_debug.r_map; prev->l_next != NULL; prev = prev->l_next)
+	;
+
+    /* Link in the new entry. */
+    l->l_prev = prev;
+    l->l_next = prev->l_next;
+    prev->l_next = l;
+}
+
+static void
+link_elf_delete_gdb(struct link_map *l)
+{
+    if (l->l_prev == NULL) {
+	if ((r_debug.r_map = l->l_next) != NULL)
+	    l->l_next->l_prev = NULL;
+	return;
+    }
+
+    if ((l->l_prev->l_next = l->l_next) != NULL)
+	l->l_next->l_prev = l->l_prev;
+}
+#endif /* DDB */
 
 #ifdef __ia64__
 Elf_Addr link_elf_get_gp(linker_file_t);
@@ -170,6 +199,12 @@ Elf_Addr link_elf_get_gp(linker_file_t);
  * The kernel symbol table starts here.
  */
 extern struct _dynamic _DYNAMIC;
+
+static void
+link_elf_error(const char *s)
+{
+    printf("kldload: %s\n", s);
+}
 
 static void
 link_elf_init(void* arg)
@@ -377,46 +412,6 @@ parse_dynamic(elf_file_t ef)
 
     return 0;
 }
-
-static void
-link_elf_error(const char *s)
-{
-    printf("kldload: %s\n", s);
-}
-
-#ifdef DDB
-
-static void
-link_elf_add_gdb(struct link_map *l)
-{
-    struct link_map *prev;
-
-    /*
-     * Scan to the end of the list.
-     */
-    for (prev = r_debug.r_map; prev->l_next != NULL; prev = prev->l_next)
-	;
-
-    /* Link in the new entry. */
-    l->l_prev = prev;
-    l->l_next = prev->l_next;
-    prev->l_next = l;
-}
-
-static void
-link_elf_delete_gdb(struct link_map *l)
-{
-    if (l->l_prev == NULL) {
-	if ((r_debug.r_map = l->l_next) != NULL)
-	    l->l_next->l_prev = NULL;
-	return;
-    }
-
-    if ((l->l_prev->l_next = l->l_next) != NULL)
-	l->l_next->l_prev = l->l_prev;
-}
-
-#endif /* DDB */
 
 static int
 link_elf_link_preload(linker_class_t cls,
