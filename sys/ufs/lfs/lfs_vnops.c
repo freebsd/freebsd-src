@@ -31,29 +31,24 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_vnops.c	8.13 (Berkeley) 6/10/95
- * $Id: lfs_vnops.c,v 1.20 1997/03/22 06:53:38 bde Exp $
+ * $Id: lfs_vnops.c,v 1.21 1997/03/23 00:45:27 bde Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/namei.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/kernel.h>
-#include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
-#include <sys/conf.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/vm_prot.h>
 #include <vm/vm_page.h>
-#include <vm/vm_object.h>
 #include <vm/vm_extern.h>
 
 #include <miscfs/specfs/specdev.h>
@@ -61,8 +56,6 @@
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
-#include <ufs/ufs/dir.h>
-#include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/ufs_extern.h>
 
 #include <ufs/lfs/lfs.h>

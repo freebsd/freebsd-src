@@ -36,14 +36,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_subr.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_subr.c,v 1.10 1997/02/22 09:39:11 peter Exp $
+ * $Id: kern_subr.c,v 1.11 1997/05/28 00:47:27 alex Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
-#include <sys/queue.h>
 
 int
 uiomove(cp, n, uio)

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.54 1997/08/22 15:37:23 dyson Exp $
+ * $Id: ufs_vnops.c,v 1.55 1997/08/26 04:36:27 dyson Exp $
  */
 
 #include "opt_quota.h"
@@ -44,21 +44,17 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/namei.h>
-#include <sys/resourcevar.h>
 #include <sys/kernel.h>
 #include <sys/fcntl.h>
 #include <sys/stat.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
-#include <sys/conf.h>
 #include <sys/mount.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/dirent.h>
 #include <sys/lockf.h>
-
-#include <vm/vm.h>
 
 #include <miscfs/specfs/specdev.h>
 #include <miscfs/fifofs/fifo.h>
@@ -75,7 +71,6 @@ static int ufs_chown
 
 #ifdef EXT2FS
 #include <gnu/ext2fs/ext2_extern.h>
-#include <gnu/ext2fs/ext2_fs.h>
 #include <gnu/ext2fs/ext2_fs_sb.h>
 #endif /* EXT2FS */
 

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.52 1997/08/21 20:33:38 bde Exp $
+ * $Id: kern_exit.c,v 1.53 1997/08/26 00:11:55 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -44,17 +44,10 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
-#include <sys/sysent.h>
 #include <sys/proc.h>
 #include <sys/tty.h>
-#include <sys/time.h>
-#include <sys/resource.h>
-#include <sys/kernel.h>
-#include <sys/buf.h>
 #include <sys/wait.h>
-#include <sys/file.h>
 #include <sys/vnode.h>
-#include <sys/syslog.h>
 #include <sys/malloc.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
@@ -73,11 +66,9 @@
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
-#include <vm/vm_prot.h>
 #include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
-#include <vm/vm_kern.h>
 
 static int wait1 __P((struct proc *, struct wait_args *, int [], int));
 

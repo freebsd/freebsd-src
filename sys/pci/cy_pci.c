@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: cy_pci.c,v 1.5 1997/02/22 09:44:00 peter Exp $
  */
 
 /*
@@ -36,7 +36,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>

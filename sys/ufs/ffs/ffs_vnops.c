@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.15 (Berkeley) 5/14/95
- * $Id: ffs_vnops.c,v 1.26 1997/08/25 08:18:23 kato Exp $
+ * $Id: ffs_vnops.c,v 1.27 1997/08/26 07:32:48 phk Exp $
  */
 
 #include <sys/param.h>
@@ -39,19 +39,15 @@
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/kernel.h>
-#include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
-#include <sys/conf.h>
 #include <sys/mount.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
-#include <sys/lockf.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/vm_prot.h>
 #include <vm/vm_page.h>
 #include <vm/vm_object.h>
@@ -62,7 +58,6 @@
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
-#include <ufs/ufs/dir.h>
 #include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/ufs_extern.h>
 

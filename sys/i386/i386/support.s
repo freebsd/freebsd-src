@@ -30,11 +30,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.55 1997/07/17 04:33:40 dyson Exp $
+ *	$Id: support.s,v 1.56 1997/08/09 00:02:44 dyson Exp $
  */
 
 #include "npx.h"
-#include "opt_cpu.h"
 
 #include <machine/asmacros.h>
 #include <machine/cputypes.h>

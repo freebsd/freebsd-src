@@ -35,23 +35,20 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.32 (Berkeley) 6/23/95
- * $Id: union_vnops.c,v 1.37 1997/08/15 02:35:00 kato Exp $
+ * $Id: union_vnops.c,v 1.38 1997/08/15 02:36:28 kato Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/fcntl.h>
-#include <sys/time.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <sys/kernel.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
-#include <sys/queue.h>
 #include <sys/lock.h>
 #include <miscfs/union/union.h>
 

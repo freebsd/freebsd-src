@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.95 1997/08/26 11:59:20 bde Exp $
+ * $Id: vfs_subr.c,v 1.96 1997/08/31 07:32:14 phk Exp $
  */
 
 /*
@@ -48,28 +48,20 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/file.h>
 #include <sys/proc.h>
 #include <sys/mount.h>
-#include <sys/time.h>
 #include <sys/vnode.h>
 #include <sys/stat.h>
-#include <sys/namei.h>
-#include <sys/ucred.h>
 #include <sys/buf.h>
-#include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/domain.h>
-#include <sys/mbuf.h>
 #include <sys/dirent.h>
 
 #include <machine/limits.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
-#include <vm/vm_pager.h>
 #include <vm/vnode_pager.h>
 #include <sys/sysctl.h>
 

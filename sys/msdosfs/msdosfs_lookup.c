@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_lookup.c,v 1.11 1997/02/26 14:23:13 bde Exp $ */
+/*	$Id: msdosfs_lookup.c,v 1.12 1997/08/26 07:32:38 phk Exp $ */
 /*	$NetBSD: msdosfs_lookup.c,v 1.14 1994/08/21 18:44:07 ws Exp $	*/
 
 /*-
@@ -54,7 +54,6 @@
 #include <sys/vnode.h>
 #include <sys/mount.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
 
 #include <msdosfs/bpb.h>
 #include <msdosfs/direntry.h>

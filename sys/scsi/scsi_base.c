@@ -8,7 +8,7 @@
  * file.
  *
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.48 1997/04/04 19:37:20 gibbs Exp $
+ *      $Id: scsi_base.c,v 1.49 1997/07/25 23:25:20 jdp Exp $
  */
 
 #include "opt_bounce.h"
@@ -16,15 +16,10 @@
 
 #define SPLSD splbio
 #define ESUCCESS 0
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
-#include <sys/kernel.h>
 #include <sys/buf.h>
-#include <sys/uio.h>
 #include <sys/malloc.h>
-#include <sys/errno.h>
 
 #include <machine/clock.h>
 
@@ -32,7 +27,6 @@
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 
-#include <scsi/scsi_all.h>
 #include <scsi/scsi_disk.h>
 #include <scsi/scsiconf.h>
 #include <scsi/scsi_debug.h>

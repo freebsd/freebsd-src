@@ -16,15 +16,13 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.88 1997/05/25 14:20:28 joerg Exp $
+ *      $Id: scsiconf.c,v 1.89 1997/06/11 22:29:01 se Exp $
  */
 
 #include "opt_scsi.h"
 
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/stat.h>
 #include <sys/malloc.h>
 #include <sys/conf.h>
 #ifdef PC98
@@ -32,8 +30,6 @@
 #endif
 
 #include <machine/clock.h>
-
-#include "scbus.h"
 
 #include "sd.h"
 #include "st.h"
@@ -43,10 +39,8 @@
 #include "pt.h"
 #include "worm.h"
 
-#include "su.h"
 #include "sctarg.h"
 
-#include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
 #include <scsi/scsi_debug.h>
 #include <scsi/scsi_driver.h>
