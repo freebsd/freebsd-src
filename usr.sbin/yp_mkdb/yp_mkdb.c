@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_mkdb.c,v 1.5 1996/06/03 03:12:32 wpaul Exp wpaul $
+ *	$Id: yp_mkdb.c,v 1.3 1996/10/24 14:52:50 wpaul Exp $
  */
 
 #include <stdio.h>
@@ -50,7 +50,7 @@
 #include "ypxfr_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_mkdb.c,v 1.5 1996/06/03 03:12:32 wpaul Exp wpaul $";
+static const char rcsid[] = "$Id: yp_mkdb.c,v 1.3 1996/10/24 14:52:50 wpaul Exp $";
 #endif
 
 char *yp_dir = "";	/* No particular default needed. */
@@ -290,6 +290,11 @@ main (argc, argv)
 
 		if (strlen(keybuf) > YPMAXRECORD) {
 			warnx("key too long: %s", keybuf);
+			continue;
+		}
+
+		if (!strlen(keybuf)) {
+			warnx("no key -- check source file for blank lines");
 			continue;
 		}
 
