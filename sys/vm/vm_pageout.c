@@ -1432,6 +1432,7 @@ vm_pageout()
 	 */
 	while (TRUE) {
 		s = splvm();
+		vm_page_lock_queues();
 		/*
 		 * If we have enough free memory, wakeup waiters.  Do
 		 * not clear vm_pages_needed until we reach our target,
@@ -1451,7 +1452,7 @@ vm_pageout()
 			 */
 			++pass;
 			if (pass > 1)
-				tsleep(&vm_pages_needed, PVM,
+				msleep(&vm_pages_needed, &vm_page_queue_mtx, PVM,
 				       "psleep", hz/2);
 		} else {
 			/*
@@ -1462,9 +1463,10 @@ vm_pageout()
 				pass = 1;
 			else
 				pass = 0;
-			error = tsleep(&vm_pages_needed, PVM,
+			error = msleep(&vm_pages_needed, &vm_page_queue_mtx, PVM,
 				    "psleep", vm_pageout_stats_interval * hz);
 			if (error && !vm_pages_needed) {
+				vm_page_unlock_queues();
 				splx(s);
 				pass = 0;
 				vm_pageout_page_stats();
@@ -1473,6 +1475,7 @@ vm_pageout()
 		}
 		if (vm_pages_needed)
 			cnt.v_pdwakeups++;
+		vm_page_unlock_queues();
 		splx(s);
 		vm_pageout_scan(pass);
 	}
