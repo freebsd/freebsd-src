@@ -89,7 +89,6 @@ union dinode {
 	((sblock.fs_magic == FS_UFS1_MAGIC) ? \
 	(dp)->dp1.field : (dp)->dp2.field)
 
-static int randinit;
 static caddr_t iobuf;
 static long iobufsize;
 static ufs2_daddr_t alloc(int size, int mode);
@@ -103,6 +102,7 @@ static void iput(union dinode *, ino_t);
 static int makedir(struct direct *, int);
 static void setblock(struct fs *, unsigned char *, int);
 static void wtfs(ufs2_daddr_t, int, char *);
+static u_int32_t newfs_random(void);
 
 void
 mkfs(struct partition *pp, char *fsys)
@@ -120,12 +120,10 @@ mkfs(struct partition *pp, char *fsys)
 	 */
 	disk.d_bsize = sectorsize;
 	disk.d_ufs = Oflag;
-	if (Rflag)
+	if (Rflag) {
 		utime = 1000000000;
-	else 
+	} else {
 		time(&utime);
-	if (!Rflag && !randinit) {
-		randinit = 1;
 		arc4random_stir();
 	}
 	sblock.fs_old_flags = FS_FLAGS_UPDATED;
@@ -387,7 +385,7 @@ mkfs(struct partition *pp, char *fsys)
 	sblock.fs_state = 0;
 	sblock.fs_clean = 1;
 	sblock.fs_id[0] = (long)utime;
-	sblock.fs_id[1] = arc4random();
+	sblock.fs_id[1] = newfs_random();
 	sblock.fs_fsmnt[0] = '\0';
 	csfrags = howmany(sblock.fs_cssize, sblock.fs_fsize);
 	sblock.fs_dsize = sblock.fs_size - sblock.fs_sblkno -
@@ -649,10 +647,10 @@ initcg(int cylno, time_t utime)
 	dp2 = (struct ufs2_dinode *)(&iobuf[start]);
 	for (i = 0; i < acg.cg_initediblk; i++) {
 		if (sblock.fs_magic == FS_UFS1_MAGIC) {
-			dp1->di_gen = arc4random();
+			dp1->di_gen = newfs_random();
 			dp1++;
 		} else {
-			dp2->di_gen = arc4random();
+			dp2->di_gen = newfs_random();
 			dp2++;
 		}
 	}
@@ -666,7 +664,7 @@ initcg(int cylno, time_t utime)
 		     i += sblock.fs_frag) {
 			dp1 = (struct ufs1_dinode *)(&iobuf[start]);
 			for (j = 0; j < INOPB(&sblock); j++) {
-				dp1->di_gen = arc4random();
+				dp1->di_gen = newfs_random();
 				dp1++;
 			}
 			wtfs(fsbtodb(&sblock, cgimin(&sblock, cylno) + i),
@@ -961,4 +959,18 @@ ilog2(int val)
 		if (1 << n == val)
 			return (n);
 	errx(1, "ilog2: %d is not a power of 2\n", val);
+}
+
+/*
+ * For the regression test, return predictable random values.
+ * Otherwise use a true random number generator.
+ */
+static u_int32_t
+newfs_random(void)
+{
+	static int nextnum = 1;
+
+	if (Rflag)
+		return (nextnum++);
+	return (arc4random());
 }
