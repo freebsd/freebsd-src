@@ -253,7 +253,7 @@ rm_tree(argv)
 				if (rval == 0 || (fflag && errno == ENOENT)) {
 					if (rval == 0 && vflag)
 						(void)printf("%s\n",
-						    p->fts_accpath);
+						    p->fts_path);
 					continue;
 				}
 				break;
@@ -263,7 +263,7 @@ rm_tree(argv)
 				if (rval == 0 && (fflag && errno == ENOENT)) {
 					if (vflag)
 						(void)printf("%s\n",
-						    p->fts_accpath);
+						    p->fts_path);
 					continue;
 				}
 				break;
@@ -275,7 +275,7 @@ rm_tree(argv)
 				if (rval == 0 || (fflag && errno == ENOENT)) {
 					if (rval == 0 && vflag)
 						(void)printf("%s\n",
-						    p->fts_accpath);
+						    p->fts_path);
 					continue;
 				}
 			}
