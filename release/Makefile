@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.136 1995/04/13 09:05:25 phk Exp $
+#	$Id: Makefile,v 1.137 1995/04/13 20:21:06 jkh Exp $
 #
 # How to roll a release:
 #
@@ -147,12 +147,11 @@ release.3:
 		rm -rf ${.CURDIR}/../sys/compile/$$i ; \
 	done
 	rm -f ${.CURDIR}/../sys/i386/conf/BOOTCDROM
+	cd ${RD}/kernels && kzip BOOTFLP
 	ln -f ${RD}/kernels/GENERIC ${RD}/trees/bin/kernel.GENERIC
 	ln -f ${RD}/kernels/GENERIC ${RD}/cpiofd/kernel
-	cp ${RD}/kernels/BOOTFLP ${RD}/bootfd/kernel
-	strip ${RD}/bootfd/kernel
-	cp ${RD}/kernels/BOOTFLP ${RD}/fixitfd/kernel
-	strip ${RD}/fixitfd/kernel
+	ln -f ${RD}/kernels/BOOTFLP.kz ${RD}/bootfd/kernel
+	ln -f ${RD}/kernels/BOOTFLP.kz ${RD}/fixitfd/kernel
 	touch release.3
 
 # Make and install the three crunched binaries which live on the floppies.
