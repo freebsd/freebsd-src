@@ -772,14 +772,14 @@
       before executing the command.  This is useful when the child
       process is an interactive application.</para>
 
-    <para arch="i386">The <filename>libkse</filename> library,
+    <para arch="i386,pc98">The <filename>libkse</filename> library,
       providing POSIX threading support using KSE, is now enabled and
       installed by default.  It is still considered a
       work-in-progress, and is not used by default.  However, it can
       be used as a replacement for the <filename>libc_r</filename>
       thread library.</para>
 
-    <para arch="i386,sparc64,ia64">A 1:1 threading package (where for every pthread in an
+    <para arch="i386,pc98,sparc64,ia64">A 1:1 threading package (where for every pthread in an
       application there is one KSE and thread) has been implemented.
       Under this model, the kernel handles all thread scheduling
       decisions and all signal delivery.  This uses some of the common
