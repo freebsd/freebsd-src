@@ -115,6 +115,9 @@ static /**/const char *const rcsid[] = { (char *)rcsid, "\100(#)" msg }
 #ifdef HAVE_SYS_UN_H
 # include <sys/un.h> /* For sockaddr_un */
 #endif
+#ifdef HAVE_STDINT_H
+# include <stdint.h>
+#endif
 #ifdef HAVE_SYS_BITYPES_H
 # include <sys/bitypes.h> /* For u_intXX_t */
 #endif
@@ -144,6 +147,14 @@ static /**/const char *const rcsid[] = { (char *)rcsid, "\100(#)" msg }
 #endif
 #ifdef HAVE_READPASSPHRASE_H
 # include <readpassphrase.h>
+#endif
+
+#ifdef HAVE_IA_H
+# include <ia.h>
+#endif
+
+#ifdef HAVE_TMPDIR_H
+# include <tmpdir.h>
 #endif
 
 #include <openssl/opensslv.h> /* For OPENSSL_VERSION_NUMBER */

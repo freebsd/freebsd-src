@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth-krb4.c,v 1.27 2002/06/11 05:46:20 mpech Exp $");
+RCSID("$OpenBSD: auth-krb4.c,v 1.28 2002/09/26 11:38:43 markus Exp $");
 
 #include "ssh.h"
 #include "ssh1.h"
@@ -210,10 +210,9 @@ krb4_cleanup_proc(void *context)
 }
 
 int
-auth_krb4(Authctxt *authctxt, KTEXT auth, char **client)
+auth_krb4(Authctxt *authctxt, KTEXT auth, char **client, KTEXT reply)
 {
 	AUTH_DAT adat = {0};
-	KTEXT_ST reply;
 	Key_schedule schedule;
 	struct sockaddr_in local, foreign;
 	char instance[INST_SZ];
@@ -263,21 +262,16 @@ auth_krb4(Authctxt *authctxt, KTEXT auth, char **client)
 
 	/* If we can't successfully encrypt the checksum, we send back an
 	   empty message, admitting our failure. */
-	if ((r = krb_mk_priv((u_char *) & cksum, reply.dat, sizeof(cksum) + 1,
+	if ((r = krb_mk_priv((u_char *) & cksum, reply->dat, sizeof(cksum) + 1,
 	    schedule, &adat.session, &local, &foreign)) < 0) {
 		debug("Kerberos v4 mk_priv: (%d) %s", r, krb_err_txt[r]);
-		reply.dat[0] = 0;
-		reply.length = 0;
+		reply->dat[0] = 0;
+		reply->length = 0;
 	} else
-		reply.length = r;
+		reply->length = r;
 
 	/* Clear session key. */
 	memset(&adat.session, 0, sizeof(&adat.session));
-
-	packet_start(SSH_SMSG_AUTH_KERBEROS_RESPONSE);
-	packet_put_string((char *) reply.dat, reply.length);
-	packet_send();
-	packet_write_wait();
 	return (1);
 }
 #endif /* KRB4 */

@@ -10,7 +10,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth1.c,v 1.41 2002/06/19 00:27:55 deraadt Exp $");
+RCSID("$OpenBSD: auth1.c,v 1.44 2002/09/26 11:38:43 markus Exp $");
 
 #include "xmalloc.h"
 #include "rsa.h"
@@ -118,30 +118,49 @@ do_authloop(Authctxt *authctxt)
 
 				if (kdata[0] == 4) { /* KRB_PROT_VERSION */
 #ifdef KRB4
-					KTEXT_ST tkt;
-
+					KTEXT_ST tkt, reply;
 					tkt.length = dlen;
 					if (tkt.length < MAX_KTXT_LEN)
 						memcpy(tkt.dat, kdata, tkt.length);
 
-					if (auth_krb4(authctxt, &tkt, &client_user)) {
+					if (PRIVSEP(auth_krb4(authctxt, &tkt,
+					    &client_user, &reply))) {
 						authenticated = 1;
 						snprintf(info, sizeof(info),
 						    " tktuser %.100s",
 						    client_user);
+
+						packet_start(
+						    SSH_SMSG_AUTH_KERBEROS_RESPONSE);
+						packet_put_string((char *)
+						    reply.dat, reply.length);
+						packet_send();
+						packet_write_wait();
 					}
 #endif /* KRB4 */
 				} else {
 #ifdef KRB5
-					krb5_data tkt;
+					krb5_data tkt, reply;
 					tkt.length = dlen;
 					tkt.data = kdata;
 
-					if (auth_krb5(authctxt, &tkt, &client_user)) {
+					if (PRIVSEP(auth_krb5(authctxt, &tkt,
+					    &client_user, &reply))) {
 						authenticated = 1;
 						snprintf(info, sizeof(info),
 						    " tktuser %.100s",
 						    client_user);
+ 
+ 						/* Send response to client */
+ 						packet_start(
+						    SSH_SMSG_AUTH_KERBEROS_RESPONSE);
+ 						packet_put_string((char *)
+						    reply.data, reply.length);
+ 						packet_send();
+ 						packet_write_wait();
+
+ 						if (reply.length)
+ 							xfree(reply.data);
 					}
 #endif /* KRB5 */
 				}
@@ -292,6 +311,15 @@ do_authloop(Authctxt *authctxt)
 			fatal("INTERNAL ERROR: authenticated invalid user %s",
 			    authctxt->user);
 
+#ifdef _UNICOS
+		if (type == SSH_CMSG_AUTH_PASSWORD && !authenticated)
+			cray_login_failure(authctxt->user, IA_UDBERR);
+		if (authenticated && cray_access_denied(authctxt->user)) {
+			authenticated = 0;
+			fatal("Access denied for user %s.",authctxt->user);
+		}
+#endif /* _UNICOS */
+
 #ifdef HAVE_CYGWIN
 		if (authenticated &&
 		    !check_nt_auth(type == SSH_CMSG_AUTH_PASSWORD, pw)) {
@@ -301,7 +329,8 @@ do_authloop(Authctxt *authctxt)
 		}
 #else
 		/* Special handling for root */
-		if (authenticated && authctxt->pw->pw_uid == 0 &&
+		if (!use_privsep &&
+		    authenticated && authctxt->pw->pw_uid == 0 &&
 		    !auth_root_allowed(get_authname(type)))
 			authenticated = 0;
 #endif
@@ -323,12 +352,6 @@ do_authloop(Authctxt *authctxt)
 			return;
 
 		if (authctxt->failures++ > AUTH_FAIL_MAX) {
-#ifdef WITH_AIXAUTHENTICATE
-			/* XXX: privsep */
-			loginfailed(authctxt->user,
-			    get_canonical_hostname(options.verify_reverse_mapping),
-			    "ssh");
-#endif /* WITH_AIXAUTHENTICATE */
 			packet_disconnect(AUTH_FAIL_MSG, authctxt->user);
 		}
 

@@ -12,7 +12,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: canohost.c,v 1.32 2002/06/11 08:11:45 itojun Exp $");
+RCSID("$OpenBSD: canohost.c,v 1.34 2002/09/23 20:46:27 stevesk Exp $");
 
 #include "packet.h"
 #include "xmalloc.h"
@@ -77,7 +77,9 @@ get_remote_hostname(int socket, int verify_reverse_mapping)
 	if (getnameinfo((struct sockaddr *)&from, fromlen, name, sizeof(name),
 	    NULL, 0, NI_NAMEREQD) != 0) {
 		/* Host name not found.  Use ip address. */
+#if 0
 		log("Could not reverse map address %.100s.", ntop);
+#endif
 		return xstrdup(ntop);
 	}
 
@@ -216,18 +218,12 @@ get_socket_address(int socket, int remote, int flags)
 
 	if (remote) {
 		if (getpeername(socket, (struct sockaddr *)&addr, &addrlen)
-		    < 0) {
-			debug("get_socket_ipaddr: getpeername failed: %.100s",
-			    strerror(errno));
+		    < 0)
 			return NULL;
-		}
 	} else {
 		if (getsockname(socket, (struct sockaddr *)&addr, &addrlen)
-		    < 0) {
-			debug("get_socket_ipaddr: getsockname failed: %.100s",
-			    strerror(errno));
+		    < 0)
 			return NULL;
-		}
 	}
 	/* Get the address in ascii. */
 	if (getnameinfo((struct sockaddr *)&addr, addrlen, ntop, sizeof(ntop),
@@ -241,13 +237,21 @@ get_socket_address(int socket, int remote, int flags)
 char *
 get_peer_ipaddr(int socket)
 {
-	return get_socket_address(socket, 1, NI_NUMERICHOST);
+	char *p;
+
+	if ((p = get_socket_address(socket, 1, NI_NUMERICHOST)) != NULL)
+		return p;
+	return xstrdup("UNKNOWN");
 }
 
 char *
 get_local_ipaddr(int socket)
 {
-	return get_socket_address(socket, 0, NI_NUMERICHOST);
+	char *p;
+
+	if ((p = get_socket_address(socket, 0, NI_NUMERICHOST)) != NULL)
+		return p;
+	return xstrdup("UNKNOWN");
 }
 
 char *

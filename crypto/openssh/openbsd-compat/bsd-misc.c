@@ -24,7 +24,7 @@
 
 #include "includes.h"
 
-RCSID("$Id: bsd-misc.c,v 1.8 2002/06/13 21:34:58 mouring Exp $");
+RCSID("$Id: bsd-misc.c,v 1.10 2002/07/08 21:09:41 mouring Exp $");
 
 char *get_progname(char *argv0)
 {
@@ -93,8 +93,8 @@ int utimes(char *filename, struct timeval *tvp)
 {
 	struct utimbuf ub;
 
-	ub.actime = tvp->tv_sec;
-	ub.modtime = tvp->tv_usec;
+	ub.actime = tvp[0].tv_sec;
+	ub.modtime = tvp[1].tv_sec;
 	
 	return(utime(filename, &ub));
 }

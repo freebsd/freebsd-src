@@ -27,7 +27,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "config.h"
+#include "includes.h"
 #ifndef HAVE_STRLCPY
 
 #if defined(LIBC_SCCS) && !defined(lint)

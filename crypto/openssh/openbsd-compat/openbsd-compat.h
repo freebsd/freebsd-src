@@ -1,4 +1,4 @@
-/* $Id: openbsd-compat.h,v 1.16 2002/02/19 20:27:57 mouring Exp $ */
+/* $Id: openbsd-compat.h,v 1.17 2002/09/12 00:33:02 djm Exp $ */
 
 #ifndef _OPENBSD_H
 #define _OPENBSD_H
@@ -29,6 +29,7 @@
 
 /* Home grown routines */
 #include "bsd-arc4random.h"
+#include "bsd-getpeereid.h"
 #include "bsd-misc.h"
 #include "bsd-snprintf.h"
 #include "bsd-waitpid.h"

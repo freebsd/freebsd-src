@@ -1,4 +1,4 @@
-/*	$OpenBSD: auth.h,v 1.39 2002/05/31 11:35:15 markus Exp $	*/
+/*	$OpenBSD: auth.h,v 1.41 2002/09/26 11:38:43 markus Exp $	*/
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
@@ -113,7 +113,7 @@ int	 user_key_allowed(struct passwd *, Key *);
 
 #ifdef KRB4
 #include <krb.h>
-int     auth_krb4(Authctxt *, KTEXT, char **);
+int     auth_krb4(Authctxt *, KTEXT, char **, KTEXT);
 int	auth_krb4_password(Authctxt *, const char *);
 void    krb4_cleanup_proc(void *);
 
@@ -126,7 +126,7 @@ int     auth_afs_token(Authctxt *, const char *);
 #endif /* KRB4 */
 
 #ifdef KRB5
-int	auth_krb5(Authctxt *authctxt, krb5_data *auth, char **client);
+int	auth_krb5(Authctxt *authctxt, krb5_data *auth, char **client, krb5_data *);
 int	auth_krb5_tgt(Authctxt *authctxt, krb5_data *tgt);
 int	auth_krb5_password(Authctxt *authctxt, const char *password);
 void	krb5_cleanup_proc(void *authctxt);

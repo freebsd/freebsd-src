@@ -25,7 +25,7 @@
 #ifndef SSH_MSG_H
 #define SSH_MSG_H
 
-void	 msg_send(int, u_char, Buffer *);
-int	 msg_recv(int, Buffer *);
+void	 ssh_msg_send(int, u_char, Buffer *);
+int	 ssh_msg_recv(int, Buffer *);
 
 #endif
