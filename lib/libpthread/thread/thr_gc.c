@@ -242,6 +242,10 @@ _thread_gc(pthread_addr_t arg)
 		if (p_stack != NULL)
 			free(p_stack);
 		if (pthread_cln != NULL)
+			if (pthread_cln->name != NULL) {
+				/* Free the thread name string. */
+				free(pthread_cln->name);
+			}
 			/*
 			 * Free the memory allocated for the thread
 			 * structure.
