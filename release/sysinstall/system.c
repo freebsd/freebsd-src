@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.40 1995/05/29 00:50:05 jkh Exp $
+ * $Id: system.c,v 1.41 1995/05/29 02:13:31 phk Exp $
  *
  * Jordan Hubbard
  *
@@ -102,10 +102,8 @@ systemShutdown(void)
     }
     /* REALLY exit! */
     if (RunningAsInit) {
-	int fd, on = 1;
-
 	/* Put the console back */
-	ioctl(0, VT_RELDISP, 1);
+	ioctl(DebugFD, VT_RELDISP, 1);
 	reboot(RB_HALT);
     }
     else
@@ -187,7 +185,6 @@ systemDisplayFile(char *file)
 	use_helpline(NULL);
 	w = dupwin(newscr);
 	dialog_textbox(file, fname, LINES, COLS);
-	unlink(fname);
 	touchwin(w);
 	wrefresh(w);
 	delwin(w);
@@ -199,24 +196,45 @@ char *
 systemHelpFile(char *file, char *buf)
 {
     char *cp;
+    static char oldfile[64];	/* Should be FILENAME_MAX but I don't feel like wasting that much space */
 
     if (!file)
 	return NULL;
 
     if ((cp = getenv("LANG")) != NULL) {
 	snprintf(buf, FILENAME_MAX, "%s/%s", cp, file);
-	vsystem("cd /stand && zcat help.tgz | cpio --format=tar -idv %s",buf);
+	if (oldfile[0]) {
+	    if (!strcmp(buf, oldfile))
+		return oldfile;
+	    else {
+		unlink(oldfile);
+		oldfile[0] = '\0';
+	    }
+	}
+	vsystem("cd /stand && zcat help.tgz | cpio --format=tar -idv %s > /dev/null 2>&1",buf);
 	snprintf(buf, FILENAME_MAX, "/stand/%s/%s", cp, file);
-	if (file_readable(buf))
+	if (file_readable(buf)) {
+	    strcpy(oldfile, buf);
 	    return buf;
+	}
     }	
     /* Fall back to normal imperialistic mode :-) */
     cp = "en_US.ISO8859-1";
     snprintf(buf, FILENAME_MAX, "%s/%s", cp, file);
-    vsystem("cd /stand && zcat help.tgz | cpio --format=tar -idv %s",buf);
+    if (oldfile[0]) {
+	if (!strcmp(buf, oldfile))
+	    return oldfile;
+	else {
+	    unlink(oldfile);
+	    oldfile[0] = '\0';
+	}
+    }
+    vsystem("cd /stand && zcat help.tgz | cpio --format=tar -idv %s > /dev/null 2>&1",buf);
     snprintf(buf, FILENAME_MAX, "/stand/%s/%s", cp, file);
-    if (file_readable(buf))
+    if (file_readable(buf)) {
+	strcpy(oldfile, buf);
 	return buf;
+    }
     return NULL;
 }
 
@@ -290,11 +308,14 @@ vsystem(char *fmt, ...)
     va_start(args, fmt);
     vsnprintf(cmd, FILENAME_MAX, fmt, args);
     va_end(args);
+
     /* Find out if this command needs the wizardry of the shell */
     for (p="<>|'`=\"()" ; *p; p++)
-	    if (strchr(cmd,*p))	magic++;
+	if (strchr(cmd, *p))
+	    magic++;
     omask = sigblock(sigmask(SIGCHLD));
-    msgDebug("Executing command `%s' (Magic=%d)\n", cmd, magic);
+    if (isDebug())
+	msgDebug("Executing command `%s' (Magic=%d)\n", cmd, magic);
     switch(pid = fork()) {
     case -1:			/* error */
 	(void)sigsetmask(omask);
@@ -303,7 +324,7 @@ vsystem(char *fmt, ...)
     case 0:				/* child */
 	(void)sigsetmask(omask);
 	if (DebugFD != -1) {
-	    if (OnVTY)
+	    if (OnVTY && isDebug())
 		msgInfo("Command output is on debugging screen - type ALT-F2 to see it");
 	    dup2(DebugFD, 0);
 	    dup2(DebugFD, 1);
@@ -311,29 +332,29 @@ vsystem(char *fmt, ...)
 	}
 #ifdef NOT_A_GOOD_IDEA_CRUNCHED_BINARY
 	if (magic) {
-		char *argv[100];
-		i = 0;
-		argv[i++] = "crunch";
-		argv[i++] = "sh";
-		argv[i++] = "-c";
-		argv[i++] = cmd;
-		argv[i] = 0;
-		exit(crunched_main(i,argv));
+	    char *argv[100];
+	    i = 0;
+	    argv[i++] = "crunch";
+	    argv[i++] = "sh";
+	    argv[i++] = "-c";
+	    argv[i++] = cmd;
+	    argv[i] = 0;
+	    exit(crunched_main(i,argv));
 	} else {
-		char *argv[100];
-		i = 0;
-		argv[i++] = "crunch";
-		while (cmd && *cmd) {
-			argv[i] = strsep(&cmd," \t");
-			if (*argv[i])
-				i++;
-		}
-		argv[i] = 0;
-		if (crunched_here(argv[1]))
-			exit(crunched_main(i,argv));
-		else
-			execvp(argv[1],argv+1);
-		kill(getpid(),9);
+	    char *argv[100];
+	    i = 0;
+	    argv[i++] = "crunch";
+	    while (cmd && *cmd) {
+		argv[i] = strsep(&cmd," \t");
+		if (*argv[i])
+		    i++;
+	    }
+	    argv[i] = 0;
+	    if (crunched_here(argv[1]))
+		exit(crunched_main(i,argv));
+	    else
+		execvp(argv[1],argv+1);
+	    kill(getpid(),9);
 	}
 #else /* !CRUNCHED_BINARY */
 	execl("/stand/sh", "sh", "-c", cmd, (char *)NULL);
@@ -347,7 +368,8 @@ vsystem(char *fmt, ...)
     (void)signal(SIGINT, intsave);
     (void)signal(SIGQUIT, quitsave);
     i = (pid == -1) ? -1 : WEXITSTATUS(pstat);
-    msgDebug("Command `%s' returns status of %d\n", cmd, i);
+    if (isDebug())
+	msgDebug("Command `%s' returns status of %d\n", cmd, i);
     free(cmd);
     return i;
 }

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ftp.c,v 1.10 1995/05/26 19:28:01 jkh Exp $
+ * $Id: ftp.c,v 1.11 1995/05/27 06:19:59 phk Exp $
  *
  */
 
@@ -48,7 +48,8 @@ debug(FTP_t ftp, const char *fmt, ...)
 #ifdef STANDALONE_FTP
     write(ftp->fd_debug,p,strlen(p));
 #else
-    msgDebug(p);
+    if (isDebug())
+	msgDebug(p);
 #endif
 }
 

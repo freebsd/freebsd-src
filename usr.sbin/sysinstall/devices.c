@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.32 1995/05/27 23:52:55 jkh Exp $
+ * $Id: devices.c,v 1.33 1995/05/28 09:31:31 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -183,15 +183,28 @@ deviceGetAll(void)
 	int i;
 
 	for (i = 0; names[i]; i++) {
+	    Chunk *c1;
 	    Disk *d;
 
 	    d = Open_Disk(names[i]);
 	    if (!d)
 		msgFatal("Unable to open disk %s", names[i]);
 
-	    (void)deviceRegister(names[i], names[i], d->name, DEVICE_TYPE_DISK, FALSE,
-				 mediaInitUFS, mediaGetUFS, NULL, deviceDiskFree, d);
+	    (void)deviceRegister(names[i], names[i], d->name, DEVICE_TYPE_DISK, FALSE, NULL, NULL, NULL, NULL, d);
 	    msgDebug("Found a device of type disk named: %s\n", names[i]);
+
+	    /* Look for existing DOS partitions to register */
+	    for (c1 = d->chunks->part; c1; c1 = c1->next) {
+		if (c1->type == fat) {
+		    Device *dev;
+
+		    /* Got one! */
+		    dev = deviceRegister(c1->name, c1->name, c1->name, DEVICE_TYPE_DOS, TRUE,
+					 mediaInitDOS, mediaGetDOS, NULL, mediaShutdownDOS, NULL);
+		    dev->private = c1;
+		    msgDebug("Found a DOS partition %s on drive %s\n", c1->name, d->name);
+		}
+	    }
 	}
 	free(names);
     }

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.3 1995/05/28 03:04:56 jkh Exp $
+ * $Id: floppy.c,v 1.4 1995/05/29 00:50:01 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -142,7 +142,6 @@ mediaGetFloppy(char *file)
     char		buf[PATH_MAX];
 
     snprintf(buf, PATH_MAX, "/mnt/%s", file);
-
     return open(buf, O_RDONLY);
 }
 

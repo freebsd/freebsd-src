@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: tape.c,v 1.2 1995/05/27 23:39:33 phk Exp $
+ * $Id: tape.c,v 1.3 1995/05/28 03:05:04 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -46,21 +46,59 @@
 /* These routines deal with getting things off of tape media */
 
 #include "sysinstall.h"
+#include <sys/fcntl.h>
+#include <sys/param.h>
+
+static Boolean tapeInitted;
 
 Boolean
 mediaInitTape(Device *dev)
 {
-    return TRUE;
+    int i;
+
+    if (tapeInitted)
+	return TRUE;
+
+    Mkdir("/usr/tmp/tape", NULL);
+    if (chdir("/usr/tmp/tape")) {
+	Mkdir("/var/tmp/tape", NULL);
+	if (chdir("/var/tmp/tape"))
+	    return FALSE;
+    }
+    msgConfirm("Insert tape into %s and press return", dev->description);
+    if (!strcmp(dev->name, "ft0"))
+	i = vsystem("ft | tar xvf -");
+    else
+	i = vsystem("tar xvf %s", dev->devname);
+    if (!i) {
+	tapeInitted = TRUE;
+	return TRUE;
+    }
+    else
+	msgConfirm("Tape extract command failed with status %d!", i);
+    return FALSE;
 }
 
 int
 mediaGetTape(char *file)
 {
-    return -1;
+    char buf[PATH_MAX];
+
+    sprintf(buf, "/usr/tmp/tape/%s", file);
+    if (!access(buf, R_OK))
+	return open(buf, O_RDONLY);
+    sprintf(buf, "/var/tmp/tape/%s", file);
+    return open(buf, O_RDONLY);
 }
 
 void
 mediaShutdownTape(Device *dev)
 {
-    return;
+    if (!tapeInitted)
+	return;
+    if (!access("/usr/tmp/tape", X_OK))
+	(void)vsystem("rm -rf /usr/tmp/tape");
+    else if (!access("/var/tmp/tape", X_OK))
+	(void)vsystem("rm -rf /var/tmp/tape");
+    tapeInitted = FALSE;
 }

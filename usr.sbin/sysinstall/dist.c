@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.30 1995/05/28 09:43:36 jkh Exp $
+ * $Id: dist.c,v 1.31 1995/05/28 20:28:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -250,7 +250,8 @@ distExtract(char *parent, Distribution *me)
         snprintf(buf, 512, "%s/%s.tgz", path, dist);
 	fd = (*mediaDevice->get)(buf);
 	if (fd != -1) {
-	    status = mediaExtractDist(me[i].my_name, me[i].my_dir, fd);
+	    msgNotify("Extracting %s into %s directory...", me[i].my_name, me[i].my_dir);
+	    status = mediaExtractDist(me[i].my_dir, fd);
 	    if (mediaDevice->close)
 		(*mediaDevice->close)(mediaDevice, fd);
 	    else
@@ -260,14 +261,16 @@ distExtract(char *parent, Distribution *me)
 
 	snprintf(buf, sizeof buf, "/stand/info/%s/%s.inf", path, dist);
 	if (!access(buf, R_OK)) {
-	    msgDebug("Parsing attributes file for %s\n", dist);
+	    if (isDebug())
+		msgDebug("Parsing attributes file for %s\n", dist);
 	    dist_attr = safe_malloc(sizeof(Attribs) * MAX_ATTRIBS);
 	    if (attr_parse(&dist_attr, buf) == 0) {
 		msgConfirm("Cannot load information file for %s distribution!\nPlease verify that your media is valid and try again.", dist);
 		return FALSE;
 	    }
    
-	    msgDebug("Looking for attribute `pieces'\n");
+	    if (isDebug())
+		msgDebug("Looking for attribute `pieces'\n");
 	    tmp = attr_match(dist_attr, "pieces");
 	    if (tmp)
 		numchunks = atoi(tmp);
@@ -277,7 +280,8 @@ distExtract(char *parent, Distribution *me)
 	else
 	    numchunks = 0;
 
-	msgDebug("Attempting to extract distribution from %u chunks.\n", numchunks);
+	if (isDebug())
+	    msgDebug("Attempting to extract distribution from %u chunks.\n", numchunks);
 
 	if (numchunks < 2 ) {
 	    snprintf(buf, 512, "%s/%s", path, dist);
@@ -287,7 +291,8 @@ distExtract(char *parent, Distribution *me)
 	    if (fd == -1) {
 		status = FALSE;
 	    } else {
-		status = mediaExtractDist(me[i].my_name, me[i].my_dir, fd);
+		msgNotify("Extracting %s into %s directory...", me[i].my_name, me[i].my_dir);
+		status = mediaExtractDist(me[i].my_dir, fd);
 		if (mediaDevice->close)
 		    (*mediaDevice->close)(mediaDevice, fd);
 		else
@@ -296,9 +301,11 @@ distExtract(char *parent, Distribution *me)
 	    goto done;
 	}
 
-	mediaExtractDistBegin(dist, me[i].my_dir, &fd2, &zpid, &cpid);
+	mediaExtractDistBegin(me[i].my_dir, &fd2, &zpid, &cpid);
+	dialog_clear();
 	for (chunk = 0; chunk < numchunks; chunk++) {
 	    int n, retval;
+	    char prompt[80];
 
 	    snprintf(buf, 512, "%s/%s.%c%c", path, dist,	(chunk / 26) + 'a', (chunk % 26) + 'a');
 	    fd = (*mediaDevice->get)(buf);
@@ -306,6 +313,8 @@ distExtract(char *parent, Distribution *me)
 		msgConfirm("failed to retreive piece file %s!\nAborting the transfer", buf);
 		goto punt;
 	    }
+	    snprintf(prompt, 80, "Extracting %s into %s directory...", me[i].my_name, me[i].my_dir);
+	    dialog_gauge(" Progress ", prompt, 8, 10, 10, 40, (numchunks / (chunk + 1)));
 	    while ((n = read(fd, buf, sizeof buf)) > 0) {
 		retval = write(fd2, buf, n);
 		if (retval != n)
@@ -354,5 +363,6 @@ distExtract(char *parent, Distribution *me)
 void
 distExtractAll(void)
 {
-    distExtract(NULL, DistTable);
+    while (Dists)
+	distExtract(NULL, DistTable);
 }

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.65 1995/05/28 23:12:05 jkh Exp $
+ * $Id: install.c,v 1.66 1995/05/29 00:50:02 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -254,6 +254,10 @@ installCommit(char *str)
 	fclose(fp);
 	hostsModified = TRUE;
     }
+    /* If there's no kernel but there is a kernel.GENERIC, link it over */
+    if (access("/kernel", R_OK))
+	vsystem("ln -f /kernel.GENERIC /kernel");
+
     msgConfirm("Installation completed successfully.\nHit return now to go back to the main menu.");
     SystemWasInstalled = TRUE;
     return 0;
@@ -379,7 +383,7 @@ copy_self(void)
 	msgConfirm("Copy returned error status of %d!", i);
 
     /* Copy the /etc files into their rightful place */
-    (void)vsystem("(cd /stand; find etc) | cpio -pdmv /mnt");
+    (void)vsystem("cd /mnt/stand; find etc | cpio -pdmv /mnt");
 }
 
 static void loop_on_root_floppy();
@@ -391,7 +395,7 @@ root_extract(void)
 
     if (OnCDROM) {
 	fd = open("/floppies/root.flp", O_RDONLY);
-	(void)mediaExtractDist("root.flp", "/", fd);
+	(void)mediaExtractDist("/", fd);
 	return;
     }
     if (mediaDevice) {
@@ -408,7 +412,7 @@ root_extract(void)
 	    fd = (*mediaDevice->get)("floppies/root.flp");
 	    if (fd != -1) {
 		msgNotify("Loading root floppy from %s", mediaDevice->name);
-		(void)mediaExtractDist("root.flp", "/", fd);
+		(void)mediaExtractDist("/", fd);
 		if (mediaDevice->close)
 		    (*mediaDevice->close)(mediaDevice, fd);
 		else
@@ -416,12 +420,14 @@ root_extract(void)
 		if (mediaDevice->shutdown)
 		    (*mediaDevice->shutdown)(mediaDevice);
 	    } else {
+		msgConfirm("Couldn't get root floppy image from %s\n, falling back to floppy.", mediaDevice->name);
 		if (mediaDevice->shutdown)
 		    (*mediaDevice->shutdown)(mediaDevice);
 	        loop_on_root_floppy();
 	    }
 	    break;
 
+	case DEVICE_TYPE_TAPE:
 	case DEVICE_TYPE_FLOPPY:
 	default:
 	    loop_on_root_floppy();
@@ -437,7 +443,11 @@ loop_on_root_floppy(void)
 {
     int fd;
 
-    fd = getRootFloppy();
-    if (fd != -1)
-	mediaExtractDist("root.flp", "/", fd);
+    while (1) {
+	fd = getRootFloppy();
+	if (fd != -1) {
+	    mediaExtractDist("/", fd);
+	    break;
+	}
+    }
 }
