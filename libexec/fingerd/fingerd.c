@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)fingerd.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id: fingerd.c,v 1.12 1999/04/06 23:05:56 brian Exp $";
+	"$Id: fingerd.c,v 1.13 1999/04/07 06:00:22 brian Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -93,7 +93,7 @@ main(argc, argv)
 			break;
 		case '?':
 		default:
-			logerr("illegal option -- %c", ch);
+			logerr("illegal option -- %c", optopt);
 		}
 
 	/*
