@@ -202,7 +202,9 @@ initarm(void *arg, void *arg2)
 	u_int kerneldatasize, symbolsize;
 	u_int l1pagetable;
 	vm_offset_t freemempos;
+	vm_offset_t freemem_pt;
 	vm_offset_t afterkern;
+	vm_offset_t freemem_after;
 	int i = 0;
 	uint32_t fake_preload[35];
 	uint32_t memsize, memstart;
@@ -242,7 +244,6 @@ initarm(void *arg, void *arg2)
 
 	physical_start = (vm_offset_t) SDRAM_START;
 	physical_end =  (vm_offset_t) &end + SDRAM_START - 0xc0000000;
-	afterkern = round_page((vm_offset_t)&end);
 #define KERNEL_TEXT_BASE (KERNBASE + 0x00200000)
 	kerneldatasize = (u_int32_t)&end - (u_int32_t)KERNEL_TEXT_BASE;
 	symbolsize = 0;
@@ -273,7 +274,10 @@ initarm(void *arg, void *arg2)
 		}
 		i++;
 	}
+	freemempos -= 2 * PAGE_SIZE;
 
+	freemem_pt = freemempos;
+	freemempos = 0xa0100000;
 	/*
 	 * Allocate a page for the system page mapped to V0x00000000
 	 * This page will just contain the system vectors and can be
@@ -317,29 +321,66 @@ initarm(void *arg, void *arg2)
 		    &kernel_pt_table[KERNEL_PT_VMDATA + loop]);
 	pmap_link_l2pt(l1pagetable, IQ80321_IOPXS_VBASE,
 	                &kernel_pt_table[KERNEL_PT_IOPXS]);
-	pmap_map_chunk(l1pagetable, KERNBASE + 0x200000, SDRAM_START + 0x200000,
-	   (((uint32_t)(&end) - KERNBASE - 0x200000) + PAGE_SHIFT) & ~PAGE_SHIFT,
+	pmap_map_chunk(l1pagetable, KERNBASE, SDRAM_START,
+	    freemempos - 0xa0000000 + 0x1000,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
+	pmap_map_chunk(l1pagetable, KERNBASE + 0x100000, SDRAM_START + 0x100000,
+	    0x100000, VM_PROT_READ|VM_PROT_WRITE, PTE_PAGETABLE);
+	pmap_map_chunk(l1pagetable, KERNBASE + 0x200000, SDRAM_START + 0x200000,
+	   (((uint32_t)(&end) - KERNBASE - 0x200000) + L1_S_SIZE) & ~(L1_S_SIZE - 1),
+	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
+	freemem_after = ((int)&end + PAGE_SIZE) & ~(PAGE_SIZE - 1);
+	afterkern = round_page(((vm_offset_t)&end + L1_S_SIZE) & ~(L1_S_SIZE 
+	    - 1));
+
 	/* Map the stack pages */
-	pmap_map_chunk(l1pagetable, irqstack.pv_va, irqstack.pv_pa,
-	    IRQ_STACK_SIZE * PAGE_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
-	pmap_map_chunk(l1pagetable, abtstack.pv_va, abtstack.pv_pa,
-	    ABT_STACK_SIZE * PAGE_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
-	pmap_map_chunk(l1pagetable, undstack.pv_va, undstack.pv_pa,
-	    UND_STACK_SIZE * PAGE_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
-	pmap_map_chunk(l1pagetable, kernelstack.pv_va, kernelstack.pv_pa,
-	    KSTACK_PAGES * PAGE_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
-	pmap_map_chunk(l1pagetable, msgbufpv.pv_va, msgbufpv.pv_pa,
-	    MSGBUF_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
-
-
-	pmap_map_chunk(l1pagetable, kernel_l1pt.pv_va, kernel_l1pt.pv_pa,
-	    L1_TABLE_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_PAGETABLE);
-	for (loop = 0; loop < NUM_KERNEL_PTS; ++loop) {
-		pmap_map_chunk(l1pagetable, kernel_pt_table[loop].pv_va,
-		    kernel_pt_table[loop].pv_pa, L2_TABLE_SIZE,
-		    VM_PROT_READ|VM_PROT_WRITE, PTE_PAGETABLE);
+#define	alloc_afterkern(va, pa, size)	\
+	va = freemem_after;		\
+	pa = freemem_after - 0x20000000;\
+	freemem_after += size;
+	if (freemem_after + KSTACK_PAGES * PAGE_SIZE < afterkern) {
+		alloc_afterkern(kernelstack.pv_va, kernelstack.pv_pa, 
+		    KSTACK_PAGES * PAGE_SIZE);
+	} else {
+		pmap_map_chunk(l1pagetable, kernelstack.pv_va, 
+		    kernelstack.pv_pa, KSTACK_PAGES * PAGE_SIZE,
+		    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 	}
+	if (freemem_after + IRQ_STACK_SIZE * PAGE_SIZE < afterkern) {
+		alloc_afterkern(irqstack.pv_va, irqstack.pv_pa, 
+		    IRQ_STACK_SIZE * PAGE_SIZE);
+	} else
+		pmap_map_chunk(l1pagetable, irqstack.pv_va, irqstack.pv_pa,
+		    IRQ_STACK_SIZE * PAGE_SIZE, VM_PROT_READ|VM_PROT_WRITE, 
+		    PTE_CACHE);
+	if (freemem_after + ABT_STACK_SIZE * PAGE_SIZE < afterkern) {
+		alloc_afterkern(abtstack.pv_va, abtstack.pv_pa, 
+		    ABT_STACK_SIZE * PAGE_SIZE);
+	} else
+		pmap_map_chunk(l1pagetable, abtstack.pv_va, abtstack.pv_pa,
+		    ABT_STACK_SIZE * PAGE_SIZE, VM_PROT_READ|VM_PROT_WRITE,
+		    PTE_CACHE);
+	if (freemem_after + UND_STACK_SIZE * PAGE_SIZE < afterkern) {
+		alloc_afterkern(undstack.pv_va, undstack.pv_pa, 
+		    UND_STACK_SIZE * PAGE_SIZE);
+	} else
+		pmap_map_chunk(l1pagetable, undstack.pv_va, undstack.pv_pa,
+		    UND_STACK_SIZE * PAGE_SIZE, VM_PROT_READ|VM_PROT_WRITE, 
+		    PTE_CACHE);
+	if (freemem_after + KSTACK_PAGES * PAGE_SIZE < afterkern) {
+		alloc_afterkern(kernelstack.pv_va, kernelstack.pv_pa, 
+		    KSTACK_PAGES * PAGE_SIZE);
+	} else
+		pmap_map_chunk(l1pagetable, kernelstack.pv_va, 
+		    kernelstack.pv_pa, KSTACK_PAGES * PAGE_SIZE,
+		    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
+	if (freemem_after + MSGBUF_SIZE < afterkern) {
+		alloc_afterkern(msgbufpv.pv_va, msgbufpv.pv_pa, 
+		    IRQ_STACK_SIZE * PAGE_SIZE);
+	} else
+		pmap_map_chunk(l1pagetable, msgbufpv.pv_va, msgbufpv.pv_pa,
+		    MSGBUF_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
+
 	/* Map the Mini-Data cache clean area. */
 	xscale_setup_minidata(l1pagetable, minidataclean.pv_va,
 	    minidataclean.pv_pa);
@@ -412,20 +453,19 @@ initarm(void *arg, void *arg2)
 
 
 	pmap_curmaxkvaddr = afterkern;
-	pmap_curmaxkvaddr &= 0xfff00000;
-	pmap_curmaxkvaddr += 0x00100000;
 	pmap_bootstrap(pmap_curmaxkvaddr, 
 	    0xd0000000, &kernel_l1pt);
 	msgbufp = (void*)msgbufpv.pv_va;
 	msgbufinit(msgbufp, MSGBUF_SIZE);
 	mutex_init();
 	
+	freemempos &= ~(PAGE_SIZE - 1);
 	phys_avail[0] = SDRAM_START;
-	phys_avail[1] = round_page(freemempos);
-	phys_avail[2] = round_page(virtual_avail - KERNBASE + SDRAM_START);
-	phys_avail[3] = trunc_page(0xa0000000 + memsize - 1);
-	phys_avail[4] = 0;
-	phys_avail[5] = 0;
+	phys_avail[1] = freemempos;
+	phys_avail[0] = round_page(virtual_avail - KERNBASE + SDRAM_START);
+	phys_avail[1] = trunc_page(0xa0000000 + memsize - 1);
+	phys_avail[2] = 0;
+	phys_avail[3] = 0;
 	
 	/* Do basic tuning, hz etc */
 	init_param1();
