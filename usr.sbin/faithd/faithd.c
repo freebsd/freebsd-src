@@ -191,7 +191,7 @@ inetd_main(int argc, char **argv)
 	openlog(logname, LOG_PID | LOG_NOWAIT, LOG_DAEMON);
 
 	if (argc >= MAXARGV)
-		exit_failure("too many augments");
+		exit_failure("too many arguments");
 	serverarg[0] = serverpath = path;
 	for (i = 1; i < argc; i++)
 		serverarg[i] = argv[i];
@@ -359,7 +359,7 @@ daemon_main(int argc, char **argv)
 	syslog(LOG_INFO, "Staring faith daemon for %s port", service);
 
 	play_service(s_wld);
-	/*NOTRECHED*/
+	/*NOTREACHED*/
 	exit(1);	/*pacify gcc*/
 }
 
