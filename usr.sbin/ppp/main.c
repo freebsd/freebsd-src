@@ -17,27 +17,38 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.83 1997/10/16 23:55:18 brian Exp $
+ * $Id: main.c,v 1.84 1997/10/24 22:36:30 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
  *		o Add signal handler for misc controls.
  */
-#include "fsm.h"
-#include <fcntl.h>
-#include <paths.h>
-#include <sys/time.h>
-#include <termios.h>
-#include <signal.h>
-#include <sys/wait.h>
-#include <errno.h>
-#include <netdb.h>
-#include <unistd.h>
+#include <sys/param.h>
 #include <sys/socket.h>
-#include <arpa/inet.h>
+#include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <arpa/inet.h>
+#include <netdb.h>
+
+#include <errno.h>
+#include <fcntl.h>
+#include <paths.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/time.h>
+#include <sys/wait.h>
 #include <sysexits.h>
+#include <termios.h>
+#include <unistd.h>
+
+#include "mbuf.h"
+#include "log.h"
+#include "defs.h"
+#include "timer.h"
+#include "fsm.h"
 #include "modem.h"
 #include "os.h"
 #include "hdlc.h"
@@ -45,6 +56,7 @@
 #include "lcp.h"
 #include "ipcp.h"
 #include "loadalias.h"
+#include "command.h"
 #include "vars.h"
 #include "auth.h"
 #include "filter.h"
@@ -53,6 +65,9 @@
 #include "sig.h"
 #include "server.h"
 #include "lcpproto.h"
+#include "main.h"
+#include "vjcomp.h"
+#include "async.h"
 
 #ifndef O_NONBLOCK
 #ifdef O_NDELAY
@@ -60,25 +75,19 @@
 #endif
 #endif
 
-extern void VjInit(int), AsyncInit();
-extern void AsyncInput();
-extern int SelectSystem();
-
-extern void DecodeCommand(), Prompt();
-extern int aft_cmd;
-extern int IsInteractive();
-static void DoLoop(void);
-static void TerminalStop();
-static char *ex_desc();
+int TermMode = 0;
+int tunno = 0;
 
 static struct termios oldtio;	/* Original tty mode */
 static struct termios comtio;	/* Command level tty mode */
-int TermMode;
 static pid_t BGPid = 0;
 static char pid_filename[MAXPATHLEN];
 static char if_filename[MAXPATHLEN];
-int tunno;
 static int dial_up;
+
+static void DoLoop(void);
+static void TerminalStop(int);
+static char *ex_desc(int);
 
 static void
 TtyInit(int DontWantInt)
@@ -197,7 +206,7 @@ CloseConnection(int signo)
   reconnectState = RECON_FALSE;
   reconnectCount = 0;
   DownConnection();
-  dial_up = FALSE;
+  dial_up = 0;
 }
 
 static void
@@ -254,7 +263,7 @@ ex_desc(int ex)
   return num;
 }
 
-void
+static void
 Usage()
 {
   fprintf(stderr,
@@ -262,7 +271,7 @@ Usage()
   exit(EX_START);
 }
 
-void
+static void
 ProcessArgs(int argc, char **argv)
 {
   int optc;
@@ -322,14 +331,11 @@ main(int argc, char **argv)
   char *name;
 
   VarTerm = 0;
-  name = rindex(argv[0], '/');
+  name = strrchr(argv[0], '/');
   LogOpen(name ? name + 1 : argv[0]);
 
   argc--;
   argv++;
-  mode = MODE_INTER;		/* default operation is interactive mode */
-  netfd = modem = tun_in = -1;
-  server = -2;
   ProcessArgs(argc, argv);
   if (!(mode & MODE_DIRECT)) {
     if (getuid() != 0) {
@@ -412,7 +418,7 @@ main(int argc, char **argv)
 	Cleanup(EX_SOCK);
       }
     }
-    /* Create server socket and listen. */
+    /* Create server socket and listen (initial value is -2) */
     if (server == -2)
       ServerTcpOpen(SERVER_PORT + tunno);
 
@@ -633,7 +639,7 @@ static char *FrameHeaders[] = {
   NULL,
 };
 
-u_char *
+static u_char *
 HdlcDetect(u_char * cp, int n)
 {
   char *ptr, *fp, **hp;
@@ -717,9 +723,9 @@ DoLoop()
   reconnectState = RECON_UNKNOWN;
 
   if (mode & MODE_BACKGROUND)
-    dial_up = TRUE;		/* Bring the line up */
+    dial_up = 1;		/* Bring the line up */
   else
-    dial_up = FALSE;		/* XXXX */
+    dial_up = 0;		/* XXXX */
   tries = 0;
   for (;;) {
     nfds = 0;
@@ -731,19 +737,19 @@ DoLoop()
      * If the link is down and we're in DDIAL mode, bring it back up.
      */
     if (mode & MODE_DDIAL && LcpFsm.state <= ST_CLOSED)
-      dial_up = TRUE;
+      dial_up = 1;
 
     /*
      * If we lost carrier and want to re-establish the connection due to the
      * "set reconnect" value, we'd better bring the line back up.
      */
     if (LcpFsm.state <= ST_CLOSED) {
-      if (dial_up != TRUE && reconnectState == RECON_TRUE) {
+      if (!dial_up && reconnectState == RECON_TRUE) {
 	if (++reconnectCount <= VarReconnectTries) {
 	  LogPrintf(LogPHASE, "Connection lost, re-establish (%d/%d)\n",
 		    reconnectCount, VarReconnectTries);
 	  StartRedialTimer(VarReconnectTimer);
-	  dial_up = TRUE;
+	  dial_up = 1;
 	} else {
 	  if (VarReconnectTries)
 	    LogPrintf(LogPHASE, "Connection lost, maximum (%d) times\n",
@@ -772,7 +778,7 @@ DoLoop()
 	if (!(mode & MODE_DDIAL) && VarDialTries && tries >= VarDialTries) {
 	  if (mode & MODE_BACKGROUND)
 	    Cleanup(EX_DIAL);	/* Can't get the modem */
-	  dial_up = FALSE;
+	  dial_up = 0;
 	  reconnectState = RECON_UNKNOWN;
 	  reconnectCount = 0;
 	  tries = 0;
@@ -790,7 +796,7 @@ DoLoop()
 	  nointr_sleep(1);		/* little pause to allow peer starts */
 	  ModemTimeout();
 	  PacketMode();
-	  dial_up = FALSE;
+	  dial_up = 0;
 	  reconnectState = RECON_UNKNOWN;
 	  tries = 0;
 	} else {
@@ -806,7 +812,7 @@ DoLoop()
 		      res == EX_SIG)) {
 	    /* I give up !  Can't get through :( */
 	    StartRedialTimer(VarRedialTimeout);
-	    dial_up = FALSE;
+	    dial_up = 0;
 	    reconnectState = RECON_UNKNOWN;
 	    reconnectCount = 0;
 	    tries = 0;
@@ -983,7 +989,7 @@ DoLoop()
 	      n = ntohs(((struct ip *) rbuff)->ip_len);
 	    }
 	    bp = mballoc(n, MB_IPIN);
-	    bcopy(rbuff, MBUF_CTOP(bp), n);
+	    memcpy(MBUF_CTOP(bp), rbuff, n);
 	    IpInput(bp);
 	    LogPrintf(LogDEBUG, "Looped back packet addressed to myself\n");
 	  }
@@ -1004,7 +1010,7 @@ DoLoop()
 	    n = ntohs(((struct ip *) rbuff)->ip_len);
 	  }
 	  IpEnqueue(pri, rbuff, n);
-	  dial_up = TRUE;	/* XXX */
+	  dial_up = 1;	/* XXX */
 	}
 	continue;
       }

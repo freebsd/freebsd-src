@@ -17,22 +17,32 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.16 1997/09/04 00:38:17 brian Exp $
+ * $Id: auth.c,v 1.17 1997/09/09 21:51:38 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
  */
+#include <sys/param.h>
+#include <netinet/in.h>
+
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+
+#include "mbuf.h"
+#include "log.h"
+#include "defs.h"
+#include "timer.h"
 #include "fsm.h"
 #include "lcpproto.h"
 #include "ipcp.h"
 #include "loadalias.h"
+#include "command.h"
 #include "vars.h"
 #include "filter.h"
 #include "auth.h"
 #include "chat.h"
-
-extern FILE *OpenSecret();
-extern void CloseSecret();
+#include "systems.h"
 
 void
 LocalAuthInit()
@@ -73,7 +83,7 @@ LocalAuthValidate(char *fname, char *system, char *key)
     if (buff[0] == '#')
       continue;
     buff[strlen(buff) - 1] = 0;
-    bzero(vector, sizeof(vector));
+    memset(vector, '\0', sizeof(vector));
     n = MakeArgs(buff, vector, VECSIZE(vector));
     if (n < 1)
       continue;
@@ -107,7 +117,7 @@ AuthValidate(char *fname, char *system, char *key)
     if (buff[0] == '#')
       continue;
     buff[strlen(buff) - 1] = 0;
-    bzero(vector, sizeof(vector));
+    memset(vector, '\0', sizeof(vector));
     n = MakeArgs(buff, vector, VECSIZE(vector));
     if (n < 2)
       continue;
@@ -115,7 +125,7 @@ AuthValidate(char *fname, char *system, char *key)
       ExpandString(vector[1], passwd, sizeof(passwd), 0);
       if (strcmp(passwd, key) == 0) {
 	CloseSecret(fp);
-	bzero(&DefHisAddress, sizeof(DefHisAddress));
+	memset(&DefHisAddress, '\0', sizeof(DefHisAddress));
 	n -= 2;
 	if (n > 0) {
 	  if (ParseAddr(n--, &vector[2],
@@ -150,14 +160,14 @@ AuthGetSecret(char *fname, char *system, int len, int setaddr)
     if (buff[0] == '#')
       continue;
     buff[strlen(buff) - 1] = 0;
-    bzero(vector, sizeof(vector));
+    memset(vector, '\0', sizeof(vector));
     n = MakeArgs(buff, vector, VECSIZE(vector));
     if (n < 2)
       continue;
     if (strlen(vector[0]) == len && strncmp(vector[0], system, len) == 0) {
       ExpandString(vector[1], passwd, sizeof(passwd), 0);
       if (setaddr) {
-	bzero(&DefHisAddress, sizeof(DefHisAddress));
+	memset(&DefHisAddress, '\0', sizeof(DefHisAddress));
       }
       n -= 2;
       if (n > 0 && setaddr) {
@@ -176,7 +186,7 @@ AuthGetSecret(char *fname, char *system, int len, int setaddr)
 }
 
 static void
-AuthTimeout(struct authinfo * authp)
+AuthTimeout(struct authinfo *authp)
 {
   struct pppTimer *tp;
 
@@ -189,7 +199,7 @@ AuthTimeout(struct authinfo * authp)
 }
 
 void
-StartAuthChallenge(struct authinfo * authp)
+StartAuthChallenge(struct authinfo *authp)
 {
   struct pppTimer *tp;
 
@@ -206,7 +216,7 @@ StartAuthChallenge(struct authinfo * authp)
 }
 
 void
-StopAuthTimer(struct authinfo * authp)
+StopAuthTimer(struct authinfo *authp)
 {
   StopTimer(&authp->authtimer);
 }

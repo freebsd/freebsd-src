@@ -17,12 +17,23 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.18 1997/09/10 21:33:32 brian Exp $
+ * $Id: fsm.c,v 1.19 1997/09/10 23:55:35 brian Exp $
  *
  *  TODO:
  *		o Refer loglevel for log output
  *		o Better option log display
  */
+#include <sys/param.h>
+#include <netinet/in.h>
+
+#include <stdio.h>
+#include <string.h>
+#include <termios.h>
+
+#include "mbuf.h"
+#include "log.h"
+#include "defs.h"
+#include "timer.h"
 #include "fsm.h"
 #include "hdlc.h"
 #include "lqr.h"
@@ -31,13 +42,21 @@
 #include "ccp.h"
 #include "modem.h"
 #include "loadalias.h"
+#include "command.h"
 #include "vars.h"
 #include "pred.h"
 
-void FsmSendConfigReq(struct fsm * fp);
-void FsmSendTerminateReq(struct fsm * fp);
-void FsmInitRestartCounter(struct fsm * fp);
-void FsmTimeout(struct fsm * fp);
+u_char AckBuff[200];
+u_char NakBuff[200];
+u_char RejBuff[100];
+u_char ReqBuff[200];
+u_char *ackp = NULL;
+u_char *nakp = NULL;
+u_char *rejp = NULL;
+
+static void FsmSendConfigReq(struct fsm *);
+static void FsmSendTerminateReq(struct fsm *);
+static void FsmInitRestartCounter(struct fsm *);
 
 char const *StateNames[] = {
   "Initial", "Starting", "Closed", "Stopped", "Closing", "Stopping",
@@ -64,7 +83,7 @@ FsmInit(struct fsm * fp)
   fp->maxconfig = 3;
 }
 
-void
+static void
 NewState(struct fsm * fp, int new)
 {
   LogPrintf(fp->LogLevel, "State change %s --> %s\n",
@@ -95,9 +114,9 @@ FsmOutput(struct fsm * fp, u_int code, u_int id, u_char * ptr, int count)
   lh.id = id;
   lh.length = htons(plen);
   bp = mballoc(plen, MB_FSM);
-  bcopy(&lh, MBUF_CTOP(bp), sizeof(struct fsmheader));
+  memcpy(MBUF_CTOP(bp), &lh, sizeof(struct fsmheader));
   if (count)
-    bcopy(ptr, MBUF_CTOP(bp) + sizeof(struct fsmheader), count);
+    memcpy(MBUF_CTOP(bp) + sizeof(struct fsmheader), ptr, count);
   LogDumpBp(LogDEBUG, "FsmOutput", bp);
   HdlcOutput(PRI_LINK, fp->proto, bp);
 }
@@ -205,7 +224,7 @@ FsmClose(struct fsm * fp)
 /*
  *	Send functions
  */
-void
+static void
 FsmSendConfigReq(struct fsm * fp)
 {
   if (--fp->maxconfig > 0) {
@@ -217,7 +236,7 @@ FsmSendConfigReq(struct fsm * fp)
   }
 }
 
-void
+static void
 FsmSendTerminateReq(struct fsm * fp)
 {
   LogPrintf(fp->LogLevel, "SendTerminateReq.\n");
@@ -263,7 +282,7 @@ FsmSendConfigNak(struct fsm * fp,
 /*
  *	Timeout actions
  */
-void
+static void
 FsmTimeout(struct fsm * fp)
 {
   if (fp->restart) {
@@ -302,7 +321,7 @@ FsmTimeout(struct fsm * fp)
   }
 }
 
-void
+static void
 FsmInitRestartCounter(struct fsm * fp)
 {
   StopTimer(&fp->FsmTimer);
@@ -315,7 +334,7 @@ FsmInitRestartCounter(struct fsm * fp)
 /*
  *   Actions when receive packets
  */
-void
+static void
 FsmRecvConfigReq(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 /* RCR */
 {
@@ -400,7 +419,7 @@ FsmRecvConfigReq(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
   pfree(bp);
 }
 
-void
+static void
 FsmRecvConfigAck(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 /* RCA */
 {
@@ -434,7 +453,7 @@ FsmRecvConfigAck(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
   pfree(bp);
 }
 
-void
+static void
 FsmRecvConfigNak(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 /* RCN */
 {
@@ -487,7 +506,7 @@ FsmRecvConfigNak(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
   pfree(bp);
 }
 
-void
+static void
 FsmRecvTermReq(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 /* RTR */
 {
@@ -519,7 +538,7 @@ FsmRecvTermReq(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
   pfree(bp);
 }
 
-void
+static void
 FsmRecvTermAck(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 /* RTA */
 {
@@ -544,7 +563,7 @@ FsmRecvTermAck(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
   pfree(bp);
 }
 
-void
+static void
 FsmRecvConfigRej(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 /* RCJ */
 {
@@ -597,14 +616,14 @@ FsmRecvConfigRej(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
   pfree(bp);
 }
 
-void
+static void
 FsmRecvCodeRej(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 {
   LogPrintf(fp->LogLevel, "RecvCodeRej\n");
   pfree(bp);
 }
 
-void
+static void
 FsmRecvProtoRej(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 {
   u_short *sp, proto;
@@ -633,7 +652,7 @@ FsmRecvProtoRej(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
   pfree(bp);
 }
 
-void
+static void
 FsmRecvEchoReq(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 {
   u_char *cp;
@@ -654,7 +673,7 @@ FsmRecvEchoReq(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
   pfree(bp);
 }
 
-void
+static void
 FsmRecvEchoRep(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 {
   u_long *lp, magic;
@@ -677,28 +696,28 @@ FsmRecvEchoRep(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
   pfree(bp);
 }
 
-void
+static void
 FsmRecvDiscReq(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 {
   LogPrintf(fp->LogLevel, "RecvDiscReq\n");
   pfree(bp);
 }
 
-void
+static void
 FsmRecvIdent(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 {
   LogPrintf(fp->LogLevel, "RecvIdent\n");
   pfree(bp);
 }
 
-void
+static void
 FsmRecvTimeRemain(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 {
   LogPrintf(fp->LogLevel, "RecvTimeRemain\n");
   pfree(bp);
 }
 
-void
+static void
 FsmRecvResetReq(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 {
   LogPrintf(fp->LogLevel, "RecvResetReq\n");
@@ -708,7 +727,7 @@ FsmRecvResetReq(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
   pfree(bp);
 }
 
-void
+static void
 FsmRecvResetAck(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
 {
   LogPrintf(fp->LogLevel, "RecvResetAck\n");

@@ -17,17 +17,27 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vjcomp.c,v 1.9 1997/08/25 00:29:32 brian Exp $
+ * $Id: vjcomp.c,v 1.10 1997/10/07 00:56:58 brian Exp $
  *
  *  TODO:
  */
-#include "fsm.h"
-#include "lcpproto.h"
+#include <sys/types.h>
+#include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+
+#include <string.h>
+
+#include "mbuf.h"
+#include "log.h"
+#include "defs.h"
+#include "timer.h"
+#include "fsm.h"
+#include "lcpproto.h"
 #include "slcompress.h"
 #include "hdlc.h"
 #include "ipcp.h"
+#include "vjcomp.h"
 
 #define MAX_VJHEADER 16		/* Maximum size of compressed header */
 
@@ -114,7 +124,7 @@ VjUncompressTcp(struct mbuf * bp, u_char type)
   len -= olen;
   len += rlen;
   nbp = mballoc(len, MB_VJCOMP);
-  bcopy(bufp, MBUF_CTOP(nbp), len);
+  memcpy(MBUF_CTOP(nbp), bufp, len);
   nbp->next = bp;
   return (nbp);
 }

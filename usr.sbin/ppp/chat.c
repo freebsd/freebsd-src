@@ -18,45 +18,55 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id: chat.c,v 1.33 1997/08/31 22:59:15 brian Exp $
+ * $Id: chat.c,v 1.34 1997/10/24 22:36:27 brian Exp $
  *
  *  TODO:
  *	o Support more UUCP compatible control sequences.
  *	o Dialing shoud not block monitor process.
  *	o Reading modem by select should be unified into main.c
  */
-#include "defs.h"
-#include <ctype.h>
-#include <sys/uio.h>
-#ifndef isblank
-#define	isblank(c)	((c) == '\t' || (c) == ' ')
-#endif
-#include <sys/time.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <signal.h>
-#include <sys/wait.h>
-#include <sys/types.h>
-#include <sys/socket.h>
 #include <sys/param.h>
 #include <netinet/in.h>
+
+#include <ctype.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <setjmp.h>
-#include "timeout.h"
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+#include <sys/uio.h>
+#include <sys/wait.h>
+#include <termios.h>
+#include <unistd.h>
+
+#include "mbuf.h"
+#include "log.h"
+#include "defs.h"
+#include "timer.h"
 #include "loadalias.h"
+#include "command.h"
 #include "vars.h"
 #include "chat.h"
 #include "sig.h"
 #include "chat.h"
+#include "modem.h"
+
+#ifndef isblank
+#define	isblank(c)	((c) == '\t' || (c) == ' ')
+#endif
+
 
 #define	IBSIZE 200
 
 static int TimeoutSec;
 static int abort_next, timeout_next;
 static int numaborts;
-char *AbortStrings[50];
-char inbuff[IBSIZE * 2 + 1];
-
-extern int ChangeParity(char *);
+static char *AbortStrings[50];
+static char inbuff[IBSIZE * 2 + 1];
 
 #define	MATCH	1
 #define	NOMATCH	0
@@ -265,7 +275,7 @@ connect_log(char *str, int single_p)
     flush_log();
 }
 
-int
+static int
 WaitforString(char *estr)
 {
   struct timeval timeout;
@@ -331,8 +341,8 @@ WaitforString(char *estr)
 	int length;
 
 	if ((length = strlen(inbuff)) > IBSIZE) {
-	  bcopy(&(inbuff[IBSIZE]), inbuff, IBSIZE + 1);	/* shuffle down next
-							 * part */
+	  /* shuffle down next part */
+	  memcpy(inbuff, &(inbuff[IBSIZE]), IBSIZE + 1);
 	  length = strlen(inbuff);
 	}
 	nb = read(modem, &(inbuff[length]), IBSIZE);
@@ -376,7 +386,7 @@ WaitforString(char *estr)
 	} else
 	  s = str;
 	if (inp == inbuff + IBSIZE) {
-	  bcopy(inp - 100, inbuff, 100);
+	  memcpy(inbuff, inp - 100, 100);
 	  inp = inbuff + 100;
 	}
 	if (s == str) {
@@ -402,7 +412,7 @@ WaitforString(char *estr)
   }
 }
 
-void
+static void
 ExecStr(char *command, char *out)
 {
   int pid;
@@ -411,7 +421,6 @@ ExecStr(char *command, char *out)
   int stat, nb;
   char *cp;
   char tmp[300];
-  extern int errno;
 
   cp = inbuff + strlen(inbuff) - 1;
   while (cp > inbuff) {
@@ -479,7 +488,7 @@ ExecStr(char *command, char *out)
   }
 }
 
-void
+static void
 SendString(char *str)
 {
   char *cp;
@@ -508,7 +517,7 @@ SendString(char *str)
       LogPrintf(LogCHAT, "sending: %s\n", buff + 2);
     cp = buff;
     if (DEV_IS_SYNC)
-      bcopy("\377\003", buff, 2);	/* Prepend HDLC header */
+      memcpy(buff, "\377\003", 2);	/* Prepend HDLC header */
     else
       cp += 2;
     on = strlen(cp);
@@ -516,7 +525,7 @@ SendString(char *str)
   }
 }
 
-int
+static int
 ExpectString(char *str)
 {
   char *minus;
@@ -611,7 +620,7 @@ DoChat(char *script)
   }
   numaborts = 0;
 
-  bzero(vector, sizeof(vector));
+  memset(vector, '\0', sizeof(vector));
   n = MakeArgs(script, vector, VECSIZE(vector));
   argc = n;
   argv = vector;

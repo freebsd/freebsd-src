@@ -15,39 +15,35 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id$
+ * $Id: timeout.h,v 1.12 1997/09/03 00:40:51 brian Exp $
  *
  *	TODO:
  */
 
-/*
- * GLOBAL.H - RSAREF types and constants
- */
+#define	TICKUNIT	100000	/* Unit in usec */
+#define	SECTICKS	(1000000/TICKUNIT)
 
-/* PROTOTYPES should be set to one if and only if the compiler supports
-  function argument prototyping.
-The following makes PROTOTYPES default to 0 if it has not already
-  been defined with C compiler flags.
- */
-#ifndef PROTOTYPES
-#define PROTOTYPES 0
-#endif
+struct pppTimer {
+  int state;
+  u_long rest;			/* Ticks to expire */
+  u_long load;			/* Initial load value */
+  void (*func)();		/* Function called when timer is expired */
+  void *arg;			/* Argument passed to timeout function */
+  struct pppTimer *next;	/* Link to next timer */
+  struct pppTimer *enext;	/* Link to next expired timer */
+};
 
-/* POINTER defines a generic pointer type */
-typedef unsigned char *POINTER;
+#define	TIMER_STOPPED	0
+#define	TIMER_RUNNING	1
+#define	TIMER_EXPIRED	2
 
-/* UINT2 defines a two byte word */
-typedef unsigned short int UINT2;
+extern struct pppTimer *TimerList;
 
-/* UINT4 defines a four byte word */
-typedef unsigned long int UINT4;
-
-/* PROTO_LIST is defined depending on how PROTOTYPES is defined above.
-If using PROTOTYPES, then PROTO_LIST returns the list, otherwise it
-  returns an empty list.
- */
-#if PROTOTYPES
-#define PROTO_LIST(list) list
-#else
-#define PROTO_LIST(list) ()
-#endif
+extern void StartTimer(struct pppTimer *);
+extern void StopTimer(struct pppTimer *);
+extern void TimerService(void);
+extern void TermTimerService(void);
+extern void StartIdleTimer(void);
+extern void StopIdleTimer(void);
+extern void UpdateIdleTimer(void);
+extern void ShowTimers(void);

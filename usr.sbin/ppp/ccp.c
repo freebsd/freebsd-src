@@ -17,26 +17,37 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.15 1997/08/25 00:29:06 brian Exp $
+ * $Id: ccp.c,v 1.16 1997/09/10 21:33:31 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
  */
+#include <sys/param.h>
+#include <netinet/in.h>
+
+#include <stdio.h>
+#include <string.h>
+
+#include "mbuf.h"
+#include "log.h"
+#include "defs.h"
+#include "timer.h"
 #include "fsm.h"
 #include "lcpproto.h"
 #include "lcp.h"
 #include "ccp.h"
 #include "phase.h"
 #include "loadalias.h"
+#include "command.h"
 #include "vars.h"
 #include "pred.h"
 
 struct ccpstate CcpInfo;
 
 static void CcpSendConfigReq(struct fsm *);
-static void CcpSendTerminateReq(struct fsm * fp);
-static void CcpSendTerminateAck(struct fsm * fp);
-static void CcpDecodeConfig(u_char * cp, int flen, int mode);
+static void CcpSendTerminateReq(struct fsm *);
+static void CcpSendTerminateAck(struct fsm *);
+static void CcpDecodeConfig(u_char *, int, int);
 static void CcpLayerStart(struct fsm *);
 static void CcpLayerFinish(struct fsm *);
 static void CcpLayerUp(struct fsm *);
@@ -99,21 +110,21 @@ CcpInit()
   struct ccpstate *icp = &CcpInfo;
 
   FsmInit(&CcpFsm);
-  bzero(icp, sizeof(struct ccpstate));
+  memset(icp, '\0', sizeof(struct ccpstate));
   if (Enabled(ConfPred1))
     icp->want_proto = TY_PRED1;
   CcpFsm.maxconfig = 10;
 }
 
 static void
-CcpInitRestartCounter(struct fsm * fp)
+CcpInitRestartCounter(struct fsm *fp)
 {
   fp->FsmTimer.load = VarRetryTimeout * SECTICKS;
   fp->restart = 5;
 }
 
 static void
-CcpSendConfigReq(struct fsm * fp)
+CcpSendConfigReq(struct fsm *fp)
 {
   u_char *cp;
   struct ccpstate *icp = &CcpInfo;
@@ -128,45 +139,45 @@ CcpSendConfigReq(struct fsm * fp)
 }
 
 void
-CcpSendResetReq(struct fsm * fp)
+CcpSendResetReq(struct fsm *fp)
 {
   LogPrintf(LogCCP, "CcpSendResetReq\n");
   FsmOutput(fp, CODE_RESETREQ, fp->reqid, NULL, 0);
 }
 
 static void
-CcpSendTerminateReq(struct fsm * fp)
+CcpSendTerminateReq(struct fsm *fp)
 {
   /* XXX: No code yet */
 }
 
 static void
-CcpSendTerminateAck(struct fsm * fp)
+CcpSendTerminateAck(struct fsm *fp)
 {
   LogPrintf(LogCCP, "CcpSendTerminateAck\n");
   FsmOutput(fp, CODE_TERMACK, fp->reqid++, NULL, 0);
 }
 
 void
-CcpRecvResetReq(struct fsm * fp)
+CcpRecvResetReq(struct fsm *fp)
 {
   Pred1Init(2);			/* Initialize Output part */
 }
 
 static void
-CcpLayerStart(struct fsm * fp)
+CcpLayerStart(struct fsm *fp)
 {
   LogPrintf(LogCCP, "CcpLayerStart.\n");
 }
 
 static void
-CcpLayerFinish(struct fsm * fp)
+CcpLayerFinish(struct fsm *fp)
 {
   LogPrintf(LogCCP, "CcpLayerFinish.\n");
 }
 
 static void
-CcpLayerDown(struct fsm * fp)
+CcpLayerDown(struct fsm *fp)
 {
   LogPrintf(LogCCP, "CcpLayerDown.\n");
 }
@@ -175,7 +186,7 @@ CcpLayerDown(struct fsm * fp)
  *  Called when CCP has reached to OPEN state
  */
 static void
-CcpLayerUp(struct fsm * fp)
+CcpLayerUp(struct fsm *fp)
 {
   LogPrintf(LogCCP, "CcpLayerUp(%d).\n", fp->state);
   LogPrintf(LogCCP, "myproto = %d, hisproto = %d\n",
@@ -198,7 +209,7 @@ CcpOpen()
 }
 
 static void
-CcpDecodeConfig(u_char * cp, int plen, int mode)
+CcpDecodeConfig(u_char *cp, int plen, int mode)
 {
   int type, length;
   char tbuff[100];
@@ -224,11 +235,11 @@ CcpDecodeConfig(u_char * cp, int plen, int mode)
       switch (mode) {
       case MODE_REQ:
 	if (Acceptable(ConfPred1)) {
-	  bcopy(cp, ackp, length);
+	  memcpy(ackp, cp, length);
 	  ackp += length;
 	  CcpInfo.his_proto = type;
 	} else {
-	  bcopy(cp, rejp, length);
+	  memcpy(rejp, cp, length);
 	  rejp += length;
 	}
 	break;
@@ -242,7 +253,7 @@ CcpDecodeConfig(u_char * cp, int plen, int mode)
     case TY_BSD:
     default:
       CcpInfo.my_reject |= (1 << type);
-      bcopy(cp, rejp, length);
+      memcpy(rejp, cp, length);
       rejp += length;
       break;
     }
@@ -252,7 +263,7 @@ CcpDecodeConfig(u_char * cp, int plen, int mode)
 }
 
 void
-CcpInput(struct mbuf * bp)
+CcpInput(struct mbuf *bp)
 {
   if (phase == PHASE_NETWORK)
     FsmInput(&CcpFsm, bp);

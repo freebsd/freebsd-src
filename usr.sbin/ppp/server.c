@@ -1,23 +1,32 @@
-#include <sys/types.h>
-#include <sys/stat.h>
+/*
+ * $Id: $
+ */
+
+#include <sys/param.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <sys/un.h>
 #include <arpa/inet.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
-#include <string.h>
-#include <stdio.h>
+
 #include <errno.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/un.h>
 #include <unistd.h>
+
 #include "mbuf.h"
 #include "log.h"
 #include "loadalias.h"
+#include "command.h"
 #include "vars.h"
 #include "server.h"
+#include "log.h"
 #include "defs.h"
 
-int server = UNKNOWN_SERVER;
+int server = -2;
+
 static struct sockaddr_un ifsun;
 static char *rm;
 
@@ -130,17 +139,4 @@ ServerClose()
     }
   }
   server = -1;
-}
-
-int
-ServerType()
-{
-  if (server == UNKNOWN_SERVER)
-    return UNKNOWN_SERVER;
-  else if (server == NO_SERVER)
-    return NO_SERVER;
-  else if (rm)
-    return LOCAL_SERVER;
-  else
-    return INET_SERVER;
 }

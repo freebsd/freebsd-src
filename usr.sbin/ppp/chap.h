@@ -15,19 +15,14 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.h,v 1.6 1997/06/09 03:27:15 brian Exp $
+ * $Id: chap.h,v 1.7 1997/09/17 23:17:50 brian Exp $
  *
  *	TODO:
  */
-
-#ifndef _CHAP_H_
-#define	_CHAP_H_
-#include <md4.h>
-#include <md5.h>
-#include "global.h"
 
 #define	CHAP_CHALLENGE	1
 #define	CHAP_RESPONSE	2
 #define	CHAP_SUCCESS	3
 #define	CHAP_FAILURE	4
-#endif
+
+extern struct authinfo AuthChapInfo;

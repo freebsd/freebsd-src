@@ -17,14 +17,14 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.h,v 1.5 1997/06/09 03:27:38 brian Exp $
+ * $Id: systems.h,v 1.6 1997/08/25 00:29:29 brian Exp $
  *
  */
 
-#ifndef _SYSTEMS_H_
-#define	_SYSTEMS_H_
 extern int OrigUid(void);
 extern void GetUid(void);
 extern int SelectSystem(char *, char *);
-
-#endif
+extern FILE *OpenSecret(char *);
+extern void CloseSecret(FILE *);
+extern int LoadCommand(struct cmdtab const *, int, char **);
+extern int SaveCommand(struct cmdtab const *, int, char **);

@@ -15,13 +15,10 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.h,v 1.9 1997/08/25 00:29:15 brian Exp $
+ * $Id: ipcp.h,v 1.10 1997/09/03 02:08:19 brian Exp $
  *
  *	TODO:
  */
-
-#ifndef _IPCP_H_
-#define _IPCP_H_
 
 #define	IPCP_MAXCODE	CODE_CODEREJ
 
@@ -36,6 +33,9 @@
 #define TY_PRIMARY_NBNS		130
 #define TY_SECONDARY_DNS	131
 #define TY_SECONDARY_NBNS	132
+
+extern struct in_addr ns_entries[2];
+extern struct in_addr nbns_entries[2];
 #endif
 
 struct ipcpstate {
@@ -67,16 +67,11 @@ extern struct in_range DefMyAddress;
 extern struct in_range DefHisAddress;
 extern struct in_addr TriggerAddress;
 extern int HaveTriggerAddress;
-
-#ifndef NOMSEXT
-extern struct in_addr ns_entries[2];
-extern struct in_addr nbns_entries[2];
-
-#endif
+extern struct fsm IpcpFsm;
+extern struct pppTimer IpcpReportTimer;
 
 extern void IpcpInit(void);
 extern void IpcpDefAddress(void);
-extern int IpcpOctetsIn(void);
-extern int IpcpOctetsOut(void);
-
-#endif
+extern void IpcpUp(void);
+extern void IpcpOpen(void);
+extern int ReportIpcpStatus(void);
