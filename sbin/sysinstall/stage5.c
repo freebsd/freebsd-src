@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: stage5.c,v 1.11 1994/11/07 09:49:06 jkh Exp $
+ * $Id: stage5.c,v 1.12 1994/11/07 13:48:53 jkh Exp $
  *
  */
 
@@ -36,7 +36,7 @@ stage5()
 {
 	int exec_sh = 1;
 
-	if (!dialog_yesno("End of initial installation", msg, 15, 76))
+	if (!dialog_yesno("End of initial installation", msg, 10, 76))
 		exec_sh = 0;
 	end_dialog();
 	dialog_active=0;
