@@ -37,20 +37,22 @@ The
 .Nm
 utility uses the
 .Xr syscons 4
-.Li CONS_SCRSHOT
-ioctl to capture the current contents of the video buffer corresponding to the
+.Dv CONS_SCRSHOT
+.Xr ioctl 2
+to capture the current contents of the video buffer corresponding to the
 terminal device given as the first argument.
 .Nm
 writes version and additional information to the standard output, followed by
 the contents of the terminal device.
 .Sh IMPLEMENTATION NOTES
 PC video memory is typically arranged in two byte tuples, one per character
-position.  In each tuple, the first byte will be the character code, and the
-second byte is the character's colour attribute.
+position.
+In each tuple, the first byte will be the character code, and the
+second byte is the character's color attribute.
 .Pp
-The colour attribute byte is further broken down in to the low nybble, which
-specifies which of 16 different foreground colours is active, and the high
-nybble, which specifies which of 16 different background colours is active.
+The color attribute byte is further broken down in to the low nibble, which
+specifies which of 16 different foreground colors is active, and the high
+nibble, which specifies which of 16 different background colors is active.
 .Pp
 .Bl -hang -offset indent -compact
 .It 0
@@ -87,15 +89,14 @@ Yellow
 White
 .El
 .Pp
-It can be seen that the last 8 colours are brighter versions of the first 8.
+It can be seen that the last 8 colors are brighter versions of the first 8.
 .Pp
 For example, the two bytes
-.Bd -literal -offset indent
-65 158
-.Ed
 .Pp
-specify an uppercase A (character code 65), in yellow (low nybble 15) on a
-light blue background (high nybble 9).
+.Dl "65 158"
+.Pp
+specify an uppercase A (character code 65), in yellow (low nibble 15) on a
+light blue background (high nibble 9).
 .Pp
 The
 .Nm
@@ -103,19 +104,19 @@ output contains a small header which includes additional information which may
 be useful to utilities processing the output.
 .Pp
 The first 10 bytes are always arranged as follows:
-.Bl -column "Byte range " "Contents " -offset -indent
-.It Sy Byte Range Ta Sy Contents
-.It 1 thru 8 Ta Literal text Dq SCRSHOT_
-.It 9 Ta File format version number
-.It 10 Ta Remaining number of bytes in the header
+.Bl -column "Byte range" "Contents" -offset indent
+.It Sy "Byte Range	Contents"
+.It "1 thru 8	Literal text" Dq Li SCRSHOT_
+.It "9	File format version number"
+.It "10	Remaining number of bytes in the header"
 .El
 .Pp
 Subsequent bytes depend on the version number.
-.Bl -column "Version " "4 and up" -offset indent
-.It Sy Version Ta Sy Byte Ta Sy Meaning
-.It 1 Ta 11 Ta Terminal width, in characters
-.It Ta 12 Ta Terminal depth, in characters
-.It Ta 13 and up Ta The snapshot data
+.Bl -column "Version" "13 and up" -offset indent
+.It Sy "Version	Byte	Meaning"
+.It "1	11	Terminal width, in characters"
+.It "	12	Terminal depth, in characters"
+.It "	13 and up	The snapshot data"
 .El
 .Pp
 So a dump of an 80x25 screen would start (in hex)
@@ -128,24 +129,23 @@ So a dump of an 80x25 screen would start (in hex)
           |              `--------- File format version 1
           `------------------------ Literal "SCRSHOT_"
 .Ed
-.Sh RETURN VALUES
-The
-.Nm
-utility exits 0 on success or >0 if an error occurred.
 .Sh EXAMPLES
 The command:
-.Bd -literal -offset indent
-.Ic scrshot /dev/ttyv0 > shot.scr
-.Ed
+.Pp
+.Dl "scrshot /dev/ttyv0 > shot.scr"
 .Pp
 will capture the contents of the first virtual terminal, and redirect the
 output to the
-.Li shot.scr
+.Pa shot.scr
 file.
+.Sh DIAGNOSTICS
+The
+.Nm
+utility exits 0 on success or >0 if an error occurred.
 .Sh SEE ALSO
 .Xr syscons 4 ,
 .Xr ascii 7 ,
-.Xr watch 8 .
+.Xr watch 8
 .Pp
 The various
 .Li shot2*
@@ -155,11 +155,8 @@ category of the ports collection.
 .Sh HISTORY
 A
 .Nm
-utility appeared in
-.Fx 5.0
-and was backported to
+utility first appeared in
 .Fx 4.4 .
 .Sh AUTHORS
 .An Joel Holveck Aq joelh@gnu.org
-and
 .An Nik Clayton Aq nik@FreeBSD.org
