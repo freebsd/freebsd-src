@@ -151,7 +151,7 @@ ndis_probe_pccard(dev)
 	int			error;
 	driver_object		*drv;
 
-	drv = windrv_lookup(NULL, "PCCARD Bus"); 
+	drv = windrv_lookup(0, "PCCARD Bus"); 
 	if (drv == NULL)
 		return(ENXIO);
 

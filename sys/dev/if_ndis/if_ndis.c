@@ -479,11 +479,11 @@ ndis_attach(dev)
 	/* Find the PDO for this device instance. */
 
 	if (sc->ndis_iftype == PCIBus)
-		pdrv = windrv_lookup(NULL, "PCI Bus");
+		pdrv = windrv_lookup(0, "PCI Bus");
 	else if (sc->ndis_iftype == PCMCIABus)
-		pdrv = windrv_lookup(NULL, "PCCARD Bus");
+		pdrv = windrv_lookup(0, "PCCARD Bus");
 	else
-		pdrv = windrv_lookup(NULL, "USB Bus");
+		pdrv = windrv_lookup(0, "USB Bus");
 	pdo = windrv_find_pdo(pdrv, dev);
 
 	/*
@@ -876,11 +876,11 @@ ndis_detach(dev)
 	/* Destroy the PDO for this device. */
 	
 	if (sc->ndis_iftype == PCIBus)
-		drv = windrv_lookup(NULL, "PCI Bus");
+		drv = windrv_lookup(0, "PCI Bus");
 	else if (sc->ndis_iftype == PCMCIABus)
-		drv = windrv_lookup(NULL, "PCCARD Bus");
+		drv = windrv_lookup(0, "PCCARD Bus");
 	else
-		drv = windrv_lookup(NULL, "USB Bus");
+		drv = windrv_lookup(0, "USB Bus");
 	if (drv == NULL)
 		panic("couldn't find driver object");
 	windrv_destroy_pdo(drv, dev);
