@@ -432,8 +432,7 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-"usage: xargs [-0pt] [-E eofstr] [-I replstr] [-J replstr] [-L number]\n");
-	fprintf(stderr,
+"usage: xargs [-0pt] [-E eofstr] [-I replstr] [-J replstr] [-L number]\n"
 "             [-n number [-x] [-s size] [utility [argument ...]]\n");
 	exit(1);
 }
