@@ -93,7 +93,7 @@
 /*
  * Size of the Shared Memory Pages page table.
  */
-#ifndef	SHMAXPGS
+#ifndef	SHMMAXPGS
 #define	SHMMAXPGS	64		/* XXX until we have more kmap space */
 #endif
 
