@@ -23,6 +23,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20040830:
+	A new variable, ifi_epoch, has been added to struct if_data
+	which is part if struct ifnet.  This means all network drivers
+	and network monitoring applications need to be recompiled.
+
 20040828:
 	The default configuration for the network stack has been changed
 	such that it now runs without the Giant lock unless configured
