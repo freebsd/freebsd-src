@@ -23,8 +23,19 @@ SRCS=	             c-common.c             c-format.c \
 	toplev.c tree.c unroll.c varasm.c version.c xcoffout.c \
 	alias.c bitmap.c dyn-string.c \
 	gcse.c genrtl.c profile.c regmove.c varray.c \
-	attribs.c cselib.c debug.c rtl-error.c tree-dump.c tree-inline.c \
-	${GCC_CPU}.c
+	attribs.c cselib.c debug.c rtl-error.c tree-dump.c tree-inline.c
+
+.if ${TARGET_ARCH} != "amd64"
+SRCS+=	${GCC_CPU}.c
+.else
+SRCS+=	i386-hacked.c
+CLEANFILES+=	i386-hacked.c
+
+i386-hacked.c:	${GCCDIR}/config/i386/i386.c amd64.patch
+	rm -f i386-hacked.c		# in case p4 readonly copied
+	cp ${GCCDIR}/config/i386/i386.c i386-hacked.c
+	patch -b .orig < ${.CURDIR}/amd64.patch
+.endif
 
 SRCS+=	bb-reorder.c conflict.c ggc-common.c \
 	ggc-page.c ifcvt.c lists.c predict.c regrename.c resource.c sibcall.c \
