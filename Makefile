@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.11 1994/08/25 10:47:30 paul Exp $
+#	$Id: Makefile,v 1.12 1994/08/25 14:45:46 paul Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib 
@@ -85,7 +85,7 @@ CLEANDIR=	clean
 CLEANDIR=	cleandir
 .endif
 
-world:	directories cleandist mk includes libraries tools
+world:	directories update cleandist mk includes libraries tools
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding ${DESTDIR} The whole thing"
 	@echo "--------------------------------------------------------------"
@@ -93,12 +93,27 @@ world:	directories cleandist mk includes libraries tools
 	${MAKE} depend all install
 	cd ${.CURDIR}/share/man &&		${MAKE} makedb
 
+
 directories:
 	@echo "--------------------------------------------------------------"
 	@echo " Making directories"
 	@echo "--------------------------------------------------------------"
 	@echo " XXX Not yet ready in 2.0.0"
-# XXX	cd ${.CURDIR}/etc &&			${MAKE} distrib-dirs
+	cd ${.CURDIR}/etc &&			${MAKE} distrib-dirs
+
+update:
+.if defined(SUP_UPDATE)
+	@echo "--------------------------------------------------------------"
+	@echo "Running sup"
+	@echo "--------------------------------------------------------------"
+	@sup -v ${SUPFILE}
+.endif
+.if defined(CVS_UPDATE)
+	@echo "--------------------------------------------------------------"
+	@echo "Updating /usr/src from cvs repository" ${CVSROOT}
+	@echo "--------------------------------------------------------------"
+	cd ${.CURDIR} &&  cvs update -P -d
+.endif
 
 cleandist:
 .if !defined(NOCLEANDIR)
@@ -176,10 +191,6 @@ libraries:
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 .if exists(secure) && !defined(NOCRYPT) && !defined(NOSECURE)
 	cd ${.CURDIR}/secure/lib && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
-.endif
-.if exists(sys)
-	cd ${.CURDIR}/sys/libkern && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(lib)
