@@ -126,7 +126,7 @@ accept_filt_generic_mod_event(module_t mod, int event, void *data)
 {
 	struct accept_filter *p;
 	struct accept_filter *accfp = (struct accept_filter *) data;
-	int	error;
+	int error;
 
 	switch (event) {
 	case MOD_LOAD:
@@ -162,14 +162,12 @@ accept_filt_generic_mod_event(module_t mod, int event, void *data)
 }
 
 int
-do_setopt_accept_filter(so, sopt)
-	struct	socket *so;
-	struct	sockopt *sopt;
+do_setopt_accept_filter(struct socket *so, struct sockopt *sopt)
 {
-	struct accept_filter_arg	*afap;
-	struct accept_filter	*afp;
-	struct so_accf	*newaf;
-	int	error = 0;
+	struct accept_filter_arg *afap;
+	struct accept_filter *afp;
+	struct so_accf *newaf;
+	int error = 0;
 
 	newaf = NULL;
 	afap = NULL;
