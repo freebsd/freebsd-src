@@ -105,6 +105,8 @@ namei(ndp)
 	struct thread *td = cnp->cn_thread;
 	struct proc *p = td->td_proc;
 
+	GIANT_REQUIRED;
+
 	ndp->ni_cnd.cn_cred = ndp->ni_cnd.cn_thread->td_ucred;
 	KASSERT(cnp->cn_cred && p, ("namei: bad cred/proc"));
 	KASSERT((cnp->cn_nameiop & (~OPMASK)) == 0,
