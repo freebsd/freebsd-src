@@ -264,6 +264,12 @@
     <para>The syntax of &man.inetd.8;'s support for &man.faithd.8; is
     now compatable with that of other BSDs.</para>
 
+    <para>The <literal>ident</literal> protocol support in &man.inetd.8; has
+    been cleaned up and updated.</para>
+
+    <para>&man.inetd.8; now has the ability to manage UNIX-domain
+    sockets.</para>
+
     <para>The &man.resolver.3; in &os; now implements EDNS0 support,
     which will be necessary when working with IPv6 transport-ready
     resolvers/DNS servers.</para>
@@ -314,6 +320,11 @@
     <para>&man.du.1; now takes a <option>-I</option> command-line flag
     to ignore/skip files and subdirectories matching a specified
     shell-glob mask.</para>
+
+    <para>&man.growfs.8;, a utility for growing FFS filesystems, has
+    been added.  &man.ffsinfo.8;, a utility for dump all the
+    meta-information of an existing filesystem, has also been
+    added.</para>
 
     <sect3>
       <title>Contributed Software</title>
