@@ -37,6 +37,7 @@
 #include <sys/malloc.h>
 
 #include <net/if.h>
+#include <net/if_types.h>
 #include <net/route.h>
 #include <net/intrq.h>
 
@@ -119,6 +120,7 @@ tuncreate(dev)
 	ifp->if_ioctl = tunifioctl;
 	ifp->if_output = tunoutput;
 	ifp->if_flags = IFF_POINTOPOINT | IFF_MULTICAST;
+	ifp->if_type = IFT_PPP;
 	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	ifp->if_softc = sc;
 	if_attach(ifp);
