@@ -167,7 +167,7 @@ ITEMS:'
 	the config file update procedure.
 		http://people.freebsd.org/~imp/config-upd.html
 	NOTE: LINT is gone.  It has been replaced with NOTES.  NOTES
-	isn't buildable.
+	isn't buildable.  However, you can generate a LINT file.
 
 20000620:
 	Binutils 2.10 have hit the tree, or will shortly.  As soon
@@ -270,6 +270,15 @@ ITEMS:'
 	to upgrade to 4.0 from 3.x.
 
 COMMON ITEMS:
+
+	General Notes
+	-------------
+	Avoid using make -j when upgrading.  From time to time in the
+	past there have been problems using -j with buildworld and/or
+	installworld.  This is especially true when upgrading between
+	"distant" versions (eg one that cross a major release boundary
+	or several minor releases, or when several months have passed
+	on the -current branch).
 
 	To build a kernel
 	-----------------
