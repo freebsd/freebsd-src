@@ -39,12 +39,14 @@
  * $FreeBSD$
  */
 
+#include "opt_mac.h"
 #include "opt_quota.h"
 #include "opt_suiddir.h"
 #include "opt_ufs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/malloc.h>
 #include <sys/namei.h>
 #include <sys/kernel.h>
 #include <sys/fcntl.h>
@@ -53,13 +55,13 @@
 #include <sys/buf.h>
 #include <sys/mount.h>
 #include <sys/unistd.h>
-#include <sys/malloc.h>
 #include <sys/vnode.h>
 #include <sys/dirent.h>
 #include <sys/lockf.h>
 #include <sys/event.h>
 #include <sys/conf.h>
 #include <sys/acl.h>
+#include <sys/mac.h>
 
 #include <machine/mutex.h>
 
@@ -1562,6 +1564,11 @@ ufs_mkdir(ap)
 	error = UFS_UPDATE(tvp, !(DOINGSOFTDEP(dvp) | DOINGASYNC(dvp)));
 	if (error)
 		goto bad;
+#ifdef MAC
+	error = vop_stdcreatevnode_ea(dvp, tvp, cnp->cn_cred);
+	if (error)
+		goto bad;
+#endif
 #ifdef UFS_ACL
 	if (acl != NULL) {
 		/*
@@ -2457,6 +2464,11 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 	error = UFS_UPDATE(tvp, !(DOINGSOFTDEP(tvp) | DOINGASYNC(tvp)));
 	if (error)
 		goto bad;
+#ifdef MAC
+	error = vop_stdcreatevnode_ea(dvp, tvp, cnp->cn_cred);
+	if (error)
+		goto bad;
+#endif
 #ifdef UFS_ACL
 	if (acl != NULL) {
 		/*
@@ -2643,10 +2655,16 @@ static struct vnodeopv_entry_desc ufs_vnodeop_entries[] = {
 	{ &vop_readdir_desc,		(vop_t *) ufs_readdir },
 	{ &vop_readlink_desc,		(vop_t *) ufs_readlink },
 	{ &vop_reclaim_desc,		(vop_t *) ufs_reclaim },
+#ifdef MAC
+	{ &vop_refreshlabel_desc,	(vop_t *) vop_stdrefreshlabel_ea },
+#endif
 	{ &vop_remove_desc,		(vop_t *) ufs_remove },
 	{ &vop_rename_desc,		(vop_t *) ufs_rename },
 	{ &vop_rmdir_desc,		(vop_t *) ufs_rmdir },
 	{ &vop_setattr_desc,		(vop_t *) ufs_setattr },
+#ifdef MAC
+	{ &vop_setlabel_desc,		(vop_t *) vop_stdsetlabel_ea },
+#endif
 	{ &vop_strategy_desc,		(vop_t *) ufs_strategy },
 	{ &vop_symlink_desc,		(vop_t *) ufs_symlink },
 	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
@@ -2678,7 +2696,13 @@ static struct vnodeopv_entry_desc ufs_specop_entries[] = {
 	{ &vop_print_desc,		(vop_t *) ufs_print },
 	{ &vop_read_desc,		(vop_t *) ufsspec_read },
 	{ &vop_reclaim_desc,		(vop_t *) ufs_reclaim },
+#ifdef MAC
+	{ &vop_refreshlabel_desc,	(vop_t *) vop_stdrefreshlabel_ea },
+#endif
 	{ &vop_setattr_desc,		(vop_t *) ufs_setattr },
+#ifdef MAC
+	{ &vop_setlabel_desc,		(vop_t *) vop_stdsetlabel_ea },
+#endif
 	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
 	{ &vop_write_desc,		(vop_t *) ufsspec_write },
 #ifdef UFS_EXTATTR
@@ -2709,7 +2733,13 @@ static struct vnodeopv_entry_desc ufs_fifoop_entries[] = {
 	{ &vop_print_desc,		(vop_t *) ufs_print },
 	{ &vop_read_desc,		(vop_t *) ufsfifo_read },
 	{ &vop_reclaim_desc,		(vop_t *) ufs_reclaim },
+#ifdef MAC
+	{ &vop_refreshlabel_desc,	(vop_t *) vop_stdrefreshlabel_ea },
+#endif
 	{ &vop_setattr_desc,		(vop_t *) ufs_setattr },
+#ifdef MAC
+	{ &vop_setlabel_desc,		(vop_t *) vop_stdsetlabel_ea },
+#endif
 	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
 	{ &vop_write_desc,		(vop_t *) ufsfifo_write },
 #ifdef UFS_EXTATTR
