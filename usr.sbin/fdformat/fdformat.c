@@ -145,7 +145,7 @@ usage (void)
 {
 	fprintf(stderr, "%s\n%s\n",
 	"usage: fdformat [-y] [-q] [-n | -v] [-f #] [-c #] [-s #] [-h #]",
-	"                [-r #] [-g #] [-i #] [-S #] [-F #] [-t #] devname");
+	"                [-r #] [-g #] [-i #] [-S #] [-F #] [-t #] device_name");
 	exit(2);
 }
 
@@ -177,7 +177,7 @@ main(int argc, char **argv)
 	int fill = 0xf6, quiet = 0, verify = 1, verify_only = 0, confirm = 0;
 	int fd, c, i, track, error, tracks_per_dot, bytes_per_track, errs;
 	int fdopts;
-	const char *devname, *suffix;
+	const char *device, *suffix;
 	struct fd_type fdt;
 #define MAXPRINTERRS 10
 	struct fdc_status fdcs[MAXPRINTERRS];
@@ -264,13 +264,13 @@ main(int argc, char **argv)
 	case 1720: suffix = ".1720"; break;
 	}
 
-	devname = makename(argv[optind], suffix);
+	device = makename(argv[optind], suffix);
 
-	if((fd = open(devname, O_RDWR)) < 0)
-		err(1, "%s", devname);
+	if((fd = open(device, O_RDWR)) < 0)
+		err(1, "%s", device);
 
 	if(ioctl(fd, FD_GTYPE, &fdt) < 0)
-		errx(1, "not a floppy disk: %s", devname);
+		errx(1, "not a floppy disk: %s", device);
 	fdopts = FDOPT_NOERRLOG;
 	if (ioctl(fd, FD_SOPTS, &fdopts) == -1)
 		err(1, "ioctl(FD_SOPTS, FDOPT_NOERRLOG)");
@@ -303,12 +303,12 @@ main(int argc, char **argv)
 		if(!quiet)
 			printf("Verify %dK floppy `%s'.\n",
 				fdt.tracks * fdt.heads * bytes_per_track / 1024,
-				devname);
+				device);
 	}
 	else if(!quiet && !confirm) {
 		printf("Format %dK floppy `%s'? (y/n): ",
 			fdt.tracks * fdt.heads * bytes_per_track / 1024,
-			devname);
+			device);
 		if(! yes ()) {
 			printf("Not confirmed.\n");
 			return 3;
@@ -319,8 +319,6 @@ main(int argc, char **argv)
 	 * Formatting.
 	 */
 	if(!quiet) {
-		int i;
-
 		printf("Processing ");
 		for (i = 0; i < (fdt.tracks * fdt.heads) / tracks_per_dot; i++)
 			putchar('-');
