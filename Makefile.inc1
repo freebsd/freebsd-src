@@ -717,71 +717,67 @@ includes:
 #
 # libraries - build all libraries, and install them under ${DESTDIR}.
 #
-# The following dependencies exist between the libraries:
+# The list of libraries with dependents (${_prebuild_libs}) and their
+# interdependencies (__L) are built automatically by the
+# ${.CURDIR}/tools/make_libdeps.sh script.
 #
-# lib*: csu libgcc_pic
-# libatm: libmd
-# libcam: libsbuf
-# libcrypt: libmd
-# libdevstat: libkvm
-# libdialog: libncurses
-# libedit: libncurses
-# libg++: msun
-# libkrb: libcrypt
-# libopie: libmd
-# libpam: libcom_err libcrypt libcrypto libkrb libopie libradius \
-#	  librpcsvc libtacplus libutil libz libssh
-# libradius: libmd
-# libreadline: libncurses
-# libssh: libcrypto libz
-# libstc++: msun
-# libtacplus: libmd
-#
-# Across directories this comes down to (rougly):
-#
-# gnu/lib: lib/msun lib/libncurses
-# kerberosIV/lib kerberos5/lib: lib/libcrypt
-# lib/libpam: secure/lib/libcrypto kerberosIV/lib/libkrb \
-#             secure/lib/libssh lib/libz
-# secure/lib: secure/lib/libcrypto lib/libmd lib/libz
-#
+libraries:
+	cd ${.CURDIR}; \
+	    ${MAKE} -f Makefile.inc1 _startup_libs; \
+	    ${MAKE} -f Makefile.inc1 _prebuild_libs; \
+	    ${MAKE} -f Makefile.inc1 _generic_libs;
+
 .if exists(${.CURDIR}/lib/csu/${MACHINE_ARCH}.pcc)
-_csu=	lib/csu/${MACHINE_ARCH}.pcc
+_startup_libs=	lib/csu/${MACHINE_ARCH}.pcc
 .elif ${MACHINE_ARCH} == "i386" && ${OBJFORMAT} == "elf"
-_csu=	lib/csu/i386-elf
+_startup_libs=	lib/csu/i386-elf
 .else
-_csu=	lib/csu/${MACHINE_ARCH}
+_startup_libs=	lib/csu/${MACHINE_ARCH}
 .endif
+_startup_libs+=	gnu/lib/csu gnu/lib/libgcc
 
-.if exists(${.CURDIR}/secure) && !defined(NOCRYPT) && !defined(NOSECURE)
-_secure_lib=	secure/lib
-.if exists(${.CURDIR}/secure/lib/libcrypto)
-_libcrypto=	secure/lib/libcrypto
-.endif
-.endif
+_prebuild_libs=	lib/libcom_err lib/libcrypt lib/libkvm lib/libmd \
+		lib/libncurses lib/libopie lib/libradius lib/librpcsvc \
+		lib/libsbuf lib/libtacplus lib/libutil lib/libz lib/msun
 
-.if !defined(NOCRYPT) && defined(MAKE_KERBEROS4)
-_kerberosIV_lib=	kerberosIV/lib
-.endif
+lib/libopie__L lib/libradius__L lib/libtacplus__L: lib/libmd__L
 
-.if !defined(NOCRYPT) && defined(MAKE_KERBEROS5)
-_kerberos5_lib=	kerberos5/lib
-.endif
-
-.if ${MACHINE_ARCH} == "i386"
-_libkeycap=	usr.sbin/pcvt/keycap
-.endif
+_generic_libs=	lib gnu/lib
 
 .if !defined(NOPERL) && !defined(NO_PERL)
-_libperl=	gnu/usr.bin/perl/libperl
+_generic_libs+=	gnu/usr.bin/perl/libperl
 .endif
 
-libraries:
-.for _lib in ${_csu} gnu/lib/csu gnu/lib/libgcc lib/libmd lib/libcrypt \
-    lib/libz ${_libcrypto} ${_secure_lib} ${_kerberosIV_lib} \
-    ${_kerberos5_lib} lib/libcom_err lib/libkvm lib/msun lib/libncurses \
-    lib/libopie lib/libradius lib/librpcsvc lib/libsbuf lib/libtacplus \
-    lib/libutil lib gnu/lib ${_libperl} usr.bin/lex/lib ${_libkeycap}
+.if !defined(NOCRYPT)
+.if defined(MAKE_KERBEROS4)
+_prebuild_libs+=	kerberosIV/lib/libkrb
+kerberosIV/lib/libkrb__L: lib/libcrypt__L
+_generic_libs+=	kerberosIV/lib
+.endif
+.if defined(MAKE_KERBEROS5)
+_prebuild_libs+=	kerberos5/lib/libasn1
+_prebuild_libs+=	kerberos5/lib/libgssapi
+_prebuild_libs+=	kerberos5/lib/libkrb5
+_prebuild_libs+=	kerberos5/lib/libroken
+_generic_libs+=	kerberos5/lib
+.endif
+.if !defined(NOSECURE)
+_prebuild_libs+=	secure/lib/libcrypto
+.if !defined(NO_OPENSSH)
+_prebuild_libs+=	secure/lib/libssh
+secure/lib/libssh__L: secure/lib/libcrypto__L lib/libz__L
+.endif
+_generic_libs+=	secure/lib
+.endif !defined(NOSECURE)
+.endif !defined(NOCRYPT)
+
+_generic_libs+=	usr.bin/lex/lib
+.if ${MACHINE_ARCH} == "i386"
+_generic_libs+=	usr.sbin/pcvt/keycap
+.endif
+
+.for _lib in ${_startup_libs} ${_prebuild_libs} ${_generic_libs}
+${_lib}__L: .PHONY
 .if exists(${.CURDIR}/${_lib})
 	cd ${.CURDIR}/${_lib}; \
 		${MAKE} depend; \
@@ -789,6 +785,10 @@ libraries:
 		${MAKE} install
 .endif
 .endfor
+
+_startup_libs: ${_startup_libs:S/$/__L/}
+_prebuild_libs: ${_prebuild_libs:S/$/__L/}
+_generic_libs: ${_generic_libs:S/$/__L/}
 
 .for __target in clean cleandepend cleandir depend obj
 .for entry in ${SUBDIR}
