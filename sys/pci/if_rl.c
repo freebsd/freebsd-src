@@ -863,6 +863,16 @@ static int rl_attach(dev)
 		goto fail;
 	}
 
+	/* Detect the Realtek 8139B. For some reason, this chip is very
+	 * unstable when left to autoselect the media
+	 * The best workaround is to set the device to the required
+	 * media type or to set it to the 10 Meg speed.
+	 */
+
+	if ((rman_get_end(sc->rl_res)-rman_get_start(sc->rl_res))==0xff) {
+		printf("rl%d: Realtek 8139B detected. Warning, this may be unstable in autoselect mode\n", unit);
+	}
+
 	sc->rl_btag = rman_get_bustag(sc->rl_res);
 	sc->rl_bhandle = rman_get_bushandle(sc->rl_res);
 
