@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *      @(#)netdb.h	8.1 (Berkeley) 6/2/93
- *	$Id: netdb.h,v 1.3 1995/08/20 19:59:12 peter Exp $
+ *	$Id: netdb.h,v 1.4 1996/01/30 23:30:30 mpp Exp $
  * -
  * Portions Copyright (c) 1993 by Digital Equipment Corporation.
  *
@@ -125,6 +125,7 @@ void		endprotoent __P((void));
 void		endservent __P((void));
 struct hostent	*gethostbyaddr __P((const char *, int, int));
 struct hostent	*gethostbyname __P((const char *));
+struct hostent	*gethostbyname2 __P((const char *, int));
 struct hostent	*gethostent __P((void));
 struct netent	*getnetbyaddr __P((long, int)); /* u_long? */
 struct netent	*getnetbyname __P((const char *));
@@ -142,6 +143,35 @@ void		sethostent __P((int));
 void		setnetent __P((int));
 void		setprotoent __P((int));
 void		setservent __P((int));
+
+/*
+ * PRIVATE functions specific to the FreeBSD implementation
+ */
+
+/* DO NOT USE THESE, THEY ARE SUBJECT TO CHANGE AND ARE NOT PORTABLE!!! */
+void	_sethosthtent __P((int));
+void	_endhosthtent __P((void));
+void	_sethostdnsent __P((int));
+void	_endhostdnsent __P((void));
+void	_setnethtent __P((int));
+void	_endnethtent __P((void));
+void	_setnetdnsent __P((int));
+void	_endnetdnsent __P((void));
+struct hostent * _gethostbyhtname  __P((const char *, int));
+struct hostent * _gethostbydnsname __P((const char *, int));
+struct hostent * _gethostbynisname __P((const char *, int));
+struct hostent * _gethostbyhtaddr  __P((const char *, int, int));
+struct hostent * _gethostbydnsaddr __P((const char *, int, int));
+struct hostent * _gethostbynisaddr __P((const char *, int, int));
+struct netent *  _getnetbyhtname  __P((const char *));
+struct netent *  _getnetbydnsname __P((const char *));
+struct netent *  _getnetbynisname __P((const char *));
+struct netent *  _getnetbyhtaddr  __P((unsigned long, int));
+struct netent *  _getnetbydnsaddr __P((unsigned long, int));
+struct netent *  _getnetbynisaddr __P((unsigned long, int));
+void _map_v4v6_address __P((const char *src, char *dst));
+void _map_v4v6_hostent __P((struct hostent *hp, char **bp, int *len));
+
 __END_DECLS
 
 #endif /* !_NETDB_H_ */
