@@ -73,7 +73,6 @@ union_mount(mp, td)
 	struct vnode *upperrootvp = NULLVP;
 	struct union_mount *um = 0;
 	struct vattr va;
-	struct ucred *cred = 0;
 	char *cp = 0, *target;
 	int op;
 	int len;
@@ -312,8 +311,6 @@ bad:
 		/* XXX other fields */
 		free(um, M_UNIONFSMNT);
 	}
-	if (cred)
-		crfree(cred);
 	if (upperrootvp)
 		vrele(upperrootvp);
 	if (lowerrootvp)
