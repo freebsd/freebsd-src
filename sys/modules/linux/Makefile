@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.23 1998/11/11 07:04:10 peter Exp $
+#	$Id: Makefile,v 1.24 1998/11/12 00:37:39 jkh Exp $
 
 .PATH:	${.CURDIR}/../../i386/linux
 KMOD=	linux
@@ -9,7 +9,7 @@ SRCS=	linux_file.c linux_ioctl.c linux_misc.c linux_signal.c \
 OBJS=	linux_locore.o
 MAN8=	linux.8
 
-CFLAGS+= -DCOMPAT_LINUX #-DDEBUG
+CFLAGS+= -DCOMPAT_LINUX -DVM_STACK #-DDEBUG
 EXPORT_SYMS=_linux_mod
 CLEANFILES+= vnode_if.h vnode_if.c linux_genassym.o linux_genassym \
 	linux_assym.h opt_compat.h opt_linux.h opt_vmpage.h
