@@ -920,6 +920,13 @@ fp_begin:
 						prec = ndig - expt;
 					if (prec < 0)
 						prec = 0;
+				} else {
+					/*
+					 * Make %[gG] smell like %[eE], but
+					 * trim trailing zeroes if no # flag.
+					 */
+					if (!(flags & ALT))
+						prec = ndig;
 				}
 			}
 			if (expchar) {
