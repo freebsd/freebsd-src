@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.4 1995/03/03 08:37:08 sos Exp $
+ *	$Id: syscons.h,v 1.7 1995/04/04 20:04:17 sos Exp $
  */
 
 #ifndef SYSCONS_H
@@ -38,7 +38,8 @@
 #define	pa_to_va(pa)	(KERNBASE + (pa))	/* works if ISMAPPED(pa...) */
 
 /* printable chars */
-#define PRINTABLE(ch)	((ch)>0x1B || ((ch)>0x0d && (ch)<0x1b) || (ch)<0x07)
+#define PRINTABLE(ch)	((ch) > 0x1b || ((ch) > 0x0d && (ch) < 0x1b) \
+			 || (ch) < 0x07)
 
 /* macros for "intelligent" screen update */
 #define mark_for_update(scp, x)	{\
@@ -175,11 +176,6 @@ int scparam(struct tty *tp, struct termios *t);
 int scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p);
 void scxint(dev_t dev);
 void scstart(struct tty *tp);
-void pccnprobe(struct consdev *cp);
-void pccninit(struct consdev *cp);
-void pccnputc(dev_t dev, char c);
-int pccngetc(dev_t dev);
-int pccncheckc(dev_t dev);
 void scintr(int unit);
 int pcmmap(dev_t dev, int offset, int nprot);
 static void scinit(void);
