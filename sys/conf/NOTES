@@ -1073,7 +1073,6 @@ device		amr		# AMI MegaRAID
 
 #
 # The 'ATA' driver supports all ATA and ATAPI devices.
-# It can reuse the majors of wd.c for booting purposes.
 # You only need one "device ata" for it to find all
 # PCI ATA/ATAPI devices on modern machines.
 device		ata
@@ -1097,79 +1096,6 @@ options 	ATA_ENABLE_ATAPI_DMA
 # For older non-PCI systems, these are the lines to use:
 #device		ata0	at isa? port IO_WD1 irq 14
 #device		ata1	at isa? port IO_WD2 irq 15
-
-#
-# ST-506, ESDI, and IDE hard disks: `wdc' and `wd'
-#
-# The flags fields are used to enable the multi-sector I/O and
-# the 32BIT I/O modes.  The flags may be used in either the controller
-# definition or in the individual disk definitions.  The controller
-# definition is supported for the boot configuration stuff.
-#
-# Each drive has a 16 bit flags value defined:
-#	The low 8 bits are the maximum value for the multi-sector I/O,
-#	where 0xff defaults to the maximum that the drive can handle.
-#	The high bit of the 16 bit flags (0x8000) allows probing for
-#	32 bit transfers.  Bit 14 (0x4000) enables a hack to wake
-#	up powered-down laptop drives.  Bit 13 (0x2000) allows
-#	probing for PCI IDE DMA controllers, such as Intel's PIIX
-#	south bridges. Bit 12 (0x1000) sets LBA mode instead of the
-#	default CHS mode for accessing the drive. See the wd.4 man page.
-#
-# The flags field for the drives can be specified in the controller
-# specification with the low 16 bits for drive 0, and the high 16 bits
-# for drive 1.
-# e.g.:
-#device		wdc0	at isa? port IO_WD1 irq 14 flags 0x00ff8004
-#
-# specifies that drive 0 will be allowed to probe for 32 bit transfers and
-# a maximum multi-sector transfer of 4 sectors, and drive 1 will not be
-# allowed to probe for 32 bit transfers, but will allow multi-sector
-# transfers up to the maximum that the drive supports.
-#
-# If you are using a PCI controller that is not running in compatibility
-# mode (for example, it is a 2nd IDE PCI interface), then use config line(s)
-# such as:
-#
-#device		wdc2	at isa? port 0 flags 0xa0ffa0ff
-#device		wd4	at wdc2 drive 0
-#device		wd5	at wdc2 drive 1
-#
-#device		wdc3	at isa? port 0 flags 0xa0ffa0ff
-#device		wd6	at wdc3 drive 0
-#device		wd7	at wdc3 drive 1
-#
-# Note that the above config would be useful for a Promise card, when used
-# on a MB that already has a PIIX controller.  Note the bogus irq and port
-# entries.  These are automatically filled in by the IDE/PCI support.
-#
-# This driver must be commented out because it is mutually exclusive with
-# the ata(4) driver.
-#
-device		wdc0	at isa? port IO_WD1 irq 14
-device		wd0	at wdc0 drive 0
-device		wd1	at wdc0 drive 1
-device		wdc1	at isa? port IO_WD2 irq 15
-device		wd2	at wdc1 drive 0
-device		wd3	at wdc1 drive 1
-
-#
-# This option allow you to override the default probe time for IDE
-# devices, to get a faster probe.  Setting this below 10000 violate
-# the IDE specs, but may still work for you (it will work for most
-# people).
-#
-options 	IDE_DELAY=8000	# Be optimistic about Joe IDE device
-
-# IDE CD-ROM & CD-R/RW  driver - requires wdc controller
-device		wcd
-
-# IDE floppy driver - requires wdc controller
-device		wfd
-
-# IDE tape driver - requires wdc controller
-device		wst
-
 
 #
 # Standard floppy disk controllers and floppy tapes: `fdc', `fd', and `ft'
