@@ -19,6 +19,8 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
+/* $FreeBSD$ */
+
 
 #include "config.h"
 #include "system.h"
@@ -1607,6 +1609,20 @@ expand_inline_function (fndecl, parms, target, ignore, type,
   /* If this function needs a context, set it up.  */
   if (FUNCTION_FLAGS (header) & FUNCTION_FLAGS_NEEDS_CONTEXT)
     static_chain_value = lookup_static_chain (fndecl);
+
+  /* If the inline function has these flags sets, that means that 
+     coresponding global flags should be set for this function. */
+  if (FUNCTION_FLAGS (header) & FUNCTION_FLAGS_CALLS_SETJMP)
+    current_function_calls_setjmp = 1;
+
+  if (FUNCTION_FLAGS (header) & FUNCTION_FLAGS_CALLS_LONGJMP)
+    current_function_calls_longjmp = 1;
+
+  if (FUNCTION_FLAGS (header) & FUNCTION_FLAGS_HAS_NONLOCAL_LABEL)
+    current_function_has_nonlocal_label = 1;
+
+  if (FUNCTION_FLAGS (header) & FUNCTION_FLAGS_USES_CONST_POOL)
+    current_function_uses_const_pool = 1;
 
   if (GET_CODE (parm_insns) == NOTE
       && NOTE_LINE_NUMBER (parm_insns) > 0)

@@ -19,6 +19,8 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
+/* $FreeBSD$ */
+
 
 /* This file handles the generation of rtl code from tree structure
    above the level of expressions, using subroutines in exp*.c and emit-rtl.c.
@@ -4026,6 +4028,10 @@ expand_cleanups (list, dont_do, in_fixup, reachable)
 		  {
 		    cleanup = protect_with_terminate (cleanup);
 		    expand_eh_region_end (cleanup);
+		  }
+		else 
+		  {
+		    do_pending_stack_adjust();
 		  }
 	      }
 
