@@ -44,9 +44,6 @@ static char sccsid[] = "@(#)setterm.c	8.7 (Berkeley) 7/27/94";
 
 #include "curses.h"
 
-#undef ospeed
-extern short ospeed;
-
 static void zap __P((void));
 
 static char	*sflags[] = {
@@ -154,8 +151,6 @@ setterm(type)
 		CA = 1;
 
 	PC = _PC ? _PC[0] : 0;
-
-	_set_ospeed(cfgetospeed(&__baset));
 
 	aoftspace = tspace;
 	ttytype = longname(genbuf, __ttytype);
