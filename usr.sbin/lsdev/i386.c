@@ -76,7 +76,7 @@ print_isa(struct devconf *dc)
 {
 	struct isa_device *id = (struct isa_device *)dc->dc_data;
 
-	printf("%s%d on %s", dc->dc_name, dc->dc_unit, dc->dc_parent);
+	printf("%s%d at isa?", dc->dc_name, dc->dc_unit);
 
 	if(vflag) {
 		printf(" (id %d)", id->id_id);
