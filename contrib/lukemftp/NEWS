@@ -1,0 +1,84 @@
+This is a brief description of the new features and fixes added to
+lukemftp-1.5 since the release of lukemftp-1.4.  As always, the manual
+page (src/ftp.cat1) is the place to look for complete descriptions.
+
+* Add new commands:
+	features	list remote features supported by servers
+	mlsd		machine parseable directory listing
+	mlst		machine parseable file listing
+	remopts		set options on remote features
+
+  These require support in the remote server for the ftp extensions
+  described in RFC 2389 and draft-ietf-ftpext-mlst-11.
+
+* Fix support for the --program-prefix and --program-suffix configure
+  options.
+
+---
+This is a brief description of the new features and fixes added to
+lukemftp-1.4 since the release of lukemftp-1.3.  As always, the manual
+page (src/ftp.cat1) is the place to look for complete descriptions.
+
+* Fix compilation problems on various non 4.4BSD derived platforms which
+  support IPv6, and on Linux systems which have strdup() as a macro.
+
+* During auto-fetch, don't attempt to autologin a second time if the first
+  time failed.
+
+---
+This is a brief description of the new features and fixes added to
+lukemftp-1.3 since the release of lukemftp-1.2.  As always, the manual
+page (src/ftp.cat1) is the place to look for complete descriptions.
+
+* The `ls' command now uses the `LIST' directive instead of `NLST',
+  in order to be compatible with RFC959.
+
+* Add fget command, which reads a list of filenames to retrieve from
+  the given file.
+
+* Add support for uploading files on the command-line with `ftp -u'.
+
+* Various fixes to the IPv6 support.
+
+---
+This is a brief description of the new features and fixes added to
+lukemftp-1.2 since the release of lukemftp-1.1.  As always, the manual
+page (src/ftp.cat1) is the place to look for complete descriptions.
+
+* During remote completion, only send ``NLST'' instead of ``NLST .''
+  when reading the list of files from the remote server; some servers
+  don't like the trailing `.'.
+
+* Support a leading ``[user@]'' for ``[user@]host[:][path]'' auto-fetches
+  and ``[user@]host'' connections.
+
+* Always compile in support for setting the type of service on transfers.
+  Should speed up transfers on Linux systems.
+
+* Improve performance of non-rate-limited transfers.
+
+* Work around ftp servers that aren't Y2K compliant in returning the
+  modification time of a file.
+
+* Update the libedit library to support automatic and magic margins,
+  allowing ftp's rprompt to move an extra character to the right.
+
+---
+This is a brief description of the new features and fixes added to
+lukemftp-1.1 since the release of lukemftp-1.0.  As always, the manual
+page (src/ftp.cat1) is the place to look for complete descriptions.
+
+* Implemented `set prompt' and `set rprompt', which allow you to
+  configure the prompt and right side prompt (respectively).
+  Some tcsh(1) style `%' escapes are supported, including
+  %. %c %/ %m %M %n
+
+* Implemented restarting of file:/// and non-proxied http:// URLs
+  (using -R)
+
+* Correctly parse remote ports given as numbers that don't appear in
+  the services(5) database.
+
+* Prevent a couple of minor memory leaks
+
+* Add missing compilation setting for SOCKS
