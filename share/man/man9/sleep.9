@@ -188,7 +188,7 @@ around code that might block.  It is hoped that these capabilities will
 make it easier to migrate the SMP master locks deeper into the kernel.
 .Pp
 These routines may also be used to avoid nasty spl*() calls to get around
-race conditions with simple conditional test/wait interlocks.  You simple
+race conditions with simple conditional test/wait interlocks.  You simply
 call
 .Fn asleep
 prior to your test, then conditionally
