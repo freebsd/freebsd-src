@@ -142,7 +142,7 @@ struct scb_platform_data;
  *	   we must be sure that 4 slots are empty when we write to clear
  *	   the queue.  This reduces us to 253 SCBs: 1 that just completed
  *	   and the known three additional empty slots in the queue that
- *	   preceed it.
+ *	   precede it.
  */
 #define AHC_MAX_QUEUE	253
 

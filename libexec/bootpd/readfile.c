@@ -489,9 +489,9 @@ readtab(force)
  * Read an entire host entry from the file pointed to by "fp" and insert it
  * into the memory pointed to by "buffer".  Leading whitespace and comments
  * starting with "#" are ignored (removed).  Backslashes (\) always quote
- * the next character except that newlines preceeded by a backslash cause
+ * the next character except that newlines preceded by a backslash cause
  * line-continuation onto the next line.  The entry is terminated by a
- * newline character which is not preceeded by a backslash.  Sequences
+ * newline character which is not preceded by a backslash.  Sequences
  * surrounded by double quotes are taken literally (including newlines, but
  * not backslashes).
  *

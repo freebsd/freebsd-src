@@ -366,7 +366,7 @@ static void F_01L(call_desc_t *cd)
 	 * we react here as if we received a CALL PROCEEDING because
 	 * several PBX's react with a SETUP ACK even if the called
 	 * number is complete AND we sent a SENDING COMPLETE in the
-	 * preceeding SETUP message. (-hm)
+	 * preceding SETUP message. (-hm)
 	 */
 
 	T310_start(cd);

@@ -352,7 +352,7 @@ When found,
 .I fsck_ffs
 will prompt the user to adjust the length of the offending directory
 which is done by shortening the size of the directory to the end of the
-last allocated block preceeding the hole.
+last allocated block preceding the hole.
 Unfortunately, this means that another Phase 1 run has to be done. 
 .I Fsck_ffs
 will remind the user to rerun fsck_ffs after repairing a
