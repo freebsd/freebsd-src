@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.29.2.15 1996/05/21 23:33:52 dima Exp $
+ *      $Id: aic7xxx.c,v 1.29.2.16 1996/05/22 15:34:55 gibbs Exp $
  */
 /*
  * TODO:
@@ -1900,9 +1900,15 @@ ahc_init(ahc)
 				 * has a valid ultra syncrate setting.
 				 */
 				u_char rate = target_settings & 0x70;
-				if( rate == 0x00 || rate == 0x10 ||
-				    rate == 0x20 )
-					ultraenable |= (0x01 << i);
+				if(rate == 0x00 || rate == 0x10 ||
+				   rate == 0x20 || rate == 0x40) {
+					if(rate == 0x40) {
+						/* Treat 10MHz specially */
+						target_settings &= ~0x70;
+					}
+					else
+						ultraenable |= (0x01 << i);
+				}
 			}
 		}
 		outb(TARG_SCRATCH+i+iobase,target_settings);
