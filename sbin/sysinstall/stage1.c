@@ -89,31 +89,41 @@ stage1()
 	clear(); standend();
 	j = 2;
 	if (fixit) {
-	    mvprintw(j++, 50, "Suggested course of action:"); j++;
-	    mvprintw(j++, 50, "(F)disk, (W)rite");
-	    mvprintw(j++, 50, "possibly (F)disk, (B)oot"); 
-	    mvprintw(j++, 50, "(D)isklabel, (A)ssign <root>");
-	    mvprintw(j++, 50, "  (A)ssign swap");
-	    mvprintw(j++, 50, "(P)roceed"); 
-	    mvprintw(j++, 50, "Reboot");
-	    mvprintw(j++, 50, "Load cpio floppy");
-	    mvprintw(j++, 50, "Choose stand-alone shell"); j++;
-	    mvprintw(j++, 50, "Your kernel and /etc/fstab");
-	    mvprintw(j++, 50, "are backed up and /sbin/init");
-	    mvprintw(j++, 50, "is renamed");
-	
+	    mvprintw(j++, 50, "|Suggested course of action:");
+	    mvprintw(j++, 50, "|");
+	    mvprintw(j++, 50, "|(F)disk, (W)rite");
+	    mvprintw(j++, 50, "|possibly (F)disk, (B)oot"); 
+	    mvprintw(j++, 50, "|(D)isklabel, (A)ssign <root>");
+	    mvprintw(j++, 50, "|(A)ssign swap");
+	    mvprintw(j++, 50, "|(P)roceed"); 
+	    mvprintw(j++, 50, "|Reboot");
+	    mvprintw(j++, 50, "|Load cpio floppy");
+	    mvprintw(j++, 50, "|Choose stand-alone shell");
+	    mvprintw(j++, 50, "|");
+	    mvprintw(j++, 50, "|Your kernel and /etc/fstab");
+	    mvprintw(j++, 50, "|are backed up and /sbin/init");
+	    mvprintw(j++, 50, "|is renamed");
 	} else {
-	    mvprintw(j++, 50, "You must assign some space to");
-	    mvprintw(j++, 50, "a root (/), swap, and");
-	    mvprintw(j++, 50, "optionally, a /usr partition."); j++;
-	    mvprintw(j++, 50, "Root should be a minimum of");
-	    mvprintw(j++, 50, "18MB with a 30MB /usr, or");
-	    mvprintw(j++, 50, "50MB without a /usr.");  j++;
-	    mvprintw(j++, 50, "Swap space should be a");
-	    mvprintw(j++, 50, "minimum of 12MB or MEM * 2.");
-	    mvprintw(j++, 50, "Also be sure to Assign");
-	    mvprintw(j++, 50, "mount points to each or");
-	    mvprintw(j++, 50, "they will NOT be enabled."); j++;
+	    mvprintw(j++, 50, "|You must assign some space");
+	    mvprintw(j++, 50, "|to a root (/), swap, and");
+	    mvprintw(j++, 50, "|optionally a /usr partition"); 
+	    mvprintw(j++, 50, "|");
+	    mvprintw(j++, 50, "|Root should be a minimum of");
+	    mvprintw(j++, 50, "|18MB with a 30MB /usr, or");
+	    mvprintw(j++, 50, "|50MB without a /usr."); 
+	    mvprintw(j++, 50, "|");
+	    mvprintw(j++, 50, "|Swap space should be a");
+	    mvprintw(j++, 50, "|minimum of 12MB or MEM * 2");
+	    mvprintw(j++, 50, "|Also be sure to Assign");
+	    mvprintw(j++, 50, "|mount points to each or");
+	    mvprintw(j++, 50, "|they will NOT be enabled."); 
+	    mvprintw(j++, 50, "|");
+	    mvprintw(j++, 50, "|We suggest that you invoke");
+	    mvprintw(j++, 50, "|(F)disk, then (D)isklabel");
+	    mvprintw(j++, 50, "|in setting up your disk.");
+	    mvprintw(j++, 50, "|If installing on a drive");
+	    mvprintw(j++, 50, "|other than 0, read the");
+	    mvprintw(j++, 50, "|troubleshooting doc first");
 	}
 
 	j = 0;

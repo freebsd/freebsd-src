@@ -301,18 +301,17 @@ Fdisk()
 	mvprintw(20, 0, "Commands available:   ");
 	mvprintw(21, 0, "(H)elp   (T)utorial   (D)elete   (E)dit   (R)eread   (W)rite MBR   (Q)uit");
 	mvprintw(22, 0, "(U)se entire disk for FreeBSD   (G)eometry   Write MBR (B)ootcode");
-	mvprintw(23, 0, "Enter Command> ");
-	move(24,0);
 	if (grumble) {
 	    standout();
- 	    printw(grumble);
+ 	    mvprintw(24, 0, grumble);
 	    standend();
 	    grumble = NULL;
 	} else if (changed) {
 	    standout();
- 	    printw("Use (W)rite to save changes to disk");
+ 	    mvprintw(24, 0, "Use (W)rite to save changes to disk");
 	    standend();
 	}
+	mvprintw(23, 0, "Enter Command> ");
 	i=getch();
 	switch(i) {
 
