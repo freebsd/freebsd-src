@@ -287,6 +287,9 @@ pcic_pci_probe(device_t dev)
 	case PCI_DEVICE_ID_RICOH_RL5C478:
 		desc = "Ricoh RL5C478 PCI-CardBus Bridge";
 		break;
+	case PCI_DEVICE_ID_PCIC_OZ6832:
+		desc = "O2micro 6832 PCI-Cardbus Bridge";
+		break;
 
 	/* 16bit PC-card bridges */
 	case PCI_DEVICE_ID_PCIC_CLPD6729:
