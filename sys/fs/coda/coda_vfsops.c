@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  *  	@(#) src/sys/cfs/coda_vfsops.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_vfsops.c,v 1.9 1998/11/16 19:48:26 rvb Exp $
+ *  $Id: coda_vfsops.c,v 1.10 1998/12/04 22:54:43 archie Exp $
  * 
  */
 
@@ -47,6 +47,20 @@
 /*
  * HISTORY
  * $Log: coda_vfsops.c,v $
+ * Revision 1.10  1998/12/04 22:54:43  archie
+ * Examine all occurrences of sprintf(), strcat(), and str[n]cpy()
+ * for possible buffer overflow problems. Replaced most sprintf()'s
+ * with snprintf(); for others cases, added terminating NUL bytes where
+ * appropriate, replaced constants like "16" with sizeof(), etc.
+ *
+ * These changes include several bug fixes, but most changes are for
+ * maintainability's sake. Any instance where it wasn't "immediately
+ * obvious" that a buffer overflow could not occur was made safer.
+ *
+ * Reviewed by:	Bruce Evans <bde@zeta.org.au>
+ * Reviewed by:	Matthew Dillon <dillon@apollo.backplane.com>
+ * Reviewed by:	Mike Spengler <mks@networkcs.com>
+ *
  * Revision 1.9  1998/11/16 19:48:26  rvb
  * A few bug fixes for Robert Watson
  *
@@ -207,11 +221,7 @@
  * 
  */ 
 
-#ifdef	VFS_LKM
-#define NVCODA 4
-#else
 #include <vcoda.h>
-#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -757,12 +767,4 @@ struct vfsops coda_vfsops = {
     coda_init,
 };
 
-#if defined(VFS_LKM) && !defined(VFS_KLD)
-/*
- * This case is being handled in coda_fbsd.c
- * What we want is too hairy for VFS_SET to get right!
- * XXX but VFS_KLD does it in VFS_SET..
- */
-#else
 VFS_SET(coda_vfsops, coda, VFCF_NETWORK);
-#endif
