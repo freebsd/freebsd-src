@@ -67,7 +67,6 @@
 #include <sys/bus.h>
 #include <sys/disk.h>
 #include <sys/disklabel.h>
-#include <sys/diskslice.h>
 #include <sys/bio.h>
 #include <sys/devicestat.h>
 #include <sys/malloc.h>
