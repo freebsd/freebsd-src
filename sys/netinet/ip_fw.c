@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.111 1999/05/03 23:57:28 billf Exp $
+ *	$Id: ip_fw.c,v 1.112 1999/05/24 10:01:15 luigi Exp $
  */
 
 /*
@@ -329,12 +329,14 @@ ipfw_report(struct ip_fw *f, struct ip *ip,
 		case IP_FW_F_COUNT:
 			printf("Count");
 			break;
+#ifdef IPDIVERT
 		case IP_FW_F_DIVERT:
 			printf("Divert %d", f->fw_divert_port);
 			break;
 		case IP_FW_F_TEE:
 			printf("Tee %d", f->fw_divert_port);
 			break;
+#endif
 		case IP_FW_F_SKIPTO:
 			printf("SkipTo %d", f->fw_skipto_rule);
 			break;
@@ -742,7 +744,6 @@ got_match:
 		case IP_FW_F_DIVERT:
 			*cookie = f->fw_number;
 			return(f->fw_divert_port);
-#endif
 		case IP_FW_F_TEE:
 			/*
 			 * XXX someday tee packet here, but beware that you
@@ -753,6 +754,7 @@ got_match:
 			 * to write custom routine.
 			 */
 			continue;
+#endif
 		case IP_FW_F_SKIPTO: /* XXX check */
 			if ( f->next_rule_ptr )
 			    chain = f->next_rule_ptr ;
@@ -1111,14 +1113,20 @@ check_ipfw_struct(struct ip_fw *frwl)
 			return (EINVAL);
 		}
 		break;
+#if defined(IPDIVERT) || defined(DUMMYNET)
+#ifdef IPDIVERT
 	case IP_FW_F_DIVERT:		/* Diverting to port zero is invalid */
-	case IP_FW_F_PIPE:              /* piping through 0 is invalid */
 	case IP_FW_F_TEE:
+#endif
+#ifdef DUMMYNET
+	case IP_FW_F_PIPE:              /* piping through 0 is invalid */
+#endif
 		if (frwl->fw_divert_port == 0) {
 			dprintf(("%s can't divert to port 0\n", err_prefix));
 			return (EINVAL);
 		}
 		break;
+#endif /* IPDIVERT || DUMMYNET */
 	case IP_FW_F_DENY:
 	case IP_FW_F_ACCEPT:
 	case IP_FW_F_COUNT:
