@@ -41,7 +41,7 @@
 int
 set_acl_mask(acl_t *prev_acl)
 {
-	acl_entry_t entry, entry_new;
+	acl_entry_t entry;
 	acl_t acl;
 	acl_tag_t tag;
 	int entry_id;
@@ -105,19 +105,7 @@ set_acl_mask(acl_t *prev_acl)
 	}
 
 	acl_free(*prev_acl);
-	*prev_acl = acl_init(ACL_MAX_ENTRIES);
-	if (*prev_acl == NULL)
-		err(1, "acl_init() failed");
-
-	entry_id = ACL_FIRST_ENTRY;
-	while (acl_get_entry(acl, entry_id, &entry) == 1) {
-		entry_id = ACL_NEXT_ENTRY;
-		if (acl_create_entry(prev_acl, &entry_new) == -1)
-			err(1, "acl_create_entry() failed");
-		if (acl_copy_entry(entry_new, entry) == -1)
-			err(1, "acl_copy_entry() failed");
-	}
-
+	*prev_acl = acl_dup(acl);
 	acl_free(acl);
 
 	return (0);
