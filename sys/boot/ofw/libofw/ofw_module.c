@@ -27,7 +27,7 @@
  */
 
 /*
- * alpha-specific module functionality.
+ * ofw-specific module functionality.
  *
  */
 
@@ -35,14 +35,14 @@
 #include <string.h>
 
 #include "bootstrap.h"
-#include "libalpha.h"
+#include "libofw.h"
 
 /*
  * Use voodoo to load modules required by current hardware.
  */
 int
-alpha_autoload(void)
+ofw_autoload(void)
 {
-    /* XXX use PnP to locate stuff here */
+    /* XXX Call some machdep autoload routine? */
     return(0);
 }
