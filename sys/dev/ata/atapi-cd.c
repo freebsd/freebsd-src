@@ -1378,6 +1378,8 @@ acd_open_track(struct acd_softc *cdp, struct cdr_track *track)
     param.page_length = 0x32;
     param.test_write = track->test_write ? 1 : 0;
     param.write_type = CDR_WTYPE_TRACK;
+    if (cdp->cap.burnproof) 
+	param.burnproof = 1;
 
     switch (track->track_type) {
 
