@@ -30,6 +30,30 @@ static const char rcsid[] =
 #ifdef SHELL
 #define main testcmd
 #include "bltin/bltin.h"
+#else
+static void error(const char *, ...) __attribute__((__noreturn__));
+
+static void
+#ifdef __STDC__
+error(const char *msg, ...)
+#else
+error(va_alist)
+	va_dcl
+#endif
+{
+	va_list ap;
+#ifndef __STDC__
+	const char *msg;
+
+	va_start(ap);
+	msg = va_arg(ap, const char *);
+#else
+	va_start(ap, msg);
+#endif
+	verrx(2, msg, ap);
+	/*NOTREACHED*/
+	va_end(ap);
+}
 #endif
 
 /* test(1) accepts the following grammar:
@@ -180,13 +204,16 @@ main(argc, argv)
 		p++;
 	if (strcmp(p, "[") == 0) {
 		if (strcmp(argv[--argc], "]"))
-			errx(2, "missing ]");
+			error("missing ]");
 		argv[argc] = NULL;
 	}
 
 	/* XXX work around the absence of an eaccess(2) syscall */
 	(void)setgid(getegid());
 	(void)setuid(geteuid());
+
+	if (--argc <= 0)
+		return 1;
 
 	t_wp = &argv[1];
 	res = !oexpr(t_lex(*t_wp));
@@ -204,9 +231,9 @@ syntax(op, msg)
 {
 
 	if (op && *op)
-		errx(2, "%s: %s", op, msg);
+		error("%s: %s", op, msg);
 	else
-		errx(2, "%s", msg);
+		error("%s", msg);
 }
 
 static int
@@ -441,13 +468,13 @@ getn(s)
 	r = strtol(s, &p, 10);
 
 	if (errno != 0)
-	  errx(2, "%s: out of range", s);
+	  error("%s: out of range", s);
 
 	while (isspace((unsigned char)*p))
 	  p++;
 
 	if (*p)
-	  errx(2, "%s: bad number", s);
+	  error("%s: bad number", s);
 
 	return (int) r;
 }
@@ -464,13 +491,13 @@ getq(s)
 	r = strtoq(s, &p, 10);
 
 	if (errno != 0)
-	  errx(2, "%s: out of range", s);
+	  error("%s: out of range", s);
 
 	while (isspace((unsigned char)*p))
 	  p++;
 
 	if (*p)
-	  errx(2, "%s: bad number", s);
+	  error("%s: bad number", s);
 
 	return r;
 }
