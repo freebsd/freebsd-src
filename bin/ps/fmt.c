@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: fmt.c,v 1.4 1994/11/10 23:25:12 ats Exp $
+ *	$Id: fmt.c,v 1.5 1995/03/09 20:40:17 davidg Exp $
  */
 
 #ifndef lint
@@ -41,7 +41,6 @@ static char sccsid[] = "@(#)fmt.c	8.4 (Berkeley) 4/15/94";
 #include <sys/syslimits.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
