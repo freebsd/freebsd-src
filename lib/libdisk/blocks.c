@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: blocks.c,v 1.2 1995/04/29 01:55:17 phk Exp $
+ * $Id: blocks.c,v 1.3 1995/04/30 06:09:24 phk Exp $
  *
  */
 
@@ -24,8 +24,8 @@ read_block(int fd, daddr_t block)
 	foo = malloc(512);
 	if (!foo)
 		err(1,"malloc");
-	if (-1 == lseek(fd,block * 512,SEEK_SET))
-		err(1,"lseek");
+	if (-1 == lseek(fd, (off_t)block * 512, SEEK_SET))
+		err(1, "lseek");
 	if (512 != read(fd,foo, 512))
 		err(1,"read");
 	return foo;
@@ -34,8 +34,8 @@ read_block(int fd, daddr_t block)
 void
 write_block(int fd, daddr_t block, void *foo)
 {
-	if (-1 == lseek(fd,block * 512,SEEK_SET))
-		err(1,"lseek");
+	if (-1 == lseek(fd, (off_t)block * 512, SEEK_SET))
+		err(1, "lseek");
 	if (512 != write(fd,foo, 512))
 		err(1,"write");
 }
