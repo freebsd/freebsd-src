@@ -1,0 +1,454 @@
+.\"Matsushita(Panasonic) / Creative Compact Disc Drive Driver	(matcd)
+.\"Authored by Frank Durda IV
+.\"
+.\"Program and Documentation are Copyright 1994, 1995, 2003, 2003  Frank Durda IV.
+.\"All rights reserved.
+.\" "FDIV" is a trademark of Frank Durda IV.
+.\"
+.\"
+.\"Redistribution and use in source and binary forms, with or without
+.\"modification, are permitted provided that the following conditions
+.\"are met:
+.\"1. Redistributions of source code must retain the above copyright
+.\"   notice, this list of conditions and the following disclaimer.
+.\"2. Redistributions in binary form must reproduce the above copyright
+.\"   notice, this list of conditions and the following disclaimer in the
+.\"   documentation and/or other materials provided with the distribution.
+.\"3. Neither the name of the author nor the names of their contributors
+.\"   may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\"THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\"ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\"IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\"ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\"FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\"DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\"OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\"HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\"LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\"OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\"SUCH DAMAGE.
+.\"
+.\"--------------------------------------------------------------------------
+.\"Dedicated to:	My family, my grandfather,
+.\"			and Max, my Golden Retriever
+.\"
+.\"	Please note any documentation updates here including your name
+.\"	and the date.
+.\"<2>	Text brought in sync with changes made in versions 1(17) - 1(21)
+.\"	Frank Durda IV	4-Jul-1995
+.\"<3>	Text brought in sync with changes made in versions 1(22) - 1(25)
+.\"	Frank Durda IV  24-Sep-1995
+.\"<4>	Overhaul of man page to match version 3(41) (FreeBSD 5.0 support)
+.\"	and style changes noted in other 5.x era man pages.
+.\"	Frank Durda IV  17-Apr-2003
+.\"<5>  Aligned with version 3(42) (FreeBSD pre5.1 support)
+.\"	Frank Durda IV  10-May-2003
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 10, 2003
+.Dt MATCD 4 i386
+.\"Synchronized to Version 3(42) of matcd.c
+.Os
+.Sh NAME
+.Nm matcd
+.Nd Matsushita (Panasonic) Compact Disc drive driver
+.Sh SYNOPSIS
+.Cd "device matcd"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.matcd.\fI[0-3]\fP.at="isa"
+.Cd hint.matcd.\fI[0-3]\fP.port="\fIaddress\fP"
+.Sh DESCRIPTION
+The
+.Nm
+driver controls the CR-562 and CR-563 Compact Disc drives made by
+Matsushita-Kotobuki Electronics Industries, or Matsushita for short.
+These drives were sold under the Panasonic (which is a trade
+name for Matsushita), Creative Labs (omniCD) and Reveal names, and were
+also included in computers that were made by Tandy, GRiD, Victor, AST, 
+Packard Bell and many other brands.
+.Pp
+The drives are compatible with the major the Compact Disc standards,
+including CD-DA (Red Book - Digital Audio on pressed media), CD-WO (Orange
+Book Part II - Write-Once media), CD-ROM (Yellow Book - Data Storage), and
+the Kodak Photo-CD system.  The drives have some support related to 
+CD-ROM XA and CD-I (Green Book) audio and data requirements.
+.Pp
+These drives connect to the PC ISA bus through a simple (but proprietary) host
+interface.  The host interface has been manufactured as a stand-alone adapter
+card, or included on a sound card or other multi-function adapter card.
+The
+.Nm
+driver supports up to four host interfaces with up to four drives on each
+interface.  CD-DA (digital audio) activity may occur on all drives
+simultaneously.
+.Pp
+The drive hardware supports a "bus disconnect" system similar to that found
+in SCSI, and this allows simultaneous data read operations to be in progress
+on multiple drives on the same host interface, but the driver currently
+limits read operations to one active drive per host interface at a time.
+Despite this, all four drives on a given host interface are able deliver
+data at their full rated transfer rate for sequential blocks simultaneously,
+thanks to a modest read-ahead buffer in each drive.
+.Sh DRIVER INSTALLATION
+The
+.Nm
+driver can be directly linked into the
+.Fx
+kernel, or exist 
+as a loadable 
+.Fx
+kernel module.  The kernel module can be loaded or unloaded at any time
+using the \fBkldload\fR(8)/\fBkldunload\fR(8) commands.
+.Pp
+For most configurations, the
+.Nm
+driver should be used as a loadable kernel module and need not be linked into
+the kernel.  However, if you are attempting to do an install from a
+CD-ROM/CD-WO disc that is initiated from a non-FreeBSD operating system or
+you have a BIOS boot capability for this type of Compact Disc drive, having
+the driver already in the kernel can simplify the installation process.
+.Pp
+if you determine that you need to have the
+.Nm
+driver linked into the kernel, it is necessary to add an entry to the kernel
+configuration file and generate a new kernel.  The 
+.Fx
+kernel source tree comes
+with the file \fI/usr/src/sys/i386/conf/GENERIC\fR.
+You should make a copy of this file and give the copy the name of your system,
+such as "MYSYSTEM".  You can then edit the new file to include devices you
+want the system to include in the basic kernel and delete the device entries
+for drivers that you don't want included.  Eliminating drivers for hardware
+that you don't have can reduce the size of the finished kernel.
+.Pp
+To include the
+.Nm
+driver to the configuration file, you will need to add this entry:
+.Bd -literal -offset indent
+device  matcd
+.Ed
+.Pp
+and after making any other adjustments, save the file.
+.Pp
+Then generate a new kernel by using the \fBconfig\fR(8) command and follow
+all of the instructions that are displayed.  If the kernel completely
+builds, use the "make install" command and then reboot the system for that
+new kernel to become operational.
+.Sh DRIVER CONFIGURATION
+Regardless of whether the 
+.Nm
+driver is linked into the kernel or is used as a loadable kernel module, 
+the number of host interfaces that the driver will expect (or search for)
+is dictated by the number of entries present in the file
+\fI/boot/device\.hints\fR.  For example, in order to support two host
+interfaces, you would include entries like:
+.Bd -literal -offset indent
+hint.matcd.0.at="isa"
+hint.matcd.0.port="0x230"
+
+hint.matcd.1.at="isa"
+hint.matcd.1.port="0x260"
+
+.Ed
+Each set of entries designates a different
+.Nm 
+host interface, and where the I/O ports on that host interface adapter
+are located.
+.Pp
+(If you only want a single entry, include only the \fBhint.matcd.0\fR items,
+while add \fBhint.matcd.2\fR and \fBhint.matcd.3\fR as needed to support
+three or four host interfaces.)
+.Pp
+Note that the two \fBhint.matcd.0\fR entries in the \fI/boot/device\.hints\fR
+file are all that you need to support up to four drives on a single host
+interface.
+.Pp
+If the \fIaddress\fR parameter of a
+\fBhint.matcd.\fIn\fR.port="\fIaddress\fP"\fR entry
+in \fI/boot/device\.hints\fR file is set to "\fB-1\fR", the 
+.Nm
+driver searches for the host interface adapters by using a table
+of known I/O ports on Creative host adapters contained in the driver itself
+(see \fI/usr/src/sys/dev/matcd/options.h\fR).  
+.Pp
+Although the multiple port scan allows the 
+.Nm
+driver to work with many different types of host adapters without adjustments,
+using this mechanism has the potential to cause problems when your system has
+other devices that are located at the I/O ports that the driver will
+check for potential
+.Nm
+host interfaces.  The automatic search also significantly increases the
+amount of time it takes to boot or to load the kernel module.
+.Pp
+If you are having problems with the
+.Nm
+driver interfering with other adapters while it is probing for hardware, or
+you don't like the additional amount of time it takes for the entire search
+of I/O ports to complete, you can solve this by explicitly specifying where
+all the
+.Nm
+host interfaces are located.
+.Pp
+Traditionally, Creative Labs SoundBlaster cards have the Matsushita Compact
+Disc drive host interface located at I/O port 0x230, which is always 0x10
+above where the first I/O port for the audio section of the card (0x220).
+.Pp
+If you have determined exactly where the Matsushita I/O ports start on your
+system, specify the port by setting the
+\fBhint.matcd.\fIn\fR.port="\fIaddress\fP"\fR entry at the kernel boot
+prompt, or by editing the entry in the \fI/boot/device\.hints\fR file.  
+.Pp
+If you make a change to the \fI/boot/device\.hints\fR configuration file
+while the system is running, it is currently necessary to reboot the system
+before the updated values take effect.
+.Sh SUPPORTED HARDWARE
+At this time, there are only two known drive models that work with the
+.Nm
+driver:
+.Bl -item -width CR-123-X -compact -offset indent
+.It
+Matsushita CR-562-x
+.It
+Matsushita CR-563-x
+.El
+Most resellers leave these original markings on the drives since the label
+also has the FCC, VDE, CSA and RU certification marks.
+.Pp
+Both of these drive models have motorized trays.  There is also a custom
+version of these drives that does not have the volume control or headphone
+jack (seen on some Tandy computers), but this drive also works with
+.Nm .
+On drives that lack a front headphone jack, audio from discs can still be
+obtained at line level via a connector on the rear of the drive.
+.Pp
+The Matsushita CR-522-x and CR-523-x Compact Disc drives are not usable with
+.Nm .
+The CR-522 and CR-523 models can also be identified from the front as they
+both require a CD-caddy.
+.Pp
+Later versions of Matsushita and "Creative" Compact Disc drives use a
+basic IDE interface, so these other drives must use an IDE driver, such
+as \fBata\fR(4).
+.Pp
+The TEAC CD-55 4X Compact Disc drive also uses the same Creative/Panasonic 
+electrical interface, but the TEAC drive is not command set compatible with
+the Matsushita CR-56x drives.  The TEAC drive cannot be used with
+.Nm .
+.Pp
+The most common source of host interface adapters for the Panasonic drives
+was found in products from Creative Labs, including SoundBlaster sound
+cards.   There are numerous models of SoundBlaster sound cards, and most
+of the newer cards provide the appropriate interface, sometimes labeled as
+the "Creative/Panasonic" interface.
+.Pp
+The following host interface adapters are known to work with the
+.Nm
+driver:
+.Bl -tag -width LONGNAME -compact -offset indent
+.It Creative
+Sound Blaster Pro (SBPRO) (CT1330A)
+.It Creative
+Sound Blaster 16 (CT1730)
+.It Creative
+Sound Blaster 16 - cost-reduced (CT1740)
+.It Creative
+OmniCD upgrade kit adapter card - stand-alone CD (CT1810)
+.It Creative
+Sound Blaster 16 - 2-layer, cost-reduced  (CT2230)
+.It Creative
+Sound Blaster 16 (Vibra16) - 2-layer, single-chip (CT2260)
+.It Creative
+Sound Blaster 16 Value (SB16) - 2-layer, cost-reduced (CT2770)
+.It Creative
+PhoneBlaster SB16 + Sierra 14.4K Voice/FAX/Data/Speakerphone modem combo (CT3100)
+.It Reveal
+(SC400)
+.El
+.Pp
+Caution: Some of these sound boards can be optionally manufactured to not
+include the Panasonic/Creative interface connector and electronics, so check
+the board visually to verify that the "Creative" or "Panasonic" drive connector
+is actually there before buying the card solely based on model number.
+.Pp
+This is by no means a complete list as Creative Labs and other vendors
+that produce sound cards with an identical Creative/Panasonic drive
+interface released many versions of compatible adapters.
+.Pp
+In addition to Creative Labs adapters, adapters that are compatible with
+Media Vision, IBM and Lasermate adapters are also supported.   However,
+these adapters use a wide range of I/O port addresses, so the driver
+must be reconfigured to locate these adapters, at least initially.
+.Pp
+.Sh SUPPORTED OPERATIONS
+The
+.Nm
+driver supports block and character access.  Partition "a" returns
+2048-byte User Data blocks from data CDs.  Partition "c" returns the full
+2352-byte Frames from any type of CD, including audio CDs.  (Partition
+"c" cannot be "mounted" with cd9660 or other standard filesystem emulators.)
+No other partitions are supported.
+.Pp
+The
+.Nm matcdl
+devices work the same as the normal
+.Nm
+devices except that the drive trays are locked and
+remain locked until all of the devs on that drive are closed.
+.Pp
+.Nm Matcd
+accepts numerous
+.Fn ioctl
+commands, including functions related to Compact Disc audio and
+drive tray control features.  The commands are:
+.Pp
+.Bl -tag -width CDIOCREADSUBCHANNELXXX -compact -offset indent
+.It DIOCGDINFO
+get disklabel.
+.It CDIOCREADSUBCHANNEL
+report the current optical pick-up position and sub channel data.
+.It CDIOCREADTOCHEADER
+reads table of contents summary from the disc.
+.It CDIOCREADTOCENTRYS
+reads length/size and other control information for an individual track.
+.It CDIOCPLAYTRACKS
+plays audio starting at a track/index and stopping at a track/index.
+.It CDIOCPLAYBLOCKS
+plays audio starting at a block and stopping at a block.
+.It CDIOCPLAYMSF
+plays audio starting at a particular time offset.
+.It CDIOCPAUSE
+pauses a playing disc.
+.It CDIOCRESUME
+resumes playing a previously paused disc.  Ignored if the drive is
+already playing.
+.It CDIOCSTOP
+stops playing a disc.
+.It CDIOCEJECT
+opens the disc tray.
+.It CDIOCCLOSE
+closes the disc tray.
+.It CDIOCPREVENT
+blocks further attempts to open the drive door until all devices close
+or a CDIOCALLOW ioctl is issued.
+.It CDIOCALLOW
+unlocks the drive door if it was locked.  This ioctl is rejected if
+any locking devices are open, so it must be issued via a non-locking
+device.
+.It CDIOCGETVOL
+returns the current volume settings of the drive.
+.It CDIOCSETVOL
+sets the volume settings of the drive.
+.It CDIOCSETSTEREO
+the left channel audio is sent to the left channel output and the
+right channel audio is sent to the right channel output.  This is the
+default state.
+(Note that the drive does not have a documented "Mono" mode,
+where L combined with R audio from the disc is sent to both the left and right
+output channels.)
+.It CDIOCSETMUTE
+the audio output is to be turned off.  The drive continues to read
+the audio on the disc and that audio is discarded until the audio routing is
+turned back on.
+.It CDIOCSETLEFT
+the left channel audio is to be sent to the left and right channel outputs.
+The right channel audio signal is discarded.
+.It CDIOCSETRIGHT
+the right channel audio is to be sent to the left and right channel
+outputs.
+The left channel audio signal is discarded.
+.It CDIOCSETPATCH
+the audio is to be routed as specified in the provided bit maps.
+.It CDIOCSETPITCH
+the playback speed of the audio is increased or decreased
+(for Karaoke "off-key" applications).  Speed can be adjusted +/-13%.
+.It CDIOCCAPABILITY
+report the capabilities of the drive and driver.  Results are returned
+as shown in \fI/usr/include/sys/cdio.h\fR.
+.El
+.Pp
+The
+.Fn ioctl
+commands defined above are the only ones that the
+.Nm
+driver supports.
+.Sh FILES
+.Bl -tag -width /usr/src/sys/dev/matcd/options.h -compact
+.It Pa /dev/matcd[0-15]a
+Used to access 2048-byte blocks of data on a Compact Disc
+that is recorded in the Mode 1 Form 1 format.
+.It Pa /dev/matcd[0-15]la
+Used to access 2048-byte blocks of data on a Compact Disc
+that is recorded in the Mode 1 Form 1 format and disables the disc
+eject controls.
+.It Pa /dev/matcd[0-15]c
+Used to access 2352-byte frames on a Compact Disc
+recorded in any format.
+.It Pa /dev/matcd[0-15]lc
+Used to access 2352-byte frames on a Compact Disc
+recorded in any format and disables the disc eject controls.
+.It Pa /boot/devices.hints
+Specify the number of host interfaces and host adapter I/O port locations
+that 
+.Nm 
+should examine.
+.It Pa /usr/src/sys/dev/matcd/*
+Source code for
+.Nm .
+.It Pa /usr/src/sys/dev/matcd/options.h
+Contains all of the compilation options for
+.Nm .
+.El
+.Sh NOTES
+The various Creative/Panasonic host interface adapters do not use interrupts
+or DMA although the drives themselves are equipped to allow both to be used.
+.Pp
+If the disc tray is opened while one or more partitions are open, further
+I/O to all partitions on the drive will be rejected until all partitions
+are closed.  This prevents a disc change from going undetected by higher
+levels of the operating system.
+.Pp
+There must be a drive on each host interface that is addressed as
+physical drive 0.  (Jumpers on the back of the drive control this setting.)
+If there is no physical drive 0, the
+.Nm
+driver will be unable to detect that host interface or any of the drives
+connected to that host interface.
+.Pp
+It is not necessary to have four drives attached
+to the first host interface before being able to activate a second host
+interface, but each interface must have at least one drive jumpered to be
+drive 0.
+.Pp
+Drives on a second host interface are considered logical
+drive numbers 4 through 7, drives 8 through 11 are on the third interface
+and 12 through 15 are on the fourth.  The first drive on the second host
+interface is always logical drive 4 regardless of how many drives are
+present on the first host interface.  
+.Pp
+Host interfaces are numbered as specified in the \fI/boot/devices.hints\fR
+file.
+.Sh SEE ALSO
+.Xr /usr/include/sys/cdio.h ,
+.Xr kldload 8 ,
+.Xr kldunload 8
+.Sh AUTHORS
+The driver and documentation was written by
+.An Frank Durda IV .
+.Pp
+Program and Documentation are Copyright 1994, 1995, 2002, 2003,
+All rights reserved.
+.Sh HISTORY
+The
+.Nm
+driver originally appeared in
+.Fx 2.0.5 .  The 
+.Fx
+5.1.x compatible implementation described here appeared in
+.Fx
+5.2.0.
