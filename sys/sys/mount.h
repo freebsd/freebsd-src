@@ -456,7 +456,7 @@ dev_t	vfs_getrootfsid(struct mount *);
 struct	mount *vfs_getvfs(fsid_t *);      /* return vfs given fsid */
 int	vfs_modevent(module_t, int, void *);
 int	vfs_mountedon(struct vnode *);    /* is a vfs mounted on vp */
-void	vfs_mountroot(void *);    /* mount our root filesystem */
+void	vfs_mountroot(void);			/* mount our root filesystem */
 int	vfs_rootmountalloc(char *, char *, struct mount **);
 void	vfs_unbusy(struct mount *, struct thread *td);
 void	vfs_unmountall(void);
