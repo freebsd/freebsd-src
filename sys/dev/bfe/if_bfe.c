@@ -452,7 +452,9 @@ bfe_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 
+#if __FreeBSD_version > 500000
 	KASSERT(mtx_initialized(&sc->bfe_mtx), ("bfe mutex not initialized"));
+#endif
 	BFE_LOCK(scp);
 
 	ifp = &sc->arpcom.ac_if;
