@@ -388,4 +388,4 @@ static moduledata_t pseudofs_data = {
 	NULL
 };
 DECLARE_MODULE(pseudofs, pseudofs_data, SI_SUB_EXEC, SI_ORDER_FIRST);
-MODULE_VERSION(pseudofs, 2);
+MODULE_VERSION(pseudofs, 3);
