@@ -26,8 +26,8 @@
  * $FreeBSD$
  */
 
-#ifndef _MONETARY_H
-#define	_MONETARY_H
+#ifndef _MONETARY_H_
+#define	_MONETARY_H_
 
 #include <sys/cdefs.h>
 #include <machine/ansi.h>
@@ -46,4 +46,4 @@ __BEGIN_DECLS
 ssize_t	strfmon(char *, size_t, const char *, ...);
 __END_DECLS
 
-#endif /* !_MONETARY_H */
+#endif /* !_MONETARY_H_ */

@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2001 Alexey Zelkin <phantom@FreeBSD.org>
  * All rights reserved.
  *
@@ -26,8 +26,8 @@
  * $FreeBSD$
  */
 
-#ifndef _LANGINFO_H
-#define _LANGINFO_H
+#ifndef _LANGINFO_H_
+#define	_LANGINFO_H_
 
 #include <sys/cdefs.h>
 #include <nl_types.h>
@@ -105,7 +105,7 @@
 #define	D_MD_ORDER	57	/* month/day order (local extension) */
 
 __BEGIN_DECLS
-char *nl_langinfo(nl_item);
+char	*nl_langinfo __P((nl_item));
 __END_DECLS
 
-#endif /* _LANGINFO_H */
+#endif /* !_LANGINFO_H_ */
