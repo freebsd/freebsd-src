@@ -159,7 +159,7 @@ nslookup_yy_input(buf, result, max_size, intr)
 %}
 WS	[ \t]
 FLET	[A-Za-z0-9.*\\_]
-LET	[A-Za-z0-9.*]
+LET	[A-Za-z0-9.*_]
 NAME	[A-Za-z0-9.*=_/-]
 %%
 ^{WS}*server{WS}+{LET}{NAME}*{WS}*$	{
@@ -194,10 +194,6 @@ NAME	[A-Za-z0-9.*=_/-]
 					}
 ^{WS}*finger({WS}+{LET}{NAME}*)?{WS}*$	{
 					    Finger(yytext, 0);
-					    return(1);
-					}
-^{WS}*view{WS}+{NAME}+{WS}*$	{
-					    ViewList((char *)yytext);
 					    return(1);
 					}
 ^{WS}*ls{WS}+(("-a"|"-d"|"-h"|"-m"|"-s"){WS}+)?{LET}{NAME}*{WS}+>>?{WS}+{NAME}+{WS}*$	{
