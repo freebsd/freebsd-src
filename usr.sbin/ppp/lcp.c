@@ -1101,7 +1101,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
         if (p->type != PHYS_DIRECT)
 	  goto reqreject;
         if ((p->dl->cfg.callback.opmask & CALLBACK_BIT(op)) &&
-            (op != CALLBACK_AUTH || p->link.lcp.auth_ineed) &&
+            (op != CALLBACK_AUTH || p->link.lcp.want_auth) &&
             (op != CALLBACK_E164 ||
              E164ok(&p->dl->cfg.callback, cp + 3, sz))) {
 	  lcp->his_callback.opmask = CALLBACK_BIT(op);
@@ -1264,7 +1264,7 @@ reqreject:
       *dec->nakend++ = TY_CALLBACK;
       *dec->nakend++ = 3;
       if ((p->dl->cfg.callback.opmask & CALLBACK_BIT(CALLBACK_AUTH)) &&
-          p->link.lcp.auth_ineed)
+          p->link.lcp.want_auth)
         *dec->nakend++ = CALLBACK_AUTH;
       else if (p->dl->cfg.callback.opmask & CALLBACK_BIT(CALLBACK_CBCP))
         *dec->nakend++ = CALLBACK_CBCP;
