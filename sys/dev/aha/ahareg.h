@@ -430,7 +430,10 @@ int			aha_probe(struct aha_softc *);
 #define EXTRA_AHA 4
 #define NAHATOT (NAHA + EXTRA_AHA)
 
+#define ADP0100_PNP		0x00019004	/* ADP0100 */
+#define AHA1540_PNP		0x40159004	/* ADP1540 */
 #define AHA1542_PNP		0x42159004	/* ADP1542 */
 #define AHA1542_PNPCOMPAT	0xA000D040	/* PNP00A0 */
+#define ICU0091_PNP		0X91005AA4	/* ICU0091 */
 
 #endif	/* _AHA_H_ */
