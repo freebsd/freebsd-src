@@ -530,7 +530,7 @@ static void
 release_aps(void *dummy __unused)
 {
 	if (bootverbose)
-		printf(__func__ ": releasing secondary CPUs\n");
+		printf("%s: releasing secondary CPUs\n", __func__);
 	atomic_store_rel_int(&aps_ready, 1);
 }
 
