@@ -62,7 +62,7 @@ main(argc, argv)
 	char *argv[];
 {
 	int ch;
-	char *shell;
+	const char *shell;
 
 	while ((ch = getopt(argc, argv, "")) != -1)
 		switch(ch) {
