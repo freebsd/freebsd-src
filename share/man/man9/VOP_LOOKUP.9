@@ -62,7 +62,7 @@ struct componentname {
 	 */
 	u_long	cn_nameiop;	/* namei operation */
 	u_long	cn_flags;	/* flags to namei */
-	struct	proc *cn_proc;	/* process requesting lookup */
+	struct	thread *cn_thread;	/* process requesting lookup */
 	struct	ucred *cn_cred;	/* credentials */
 	/*
 	 * Shared between lookup and commit routines.
@@ -176,7 +176,7 @@ vop_lookup(struct vnode *dvp,
     if (dvp->v_type != VDIR)
 	return ENOTDIR;
 
-    error = VOP_ACCESS(dvp, VEXEC, cred, cnp->cn_proc);
+    error = VOP_ACCESS(dvp, VEXEC, cred, cnp->cn_thread);
     if (error)
 	return (error);
 
@@ -296,7 +296,7 @@ vop_lookup(struct vnode *dvp,
 	    /*
 	     * Check for write access on directory.
 	     */
-	    error = VOP_ACCESS(dvp, VWRITE, cred, cnp->cn_proc);
+	    error = VOP_ACCESS(dvp, VWRITE, cred, cnp->cn_thread);
 	    if (error)
 		return (error);
 
@@ -331,7 +331,7 @@ vop_lookup(struct vnode *dvp,
 	 * regular file, or empty directory.
 	 */
 	if (nameiop == RENAME && wantparent && islastcn) {
-	    error = VOP_ACCESS(dvp, VWRITE, cred, cnp->cn_proc);
+	    error = VOP_ACCESS(dvp, VWRITE, cred, cnp->cn_thread);
 	    if (error)
 		return (error);
 
