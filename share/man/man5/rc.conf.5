@@ -240,6 +240,22 @@ is not writable.
 Controls the size of a created
 .Pa /tmp
 memory file system.
+.It Va tmpmfs_flags
+Extra options passed to the
+.Xr mdmfs 8
+utility when the memory file system for
+.Pa /tmp
+is created.
+The default is
+.Dq Li -S -o noexec,nosuid,nodev ,
+which inhibits the use of softupdates on
+.Pa /tmp
+to waste as little space as possible and mounts the memory file system
+.Dq Li noexec,nosuid,nodev .
+See
+.Xr mdmfs 8
+for other options you can use in
+.Li tmpmfs_flags .
 .It Va varmfs
 Controls the creation of a
 .Pa /var
@@ -255,6 +271,21 @@ is not writable.
 Controls the size of a created
 .Pa /var
 memory file system.
+.It Va varmfs_flags
+Extra options passed to the
+.Xr mdmfs 8
+utility when the memory file system for
+.Pa /var
+is created.
+The default is
+.Dq Li -S ,
+which inhibits the use of softupdates on
+.Pa /var
+to waste as little space as possible.
+See
+.Xr mdmfs 8
+for other options you can use in
+.Li varmfs_flags .
 .It Va populate_var
 Controls the automatic population of the
 .Pa /var
@@ -3109,6 +3140,7 @@ device and the mount point will be changed.
 .Xr kldxref 8 ,
 .Xr lpd 8 ,
 .Xr mdconfig 8 ,
+.Xr mdmfs 8 ,
 .Xr mountd 8 ,
 .Xr moused 8 ,
 .Xr mrouted 8 ,
