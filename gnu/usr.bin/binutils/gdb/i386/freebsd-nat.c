@@ -428,3 +428,226 @@ _initialize_core_aout ()
 {
   add_core_fns (&aout_core_fns);
 }
+
+#ifdef PT_GETDBREGS
+
+/*
+ * 0: no trace output
+ * 1: trace watchpoint requests
+ * 2: trace `watchpoint hit?' tests, too
+ */
+#define WATCHPOINT_DEBUG 0
+
+#include "breakpoint.h"
+
+int
+can_watch(type, cnt, ot)
+     int type, cnt, ot;
+{
+  int rv;
+  static int cnt_watch, cnt_awatch;
+
+  switch (type)
+    {
+    case bp_hardware_watchpoint:
+      cnt_watch = cnt;
+      break;
+      
+    case bp_access_watchpoint:
+      cnt_awatch = cnt;
+      break;
+      
+    default:
+      rv = 0;
+      goto overandout;
+    }
+
+  rv = cnt_watch + cnt_awatch <= 4? 1: -1;
+
+ overandout:
+#if WATCHPOINT_DEBUG
+  printf_filtered("can_watch(%d, %d, %d) = %d (counts: w: %d, rw: %d)\n",
+		  type, cnt, ot, rv, cnt_watch, cnt_awatch);
+#endif
+
+  return rv;
+}
+
+int
+stopped_by_watchpoint()
+{
+  struct dbreg dbr;
+  extern int inferior_pid;
+  
+  if (inferior_pid != 0 && core_bfd == NULL) 
+    {
+      int pid = inferior_pid & ((1 << 17) - 1);	/* XXX extract pid from tid */
+  
+      if (ptrace(PT_GETDBREGS, pid, (caddr_t)&dbr, 0) == -1)
+	{
+	  perror("ptrace(PT_GETDBREGS) failed");
+	  return 0;
+	}
+#if WATCHPOINT_DEBUG > 1
+      printf_filtered("stopped_by_watchpoint(): DR6 = %#x\n", dbr.dr6);
+#endif
+      /*
+       * If a hardware watchpoint was hit, one of the lower 4 bits in
+       * DR6 is set (the actual bit indicates which of DR0...DR3 triggered
+       * the trap).
+       */
+      return dbr.dr6 & 0x0f;
+    } 
+  else
+    {
+      warning("Can't set a watchpoint on a core file.");
+      return 0;
+    }
+}
+
+int
+insert_watchpoint(addr, len, type)
+     int addr, len, type;
+{
+  struct dbreg dbr;
+  extern int inferior_pid;
+  
+  if (inferior_pid != 0 && core_bfd == NULL) 
+    {
+      int pid = inferior_pid & ((1 << 17) - 1);	/* XXX extract pid from tid */
+      int i, mask;
+      unsigned int sbits;
+
+      if (ptrace(PT_GETDBREGS, pid, (caddr_t)&dbr, 0) == -1)
+	{
+	  perror("ptrace(PT_GETDBREGS) failed");
+	  return 0;
+	}
+
+      for (i = 0, mask = 0x03; i < 4; i++, mask <<= 2)
+	if ((dbr.dr7 & mask) == 0)
+	  break;
+      if (i >= 4) {
+	warning("no more hardware watchpoints available");
+	return -1;
+      }
+
+      /* paranoia */
+      if (len > 4)
+	{
+	  warning("watchpoint length %d unsupported, using lenght = 4",
+		  len);
+	  len = 4;
+	}
+      else if (len == 3)
+	{
+	  warning("weird watchpoint length 3, using 2");
+	  len = 2;
+	}
+      else if (len == 0)
+	{
+	  warning("weird watchpoint length 0, using 1");
+	  len = 1;
+	}
+
+      switch (len)
+	{
+	case 1: sbits = 0; break;
+	case 2: sbits = 4; break;
+	case 4: sbits = 0x0c; break;
+	}
+      
+      /*
+       *  The `type' value is 0 for `watch on write', 1 for `watch on
+       * read', 2 for `watch on both'.  The i386 debug register
+       * breakpoint types are 0 for `execute' (not used in GDB), 1 for
+       * `write', and 4 for `read/write'.  Plain `read' trapping is
+       * not supported on i386, value 3 is illegal.
+       */
+      switch (type)
+	{
+	default:
+	  warning("weird watchpoint type %d, using a write watchpoint");
+	  /* FALLTHROUGH */
+	case 0:
+	  sbits |= 1;
+	  break;
+
+	case 2:
+	  sbits |= 3;
+	  break;
+	}
+      sbits <<= 4 * i + 16;
+      sbits |= 1 << 2 * i;
+
+      dbr.dr7 |= sbits;
+      *(&dbr.dr0 + i) = (unsigned int)addr;
+
+#if WATCHPOINT_DEBUG
+      printf_filtered("insert_watchpoint(), inserting DR7 = %#x, DR%d = %#x\n",
+		      dbr.dr7, i, addr);
+#endif
+      if (ptrace(PT_SETDBREGS, pid, (caddr_t)&dbr, 0) == -1)
+	{
+	  perror("ptrace(PT_SETDBREGS) failed");
+	  return 0;
+	}
+    }
+  else
+    {
+      warning("Can't set a watchpoint on a core file.");
+      return 0;
+    }
+}
+
+int
+remove_watchpoint(addr, len, type)
+     int addr, len, type;
+{
+  struct dbreg dbr;
+  extern int inferior_pid;
+  
+  if (inferior_pid != 0 && core_bfd == NULL) 
+    {
+      int pid = inferior_pid & ((1 << 17) - 1);	/* XXX extract pid from tid */
+      int i;
+      unsigned int sbits, *dbregp;
+  
+      if (ptrace(PT_GETDBREGS, pid, (caddr_t)&dbr, 0) == -1)
+	{
+	  perror("ptrace(PT_GETDBREGS) failed");
+	  return 0;
+	}
+
+      for (i = 0, dbregp = &dbr.dr0; i < 4; i++, dbregp++)
+	if (*dbregp == (unsigned int)addr)
+	  break;
+      if (i >= 4)
+	{
+	  warning("watchpoint for address %#x not found", addr);
+	  return -1;
+	}
+
+      *dbregp = 0;
+      sbits = 0xf << (4 * i + 16);
+      sbits |= 3 << 2 * i;
+      dbr.dr7 &= ~sbits;
+
+#if WATCHPOINT_DEBUG
+      printf_filtered("remove_watchpoint(): removing watchpoint for %#x, DR7 = %#x\n",
+		      addr, dbr.dr7);
+#endif
+      if (ptrace(PT_SETDBREGS, pid, (caddr_t)&dbr, 0) == -1)
+	{
+	  perror("ptrace(PT_SETDBREGS) failed");
+	  return 0;
+	}
+    }
+  else
+    {
+      warning("Can't set a watchpoint on a core file.");
+      return 0;
+    }
+}
+
+#endif /* PT_GETDBREGS */
