@@ -291,6 +291,8 @@ struct pcb stoppcbs[MAXCPU];
 int invltlb_ok = 0;	/* throttle smp_invltlb() till safe */
 SYSCTL_INT(_machdep, OID_AUTO, invltlb_ok, CTLFLAG_RW, &invltlb_ok, 0, "");
 
+volatile int smp_started;
+
 /*
  * Local data and functions.
  */
