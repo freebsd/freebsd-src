@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_ktrace.c	8.2 (Berkeley) 9/23/93
- * $Id: kern_ktrace.c,v 1.9 1995/12/14 08:31:23 phk Exp $
+ * $Id: kern_ktrace.c,v 1.10 1996/01/03 21:42:04 wollman Exp $
  */
 
 #include "opt_ktrace.h"
@@ -282,7 +282,7 @@ ktrace(curp, uap, retval)
 	 * Clear all uses of the tracefile
 	 */
 	if (ops == KTROP_CLEARFILE) {
-		for (p = (struct proc *)allproc; p != NULL; p = p->p_next) {
+		for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
 			if (p->p_tracep == vp) {
 				if (ktrcanset(curp, p)) {
 					p->p_tracep = NULL;
@@ -314,7 +314,7 @@ ktrace(curp, uap, retval)
 			error = ESRCH;
 			goto done;
 		}
-		for (p = pg->pg_mem; p != NULL; p = p->p_pgrpnxt)
+		for (p = pg->pg_members.lh_first; p != 0; p = p->p_pglist.le_next)
 			if (descend)
 				ret |= ktrsetchildren(curp, p, ops, facs, vp);
 			else
@@ -401,20 +401,16 @@ ktrsetchildren(curp, top, ops, facs, vp)
 		 * otherwise do any siblings, and if done with this level,
 		 * follow back up the tree (but not past top).
 		 */
-		if (p->p_cptr)
-			p = p->p_cptr;
-		else if (p == top)
-			return (ret);
-		else if (p->p_osptr)
-			p = p->p_osptr;
+		if (p->p_children.lh_first)
+			p = p->p_children.lh_first;
 		else for (;;) {
-			p = p->p_pptr;
 			if (p == top)
 				return (ret);
-			if (p->p_osptr) {
-				p = p->p_osptr;
+			if (p->p_sibling.le_next) {
+				p = p->p_sibling.le_next;
 				break;
 			}
+			p = p->p_pptr;
 		}
 	}
 	/*NOTREACHED*/
@@ -457,7 +453,7 @@ ktrwrite(vp, kth)
 	 */
 	log(LOG_NOTICE, "ktrace write failed, errno %d, tracing stopped\n",
 	    error);
-	for (p = (struct proc *)allproc; p != NULL; p = p->p_next) {
+	for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
 		if (p->p_tracep == vp) {
 			p->p_tracep = NULL;
 			p->p_traceflag = 0;
