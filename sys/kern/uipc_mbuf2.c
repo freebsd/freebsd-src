@@ -81,7 +81,7 @@
  *
  * on error return (NULL return value), original "m" will be freed.
  *
- * XXX M_TRAILINGSPACE/M_LEADINGSPACE on shared cluster (sharedcluster)
+ * XXX: M_TRAILINGSPACE/M_LEADINGSPACE only permitted on writable ext_buf.
  */
 struct mbuf *
 m_pulldown(m, off, len, offp)
@@ -91,7 +91,7 @@ m_pulldown(m, off, len, offp)
 {
 	struct mbuf *n, *o;
 	int hlen, tlen, olen;
-	int sharedcluster;
+	int writable;
 
 	/* check invalid arguments. */
 	if (m == NULL)
@@ -176,25 +176,42 @@ m_pulldown(m, off, len, offp)
 	 * easy cases first.
 	 * we need to use m_copydata() to get data from <n->m_next, 0>.
 	 */
-	if ((n->m_flags & M_EXT) == 0)
-		sharedcluster = 0;
-	else {
-		if (n->m_ext.ext_free)
-			sharedcluster = 1;
-		else if (MEXT_IS_REF(n))
-			sharedcluster = 1;
-		else
-			sharedcluster = 0;
-	}
+	/*
+	 * XXX: This code is flawed because it considers a "writable" mbuf
+	 *      data region to require all of the following:
+	 *	  (i) mbuf _has_ to have M_EXT set; if it is just a regular
+	 *	      mbuf, it is still not considered "writable."
+	 *	  (ii) since mbuf has M_EXT, the ext_type _has_ to be
+	 *	       EXT_CLUSTER. Anything else makes it non-writable.
+	 *	  (iii) M_WRITABLE() must evaluate true.
+	 *      Ideally, the requirement should only be (iii).
+	 *
+	 * If we're writable, we're sure we're writable, because the ref. count
+	 * cannot increase from 1, as that would require posession of mbuf
+	 * n by someone else (which is impossible). However, if we're _not_
+	 * writable, we may eventually become writable )if the ref. count drops
+	 * to 1), but we'll fail to notice it unless we re-evaluate
+	 * M_WRITABLE(). For now, we only evaluate once at the beginning and
+	 * live with this.
+	 */
+	/*
+	 * XXX: This is dumb. If we're just a regular mbuf with no M_EXT,
+	 *      then we're not "writable," according to this code.
+	 */
+	writable = 0;
+	if ((n->m_flags & M_EXT) && (n->m_ext.ext_type == EXT_CLUSTER) &&
+	    M_WRITABLE(n))
+		writable = 1;
+
 	if ((off == 0 || offp) && M_TRAILINGSPACE(n) >= tlen
-	 && !sharedcluster) {
+	 && writable) {
 		m_copydata(n->m_next, 0, tlen, mtod(n, caddr_t) + n->m_len);
 		n->m_len += tlen;
 		m_adj(n->m_next, tlen);
 		goto ok;
 	}
 	if ((off == 0 || offp) && M_LEADINGSPACE(n->m_next) >= hlen
-	 && !sharedcluster) {
+	 && writable) {
 		n->m_next->m_data -= hlen;
 		n->m_next->m_len += hlen;
 		bcopy(mtod(n, caddr_t) + off, mtod(n->m_next, caddr_t), hlen);
