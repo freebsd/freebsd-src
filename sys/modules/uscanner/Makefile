@@ -7,6 +7,4 @@ MAINTAINER=	n_hibma@freebsd.org
 KMOD=	 uscanner
 SRCS=	bus_if.h device_if.h vnode_if.h opt_usb.h uscanner.c
 
-CFLAGS+= -g
-
 .include <bsd.kmod.mk>

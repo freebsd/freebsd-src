@@ -11,6 +11,5 @@ SRCS	= bus_if.h device_if.h \
 	  firewire.h firewirereg.h \
 	  iec13213.h
 
-#CFLAGS += -g
 .include <bsd.kmod.mk>
 

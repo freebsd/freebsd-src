@@ -10,8 +10,7 @@ SRCS=	if_patm.c if_patm_attach.c if_patm_ioctl.c if_patm_intr.c \
 	device_if.h bus_if.h pci_if.h opt_inet.h opt_natm.h
 
 CFLAGS+= -DENABLE_BPF
-# CFLAGS+= -DPATM_DEBUG=0x0 -DINVARIANT_SUPPORT -DINVARIANTS -g -DDIAGNOSTIC
-# LDFLAGS+= -g
+# CFLAGS+= -DPATM_DEBUG=0x0 -DINVARIANT_SUPPORT -DINVARIANTS -DDIAGNOSTIC
 
 opt_inet.h:
 	echo "#define INET 1" > opt_inet.h
