@@ -75,7 +75,6 @@
 
 #define FTP_ANONYMOUS_USER	"ftp"
 #define FTP_ANONYMOUS_PASSWORD	"ftp"
-#define FTP_DEFAULT_PORT 21
 
 #define FTP_OPEN_DATA_CONNECTION	150
 #define FTP_OK				200
@@ -260,6 +259,8 @@ _ftp_stat(int cd, char *file, struct url_stat *us)
 	_ftp_seterr(FTP_PROTOCOL_ERROR);
 	return -1;
     }
+    if (us->size == 0)
+	us->size = -1;
     DEBUG(fprintf(stderr, "size: [\033[1m%lld\033[m]\n", us->size));
 
     if ((e = _ftp_cmd(cd, "MDTM %s", s)) != FTP_FILE_STATUS) {
@@ -570,6 +571,19 @@ ouch:
 }
 
 /*
+ * Return default port
+ */
+static int
+_ftp_default_port(void)
+{
+    struct servent *se;
+	    
+    if ((se = getservbyname("ftp", "tcp")) != NULL)
+	return ntohs(se->s_port);
+    return FTP_DEFAULT_PORT;
+}
+
+/*
  * Log on to FTP server
  */
 static int
@@ -611,14 +625,8 @@ _ftp_connect(char *host, int port, char *user, char *pwd, char *flags)
 		/* XXX we should emit some kind of warning */
 	    }
 	}
-	if (!pp) {
-	    struct servent *se;
-	    
-	    if ((se = getservbyname("ftp", "tcp")) != NULL)
-		pp = ntohs(se->s_port);
-	    else
-		pp = FTP_DEFAULT_PORT;
-	}
+	if (!pp)
+	    pp = _ftp_default_port();
 	if (q) {
 #ifdef INET6
 	    if (q > p && *p == '[' && *(q - 1) == ']') {
@@ -732,14 +740,8 @@ _ftp_cached_connect(struct url *url, char *flags)
     cd = -1;
     
     /* set default port */
-    if (!url->port) {
-	struct servent *se;
-	
-	if ((se = getservbyname("ftp", "tcp")) != NULL)
-	    url->port = ntohs(se->s_port);
-	else
-	    url->port = FTP_DEFAULT_PORT;
-    }
+    if (!url->port)
+	url->port = _ftp_default_port();
     
     /* try to use previously cached connection */
     if (_ftp_isconnected(url)) {
@@ -844,9 +846,6 @@ fetchStatFTP(struct url *url, struct url_stat *us, char *flags)
 
     if (_ftp_use_http_proxy())
 	return fetchStatHTTP(url, us, flags);
-    
-    us->size = -1;
-    us->atime = us->mtime = 0;
     
     /* connect to server */
     if ((cd = _ftp_cached_connect(url, flags)) == NULL)
