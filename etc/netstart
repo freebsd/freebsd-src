@@ -1,7 +1,13 @@
 #!/bin/sh -
 #
-#	$Id: netstart,v 1.45.2.1 1996/11/06 09:22:16 phk Exp $
+#	$Id: netstart,v 1.50 1997/05/18 14:10:06 jkh Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
+
+# This file is NOT called by any of the other scripts - it has been
+# obsoleted by /etc/rc.network and is provided here only for user
+# convenience (if you're sitting in single user mode and wish to start
+# the network by hand, this script will do it for you).
+#
 
 # If there is a global system configuration file, suck it in.
 if [ -f /etc/rc.conf ]; then
