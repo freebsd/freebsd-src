@@ -1,3 +1,19 @@
+# $FreeBSD$
+
+IMPORTANT NOTE:
+
+As of Feb. 11, 2002 (and indeed, for quite some time before that),
+the /etc/rc.diskless{1,2} scripts support a slightly different
+diskless boot process than the one documented in the rest of
+this file (which is 3 years old).
+
+I am not deleting the information below because it contains some
+useful background information on diskless operation, but for the
+actual details you should look at /etc/rc.diskless1, /etc/rc.diskless2,
+and the /usr/share/examples/diskless/clone_root script which can
+be useful to set up clients and server for diskless boot.
+
+-----------------------------------------------------------------------
 
 		      TEMPLATING machine configurations
 
