@@ -755,7 +755,7 @@ ffs_getpages(ap)
 }
 
 /*
- * Vnode op for reading.
+ * Vnode op for extended attribute reading.
  */
 /* ARGSUSED */
 int
