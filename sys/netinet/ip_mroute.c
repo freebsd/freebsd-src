@@ -1291,10 +1291,19 @@ phyint_send(ip, vifp, m)
     struct mbuf *m;
 {
     register struct mbuf *mb_copy;
+    int hlen = ip->ip_hl << 2;
     register struct ip_moptions *imo;
 
     if ((mb_copy = m_copy(m, 0, M_COPYALL)) == NULL)
 	return;
+
+    /*
+     * Make sure the header isn't in an cluster, because the sharing
+     * in clusters defeats the whole purpose of making the copy above.
+     */
+    mb_copy = m_pullup(mb_copy, hlen);
+    if (mb_copy == NULL)
+	    return;
 
     MALLOC(imo, struct ip_moptions *, sizeof *imo, M_IPMOPTS, M_NOWAIT);
     if (imo == NULL) {
@@ -1320,6 +1329,7 @@ srcrt_send(ip, vifp, m)
     struct mbuf *m;
 {
     struct mbuf *mb_copy, *mb_opts;
+    int hlen = ip->ip_hl << 2;
     register struct ip *ip_copy;
     u_char *cp;
 
@@ -1338,15 +1348,7 @@ srcrt_send(ip, vifp, m)
     if ((mb_copy = m_copy(m, 0, M_COPYALL)) == NULL)
 	return;
 
-    ip_copy = mtod(mb_copy, struct ip *);
-    ip_copy->ip_ttl--;
-    ip_copy->ip_dst = vifp->v_rmt_addr;	  /* remote tunnel end-point */
-    /*
-     * Adjust the ip header length to account for the tunnel options.
-     */
-    ip_copy->ip_hl  += TUNNEL_LEN >> 2;
-    ip_copy->ip_len += TUNNEL_LEN;
-    MGET(mb_opts, M_DONTWAIT, MT_HEADER);
+    MGETHDR(mb_opts, M_DONTWAIT, MT_HEADER);
     if (mb_opts == NULL) {
 	m_freem(mb_copy);
 	return;
@@ -1354,19 +1356,28 @@ srcrt_send(ip, vifp, m)
     /*
      * 'Delete' the base ip header from the mb_copy chain
      */
-    mb_copy->m_len -= IP_HDR_LEN;
-    mb_copy->m_data += IP_HDR_LEN;
+    mb_copy->m_len -= hlen;
+    mb_copy->m_data += hlen;
     /*
      * Make mb_opts be the new head of the packet chain.
      * Any options of the packet were left in the old packet chain head
      */
     mb_opts->m_next = mb_copy;
-    mb_opts->m_data += 16;
-    mb_opts->m_len = IP_HDR_LEN + TUNNEL_LEN;
+    mb_opts->m_len = hlen + TUNNEL_LEN;
+    mb_opts->m_data += MSIZE - mb_opts->m_len;
+    mb_opts->m_pkthdr.len = mb_copy->m_pkthdr.len + TUNNEL_LEN;
     /*
      * Copy the base ip header from the mb_copy chain to the new head mbuf
      */
-    bcopy((caddr_t)ip_copy, mtod(mb_opts, caddr_t), IP_HDR_LEN);
+    ip_copy = mtod(mb_opts, struct ip *);
+    bcopy((caddr_t)ip_copy, mtod(mb_opts, caddr_t), hlen);
+    ip_copy->ip_ttl--;
+    ip_copy->ip_dst = vifp->v_rmt_addr;	  /* remote tunnel end-point */
+    /*
+     * Adjust the ip header length to account for the tunnel options.
+     */
+    ip_copy->ip_hl  += TUNNEL_LEN >> 2;
+    ip_copy->ip_len += TUNNEL_LEN;
     /*
      * Add the NOP and LSRR after the base ip header
      */
@@ -1394,6 +1405,7 @@ encap_send(ip, vifp, m)
 {
     register struct mbuf *mb_copy;
     register struct ip *ip_copy;
+    int hlen = ip->ip_hl << 2;
     register int i, len = ip->ip_len;
 
     /*
@@ -1417,6 +1429,7 @@ encap_send(ip, vifp, m)
     mb_copy = m_pullup(mb_copy, i);
     if (mb_copy == NULL)
 	return;
+    mb_copy->m_pkthdr.len = len + sizeof(multicast_encap_iphdr);
 
     /*
      * fill in the encapsulating IP header.
