@@ -45,12 +45,13 @@ __FBSDID("$FreeBSD$");
 #define	KM_FUNC_OFFSET		28	/* offset to km_func */
  
 /*
- * int uts_to_thread(thread_mailbox *tdp, thread_mailbox **curthreadp);
+ * int uts_to_thread(struct kse_thr_mailbox *tdp,
+ *	struct kse_thr_mailbox **curthreadp);
  *
  * Does not return on success, returns -1 otherwise.
  */
 ENTRY(uts_to_thread)
-	movl	4(%esp), %edx		/* get address of thread_mailbox */
+	movl	4(%esp), %edx		/* get address of kse_thr_mailbox */
 					/* .. ucontext_t is at offset 0 */
 	cmpl	$0, %edx		/* check for null pointer */
 	jne	1f
@@ -94,7 +95,7 @@ ENTRY(uts_to_thread)
 5:	ret				/* %eip off stack */
 
 /*
- * int thread_to_uts(thread_mailbox *tm, kse_mailbox *km);
+ * int thread_to_uts(struct kse_thr_mailbox *tm, struct kse_mailbox *km);
  *
  * Does not return on success, returns -1 otherwise.
  */
