@@ -404,7 +404,7 @@ ext2_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 			panic("ext2_indirtrunc: bad buffer size");
 		bp->b_blkno = dbn;
 		vfs_busy_pages(bp, 0);
-		bp->b_offset = dbtob(bp->b_blkno);
+		bp->b_iooffset = dbtob(bp->b_blkno);
 		VOP_STRATEGY(vp, bp);
 		error = bufwait(bp);
 	}
