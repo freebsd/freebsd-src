@@ -1,10 +1,10 @@
 #################################################################
 #
-#  	PPP  Sample Configuration File
+#              PPP  Sample Configuration File
 #
-#	  Originally written by Toshiharu OHNO
+#           Originally written by Toshiharu OHNO
 #
-# $Id: ppp.conf.sample,v 1.33 1998/10/03 13:12:14 brian Exp $
+# $Id: ppp.conf.sample,v 1.1 1999/02/11 16:33:14 brian Exp $
 #
 #################################################################
 
@@ -18,48 +18,59 @@
 #
 
 # Default setup. Always executed when PPP is invoked.
-#  This section is *not* loaded by the ``load'' or ``dial'' commands.
+#  This section is *not* pre-loaded by the ``load'' or ``dial'' commands.
 #
 #  This is the best place to specify your modem device, it's DTR rate,
-#  and any logging specification.  Logging specs should be done first
-#  so that subsequent commands are logged.
+#  your dial script and any logging specification.  Logging specs should
+#  be done first so that the results of subsequent commands are logged.
 #
 default:
  set log Phase Chat LCP IPCP CCP tun command
  set device /dev/cuaa1
  set speed 115200
- set dial "ABORT BUSY ABORT NO\\sCARRIER TIMEOUT 5 \"\" AT OK-AT-OK ATE1Q0 OK \\dATDT\\T TIMEOUT 40 CONNECT"
+ set dial "ABORT BUSY ABORT NO\\sCARRIER TIMEOUT 5 \"\" AT \
+           OK-AT-OK ATE1Q0 OK \\dATDT\\T TIMEOUT 40 CONNECT"
 
 # Client side PPP
 #
 #  Although the PPP protocol is a peer to peer protocol, we normally
-#  consider the side that makes the connection as the client and the
-#  side that receives the connection as the server.  Authentication
+#  consider the side that initiates the connection as the client and
+#  the side that receives the connection as the server.  Authentication
 #  is required by the server either using a unix-style login proceedure
 #  or by demanding PAP or CHAP authentication from the client.
 #
 
-# An on demand example where we have dynamic IP addresses:
+# An on demand example where we have dynamic IP addresses and wish to
+# use a unix-style login script:
+#
 #  If the peer assigns us an arbitrary IP (most ISPs do this) and we
 #  can't predict what their IP will be either, take a wild guess at
-#  some IPs that you can't currently route to.
+#  some IPs that you can't currently route to.  Ppp can change this
+#  when the link comes up.
 #
 #  The /0 bit in "set ifaddr" says that we insist on 0 bits of the
 #  specified IP actually being correct, therefore, the other side can assign
-#  any IP numbers.
+#  any IP number.
 #
 #  The forth arg to "set ifaddr" makes us send "0.0.0.0" as our requested
-#  IP number, forcing the peer to make the decision.
+#  IP number, forcing the peer to make the decision.  This is necessary
+#  when negotiating with some (broken) ppp implementations.
 #
 #  This entry also works with static IP numbers or when not in -auto mode.
 #  The ``add'' line adds a `sticky' default route that will be updated if
 #  and when any of the IP numbers are changed in IPCP negotiations.
 #  The "set ifaddr" is required in -auto mode.
 #
-#  Finally, the ``enable dns'' bit tells ppp to ask the peer for the
+#  Finally, the ``enable dns'' line tells ppp to ask the peer for the
 #  nameserver addresses that should be used.  This isn't always supported
-#  by the other side, but if it is, /etc/resolv.conf will automatically be
-#  updated.
+#  by the other side, but if it is, ppp will update /etc/resolv.conf with
+#  the correct nameserver values at connection time.
+#
+#  The login script shown says that you're expecting ``ogin:''.  If you
+#  don't receive that, send a ``\n'' and expect ``ogin:'' again.  When
+#  it's received, send ``ppp'', expect ``word:'' then send ``ppp''.
+#  You *MUST* customise this login script according to your local
+#  requirements.
 #
 pmdemand:
  set phone 1234567
@@ -69,9 +80,11 @@ pmdemand:
  add default HISADDR
  enable dns
 
-# When we want to use PAP or CHAP instead of using a unix-style login
-# proceedure, we do the following.  Note, the peer suggests whether we
+# If you want to use PAP or CHAP instead of using a unix-style login
+# proceedure, do the following.  Note, the peer suggests whether we
 # should send PAP or CHAP.  By default, we send whatever we're asked for.
+#
+# You *MUST* customise ``MyName'' and ``MyKey'' below.
 #
 PAPorCHAPpmdemand:
  set phone 1234567
@@ -236,37 +249,58 @@ dodgy:
 
 
 # Server side PPP
-#  If you want the remote system to authenticate itself, you insist
-#  that the peer uses CHAP (or PAP) with the "enable" keyword.  Both CHAP and
-#  PAP are disabled by default (we usually only "enable" one of them if the
-#  other side is dialing into our server).
-#  When the peer authenticates itself, we use ppp.secret for verification.
+#
+#  If you want the remote system to authenticate itself, you must insist
+#  that the peer uses CHAP or PAP with the "enable" keyword.  Both CHAP and
+#  PAP are disabled by default.  You may enable either or both.  If both
+#  are enabled, CHAP is requested first.  If the client doesn't agree, PAP
+#  will then be requested.
+#
+#  Note:  If you use the getty/login process to authenticate users, you
+#         don't need to enable CHAP or PAP, but the user that has logged
+#         in *MUST* be a member of the ``network'' group (in /etc/group).
+#
+#  If you wish to allow any user in the passwd database ppp access, you
+#  can ``enable passwdauth''.
+#
+#  When the peer authenticates itself, we use ppp.secret for verification
+#  (although refer to the ``set radius'' command below for an alternative).
+#
+#  Note:  We may supply a third field in ppp.secret specifying the IP
+#         address for that user, a forth field to specify the
+#         ppp.link{up,down} label to use and a fifth field to specify
+#         callback characteristics.
+#
+#  The easiest way to allow transparent LAN access to your dialin users
+#  is to assign them a number from your local LAN and tell ppp to make a
+#  ``proxy'' arp entry for them.  In this example, we have a local LAN
+#  with IP numbers 10.0.0.1 - 10.0.0.99, and we assign numbers to our
+#  ppp clients between 10.0.0.100 and 10.0.0.199.  It is possible to
+#  override the dynamic IP number with a static IP number specified in
+#  ppp.secret.
 #
 #  Ppp is launched with:
-#   # ppp -direct CHAPserver
+#   # ppp -direct server
 #
-#  Note:  We can supply a third field in ppp.secret specifying the IP address
-#         for that user.  We can even specify a forth field to specify the
-#         ppp.link{up,down} label to use.
-#
-CHAPserver:
+server:
  enable chap
- enable proxy
- set ifaddr 192.244.176.44 292.244.184.31
- accept dns
-
-# If we wish to act as a server, allowing PAP access according to
-# accounts in /etc/passwd, we do this  (Without `enable passwdauth',
-# you may still enter ``*'' as the users password in ppp.secret and
-# ppp will look it up in the passwd database.  This is useful if you
-# need to assign a special label or IP number or range):
-#
-PAPServerwithPASSWD:
  enable pap
  enable passwdauth
  enable proxy
- set ifaddr 192.244.176.44 292.244.184.31
+ set ifaddr 10.0.0.1 10.0.0.100-10.0.0.199
  accept dns
+
+# Example of a RADIUS configuration:
+#  If there are one or more radius servers available, we can use them
+#  instead of the ppp.secret file.  Simply put then in a radius
+#  configuration file (usually /etc/radius.conf) and give ppp the
+#  file name.
+#  Ppp will use the FRAMED characteristics supplied by the radius server
+#  to configure the link.
+
+radius-server:
+ load server
+ set radius /etc/radius.conf
 
 
 # Example to connect using a null-modem cable:
@@ -301,8 +335,9 @@ direct-server:
  accept lqr
 
 
-# Example to connect via compuserve (who insist on 7 bits even parity
-#  during the chat phase).  
+# Example to connect via compuserve
+#  Compuserve insists on 7 bits even parity during the chat phase.  Modem
+#  parity is always reset to ``none'' after the link has been established.
 #
 compuserve:
  set phone 1234567
@@ -332,13 +367,14 @@ tcp-client:
 tcp-server:
  set ifaddr 10.0.4.1 10.0.5.1 255.255.255.0
 
-# If you want to test ppp, do it through a loopback:
+# Example for PPP testing.
+#  If you want to test ppp, do it through the loopback interface:
 #
-# Requires a line in /etc/services:
-#   ppploop 6671/tcp # loopback ppp daemon
+#  Requires a line in /etc/services:
+#    ppploop 6671/tcp # loopback ppp daemon
 #
-# and a line in /etc/inetd.conf:
-#   ppploop stream tcp nowait root /usr/sbin/ppp ppp -direct loop-in
+#  and a line in /etc/inetd.conf:
+#    ppploop stream tcp nowait root /usr/sbin/ppp ppp -direct loop-in
 #
 loop:
  set timeout 0
@@ -354,24 +390,28 @@ loop-in:
  set log phase lcp ipcp command
  allow mode direct
 
-# If you're going to create a tunnel through a public network, your VPN
-# should be set up something like this:
+# Example of a VPN.
+#  If you're going to create a tunnel through a public network, your VPN
+#  should be set up something like this:
 #
-# /etc/ppp/secure (which should be executable) says:
-#   #! /bin/sh
-#   exec ssh whatevermachine /usr/sbin/ppp -direct loop-in
+#  /etc/ppp/secure (which should be executable) says:
+#    #! /bin/sh
+#    exec ssh whatevermachine /usr/sbin/ppp -direct loop-in
+#
+#  You should already have set up ssh using ssh-agent & ssh-add.
 #
 sloop:
  load loop
  set device !/etc/ppp/secure
 
-# If you wish to connect to a server that will dial back *without* using
-# the ppp callback facility (rfc1570), take advantage of the fact that
-# ppp doesn't look for carrier 'till `set login' is complete:
+# Example of non-PPP callback.
+#  If you wish to connect to a server that will dial back *without* using
+#  the ppp callback facility (rfc1570), take advantage of the fact that
+#  ppp doesn't look for carrier 'till `set login' is complete:
 #
-# Here, we expect the server to say DIALBACK then disconnect after
-# we've authenticated ourselves.  When this has happened, we wait
-# 60 seconds for a RING.
+#  Here, we expect the server to say DIALBACK then disconnect after
+#  we've authenticated ourselves.  When this has happened, we wait
+#  60 seconds for a RING.
 #
 dialback:
  set dial "ABORT BUSY ABORT NO\\sCARRIER TIMEOUT 5 \"\" ATZ OK-ATZ-OK \
@@ -379,15 +419,27 @@ dialback:
  set login "TIMEOUT 5 ogin:--ogin: ppp word: ppp TIMEOUT 15 DIALBACK \
            \"\" NO\\sCARRIER \"\" TIMEOUT 60 RING ATA CONNECT"
 
-# Alternatively, if the peer is using the PPP callback protocol, use
-# normal dial and login scripts and add
+# Example of PPP callback.
+#  Alternatively, if the peer is using the PPP callback protocol, we're
+#  happy either with ``auth'' style callback where the server dials us
+#  back based on what we authenticate ourselves with, ``cbcp'' style
+#  callback (invented by Microsoft but not agreed by the IETF) where
+#  we negotiate callback *after* authentication or E.164 callback where
+#  we specify only a phone number.  I would recommend only ``auth'' and/or
+#  ``cbcp'' callback methods.
+#  For ``cbcp'', we insist that we choose ``1234567'' as the number that
+#  the server must call back.
 #
+callback:
+ load pmdemand
  set callback auth cbcp e.164 1234567
  set cbcp 1234567
 
 # If we're running a ppp server that wants to only call back microsoft
 # clients on numbers configured in /etc/ppp/ppp.secret (the 5th field):
 #
+callback-server:
+ load server
  set callback cbcp
  set cbcp
  set log +cbcp
@@ -397,8 +449,10 @@ dialback:
  set dial "TIMEOUT 10 \"\" AT OK-AT-OK ATDT\\T CONNECT"
 
 # Or if we want to allow authenticated clients to specify their own
-# callback number, use this ``set cbcp'' line instead:
+# callback number:
 #
+callback-server-client-decides:
+ load callback-server
  set cbcp *
 
 # Multilink mode is available (rfc1990).
@@ -412,7 +466,6 @@ dialback:
 # same time.  The `dial' command may also be prefixed with a specific
 # link that should do the dialing.
 #
-
 mloop:
  load loop
  set mode interactive
@@ -428,3 +481,28 @@ mloop-in:
  set log tun phase
  allow mode direct
  set mrru 1500
+
+# User supplied authentication:
+#  It's possible to run ppp in the background while specifying a
+#  program to use to obtain authentication details on demand.
+#  This program would usually be a simple GUI that presents a
+#  prompt to a known user.  The ``chap-auth'' program is supplied
+#  as an example (and requires tcl version 8.0).
+#
+CHAPprompt:
+ load PAPorCHAPpmdemand
+ set authkey !/usr/share/examples/ppp/chap-auth
+
+#  It's possible to do the same sort of thing at the login prompt.
+#  Here, after sending ``brian'' in response to the ``name'' prompt,
+#  we're prompted with ``code:''.  A window is then displayed on the
+#  ``keep:0.0'' display and the typed response is sent to the peer
+#  as the password.  We then expect to see ``MTU'' and ``.'' in the
+#  servers response.
+#
+loginprompt:
+ load pmdemand
+ set authname brian
+ set login "ABORT NO\\sCARRIER TIMEOUT 15 \"\" \"\" name:--name: \\U \
+            code: \"!/usr/share/examples/ppp/login-auth -display keep:0.0 \
+                    AUTHNAME\" MTU \\c ."
