@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 19, 1997
+.Dd September 4, 2004
 .Dt EX 4 i386
 .Os
 .Sh NAME
@@ -36,9 +36,8 @@
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for the 16-bit PCI Intel EtherExpress Pro/10
-and Pro/10+ Ethernet cards based on the Intel i82595 chip.
-The Olicom OC2220 is also supported.
+driver provides support for Ethernet adapters based on the Intel
+i82595 chip.
 .Pp
 The card will be searched for in the
 I/O address range 0x200 - 0x3a0.
@@ -46,6 +45,19 @@ If the IRQ will be
 read from the EEPROM on the card.
 For correct operation on newer
 cards the Plug-N-Play support should be disabled.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following Ethernet adapters:
+.Pp
+.Bl -bullet -compact
+.It
+Intel EtherExpress Pro/10
+.It
+Intel EtherExpress Pro/10+
+.It
+The Olicom OC2220
+.El
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "ex%d: Intel EtherExpress Pro/10, address %6D, connector %s"
