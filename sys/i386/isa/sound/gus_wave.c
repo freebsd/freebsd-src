@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: gus_wave.c,v 1.11 1995/01/04 20:07:27 pst Exp $
+ * $Id: gus_wave.c,v 1.14 1995/03/12 23:33:52 swallace Exp $
  */
 
 #include "sound_config.h"
@@ -2941,7 +2941,7 @@ gus_wave_init (long mem_start, int irq, int dma)
 
 
 #ifdef __FreeBSD__
-  printk ("snd4: <Gravis UltraSound %s (%dk)>", model_num, (int) gus_mem_size / 1024);
+  printk ("gus0: <Gravis UltraSound %s (%dk)>", model_num, (int) gus_mem_size / 1024);
 #else /* __FreeBSD__ */
   printk (" <Gravis UltraSound %s (%dk)>", model_num, (int) gus_mem_size / 1024);
 #endif /* __FreeBSD__ */
