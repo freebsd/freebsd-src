@@ -32,12 +32,12 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)measure.c	8.1 (Berkeley) 6/6/93";
-#endif /* not lint */
-
-#ifdef sgi
-#ident "$Revision: 1.2 $"
 #endif
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include "globals.h"
 #include <netinet/in_systm.h>
@@ -274,8 +274,7 @@ quit:
 		}
 	} else if (print) {
 		if (errno != 0)
-			fprintf(stderr, "measure %s: %s\n", hname,
-				strerror(errno));
+			warn("measure %s", hname);
 	} else {
 		if (errno != 0) {
 			syslog(LOG_ERR, "measure %s: %m", hname);

@@ -32,12 +32,12 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)readmsg.c	8.1 (Berkeley) 6/6/93";
-#endif /* not lint */
-
-#ifdef sgi
-#ident "$Revision: 1.17 $"
 #endif
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include "globals.h"
 
@@ -393,7 +393,8 @@ masterack()
 
 	resp = msgin;
 	resp.tsp_vers = TSPVERSION;
-	(void)strcpy(resp.tsp_name, hostname);
+	(void)strncpy(resp.tsp_name, hostname, sizeof resp.tsp_name-1);
+	resp.tsp_name[sizeof resp.tsp_name-1] = '\0';
 
 	switch(msgin.tsp_type) {
 

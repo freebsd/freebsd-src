@@ -32,27 +32,28 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1985, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)timedc.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
-#ifdef sgi
-#ident "$Revision: 1.6 $"
-#endif
-
 #include "timedc.h"
-#include <strings.h>
-#include <signal.h>
 #include <ctype.h>
+#include <err.h>
 #include <setjmp.h>
-#include <unistd.h>
+#include <signal.h>
 #include <stdlib.h>
+#include <strings.h>
 #include <syslog.h>
+#include <unistd.h>
 
 int trace = 0;
 FILE *fd = 0;
@@ -75,10 +76,8 @@ main(argc, argv)
 	/*
 	 * security dictates!
 	 */
-	if (priv_resources() < 0) {
-		fprintf(stderr, "Could not get privileged resources\n");
-		exit(1);
-	}
+	if (priv_resources() < 0)
+		errx(1, "could not get privileged resources");
 	(void) setuid(getuid());
 
 	if (--argc > 0) {
