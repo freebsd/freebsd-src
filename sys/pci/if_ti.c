@@ -2070,7 +2070,8 @@ ti_attach(dev)
 	mtx_init(&sc->ti_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
 	ifmedia_init(&sc->ifmedia, IFM_IMASK, ti_ifmedia_upd, ti_ifmedia_sts);
-	sc->arpcom.ac_if.if_capabilities = IFCAP_HWCSUM | IFCAP_VLAN_HWTAGGING;
+	sc->arpcom.ac_if.if_capabilities = IFCAP_HWCSUM |
+	    IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
 	sc->arpcom.ac_if.if_capenable = sc->arpcom.ac_if.if_capabilities;
 
 	/*
@@ -2862,7 +2863,7 @@ static void ti_init2(sc)
 	/* Specify MTU and interface index. */
 	CSR_WRITE_4(sc, TI_GCR_IFINDEX, ifp->if_unit);
 	CSR_WRITE_4(sc, TI_GCR_IFMTU, ifp->if_mtu +
-	    ETHER_HDR_LEN + ETHER_CRC_LEN);
+	    ETHER_HDR_LEN + ETHER_CRC_LEN + ETHER_VLAN_ENCAP_LEN);
 	TI_DO_CMD(TI_CMD_UPDATE_GENCOM, 0, 0);
 
 	/* Load our MAC address. */
