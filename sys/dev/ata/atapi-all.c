@@ -56,7 +56,6 @@ static void atapi_timeout(struct atapi_request *request);
 static int8_t *atapi_type(int32_t);
 static int8_t *atapi_cmd2str(u_int8_t);
 static int8_t *atapi_skey2str(u_int8_t);
-static int32_t atapi_wait(struct atapi_softc *, u_int8_t);
 static void atapi_init(void);
 
 /* extern references */
@@ -208,11 +207,11 @@ atapi_getparam(struct atapi_softc *atp)
     if (ata_command(atp->controller, atp->unit, ATA_C_ATAPI_IDENTIFY,
 		0, 0, 0, 0, 0, ATA_WAIT_INTR))
 	return -1;
-    if (atapi_wait(atp, ATA_S_DRQ))
+    if (ata_wait(atp->controller, atp->unit, ATA_S_DRQ))
 	return -1;
     insw(atp->controller->ioaddr + ATA_DATA, buffer,
 	 sizeof(buffer)/sizeof(int16_t));
-    if (atapi_wait(atp, 0))
+    if (ata_wait(atp->controller, atp->unit, 0))
 	return -1;
     if (!(atapi_parm = malloc(sizeof(struct atapi_params), M_ATAPI, M_NOWAIT)))
 	return -1; 
@@ -254,6 +253,10 @@ atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, void *data,
 
     /* append onto controller queue and try to start controller */
     s = splbio();
+
+    /* if not using callbacks, prepare to sleep for this request */
+    if (!callback)
+	asleep((caddr_t)request, PRIBIO, "atprq", 0);
     TAILQ_INSERT_TAIL(&atp->controller->atapi_queue, request, chain);
     if (atp->controller->active == ATA_IDLE)
 	ata_start(atp->controller);
@@ -265,7 +268,7 @@ atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, void *data,
     }
 
     /* wait for request to complete */
-    tsleep((caddr_t)request, PRIBIO, "atprq", 0);
+    await(PRIBIO, 0);
     splx(s);
     error = request->error;
     free(request, M_ATAPI);
@@ -375,13 +378,16 @@ atapi_interrupt(struct atapi_request *request)
     if (atp->flags & ATAPI_F_DMA_USED)
 	dma_stat = ata_dmadone(atp->controller);
 
-    if (atapi_wait(atp, 0) < 0) {
+    /* is this needed anymore ?? SOS XXX */
+#if NOT_ANY_MORE
+    if (ata_wait(atp->controller, atp->unit, 0) < 0) {
 	printf("%s: timeout waiting for status", atp->devname);
 	atp->flags &= ~ATAPI_F_DMA_USED; 
 	request->result = inb(atp->controller->ioaddr + ATA_ERROR) | 
 			  ATAPI_SK_RESERVED;
 	goto op_finished;
     }
+#endif
 
     if (atp->flags & ATAPI_F_DMA_USED) {
 	atp->flags &= ~ATAPI_F_DMA_USED; 
@@ -552,64 +558,58 @@ static void
 atapi_read(struct atapi_request *request, int32_t length)
 {
     int8_t **buffer = (int8_t **)&request->data;
+    int32_t size = min(request->bytecount, length);
     int32_t resid;
 
     if (request->ccb[0] == ATAPI_REQUEST_SENSE)
 	*buffer = (int8_t *)&request->sense;
 
+    if (request->device->controller->flags & ATA_USE_16BIT ||
+	(size % sizeof(int32_t)))
+	insw(request->device->controller->ioaddr + ATA_DATA, 
+	     (void *)((uintptr_t)*buffer), size / sizeof(int16_t));
+    else
+	insl(request->device->controller->ioaddr + ATA_DATA, 
+	     (void *)((uintptr_t)*buffer), size / sizeof(int32_t));
+
     if (request->bytecount < length) {
 	printf("%s: read data overrun %d/%d\n",
 	       request->device->devname, length, request->bytecount);
-#ifdef ATA_16BIT_ONLY
-	insw(request->device->controller->ioaddr + ATA_DATA, 
-	     (void *)((uintptr_t)*buffer), request->bytecount/sizeof(int16_t));
-#else
-	insl(request->device->controller->ioaddr + ATA_DATA, 
-	     (void *)((uintptr_t)*buffer), request->bytecount/sizeof(int32_t));
-#endif
+
 	for (resid=request->bytecount; resid<length; resid+=sizeof(int16_t))
 	     inw(request->device->controller->ioaddr + ATA_DATA);
-	*buffer += request->bytecount;
-	request->bytecount = 0;
-    }			
-    else {
-	insw(request->device->controller->ioaddr + ATA_DATA,
-	     (void *)((uintptr_t)*buffer), length / sizeof(int16_t));
-	*buffer += length;
-	request->bytecount -= length;
     }
+    *buffer += size;
+    request->bytecount -= size;
 }
 
 static void
 atapi_write(struct atapi_request *request, int32_t length)
 {
     int8_t **buffer = (int8_t **)&request->data;
+    int32_t size = min(request->bytecount, length);
     int32_t resid;
 
     if (request->ccb[0] == ATAPI_REQUEST_SENSE)
 	*buffer = (int8_t *)&request->sense;
 
+    if (request->device->controller->flags & ATA_USE_16BIT ||
+	(size % sizeof(int32_t)))
+	outsw(request->device->controller->ioaddr + ATA_DATA, 
+	      (void *)((uintptr_t)*buffer), size / sizeof(int16_t));
+    else
+	outsl(request->device->controller->ioaddr + ATA_DATA, 
+	      (void *)((uintptr_t)*buffer), size / sizeof(int32_t));
+
     if (request->bytecount < length) {
 	printf("%s: write data underrun %d/%d\n",
 	       request->device->devname, length, request->bytecount);
-#ifdef ATA_16BIT_ONLY
-	outsw(request->device->controller->ioaddr + ATA_DATA, 
-	      (void *)((uintptr_t)*buffer), request->bytecount/sizeof(int16_t));
-#else
-	outsl(request->device->controller->ioaddr + ATA_DATA, 
-	      (void *)((uintptr_t)*buffer), request->bytecount/sizeof(int32_t));
-#endif
+
 	for (resid=request->bytecount; resid<length; resid+=sizeof(int16_t))
 	     outw(request->device->controller->ioaddr + ATA_DATA, 0);
-        *buffer += request->bytecount;
-	request->bytecount = 0;
     }
-    else {
-	outsw(request->device->controller->ioaddr + ATA_DATA, 
-	      (void *)((uintptr_t)*buffer), length / sizeof(int16_t));
-        *buffer += length;
-	request->bytecount -= length;
-    }
+    *buffer += size;
+    request->bytecount -= size;
 }
 
 static void 
@@ -730,41 +730,6 @@ atapi_skey2str(u_int8_t skey)
     default: return("UNKNOWN");
     }
 }
-
-static int32_t
-atapi_wait(struct atapi_softc *atp, u_int8_t mask)
-{
-    u_int32_t timeout = 0;
-    
-    DELAY(1);
-    while (timeout++ <= 500000) {	 /* timeout 5 secs */
-	atp->controller->status = inb(atp->controller->ioaddr + ATA_STATUS);
-
-	/* if drive fails status, reselect the drive just to be sure */
-	if (atp->controller->status == 0xff) {
-	    outb(atp->controller->ioaddr + ATA_DRIVE, ATA_D_IBM | atp->unit);
-	    DELAY(1);
-	    atp->controller->status = inb(atp->controller->ioaddr + ATA_STATUS);
-	}
-	if (!(atp->controller->status & ATA_S_BUSY) && 
-	    (atp->controller->status & ATA_S_READY))  
-	    break;	      
-	DELAY (10);	   
-    }	 
-    if (timeout <= 0)	 
-	return -1;	    
-    if (!mask)	   
-	return (atp->controller->status & ATA_S_ERROR);	 
-    
-    /* Wait 50 msec for bits wanted. */	   
-    for (timeout=5000; timeout>0; --timeout) {	  
-	atp->controller->status = inb(atp->controller->ioaddr + ATA_STATUS);
-	if ((atp->controller->status & mask) == mask)	    
-	    return (atp->controller->status & ATA_S_ERROR);	      
-	DELAY (10);	   
-    }	  
-    return -1;	    
-}   
 
 static void
 atapi_init(void)

@@ -148,6 +148,7 @@ struct ata_softc {
     int32_t			flags;		/* controller flags */
 #define		ATA_DMA_ACTIVE		0x01
 #define		ATA_ATAPI_DMA_RO	0x02
+#define		ATA_USE_16BIT		0x04
 
     int32_t			devices;	/* what is present */
 #define		ATA_ATA_MASTER		0x01
