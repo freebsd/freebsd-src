@@ -23,8 +23,12 @@
 static const char copyright[] =
     "@(#) Copyright (c) 1988, 1989, 1991, 1994, 1995, 1996\n\
 The Regents of the University of California.  All rights reserved.\n";
+#if 0
 static const char rcsid[] =
-    "@(#)$Header: /home/ncvs/src/contrib/traceroute/traceroute.c,v 1.10 1999/05/12 17:28:31 archie Exp $ (LBL)";
+    "@(#)$Header: traceroute.c,v 1.43 96/09/27 20:08:10 leres Exp $ (LBL)";
+#endif
+static const char rcsid[] =
+    "$FreeBSD$";
 #endif
 
 /*
@@ -217,6 +221,11 @@ static const char rcsid[] =
 
 #include <arpa/inet.h>
 
+#ifdef	IPSEC
+#include <net/route.h>
+#include <netinet6/ipsec.h>	/* XXX */
+#endif	/* IPSEC */
+
 #include <ctype.h>
 #include <errno.h>
 #ifdef HAVE_MALLOC_H
@@ -322,6 +331,9 @@ void	print(u_char *, int, struct sockaddr_in *);
 char	*getaddr(u_int32_t *, char *);
 char	*getsin(struct sockaddr_in *, char *);
 char	*savestr(const char *);
+#ifdef	IPSEC
+int	setpolicy __P((int so, char *policy));
+#endif
 void	send_probe(int, int);
 void	tvsub(struct timeval *, struct timeval *);
 __dead	void usage(void);
@@ -646,6 +658,14 @@ main(int argc, char **argv)
 		(void)setsockopt(s, SOL_SOCKET, SO_DONTROUTE, (char *)&on,
 		    sizeof(on));
 
+#if	defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
+	if (setpolicy(s, "in bypass") < 0)
+		errx(1, ipsec_strerror());
+
+	if (setpolicy(s, "out bypass") < 0)
+		errx(1, ipsec_strerror());
+#endif	/* defined(IPSEC) && defined(IPSEC_POLICY_IPSEC) */
+
 	if (sndsock < 0) {
 		errno = sockerrno;
 		Fprintf(stderr, "%s: raw socket: %s\n", prog, strerror(errno));
@@ -717,6 +737,14 @@ main(int argc, char **argv)
 		}
 #endif
 	}
+
+#if	defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
+	if (setpolicy(sndsock, "in bypass") < 0)
+		errx(1, ipsec_strerror());
+
+	if (setpolicy(sndsock, "out bypass") < 0)
+		errx(1, ipsec_strerror());
+#endif	/* defined(IPSEC) && defined(IPSEC_POLICY_IPSEC) */
 
 	Fprintf(stderr, "%s to %s (%s)",
 	    prog, hostname, inet_ntoa(to->sin_addr));
@@ -884,6 +912,28 @@ wait_for_reply(register int sock, register struct sockaddr_in *fromp,
 
 	return(cc);
 }
+
+#if	defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
+int
+setpolicy(so, policy)
+	int so;
+	char *policy;
+{
+	char *buf;
+
+	buf = ipsec_set_policy(policy, strlen(policy));
+	if (buf == NULL) {
+		warnx(ipsec_strerror());
+		return -1;
+	}
+	(void)setsockopt(so, IPPROTO_IP, IP_IPSEC_POLICY,
+		buf, ipsec_get_policylen(buf));
+
+	free(buf);
+
+	return 0;
+}
+#endif
 
 void
 send_probe(int seq, int ttl)
