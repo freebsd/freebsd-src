@@ -767,6 +767,54 @@ bad:
 }
 
 /*
+ * Like m_pullup(), except a new mbuf is always allocated, and we allow
+ * the amount of empty space before the data in the new mbuf to be specified
+ * (in the event that the caller expects to prepend later).
+ */
+int MSFail;
+
+struct mbuf *
+m_copyup(struct mbuf *n, int len, int dstoff)
+{
+	struct mbuf *m;
+	int count, space;
+
+	if (len > (MHLEN - dstoff))
+		goto bad;
+	MGET(m, M_DONTWAIT, n->m_type);
+	if (m == NULL)
+		goto bad;
+	m->m_len = 0;
+	if (n->m_flags & M_PKTHDR)
+		M_MOVE_PKTHDR(m, n);
+	m->m_data += dstoff;
+	space = &m->m_dat[MLEN] - (m->m_data + m->m_len);
+	do {
+		count = min(min(max(len, max_protohdr), space), n->m_len);
+		memcpy(mtod(m, caddr_t) + m->m_len, mtod(n, caddr_t),
+		    (unsigned)count);
+		len -= count;
+		m->m_len += count;
+		n->m_len -= count;
+		space -= count;
+		if (n->m_len)
+			n->m_data += count;
+		else
+			n = m_free(n);
+	} while (len > 0 && n);
+	if (len > 0) {
+		(void) m_free(m);
+		goto bad;
+	}
+	m->m_next = n;
+	return (m);
+ bad:
+	m_freem(n);
+	MSFail++;
+	return (NULL);
+}
+
+/*
  * Partition an mbuf chain in two pieces, returning the tail --
  * all but the first len0 bytes.  In case of failure, it returns NULL and
  * attempts to restore the chain to its original state.

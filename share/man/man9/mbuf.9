@@ -95,6 +95,8 @@
 .Ft struct mbuf *
 .Fn m_prepend "struct mbuf *mbuf" "int len" "int how"
 .Ft struct mbuf *
+.Fn m_copyup "struct mbuf *mbuf" "int len" "int dstoff"
+.Ft struct mbuf *
 .Fn m_pullup "struct mbuf *mbuf" "int len"
 .Ft struct mbuf *
 .Fn m_copym "struct mbuf *mbuf" "int offset" "int len" "int how"
@@ -613,6 +615,33 @@ or
 depending on the
 .Dv M_PKTHDR
 flag setting.
+.\"
+.It Fn m_copyup mbuf len dstoff
+Similar to
+.Fn m_pullup
+but copies
+.Fa len
+bytes of data into a new mbuf at
+.Fa dstoff
+bytes into the mbuf.
+The
+.Fa dstoff
+argument aligns the data and leaves room for a link layer header.
+Return the new
+.Vt mbuf chain
+on success,
+and frees the
+.Vt mbuf chain
+and returns
+.Dv NULL
+on failure.
+.Sy Note :
+The function does not allocate
+.Vt mbuf clusters ,
+so
+.Fa len + dstoff
+must be less than
+.Dv MHLEN .
 .\"
 .It Fn m_pullup mbuf len
 Arrange that the first
