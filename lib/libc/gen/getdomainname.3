@@ -1,5 +1,7 @@
-.\" Copyright (c) 1983, 1991 The Regents of the University of California.
-.\" All rights reserved.
+.\"	$NetBSD: getdomainname.3,v 1.2 1995/02/27 04:12:27 cgd Exp $
+.\"
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -29,16 +31,15 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     from: @(#)getdomainname.2	6.7 (Berkeley) 3/10/91
-.\"	$Id: getdomainname.3,v 1.2 1996/02/11 22:33:32 mpp Exp $
+.\"     @(#)gethostname.3	8.1 (Berkeley) 6/4/93
 .\"
-.Dd March 10, 1991
+.Dd May 6, 1994
 .Dt GETDOMAINNAME 3
 .Os BSD 4.2
 .Sh NAME
 .Nm getdomainname ,
 .Nm setdomainname
-.Nd get/set name of current host
+.Nd get/set domain name of current host
 .Sh SYNOPSIS
 .Fd #include <unistd.h>
 .Ft int
@@ -47,7 +48,7 @@
 .Fn setdomainname "const char *name" "int namelen"
 .Sh DESCRIPTION
 .Fn Getdomainname
-returns the standard host name for the current processor, as
+returns the standard domain name for the current processor, as
 previously set by
 .Fn setdomainname .
 The parameter
@@ -58,7 +59,7 @@ array.  The returned name is null-terminated unless insufficient
 space is provided.
 .Pp
 .Fn Setdomainname
-sets the name of the host machine to be
+sets the domain name of the host machine to be
 .Fa name ,
 which has length
 .Fa namelen .
@@ -80,11 +81,12 @@ or
 parameter gave an
 invalid address.
 .It Bq Er EPERM
-The caller tried to set the domainname and was not the super-user.
+The caller tried to set the hostname and was not the super-user.
 .El
 .Sh SEE ALSO
 .Xr gethostid 3 ,
-.Xr sysctl 3
+.Xr sysctl 3 ,
+.Xr gethostname 3
 .Sh BUGS
 Host names are limited to
 .Dv MAXHOSTNAMELEN
@@ -93,6 +95,6 @@ Host names are limited to
 characters, currently 256.
 .Sh HISTORY
 The
-.Fn getdomainname
+.Nm
 function call appeared in
 .Bx 4.2 .

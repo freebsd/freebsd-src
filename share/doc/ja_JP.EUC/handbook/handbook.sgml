@@ -1,6 +1,6 @@
-<!-- $Id: handbook.sgml,v 1.3 1996/11/19 11:33:33 max Exp $ -->
+<!-- $Id: handbook.sgml,v 1.4 1996/12/02 08:00:57 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.59 -->
+<!-- Original revision: 1.61 -->
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN" [
 
@@ -52,15 +52,17 @@ FreeBSD ドキュメンテーションプロジェクトによって編集されています.
 議論されています. 必要に応じて日本語ドキュメンテーションプロジェクトから
 本家ドキュメンテーションプロジェクトに対してフィードバックをおこないますので, 
 英語が得意でない方は &a.doc-jp; まで日本語でコメントをお寄せください. 
-このドキュメントの最新バージョンは 
+このドキュメントの最新バージョンは, いつでも 
 <url url="http://www.jp.FreeBSD.ORG/" 
-name="日本国内 FreeBSD World Wide Web サーバ">
+name="日本国内版 FreeBSD World Wide Web サーバ">や
 <url url="http://www.FreeBSD.ORG/" name="FreeBSD World Wide Web サーバ">
-からいつでも入手できます. 
+から入手できますし, 
 <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/docs" name="FreeBSD FTP サーバ">
-や, たくさんある<ref id="mirrors" name="ミラーサイト">から ascii, LaTeX, 
-postscript, HTML などの形式でダウンロードすることができます. </abstract>
+や, たくさんある<ref id="mirrors" name="ミラーサイト">からプレインテキスト, 
+postscript, HTML などの形式でダウンロードすることもできます. 
+また, <url url="/search.html" name="ハンドブックの検索">も可能です. 
 
+</abstract>
       <toc>
 
 <!-- ************************************************************ -->
@@ -119,11 +121,11 @@ FreeBSD プロジェクトへの何らかの貢献 (ソースコード, 機器, 資金の提供など)
 
     <part><heading>ネットワーク通信</heading>
 
-    <chapt><heading>ネットワークの基礎</heading>
-      <sect><heading>* イーサネットの基礎</heading>
-      <sect><heading>* シリアル接続の基礎</heading>
+    <chapt><heading>シリアル通信</heading>
+      &serial;
       &term;
       &dialup;
+      &dialout;
 
     <chapt><heading>PPP と SLIP</heading>
 
@@ -146,9 +148,7 @@ PPP 接続には, 2 種類の方法が提供されています:
       <sect><heading>* イエローページ/NIS</heading>
       &isdn;
 
-    <chapt><heading>* 電子メール</heading>
-
-
+    &mail;
 
 <!-- ************************************************************ -->
 

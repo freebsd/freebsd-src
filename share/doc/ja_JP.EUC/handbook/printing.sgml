@@ -1,9 +1,9 @@
 <!-- This is an SGML document in the linuxdoc DTD describing
      Printing with FreeBSD.  By Sean Kelly, 1995.
 
-     $Id$
+     $Id: printing.sgml,v 1.2 1996/12/02 13:18:03 max Exp $
      The FreeBSD Japanese Documentation Project
-     Original revision: 1.11
+     Original revision: 1.12
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
 
@@ -2231,10 +2231,9 @@ lpr -#3 parser.c parser.h
 	ム) を呼び出します. そして, このジョブをプリンタに送るために, 
 	<tt/lprps/ が使われます. 
 
-	<tt/lprps/ は FreeBSD のポート集に含まれているべきものです (「<ref
+	<tt/lprps/ は FreeBSD のポート集に含まれています (「<ref
 	id="ports" name="ポートコレクション">」を参照してください). 
-	もし含まれていないならば, すぐにそのようにすべきです. もちろん, 
-	自分自身でプログラムを取ってきて, コンパイルし, インストールす
+	もちろん,自分自身でプログラムを取ってきて, コンパイルし, インストールす
 	ることもできます. <tt/lprps/ をインストールした後は, 
 	<tt/lprps/ の一部である <tt/psif/ プログラムのパス名を指定する
 	だけです. ポート集から <tt/lprps/ をインストールしたときは, 

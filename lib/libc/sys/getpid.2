@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)getpid.2	8.1 (Berkeley) 6/4/93
-.\"	$Id$
+.\"	$Id: getpid.2,v 1.3 1996/08/29 21:24:07 wosch Exp $
 .\"
 .Dd June 4, 1993
 .Dt GETPID 2
@@ -66,11 +66,12 @@ indicate an error.
 .Sh SEE ALSO
 .Xr gethostid 3
 .Sh STANDARDS
-.Fn Getpid
+The
+.Fn getpid
 and
 .Fn getppid
-conform to IEEE Std 1003.1-1988
-.Pq Dq Tn POSIX .
+function calls are expected to conform to 
+.St -p1003.1-90 .
 .Sh HISTORY
 A
 .Fn getpid

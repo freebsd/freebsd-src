@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)rename.2	8.1 (Berkeley) 6/4/93
-.\"	$Id$
+.\"	$Id: rename.2,v 1.2 1996/09/23 22:22:43 wosch Exp $
 .\"
 .Dd June 4, 1993
 .Dt RENAME 2
@@ -195,6 +195,7 @@ is a directory and is not empty.
 .Xr open 2 ,
 .Xr symlink 7
 .Sh STANDARDS
-.Fn Rename
-conforms to IEEE Std 1003.1-1988
-.Pq Dq Tn POSIX .
+The
+.Fn rename
+function call is expected to conform to 
+.St -p1003.1-90 .

@@ -1,8 +1,8 @@
 <!-- This is an SGML document in the linuxdoc DTD of the Tutorial for
      Configuring a FreeBSD for Dialup Services by Guy Helmer.
-     $Id$
+     $Id: dialup.sgml,v 1.2 1996/12/01 12:38:41 max Exp $
      The FreeBSD Japanese Documentation Project
-     Original revision: 1.13
+     Original revision: 1.14
 
 <!DOCTYPE linuxdoc PUBLIC "-//Linux//DTD linuxdoc//EN">
 
@@ -17,7 +17,7 @@ FreeBSD でダイアルアップ サービスを行うための設定
 
 -->
 
-<sect><heading>ダイアルアップによるアクセス<label id="dialup"></heading>
+<sect><heading>ダイアルインサービス<label id="dialup"></heading>
 
 <p><em>原作: &a.ghelmer;.</em>
 <p><em>訳: &a.max;.<newline>6 September 1996.</em>

@@ -1,15 +1,17 @@
-# $Id: Makefile,v 1.17 1996/09/09 01:56:54 jkh Exp $
+# $Id: Makefile,v 1.17.2.1 1996/11/13 20:10:25 phk Exp $
 
 SRCS= authors.sgml basics.sgml bibliography.sgml boothelp.sgml
 SRCS+= booting.sgml contrib.sgml crypt.sgml ctm.sgml current.sgml 
-SRCS+= cyclades.sgml development.sgml dialup.sgml
+SRCS+= cyclades.sgml development.sgml dialup.sgml dialout.sgml
 SRCS+= diskless.sgml dma.sgml eresources.sgml esdi.sgml 
 SRCS+= firewalls.sgml glossary.sgml goals.sgml
-SRCS+= handbook.sgml history.sgml hw.sgml install.sgml isdn.sgml kerberos.sgml
-SRCS+= kernelconfig.sgml kerneldebug.sgml lists.sgml memoryuse.sgml
+SRCS+= handbook.sgml history.sgml hw.sgml install.sgml isdn.sgml 
+SRCS+= kerberos.sgml kernelconfig.sgml kerneldebug.sgml 
+SRCS+= lists.sgml mail.sgml memoryuse.sgml
 SRCS+= mirrors.sgml nfs.sgml nutshell.sgml pgpkeys.sgml policies.sgml
-SRCS+= porting.sgml ports.sgml ppp.sgml printing.sgml quotas.sgml relnotes.sgml 
-SRCS+= routing.sgml scsi.sgml sections.sgml sio.sgml skey.sgml slipc.sgml 
+SRCS+= porting.sgml ports.sgml ppp.sgml printing.sgml 
+SRCS+= quotas.sgml relnotes.sgml routing.sgml 
+SRCS+= serial.sgml scsi.sgml sections.sgml sio.sgml skey.sgml slipc.sgml 
 SRCS+= slips.sgml stable.sgml submitters.sgml sup.sgml synching.sgml 
 SRCS+= term.sgml troubleshooting.sgml userppp.sgml uart.sgml linuxemu.sgml
 
