@@ -47,15 +47,15 @@ typedef int sem_t;
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-int sem_init __P(sem_t *, int, unsigned int));
+int sem_init __P((sem_t *, int, unsigned int));
 int sem_destroy __P((sem_t *));
 sem_t sem_open __P((const char *, int, ...));
 int sem_close __P((sem_t *));
 int sem_unlink __P((const char *));
-int sem_wait((sem_t *));
-int sem_trywait((sem_t *));
-int sem_post((sem_t *));
-int sem_getvalue((sem_t *, int *));
+int sem_wait __P((sem_t *));
+int sem_trywait __P((sem_t *));
+int sem_post __P((sem_t *));
+int sem_getvalue __P((sem_t *, int *));
 __END_DECLS
 
 #endif /* KERNEL */
