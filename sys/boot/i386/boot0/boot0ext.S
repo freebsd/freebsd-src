@@ -72,9 +72,9 @@ start:		cld				# String ops inc
 		movw %ax,%ds			#  data
 		movw %ax,%ss			# Set up
 		movw $LOAD,%sp			#  stack
-# 
+#
 # End signature code
-# 
+#
 #
 # Set address for variable space beyond code, and clear it.
 # Notice that this is also used to point to the values embedded in the block,
@@ -98,7 +98,7 @@ boot.1:		movb LOAD+setdrv-start,%dl	# Drive number to use
 boot.2:
 #
 # Reload all of boot0 (including the extra sectors) into memory at the
-# relocation address.  
+# relocation address.
 #
 		push %dx			# Save drive number
 		movw $start,%bx			# Origin we were linked for
@@ -130,7 +130,7 @@ main:		movb %dl,_FAKE(%bp)		# Save drive number
 # Loop around on the partition table, printing values until we
 # pass a 256 byte boundary. The end of loop test is at main.5.
 #
-main.3: 	movb %ch,-0x4(%bx)		# Zero active flag (ch == 0)
+main.3:		movb %ch,-0x4(%bx)		# Zero active flag (ch == 0)
 		btw %dx,_FLAGS(%bp)		# Entry enabled?
 		jnc main.5			# No
 #
@@ -157,16 +157,16 @@ main.3: 	movb %ch,-0x4(%bx)		# Zero active flag (ch == 0)
 # pointing at its first element which points to a "?".
 #
 		addw $TBL1SZ,%di		# Adjust
-main.4: 	movb (%di),%cl			# Partition
+main.4		movb (%di),%cl			# Partition
 		addw %cx,%di			#  description
 		callw putx			# Display it
-main.5: 	incw %dx			# Next item 
+main.5		incw %dx			# Next item
 		addb $0x10,%bl			# Next entry
 		jnc main.3			# Till done
 #
 # Passed a 256 byte boundary..
 # table is finished.
-# Add one to the drive number and check it is valid, 
+# Add one to the drive number and check it is valid,
 #
 		popw %ax			# Drive number
 		subb $0x80-0x1,%al		# Does next
@@ -188,7 +188,7 @@ main.5: 	incw %dx			# Next item
 # This also is part of the printed drive string so add 0x80 to indicate
 # end of string.
 #
-main.6: 	addb $'0'|0x80,%al		# Save next
+main.6:		addb $'0'|0x80,%al		# Save next
 		movb %al,_NXTDRV(%bp)		#  drive number
 		movw $drive,%di			# Display
 		callw putx			#  item
@@ -196,7 +196,7 @@ main.6: 	addb $'0'|0x80,%al		# Save next
 # Now that we've printed the drive (if we needed to), display a prompt.
 # Get ready for the input by noting the time.
 #
-main.7: 	movw $prompt,%si		# Display
+main.7:		movw $prompt,%si		# Display
 		callw putstr			#  prompt
 		movb _OPT(%bp),%dl		# Display
 		decw %si			#  default
@@ -205,11 +205,11 @@ main.7: 	movw $prompt,%si		# Display
 		int $0x1a			#  system time
 		movw %dx,%di			# Ticks when
 		addw _TICKS(%bp),%di	 	#  timeout
-# 
+#
 # Busy loop, looking for keystrokes but
 # keeping one eye on the time.
 #
-main.8: 	movb $0x1,%ah			# BIOS: Check
+main.8:		movb $0x1,%ah			# BIOS: Check
 		int $0x16			#  for keypress
 		jnz main.11			# Have one
 		xorb %ah,%ah			# BIOS: Get
@@ -219,12 +219,12 @@ main.8: 	movb $0x1,%ah			# BIOS: Check
 #
 # If timed out or defaulting, come here.
 #
-main.9: 	movb _OPT(%bp),%al		# Load default
+main.9:		movb _OPT(%bp),%al		# Load default
 		jmp main.12			# Join common code
 #
 # User's last try was bad, beep in displeasure.
 # Since nothing was printed, just continue on as if the user
-# hadn't done anything. This gives the effect of the user getting a beep 
+# hadn't done anything. This gives the effect of the user getting a beep
 # for all bad keystrokes but no action until either the timeout
 # occurs or the user hits a good key.
 #
@@ -293,7 +293,7 @@ main.14:	popw %si			# Restore
 		jne main.15			# If not F5/#5
 		movb _NXTDRV(%bp),%dl		# Next drive
 		subb $'0',%dl			#  number
-# 
+#
 # load  selected bootsector to the LOAD location in RAM.
 # If it fails to read or isn't marked bootable, treat it
 # as a bad selection.
@@ -311,7 +311,7 @@ main.15:	movw $LOAD,%bx			# Address for read
 # Display routines
 #
 
-putkey: 	movb $'F',%al			# Display
+putkey:		movb $'F',%al			# Display
 		callw putchr			#  'F'
 		movb $'1',%al			# Prepare
 		addb %dl,%al			#  digit
@@ -330,14 +330,14 @@ puts:		callw putstr			# Display string
 
 putn:		movw $crlf,%si			# To next line
 
-putstr: 	lodsb				# Get byte
+putstr:		lodsb				# Get byte
 		testb $0x80,%al 		# End of string?
 		jnz putstr.2			# Yes
 putstr.1:	callw putchr			# Display char
 		jmp putstr			# Continue
 putstr.2:	andb $~0x80,%al 		# Clear MSB
 
-putchr: 	pushw %bx			# Save
+putchr:		pushw %bx			# Save
 		movw $0x7,%bx	 		# Page:attribute
 		movb $0xe,%ah			# BIOS: Display
 		int $0x10			#  character
@@ -360,7 +360,7 @@ putchr: 	pushw %bx			# Save
 # to use the EDD stuff with the LBA offset instead of CHS.  However,
 # use CHS if at all possible.
 
-intx13: 	movb 0x1(%si),%dh		# Load head
+intx13:		movb 0x1(%si),%dh		# Load head
 		movw 0x2(%si),%cx		# Load cylinder:sector
 		pushw %si			# Save
 		movw %sp,%di			# Save
@@ -405,25 +405,25 @@ intx13.2:	int $0x13			# BIOS: Disk I/O
 		.org PRT_OFF-0xe,0x90
 #
 # These values are sometimes changed before writing back to the drive
-# Be especially careful that nxtdrv: must come after drive:, as it 
+# Be especially careful that nxtdrv: must come after drive:, as it
 # is part of the same string.
 #
 # Note that the 'drive' string variable is used as the second signature
 # check in boot0cfg(8).
 #
 version_minor:	.byte 0x1			# minor version
-version_major:	.byte 0x1			# major version	
+version_major:	.byte 0x1			# major version
 drive:		.ascii "Drive "
-nxtdrv: 	.byte 0x0			# Next drive number
+nxtdrv:		.byte 0x0			# Next drive number
 opt:		.byte 0x0			# Option
-setdrv: 	.byte 0x80			# Drive to force
+setdrv:		.byte 0x80			# Drive to force
 flags:		.byte FLAGS			# Flags
 ticks:		.word TICKS			# Delay
 
 #
 # here is the 64 byte partition table that fdisk would fiddle with.
 #
-partbl: 	.fill 0x40,0x1,0x0		# Partition table
+partbl:		.fill 0x40,0x1,0x0		# Partition table
 		.word MAGIC			# Magic number
 
 #
@@ -433,7 +433,7 @@ partbl: 	.fill 0x40,0x1,0x0		# Partition table
 # Menu strings
 
 item:		.ascii "  ";	     .byte ' '|0x80
-prompt: 	.ascii "\nDefault:"; .byte ' '|0x80
+prompt:		.ascii "\nDefault:"; .byte ' '|0x80
 crlf:		.ascii "\r";	     .byte '\n'|0x80
 
 # Partition type tables
@@ -470,13 +470,13 @@ table1_end:
 		.byte os_openbsd-.		# OpenBSD
 		.byte os_netbsd-.		# NetBSD
 #
-# And here are the strings themselves. 0x80 or'd into a byte indicates 
+# And here are the strings themselves. 0x80 or'd into a byte indicates
 # the end of the string. (not so great for Russians but...)
 #
 os_misc:	.ascii "Unknow";	.byte 'n'|0x80
-os_dos: 	.ascii "DO";		.byte 'S'|0x80
+os_dos:		.ascii "DO";		.byte 'S'|0x80
 os_nt:		.ascii "Windows NT/X";	.byte 'P'|0x80
-os_windows: 	.ascii "Window";	.byte 's'|0x80
+os_windows:	.ascii "Window";	.byte 's'|0x80
 os_unix:	.ascii "UNI";		.byte 'X'|0x80
 os_linux:	.ascii "Linu";		.byte 'x'|0x80
 os_freebsd:	.ascii "FreeBS";	.byte 'D'|0x80
