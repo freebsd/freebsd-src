@@ -2760,7 +2760,7 @@ flashpchar(ifp, byte, dwelltime)
  * the card
  */
 
-char            flashbuffer[1024 * 38];	/* RAW Buffer for flash will be
+static char     flashbuffer[1024 * 38];	/* RAW Buffer for flash will be
 					 * dynamic next */
 
 static int
