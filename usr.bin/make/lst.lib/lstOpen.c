@@ -69,7 +69,7 @@ __FBSDID("$FreeBSD$");
  *-----------------------------------------------------------------------
  */
 ReturnStatus
-Lst_Open(Lst l)
+Lst_Open(Lst *l)
 {
 
 	if (Lst_Valid(l) == FALSE) {

@@ -103,7 +103,7 @@ __FBSDID("$FreeBSD$");
 #include    "dir.h"
 #include    "config.h"
 
-static Lst	  archives;   /* Lst of archives we've already examined */
+static Lst	  *archives;  /* Lst of archives we've already examined */
 
 typedef struct Arch {
     char	  *name;      /* Name of archive */
@@ -174,7 +174,7 @@ ArchFree(void *ap)
  *-----------------------------------------------------------------------
  */
 ReturnStatus
-Arch_ParseArchive(char **linePtr, Lst nodeLst, GNode *ctxt)
+Arch_ParseArchive(char **linePtr, Lst *nodeLst, GNode *ctxt)
 {
     char            *cp;	    /* Pointer into line */
     GNode	    *gn;     	    /* New node */
@@ -336,7 +336,7 @@ Arch_ParseArchive(char **linePtr, Lst nodeLst, GNode *ctxt)
 	     */
 	    free(buf);
 	} else if (Dir_HasWildcards(memName)) {
-	    Lst	  members = Lst_Init();
+	    Lst *members = Lst_Init();
 	    char  *member;
 	    size_t sz = MAXPATHLEN;
 	    size_t nsz;
@@ -466,7 +466,7 @@ ArchStatMember(char *archive, char *member, Boolean hash)
     int		  size;       /* Size of archive member */
     char	  *cp;	      /* Useful character pointer */
     char	  magic[SARMAG];
-    LstNode	  ln;	      /* Lst member containing archive descriptor */
+    LstNode	  *ln;	      /* Lst member containing archive descriptor */
     Arch	  *ar;	      /* Archive descriptor */
     Hash_Entry	  *he;	      /* Entry containing member's description */
     struct ar_hdr arh;        /* archive-member header for reading archive */
@@ -1016,7 +1016,7 @@ Arch_MTime(GNode *gn)
 int
 Arch_MemMTime(GNode *gn)
 {
-    LstNode 	  ln;
+    LstNode 	  *ln;
     GNode   	  *pgn;
     char    	  *nameStart,
 		  *nameEnd;
@@ -1079,7 +1079,7 @@ Arch_MemMTime(GNode *gn)
  *-----------------------------------------------------------------------
  */
 void
-Arch_FindLib(GNode *gn, Lst path)
+Arch_FindLib(GNode *gn, Lst *path)
 {
     char	    *libName;   /* file name for archive */
     size_t	    sz;

@@ -225,7 +225,7 @@ Compat_RunCommand(void *cmdp, void *gnp)
     int	    	  status;   	/* Description of child's death */
     int	    	  cpid;	    	/* Child actually found */
     ReturnStatus  rstat;	/* Status of fork */
-    LstNode 	  cmdNode;  	/* Node where current command is located */
+    LstNode 	  *cmdNode;  	/* Node where current command is located */
     char    	  **av;	    	/* Argument vector for thing to exec */
     int	    	  argc;	    	/* Number of arguments in av or 0 if not
 				 * dynamically allocated */
@@ -679,7 +679,7 @@ CompatMake(void *gnp, void *pgnp)
  *-----------------------------------------------------------------------
  */
 void
-Compat_Run(Lst targs)
+Compat_Run(Lst *targs)
 {
     GNode   	  *gn = NULL;/* Current root target */
     int	    	  errors;   /* Number of targets not remade due to errors */

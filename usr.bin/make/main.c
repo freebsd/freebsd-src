@@ -93,15 +93,15 @@ __FBSDID("$FreeBSD$");
 
 #define	MAKEFLAGS	".MAKEFLAGS"
 
-Lst			create;		/* Targets to be made */
+Lst			*create;	/* Targets to be made */
 time_t			now;		/* Time at start of make */
 GNode			*DEFAULT;	/* .DEFAULT node */
 Boolean			allPrecious;	/* .PRECIOUS given on line by itself */
 
 static Boolean		noBuiltins;	/* -r flag */
-static Lst		makefiles;	/* ordered list of makefiles to read */
+static Lst		*makefiles;	/* ordered list of makefiles to read */
 static Boolean		expandVars;	/* fully expand printed variables */
-static Lst		variables;	/* list of variables to print */
+static Lst		*variables;	/* list of variables to print */
 int			maxJobs;	/* -j argument */
 static Boolean          forceJobs;      /* -j argument given */
 Boolean			compatMake;	/* -B argument */
@@ -116,7 +116,7 @@ Boolean			beSilent;	/* -s flag */
 Boolean			beVerbose;	/* -v flag */
 Boolean			oldVars;	/* variable substitution style */
 Boolean			checkEnvFirst;	/* -e flag */
-Lst			envFirstVars;	/* (-E) vars to override from env */
+Lst			*envFirstVars;	/* (-E) vars to override from env */
 Boolean			jobsRunning;	/* TRUE if the jobs might be running */
 
 static void		MainParseArgs(int, char **);
@@ -450,7 +450,7 @@ check_make_level(void)
 int
 main(int argc, char **argv)
 {
-	Lst targs;	/* target nodes to create -- passed to Make_Init */
+	Lst *targs;	/* target nodes to create -- passed to Make_Init */
 	Boolean outOfDate = TRUE; 	/* FALSE if all targets up to date */
 	struct stat sa;
 	char *p, *p1, *path, *pathp;
@@ -460,7 +460,7 @@ main(int argc, char **argv)
     	char *machine = getenv("MACHINE");
 	char *machine_arch = getenv("MACHINE_ARCH");
 	char *machine_cpu = getenv("MACHINE_CPU");
-	Lst sysMkPath;			/* Path of sys.mk */
+	Lst *sysMkPath;			/* Path of sys.mk */
 	char *cp = NULL, *start;
 					/* avoid faults on read-only strings */
 	static char syspath[] = _PATH_DEFSYSPATH;
@@ -709,7 +709,7 @@ main(int argc, char **argv)
 	 * will fill the thing in with the default or .MAIN target.
 	 */
 	if (!Lst_IsEmpty(create)) {
-		LstNode ln;
+		LstNode *ln;
 
 		for (ln = Lst_First(create); ln != NULL; ln = Lst_Succ(ln)) {
 			char *name = Lst_Datum(ln);
@@ -744,7 +744,7 @@ main(int argc, char **argv)
 	 * Makefile and makefile, in that order, if it wasn't.
 	 */
 	if (!noBuiltins) {
-		LstNode ln;
+		LstNode *ln;
 
 		sysMkPath = Lst_Init();
 		Dir_Expand(_PATH_DEFSYSMK, sysIncPath, sysMkPath);
@@ -756,7 +756,7 @@ main(int argc, char **argv)
 	}
 
 	if (!Lst_IsEmpty(makefiles)) {
-		LstNode ln;
+		LstNode *ln;
 
 		ln = Lst_Find(makefiles, NULL, ReadMakefile);
 		if (ln != NULL)
@@ -816,7 +816,7 @@ main(int argc, char **argv)
 
 	/* print the values of any variables requested by the user */
 	if (!Lst_IsEmpty(variables)) {
-		LstNode ln;
+		LstNode *ln;
 
 		for (ln = Lst_First(variables); ln != NULL;
 		    ln = Lst_Succ(ln)) {

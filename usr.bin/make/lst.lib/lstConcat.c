@@ -73,12 +73,12 @@ __FBSDID("$FreeBSD$");
  *-----------------------------------------------------------------------
  */
 ReturnStatus
-Lst_Concat(Lst list1, Lst list2, int flags)
+Lst_Concat(Lst *list1, Lst *list2, int flags)
 {
-    LstNode  	ln;     /* original LstNode */
-    LstNode  	nln;    /* new LstNode */
-    LstNode  	last;   /* the last element in the list. Keeps
-			 * bookkeeping until the end */
+    LstNode *ln;	/* original LstNode */
+    LstNode *nln;	/* new LstNode */
+    LstNode *last;	/* the last element in the list. Keeps
+		         * bookkeeping until the end */
 
     if (!Lst_Valid(list1) || !Lst_Valid(list2)) {
 	return (FAILURE);

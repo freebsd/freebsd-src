@@ -49,10 +49,10 @@ __FBSDID("$FreeBSD$");
 #include "make.h"
 #include "lst.h"
 
-LstNode
-Lst_Member(Lst list, void *d)
+LstNode *
+Lst_Member(Lst *list, void *d)
 {
-    LstNode	lNode;
+    LstNode *lNode;
 
     lNode = list->firstPtr;
     if (lNode == NULL) {
