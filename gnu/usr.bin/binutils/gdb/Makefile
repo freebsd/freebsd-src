@@ -21,7 +21,7 @@ XSRCS=	annotate.c ax-general.c ax-gdb.c bcache.c blockframe.c		\
 	scm-valprint.c solib.c source.c stabsread.c stack.c symfile.c	\
 	symmisc.c symtab.c target.c thread.c top.c tracepoint.c		\
 	typeprint.c utils.c valarith.c valops.c valprint.c values.c	\
-	version.c serial.c ser-unix.c ser-tcp.c callback.c
+	version.c serial.c ser-unix.c ser-tcp.c
 SRCS=	init.c ${XSRCS}
 
 .if exists(${.CURDIR}/Makefile.${MACHINE_ARCH})
