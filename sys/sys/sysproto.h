@@ -723,6 +723,9 @@ struct nanosleep_args {
 	char rqtp_l_[PADL_(const struct timespec *)]; const struct timespec * rqtp; char rqtp_r_[PADR_(const struct timespec *)];
 	char rmtp_l_[PADL_(struct timespec *)]; struct timespec * rmtp; char rmtp_r_[PADR_(struct timespec *)];
 };
+struct ntp_gettime_args {
+	char ntvp_l_[PADL_(struct ntptimeval *)]; struct ntptimeval * ntvp; char ntvp_r_[PADR_(struct ntptimeval *)];
+};
 struct minherit_args {
 	char addr_l_[PADL_(void *)]; void * addr; char addr_r_[PADR_(void *)];
 	char len_l_[PADL_(size_t)]; size_t len; char len_r_[PADR_(size_t)];
@@ -1494,6 +1497,7 @@ int	clock_gettime(struct thread *, struct clock_gettime_args *);
 int	clock_settime(struct thread *, struct clock_settime_args *);
 int	clock_getres(struct thread *, struct clock_getres_args *);
 int	nanosleep(struct thread *, struct nanosleep_args *);
+int	ntp_gettime(struct thread *, struct ntp_gettime_args *);
 int	minherit(struct thread *, struct minherit_args *);
 int	rfork(struct thread *, struct rfork_args *);
 int	openbsd_poll(struct thread *, struct openbsd_poll_args *);
