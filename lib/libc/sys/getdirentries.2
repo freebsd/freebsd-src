@@ -38,7 +38,8 @@
 .Nm getdirentries
 .Nd "get directory entries in a filesystem independent format"
 .Sh SYNOPSIS
-.Fd #include <sys/dirent.h>
+.Fd #include <sys/types.h>
+.Fd #include <dirent.h>
 .Ft int
 .Fn getdirentries "int fd" "char *buf" "int nbytes" "long *basep"
 .Sh DESCRIPTION
@@ -65,11 +66,11 @@ The data in the buffer is a series of
 .Em dirent
 structures each containing the following entries:
 .Bd -literal -offset indent
-unsigned long	d_fileno;
-unsigned short	d_reclen;
-unsigned char	d_type;
-unsigned char	d_namlen;
-char    	d_name[MAXNAMELEN + 1]; /* see below */
+u_int32_t d_fileno;
+u_int16_t d_reclen;
+u_int8_t  d_type;
+u_int8_t  d_namelen;
+char	d_name[MAXNAMELEN + 1];	/* see below */
 .Ed
 .Pp
 The
