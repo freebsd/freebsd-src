@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: wdc_p.c,v 1.3 1997/08/02 14:33:14 bde Exp $
+ *	$Id: wdc_p.c,v 1.4 1998/12/14 06:32:57 dillon Exp $
  */
 
 /*
@@ -26,8 +26,6 @@
 
 #include "pci.h"
 #if NPCI > 0
-#include "opt_wd.h"
-#ifdef CMD640
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -72,5 +70,4 @@ wdc_pci_attach(pcici_t config_id, int unit)
 		wdc_pci(Q_CMD640B);
 }
 
-#endif /* CMD640 */
 #endif /* NPCI > 0 */

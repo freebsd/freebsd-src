@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.109 1999/03/10 10:36:30 yokota Exp $
+#	$Id: options.i386,v 1.110 1999/03/13 13:20:59 joerg Exp $
 
 DISABLE_PSE
 IDE_DELAY
@@ -98,11 +98,6 @@ KBD_MAXRETRY		opt_kbd.h
 KBD_MAXWAIT		opt_kbd.h
 KBD_RESETDELAY		opt_kbd.h
 KBDIO_DEBUG		opt_kbd.h
-
-ATAPI			opt_atapi.h
-ATAPI_STATIC		opt_atapi.h
-
-CMD640			opt_wd.h
 
 USERCONFIG		opt_userconfig.h
 VISUAL_USERCONFIG	opt_userconfig.h
