@@ -84,7 +84,27 @@
 	mov	zero, v0
 	RET
 	END(suword)
-	
+
+	LEAF(suword32, 2)
+	LDGP(pv)
+
+	ldiq	t0, VM_MAXUSER_ADDRESS /* verify address validity */
+	cmpult	a0, t0, t1
+	beq	t1, fusufault
+
+	lda	t0, fusufault		/* trap faults */
+	ldq	t2, PC_CURTHREAD(pcpup)
+	ldq	t2, TD_PCB(t2)
+	stq	t0, PCB_ONFAULT(t2)
+
+	stl	a1, 0(a0)		/* try the store */
+
+	stq	zero, PCB_ONFAULT(t2)	/* clean up */
+
+	mov	zero, v0
+	RET
+	END(suword32)
+
 	LEAF(subyte, 1)
 	LDGP(pv)
 
@@ -129,6 +149,25 @@
 
 	RET
 	END(fuword)
+
+	LEAF(fuword32, 1)
+	LDGP(pv)
+
+	ldiq	t0, VM_MAXUSER_ADDRESS /* verify address validity */
+	cmpult	a0, t0, t1
+	beq	t1, fusufault
+
+	lda	t0, fusufault		/* trap faults */
+	ldq	t2, PC_CURTHREAD(pcpup)
+	ldq	t2, TD_PCB(t2)
+	stq	t0, PCB_ONFAULT(t2)
+
+	ldl	v0, 0(a0)		/* get the word containing our byte */
+
+	stq	zero, PCB_ONFAULT(t2)	/* clean up */
+
+	RET
+	END(fuword32)
 
 	LEAF(fubyte, 1)
 	LDGP(pv)
