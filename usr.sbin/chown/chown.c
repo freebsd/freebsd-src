@@ -64,7 +64,7 @@ void	usage __P((void));
 
 uid_t uid;
 gid_t gid;
-int Rflag, ischown, fflag;
+int Rflag, ischown, fflag, hflag;
 char *gname, *myname;
 
 int
@@ -102,13 +102,6 @@ main(argc, argv)
 			fflag = 1;
 			break;
 		case 'h':
-			/*
-			 * In System V (and probably POSIX.2) the -h option
-			 * causes chown/chgrp to change the owner/group of
-			 * the symbolic link.  4.4BSD's symbolic links don't
-			 * have owners/groups, so it's an undocumented noop.
-			 * Do syntax checking, though.
-			 */
 			hflag = 1;
 			break;
 		case '?':
@@ -175,13 +168,23 @@ main(argc, argv)
 			 * don't point to anything and ones that we found
 			 * doing a physical walk.
 			 */
-			continue;
+			if (hflag)
+				break;
+			else
+				continue;
 		default:
 			break;
 		}
-		if (chown(p->fts_accpath, uid, gid) && !fflag) {
-			chownerr(p->fts_path);
-			rval = 1;
+		if (hflag) {
+			if (lchown(p->fts_accpath, uid, gid) && !fflag) {
+				chownerr(p->fts_path);
+				rval = 1;
+			}
+		} else {
+			if (chown(p->fts_accpath, uid, gid) && !fflag) {
+				chownerr(p->fts_path);
+				rval = 1;
+			}
 		}
 	}
 	if (errno)
@@ -266,7 +269,7 @@ void
 usage()
 {
 	(void)fprintf(stderr,
-	    "usage: %s [-R [-H | -L | -P]] [-f] %s file ...\n",
+	    "usage: %s [-R [-H | -L | -P]] [-f] [-h] %s file ...\n",
 	    myname, ischown ? "[owner][:group]" : "group");
 	exit(1);
 }
