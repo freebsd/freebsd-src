@@ -95,7 +95,7 @@ DVIPS2ASCII?=	dvips2ascii
 .texi.dvi .texinfo.dvi:
 	TEXINPUTS=${.CURDIR}:${SRCDIR}:$$TEXINPUTS \
 		${TEX} ${.IMPSRC} </dev/null
-# Run again to reolve cross references.
+# Run again to resolve cross references.
 	TEXINPUTS=${.CURDIR}:${SRCDIR}:$$TEXINPUTS \
 		${TEX} ${.IMPSRC} </dev/null
 
@@ -103,7 +103,7 @@ DVIPS2ASCII?=	dvips2ascii
 	perl -npe 's/(^\s*\\input\s+texinfo\s+)/$$1\n@tex\n\\global\\hsize=120mm\n@end tex\n\n/' ${.IMPSRC} >> ${.IMPSRC:T:R}-la.texi
 	TEXINPUTS=${.CURDIR}:${SRCDIR}:$$TEXINPUTS \
 		${TEX} ${.IMPSRC:T:R}-la.texi </dev/null
-# Run again to reolve cross references.
+# Run again to resolve cross references.
 	TEXINPUTS=${.CURDIR}:${SRCDIR}:$$TEXINPUTS \
 		${TEX} ${.IMPSRC:T:R}-la.texi </dev/null
 	${DVIPS} -o /dev/stdout ${.IMPSRC:T:R}-la.dvi | \
