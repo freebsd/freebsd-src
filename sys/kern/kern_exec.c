@@ -162,7 +162,7 @@ execve(td, uap)
 	KASSERT((p->p_flag & P_INEXEC) == 0,
 	    ("%s(): process already has P_INEXEC flag", __func__));
 	if (p->p_flag & P_KSES) {
-		if (thread_single(SNGLE_EXIT)) {
+		if (thread_single(SINGLE_EXIT)) {
 			PROC_UNLOCK(p);
 			return (ERESTART);	/* Try again later. */
 		}

@@ -291,7 +291,7 @@ fork1(td, flags, procp)
 		 * be aborted in the child.
 		 */
 		PROC_LOCK(p1);
-		if (thread_single(SNGLE_NO_EXIT)) {
+		if (thread_single(SINGLE_NO_EXIT)) {
 			/* Abort.. someone else is single threading before us */
 			PROC_UNLOCK(p1);
 			return (ERESTART);

@@ -600,7 +600,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		if (P_SHOULDSTOP(p)) {
 			p->p_xstat = data;
 			mtx_lock_spin(&sched_lock);
-			p->p_flag &= ~(P_STOPPED_TRACE|P_STOPPED_SGNL);
+			p->p_flag &= ~(P_STOPPED_TRACE|P_STOPPED_SIG);
 			setrunnable(td2);	/* XXXKSE */
 			/* Need foreach kse in proc, ... make_kse_queued(). */
 			mtx_unlock_spin(&sched_lock);

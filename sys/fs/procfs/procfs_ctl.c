@@ -264,7 +264,7 @@ out:
 	 */
 	case PROCFS_CTL_RUN:
 		PROC_UNLOCK(p);
-		p->p_flag &= ~P_STOPPED_SGNL;	/* this uses SIGSTOP */
+		p->p_flag &= ~P_STOPPED_SIG;	/* this uses SIGSTOP */
 		break;
 
 	/*
@@ -351,7 +351,7 @@ procfs_doprocctl(PFS_FILL_ARGS)
 #endif
 				mtx_lock_spin(&sched_lock);
 				/* XXXKSE: */
-				p->p_flag &= ~P_STOPPED_SGNL;
+				p->p_flag &= ~P_STOPPED_SIG;
 				setrunnable(FIRST_THREAD_IN_PROC(p));
 				mtx_unlock_spin(&sched_lock);
 			} else
