@@ -117,7 +117,17 @@
   <sect2 id="security">
     <title>Security Advisories</title>
 
-    <para></para>
+    <para>A bug in &man.mksnap.ffs.8; caused the creation of a
+      filesystem snapshot to reset the flags on the filesystem to
+      their default values.  The possible consequences depend on local
+      usage, but can include disabling extended access control lists
+      or enabling the use of setuid executables stored on an untrusted
+      filesystem.  This bug also affects the &man.dump.8;
+      <option>-L</option> option, which uses &man.mksnap.ffs.8;.  Note
+      that &man.mksnap.ffs.8; is normally only available to the
+      superuser and members of the <groupname>operator</groupname>
+      group.  For more information, see security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:01.mksnap_ffs.asc">FreeBSD-SA-04:01</ulink>.</para>
 
   </sect2>
 
@@ -184,9 +194,15 @@
       <para arch="i386">The lmc (LAN Media Corp. PCI WAN adapter) driver has been
 	removed due to breakage and lack of maintainership.</para>
 
-      <para arch="i386">A wrapper system has been added to allow
-	binary Windows NDIS miniport network drivers to be used with
-	FreeBSD.  For more information, see the &man.ndis.4; and
+      <para arch="i386">&os; now provides a binary compatibility layer
+	for using &microsoft.windows; NDIS drivers for network
+	adapters under &os;/i386.  It includes a relocator/linker for
+	&windows; <filename>.SYS</filename> files to interface with
+	the &os; kernel and emulates various parts of the NDIS API
+	using native &os; kernel functions.  This system supports PCI
+	and CardBus network devices, and is designed principally for
+	Ethernet and wireless network interfaces.
+	For more information, see the &man.ndis.4; and
 	&man.ndiscvt.8; manual pages.</para>
 
       <para>Several bugs related to multicast and promiscuous mode
@@ -269,6 +285,9 @@
   <sect2 id="userland">
     <title>Userland Changes</title>
 
+    <para>&man.devfs.8; path rules now work correctly on
+      directories.</para>
+
     <para>The configuration files used by the &man.resolver.5; now
       support the <literal>timeout:</literal> and
       <literal>attempts:</literal> keywords.</para>
@@ -276,6 +295,37 @@
     <para>&man.ipfw.8; now supports a <option>-b</option> flag to
       print only the action and comment for each rule, thus omitting
       the rule body.</para>
+
+    <para arch="pc98"><filename>libdisk</filename> now uses the
+      correct PC98 disk partition value for &os;.  This permits the
+      &man.sysinstall.8; disk partition editor to correctly create a
+      single &os; partition covering the entire disk.</para>
+
+    <para arch="i386,pc98,amd64,ia64">The library formerly known as
+      <filename>libkse</filename> has been renamed
+      <filename>libpthread</filename> and is now the default threading
+      library on the i386, amd64, and ia64 platforms.
+      <application>GCC</application>'s <option>-pthread</option>
+      option has been changed to use <filename>libpthread</filename>
+      rather than <filename>libc_r</filename>.
+
+      <note>
+	<para>Users with older binaries (for example, ports compiled
+	  before this change was made) should use &man.libmap.conf.5;
+	  to map <filename>libc_r</filename> and/or
+	  <filename>libkse</filename> to
+	  <filename>libpthread</filename>.</para>
+      </note>
+
+      <note>
+	<para>Users with NVIDIA-supplied drivers and libraries may
+	  need to use a &man.libmap.conf.5; that maps
+	  <filename>libpthread</filename> references to the older
+	  <filename>libc_r</filename> since these drivers and
+	  utilities do not work with
+	  <filename>libpthread</filename>.</para>
+      </note>
+    <para>
 
     <para>A bugfix has been applied to NSS support, which fixes
       problems when using third-party NSS modules (such as <filename
@@ -312,7 +362,19 @@
   <sect2 id="releng">
     <title>Release Engineering and Integration</title>
 
-    <para></para>
+    <para arch="i386,pc98">The building process for boot floppy images
+      has been completely overhauled.  The most significant change is
+      that the loader now boots a stock <filename>GENERIC</filename>
+      kernel split across multiple disks (two at the time of this
+      writing).  This greatly improves installations that begin with a
+      boot from floppy disk, because they now use exactly the same
+      kernel (and thus support the same hardware) as CDROM
+      installations.  The stripped-down <filename>MFSROOT</filename>
+      kernel is no longer needed, and the <filename>mfsroot</filename>
+      image no longer requires kernel modules.  The
+      <filename>boot.flp</filename> and
+      <filename>driver.flp</filename> images are also obsolete and no
+      longer built.</para>
 
   </sect2>
 
