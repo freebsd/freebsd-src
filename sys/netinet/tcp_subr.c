@@ -1699,7 +1699,7 @@ tcp_twrespond(struct tcptw *tw, int flags)
 	int isipv6 = inp->inp_inc.inc_isipv6;
 #endif
 
-	m = m_gethdr(M_NOWAIT, MT_HEADER);
+	m = m_gethdr(M_DONTWAIT, MT_HEADER);
 	if (m == NULL)
 		return (ENOBUFS);
 	m->m_data += max_linkhdr;
