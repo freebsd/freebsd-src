@@ -73,7 +73,7 @@ fi
 
 feed_dev_random() {
 	if [ -f "${1}" -a -r "${1}" -a -s "${1}" ]; then
-		echo "Using ${1} as an entropy file"
+#		echo "Using ${1} as an entropy file"
 		cat "${1}" | dd of=/dev/random bs=8k 2>/dev/null
 	fi
 }
