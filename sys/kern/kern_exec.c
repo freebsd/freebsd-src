@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.94 1999/01/27 21:49:55 dillon Exp $
+ *	$Id: kern_exec.c,v 1.95 1999/01/28 00:57:47 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -443,7 +443,7 @@ exec_new_vmspace(imgp)
 	if (vmspace->vm_refcnt == 1) {
 		if (vmspace->vm_shm)
 			shmexit(imgp->proc);
-		pmap_remove_pages(&vmspace->vm_pmap, 0, VM_MAXUSER_ADDRESS);
+		pmap_remove_pages(vmspace_pmap(vmspace), 0, VM_MAXUSER_ADDRESS);
 		vm_map_remove(map, 0, VM_MAXUSER_ADDRESS);
 	} else {
 		vmspace_exec(imgp->proc);

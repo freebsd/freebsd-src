@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.88 1999/01/26 02:49:52 julian Exp $
+ * $Id: vm_mmap.c,v 1.89 1999/02/07 21:48:22 dillon Exp $
  */
 
 /*
@@ -644,7 +644,7 @@ madvise(p, uap)
 	end = round_page((vm_offset_t) uap->addr + uap->len);
 	
 	map = &p->p_vmspace->vm_map;
-	pmap = &p->p_vmspace->vm_pmap;
+	pmap = vmspace_pmap(p->p_vmspace);
 
 	vm_map_madvise(map, pmap, start, end, uap->behav);
 
@@ -693,7 +693,7 @@ mincore(p, uap)
 	vec = uap->vec;
 
 	map = &p->p_vmspace->vm_map;
-	pmap = &p->p_vmspace->vm_pmap;
+	pmap = vmspace_pmap(p->p_vmspace);
 
 	vm_map_lock(map);
 

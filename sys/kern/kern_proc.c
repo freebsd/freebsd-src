@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.7 (Berkeley) 2/14/95
- * $Id: kern_proc.c,v 1.44 1999/01/26 02:38:10 julian Exp $
+ * $Id: kern_proc.c,v 1.45 1999/01/28 00:57:47 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -420,23 +420,8 @@ fill_eproc(p, ep)
 	}
 	if (p->p_stat != SIDL && p->p_stat != SZOMB && p->p_vmspace != NULL) {
 		register struct vmspace *vm = p->p_vmspace;
-
-#ifdef pmap_resident_count
-		ep->e_vm.vm_rssize = pmap_resident_count(&vm->vm_pmap); /*XXX*/
-#else
-		ep->e_vm.vm_rssize = vm->vm_rssize;
-#endif
-		ep->e_vm.vm_tsize = vm->vm_tsize;
-		ep->e_vm.vm_dsize = vm->vm_dsize;
-		ep->e_vm.vm_ssize = vm->vm_ssize;
-		ep->e_vm.vm_taddr = vm->vm_taddr;
-		ep->e_vm.vm_daddr = vm->vm_daddr;
-		ep->e_vm.vm_minsaddr = vm->vm_minsaddr;
-		ep->e_vm.vm_maxsaddr = vm->vm_maxsaddr;
-		ep->e_vm.vm_map = vm->vm_map;
-#ifndef sparc
-		ep->e_vm.vm_pmap = vm->vm_pmap;
-#endif
+		ep->e_vm = *vm;
+		ep->e_vm.vm_rssize = vmspace_resident_count(vm); /*XXX*/
 	}
 	if (p->p_pptr)
 		ep->e_ppid = p->p_pptr->p_pid;

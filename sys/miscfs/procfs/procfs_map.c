@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_status.c	8.3 (Berkeley) 2/17/94
  *
- *	$Id: procfs_map.c,v 1.20 1999/02/05 06:18:54 jdp Exp $
+ *	$Id: procfs_map.c,v 1.21 1999/02/07 21:48:21 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -76,7 +76,7 @@ procfs_domap(curp, p, pfs, uio)
 	int len;
 	int error;
 	vm_map_t map = &p->p_vmspace->vm_map;
-	pmap_t pmap = &p->p_vmspace->vm_pmap;
+	pmap_t pmap = vmspace_pmap(p->p_vmspace);
 	vm_map_entry_t entry;
 	char mebuffer[MEBUFFERSIZE];
 
