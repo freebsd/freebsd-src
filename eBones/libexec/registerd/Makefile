@@ -6,15 +6,14 @@
 #
 #	@(#)Makefile	8.1 (Berkeley) 6/1/93
 #
-# $Id: Makefile,v 1.4 1995/07/18 16:41:24 mark Exp $
+# $Id$
 
 PROG=	registerd
 SRCS=	registerd.c
-CFLAGS+=-DCRYPT -DKERBEROS -I${.CURDIR}/../register \
-		-I${.CURDIR}/../include -Wall
-.PATH:	${.CURDIR}/../../usr.bin/rlogin
-DPADD=	${LIBKDB} ${LIBKRB}
-LDADD=	-L${KDBOBJDIR} -lkdb -L${KRBOBJDIR} -lkrb -ldes
+CFLAGS+=-DCRYPT -DKERBEROS -I${.CURDIR}/../../usr.bin/register \
+	-I${.CURDIR}/../../include -Wall
+DPADD+=	${LIBKDB} ${LIBKRB} ${LIBDES}
+LDADD=	-lkdb -lkrb -ldes
 MAN8=	registerd.8
 BINDIR=	/usr/libexec
 

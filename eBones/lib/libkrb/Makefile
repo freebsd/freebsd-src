@@ -1,10 +1,8 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile,v 1.5 1995/07/18 16:38:02 mark Exp $
+#	$Id$
 
 LIB=	krb
-SHLIB_MAJOR= 2
-SHLIB_MINOR= 0
-CFLAGS+=-DKERBEROS -DCRYPT -DDEBUG -I${.CURDIR}/../include -DBSD42 -Wall
+CFLAGS+=-DKERBEROS -DCRYPT -DDEBUG -I${.CURDIR}/../../include -DBSD42 -Wall
 SRCS=	krb_err.c create_auth_reply.c create_ciph.c \
 	create_death_packet.c create_ticket.c debug_decl.c decomp_ticket.c \
 	des_rw.c dest_tkt.c extract_ticket.c fgetst.c get_ad_tkt.c \
@@ -19,10 +17,10 @@ SRCS=	krb_err.c create_auth_reply.c create_ciph.c \
 	save_credentials.c send_to_kdc.c sendauth.c stime.c tf_util.c \
 	tkt_string.c util.c
 
-TDIR=	${.CURDIR}/..
 krb_err.c krb_err.h: krb_err.et
 	test -e krb_err.et || ln -s ${.CURDIR}/krb_err.et .
-	${COMPILE_ET} krb_err.et
+	compile_et krb_err.et
+
 LDADD+=	-lcom_err
 
 beforeinstall:

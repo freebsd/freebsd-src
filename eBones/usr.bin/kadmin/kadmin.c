@@ -32,7 +32,7 @@ static char rcsid_kadmin_c[] =
 #include <pwd.h>
 #include <ss/ss.h>
 #include <com_err.h>
-#include <krb_err.h>
+#include <kerberosIV/krb_err.h>
 #include <kadm.h>
 
 #define BAD_PW 1
