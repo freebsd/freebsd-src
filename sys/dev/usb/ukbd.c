@@ -41,7 +41,6 @@
  * HID spec: http://www.usb.org/developers/data/usbhid10.pdf
  */
 
-#include "ukbd.h"
 #include "opt_kbd.h"
 #include "opt_ukbd.h"
 
