@@ -852,7 +852,7 @@ set_build_parameters() {
     PICO_TREE=${PICO_TREE:-${SRC}/release/picobsd}
     set `grep "#define[\t ]__FreeBSD_version" ${SRC}/sys/sys/param.h`
     OSVERSION=$3
-    logverbose "OSVERSION is ${OSVERSION}"
+    log "OSVERSION is ${OSVERSION}"
     if [ "${o_init_src}" != "" ] ; then
 	if [ ${OSVERSION} -lt 500035 ] ; then
 	    create_includes_and_libraries
