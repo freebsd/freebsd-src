@@ -96,8 +96,6 @@ __FBSDID("$FreeBSD$");
 				 * fd_drivetype; on i386 machines, if
 				 * given as 0, use RTC type for fd0
 				 * and fd1 */
-#define FD_NO_CHLINE	0x10	/* drive does not support changeline
-				 * aka. unit attention */
 #define FD_NO_PROBE	0x20	/* don't probe drive (seek test), just
 				 * assume it is there */
 
@@ -110,7 +108,7 @@ __FBSDID("$FreeBSD$");
  * This is used for ISADMA bouncebuffer allocation and sets the max
  * xfersize we support.
  *
- * 2.88M format has 2 x 36 x 512.
+ * 2.88M format has 2 x 36 x 512, allow for hacked up density.
  */
 
 #define MAX_BYTES_PER_CYL	(2 * 40 * 512)
@@ -129,7 +127,7 @@ __FBSDID("$FreeBSD$");
 /*
  * After this many errors, stop whining.  Close will reset this count.
  */
-#define FDC_ERRMAX	100	/* do not log more */
+#define FDC_ERRMAX	100
 
 /*
  * AutoDensity search lists for each drive type.
@@ -215,7 +213,7 @@ static struct fd_type *fd_native_types[] = {
 				/* is cleared by any step pulse to drive */
 
 /*
- * We have two private BIO commands for formatting and sector-id reading
+ * We have three private BIO commands.
  */
 #define BIO_PROBE	BIO_CMD0
 #define BIO_RDID	BIO_CMD1
@@ -644,10 +642,9 @@ fd_turnoff(void *xfd)
 }
 
 /*
- * fdc_intr
- *
- * Keep calling the state machine until it returns a 0.
+ * fdc_intr - wake up the worker thread.
  */
+
 static void
 fdc_intr(void *arg)
 {
@@ -738,7 +735,9 @@ fdc_worker(struct fdc_data *fdc)
 		    bp->bio_cmd & BIO_READ ? ISADMA_READ : ISADMA_WRITE,
 		    fd->fd_ioptr, fd->fd_iosize, fdc->dmachan);
 		mtx_unlock(&Giant);
+		mtx_lock(&fdc->fdc_mtx);
 		fd->flags &= ~FD_ISADMA;
+		mtx_unlock(&fdc->fdc_mtx);
 	}
 		
 	/* Unwedge the controller ? */
@@ -801,7 +800,9 @@ fdc_worker(struct fdc_data *fdc)
 		 */
 		if (debugflags & 0x40)
 			printf("New disk in probe\n");
+		mtx_lock(&fdc->fdc_mtx);
 		fd->flags |= FD_NEWDISK;
+		mtx_unlock(&fdc->fdc_mtx);
 		retry_line = __LINE__;
 		if (fdc_cmd(fdc, 2, NE7CMD_RECAL, fd->fdsu, 0))
 			return (1);
@@ -825,18 +826,24 @@ fdc_worker(struct fdc_data *fdc)
 		if (fdin_rd(fdc) & FDI_DCHG) {
 			if (debugflags & 0x40)
 				printf("Empty in probe\n");
+			mtx_lock(&fdc->fdc_mtx);
 			fd->flags |= FD_EMPTY;
+			mtx_unlock(&fdc->fdc_mtx);
 		} else {
 			if (debugflags & 0x40)
 				printf("Got disk in probe\n");
+			mtx_lock(&fdc->fdc_mtx);
 			fd->flags &= ~FD_EMPTY;
+			mtx_unlock(&fdc->fdc_mtx);
 			retry_line = __LINE__;
 			if(fdc_sense_drive(fdc, &st3) != 0)
 				return (1);
+			mtx_lock(&fdc->fdc_mtx);
 			if(st3 & NE7_ST3_WP)
 				fd->flags |= FD_WP;
 			else
 				fd->flags &= ~FD_WP;
+			mtx_unlock(&fdc->fdc_mtx);
 		}
 		return (fdc_biodone(fdc, 0));
 	}
@@ -851,8 +858,10 @@ fdc_worker(struct fdc_data *fdc)
 	if (fdin_rd(fdc) & FDI_DCHG) {
 		if (debugflags & 0x40)
 			printf("Lost disk\n");
+		mtx_lock(&fdc->fdc_mtx);
 		fd->flags |= FD_EMPTY;
 		fd->flags |= FD_NEWDISK;
+		mtx_unlock(&fdc->fdc_mtx);
 		g_topology_lock();
 		g_orphan_provider(fd->fd_provider, EXDEV);
 		fd->fd_provider->flags |= G_PF_WITHER;
@@ -953,7 +962,9 @@ fdc_worker(struct fdc_data *fdc)
 		    bp->bio_cmd & BIO_READ ? ISADMA_READ : ISADMA_WRITE,
 		    fd->fd_ioptr, fd->fd_iosize, fdc->dmachan);
 		mtx_unlock(&Giant);
+		mtx_lock(&fdc->fdc_mtx);
 		fd->flags |= FD_ISADMA;
+		mtx_unlock(&fdc->fdc_mtx);
 	}
 
 	/* Do PIO if we have to */
@@ -1033,7 +1044,9 @@ fdc_worker(struct fdc_data *fdc)
 		    bp->bio_cmd & BIO_READ ? ISADMA_READ : ISADMA_WRITE,
 		    fd->fd_ioptr, fd->fd_iosize, fdc->dmachan);
 		mtx_unlock(&Giant);
+		mtx_lock(&fdc->fdc_mtx);
 		fd->flags &= ~FD_ISADMA;
+		mtx_unlock(&fdc->fdc_mtx);
 	}
 
 	if (i != 0) {
@@ -1345,7 +1358,9 @@ fd_access(struct g_provider *pp, int r, int w, int e)
 			return (ENXIO);
 		if (fd->flags & FD_NEWDISK) {
 			fdautoselect(fd);
+			mtx_lock(&fdc->fdc_mtx);
 			fd->flags &= ~FD_NEWDISK;
+			mtx_unlock(&fdc->fdc_mtx);
 		}
 		device_busy(fd->dev);
 	}
@@ -1450,7 +1465,9 @@ fd_ioctl(struct g_provider *pp, u_long cmd, void *data, struct thread *td)
 		    FD_FORMAT_VERSION)
 			return (EINVAL); /* wrong version of formatting prog */
 		error = fdmisccmd(fd, BIO_FMT, data);
+		mtx_lock(&fd->fdc->fdc_mtx);
 		fd->flags |= FD_NEWDISK;
+		mtx_unlock(&fd->fdc->fdc_mtx);
 		break;
 
 	case FD_READID:
