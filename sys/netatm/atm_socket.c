@@ -819,7 +819,9 @@ atm_sock_setopt(so, sopt, atp)
 			return (EINVAL);
 		if ((p.brr.traffic_type != T_ATM_NULL) &&
 		    (p.brr.traffic_type != T_ATM_CBR) &&
-		    (p.brr.traffic_type != T_ATM_VBR))
+		    (p.brr.traffic_type != T_ATM_VBR) &&
+		    (p.brr.traffic_type != T_ATM_ABR) &&
+		    (p.brr.traffic_type != T_ATM_UBR))
 			return (EINVAL);
 		if ((p.brr.timing_requirements != T_ATM_NULL) &&
 		    (p.brr.timing_requirements != T_ATM_END_TO_END) &&
