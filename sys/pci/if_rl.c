@@ -188,6 +188,8 @@ static struct rl_type rl_devs[] = {
 		"RealTek 8129 10/100BaseTX" },
 	{ RT_VENDORID, RT_DEVICEID_8139, RL_8139,
 		"RealTek 8139 10/100BaseTX" },
+	{ RT_VENDORID, RT_DEVICEID_8169, RL_8169,
+		"RealTek 8169 10/100/1000BaseTX" },
 	{ RT_VENDORID, RT_DEVICEID_8138, RL_8139,
 		"RealTek 8139 10/100BaseTX CardBus" },
 	{ ACCTON_VENDORID, ACCTON_DEVICEID_5030, RL_8139,
@@ -227,8 +229,12 @@ static struct rl_hwrev rl_hwrevs[] = {
 	{ RL_HWREV_8139B, RL_8139, "B" },
 	{ RL_HWREV_8130, RL_8139, "8130" },
 	{ RL_HWREV_8139C, RL_8139, "C" },
-	{ RL_HWREV_8139D, RL_8139, "D" },
+	{ RL_HWREV_8139D, RL_8139, "8139D/8100B/8100C" },
 	{ RL_HWREV_8139CPLUS, RL_8139CPLUS, "C+"},
+	{ RL_HWREV_8169, RL_8169, "8169"},
+	{ RL_HWREV_8110, RL_8169, "8169S/8110S"},
+	{ RL_HWREV_8100, RL_8139, "8100"},
+	{ RL_HWREV_8101, RL_8139, "8101"},
 	{ 0, 0, NULL }
 };
 
@@ -273,6 +279,8 @@ static void rl_mii_sync		(struct rl_softc *);
 static void rl_mii_send		(struct rl_softc *, u_int32_t, int);
 static int rl_mii_readreg	(struct rl_softc *, struct rl_mii_frame *);
 static int rl_mii_writereg	(struct rl_softc *, struct rl_mii_frame *);
+static int rl_gmii_readreg	(device_t, int, int);
+static int rl_gmii_writereg	(device_t, int, int, int);
 
 static int rl_miibus_readreg	(device_t, int, int);
 static int rl_miibus_writereg	(device_t, int, int, int);
@@ -668,6 +676,71 @@ rl_mii_writereg(sc, frame)
 }
 
 static int
+rl_gmii_readreg(dev, phy, reg)
+	device_t		dev;
+	int			phy, reg;
+{
+	struct rl_softc		*sc;
+	u_int32_t		rval;
+	int			i;
+
+	if (phy != 1)
+		return(0);
+
+	sc = device_get_softc(dev);
+
+	CSR_WRITE_4(sc, RL_PHYAR, reg << 16);
+	DELAY(1000);
+
+	for (i = 0; i < RL_TIMEOUT; i++) {
+		rval = CSR_READ_4(sc, RL_PHYAR);
+		if (rval & RL_PHYAR_BUSY)
+			break;
+		DELAY(100);
+	}
+
+	if (i == RL_TIMEOUT) {
+		printf ("rl%d: PHY read failed\n", sc->rl_unit);
+		return (0);
+	}
+
+	return (rval & RL_PHYAR_PHYDATA);
+}
+
+static int
+rl_gmii_writereg(dev, phy, reg, data)
+	device_t		dev;
+	int			phy, reg, data;
+{
+	struct rl_softc		*sc;
+	u_int32_t		rval;
+	int			i;
+
+	if (phy > 0)
+		return(0);
+
+	sc = device_get_softc(dev);
+
+	CSR_WRITE_4(sc, RL_PHYAR, (reg << 16) |
+	    (data | RL_PHYAR_PHYDATA) | RL_PHYAR_BUSY);
+	DELAY(1000);
+
+	for (i = 0; i < RL_TIMEOUT; i++) {
+		rval = CSR_READ_4(sc, RL_PHYAR);
+		if (!(rval & RL_PHYAR_BUSY))
+			break;
+		DELAY(100);
+	}
+
+	if (i == RL_TIMEOUT) {
+		printf ("rl%d: PHY write failed\n", sc->rl_unit);
+		return (0);
+	}
+
+	return (0);
+}
+
+static int
 rl_miibus_readreg(dev, phy, reg)
 	device_t		dev;
 	int			phy, reg;
@@ -679,6 +752,12 @@ rl_miibus_readreg(dev, phy, reg)
 
 	sc = device_get_softc(dev);
 	RL_LOCK(sc);
+
+	if (sc->rl_type == RL_8169) {
+		rval = rl_gmii_readreg(dev, phy, reg);
+		RL_UNLOCK(sc);
+		return (rval);
+	}
 
 	if (sc->rl_type == RL_8139 || sc->rl_type == RL_8139CPLUS) {
 		/* Pretend the internal PHY is only at address 0 */
@@ -744,9 +823,16 @@ rl_miibus_writereg(dev, phy, reg, data)
 	struct rl_softc		*sc;
 	struct rl_mii_frame	frame;
 	u_int16_t		rl8139_reg = 0;
+	int			rval = 0;
 
 	sc = device_get_softc(dev);
 	RL_LOCK(sc);
+
+	if (sc->rl_type == RL_8169) {
+		rval = rl_gmii_writereg(dev, phy, reg, data);
+		RL_UNLOCK(sc);
+		return (rval);
+	}
 
 	if (sc->rl_type == RL_8139 || sc->rl_type == RL_8139CPLUS) {
 		/* Pretend the internal PHY is only at address 0 */
@@ -903,6 +989,8 @@ rl_reset(sc)
 	if (i == RL_TIMEOUT)
 		printf("rl%d: reset never completed!\n", sc->rl_unit);
 
+	CSR_WRITE_1(sc, 0x82, 1);
+
 	return;
 }
 
@@ -963,7 +1051,8 @@ rl_probe(dev)
 				if (hw_rev->rl_desc == NULL) 
 					sprintf(desc, "%s, rev. %s",
 					    t->rl_name, "unknown");
-			}
+			} else
+				sprintf(desc, "%s", t->rl_name);
 			bus_release_resource(dev, RL_RES,
 			    RL_RID, sc->rl_res);
 			RL_UNLOCK(sc);
@@ -1039,7 +1128,7 @@ rl_dma_map_desc(arg, segs, nseg, mapsize, error)
 			cmdstat |= RL_TDESC_CMD_SOF;
 		else
 			cmdstat |= RL_TDESC_CMD_OWN;
-		if (idx == RL_RX_DESC_CNT)
+		if (idx == (RL_RX_DESC_CNT - 1))
 			cmdstat |= RL_TDESC_CMD_EOR;
 		d->rl_cmdstat = htole32(cmdstat);
 		i++;
@@ -2663,7 +2752,10 @@ rl_init(xsc)
 		 * moderation, which dramatically improves TX frame rate.
 		 */
 
-		CSR_WRITE_4(sc, RL_TIMERINT, 0x400);
+		if (sc->rl_type == RL_8169)
+			CSR_WRITE_4(sc, RL_TIMERINT_8169, 0x400);
+		else
+			CSR_WRITE_4(sc, RL_TIMERINT, 0x400);
 
 		/*
 		 * For 8169 gigE NICs, set the max allowed RX packet
