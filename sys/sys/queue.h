@@ -102,8 +102,9 @@
  * _REMOVE		+	+	+	+
  *
  */
-#define QUEUE_MACRO_DEBUG 1
-#ifdef QUEUE_MACRO_DEBUG
+#define QUEUE_MACRO_DEBUG 0
+#if QUEUE_MACRO_DEBUG
+/* Store the last 2 places the queue element or head was altered */
 struct qm_trace {
 	char * lastfile;
 	int lastline;
