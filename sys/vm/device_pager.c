@@ -212,6 +212,7 @@ dev_pager_getpages(object, m, count, reqpage)
 	d_mmap_t *mapfunc;
 	int prot;
 
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	dev = object->handle;
 	offset = m[reqpage]->pindex;
 	VM_OBJECT_UNLOCK(object);
