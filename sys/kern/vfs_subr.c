@@ -460,8 +460,6 @@ vlrureclaim(struct mount *mp, int count)
 {
 	struct vnode *vp;
 
-	if (mp == NULL)
-		return;
 	simple_lock(&mntvnode_slock);
 	while (count && (vp = TAILQ_FIRST(&mp->mnt_nvnodelist)) != NULL) {
 		TAILQ_REMOVE(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
@@ -513,7 +511,7 @@ getnewvnode(tag, mp, vops, vpp)
 	 * algorithm to be stable we have to try to reuse at least 2.
 	 * No hysteresis should be necessary.
 	 */
-	if (numvnodes - freevnodes > desiredvnodes)
+	if (mp && numvnodes - freevnodes > desiredvnodes)
 		vlrureclaim(mp, 2);
 
 	/*
