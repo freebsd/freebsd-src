@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)shar.1	8.1 (Berkeley) 6/6/93
+.\"	$Id$
 .\"
 .Dd June 6, 1993
 .Dt SHAR 1
@@ -41,8 +42,9 @@
 .Nm
 .Ar
 .Sh DESCRIPTION
-.Nm Shar
-writes an
+The
+.Nm
+command writes a
 .Xr sh 1
 shell script to the standard output which will recreate the file
 hierarchy specified by the command line operands.
@@ -51,8 +53,9 @@ files they contain (the
 .Xr find 1
 utility does this correctly).
 .Pp
-.Nm Shar
-is normally used for distributing files by
+The
+.Nm
+command is normally used for distributing files by
 .Xr ftp  1
 or
 .Xr mail  1  .
@@ -62,21 +65,23 @@ or
 .Xr tar 1 ,
 .Xr uuencode 1
 .Sh BUGS
-.Nm Shar
-makes no provisions for special types of files or files containing
+The
+.Nm
+command makes no provisions for special types of files or files containing
 magic characters.
-.Nm Shar
-cannot handle files without a newline ('\\n')
+The
+.Nm
+command cannot handle files without a newline ('\\n')
 as the last character.
 .Pp
 It is easy to insert trojan horses into
-.Nm shar
+.Nm
 files.
 It is strongly recommended that all shell archive files be examined
 before running them through
 .Xr sh  1  .
 Archives produced using this implementation of
-.Nm shar
+.Nm
 may be easily examined with the command:
 .Bd -literal -offset indent
 egrep -v '^[X#]' shar.file

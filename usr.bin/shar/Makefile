@@ -4,6 +4,6 @@ MAN1=	shar.1
 
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-	    ${.CURDIR}/shar.sh ${DESTDIR}/usr/bin/shar
+	    ${.CURDIR}/shar.sh ${DESTDIR}${BINDIR}/shar
 
 .include <bsd.prog.mk>
