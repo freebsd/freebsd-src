@@ -70,6 +70,9 @@ cpu_identify(u_long vers, u_int freq, u_int id)
 	case CPU_IMPL_ULTRASPARCIIIp:
 		impls = "UltraSparc-III+";
 		break;
+	case CPU_IMPL_ULTRASPARCIIIi:
+		impls = "UltraSparc-IIIi";
+		break;
 	default:
 		impls = NULL;
 		break;
