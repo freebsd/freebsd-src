@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.79 1997/02/22 09:44:34 peter Exp $
+ *      $Id: scsiconf.c,v 1.80 1997/03/06 15:36:17 joerg Exp $
  */
 
 #include "opt_scsi.h"
@@ -382,6 +382,10 @@ static struct scsidevs knowndevs[] =
 #if NWORM > 0
 	{
 		T_READONLY, T_WORM, T_REMOV, "HP", "C4324/C4325", "*",
+		"worm", SC_ONE_LU
+	},
+	{
+		T_READONLY, T_WORM, T_REMOV, "HP", "CD-Writer 6020", "*",
 		"worm", SC_ONE_LU
 	},
 	{
