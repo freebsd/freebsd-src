@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.29 1994/10/08 22:19:51 phk Exp $
+ *	$Id: vm_machdep.c,v 1.30 1995/01/09 16:04:40 davidg Exp $
  */
 
 #include "npx.h"
@@ -594,13 +594,8 @@ cpu_exit(p)
 #if NNPX > 0
 	npxexit(p);
 #endif	/* NNPX */
-	curproc = p;
-	mi_switch();
-	/* 
-	 * This is to shutup the compiler, and if swtch() failed I suppose
-	 * this would be a good thing.  This keeps gcc happy because panic
-	 * is a volatile void function as well.
-	 */
+	cnt.v_swtch++;
+	cpu_switch(p);
 	panic("cpu_exit");
 }
 
