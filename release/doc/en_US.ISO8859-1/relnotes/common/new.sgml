@@ -139,6 +139,24 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
+    <para arch="i386">A bug that even when no AT keyboard is connected,
+      &man.atkbd.4; registers an AT keyboard during console initialization
+      has been fixed.  <command>kbdcontrol -k /dev/kbd1</command>
+      is no longer needed when only a USB keyboard is connected.
+      &merged;</para>
+
+    <para arch="amd64,alpha,i386,ia64,pc98">The &man.puc.4;, 
+      PCI Universal Communications driver now supports
+      to connect parallel ports to the &man.ppc.4; driver.</para>
+
+    <para arch="i386,pc98">The &man.safe.4; driver has been added
+      to support SafeNet 1141, 1741-based crypto accelerators.
+      &merged;
+
+      <note>
+        <para>The public key support is not implemented.</para>
+      </note></para>
+
     <para>A kernel software watchdog facility has been implemented.
       For more information, see &man.watchdog.4; and
       &man.watchdogd.8;.</para>
@@ -156,23 +174,6 @@
         panics on PAE machines of certain large memory sizes has been
         corrected.</para>
 
-      <para arch="i386">A bug that even when no AT keyboard is connected,
-        &man.atkbd.4; registers an AT keyboard during console initialization
-        has been fixed.  <command>kbdcontrol -k /dev/kbd1</command>
-        is no longer needed when only a USB keyboard is connected.
-        &merged;</para>
-
-      <para arch="amd64,alpha,i386,ia64,pc98">The &man.puc.4;, 
-        PCI Universal Communications driver now supports
-        to connect parallel ports to the &man.ppc.4; driver.</para>
-
-      <para arch="i386,pc98">The &man.safe.4; driver has been added
-        to support SafeNet 1141, 1741-based crypto accelerators.
-        &merged;
-
-        <note>
-          <para>The public key support is not implemented.</para>
-        </note></para>
     </sect3>
 
     <sect3 id="boot">
