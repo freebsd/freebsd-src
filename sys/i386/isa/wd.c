@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.75 1995/04/24 04:32:31 dyson Exp $
+ *	$Id: wd.c,v 1.77 1995/04/24 05:12:29 phk Exp $
  */
 
 /* TODO:
@@ -1565,8 +1565,8 @@ wdioctl(dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
 
 	du = wddrives[lunit];
 	wdsleep(du->dk_ctrlr, "wdioct");
-	error = dsioctl(dev, cmd, addr, flags, du->dk_slices, wdstrategy1,
-			(ds_setgeom_t *)NULL);
+	error = dsioctl("wd", dev, cmd, addr, flags, &du->dk_slices,
+			wdstrategy1, (ds_setgeom_t *)NULL);
 	if (error != -1)
 		return (error);
 
