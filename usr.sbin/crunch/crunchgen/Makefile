@@ -1,7 +1,7 @@
+# $FreeBSD$
 
-PROG=crunchgen
-SRCS=crunchgen.c crunched_skel.c
-CFLAGS+=-Wall
+PROG=	crunchgen
+SRCS=	crunchgen.c crunched_skel.c
 CLEANFILES+= crunched_skel.c
 
 crunched_skel.c: crunched_main.c
