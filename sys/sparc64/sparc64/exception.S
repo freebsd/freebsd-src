@@ -466,6 +466,7 @@ END(rsf_fatal)
 	.endm
 
 	.macro	tl0_insn_excptn
+	wrpr	%g0, PSTATE_ALT, %pstate
 	wr	%g0, ASI_IMMU, %asi
 	rdpr	%tpc, %g3
 	ldxa	[%g0 + AA_IMMU_SFSR] %asi, %g4
@@ -477,6 +478,7 @@ END(rsf_fatal)
 	.endm
 
 	.macro	tl0_data_excptn
+	wrpr	%g0, PSTATE_ALT, %pstate
 	wr	%g0, ASI_DMMU, %asi
 	ldxa	[%g0 + AA_DMMU_SFAR] %asi, %g3
 	ldxa	[%g0 + AA_DMMU_SFSR] %asi, %g4
@@ -1073,6 +1075,7 @@ END(tl0_sftrap)
 	.endm
 
 	.macro	tl1_insn_excptn
+	wrpr	%g0, PSTATE_ALT, %pstate
 	wr	%g0, ASI_IMMU, %asi
 	rdpr	%tpc, %g3
 	ldxa	[%g0 + AA_IMMU_SFSR] %asi, %g4
@@ -1092,13 +1095,13 @@ ENTRY(tl1_insn_exceptn_trap)
 END(tl1_insn_exceptn_trap)
 
 	.macro	tl1_data_excptn
+	wrpr	%g0, PSTATE_ALT, %pstate
 	b,a	%xcc, tl1_data_excptn_trap
 	 nop
 	.align	32
 	.endm
 
 ENTRY(tl1_data_excptn_trap)
-	wrpr	%g0, PSTATE_ALT, %pstate
 	RESUME_SPILLFILL_MMU_CLR_SFSR
 	b	%xcc, tl1_sfsr_trap
 	 mov	T_DATA_EXCEPTION | T_KERNEL, %g2
@@ -1111,7 +1114,6 @@ END(tl1_data_excptn_trap)
 	.endm
 
 ENTRY(tl1_align_trap)
-	wrpr	%g0, PSTATE_ALT, %pstate
 	RESUME_SPILLFILL_ALIGN
 	b	%xcc, tl1_sfsr_trap
 	 mov	T_MEM_ADDRESS_NOT_ALIGNED | T_KERNEL, %g2
