@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: conf.c,v 1.6 1998/09/30 19:48:42 peter Exp $
+ *	$Id: conf.c,v 1.7 1998/10/07 02:39:32 msmith Exp $
  */
 
 #include <stand.h>
@@ -88,7 +88,7 @@ extern struct pnphandler isapnphandler;
 /* extern struct pnphandler pcipnphandler;*/
 
 struct pnphandler *pnphandlers[] = {
-/*    &isapnphandler, */
+    &isapnphandler,
 /*    &pcipnphandler, */
     NULL
 };

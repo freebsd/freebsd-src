@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.10 1998/10/03 18:27:50 rnordier Exp $
+ *	$Id: main.c,v 1.11 1998/10/04 09:12:54 msmith Exp $
  */
 
 /*
@@ -58,6 +58,8 @@ static struct bootinfo	*initial_bootinfo;
 struct arch_switch	archsw;		/* MI/MD interface boundary */
 
 static void		extract_currdev(void);
+static int		isa_inb(int port);
+static void		isa_outb(int port, int value);
 
 /* from vers.c */
 extern	char bootprog_name[], bootprog_rev[], bootprog_date[], bootprog_maker[];
@@ -118,6 +120,8 @@ main(void)
     archsw.arch_copyin = i386_copyin;
     archsw.arch_copyout = i386_copyout;
     archsw.arch_readin = i386_readin;
+    archsw.arch_isainb = isa_inb;
+    archsw.arch_isaoutb = isa_outb;
 
     interact();			/* doesn't return */
 }
@@ -195,3 +199,34 @@ command_heap(int argc, char *argv[])
     printf("heap base at %p, top at %p\n", end, sbrk(0));
     return(CMD_OK);
 }
+
+/* ISA bus access functions for PnP, derived from <machine/cpufunc.h> */
+static int		
+isa_inb(int port)
+{
+    u_char	data;
+    
+    if (__builtin_constant_p(port) && 
+	(((port) & 0xffff) < 0x100) && 
+	((port) < 0x10000)) {
+	__asm __volatile("inb %1,%0" : "=a" (data) : "id" ((u_short)(port)));
+    } else {
+	__asm __volatile("inb %%dx,%0" : "=a" (data) : "d" (port));
+    }
+    return(data);
+}
+
+static void
+isa_outb(int port, int value)
+{
+    u_char	al = value;
+    
+    if (__builtin_constant_p(port) && 
+	(((port) & 0xffff) < 0x100) && 
+	((port) < 0x10000)) {
+	__asm __volatile("outb %0,%1" : : "a" (al), "id" ((u_short)(port)));
+    } else {
+        __asm __volatile("outb %0,%%dx" : : "a" (al), "d" (port));
+    }
+}
+
