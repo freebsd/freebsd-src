@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_synch.c,v 1.6 1994/10/02 04:45:50 davidg Exp $
+ * $Id: kern_synch.c,v 1.7 1994/10/02 17:35:18 phk Exp $
  */
 
 #include <sys/param.h>
@@ -217,8 +217,6 @@ schedcpu(arg)
 		splx(s);
 	}
 	vmmeter();
-	if (bclnlist != NULL)
-		wakeup((caddr_t)pageproc);
 	timeout(schedcpu, (void *)0, hz);
 }
 
