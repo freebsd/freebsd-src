@@ -8,7 +8,7 @@
 .\"
 .\"$FreeBSD$
 .\"
-.Dd April 28, 1999
+.Dd April 8, 2003
 .Dt JAIL 2
 .Os
 .Sh NAME
@@ -17,10 +17,12 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.In sys/types.h
+.In sys/param.h
 .In sys/jail.h
 .Ft int
 .Fn jail "struct jail *jail"
+.Ft int
+.Fn jail_attach "int jid"
 .Sh DESCRIPTION
 The
 .Fn jail
@@ -52,9 +54,29 @@ from the inside of the prison.
 The
 .Dq Li ip_number
 can be set to the IP number assigned to the prison.
+.Pp
+The
+.Fn jail_attach
+system call attaches the current process to an existing jail,
+identified by
+.Va jid .
+.Sh RETURN VALUES
+If successful,
+.Fn jail
+returns a non-negative integer, termed the jail identifier (JID).
+It returns -1 on failure, and sets
+.Va errno
+to indicate the error.
+.Pp
+If successful,
+.Fn jail_attach
+returns 0.
+It returns -1 on failure, and sets
+.Va errno
+to indicate the error.
 .Sh PRISON?
 Once a process has been put in a prison, it and its decendants cannot escape
-the prison.  It is not possible to add a process to a preexisting prison.
+the prison.
 .Pp
 Inside the prison, the concept of "superuser" is very diluted.  In general,
 it can be assumed that nothing can be mangled from inside a prison which
@@ -100,6 +122,10 @@ The
 .Fn jail
 system call appeared in
 .Fx 4.0 .
+The
+.Fn jail_attach
+system call appeared in
+.Fx 5.1 .
 .Sh AUTHORS
 The jail feature was written by
 .An Poul-Henning Kamp

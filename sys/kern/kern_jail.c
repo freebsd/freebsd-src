@@ -21,8 +21,12 @@
 #include <sys/jail.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/namei.h>
+#include <sys/queue.h>
 #include <sys/socket.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
+#include <sys/vnode.h>
 #include <net/if.h>
 #include <netinet/in.h>
 
@@ -49,6 +53,26 @@ SYSCTL_INT(_security_jail, OID_AUTO, sysvipc_allowed, CTLFLAG_RW,
     &jail_sysvipc_allowed, 0,
     "Processes in jail can use System V IPC primitives");
 
+/* allprison, lastprid, and prisoncount are protected by allprison_mtx. */
+struct	prisonlist allprison;
+struct	mtx allprison_mtx;
+int	lastprid = 0;
+int	prisoncount = 0;
+
+static void		 init_prison(void *);
+static struct prison	*prison_find(int);
+static int		 sysctl_jail_list(SYSCTL_HANDLER_ARGS);
+
+static void
+init_prison(void *data __unused)
+{
+
+	mtx_init(&allprison_mtx, "allprison", NULL, MTX_DEF);
+	LIST_INIT(&allprison);
+}
+
+SYSINIT(prison, SI_SUB_INTRINSIC, SI_ORDER_ANY, init_prison, NULL);
+
 /*
  * MPSAFE
  */
@@ -59,12 +83,11 @@ jail(td, uap)
 		struct jail *jail;
 	} */ *uap;
 {
-	struct proc *p = td->td_proc;
-	int error;
-	struct prison *pr;
+	struct nameidata nd;
+	struct prison *pr, *tpr;
 	struct jail j;
-	struct chroot_args ca;
-	struct ucred *newcred = NULL, *oldcred;
+	struct jail_attach_args jaa;
+	int error, tryprid;
 
 	error = copyin(uap->jail, &j, sizeof j);
 	if (error)
@@ -74,48 +97,176 @@ jail(td, uap)
 
 	MALLOC(pr, struct prison *, sizeof *pr , M_PRISON, M_WAITOK | M_ZERO);
 	mtx_init(&pr->pr_mtx, "jail mutex", NULL, MTX_DEF);
-	pr->pr_securelevel = securelevel;
+	pr->pr_ref = 1;
+	error = copyinstr(j.path, &pr->pr_path, sizeof pr->pr_path, 0);
+	if (error)
+		goto e_killmtx;
+	mtx_lock(&Giant);
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, pr->pr_path, td);
+	error = namei(&nd);
+	if (error) {
+		mtx_unlock(&Giant);
+		goto e_killmtx;
+	}
+	pr->pr_root = nd.ni_vp;
+	VOP_UNLOCK(nd.ni_vp, 0, td);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
+	mtx_unlock(&Giant);
 	error = copyinstr(j.hostname, &pr->pr_host, sizeof pr->pr_host, 0);
 	if (error)
-		goto bail;
-	ca.path = j.path;
-	mtx_lock(&Giant);
-	error = chroot(td, &ca);
-	mtx_unlock(&Giant);
-	if (error)
-		goto bail;
-	newcred = crget();
+		goto e_dropvnref;
 	pr->pr_ip = j.ip_number;
-	PROC_LOCK(p);
-	/* Implicitly fail if already in jail.  */
-	error = suser_cred(p->p_ucred, 0);
+	pr->pr_linux = NULL;
+	pr->pr_securelevel = securelevel;
+
+	/* Determine next pr_id and add prison to allprison list. */
+	mtx_lock(&allprison_mtx);
+	tryprid = lastprid + 1;
+	if (tryprid == JAIL_MAX)
+		tryprid = 1;
+next:
+	LIST_FOREACH(tpr, &allprison, pr_list) {
+		if (tpr->pr_id == tryprid) {
+			tryprid++;
+			if (tryprid == JAIL_MAX) {
+				mtx_unlock(&allprison_mtx);
+				error = EAGAIN;
+				goto e_dropvnref;
+			}
+			goto next;
+		}
+	}
+	pr->pr_id = jaa.jid = lastprid = tryprid;
+	LIST_INSERT_HEAD(&allprison, pr, pr_list);
+	prisoncount++;
+	mtx_unlock(&allprison_mtx);
+
+	error = jail_attach(td, &jaa);
 	if (error)
-		goto badcred;
-	oldcred = p->p_ucred;
-	crcopy(newcred, oldcred);
-	p->p_ucred = newcred;
-	p->p_ucred->cr_prison = pr;
-	pr->pr_ref = 1;
-	PROC_UNLOCK(p);
-	crfree(oldcred);
+		goto e_dropprref;
+	mtx_lock(&pr->pr_mtx);
+	pr->pr_ref--;
+	mtx_unlock(&pr->pr_mtx);
+	td->td_retval[0] = jaa.jid;
 	return (0);
-badcred:
-	PROC_UNLOCK(p);
-	crfree(newcred);
-bail:
+e_dropprref:
+	mtx_lock(&allprison_mtx);
+	LIST_REMOVE(pr, pr_list);
+	prisoncount--;
+	mtx_unlock(&allprison_mtx);
+e_dropvnref:
+	mtx_lock(&Giant);
+	vrele(pr->pr_root);
+	mtx_unlock(&Giant);
+e_killmtx:
 	mtx_destroy(&pr->pr_mtx);
 	FREE(pr, M_PRISON);
 	return (error);
+}
+
+/*
+ * MPSAFE
+ */
+int
+jail_attach(td, uap)
+	struct thread *td;
+	struct jail_attach_args /* {
+		int jid;
+	} */ *uap;
+{
+	struct proc *p;
+	struct ucred *newcred, *oldcred;
+	struct prison *pr;
+	int error;
+	
+	p = td->td_proc;
+
+	mtx_lock(&allprison_mtx);
+	pr = prison_find(uap->jid);
+	if (pr == NULL) {
+		mtx_unlock(&allprison_mtx);
+		return (EINVAL);
+	}
+	pr->pr_ref++;
+	mtx_unlock(&pr->pr_mtx);
+	mtx_unlock(&allprison_mtx);
+
+	error = suser_cred(td->td_ucred, PRISON_ROOT);
+	if (error)
+		goto e_dropref;
+	mtx_lock(&Giant);
+	vn_lock(pr->pr_root, LK_EXCLUSIVE | LK_RETRY, td);
+	if ((error = change_dir(pr->pr_root, td)) != 0)
+		goto e_unlock;
+#ifdef MAC
+	if ((error = mac_check_vnode_chroot(td->td_ucred, pr->pr_root)))
+		goto e_unlock;
+#endif
+	VOP_UNLOCK(pr->pr_root, 0, td);
+	change_root(pr->pr_root, td);
+	mtx_unlock(&Giant);
+
+	newcred = crget();
+	PROC_LOCK(p);
+	/* Implicitly fail if already in jail.  */
+	error = suser_cred(p->p_ucred, 0);
+	if (error) {
+		PROC_UNLOCK(p);
+		crfree(newcred);
+		goto e_dropref;
+	}
+	oldcred = p->p_ucred;
+	setsugid(p);
+	crcopy(newcred, oldcred);
+	p->p_ucred = newcred;
+	mtx_lock(&pr->pr_mtx);
+	p->p_ucred->cr_prison = pr;
+	mtx_unlock(&pr->pr_mtx);
+	PROC_UNLOCK(p);
+	crfree(oldcred);
+	return (0);
+e_unlock:
+	VOP_UNLOCK(pr->pr_root, 0, td);
+	mtx_unlock(&Giant);
+e_dropref:
+	mtx_lock(&pr->pr_mtx);
+	pr->pr_ref--;
+	mtx_unlock(&pr->pr_mtx);
+	return (error);
+}
+
+/*
+ * Returns a locked prison instance, or NULL on failure.
+ */
+static struct prison *
+prison_find(int prid)
+{
+	struct prison *pr;
+
+	mtx_assert(&allprison_mtx, MA_OWNED);
+	LIST_FOREACH(pr, &allprison, pr_list) {
+		if (pr->pr_id == prid) {
+			mtx_lock(&pr->pr_mtx);
+			return (pr);
+		}
+	}
+	return (NULL);
 }
 
 void
 prison_free(struct prison *pr)
 {
 
+	mtx_assert(&Giant, MA_OWNED);
+	mtx_lock(&allprison_mtx);
 	mtx_lock(&pr->pr_mtx);
 	pr->pr_ref--;
 	if (pr->pr_ref == 0) {
+		LIST_REMOVE(pr, pr_list);
 		mtx_unlock(&pr->pr_mtx);
+		prisoncount--;
+		mtx_unlock(&allprison_mtx);
+		vrele(pr->pr_root);
 		mtx_destroy(&pr->pr_mtx);
 		if (pr->pr_linux != NULL)
 			FREE(pr->pr_linux, M_PRISON);
@@ -123,6 +274,7 @@ prison_free(struct prison *pr)
 		return;
 	}
 	mtx_unlock(&pr->pr_mtx);
+	mtx_unlock(&allprison_mtx);
 }
 
 void
@@ -256,3 +408,49 @@ getcredhostname(cred, buf, size)
 	else
 		strlcpy(buf, hostname, size);
 }
+
+static int
+sysctl_jail_list(SYSCTL_HANDLER_ARGS)
+{
+	struct xprison *xp, *sxp;
+	struct prison *pr;
+	int count, error;
+
+	mtx_assert(&Giant, MA_OWNED);
+retry:
+	mtx_lock(&allprison_mtx);
+	count = prisoncount;
+	mtx_unlock(&allprison_mtx);
+
+	if (count == 0)
+		return (0);
+
+	sxp = xp = malloc(sizeof(*xp) * count, M_TEMP, M_WAITOK | M_ZERO);
+	mtx_lock(&allprison_mtx);
+	if (count != prisoncount) {
+		mtx_unlock(&allprison_mtx);
+		free(sxp, M_TEMP);
+		goto retry;
+	}
+	
+	LIST_FOREACH(pr, &allprison, pr_list) {
+		mtx_lock(&pr->pr_mtx);
+		xp->pr_version = XPRISON_VERSION;
+		xp->pr_id = pr->pr_id;
+		strlcpy(xp->pr_path, pr->pr_path, sizeof(xp->pr_path));
+		strlcpy(xp->pr_host, pr->pr_host, sizeof(xp->pr_host));
+		xp->pr_ip = pr->pr_ip;
+		mtx_unlock(&pr->pr_mtx);
+		xp++;
+	}
+	mtx_unlock(&allprison_mtx);
+
+	error = SYSCTL_OUT(req, sxp, sizeof(*sxp) * count);
+	free(sxp, M_TEMP);
+	if (error)
+		return (error);
+	return (0);
+}
+
+SYSCTL_OID(_security_jail, OID_AUTO, list, CTLTYPE_STRUCT | CTLFLAG_RD,
+    NULL, 0, sysctl_jail_list, "S", "List of active jails");
