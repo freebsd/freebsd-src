@@ -3,7 +3,7 @@
 MAN8=	nologin.8
 MAN5=	nologin.5
 
-nologin clean depend lint tags:
+nologin depend lint tags:
 
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
