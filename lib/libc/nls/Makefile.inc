@@ -3,7 +3,7 @@
 
 .PATH: ${.CURDIR}/../libc/nls
 
-SRCS+=	catclose.c catgets.c catopen.c msgcat.c
+SRCS+=	msgcat.c
 
 .if ${LIB} == "c"
 MAN3+=  catclose.3 catgets.3 catopen.3
