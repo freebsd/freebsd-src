@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sysexits.h>
 #include <unistd.h>
 
+#define	ABUSEHOST	"whois.abuse.net"
 #define	NICHOST		"whois.crsnic.net"
 #define	INICHOST	"whois.networksolutions.com"
 #define	DNICHOST	"whois.nic.mil"
@@ -105,13 +106,16 @@ main(int argc, char *argv[])
 
 	country = host = qnichost = NULL;
 	flags = use_qnichost = 0;
-	while ((ch = getopt(argc, argv, "aAc:dgh:iIlmp:QrR6")) != -1) {
+	while ((ch = getopt(argc, argv, "aAbc:dgh:iIlmp:QrR6")) != -1) {
 		switch (ch) {
 		case 'a':
 			host = ANICHOST;
 			break;
 		case 'A':
 			host = PNICHOST;
+			break;
+		case 'b':
+			host = ABUSEHOST;
 			break;
 		case 'c':
 			country = optarg;
