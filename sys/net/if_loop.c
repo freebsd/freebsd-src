@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_loop.c	8.1 (Berkeley) 6/10/93
- * $Id: if_loop.c,v 1.9 1995/04/26 18:10:45 pst Exp $
+ * $Id: if_loop.c,v 1.10 1995/05/30 08:08:06 rgrimes Exp $
  */
 
 /*
@@ -124,6 +124,14 @@ looutput(ifp, m, dst, rt)
 		panic("looutput no HDR");
 	ifp->if_lastchange = time;
 #if NBPFILTER > 0
+	/* BPF write needs to be handled specially */
+	if (dst->sa_family == AF_UNSPEC) {
+		dst->sa_family = *(mtod(m, int *));
+		m->m_len -= sizeof(int);
+		m->m_pkthdr.len -= sizeof(int);
+		m->m_data += sizeof(int);
+	}
+
 	if (ifp->if_bpf) {
 		/*
 		 * We need to prepend the address family as
