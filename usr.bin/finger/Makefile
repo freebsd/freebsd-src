@@ -3,7 +3,6 @@
 
 PROG=	finger
 SRCS=	finger.c lprint.c net.c sprint.c util.c
-MAN1=	finger.1
-MAN5=	finger.conf.5
+MAN=	finger.1 finger.conf.5
 
 .include <bsd.prog.mk>

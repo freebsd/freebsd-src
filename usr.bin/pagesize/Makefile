@@ -1,6 +1,7 @@
 #	@(#)Makefile	8.2 (Berkeley) 4/3/94
+# $FreeBSD$
 
-MAN1=	pagesize.1
+MAN=	pagesize.1
 
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \

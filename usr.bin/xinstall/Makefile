@@ -2,8 +2,7 @@
 # $FreeBSD$
 
 PROG=	xinstall
-SRCS=	xinstall.c
-MAN1=	install.1
+MAN=	install.1
 
 install: maninstall
 	${INSTALL} ${COPY} ${STRIP} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \

@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	ncplogin
-MAN1=	ncplogin.1 ncplogout.1
+MAN=	ncplogin.1 ncplogout.1
 
 LINKS=	${BINDIR}/ncplogin ${BINDIR}/ncplogout
 

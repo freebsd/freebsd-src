@@ -2,8 +2,8 @@
 # $FreeBSD$
 
 PROG=	rpcinfo
-MAN8=	rpcinfo.8
 SRCS=	rpcinfo.c rpc_generic.c
+MAN=	rpcinfo.8
 
 LIBCDIR=	${.CURDIR}/../../lib/libc
 LIBCRPCDIR=	${LIBCDIR}/rpc
