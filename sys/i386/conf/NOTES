@@ -1810,11 +1810,11 @@ device		bktr0
 #
 # PCCARD/PCMCIA
 #
-# card: slot controller
-# pcic: slots
+# card: pccard slots
+# pcic: isa/pccard bridge
+controller	pcic0 at isa?
+controller	pcic1 at isa?
 controller	card0
-device		pcic0 at card?
-device		pcic1 at card?
 
 # You may need to reset all pccards after resuming
 options 	PCIC_RESUME_RESET	# reset after resume
