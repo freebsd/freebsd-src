@@ -1717,11 +1717,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		 */
 		if (origpte & PG_MANAGED) {
 			if ((origpte & PG_FOW) != PG_FOW
-			    && pmap_track_modified(va)) {
-				vm_page_t om;
-				om = PHYS_TO_VM_PAGE(opa);
-				vm_page_dirty(om);
-			}
+			    && pmap_track_modified(va))
+				vm_page_dirty(m);
 		}
 
 		managed = origpte & PG_MANAGED;
