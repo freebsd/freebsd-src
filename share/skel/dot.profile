@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: dot.profile,v 1.10 1997/02/22 13:56:33 peter Exp $
 #
 # .profile - Bourne Shell startup script for login shells
 #
@@ -12,7 +12,7 @@ PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin:$HOME/bin; export PATH
 # if you're sure that you'll never log in via telnet or xterm or a
 # serial line.
 # Use cons25l1 for iso-* fonts
-#TERM=cons25; 	export TERM
+# TERM=cons25; 	export TERM
 
 BLOCKSIZE=K;	export BLOCKSIZE
 EDITOR=vi;   	export EDITOR
@@ -27,12 +27,13 @@ PAGER=more;  	export PAGER
 # set -o emacs
 
 
-# # some useful aliases
-# alias h='fc -l'
-# alias j=jobs
-# alias m=$PAGER
-# alias ll='ls -lagFo'
-# alias g='egrep -i'
+# some useful aliases
+alias h='fc -l'
+alias j=jobs
+alias m=$PAGER
+alias ll='ls -lagFo'
+alias l='ls -l'
+alias g='egrep -i'
  
 # # be paranoid
 # alias cp='cp -ip'
@@ -50,3 +51,6 @@ PAGER=more;  	export PAGER
 # 	0) PS1="${PS1}# ";;
 # 	*) PS1="${PS1}$ ";;
 # esac
+
+# search path for cd(1)
+# CDPATH=.:$HOME
