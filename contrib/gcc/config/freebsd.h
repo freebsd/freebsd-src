@@ -65,6 +65,12 @@ Boston, MA 02111-1307, USA.  */
    the final CPP_PREDEFINES value.  */
 #define CPP_FBSD_PREDEFINES " -Dunix -D__ELF__ -D__FreeBSD__=4 -D__FreeBSD_cc_version=400002 -Asystem(unix) -Asystem(FreeBSD) "
 
+/* Provide a LIB_SPEC appropriate for FreeBSD.  Just select the appropriate
+   libc, depending on whether we're doing profiling. 
+   (like the default, except no -lg, and no -p.  */
+#undef LIB_SPEC
+#define LIB_SPEC "%{!shared:%{!pg:%{!pthread:%{!kthread:-lc}%{kthread:-lpthread -lc}}%{pthread:-lc_r}}%{pg:%{!pthread:%{!kthread:-lc_p}%{kthread:-lpthread_p -lc_p}}%{pthread:-lc_r_p}}}"
+
 
 /* Code generation parameters.  */
 
