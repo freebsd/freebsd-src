@@ -486,7 +486,7 @@ es_pci_attach(device_t dev)
 
 	irqid = 0;
 	irq = bus_alloc_resource(dev, SYS_RES_IRQ, &irqid,
-				 0, ~0, 1, RF_ACTIVE);
+				 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
 	if (!irq
 	    || bus_setup_intr(dev, irq, INTR_TYPE_TTY, es_intr, es, &ih)) {
 		device_printf(dev, "unable to map interrupt\n");
