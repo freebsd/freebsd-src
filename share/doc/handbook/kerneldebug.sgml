@@ -1,4 +1,4 @@
-<!-- $Id: kerneldebug.sgml,v 1.12 1997/02/22 12:58:44 peter Exp $ -->
+<!-- $Id: kerneldebug.sgml,v 1.13 1997/03/18 00:42:36 joerg Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Kernel Debugging<label id="kerneldebug"></heading>
@@ -481,6 +481,36 @@ Debugger (msg=0xf01b0383 "Boot flags requested debugger")
   full access to the source, running it in gud-mode inside an Emacs
   window (which gives you an automatic source code display in another
   Emacs window) etc.
+
+<p>Remote GDB can also be used to debug LKMs.  First build the LKM
+ with debugging symbols:
+<tscreen><verb>
+# cd /usr/src/lkm/linux
+# make clean; make COPTS=-g
+</verb></tscreen>
+
+ Then install this version of the module on the target machine, load it
+ and use <tt>modstat</tt> to find out where it was loaded:
+<tscreen><verb>
+# linux
+# modstat
+Type     Id Off Loadaddr Size Info     Rev Module Name
+EXEC      0   4 f5109000 001c f510f010   1 linux_mod
+</verb></tscreen>
+
+ Take the load address of the module and add 0x20 (probably to account
+ for the a.out header).  This is the address that the module code was
+ relocated to.  Use the <tt>add-symbol-file</tt> command in GDB to tell the
+ debugger about the module:
+<tscreen><verb>
+(kgdb) add-symbol-file /usr/src/lkm/linux/linux_mod.o 0xf5109020
+add symbol table from file "/usr/src/lkm/linux/linux_mod.o" at
+text_addr = 0xf5109020?
+(y or n) y
+(kgdb)
+</verb></tscreen>
+
+ You now have access to all the symbols in the LKM.
 
 <sect><heading>Debugging a console driver</heading>
 
