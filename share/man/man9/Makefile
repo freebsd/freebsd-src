@@ -16,7 +16,7 @@ MAN=	DECLARE_MODULE.9 DELAY.9 DEV_MODULE.9 KASSERT.9 MD5.9 \
 	accept_filter.9 at_exit.9 at_fork.9 bios.9 boot.9 buf.9 cd.9 copy.9 \
 	crypto.9 devstat.9 \
 	devtoname.9 fetch.9 ifnet.9 inittodr.9 intro.9 kernacc.9 malloc.9 \
-	make_dev.9 microseq.9 mi_switch.9 module.9 namei.9 \
+	make_dev.9 mbuf.9 microseq.9 mi_switch.9 module.9 namei.9 \
 	panic.9 physio.9 posix4.9 psignal.9 \
 	resettodr.9 rtalloc.9 rtentry.9 sleep.9 spl.9 \
 	store.9 style.9 suser.9 time.9 timeout.9 uio.9 \

@@ -41,25 +41,12 @@
 .Fn MGET "struct mbuf *mbuf" "int how" "short type"
 .Fn MGETHDR "struct mbuf *mbuf" "int how" "short type"
 .Fn MCLGET "struct mbuf *mbuf" "int how"
-.Fo MEXTADD
-.Fa "struct mbuf *mbuf"
-.Fa "caddr_t buf"
-.Fa "u_int size"
-.Fa "void (*free)(void *opt_args)"
-.Fa "void *opt_args"
-.Fa "short flags"
-.Fa "int type"
-.Fc
-.Fn MEXTFREE "struct mbuf *mbuf"
-.Fn MEXT_ADD_REF "struct mbuf *mbuf"
-.Fn MEXT_REM_REF "struct mbuf *mbuf"
 .Fn MFREE "struct mbuf *mbuf" "struct mbuf *successor"
 .\"
 .Ss Mbuf utility macros
 .Ft void *
 .Fn mtod "struct mbuf *mbuf" "type"
 .Ft int
-.Fn MEXT_IS_REF "struct mbuf *mbuf"
 .Fn M_COPY_PKTHDR "struct mbuf *to" "struct mbuf *from"
 .Fn M_ALIGN "struct mbuf *mbuf" "u_int len"
 .Fn MH_ALIGN "struct mbuf *mbuf" "u_int len"
@@ -69,8 +56,6 @@
 .Fn M_TRAILINGSPACE "struct mbuf *mbuf"
 .Fn M_PREPEND "struct mbuf *mbuf" "int len" "int how"
 .Fn MCHTYPE "struct mbuf *mbuf" "u_int type"
-.Ft int
-.Fn M_WRITABLE "struct mbuf *mbuf"
 .\"
 .Ss Mbuf allocation functions
 .Ft struct mbuf *
@@ -113,10 +98,6 @@
 .Fc
 .Ft void
 .Fn m_cat "struct mbuf *m" "struct mbuf *n"
-.Ft u_int
-.Fn m_fixhdr "struct mbuf *mbuf"
-.Ft u_int
-.Fn m_length "struct mbuf *mbuf" "struct mbuf **last"
 .Ft struct mbuf *
 .Fn m_split "struct mbuf *mbuf" "int len" "int how"
 .\"
@@ -161,7 +142,6 @@ The mbuf flag bits are defined as follows:
 #define	M_EXT		0x0001	/* has associated external storage */
 #define	M_PKTHDR	0x0002	/* start of record */
 #define	M_EOR		0x0004	/* end of record */
-#define	M_RDONLY	0x0008	/* associated data marked read-only */
 #define	M_PROTO1	0x0010	/* protocol-specific */
 #define	M_PROTO2	0x0020 	/* protocol-specific */
 #define	M_PROTO3	0x0040	/* protocol-specific */
@@ -220,24 +200,7 @@ An mbuf using external storage has the
 .Dv M_EXT
 flag set.
 .Pp
-The system supplies a macro for allocating the desired external storage
-buffer,
-.Dv MEXTADD .
-.Pp
-The allocation and management of the reference counter is handled by the
-subsystem.
-The developer can check whether the reference count for the
-given mbuf's external storage is greater than 1 with the
-.Dv MEXT_IS_REF
-macro.
-Similarly, the developer can directly add and remove references,
-if absolutely necessary, with the use of the
-.Dv MEXT_ADD_REF
-and
-.Dv MEXT_REM_REF
-macros.
-.Pp
-The system also supplies a default type of external storage buffer called an
+The system supplies a default type of external storage buffer called an
 .Dq mbuf cluster .
 Mbuf clusters can be allocated and configured with the use of the
 .Dv MCLGET
@@ -278,14 +241,14 @@ on failure.
 The
 .Fa how
 argument is to be set to
-.Dv M_TRYWAIT
+.Dv M_WAIT
 or
 .Dv M_DONTWAIT .
 It specifies whether the caller is willing to block if necessary.
 If
 .Fa how
 is set to
-.Dv M_TRYWAIT ,
+.Dv M_WAIT ,
 a failed allocation will result in the caller being put
 to sleep for a designated
 kern.ipc.mbuf_wait
@@ -325,24 +288,6 @@ The new chain pointer or
 is in
 .Fa mbuf
 after the call.
-.It Fn M_WRITABLE mbuf
-This macro will evaluate true if the mbuf is not marked
-.Dv M_RDONLY
-and if either the mbuf does not contain external storage or,
-if it does,
-then if the reference count of the storage is not greater than 1.
-The
-.Dv M_RDONLY
-flag can be set in the mbuf's
-.Dv m_flags .
-This can be achieved during setup of the external storage,
-by passing the
-.Dv M_RDONLY
-bit as a
-.Fa flags
-argument to the
-.Fn MEXTADD
-macro, or can be directly set in individual mbufs.
 .El
 .Pp
 The functions are:
@@ -481,12 +426,6 @@ It's safe to set
 beyond the current chain end: zeroed mbufs will be allocated to fill the
 space.
 .\"
-.It Fn m_length buf last
-Return the length of the mbuf chain, and optionally a pointer to the last mbuf.
-.\"
-.It Fn m_fixhdr buf
-Set the packet-header length to the length of the mbuf chain.
-.\"
 .It Fn m_devget buf len offset ifp copy
 Copy data from a device local memory pointed to by
 .Fa buf
@@ -521,30 +460,6 @@ bytes.
 In case of failure, it returns
 .Dv NULL
 and attempts to restore the chain to its original state.
-.El
-.Sh STRESS TESTING
-When running a kernel compiled with the option
-.Dv MBUF_STRESS_TEST ,
-the following
-.Xr sysctl 8 Ns
--controlled options may be used to create
-various failure/extreme cases for testing of network drivers
-and other mbuf-reliant parts of the kernel.
-.Bl -tag -width ident
-.It Va net.inet.ip.mbuf_frag_size
-Causes
-.Fn ip_output
-to fragment outgoing mbuf chains into fragments of the specified size.
-Setting this variable to 1 is an excellent way to
-test the long mbuf chain handling ability of network drivers.
-.It Va kern.ipc.m_defragrandomfailures
-Causes the function
-.Fn m_defrag
-to randomly fail, returning
-.Dv NULL .
-Any piece of code which uses
-.Fn m_defrag
-should be tested with this feature.
 .El
 .Sh RETURN VALUES
 See above.
