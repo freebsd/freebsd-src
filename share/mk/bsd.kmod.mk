@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.18 1996/03/09 23:48:54 wosch Exp $
+#	$Id: bsd.kmod.mk,v 1.19 1996/04/03 12:08:52 phk Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -18,10 +18,6 @@ CWARNFLAGS?= -W -Wreturn-type -Wcomment -Wredundant-decls -Wimplicit \
 
 CFLAGS+=${COPTS} -DKERNEL -DACTUALLY_LKM_NOT_KERNEL -I${.CURDIR}/../../sys \
 	${CWARNFLAGS}
-
-KMODGRP?=	bin
-KMODOWN?=	bin
-KMODMODE?=	555
 
 EXPORT_SYMS?= _${KMOD}
 
@@ -52,10 +48,15 @@ ${PROG}: ${DPSRCS} ${OBJS} ${DPADD}
 .endif
 	mv tmp.o ${.TARGET}
 
-.if	!defined(MAN1) && !defined(MAN2) && !defined(MAN3) && \
-	!defined(MAN4) && !defined(MAN5) && !defined(MAN6) && \
-	!defined(MAN7) && !defined(MAN8) && !defined(NOMAN)
+.if !defined(NOMAN)
+.include <bsd.man.mk>
+.if !defined(_MANPAGES) || empty(_MANPAGES)
 MAN1=	${KMOD}.4
+.endif
+
+.elif !target(maninstall)
+maninstall:
+all-man:
 .endif
 
 _PROGSUBDIR: .USE
@@ -74,17 +75,7 @@ _PROGSUBDIR: .USE
 .MAIN: all
 all: ${PROG} all-man _PROGSUBDIR
 
-.if !target(clean)
-clean: _PROGSUBDIR
-	rm -f a.out Errs errs mklog ${PROG} ${OBJS} ${CLEANFILES} 
-.endif
-
-.if !target(cleandir)
-cleandir: _PROGSUBDIR
-	rm -f a.out Errs errs mklog ${PROG} ${OBJS} ${CLEANFILES}
-	rm -f ${.CURDIR}/tags .depend
-	cd ${.CURDIR}; rm -rf obj;
-.endif
+CLEANFILES+=${PROG} ${OBJS} 
 
 .if !target(install)
 .if !target(beforeinstall)
@@ -95,8 +86,8 @@ afterinstall:
 .endif
 
 realinstall: _PROGSUBDIR
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-	    ${INSTALLFLAGS} ${PROG} ${DESTDIR}${BINDIR}
+	${INSTALL} ${COPY} -o ${KMODOWN} -g ${KMODGRP} -m ${KMODMODE} \
+	    ${INSTALLFLAGS} ${PROG} ${DESTDIR}${KMODDIR}
 .if defined(LINKS) && !empty(LINKS)
 	@set ${LINKS}; \
 	while test $$# -ge 2; do \
@@ -125,22 +116,6 @@ distribute:
 	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${DISTDIR}/${DISTRIBUTION} SHARED=copies
 .endif
 
-.if !target(obj)
-.if defined(NOOBJ)
-obj: _PROGSUBDIR
-.else
-obj: _PROGSUBDIR
-	@cd ${.CURDIR}; rm -rf obj; \
-	here=`pwd`; dest=/usr/obj`echo $$here | sed 's,^/usr/src,,'`; \
-	${ECHO} "$$here -> $$dest"; ln -s $$dest obj; \
-	if test -d /usr/obj -a ! -d $$dest; then \
-		mkdir -p $$dest; \
-	else \
-		true; \
-	fi;
-.endif
-.endif
-
 .if !target(tags)
 tags: ${SRCS} _PROGSUBDIR
 .if defined(PROG)
@@ -149,12 +124,6 @@ tags: ${SRCS} _PROGSUBDIR
 .endif
 .endif
 
-.if !defined(NOMAN)
-.include <bsd.man.mk>
-.elif !target(maninstall)
-maninstall:
-all-man:
-.endif
 
 .if !target(load)
 load:	${PROG}
@@ -174,4 +143,7 @@ vnode_if.h:	${KERN}/vnode_if.sh ${KERN}/vnode_if.src
 ./vnode_if.h:	vnode_if.h
 
 _DEPSUBDIR=	_PROGSUBDIR
+_SUBDIRUSE:	_PROGSUBDIR
+.include <bsd.obj.mk>
 .include <bsd.dep.mk>
+
