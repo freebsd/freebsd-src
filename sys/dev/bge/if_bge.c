@@ -2346,7 +2346,8 @@ bge_attach(dev)
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_snd.ifq_maxlen = BGE_TX_RING_CNT - 1;
 	ifp->if_hwassist = BGE_CSUM_FEATURES;
-	ifp->if_capabilities = IFCAP_HWCSUM | IFCAP_VLAN_HWTAGGING |
+	/* NB: the code for RX csum offload is disabled for now */
+	ifp->if_capabilities = IFCAP_TXCSUM | IFCAP_VLAN_HWTAGGING |
 	    IFCAP_VLAN_MTU;
 	ifp->if_capenable = ifp->if_capabilities;
 
@@ -2710,7 +2711,7 @@ bge_rxeof(sc)
 		m->m_pkthdr.rcvif = ifp;
 
 #if 0 /* currently broken for some packets, possibly related to TCP options */
-		if (ifp->if_hwassist) {
+		if (ifp->if_capenable & IFCAP_RXCSUM) {
 			m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
 			if ((cur_rx->bge_ip_csum ^ 0xffff) == 0)
 				m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
@@ -3127,6 +3128,11 @@ bge_start_locked(ifp)
 
 		/*
 		 * XXX
+		 * The code inside the if() block is never reached since we
+		 * must mark CSUM_IP_FRAGS in our if_hwassist to start getting
+		 * requests to checksum TCP/UDP in a fragmented packet.
+		 * 
+		 * XXX
 		 * safety overkill.  If this is a fragmented packet chain
 		 * with delayed TCP/UDP checksums, then only encapsulate
 		 * it if we have enough descriptors to handle the entire
@@ -3486,11 +3492,13 @@ bge_ioctl(ifp, command, data)
 		break;
         case SIOCSIFCAP:
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
-		if (mask & IFCAP_HWCSUM) {
-			if (IFCAP_HWCSUM & ifp->if_capenable)
-				ifp->if_capenable &= ~IFCAP_HWCSUM;
+		/* NB: the code for RX csum offload is disabled for now */
+		if (mask & IFCAP_TXCSUM) {
+			ifp->if_capenable ^= IFCAP_TXCSUM;
+			if (IFCAP_TXCSUM & ifp->if_capenable)
+				ifp->if_hwassist = BGE_CSUM_FEATURES;
 			else
-				ifp->if_capenable |= IFCAP_HWCSUM;
+				ifp->if_hwassist = 0;
 		}
 		error = 0;
 		break;
