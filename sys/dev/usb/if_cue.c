@@ -708,8 +708,9 @@ cue_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 			CUE_UNLOCK(sc);
 			return;
 		}
-		printf("cue%d: usb error on rx: %s\n", sc->cue_unit,
-		    usbd_errstr(status));
+		if (usbd_ratecheck(&sc->cue_rx_notice))
+			printf("cue%d: usb error on rx: %s\n", sc->cue_unit,
+			    usbd_errstr(status));
 		if (status == USBD_STALLED)
 			usbd_clear_endpoint_stall(sc->cue_ep[CUE_ENDPT_RX]);
 		goto done;

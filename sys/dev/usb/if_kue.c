@@ -671,8 +671,9 @@ Static void kue_rxeof(usbd_xfer_handle xfer, usbd_private_handle priv,
 			KUE_UNLOCK(sc);
 			return;
 		}
-		printf("kue%d: usb error on rx: %s\n", sc->kue_unit,
-		    usbd_errstr(status));
+		if (usbd_ratecheck(&sc->kue_rx_notice))
+			printf("kue%d: usb error on rx: %s\n", sc->kue_unit,
+			    usbd_errstr(status));
 		if (status == USBD_STALLED)
 			usbd_clear_endpoint_stall(sc->kue_ep[KUE_ENDPT_RX]);
 		goto done;

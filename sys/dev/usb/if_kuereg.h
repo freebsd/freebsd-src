@@ -171,6 +171,7 @@ struct kue_softc {
 	struct kue_cdata	kue_cdata;
 	struct mtx		kue_mtx;
 	char			kue_dying;
+	struct timeval		kue_rx_notice;
 };
 
 #if 0
