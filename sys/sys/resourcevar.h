@@ -62,8 +62,6 @@ struct pstats {
 		u_long	pr_size;	/* buffer size */
 		u_long	pr_off;		/* pc offset */
 		u_long	pr_scale;	/* pc scaling */
-		u_long	pr_addr;	/* temp storage for addr until AST */
-		u_int	pr_ticks;	/* temp storage for ticks until AST */
 	} p_prof;
 #define	pstat_endcopy	p_start
 	struct	timeval p_start;	/* starting time */
@@ -105,8 +103,8 @@ struct thread;
 struct kse;
 struct proc;
 
-void	 addupc_intr(struct kse *ke, uintptr_t pc, u_int ticks);
-void	 addupc_task(struct kse *ke, uintptr_t pc, u_int ticks);
+void	 addupc_intr(struct thread *td, uintptr_t pc, u_int ticks);
+void	 addupc_task(struct thread *td, uintptr_t pc, u_int ticks);
 void	 calcru(struct proc *p, struct timeval *up, struct timeval *sp,
 	    struct timeval *ip);
 int	 chgproccnt(struct uidinfo *uip, int diff, int max);

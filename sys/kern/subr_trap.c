@@ -73,15 +73,21 @@ userret(td, frame, oticks)
 	u_int oticks;
 {
 	struct proc *p = td->td_proc;
-	struct kse *ke = td->td_kse; 
+#ifdef INVARIANTS
+	struct kse *ke; 
+#endif
 
 	CTR3(KTR_SYSC, "userret: thread %p (pid %d, %s)", td, p->p_pid,
             p->p_comm);
 #ifdef INVARIANTS
-	/* Check that we called signotify() enough. */
+	/*
+	 * Check that we called signotify() enough.
+	 * XXXKSE this checking is bogus for threaded program,
+	 */
 	mtx_lock(&Giant);
 	PROC_LOCK(p);
 	mtx_lock_spin(&sched_lock);
+	ke = td->td_kse;
 	if (SIGPENDING(p) && ((p->p_sflag & PS_NEEDSIGCHK) == 0 ||
 	    (td->td_kse->ke_flags & KEF_ASTPENDING) == 0))
 		printf("failed to set signal flags properly for ast()\n");
@@ -94,6 +100,18 @@ userret(td, frame, oticks)
 	 * Let the scheduler adjust our priority etc.
 	 */
 	sched_userret(td);
+
+	/*
+	 * Charge system time if profiling.
+	 *
+	 * XXX should move PS_PROFIL to a place that can obviously be
+	 * accessed safely without sched_lock.
+	 */
+
+	if (p->p_sflag & PS_PROFIL) {
+		ticks = td->td_sticks - oticks;
+		addupc_task(td, TRAPF_PC(frame), (u_int)ticks * psratio);
+	}
 
 	/*
 	 * We need to check to see if we have to exit or wait due to a
@@ -113,21 +131,6 @@ userret(td, frame, oticks)
 	if (p->p_flag & P_KSES) {
 		thread_userret(td, frame);
 	}
-
-	/*
-	 * Charge system time if profiling.
-	 *
-	 * XXX should move PS_PROFIL to a place that can obviously be
-	 * accessed safely without sched_lock.
-	 */
-	if (p->p_sflag & PS_PROFIL) {
-		quad_t ticks;
-
-		mtx_lock_spin(&sched_lock);
-		ticks = ke->ke_sticks - oticks;
-		mtx_unlock_spin(&sched_lock);
-		addupc_task(ke, TRAPF_PC(frame), (u_int)ticks * psratio);
-	}
 }
 
 /*
@@ -146,6 +149,7 @@ ast(struct trapframe *framep)
 	u_int prticks, sticks;
 	int sflag;
 	int flags;
+	int tflags;
 	int sig;
 #if defined(DEV_NPX) && !defined(SMP)
 	int ucode;
@@ -175,19 +179,21 @@ ast(struct trapframe *framep)
 	 */
 	mtx_lock_spin(&sched_lock);
 	ke = td->td_kse;
-	sticks = ke->ke_sticks;
+	sticks = td->td_sticks;
+	tflags = td->td_flags;
 	flags = ke->ke_flags;
 	sflag = p->p_sflag;
 	p->p_sflag &= ~(PS_ALRMPEND | PS_NEEDSIGCHK | PS_PROFPEND | PS_XCPU);
 #ifdef MAC
 	p->p_sflag &= ~PS_MACPEND;
 #endif
-	ke->ke_flags &= ~(KEF_ASTPENDING | KEF_NEEDRESCHED | KEF_OWEUPC);
+	ke->ke_flags &= ~(KEF_ASTPENDING | KEF_NEEDRESCHED);
+	td->td_flags &= ~(TDF_ASTPENDING | TDF_OWEUPC);
 	cnt.v_soft++;
 	prticks = 0;
-	if (flags & KEF_OWEUPC && sflag & PS_PROFIL) {
-		prticks = p->p_stats->p_prof.pr_ticks;
-		p->p_stats->p_prof.pr_ticks = 0;
+	if (tflags & TDF_OWEUPC && sflag & PS_PROFIL) {
+		prticks = td->td_prticks;
+		td->td_prticks = 0;
 	}
 	mtx_unlock_spin(&sched_lock);
 	/*
@@ -200,8 +206,9 @@ ast(struct trapframe *framep)
 
 	if (td->td_ucred != p->p_ucred) 
 		cred_update_thread(td);
-	if (flags & KEF_OWEUPC && sflag & PS_PROFIL)
-		addupc_task(ke, p->p_stats->p_prof.pr_addr, prticks);
+	if (tflags & TDF_OWEUPC && sflag & PS_PROFIL) {
+		addupc_task(td, td->td_praddr, prticks);
+	}
 	if (sflag & PS_ALRMPEND) {
 		PROC_LOCK(p);
 		psignal(p, SIGVTALRM);
