@@ -1,49 +1,77 @@
 /*
- * RRS section definitions.
- * Nomenclature and, more importantly, the layout of the various
- * data structures defined in this header file are borrowed from
- * Sun Microsystems' original <link.h>, so we can provide compatibility
- * with the SunOS 4.x shared library scheme.
+ * Copyright (c) 1993 Paul Kranenburg
+ * All rights reserved.
  *
- *	$Id: link.h,v 1.2 1993/10/22 21:04:19 pk Exp $
- *		(derived from: @(#)link.h 1.6 88/08/19 SMI
- *		Copyright (c) 1987 by Sun Microsystems, Inc.)
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *      This product includes software developed by Paul Kranenburg.
+ * 4. The name of the author may not be used to endorse or promote products
+ *    derived from this software withough specific prior written permission
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ *	$Id$
+ */
+
+/*
+ * RRS section definitions.
+ *
+ * The layout of some data structures defined in this header file is
+ * such that we can provide compatibility with the SunOS 4.x shared
+ * library scheme.
  */
 
 #ifndef _LINK_H_
 #define _LINK_H_
 
 /*
- * A `link_object' structure descibes a shared object that is needed
+ * A `Shared Object Descriptor' descibes a shared object that is needed
  * to complete the link edit process of the object containing it.
- * A list of such objects (chained through `lo_next') is pointed at
- * by `ld_need' in the link_dynamic_2 structure.
+ * A list of such objects (chained through `sod_next') is pointed at
+ * by `sdt_sods' in the section_dispatch_table structure.
  */
 
-struct link_object {
-	long	lo_name;		/* name (relative to load address) */
-	u_int	lo_library : 1,		/* searched for by library rules */
-		lo_unused : 31;
-	short	lo_major;		/* major version number */
-	short	lo_minor;		/* minor version number */
-	long	lo_next;		/* next one (often relative) */
+struct sod {	/* Shared Object Descriptor */
+	long	sod_name;		/* name (relative to load address) */
+	u_int	sod_library  : 1,	/* Searched for by library rules */
+		sod_reserved : 31;
+	short	sod_major;		/* major version number */
+	short	sod_minor;		/* minor version number */
+	long	sod_next;		/* next sod */
 };
 
 /*
- * `link_maps' are used by the run-time link editor (ld.so) to keep
- * track of all shared objects loaded into a process' address space.
+ * `Shared Object Map's are used by the run-time link editor (ld.so) to
+ * keep track of all shared objects loaded into a process' address space.
  * These structures are only used at run-time and do not occur within
  * the text or data segment of an executable or shared library.
  */
-struct link_map {
-	caddr_t	lm_addr;		/* address at which object mapped */
-	char 	*lm_name;		/* full name of loaded object */
-	struct	link_map *lm_next;	/* next object in map */
-	struct	link_object *lm_lop;	/* link object that got us here */
-	caddr_t lm_lob;			/* base address for said link object */
-	u_int	lm_rwt : 1;		/* text is read/write */
-	struct	link_dynamic *lm_ld;	/* dynamic structure */
-	caddr_t	lm_lpd;			/* loader private data */
+struct so_map {		/* Shared Object Map */
+	caddr_t		som_addr;	/* Address at which object mapped */
+	char 		*som_path;	/* Path to mmap'ed file */
+	struct so_map	*som_next;	/* Next map in chain */
+	struct sod	*som_sod;	/* Sod responsible for this map */
+	caddr_t		som_sodbase;	/* Base address of this sod */
+	u_int		som_write : 1;	/* Text is currently writable */
+	struct _dynamic	*som_dynamic;	/* _dynamic structure */
+	caddr_t		som_spd;	/* Private data */
 };
 
 /*
@@ -51,7 +79,7 @@ struct link_map {
  * one field (nz_size) added.
  * Used to convey size information on items in the data segment
  * of shared objects. An array of these live in the shared object's
- * text segment and is address by the `ld_symbols' field.
+ * text segment and is addressed by the `sdt_nzlist' field.
  */
 struct nzlist {
 	struct nlist	nlist;
@@ -65,37 +93,45 @@ struct nzlist {
 #define nz_other	nlist.n_other
 };
 
+#define N_AUX(p)	((p)->n_other & 0xf)
+#define N_RESERVED(p)	(((unsigned int)(p)->n_other >> 4) & 0xf)
+#define N_OTHER(r, v)	(((unsigned int)(r) << 4) | ((v) & 0xf))
+
+#define AUX_OBJECT	1
+#define AUX_FUNC	2
+
+
 /*
- * The `link_dynamic_2' structure contains offsets to various data
+ * The `section_dispatch_table' structure contains offsets to various data
  * structures needed to do run-time relocation.
  */
-struct link_dynamic_2 {
-	struct	link_map *ld_loaded;	/* list of loaded objects */
-	long	ld_need;		/* list of needed objects */
-	long	ld_rules;		/* search rules for library objects */
-	long	ld_got;			/* global offset table */
-	long	ld_plt;			/* procedure linkage table */
-	long	ld_rel;			/* relocation table */
-	long	ld_hash;		/* symbol hash table */
-	long	ld_symbols;		/* symbol table itself */
-	long	(*ld_stab_hash)();	/* "pointer" to symbol hash function */
-	long	ld_buckets;		/* number of hash buckets */
-	long	ld_strings;		/* symbol strings */
-	long	ld_str_sz;		/* size of symbol strings */
-	long	ld_text_sz;		/* size of text area */
-	long	ld_plt_sz;		/* size of procedure linkage table */
+struct section_dispatch_table {
+	struct so_map *sdt_loaded;	/* List of loaded objects */
+	long	sdt_sods;		/* List of shared objects descriptors */
+	long	sdt_filler1;		/* Unused (was: search rules) */
+	long	sdt_got;		/* Global offset table */
+	long	sdt_plt;		/* Procedure linkage table */
+	long	sdt_rel;		/* Relocation table */
+	long	sdt_hash;		/* Symbol hash table */
+	long	sdt_nzlist;		/* Symbol table itself */
+	long	sdt_filler2;		/* Unused (was: stab_hash) */
+	long	sdt_buckets;		/* Number of hash buckets */
+	long	sdt_strings;		/* Symbol strings */
+	long	sdt_str_sz;		/* Size of symbol strings */
+	long	sdt_text_sz;		/* Size of text area */
+	long	sdt_plt_sz;		/* Size of procedure linkage table */
 };
 
 /*
- * RRS symbol hash table, addressed by `ld_hash' in link_dynamic_2
+ * RRS symbol hash table, addressed by `sdt_hash' in section_dispatch_table.
  * Used to quickly lookup symbols of the shared object by hashing
  * on the symbol's name. `rh_symbolnum' is the index of the symbol
- * in the shared object's symbol list (`ld_symbols'), `rh_next' is
+ * in the shared object's symbol list (`sdt_nzlist'), `rh_next' is
  * the next symbol in the hash bucket (in case of collisions).
  */
 struct rrs_hash {
-	int	rh_symbolnum;		/* symbol number */
-	int	rh_next;		/* next hash entry */
+	int	rh_symbolnum;		/* Symbol number */
+	int	rh_next;		/* Next hash entry */
 };
 
 /*
@@ -103,86 +139,103 @@ struct rrs_hash {
  * and data items copied from shared objects.
  */
 struct rt_symbol {
-	struct nzlist		*rt_sp;		/* the symbol */
-	struct rt_symbol	*rt_next;	/* next in linear list */
-	struct rt_symbol	*rt_link;	/* next in bucket */
-	caddr_t			rt_srcaddr;	/* address of "master" copy */
+	struct nzlist		*rt_sp;		/* The symbol */
+	struct rt_symbol	*rt_next;	/* Next in linear list */
+	struct rt_symbol	*rt_link;	/* Next in bucket */
+	caddr_t			rt_srcaddr;	/* Address of "master" copy */
+	struct so_map		*rt_smp;	/* Originating map */
 };
 
 /*
  * Debugger interface structure.
  */
-struct 	ld_debug {
-	int	ldd_version;		/* version # of interface */
-	int	ldd_in_debugger;	/* a debugger is running us */
-	int	ldd_sym_loaded;		/* we loaded some symbols */
-	char    *ldd_bp_addr;		/* place for ld-generated bpt */
-	int	ldd_bp_inst;		/* instruction which was there */
-	struct rt_symbol *ldd_cp;	/* commons we built */
+struct so_debug {
+	int	dd_version;		/* Version # of interface */
+	int	dd_in_debugger;		/* Set when run by debugger */
+	int	dd_sym_loaded;		/* Run-time linking brought more
+					   symbols into scope */
+	char   	 *dd_bpt_addr;		/* Address of rtld-generated bpt */
+	int	dd_bpt_shadow;		/* Original contents of bpt */
+	struct rt_symbol *dd_cc;	/* Allocated commons/copied data */
 };
 
 /*
  * Entry points into ld.so - user interface to the run-time linker.
- * (see also libdl.a)
  */
 struct ld_entry {
-	int	(*dlopen)();
-	int	(*dlclose)();
-	int	(*dlsym)();
+	void	*(*dlopen) __P((char *, int));
+	int	(*dlclose) __P((void *));
+	void	*(*dlsym) __P((void *, char *));
+	int	(*dlctl) __P((void *, int, void *));
 };
+
+/*
+ * dlctl() commands
+ */
+#define DL_GETERRNO	1
+
+/*
+ * dl*() prototypes.
+ */
+extern void	*dlopen __P((char *, int));
+extern int	dlclose __P((void *));
+extern void	*dlsym __P((void *, char *));
+extern int	dlctl __P((void *, int, void *));
+
 
 /*
  * This is the structure pointed at by the __DYNAMIC symbol if an
  * executable requires the attention of the run-time link editor.
  * __DYNAMIC is given the value zero if no run-time linking needs to
  * be done (it is always present in shared objects).
- * The union `ld_un' provides for different versions of the dynamic
- * linking mechanism (switched on by `ld_version'). The last version
+ * The union `d_un' provides for different versions of the dynamic
+ * linking mechanism (switched on by `d_version'). The last version
  * used by Sun is 3. We leave some room here and go to version number
  * 8 for NetBSD, the main difference lying in the support for the
  * `nz_list' type of symbols.
  */
 
-struct	link_dynamic {
-	int	ld_version;		/* version # of this structure */
-	struct 	ld_debug *ldd;
+struct	_dynamic {
+	int		d_version;	/* version # of this interface */
+	struct so_debug	*d_debug;
 	union {
-		struct link_dynamic_2 *ld_2;
-	} ld_un;
-	struct  ld_entry *ld_entry;
+		struct section_dispatch_table *d_sdt;
+	} d_un;
+	struct ld_entry *d_entry;
 };
 
 #define LD_VERSION_SUN		(3)
 #define LD_VERSION_BSD		(8)
 #define LD_VERSION_NZLIST_P(v)	((v) >= 8)
 
-#define LD_GOT(x)	((x)->ld_un.ld_2->ld_got)
-#define LD_PLT(x)	((x)->ld_un.ld_2->ld_plt)
-#define LD_REL(x)	((x)->ld_un.ld_2->ld_rel)
-#define LD_SYMBOL(x)	((x)->ld_un.ld_2->ld_symbols)
-#define LD_HASH(x)	((x)->ld_un.ld_2->ld_hash)
-#define LD_STRINGS(x)	((x)->ld_un.ld_2->ld_strings)
-#define LD_NEED(x)	((x)->ld_un.ld_2->ld_need)
-#define LD_BUCKETS(x)	((x)->ld_un.ld_2->ld_buckets)
+#define LD_GOT(x)	((x)->d_un.d_sdt->sdt_got)
+#define LD_PLT(x)	((x)->d_un.d_sdt->sdt_plt)
+#define LD_REL(x)	((x)->d_un.d_sdt->sdt_rel)
+#define LD_SYMBOL(x)	((x)->d_un.d_sdt->sdt_nzlist)
+#define LD_HASH(x)	((x)->d_un.d_sdt->sdt_hash)
+#define LD_STRINGS(x)	((x)->d_un.d_sdt->sdt_strings)
+#define LD_NEED(x)	((x)->d_un.d_sdt->sdt_sods)
+#define LD_BUCKETS(x)	((x)->d_un.d_sdt->sdt_buckets)
 
-#define LD_GOTSZ(x)	((x)->ld_un.ld_2->ld_plt - (x)->ld_un.ld_2->ld_got)
-#define LD_RELSZ(x)	((x)->ld_un.ld_2->ld_hash - (x)->ld_un.ld_2->ld_rel)
-#define LD_HASHSZ(x)	((x)->ld_un.ld_2->ld_symbols - (x)->ld_un.ld_2->ld_hash)
-#define LD_STABSZ(x)	((x)->ld_un.ld_2->ld_strings - (x)->ld_un.ld_2->ld_symbols)
-#define LD_PLTSZ(x)	((x)->ld_un.ld_2->ld_plt_sz)
-#define LD_STRSZ(x)	((x)->ld_un.ld_2->ld_str_sz)
-#define LD_TEXTSZ(x)	((x)->ld_un.ld_2->ld_text_sz)
+#define LD_GOTSZ(x)	((x)->d_un.d_sdt->sdt_plt - (x)->d_un.d_sdt->sdt_got)
+#define LD_RELSZ(x)	((x)->d_un.d_sdt->sdt_hash - (x)->d_un.d_sdt->sdt_rel)
+#define LD_HASHSZ(x)	((x)->d_un.d_sdt->sdt_nzlist - (x)->d_un.d_sdt->sdt_hash)
+#define LD_STABSZ(x)	((x)->d_un.d_sdt->sdt_strings - (x)->d_un.d_sdt->sdt_nzlist)
+#define LD_PLTSZ(x)	((x)->d_un.d_sdt->sdt_plt_sz)
+#define LD_STRSZ(x)	((x)->d_un.d_sdt->sdt_str_sz)
+#define LD_TEXTSZ(x)	((x)->d_un.d_sdt->sdt_text_sz)
 
 /*
- * Interface to ld.so (see link(5))
+ * Interface to ld.so
  */
 struct crt_ldso {
 	int		crt_ba;		/* Base address of ld.so */
 	int		crt_dzfd;	/* "/dev/zero" file decriptor (SunOS) */
 	int		crt_ldfd;	/* ld.so file descriptor */
-	struct link_dynamic	*crt_dp;/* Main's __DYNAMIC */
+	struct _dynamic	*crt_dp;	/* Main's __DYNAMIC */
 	char		**crt_ep;	/* environment strings */
 	caddr_t		crt_bp;		/* Breakpoint if run from debugger */
+	char		*crt_prog;	/* Program name */
 };
 
 /*
@@ -190,6 +243,8 @@ struct crt_ldso {
  */
 #define CRT_VERSION_SUN		1
 #define CRT_VERSION_BSD		2
+#define CRT_VERSION_BSD_2	2
+#define CRT_VERSION_BSD_3	3
 
 
 /*
