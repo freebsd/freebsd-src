@@ -1,5 +1,5 @@
 /*	$NetBSD: if_devar.h,v 1.27 1998/05/25 22:13:28 mark Exp $	*/
-/*	$Id: if_devar.h,v 1.7 1998/06/08 09:47:46 bde Exp $ */
+/*	$Id: if_devar.h,v 1.8 1998/06/13 17:20:03 peter Exp $ */
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
@@ -63,7 +63,7 @@ typedef bus_addr_t tulip_csrptr_t;
 #define	TULIP_PCI_CSROFFSET	0
 
 #if !defined(__NetBSD__)
-typedef u_int16_t tulip_csrptr_t;
+typedef pci_port_t tulip_csrptr_t;
 
 #define	TULIP_CSR_READ(sc, csr)			(inl((sc)->tulip_csrs.csr))
 #define	TULIP_CSR_WRITE(sc, csr, val)   	outl((sc)->tulip_csrs.csr, val)
@@ -78,6 +78,18 @@ typedef u_int16_t tulip_csrptr_t;
 #define	TULIP_PCI_CSROFFSET	0
 
 #if !defined(__NetBSD__)
+#if defined (__FreeBSD__) && defined(__alpha__)
+
+typedef u_int32_t tulip_csrptr_t;
+
+#define	TULIP_CSR_READ(sc, csr)			(readl((sc)->tulip_csrs.csr))
+#define	TULIP_CSR_WRITE(sc, csr, val)   	writel((sc)->tulip_csrs.csr, val)
+
+#define	TULIP_CSR_READBYTE(sc, csr)		(readb((sc)->tulip_csrs.csr))
+#define	TULIP_CSR_WRITEBYTE(sc, csr, val)	writeb((sc)->tulip_csrs.csr, val)
+
+#else /* __FreeBSD__ && __alpha__ */
+
 typedef volatile u_int32_t *tulip_csrptr_t;
 
 /*
@@ -87,6 +99,8 @@ typedef volatile u_int32_t *tulip_csrptr_t;
  */
 #define	TULIP_CSR_READ(sc, csr)		(0 + *(sc)->tulip_csrs.csr)
 #define	TULIP_CSR_WRITE(sc, csr, val)	((void)(*(sc)->tulip_csrs.csr = (val)))
+
+#endif /* __FreeBSD__ && __alpha__ */
 #endif /* __NetBSD__ */
 
 #endif /* TULIP_IOMAPPED */
@@ -872,10 +886,17 @@ static void tulip_softintr(void);
 			  TULIP_DATA_PER_DESC, 0, \
 			  BUS_DMA_NOWAIT|BUS_DMA_ALLOCNOW, (mapp))
 #else
+#ifdef __alpha__
+#define TULIP_RXDESC_PRESYNC(sc, di, s)		alpha_mb()
+#define TULIP_RXDESC_POSTSYNC(sc, di, s)	alpha_mb()
+#define TULIP_RXMAP_PRESYNC(sc, map)		alpha_mb()
+#define TULIP_RXMAP_POSTSYNC(sc, map)		alpha_mb()
+#else
 #define TULIP_RXDESC_PRESYNC(sc, di, s)		do { } while (0)
 #define TULIP_RXDESC_POSTSYNC(sc, di, s)	do { } while (0)
 #define TULIP_RXMAP_PRESYNC(sc, map)		do { } while (0)
 #define TULIP_RXMAP_POSTSYNC(sc, map)		do { } while (0)
+#endif
 #define TULIP_RXMAP_CREATE(sc, mapp)		do { } while (0)
 #endif
 
@@ -899,10 +920,17 @@ static void tulip_softintr(void);
 			  TULIP_MAX_TXSEG, TULIP_DATA_PER_DESC, \
 			  0, BUS_DMA_NOWAIT, (mapp))
 #else
+#ifdef __alpha__
+#define TULIP_TXDESC_PRESYNC(sc, di, s)		alpha_mb()
+#define TULIP_TXDESC_POSTSYNC(sc, di, s)	alpha_mb()
+#define TULIP_TXMAP_PRESYNC(sc, map)		alpha_mb()
+#define TULIP_TXMAP_POSTSYNC(sc, map)		alpha_mb()
+#else
 #define TULIP_TXDESC_PRESYNC(sc, di, s)		do { } while (0)
 #define TULIP_TXDESC_POSTSYNC(sc, di, s)	do { } while (0)
 #define TULIP_TXMAP_PRESYNC(sc, map)		do { } while (0)
 #define TULIP_TXMAP_POSTSYNC(sc, map)		do { } while (0)
+#endif
 #define TULIP_TXMAP_CREATE(sc, mapp)		do { } while (0)
 #endif
 
@@ -1050,7 +1078,13 @@ extern struct cfdriver de_cd;
 #endif
 
 #if !defined(TULIP_KVATOPHYS) && (!defined(TULIP_BUS_DMA) || defined(TULIP_BUS_DMA_NORX) || defined(TULIP_BUS_DMA_NOTX))
-#define	TULIP_KVATOPHYS(sc, va)		vtophys(va)
+#if defined(__alpha__)
+/* XXX XXX NEED REAL DMA MAPPING SUPPORT XXX XXX */
+#define vtobus(va)	(vtophys(va)  | (1*1024*1024*1024))
+#else
+#define vtobus(va)	vtophys(va)
+#endif
+#define	TULIP_KVATOPHYS(sc, va)		vtobus(va)
 #endif
 
 #ifndef TULIP_RAISESPL
