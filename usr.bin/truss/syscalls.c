@@ -53,6 +53,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
+#include "truss.h"
 #include "extern.h"
 #include "syscall.h"
 
@@ -353,28 +354,28 @@ print_arg(int fd, struct syscall_args *sc, unsigned long *args) {
  */
 
 void
-print_syscall(FILE *outfile, const char *name, int nargs, char **s_args) {
+print_syscall(struct trussinfo *trussinfo, const char *name, int nargs, char **s_args) {
   int i;
   int len = 0;
-  len += fprintf(outfile, "%s(", name);
+  len += fprintf(trussinfo->outfile, "%s(", name);
   for (i = 0; i < nargs; i++) {
     if (s_args[i])
-      len += fprintf(outfile, "%s", s_args[i]);
+      len += fprintf(trussinfo->outfile, "%s", s_args[i]);
     else
-      len += fprintf(outfile, "<missing argument>");
-    len += fprintf(outfile, "%s", i < (nargs - 1) ? "," : "");
+      len += fprintf(trussinfo->outfile, "<missing argument>");
+    len += fprintf(trussinfo->outfile, "%s", i < (nargs - 1) ? "," : "");
   }
-  len += fprintf(outfile, ")");
+  len += fprintf(trussinfo->outfile, ")");
   for (i = 0; i < 6 - (len / 8); i++)
-	fprintf(outfile, "\t");
+	fprintf(trussinfo->outfile, "\t");
 }
 
 void
-print_syscall_ret(FILE *outfile, const char *name, int nargs, char **s_args, int errorp, int retval) {
-  print_syscall(outfile, name, nargs, s_args);
+print_syscall_ret(struct trussinfo *trussinfo, const char *name, int nargs, char **s_args, int errorp, int retval) {
+  print_syscall(trussinfo, name, nargs, s_args);
   if (errorp) {
-    fprintf(outfile, " ERR#%d '%s'\n", retval, strerror(retval));
+    fprintf(trussinfo->outfile, " ERR#%d '%s'\n", retval, strerror(retval));
   } else {
-    fprintf(outfile, " = %d (0x%x)\n", retval, retval);
+    fprintf(trussinfo->outfile, " = %d (0x%x)\n", retval, retval);
   }
 }

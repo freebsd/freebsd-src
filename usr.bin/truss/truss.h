@@ -1,5 +1,5 @@
 /*
- * Copryight 1997 Sean Eric Fagan
+ * Copryight 2001 Jamey Wood
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -9,12 +9,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Sean Eric Fagan
- * 4. Neither the name of the author may be used to endorse or promote
- *    products derived from this software without specific prior written
- *    permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -31,17 +25,11 @@
  * $FreeBSD$
  */
 
-extern int setup_and_wait(char **);
-extern int start_tracing(int, int);
-extern void restore_proc(int);
-extern const char *ioctlname(register_t val);
-#ifdef __alpha__
-extern void alpha_syscall_entry(struct trussinfo *, int);
-extern int alpha_syscall_exit(struct trussinfo *, int);
-#endif
-#ifdef __i386__
-extern void i386_syscall_entry(struct trussinfo *, int);
-extern int i386_syscall_exit(struct trussinfo *, int);
-extern void i386_linux_syscall_entry(struct trussinfo *, int);
-extern int i386_linux_syscall_exit(struct trussinfo *, int);
-#endif
+#define NOSIGS             0x00000008
+
+struct trussinfo
+{
+	int pid;
+	int flags;
+	FILE *outfile;
+};
