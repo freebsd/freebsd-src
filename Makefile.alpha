@@ -1,4 +1,4 @@
-# $Id: Makefile.alpha,v 1.8 1998/03/30 23:10:39 jb Exp $
+# $Id: Makefile.alpha,v 1.9 1998/05/05 07:01:40 jb Exp $
 #
 # NOTE:
 #
@@ -461,6 +461,7 @@ build-tools:
 	gnu/usr.bin/binutils	\
 	usr.bin/tsort		\
 	gnu/usr.bin/cc		\
+	usr.bin/env		\
 	usr.bin/compile_et	\
 	usr.bin/lex/lib		\
 	usr.bin/mk_cmds		\
