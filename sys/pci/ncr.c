@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.60 1996/01/18 19:59:23 se Exp $
+**  $Id: ncr.c,v 1.61 1996/01/23 21:47:12 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -93,9 +93,9 @@
 **    Used only for disk devices that support tags.
 */
 
-#ifndef SCSI_NCR_MAX_TAGS
-#define SCSI_NCR_MAX_TAGS    (4)
-#endif /* SCSI_NCR_MAX_TAGS */
+#ifndef SCSI_NCR_DFLT_TAGS
+#define SCSI_NCR_DFLT_TAGS    (4)
+#endif /* SCSI_NCR_DFLT_TAGS */
 
 /*==========================================================
 **
@@ -129,7 +129,7 @@
 **    The calculation below is actually quite silly ...
 */
 
-#define MAX_START   (MAX_TARGET + 7 * SCSI_NCR_MAX_TAGS)
+#define MAX_START   (MAX_TARGET + 7 * SCSI_NCR_DFLT_TAGS)
 
 /*
 **    The maximum number of segments a transfer is split into.
@@ -1249,7 +1249,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.60 1996/01/18 19:59:23 se Exp $\n";
+	"\n$Id: ncr.c,v 1.61 1996/01/23 21:47:12 se Exp $\n";
 
 static u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -3896,11 +3896,9 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 	/*
 	**	message
 	*/
-/*	cp->phys.smsg.addr		= cp->p_scsi_smsg;*/
 	cp->phys.smsg.addr		= CCB_PHYS (cp, scsi_smsg);
 	cp->phys.smsg.size		= msglen;
 
-/*	cp->phys.smsg2.addr		= cp->p_scsi_smsg2;*/
 	cp->phys.smsg2.addr		= CCB_PHYS (cp, scsi_smsg2);
 	cp->phys.smsg2.size		= msglen2;
 	/*
@@ -3911,7 +3909,6 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 	/*
 	**	sense command
 	*/
-/*	cp->phys.scmd.addr		= cp->p_sensecmd;*/
 	cp->phys.scmd.addr		= CCB_PHYS (cp, sensecmd);
 	cp->phys.scmd.size		= 6;
 	/*
@@ -4682,8 +4679,10 @@ static void ncr_settags (tcb_p tp, lcb_p lp)
 	**	only disk devices
 	**	only if enabled by user ..
 	*/
-	if ((  tp->inqdata[7] & INQ7_QUEUE) && ((tp->inqdata[0] & 0x1f)==0x00)
-		&& tp->usrtags) {
+	if ((tp->inqdata[7] & INQ7_QUEUE) == 0) {
+	    tp->usrtags=0;
+	}
+	if (tp->usrtags && ((tp->inqdata[0] & 0x1f) == 0x00)) {
 		reqtags = tp->usrtags;
 		if (lp->actlink <= 1)
 			lp->usetags=reqtags;
@@ -5376,9 +5375,9 @@ static void ncr_int_ma (ncb_p np)
 	    return;
 	}
 	if (cp != np->header.cp) {
-	    printf ("%s: SCSI phase error fixup: CCB address mismatch (0x%08lx != 0x%08lx)\n", 
-		    ncr_name (np), (u_long) cp, (u_long) np->header.cp);
-	    return;
+	    printf ("%s: SCSI phase error fixup: CCB address mismatch (0x%08lx != 0x%08lx) np.ccb = 0x%08lx\n", 
+		    ncr_name (np), (u_long) cp, (u_long) np->header.cp, &np->ccb);
+/*	    return;*/
 	}
 
 	/*
@@ -5832,7 +5831,7 @@ void ncr_int_sir (ncb_p np)
 		if (DEBUG_FLAGS & DEBUG_NEGO) {
 			PRINT_ADDR(cp->xfer);
 			printf ("sync msgout: ");
-			(void) ncr_show_msg (np->msgin);
+			(void) ncr_show_msg (np->msgout);
 			printf (".\n");
 		}
 
@@ -5930,7 +5929,7 @@ void ncr_int_sir (ncb_p np)
 		if (DEBUG_FLAGS & DEBUG_NEGO) {
 			PRINT_ADDR(cp->xfer);
 			printf ("wide msgout: ");
-			(void) ncr_show_msg (np->msgin);
+			(void) ncr_show_msg (np->msgout);
 			printf (".\n");
 		}
 		break;
@@ -6221,7 +6220,7 @@ static	void ncr_alloc_ccb (ncb_p np, struct scsi_xfer * xp)
 		tp->jump_lcb.l_paddr = NCB_SCRIPT_PHYS (np, abort);
 		np->jump_tcb.l_paddr = vtophys (&tp->jump_tcb);
 
-		ncr_setmaxtags (tp, SCSI_NCR_MAX_TAGS);
+		ncr_setmaxtags (tp, SCSI_NCR_DFLT_TAGS);
 	}
 
 	/*
