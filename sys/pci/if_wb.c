@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_wb.c,v 1.3 1998/12/10 02:02:30 archie Exp $
+ *	$Id: if_wb.c,v 1.4 1998/12/14 06:32:56 dillon Exp $
  */
 
 /*
@@ -121,7 +121,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_wb.c,v 1.3 1998/12/10 02:02:30 archie Exp $";
+	"$Id: if_wb.c,v 1.4 1998/12/14 06:32:56 dillon Exp $";
 #endif
 
 /*
@@ -1373,6 +1373,15 @@ static void wb_rxeof(sc)
 		/* No errors; receive the packet. */	
 		m = cur_rx->wb_mbuf;
 		total_len = WB_RXBYTES(cur_rx->wb_ptr->wb_status);
+
+		/*
+		 * XXX The Winbond chip includes the CRC with every
+		 * received frame, and there's no way to turn this
+		 * behavior off (at least, I can't find anything in
+	 	 * the manual that explains how to do it) so we have
+		 * to trim off the CRC manually.
+		 */
+		total_len -= ETHER_CRC_LEN;
 
 		/*
 		 * Try to conjure up a new mbuf cluster. If that
