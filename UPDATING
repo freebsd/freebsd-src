@@ -5,6 +5,14 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20010520:
+	Swapping is busted on -current.  Please be patient.
+
+20010519:
+	pccard has had much reorganizational work done to it over
+	the past few days.  Everything should still work, but if
+	not, please contact imp@freebsd.org.
+
 20010517:
 	ata ioctl changed.  Make sure to recompile both kernel and
 	userland at the same time.
