@@ -62,7 +62,7 @@
  * and separate it into its component parts.
  */
 int ether_line(l, e, hostname)
-	const char *l;
+        char *l;
 	struct ether_addr *e;
 	char *hostname;
 {
@@ -84,7 +84,7 @@ int ether_line(l, e, hostname)
  * binary form.
  */
 struct ether_addr *ether_aton(a)
-	const char *a;
+        char *a;
 {
         int i;
 	static struct ether_addr o;
@@ -110,7 +110,7 @@ struct ether_addr *ether_aton(a)
  * an ASCII string.
  */
 char *ether_ntoa(n)
-	const struct ether_addr *n;
+        struct ether_addr *n;
 {
         int i;
 	static char a[18];
@@ -129,7 +129,7 @@ char *ether_ntoa(n)
 
 int ether_ntohost(hostname, e)
 	char *hostname;
-	const struct ether_addr *e;
+	struct ether_addr *e;
 {
 	FILE *fp;
 	char buf[BUFSIZ + 2];
@@ -180,7 +180,7 @@ int ether_ntohost(hostname, e)
  * NIS/YP.
  */
 int ether_hostton(hostname, e)
-	const char *hostname;
+	char *hostname;
 	struct ether_addr *e;
 {
 	FILE *fp;

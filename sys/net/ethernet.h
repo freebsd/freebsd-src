@@ -107,11 +107,11 @@ extern	void (*ng_ether_detach_p)(struct ifnet *ifp);
  * Ethernet address conversion/parsing routines.
  */
 __BEGIN_DECLS
-struct	ether_addr *ether_aton __P((const char *));
-int	ether_hostton __P((const char *, struct ether_addr *));
-int	ether_line __P((const char *, struct ether_addr *, char *));
-char 	*ether_ntoa __P((const struct ether_addr *));
-int	ether_ntohost __P((char *, const struct ether_addr *));
+struct	ether_addr *ether_aton __P((char *));
+int	ether_hostton __P((char *, struct ether_addr *));
+int	ether_line __P((char *, struct ether_addr *, char *));
+char 	*ether_ntoa __P((struct ether_addr *));
+int	ether_ntohost __P((char *, struct ether_addr *));
 __END_DECLS
 
 #endif /* !_KERNEL */
