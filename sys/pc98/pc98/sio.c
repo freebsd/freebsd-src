@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.9 1996/11/02 10:39:44 asami Exp $
+ *	$Id: sio.c,v 1.10 1996/12/04 04:21:07 asami Exp $
  */
 
 #include "opt_comconsole.h"
@@ -378,6 +378,7 @@ static	int	espattach	__P((struct isa_device *isdp, struct com_s *com,
 				     Port_t esp_port));
 #endif
 static	int	sioattach	__P((struct isa_device *dev));
+static	timeout_t siobusycheck;
 static	timeout_t siodtrwakeup;
 static	void	comhardclose	__P((struct com_s *com));
 static	void	siointr1	__P((struct com_s *com));
@@ -422,8 +423,7 @@ static struct cdevsw sio_cdevsw = {
 };
 
 static	int	comconsole = -1;
-static	speed_t	comdefaultrate = TTYDEF_SPEED;
-static	speed_t	condefaultrate = CONSPEED;
+static	speed_t	comdefaultrate = CONSPEED;
 static	u_int	com_events;	/* input chars + weighted output completions */
 static	int	sio_timeout;
 static	int	sio_timeouts_until_log;
@@ -1131,10 +1131,9 @@ sioattach(isdp)
 		com->it_in.c_cflag = TTYDEF_CFLAG | CLOCAL;
 		com->it_in.c_lflag = TTYDEF_LFLAG;
 		com->lt_out.c_cflag = com->lt_in.c_cflag = CLOCAL;
-		com->it_in.c_ispeed = com->it_in.c_ospeed = condefaultrate;
-	} else
 		com->it_in.c_ispeed = com->it_in.c_ospeed = comdefaultrate;
-
+	} else
+		com->it_in.c_ispeed = com->it_in.c_ospeed = TTYDEF_SPEED;
 	termioschars(&com->it_in);
 	com->it_out = com->it_in;
 
@@ -1696,6 +1695,35 @@ siowrite(dev, uio, flag)
 }
 
 static void
+siobusycheck(chan)
+	void	*chan;
+{
+	struct com_s	*com;
+	int		s;
+
+	com = (struct com_s *)chan;
+
+	/*
+	 * Clear TS_BUSY if low-level output is complete.
+	 * spl locking is sufficient because siointr1() does not set CS_BUSY.
+	 * If siointr() clears CS_BUSY after we look at it, then we'll get
+	 * called again.  Reading the line status port outside of siointr1()
+	 * is safe because CS_BUSY is clear so there are no output interrupts
+	 * to lose.
+	 */
+	s = spltty();
+	if (com->state & CS_BUSY)
+		;		/* False alarm. */
+	else if ((inb(com->line_status_port) & (LSR_TSRE | LSR_TXRDY))
+	    == (LSR_TSRE | LSR_TXRDY)) {
+		com->tp->t_state &= ~TS_BUSY;
+		ttwwakeup(com->tp);
+	} else
+		timeout(siobusycheck, com, hz / 100);
+	splx(s);
+}
+
+static void
 siodtrwakeup(chan)
 	void	*chan;
 {
@@ -1796,33 +1824,38 @@ more_intr:
 #ifdef PC98
 			}
 #endif
-			if (line_status & (LSR_PE|LSR_FE|LSR_BI)) {
-#ifdef DDB
-#ifdef BREAK_TO_DEBUGGER
-				if (line_status & LSR_BI
-				    && com->unit == comconsole)	{
-					Debugger("serial console break");
-					goto cont;
-				}
-#endif
-#endif
+			if (line_status & (LSR_BI | LSR_FE | LSR_PE)) {
 				/*
-				  Don't store PE if IGNPAR and BI if IGNBRK,
-				  this hack allows "raw" tty optimization
-				  works even if IGN* is set.
-				*/
-				if (   com->tp == NULL
-				    || !(com->tp->t_state & TS_ISOPEN)
-				    || (line_status & (LSR_PE|LSR_FE))
-				    &&  (com->tp->t_iflag & IGNPAR)
-				    || (line_status & LSR_BI)
-				    &&  (com->tp->t_iflag & IGNBRK))
-					goto cont;
-				if (   (line_status & (LSR_PE|LSR_FE))
-				    && (com->tp->t_state & TS_CAN_BYPASS_L_RINT)
-				    && ((line_status & LSR_FE)
-				    ||  (line_status & LSR_PE)
-				    &&  (com->tp->t_iflag & INPCK)))
+				 * Don't store BI if IGNBRK or FE/PE if IGNPAR.
+				 * Otherwise, push the work to a higher level
+				 * (to handle PARMRK) if we're bypassing.
+				 * Otherwise, convert BI/FE and PE+INPCK to 0.
+				 *
+				 * This makes bypassing work right in the
+				 * usual "raw" case (IGNBRK set, and IGNPAR
+				 * and INPCK clear).
+				 *
+				 * Note: BI together with FE/PE means just BI.
+				 */
+				if (line_status & LSR_BI) {
+#if defined(DDB) && defined(BREAK_TO_DEBUGGER)
+					if (com->unit == comconsole) {
+						Debugger(
+						    "serial console break");
+						goto cont;
+					}
+#endif
+					if (com->tp == NULL
+					    || com->tp->t_iflag & IGNBRK)
+						goto cont;
+				} else {
+					if (com->tp == NULL
+					    || com->tp->t_iflag & IGNPAR)
+						goto cont;
+				}
+				if (com->tp->t_state & TS_CAN_BYPASS_L_RINT
+				    && (line_status & (LSR_BI | LSR_FE)
+					|| com->tp->t_iflag & INPCK))
 					recv_data = 0;
 			}
 
@@ -2330,12 +2363,13 @@ repeat:
 			disable_intr();
 			com_events -= LOTS_OF_EVENTS;
 			com->state &= ~CS_ODONE;
-			if (!(com->state & CS_BUSY))
-				com->tp->t_state &= ~TS_BUSY;
 			enable_intr();
+			if (!(com->state & CS_BUSY))
+				timeout(siobusycheck, com, hz / 100);
 			(*linesw[tp->t_line].l_start)(tp);
 		}
-		if (incc <= 0 || !(tp->t_state & TS_ISOPEN))
+		if (incc <= 0 || !(tp->t_state & TS_ISOPEN) ||
+		    !(tp->t_cflag & CREAD))
 			continue;
 		/*
 		 * Avoid the grotesquely inefficient lineswitch routine
@@ -2770,6 +2804,10 @@ siostop(tp, rw)
 		return;
 	disable_intr();
 	if (rw & FWRITE) {
+		if (com->hasfifo)
+			/* XXX does this flush everything? */
+			outb(com->iobase + com_fifo,
+			     FIFO_XMT_RST | com->fifo_image);
 		com->obufs[0].l_queued = FALSE;
 		com->obufs[1].l_queued = FALSE;
 		if (com->state & CS_ODONE)
@@ -2778,13 +2816,15 @@ siostop(tp, rw)
 		com->tp->t_state &= ~TS_BUSY;
 	}
 	if (rw & FREAD) {
+		if (com->hasfifo)
+			/* XXX does this flush everything? */
+			outb(com->iobase + com_fifo,
+			     FIFO_RCV_RST | com->fifo_image);
 		com_events -= (com->iptr - com->ibuf);
 		com->iptr = com->ibuf;
 	}
 	enable_intr();
 	comstart(tp);
-
-	/* XXX should clear h/w fifos too. */
 }
 
 static struct tty *
@@ -3062,7 +3102,7 @@ siocnopen(sp)
 
 	/*
 	 * Save all the device control registers except the fifo register
-	 * and set our default ones (cs8 -parenb speed=condefaultrate).
+	 * and set our default ones (cs8 -parenb speed=comdefaultrate).
 	 * We can't save the fifo register since it is read-only.
 	 */
 	iobase = siocniobase;
@@ -3079,7 +3119,7 @@ siocnopen(sp)
 	 * data input register.  This also reduces the effects of the
 	 * UMC8669F bug.
 	 */
-	divisor = ttspeedtab(condefaultrate, comspeedtab);
+	divisor = ttspeedtab(comdefaultrate, comspeedtab);
 	dlbl = divisor & 0xFF;
 	if (sp->dlbl != dlbl)
 		outb(iobase + com_dlbl, dlbl);
