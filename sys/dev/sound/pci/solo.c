@@ -572,7 +572,7 @@ esschan_trigger(kobj_t obj, void *data, int go)
 
 	switch (go) {
 	case PCMTRIG_START:
-		ess_dmasetup(sc, ch->hwch, vtophys(sndbuf_getbuf(ch->buffer)), sndbuf_getsize(ch->buffer), ch->dir);
+		ess_dmasetup(sc, ch->hwch, sndbuf_getbufaddr(ch->buffer), sndbuf_getsize(ch->buffer), ch->dir);
 		ess_dmatrigger(sc, ch->hwch, 1);
 		ess_start(ch);
 		break;

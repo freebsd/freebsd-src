@@ -63,6 +63,7 @@ struct via_chinfo {
 	struct pcm_channel *channel;
 	struct snd_dbuf *buffer;
 	struct via_dma_op *sgd_table;
+	bus_addr_t sgd_addr;
 	int dir, blksz;
 	int base, count, mode, ctrl;
 };
@@ -73,6 +74,7 @@ struct via_info {
 	bus_dma_tag_t parent_dmat;
 	bus_dma_tag_t sgd_dmat;
 	bus_dmamap_t sgd_dmamap;
+	bus_addr_t sgd_addr;
 
 	struct resource *reg, *irq;
 	int regid, irqid;
@@ -224,7 +226,7 @@ via_buildsgdt(struct via_chinfo *ch)
 	 */
 	seg_size = ch->blksz;
 	segs = sndbuf_getsize(ch->buffer) / seg_size;
-	phys_addr = vtophys(sndbuf_getbuf(ch->buffer));
+	phys_addr = sndbuf_getbufaddr(ch->buffer);
 
 	for (i = 0; i < segs; i++) {
 		flag = (i == segs - 1)? VIA_DMAOP_EOL : VIA_DMAOP_FLAG;
@@ -247,6 +249,8 @@ viachan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 	ch->buffer = b;
 	ch->dir = dir;
 	ch->sgd_table = &via->sgd_table[(dir == PCMDIR_PLAY)? 0 : SEGS_PER_CHAN];
+	ch->sgd_addr = dir == PCMDIR_PLAY ? via->sgd_addr : via->sgd_addr +
+	    sizeof(struct via_dma_op) * SEGS_PER_CHAN;
 	if (ch->dir == PCMDIR_PLAY) {
 		ch->base = VIA_PLAY_DMAOPS_BASE;
 		ch->count = VIA_PLAY_DMAOPS_COUNT;
@@ -326,16 +330,17 @@ viachan_trigger(kobj_t obj, void *data, int go)
 	struct via_chinfo *ch = data;
 	struct via_info *via = ch->parent;
 	struct via_dma_op *ado;
+	bus_addr_t sgd_addr = ch->sgd_addr;
 
 	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
 		return 0;
 
 	ado = ch->sgd_table;
-	DEB(printf("ado located at va=%p pa=%x\n", ado, vtophys(ado)));
+	DEB(printf("ado located at va=%p pa=%x\n", ado, sgd_addr));
 
 	if (go == PCMTRIG_START) {
 		via_buildsgdt(ch);
-		via_wr(via, ch->base, vtophys(ado), 4);
+		via_wr(via, ch->base, sgd_addr, 4);
 		via_wr(via, ch->ctrl, VIA_RPCTRL_START, 1);
 	} else
 		via_wr(via, ch->ctrl, VIA_RPCTRL_TERMINATE, 1);
@@ -350,6 +355,7 @@ viachan_getptr(kobj_t obj, void *data)
 	struct via_chinfo *ch = data;
 	struct via_info *via = ch->parent;
 	struct via_dma_op *ado;
+	bus_addr_t sgd_addr = ch->sgd_addr;
 	int ptr, base, base1, len, seg;
 
 	ado = ch->sgd_table;
@@ -364,7 +370,7 @@ viachan_getptr(kobj_t obj, void *data)
 	/* Base points to SGD segment to do, one past current */
 
 	/* Determine how many segments have been done */
-	seg = (base - vtophys(ado)) / sizeof(struct via_dma_op);
+	seg = (base - sgd_addr) / sizeof(struct via_dma_op);
 	if (seg == 0)
 		seg = SEGS_PER_CHAN;
 
@@ -442,6 +448,8 @@ via_probe(device_t dev)
 static void
 dma_cb(void *p, bus_dma_segment_t *bds, int a, int b)
 {
+	struct via_info *via = (struct via_info *)p;
+	via->sgd_addr = bds->ds_addr;
 }
 
 
@@ -526,7 +534,7 @@ via_attach(device_t dev)
 
 	if (bus_dmamem_alloc(via->sgd_dmat, (void **)&via->sgd_table, BUS_DMA_NOWAIT, &via->sgd_dmamap) == -1)
 		goto bad;
-	if (bus_dmamap_load(via->sgd_dmat, via->sgd_dmamap, via->sgd_table, NSEGS * sizeof(struct via_dma_op), dma_cb, 0, 0))
+	if (bus_dmamap_load(via->sgd_dmat, via->sgd_dmamap, via->sgd_table, NSEGS * sizeof(struct via_dma_op), dma_cb, via, 0))
 		goto bad;
 
 	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld", rman_get_start(via->reg), rman_get_start(via->irq));

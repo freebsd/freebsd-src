@@ -361,7 +361,7 @@ ds_allocpslot(struct sc_info *sc)
 }
 
 static int
-ds_initpbank(volatile struct pbank *pb, int ch, int b16, int stereo, u_int32_t rate, void *base, u_int32_t len)
+ds_initpbank(volatile struct pbank *pb, int ch, int b16, int stereo, u_int32_t rate, bus_addr_t base, u_int32_t len)
 {
 	u_int32_t lv[] = {1, 1, 0, 0, 0};
 	u_int32_t rv[] = {1, 0, 1, 0, 0};
@@ -396,7 +396,7 @@ ds_initpbank(volatile struct pbank *pb, int ch, int b16, int stereo, u_int32_t r
 	pb->Format |= b16? 0 : 0x80000000;
 	pb->Format |= (stereo && (ch == 2 || ch == 4))? 0x00000001 : 0;
 	pb->LoopDefault = 0;
-	pb->PgBase = base? vtophys(base) : 0;
+	pb->PgBase = base? base : 0;
 	pb->PgLoop = 0;
 	pb->PgLoopEnd = len >> ss;
 	pb->PgLoopFrac = 0;
@@ -430,18 +430,18 @@ static void
 ds_setuppch(struct sc_pchinfo *ch)
 {
 	int stereo, b16, c, sz;
-	void *buf;
+	bus_addr_t addr;
 
 	stereo = (ch->fmt & AFMT_STEREO)? 1 : 0;
 	b16 = (ch->fmt & AFMT_16BIT)? 1 : 0;
 	c = stereo? 1 : 0;
-	buf = sndbuf_getbuf(ch->buffer);
+	addr = sndbuf_getbufaddr(ch->buffer);
 	sz = sndbuf_getsize(ch->buffer);
 
-	ds_initpbank(ch->lslot, c, stereo, b16, ch->spd, buf, sz);
-	ds_initpbank(ch->lslot + 1, c, stereo, b16, ch->spd, buf, sz);
-	ds_initpbank(ch->rslot, 2, stereo, b16, ch->spd, buf, sz);
-	ds_initpbank(ch->rslot + 1, 2, stereo, b16, ch->spd, buf, sz);
+	ds_initpbank(ch->lslot, c, stereo, b16, ch->spd, addr, sz);
+	ds_initpbank(ch->lslot + 1, c, stereo, b16, ch->spd, addr, sz);
+	ds_initpbank(ch->rslot, 2, stereo, b16, ch->spd, addr, sz);
+	ds_initpbank(ch->rslot + 1, 2, stereo, b16, ch->spd, addr, sz);
 }
 
 static void
@@ -450,16 +450,16 @@ ds_setuprch(struct sc_rchinfo *ch)
 	struct sc_info *sc = ch->parent;
 	int stereo, b16, i, sz, pri;
 	u_int32_t x, y;
-	void *buf;
+	bus_addr_t addr;
 
 	stereo = (ch->fmt & AFMT_STEREO)? 1 : 0;
 	b16 = (ch->fmt & AFMT_16BIT)? 1 : 0;
-	buf = sndbuf_getbuf(ch->buffer);
+	addr = sndbuf_getbufaddr(ch->buffer);
 	sz = sndbuf_getsize(ch->buffer);
 	pri = (ch->num == DS1_RECPRIMARY)? 1 : 0;
 
 	for (i = 0; i < 2; i++) {
-		ch->slot[i].PgBase = vtophys(buf);
+		ch->slot[i].PgBase = addr;
 		ch->slot[i].PgLoopEnd = sz;
 		ch->slot[i].PgStart = 0;
 		ch->slot[i].NumOfLoops = 0;

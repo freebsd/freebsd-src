@@ -390,7 +390,7 @@ m3_pchan_init(kobj_t kobj, void *devinfo, struct snd_dbuf *b, struct pcm_channel
 	ch->bufsize = sndbuf_getsize(ch->buffer);
 
 	/* host dma buffer pointers */
-	bus_addr = vtophys(sndbuf_getbuf(ch->buffer));
+	bus_addr = sndbuf_getbufaddr(ch->buffer);
 	if (bus_addr & 3) {
 		device_printf(sc->dev, "m3_pchan_init unaligned bus_addr\n");
 		bus_addr = (bus_addr + 4) & ~3;
@@ -600,7 +600,7 @@ m3_pchan_getptr(kobj_t kobj, void *chdata)
 	struct sc_pchinfo *ch = chdata;
 	struct sc_info *sc = ch->parent;
 	u_int32_t hi, lo, bus_crnt;
-	u_int32_t bus_base = vtophys(sndbuf_getbuf(ch->buffer));
+	u_int32_t bus_base = sndbuf_getbufaddr(ch->buffer);
 
 	hi = m3_rd_assp_data(sc, ch->dac_data + CDATA_HOST_SRC_CURRENTH);
         lo = m3_rd_assp_data(sc, ch->dac_data + CDATA_HOST_SRC_CURRENTL);
@@ -670,7 +670,7 @@ m3_rchan_init(kobj_t kobj, void *devinfo, struct snd_dbuf *b, struct pcm_channel
 	ch->bufsize = sndbuf_getsize(ch->buffer);
 
 	/* host dma buffer pointers */
-	bus_addr = vtophys(sndbuf_getbuf(ch->buffer));
+	bus_addr = sndbuf_getbufaddr(ch->buffer);
 	if (bus_addr & 3) {
 		device_printf(sc->dev, "m3_rchan_init unaligned bus_addr\n");
 		bus_addr = (bus_addr + 4) & ~3;
@@ -870,7 +870,7 @@ m3_rchan_getptr(kobj_t kobj, void *chdata)
 	struct sc_rchinfo *ch = chdata;
 	struct sc_info *sc = ch->parent;
 	u_int32_t hi, lo, bus_crnt;
-	u_int32_t bus_base = vtophys(sndbuf_getbuf(ch->buffer));
+	u_int32_t bus_base = sndbuf_getbufaddr(ch->buffer);
 
 	hi = m3_rd_assp_data(sc, ch->adc_data + CDATA_HOST_SRC_CURRENTH);
         lo = m3_rd_assp_data(sc, ch->adc_data + CDATA_HOST_SRC_CURRENTL);

@@ -45,6 +45,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 struct emu_memblk {
 	SLIST_ENTRY(emu_memblk) link;
 	void *buf;
+	bus_addr_t buf_addr;
 	u_int32_t pte_start, pte_size;
 };
 
@@ -52,6 +53,8 @@ struct emu_mem {
 	u_int8_t bmap[MAXPAGES / 8];
 	u_int32_t *ptb_pages;
 	void *silent_page;
+	bus_addr_t silent_page_addr;
+	bus_addr_t ptb_pages_addr;
        	SLIST_HEAD(, emu_memblk) blocks;
 };
 
@@ -116,8 +119,8 @@ struct sc_info {
 /* stuff */
 static int emu_init(struct sc_info *);
 static void emu_intr(void *);
-static void *emu_malloc(struct sc_info *sc, u_int32_t sz);
-static void *emu_memalloc(struct sc_info *sc, u_int32_t sz);
+static void *emu_malloc(struct sc_info *sc, u_int32_t sz, bus_addr_t *addr);
+static void *emu_memalloc(struct sc_info *sc, u_int32_t sz, bus_addr_t *addr);
 static int emu_memfree(struct sc_info *sc, void *buf);
 static int emu_memstart(struct sc_info *sc, void *buf);
 #ifdef EMUDEBUG
@@ -426,8 +429,9 @@ emu_vinit(struct sc_info *sc, struct emu_voice *m, struct emu_voice *s,
 	  u_int32_t sz, struct snd_dbuf *b)
 {
 	void *buf;
+	bus_addr_t tmp_addr;
 
-	buf = emu_memalloc(sc, sz);
+	buf = emu_memalloc(sc, sz, &tmp_addr);
 	if (buf == NULL)
 		return -1;
 	if (b != NULL)
@@ -441,7 +445,7 @@ emu_vinit(struct sc_info *sc, struct emu_voice *m, struct emu_voice *s,
 	m->running = 0;
 	m->ismaster = 1;
 	m->vol = 0xff;
-	m->buf = vtophys(buf);
+	m->buf = tmp_addr;
 	m->slave = s;
 	if (s != NULL) {
 		s->start = m->start;
@@ -512,7 +516,7 @@ emu_vwrite(struct sc_info *sc, struct emu_voice *v)
 	emu_wrptr(sc, v->vnum, Z1, 0);
 	emu_wrptr(sc, v->vnum, Z2, 0);
 
-	silent_page = ((u_int32_t)vtophys(sc->mem.silent_page) << 1) | MAP_PTI_MASK;
+	silent_page = ((u_int32_t)(sc->mem.silent_page_addr) << 1) | MAP_PTI_MASK;
 	emu_wrptr(sc, v->vnum, MAPA, silent_page);
 	emu_wrptr(sc, v->vnum, MAPB, silent_page);
 
@@ -799,7 +803,7 @@ emurchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel 
 		return NULL;
 	else {
 		snd_mtxlock(sc->lock);
-		emu_wrptr(sc, 0, ch->basereg, vtophys(sndbuf_getbuf(ch->buffer)));
+		emu_wrptr(sc, 0, ch->basereg, sndbuf_getbufaddr(ch->buffer));
 		emu_wrptr(sc, 0, ch->sizereg, 0); /* off */
 		snd_mtxunlock(sc->lock);
 		return ch;
@@ -1030,15 +1034,16 @@ emu_setmap(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 }
 
 static void *
-emu_malloc(struct sc_info *sc, u_int32_t sz)
+emu_malloc(struct sc_info *sc, u_int32_t sz, bus_addr_t *addr)
 {
-	void *buf, *phys = 0;
+	void *buf;
 	bus_dmamap_t map;
 
+	*addr = 0;
 	if (bus_dmamem_alloc(sc->parent_dmat, &buf, BUS_DMA_NOWAIT, &map))
 		return NULL;
-	if (bus_dmamap_load(sc->parent_dmat, map, buf, sz, emu_setmap, &phys, 0)
-	    || !phys)
+	if (bus_dmamap_load(sc->parent_dmat, map, buf, sz, emu_setmap, addr, 0)
+	    || !addr)
 		return NULL;
 	return buf;
 }
@@ -1050,7 +1055,7 @@ emu_free(struct sc_info *sc, void *buf)
 }
 
 static void *
-emu_memalloc(struct sc_info *sc, u_int32_t sz)
+emu_memalloc(struct sc_info *sc, u_int32_t sz, bus_addr_t *addr)
 {
 	u_int32_t blksz, start, idx, ofs, tmp, found;
 	struct emu_mem *mem = &sc->mem;
@@ -1076,7 +1081,8 @@ emu_memalloc(struct sc_info *sc, u_int32_t sz)
 	blk = malloc(sizeof(*blk), M_DEVBUF, M_NOWAIT);
 	if (blk == NULL)
 		return NULL;
-	buf = emu_malloc(sc, sz);
+	buf = emu_malloc(sc, sz, &blk->buf_addr);
+	*addr = blk->buf_addr;
 	if (buf == NULL) {
 		free(blk, M_DEVBUF);
 		return NULL;
@@ -1088,7 +1094,7 @@ emu_memalloc(struct sc_info *sc, u_int32_t sz)
 	ofs = 0;
 	for (idx = start; idx < start + blksz; idx++) {
 		mem->bmap[idx >> 3] |= 1 << (idx & 7);
-		tmp = (u_int32_t)vtophys((u_int8_t *)buf + ofs);
+		tmp = (u_int32_t)((u_int8_t *)&blk->buf_addr + ofs);
 		/* printf("pte[%d] -> %x phys, %x virt\n", idx, tmp, ((u_int32_t)buf) + ofs); */
 		mem->ptb_pages[idx] = (tmp << 1) | idx;
 		ofs += EMUPAGESIZE;
@@ -1113,7 +1119,7 @@ emu_memfree(struct sc_info *sc, void *buf)
 		return EINVAL;
 	SLIST_REMOVE(&mem->blocks, blk, emu_memblk, link);
 	emu_free(sc, buf);
-	tmp = (u_int32_t)vtophys(sc->mem.silent_page) << 1;
+	tmp = (u_int32_t)(sc->mem.silent_page_addr) << 1;
 	for (idx = blk->pte_start; idx < blk->pte_start + blk->pte_size; idx++) {
 		mem->bmap[idx >> 3] &= ~(1 << (idx & 7));
 		mem->ptb_pages[idx] = tmp | idx;
@@ -1326,22 +1332,22 @@ emu_init(struct sc_info *sc)
 	emu_initefx(sc);
 
 	SLIST_INIT(&sc->mem.blocks);
-	sc->mem.ptb_pages = emu_malloc(sc, MAXPAGES * sizeof(u_int32_t));
+	sc->mem.ptb_pages = emu_malloc(sc, MAXPAGES * sizeof(u_int32_t), &sc->mem.ptb_pages_addr);
 	if (sc->mem.ptb_pages == NULL)
 		return -1;
 
-	sc->mem.silent_page = emu_malloc(sc, EMUPAGESIZE);
+	sc->mem.silent_page = emu_malloc(sc, EMUPAGESIZE, &sc->mem.silent_page_addr);
 	if (sc->mem.silent_page == NULL) {
 		emu_free(sc, sc->mem.ptb_pages);
 		return -1;
 	}
 	/* Clear page with silence & setup all pointers to this page */
 	bzero(sc->mem.silent_page, EMUPAGESIZE);
-	tmp = (u_int32_t)vtophys(sc->mem.silent_page) << 1;
+	tmp = (u_int32_t)(sc->mem.silent_page_addr) << 1;
 	for (i = 0; i < MAXPAGES; i++)
 		sc->mem.ptb_pages[i] = tmp | i;
 
-	emu_wrptr(sc, 0, PTB, vtophys(sc->mem.ptb_pages));
+	emu_wrptr(sc, 0, PTB, (sc->mem.ptb_pages_addr));
 	emu_wrptr(sc, 0, TCB, 0);	/* taken from original driver */
 	emu_wrptr(sc, 0, TCBS, 0);	/* taken from original driver */
 

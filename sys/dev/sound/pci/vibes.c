@@ -324,7 +324,7 @@ svrchan_trigger(kobj_t obj, void *data, int go)
 		/* Program DMA */
 		count = sndbuf_getsize(ch->buffer) / 2; /* DMAC uses words */
 		sv_dma_set_config(sc->dmac_st, sc->dmac_sh,
-				  vtophys(sndbuf_getbuf(ch->buffer)),
+				  sndbuf_getbufaddr(ch->buffer),
 				  count - 1,
 				  SV_DMA_MODE_AUTO | SV_DMA_MODE_RD);
 		count = count / SV_INTR_PER_BUFFER - 1;
@@ -399,7 +399,7 @@ svpchan_trigger(kobj_t obj, void *data, int go)
 		/* Program DMA */
 		count = sndbuf_getsize(ch->buffer);
 		sv_dma_set_config(sc->dmaa_st, sc->dmaa_sh,
-				  vtophys(sndbuf_getbuf(ch->buffer)),
+				  sndbuf_getbufaddr(ch->buffer),
 				  count - 1,
 				  SV_DMA_MODE_AUTO | SV_DMA_MODE_WR);
 		count = count / SV_INTR_PER_BUFFER - 1;
