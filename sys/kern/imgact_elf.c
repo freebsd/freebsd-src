@@ -563,7 +563,7 @@ __elfN(load_file)(struct proc *p, const char *file, u_long *addr,
 	if (error == 0)
 		nd->ni_vp->v_vflag |= VV_TEXT;
 
-	VOP_GETVOBJECT(nd->ni_vp, &imgp->object);
+	imgp->object = nd->ni_vp->v_object;
 	vm_object_reference(imgp->object);
 
 	VOP_UNLOCK(nd->ni_vp, 0, curthread); /* XXXKSE */
