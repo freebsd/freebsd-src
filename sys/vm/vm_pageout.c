@@ -1162,8 +1162,11 @@ rescan0:
 	}
 
 	/*
-	 * If we are out of swap and were not able to reach our paging
-	 * target, kill the largest process.
+	 * If we are critically low on one of RAM or swap and low on
+	 * the other, kill the largest process.  However, we avoid
+	 * doing this on the first pass in order to give ourselves a
+	 * chance to flush out dirty vnode-backed pages and to allow
+	 * active pages to be moved to the inactive queue and reclaimed.
 	 *
 	 * We keep the process bigproc locked once we find it to keep anyone
 	 * from messing with it; however, there is a possibility of
@@ -1172,11 +1175,9 @@ rescan0:
 	 * lock while walking this list.  To avoid this, we don't block on
 	 * the process lock but just skip a process if it is already locked.
 	 */
-	if ((vm_swap_size < 64 && vm_page_count_min()) ||
-	    (swap_pager_full && vm_paging_target() > 0)) {
-#if 0
-	if ((vm_swap_size < 64 || swap_pager_full) && vm_page_count_min()) {
-#endif
+	if (pass != 0 &&
+	    ((vm_swap_size < 64 && vm_page_count_min()) ||
+	     (swap_pager_full && vm_paging_target() > 0))) {
 		bigproc = NULL;
 		bigsize = 0;
 		sx_slock(&allproc_lock);
