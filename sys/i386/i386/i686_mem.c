@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: i686_mem.c,v 1.1 1999/04/07 03:57:45 msmith Exp $
+ *	$Id: i686_mem.c,v 1.2 1999/04/30 22:09:38 msmith Exp $
  */
 
 #include "opt_smp.h"
@@ -575,7 +575,9 @@ static void
 i686_mem_drvinit(void *unused)
 {
     /* Try for i686 MTRRs */
-    if (cpu_feature & CPUID_MTRR) {
+    if (!strcmp(cpu_vendor, "GenuineIntel") &&
+	cpu_feature & CPUID_MTRR &&
+	(cpu_id & 0xf00) == 0x600) {
 	mem_range_softc.mr_op = &i686_mrops;
     }
 }
