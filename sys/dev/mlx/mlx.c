@@ -318,6 +318,7 @@ mlx_attach(struct mlx_softc *sc)
 	sc->mlx_sg_nseg		= MLX_NSEG_NEW;
 	break;
     default:
+	mlx_free(sc);
 	return(ENXIO);		/* should never happen */
     }
 
@@ -381,6 +382,7 @@ mlx_attach(struct mlx_softc *sc)
 			       &sc->mlx_buffer_dmat);
     if (error != 0) {
 	device_printf(sc->mlx_dev, "can't allocate buffer DMA tag\n");
+	mlx_free(sc);
 	return(ENOMEM);
     }
 
@@ -391,12 +393,14 @@ mlx_attach(struct mlx_softc *sc)
     error = mlx_sglist_map(sc);
     if (error != 0) {
 	device_printf(sc->mlx_dev, "can't make initial s/g list mapping\n");
+	mlx_free(sc);
 	return(error);
     }
 
     /* send an ENQUIRY2 to the controller */
     if ((sc->mlx_enq2 = mlx_enquire(sc, MLX_CMD_ENQUIRY2, sizeof(struct mlx_enquiry2), NULL)) == NULL) {
 	device_printf(sc->mlx_dev, "ENQUIRY2 failed\n");
+	mlx_free(sc);
 	return(ENXIO);
     }
 
@@ -414,6 +418,7 @@ mlx_attach(struct mlx_softc *sc)
 	/* These controllers don't report the firmware version in the ENQUIRY2 response */
 	if ((meo = mlx_enquire(sc, MLX_CMD_ENQUIRY_OLD, sizeof(struct mlx_enquiry_old), NULL)) == NULL) {
 	    device_printf(sc->mlx_dev, "ENQUIRY_OLD failed\n");
+	    mlx_free(sc);
 	    return(ENXIO);
 	}
 	sc->mlx_enq2->me_firmware_id = ('0' << 24) | (0 << 16) | (meo->me_fwminor << 8) | meo->me_fwmajor;
@@ -446,6 +451,7 @@ mlx_attach(struct mlx_softc *sc)
 	}
 	break;
     default:
+	mlx_free(sc);
 	return(ENXIO);		/* should never happen */
     }
 
@@ -457,6 +463,7 @@ mlx_attach(struct mlx_softc *sc)
     error = mlx_sglist_map(sc);
     if (error != 0) {
 	device_printf(sc->mlx_dev, "can't make permanent s/g list mapping\n");
+	mlx_free(sc);
 	return(error);
     }
 
@@ -1115,11 +1122,14 @@ mlx_periodic_enquiry(struct mlx_command *mc)
 	if (sc->mlx_currevent == -1) {
 	    /* initialise our view of the event log */
 	    sc->mlx_currevent = sc->mlx_lastevent = me->me_event_log_seq_num;
-	} else if (me->me_event_log_seq_num != sc->mlx_lastevent) {
+	} else if ((me->me_event_log_seq_num != sc->mlx_lastevent) && !(sc->mlx_flags & MLX_EVENTLOG_BUSY)) {
 	    /* record where current events are up to */
 	    sc->mlx_currevent = me->me_event_log_seq_num;
 	    debug(1, "event log pointer was %d, now %d\n", sc->mlx_lastevent, sc->mlx_currevent);
 
+	    /* mark the event log as busy */
+	    atomic_set_int(&sc->mlx_flags, MLX_EVENTLOG_BUSY);
+	    
 	    /* drain new eventlog entries */
 	    mlx_periodic_eventlog_poll(sc);
 	}
@@ -1285,8 +1295,8 @@ mlx_periodic_eventlog_respond(struct mlx_command *mc)
 	}
     } else {
 	device_printf(sc->mlx_dev, "error reading message log - %s\n", mlx_diagnose_command(mc));
-	panic("log operation failed: lastevent = %d, currevent = %d",
-	      sc->mlx_lastevent, sc->mlx_currevent);
+	/* give up on all the outstanding messages, as we may have come unsynched */
+	sc->mlx_lastevent = sc->mlx_currevent;
     }
 	
     /* dispose of command and data */
@@ -1294,8 +1304,12 @@ mlx_periodic_eventlog_respond(struct mlx_command *mc)
     mlx_releasecmd(mc);
 
     /* is there another message to obtain? */
-    if (sc->mlx_lastevent != sc->mlx_currevent)
+    if (sc->mlx_lastevent != sc->mlx_currevent) {
 	mlx_periodic_eventlog_poll(sc);
+    } else {
+	/* clear log-busy status */
+	atomic_clear_int(&sc->mlx_flags, MLX_EVENTLOG_BUSY);
+    }
 }
 
 /********************************************************************************

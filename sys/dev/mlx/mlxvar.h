@@ -160,6 +160,7 @@ struct mlx_softc
     int			mlx_locks;	/* reentrancy avoidance */
     int			mlx_flags;
 #define MLX_SPINUP_REPORTED	(1<<0)	/* "spinning up drives" message displayed */
+#define MLX_EVENTLOG_BUSY	(1<<1)	/* currently reading event log */
 
     /* interface-specific accessor functions */
     int			mlx_iftype;	/* interface protocol */
