@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.389 1997/12/28 13:35:59 phk Exp $
+#	$Id: LINT,v 1.390 1997/12/31 21:46:17 obrien Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -658,6 +658,12 @@ options		"MAXMEM=(128*1024)"
 #options        "TUNE_1542"
 #options	BROKEN_KEYBOARD_RESET
 #options	PAS_JOYSTICK_ENABLE
+
+# Enable support for the kernel PLL to use an external PPS signal,
+# under supervision of [x]ntpd(8)
+# More info in ftp://ftp.udel.edu/pub/ntp/kernel.tar.Z
+
+options		PPS_SYNC
 
 # Enable PnP support in the kernel.  This allows you to automaticly
 # attach to PnP cards for drivers that support it and allows you to
