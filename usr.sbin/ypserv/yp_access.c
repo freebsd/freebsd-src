@@ -60,34 +60,34 @@ static const char rcsid[] =
 extern int debug;
 
 			/* NIS v1 */
-char *yp_procs[] = {	"ypoldproc_null",
-			"ypoldproc_domain",
-			"ypoldproc_domain_nonack",
-			"ypoldproc_match",
-			"ypoldproc_first",
-			"ypoldproc_next",
-			"ypoldproc_poll",
-			"ypoldproc_push",
-			"ypoldproc_get",
-			"badproc1", /* placeholder */
-			"badproc2", /* placeholder */
-			"badproc3", /* placeholder */
-
-			/* NIS v2 */
-			"ypproc_null",
-			"ypproc_domain",
-			"ypproc_domain_nonack",
-			"ypproc_match",
-			"ypproc_first",
-			"ypproc_next",
-			"ypproc_xfr",
-			"ypproc_clear",
-			"ypproc_all",
-			"ypproc_master",
-			"ypproc_order",
-			"ypproc_maplist"
-		   };
-
+const char *yp_procs[] = {
+	"ypoldproc_null",
+	"ypoldproc_domain",
+	"ypoldproc_domain_nonack",
+	"ypoldproc_match",
+	"ypoldproc_first",
+	"ypoldproc_next",
+	"ypoldproc_poll",
+	"ypoldproc_push",
+	"ypoldproc_get",
+	"badproc1", /* placeholder */
+	"badproc2", /* placeholder */
+	"badproc3", /* placeholder */
+	
+	/* NIS v2 */
+	"ypproc_null",
+	"ypproc_domain",
+	"ypproc_domain_nonack",
+	"ypproc_match",
+	"ypproc_first",
+	"ypproc_next",
+	"ypproc_xfr",
+	"ypproc_clear",
+	"ypproc_all",
+	"ypproc_master",
+	"ypproc_order",
+	"ypproc_maplist"
+};
 
 #ifdef TCP_WRAPPER
 void
@@ -226,12 +226,13 @@ yp_access(const char *map, const struct svc_req *rqstp)
 #ifndef TCP_WRAPPER
 	struct securenet *tmp;
 #endif
-	char *yp_procedure = NULL;
+	const char *yp_procedure = NULL;
 	char procbuf[50];
 
 	if (rqstp->rq_prog != YPPASSWDPROG && rqstp->rq_prog != YPPROG) {
-		snprintf(procbuf, sizeof(procbuf), "#%lu/#%lu", rqstp->rq_prog,
-								rqstp->rq_proc);
+		snprintf(procbuf, sizeof(procbuf), "#%lu/#%lu",
+		    (unsigned long)rqstp->rq_prog,
+		    (unsigned long)rqstp->rq_proc);
 		yp_procedure = (char *)&procbuf;
 	} else {
 		yp_procedure = rqstp->rq_prog == YPPASSWDPROG ?
