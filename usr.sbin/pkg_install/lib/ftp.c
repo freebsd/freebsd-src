@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ftp.c,v 1.14 1995/06/11 19:29:55 rgrimes Exp $
+ * $Id: ftp.c,v 1.1 1995/07/30 09:33:29 jkh Exp $
  *
  * Return values have been sanitized:
  *	-1	error, but you (still) have a session.
@@ -34,27 +34,16 @@
 /* Handy global for us to stick the port # */
 int FtpPort;
 
-#ifndef STANDALONE_FTP
-#include "sysinstall.h"
-#endif /*STANDALONE_FTP*/
-
 static void
 debug(FTP_t ftp, const char *fmt, ...)
 {
     char p[BUFSIZ];
     va_list ap;
     va_start(ap, fmt);
-#ifdef STANDALONE_FTP
     strcpy(p,"LIBFTP: ");
     (void) vsnprintf(p+strlen(p), sizeof p - strlen(p), fmt, ap);
     va_end(ap);
     write(ftp->fd_debug,p,strlen(p));
-#else
-    if (isDebug()) {
-	(void) vsnprintf(p, sizeof p - strlen(p), fmt, ap);
-	msgDebug(p);
-    }	
-#endif
 }
 
 static int
@@ -173,13 +162,11 @@ FtpInit()
     return ftp;
 }
 
-#ifdef STANDALONE_FTP
 void
 FtpDebug(FTP_t ftp, int i)
 {
     ftp->fd_debug = i;
 }
-#endif
 
 int
 FtpOpen(FTP_t ftp, char *host, char *user, char *passwd)
