@@ -651,7 +651,6 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int
 	vm_page_t p, np;
 	vm_pindex_t tstart, tend;
 	vm_pindex_t pi;
-	struct vnode *vp;
 	int clearobjflags;
 	int pagerflags;
 	int curgeneration;
@@ -664,8 +663,6 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int
 
 	pagerflags = (flags & (OBJPC_SYNC | OBJPC_INVAL)) ? VM_PAGER_PUT_SYNC : VM_PAGER_CLUSTER_OK;
 	pagerflags |= (flags & OBJPC_INVAL) ? VM_PAGER_PUT_INVAL : 0;
-
-	vp = object->handle;
 
 	vm_object_set_flag(object, OBJ_CLEANING);
 
