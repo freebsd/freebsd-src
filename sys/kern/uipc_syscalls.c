@@ -1570,9 +1570,6 @@ getsockaddr(namp, uaddr, len)
 
 /*
  * Allocate a pool of sf_bufs (sendfile(2) or "super-fast" if you prefer. :-))
- * XXX - The sf_buf functions are currently private to sendfile(2), so have
- * been made static, but may be useful in the future for doing zero-copy in
- * other parts of the networking code. 
  */
 static void
 sf_buf_init(void *arg)
