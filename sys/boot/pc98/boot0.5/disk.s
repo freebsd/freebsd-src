@@ -61,35 +61,30 @@ setup_partition:
 	movw	%di, %bx		# %bx = offset to partition table
 	xorw	%dx, %dx		# %dx = partition number
 setup_partition_loop:
+	push	%cx
 	movw	%dx, %si
-	shlw	%si
-	shlw	%si
-	shlw	%si
-	shlw	%si
-	shlw	%si
+	movb	$5, %cl
+	shlw	%cl, %si
 	addw	%bx, %si
 	movb	iplbuf(%si), %al
 	orb	%al, %al
 	jz	unused_partition
+	addw	$iplbuf, %si
 	movw	npartition, %ax
 	movw	%ax, %di
-	shlw	%di
-	shlw	%di
-	shlw	%di
-	shlw	%di
-	shlw	%di
+	movb	$5, %cl
+	shlw	%cl, %di
 	addw	$parttable, %di
-	push	%cx
 	movw	$32, %cx
 	rep
 	movsb
-	pop	%cx
 	movw	%ax, %di
 	addw	$partnum, %di
 	movb	%dl, (%di)
 	incw	npartition
 unused_partition:
 	incw	%dx
+	pop	%cx
 	loop	setup_partition_loop
 	ret
 
