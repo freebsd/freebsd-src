@@ -1224,47 +1224,29 @@ Change it if you change the location in
 .Pq Vt str
 The root directory for a name server run in a
 .Xr chroot 8
-environment.
+environment (default
+.Pa /var/named ) .
 If left empty
 .Xr named 8
 will not be run in a
 .Xr chroot 8
 environment.
-This variable has no effect if
-.Va named_rcng
-is not enabled.
-This variable is experimental.
-It may be removed or changed in the near future.
 .It Va named_chroot_autoupdate
 .Pq Vt bool
 Set to
 .Dq Li NO
-to disable automatic syncing of libraries and
-other system files between the root file system and the
-.Xr chroot 8 .
-This variable has no effect if
-.Va named_rcng
-is not enabled.
-This variable is experimental.
-It may be removed or changed in the near future.
+to disable automatic update of the
+.Xr chroot 8
+environment.
 .It Va named_symlink_enable
 .Pq Vt bool
 Set to
 .Dq Li NO
 to disable symlinking of
-.Va named_pidfile
-and
-.Pa /var/run/ndc
+daemon's PID file
 into the
 .Xr chroot 8
-environment in which
-.Xr named 8
-is running.
-This variable has no effect if
-.Va named_rcng
-is not enabled.
-This variable is experimental.
-It may be removed or changed in the near future.
+environment.
 .It Va kerberos5_server_enable
 .Pq Vt bool
 Set to
