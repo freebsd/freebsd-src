@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.59 1994/08/31 15:55:29 davidg Exp $
+ *	$Id: machdep.c,v 1.60 1994/09/02 04:12:04 davidg Exp $
  */
 
 #include "npx.h"
@@ -97,7 +97,7 @@ static void initcpu(void);
 static int test_page(int *, int);
 
 char machine[] = "i386";
-char cpu_model[sizeof("Pentium") + 1];
+char cpu_model[sizeof("Cy486DLC") + 1];
 
 #ifndef PANIC_REBOOT_WAIT_TIME
 #define PANIC_REBOOT_WAIT_TIME 15 /* default to 15 seconds */
@@ -354,6 +354,7 @@ struct cpu_nameclass i386_cpus[] = {
 	{ "i486SX",		CPUCLASS_486 },		/* CPU_486SX */
 	{ "i486DX",		CPUCLASS_486 },		/* CPU_486   */
 	{ "Pentium",		CPUCLASS_586 },		/* CPU_586   */
+	{ "Cy486DLC",		CPUCLASS_486 },		/* CPU_486DLC */
 };
 
 static void
