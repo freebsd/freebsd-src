@@ -87,7 +87,7 @@
 #error	"Unknown architecture"
 #endif
 #define	WMESGLEN	8		/* size of returned wchan message */
-#define	MTXNAMELEN	8		/* size of returned mutex name */
+#define	LOCKNAMELEN	8		/* size of returned lock name */
 #define	OCOMMLEN	16		/* size of returned ki_ocomm name */
 #define	COMMLEN		19		/* size of returned ki_comm name */
 #define	KI_NGROUPS	16		/* number of groups in ki_groups */
@@ -150,7 +150,7 @@ struct kinfo_proc {
 	char	ki_ocomm[OCOMMLEN+1];	/* command name */
 	char	ki_wmesg[WMESGLEN+1];	/* wchan message */
 	char	ki_login[LOGNAMELEN+1];	/* setlogin name */
-	char	ki_mtxname[MTXNAMELEN+1]; /* mutex name */
+	char	ki_lockname[LOCKNAMELEN+1]; /* lock name */
 	char	ki_comm[COMMLEN+1];	/* command name */
 	char	ki_sparestrings[85];	/* spare string space */
 	struct	rusage ki_rusage;	/* process rusage statistics */
@@ -166,7 +166,7 @@ void fill_kinfo_proc(struct proc *, struct kinfo_proc *);
 /* ki_sessflag values */
 #define	KI_CTTY		0x00000001	/* controlling tty vnode active */
 #define	KI_SLEADER	0x00000002	/* session leader */
-#define	KI_MTXBLOCK	0x00000004	/* proc blocked on mutex ki_mtxname */
+#define	KI_LOCKBLOCK	0x00000004	/* proc blocked on lock ki_lockname */
 
 /*
  * Per process structure containing data that isn't needed in core

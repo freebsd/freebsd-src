@@ -163,7 +163,7 @@ propagate_priority(struct thread *td)
 		/*
 		 * If we aren't blocked on a mutex, we should be.
 		 */
-		KASSERT(TD_ON_MUTEX(td), (
+		KASSERT(TD_ON_LOCK(td), (
 		    "process %d(%s):%d holds %s but isn't blocked on a mutex\n",
 		    td->td_proc->p_pid, td->td_proc->p_comm, td->td_state,
 		    m->mtx_object.lo_name));
@@ -182,7 +182,7 @@ propagate_priority(struct thread *td)
 			continue;
 		}
 
-		td1 = TAILQ_PREV(td, threadqueue, td_blkq);
+		td1 = TAILQ_PREV(td, threadqueue, td_lockq);
 		if (td1->td_priority <= pri) {
 			continue;
 		}
@@ -194,15 +194,15 @@ propagate_priority(struct thread *td)
 		 * thread in the chain has a lower priority and that
 		 * td1 will thus not be NULL after the loop.
 		 */
-		TAILQ_REMOVE(&m->mtx_blocked, td, td_blkq);
-		TAILQ_FOREACH(td1, &m->mtx_blocked, td_blkq) {
+		TAILQ_REMOVE(&m->mtx_blocked, td, td_lockq);
+		TAILQ_FOREACH(td1, &m->mtx_blocked, td_lockq) {
 			MPASS(td1->td_proc->p_magic == P_MAGIC);
 			if (td1->td_priority > pri)
 				break;
 		}
 
 		MPASS(td1 != NULL);
-		TAILQ_INSERT_BEFORE(td1, td, td_blkq);
+		TAILQ_INSERT_BEFORE(td1, td, td_lockq);
 		CTR4(KTR_LOCK,
 		    "propagate_priority: p %p moved before %p on [%p] %s",
 		    td, td1, m, m->mtx_object.lo_name);
@@ -591,15 +591,15 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 		if (TAILQ_EMPTY(&m->mtx_blocked)) {
 			td1 = mtx_owner(m);
 			LIST_INSERT_HEAD(&td1->td_contested, m, mtx_contested);
-			TAILQ_INSERT_TAIL(&m->mtx_blocked, td, td_blkq);
+			TAILQ_INSERT_TAIL(&m->mtx_blocked, td, td_lockq);
 		} else {
-			TAILQ_FOREACH(td1, &m->mtx_blocked, td_blkq)
+			TAILQ_FOREACH(td1, &m->mtx_blocked, td_lockq)
 				if (td1->td_priority > td->td_priority)
 					break;
 			if (td1)
-				TAILQ_INSERT_BEFORE(td1, td, td_blkq);
+				TAILQ_INSERT_BEFORE(td1, td, td_lockq);
 			else
-				TAILQ_INSERT_TAIL(&m->mtx_blocked, td, td_blkq);
+				TAILQ_INSERT_TAIL(&m->mtx_blocked, td, td_lockq);
 		}
 #ifdef KTR
 		if (!cont_logged) {
@@ -616,8 +616,8 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 		 * Save who we're blocked on.
 		 */
 		td->td_blocked = m;
-		td->td_mtxname = m->mtx_object.lo_name;
-		TD_SET_MUTEX(td);
+		td->td_lockname = m->mtx_object.lo_name;
+		TD_SET_LOCK(td);
 		propagate_priority(td);
 
 		if (LOCK_LOG_TEST(&m->mtx_object, opts))
@@ -735,7 +735,7 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 	MPASS(td->td_proc->p_magic == P_MAGIC);
 	MPASS(td1->td_proc->p_magic == P_MAGIC);
 
-	TAILQ_REMOVE(&m->mtx_blocked, td1, td_blkq);
+	TAILQ_REMOVE(&m->mtx_blocked, td1, td_lockq);
 
 	if (TAILQ_EMPTY(&m->mtx_blocked)) {
 		LIST_REMOVE(m, mtx_contested);
@@ -761,7 +761,7 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 		    m, td1);
 
 	td1->td_blocked = NULL;
-	TD_CLR_MUTEX(td1);
+	TD_CLR_LOCK(td1);
 	if (!TD_CAN_RUN(td1)) {
 		mtx_unlock_spin(&sched_lock);
 		return;

@@ -2399,8 +2399,8 @@ ttyinfo(struct tty *tp)
 					if (TD_ON_RUNQ(td) ||
 					    (TD_IS_RUNNING(td))) {
 						stmp = "running";
-					} else if (TD_ON_MUTEX(td)) {
-						stmp = td->td_mtxname;
+					} else if (TD_ON_LOCK(td)) {
+						stmp = td->td_lockname;
 					} else if (td->td_wmesg) {
 						stmp = td->td_wmesg;
 					} else {
@@ -2425,7 +2425,7 @@ ttyinfo(struct tty *tp)
 
 			ttyprintf(tp, " cmd: %s %d [%s%s] ", pick->p_comm,
 			    pick->p_pid,
-			    TD_ON_MUTEX(td) ? "*" : "",
+			    TD_ON_LOCK(td) ? "*" : "",
 			    stmp);
 
 			/* Print user time. */
