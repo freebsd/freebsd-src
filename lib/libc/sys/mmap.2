@@ -175,7 +175,7 @@ system call generally do not flush dirty NOSYNC VM data.
 The
 .Xr msync 2
 system call is obsolete since
-.Os BSD
+.Bx
 implements a coherent filesystem buffer cache.  However, it may be 
 used to associate dirty VM pages with filesystem buffers and thus cause
 them to be flushed to physical media sooner rather then later.
