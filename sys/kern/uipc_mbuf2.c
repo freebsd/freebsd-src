@@ -298,8 +298,10 @@ m_dup1(struct mbuf *m, int off, int len, int wait)
 	if (!n)
 		return NULL;
 
-	if (copyhdr)
-		M_COPY_PKTHDR(n, m);
+	if (copyhdr && !m_dup_pkthdr(n, m, wait)) {
+		m_free(n);
+		return NULL;
+	}
 	m_copydata(m, off, len, mtod(n, caddr_t));
 	return n;
 }
@@ -392,12 +394,12 @@ m_tag_locate(struct mbuf *m, u_int32_t cookie, int type, struct m_tag *t)
 
 /* Copy a single tag. */
 struct m_tag *
-m_tag_copy(struct m_tag *t)
+m_tag_copy(struct m_tag *t, int how)
 {
 	struct m_tag *p;
 
 	KASSERT(t, ("m_tag_copy: null tag"));
-	p = m_tag_alloc(t->m_tag_cookie, t->m_tag_id, t->m_tag_len, M_NOWAIT);
+	p = m_tag_alloc(t->m_tag_cookie, t->m_tag_id, t->m_tag_len, how);
 	if (p == NULL)
 		return (NULL);
 	bcopy(t + 1, p + 1, t->m_tag_len); /* Copy the data */
@@ -411,7 +413,7 @@ m_tag_copy(struct m_tag *t)
  * destination mbuf.
  */
 int
-m_tag_copy_chain(struct mbuf *to, struct mbuf *from)
+m_tag_copy_chain(struct mbuf *to, struct mbuf *from, int how)
 {
 	struct m_tag *p, *t, *tprev = NULL;
 
@@ -419,7 +421,7 @@ m_tag_copy_chain(struct mbuf *to, struct mbuf *from)
 		("m_tag_copy_chain: null argument, to %p from %p", to, from));
 	m_tag_delete_chain(to, NULL);
 	SLIST_FOREACH(p, &from->m_pkthdr.tags, m_tag_link) {
-		t = m_tag_copy(p);
+		t = m_tag_copy(p, how);
 		if (t == NULL) {
 			m_tag_delete_chain(to, NULL);
 			return 0;

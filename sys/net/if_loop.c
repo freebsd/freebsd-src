@@ -214,19 +214,11 @@ looutput(ifp, m, dst, rt)
 	if (m && m->m_next != NULL && m->m_pkthdr.len < MCLBYTES) {
 		struct mbuf *n;
 
+		/* XXX MT_HEADER should be m->m_type */
 		MGETHDR(n, M_DONTWAIT, MT_HEADER);
 		if (!n)
 			goto contiguousfail;
-		MCLGET(n, M_DONTWAIT);
-		if (! (n->m_flags & M_EXT)) {
-			m_freem(n);
-			goto contiguousfail;
-		}
-
-		m_copydata(m, 0, m->m_pkthdr.len, mtod(n, caddr_t));
-		n->m_pkthdr = m->m_pkthdr;
-		n->m_len = m->m_pkthdr.len;
-		SLIST_INIT(&m->m_pkthdr.tags);
+		M_MOVE_PKTHDR(n, m);
 #ifdef MAC
 		/* 
 		 * XXXMAC: Once we put labels in tags and proper
@@ -235,6 +227,14 @@ looutput(ifp, m, dst, rt)
 		 */
 		m->m_pkthdr.label.l_flags &= ~MAC_FLAG_INITIALIZED;
 #endif
+		MCLGET(n, M_DONTWAIT);
+		if (! (n->m_flags & M_EXT)) {
+			m_freem(n);
+			goto contiguousfail;
+		}
+
+		m_copydata(m, 0, m->m_pkthdr.len, mtod(n, caddr_t));
+		n->m_len = m->m_pkthdr.len;
 		m_freem(m);
 		m = n;
 	}

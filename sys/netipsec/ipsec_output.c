@@ -474,7 +474,7 @@ ipsec6_splithdr(struct mbuf *m)
 			m_freem(m);
 			return NULL;
 		}
-		M_COPY_PKTHDR(mh, m);
+		M_MOVE_PKTHDR(mh, m);
 		MH_ALIGN(mh, hlen);
 		m->m_len -= hlen;
 		m->m_data += hlen;
