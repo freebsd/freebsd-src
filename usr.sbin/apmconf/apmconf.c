@@ -20,10 +20,8 @@
 #include <sys/ioctl.h>
 #include <machine/apm_bios.h>
 
-#define CONFIGFILE	"/etc/apm.conf"
-#define APMDEV		"/dev/apm"
+#define APMDEV		"/dev/apm0"
 
-static int		verbose = 0;
 static int		enable = 0, disable = 0;
 static int		haltcpu = 0, nothaltcpu = 0;
 static int		main_argc;
@@ -34,18 +32,13 @@ parse_option(void)
 {
 	int	i, option;
 	char	*optarg;
-	enum {OPT_NONE,  OPT_VERBOSE, 
-		OPT_ENABLE, OPT_DISABLE, OPT_HALTCPU, OPT_NOTHALTCPU} mode;
+	enum {OPT_NONE, OPT_ENABLE, OPT_DISABLE, OPT_HALTCPU, OPT_NOTHALTCPU} mode;
 
 	for (i = 1; i < main_argc; i++) {
 		option = 0;
 		mode = OPT_NONE;
 		if (main_argv[i][0] == '-') {
 			switch (main_argv[i][1]) {
-			case 'v':
-				mode = OPT_VERBOSE;
-				option = 0;
-				break;
 			case 'e':
 				mode = OPT_ENABLE;
 				option = 0;
@@ -76,9 +69,6 @@ parse_option(void)
 		}
 
 		switch (mode) {
-		case OPT_VERBOSE:
-			verbose = 1;
-			break;
 		case OPT_ENABLE:
 			enable = 1;
 			break;
@@ -95,44 +85,20 @@ parse_option(void)
 	}
 }
 
+static struct apm_eqv_event eqv_event[APM_MAX_EQUIV_EVENTS];
 static int eqv_num = 0;
 
-
-#define PMEV_SYMBOL(name)	{#name, name}
-#define ARRAY_SIZEOF(array)	(sizeof(array) / sizeof(array[0]))
-
-typedef struct pmev_symbol {
-	char	*name;
-	int	id;
-} *pmev_symbol_t;
-
-static struct pmev_symbol pmev_symbols[] = {
-	PMEV_SYMBOL(PMEV_NOEVENT),
-	PMEV_SYMBOL(PMEV_STANDBYREQ),
-	PMEV_SYMBOL(PMEV_SUSPENDREQ),
-	PMEV_SYMBOL(PMEV_NORMRESUME),
-	PMEV_SYMBOL(PMEV_CRITRESUME),
-	PMEV_SYMBOL(PMEV_BATTERYLOW),
-	PMEV_SYMBOL(PMEV_POWERSTATECHANGE),
-	PMEV_SYMBOL(PMEV_UPDATETIME),
-	PMEV_SYMBOL(PMEV_CRITSUSPEND),
-	PMEV_SYMBOL(PMEV_USERSTANDBYREQ),
-	PMEV_SYMBOL(PMEV_USERSUSPENDREQ),
-	PMEV_SYMBOL(PMEV_STANDBYRESUME),
-};
-
-static int 
-pmev(char *name, int *id)
+static apm_eqv_event_t
+get_eqv_event(int id)
 {
 	int	i;
 
-	for (i = 0; i < ARRAY_SIZEOF(pmev_symbols); i++) {
-		if (strcasecmp(pmev_symbols[i].name, name) == 0) {
-			*id = pmev_symbols[i].id;
-			return 0;
+	for (i = 0; i < eqv_num; i++) {
+		if (id == eqv_event[i].aee_event) {
+			return &eqv_event[i];
 		}
 	}
-	return 1;
+	return NULL;
 }
 
 static void
