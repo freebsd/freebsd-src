@@ -2,6 +2,7 @@
 /* makedefs.c - version 1.0.2 */
 
 #include <stdio.h>
+#include <string.h>
 
 /* construct definitions of object constants */
 #define	LINSZ	1000

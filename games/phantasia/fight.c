@@ -2,6 +2,7 @@
  * fight.c   Phantasia monster fighting routines
  */
 
+#include <string.h>
 #include "include.h"
 
 /************************************************************************
