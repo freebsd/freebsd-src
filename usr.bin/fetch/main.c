@@ -52,7 +52,7 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-		"usage: fetch [-ADHILMNPRTVablmnpqrstv] [-o outputfile] "
+		"usage: fetch [-ADHILMNPRTVablFmnpqrstv] [-o outputfile] "
 		"[-S bytes]\n"
 		"             [-f file -h host [-c dir] | URL]\n");
 	exit(EX_USAGE);
@@ -76,7 +76,7 @@ main(int argc, char *const *argv)
     fs.fs_expectedsize = -1;
     change_to_dir = file_to_get = hostname = 0;
 
-#define OPT_STRING	"Aabc:D:f:h:HIlLmMnNo:pPqRrS:stT:vV:"
+#define OPT_STRING	"Aabc:D:Ff:h:HIlLmMnNo:pPqRrS:stT:vV:"
     while ((c = getopt(argc, argv, OPT_STRING)) != -1) {
 	    switch (c) {
 	    case 'A':
@@ -86,6 +86,10 @@ main(int argc, char *const *argv)
 	    case 'D': case 'H': case 'I': case 'L': case 'N': case 'V': 
 		    break;	/* ncftp compatibility */
 	    
+	    case 'F':
+		    fs.fs_forcerestart = 1;
+		    break;
+
 	    case 'a':
 		    fs.fs_auto_retry = 1;
 		    break;

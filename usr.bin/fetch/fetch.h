@@ -53,6 +53,7 @@ struct fetch_state {
 	int fs_use_connect;	/* -t option */
 	off_t fs_expectedsize;	/* -S option */
 	int fs_reportsize;	/* -s option */
+	int fs_forcerestart;	/* -F option */
 	time_t fs_modtime;
 	void *fs_proto;
 	int (*fs_retrieve)(struct fetch_state *);
