@@ -34,7 +34,6 @@ ia64/ia64/elf_machdep.c	standard
 ia64/ia64/exception.s		standard
 ia64/ia64/in_cksum.c		optional	inet
 ia64/ia64/interrupt.c		standard
-ia64/ia64/ipl_funcs.c		standard
 # locore.s needs to be handled in Makefile to put it first.  Otherwise it's
 # now normal.
 # ia64/ia64/locore.s		standard
