@@ -315,7 +315,7 @@ g_waitfor_event(g_event_t *func, void *arg, int flag, ...)
 	struct g_event *ep;
 	int error;
 
-	/* g_topology_assert_not(); */
+	g_topology_assert_not();
 	KASSERT(flag == M_WAITOK || flag == M_NOWAIT,
 	    ("Wrong flag to g_post_event"));
 	va_start(ap, flag);
