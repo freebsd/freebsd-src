@@ -63,7 +63,7 @@ structure contains the following members:
 .It Va f_namemax
 The maximum length in bytes of a file name on this file system.
 Applications should use
-.Xr pathconf 3
+.Xr pathconf 2
 instead.
 .It Va f_fsid
 Not meaningful in this implementation.
@@ -141,9 +141,9 @@ functions may fail for any of the reasons documented for
 or
 .Xr fstatfs 2
 and
-.Xr pathconf 3
+.Xr pathconf 2
 or
-.Xr fpathconf 3 ,
+.Xr fpathconf 2 ,
 respectively.
 In addition,
 .Fn statvfs
@@ -157,8 +157,8 @@ represented by the data types used in
 .Vt "struct statvfs" .
 .El
 .Sh SEE ALSO
-.Xr statfs 2 ,
-.Xr pathconf 3
+.Xr pathconf 2 ,
+.Xr statfs 2
 .Sh STANDARDS
 The
 .Fn statvfs

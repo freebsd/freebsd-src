@@ -122,7 +122,7 @@ The
 function waits for the associated process to terminate
 and returns the exit status of the command
 as returned by
-.Fn wait4 .
+.Xr wait4 2 .
 .Sh RETURN VALUES
 The
 .Fn popen
@@ -147,7 +147,7 @@ command, if
 already
 .Dq pclosed ,
 or if
-.Xr wait4
+.Xr wait4 2
 returns an error.
 .Sh ERRORS
 The
