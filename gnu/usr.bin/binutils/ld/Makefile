@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.4 1998/05/11 09:33:55 jb Exp $
+# $Id: Makefile,v 1.5 1998/06/03 18:00:49 peter Exp $
 #
 
 .include "../Makefile.inc0"
@@ -8,7 +8,7 @@
 
 PROG=		ld
 SCRIPTDIR=	/usr/libdata/ldscripts
-SRCS+=		ldcref.c ldctor.c ldemul.c ldexp.c ldfile.c \
+SRCS+=		ldcref.c ldctor.c ldemul.c ldemul-list.h ldexp.c ldfile.c \
 		ldgram.y ldlang.c ldlex.l ldmain.c ldmisc.c \
 		ldver.c ldwrite.c lexsup.c mri.c
 CFLAGS+=	-DSCRIPTDIR=\"${DESTDIR}/usr/libdata\"
@@ -18,8 +18,7 @@ LDADD+=		-L${RELTOP}/libiberty -liberty
 DPADD+=		${RELTOP}/libbfd/libbfd.a
 DPADD+=		${RELTOP}/libiberty/libiberty.a
 CLEANDIRS+=	ldscripts
-
-beforedepend: ldemul-list.h ldgram.h
+CLEANFILES+=	ldemul-list.h
 
 EMXFR=
 EMLST=
