@@ -26,7 +26,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)yp.8	1.0 (deraadt) 4/26/93
-.\"	$Id: yp.4,v 1.11 1997/02/22 13:24:55 peter Exp $
+.\"	$Id: yp.4,v 1.7.2.1 1997/02/28 03:26:41 mpp Exp $
 .\"
 .Dd April 5, 1993
 .Dt YP 4
@@ -294,10 +294,14 @@ users. All other requests are denied: requests from non-privileged
 ports will receive only an error code from the server. Additionally,
 FreeBSD's
 .Xr ypserv 8
-includes support for Wietse Venema's tcp wrapper package; with tcp
-wrapper support enabled, the administrator can configure
+includes
+.Pa securenets
+support, which allows the administrator to restrict access to
+the serever to only trusted hosts or networks. (Note that is is also
+possible to recompile
 .Xr ypserv 8
-to respond only to selected client machines. 
+with support for Wietse Venema's tcp wrapper package instead of
+securenets.)
 .Pp
 While these enhancements provide better security than stock NIS,
 they are by no means 100% effective. It is still possible for
@@ -326,19 +330,39 @@ a host that doesn't exist in its
 or
 .Pa hosts.byaddr
 maps. FreeBSD's resolver uses DNS by default (it can be made to use
-NIS, if desired), therefore its NIS server doesn't do DNS lookups
+NIS, if desired), therefore its NIS server doesn't need to do DNS lookups
 by default. However,
 .Xr ypserv 8
-can be made to perform DNS lookups if it is started with a special
-flag. It can also be made to register itself as an NIS v1 server
-in order to placate certain systems that insist on the presence of
-a v1 server (FreeBSD uses only NIS v2, but many other systems,
-including SunOS 4.x, search for both a v1 and v2 server when binding).
-FreeBSD's
+can be made to perform DNS lookups using one of two methods. The first
+is to start the server with the
+.Fl d
+flag, which forces DNS lookups for all hosts.by* maps for all domains
+supported by the server. The second is to build the maps using the
+.Fl b
+flag with
+.Xr yp_mkdb 8 .
+This option causes
+.Xr yp_mkdb 8
+to add the YP_INTERDOMAIN entry to the map; when
 .Xr ypserv 8
-does not actually handle NIS v1 requests, but this ``kludge mode''
-is useful for silencing stubborn systems that search for both
-a v1 and v2 server.
+sees this, it will perform DNS lookups as needed just for this particular
+map. This provides the ability to allow DNS searches for some domains but
+not others. The YP_INTERDOMAIN tag only has meaning for the hosts.by*
+maps: while you can add it to other maps, it will have no effect.
+.Pp
+The FreeBSD
+.Xr ypserv 8
+also has support for handling NIS v1 clients. This is provided mainly
+to pacify the
+.Xr ypbind 8
+program supplied with Sun-derived NIS implementations which, in many
+cases, insist on establishing bindings for both NIS v1 and v2. The
+FreeBSD
+.Xr ypserv 8
+supports all NIS v1 procedures except those involved with transfering
+maps between master and slave servers. Consequently, while it can serve
+NIS v1 clients, it can not be used as an NIS v1 master or slave server
+in conjunction with NIS v1 servers from other vendors.
 .Pp
 (Please see the
 .Xr ypserv 8
@@ -354,16 +378,21 @@ function. Both of these require secure RPC, which FreeBSD doesn't
 support yet either.
 .Pp
 The
-.Xr getservent 3
-and
 .Xr getprotoent 3
-functions do not yet have NIS support. Fortunately, these files
-don't need to be updated that often.
+functions do not yet have NIS support. Fortunately, this file
+doesn't need to be updated that often.
 .Pp
 Many more manual pages should be written, especially
 .Xr ypclnt 3 .
 For the time being, seek out a local Sun machine and read the
 manuals for there.
+.Pp
+While FreeBSD has an
+.Xr rpc.ypxfrd 8
+server, it is based on a 'proprietary' RPC protocol and is not
+compatible with the ypxfrd server from SunOS. This is because Sun's
+ypxfrd protocol is not freely available. (Note that the Linux rpc.ypxfrd
+is based on the FreeBSD protocol.)
 .Pp
 Neither Sun nor this author have found a clean way to handle
 the problems that occur when ypbind cannot find its server
@@ -371,9 +400,11 @@ upon bootup.
 .Sh HISTORY
 The
 .Nm YP
-subsystem was written from the ground up by Theo de Raadt
+client side subsystem was written from the ground up by Theo de Raadt
 to be compatible to Sun's implementation. Bug fixes, improvements
-and NIS server support were later added by Bill Paul. The server-side
-code was originally written by Peter Eriksson and Tobias Reber and
-is subject to the GNU Public License. No Sun code was
-referenced.
+and various tweaks too numerous to mention here were later added by
+Bill Paul. The server side subsystem was written from the ground up
+by Bill Paul (wpaul@ctr.columbia.edu) to also be compatible with Sun's
+implementation (except for rpc.ypxfrd, which is deliberately incompatible
+due to the fact that Sun's ypxfrd protocol is proprietary). No Sun code
+was referenced.
