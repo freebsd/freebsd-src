@@ -1291,9 +1291,27 @@ dontblock:
 				moff += len;
 			else {
 				if (mp != NULL) {
-					SOCKBUF_UNLOCK(&so->so_rcv);
-					*mp = m_copym(m, 0, len, M_TRYWAIT);
-					SOCKBUF_LOCK(&so->so_rcv);
+					int copy_flag;
+
+					if (flags & MSG_DONTWAIT)
+						copy_flag = M_DONTWAIT;
+					else
+						copy_flag = M_TRYWAIT;
+					if (copy_flag == M_TRYWAIT)
+						SOCKBUF_UNLOCK(&so->so_rcv);
+					*mp = m_copym(m, 0, len, copy_flag);
+					if (copy_flag == M_TRYWAIT)
+						SOCKBUF_LOCK(&so->so_rcv);
+ 					if (*mp == NULL) {
+ 						/*
+ 						 * m_copym() couldn't allocate an mbuf. 
+						 * Adjust uio_resid back (it was adjusted 
+						 * down by len bytes, which we didn't end 
+						 * up "copying" over).
+ 						 */
+ 						uio->uio_resid += len;
+ 						break;
+ 					}
 				}
 				m->m_data += len;
 				m->m_len -= len;
