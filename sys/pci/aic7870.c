@@ -36,16 +36,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7870.c,v 1.52 1997/03/16 07:12:36 gibbs Exp $
+ *	$Id: aic7870.c,v 1.53 1997/06/27 19:39:34 gibbs Exp $
  */
 
 #if defined(__FreeBSD__)
-#include <pci.h>
+#include "pci.h"
 #endif
 #if NPCI > 0 || defined(__NetBSD__)
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/queue.h>
 #if defined(__NetBSD__)
@@ -54,7 +53,6 @@
 #include <machine/intr.h>
 #endif /* defined(__NetBSD__) */
 
-#include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
 
 #if defined(__FreeBSD__)
@@ -67,7 +65,7 @@
 #include <i386/scsi/aic7xxx.h>
 #include <i386/scsi/93cx6.h>
 
-#include <aic7xxx_reg.h>
+#include "aic7xxx_reg.h"
 
 #define PCI_BASEADR0	PCI_MAP_REG_START	/* I/O Address */
 #define PCI_BASEADR1	PCI_MAP_REG_START + 4	/* Mem I/O Address */
