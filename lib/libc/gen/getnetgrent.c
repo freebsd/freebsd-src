@@ -41,8 +41,8 @@ static char sccsid[] = "@(#)getnetgrent.c	8.2 (Berkeley) 4/27/95";
 __FBSDID("$FreeBSD$");
 
 #include <stdio.h>
-#include <strings.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #ifdef YP
