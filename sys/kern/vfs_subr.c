@@ -524,6 +524,7 @@ getnewvnode(tag, mp, vops, vpp)
 
 	if (vp) {
 		vp->v_flag |= VDOOMED;
+		vp->v_flag &= ~VFREE;
 		TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
 		freevnodes--;
 		simple_unlock(&vnode_free_list_slock);
