@@ -207,6 +207,7 @@ struct bios_args {
 /*
  * PCI BIOS functions
  */
+#define PCIBIOS_BIOS_PRESENT		0xb101
 #define PCIBIOS_READ_CONFIG_BYTE	0xb108
 #define PCIBIOS_READ_CONFIG_WORD	0xb109
 #define PCIBIOS_READ_CONFIG_DWORD	0xb10a
