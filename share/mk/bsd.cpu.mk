@@ -28,8 +28,8 @@ CPUTYPE = ultrasparc
 CPUTYPE = i686
 .  elif ${CPUTYPE} == "pentium"
 CPUTYPE = i586
-.  elif ${CPUTYPE} == "athlon"
-CPUTYPE = k7
+.  elif ${CPUTYPE} == "k7"
+CPUTYPE = athlon
 .  endif
 . endif
 
@@ -42,20 +42,30 @@ CPUTYPE = k7
 #	http://gcc.gnu.org/onlinedocs/gcc/RS-6000-and-PowerPC-Options.html
 
 . if ${MACHINE_ARCH} == "i386"
-.  if ${CPUTYPE} == "k7"
+.  if ${CPUTYPE} == "athlon-mp"
+_CPUCFLAGS = -march=athlon-mp
+.  elif ${CPUTYPE} == "athlon-xp"
+_CPUCFLAGS = -march=athlon-xp
+.  elif ${CPUTYPE} == "athlon-4"
+_CPUCFLAGS = -march=athlon-4
+.  elif ${CPUTYPE} == "athlon-tbird"
+_CPUCFLAGS = -march=athlon-tbird
+.  elif ${CPUTYPE} == "athlon"
 _CPUCFLAGS = -march=athlon
+.  elif ${CPUTYPE} == "k6-3"
+_CPUCFLAGS = -march=k6-3
 .  elif ${CPUTYPE} == "k6-2"
-_CPUCFLAGS = -march=k6
+_CPUCFLAGS = -march=k6-2
 .  elif ${CPUTYPE} == "k6"
 _CPUCFLAGS = -march=k6
 .  elif ${CPUTYPE} == "k5"
 _CPUCFLAGS = -march=pentium
 .  elif ${CPUTYPE} == "p4"
-_CPUCFLAGS = -march=pentiumpro
+_CPUCFLAGS = -march=pentium4
 .  elif ${CPUTYPE} == "p3"
-_CPUCFLAGS = -march=pentiumpro
+_CPUCFLAGS = -march=pentium3
 .  elif ${CPUTYPE} == "p2"
-_CPUCFLAGS = -march=pentiumpro
+_CPUCFLAGS = -march=pentium2
 .  elif ${CPUTYPE} == "i686"
 _CPUCFLAGS = -march=pentiumpro
 .  elif ${CPUTYPE} == "i586/mmx"
@@ -93,8 +103,18 @@ CFLAGS += ${_CPUCFLAGS}
 # presence of a CPU feature.
 
 .if ${MACHINE_ARCH} == "i386"
-. if ${CPUTYPE} == "k7"
+. if ${CPUTYPE} == "athlon-mp"
+MACHINE_CPU = sse k7 3dnow mmx k6 k5 i586 i486 i386
+. elif ${CPUTYPE} == "athlon-xp"
+MACHINE_CPU = sse k7 3dnow mmx k6 k5 i586 i486 i386
+. elif ${CPUTYPE} == "athlon-4"
+MACHINE_CPU = sse k7 3dnow mmx k6 k5 i586 i486 i386
+. elif ${CPUTYPE} == "athlon-tbird"
 MACHINE_CPU = k7 3dnow mmx k6 k5 i586 i486 i386
+. elif ${CPUTYPE} == "athlon"
+MACHINE_CPU = k7 3dnow mmx k6 k5 i586 i486 i386
+. elif ${CPUTYPE} == "k6-3"
+MACHINE_CPU = 3dnow mmx k6 k5 i586 i486 i386
 . elif ${CPUTYPE} == "k6-2"
 MACHINE_CPU = 3dnow mmx k6 k5 i586 i486 i386
 . elif ${CPUTYPE} == "k6"
@@ -102,7 +122,7 @@ MACHINE_CPU = mmx k6 k5 i586 i486 i386
 . elif ${CPUTYPE} == "k5"
 MACHINE_CPU = k5 i586 i486 i386
 . elif ${CPUTYPE} == "p4"
-MACHINE_CPU = sse i686 mmx i586 i486 i386
+MACHINE_CPU = sse2 sse i686 mmx i586 i486 i386
 . elif ${CPUTYPE} == "p3"
 MACHINE_CPU = sse i686 mmx i586 i486 i386
 . elif ${CPUTYPE} == "p2"
