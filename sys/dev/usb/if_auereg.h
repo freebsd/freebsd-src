@@ -251,6 +251,7 @@ struct aue_softc {
 	struct callout_handle	aue_stat_ch;
 	struct mtx		aue_mtx;
 	char			aue_dying;
+	struct timeval		aue_rx_notice;
 };
 
 #if 0
