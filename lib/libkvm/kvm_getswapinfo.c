@@ -99,9 +99,6 @@ kvm_getswapinfo(
 	int flags
 ) {
 	int rv;
-#ifdef DEBUG_SWAPINFO
-	int i;
-#endif
 
 	/*
 	 * clear cache
@@ -115,32 +112,7 @@ kvm_getswapinfo(
 
 	/* This is only called when the tree shall be dumped. It needs kvm. */
 	if (flags & SWIF_DUMP_TREE) {
-#ifdef DEBUG_SWAPINFO
-		/* 
-		 * sanity check: Sizes must be equal - used field must be
-		 * 0 after this. Fill it with total-used before, where
-		 * getswapinfo_radix will subtrat total-used.
-		 * This will of course only work if there is no swap activity
-		 * while we are working, so this code is normally not active.
-		 */
-		for (i = 0; i < unswdev; i++) {
-			swap_ary[i].ksw_used =  swap_ary[i].ksw_total - 
-			    swap_ary[i].ksw_used;
-		}
-#endif
 		getswapinfo_radix(kd, swap_ary, swap_max, flags);
-#ifdef DEBUG_SWAPINFO
-		for (i = 0; i < unswdev; i++) {
-			if (swap_ary[i].ksw_used != 0) {
-				fprintf(stderr, "kvm_getswapinfo: swap size "
-				    "mismatch (%d blocks)!\n", 
-				    swap_ary[i].ksw_used
-				);
-			}
-		}
-		/* This is fast enough now, so just do it again. */
-		rv = kvm_getswapinfo2(kd, swap_ary, swap_max, flags);
-#endif
 	}
 
 	return rv;
@@ -249,9 +221,6 @@ scanradix(
 	int flags
 ) {
 	blmeta_t meta;
-#ifdef DEBUG_SWAPINFO
-	int ti = (unswdev >= swap_max) ? swap_max - 1 : unswdev;
-#endif
 
 	KGET2(scan, &meta, sizeof(meta), "blmeta_t");
 
@@ -273,9 +242,6 @@ scanradix(
 		/*
 		 * Leaf bitmap
 		 */
-#ifdef DEBUG_SWAPINFO
-		int i;
-#endif
 
 		if (flags & SWIF_DUMP_TREE) {
 			printf("%*.*s(0x%06x,%d) Bitmap %08x big=%d\n", 
@@ -287,28 +253,6 @@ scanradix(
 			);
 		}
 
-#ifdef DEBUG_SWAPINFO
-		/*
-		 * If not all allocated, count.
-		 */
-		if (meta.u.bmu_bitmap != 0) {
-			for (i = 0; i < BLIST_BMAP_RADIX && i < count; ++i) {
-				/*
-				 * A 0 bit means allocated
-				 */
-				if ((meta.u.bmu_bitmap & (1 << i))) {
-					int t = 0;
-
-					if (nswdev)
-						t = (blk + i) / dmmax % nswdev;
-					if (t < ti)
-						--swap_ary[t].ksw_used;
-					if (ti >= 0)
-						--swap_ary[ti].ksw_used;
-				}
-			}
-		}
-#endif
 	} else if (meta.u.bmu_avail == radix) {
 		/*
 		 * Meta node if all free
@@ -320,29 +264,6 @@ scanradix(
 			    radix
 			);
 		}
-#ifdef DEBUG_SWAPINFO
-		/*
-		 * Note: both dmmax and radix are powers of 2.  However, dmmax
-		 * may be larger then radix so use a smaller increment if
-		 * necessary.
-		 */
-		{
-			int t;
-			int tinc = dmmax;
-
-			while (tinc > radix)
-				tinc >>= 1;
-
-			for (t = blk; t < blk + radix; t += tinc) {
-				int u = (nswdev) ? (t / dmmax % nswdev) : 0;
-
-				if (u < ti)
-					swap_ary[u].ksw_used -= tinc;
-				if (ti >= 0)
-					swap_ary[ti].ksw_used -= tinc;
-			}
-		}
-#endif
 	} else if (meta.u.bmu_avail == 0) {
 		/*
 		 * Meta node if all used
