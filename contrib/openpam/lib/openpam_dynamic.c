@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_dynamic.c#3 $
+ * $P4: //depot/projects/openpam/lib/openpam_dynamic.c#4 $
  */
 
 #include <dlfcn.h>
@@ -64,8 +64,10 @@ openpam_dynamic(const char *path)
 	if (asprintf(&vpath, "%s.%d", path, LIB_MAJ) == -1)
 		goto buf_err;
 	if ((dlh = dlopen(vpath, RTLD_NOW)) == NULL) {
+		openpam_log(PAM_LOG_DEBUG, "%s: %s", vpath, dlerror());
 		*strrchr(vpath, '.') = '\0';
 		if ((dlh = dlopen(vpath, RTLD_NOW)) == NULL) {
+			openpam_log(PAM_LOG_DEBUG, "%s: %s", vpath, dlerror());
 			free(module);
 			return (NULL);
 		}
@@ -74,8 +76,12 @@ openpam_dynamic(const char *path)
 	if ((module->path = strdup(path)) == NULL)
 		goto buf_err;
 	module->dlh = dlh;
-	for (i = 0; i < PAM_NUM_PRIMITIVES; ++i)
+	for (i = 0; i < PAM_NUM_PRIMITIVES; ++i) {
 		module->func[i] = dlsym(dlh, _pam_sm_func_name[i]);
+		if (module->func[i] == NULL)
+			openpam_log(PAM_LOG_DEBUG, "%s: %s(): %s",
+			    vpath, _pam_sm_func_name[i], dlerror());
+	}
 	return (module);
  buf_err:
 	openpam_log(PAM_LOG_ERROR, "%m");
