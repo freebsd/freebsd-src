@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.45 1998/11/15 15:25:56 bde Exp $
+ * $Id: kernel.h,v 1.46 1998/12/03 23:02:03 jb Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -91,15 +91,17 @@ extern long timedelta;
  */
 
 #ifdef __alpha__
-#define MAKE_SET(set, sym)			\
-	__asm(".align 3");			\
-	__asm(".section .set." #set ",\"aw\"");	\
-	__asm(".quad " #sym);			\
+#define MAKE_SET(set, sym)						\
+	static void const * const __set_##set##_sym_##sym = &sym;	\
+	__asm(".align 3");						\
+	__asm(".section .set." #set ",\"aw\"");				\
+	__asm(".quad " #sym);						\
 	__asm(".previous")
 #else
-#define MAKE_SET(set, sym)			\
-	__asm(".section .set." #set ",\"aw\"");	\
-	__asm(".long " #sym);			\
+#define MAKE_SET(set, sym)						\
+	static void const * const __set_##set##_sym_##sym = &sym;	\
+	__asm(".section .set." #set ",\"aw\"");				\
+	__asm(".long " #sym);						\
 	__asm(".previous")
 #endif
 #define TEXT_SET(set, sym) MAKE_SET(set, sym)
