@@ -444,9 +444,11 @@ main(int argc, char *argv[])
 			break;
 		case 'e':
 			enable = is_true(optarg);
+			all_info = 0;
 			break;
 		case 'h':
 			haltcpu = is_true(optarg);
+			all_info = 0;
 			break;
 		case 't':
 			batt_time = 1;
