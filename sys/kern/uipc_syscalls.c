@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.23 1997/03/23 03:36:32 bde Exp $
+ * $Id: uipc_syscalls.c,v 1.24 1997/03/31 12:30:01 davidg Exp $
  */
 
 #include "opt_ktrace.h"
@@ -1063,60 +1063,6 @@ getsockopt(p, uap, retval)
 	return (error);
 }
 
-#ifdef OLD_PIPE
-/* ARGSUSED */
-int
-pipe(p, uap, retval)
-	struct proc *p;
-	struct pipe_args /* {
-		int	dummy;
-	} */ *uap;
-	int retval[];
-{
-	register struct filedesc *fdp = p->p_fd;
-	struct file *rf, *wf;
-	struct socket *rso, *wso;
-	int fd, error;
-
-	error = socreate(AF_UNIX, &rso, SOCK_STREAM, 0, p);
-	if (error)
-		return (error);
-	error = socreate(AF_UNIX, &wso, SOCK_STREAM, 0, p);
-	if (error)
-		goto free1;
-	error = falloc(p, &rf, &fd);
-	if (error)
-		goto free2;
-	retval[0] = fd;
-	rf->f_flag = FREAD | FWRITE;
-	rf->f_type = DTYPE_SOCKET;
-	rf->f_ops = &socketops;
-	rf->f_data = (caddr_t)rso;
-	error = falloc(p, &wf, &fd);
-	if (error)
-		goto free3;
-	wf->f_flag = FREAD | FWRITE;
-	wf->f_type = DTYPE_SOCKET;
-	wf->f_ops = &socketops;
-	wf->f_data = (caddr_t)wso;
-	retval[1] = fd;
-	error = unp_connect2(wso, rso);
-	if (error)
-		goto free4;
-	return (0);
-free4:
-	ffree(wf);
-	fdp->fd_ofiles[retval[1]] = 0;
-free3:
-	ffree(rf);
-	fdp->fd_ofiles[retval[0]] = 0;
-free2:
-	(void)soclose(wso);
-free1:
-	(void)soclose(rso);
-	return (error);
-}
-#endif
 /*
  * Get socket name.
  */
