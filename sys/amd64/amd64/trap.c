@@ -39,7 +39,7 @@
  */
 
 /*
- * 386 Trap and System call handleing
+ * 386 Trap and System call handling
  */
 
 #include <sys/param.h>
