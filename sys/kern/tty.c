@@ -2403,7 +2403,6 @@ ttymalloc(tp)
 		return(tp);
         tp = malloc(sizeof *tp, M_TTYS, M_WAITOK);
         bzero(tp, sizeof *tp);
-	tp->t_timeout = -1;
 	ttyregister(tp);
         return (tp);
 }
@@ -2425,6 +2424,7 @@ void
 ttyregister(tp)
 	struct tty *tp;
 {
+	tp->t_timeout = -1;
 	SLIST_INSERT_HEAD(&tty_list, tp, t_list);
 }
 
