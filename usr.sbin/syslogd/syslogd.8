@@ -51,6 +51,7 @@ The
 .Nm
 daemon reads and logs messages to the system console, log files, other
 machines and/or users as specified by its configuration file.
+.Pp
 The options are as follows:
 .Bl -tag -width indent
 .It Fl a Ar allowed_peer
@@ -121,7 +122,7 @@ the default is
 .Pa /var/run/log .
 .It Fl l
 Specify a location where
-.Nm syslogd
+.Nm
 should place an additional log socket.
 Up to 19 additional logging sockets can be specified.
 The primary use for this is to place additional log sockets in
