@@ -225,8 +225,8 @@ You can ftp FreeBSD and any or all of its optional packages from
 For other locations that mirror the FreeBSD software see the file
 MIRROR.SITES.  Please ftp the distribution from the site closest (in
 networking terms) to you.  Additional mirror sites are always welcome!
-Contact admin@freebsd.org for more details if you'd like to become an
-official mirror site.
+Contact freebsd-admin@FreeBSD.org for more details if you'd like to 
+become an official mirror site.
 
 If you do not have access to the Internet and electronic mail is your
 only recourse, then you may still fetch the files by sending mail to
