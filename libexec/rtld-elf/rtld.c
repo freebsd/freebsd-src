@@ -1,5 +1,6 @@
 /*-
  * Copyright 1996, 1997, 1998, 1999, 2000 John D. Polstra.
+ * Copyright 2003 Alexander Kabaev <kan@FreeBSD.ORG>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -57,6 +58,7 @@
 
 /* Types. */
 typedef void (*func_ptr_type)();
+typedef void * (*path_enum_proc) (const char *path, size_t len, void *arg);
 
 /*
  * This structure provides a reentrant way to keep a list of objects and
@@ -76,9 +78,11 @@ static void die(void);
 static void digest_dynamic(Obj_Entry *, int);
 static Obj_Entry *digest_phdr(const Elf_Phdr *, int, caddr_t, const char *);
 static Obj_Entry *dlcheck(void *);
+static int do_search_info(const Obj_Entry *obj, int, struct dl_serinfo *);
 static bool donelist_check(DoneList *, const Obj_Entry *);
 static void errmsg_restore(char *);
 static char *errmsg_save(void);
+static void *fill_search_info(const char *, size_t, void *);
 static char *find_library(const char *, const Obj_Entry *);
 static const char *gethints(void);
 static void init_dag(Obj_Entry *);
@@ -104,7 +108,9 @@ static void objlist_push_head(Objlist *, Obj_Entry *);
 static void objlist_push_tail(Objlist *, Obj_Entry *);
 static void objlist_remove(Objlist *, Obj_Entry *);
 static void objlist_remove_unref(Objlist *);
+static void *path_enumerate(const char *, path_enum_proc, void *);
 static int relocate_objects(Obj_Entry *, bool, Obj_Entry *);
+static int rtld_dirname(const char *, char *);
 static void rtld_exit(void);
 static char *search_library_path(const char *, const char *);
 static const void **get_program_var_addr(const char *name);
@@ -123,7 +129,7 @@ void r_debug_state(struct r_debug*, struct link_map*);
  * Data declarations.
  */
 static char *error_message;	/* Message for dlerror(), or NULL */
-struct r_debug r_debug;	/* for GDB; */
+struct r_debug r_debug;		/* for GDB; */
 static bool trust;		/* False for setuid and setgid programs */
 static char *ld_bind_now;	/* Environment variable for immediate binding */
 static char *ld_debug;		/* Environment variable for debugging */
@@ -166,6 +172,7 @@ static func_ptr_type exports[] = {
     (func_ptr_type) &dlsym,
     (func_ptr_type) &dladdr,
     (func_ptr_type) &dllockinit,
+    (func_ptr_type) &dlinfo,
     NULL
 };
 
@@ -1193,7 +1200,7 @@ load_object(char *path)
 	*obj_tail = obj;
 	obj_tail = &obj->next;
 	obj_count++;
-	linkmap_add(obj);	/* for GDB */
+	linkmap_add(obj);	/* for GDB & dlinfo() */
 
 	dbg("  %p .. %p: %s", obj->mapbase,
 	  obj->mapbase + obj->mapsize - 1, obj->path);
@@ -1462,40 +1469,83 @@ rtld_exit(void)
     /* No need to remove the items from the list, since we are exiting. */
 }
 
+static void *
+path_enumerate(const char *path, path_enum_proc callback, void *arg)
+{
+    if (path == NULL)
+	return (NULL);
+
+    path += strspn(path, ":;");
+    while (*path != '\0') {
+	size_t len;
+	char  *res;
+
+	len = strcspn(path, ":;");
+	res = callback(path, len, arg);
+
+	if (res != NULL)
+	    return (res);
+
+	path += len;
+	path += strspn(path, ":;");
+    }
+
+    return (NULL);
+}
+
+struct try_library_args {
+    const char	*name;
+    size_t	 namelen;
+    char	*buffer;
+    size_t	 buflen;
+};
+
+static void *
+try_library_path(const char *dir, size_t dirlen, void *param)
+{
+    struct try_library_args *arg;
+
+    arg = param;
+    if (*dir == '/' || trust) {
+	char *pathname;
+
+	if (dirlen + 1 + arg->namelen + 1 > arg->buflen)
+		return (NULL);
+
+	pathname = arg->buffer;
+	strncpy(pathname, dir, dirlen);
+	pathname[dirlen] = '/';
+	strcpy(pathname + dirlen + 1, arg->name);
+
+	dbg("  Trying \"%s\"", pathname);
+	if (access(pathname, F_OK) == 0) {		/* We found it */
+	    pathname = xmalloc(dirlen + 1 + arg->namelen + 1);
+	    strcpy(pathname, arg->buffer);
+	    return (pathname);
+	}
+    }
+    return (NULL);
+}
+
 static char *
 search_library_path(const char *name, const char *path)
 {
-    size_t namelen = strlen(name);
-    const char *p = path;
+    char *p;
+    struct try_library_args arg;
 
-    if (p == NULL)
+    if (path == NULL)
 	return NULL;
 
-    p += strspn(p, ":;");
-    while (*p != '\0') {
-	size_t len = strcspn(p, ":;");
+    arg.name = name;
+    arg.namelen = strlen(name);
+    arg.buffer = xmalloc(PATH_MAX);
+    arg.buflen = PATH_MAX;
 
-	if (*p == '/' || trust) {
-	    char *pathname;
-	    const char *dir = p;
-	    size_t dirlen = len;
+    p = path_enumerate(path, try_library_path, &arg);
 
-	    pathname = xmalloc(dirlen + 1 + namelen + 1);
-	    strncpy(pathname, dir, dirlen);
-	    pathname[dirlen] = '/';
-	    strcpy(pathname + dirlen + 1, name);
+    free(arg.buffer);
 
-	    dbg("  Trying \"%s\"", pathname);
-	    if (access(pathname, F_OK) == 0)		/* We found it */
-		return pathname;
-
-	    free(pathname);
-	}
-	p += len;
-	p += strspn(p, ":;");
-    }
-
-    return NULL;
+    return (p);
 }
 
 int
@@ -1647,7 +1697,8 @@ dlsym(void *handle, const char *name)
     defobj = NULL;
 
     rlock_acquire();
-    if (handle == NULL || handle == RTLD_NEXT || handle == RTLD_DEFAULT) {
+    if (handle == NULL || handle == RTLD_NEXT ||
+	handle == RTLD_DEFAULT || handle == RTLD_SELF) {
 	void *retaddr;
 
 	retaddr = __builtin_return_address(0);	/* __GNUC__ only */
@@ -1659,8 +1710,11 @@ dlsym(void *handle, const char *name)
 	if (handle == NULL) {	/* Just the caller's shared object. */
 	    def = symlook_obj(name, hash, obj, true);
 	    defobj = obj;
-	} else if (handle == RTLD_NEXT) {	/* Objects after caller's */
-	    while ((obj = obj->next) != NULL) {
+	} else if (handle == RTLD_NEXT || /* Objects after caller's */
+		   handle == RTLD_SELF) { /* ... caller included */
+	    if (handle == RTLD_NEXT)
+		obj = obj->next;
+	    for (; obj != NULL; obj = obj->next) {
 		if ((def = symlook_obj(name, hash, obj, true)) != NULL) {
 		    defobj = obj;
 		    break;
@@ -1722,7 +1776,7 @@ dladdr(const void *addr, Dl_info *info)
     const Elf_Sym *def;
     void *symbol_addr;
     unsigned long symoffset;
-    
+ 
     rlock_acquire();
     obj = obj_from_addr(addr);
     if (obj == NULL) {
@@ -1770,6 +1824,182 @@ dladdr(const void *addr, Dl_info *info)
     return 1;
 }
 
+int
+dlinfo(void *handle, int request, void *p)
+{
+    const Obj_Entry *obj;
+    int error;
+
+    rlock_acquire();
+
+    if (handle == NULL || handle == RTLD_SELF) {
+	void *retaddr;
+
+	retaddr = __builtin_return_address(0);	/* __GNUC__ only */
+	if ((obj = obj_from_addr(retaddr)) == NULL)
+	    _rtld_error("Cannot determine caller's shared object");
+    } else
+	obj = dlcheck(handle);
+
+    if (obj == NULL) {
+	rlock_release();
+	return (-1);
+    }
+
+    error = 0;
+    switch (request) {
+    case RTLD_DI_LINKMAP:
+	*((struct link_map const **)p) = &obj->linkmap;
+	break;
+    case RTLD_DI_ORIGIN:
+	error = rtld_dirname(obj->path, p);
+	break;
+
+    case RTLD_DI_SERINFOSIZE:
+    case RTLD_DI_SERINFO:
+	error = do_search_info(obj, request, (struct dl_serinfo *)p);
+	break;
+
+    default:
+	_rtld_error("Invalid request %d passed to dlinfo()", request);
+	error = -1;
+    }
+
+    rlock_release();
+
+    return (error);
+}
+
+struct fill_search_info_args {
+    int		 request;
+    unsigned int flags;
+    Dl_serinfo  *serinfo;
+    Dl_serpath  *serpath;
+    char	*strspace;
+};
+
+static void *
+fill_search_info(const char *dir, size_t dirlen, void *param)
+{
+    struct fill_search_info_args *arg;
+
+    arg = param;
+
+    if (arg->request == RTLD_DI_SERINFOSIZE) {
+	arg->serinfo->dls_cnt ++;
+	arg->serinfo->dls_size += dirlen + 1;
+    } else {
+	struct dl_serpath *s_entry;
+
+	s_entry = arg->serpath;
+	s_entry->dls_name  = arg->strspace;
+	s_entry->dls_flags = arg->flags;
+
+	strncpy(arg->strspace, dir, dirlen);
+	arg->strspace[dirlen] = '\0';
+
+	arg->strspace += dirlen + 1;
+	arg->serpath++;
+    }
+
+    return (NULL);
+}
+
+static int
+do_search_info(const Obj_Entry *obj, int request, struct dl_serinfo *info)
+{
+    struct dl_serinfo _info;
+    struct fill_search_info_args args;
+
+    args.request = RTLD_DI_SERINFOSIZE;
+    args.serinfo = &_info;
+
+    _info.dls_size = __offsetof(struct dl_serinfo, dls_serpath);
+    _info.dls_cnt  = 0;
+
+    path_enumerate(ld_library_path, fill_search_info, &args);
+    path_enumerate(obj->rpath, fill_search_info, &args);
+    path_enumerate(gethints(), fill_search_info, &args);
+    path_enumerate(STANDARD_LIBRARY_PATH, fill_search_info, &args);
+
+
+    if (request == RTLD_DI_SERINFOSIZE) {
+	info->dls_size = _info.dls_size;
+	info->dls_cnt = _info.dls_cnt;
+	return (0);
+    }
+
+    if (info->dls_cnt != _info.dls_cnt || info->dls_size != _info.dls_size) {
+	_rtld_error("Uninitialized Dl_serinfo struct passed to dlinfo()");
+	return (-1);
+    }
+
+    args.request  = RTLD_DI_SERINFO;
+    args.serinfo  = info;
+    args.serpath  = &info->dls_serpath[0];
+    args.strspace = (char *)&info->dls_serpath[_info.dls_cnt];
+
+    args.flags = LA_SER_LIBPATH;
+    if (path_enumerate(ld_library_path, fill_search_info, &args) != NULL)
+	return (-1);
+
+    args.flags = LA_SER_RUNPATH;
+    if (path_enumerate(obj->rpath, fill_search_info, &args) != NULL)
+	return (-1);
+
+    args.flags = LA_SER_CONFIG;
+    if (path_enumerate(gethints(), fill_search_info, &args) != NULL)
+	return (-1);
+
+    args.flags = LA_SER_DEFAULT;
+    if (path_enumerate(STANDARD_LIBRARY_PATH, fill_search_info, &args) != NULL)
+	return (-1);
+    return (0);
+}
+
+static int
+rtld_dirname(const char *path, char *bname)
+{
+    const char *endp;
+
+    /* Empty or NULL string gets treated as "." */
+    if (path == NULL || *path == '\0') {
+	bname[0] = '.';
+	bname[1] = '0';
+	return (0);
+    }
+
+    /* Strip trailing slashes */
+    endp = path + strlen(path) - 1;
+    while (endp > path && *endp == '/')
+	endp--;
+
+    /* Find the start of the dir */
+    while (endp > path && *endp != '/')
+	endp--;
+
+    /* Either the dir is "/" or there are no slashes */
+    if (endp == path) {
+	bname[0] = *endp == '/' ? '/' : '.';
+	bname[1] = '\0';
+	return (0);
+    } else {
+	do {
+	    endp--;
+	} while (endp > path && *endp == '/');
+    }
+
+    if (endp - path + 2 > PATH_MAX)
+    {
+	_rtld_error("Filename is too long: %s", path);
+	return(-1);
+    }
+
+    strncpy(bname, path, endp - path + 1);
+    bname[endp - path + 1] = '\0';
+    return (0);
+}
+
 static void
 linkmap_add(Obj_Entry *obj)
 {
@@ -1788,7 +2018,7 @@ linkmap_add(Obj_Entry *obj)
 	r_debug.r_map = l;
 	return;
     }
-    
+
     /*
      * Scan to the end of the list, but not past the entry for the
      * dynamic linker, which we want to keep at the very end.

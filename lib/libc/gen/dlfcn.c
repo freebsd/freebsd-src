@@ -103,3 +103,11 @@ dlsym(void * __restrict handle, const char * __restrict name)
 	_rtld_error(sorry);
 	return NULL;
 }
+
+#pragma weak dlinfo
+int
+dlinfo(void * __restrict handle, int request, void * __restrict p)
+{
+	_rtld_error(sorry);
+	return NULL;
+}
