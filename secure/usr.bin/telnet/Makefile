@@ -1,4 +1,4 @@
-#       $FreeBSD$
+# $FreeBSD$
 
 PROG=		telnet
 
@@ -9,9 +9,9 @@ CFLAGS+=	-DIPSEC -DINET6
 SRCS=		authenc.c commands.c main.c network.c ring.c sys_bsd.c \
 		telnet.c terminal.c tn3270.c utilities.c
 
-DPADD=		${LIBTERMCAP} ${LIBTELNET} ${LIBDES} ${LIBCRYPT} ${LIBMP}
+DPADD=		${LIBTERMCAP} ${LIBTELNET} ${LIBCRYPTO} ${LIBCRYPT} ${LIBMP}
 DPADD+=		${LIBIPSEC}
-LDADD=		-ltermcap -L${TELNETOBJDIR} -ltelnet -ldes -lcrypt -lmp
+LDADD=		-ltermcap -L${TELNETOBJDIR} -ltelnet -lcrypto -lcrypt -lmp
 LDADD+=		-lipsec
 
 .include <bsd.prog.mk>
