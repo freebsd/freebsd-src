@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.50 1999/01/21 08:29:04 dillon Exp $
+ * $Id: uipc_syscalls.c,v 1.51 1999/01/21 09:00:26 dillon Exp $
  */
 
 #include "opt_compat.h"
@@ -1525,37 +1525,47 @@ retry_lookup:
 			goto done;
 		}
 		/*
-		 * Attempt to look up the page. If the page doesn't exist or the
-		 * part we're interested in isn't valid, then read it from disk.
-		 * If some other part of the kernel has this page (i.e. it's busy),
-		 * then disk I/O may be occuring on it, so wait and retry.
+		 * Attempt to look up the page.  
+		 *
+		 *	Allocate if not found
+		 *
+		 *	Wait and loop if busy.
 		 */
 		pg = vm_page_lookup(obj, pindex);
-		if (pg == NULL || (!(pg->flags & PG_BUSY) && !pg->busy &&
-		    !vm_page_is_valid(pg, pgoff, xfsize))) {
+
+		if (pg == NULL) {
+			pg = vm_page_alloc(obj, pindex, VM_ALLOC_NORMAL);
+			if (pg == NULL) {
+				VM_WAIT;
+				goto retry_lookup;
+			}
+			vm_page_wakeup(pg);
+		} else if (vm_page_sleep_busy(pg, TRUE, "sfpbsy")) {
+			goto retry_lookup;
+		}
+
+		/*
+		 * Wire the page so it does not get ripped out from under
+		 * us. 
+		 */
+
+		vm_page_wire(pg);
+
+		/*
+		 * If page is not valid for what we need, initiate I/O
+		 */
+
+		if (!pg->valid || !vm_page_is_valid(pg, pgoff, xfsize)) {
 			struct uio auio;
 			struct iovec aiov;
 			int bsize;
 
-			if (pg == NULL) {
-				pg = vm_page_alloc(obj, pindex, VM_ALLOC_NORMAL);
-				if (pg == NULL) {
-					VM_WAIT;
-					goto retry_lookup;
-				}
-				/*
-				 * don't just clear PG_BUSY manually -
-				 * vm_page_alloc() should be considered opaque,
-				 * use the VM routine provided to clear
-				 * PG_BUSY.
-				 */
-				vm_page_wakeup(pg);
-			}
 			/*
-			 * Ensure that our page is still around when the I/O completes.
+			 * Ensure that our page is still around when the I/O 
+			 * completes.
 			 */
 			vm_page_io_start(pg);
-			vm_page_wire(pg);
+
 			/*
 			 * Get the page from backing store.
 			 */
@@ -1588,20 +1598,13 @@ retry_lookup:
 				sbunlock(&so->so_snd);
 				goto done;
 			}
-		} else {
-			if (vm_page_sleep_busy(pg, TRUE, "sfpbsy"))
-				goto retry_lookup;
-
-			/*
-			 * Protect from having the page ripped out from 
-			 * beneath us.
-			 */
-			vm_page_wire(pg);
 		}
+
 		/*
 		 * Allocate a kernel virtual page and insert the physical page
 		 * into it.
 		 */
+
 		sf = sf_buf_alloc();
 		sf->m = pg;
 		pmap_qenter(sf->kva, &pg, 1);
