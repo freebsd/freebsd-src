@@ -556,3 +556,22 @@ vop_getvobject {
 	IN struct vnode *vp;
 	OUT struct vm_object **objpp;
 };
+
+#
+#% refreshlabel	vp	L L L
+#
+vop_refreshlabel {
+	IN struct vnode *vp;
+	IN struct ucred *cred;
+	IN struct thread *td;
+};
+
+#
+#% setlabel	vp	L L L
+#
+vop_setlabel {
+	IN struct vnode *vp;
+	IN struct label *label;
+	IN struct ucred *cred;
+	IN struct thread *td;
+};
