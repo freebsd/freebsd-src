@@ -367,6 +367,12 @@ struct	linux_msync_args {
 	int	len;	char len_[PAD_(int)];
 	int	fl;	char fl_[PAD_(int)];
 };
+struct	linux_mremap_args {
+	caddr_t	addr;	char addr_[PAD_(caddr_t)];
+	int	old_len;	char old_len_[PAD_(int)];
+	int	new_len;	char new_len_[PAD_(int)];
+	int	flags;	char flags_[PAD_(int)];
+};
 struct	linux_chown_args {
 	char *	path;	char path_[PAD_(char *)];
 	int	uid;	char uid_[PAD_(int)];
@@ -466,6 +472,7 @@ int	linux_llseek __P((struct proc *, struct linux_llseek_args *));
 int	linux_getdents __P((struct proc *, struct linux_getdents_args *));
 int	linux_newselect __P((struct proc *, struct linux_newselect_args *));
 int	linux_msync __P((struct proc *, struct linux_msync_args *));
+int	linux_mremap __P((struct proc *, struct linux_mremap_args *));
 int	linux_chown __P((struct proc *, struct linux_chown_args *));
 
 #ifdef COMPAT_43
