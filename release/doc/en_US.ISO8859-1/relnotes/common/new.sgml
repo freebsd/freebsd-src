@@ -3,7 +3,7 @@
 
   <pubdate>$FreeBSD$</pubdate>
 
-  <corpauthor>The FreeBSD Project</corpauthor>
+  <corpauthor>The &os; Project</corpauthor>
 
   <copyright>
     <year>2000</year>
@@ -12,7 +12,7 @@
     <year>2003</year>
     <year>2004</year>
     <year>2005</year>
-    <holder role="mailto:doc@FreeBSD.org">The FreeBSD Documentation Project</holder>
+    <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
   </copyright>
 
   <abstract>
@@ -92,7 +92,7 @@
   <sect2 id="security">
     <title>Security Advisories</title>
 
-    <para>A programming error in the FreeBSD Linux binary
+    <para>A programming error in the &os; Linux binary
       compatibility which allows a local attacker to read
       or write portions of the kernel memory has been fixed.
       For more details, see security advisory
@@ -160,15 +160,6 @@
         the floppy does not work properly.  Booting and installing from
         floppies is not affected.
       </para>
-
-    </sect3>
-
-    <sect3 id="boot">
-      <title>Boot Loader Changes</title>
-
-      <para></para>
-
-<!-- Above this line, order boot loader changes by manpage/variable name-->
 
     </sect3>
 
@@ -257,27 +248,6 @@
       <para>The &man.trm.4; driver now supports the DC395U2W adapters
 	and problems under heavy load have been fixed.</para>
     </sect3>
-
-    <sect3 id="fs">
-      <title>File Systems</title>
-
-      <para></para>
-
-    </sect3>
-
-    <sect3 id="pccard">
-      <title>PCCARD Support</title>
-
-      <para></para>
-
-    </sect3>
-
-    <sect3 id="mm">
-      <title>Multimedia Support</title>
-
-      <para></para>
-
-    </sect3>
   </sect2>
 
   <sect2 id="userland">
@@ -352,13 +322,6 @@
     <para>The timezone database has been updated from the
       <application>tzdata2004e</application> release to the
       <application>tzdata2004g</application> release.</para>
-  </sect2>
-
-  <sect2 id="ports">
-    <title>Ports/Packages Collection Infrastructure</title>
-
-    <para></para>
-
   </sect2>
 
   <sect2 id="releng">
