@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.69 1997/11/06 19:29:54 phk Exp $
+ * $Id: vm_mmap.c,v 1.70 1997/12/16 17:40:42 eivind Exp $
  */
 
 /*
@@ -139,7 +139,7 @@ ogetpagesize(p, uap)
  */
 #ifndef _SYS_SYSPROTO_H_
 struct mmap_args {
-	caddr_t addr;
+	void *addr;
 	size_t len;
 	int prot;
 	int flags;
@@ -160,7 +160,7 @@ mmap(p, uap)
 	vm_offset_t addr;
 	vm_size_t size, pageoff;
 	vm_prot_t prot, maxprot;
-	caddr_t handle;
+	void *handle;
 	int flags, error;
 	off_t pos;
 
@@ -272,7 +272,7 @@ mmap(p, uap)
 					return (EACCES);
 			} else
 				maxprot |= VM_PROT_WRITE;
-			handle = (caddr_t) vp;
+			handle = (void *)vp;
 		}
 	}
 	error = vm_mmap(&p->p_vmspace->vm_map, &addr, size, prot, maxprot,
@@ -341,7 +341,7 @@ ommap(p, uap)
 
 #ifndef _SYS_SYSPROTO_H_
 struct msync_args {
-	caddr_t addr;
+	void *addr;
 	int len;
 	int flags;
 };
@@ -414,7 +414,7 @@ msync(p, uap)
 
 #ifndef _SYS_SYSPROTO_H_
 struct munmap_args {
-	caddr_t addr;
+	void *addr;
 	size_t len;
 };
 #endif
@@ -474,7 +474,7 @@ munmapfd(p, fd)
 
 #ifndef _SYS_SYSPROTO_H_
 struct mprotect_args {
-	caddr_t addr;
+	const void *addr;
 	size_t len;
 	int prot;
 };
@@ -515,7 +515,7 @@ mprotect(p, uap)
 
 #ifndef _SYS_SYSPROTO_H_
 struct minherit_args {
-	caddr_t addr;
+	void *addr;
 	size_t len;
 	int inherit;
 };
@@ -552,7 +552,7 @@ minherit(p, uap)
 
 #ifndef _SYS_SYSPROTO_H_
 struct madvise_args {
-	caddr_t addr;
+	void *addr;
 	size_t len;
 	int behav;
 };
@@ -598,7 +598,7 @@ madvise(p, uap)
 
 #ifndef _SYS_SYSPROTO_H_
 struct mincore_args {
-	caddr_t addr;
+	const void *addr;
 	size_t len;
 	char *vec;
 };
@@ -767,7 +767,7 @@ mincore(p, uap)
 
 #ifndef _SYS_SYSPROTO_H_
 struct mlock_args {
-	caddr_t addr;
+	const void *addr;
 	size_t len;
 };
 #endif
@@ -839,7 +839,7 @@ munlockall(p, uap)
 
 #ifndef _SYS_SYSPROTO_H_
 struct munlock_args {
-	caddr_t addr;
+	const void *addr;
 	size_t len;
 };
 #endif
@@ -882,7 +882,7 @@ munlock(p, uap)
 int
 vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 	vm_prot_t maxprot, int flags,
-	caddr_t handle,		 /* XXX should be vp */
+	void *handle,
 	vm_ooffset_t foff)
 {
 	boolean_t fitit;
@@ -934,7 +934,7 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		vp = (struct vnode *) handle;
 		if (vp->v_type == VCHR) {
 			type = OBJT_DEVICE;
-			handle = (caddr_t) vp->v_rdev;
+			handle = (void *)vp->v_rdev;
 		} else {
 			struct vattr vat;
 			int error;
