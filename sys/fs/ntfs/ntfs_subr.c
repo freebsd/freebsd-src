@@ -1899,7 +1899,7 @@ ntfs_procfixups(
 			return (EINVAL);
 		}
 		*cfxp = *fxp;
-		((caddr_t) cfxp) += ntmp->ntm_bps;
+		cfxp = (u_int16_t *) ((caddr_t) cfxp + ntmp->ntm_bps);
 	}
 	return (0);
 }
