@@ -36,7 +36,7 @@
  */
 
 #ifndef  __NetBSD__
-#ident "$Revision: 1.16 $"
+#ident "$Revision: 1.17 $"
 #endif
 
 /* Definitions for RIPv2 routing process.
@@ -95,6 +95,10 @@
 #define RIPVERSION RIPv2
 #include <protocols/routed.h>
 
+#ifdef sgi
+#define USE_PASSIFNAME
+#endif
+
 
 /* Type of an IP address.
  *	Some systems do not like to pass structures, so do not use in_addr.
@@ -131,6 +135,13 @@
 
 #define LIM_SEC(s,l) ((s).tv_sec = MIN((s).tv_sec, (l)))
 
+/* Metric used for fake default routes.  It ought to be 15, but when
+ * processing advertised routes, previous versions of `routed` added
+ * to the received metric and discarded the route if the total was 16
+ * or larger.
+ */
+#define FAKE_METRIC (HOPCNT_INFINITY-2)
+
 
 /* Router Discovery parameters */
 #ifndef sgi
@@ -151,15 +162,19 @@
 #define	MAX_SOLICITATIONS		3
 
 
+/* Bloated packet size for systems that simply add authentication to
+ * full-sized packets
+ */
+#define OVER_MAXPACKETSIZE (MAXPACKETSIZE+sizeof(struct netinfo)*2)
 /* typical packet buffers */
 union pkt_buf {
-	char	packet[MAXPACKETSIZE+1];
+	char	packet[OVER_MAXPACKETSIZE*2];
 	struct	rip rip;
 };
 
 
-/* no more routes than this, to protect ourself in case something goes
- * whacko and starts broadcast zillions of bogus routes.
+/* No more routes than this, to protect ourself in case something goes
+ * whacko and starts broadcasting zillions of bogus routes.
  */
 #define MAX_ROUTES  (128*1024)
 extern int total_routes;
@@ -243,7 +258,11 @@ struct rt_entry {
  * handles "logical" or "IS_REMOTE" interfaces (remote gateways).
  */
 struct interface {
-	struct	interface *int_next, *int_prev;
+	struct interface *int_next, **int_prev;
+	struct interface *int_ahash, **int_ahash_prev;
+	struct interface *int_bhash, **int_bhash_prev;
+	struct interface *int_rlink, **int_rlink_prev;
+	struct interface *int_nhash, **int_nhash_prev;
 	char	int_name[IFNAMSIZ+15+1];    /* big enough for IS_REMOTE */
 	u_short	int_index;
 	naddr	int_addr;		/* address on this host (net order) */
@@ -259,6 +278,7 @@ struct interface {
 	int	int_if_flags;		/* some bits copied from kernel */
 	u_int	int_state;
 	time_t	int_act_time;		/* last thought healthy */
+	time_t	int_query_time;
 	u_short	int_transitions;	/* times gone up-down */
 	char	int_metric;
 	char	int_d_metric;		/* for faked default route */
@@ -272,7 +292,15 @@ struct interface {
 #endif
 		time_t	ts;		/* timestamp on network stats */
 	} int_data;
-	char	int_passwd[RIP_AUTH_PW_LEN];	/* RIPv2 password */
+	struct auth {			/* authentication info */
+	    u_char  type;
+#	    define MAX_AUTH_KEYS 3
+	    struct auth_key {
+		u_char	key[RIP_AUTH_PW_LEN];
+		u_char  keyid;
+		time_t  start, end;
+	    } keys[MAX_AUTH_KEYS];
+	} int_auth;
 	int	int_rdisc_pref;		/* advertised rdisc preference */
 	int	int_rdisc_int;		/* MaxAdvertiseInterval */
 	int	int_rdisc_cnt;
@@ -288,11 +316,11 @@ struct interface {
 #define IS_CHECKED	    0x0000020	/* still exists */
 #define IS_ALL_HOSTS	    0x0000040	/* in INADDR_ALLHOSTS_GROUP */
 #define IS_ALL_ROUTERS	    0x0000080	/* in INADDR_ALLROUTERS_GROUP */
-#define IS_RIP_QUERIED	    0x0000100	/* query broadcast */
+#define IS_DISTRUST	    0x0000100	/* ignore untrusted routers */
 #define IS_BROKE	    0x0000200	/* seems to be broken */
 #define IS_SICK		    0x0000400	/* seems to be broken */
 #define IS_DUP		    0x0000800	/* has a duplicate address */
-#define IS_ACTIVE	    0x0001000	/* heard from it at least once */
+/*			    0x0001000      spare */
 #define IS_NEED_NET_SYN	    0x0002000	/* need RS_NET_SYN route */
 #define IS_NO_AG	    0x0004000	/* do not aggregate subnets */
 #define IS_NO_SUPER_AG	    0x0008000	/* do not aggregate networks */
@@ -364,14 +392,14 @@ struct ag_info {
 extern struct parm {
 	struct parm *parm_next;
 	char	parm_name[IFNAMSIZ+1];
-	naddr	parm_addr_h;
+	naddr	parm_net;
 	naddr	parm_mask;
 
 	char	parm_d_metric;
 	u_int	parm_int_state;
 	int	parm_rdisc_pref;
 	int	parm_rdisc_int;
-	char	parm_passwd[RIP_AUTH_PW_LEN+1];
+	struct auth parm_auth;
 } *parms;
 
 /* authority for internal networks */
@@ -382,7 +410,23 @@ extern struct intnet {
 	char	intnet_metric;
 } *intnets;
 
+/* trusted routers */
+extern struct tgate {
+	struct tgate *tgate_next;
+	naddr	tgate_addr;
+} *tgates;
 
+enum output_type {OUT_QUERY, OUT_UNICAST, OUT_BROADCAST, OUT_MULTICAST,
+	NO_OUT_MULTICAST, NO_OUT_RIPV2};
+
+/* common output buffers */
+extern struct ws_buf {
+	struct rip	*buf;
+	struct netinfo	*n;
+	struct netinfo	*base;
+	struct netinfo	*lim;
+	enum output_type type;
+} v12buf, v2buf;
 
 extern pid_t	mypid;
 extern naddr	myaddr;			/* main address of this system */
@@ -405,7 +449,8 @@ extern int	mhome;			/* 1=want multi-homed host route */
 extern int	advertise_mhome;	/* 1=must continue adverising it */
 extern int	auth_ok;		/* 1=ignore auth if we do not care */
 
-extern struct timeval epoch;		/* when started */
+extern struct timeval clk;		/* system clock's idea of time */
+extern struct timeval epoch;		/* system clock when started */
 extern struct timeval now;		/* current idea of time */
 extern time_t	now_stale;
 extern time_t	now_expire;
@@ -423,6 +468,7 @@ extern naddr	loopaddr;		/* our address on loopback */
 extern int	tot_interfaces;		/* # of remote and local interfaces */
 extern int	rip_interfaces;		/* # of interfaces doing RIP */
 extern struct interface *ifnet;		/* all interfaces */
+extern struct interface *remote_if;	/* remote interfaces */
 extern int	have_ripv1_out;		/* have a RIPv1 interface */
 extern int	have_ripv1_in;
 extern int	need_flash;		/* flash update needed */
@@ -450,16 +496,21 @@ extern void fix_select(void);
 extern void rip_off(void);
 extern void rip_on(struct interface *);
 
-enum output_type {OUT_QUERY, OUT_UNICAST, OUT_BROADCAST, OUT_MULTICAST,
-	NO_OUT_MULTICAST, NO_OUT_RIPV2};
-extern int	output(enum output_type, struct sockaddr_in *,
-		       struct interface *, struct rip *, int);
+extern void bufinit(void);
+extern int  output(enum output_type, struct sockaddr_in *,
+		   struct interface *, struct rip *, int);
+extern void clr_ws_buf(struct ws_buf *, struct auth_key *, struct interface *);
 extern void rip_query(void);
 extern void rip_bcast(int);
 extern void supply(struct sockaddr_in *, struct interface *,
-		   enum output_type, int, int);
+		   enum output_type, int, int, int);
 
 extern void	msglog(char *, ...);
+struct msg_limit {
+	naddr	addr;
+	time_t	until;
+};
+extern void	msglim(struct msg_limit *, naddr, char *, ...);
 #define	LOGERR(msg) msglog(msg ": %s", strerror(errno))
 extern void	logbad(int, char *, ...);
 #define	BADERR(dump,msg) logbad(dump,msg ": %s", strerror(errno))
@@ -485,7 +536,7 @@ extern void	lastlog(void);
 extern void	trace_on(char *, int);
 extern void	trace_off(char*, ...);
 extern void	trace_flush(void);
-extern void	set_tracelevel(void);
+extern void	set_tracelevel(int);
 extern void	trace_kernel(char *, ...);
 extern void	trace_act(char *, ...);
 extern void	trace_pkt(char *, ...);
@@ -554,13 +605,21 @@ extern naddr	ripv1_mask_net(naddr, struct interface *);
 extern naddr	ripv1_mask_host(naddr,struct interface *);
 #define		on_net(a,net,mask) (((ntohl(a) ^ (net)) & (mask)) == 0)
 extern int	check_dst(naddr);
-extern void	addrouteforif(register struct interface *);
+extern struct interface *check_dup(naddr, naddr, naddr, int);
+extern int	check_remote(struct interface *);
+extern int	addrouteforif(register struct interface *);
 extern void	ifinit(void);
 extern int	walk_bad(struct radix_node *, struct walkarg *);
 extern int	if_ok(struct interface *, char *);
 extern void	if_sick(struct interface *);
 extern void	if_bad(struct interface *);
+extern void	if_link(struct interface *);
 extern struct interface *ifwithaddr(naddr, int, int);
 extern struct interface *ifwithname(char *, naddr);
 extern struct interface *ifwithindex(u_short);
 extern struct interface *iflookup(naddr);
+
+extern struct auth_key *find_auth(struct interface *);
+extern void end_md5_auth(struct ws_buf *, struct auth_key *);
+
+#include <md5.h>
