@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.27 1996/11/10 14:46:50 peter Exp $ */
+/* $Id: main.c,v 1.28 1996/11/14 07:06:25 ache Exp $ */
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -306,7 +306,8 @@ ftpget()
 	if (status)
 	    errx(1, "%s: %s", host, ftpErrString(status));
 	else
-	    err(1, "couldn't open FTP connection to %s.", host);
+	    errx(1, "couldn't open FTP connection to %s: %s",
+		 host, hstrerror(h_errno));
     }
     
     /* Time to set our defaults */
