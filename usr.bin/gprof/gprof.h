@@ -290,6 +290,7 @@ void		getpfile(char *);
 		gprofheader();
 		gprofline();
 */
+int		hertz(void);
 void		inheritflags(nltype *);
 int		kernel_getnfile(const char *, char ***);
 /*
