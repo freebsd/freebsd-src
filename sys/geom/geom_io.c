@@ -313,7 +313,7 @@ g_io_schedule_down(struct thread *tp __unused)
 	struct mtx mymutex;
  
 	bzero(&mymutex, sizeof mymutex);
-	mtx_init(&mymutex, "g_xdown", MTX_DEF, 0);
+	mtx_init(&mymutex, "g_xdown", NULL, MTX_DEF);
 
 	for(;;) {
 		g_bioq_lock(&g_bio_run_down);
@@ -365,7 +365,7 @@ g_io_schedule_up(struct thread *tp __unused)
 	struct mtx mymutex;
  
 	bzero(&mymutex, sizeof mymutex);
-	mtx_init(&mymutex, "g_xup", MTX_DEF, 0);
+	mtx_init(&mymutex, "g_xup", NULL, MTX_DEF);
 	for(;;) {
 		g_bioq_lock(&g_bio_run_up);
 		bp = g_bioq_first(&g_bio_run_up);
