@@ -28,7 +28,7 @@
  * Id: if_devar.h,v 1.28 1997/07/03 16:55:07 thomas Exp
  */
 
-#if !defined(_DEVAR_H)
+#ifndef _DEVAR_H
 #define _DEVAR_H
 
 typedef bus_addr_t tulip_csrptr_t;
@@ -60,22 +60,22 @@ typedef bus_addr_t tulip_csrptr_t;
  * to all chips.  After that, it gets messy...
  */
 typedef struct {
-    tulip_csrptr_t csr_busmode;			/* CSR0 */
-    tulip_csrptr_t csr_txpoll;			/* CSR1 */
-    tulip_csrptr_t csr_rxpoll;			/* CSR2 */
-    tulip_csrptr_t csr_rxlist;			/* CSR3 */
-    tulip_csrptr_t csr_txlist;			/* CSR4 */
-    tulip_csrptr_t csr_status;			/* CSR5 */
-    tulip_csrptr_t csr_command;			/* CSR6 */
-    tulip_csrptr_t csr_intr;			/* CSR7 */
-    tulip_csrptr_t csr_missed_frames;		/* CSR8 */
-    tulip_csrptr_t csr_9;			/* CSR9 */
-    tulip_csrptr_t csr_10;			/* CSR10 */
-    tulip_csrptr_t csr_11;			/* CSR11 */
-    tulip_csrptr_t csr_12;			/* CSR12 */
-    tulip_csrptr_t csr_13;			/* CSR13 */
-    tulip_csrptr_t csr_14;			/* CSR14 */
-    tulip_csrptr_t csr_15;			/* CSR15 */
+	tulip_csrptr_t	csr_busmode;	/* CSR0 */
+	tulip_csrptr_t	csr_txpoll;	/* CSR1 */
+	tulip_csrptr_t	csr_rxpoll;	/* CSR2 */
+	tulip_csrptr_t	csr_rxlist;	/* CSR3 */
+	tulip_csrptr_t	csr_txlist;	/* CSR4 */
+	tulip_csrptr_t	csr_status;	/* CSR5 */
+	tulip_csrptr_t	csr_command;	/* CSR6 */
+	tulip_csrptr_t	csr_intr;	/* CSR7 */
+	tulip_csrptr_t	csr_missed_frames;	/* CSR8 */
+	tulip_csrptr_t	csr_9;		/* CSR9 */
+	tulip_csrptr_t	csr_10;		/* CSR10 */
+	tulip_csrptr_t	csr_11;		/* CSR11 */
+	tulip_csrptr_t	csr_12;		/* CSR12 */
+	tulip_csrptr_t	csr_13;		/* CSR13 */
+	tulip_csrptr_t	csr_14;		/* CSR14 */
+	tulip_csrptr_t	csr_15;		/* CSR15 */
 } tulip_regfile_t;
 
 #define	csr_enetrom		csr_9	/* 21040 */
@@ -94,15 +94,15 @@ typedef struct {
 /*
  * While 21x4x allows chaining of its descriptors, this driver
  * doesn't take advantage of it.  We keep the descriptors in a
- * traditional FIFO ring.  
+ * traditional FIFO ring.
  */
 typedef struct {
-    tulip_desc_t *ri_first;	/* first entry in ring */
-    tulip_desc_t *ri_last;	/* one after last entry */
-    tulip_desc_t *ri_nextin;	/* next to processed by host */
-    tulip_desc_t *ri_nextout;	/* next to processed by adapter */
-    int ri_max;
-    int ri_free;
+	tulip_desc_t	*ri_first;	/* first entry in ring */
+	tulip_desc_t	*ri_last;	/* one after last entry */
+	tulip_desc_t	*ri_nextin;	/* next to processed by host */
+	tulip_desc_t	*ri_nextout;	/* next to processed by adapter */
+	int		ri_max;
+	int		ri_free;
 } tulip_ringinfo_t;
 
 /*
@@ -122,11 +122,11 @@ typedef struct {
  * And the number of receive descriptors multiplied by the size
  * of the receive buffers must equal the recevive space.  This
  * is so that we can manipulate the page tables so that even if a
- * packet wraps around the end of the receive space, we can 
+ * packet wraps around the end of the receive space, we can
  * treat it as virtually contiguous.
  *
  * The above used to be true (the stupid restriction is still true)
- * but we gone to directly DMA'ing into MBUFs (unless it's on an 
+ * but we gone to directly DMA'ing into MBUFs (unless it's on an
  * architecture which can't handle unaligned accesses) because with
  * 100Mb/s cards the copying is just too much of a hit.
  */
@@ -140,25 +140,26 @@ typedef struct {
 #define	TULIP_TXDESCS		128
 #define	TULIP_RXQ_TARGET	32
 #if TULIP_RXQ_TARGET >= TULIP_RXDESCS
-#error TULIP_RXQ_TARGET must be less than TULIP_RXDESCS
+#error	TULIP_RXQ_TARGET must be less than TULIP_RXDESCS
 #endif
 #define	TULIP_RX_BUFLEN		((MCLBYTES < 2048 ? MCLBYTES : 2048) - 16)
 
 /*
  * Forward reference to make C happy.
  */
-typedef struct _tulip_softc_t tulip_softc_t;
+typedef struct tulip_softc	tulip_softc_t;
 
 /*
- * The various controllers support.
+ * Enumeration of the various controllers supported.
  */
-
 typedef enum {
-    TULIP_21040,
-    TULIP_21041,
-    TULIP_21140, TULIP_21140A, TULIP_21142,
-    TULIP_21143,
-    TULIP_CHIPID_UNKNOWN
+	TULIP_21040,
+	TULIP_21041,
+	TULIP_21140,
+	TULIP_21140A,
+	TULIP_21142,
+	TULIP_21143,
+	TULIP_CHIPID_UNKNOWN
 } tulip_chipid_t;
 
 /*
@@ -167,40 +168,40 @@ typedef enum {
  * which is in use.
  */
 typedef enum {
-    TULIP_MEDIA_UNKNOWN,
-    TULIP_MEDIA_10BASET,
-    TULIP_MEDIA_10BASET_FD,
-    TULIP_MEDIA_BNC,
-    TULIP_MEDIA_AUI,
-    TULIP_MEDIA_EXTSIA,
-    TULIP_MEDIA_AUIBNC,
-    TULIP_MEDIA_100BASETX,
-    TULIP_MEDIA_100BASETX_FD,
-    TULIP_MEDIA_100BASET4,
-    TULIP_MEDIA_100BASEFX,
-    TULIP_MEDIA_100BASEFX_FD,
-    TULIP_MEDIA_MAX
+	TULIP_MEDIA_UNKNOWN,
+	TULIP_MEDIA_10BASET,
+	TULIP_MEDIA_10BASET_FD,
+	TULIP_MEDIA_BNC,
+	TULIP_MEDIA_AUI,
+	TULIP_MEDIA_EXTSIA,
+	TULIP_MEDIA_AUIBNC,
+	TULIP_MEDIA_100BASETX,
+	TULIP_MEDIA_100BASETX_FD,
+	TULIP_MEDIA_100BASET4,
+	TULIP_MEDIA_100BASEFX,
+	TULIP_MEDIA_100BASEFX_FD,
+	TULIP_MEDIA_MAX
 } tulip_media_t;
 
 #define	TULIP_BIT(b)		(1L << ((int)(b)))
 #define	TULIP_FDBIT(m)		(1L << ((int)TULIP_MEDIA_ ## m ## _FD))
 #define	TULIP_MBIT(m)		(1L << ((int)TULIP_MEDIA_ ## m ))
 #define	TULIP_IS_MEDIA_FD(m)	(TULIP_BIT(m) & \
-				 (TULIP_FDBIT(10BASET) \
-				  |TULIP_FDBIT(100BASETX) \
-				  |TULIP_FDBIT(100BASEFX)))
+				 (TULIP_FDBIT(10BASET) | \
+				  TULIP_FDBIT(100BASETX) | \
+				  TULIP_FDBIT(100BASEFX)))
 #define	TULIP_CAN_MEDIA_FD(m)	(TULIP_BIT(m) & \
-				 (TULIP_MBIT(10BASET) \
-				  |TULIP_MBIT(100BASETX) \
-				  |TULIP_MBIT(100BASEFX)))
+				 (TULIP_MBIT(10BASET) | \
+				  TULIP_MBIT(100BASETX) | \
+				  TULIP_MBIT(100BASEFX)))
 #define	TULIP_FD_MEDIA_OF(m)	((tulip_media_t)((m) + 1))
 #define	TULIP_HD_MEDIA_OF(m)	((tulip_media_t)((m) - 1))
 #define	TULIP_IS_MEDIA_100MB(m)	((m) >= TULIP_MEDIA_100BASETX)
 #define	TULIP_IS_MEDIA_TP(m)	((TULIP_BIT(m) & \
-				  (TULIP_MBIT(BNC) \
-				   |TULIP_MBIT(AUI) \
-				   |TULIP_MBIT(AUIBNC) \
-				   |TULIP_MBIT(EXTSIA))) == 0)
+				  (TULIP_MBIT(BNC) | \
+				   TULIP_MBIT(AUI) | \
+				   TULIP_MBIT(AUIBNC) | \
+				   TULIP_MBIT(EXTSIA))) == 0)
 
 #define	TULIP_SROM_ATTR_MII		0x0100
 #define	TULIP_SROM_ATTR_NWAY		0x0200
@@ -209,45 +210,45 @@ typedef enum {
 #define	TULIP_SROM_ATTR_NOLINKPASS	0x1000
 
 typedef struct {
-    enum {
-	TULIP_MEDIAINFO_NONE,
-	TULIP_MEDIAINFO_SIA,
-	TULIP_MEDIAINFO_GPR,
-	TULIP_MEDIAINFO_MII,
-	TULIP_MEDIAINFO_RESET,
-	TULIP_MEDIAINFO_SYM
-    } mi_type;
-    union {
-	struct {
-	    u_int16_t sia_connectivity;
-	    u_int16_t sia_tx_rx;
-	    u_int16_t sia_general;
-	    u_int32_t sia_gp_control;	/* 21142/21143 */
-	    u_int32_t sia_gp_data;	/* 21142/21143 */
-	} un_sia;
-	struct {
-	    u_int32_t gpr_cmdmode;
-	    u_int32_t gpr_gpcontrol;	/* 21142/21143 */
-	    u_int32_t gpr_gpdata;
-	    u_int8_t gpr_actmask;
-	    u_int8_t gpr_actdata;
-	    u_int    gpr_default : 1;
-	} un_gpr;
-	struct {
-	    u_int32_t mii_mediamask;
-	    u_int16_t mii_capabilities;
-	    u_int16_t mii_advertisement;
-	    u_int16_t mii_full_duplex;
-	    u_int16_t mii_tx_threshold;
-	    u_int16_t mii_interrupt;	/* 21142/21143 */
-	    u_int8_t mii_phyaddr;
-	    u_int8_t mii_gpr_length;
-	    u_int8_t mii_gpr_offset;
-	    u_int8_t mii_reset_length;
-	    u_int8_t mii_reset_offset;
-	    u_int32_t mii_phyid;
-	} un_mii;
-    } mi_un;
+	enum {
+		TULIP_MEDIAINFO_NONE,
+		TULIP_MEDIAINFO_SIA,
+		TULIP_MEDIAINFO_GPR,
+		TULIP_MEDIAINFO_MII,
+		TULIP_MEDIAINFO_RESET,
+		TULIP_MEDIAINFO_SYM
+	} mi_type;
+	union {
+		struct {
+			u_int16_t sia_connectivity;
+			u_int16_t sia_tx_rx;
+			u_int16_t sia_general;
+			u_int32_t sia_gp_control;	/* 21142/21143 */
+			u_int32_t sia_gp_data;		/* 21142/21143 */
+		} un_sia;
+		struct {
+			u_int32_t gpr_cmdmode;
+			u_int32_t gpr_gpcontrol;	/* 21142/21143 */
+			u_int32_t gpr_gpdata;
+			u_int8_t gpr_actmask;
+			u_int8_t gpr_actdata;
+			u_int gpr_default:1;
+		} un_gpr;
+		struct {
+			u_int32_t mii_mediamask;
+			u_int16_t mii_capabilities;
+			u_int16_t mii_advertisement;
+			u_int16_t mii_full_duplex;
+			u_int16_t mii_tx_threshold;
+			u_int16_t mii_interrupt;	/* 21142/21143 */
+			u_int8_t mii_phyaddr;
+			u_int8_t mii_gpr_length;
+			u_int8_t mii_gpr_offset;
+			u_int8_t mii_reset_length;
+			u_int8_t mii_reset_offset;
+			u_int32_t mii_phyid;
+		} un_mii;
+	} mi_un;
 } tulip_media_info_t;
 
 #define	mi_sia_connectivity	mi_un.un_sia.sia_connectivity
@@ -276,20 +277,22 @@ typedef struct {
 #define	mi_mii_interrupt	mi_un.un_mii.mii_interrupt
 #define	mi_phyid		mi_un.un_mii.mii_phyid
 
-#define	TULIP_MEDIAINFO_SIA_INIT(sc, mi, chipid, media) do { \
-    (mi)->mi_type = TULIP_MEDIAINFO_SIA; \
-    sc->tulip_mediums[TULIP_MEDIA_ ## media] = (mi); \
-    (mi)->mi_sia_connectivity = TULIP_ ## chipid ## _SIACONN_ ## media; \
-    (mi)->mi_sia_tx_rx        = TULIP_ ## chipid ## _SIATXRX_ ## media; \
-    (mi)->mi_sia_general      = TULIP_ ## chipid ## _SIAGEN_ ## media; \
+#define	TULIP_MEDIAINFO_SIA_INIT(sc, mi, chipid, media)			\
+do {									\
+	(mi)->mi_type = TULIP_MEDIAINFO_SIA;				\
+	sc->tulip_mediums[TULIP_MEDIA_ ## media] = (mi);		\
+	(mi)->mi_sia_connectivity = TULIP_ ## chipid ## _SIACONN_ ## media; \
+	(mi)->mi_sia_tx_rx = TULIP_ ## chipid ## _SIATXRX_ ## media;	\
+	(mi)->mi_sia_general = TULIP_ ## chipid ## _SIAGEN_ ## media;	\
 } while (0)
 
-#define TULIP_MEDIAINFO_ADD_CAPABILITY(sc, mi, media) do {	\
-    if ((sc)->tulip_mediums[TULIP_MEDIA_ ## media] == NULL	\
-	    && ((mi)->mi_capabilities & PHYSTS_ ## media)) {	\
-	(sc)->tulip_mediums[TULIP_MEDIA_ ## media] = (mi);	\
-	(mi)->mi_mediamask |= TULIP_BIT(TULIP_MEDIA_ ## media);	\
-    } \
+#define TULIP_MEDIAINFO_ADD_CAPABILITY(sc, mi, media)			\
+do {	\
+	if ((sc)->tulip_mediums[TULIP_MEDIA_ ## media] == NULL		\
+	    && ((mi)->mi_capabilities & PHYSTS_ ## media)) {		\
+		(sc)->tulip_mediums[TULIP_MEDIA_ ## media] = (mi);	\
+		(mi)->mi_mediamask |= TULIP_BIT(TULIP_MEDIA_ ## media);	\
+	}								\
 } while (0)
 
 #define	TULIP_MII_NOPHY		32
@@ -299,38 +302,37 @@ typedef struct {
  * out for special merit or scorn).
  */
 typedef enum {
-    TULIP_21040_GENERIC,		/* Generic 21040 (works with most any board) */
-    TULIP_21140_ISV,			/* Digital Semicondutor 21140 ISV SROM Format */
-    TULIP_21142_ISV,			/* Digital Semicondutor 21142 ISV SROM Format */
-    TULIP_21143_ISV,			/* Digital Semicondutor 21143 ISV SROM Format */
-    TULIP_21140_DEC_EB,			/* Digital Semicondutor 21140 Evaluation Board */
-    TULIP_21140_MII,			/* 21140[A] with MII */
-    TULIP_21140_DEC_DE500,		/* Digital DE500-?? 10/100 */
-    TULIP_21140_SMC_9332,		/* SMC 9332 */
-    TULIP_21140_COGENT_EM100,		/* Cogent EM100 100 only */
-    TULIP_21140_ZNYX_ZX34X,		/* ZNYX ZX342 10/100 */
-    TULIP_21140_ASANTE,			/* AsanteFast 10/100 */
-    TULIP_21140_EN1207,			/* Accton EN2107 10/100 BNC */
-    TULIP_21041_GENERIC			/* Generic 21041 card */
+	TULIP_21040_GENERIC,	/* Generic 21040 (works with most any board) */
+	TULIP_21140_ISV,	/* Digital Semicondutor 21140 ISV SROM Format */
+	TULIP_21142_ISV,	/* Digital Semicondutor 21142 ISV SROM Format */
+	TULIP_21143_ISV,	/* Digital Semicondutor 21143 ISV SROM Format */
+	TULIP_21140_DEC_EB,	/* Digital Semicondutor 21140 Eval. Board */
+	TULIP_21140_MII,	/* 21140[A] with MII */
+	TULIP_21140_DEC_DE500,	/* Digital DE500-?? 10/100 */
+	TULIP_21140_SMC_9332,	/* SMC 9332 */
+	TULIP_21140_COGENT_EM100,	/* Cogent EM100 100 only */
+	TULIP_21140_ZNYX_ZX34X,	/* ZNYX ZX342 10/100 */
+	TULIP_21140_ASANTE,	/* AsanteFast 10/100 */
+	TULIP_21140_EN1207,	/* Accton EN2107 10/100 BNC */
+	TULIP_21041_GENERIC	/* Generic 21041 card */
 } tulip_board_t;
 
 typedef enum {
-    TULIP_MEDIAPOLL_TIMER,		/* 100ms timer fired */
-    TULIP_MEDIAPOLL_FASTTIMER,		/* <100ms timer fired */
-    TULIP_MEDIAPOLL_LINKFAIL,		/* called from interrupt routine */
-    TULIP_MEDIAPOLL_LINKPASS,		/* called from interrupt routine */
-    TULIP_MEDIAPOLL_START,		/* start a media probe (called from reset) */
-    TULIP_MEDIAPOLL_TXPROBE_OK,		/* txprobe succeeded */
-    TULIP_MEDIAPOLL_TXPROBE_FAILED,	/* txprobe failed */
-    TULIP_MEDIAPOLL_MAX
+	TULIP_MEDIAPOLL_TIMER,		/* 100ms timer fired */
+	TULIP_MEDIAPOLL_FASTTIMER,	/* <100ms timer fired */
+	TULIP_MEDIAPOLL_LINKFAIL,	/* called from interrupt routine */
+	TULIP_MEDIAPOLL_LINKPASS,	/* called from interrupt routine */
+	TULIP_MEDIAPOLL_START,		/* start a media probe (from reset) */
+	TULIP_MEDIAPOLL_TXPROBE_OK,	/* txprobe succeeded */
+	TULIP_MEDIAPOLL_TXPROBE_FAILED,	/* txprobe failed */
+	TULIP_MEDIAPOLL_MAX
 } tulip_mediapoll_event_t;
 
 typedef enum {
-    TULIP_LINK_DOWN,			/* Link is down */
-    TULIP_LINK_UP,			/* link is ok */
-    TULIP_LINK_UNKNOWN			/* we can't tell either way */
+	TULIP_LINK_DOWN,	/* Link is down */
+	TULIP_LINK_UP,		/* link is ok */
+	TULIP_LINK_UNKNOWN	/* we can't tell either way */
 } tulip_link_status_t;
-
 
 /*
  * This data structure is used to abstract out the quirks.
@@ -341,17 +343,17 @@ typedef enum {
  *		  the software reset; hence pre-set.  Should be
  *		  pre-reset but that's ugly.
  */
-
 typedef struct {
-    tulip_board_t bd_type;
-    void (*bd_media_probe)(tulip_softc_t * const sc);
-    void (*bd_media_select)(tulip_softc_t * const sc);
-    void (*bd_media_poll)(tulip_softc_t * const sc, tulip_mediapoll_event_t event);
-    void (*bd_media_preset)(tulip_softc_t * const sc);
+	tulip_board_t bd_type;
+	void (*bd_media_probe)(tulip_softc_t * const sc);
+	void (*bd_media_select)(tulip_softc_t * const sc);
+	void (*bd_media_poll)(tulip_softc_t * const sc,
+    tulip_mediapoll_event_t event);
+	void (*bd_media_preset) (tulip_softc_t * const sc);
 } tulip_boardsw_t;
 
 /*
- * The next few declarations are for MII/PHY based board.
+ * The next few declarations are for MII/PHY based boards.
  *
  *    The first enumeration identifies a superset of various datums
  * that can be obtained from various PHY chips.  Not all PHYs will
@@ -362,95 +364,239 @@ typedef struct {
  *    The attr structure records information about a supported PHY.
  *    The phy structure records information about a PHY instance.
  */
-
 typedef enum {
-    PHY_MODE_10T,
-    PHY_MODE_100TX,
-    PHY_MODE_100T4,
-    PHY_MODE_FULLDUPLEX,
-    PHY_MODE_MAX
+	PHY_MODE_10T,
+	PHY_MODE_100TX,
+	PHY_MODE_100T4,
+	PHY_MODE_FULLDUPLEX,
+	PHY_MODE_MAX
 } tulip_phy_mode_t;
 
 typedef struct {
-    u_int16_t pm_regno;
-    u_int16_t pm_mask;
-    u_int16_t pm_value;
+	u_int16_t	pm_regno;
+	u_int16_t	pm_mask;
+	u_int16_t	pm_value;
 } tulip_phy_modedata_t;
 
 typedef struct {
-    u_int32_t attr_id;
-    u_int16_t attr_flags;
-#define	PHY_NEED_HARD_RESET	0x0001
-#define	PHY_DUAL_CYCLE_TA	0x0002
-    tulip_phy_modedata_t attr_modes[PHY_MODE_MAX];
+	u_int32_t	attr_id;
+	u_int16_t	attr_flags;
+	tulip_phy_modedata_t	attr_modes[PHY_MODE_MAX];
 #ifdef TULIP_DEBUG
-    const char *attr_name;
+	const char	*attr_name;
 #endif
 } tulip_phy_attr_t;
+
+/* Definitions for tulip_phy_attr_t.attr_flags */
+#define	PHY_NEED_HARD_RESET	0x0001
+#define	PHY_DUAL_CYCLE_TA	0x0002
 
 /*
  * Various probe states used when trying to autosense the media.
  */
-
 typedef enum {
-    TULIP_PROBE_INACTIVE,
-    TULIP_PROBE_PHYRESET,
-    TULIP_PROBE_PHYAUTONEG,
-    TULIP_PROBE_GPRTEST,
-    TULIP_PROBE_MEDIATEST,
-    TULIP_PROBE_FAILED
+	TULIP_PROBE_INACTIVE,
+	TULIP_PROBE_PHYRESET,
+	TULIP_PROBE_PHYAUTONEG,
+	TULIP_PROBE_GPRTEST,
+	TULIP_PROBE_MEDIATEST,
+	TULIP_PROBE_FAILED
 } tulip_probe_state_t;
 
 typedef struct {
-    /*
-     * Transmit Statistics
-     */
-    u_int32_t dot3StatsSingleCollisionFrames;
-    u_int32_t dot3StatsMultipleCollisionFrames;
-    u_int32_t dot3StatsSQETestErrors;
-    u_int32_t dot3StatsDeferredTransmissions;
-    u_int32_t dot3StatsLateCollisions;
-    u_int32_t dot3StatsExcessiveCollisions;
-    u_int32_t dot3StatsCarrierSenseErrors;
-    u_int32_t dot3StatsInternalMacTransmitErrors;
-    u_int32_t dot3StatsInternalTransmitUnderflows;	/* not in rfc1650! */
-    u_int32_t dot3StatsInternalTransmitBabbles;		/* not in rfc1650! */
-    /*
-     * Receive Statistics
-     */
-    u_int32_t dot3StatsMissedFrames;	/* not in rfc1650! */
-    u_int32_t dot3StatsAlignmentErrors;
-    u_int32_t dot3StatsFCSErrors;
-    u_int32_t dot3StatsFrameTooLongs;
-    u_int32_t dot3StatsInternalMacReceiveErrors;
+	/*
+	 * Transmit Statistics
+	 */
+	u_int32_t	dot3StatsSingleCollisionFrames;
+	u_int32_t	dot3StatsMultipleCollisionFrames;
+	u_int32_t	dot3StatsSQETestErrors;
+	u_int32_t	dot3StatsDeferredTransmissions;
+	u_int32_t	dot3StatsLateCollisions;
+	u_int32_t	dot3StatsExcessiveCollisions;
+	u_int32_t	dot3StatsCarrierSenseErrors;
+	u_int32_t	dot3StatsInternalMacTransmitErrors;
+	/* not in rfc1650! */
+	u_int32_t	dot3StatsInternalTransmitUnderflows;
+	/* not in rfc1650! */
+	u_int32_t	dot3StatsInternalTransmitBabbles;
+	/*
+	 * Receive Statistics
+	 */
+	u_int32_t	dot3StatsMissedFrames;	/* not in rfc1650! */
+	u_int32_t	dot3StatsAlignmentErrors;
+	u_int32_t	dot3StatsFCSErrors;
+	u_int32_t	dot3StatsFrameTooLongs;
+	u_int32_t	dot3StatsInternalMacReceiveErrors;
 } tulip_dot3_stats_t;
 
 /*
- * Now to important stuff.  This is softc structure (where does softc
- * come from??? No idea) for the tulip device.  
+ * Probe information.
  */
-struct _tulip_softc_t {
-    struct ifmedia tulip_ifmedia;
-    int tulip_unit;
+struct tulip_probe_info {
+	u_int8_t	probe_count;		/* count of probe operations */
+	int32_t		probe_timeout;		/* time (ms) of probe timeout */
+	tulip_probe_state_t	probe_state;	/* current media probe state */
+	tulip_media_t	probe_media;		/* current media being probed */
+	u_int32_t	probe_mediamask;	/* medias checked */
+	u_int32_t	probe_passes;		/* times autosense failed */
+	u_int32_t	probe_txprobes;		/* txprobes attempted */
+};
+
+/*
+ * Debugging/Statistical information.
+ */
+struct tulip_dbg_info {
+	tulip_media_t	dbg_last_media;
+	u_int32_t	dbg_intrs;
+	u_int32_t	dbg_media_probes;
+	u_int32_t	dbg_txprobe_nocarr;
+	u_int32_t	dbg_txprobe_exccoll;
+	u_int32_t	dbg_link_downed;
+	u_int32_t	dbg_link_suspected;
+	u_int32_t	dbg_link_intrs;
+	u_int32_t	dbg_link_pollintrs;
+	u_int32_t	dbg_link_failures;
+	u_int32_t	dbg_nway_starts;
+	u_int32_t	dbg_nway_failures;
+	u_int16_t	dbg_phyregs[32][4];
+	u_int32_t	dbg_rxlowbufs;
+	u_int32_t	dbg_rxintrs;
+	u_int32_t	dbg_last_rxintrs;
+	u_int32_t	dbg_high_rxintrs_hz;
+	u_int32_t	dbg_no_txmaps;
+	u_int32_t	dbg_txput_finishes[8];
+	u_int32_t	dbg_txprobes_ok[TULIP_MEDIA_MAX];
+	u_int32_t	dbg_txprobes_failed[TULIP_MEDIA_MAX];
+	u_int32_t	dbg_events[TULIP_MEDIAPOLL_MAX];
+	u_int32_t	dbg_rxpktsperintr[TULIP_RXDESCS];
+};
+
+/*
+ * Performance statistics.
+ */
+struct tulip_perfstat {
+	u_quad_t	perf_intr_cycles;
+	u_quad_t	perf_ifstart_cycles;
+	u_quad_t	perf_ifstart_one_cycles;
+	u_quad_t	perf_ifioctl_cycles;
+	u_quad_t	perf_ifwatchdog_cycles;
+	u_quad_t	perf_timeout_cycles;
+	u_quad_t	perf_txput_cycles;
+	u_quad_t	perf_txintr_cycles;
+	u_quad_t	perf_rxintr_cycles;
+	u_quad_t	perf_rxget_cycles;
+	unsigned int	perf_intr;
+	unsigned int	perf_ifstart;
+	unsigned int	perf_ifstart_one;
+	unsigned int	perf_ifioctl;
+	unsigned int	perf_ifwatchdog;
+	unsigned int	perf_timeout;
+	unsigned int	perf_txput;
+	unsigned int	perf_txintr;
+	unsigned int	perf_rxintr;
+	unsigned int	perf_rxget;
+};
+#define	TULIP_PERF_CURRENT	0
+#define	TULIP_PERF_PREVIOUS	1
+#define	TULIP_PERF_TOTAL	2
+#define	TULIP_PERF_MAX		3
+
+/*
+ * Per-driver-instance state.
+ */
+struct tulip_softc {
+	struct ifmedia		tulip_ifmedia;
+	int			tulip_unit;
 #if defined(TULIP_BUS_DMA)
-    bus_dma_tag_t tulip_dmatag;		/* bus DMA tag */
+	bus_dma_tag_t		tulip_dmatag;
 #if !defined(TULIP_BUS_DMA_NOTX)
-    bus_dmamap_t tulip_setupmap;
-    bus_dmamap_t tulip_txdescmap;
-    bus_dmamap_t tulip_txmaps[TULIP_TXDESCS];
-    unsigned tulip_txmaps_free;
+	bus_dmamap_t		tulip_setupmap;
+	bus_dmamap_t		tulip_txdescmap;
+	bus_dmamap_t		tulip_txmaps[TULIP_TXDESCS];
+	unsigned int		tulip_txmaps_free;
 #endif
 #if !defined(TULIP_BUS_DMA_NORX)
-    bus_dmamap_t tulip_rxdescmap;
-    bus_dmamap_t tulip_rxmaps[TULIP_RXDESCS];
-    unsigned tulip_rxmaps_free;
+	bus_dmamap_t		tulip_rxdescmap;
+	bus_dmamap_t		tulip_rxmaps[TULIP_RXDESCS];
+	unsigned int		tulip_rxmaps_free;
 #endif
 #endif
-    struct arpcom tulip_ac;
-    bus_space_tag_t tulip_csrs_bst;
-    bus_space_handle_t tulip_csrs_bsh;
-    tulip_regfile_t tulip_csrs;
-    u_int32_t tulip_flags;
+	struct arpcom		tulip_ac;	/* XXX should be at start */
+	bus_space_tag_t		tulip_csrs_bst;
+	bus_space_handle_t	tulip_csrs_bsh;
+	tulip_regfile_t		tulip_csrs;
+
+	u_int32_t		tulip_flags;
+	u_int32_t		tulip_features;
+	u_int32_t		tulip_intrmask;
+	u_int32_t		tulip_cmdmode;
+	u_int32_t		tulip_last_system_error:3;
+	u_int32_t		tulip_txtimer:2;	/* transmission timer */
+	u_int32_t		tulip_system_errors;
+	u_int32_t		tulip_statusbits;	/* status bits from
+							 * CSR5 that may need
+							 * to be printed
+							 */
+	tulip_media_info_t	*tulip_mediums[TULIP_MEDIA_MAX];
+	tulip_media_t		tulip_media;		/* current media type */
+	u_int32_t		tulip_abilities;	/* remote system's
+							 * abilities (as
+							 * defined in IEEE
+							 * 802.3u)
+							 */
+	u_int8_t		tulip_revinfo;		/* chip revision */
+	u_int8_t		tulip_phyaddr;		/* current phy */
+	u_int8_t		tulip_gpinit;		/* active pins on
+							 * 21140
+							 */
+	u_int8_t		tulip_gpdata;	/* default gpdata for 21140 */
+	struct tulip_probe_info	tulip_probe;
+	tulip_chipid_t		tulip_chipid;	/* type of chip we are using */
+	const tulip_boardsw_t	*tulip_boardsw;	/* board/chip characteristics */
+	tulip_softc_t		*tulip_slaves;	/* slaved devices (ZX3xx) */
+#if defined(TULIP_DEBUG)
+	struct tulip_dbg_info	tulip_dbg;
+#endif
+#if defined(TULIP_PERFSTATS)
+	struct tulip_perfstat	tulip_perfstats[TULIP_PERF_MAX];
+#endif
+	struct ifqueue		tulip_txq;
+	struct ifqueue		tulip_rxq;
+	tulip_dot3_stats_t	tulip_dot3stats;
+	tulip_ringinfo_t	tulip_rxinfo;
+	tulip_ringinfo_t	tulip_txinfo;
+	tulip_media_info_t	tulip_mediainfo[10];
+	/*
+	 * The setup buffers for sending the setup frame to the chip. one is
+	 * the one being sent while the other is the one being filled.
+	 */
+	u_int32_t		tulip_setupbuf[192 / sizeof(u_int32_t)];
+	u_int32_t		tulip_setupdata[192 / sizeof(u_int32_t)];
+	char			tulip_boardid[24];
+	u_int8_t		tulip_rombuf[128];	/* must be aligned */
+
+	/* needed for multiport boards */
+	u_int8_t		tulip_pci_busno;
+	u_int8_t		tulip_pci_devno;
+
+	u_int8_t		tulip_connidx;
+	tulip_srom_connection_t	tulip_conntype;
+	tulip_desc_t		*tulip_rxdescs;
+	tulip_desc_t		*tulip_txdescs;
+};
+#define	tulip_if	tulip_ac.ac_if
+#define	tulip_xname	tulip_if.if_xname
+#define	tulip_enaddr	tulip_ac.ac_enaddr
+
+#define	tulip_curperfstats	tulip_perfstats[TULIP_PERF_CURRENT]
+#define	tulip_probe_count	tulip_probe.probe_count
+#define	tulip_probe_timeout	tulip_probe.probe_timeout
+#define	tulip_probe_state	tulip_probe.probe_state
+#define	tulip_probe_media	tulip_probe.probe_media
+#define	tulip_probe_mediamask	tulip_probe.probe_mediamask
+#define	tulip_probe_passes	tulip_probe.probe_passes
+
+/* Definitions for tulip_flags. */
 #define	TULIP_WANTSETUP		0x00000001
 #define	TULIP_WANTHASHPERFECT	0x00000002
 #define	TULIP_WANTHASHONLY	0x00000004
@@ -483,8 +629,8 @@ struct _tulip_softc_t {
 #define	TULIP_PROMISC		0x20000000
 #define	TULIP_HASHONLY		0x40000000
 #define	TULIP_xxxxxx3		0x80000000
-    /* only 4 bits left! */
-    u_int32_t tulip_features;	/* static bits indicating features of chip */
+
+/* Definitions for tulip_features. */
 #define	TULIP_HAVE_GPR		0x00000001	/* have gp register (140[A]) */
 #define	TULIP_HAVE_RXBADOVRFLW	0x00000002	/* RX corrupts on overflow */
 #define	TULIP_HAVE_POWERMGMT	0x00000004	/* Snooze/sleep modes */
@@ -503,254 +649,199 @@ struct _tulip_softc_t {
 #define	TULIP_HAVE_STOREFWD	0x00008000	/* have CMD_STOREFWD */
 #define	TULIP_HAVE_SIA100	0x00010000	/* has LS100 in SIA status */
 #define	TULIP_HAVE_OKSROM	0x00020000	/* SROM CRC is OK */
-    u_int32_t tulip_intrmask;	/* our copy of csr_intr */
-    u_int32_t tulip_cmdmode;	/* our copy of csr_cmdmode */
-    u_int32_t tulip_last_system_error : 3;	/* last system error (only value is TULIP_SYSTEMERROR is also set) */
-    u_int32_t tulip_txtimer : 2;	/* transmission timer */
-    u_int32_t tulip_system_errors;	/* number of system errors encountered */
-    u_int32_t tulip_statusbits;	/* status bits from CSR5 that may need to be printed */
 
-    tulip_media_info_t *tulip_mediums[TULIP_MEDIA_MAX];	/* indexes into mediainfo */
-    tulip_media_t tulip_media;			/* current media type */
-    u_int32_t tulip_abilities;	/* remote system's abiltities (as defined in IEEE 802.3u) */
-
-    u_int8_t tulip_revinfo;			/* revision of chip */
-    u_int8_t tulip_phyaddr;			/* 0..31 -- address of current phy */
-    u_int8_t tulip_gpinit;			/* active pins on 21140 */
-    u_int8_t tulip_gpdata;			/* default gpdata for 21140 */
-
-    struct {
-	u_int8_t probe_count;			/* count of probe operations */
-	int32_t probe_timeout;			/* time in ms of probe timeout */
-	tulip_probe_state_t probe_state;	/* current media probe state */
-	tulip_media_t probe_media;		/* current media being probed */
-	u_int32_t probe_mediamask;		/* medias checked */
-	u_int32_t probe_passes;			/* times autosense failed */
-	u_int32_t probe_txprobes;		/* txprobes attempted */
-    } tulip_probe;
-#define	tulip_probe_count	tulip_probe.probe_count
-#define	tulip_probe_timeout	tulip_probe.probe_timeout
-#define	tulip_probe_state	tulip_probe.probe_state
-#define	tulip_probe_media	tulip_probe.probe_media
-#define	tulip_probe_mediamask	tulip_probe.probe_mediamask
-#define	tulip_probe_passes	tulip_probe.probe_passes
-
-    tulip_chipid_t tulip_chipid;		/* type of chip we are using */
-    const tulip_boardsw_t *tulip_boardsw;	/* board/chip characteristics */
-    tulip_softc_t *tulip_slaves;		/* slaved devices (ZX3xx) */
-#if defined(TULIP_DEBUG)
-    /*
-     * Debugging/Statistical information
-     */
-    struct {
-	tulip_media_t dbg_last_media;
-	u_int32_t dbg_intrs;
-	u_int32_t dbg_media_probes;
-	u_int32_t dbg_txprobe_nocarr;
-	u_int32_t dbg_txprobe_exccoll;
-	u_int32_t dbg_link_downed;
-	u_int32_t dbg_link_suspected;
-	u_int32_t dbg_link_intrs;
-	u_int32_t dbg_link_pollintrs;
-	u_int32_t dbg_link_failures;
-	u_int32_t dbg_nway_starts;
-	u_int32_t dbg_nway_failures;
-	u_int16_t dbg_phyregs[32][4];
-	u_int32_t dbg_rxlowbufs;
-	u_int32_t dbg_rxintrs;
-	u_int32_t dbg_last_rxintrs;
-	u_int32_t dbg_high_rxintrs_hz;
-	u_int32_t dbg_no_txmaps;
-	u_int32_t dbg_txput_finishes[8];
-	u_int32_t dbg_txprobes_ok[TULIP_MEDIA_MAX];
-	u_int32_t dbg_txprobes_failed[TULIP_MEDIA_MAX];
-	u_int32_t dbg_events[TULIP_MEDIAPOLL_MAX];
-	u_int32_t dbg_rxpktsperintr[TULIP_RXDESCS];
-    } tulip_dbg;
-#endif
-#if defined(TULIP_PERFSTATS)
-#define	TULIP_PERF_CURRENT	0
-#define	TULIP_PERF_PREVIOUS	1
-#define	TULIP_PERF_TOTAL	2
-#define	TULIP_PERF_MAX		3
-    struct tulip_perfstats {
-	u_quad_t perf_intr_cycles;
-	u_quad_t perf_ifstart_cycles;
-	u_quad_t perf_ifstart_one_cycles;
-	u_quad_t perf_ifioctl_cycles;
-	u_quad_t perf_ifwatchdog_cycles;
-	u_quad_t perf_timeout_cycles;
-	u_quad_t perf_txput_cycles;
-	u_quad_t perf_txintr_cycles;
-	u_quad_t perf_rxintr_cycles;
-	u_quad_t perf_rxget_cycles;
-	unsigned perf_intr;
-	unsigned perf_ifstart;
-	unsigned perf_ifstart_one;
-	unsigned perf_ifioctl;
-	unsigned perf_ifwatchdog;
-	unsigned perf_timeout;
-	unsigned perf_txput;
-	unsigned perf_txintr;
-	unsigned perf_rxintr;
-	unsigned perf_rxget;
-    } tulip_perfstats[TULIP_PERF_MAX];
-#define	tulip_curperfstats		tulip_perfstats[TULIP_PERF_CURRENT]
-#endif
-    struct ifqueue tulip_txq;
-    struct ifqueue tulip_rxq;
-    tulip_dot3_stats_t tulip_dot3stats;
-    tulip_ringinfo_t tulip_rxinfo;
-    tulip_ringinfo_t tulip_txinfo;
-    tulip_media_info_t tulip_mediainfo[10];
-    /*
-     * The setup buffers for sending the setup frame to the chip.
-     * one is the one being sent while the other is the one being
-     * filled.
-     */
-    u_int32_t tulip_setupbuf[192/sizeof(u_int32_t)];
-    u_int32_t tulip_setupdata[192/sizeof(u_int32_t)];
-    char tulip_boardid[24];	/* buffer for board ID */
-    u_int8_t tulip_rombuf[128]; /* must be aligned */
-    u_int8_t tulip_pci_busno;	/* needed for multiport boards */
-    u_int8_t tulip_pci_devno;	/* needed for multiport boards */
-    u_int8_t tulip_connidx;
-    tulip_srom_connection_t tulip_conntype;
-    tulip_desc_t *tulip_rxdescs;
-    tulip_desc_t *tulip_txdescs;
-};
-
-#define	TULIP_DO_AUTOSENSE(sc)	(IFM_SUBTYPE((sc)->tulip_ifmedia.ifm_media) == IFM_AUTO)
-
+#define	TULIP_DO_AUTOSENSE(sc)	\
+	(IFM_SUBTYPE((sc)->tulip_ifmedia.ifm_media) == IFM_AUTO)
 
 #if defined(TULIP_HDR_DATA)
-static const char * const tulip_chipdescs[] = { 
-    "21040 [10Mb/s]",
-    "21041 [10Mb/s]",
-    "21140 [10-100Mb/s]",
-    "21140A [10-100Mb/s]",
-    "21142 [10-100Mb/s]",
-    "21143 [10-100Mb/s]",
+static const char *const tulip_chipdescs[] = {
+	"21040 [10Mb/s]",
+	"21041 [10Mb/s]",
+	"21140 [10-100Mb/s]",
+	"21140A [10-100Mb/s]",
+	"21142 [10-100Mb/s]",
+	"21143 [10-100Mb/s]",
 };
 
-static const char * const tulip_mediums[] = {
-    "unknown",			/* TULIP_MEDIA_UNKNOWN */
-    "10baseT",			/* TULIP_MEDIA_10BASET */
-    "Full Duplex 10baseT",	/* TULIP_MEDIA_10BASET_FD */
-    "BNC",			/* TULIP_MEDIA_BNC */
-    "AUI",			/* TULIP_MEDIA_AUI */
-    "External SIA",		/* TULIP_MEDIA_EXTSIA */
-    "AUI/BNC",			/* TULIP_MEDIA_AUIBNC */
-    "100baseTX",		/* TULIP_MEDIA_100BASET */
-    "Full Duplex 100baseTX",	/* TULIP_MEDIA_100BASET_FD */
-    "100baseT4",		/* TULIP_MEDIA_100BASET4 */
-    "100baseFX",		/* TULIP_MEDIA_100BASEFX */
-    "Full Duplex 100baseFX",	/* TULIP_MEDIA_100BASEFX_FD */
+static const char *const tulip_mediums[] = {
+	"unknown",		/* TULIP_MEDIA_UNKNOWN */
+	"10baseT",		/* TULIP_MEDIA_10BASET */
+	"Full Duplex 10baseT",	/* TULIP_MEDIA_10BASET_FD */
+	"BNC",			/* TULIP_MEDIA_BNC */
+	"AUI",			/* TULIP_MEDIA_AUI */
+	"External SIA",		/* TULIP_MEDIA_EXTSIA */
+	"AUI/BNC",		/* TULIP_MEDIA_AUIBNC */
+	"100baseTX",		/* TULIP_MEDIA_100BASET */
+	"Full Duplex 100baseTX",/* TULIP_MEDIA_100BASET_FD */
+	"100baseT4",		/* TULIP_MEDIA_100BASET4 */
+	"100baseFX",		/* TULIP_MEDIA_100BASEFX */
+	"Full Duplex 100baseFX",/* TULIP_MEDIA_100BASEFX_FD */
 };
 
 static const int tulip_media_to_ifmedia[] = {
-    IFM_ETHER | IFM_NONE,		/* TULIP_MEDIA_UNKNOWN */
-    IFM_ETHER | IFM_10_T,		/* TULIP_MEDIA_10BASET */
-    IFM_ETHER | IFM_10_T | IFM_FDX,	/* TULIP_MEDIA_10BASET_FD */
-    IFM_ETHER | IFM_10_2,		/* TULIP_MEDIA_BNC */
-    IFM_ETHER | IFM_10_5,		/* TULIP_MEDIA_AUI */
-    IFM_ETHER | IFM_MANUAL,		/* TULIP_MEDIA_EXTSIA */
-    IFM_ETHER | IFM_10_5,		/* TULIP_MEDIA_AUIBNC */
-    IFM_ETHER | IFM_100_TX,		/* TULIP_MEDIA_100BASET */
-    IFM_ETHER | IFM_100_TX | IFM_FDX,	/* TULIP_MEDIA_100BASET_FD */
-    IFM_ETHER | IFM_100_T4,		/* TULIP_MEDIA_100BASET4 */
-    IFM_ETHER | IFM_100_FX,		/* TULIP_MEDIA_100BASEFX */
-    IFM_ETHER | IFM_100_FX | IFM_FDX,	/* TULIP_MEDIA_100BASEFX_FD */
+	IFM_ETHER | IFM_NONE,		/* TULIP_MEDIA_UNKNOWN */
+	IFM_ETHER | IFM_10_T,		/* TULIP_MEDIA_10BASET */
+	IFM_ETHER | IFM_10_T | IFM_FDX,	/* TULIP_MEDIA_10BASET_FD */
+	IFM_ETHER | IFM_10_2,		/* TULIP_MEDIA_BNC */
+	IFM_ETHER | IFM_10_5,		/* TULIP_MEDIA_AUI */
+	IFM_ETHER | IFM_MANUAL,		/* TULIP_MEDIA_EXTSIA */
+	IFM_ETHER | IFM_10_5,		/* TULIP_MEDIA_AUIBNC */
+	IFM_ETHER | IFM_100_TX,		/* TULIP_MEDIA_100BASET */
+	IFM_ETHER | IFM_100_TX | IFM_FDX,	/* TULIP_MEDIA_100BASET_FD */
+	IFM_ETHER | IFM_100_T4,		/* TULIP_MEDIA_100BASET4 */
+	IFM_ETHER | IFM_100_FX,		/* TULIP_MEDIA_100BASEFX */
+	IFM_ETHER | IFM_100_FX | IFM_FDX,	/* TULIP_MEDIA_100BASEFX_FD */
 };
 
-static const char * const tulip_system_errors[] = {
-    "parity error",
-    "master abort",
-    "target abort",
-    "reserved #3",
-    "reserved #4",
-    "reserved #5",
-    "reserved #6",
-    "reserved #7",
+static const char *const tulip_system_errors[] = {
+	"parity error",
+	"master abort",
+	"target abort",
+	"reserved #3",
+	"reserved #4",
+	"reserved #5",
+	"reserved #6",
+	"reserved #7",
 };
 
-static const char * const tulip_status_bits[] = {
-    NULL,
-    "transmit process stopped",
-    NULL,
-    "transmit jabber timeout",
+static const char *const tulip_status_bits[] = {
+	NULL,
+	"transmit process stopped",
+	NULL,
+	"transmit jabber timeout",
 
-    NULL,
-    "transmit underflow",
-    NULL,
-    "receive underflow",
+	NULL,
+	"transmit underflow",
+	NULL,
+	"receive underflow",
 
-    "receive process stopped",
-    "receive watchdog timeout",
-    NULL,
-    NULL,
+	"receive process stopped",
+	"receive watchdog timeout",
+	NULL,
+	NULL,
 
-    "link failure",
-    NULL,
-    NULL,
+	"link failure",
+	NULL,
+	NULL,
 };
 
 static const struct {
-    tulip_srom_connection_t sc_type;
-    tulip_media_t sc_media;
-    u_int32_t sc_attrs;
+	tulip_srom_connection_t sc_type;
+	tulip_media_t sc_media;
+	u_int32_t sc_attrs;
 } tulip_srom_conninfo[] = {
-    { TULIP_SROM_CONNTYPE_10BASET,		TULIP_MEDIA_10BASET },
-    { TULIP_SROM_CONNTYPE_BNC,			TULIP_MEDIA_BNC },
-    { TULIP_SROM_CONNTYPE_AUI,			TULIP_MEDIA_AUI },
-    { TULIP_SROM_CONNTYPE_100BASETX,		TULIP_MEDIA_100BASETX },
-    { TULIP_SROM_CONNTYPE_100BASET4,		TULIP_MEDIA_100BASET4 },
-    { TULIP_SROM_CONNTYPE_100BASEFX,		TULIP_MEDIA_100BASEFX },
-    { TULIP_SROM_CONNTYPE_MII_10BASET,		TULIP_MEDIA_10BASET,
-		TULIP_SROM_ATTR_MII },
-    { TULIP_SROM_CONNTYPE_MII_100BASETX,	TULIP_MEDIA_100BASETX,
-		TULIP_SROM_ATTR_MII },
-    { TULIP_SROM_CONNTYPE_MII_100BASET4,	TULIP_MEDIA_100BASET4,
-		TULIP_SROM_ATTR_MII },
-    { TULIP_SROM_CONNTYPE_MII_100BASEFX,	TULIP_MEDIA_100BASEFX,
-		TULIP_SROM_ATTR_MII },
-    { TULIP_SROM_CONNTYPE_10BASET_NWAY,		TULIP_MEDIA_10BASET,
-		TULIP_SROM_ATTR_NWAY },
-    { TULIP_SROM_CONNTYPE_10BASET_FD,		TULIP_MEDIA_10BASET_FD },
-    { TULIP_SROM_CONNTYPE_MII_10BASET_FD,	TULIP_MEDIA_10BASET_FD,
-		TULIP_SROM_ATTR_MII },
-    { TULIP_SROM_CONNTYPE_100BASETX_FD,		TULIP_MEDIA_100BASETX_FD },
-    { TULIP_SROM_CONNTYPE_MII_100BASETX_FD,	TULIP_MEDIA_100BASETX_FD,
-		TULIP_SROM_ATTR_MII },
-    { TULIP_SROM_CONNTYPE_10BASET_NOLINKPASS,	TULIP_MEDIA_10BASET,
-		TULIP_SROM_ATTR_NOLINKPASS },
-    { TULIP_SROM_CONNTYPE_AUTOSENSE,		TULIP_MEDIA_UNKNOWN,
-		TULIP_SROM_ATTR_AUTOSENSE },
-    { TULIP_SROM_CONNTYPE_AUTOSENSE_POWERUP,	TULIP_MEDIA_UNKNOWN,
-		TULIP_SROM_ATTR_AUTOSENSE|TULIP_SROM_ATTR_POWERUP },
-    { TULIP_SROM_CONNTYPE_AUTOSENSE_NWAY,	TULIP_MEDIA_UNKNOWN,
-		TULIP_SROM_ATTR_AUTOSENSE|TULIP_SROM_ATTR_NWAY },
-    { TULIP_SROM_CONNTYPE_NOT_USED,		TULIP_MEDIA_UNKNOWN }
+	{
+		TULIP_SROM_CONNTYPE_10BASET, TULIP_MEDIA_10BASET
+	},
+	{
+		TULIP_SROM_CONNTYPE_BNC, TULIP_MEDIA_BNC
+	},
+	{
+		TULIP_SROM_CONNTYPE_AUI, TULIP_MEDIA_AUI
+	},
+	{
+		TULIP_SROM_CONNTYPE_100BASETX, TULIP_MEDIA_100BASETX
+	},
+	{
+		TULIP_SROM_CONNTYPE_100BASET4, TULIP_MEDIA_100BASET4
+	},
+	{
+		TULIP_SROM_CONNTYPE_100BASEFX, TULIP_MEDIA_100BASEFX
+	},
+	{
+		TULIP_SROM_CONNTYPE_MII_10BASET, TULIP_MEDIA_10BASET,
+		TULIP_SROM_ATTR_MII
+	},
+	{
+		TULIP_SROM_CONNTYPE_MII_100BASETX, TULIP_MEDIA_100BASETX,
+		TULIP_SROM_ATTR_MII
+	},
+	{
+		TULIP_SROM_CONNTYPE_MII_100BASET4, TULIP_MEDIA_100BASET4,
+		TULIP_SROM_ATTR_MII
+	},
+	{
+		TULIP_SROM_CONNTYPE_MII_100BASEFX, TULIP_MEDIA_100BASEFX,
+		TULIP_SROM_ATTR_MII
+	},
+	{
+		TULIP_SROM_CONNTYPE_10BASET_NWAY, TULIP_MEDIA_10BASET,
+		TULIP_SROM_ATTR_NWAY
+	},
+	{
+		TULIP_SROM_CONNTYPE_10BASET_FD, TULIP_MEDIA_10BASET_FD
+	},
+	{
+		TULIP_SROM_CONNTYPE_MII_10BASET_FD, TULIP_MEDIA_10BASET_FD,
+		TULIP_SROM_ATTR_MII
+	},
+	{
+		TULIP_SROM_CONNTYPE_100BASETX_FD, TULIP_MEDIA_100BASETX_FD
+	},
+	{
+		TULIP_SROM_CONNTYPE_MII_100BASETX_FD, TULIP_MEDIA_100BASETX_FD,
+		TULIP_SROM_ATTR_MII
+	},
+	{
+		TULIP_SROM_CONNTYPE_10BASET_NOLINKPASS, TULIP_MEDIA_10BASET,
+		TULIP_SROM_ATTR_NOLINKPASS
+	},
+	{
+		TULIP_SROM_CONNTYPE_AUTOSENSE, TULIP_MEDIA_UNKNOWN,
+		TULIP_SROM_ATTR_AUTOSENSE
+	},
+	{
+		TULIP_SROM_CONNTYPE_AUTOSENSE_POWERUP, TULIP_MEDIA_UNKNOWN,
+		TULIP_SROM_ATTR_AUTOSENSE | TULIP_SROM_ATTR_POWERUP
+	},
+	{
+		TULIP_SROM_CONNTYPE_AUTOSENSE_NWAY, TULIP_MEDIA_UNKNOWN,
+		TULIP_SROM_ATTR_AUTOSENSE | TULIP_SROM_ATTR_NWAY
+	},
+	{
+		TULIP_SROM_CONNTYPE_NOT_USED, TULIP_MEDIA_UNKNOWN
+	}
 };
 #define	TULIP_SROM_LASTCONNIDX	\
 		(sizeof(tulip_srom_conninfo)/sizeof(tulip_srom_conninfo[0]) - 1)
 
 static const struct {
-    tulip_media_t sm_type;
-    tulip_srom_media_t sm_srom_type;
+	tulip_media_t sm_type;
+	tulip_srom_media_t sm_srom_type;
 } tulip_srom_mediums[] = {
-    { 	TULIP_MEDIA_100BASEFX_FD,	TULIP_SROM_MEDIA_100BASEFX_FD	},
-    {	TULIP_MEDIA_100BASEFX,		TULIP_SROM_MEDIA_100BASEFX	},
-    {	TULIP_MEDIA_100BASET4,		TULIP_SROM_MEDIA_100BASET4	},
-    {	TULIP_MEDIA_100BASETX_FD,	TULIP_SROM_MEDIA_100BASETX_FD	},
-    {	TULIP_MEDIA_100BASETX,		TULIP_SROM_MEDIA_100BASETX	},
-    {	TULIP_MEDIA_10BASET_FD,		TULIP_SROM_MEDIA_10BASET_FD	},
-    {	TULIP_MEDIA_AUI,		TULIP_SROM_MEDIA_AUI		},
-    {	TULIP_MEDIA_BNC,		TULIP_SROM_MEDIA_BNC		},
-    {	TULIP_MEDIA_10BASET,		TULIP_SROM_MEDIA_10BASET	},
-    {	TULIP_MEDIA_UNKNOWN						}
+	{
+		TULIP_MEDIA_100BASEFX_FD, TULIP_SROM_MEDIA_100BASEFX_FD
+	},
+	{
+		TULIP_MEDIA_100BASEFX, TULIP_SROM_MEDIA_100BASEFX
+	},
+	{
+		TULIP_MEDIA_100BASET4, TULIP_SROM_MEDIA_100BASET4
+	},
+	{
+		TULIP_MEDIA_100BASETX_FD, TULIP_SROM_MEDIA_100BASETX_FD
+	},
+	{
+		TULIP_MEDIA_100BASETX, TULIP_SROM_MEDIA_100BASETX
+	},
+	{
+		TULIP_MEDIA_10BASET_FD, TULIP_SROM_MEDIA_10BASET_FD
+	},
+	{
+		TULIP_MEDIA_AUI, TULIP_SROM_MEDIA_AUI
+	},
+	{
+		TULIP_MEDIA_BNC, TULIP_SROM_MEDIA_BNC
+	},
+	{
+		TULIP_MEDIA_10BASET, TULIP_SROM_MEDIA_10BASET
+	},
+	{
+		TULIP_MEDIA_UNKNOWN
+	}
 };
-#endif /* TULIP_HDR_DATA */
+
+#endif				/* TULIP_HDR_DATA */
 
 /*
  * This driver supports a maximum of 32 tulip boards.
@@ -759,10 +850,10 @@ static const struct {
 #define	TULIP_MAX_DEVICES	32
 
 #if defined(TULIP_USE_SOFTINTR) && defined(TULIP_HDR_DATA)
-static u_int32_t tulip_softintr_mask;
-static int tulip_softintr_last_unit;
-static int tulip_softintr_max_unit;
-static void tulip_softintr(void);
+static u_int32_t	tulip_softintr_mask;
+static int		tulip_softintr_last_unit;
+static int		tulip_softintr_max_unit;
+static void		tulip_softintr(void);
 #endif
 
 #if defined(TULIP_BUS_DMA) && !defined(TULIP_BUS_DMA_NORX)
@@ -839,7 +930,7 @@ static void tulip_softintr(void);
 #endif
 
 #if defined(TULIP_HDR_DATA)
-static tulip_softc_t *tulips[TULIP_MAX_DEVICES];
+static tulip_softc_t	*tulips[TULIP_MAX_DEVICES];
 #endif
 
 #if defined(TULIP_USE_SOFTINTR)
@@ -848,20 +939,12 @@ NETISR_SET(NETISR_DE, tulip_softintr);
 
 #define	loudprintf			if (bootverbose) printf
 
-#ifndef	tulip_if
-#define	tulip_if	tulip_ac.ac_if
-#endif
-#define	tulip_xname	tulip_if.if_xname
-#ifndef tulip_enaddr
-#define	tulip_enaddr	tulip_ac.ac_enaddr
-#endif
-
 #if !defined(TULIP_KVATOPHYS) && (!defined(TULIP_BUS_DMA) || defined(TULIP_BUS_DMA_NORX) || defined(TULIP_BUS_DMA_NOTX))
 #if defined(__alpha__)
 /* XXX XXX NEED REAL DMA MAPPING SUPPORT XXX XXX */
-#define vtobus(va)	alpha_XXX_dmamap((vm_offset_t)va)
+#define vtobus(va)			alpha_XXX_dmamap((vm_offset_t)va)
 #else
-#define vtobus(va)	vtophys(va)
+#define vtobus(va)			vtophys(va)
 #endif
 #define	TULIP_KVATOPHYS(sc, va)		vtobus(va)
 #endif
@@ -878,36 +961,42 @@ NETISR_SET(NETISR_DE, tulip_softintr);
 	    (sc)->tulip_curperfstats.perf_ ## name ## _cycles += TULIP_PERFDIFF(perfstart_ ## name, TULIP_PERFREAD()); \
 	    (sc)->tulip_curperfstats.perf_ ## name ++; \
 	} while (0)
+
 #if defined(__i386__)
 typedef u_quad_t tulip_cycle_t;
+
 static __inline tulip_cycle_t
-TULIP_PERFREAD(
-    void)
+TULIP_PERFREAD(void)
 {
-    tulip_cycle_t x;
-    __asm__ volatile (".byte 0x0f, 0x31" : "=A" (x));
-    return x;
+	tulip_cycle_t x;
+	__asm__ volatile (".byte 0x0f, 0x31":"=A" (x));
+
+	return (x);
 }
+
 #define	TULIP_PERFDIFF(s, f)	((f) - (s))
 #elif defined(__alpha__)
 typedef unsigned long tulip_cycle_t;
+
 static __inline tulip_cycle_t
-TULIP_PERFREAD(
-    void)
+TULIP_PERFREAD(void)
 {
-    tulip_cycle_t x;
-    __asm__ volatile ("rpcc %0" : "=r" (x));
-    return x;
+	tulip_cycle_t x;
+	__asm__ volatile ("rpcc %0":"=r" (x));
+
+	return (x);
 }
+
 #define	TULIP_PERFDIFF(s, f)	((unsigned int) ((f) - (s)))
 #endif
 #else
-#define	TULIP_PERFSTART(name)	
+#define	TULIP_PERFSTART(name)
 #define	TULIP_PERFEND(name)	do { } while (0)
 #define	TULIP_PERFMERGE(s,n)	do { } while (0)
-#endif /* TULIP_PERFSTATS */
+#endif	/* TULIP_PERFSTATS */
 
-#define	TULIP_CRC32_POLY	0xEDB88320UL	/* CRC-32 Poly -- Little Endian */
+#define	TULIP_CRC32_POLY	0xEDB88320UL	/* CRC-32 Poly -- Little
+						 * Endian */
 #define	TULIP_MAX_TXSEG		30
 
 #define	TULIP_ADDREQUAL(a1, a2) \
@@ -919,4 +1008,4 @@ TULIP_PERFREAD(
 	 && ((u_int16_t *)a1)[1] == 0xFFFFU \
 	 && ((u_int16_t *)a1)[2] == 0xFFFFU)
 
-#endif /* !defined(_DEVAR_H) */
+#endif	/* _DEVAR_H */
