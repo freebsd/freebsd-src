@@ -1779,12 +1779,6 @@ start_login(host, autologin, name)
 		close(pty);
 #endif
 	closelog();
-	/*
-	 * This sleep(1) is in here so that telnetd can
-	 * finish up with the tty.  There's a race condition
-	 * the login banner message gets lost...
-	 */
-	sleep(1);
 	execv(_PATH_LOGIN, argv);
 
 	syslog(LOG_ERR, "%s: %m\n", _PATH_LOGIN);
