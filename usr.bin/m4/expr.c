@@ -67,31 +67,24 @@ __FBSDID("$FreeBSD$");
  *      query   :       lor
  *              |       lor "?" query ":" query
  *      lor     :       land { "||" land }
- *      land    :       not { "&&" not }
- *	not	:	eqrel
- *		|	'!' not
- *      eqrel   :       shift { eqrelop shift }
- *      shift   :       primary { shop primary }
- *      primary :       term { addop term }
- *      term    :       exp { mulop exp }
- *	exp	:	unary { expop unary }
+ *      land    :       bor { "&&" bor }
+ *      bor     :       xor { "|" xor }
+ *      xor     :       band { "^" eqrel }
+ *      band    :       eqrel { "&" eqrel }
+ *      eqrel   :       nerel { ("==" | "!=") nerel }
+ *      nerel   :       shift { ("<" | ">" | "<=" | ">=") shift }
+ *      shift   :       primary { ("<<" | ">>") primary }
+ *      primary :       term { ("+" | "-") term }
+ *      term    :       exp { ("*" | "/" | "%") exp }
+ *      exp     :       unary { "**" unary }
  *      unary   :       factor
- *              |       unop unary
+ *              |       ("+" | "-" | "~" | "!") unary
  *      factor  :       constant
  *              |       "(" query ")"
  *      constant:       num
  *              |       "'" CHAR "'"
  *      num     :       DIGIT
  *              |       DIGIT num
- *      shop    :       "<<"
- *              |       ">>"
- *      eqrel   :       "="
- *              |       "=="
- *              |       "!="
- *      	|       "<"
- *              |       ">"
- *              |       "<="
- *              |       ">="
  *
  *
  *      This expression evaluator is lifted from a public-domain
@@ -115,20 +108,23 @@ __FBSDID("$FreeBSD$");
 static const char *nxtch;		       /* Parser scan pointer */
 static const char *where;
 
-static int query(void);
-static int lor(void);
-static int land(void);
-static int not(void);
-static int eqrel(void);
-static int shift(void);
-static int primary(void);
-static int term(void);
-static int exp(void);
-static int unary(void);
-static int factor(void);
-static int constant(void);
-static int num(void);
-static int geteqrel(void);
+static int query(int mayeval);
+static int lor(int mayeval);
+static int land(int mayeval);
+static int bor(int mayeval);
+static int xor(int mayeval);
+static int band(int mayeval);
+static int eqrel(int mayeval);
+static int nerel(int mayeval);
+static int shift(int mayeval);
+static int primary(int mayeval);
+static int term(int mayeval);
+static int exp(int mayeval);
+static int unary(int mayeval);
+static int factor(int mayeval);
+static int constant(int mayeval);
+static int num(int mayeval);
+static int geteqrel(int mayeval);
 static int skipws(void);
 static void experr(const char *);
 
@@ -156,7 +152,7 @@ expr(const char *expbuf)
 	if (setjmp(expjump) != 0)
 		return FALSE;
 
-	rval = query();
+	rval = query(1);
 	if (skipws() == EOS)
 		return rval;
 
@@ -168,21 +164,21 @@ expr(const char *expbuf)
  * query : lor | lor '?' query ':' query
  */
 static int
-query(void)
+query(int mayeval)
 {
 	int result, true_val, false_val;
 
-	result = lor();
+	result = lor(mayeval);
 	if (skipws() != '?') {
 		ungetch();
 		return result;
 	}
 
-	true_val = query();
+	true_val = query(result);
 	if (skipws() != ':')
-		experr("bad query");
+		experr("bad query: missing \":\"");
 
-	false_val = query();
+	false_val = query(!result);
 	return result ? true_val : false_val;
 }
 
@@ -190,15 +186,19 @@ query(void)
  * lor : land { '||' land }
  */
 static int
-lor(void)
+lor(int mayeval)
 {
 	int c, vl, vr;
 
-	vl = land();
+	vl = land(mayeval);
 	while ((c = skipws()) == '|') {
-		if (getch() != '|')
+		if (getch() != '|') {
 			ungetch();
-		vr = land();
+			break;
+		}
+		if (vl != 0)
+			mayeval = 0;
+		vr = land(mayeval);
 		vl = vl || vr;
 	}
 
@@ -210,15 +210,19 @@ lor(void)
  * land : not { '&&' not }
  */
 static int
-land(void)
+land(int mayeval)
 {
 	int c, vl, vr;
 
-	vl = not();
+	vl = bor(mayeval);
 	while ((c = skipws()) == '&') {
-		if (getch() != '&')
+		if (getch() != '&') {
 			ungetch();
-		vr = not();
+			break;
+		}
+		if (vl == 0)
+			mayeval = 0;
+		vr = bor(mayeval);
 		vl = vl && vr;
 	}
 
@@ -227,74 +231,131 @@ land(void)
 }
 
 /*
- * not : eqrel | '!' not
+ * bor : xor { "|" xor }
  */
 static int
-not(void)
+bor(int mayeval)
 {
-	int val, c;
+	int vl, vr, c, cr;
 
-	if ((c = skipws()) == '!' && getch() != '=') {
+	vl = xor(mayeval);
+	while ((c = skipws()) == '|') {
+		cr = getch();
 		ungetch();
-		val = not();
-		return !val;
+		if (cr == '|')
+			break;
+		vr = xor(mayeval);
+		vl |= vr;
 	}
-
-	if (c == '!')
-		ungetch();
 	ungetch();
-	return eqrel();
+	return (vl);
 }
 
 /*
- * eqrel : shift { eqrelop shift }
+ * xor : band { "^" band }
  */
 static int
-eqrel(void)
+xor(int mayeval)
 {
-	int vl, vr, op;
+	int vl, vr, c;
 
-	vl = shift();
-	while ((op = geteqrel()) != -1) {
-		vr = shift();
-
-		switch (op) {
-
-		case EQL:
-			vl = (vl == vr);
-			break;
-		case NEQ:
-			vl = (vl != vr);
-			break;
-
-		case LEQ:
-			vl = (vl <= vr);
-			break;
-		case LSS:
-			vl = (vl < vr);
-			break;
-		case GTR:
-			vl = (vl > vr);
-			break;
-		case GEQ:
-			vl = (vl >= vr);
-			break;
-		}
+	vl = band(mayeval);
+	while ((c = skipws()) == '^') {
+		vr = band(mayeval);
+		vl ^= vr;
 	}
+	ungetch();
+	return (vl);
+}
+
+/*
+ * band : eqrel { "&" eqrel }
+ */
+static int
+band(int mayeval)
+{
+	int c, cr, vl, vr;
+
+	vl = eqrel(mayeval);
+	while ((c = skipws()) == '&') {
+		cr = getch();
+		ungetch();
+		if (cr == '&')
+			break;
+		vr = eqrel(mayeval);
+		vl &= vr;
+	}
+	ungetch();
 	return vl;
 }
 
 /*
- * shift : primary { shop primary }
+ * eqrel : nerel { ("==" | "!=" ) nerel }
  */
 static int
-shift(void)
+eqrel(int mayeval)
+{
+	int vl, vr, c, cr;
+
+	vl = nerel(mayeval);
+	while ((c = skipws()) == '!' || c == '=') {
+		if ((cr = getch()) != '=') {
+			ungetch();
+			break;
+		}
+		vr = nerel(mayeval);
+		switch (c) {
+		case '=':
+			vl = (vl == vr);
+			break;
+		case '!':
+			vl = (vl != vr);
+			break;
+		}
+	}
+	ungetch();
+	return vl;
+}
+
+/*
+ * nerel : shift { ("<=" | ">=" | "<" | ">") shift }
+ */
+static int
+nerel(int mayeval)
+{
+	int vl, vr, c, cr;
+
+	vl = shift(mayeval);
+	while ((c = skipws()) == '<' || c == '>') {
+		if ((cr = getch()) != '=') {
+			ungetch();
+			cr = '\0';
+		}
+		vr = shift(mayeval);
+		switch (c) {
+		case '<':
+			vl = (cr == '\0') ? (vl < vr) : (vl <= vr);
+			break;
+		case '>':
+			vl = (cr == '\0') ? (vl > vr) : (vl >= vr);
+			break;
+		}
+	}
+	ungetch();
+	return vl;
+}
+
+/*
+ * shift : primary { ("<<" | ">>") primary }
+ */
+static int
+shift(int mayeval)
 {
 	int vl, vr, c;
 
-	vl = primary();
+	vl = primary(mayeval);
 	while (((c = skipws()) == '<' || c == '>') && getch() == c) {
-		vr = primary();
+		vr = primary(mayeval);
 
 		if (c == '<')
 			vl <<= vr;
@@ -309,16 +370,16 @@ shift(void)
 }
 
 /*
- * primary : term { addop term }
+ * primary : term { ("+" | "-") term }
  */
 static int
-primary(void)
+primary(int mayeval)
 {
 	int c, vl, vr;
 
-	vl = term();
+	vl = term(mayeval);
 	while ((c = skipws()) == '+' || c == '-') {
-		vr = term();
+		vr = term(mayeval);
 
 		if (c == '+')
 			vl += vr;
@@ -331,29 +392,33 @@ primary(void)
 }
 
 /*
- * <term> := <exp> { <mulop> <exp> }
+ * term : exp { ("*" | "/" | "%") exp }
  */
 static int
-term(void)
+term(int mayeval)
 {
 	int c, vl, vr;
 
-	vl = exp();
+	vl = exp(mayeval);
 	while ((c = skipws()) == '*' || c == '/' || c == '%') {
-		vr = exp();
+		vr = exp(mayeval);
 
 		switch (c) {
 		case '*':
 			vl *= vr;
 			break;
 		case '/':
-			if (vr == 0)
+			if (!mayeval)
+				/* short-circuit */;
+			else if (vr == 0)
 				errx(1, "division by zero in eval.");
 			else
 				vl /= vr;
 			break;
 		case '%':
-			if (vr == 0)
+			if (!mayeval)
+				/* short-circuit */;
+			else if (vr == 0)
 				errx(1, "modulo zero in eval.");
 			else
 				vl %= vr;
@@ -365,24 +430,20 @@ term(void)
 }
 
 /*
- * <term> := <unary> { <expop> <unary> }
+ * exp : unary { "**" exp }
  */
 static int
-exp(void)
+exp(int mayeval)
 {
 	int c, vl, vr, n;
 
-	vl = unary();
-	switch (c = skipws()) {
-
-	case '*':
+	vl = unary(mayeval);
+	while ((c = skipws()) == '*') {
 		if (getch() != '*') {
 			ungetch();
 			break;
 		}
-
-	case '^':
-		vr = exp();
+		vr = unary(mayeval);
 		n = 1;
 		while (vr-- > 0)
 			n *= vl;
@@ -394,15 +455,15 @@ exp(void)
 }
 
 /*
- * unary : factor | unop unary
+ * unary : factor | ("+" | "-" | "~" | "!") unary
  */
 static int
-unary(void)
+unary(int mayeval)
 {
 	int val, c;
 
-	if ((c = skipws()) == '+' || c == '-' || c == '~') {
-		val = unary();
+	if ((c = skipws()) == '+' || c == '-' || c == '~' || c == '!') {
+		val = unary(mayeval);
 
 		switch (c) {
 		case '+':
@@ -411,30 +472,32 @@ unary(void)
 			return -val;
 		case '~':
 			return ~val;
+		case '!':
+			return !val;
 		}
 	}
 
 	ungetch();
-	return factor();
+	return factor(mayeval);
 }
 
 /*
  * factor : constant | '(' query ')'
  */
 static int
-factor(void)
+factor(int mayeval)
 {
 	int val;
 
 	if (skipws() == '(') {
-		val = query();
+		val = query(mayeval);
 		if (skipws() != ')')
-			experr("bad factor");
+			experr("bad factor: missing \")\"");
 		return val;
 	}
 
 	ungetch();
-	return constant();
+	return constant(mayeval);
 }
 
 /*
@@ -442,7 +505,7 @@ factor(void)
  * Note: constant() handles multi-byte constants
  */
 static int
-constant(void)
+constant(int mayeval)
 {
 	int i;
 	int value;
@@ -451,7 +514,7 @@ constant(void)
 
 	if (skipws() != '\'') {
 		ungetch();
-		return num();
+		return num(mayeval);
 	}
 	for (i = 0; i < (ssize_t)sizeof(int); i++) {
 		if ((c = getch()) == '\'') {
@@ -469,7 +532,7 @@ constant(void)
 			case '6':
 			case '7':
 				ungetch();
-				c = num();
+				c = num(mayeval);
 				break;
 			case 'n':
 				c = 012;
@@ -503,7 +566,7 @@ constant(void)
  * num : digit | num digit
  */
 static int
-num(void)
+num(int mayeval)
 {
 	int rval, c, base;
 	int ndig;
@@ -555,50 +618,6 @@ bad_digit:
 		experr("bad constant");
 
 	return rval;
-}
-
-/*
- * eqrel : '=' | '==' | '!=' | '<' | '>' | '<=' | '>='
- */
-static int
-geteqrel(void)
-{
-	int c1, c2;
-
-	c1 = skipws();
-	c2 = getch();
-
-	switch (c1) {
-
-	case '=':
-		if (c2 != '=')
-			ungetch();
-		return EQL;
-
-	case '!':
-		if (c2 == '=')
-			return NEQ;
-		ungetch();
-		ungetch();
-		return -1;
-
-	case '<':
-		if (c2 == '=')
-			return LEQ;
-		ungetch();
-		return LSS;
-
-	case '>':
-		if (c2 == '=')
-			return GEQ;
-		ungetch();
-		return GTR;
-
-	default:
-		ungetch();
-		ungetch();
-		return -1;
-	}
 }
 
 /*
