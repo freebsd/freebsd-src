@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.13 1994/11/01 22:23:29 bde Exp $
+ * $Id: tty.c,v 1.14 1994/11/26 18:54:25 bde Exp $
  */
 
 #include <sys/param.h>
@@ -71,10 +71,6 @@ char ttybg[]	= "ttybg";
 char ttybuf[]	= "ttybuf";
 char ttyin[]	= "ttyin";
 char ttyout[]	= "ttyout";
-
-#ifndef CBLOCKS_PER_TTY
-#define CBLOCKS_PER_TTY 10
-#endif
 
 /*
  * Table with character classes and parity. The 8th bit indicates parity,
@@ -169,12 +165,17 @@ ttyopen(device, tp)
 	if (!ISSET(tp->t_state, TS_ISOPEN)) {
 		SET(tp->t_state, TS_ISOPEN);
 		bzero(&tp->t_winsize, sizeof(tp->t_winsize));
-		/*
-		 * Add some cblocks to the clistfree pool.
-		 */
-		cblock_alloc_cblocks(CBLOCKS_PER_TTY);
 	}
 	CLR(tp->t_state, TS_WOPEN);
+
+	/*
+	 * Initialize or restore a cblock allocation policy suitable for
+	 * the standard line discipline.
+	 */
+	clist_alloc_cblocks(&tp->t_canq, TTYHOG, 512);
+	clist_alloc_cblocks(&tp->t_outq, TTMAXHIWAT + 200, 512);
+	clist_alloc_cblocks(&tp->t_rawq, TTYHOG, 512);
+
 	splx(s);
 	return (0);
 }
@@ -189,23 +190,22 @@ ttyclose(tp)
 	register struct tty *tp;
 {
 	extern struct tty *constty;	/* Temporary virtual console. */
+	int s;
 
+	s = spltty();
 	if (constty == tp)
 		constty = NULL;
 
 	ttyflush(tp, FREAD | FWRITE);
+	clist_free_cblocks(&tp->t_canq);
+	clist_free_cblocks(&tp->t_outq);
+	clist_free_cblocks(&tp->t_rawq);
 
 	tp->t_gen++;
 	tp->t_pgrp = NULL;
 	tp->t_session = NULL;
-	/*
-	 * If the tty has not already been closed, free the cblocks
-	 * that were allocated in ttyopen() back to the system malloc
-	 * pool.
-	 */
-	if (ISSET(tp->t_state, (TS_ISOPEN|TS_WOPEN)))
-		cblock_free_cblocks(CBLOCKS_PER_TTY);
 	tp->t_state = 0;
+	splx(s);
 	return (0);
 }
 
@@ -1209,9 +1209,16 @@ ttypend(tp)
 
 	CLR(tp->t_lflag, PENDIN);
 	SET(tp->t_state, TS_TYPEN);
+	/*
+	 * XXX this assumes too much about clist internals.  It may even
+	 * fail if the cblock slush pool is empty.  We can't allocate more
+	 * cblocks here because we are called from an interrupt handler
+	 * and clist_alloc_cblocks() can wait.
+	 */
 	tq = tp->t_rawq;
-	tp->t_rawq.c_cc = 0;
-	tp->t_rawq.c_cf = tp->t_rawq.c_cl = 0;
+	bzero(&tp->t_rawq, sizeof tp->t_rawq);
+	tp->t_rawq.c_cbmax = tq.c_cbmax;
+	tp->t_rawq.c_cbreserved = tq.c_cbreserved;
 	while ((c = getc(&tq)) >= 0)
 		ttyinput(c, tp);
 	CLR(tp->t_state, TS_TYPEN);
