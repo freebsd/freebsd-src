@@ -169,7 +169,7 @@ pkg_do(char *pkg)
 
     if (chdir(home) == FAIL) {
 	cleanup(0);
-	errx(2, "unable to return to working directory %s!");
+	errx(2, "unable to return to working directory %s!", home);
     }
 
     if (!Fake) {
@@ -200,7 +200,7 @@ pkg_do(char *pkg)
 
     if (chdir(home) == FAIL) {
  	cleanup(0);
-	errx(2, "unable to return to working directory %s!");
+	errx(2, "unable to return to working directory %s!", home);
     }
 
     if (!Fake) {
