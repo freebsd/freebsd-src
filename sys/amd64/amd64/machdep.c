@@ -588,8 +588,7 @@ cpu_setregs(void)
 	 * CR0_MP, CR0_NE and CR0_TS are also set by npx_probe() for the
 	 * BSP.  See the comments there about why we set them.
 	 */
-	cr0 |= CR0_MP | CR0_NE | CR0_TS;
-	cr0 |= CR0_WP | CR0_AM;
+	cr0 |= CR0_MP | CR0_NE | CR0_TS | CR0_WP | CR0_AM;
 	load_cr0(cr0);
 }
 
