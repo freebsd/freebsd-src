@@ -1104,7 +1104,7 @@ grepdir (char const *dir, struct stats const *stats)
 	  && ancestor->stat.st_dev == stats->stat.st_dev)
 	{
 	  if (!suppress_errors)
-	    error (0, 0, _("warning: %s: %s\n"), dir,
+	    error (0, 0, _("warning: %s: %s"), dir,
 		   _("recursive directory loop"));
 	  return 1;
 	}
