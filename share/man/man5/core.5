@@ -96,14 +96,14 @@ area, whose size (in pages) is
 defined by the
 .Dv UPAGES
 manifest in the
-.Aq Pa sys/param.h
+.In sys/param.h
 file.
 The
 .Fa u.
 area starts with a
 .Fa user
 structure as given in
-.Aq Pa sys/user.h .
+.In sys/user.h .
 The remainder of the core
 file consists of the data pages followed by
 the stack pages of the process image.
@@ -123,7 +123,7 @@ area.
 The size of a ``page'' is given by the constant
 .Dv PAGE_SIZE
 (also from
-.Aq Pa sys/param.h ) .
+.In sys/param.h ) .
 .Sh EXAMPLES
 In order to store all core images in per-user private areas under
 .Pa /var/coredumps ,

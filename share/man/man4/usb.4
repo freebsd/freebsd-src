@@ -154,8 +154,6 @@ Use the following to get access to the
 .Tn USB
 specific structures and defines.
 .Pp
-.In dev/usb/usb.h
-.Pp
 The
 .Pa /dev/usb Ns Ar N
 can be opened and a few operations can be performed on it.
@@ -281,7 +279,7 @@ can destroy the bus integrity.
 .El
 .Pp
 The include file
-.Aq Pa dev/usb/usb.h
+.In dev/usb/usb.h
 contains definitions for the types used by the various
 .Xr ioctl 2
 calls.
@@ -298,7 +296,7 @@ and
 macros to handle byte order and alignment properly.
 .Pp
 The include file
-.Aq Pa dev/usb/usbhid.h
+.In dev/usb/usbhid.h
 similarly contains the definitions for
 Human Interface Devices
 .Pq Tn HID .

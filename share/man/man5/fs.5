@@ -49,9 +49,9 @@
 .In ufs/ufs/inode.h
 .Sh DESCRIPTION
 The files
-.Aq Pa fs.h
+.In fs.h
 and
-.Aq Pa inode.h
+.In inode.h
 declare several structures, defined variables and macros
 which are used to create and manage the underlying format of
 file system objects on random access devices (disks).
@@ -74,7 +74,7 @@ that is of size
 .Dv SBLOCKSIZE .
 The following structure describes the super-block and is
 from the file
-.Aq Pa ufs/ffs/fs.h :
+.In ufs/ffs/fs.h :
 .Bd -literal
 /*
  * Super block for an FFS filesystem.
@@ -377,7 +377,7 @@ each current directory, each mounted-on file,
 text file, and the root.
 An inode is `named' by its device/i-number pair.
 For further information, see the include file
-.Aq Pa ufs/ufs/inode.h .
+.In ufs/ufs/inode.h .
 .Sh HISTORY
 A super-block structure named filsys appeared in
 .At v6 .

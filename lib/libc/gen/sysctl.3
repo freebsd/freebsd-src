@@ -182,7 +182,7 @@ for (i = 0; i < 100; i++) {
 .Ed
 .Pp
 The top level names are defined with a CTL_ prefix in
-.Aq Pa sys/sysctl.h ,
+.In sys/sysctl.h ,
 and are as follows.
 The next and subsequent levels down are found in the include files
 listed here, and described in separate sections below.
@@ -420,7 +420,7 @@ and
 is updated when the available APIs change.
 .Pp
 The userland release version is available from
-.Aq Pa osreldate.h ;
+.In osreldate.h ;
 parse this file if you need to get the release version of
 the currently installed userland.
 .It Li KERN_OSRELEASE
@@ -816,23 +816,23 @@ A process without appropriate privilege attempts to set a value.
 .El
 .Sh FILES
 .Bl -tag -width <netinet/icmpXvar.h> -compact
-.It Aq Pa sys/sysctl.h
+.It In sys/sysctl.h
 definitions for top level identifiers, second level kernel and hardware
 identifiers, and user level identifiers
-.It Aq Pa sys/socket.h
+.It In sys/socket.h
 definitions for second level network identifiers
-.It Aq Pa sys/gmon.h
+.It In sys/gmon.h
 definitions for third level profiling identifiers
-.It Aq Pa vm/vm_param.h
+.It In vm/vm_param.h
 definitions for second level virtual memory identifiers
-.It Aq Pa netinet/in.h
+.It In netinet/in.h
 definitions for third level IPv4/IPv6 identifiers and
 fourth level IPv4/v6 identifiers
-.It Aq Pa netinet/icmp_var.h
+.It In netinet/icmp_var.h
 definitions for fourth level ICMP identifiers
-.It Aq Pa netinet/icmp6.h
+.It In netinet/icmp6.h
 definitions for fourth level ICMPv6 identifiers
-.It Aq Pa netinet/udp_var.h
+.It In netinet/udp_var.h
 definitions for fourth level UDP identifiers
 .El
 .Sh SEE ALSO

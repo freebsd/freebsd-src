@@ -149,7 +149,7 @@ and
 return a pointer to a
 .Vt url
 structure, which is defined as follows in
-.Aq Pa fetch.h :
+.In fetch.h :
 .Bd -literal
 #define URL_SCHEMELEN 16
 #define URL_USERLEN 256
@@ -204,7 +204,7 @@ structure pointed to by its second argument.
 The
 .Vt url_stat
 structure is defined as follows in
-.Aq Pa fetch.h :
+.In fetch.h :
 .Bd -literal
 struct url_stat {
     off_t	 size;
@@ -232,7 +232,7 @@ structures.
 The
 .Vt url_ent
 structure is defined as follows in
-.Aq Pa fetch.h :
+.In fetch.h :
 .Bd -literal
 struct url_ent {
     char         name[MAXPATHLEN];
@@ -401,7 +401,7 @@ All other functions return a stream pointer which may be used to
 access the requested document, or NULL if an error occurred.
 .Pp
 The following error codes are defined in
-.Aq Pa fetch.h :
+.In fetch.h :
 .Bl -tag -width 18n
 .It Bq Er FETCH_ABORT
 Operation aborted

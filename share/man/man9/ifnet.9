@@ -129,14 +129,14 @@ in the
 and
 .Vt ifmultiaddr
 structures in
-.Aq Pa net/if.h
+.In net/if.h
 and
-.Aq Pa net/if_var.h
+.In net/if_var.h
 and the functions named above and defined in
 .Pa /sys/net/if.c .
 Those interfaces which are intended to be used by user programs
 are defined in
-.Aq Pa net/if.h ;
+.In net/if.h ;
 these include the interface flags, the
 .Vt if_data
 structure, and the structures defining the appearance of
@@ -145,18 +145,18 @@ interface-related messages on the
 routing socket and in
 .Xr sysctl 3 .
 The header file
-.Aq Pa net/if_var.h
+.In net/if_var.h
 defines the kernel-internal interfaces, including the
 .Vt ifnet , ifaddr ,
 and
 .Vt ifmultiaddr
 structures and the functions which manipulate them.
 (A few user programs will need
-.Aq Pa net/if_var.h
+.In net/if_var.h
 because it is the prerequisite of some other header file like
-.Aq Pa netinet/if_ether.h .
+.In netinet/if_ether.h .
 Most references to those two files in particular can be replaced by
-.Aq Pa net/ethernet.h . )
+.In net/ethernet.h . )
 .Pp
 The system keeps a linked list of interfaces using the
 .Li TAILQ
@@ -352,7 +352,7 @@ Process interface-related
 .Xr ioctl 2
 requests
 (defined in
-.Aq Pa sys/sockio.h ) .
+.In sys/sockio.h ) .
 Preliminary processing is done by the generic routine
 .Fn ifioctl
 to check for appropriate privileges, locate the interface being
@@ -496,7 +496,7 @@ significantly over the course of normal operation:
 .It Va ifi_type
 .Pq Vt u_char
 The type of the interface, as defined in
-.Aq Pa net/if_types.h
+.In net/if_types.h
 and described below in the
 .Sx "Interface Types"
 section.
@@ -603,7 +603,7 @@ for
 .El
 .Ss Interface Types
 The header file
-.Aq Pa net/if_types.h
+.In net/if_types.h
 defines symbolic constants for a number of different types of
 interfaces.
 The most common are:

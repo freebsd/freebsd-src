@@ -94,13 +94,13 @@ Leave another blank line before the header files.
 Kernel include files (i.e.\&
 .Pa sys/*.h )
 come first; normally, include
-.Aq Pa sys/types.h
+.In sys/types.h
 OR
-.Aq Pa sys/param.h ,
+.In sys/param.h ,
 but not both.
-.Aq Pa sys/types.h
+.In sys/types.h
 includes
-.Aq Pa sys/cdefs.h ,
+.In sys/cdefs.h ,
 and it is okay to depend on that.
 .Bd -literal
 #include <sys/types.h>	/* Non-local includes in angle brackets. */
@@ -128,7 +128,7 @@ which should be sorted alphabetically by name.
 .Ed
 .Pp
 Global pathnames are defined in
-.Aq Pa paths.h .
+.In paths.h .
 Pathnames local
 to the program go in
 .Qq Pa pathnames.h

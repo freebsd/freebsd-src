@@ -62,7 +62,7 @@ file system pathnames for addressing.
 addresses are variable-length file system pathnames of
 at most 104 characters.
 The include file
-.Aq Pa sys/un.h
+.In sys/un.h
 defines this address:
 .Bd -literal -offset indent
 struct sockaddr_un {
@@ -125,7 +125,7 @@ Any valid descriptor may be sent in a message.
 The file descriptor(s) to be passed are described using a
 .Vt "struct cmsghdr"
 that is defined in the include file
-.Aq Pa sys/socket.h .
+.In sys/socket.h .
 The type of the message is
 .Dv SCM_RIGHTS ,
 and the data portion of the messages is an array of integers
@@ -160,7 +160,7 @@ of the server.
 These will arrive in the form of a filled in
 .Vt "struct xucred"
 (defined in
-.Aq Pa sys/ucred.h ) .
+.In sys/ucred.h ) .
 The credentials presented to the server (the
 .Xr listen 2
 caller) are those of the client when it called
