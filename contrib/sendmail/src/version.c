@@ -15,4 +15,4 @@
 static char id[] = "@(#)$Id: version.c,v 8.43.4.30 2001/02/27 19:22:31 gshapiro Exp $";
 #endif /* ! lint */
 
-char	Version[] = "8.11.3p2";
+char	Version[] = "8.11.3p3";
