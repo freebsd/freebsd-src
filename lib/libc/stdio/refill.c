@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)refill.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id$";
+		"$Id: refill.c,v 1.3 1996/06/22 10:33:45 jraynard Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <errno.h>
@@ -54,7 +54,7 @@ lflush(fp)
 	FILE *fp;
 {
 
-	if ((fp->_flags & (__SLBF|__SWR)) == __SLBF|__SWR)
+	if ((fp->_flags & (__SLBF|__SWR)) == (__SLBF|__SWR))
 		return (__sflush(fp));
 	return (0);
 }
