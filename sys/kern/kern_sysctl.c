@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.47 1995/11/14 09:37:22 phk Exp $
+ * $Id: kern_sysctl.c,v 1.48 1995/11/14 09:39:44 phk Exp $
  */
 
 /*
@@ -45,18 +45,10 @@
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/kernel.h>
-#include <sys/malloc.h>
-#include <sys/proc.h>
-#include <sys/file.h>
 #include <sys/vnode.h>
 #include <sys/unistd.h>
-#include <sys/buf.h>
-#include <sys/ioctl.h>
-#include <sys/tty.h>
 #include <sys/conf.h>
-#include <vm/vm.h>
 #include <sys/sysctl.h>
-#include <sys/user.h>
 
 extern struct linker_set sysctl_;
 
