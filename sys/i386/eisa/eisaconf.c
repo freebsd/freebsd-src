@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eisaconf.c,v 1.32 1997/10/28 15:58:08 bde Exp $
+ *	$Id: eisaconf.c,v 1.33 1997/11/07 08:52:24 phk Exp $
  */
 
 #include "opt_eisa.h"
@@ -77,8 +77,8 @@ DATA_SET (eisadriver_set, mainboard_drv);
 /*
  * Local function declarations and static variables
  */
-void eisa_reg_print __P((struct eisa_device *e_dev, char *string,
-			 char *separator));
+static void eisa_reg_print __P((struct eisa_device *e_dev,
+				char *string, char *separator));
 static int eisa_add_resvaddr __P((struct eisa_device *e_dev,
 				  struct resvlist *head, u_long	base,
 				  u_long size, int flags));
@@ -312,7 +312,7 @@ eisa_reg_start(e_dev)
  * Output an optional character separator before the string
  * if the line does not wrap.
  */
-void
+static void
 eisa_reg_print(e_dev, string, separator)
 	struct eisa_device *e_dev;
 	char *string;

@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.37 1998/02/04 22:32:35 eivind Exp $
+ * $Id: sys_pipe.c,v 1.38 1998/02/06 12:13:26 eivind Exp $
  */
 
 /*
@@ -122,7 +122,7 @@ static struct fileops pipeops =
  * Limit the number of "big" pipes
  */
 #define LIMITBIGPIPES	32
-int nbigpipe;
+static int nbigpipe;
 
 static int amountpipekva;
 
@@ -139,7 +139,7 @@ static void pipe_clone_write_buffer __P((struct pipe *wpipe));
 #endif
 static void pipespace __P((struct pipe *cpipe));
 
-vm_zone_t pipe_zone;
+static vm_zone_t pipe_zone;
 
 /*
  * The pipe system call for the DTYPE_PIPE type of pipes

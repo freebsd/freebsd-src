@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_denode.c,v 1.29 1998/02/04 22:33:00 eivind Exp $ */
+/*	$Id: msdosfs_denode.c,v 1.30 1998/02/06 12:13:46 eivind Exp $ */
 /*	$NetBSD: msdosfs_denode.c,v 1.9 1994/08/21 18:44:00 ws Exp $	*/
 
 /*-
@@ -68,8 +68,8 @@
 
 static MALLOC_DEFINE(M_MSDOSFSNODE, "MSDOSFS node", "MSDOSFS vnode private part");
 
-struct denode **dehashtbl;
-u_long dehash;			/* size of hash table - 1 */
+static struct denode **dehashtbl;
+static u_long dehash;		/* size of hash table - 1 */
 #define	DEHASH(dev, deno)	(dehashtbl[((dev) + (deno)) & dehash])
 static struct simplelock dehash_slock;
 

@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_usrreq.c
  *
- * $Id: ipx_usrreq.c,v 1.17 1997/09/14 03:10:41 peter Exp $
+ * $Id: ipx_usrreq.c,v 1.18 1997/12/15 20:31:15 eivind Exp $
  */
 
 #include "opt_ipx.h"
@@ -63,10 +63,10 @@
  * IPX protocol implementation.
  */
 
-int ipxsendspace = IPXSNDQ;
+static int ipxsendspace = IPXSNDQ;
 SYSCTL_INT(_net_ipx_ipx, OID_AUTO, ipxsendspace, CTLFLAG_RW,
             &ipxsendspace, 0, "");
-int ipxrecvspace = IPXRCVQ;
+static int ipxrecvspace = IPXRCVQ;
 SYSCTL_INT(_net_ipx_ipx, OID_AUTO, ipxrecvspace, CTLFLAG_RW,
             &ipxrecvspace, 0, "");
 

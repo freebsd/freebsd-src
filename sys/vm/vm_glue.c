@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.72 1998/02/05 03:32:38 dyson Exp $
+ * $Id: vm_glue.c,v 1.73 1998/02/06 12:14:22 eivind Exp $
  */
 
 #include "opt_rlimit.h"
@@ -377,7 +377,7 @@ loop:
 /*
  * Swap_idle_threshold1 is the guaranteed swapped in time for a process
  */
-int swap_idle_threshold1 = 2;
+static int swap_idle_threshold1 = 2;
 SYSCTL_INT(_vm, OID_AUTO, swap_idle_threshold1,
 	CTLFLAG_RW, &swap_idle_threshold1, 0, "");
 
@@ -385,7 +385,7 @@ SYSCTL_INT(_vm, OID_AUTO, swap_idle_threshold1,
  * Swap_idle_threshold2 is the time that a process can be idle before
  * it will be swapped out, if idle swapping is enabled.
  */
-int swap_idle_threshold2 = 10;
+static int swap_idle_threshold2 = 10;
 SYSCTL_INT(_vm, OID_AUTO, swap_idle_threshold2,
 	CTLFLAG_RW, &swap_idle_threshold2, 0, "");
 

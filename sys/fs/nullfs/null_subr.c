@@ -35,7 +35,7 @@
  *
  *	@(#)null_subr.c	8.7 (Berkeley) 5/14/95
  *
- * $Id: null_subr.c,v 1.15 1998/02/04 22:32:46 eivind Exp $
+ * $Id: null_subr.c,v 1.16 1998/02/06 12:13:36 eivind Exp $
  */
 
 #include "opt_debug_nullfs.h"
@@ -61,8 +61,8 @@
 
 #define	NULL_NHASH(vp) \
 	(&null_node_hashtbl[(((u_long)vp)>>LOG2_SIZEVNODE) & null_node_hash])
-LIST_HEAD(null_node_hashhead, null_node) *null_node_hashtbl;
-u_long null_node_hash;
+static LIST_HEAD(null_node_hashhead, null_node) *null_node_hashtbl;
+static u_long null_node_hash;
 
 static int	null_node_alloc __P((struct mount *mp, struct vnode *lowervp,
 				     struct vnode **vpp));

@@ -1,4 +1,4 @@
-/*	$Id$ */
+/*	$Id: msdosfs_conv.c,v 1.13 1997/02/22 09:40:46 peter Exp $ */
 /*	$NetBSD: msdosfs_conv.c,v 1.6.2.1 1994/08/30 02:27:57 cgd Exp $	*/
 
 /*
@@ -51,10 +51,10 @@ static u_short leapyear[] = {
  * Variables used to remember parts of the last time conversion.  Maybe we
  * can avoid a full conversion.
  */
-u_long lasttime;
-u_long lastday;
-u_short lastddate;
-u_short lastdtime;
+static u_long  lasttime;
+static u_long  lastday;
+static u_short lastddate;
+static u_short lastdtime;
 
 /*
  * Convert the unix version of time to dos's idea of time to be used in
@@ -127,8 +127,8 @@ unix2dostime(tsp, ddp, dtp)
  */
 #define	SECONDSTO1980	(((8 * 365) + (2 * 366)) * (24 * 60 * 60))
 
-u_short lastdosdate;
-u_long lastseconds;
+static u_short lastdosdate;
+static u_long  lastseconds;
 
 /*
  * Convert from dos' idea of time to unix'. This will probably only be

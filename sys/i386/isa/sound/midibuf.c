@@ -40,7 +40,7 @@
 int
 MIDIbuf_poll (int dev, struct fileinfo *file, int events, select_table * wait);
 
-void
+static void
 drain_midi_queue(int dev);
 
 static int     *midi_sleeper[MAX_MIDI_DEV] = {NULL};
@@ -86,7 +86,7 @@ static volatile int open_devs = 0;
 	  splx(flags); \
 	}
 
-void
+static void
 drain_midi_queue(int dev)
 {
 

@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.67 1997/12/23 16:32:35 nate Exp $
+ *	$Id: apm.c,v 1.68 1998/01/24 02:54:08 eivind Exp $
  */
 
 #include "opt_devfs.h"
@@ -103,7 +103,7 @@ setup_apm_gdt(u_int code32_base, u_int code16_base, u_int data_base, u_int code_
 	ssdtosd(gdt_segs + GAPMDATA_SEL  , &gdt[GAPMDATA_SEL  ].sd);
 }
 
-/* 48bit far pointer */
+/* 48bit far pointer. Do not staticize - used from apm_setup.s */
 struct addr48 {
 	u_long		offset;
 	u_short		segment;

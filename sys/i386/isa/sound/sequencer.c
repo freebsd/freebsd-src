@@ -36,7 +36,7 @@
 
 #include <i386/isa/sound/midi_ctrl.h>
 
-void            seq_drain_midi_queues(void);
+static void seq_drain_midi_queues(void);
 int
 sequencer_poll (int dev, struct fileinfo *file, int events, select_table * wait);
 static int      sequencer_ok = 0;
@@ -68,9 +68,9 @@ static volatile struct snd_wait midi_sleep_flag = {0};
 static int      midi_opened[MAX_MIDI_DEV] = {0};
 static int      midi_written[MAX_MIDI_DEV] = {0};
 
-u_long   prev_input_time = 0;
-int             prev_event_time;
-u_long   seq_time = 0;
+static u_long	prev_input_time = 0;
+static int	prev_event_time;
+static u_long	seq_time = 0;
 
 #include <i386/isa/sound/tuning.h>
 
@@ -1122,7 +1122,7 @@ sequencer_open(int dev, struct fileinfo * file)
     return 0;
 }
 
-void
+static void
 seq_drain_midi_queues(void)
 {
     int             i, n;

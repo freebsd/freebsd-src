@@ -71,10 +71,9 @@ audio_poll(int dev, struct fileinfo * file, int events, select_table * wait);
 int
 sequencer_poll (int dev, struct fileinfo *file, int events, select_table * wait);
 
-void sndintr    __P((int unit));
-int sndprobe    __P((struct isa_device *));
-int sndattach   __P((struct isa_device *));
-int sndmmap   __P((dev_t dev, int offset, int nprot ));
+static int sndprobe    __P((struct isa_device *));
+static int sndattach   __P((struct isa_device *));
+static int sndmmap __P((dev_t dev, int offset, int nprot ));
 
 static d_open_t sndopen;
 static d_close_t sndclose;
@@ -108,8 +107,8 @@ static void     sound_mem_init(void);
  */
 
 struct isa_driver opldriver = {sndprobe, sndattach, "opl"};
-struct isa_driver trixdriver = {sndprobe, sndattach, "trix"};
-struct isa_driver trixsbdriver = {sndprobe, sndattach, "trixsb"};
+static struct isa_driver trixdriver = {sndprobe, sndattach, "trix"};
+static struct isa_driver trixsbdriver = {sndprobe, sndattach, "trixsb"};
 struct isa_driver sbdriver = {sndprobe, sndattach, "sb"};
 struct isa_driver sbxvidriver = {sndprobe, sndattach, "sbxvi"};
 struct isa_driver sbmididriver = {sndprobe, sndattach, "sbmidi"};
@@ -117,11 +116,11 @@ struct isa_driver awedriver    = {sndprobe, sndattach, "awe"};
 struct isa_driver pasdriver = {sndprobe, sndattach, "pas"};
 struct isa_driver mpudriver = {sndprobe, sndattach, "mpu"};
 struct isa_driver gusdriver = {sndprobe, sndattach, "gus"};
-struct isa_driver gusxvidriver = {sndprobe, sndattach, "gusxvi"};
-struct isa_driver gusmaxdriver = {sndprobe, sndattach, "gusmax"};
+static struct isa_driver gusxvidriver = {sndprobe, sndattach, "gusxvi"};
+static struct isa_driver gusmaxdriver = {sndprobe, sndattach, "gusmax"};
 struct isa_driver uartdriver = {sndprobe, sndattach, "uart"};
 struct isa_driver mssdriver = {sndprobe, sndattach, "mss"};
-struct isa_driver cssdriver = {sndprobe, sndattach, "css"};
+static struct isa_driver cssdriver = {sndprobe, sndattach, "css"};
 struct isa_driver sscapedriver = {sndprobe, sndattach, "sscape"};
 struct isa_driver sscape_mssdriver = {sndprobe, sndattach, "sscape_mss"};
 
@@ -140,7 +139,7 @@ get_time(void)
 		(u_long) timecopy.tv_sec * hz;
 }
 
-int
+static int
 sndmmap( dev_t dev, int offset, int nprot )
 {
 	int		unit;
@@ -337,7 +336,7 @@ static sound_os_info *temp_osp;
  * The parameters from the config line are passed to the hw_config struct.
  */
 
-int
+static int
 sndprobe(struct isa_device * dev)
 {
     struct address_info hw_config;
@@ -389,7 +388,7 @@ sndprobe(struct isa_device * dev)
     return 0;
 }
 
-int
+static int
 sndattach(struct isa_device * dev)
 {
     int             unit;

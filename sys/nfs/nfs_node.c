@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_node.c	8.6 (Berkeley) 5/22/95
- * $Id: nfs_node.c,v 1.22 1997/10/28 14:06:20 bde Exp $
+ * $Id: nfs_node.c,v 1.23 1997/12/27 02:56:33 bde Exp $
  */
 
 
@@ -56,8 +56,8 @@
 
 static MALLOC_DEFINE(M_NFSNODE, "NFS node", "NFS vnode private part");
 
-LIST_HEAD(nfsnodehashhead, nfsnode) *nfsnodehashtbl;
-u_long nfsnodehash;
+static LIST_HEAD(nfsnodehashhead, nfsnode) *nfsnodehashtbl;
+static u_long nfsnodehash;
 
 #define TRUE	1
 #define	FALSE	0
@@ -102,7 +102,7 @@ nfs_hash(fhp, fhsize)
  * In all cases, a pointer to a
  * nfsnode structure is returned.
  */
-int nfs_node_hash_lock;
+static int nfs_node_hash_lock;
 
 int
 nfs_nget(mntp, fhp, fhsize, npp)

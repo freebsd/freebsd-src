@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
- * $Id: vfs_init.c,v 1.30 1997/10/16 10:47:57 phk Exp $
+ * $Id: vfs_init.c,v 1.31 1997/10/26 20:26:33 phk Exp $
  */
 
 
@@ -64,7 +64,7 @@ MALLOC_DEFINE(M_VNODE, "vnodes", "Dynamically allocated vnodes");
 #define DODEBUG(A)
 #endif
 
-struct vfsconf void_vfsconf;
+static struct vfsconf void_vfsconf;
 
 extern struct linker_set vfs_opv_descs_;
 #define vfs_opv_descs ((struct vnodeopv_desc **)vfs_opv_descs_.ls_items)

@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.50 1997/12/26 14:52:29 joerg Exp $
+ *      $Id: worm.c,v 1.51 1998/01/24 02:54:53 eivind Exp $
  */
 
 #include "opt_bounce.h"
@@ -110,7 +110,7 @@ struct scsi_data
         int error;              /* last error */
 };
 
-struct {
+static struct {
     int asc;
     int devmode;
     int error;

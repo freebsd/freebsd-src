@@ -17,7 +17,7 @@
  *
  * From: Version 2.4, Thu Apr 30 17:17:21 MSD 1997
  *
- * $Id: if_spppsubr.c,v 1.30 1998/01/01 21:27:18 gj Exp $
+ * $Id: if_spppsubr.c,v 1.31 1998/01/08 23:41:31 eivind Exp $
  */
 
 #include "opt_inet.h"
@@ -335,7 +335,7 @@ static void sppp_qflush(struct ifqueue *ifq);
 static void sppp_set_ip_addr(struct sppp *sp, u_long src);
 
 /* our control protocol descriptors */
-const struct cp lcp = {
+static const struct cp lcp = {
 	PPP_LCP, IDX_LCP, CP_LCP, "lcp",
 	sppp_lcp_up, sppp_lcp_down, sppp_lcp_open, sppp_lcp_close,
 	sppp_lcp_TO, sppp_lcp_RCR, sppp_lcp_RCN_rej, sppp_lcp_RCN_nak,
@@ -343,7 +343,7 @@ const struct cp lcp = {
 	sppp_lcp_scr
 };
 
-const struct cp ipcp = {
+static const struct cp ipcp = {
 	PPP_IPCP, IDX_IPCP, CP_NCP, "ipcp",
 	sppp_ipcp_up, sppp_ipcp_down, sppp_ipcp_open, sppp_ipcp_close,
 	sppp_ipcp_TO, sppp_ipcp_RCR, sppp_ipcp_RCN_rej, sppp_ipcp_RCN_nak,
@@ -351,7 +351,7 @@ const struct cp ipcp = {
 	sppp_ipcp_scr
 };
 
-const struct cp pap = {
+static const struct cp pap = {
 	PPP_PAP, IDX_PAP, CP_AUTH, "pap",
 	sppp_null, sppp_null, sppp_pap_open, sppp_pap_close,
 	sppp_pap_TO, 0, 0, 0,
@@ -359,7 +359,7 @@ const struct cp pap = {
 	sppp_pap_scr
 };
 
-const struct cp chap = {
+static const struct cp chap = {
 	PPP_CHAP, IDX_CHAP, CP_AUTH, "chap",
 	sppp_null, sppp_null, sppp_chap_open, sppp_chap_close,
 	sppp_chap_TO, 0, 0, 0,
@@ -367,7 +367,7 @@ const struct cp chap = {
 	sppp_chap_scr
 };
 
-const struct cp *cps[IDX_COUNT] = {
+static const struct cp *cps[IDX_COUNT] = {
 	&lcp,			/* IDX_LCP */
 	&ipcp,			/* IDX_IPCP */
 	&pap,			/* IDX_PAP */

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.41 1998/02/05 03:32:06 dyson Exp $
+ * $Id: kern_malloc.c,v 1.42 1998/02/06 12:13:23 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -56,7 +56,7 @@ SYSINIT(kmem, SI_SUB_KMEM, SI_ORDER_FIRST, kmeminit, NULL)
 
 static MALLOC_DEFINE(M_FREE, "free", "should be on free list");
 
-struct malloc_type *kmemstatistics = M_FREE;
+static struct malloc_type *kmemstatistics = M_FREE;
 static struct kmembuckets bucket[MINBUCKET + 16];
 static struct kmemusage *kmemusage;
 static char *kmembase;

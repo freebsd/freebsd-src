@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_fpa.c,v 1.4 1997/08/02 14:33:10 bde Exp $
+ * $Id: if_fpa.c,v 1.5 1998/01/08 23:42:26 eivind Exp $
  *
  */
 
@@ -213,7 +213,7 @@ pdq_pci_shutdown(
 
 static u_long pdq_pci_count;
 
-struct pci_device fpadevice = {
+static struct pci_device fpadevice = {
     "fpa",
     pdq_pci_probe,
     pdq_pci_attach,

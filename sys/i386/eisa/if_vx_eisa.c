@@ -73,7 +73,7 @@ static const char *vx_match __P((eisa_id_t type));
 static int vx_eisa_probe __P((void));
 static int vx_eisa_attach __P((struct eisa_device *));
 
-struct eisa_driver vx_eisa_driver = {
+static struct eisa_driver vx_eisa_driver = {
     "vx",
     vx_eisa_probe,
     vx_eisa_attach,

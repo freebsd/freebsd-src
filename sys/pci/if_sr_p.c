@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_sr_p.c,v 1.4 1997/02/22 09:44:07 peter Exp $
+ * $Id: if_sr_p.c,v 1.5 1997/09/02 20:06:27 bde Exp $
  */
 
 #include "pci.h"
@@ -59,7 +59,7 @@ static void sr_pci_attach(pcici_t config_id, int unit);
 
 static u_long src_count = NSR;
 
-struct pci_device sr_pci_driver =
+static struct pci_device sr_pci_driver =
 {
 	"src",
 	sr_pci_probe,

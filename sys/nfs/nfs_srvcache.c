@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_srvcache.c	8.3 (Berkeley) 3/30/95
- * $Id: nfs_srvcache.c,v 1.14 1997/08/16 19:15:58 wollman Exp $
+ * $Id: nfs_srvcache.c,v 1.15 1997/10/12 20:25:46 phk Exp $
  */
 
 #ifndef NFS_NOSERVER 
@@ -62,14 +62,14 @@
 
 extern struct nfsstats nfsstats;
 extern int nfsv2_procid[NFS_NPROCS];
-long numnfsrvcache;
+static long numnfsrvcache;
 static long desirednfsrvcache = NFSRVCACHESIZ;
 
 #define	NFSRCHASH(xid) \
 	(&nfsrvhashtbl[((xid) + ((xid) >> 24)) & nfsrvhash])
-LIST_HEAD(nfsrvhash, nfsrvcache) *nfsrvhashtbl;
-TAILQ_HEAD(nfsrvlru, nfsrvcache) nfsrvlruhead;
-u_long nfsrvhash;
+static LIST_HEAD(nfsrvhash, nfsrvcache) *nfsrvhashtbl;
+static TAILQ_HEAD(nfsrvlru, nfsrvcache) nfsrvlruhead;
+static u_long nfsrvhash;
 
 #define TRUE	1
 #define	FALSE	0

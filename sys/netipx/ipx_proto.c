@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_proto.c
  *
- * $Id: ipx_proto.c,v 1.11 1997/06/26 19:35:55 jhay Exp $
+ * $Id: ipx_proto.c,v 1.12 1997/12/15 20:31:14 eivind Exp $
  */
 
 #include "opt_ipx.h"
@@ -101,7 +101,7 @@ static struct protosw ipxsw[] = {
 #endif
 };
 
-struct	domain ipxdomain =
+static struct	domain ipxdomain =
     { AF_IPX, "network systems", 0, 0, 0, 
       ipxsw, &ipxsw[sizeof(ipxsw)/sizeof(ipxsw[0])], 0,
       rn_inithead, 16, sizeof(struct sockaddr_ipx)};

@@ -30,8 +30,8 @@ static int at_pcballoc(struct socket *so);
 
 struct ddpcb	*ddp_ports[ ATPORT_LAST ];
 struct ddpcb	*ddpcb = NULL;
-u_long		ddp_sendspace = DDP_MAXSZ; /* Max ddp size + 1 (ddp_type) */
-u_long		ddp_recvspace = 10 * ( 587 + sizeof( struct sockaddr_at ));
+static u_long	ddp_sendspace = DDP_MAXSZ; /* Max ddp size + 1 (ddp_type) */
+static u_long	ddp_recvspace = 10 * ( 587 + sizeof( struct sockaddr_at ));
 
 
 static int

@@ -43,7 +43,7 @@ int             translat_code;
 static int      pas_intr_mask = 0;
 static int      pas_irq = 0;
 
-sound_os_info  *pas_osp;
+static sound_os_info  *pas_osp;
 
 char            pas_model;
 static char    *pas_model_names[] =
@@ -72,7 +72,7 @@ pas_write(u_char data, int ioaddr)
 	outb(ioaddr ^ translat_code, data);
 }
 
-void
+static void
 pas2_msg(char *foo)
 {
 	printf("    PAS2: %s.\n", foo);
@@ -130,7 +130,7 @@ pas_remove_intr(int mask)
 
 /******************* Begin of the Initialization Code ******************/
 
-int
+static int
 config_pas_hw(struct address_info * hw_config)
 {
 	char            ok = 1;
@@ -271,7 +271,7 @@ config_pas_hw(struct address_info * hw_config)
 	return ok;
 }
 
-int
+static int
 detect_pas_hw(struct address_info * hw_config)
 {
 	u_char   board_id, foo;

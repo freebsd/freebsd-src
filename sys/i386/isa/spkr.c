@@ -4,7 +4,7 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- *    $Id: spkr.c,v 1.30 1997/12/02 21:06:28 phk Exp $
+ *    $Id: spkr.c,v 1.31 1998/01/24 02:54:25 eivind Exp $
  */
 
 #include "speaker.h"
@@ -26,7 +26,7 @@
 
 #ifdef	DEVFS
 #include <sys/devfsext.h>
-void	*devfs_token;
+static void	*devfs_token;
 #endif
 
 static	d_open_t	spkropen;

@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.112 1998/02/05 03:32:48 dyson Exp $
+ * $Id: vm_pageout.c,v 1.113 1998/02/06 12:14:28 eivind Exp $
  */
 
 /*
@@ -138,19 +138,19 @@ static int vm_daemon_needed;
 extern int nswiodone;
 extern int vm_swap_size;
 extern int vfs_update_wakeup;
-int vm_pageout_stats_max=0, vm_pageout_stats_interval = 0;
-int vm_pageout_full_stats_interval = 0;
-int vm_pageout_stats_free_max=0, vm_pageout_algorithm_lru=0;
-int defer_swap_pageouts=0;
-int disable_swap_pageouts=0;
+static int vm_pageout_stats_max=0, vm_pageout_stats_interval = 0;
+static int vm_pageout_full_stats_interval = 0;
+static int vm_pageout_stats_free_max=0, vm_pageout_algorithm_lru=0;
+static int defer_swap_pageouts=0;
+static int disable_swap_pageouts=0;
 
-int max_page_launder=100;
+static int max_page_launder=100;
 #if defined(NO_SWAPPING)
-int vm_swap_enabled=0;
-int vm_swap_idle_enabled=0;
+static int vm_swap_enabled=0;
+static int vm_swap_idle_enabled=0;
 #else
-int vm_swap_enabled=1;
-int vm_swap_idle_enabled=0;
+static int vm_swap_enabled=1;
+static int vm_swap_idle_enabled=0;
 #endif
 
 SYSCTL_INT(_vm, VM_PAGEOUT_ALGORITHM, pageout_algorithm,

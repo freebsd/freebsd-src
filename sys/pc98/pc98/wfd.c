@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: wfd.c,v 1.5 1998/01/29 19:02:51 pst Exp $
+ *      $Id: wfd.c,v 1.6 1998/02/01 21:57:49 bde Exp $
  */
 
 /*
@@ -139,8 +139,8 @@ struct wfd {
 	struct diskslices *dk_slices;	/* virtual drives */
 };
 
-struct wfd *wfdtab[NUNIT];      /* Drive info by unit number */
-static int wfdnlun = 0;         /* Number of configured drives */
+static struct wfd *wfdtab[NUNIT]; /* Drive info by unit number */
+static int wfdnlun = 0;           /* Number of configured drives */
 
 static void wfd_start (struct wfd *t);
 static void wfd_done (struct wfd *t, struct buf *bp, int resid,

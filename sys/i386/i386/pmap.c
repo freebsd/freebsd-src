@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.182 1998/02/05 03:31:42 dyson Exp $
+ *	$Id: pmap.c,v 1.183 1998/02/06 12:13:09 eivind Exp $
  */
 
 /*
@@ -152,22 +152,22 @@ vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
 vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
 static boolean_t pmap_initialized = FALSE;	/* Has pmap_init completed? */
 static vm_offset_t vm_first_phys;
-int pgeflag;		/* PG_G or-in */
-int pseflag;		/* PG_PS or-in */
-int pv_npg;
+static int pgeflag;		/* PG_G or-in */
+static int pseflag;		/* PG_PS or-in */
+static int pv_npg;
 
-int nkpt;
+static int nkpt;
 vm_offset_t kernel_vm_end;
 
 /*
  * Data for the pv entry allocation mechanism
  */
-vm_zone_t pvzone;
-struct vm_zone pvzone_store;
-struct vm_object pvzone_obj;
-int pv_entry_count=0, pv_entry_max=0, pv_entry_high_water=0;
-int pmap_pagedaemon_waken = 0;
-struct pv_entry *pvinit;
+static vm_zone_t pvzone;
+static struct vm_zone pvzone_store;
+static struct vm_object pvzone_obj;
+static int pv_entry_count=0, pv_entry_max=0, pv_entry_high_water=0;
+static int pmap_pagedaemon_waken = 0;
+static struct pv_entry *pvinit;
 
 /*
  * All those kernel PT submaps that BSD is so fond of
@@ -187,8 +187,8 @@ extern pd_entry_t *IdlePTDS[];
 extern pt_entry_t SMP_prvpt[];
 #endif
 
-pt_entry_t *PMAP1 = 0;
-unsigned *PADDR1 = 0;
+static pt_entry_t *PMAP1 = 0;
+static unsigned *PADDR1 = 0;
 
 static PMAP_INLINE void	free_pv_entry __P((pv_entry_t pv));
 static unsigned * get_ptbase __P((pmap_t pmap));
@@ -219,7 +219,7 @@ static int pmap_unuse_pt __P((pmap_t, vm_offset_t, vm_page_t));
 vm_offset_t pmap_kmem_choose(vm_offset_t addr) ;
 void pmap_collect(void);
 
-unsigned pdir4mb;
+static unsigned pdir4mb;
 
 /*
  *	Routine:	pmap_pte
@@ -252,7 +252,7 @@ pmap_pte(pmap, va)
  * by using a large (4MB) page for much of the kernel
  * (.text, .data, .bss)
  */
-vm_offset_t
+static vm_offset_t
 pmap_kmem_choose(vm_offset_t addr) {
 	vm_offset_t newaddr = addr;
 #ifndef DISABLE_PSE

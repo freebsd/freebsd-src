@@ -13,7 +13,7 @@
  * all derivative works or modified versions.
  *
  * From: Version 1.9, Mon Oct  9 20:27:42 MSK 1995
- * $Id: wcd.c,v 1.49 1997/12/02 21:06:30 phk Exp $
+ * $Id: wcd.c,v 1.50 1998/01/24 02:54:27 eivind Exp $
  */
 
 #include "wdc.h"
@@ -83,7 +83,7 @@ struct toc {
 /*
  * Volume size info.
  */
-struct volinfo {
+static struct volinfo {
 	u_long volsize;         /* Volume size in blocks */
 	u_long blksize;         /* Block size in bytes */
 } info;
@@ -265,8 +265,8 @@ struct wcd {
 #endif
 };
 
-struct wcd *wcdtab[NUNIT];      /* Drive info by unit number */
-static int wcdnlun = 0;         /* Number of configured drives */
+static struct wcd *wcdtab[NUNIT]; /* Drive info by unit number */
+static int wcdnlun = 0;           /* Number of configured drives */
 
 static struct wcd *wcd_init_lun(struct atapi *ata, int unit, 
 	struct atapi_params *ap, int lun);
