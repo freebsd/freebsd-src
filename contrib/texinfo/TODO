@@ -1,4 +1,4 @@
-Copyright (C) 1992, 93, 94, 95, 96, 97, 98, 99, 2000, 01
+Copyright (C) 1992, 93, 94, 95, 96, 97, 98, 99, 2000, 01, 02
 Free Software Foundation.
 
 Permission is granted to copy, distribute and/or modify this document
@@ -28,12 +28,15 @@ If you are interested in working on any of these, email bug-texinfo@gnu.org.
     multiple redefinitions of every Texinfo command in different contexts.
   - Handle @hsep and @vsep in @multitables.
   - Introduce new command to change \bindingoffset.
-  - Reasonable way to change fonts from the default (some work has been done).
+  - Reasonable way to change fonts from the default (some work has been
+    done), to allow for PostScript fonts, for example.
   - How about using latex2html to produce HTML?
   - Support 8-bit input characters, perhaps via the ec fonts.
   - Repeat table headings if a @multitable is multiple pages long.
+  - Table of contents gets misaligned if there are 10 or more [sub]sections.
 
 * General:
+  - Rationalize and improve the dir categories in existing manuals.
   - @xindexterm [def] primary [,secondary [,tertiary]]  or some such?
   - Support compressed image files.
   - Handle reference card creation, perhaps by only paying attention to
@@ -61,7 +64,10 @@ If you are interested in working on any of these, email bug-texinfo@gnu.org.
   - Allow @hsep/@vsep at @item, instead of just in template.
   - Support automatic line numbering of examples.
   - Better macro syntax.
-  - Allow : in node names for info files, for names like `class::method'.
+  - Allow : in node names for info files, for names like
+    `class::method'.  Likewise index entries.  A quoting mechanism such
+    as surrounding node names with SPACE BACKSPACE is probably the best
+    solution, although this is an incompatible change to Info format, sigh.
   - Change bars.  This is difficult or impossible in TeX,
     unfortunately.  To do it right requires device driver support.
     wdiff or ediff may be all we can do.
