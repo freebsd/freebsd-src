@@ -1,4 +1,4 @@
-<!-- $Id: bibliography.sgml,v 1.6 1996/06/03 00:37:41 jraynard Exp $ -->
+<!-- $Id: bibliography.sgml,v 1.7 1996/07/25 15:49:39 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
     <chapt>
@@ -95,23 +95,23 @@
 		L. Jr. <em>C: A Reference Manual</em>.  4rd ed. Prentice
 		Hall, 1995.  <newline>ISBN 0-13-326224-3</item>
 
-	    <item>Jolitz, William.  "Porting UNIX to the
-	      386". <em>Dr. Dobb's Journal</em>.  January
-	      1991-July 1992.</item>
-
-	    <item>Leffler, Samuel J. <em>The Design and
-		implementation of the 4.3BSD UNIX operating
-		system</em>.  Addison-Wesley, 1989.</item>
-
-	    <item>McKusick, Marshall Kirk, Keith Bostic, Michael J Karels,
-                and John Quarterman. <em>The Design and
-		implementation of the 4.4BSD UNIX operating
-		system</em>.  Addison-Wesley, 1996.
-		<newline>ISBN 0-201-54979-4</item>
+	    <item>Kernighan, Brian and Dennis M. Ritchie.
+	    	<em>The C Programming Language.</em>.
+		PTR Prentice Hall, 1988. 
+		<newline>ISBN 0-13-110362-9</item>
 
 	    <item>Plauger, P. J. <em>The Standard C
 		Library</em>. Prentice Hall, 1992.  
 		<newline>ISBN 0-13-131509-9</item>
+
+	    <item>Stevens, W. Richard. <em>Advanced
+		Programming in the UNIX Enviroment</em>.
+		Reading, Mass. : Addison-Wesley, 1992
+		<newline>ISBN 0-201-56317-7</item>
+
+	    <item>Stevens, W. Richard. <em>UNIX Network
+		Programming</em>. PTR Prentice Hall, 1990.  
+		<newline>ISBN 0-13-949876-1</item>
 
 	    <item>Wells, Bill.  "Writing Serial Drivers for UNIX".
 	      <em>Dr. Dobb's Journal</em>.  19(15), December
@@ -120,19 +120,99 @@
 	  </itemize>
 
       <sect>
+	<heading>Operating System Internals</heading>
+
+	<p><itemize>
+
+	    <item>Jolitz, William.  "Porting UNIX to the
+	      386". <em>Dr. Dobb's Journal</em>.  January
+	      1991-July 1992.</item>
+
+	    <item>Leffler, Samuel J., Marshall Kirk McKusick, 
+		Michael J Karels and John Quarterman <em>The Design and
+		Implementation of the 4.3BSD UNIX Operating
+		System</em>.  Reading, Mass. : Addison-Wesley, 1989.
+		<newline>ISBN 0-201-06196-1</item>
+
+	    <item>Leffler, Samuel J., Marshall Kirk McKusick, 
+		<em>The Design and Implementation of the 4.3BSD
+		UNIX Operating System: Answer Book</em>.
+		Reading, Mass. : Addison-Wesley, 1991.
+		<newline>ISBN 0-201-54629-9</item>
+
+	    <item>McKusick, Marshall Kirk, Keith Bostic, Michael J Karels,
+                and John Quarterman. <em>The Design and
+		Implementation of the 4.4BSD UNIX Operating
+		System</em>.  Reading, Mass. : Addison-Wesley, 1996.
+		<newline>ISBN 0-201-54979-4</item>
+
+	    <item>Stevens, W. Richard. <em>TCP/IP Illustrated,
+		Volume 1: The Protocols</em>.
+		Reading, Mass. : Addison-Wesley, 1996.
+		<newline>ISBN 0-201-63346-9</item>
+
+	    <item>Stevens, W. Richard. <em>TCP/IP Illustrated,
+		Volume 3: TCP for Transactions, HTTP, NNTP
+		and the UNIX Domain Protocols</em>.
+		Reading, Mass. : Addison-Wesley, 1996.
+		<newline>ISBN 0-201-63495-3</item>
+
+	    <item>Wright, Gary R. and W. Richard Stevens.
+		<em>TCP/IP Illustrated, Volume 2:
+		The Implementation</em>.
+		Reading, Mass. : Addison-Wesley, 1995.
+		<newline>ISBN 0-201-63354-X</item>
+
+	  </itemize>
+
+
+      <sect>
+	<heading>Security reference</heading>
+
+	<p><itemize>
+
+	    <item>Cheswick, William R. and Steven M. Bellovin.
+		<em>Firewalls and Internal Security:
+		Repelling the Wily Hacker</em>.
+		Reading, Mass. : Addison-Wesley, 1995.
+		<newline>ISBN 1-201-63357-4 </item>
+
+	    <item>Garfinkel, Simson and Gene Spafford.
+		<em>Practical UNIX Security</em>. 2nd Ed.
+		O'Reilly &amp; Associates, Inc., 1996. 
+		<newline>ISBN 1-56592-148-8 </item>
+
+	  </itemize>
+
+      <sect>
 	<heading>Hardware reference</heading>
 
 	<p><itemize>
 
-	    <item>Stanley, Tom. <em>ISA System
-		Architecture</em>.  3rd ed. Reading, Mass. :
-		Addison-Wesley, 1995.
-		<newline>ISBN 0201409968</item>
+	    <item>Anderson, Don and Tom Shanley.
+		<em>Pentium Processor System Architecture</em>.
+		2nd ed. Reading, Mass. : Addison-Wesley, 1995.
+		<newline>ISBN 0-201-40992-5</item>
 
-	    <item>Stanley, Tom. <em>PCI System
+	    <item>Ferraro, Richard F. <em>Programmer's Guide
+		to the EGA, VGA, and Super VGA Cards</em>.
+		3rd ed. Reading, Mass. : Addison-Wesley, 1995.
+		<newline>ISBN 0-201-62490-7</item>
+
+	    <item>Shanley, Tom. <em>80486 System
 		Architecture</em>.  3rd ed. Reading, Mass. :
 		Addison-Wesley, 1995. <newline>ISBN
-		0201409933</item>
+		0-201-40994-1</item>
+
+	    <item>Shanley, Tom. <em>ISA System
+		Architecture</em>.  3rd ed. Reading, Mass. :
+		Addison-Wesley, 1995.
+		<newline>ISBN 0-201-40996-8</item>
+
+	    <item>Shanley, Tom. <em>PCI System
+		Architecture</em>.  3rd ed. Reading, Mass. :
+		Addison-Wesley, 1995. <newline>ISBN
+		0-201-40993-3</item>
 
 	    <item>Van Gilluwe, Frank. <em>The Undocumented PC</em>.
 		Reading, Mass: Addison-Wesley Pub. Co., 1994.
