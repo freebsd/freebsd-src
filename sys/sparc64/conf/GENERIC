@@ -88,6 +88,7 @@ device		atapicd			# ATAPI CDROM drives
 # SCSI Controllers
 device		ahc		# AHA2940 and onboard AIC7xxx devices
 device		isp		# Qlogic family
+#device		mpt		# LSI-Logic MPT-Fusion (not yet)
 device		ispfw		# Firmware module for Qlogic host adapters
 #device		ncr		# NCR/Symbios Logic
 device		sym		# NCR/Symbios Logic (newer chipsets + those of `ncr')
