@@ -313,7 +313,7 @@ ReadSystem(struct bundle *bundle, const char *name, const char *file,
   char *cp;
   int n, len;
   char line[LINE_LEN];
-  char filename[MAXPATHLEN];
+  char filename[PATH_MAX];
   int linenum;
   int argc;
   char *argv[MAXARGS];
