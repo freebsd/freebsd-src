@@ -1,0 +1,578 @@
+<!--
+
+ $Id$
+
+ Copyright (c) 1994  
+ Open Software Foundation, Inc. 
+  
+ Permission is hereby granted to use, copy, modify and freely distribute 
+ the software in this file and its documentation for any purpose without 
+ fee, provided that the above copyright notice appears in all copies and 
+ that both the copyright notice and this permission notice appear in 
+ supporting documentation.  Further, provided that the name of Open 
+ Software Foundation, Inc. ("OSF") not be used in advertising or 
+ publicity pertaining to distribution of the software without prior 
+ written permission from OSF.  OSF makes no representations about the 
+ suitability of this software for any purpose.  It is provided "as is" 
+ without express or implied warranty. 
+
+-->
+
+<!--
+
+ SDATA entity mappings to TeX instructions.
+ sgmls outputs sdata references in the form: \|[mdash ]\|
+
+ I found most of these from the LaTeX and TeX books. I found a few on
+ various places around the net.
+
+ J.Bowe, 1993
+
+-->
+
+<!-- Numeric and Special Graphic -->
+
+<map from="[half  ]" to="$\scriptstyle{1\over2}$">
+<map from="[frac12]" to="$\frac{1}{2}$">
+<map from="[frac14]" to="$\frac{1}{4}$">
+<map from="[frac34]" to="$\frac{3}{4}$">
+<map from="[frac18]" to="$\frac{1}{8}$">
+<map from="[frac38]" to="$\frac{3}{8}$">
+<map from="[frac58]" to="$\frac{5}{8}$">
+<map from="[frac78]" to="$\frac{7}{8}$">
+
+<map from="[sup1  ]" to="$^1$">
+<map from="[sup2  ]" to="$^2$">
+<map from="[sup3  ]" to="$^3$">
+
+<map from="[plus  ]" to="$+$">
+<map from="[plusmn]" to="$\pm$">
+<map from="[lt    ]" to="$<$">
+<map from="[equals]" to="$=$">
+<map from="[gt    ]" to="$>$">
+<map from="[divide]" to="$\div$">
+<map from="[times ]" to="$\times$">
+
+<map from="[curren]" to="[curren]">
+<map from="[pound ]" to="\pounds{}">
+<map from="[dollar]" to="\$">
+<map from="[cent  ]" to="\hbox{\rm\rlap\/c}">
+<map from="[yen   ]" to="[yen]">
+
+<map from="[num   ]" to="\#{}">
+<map from="[percnt]" to="\%">
+<map from="[amp   ]" to="\&">
+<map from="[ast   ]" to="{*}">
+<map from="[commat]" to="@">
+<map from="[lsqb  ]" to="$\lbrack$">
+<map from="[bsol  ]" to="$\backslash$">
+<map from="[rsqb  ]" to="$\rbrack$">
+<map from="[lcub  ]" to="$\lbrace$">
+<map from="[horbar]" to="{--}">
+<map from="[verbar]" to="$|$">
+<map from="[rcub  ]" to="$\rbrace$">
+<map from="[micro ]" to="$\mu$">
+<map from="[ohm   ]" to="$\Omega$">
+<map from="[deg   ]" to="$^\circ$">
+<map from="[ordm  ]" to="[ordm]">
+<map from="[ordf  ]" to="[ordf]">
+<map from="[sect  ]" to="\S{}">
+<map from="[para  ]" to="\P{}">
+<map from="[middot]" to="$\cdot$">
+<map from="[larr  ]" to="$\leftarrow$">
+<map from="[rarr  ]" to="$\rightarrow$">
+<map from="[uarr  ]" to="$\uparrrow$">
+<map from="[darr  ]" to="$\downarrrow$">
+<map from="[copy  ]" to="\copyright{}">
+<map from="[reg   ]" to="\ooalign{\hfil\raise.07ex\hbox{r}\hfil\crcr\mathhexbox20D}">
+<map from="[trade ]" to="{$\sp{TM}$}">
+<map from="[brvbar]" to="[brvbar]">
+<map from="[not   ]" to="$\neg$">
+<map from="[sung  ]" to="[sung]">
+
+<map from="[excl  ]" to="!">
+<map from="[iexcl ]" to="{!`}">
+<map from="[quot  ]" to='{\tt\char`\"}'>
+<map from="[apos  ]" to="'">
+<map from="[lpar  ]" to="(">
+<map from="[rpar  ]" to=")">
+<map from="[comma ]" to=",">
+<map from="[lowbar]" to="\_">
+<map from="[hyphen]" to="-">
+<map from="[period]" to=".">
+<map from="[sol   ]" to="\/">
+<map from="[colon ]" to=":">
+<map from="[semi  ]" to=";">
+<map from="[quest ]" to="?">
+<map from="[iquest]" to="{?`}">
+<map from="[laquo ]" to="\laquo{}">
+<map from="[raquo ]" to="\raquo{}">
+<map from="[lsquo ]" to="{`}">
+<map from="[rsquo ]" to="{'}">
+<map from="[ldquo ]" to="{``}">
+<map from="[rdquo ]" to="{''}">
+<map from="[nbsp  ]" to="~">
+<map from="[shy   ]" to="\-">
+
+<!-- Publishing	-->
+
+<map from="[emsp  ]" to="\hskip1em">
+<map from="[ensp  ]" to="\hskip0.5em">
+<map from="[emsp3 ]" to="\hskip0.33333em">
+<map from="[emsp4 ]" to="\hskip0.25em">
+<map from="[numsp ]" to="\hskip0.5em">
+<map from="[puncsp]" to="\hskip0.25em">
+<map from="[thinsp]" to="\hskip0.16667em">
+<map from="[hairsp]" to="\hskip0.08333em">
+<map from="[mdash ]" to="{---}">
+<map from="[ndash ]" to="{--}">
+<map from="[dash  ]" to="{-}">
+<map from="[blank ]" to="\ ">
+<map from="[hellip]" to="$\ldots$">
+<map from="[nldr  ]" to="[nldr]">
+<map from="[frac13]" to="$\frac{1}{3}$">
+<map from="[frac23]" to="$\frac{2}{3}$">
+<map from="[frac15]" to="$\frac{1}{5}$">
+<map from="[frac25]" to="$\frac{2}{5}$">
+<map from="[frac35]" to="$\frac{3}{5}$">
+<map from="[frac45]" to="$\frac{4}{5}$">
+<map from="[frac16]" to="$\frac{1}{6}$">
+<map from="[frac56]" to="$\frac{5}{6}$">
+
+<map from="[incar ]" to="[incar ]"> <!-- =in-care-of symbol -->
+<map from="[block ]" to="[block ]"> <!-- =full block -->
+<map from="[uhblk ]" to="[uhblk ]"> <!-- =upper half block -->
+<map from="[lhblk ]" to="[lhblk ]"> <!-- =lower half block -- >
+<map from="[blk14 ]" to="[blk14 ]"> <!-- =25% shaded block -- >
+<map from="[blk12 ]" to="[blk12 ]"> <!-- =50% shaded block -- >
+<map from="[blk34 ]" to="[blk34 ]"> <!-- =75% shaded block -- >
+<map from="[marker]" to="[marker]"> <!-- =histogram marker -- >
+<map from="[cir   ]" to="$\bigcirc$">
+<map from="[squ   ]" to="[squ   ]"> <!-- =square, open -->
+<map from="[rect  ]" to="[rect  ]"> <!-- =rectangle, open -->
+<map from="[utri  ]" to="$\bigtriangleup$">
+<map from="[dtri  ]" to="$\bigtriangledown$">
+<map from="[star  ]" to="[star  ]"> <!-- =star, open -->
+<map from="[bull  ]" to="$\bullet$">
+<map from="[squf  ]" to="{\vrule height .9ex width .8ex depth -.1ex}">
+<map from="[utrif ]" to="[utrif ]"> <!-- /blacktriangle =up tri, filled -->
+<map from="[dtrif ]" to="[dtrif ]"> <!-- /blacktriangledown =dn tri, filled -->
+<map from="[ltrif ]" to="[ltrif ]"> <!-- /blacktriangleleft R: =l tri, filled -->
+<map from="[rtrif ]" to="[rtrif ]"> <!-- /blacktriangleright R: =r tri, filled -->
+<map from="[clubs ]" to="$\clubsuit$">
+<map from="[diams ]" to="$\diamondsuit$">
+<map from="[hearts]" to="$\heartsuit$">
+<map from="[spades]" to="$\spadesuit$">
+<map from="[malt  ]" to="[malt  ]"> <!-- /maltese =maltese cross -->
+<map from="[dagger]" to="$\daggar$">
+<map from="[Dagger]" to="$\ddaggar$">
+<map from="[check ]" to="$\surd$">
+<map from="[ballot]" to="$\times$">
+<map from="[sharp ]" to="$\sharp$">
+<map from="[flat  ]" to="$\flat$">
+<map from="[male  ]" to="$\bigcirc^{\mkern-5.5mu\raise.5ex\hbox{$\nearrow$}}$">
+<map from="[female]" to="$\bigcirc\mkern-15.64mu\lower1.75ex\hbox{+}$">
+<map from="[phone ]" to="[phone]">
+<map from="[telrec]" to="[telrec]"> <!-- =telephone recorder symbol -->
+<map from="[copysr]" to="[copysr]"> <!-- =sound recording copyright sign -->
+<map from="[caret ]" to="\char94">
+<map from="[lsquor]" to="\lsquor{}">
+<map from="[ldquor]" to="\lsquor{}">
+
+<map from="[fflig ]" to="{ff}">
+<map from="[filig ]" to="{fi}">
+<map from="[fjlig ]" to="{fj}">
+<map from="[ffilig]" to="{ffi}">
+<map from="[ffllig]" to="{ffl}">
+<map from="[fllig ]" to="{fl}">
+
+<map from="[mldr  ]" to="[mldr]">
+<map from="[rdquor]" to="{''}">
+<map from="[rsquor]" to="{'}">
+<map from="[vellip]" to="$\vdots$">
+
+<map from="[hybull]" to="{\vrule height .6ex width .8ex depth -.4ex}">
+<map from="[loz   ]" to="[loz   ]"> <!-- /lozenge - lozenge or total mark -->
+<map from="[lozf  ]" to="[lozf  ]"> <!-- /blacklozenge - lozenge, filled -->
+<map from="[ltri  ]" to="$\triangleleft$">
+<map from="[rtri  ]" to="$\triangleright$">
+<map from="[starf ]" to="$\star$">
+
+<map from="[natur ]" to="$\natural$">
+<map from="[rx    ]" to="[Rx]">
+<map from="[sext  ]" to="[sext  ]"> <!-- sextile (6-pointed star) -->
+
+<map from="[target]" to='$\mathchar"2208$'>
+<map from="[dlcrop]" to="[dlcrop]"> <!-- downward left crop mark -->
+<map from="[drcrop]" to="[drcrop]"> <!-- downward right crop mark -->
+<map from="[ulcrop]" to="[ulcrop]"> <!-- upward left crop mark -->
+<map from="[urcrop]" to="[urcrop]"> <!-- upward right crop mark -->
+
+<!-- Added Latin 1 -->
+
+<map from="[aacute]" to="\'{a}">
+<map from="[Aacute]" to="\'{A}">
+<map from="[acirc ]" to="\^{a}">
+<map from="[Acirc ]" to="\^{A}">
+<map from="[agrave]" to="\`{a}">
+<map from="[Agrave]" to="\`{A}">
+<map from="[aring ]" to="\aa{}">
+<map from="[Aring ]" to="\AA{}">
+<map from="[atilde]" to="\~{a}">
+<map from="[Atilde]" to="\~{A}">
+<map from="[auml  ]" to='\"{a}'>
+<map from="[Auml  ]" to='\"{A}'>
+<map from="[aelig ]" to="\ae{}">
+<map from="[AElig ]" to="\AE{}">
+<map from="[ccedil]" to="\c{c}">
+<map from="[Ccedil]" to="\c{C}">
+<map from="[eth   ]" to="$\partial$">
+<map from="[ETH   ]" to="\hbox{\rlap{\raise.3ex\hbox{--}}D}">
+<map from="[eacute]" to="\'{e}">
+<map from="[Eacute]" to="\'{E}">
+<map from="[ecirc ]" to="\^{e}">
+<map from="[Ecirc ]" to="\^{E}">
+<map from="[egrave]" to="\`{e}">
+<map from="[Egrave]" to="\`{E}">
+<map from="[euml  ]" to='\"{e}'>
+<map from="[Euml  ]" to='\"{E}'>
+<map from="[iacute]" to="\'{\i}">
+<map from="[Iacute]" to="\'{I}">
+<map from="[icirc ]" to="\^{\i}">
+<map from="[Icirc ]" to="\^{I}">
+<map from="[igrave]" to="\`{\i}">
+<map from="[Igrave]" to="\`{I}">
+<map from="[iuml  ]" to='\"{\i}'>
+<map from="[Iuml  ]" to='\"{I}'>
+<map from="[ntilde]" to="\~{n}">
+<map from="[Ntilde]" to="\~{N}">
+<map from="[oacute]" to="\'{o}">
+<map from="[Oacute]" to="\'{O}">
+<map from="[ocirc ]" to="\^{o}">
+<map from="[Ocirc ]" to="\^{O}">
+<map from="[ograve]" to="\`{o}">
+<map from="[Ograve]" to="\`{O}">
+<map from="[oslash]" to="\o{}">
+<map from="[Oslash]" to="\O{}">
+<map from="[otilde]" to="\~{o}">
+<map from="[Otilde]" to="\~{O}">
+<map from="[ouml  ]" to='\"{o}'>
+<map from="[Ouml  ]" to='\"{O}'>
+<map from="[szlig ]" to="\ss{}">
+<map from="[thorn ]" to="th">
+<map from="[THORN ]" to="Th">
+<map from="[uacute]" to="\'{u}">
+<map from="[Uacute]" to="\'{U}">
+<map from="[ucirc ]" to="\^{u}">
+<map from="[Ucirc ]" to="\^{U}">
+<map from="[ugrave]" to="\`{u}">
+<map from="[Ugrave]" to="\`{U}">
+<map from="[uuml  ]" to='\"{u}'>
+<map from="[Uuml  ]" to='\"{U}'>
+<map from="[yacute]" to="\'{y}">
+<map from="[Yacute]" to="\'{Y}">
+<map from="[yuml  ]" to='\"{y}'>
+
+<!-- Added Latin 2 -->
+
+<map from="[abreve]" to="[abreve]"> <!-- =small a, breve -->
+<map from="[Abreve]" to="[Abreve]"> <!-- =capital A, breve -->
+<map from="[amacr ]" to="[amacr ]"> <!-- =small a, macron -->
+<map from="[Amacr ]" to="[Amacr ]"> <!-- =capital A, macron -->
+<map from="[aogon ]" to="[aogon ]"> <!-- =small a, ogonek -->
+<map from="[Aogon ]" to="[Aogon ]"> <!-- =capital A, ogonek -->
+<map from="[cacute]" to="[cacute]"> <!-- =small c, acute accent -->
+<map from="[Cacute]" to="[Cacute]"> <!-- =capital C, acute accent -->
+<map from="[ccaron]" to="[ccaron]"> <!-- =small c, caron -->
+<map from="[Ccaron]" to="[Ccaron]"> <!-- =capital C, caron -->
+<map from="[ccirc ]" to="[ccirc ]"> <!-- =small c, circumflex accent -->
+<map from="[Ccirc ]" to="[Ccirc ]"> <!-- =capital C, circumflex accent -->
+<map from="[cdot  ]" to="[cdot  ]"> <!-- =small c, dot above -->
+<map from="[Cdot  ]" to="[Cdot  ]"> <!-- =capital C, dot above -->
+<map from="[dcaron]" to="[dcaron]"> <!-- =small d, caron -->
+<map from="[Dcaron]" to="[Dcaron]"> <!-- =capital D, caron -->
+<map from="[dstrok]" to="[dstrok]"> <!-- =small d, stroke -->
+<map from="[Dstrok]" to="[Dstrok]"> <!-- =capital D, stroke -->
+<map from="[ecaron]" to="[ecaron]"> <!-- =small e, caron -->
+<map from="[Ecaron]" to="[Ecaron]"> <!-- =capital E, caron -->
+<map from="[edot  ]" to="[edot  ]"> <!-- =small e, dot above -->
+<map from="[Edot  ]" to="[Edot  ]"> <!-- =capital E, dot above -->
+<map from="[emacr ]" to="[emacr ]"> <!-- =small e, macron -->
+<map from="[Emacr ]" to="[Emacr ]"> <!-- =capital E, macron -->
+<map from="[eogon ]" to="[eogon ]"> <!-- =small e, ogonek -->
+<map from="[Eogon ]" to="[Eogon ]"> <!-- =capital E, ogonek -->
+<map from="[gacute]" to="[gacute]"> <!-- =small g, acute accent -->
+<map from="[gbreve]" to="[gbreve]"> <!-- =small g, breve -->
+<map from="[Gbreve]" to="[Gbreve]"> <!-- =capital G, breve -->
+<map from="[Gcedil]" to="[Gcedil]"> <!-- =capital G, cedilla -->
+<map from="[gcirc ]" to="[gcirc ]"> <!-- =small g, circumflex accent -->
+<map from="[Gcirc ]" to="[Gcirc ]"> <!-- =capital G, circumflex accent -->
+<map from="[gdot  ]" to="[gdot  ]"> <!-- =small g, dot above -->
+<map from="[Gdot  ]" to="[Gdot  ]"> <!-- =capital G, dot above -->
+<map from="[hcirc ]" to="[hcirc ]"> <!-- =small h, circumflex accent -->
+<map from="[Hcirc ]" to="[Hcirc ]"> <!-- =capital H, circumflex accent -->
+<map from="[hstrok]" to="[hstrok]"> <!-- =small h, stroke -->
+<map from="[Hstrok]" to="[Hstrok]"> <!-- =capital H, stroke -->
+<map from="[Idot  ]" to="[Idot  ]"> <!-- =capital I, dot above -->
+<map from="[Imacr ]" to="[Imacr ]"> <!-- =capital I, macron -->
+<map from="[imacr ]" to="[imacr ]"> <!-- =small i, macron -->
+<map from="[ijlig ]" to="[ijlig ]"> <!-- =small ij ligature -->
+<map from="[IJlig ]" to="[IJlig ]"> <!-- =capital IJ ligature -->
+<map from="[inodot]" to="[inodot]"> <!-- =small i without dot -->
+<map from="[iogon ]" to="[iogon ]"> <!-- =small i, ogonek -->
+<map from="[Iogon ]" to="[Iogon ]"> <!-- =capital I, ogonek -->
+<map from="[itilde]" to="[itilde]"> <!-- =small i, tilde -->
+<map from="[Itilde]" to="[Itilde]"> <!-- =capital I, tilde -->
+<map from="[jcirc ]" to="[jcirc ]"> <!-- =small j, circumflex accent -->
+<map from="[Jcirc ]" to="[Jcirc ]"> <!-- =capital J, circumflex accent -->
+<map from="[kcedil]" to="[kcedil]"> <!-- =small k, cedilla -->
+<map from="[Kcedil]" to="[Kcedil]"> <!-- =capital K, cedilla -->
+<map from="[kgreen]" to="[kgreen]"> <!-- =small k, Greenlandic -->
+<map from="[lacute]" to="[lacute]"> <!-- =small l, acute accent -->
+<map from="[Lacute]" to="[Lacute]"> <!-- =capital L, acute accent -->
+<map from="[lcaron]" to="[lcaron]"> <!-- =small l, caron -->
+<map from="[Lcaron]" to="[Lcaron]"> <!-- =capital L, caron -->
+<map from="[lcedil]" to="[lcedil]"> <!-- =small l, cedilla -->
+<map from="[Lcedil]" to="[Lcedil]"> <!-- =capital L, cedilla -->
+<map from="[lmidot]" to="[lmidot]"> <!-- =small l, middle dot -->
+<map from="[Lmidot]" to="[Lmidot]"> <!-- =capital L, middle dot -->
+<map from="[lstrok]" to="\l{}">
+<map from="[Lstrok]" to="\L{}">
+<map from="[nacute]" to="[nacute]"> <!-- =small n, acute accent -->
+<map from="[Nacute]" to="[Nacute]"> <!-- =capital N, acute accent -->
+<map from="[eng   ]" to="[eng   ]"> <!-- =small eng, Lapp -->
+<map from="[ENG   ]" to="[ENG   ]"> <!-- =capital ENG, Lapp -->
+<map from="[napos ]" to="[napos ]"> <!-- =small n, apostrophe -->
+<map from="[ncaron]" to="[ncaron]"> <!-- =small n, caron -->
+<map from="[Ncaron]" to="[Ncaron]"> <!-- =capital N, caron -->
+<map from="[ncedil]" to="[ncedil]"> <!-- =small n, cedilla -->
+<map from="[Ncedil]" to="[Ncedil]"> <!-- =capital N, cedilla -->
+<map from="[odblac]" to="[odblac]"> <!-- =small o, double acute accent -->
+<map from="[Odblac]" to="[Odblac]"> <!-- =capital O, double acute accent -->
+<map from="[Omacr ]" to="[Omacr ]"> <!-- =capital O, macron -->
+<map from="[omacr ]" to="[omacr ]"> <!-- =small o, macron -->
+<map from="[oelig ]" to="$\oe$">
+<map from="[OElig ]" to="$\OE$">
+<map from="[racute]" to="[racute]"> <!-- =small r, acute accent -->
+<map from="[Racute]" to="[Racute]"> <!-- =capital R, acute accent -->
+<map from="[rcaron]" to="[rcaron]"> <!-- =small r, caron -->
+<map from="[Rcaron]" to="[Rcaron]"> <!-- =capital R, caron -->
+<map from="[rcedil]" to="[rcedil]"> <!-- =small r, cedilla -->
+<map from="[Rcedil]" to="[Rcedil]"> <!-- =capital R, cedilla -->
+<map from="[sacute]" to="[sacute]"> <!-- =small s, acute accent -->
+<map from="[Sacute]" to="[Sacute]"> <!-- =capital S, acute accent -->
+<map from="[scaron]" to="[scaron]"> <!-- =small s, caron -->
+<map from="[Scaron]" to="[Scaron]"> <!-- =capital S, caron -->
+<map from="[scedil]" to="[scedil]"> <!-- =small s, cedilla -->
+<map from="[Scedil]" to="[Scedil]"> <!-- =capital S, cedilla -->
+<map from="[scirc ]" to="[scirc ]"> <!-- =small s, circumflex accent -->
+<map from="[Scirc ]" to="[Scirc ]"> <!-- =capital S, circumflex accent -->
+<map from="[tcaron]" to="[tcaron]"> <!-- =small t, caron -->
+<map from="[Tcaron]" to="[Tcaron]"> <!-- =capital T, caron -->
+<map from="[tcedil]" to="[tcedil]"> <!-- =small t, cedilla -->
+<map from="[Tcedil]" to="[Tcedil]"> <!-- =capital T, cedilla -->
+<map from="[tstrok]" to="[tstrok]"> <!-- =small t, stroke -->
+<map from="[Tstrok]" to="[Tstrok]"> <!-- =capital T, stroke -->
+<map from="[ubreve]" to="[ubreve]"> <!-- =small u, breve -->
+<map from="[Ubreve]" to="[Ubreve]"> <!-- =capital U, breve -->
+<map from="[udblac]" to="[udblac]"> <!-- =small u, double acute accent -->
+<map from="[Udblac]" to="[Udblac]"> <!-- =capital U, double acute accent -->
+<map from="[umacr ]" to="[umacr ]"> <!-- =small u, macron -->
+<map from="[Umacr ]" to="[Umacr ]"> <!-- =capital U, macron -->
+<map from="[uogon ]" to="[uogon ]"> <!-- =small u, ogonek -->
+<map from="[Uogon ]" to="[Uogon ]"> <!-- =capital U, ogonek -->
+<map from="[uring ]" to="[uring ]"> <!-- =small u, ring -->
+<map from="[Uring ]" to="[Uring ]"> <!-- =capital U, ring -->
+<map from="[utilde]" to="[utilde]"> <!-- =small u, tilde -->
+<map from="[Utilde]" to="[Utilde]"> <!-- =capital U, tilde -->
+<map from="[wcirc ]" to="[wcirc ]"> <!-- =small w, circumflex accent -->
+<map from="[Wcirc ]" to="[Wcirc ]"> <!-- =capital W, circumflex accent -->
+<map from="[ycirc ]" to="[ycirc ]"> <!-- =small y, circumflex accent -->
+<map from="[Ycirc ]" to="[Ycirc ]"> <!-- =capital Y, circumflex accent -->
+<map from="[Yuml  ]" to="[Yuml  ]"> <!-- =capital Y, dieresis or umlaut mark -->
+<map from="[zacute]" to="[zacute]"> <!-- =small z, acute accent -->
+<map from="[Zacute]" to="[Zacute]"> <!-- =capital Z, acute accent -->
+<map from="[zcaron]" to="[zcaron]"> <!-- =small z, caron -->
+<map from="[Zcaron]" to="[Zcaron]"> <!-- =capital Z, caron -->
+<map from="[zdot  ]" to="[zdot  ]"> <!-- =small z, dot above -->
+<map from="[Zdot  ]" to="[Zdot  ]"> <!-- =capital Z, dot above -->
+
+<!-- Greek Letters -->
+
+<map from="[agr   ]" to="$\alpha$">
+<map from="[Agr   ]" to="[Agr   ]"> <!-- =capital Alpha, Greek -->
+<map from="[bgr   ]" to="$\beta$">
+<map from="[Bgr   ]" to="[Bgr   ]"> <!-- =capital Beta, Greek -->
+<map from="[ggr   ]" to="$\gamma$">
+<map from="[Ggr   ]" to="$\Gamma$">
+<map from="[dgr   ]" to="$\delta$">
+<map from="[Dgr   ]" to="$\Delta$">
+<map from="[egr   ]" to="$\epsilon$">
+<map from="[Egr   ]" to="[Egr   ]"> <!-- =capital Epsilon, Greek -->
+<map from="[zgr   ]" to="$\zeta$">
+<map from="[Zgr   ]" to="[Zgr   ]"> <!-- =capital Zeta, Greek -->
+<map from="[eegr  ]" to="$\eta$">
+<map from="[EEgr  ]" to="[EEgr  ]"> <!-- =capital Eta, Greek -->
+<map from="[thgr  ]" to="$\theta$">
+<map from="[THgr  ]" to="[THgr  ]"> <!-- =capital Theta, Greek -->
+<map from="[igr   ]" to="$\iota$">
+<map from="[Igr   ]" to="[Igr   ]"> <!-- =capital Iota, Greek -->
+<map from="[kgr   ]" to="$\kappa$">
+<map from="[Kgr   ]" to="[Kgr   ]"> <!-- =capital Kappa, Greek -->
+<map from="[lgr   ]" to="$\lamda$">
+<map from="[Lgr   ]" to="$\Lambda$">
+<map from="[mgr   ]" to="$\mu$">
+<map from="[Mgr   ]" to="[Mgr   ]"> <!-- =capital Mu, Greek -->
+<map from="[ngr   ]" to="$\nu$">
+<map from="[Ngr   ]" to="[Ngr   ]"> <!-- =capital Nu, Greek -->
+<map from="[xgr   ]" to="$\xi$">
+<map from="[Xgr   ]" to="$\Xi$">
+<map from="[ogr   ]" to="$o$">
+<map from="[Ogr   ]" to="[Ogr   ]"> <!-- =capital Omicron, Greek -->
+<map from="[pgr   ]" to="$\pi$">
+<map from="[Pgr   ]" to="$\Pi$">
+<map from="[rgr   ]" to="$\rho$">
+<map from="[Rgr   ]" to="[Rgr   ]"> <!-- =capital Rho, Greek -->
+<map from="[sgr   ]" to="$\sigma$">
+<map from="[Sgr   ]" to="$\Sigma$">
+<map from="[sfgr  ]" to="[sfgr  ]"> <!-- =final small sigma, Greek -->
+<map from="[tgr   ]" to="$\tau$">
+<map from="[Tgr   ]" to="[Tgr   ]"> <!-- =capital Tau, Greek -->
+<map from="[ugr   ]" to="$\upsilon$">
+<map from="[Ugr   ]" to="$\Upsilon$">
+<map from="[phgr  ]" to="$\phi$">
+<map from="[PHgr  ]" to="$\Phi$">
+<map from="[khgr  ]" to="$\chi$">
+<map from="[KHgr  ]" to="[KHgr  ]"> <!-- =capital Chi, Greek -->
+<map from="[psgr  ]" to="$\psi$">
+<map from="[PSgr  ]" to="$\Psi$">
+<map from="[ohgr  ]" to="$\omega$">
+<map from="[OHgr  ]" to="$\Omega$">
+
+<!-- Greek Symbols -->
+
+<map from="[alpha ]" to="$\alpha$">
+<map from="[beta  ]" to="$\beta$">
+<map from="[gamma ]" to="$\gamma$">
+<map from="[Gamma ]" to="$\Gamma$">
+<map from="[gammad]" to="[gammad]"> <!-- /digamma -->
+<map from="[delta ]" to="$\delta$">
+<map from="[Delta ]" to="$\Delta$">
+<map from="[epsi  ]" to="$\epsilon$">
+<map from="[epsiv ]" to="$\varepsilon$">
+<map from="[epsis ]" to="$\epsilon$">
+<map from="[zeta  ]" to="$\zeta$">
+<map from="[eta   ]" to="$\eta$">
+<map from="[thetas]" to="$\theta$">
+<map from="[Theta ]" to="$\Theta$">
+<map from="[thetav]" to="$\vartheta$">
+<map from="[iota  ]" to="$\iota$">
+<map from="[kappa ]" to="$\kappa$">
+<map from="[kappav]" to="[kappav]"> <!-- /varkappa -->
+<map from="[lambda]" to="$\lamda$">
+<map from="[Lambda]" to="$\Lambda$">
+<map from="[mu    ]" to="$\mu$">
+<map from="[nu    ]" to="$\nu$">
+<map from="[xi    ]" to="$\zi$">
+<map from="[Xi    ]" to="$\Xi$">
+<map from="[pi    ]" to="$\pi$">
+<map from="[piv   ]" to="$\varpi$">
+<map from="[Pi    ]" to="$\Pi$">
+<map from="[rho   ]" to="$\rho$">
+<map from="[rhov  ]" to="$\varrho$">
+<map from="[sigma ]" to="$\sigma$">
+<map from="[Sigma ]" to="$\Sigma$">
+<map from="[sigmav]" to="$\varsigma$">
+<map from="[tau   ]" to="$\tau$">
+<map from="[upsi  ]" to="$\upsilon$">
+<map from="[Upsi  ]" to="$\Upsilon$">
+<map from="[phis  ]" to="$\phi$">
+<map from="[Phi   ]" to="$\phi$">
+<map from="[phiv  ]" to="$\varphi$">
+<map from="[chi   ]" to="$\chi$">
+<map from="[psi   ]" to="$\psi$">
+<map from="[Psi   ]" to="$\Psi$">
+<map from="[omega ]" to="$\omega$">
+<map from="[Omega ]" to="$\Omega$">
+
+<!-- General Technical -->
+
+<map from="[aleph ]" to="$\aleph$">
+<map from="[and   ]" to="$\wedge$">
+<map from="[ang90 ]" to="[ang90 ]"> <!-- =right (90 degree) angle -->
+<map from="[angsph]" to="[angsph]"> <!-- /sphericalangle =angle-spherical -->
+<map from="[ap    ]" to="$\approx$">
+<map from="[becaus]" to="[becaus]"> <!-- /because R: =because -->
+<map from="[bottom]" to="[bottom]"> <!-- /bot B: =perpendicular -->
+<map from="[cap   ]" to="$\cap$">
+<map from="[cong  ]" to="[cong  ]"> <!-- /cong R: =congruent with -->
+<map from="[conint]" to="[conint]"> <!-- /oint L: =contour integral operator -->
+<map from="[cup   ]" to="$\cup$">
+<map from="[equiv ]" to="$\equiv$">
+<map from="[exist ]" to="$\exists$">
+<map from="[forall]" to="$\forall$">
+<map from="[fnof  ]" to="[fnof  ]"> <!-- =function of (italic small f) -->
+<map from="[ge    ]" to="$\ge$">
+<map from="[iff   ]" to="$\iff$">
+<map from="[infin ]" to="$\infty$">
+<map from="[int   ]" to="$\int$">
+<map from="[isin  ]" to="$\in$">
+<map from="[lang  ]" to="$\langle$">
+<map from="[lArr  ]" to="$\Leftarrow$">
+<map from="[le    ]" to="$\le$">
+<map from="[minus ]" to="$\-$">
+<map from="[mnplus]" to="$\mp$">
+<map from="[nabla ]" to="$\nabla$">
+<map from="[ne    ]" to="$\ne$">
+<map from="[ni    ]" to="$\ni$">
+<map from="[or    ]" to="$\vee$">
+<map from="[par   ]" to="$\vert$">
+<map from="[part  ]" to="$\partial$">
+<map from="[permil]" to="[permil]"> <!-- =per thousand -->
+<map from="[perp  ]" to="$\perp$">
+<map from="[prime ]" to="\prime{}">
+<map from="[Prime ]" to="[Prime ]"> <!-- =double prime or second -->
+<map from="[prop  ]" to="[prop  ]"> <!-- /propto R: =is proportional to -->
+<map from="[radic ]" to="[radic ]"> <!-- /surd =radical -->
+<map from="[rang  ]" to="[rang  ]"> <!-- /rangle C: =right angle bracket -->
+<map from="[rArr  ]" to="$\Rightarrow$">
+<map from="[sim   ]" to="$\sim$">
+<map from="[sime  ]" to="$\simeq$">
+<map from="[square]" to="[square]"> <!-- /square B: =square -->
+<map from="[sub   ]" to="$\subset$">
+<map from="[sube  ]" to="$\subseteq$">
+<map from="[sup   ]" to="$\supset$">
+<map from="[supe  ]" to="$\supseteq$">
+<map from="[there4]" to="[there4]"> <!-- /therefore R: =therefore -->
+<map from="[Verbar]" to="$\|$">
+<map from="[angst ]" to="[angst ]"> <!-- Angstrom =capital A, ring -->
+<map from="[bernou]" to="[bernou]"> <!-- Bernoulli function (script capital B) -->
+<map from="[compfn]" to="[compfn]"> <!-- B: composite function (small circle) -->
+<map from="[Dot   ]" to="[Dot   ]"> <!-- =dieresis or umlaut mark -->
+<map from="[DotDot]" to="[DotDot]"> <!-- four dots above -->
+<map from="[hamilt]" to="[hamilt]"> <!-- Hamiltonian (script capital H) -->
+<map from="[lagran]" to="[lagran]"> <!-- Lagrangian (script capital L) -->
+<map from="[lowast]" to="[lowast]"> <!-- low asterisk -->
+<map from="[notin ]" to="[notin ]"> <!-- N: negated set membership -->
+<map from="[order ]" to="[order ]"> <!-- order of (script small o) -->
+<map from="[phmmat]" to="[phmmat]"> <!-- physics M-matrix (script capital M) -->
+<map from="[tdot  ]" to="[tdot  ]"> <!-- three dots above -->
+<map from="[tprime]" to="[tprime]"> <!-- triple prime -->
+<map from="[wedgeq]" to="[wedgeq]"> <!-- R: corresponds to (wedge, equals) -->
+
+<!-- Diacritical Marks -->
+
+<map from="[acute ]" to="\'{}">
+<map from="[breve ]" to="\u{}">
+<map from="[caron ]" to="[caron ]"> <!-- =caron -- >
+<map from="[cedil ]" to="\c{}">
+<map from="[circ  ]" to="\^{}">
+<map from="[dblac ]" to="[dblac ]"> <!-- =double acute accent -->
+<map from="[die   ]" to='\"{}'>
+<map from="[dot   ]" to="\.{}">
+<map from="[grave ]" to="\`{}">
+<map from="[macr  ]" to="\={}">
+<map from="[ogon  ]" to="[ogon  ]"> <!-- =ogonek -->
+<map from="[ring  ]" to="\accent23">
+<map from="[tilde ]" to="\~{}">
+<map from="[uml   ]" to='\"{}'>
