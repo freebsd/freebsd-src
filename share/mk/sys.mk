@@ -41,7 +41,7 @@ CFLAGS		?=	-O -pipe
 .endif
 
 CXX		?=	c++
-CXXFLAGS	?=	${CFLAGS:N-std=*}
+CXXFLAGS	?=	${CFLAGS:N-std=*:N-Wnested-externs}
 
 CPP		?=	cpp
 
