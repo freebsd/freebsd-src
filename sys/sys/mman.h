@@ -40,6 +40,13 @@
 #include <sys/_posix.h>
 
 /*
+ * Inheritance for minherit()
+ */
+#define INHERIT_SHARE  0
+#define INHERIT_COPY   1
+#define INHERIT_NONE   2
+
+/*
  * Protections are chosen from these bits, or-ed together
  */
 #define	PROT_NONE	0x00	/* no permissions */
