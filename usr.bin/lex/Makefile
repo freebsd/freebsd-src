@@ -33,7 +33,7 @@ skel.c: mkskel.sh flex.skl
 	sh ${.CURDIR}/mkskel.sh ${.CURDIR}/flex.skl > skel.c
 
 beforeinstall:
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 644 \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${.CURDIR}/FlexLexer.h ${DESTDIR}/usr/include/g++
 
 bootstrap: initscan.c
