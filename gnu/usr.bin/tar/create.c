@@ -631,7 +631,7 @@ dump_file (p, curdev, toplevel)
       int size;
       char *buf = alloca (PATH_MAX + 1);
 
-      size = readlink (p, buf, PATH_MAX + 1);
+      size = readlink (p, buf, PATH_MAX);
       if (size < 0)
 	goto badperror;
       buf[size] = '\0';
