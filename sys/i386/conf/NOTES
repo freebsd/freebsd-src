@@ -1193,6 +1193,13 @@ hint.npx.0.irq="13"
 # Flag 0x08 automatically disables the i586 optimized routines.
 #
 
+# ACPI Experimental Driver
+device		acpi
+options		ACPI_DEBUG
+options		AML_DEBUG
+options		ACPI_NO_ENABLE_ON_BOOT
+options		ACPI_NO_OSDFUNC_INLINE
+
 #
 # Optional devices:
 #

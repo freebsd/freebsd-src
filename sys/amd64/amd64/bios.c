@@ -31,6 +31,7 @@
  * Code for dealing with the BIOS in x86 PC systems.
  */
 
+#include "acpi.h"
 #include "isa.h"
 
 #include <sys/param.h>
@@ -48,6 +49,10 @@
 #include <isa/isavar.h>
 #include <isa/pnpreg.h>
 #include <isa/pnpvar.h>
+
+#if NACPI > 0
+#include <sys/acpi.h>
+#endif
 
 #define BIOS_START	0xe0000
 #define BIOS_SIZE	0x20000
@@ -143,11 +148,29 @@ bios32_init(void *junk)
 	    printf("pnpbios: Bad PnP BIOS data checksum\n");
 	}
     }
+#if NACPI > 0
+    /*
+     * ACPI BIOS
+     * acpi_rsdp is GLOBAL and holds RSD PTR signature
+     */
+    if ((sigaddr = bios_sigsearch(0, "RSD PTR ", 8, 16, 0)) != 0) {
+ 	/* get a virtual pointer to the structure */
+      acpi_rsdp = (struct ACPIrsdp *)(uintptr_t)BIOS_PADDRTOVADDR(sigaddr);
+      for (cv = (u_int8_t *)acpi_rsdp, ck = 0, i = 0; i < sizeof(struct ACPIrsdp); i++) {
+ 	    ck += cv[i];
+      }
+      
+      /* If checksum is NG, disable it */
+ 	if (ck != 0) {
+ 	  printf("ACPI: Bad ACPI BIOS data checksum\n");
+ 	  acpi_rsdp=NULL;/* 0xa0000<=RSD_PTR<0x100000*/
+        }
+    }
+#endif
 
     if (bootverbose) {
 	    /* look for other know signatures */
 	    printf("Other BIOS signatures found:\n");
-	    printf("ACPI: %08x\n", bios_sigsearch(0, "RSD PTR ", 8, 16, 0));
     }
 }
 

@@ -144,6 +144,7 @@ gnu/i386/isa/sound/awe_wave.c	optional	awe
 i386/apm/apm.c			count		apm
 i386/i386/atomic.c		standard				\
 	compile-with	"${CC} -c ${CFLAGS} ${DEFINED_PROF:S/^$/-fomit-frame-pointer/} ${.IMPSRC}"
+i386/i386/acpi_machdep.c	optional	acpi
 i386/i386/autoconf.c		standard
 i386/i386/bios.c		standard
 i386/i386/bioscall.s		standard
