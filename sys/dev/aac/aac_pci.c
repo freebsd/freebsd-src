@@ -196,7 +196,7 @@ aac_pci_attach(device_t dev)
 		device_printf(sc->aac_dev, "can't allocate interrupt\n");
 		goto out;
 	}
-#if __FreeBSD_version < 500005
+#ifndef INTR_ENTROPY
 #define INTR_ENTROPY 0
 #endif
 	if (bus_setup_intr(sc->aac_dev, sc->aac_irq, INTR_TYPE_BIO|INTR_ENTROPY,
