@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.22 1995/05/30 08:16:07 rgrimes Exp $
+ * $Id: vm_map.c,v 1.22.4.1 1995/11/12 08:59:56 davidg Exp $
  */
 
 /*
@@ -197,7 +197,7 @@ vmspace_alloc(min, max, pageable)
 
 		mapvmpgcnt = (cnt.v_page_count * sizeof(struct vm_map_entry) + PAGE_SIZE - 1) / PAGE_SIZE;
 		s = splhigh();
-		mapvm_start = mapvm = kmem_alloc_pageable(kmem_map, mapvmpgcnt * PAGE_SIZE);
+		mapvm_start = mapvm = kmem_alloc_pageable(kernel_map, mapvmpgcnt * PAGE_SIZE);
 		mapvmmax = mapvm_start + mapvmpgcnt * PAGE_SIZE;
 		splx(s);
 		if (!mapvm)
@@ -320,8 +320,8 @@ vm_map_entry_create(map)
 		if (mapvmpgcnt && mapvm) {
 			vm_page_t m;
 
-			m = vm_page_alloc(kmem_object,
-			        mapvm - vm_map_min(kmem_map),
+			m = vm_page_alloc(kernel_object,
+			        mapvm - VM_MIN_KERNEL_ADDRESS,
 				    (map == kmem_map) ? VM_ALLOC_INTERRUPT : VM_ALLOC_NORMAL);
 			if (m) {
 				int newentries;
@@ -330,7 +330,7 @@ vm_map_entry_create(map)
 				vm_page_wire(m);
 				m->flags &= ~PG_BUSY;
 				m->valid = VM_PAGE_BITS_ALL;
-				pmap_enter(vm_map_pmap(kmem_map), mapvm,
+				pmap_enter(vm_map_pmap(kernel_map), mapvm,
 				    VM_PAGE_TO_PHYS(m), VM_PROT_DEFAULT, 1);
 				m->flags |= PG_WRITEABLE|PG_MAPPED;
 
@@ -2588,13 +2588,14 @@ vm_map_simplify(map, start)
 		if (map->first_free == this_entry)
 			map->first_free = prev_entry;
 
-		if (!this_entry->object.vm_object->paging_in_progress) {
+		if (map->hint == this_entry) {
 			SAVE_HINT(map, prev_entry);
-			vm_map_entry_unlink(map, this_entry);
-			prev_entry->end = this_entry->end;
-			vm_object_deallocate(this_entry->object.vm_object);
-			vm_map_entry_dispose(map, this_entry);
 		}
+
+		vm_map_entry_unlink(map, this_entry);
+		prev_entry->end = this_entry->end;
+		vm_object_deallocate(this_entry->object.vm_object);
+		vm_map_entry_dispose(map, this_entry);
 	}
 	vm_map_unlock(map);
 }
