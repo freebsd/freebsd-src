@@ -47,6 +47,16 @@ typedef	__gid_t		gid_t;
 #define	_GID_T_DECLARED
 #endif
 
+#ifndef _OFF_T_DECLARED
+typedef	__off_t		off_t;
+#define	_OFF_T_DECLARED
+#endif
+
+#ifndef _PID_T_DECLARED
+typedef	__pid_t		pid_t;
+#define	_PID_T_DECLARED
+#endif
+
 #ifndef _SIZE_T_DECLARED
 typedef	__size_t	size_t;
 #define	_SIZE_T_DECLARED
@@ -58,13 +68,14 @@ typedef	__ssize_t	ssize_t;
 #endif
 
 #ifndef _UID_T_DECLARED
-typedef	__uid_t_	uid_t;
+typedef	__uid_t		uid_t;
 #define	_UID_T_DECLARED
 #endif
 
-/*
- * XXX missing type definitions for off_t, pid_t and useconds_t.
- */
+#ifndef _USECONDS_T_DECLARED
+typedef	__useconds_t	useconds_t;
+#define	_USECONDS_T_DECLARED
+#endif
 
 #define	 STDIN_FILENO	0	/* standard input file descriptor */
 #define	STDOUT_FILENO	1	/* standard output file descriptor */
@@ -427,8 +438,8 @@ int	 setregid(gid_t, gid_t);
 int	 setreuid(uid_t, uid_t);
 /* void	 swab(const void * __restrict, void * __restrict, ssize_t); */
 void	 sync(void);
-unsigned int	 ualarm(unsigned int, unsigned int);
-int	 usleep(unsigned int);
+useconds_t	 ualarm(useconds_t, useconds_t);
+int	 usleep(useconds_t);
 pid_t	 vfork(void);
 
 /* See comment at ftruncate() above. */
