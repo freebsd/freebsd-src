@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.60 1997/08/31 20:07:03 brian Exp $
+.\" $Id: ppp.8,v 1.61 1997/09/04 00:38:20 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1388,7 +1388,7 @@ Default: Enabled and Accepted.  This option decides if Van Jacobson
 header compression will be used.
 
 .It lqr
-Default: Enabled and Accepted.  This option decides if Link Quality
+Default: Disabled and Accepted.  This option decides if Link Quality
 Requests will be sent.  LQR is a protocol that allows
 .Nm
 to determine that the link is down without relying on the modems
