@@ -80,7 +80,7 @@ struct vop_vector default_vnodeops = {
 	.vop_fsync =		VOP_NULL,
 	.vop_getpages =		vop_stdgetpages,
 	.vop_getwritemount = 	vop_stdgetwritemount,
-	.vop_inactive =		vop_stdinactive,
+	.vop_inactive =		VOP_NULL,
 	.vop_ioctl =		VOP_ENOTTY,
 	.vop_islocked =		vop_stdislocked,
 	.vop_lease =		VOP_NULL,
@@ -285,19 +285,6 @@ vop_stdislocked(ap)
 {
 
 	return (lockstatus(ap->a_vp->v_vnlock, ap->a_td));
-}
-
-/* Mark the vnode inactive */
-int
-vop_stdinactive(ap)
-	struct vop_inactive_args /* {
-		struct vnode *a_vp;
-		struct thread *a_td;
-	} */ *ap;
-{
-
-	VOP_UNLOCK(ap->a_vp, 0, ap->a_td);
-	return (0);
 }
 
 /*
