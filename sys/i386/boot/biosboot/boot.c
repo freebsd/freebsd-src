@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.67 1997/06/14 10:00:42 bde Exp $
+ *	$Id: boot.c,v 1.68 1997/07/31 08:07:54 phk Exp $
  */
 
 
@@ -269,7 +269,7 @@ loadprog(void)
  * nonexistent memory.  A full symbol table is unlikely to fit on 4MB
  * machines.
  */
-	pbzero((void *)addr,head.a_bss);
+	/* kzip & kernel will zero their own bss */
 	addr += head.a_bss;
 
 	/* Pad to a page boundary. */

@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:03  rpd
- *	$Id: boot.h,v 1.19 1997/06/09 05:10:55 bde Exp $
+ *	$Id: boot.h,v 1.20 1997/07/12 10:23:17 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -54,7 +54,6 @@ void prot_to_real(void);
 #endif
 void startprog(unsigned int physaddr, int howto, int bootdev,
 	       /* XXX struct bootinfo * */ unsigned int bootinfo);
-void pbzero(void *dst, size_t count);
 void pcpy(const void *src, void *dst, size_t count);
 
 /* bios.S */

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.58 1997/07/31 08:07:53 phk Exp $
+#	$Id: Makefile,v 1.59 1997/07/31 11:30:30 phk Exp $
 #
 
 PROG=	boot
@@ -13,7 +13,7 @@ CFLAGS=		-O2 -malign-functions=0 -malign-jumps=0 -malign-loops=0 \
 		-DBOOTWAIT=${BOOTWAIT} -DTIMEOUT=${TIMEOUT}
 CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
 CFLAGS+=	-DDO_BAD144
-#CFLAGS+=	-DVESA_SUPPORT
+CFLAGS+=	-DVESA_SUPPORT
 CFLAGS+=	-I${.CURDIR}/../../..
 CFLAGS+=	${CWARNFLAGS}
 
