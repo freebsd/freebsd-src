@@ -479,6 +479,7 @@ tcp_quench(inp, errno)
  * When `need fragmentation' ICMP is received, update our idea of the MSS
  * based on the new value in the route.  Also nudge TCP to send something,
  * since we know the packet we just sent was dropped.
+ * This duplicates some code in the tcp_mss() function in tcp_input.c.
  */
 static void
 tcp_mtudisc(inp, errno)
@@ -486,11 +487,52 @@ tcp_mtudisc(inp, errno)
 	int errno;
 {
 	struct tcpcb *tp = intotcpcb(inp);
+	struct rtentry *rt;
+	struct rmxp_tao *taop;
+	struct socket *so = inp->inp_socket;
+	int offered;
+	int mss;
 
-#if 0
-	if (tp)
-		;		/* XXX implement */
+	if (tp) {
+		rt = tcp_rtlookup(inp);
+		if (!rt || !rt->rt_rmx.rmx_mtu) {
+			tp->t_maxopd = tp->t_maxseg = tcp_mssdflt;
+			return;
+		}
+		taop = rmx_taop(rt->rt_rmx);
+		offered = taop->tao_mssopt;
+		mss = rt->rt_rmx.rmx_mtu - sizeof(struct tcpiphdr);
+		mss = min(mss, offer);
+		tp->t_maxopd = mss;
+
+		if ((tp->t_flags & (TF_REQ_TSTMP|TF_NOOPT)) == TF_REQ_TSTMP &&
+		    (tp->t_flags & TF_RCVD_TSTMP) == TF_RCVD_TSTMP)
+			mss -= TCPOLEN_TSTAMP_APPA;
+		if ((tp->t_flags & (TF_REQ_CC|TF_NOOPT)) == TF_REQ_CC &&
+		    (tp->t_flags & TF_RCVD_CC) == TF_RCVD_CC)
+			mss -= TCPOLEN_CC_APPA;
+#if	(MCLBYTES & (MCLBYTES - 1)) == 0
+		if (mss > MCLBYTES)
+			mss &= ~(MCLBYTES-1);
+#else
+		if (mss > MCLBYTES)
+			mss = mss / MCLBYTES * MCLBYTES;
 #endif
+		if (so->so_snd.sb_hiwat < mss)
+			mss = so->so_snd.sb_hiwat;
+
+		tp->t_maxseg = mss;
+
+		/*
+		 * Nudge TCP output.  Unfortunately, we have no way to know
+		 * which packet that we sent is the failing one, but in the
+		 * vast majority of cases we expect that it will be at the
+		 * beginning of the window, so this should do the right
+		 * thing (I hope).
+		 */
+		tp->snd_nxt = tp->snd_una;
+		tcp_output(tp);
+	}
 }
 #endif /* MTUDISC */
 
