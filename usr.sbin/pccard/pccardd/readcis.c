@@ -475,20 +475,20 @@ cis_config(struct cis *cp, unsigned char *p, int len)
 		}
 	}
 	switch (CIS_FEAT_MEMORY(feat)) {
-	case 0:
+	case CIS_FEAT_MEM_NONE:
 		break;
-	case 1:
+	case CIS_FEAT_MEM_LEN:
 		conf->memspace = 1;
 		conf->mem = xmalloc(sizeof(*conf->mem));
 		conf->mem->length = tpl16(p) << 8;
 		break;
-	case 2:
+	case CIS_FEAT_MEM_ADDR:
 		conf->memspace = 1;
 		conf->mem = xmalloc(sizeof(*conf->mem));
 		conf->mem->length = tpl16(p) << 8;
 		conf->mem->address = tpl16(p + 2) << 8;
 		break;
-	case 3: {
+	case CIS_FEAT_MEM_WIN: {
 		struct cis_memblk *mem;
 		struct cis_memblk *last_mem = NULL;
 
