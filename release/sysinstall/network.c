@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.24 1996/12/12 08:23:50 jkh Exp $
+ * $Id: network.c,v 1.25 1997/01/01 12:36:08 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -203,6 +203,7 @@ startPPP(Device *devp)
     val = variable_get(VAR_GATEWAY);
     SAFE_STRCPY(provider, (val && *val) ? val : "0");
 
+    dialog_clear_norefresh();
     val = msgGetInput(provider, "Enter the IP address of your service provider or 0 if you\n"
 		      "don't know it and would prefer to negotiate it dynamically.");
     SAFE_STRCPY(provider, (val && *val) ? val : "0");
@@ -283,6 +284,7 @@ startPPP(Device *devp)
 	exit(1);
     }
     else {
+	dialog_clear_norefresh();
 	msgConfirm("NOTICE: The PPP command is now started on VTY3 (type ALT-F3 to\n"
 		   "interact with it, ALT-F1 to switch back here). The only command\n"
 		   "you'll probably want or need to use is the \"term\" command\n"
