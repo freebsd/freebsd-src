@@ -1,8 +1,34 @@
-/* $Header: /usr/cvs/src/gnu/usr.bin/patch/pch.c,v 1.8 1996/04/12 11:37:32 markm Exp $
+/* $Header: /home/ncvs/src/gnu/usr.bin/patch/pch.c,v 1.9 1997/02/13 21:10:43 jmg Exp $
  *
  * $Log: pch.c,v $
+ * Revision 1.9  1997/02/13 21:10:43  jmg
+ * Fix a problem with patch in that is will always default, even when the
+ * controlling terminal is closed.  Now the function ask() will return 1 when th
+ * input is known to come from a file or terminal, or it will return 0 when ther
+ * was a read error.
+ *
+ * Modified the question "Skip patch?" so that on an error from ask it will skip
+ * the patch instead of looping.
+ *
+ * Closes PR#777
+ *
+ * 2.2 candidate
+ *
  * Revision 1.8  1996/04/12 11:37:32  markm
- * Attempt to break a $Log$ snafu where a *** /--- (minus space)
+ * Attempt to break a $Log: pch.c,v $
+ * Attempt to break a Revision 1.9  1997/02/13 21:10:43  jmg
+ * Attempt to break a Fix a problem with patch in that is will always default, even when the
+ * Attempt to break a controlling terminal is closed.  Now the function ask() will return 1 when th
+ * Attempt to break a input is known to come from a file or terminal, or it will return 0 when ther
+ * Attempt to break a was a read error.
+ * Attempt to break a
+ * Attempt to break a Modified the question "Skip patch?" so that on an error from ask it will skip
+ * Attempt to break a the patch instead of looping.
+ * Attempt to break a
+ * Attempt to break a Closes PR#777
+ * Attempt to break a
+ * Attempt to break a 2.2 candidate
+ * Attempt to break a snafu where a *** /--- (minus space)
  * was fouling up a comment in the checked-out code.
  *
  * Revision 1.7  1996/04/11 10:13:40  markm
@@ -302,8 +328,8 @@ intuit_diff_type()
 	    else
 		indent++;
 	}
-	for (t=s; isdigit(*t) || *t == ','; t++) ;
-	this_is_a_command = (isdigit(*s) &&
+	for (t=s; isdigit((unsigned char)*t) || *t == ','; t++) ;
+	this_is_a_command = (isdigit((unsigned char)*s) &&
 	  (*t == 'd' || *t == 'c' || *t == 'a') );
 	if (first_command_line < 0L && this_is_a_command) {
 	    first_command_line = this_line;
@@ -319,9 +345,9 @@ intuit_diff_type()
 	else if (strnEQ(s, "Index:", 6))
 	    indtmp = savestr(s+6);
 	else if (strnEQ(s, "Prereq:", 7)) {
-	    for (t=s+7; isspace(*t); t++) ;
+	    for (t=s+7; isspace((unsigned char)*t); t++) ;
 	    revision = savestr(t);
-	    for (t=revision; *t && !isspace(*t); t++) ;
+	    for (t=revision; *t && !isspace((unsigned char)*t); t++) ;
 	    *t = '\0';
 	    if (!*revision) {
 		free(revision);
@@ -567,15 +593,15 @@ another_hunk()
 		    p_end--;
 		    return FALSE;
 		}
-		for (s=buf; *s && !isdigit(*s); s++) ;
+		for (s=buf; *s && !isdigit((unsigned char)*s); s++) ;
 		if (!*s)
 		    malformed ();
 		if (strnEQ(s,"0,0",3))
 		    strcpy(s,s+2);
 		p_first = (LINENUM) atol(s);
-		while (isdigit(*s)) s++;
+		while (isdigit((unsigned char)*s)) s++;
 		if (*s == ',') {
-		    for (; *s && !isdigit(*s); s++) ;
+		    for (; *s && !isdigit((unsigned char)*s); s++) ;
 		    if (!*s)
 			malformed ();
 		    p_ptrn_lines = ((LINENUM)atol(s)) - p_first + 1;
@@ -633,13 +659,13 @@ another_hunk()
 			return FALSE;
 		    }
 		    p_Char[p_end] = '=';
-		    for (s=buf; *s && !isdigit(*s); s++) ;
+		    for (s=buf; *s && !isdigit((unsigned char)*s); s++) ;
 		    if (!*s)
 			malformed ();
 		    p_newfirst = (LINENUM) atol(s);
-		    while (isdigit(*s)) s++;
+		    while (isdigit((unsigned char)*s)) s++;
 		    if (*s == ',') {
-			for (; *s && !isdigit(*s); s++) ;
+			for (; *s && !isdigit((unsigned char)*s); s++) ;
 			if (!*s)
 			    malformed ();
 			p_repl_lines = ((LINENUM)atol(s)) - p_newfirst + 1;
@@ -667,7 +693,7 @@ another_hunk()
 	      change_line:
 		if (buf[1] == '\n' && canonicalize)
 		    strcpy(buf+1," \n");
-		if (!isspace(buf[1]) && buf[1] != '>' && buf[1] != '<' &&
+		if (!isspace((unsigned char)buf[1]) && buf[1] != '>' && buf[1] != '<' &&
 		  repl_beginning && repl_could_be_missing) {
 		    repl_missing = TRUE;
 		    goto hunk_done;
@@ -703,7 +729,7 @@ another_hunk()
 		}
 		break;
 	    case ' ':
-		if (!isspace(buf[1]) &&
+		if (!isspace((unsigned char)buf[1]) &&
 		  repl_beginning && repl_could_be_missing) {
 		    repl_missing = TRUE;
 		    goto hunk_done;
@@ -827,20 +853,20 @@ another_hunk()
 	if (!*s)
 	    malformed ();
 	p_first = (LINENUM) atol(s);
-	while (isdigit(*s)) s++;
+	while (isdigit((unsigned char)*s)) s++;
 	if (*s == ',') {
 	    p_ptrn_lines = (LINENUM) atol(++s);
-	    while (isdigit(*s)) s++;
+	    while (isdigit((unsigned char)*s)) s++;
 	} else
 	    p_ptrn_lines = 1;
 	if (*s == ' ') s++;
 	if (*s != '+' || !*++s)
 	    malformed ();
 	p_newfirst = (LINENUM) atol(s);
-	while (isdigit(*s)) s++;
+	while (isdigit((unsigned char)*s)) s++;
 	if (*s == ',') {
 	    p_repl_lines = (LINENUM) atol(++s);
-	    while (isdigit(*s)) s++;
+	    while (isdigit((unsigned char)*s)) s++;
 	} else
 	    p_repl_lines = 1;
 	if (*s == ' ') s++;
@@ -962,15 +988,15 @@ another_hunk()
 	p_context = 0;
 	ret = pgets(buf, sizeof buf, pfp);
 	p_input_line++;
-	if (ret == Nullch || !isdigit(*buf)) {
+	if (ret == Nullch || !isdigit((unsigned char)*buf)) {
 	    next_intuit_at(line_beginning,p_input_line);
 	    return FALSE;
 	}
 	p_first = (LINENUM)atol(buf);
-	for (s=buf; isdigit(*s); s++) ;
+	for (s=buf; isdigit((unsigned char)*s); s++) ;
 	if (*s == ',') {
 	    p_ptrn_lines = (LINENUM)atol(++s) - p_first + 1;
-	    while (isdigit(*s)) s++;
+	    while (isdigit((unsigned char)*s)) s++;
 	}
 	else
 	    p_ptrn_lines = (*s != 'a');
@@ -978,7 +1004,7 @@ another_hunk()
 	if (hunk_type == 'a')
 	    p_first++;			/* do append rather than insert */
 	min = (LINENUM)atol(++s);
-	for (; isdigit(*s); s++) ;
+	for (; isdigit((unsigned char)*s); s++) ;
 	if (*s == ',')
 	    max = (LINENUM)atol(++s);
 	else
@@ -1312,8 +1338,8 @@ do_ed_script()
 	    break;
 	}
 	p_input_line++;
-	for (t=buf; isdigit(*t) || *t == ','; t++) ;
-	this_line_is_command = (isdigit(*buf) &&
+	for (t=buf; isdigit((unsigned char)*t) || *t == ','; t++) ;
+	this_line_is_command = (isdigit((unsigned char)*buf) &&
 	  (*t == 'd' || *t == 'c' || *t == 'a') );
 	if (this_line_is_command) {
 	    if (!skip_rest_of_patch)
