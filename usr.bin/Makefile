@@ -40,6 +40,7 @@ SUBDIR=	apply \
 	dirname \
 	du \
 	ee \
+	elf2aout \
 	enigma \
 	env \
 	expand \
@@ -232,10 +233,6 @@ SUBDIR+=ar \
 
 .if ${MACHINE_ARCH} == "alpha"
 SUBDIR+=uac
-.endif
-
-.if ${MACHINE_ARCH} == "sparc64"
-SUBDIR+=elf2aout
 .endif
 
 # Things which don't compile on new platforms yet:
