@@ -40,7 +40,16 @@
 #include <string.h>
 #include <sysexits.h>
 
-char *
+const char *mode2str(int mode);
+int str2mode(char *str);
+void usage(void);
+int version(int ver);
+void param_print(struct ata_params *parm);
+void cap_print(struct ata_params *parm);
+int ata_cap_print(int fd, int channel, int device);
+int info_print(int fd, int channel, int prchan);
+
+const char *
 mode2str(int mode)
 {
 	switch (mode) {
@@ -91,14 +100,14 @@ usage()
 }
 
 int
-version(int version)
+version(int ver)
 {
 	int bit;
     
-	if (version == 0xffff)
+	if (ver == 0xffff)
 		return 0;
 	for (bit = 15; bit >= 0; bit--)
-		if (version & (1<<bit))
+		if (ver & (1<<bit))
 			return bit;
     	return 0;
 }
