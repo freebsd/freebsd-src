@@ -243,9 +243,10 @@
 #define	IFT_OPTICALCHANNEL	   0xc3 /* Optical Channel */
 #define	IFT_OPTICALTRANSPORT	   0xc4 /* Optical Transport */
 
+#define	IFT_STF			   0xd7	/* 6to4 interface */
+
 /* not based on IANA assignments */
 #define	IFT_GIF		0xf0
 #define	IFT_PVC		0xf1
 #define	IFT_FAITH	0xf2
-#define	IFT_STF		0xf3
 #endif /* !_NET_IF_TYPES_H_ */
