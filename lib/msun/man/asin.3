@@ -30,22 +30,27 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)asin.3	5.1 (Berkeley) 5/2/91
-.\"	$Id: asin.3,v 1.4 1993/10/29 22:57:22 jtc Exp $
+.\"	$Id: asin.3,v 1.1.1.1 1994/08/19 09:39:41 jkh Exp $
 .\"
 .Dd May 2, 1991
 .Dt ASIN 3
 .Os
 .Sh NAME
-.Nm asin
-.Nd arc sine function
+.Nm asin ,
+.Nm asinf
+.Nd arc sine functions
 .Sh SYNOPSIS
 .Fd #include <math.h>
 .Ft double
 .Fn asin "double  x"
+.Ft float
+.Fn asinf "float  x"
 .Sh DESCRIPTION
 The
 .Fn asin
-function computes the principal value of the arc sine of
+and the 
+.Fn asinf
+functions compute the principal value of the arc sine of
 .Fa x .
 A domain error occurs for arguments not in the range [-1, +1].
 For a discussion of error due to roundoff, see
@@ -53,7 +58,9 @@ For a discussion of error due to roundoff, see
 .Sh RETURN VALUES
 The
 .Fn asin
-function returns the arc sine in the range
+and the 
+.Fn asinf
+functions return the arc sine in the range
 .Bk -words
 .Bq -\*(Pi/2, +\*(Pi/2
 .Ek

@@ -30,22 +30,27 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)tan.3	5.1 (Berkeley) 5/2/91
-.\"	$Id: tan.3,v 1.4 1993/10/05 16:33:47 jtc Exp $
+.\"	$Id: tan.3,v 1.1.1.1 1994/08/19 09:39:43 jkh Exp $
 .\"
 .Dd May 2, 1991
 .Dt TAN 3
 .Os
 .Sh NAME
-.Nm tan
-.Nd tangent function
+.Nm tan ,
+.Nm tanf
+.Nd tangent functions
 .Sh SYNOPSIS
 .Fd #include <math.h>
 .Ft double
 .Fn tan "double x"
+.Ft float
+.Fn tanf "float x"
 .Sh DESCRIPTION
 The
 .Fn tan
-function computes the tangent of
+and the
+.Fn tanf
+functions compute the tangent of
 .Fa x
 (measured in radians).
 A large magnitude argument may yield a result

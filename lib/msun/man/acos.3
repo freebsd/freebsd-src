@@ -30,22 +30,27 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)acos.3	5.1 (Berkeley) 5/2/91
-.\"	$Id: acos.3,v 1.4 1993/10/29 22:57:17 jtc Exp $
+.\"	$Id: acos.3,v 1.1.1.1 1994/08/19 09:39:41 jkh Exp $
 .\"
 .Dd May 2, 1991
 .Dt ACOS 3
 .Os
 .Sh NAME
-.Nm acos
-.Nd arc cosine function
+.Nm acos ,
+.Nm acosf
+.Nd arc cosine functions
 .Sh SYNOPSIS
 .Fd #include <math.h>
 .Ft double
 .Fn acos "double x"
+.Ft float
+.Fn acosf "float x"
 .Sh DESCRIPTION
 The
 .Fn acos
-function computes the principal value of the arc cosine of
+and the
+.Fn acosf
+functions compute the principal value of the arc cosine of
 .Fa x .
 A domain error occurs for arguments not in the range [-1, +1].
 For a discussion of error due to roundoff, see
@@ -53,7 +58,9 @@ For a discussion of error due to roundoff, see
 .Sh RETURN VALUES
 The 
 .Fn acos
-function returns the arc cosine in the range
+and the
+.Fn acosf
+functions return the arc cosine in the range
 .Bq 0 , \*(Pi
 radians.
 On the

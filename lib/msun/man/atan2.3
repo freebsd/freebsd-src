@@ -30,40 +30,47 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)atan2.3	5.1 (Berkeley) 5/2/91
-.\"	$Id: atan2.3,v 1.3 1993/08/14 13:42:32 mycroft Exp $
+.\"	$Id: atan2.3,v 1.1.1.1 1994/08/19 09:39:41 jkh Exp $
 .\"
 .Dd May 2, 1991
 .Dt ATAN2 3
 .Os
 .Sh NAME
-.Nm atan2
-.Nd arc tangent function of two variables
+.Nm atan2 ,
+.Nm atan2f
+.Nd arc tangent functions of two variables
 .Sh SYNOPSIS
 .Fd #include <math.h>
 .Ft double
 .Fn atan2 "double y" "double x"
+.Ft float
+.Fn atan2f "float y" "float x"
 .Sh DESCRIPTION
 The
-.Xr atan2
-function computes the principal value of the arc tangent of
-.Ar y/ Ns Ar x ,
+.Fn atan2
+and the
+.Fn atan2f
+functions compute the principal value of the arc tangent of
+.Fa y/ Ns Ar x ,
 using the signs of both arguments to determine the quadrant of
 the return value.
 .Sh RETURN VALUES
 The
-.Xr atan2
-function, if successful,
-returns the arc tangent of 
-.Ar y/ Ns Ar x
+.Fn atan2
+and the
+.Fn atan2f
+functions, if successful,
+return the arc tangent of 
+.Fa y/ Ns Ar x
 in the range
 .Bk -words
 .Bq \&- Ns \*(Pi , \&+ Ns \*(Pi
 .Ek
 radians.
 If both
-.Ar x
+.Fa x
 and
-.Ar y
+.Fa y
 are zero, the global variable
 .Va errno
 is set to
