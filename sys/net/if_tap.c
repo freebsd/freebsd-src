@@ -98,7 +98,7 @@ static d_poll_t		tappoll;
 
 static struct cdevsw	tap_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
+	.d_flags =	D_PSEUDO | D_NEEDGIANT,
 	.d_open =	tapopen,
 	.d_close =	tapclose,
 	.d_read =	tapread,
@@ -106,7 +106,6 @@ static struct cdevsw	tap_cdevsw = {
 	.d_ioctl =	tapioctl,
 	.d_poll =	tappoll,
 	.d_name =	CDEV_NAME,
-	.d_flags =	D_PSEUDO,
 };
 
 static int			tapdebug = 0;        /* debug flag   */
