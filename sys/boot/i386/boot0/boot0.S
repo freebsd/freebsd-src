@@ -96,9 +96,8 @@ main:
 /*
  * Initialize the serial port.  bioscom preserves the driver number in DX.
  */
-		movb COMSPEED,%al		# defined by Makefile
-		movb $0x00,%ah			# BIOS: Set COM Port
-		call bioscom
+		movw COMSPEED,%ax		# defined by Makefile
+		callw bioscom
 #endif /* SIO */
 /*
  * Check what flags were loaded with us, specifically, Use a predefined Drive.
@@ -372,7 +371,6 @@ putchr:
 #else /* SIO */
 putchr:
 		movb $0x01,%ah			# BIOS: Send
-		xorw %cx,%cx 			# No timeout
 bioscom:
 		pushw %dx			# Save
 		xorw %dx,%dx 			# Use COM1
