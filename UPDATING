@@ -17,6 +17,10 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20020805:	p25
+	Correct a bug in the ASN.1 decoder which was introduced with
+	the recent OpenSSL update.
+
 20020805:	p24	FreeBSD-SA-02:37.kqueue
 	Registering an EVFILT_WRITE event on a pipe whose far end had
 	already been closed would cause a kernel panic.
