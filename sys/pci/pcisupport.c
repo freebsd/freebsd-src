@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.68 1998/05/11 01:05:54 dyson Exp $
+**  $Id: pcisupport.c,v 1.69 1998/06/08 04:07:51 dyson Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -40,6 +40,8 @@
 **
 ***************************************************************************
 */
+
+#include "opt_pci.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

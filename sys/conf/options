@@ -1,4 +1,4 @@
-#	$Id: options,v 1.81 1998/06/30 07:47:42 jmg Exp $
+#	$Id: options,v 1.82 1998/06/30 08:01:28 jmg Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -243,6 +243,9 @@ KEY_DEBUG		opt_key.h
 
 # Size of the kernel message buffer
 MSGBUF_SIZE		opt_msgbuf.h
+
+# PCI related options
+PCI_QUIET		opt_pci.h
 
 # NFS options
 NFS_MINATTRTIMO		opt_nfs.h
