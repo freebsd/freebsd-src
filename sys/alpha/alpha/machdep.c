@@ -1172,7 +1172,7 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	int oonstack, fsize, rndfsize;
 
 	frame = p->p_md.md_tf;
-	oonstack = psp->ps_sigstk.ss_flags & SS_ONSTACK;
+	oonstack = p->p_sigstk.ss_flags & SS_ONSTACK;
 	fsize = sizeof ksi;
 	rndfsize = ((fsize + 15) / 16) * 16;
 
@@ -1183,11 +1183,11 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	 * will fail if the process has not already allocated
 	 * the space with a `brk'.
 	 */
-	if ((psp->ps_flags & SAS_ALTSTACK) && !oonstack &&
+	if ((p->p_flag & P_ALTSTACK) && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		sip = (osiginfo_t *)((caddr_t)psp->ps_sigstk.ss_sp +
-		    psp->ps_sigstk.ss_size - rndfsize);
-		psp->ps_sigstk.ss_flags |= SS_ONSTACK;
+		sip = (osiginfo_t *)((caddr_t)p->p_sigstk.ss_sp +
+		    p->p_sigstk.ss_size - rndfsize);
+		p->p_sigstk.ss_flags |= SS_ONSTACK;
 	} else
 		sip = (osiginfo_t *)(alpha_pal_rdusp() - rndfsize);
 
@@ -1265,29 +1265,26 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 void
 sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 {
-	struct proc *p;
+	struct proc *p = curproc;
 	struct trapframe *frame;
-	struct sigacts *psp;
+	struct sigacts *psp = p->p_sigacts;
 	struct sigframe sf, *sfp;
-	int onstack, rndfsize;
+	int oonstack, rndfsize;
 
-	p = curproc;
-
-	if ((p->p_flag & P_NEWSIGSET) == 0) {
+	if (SIGISMEMBER(psp->ps_osigset, sig)) {
 		osendsig(catcher, sig, mask, code);
 		return;
 	}
 
 	frame = p->p_md.md_tf;
-	psp = p->p_sigacts;
-	onstack = (psp->ps_sigstk.ss_flags & SS_ONSTACK) ? 1 : 0;
+	oonstack = (p->p_sigstk.ss_flags & SS_ONSTACK) ? 1 : 0;
 	rndfsize = ((sizeof(sf) + 15) / 16) * 16;
 
 	/* save user context */
 	bzero(&sf, sizeof(struct sigframe));
 	sf.sf_uc.uc_sigmask = *mask;
-	sf.sf_uc.uc_stack = psp->ps_sigstk;
-	sf.sf_uc.uc_mcontext.mc_onstack = onstack;
+	sf.sf_uc.uc_stack = p->p_sigstk;
+	sf.sf_uc.uc_mcontext.mc_onstack = oonstack;
 
 	fill_regs(p, (struct reg *)sf.sf_uc.uc_mcontext.mc_regs);
 	sf.sf_uc.uc_mcontext.mc_regs[R_SP] = alpha_pal_rdusp();
@@ -1308,11 +1305,11 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	 * will fail if the process has not already allocated
 	 * the space with a `brk'.
 	 */
-	if ((psp->ps_flags & SAS_ALTSTACK) != 0 && !onstack &&
+	if ((p->p_flag & P_ALTSTACK) != 0 && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		sfp = (struct sigframe *)((caddr_t)psp->ps_sigstk.ss_sp +
-		    psp->ps_sigstk.ss_size - rndfsize);
-		psp->ps_sigstk.ss_flags |= SS_ONSTACK;
+		sfp = (struct sigframe *)((caddr_t)p->p_sigstk.ss_sp +
+		    p->p_sigstk.ss_size - rndfsize);
+		p->p_sigstk.ss_flags |= SS_ONSTACK;
 	} else
 		sfp = (struct sigframe *)(alpha_pal_rdusp() - rndfsize);
 
@@ -1438,20 +1435,16 @@ osigreturn(struct proc *p,
 	 * Restore the user-supplied information
 	 */
 	if (ksc.sc_onstack)
-		p->p_sigacts->ps_sigstk.ss_flags |= SS_ONSTACK;
+		p->p_sigstk.ss_flags |= SS_ONSTACK;
 	else
-		p->p_sigacts->ps_sigstk.ss_flags &= ~SS_ONSTACK;
+		p->p_sigstk.ss_flags &= ~SS_ONSTACK;
 
 	/*
 	 * longjmp is still implemented by calling osigreturn. The new
 	 * sigmask is stored in sc_reserved, sc_mask is only used for
 	 * backward compatibility.
 	 */
-	if ((p->p_flag & P_NEWSIGSET) == 0) {
-		OSIG2SIG(ksc.sc_mask, p->p_sigmask);
-	}
-	else
-		p->p_sigmask = *((sigset_t *)(&ksc.sc_reserved[0]));
+	SIGSETOLD(p->p_sigmask, ksc.sc_mask);
 	SIG_CANTMASK(p->p_sigmask);
 
 	set_regs(p, (struct reg *)ksc.sc_regs);
@@ -1480,11 +1473,10 @@ sigreturn(struct proc *p,
 	struct pcb *pcb;
 	unsigned long val;
 
+	if (((struct osigcontext*)uap->sigcntxp)->sc_regs[R_ZERO] == 0xACEDBADE)
+		return osigreturn(p, (struct osigreturn_args *)uap);
+
 	ucp = uap->sigcntxp;
-
-	if ((p->p_flag & P_NEWSIGSET) == 0)
-		return (osigreturn(p, (struct osigreturn_args *)uap));
-
 	pcb = &p->p_addr->u_pcb;
 
 #ifdef DEBUG
@@ -1514,9 +1506,9 @@ sigreturn(struct proc *p,
 	alpha_pal_wrusp(uc.uc_mcontext.mc_regs[R_SP]);
 
 	if (uc.uc_mcontext.mc_onstack & 1)
-		p->p_sigacts->ps_sigstk.ss_flags |= SS_ONSTACK;
+		p->p_sigstk.ss_flags |= SS_ONSTACK;
 	else
-		p->p_sigacts->ps_sigstk.ss_flags &= ~SS_ONSTACK;
+		p->p_sigstk.ss_flags &= ~SS_ONSTACK;
 
 	p->p_sigmask = uc.uc_sigmask;
 	SIG_CANTMASK(p->p_sigmask);

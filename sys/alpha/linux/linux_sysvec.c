@@ -198,7 +198,7 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	int oonstack;
 
 	regs = p->p_md.md_regs;
-	oonstack = psp->ps_sigstk.ss_flags & SS_ONSTACK;
+	oonstack = p->p_sigstk.ss_flags & SS_ONSTACK;
 
 #ifdef DEBUG
 	printf("Linux-emul(%ld): linux_sendsig(%p, %d, %p, %lu)\n",
@@ -207,11 +207,11 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	/*
 	 * Allocate space for the signal handler context.
 	 */
-	if ((psp->ps_flags & SAS_ALTSTACK) && !oonstack &&
+	if ((p->p_flag & P_ALTSTACK) && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		fp = (struct linux_sigframe *)(psp->ps_sigstk.ss_sp +
-		    psp->ps_sigstk.ss_size - sizeof(struct linux_sigframe));
-		psp->ps_sigstk.ss_flags |= SS_ONSTACK;
+		fp = (struct linux_sigframe *)(p->p_sigstk.ss_sp +
+		    p->p_sigstk.ss_size - sizeof(struct linux_sigframe));
+		p->p_sigstk.ss_flags |= SS_ONSTACK;
 	} else {
 		fp = (struct linux_sigframe *)regs->tf_esp - 1;
 	}
@@ -287,6 +287,7 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	regs->tf_ds = _udatasel;
 	regs->tf_es = _udatasel;
 	regs->tf_fs = _udatasel;
+	load_gs(_udatasel);
 	regs->tf_ss = _udatasel;
 }
 
@@ -354,12 +355,9 @@ linux_sigreturn(p, args)
 		return(EINVAL);
 	}
 
-	p->p_sigacts->ps_sigstk.ss_flags &= ~SS_ONSTACK;
-	SIGEMPTYSET(p->p_sigmask);
-	p->p_sigmask.__bits[0] = context.sc_mask;
-	SIGDELSET(p->p_sigmask, SIGKILL);
-	SIGDELSET(p->p_sigmask, SIGCONT);
-	SIGDELSET(p->p_sigmask, SIGSTOP);
+	p->p_sigstk.ss_flags &= ~SS_ONSTACK;
+	SIGSETOLD(p->p_sigmask, context.sc_mask);
+	SIG_CANTMASK(p->p_sigmask);
 
 	/*
 	 * Restore signal context.
