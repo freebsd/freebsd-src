@@ -722,7 +722,7 @@ ng_ksocket_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			 * the connection when it comes in.
 			 */
 			priv->response_token = msg->header.token;
-			raddr = priv->response_addr;
+			raddr = priv->response_addr = NGI_RETADDR(item);
 			if (error == 0) {
 				ng_ksocket_finish_accept(priv);
 			} else
@@ -752,7 +752,7 @@ ng_ksocket_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			if ((so->so_state & SS_ISCONNECTING) != 0)
 				/* We will notify the sender when we connect */
 				priv->response_token = msg->header.token;
-				raddr = priv->response_addr;
+				raddr = priv->response_addr = NGI_RETADDR(item);
 				priv->flags |= KSF_CONNECTING;
 				ERROUT(EINPROGRESS);
 			break;
