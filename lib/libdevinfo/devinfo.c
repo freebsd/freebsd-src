@@ -218,13 +218,22 @@ devinfo_init_devices(int generation)
 			return(ENOMEM);
 		dd->dd_dev.dd_handle = udev.dv_handle;
 		dd->dd_dev.dd_parent = udev.dv_parent;
-		snprintf(dd->dd_name, DEVINFO_STRLEN, "%s", udev.dv_name);
+		snprintf(dd->dd_name, sizeof(dd->dd_name), "%s", udev.dv_name);
 		dd->dd_dev.dd_name = &dd->dd_name[0];
-		snprintf(dd->dd_desc, DEVINFO_STRLEN, "%s", udev.dv_desc);
+		snprintf(dd->dd_desc, sizeof(dd->dd_desc), "%s", udev.dv_desc);
 		dd->dd_dev.dd_desc = &dd->dd_desc[0];
-		snprintf(dd->dd_drivername, DEVINFO_STRLEN, "%s",
+		snprintf(dd->dd_drivername, sizeof(dd->dd_drivername), "%s",
 		    udev.dv_drivername);
 		dd->dd_dev.dd_drivername = &dd->dd_drivername[0];
+		snprintf(dd->dd_pnpinfo, sizeof(dd->dd_pnpinfo), "%s",
+		    udev.dv_pnpinfo);
+		dd->dd_dev.dd_pnpinfo = &dd->dd_pnpinfo[0];
+		snprintf(dd->dd_location, sizeof(dd->dd_location), "%s",
+		    udev.dv_location);
+		dd->dd_dev.dd_location = &dd->dd_location[0];
+		dd->dd_dev.dd_devflags = udev.dv_devflags;
+		dd->dd_dev.dd_flags = udev.dv_flags;
+		dd->dd_dev.dd_state = udev.dv_state;
 		TAILQ_INSERT_TAIL(&devinfo_dev, dd, dd_link);
 	}
 	debug("fetched %d devices", dev_idx);

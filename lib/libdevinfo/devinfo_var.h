@@ -42,9 +42,14 @@
  */
 struct devinfo_i_dev {
 	struct devinfo_dev		dd_dev;
-	char				dd_name[32];
-	char				dd_desc[32];
-	char				dd_drivername[32];
+	char				dd_name[DEVINFO_STRLEN];
+	char				dd_desc[DEVINFO_STRLEN];
+	char				dd_drivername[DEVINFO_STRLEN];
+	char				dd_pnpinfo[DEVINFO_STRLEN * 2];
+	char				dd_location[DEVINFO_STRLEN * 2];
+	uint32_t			dd_devflags;
+	uint16_t			dd_flags;
+	device_state_t			dd_state;
 	TAILQ_ENTRY(devinfo_i_dev)	dd_link;
 };
 
