@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.367 1998/08/16 00:44:29 jkh Exp $
+#	$Id: Makefile,v 1.368 1998/08/16 01:24:40 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -611,10 +611,18 @@ doTARBALL:
 		   md5 * > CHECKSUM.MD5) \
 	)
 
+.if ${MACHINE_ARCH} == "i386"
 doRELEASE:  release.1 release.2 ${DOCREL} release.3 release.4 release.5 \
 		release.6 release.7 release.8 release.9
 	cd ${.CURDIR} && ${MAKE} ${EXTRAS}
 	@echo "Release done"
+.endif
+
+.if ${MACHINE_ARCH} == "alpha"
+doRELEASE:  release.1 release.2 ${DOCREL} release.5 release.6 release.7
+	cd ${.CURDIR} && ${MAKE} ${EXTRAS}
+	@echo "Release done"
+.endif
 
 floppies:
 	cd ${.CURDIR} && ${MAKE} boot.flp
