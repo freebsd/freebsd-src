@@ -552,7 +552,7 @@ show_var(int *oid, int nlen)
 	i = sysctl(oid, nlen, 0, &j, 0, 0);
 	j += j; /* we want to be sure :-) */
 
-	val = alloca(j);
+	val = alloca(j + 1);
 	len = j;
 	i = sysctl(oid, nlen, val, &len, 0, 0);
 	if (i || !len)
