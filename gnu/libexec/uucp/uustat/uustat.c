@@ -1,7 +1,7 @@
 /* uustat.c
    UUCP status program
 
-   Copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993, 1994, 1995 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -17,16 +17,16 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char uustat_rcsid[] = "$Id: uustat.c,v 1.2 1994/05/07 18:14:24 ache Exp $";
+const char uustat_rcsid[] = "$Id: uustat.c,v 1.55 1995/08/02 00:14:15 ian Rel $";
 #endif
 
 #include <ctype.h>
@@ -97,7 +97,7 @@ struct scmdlist
 
 static void ususage P((void));
 static void ushelp P((void));
-static boolean fsxqt_file_read P((pointer puuconf, const char *zfile));
+static boolean fsxqt_file_read P((pointer puuconf, FILE *));
 static void usxqt_file_free P((void));
 static int isxqt_cmd P((pointer puuconf, int argc, char **argv, pointer pvar,
 			pointer pinfo));
@@ -387,7 +387,7 @@ main (argc, argv)
 
 	case 'v':
 	  /* Print version and exit.  */
-	  printf ("%s: Taylor UUCP %s, copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor\n",
+	  printf ("%s: Taylor UUCP %s, copyright (C) 1991, 92, 93, 94, 1995 Ian Lance Taylor\n",
 		  zProgram, VERSION);
 	  exit (EXIT_SUCCESS);
 	  /*NOTREACHED*/
@@ -597,7 +597,7 @@ ususage ()
 static void
 ushelp ()
 {
-  printf ("Taylor UUCP %s, copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor\n",
+  printf ("Taylor UUCP %s, copyright (C) 1991, 92, 93, 94, 1995 Ian Lance Taylor\n",
 	  VERSION);
   printf ("Usage: %s [options]\n", zProgram);
   printf (" -a,--all: list all UUCP jobs\n");
@@ -671,20 +671,12 @@ static const struct uuconf_cmdtab asSxqt_cmds[] =
 /* Read an execution file, setting the above variables.  */
 
 static boolean
-fsxqt_file_read (puuconf, zfile)
+fsxqt_file_read (puuconf, e)
      pointer puuconf;
-     const char *zfile;
+     FILE *e;
 {
-  FILE *e;
   int iuuconf;
   boolean fret;
-
-  e = fopen (zfile, "r");
-  if (e == NULL)
-    {
-      ulog (LOG_ERROR, "fopen (%s): %s", zfile, strerror (errno));
-      return FALSE;
-    }
 
   zSxqt_user = NULL;
   zSxqt_system = NULL;
@@ -698,7 +690,6 @@ fsxqt_file_read (puuconf, zfile)
   iuuconf = uuconf_cmd_file (puuconf, e, asSxqt_cmds, (pointer) NULL,
 			     (uuconf_cmdtabfn) NULL,
 			     UUCONF_CMDTABFLAG_CASE, (pointer) NULL);
-  (void) fclose (e);
   if (iuuconf == UUCONF_SUCCESS)
     fret = TRUE;
   else
@@ -885,7 +876,7 @@ fsworkfiles (puuconf, icmd, csystems, pazsystems, fnotsystems, cusers,
 	  ulog_uuconf (LOG_ERROR, puuconf, iuuconf);
 	  return FALSE;
 	}
-
+      
       for (pz = pznames; *pz != NULL; pz++)
 	{
 	  if (csystems > 0)
@@ -1063,6 +1054,7 @@ fsworkfile_show (puuconf, icmd, qsys, qcmd, itime, ccommands, pazcommands,
       const char *zprog, *zcmd, *zrequestor, *zstdin;
       char *zfree;
       struct scmdlist *qxqt;
+      FILE *exqt = NULL;
       struct scmdlist *qfree;
 
       fmatch = FALSE;
@@ -1070,12 +1062,33 @@ fsworkfile_show (puuconf, icmd, qsys, qcmd, itime, ccommands, pazcommands,
       zfree = NULL;
 
       for (qxqt = qlist; qxqt != NULL; qxqt = qxqt->qnext)
-	if (qxqt->s.bcmd == 'E'
-	    || (qxqt->s.bcmd == 'S'
-		&& qxqt->s.zto[0] == 'X'
-		&& qxqt->s.zto[1] == '.'
-		&& fspool_file (qxqt->s.zfrom)))
-	  break;
+	{
+	  if (qxqt->s.bcmd == 'E')
+	    break;
+	  if (qxqt->s.bcmd == 'S'
+	      && qxqt->s.zto[0] == 'X'
+	      && qxqt->s.zto[1] == '.'
+	      && fspool_file (qxqt->s.zfrom))
+	    {
+	      char *zxqt;
+
+	      /* Open the file now, so that, if it does not exist, we
+                 can still report sensibly (the qxqt == NULL case) on
+                 any other files that may exist.  */
+
+	      zxqt = zsysdep_spool_file_name (qsys, qxqt->s.zfrom,
+					      qxqt->s.pseq);
+	      if (zxqt == NULL)
+		return FALSE;
+
+	      exqt = fopen (zxqt, "r");
+
+	      ubuffree (zxqt);
+
+	      if (exqt != NULL)
+		break;
+	    }
+	}
 
       if (qxqt == NULL)
 	{
@@ -1157,20 +1170,13 @@ fsworkfile_show (puuconf, icmd, qsys, qcmd, itime, ccommands, pazcommands,
 	    }
 	  else
 	    {
-	      char *zxqt;
-
-	      zxqt = zsysdep_spool_file_name (qsys, qxqt->s.zfrom,
-					      qxqt->s.pseq);
-	      if (zxqt == NULL)
-		return FALSE;
-
-	      if (! fsxqt_file_read (puuconf, zxqt))
+	      if (! fsxqt_file_read (puuconf, exqt))
 		{
-		  ubuffree (zxqt);
+		  (void) fclose (exqt);
 		  return FALSE;
 		}
 
-	      ubuffree (zxqt);
+	      (void) fclose (exqt);
 
 	      zprog = zSxqt_prog;
 	      zcmd = zSxqt_cmd;
@@ -1269,9 +1275,10 @@ fsworkfile_show (puuconf, icmd, qsys, qcmd, itime, ccommands, pazcommands,
 	      int b;
 
 	      /* Ask stdin whether this job should be killed.  */
-	      fprintf (stderr, "%s: %s %s?",
+	      fprintf (stderr, "%s: %s %s? ",
+		       zProgram,
 		       (icmd & JOB_REJUVENATE) != 0 ? "Rejuvenate" : "Kill",
-		       zProgram, zlistid);
+		       zlistid);
 	      (void) fflush (stderr);
 	      b = getchar ();
 	      fkill_or_rejuv = b == 'y' || b == 'Y';
@@ -1281,7 +1288,7 @@ fsworkfile_show (puuconf, icmd, qsys, qcmd, itime, ccommands, pazcommands,
 	  else if ((icmd & JOB_KILL) != 0
 		   || (icmd & JOB_REJUVENATE) != 0)
 	    fkill_or_rejuv = TRUE;
-
+	      
 	  if (fkill_or_rejuv
 	      && (qlist->s.zuser == NULL
 		  || strcmp (zsysdep_login_name (), qlist->s.zuser) != 0)
@@ -1422,14 +1429,16 @@ fsexecutions (puuconf, icmd, csystems, pazsystems, fnotsystems, cusers,
       return FALSE;
     }
 
-  if (! fsysdep_get_xqt_init ())
+  if (! fsysdep_get_xqt_init ((const char *) NULL))
     return FALSE;
 
-  while ((zfile = zsysdep_get_xqt (&zsystem, &ferr)) != NULL)
+  while ((zfile = zsysdep_get_xqt ((const char *) NULL, &zsystem, &ferr))
+	 != NULL)
     {
       boolean fmatch;
       int i;
       long itime;
+      FILE *e;
 
       if (csystems > 0)
 	{
@@ -1462,12 +1471,20 @@ fsexecutions (puuconf, icmd, csystems, pazsystems, fnotsystems, cusers,
 
       /* We need to read the execution file before we can check the
 	 user name.  */
-      if (! fsxqt_file_read (puuconf, zfile))
+      e = fopen (zfile, "r");
+      if (e == NULL)
 	{
-	  ubuffree (zfile);
-	  ubuffree (zsystem);
+	  /* Probably uucico just deleted the file.  */
 	  continue;
 	}
+      if (! fsxqt_file_read (puuconf, e))
+	{
+	  (void) fclose (e);
+	  ubuffree (zfile);
+	  ubuffree (zsystem);
+	  continue;      
+	}
+      (void) fclose (e);
 
       if (cusers == 0)
 	fmatch = TRUE;
@@ -1531,9 +1548,10 @@ fsexecutions (puuconf, icmd, csystems, pazsystems, fnotsystems, cusers,
 	      int b;
 
 	      /* Ask stdin whether this job should be killed.  */
-	      fprintf (stderr, "%s: %s %s?",
+	      fprintf (stderr, "%s: %s %s? ",
+		       zProgram,
 		       (icmd & JOB_REJUVENATE) != 0 ? "Rejuvenate" : "Kill",
-		       zProgram, zSxqt_cmd);
+		       zSxqt_cmd);
 	      (void) fflush (stderr);
 	      b = getchar ();
 	      fkill_or_rejuv = b == 'y' || b == 'Y';
@@ -1573,6 +1591,7 @@ fsexecutions (puuconf, icmd, csystems, pazsystems, fnotsystems, cusers,
 			  ulog_uuconf (LOG_ERROR, puuconf, iuuconf);
 			  fbad = TRUE;
 			}
+		      ssys.uuconf_zname = (char *) zlocalname;
 		    }
 		  else if (! funknown_system (puuconf, zsystem, &ssys))
 		    {
@@ -1635,7 +1654,7 @@ fsexecutions (puuconf, icmd, csystems, pazsystems, fnotsystems, cusers,
       ubuffree (zsystem);
     }
 
-  usysdep_get_xqt_free ();
+  usysdep_get_xqt_free ((const char *) NULL);
 
   return ferr;
 }
@@ -1815,7 +1834,25 @@ fsnotify (puuconf, icmd, zcomment, cstdin, fkilled, zcmd, qcmd, zid, itime,
 						     (cgot
 						      * sizeof (char *)));
 		    }
-		  pz[i++] = zbufcpy (zline);
+		  if (strncmp (zline, "From ", sizeof "From " - 1) != 0)
+		    pz[i++] = zbufcpy (zline);
+		  else
+		    {
+		      char *zalc;
+
+		      /* Escape "From " at the start of a line.  This
+			 should really be the responsibility of the
+			 mail transfer agent.  On some systems,
+			 though, the mail transfer agent does not do
+			 it, but user mail programs expect it.  We
+			 help them out here, since it doesn't matter
+			 much--we're already truncating the message
+			 anyhow.  */
+		      zalc = zbufalc (strlen (zline) + 2);
+		      zalc[0] = '>';
+		      strcpy (zalc + 1, zline);
+		      pz[i++] = zalc;
+		    }
 		}
 	      xfree ((pointer) zline);
 	      (void) fclose (e);
@@ -1961,11 +1998,12 @@ fsquery (puuconf, csystems, pazsystems, fnotsystems, iold, iyoung)
     }
 
   /* Get a count of all the execution files.  */
-  if (! fsysdep_get_xqt_init ())
+  if (! fsysdep_get_xqt_init ((const char *) NULL))
     return FALSE;
 
   qlist = NULL;
-  while ((zfile = zsysdep_get_xqt (&zsystem, &ferr)) != NULL)
+  while ((zfile = zsysdep_get_xqt ((const char *) NULL, &zsystem, &ferr))
+	 != NULL)
     {
       struct sxqtlist *qlook;
 
@@ -1998,7 +2036,7 @@ fsquery (puuconf, csystems, pazsystems, fnotsystems, iold, iyoung)
       ubuffree (zfile);
     }
 
-  usysdep_get_xqt_free ();
+  usysdep_get_xqt_free ((const char *) NULL);
 
   if (ferr)
     return FALSE;
@@ -2281,15 +2319,23 @@ fsquery_show (qsys, cwork, ifirstwork, qxqt, inow, zlocalname,
   if (flocal || fnostatus)
     {
       printf ("\n");
+      if (! flocal)
+	ubuffree (sstat.zstring);
       return TRUE;
     }
 
   usysdep_localtime (sstat.ilast, &stime);
 
-  printf (" %02d-%02d %02d:%02d ",
+  printf (" %02d-%02d %02d:%02d ", 
 	  stime.tm_mon + 1,stime.tm_mday, stime.tm_hour, stime.tm_min);
 
-  printf ("%s\n", azStatus[(int) sstat.ttype]);
+  if (sstat.zstring == NULL)
+    printf ("%s\n", azStatus[(int) sstat.ttype]);
+  else
+    {
+      printf ("%s\n", sstat.zstring);
+      ubuffree (sstat.zstring);
+    }
 
   return TRUE;
 }
@@ -2361,9 +2407,16 @@ fsmachines ()
       struct tm stime;
 
       usysdep_localtime (sstat.ilast, &stime);
-      printf ("%-14s %02d-%02d %02d:%02d %s", zsystem,
+      printf ("%-14s %02d-%02d %02d:%02d ", zsystem,
 	      stime.tm_mon + 1, stime.tm_mday, stime.tm_hour,
-	      stime.tm_min, azStatus[(int) sstat.ttype]);
+	      stime.tm_min);
+      if (sstat.zstring == NULL)
+	printf ("%s", azStatus[(int) sstat.ttype]);
+      else
+	{
+	  printf ("%s", sstat.zstring);
+	  ubuffree (sstat.zstring);
+	}
       ubuffree (zsystem);
       if (sstat.ttype != STATUS_TALKING
 	  && sstat.cwait > 0)

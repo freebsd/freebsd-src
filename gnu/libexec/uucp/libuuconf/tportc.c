@@ -17,16 +17,16 @@
 
    You should have received a copy of the GNU Library General Public
    License along with this library; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_tportc_rcsid[] = "$Id: tportc.c,v 1.2 1994/05/07 18:13:11 ache Exp $";
+const char _uuconf_tportc_rcsid[] = "$Id: tportc.c,v 1.14 1995/06/21 19:24:52 ian Rel $";
 #endif
 
 #include <errno.h>
@@ -249,7 +249,7 @@ _uuconf_iport_cmd (qglobal, argc, argv, qport)
 
 	  if (i >= CPORT_TYPES)
 	    return UUCONF_SYNTAX_ERROR;
-
+	  
 	  ttype = (enum uuconf_porttype) i;
 	}
 

@@ -1,7 +1,7 @@
 /* tsinfo.c
    Get information about a system from the Taylor UUCP configuration files.
 
-   Copyright (C) 1992, 1993 Ian Lance Taylor
+   Copyright (C) 1992, 1993, 1995 Ian Lance Taylor
 
    This file is part of the Taylor UUCP uuconf library.
 
@@ -17,16 +17,16 @@
 
    You should have received a copy of the GNU Library General Public
    License along with this library; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_tsinfo_rcsid[] = "$Id: tsinfo.c,v 1.11 1994/01/30 21:14:29 ian Rel $";
+const char _uuconf_tsinfo_rcsid[] = "$Id: tsinfo.c,v 1.17 1995/08/11 03:34:37 ian Rel $";
 #endif
 
 #include <errno.h>
@@ -99,6 +99,8 @@ static const struct cmdtab_offset asIcmds[] =
       offsetof (struct uuconf_system, uuconf_csuccess_wait), NULL },
   { "call-timegrade", UUCONF_CMDTABTYPE_FN | 3,
       offsetof (struct uuconf_system, uuconf_qcalltimegrade), iitimegrade },
+  { "called-timegrade", UUCONF_CMDTABTYPE_FN | 3,
+      offsetof (struct uuconf_system, uuconf_qcalledtimegrade), iitimegrade },
   { "call-local-size", UUCONF_CMDTABTYPE_FN | 3,
       offsetof (struct uuconf_system, uuconf_qcall_local_size), iisize },
   { "call-remote-size", UUCONF_CMDTABTYPE_FN | 3,
@@ -294,9 +296,19 @@ _uuconf_itaylor_system_internal (qglobal, zsystem, qsys)
     iret = _uuconf_isystem_default (qglobal, qsys, &sdefaults,
 				    si.fdefault_alternates);
 
-  /* The first alternate is always available for calling in.  */
+  /* The first alternate is always available for calling in.  It is
+     always available for calling out if it has some way to choose a
+     port (this would normally be set by uiset_call anyhow, but it
+     won't be if all the port information comes from the defaults).  */
   if (iret == UUCONF_SUCCESS)
-    qsys->uuconf_fcalled = TRUE;
+    {
+      qsys->uuconf_fcalled = TRUE;
+      if (qsys->uuconf_zport != (char *) &_uuconf_unset
+	  || qsys->uuconf_qport != (struct uuconf_port *) &_uuconf_unset
+	  || qsys->uuconf_ibaud >= 0
+	  || qsys->uuconf_zphone != (char *) &_uuconf_unset)
+	qsys->uuconf_fcall = TRUE;
+    }
 
   if (iret != UUCONF_SUCCESS)
     {

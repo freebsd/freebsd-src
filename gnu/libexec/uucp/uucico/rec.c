@@ -1,7 +1,7 @@
 /* rec.c
    Routines to receive a file.
 
-   Copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993, 1994, 1995 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -17,16 +17,16 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char rec_rcsid[] = "$Id: rec.c,v 1.3 1994/11/06 10:17:11 davidg Exp $";
+const char rec_rcsid[] = "$Id: rec.c,v 1.43 1995/08/02 01:21:12 ian Rel $";
 #endif
 
 #include <errno.h>
@@ -123,7 +123,7 @@ urrec_free (qtrans)
     }
 
   utransfree (qtrans);
-}
+}       
 
 /* Set up a request for a file from the remote system.  This may be
    called before the remote system has been called.
@@ -208,6 +208,7 @@ flocal_rec_file_init (qdaemon, qcmd)
 	      ulog_uuconf (LOG_ERROR, puuconf, iuuconf);
 	      return FALSE;
 	    }
+	  slocalsys.uuconf_zname = (char *) zlocalname;
 	}
       else if (iuuconf != UUCONF_SUCCESS)
 	{
@@ -364,8 +365,13 @@ flocal_rec_send_request (qtrans, qdaemon)
 					qtrans->iremote);
   ubuffree (zsend);
 
-  if (! fret)
-    urrec_free (qtrans);
+  /* There is a potential space leak here: if pfsendcmd fails, we
+     might need to free qtrans.  However, it is possible that by the
+     time pfsendcmd returns, a response will have been received which
+     led to the freeing of qtrans anyhow.  One way to fix this would
+     be some sort of counter in qtrans to track allocations, but since
+     the space leak is small, and the conversation has failed anyhow,
+     it doesn't seem worth it.  */
 
   return fret;
 }
@@ -569,7 +575,7 @@ fremote_send_file_init (qdaemon, qcmd, iremote)
 	    qcmd->zfrom);
       return fremote_send_fail (qdaemon, qcmd, FAILURE_PERM, iremote);
     }
-
+		  
   fspool = fspool_file (qcmd->zto);
 
   /* We don't accept remote command files.  An execution request may
@@ -795,6 +801,16 @@ fremote_send_reply (qtrans, qdaemon)
 
   qinfo->freplied = TRUE;
 
+  if (! (*qdaemon->qproto->pfsendcmd) (qdaemon, ab, qtrans->ilocal,
+				       qtrans->iremote))
+    {
+      (void) ffileclose (qtrans->e);
+      (void) remove (qinfo->ztemp);
+      /* Should probably free qtrans here, but see the comment at the
+         end of flocal_rec_send_request.  */
+      return FALSE;
+    }
+
   if (qdaemon->qproto->pffile != NULL)
     {
       boolean fhandled;
@@ -807,15 +823,6 @@ fremote_send_reply (qtrans, qdaemon)
 	  urrec_free (qtrans);
 	  return FALSE;
 	}
-    }
-
-  if (! (*qdaemon->qproto->pfsendcmd) (qdaemon, ab, qtrans->ilocal,
-				       qtrans->iremote))
-    {
-      (void) ffileclose (qtrans->e);
-      (void) remove (qinfo->ztemp);
-      urrec_free (qtrans);
-      return FALSE;
     }
 
   return TRUE;
@@ -861,16 +868,7 @@ fremote_send_fail_send (qtrans, qdaemon)
 {
   struct srecfailinfo *qinfo = (struct srecfailinfo *) qtrans->pinfo;
   char ab[4];
-  boolean fret;
-  int ilocal = qtrans->ilocal;
-  int iremote = qtrans->iremote;
-
-  /* Wait for the end of file marker if we haven't gotten it yet.  */
-  if (! qinfo->freceived)
-    {
-      if (! fqueue_receive (qdaemon, qtrans))
-	return FALSE;
-    }
+  int ilocal, iremote;
 
   ab[0] = qtrans->s.bcmd;
   ab[1] = 'N';
@@ -897,20 +895,26 @@ fremote_send_fail_send (qtrans, qdaemon)
       ab[2] = '\0';
       break;
     }
-
+  
   ab[3] = '\0';
 
-  qinfo->fsent = TRUE;
+  ilocal = qtrans->ilocal;
+  iremote = qtrans->iremote;
 
-  if (qinfo->freceived)
+  /* Wait for the end of file marker if we haven't gotten it yet.  */
+  if (! qinfo->freceived)
+    {
+      qinfo->fsent = TRUE;
+      if (! fqueue_receive (qdaemon, qtrans))
+	return FALSE;
+    }
+  else
     {
       xfree (qtrans->pinfo);
       utransfree (qtrans);
     }
 
-  fret = (*qdaemon->qproto->pfsendcmd) (qdaemon, ab, ilocal, iremote);
-
-  return fret;
+  return (*qdaemon->qproto->pfsendcmd) (qdaemon, ab, ilocal, iremote);
 }
 
 /* Discard data until we reach the end of the file.  This is used for
@@ -990,7 +994,13 @@ frec_file_end (qtrans, qdaemon, zdata, cdata)
 
   zalc = NULL;
 
-  if (! ffileclose (qtrans->e))
+  if (! fsysdep_sync (qtrans->e, qtrans->s.zto))
+    {
+      zerr = strerror (errno);
+      (void) ffileclose (qtrans->e);
+      (void) remove (qinfo->ztemp);
+    }
+  else if (! ffileclose (qtrans->e))
     {
       zerr = strerror (errno);
       ulog (LOG_ERROR, "%s: close: %s", qtrans->s.zto, zerr);
@@ -1063,13 +1073,13 @@ frec_file_end (qtrans, qdaemon, zdata, cdata)
 	    imode = 0666;
 	  (void) fsysdep_change_mode (qinfo->zfile, imode);
 	}
-
+  
       zerr = NULL;
     }
 
   ustats (zerr == NULL, qtrans->s.zuser, qdaemon->qsys->uuconf_zname,
 	  FALSE, qtrans->cbytes, qtrans->isecs, qtrans->imicros,
-	  qdaemon->fmaster);
+	  qdaemon->fcaller);
   qdaemon->creceived += qtrans->cbytes;
 
   if (zerr == NULL)
@@ -1173,11 +1183,22 @@ frec_file_end (qtrans, qdaemon, zdata, cdata)
       fprintf (e, "C %s\n", qtrans->s.zcmd);
 
       fbad = FALSE;
-      if (fclose (e) == EOF)
+
+      if (! fstdiosync (e, ztemp))
 	{
-	  ulog (LOG_ERROR, "fclose: %s", strerror (errno));
+	  (void) fclose (e);
 	  (void) remove (ztemp);
 	  fbad = TRUE;
+	}
+
+      if (! fbad)
+	{
+	  if (fclose (e) == EOF)
+	    {
+	      ulog (LOG_ERROR, "fclose: %s", strerror (errno));
+	      (void) remove (ztemp);
+	      fbad = TRUE;
+	    }
 	}
 
       if (! fbad)
@@ -1235,9 +1256,7 @@ frec_file_send_confirm (qtrans, qdaemon)
 {
   struct srecinfo *qinfo = (struct srecinfo *) qtrans->pinfo;
   const char *zsend;
-  boolean fret;
-  int ilocal = qtrans->ilocal;
-  int iremote = qtrans->iremote;
+  int ilocal, iremote;
 
   if (! qinfo->fmoved)
     zsend = "CN5";
@@ -1255,17 +1274,18 @@ frec_file_send_confirm (qtrans, qdaemon)
       zsend = "CYM";
     }
 
-  /* Now, if that was a remote command, then when the confirmation
-     message is acked we no longer have to remember that we received
-     that file.  */
+  /* If that was a remote command, then, when the confirmation message
+     is acked, we no longer have to remember that we received that
+     file.  */
   if (! qinfo->flocal && qinfo->fmoved)
     usent_receive_ack (qdaemon, qtrans);
 
+  ilocal = qtrans->ilocal;
+  iremote = qtrans->iremote;
+
   urrec_free (qtrans);
 
-  fret = (*qdaemon->qproto->pfsendcmd) (qdaemon, zsend, ilocal, iremote);
-
-  return fret;
+  return (*qdaemon->qproto->pfsendcmd) (qdaemon, zsend, ilocal, iremote);
 }
 
 /* Discard a temporary file if it is not useful.  A temporary file is

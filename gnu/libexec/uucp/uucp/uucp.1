@@ -1,5 +1,5 @@
-''' $Id: uucp.1,v 1.2 1994/05/07 18:14:08 ache Exp $
-.TH uucp 1 "Taylor UUCP 1.05"
+''' $Id: uucp.1,v 1.11 1995/06/26 21:34:49 ian Rel $
+.TH uucp 1 "Taylor UUCP 1.06"
 .SH NAME
 uucp \- Unix to Unix copy
 .SH SYNOPSIS
@@ -80,6 +80,10 @@ default.
 If any necessary directories do not exist for the destination path,
 abort the copy.
 .TP 5
+.B \-R, \-\-recursive
+If any of the source file names are directories, copy their contents
+recursively to the destination (which must itself be a directory).
+.TP 5
 .B \-g grade, \-\-grade grade
 Set the grade of the file transfer command.  Jobs of a higher grade
 are executed first.  Grades run 0 ... 9 A ... Z a ... z from high to
@@ -125,6 +129,26 @@ and one for the system
 .TP 5
 .B \-W, \-\-noexpand
 Do not prepend remote relative path names with the current directory.
+.TP 5
+.B \-t, \-\-uuto
+This option is used by the 
+.I uuto
+shell script.  It causes
+.I uucp
+to interpret the final argument as
+.I system!user.
+The file(s) are sent to
+.I ~/receive/USER/LOCAL
+on the remote system, where
+.I USER
+is from the final argument and
+.I LOCAL
+is the local UUCP
+system name.  Also,
+.I uucp
+will act as though
+.I \-\-notify user
+were specified.
 .TP 5
 .B \-x type, \-\-debug type
 Turn on particular debugging types.  The following types are

@@ -28,9 +28,18 @@ fsysdep_make_dirs (zfile, fpublic)
     {
       if (*z == '/' && z != zcopy)
 	{
+	  /* Some versions of uuto will send a double slash.  Some
+             systems will fail to create a directory ending in a
+             slash.  */
+	  if (z[-1] == '/')
+	    continue;
 	  *z = '\0';
 	  if (mkdir (zcopy, imode) != 0
 	      && errno != EEXIST
+	      && errno != EISDIR
+#ifdef EROFS
+	      && errno != EROFS
+#endif
 	      && (errno != EACCES || ! fsysdep_directory (zcopy)))
 	    {
 	      ulog (LOG_ERROR, "mkdir (%s): %s", zcopy,
@@ -38,10 +47,7 @@ fsysdep_make_dirs (zfile, fpublic)
 	      ubuffree (zcopy);
 	      return FALSE;
 	    }
-	  *z = '/';     /* replace '/' in its place */
-          		/* now skips over multiple '/' in name */
-          while ( (*(z + 1)) && (*(z + 1)) == '/')
-              z++;
+	  *z = '/';
 	}
     }
 

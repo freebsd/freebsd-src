@@ -1,7 +1,7 @@
 /* serial.c
    The serial port communication routines for Unix.
 
-   Copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993, 1994, 1995 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -17,16 +17,16 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char serial_rcsid[] = "$Id: serial.c,v 1.4 1994/05/07 18:11:09 ache Exp $";
+const char serial_rcsid[] = "$Id: serial.c,v 1.65 1995/08/10 00:53:54 ian Rel $";
 #endif
 
 #include "uudefs.h"
@@ -82,7 +82,7 @@ const char serial_rcsid[] = "$Id: serial.c,v 1.4 1994/05/07 18:11:09 ache Exp $"
 #include <sys/ioctl.h>
 #endif
 
-#if HAVE_BSD_TTY
+#if HAVE_SELECT
 #if HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -92,7 +92,7 @@ const char serial_rcsid[] = "$Id: serial.c,v 1.4 1994/05/07 18:11:09 ache Exp $"
 #endif
 
 #if HAVE_TIME_H
-#if ! HAVE_SYS_TIME_H || ! HAVE_BSD_TTY || TIME_WITH_SYS_TIME
+#if ! HAVE_SYS_TIME_H || ! HAVE_SELECT || TIME_WITH_SYS_TIME
 #include <time.h>
 #endif
 #endif
@@ -517,6 +517,9 @@ boolean
 fsysdep_stdin_init (qconn)
      struct sconnection *qconn;
 {
+  /* chmod /dev/tty to prevent other users from writing messages to
+     it.  This is essentially `mesg n'.  */
+  (void) chmod ("/dev/tty", S_IRUSR | S_IWUSR);
   return fsserial_init (qconn, &sstdincmds, (const char *) NULL);
 }
 
@@ -647,7 +650,7 @@ fsserial_lockfile (flok, qconn)
 		  strerror (errno));
 	    return FALSE;
 	  }
-	zalc = zbufalc (sizeof "LK.123.123.123");
+	zalc = zbufalc (sizeof "LK.1234567890.1234567890.1234567890");
 	sprintf (zalc, "LK.%03d.%03d.%03d", major (s.st_dev),
 		 major (s.st_rdev), minor (s.st_rdev));
 	z = zalc;
@@ -860,7 +863,7 @@ fsserial_unlock (qconn)
 	}
       qsysdep->o = -1;
     }
-
+    
   if (! fsserial_lockfile (FALSE, qconn))
     fret = FALSE;
 
@@ -1748,7 +1751,7 @@ fsmodem_carrier (qconn, fcarrier)
 	return FALSE;
 
 #ifdef TIOCNCAR
-      /* Tell the modem to ignore carrier.  */
+      /* Tell the modem to ignore carrier.  */ 
       if (ioctl (q->o, TIOCNCAR, 0) < 0)
 	{
 	  ulog (LOG_ERROR, "ioctl (TIOCNCAR): %s", strerror (errno));
@@ -1782,19 +1785,19 @@ fsmodem_carrier (qconn, fcarrier)
 	  ulog (LOG_ERROR, "Can't set CLOCAL: %s", strerror (errno));
 	  return FALSE;
 	}
-
+  
 #if HAVE_CLOCAL_BUG
       /* On SCO and AT&T UNIX PC you have to reopen the port.  */
       {
 	int onew;
-
+ 
 	onew = open (q->zdevice, O_RDWR);
 	if (onew < 0)
 	  {
 	    ulog (LOG_ERROR, "open (%s): %s", q->zdevice, strerror (errno));
 	    return FALSE;
 	  }
-
+ 
 	if (fcntl (onew, F_SETFD,
 		   fcntl (onew, F_GETFD, 0) | FD_CLOEXEC) < 0)
 	  {
@@ -1817,8 +1820,9 @@ fsmodem_carrier (qconn, fcarrier)
 /* Tell the port to use hardware flow control.  There is no standard
    mechanism for controlling this.  This implementation supports
    CRTSCTS on SunOS, RTS/CTSFLOW on 386(ish) unix, CTSCD on the 3b1,
-   and TXADDCD/TXDELCD on AIX.  If you know how to do it on other
-   systems, please implement it and send me the patches.  */
+   CCTS_OFLOW/CRTS_IFLOW on BSDI, TXADDCD/TXDELCD on AIX, and IRTS on
+   NCR Tower.  If you know how to do it on other systems, please
+   implement it and send me the patches.  */
 
 static boolean
 fsserial_hardflow (qconn, fhardflow)
@@ -1841,7 +1845,11 @@ fsserial_hardflow (qconn, fhardflow)
 #ifndef CRTSFL
 #ifndef CRTSCTS
 #ifndef CTSCD
+#ifndef CCTS_OFLOW
+#ifndef IRTS
 #define HAVE_HARDFLOW 0
+#endif
+#endif
 #endif
 #endif
 #endif
@@ -1871,6 +1879,12 @@ fsserial_hardflow (qconn, fhardflow)
 #ifdef CTSCD
       q->snew.c_cflag |= CTSCD;
 #endif /* defined (CTSCD) */
+#ifdef CCTS_OFLOW
+      q->snew.c_cflag |= CCTS_OFLOW | CRTS_IFLOW;
+#endif
+#ifdef IRTS
+      q->snew.c_iflag |= IRTS;
+#endif
 #endif /* HAVE_SYSV_TERMIO || HAVE_POSIX_TERMIOS */
       if (! fsetterminfo (q->o, &q->snew))
 	{
@@ -1898,6 +1912,12 @@ fsserial_hardflow (qconn, fhardflow)
 #ifdef CTSCD
       q->snew.c_cflag &=~ CTSCD;
 #endif /* defined (CTSCD) */
+#ifdef CCTS_OFLOW
+      q->snew.c_cflag &=~ (CCTS_OFLOW | CRTS_IFLOW);
+#endif
+#ifdef IRTS
+      q->snew.c_iflag &=~ IRTS;
+#endif
 #endif /* HAVE_SYSV_TERMIO || HAVE_POSIX_TERMIOS */
       if (! fsetterminfo (q->o, &q->snew))
 	{
@@ -2001,7 +2021,7 @@ fsysdep_modem_end_dial (qconn, qdial)
 	 errors.  */
       {
 	int onew;
-
+ 
 	onew = open (q->zdevice, O_RDWR);
 	if (onew >= 0)
 	  {
@@ -2039,7 +2059,7 @@ fsysdep_modem_end_dial (qconn, qdial)
 #endif /* ! defined (TIOCWONLINE) */
     }
 
-  return TRUE;
+  return TRUE; 
 }
 
 /* Read data from a connection, with a timeout.  This routine handles
@@ -2562,7 +2582,10 @@ fsysdep_conn_io (qconn, zwrite, pcwrite, zread, pcread)
 	         write up to SINGLE_WRITE bytes
 	       if all data written, return
 	       if no data written
-	         blocked write of up to SINGLE_WRITE bytes
+	         if select works
+		   select on the write descriptor with a ten second timeout
+		 else
+		   blocked write of one byte with a ten second alarm
 
 	 This algorithm should work whether the system supports
 	 unblocked writes on terminals or not.  If the system supports
@@ -2572,7 +2595,28 @@ fsysdep_conn_io (qconn, zwrite, pcwrite, zread, pcread)
 	 then the write may hang so long that incoming data is lost.
 	 This is actually possible at high baud rates on any system
 	 when a blocking write is done; there is no solution, except
-	 hardware handshaking.  */
+	 hardware handshaking.
+
+	 If we were not able to write any data, then we need to block
+	 until we can write something.  The code used to simply do a
+	 blocking write.  However, that fails when a bidirectional
+	 protocol is permitted to push out enough bytes to fill the
+	 entire pipe between the two communicating uucico processes.
+	 They can both block on writing, because neither is reading.
+
+	 In this case, we use select.  We could select on both the
+	 read and write descriptor, but on some systems that would
+	 lead to calling read on each byte, which would be very
+	 inefficient.  Instead, we select only on the write
+	 descriptor.  After the select succeeds or times out, we retry
+	 the read.
+
+	 Of course, some systems don't have select, and on some
+	 systems that have it it doesn't work on terminal devices.  If
+	 we can't use select, then we do a blocked write of a single
+	 byte after setting an alarm.  We only write a single byte to
+	 avoid any confusion as to whether or not the byte was
+	 actually written.  */
 
       /* If we are running on standard input, we switch the file
 	 descriptors by hand.  */
@@ -2717,38 +2761,105 @@ fsysdep_conn_io (qconn, zwrite, pcwrite, zread, pcread)
 	}
       else
 	{
-	  /* We didn't write any data.  Do a blocking write.  */
+#if HAVE_SELECT
+	  struct timeval stime;
+	  int imask;
+	  int c;
 
-	  if (q->ord >= 0)
-	    q->o = q->ord;
+	  /* We didn't write any data.  Call select.  We use a timeout
+             long enough for 1024 bytes to be sent.
+	       secs/kbyte == (1024 bytes/kbyte * 10 bits/byte) / baud bits/sec
+	       usecs/kbyte == (((1024 bytes/kbyte * 1000000 usecs/sec)
+	                        / baud bits/sec)
+			       * 10 bits/byte)
+	     */
+	  stime.tv_sec = (long) 10240 / q->ibaud;
+	  stime.tv_usec = ((((long) 1024000000 / q->ibaud) * (long) 10)
+			   % (long) 1000000);
 
-	  if (! fsblock (q, TRUE))
+	  imask = 1 << q->o;
+	  if (imask == 0)
+	    ulog (LOG_FATAL, "fsysdep_conn_io: File descriptors too large");
+
+	  /* If we've received a signal, don't continue.  */
+	  if (FGOT_QUIT_SIGNAL ())
 	    return FALSE;
 
-	  cdo = cwrite;
-	  if (cdo > SINGLE_WRITE)
-	    cdo = SINGLE_WRITE;
+	  DEBUG_MESSAGE0 (DEBUG_PORT, "fsysdep_conn_io: Calling select");
 
-	  DEBUG_MESSAGE1 (DEBUG_PORT,
-			  "fsysdep_conn_io: Blocking write of %lu",
-			  (unsigned long) cdo);
-
-	  if (q->owr >= 0)
-	    q->o = q->owr;
-
-	  /* Loop until we get something besides EINTR.  */
-	  while (TRUE)
+	  /* We don't bother to loop on EINTR.  If we get a signal, we
+             just loop around and try the read and write again.  */
+	  c = select (q->o + 1, (pointer) NULL, (pointer) &imask,
+		      (pointer) NULL, &stime);
+	  if (c < 0 && errno == EINTR)
 	    {
+	      /* We got interrupted by a signal.  Log it.  */
+	      ulog (LOG_ERROR, (const char *) NULL);
+	    }
+	  else if (c >= 0)
+	    {
+	      /* The select either discovered that we could write
+                 something, or it timed out.  Either way, we go around
+                 the main read/write loop again.  */
+	    }
+	  else
+#endif /* HAVE_SELECT */
+	    {
+	      int ierr;
+
+	      /* Either the select failed for some reason other than
+	      	 EINTR, or the system does not support select at all.
+	      	 Fall back on a timed write.  We don't worry about why
+	      	 the select might have failed, we just assume that it
+	      	 will not succeed on this descriptor.  */
+
+#if HAVE_RESTARTABLE_SYSCALLS
+	      /* If HAVE_RESTARTABLE_SYSCALLS, then receiving an alarm
+                 signal in the middle of a write will not cause the
+                 write to return EINTR, and the only way to interrupt
+                 the write is to longjmp out of it (see sysh.unx).
+                 That is unreliable, because it means that we won't
+                 know whether the byte was actually written or not.
+                 However, I believe that the only system on which we
+                 need to do this longjmp is BSD 4.2, and that system
+                 supports select, so we should never execute this
+                 case.  */
+	      ulog (LOG_FATAL, "fsysdep_conn_io: Unsupported case; see code");
+#endif
+
+	      if (q->ord >= 0)
+		q->o = q->ord;
+
+	      if (! fsblock (q, TRUE))
+		return FALSE;
+
+	      DEBUG_MESSAGE0 (DEBUG_PORT, "fsysdep_conn_io: Blocking write");
+
+	      if (q->owr >= 0)
+		q->o = q->owr;
+
 	      /* If we've received a signal, don't continue.  */
 	      if (FGOT_QUIT_SIGNAL ())
 		return FALSE;
 
+	      /* Start up an alarm to interrupt the write.  Note that
+                 we don't need to use the catch stuff, since we know
+                 that HAVE_RESTARTABLE_SYSCALLS is 0.  */
+	      usset_signal (SIGALRM, usalarm, TRUE, (boolean *) NULL);
+	      alarm ((int) ((long) 10240 / q->ibaud) + 1);
+
+	      /* There is a race condition here: on a severely loaded
+                 system, we could get the alarm before we start the
+                 write call.  This would not be a disaster; often the
+                 write will succeed anyhow.  */
 #if HAVE_TLI
 	      if (q->ftli)
 		{
-		  cdid = t_snd (q->o, (char *) zwrite, cdo, 0);
+		  cdid = t_snd (q->o, (char *) zwrite, 1, 0);
 		  if (cdid < 0 && t_errno != TSYSERR)
 		    {
+		      usset_signal (SIGALRM, SIG_IGN, TRUE, (boolean *) NULL);
+		      alarm (0);
 		      ulog (LOG_ERROR, "t_snd: %s",
 			    (t_errno >= 0 && t_errno < t_nerr
 			     ? t_errlist[t_errno]
@@ -2758,44 +2869,54 @@ fsysdep_conn_io (qconn, zwrite, pcwrite, zread, pcread)
 		}
 	      else
 #endif
-		cdid = write (q->o, zwrite, cdo);
+		cdid = write (q->o, zwrite, 1);
 
-	      if (cdid >= 0)
-		break;
-	      if (errno != EINTR)
-		break;
+	      ierr = errno;
 
-	      /* We got interrupted by a signal.  Log it.  */
-	      ulog (LOG_ERROR, (const char *) NULL);
-	    }
+	      /* Note that we don't really care whether the write
+                 finished because the byte was written out or whether
+                 it finished because the alarm was triggered.  Either
+                 way, we are going to loop around and try another
+                 read.  */
 
-	  if (cdid < 0)
-	    {
-	      ulog (LOG_ERROR, "write: %s", strerror (errno));
-	      return FALSE;
-	    }
+	      usset_signal (SIGALRM, SIG_IGN, TRUE, (boolean *) NULL);
+	      alarm (0);
 
-	  if (cdid == 0)
-	    {
-	      /* On some systems write will return 0 if carrier is
-		 lost.  If we fail to write anything ten times in a
-		 row, we assume that this has happened.  This is
-		 hacked in like this because there seems to be no
-		 reliable way to tell exactly why the write returned
-		 0.  */
-	      ++czero;
-	      if (czero >= 10)
+	      if (cdid < 0)
 		{
-		  ulog (LOG_ERROR, "Line disconnected");
-		  return FALSE;
+		  if (ierr == EINTR)
+		    {
+		      /* We got interrupted by a signal.  Log it.  */
+		      ulog (LOG_ERROR, (const char *) NULL);
+		    }
+		  else
+		    {
+		      ulog (LOG_ERROR, "write: %s", strerror (ierr));
+		      return FALSE;
+		    }
 		}
-	    }
-	  else
-	    {
-	      cwrite -= cdid;
-	      zwrite += cdid;
-	      *pcwrite += cdid;
-	      czero = 0;
+	      else if (cdid == 0)
+		{
+		  /* On some systems write will return 0 if carrier is
+		     lost.  If we fail to write anything ten times in
+		     a row, we assume that this has happened.  This is
+		     hacked in like this because there seems to be no
+		     reliable way to tell exactly why the write
+		     returned 0.  */
+		  ++czero;
+		  if (czero >= 10)
+		    {
+		      ulog (LOG_ERROR, "Line disconnected");
+		      return FALSE;
+		    }
+		}
+	      else
+		{
+		  cwrite -= cdid;
+		  zwrite += cdid;
+		  *pcwrite += cdid;
+		  czero = 0;
+		}
 	    }
 	}
     }
@@ -2937,7 +3058,7 @@ fsserial_set (qconn, tparity, tstrip, txonxoff)
       /* Not supported.  */
       break;
     }
-
+	  
   if (fdo)
     {
       if ((q->snew.c_cflag & iset) != iset
@@ -2973,7 +3094,7 @@ fsserial_set (qconn, tparity, tstrip, txonxoff)
   }
 #endif
 
-#else /* ! HAVE_BSD_TTY */
+#else /* ! HAVE_BSD_TTY */      
 
   fdo = FALSE;
   switch (tstrip)

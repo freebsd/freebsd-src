@@ -5,18 +5,18 @@
    under the terms of the GNU General Public License as published by the
    Free Software Foundation; either version 2, or (at your option) any
    later version.
-
+   
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-
+   
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    This file was modified slightly by Ian Lance Taylor, November 1992,
-   for Taylor UUCP.  */
+   for Taylor UUCP, and again in June, 1995.  */
 
 #ifndef _GETOPT_H
 #define _GETOPT_H 1
@@ -100,6 +100,14 @@ enum _argtype
   optional_argument
 };
 
+#ifndef P
+/* On some systems, <stdio.h> includes getopt.h before P is defined by
+   uucp.h, and the -I arguments cause this version of getopt.h to be
+   included.  Work around that here.  */
+#define P(x) ()
+#define UNDEFINE_P
+#endif
+
 extern int getopt P((int argc, char *const *argv, const char *shortopts));
 extern int getopt_long P((int argc, char *const *argv, const char *shortopts,
 			  const struct option *longopts, int *longind));
@@ -112,6 +120,11 @@ extern int _getopt_internal P((int argc, char *const *argv,
 			       const char *shortopts,
 			       const struct option *longopts, int *longind,
 			       int long_only));
+
+#ifdef UNDEFINE_P
+#undef P
+#undef UNDEFINE_P
+#endif
 
 #ifdef	__cplusplus
 }

@@ -1,7 +1,7 @@
 /* hsinfo.c
    Get information about a system from the HDB configuration files.
 
-   Copyright (C) 1992, 1993 Ian Lance Taylor
+   Copyright (C) 1992, 1993, 1995 Ian Lance Taylor
 
    This file is part of the Taylor UUCP uuconf library.
 
@@ -17,16 +17,16 @@
 
    You should have received a copy of the GNU Library General Public
    License along with this library; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_hsinfo_rcsid[] = "$Id: hsinfo.c,v 1.2 1994/05/07 18:12:27 ache Exp $";
+const char _uuconf_hsinfo_rcsid[] = "$Id: hsinfo.c,v 1.14 1995/06/21 19:23:03 ian Rel $";
 #endif
 
 #include <errno.h>
@@ -256,6 +256,13 @@ _uuconf_ihdb_system_internal (qglobal, zsystem, qsys)
 					  cretry, _uuconf_itime_grade_cmp,
 					  &qset->uuconf_qtimegrade,
 					  pblock);
+
+	      /* We treat a syntax error in the time field as
+                 equivalent to ``never'', on the assumption that that
+                 is what HDB does.  */
+	      if (iret == UUCONF_SYNTAX_ERROR)
+		iret = UUCONF_SUCCESS;
+
 	      if (iret != UUCONF_SUCCESS)
 		break;
 
@@ -343,7 +350,7 @@ _uuconf_ihdb_system_internal (qglobal, zsystem, qsys)
 	  if (iret != UUCONF_SUCCESS)
 	    break;
 	}
-
+  
       (void) fclose (e);
 
       if (iret != UUCONF_SUCCESS)

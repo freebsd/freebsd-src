@@ -17,16 +17,16 @@
 
    You should have received a copy of the GNU Library General Public
    License along with this library; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_calout_rcsid[] = "$Id: calout.c,v 1.2 1994/05/07 18:12:00 ache Exp $";
+const char _uuconf_calout_rcsid[] = "$Id: calout.c,v 1.6 1995/06/21 19:21:45 ian Rel $";
 #endif
 
 #include <errno.h>
@@ -61,7 +61,7 @@ uuconf_callout (pglobal, qsys, pzlog, pzpass)
       || (qsys->uuconf_zcall_password != NULL
 	  && strcmp (qsys->uuconf_zcall_password, "*") == 0))
     return UUCONF_NOT_FOUND;
-
+      
   if (qsys->uuconf_zcall_login != NULL)
     {
       *pzlog = strdup (qsys->uuconf_zcall_login);

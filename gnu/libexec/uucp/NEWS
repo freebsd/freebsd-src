@@ -1,3 +1,38 @@
+Changes in version 1.06:
+
+    As usual, many bugs were fixed.
+
+    Support was added for the 'y' protocol, contributed by Jorge Cwik,
+    the designer of the protocol.
+
+    The name of command files was changed when using SPOOLDIR_TAYLOR;
+    they now use a much longer sequence number.  This affects the
+    jobid strings reported by uustat.  The change makes uux and uucp
+    more efficient.
+
+    Added ``called-timegrade'' command to sys file.
+
+    Added --nostop and -E/--escape options to cu.
+
+    Added -s option to uuchk.
+
+    Added ``strip-login'' and ``strip-proto'' commands to config file.
+
+    uux will now create a poll file if invoked as ``uux SYSTEM!''.
+
+    If an execution fails, the data file is saved, if there is enough
+    free disk space.
+
+    uux now uses POSIX file locking, if available, when locking the
+    sequence file.
+
+    The man pages were incorporated into the Texinfo manual.
+
+    The UUCP Internals FAQ was incorporated into the Texinfo manual.
+
+    The spool directory layout is now documented in the Texinfo
+    manual.
+
 Changes in version 1.05:
 
     As usual, many bugs were fixed.

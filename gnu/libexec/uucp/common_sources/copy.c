@@ -1,7 +1,7 @@
 /* copy.c
    Copy one file to another for the UUCP package.
 
-   Copyright (C) 1991, 1992 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1995 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -17,16 +17,16 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char copy_rcsid[] = "$Id: copy.c,v 1.13 1994/01/30 21:01:46 ian Rel $";
+const char copy_rcsid[] = "$Id: copy.c,v 1.18 1995/08/02 01:17:31 ian Rel $";
 #endif
 
 #include "uudefs.h"
@@ -41,11 +41,12 @@ const char copy_rcsid[] = "$Id: copy.c,v 1.13 1994/01/30 21:01:46 ian Rel $";
 #if USE_STDIO
 
 boolean
-fcopy_file (zfrom, zto, fpublic, fmkdirs)
+fcopy_file (zfrom, zto, fpublic, fmkdirs, fsignals)
      const char *zfrom;
      const char *zto;
      boolean fpublic;
      boolean fmkdirs;
+     boolean fsignals;
 {
   FILE *efrom;
   boolean fret;
@@ -57,17 +58,18 @@ fcopy_file (zfrom, zto, fpublic, fmkdirs)
       return FALSE;
     }
 
-  fret = fcopy_open_file (efrom, zto, fpublic, fmkdirs);
+  fret = fcopy_open_file (efrom, zto, fpublic, fmkdirs, fsignals);
   (void) fclose (efrom);
   return fret;
 }
 
 boolean
-fcopy_open_file (efrom, zto, fpublic, fmkdirs)
+fcopy_open_file (efrom, zto, fpublic, fmkdirs, fsignals)
      FILE *efrom;
      const char *zto;
      boolean fpublic;
      boolean fmkdirs;
+     boolean fsignals;
 {
   FILE *eto;
   char ab[8192];
@@ -86,6 +88,21 @@ fcopy_open_file (efrom, zto, fpublic, fmkdirs)
 	  (void) remove (zto);
 	  return FALSE;
 	}
+      if (fsignals && FGOT_SIGNAL ())
+	{
+	  /* Log the signal.  */
+	  ulog (LOG_ERROR, (const char *) NULL);
+	  (void) fclose (eto);
+	  (void) remove (zto);
+	  return FALSE;
+	}
+    }
+
+  if (! fsysdep_sync (eto, zto))
+    {
+      (void) fclose (eto);
+      (void) remove (zto);
+      return FALSE;
     }
 
   if (fclose (eto) != 0)
@@ -119,11 +136,12 @@ fcopy_open_file (efrom, zto, fpublic, fmkdirs)
 #endif
 
 boolean
-fcopy_file (zfrom, zto, fpublic, fmkdirs)
+fcopy_file (zfrom, zto, fpublic, fmkdirs, fsignals)
      const char *zfrom;
      const char *zto;
      boolean fpublic;
      boolean fmkdirs;
+     boolean fsignals;
 {
   int ofrom;
   boolean fret;
@@ -135,17 +153,18 @@ fcopy_file (zfrom, zto, fpublic, fmkdirs)
       return FALSE;
     }
 
-  fret = fcopy_open_file (ofrom, zto, fpublic, fmkdirs);
+  fret = fcopy_open_file (ofrom, zto, fpublic, fmkdirs, fsignals);
   (void) close (ofrom);
   return fret;
 }
 
 boolean
-fcopy_open_file (ofrom, zto, fpublic, fmkdirs)
+fcopy_open_file (ofrom, zto, fpublic, fmkdirs, fsignals)
      int ofrom;
      const char *zto;
      boolean fpublic;
      boolean fmkdirs;
+     boolean fsignals;
 {
   int oto;
   char ab[8192];
@@ -180,6 +199,21 @@ fcopy_open_file (ofrom, zto, fpublic, fmkdirs)
 	  (void) remove (zto);
 	  return FALSE;
 	}
+      if (fsignals && FGOT_SIGNAL ())
+	{
+	  /* Log the signal.  */
+	  ulog (LOG_ERROR, (const char *) NULL);
+	  (void) fclose (eto);
+	  (void) remove (zto);
+	  return FALSE;
+	}
+    }
+
+  if (! fsysdep_sync (oto, zto))
+    {
+      (void) close (oto);
+      (void) remove (zto);
+      return FALSE;
     }
 
   if (close (oto) < 0)

@@ -1,7 +1,7 @@
 /* tinit.c
    Initialize for reading Taylor UUCP configuration files.
 
-   Copyright (C) 1992, 1993, 1994 Ian Lance Taylor
+   Copyright (C) 1992, 1993, 1994, 1995 Ian Lance Taylor
 
    This file is part of the Taylor UUCP uuconf library.
 
@@ -17,16 +17,16 @@
 
    You should have received a copy of the GNU Library General Public
    License along with this library; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_tinit_rcsid[] = "$Id: tinit.c,v 1.10 1994/01/30 21:14:29 ian Rel $";
+const char _uuconf_tinit_rcsid[] = "$Id: tinit.c,v 1.13 1995/06/28 14:38:51 ian Rel $";
 #endif
 
 #include <errno.h>
@@ -66,6 +66,10 @@ static const struct cmdtab_offset asCmds[] =
       offsetof (struct sprocess, zdebugfile), NULL },
   { "debug", UUCONF_CMDTABTYPE_FN | 0,
       offsetof (struct sprocess, zdebug), itdebug },
+  { "strip-login", UUCONF_CMDTABTYPE_BOOLEAN,
+      offsetof (struct sprocess, fstrip_login), NULL },
+  { "strip-proto", UUCONF_CMDTABTYPE_BOOLEAN,
+      offsetof (struct sprocess, fstrip_proto), NULL },
   { "max-uuxqts", UUCONF_CMDTABTYPE_INT,
       offsetof (struct sprocess, cmaxuuxqts), NULL },
   { "run-uuxqt", UUCONF_CMDTABTYPE_STRING,

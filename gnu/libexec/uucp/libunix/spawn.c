@@ -1,7 +1,7 @@
 /* spawn.c
    Spawn a program securely.
 
-   Copyright (C) 1992, 1993, 1994 Ian Lance Taylor
+   Copyright (C) 1992, 1993, 1994, 1995 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -17,10 +17,10 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #include "uucp.h"
@@ -147,7 +147,7 @@ ixsspawn (pazargs, aidescs, fkeepuid, fkeepenv, zchdir, fnosigs, fshell,
       zspace = azenv[0] + sizeof "PATH=" - 1;
       while ((zspace = strchr (zspace, ' ')) != NULL)
 	*zspace = ':';
-
+    
       azenv[1] = zbufalc (sizeof "HOME=" + strlen (zSspooldir));
       sprintf (azenv[1], "HOME=%s", zSspooldir);
 
@@ -158,7 +158,7 @@ ixsspawn (pazargs, aidescs, fkeepuid, fkeepenv, zchdir, fnosigs, fshell,
       sprintf (azenv[2], "TERM=%s", zterm);
 
       azenv[3] = zbufcpy ("SHELL=/bin/sh");
-
+  
       azenv[4] = zbufalc (sizeof "USER=" + strlen (OWNER));
       sprintf (azenv[4], "USER=%s", OWNER);
 
@@ -275,7 +275,7 @@ ixsspawn (pazargs, aidescs, fkeepuid, fkeepenv, zchdir, fnosigs, fshell,
 	      ierr = errno;
 	      ferr = TRUE;
 	      break;
-	    }
+	    }	      
 	}
     }
 
@@ -360,12 +360,22 @@ ixsspawn (pazargs, aidescs, fkeepuid, fkeepenv, zchdir, fnosigs, fshell,
     {
       /* Try to force the UUCP uid to be both real and effective user
 	 ID, in order to present a consistent environment regardless
-	 of the invoking user.  This won't work on System V based
-	 systems, but it will do no harm.  It would be possible to use
-	 a setuid root program to force the UID setting, but I don't
-	 think the efficiency loss is worth it.  */
+	 of the invoking user.  This won't work on older System V
+	 based systems, where it can cause trouble if ordinary users
+	 wind up executing uuxqt, perhaps via uucico; any program
+	 which uuxqt executes will have an arbitrary real user ID, so
+	 if the program is itself a setuid program, any security
+	 checks it does based on the real user ID will be incorrect.
+	 Fixing this problem would seem to require a special setuid
+	 root program; I have not used this approach because
+	 modern systems should not suffer from it.  */
+#if HAVE_SETREUID
+      (void) setreuid (geteuid (), -1);
+      (void) setregid (getegid (), -1);
+#else
       (void) setuid (geteuid ());
       (void) setgid (getegid ());
+#endif
     }
 
   if (zchdir != NULL)
@@ -406,7 +416,7 @@ ixsspawn (pazargs, aidescs, fkeepuid, fkeepenv, zchdir, fnosigs, fshell,
     {
       char *zto;
       const char *azshargs[4];
-
+      
       pazargs[0] = zcmd;
       zto = zshcmd;
       for (i = 0; pazargs[i] != NULL; i++)

@@ -17,16 +17,16 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char prott_rcsid[] = "$Id: prott.c,v 1.2 1994/05/07 18:13:51 ache Exp $";
+const char prott_rcsid[] = "$Id: prott.c,v 1.29 1995/06/21 19:15:36 ian Rel $";
 #endif
 
 #include "uudefs.h"
@@ -96,7 +96,7 @@ ftstart (qdaemon, pzlog)
 /* Stop the protocol.  */
 
 /*ARGSUSED*/
-boolean
+boolean 
 ftshutdown (qdaemon)
      struct sdaemon *qdaemon;
 {
@@ -269,7 +269,7 @@ ftprocess_data (qdaemon, pfexit, pcneed)
 	return FALSE;
 
       iPrecstart = (iPrecstart + clen) % CRECBUFLEN;
-
+			   
       if (*pfexit)
 	return TRUE;
 

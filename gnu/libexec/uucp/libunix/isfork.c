@@ -1,4 +1,4 @@
-/* isfork.c
+/* isfork.c 
    Retry fork several times before giving up.  */
 
 #include "uucp.h"
