@@ -2,15 +2,6 @@
 # $FreeBSD$
 #
 
-PROG=	pod2html
-
-${PROG}: ${PROG}.PL
-	${MINIPERL} ${MINIPERLOPT} ${PROG}.PL
-
-${PROG}.1: ${PROG}.PL
-	${MINIPERL} ${MINIPERLOPT} ${.OBJDIR}/../pod2man/pod2man ${PROG}.PL > ${PROG}.1
+SCRIPTS=pod2html
 
 .include <bsd.prog.mk>
-
-${PROG}.PL: ${PERL5SRC}/pod/${PROG}.PL
-	cp -p ${.OODATE} ${.TARGET}

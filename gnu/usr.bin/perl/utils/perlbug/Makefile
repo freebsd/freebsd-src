@@ -2,6 +2,6 @@
 # $FreeBSD$
 #
 
-PROG=	perlbug
+SCRIPTS=perlbug
 
 .include <bsd.prog.mk>

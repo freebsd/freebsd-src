@@ -2,7 +2,7 @@
 # $FreeBSD$
 #
 
-PROG=	splain
+SCRIPTS=splain
 NOMAN=	true
 
 .include <bsd.prog.mk>

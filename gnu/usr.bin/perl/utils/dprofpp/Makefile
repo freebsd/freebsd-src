@@ -2,6 +2,6 @@
 # $FreeBSD$
 #
 
-PROG=	dprofpp
+SCRIPTS=dprofpp
 
 .include <bsd.prog.mk>
