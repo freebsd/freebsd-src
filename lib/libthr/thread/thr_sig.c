@@ -75,9 +75,22 @@ __weak_reference(_pthread_kill, pthread_kill);
 int
 _pthread_kill(pthread_t pthread, int sig)
 {
+	int error;
 
+	if (sig < 0 || sig > NSIG)
+		return (EINVAL);
 	if (_thread_initial == NULL)
 		_thread_init();
+	error = _find_thread(pthread);
+	if (error != 0)
+		return (error);
+
+	/*
+	 * A 0 signal means do error-checking but don't send signal.
+	 */
+	if (sig == 0)
+		return (0);
+
 	return (thr_kill(pthread->thr_id, sig));
 }
 
