@@ -56,15 +56,14 @@ struct knote;
  */
 struct file {
 	LIST_ENTRY(file) f_list;/* list of active files */
-	short	f_flag;		/* see fcntl.h */
+	short	f_FILLER3;	/* (old f_flag) */
 #define	DTYPE_VNODE	1	/* file */
 #define	DTYPE_SOCKET	2	/* communications endpoint */
 #define	DTYPE_PIPE	3	/* pipe */
 #define	DTYPE_FIFO	4	/* fifo (named pipe) */
 #define	DTYPE_KQUEUE	5	/* event queue */
 	short	f_type;		/* descriptor type */
-	short	f_FILLER1;	/* (OLD) reference count */
-	short	f_FILLER2;	/* (OLD) references from message queue */
+	u_int	f_flag;		/* see fcntl.h */
 	struct	ucred *f_cred;	/* credentials associated with descriptor */
 	struct	fileops {
 		int	(*fo_read)	__P((struct file *fp, struct uio *uio,

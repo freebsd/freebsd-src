@@ -83,6 +83,7 @@ O_TRUNC		truncate size to 0
 O_EXCL		error if create and file exists
 O_SHLOCK	atomically obtain a shared lock
 O_EXLOCK	atomically obtain an exclusive lock
+O_DIRECT	eliminate or reduce cache effects
 O_FSYNC		synchronous writes
 O_NOFOLLOW	do not follow symlinks
 .Ed
@@ -149,6 +150,12 @@ If creating a file with
 .Dv O_CREAT ,
 the request for the lock will never fail
 (provided that the underlying filesystem supports locking).
+.Pp
+.Dv O_DIRECT may be used to
+minimize or eliminate the cache effects of reading and writing.  The system
+will attempt to avoid caching the data you read or write.  If it cannot
+avoid caching the data, it will minimize the impact the data has on the cache.
+Use of this flag can drastically reduce performance if not used with care. 
 .Pp
 If successful,
 .Fn open
