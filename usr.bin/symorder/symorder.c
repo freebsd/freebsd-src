@@ -61,13 +61,14 @@ static char sccsid[] = "@(#)symorder.c	5.8 (Berkeley) 4/1/91";
 #define	NOTFOUNDEXIT	1
 #define	ERREXIT		2
 
+char	*exclude[SPACE];
 struct	nlist order[SPACE];
 
 struct	exec exec;
 struct	stat stb;
 struct	nlist *newtab, *symtab;
 off_t	sa;
-int	nsym, strtabsize, symfound, small, missing; 
+int	nexclude, nsym, strtabsize, symfound, symkept, small, missing;
 char	*kfile, *newstrings, *strings, asym[BUFSIZ];
 
 main(argc, argv)
@@ -77,18 +78,24 @@ main(argc, argv)
 	extern char *optarg;
 	extern int optind;
 	register struct nlist *p, *symp;
-	register FILE *f;
+	register FILE *f, *xfile;
 	register int i;
-	register char *start, *t;
+	register char *start, *t, *xfilename;
 	int ch, n, o;
 
-	while ((ch = getopt(argc, argv, "tm")) != EOF)
+	xfilename = NULL;
+	while ((ch = getopt(argc, argv, "mtx:")) != EOF)
 		switch(ch) {
+		case 'm':
+			missing = 1;
+			break;
 		case 't':
 			small = 1;
 			break;
-		case 'm':
-			missing = 1;
+		case 'x':
+			if (xfilename != NULL)
+				usage();
+			xfilename = optarg;
 			break;
 		case '?':
 		default:
@@ -112,9 +119,27 @@ main(argc, argv)
 			*t = '\0';
 		p->n_un.n_name = strdup(start);
 		++p;
-		++nsym;
+		if (++nsym >= sizeof order / sizeof order[0])
+			break;
 	}
 	(void)fclose(f);
+
+	if (xfilename != NULL) {
+		if ((xfile = fopen(xfilename, "r")) == NULL)
+			error(xfilename);
+		for (; fgets(asym, sizeof(asym), xfile) != NULL;) {
+			for (t = asym; isspace(*t); ++t);
+			if (!*(start = t))
+				continue;
+			while (*++t);
+			if (*--t == '\n')
+				*t = '\0';
+			exclude[nexclude] = strdup(start);
+			if (++nexclude >= sizeof exclude / sizeof exclude[0])
+				break;
+		}
+		(void)fclose(xfile);
+	}
 
 	kfile = argv[1];
 	if ((f = fopen(kfile, "r")) == NULL)
@@ -173,7 +198,8 @@ main(argc, argv)
 	for (symp = symtab; --i >= 0; symp++) {
 		if (symp->n_un.n_strx == 0)
 			continue;
-		if (small && inlist(symp) < 0) continue;
+		if (small && inlist(symp) < 0)
+			continue;
 		symp->n_un.n_strx -= sizeof(int);
 		(void)strcpy(t, &strings[symp->n_un.n_strx]);
 		symp->n_un.n_strx = (t - newstrings) + sizeof(int);
@@ -181,15 +207,14 @@ main(argc, argv)
 	}
 
 	/* update shrunk sizes */
-	if(small) {
-		strtabsize = t - newstrings + sizeof(int);
-		n = symfound * sizeof(struct nlist);
-		/* fix exec sym size */
-		(void)lseek(o, 0, SEEK_SET);
-		exec.a_syms = n;
-		if (write(o, (void *)&exec, sizeof(exec)) != sizeof(exec))
-			error(kfile);
-	}
+	strtabsize = t - newstrings + sizeof(int);
+	n = symkept * sizeof(struct nlist);
+
+	/* fix exec sym size */
+	(void)lseek(o, (off_t)0, SEEK_SET);
+	exec.a_syms = n;
+	if (write(o, (void *)&exec, sizeof(exec)) != sizeof(exec))
+		error(kfile);
 
 	(void)lseek(o, sa, SEEK_SET);
 	if (write(o, (void *)symtab, n) != n)
@@ -200,7 +225,7 @@ main(argc, argv)
 	    strtabsize - sizeof(int))
 		error(kfile);
 
-	if (small) ftruncate(o, lseek(o, 0, SEEK_CUR));
+	ftruncate(o, lseek(o, (off_t)0, SEEK_CUR));
 
 	if ((i = nsym - symfound) > 0) {
 		(void)printf("symorder: %d symbol%s not found:\n",
@@ -208,7 +233,7 @@ main(argc, argv)
 		for (i = 0; i < nsym; i++)
 			if (order[i].n_value == 0)
 				printf("%s\n", order[i].n_un.n_name);
-		if(!missing)
+		if (!missing)
 			exit(NOTFOUNDEXIT);
 	}
 	exit(OKEXIT);
@@ -225,11 +250,14 @@ reorder(st1, st2, entries)
 		if (inlist(p) != -1)
 			++symfound; 
 	for (p = st2 + symfound, n = entries; --n >= 0; ++st1) {
+		if (excluded(st1))
+			continue;
 		i = inlist(st1);
 		if (i == -1)
 			*p++ = *st1;
 		else
 			st2[i] = *st1;
+		++symkept;
 	}
 }
 
@@ -257,6 +285,21 @@ inlist(p)
 	return (-1);
 }
 
+excluded(p)
+	register struct nlist *p;
+{
+	register char *nam;
+	register int x;
+
+	if (p->n_un.n_strx < sizeof(int) || p->n_un.n_strx >= strtabsize)
+		badfmt("corrupted symbol table");
+	nam = &strings[p->n_un.n_strx - sizeof(int)];
+	for (x = nexclude; --x >= 0; )
+		if (strcmp(nam, exclude[x]) == 0)
+			return (1);
+	return (0);
+}
+
 badfmt(why)
 	char *why;
 {
@@ -280,6 +323,7 @@ error(n)
 
 usage()
 {
-	(void)fprintf(stderr, "usage: symorder [-t] symlist file\n");
+	(void)fprintf(stderr,
+	    "usage: symorder [-m] [-t] [-x excludelist] symlist file\n");
 	exit(ERREXIT);
 }

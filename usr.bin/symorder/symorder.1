@@ -40,7 +40,10 @@
 .Sh SYNOPSIS
 .Nm symorder
 .Fl m
-.Fl t Ar symlist file
+.Fl t
+.Fl x
+.Ar excludelist
+.Ar symlist file
 .Sh DESCRIPTION
 The file
 .Ar symlist
@@ -58,6 +61,10 @@ are relocated to the beginning of the table and in the order given.
 .It Fl t
 Restrict the symbol table to the symbols listed in
 .Ar symlist .
+.It Fl x Ar excludelist
+Exclude the symbols listed in
+.Ar excludelist
+from the symbol table.
 .It Fl m
 Exit with status zero, even if some symbols are missing.
 .El
