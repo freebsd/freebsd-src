@@ -766,7 +766,7 @@ funsetown(struct sigio **sigiop)
 /*
  * Free a list of sigio structures.
  * We only need to lock the SIGIO_LOCK because we have made ourselves
- * inaccessable to callers of fsetown and therefore do not need to lock
+ * inaccessible to callers of fsetown and therefore do not need to lock
  * the proc or pgrp struct for the list manipulation.
  */
 void
@@ -992,7 +992,7 @@ close(td, uap)
 	}
 
 	/*
-	 * we now hold the fp reference that used to be owned by the descriptor
+	 * We now hold the fp reference that used to be owned by the descriptor
 	 * array.
 	 * We have to unlock the FILEDESC *AFTER* knote_fdclose to prevent a
 	 * race of the fd getting opened, a knote added, and deleteing a knote
@@ -1165,7 +1165,7 @@ out:
 /*
  * Grow the file table to accomodate (at least) nfd descriptors.  This may
  * block and drop the filedesc lock, but it will reacquire it before
- * returing.
+ * returning.
  */
 static void
 fdgrowtable(struct filedesc *fdp, int nfd)
@@ -1305,7 +1305,7 @@ fdavail(struct thread *td, int n)
  * a file decriptor for the process that refers to it.
  * We add one reference to the file for the descriptor table
  * and one reference for resultfp. This is to prevent us being
- * prempted and the entry in the descriptor table closed after
+ * preempted and the entry in the descriptor table closed after
  * we release the FILEDESC lock.
  */
 int
@@ -1657,7 +1657,7 @@ fdfree(struct thread *td)
  * the vnode can change out from under us after execve (like [lin]procfs).
  *
  * Since setugidsafety calls this only for fd 0, 1 and 2, this check is
- * sufficient.  We also don't for check setugidness since we know we are.
+ * sufficient.  We also don't check for setugidness since we know we are.
  */
 static int
 is_unsafe(struct file *fp)
@@ -1930,7 +1930,7 @@ closef(struct file *fp, struct thread *td)
  * return EBADF for read attempts and EINVAL for write attempts.
  *
  * If 'hold' is set (non-zero) the file's refcount will be bumped on return.
- * It should be droped with fdrop().
+ * It should be dropped with fdrop().
  * If it is not set, then the refcount will not be bumped however the
  * thread's filedesc struct will be returned locked (for fgetsock).
  *
@@ -1953,7 +1953,7 @@ _fget(struct thread *td, int fd, struct file **fpp, int flags, int hold)
 	}
 
 	/*
-	 * Note: FREAD failures returns EBADF to maintain backwards
+	 * Note: FREAD failure returns EBADF to maintain backwards
 	 * compatibility with what routines returned before.
 	 *
 	 * Only one flag, or 0, may be specified.
@@ -2079,7 +2079,7 @@ fgetsock(struct thread *td, int fd, struct socket **spp, u_int *fflagp)
 }
 
 /*
- * Drop the reference count on the the socket and XXX release the SX lock in
+ * Drop the reference count on the socket and XXX release the SX lock in
  * the future.  The last reference closes the socket.
  */
 void
@@ -2277,7 +2277,7 @@ dupfdopen(struct thread *td, struct filedesc *fdp, int indx, int dfd, int mode, 
 		FILEDESC_UNLOCK(fdp);
 
 		/*
-		 * we now own the reference to fp that the ofiles[] array
+		 * We now own the reference to fp that the ofiles[] array
 		 * used to own.  Release it.
 		 */
 		if (fp != NULL)
