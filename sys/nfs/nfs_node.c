@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_node.c	8.2 (Berkeley) 12/30/93
- * $Id: nfs_node.c,v 1.13.2.2 1998/05/13 06:15:36 peter Exp $
+ * $Id: nfs_node.c,v 1.13.2.3 1999/06/07 00:20:56 peter Exp $
  */
 
 #include <sys/param.h>
@@ -164,10 +164,14 @@ loop:
 	 * Insert the nfsnode in the hash queue for its new file handle
 	 */
 	for (np2 = nhpp->lh_first; np2 != 0; np2 = np2->n_hash.le_next) {
-		if (mntp != NFSTOV(np)->v_mount || np2->n_fhsize != fhsize ||
+		if (mntp != NFSTOV(np2)->v_mount || np2->n_fhsize != fhsize ||
 		    bcmp((caddr_t)fhp, (caddr_t)np2->n_fhp, fhsize))
 			continue;
 		vrele(vp);
+		if (nfs_node_hash_lock < 0)
+			wakeup(&nfs_node_hash_lock);
+		nfs_node_hash_lock = 0;
+		FREE(np, M_NFSNODE);
 		goto retry;
 	}
 	LIST_INSERT_HEAD(nhpp, np, n_hash);
