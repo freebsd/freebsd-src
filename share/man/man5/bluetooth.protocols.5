@@ -29,11 +29,11 @@
 .Dt BLUETOOTH.PROTOCOLS 5
 .Os
 .Sh NAME
-.Nm /etc/bluetooth/protocols
+.Nm bluetooth.protocols
 .Nd Bluetooth Protocol Service Multiplexor database
 .Sh DESCRIPTION
 The
-.Nm
+.Pa /etc/bluetooth/protocols
 file contains information regarding the known Bluetooth Protocol Service
 Multiplexor values.
 For each Bluetooth Protocol Service Multiplexor a single line should be
@@ -46,14 +46,14 @@ aliases
 .Pp
 Items are separated by any number of blanks and/or tab characters.
 A
-.Dq #
+.Ql #
 indicates the beginning of a comment; characters up to the end of the line are
 not interpreted by routines which search the file.
 .Pp
 Bluetooth Protocol Service Multiplexor names may contain any printable
 character other than a field delimiter, newline, or comment character.
 .Sh FILES
-.Bl -tag -width /etc/bluetooth/hosts -compact
+.Bl -tag -width ".Pa /etc/bluetooth/hosts" -compact
 .It Pa /etc/bluetooth/protocols
 .El
 .Sh SEE ALSO
