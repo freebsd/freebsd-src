@@ -101,7 +101,7 @@ astattach(struct atapi_softc *atp)
 	printf("ast: out of memory\n");
 	return -1;
     }
-    bioq_init(&stp->bio_queue);
+    bioq_init(&stp->queue);
     stp->atp = atp;
     stp->lun = ata_get_lun(&ast_lun_map);
     if (ast_sense(stp)) {
@@ -151,7 +151,13 @@ void
 astdetach(struct atapi_softc *atp)
 {   
     struct ast_softc *stp = atp->driver;
+    struct bio *bp;
     
+    while ((bp = bioq_first(&stp->queue))) {
+	bp->bio_error = ENXIO;
+	bp->bio_flags |= BIO_ERROR;
+	biodone(bp);
+    }
     destroy_dev(stp->dev1);
     destroy_dev(stp->dev2);
     devstat_remove_entry(&stp->stats);
@@ -414,6 +420,13 @@ aststrategy(struct bio *bp)
     struct ast_softc *stp = bp->bio_dev->si_drv1;
     int s;
 
+    if (stp->atp->flags & ATAPI_F_DETACHING) {
+	bp->bio_error = ENXIO;
+	bp->bio_flags |= BIO_ERROR;
+	biodone(bp);
+	return;
+    }
+
     /* if it's a null transfer, return immediatly. */
     if (bp->bio_bcount == 0) {
 	bp->bio_resid = 0;
@@ -447,7 +460,7 @@ aststrategy(struct bio *bp)
     }
 
     s = splbio();
-    bioq_insert_tail(&stp->bio_queue, bp);
+    bioq_insert_tail(&stp->queue, bp);
     ata_start(stp->atp->controller);
     splx(s);
 }
@@ -456,7 +469,7 @@ void
 ast_start(struct atapi_softc *atp)
 {
     struct ast_softc *stp = atp->driver;
-    struct bio *bp = bioq_first(&stp->bio_queue);
+    struct bio *bp = bioq_first(&stp->queue);
     u_int32_t blkcount;
     int8_t ccb[16];
     
@@ -470,7 +483,7 @@ ast_start(struct atapi_softc *atp)
     else
 	ccb[0] = ATAPI_WRITE;
     
-    bioq_remove(&stp->bio_queue, bp);
+    bioq_remove(&stp->queue, bp);
     blkcount = bp->bio_bcount / stp->blksize;
 
     ccb[1] = 1;
