@@ -736,7 +736,7 @@ vnlru_proc(void)
 {
 	struct mount *mp, *nmp;
 	int s;
-	int done;
+	int done, take;
 	struct proc *p = vnlruproc;
 	struct thread *td = FIRST_THREAD_IN_PROC(p);	/* XXXKSE */
 
@@ -752,18 +752,23 @@ vnlru_proc(void)
 		if (numvnodes - freevnodes <= desiredvnodes * 9 / 10) {
 			mtx_unlock(&vnode_free_list_mtx);
 			vnlruproc_sig = 0;
-			tsleep(vnlruproc, PVFS, "vlruwt", 0);
+			wakeup(&vnlruproc_sig);
+			tsleep(vnlruproc, PVFS, "vlruwt", hz);
 			continue;
 		}
 		mtx_unlock(&vnode_free_list_mtx);
 		done = 0;
 		mtx_lock(&mountlist_mtx);
+		take = 0;
+		TAILQ_FOREACH(mp, &mountlist, mnt_list)
+			take++;
+		take = desiredvnodes / (take * 10);
 		for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
 			if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx, td)) {
 				nmp = TAILQ_NEXT(mp, mnt_list);
 				continue;
 			}
-			done += vlrureclaim(mp, 10);
+			done += vlrureclaim(mp, take);
 			mtx_lock(&mountlist_mtx);
 			nmp = TAILQ_NEXT(mp, mnt_list);
 			vfs_unbusy(mp, td);
@@ -897,9 +902,14 @@ getnewvnode(tag, mp, vops, vpp)
 	 * attempt to directly reclaim vnodes due to nasty recursion
 	 * problems.
 	 */
-	if (vnlruproc_sig == 0 && numvnodes - freevnodes > desiredvnodes) {
-		vnlruproc_sig = 1;      /* avoid unnecessary wakeups */
-		wakeup(vnlruproc);
+	while (numvnodes - freevnodes > desiredvnodes) {
+		if (vnlruproc_sig == 0) {
+			vnlruproc_sig = 1;      /* avoid unnecessary wakeups */
+			wakeup(vnlruproc);
+		}
+		mtx_unlock(&vnode_free_list_mtx);
+		tsleep(&vnlruproc_sig, PVFS, "vlruwk", hz);
+		mtx_lock(&vnode_free_list_mtx);
 	}
 
 	/*
