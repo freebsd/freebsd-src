@@ -1,4 +1,4 @@
-<!-- $Id: linuxemu.sgml,v 1.9 1996/08/12 11:48:47 peter Exp $ -->
+<!-- $Id: linuxemu.sgml,v 1.10 1996/08/21 07:28:52 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Linux Emulation<label id="linuxemu"></heading>
@@ -688,7 +688,7 @@ File .../Untitled-1.mb appears to be broken for OMPR.257.0
 </tscreen>
 
 We haven't found the cause for this, but it only affects the
-Notebook's X window front end, not the mathematica engine itself.  So
+Notebook's X Window front end, not the mathematica engine itself.  So
 the command line interface invoked by 'math' is unaffected by this
 bug.
 

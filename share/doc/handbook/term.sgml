@@ -1,7 +1,7 @@
 <!-- This is an SGML document in the linuxdoc DTD describing
      hardwired terminals with FreeBSD.  By Sean Kelly, (c) 1996.
 
-     $Id$
+     $Id: term.sgml,v 1.1 1996/07/29 07:15:57 jkh Exp $
 
      The FreeBSD Documentation Project
 
@@ -47,7 +47,7 @@
 	today; FreeBSD is no exception.  By using a terminal attached
 	to a unused serial port, you can log in and run any text
 	program that you would normally run on the console or in an
-	<tt/xterm/ window in the X window system.
+	<tt/xterm/ window in the X Window System.
 
 	For the business user, you can attach many terminals to a
 	FreeBSD system and place them on your employees' desktops.
@@ -86,7 +86,7 @@
 
 	  Dumb terminals are popular in work environments where
 	  workers do not need access to graphic applications such as
-	  those provided by the X window system.
+	  those provided by the X Window System.
 
       <sect2><heading>PCs Acting As Terminals<label
 	    id="term:pcs"></heading>
