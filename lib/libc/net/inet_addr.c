@@ -140,7 +140,7 @@ inet_aton(cp, addr)
 			break;
 
 		default:
-			if (isspace(*c)) {
+			if (isspace((unsigned char)*c)) {
 				gotend = 1;
 				break;
 			} else
