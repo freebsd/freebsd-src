@@ -20,7 +20,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: ipfw.c,v 1.64.2.4 1999/06/04 23:46:41 ru Exp $";
+	"$Id: ipfw.c,v 1.70 1999/06/11 09:43:53 ru Exp $";
 #endif /* not lint */
 
 
@@ -708,9 +708,21 @@ lookup_port(const char *arg, int test, int nodash)
 	int		val;
 	char		*earg, buf[32];
 	struct servent	*s;
+	char		*p, *q;
 
 	snprintf(buf, sizeof(buf), "%s", arg);
-	buf[strcspn(arg, nodash ? "-," : ",")] = 0;
+
+	for (p = q = buf; *p; *q++ = *p++) {
+		if (*p == '\\') {
+			if (*(p+1))
+				p++;
+		} else {
+			if (*p == ',' || (nodash && *p == '-'))
+				break;
+		}
+	}
+	*q = '\0';
+
 	val = (int) strtoul(buf, &earg, 0);
 	if (!*buf || *earg) {
 		setservent(1);
@@ -718,14 +730,14 @@ lookup_port(const char *arg, int test, int nodash)
 			val = htons(s->s_port);
 		} else {
 			if (!test) {
-				errx(EX_DATAERR, "unknown port ``%s''", arg);
+				errx(EX_DATAERR, "unknown port ``%s''", buf);
 			}
 			val = -1;
 		}
 	} else {
 		if (val < 0 || val > 0xffff) {
 			if (!test) {
-				errx(EX_DATAERR, "port ``%s'' out of range", arg);
+				errx(EX_DATAERR, "port ``%s'' out of range", buf);
 			}
 			val = -1;
 		}
@@ -741,7 +753,10 @@ fill_port(cnt, ptr, off, arg)
 	char *s;
 	int initial_range = 0;
 
-	s = arg + strcspn(arg, "-,");	/* first port name can't have a dash */
+	for (s = arg; *s && *s != ',' && *s != '-'; s++) {
+		if (*s == '\\' && *(s+1))
+			s++;
+	}
 	if (*s == '-') {
 		*s++ = '\0';
 		if (strchr(arg, ','))
@@ -1092,9 +1107,11 @@ add(ac,av)
 		if(pp != NULL)
 		{
 			*(pp++) = '\0';
-			rule.fw_fwd_ip.sin_port = lookup_port(pp, 1, 1);
-			if(rule.fw_fwd_ip.sin_port == (unsigned int)-1)
-				show_usage("illegal forwarding port");
+			i = lookup_port(pp, 1, 0);
+			if (i == -1)
+				show_usage("illegal forwarding port ``%s''", pp);
+			else
+				rule.fw_fwd_ip.sin_port = (u_short)i;
 		}
 		fill_ip(&(rule.fw_fwd_ip.sin_addr), &dummyip, &ac, &av);
 		if (rule.fw_fwd_ip.sin_addr.s_addr == 0)
