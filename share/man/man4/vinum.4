@@ -159,25 +159,31 @@ kernel configuration file:
 pseudo-device	vinum
 .Ed
 .Pp
-If you do configure it in this manner, be sure to either:
-.Bl -bullet
-.It
-Specify the line
+.Ss DEBUG OPTIONS
+The current version of
+.Nm vinum ,
+both the kernel module and the user program
+.Xr vinum 8 ,
+include significant debugging support.  It is not recommended to remove
+this support at the moment, but if you do you must remove it from both the
+kernel and the user components.  To do this, edit the files
+.Pa /usr/src/sbin/vinum/Makefile
+and
+.Pa /usr/src/sys/modules/vinum/Makefile
+and edit the CFLAGS variable to remove the -DVINUMDEBUG option.  If you have
+configured
+.Nm
+into the kernel, either specify the line
 .Bd -literal -offset indent
 options		VINUMDEBUG
 .Ed
 .Pp
-in the kernel configuration file.
-.It
-Modify the file
+in the kernel configuration file or remove the -DVINUMDEBUG option from
 .Pa /usr/src/sbin/vinum/Makefile
-and change the CFLAGS variable to remove the -DVINUMDEBUG option.
-.El
+as described above.
 .Pp
-If you do not do one of these, vinum(8) will fail with the message
-.Bd -literal -offset indent
-Can't get vinum config: Invalid argument
-.Ed
+If the VINUMDEBUG variables do not match, vinum(8) will fail with a message
+explaining the problem and what to do to correct it.
 .Pp
 .Nm
 is currently available in two versions: a freely available version which does
@@ -276,7 +282,7 @@ objects.
 .Pa ioctl
 calls are intended for the use of the
 .Nm
-configuration program only.  The are described in the header file
+configuration program only.  They are described in the header file
 .Pa /sys/sys/vinumio.h
 .Ss DISK LABELS
 Conventional disk special devices have a
@@ -368,15 +374,26 @@ in which it stores hierarchical information for volumes and drives.
 .It
 In addition,
 .Nm
-creates two super-devices,
-.Pa /dev/vinum/control
+creates three super-devices,
+.Pa /dev/vinum/control ,
+.Pa /dev/vinum/Control
 and
 .Pa /dev/vinum/controld .
-These are used by
+.Pa /dev/vinum/control
+is used by
 .Xr vinum 8
-and the
+when it has been compiled without the VINUMDEBUG option, 
+.Pa /dev/vinum/Control
+is used by
+.Xr vinum 8
+when it has been compiled with the VINUMDEBUG option, 
+and
+.Pa /dev/vinum/controld
+is used by the 
 .Nm
-daemon respectively.
+daemon.  The two control devices for
+.Xr vinum 8
+are used to synchronize the debug status of kernel and user modules.
 .It
 Unlike 
 .Nm UNIX
