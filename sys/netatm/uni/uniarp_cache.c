@@ -406,7 +406,7 @@ uniarp_validate_ip(uip, ip, origin)
 	u_int			origin;
 {
 	struct uniarp_prf	*upp;
-	int	i;
+	u_int i;
 
 
 	/*

@@ -906,7 +906,8 @@ spans_ioctl(code, data, arg1)
 	struct spans_vccb	*svp;
 	struct air_vcc_rsp	rsp;
 	Atm_connection		*cop;
-	int			buf_len, err = 0, i, vpi, vci;
+	int			err = 0, i, vpi, vci;
+	size_t buf_len;
 	caddr_t			buf_addr;
 
 
