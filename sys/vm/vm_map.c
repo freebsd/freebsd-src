@@ -133,6 +133,7 @@
  *	maps and requires map entries.
  */
 
+static struct mtx map_sleep_mtx;
 static uma_zone_t mapentzone;
 static uma_zone_t kmapentzone;
 static uma_zone_t mapzone;
@@ -152,6 +153,7 @@ static void vmspace_zdtor(void *mem, int size, void *arg);
 void
 vm_map_startup(void)
 {
+	mtx_init(&map_sleep_mtx, "vm map sleep mutex", NULL, MTX_DEF);
 	mapzone = uma_zcreate("MAP", sizeof(struct vm_map), NULL,
 #ifdef INVARIANTS
 	    vm_map_zdtor,
@@ -412,6 +414,8 @@ _vm_map_trylock(vm_map_t map, const char *file, int line)
 	if (map->system_map)
 		GIANT_REQUIRED;
 	error = lockmgr(&map->lock, LK_EXCLUSIVE | LK_NOWAIT, NULL, curthread);
+	if (error == 0)
+		map->timestamp++;
 	return (error == 0);
 }
 
@@ -439,13 +443,10 @@ _vm_map_lock_downgrade(vm_map_t map, const char *file, int line)
 int
 vm_map_unlock_and_wait(vm_map_t map, boolean_t user_wait)
 {
-	int retval;
 
-	mtx_lock(&Giant);
+	mtx_lock(&map_sleep_mtx);
 	vm_map_unlock(map);
-	retval = tsleep(&map->root, PVM, "vmmapw", 0);
-	mtx_unlock(&Giant);
-	return (retval);
+	return (msleep(&map->root, &map_sleep_mtx, PDROP | PVM, "vmmaps", 0));
 }
 
 /*
@@ -456,12 +457,12 @@ vm_map_wakeup(vm_map_t map)
 {
 
 	/*
-	 * Acquire and release Giant to prevent a wakeup() from being
-	 * performed (and lost) between the vm_map_unlock() and the
-	 * tsleep() in vm_map_unlock_and_wait().
+	 * Acquire and release map_sleep_mtx to prevent a wakeup()
+	 * from being performed (and lost) between the vm_map_unlock()
+	 * and the msleep() in vm_map_unlock_and_wait().
 	 */
-	mtx_lock(&Giant);
-	mtx_unlock(&Giant);
+	mtx_lock(&map_sleep_mtx);
+	mtx_unlock(&map_sleep_mtx);
 	wakeup(&map->root);
 }
 
