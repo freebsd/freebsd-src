@@ -61,6 +61,10 @@
 .Fl i Ar iface Fl r Ar RTS threshold
 .Nm wicontrol
 .Fl i Ar iface Fl f Ar frequency
+.Nm wicontrol
+.Fl i Ar iface Fl P Ar 0|1
+.Nm wicontrol
+.Fl i Ar iface Fl S Ar max_sleep_duration
 .Sh DESCRIPTION
 The
 .Nm
@@ -175,6 +179,22 @@ channel number between 0 and 14. If an illegal channel is specified, the
 NIC will revert to its default channel. For NIC sold in the United States,
 the default channel is 3. Note that two stations must be
 set to the same channel in order to communicate.
+.It Fl i Ar iface Fl P Ar 0|1
+Enable or disable power management on a given interface. Enabling
+power management uses an alternating sleep/wake protocol to help
+conserve power on mobile stations, at the cost of some increased
+receive latency. Power management is off by default. Note that power
+management requires the cooperation of an access point in order to
+function; it is not functional in ad-hoc mode. Also, power management
+is only implemented in Lucent WavePOINT firmware version 2.03 or
+later, and in WaveLAN PCMCIA adapter firmware 2.00 or later. Older
+revisions will silently ignore the power management setting. Legal
+values for this parameter are 0 (off) and 1 (on).
+.It Fl i Ar iface Fl S Ar max sleep interval
+Specify the sleep interval to use when power management is enabled.
+The
+.Are max sleep interval
+is specified in milliseconds. The default is 100.
 .El
 .Sh SEE ALSO
 .Xr wi 4 ,
