@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.18 1999/01/28 01:56:33 brian Exp $
+ *	$Id: mp.c,v 1.17.4.3 1999/05/02 08:59:49 brian Exp $
  */
 
 #include <sys/param.h>
@@ -392,7 +392,7 @@ mp_Input(struct mp *mp, struct mbuf *m, struct physical *p)
 
     if (h.seq != seq) {
       /* we're missing something :-( */
-      if (mp->seq.min_in > seq) {
+      if (isbefore(mp->local_is12bit, seq, mp->seq.min_in)) {
         /* we're never gonna get it */
         struct mbuf *next;
 
@@ -420,7 +420,8 @@ mp_Input(struct mp *mp, struct mbuf *m, struct physical *p)
           log_Printf(LogDEBUG, "Drop frag %u\n", h.seq);
           mbuf_Free(mp->inbufs);
           mp->inbufs = next;
-        } while (mp->inbufs && (h.seq >= mp->seq.min_in || h.end));
+        } while (mp->inbufs && (isbefore(mp->local_is12bit, mp->seq.min_in,
+                                         h.seq) || h.end));
 
         /*
          * Continue processing things from here.
