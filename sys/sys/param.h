@@ -45,6 +45,12 @@
 #define	BSD	199506		/* System version (year & month). */
 #define BSD4_3	1
 #define BSD4_4	1
+
+/* 
+ * __FreeBSD_version numbers are documented in the Porter's Handbook.
+ * If you bump the version for any reason, you should update the documenation
+ * there.
+ */
 #undef __FreeBSD_version
 #define __FreeBSD_version 500022	/* Master, propagated to newvers */
 
