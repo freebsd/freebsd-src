@@ -228,6 +228,8 @@ main(int argc, char *argv[])
 		ask = 1;
 	}
 
+	setproctitle("-%s", getprogname());
+
 	for (cnt = getdtablesize(); cnt > 2; cnt--)
 		(void)close(cnt);
 
@@ -504,6 +506,7 @@ main(int argc, char *argv[])
 		 * Parent: wait for child to finish, then clean up
 		 * session.
 		 */
+		setproctitle("-%s [pam]", getprogname());
 		wait(NULL);
 		bail(NO_SLEEP_EXIT, 0);
 	}
