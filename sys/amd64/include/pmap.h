@@ -42,7 +42,7 @@
  *
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
- * 	$Id: pmap.h,v 1.33 1996/02/04 21:20:53 davidg Exp $
+ * 	$Id: pmap.h,v 1.34 1996/02/25 03:02:53 dyson Exp $
  */
 
 #ifndef _MACHINE_PMAP_H_
@@ -52,6 +52,7 @@
 
 typedef unsigned int *pd_entry_t;
 typedef unsigned int *pt_entry_t;
+struct vm_map;
 
 /*
  * NKPDE controls the virtual space of the kernel, what ever is left, minus
@@ -145,11 +146,10 @@ pmap_kextract(vm_offset_t va)
 
 struct pmap {
 	pd_entry_t		*pm_pdir;	/* KVA of page directory */
-	boolean_t		pm_pdchanged;	/* pdir changed */
 	short			pm_dref;	/* page directory ref count */
 	short			pm_count;	/* pmap reference count */
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
-	long			pm_ptpages;	/* more stats: PT pages */
+	struct	vm_map		*pm_map;	/* map that owns this pmap */
 };
 
 typedef struct pmap	*pmap_t;

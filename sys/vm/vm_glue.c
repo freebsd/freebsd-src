@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.42 1996/03/09 06:57:53 dyson Exp $
+ * $Id: vm_glue.c,v 1.43 1996/03/11 06:11:39 hsu Exp $
  */
 
 #include "opt_ddb.h"
@@ -245,39 +245,70 @@ vm_fork(p1, p2)
 	map = &p2->p_vmspace->vm_map;
 	pvp = &p2->p_vmspace->vm_pmap;
 
-	/* get new pagetables and kernel stack */
+	/*
+	 * allocate object for the upages
+	 */
+	p2->p_vmspace->vm_upages_obj = vm_object_allocate( OBJT_DEFAULT,
+		UPAGES);
+
+	/*
+	 * put upages into the address space
+	 */
+	error = vm_map_find(map, p2->p_vmspace->vm_upages_obj, 0,
+		&addr, UPT_MIN_ADDRESS - addr, FALSE, VM_PROT_ALL,
+		VM_PROT_ALL, 0);
+	if (error != KERN_SUCCESS)
+		panic("vm_fork: vm_map_find (UPAGES) failed, addr=0x%x, error=%d", addr, error);
+
+	addr += UPAGES * PAGE_SIZE;
+	/* allocate space for page tables */
 	error = vm_map_find(map, NULL, 0, &addr, UPT_MAX_ADDRESS - addr, FALSE,
 		VM_PROT_ALL, VM_PROT_ALL, 0);
 	if (error != KERN_SUCCESS)
-		panic("vm_fork: vm_map_find failed, addr=0x%x, error=%d", addr, error);
+		panic("vm_fork: vm_map_find (PTES) failed, addr=0x%x, error=%d", addr, error);
 
 	/* get a kernel virtual address for the UPAGES for this proc */
 	up = (struct user *) kmem_alloc_pageable(u_map, UPAGES * PAGE_SIZE);
 	if (up == NULL)
 		panic("vm_fork: u_map allocation failed");
 
-	p2->p_vmspace->vm_upages_obj = vm_object_allocate( OBJT_DEFAULT,
-		UPAGES);
-
+	/*
+	 * create a pagetable page for the UPAGES in the process address space
+	 */
 	ptaddr = trunc_page((u_int) vtopte(kstack));
 	(void) vm_fault(map, ptaddr, VM_PROT_READ|VM_PROT_WRITE, FALSE);
 	ptpa = pmap_extract(pvp, ptaddr);
 	if (ptpa == 0) {
 		panic("vm_fork: no pte for UPAGES");
 	}
+
+	/*
+	 * hold the page table page for the kernel stack, and fault them in
+	 */
 	stkm = PHYS_TO_VM_PAGE(ptpa);
 	vm_page_hold(stkm);
 
 	for(i=0;i<UPAGES;i++) {
 		vm_page_t m;
 
+		/*
+		 * Get a kernel stack page
+		 */
 		while ((m = vm_page_alloc(p2->p_vmspace->vm_upages_obj,
 			i, VM_ALLOC_NORMAL)) == NULL) {
 			VM_WAIT;
 		}
 
+		/*
+		 * Wire the page
+		 */
 		vm_page_wire(m);
 		m->flags &= ~PG_BUSY;
+
+		/*
+		 * Enter the page into both the kernel and the process
+		 * address space.
+		 */
 		pmap_enter( pvp, (vm_offset_t) kstack + i * PAGE_SIZE,
 			VM_PAGE_TO_PHYS(m), VM_PROT_READ|VM_PROT_WRITE, 1);
 		pmap_kenter(((vm_offset_t) up) + i * PAGE_SIZE,
@@ -285,8 +316,11 @@ vm_fork(p1, p2)
 		m->flags &= ~PG_ZERO;
 		m->valid = VM_PAGE_BITS_ALL;
 	}
+	/*
+	 * The page table page for the kernel stack should be held in memory
+	 * now.
+	 */
 	vm_page_unhold(stkm);
-
 
 	p2->p_addr = up;
 
