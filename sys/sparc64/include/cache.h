@@ -104,25 +104,48 @@ void	ecache_flush(vm_offset_t, vm_offset_t);
 void	ecache_inval_phys(vm_offset_t, vm_offset_t);
 #endif
 
+void	dcache_page_inval(vm_offset_t pa);
+void	icache_page_inval(vm_offset_t pa);
+
+#define	DC_TAG_SHIFT	2
+#define	DC_VALID_SHIFT	0
+
+#define	DC_TAG_BITS	28
+#define	DC_VALID_BITS	2
+
+#define	DC_TAG_MASK	((1 << DC_TAG_BITS) - 1)
+#define	DC_VALID_MASK	((1 << DC_VALID_BITS) - 1)
+
+#define	IC_TAG_SHIFT	7
+#define	IC_VALID_SHIFT	36
+
+#define	IC_TAG_BITS	28
+#define	IC_VALID_BITS	1
+
+#define	IC_TAG_MASK	((1 << IC_TAG_BITS) - 1)
+#define	IC_VALID_MASK	((1 << IC_VALID_BITS) - 1)
+
 /*
  * Cache control information.
  */
 struct cacheinfo {
-	int	c_enabled;		/* true => cache is enabled */
-	int 	ic_size;		/* instruction cache */
-	int	ic_set;
-	int	ic_l2set;
-	int 	ic_assoc;
-	int 	ic_linesize;
-	int 	dc_size;		/* data cache */
-	int	dc_l2size;
-	int 	dc_assoc;
-	int 	dc_linesize;
-	int	ec_size;		/* external cache info */
-	int 	ec_assoc;
-	int	ec_l2set;
-	int	ec_linesize;
-	int	ec_l2linesize;
+	u_int	c_enabled;		/* true => cache is enabled */
+	u_int 	ic_size;		/* instruction cache */
+	u_int	ic_set;
+	u_int	ic_l2set;
+	u_int 	ic_assoc;
+	u_int 	ic_linesize;
+	u_int 	dc_size;		/* data cache */
+	u_int	dc_l2size;
+	u_int 	dc_assoc;
+	u_int 	dc_linesize;
+	u_int	ec_size;		/* external cache info */
+	u_int 	ec_assoc;
+	u_int	ec_l2set;
+	u_int	ec_linesize;
+	u_int	ec_l2linesize;
 };
+
+extern struct cacheinfo cache;
 
 #endif	/* !_MACHINE_CACHE_H_ */

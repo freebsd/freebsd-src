@@ -57,6 +57,11 @@ struct cpu_start_args {
 	struct	tte csa_ttes[PCPU_PAGES];
 };
 
+struct ipi_cache_args {
+	u_int	ica_mask;
+	u_long	ica_pa;
+};
+
 struct ipi_tlb_args {
 	u_int	ita_mask;
 	u_long	ita_tlb;
@@ -80,6 +85,7 @@ void	ipi_all_but_self(u_int ipi);
 
 vm_offset_t mp_tramp_alloc(void);
 
+extern	struct	ipi_cache_args ipi_cache_args;
 extern	struct	ipi_level_args ipi_level_args;
 extern	struct	ipi_tlb_args ipi_tlb_args;
 
@@ -91,6 +97,8 @@ extern	u_long mp_tramp_func;
 
 extern	void mp_startup(void);
 
+extern	char tl_ipi_dcache_page_inval[];
+extern	char tl_ipi_icache_page_inval[];
 extern	char tl_ipi_level[];
 extern	char tl_ipi_test[];
 extern	char tl_ipi_tlb_context_demap[];
@@ -98,6 +106,36 @@ extern	char tl_ipi_tlb_page_demap[];
 extern	char tl_ipi_tlb_range_demap[];
 
 #ifdef SMP
+
+static __inline void *
+ipi_dcache_page_inval(vm_offset_t pa)
+{
+	struct ipi_cache_args *ica;
+
+	if (smp_cpus == 1)
+		return (NULL);
+	ica = &ipi_cache_args;
+	ica->ica_mask = all_cpus;
+	ica->ica_pa = pa;
+	cpu_ipi_selected(all_cpus, 0, (u_long)tl_ipi_dcache_page_inval,
+	    (u_long)ica);
+	return (&ica->ica_mask);
+}
+
+static __inline void *
+ipi_icache_page_inval(vm_offset_t pa)
+{
+	struct ipi_cache_args *ica;
+
+	if (smp_cpus == 1)
+		return (NULL);
+	ica = &ipi_cache_args;
+	ica->ica_mask = all_cpus;
+	ica->ica_pa = pa;
+	cpu_ipi_selected(all_cpus, 0, (u_long)tl_ipi_icache_page_inval,
+	    (u_long)ica);
+	return (&ica->ica_mask);
+}
 
 #ifdef _MACHINE_PMAP_H_
 
@@ -172,6 +210,18 @@ ipi_wait(void *cookie)
 #endif
 
 #else
+
+static __inline void *
+ipi_dcache_page_inval(vm_offset_t pa)
+{
+	return (NULL);
+}
+
+static __inline void *
+ipi_icache_page_inval(vm_offset_t pa)
+{
+	return (NULL);
+}
 
 static __inline void *
 ipi_tlb_context_demap(struct pmap *pm)

@@ -48,6 +48,7 @@
 #include <vm/vm_map.h>
 
 #include <machine/asi.h>
+#include <machine/cache.h>
 #include <machine/vmparam.h>
 #include <machine/cpufunc.h>
 #include <machine/fp.h>
@@ -116,6 +117,22 @@ ASSYM(CSA_STATE, offsetof(struct cpu_start_args, csa_state));
 ASSYM(CSA_TICK, offsetof(struct cpu_start_args, csa_tick));
 ASSYM(CSA_VER, offsetof(struct cpu_start_args, csa_ver));
 ASSYM(CSA_TTES, offsetof(struct cpu_start_args, csa_ttes));
+
+ASSYM(DC_TAG_SHIFT, DC_TAG_SHIFT);
+ASSYM(DC_TAG_MASK, DC_TAG_MASK);
+ASSYM(DC_VALID_SHIFT, DC_VALID_SHIFT);
+ASSYM(DC_VALID_MASK, DC_VALID_MASK);
+ASSYM(IC_TAG_SHIFT, IC_TAG_SHIFT);
+ASSYM(IC_TAG_MASK, IC_TAG_MASK);
+ASSYM(IC_VALID_SHIFT, IC_VALID_SHIFT);
+ASSYM(IC_VALID_MASK, IC_VALID_MASK);
+
+ASSYM(DC_SIZE, offsetof(struct cacheinfo, dc_size));
+ASSYM(DC_LINESIZE, offsetof(struct cacheinfo, dc_linesize));
+ASSYM(IC_SIZE, offsetof(struct cacheinfo, ic_size));
+ASSYM(IC_LINESIZE, offsetof(struct cacheinfo, ic_linesize));
+
+ASSYM(ICA_PA, offsetof(struct ipi_cache_args, ica_pa));
 
 ASSYM(KTR_PROC, KTR_PROC);
 ASSYM(KTR_TRAP, KTR_TRAP);

@@ -95,6 +95,7 @@ static ih_func_t cpu_ipi_stop;
  * kernel.
  */
 struct	cpu_start_args cpu_start_args = { 0, -1, -1, 0, 0 };
+struct	ipi_cache_args ipi_cache_args;
 struct	ipi_tlb_args ipi_tlb_args;
 
 vm_offset_t mp_tramp;
