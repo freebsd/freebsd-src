@@ -141,9 +141,9 @@ struct vm_map_entry {
 #define	MAP_ENTRY_GROWS_UP		0x2000	/* Bottom-up stacks */
 
 #ifdef	_KERNEL
-static __inline u_char   
+static __inline u_char
 vm_map_entry_behavior(vm_map_entry_t entry)
-{                  
+{
 	return (entry->eflags & MAP_ENTRY_BEHAV_MASK);
 }
 #endif	/* _KERNEL */
@@ -154,7 +154,7 @@ vm_map_entry_behavior(vm_map_entry_t entry)
  *	list.  Both structures are ordered based upon the start and
  *	end addresses contained within each map entry.  Sleator and
  *	Tarjan's top-down splay algorithm is employed to control
- *	height imbalance in the binary search tree.  
+ *	height imbalance in the binary search tree.
  *
  *	Note: the lock structure cannot be the first element of vm_map
  *	because this can result in a running lockup between two or more
@@ -215,7 +215,7 @@ vm_map_modflags(vm_map_t map, vm_flags_t set, vm_flags_t clear)
 }
 #endif	/* _KERNEL */
 
-/* 
+/*
  * Shareable process virtual address space.
  *
  * List of locks
