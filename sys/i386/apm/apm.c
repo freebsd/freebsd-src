@@ -13,7 +13,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.23 1995/12/27 16:16:02 bde Exp $
+ *	$Id: apm.c,v 1.24 1996/03/11 06:48:48 nate Exp $
  */
 
 #include "apm.h"
@@ -604,6 +604,12 @@ apmprobe(struct isa_device *dvp)
 {
 	int     unit = dvp->id_unit;
 
+	/*
+	 * XXX - This is necessary here so that we don't panic in the idle
+	 * loop because master_softc is unitialized.
+	 */
+	master_softc = &apm_softc[unit];
+  
 	switch (apm_version) {
 	case APMINI_CANTFIND:
 		/* silent */
@@ -712,7 +718,6 @@ apmattach(struct isa_device *dvp)
 #define APM_KERNBASE	KERNBASE
 	struct apm_softc	*sc = &apm_softc[unit];
 
-	master_softc = sc;	/* XXX */
 	sc->initialized = 0;
 	sc->active = 0;
 	sc->halt_cpu = 1;
