@@ -36,5 +36,6 @@
 #include <paths.h>
 
 #define	_PATH_CPP	"/usr/bin/cpp"
+
 			/* XXX -- fix when cpp parses arguments rationally */
 #define	_PATH_INCLUDE	"-I/usr/share/calendar"
