@@ -44,13 +44,13 @@ static const char copyright[] =
 #if 0
 static char sccsid[] = "@(#)lock.c	8.1 (Berkeley) 6/6/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
- * Lock a terminal up until the given key is entered, until the root
- * password is entered, or the given interval times out.
+ * Lock a terminal up until the given key is entered or the given
+ * interval times out.
  *
  * Timeout interval is by default TIMEOUT, it can be changed with
  * an argument of the form -time where time is in minutes
@@ -60,6 +60,7 @@ static const char rcsid[] =
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/signal.h>
+#include <sys/consio.h>
 #include <err.h>
 #include <ctype.h>
 #include <pwd.h>
@@ -73,14 +74,17 @@ static const char rcsid[] =
 
 #define	TIMEOUT	15
 
-void quit(), bye(), hi();
-static void usage __P((void));
+void quit(int);
+void bye(int);
+void hi(int);
+static void usage(void);
 
 struct timeval	timeout;
 struct timeval	zerotime;
 struct sgttyb	tty, ntty;
 long	nexttime;			/* keep the timeout time */
 int            no_timeout;                     /* lock terminal forever */
+int	vtyunlock;			/* Unlock flag and code. */
 
 /*ARGSUSED*/
 int
@@ -93,18 +97,18 @@ main(argc, argv)
 	time_t timval_sec;
 	struct itimerval ntimer, otimer;
 	struct tm *timp;
-	int ch, failures, sectimeout, usemine;
+	int ch, failures, sectimeout, usemine, vtylock;
 	char *ap, *mypw, *ttynam, *tzn;
 	char hostname[MAXHOSTNAMELEN], s[BUFSIZ], s1[BUFSIZ];
-	char *crypt(), *ttyname();
 
 	openlog("lock", LOG_ODELAY, LOG_AUTH);
 
 	sectimeout = TIMEOUT;
 	mypw = NULL;
 	usemine = 0;
-       no_timeout = 0;
-       while ((ch = getopt(argc, argv, "npt:")) != -1)
+	no_timeout = 0;
+	vtylock = 0;
+	while ((ch = getopt(argc, argv, "npt:v")) != -1)
 		switch((char)ch) {
 		case 't':
 			if ((sectimeout = atoi(optarg)) <= 0)
@@ -116,13 +120,16 @@ main(argc, argv)
 				errx(1, "unknown uid %d", getuid());
 			mypw = strdup(pw->pw_passwd);
 			break;
-               case 'n':
-                       no_timeout = 1;
-                       break;
+		case 'n':
+			no_timeout = 1;
+			break;
+		case 'v':
+			vtylock = 1;
+			break;
 		case '?':
 		default:
 			usage();
-	}
+		}
 	timeout.tv_sec = sectimeout * 60;
 
 	setuid(getuid());		/* discard privs */
@@ -149,7 +156,7 @@ main(argc, argv)
 		/* get key and check again */
 		(void)printf("Key: ");
 		if (!fgets(s, sizeof(s), stdin) || *s == '\n')
-			quit();
+			quit(0);
 		(void)printf("\nAgain: ");
 		/*
 		 * Don't need EOF test here, if we get EOF, then s1 != s
@@ -174,24 +181,40 @@ main(argc, argv)
 
 	ntimer.it_interval = zerotime;
 	ntimer.it_value = timeout;
-       if (!no_timeout)
-               setitimer(ITIMER_REAL, &ntimer, &otimer);
+	if (!no_timeout)
+		setitimer(ITIMER_REAL, &ntimer, &otimer);
+	if (vtylock) {
+		/*
+		 * If this failed, we want to err out; warn isn't good
+		 * enough, since we don't want the user to think that
+		 * everything is nice and locked because they got a
+		 * "Key:" prompt.
+		 */
+		if (ioctl(0, VT_LOCKSWITCH, &vtylock) == -1) {
+			(void)ioctl(0, TIOCSETP, &tty);
+			err(1, "locking vty");
+		}
+		vtyunlock = 0x2;
+	}
 
 	/* header info */
-       if (no_timeout) {
-(void)printf("lock: %s on %s. no timeout\ntime now is %.20s%s%s",
-           ttynam, hostname, ap, tzn, ap + 19);
-       } else {
-(void)printf("lock: %s on %s. timeout in %d minutes\ntime now is %.20s%s%s",
-	    ttynam, hostname, sectimeout, ap, tzn, ap + 19);
-       }
-       failures = 0;
+	(void)printf("lock: %s on %s.", ttynam, hostname);
+	if (no_timeout)
+		(void)printf(" no timeout.");
+	else
+		(void)printf(" timeout in %d minute%s.", sectimeout,
+		    sectimeout != 1 ? "s" : "");
+	if (vtylock)
+		(void)printf(" vty locked.");
+	(void)printf("\ntime now is %.20s%s%s", ap, tzn, ap + 19);
+
+	failures = 0;
 
 	for (;;) {
 		(void)printf("Key: ");
 		if (!fgets(s, sizeof(s), stdin)) {
 			clearerr(stdin);
-			hi();
+			hi(0);
 			continue;
 		}
 		if (usemine) {
@@ -211,9 +234,9 @@ main(argc, argv)
 		sleep(1);		/* to discourage guessing */
 	}
 	if (getuid() == 0)
-	    syslog(LOG_NOTICE, "ROOT UNLOCK ON hostname %s port %s",
-		   hostname, ttynam);
-	quit();
+		syslog(LOG_NOTICE, "ROOT UNLOCK ON hostname %s port %s",
+		    hostname, ttynam);
+	quit(0);
 	return(0); /* not reached */
 }
 
@@ -221,41 +244,45 @@ main(argc, argv)
 static void
 usage()
 {
-	(void)fprintf(stderr, "usage: lock [-n] [-p] [-t timeout]\n");
+	(void)fprintf(stderr, "usage: lock [-npv] [-t timeout]\n");
 	exit(1);
 }
 
 void
-hi()
+hi(int signo __unused)
 {
 	struct timeval timval;
 
-       if (!gettimeofday(&timval, (struct timezone *)NULL)) {
-               (void)printf("lock: type in the unlock key. ");
-               if (no_timeout) {
-                       (void)putchar('\n');
-               } else {
-                       (void)printf("timeout in %ld:%ld minutes\n",
-                               (nexttime - timval.tv_sec) / 60,
-                               (nexttime - timval.tv_sec) % 60);
-               }
-       }
+	if (!gettimeofday(&timval, (struct timezone *)NULL)) {
+		(void)printf("lock: type in the unlock key. ");
+		if (no_timeout) {
+			(void)putchar('\n');
+		} else {
+			(void)printf("timeout in %ld:%ld minutes\n",
+			    (nexttime - timval.tv_sec) / 60,
+			    (nexttime - timval.tv_sec) % 60);
+		}
+	}
 }
 
 void
-quit()
+quit(int signo __unused)
 {
 	(void)putchar('\n');
 	(void)ioctl(0, TIOCSETP, &tty);
+	if (vtyunlock)
+		(void)ioctl(0, VT_LOCKSWITCH, &vtyunlock);
 	exit(0);
 }
 
 void
-bye()
+bye(int signo __unused)
 {
-       if (!no_timeout) {
-               (void)ioctl(0, TIOCSETP, &tty);
-               (void)printf("lock: timeout\n");
-               exit(1);
-       }
+	if (!no_timeout) {
+		(void)ioctl(0, TIOCSETP, &tty);
+		if (vtyunlock)
+			(void)ioctl(0, VT_LOCKSWITCH, &vtyunlock);
+		(void)printf("lock: timeout\n");
+		exit(1);
+	}
 }
