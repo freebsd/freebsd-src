@@ -55,7 +55,7 @@
 <!-- XXX Change release.current to release.prev when there's -->
 <!-- XXX a release on this branch. -->
 
-<para>Ce document énumère les errata pour &os; 
+<para>Ce document &eacute;num&egrave;re les errata pour &os; 
 <![ %release.type.snapshot [
       &release.prev;,
 ]]>
@@ -63,11 +63,11 @@
       &release.current;,
 ]]>
 , contenant des informations importantes
-découvertes après la sortie de cette version. Ces informations incluent
-les bulletins de sécurité, aussi bien que des informations sur
-les logiciels ou sur les documentations qui pourraient affecter son éxécution
-ou son utilisation. Une version à jour de ce document
-devrait toujours être consultée avant d'installer cette version
+d&eacute;couvertes apr&egrave;s la sortie de cette version. Ces informations incluent
+les bulletins de s&eacute;curit&eacute;, aussi bien que des informations sur
+les logiciels ou sur les documentations qui pourraient affecter son &eacute;x&eacute;cution
+ou son utilisation. Une version &agrave; jour de ce document
+devrait toujours &ecirc;tre consult&eacute;e avant d'installer cette version
 de &os;.  
 </para>
 
@@ -88,14 +88,14 @@ de &os;.
 <![ %release.type.release [
 
 <para>Ceci est la version final du errata pour &os; &release.prev;. Les errata suivants de la branche &release.branch;
-se référeront a &os; &release.current; et les version suivantes.</para>
+se r&eacute;f&eacute;reront a &os; &release.current; et les version suivantes.</para>
 ]]>
   </abstract>
 
   <sect1>
     <title>Introduction</title>
     
-    <para>Ce document contient les <quote>dernières informations importantes</quote> à propos 
+    <para>Ce document contient les <quote>derni&egrave;res informations importantes</quote> &agrave; propos 
     de &os;
 <![ %release.type.snapshot [
       &release.prev;.
@@ -103,56 +103,56 @@ se référeront a &os; &release.current; et les version suivantes.</para>
 <![ %release.type.release [
       &release.current;.
 ]]>. Avant d'installer cette version, il est important de consulter 
-    ce document pour se renseigner sur les problèmes qui peuvent avoir déjà été rencontrés et 
-    corrigés.</para>
+    ce document pour se renseigner sur les probl&egrave;mes qui peuvent avoir d&eacute;j&agrave; &eacute;t&eacute; rencontr&eacute;s et 
+    corrig&eacute;s.</para>
 
-    <para>Toute version de ce document actuellement distribué avec une version finale (par
-    exemple sur la distrtibution en CDROM) est obsolète par définition, mais les autres copies
-    sont gardées et mis a jour sur Internet et peuvent etre consultées comment <quote>errata</quote> pour cette
+    <para>Toute version de ce document actuellement distribu&eacute; avec une version finale (par
+    exemple sur la distrtibution en CDROM) est obsol&egrave;te par d&eacute;finition, mais les autres copies
+    sont gard&eacute;es et mis a jour sur Internet et peuvent etre consult&eacute;es comment <quote>errata</quote> pour cette
     version finale. Les autres copies de cet errata se trouvent <ulink url="http://www.FreeBSD.org/releases/">la</ulink>
     et sur les autres sites mirroirs de ce site</para>
 
     <para>Les snapshots binaires ou en source de la version &release.branch; de &os; contiennent 
     toute une version a jour de ce document (au moment de la creation du snapshot).</para>
 
-    <para>Pour une list de tous les avis de securité du CERT sur &os;, voyez <ulink
+    <para>Pour une list de tous les avis de securit&eacute; du CERT sur &os;, voyez <ulink
     url="http://www.FreeBSD.org/security/"></ulink> ou <ulink
     url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"></ulink>.</para>
   </sect1>
 
   <sect1>
-    <title>Avis de securité</title>
+    <title>Avis de securit&eacute;</title>
 <![ %release.type.release [
-    <para>Aucun d'avis de sécurité.</para>
+    <para>Aucun d'avis de s&eacute;curit&eacute;.</para>
 ]]>
 <![ %release.type.snapshot [
-<para>Une "race condition" existait et faisait en sorte qu'un fichier pouvait être supprimé
-        entre un appel à la fonction &man.fstatfs.2; et le 
-        point où l'on accède au fichier, provoquant une panique du noyau.
-        Seul le système de fichier &man.procfs.5; était connu comme étant
-        vulnérable à cette attaque. Ce bug a été fixé dans la
-        FreeBSD &os; &release.prev;, mais le Bulletin de Sécurité décrivant le bug
-        a été écrit après celle-ci.
-        Pour plus d'informations, incluant un moyen de contourner le problème et un patch, allez voir
-        le Bulletin de Sécurité <ulink 
+<para>Une "race condition" existait et faisait en sorte qu'un fichier pouvait &ecirc;tre supprim&eacute;
+        entre un appel &agrave; la fonction &man.fstatfs.2; et le 
+        point où l'on acc&egrave;de au fichier, provoquant une panique du noyau.
+        Seul le syst&egrave;me de fichier &man.procfs.5; &eacute;tait connu comme &eacute;tant
+        vuln&eacute;rable &agrave; cette attaque. Ce bug a &eacute;t&eacute; fix&eacute; dans la
+        FreeBSD &os; &release.prev;, mais le Bulletin de S&eacute;curit&eacute; d&eacute;crivant le bug
+        a &eacute;t&eacute; &eacute;crit apr&egrave;s celle-ci.
+        Pour plus d'informations, incluant un moyen de contourner le probl&egrave;me et un patch, allez voir
+        le Bulletin de S&eacute;curit&eacute; <ulink 
         url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:09.fstatfs.asc">FreeBSD-SA-02:09</ulink>.</para>
 
 <para>Un bogue dans le code de multiplexage de <application>OpenSSH</application> 
-    a été résolu. Ce bogue permet a un utilisateur distant authentifié de demander
-    au serveur &man.sshd.8; d'executer un programme avec les privilèges administrateur 
-    ou permet a un client SSH d'executer un programme avec les privilège de 
-    l'utilisateur client. Différents corrections, pour les versions de 
-    <application>OpenSSH</application> du système de base ou de la collection
-    des ports peuvent etre trouvé dans l'avis de sécurité
+    a &eacute;t&eacute; r&eacute;solu. Ce bogue permet a un utilisateur distant authentifi&eacute; de demander
+    au serveur &man.sshd.8; d'executer un programme avec les privil&egrave;ges administrateur 
+    ou permet a un client SSH d'executer un programme avec les privil&egrave;ge de 
+    l'utilisateur client. Diff&eacute;rents corrections, pour les versions de 
+    <application>OpenSSH</application> du syst&egrave;me de base ou de la collection
+    des ports peuvent etre trouv&eacute; dans l'avis de s&eacute;curit&eacute;
     <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:13.openssh.asc">FreeBSD-SA-02:13</ulink>.</para>
 
     <para>Une erreur de programmation dans <application>zlib</application>
-    pouvait générer de multiples libérations de mémoire. Les routines
-    &man.malloc.3;/&man.free.3; utilisées dans &os; ne sont pas vulnérables
+    pouvait g&eacute;n&eacute;rer de multiples lib&eacute;rations de m&eacute;moire. Les routines
+    &man.malloc.3;/&man.free.3; utilis&eacute;es dans &os; ne sont pas vuln&eacute;rables
     a ces erreurs, mais les applications qui recevaient certains types
-    de données ou des données compressées invalides pouvait etre touchées. Ce
-    bogue de <application>zlib</application> a été fixé. Pour les correctifs
-    voyez l'avis de sécurité <ulink
+    de donn&eacute;es ou des donn&eacute;es compress&eacute;es invalides pouvait etre touch&eacute;es. Ce
+    bogue de <application>zlib</application> a &eacute;t&eacute; fix&eacute;. Pour les correctifs
+    voyez l'avis de s&eacute;curit&eacute; <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:18.zlib.asc">FreeBSD-SA-02:18</ulink>.</para>
 
 
@@ -160,41 +160,41 @@ se référeront a &os; &release.current; et les version suivantes.</para>
   </sect1>
 
   <sect1>
-    <title>Information de mise a jour du système</title>
+    <title>Information de mise a jour du syst&egrave;me</title>
 
 <![ %release.type.release [
     <para>No active updates.</para>
 ]]>
 
 <![ %release.type.snapshot [
- <para>Certains clients SSH présenteront une ligne de commande 
-        <application>S/Key</application> lorsqu'ils éssaieront de se
-        connecter à un serveur FreeBSD  &os; &release.prev; même si le &man.sshd.8;
-	présent sur le serveur n'a pas été
-        configuré éxplicitement pour l'authentification <application>S/Key</application>. Ceci est dû aux 
-        réglages par défaut des clients ayant changés
-        (ex: utilisation du protocol SSH version 2 (SSH2) lorsqu'il n'était pas utilisé auparavant),
-        ou à un changement de l'ancienne séquence d'authentification par défaut du client.
-        Il existe plusieurs manières de régler ce problème :
+ <para>Certains clients SSH pr&eacute;senteront une ligne de commande 
+        <application>S/Key</application> lorsqu'ils &eacute;ssaieront de se
+        connecter &agrave; un serveur FreeBSD  &os; &release.prev; m&ecirc;me si le &man.sshd.8;
+	pr&eacute;sent sur le serveur n'a pas &eacute;t&eacute;
+        configur&eacute; &eacute;xplicitement pour l'authentification <application>S/Key</application>. Ceci est dû aux 
+        r&eacute;glages par d&eacute;faut des clients ayant chang&eacute;s
+        (ex: utilisation du protocol SSH version 2 (SSH2) lorsqu'il n'&eacute;tait pas utilis&eacute; auparavant),
+        ou &agrave; un changement de l'ancienne s&eacute;quence d'authentification par d&eacute;faut du client.
+        Il existe plusieurs mani&egrave;res de r&eacute;gler ce probl&egrave;me :
         <itemizedlist>
           <listitem>
             <para>Sur les nouveaux clients <application>OpenSSH</application>,
-            Ajouter la ligne suivante à votre fichier <filename>~/.ssh/config</filename>:
+            Ajouter la ligne suivante &agrave; votre fichier <filename>~/.ssh/config</filename>:
 <programlisting>PreferredAuthentications publickey,password,keyboard-interactive</programlisting>
             </para>
           </listitem>
 
           <listitem>
             <para>Pour les clients <application>PuTTY</application>, l'ordre
-            de la séquence d'authentification ne peut être changé, mais 
-            la séquence d'authentification "keyboard-interactive" peut être désactivée dans
-            les préférences.</para>
+            de la s&eacute;quence d'authentification ne peut &ecirc;tre chang&eacute;, mais 
+            la s&eacute;quence d'authentification "keyboard-interactive" peut &ecirc;tre d&eacute;sactiv&eacute;e dans
+            les pr&eacute;f&eacute;rences.</para>
           </listitem>
 
           <listitem>
-            <para>Pour désactiver l'authentification "keyboard-interactive"
+            <para>Pour d&eacute;sactiver l'authentification "keyboard-interactive"
             sur le serveur, enlevez les commentaires ('#') du fichier <filename>/etc/ssh/sshd_config</filename>
-	    (sur la machine serveur) à la ligne :
+	    (sur la machine serveur) &agrave; la ligne :
 <programlisting>ChallengeResponseAuthentication no</programlisting> 
             </para>
           </listitem>
@@ -202,23 +202,23 @@ se référeront a &os; &release.current; et les version suivantes.</para>
 	</para>
 	
 	<para>Les notes de versions mentionnaient le nouveau driver sbni,
-        mais indiquaient une mauvaise référence vers le programme de la
-        collection de ports &os; utilisé pour configurer le driver.
+        mais indiquaient une mauvaise r&eacute;f&eacute;rence vers le programme de la
+        collection de ports &os; utilis&eacute; pour configurer le driver.
         Le nom de fichier correct est <filename role="package">sysutils/sbniconfig</filename>.</para>
 
 
-	<para>L'émulation Linux requiert maintenant <literal>options
-	SYSVSEM</literal>dans le fichier de configuration du kernel. Cette dépendance a été
+	<para>L'&eacute;mulation Linux requiert maintenant <literal>options
+	SYSVSEM</literal>dans le fichier de configuration du kernel. Cette d&eacute;pendance a &eacute;t&eacute;
         introduite dans &os; avant la &release.prev;.</para>
 
 	<para>Les packages contenant certains composants optionnels de <application>KDE</application>
-	ont été omis accidentellement des
+	ont &eacute;t&eacute; omis accidentellement des
         images ISO (et donc des 4 CDs "officiels"). Dans les versions
-        précédentes, ces packages pouvaient être installés à partir du package
+        pr&eacute;c&eacute;dentes, ces packages pouvaient &ecirc;tre install&eacute;s &agrave; partir du package
 	<filename role="package">x11/kde2</filename>. Ces
-        composants peuvent être installés soit en utilisant la collection
-        des ports FreeBSD soit en téléchargeant les packages binaires d'un des
-        serveurs FTP FreeBSD. Les ports concernés sont : 
+        composants peuvent &ecirc;tre install&eacute;s soit en utilisant la collection
+        des ports FreeBSD soit en t&eacute;l&eacute;chargeant les packages binaires d'un des
+        serveurs FTP FreeBSD. Les ports concern&eacute;s sont : 
 	<filename role="package">games/kdegames2</filename>, <filename role="package">misc/kdeutils2</filename>,
       <filename role="package">editors/koffice</filename>, <filename role="package">net/kdenetwork2</filename>,
       <filename role="package">graphics/kdegraphics2</filename>,et 
@@ -228,30 +228,30 @@ se référeront a &os; &release.current; et les version suivantes.</para>
         souvent requis pour les autres composants, <emphasis>sont</emphasis>inclus sur
         le disque 1 des 4 CDs "officiels".
 	<footnote>
-	<para>La collection complète des packages &os; remplit
-          actuellement 9 CDROMs. Par conséquent, les 4 CDs "officiels"
+	<para>La collection compl&egrave;te des packages &os; remplit
+          actuellement 9 CDROMs. Par cons&eacute;quent, les 4 CDs "officiels"
           contiennent seulement une partie des packages disponibles. Plusieurs
           revendeurs FreeBSD proposent des distributions qui contiennent davantage
-          de packages; une collection plus complète est
-          également disponible sur les sites FTP &os;.</para>
+          de packages; une collection plus compl&egrave;te est
+          &eacute;galement disponible sur les sites FTP &os;.</para>
        </footnote>  
        </para>
 
        <para>Un package binaire contenant <application>Samba</application>
-        a été omis accidentellement des
-        images ISO. Ce logiciel peut être installé soit via le port
+        a &eacute;t&eacute; omis accidentellement des
+        images ISO. Ce logiciel peut &ecirc;tre install&eacute; soit via le port
         <filename role="package">net/samba</filename> de la collection 
-        des ports &os; soit en téléchargeant et en installant le
+        des ports &os; soit en t&eacute;l&eacute;chargeant et en installant le
         package binaire d'un des serveurs FTP &os;.</para>
 
 
-    <para>Un problème a été résolu dans les "soft updates" qui pouvait
-    occasionellement corrompre les systèmes de fichiers, si le système
-    était arrété juste après d'énormes activités de transfert de fichiers, 
+    <para>Un probl&egrave;me a &eacute;t&eacute; r&eacute;solu dans les "soft updates" qui pouvait
+    occasionellement corrompre les syst&egrave;mes de fichiers, si le syst&egrave;me
+    &eacute;tait arr&eacute;t&eacute; juste apr&egrave;s d'&eacute;normes activit&eacute;s de transfert de fichiers, 
     comme l'installation d'un nouveau noyau ou d'autres logiciels. Le programme
-    d'arret du système n'etait pas capable de vider tous les tampons
-    et le rapportait. Le problème peut etre résolu en effectuant plusieurs &man.sync.8;
-    avant de redémarrer, ou en mettant a jour avec une version plus récente
+    d'arret du syst&egrave;me n'etait pas capable de vider tous les tampons
+    et le rapportait. Le probl&egrave;me peut etre r&eacute;solu en effectuant plusieurs &man.sync.8;
+    avant de red&eacute;marrer, ou en mettant a jour avec une version plus r&eacute;cente
     de &os; &release.current;.</para>
 
 

@@ -4,7 +4,7 @@
 
      $Id$
      $FreeBSD$
-     Original revision: 1.10
+     Original revision: 1.2.10
 
 This file has architecture-dependent installation instructions, culled
 from {alpha,i386}/INSTALL.TXT.
