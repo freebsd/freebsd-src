@@ -345,6 +345,7 @@ wi_attach(device_t dev)
 	 */
 	switch (sc->sc_firmware_type) {
 	case WI_LUCENT:
+		sc->sc_ntxbuf = 1;
 		sc->sc_flags |= WI_FLAGS_HAS_SYSSCALE;
 #ifdef WI_HERMES_AUTOINC_WAR
 		/* XXX: not confirmed, but never seen for recent firmware */
@@ -360,6 +361,7 @@ wi_attach(device_t dev)
 		break;
 
 	case WI_INTERSIL:
+		sc->sc_ntxbuf = WI_NTXBUF;
 		sc->sc_flags |= WI_FLAGS_HAS_FRAGTHR;
 		sc->sc_flags |= WI_FLAGS_HAS_ROAMING;
 		sc->sc_flags |= WI_FLAGS_HAS_SYSSCALE;
@@ -378,6 +380,7 @@ wi_attach(device_t dev)
 		break;
 
 	case WI_SYMBOL:
+		sc->sc_ntxbuf = 1;
 		sc->sc_flags |= WI_FLAGS_HAS_DIVERSITY;
 		if (sc->sc_sta_firmware_ver >= 25000)
 			ic->ic_flags |= IEEE80211_F_HASIBSS;
@@ -553,10 +556,9 @@ wi_shutdown(device_t dev)
 void
 wi_intr(void *arg)
 {
-	int i;
 	struct wi_softc *sc = arg;
 	struct ifnet *ifp = &sc->sc_ic.ic_if;
-	u_int16_t status, raw_status, last_status;
+	u_int16_t status;
 	WI_LOCK_DECL();
 
 	WI_LOCK(sc);
@@ -568,39 +570,25 @@ wi_intr(void *arg)
 		return;
 	}
 
-	/* maximum 10 loops per interrupt */
-	last_status = 0;
-	for (i = 0; i < 10; i++) {
-		/*
-		 * Only believe a status bit when we enter wi_intr, or when
-		 * the bit was "off" the last time through the loop. This is
-		 * my strategy to avoid racing the hardware/firmware if I
-		 * can re-read the event status register more quickly than
-		 * it is updated.
-		 */
-		raw_status = CSR_READ_2(sc, WI_EVENT_STAT);
-		status = raw_status & ~last_status;
-		if ((status & WI_INTRS) == 0)
-			break;
-		last_status = raw_status;
+	/* Disable interrupts. */
+	CSR_WRITE_2(sc, WI_INT_EN, 0);
 
-		if (status & WI_EV_RX)
-			wi_rx_intr(sc);
+	status = CSR_READ_2(sc, WI_EVENT_STAT);
+	if (status & WI_EV_RX)
+		wi_rx_intr(sc);
+	if (status & WI_EV_ALLOC)
+		wi_tx_intr(sc);
+	if (status & WI_EV_TX_EXC)
+		wi_tx_ex_intr(sc);
+	if (status & WI_EV_INFO)
+		wi_info_intr(sc);
+	if ((ifp->if_flags & IFF_OACTIVE) == 0 &&
+	    (sc->sc_flags & WI_FLAGS_OUTRANGE) == 0 &&
+	    _IF_QLEN(&ifp->if_snd) != 0)
+		wi_start(ifp);
 
-		if (status & WI_EV_ALLOC)
-			wi_tx_intr(sc);
-
-		if (status & WI_EV_TX_EXC)
-			wi_tx_ex_intr(sc);
-
-		if (status & WI_EV_INFO)
-			wi_info_intr(sc);
-
-		if ((ifp->if_flags & IFF_OACTIVE) == 0 &&
-		    (sc->sc_flags & WI_FLAGS_OUTRANGE) == 0 &&
-		    _IF_QLEN(&ifp->if_snd) != 0)
-			wi_start(ifp);
-	}
+	/* Re-enable interrupts. */
+	CSR_WRITE_2(sc, WI_INT_EN, WI_INTRS);
 
 	WI_UNLOCK(sc);
 
@@ -722,7 +710,7 @@ wi_init(void *arg)
 		sc->sc_buflen = IEEE80211_MAX_LEN + sizeof(struct wi_frame);
 		if (sc->sc_firmware_type == WI_SYMBOL)
 			sc->sc_buflen = 1585;	/* XXX */
-		for (i = 0; i < WI_NTXBUF; i++) {
+		for (i = 0; i < sc->sc_ntxbuf; i++) {
 			error = wi_alloc_fid(sc, sc->sc_buflen,
 			    &sc->sc_txd[i].d_fid);
 			if (error) {
@@ -941,7 +929,7 @@ wi_start(struct ifnet *ifp)
 			sc->sc_tx_timer = 5;
 			ifp->if_timer = 1;
 		}
-		sc->sc_txnext = cur = (cur + 1) % WI_NTXBUF;
+		sc->sc_txnext = cur = (cur + 1) % sc->sc_ntxbuf;
 	}
 
 	WI_UNLOCK(sc);
@@ -1465,7 +1453,7 @@ wi_tx_intr(struct wi_softc *sc)
 	}
 	sc->sc_tx_timer = 0;
 	sc->sc_txd[cur].d_len = 0;
-	sc->sc_txcur = cur = (cur + 1) % WI_NTXBUF;
+	sc->sc_txcur = cur = (cur + 1) % sc->sc_ntxbuf;
 	if (sc->sc_txd[cur].d_len == 0)
 		ifp->if_flags &= ~IFF_OACTIVE;
 	else {
