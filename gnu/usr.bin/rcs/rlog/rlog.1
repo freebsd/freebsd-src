@@ -2,7 +2,7 @@
 .ds Rv \\$3
 .ds Dt \\$4
 ..
-.Id $Id: rlog.1,v 5.3 1991/08/22 06:50:48 eggert Exp $
+.Id $Id: rlog.1,v 1.1.1.1 1993/06/18 04:22:17 jkh Exp $
 .ds g \&\s-1UTC\s0
 .ds r \&\s-1RCS\s0
 .if n .ds - \%--
@@ -53,6 +53,10 @@ and
 Print only the name of the \*r file.
 This is convenient for translating a
 working pathname into an \*r pathname.
+.TP
+.BI \-v "[string]"
+Print only the working pathname and head.  The optional string is prepended
+to the outputline.
 .TP
 .B \-h
 Print only the \*r pathname, working pathname, head,
