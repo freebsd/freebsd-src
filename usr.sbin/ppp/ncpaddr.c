@@ -324,7 +324,6 @@ ncpaddr_getsa(const struct ncpaddr *addr, struct sockaddr_storage *host)
     host6->sin6_family = AF_INET6;
     host6->sin6_len = sizeof(*host6);
     host6->sin6_addr = addr->ncpaddr_ip6addr;
-    adjust_linklocal(host6);
     break;
 #endif
 
@@ -610,6 +609,21 @@ ncprange_sethost(struct ncprange *range, const struct ncpaddr *from)
 }
 
 int
+ncprange_ishost(const struct ncprange *range)
+{
+  switch (range->ncprange_family) {
+  case AF_INET:
+    return range->ncprange_ip4width == 32;
+#ifndef NOINET6
+  case AF_INET6:
+    return range->ncprange_ip6width == 128;
+#endif
+  }
+
+  return (0);
+}
+
+int
 ncprange_setwidth(struct ncprange *range, int width)
 {
   switch (range->ncprange_family) {
@@ -733,7 +747,6 @@ ncprange_getsa(const struct ncprange *range, struct sockaddr_storage *host,
     host6->sin6_family = AF_INET6;
     host6->sin6_len = sizeof(*host6);
     host6->sin6_addr = range->ncprange_ip6addr;
-    adjust_linklocal(host6);
     if (mask6) {
       mask6->sin6_family = AF_INET6;
       mask6->sin6_len = sizeof(*host6);
