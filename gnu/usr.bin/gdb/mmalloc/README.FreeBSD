@@ -1,4 +1,0 @@
-This is a greatly pared down libmmalloc directory. Only what's required to build
-gdb-4.13 on FreeBSD 2.0 was kept.
-
-gj@freebsd.org
