@@ -7,4 +7,4 @@ the Packages item in this menu.
 
 For setting the timezone after the system is installed, type
 ``tzsetup''.  For more information on the overall general system
-configuration, see the ``/etc/sysconfig'' file.
+configuration, see the ``/etc/rc.conf'' file.
