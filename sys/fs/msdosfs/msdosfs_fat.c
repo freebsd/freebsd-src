@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_fat.c,v 1.4 1994/12/12 12:35:45 bde Exp $ */
+/*	$Id: msdosfs_fat.c,v 1.5 1995/02/10 18:39:45 bde Exp $ */
 /*	$NetBSD: msdosfs_fat.c,v 1.12 1994/08/21 18:44:04 ws Exp $	*/
 
 /*-
@@ -163,7 +163,7 @@ pcbmap(dep, findcn, bnp, cnp)
 	 */
 	if (cn == MSDOSFSROOT) {
 		if (dep->de_Attributes & ATTR_DIRECTORY) {
-			if (findcn * pmp->pm_SectPerClust > pmp->pm_rootdirsize) {
+			if (findcn * pmp->pm_SectPerClust >= pmp->pm_rootdirsize) {
 				if (cnp)
 					*cnp = pmp->pm_rootdirsize / pmp->pm_SectPerClust;
 				return E2BIG;
