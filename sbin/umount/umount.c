@@ -53,6 +53,7 @@ static const char rcsid[] =
 #include <rpc/rpc.h>
 #include <nfs/rpcv2.h>
 
+#include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <fstab.h>
@@ -66,7 +67,7 @@ static const char rcsid[] =
 #define ISDOT(x)	((x)[0] == '.' && (x)[1] == '\0')
 #define ISDOTDOT(x)	((x)[0] == '.' && (x)[1] == '.' && (x)[2] == '\0')
 
-typedef enum { MNTON, MNTFROM, NOTHING } mntwhat;
+typedef enum { MNTON, MNTFROM, MNTFSID, NOTHING } mntwhat;
 typedef enum { MARK, UNMARK, NAME, COUNT, FREE } dowhat;
 
 struct  addrinfo *nfshost_ai = NULL;
@@ -465,6 +466,8 @@ getmntentry(const char *fromname, const char *onname, mntwhat what, dowhat mark)
 	static size_t mntsize = 0;
 	static char *mntcheck = NULL;
 	static char *mntcount = NULL;
+	fsid_t fsid;
+	char hexbuf[3];
 	int i, count;
 
 	if (mntsize <= 0) {
@@ -489,10 +492,41 @@ getmntentry(const char *fromname, const char *onname, mntwhat what, dowhat mark)
 	switch (mark) {
 	case NAME:
 		/* Return only the specific name */
+		if (fromname == NULL)
+			return (NULL);
+		if (what == MNTFSID) {
+			/* Convert the hex filesystem ID to a fsid_t. */
+			if (strlen(fromname) != sizeof(fsid) * 2)
+				return (NULL);
+			hexbuf[2] = '\0';
+			for (i = 0; i < sizeof(fsid); i++) {
+				hexbuf[0] = fromname[i * 2];
+				hexbuf[1] = fromname[i * 2 + 1];
+				if (!isxdigit(hexbuf[0]) ||
+				    !isxdigit(hexbuf[1]))
+					return (NULL);
+				((u_char *)&fsid)[i] = strtol(hexbuf, NULL, 16);
+			}
+		}
 		for (i = mntsize - 1; i >= 0; i--) {
-			if (fromname != NULL && !strcmp((what == MNTFROM) ?
-			    mntbuf[i].f_mntfromname : mntbuf[i].f_mntonname,
-			    fromname) && mntcheck[i] != 1)
+			switch (what) {
+			case MNTON:
+				if (strcmp(mntbuf[i].f_mntonname,
+				    fromname) != 0)
+					continue;
+				break;
+			case MNTFROM:
+				if (strcmp(mntbuf[i].f_mntfromname,
+				    fromname) != 0)
+					continue;
+			case MNTFSID:
+				if (bcmp(&mntbuf[i].f_fsid, &fsid,
+				    sizeof(fsid)) != 0)
+				continue;
+			case NOTHING: /* silence compiler warning */
+				break;
+			}
+			if (mntcheck[i] != 1)
 				return (&mntbuf[i]);
 		}
 
@@ -609,7 +643,9 @@ checkmntlist(char *name)
 {
 	struct statfs *sfs;
 
-	sfs = getmntentry(name, NULL, MNTON, NAME);
+	sfs = getmntentry(name, NULL, MNTFSID, NAME);
+	if (sfs == NULL)
+		sfs = getmntentry(name, NULL, MNTON, NAME);
 	if (sfs == NULL)
 		sfs = getmntentry(name, NULL, MNTFROM, NAME);
 	return (sfs);
