@@ -249,7 +249,6 @@ vm_forkproc(td, p2, td2, flags)
 	}
 
 	pmap_new_proc(p2);
-	pmap_new_thread(td2);		/* Initial thread */
 
 	/* XXXKSE this is unsatisfactory but should be adequate */
 	up = p2->p_uarea;
