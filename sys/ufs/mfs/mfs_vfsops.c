@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.4 (Berkeley) 4/16/94
- * $Id: mfs_vfsops.c,v 1.9 1995/05/29 03:27:37 phk Exp $
+ * $Id: mfs_vfsops.c,v 1.10 1995/08/11 11:31:18 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -272,7 +272,6 @@ mfs_start(mp, flags, p)
 	register struct mfsnode *mfsp = VTOMFS(vp);
 	register struct buf *bp;
 	register caddr_t base;
-	int error = 0;
 
 	base = mfsp->mfs_baseoff;
 	while (mfsp->mfs_buflist != (struct buf *)(-1)) {
@@ -287,11 +286,11 @@ mfs_start(mp, flags, p)
 		 * otherwise we will loop here, as tsleep will always return
 		 * EINTR/ERESTART.
 		 */
-		if (error = tsleep((caddr_t)vp, mfs_pri, "mfsidl", 0))
-			if (dounmount(mp, 0, p) != 0)
-				CLRSIG(p, CURSIG(p));
+		if (tsleep((caddr_t)vp, mfs_pri, "mfsidl", 0) &&
+		    dounmount(mp, 0, p) != 0)
+			CLRSIG(p, CURSIG(p));
 	}
-	return (error);
+	return (0);
 }
 
 /*
