@@ -30,12 +30,15 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "namespace.h"
+/*
+ * I din't use "namespace.h" here because none of the relevant utilities
+ * are threaded, so I'm not concerned about cancellation points or other
+ * niceties.
+ */
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "un-namespace.h"
 
 #ifndef LINE_MAX
 #define	LINE_MAX _POSIX2_LINE_MAX
@@ -52,7 +55,7 @@ check_utility_compat(const char *utility)
 	int len;
 
 	if ((p = getenv(_ENV_UTIL_COMPAT)) != NULL) {
-		_strlcpy(buf, p, sizeof buf);
+		strlcpy(buf, p, sizeof buf);
 	} else {
 		if ((len = readlink(_PATH_UTIL_COMPAT, buf, sizeof buf)) < 0)
 			return 0;
