@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.5 (Berkeley) 2/13/94
- * $Id: nfs_vnops.c,v 1.34 1996/07/16 10:19:45 dfr Exp $
+ * $Id: nfs_vnops.c,v 1.35 1996/09/19 18:21:01 nate Exp $
  */
 
 /*
@@ -2066,13 +2066,13 @@ nfs_readdirrpc(vp, uiop, cred)
 #endif
 
 	/*
-	 * If there is no cookie, assume end of directory.
+	 * If there is no cookie, assume directory was stale.
 	 */
 	cookiep = nfs_getcookie(dnp, uiop->uio_offset, 0);
 	if (cookiep)
 		cookie = *cookiep;
 	else
-		return (0);
+		return (NFSERR_BAD_COOKIE);
 	/*
 	 * Loop around doing readdir rpc's of size nm_readdirsize
 	 * truncated to a multiple of DIRBLKSIZ.
@@ -2255,13 +2255,13 @@ nfs_readdirplusrpc(vp, uiop, cred)
 	newvp = NULLVP;
 
 	/*
-	 * If there is no cookie, assume end of directory.
+	 * If there is no cookie, assume directory was stale.
 	 */
 	cookiep = nfs_getcookie(dnp, uiop->uio_offset, 0);
 	if (cookiep)
 		cookie = *cookiep;
 	else
-		return (0);
+		return (NFSERR_BAD_COOKIE);
 	/*
 	 * Loop around doing readdir rpc's of size nm_readdirsize
 	 * truncated to a multiple of DIRBLKSIZ.
