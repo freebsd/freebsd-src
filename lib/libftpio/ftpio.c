@@ -498,8 +498,9 @@ ftp_close_method(void *n)
 static void
 check_passive(FILE *fp)
 {
-    if (getenv("FTP_PASSIVE_MODE"))
-	ftpPassive(fp, TRUE);
+    char *cp = getenv("FTP_PASSIVE_MODE");
+
+    ftpPassive(fp, (cp && !strncmp(cp, "YES", 3)));
 }
 
 static void
