@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$Id: smbus_if.m,v 1.1.1.1 1998/09/03 20:52:54 nsouch Exp $
+#	$Id: smbus_if.m,v 1.2 1998/10/31 11:39:54 nsouch Exp $
 #
 
 INTERFACE smbus
@@ -129,7 +129,7 @@ METHOD int pcall {
 #
 # Block Write command
 #
-METHODE int bwrite {
+METHOD int bwrite {
 	device_t dev;
 	u_char slave;
 	char cmd;
@@ -140,7 +140,7 @@ METHODE int bwrite {
 #
 # Block Read command
 #
-METHODE int bread {
+METHOD int bread {
 	device_t dev;
 	u_char slave;
 	char cmd;
