@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.113 1997/04/01 08:38:53 bde Exp $
+ * $Id: vfs_bio.c,v 1.114 1997/04/13 03:33:25 dyson Exp $
  */
 
 /*
@@ -1942,3 +1942,32 @@ vm_hold_free_pages(struct buf * bp, vm_offset_t from, vm_offset_t to)
 	}
 	bp->b_npages = from >> PAGE_SHIFT;
 }
+
+
+#include "opt_ddb.h"
+#ifdef DDB
+#include <ddb/ddb.h>
+
+DB_SHOW_COMMAND(buffer, db_show_buffer)
+{
+	/* get args */
+	struct buf *bp = (struct buf *)addr;
+
+	if (!have_addr) {
+		db_printf("usage: show buffer <addr>\n");
+		return;
+	}
+
+	db_printf("b_proc = %p,\nb_flags = 0x%b\n", (void *)bp->b_proc,
+		  bp->b_flags, "\20\40bounce\37cluster\36vmio\35ram\34ordered"
+		  "\33paging\32xxx\31writeinprog\30wanted\27relbuf\26tape"
+		  "\25read\24raw\23phys\22clusterok\21malloc\20nocache"
+		  "\17locked\16inval\15gathered\14error\13eintr\12done\11dirty"
+		  "\10delwri\7call\6cache\5busy\4bad\3async\2needcommit\1age");
+	db_printf("b_error = %d, b_bufsize = %ld, b_bcount = %ld, "
+		  "b_resid = %ld\nb_dev = 0x%x, b_un.b_addr = %p, "
+		  "b_blkno = %d, b_pblkno = %d\n",
+		  bp->b_error, bp->b_bufsize, bp->b_bcount, bp->b_resid,
+		  bp->b_dev, bp->b_un.b_addr, bp->b_blkno, bp->b_pblkno);
+}
+#endif /* DDB */
