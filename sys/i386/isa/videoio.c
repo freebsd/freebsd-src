@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: videoio.c,v 1.6 1998/10/01 11:39:18 yokota Exp $
+ * $Id: videoio.c,v 1.7 1998/12/07 21:58:24 archie Exp $
  */
 
 #include "sc.h"
@@ -574,9 +574,9 @@ vid_init(void)
      */
 
     /* 
-     * Check rtc and BIOS date area.
+     * Check rtc and BIOS data area.
      * XXX: we don't use BIOSDATA_EQUIPMENT, since it is not a dead
-     * copy of RTC_EQUIPMENT.  Bits 4 and 5 of the ETC_EQUIPMENT are
+     * copy of RTC_EQUIPMENT.  Bits 4 and 5 of ETC_EQUIPMENT are
      * zeros for EGA and VGA.  However, the EGA/VGA BIOS sets
      * these bits in BIOSDATA_EQUIPMENT according to the monitor
      * type detected.
