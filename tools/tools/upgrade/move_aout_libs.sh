@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-#	$Id: move_aout_libs.sh,v 1.1 1998/09/09 05:28:18 jb Exp $
+#	$Id: move_aout_libs.sh,v 1.2 1998/09/16 17:42:53 phk Exp $
 # 
 # Search for a.out libraries and move them to an aout subdirectory of
 # the elf library directory.
@@ -50,6 +50,7 @@ move_file ( )
 			done
 			if test $answer = "y"; then
 				echo Deleting $file
+				chflags noschg $file
 				rm $file
 			else
 				echo "You need to move $file out of $dir because that's an elf directory"
@@ -62,6 +63,7 @@ move_file ( )
 			done
 			if test $answer = "y"; then
 				echo Overwriting $dir/aout/$fname with $file
+				chflags noschg $file
 				mv $file $dir/aout/$fname
 				ldconfig -R
 			else
@@ -70,6 +72,7 @@ move_file ( )
 		fi
 	else
 		echo Move $fname from $dir to $dir/aout
+		chflags noschg $file
 		mv $file $dir/aout/$fname
 		ldconfig -R
 	fi
