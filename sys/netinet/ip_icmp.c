@@ -835,49 +835,39 @@ ip_next_mtu(mtu, dir)
 int
 badport_bandlim(int which)
 {
-	static int lticks[BANDLIM_MAX + 1];
-	static int lpackets[BANDLIM_MAX + 1];
-	int dticks;
-	const char *bandlimittype[] = {
-		"Limiting icmp unreach response",
-		"Limiting icmp ping response",
-		"Limiting icmp tstamp response",
-		"Limiting closed port RST response",
-		"Limiting open port RST response"
-		};
+#define	N(a)	(sizeof (a) / sizeof (a[0]))
+	static struct rate {
+		const char	*type;
+		struct timeval	lasttime;
+		int		curpps;;
+	} rates[BANDLIM_MAX+1] = {
+		{ "icmp unreach response" },
+		{ "icmp ping response" },
+		{ "icmp tstamp response" },
+		{ "closed port RST response" },
+		{ "open port RST response" }
+	};
 
 	/*
-	 * Return ok status if feature disabled or argument out of
-	 * ranage.
+	 * Return ok status if feature disabled or argument out of range.
 	 */
+	if (icmplim > 0 && (u_int) which < N(rates)) {
+		struct rate *r = &rates[which];
+		int opps = r->curpps;
 
-	if (icmplim <= 0 || which > BANDLIM_MAX || which < 0)
-		return(0);
-	dticks = ticks - lticks[which];
-
-	/*
-	 * reset stats when cumulative dt exceeds one second.
-	 */
-
-	if ((unsigned int)dticks > hz) {
-		if (lpackets[which] > icmplim && icmplim_output) {
-			printf("%s from %d to %d packets per second\n",
-				bandlimittype[which],
-				lpackets[which],
-				icmplim
+		if (!ppsratecheck(&r->lasttime, &r->curpps, icmplim))
+			return -1;	/* discard packet */
+		/*
+		 * If we've dropped below the threshold after having
+		 * rate-limited traffic print the message.  This preserves
+		 * the previous behaviour at the expense of added complexity.
+		 */
+		if (icmplim_output && opps > icmplim) {
+			printf("Limiting %s from %d to %d packets/sec\n",
+				r->type, opps, icmplim
 			);
 		}
-		lticks[which] = ticks;
-		lpackets[which] = 0;
 	}
-
-	/*
-	 * bump packet count
-	 */
-
-	if (++lpackets[which] > icmplim) {
-		return(-1);
-	}
-	return(0);
+	return 0;			/* okay to send packet */
+#undef N
 }
-
