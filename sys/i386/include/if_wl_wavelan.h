@@ -112,7 +112,7 @@
 #define WLPSA_UNIMAC		0x10	/* Universal MAC address */
 #define WLPSA_LOCALMAC		0x16	/* Locally configured MAC address */
 #define WLPSA_MACSEL		0x1c	/* MAC selector */
-#define WLPSA_COMPATNO		0x1d	/* compatability number */
+#define WLPSA_COMPATNO		0x1d	/* compatibility number */
 #define WLPSA_THRESH		0x1e	/* RF modem threshold preset */
 #define WLPSA_FEATSEL		0x1f	/* feature select */
 #define WLPSA_SUBBAND		0x20	/* subband selector */

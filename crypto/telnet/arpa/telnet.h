@@ -214,7 +214,7 @@ char *telopts[NTELOPTS+1] = {
 #define	NSLC		30
 
 /*
- * For backwards compatability, we define SLC_NAMES to be the
+ * For backwards compatibility, we define SLC_NAMES to be the
  * list of names if SLC_NAMES is not defined.
  */
 #define	SLC_NAMELIST	"0", "SYNCH", "BRK", "IP", "AO", "AYT", "EOR", \

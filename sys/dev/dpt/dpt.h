@@ -904,7 +904,7 @@ typedef struct dpt_ccb {
 } dpt_ccb_t;
 
 /*
- * This is provided for compatability with UnixWare only.
+ * This is provided for compatibility with UnixWare only.
  * Some of the fields may be bogus.
  * Others may have a totally different meaning.
  */
