@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.101 1995/01/11 08:53:28 asami Exp $
+# $Id: bsd.port.mk,v 1.102 1995/01/12 02:29:42 ache Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -517,16 +517,23 @@ checksum: fetch
 	@if [ ! -f ${MD5_FILE} ]; then \
 		echo ">> No MD5 checksum file."; \
 	else \
-		(cd ${DISTDIR}; \
+		(cd ${DISTDIR}; OK="true"; \
 	for file in ${DISTFILES}; do \
 		CKSUM=`${MD5} $$file | awk '{print $$4}'`; \
 		CKSUM2=`grep "($$file)" ${MD5_FILE} | awk '{print $$4}'`; \
-		if [ "$$CKSUM" != "$$CKSUM2" ]; then \
+		if [ "$$CKSUM2" = "" ]; then \
+			echo ">> No checksum recorded for $$file"; \
+			OK="false"; \
+		elif [ "$$CKSUM" != "$$CKSUM2" ]; then \
 			echo ">> Checksum mismatch for $$file"; \
 			exit 1; \
 		fi; \
 		done); \
-		echo "Checksums OK."; \
+		if [ "$$OK" = "true" ]; then \
+			echo "Checksums OK."; \
+		else \
+			echo "Checksums OK for files that have them."; \
+        fi; \
 	fi
 .endif
 
