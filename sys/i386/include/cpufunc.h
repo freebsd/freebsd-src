@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.45 1996/01/16 07:42:08 bde Exp $
+ *	$Id: cpufunc.h,v 1.46 1996/03/26 19:57:56 wollman Exp $
  */
 
 /*
@@ -323,7 +323,7 @@ rdpmc(unsigned pmc)
 static __inline void
 wrmsr(unsigned msr, long long newval)
 {
-	__asm __volatile(".byte 0x0f, 0x33" : : "A" (newval), "c" (msr));
+	__asm __volatile(".byte 0x0f, 0x30" : : "A" (newval), "c" (msr));
 }
 
 #else /* !__GNUC__ */
