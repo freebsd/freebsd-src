@@ -36,26 +36,36 @@
 
   template<typename _CharT>
     __timepunct<_CharT>::__timepunct(size_t __refs) 
-    : locale::facet(__refs)
+    : facet(__refs), _M_data(NULL)
     { 
-      _M_name_timepunct = _S_c_name;
+      _M_name_timepunct = _S_get_c_name();
+      _M_initialize_timepunct(); 
+    }
+
+  template<typename _CharT>
+    __timepunct<_CharT>::__timepunct(__cache_type* __cache, size_t __refs) 
+    : facet(__refs), _M_data(__cache)
+    { 
+      _M_name_timepunct = _S_get_c_name();
       _M_initialize_timepunct(); 
     }
 
   template<typename _CharT>
     __timepunct<_CharT>::__timepunct(__c_locale __cloc, const char* __s, 
 				     size_t __refs) 
-    : locale::facet(__refs)
+    : facet(__refs), _M_data(NULL)
     { 
-      _M_name_timepunct = new char[strlen(__s) + 1];
-      strcpy(_M_name_timepunct, __s);
+      char* __tmp = new char[std::strlen(__s) + 1];
+      std::strcpy(__tmp, __s);
+      _M_name_timepunct = __tmp;
       _M_initialize_timepunct(__cloc); 
     }
 
   template<typename _CharT>
     __timepunct<_CharT>::~__timepunct()
     { 
-      if (_S_c_name != _M_name_timepunct)
+      if (_M_name_timepunct != _S_get_c_name())
 	delete [] _M_name_timepunct;
+      delete _M_data;
       _S_destroy_c_locale(_M_c_locale_timepunct); 
     }

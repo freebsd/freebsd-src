@@ -1,6 +1,6 @@
 // Low-level functions for atomic operations: CRIS version  -*- C++ -*-
 
-// Copyright (C) 2001 Free Software Foundation, Inc.
+// Copyright (C) 2001, 2003, 2004 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -27,21 +27,18 @@
 // invalidate any other reasons why the executable file might be covered by
 // the GNU General Public License.
 
-#ifndef _BITS_ATOMICITY_H
-#define _BITS_ATOMICITY_H	1
+#include <bits/atomicity.h>
 
-// This entity must not cross a page boundary.
-typedef int _Atomic_word __attribute__ ((__aligned__ (4)));
-
-static inline _Atomic_word
-__attribute__ ((__unused__))
-__exchange_and_add (_Atomic_word* __mem, int __val)
+namespace __gnu_cxx
 {
-  int __tmp;
-  _Atomic_word __result;
+  _Atomic_word
+  __exchange_and_add(volatile _Atomic_word* __mem, int __val)
+  {
+    int __tmp;
+    _Atomic_word __result;
 
 #if (__CRIS_arch_version >= 10)
-  __asm__ __volatile__ (" clearf		\n"
+    __asm__ __volatile__ (" clearf		\n"
 			"0:			\n"
 			" move.d %4,%2		\n"
 			" move.d [%3],%0	\n"
@@ -52,9 +49,11 @@ __exchange_and_add (_Atomic_word* __mem, int __val)
 			" clearf		\n"
 			:  "=&r" (__result), "=m" (*__mem), "=&r" (__tmp)
 			: "r" (__mem), "g" (__val), "m" (*__mem)
+			/* The memory clobber must stay, regardless of
+			   current uses of this function.  */
 			: "memory");
 #else
-  __asm__ __volatile__ (" move $ccr,$r9		\n"
+    __asm__ __volatile__ (" move $ccr,$r9	\n"
 			" di			\n"
 			" move.d %4,%2		\n"
 			" move.d [%3],%0	\n"
@@ -63,17 +62,16 @@ __exchange_and_add (_Atomic_word* __mem, int __val)
 			" move $r9,$ccr		\n"
 			:  "=&r" (__result), "=m" (*__mem), "=&r" (__tmp)
 			: "r" (__mem), "g" (__val), "m" (*__mem)
-			: "memory", "r9");
+			: "r9",
+			  /* The memory clobber must stay, regardless of
+			     current uses of this function.  */
+			  "memory");
 #endif
 
-  return __result;
-}
+    return __result;
+  }
 
-static inline void
-__attribute__ ((__unused__))
-__atomic_add (_Atomic_word* __mem, int __val)
-{
-  __exchange_and_add (__mem, __val);
-}
-
-#endif /* atomicity.h */
+  void
+  __atomic_add(volatile _Atomic_word* __mem, int __val)
+  { __exchange_and_add(__mem, __val); }
+} // namespace __gnu_cxx

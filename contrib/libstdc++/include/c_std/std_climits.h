@@ -41,8 +41,8 @@
  *  contained in the namespace @c std.
  */
 
-#ifndef _CPP_CLIMITS
-#define _CPP_CLIMITS	1
+#ifndef _GLIBCXX_CLIMITS
+#define _GLIBCXX_CLIMITS 1
 
 #pragma GCC system_header
 

@@ -1,6 +1,6 @@
 // -*- C++ -*- compatibility header.
 
-// Copyright (C) 2002 Free Software Foundation, Inc.
+// Copyright (C) 2002, 2003 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -27,14 +27,14 @@
 // invalidate any other reasons why the executable file might be covered by
 // the GNU General Public License.
 
-#ifndef _CPP_WCHAR_H_
-#define _CPP_WCHAR_H_ 1
+#ifndef _GLIBCXX_WCHAR_H
+#define _GLIBCXX_WCHAR_H 1
 
 #include <cwchar>
 
 using std::mbstate_t;
 
-#if _GLIBCPP_USE_WCHAR_T
+#if _GLIBCXX_USE_WCHAR_T
 using std::wint_t;
 
 using std::btowc;
@@ -50,11 +50,17 @@ using std::fwscanf;
 using std::swprintf;
 using std::swscanf;
 using std::vfwprintf;
+#if _GLIBCXX_HAVE_VFWSCANF
 using std::vfwscanf;
+#endif
 using std::vswprintf;
+#if _GLIBCXX_HAVE_VSWSCANF
 using std::vswscanf;
+#endif
 using std::vwprintf;
+#if _GLIBCXX_HAVE_VWSCANF
 using std::vwscanf;
+#endif
 using std::wprintf;
 using std::wscanf;
 using std::getwc;
@@ -69,7 +75,9 @@ using std::putwchar;
 using std::ungetwc;
 using std::wcrtomb;
 using std::wcstod;
+#if _GLIBCXX_HAVE_WCSTOF
 using std::wcstof;
+#endif
 using std::wcstol;
 using std::wcstoul;
 using std::wcscpy;
@@ -95,12 +103,12 @@ using std::wmemmove;
 using std::wmemset;
 using std::wcsftime;
 
-#if _GLIBCPP_USE_C99
+#if _GLIBCXX_USE_C99
 using std::wcstold;
 using std::wcstoll;
 using std::wcstoull;
 #endif
 
-#endif  //_GLIBCPP_USE_WCHAR_T
+#endif  //_GLIBCXX_USE_WCHAR_T
 
 #endif

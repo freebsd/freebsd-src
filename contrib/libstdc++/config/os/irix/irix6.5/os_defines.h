@@ -27,8 +27,8 @@
 // invalidate any other reasons why the executable file might be covered by
 // the GNU General Public License.
 
-#ifndef _GLIBCPP_OS_DEFINES
-#define _GLIBCPP_OS_DEFINES 1
+#ifndef _GLIBCXX_OS_DEFINES
+#define _GLIBCXX_OS_DEFINES 1
 
 // System-specific #define, typedefs, corrections, etc, go here.  This
 // file will come before all others.
@@ -50,6 +50,9 @@
 
 // GCC does not use thunks on IRIX. 
 #define _G_USING_THUNKS 0
+
+// FINOREAD takes an "off_t *" as argument.
+#define _GLIBCXX_FIONREAD_TAKES_OFF_T
 
 #endif
 

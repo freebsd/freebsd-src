@@ -1,21 +1,21 @@
 // Methods for type_info for -*- C++ -*- Run Time Type Identification.
-// Copyright (C) 1994, 1996, 1998, 1999, 2000, 2001, 2002, 2003
+// Copyright (C) 1994, 1996, 1998, 1999, 2000, 2001, 2002, 2003, 2004
 // Free Software Foundation
 //
-// This file is part of GNU CC.
+// This file is part of GCC.
 //
-// GNU CC is free software; you can redistribute it and/or modify
+// GCC is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation; either version 2, or (at your option)
 // any later version.
 
-// GNU CC is distributed in the hope that it will be useful,
+// GCC is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with GNU CC; see the file COPYING.  If not, write to
+// along with GCC; see the file COPYING.  If not, write to
 // the Free Software Foundation, 59 Temple Place - Suite 330,
 // Boston, MA 02111-1307, USA. 
 
@@ -85,7 +85,7 @@ __do_upcast (const abi::__class_type_info *, void **) const
   return false;
 }
 
-};
+}
 
 namespace {
 
@@ -100,7 +100,7 @@ struct vtable_prefix
   ptrdiff_t whole_object;
 
   // Additional padding if necessary.
-#ifdef _GLIBCPP_VTABLE_PADDING
+#ifdef _GLIBCXX_VTABLE_PADDING
   ptrdiff_t padding1;               
 #endif
 
@@ -108,7 +108,7 @@ struct vtable_prefix
   const __class_type_info *whole_type;  
 
   // Additional padding if necessary.
-#ifdef _GLIBCPP_VTABLE_PADDING
+#ifdef _GLIBCXX_VTABLE_PADDING
   ptrdiff_t padding2;               
 #endif
 
@@ -172,7 +172,7 @@ inline bool contained_nonvirtual_p (__class_type_info::__sub_kind access_path)
 static const __class_type_info *const nonvirtual_base_type =
     static_cast <const __class_type_info *> (0) + 1;
 
-}; // namespace
+} // namespace
 
 namespace __cxxabiv1
 {
@@ -200,7 +200,6 @@ struct __class_type_info::__upcast_result
                               // if in vbase the __class_type_info of vbase
                               // if a non-virtual base then 1
                               // else NULL
-  public:
   __upcast_result (int d)
     :dst_ptr (NULL), part2dst (__unknown), src_details (d), base_type (NULL)
     {}
@@ -216,12 +215,17 @@ struct __class_type_info::__dyncast_result
   __sub_kind dst2src;         // path from target to sub object
   int whole_details;          // details of the whole class hierarchy
   
-  public:
   __dyncast_result (int details_ = __vmi_class_type_info::__flags_unknown_mask)
     :dst_ptr (NULL), whole2dst (__unknown),
      whole2src (__unknown), dst2src (__unknown),
      whole_details (details_)
     {}
+
+protected:
+  __dyncast_result(const __dyncast_result&);
+  
+  __dyncast_result&
+  operator=(const __dyncast_result&);
 };
 
 bool __class_type_info::
@@ -736,4 +740,4 @@ __dynamic_cast (const void *src_ptr,    // object started from
   return NULL;
 }
 
-}; // namespace __cxxabiv1
+} // namespace __cxxabiv1

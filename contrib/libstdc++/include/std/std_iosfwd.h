@@ -37,16 +37,17 @@
  *  in your programs, rather than any of the "st[dl]_*.h" implementation files.
  */
 
-#ifndef _CPP_IOSFWD
-#define _CPP_IOSFWD 1
+#ifndef _GLIBCXX_IOSFWD
+#define _GLIBCXX_IOSFWD 1
 
 #pragma GCC system_header
 
 #include <bits/c++config.h>
 #include <bits/c++locale.h> 
+#include <bits/c++io.h> 
 #include <cctype>		// For isspace, etc.
 #include <bits/stringfwd.h> 	// For string forward declarations.
-#include <bits/fpos.h>
+#include <bits/postypes.h>
 #include <bits/functexcept.h>
 
 namespace std 
@@ -100,10 +101,9 @@ namespace std
   template<typename _CharT, typename _Traits = char_traits<_CharT> >
     class ostreambuf_iterator;
 
-#ifdef _GLIBCPP_RESOLVE_LIB_DEFECTS
+  // _GLIBCXX_RESOLVE_LIB_DEFECTS
   // Not included.   (??? Apparently no LWG number?)
   class ios_base; 
-#endif
 
   /** 
    *  @defgroup s27_2_iosfwd I/O Forward Declarations
@@ -147,7 +147,7 @@ namespace std
   typedef basic_ofstream<char> 		ofstream;	///< @isiosfwd
   typedef basic_fstream<char> 		fstream;	///< @isiosfwd
 
-#ifdef _GLIBCPP_USE_WCHAR_T
+#ifdef _GLIBCXX_USE_WCHAR_T
   typedef basic_ios<wchar_t> 		wios;		///< @isiosfwd
   typedef basic_streambuf<wchar_t> 	wstreambuf;	///< @isiosfwd
   typedef basic_istream<wchar_t> 	wistream;	///< @isiosfwd
@@ -165,4 +165,4 @@ namespace std
   /** @}  */
 } // namespace std
 
-#endif
+#endif /* _GLIBCXX_IOSFWD */
