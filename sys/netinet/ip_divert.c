@@ -411,7 +411,7 @@ div_bind(struct socket *so, struct sockaddr *nam, struct proc *p)
 	inp = sotoinpcb(so);
 	error = in_pcbbind(inp, nam, p);
 	splx(s);
-	return 0;
+	return error;
 }
 
 static int
