@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.79 1994/11/21 14:36:02 ache Exp $
+ *	$Id: syscons.c,v 1.80 1994/11/21 17:59:29 ache Exp $
  */
 
 #include "sc.h"
@@ -930,7 +930,13 @@ pcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
 	case KDMKTONE:		/* sound the bell */
 		if (scp == cur_console)
-			sysbeep(scp->bell_pitch, scp->bell_duration);
+			if (*(int*)data) {
+  				sysbeep((*(int*)data)&0xffff,
+					(((*(int*)data)>>16)&0xffff)*hz/1000);
+			}
+			else {
+				sysbeep(scp->bell_pitch, scp->bell_duration);
+			}
 		return 0;
 
 	case KIOCSOUND:		/* make tone (*data) hz */
