@@ -181,8 +181,9 @@ flastrategy(struct bio *bp)
 	enum doc2k_work what;
 
 	if (fla_debug > 1)
-		printf("flastrategy(%p) %s %x, %d, %ld, %p)\n",
-		    bp, devtoname(bp->bio_dev), bp->bio_flags, bp->bio_blkno, 
+		printf("flastrategy(%p) %s %x, %lld, %ld, %p)\n",
+		    bp, devtoname(bp->bio_dev), bp->bio_flags,
+		    (long long)bp->bio_blkno, 
 		    bp->bio_bcount / DEV_BSIZE, bp->bio_data);
 
 	sc = bp->bio_dev->si_drv1;
@@ -225,8 +226,9 @@ flastrategy(struct bio *bp)
 		ENTER();
 
 		if (fla_debug > 1 || error) {
-			printf("fla%d: %d = rwe(%p, %d, %d, %d, %ld, %p)\n",
-			    unit, error, bp, unit, what, bp->bio_pblkno, 
+			printf("fla%d: %d = rwe(%p, %d, %d, %lld, %ld, %p)\n",
+			    unit, error, bp, unit, what,
+			    (long long)bp->bio_pblkno, 
 			    bp->bio_bcount / DEV_BSIZE, bp->bio_data);
 		}
 		if (error) {
