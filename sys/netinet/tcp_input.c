@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.46 1996/05/02 05:54:12 fenner Exp $
+ *	$Id: tcp_input.c,v 1.47 1996/09/13 18:47:03 pst Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -715,7 +715,7 @@ findpcb:
 			tp->rcv_adv += min(tp->rcv_wnd, TCP_MAXWIN);
 			tcpstat.tcps_connects++;
 			soisconnected(so);
-			tp->t_timer[TCPT_KEEP] = TCPTV_KEEP_INIT;
+			tp->t_timer[TCPT_KEEP] = tcp_keepinit;
 			dropsocket = 0;		/* committed to socket */
 			tcpstat.tcps_accepts++;
 			goto trimthenstep6;
@@ -734,7 +734,7 @@ findpcb:
 		 */
 		tp->t_flags |= TF_ACKNOW;
 		tp->t_state = TCPS_SYN_RECEIVED;
-		tp->t_timer[TCPT_KEEP] = TCPTV_KEEP_INIT;
+		tp->t_timer[TCPT_KEEP] = tcp_keepinit;
 		dropsocket = 0;		/* committed to socket */
 		tcpstat.tcps_accepts++;
 		goto trimthenstep6;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_var.h	8.4 (Berkeley) 5/24/95
- * 	$Id: tcp_var.h,v 1.33 1996/06/05 16:57:38 wollman Exp $
+ * 	$Id: tcp_var.h,v 1.34 1996/07/11 16:32:40 wollman Exp $
  */
 
 #ifndef _NETINET_TCP_VAR_H_
@@ -307,9 +307,10 @@ struct	tcpstat {
 #define	TCPCTL_RTTDFLT		5	/* default RTT estimate */
 #define	TCPCTL_KEEPIDLE		6	/* keepalive idle timer */
 #define	TCPCTL_KEEPINTVL	7	/* interval to send keepalives */
-#define	TCPCTL_SENDSPACE	8	/* send buffer space */
-#define	TCPCTL_RECVSPACE	9	/* receive buffer space */
-#define TCPCTL_MAXID		10
+#define	TCPCTL_KEEPINIT		8	/* timeout for establishing syn */
+#define	TCPCTL_SENDSPACE	9	/* send buffer space */
+#define	TCPCTL_RECVSPACE	10	/* receive buffer space */
+#define TCPCTL_MAXID		11
 
 #define TCPCTL_NAMES { \
 	{ 0, 0 }, \
@@ -320,6 +321,7 @@ struct	tcpstat {
 	{ "rttdflt", CTLTYPE_INT }, \
 	{ "keepidle", CTLTYPE_INT }, \
 	{ "keepintvl", CTLTYPE_INT }, \
+	{ "keepinit", CTLTYPE_INT }, \
 	{ "sendspace", CTLTYPE_INT }, \
 	{ "recvspace", CTLTYPE_INT }, \
 }
