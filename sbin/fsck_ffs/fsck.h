@@ -315,6 +315,7 @@ void		pwarn __P((const char *fmt, ...));
 int		readsb __P((int listerr));
 int		reply __P((char *question));
 void		rwerror __P((char *mesg, ufs_daddr_t blk));
+void		sblock_init __P((void));
 void		setinodebuf __P((ino_t));
 int		setup __P((char *dev));
 void		voidquit __P((int));
