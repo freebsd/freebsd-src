@@ -150,6 +150,7 @@ static driver_t ndis_driver = {
 static devclass_t ndis_devclass;
 
 DRIVER_MODULE(ndis, pci, ndis_driver, ndis_devclass, 0, 0);
+DRIVER_MODULE(ndis, cardbus, ndis_driver, ndis_devclass, 0, 0);
 
 /*
  * Program the 64-bit multicast hash filter.
@@ -292,12 +293,12 @@ ndis_attach(dev)
 	 * Hook interrupt early, since calling the driver's
 	 * init routine may trigger an interrupt.
 	 */
+
 	error = bus_setup_intr(dev, sc->ndis_irq, INTR_TYPE_NET,
 	    ndis_intr, sc, &sc->ndis_intrhand);
 
 	if (error) {
-		printf("ndis%d: couldn't register interrupt\n", unit);
-		error = ENXIO;
+		printf("ndis%d: couldn't set up irq\n", unit);
 		goto fail;
 	}
 
@@ -561,12 +562,6 @@ ndis_attach(dev)
 	/* Override the status handler so we can detect link changes. */
 	sc->ndis_block.nmb_status_func = ndis_linksts;
 
-	if (error) {
-		printf("ndis%d: couldn't set up irq\n", unit);
-		ether_ifdetach(ifp);
-		goto fail;
-	}
-
 fail:
 	if (error)
 		ndis_detach(dev);
@@ -604,7 +599,6 @@ ndis_detach(dev)
 		ether_ifdetach(ifp);
 	} else
 		NDIS_UNLOCK(sc);
-
 
 	bus_generic_detach(dev);
 
@@ -1139,7 +1133,10 @@ ndis_setstate_80211(sc)
 	len = sizeof(ssid);
 	bzero((char *)&ssid, len);
 	ssid.ns_ssidlen = ic->ic_des_esslen;
-	bcopy(ic->ic_des_essid, ssid.ns_ssid, ssid.ns_ssidlen);
+	if (ssid.ns_ssidlen == 0) {
+		ssid.ns_ssidlen = 1;
+	} else
+		bcopy(ic->ic_des_essid, ssid.ns_ssid, ssid.ns_ssidlen);
 	rval = ndis_set_info(sc, OID_802_11_SSID, &ssid, &len);
 
 	if (rval)
