@@ -214,10 +214,8 @@ mlx_pci_attach(device_t dev)
      * Do bus-independant initialisation.
      */
     error = mlx_attach(sc);
-    if (error != 0) {
-	mlx_free(sc);
+    if (error != 0)
 	return(error);
-    }
     
     /*
      * Start the controller.
