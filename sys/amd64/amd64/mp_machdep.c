@@ -65,6 +65,7 @@
 #include <machine/apic.h>
 #include <machine/atomic.h>
 #include <machine/cpufunc.h>
+#include <machine/ipl.h>
 #include <machine/mpapic.h>
 #include <machine/psl.h>
 #include <machine/segments.h>
@@ -2221,7 +2222,7 @@ smp_invltlb(void)
 {
 #if defined(APIC_IO)
 	if (smp_started && invltlb_ok)
-		all_but_self_ipi(XINVLTLB_OFFSET);
+		smp_ipi_all_but_self(IPI_INVLTLB);
 #endif  /* APIC_IO */
 }
 
@@ -2497,8 +2498,7 @@ forward_statclock(int pscnt)
 	map = PCPU_GET(other_cpus) & ~stopped_cpus ;
 	checkstate_probed_cpus = 0;
 	if (map != 0)
-		selected_apic_ipi(map,
-				  XCPUCHECKSTATE_OFFSET, APIC_DELMODE_FIXED);
+		smp_ipi_selected(map, IPI_CHECKSTATE);
 
 	i = 0;
 	while (checkstate_probed_cpus != map) {
@@ -2528,7 +2528,7 @@ forward_statclock(int pscnt)
 	}
 	if (map != 0) {
 		checkstate_need_ast |= map;
-		selected_apic_ipi(map, XCPUAST_OFFSET, APIC_DELMODE_FIXED);
+		smp_ipi_selected(map, IPI_AST);
 		i = 0;
 		while ((checkstate_need_ast & map) != 0) {
 			/* spin */
@@ -2574,8 +2574,7 @@ forward_hardclock(int pscnt)
 	map = PCPU_GET(other_cpus) & ~stopped_cpus ;
 	checkstate_probed_cpus = 0;
 	if (map != 0)
-		selected_apic_ipi(map,
-				  XCPUCHECKSTATE_OFFSET, APIC_DELMODE_FIXED);
+		smp_ipi_selected(map, IPI_CHECKSTATE);
 	
 	i = 0;
 	while (checkstate_probed_cpus != map) {
@@ -2623,7 +2622,7 @@ forward_hardclock(int pscnt)
 	}
 	if (map != 0) {
 		checkstate_need_ast |= map;
-		selected_apic_ipi(map, XCPUAST_OFFSET, APIC_DELMODE_FIXED);
+		smp_ipi_selected(map, IPI_AST);
 		i = 0;
 		while ((checkstate_need_ast & map) != 0) {
 			/* spin */
@@ -2677,7 +2676,7 @@ forward_signal(struct proc *p)
 			return;
 		map = (1<<id);
 		checkstate_need_ast |= map;
-		selected_apic_ipi(map, XCPUAST_OFFSET, APIC_DELMODE_FIXED);
+		smp_ipi_selected(map, IPI_AST);
 		i = 0;
 		while ((checkstate_need_ast & map) != 0) {
 			/* spin */
@@ -2713,9 +2712,9 @@ forward_roundrobin(void)
 	resched_cpus |= PCPU_GET(other_cpus);
 	map = PCPU_GET(other_cpus) & ~stopped_cpus ;
 #if 1
-	selected_apic_ipi(map, XCPUAST_OFFSET, APIC_DELMODE_FIXED);
+	smp_ipi_selected(map, IPI_AST);
 #else
-	(void) all_but_self_ipi(XCPUAST_OFFSET);
+	smp_ipi_all_but_self(IPI_AST);
 #endif
 	i = 0;
 	while ((checkstate_need_ast & map) != 0) {
@@ -2757,7 +2756,7 @@ stop_cpus(u_int map)
 		return 0;
 
 	/* send the Xcpustop IPI to all CPUs in map */
-	selected_apic_ipi(map, XCPUSTOP_OFFSET, APIC_DELMODE_FIXED);
+	smp_ipi_selected(map, IPI_STOP);
 	
 	while (count++ < 100000 && (stopped_cpus & map) != map)
 		/* spin */ ;
@@ -2883,13 +2882,57 @@ smp_rendezvous(void (* setup_func)(void *),
 	/*
 	 * signal other processors, which will enter the IPI with interrupts off
 	 */
-	all_but_self_ipi(XRENDEZVOUS_OFFSET);
+	smp_ipi_all_but_self(IPI_RENDEZVOUS);
 
 	/* call executor function */
 	smp_rendezvous_action();
 
 	/* release lock */
 	mtx_unlock_spin(&smp_rv_mtx);
+}
+
+/*
+ * send an IPI to a set of cpus.
+ */
+void
+smp_ipi_selected(u_int32_t cpus, u_int ipi)
+{
+
+	CTR2(KTR_SMP, __func__ ": cpus: %x ipi: %x", cpus, ipi);
+	selected_apic_ipi(cpus, ipi, APIC_DELMODE_FIXED);
+}
+
+/*
+ * send an IPI INTerrupt containing 'vector' to all CPUs, including myself
+ */
+void
+smp_ipi_all(u_int ipi)
+{
+
+	CTR1(KTR_SMP, __func__ ": ipi: %x", ipi);
+	apic_ipi(APIC_DEST_ALLISELF, ipi, APIC_DELMODE_FIXED); 
+}
+
+/*
+ * send an IPI to all CPUs EXCEPT myself
+ */
+void
+smp_ipi_all_but_self(u_int ipi)
+{
+
+	CTR1(KTR_SMP, __func__ ": ipi: %x", ipi);
+	apic_ipi(APIC_DEST_ALLESELF, ipi, APIC_DELMODE_FIXED); 
+}
+
+/*
+ * send an IPI to myself
+ */
+void
+smp_ipi_self(u_int ipi)
+{
+
+	CTR1(KTR_SMP, __func__ ": ipi: %x", ipi);
+	apic_ipi(APIC_DEST_SELF, ipi, APIC_DELMODE_FIXED); 
 }
 
 void
