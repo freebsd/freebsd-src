@@ -90,7 +90,7 @@ static int data_lengths[] = {
 static STAILQ_HEAD(, ktr_request) ktr_todo;
 static STAILQ_HEAD(, ktr_request) ktr_free;
 
-SYSCTL_NODE(_kern, OID_AUTO, ktrace, CTLFLAG_RD, 0, "KTRACE options");
+static SYSCTL_NODE(_kern, OID_AUTO, ktrace, CTLFLAG_RD, 0, "KTRACE options");
 
 static u_int ktr_requestpool = KTRACE_REQUEST_POOL;
 TUNABLE_INT("kern.ktrace.request_pool", &ktr_requestpool);
