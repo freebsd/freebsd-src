@@ -151,7 +151,7 @@ options 	ROOTDEVNAME=\"ufs:da0s2e\"
 # but will work just fine on UP too.  Users of this scheduler should expect
 # some hicups and be prepaired to provide feedback.
 #
-options		SCHED_4BSD
+options 	SCHED_4BSD
 #options	SCHED_ULE
 
 #####################################################################
@@ -449,7 +449,7 @@ options 	NETGRAPH_TEE
 options 	NETGRAPH_TTY
 options 	NETGRAPH_UI
 options 	NETGRAPH_VJC
-options		NETGRAPH_ATM_ATMPIF
+options 	NETGRAPH_ATM_ATMPIF
 
 # NgATM - Netgraph ATM
 options 	NGATM_ATM
@@ -601,7 +601,7 @@ options 	TCPDEBUG
 # various random failures / extreme cases related to mbuf
 # functions.  See the mbuf(9) manpage for a list of available
 # test cases.
-options		MBUF_STRESS_TEST
+options 	MBUF_STRESS_TEST
 
 # RANDOM_IP_ID causes the ID field in IP packets to be randomized
 # instead of incremented by 1 with each packet generated.  This
@@ -793,10 +793,10 @@ device		random
 
 # Optional character code conversion support with LIBICONV.
 # Each option requires their base file system and LIBICONV.
-options		CD9660_ICONV
-options		MSDOSFS_ICONV
-options		NTFS_ICONV
-options		UDF_ICONV
+options 	CD9660_ICONV
+options 	MSDOSFS_ICONV
+options 	NTFS_ICONV
+options 	UDF_ICONV
 
 
 #####################################################################
@@ -808,7 +808,7 @@ options		UDF_ICONV
 options 	_KPOSIX_PRIORITY_SCHEDULING
 # p1003_1b_semaphores are very experimental,
 # user should be ready to assist in debugging if problems arise.
-options		P1003_1B_SEMAPHORES
+options 	P1003_1B_SEMAPHORES
 
 
 #####################################################################
@@ -984,7 +984,7 @@ options 	SCSI_DELAY=8000	# Be pessimistic about Joe SCSI device
 # DA_OLD_QUIRKS: Restore old USB and firewire quirks that have been
 #		 deprecated.  Please also email scsi@freebsd.org if you
 #		 have a device that needs this option.
-options		DA_OLD_QUIRKS
+options 	DA_OLD_QUIRKS
 
 # Options for the CAM CDROM driver:
 # CHANGER_MIN_BUSY_SECONDS: Guaranteed minimum time quantum for a changer LUN
@@ -1056,7 +1056,7 @@ options 	VINUMDEBUG	#enable Vinum debugging hooks
 # disk devices in the system looking for components that it recognizes (already
 # configured once before) and auto-configured them into arrays.
 device		raidframe
-options		RAID_AUTOCONFIG
+options 	RAID_AUTOCONFIG
 
 # Kernel side iconv library
 options 	LIBICONV
@@ -1758,7 +1758,7 @@ device		patm			#IDT77252 cards (ProATM and IDT)
 device		utopia			#ATM PHY driver
 options 	NATM			#native ATM
 
-options		LIBMBPOOL		#needed by patm, iatm
+options 	LIBMBPOOL		#needed by patm, iatm
 
 #
 # Audio drivers: `pcm', `sbc', `gusc'
@@ -2132,7 +2132,7 @@ options 	HW_WDOG
 # can be used in combination with an external daemon to create a
 # software-based watchdog solution.
 #
-options		WATCHDOG
+options 	WATCHDOG
 
 #
 # Disable swapping of upages and stack pages.  This option removes all
@@ -2242,7 +2242,7 @@ options 	UKBD_DFLT_KEYMAP	# specify the built-in keymap
 makeoptions	UKBD_DFLT_KEYMAP=it.iso
 
 # options for uvscom:
-options		UVSCOM_DEFAULT_OPKTSIZE=8	# default output packet size
+options 	UVSCOM_DEFAULT_OPKTSIZE=8	# default output packet size
 
 #####################################################################
 # FireWire support
@@ -2256,10 +2256,10 @@ device		fwe		# Ethernet over FireWire (non-standard!)
 
 device		dcons			# dumb console driver
 device		dcons_crom		# FireWire attachment
-options		DCONS_BUF_SIZE=16384	# buffer size
-options		DCONS_POLL_HZ=100	# polling rate
-options		DCONS_FORCE_CONSOLE=0	# force to be the primary console
-options		DCONS_FORCE_GDB=1	# force to be the gdb device
+options 	DCONS_BUF_SIZE=16384	# buffer size
+options 	DCONS_POLL_HZ=100	# polling rate
+options 	DCONS_FORCE_CONSOLE=0	# force to be the primary console
+options 	DCONS_FORCE_GDB=1	# force to be the gdb device
 
 #####################################################################
 # crypto subsystem
@@ -2277,12 +2277,12 @@ device		cryptodev	# /dev/crypto for access to h/w
 device		rndtest		# FIPS 140-2 entropy tester
 
 device		hifn		# Hifn 7951, 7781, etc.
-options		HIFN_DEBUG	# enable debugging support: hw.hifn.debug
-options		HIFN_RNDTEST	# enable rndtest support
+options 	HIFN_DEBUG	# enable debugging support: hw.hifn.debug
+options 	HIFN_RNDTEST	# enable rndtest support
 
 device		ubsec		# Broadcom 5501, 5601, 58xx
-options		UBSEC_DEBUG	# enable debugging support: hw.ubsec.debug
-options		UBSEC_RNDTEST	# enable rndtest support
+options 	UBSEC_DEBUG	# enable debugging support: hw.ubsec.debug
+options 	UBSEC_RNDTEST	# enable rndtest support
 
 #####################################################################
 
@@ -2296,7 +2296,7 @@ options 	INIT_PATH=/sbin/init:/stand/sysinstall
 # Debug options
 options 	BUS_DEBUG	# enable newbus debugging
 options 	DEBUG_VFS_LOCKS	# enable vfs lock debugging
-options		SOCKBUF_DEBUG	# enable sockbuf last record/mb tail checking
+options 	SOCKBUF_DEBUG	# enable sockbuf last record/mb tail checking
 
 #####################################################################
 # SYSV IPC KERNEL PARAMETERS
@@ -2355,13 +2355,13 @@ options 	PANIC_REBOOT_WAIT_TIME=16
 # file.  Both offset and length of the read operation must be
 # multiples of the physical media sector size. 
 #
-#options		DIRECTIO
+#options 	DIRECTIO
 
 # Specify a lower limit for the number of swap I/O buffers.  They are
 # (among other things) used when bypassing the buffer cache due to
 # DIRECTIO kernel option enabled and O_DIRECT flag set on file.
 #
-#options		NSWBUF_MIN=120
+#options 	NSWBUF_MIN=120
 
 #####################################################################
 
@@ -2404,7 +2404,7 @@ options 	SHOW_BUSYBUFS	# List buffers that prevent root unmount
 options 	SLIP_IFF_OPTS
 options 	VFS_BIO_DEBUG	# VFS buffer I/O debugging
 
-options		KSTACK_MAX_PAGES=32 # Maximum pages to give the kernel stack
+options 	KSTACK_MAX_PAGES=32 # Maximum pages to give the kernel stack
 
 # Yet more undocumented options for linting.
 options 	AAC_DEBUG
