@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: yppasswdd_server.c,v 1.3 1997/07/29 00:21:00 wpaul Exp $
  */
 
 #include <stdio.h>
@@ -58,10 +58,9 @@ struct dom_binding {};
 #include "yppasswdd_extern.h"
 #include "yppasswd.h"
 #include "yppasswd_private.h"
-#include "yppasswd_comm.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id$";
+static const char rcsid[] = "$Id: yppasswdd_server.c,v 1.3 1997/07/29 00:21:00 wpaul Exp $";
 #endif /* not lint */
 
 char *tempname;
@@ -686,22 +685,67 @@ cleaning up and bailing out");
 	return (&result);
 }
 
+struct cmessage {
+	struct cmsghdr		cmsg;
+	struct cmsgcred		cmcred;
+};
+
 /*
  * Note that this function performs a little less sanity checking
  * than the last one. Since only the superuser is allowed to use it,
  * it is assumed that the caller knows what he's doing.
  */
-static int update_master(master_yppasswd *argp)
+int *yppasswdproc_update_master_1_svc(master_yppasswd *argp,
+					struct svc_req *rqstp)
 {
-	int result;
+	static int result;
 	int pfd, tfd;
 	int pid;
 	int rval = 0;
 	DBT key, data;
 	char *passfile_hold;
 	char passfile_buf[MAXPATHLEN + 2];
+	struct sockaddr_in *rqhost;
+	struct cmessage			*cm;
+	SVCXPRT				*transp;
 
 	result = 1;
+
+	/*
+	 * NO AF_INET CONNETCIONS ALLOWED!
+	 */
+	rqhost = svc_getcaller(rqstp->rq_xprt);
+	if (rqhost->sin_family != AF_UNIX) {
+		yp_error("Alert! %s/%d attempted to use superuser-only \
+procedure!\n", inet_ntoa(rqhost->sin_addr), rqhost->sin_port);
+		svcerr_auth(rqstp->rq_xprt, AUTH_BADCRED);
+		return(&result);
+	}
+
+	transp = rqstp->rq_xprt;
+
+	if (transp->xp_verf.oa_length < sizeof(struct cmessage) ||
+		transp->xp_verf.oa_base == NULL ||
+		transp->xp_verf.oa_flavor != AUTH_UNIX) {
+		yp_error("caller didn't send proper credentials");
+		svcerr_auth(rqstp->rq_xprt, AUTH_BADCRED);
+		return(&result);
+	}
+
+	cm = (struct cmessage *)transp->xp_verf.oa_base;
+	if (cm->cmsg.cmsg_type != SCM_CREDS) {
+		yp_error("caller didn't send proper credentials");
+		svcerr_auth(rqstp->rq_xprt, AUTH_BADCRED);
+		return(&result);
+	}
+
+ 	if (cm->cmcred.cmcred_euid) {
+		yp_error("caller euid is %d, expecting 0 -- rejecting request",
+				cm->cmcred.cmcred_euid);
+		svcerr_auth(rqstp->rq_xprt, AUTH_BADCRED);
+		return(&result);
+	}
+
 	passfile = passfile_default;
 
 	key.data = argp->newpw.pw_name;
@@ -728,7 +772,7 @@ allow additions to be made to the password database", progname);
 				 yperr_string(rval));
 		}
 		if (!allow_additions)
-			return(result);
+			return(&result);
 	} else {
 
 		/* Nul terminate, please. */
@@ -743,7 +787,7 @@ allow additions to be made to the password database", progname);
 	if (validate_master(rval == YP_TRUE ? &yp_password:NULL,&argp->newpw)){
 		yp_error("rejecting update attempt for %s: bad arguments",
 			 argp->newpw.pw_name);
-		return(result);
+		return(&result);
 	}
 
 	/*
@@ -758,17 +802,17 @@ allow additions to be made to the password database", progname);
 	}       
 
 	if ((pfd = pw_lock()) < 0) {
-		return (result);
+		return (&result);
 	}
 	if ((tfd = pw_tmp()) < 0) {
-		return (result);
+		return (&result);
 	}
 
 	if (pw_copy(pfd, tfd, (struct passwd  *)&argp->newpw)) {
 		yp_error("failed to created updated password file -- \
 cleaning up and bailing out");
 		unlink(tempname);
-		return(result);
+		return(&result);
 	}
 
 	passfile_hold = yp_mktmpnam();
@@ -778,7 +822,7 @@ cleaning up and bailing out");
 	} else {
 		if (pw_mkdb(argp->newpw.pw_name) < 0) {
 			yp_error("pwd_mkdb failed");
-			return(result);
+			return(&result);
 		}
 	}
 
@@ -791,7 +835,6 @@ cleaning up and bailing out");
 
 	switch((pid = fork())) {
 	case 0:
-		close(yp_sock);
 		if (inplace && !rval) {
     			execlp(MAP_UPDATE_PATH, MAP_UPDATE, passfile,
 				argp->domain, "pushpw", NULL);
@@ -809,7 +852,7 @@ cleaning up and bailing out");
 		yp_error("fork() failed: %s", strerror(errno));
 		unlink(passfile);
 		rename(passfile_hold, passfile);
-		return(result);
+		return(&result);
 		break;
 	default:
 		unlink(passfile_hold);
@@ -822,25 +865,5 @@ cleaning up and bailing out");
 						argp->domain);
 
 	result = 0;
-	return(result);
-}
-
-/*
- * Pseudo-dispatcher for private 'superuser-only' update handler.
- */
-void do_master()
-{
-	struct master_yppasswd *pw;
-
-	if ((pw = getdat(yp_sock)) == NULL) {
-		return;
-	}
-
-	yp_error("received update request from superuser on localhost");
-	sendresp(update_master(pw));
-
-	/* Remember to free args. */
-	xdr_free(xdr_master_yppasswd, (char *)pw);
-
-	return;
+	return(&result);
 }
