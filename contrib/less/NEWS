@@ -13,7 +13,38 @@
 ======================================================================
 
 
-	Major changes between "less" versions 358 and 371
+	Major changes between "less" versions 378 and 381
+
+* New -L option to disable LESSOPEN processing.
+
+* Further support for large (64 bit) file addressing.
+  Large file support is now set up by the configure script.
+
+* Use autoconf 2.54.
+  Replace configure.in, acconfig.h, defines.h.top with configure.ac.
+
+* Overstriking underscore with underscore is now bold or underlined 
+  depending on context.
+
+* Use only 7 spaces for line numbers in -N mode, if possible.
+
+* Fix some bugs in handling overstriking in UTF-8 files.
+
+* Fix some nroff issues in the man page.
+
+======================================================================
+
+	Major changes between "less" versions 376 and 378
+
+* Bug fixes:
+  Default buffer space is now 64K as documented.
+  Search highlighting works properly when used with -R.
+  Windows version works properly when input file contains carriage returns.
+  Clean up some compiler warnings.
+
+======================================================================
+
+	Major changes between "less" versions 358 and 376
 
 * -x option can now specify multiple variable-width tab stops.
 
@@ -41,7 +72,10 @@
 
 * Default LESSCHARSET for MS-DOS versions is now "dos".
 
-* Improved performance in reading very large files.
+* Searching works better with ANSI (SGR) escape sequences.
+  ANSI color escape sequences are now supported in the MS-DOS (DJGPP) version.
+
+* Improved performance in reading very large pipes.
 
 * Eliminated some dependencies on file offets being 32 bits.
 
@@ -50,6 +84,8 @@
 * Fixed overstriking in UTF-8 mode, and overstriking tabs.
 
 * Improved horizontal shifting of text using -R option with ANSI color.
+
+* Improved handling of filenames containing shell metacharacters.
 
 * Some fixes for EBCDIC systems.
 
