@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Wed Jan 24 09:09:42 2001]
+ *      last edit-date: [Sat Mar  9 16:01:49 2002]
  *
  *---------------------------------------------------------------------------*/
 
@@ -267,18 +267,8 @@ isic_hscx_irq(register struct l1_softc *sc, u_char ista, int h_chan, u_char ex_i
 				if(!(i4b_l1_bchan_tel_silence(chan->in_mbuf->m_data, chan->in_mbuf->m_len)))
 					activity = ACT_RX;
 
-#if defined (__FreeBSD__) && __FreeBSD__ > 4
 				(void) IF_HANDOFF(&chan->rx_queue, chan->in_mbuf, NULL);
-#else
-				if(!(IF_QFULL(&chan->rx_queue)))
-				{
-					IF_ENQUEUE(&chan->rx_queue, chan->in_mbuf);
-				}
-				else
-				{
-					i4b_Bfreembuf(chan->in_mbuf);
-				}
-#endif
+
 				/* signal upper driver that data is available */
 
 				(*chan->isic_drvr_linktab->bch_rx_data_ready)(chan->isic_drvr_linktab->unit);

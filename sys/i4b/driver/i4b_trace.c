@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,7 +27,7 @@
  *	i4btrc - device driver for trace data read device
  *	---------------------------------------------------
  *
- *	last edit-date: [Fri Jan 12 14:18:12 2001]
+ *	last edit-date: [Sun Mar 17 09:52:51 2002]
  *
  * $FreeBSD$
  *
@@ -41,13 +41,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #include <sys/ioccom.h>
-#else
-#include <sys/ioctl.h>
-#endif
-
 #include <sys/conf.h>
 #include <sys/uio.h>
 #include <sys/kernel.h>
@@ -56,8 +50,6 @@
 #include <net/if.h>
 #include <sys/tty.h>
 
-#ifdef __FreeBSD__
-
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif
@@ -65,67 +57,27 @@
 #include <machine/i4b_trace.h>
 #include <machine/i4b_ioctl.h>
 
-#else
-
-#include <i4b/i4b_trace.h>
-#include <i4b/i4b_ioctl.h>
-
-#endif
-
 #include <i4b/include/i4b_mbuf.h>
 #include <i4b/include/i4b_global.h>
 #include <i4b/include/i4b_l3l4.h>
 
-#ifndef __FreeBSD__
-#define	memcpy(d,s,l)	bcopy(s,d,l)
-#endif
-
 static struct ifqueue trace_queue[NI4BTRC];
+
 static int device_state[NI4BTRC];
 #define ST_IDLE		0x00
 #define ST_ISOPEN	0x01
 #define ST_WAITDATA	0x02
-
-#if defined(__FreeBSD__) && __FreeBSD__ == 3
-#ifdef DEVFS
-static void *devfs_token[NI4BTRC];
-#endif
-#endif
 
 static int analyzemode = 0;
 static int rxunit = -1;
 static int txunit = -1;
 static int outunit = -1;
 
-#ifndef __FreeBSD__
-
-#define	PDEVSTATIC	/* - not static - */
-void i4btrcattach __P((void));
-int i4btrcopen __P((dev_t dev, int flag, int fmt, struct thread *td));
-int i4btrcclose __P((dev_t dev, int flag, int fmt, struct thread *td));
-int i4btrcread __P((dev_t dev, struct uio * uio, int ioflag));
-
-#ifdef __bsdi__
-int i4btrcioctl __P((dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td));
-#else
-int i4btrcioctl __P((dev_t dev, int cmd, caddr_t data, int flag, struct thread *td));
-#endif
-
-#endif
-
-#if BSD > 199306 && defined(__FreeBSD__)
-#define	PDEVSTATIC static
 static d_open_t	i4btrcopen;
 static d_close_t i4btrcclose;
 static d_read_t i4btrcread;
 static d_ioctl_t i4btrcioctl;
-
-#ifdef OS_USES_POLL
 static d_poll_t i4btrcpoll;
-#define POLLFIELD i4btrcpoll
-#else
-#define POLLFIELD noselect
-#endif
 
 #define CDEV_MAJOR 59
 
@@ -135,7 +87,7 @@ static struct cdevsw i4btrc_cdevsw = {
         /* read */      i4btrcread,
         /* write */     nowrite,
         /* ioctl */     i4btrcioctl,
-        /* poll */      POLLFIELD,
+        /* poll */      i4btrcpoll,
         /* mmap */      nommap,
         /* strategy */  nostrategy,
         /* name */      "i4btrc",
@@ -160,49 +112,13 @@ SYSINIT(i4btrcdev, SI_SUB_DRIVERS,
 static void i4btrcattach(void *);
 PSEUDO_SET(i4btrcattach, i4b_trace);
 
-#endif /* BSD > 199306 && defined(__FreeBSD__) */
-
-#ifdef __bsdi__
-#include <sys/device.h>
-int i4btrcmatch(struct device *parent, struct cfdata *cf, void *aux);
-void dummy_i4btrcattach(struct device*, struct device *, void *);
-
-#define CDEV_MAJOR 60
-
-static struct cfdriver i4btrccd =
-	{ NULL, "i4btrc", i4btrcmatch, dummy_i4btrcattach, DV_DULL,
-	  sizeof(struct cfdriver) };
-struct devsw i4btrcsw = 
-	{ &i4btrccd,
-	  i4btrcopen,	i4btrcclose,	i4btrcread,	nowrite,
-	  i4btrcioctl,	seltrue,	nommap,		nostrat,
-	  nodump,	nopsize,	0,		nostop
-};
-
-int
-i4btrcmatch(struct device *parent, struct cfdata *cf, void *aux)
-{
-	printf("i4btrcmatch: aux=0x%x\n", aux);
-	return 1;
-}
-void
-dummy_i4btrcattach(struct device *parent, struct device *self, void *aux)
-{
-	printf("dummy_i4btrcattach: aux=0x%x\n", aux);
-}
-#endif /* __bsdi__ */
-
 int get_trace_data_from_l1(i4b_trace_hdr_t *hdr, int len, char *buf);
 
 /*---------------------------------------------------------------------------*
  *	interface attach routine
  *---------------------------------------------------------------------------*/
-PDEVSTATIC void
-#ifdef __FreeBSD__
+static void
 i4btrcattach(void *dummy)
-#else
-i4btrcattach()
-#endif
 {
 	int i;
 
@@ -210,17 +126,13 @@ i4btrcattach()
 	
 	for(i=0; i < NI4BTRC; i++)
 	{
-
-#if defined(__FreeBSD__)
 		make_dev(&i4btrc_cdevsw, i,
 				     UID_ROOT, GID_WHEEL, 0600, "i4btrc%d", i);
-#endif
 		trace_queue[i].ifq_maxlen = IFQ_MAXLEN;
 
-#if __FreeBSD__ > 4
 		if(!mtx_initialized(&trace_queue[i].ifq_mtx))
 			mtx_init(&trace_queue[i].ifq_mtx, "i4b_trace", MTX_DEF);
-#endif
+
 		device_state[i] = ST_IDLE;
 	}
 }
@@ -294,6 +206,7 @@ get_trace_data_from_l1(i4b_trace_hdr_t *hdr, int len, char *buf)
 	}
 
 	IF_LOCK(&trace_queue[unit]);
+
 	if(_IF_QFULL(&trace_queue[unit]))
 	{
 		struct mbuf *m1;
@@ -333,7 +246,7 @@ get_trace_data_from_l1(i4b_trace_hdr_t *hdr, int len, char *buf)
 /*---------------------------------------------------------------------------*
  *	open trace device
  *---------------------------------------------------------------------------*/
-PDEVSTATIC int
+static int
 i4btrcopen(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	int x;
@@ -360,7 +273,7 @@ i4btrcopen(dev_t dev, int flag, int fmt, struct thread *td)
 /*---------------------------------------------------------------------------*
  *	close trace device
  *---------------------------------------------------------------------------*/
-PDEVSTATIC int
+static int
 i4btrcclose(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	int unit = minor(dev);
@@ -406,7 +319,7 @@ i4btrcclose(dev_t dev, int flag, int fmt, struct thread *td)
 /*---------------------------------------------------------------------------*
  *	read from trace device
  *---------------------------------------------------------------------------*/
-PDEVSTATIC int
+static int
 i4btrcread(dev_t dev, struct uio * uio, int ioflag)
 {
 	struct mbuf *m;
@@ -420,20 +333,15 @@ i4btrcread(dev_t dev, struct uio * uio, int ioflag)
 	x = SPLI4B();
 	
 	IF_LOCK(&trace_queue[unit]);
+
 	while(IF_QEMPTY(&trace_queue[unit]) && (device_state[unit] & ST_ISOPEN))
 	{
 		device_state[unit] |= ST_WAITDATA;
 		
-#if defined (__FreeBSD__) && __FreeBSD__ > 4
 		if((error = msleep((caddr_t) &trace_queue[unit],
 					&trace_queue[unit].ifq_mtx,
 					TTIPRI | PCATCH,
 					"bitrc", 0 )) != 0)
-#else
-		if((error = tsleep((caddr_t) &trace_queue[unit],
-					TTIPRI | PCATCH,
-					"bitrc", 0 )) != 0)
-#endif                                                                                               
 		{
 			device_state[unit] &= ~ST_WAITDATA;
 			IF_UNLOCK(&trace_queue[unit]);
@@ -458,28 +366,20 @@ i4btrcread(dev_t dev, struct uio * uio, int ioflag)
 	return(error);
 }
 
-#if defined(__FreeBSD__) && defined(OS_USES_POLL)
 /*---------------------------------------------------------------------------*
  *	poll device
  *---------------------------------------------------------------------------*/
-PDEVSTATIC int
+static int
 i4btrcpoll(dev_t dev, int events, struct thread *td)
 {
 	return(ENODEV);
 }
-#endif
 
 /*---------------------------------------------------------------------------*
  *	device driver ioctl routine
  *---------------------------------------------------------------------------*/
-PDEVSTATIC int
-#if defined (__FreeBSD_version) && __FreeBSD_version >= 300003
+static int
 i4btrcioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
-#elif defined(__bsdi__)
-i4btrcioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
-#else
-i4btrcioctl(dev_t dev, int cmd, caddr_t data, int flag, struct thread *td)
-#endif
 {
 	int error = 0;
 	int unit = minor(dev);

@@ -1,7 +1,7 @@
 /*
  *   Copyright (c) 1997 Joerg Wunsch. All rights reserved.
  *
- *   Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ *   Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
  *
  *   Redistribution and use in source and binary forms, with or without
  *   modification, are permitted provided that the following conditions
@@ -34,23 +34,16 @@
  *	the "cx" driver for Cronyx's HDLC-in-hardware device).  This driver
  *	is only the glue between sppp and i4b.
  *
- *	$Id: i4b_isppp.c,v 1.44 2000/08/31 07:07:26 hm Exp $
- *
  * $FreeBSD$
  *
- *	last edit-date: [Thu Aug 31 09:02:27 2000]
+ *	last edit-date: [Sat Mar  9 14:09:27 2002]
  *
  *---------------------------------------------------------------------------*/
 
-
-#ifndef __NetBSD__
-#endif
 #include "i4bisppp.h"
 
-#ifndef __NetBSD__
 #if NI4BISPPP == 0
 # error "You need to define `device sppp <N>' with options ISPPP"
-#endif
 #endif
 
 #include <sys/param.h>
@@ -66,65 +59,33 @@
 #include <net/if_types.h>
 #include <net/if_sppp.h>
 
-
-#if defined(__FreeBSD_version) &&  __FreeBSD_version >= 400008                
 #include "bpf.h"     
-#else
-#include "bpfilter.h"
-#endif
+
 #if NBPFILTER > 0 || NBPF > 0
 #include <sys/time.h>
 #include <net/bpf.h>
 #endif
 
-#ifdef __FreeBSD__
 #include <machine/i4b_ioctl.h>
 #include <machine/i4b_debug.h>
-#else
-#include <i4b/i4b_ioctl.h>
-#include <i4b/i4b_cause.h>
-#include <i4b/i4b_debug.h>
-#endif
 
 #include <i4b/include/i4b_global.h>
 #include <i4b/include/i4b_l3l4.h>
 
 #include <i4b/layer4/i4b_l4.h>
 
-#ifdef __FreeBSD__
 #define ISPPP_FMT	"isp%d: "
 #define	ISPPP_ARG(sc)	((sc)->sc_if.if_unit)
 #define	PDEVSTATIC	static
 #define IFP2UNIT(ifp)	(ifp)->if_unit
 		
-# if __FreeBSD_version >= 300001
 #  define CALLOUT_INIT(chan)		callout_handle_init(chan)
 #  define TIMEOUT(fun, arg, chan, tick)	chan = timeout(fun, arg, tick)
 #  define UNTIMEOUT(fun, arg, chan)	untimeout(fun, arg, chan)
 #  define IOCTL_CMD_T u_long
-# else
-#  define CALLOUT_INIT(chan)		do {} while(0)
-#  define TIMEOUT(fun, arg, chan, tick)	timeout(fun, arg, tick)
-#  define UNTIMEOUT(fun, arg, chan)	untimeout(fun, arg)
-#  define IOCTL_CMD_T int
-# endif
 
-#elif defined __NetBSD__ || defined __OpenBSD__
-#define	ISPPP_FMT	"%s: "
-#define	ISPPP_ARG(sc)	((sc)->sc_if.if_xname)
-#define	PDEVSTATIC	/* not static */
-#define IOCTL_CMD_T	u_long
-#define IFP2UNIT(ifp)	((struct i4bisppp_softc *)ifp->if_softc)->sc_unit
-#else
-# error "What system are you using?"
-#endif
-
-#ifdef __FreeBSD__
 PDEVSTATIC void i4bispppattach(void *);
 PSEUDO_SET(i4bispppattach, i4b_isppp);
-#else
-PDEVSTATIC void i4bispppattach(void);
-#endif
 
 #define I4BISPPPACCT		1	/* enable accounting messages */
 #define	I4BISPPPACCTINTVL	2	/* accounting msg interval in secs */
@@ -143,14 +104,10 @@ struct i4bisppp_softc {
 		struct ifnet scu_if;
 		struct sppp scu_sp;
 	} sc_if_un;
+
 #define sc_if sc_if_un.scu_if
 
 	int	sc_state;	/* state of the interface	*/
-
-#ifndef __FreeBSD__
-	int	sc_unit;	/* unit number for Net/OpenBSD	*/
-#endif
-
 	call_desc_t *sc_cdp;	/* ptr to call descriptor	*/
 
 #ifdef I4BISPPPACCT
@@ -163,10 +120,7 @@ struct i4bisppp_softc {
 	int sc_fn;		/* flag, first null acct	*/
 #endif
 
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
 	struct callout_handle sc_ch;
-#endif
-
 } i4bisppp_softc[NI4BISPPP];
 
 static void	i4bisppp_init_linktab(int unit);
@@ -208,48 +162,25 @@ enum i4bisppp_states {
  *	interface attach routine at kernel boot time
  *---------------------------------------------------------------------------*/
 PDEVSTATIC void
-#ifdef __FreeBSD__
 i4bispppattach(void *dummy)
-#else
-i4bispppattach()
-#endif
 {
 	struct i4bisppp_softc *sc = i4bisppp_softc;
 	int i;
 
-#ifndef HACK_NO_PSEUDO_ATTACH_MSG
 #ifdef SPPP_VJ
 	printf("i4bisppp: %d ISDN SyncPPP device(s) attached (VJ header compression)\n", NI4BISPPP);
 #else
 	printf("i4bisppp: %d ISDN SyncPPP device(s) attached\n", NI4BISPPP);
-#endif
 #endif
 
 	for(i = 0; i < NI4BISPPP; sc++, i++) {
 		i4bisppp_init_linktab(i);
 		
 		sc->sc_if.if_softc = sc;
-
-#ifdef __FreeBSD__		
 		sc->sc_if.if_name = "isp";
-#if defined(__FreeBSD_version) && __FreeBSD_version < 300001
-		sc->sc_if.if_next = NULL;
-#endif
 		sc->sc_if.if_unit = i;
-#else
-		sprintf(sc->sc_if.if_xname, "isp%d", i);
-		sc->sc_unit = i;
-#endif
-
 		sc->sc_if.if_mtu = PP_MTU;
-
-#ifdef __NetBSD__
-		sc->sc_if.if_flags = IFF_SIMPLEX | IFF_POINTOPOINT |
-					IFF_MULTICAST;
-#else
 		sc->sc_if.if_flags = IFF_SIMPLEX | IFF_POINTOPOINT;
-#endif
-
 		sc->sc_if.if_type = IFT_ISDNBASIC;
 		sc->sc_state = ST_IDLE;
 
@@ -294,21 +225,17 @@ i4bispppattach()
 		sc->sc_if_un.scu_sp.pp_chg = i4bisppp_state_changed;
 
 		sppp_attach(&sc->sc_if);
-#if defined(__FreeBSD_version) && ((__FreeBSD_version >= 500009) || (410000 <= __FreeBSD_version && __FreeBSD_version < 500000))
-		/* do not call bpfattach in ether_ifattach */
+
+#if 0 /* ??? -hm */
 		ether_ifattach(&sc->sc_if, 0);
 #else
 		if_attach(&sc->sc_if);
 #endif
 
-#if NBPFILTER > 0 || NBPF > 0
-#ifdef __FreeBSD__
-		bpfattach(&sc->sc_if, DLT_PPP, PPP_HDRLEN);
 		CALLOUT_INIT(&sc->sc_ch);
-#endif /* __FreeBSD__ */
-#ifdef __NetBSD__
-		bpfattach(&sc->sc_if.if_bpf, &sc->sc_if, DLT_PPP, sizeof(u_int));
-#endif
+		
+#if NBPFILTER > 0 || NBPF > 0
+		bpfattach(&sc->sc_if, DLT_PPP, PPP_HDRLEN);
 #endif		
 	}
 }
@@ -373,16 +300,9 @@ i4bisppp_start(struct ifnet *ifp)
 	{
 
 #if NBPFILTER > 0 || NBPF > 0
-#ifdef __FreeBSD__
 		if (ifp->if_bpf)
 			bpf_mtap(ifp, m);
-#endif /* __FreeBSD__ */
-
-#ifdef __NetBSD__
-		if (ifp->if_bpf)
-			bpf_mtap(ifp->if_bpf, m);
-#endif
-#endif /* NBPFILTER > 0 || NBPF > 0 */
+#endif 
 
 		microtime(&ifp->if_lastchange);
 
@@ -559,9 +479,9 @@ i4bisppp_connect(int unit, void *cdp)
 #endif
 
 	sp->pp_up(sp);		/* tell PPP we are ready */
-#ifndef __NetBSD__
+
 	sp->pp_last_sent = sp->pp_last_recv = SECOND;
-#endif
+
 	splx(s);
 }
 
@@ -674,18 +594,9 @@ i4bisppp_rx_data_rdy(int unit)
 #endif
 
 #if NBPFILTER > 0 || NBPF > 0
-
-#ifdef __FreeBSD__	
 	if(sc->sc_if.if_bpf)
 		bpf_mtap(&sc->sc_if, m);
-#endif /* __FreeBSD__ */
-
-#ifdef __NetBSD__
-	if(sc->sc_if.if_bpf)
-		bpf_mtap(sc->sc_if.if_bpf, m);
 #endif
-
-#endif /* NBPFILTER > 0  || NBPF > 0 */
 
 	s = splimp();
 
@@ -716,15 +627,11 @@ i4bisppp_tx_queue_empty(int unit)
 time_t
 i4bisppp_idletime(int unit)
 {
-#ifdef __NetBSD__
-       return(i4bisppp_softc[unit].sc_cdp->last_active_time);
-#else
 	struct sppp *sp;
 	sp = (struct sppp *) &i4bisppp_softc[unit];
 
 	return((sp->pp_last_recv < sp->pp_last_sent) ?
 			sp->pp_last_sent : sp->pp_last_recv);
-#endif
 }
 
 /*---------------------------------------------------------------------------*

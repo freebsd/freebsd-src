@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b_q932fac.h - Q932 facility handling header file
  *	--------------------------------------------------
  *
- *	$Id: i4b_q932fac.h,v 1.8 2000/04/27 09:25:22 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Thu Apr 27 11:07:52 2000]
+ *      last edit-date: [Sat Mar  9 19:37:46 2002]
  *
  *---------------------------------------------------------------------------
  *

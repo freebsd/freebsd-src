@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *	last edit-date: [Wed Oct 24 16:04:53 2001]
+ *	last edit-date: [Sun Mar 17 09:32:58 2002]
  *
  *---------------------------------------------------------------------------*
  *
@@ -60,42 +60,26 @@
 
 #if NI4BIPR > 0
 
-#ifdef __FreeBSD__
 #include "opt_i4b.h"
-#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/errno.h>
-
-#if defined(__FreeBSD__)
 #include <sys/ioccom.h>
 #include <sys/sockio.h>
-#ifdef IPR_VJ
-#include <sys/malloc.h>
-#endif
-#else
-#include <sys/ioctl.h>
-#endif
-
-#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
-#include <sys/callout.h>
-#endif
-
 #include <sys/kernel.h>
-
 #include <net/if.h>
 #include <net/if_types.h>
 #include <net/netisr.h>
-
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
 
 #ifdef IPR_VJ
+#include <sys/malloc.h>
 #include <net/slcompress.h>       
 #define IPR_COMPRESS IFF_LINK0  /* compress TCP traffic */
 #define IPR_AUTOCOMP IFF_LINK1  /* auto-enable TCP compression */
@@ -114,47 +98,20 @@
 				/* undef to uncompress in the mbuf itself    */
 #endif /* IPR_VJ */
 
-#if defined(__FreeBSD_version) &&  __FreeBSD_version >= 400008
 #include "bpf.h"
-#else
-#include "bpfilter.h"
-#endif
 
 #if NBPFILTER > 0 || NBPF > 0
 #include <sys/time.h>
 #include <net/bpf.h>
 #endif
 
-#ifdef __FreeBSD__
 #include <machine/i4b_ioctl.h>
 #include <machine/i4b_debug.h>
-#else
-#include <i4b/i4b_debug.h>
-#include <i4b/i4b_ioctl.h>
-#endif
 
 #include <i4b/include/i4b_global.h>
 #include <i4b/include/i4b_l3l4.h>
 
 #include <i4b/layer4/i4b_l4.h>
-
-#ifndef __FreeBSD__
-#include <machine/cpu.h> /* For softnet */
-#endif
-
-#ifdef __FreeBSD__
-#define IPR_FMT	"ipr%d: "
-#define	IPR_ARG(sc)	((sc)->sc_if.if_unit)
-#define	PDEVSTATIC	static
-#elif defined(__bsdi__)
-#define IPR_FMT	"ipr%d: "
-#define	IPR_ARG(sc)	((sc)->sc_if.if_unit)
-#define	PDEVSTATIC	/* not static */
-#else
-#define	IPR_FMT	"%s: "
-#define	IPR_ARG(sc)	((sc)->sc_if.if_xname)
-#define	PDEVSTATIC	/* not static */
-#endif
 
 #define I4BIPRMTU	1500		/* regular MTU */
 #define I4BIPRMAXMTU	2000		/* max MTU */
@@ -174,16 +131,12 @@ static isdn_link_t *isdn_linktab[NI4BIPR];
 struct ipr_softc {
 	struct ifnet	sc_if;		/* network-visible interface	*/
 	int		sc_state;	/* state of the interface	*/
-
-#ifndef __FreeBSD__
-	int		sc_unit;	/* unit number for Net/OpenBSD	*/
-#endif
-
 	call_desc_t	*sc_cdp;	/* ptr to call descriptor	*/
 	int		sc_updown;	/* soft state of interface	*/
 	struct ifqueue  sc_fastq;	/* interactive traffic		*/
 	int		sc_dialresp;	/* dialresponse			*/
 	int		sc_lastdialresp;/* last dialresponse		*/
+	struct callout_handle	sc_callout;
 	
 #if I4BIPRACCT
 	int		sc_iinb;	/* isdn driver # of inbytes	*/
@@ -195,16 +148,10 @@ struct ipr_softc {
 	int		sc_fn;		/* flag, first null acct	*/
 #endif	
 
-#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
-	struct callout	sc_callout;
-#endif
-#if defined(__FreeBSD__)
-	struct callout_handle	sc_callout;
-#endif
-
 #ifdef I4BIPRADJFRXP
 	int		sc_first_pkt;	/* flag, first rxd packet	*/
 #endif
+
 #if IPR_LOG
 	int		sc_log_first;	/* log first n packets          */
 #endif
@@ -225,32 +172,11 @@ enum ipr_states {
 	ST_CONNECTED_A,			/* connected to remote		*/
 };
 
-#if defined(__FreeBSD__) || defined(__bsdi__)
-#define	THE_UNIT	sc->sc_if.if_unit
-#else
-#define	THE_UNIT	sc->sc_unit
-#endif
-
-#if defined __FreeBSD__ || defined __NetBSD__
-#  define IOCTL_CMD_T u_long
-#else
-#  define IOCTL_CMD_T int
-#endif
-
-#ifdef __FreeBSD__
-PDEVSTATIC void i4biprattach(void *);
+static void i4biprattach(void *);
 PSEUDO_SET(i4biprattach, i4b_ipr);
-static int i4biprioctl(struct ifnet *ifp, IOCTL_CMD_T cmd, caddr_t data);
-#else
-PDEVSTATIC void i4biprattach __P((void));
 static int i4biprioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
-#endif
 
-#ifdef __bsdi__
-static int iprwatchdog(int unit);
-#else
 static void iprwatchdog(struct ifnet *ifp);
-#endif
 static void ipr_init_linktab(int unit);
 static void ipr_tx_queue_empty(int unit);
 static int i4biproutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst, struct rtentry *rtp);
@@ -263,12 +189,8 @@ static void iprclearqueues(struct ipr_softc *sc);
 /*---------------------------------------------------------------------------*
  *	interface attach routine at kernel boot time
  *---------------------------------------------------------------------------*/
-PDEVSTATIC void
-#ifdef __FreeBSD__
+static void
 i4biprattach(void *dummy)
-#else
-i4biprattach()
-#endif
 {
 	struct ipr_softc *sc = ipr_softc;
 	int i;
@@ -286,27 +208,13 @@ i4biprattach()
 		NDBGL4(L4_DIALST, "setting dial state to ST_IDLE");
 
 		sc->sc_state = ST_IDLE;
-		
-#ifdef __FreeBSD__		
 		sc->sc_if.if_name = "ipr";
 		sc->sc_if.if_unit = i;
-#elif defined(__bsdi__)
-		sc->sc_if.if_name = "ipr";
-		sc->sc_if.if_unit = i;
-#else
-		sprintf(sc->sc_if.if_xname, "ipr%d", i);
-		sc->sc_if.if_softc = sc;
-		sc->sc_unit = i;
-#endif
 
 #ifdef	IPR_VJ
 		sc->sc_if.if_flags = IFF_POINTOPOINT | IFF_SIMPLEX | IPR_AUTOCOMP;
 #else
 		sc->sc_if.if_flags = IFF_POINTOPOINT | IFF_SIMPLEX;
-#endif
-
-#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
-		callout_init(&sc->sc_callout);
 #endif
 
 		sc->sc_if.if_mtu = I4BIPRMTU;
@@ -317,10 +225,9 @@ i4biprattach()
 		sc->sc_if.if_snd.ifq_maxlen = I4BIPRMAXQLEN;
 		sc->sc_fastq.ifq_maxlen = I4BIPRMAXQLEN;
 
-#if defined (__FreeBSD__) && __FreeBSD__ > 4
 		if(!mtx_initialized(&sc->sc_fastq.ifq_mtx))
 			mtx_init(&sc->sc_fastq.ifq_mtx, "i4b_ipr_fastq", MTX_DEF);
-#endif		
+
 		sc->sc_if.if_ipackets = 0;
 		sc->sc_if.if_ierrors = 0;
 		sc->sc_if.if_opackets = 0;
@@ -344,16 +251,13 @@ i4biprattach()
 		sc->sc_loutb = 0;
 		sc->sc_fn = 1;
 #endif
+
 #if IPR_LOG
 		sc->sc_log_first = IPR_LOG;
 #endif
 
-#ifdef	IPR_VJ
-#ifdef __FreeBSD__
+#ifdef IPR_VJ
 		sl_compress_init(&sc->sc_compr, -1);
-#else
-		sl_compress_init(&sc->sc_compr);
-#endif
 
 #ifdef IPR_VJ_USEBUFFER
 		if(!((sc->sc_cbuf =
@@ -370,11 +274,7 @@ i4biprattach()
 		if_attach(&sc->sc_if);
 
 #if NBPFILTER > 0 || NBPF > 0
-#ifdef __FreeBSD__
 		bpfattach(&sc->sc_if, DLT_NULL, sizeof(u_int));
-#else
-		bpfattach(&sc->sc_if.if_bpf, &sc->sc_if, DLT_NULL, sizeof(u_int));
-#endif
 #endif		
 	}
 }
@@ -394,19 +294,14 @@ i4biproutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	
 	s = SPLI4B();
 
-#if defined(__FreeBSD__) || defined(__bsdi__)
 	unit = ifp->if_unit;
 	sc = &ipr_softc[unit];
-#else
-	sc = ifp->if_softc;
-	unit = sc->sc_unit;
-#endif
 
 	/* check for IP */
 	
 	if(dst->sa_family != AF_INET)
 	{
-		printf(IPR_FMT "af%d not supported\n", IPR_ARG(sc), dst->sa_family);
+		printf("ipr%d: af%d not supported\n", (sc)->sc_if.if_unit, dst->sa_family);
 		m_freem(m);
 		splx(s);
 		sc->sc_if.if_noproto++;
@@ -498,7 +393,6 @@ i4biproutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 
 	/* check for space in choosen send queue */
 	
-#if defined (__FreeBSD__) && __FreeBSD__ > 4
 	if(! IF_HANDOFF(ifq, m, NULL))
 	{
 		NDBGL4(L4_IPRDBG, "ipr%d: send queue full!", unit);
@@ -506,17 +400,6 @@ i4biproutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		sc->sc_if.if_oerrors++;
 		return(ENOBUFS);
 	}
-#else
-        if(IF_QFULL(ifq))
-        {
-		NDBGL4(L4_IPRDBG, "ipr%d: send queue full!", unit);
-                IF_DROP(ifq);
-                m_freem(m);
-                splx(s);
-                sc->sc_if.if_oerrors++;
-                return(ENOBUFS);
-        }	
-#endif
 	
 	NDBGL4(L4_IPRDBG, "ipr%d: add packet to send queue!", unit);
 	
@@ -530,20 +413,10 @@ i4biproutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 /*---------------------------------------------------------------------------*
  *	process ioctl
  *---------------------------------------------------------------------------*/
-#ifdef __FreeBSD__
-static int
-i4biprioctl(struct ifnet *ifp, IOCTL_CMD_T cmd, caddr_t data)
-#else
 static int
 i4biprioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
-#endif
 {
-#if defined(__FreeBSD__) || defined(__bsdi__)
 	struct ipr_softc *sc = &ipr_softc[ifp->if_unit];
-#else
-	struct ipr_softc *sc = ifp->if_softc;
-#endif
-
 	struct ifreq *ifr = (struct ifreq *)data;
 	struct ifaddr *ifa = (struct ifaddr *)data;
 	int s;
@@ -569,11 +442,7 @@ i4biprioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				if(sc->sc_if.if_flags & IFF_RUNNING)
 				{
 					/* disconnect ISDN line */
-#if defined(__FreeBSD__) || defined(__bsdi__)
 					i4b_l4_drvrdisc(BDRV_IPR, ifp->if_unit);
-#else
-					i4b_l4_drvrdisc(BDRV_IPR, sc->sc_unit);
-#endif
 					sc->sc_if.if_flags &= ~IFF_RUNNING;
 				}
 
@@ -592,7 +461,6 @@ i4biprioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			microtime(&sc->sc_if.if_lastchange);
 			break;
 
-#if !defined(__OpenBSD__)			
 		case SIOCSIFMTU:	/* set interface MTU */
 			if(ifr->ifr_mtu > I4BIPRMAXMTU)
 				error = EINVAL;
@@ -604,8 +472,6 @@ i4biprioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				microtime(&sc->sc_if.if_lastchange);
 			}
 			break;
-#endif /* __OPENBSD__ */
-
 #if 0
 	/* not needed for FreeBSD, done in sl_compress_init() (-hm) */
 	
@@ -617,24 +483,19 @@ i4biprioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			{
 			struct proc *p = curproc;	/* XXX */
 
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 400005
 			if((error = suser(p)) != 0)
-#else
-			if((error = suser(p->p_ucred, &p->p_acflag)) != 0)
-#endif
 				return (error);
 		        sl_compress_setup(sc->sc_compr, *(int *)data);
 			}
 			break;
 #endif
-#endif
+#endif /* #if 0 */
+
 		default:
 			error = EINVAL;
 			break;
 	}
-
 	splx(s);
-
 	return(error);
 }
 
@@ -646,61 +507,21 @@ iprclearqueues(struct ipr_softc *sc)
 {
 	int x;
 
-#if defined (__FreeBSD__) && __FreeBSD__ > 4
 	x = splimp();
 	IF_DRAIN(&sc->sc_fastq);
 	IF_DRAIN(&sc->sc_if.if_snd);
 	splx(x);
-#else
-        struct mbuf *m;
-
-	for(;;)
-	{
-		x = splimp();
-		IF_DEQUEUE(&sc->sc_fastq, m);
-		splx(x);
-		if(m)
-			m_freem(m);
-		else
-			break;
-	}
-
-	for(;;)
-        {
-		x = splimp();
-		IF_DEQUEUE(&sc->sc_if.if_snd, m);
-		splx(x);
-		if(m)
-			m_freem(m);
-		else
-			break;
-	}
-#endif
 }
         
 #if I4BIPRACCT
 /*---------------------------------------------------------------------------*
  *	watchdog routine
  *---------------------------------------------------------------------------*/
-#ifdef __bsdi__
-static int
-iprwatchdog(int unit)
-{
-#else
 static void
 iprwatchdog(struct ifnet *ifp)
 {
-#endif
-#ifdef __FreeBSD__
 	int unit = ifp->if_unit;
 	struct ipr_softc *sc = &ipr_softc[unit];
-#elif defined(__bsdi__)
-	struct ipr_softc *sc = &ipr_softc[unit];
-	struct ifnet *ifp = &ipr_softc[unit].sc_if;
-#else
-	struct ipr_softc *sc = ifp->if_softc;
-	int unit = sc->sc_unit;
-#endif
 	bchan_statistics_t bs;
 	
 	/* get # of bytes in and out from the HSCX driver */ 
@@ -728,9 +549,6 @@ iprwatchdog(struct ifnet *ifp)
 			 sc->sc_ioutb, sc->sc_iinb, ro, ri, sc->sc_outb, sc->sc_inb);
  	}
 	sc->sc_if.if_timer = I4BIPRACCTINTVL; 	
-#ifdef __bsdi__
-	return 0;
-#endif
 }
 #endif /* I4BIPRACCT */
 
@@ -749,7 +567,7 @@ i4bipr_connect_startio(struct ipr_softc *sc)
 	if(sc->sc_state == ST_CONNECTED_W)
 	{
 		sc->sc_state = ST_CONNECTED_A;
-		ipr_tx_queue_empty(THE_UNIT);
+		ipr_tx_queue_empty(sc->sc_if.if_unit);
 	}
 
 	splx(s);
@@ -847,6 +665,7 @@ ipr_disconnect(int unit, void *cdp)
 #if I4BIPRACCT
 	sc->sc_if.if_timer = 0;
 #endif
+
 #if IPR_LOG
 	/* show next IPR_LOG packets again */
 	sc->sc_log_first = IPR_LOG;
@@ -907,6 +726,7 @@ ipr_rx_data_rdy(int unit)
 {
 	register struct ipr_softc *sc = &ipr_softc[unit];
 	register struct mbuf *m;
+
 #ifdef IPR_VJ
 #ifdef IPR_VJ_USEBUFFER
 	u_char *cp = sc->sc_cbuf;
@@ -1047,6 +867,7 @@ error:
 	/* NB. do the accounting after decompression!		*/
 	sc->sc_inb += m->m_pkthdr.len;
 #endif
+
 #if IPR_LOG
 	if(sc->sc_log_first > 0)
 	{
@@ -1064,16 +885,10 @@ error:
 		mm.m_next = m;
 		mm.m_len = 4;
 		mm.m_data = (char *)&af;
-
-#ifdef __FreeBSD__
 		bpf_mtap(&sc->sc_if, &mm);
-#else
-		bpf_mtap(sc->sc_if.if_bpf, &mm);
-#endif
 	}
 #endif /* NBPFILTER > 0  || NBPF > 0 */
 
-#if defined (__FreeBSD__) && __FreeBSD__ > 4
 	if(! IF_HANDOFF(&ipintrq, m, NULL))
 	{
 		NDBGL4(L4_IPRDBG, "ipr%d: ipintrq full!", unit);
@@ -1084,21 +899,6 @@ error:
 	{
 		schednetisr(NETISR_IP);
 	}
-#else
-        if(IF_QFULL(&ipintrq))
-        {
-		NDBGL4(L4_IPRDBG, "ipr%d: ipintrq full!", unit);
-                IF_DROP(&ipintrq);
-                sc->sc_if.if_ierrors++;
-                sc->sc_if.if_iqdrops++;
-                m_freem(m);
-        }
-        else
-        {
-                IF_ENQUEUE(&ipintrq, m);
-                schednetisr(NETISR_IP);
-        }
-#endif	
 }
 
 /*---------------------------------------------------------------------------*
@@ -1145,12 +945,7 @@ ipr_tx_queue_empty(int unit)
 			mm.m_next = m;
 			mm.m_len = 4;
 			mm.m_data = (char *)&af;
-	
-#ifdef __FreeBSD__
 			bpf_mtap(&sc->sc_if, &mm);
-#else
-			bpf_mtap(sc->sc_if.if_bpf, &mm);
-#endif
 		}
 #endif /* NBPFILTER */
 	
@@ -1158,7 +953,7 @@ ipr_tx_queue_empty(int unit)
 		sc->sc_outb += m->m_pkthdr.len;	/* size before compression */
 #endif
 
-#ifdef	IPR_VJ	
+#ifdef IPR_VJ	
 		if((ip = mtod(m, struct ip *))->ip_p == IPPROTO_TCP)
 		{
 			if(sc->sc_if.if_flags & IPR_COMPRESS)

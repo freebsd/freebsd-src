@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b_l4mgmt.c - layer 4 calldescriptor management utilites
  *	-----------------------------------------------------------
  *
- *	$Id: i4b_l4mgmt.c,v 1.34 2000/09/01 14:11:51 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Fri Oct 13 15:58:34 2000]
+ *      last edit-date: [Sat Mar  9 19:48:32 2002]
  *
  *---------------------------------------------------------------------------*/
 
@@ -43,17 +41,8 @@
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 
-#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
-#include <sys/callout.h>
-#endif
-
-#ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
-#else
-#include <i4b/i4b_debug.h>
-#include <i4b/i4b_ioctl.h>
-#endif
 
 #include <i4b/include/i4b_l3l4.h>
 #include <i4b/include/i4b_global.h>
@@ -66,9 +55,7 @@ static unsigned int get_cdid(void);
 
 int nctrl;				/* number of attached controllers */
 
-#if (defined(__NetBSD__) && __NetBSD_Version__ >= 104230000) || defined(__FreeBSD__)
 void i4b_init_callout(call_desc_t *);
-#endif
 
 /*---------------------------------------------------------------------------*
  *      return a new unique call descriptor id
@@ -149,9 +136,7 @@ reserve_cd(void)
 	if(cd == NULL)
 		panic("reserve_cd: no free call descriptor available!");
 
-#if (defined(__NetBSD__) && __NetBSD_Version__ >= 104230000) || defined(__FreeBSD__)
 	i4b_init_callout(cd);
-#endif
 
 	return(cd);
 }
@@ -204,9 +189,9 @@ cd_by_cdid(unsigned int cdid)
 		{
 			NDBGL4(L4_MSG, "found cdid - index=%d cdid=%u cr=%d",
 					i, call_desc[i].cdid, call_desc[i].cr);
-#if (defined(__NetBSD__) && __NetBSD_Version__ >= 104230000) || defined(__FreeBSD__)
+
 			i4b_init_callout(&call_desc[i]);
-#endif
+
 			return(&(call_desc[i]));
 		}
 	}
@@ -235,9 +220,9 @@ cd_by_unitcr(int unit, int cr, int crf)
 	  {
 	    NDBGL4(L4_MSG, "found cd, index=%d cdid=%u cr=%d",
 			i, call_desc[i].cdid, call_desc[i].cr);
-#if (defined(__NetBSD__) && __NetBSD_Version__ >= 104230000) || defined(__FreeBSD__)
+
 	    i4b_init_callout(&call_desc[i]);
-#endif
+
 	    return(&(call_desc[i]));
 	  }
 	}
@@ -260,21 +245,11 @@ get_rand_cr(int unit)
 	{
 		int found = 1;
 		
-#if defined(__FreeBSD__)
-
 #ifdef RANDOMDEV
 		read_random((char *)&val, sizeof(val));
 #else
 		val = (u_char)random();
 #endif /* RANDOMDEV */
-
-#else
-		val |= unit+i;
-		val <<= i;
-		val ^= (time.tv_sec >> 8) ^ time.tv_usec;
-		val <<= i;
-		val ^= time.tv_sec ^ (time.tv_usec >> 8);
-#endif
 
 		retval = val & 0x7f;
 		
@@ -300,13 +275,11 @@ get_rand_cr(int unit)
 /*---------------------------------------------------------------------------*
  *	initialize the callout handles for FreeBSD
  *---------------------------------------------------------------------------*/
-#if (defined(__NetBSD__) && __NetBSD_Version__ >= 104230000) || defined(__FreeBSD__)
 void
 i4b_init_callout(call_desc_t *cd)
 {
 	if(cd->callouts_inited == 0)
 	{
-#ifdef __FreeBSD__
 		callout_handle_init(&cd->idle_timeout_handle);
 		callout_handle_init(&cd->T303_callout);
 		callout_handle_init(&cd->T305_callout);
@@ -315,20 +288,9 @@ i4b_init_callout(call_desc_t *cd)
 		callout_handle_init(&cd->T310_callout);
 		callout_handle_init(&cd->T313_callout);
 		callout_handle_init(&cd->T400_callout);
-#else
-		callout_init(&cd->idle_timeout_handle);
-		callout_init(&cd->T303_callout);
-		callout_init(&cd->T305_callout);
-		callout_init(&cd->T308_callout);
-		callout_init(&cd->T309_callout);
-		callout_init(&cd->T310_callout);
-		callout_init(&cd->T313_callout);
-		callout_init(&cd->T400_callout);
-#endif
 		cd->callouts_inited = 1;
 	}
 }
-#endif
 
 /*---------------------------------------------------------------------------*
  *      daemon is attached

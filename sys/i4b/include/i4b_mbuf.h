@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b - mbuf handling support routines
  *	--------------------------------------
  *
- *	$Id: i4b_mbuf.h,v 1.9 2000/03/07 14:21:18 hm Exp $
- *
  * $FreeBSD$
  *
- *	last edit-date: [Fri Mar  3 14:30:09 2000]
+ *	last edit-date: [Sat Mar  9 15:58:11 2002]
  *
  *---------------------------------------------------------------------------*/
 

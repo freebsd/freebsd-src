@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *	last edit-date: [Thu Oct 18 13:26:16 2001]
+ *	last edit-date: [Sat Mar  9 15:57:44 2002]
  *
  *---------------------------------------------------------------------------*/
 
@@ -113,13 +113,6 @@ void tel_set_linktab(int unit, isdn_link_t *ilt);
 drvr_link_t *i4bisppp_ret_linktab(int unit);
 void i4bisppp_set_linktab(int unit, isdn_link_t *ilt);
 
-#ifdef __bsdi__
-/* global linktab functions for IBC userland driver */
-
-drvr_link_t *ibc_ret_linktab(int unit);
-void ibc_set_linktab(int unit, isdn_link_t *ilt);
-#endif
-
 /* global linktab functions for ING network driver */
 
 drvr_link_t *ing_ret_linktab(int unit);
@@ -189,8 +182,7 @@ typedef struct
 
 	int	timeout_active;		/* idle timeout() active flag	*/
 
-#if (defined(__FreeBSD_version) && __FreeBSD_version >= 300001) || \
-	(!defined(__FreeBSD_version) && defined(__FreeBSD__) && __FreeBSD__ >= 3)
+	int	callouts_inited;	/* must init before use */
 	struct	callout_handle	idle_timeout_handle;
 	struct	callout_handle	T303_callout;
 	struct	callout_handle	T305_callout;
@@ -199,19 +191,6 @@ typedef struct
 	struct	callout_handle	T310_callout;
 	struct	callout_handle	T313_callout;
 	struct	callout_handle	T400_callout;
-	int	callouts_inited;		/* must init before use */
-#endif
-#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
-	struct	callout	idle_timeout_handle;
-	struct	callout	T303_callout;
-	struct	callout	T305_callout;
-	struct	callout	T308_callout;
-	struct	callout	T309_callout;
-	struct	callout	T310_callout;
-	struct	callout	T313_callout;
-	struct	callout	T400_callout;
-	int	callouts_inited;		/* must init before use */
-#endif
 
 	int	idletime_state;		/* wait for idle_time begin	*/
 #define IST_IDLE	0	/* shorthold mode disabled 	*/

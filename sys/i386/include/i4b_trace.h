@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b_trace.h - header file for trace data read device
  *	----------------------------------------------------
  *
- *	$Id: i4b_trace.h,v 1.8 2000/03/08 16:08:18 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Wed Mar  8 16:41:43 2000]
+ *      last edit-date: [Sun Mar 17 10:10:52 2002]
  *
  *---------------------------------------------------------------------------*/
 

@@ -256,11 +256,8 @@ int iavc_send(capi_softc_t *capi_sc, struct mbuf *m)
     }
 
     if (_IF_QFULL(&sc->sc_txq)) {
-#if defined (__FreeBSD__) && __FreeBSD__ > 4
+
 	_IF_DROP(&sc->sc_txq);
-#else
-	IF_DROP(&sc->sc_txq);
-#endif
 
 	printf("iavc%d: tx overflow, message dropped\n", sc->sc_unit);
 

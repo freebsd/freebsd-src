@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,19 +27,14 @@
  *	i4b_tei.c - tei handling procedures
  *	-----------------------------------
  *
- *	$Id: i4b_tei.c,v 1.25 2000/09/01 14:11:51 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Fri Oct 13 15:56:35 2000]
+ *      last edit-date: [Sat Mar  9 17:53:27 2002]
  *
  *---------------------------------------------------------------------------*/
 
-#ifdef __FreeBSD__
 #include "i4bq921.h"
-#else
-#define	NI4BQ921	1
-#endif
+
 #if NI4BQ921 > 0
 
 #include <sys/param.h>
@@ -49,16 +44,7 @@
 #include <sys/socket.h>
 #include <net/if.h>
 
-#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
-#include <sys/callout.h>
-#endif
-
-#ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
-#else
-#include <i4b/i4b_debug.h>
-#include <i4b/i4b_ioctl.h>
-#endif
 
 #include <i4b/include/i4b_global.h>
 #include <i4b/include/i4b_l1l2.h>
@@ -282,9 +268,6 @@ i4b_tei_chkresp(l2_softc_t *l2sc)
 void
 i4b_make_rand_ri(l2_softc_t *l2sc)
 {
-
-#if defined(__FreeBSD__)
-
 	u_short val;
 
 #ifdef RANDOMDEV
@@ -293,28 +276,6 @@ i4b_make_rand_ri(l2_softc_t *l2sc)
 	val = (u_short)random();
 #endif /* RANDOMDEV */ 
 
-#else
-
-	register u_short val;
-	register int i;
-	static int called = 42;
-	
-	val = (l2sc->last_rih << 8) | l2sc->last_ril;
-
-	val += ++called;
-	
-	for(i=0; i < 50 ; i++, val++)
-	{
-		val |= l2sc->unit+i;
-		val <<= i;
-		val ^= (time.tv_sec >> 16) ^ time.tv_usec;
-		val <<= i;
-		val ^= time.tv_sec ^ (time.tv_usec >> 16);
-
-		if(val != 0 && val != 0xffff)
-			break;
-	}
-#endif
 	l2sc->last_rih = (val >> 8) & 0x00ff;
 	l2sc->last_ril = val & 0x00ff;
 }
