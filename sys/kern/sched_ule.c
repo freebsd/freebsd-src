@@ -718,15 +718,17 @@ sched_pctcpu_update(struct kse *ke)
 	/*
 	 * Adjust counters and watermark for pctcpu calc.
 	 */
-
-	/*
-	 * Shift the tick count out so that the divide doesn't round away
-	 * our results.
-	 */
-	ke->ke_ticks <<= 10;
-	ke->ke_ticks = (ke->ke_ticks / (ke->ke_ltick - ke->ke_ftick)) *
-		    SCHED_CPU_TICKS;
-	ke->ke_ticks >>= 10;
+	if (ke->ke_ltick > ticks - SCHED_CPU_TICKS) {
+		/*
+		 * Shift the tick count out so that the divide doesn't
+		 * round away our results.
+		 */
+		ke->ke_ticks <<= 10;
+		ke->ke_ticks = (ke->ke_ticks / (ticks - ke->ke_ftick)) *
+			    SCHED_CPU_TICKS;
+		ke->ke_ticks >>= 10;
+	} else
+		ke->ke_ticks = 0;
 	ke->ke_ltick = ticks;
 	ke->ke_ftick = ke->ke_ltick - SCHED_CPU_TICKS;
 }
@@ -1307,7 +1309,6 @@ sched_pctcpu(struct kse *ke)
 		 */
 		if (ke->ke_ltick < (ticks - (hz / 2)))
 			sched_pctcpu_update(ke);
-
 		/* How many rtick per second ? */
 		rtick = min(ke->ke_ticks / SCHED_CPU_TIME, SCHED_CPU_TICKS);
 		pctcpu = (FSCALE * ((FSCALE * rtick)/realstathz)) >> FSHIFT;
