@@ -562,7 +562,7 @@ struct nge_desc_32 {
 #define NGE_RXEXTSTS_UDPPKT	0x00200000
 #define NGE_RXEXTSTS_UDPCSUMERR	0x00400000
 
-#define NGE_RX_LIST_CNT		64
+#define NGE_RX_LIST_CNT		128
 #define NGE_TX_LIST_CNT		128
 
 struct nge_list_data {
