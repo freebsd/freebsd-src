@@ -39,16 +39,16 @@
 .Nm group
 .Nd format of the group permissions file
 .Sh DESCRIPTION
-The
+The file
 .Nm
-file is the local source of group information.  It 
-can be used in conjunction with the Hesiod domain
+file is the local source of group information.
+It can be used in conjunction with the Hesiod domain
 `group', and the NIS maps `group.byname' and `group.bygid',
 as controlled by 
 .Xr nsswitch.conf 5 .
 .Pp
 The file
-.Aq Pa /etc/group
+.Nm
 consists of newline separated
 .Tn ASCII
 records, one per group, containing four colon
