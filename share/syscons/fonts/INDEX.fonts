@@ -5,8 +5,8 @@
 #
 # Format <file>:<lang>:<description>
 #
-# lang: ar bg cs da de el en es fi fr hr hu is it iw ja ko nl no pl pt
-#       ro ru sh sk sl sv tr uk zh
+# lang: ar bg cs da de el en es fi fr hr hu hy is it iw ja ko nl no pl
+#       pt ro ru sh sk sl sv tr uk zh
 # lang: lang,lang
 #
 # Example:
@@ -56,6 +56,7 @@ MENU:es:Escoja el juego de caracteres
 MENU:iw:ДНИЫЬДН ОТЕБ ЬГА
 MENU:uk:Вибер╕ть шрифт
 MENU:el:еПИКщНТЕ ТГ ЦЯАЛЛАТОСЕИЯэ ТГР ЙОМСЭКАР
+MENU:hy:ющОЯ╩Ы ╥ЯЁЩго КЁЯЫЁМАЯыЁщ ОЁИЁО╩КЁоа
 #
 FONT:en:cp437-8x16.fnt
 FONT:de,fr,es,is,it,sv,da,fi,nl,no,pt:iso-8x16.fnt
@@ -65,7 +66,23 @@ FONT:lt:iso04-8x16.fnt
 FONT:iw:iso08-8x16.fnt
 FONT:uk:koi8-u-8x16.fnt
 FONT:el:iso07-8x16.fnt
+FONT:hy:armscii8-8x16.fnt
 #
+armscii8-8x16.fnt:hy:ARMSCII-8 нА╧ЁМАЯыЁщ ЁуАУКшЁо, 8x16
+armscii8-8x16.fnt:ru:Кодировка ARMSCII-8, 8x16
+armscii8-8x16.fnt:en:ARMSCII-8 Character set, 8x16 
+armscii8-8x16.fnt:de:ARMSCII-8 Zeichensatz, 8x16 
+
+armscii8-8x14.fnt:hy:ARMSCII-8 нА╧ЁМАЯыЁщ ЁуАУКшЁо, 8x14
+armscii8-8x14.fnt:ru:Кодировка ARMSCII-8, 8x14
+armscii8-8x14.fnt:en:ARMSCII-8 Character set, 8x14 
+armscii8-8x14.fnt:de:ARMSCII-8 Zeichensatz, 8x14
+
+armscii8-8x8.fnt:hy:ARMSCII-8 нА╧ЁМАЯыЁщ ЁуАУКшЁо, 8x8
+armscii8-8x8.fnt:ru:Кодировка ARMSCII-8, 8x8
+armscii8-8x8.fnt:en:ARMSCII-8 Character set, 8x8 
+armscii8-8x8.fnt:de:ARMSCII-8 Zeichensatz, 8x8
+
 cp437-8x14.fnt:en:Codepage 437 English, 8x14
 cp437-8x14.fnt:de:Codeseite 437 Englisch, 8x14
 cp437-8x14.fnt:fr:Code page 437 Anglais, 8x14
@@ -203,6 +220,21 @@ cp1251-8x16.fnt:en:Codepage 1251 Cyrillic, 8x16
 cp1251-8x16.fnt:ru:Шрифт cp1251 кириллица, 8x16
 cp1251-8x16.fnt:uk:Шрифт cp1251-кирилиця, 8x16
 
+haik8-8x16.fnt:hy:пЁш╩Я╩щ haik8 ╔Ш╥ОЁ╥АЯм╩и armscii8 М╩ЯЁоА╧╘ я╩О╓
+haik8-8x16.fnt:ru:Армянская haik8 (только для перекодировки с armscii8)
+haik8-8x16.fnt:en:haik8 codepage (use only with armscii8 screenmap)
+haik8-8x16.fnt:de:haik8 Zeichensatz (nur mit armscii8 umwandler verwenden)
+
+haik8-8x14.fnt:hy:пЁш╩Я╩щ haik8 ╔Ш╥ОЁ╥АЯм╩и armscii8 М╩ЯЁоА╧╘ я╩О╓
+haik8-8x14.fnt:ru:Армянская haik8 (только для перекодировки с armscii8)
+haik8-8x14.fnt:en:haik8 codepage (use only with armscii8 screenmap)
+haik8-8x14.fnt:de:haik8 Zeichensatz (nur mit armscii8 umwandler verwenden)
+
+haik8-8x8.fnt:hy:пЁш╩Я╩щ haik8 ╔Ш╥ОЁ╥АЯм╩и armscii8 М╩ЯЁоА╧╘ я╩О╓
+haik8-8x8.fnt:ru:Армянская haik8 (только для перекодировки с armscii8)
+haik8-8x8.fnt:en:haik8 codepage (use only with armscii8 screenmap)
+haik8-8x8.fnt:de:haik8 Zeichensatz (nur mit armscii8 umwandler verwenden)
+
 iso-8x16.fnt:en:ISO-8859-1 West European, 8x16
 iso-8x16.fnt:de:ISO-8859-1 Westeuropa, 8x16
 iso-8x16.fnt:fr:ISO-8859-1 Est europИen, 8x16
@@ -329,6 +361,7 @@ koi8-r-8x14.fnt:ru:Русский шрифт koi8-r, 8x14
 koi8-r-8x14.fnt:fr:Russe koi8-r, 8x14
 koi8-r-8x14.fnt:es:koi8-r ruso, 8x14
 koi8-r-8x14.fnt:uk:Шрифт koi8-r рос╕йський, 8x14
+koi8-r-8x14.fnt:hy:ХАУК╩Я╩щ koi8-r оА╧ЁМАЯАУы, 8x14
 
 koi8-r-8x16.fnt:en:Russian koi8-r, 8x16
 koi8-r-8x16.fnt:de:Russisch koi8-r, 8x16
@@ -336,6 +369,7 @@ koi8-r-8x16.fnt:ru:Русский шрифт koi8-r, 8x16
 koi8-r-8x16.fnt:fr:Russe koi8-r, 8x16
 koi8-r-8x16.fnt:es:koi8-r ruso, 8x16
 koi8-r-8x16.fnt:uk:Шрифт koi8-r рос╕йський, 8x16
+koi8-r-8x16.fnt:hy:ХАУК╩Я╩щ koi8-r оА╧ЁМАЯАУы, 8x16
 
 koi8-r-8x8.fnt:en:Russian koi8-r, 8x8
 koi8-r-8x8.fnt:de:Russisch koi8-r, 8x8
@@ -343,6 +377,7 @@ koi8-r-8x8.fnt:ru:Русский шрифт koi8-r, 8x8
 koi8-r-8x8.fnt:fr:Russe koi8-r, 8x8
 koi8-r-8x8.fnt:es:koi8-r ruso, 8x8
 koi8-r-8x8.fnt:uk:Шрифт koi8-r рос╕йський, 8x8
+koi8-r-8x8.fnt:hy:ХАУК╩Я╩щ koi8-r оА╧ЁМАЯАУы, 8x8
 
 koi8-rb-8x16.fnt:en:Russian koi8-r (b), 8x16
 koi8-rb-8x16.fnt:de:Russisch koi8-r (b), 8x16
@@ -350,6 +385,7 @@ koi8-rb-8x16.fnt:ru:Русский шрифт koi8-r (b), 8x16
 koi8-rb-8x16.fnt:fr:Russe koi8-r (b), 8x16
 koi8-rb-8x16.fnt:es:koi8-r (b) ruso, 8x16
 koi8-rb-8x16.fnt:uk:Шрифт koi8-r (b) рос╕йський, 8x16
+koi8-rb-8x16.fnt:hy:ХАУК╩Я╩щ koi8-r (b) оА╧ЁМАЯАУы, 8x16
 
 koi8-rc-8x16.fnt:en:Russian koi8-r (c), 8x16
 koi8-rc-8x16.fnt:de:Russisch koi8-r (c), 8x16
@@ -357,6 +393,7 @@ koi8-rc-8x16.fnt:ru:Русский шрифт koi8-r (c), 8x16
 koi8-rc-8x16.fnt:fr:Russe koi8-r (c), 8x16
 koi8-rc-8x16.fnt:es:koi8-r (c) ruso, 8x16
 koi8-rc-8x16.fnt:uk:Шрифт koi8-r (c) рос╕йський, 8x16
+koi8-rc-8x16.fnt:hy:ХАУК╩Я╩щ koi8-r (c) оА╧ЁМАЯАУы, 8x16
 
 cp866u-8x16.fnt:en:Ukrainian font cp866u, 8x16
 cp866u-8x16.fnt:uk:Шрифт cp866u укра╖нський, 8x16
