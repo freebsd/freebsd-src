@@ -626,7 +626,7 @@ atapi_cb(struct ata_request *request)
     hcb = (struct atapi_hcb *)request->driver;
     csio = &hcb->ccb->csio;
 
-#ifdef CAMDEBUG
+#ifdef XXXCAMDEBUG
 # define err (request->u.atapi.sense_key)
     if (CAM_DEBUGGED(csio->ccb_h.path, CAM_DEBUG_CDB)) {
 	printf("atapi_cb: hcb@%p error = %02x: (sk = %02x%s%s%s)\n",
