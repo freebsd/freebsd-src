@@ -57,8 +57,10 @@ enum {
 	DIGIDB_RI = (1<<11),
 };
 
-#define	DIGIIO_REINIT	_IO('e', 'A')
-#define	DIGIIO_DEBUG	_IOW('e', 'B', int)
-#define	DIGIIO_RING	_IO('e', 'C')
-#define	DIGIIO_MODEL	_IOR('e', 'D', enum digi_model)
-#define	DIGIIO_IDENT	_IOW('e', 'E', char *)
+#define	DIGIIO_REINIT		_IO('e', 'A')
+#define	DIGIIO_DEBUG		_IOW('e', 'B', int)
+#define	DIGIIO_RING		_IO('e', 'C')
+#define	DIGIIO_MODEL		_IOR('e', 'D', enum digi_model)
+#define	DIGIIO_IDENT		_IOW('e', 'E', char *)
+#define	DIGIIO_SETALTPIN	_IOW('e', 'F', int)
+#define	DIGIIO_GETALTPIN	_IOR('e', 'G', int)
