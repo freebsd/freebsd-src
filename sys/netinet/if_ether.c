@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.22 1995/12/09 16:06:52 phk Exp $
+ * $Id: if_ether.c,v 1.23 1995/12/14 09:53:37 phk Exp $
  */
 
 /*
@@ -101,6 +101,7 @@ SYSCTL_INT(_net_arp, OID_AUTO, useloopback, CTLFLAG_RW, &useloopback, 0, "");
 static int	arp_proxyall = 0;
 SYSCTL_INT(_net_arp, OID_AUTO, proxyall, CTLFLAG_RW, &arp_proxyall, 0, "");
 
+static void	arp_rtrequest __P((int, struct rtentry *, struct sockaddr *));
 static void	arprequest __P((struct arpcom *, u_long *, u_long *, u_char *));
 static void	arpintr __P((void));
 static void	arptfree __P((struct llinfo_arp *));
