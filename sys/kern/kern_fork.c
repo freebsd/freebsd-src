@@ -768,6 +768,15 @@ again:
 	PROC_UNLOCK(p2);
 
 	/*
+	 * If other threads are waiting, let them continue now
+	 */
+	if (p1->p_flag & P_KSES) {
+		PROC_LOCK(p1);
+		thread_single_end();
+		PROC_UNLOCK(p1);
+	}
+
+	/*
 	 * Return child proc pointer to parent.
 	 */
 	*procp = p2;
