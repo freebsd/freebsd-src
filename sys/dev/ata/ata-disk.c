@@ -941,8 +941,7 @@ ad_reinit(struct ad_softc *adp)
 void
 ad_print(struct ad_softc *adp, char *prepend) 
 {
-    if (prepend)
-	printf("%s", prepend);
+    if (prepend) printf("%s", prepend);
     if (bootverbose) {
 	ata_printf(adp->controller, adp->unit,
 		   "<%.40s/%.8s> ATA-%d disk at ata%d-%s\n", 
@@ -951,18 +950,21 @@ ad_print(struct ad_softc *adp, char *prepend)
 		   device_get_unit(adp->controller->dev),
 		   (adp->unit == ATA_MASTER) ? "master" : "slave");
 
+	if (prepend) printf("%s", prepend);
 	ata_printf(adp->controller, adp->unit,
 		   "%luMB (%u sectors), %u C, %u H, %u S, %u B\n",
 		   adp->total_secs / ((1024L*1024L)/DEV_BSIZE), adp->total_secs,
 		   adp->total_secs / (adp->heads * adp->sectors),
 		   adp->heads, adp->sectors, DEV_BSIZE);
 
+	if (prepend) printf("%s", prepend);
 	ata_printf(adp->controller, adp->unit,
 		   "%d secs/int, %d depth queue, %s%s\n", 
 		   adp->transfersize / DEV_BSIZE, adp->num_tags + 1,
 		   (adp->flags & AD_F_TAG_ENABLED) ? "tagged " : "",
 		   ata_mode2str(adp->controller->mode[ATA_DEV(adp->unit)]));
 
+	if (prepend) printf("%s", prepend);
 	ata_printf(adp->controller, adp->unit,
 		   "piomode=%d dmamode=%d udmamode=%d cblid=%d\n",
 		   ata_pmode(AD_PARAM), ata_wmode(AD_PARAM), 
