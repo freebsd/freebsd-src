@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.69 1995/02/27 19:46:27 ugen Exp $
+ *	$Id: conf.c,v 1.70 1995/02/28 00:20:45 pst Exp $
  */
 
 #include <sys/param.h>
@@ -629,8 +629,8 @@ d_strategy_t	sustrategy;
 #define	sustrategy	nxstrategy
 #endif
 
-#include "uk.h"
-#if NUK > 0
+#include "scbus.h"
+#if NSCBUS > 0
 d_open_t	ukopen;
 d_close_t	ukclose;
 d_ioctl_t	ukioctl;
