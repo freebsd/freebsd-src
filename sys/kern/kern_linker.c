@@ -1111,7 +1111,7 @@ linker_preload(void *arg)
 	char *modtype;
 	linker_file_t lf;
 	linker_class_t lc;
-	int error;
+	int error, err;
 	linker_file_list_t loaded_files;
 	linker_file_list_t depended_files;
 	struct mod_metadata *mp, *nmp;
@@ -1189,8 +1189,8 @@ restart:
 					    NULL);
 					nmodname = linker_reloc_ptr(lf,
 					    nmp->md_cval);
-					error = strcmp(modname, nmodname);
-					if (error == 0)
+					err = strcmp(modname, nmodname);
+					if (err == 0)
 						break;
 				}
 				if (nmdp < stop)   /* it's a self reference */
@@ -1675,7 +1675,7 @@ linker_load_dependencies(linker_file_t lf)
 	struct mod_depend *verinfo;
 	modlist_t mod;
 	const char *modname, *nmodname;
-	int ver, error = 0, count;
+	int ver, error = 0, err, count;
 
 	/*
 	 * All files are dependant on /kernel.
@@ -1714,8 +1714,8 @@ linker_load_dependencies(linker_file_t lf)
 			if (nmp->md_type != MDT_VERSION)
 				continue;
 			nmodname = linker_reloc_ptr(lf, nmp->md_cval);
-			error = strcmp(modname, nmodname);
-			if (error == 0)
+			err = strcmp(modname, nmodname);
+			if (err == 0)
 				break;
 		}
 		if (nmdp < stop)/* early exit, it's a self reference */
