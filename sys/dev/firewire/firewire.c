@@ -395,6 +395,7 @@ firewire_attach( device_t dev )
 
 	fc = (struct firewire_comm *)device_get_softc(pa);
 	sc->fc = fc;
+	fc->status = -1;
 
 	unitmask = UNIT2MIN(device_get_unit(dev));
 
@@ -475,6 +476,7 @@ static int
 firewire_detach( device_t dev )
 {
 	struct firewire_softc *sc;
+	struct csrdir *csrd, *next;
 
 	sc = (struct firewire_softc *)device_get_softc(dev);
 
@@ -488,6 +490,10 @@ firewire_detach( device_t dev )
 	}
 #endif
 	/* XXX xfree_free and untimeout on all xfers */
+	for (csrd = SLIST_FIRST(&sc->fc->csrfree); csrd != NULL; csrd = next) {
+		next = SLIST_NEXT(csrd, link);
+		free(csrd, M_FW);
+	}
 	callout_stop(&sc->fc->timeout_callout);
 	callout_stop(&sc->fc->bmr_callout);
 	callout_stop(&sc->fc->retry_probe_callout);
