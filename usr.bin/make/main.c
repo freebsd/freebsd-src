@@ -909,7 +909,7 @@ main(int argc, char **argv)
 				sprintf(v, "${%s}", name);
 
 				buf = Var_Subst(NULL, v, VAR_GLOBAL, FALSE);
-				value = Buf_GetAll(buf, FALSE);
+				value = Buf_GetAll(buf, NULL);
 				printf("%s\n", value);
 
 				Buf_Destroy(buf, TRUE);
