@@ -12,7 +12,7 @@
  *
  * Aug, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm_bios.h,v 1.8 1996/03/12 05:51:35 nate Exp $
+ *	$Id: apm_bios.h,v 1.5.4.1 1996/03/12 05:54:30 nate Exp $
  */
 
 #ifndef _MACHINE_APM_BIOS_H_
@@ -176,9 +176,9 @@ typedef struct apm_info {
 	u_int	ai_acline;	/* AC line status */
 	u_int	ai_batt_stat;	/* Battery status */
 	u_int	ai_batt_life;	/* Remaining battery life */
+	u_int	ai_status;	/* Status of APM support (enabled/disabled) */
 } *apm_info_t;
 
-#ifdef __FreeBSD__
 #define APMIO_SUSPEND		_IO('P', 1)
 #define APMIO_GETINFO		_IOR('P', 2, struct apm_info)
 #define APMIO_ENABLE		_IO('P', 5)
@@ -186,7 +186,6 @@ typedef struct apm_info {
 #define APMIO_HALTCPU		_IO('P', 7)
 #define APMIO_NOTHALTCPU	_IO('P', 8)
 #define APMIO_DISPLAYOFF	_IO('P', 9)
-#endif /* __FreeBSD__ */
 
 #endif /* !ASSEMBLER && !INITIALIZER */
 

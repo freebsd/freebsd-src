@@ -13,7 +13,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.12.4.3 1996/03/12 06:06:35 nate Exp $
+ *	$Id: apm.c,v 1.12.4.4 1996/03/12 21:53:57 nate Exp $
  */
 
 #include "apm.h"
@@ -443,6 +443,8 @@ apm_get_info(struct apm_softc *sc, apm_info_t aip)
 	aip->ai_batt_life = ecx & 0xff;
 	aip->ai_major     = (u_int)sc->majorversion;
 	aip->ai_minor     = (u_int)sc->minorversion;
+	aip->ai_status    = (u_int)sc->active;
+
 	return 0;
 }
 
