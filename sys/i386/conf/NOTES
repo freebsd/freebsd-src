@@ -1259,6 +1259,12 @@ options 	SC_NORM_REV_ATTR="(FG_YELLOW|BG_GREEN)"
 options 	SC_KERNEL_CONS_ATTR="(FG_RED|BG_BLACK)"
 options 	SC_KERNEL_CONS_REV_ATTR="(FG_BLACK|BG_RED)"
 
+# The following options will let you change the default behaviour of
+# cut-n-paste feature
+options		SC_CUT_SPACES2TABS	# convert leading spaces into tabs
+options		SC_CUT_SEPCHARS="\x20"	# set of characters that delimit words
+					# (default is single space - "\x20")
+
 # If you have a two button mouse, you may want to add the following option
 # to use the right button of the mouse to paste text.
 options 	SC_TWOBUTTON_MOUSE
