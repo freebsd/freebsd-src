@@ -708,7 +708,7 @@ findpcb:
 				tp = intotcpcb(inp);
 				/*
 				 * This is what would have happened in
-				 * tcp_ouput() when the SYN,ACK was sent.
+				 * tcp_output() when the SYN,ACK was sent.
 				 */
 				tp->snd_up = tp->snd_una;
 				tp->snd_max = tp->snd_nxt = tp->iss + 1;
