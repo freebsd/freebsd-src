@@ -1,5 +1,5 @@
 /*	$NetBSD: if_de.c,v 1.80 1998/09/25 18:06:53 matt Exp $	*/
-/*	$Id: if_de.c,v 1.96 1999/01/28 17:32:02 dillon Exp $ */
+/*	$Id: if_de.c,v 1.97 1999/01/29 08:29:05 bde Exp $ */
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
@@ -2412,7 +2412,7 @@ tulip_srom_decode(
     /*
      * Save the hardware address.
      */
-    bcopy(shp->sh_ieee802_address, (v_caddr_t) sc->tulip_enaddr, 6);
+    bcopy(shp->sh_ieee802_address, sc->tulip_enaddr, 6);
     /*
      * If this is a multiple port card, add the adapter index to the last
      * byte of the hardware address.  (if it isn't multiport, adding 0
