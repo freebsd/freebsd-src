@@ -135,6 +135,7 @@ void tzset __P((void));
 #endif /* not ANSI */
 
 #if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
+const char *strptime __P((const char *, const char *, struct tm *));
 char *timezone __P((int, int));
 void tzsetwall __P((void));
 time_t timelocal __P((struct tm * const));
