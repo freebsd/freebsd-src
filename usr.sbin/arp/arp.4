@@ -98,11 +98,29 @@ This is no longer supported.
 ARP watches passively for hosts impersonating the local host (i.e. a host
 which responds to an ARP mapping request for the local host's address).
 .Sh DIAGNOSTICS
-.Em "duplicate IP address %x!! sent from ethernet address: %x:%x:%x:%x:%x:%x."
+.Em "arp: %x:%x:%x:%x:%x:%x is using my IP address %d.%d.%d.%d!" :
 ARP has discovered another host on the local network which responds to
 mapping requests for its own Internet address with a different Ethernet
 address, generally indicating that two hosts are attempting to use the
 same Internet address.
+.Pp
+.Em "arp: ether address is broadcast for IP address %d.%d.%d.%d!" :
+ARP requested information for a host, and received an answer indicating
+that the host's ethernet address is the ethernet broadcast address.
+This indicates a misconfigured or broken device.
+.Pp
+.Em "arp: %d.%d.%d.%d moved from %x:%x:%x:%x:%x:%x to %x:%x:%x:%x:%x:%x" :
+ARP had a cached value for the ethernet address of the referenced host,
+but received a reply indicating that the host is at a new address.  This
+can happen normally when host hardware addresses change, or when a mobile
+node arrives or leaves the local subnet.  It can also indicate a problem
+with proxy ARP.
+.Pp
+.Em "arpresolve: can't allocate llinfo for %d.%d.%d.%d" :
+The route for the referenced host points to a device upon which ARP is
+required, but ARP was unable to allocate a routing table entry in which
+to store the host's MAC address.  This usually points to a misconfigured
+routing table.  It can also occur if the kernel cannot allocate memory.
 .Sh SEE ALSO
 .Xr inet 4 ,
 .Xr route 4 ,
