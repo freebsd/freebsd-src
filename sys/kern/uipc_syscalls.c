@@ -1804,6 +1804,7 @@ retry_lookup:
 			if (m_header != NULL) {
 				m = m_header;
 				m_header = NULL;
+				SOCKBUF_LOCK(&so->so_snd);
 				goto retry_space;
 			} else
 				break;
