@@ -129,8 +129,6 @@ u_int64_t hwrpb_checksum(void);
 void	hwrpb_restart_setup(void);
 void	regdump(struct trapframe *);
 void	regtoframe(struct reg *, struct trapframe *);
-int	savectx(struct pcb *);
-void	restorectx(struct pcb *);
 void	set_iointr(void (*)(void *, unsigned long));
 void	fork_trampoline(void);				/* MAGIC */
 void	syscall(int, u_int64_t *, struct trapframe *);
