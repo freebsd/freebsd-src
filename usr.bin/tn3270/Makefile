@@ -2,7 +2,7 @@
 
 SUBDIR=	tn3270 mset
 
-.if !make(install)
+.if !make(install) && !make(distribute)
 SUBDIR+=tools
 .endif
 
