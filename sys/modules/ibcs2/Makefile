@@ -11,6 +11,5 @@ SRCS=	ibcs2_errno.c ibcs2_ipc.c ibcs2_stat.c ibcs2_misc.c \
 	vnode_if.h opt_spx_hack.h
 
 CFLAGS+= -DCOMPAT_IBCS2
-EXPORT_SYMS= _ibcs2_mod _ibcs2_emul_path _ibcs2_svr3_sysvec
 
 .include <bsd.kmod.mk>
