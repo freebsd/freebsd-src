@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: fdisk.c,v 1.25 1998/11/06 03:25:56 jkoshy Exp $";
+	"$Id: fdisk.c,v 1.26 1998/11/06 03:43:21 alex Exp $";
 #endif /* not lint */
 
 #include <sys/disklabel.h>
@@ -67,7 +67,7 @@ int secsize = 0;		/* the sensed sector size */
 const char *disk;
 const char *disks[] =
 {
-  "/dev/rwd0", "/dev/rsd0", "/dev/rod0", 0
+  "/dev/rwd0", "/dev/rda0", "/dev/rod0", 0
 };
 
 struct disklabel disklabel;		/* disk parameters */
