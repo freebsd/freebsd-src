@@ -1,7 +1,7 @@
 /*
  * random_machdep.c -- A strong random number generator
  *
- * $Id: random_machdep.c,v 1.24 1998/04/06 09:30:32 phk Exp $
+ * $Id: random_machdep.c,v 1.25 1998/04/15 17:45:44 bde Exp $
  *
  * Version 0.95, last modified 18-Oct-95
  * 
@@ -184,7 +184,7 @@ add_timer_randomness(struct random_bucket *r, struct timer_rand_state *state,
 	u_int		nbits;
 	u_int32_t	time;
 
-	num ^= timecounter->get_timecount() << 16;
+	num ^= timecounter->get_timecount(timecounter) << 16;
 	r->entropy_count += 2;
 		
 	time = ticks;
