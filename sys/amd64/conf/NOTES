@@ -477,7 +477,7 @@ options 	PMAP_SHPGPERPROC=201
 # (whether static or dynamic).
 #
 #XXX#options 	COMPAT_SVR4	# build emulator statically
-options 	DEBUG_SVR4	# enable verbose debugging
+#XXX#options 	DEBUG_SVR4	# enable verbose debugging
 #XXX#device	streams		# STREAMS network driver (required for svr4).
 
 
