@@ -480,7 +480,7 @@
       provides a simple ACL mechanism to permit users and groups to
       bind ports for TCP or UDP, and is intended to be used in
       conjunction with the recently-added
-      <varname>net.inet.ip.portrange.reservedhigh</varname> sysctl.
+      <varname>net.inet.ip.portrange.reservedhigh</varname> sysctl.</para>
 
     <para>The &man.mksnap.ffs.8; program has been added to allow
       easier creation of FFS snapshots.  It is a
