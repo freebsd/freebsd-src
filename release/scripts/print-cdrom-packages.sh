@@ -157,11 +157,7 @@ CDROM_SET_1="${CDROM_SET_1} x11/rxvt"
 CDROM_SET_1="${CDROM_SET_1} archivers/unzip"
 CDROM_SET_1="${CDROM_SET_1} devel/gmake"
 CDROM_SET_1="${CDROM_SET_1} graphics/png"
-if [ "X${PKG_ARCH}" = "Xi386" ]; then
-CDROM_SET_1="${CDROM_SET_1} misc/compat22"
-fi
 if [ "X${PKG_ARCH}" = "Xi386" -o "X${PKG_ARCH}" = "Xalpha" ]; then
-CDROM_SET_1="${CDROM_SET_1} misc/compat3x"
 CDROM_SET_1="${CDROM_SET_1} misc/compat4x"
 fi
 
