@@ -98,10 +98,15 @@ ncp_Init(struct ncp *ncp, struct bundle *bundle)
   ncp->afq = AF_INET;
   ncp->route = NULL;
 
-  ncp->cfg.urgent.tcp.nports = ncp->cfg.urgent.tcp.maxports = NDEFTCPPORTS;
   ncp->cfg.urgent.tcp.port = (u_short *)malloc(NDEFTCPPORTS * sizeof(u_short));
-  memcpy(ncp->cfg.urgent.tcp.port, default_urgent_tcp_ports,
-         NDEFTCPPORTS * sizeof(u_short));
+  if (ncp->cfg.urgent.tcp.port == NULL) {
+    log_Printf(LogERROR, "ncp_Init: Out of memory allocating urgent ports\n");
+    ncp->cfg.urgent.tcp.nports = ncp->cfg.urgent.tcp.maxports = 0;
+  } else {
+    ncp->cfg.urgent.tcp.nports = ncp->cfg.urgent.tcp.maxports = NDEFTCPPORTS;
+    memcpy(ncp->cfg.urgent.tcp.port, default_urgent_tcp_ports,
+	   NDEFTCPPORTS * sizeof(u_short));
+  }
   ncp->cfg.urgent.tos = 1;
 
   ncp->cfg.urgent.udp.nports = ncp->cfg.urgent.udp.maxports = 0;
