@@ -251,6 +251,7 @@ static const struct pccard_product wi_pccard_products[] = {
 	PCMCIA_CARD2(LUCENT, WAVELAN_IEEE, SMC_2632W, 0),
 	/* Must be after other LUCENT ones because it is less specific */
 	PCMCIA_CARD(LUCENT, WAVELAN_IEEE, 0),
+	PCMCIA_CARD(LINKSYS2, IWN, 0),
 	PCMCIA_CARD(SAMSUNG, SWL_2000N, 0),
 	PCMCIA_CARD(TDK, LAK_CD011WL, 0),
 	{ NULL }
