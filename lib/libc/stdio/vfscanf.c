@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)vfscanf.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id: vfscanf.c,v 1.3.2.3 1997/08/17 15:07:56 joerg Exp $";
+		"$Id: vfscanf.c,v 1.3.2.4 1997/11/23 06:03:31 bde Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
@@ -697,7 +697,10 @@ __sccl(tab, fmt)
 		c = *fmt++;	/* get new first char */
 	} else
 		v = 0;		/* default => reject */
+
+	/* XXX: Will not work if sizeof(tab*) > sizeof(char) */
 	(void) memset(tab, v, 256);
+
 	if (c == 0)
 		return (fmt - 1);/* format ended before closing ] */
 
@@ -738,17 +741,27 @@ doswitch:
 			 * we just stored in the table (c).
 			 */
 			n = *fmt;
-			if (n == ']' || __collate_range_cmp (n, c) < 0) {
+			if (n == ']'
+			    || (__collate_load_error ? n < c :
+				__collate_range_cmp (n, c) < 0
+			       )
+			   ) {
 				c = '-';
 				break;	/* resume the for(;;) */
 			}
 			fmt++;
 			/* fill in the range */
-			for (i = 0; i < 256; i ++)
-				if (   __collate_range_cmp (c, i) < 0
-				    && __collate_range_cmp (i, n) <= 0
-				   )
-				tab[i] = v;
+			if (__collate_load_error) {
+				do {
+					tab[++c] = v;
+				} while (c < n);
+			} else {
+				for (i = 0; i < 256; i ++)
+					if (   __collate_range_cmp (c, i) < 0
+					    && __collate_range_cmp (i, n) <= 0
+					   )
+						tab[i] = v;
+			}
 #if 1	/* XXX another disgusting compatibility hack */
 			c = n;
 			/*
