@@ -2,7 +2,7 @@
 #
 
 PROG=   sftp-server
-SRCS=   sftp-server.c log-server.c
+SRCS=   sftp-server.c sftp-common.c
 MAN=	sftp-server.8
 
 LDADD+=	${LIBSSH} -lcrypto

@@ -2,10 +2,10 @@
 #
 
 PROG=	ssh-agent
-SRCS=	ssh-agent.c log-client.c
+SRCS=	ssh-agent.c
 
-LDADD+=	${LIBSSH} -lcrypto -lcrypt -lutil -lz
-DPADD+=	${LIBSSH} ${LIBCRYPTO} ${LIBCRYPT} ${LIBUTIL} ${LIBZ}
+LDADD+=	${LIBSSH} -lcrypto
+DPADD+=	${LIBSSH} ${LIBCRYPTO}
 
 .include <bsd.prog.mk>
 
