@@ -24,7 +24,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-gre.c,v 1.9 2000/12/18 05:41:59 guy Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-gre.c,v 1.13 2001/06/15 22:17:31 fenner Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -45,38 +45,31 @@ static const char rcsid[] =
 #include "addrtoname.h"
 #include "extract.h"		/* must come after interface.h */
 
-#define GRE_SIZE (20)
-
 struct gre {
-	u_short flags;
-	u_short proto;
-	union {
-		struct gre_ckof {
-			u_short cksum;
-			u_short offset;
-		}        gre_ckof;
-		u_int32_t key;
-		u_int32_t seq;
-	}     gre_void1;
-	union {
-		u_int32_t key;
-		u_int32_t seq;
-		u_int32_t routing;
-	}     gre_void2;
-	union {
-		u_int32_t seq;
-		u_int32_t routing;
-	}     gre_void3;
-	union {
-		u_int32_t routing;
-	}     gre_void4;
+	u_int16_t flags;
+	u_int16_t proto;
 };
 
+/* RFC 2784 - GRE */
 #define GRE_CP		0x8000	/* Checksum Present */
-#define GRE_RP		0x4000	/* Routing Present */
+#define GRE_VER_MASK	0x0007	/* Version */
+
+/* RFC 2890 - Key and Sequence extensions to GRE */
 #define GRE_KP		0x2000	/* Key Present */
 #define GRE_SP		0x1000	/* Sequence Present */
 
+/* Legacy from RFC 1700 */
+#define GRE_RP		0x4000	/* Routing Present */
+#define GRE_sP		0x0800	/* strict source route present */
+#define GRE_RECUR_MASK	0x0700  /* Recursion Control */
+#define GRE_RECUR_SHIFT	8
+
+#define GRE_COP		(GRE_RP|GRE_CP)	/* Checksum & Offset Present */
+
+/* "Enhanced GRE" from RFC2637 - PPTP */
+#define GRE_AP		0x0080	/* Ack present */
+
+#define GRE_MBZ_MASK	0x0078	/* not defined */
 
 /*
  * Deencapsulate and print a GRE-tunneled IP datagram
@@ -86,17 +79,18 @@ gre_print(const u_char *bp, u_int length)
 {
 	const u_char *cp = bp + 4;
 	const struct gre *gre;
-	u_short flags, proto, extracted_ethertype;
+	u_int16_t flags, proto;
+	u_short ver=0;
+	u_short extracted_ethertype;
 
 	gre = (const struct gre *)bp;
 
-	if (length < GRE_SIZE) {
-		goto trunc;
-	}
+	TCHECK(gre->proto);
 	flags = EXTRACT_16BITS(&gre->flags);
 	proto = EXTRACT_16BITS(&gre->proto);
+	(void)printf("gre ");
 
-	if (vflag) {
+	if (flags) {
 		/* Decode the flags */
 		putchar('[');
 		if (flags & GRE_CP)
@@ -107,20 +101,68 @@ gre_print(const u_char *bp, u_int length)
 			putchar('K');
 		if (flags & GRE_SP)
 			putchar('S');
+		if (flags & GRE_sP)
+			putchar('s');
+		if (flags & GRE_AP)
+			putchar('A');
+		if (flags & GRE_RECUR_MASK)
+			printf("R%x", (flags & GRE_RECUR_MASK) >> GRE_RECUR_SHIFT);
+		ver = flags & GRE_VER_MASK;
+		printf("v%u", ver);
+		
+		if (flags & GRE_MBZ_MASK)
+			printf("!%x", flags & GRE_MBZ_MASK);
 		fputs("] ", stdout);
 	}
-	/* Checksum & Offset are present */
-	if ((flags & GRE_CP) | (flags & GRE_RP))
-		cp += 4;
 
+	if (flags & GRE_COP) {
+		int checksum, offset;
+
+		TCHECK2(*cp, 4);
+		checksum = EXTRACT_16BITS(cp);
+		offset = EXTRACT_16BITS(cp + 2);
+
+		if (flags & GRE_CP) {
+			/* Checksum present */
+
+			/* todo: check checksum */
+			if (vflag > 1)
+				printf("C:%04x ", checksum);
+		}
+		if (flags & GRE_RP) {
+			/* Offset present */
+
+			if (vflag > 1)
+				printf("O:%04x ", offset);
+		}
+		cp += 4;	/* skip checksum and offset */
+	}
+	if (flags & GRE_KP) {
+		TCHECK2(*cp, 4);
+		if (ver == 1) { 	/* PPTP */
+			if (vflag > 1)
+				printf("PL:%u ", EXTRACT_16BITS(cp));
+			printf("ID:%04x ", EXTRACT_16BITS(cp+2));
+		}
+		else 
+			printf("K:%08x ", EXTRACT_32BITS(cp));
+		cp += 4;	/* skip key */
+	}
+	if (flags & GRE_SP) {
+		TCHECK2(*cp, 4);
+		printf("S:%u ", EXTRACT_32BITS(cp));
+		cp += 4;	/* skip seq */
+	}
+	if (flags & GRE_AP && ver >= 1) {
+		TCHECK2(*cp, 4);
+		printf("A:%u ", EXTRACT_32BITS(cp));
+		cp += 4;	/* skip ack */
+	}
 	/* We don't support routing fields (variable length) now. Punt. */
 	if (flags & GRE_RP)
 		return;
 
-	if (flags & GRE_KP)
-		cp += 4;
-	if (flags & GRE_SP)
-		cp += 4;
+	TCHECK(cp[0]);
 
 	length -= cp - bp;
 	if (ether_encap_print(proto, cp, length, length,

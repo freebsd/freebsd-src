@@ -22,7 +22,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-chdlc.c,v 1.11 2000/10/09 01:53:19 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-chdlc.c,v 1.13 2001/09/17 21:57:57 fenner Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -42,6 +42,7 @@ static const char rcsid[] =
 #include "interface.h"
 #include "addrtoname.h"
 #include "ethertype.h"
+#include "extract.h"
 #include "ppp.h"
 #include "chdlc.h"
 
@@ -54,25 +55,38 @@ chdlc_if_print(u_char *user, const struct pcap_pkthdr *h,
 {
 	register u_int length = h->len;
 	register u_int caplen = h->caplen;
-	const struct ip *ip;
-	u_int proto;
 
+	++infodelay;
 	ts_print(&h->ts);
-
-	if (caplen < CHDLC_HDRLEN) {
-		printf("[|chdlc]");
-		goto out;
-	}
 
 	/*
 	 * Some printers want to get back at the link level addresses,
 	 * and/or check that they're not walking off the end of the packet.
 	 * Rather than pass them all the way down, we set these globals.
 	 */
-	proto = ntohs(*(u_short *)&p[2]);
 	packetp = p;
 	snapend = p + caplen;
 
+	chdlc_print(p, length, caplen);
+
+	putchar('\n');
+	--infodelay;
+	if (infoprint)
+		info(0);
+}
+
+void
+chdlc_print(register const u_char *p, u_int length, u_int caplen)
+{
+	const struct ip *ip;
+	u_int proto;
+
+	if (caplen < CHDLC_HDRLEN) {
+		printf("[|chdlc]");
+		return;
+	}
+
+	proto = EXTRACT_16BITS(&p[2]);
 	if (eflag) {
 		switch (p[0]) {
 		case CHDLC_UNICAST:
@@ -89,7 +103,7 @@ chdlc_if_print(u_char *user, const struct pcap_pkthdr *h,
 	}
 
 	length -= CHDLC_HDRLEN;
-	ip = (struct ip *)(p + CHDLC_HDRLEN);
+	ip = (const struct ip *)(p + CHDLC_HDRLEN);
 	switch (proto) {
 	case ETHERTYPE_IP:
 		ip_print((const u_char *)ip, length);
@@ -110,8 +124,6 @@ chdlc_if_print(u_char *user, const struct pcap_pkthdr *h,
 	}
 	if (xflag)
 		default_print((const u_char *)ip, caplen - CHDLC_HDRLEN);
-out:
-	putchar('\n');
 }
 
 struct cisco_slarp {
@@ -140,14 +152,14 @@ struct cisco_slarp {
 static void
 chdlc_slarp_print(const u_char *cp, u_int length)
 {
-	struct cisco_slarp *slarp;
+	const struct cisco_slarp *slarp;
 
 	if (length < SLARP_LEN) {
 		printf("[|slarp]");
 		return;
 	}
 
-	slarp = (struct cisco_slarp *)cp;
+	slarp = (const struct cisco_slarp *)cp;
 	switch (ntohl(slarp->code)) {
 	case SLARP_REQUEST:
 		printf("slarp-request");

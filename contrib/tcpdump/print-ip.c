@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ip.c,v 1.92 2001/01/02 23:00:01 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ip.c,v 1.100 2001/09/17 21:58:03 fenner Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -205,7 +205,7 @@ ip_optprint(register const u_char *cp, u_int length)
 				printf("{%d}", len);
 			else if (cp[2] || cp[3])
 				printf("%d.%d", cp[2], cp[3]);
- 			break;
+			break;
 
 		default:
 			printf(" IPOPT-%d{%d}", cp[0], len);
@@ -219,7 +219,7 @@ ip_optprint(register const u_char *cp, u_int length)
  * don't modifiy the packet.
  */
 u_short
-in_cksum(const u_short *addr, register int len, u_short csum)
+in_cksum(const u_short *addr, register u_int len, int csum)
 {
 	int nleft = len;
 	const u_short *w = addr;
@@ -303,7 +303,7 @@ ip_print(register const u_char *bp, register u_int length)
 
 	len = ntohs(ip->ip_len);
 	if (length < len)
-		(void)printf("truncated-ip - %d bytes missing!",
+		(void)printf("truncated-ip - %d bytes missing! ",
 			len - length);
 	len -= hlen;
 	len0 = len;
@@ -317,7 +317,11 @@ ip_print(register const u_char *bp, register u_int length)
 		cp = (const u_char *)ip + hlen;
 		nh = ip->ip_p;
 
-		if (nh != IPPROTO_TCP && nh != IPPROTO_UDP) {
+#ifndef IPPROTO_SCTP
+#define IPPROTO_SCTP 132
+#endif
+		if (nh != IPPROTO_TCP && nh != IPPROTO_UDP &&
+		    nh != IPPROTO_SCTP) {
 			(void)printf("%s > %s: ", ipaddr_string(&ip->ip_src),
 				ipaddr_string(&ip->ip_dst));
 		}
@@ -339,10 +343,10 @@ again:
 #endif
 		case IPPROTO_ESP:
 		    {
-			int enh;
-			advance = esp_print(cp, (const u_char *)ip, &enh);
+			int enh, padlen;
+			advance = esp_print(cp, (const u_char *)ip, &enh, &padlen);
 			cp += advance;
-			len -= advance;
+			len -= advance + padlen;
 			if (enh < 0)
 				break;
 			nh = enh & 0xff;
@@ -364,6 +368,10 @@ again:
 			goto again;
 		    }
 
+		case IPPROTO_SCTP:
+  			sctp_print(cp, (const u_char *)ip, len);
+			break;
+
 		case IPPROTO_TCP:
 			tcp_print(cp, len, (const u_char *)ip, (off &~ 0x6000));
 			break;
@@ -384,10 +392,6 @@ again:
 			break;
 
 		case IPPROTO_ND:
-#if 0
-			(void)printf("%s > %s:", ipaddr_string(&ip->ip_src),
-				ipaddr_string(&ip->ip_dst));
-#endif
 			(void)printf(" nd %d", len);
 			break;
 
@@ -406,20 +410,14 @@ again:
 #define IPPROTO_IGMP 2
 #endif
 		case IPPROTO_IGMP:
-			igmp_print(cp, len, (const u_char *)ip);
+			igmp_print(cp, len);
 			break;
 
 		case 4:
 			/* DVMRP multicast tunnel (ip-in-ip encapsulation) */
-#if 0
-			if (vflag)
-				(void)printf("%s > %s: ",
-					     ipaddr_string(&ip->ip_src),
-					     ipaddr_string(&ip->ip_dst));
-#endif
 			ip_print(cp, len);
 			if (! vflag) {
-				printf(" (ipip)");
+				printf(" (ipip-proto-4)");
 				return;
 			}
 			break;
@@ -430,17 +428,7 @@ again:
 #endif
 		case IP6PROTO_ENCAP:
 			/* ip6-in-ip encapsulation */
-#if 0
-			if (vflag)
-				(void)printf("%s > %s: ",
-					     ipaddr_string(&ip->ip_src),
-					     ipaddr_string(&ip->ip_dst));
-#endif
 			ip6_print(cp, len);
-			if (! vflag) {
-				printf(" (encap)");
-				return;
-			}
 			break;
 #endif /*INET6*/
 
@@ -449,31 +437,15 @@ again:
 #define IPPROTO_GRE 47
 #endif
 		case IPPROTO_GRE:
-			if (vflag)
-				(void)printf("gre %s > %s: ",
-					     ipaddr_string(&ip->ip_src),
-					     ipaddr_string(&ip->ip_dst));
 			/* do it */
 			gre_print(cp, len);
-			if (! vflag) {
-				printf(" (gre encap)");
-				return;
-  			}
-  			break;
+			break;
 
 #ifndef IPPROTO_MOBILE
 #define IPPROTO_MOBILE 55
 #endif
 		case IPPROTO_MOBILE:
-			if (vflag)
-				(void)printf("mobile %s > %s: ",
-					     ipaddr_string(&ip->ip_src),
-					     ipaddr_string(&ip->ip_dst));
 			mobile_print(cp, len);
-			if (! vflag) {
-				printf(" (mobile encap)");
-				return;
-			}
 			break;
 
 #ifndef IPPROTO_PIM
@@ -487,18 +459,10 @@ again:
 #define IPPROTO_VRRP	112
 #endif
 		case IPPROTO_VRRP:
-			if (vflag)
-				(void)printf("vrrp %s > %s: ",
-					     ipaddr_string(&ip->ip_src),
-					     ipaddr_string(&ip->ip_dst));
 			vrrp_print(cp, len, ip->ip_ttl);
 			break;
 
 		default:
-#if 0
-			(void)printf("%s > %s:", ipaddr_string(&ip->ip_src),
-				ipaddr_string(&ip->ip_dst));
-#endif
 			(void)printf(" ip-proto-%d %d", nh, len);
 			break;
 		}
@@ -539,10 +503,17 @@ again:
 	if (ip->ip_tos) {
 		(void)printf(" [tos 0x%x", (int)ip->ip_tos);
 		/* ECN bits */
-		if (ip->ip_tos&0x02) {
-			(void)printf(",ECT");
-			if (ip->ip_tos&0x01)
+		if (ip->ip_tos & 0x03) {
+			switch (ip->ip_tos & 0x03) {
+			case 1:
+				(void)printf(",ECT(1)");
+				break;
+			case 2:
+				(void)printf(",ECT(0)");
+				break;
+			case 3:
 				(void)printf(",CE");
+			}
 		}
 		(void)printf("] ");
 	}
@@ -594,15 +565,15 @@ ipN_print(register const u_char *bp, register u_int length)
 	memcpy (&hdr, (char *)ip, 4);
 	switch (IP_V(&hdr)) {
 	case 4:
-	    ip_print (bp, length);
-	    return;
+		ip_print (bp, length);
+		return;
 #ifdef INET6
 	case 6:
-	    ip6_print (bp, length);
-	    return;
+		ip6_print (bp, length);
+		return;
 #endif
 	default:
-	    (void)printf("unknown ip %d", IP_V(&hdr));
-	    return;
+		(void)printf("unknown ip %d", IP_V(&hdr));
+		return;
 	}
 }

@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ipx.c,v 1.27 2000/09/29 04:58:41 guy Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ipx.c,v 1.32 2001/10/08 21:25:20 fenner Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -110,9 +110,21 @@ ipx_decode(const struct ipxHdr *ipx, const u_char *datap, u_int length)
 	break;
       case IPX_SKT_NETBIOS:
 	(void)printf(" ipx-netbios %d", length);
+#ifdef TCPDUMP_DO_SMB
+	ipx_netbios_print(datap, length);
+#endif
 	break;
       case IPX_SKT_DIAGNOSTICS:
 	(void)printf(" ipx-diags %d", length);
+	break;
+      case IPX_SKT_NWLINK_DGM:
+	(void)printf(" ipx-nwlink-dgm %d", length);
+#ifdef TCPDUMP_DO_SMB
+	ipx_netbios_print(datap, length);
+#endif
+	break;
+      case IPX_SKT_EIGRP:
+	(void)printf(" ipx-eigrp %d", length);
 	break;
       default:
 	(void)printf(" ipx-#%x %d", dstSkt, length);
@@ -138,12 +150,8 @@ ipx_sap_print(const u_short *ipx, u_int length)
 	else
 	    (void)printf("ipx-sap-nearest-req");
 
-	if (length > 0) {
-	    TCHECK(ipx[1]);
-	    (void)printf(" %x '", EXTRACT_16BITS(&ipx[0]));
-	    fn_print((u_char *)&ipx[1], (u_char *)&ipx[1] + 48);
-	    putchar('\'');
-	}
+	TCHECK(ipx[0]);
+	(void)printf(" %x", EXTRACT_16BITS(&ipx[0]));
 	break;
 
       case 2:
@@ -154,7 +162,7 @@ ipx_sap_print(const u_short *ipx, u_int length)
 	    (void)printf("ipx-sap-nearest-resp");
 
 	for (i = 0; i < 8 && length > 0; i++) {
-	    TCHECK2(ipx[27], 1);
+	    TCHECK2(ipx[25], 10);
 	    (void)printf(" %x '", EXTRACT_16BITS(&ipx[0]));
 	    fn_print((u_char *)&ipx[1], (u_char *)&ipx[1] + 48);
 	    printf("' addr %s",
@@ -164,12 +172,12 @@ ipx_sap_print(const u_short *ipx, u_int length)
 	}
 	break;
       default:
-	    (void)printf("ipx-sap-?%x", command);
+	(void)printf("ipx-sap-?%x", command);
 	break;
     }
-	return;
+    return;
 trunc:
-	printf("[|ipx %d]", length);
+    printf("[|ipx %d]", length);
 }
 
 void
@@ -203,10 +211,11 @@ ipx_rip_print(const u_short *ipx, u_int length)
 	}
 	break;
       default:
-	    (void)printf("ipx-rip-?%x", command);
+	(void)printf("ipx-rip-?%x", command);
+	break;
     }
-	return;
+    return;
 trunc:
-	printf("[|ipx %d]", length);
+    printf("[|ipx %d]", length);
 }
 

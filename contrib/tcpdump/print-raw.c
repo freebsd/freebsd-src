@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-raw.c,v 1.33 2000/10/06 04:23:13 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-raw.c,v 1.34 2001/07/05 18:54:17 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -53,6 +53,7 @@ raw_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 	u_int length = h->len;
 	u_int caplen = h->caplen;
 
+	++infodelay;
 	ts_print(&h->ts);
 
 	/*
@@ -71,4 +72,7 @@ raw_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 	if (xflag)
 		default_print(p, caplen);
 	putchar('\n');
+	--infodelay;
+	if (infoprint)
+		info(0);
 }

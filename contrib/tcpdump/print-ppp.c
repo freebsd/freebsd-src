@@ -33,7 +33,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ppp.c,v 1.58 2000/12/27 11:09:08 itojun Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ppp.c,v 1.64 2001/09/09 02:04:19 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -354,14 +354,14 @@ ppp_protoname(u_int proto)
 	case PPP_XNS:	return "XNS";
 #endif
 	case PPP_IPX:	return "IPX";
+	case PPP_OSI:   return "OSI";
 	case PPP_VJC:	return "VJC";
 	case PPP_VJNC:	return "VJNC";
-#ifdef PPP_COMP
 	case PPP_COMP:	return "COMP";
-#endif
 	case PPP_IPCP:	return "IPCP";
 	case PPP_IPV6CP: return "IPv6CP";
 	case PPP_IPXCP:	return "IPXCP";
+	case PPP_OSICP: return "OSICP";
 	case PPP_CCP:	return "CCP";
 	case PPP_LCP:	return "LCP";
 	case PPP_PAP:	return "PAP";
@@ -983,6 +983,11 @@ handle_ppp(u_int proto, const u_char *p, int length)
 	case PPP_IPX:
 		ipx_print(p, length);
 		break;
+	case PPP_OSI:
+	        isoclns_print(p, length, length, NULL, NULL);
+	        break;
+	default:
+		break;
 	}
 }
 
@@ -1016,7 +1021,8 @@ ppp_print(register const u_char *p, u_int length)
 		length -= 2;
 	}
 
-	printf("%s %d: ", ppp_protoname(proto), full_length);
+	if (eflag)
+		printf("%s %d: ", ppp_protoname(proto), full_length);
 
 	handle_ppp(proto, p, length);
 	return;
@@ -1033,6 +1039,7 @@ ppp_if_print(u_char *user, const struct pcap_pkthdr *h,
 	register u_int length = h->len;
 	register u_int caplen = h->caplen;
 
+	++infodelay;
 	ts_print(&h->ts);
 
 	if (caplen < PPP_HDRLEN) {
@@ -1095,6 +1102,9 @@ ppp_if_print(u_char *user, const struct pcap_pkthdr *h,
 		default_print(p, caplen);
 out:
 	putchar('\n');
+	--infodelay;
+	if (infoprint)
+		info(0);
 }
 
 /*
@@ -1113,6 +1123,9 @@ ppp_hdlc_if_print(u_char *user, const struct pcap_pkthdr *h,
 	register u_int length = h->len;
 	register u_int caplen = h->caplen;
 	u_int proto;
+
+	++infodelay;
+	ts_print(&h->ts);
 
 	if (caplen < 2) {
 		printf("[|ppp]");
@@ -1135,7 +1148,6 @@ ppp_hdlc_if_print(u_char *user, const struct pcap_pkthdr *h,
 			goto out;
 		}
 
-		ts_print(&h->ts);
 		if (eflag)
 			printf("%02x %02x %d ", p[0], p[1], length);
 		p += 2;
@@ -1144,21 +1156,18 @@ ppp_hdlc_if_print(u_char *user, const struct pcap_pkthdr *h,
 		proto = EXTRACT_16BITS(p);
 		p += 2;
 		length -= 2;
-		printf("%s: ", ppp_protoname(proto));
+		if (eflag)
+			printf("%s: ", ppp_protoname(proto));
 
 		handle_ppp(proto, p, length);
 		break;
 
 	case CHDLC_UNICAST:
 	case CHDLC_BCAST:
-		/*
-		 * Have the Cisco HDLC print routine do all the work.
-		 */
-		chdlc_if_print(user, h, p);
-		return;
+		chdlc_print(p, length, caplen);
+		goto out;
 
 	default:
-		ts_print(&h->ts);
 		if (eflag)
 			printf("%02x %02x %d ", p[0], p[1], length);
 		p += 2;
@@ -1177,6 +1186,9 @@ ppp_hdlc_if_print(u_char *user, const struct pcap_pkthdr *h,
 		default_print(p, caplen);
 out:
 	putchar('\n');
+	--infodelay;
+	if (infoprint)
+		info(0);
 }
 
 
@@ -1231,6 +1243,7 @@ ppp_bsdos_if_print(u_char *user, const struct pcap_pkthdr *h,
 	const u_char *q;
 	int i;
 
+	++infodelay;
 	ts_print(&h->ts);
 
 	if (caplen < PPP_BSDI_HDRLEN) {
@@ -1372,5 +1385,8 @@ printx:
 		default_print((const u_char *)p, caplen - hdrlength);
 out:
 	putchar('\n');
+	--infodelay;
+	if (infoprint)
+		info(0);
 #endif /* __bsdi__ */
 }
