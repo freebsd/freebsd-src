@@ -77,7 +77,7 @@ main(argc, argv)
 	keys = KEYDEFAULT;
 	init_excludes();
 
-	while ((ch = getopt(argc, argv, "cdef:iK:k:np:rs:UuxX:")) != -1)
+	while ((ch = getopt(argc, argv, "cdef:iK:k:np:rs:SUuxX:")) != -1)
 		switch((char)ch) {
 		case 'c':
 			cflag = 1;
@@ -120,6 +120,10 @@ main(argc, argv)
 			crc_total = ~strtol(optarg, &p, 0);
 			if (*p)
 				errx(1, "illegal seed value -- %s", optarg);
+		case 'S':
+			ftsoptions ^= FTS_LOGICAL;
+			ftsoptions |= FTS_PHYSICAL;
+			break;
 		case 'U':
 			Uflag = 1;
 			uflag = 1;
