@@ -282,9 +282,9 @@ mfs_mount(mp, path, data, ndp, p)
 
 
 		/* Get vnode for root device*/
-		if (error = bdevvp( rootdev, &rootvp)) {
+		if (err = bdevvp( rootdev, &rootvp)) {
 			printf("mfs_mountroot: can't setup bdevvp for rootdev");
-			return (error);
+			return (err);
 		}
 
 		/*
