@@ -721,6 +721,7 @@ const struct ccp_algorithm MPPEAlgorithm = {
     MPPEDictSetup
   },
   {
+    2,
     MPPEInitOptsOutput,
     MPPESetOptsOutput,
     MPPEInitOutput,

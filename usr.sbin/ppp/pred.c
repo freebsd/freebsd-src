@@ -340,6 +340,7 @@ const struct ccp_algorithm Pred1Algorithm = {
     Pred1DictSetup
   },
   {
+    0,
     Pred1InitOptsOutput,
     Pred1SetOptsOutput,
     Pred1InitOutput,
