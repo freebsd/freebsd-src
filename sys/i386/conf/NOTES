@@ -1411,7 +1411,7 @@ device uart0	at isa? port 0x330 irq 5
 # sound cards.  Note that motherboard sound devices may require
 # options PNPBIOS.
 #
-# For non-pnp sound cards only:
+# For non-pnp sound cards with no bridge drivers only:
 #device		pcm0 at isa? port ? irq 10 drq 1 flags 0x0
 #
 # For pnp sound cards:
@@ -1419,7 +1419,8 @@ device uart0	at isa? port 0x330 irq 5
 
 # The bridge drivers for sound cards. Do not forget pcm as well.
 #
-# sbc:  Creative SoundBlaster ISA PnP
+# sbc:  Creative SoundBlaster ISA PnP/non-PnP
+#	Includes ESS and Advance.
 # gusc: Gravis UltraSound ISA PnP/non-PnP
 # csa:  Crystal Semiconductor CS461x/428x PCI
 
@@ -1429,7 +1430,8 @@ device uart0	at isa? port 0x330 irq 5
 #device		csa0
 
 # For non-PnP cards:
-#device		gusc0 at isa? port 0x220 irq 5 drq 1 flags 0x13
+#device		sbc0	at isa? port 0x220 irq 5 drq 1 flags 0x15
+#device		gusc0	at isa? port 0x220 irq 5 drq 1 flags 0x13
 
 # Not controlled by `snd'
 device		pca0 at isa? port IO_TIMER1
