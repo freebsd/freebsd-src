@@ -57,10 +57,8 @@
 #include <net/route.h>
 #include <net/netisr.h>
 #include <net/if_llc.h>
-#ifdef BRIDGE
 #include <net/ethernet.h>
 #include <net/bridge.h>
-#endif
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
@@ -541,22 +539,18 @@ in_arpinput(m)
 	op = ntohs(ah->ar_op);
 	(void)memcpy(&isaddr, ar_spa(ah), sizeof (isaddr));
 	(void)memcpy(&itaddr, ar_tpa(ah), sizeof (itaddr));
-#ifdef BRIDGE
-#define BRIDGE_TEST (do_bridge)
-#else
-#define BRIDGE_TEST (0) /* cc will optimise the test away */
-#endif
+
 	/*
 	 * For a bridge, we want to check the address irrespective
 	 * of the receive interface. (This will change slightly
 	 * when we have clusters of interfaces).
 	 */
 	LIST_FOREACH(ia, INADDR_HASH(itaddr.s_addr), ia_hash)
-		if ((BRIDGE_TEST || (ia->ia_ifp == ifp)) &&
+		if ((do_bridge || (ia->ia_ifp == ifp)) &&
 		    itaddr.s_addr == ia->ia_addr.sin_addr.s_addr)
 			goto match;
 	LIST_FOREACH(ia, INADDR_HASH(isaddr.s_addr), ia_hash)
-		if ((BRIDGE_TEST || (ia->ia_ifp == ifp)) &&
+		if ((do_bridge || (ia->ia_ifp == ifp)) &&
 		    isaddr.s_addr == ia->ia_addr.sin_addr.s_addr)
 			goto match;
 	/*
@@ -571,7 +565,7 @@ in_arpinput(m)
 	/*
 	 * If bridging, fall back to using any inet address.
 	 */
-	if (!BRIDGE_TEST || (ia = TAILQ_FIRST(&in_ifaddrhead)) == NULL)
+	if (!do_bridge || (ia = TAILQ_FIRST(&in_ifaddrhead)) == NULL)
 		goto drop;
 match:
 	myaddr = ia->ia_addr.sin_addr;
@@ -596,7 +590,7 @@ match:
 	la = arplookup(isaddr.s_addr, itaddr.s_addr == myaddr.s_addr, 0);
 	if (la && (rt = la->la_rt) && (sdl = SDL(rt->rt_gateway))) {
 		/* the following is not an error when doing bridging */
-		if (!BRIDGE_TEST && rt->rt_ifp != ifp) {
+		if (!do_bridge && rt->rt_ifp != ifp) {
 			if (log_arp_wrong_iface)
 				log(LOG_ERR, "arp: %s is on %s but got reply from %*D on %s\n",
 				    inet_ntoa(isaddr),
