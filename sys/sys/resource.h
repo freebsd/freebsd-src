@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)resource.h	8.2 (Berkeley) 1/4/94
- * $Id$
+ * $Id: resource.h,v 1.2 1994/08/02 07:53:28 davidg Exp $
  */
 
 #ifndef _SYS_RESOURCE_H_
@@ -89,6 +89,8 @@ struct	rusage {
 #define	RLIMIT_NOFILE	8		/* number of open files */
 
 #define	RLIM_NLIMITS	9		/* number of resource limits */
+
+#include <sys/types.h>			/* XXX for quad_t */
 
 #define	RLIM_INFINITY	(((u_quad_t)1 << 63) - 1)
 
