@@ -2070,7 +2070,7 @@ static char *helptext[] =
     "Once the list of Active drivers only contains entries for the devices",
     "present in your system, you can set their parameters (Interrupt, DMA",
     "channel, I/O addresses).  To do this, select the driver and press",
-    "[!bENTER!n]: it is now possible to edit the settings the settings at the",
+    "[!bENTER!n]: it is now possible to edit the settings at the",
     "bottom of the screen.  Use [!bTAB!n] to change fields, and when you are",
     "finished, use [!bQ!n] to return to the list.",
     "",
