@@ -35,6 +35,7 @@
 static char sccsid[] = "@(#)hunt.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
+#include <sys/types.h>
 #include <libutil.h>
 #include "tipconf.h"
 #include "tip.h"
