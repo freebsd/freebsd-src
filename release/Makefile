@@ -694,8 +694,13 @@ release.9:
 	@sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/fixit.flp ${RD} \
 		${MNT} ${FIXITSIZE} ${RD}/fixitfd ${FIXITINODE} ${FIXITLABEL}
 # Do our last minute floppies directory setup in a convenient place.
-	@cp ${.CURDIR}/texts/FLOPPIES.TXT ${RD}/floppies/README.TXT
+.if !defined(NORELNOTES)
+	@cp ${.CURDIR}/doc/${RELNOTES_LANG}/readme/article.txt \
+		${RD}/floppies/README.TXT
 	@(cd ${RD}/floppies; md5 README.TXT *.flp > CHECKSUM.MD5)
+.else
+	@(cd ${RD}/floppies; md5 *.flp > CHECKSUM.MD5)
+.endif
 	touch release.9
 
 #
