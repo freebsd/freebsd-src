@@ -4386,8 +4386,10 @@ void ficlCompileCore(FICL_DICT *dp)
     dictAppendWord(dp, "ms",        ms,             FW_DEFAULT);
     dictAppendWord(dp, "seconds",   pseconds,       FW_DEFAULT);
 #ifdef __i386__
-    dictAppendWord(dp, "pc!",       pc_store,       FW_DEFAULT);
-    dictAppendWord(dp, "pc@",       pc_fetch,       FW_DEFAULT);
+#ifndef TESTMAIN
+    dictAppendWord(dp, "outb",      ficlOutb,       FW_DEFAULT);
+    dictAppendWord(dp, "inb",       ficlInb,        FW_DEFAULT);
+#endif
     ficlSetEnv("arch-i386",         FICL_TRUE);
 #else
     ficlSetEnv("arch-i386",         FICL_FALSE);
