@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "from: @(#)quota.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: quota.c,v 1.7 1997/08/04 06:45:11 charnier Exp $";
+	"$Id: quota.c,v 1.8 1998/01/20 12:53:43 bde Exp $";
 #endif /* not lint */
 
 /*
@@ -692,7 +692,7 @@ callaurpc(host, prognum, versnum, procnum, inproc, in, outproc, out)
 		return ((int) RPC_UNKNOWNHOST);
 	timeout.tv_usec = 0;
 	timeout.tv_sec = 6;
-	bcopy(hp->h_addr, &server_addr.sin_addr, hp->h_length);
+	bcopy(hp->h_addr, &server_addr.sin_addr, MIN(hp->h_length,sizeof(server_addr.sin_addr)));
 	server_addr.sin_family = AF_INET;
 	server_addr.sin_port =  0;
 

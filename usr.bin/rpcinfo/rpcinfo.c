@@ -2,7 +2,7 @@
 /*static char sccsid[] = "from: @(#)rpcinfo.c 1.22 87/08/12 SMI";*/
 /*static char sccsid[] = "from: @(#)rpcinfo.c	2.2 88/08/11 4.0 RPCSRC";*/
 static char rcsid[] =
-	"$Id: rpcinfo.c,v 1.5 1997/03/29 04:31:57 imp Exp $";
+	"$Id: rpcinfo.c,v 1.6 1997/08/06 06:49:06 charnier Exp $";
 #endif
 
 /*
@@ -52,6 +52,8 @@ static char rcsid[] =
 #include <rpc/pmap_prot.h>
 #include <rpc/pmap_clnt.h>
 #include <signal.h>
+#include <ctype.h>
+#include <sys/param.h>
 
 #define MAXHOSTLEN 256
 
@@ -496,7 +498,7 @@ pmapdump(argc, argv)
 		server_addr.sin_family = AF_INET;
 		if ((hp = gethostbyname("localhost")) != NULL)
 			bcopy(hp->h_addr, (caddr_t)&server_addr.sin_addr,
-			    hp->h_length);
+			    MIN(hp->h_length,sizeof(server_addr.sin_addr)));
 		else
 			server_addr.sin_addr.s_addr = inet_addr("0.0.0.0");
 	}
@@ -653,8 +655,9 @@ get_inet_address(addr, host)
 	addr->sin_addr.s_addr = (u_long) inet_addr(host);
 	if (addr->sin_addr.s_addr == -1 || addr->sin_addr.s_addr == 0) {
 		if ((hp = gethostbyname(host)) == NULL)
-			errx(1, "%s is unknown host", host);
-		bcopy(hp->h_addr, (char *)&addr->sin_addr, hp->h_length);
+			errx(1, "%s is unknown host\n", host);
+		bcopy(hp->h_addr, (char *)&addr->sin_addr, 
+			MIN(hp->h_length,sizeof(addr->sin_addr)));
 	}
 	addr->sin_family = AF_INET;
 }
