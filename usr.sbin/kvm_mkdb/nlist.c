@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)from: nlist.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: nlist.c,v 1.8 1997/09/24 06:44:10 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -179,6 +179,7 @@ __aout_knlist(name, db)
 #endif /* DO_AOUT */
 
 #ifdef DO_ELF
+
 int
 __elf_knlist(name, db)
 	char *name;
@@ -189,11 +190,11 @@ __elf_knlist(name, db)
 	register u_long symsize;
 	register u_long kernvma, kernoffs;
 	register int i;
-	Elf32_Sym *sbuf;
+	Elf_Sym *sbuf;
 	size_t symstrsize;
 	char *shstr, buf[1024];
-	Elf32_Ehdr *eh;
-	Elf32_Shdr *sh = NULL;
+	Elf_Ehdr *eh;
+	Elf_Shdr *sh = NULL;
 	DBT data, key;
 	NLIST nbuf;
 	int fd;
@@ -217,12 +218,12 @@ __elf_knlist(name, db)
 		err(1, "mmap failed");
 
 	/* Read in exec structure. */
-	eh = (Elf32_Ehdr *) filep;
+	eh = (Elf_Ehdr *) filep;
 
 	if (!IS_ELF(*eh))
 		return(-1);
 
-	sh = (Elf32_Shdr *)&filep[eh->e_shoff];
+	sh = (Elf_Shdr *)&filep[eh->e_shoff];
 
 	shstr = (char *)&filep[sh[eh->e_shstrndx].sh_offset];
 
@@ -247,16 +248,16 @@ __elf_knlist(name, db)
 	data.size = sizeof(NLIST);
 
 	/* Read each symbol and enter it into the database. */
-	for (i = 0; symsize > 0; i++, symsize -= sizeof(Elf32_Sym)) {
+	for (i = 0; symsize > 0; i++, symsize -= sizeof(Elf_Sym)) {
 
-		sbuf = (Elf32_Sym *)&filep[symoff + i * sizeof(*sbuf)];
+		sbuf = (Elf_Sym *)&filep[symoff + i * sizeof(*sbuf)];
 		if (!sbuf->st_name)
 			continue;
 
 		nbuf.n_value = sbuf->st_value;
 
 		/*XXX type conversion is pretty rude... */
-		switch (ELF32_ST_TYPE(sbuf->st_info)) {
+		switch (ELF_ST_TYPE(sbuf->st_info)) {
 		case STT_NOTYPE:
 			nbuf.n_type = N_UNDF;
 			break;
@@ -267,7 +268,7 @@ __elf_knlist(name, db)
 			nbuf.n_type = N_DATA;
 			break;
 		}
-		if (ELF32_ST_BIND(sbuf->st_info) == STB_LOCAL)
+		if (ELF_ST_BIND(sbuf->st_info) == STB_LOCAL)
 			nbuf.n_type = N_EXT;
 
 		key.data = (u_char *)(strtab + sbuf->st_name);
