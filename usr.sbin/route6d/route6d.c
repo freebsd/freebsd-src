@@ -138,7 +138,10 @@ int	nifc;		/* number of valid ifc's */
 struct	ifc **index2ifc;
 int	nindex2ifc;
 struct	ifc *loopifcp = NULL;	/* pointing to loopback */
-fd_set	sockvec;	/* vector to select() for receiving */
+fd_set	*sockvecp;	/* vector to select() for receiving */
+fd_set	*recvecp;
+int	fdmasks;
+int	maxfd;		/* maximum fd for select() */
 int	rtsock;		/* the routing socket */
 int	ripsock;	/* socket to send/receive RIP datagram */
 
@@ -438,8 +441,6 @@ main(argc, argv)
 	sigemptyset(&mask);
 	sigaddset(&mask, SIGALRM);
 	while (1) {
-		fd_set	recvec;
-
 		if (seenalrm) {
 			ripalarm();
 			seenalrm = 0;
@@ -456,9 +457,9 @@ main(argc, argv)
 			continue;
 		}
 
-		FD_COPY(&sockvec, &recvec);
 		signo = 0;
-		switch (select(FD_SETSIZE, &recvec, 0, 0, 0)) {
+		memcpy(recvecp, sockvecp, fdmasks);
+		switch (select(maxfd + 1, recvecp, 0, 0, 0)) {
 		case -1:
 			if (errno != EINTR) {
 				fatal("select");
@@ -468,12 +469,12 @@ main(argc, argv)
 		case 0:
 			continue;
 		default:
-			if (FD_ISSET(ripsock, &recvec)) {
+			if (FD_ISSET(ripsock, recvecp)) {
 				sigprocmask(SIG_BLOCK, &mask, &omask);
 				riprecv();
 				sigprocmask(SIG_SETMASK, &omask, NULL);
 			}
-			if (FD_ISSET(rtsock, &recvec)) {
+			if (FD_ISSET(rtsock, recvecp)) {
 				sigprocmask(SIG_BLOCK, &mask, &omask);
 				rtrecv();
 				sigprocmask(SIG_SETMASK, &omask, NULL);
@@ -658,21 +659,31 @@ init()
 	}
 	memcpy(&ripsin, res->ai_addr, res->ai_addrlen);
 
-#ifdef FD_ZERO
-	FD_ZERO(&sockvec);
-#else
-	memset(&sockvec, 0, sizeof(sockvec));
-#endif
-	FD_SET(ripsock, &sockvec);
+	maxfd = ripsock;
 
 	if (nflag == 0) {
 		if ((rtsock = socket(PF_ROUTE, SOCK_RAW, 0)) < 0) {
 			fatal("route socket");
 			/*NOTREACHED*/
 		}
-		FD_SET(rtsock, &sockvec);
+		if (rtsock > maxfd)
+			maxfd = rtsock;
 	} else
 		rtsock = -1;	/*just for safety */
+
+	fdmasks = howmany(maxfd + 1, NFDBITS) * sizeof(fd_mask);
+	if ((sockvecp = malloc(fdmasks)) == NULL) {
+		fatal("malloc");
+		/*NOTREACHED*/
+	}
+	if ((recvecp = malloc(fdmasks)) == NULL) {
+		fatal("malloc");
+		/*NOTREACHED*/
+	}
+	memset(sockvecp, 0, fdmasks);
+	FD_SET(ripsock, sockvecp);
+	if (rtsock >= 0)
+		FD_SET(rtsock, sockvecp);
 }
 
 #define	RIPSIZE(n) \
