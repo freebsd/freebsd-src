@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c	8.3 (Berkeley) 1/12/94
- * $Id$
+ * $Id: nfs_serv.c,v 1.3 1994/08/02 07:52:09 davidg Exp $
  */
 
 /*
@@ -881,8 +881,7 @@ nfsrv_remove(nfsd, mrep, md, dpos, cred, nam, mrq)
 		error = EBUSY;
 		goto out;
 	}
-	if (vp->v_flag & VTEXT)
-		(void) vnode_pager_uncache(vp);
+	(void) vnode_pager_uncache(vp);
 out:
 	if (!error) {
 		nqsrv_getl(nd.ni_dvp, NQL_WRITE);
