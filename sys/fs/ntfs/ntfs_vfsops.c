@@ -333,7 +333,10 @@ ntfs_mountfs(devvp, mp, td)
 	/* Copy in the 8-bit to Unicode conversion table */
 	/* Initialize Unicode to 8-bit table from 8toU table */
 	ntfs_82u_init(ntmp, cs_local, cs_ntfs);
-	ntfs_u28_init(ntmp, NULL, cs_local, cs_ntfs);
+	if (cs_local != NULL && cs_ntfs != NULL)
+		ntfs_u28_init(ntmp, NULL, cs_local, cs_ntfs);
+	else
+		ntfs_u28_init(ntmp, ntmp->ntm_82u, cs_local, cs_ntfs);
 
 	mp->mnt_data = (qaddr_t)ntmp;
 
