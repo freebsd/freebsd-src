@@ -540,7 +540,7 @@ void dump_rtentry(rt)
   dump_smart_sockaddr(rt_mask(rt));
   printf("rt_llinfo = %p ",(void *)rt->rt_llinfo);
   printf("rt_rmx.rmx_mtu = %lu ",rt->rt_rmx.rmx_mtu);
-  printf("rt_refcnt = %d ",rt->rt_refcnt);
+  printf("rt_refcnt = %ld ",rt->rt_refcnt);
   printf("rt_flags = 0x%lx\n",rt->rt_flags);
   printf("rt_ifp is:\n");
   dump_ifp(rt->rt_ifp);
