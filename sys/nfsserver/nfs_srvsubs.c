@@ -949,12 +949,14 @@ nfsm_adj(struct mbuf *mp, int len, int nul)
 				for (i = 0; i < nul; i++)
 					*cp++ = '\0';
 			}
+			if (m->m_next != NULL) {
+				m_freem(m->m_next);
+				m->m_next = NULL;
+			}
 			break;
 		}
 		count -= m->m_len;
 	}
-	for (m = m->m_next;m;m = m->m_next)
-		m->m_len = 0;
 }
 
 /*
