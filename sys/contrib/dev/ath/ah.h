@@ -33,7 +33,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGES.
  *
- * $Id: ah.h,v 1.41 2003/11/01 01:05:45 sam Exp $
+ * $Id: ah.h,v 1.43 2003/11/25 22:17:40 sam Exp $
  */
 
 #ifndef _ATH_AH_H_
@@ -337,7 +337,7 @@ struct ath_desc;
 struct ath_hal {
 	u_int32_t	ah_magic;	/* consistency check magic number */
 	u_int32_t	ah_abi;		/* HAL ABI version */
-#define	HAL_ABI_VERSION	0x03103100	/* YYMMDDnn */
+#define	HAL_ABI_VERSION	0x03112500	/* YYMMDDnn */
 	u_int16_t	ah_devid;	/* PCI device ID */
 	u_int16_t	ah_subvendorid;	/* PCI subvendor ID */
 	HAL_SOFTC	ah_sc;		/* back pointer to driver/os state */
@@ -406,15 +406,16 @@ struct ath_hal {
 	void		(*ah_setRxFilter)(struct ath_hal*, u_int32_t);
 	HAL_BOOL	(*ah_setupRxDesc)(struct ath_hal *, struct ath_desc *,
 				u_int32_t size, u_int flags);
-	HAL_STATUS	(*ah_procRxDesc)(struct ath_hal *, struct ath_desc *);
+	HAL_STATUS	(*ah_procRxDesc)(struct ath_hal *, struct ath_desc *,
+				u_int32_t phyAddr, struct ath_desc *next);
 	void		(*ah_rxMonitor)(struct ath_hal *);
 
 	/* Misc Functions */
 	void		(*ah_dumpState)(struct ath_hal *);
-	void		(*ah_dumpEeprom)(struct ath_hal *);
-	void		(*ah_dumpRfGain)(struct ath_hal *);
-	void		(*ah_dumpAni)(struct ath_hal *);
+	HAL_BOOL	(*ah_getDiagState)(struct ath_hal *,
+				int, void **, u_int *);
 	void		(*ah_getMacAddress)(struct ath_hal *, u_int8_t *);
+	HAL_BOOL	(*ah_setMacAddress)(struct ath_hal *, const u_int8_t *);
 	HAL_BOOL	(*ah_setRegulatoryDomain)(struct ath_hal*,
 				u_int16_t, HAL_STATUS *);
 	void		(*ah_setLedState)(struct ath_hal*, HAL_LED_STATE);
@@ -427,9 +428,6 @@ struct ath_hal {
 	u_int64_t	(*ah_getTsf64)(struct ath_hal*);
 	void		(*ah_resetTsf)(struct ath_hal*);
 	u_int16_t	(*ah_getRegDomain)(struct ath_hal*);
-	u_int		(*ah_getWirelessModes)(struct ath_hal*);
-	HAL_BOOL	(*ah_getRfKill)(struct ath_hal*);
-	u_int32_t	(*ah_getRandomSeed)(struct ath_hal*);
 	HAL_BOOL	(*ah_detectCardPresent)(struct ath_hal*);
 	void		(*ah_updateMibCounters)(struct ath_hal*, HAL_MIB_STATS*);
 	HAL_BOOL	(*ah_isHwCipherSupported)(struct ath_hal*, HAL_CIPHER);
@@ -446,9 +444,10 @@ struct ath_hal {
 	HAL_BOOL	(*ah_resetKeyCacheEntry)(struct ath_hal*, u_int16_t);
 	HAL_BOOL	(*ah_isKeyCacheEntryValid)(struct ath_hal *, u_int16_t);
 	HAL_BOOL	(*ah_setKeyCacheEntry)(struct ath_hal*,
-				u_int16_t, const HAL_KEYVAL *, u_int8_t *, int);
+				u_int16_t, const HAL_KEYVAL *,
+				const u_int8_t *, int);
 	HAL_BOOL	(*ah_setKeyCacheEntryMac)(struct ath_hal*,
-				u_int16_t, u_int8_t *);
+				u_int16_t, const u_int8_t *);
 
 	/* Power Management Functions */
 	HAL_BOOL	(*ah_setPowerMode)(struct ath_hal*,
