@@ -101,12 +101,12 @@
 #define	TD_W		(1L << 1)
 #define	TD_G		(1L << 0)
 
-struct	tte {
+struct tte {
 	u_long	tte_tag;
 	u_long	tte_data;
 };
 
-struct	stte {
+struct stte {
 	struct	tte st_tte;
 	vm_offset_t st_next;
 	vm_offset_t st_prev;
