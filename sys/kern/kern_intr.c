@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/ktr.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
@@ -494,14 +495,14 @@ ithread_loop(void *arg)
 	struct intrhand *ih;		/* and our interrupt handler chain */
 	struct thread *td;
 	struct proc *p;
-	int count, warned;
+	int count, warming, warned;
 	
 	td = curthread;
 	p = td->td_proc;
 	ithd = (struct ithd *)arg;	/* point to myself */
 	KASSERT(ithd->it_td == td && td->td_ithd == ithd,
 	    ("%s: ithread and proc linkage out of sync", __func__));
-	count = 0;
+	warming = 10 * intr_storm_threshold;
 	warned = 0;
 
 	/*
@@ -523,6 +524,7 @@ ithread_loop(void *arg)
 
 		CTR4(KTR_INTR, "%s: pid %d: (%s) need=%d", __func__,
 		     p->p_pid, p->p_comm, ithd->it_need);
+		count = 0;
 		while (ithd->it_need) {
 			/*
 			 * Service interrupts.  If another interrupt
@@ -531,25 +533,6 @@ ithread_loop(void *arg)
 			 * another pass.
 			 */
 			atomic_store_rel_int(&ithd->it_need, 0);
-
-			/*
-			 * If we detect an interrupt storm, pause with
-			 * the source masked for 1/10th of a second.
-			 */
-			if (intr_storm_threshold != 0 && count >=
-			    intr_storm_threshold) {
-				if (!warned) {
-					printf(
-	"Interrupt storm detected on \"%s\"; throttling interrupt source\n",
-					    p->p_comm);
-					warned = 1;
-				}
-				tsleep(&count, td->td_priority, "istorm",
-				    hz / 10);
-				count = 0;
-			} else
-				count++;
-
 restart:
 			TAILQ_FOREACH(ih, &ithd->it_handlers, ih_next) {
 				if (ithd->it_flags & IT_SOFT && !ih->ih_need)
@@ -575,8 +558,53 @@ restart:
 				if ((ih->ih_flags & IH_MPSAFE) == 0)
 					mtx_unlock(&Giant);
 			}
-			if (ithd->it_enable != NULL)
+			if (ithd->it_enable != NULL) {
 				ithd->it_enable(ithd->it_vector);
+
+				/*
+				 * Storm detection needs a delay here
+				 * to see slightly delayed interrupts
+				 * on some machines, but we don't
+				 * want to always delay, so only delay
+				 * while warming up.
+				 */
+				if (warming != 0) {
+					DELAY(1);
+					--warming;
+				}
+			}
+
+			/*
+			 * If we detect an interrupt storm, sleep until
+			 * the next hardclock tick.  We sleep at the
+			 * end of the loop instead of at the beginning
+			 * to ensure that we see slightly delayed
+			 * interrupts.
+			 */
+			if (count >= intr_storm_threshold) {
+				if (!warned) {
+					printf(
+	"Interrupt storm detected on \"%s\"; throttling interrupt source\n",
+					    p->p_comm);
+					warned = 1;
+				}
+				tsleep(&count, td->td_priority, "istorm", 1);
+
+				/*
+				 * Fudge the count to re-throttle if the
+				 * interrupt is still active.  Our storm
+				 * detection is too primitive to detect
+				 * whether the storm has gone away
+				 * reliably, even if we were to waste a
+				 * lot of time spinning for the next
+				 * intr_storm_threshold interrupts, so
+				 * we assume that the storm hasn't gone
+				 * away unless the interrupt repeats
+				 * less often the hardclock interrupt.
+				 */
+				count = INT_MAX - 1;
+			}
+			count++;
 		}
 		WITNESS_WARN(WARN_PANIC, NULL, "suspending ithread");
 		mtx_assert(&Giant, MA_NOTOWNED);
@@ -589,7 +617,6 @@ restart:
 		mtx_lock_spin(&sched_lock);
 		if (!ithd->it_need) {
 			TD_SET_IWAIT(td);
-			count = 0;
 			CTR2(KTR_INTR, "%s: pid %d: done", __func__, p->p_pid);
 			mi_switch(SW_VOL);
 			CTR2(KTR_INTR, "%s: pid %d: resumed", __func__, p->p_pid);
