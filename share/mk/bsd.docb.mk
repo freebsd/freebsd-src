@@ -22,13 +22,7 @@
 #	install:
 #		Install formated output.
 
-
-.if !target(__initialized__)
-__initialized__:
-.if exists(${.CURDIR}/../Makefile.inc)
-.include "${.CURDIR}/../Makefile.inc"
-.endif
-.endif
+.include <bsd.init.mk>
 
 # Use SGMLOPTS to pass extra flags to sgmlfmt(1).
 VOLUME?=	${.CURDIR:T}
@@ -45,7 +39,6 @@ CLEANFILES+=${_docs}
 .docb.html .sgml.html: ${SRCS}
 	${SGMLFMT} -d docbook -f html ${SGMLOPTS} ${.IMPSRC}
 
-.MAIN:	all
 all:	${_docs}
 
 install:

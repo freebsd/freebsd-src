@@ -43,6 +43,10 @@
 #		create build directory.
 #
 
+.if !target(__<bsd.obj.mk>__)
+__<bsd.obj.mk>__:
+.include <bsd.own.mk>
+
 .if defined(MAKEOBJDIRPREFIX)
 CANONICALOBJDIR:=${MAKEOBJDIRPREFIX}${.CURDIR}
 .else
@@ -174,3 +178,5 @@ _SUBDIR: .USE
 		${MAKE} ${.TARGET:S/realinstall/install/} DIRPRFX=${DIRPRFX}$$entry/); \
 	done
 .endif
+
+.endif !target(__<bsd.obj.mk>__)
