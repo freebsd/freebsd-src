@@ -250,6 +250,7 @@ installUpgrade(dialogMenuItem *self)
     /* Don't allow sources to be upgraded unless if we have src already */
     if (directory_exists("/usr/src/") && (Dists & DIST_SRC)) {
 	Dists &= ~DIST_SRC;
+	SrcDists = 0;
 	msgConfirm("Warning: /usr/src exists and sources were selected as upgrade\n"
 		   "targets.  Unfortunately, this is not the way to upgrade your\n"
 		   "sources - please use CTM or CVSup or some other method which\n"
