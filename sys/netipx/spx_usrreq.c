@@ -1760,13 +1760,16 @@ spx_slowtimo()
 				 * spx_timers() returns (NULL) if it free'd
 				 * the pcb.
 				 */
-				if (spx_timers(cb, i) == NULL)
-					continue;
+				cb = spx_timers(cb, i);
+				if (cb == NULL)
+					break;
 			}
 		}
-		cb->s_idle++;
-		if (cb->s_rtt)
-			cb->s_rtt++;
+		if (cb != NULL) {
+			cb->s_idle++;
+			if (cb->s_rtt)
+				cb->s_rtt++;
+		}
 	}
 	spx_iss += SPX_ISSINCR/PR_SLOWHZ;		/* increment iss */
 	splx(s);
