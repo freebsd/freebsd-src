@@ -2,7 +2,7 @@
 
 The FreeBSD Simplified Chinese Project
 
-Original Revision: 1.27
+Original Revision: 1.30
 $FreeBSD$
 
 install.sgml
@@ -15,13 +15,13 @@ from {alpha,i386}/INSTALL.TXT.
 <sect1 id="install">
   <title>安装 &os;</title>
 
-  <para>这一章节记述了安装一个新的 &os; 发行版本的过程。
+  <para>这一章节介绍了安装一个新的 &os; 发行版本的过程。
   这些说明重点强调了获取 &os; &release.current;
   发行版本并开始安装的过程。<ulink
-  url="http://www.FreeBSD.org/doc/zh_CN.GB2312/books/handbook/">FreeBSD
+  url="&url.books.handbook;/install.html">&os;
   使用手册</ulink>的<ulink
-  url="http://www.FreeBSD.org/doc/zh_CN.GB2312/books/handbook/install.html"><quote>安装
-  FreeBSD</quote></ulink>一章提供了有关安装程序本身更深层次的信息，
+  url="&url.books.handbook;/"><quote>安装
+  &os;</quote></ulink>一章提供了有关安装程序本身更深层次的信息，
   包括一个全程截图的指南。</para>
 
   <para>如果您正在从 &os; 的前一个发行版本升级，请查看
@@ -37,11 +37,11 @@ from {alpha,i386}/INSTALL.TXT.
     大部分文档，比如发行注记和硬件兼容性列表也可以在安装程序的
     Documentation 菜单中查看。</para>
 
-    <para>注意 &os; <ulink
-    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/faq/">FAQ</ulink> 和<ulink
-    url="http://www.FreeBSD.org/doc/zh_CN.GB2312/books/handbook/">使用手册</ulink>
-    的在线版本也可以在 <ulink url="http://www.FreeBSD.org/">FreeBSD
-    项目 Web 站点</ulink>上找到，只要您拥有一条 Internet 连接。</para>
+    <para>注意如果您能接入 Internet 的话， &os; <ulink
+    url="&url.books.faq;/">FAQ</ulink> 和 <ulink
+    url="&url.books.handbook;/">使用手册</ulink>
+    的在线版本也可以在 <ulink url="&url.base;/">&os;
+    项目 Web 站点</ulink>上找到。</para>
 
     <para>这份文档集合可能看起来很吓人，但是阅读它们所花费的时间很可能会节省更多的时间。
     熟悉可用的资源也有助于处理安装过程中的问题。</para>
@@ -66,11 +66,10 @@ from {alpha,i386}/INSTALL.TXT.
 
 <!-- i386/pc98 text starts here -->
 
-    <para arch="i386,pc98">&arch.print; 体系的 &os; 需要 486 或者更高的处理器来安装运行
-    (虽然 &os; 可以用定制的内核运行在 386 处理器上)，
-    至少 8 兆内存来安装、7 兆内存来运行。
-    最小安装您需要有至少 150MB 的剩余磁盘空间。继续阅读查找压缩存在的
-    DOS 分区用来安装 &os; 的方法。</para>
+    <para arch="i386,pc98">&os; 在 &arch.print; 系统上需要 486
+    或更高的处理器， 以及至少 24&nbsp;MB 的 RAM。
+    最小安装需要至少 150MB 的剩余硬盘空间。 请阅读下面的部分，
+    来了解如何缩小现有的 DOS 分区以便安装 &os; 的方法。</para>
 
 <!-- alpha text starts here -->
 
@@ -136,7 +135,7 @@ from {alpha,i386}/INSTALL.TXT.
   <para arch="i386,alpha,pc98">通过网络获取这些映像很容易。只需要从 <ulink
   url="&release.url;"></ulink>
   或者列在使用手册的 <ulink
-    url="http://www.FreeBSD.org/doc/zh_CN.GB2312/books/handbook/mirrors-ftp.html">FTP
+    url="&url.books.handbook;/mirrors-ftp.html">FTP
     站点</ulink>一节或
     <ulink url="http://mirrorlist.FreeBSD.org/"></ulink> Web 页面中的众多镜像站点中下载
   <replaceable>release</replaceable><filename>/floppies/boot.flp</filename>
