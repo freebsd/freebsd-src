@@ -1,14 +1,13 @@
 #!/bin/sh
 #
 # mkchecksums.sh - generate interactive checksum-checking script.
-# Jordan Hubbard
+# Author: Jordan Hubbard
 #
 # This script generates a cksum.sh script from a set of tarballs
 # and should not be run by anyone but the release coordinator (there
 # wouldn't be much point).
 #
-#                                       Jordan
-# $Id: mkchecksums.sh,v 1.2 1994/11/24 22:30:03 phk Exp $
+# $Id: mkchecksums.sh,v 1.1 1995/01/14 07:41:50 jkh Exp $
 #
 
 # Remove any previous attempts.
@@ -21,5 +20,5 @@ rm -rf CKSUMS do_cksum.sh
 cksum * > CKSUMS
 
 # Now generate a script for actually verifying the checksums.
-awk 'BEGIN {print "rval=0"} { printf("if [ \"\`cksum %s%s%s\`\" != \"%s %s %s\" ]; then dialog --title Error --infobox \"Checksum error detected on %s!\" -1 -1; rval=1; fi\n", "\047", $3, "\047", $1, $2, $3, $3);} END {print "exit $rval"}' < CKSUMS > do_cksum.sh
+awk 'BEGIN {print "rval=0"} { printf("if [ -f %s ]; then if [ \"\`cksum %s%s%s\`\" != \"%s %s %s\" ]; then dialog --title \"Checksum Error\" --msgbox \"Checksum error detected on %s!\" -1 -1; rval=1; fi; fi\n", $3, "\047", $3, "\047", $1, $2, $3, $3);} END {print "exit $rval"}' < CKSUMS > do_cksum.sh
 chmod +x do_cksum.sh
