@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1997, Stefan Esser <se@freebsd.org>
  * Copyright (c) 2000, Michael Smith <msmith@freebsd.org>
  * Copyright (c) 2000, BSDi
@@ -169,17 +169,17 @@ uint32_t pci_numdevs = 0;
 SYSCTL_NODE(_hw, OID_AUTO, pci, CTLFLAG_RD, 0, "PCI bus tuning parameters");
 
 static int pci_enable_io_modes = 1;
-TUNABLE_INT("hw.pci.enable_io_modes", (int *)&pci_enable_io_modes);
+TUNABLE_INT("hw.pci.enable_io_modes", &pci_enable_io_modes);
 SYSCTL_INT(_hw_pci, OID_AUTO, enable_io_modes, CTLFLAG_RW,
     &pci_enable_io_modes, 1,
     "Enable I/O and memory bits in the config register.  Some BIOSes do not\n\
 enable these bits correctly.  We'd like to do this all the time, but there\n\
 are some peripherals that this causes problems with.");
 
-static int pci_do_powerstate = 0;
-TUNABLE_INT("hw.pci.do_powerstate", (int *)&pci_do_powerstate);
+static int pci_do_powerstate = 1;
+TUNABLE_INT("hw.pci.do_powerstate", &pci_do_powerstate);
 SYSCTL_INT(_hw_pci, OID_AUTO, do_powerstate, CTLFLAG_RW,
-    &pci_do_powerstate, 0,
+    &pci_do_powerstate, 1,
     "Power down devices into D3 state when no driver attaches to them.\n\
 Otherwise, leave the device in D0 state when no driver attaches.");
 
@@ -1856,14 +1856,14 @@ pci_cfg_save(device_t dev, struct pci_devinfo *dinfo, int setstate)
 	dinfo->cfg.bios = pci_read_config(dev, PCIR_BIOS, 4);
 
 	/*
-	 * Some drivers apparently write to these registers w/o
-	 * updating our cahced copy.  No harm happens if we update the
-	 * copy, so do so here so we can restore them.  The COMMAND
-	 * register is modified by the bus w/o updating the cache.  This
-	 * should represent the normally writable portion of the 'defined'
-	 * part of type 0 headers.  In theory we also need to save/restore
-	 * the PCI capability structures we know about, but apart from power
-	 * we don't know any that are writable.
+	 * Some drivers apparently write to these registers w/o updating our
+	 * cached copy.  No harm happens if we update the copy, so do so here
+	 * so we can restore them.  The COMMAND register is modified by the
+	 * bus w/o updating the cache.  This should represent the normally
+	 * writable portion of the 'defined' part of type 0 headers.  In
+	 * theory we also need to save/restore the PCI capability structures
+	 * we know about, but apart from power we don't know any that are
+	 * writable.
 	 */
 	dinfo->cfg.subvendor = pci_read_config(dev, PCIR_SUBVEND_0, 2);
 	dinfo->cfg.subdevice = pci_read_config(dev, PCIR_SUBDEV_0, 2);
@@ -1882,18 +1882,19 @@ pci_cfg_save(device_t dev, struct pci_devinfo *dinfo, int setstate)
 	dinfo->cfg.revid = pci_read_config(dev, PCIR_REVID, 1);
 
 	/*
-	 * don't set the state for display devices and for memory devices
-	 * since bad things happen.  we should (a) have drivers that can easily
-	 * detach and (b) use generic drivers for these devices so that some
-	 * device actually attaches.  We need to make sure that when we
-	 * implement (a) we don't power the device down on a reattach.
+	 * don't set the state for display devices, base peripherals and
+	 * memory devices since bad things happen when they are powered down.
+	 * We should (a) have drivers that can easily detach and (b) use
+	 * generic drivers for these devices so that some device actually
+	 * attaches.  We need to make sure that when we implement (a) we don't
+	 * power the device down on a reattach.
 	 */
 	cls = pci_get_class(dev);
-	if (setstate && cls != PCIC_DISPLAY && cls != PCIC_MEMORY) {
+	if (setstate && cls != PCIC_DISPLAY && cls != PCIC_MEMORY &&
+	    cls != PCIC_BASEPERIPH) {
 		/*
-		 * PCI spec is clear that we can only go into D3 state from
-		 * D0 state.  Transition from D[12] into D0 before going
-		 * to D3 state.
+		 * PCI spec says we can only go into D3 state from D0 state.
+		 * Transition from D[12] into D0 before going to D3 state.
 		 */
 		ps = pci_get_powerstate(dev);
 		if (ps != PCI_POWERSTATE_D0 && ps != PCI_POWERSTATE_D3) {
