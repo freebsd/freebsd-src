@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_lookup.c,v 1.21 1998/02/24 14:13:13 ache Exp $ */
+/*	$Id: msdosfs_lookup.c,v 1.22 1998/02/26 06:45:44 msmith Exp $ */
 /*	$NetBSD: msdosfs_lookup.c,v 1.37 1997/11/17 15:36:54 ws Exp $	*/
 
 /*-
@@ -294,7 +294,7 @@ msdosfs_lookup(ap)
 				 * this lookup.
 				 */
 				dp->de_fndoffset = diroff;
-				dp->de_fndcnt = wincnt;
+				dp->de_fndcnt = wincnt - 1;
 
 				goto found;
 			}
