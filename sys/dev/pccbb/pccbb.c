@@ -55,6 +55,7 @@
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/sysctl.h>
 
 #include <sys/bus.h>
 #include <machine/bus.h>
@@ -193,6 +194,16 @@ struct yenta_chipinfo {
 	{0 /* null id */, "unknown",
 	    CB_UNKNOWN, 0},
 };
+
+/* sysctl vars */
+SYSCTL_NODE(_hw, OID_AUTO, pccbb, CTLFLAG_RD, 0, "PCCBB parameters");
+
+/* There's no way to say TUNEABLE_LONG to get the right types */
+u_long pccbb_start_mem = PCCBB_START_MEM;
+TUNABLE_INT("hw.pccbb.start_memory", (int *)&pccbb_start_mem);
+SYSCTL_ULONG(_hw_pccbb, OID_AUTO, start_mem, CTLFLAG_RD,
+    &pccbb_start_mem, PCCBB_START_MEM,
+    "Starting address for memory allocations");
 
 static int	cb_chipset(u_int32_t pci_id, const char **namep, int *flagp);
 static int	pccbb_probe(device_t brdev);
@@ -440,7 +451,7 @@ pccbb_attach(device_t brdev)
 			    -(sockbase & 0xfffffff0);
 			sc->sc_base_res = bus_generic_alloc_resource(
 			    device_get_parent(brdev), brdev, SYS_RES_MEMORY,
-			    &rid, PCCBB_START_MEM, ~0, sockbase,
+			    &rid, pccbb_start_mem, ~0, sockbase,
 			    RF_ACTIVE|rman_make_alignment_flags(sockbase));
 			if (!sc->sc_base_res){
 				device_printf(brdev,
@@ -1262,8 +1273,8 @@ pccbb_cardbus_alloc_resource(device_t brdev, device_t child, int type, int *rid,
 			end = start;
 		break;
 	case SYS_RES_MEMORY:
-		if (start <= PCCBB_START_MEM)
-			start = PCCBB_START_MEM;
+		if (start <= pccbb_start_mem)
+			start = pccbb_start_mem;
 		if (end < start)
 			end = start;
 		break;
@@ -1780,8 +1791,8 @@ pccbb_pcic_alloc_resource(device_t brdev, device_t child, int type, int *rid,
 
 	switch (type) {
 	case SYS_RES_MEMORY:
-		if (start < PCCBB_START_MEM)
-			start = PCCBB_START_MEM;
+		if (start < pccbb_start_mem)
+			start = pccbb_start_mem;
 		if (end < start)
 			end = start;
 		flags = (flags & ~RF_ALIGNMENT_MASK) |
