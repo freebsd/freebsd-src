@@ -79,11 +79,11 @@ struct isp_fc_device {
  */
 #define	ISP_STATS_VERSION	0
 typedef struct {
-	uint8_t		isp_stat_version;	
-	uint8_t		isp_type;		/* (ro) reflects chip type */
-	uint8_t		isp_revision;		/* (ro) reflects chip version */
-	uint8_t		unused1;
-	uint32_t	unused2;
+	u_int8_t	isp_stat_version;
+	u_int8_t	isp_type;		/* (ro) reflects chip type */
+	u_int8_t	isp_revision;		/* (ro) reflects chip version */
+	u_int8_t	unused1;
+	u_int32_t	unused2;
 	/*
 	 * Statistics Counters
 	 */
@@ -96,7 +96,7 @@ typedef struct {
 #define	ISP_FPHCCMCPLT	5
 #define	ISP_RSCCHIWAT	6
 #define	ISP_FPCCHIWAT	7
-	uint64_t	isp_stats[ISP_NSTATS];
+	u_int64_t	isp_stats[ISP_NSTATS];
 } isp_stats_t;
 
 #define	ISP_GET_STATS	_IOR(ISP_IOC, 6, isp_stats_t)

@@ -955,7 +955,7 @@
 
 #define	ISP2100_NVRAM_HARDLOOPID(c)		(c)[26]
 
-#define	ISP2100_NVRAM_NODE_NAME(c)	(\
+#define	ISP2200_NVRAM_NODE_NAME(c)	(\
 		(((u_int64_t)(c)[30]) << 56) | \
 		(((u_int64_t)(c)[31]) << 48) | \
 		(((u_int64_t)(c)[32]) << 40) | \
@@ -985,4 +985,5 @@
 
 #define	ISP2100_NVRAM_BOOT_LUN(c)		(c)[80]
 
+#define	ISP2200_HBA_FEATURES(c)			(c)[232] | ((c)[233] << 8)
 #endif	/* _ISPREG_H */
