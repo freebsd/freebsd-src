@@ -37,7 +37,7 @@ static int wdtest = 0;
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.34 1994/02/25 23:17:40 ache Exp $
+ *	$Id: wd.c,v 1.35 1994/03/04 16:43:07 ache Exp $
  */
 
 /* TODO:
@@ -619,7 +619,9 @@ wdintr(int unit)
 	if (wdtab[unit].b_active == 2)
 		return;		/* intr in wdflushirq() */
 	if (!wdtab[unit].b_active) {
+#ifndef LAPTOP
 		printf("wdc%d: extra interrupt\n", unit);
+#endif
 		return;
 	}
 
