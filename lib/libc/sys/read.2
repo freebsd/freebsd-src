@@ -132,7 +132,7 @@ syscall is assembled to
 and
 .Fn read
 is implemented as a function which locks
-.Va d
+.Fa d
 for read, then calls
 .Fn _thread_sys_read .
 If the call to
@@ -141,7 +141,7 @@ would block, a context switch is performed.
 Before returning,
 .Fn read
 unlocks
-.Va d .
+.Fa d .
 .Pp
 In the non-threaded library
 .Fn readv
@@ -156,7 +156,7 @@ syscall is assembled to
 and
 .Fn readv
 is implemented as a function which locks
-.Va d
+.Fa d
 for read, then calls
 .Fn _thread_sys_readv .
 If the call to
@@ -165,7 +165,7 @@ would block, a context switch is performed.
 Before returning,
 .Fn readv
 unlocks
-.Va d .
+.Fa d .
 .Sh RETURN VALUES
 If successful, the
 number of bytes actually read is returned.
