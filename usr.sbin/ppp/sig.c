@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: sig.c,v 1.11 1997/12/21 12:11:08 brian Exp $
  */
 
 #include <sys/types.h>
@@ -35,7 +35,7 @@
 #include "log.h"
 #include "sig.h"
 
-static caused[NSIG];		/* An array of pending signals */
+static int caused[NSIG];	/* An array of pending signals */
 static sig_type handler[NSIG];	/* all start at SIG_DFL */
 
 
