@@ -79,12 +79,12 @@ open(SRC,     "<$srcfile")   || die "Unable to open input file";
 if ($hfile) {
     open(HEADER, ">$HEADER") || die "Unable to create $HEADER";
     # Print out header information for vnode_if.h.
-    print HEADER <<END_OF_LEADING_COMMENT
+    print HEADER <<'END_OF_LEADING_COMMENT'
 /*
  * This file is produced automatically.
  * Do not modify anything in here by hand.
  *
- * Created from src/sys/kern/vnode_if.pl
+ * Created from $FreeBSD$
  */
 
 extern struct vnodeop_desc vop_default_desc;
@@ -95,12 +95,12 @@ END_OF_LEADING_COMMENT
 if ($cfile) {
     open(CFILE,   ">$CFILE") || die "Unable to create $CFILE";
     # Print out header information for vnode_if.c.
-    print CFILE <<END_OF_LEADING_COMMENT
+    print CFILE <<'END_OF_LEADING_COMMENT'
 /*
  * This file is produced automatically.
  * Do not modify anything in here by hand.
  *
- * Created from src/sys/kern/vnode_if.pl
+ * Created from $FreeBSD$
  */
 
 #include <sys/param.h>
