@@ -1,6 +1,6 @@
 <!--
 
-  $Id$
+  $Id: roff.sdata,v 1.1.1.1 1996/09/08 02:37:39 jfieber Exp $
 
   Copyright (C) 1996
        Chuck Robey.  All rights reserved.
@@ -154,7 +154,7 @@ ISO SDATA entity translations for groff.
 <map from="[utri  ]" to="/triangle =up triangle, open">
 <map from="[dtri  ]" to="/triangledown =down triangle, open">
 -->
-<map from="[star  ]" to="\(**	=star, open">
+<map from="[star  ]" to="\(**">
 <map from="[bull  ]" to="\(bu">
 <!--
 <map from="[squf  ]" to="/blacksquare =sq bullet, filled">
