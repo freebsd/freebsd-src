@@ -1,4 +1,4 @@
-<!-- $Id: mirrors.sgml,v 1.3 1995/09/20 16:34:15 jfieber Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.4 1995/10/16 08:56:17 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -118,6 +118,18 @@ and on CD-ROM from Walnut Creek CDROM:
 
 </itemize>
 
+<tag>Hong Kong</tag>
+
+<itemize>
+
+<item>
+<htmlurl url="ftp://ftp.hk.super.net/pub/FreeBSD"
+	name="g	ftp://ftp.hk.super.net/pub/FreeBSD"><newline>
+	Contact: <htmlurl url="mailto:ftp-admin@HK.Super.NET"
+	name="ftp-admin@HK.Super.NET">.
+
+</itemize>
+
 <tag>Ireland</tag>
 
 <itemize>
@@ -139,18 +151,6 @@ and on CD-ROM from Walnut Creek CDROM:
 	name="ftp://orgchem.weizmann.ac.il/pub/FreeBSD"><newline>
 	Contact: <htmlurl url="mailto:serg@klara.weizmann.ac.il"
 	name="serg@klara.weizmann.ac.il">.
-
-</itemize>
-
-<tag>Hong Kong</tag>
-
-<itemize>
-
-<item>
-<htmlurl url="ftp://ftp.hk.super.net/pub/FreeBSD"
-	name="g	ftp://ftp.hk.super.net/pub/FreeBSD"><newline>
-	Contact: <htmlurl url="mailto:ftp-admin@HK.Super.NET"
-	name="ftp-admin@HK.Super.NET">.
 
 </itemize>
 
