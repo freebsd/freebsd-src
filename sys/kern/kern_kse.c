@@ -171,7 +171,11 @@ void
 thread_getcontext(struct thread *td, ucontext_t *uc)
 {
 
+# XXX this is declared in a MD include file, i386/include/ucontext.h but
+# is used in MI code.
+#ifdef __i386__
 	get_mcontext(td, &uc->uc_mcontext);
+#endif
 	uc->uc_sigmask = td->td_proc->p_sigmask;
 }
 
@@ -185,7 +189,13 @@ thread_setcontext(struct thread *td, ucontext_t *uc)
 {
 	int ret;
 
+# XXX this is declared in a MD include file, i386/include/ucontext.h but
+# is used in MI code.
+#ifdef __i386__
 	ret = set_mcontext(td, &uc->uc_mcontext);
+#else
+	ret = ENOSYS;
+#endif
 	if (ret == 0) {
 		SIG_CANTMASK(uc->uc_sigmask);
 		PROC_LOCK(td->td_proc);
