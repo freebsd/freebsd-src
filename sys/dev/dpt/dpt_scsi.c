@@ -64,7 +64,7 @@
  *       3.  dpt_handle_timeouts   potentially inserts into the queue
  */
 
-#ident "$Id: dpt_scsi.c,v 1.8 1998/08/05 00:54:36 eivind Exp $"
+#ident "$Id: dpt_scsi.c,v 1.9 1998/08/06 20:57:33 eivind Exp $"
 
 #define _DPT_C_
 
@@ -1150,7 +1150,7 @@ dpt_user_cmd_done(dpt_softc_t * dpt, int bus, dpt_ccb_t * ccb)
 	/**
 	 * If Auto Request Sense is on, copyout the sense struct
 	 */
-#define usr_pckt_DMA 	(caddr_t)ntohl(ccb->eata_ccb.cp_reqDMA)
+#define usr_pckt_DMA 	(caddr_t)(intptr_t)ntohl(ccb->eata_ccb.cp_reqDMA)
 #define usr_pckt_len	ntohl(ccb->eata_ccb.cp_datalen)
 	if (ccb->eata_ccb.Auto_Req_Sen == 1) {
 		if (copyout((caddr_t) & ccb->sense_data, usr_pckt_DMA,
