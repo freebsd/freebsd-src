@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.h	7.2 (Berkeley) 5/9/91
- *	$Id: cons.h,v 1.1 1998/06/10 10:54:42 dfr Exp $
+ *	$Id: cons.h,v 1.2 1999/01/23 16:53:27 dfr Exp $
  */
 
 #ifndef _MACHINE_CONS_H_
@@ -45,6 +45,7 @@
 struct consdev;
 typedef	void	cn_probe_t __P((struct consdev *));
 typedef	void	cn_init_t __P((struct consdev *));
+typedef	void	cn_term_t __P((struct consdev *));
 typedef	int	cn_getc_t __P((dev_t));
 typedef	int	cn_checkc_t __P((dev_t));
 typedef	void	cn_putc_t __P((dev_t, int));
@@ -66,6 +67,8 @@ struct consdev {
 				/* probe hardware and fill in consdev info */
 	cn_init_t	*cn_init;
 				/* turn on as console */
+	cn_term_t	*cn_term;
+				/* turn off as console */
 	cn_getc_t	*cn_getc;
 				/* kernel getchar interface */
 	cn_checkc_t	*cn_checkc;
@@ -84,7 +87,14 @@ struct consdev {
 #define CN_REMOTE	3	/* serial interface with remote bit set */
 
 #ifdef KERNEL
+extern	struct linker_set cons_set;
 extern	int cons_unavail;
+
+#define CONS_DRIVER(name, probe, init, term, getc, checkc, putc)	\
+	static struct consdev name##_consdev = {			\
+		probe, init, term, getc, checkc, putc			\
+	};								\
+	DATA_SET(cons_set, name##_consdev)
 
 /* Other kernel entry points. */
 int	cncheckc __P((void));

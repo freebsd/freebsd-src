@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: fire_saver.c,v 1.2.2.1 1999/05/10 15:20:30 des Exp $
+ *	$Id: fire_saver.c,v 1.4 1999/05/10 15:25:50 des Exp $
  */
 
 /*
@@ -38,11 +38,14 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/syslog.h>
+#include <sys/consio.h>
+#include <sys/fbio.h>
 
-#include <machine/md_var.h>
 #include <machine/random.h>
 
-#include <saver.h>
+#include <dev/fb/fbreg.h>
+#include <dev/fb/splashreg.h>
+#include <dev/syscons/syscons.h>
 
 #define X_SIZE 320
 #define Y_SIZE 200
