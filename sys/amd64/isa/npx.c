@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.9 1994/06/11 05:17:15 davidg Exp $
+ *	$Id: npx.c,v 1.10 1994/08/13 03:50:11 wollman Exp $
  */
 
 #include "npx.h"
@@ -119,6 +119,7 @@ struct proc	*npxproc;
 
 static	bool_t			npx_ex16;
 static	bool_t			npx_exists;
+int hw_float;
 static	struct gate_descriptor	npx_idt_probeintr;
 static	int			npx_intrno;
 static	volatile u_int		npx_intrs_while_probing;
@@ -266,7 +267,7 @@ npxprobe1(dvp)
 		control = 0x5a5a;	
 		fnstcw(&control);
 		if ((control & 0x1f3f) == 0x033f) {
-			npx_exists = 1;
+			hw_float = npx_exists = 1;
 			/*
 			 * We have an npx, now divide by 0 to see if exception
 			 * 16 works.
@@ -323,7 +324,7 @@ npxattach(dvp)
 	if (!npx_ex16 && !npx_irq13) {
 		if (npx_exists) {
 			printf("npx%d: Error reporting broken, using 387 emulator\n",dvp->id_unit);
-			npx_exists = 0;
+			hw_float = npx_exists = 0;
 		} else {
 			printf("npx%d: 387 Emulator\n",dvp->id_unit);
 		}
