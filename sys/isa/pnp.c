@@ -36,7 +36,6 @@
 #include <isa/isavar.h>
 #include <isa/pnpreg.h>
 #include <isa/pnpvar.h>
-#include <machine/resource.h>
 #include <machine/clock.h>
 
 typedef struct _pnp_id {
@@ -167,14 +166,15 @@ pnp_get_serial(pnp_id *p)
 
 /*
  * Fill's the buffer with resource info from the device.
- * Returns 0 if the device fails to report
+ * Returns the number of characters read.
  */
 static int
 pnp_get_resource_info(u_char *buffer, int len)
 {
-	int i, j;
+	int i, j, count;
 	u_char temp;
 
+	count = 0;
 	for (i = 0; i < len; i++) {
 		outb(_PNP_ADDRESS, PNP_STATUS);
 		for (j = 0; j < 100; j++) {
@@ -184,14 +184,15 @@ pnp_get_resource_info(u_char *buffer, int len)
 		}
 		if (j == 100) {
 			printf("PnP device failed to report resource data\n");
-			return 0;
+			return count;
 		}
 		outb(_PNP_ADDRESS, PNP_RESOURCE_DATA);
 		temp = inb((pnp_rd_port << 2) | 0x3);
 		if (buffer != NULL)
 			buffer[i] = temp;
+		count++;
 	}
-	return 1;
+	return count;
 }
 
 #if 0
@@ -367,270 +368,237 @@ pnp_check_quirks(u_int32_t vendor_id, u_int32_t logical_id, int ldn)
  * Scan Resource Data for Logical Devices.
  *
  * This function exits as soon as it gets an error reading *ANY*
- * Resource Data or ir reaches the end of Resource Data.  In the first
+ * Resource Data or it reaches the end of Resource Data.  In the first
  * case the return value will be TRUE, FALSE otherwise.
  */
 static int
-pnp_scan_resdata(device_t parent, pnp_id *p, int csn)
+pnp_create_devices(device_t parent, pnp_id *p, int csn,
+		   u_char *resources, int len)
 {
-	u_char tag, resinfo[16];
-	int large_len, scanning = 1024, retval = FALSE;
+	u_char tag, *resp, *resinfo, *startres = 0;
+	int large_len, scanning = len, retval = FALSE;
 	u_int32_t logical_id;
 	u_int32_t compat_id;
 	device_t dev = 0;
 	int ldn = 0;
-	struct isa_config card, logdev, alt;
-	struct isa_config *config;
 	struct pnp_set_config_arg *csnldn;
-	int priority = 0;
-	int seenalt = 0;
+	char buf[100];
 	char *desc = 0;
 
-	bzero(&card, sizeof card);
-	bzero(&logdev, sizeof logdev);
-	bzero(&alt, sizeof alt);
-	config = &card;
-	while (scanning-- > 0 && pnp_get_resource_info(&tag, 1)) {
-		if (PNP_RES_TYPE(tag) == 0) {
-			/* Small resource */
-			if (pnp_get_resource_info(resinfo,
-						  PNP_SRES_LEN(tag)) == 0) {
-				scanning = 0;
-				continue;
-			}
-
-			switch (PNP_SRES_NUM(tag)) {
-			case PNP_TAG_LOGICAL_DEVICE:
-				/* 
-				 * A new logical device. Scan
-				 * resourcea and add device.
-				 */
-				bcopy(resinfo, &logical_id, 4);
-				pnp_check_quirks(p->vendor_id,
-						 logical_id,
-						 ldn);
-				compat_id = 0;
-				logdev = card;
-				config = &logdev;
-				dev = BUS_ADD_CHILD(parent,
-						    ISA_ORDER_PNP, NULL, -1);
-				if (desc)
-					device_set_desc_copy(dev, desc);
-				isa_set_vendorid(dev, p->vendor_id);
-				isa_set_serial(dev, p->serial);
-				isa_set_logicalid(dev, logical_id);
-				csnldn = malloc(sizeof *csnldn,
-						M_DEVBUF, M_NOWAIT);
-				if (!csnldn) {
-					device_printf(parent,
-						      "out of memory\n");
-					scanning = 0;
-					break;
-				}
-				csnldn->csn = csn;
-				csnldn->ldn = ldn;
-				ISA_SET_CONFIG_CALLBACK(parent, dev,
-							pnp_set_config,
-							csnldn);
-				seenalt = 0;
-				ldn++;
-				break;
-		    
-			case PNP_TAG_COMPAT_DEVICE:
-				/*
-				 * Got a compatible device id
-				 * resource. Should keep a list of
-				 * compat ids in the device.
-				 */
-				bcopy(resinfo, &compat_id, 4);
-				if (dev)
-					isa_set_compatid(dev, compat_id);
-				break;
-		    
-			case PNP_TAG_IRQ_FORMAT:
-				if (config->ic_nirq == ISA_NIRQ) {
-					device_printf(parent,
-						      "CSN %d too many irqs",
-						      csn);
-					scanning = 0;
-					break;
-				}
-				config->ic_irqmask[config->ic_nirq] =
-					resinfo[0] + (resinfo[1]<<8);
-				config->ic_nirq++;
-				break;
-
-			case PNP_TAG_DMA_FORMAT:
-				if (config->ic_ndrq == ISA_NDRQ) {
-					device_printf(parent,
-						      "CSN %d too many drqs",
-						      csn);
-					scanning = 0;
-					break;
-				}
-				config->ic_drqmask[config->ic_ndrq] =
-					resinfo[0];
-				config->ic_ndrq++;
-				break;
-
-			case PNP_TAG_START_DEPENDANT:
-				if (config == &alt) {
-					ISA_ADD_CONFIG(parent, dev,
-						       priority, config);
-				} else if (config != &logdev) {
-					device_printf(parent,
-						      "CSN %d malformed\n",
-						      csn);
-					scanning = 0;
-					break;
-				}
-				/*
-				 * If the priority is not specified,
-				 * then use the default of
-				 * 'acceptable'
-				 */
-				if (PNP_SRES_LEN(tag) > 0)
-					priority = resinfo[0];
-				else
-					priority = 1;
-				alt = logdev;
-				config = &alt;
-				break;
-
-			case PNP_TAG_END_DEPENDANT:
-				ISA_ADD_CONFIG(parent, dev, priority, config);
-				config = &logdev;
-				seenalt = 1;
-				break;
-
-			case PNP_TAG_IO_RANGE:
-				if (config->ic_nport == ISA_NPORT) {
-					device_printf(parent,
-						      "CSN %d too many ports",
-						      csn);
-					scanning = 0;
-					break;
-				}
-				config->ic_port[config->ic_nport].ir_start =
-					resinfo[1] + (resinfo[2]<<8);
-				config->ic_port[config->ic_nport].ir_end =
-					resinfo[3] + (resinfo[4]<<8)
-					+ resinfo[6] - 1;
-				config->ic_port[config->ic_nport].ir_size
-					=
-					resinfo[6];
-				config->ic_port[config->ic_nport].ir_align =
-					resinfo[5];
-				config->ic_nport++;
-				break;
-
-			case PNP_TAG_IO_FIXED:
-				if (config->ic_nport == ISA_NPORT) {
-					device_printf(parent,
-						      "CSN %d too many ports",
-						      csn);
-					scanning = 0;
-					break;
-				}
-				config->ic_port[config->ic_nport].ir_start =
-					resinfo[0] + (resinfo[1]<<8);
-				config->ic_port[config->ic_nport].ir_end =
-					resinfo[0] + (resinfo[1]<<8)
-					+ resinfo[2] - 1;
-				config->ic_port[config->ic_nport].ir_size
-					= resinfo[2];
-				config->ic_port[config->ic_nport].ir_align = 1;
-				config->ic_nport++;
-				break;
-
-			case PNP_TAG_END:
-				if (!seenalt)
-					ISA_ADD_CONFIG(parent, dev,
-						       priority, config);
-				scanning = 0;
-				break;
-
-			default:
-				/* Skip this resource */
-				break;
-			}
-		} else {
+	resp = resources;
+	while (scanning > 0) {
+		tag = *resp++;
+		scanning--;
+		if (PNP_RES_TYPE(tag) != 0) {
 			/* Large resource */
-			if (pnp_get_resource_info(resinfo, 2) == 0) {
+			if (scanning < 2) {
 				scanning = 0;
 				continue;
 			}
-			large_len = resinfo[0] + (resinfo[1] << 8);
+			large_len = resp[0] + (resp[1] << 8);
+			resp += 2;
+
+			if (scanning < large_len) {
+				scanning = 0;
+				continue;
+			}
+			resinfo = resp;
+			resp += large_len;
+			scanning -= large_len;
 
 			if (PNP_LRES_NUM(tag) == PNP_TAG_ID_ANSI) {
-				if (desc)
-					free(desc, M_TEMP);
-				desc = malloc(large_len + 1,
-					      M_TEMP, M_NOWAIT);
+				if (large_len > sizeof(buf) - 1)
+					large_len = sizeof(buf) - 1;
+				bcopy(resinfo, buf, large_len);
+
 				/*
-				 * Note: if malloc fails, this will
-				 * skip the resource instead of
-				 * reading it into desc.
+				 * Trim trailing spaces.
 				 */
-				if (pnp_get_resource_info(desc,
-							  large_len) == 0) {
-					scanning = 0;
-				}
-				if (desc) {
-					/*
-					 * Trim trailing spaces.
-					 */
-					while (desc[large_len-1] == ' ')
-						large_len--;
-					desc[large_len] = '\0';
-					if (dev)
-						device_set_desc_copy
-							(dev, desc);
-				}
+				while (buf[large_len-1] == ' ')
+					large_len--;
+				buf[large_len] = '\0';
+				desc = buf;
+				if (dev)
+					device_set_desc_copy(dev, desc);
 				continue;
 			}
 
-			if (PNP_LRES_NUM(tag) != PNP_TAG_MEMORY_RANGE) {
-				/* skip */
-				if (pnp_get_resource_info(NULL,
-							  large_len) == 0) {
-					scanning = 0;
-				}
-				continue;
+			continue;
+		}
+		
+		/* Small resource */
+		if (scanning < PNP_SRES_LEN(tag)) {
+			scanning = 0;
+			continue;
+		}
+		resinfo = resp;
+		resp += PNP_SRES_LEN(tag);
+		scanning -= PNP_SRES_LEN(tag);;
+			
+		switch (PNP_SRES_NUM(tag)) {
+		case PNP_TAG_LOGICAL_DEVICE:
+			/*
+			 * Parse the resources for the previous
+			 * logical device (if any).
+			 */
+			if (startres) {
+				pnp_parse_resources(dev, startres,
+						    resinfo - startres - 1);
+				dev = 0;
+				startres = 0;
 			}
 
-			if (pnp_get_resource_info(resinfo, large_len) == 0) {
-				scanning = 0;
-				continue;
-			}
-
-			if (config->ic_nmem == ISA_NMEM) {
+			/* 
+			 * A new logical device. Scan for end of
+			 * resources.
+			 */
+			bcopy(resinfo, &logical_id, 4);
+			pnp_check_quirks(p->vendor_id, logical_id, ldn);
+			compat_id = 0;
+			dev = BUS_ADD_CHILD(parent, ISA_ORDER_PNP, NULL, -1);
+			if (desc)
+				device_set_desc_copy(dev, desc);
+			isa_set_vendorid(dev, p->vendor_id);
+			isa_set_serial(dev, p->serial);
+			isa_set_logicalid(dev, logical_id);
+			csnldn = malloc(sizeof *csnldn, M_DEVBUF, M_NOWAIT);
+			if (!csnldn) {
 				device_printf(parent,
-					      "CSN %d too many memory ranges",
-					      csn);
+					      "out of memory\n");
 				scanning = 0;
 				break;
 			}
+			csnldn->csn = csn;
+			csnldn->ldn = ldn;
+			ISA_SET_CONFIG_CALLBACK(parent, dev,
+						pnp_set_config, csnldn);
+			ldn++;
+			startres = resp;
+			break;
+		    
+		case PNP_TAG_END:
+			if (!startres) {
+				device_printf(parent,
+					      "malformed resources\n");
+				scanning = 0;
+				break;
+			}
+			pnp_parse_resources(dev, startres,
+					    resinfo - startres - 1);
+			dev = 0;
+			startres = 0;
+			scanning = 0;
+			break;
 
-			config->ic_mem[config->ic_nmem].ir_start =
-				(resinfo[4]<<8) + (resinfo[5]<<16);
-			config->ic_mem[config->ic_nmem].ir_end =
-				(resinfo[6]<<8) + (resinfo[7]<<16);
-			config->ic_mem[config->ic_nmem].ir_size =
-				(resinfo[10]<<8) + (resinfo[11]<<16);
-			config->ic_mem[config->ic_nmem].ir_align =
-				resinfo[8] + (resinfo[9]<<8);
-			if (!config->ic_mem[config->ic_nmem].ir_align)
-				config->ic_mem[config->ic_nmem].ir_align =
-					0x10000;
-			config->ic_nmem++;
+		default:
+			/* Skip this resource */
+			break;
 		}
 	}
 
-	if (desc)
-		free(desc, M_TEMP);
-
 	return retval;
+}
+
+/*
+ * Read 'amount' bytes of resources from the card, allocating memory
+ * as needed. If a buffer is already available, it should be passed in
+ * '*resourcesp' and its length in '*spacep'. The number of resource
+ * bytes already in the buffer should be passed in '*lenp'. The memory
+ * allocated will be returned in '*resourcesp' with its size and the
+ * number of bytes of resources in '*spacep' and '*lenp' respectively.
+ */
+static int
+pnp_read_bytes(int amount, u_char **resourcesp, int *spacep, int *lenp)
+{
+	u_char *resources = *resourcesp;
+	u_char *newres;
+	int space = *spacep;
+	int len = *lenp;
+
+	if (space == 0) {
+		space = 1024;
+		resources = malloc(space, M_TEMP, M_NOWAIT);
+		if (!resources)
+			return ENOMEM;
+	}
+	
+	if (len + amount > space) {
+		int extra = 1024;
+		while (len + amount > space + extra)
+			extra += 1024;
+		newres = malloc(space + extra, M_TEMP, M_NOWAIT);
+		if (!newres)
+			return ENOMEM;
+		bcopy(resources, newres, len);
+		free(resources, M_TEMP);
+		resources = newres;
+		space += extra;
+	}
+
+	if (pnp_get_resource_info(resources + len, amount) != amount)
+		return EINVAL;
+	len += amount;
+
+	*resourcesp = resources;
+	*spacep = space;
+	*lenp = len;
+
+	return 0;
+}
+
+/*
+ * Read all resources from the card, allocating memory as needed. If a
+ * buffer is already available, it should be passed in '*resourcesp'
+ * and its length in '*spacep'. The memory allocated will be returned
+ * in '*resourcesp' with its size and the number of bytes of resources
+ * in '*spacep' and '*lenp' respectively.
+ */
+static int
+pnp_read_resources(u_char **resourcesp, int *spacep, int *lenp)
+{
+	u_char *resources = *resourcesp;
+	int space = *spacep;
+	int len = 0;
+	int error, done;
+	u_char tag;
+
+	error = 0;
+	done = 0;
+	while (!done) {
+		error = pnp_read_bytes(1, &resources, &space, &len);
+		if (error)
+			goto out;
+		tag = resources[len-1];
+		if (PNP_RES_TYPE(tag) == 0) {
+			/*
+			 * Small resource, read contents.
+			 */
+			error = pnp_read_bytes(PNP_SRES_LEN(tag),
+					       &resources, &space, &len);
+			if (error)
+				goto out;
+			if (PNP_SRES_NUM(tag) == PNP_TAG_END)
+				done = 1;
+		} else {
+			/*
+			 * Large resource, read length and contents.
+			 */
+			error = pnp_read_bytes(2, &resources, &space, &len);
+			if (error)
+				goto out;
+			error = pnp_read_bytes(resources[len-2]
+					       + (resources[len-1] << 8),
+					       &resources, &space, &len);
+			if (error)
+				goto out;
+		}
+	}
+
+ out:
+	*resourcesp = resources;
+	*spacep = space;
+	*lenp = len;
+	return error;
 }
 
 /*
@@ -648,7 +616,10 @@ pnp_isolation_protocol(device_t parent)
 {
 	int csn;
 	pnp_id id;
-	int found = 0;
+	int found = 0, len;
+	u_char *resources = 0;
+	int space = 0;
+	int error;
 
 	/*
 	 * Put all cards into the Sleep state so that we can clear
@@ -683,14 +654,20 @@ pnp_isolation_protocol(device_t parent)
 			 * We have read the id from a card
 			 * successfully. The card which won the
 			 * isolation protocol will be in Isolation
-			 * mode and all others will be in Sleep.  *
+			 * mode and all others will be in Sleep.
 			 * Program the CSN of the isolated card
 			 * (taking it to Config state) and read its
 			 * resources, creating devices as we find
 			 * logical devices on the card.
 			 */
 			pnp_write(PNP_SET_CSN, csn);
-			pnp_scan_resdata(parent, &id, csn);
+			error = pnp_read_resources(&resources,
+						   &space,
+						   &len);
+			if (error)
+				break;
+			pnp_create_devices(parent, &id, csn,
+					   resources, len);
 			found++;
 		} else
 			break;
@@ -709,6 +686,12 @@ pnp_isolation_protocol(device_t parent)
 	 * now. Their resources will be programmed later.
 	 */
 	pnp_write(PNP_CONFIG_CONTROL, PNP_CONFIG_CONTROL_WAIT_FOR_KEY);
+
+	/*
+	 * Cleanup.
+	 */
+	if (resources)
+		free(resources, M_TEMP);
 
 	return found;
 }
