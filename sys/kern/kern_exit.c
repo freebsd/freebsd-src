@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.18 1995/10/23 15:42:09 bde Exp $
+ * $Id: kern_exit.c,v 1.19 1995/10/23 19:44:38 swallace Exp $
  */
 
 #include <sys/param.h>
@@ -87,7 +87,6 @@ exit(p, uap, retval)
 
 	exit1(p, W_EXITCODE(uap->rval, 0));
 	/* NOTREACHED */
-	while (1);
 }
 
 /*
@@ -283,7 +282,7 @@ done:
 	cpu_exit(p);
 }
 
-#if defined(COMPAT_43)
+#ifdef COMPAT_43
 #if defined(hp300) || defined(luna68k)
 #include <machine/frame.h>
 #define GETPS(rp)	((struct frame *)(rp))->f_sr
@@ -317,7 +316,7 @@ owait(p, uap, retval)
 	w.status = NULL;
 	return (wait1(p, &w, retval, 1));
 }
-#endif /* defined(COMPAT_43) */
+#endif /* COMPAT_43 */
 
 int
 wait4(p, uap, retval)
@@ -366,7 +365,7 @@ loop:
 			}
 
 			retval[0] = p->p_pid;
-#if defined(COMPAT_43)
+#ifdef COMPAT_43
 			if (compat)
 				retval[1] = p->p_xstat;
 			else
@@ -444,7 +443,7 @@ loop:
 		    (p->p_flag & P_TRACED || uap->options & WUNTRACED)) {
 			p->p_flag |= P_WAITED;
 			retval[0] = p->p_pid;
-#if defined(COMPAT_43)
+#ifdef COMPAT_43
 			if (compat) {
 				retval[1] = W_STOPCODE(p->p_xstat);
 				error = 0;
