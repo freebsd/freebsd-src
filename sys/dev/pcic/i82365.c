@@ -1350,7 +1350,7 @@ int pcic_setup_intr(device_t dev, device_t child, struct resource *irqres,
 
 	h->ih_irq = irq;
 
-	printf("card irq %d\n",irq);
+	device_printf(dev, "card irq %d\n", irq);
 
 	return 0;
 }
@@ -1370,3 +1370,17 @@ int pcic_teardown_intr(device_t dev, device_t child, struct resource *irq,
 	return (bus_generic_teardown_intr(device_get_parent(dev), child, irq,
 	    cookiep));
 }
+
+int pcic_alloc_resource(device_t dev, device_t child, int type, int *rid,
+    u_long start, u_long end, u_long count, u_int flags)
+{
+	return bus_generic_alloc_resource(dev, child, type, rid, start, end,
+	    count, flags);
+}
+
+int pcic_release_resource(device_t dev, device_t child, int type, int rid,
+    struct resource *r)
+{
+	return bus_generic_release_resource(dev, child, type, rid, r);
+}
+
