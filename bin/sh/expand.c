@@ -32,12 +32,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: expand.c,v 1.20 1997/06/19 15:14:01 jkh Exp $
  */
 
 #ifndef lint
-static char const sccsid[] = "@(#)expand.c	8.5 (Berkeley) 5/15/95";
+#if 0
+static char sccsid[] = "@(#)expand.c	8.5 (Berkeley) 5/15/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>

@@ -32,12 +32,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: show.c,v 1.7 1997/02/22 13:58:45 peter Exp $
  */
 
 #ifndef lint
-static char const sccsid[] = "@(#)show.c	8.3 (Berkeley) 5/4/95";
+#if 0
+static char sccsid[] = "@(#)show.c	8.3 (Berkeley) 5/4/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <stdio.h>

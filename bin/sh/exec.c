@@ -32,12 +32,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: exec.c,v 1.10 1997/04/28 03:08:37 steve Exp $
  */
 
 #ifndef lint
-static char const sccsid[] = "@(#)exec.c	8.4 (Berkeley) 6/8/95";
+#if 0
+static char sccsid[] = "@(#)exec.c	8.4 (Berkeley) 6/8/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
