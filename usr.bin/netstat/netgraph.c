@@ -159,7 +159,7 @@ netgraphprotopr(u_long off, char *name, int af __unused)
 		/* Show socket */
 		if (Aflag)
 			printf("%8lx ", (u_long) this);
-		printf("%-5.5s %6lu %6lu ",
+		printf("%-5.5s %6u %6u ",
 		    name, sockb.so_rcv.sb_cc, sockb.so_snd.sb_cc);
 
 		/* Get ngsock structure */

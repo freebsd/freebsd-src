@@ -136,7 +136,7 @@ nsprotopr(u_long off, char *name, int af __unused)
 		}
 		if (Aflag)
 			printf("%8x ", ppcb);
-		printf("%-5.5s %6d %6d ", name, sockb.so_rcv.sb_cc,
+		printf("%-5.5s %6u %6u ", name, sockb.so_rcv.sb_cc,
 			sockb.so_snd.sb_cc);
 		printf("  %-22.22s", ns_prpr(&nspcb.nsp_laddr));
 		printf(" %-22.22s", ns_prpr(&nspcb.nsp_faddr));

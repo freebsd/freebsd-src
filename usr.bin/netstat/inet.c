@@ -250,7 +250,7 @@ protopr(u_long proto,		/* for sysctl version we pass proto # */
 				 so->so_incqlen, so->so_qlimit);
 			printf("%-14.14s ", buf);
 		} else {
-			printf("%6ld %6ld  ",
+			printf("%6u %6u  ",
 			       so->so_rcv.sb_cc,
 			       so->so_snd.sb_cc);
 		}
