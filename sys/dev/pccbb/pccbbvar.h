@@ -48,13 +48,15 @@ struct pccbb_socketreg {
 };
 
 struct pccbb_reslist {
-	SLIST_ENTRY(pccbb_reslist) entries;
+	SLIST_ENTRY(pccbb_reslist) link;
+	struct	resource *res;
 	int	type;
 	int	rid;
-	u_int32_t start;
-	u_int32_t end;
-	device_t odev;
-	int win;
+		/* note: unlike the regular resource list, there can be
+		 * duplicate rid's in the same list.  However, the
+		 * combination of rid and res->r_dev should be unique.
+		 */
+	bus_addr_t cardaddr; /* for 16-bit pccard memory */
 };
 
 #define	PCCBB_AUTO_OPEN_SMALLHOLE 0x100
@@ -119,10 +121,3 @@ struct pccbb_softc {
 #define	CARD_VPP_12V	0x0030
 #define	CARD_VPP_0V	0x0040
 #define	CARD_VPPMASK	0x00f0
-
-/* XXX: rman is dumb */
-#define	CARDBUS_SYS_RES_MEMORY_START    0x44000000
-#define	CARDBUS_SYS_RES_MEMORY_END      0xEFFFFFFF
-#define	CARDBUS_SYS_RES_IOPORT_START    0x3000
-#define	CARDBUS_SYS_RES_IOPORT_END      0xEFFF
-
