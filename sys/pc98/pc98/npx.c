@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.21 1997/06/23 09:35:47 kato Exp $
+ *	$Id: npx.c,v 1.22 1997/07/17 10:35:01 kato Exp $
  */
 
 #include "npx.h"
@@ -40,14 +40,12 @@
 
 #include "opt_cpu.h"
 #include "opt_math_emulate.h"
-#include "opt_smp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/conf.h>
-#include <sys/file.h>
 #include <sys/proc.h>
 #ifdef NPX_DEBUG
 #include <sys/syslog.h>
@@ -59,7 +57,6 @@
 #include <machine/ipl.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
-#include <machine/trap.h>
 #include <machine/clock.h>
 #include <machine/specialreg.h>
 #if defined(APIC_IO)

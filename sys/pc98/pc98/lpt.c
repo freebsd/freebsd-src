@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.11 1997/03/24 12:29:33 bde Exp $
+ *	$Id: lpt.c,v 1.12 1997/04/21 12:33:26 kato Exp $
  */
 
 /*
@@ -106,7 +106,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
-#include <sys/proc.h>
 #include <sys/buf.h>
 #include <sys/kernel.h>
 #include <sys/uio.h>
@@ -138,16 +137,11 @@
 #include <net/if.h>
 #include <net/if_types.h>
 #include <net/netisr.h>
-#include <net/route.h>
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
 #include <netinet/in_var.h>
-#include <netinet/ip.h>
-#include <netinet/if_ether.h>
 #include "bpfilter.h"
 #if NBPFILTER > 0
 #include <net/bpf.h>
-#include <net/bpfdesc.h>
 #endif
 #endif /* INET */
 
