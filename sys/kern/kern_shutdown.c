@@ -272,7 +272,7 @@ boot(int howto)
 #endif
 
 		waittime = 0;
-		printf("\nsyncing disks, buffers remaining... ");
+		printf("syncing disks, buffers remaining... ");
 
 		sync(&thread0, NULL);
 
@@ -324,7 +324,7 @@ boot(int howto)
 			PICKUP_GIANT();
 #endif
 		}
-		printf("\n");
+
 		/*
 		 * Count only busy local buffers to prevent forcing 
 		 * a fsck if we're just a client of a wedged NFS server
