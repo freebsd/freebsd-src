@@ -33,7 +33,7 @@
  *
  *	@(#)spx_usrreq.h
  *
- * $Id: spx_usrreq.c,v 1.17 1997/09/14 03:10:41 peter Exp $
+ * $Id: spx_usrreq.c,v 1.18 1998/02/09 06:10:26 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -1139,7 +1139,7 @@ static void
 spx_setpersist(cb)
 	register struct spxpcb *cb;
 {
-	register t = ((cb->s_srtt >> 2) + cb->s_rttvar) >> 1;
+	register int t = ((cb->s_srtt >> 2) + cb->s_rttvar) >> 1;
 
 	if (cb->s_timer[SPXT_REXMT] && spx_do_persist_panics)
 		panic("spx_output REXMT");
