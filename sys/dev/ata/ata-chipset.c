@@ -314,10 +314,10 @@ ata_ali_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_ALI_5229, 0xc4, 0, ALICABLE, ATA_UDMA5, "AcerLabs Aladdin" },
-     { ATA_ALI_5229, 0xc2, 0, ALICABLE, ATA_UDMA4, "AcerLabs Aladdin" },
-     { ATA_ALI_5229, 0x20, 0, ALIOLD,   ATA_UDMA2, "AcerLabs Aladdin" },
-     { ATA_ALI_5229, 0x00, 0, ALIOLD,   ATA_WDMA2, "AcerLabs Aladdin" },
+    {{ ATA_ALI_5229, 0xc4, 0, ALINEW, ATA_UDMA5, "AcerLabs Aladdin" },
+     { ATA_ALI_5229, 0xc2, 0, ALINEW, ATA_UDMA4, "AcerLabs Aladdin" },
+     { ATA_ALI_5229, 0x20, 0, ALIOLD, ATA_UDMA2, "AcerLabs Aladdin" },
+     { ATA_ALI_5229, 0x00, 0, ALIOLD, ATA_WDMA2, "AcerLabs Aladdin" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64]; 
 
@@ -339,11 +339,12 @@ ata_ali_chipinit(device_t dev)
     if (ata_default_interrupt(dev))
 	return ENXIO;
 
-    /* AcerLabs Aladdin need to deactivate the ATAPI FIFO */
-    pci_write_config(dev, 0x53, (pci_read_config(dev, 0x53, 1) & ~0x01)|0x02,1);
+    /* deactivate the ATAPI FIFO and enable ATAPI UDMA */
+    pci_write_config(dev, 0x53, pci_read_config(dev, 0x53, 1) | 0x03, 1);
  
-    if (ctlr->chip->cfg2 & ALICABLE)
-	pci_write_config(dev, 0x4b, pci_read_config(dev, 0x4b, 1) | 0x08, 1);
+    /* enable cable detection and UDMA support on newer chips */
+    if (ctlr->chip->cfg2 & ALINEW)
+	pci_write_config(dev, 0x4b, pci_read_config(dev, 0x4b, 1) | 0x09, 1);
     ctlr->setmode = ata_ali_setmode;
     return 0;
 }
@@ -358,7 +359,7 @@ ata_ali_setmode(struct ata_device *atadev, int mode)
 
     mode = ata_limit_mode(atadev, mode, ctlr->chip->max_dma);
 
-    if (ctlr->chip->cfg2 & ALICABLE) {
+    if (ctlr->chip->cfg2 & ALINEW) {
 	if (mode > ATA_UDMA2 &&
 	    pci_read_config(parent, 0x4a, 1) & (1 << atadev->channel->unit)) {
 	    ata_prtdev(atadev,
@@ -387,25 +388,15 @@ ata_ali_setmode(struct ata_device *atadev, int mode)
 		   (error) ? "failed" : "success", 
 		   ata_mode2str(mode), ctlr->chip->text);
     if (!error) {
-	if (ctlr->chip->cfg2 & ALICABLE) {
-	    if (mode > ATA_UDMA2)
-		pci_write_config(parent, 0x4b,
-				 pci_read_config(parent, 0x4b, 1) | 0x01, 1);
-	    else 
-		pci_write_config(parent, 0x4b,
-				 pci_read_config(parent, 0x4b, 1) & ~0x01, 1);
-	}
 	if (mode >= ATA_UDMA0) {
 	    u_int8_t udma[] = {0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x0f};
 	    u_int32_t word54 = pci_read_config(parent, 0x54, 4);
 
-	    pci_write_config(parent, 0x58 + (atadev->channel->unit << 2),
-			     0x00310001, 4);
 	    word54 &= ~(0x000f000f << (devno << 2));
 	    word54 |= (((udma[mode&ATA_MODE_MASK]<<16)|0x05)<<(devno<<2));
 	    pci_write_config(parent, 0x54, word54, 4);
-	    pci_write_config(parent, 0x53,
-			     pci_read_config(parent, 0x53, 1) | 0x03, 1);
+	    pci_write_config(parent, 0x58 + (atadev->channel->unit << 2),
+			     0x00310001, 4);
 	}
 	else {
 	    u_int32_t piotimings[] =
@@ -414,13 +405,8 @@ ata_ali_setmode(struct ata_device *atadev, int mode)
 
 	    pci_write_config(parent, 0x54, pci_read_config(parent, 0x54, 4) &
 					   ~(0x0008000f << (devno << 2)), 4);
-
 	    pci_write_config(parent, 0x58 + (atadev->channel->unit << 2),
 			     piotimings[ata_mode2idx(mode)], 4);
-
-	    pci_write_config(parent, 0x53, mode > ATA_PIO_MAX ?
-			     (pci_read_config(parent, 0x53, 1) | 0x03, 1) :
-			     (pci_read_config(parent, 0x53, 1) & ~0x01)|0x02,1);
 	}
 	atadev->mode = mode;
     }
