@@ -2235,11 +2235,15 @@ sis_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 static void
 sis_watchdog(struct ifnet *ifp)
 {
-	struct sis_softc	*sc;
+	struct sis_softc *sc;
 
 	sc = ifp->if_softc;
 
 	SIS_LOCK(sc);
+	if (sc->sis_stopped) {
+		SIS_UNLOCK(sc);
+		return;
+	}
 
 	ifp->if_oerrors++;
 	printf("sis%d: watchdog timeout\n", sc->sis_unit);
