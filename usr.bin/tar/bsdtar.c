@@ -409,7 +409,7 @@ main(int argc, char **argv)
 		free(bsdtar->user_uname);
 
 	cleanup_exclusions(bsdtar);
-	return 0;
+	return (bsdtar->return_value);
 }
 
 /*
