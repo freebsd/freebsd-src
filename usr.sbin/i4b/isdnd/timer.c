@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Fri Jul 20 20:29:28 2001]
+ *      last edit-date: [Tue Mar 26 14:38:24 2002]
  *
  *---------------------------------------------------------------------------*/
 
@@ -205,8 +205,8 @@ handle_active(cfg_entry_t *cep, time_t now)
 			{
 				log(LL_CHD, "%05d %s answering: incoming call from %s to %s",
 					cep->cdid, cep->name, 
-					cep->real_phone_incoming,
-					cep->local_phone_incoming);
+					cep->real_phone_incoming.number,
+					cep->local_phone_incoming.number);
 				next_state(cep, EV_MCI);
 			}
 			break;

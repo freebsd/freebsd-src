@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Thu Dec 27 10:16:53 2001]
+ *      last edit-date: [Tue Mar 26 14:36:20 2002]
  *
  *---------------------------------------------------------------------------*/
 
@@ -208,7 +208,16 @@ enum events
  *	this struct describes the numbers to try to dial out
  *---------------------------------------------------------------------------*/
 typedef struct {
+	char number[TELNO_MAX];		/* number	*/
+	char subaddr[SUBADDR_MAX];	/* subaddr	*/
+} number_t;
+
+/*---------------------------------------------------------------------------*
+ *	this struct describes the numbers to try to dial out
+ *---------------------------------------------------------------------------*/
+typedef struct {
 	char number[TELNO_MAX];	/* remote number to dial	*/
+	char subaddr[SUBADDR_MAX];	/* remote subaddr	*/
 	int  flag;		/* usage flag			*/
 #define RNF_IDLE	0
 #define RNF_SUCC	1	/* last dial was ok */
@@ -219,6 +228,7 @@ typedef struct {
  *---------------------------------------------------------------------------*/
 typedef struct {
 	char number[TELNO_MAX];	/* calling party number		*/
+	char subaddr[SUBADDR_MAX];/* calling party subaddr	*/
 } incoming_number_t;
 
 /*---------------------------------------------------------------------------*
@@ -250,20 +260,23 @@ typedef struct cfg_entry {
 	int usrdeviceunit;		/* userland unit to use */
 
 	int remote_numbers_count;	/* number of remote numbers	*/
+	int remote_subaddr_count;	/* number of remote subaddr	*/
 #define MAXRNUMBERS 8			/* max remote numbers		*/
 
 	remote_number_t remote_numbers[MAXRNUMBERS];	/* remote numbers to dial */
+	
 
 	int remote_numbers_handling;	/* how to handle the remote dialing */
 #define RNH_NEXT	0	/* use next number after last successfull   */
 #define RNH_LAST	1	/* use last successfull for next call	    */
 #define RNH_FIRST	2	/* always use first number for next call    */
 
-	char local_phone_dialout[TELNO_MAX];	/* our number to tell remote*/
-	char local_phone_incoming[TELNO_MAX];	/* answer calls for this local number */
+	number_t local_phone_dialout;	/* our number to tell remote*/
+	number_t local_phone_incoming;	/* answer calls for this local number */
 
 #define	MAX_INCOMING	8
 	int incoming_numbers_count;	/* number of incoming allowed numbers */
+	int incoming_subaddr_count;	/* number of incoming allowed subaddr */
 	incoming_number_t remote_phone_incoming[MAX_INCOMING];	/* answer calls from this remote machine */
 
 	int dialin_reaction;		/* what to do with incoming calls */
@@ -339,6 +352,8 @@ typedef struct cfg_entry {
 #define DIR_INOUT	0
 #define DIR_INONLY	1
 #define DIR_OUTONLY	2
+
+	int	usesubaddr;		/* use subaddresses		*/
 
 	int	budget_callbackperiod;	/* length of a budget period (s)*/
 	int	budget_callbackncalls;	/* call budget for a period	*/
@@ -438,11 +453,11 @@ typedef struct cfg_entry {
 
 	int hangup;			/* flag, hangup connection asap */
 
-	char real_phone_incoming[TELNO_MAX]; /* real remote telno in case of wildcard */
+	number_t real_phone_incoming;	/* real remote telno in case of wildcard */
 
 	int last_remote_number;		/* index of last used dialout number*/
 
-	char remote_phone_dialout[TELNO_MAX]; /* used remote number to dial */
+	number_t remote_phone_dialout;	/* used remote number to dial */
 	
 	int direction;			/* incoming or outgoing */
 #define DIR_IN  0
@@ -752,7 +767,7 @@ int exec_answer ( cfg_entry_t *cep );
 int exec_connect_prog ( cfg_entry_t *cep, const char *prog, int link_down );
 pid_t exec_prog ( char *prog, char **arglist );
 cfg_entry_t * find_by_device_for_dialout ( int drivertype, int driverunit );
-cfg_entry_t *find_by_device_for_dialoutnumber(int drivertype, int driverunit, int cmdlen, char *cmd);
+cfg_entry_t *find_by_device_for_dialoutnumber(msg_dialoutnumber_ind_t *mp);
 cfg_entry_t *find_by_device_for_keypad(int drivertype, int driverunit, int cmdlen, char *cmd);
 cfg_entry_t * find_matching_entry_incoming ( msg_connect_ind_t *mp );
 cfg_entry_t * find_active_entry_by_driver ( int drivertype, int driverunit );

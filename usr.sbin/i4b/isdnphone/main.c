@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2001 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1999, 2002 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Wed Oct 17 14:08:44 2001]
+ *      last edit-date: [Tue Mar 26 14:39:27 2002]
  *
  *---------------------------------------------------------------------------*/
 
@@ -67,13 +67,15 @@ main(int argc, char **argv)
 	int bschar;
 	int ret;
 	int opt_n = 0;
+	int opt_s = 0;
 	int opt_h = 0;
 	int opt_k = 0;
 	char *number = "";
+	char *subaddr = "";
 	
 	numberbuffer[0] = '\0';	
 
-	while ((c = getopt(argc, argv, "dhk:n:u:")) != -1)
+	while ((c = getopt(argc, argv, "dhk:n:s:u:")) != -1)
 	{
 		switch(c)
 		{
@@ -93,6 +95,11 @@ main(int argc, char **argv)
 			case 'n':
 				number = optarg;
 				opt_n = 1;
+				break;
+
+			case 's':
+				subaddr = optarg;
+				opt_s = 1;
 				break;
 				
 			case 'u':
@@ -121,7 +128,10 @@ main(int argc, char **argv)
 		
 		if(opt_n)
 		{
-			sprintf(commandbuffer, "D%s", number);
+			if (opt_s)
+				sprintf(commandbuffer, "D%s*%s", number, subaddr);
+			else
+				sprintf(commandbuffer, "D%s", number);
 	
 		}
 		else if(opt_k)

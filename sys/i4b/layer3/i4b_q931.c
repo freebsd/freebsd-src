@@ -431,17 +431,21 @@ i4b_decode_q931_cs0_ie(int unit, call_desc_t *cd, int msg_len, u_char *msg_ptr)
 			break;
 	
 		case IEI_CALLINGPS:	/* calling party subaddress */
-			NDBGL3(L3_P_MSG, "IEI_CALLINGPS");
+			memcpy(cd->src_subaddr, &msg_ptr[3], min(SUBADDR_MAX, msg_ptr[1]-1));
+			cd->src_subaddr[min(SUBADDR_MAX, msg_ptr[1] - 1)] = '\0';
+			NDBGL3(L3_P_MSG, "IEI_CALLINGPS = %s", cd->src_subaddr);
 			break;
 			
 		case IEI_CALLEDPN:	/* called party number */
 			memcpy(cd->dst_telno, &msg_ptr[3], min(TELNO_MAX, msg_ptr[1]-1));
-			cd->dst_telno[min(TELNO_MAX, msg_ptr [1] - 1)] = '\0';
+			cd->dst_telno[min(TELNO_MAX, msg_ptr[1] - 1)] = '\0';
 			NDBGL3(L3_P_MSG, "IEI_CALLED = %s", cd->dst_telno); 
 			break;
 	
 		case IEI_CALLEDPS:	/* called party subaddress */
-			NDBGL3(L3_P_MSG, "IEI_CALLEDPS");
+			memcpy(cd->dst_subaddr, &msg_ptr[3], min(SUBADDR_MAX, msg_ptr[1]-1));
+			cd->dst_subaddr[min(SUBADDR_MAX, msg_ptr[1] - 1)] = '\0';
+			NDBGL3(L3_P_MSG, "IEI_CALLEDPS = %s", cd->dst_subaddr);
 			break;
 
 		case IEI_REDIRNO:	/* redirecting number */

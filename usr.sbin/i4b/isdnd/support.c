@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Thu Oct 18 13:14:55 2001]
+ *      last edit-date: [Tue Mar 26 14:38:11 2002]
  *
  *---------------------------------------------------------------------------*/
 
@@ -150,7 +150,7 @@ find_by_device_for_dialout(int drivertype, int driverunit)
  *	find entry by drivertype and driverunit and setup for dialing out
  *---------------------------------------------------------------------------*/
 cfg_entry_t *
-find_by_device_for_dialoutnumber(int drivertype, int driverunit, int cmdlen, char *cmd)
+find_by_device_for_dialoutnumber(msg_dialoutnumber_ind_t *mp)
 {
 	cfg_entry_t *cep = NULL;
 	int i, j;
@@ -161,8 +161,8 @@ find_by_device_for_dialoutnumber(int drivertype, int driverunit, int cmdlen, cha
 
 		/* compare driver type and unit */
 
-		if(!((cep->usrdevicename == drivertype) &&
-		     (cep->usrdeviceunit == driverunit)))
+		if(!((cep->usrdevicename == mp->driver) &&
+		     (cep->usrdeviceunit == mp->driver_unit)))
 		{
 			continue;
 		}
@@ -195,17 +195,31 @@ find_by_device_for_dialoutnumber(int drivertype, int driverunit, int cmdlen, cha
 		
 		/* check number and copy to cep->remote_numbers[] */
 		
-		for(j = 0; j < cmdlen; j++)
+		for(j = 0; j < mp->cmdlen; j++)
 		{
-			if(!(isdigit(*(cmd+j))))
+			if(!(isdigit(*(mp->cmd+j))))
 			{
 				DBGL(DL_MSG, (log(LL_DBG, "find_by_device_for_dialoutnumber: entry %d, dial string contains non-digit at pos %d", i, j)));
 				return(NULL);
 			}
 			/* fill in number to dial */
-			cep->remote_numbers[0].number[j] = *(cmd+j);
+			cep->remote_numbers[0].number[j] = *(mp->cmd+j);
 		}				
 		cep->remote_numbers[0].number[j] = '\0';
+
+/* XXX subaddr does not have to be a digit! isgraph() would be a better idea */
+		for(j = 0; j < mp->subaddrlen; j++)
+		{
+			if(!(isdigit(*(mp->subaddr+j))))
+			{
+				DBGL(DL_MSG, (log(LL_DBG, "find_by_device_for_dialoutnumber: entry %d, subaddr string contains non-digit at pos %d", i, j)));
+				return(NULL);
+			}
+			/* fill in number to dial */
+			cep->remote_numbers[0].subaddr[j] = *(mp->subaddr+j);
+		}				
+		cep->remote_numbers[0].subaddr[j] = '\0';
+
 		cep->remote_numbers_count = 1;
 
 		if((setup_dialout(cep)) == GOOD)
@@ -273,7 +287,7 @@ find_by_device_for_keypad(int drivertype, int driverunit, int cmdlen, char *cmd)
 
 		cep->remote_numbers[0].number[0] = '\0';
 		cep->remote_numbers_count = 0;
-		cep->remote_phone_dialout[0] = '\0';
+		cep->remote_phone_dialout.number[0] = '\0';
 		
 		bzero(cep->keypad, KEYPAD_MAX);
 		strncpy(cep->keypad, cmd, cmdlen);
@@ -430,31 +444,59 @@ find_matching_entry_incoming(msg_connect_ind_t *mp)
 
 		/* check my number */
 
-		if(strncmp(cep->local_phone_incoming, mp->dst_telno, strlen(cep->local_phone_incoming)))
+		if(strncmp(cep->local_phone_incoming.number, mp->dst_telno, strlen(cep->local_phone_incoming.number)))
 		{
 			DBGL(DL_MSG, (log(LL_DBG, "find_matching_entry_incoming: entry %d, myno %s != incomingno %s", i,
-				cep->local_phone_incoming, mp->dst_telno)));
+				cep->local_phone_incoming.number, mp->dst_telno)));
 			continue;
 		}
 
-		/* check all allowed remote number's for this entry */
+		if (cep->usesubaddr && strncmp(cep->local_phone_incoming.subaddr, mp->dst_subaddr, strlen(cep->local_phone_incoming.subaddr)))
+		{
+			DBGL(DL_MSG, (log(LL_DBG, "find_matching_entry_incoming: entry %d, mysubno %s != incomingsubno %s", i,
+				cep->local_phone_incoming.subaddr, mp->dst_subaddr)));
+			continue;
+		}
+
+  		/* check all allowed remote number's for this entry */
 
 		for (n = 0; n < cep->incoming_numbers_count; n++)
 		{
 			incoming_number_t *in = &cep->remote_phone_incoming[n];
-			if(in->number[0] == '*')
+
+			if(in->number[0] == '*' && cep->usesubaddr && in->subaddr[0] == '*')
 				break;
-			if(strncmp(in->number, mp->src_telno, strlen(in->number)))
+
+			if(in->number[0] == '*' && !cep->usesubaddr)
+				break;
+
+			if(in->number[0] == '*' && cep->usesubaddr && !strncmp(in->subaddr, mp->src_subaddr, strlen(in->subaddr)))
+				break;
+
+			if(strncmp(in->number, mp->src_telno, strlen(in->number)) && !cep->usesubaddr)
 			{
 				DBGL(DL_MSG, (log(LL_DBG, "find_matching_entry_incoming: entry %d, remno %s != incomingfromno %s", i,
 					in->number, mp->src_telno)));
 			}
-			else
-				break;
+
+			if(strncmp(in->number, mp->src_telno, strlen(in->number)) && cep->usesubaddr && in->subaddr[0] == '*')
+			{
+				DBGL(DL_MSG, (log(LL_DBG, "find_matching_entry_incoming: entry %d, remno %s != incomingfromno %s", i,
+					in->number, mp->src_telno)));
+			}
+
+			if(strncmp(in->number, mp->src_telno, strlen(in->number)) && cep->usesubaddr && strncmp(in->subaddr, mp->src_subaddr, strlen(in->subaddr)))
+			{
+				DBGL(DL_MSG, (log(LL_DBG, "find_matching_entry_incoming: entry %d, remno %s != incomingfromno %s", i,
+					in->number, mp->src_telno)));
+			}
+
+			break;
 		}
+
 		if (n >= cep->incoming_numbers_count)
 			continue;
-				
+
 		/* check b protocol */
 
 		if(cep->b1protocol != mp->bprot)
@@ -583,7 +625,7 @@ find_matching_entry_incoming(msg_connect_ind_t *mp)
 		
 		/* cp number to real one used */
 		
-		strcpy(cep->real_phone_incoming, mp->src_telno);
+		strcpy(cep->real_phone_incoming.number, mp->src_telno);
 
 		/* copy display string */
 		
