@@ -8,6 +8,7 @@
 #
 #
 127.0.0.1		localhost localhost.my.domain myname.my.domain
+::1			localhost localhost.my.domain myname.my.domain
 #
 # Imaginary network.
 #10.0.0.2		myname.my.domain myname
