@@ -593,12 +593,12 @@ dodefine(name, defn)
 			p->type = n & TYPEMASK;
 			if ((n & NOARGS) == 0)
 				p->type |= NEEDARGS;
-			p->defn = null;
+			p->defn = xstrdup(null);
 			return;
 		}
 	}
 	if (!*defn)
-		p->defn = null;
+		p->defn = xstrdup(null);
 	else
 		p->defn = xstrdup(defn);
 	p->type = MACRTYPE;
@@ -615,7 +615,7 @@ dodefn(name)
 	const char *name;
 {
 	ndptr p;
-	char *real;
+	const char *real;
 
 	if ((p = lookup(name)) != nil) {
 		if (p->defn != null) {
@@ -648,7 +648,7 @@ dopushdef(name, defn)
 		    CURRENT_LINE);
 	p = addent(name);
 	if (!*defn)
-		p->defn = null;
+		p->defn = xstrdup(null);
 	else
 		p->defn = xstrdup(defn);
 	p->type = MACRTYPE;
@@ -663,7 +663,7 @@ static void
 dump_one_def(p)
 	ndptr p;
 {
-	char *real;
+	const char *real;
 
 	if (mimic_gnu) {
 		if ((p->type & TYPEMASK) == MACRTYPE)

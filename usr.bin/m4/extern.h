@@ -71,7 +71,7 @@ extern void	remhash(const char *, int);
 /* main.c */
 extern void outputstr(const char *);
 extern int builtin_type(const char *);
-extern char *builtin_realname(int);
+extern const char *builtin_realname(int);
 extern void emitline(void);
 
 /* misc.c */
@@ -148,11 +148,27 @@ extern char *bbase[];		/* buffer base per ilevel */
 extern char ecommt[MAXCCHARS+1];/* end character for comment */
 extern char *ep;		/* first free char in strspace */
 extern char lquote[MAXCCHARS+1];/* left quote character (`) */
-extern char *m4wraps;		/* m4wrap string default. */
-extern char *null;		/* as it says.. just a null. */
+extern const char *m4wraps;	/* m4wrap string default. */
+extern const char *null;	/* as it says.. just a null. */
 extern char rquote[MAXCCHARS+1];/* right quote character (') */
 extern char scommt[MAXCCHARS+1];/* start character for comment */
 extern int synccpp;		/* Line synchronisation for C preprocessor */
-extern int chscratch;		/* Scratch space for gpbc() macro */
 
 extern int mimic_gnu;		/* behaves like gnu-m4 */
+
+/* get a possibly pushed-back-character, increment lineno if need be */
+static __inline int gpbc(void)
+{
+	int chscratch;		/* Scratch space. */
+
+	if (bp > bufbase) {
+		if (*--bp) 
+			return (*bp);
+		else
+			return (EOF);
+	}
+	chscratch = obtain_char(infile+ilevel);
+	if (chscratch == '\n')
+		++inlineno[ilevel];
+	return (chscratch);
+}
