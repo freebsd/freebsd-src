@@ -100,6 +100,11 @@ __FBSDID("$FreeBSD$");
 #endif
 
 static void	cpu_reset_real(void);
+#ifdef SMP
+static void	cpu_reset_proxy(void);
+static u_int	cpu_reset_proxyid;
+static volatile u_int	cpu_reset_proxy_active;
+#endif
 static void	sf_buf_init(void *arg);
 SYSINIT(sock_sf, SI_SUB_MBUF, SI_ORDER_ANY, sf_buf_init, NULL)
 
@@ -474,11 +479,26 @@ kvtop(void *addr)
 	return (pa);
 }
 
+#ifdef SMP
+static void
+cpu_reset_proxy()
+{
+
+	cpu_reset_proxy_active = 1;
+	while (cpu_reset_proxy_active == 1)
+		;	/* Wait for other cpu to see that we've started */
+	stop_cpus((1<<cpu_reset_proxyid));
+	printf("cpu_reset_proxy: Stopped CPU %d\n", cpu_reset_proxyid);
+	DELAY(1000000);
+	cpu_reset_real();
+}
+#endif
+
 void
 cpu_reset()
 {
 #ifdef SMP
-	u_int map;
+	u_int cnt, map;
 
 	if (smp_active) {
 		map = PCPU_GET(other_cpus) & ~stopped_cpus;
@@ -486,6 +506,26 @@ cpu_reset()
 			printf("cpu_reset: Stopping other CPUs\n");
 			stop_cpus(map);
 		}
+
+		if (PCPU_GET(cpuid) != 0) {
+			cpu_reset_proxyid = PCPU_GET(cpuid);
+			cpustop_restartfunc = cpu_reset_proxy;
+			cpu_reset_proxy_active = 0;
+			printf("cpu_reset: Restarting BSP\n");
+			started_cpus = (1<<0);		/* Restart CPU #0 */
+
+			cnt = 0;
+			while (cpu_reset_proxy_active == 0 && cnt < 10000000)
+				cnt++;	/* Wait for BSP to announce restart */
+			if (cpu_reset_proxy_active == 0)
+				printf("cpu_reset: Failed to restart BSP\n");
+			enable_intr();
+			cpu_reset_proxy_active = 2;
+
+			while (1);
+			/* NOTREACHED */
+		}
+
 		DELAY(1000000);
 	}
 #endif
