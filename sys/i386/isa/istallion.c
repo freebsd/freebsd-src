@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: istallion.c,v 1.2 1996/05/04 08:49:40 peter Exp $
  */
 
 /*****************************************************************************/
@@ -142,9 +142,9 @@
  *	Define our local driver identity first. Set up stuff to deal with
  *	all the local structures required by a serial tty driver.
  */
-static char	*stli_drvname = "stli";
-static char	*stli_longdrvname = "Stallion Multiport Serial Driver";
-static char	*stli_drvversion = "0.0.5";
+static char 		stli_drvname[] = "stli";
+static char const	stli_longdrvname[] = "Stallion Multiport Serial Driver";
+static char const	stli_drvversion[] = "0.0.5";
 
 static int	stli_nrbrds = 0;
 static int	stli_doingtimeout = 0;
@@ -632,7 +632,7 @@ static char	*stli_stalgetmemptr(stlibrd_t *brdp, unsigned long offset,
  *	Declare the driver isa structure.
  */
 struct isa_driver	stlidriver = {
-	stliprobe, stliattach, "stli"
+	stliprobe, stliattach, stli_drvname
 };
 
 /*****************************************************************************/
@@ -648,7 +648,7 @@ struct isa_driver	stlidriver = {
 static struct cdevsw stli_cdevsw = 
 	{ stliopen,	stliclose,	stliread,	stliwrite,
 	  stliioctl,	stlistop,	noreset,	stlidevtotty,
-	  ttselect,	nommap,		NULL,		"stli",
+	  ttselect,	nommap,		NULL,		stli_drvname,
 	  NULL,		-1 };
 
 static stli_devsw_installed = 0;
@@ -933,7 +933,6 @@ int stliattach(struct isa_device *idp)
 STATIC int stliopen(dev_t dev, int flag, int mode, struct proc *p)
 {
 	struct tty	*tp;
-	stlibrd_t	*brdp;
 	stliport_t	*portp;
 	int		error, callout, x;
 

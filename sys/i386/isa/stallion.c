@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: stallion.c,v 1.2 1996/05/04 08:44:42 peter Exp $
  */
 
 /*****************************************************************************/
@@ -143,15 +143,15 @@ static unsigned int	stl_irqshared = 0;
  *	Define our local driver identity first. Set up stuff to deal with
  *	all the local structures required by a serial tty driver.
  */
-static char	*stl_drvname = "stl";
-static char	*stl_longdrvname = "Stallion Multiport Serial Driver";
-static char	*stl_drvversion = "0.0.5";
-static int	stl_brdprobed[STL_MAXBRDS];
+static const char	stl_drvname[] = "stl";
+static const char	stl_longdrvname[] = "Stallion Multiport Serial Driver";
+static const char	stl_drvversion[] = "0.0.5";
+static int		stl_brdprobed[STL_MAXBRDS];
 
-static int	stl_nrbrds = 0;
-static int	stl_doingtimeout = 0;
+static int		stl_nrbrds = 0;
+static int		stl_doingtimeout = 0;
 
-static char	*__file__ = /*__FILE__*/ "stallion.c";
+static const char 	__file__[] = /*__FILE__*/ "stallion.c";
 
 /*
  *	Define global stats structures. Not used often, and can be
@@ -703,7 +703,6 @@ char *stlpciprobe(pcici_t tag, pcidi_t type)
 void stlpciattach(pcici_t tag, int unit)
 {
 	stlbrd_t	*brdp;
-	unsigned long	iobase, iopage, irq;
 
 #if DEBUG
 	printf("stlpciattach(tag=%x,unit=%x)\n", (int) &tag, unit);
@@ -3057,8 +3056,6 @@ static int stl_getportstats(stlport_t *portp, caddr_t data)
 
 static int stl_clrportstats(stlport_t *portp, caddr_t data)
 {
-	int	rc;
-
 	if (portp == (stlport_t *) NULL) {
 		stl_comstats = *((comstats_t *) data);
 		portp = stl_getport(stl_comstats.brd, stl_comstats.panel,
