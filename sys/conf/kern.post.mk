@@ -54,14 +54,14 @@ ${KERNEL_KO}: ${FULLKERNEL}
 install.debug reinstall.debug: gdbinit
 	cd ${.CURDIR}; ${MAKE} -DINSTALL_DEBUG ${.TARGET:R}
 
-# Install gdbinit files for kernel debugging
+# Install gdbinit files for kernel debugging.
 gdbinit:
-	grep -v '# XXX' ${S}/../tools/debugscripts/dot.gdbinit \
-	  | sed "s:MODPATH:${.OBJDIR}/modules:" > .gdbinit
+	grep -v '# XXX' ${S}/../tools/debugscripts/dot.gdbinit | \
+	    sed "s:MODPATH:${.OBJDIR}/modules:" > .gdbinit
 	cp ${S}/../tools/debugscripts/gdbinit.kernel \
-		${S}/../tools/debugscripts/gdbinit.vinum ${.CURDIR}
+	    ${S}/../tools/debugscripts/gdbinit.vinum ${.CURDIR}
 	cp ${S}/../tools/debugscripts/gdbinit.${MACHINE_ARCH} \
-		${.CURDIR}/gdbinit.machine
+	    ${.CURDIR}/gdbinit.machine
 .endif
 
 ${FULLKERNEL}: ${SYSTEM_DEP} vers.o
@@ -88,14 +88,14 @@ ${mfile:T:S/.m$/.h/}: ${mfile}
 
 kernel-clean:
 	rm -f *.o *.so *.So *.ko *.s eddep errs \
-	      ${FULLKERNEL} ${KERNEL_KO} linterrs makelinks tags \
-	      vers.c vnode_if.c vnode_if.h majors.c \
-	      ${MFILES:T:S/.m$/.c/} ${MFILES:T:S/.m$/.h/} \
-	      ${CLEAN}
+	    ${FULLKERNEL} ${KERNEL_KO} linterrs makelinks tags \
+	    vers.c vnode_if.c vnode_if.h majors.c \
+	    ${MFILES:T:S/.m$/.c/} ${MFILES:T:S/.m$/.h/} \
+	    ${CLEAN}
 
 lint: ${LNFILES}
-	${LINT} ${LINTKERNFLAGS} ${CFLAGS:M-[DILU]*} ${.ALLSRC} \
-	      2>&1 | tee -a linterrs
+	${LINT} ${LINTKERNFLAGS} ${CFLAGS:M-[DILU]*} ${.ALLSRC} 2>&1 | \
+	    tee -a linterrs
 
 # This is a hack.  BFD "optimizes" away dynamic mode if there are no
 # dynamic references.  We could probably do a '-Bforcedynamic' mode like
@@ -106,7 +106,7 @@ hack.So: Makefile
 	${CC} ${FMT} ${HACK_EXTRA_FLAGS} -nostdlib hack.c -o hack.So
 	rm -f hack.c
 
-# this rule stops ./assym.s in .depend from causing problems
+# This rule stops ./assym.s in .depend from causing problems.
 ./assym.s: assym.s
 
 assym.s: $S/kern/genassym.sh genassym.o
@@ -149,10 +149,10 @@ kernel-cleandepend:
 
 links:
 	egrep '#if' ${CFILES} | sed -f $S/conf/defines | \
-	  sed -e 's/:.*//' -e 's/\.c/.o/' | sort -u > dontlink
+	    sed -e 's/:.*//' -e 's/\.c/.o/' | sort -u > dontlink
 	${MAKE} -V CFILES | tr -s ' ' '\12' | sed 's/\.c/.o/' | \
-	  sort -u | comm -23 - dontlink | \
-	  sed 's,../.*/\(.*.o\),rm -f \1;ln -s ../GENERIC/\1 \1,' > makelinks
+	    sort -u | comm -23 - dontlink | \
+	    sed 's,../.*/\(.*.o\),rm -f \1;ln -s ../GENERIC/\1 \1,' > makelinks
 	sh makelinks; rm -f dontlink
 
 kernel-tags:
