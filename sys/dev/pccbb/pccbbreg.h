@@ -176,11 +176,12 @@
 #define	CBB_SOCKET_EVENT_CD1		0x02	/* Card Detect 1 */
 #define	CBB_SOCKET_EVENT_CD2		0x04	/* Card Detect 2 */
 #define	CBB_SOCKET_EVENT_CD		0x06	/* Card Detect all */
-#define	CBB_SOCKET_EVENT_POWER	0x08	/* Power Cycle */
+#define	CBB_SOCKET_EVENT_POWER		0x08	/* Power Cycle */
 
 #define	CBB_SOCKET_MASK_CSTS		0x01	/* Card Status Change */
 #define	CBB_SOCKET_MASK_CD		0x06	/* Card Detect */
 #define	CBB_SOCKET_MASK_POWER		0x08	/* Power Cycle */
+#define	CBB_SOCKET_MASK_ALL		0x0F	/* all of the above */
 
 #define	CBB_SOCKET_STAT_CARDSTS		0x00000001	/* Card Status Change */
 #define	CBB_SOCKET_STAT_CD1		0x00000002	/* Card Detect 1 */
@@ -201,8 +202,6 @@
 #define	CBB_SOCKET_STAT_3VSOCK		0x20000000	/* 3.3 V Socket */
 #define	CBB_SOCKET_STAT_XVSOCK		0x40000000	/* X.X V Socket */
 #define	CBB_SOCKET_STAT_YVSOCK		0x80000000	/* Y.Y V Socket */
-
-#define	CBB_SOCKET_FORCE_BADVCC		0x0200	/* Bad Vcc Request */
 
 #define	CBB_SOCKET_CTRL_VPPMASK		0x07
 #define	CBB_SOCKET_CTRL_VPP_OFF		0x00
