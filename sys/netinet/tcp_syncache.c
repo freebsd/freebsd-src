@@ -1141,16 +1141,14 @@ syncache_respond(sc, m)
 		ip->ip_tos = sc->sc_tp->t_inpcb->inp_ip_tos;   /* XXX */
 
 		/*
-		 * See if we should do MTU discovery.  We do it only if the following
-		 * are true:
-		 *      1) we have a valid route to the destination
-		 *      2) the MTU is not locked (if it is, then discovery has been  
-		 *         disabled)
+		 * See if we should do MTU discovery.  Route lookups are expensive,
+		 * so we will only unset the DF bit if:
+		 *
+		 *	1) path_mtu_discovery is disabled
+		 *	2) the SCF_UNREACH flag has been set
 		 */
 		if (path_mtu_discovery
-		    && (rt != NULL)
-		    && rt->rt_flags & RTF_UP
-		    && !(rt->rt_rmx.rmx_locks & RTV_MTU)) {
+		    && ((sc->sc_flags & SCF_UNREACH) == 0)) {
 		       ip->ip_off |= IP_DF;
 		}
 
