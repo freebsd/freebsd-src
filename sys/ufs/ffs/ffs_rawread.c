@@ -214,9 +214,8 @@ ffs_rawread_readahead(struct vnode *vp,
 	bp->b_iodone = ffs_rawreadwakeup;
 	bp->b_data = udata;
 	bp->b_saveaddr = sa;
-	bp->b_offset = offset;
-	blockno = bp->b_offset / bsize;
-	blockoff = (bp->b_offset % bsize) / DEV_BSIZE;
+	blockno = offset / bsize;
+	blockoff = (offset % bsize) / DEV_BSIZE;
 	if ((daddr_t) blockno != blockno) {
 		return EINVAL; /* blockno overflow */
 	}
@@ -226,8 +225,7 @@ ffs_rawread_readahead(struct vnode *vp,
 	error = ufs_bmaparray(vp, bp->b_lblkno, &blkno, NULL, &bforwards, NULL);
 	if (error != 0)
 		return error;
-	bp->b_blkno = blkno;
-	if (bp->b_blkno == -1) {
+	if (blkno == -1) {
 
 		/* Fill holes with NULs to preserve semantics */
 		
@@ -248,11 +246,12 @@ ffs_rawread_readahead(struct vnode *vp,
 		bp->b_flags |= B_DONE;
 		return 0;
 	}
+	bp->b_blkno = blkno + blockoff;
+	bp->b_offset = bp->b_iooffset = (blkno + blockoff) * DEV_BSIZE;
 	
 	if (bp->b_bcount + blockoff * DEV_BSIZE > bsize * (1 + bforwards))
 		bp->b_bcount = bsize * (1 + bforwards) - blockoff * DEV_BSIZE;
 	bp->b_bufsize = bp->b_bcount;
-	bp->b_blkno += blockoff;
 	bp->b_dev = dp->v_rdev;
 	
 	if (vmapbuf(bp) < 0)
