@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.40.2.3 1997/06/14 15:37:03 jdp Exp $
+**  $Id: pcisupport.c,v 1.40.2.4 1997/07/18 19:48:22 se Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -136,6 +136,10 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return ("Intel 82371FB PCI-ISA bridge");
 	case 0x12308086:
 		return ("Intel 82371FB IDE interface");
+	case 0x12348086:
+		return ("Intel 82371MX mobile PCI I/O IDE accelerator (MPIIX)");
+	case 0x12358086:
+		return ("Intel 82437MX mobile PCI cache memory controller");
 	case 0x12508086:
 		return ("Intel 82439");
 	case 0x04061039:
