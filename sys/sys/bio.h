@@ -71,10 +71,11 @@ struct bio {
 	off_t	bio_length;		/* Like bio_bcount */
 	off_t	bio_completed;		/* Inverse of bio_resid */
 	u_int	bio_children;		/* Number of spawned bios */
+	struct bio *bio_parent;		/* Pointer to parent */
+	struct bintime bio_t0;		/* Time request started */
 
 	/* XXX: these go away when bio chaining is introduced */
 	daddr_t bio_pblkno;               /* physical block number */
-	struct bio *bio_linkage;
 };
 
 /* bio_cmd */

@@ -494,7 +494,7 @@ g_std_done(struct bio *bp)
 {
 	struct bio *bp2;
 
-	bp2 = bp->bio_linkage;
+	bp2 = bp->bio_parent;
 	if (bp2->bio_error == 0)
 		bp2->bio_error = bp->bio_error;
 	bp2->bio_completed += bp->bio_completed;
