@@ -232,7 +232,7 @@ typedef struct {
 } ACPI_TABLE_ECDT;
 
 /* Indicate that this device has already been probed via ECDT. */
-#define DEV_ECDT_FLAG		0x80000000
+#define DEV_ECDT(x)		(acpi_get_private(x) == &acpi_ec_devclass)
 
 /* Indicate that this device should use the global lock. */
 #define DEV_GLK_FLAG		0x40000000
@@ -401,7 +401,8 @@ acpi_ec_ecdt_probe(device_t parent)
      * We'll determine whether we really want to use the global lock
      * in a later call to attach.
      */
-    magic = DEV_ECDT_FLAG | DEV_GLK_FLAG;
+    acpi_set_private(child, &acpi_ec_devclass);
+    magic = DEV_GLK_FLAG;
     DEV_SET_GPEBIT(magic, ecdt->gpe_bit);
     acpi_set_magic(child, magic);
 
@@ -419,11 +420,9 @@ acpi_ec_probe(device_t dev)
     char	desc[64];
     int		magic, uid, glk, gpebit, ret = ENXIO;
 
-    /* Check that this is an EC device and it's not disabled. */
-    if (acpi_get_type(dev) != ACPI_TYPE_DEVICE || acpi_disabled("ec") ||
-	!acpi_MatchHid(dev, "PNP0C09")) {
+    /* Check that this is a device and that EC is not disabled. */
+    if (acpi_get_type(dev) != ACPI_TYPE_DEVICE || acpi_disabled("ec"))
 	return (ENXIO);
-    }
 
     /*
      * If probed via ECDT, set description and continue.  Otherwise,
@@ -431,12 +430,12 @@ acpi_ec_probe(device_t dev)
      * duplicate probe.
      */
     magic = acpi_get_magic(dev);
-    if ((magic & DEV_ECDT_FLAG) != 0) {
+    if (DEV_ECDT(dev)) {
 	snprintf(desc, sizeof(desc), "embedded controller: ECDT, GPE %#x, GLK",
 		 DEV_GET_GPEBIT(magic));
 	device_set_desc_copy(dev, desc);
 	ret = 0;
-    } else {
+    } else if (acpi_MatchHid(dev, "PNP0C09")) {
 	h = acpi_get_handle(dev);
 
 	/*
