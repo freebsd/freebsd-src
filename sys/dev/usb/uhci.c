@@ -314,7 +314,7 @@ uhci_init(sc)
 	uhci_run(sc, 0);			/* stop the controller */
 	UWRITE2(sc, UHCI_INTR, 0);		/* disable interrupts */
 
-	/* PR1 The VIA 823C572 reset FLBASEADDR as well */
+	/* NWH PR1 The 823C572 resets FLBASEADDR as well, moved busreset up */
 	uhci_busreset(sc);
 	
 	/* Allocate and initialize real frame array. */
@@ -327,13 +327,8 @@ uhci_init(sc)
 	UWRITE2(sc, UHCI_FRNUM, 0);		/* set frame number to 0 */
 	UWRITE4(sc, UHCI_FLBASEADDR, DMAADDR(&dma)); /* set frame list */
 
-	/* PR1 moved uhci_busreset up */
+	/* NWH PR1 moved uhci_busreset up */
 	
-#ifdef USB_DEBUG
-	/* PR1 */
-	printf("PR1:after busreset: FLBASEADDR=0x%08x, DMADDR(&dma)=0x%08x\n",
-		UREAD4(sc, UHCI_FLBASEADDR), DMAADDR(&dma));
-#endif
 	/* Allocate the dummy QH where bulk traffic will be queued. */
 	bsqh = uhci_alloc_sqh(sc);
 	if (!bsqh)
@@ -945,19 +940,11 @@ uhci_run(sc, run)
 	int run;
 {
 	int s, n, running;
-#ifdef USB_DEBUG
-	printf("PR1:uhci_run:start: ");
-	uhci_dumpregs(sc);
-#endif
 
 	s = splusb();
 	running = ((UREAD2(sc, UHCI_STS) & UHCI_STS_HCH) == 0);
 	if (run == running) {
 		splx(s);
-#ifdef USB_DEBUG
-		printf("PR1:uhci_run:do_nothing: ");
-		uhci_dumpregs(sc);
-#endif
 		return (USBD_NORMAL_COMPLETION);
 	}
 	UWRITE2(sc, UHCI_CMD, run ? UHCI_CMD_RS : 0);
@@ -966,10 +953,6 @@ uhci_run(sc, run)
 		/* return when we've entered the state we want */
 		if (run == running) {
 			splx(s);
-#ifdef USB_DEBUG
-			printf("PR1:uhci_run:succeed(%d): ", n);
-			uhci_dumpregs(sc);
-#endif
 			return (USBD_NORMAL_COMPLETION);
 		}
 		usb_delay_ms(&sc->sc_bus, 1);
@@ -977,10 +960,6 @@ uhci_run(sc, run)
 	splx(s);
 	printf("%s: cannot %s\n", USBDEVNAME(sc->sc_bus.bdev),
 	       run ? "start" : "stop");
-#ifdef USB_DEBUG
-	printf("PR1:uhci_run:fail: ");
-	uhci_dumpregs(sc);
-#endif
 	return (USBD_IOERROR);
 }
 
@@ -1278,6 +1257,10 @@ uhci_device_bulk_start(reqh)
 	if (reqh->timeout && !sc->sc_bus.use_polling) {
 		usb_timeout(uhci_timeout, ii,
                             MS_TO_TICKS(reqh->timeout), ii->timeout_handle);
+#if defined(__FreeBSD__)
+	} else {
+		callout_handle_init(&ii->timeout_handle);
+#endif
 	}
 	splx(s);
 
@@ -1654,6 +1637,10 @@ uhci_device_request(reqh)
 	if (reqh->timeout && !sc->sc_bus.use_polling) {
 		usb_timeout(uhci_timeout, ii,
                             MS_TO_TICKS(reqh->timeout), ii->timeout_handle);
+#if defined(__FreeBSD__)
+	} else {
+		callout_handle_init(&ii->timeout_handle);
+#endif
 	}
 	splx(s);
 
@@ -2261,7 +2248,7 @@ uhci_root_ctrl_start(reqh)
 	req = &reqh->request;
 	buf = reqh->buffer;
 
-	DPRINTFN(2,("uhci_root_ctrl_control type=0x%02x request=%02x\n", 
+	DPRINTFN(10,("uhci_root_ctrl_control type=0x%02x request=%02x\n", 
 		    req->bmRequestType, req->bRequest));
 
 	len = UGETW(req->wLength);
