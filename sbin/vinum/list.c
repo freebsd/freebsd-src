@@ -39,7 +39,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: list.c,v 1.25 2000/12/20 03:38:43 grog Exp grog $
+ * $Id: list.c,v 1.30 2001/01/14 11:42:19 grog Exp $
  * $FreeBSD$
  */
 
@@ -273,7 +273,7 @@ vinum_ld(int argc, char *argv[], char *argv0[])
     enum objecttype type;
 
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
-	perror("Can't get vinum config");
+	vinum_perror("Can't get vinum config");
 	return;
     }
     if (argc == 0) {
@@ -398,7 +398,7 @@ vinum_lv(int argc, char *argv[], char *argv0[])
     enum objecttype type;
 
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
-	perror("Can't get vinum config");
+	vinum_perror("Can't get vinum config");
 	return;
     }
     if (argc == 0)
@@ -565,7 +565,7 @@ vinum_lp(int argc, char *argv[], char *argv0[])
     enum objecttype type;
 
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
-	perror("Can't get vinum config");
+	vinum_perror("Can't get vinum config");
 	return;
     }
     if (argc == 0) {
@@ -768,7 +768,7 @@ vinum_ls(int argc, char *argv[], char *argv0[])
     enum objecttype type;
 
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
-	perror("Can't get vinum config");
+	vinum_perror("Can't get vinum config");
 	return;
     }
     if (argc == 0) {
@@ -793,7 +793,7 @@ void
 listconfig()
 {
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
-	perror("Can't get vinum config");
+	vinum_perror("Can't get vinum config");
 	return;
     }
     printf("%d drives:\n", vinum_conf.drives_used);
@@ -841,12 +841,12 @@ vinum_info(int argc, char *argv[], char *argv0[])
 #endif
 
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
-	perror("Can't get vinum config");
+	vinum_perror("Can't get vinum config");
 	return;
     }
     printf("Flags: 0x%x\n", vinum_conf.flags);
     if (ioctl(superdev, VINUM_MEMINFO, &meminfo) < 0) {
-	perror("Can't get information");
+	vinum_perror("Can't get information");
 	return;
     }
     printf("Total of %d blocks malloced, total memory: %d\nMaximum allocs: %8d, malloc table at 0x%08x\n",
@@ -862,7 +862,7 @@ vinum_info(int argc, char *argv[], char *argv0[])
 	for (i = 0; i < meminfo.mallocs; i++) {
 	    malloced.seq = i;
 	    if (ioctl(superdev, VINUM_MALLOCINFO, &malloced) < 0) {
-		perror("Can't get information");
+		vinum_perror("Can't get information");
 		return;
 	    }
 	    if (!(i & 63))
@@ -881,7 +881,7 @@ vinum_info(int argc, char *argv[], char *argv0[])
 	for (i = RQINFO_SIZE - 1; i >= 0; i--) {	    /* go through the request list in order */
 	    *((int *) &rq) = i;
 	    if (ioctl(superdev, VINUM_RQINFO, &rq) < 0) {
-		perror("Can't get information");
+		vinum_perror("Can't get information");
 		return;
 	    }
 	    /* Compress devminor into something printable. */
@@ -1067,7 +1067,7 @@ printconfig(FILE * of, char *comment)
     struct drive drive;
 
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
-	perror("Can't get vinum config");
+	vinum_perror("Can't get vinum config");
 	return;
     }
     uname(&uname_s);					    /* get our system name */
@@ -1158,7 +1158,7 @@ list_defective_objects()
     int heading_needed = 1;
 
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
-	perror("Can't get vinum config");
+	vinum_perror("Can't get vinum config");
 	return;
     }
     for (o = 0; o < vinum_conf.drives_allocated; o++) {
@@ -1237,7 +1237,7 @@ vinum_dumpconfig(int argc, char *argv[], char *argv0[])
 
 	tokens = 0;					    /* no tokens yet */
 	if (getdevs(&statinfo) < 0) {			    /* find out what devices we have */
-	    perror("Can't get device list");
+	    vinum_perror("Can't get device list");
 	    return;
 	}
 	namelist[0] = '\0';				    /* start with empty namelist */

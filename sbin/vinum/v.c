@@ -36,7 +36,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: v.c,v 1.30 2000/05/07 04:20:53 grog Exp grog $
+ * $Id: v.c,v 1.30 2000/09/03 01:29:29 grog Exp $
  * $FreeBSD$
  */
 
@@ -62,6 +62,7 @@
 #include <sys/linker.h>
 #include <sys/module.h>
 #include <sys/resource.h>
+#include <sys/sysctl.h>
 
 FILE *cf;						    /* config file handle */
 FILE *history;						    /* history file */
@@ -116,7 +117,7 @@ main(int argc, char *argv[], char *envp[])
     if (modfind(VINUMMOD) < 0) {
 	/* need to load the vinum module */
 	if (kldload(VINUMMOD) < 0 || modfind(VINUMMOD) < 0) {
-	    perror(VINUMMOD ": Kernel module not available");
+	    vinum_perror(VINUMMOD ": Kernel module not available");
 	    return 1;
 	}
     }
@@ -179,7 +180,7 @@ main(int argc, char *argv[], char *envp[])
 	} else if (errno == ENOENT)			    /* we don't have our node, */
 	    make_devices();				    /* create them first */
 	if (superdev < 0) {
-	    perror("Can't open " VINUM_SUPERDEV_NAME);
+	    vinum_perror("Can't open " VINUM_SUPERDEV_NAME);
 	    return 1;
 	}
     }
@@ -500,7 +501,7 @@ find_drive_by_devname(char *name)
     int driveno;
 
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
-	perror("Can't get vinum config");
+	vinum_perror("Can't get vinum config");
 	return NULL;
     }
     for (driveno = 0; driveno < vinum_conf.drives_allocated; driveno++) {
@@ -512,6 +513,8 @@ find_drive_by_devname(char *name)
     return NULL;					    /* no drive of that name */
 }
 
+static int devfs_is_active = 0;
+
 /* Create the device nodes for vinum objects */
 void
 make_devices(void)
@@ -521,11 +524,16 @@ make_devices(void)
     int sdno;
     int driveno;
 
-    if (access("/dev", W_OK) < 0) {			    /* can't access /dev to write? */
+    if (sysctlbyname("vfs.devfs.generation", NULL, NULL, NULL, 0) == 0)
+	devfs_is_active = 1;
+    else
+	devfs_is_active = 0;
+
+    if (!devfs_is_active && access("/dev", W_OK) < 0) {			    /* can't access /dev to write? */
 	if (errno == EROFS)				    /* because it's read-only, */
 	    fprintf(stderr, VINUMMOD ": /dev is mounted read-only, not rebuilding " VINUM_DIR "\n");
 	else
-	    perror(VINUMMOD ": Can't write to /dev");
+	    vinum_perror(VINUMMOD ": Can't write to /dev");
 	return;
     }
     if (history) {
@@ -535,31 +543,37 @@ make_devices(void)
     if (superdev >= 0)					    /* super device open */
 	close(superdev);
 
-    system("rm -rf " VINUM_DIR);			    /* remove the old directories */
-    system("mkdir -p " VINUM_DIR "/drive "		    /* and make them again */
+    if (!devfs_is_active) {
+	system("rm -rf " VINUM_DIR);			    /* remove the old directories */
+    	system("mkdir -p " VINUM_DIR "/drive "		    /* and make them again */
 	VINUM_DIR "/plex "
 	VINUM_DIR "/sd "
 	VINUM_DIR "/vol");
+    }
 
-    if (mknod(VINUM_SUPERDEV_NAME,
+    if (!devfs_is_active && mknod(VINUM_SUPERDEV_NAME,
 	    S_IRUSR | S_IWUSR | S_IFCHR,		    /* user only */
 	    makedev(VINUM_CDEV_MAJOR, VINUM_SUPERDEV)) < 0)
 	fprintf(stderr, "Can't create %s: %s\n", VINUM_SUPERDEV_NAME, strerror(errno));
 
-    if (mknod(VINUM_WRONGSUPERDEV_NAME,
+    if (!devfs_is_active && mknod(VINUM_WRONGSUPERDEV_NAME,
 	    S_IRUSR | S_IWUSR | S_IFCHR,		    /* user only */
 	    makedev(VINUM_CDEV_MAJOR, VINUM_WRONGSUPERDEV)) < 0)
 	fprintf(stderr, "Can't create %s: %s\n", VINUM_WRONGSUPERDEV_NAME, strerror(errno));
 
     superdev = open(VINUM_SUPERDEV_NAME, O_RDWR);	    /* open the super device */
+    if (superdev < 0) {
+	perror(VINUM_SUPERDEV_NAME);
+	return;
+    }
 
-    if (mknod(VINUM_DAEMON_DEV_NAME,			    /* daemon super device */
+    if (!devfs_is_active && mknod(VINUM_DAEMON_DEV_NAME,			    /* daemon super device */
 	    S_IRUSR | S_IWUSR | S_IFCHR,		    /* user only */
 	    makedev(VINUM_CDEV_MAJOR, VINUM_DAEMON_DEV)) < 0)
 	fprintf(stderr, "Can't create %s: %s\n", VINUM_DAEMON_DEV_NAME, strerror(errno));
 
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
-	perror("Can't get vinum config");
+	vinum_perror("Can't get vinum config");
 	return;
     }
     for (volno = 0; volno < vinum_conf.volumes_allocated; volno++)
@@ -576,7 +590,7 @@ make_devices(void)
 	char filename[PATH_MAX];			    /* for forming file names */
 
 	get_drive_info(&drive, driveno);
-	if (drive.state > drive_referenced) {
+	if (!devfs_is_active && drive.state > drive_referenced) {
 	    sprintf(filename, "ln -s %s " VINUM_DIR "/drive/%s", drive.devicename, drive.label.name);
 	    system(filename);
 	}
@@ -595,6 +609,7 @@ make_vol_dev(int volno, int recurse)
     if (vol.state != volume_unallocated) {		    /* we could have holes in our lists */
 	voldev = VINUMDEV(volno, 0, 0, VINUM_VOLUME_TYPE);  /* create a device number */
 
+	if (!devfs_is_active) {
 	/* Create /dev/vinum/<myvol> */
 	sprintf(filename, VINUM_DIR "/%s", vol.name);
 	if (mknod(filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IFCHR, voldev) < 0)
@@ -610,6 +625,7 @@ make_vol_dev(int volno, int recurse)
 	    sprintf(filename, VINUM_DIR "/vol/%s.plex", vol.name);
 	    if (mkdir(filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IXOTH) < 0)
 		fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
+	}
 	}
 	if (recurse)
 	    for (plexno = 0; plexno < vol.plexes; plexno++)
@@ -634,7 +650,7 @@ make_plex_dev(int plexno, int recurse)
 
 	/* /dev/vinum/plex/<plex> */
 	sprintf(filename, VINUM_DIR "/plex/%s", plex.name);
-	if (mknod(filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IFCHR, plexdev) < 0)
+	if (!devfs_is_active && mknod(filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IFCHR, plexdev) < 0)
 	    fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
 
 	if (plex.volno >= 0) {
@@ -643,12 +659,12 @@ make_plex_dev(int plexno, int recurse)
 
 	    /* Create device /dev/vinum/vol/<vol>.plex/<plex> */
 	    sprintf(filename, VINUM_DIR "/vol/%s.plex/%s", vol.name, plex.name);
-	    if (mknod(filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IFCHR, plexdev) < 0)
+	    if (!devfs_is_active && mknod(filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IFCHR, plexdev) < 0)
 		fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
 
 	    /* Create directory /dev/vinum/vol/<vol>.plex/<plex>.sd */
 	    sprintf(filename, VINUM_DIR "/vol/%s.plex/%s.sd", vol.name, plex.name);
-	    if (mkdir(filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IXOTH) < 0)
+	    if (!devfs_is_active && mkdir(filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IXOTH) < 0)
 		fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
 	}
 	if (recurse) {
@@ -673,7 +689,7 @@ make_sd_dev(int sdno)
 
 	/* /dev/vinum/sd/<sd> */
 	sprintf(filename, VINUM_DIR "/sd/%s", sd.name);
-	if (mknod(filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IFCHR, sddev) < 0)
+	if (!devfs_is_active && mknod(filename, S_IRUSR | S_IWUSR | S_IRGRP | S_IFCHR, sddev) < 0)
 	    fprintf(stderr, "Can't create %s: %s\n", filename, strerror(errno));
     }
 }
@@ -697,7 +713,7 @@ find_object(const char *name, enum objecttype *type)
     int object;
 
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
-	perror("Can't get vinum config");
+	vinum_perror("Can't get vinum config");
 	*type = invalid_object;
 	return -1;
     }
@@ -824,7 +840,7 @@ start_daemon(void)
 	close(superdev);				    /* this is the wrong device */
 	superdev = open(VINUM_DAEMON_DEV_NAME, O_RDWR);	    /* open deamon superdevice */
 	if (superdev < 0) {
-	    perror("Can't open " VINUM_DAEMON_DEV_NAME);
+	    vinum_perror("Can't open " VINUM_DAEMON_DEV_NAME);
 	    exit(1);
 	}
 	error = daemon(0, 0);				    /* this will fork again, but who's counting? */
