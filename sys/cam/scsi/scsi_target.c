@@ -38,7 +38,7 @@
 #include <sys/devicestat.h>
 #include <sys/malloc.h>
 #include <sys/poll.h>
-#include <sys/select.h>	/* For struct selinfo. */
+#include <sys/selinfo.h>
 #include <sys/uio.h>
 
 #include <cam/cam.h>
