@@ -682,7 +682,6 @@ thread_exit(void)
 			kse_reassign(ke);
 		PROC_UNLOCK(p);
 		td->td_kse	= NULL;
-		td->td_state	= TDS_INACTIVE;
 #if 0
 		td->td_proc	= NULL;
 #endif
@@ -692,6 +691,7 @@ thread_exit(void)
 	} else {
 		PROC_UNLOCK(p);
 	}
+	td->td_state	= TDS_INACTIVE;
 	/* XXX Shouldn't cpu_throw() here. */
 	mtx_assert(&sched_lock, MA_OWNED);
 	cpu_throw(td, choosethread());
