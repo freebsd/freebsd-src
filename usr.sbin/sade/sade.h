@@ -532,6 +532,10 @@ extern int	configSecurityProfile(dialogMenuItem *self);
 extern int	configSecurityExtreme(dialogMenuItem *self);
 extern int	configSecurityModerate(dialogMenuItem *self);
 extern int	configEtcTtys(dialogMenuItem *self);
+#ifdef __i386__
+extern int	checkLoaderACPI(void);
+extern int	configLoaderACPI(int);
+#endif
 
 /* devices.c */
 extern DMenu	*deviceCreateMenu(DMenu *menu, DeviceType type, int (*hook)(dialogMenuItem *d),
