@@ -27,7 +27,9 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_eg.c,v 1.13 1996/04/07 17:38:33 bde Exp $
+ * $Id$
+ *
+ * Support for 3Com 3c505 Etherlink+ card.
  */
 
 /* To do:
@@ -97,8 +99,6 @@
  * Ethernet software status per interface.
  */
 static struct eg_softc {
-	/* struct device sc_dev; */
-	/* struct intrhand sc_ih; */
 	struct arpcom sc_arpcom;	/* Ethernet common part */
 	int eg_cmd;			/* Command register R/W */
 	int eg_ctl;			/* Control register R/W (EG_CTL_*) */
@@ -110,7 +110,7 @@ static struct eg_softc {
 	u_char	eg_pcb[64];		/* Primary Command Block buffer */
 	u_char  eg_incount;		/* Number of buffers currently used */
 	u_char  *eg_inbuf;		/* Incoming packet buffer */
-	u_char  *eg_outbuf;		/* Outgoing packet buffer */
+	u_char	*eg_outbuf;		/* Outgoing packet buffer */
 	struct	kern_devconf kdc;	/* kernel configuration database */
 } eg_softc[NEG];
 
@@ -122,25 +122,24 @@ struct isa_driver egdriver = {
 };
 
 static struct kern_devconf kdc_eg_template = {
-        0, 0, 0,                /* filled in by dev_attach */
-        "eg", 0, { MDDT_ISA, 0, "net" },
-        isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-        &kdc_isa0,              /* parent */
-        0,                      /* parentdata */
-        DC_UNCONFIGURED,
-        "",			/* description */
+	0, 0, 0,		/* filled in by dev_attach */
+	"eg", 0, { MDDT_ISA, 0, "net" },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
+	&kdc_isa0,		/* parent */
+	0,			/* parentdata */
+	DC_UNCONFIGURED,
+	"",			/* description */
 	DC_CLS_NETIF		/* class */
 };
-
-static inline void
+static void
 eg_registerdev(struct isa_device *id, const char *descr)
 {
-        struct kern_devconf *kdc = &eg_softc[id->id_unit].kdc;
-        *kdc = kdc_eg_template;
-        kdc->kdc_unit = id->id_unit;
-        kdc->kdc_parentdata = id;
-        kdc->kdc_description = descr;
-        dev_attach(kdc);
+	struct kern_devconf *kdc = &eg_softc[id->id_unit].kdc;
+	*kdc = kdc_eg_template;
+	kdc->kdc_unit = id->id_unit;
+	kdc->kdc_parentdata = id;
+	kdc->kdc_description = descr;
+	dev_attach(kdc);
 }
 
 static void egprintpcb __P((struct eg_softc *sc));
@@ -150,33 +149,37 @@ static int egreadPCBstat __P((struct eg_softc *sc, int statb));
 static int egreadPCBready __P((struct eg_softc *sc));
 static int egwritePCB __P((struct eg_softc *sc));
 static int egreadPCB __P((struct eg_softc *sc));
-static void eginit __P((struct eg_softc *));
+static void eginit __P((struct eg_softc *sc));
 static int egioctl (struct ifnet *, int, caddr_t);
 static void egrecv(struct eg_softc *);
 static void egstart(struct ifnet *);
-static inline void egread __P((struct eg_softc *, caddr_t, int));
+static void egread __P((struct eg_softc *, caddr_t, int));
 static void egstop __P((struct eg_softc *));
+
+static void egwatchdog __P((struct ifnet *));
+static void egreset __P((struct eg_softc *));
+static struct mbuf *egget __P((struct eg_softc *, caddr_t, int));
 
 /*
  * Support stuff
  */
-
-static inline void
+	
+static void
 egprintpcb(sc)
 	struct eg_softc *sc;
 {
 	int i;
-
+	
 	for (i = 0; i < sc->eg_pcb[1] + 2; i++)
 		dprintf(("eg#: pcb[%2d] = %x\n", i, sc->eg_pcb[i]));
 }
 
 
-static inline void
+static void
 egprintstat(b)
 	u_char b;
 {
-	dprintf(("eg#: %s %s %s %s %s %s %s\n",
+	dprintf(("eg#: %s %s %s %s %s %s %s\n", 
 		 (b & EG_STAT_HCRE)?"HCRE":"",
 		 (b & EG_STAT_ACRF)?"ACRF":"",
 		 (b & EG_STAT_DIR )?"DIR ":"",
@@ -203,7 +206,7 @@ egoutPCB(sc, b)
 	dprintf(("eg#: egoutPCB failed\n"));
 	return 1;
 }
-
+	
 static int
 egreadPCBstat(sc, statb)
 	struct eg_softc *sc;
@@ -212,11 +215,11 @@ egreadPCBstat(sc, statb)
 	int i;
 
 	for (i=0; i < 5000; i++) {
-		if (EG_PCB_STAT(inb(sc->eg_stat)))
+		if ((inb(sc->eg_stat) & EG_PCB_STAT) != EG_PCB_NULL) 
 			break;
 		DELAY(10);
 	}
-	if (EG_PCB_STAT(inb(sc->eg_stat)) == statb)
+	if ((inb(sc->eg_stat) & EG_PCB_STAT) == statb) 
 		return 0;
 	return 1;
 }
@@ -235,7 +238,7 @@ egreadPCBready(sc)
 	dprintf(("eg#: PCB read not ready\n"));
 	return 1;
 }
-
+	
 static int
 egwritePCB(sc)
 	struct eg_softc *sc;
@@ -243,33 +246,35 @@ egwritePCB(sc)
 	int i;
 	u_char len;
 
-	outb(sc->eg_ctl, EG_PCB_MASK(inb(sc->eg_ctl)));
+	outb(sc->eg_ctl, (inb(sc->eg_ctl) & ~EG_PCB_STAT) | EG_PCB_NULL);
 
 	len = sc->eg_pcb[1] + 2;
 	for (i = 0; i < len; i++)
 		egoutPCB(sc, sc->eg_pcb[i]);
-
+	
 	for (i=0; i < 4000; i++) {
 		if (inb(sc->eg_stat) & EG_STAT_HCRE)
 			break;
 		DELAY(10);
 	}
-	outb(sc->eg_ctl, EG_PCB_MASK(inb(sc->eg_ctl)) | EG_PCB_DONE);
+
+	outb(sc->eg_ctl, (inb(sc->eg_ctl) & ~EG_PCB_STAT) | EG_PCB_DONE);
+
 	egoutPCB(sc, len);
 
 	if (egreadPCBstat(sc, EG_PCB_ACCEPT))
 		return 1;
 	return 0;
-}
-
+}	
+	
 static int
 egreadPCB(sc)
 	struct eg_softc *sc;
 {
 	int i;
 	u_char b;
-
-	outb(sc->eg_ctl, EG_PCB_MASK(inb(sc->eg_ctl)));
+	
+	outb(sc->eg_ctl, (inb(sc->eg_ctl) & ~EG_PCB_STAT) | EG_PCB_NULL);
 
 	bzero(sc->eg_pcb, sizeof(sc->eg_pcb));
 
@@ -277,7 +282,7 @@ egreadPCB(sc)
 		return 1;
 
 	sc->eg_pcb[0] = inb(sc->eg_cmd);
-
+	
 	if (egreadPCBready(sc))
 		return 1;
 
@@ -287,7 +292,7 @@ egreadPCB(sc)
 		dprintf(("eg#: len %d too large\n", sc->eg_pcb[1]));
 		return 1;
 	}
-
+	
 	for (i = 0; i < sc->eg_pcb[1]; i++) {
 		if (egreadPCBready(sc))
 			return 1;
@@ -301,9 +306,11 @@ egreadPCB(sc)
 		dprintf(("eg#: %d != %d\n", b, sc->eg_pcb[1] + 2));
 		return 1;
 	}
-	outb(sc->eg_ctl, EG_PCB_MASK(inb(sc->eg_ctl)) | EG_PCB_ACCEPT);
+
+	outb(sc->eg_ctl, (inb(sc->eg_ctl) & ~EG_PCB_STAT) | EG_PCB_ACCEPT);
+
 	return 0;
-}
+}	
 
 /*
  * Real stuff
@@ -315,42 +322,34 @@ egprobe(struct isa_device * id)
 	struct eg_softc *sc = &eg_softc[id->id_unit];
 	int i;
 
-#ifndef DEV_LKM
-	eg_registerdev(id, "Ethernet adapter");
-#endif /* not DEV_LKM */
-
 	if (id->id_iobase & ~0x07f0 != 0) {
-		dprintf(("eg#: Weird iobase %x\n", id->id_iobase));
+		dprintf(("eg#: Weird iobase %x\n", ia->ia_iobase));
 		return 0;
 	}
-
+	
 	sc->eg_cmd = id->id_iobase + EG_COMMAND;
 	sc->eg_ctl = id->id_iobase + EG_CONTROL;
 	sc->eg_stat = id->id_iobase + EG_STATUS;
 	sc->eg_data = id->id_iobase + EG_DATA;
 
 	/* hard reset card */
-	outb(sc->eg_ctl, EG_CTL_RESET);
-	if (inb(sc->eg_ctl) != 0xc0)
-		return 0;
-	DELAY(5000);
+	outb(sc->eg_ctl, EG_CTL_RESET); 
 	outb(sc->eg_ctl, 0);
-	if (inb(sc->eg_ctl) != 0)
-		return 0;
-	for (i = 0; i < 250; i++) {
-		DELAY(100000);
-		if (EG_PCB_STAT(inb(sc->eg_stat)) == 0)
+	for (i = 0; i < 2500; i++) {
+		DELAY(10000);
+		if ((inb(sc->eg_stat) & EG_PCB_STAT) == EG_PCB_NULL) 
 			break;
 	}
-	if (EG_PCB_STAT(inb(sc->eg_stat)) != 0) {
-		dprintf(("eg%d: Reset failed\n",id->id_unit));
+printf ("%d\n",i);
+	if ((inb(sc->eg_stat) & EG_PCB_STAT) != EG_PCB_NULL) {
+		dprintf(("eg#: eg: Reset failed\n"));
 		return 0;
 	}
 	sc->eg_pcb[0] = EG_CMD_GETINFO; /* Get Adapter Info */
 	sc->eg_pcb[1] = 0;
 	if (egwritePCB(sc) != 0)
 		return 0;
-
+	
 	if (egreadPCB(sc) != 0) {
 		egprintpcb(sc);
 		return 0;
@@ -364,16 +363,16 @@ egprobe(struct isa_device * id)
 	sc->eg_rom_major = sc->eg_pcb[3];
 	sc->eg_rom_minor = sc->eg_pcb[2];
 	sc->eg_ram = sc->eg_pcb[6] | (sc->eg_pcb[7] << 8);
-
+	
 	return 8;
 }
 
-static int
-egattach (struct isa_device *id)
+static int 
+egattach(struct isa_device *id)
 {
 	struct eg_softc *sc = &eg_softc[id->id_unit];
 	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
-
+	
 	egstop(sc);
 
 	sc->eg_pcb[0] = EG_CMD_GETEADDR; /* Get Station address */
@@ -381,7 +380,7 @@ egattach (struct isa_device *id)
 	if (egwritePCB(sc) != 0) {
 		dprintf(("eg#: write error\n"));
 		return 0;
-	}
+	}	
 	if (egreadPCB(sc) != 0) {
 		dprintf(("eg#: read error\n"));
 		egprintpcb(sc);
@@ -389,7 +388,7 @@ egattach (struct isa_device *id)
 	}
 
 	/* check Get station address response */
-	if (sc->eg_pcb[0] != EG_RSP_GETEADDR || sc->eg_pcb[1] != 0x06) {
+	if (sc->eg_pcb[0] != EG_RSP_GETEADDR || sc->eg_pcb[1] != 0x06) { 
 		dprintf(("eg#: parse error\n"));
 		egprintpcb(sc);
 		return 0;
@@ -426,16 +425,17 @@ egattach (struct isa_device *id)
 	ifp->if_output = ether_output;
 	ifp->if_start = egstart;
 	ifp->if_ioctl = egioctl;
+	ifp->if_init = (if_init_f_t*)eginit;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX;
-
+	ifp->if_watchdog = egwatchdog;
+	
 	/* Now we can attach the interface. */
 	if_attach(ifp);
 	ether_ifattach(ifp);
 
 	/* device attach does transition from UNCONFIGURED to IDLE state */
 	sc->kdc.kdc_state = DC_IDLE;
-
-
+	
 #if NBPFILTER > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
@@ -444,14 +444,9 @@ egattach (struct isa_device *id)
 }
 
 static void
-eginit(sc)
-	register struct eg_softc *sc;
+eginit(struct eg_softc *sc)
 {
-	register struct ifnet *ifp = &sc->sc_arpcom.ac_if;
-
-	/* Address not known. */
-	if (ifp->if_addrlist == 0)
-		return;
+	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
 
 	/* soft reset the board */
 	outb(sc->eg_ctl, EG_CTL_FLSH);
@@ -483,17 +478,22 @@ eginit(sc)
 	if (sc->eg_outbuf == NULL)
 		sc->eg_outbuf = malloc(EG_BUFLEN, M_TEMP, M_NOWAIT);
 
+	outb(sc->eg_ctl, EG_CTL_CMDE);
+
+	sc->eg_incount = 0;
+	egrecv(sc);
+
+	/* Interface is now `running', with no output active. */
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
 
-	outb(sc->eg_ctl, EG_CTL_CMDE);
-
+	/* Attempt to start output, if any. */
 	egstart(ifp);
-	egrecv(sc);
 }
 
 static void
-egrecv(struct eg_softc *sc)
+egrecv(sc)
+	struct eg_softc *sc;
 {
 
 	while (sc->eg_incount < EG_INLEN) {
@@ -507,10 +507,9 @@ egrecv(struct eg_softc *sc)
 		sc->eg_pcb[7] = (EG_BUFLEN >> 8) & 0xff;
 		sc->eg_pcb[8] = 0; /* timeout, 0 == none */
 		sc->eg_pcb[9] = 0;
-		if (egwritePCB(sc) == 0)
-			sc->eg_incount++;
-		else
+		if (egwritePCB(sc) != 0)
 			break;
+		sc->eg_incount++;
 	}
 }
 
@@ -520,46 +519,31 @@ egstart(ifp)
 {
 	register struct eg_softc *sc = ifp->if_softc;
 	struct mbuf *m0, *m;
+	caddr_t buffer;
 	int len;
-	short *ptr;
+	u_short *ptr;
 
 	/* Don't transmit if interface is busy or not running */
-	if ((sc->sc_arpcom.ac_if.if_flags & (IFF_RUNNING|IFF_OACTIVE)) != IFF_RUNNING)
+	if ((ifp->if_flags & (IFF_RUNNING|IFF_OACTIVE)) != IFF_RUNNING)
 		return;
 
+loop:
 	/* Dequeue the next datagram. */
-	IF_DEQUEUE(&sc->sc_arpcom.ac_if.if_snd, m0);
-	if (m0 == NULL)
+	IF_DEQUEUE(&ifp->if_snd, m0);
+	if (m0 == 0)
 		return;
+	
+	ifp->if_flags |= IFF_OACTIVE;
 
-	sc->sc_arpcom.ac_if.if_flags |= IFF_OACTIVE;
+	/* We need to use m->m_pkthdr.len, so require the header */
+	if ((m0->m_flags & M_PKTHDR) == 0)
+		panic("egstart: no header mbuf");
+	len = max(m0->m_pkthdr.len, ETHER_MIN_LEN);
 
-	/* Copy the datagram to the buffer. */
-	len = 0;
-	for (m = m0; m; m = m->m_next) {
-		if (m->m_len == 0)
-			continue;
-		if (len + m->m_len > EG_BUFLEN) {
-			dprintf(("eg#: Packet too large to send\n"));
-			m_freem(m0);
-			sc->sc_arpcom.ac_if.if_flags &= ~IFF_OACTIVE;
-			sc->sc_arpcom.ac_if.if_oerrors++;
-			return;
-		}
-		bcopy(mtod(m, caddr_t), sc->eg_outbuf + len, m->m_len);
-		len += m->m_len;
-	}
 #if NBPFILTER > 0
-	if (sc->sc_arpcom.ac_if.if_bpf)
-		bpf_mtap(&sc->sc_arpcom.ac_if, m0);
+	if (ifp->if_bpf)
+		bpf_mtap(ifp->if_bpf, m0);
 #endif
-	m_freem(m0);
-
-	/* length must be a minimum of ETHER_MIN_LEN bytes */
-	len = max(len, ETHER_MIN_LEN);
-
-	/* set direction bit: host -> adapter */
-	outb(sc->eg_ctl, inb(sc->eg_ctl) & ~EG_CTL_DIR);
 
 	sc->eg_pcb[0] = EG_CMD_SENDPACKET;
 	sc->eg_pcb[1] = 0x06;
@@ -567,24 +551,31 @@ egstart(ifp)
 	sc->eg_pcb[3] = 0;
 	sc->eg_pcb[4] = 0;
 	sc->eg_pcb[5] = 0;
-	sc->eg_pcb[6] = len & 0xff; /* length of packet */
-	sc->eg_pcb[7] = (len >> 8) & 0xff;
-	if (egwritePCB(sc) == 0) {
-		for (ptr = (short *) sc->eg_outbuf; len > 0; len -= 2) {
-			outw(sc->eg_data, *ptr++);
-			while (!(inb(sc->eg_stat) & EG_STAT_HRDY))
-				; /* XXX need timeout here */
-		}
-	} else {
+	sc->eg_pcb[6] = len; /* length of packet */
+	sc->eg_pcb[7] = len >> 8;
+	if (egwritePCB(sc) != 0) {
 		dprintf(("eg#: egwritePCB in egstart failed\n"));
-		sc->sc_arpcom.ac_if.if_oerrors++;
-		sc->sc_arpcom.ac_if.if_flags &= ~IFF_OACTIVE;
+		ifp->if_oerrors++;
+		ifp->if_flags &= ~IFF_OACTIVE;
+		goto loop;
 	}
 
-	/* Set direction bit : Adapter -> host */
-	outb(sc->eg_ctl, inb(sc->eg_ctl) | EG_CTL_DIR);
+	buffer = sc->eg_outbuf;
+	for (m = m0; m != 0; m = m->m_next) {
+		bcopy(mtod(m, caddr_t), buffer, m->m_len);
+		buffer += m->m_len;
+	}
 
-	return;
+	/* set direction bit: host -> adapter */
+	outb(sc->eg_ctl, inb(sc->eg_ctl) & ~EG_CTL_DIR); 
+	
+	for (ptr = (u_short *) sc->eg_outbuf; len > 0; len -= 2) {
+		outw(sc->eg_data, *ptr++);
+		while (!(inb(sc->eg_stat) & EG_STAT_HRDY))
+			; /* XXX need timeout here */
+	}
+	
+	m_freem(m0);
 }
 
 void
@@ -592,23 +583,28 @@ egintr(int unit)
 {
 	register struct eg_softc *sc = &eg_softc[unit];
 	int i, len;
-	short *ptr;
+	u_short *ptr;
 
 	while (inb(sc->eg_stat) & EG_STAT_ACRF) {
 		egreadPCB(sc);
 		switch (sc->eg_pcb[0]) {
 		case EG_RSP_RECVPACKET:
 			len = sc->eg_pcb[6] | (sc->eg_pcb[7] << 8);
-			for (ptr = (short *) sc->eg_inbuf; len > 0; len -= 2) {
+	
+			/* Set direction bit : Adapter -> host */
+			outb(sc->eg_ctl, inb(sc->eg_ctl) | EG_CTL_DIR); 
+
+			for (ptr = (u_short *) sc->eg_inbuf; len > 0; len -= 2) {
 				while (!(inb(sc->eg_stat) & EG_STAT_HRDY))
 					;
 				*ptr++ = inw(sc->eg_data);
 			}
+
 			len = sc->eg_pcb[8] | (sc->eg_pcb[9] << 8);
-			egrecv(sc);
-			sc->sc_arpcom.ac_if.if_ipackets++;
 			egread(sc, sc->eg_inbuf, len);
+
 			sc->eg_incount--;
+			egrecv(sc);
 			break;
 
 		case EG_RSP_SENDPACKET:
@@ -623,17 +619,17 @@ egintr(int unit)
 			break;
 
 		case EG_RSP_GETSTATS:
-			dprintf(("eg#: Card Statistics:\n"));
+			dprintf(("eg#: Card Statistics\n"));
 			bcopy(&sc->eg_pcb[2], &i, sizeof(i));
-			dprintf(("\tReceive Packets %d\n", i));
+			dprintf(("eg#: Receive Packets %d\n", i));
 			bcopy(&sc->eg_pcb[6], &i, sizeof(i));
-			dprintf(("\tTransmit Packets %d\n", i));
-			dprintf(("\tCRC errors %d\n", *(short*) &sc->eg_pcb[10]));
-			dprintf(("\talignment errors %d\n", *(short*) &sc->eg_pcb[12]));
-			dprintf(("\tno resources errors %d\n", *(short*) &sc->eg_pcb[14]));
-			dprintf(("\toverrun errors %d\n", *(short*) &sc->eg_pcb[16]));
+			dprintf(("eg#: Transmit Packets %d\n", i));
+			dprintf(("eg#: CRC errors %d\n", *(short*) &sc->eg_pcb[10]));
+			dprintf(("eg#: alignment errors %d\n", *(short*) &sc->eg_pcb[12]));
+			dprintf(("eg#: no resources errors %d\n", *(short*) &sc->eg_pcb[14]));
+			dprintf(("eg#: overrun errors %d\n", *(short*) &sc->eg_pcb[16]));
 			break;
-
+			
 		default:
 			dprintf(("eg#: egintr: Unknown response %x??\n",
 			    sc->eg_pcb[0]));
@@ -648,31 +644,31 @@ egintr(int unit)
 /*
  * Pass a packet up to the higher levels.
  */
-static inline void
+static void
 egread(sc, buf, len)
 	struct eg_softc *sc;
 	caddr_t buf;
 	int len;
 {
-	struct ifnet *ifp;
+	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
 	struct mbuf *m;
 	struct ether_header *eh;
-
+	
 	if (len <= sizeof(struct ether_header) ||
 	    len > ETHER_MAX_LEN) {
-		dprintf(("eg#: Unacceptable packet size %d\n", len));
-		sc->sc_arpcom.ac_if.if_ierrors++;
+		printf("eg#: invalid packet size %d; dropping\n", len);
+		ifp->if_ierrors++;
 		return;
 	}
 
 	/* Pull packet off interface. */
-	ifp = &sc->sc_arpcom.ac_if;
-	m = m_devget(buf,len,0,ifp,0);
+	m = egget(sc, buf, len);
 	if (m == 0) {
-		dprintf(("eg#: m_devget returned 0\n"));
-		sc->sc_arpcom.ac_if.if_ierrors++;
+		ifp->if_ierrors++;
 		return;
 	}
+
+	ifp->if_ipackets++;
 
 	/* We assume the header fit entirely in one mbuf. */
 	eh = mtod(m, struct ether_header *);
@@ -683,7 +679,7 @@ egread(sc, buf, len)
 	 * If so, hand off the raw packet to BPF.
 	 */
 	if (ifp->if_bpf) {
-		bpf_mtap(ifp, m);
+		bpf_mtap(ifp->if_bpf, m);
 
 		/*
 		 * Note that the interface cannot be in promiscuous mode if
@@ -701,13 +697,56 @@ egread(sc, buf, len)
 #endif
 
 	/* We assume the header fit entirely in one mbuf. */
-	m->m_pkthdr.len -= sizeof(*eh);
-	m->m_len -= sizeof(*eh);
-	m->m_data += sizeof(*eh);
-
+	m_adj(m, sizeof(struct ether_header));
 	ether_input(ifp, eh, m);
 }
 
+/*
+ * convert buf into mbufs
+ */
+static struct mbuf *
+egget(sc, buf, totlen)
+	struct eg_softc *sc;
+	caddr_t buf;
+	int totlen;
+{
+	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
+	struct mbuf *top, **mp, *m;
+	int len;
+
+	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	if (m == 0)
+		return 0;
+	m->m_pkthdr.rcvif = ifp;
+	m->m_pkthdr.len = totlen;
+	len = MHLEN;
+	top = 0;
+	mp = &top;
+
+	while (totlen > 0) {
+		if (top) {
+			MGET(m, M_DONTWAIT, MT_DATA);
+			if (m == 0) {
+				m_freem(top);
+				return 0;
+			}
+			len = MLEN;
+		}
+		if (totlen >= MINCLSIZE) {
+			MCLGET(m, M_DONTWAIT);
+			if (m->m_flags & M_EXT)
+				len = MCLBYTES;
+		}
+		m->m_len = len = min(totlen, len);
+		bcopy((caddr_t)buf, mtod(m, caddr_t), len);
+		buf += len;
+		totlen -= len;
+		*mp = m;
+		mp = &m->m_next;
+	}
+
+	return top;
+}
 
 static int
 egioctl(ifp, command, data)
@@ -716,61 +755,15 @@ egioctl(ifp, command, data)
 	caddr_t data;
 {
 	struct eg_softc *sc = ifp->if_softc;
-	register struct ifaddr *ifa = (struct ifaddr *)data;
 	int s, error = 0;
 
-	s = splimp();
+	s = splnet();
 
 	switch (command) {
 
 	case SIOCSIFADDR:
-		ifp->if_flags |= IFF_UP;
-
-		switch (ifa->ifa_addr->sa_family) {
-#ifdef INET
-		case AF_INET:
-			eginit(sc);
-			arp_ifinit((struct arpcom *)ifp, ifa);
-			break;
-#endif
-#ifdef IPX
-		case AF_IPX:
-		    {
-			register struct ipx_addr *ina = &IA_SIPX(ifa)->sipx_addr;
-
-			if (ipx_nullhost(*ina))
-				ina->x_host =
-				    *(union ipx_host *)(sc->sc_arpcom.ac_enaddr);
-			else
-				bcopy(ina->x_host.c_host,
-				    sc->sc_arpcom.ac_enaddr,
-				    sizeof(sc->sc_arpcom.ac_enaddr));
-			/* Set new address. */
-			eginit(sc);
-			break;
-		    }
-#endif
-#ifdef NS
-		case AF_NS:
-		    {
-			register struct ns_addr *ina = &IA_SNS(ifa)->sns_addr;
-
-			if (ns_nullhost(*ina))
-				ina->x_host =
-				    *(union ns_host *)(sc->sc_arpcom.ac_enaddr);
-			else
-				bcopy(ina->x_host.c_host,
-				    sc->sc_arpcom.ac_enaddr,
-				    sizeof(sc->sc_arpcom.ac_enaddr));
-			/* Set new address. */
-			eginit(sc);
-			break;
-		    }
-#endif
-		default:
-			eginit(sc);
-			break;
-		}
+	case SIOCGIFADDR:
+		ether_ioctl(ifp, command, data);
 		break;
 
 	case SIOCSIFFLAGS:
@@ -806,6 +799,7 @@ egioctl(ifp, command, data)
 
 	default:
 		error = EINVAL;
+		break;
 	}
 
 	splx(s);
@@ -813,9 +807,34 @@ egioctl(ifp, command, data)
 }
 
 static void
+egreset(sc)
+	struct eg_softc *sc;
+{
+	int s;
+
+	dprintf(("eg#: egreset()\n"));
+	s = splnet();
+	egstop(sc);
+	eginit(sc);
+	splx(s);
+}
+
+static void
+egwatchdog(ifp)
+	struct ifnet *ifp;
+{
+	struct eg_softc *sc = ifp->if_softc;
+
+	log(LOG_ERR, "%s: device timeout\n", "eg#");
+	sc->sc_arpcom.ac_if.if_oerrors++;
+
+	egreset(sc);
+}
+
+static void
 egstop(sc)
 	register struct eg_softc *sc;
 {
-
+	
 	outb(sc->eg_ctl, 0);
 }
