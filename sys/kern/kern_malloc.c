@@ -75,6 +75,8 @@ static struct kmemusage *kmemusage;
 static char *kmembase;
 static char *kmemlimit;
 
+mtx_t malloc_mtx;
+
 u_int vm_kmem_size;
 
 #ifdef INVARIANTS
@@ -152,6 +154,7 @@ malloc(size, type, flags)
 	indx = BUCKETINDX(size);
 	kbp = &bucket[indx];
 	s = splmem();
+	mtx_enter(&malloc_mtx, MTX_DEF);
 	while (ksp->ks_memuse >= ksp->ks_limit) {
 		if (flags & M_ASLEEP) {
 			if (ksp->ks_limblocks < 65535)
@@ -160,11 +163,13 @@ malloc(size, type, flags)
 		}
 		if (flags & M_NOWAIT) {
 			splx(s);
+			mtx_exit(&malloc_mtx, MTX_DEF);
 			return ((void *) NULL);
 		}
 		if (ksp->ks_limblocks < 65535)
 			ksp->ks_limblocks++;
-		tsleep((caddr_t)ksp, PSWP+2, type->ks_shortdesc, 0);
+		msleep((caddr_t)ksp, &malloc_mtx, PSWP+2, type->ks_shortdesc,
+		    0);
 	}
 	ksp->ks_size |= 1 << indx;
 #ifdef INVARIANTS
@@ -177,11 +182,22 @@ malloc(size, type, flags)
 		else
 			allocsize = 1 << indx;
 		npg = btoc(allocsize);
+
+		mtx_exit(&malloc_mtx, MTX_DEF);
+		mtx_enter(&Giant, MTX_DEF);
 		va = (caddr_t) kmem_malloc(kmem_map, (vm_size_t)ctob(npg), flags);
+		mtx_exit(&Giant, MTX_DEF);
+
 		if (va == NULL) {
 			splx(s);
 			return ((void *) NULL);
 		}
+		/*
+		 * Enter malloc_mtx after the error check to avoid having to
+		 * immediately exit it again if there is an error.
+		 */
+		mtx_enter(&malloc_mtx, MTX_DEF);
+
 		kbp->kb_total += kbp->kb_elmpercl;
 		kup = btokup(va);
 		kup->ku_indx = indx;
@@ -264,6 +280,7 @@ out:
 	if (ksp->ks_memuse > ksp->ks_maxused)
 		ksp->ks_maxused = ksp->ks_memuse;
 	splx(s);
+	mtx_exit(&malloc_mtx, MTX_DEF);
 	return ((void *) va);
 }
 
@@ -296,6 +313,7 @@ free(addr, type)
 	size = 1 << kup->ku_indx;
 	kbp = &bucket[kup->ku_indx];
 	s = splmem();
+	mtx_enter(&malloc_mtx, MTX_DEF);
 #ifdef INVARIANTS
 	/*
 	 * Check for returns of data that do not point to the
@@ -310,7 +328,12 @@ free(addr, type)
 		    (void *)addr, size, type->ks_shortdesc, alloc);
 #endif /* INVARIANTS */
 	if (size > MAXALLOCSAVE) {
+		mtx_exit(&malloc_mtx, MTX_DEF);
+		mtx_enter(&Giant, MTX_DEF);
 		kmem_free(kmem_map, (vm_offset_t)addr, ctob(kup->ku_pagecnt));
+		mtx_exit(&Giant, MTX_DEF);
+		mtx_enter(&malloc_mtx, MTX_DEF);
+
 		size = kup->ku_pagecnt << PAGE_SHIFT;
 		ksp->ks_memuse -= size;
 		kup->ku_indx = 0;
@@ -321,6 +344,7 @@ free(addr, type)
 		ksp->ks_inuse--;
 		kbp->kb_total -= 1;
 		splx(s);
+		mtx_exit(&malloc_mtx, MTX_DEF);
 		return;
 	}
 	freep = (struct freelist *)addr;
@@ -387,6 +411,7 @@ free(addr, type)
 	}
 #endif
 	splx(s);
+	mtx_exit(&malloc_mtx, MTX_DEF);
 }
 
 /*
@@ -411,6 +436,8 @@ kmeminit(dummy)
 #if	(MAXALLOCSAVE < PAGE_SIZE)
 #error "kmeminit: MAXALLOCSAVE too small"
 #endif
+
+	mtx_init(&malloc_mtx, "malloc", MTX_DEF);
 
 	/*
 	 * Try to auto-tune the kernel memory size, so that it is
@@ -514,6 +541,7 @@ malloc_uninit(data)
 
 #ifdef INVARIANTS
 	s = splmem();
+	mtx_enter(&malloc_mtx, MTX_DEF);
 	for (indx = 0; indx < MINBUCKET + 16; indx++) {
 		kbp = bucket + indx;
 		freep = (struct freelist*)kbp->kb_next;
@@ -524,6 +552,7 @@ malloc_uninit(data)
 		}
 	}
 	splx(s);
+	mtx_exit(&malloc_mtx, MTX_DEF);
 
 	if (type->ks_memuse != 0)
 		printf("malloc_uninit: %ld bytes of '%s' still allocated\n",
