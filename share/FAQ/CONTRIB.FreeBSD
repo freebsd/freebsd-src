@@ -35,7 +35,6 @@ code.  They also keep a couple of FreeBSD hackers alive and busy.  Thanks!
 Thanks also to Dermot McDonnell for his donation of a Toshiba XM3401B CDROM
 drive.  It's been most useful!
 
-
 The FreeBSD Core Team [Board of Directors, The FreeBSD Project]
 (in alphabetical order):
 
@@ -53,7 +52,7 @@ The FreeBSD Core Team [Board of Directors, The FreeBSD Project]
 	Poul-Henning Kamp <phk@FreeBSD.org>
 	Rich Murphey <rich@lamprey.utmb.edu>
 	Rodney W. Grimes <rgrimes@cdrom.com>
-	Soren Schmidt <sos@FreeBSD.org>
+	Søren Schmidt <sos@FreeBSD.org>
 
 
 Officers, The FreeBSD Project:
@@ -67,6 +66,7 @@ Directors, The FreeBSD Project:
 	Documentation:		John Fieber <jfieber@FreeBSD.org>
 	Internationalization:	Andrew A. Chernov <ache@FreeBSD.org>
 	Networking:		Garrett A. Wollman <wollman@FreeBSD.org>
+	Postmaster:		Jonathan M. Bresler <jmb@kryten.atinc.com>
 	Release Coordinator:	Poul-Henning Kamp <phk@FreeBSD.org>
 	System Administration:	Gary Palmer <gpalmer@FreeBSD.org>
 	WEBMASTERS:		John Fieber <jfieber@FreeBSD.org> and
@@ -86,7 +86,7 @@ Bob Wilcox <bob@obiwan.uucp>
 Bruce Evans <bde@kralizec.zeta.org.au>
 Charles Hannum <mycroft@ai.mit.edu>
 Chris G. Demetriou <cgd@postgres.berkeley.edu>
-Christian Gusenbauer <??>
+Christian Gusenbauer <cg@fimp01.fim.uni-linz.ac.at>
 Chris Torek <torek@ee.lbl.gov>
 Christoph Robitschko <chmr@edvz.tu-graz.ac.at>
 Curt Mayer <curt@toad.com>
@@ -99,6 +99,7 @@ Gary Clark II <gclarkii@radon.gbdata.com>
 Guido van Rooij <guido@gvr.win.tue.nl>
 Havard Eidnes <Havard.Eidnes@runit.sintef.no>
 Holger Veit <Holger.Veit@gmd.de>
+HOSOKAWA Tatsumi <hosokawa@mt.cs.keio.ac.jp>
 Ishii Masahiro, R. Kym Horsell
 J.T. Conklin <jtc@winsey.com>
 James Clark <jjc@jclark.com>
@@ -122,12 +123,15 @@ Sascha Wildner <swildner@channelz.GUN.de>
 Scott Mace <smace@FreeBSD.org>
 Sean Eric Fagan <sef@kithrup.com>
 Serge V. Vakulenko <vak@zebub.msk.su>
+Stephen McKay <syssgm@devetir.qld.gov.au>
 Steven Wallace <swallace@ece.uci.edu>
 Søren Schmidt <sos@login.dkuug.dk>
 Terry Lee <terry@uivlsi.csl.uiuc.edu>
 Theo Deraadt <deraadt@fsa.ca>
 Ugen J.S.Antsilevich <ugen@NetVision.net.il>
+Wolfram Schneider <wosch@cs.tu-berlin.de>
 Yuval Yarom <yval@cs.huji.ac.il>
+Yves Fonk <yves@cpcoup5.tn.tudelft.nl>
 
 
 386BSD Patch kit patch contributors (in alphabetical order):
@@ -225,4 +229,4 @@ Last, but not least, the release engineer would like to thank:
 	His Wife, for chocolate chip cookies, and some other things.
 	The DGB project @ TFS, for patience and tolerance.
 
-$Id: CONTRIB.FreeBSD,v 1.7 1995/02/09 12:45:42 jkh Exp $
+$Id: CONTRIB.FreeBSD,v 1.8 1995/02/09 12:49:41 ljo Exp $
