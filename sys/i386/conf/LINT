@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.9 1993/09/24 21:01:11 rgrimes Exp $
+#	$Id: LINT,v 1.10 1993/09/26 23:21:12 rgrimes Exp $
 #
 
 machine		"i386"
@@ -36,8 +36,7 @@ options		XSERVER			#xserver
 #
 pseudo-device	bpfilter	4	#berkeley packet filter
 options		CCITT
-device		cd0			#scsi cdrom driver
-device		cd1
+device		cd0	#Only need one of these, the code dynamically grows
 device		ch0
 pseudo-device	ddb
 pseudo-device	devpager
