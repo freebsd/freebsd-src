@@ -22,6 +22,6 @@ tcl_bmake	Generates a bmake Makefile for src/lib/libtcl.
 upgrade         Scripts used for upgrading an installed system.
 vop_table	Generates a HTML document that shows all the VOP's in
 		the kernel.
-diffburst	Reads the output of 'diff -r' and splits it into separate
-		patch files, one per file. The files are named 'patch-XX'
-		where XX is aa, ab, ac, ... Useful when creating ports.
+diffburst	OBSOLETE: equivalent functionality is available via split -p.
+		For example: "cat patchfile | split -p ^diff". See split(1).
+
