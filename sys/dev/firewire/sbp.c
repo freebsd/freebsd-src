@@ -139,7 +139,7 @@ SYSCTL_INT(_hw_firewire_sbp, OID_AUTO, auto_login, CTLFLAG_RW, &auto_login, 0,
 SYSCTL_INT(_hw_firewire_sbp, OID_AUTO, max_speed, CTLFLAG_RW, &max_speed, 0,
 	"SBP transfer max speed");
 SYSCTL_INT(_hw_firewire_sbp, OID_AUTO, exclusive_login, CTLFLAG_RW,
-	&ex_login, 0, "SBP transfer max speed");
+	&ex_login, 0, "SBP enable exclusive login");
 SYSCTL_INT(_hw_firewire_sbp, OID_AUTO, login_delay, CTLFLAG_RW,
 	&login_delay, 0, "SBP login delay in msec");
 SYSCTL_INT(_hw_firewire_sbp, OID_AUTO, scan_delay, CTLFLAG_RW,
