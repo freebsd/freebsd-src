@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.203 1995/09/27 19:12:20 ache Exp $
+#	$Id: LINT,v 1.204 1995/10/03 01:12:59 jkh Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -193,6 +193,8 @@ options		HDLC			#X.25 link layer for serial lines
 # your house down!  See netinet/if_ether.c for the gory details.
 # (Eventually there will be a better management interface.)
 #
+# TCPDEBUG is undocumented.
+#
 options		"TCP_COMPAT_42"		#emulate 4.2BSD TCP bugs
 options		GATEWAY			#internetwork gateway
 options		MROUTING		# Multicast routing
@@ -201,6 +203,7 @@ options         IPFIREWALL_VERBOSE      #print information about
 options		IPACCT			#ipaccounting
 					# dropped packets
 options		ARP_PROXYALL		# global proxy ARP
+options		TCPDEBUG
 
 
 #####################################################################
@@ -348,6 +351,14 @@ pseudo-device   ii      4
 pseudo-device   ity     4
 pseudo-device   itel    2       
 pseudo-device   ispy    1       
+
+# These are only for watching for bitrot in old tty code.
+# broken
+#pseudo-device	tb
+
+# These are only for watching for bitrot in old SCSI code.
+pseudo-device	su		#scsi user
+pseudo-device	ssc		#super scsi
 
 
 #####################################################################
@@ -656,6 +667,11 @@ device opl0     at isa? port 0x388 conflicts
 device mpu0     at isa? port 0x330 irq 6 drq 0
 device uart0 at isa? port 0x330 irq 5 vector "m6850intr"
 
+# More undocumented sound devices with bogus configurations for linting.
+# broken
+#device sscape0  at isa? port 0x330 irq 6 drq 0
+#device trix0    at isa? port 0x330 irq 6 drq 0 vector sscapeintr
+
 # Not controlled by `snd'
 device pca0 at isa? port IO_TIMER1 tty
 
@@ -670,7 +686,7 @@ device pca0 at isa? port IO_TIMER1 tty
 # apm: Laptop Advanced Power Management (experimental)
 # spigot: The Creative Labs Video Spigot video-aquisition board
 # meteor: Matrox Meteor video capture board
-# cy: Cyclades high-speed serial driver (ALPHA QUALITY!)
+# cy: Cyclades serial driver
 # dgb: Digiboard PC/Xi and PC/Xe series driver (ALPHA QUALITY!)
 # gp:  National Instruments AT-GPIB and AT-GPIB/TNT board
 # asc: GI1904-based hand scanners, e.g. the Trust Amiscan Grey
@@ -714,7 +730,7 @@ device		apm0	at isa?
 device		gp0	at isa? port 0x2c0 tty
 device		gsc0	at isa? port "IO_GSC1" tty drq 3
 device		joy0	at isa? port "IO_GAME"
-device		cy0	at isa? tty irq 10 iomem 0xd4000 vector cyintr
+device		cy0	at isa? tty irq 10 iomem 0xd4000 iosiz 0x2000 vector cyintr
 device		dgb0	at isa? port 0x220 iomem 0xfc0000 iosiz ? tty
 device		labpc0	at isa? port 0x260 tty irq 5 vector labpcintr
 device          rc0     at isa? port 0x220 tty irq 12 vector rcintr
@@ -722,6 +738,7 @@ device          rc0     at isa? port 0x220 tty irq 12 vector rcintr
 device          tw0     at isa? port 0x380 tty irq 11 vector twintr
 device		si0	at isa? iomem 0xd0000 tty irq 12 vector siintr
 device		asc0	at isa? port IO_ASC1 tty drq 3 irq 10 vector ascintr
+device		bqu0	at isa? port 0x150
 
 
 #
@@ -771,3 +788,7 @@ options		PROBE_VERBOSE
 # power supply dropped, or battery state low) by issuing an NMI:
 
 options		POWERFAIL_NMI	# make it beep instead of panicing
+
+# More undocumented options for linting.
+options		COMPAT_LINUX
+options		"IBCS2"
