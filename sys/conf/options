@@ -77,7 +77,7 @@ GDB_REMOTE_CHAT	opt_ddb.h
 NODEVFS		opt_devfs.h
 HW_WDOG
 KTRACE
-KTRACE_REQUEST_POOL	opt_ktrace.h	# Size of ktrace request pool
+KTRACE_REQUEST_POOL	opt_ktrace.h
 LIBICONV
 MD_ROOT		opt_md.h
 MD_ROOT_SIZE	opt_md.h
