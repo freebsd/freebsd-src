@@ -40,15 +40,22 @@ static char sccsid[] = "@(#)sysconf.c	8.2 (Berkeley) 3/20/94";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/_posix.h>
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/sysctl.h>
 #include <sys/resource.h>
 
 #include <errno.h>
+#include <limits.h>
+#include <paths.h>
+#include <pthread.h>		/* we just need the limits */
 #include <time.h>
 #include <unistd.h>
+
+#include "../stdlib/atexit.h"
+#include "../stdtime/tzfile.h"
+
+#define	_PATH_ZONEINFO	TZDIR	/* from tzfile.h */
 
 /*
  * sysconf --
@@ -68,41 +75,49 @@ sysconf(name)
 {
 	struct rlimit rl;
 	size_t len;
-	int mib[2], value;
+	int mib[2], sverrno, value;
 	long defaultresult;
+	const char *path;
 
 	len = sizeof(value);
 	defaultresult = -1;
 
 	switch (name) {
-/* 1003.1 */
 	case _SC_ARG_MAX:
 		mib[0] = CTL_KERN;
 		mib[1] = KERN_ARGMAX;
 		break;
 	case _SC_CHILD_MAX:
-		return (getrlimit(RLIMIT_NPROC, &rl) ? -1 : rl.rlim_cur);
+		if (getrlimit(RLIMIT_NPROC, &rl) != 0)
+			return (-1);
+		if (rl.rlim_cur == RLIM_INFINITY)
+			return (-1);
+		if (rl.rlim_cur > LONG_MAX) {
+			errno = EOVERFLOW;
+			return (-1);
+		}
+		return ((long)rl.rlim_cur);
 	case _SC_CLK_TCK:
 		return (CLK_TCK);
-	case _SC_JOB_CONTROL:
-		mib[0] = CTL_KERN;
-		mib[1] = KERN_JOB_CONTROL;
-		goto yesno;
 	case _SC_NGROUPS_MAX:
 		mib[0] = CTL_KERN;
 		mib[1] = KERN_NGROUPS;
 		break;
 	case _SC_OPEN_MAX:
-		return (getrlimit(RLIMIT_NOFILE, &rl) ? -1 : rl.rlim_cur);
-	case _SC_STREAM_MAX:
-		mib[0] = CTL_USER;
-		mib[1] = USER_STREAM_MAX;
-		break;
-	case _SC_TZNAME_MAX:
-		mib[0] = CTL_USER;
-		mib[1] = USER_TZNAME_MAX;
-		break;
+	case _SC_STREAM_MAX:	/* assume fds run out before memory does */
+		if (getrlimit(RLIMIT_NOFILE, &rl) != 0)
+			return (-1);
+		if (rl.rlim_cur == RLIM_INFINITY)
+			return (-1);
+		if (rl.rlim_cur > LONG_MAX) {
+			errno = EOVERFLOW;
+			return (-1);
+		}
+		return ((long)rl.rlim_cur);
+	case _SC_JOB_CONTROL:
+		return (_POSIX_JOB_CONTROL);
 	case _SC_SAVED_IDS:
+		/* XXX - must be 1 */
 		mib[0] = CTL_KERN;
 		mib[1] = KERN_SAVED_IDS;
 		goto yesno;
@@ -110,132 +125,129 @@ sysconf(name)
 		mib[0] = CTL_KERN;
 		mib[1] = KERN_POSIX1;
 		break;
-
-/* 1003.2 */
 	case _SC_BC_BASE_MAX:
-		mib[0] = CTL_USER;
-		mib[1] = USER_BC_BASE_MAX;
-		break;
+		return (BC_BASE_MAX);
 	case _SC_BC_DIM_MAX:
-		mib[0] = CTL_USER;
-		mib[1] = USER_BC_DIM_MAX;
-		break;
+		return (BC_DIM_MAX);
 	case _SC_BC_SCALE_MAX:
-		mib[0] = CTL_USER;
-		mib[1] = USER_BC_SCALE_MAX;
-		break;
+		return (BC_SCALE_MAX);
 	case _SC_BC_STRING_MAX:
-		mib[0] = CTL_USER;
-		mib[1] = USER_BC_STRING_MAX;
-		break;
+		return (BC_STRING_MAX);
 	case _SC_COLL_WEIGHTS_MAX:
-		mib[0] = CTL_USER;
-		mib[1] = USER_COLL_WEIGHTS_MAX;
-		break;
+		return (COLL_WEIGHTS_MAX);
 	case _SC_EXPR_NEST_MAX:
-		mib[0] = CTL_USER;
-		mib[1] = USER_EXPR_NEST_MAX;
-		break;
+		return (EXPR_NEST_MAX);
 	case _SC_LINE_MAX:
-		mib[0] = CTL_USER;
-		mib[1] = USER_LINE_MAX;
-		break;
+		return (LINE_MAX);
 	case _SC_RE_DUP_MAX:
-		mib[0] = CTL_USER;
-		mib[1] = USER_RE_DUP_MAX;
-		break;
+		return (RE_DUP_MAX);
 	case _SC_2_VERSION:
-		mib[0] = CTL_USER;
-		mib[1] = USER_POSIX2_VERSION;
-		break;
+		/*
+		 * This is something of a lie, but it would be silly at
+		 * this point to try to deduce this from the contents
+		 * of the filesystem.
+		 */
+		return (_POSIX2_VERSION);
 	case _SC_2_C_BIND:
-		mib[0] = CTL_USER;
-		mib[1] = USER_POSIX2_C_BIND;
-		goto yesno;
+		return (_POSIX2_C_BIND);
 	case _SC_2_C_DEV:
-		mib[0] = CTL_USER;
-		mib[1] = USER_POSIX2_C_DEV;
-		goto yesno;
+		return (_POSIX2_C_DEV);
 	case _SC_2_CHAR_TERM:
-		mib[0] = CTL_USER;
-		mib[1] = USER_POSIX2_CHAR_TERM;
-		goto yesno;
+		return (_POSIX2_CHAR_TERM);
 	case _SC_2_FORT_DEV:
-		mib[0] = CTL_USER;
-		mib[1] = USER_POSIX2_FORT_DEV;
-		goto yesno;
+		return (_POSIX2_FORT_DEV);
 	case _SC_2_FORT_RUN:
-		mib[0] = CTL_USER;
-		mib[1] = USER_POSIX2_FORT_RUN;
-		goto yesno;
+		return (_POSIX2_FORT_RUN);
 	case _SC_2_LOCALEDEF:
-		mib[0] = CTL_USER;
-		mib[1] = USER_POSIX2_LOCALEDEF;
-		goto yesno;
+		return (_POSIX2_LOCALEDEF);
 	case _SC_2_SW_DEV:
-		mib[0] = CTL_USER;
-		mib[1] = USER_POSIX2_SW_DEV;
-		goto yesno;
+		return (_POSIX2_SW_DEV);
 	case _SC_2_UPE:
-		mib[0] = CTL_USER;
-		mib[1] = USER_POSIX2_UPE;
-		goto yesno;
-
-#ifdef _P1003_1B_VISIBLE
-	/* POSIX.1B */
+		return (_POSIX2_UPE);
+	case _SC_TZNAME_MAX:
+		path = _PATH_ZONEINFO;
+do_NAME_MAX:
+		sverrno = errno;
+		errno = 0;
+		value = pathconf(path, _PC_NAME_MAX);
+		if (value == -1 && errno != 0)
+			return (-1);
+		errno = sverrno;
+		return (value);
 
 	case _SC_ASYNCHRONOUS_IO:
 		mib[0] = CTL_P1003_1B;
 		mib[1] = CTL_P1003_1B_ASYNCHRONOUS_IO;
 		goto yesno;
 	case _SC_MAPPED_FILES:
-		mib[0] = CTL_P1003_1B;
-		mib[1] = CTL_P1003_1B_MAPPED_FILES;
-		goto yesno;
+		return (_POSIX_MAPPED_FILES);
 	case _SC_MEMLOCK:
-		mib[0] = CTL_P1003_1B;
-		mib[1] = CTL_P1003_1B_MEMLOCK;
-		goto yesno;
+		return (_POSIX_MEMLOCK);
 	case _SC_MEMLOCK_RANGE:
-		mib[0] = CTL_P1003_1B;
-		mib[1] = CTL_P1003_1B_MEMLOCK_RANGE;
-		goto yesno;
+		return (_POSIX_MEMLOCK_RANGE);
 	case _SC_MEMORY_PROTECTION:
-		mib[0] = CTL_P1003_1B;
-		mib[1] = CTL_P1003_1B_MEMORY_PROTECTION;
-		goto yesno;
+		return (_POSIX_MEMORY_PROTECTION);
 	case _SC_MESSAGE_PASSING:
+#if _POSIX_MESSAGE_PASSING == 0
 		mib[0] = CTL_P1003_1B;
 		mib[1] = CTL_P1003_1B_MESSAGE_PASSING;
 		goto yesno;
+#else
+		return (_POSIX_MESSAGE_PASSING);
+#endif
 	case _SC_PRIORITIZED_IO:
+#if _POSIX_PRIORITIZED_IO == 0
 		mib[0] = CTL_P1003_1B;
 		mib[1] = CTL_P1003_1B_PRIORITIZED_IO;
 		goto yesno;
+#else
+		return (_POSIX_PRIORITIZED_IO);
+#endif
 	case _SC_PRIORITY_SCHEDULING:
+#if _POSIX_PRIORITY_SCHEDULING == 0
 		mib[0] = CTL_P1003_1B;
 		mib[1] = CTL_P1003_1B_PRIORITY_SCHEDULING;
 		goto yesno;
+#else
+		return (_POSIX_PRIORITY_SCHEDULING);
+#endif
 	case _SC_REALTIME_SIGNALS:
+#if _POSIX_REALTIME_SIGNALS == 0
 		mib[0] = CTL_P1003_1B;
 		mib[1] = CTL_P1003_1B_REALTIME_SIGNALS;
 		goto yesno;
+#else
+		return (_POSIX_REALTIME_SIGNALS);
+#endif
 	case _SC_SEMAPHORES:
+#if _POSIX_SEMAPHORES == 0
 		mib[0] = CTL_P1003_1B;
 		mib[1] = CTL_P1003_1B_SEMAPHORES;
 		goto yesno;
+#else
+		return (_POSIX_SEMAPHORES);
+#endif
+	case _SC_FSYNC:
+		return (_POSIX_FSYNC);
+
 	case _SC_SHARED_MEMORY_OBJECTS:
-		mib[0] = CTL_P1003_1B;
-		mib[1] = CTL_P1003_1B_SHARED_MEMORY_OBJECTS;
-		goto yesno;
+		return (_POSIX_SHARED_MEMORY_OBJECTS);
 	case _SC_SYNCHRONIZED_IO:
+#if _POSIX_SYNCHRONIZED_IO == 0
 		mib[0] = CTL_P1003_1B;
 		mib[1] = CTL_P1003_1B_SYNCHRONIZED_IO;
 		goto yesno;
+#else
+		return (_POSIX_SYNCHRONIZED_IO);
+#endif
 	case _SC_TIMERS:
+#if _POSIX_TIMERS == 0
 		mib[0] = CTL_P1003_1B;
 		mib[1] = CTL_P1003_1B_TIMERS;
 		goto yesno;
+#else
+		return (_POSIX_TIMERS);
+#endif
 	case _SC_AIO_LISTIO_MAX:
 		mib[0] = CTL_P1003_1B;
 		mib[1] = CTL_P1003_1B_AIO_LISTIO_MAX;
@@ -280,32 +292,266 @@ sysconf(name)
 	case _SC_TIMER_MAX:
 		mib[0] = CTL_P1003_1B;
 		mib[1] = CTL_P1003_1B_TIMER_MAX;
-		goto yesno;
-#endif /* _P1003_1B_VISIBLE */
-
-	case _SC_FSYNC:
-		return (_POSIX_FSYNC);
-
-#if defined(_SC_NPROCESSORS_CONF) && defined(_SC_NPROCESSORS_ONLN)
-	case _SC_NPROCESSORS_CONF:
-	case _SC_NPROCESSORS_ONLN:
-		mib[0] = CTL_HW;
-		mib[1] = HW_NCPU;
-		break;
-#endif
-
-#ifdef _SC_IOV_MAX
-	case _SC_IOV_MAX:
-		mib[0] = CTL_KERN;
-		mib[1] = KERN_IOV_MAX;
-		break;
-#endif
 
 yesno:		if (sysctl(mib, 2, &value, &len, NULL, 0) == -1)
 			return (-1);
 		if (value == 0)
 			return (defaultresult);
 		return (value);
+
+	case _SC_2_PBS:
+	case _SC_2_PBS_ACCOUNTING:
+	case _SC_2_PBS_CHECKPOINT:
+	case _SC_2_PBS_LOCATE:
+	case _SC_2_PBS_MESSAGE:
+	case _SC_2_PBS_TRACK:
+#if _POSIX2_PBS == 0
+#error "don't know how to determine _SC_2_PBS"
+		/*
+		 * This probably requires digging through the filesystem
+		 * to see if the appropriate package has been installed.
+		 * Since we don't currently support this option at all,
+		 * it's not worth the effort to write the code now.
+		 * Figuring out which of the sub-options are supported
+		 * would be even more difficult, so it's probably easier
+		 * to always say ``no''.
+		 */
+#else
+		return (_POSIX2_PBS);
+#endif
+	case _SC_ADVISORY_INFO:
+#if _POSIX_ADVISORY_INFO == 0
+#error "_POSIX_ADVISORY_INFO"
+#else
+		return (_POSIX_ADVISORY_INFO);
+#endif
+	case _SC_BARRIERS:
+#if _POSIX_BARRIERS == 0
+#error "_POSIX_BARRIERS"
+#else
+		return (_POSIX_BARRIERS);
+#endif
+	case _SC_CLOCK_SELECTION:
+#if _POSIX_CLOCK_SELECTION == 0
+#error "_POSIX_CLOCK_SELECTION"
+#else
+		return (_POSIX_CLOCK_SELECTION);
+#endif
+	case _SC_CPUTIME:
+#if _POSIX_CPUTIME == 0
+#error "_POSIX_CPUTIME"
+#else
+		return (_POSIX_CPUTIME);
+#endif
+#ifdef notdef
+	case _SC_FILE_LOCKING:
+		/*
+		 * XXX - The standard doesn't tell us how to define
+		 * _POSIX_FILE_LOCKING, so we can't answer this one.
+		 */
+#endif
+#if _POSIX_THREAD_SAFE_FUNCTIONS > -1
+	case _SC_GETGR_R_SIZE_MAX:
+	case _SC_GETPW_R_SIZE_MAX:
+#error "somebody needs to implement this"
+#endif
+	case _SC_HOST_NAME_MAX:
+		return (MAXHOSTNAMELEN - 1); /* does not include \0 */
+	case _SC_LOGIN_NAME_MAX:
+		return (MAXLOGNAME);
+	case _SC_MONOTONIC_CLOCK:
+#if _POSIX_MONOTONIC_CLOCK == 0
+#error "_POSIX_MONOTONIC_CLOCK"
+#else
+		return (_POSIX_MONOTONIC_CLOCK);
+#endif
+#if _POSIX_MESSAGE_PASSING > -1
+	case _SC_MQ_PRIO_MAX:
+		return (MQ_PRIO_MAX);
+#endif
+	case _SC_READER_WRITER_LOCKS:
+		return (_POSIX_READER_WRITER_LOCKS);
+	case _SC_REGEXP:
+		return (_POSIX_REGEXP);
+	case _SC_SHELL:
+		return (_POSIX_SHELL);
+	case _SC_SPAWN:
+		return (_POSIX_SPAWN);
+	case _SC_SPIN_LOCKS:
+		return (_POSIX_SPIN_LOCKS);
+	case _SC_SPORADIC_SERVER:
+#if _POSIX_SPORADIC_SERVER == 0
+#error "_POSIX_SPORADIC_SERVER"
+#else
+		return (_POSIX_SPORADIC_SERVER);
+#endif
+	case _SC_THREAD_ATTR_STACKADDR:
+		return (_POSIX_THREAD_ATTR_STACKADDR);
+	case _SC_THREAD_ATTR_STACKSIZE:
+		return (_POSIX_THREAD_ATTR_STACKSIZE);
+	case _SC_THREAD_CPUTIME:
+		return (_POSIX_THREAD_CPUTIME);
+	case _SC_THREAD_DESTRUCTOR_ITERATIONS:
+		return (PTHREAD_DESTRUCTOR_ITERATIONS);
+	case _SC_THREAD_KEYS_MAX:
+		return (PTHREAD_KEYS_MAX);
+	case _SC_THREAD_PRIO_INHERIT:
+		return (_POSIX_THREAD_PRIO_INHERIT);
+	case _SC_THREAD_PRIO_PROTECT:
+		return (_POSIX_THREAD_PRIO_PROTECT);
+	case _SC_THREAD_PRIORITY_SCHEDULING:
+		return (_POSIX_THREAD_PRIORITY_SCHEDULING);
+	case _SC_THREAD_PROCESS_SHARED:
+		return (_POSIX_THREAD_PROCESS_SHARED);
+	case _SC_THREAD_SAFE_FUNCTIONS:
+		return (_POSIX_THREAD_SAFE_FUNCTIONS);
+	case _SC_THREAD_STACK_MIN:
+		return (PTHREAD_STACK_MIN);
+	case _SC_THREAD_THREADS_MAX:
+		return (PTHREAD_THREADS_MAX); /* XXX wrong type! */
+	case _SC_TIMEOUTS:
+		return (_POSIX_TIMEOUTS);
+	case _SC_THREADS:
+		return (_POSIX_THREADS);
+	case _SC_TRACE:
+#if _POSIX_TRACE == 0
+#error "_POSIX_TRACE"
+		/* While you're implementing this, also do the ones below. */
+#else
+		return (_POSIX_TRACE);
+#endif
+#if _POSIX_TRACE > -1
+	case _SC_TRACE_EVENT_FILTER:
+		return (_POSIX_TRACE_EVENT_FILTER);
+	case _SC_TRACE_INHERIT:
+		return (_POSIX_TRACE_INHERIT);
+	case _SC_TRACE_LOG:
+		return (_POSIX_TRACE_LOG);
+#endif
+	case _SC_TTY_NAME_MAX:
+		path = _PATH_DEV;
+		goto do_NAME_MAX;
+	case _SC_TYPED_MEMORY_OBJECTS:
+#if _POSIX_TYPED_MEMORY_OBJECTS == 0
+#error "_POSIX_TYPED_MEMORY_OBJECTS"
+#else
+		return (_POSIX_TYPED_MEMORY_OBJECTS);
+#endif
+	case _SC_V6_ILP32_OFF32:
+#if _V6_ILP32_OFF32 == 0
+		if (sizeof(int) * CHAR_BIT == 32 &&
+		    sizeof(int) == sizeof(long) &&
+		    sizeof(long) == sizeof(void *) &&
+		    sizeof(void *) == sizeof(off_t))
+			return 1;
+		else
+			return -1;
+#else
+		return (_V6_ILP32_OFF32);
+#endif
+	case _SC_V6_ILP32_OFFBIG:
+#if _V6_ILP32_OFFBIG == 0
+		if (sizeof(int) * CHAR_BIT == 32 &&
+		    sizeof(int) == sizeof(long) &&
+		    sizeof(long) == sizeof(void *) &&
+		    sizeof(off_t) * CHAR_BIT >= 64)
+			return 1;
+		else
+			return -1;
+#else
+		return (_V6_ILP32_OFFBIG);
+#endif
+	case _SC_V6_LP64_OFF64:
+#if _V6_LP64_OFF64 == 0
+		if (sizeof(int) * CHAR_BIT == 32 &&
+		    sizeof(long) * CHAR_BIT == 64 &&
+		    sizeof(long) == sizeof(void *) &&
+		    sizeof(void *) == sizeof(off_t))
+			return 1;
+		else
+			return -1;
+#else
+		return (_V6_LP64_OFF64);
+#endif
+	case _SC_V6_LPBIG_OFFBIG:
+#if _V6_LPBIG_OFFBIG == 0
+		if (sizeof(int) * CHAR_BIT >= 32 &&
+		    sizeof(long) * CHAR_BIT >= 64 &&
+		    sizeof(void *) * CHAR_BIT >= 64 &&
+		    sizeof(off_t) * CHAR_BIT >= 64)
+			return 1;
+		else
+			return -1;
+#else
+		return (_V6_LPBIG_OFFBIG);
+#endif
+	case _SC_ATEXIT_MAX:
+		return (ATEXIT_SIZE);
+	case _SC_IOV_MAX:
+		mib[0] = CTL_KERN;
+		mib[1] = KERN_IOV_MAX;
+		break;
+	case _SC_XOPEN_CRYPT:
+		return (_XOPEN_CRYPT);
+	case _SC_XOPEN_ENH_I18N:
+		return (_XOPEN_ENH_I18N);
+	case _SC_XOPEN_LEGACY:
+		return (_XOPEN_LEGACY);
+	case _SC_XOPEN_REALTIME:
+#if _XOPEN_REALTIME == 0
+		sverrno = errno;
+		value = sysconf(_SC_ASYNCHRONOUS_IO) > 0 &&
+			sysconf(_SC_MEMLOCK) > 0 &&
+			sysconf(_SC_MEMLOCK_RANGE) > 0 &&
+			sysconf(_SC_MESSAGE_PASSING) > 0 &&
+			sysconf(_SC_PRIORITY_SCHEDULING) > 0 &&
+			sysconf(_SC_REALTIME_SIGNALS) > 0 &&
+			sysconf(_SC_SEMAPHORES) > 0 &&
+			sysconf(_SC_SHARED_MEMORY_OBJECTS) > 0 &&
+			sysconf(_SC_SYNCHRONIZED_IO) > 0 &&
+			sysconf(_SC_TIMERS) > 0;
+		errno = sverrno;
+		if (value)
+			return (200112L);
+		else
+			return (-1);
+#else
+		return (_XOPEN_REALTIME);
+#endif
+	case _SC_XOPEN_REALTIME_THREADS:
+#if _XOPEN_REALTIME_THREADS == 0
+#error "_XOPEN_REALTIME_THREADS"
+#else
+		return (_XOPEN_REALTIME_THREADS);
+#endif
+	case _SC_XOPEN_SHM:
+		sverrno = errno;
+		if (sysctlbyname("kern.ipc.shmmin", &value, &len, NULL, 
+		    0) == -1) {
+			errno = sverrno;
+			return (-1);
+		}
+		errno = sverrno;
+		return (1);
+	case _SC_XOPEN_STREAMS:
+		return (_XOPEN_STREAMS);
+	case _SC_XOPEN_UNIX:
+		return (_XOPEN_UNIX);
+#ifdef _XOPEN_VERSION
+	case _SC_XOPEN_VERSION:
+		return (_XOPEN_VERSION);
+#endif
+#ifdef _XOPEN_XCU_VERSION
+	case _SC_XOPEN_XCU_VERSION:
+		return (_XOPEN_XCU_VERSION);
+#endif
+
+	case _SC_NPROCESSORS_CONF:
+	case _SC_NPROCESSORS_ONLN:
+		mib[0] = CTL_HW;
+		mib[1] = HW_NCPU;
+		break;
+
 	default:
 		errno = EINVAL;
 		return (-1);
