@@ -110,7 +110,7 @@ int	registerd_host_only = 0;
 
 /*
  * Because of the way ptyibuf is used with streams messages, we need
- * ptyibuf+1 to be on a full-word boundary.  The following wierdness
+ * ptyibuf+1 to be on a full-word boundary.  The following weirdness
  * is simply to make that happen.
  */
 long	ptyibufbuf[BUFSIZ/sizeof(long)+1];

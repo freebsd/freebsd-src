@@ -79,7 +79,7 @@ static const char rcsid[] =
 struct cardbus_quirk {
 	u_int32_t devid;	/* Vendor/device of the card */
 	int	type;
-#define CARDBUS_QUIRK_MAP_REG	1 /* PCI map register in wierd place */
+#define CARDBUS_QUIRK_MAP_REG	1 /* PCI map register in weird place */
 	int	arg1;
 	int	arg2;
 };

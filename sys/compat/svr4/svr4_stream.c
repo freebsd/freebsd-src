@@ -2172,7 +2172,7 @@ svr4_sys_getmsg(p, uap)
 		if (st->s_cmd == SVR4_TI_CONNECT_REQUEST) {
 		        struct read_args ra;
 
-			/* More wierdness:  Again, I can't find documentation
+			/* More weirdness:  Again, I can't find documentation
 			 * to back this up, but when a process does a generic
 			 * "getmsg()" call it seems that the command field is
 			 * zero and the length of the data area is zero.  I
