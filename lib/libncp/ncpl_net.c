@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 
 #include "ipxsap.h"
 #include <netncp/ncp_lib.h>
-#include "ncp_mod.h"
 
 static int ncp_find_server_in(struct ncp_conn_loginfo *li, int type, char *server_name);
 
