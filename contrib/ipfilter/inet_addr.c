@@ -55,7 +55,7 @@
 
 #if !defined(lint) && defined(LIBC_SCCS)
 static char sccsid[] = "@(#)inet_addr.c	8.1 (Berkeley) 6/17/93";
-static char rcsid[] = "$Id: inet_addr.c,v 2.0.2.3 1997/03/27 13:45:00 darrenr Exp $";
+static char rcsid[] = "$Id: inet_addr.c,v 2.0.2.4 1997/05/08 10:11:34 darrenr Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -179,7 +179,11 @@ inet_aton(cp, addr)
  * Ascii internet address interpretation routine.
  * The value returned is in network order.
  */
+#if defined(SOLARIS2) && (SOLARIS2 > 5)
+u_int
+#else
 u_long
+#endif
 inet_addr(cp)
 	register const char *cp;
 {

@@ -1,11 +1,14 @@
 /*
- * (C)opyright 1993,1994,1995 by Darren Reed.
+ * (C)opyright 1993-1997 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
- * $Id: ipt.h,v 2.0.2.4 1997/03/27 13:45:23 darrenr Exp $
+ * $Id: ipt.h,v 2.0.2.6 1997/04/30 13:49:22 darrenr Exp $
  */
+
+#ifndef	__IPT_H__
+#define	__IPT_H__
 
 #include <fcntl.h>
 #ifdef	__STDC__
@@ -23,3 +26,5 @@ struct	ipread	{
 
 extern	void	debug __P((char *, ...));
 extern	void	verbose __P((char *, ...));
+
+#endif /* __IPT_H__ */

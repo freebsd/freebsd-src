@@ -32,6 +32,9 @@ all:
 .c.o:
 	$(CC) $(CFLAGS) $(LINUXK) -c $< -o $@
 
+install:
+	-$(INSTALL) -cs -g wheel -m 755 -o root ipsend ipresend iptest $(BINDEST)
+
 bpf sunos4-bpf :
 	make ipsend "OBJS=$(OBJS)" "UNIXOBJS=$(BPF) $(SUNOS4)" "CC=$(CC)" \
 		"CFLAGS=$(CFLAGS) -DDOSOCKET"
