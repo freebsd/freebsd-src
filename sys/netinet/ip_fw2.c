@@ -1511,11 +1511,11 @@ check_body:
 				if (pcb == NULL || pcb->inp_socket == NULL)
 					break;
 #if __FreeBSD_version < 500034
-#define socheckuid(a,b)	((a)->so_cred->cr_uid == (b))
+#define socheckuid(a,b)	((a)->so_cred->cr_uid != (b))
 #endif
 				if (cmd->opcode == O_UID) {
 					match =
-					  socheckuid(pcb->inp_socket,
+					  !socheckuid(pcb->inp_socket,
 					   (uid_t)((ipfw_insn_u32 *)cmd)->d[0]);
 				} else  {
 					match = groupmember(
