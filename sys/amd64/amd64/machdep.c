@@ -789,7 +789,7 @@ SYSCTL_INT(_machdep, OID_AUTO, cpu_idle_hlt, CTLFLAG_RW,
 
 /*
  * Note that we have to be careful here to avoid a race between checking
- * procrunnable() and actually halting.  If we don't do this, we may waste
+ * kserunnable() and actually halting.  If we don't do this, we may waste
  * the time between calling hlt and the next interrupt even though there
  * is a runnable process.
  */
