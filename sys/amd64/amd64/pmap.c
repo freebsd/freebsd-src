@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.61 1995/09/15 08:31:19 davidg Exp $
+ *	$Id: pmap.c,v 1.62 1995/10/22 02:59:48 davidg Exp $
  */
 
 /*
@@ -851,10 +851,9 @@ pmap_remove(pmap, sva, eva)
 
 		if (pmap_is_managed(pa)) {
 			if ((int) oldpte & PG_M) {
-				if (sva < USRSTACK + (UPAGES * NBPG) || sva >= KERNBASE) {
-					if (sva < clean_sva || sva >= clean_eva) {
-						PHYS_TO_VM_PAGE(pa)->dirty |= VM_PAGE_BITS_ALL;
-					}
+				if (sva < USRSTACK + (UPAGES * NBPG) ||
+				    (sva >= KERNBASE && (sva < clean_sva || sva >= clean_eva))) {
+					PHYS_TO_VM_PAGE(pa)->dirty |= VM_PAGE_BITS_ALL;
 				}
 			}
 			pv = pa_to_pvh(pa);
@@ -931,10 +930,9 @@ pmap_remove(pmap, sva, eva)
 			continue;
 		}
 		if ((int) oldpte & PG_M) {
-			if (va < USRSTACK + (UPAGES * NBPG) || va >= KERNBASE) {
-				if (va < clean_sva || va >= clean_eva) {
-					PHYS_TO_VM_PAGE(pa)->dirty |= VM_PAGE_BITS_ALL;
-				}
+			if (sva < USRSTACK + (UPAGES * NBPG) ||
+			    (sva >= KERNBASE && (sva < clean_sva || sva >= clean_eva))) {
+				PHYS_TO_VM_PAGE(pa)->dirty |= VM_PAGE_BITS_ALL;
 			}
 		}
 		pv = pa_to_pvh(pa);
@@ -999,10 +997,9 @@ pmap_remove_all(pa)
 			 * Update the vm_page_t clean and reference bits.
 			 */
 			if ((int) *pte & PG_M) {
-				if (va < USRSTACK + (UPAGES * NBPG) || va >= KERNBASE) {
-					if (va < clean_sva || va >= clean_eva) {
-						PHYS_TO_VM_PAGE(pa)->dirty |= VM_PAGE_BITS_ALL;
-					}
+				if (va < USRSTACK + (UPAGES * NBPG) ||
+				    (va >= KERNBASE && (va < clean_sva || va >= clean_eva))) {
+					PHYS_TO_VM_PAGE(pa)->dirty |= VM_PAGE_BITS_ALL;
 				}
 			}
 			*pte = 0;
@@ -1486,102 +1483,6 @@ pmap_object_init_pt(pmap, addr, object, offset, size)
 		}
 	}
 }
-
-#if 0
-/*
- * pmap_prefault provides a quick way of clustering
- * pagefaults into a processes address space.  It is a "cousin"
- * of pmap_object_init_pt, except it runs at page fault time instead
- * of mmap time.
- */
-#define PFBAK 2
-#define PFFOR 2
-#define PAGEORDER_SIZE (PFBAK+PFFOR)
-
-static int pmap_prefault_pageorder[] = {
-	-NBPG, NBPG, -2 * NBPG, 2 * NBPG
-};
-
-void
-pmap_prefault(pmap, addra, entry, object)
-	pmap_t pmap;
-	vm_offset_t addra;
-	vm_map_entry_t entry;
-	vm_object_t object;
-{
-	int i;
-	vm_offset_t starta, enda;
-	vm_offset_t offset, addr;
-	vm_page_t m;
-	int pageorder_index;
-
-	if (entry->object.vm_object != object)
-		return;
-
-	if (pmap != &curproc->p_vmspace->vm_pmap)
-		return;
-
-	starta = addra - PFBAK * NBPG;
-	if (starta < entry->start) {
-		starta = entry->start;
-	} else if (starta > addra)
-		starta = 0;
-
-	enda = addra + PFFOR * NBPG;
-	if (enda > entry->end)
-		enda = entry->end;
-
-	for (i = 0; i < PAGEORDER_SIZE; i++) {
-		vm_object_t lobject;
-		pt_entry_t *pte;
-
-		addr = addra + pmap_prefault_pageorder[i];
-		if (addr < starta || addr >= enda)
-			continue;
-
-		pte = vtopte(addr);
-		if (*pte)
-			continue;
-
-		offset = (addr - entry->start) + entry->offset;
-		lobject = object;
-		for (m = vm_page_lookup(lobject, offset);
-		    (!m && lobject->shadow && !lobject->pager);
-		    lobject = lobject->shadow) {
-
-			offset += lobject->shadow_offset;
-			m = vm_page_lookup(lobject->shadow, offset);
-		}
-
-		/*
-		 * give-up when a page is not in memory
-		 */
-		if (m == NULL)
-			break;
-
-		if (((m->flags & (PG_CACHE | PG_ACTIVE | PG_INACTIVE)) != 0) &&
-		    ((m->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL) &&
-		    (m->busy == 0) &&
-		    (m->bmapped == 0) &&
-		    (m->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
-			/*
-			 * test results show that the system is faster when
-			 * pages are activated.
-			 */
-			if ((m->flags & PG_ACTIVE) == 0) {
-				if( m->flags & PG_CACHE)
-					vm_page_deactivate(m);
-				else
-					vm_page_activate(m);
-			}
-			vm_page_hold(m);
-			m->flags |= PG_MAPPED;
-			pmap_enter_quick(pmap, addr, VM_PAGE_TO_PHYS(m));
-			vm_page_unhold(m);
-		}
-	}
-}
-#endif
 
 /*
  *	Routine:	pmap_change_wiring
