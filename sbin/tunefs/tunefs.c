@@ -448,7 +448,7 @@ printfs()
 		(sblock.fs_flags & FS_ACLS)? "enabled" : "disabled");
 	warnx("MAC multilabel: (-l)                               %s",
 		(sblock.fs_flags & FS_MULTILABEL)? "enabled" : "disabled");
-	warnx("soft updates:  (-n)                                %s", 
+	warnx("soft updates: (-n)                                 %s", 
 		(sblock.fs_flags & FS_DOSOFTDEP)? "enabled" : "disabled");
 	warnx("maximum blocks per file in a cylinder group: (-e)  %d",
 	      sblock.fs_maxbpg);
