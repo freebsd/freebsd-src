@@ -46,14 +46,10 @@
 ENTRY(setjmp, 1)
 	alloc	loc0=ar.pfs,1,2,3,0
 	mov	loc1=rp
-	//
-	// Compensate for the pointer twiddling that setjmp does.
-	//
-	dep	r14=r0,r32,0,4
-	;; 
+	;;
 	mov	out0=1				// how = SIG_BLOCK
 	mov	out1=0				// set = NULL
-	add	out2=J_SIG0+0x10,r14		// oset = &jb[J_SIG0]
+	add	out2=J_SIG0,in0			// oset = &jb[J_SIG0]
 	br.call.sptk.few rp=__sys_sigprocmask
 	;;
 	mov	rp=loc1
@@ -69,13 +65,9 @@ END(setjmp)
 ENTRY(__longjmp, 2)
 	alloc	loc0=ar.pfs,2,2,3,0
 	mov	loc1=rp
-	//
-	// Compensate for the pointer twiddling that setjmp does.
-	//
-	dep	r14=r0,r32,0,4
 	;; 
 	mov	out0=3				// how = SIG_SETMASK
-	add	out1=J_SIG0+0x10,r14		// set = &jb[J_SIG0]
+	add	out1=J_SIG0,in0			// set = &jb[J_SIG0]
 	mov	out2=0				// oset = NULL
 	br.call.sptk.few rp=__sys_sigprocmask
 	;;

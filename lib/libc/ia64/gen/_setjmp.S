@@ -69,13 +69,6 @@
 //
 
 ENTRY(_setjmp, 1)
-    //
-    //  Make sure buffer is aligned at 16byte boundary
-    //
-    add     r10 = -0x10,r0  ;;  // mask the lower 4 bits
-    and     r32 = r32, r10;; 
-    add     r32 = 0x10, r32;;   // move to next 16 byte boundary
-
     add     r10 = J_PREDS, r32  // skip Unats & pfs save area
     add     r11 = J_BSP, r32
     //
@@ -199,13 +192,6 @@ END(_setjmp)
 
 	WEAK_ALIAS(_longjmp,___longjmp)
 ENTRY(___longjmp, 2)
-    //
-    //  Make sure buffer is aligned at 16byte boundary
-    //
-    add     r10 = -0x10,r0  ;;  // mask the lower 4 bits
-    and     r32 = r32, r10;; 
-    add     r32 = 0x10, r32;;   // move to next 16 byte boundary
-
     //
     // caching the return value as we do invala in the end
     //
