@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.10 1997/08/31 03:04:36 smp Exp smp $
+ *	$Id: sio.c,v 1.11 1997/09/01 07:37:01 smp Exp smp $
  */
 
 #include "opt_comconsole.h"
@@ -66,40 +66,6 @@
 
 #include <machine/clock.h>
 
-#ifdef SMP
-#include <machine/smptests.h>		/** USE_COMLOCK */
-
-#ifdef USE_COMLOCK
-
-#define DISABLE_INTR()					\
-	__asm __volatile("cli" : : : "memory");		\
- 	s_lock(&com_lock);
-
-#define ENABLE_INTR()					\
- 	s_unlock(&com_lock);				\
-	__asm __volatile("sti");
-
-#define COM_LOCK() 	s_lock(&com_lock);
-#define COM_UNLOCK() 	s_unlock(&com_lock);
-
-#else /* USE_COMLOCK */
-
-#define DISABLE_INTR()	disable_intr()
-#define ENABLE_INTR()	enable_intr()
-#define COM_LOCK()
-#define COM_UNLOCK()
-
-#endif /* USE_COMLOCK */
-
-#else /* SMP */
-
-#define DISABLE_INTR()	disable_intr()
-#define ENABLE_INTR()	enable_intr()
-#define COM_LOCK()
-#define COM_UNLOCK()
-
-#endif /* SMP */
-
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/sioreg.h>
@@ -116,6 +82,11 @@
 #include <pccard/driver.h>
 #include <pccard/slot.h>
 #endif
+
+#ifdef SMP
+#define disable_intr()	COM_DISABLE_INTR()
+#define enable_intr()	COM_ENABLE_INTR()
+#endif /* SMP */
 
 #ifdef APIC_IO
 /*
@@ -678,7 +649,7 @@ sioprobe(dev)
 	 * but mask them in the processor as well in case there are some
 	 * (misconfigured) shared interrupts.
 	 */
-	DISABLE_INTR();
+	disable_intr();
 /* EXTRA DELAY? */
 
 	/*
@@ -784,7 +755,7 @@ sioprobe(dev)
 		failures[8] = isa_irq_pending(idev) ? 1	: 0;
 	failures[9] = (inb(iobase + com_iir) & IIR_IMASK) - IIR_NOPEND;
 
-	ENABLE_INTR();
+	enable_intr();
 
 	result = IO_COMSIZE;
 	for (fn = 0; fn < sizeof failures; ++fn)
@@ -1218,14 +1189,14 @@ open_top:
 			}
 		}
 
-		DISABLE_INTR();
+		disable_intr();
 		(void) inb(com->line_status_port);
 		(void) inb(com->data_port);
 		com->prev_modem_status = com->last_modem_status
 		    = inb(com->modem_status_port);
 		outb(iobase + com_ier, IER_ERXRDY | IER_ETXRDY | IER_ERLS
 				       | IER_EMSC);
-		ENABLE_INTR();
+		enable_intr();
 		/*
 		 * Handle initial DCD.  Callout devices get a fake initial
 		 * DCD (trapdoor DCD).  If we are callout, then any sleeping
@@ -1865,7 +1836,7 @@ repeat:
 			 * (actually never opened devices) so that we don't
 			 * loop.
 			 */
-			DISABLE_INTR();
+			disable_intr();
 			incc = com->iptr - com->ibuf;
 			com->iptr = com->ibuf;
 			if (com->state & CS_CHECKMSR) {
@@ -1873,7 +1844,7 @@ repeat:
 				com->state &= ~CS_CHECKMSR;
 			}
 			com_events -= incc;
-			ENABLE_INTR();
+			enable_intr();
 			if (incc != 0)
 				log(LOG_DEBUG,
 				    "sio%d: %d events for device with no tp\n",
@@ -1887,7 +1858,7 @@ repeat:
 			incc = 0;
 		} else {
 			buf = ibuf;
-			DISABLE_INTR();
+			disable_intr();
 			incc = com->iptr - buf;
 			com_events -= incc;
 			if (ibuf == com->ibuf1)
@@ -1908,29 +1879,29 @@ repeat:
 			    && !(tp->t_state & TS_TBLOCK))
 				outb(com->modem_ctl_port,
 				     com->mcr_image |= MCR_RTS);
-			ENABLE_INTR();
+			enable_intr();
 			com->ibuf = ibuf;
 		}
 
 		if (com->state & CS_CHECKMSR) {
 			u_char	delta_modem_status;
 
-			DISABLE_INTR();
+			disable_intr();
 			delta_modem_status = com->last_modem_status
 					     ^ com->prev_modem_status;
 			com->prev_modem_status = com->last_modem_status;
 			com_events -= LOTS_OF_EVENTS;
 			com->state &= ~CS_CHECKMSR;
-			ENABLE_INTR();
+			enable_intr();
 			if (delta_modem_status & MSR_DCD)
 				(*linesw[tp->t_line].l_modem)
 					(tp, com->prev_modem_status & MSR_DCD);
 		}
 		if (com->state & CS_ODONE) {
-			DISABLE_INTR();
+			disable_intr();
 			com_events -= LOTS_OF_EVENTS;
 			com->state &= ~CS_ODONE;
-			ENABLE_INTR();
+			enable_intr();
 			if (!(com->state & CS_BUSY)
 			    && !(com->extra_state & CSE_BUSYCHECK)) {
 				timeout(siobusycheck, com, hz / 100);
@@ -2084,11 +2055,11 @@ comparam(tp, t)
 	 * line status port outside of siointr1() might lose some receiver
 	 * error bits, but that is acceptable here.
 	 */
-	DISABLE_INTR();
+	disable_intr();
 retry:
 	com->state &= ~CS_TTGO;
 	txtimeout = tp->t_timeout;
-	ENABLE_INTR();
+	enable_intr();
 	while ((inb(com->line_status_port) & (LSR_TSRE | LSR_TXRDY))
 	       != (LSR_TSRE | LSR_TXRDY)) {
 		tp->t_state |= TS_SO_OCOMPLETE;
@@ -2103,16 +2074,16 @@ retry:
 			error = ENODEV;
 		if (error != 0 && error != EAGAIN) {
 			if (!(tp->t_state & TS_TTSTOP)) {
-				DISABLE_INTR();
+				disable_intr();
 				com->state |= CS_TTGO;
-				ENABLE_INTR();
+				enable_intr();
 			}
 			splx(s);
 			return (error);
 		}
 	}
 
-	DISABLE_INTR();		/* very important while com_data is hidden */
+	disable_intr();		/* very important while com_data is hidden */
 
 	/*
 	 * XXX - clearing CS_TTGO is not sufficient to stop further output,
@@ -2208,7 +2179,7 @@ retry:
 	if (com->state >= (CS_BUSY | CS_TTGO))
 		siointr1(com);
 
-	ENABLE_INTR();
+	enable_intr();
 	splx(s);
 	comstart(tp);
 	return (0);
@@ -2225,7 +2196,7 @@ comstart(tp)
 	unit = DEV_TO_UNIT(tp->t_dev);
 	com = com_addr(unit);
 	s = spltty();
-	DISABLE_INTR();
+	disable_intr();
 	if (tp->t_state & TS_TTSTOP)
 		com->state &= ~CS_TTGO;
 	else
@@ -2238,7 +2209,7 @@ comstart(tp)
 		    && com->state & CS_RTS_IFLOW)
 			outb(com->modem_ctl_port, com->mcr_image |= MCR_RTS);
 	}
-	ENABLE_INTR();
+	enable_intr();
 	if (tp->t_state & (TS_TIMEOUT | TS_TTSTOP)) {
 		splx(s);
 		return;
@@ -2253,7 +2224,7 @@ comstart(tp)
 						  sizeof com->obuf1);
 			com->obufs[0].l_next = NULL;
 			com->obufs[0].l_queued = TRUE;
-			DISABLE_INTR();
+			disable_intr();
 			if (com->state & CS_BUSY) {
 				qp = com->obufq.l_next;
 				while ((next = qp->l_next) != NULL)
@@ -2265,7 +2236,7 @@ comstart(tp)
 				com->obufq.l_next = &com->obufs[0];
 				com->state |= CS_BUSY;
 			}
-			ENABLE_INTR();
+			enable_intr();
 		}
 		if (tp->t_outq.c_cc != 0 && !com->obufs[1].l_queued) {
 			com->obufs[1].l_tail
@@ -2273,7 +2244,7 @@ comstart(tp)
 						  sizeof com->obuf2);
 			com->obufs[1].l_next = NULL;
 			com->obufs[1].l_queued = TRUE;
-			DISABLE_INTR();
+			disable_intr();
 			if (com->state & CS_BUSY) {
 				qp = com->obufq.l_next;
 				while ((next = qp->l_next) != NULL)
@@ -2285,14 +2256,14 @@ comstart(tp)
 				com->obufq.l_next = &com->obufs[1];
 				com->state |= CS_BUSY;
 			}
-			ENABLE_INTR();
+			enable_intr();
 		}
 		tp->t_state |= TS_BUSY;
 	}
-	DISABLE_INTR();
+	disable_intr();
 	if (com->state >= (CS_BUSY | CS_TTGO))
 		siointr1(com);	/* fake interrupt to start output */
-	ENABLE_INTR();
+	enable_intr();
 	ttwwakeup(tp);
 	splx(s);
 }
@@ -2307,7 +2278,7 @@ siostop(tp, rw)
 	com = com_addr(DEV_TO_UNIT(tp->t_dev));
 	if (com->gone)
 		return;
-	DISABLE_INTR();
+	disable_intr();
 	if (rw & FWRITE) {
 		if (com->hasfifo)
 #ifdef COM_ESP
@@ -2336,7 +2307,7 @@ siostop(tp, rw)
 		com_events -= (com->iptr - com->ibuf);
 		com->iptr = com->ibuf;
 	}
-	ENABLE_INTR();
+	enable_intr();
 	comstart(tp);
 }
 
@@ -2395,7 +2366,7 @@ commctl(com, bits, how)
 		mcr |= MCR_RTS;
 	if (com->gone)
 		return(0);
-	DISABLE_INTR();
+	disable_intr();
 	switch (how) {
 	case DMSET:
 		outb(com->modem_ctl_port,
@@ -2408,7 +2379,7 @@ commctl(com, bits, how)
 		outb(com->modem_ctl_port, com->mcr_image &= ~mcr);
 		break;
 	}
-	ENABLE_INTR();
+	enable_intr();
 	return (0);
 }
 
@@ -2466,9 +2437,9 @@ comwakeup(chan)
 		com = com_addr(unit);
 		if (com != NULL && !com->gone
 		    && (com->state >= (CS_BUSY | CS_TTGO) || com->poll)) {
-			DISABLE_INTR();
+			disable_intr();
 			siointr1(com);
-			ENABLE_INTR();
+			enable_intr();
 		}
 	}
 
@@ -2490,10 +2461,10 @@ comwakeup(chan)
 			u_int	delta;
 			u_long	total;
 
-			DISABLE_INTR();
+			disable_intr();
 			delta = com->delta_error_counts[errnum];
 			com->delta_error_counts[errnum] = 0;
-			ENABLE_INTR();
+			enable_intr();
 			if (delta == 0)
 				continue;
 			total = com->error_counts[errnum] += delta;

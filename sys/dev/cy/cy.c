@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.4 1997/08/30 01:23:40 smp Exp smp $
+ *	$Id: cy.c,v 1.5 1997/09/01 07:37:01 smp Exp smp $
  */
 
 #include "cy.h"
@@ -87,6 +87,11 @@
 #include <i386/isa/isa_device.h>
 #include <i386/isa/cyreg.h>
 #include <i386/isa/ic/cd1400.h>
+
+#ifdef SMP
+#define disable_intr()	COM_DISABLE_INTR()
+#define enable_intr()	COM_ENABLE_INTR()
+#endif /* SMP */
 
 /*
  * Dictionary so that I can name everything *sio* or *com* to compare with
@@ -988,7 +993,7 @@ siointr(unit)
 	int baseu, cyu, cy_align;
 	u_char status;
 
-	MPINTR_LOCK();	/* XXX could this be placed down lower in the loop? */
+	COM_LOCK();	/* XXX could this be placed down lower in the loop? */
 
 	baseu = unit * CY_MAX_PORTS;
 	cy_iobase = com_addr(baseu)->cy_iobase;
@@ -1337,7 +1342,7 @@ cont:
 
 	schedsofttty();
 
-	MPINTR_UNLOCK();
+	COM_UNLOCK();
 }
 
 #if 0
