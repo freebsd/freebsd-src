@@ -180,7 +180,7 @@ get_damage(ds, r)
 const char *ds;
 boolean r;
 {
-	i = 0, j, n, d, total = 0;
+	int i = 0, j, n, d, total = 0;
 
 	while (ds[i]) {
 		n = get_number(ds+i);
@@ -206,8 +206,8 @@ get_w_damage(obj)
 const object *obj;
 {
 	char new_damage[12];
-	to_hit, damage;
-	i = 0;
+	int to_hit, damage;
+	int i = 0;
 
 	if ((!obj) || (obj->what_is != WEAPON)) {
 		return(-1);
@@ -224,8 +224,8 @@ const object *obj;
 get_number(s)
 const char *s;
 {
-	i = 0;
-	total = 0;
+	int i = 0;
+	int total = 0;
 
 	while ((s[i] >= '0') && (s[i] <= '9')) {
 		total = (10 * total) + (s[i] - '0');

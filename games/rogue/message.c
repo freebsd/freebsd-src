@@ -192,7 +192,7 @@ boolean do_echo;
 
 rgetchar()
 {
-	ch;
+	int ch;
 
 	for(;;) {
 		ch = getchar();
@@ -222,7 +222,7 @@ Level: 99 Gold: 999999 Hp: 999(999) Str: 99(99) Arm: 99 Exp: 21/10000000 Hungry
 */
 
 print_stats(stat_mask)
-stat_mask;
+int stat_mask;
 {
 	char buf[16];
 	boolean label;
