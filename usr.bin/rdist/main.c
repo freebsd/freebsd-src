@@ -68,6 +68,7 @@ char	user[10];	/* user's name */
 char	homedir[128];	/* user's home directory */
 int	userid;		/* user's user ID */
 int	groupid;	/* user's group ID */
+char	*path_rsh = _PATH_RSH;	/* rsh (or equiv command) path */
 
 struct	passwd *pw;	/* pointer to static area used by getpwent */
 struct	group *gr;	/* pointer to static area used by getgrent */
@@ -107,6 +108,12 @@ main(argc, argv)
 			iamremote++;
 		else while (*++arg)
 			switch (*arg) {
+			case 'P':
+				if (--argc <= 0)
+					usage();
+				path_rsh = *++argv;
+				break;
+
 			case 'f':
 				if (--argc <= 0)
 					usage();
@@ -222,8 +229,9 @@ main(argc, argv)
 static void
 usage()
 {
-	printf("Usage: rdist [-nqbhirvwyD] [-f distfile] [-d var=value] [-m host] [file ...]\n");
-	printf("or: rdist [-nqbhirvwyD] -c source [...] machine[:dest]\n");
+	printf("Usage: rdist [-nqbhirvwyD] [-P /path/to/rsh ] [-f distfile] [-d var=value]\n");
+	printf("             [-m host] [file ...]\n");
+	printf("or:    rdist [-nqbhirvwyD] [-P /path/to/rsh ] -c source [...] machine[:dest]\n");
 	exit(1);
 }
 
@@ -237,7 +245,7 @@ docmdargs(nargs, args)
 {
 	register struct namelist *nl, *prev;
 	register char *cp;
-	struct namelist *files, *hosts;
+	struct namelist *files = NULL, *hosts;
 	struct subcmd *cmds;
 	char *dest;
 	static struct namelist tnl = { NULL, NULL };

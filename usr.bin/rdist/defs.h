@@ -105,6 +105,13 @@
 
 #define ALLOC(x) (struct x *) malloc(sizeof(struct x))
 
+/*
+ * RSH Time Out interval (in seconds).
+ * Should be long enough to allow rsh to even the slowest hosts.
+ */
+#define RTIMEOUT	180
+
+
 struct namelist {	/* for making lists of strings */
 	char	*n_name;
 	struct	namelist *n_next;
@@ -150,6 +157,7 @@ extern struct passwd *pw;	/* pointer to static area used by getpwent */
 extern struct group *gr;	/* pointer to static area used by getgrent */
 extern char host[];		/* host name of master copy */
 extern char buf[BUFSIZ];	/* general purpose buffer */
+extern char *path_rsh;		/* rsh command to use */
 
 int	 any __P((int, char *));
 char	*colon __P((char *));
@@ -178,3 +186,4 @@ void	 prnames __P((struct namelist *));
 void	 server __P((void));
 void	 yyerror __P((char *));
 int	 yyparse __P((void));
+int	 rshrcmd __P((char **, u_short, char *, char *, char *, int *));
