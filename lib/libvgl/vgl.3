@@ -24,7 +24,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\" 
-.\" $Id: vgl.3,v 1.2 1997/08/15 12:35:02 sos Exp $
+.\" $Id: vgl.3,v 1.2 1997/10/16 09:12:31 sos Exp $
 
 .Dd August 13, 1997
 .Dt VGL 3
@@ -92,22 +92,22 @@ instead of the buildin font.
 
 Initialize the mouse. The optional onscreen mousepointer is shown if the
 argument is 
-.Em VGL_SHOWMOUSE
+.Em VGL_MOUSESHOW
 
 
 .Ft void 
 .Fn VGLMouseMode "int mode"
 
 Either shows the mousepointer if the argument is
-.Em VGL_SHOWMOUSE
+.Em VGL_MOUSESHOW
 , or hide the mousepointer if the argument is
-.Em VGL_HIDEMOUSE
+.Em VGL_MOUSEHIDE
 
 
 .Ft int 
 .Fn VGLMouseStatus "int *x" "int *y" "char *buttons"
 
-Returns the current mousepointer coordiantes and button state in
+Returns the current mousepointer coordinates and button state in
 .Em x, y, buttons. The return value reflects if the mousepointer 
 is currently shown on screen or not.
 
@@ -212,7 +212,7 @@ If
 .Em fill
 is != 0, use the color
 .Em bgcol
-as background otherwise the background is transparant.
+as background otherwise the background is transparent.
 The character is drawn in the direction specified by the argument
 .Em dir
 
