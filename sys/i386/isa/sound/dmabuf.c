@@ -49,6 +49,10 @@
 #define DMODE_OUTPUT		1
 #define DMODE_INPUT		2
 
+extern int sb_dsp_ok;
+extern struct audio_operations sb_dsp_operations;
+static int force_reset = 0;
+
 DEFINE_WAIT_QUEUES (dev_sleeper[MAX_DSP_DEV], dev_sleep_flag[MAX_DSP_DEV]);
 
 static int      dma_mode[MAX_DSP_DEV] =
@@ -239,6 +243,9 @@ dma_reset (int dev)
   int             retval;
   unsigned long   flags;
 
+  if (!force_reset && sb_dsp_ok && dsp_devs[dev] == &sb_dsp_operations)
+	return; /* We don't need this code for SB */
+
   DISABLE_INTR (flags);
   dsp_devs[dev]->reset (dev);
   dsp_devs[dev]->close (dev);
@@ -331,14 +338,14 @@ DMAbuf_getrdbuffer (int dev, char **buf, int *len)
     {
       if (dev_needs_restart[dev])
 	{
-	  /* dma_reset (dev); */
+	  dma_reset (dev);
 	  dev_needs_restart[dev] = 0;
 	}
 
       if (dma_mode[dev] == DMODE_OUTPUT)	/* Was output -> direction change */
 	{
 	  dma_sync (dev);
-	  /* dma_reset (dev); */
+	  dma_reset (dev);
 	  dma_mode[dev] = DMODE_NONE;
 	}
 
@@ -438,13 +445,15 @@ DMAbuf_ioctl (int dev, unsigned int cmd, unsigned int arg, int local)
   switch (cmd)
     {
     case SNDCTL_DSP_RESET:
+      force_reset = 1;
       dma_reset (dev);
+      force_reset = 0;
       return 0;
       break;
 
     case SNDCTL_DSP_SYNC:
       dma_sync (dev);
-      /* dma_reset (dev); */
+      dma_reset (dev);
       return 0;
       break;
 
@@ -496,13 +505,13 @@ DMAbuf_getwrbuffer (int dev, char **buf, int *size)
 
   if (dma_mode[dev] == DMODE_INPUT)	/* Was input -> Direction change */
     {
-      /* dma_reset (dev); */
+      dma_reset (dev);
       dma_mode[dev] = DMODE_NONE;
     }
   else if (dev_needs_restart[dev])	/* Restart buffering */
     {
       dma_sync (dev);
-      /* dma_reset (dev); */
+      dma_reset (dev);
     }
 
   dev_needs_restart[dev] = 0;
