@@ -119,7 +119,6 @@ main(int argc, char *argv[])
 		i = ioctl(fd, DIOCSKERNELDUMP, &u);
 		if (i == 0 && verbose)
 			printf("kernel dumps on %s\n", argv[0]);
-			
 	} else {
 		fd = open(_PATH_DEVNULL, O_RDONLY);
 		if (fd < 0)
