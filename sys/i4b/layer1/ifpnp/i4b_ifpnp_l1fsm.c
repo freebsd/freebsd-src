@@ -26,21 +26,19 @@
  *
  *	i4b_ifpnp_l1fsm.c - AVM Fritz PnP layer 1 I.430 state machine
  *	-------------------------------------------------------------
- *
  *	$Id: i4b_ifpnp_l1fsm.c,v 1.4 2000/05/29 15:41:41 hm Exp $ 
  *	$Ust: src/i4b/layer1-nb/ifpnp/i4b_ifpnp_l1fsm.c,v 1.4 2000/04/18 08:03:05 ust Exp $
- *
- * $FreeBSD$
- *
  *      last edit-date: [Mon May 29 15:25:04 2000]
  *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/socket.h>
-
 
 #include <net/if.h>
 

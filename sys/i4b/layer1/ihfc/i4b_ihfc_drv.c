@@ -26,15 +26,15 @@
  *
  *	i4b_ihfc_drv.c - ihfc ISA PnP-bus interface
  *	-------------------------------------------
- *
  *	Everything which has got anything to do with the
  *	HFC-1/S/SP chips has been put here.
  *
  *	last edit-date: [Fri Jan 12 17:06:52 2001]
  *
- * $FreeBSD$
- *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -26,25 +26,22 @@
  *
  *	i4b_ihfc_pnp.c - common hfc ISA PnP-bus interface
  *	-------------------------------------------------
- *
  *	- Everything which has got anything to to with "PnP" bus setup has
  *	  been put here, except the chip spesific "PnP" setup.
  *
- *
  *      last edit-date: [Tue Jan 23 16:03:33 2001]
- *
  *      $Id: i4b_ihfc_pnp.c,v 1.9 2000/09/19 13:50:36 hm Exp $
- *
- * $FreeBSD$
  *     
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
 #include <net/if.h>
-
 
 #include <i4b/include/i4b_global.h>
 
