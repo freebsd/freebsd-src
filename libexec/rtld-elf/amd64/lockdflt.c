@@ -48,7 +48,6 @@
  * instruction and catching the SIGILL which results on the 80386.
  */
 
-#include <setjmp.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <time.h>
@@ -132,36 +131,6 @@ lock_destroy(void *lock)
 }
 
 /*
- * Crude exclusive locks for the 80386, which does not support the
- * cmpxchg instruction.
- */
-static void
-lock80386_acquire(void *lock)
-{
-    Lock *l = (Lock *)lock;
-    sigset_t tmp_oldsigmask;
-
-    for ( ; ; ) {
-	sigprocmask(SIG_BLOCK, &fullsigmask, &tmp_oldsigmask);
-	if (xchgl(1, &l->lock) == 0)
-	    break;
-	sigprocmask(SIG_SETMASK, &tmp_oldsigmask, NULL);
-	while (l->lock != 0)
-	    ;	/* Spin */
-    }
-    oldsigmask = tmp_oldsigmask;
-}
-
-static void
-lock80386_release(void *lock)
-{
-    Lock *l = (Lock *)lock;
-
-    l->lock = 0;
-    sigprocmask(SIG_SETMASK, &oldsigmask, NULL);
-}
-
-/*
  * Better reader/writer locks for the 80486 and later CPUs.
  */
 static void
@@ -206,42 +175,6 @@ wlock_release(void *lock)
     sigprocmask(SIG_SETMASK, &oldsigmask, NULL);
 }
 
-/*
- * Code to determine at runtime whether the CPU supports the cmpxchg
- * instruction.  This instruction allows us to use locks that are more
- * efficient, but it didn't exist on the 80386.
- */
-static jmp_buf sigill_env;
-
-static void
-sigill(int sig)
-{
-    longjmp(sigill_env, 1);
-}
-
-static int
-cpu_supports_cmpxchg(void)
-{
-    struct sigaction act, oact;
-    int result;
-    volatile int lock;
-
-    memset(&act, 0, sizeof act);
-    act.sa_handler = sigill;
-    sigemptyset(&act.sa_mask);
-    act.sa_flags = 0;
-
-    sigaction(SIGILL, &act, &oact);
-    if (setjmp(sigill_env) == 0) {
-	lock = 0;
-	cmpxchgl(0, 1, &lock);
-	result = 1;
-    } else
-	result = 0;
-    sigaction(SIGILL, &oact, NULL);
-    return result;
-}
-
 void
 lockdflt_init(LockInfo *li)
 {
@@ -249,17 +182,10 @@ lockdflt_init(LockInfo *li)
     li->context_destroy = NULL;
     li->lock_create = lock_create;
     li->lock_destroy = lock_destroy;
-    if (cpu_supports_cmpxchg()) {
-	/* Use fast locks that require an 80486 or later. */
-	li->rlock_acquire = rlock_acquire;
-	li->wlock_acquire = wlock_acquire;
-	li->rlock_release = rlock_release;
-	li->wlock_release = wlock_release;
-    } else {
-	/* It's a cruddy old 80386. */
-	li->rlock_acquire = li->wlock_acquire = lock80386_acquire;
-	li->rlock_release = li->wlock_release = lock80386_release;
-    }
+    li->rlock_acquire = rlock_acquire;
+    li->wlock_acquire = wlock_acquire;
+    li->rlock_release = rlock_release;
+    li->wlock_release = wlock_release;
     /*
      * Construct a mask to block all signals except traps which might
      * conceivably be generated within the dynamic linker itself.
