@@ -124,12 +124,12 @@ Fixup_Extended_Names(struct disk *d, struct chunk *c)
 
 int
 Fixup_Names(struct disk *d)
-    {
+{
 	struct chunk *c1, *c2;
-	#ifdef __i386__
+#if defined(__i386__) || defined(__ia64__)
 	struct chunk *c3;
 	int j;
-	#endif
+#endif
 
 	c1 = d->chunks;
 	for(c2 = c1->part; c2 ; c2 = c2->next) {
@@ -137,7 +137,7 @@ Fixup_Names(struct disk *d)
 			continue;
 		if (strcmp(c2->name, "X"))
 			continue;
-#ifdef __i386__
+#if defined(__i386__) || defined(__ia64__)
 		c2->oname = malloc(12);
 		if(!c2->oname) return -1;
 		for(j = 1; j <= NDOSPART; j++) {
