@@ -2659,8 +2659,11 @@ again:
 			if (bvecpos >= bvecsize)
 				break;
 			if ((bp->b_flags & (B_DELWRI | B_NEEDCOMMIT)) !=
-			    (B_DELWRI | B_NEEDCOMMIT) ||
-			    BUF_LOCK(bp,
+			    (B_DELWRI | B_NEEDCOMMIT)) {
+				nbp = TAILQ_NEXT(bp, b_vnbufs);
+				continue;
+			}
+			if (BUF_LOCK(bp,
 			    LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK,
 			    VI_MTX(vp))) {
 				VI_LOCK(vp);
