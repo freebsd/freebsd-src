@@ -51,7 +51,7 @@ sub run ($$$$$) {
 	    print "ok $nr $test\n";
 	}
 	elsif ($st == 256) {
-	    print "ok $nr $test # SKIP nonexistent combination\n";
+	    print "not ok $nr $test # invalid combination\n";
 	}
 	elsif ($st == 512) {
 	    print "not ok $nr $test # value mismatch\n";
@@ -74,14 +74,21 @@ if (`sysctl -n debug.unaligned_test` != "1") {
 }
 
 my $count = @accesses * @types * @sizes * @postincs;
+
+# There's no register based post inc. for stores.
+$count -= 12;
+
 print "1..$count\n";
 
 my $nr=0;
 foreach $access (@accesses) {
-    foreach $type (@types) {
-	foreach $size (@sizes) {
-	    foreach $postinc (@postincs) {
-		run ++$nr, $access, $type, $size, $postinc;
+    foreach $postinc (@postincs) {
+	$_ = "$access $postinc";
+	if (! /Store.+RegPostInc/) {
+	    foreach $type (@types) {
+		foreach $size (@sizes) {
+		    run ++$nr, $access, $type, $size, $postinc;
+		}
 	    }
 	}
     }
