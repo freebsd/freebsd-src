@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.10 1995/03/31 07:55:08 nate Exp $
+#	$Id: Makefile,v 1.11 1995/12/10 23:01:41 peter Exp $
 
 PROG=	cvs
 MAN1=	cvs.1
@@ -12,8 +12,8 @@ SRCS =	add.c admin.c checkin.c checkout.c classify.c client.c commit.c \
 
 CFLAGS+= -I${.CURDIR}/../lib -DHAVE_CONFIG_H
 
-DPADD+=	${LIBCVS} ${LIBGNUREGEX}
-LDADD+=	-lcvs -lgnuregex
+DPADD+=	${LIBCVS} ${LIBGNUREGEX} ${LIBMD}
+LDADD+=	-lcvs -lgnuregex -lmd
 
 .include "../../Makefile.inc"
 .include <bsd.prog.mk>
