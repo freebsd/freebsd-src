@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.132 1998/03/12 02:23:35 brian Exp $
+ * $Id: command.c,v 1.133 1998/03/13 01:36:08 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -1615,7 +1615,7 @@ AliasCommand(struct cmdargs const *arg)
 static int
 AliasEnable(struct cmdargs const *arg)
 {
-  if (arg->argc == 1)
+  if (arg->argc == 1) {
     if (strcasecmp(arg->argv[0], "yes") == 0) {
       if (!(mode & MODE_ALIAS)) {
 	if (loadAliasHandlers(&VarAliasHandlers) == 0) {
@@ -1633,6 +1633,7 @@ AliasEnable(struct cmdargs const *arg)
       }
       return 0;
     }
+  }
   return -1;
 }
 
@@ -1641,7 +1642,7 @@ static int
 AliasOption(struct cmdargs const *arg)
 {
   unsigned param = (unsigned)arg->data;
-  if (arg->argc == 1)
+  if (arg->argc == 1) {
     if (strcasecmp(arg->argv[0], "yes") == 0) {
       if (mode & MODE_ALIAS) {
 	VarPacketAliasSetMode(param, param);
@@ -1655,6 +1656,7 @@ AliasOption(struct cmdargs const *arg)
       }
       LogPrintf(LogWARN, "alias not enabled\n");
     }
+  }
   return -1;
 }
 #endif /* #ifndef NOALIAS */
