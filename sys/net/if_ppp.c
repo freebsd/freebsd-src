@@ -69,15 +69,17 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.41 1997/05/31 10:13:45 peter Exp $ */
+/* $Id: if_ppp.c,v 1.42 1997/08/19 14:10:45 peter Exp $ */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 /* from NetBSD: if_ppp.c,v 1.15.2.2 1994/07/28 05:17:58 cgd Exp */
 
 #include "ppp.h"
 #if NPPP > 0
 
+#include "opt_ppp.h"
+
 #define VJC
-#define PPP_COMPRESS
+#define PPP_COMPRESS	/* XXX option to cut size? */
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -180,10 +182,10 @@ extern struct compressor ppp_bsd_compress;
 extern struct compressor ppp_deflate;
 
 static struct compressor *ppp_compressors[8] = {
-#if DO_BSD_COMPRESS
+#if DO_BSD_COMPRESS && defined(PPP_BSDCOMP)
     &ppp_bsd_compress,
 #endif
-#if DO_DEFLATE
+#if DO_DEFLATE && defined(PPP_DEFLATE)
     &ppp_deflate,
 #endif
     NULL
