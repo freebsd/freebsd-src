@@ -31,6 +31,7 @@
 #	(see http://www.cs.hut.fi/lites.html for more info on LITES)
 #
 # Tapes:
+#	ast*	ATAPI tape drives
 #	wt*	QIC-interfaced (e.g. not SCSI) 3M cartridge tape
 #	sa*	SCSI Sequential Access Devices
 #
@@ -38,6 +39,8 @@
 #	aac*	Adaptec FSA RAID controllers
 #	aacd*	Adaptec FSA RAID
 #	acd*	ATAPI CD-ROM disks
+#	ad*	ATA disks
+#	afd*	ATAPI floppy disks
 #	amrd*	AMI MegaRAID
 #	cd*	SCSI CD-ROM disks
 #	da*	SCSI Direct Access Devices
@@ -49,10 +52,9 @@
 #	md*	Memory (or malloc) disk
 #	mlx*	Mylex DAC960 RAID controllers
 #	mlxd*	Mylex DAC960 RAID disk volumes
+#	pst*	Promise SuperTrak RAID disks
 #	scd*	Sony CD-ROM disks
 #	vn*	vnode disks
-#	wd*	"Winchester" disk drives (ST506,IDE,ESDI,RLL,...)
-#	wfd*	IDE floppy disk drives (LS-120)
 #
 # Console ports:
 #	vty*	virtual console devices for syscons/pcvt/codrv
@@ -442,7 +444,7 @@ wt*)
 	;;
 
 # Individual slices.
-aacd*s*|ad*s*|ar*s*|afd*s*|amrd*s*|da*s*|fla*s*|idad*s*|md*s*|mlxd*s*|twed*s*|vn*s*|wd*s*|wfd*s*)
+aacd*s*|ad*s*|ar*s*|afd*s*|amrd*s*|da*s*|fla*s*|idad*s*|md*s*|mlxd*s*|pst*s*|twed*s*|vn*s*|wd*s*|wfd*s*)
 	umask $disk_umask
 	case $i in
 	aacd*s*) name=aacd; chr=151;;
@@ -455,6 +457,7 @@ aacd*s*|ad*s*|ar*s*|afd*s*|amrd*s*|da*s*|fla*s*|idad*s*|md*s*|mlxd*s*|twed*s*|vn
 	idad*s*) name=idad; chr=109;;
 	md*s*) name=md;  chr=95;;
 	mlxd*s*) name=mlxd; chr=131;;
+	pst*s*) name=pst; chr=168;;
 	twed*s*) name=twed; chr=147;;
 	vn*s*) name=vn; chr=43;;
 	wd*s*) name=wd;  chr=3;;
@@ -466,7 +469,7 @@ aacd*s*|ad*s*|ar*s*|afd*s*|amrd*s*|da*s*|fla*s*|idad*s*|md*s*|mlxd*s*|twed*s*|vn
 		slice=`expr $i : '....[0-9]*s\([0-9]*\)'`
 		part=`expr $i : '....[0-9]*s[0-9]*\(.*\)'`
 		;;
-	afd*s*|fla*s*|wfd*s*)
+	afd*s*|fla*s*|pst*s*|wfd*s*)
 		unit=`expr $i : '...\([0-9]*\)s'`
 		slice=`expr $i : '...[0-9]*s\([0-9]*\)'`
 		part=`expr $i : '...[0-9]*s[0-9]*\(.*\)'`
@@ -626,7 +629,7 @@ fd*)
 	umask 77
 	;;
 
-aacd*|ad*|ar*|afd*|amrd*|da*|fla*|idad*|md*|mlxd*|twed*|vn*|wd*|wfd*)
+aacd*|ad*|ar*|afd*|amrd*|da*|fla*|idad*|md*|mlxd*|pst*|twed*|vn*|wd*|wfd*)
 	umask $disk_umask
 	case $i in
 	aacd*) name=aacd; chr=151;;
@@ -639,6 +642,7 @@ aacd*|ad*|ar*|afd*|amrd*|da*|fla*|idad*|md*|mlxd*|twed*|vn*|wd*|wfd*)
 	idad*) name=idad; chr=109;;
 	md*) name=md; chr=95;;
 	mlxd*) name=mlxd; chr=131;;
+	pst*) name=pst; chr=168;;
 	twed*) name=twed; chr=147;;
 	vn*) name=vn; chr=43;;
 	wd*) name=wd;  chr=3;;
@@ -648,7 +652,7 @@ aacd*|ad*|ar*|afd*|amrd*|da*|fla*|idad*|md*|mlxd*|twed*|vn*|wd*|wfd*)
 	aacd*|amrd*|idad*|mlxd*|twed*)
 		unit=`expr $i : '....\(.*\)'`
 		;;
-	afd*|fla*|wfd*)
+	afd*|fla*|pst*|wfd*)
 		unit=`expr $i : '...\(.*\)'`
 		;;
 	*)
