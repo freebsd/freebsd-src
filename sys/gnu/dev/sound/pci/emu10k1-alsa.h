@@ -679,6 +679,9 @@
 #define A_ADCIDX		0x63
 #define A_ADCIDX_IDX		0x10000063
 
+#define A_MICIDX		0x64
+#define A_MICIDX_IDX		0x10000064
+
 #define FXIDX			0x65		/* FX recording buffer index register		*/
 #define FXIDX_MASK		0x0000ffff	/* 16-bit value					*/
 #define FXIDX_IDX		0x10000065
@@ -852,7 +855,7 @@ typedef struct {
 	unsigned int value[32];
 	unsigned int min;		/* minimum range */
 	unsigned int max;		/* maximum range */
-	unsigned int translation;	/* translation type (EMU10K1_GRP_TRANSLATION*) */
+	unsigned int translation;	/* translation type (EMU10K1_GPR_TRANSLATION*) */
 	snd_kcontrol_t *kcontrol;
 } snd_emu10k1_fx8010_ctl_t;
 
@@ -931,6 +934,7 @@ struct _snd_emu10k1 {
 	unsigned long port;			/* I/O port number */
 	struct resource *res_port;
 	int APS: 1,				/* APS flag */
+	    no_ac97: 1,				/* no AC'97 */
 	    tos_link: 1;			/* tos link detected */
 	unsigned int audigy;			/* is Audigy? */
 	unsigned int revision;			/* chip revision */
@@ -1151,8 +1155,12 @@ int snd_emu10k1_proc_init(emu10k1_t * emu);
 #define FXBUS_MIDI_RIGHT	0x05
 #define FXBUS_PCM_CENTER	0x06
 #define FXBUS_PCM_LFE		0x07
+#define FXBUS_PCM_LEFT_FRONT	0x08
+#define FXBUS_PCM_RIGHT_FRONT	0x09
 #define FXBUS_MIDI_REVERB	0x0c
 #define FXBUS_MIDI_CHORUS	0x0d
+#define FXBUS_PT_LEFT		0x14
+#define FXBUS_PT_RIGHT		0x15
 
 /* Inputs */
 #define EXTIN_AC97_L	   0x00	/* AC'97 capture channel - left */
@@ -1196,8 +1204,8 @@ int snd_emu10k1_proc_init(emu10k1_t * emu);
 #define A_EXTIN_OPT_SPDIF_R     0x05    /*                              right */ 
 #define A_EXTIN_LINE2_L		0x08	/* audigy drive line2/mic2 - left */
 #define A_EXTIN_LINE2_R		0x09	/*                           right */
-#define A_EXTIN_RCA_SPDIF_L     0x0a    /* audigy drive RCA SPDIF - left */
-#define A_EXTIN_RCA_SPDIF_R     0x0b    /*                          right */
+#define A_EXTIN_ADC_L		0x0a    /* Philips ADC - left */
+#define A_EXTIN_ADC_R		0x0b    /*               right */
 #define A_EXTIN_AUX2_L		0x0c	/* audigy drive aux2 - left */
 #define A_EXTIN_AUX2_R		0x0d	/*                   - right */
 
@@ -1222,6 +1230,7 @@ int snd_emu10k1_proc_init(emu10k1_t * emu);
 #define A_EXTOUT_AC97_R		0x11	/*      right */
 #define A_EXTOUT_ADC_CAP_L	0x16	/* ADC capture buffer left */
 #define A_EXTOUT_ADC_CAP_R	0x17	/*                    right */
+#define A_EXTOUT_MIC_CAP	0x18	/* Mic capture buffer */
 
 /* Audigy constants */
 #define A_C_00000000	0xc0
@@ -1246,8 +1255,8 @@ int snd_emu10k1_proc_init(emu10k1_t * emu);
 #define A_C_4f1bbcdc	0xd3
 #define A_C_5a7ef9db	0xd4
 #define A_C_00100000	0xd5
-/* 0xd6 = 0x7fffffff  (?) ACCUM? */
-/* 0xd7 = 0x0000000   CCR */
+#define A_GPR_ACCU	0xd6		/* ACCUM, accumulator */
+#define A_GPR_COND	0xd7		/* CCR, condition register */
 /* 0xd8 = noise1 */
 /* 0xd9 = noise2 */
 
@@ -1281,8 +1290,8 @@ typedef struct {
 
 #define EMU10K1_GPR_TRANSLATION_NONE		0
 #define EMU10K1_GPR_TRANSLATION_TABLE100	1
-#define EMU10K1_GRP_TRANSLATION_BASS		2
-#define EMU10K1_GRP_TRANSLATION_TREBLE		3
+#define EMU10K1_GPR_TRANSLATION_BASS		2
+#define EMU10K1_GPR_TRANSLATION_TREBLE		3
 #define EMU10K1_GPR_TRANSLATION_ONOFF		4
 
 typedef struct {
@@ -1293,7 +1302,7 @@ typedef struct {
 	unsigned int value[32];		/* initial values */
 	unsigned int min;		/* minimum range */
 	unsigned int max;		/* maximum range */
-	unsigned int translation;	/* translation type (EMU10K1_GRP_TRANSLATION*) */
+	unsigned int translation;	/* translation type (EMU10K1_GPR_TRANSLATION*) */
 } emu10k1_fx8010_control_gpr_t;
 
 typedef struct {
@@ -1346,10 +1355,10 @@ typedef struct {
 
 #define SNDRV_EMU10K1_IOCTL_INFO	_IOR ('H', 0x10, emu10k1_fx8010_info_t)
 #define SNDRV_EMU10K1_IOCTL_CODE_POKE	_IOW ('H', 0x11, emu10k1_fx8010_code_t)
-#define SNDRV_EMU10K1_IOCTL_CODE_PEEK	_IOW ('H', 0x12, emu10k1_fx8010_code_t)
+#define SNDRV_EMU10K1_IOCTL_CODE_PEEK	_IOWR('H', 0x12, emu10k1_fx8010_code_t)
 #define SNDRV_EMU10K1_IOCTL_TRAM_SETUP	_IOW ('H', 0x20, int)
 #define SNDRV_EMU10K1_IOCTL_TRAM_POKE	_IOW ('H', 0x21, emu10k1_fx8010_tram_t)
-#define SNDRV_EMU10K1_IOCTL_TRAM_PEEK	_IOR ('H', 0x22, emu10k1_fx8010_tram_t)
+#define SNDRV_EMU10K1_IOCTL_TRAM_PEEK	_IOWR('H', 0x22, emu10k1_fx8010_tram_t)
 #define SNDRV_EMU10K1_IOCTL_PCM_POKE	_IOW ('H', 0x30, emu10k1_fx8010_pcm_t)
 #define SNDRV_EMU10K1_IOCTL_PCM_PEEK	_IOWR('H', 0x31, emu10k1_fx8010_pcm_t)
 #define SNDRV_EMU10K1_IOCTL_STOP	_IO  ('H', 0x80)
