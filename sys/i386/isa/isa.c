@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.113 1998/07/19 04:22:55 bde Exp $
+ *	$Id: isa.c,v 1.114 1998/10/12 13:12:45 bde Exp $
  */
 
 /*
@@ -900,7 +900,7 @@ isa_dmarangecheck(caddr_t va, u_int length, int chan)
 	vm_offset_t phys, priorpage = 0, endva;
 	u_int dma_pgmsk = (chan & 4) ?  ~(128*1024-1) : ~(64*1024-1);
 
-	endva = (vm_offset_t)round_page(va + length);
+	endva = (vm_offset_t)round_page((vm_offset_t)va + length);
 	for (; va < (caddr_t) endva ; va += PAGE_SIZE) {
 		phys = trunc_page(pmap_extract(pmap_kernel(), (vm_offset_t)va));
 #define ISARAM_END	RAM_END
