@@ -49,6 +49,16 @@
 #endif
 
 /*
+ * Macro to test if we're using a specific version of gcc or later.
+ */
+#ifdef __GNUC__
+#define	__GNUC_PREREQ__(ma, mi)	\
+        ((__GNUC__ > (ma)) || (__GNUC__ == (ma) && __GNUC_MINOR__ >= (mi)))
+#else
+#define	__GNUC_PREREQ__(ma, mi)	0
+#endif
+
+/*
  * The __CONCAT macro is used to concatenate parts of symbol names, e.g.
  * with "#define OLD(foo) __CONCAT(old,foo)", OLD(foo) produces oldfoo.
  * The __CONCAT macro is a bit tricky to use if it must work in non-ANSI
@@ -122,7 +132,7 @@
 #define	__aligned(x)
 #define	__section(x)
 #else
-#if __GNUC__ < 2 || __GNUC__ == 2 && __GNUC_MINOR__ < 5
+#if !__GNUC_PREREQ__(2, 5)
 #define	__dead2
 #define	__pure2
 #define	__unused
@@ -133,7 +143,7 @@
 #define	__unused
 /* XXX Find out what to do for __packed, __aligned and __section */
 #endif
-#if __GNUC__ == 2 && __GNUC_MINOR__ >= 7 || __GNUC__ == 3
+#if __GNUC_PREREQ__(2, 7)
 #define	__dead2		__attribute__((__noreturn__))
 #define	__pure2		__attribute__((__const__))
 #define	__unused	__attribute__((__unused__))
@@ -143,20 +153,20 @@
 #endif
 #endif
 
-#if (__GNUC__ == 3 && __GNUC_MINOR__ >= 1) || __GNUC__ >= 4
+#if __GNUC_PREREQ__(3, 1)
 #define	__always_inline	__attribute__((__always_inline__))
 #else
 #define	__always_inline
 #endif
 
-#if (__GNUC__ == 3 && __GNUC_MINOR__ >= 3) || __GNUC__ >= 4
+#if __GNUC_PREREQ__(3, 3)
 #define __nonnull(x)	__attribute__((__nonnull__(x)))
 #else
 #define __nonnull(x)
 #endif
 
 /* XXX: should use `#if __STDC_VERSION__ < 199901'. */
-#if !(__GNUC__ == 2 && __GNUC_MINOR__ >= 7 || __GNUC__ >= 3)
+#if !__GNUC_PREREQ__(2, 7)
 #define	__func__	NULL
 #endif
 
@@ -190,7 +200,7 @@
  * that are known to support the features properly (old versions of gcc-2
  * didn't permit keeping the keywords out of the application namespace).
  */
-#if __GNUC__ < 2 || __GNUC__ == 2 && __GNUC_MINOR__ < 7
+#if !__GNUC_PREREQ__(2, 7)
 #define	__printflike(fmtarg, firstvararg)
 #define	__scanflike(fmtarg, firstvararg)
 #else
