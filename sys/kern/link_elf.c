@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: link_elf.c,v 1.9 1998/11/04 15:20:57 peter Exp $
+ *	$Id: link_elf.c,v 1.10 1998/11/06 15:16:07 peter Exp $
  */
 
 #include <sys/param.h>
@@ -788,8 +788,10 @@ relocate_file(linker_file_t lf)
 	rellim = (const Elf_Rel *) ((caddr_t) ef->rel + ef->relsize);
 	while (rel < rellim) {
 	    symname = symbol_name(ef, rel->r_info);
-	    if (elf_reloc(lf, rel, ELF_RELOC_REL, symname))
+	    if (elf_reloc(lf, rel, ELF_RELOC_REL, symname)) {
+		printf("link_elf: symbol %s undefined\n", symname);
 		return ENOENT;
+	    }
 	    rel++;
 	}
     }
@@ -800,8 +802,10 @@ relocate_file(linker_file_t lf)
 	relalim = (const Elf_Rela *) ((caddr_t) ef->rela + ef->relasize);
 	while (rela < relalim) {
 	    symname = symbol_name(ef, rela->r_info);
-	    if (elf_reloc(lf, rela, ELF_RELOC_RELA, symname))
+	    if (elf_reloc(lf, rela, ELF_RELOC_RELA, symname)) {
+		printf("link_elf: symbol %s undefined\n", symname);
 		return ENOENT;
+	    }
 	    rela++;
 	}
     }
@@ -812,8 +816,10 @@ relocate_file(linker_file_t lf)
 	rellim = (const Elf_Rel *) ((caddr_t) ef->pltrel + ef->pltrelsize);
 	while (rel < rellim) {
 	    symname = symbol_name(ef, rel->r_info);
-	    if (elf_reloc(lf, rel, ELF_RELOC_REL, symname))
+	    if (elf_reloc(lf, rel, ELF_RELOC_REL, symname)) {
+		printf("link_elf: symbol %s undefined\n", symname);
 		return ENOENT;
+	    }
 	    rel++;
 	}
     }
@@ -824,8 +830,10 @@ relocate_file(linker_file_t lf)
 	relalim = (const Elf_Rela *) ((caddr_t) ef->pltrela + ef->pltrelasize);
 	while (rela < relalim) {
 	    symname = symbol_name(ef, rela->r_info);
-	    if (elf_reloc(lf, rela, ELF_RELOC_RELA, symname))
+	    if (elf_reloc(lf, rela, ELF_RELOC_RELA, symname)) {
+		printf("link_elf: symbol %s undefined\n", symname);
 		return ENOENT;
+	    }
 	    rela++;
 	}
     }
