@@ -32,7 +32,7 @@
 #
 #   Email: Wolfram Schneider <wosch@cs.tu-berlin.de>
 #
-# $Id: adduser.perl,v 1.12 1996/08/13 21:50:51 wosch Exp $
+# $Id: adduser.perl,v 1.13 1996/08/14 19:06:04 wosch Exp $
 #
 
 # read variables
@@ -239,7 +239,7 @@ sub home_partition_valid {
 
 # check for valid passwddb
 sub passwd_check {
-    system("$pwd_mkdb $etc_passwd");
+    system("$pwd_mkdb -c $etc_passwd");
     die "\nInvalid $etc_passwd - cannot add any users!\n" if $?;
 }
 
