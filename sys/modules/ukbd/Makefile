@@ -9,7 +9,7 @@ SRCS		 = bus_if.h device_if.h vnode_if.h \
 		   opt_usb.h ukbd.h opt_kbd.h \
 		   ukbd.c
 NOMAN		 =
-CFLAGS		+= -g -O
+CFLAGS		+= -g
 CLEANFILES	+= bus_if.h device_if.h vnode_if.h \
 		   opt_usb.h ukbd.h opt_kbd.h \
 		   vnode_if.c

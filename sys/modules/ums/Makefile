@@ -7,7 +7,7 @@ SOURCE		 = ${.CURDIR}/../../dev/usb
 KMOD		 = ums_mod
 SRCS		 = bus_if.h device_if.h vnode_if.h opt_usb.h ums.c
 NOMAN		 =
-CFLAGS		+= -g -O
+CFLAGS		+= -g
 CLEANFILES	+= bus_if.h device_if.h vnode_if.h opt_usb.h \
 		   vnode_if.c
 
