@@ -7,12 +7,10 @@
 
 set -e
 
-export BLOCKSIZE=512
-
 if [ "$1" = "-s" ]; then
-	do_size="yes"; shift
+	opt_s="-s"; shift
 else
-	do_size=""
+	opt_s=""
 fi
 
 FSIMG=$1; shift
@@ -22,6 +20,16 @@ FSSIZE=$1 ; shift
 FSPROTO=$1 ; shift
 FSINODE=$1 ; shift
 FSLABEL=$1 ; shift
+
+# If the disklabel is not equal to "efi", we have to create a "normal"
+# UFS filesystem. In that case, call the generic version:
+if [ x$FSLABEL != "xefi" ]; then
+    DOFS_SH=`dirname $0`/../scripts/`basename $0`
+    echo Tranferring control to $DOFS_SH...
+    exec sh $DOFS_SH $opt_s $FSIMG $RD $MNT $FSSIZE $FSPROTO $FSINODE $FSLABEL
+fi
+
+export BLOCKSIZE=512
 
 # Express the size on 512-byte blocks for newfs_msdos
 FSSIZE=$((${FSSIZE}*2))
@@ -72,6 +80,6 @@ mdconfig -d -u ${MDDEVICE} 2>/dev/null || true
 
 echo "*** Filesystem is ${FSSIZE} K, $4 left"
 echo "***     ${FSINODE} bytes/inode, $7 left"
-if [ "${do_size}" ]; then
+if [ "${opt_s}" ]; then
     echo ${FSSIZE} > ${FSIMG}.size
 fi
