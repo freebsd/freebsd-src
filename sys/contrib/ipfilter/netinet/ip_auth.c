@@ -613,7 +613,10 @@ void fr_authexpire()
 		} else
 			faep = &fae->fae_next;
 	}
-	ipauth = &fae_list->fae_fr;
+	if (fae_list != NULL)
+		ipauth = &fae_list->fae_fr;
+	else
+		ipauth = NULL;
 
 	for (frp = &fr_authlist; (fr = *frp); ) {
 		if (fr->fr_ref == 1) {

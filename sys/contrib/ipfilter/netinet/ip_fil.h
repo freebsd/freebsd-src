@@ -510,6 +510,7 @@ extern	int	send_reset __P((ip_t *, fr_info_t *));
 extern	int	send_icmp_err __P((ip_t *, int, fr_info_t *, int));
 extern	int	ipf_log __P((void));
 extern	struct	ifnet *get_unit __P((char *, int));
+extern	int	mbuflen __P((mb_t *));
 # if defined(__NetBSD__) || defined(__OpenBSD__) || \
 	  (_BSDI_VERSION >= 199701) || (__FreeBSD_version >= 300000)
 extern	int	iplioctl __P((dev_t, u_long, caddr_t, int));

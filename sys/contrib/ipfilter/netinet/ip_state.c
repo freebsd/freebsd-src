@@ -577,9 +577,9 @@ u_int flags;
 	register u_int hv;
 	struct icmp *ic;
 	ipstate_t ips;
+	int out, ws;
 	u_int pass;
 	void *ifp;
-	int out;
 
 	if (fr_state_lock || (fin->fin_off != 0) || (fin->fin_fl & FI_SHORT) ||
 	    (fin->fin_misc & FM_BADSTATE))
@@ -693,8 +693,11 @@ u_int flags;
 			is->is_maxsend = is->is_send;
 
 			if ((tcp->th_flags & TH_SYN) &&
-			    ((tcp->th_off << 2) >= (sizeof(*tcp) + 4)))
-				is->is_swscale = fr_tcpoptions(tcp);
+			    ((tcp->th_off << 2) >= (sizeof(*tcp) + 4))) {
+				ws = fr_tcpoptions(tcp);
+				if (ws >= 0)
+					is->is_swscale = ws;
+			}
 		}
 
 		is->is_maxdwin = 1;
@@ -902,6 +905,7 @@ tcphdr_t *tcp;
 		fdata->td_wscale = wscale;
 	else if (wscale == -2)
 		fdata->td_wscale = tdata->td_wscale = 0;
+	win <<= fdata->td_wscale;
 
 	if ((fdata->td_end == 0) &&
 	    (!is->is_fsm || ((tcp->th_flags & TH_OPENING) == TH_OPENING))) {
@@ -910,7 +914,9 @@ tcphdr_t *tcp;
 		 */
 		fdata->td_end = end;
 		fdata->td_maxwin = 1;
-		fdata->td_maxend = end + 1;
+		fdata->td_maxend = end + win;
+		if (win == 0)
+			fdata->td_maxend++;
 	}
 
 	if (!(tcp->th_flags & TH_ACK)) {  /* Pretend an ack was sent */
@@ -924,7 +930,6 @@ tcphdr_t *tcp;
 	if (seq == end)
 		seq = end = fdata->td_end;
 
-	win <<= fdata->td_wscale;
 	maxwin = tdata->td_maxwin;
 	ackskew = tdata->td_end - ack;
 
@@ -1459,7 +1464,7 @@ icmp6again:
 				rev = fin->fin_rev;
 				if (is->is_frage[rev] != 0)
 					is->is_age = is->is_frage[rev];
-				else if (fin->fin_rev)
+				else if (rev != 0)
 					is->is_age = fr_icmpacktimeout;
 				else
 					is->is_age = fr_icmptimeout;
