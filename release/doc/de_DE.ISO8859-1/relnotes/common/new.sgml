@@ -1,6 +1,6 @@
 <!--
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.148 2002/11/09 21:04:47 ue Exp $
-  basiert auf: 1.449
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.149 2002/11/09 23:18:59 ue Exp $
+  basiert auf: 1.450
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; Release Notes</title>
@@ -3589,7 +3589,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 
     <para>Mit dem neuen Programm &man.pathchk.1; k&ouml;nnen
       Pfadangaben auf ihre G&uuml;ltigkeit und Portabilit&auml;t
-      zwischen POSIX-Systemen gepr&uuml;ft werden.</para>
+      zwischen POSIX-Systemen gepr&uuml;ft werden.  &merged;</para>
 
     <para role="historic">&man.pax.1; wurden in vielen Punkten verbessert.  Dazu
       geh&ouml;ren &man.cpio.1; Unterst&uuml;tzung, verbesserte
@@ -5001,7 +5001,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         enden die Dateinamen jetzt mit <filename>.tbz</filename> statt
         <filename>.tgz</filename>.  Die diversen Tools f&uuml;r die
         Arbeit mit Packages wurden f&uuml;r das neue Format
-        aktualisiert.  &merged;</para>
+        aktualisiert.</para>
     </sect3>
   </sect2>
 
