@@ -1457,7 +1457,7 @@ ar_print_conf(struct ar_softc *config)
     printf("heads		%d\n", config->heads);
     printf("sectors		%d\n", config->sectors);
     printf("cylinders	%d\n", config->cylinders);
-    printf("total_sectors	%lld\n", config->total_sectors);
+    printf("total_sectors	%lld\n", (long long)config->total_sectors);
     printf("interleave	%d\n", config->interleave);
     printf("reserved	%d\n", config->reserved);
     printf("offset		%d\n", config->offset);
@@ -1465,6 +1465,6 @@ ar_print_conf(struct ar_softc *config)
 	printf("disk %d:	flags = 0x%02x %b\n", i, config->disks[i].flags, config->disks[i].flags, "\20\4ONLINE\3SPARE\2ASSIGNED\1PRESENT\n");
 	if (config->disks[i].device)
 	    printf("	%s\n", config->disks[i].device->name);
-	printf("	sectors	%lld\n", config->disks[i].disk_sectors);
+	printf("	sectors	%lld\n", (long long)config->disks[i].disk_sectors);
     }
 }
