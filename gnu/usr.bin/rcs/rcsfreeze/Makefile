@@ -1,4 +1,4 @@
-MAN1=	rcsfreeze.0
+MAN1=	rcsfreeze.1
 
 afterinstall:
 	install -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
