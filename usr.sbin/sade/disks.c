@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.33 1995/12/07 10:33:39 peter Exp $
+ * $Id: disks.c,v 1.34 1995/12/11 16:32:31 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -329,7 +329,9 @@ diskPartition(Device *dev, Disk *d)
 			       "uncooperative with other potential operating systems on the\n"
 			       "same disk.  It will lead instead to a totally dedicated disk,\n"
 			       "starting at the very first sector, bypassing all BIOS geometry\n"
-			       "considerations.\n"
+			       "considerations.  This precludes the existance of any boot\n"
+			       "manager or other stuff in sector 0, since the BSD bootstrap\n"
+			       "will live there.\n"
 			       "You will run into serious trouble with ST-506 and ESDI drives\n"
 			       "and possibly some IDE drives (e.g. drives running under the\n"
 			       "control of sort of disk manager).  SCSI drives are considerably\n"
