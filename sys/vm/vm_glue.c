@@ -183,29 +183,19 @@ useracc(addr, len, rw)
 	return (rv == TRUE);
 }
 
-/*
- * MPSAFE
- */
 int
-vslock(addr, len)
-	void *addr;
-	size_t len;
+vslock(void *addr, size_t len)
 {
-	vm_offset_t start, end;
+	vm_offset_t end, start;
 	int error, npages;
 
 	start = trunc_page((vm_offset_t)addr);
 	end = round_page((vm_offset_t)addr + len);
-
-	/* disable wrap around */
 	if (end <= start)
 		return (EINVAL);
-
 	npages = atop(end - start);
-
 	if (npages > vm_page_max_wired)
 		return (ENOMEM);
-
 	PROC_LOCK(curproc);
 	if (npages + pmap_wired_count(vm_map_pmap(&curproc->p_vmspace->vm_map)) >
 	    atop(lim_cur(curproc, RLIMIT_MEMLOCK))) {
@@ -213,7 +203,6 @@ vslock(addr, len)
 		return (ENOMEM);
 	}
 	PROC_UNLOCK(curproc);
-
 #if 0
 	/*
 	 * XXX - not yet
@@ -227,10 +216,8 @@ vslock(addr, len)
 	if (npages + cnt.v_wire_count > vm_page_max_wired)
 		return (EAGAIN);
 #endif
-
 	error = vm_map_wire(&curproc->p_vmspace->vm_map, start, end,
-	     VM_MAP_WIRE_USER|VM_MAP_WIRE_NOHOLES);
-	
+	    VM_MAP_WIRE_USER | VM_MAP_WIRE_NOHOLES);
 	/*
 	 * Return EFAULT on error to match copy{in,out}() behaviour
 	 * rather than returning ENOMEM like mlock() would.
@@ -238,19 +225,14 @@ vslock(addr, len)
 	return (error == KERN_SUCCESS ? 0 : EFAULT);
 }
 
-/*
- * MPSAFE
- */
 void
-vsunlock(addr, len)
-	void *addr;
-	size_t len;
+vsunlock(void *addr, size_t len)
 {
 
 	/* Rely on the parameter sanity checks performed by vslock(). */
 	(void)vm_map_unwire(&curproc->p_vmspace->vm_map,
 	    trunc_page((vm_offset_t)addr), round_page((vm_offset_t)addr + len),
-	    VM_MAP_WIRE_SYSTEM|VM_MAP_WIRE_NOHOLES);
+	    VM_MAP_WIRE_SYSTEM | VM_MAP_WIRE_NOHOLES);
 }
 
 /*
