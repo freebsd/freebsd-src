@@ -68,6 +68,8 @@ static char sccsid[] = "@(#)ifconfig.c	8.2 (Berkeley) 2/16/94";
 #include <netipx/ipx.h>
 #include <netipx/ipx_if.h>
 
+#include <netatalk/at.h>
+
 #ifdef NS
 #define	NSIP
 #include <netns/ns.h>
@@ -175,6 +177,7 @@ struct	cmd {
  */
 int	in_status(), in_getaddr();
 int	ipx_status(), ipx_getaddr();
+int	at_status(), at_getaddr();
 #ifdef NS
 int	xns_status(), xns_getaddr();
 #endif
@@ -198,6 +201,8 @@ struct afswtch {
 	{ "inet", AF_INET, in_status, in_getaddr,
 	     SIOCDIFADDR, SIOCAIFADDR, C(ridreq), C(addreq) },
 	{ "ipx", AF_IPX, ipx_status, ipx_getaddr,
+	     SIOCDIFADDR, SIOCAIFADDR, C(ridreq), C(addreq) },
+	{ "atalk", AF_APPLETALK, at_status, at_getaddr,
 	     SIOCDIFADDR, SIOCAIFADDR, C(ridreq), C(addreq) },
 #ifdef NS
 	{ "ns", AF_NS, xns_status, xns_getaddr,
@@ -758,6 +763,35 @@ ipx_status(force)
 
 }
 
+at_status(force)
+	int force;
+{
+	struct sockaddr_at *sat, null_sat;
+
+	memset(&null_sat, 0, sizeof(null_sat));
+
+	sat = (struct sockaddr_at *)info.rti_info[RTAX_IFA];
+	if (!sat || sat->sat_family != AF_APPLETALK) {
+		if (!force)
+			return;
+		/* warnx("%s has no AF_APPLETALK IFA address!", name); */
+		sat = &null_sat;
+	}
+	printf("\tatalk %d.%d ",
+		ntohs(sat->sat_addr.s_net), sat->sat_addr.s_node);
+
+	if (flags & IFF_POINTOPOINT) {
+		/* note RTAX_BRD overlap with IFF_BROADCAST */
+		sat = (struct sockaddr_at *)info.rti_info[RTAX_BRD];
+		if (!sat)
+			sat = &null_sat;
+		printf("--> %d.%d ",
+			ntohs(sat->sat_addr.s_net), sat->sat_addr.s_node);
+	}
+
+	putchar('\n');
+}
+
 #ifdef NS
 xns_status(force)
 	int force;
@@ -951,6 +985,29 @@ char *addr;
 	sipx->sipx_addr = ipx_addr(addr);
 	if (which == MASK)
 		printf("Attempt to set IPX netmask will be ineffectual\n");
+}
+
+#define SATALK(x) ((struct sockaddr_at *) &(x))
+struct sockaddr_at *atalktab[] = {
+SATALK(ridreq.ifr_addr), SATALK(addreq.ifra_addr),
+SATALK(addreq.ifra_mask), SATALK(addreq.ifra_broadaddr)};
+
+at_getaddr(addr, which)
+char *addr;
+{
+	struct sockaddr_at *sat = atalktab[which];
+	u_int net, node;
+
+	sat->sat_family = AF_IPX;
+	sat->sat_len = sizeof(*sat);
+	if (sscanf(addr, "%u.%u", &net, &node) != 2
+	/*  || net == 0 || net > 0xffff || node == 0 || node > 0xfe */ )
+		errx(1, "%s: bad value", addr);
+	sat->sat_addr.s_net = htons(net);
+	sat->sat_addr.s_node = node;
+	if (which == MASK)
+		printf("Attempt to set AppleTalk netmask"
+			" will be ineffectual\n");
 }
 
 #ifdef NS
