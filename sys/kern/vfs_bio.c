@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.206 1999/04/14 18:51:52 dt Exp $
+ * $Id: vfs_bio.c,v 1.207 1999/04/29 18:15:25 alc Exp $
  */
 
 /*
@@ -74,9 +74,6 @@ static void vm_hold_free_pages(struct buf * bp, vm_offset_t from,
 		vm_offset_t to);
 static void vm_hold_load_pages(struct buf * bp, vm_offset_t from,
 		vm_offset_t to);
-static void vfs_buf_set_valid(struct buf *bp, vm_ooffset_t foff,
-			      vm_offset_t off, vm_offset_t size,
-			      vm_page_t m);
 static void vfs_page_set_valid(struct buf *bp, vm_ooffset_t off,
 			       int pageno, vm_page_t m);
 static void vfs_clean_pages(struct buf * bp);
@@ -220,6 +217,27 @@ bufcountwakeup(void)
 		wakeup(&needsbuffer);
 	}
 }
+
+/*
+ *	vfs_buf_test_cache:
+ *
+ *	Called when a buffer is extended.  This function clears the B_CACHE
+ *	bit if the newly extended portion of the buffer does not contain
+ *	valid data.
+ */
+static __inline__
+void
+vfs_buf_test_cache(struct buf *bp,
+		  vm_ooffset_t foff, vm_offset_t off, vm_offset_t size,
+		  vm_page_t m)
+{
+	if (bp->b_flags & B_CACHE) {
+		int base = (foff + off) & PAGE_MASK;
+		if (vm_page_is_valid(m, base, size) == 0)
+			bp->b_flags &= ~B_CACHE;
+	}
+}
+
 
 /*
  * Initialize buffer headers and related structures.
@@ -371,7 +389,10 @@ bremfree(struct buf * bp)
 
 
 /*
- * Get a buffer with the specified data.  Look in the cache first.
+ * Get a buffer with the specified data.  Look in the cache first.  We
+ * must clear B_ERROR and B_INVAL prior to initiating I/O.  If B_CACHE
+ * is set, the buffer is valid and we do not have to do anything ( see
+ * getblk() ).
  */
 int
 bread(struct vnode * vp, daddr_t blkno, int size, struct ucred * cred,
@@ -388,7 +409,7 @@ bread(struct vnode * vp, daddr_t blkno, int size, struct ucred * cred,
 			curproc->p_stats->p_ru.ru_inblock++;
 		KASSERT(!(bp->b_flags & B_ASYNC), ("bread: illegal async bp %p", bp));
 		bp->b_flags |= B_READ;
-		bp->b_flags &= ~(B_DONE | B_ERROR | B_INVAL);
+		bp->b_flags &= ~(B_ERROR | B_INVAL);
 		if (bp->b_rcred == NOCRED) {
 			if (cred != NOCRED)
 				crhold(cred);
@@ -403,7 +424,9 @@ bread(struct vnode * vp, daddr_t blkno, int size, struct ucred * cred,
 
 /*
  * Operates like bread, but also starts asynchronous I/O on
- * read-ahead blocks.
+ * read-ahead blocks.  We must clear B_ERROR and B_INVAL prior
+ * to initiating I/O . If B_CACHE is set, the buffer is valid 
+ * and we do not have to do anything.
  */
 int
 breadn(struct vnode * vp, daddr_t blkno, int size,
@@ -421,7 +444,7 @@ breadn(struct vnode * vp, daddr_t blkno, int size,
 		if (curproc != NULL)
 			curproc->p_stats->p_ru.ru_inblock++;
 		bp->b_flags |= B_READ;
-		bp->b_flags &= ~(B_DONE | B_ERROR | B_INVAL);
+		bp->b_flags &= ~(B_ERROR | B_INVAL);
 		if (bp->b_rcred == NOCRED) {
 			if (cred != NOCRED)
 				crhold(cred);
@@ -441,7 +464,7 @@ breadn(struct vnode * vp, daddr_t blkno, int size,
 			if (curproc != NULL)
 				curproc->p_stats->p_ru.ru_inblock++;
 			rabp->b_flags |= B_READ | B_ASYNC;
-			rabp->b_flags &= ~(B_DONE | B_ERROR | B_INVAL);
+			rabp->b_flags &= ~(B_ERROR | B_INVAL);
 			if (rabp->b_rcred == NOCRED) {
 				if (cred != NOCRED)
 					crhold(cred);
@@ -462,7 +485,14 @@ breadn(struct vnode * vp, daddr_t blkno, int size,
 
 /*
  * Write, release buffer on completion.  (Done by iodone
- * if async.)
+ * if async).  Do not bother writing anything if the buffer
+ * is invalid.
+ *
+ * Note that we set B_CACHE here, indicating that buffer is
+ * fully valid and thus cacheable.  This is true even of NFS
+ * now so we set it generally.  This could be set either here 
+ * or in biodone() since the I/O is synchronous.  We put it
+ * here.
  */
 int
 bwrite(struct buf * bp)
@@ -486,7 +516,7 @@ bwrite(struct buf * bp)
 	bundirty(bp);
 
 	bp->b_flags &= ~(B_READ | B_DONE | B_ERROR);
-	bp->b_flags |= B_WRITEINPROG;
+	bp->b_flags |= B_WRITEINPROG | B_CACHE;
 
 	bp->b_vp->v_numoutput++;
 	vfs_busy_pages(bp, 1);
@@ -505,11 +535,12 @@ bwrite(struct buf * bp)
 			mp = vp->v_specmountpoint;
 		else
 			mp = vp->v_mount;
-		if (mp != NULL)
+		if (mp != NULL) {
 			if ((oldflags & B_ASYNC) == 0)
 				mp->mnt_stat.f_syncwrites++;
 			else
 				mp->mnt_stat.f_asyncwrites++;
+		}
 	}
 
 	if ((oldflags & B_ASYNC) == 0) {
@@ -522,7 +553,13 @@ bwrite(struct buf * bp)
 }
 
 /*
- * Delayed write. (Buffer is marked dirty).
+ * Delayed write. (Buffer is marked dirty).  Do not bother writing
+ * anything if the buffer is marked invalid.
+ *
+ * Note that since the buffer must be completely valid, we can safely
+ * set B_CACHE.  In fact, we have to set B_CACHE here rather then in
+ * biodone() in order to prevent getblk from writing the buffer
+ * out synchronously.
  */
 void
 bdwrite(struct buf * bp)
@@ -540,6 +577,12 @@ bdwrite(struct buf * bp)
 		return;
 	}
 	bdirty(bp);
+
+	/*
+	 * Set B_CACHE, indicating that the buffer is fully valid.  This is
+	 * true even of NFS now.
+	 */
+	bp->b_flags |= B_CACHE;
 
 	/*
 	 * This bmap keeps the system from needing to do the bmap later,
@@ -592,8 +635,11 @@ bdwrite(struct buf * bp)
  *	B_RELBUF, and we must set B_DELWRI.  We reassign the buffer to 
  *	itself to properly update it in the dirty/clean lists.  We mark it
  *	B_DONE to ensure that any asynchronization of the buffer properly
- *	clears B_DONE ( else a panic will occur later ).  Note that B_INVALID 
- *	buffers are not considered dirty even if B_DELWRI is set.	
+ *	clears B_DONE ( else a panic will occur later ).  
+ *
+ *	bdirty() is kinda like bdwrite() - we have to clear B_INVAL which
+ *	might have been set pre-getblk().  Unlike bwrite/bdwrite, bdirty()
+ *	should only be called if the buffer is known-good.
  *
  *	Since the buffer is not on a queue, we do not update the numfreebuffers
  *	count.
@@ -645,6 +691,9 @@ bundirty(bp)
  *
  *	Asynchronous write.  Start output on a buffer, but do not wait for
  *	it to complete.  The buffer is released when the output completes.
+ *
+ *	bwrite() ( or the VOP routine anyway ) is responsible for handling 
+ *	B_INVAL buffers.  Not us.
  */
 void
 bawrite(struct buf * bp)
@@ -658,7 +707,8 @@ bawrite(struct buf * bp)
  *
  *	Ordered write.  Start output on a buffer, and flag it so that the 
  *	device will write it in the order it was queued.  The buffer is 
- *	released when the output completes.
+ *	released when the output completes.  bwrite() ( or the VOP routine
+ *	anyway ) is responsible for handling B_INVAL buffers.
  */
 int
 bowrite(struct buf * bp)
@@ -694,10 +744,19 @@ brelse(struct buf * bp)
 		bp->b_flags &= ~B_ERROR;
 
 	if ((bp->b_flags & (B_READ | B_ERROR)) == B_ERROR) {
+		/*
+		 * Failed write, redirty.  Must clear B_ERROR to prevent
+		 * pages from being scrapped.  Note: B_INVAL is ignored
+		 * here but will presumably be dealt with later.
+		 */
 		bp->b_flags &= ~B_ERROR;
 		bdirty(bp);
 	} else if ((bp->b_flags & (B_NOCACHE | B_INVAL | B_ERROR | B_FREEBUF)) ||
 	    (bp->b_bufsize <= 0)) {
+		/*
+		 * Either a failed I/O or we were asked to free or not
+		 * cache the buffer.
+		 */
 		bp->b_flags |= B_INVAL;
 		if (LIST_FIRST(&bp->b_dep) != NULL && bioops.io_deallocate)
 			(*bioops.io_deallocate)(bp);
@@ -727,31 +786,22 @@ brelse(struct buf * bp)
 
 	/*
 	 * VMIO buffer rundown.  It is not very necessary to keep a VMIO buffer
-	 * constituted, so the B_INVAL flag is used to *invalidate* the buffer,
-	 * but the VM object is kept around.  The B_NOCACHE flag is used to
-	 * invalidate the pages in the VM object.
+	 * constituted, not even NFS buffers now.  Two flags effect this.  If
+	 * B_INVAL, the struct buf is invalidated but the VM object is kept
+	 * around ( i.e. so it is trivial to reconstitute the buffer later ).
 	 *
-	 * The b_{validoff,validend,dirtyoff,dirtyend} values are relative 
-	 * to b_offset and currently have byte granularity, whereas the
-	 * valid flags in the vm_pages have only DEV_BSIZE resolution.
-	 * The byte resolution fields are used to avoid unnecessary re-reads
-	 * of the buffer but the code really needs to be genericized so
-	 * other filesystem modules can take advantage of these fields.
+	 * If B_ERROR or B_NOCACHE is set, pages in the VM object will be
+	 * invalidated.  B_ERROR cannot be set for a failed write unless the
+	 * buffer is also B_INVAL because it hits the re-dirtying code above.
 	 *
-	 * XXX this seems to cause performance problems.
+	 * Normally we can do this whether a buffer is B_DELWRI or not.  If
+	 * the buffer is an NFS buffer, it is tracking piecemeal writes or
+	 * the commit state and we cannot afford to lose the buffer.
 	 */
 	if ((bp->b_flags & B_VMIO)
 	    && !(bp->b_vp->v_tag == VT_NFS &&
 		 bp->b_vp->v_type != VBLK &&
-		 (bp->b_flags & B_DELWRI) != 0)
-#ifdef notdef
-	    && (bp->b_vp->v_tag != VT_NFS
-		|| bp->b_vp->v_type == VBLK
-		|| (bp->b_flags & (B_NOCACHE | B_INVAL | B_ERROR))
-		|| bp->b_validend == 0
-		|| (bp->b_validoff == 0
-		    && bp->b_validend == bp->b_bufsize))
-#endif
+		 (bp->b_flags & B_DELWRI))
 	    ) {
 
 		int i, j, resid;
@@ -912,6 +962,11 @@ brelse(struct buf * bp)
 /*
  * Release a buffer back to the appropriate queue but do not try to free
  * it.
+ *
+ * bqrelse() is used by bdwrite() to requeue a delayed write, and used by
+ * biodone() to requeue an async I/O on completion.  It is also used when
+ * known good buffers need to be requeued but we think we may need the data
+ * again soon.
  */
 void
 bqrelse(struct buf * bp)
@@ -1096,6 +1151,8 @@ vfs_bio_awrite(struct buf * bp)
 	splx(s);
 	/*
 	 * default (old) behavior, writing out only one block
+	 *
+	 * XXX returns b_bufsize instead of b_bcount for nwritten?
 	 */
 	nwritten = bp->b_bufsize;
 	(void) VOP_BWRITE(bp);
@@ -1107,7 +1164,11 @@ vfs_bio_awrite(struct buf * bp)
  *	getnewbuf:
  *
  *	Find and initialize a new buffer header, freeing up existing buffers 
- *	in the bufqueues as necessary.
+ *	in the bufqueues as necessary.  The new buffer is returned with
+ *	flags set to B_BUSY.
+ *
+ *	Important:  B_INVAL is not set.  If the caller wishes to throw the
+ *	buffer away, the caller must set B_INVAL prior to calling brelse().
  *
  *	We block if:
  *		We have insufficient buffer headers
@@ -1368,7 +1429,6 @@ restart:
 		bp->b_bcount = 0;
 		bp->b_npages = 0;
 		bp->b_dirtyoff = bp->b_dirtyend = 0;
-		bp->b_validoff = bp->b_validend = 0;
 		bp->b_usecount = 5;
 
 		LIST_INIT(&bp->b_dep);
@@ -1465,7 +1525,10 @@ dosleep:
 		}
 		bp->b_data = bp->b_kvabase;
 	}
-	
+
+	/*
+	 * The bp, if valid, is set to B_BUSY.
+	 */
 	return (bp);
 }
 
@@ -1546,9 +1609,10 @@ flushbufqueues(void)
 		}
 
 		/*
-		 * XXX NFS does weird things with B_INVAL bps if we bwrite
-		 * them ( vfs_bio_awrite/bawrite/bdwrite/etc )  Why?
-		 *
+		 * Try to free up B_INVAL delayed-write buffers rather then
+		 * writing them out.  Note also that NFS is somewhat sensitive
+		 * to B_INVAL buffers so it is doubly important that we do 
+		 * this.
 		 */
 		if ((bp->b_flags & B_DELWRI) != 0) {
 			if (bp->b_flags & B_INVAL) {
@@ -1622,20 +1686,28 @@ inmem(struct vnode * vp, daddr_t blkno)
 }
 
 /*
- * now we set the dirty range for the buffer --
- * for NFS -- if the file is mapped and pages have
- * been written to, let it know.  We want the
- * entire range of the buffer to be marked dirty if
- * any of the pages have been written to for consistancy
- * with the b_validoff, b_validend set in the nfs write
- * code, and used by the nfs read code.
+ *	vfs_setdirty:
+ *
+ *	Sets the dirty range for a buffer based on the status of the dirty
+ *	bits in the pages comprising the buffer.
+ *
+ *	The range is limited to the size of the buffer.
+ *
+ *	This routine is primarily used by NFS, but is generalized for the
+ *	B_VMIO case.
  */
 static void
 vfs_setdirty(struct buf *bp) 
 {
 	int i;
 	vm_object_t object;
-	vm_offset_t boffset;
+
+	/*
+	 * Degenerate case - empty buffer
+	 */
+
+	if (bp->b_bufsize == 0)
+		return;
 
 	/*
 	 * We qualify the scan for modified pages on whether the
@@ -1654,6 +1726,9 @@ vfs_setdirty(struct buf *bp)
 		printf("Warning: object %p mightbedirty but not writeable\n", object);
 
 	if (object->flags & (OBJ_MIGHTBEDIRTY|OBJ_CLEANING)) {
+		vm_offset_t boffset;
+		vm_offset_t eoffset;
+
 		/*
 		 * test the pages to see if they have been modified directly
 		 * by users through the VM system.
@@ -1664,47 +1739,85 @@ vfs_setdirty(struct buf *bp)
 		}
 
 		/*
-		 * scan forwards for the first page modified
+		 * Calculate the encompassing dirty range, boffset and eoffset,
+		 * (eoffset - boffset) bytes.
 		 */
+
 		for (i = 0; i < bp->b_npages; i++) {
-			if (bp->b_pages[i]->dirty) {
+			if (bp->b_pages[i]->dirty)
 				break;
-			}
 		}
-
 		boffset = (i << PAGE_SHIFT) - (bp->b_offset & PAGE_MASK);
-		if (boffset < bp->b_dirtyoff) {
-			bp->b_dirtyoff = max(boffset, 0);
-		}
 
-		/*
-		 * scan backwards for the last page modified
-		 */
 		for (i = bp->b_npages - 1; i >= 0; --i) {
 			if (bp->b_pages[i]->dirty) {
 				break;
 			}
 		}
-		boffset = (i + 1);
-#if 0
-		offset = boffset + bp->b_pages[0]->pindex;
-		if (offset >= object->size)
-			boffset = object->size - bp->b_pages[0]->pindex;
-#endif
-		boffset = (boffset << PAGE_SHIFT) - (bp->b_offset & PAGE_MASK);
-		if (bp->b_dirtyend < boffset)
-			bp->b_dirtyend = min(boffset, bp->b_bufsize);
+		eoffset = ((i + 1) << PAGE_SHIFT) - (bp->b_offset & PAGE_MASK);
+
+		/*
+		 * Fit it to the buffer.
+		 */
+
+		if (eoffset > bp->b_bcount)
+			eoffset = bp->b_bcount;
+
+		/*
+		 * If we have a good dirty range, merge with the existing
+		 * dirty range.
+		 */
+
+		if (boffset < eoffset) {
+			if (bp->b_dirtyoff > boffset)
+				bp->b_dirtyoff = boffset;
+			if (bp->b_dirtyend < eoffset)
+				bp->b_dirtyend = eoffset;
+		}
 	}
 }
 
 /*
- * Get a block given a specified block and offset into a file/device.
+ *	getblk:
+ *
+ *	Get a block given a specified block and offset into a file/device.
+ *	The buffers B_DONE bit will be cleared on return, making it almost
+ * 	ready for an I/O initiation.  B_INVAL may or may not be set on 
+ *	return.  The caller should clear B_INVAL prior to initiating a
+ *	READ.
+ *
+ *	For a non-VMIO buffer, B_CACHE is set to the opposite of B_INVAL for
+ *	an existing buffer.
+ *
+ *	For a VMIO buffer, B_CACHE is modified according to the backing VM.
+ *	If getblk()ing a previously 0-sized invalid buffer, B_CACHE is set
+ *	and then cleared based on the backing VM.  If the previous buffer is
+ *	non-0-sized but invalid, B_CACHE will be cleared.
+ *
+ *	If getblk() must create a new buffer, the new buffer is returned with
+ *	both B_INVAL and B_CACHE clear unless it is a VMIO buffer, in which
+ *	case it is returned with B_INVAL clear and B_CACHE set based on the
+ *	backing VM.
+ *
+ *	getblk() also forces a VOP_BWRITE() for any B_DELWRI buffer whos
+ *	B_CACHE bit is clear.
+ *	
+ *	What this means, basically, is that the caller should use B_CACHE to
+ *	determine whether the buffer is fully valid or not and should clear
+ *	B_INVAL prior to issuing a read.  If the caller intends to validate
+ *	the buffer by loading its data area with something, the caller needs
+ *	to clear B_INVAL.  If the caller does this without issuing an I/O, 
+ *	the caller should set B_CACHE ( as an optimization ), else the caller
+ *	should issue the I/O and biodone() will set B_CACHE if the I/O was
+ *	a write attempt or if it was a successfull read.  If the caller 
+ *	intends to issue a READ, the caller must clear B_INVAL and B_ERROR
+ *	prior to issuing the READ.  biodone() will *not* clear B_INVAL.
  */
 struct buf *
 getblk(struct vnode * vp, daddr_t blkno, int size, int slpflag, int slptimeo)
 {
 	struct buf *bp;
-	int i, s;
+	int s;
 	struct bufhashhdr *bh;
 
 #if !defined(MAX_PERF)
@@ -1727,6 +1840,10 @@ loop:
 	}
 
 	if ((bp = gbincore(vp, blkno))) {
+		/*
+		 * Buffer is in-core
+		 */
+
 		if (bp->b_flags & B_BUSY) {
 			bp->b_flags |= B_WANTED;
 			if (bp->b_usecount < BUF_MAXUSE)
@@ -1740,7 +1857,18 @@ loop:
 			splx(s);
 			return (struct buf *) NULL;
 		}
-		bp->b_flags |= B_BUSY | B_CACHE;
+
+		/*
+		 * Busy the buffer.  B_CACHE is cleared if the buffer is 
+		 * invalid.  Ohterwise, for a non-VMIO buffer, B_CACHE is set
+		 * and for a VMIO buffer B_CACHE is adjusted according to the
+		 * backing VM cache.
+		 */
+		bp->b_flags |= B_BUSY;
+		if (bp->b_flags & B_INVAL)
+			bp->b_flags &= ~B_CACHE;
+		else if ((bp->b_flags & (B_VMIO|B_INVAL)) == 0)
+			bp->b_flags |= B_CACHE;
 		bremfree(bp);
 
 		/*
@@ -1770,7 +1898,9 @@ loop:
 
 		/*
 		 * If the size is inconsistant in the VMIO case, we can resize
-		 * the buffer.  This might lead to B_CACHE getting cleared.
+		 * the buffer.  This might lead to B_CACHE getting set or
+		 * cleared.  If the size has not changed, B_CACHE remains
+		 * unchanged from its previous state.
 		 */
 
 		if (bp->b_bcount != size)
@@ -1780,45 +1910,19 @@ loop:
 		    ("getblk: no buffer offset"));
 
 		/*
-		 * Check that the constituted buffer really deserves for the
-		 * B_CACHE bit to be set.  B_VMIO type buffers might not
-		 * contain fully valid pages.  Normal (old-style) buffers
-		 * should be fully valid.  This might also lead to B_CACHE
-		 * getting clear.
+		 * A buffer with B_DELWRI set and B_CACHE clear must
+		 * be committed before we can return the buffer in
+		 * order to prevent the caller from issuing a read
+		 * ( due to B_CACHE not being set ) and overwriting
+		 * it.
 		 *
-		 * If B_CACHE is already clear, don't bother checking to see 
-		 * if we have to clear it again.
-		 *
-		 * XXX this code should not be necessary unless the B_CACHE
-		 * handling is broken elsewhere in the kernel.  We need to
-		 * check the cases and then turn the clearing part of this
-		 * code into a panic.
-		 */
-		if (
-		    (bp->b_flags & (B_VMIO|B_CACHE)) == (B_VMIO|B_CACHE) &&
-		    (bp->b_vp->v_tag != VT_NFS || bp->b_validend <= 0)
-		) {
-			int checksize = bp->b_bufsize;
-			int poffset = bp->b_offset & PAGE_MASK;
-			int resid;
-			for (i = 0; i < bp->b_npages; i++) {
-				resid = (checksize > (PAGE_SIZE - poffset)) ?
-					(PAGE_SIZE - poffset) : checksize;
-				if (!vm_page_is_valid(bp->b_pages[i], poffset, resid)) {
-					bp->b_flags &= ~(B_CACHE | B_DONE);
-					break;
-				}
-				checksize -= resid;
-				poffset = 0;
-			}
-		}
-
-		/*
-		 * If B_DELWRI is set and B_CACHE got cleared ( or was
-		 * already clear ), we have to commit the write and
-		 * retry.  The NFS code absolutely depends on this,
-		 * and so might the FFS code.  In anycase, it formalizes
-		 * the B_CACHE rules.  See sys/buf.h.
+		 * Most callers, including NFS and FFS, need this to
+		 * operate properly either because they assume they
+		 * can issue a read if B_CACHE is not set, or because
+		 * ( for example ) an uncached B_DELWRI might loop due 
+		 * to softupdates re-dirtying the buffer.  In the latter
+		 * case, B_CACHE is set after the first write completes,
+		 * preventing further loops.
 		 */
 
 		if ((bp->b_flags & (B_CACHE|B_DELWRI)) == B_DELWRI) {
@@ -1829,8 +1933,14 @@ loop:
 		if (bp->b_usecount < BUF_MAXUSE)
 			++bp->b_usecount;
 		splx(s);
-		return (bp);
+		bp->b_flags &= ~B_DONE;
 	} else {
+		/*
+		 * Buffer is not in-core, create new buffer.  The buffer
+		 * returned by getnewbuf() is marked B_BUSY.  Note that the
+		 * returned buffer is also considered valid ( not marked
+		 * B_INVAL ).
+		 */
 		int bsize, maxsize, vmio;
 		off_t offset;
 
@@ -1849,7 +1959,7 @@ loop:
 		maxsize = imax(maxsize, bsize);
 
 		if ((bp = getnewbuf(vp, blkno,
-			slpflag, slptimeo, size, maxsize)) == 0) {
+			slpflag, slptimeo, size, maxsize)) == NULL) {
 			if (slpflag || slptimeo) {
 				splx(s);
 				return NULL;
@@ -1861,6 +1971,10 @@ loop:
 		 * This code is used to make sure that a buffer is not
 		 * created while the getnewbuf routine is blocked.
 		 * This can be a problem whether the vnode is locked or not.
+		 * If the buffer is created out from under us, we have to
+		 * throw away the one we just created.  There is now window
+		 * race because we are safely running at splbio() from the
+		 * point of the duplicate buffer creation through to here.
 		 */
 		if (gbincore(vp, blkno)) {
 			bp->b_flags |= B_INVAL;
@@ -1880,8 +1994,15 @@ loop:
 		bh = BUFHASH(vp, blkno);
 		LIST_INSERT_HEAD(bh, bp, b_hash);
 
+		/*
+		 * set B_VMIO bit.  allocbuf() the buffer bigger.  Since the
+		 * buffer size starts out as 0, B_CACHE will be set by
+		 * allocbuf() for the VMIO case prior to it testing the
+		 * backing store for validity.
+		 */
+
 		if (vmio) {
-			bp->b_flags |= (B_VMIO | B_CACHE);
+			bp->b_flags |= B_VMIO;
 #if defined(VFS_BIO_DEBUG)
 			if (vp->v_type != VREG && vp->v_type != VBLK)
 				printf("getblk: vmioing file type %d???\n", vp->v_type);
@@ -1893,12 +2014,14 @@ loop:
 		allocbuf(bp, size);
 
 		splx(s);
-		return (bp);
+		bp->b_flags &= ~B_DONE;
 	}
+	return (bp);
 }
 
 /*
- * Get an empty, disassociated buffer of given size.
+ * Get an empty, disassociated buffer of given size.  The buffer is initially
+ * set to B_INVAL.
  */
 struct buf *
 geteblk(int size)
@@ -1910,7 +2033,7 @@ geteblk(int size)
 	while ((bp = getnewbuf(0, (daddr_t) 0, 0, 0, size, MAXBSIZE)) == 0);
 	splx(s);
 	allocbuf(bp, size);
-	bp->b_flags |= B_INVAL; /* b_dep cleared by getnewbuf() */
+	bp->b_flags |= B_INVAL;	/* b_dep cleared by getnewbuf() */
 	return (bp);
 }
 
@@ -1925,6 +2048,9 @@ geteblk(int size)
  * deadlock or inconsistant data situations.  Tread lightly!!! 
  * There are B_CACHE and B_DELWRI interactions that must be dealt with by 
  * the caller.  Calling this code willy nilly can result in the loss of data.
+ *
+ * allocbuf() only adjusts B_CACHE for VMIO buffers.  getblk() deals with
+ * B_CACHE for the non-VMIO case.
  */
 
 int
@@ -1945,7 +2071,8 @@ allocbuf(struct buf *bp, int size)
 		caddr_t origbuf;
 		int origbufsize;
 		/*
-		 * Just get anonymous memory from the kernel
+		 * Just get anonymous memory from the kernel.  Don't
+		 * mess with B_CACHE.
 		 */
 		mbsize = (size + DEV_BSIZE - 1) & ~(DEV_BSIZE - 1);
 #if !defined(NO_B_MALLOC)
@@ -2046,13 +2173,25 @@ allocbuf(struct buf *bp, int size)
 		if (bp->b_flags & B_MALLOC)
 			panic("allocbuf: VMIO buffer can't be malloced");
 #endif
+		/*
+		 * Set B_CACHE initially if buffer is 0 length or will become
+		 * 0-length.
+		 */
+		if (size == 0 || bp->b_bufsize == 0)
+			bp->b_flags |= B_CACHE;
 
 		if (newbsize < bp->b_bufsize) {
+			/*
+			 * DEV_BSIZE aligned new buffer size is less then the
+			 * DEV_BSIZE aligned existing buffer size.  Figure out
+			 * if we have to remove any pages.
+			 */
 			if (desiredpages < bp->b_npages) {
 				for (i = desiredpages; i < bp->b_npages; i++) {
 					/*
 					 * the page is not freed here -- it
-					 * is the responsibility of vnode_pager_setsize
+					 * is the responsibility of 
+					 * vnode_pager_setsize
 					 */
 					m = bp->b_pages[i];
 					KASSERT(m != bogus_page,
@@ -2067,115 +2206,131 @@ allocbuf(struct buf *bp, int size)
 				    (desiredpages << PAGE_SHIFT), (bp->b_npages - desiredpages));
 				bp->b_npages = desiredpages;
 			}
-		} else if (newbsize > bp->b_bufsize) {
-			vm_object_t obj;
-			vm_offset_t tinc, toff;
-			vm_ooffset_t off;
-			vm_pindex_t objoff;
-			int pageindex, curbpnpages;
+		} else if (size > bp->b_bcount) {
+			/*
+			 * We are growing the buffer, possibly in a 
+			 * byte-granular fashion.
+			 */
 			struct vnode *vp;
-			int bsize;
-			int orig_validoff = bp->b_validoff;
-			int orig_validend = bp->b_validend;
+			vm_object_t obj;
+			vm_offset_t toff;
+			vm_offset_t tinc;
+
+			/*
+			 * Step 1, bring in the VM pages from the object, 
+			 * allocating them if necessary.  We must clear
+			 * B_CACHE if these pages are not valid for the 
+			 * range covered by the buffer.
+			 */
 
 			vp = bp->b_vp;
+			obj = vp->v_object;
 
-			if (vp->v_type == VBLK)
-				bsize = DEV_BSIZE;
-			else
-				bsize = vp->v_mount->mnt_stat.f_iosize;
+			while (bp->b_npages < desiredpages) {
+				vm_page_t m;
+				vm_pindex_t pi;
 
-			if (bp->b_npages < desiredpages) {
-				obj = vp->v_object;
-				tinc = PAGE_SIZE;
-
-				off = bp->b_offset;
-				KASSERT(bp->b_offset != NOOFFSET,
-				    ("allocbuf: no buffer offset"));
-				curbpnpages = bp->b_npages;
-		doretry:
-				bp->b_validoff = orig_validoff;
-				bp->b_validend = orig_validend;
-				bp->b_flags |= B_CACHE;
-				for (toff = 0; toff < newbsize; toff += tinc) {
-					objoff = OFF_TO_IDX(off + toff);
-					pageindex = objoff - OFF_TO_IDX(off);
-					tinc = PAGE_SIZE - ((off + toff) & PAGE_MASK);
-					if (pageindex < curbpnpages) {
-
-						m = bp->b_pages[pageindex];
-#ifdef VFS_BIO_DIAG
-						if (m->pindex != objoff)
-							panic("allocbuf: page changed offset?!!!?");
-#endif
-						if (tinc > (newbsize - toff))
-							tinc = newbsize - toff;
-						if (bp->b_flags & B_CACHE)
-							vfs_buf_set_valid(bp, off, toff, tinc, m);
-						continue;
-					}
-					m = vm_page_lookup(obj, objoff);
-					if (!m) {
-						m = vm_page_alloc(obj, objoff, VM_ALLOC_NORMAL);
-						if (!m) {
-							VM_WAIT;
-							vm_pageout_deficit += (desiredpages - curbpnpages);
-							goto doretry;
-						}
-
+				pi = OFF_TO_IDX(bp->b_offset) + bp->b_npages;
+				if ((m = vm_page_lookup(obj, pi)) == NULL) {
+					m = vm_page_alloc(obj, pi, VM_ALLOC_NORMAL);
+					if (m == NULL) {
+						VM_WAIT;
+						vm_pageout_deficit += desiredpages - bp->b_npages;
+					} else {
 						vm_page_wire(m);
 						vm_page_wakeup(m);
 						bp->b_flags &= ~B_CACHE;
+						bp->b_pages[bp->b_npages] = m;
+						++bp->b_npages;
+					}
+					continue;
+				}
 
-					} else if (vm_page_sleep_busy(m, FALSE, "pgtblk")) {
-						/*
-						 *  If we had to sleep, retry.
-						 *
-						 *  Also note that we only test
-						 *  PG_BUSY here, not m->busy.
-						 *  
-						 *  We cannot sleep on m->busy
-						 *  here because a vm_fault ->
-						 *  getpages -> cluster-read ->
-						 *  ...-> allocbuf sequence 
-						 *  will convert PG_BUSY to
-						 *  m->busy so we have to let 
-						 *  m->busy through if we do 
-						 *  not want to deadlock.
-						 */
-						goto doretry;
-					} else {
-						if ((curproc != pageproc) &&
-							((m->queue - m->pc) == PQ_CACHE) &&
-						    ((cnt.v_free_count + cnt.v_cache_count) <
-								(cnt.v_free_min + cnt.v_cache_min))) {
-							pagedaemon_wakeup();
-						}
-						if (tinc > (newbsize - toff))
-							tinc = newbsize - toff;
-						if (bp->b_flags & B_CACHE)
-							vfs_buf_set_valid(bp, off, toff, tinc, m);
-						vm_page_flag_clear(m, PG_ZERO);
-						vm_page_wire(m);
-					}
-					bp->b_pages[pageindex] = m;
-					curbpnpages = pageindex + 1;
+				/*
+				 * We found a page.  If we have to sleep on it,
+				 * retry because it might have gotten freed out
+				 * from under us.
+				 *
+				 * We can only test PG_BUSY here.  Blocking on
+				 * m->busy might lead to a deadlock:
+				 *
+				 *  vm_fault->getpages->cluster_read->allocbuf
+				 *
+				 */
+
+				if (vm_page_sleep_busy(m, FALSE, "pgtblk"))
+					continue;
+
+				/*
+				 * We have a good page.  Should we wakeup the
+				 * page daemon?
+				 */
+				if ((curproc != pageproc) &&
+				    ((m->queue - m->pc) == PQ_CACHE) &&
+				    ((cnt.v_free_count + cnt.v_cache_count) <
+					(cnt.v_free_min + cnt.v_cache_min))
+				) {
+					pagedaemon_wakeup();
 				}
-				if (vp->v_tag == VT_NFS && 
-				    vp->v_type != VBLK) {
-					if (bp->b_dirtyend > 0) {
-						bp->b_validoff = min(bp->b_validoff, bp->b_dirtyoff);
-						bp->b_validend = max(bp->b_validend, bp->b_dirtyend);
-					}
-					if (bp->b_validend == 0)
-						bp->b_flags &= ~B_CACHE;
-				}
-				bp->b_data = (caddr_t) trunc_page((vm_offset_t)bp->b_data);
-				bp->b_npages = curbpnpages;
-				pmap_qenter((vm_offset_t) bp->b_data,
-					bp->b_pages, bp->b_npages);
-				((vm_offset_t) bp->b_data) |= off & PAGE_MASK;
+				vm_page_flag_clear(m, PG_ZERO);
+				vm_page_wire(m);
+				bp->b_pages[bp->b_npages] = m;
+				++bp->b_npages;
 			}
+
+			/*
+			 * Step 2.  We've loaded the pages into the buffer,
+			 * we have to figure out if we can still have B_CACHE
+			 * set.  Note that B_CACHE is set according to the
+			 * byte-granular range ( bcount and size ), new the
+			 * aligned range ( newbsize ).
+			 *
+			 * The VM test is against m->valid, which is DEV_BSIZE
+			 * aligned.  Needless to say, the validity of the data
+			 * needs to also be DEV_BSIZE aligned.  Note that this
+			 * fails with NFS if the server or some other client
+			 * extends the file's EOF.  If our buffer is resized, 
+			 * B_CACHE may remain set! XXX
+			 */
+
+			toff = bp->b_bcount;
+			tinc = PAGE_SIZE - ((bp->b_offset + toff) & PAGE_MASK);
+
+			while ((bp->b_flags & B_CACHE) && toff < size) {
+				vm_pindex_t pi;
+
+				if (tinc > (size - toff))
+					tinc = size - toff;
+
+				pi = ((bp->b_offset & PAGE_MASK) + toff) >> 
+				    PAGE_SHIFT;
+
+				vfs_buf_test_cache(
+				    bp, 
+				    bp->b_offset,
+				    toff, 
+				    tinc, 
+				    bp->b_pages[pi]
+				);
+				toff += tinc;
+				tinc = PAGE_SIZE;
+			}
+
+			/*
+			 * Step 3, fixup the KVM pmap.  Remember that
+			 * bp->b_data is relative to bp->b_offset, but 
+			 * bp->b_offset may be offset into the first page.
+			 */
+
+			bp->b_data = (caddr_t)
+			    trunc_page((vm_offset_t)bp->b_data);
+			pmap_qenter(
+			    (vm_offset_t)bp->b_data,
+			    bp->b_pages, 
+			    bp->b_npages
+			);
+			bp->b_data = (caddr_t)((vm_offset_t)bp->b_data | 
+			    (vm_offset_t)(bp->b_offset & PAGE_MASK));
 		}
 	}
 	if (bp->b_flags & B_VMIO)
@@ -2184,13 +2339,17 @@ allocbuf(struct buf *bp, int size)
 	runningbufspace += (newbsize - bp->b_bufsize);
 	if (newbsize < bp->b_bufsize)
 		bufspacewakeup();
-	bp->b_bufsize = newbsize;
-	bp->b_bcount = size;
+	bp->b_bufsize = newbsize;	/* actual buffer allocation	*/
+	bp->b_bcount = size;		/* requested buffer size	*/
 	return 1;
 }
 
 /*
- * Wait for buffer I/O completion, returning error status.
+ *	biowait:
+ *
+ *	Wait for buffer I/O completion, returning error status.  The buffer
+ *	is left B_BUSY|B_DONE on return.  B_EINTR is converted into a EINTR
+ *	error and cleared.
  */
 int
 biowait(register struct buf * bp)
@@ -2220,9 +2379,23 @@ biowait(register struct buf * bp)
 }
 
 /*
- * Finish I/O on a buffer, calling an optional function.
- * This is usually called from interrupt level, so process blocking
- * is not *a good idea*.
+ *	biodone:
+ *
+ *	Finish I/O on a buffer, optionally calling a completion function.
+ *	This is usually called from an interrupt so process blocking is
+ *	not allowed.
+ *
+ *	biodone is also responsible for setting B_CACHE in a B_VMIO bp.
+ *	In a non-VMIO bp, B_CACHE will be set on the next getblk() 
+ *	assuming B_INVAL is clear.
+ *
+ *	For the VMIO case, we set B_CACHE if the op was a read and no
+ *	read error occured, or if the op was a write.  B_CACHE is never
+ *	set if the buffer is invalid or otherwise uncacheable.
+ *
+ *	biodone does not mess with B_INVAL, allowing the I/O routine or the
+ *	initiator to leave B_INVAL set to brelse the buffer out of existance
+ *	in the biodone routine.
  */
 void
 biodone(register struct buf * bp)
@@ -2295,7 +2468,17 @@ biodone(register struct buf * bp)
 			    obj->paging_in_progress, bp->b_npages);
 		}
 #endif
-		iosize = bp->b_bufsize;
+
+		/*
+		 * Set B_CACHE if the op was a normal read and no error
+		 * occured.  B_CACHE is set for writes in the b*write()
+		 * routines.
+		 */
+		iosize = bp->b_bcount;
+		if ((bp->b_flags & (B_READ|B_FREEBUF|B_INVAL|B_NOCACHE|B_ERROR)) == B_READ) {
+			bp->b_flags |= B_CACHE;
+		}
+
 		for (i = 0; i < bp->b_npages; i++) {
 			int bogusflag = 0;
 			m = bp->b_pages[i];
@@ -2307,6 +2490,7 @@ biodone(register struct buf * bp)
 					printf("biodone: page disappeared\n");
 #endif
 					vm_object_pip_subtract(obj, 1);
+					bp->b_flags &= ~B_CACHE;
 					continue;
 				}
 				bp->b_pages[i] = m;
@@ -2325,8 +2509,8 @@ biodone(register struct buf * bp)
 
 			/*
 			 * In the write case, the valid and clean bits are
-			 * already changed correctly, so we only need to do this
-			 * here in the read case.
+			 * already changed correctly ( see bdwrite() ), so we 
+			 * only need to do this here in the read case.
 			 */
 			if ((bp->b_flags & B_READ) && !bogusflag && resid > 0) {
 				vfs_page_set_valid(bp, foff, i, m);
@@ -2453,106 +2637,45 @@ vfs_unbusy_pages(struct buf * bp)
 }
 
 /*
- * Set NFS' b_validoff and b_validend fields from the valid bits
- * of a page.  If the consumer is not NFS, and the page is not
- * valid for the entire range, clear the B_CACHE flag to force
- * the consumer to re-read the page.
+ * vfs_page_set_valid:
  *
- * B_CACHE interaction is especially tricky.
- */
-static void
-vfs_buf_set_valid(struct buf *bp,
-		  vm_ooffset_t foff, vm_offset_t off, vm_offset_t size,
-		  vm_page_t m)
-{
-	if (bp->b_vp->v_tag == VT_NFS && bp->b_vp->v_type != VBLK) {
-		vm_offset_t svalid, evalid;
-		int validbits = m->valid >> (((foff+off)&PAGE_MASK)/DEV_BSIZE);
-
-		/*
-		 * This only bothers with the first valid range in the
-		 * page.
-		 */
-		svalid = off;
-		while (validbits && !(validbits & 1)) {
-			svalid += DEV_BSIZE;
-			validbits >>= 1;
-		}
-		evalid = svalid;
-		while (validbits & 1) {
-			evalid += DEV_BSIZE;
-			validbits >>= 1;
-		}
-		evalid = min(evalid, off + size);
-		/*
-		 * We can only set b_validoff/end if this range is contiguous
-		 * with the range built up already.  If we cannot set
-		 * b_validoff/end, we must clear B_CACHE to force an update
-		 * to clean the bp up.
-		 */
-		if (svalid == bp->b_validend) {
-			bp->b_validoff = min(bp->b_validoff, svalid);
-			bp->b_validend = max(bp->b_validend, evalid);
-		} else {
-			bp->b_flags &= ~B_CACHE;
-		}
-	} else if (!vm_page_is_valid(m,
-				     (vm_offset_t) ((foff + off) & PAGE_MASK),
-				     size)) {
-		bp->b_flags &= ~B_CACHE;
-	}
-}
-
-/*
- * Set the valid bits in a page, taking care of the b_validoff,
- * b_validend fields which NFS uses to optimise small reads.  Off is
- * the offset within the file and pageno is the page index within the buf.
+ *	Set the valid bits in a page based on the supplied offset.   The
+ *	range is restricted to the buffer's size.
  *
- * XXX we have to set the valid & clean bits for all page fragments 
- * touched by b_validoff/validend, even if the page fragment goes somewhat
- * beyond b_validoff/validend due to alignment.
+ *	For NFS, the range is additionally restricted to b_validoff/end.
+ *	validoff/end must be DEV_BSIZE chunky or the end must be at the 
+ *	file EOF.  If a dirty range exists, set the page's dirty bits
+ *	inclusively.
+ *
+ *	This routine is typically called after a read completes.
  */
 static void
 vfs_page_set_valid(struct buf *bp, vm_ooffset_t off, int pageno, vm_page_t m)
 {
-	struct vnode *vp = bp->b_vp;
 	vm_ooffset_t soff, eoff;
 
 	/*
 	 * Start and end offsets in buffer.  eoff - soff may not cross a
-	 * page boundry or cross the end of the buffer.
+	 * page boundry or cross the end of the buffer.  The end of the
+	 * buffer, in this case, is our file EOF, not the allocation size
+	 * of the buffer.
 	 */
 	soff = off;
 	eoff = (off + PAGE_SIZE) & ~PAGE_MASK;
-	if (eoff > bp->b_offset + bp->b_bufsize)
-		eoff = bp->b_offset + bp->b_bufsize;
+	if (eoff > bp->b_offset + bp->b_bcount)
+		eoff = bp->b_offset + bp->b_bcount;
 
-	if (vp->v_tag == VT_NFS && vp->v_type != VBLK) {
-		vm_ooffset_t sv, ev;
-		vm_page_set_invalid(m,
-		    (vm_offset_t) (soff & PAGE_MASK),
-		    (vm_offset_t) (eoff - soff));
-		/*
-		 * bp->b_validoff and bp->b_validend restrict the valid range
-		 * that we can set.  Note that these offsets are not DEV_BSIZE
-		 * aligned.  vm_page_set_validclean() must know what 
-		 * sub-DEV_BSIZE ranges to clear.
-		 */
-#if 0
-		sv = (bp->b_offset + bp->b_validoff + DEV_BSIZE - 1) & ~(DEV_BSIZE - 1);
-		ev = (bp->b_offset + bp->b_validend + (DEV_BSIZE - 1)) & 
-		    ~(DEV_BSIZE - 1);
-#endif
-		sv = bp->b_offset + bp->b_validoff;
-		ev = bp->b_offset + bp->b_validend;
-		soff = qmax(sv, soff);
-		eoff = qmin(ev, eoff);
+	/*
+	 * Set valid range.  This is typically the entire buffer and thus the
+	 * entire page.
+	 */
+	if (eoff > soff) {
+		vm_page_set_validclean(
+		    m,
+		   (vm_offset_t) (soff & PAGE_MASK),
+		   (vm_offset_t) (eoff - soff)
+		);
 	}
-
-	if (eoff > soff)
-		vm_page_set_validclean(m,
-	       (vm_offset_t) (soff & PAGE_MASK),
-	       (vm_offset_t) (eoff - soff));
 }
 
 /*
@@ -2562,6 +2685,10 @@ vfs_page_set_valid(struct buf *bp, vm_ooffset_t off, int pageno, vm_page_t m)
  * almost as being PG_BUSY.  Also the object paging_in_progress
  * flag is handled to make sure that the object doesn't become
  * inconsistant.
+ *
+ * Since I/O has not been initiated yet, certain buffer flags
+ * such as B_ERROR or B_INVAL may be in an inconsistant state
+ * and should be ignored.
  */
 void
 vfs_busy_pages(struct buf * bp, int clear_modify)
@@ -2595,6 +2722,22 @@ retry:
 				vm_page_io_start(m);
 			}
 
+			/*
+			 * When readying a buffer for a read ( i.e
+			 * clear_modify == 0 ), it is important to do
+			 * bogus_page replacement for valid pages in 
+			 * partially instantiated buffers.  Partially 
+			 * instantiated buffers can, in turn, occur when
+			 * reconstituting a buffer from its VM backing store
+			 * base.  We only have to do this if B_CACHE is
+			 * clear ( which causes the I/O to occur in the
+			 * first place ).  The replacement prevents the read
+			 * I/O from overwriting potentially dirty VM-backed
+			 * pages.  XXX bogus page replacement is, uh, bogus.
+			 * It may not work properly with small-block devices.
+			 * We need to find a better way.
+			 */
+
 			vm_page_protect(m, VM_PROT_NONE);
 			if (clear_modify)
 				vfs_page_set_valid(bp, foff, i, m);
@@ -2614,30 +2757,89 @@ retry:
  * Tell the VM system that the pages associated with this buffer
  * are clean.  This is used for delayed writes where the data is
  * going to go to disk eventually without additional VM intevention.
+ *
+ * Note that while we only really need to clean through to b_bcount, we
+ * just go ahead and clean through to b_bufsize.
  */
-void
+static void
 vfs_clean_pages(struct buf * bp)
 {
 	int i;
 
 	if (bp->b_flags & B_VMIO) {
 		vm_ooffset_t foff;
+
 		foff = bp->b_offset;
 		KASSERT(bp->b_offset != NOOFFSET,
 		    ("vfs_clean_pages: no buffer offset"));
 		for (i = 0; i < bp->b_npages; i++) {
 			vm_page_t m = bp->b_pages[i];
+			vm_ooffset_t noff = (foff + PAGE_SIZE) & ~PAGE_MASK;
+			vm_ooffset_t eoff = noff;
+
+			if (eoff > bp->b_offset + bp->b_bufsize)
+				eoff = bp->b_offset + bp->b_bufsize;
 			vfs_page_set_valid(bp, foff, i, m);
-			foff = (foff + PAGE_SIZE) & ~PAGE_MASK;
+			/* vm_page_clear_dirty(m, foff & PAGE_MASK, eoff - foff); */
+			foff = noff;
 		}
 	}
 }
+
+/*
+ *	vfs_bio_set_validclean:
+ *
+ *	Set the range within the buffer to valid and clean.  The range is 
+ *	relative to the beginning of the buffer, b_offset.  Note that b_offset
+ *	itself may be offset from the beginning of the first page.
+ */
+
+void   
+vfs_bio_set_validclean(struct buf *bp, int base, int size)
+{
+	if (bp->b_flags & B_VMIO) {
+		int i;
+		int n;
+
+		/*
+		 * Fixup base to be relative to beginning of first page.
+		 * Set initial n to be the maximum number of bytes in the
+		 * first page that can be validated.
+		 */
+
+		base += (bp->b_offset & PAGE_MASK);
+		n = PAGE_SIZE - (base & PAGE_MASK);
+
+		for (i = base / PAGE_SIZE; size > 0 && i < bp->b_npages; ++i) {
+			vm_page_t m = bp->b_pages[i];
+
+			if (n > size)
+				n = size;
+
+			vm_page_set_validclean(m, base & PAGE_MASK, n);
+			base += n;
+			size -= n;
+			n = PAGE_SIZE;
+		}
+	}
+}
+
+/*
+ *	vfs_bio_clrbuf:
+ *
+ *	clear a buffer.  This routine essentially fakes an I/O, so we need
+ *	to clear B_ERROR and B_INVAL.
+ *
+ *	Note that while we only theoretically need to clear through b_bcount,
+ *	we go ahead and clear through b_bufsize.
+ */
 
 void
 vfs_bio_clrbuf(struct buf *bp) {
 	int i, mask = 0;
 	caddr_t sa, ea;
 	if ((bp->b_flags & (B_VMIO | B_MALLOC)) == B_VMIO) {
+		bp->b_flags &= ~(B_INVAL|B_ERROR);
 		if( (bp->b_npages == 1) && (bp->b_bufsize < PAGE_SIZE) &&
 		    (bp->b_offset & PAGE_MASK) == 0) {
 			mask = (1 << (bp->b_bufsize / DEV_BSIZE)) - 1;

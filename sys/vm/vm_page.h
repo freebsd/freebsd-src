@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.58 1999/03/15 05:09:48 julian Exp $
+ * $Id: vm_page.h,v 1.59 1999/04/05 19:38:29 julian Exp $
  */
 
 /*
@@ -101,6 +101,10 @@
  *	Fields in this structure are locked either by the lock on the
  *	object that the page belongs to (O) or by the lock on the page
  *	queues (P).
+ *
+ *	The 'valid' and 'dirty' fields are distinct.  A page may have dirty
+ *	bits set without having associated valid bits set.  This is used by
+ *	NFS to implement piecemeal writes.
  */
 
 TAILQ_HEAD(pglist, vm_page);
@@ -404,6 +408,8 @@ void vm_page_wire __P((vm_page_t));
 void vm_page_unqueue __P((vm_page_t));
 void vm_page_unqueue_nowakeup __P((vm_page_t));
 void vm_page_set_validclean __P((vm_page_t, int, int));
+void vm_page_set_dirty __P((vm_page_t, int, int));
+void vm_page_clear_dirty __P((vm_page_t, int, int));
 void vm_page_set_invalid __P((vm_page_t, int, int));
 static __inline boolean_t vm_page_zero_fill __P((vm_page_t));
 int vm_page_is_valid __P((vm_page_t, int, int));

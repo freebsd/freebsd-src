@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.100 1999/02/17 09:08:29 dillon Exp $
+ * $Id: vm_fault.c,v 1.101 1999/02/25 06:00:52 alc Exp $
  */
 
 /*
@@ -409,6 +409,12 @@ readrest:
 					firstpindex = fs.first_pindex -
 						2*(VM_FAULT_READ_BEHIND + VM_FAULT_READ_AHEAD + 1);
 
+				/*
+				 * note: partially valid pages cannot be 
+				 * included in the lookahead - NFS piecemeal
+				 * writes will barf on it badly.
+				 */
+
 				for(tmppindex = fs.first_pindex - 1;
 					tmppindex >= firstpindex;
 					--tmppindex) {
@@ -552,12 +558,16 @@ readrest:
 			}
 			fs.first_m = NULL;
 
+			/*
+			 * Zero the page if necessary and mark it valid.
+			 */
 			if ((fs.m->flags & PG_ZERO) == 0) {
 				vm_page_zero_fill(fs.m);
-			}
-			else
+			} else {
 				cnt.v_ozfod++;
+			}
 			cnt.v_zfod++;
+			fs.m->valid = VM_PAGE_BITS_ALL;
 			break;	/* break to PAGE HAS BEEN FOUND */
 		} else {
 			if (fs.object != fs.first_object) {
@@ -788,14 +798,24 @@ readrest:
 #endif
 
 	unlock_things(&fs);
-	fs.m->valid = VM_PAGE_BITS_ALL;
-	vm_page_flag_clear(fs.m, PG_ZERO);
+
+	/*
+	 * Sanity check: page must be completely valid or it is not fit to
+	 * map into user space.  vm_pager_get_pages() ensures this.
+	 */
+
+	if (fs.m->valid != VM_PAGE_BITS_ALL) {
+		vm_page_zero_invalid(fs.m, TRUE);
+		printf("Warning: page %p partially invalid on fault\n", fs.m);
+	}
 
 	pmap_enter(fs.map->pmap, vaddr, VM_PAGE_TO_PHYS(fs.m), prot, wired);
+
 	if (((fault_flags & VM_FAULT_WIRE_MASK) == 0) && (wired == 0)) {
 		pmap_prefault(fs.map->pmap, vaddr, fs.entry);
 	}
 
+	vm_page_flag_clear(fs.m, PG_ZERO);
 	vm_page_flag_set(fs.m, PG_MAPPED|PG_REFERENCED);
 	if (fault_flags & VM_FAULT_HOLD)
 		vm_page_hold(fs.m);

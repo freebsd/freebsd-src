@@ -138,6 +138,18 @@ vop_panic(struct vop_generic_args *ap)
 	panic("illegal vnode op called");
 }
 
+/*
+ *	vop_nostrategy:
+ *
+ *	Strategy routine for VFS devices that have none.
+ *
+ *	B_ERROR and B_INVAL must be cleared prior to calling any strategy
+ *	routine.  Typically this is done for a B_READ strategy call.  Typically
+ *	B_INVAL is assumed to already be clear prior to a write and should not
+ *	be cleared manually unless you just made the buffer invalid.  B_ERROR
+ *	should be cleared either way.
+ */
+
 static int
 vop_nostrategy (struct vop_strategy_args *ap)
 {

@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.106 1999/04/05 19:38:29 julian Exp $
+ *	$Id: vnode_pager.c,v 1.107 1999/04/10 20:52:11 dt Exp $
  */
 
 /*
@@ -789,7 +789,8 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 			 * read.
 			 */
 			vm_page_set_validclean(mt, 0, size - tfoff);
-			vm_page_zero_invalid(mt, FALSE);
+			/* handled by vm_fault now */
+			/* vm_page_zero_invalid(mt, FALSE); */
 		}
 		
 		vm_page_flag_clear(mt, PG_ZERO);
