@@ -115,15 +115,19 @@ mmopen(dev_t dev, int flags, int fmt, struct thread *td)
 	switch (minor(dev)) {
 	case 0:
 	case 1:
-		if ((flags & FWRITE) && securelevel > 0)
-			return (EPERM);
+		if (flags & FWRITE) {
+			error = securelevel_gt(td->td_proc->p_ucred, 0);
+			if (error != 0)
+				return (error);
+		}
 		break;
 	case 14:
 		error = suser_td(td);
 		if (error != 0)
 			return (error);
-		if (securelevel > 0)
-			return (EPERM);
+		error = securelevel_gt(td->td_proc->p_ucred, 0);
+		if (error != 0)
+			return (error);
 		td->td_frame->tf_eflags |= PSL_IOPL;
 		break;
 	}
