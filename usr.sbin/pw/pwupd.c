@@ -155,7 +155,7 @@ pw_update(struct passwd * pwd, char const * user, int mode)
 		char            pwbuf[PWBUFSZ];
 		int             l = snprintf(pfx, PWBUFSZ, "%s:", user);
 #ifdef HAVE_PWDB_U
-		int		isrename = strcmp(user, pwd->pw_name);
+		int		isrename = pwd!=NULL && strcmp(user, pwd->pw_name);
 #endif
 
 		/*
