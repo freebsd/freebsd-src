@@ -1,4 +1,4 @@
-#	$Id: bsd.info.mk,v 1.33 1997/03/12 06:24:52 peter Exp $
+#	$Id: bsd.info.mk,v 1.34 1997/03/12 07:14:44 peter Exp $
 #
 # The include file <bsd.info.mk> handles installing GNU (tech)info files.
 # Texinfo is a documentation system that uses a single source
@@ -85,11 +85,13 @@ ICOMPRESS_EXT?=	${COMPRESS_EXT}
 .SUFFIXES: ${ICOMPRESS_EXT} .info .texi .texinfo
 
 .texi.info:
-	${MAKEINFO} ${MAKEINFOFLAGS} -I ${.CURDIR} -I ${SRCDIR} ${.IMPSRC} -o ${.TARGET}.new
+	${MAKEINFO} ${MAKEINFOFLAGS} -I ${.CURDIR} -I ${SRCDIR} ${.IMPSRC} \
+		-o ${.TARGET}.new
 	mv -f ${.TARGET}.new ${.TARGET}
 
 .texinfo.info:
-	${MAKEINFO} ${MAKEINFOFLAGS} -I ${.CURDIR} -I ${SRCDIR} ${.IMPSRC} -o ${.TARGET}.new
+	${MAKEINFO} ${MAKEINFOFLAGS} -I ${.CURDIR} -I ${SRCDIR} ${.IMPSRC} \
+		-o ${.TARGET}.new
 	mv -f ${.TARGET}.new ${.TARGET}
 
 .PATH: ${.CURDIR} ${SRCDIR}
@@ -135,12 +137,14 @@ DISTRIBUTION=	info
 
 .if !target(distribute)
 distribute: _SUBDIR
-	cd ${.CURDIR} ; $(MAKE) install DESTDIR=${DISTDIR}/${DISTRIBUTION} SHARED=copies
+	cd ${.CURDIR} ; \
+		$(MAKE) install DESTDIR=${DISTDIR}/${DISTRIBUTION} SHARED=copies
 .endif
 
 .if defined(SRCS)
 ${INFO}.info: ${SRCS}
-	${MAKEINFO} ${MAKEINFOFLAGS} -I ${.CURDIR} -I ${SRCDIR} ${SRCS:S/^/${SRCDIR}\//g} -o ${INFO}.info.new
+	${MAKEINFO} ${MAKEINFOFLAGS} -I ${.CURDIR} -I ${SRCDIR} \
+		${SRCS:S/^/${SRCDIR}\//g} -o ${INFO}.info.new
 	mv -f ${INFO}.info.new ${INFO}.info
 .endif
 
