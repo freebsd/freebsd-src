@@ -77,7 +77,7 @@
 #	spigot	Video Spigot video aquisition card
 #	isdn*	ISDN devices
 #
-#	$Id: MAKEDEV,v 1.72 1995/02/22 23:52:58 jmz Exp $
+#	$Id: MAKEDEV,v 1.73 1995/02/24 19:26:59 joerg Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -643,8 +643,9 @@ snd*)
 	mknod sequencer		c $chr 1
 	chmod 666 sequencer
 
-	rm -f midi		# Midi input [ Not implemented ]
-	mknod midi		c $chr 2
+	rm -f midi midi00       # Midi 0
+	mknod midi00            c $chr 2
+	chmod 666 midi00
 
 	rm -f dsp		# DSP [ Digitized voice ]
 	mknod dsp		c $chr 3
@@ -662,9 +663,17 @@ snd*)
 	mknod sndstat		c $chr 6
 	chmod 666 sndstat
 
-	rm -f pro_midi		# PRO_MIDI [PAS midi input and output]
-	mknod pro_midi		c $chr 15
-	chmod 666 pro_midi
+	rm -f sequencer2        # Sequencer level 2
+	mknod sequencer2        c $chr 8
+	chmod 666 sequencer2
+
+	rm -f sndproc           # PSS Device
+	mknod sndproc           c $chr 9
+	chmod 666 sndproc
+
+	rm -f midi01            # Midi 1
+	mknod midi01            c $chr 18
+	chmod 666 midi01
 
 	rm -f dsp1		# DSP 1 [ SB emulation of PAS16 or 2nd audio ]
 	mknod dsp1		c $chr 19
