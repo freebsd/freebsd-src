@@ -551,7 +551,7 @@ hint.ed.0.at="isa"
 hint.ed.0.port="0x280"
 hint.ed.0.irq="5"
 hint.ed.0.maddr="0xd8000"
-device		el	1
+device		el
 hint.el.0.at="isa"
 hint.el.0.port="0x300"
 hint.el.0.irq="9"
