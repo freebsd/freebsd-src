@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_compat.c	8.1 (Berkeley) 6/10/93
- * $Id: tty_compat.c,v 1.3 1994/08/02 07:42:48 davidg Exp $
+ * $Id: tty_compat.c,v 1.4 1994/08/25 10:01:00 bde Exp $
  */
 
 /* 
@@ -129,7 +129,7 @@ ttcompat(tp, com, data, flag)
 			term.c_ospeed = compatspcodes[speed];
 		term.c_cc[VERASE] = sg->sg_erase;
 		term.c_cc[VKILL] = sg->sg_kill;
-		tp->t_flags = tp->t_flags&0xffff0000 | sg->sg_flags&0xffff;
+		tp->t_flags = (tp->t_flags&0xffff0000) | (sg->sg_flags&0xffff);
 		ttcompatsetflags(tp, &term);
 		return (ttioctl(tp, com == TIOCSETP ? TIOCSETAF : TIOCSETA, 
 			&term, flag));
