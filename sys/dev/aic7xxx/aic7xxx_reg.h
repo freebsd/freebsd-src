@@ -18,7 +18,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7xxx_reg.h,v 1.4 1996/01/11 06:17:49 gibbs Exp $
+ *	$Id: aic7xxx_reg.h,v 1.5 1996/01/29 03:12:06 gibbs Exp $
  */
 
 /*
@@ -397,9 +397,9 @@
 #define			SEND_REJECT	0x11	/* sending a message reject */
 #define			NO_IDENT	0x21	/* no IDENTIFY after reconnect*/
 #define			NO_MATCH	0x31	/* no cmd match for reconnect */
-#define			SDTR_MSG	0x41	/* SDTR message recieved */
-#define			WDTR_MSG	0x51	/* WDTR message recieved */
-#define			REJECT_MSG	0x61	/* Reject message recieved */
+#define			SDTR_MSG	0x41	/* SDTR message received */
+#define			WDTR_MSG	0x51	/* WDTR message received */
+#define			REJECT_MSG	0x61	/* Reject message received */
 #define			BAD_STATUS	0x71	/* Bad status from target */
 #define			RESIDUAL	0x81	/* Residual byte count != 0 */
 #define			ABORT_TAG	0x91	/* Sent an ABORT_TAG message */
