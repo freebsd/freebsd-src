@@ -172,8 +172,9 @@ vx_pci_probe(
 {
    if(device_id == 0x590010b7ul)
       return "3Com 3c590 EtherLink III PCI";
-   if(device_id == 0x595010b7ul)
-      return "3Com 3c595 EtherLink III PCI";
+   if(device_id == 0x595010b7ul || device_id == 0x595110b7ul ||
+	device_id == 0x595210b7ul)
+      return "3Com 3c595 Fast EtherLink III PCI";
    return NULL;
 }
 
@@ -186,7 +187,8 @@ vx_pci_attach(
 {
     struct vx_softc *sc;
     struct ifnet *ifp;
-    u_short i, j, *p;
+    u_short i, *p;
+    u_long j;
     struct ifaddr *ifa;
     struct sockaddr_dl *sdl;
 
@@ -206,7 +208,9 @@ vx_pci_attach(
 
     sc->vx_connectors = 0;
     i = pci_conf_read(config_id, 0x48);
-    j = inw(BASE + VX_W3_INTERNAL_CFG) >> INTERNAL_CONNECTOR_BITS;
+    GO_WINDOW(3);
+    j = (inl(BASE + VX_W3_INTERNAL_CFG) & INTERNAL_CONNECTOR_MASK) 
+	 >> INTERNAL_CONNECTOR_BITS;
     if (i & RS_AUI) {
 	printf("aui");
 	sc->vx_connectors |= AUI;
@@ -402,8 +406,9 @@ vxinit(unit)
 	outw(BASE + VX_W4_MEDIA_TYPE, ENABLE_UTP);
 	GO_WINDOW(1);
     } else {
-	GO_WINDOW(0);
-        j = inw(BASE + VX_W3_INTERNAL_CFG) >> INTERNAL_CONNECTOR_BITS;
+	GO_WINDOW(3);
+        j = (inl(BASE + VX_W3_INTERNAL_CFG) & INTERNAL_CONNECTOR_MASK) 
+             >> INTERNAL_CONNECTOR_BITS;
 	GO_WINDOW(1);
 	switch(j) {
 	    case ACF_CONNECTOR_UTP:
